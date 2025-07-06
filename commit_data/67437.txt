@@ -1,0 +1,140 @@
+commit c46a0e690de1b964be1999d1769177f159938226
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jun 18 17:42:16 2025 +0000
+
+    [release-branch.go1.23] runtime: set mspan limit field early and eagerly
+    
+    Currently the mspan limit field is set after allocSpan returns, *after*
+    the span has already been published to the GC (including the
+    conservative scanner). But the limit field is load-bearing, because it's
+    checked to filter out invalid pointers. A stale limit value could cause
+    a crash by having the conservative scanner access allocBits out of
+    bounds.
+    
+    Fix this by setting the mspan limit field before publishing the span.
+    For large objects and arena chunks, we adjust the limit down after
+    allocSpan because we don't have access to the true object's size from
+    allocSpan. However this is safe, since we first initialize the limit to
+    something definitely safe (the actual span bounds) and only adjust it
+    down after. Adjusting it down has the benefit of more precise debug
+    output, but the window in which it's imprecise is also fine because a
+    single object (logically, with arena chunks) occupies the whole span, so
+    the 'invalid' part of the memory will just safely point back to that
+    object. We can't do this for smaller objects because the limit will
+    include space that does *not* contain any valid objects.
+    
+    For #74288.
+    Fixes #74289.
+    
+    Change-Id: I0a22e5b9bccc1bfdf51d2b73ea7130f1b99c0c7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/682655
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    (cherry picked from commit 6bbe5e56d0b4957e0204b464bfd76768b13c9617)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684096
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/arena.go    | 10 +++++++++-
+ src/runtime/mcache.go   |  8 ++++++++
+ src/runtime/mcentral.go |  7 -------
+ src/runtime/mheap.go    |  5 ++++-
+ 4 files changed, 21 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index cd9a9dfae1..ab81a8dd70 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -1063,10 +1063,18 @@ func (h *mheap) allocUserArenaChunk() *mspan {
+ 	h.initSpan(s, spanAllocHeap, spc, base, userArenaChunkPages)
+ 	s.isUserArenaChunk = true
+ 	s.elemsize -= userArenaChunkReserveBytes()
+-	s.limit = s.base() + s.elemsize
+ 	s.freeindex = 1
+ 	s.allocCount = 1
+ 
++	// Adjust s.limit down to the object-containing part of the span.
++	//
++	// This is just to create a slightly tighter bound on the limit.
++	// It's totally OK if the garbage collector, in particular
++	// conservative scanning, can temporarily observes an inflated
++	// limit. It will simply mark the whole chunk or just skip it
++	// since we're in the mark phase anyway.
++	s.limit = s.base() + s.elemsize
++
+ 	// Account for this new arena chunk memory.
+ 	gcController.heapInUse.add(int64(userArenaChunkBytes))
+ 	gcController.heapReleased.add(-int64(userArenaChunkBytes))
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index e8da133a69..e28dbb0201 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -251,6 +251,14 @@ func (c *mcache) allocLarge(size uintptr, noscan bool) *mspan {
+ 	// Put the large span in the mcentral swept list so that it's
+ 	// visible to the background sweeper.
+ 	mheap_.central[spc].mcentral.fullSwept(mheap_.sweepgen).push(s)
++
++	// Adjust s.limit down to the object-containing part of the span.
++	//
++	// This is just to create a slightly tighter bound on the limit.
++	// It's totally OK if the garbage collector, in particular
++	// conservative scanning, can temporarily observes an inflated
++	// limit. It will simply mark the whole object or just skip it
++	// since we're in the mark phase anyway.
+ 	s.limit = s.base() + size
+ 	s.initHeapBits(false)
+ 	return s
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index bf597e1936..28c57eb30b 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -249,17 +249,10 @@ func (c *mcentral) uncacheSpan(s *mspan) {
+ // grow allocates a new empty span from the heap and initializes it for c's size class.
+ func (c *mcentral) grow() *mspan {
+ 	npages := uintptr(class_to_allocnpages[c.spanclass.sizeclass()])
+-	size := uintptr(class_to_size[c.spanclass.sizeclass()])
+-
+ 	s := mheap_.alloc(npages, c.spanclass)
+ 	if s == nil {
+ 		return nil
+ 	}
+-
+-	// Use division by multiplication and shifts to quickly compute:
+-	// n := (npages << _PageShift) / size
+-	n := s.divideByElemSize(npages << _PageShift)
+-	s.limit = s.base() + size*n
+ 	s.initHeapBits(false)
+ 	return s
+ }
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index bfca2d105b..b27901cedc 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1390,7 +1390,6 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
+ 	if typ.manual() {
+ 		s.manualFreeList = 0
+ 		s.nelems = 0
+-		s.limit = s.base() + s.npages*pageSize
+ 		s.state.set(mSpanManual)
+ 	} else {
+ 		// We must set span properties before the span is published anywhere
+@@ -1418,6 +1417,9 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
+ 		s.gcmarkBits = newMarkBits(uintptr(s.nelems))
+ 		s.allocBits = newAllocBits(uintptr(s.nelems))
+ 
++		// Adjust s.limit down to the object-containing part of the span.
++		s.limit = s.base() + uintptr(s.elemsize)*uintptr(s.nelems)
++
+ 		// It's safe to access h.sweepgen without the heap lock because it's
+ 		// only ever updated with the world stopped and we run on the
+ 		// systemstack which blocks a STW transition.
+@@ -1701,6 +1703,7 @@ func (span *mspan) init(base uintptr, npages uintptr) {
+ 	span.list = nil
+ 	span.startAddr = base
+ 	span.npages = npages
++	span.limit = base + npages*pageSize // see go.dev/issue/74288; adjusted later for heap spans
+ 	span.allocCount = 0
+ 	span.spanclass = 0
+ 	span.elemsize = 0

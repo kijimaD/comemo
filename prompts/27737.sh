@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 27737: cabb1402568ae7d05d9d5adf56953a4792085a81
+# Index 27737: 2faf5bca2e23be26fd0fc3a373bee7a354813861
 
 echo "🚀 Generating explanation for commit 27737..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 27737..."
 
 ### メタデータ
 - **コミットインデックス**: 27737
-- **コミットハッシュ**: cabb1402568ae7d05d9d5adf56953a4792085a81
-- **GitHub URL**: https://github.com/golang/go/commit/cabb1402568ae7d05d9d5adf56953a4792085a81
+- **コミットハッシュ**: 2faf5bca2e23be26fd0fc3a373bee7a354813861
+- **GitHub URL**: https://github.com/golang/go/commit/2faf5bca2e23be26fd0fc3a373bee7a354813861
 
 ### 章構成
 

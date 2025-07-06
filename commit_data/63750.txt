@@ -1,0 +1,30 @@
+commit b86527ec0566deac64eb28e71a8603aea62c4e7b
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 14 12:49:39 2024 -0400
+
+    cmd/compile/internal/ssa: print output on failure in TestFmaHash
+    
+    When the test fails to run the command, print the error message
+    to help debug.
+    
+    Change-Id: I443579a622ba1bf67ef27071f141e945303d4c2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585357
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/fmahash_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/fmahash_test.go b/src/cmd/compile/internal/ssa/fmahash_test.go
+index dfa1aa1147..c563d5b8d9 100644
+--- a/src/cmd/compile/internal/ssa/fmahash_test.go
++++ b/src/cmd/compile/internal/ssa/fmahash_test.go
+@@ -41,7 +41,7 @@ func TestFmaHash(t *testing.T) {
+ 	t.Logf("%v", cmd.Env)
+ 	b, e := cmd.CombinedOutput()
+ 	if e != nil {
+-		t.Error(e)
++		t.Errorf("build failed: %v\n%s", e, b)
+ 	}
+ 	s := string(b) // Looking for "GOFMAHASH triggered main.main:24"
+ 	re := "fmahash(0?) triggered .*fma.go:29:..;.*fma.go:18:.."

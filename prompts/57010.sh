@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 57010: 34c0714bf27bdcc174d67e1243f6e8fd6bb802be
+# Index 57010: 5bc9106458fc07851ac324a4157132a91b1f3479
 
 echo "🚀 Generating explanation for commit 57010..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 57010..."
 
 ### メタデータ
 - **コミットインデックス**: 57010
-- **コミットハッシュ**: 34c0714bf27bdcc174d67e1243f6e8fd6bb802be
-- **GitHub URL**: https://github.com/golang/go/commit/34c0714bf27bdcc174d67e1243f6e8fd6bb802be
+- **コミットハッシュ**: 5bc9106458fc07851ac324a4157132a91b1f3479
+- **GitHub URL**: https://github.com/golang/go/commit/5bc9106458fc07851ac324a4157132a91b1f3479
 
 ### 章構成
 

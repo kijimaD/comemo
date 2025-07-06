@@ -1,0 +1,35 @@
+commit dbfd0036f7c25eef6c194bd37936398ce58f910d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Nov 21 21:24:11 2024 -0500
+
+    net/http: re-enable TestTransportServerProtocols
+    
+    The h2_bundle.go update was done in CL 631035,
+    and the test now passes.
+    
+    Fixes #67816.
+    
+    Change-Id: Icd54c2774a9e2781e7dc9342ae70c3034eb9bab9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631037
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/net/http/transport_test.go | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 2ef754967a..d742b78cf8 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -7173,8 +7173,6 @@ func testValidateClientRequestTrailers(t *testing.T, mode testMode) {
+ }
+ 
+ func TestTransportServerProtocols(t *testing.T) {
+-	t.Skip("https://go.dev/issue/67816: skip test until h2_bundle.go is updated")
+-
+ 	CondSkipHTTP2(t)
+ 	DefaultTransport.(*Transport).CloseIdleConnections()
+ 

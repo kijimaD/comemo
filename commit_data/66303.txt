@@ -1,0 +1,664 @@
+commit dceee2e983f5dab65c3905ecf40e70e15cf41b7d
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Feb 24 09:43:41 2025 +0100
+
+    all: use testenv.Executable instead of os.Executable and os.Args[0]
+    
+    In test files, using testenv.Executable is more reliable than
+    os.Executable or os.Args[0].
+    
+    Change-Id: I88e577efeabc20d02ada27bf706ae4523129128e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651955
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/cgo/internal/test/issue18146.go                 |  5 +++--
+ .../lockedfile/internal/filelock/filelock_test.go       |  2 +-
+ src/cmd/go/internal/lockedfile/lockedfile_test.go       |  4 +---
+ src/crypto/internal/fips140test/check_test.go           |  2 +-
+ src/crypto/internal/sysrand/rand_linux_test.go          |  2 +-
+ src/crypto/internal/sysrand/rand_test.go                |  2 +-
+ src/crypto/rand/rand_test.go                            |  3 +--
+ src/flag/flag_test.go                                   |  2 +-
+ src/internal/cpu/cpu_test.go                            |  5 +----
+ src/internal/godebug/godebug_test.go                    |  2 +-
+ src/internal/syscall/windows/exec_windows_test.go       |  3 ++-
+ src/net/mockserver_test.go                              |  2 +-
+ src/net/net_windows_test.go                             |  2 +-
+ src/os/pipe_test.go                                     |  6 +++---
+ src/os/signal/signal_test.go                            | 10 +++++-----
+ src/runtime/abi_test.go                                 |  4 +---
+ src/runtime/crash_test.go                               | 15 +++++----------
+ src/runtime/crash_unix_test.go                          |  2 +-
+ src/runtime/debug/stack_test.go                         | 17 +++--------------
+ src/runtime/hash_test.go                                |  3 +--
+ src/runtime/malloc_test.go                              |  4 +---
+ src/runtime/map_test.go                                 |  2 +-
+ src/runtime/syscall_windows_test.go                     |  2 +-
+ src/sync/mutex_test.go                                  |  3 +--
+ src/syscall/exec_unix_test.go                           |  3 +--
+ src/syscall/exec_windows_test.go                        |  5 +++--
+ src/syscall/syscall_unix_test.go                        |  4 ++--
+ src/testing/panic_test.go                               |  4 ++--
+ src/testing/testing_test.go                             |  4 ++--
+ 29 files changed, 49 insertions(+), 75 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/test/issue18146.go b/src/cmd/cgo/internal/test/issue18146.go
+index 112b7ee2e7..04e5b5ffb8 100644
+--- a/src/cmd/cgo/internal/test/issue18146.go
++++ b/src/cmd/cgo/internal/test/issue18146.go
+@@ -11,6 +11,7 @@ package cgotest
+ import (
+ 	"bytes"
+ 	"crypto/md5"
++	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"runtime"
+@@ -73,7 +74,7 @@ func test18146(t *testing.T) {
+ 		}
+ 		runtime.GOMAXPROCS(threads)
+ 		argv := append(os.Args, "-test.run=^$")
+-		if err := syscall.Exec(os.Args[0], argv, os.Environ()); err != nil {
++		if err := syscall.Exec(testenv.Executable(t), argv, os.Environ()); err != nil {
+ 			t.Fatal(err)
+ 		}
+ 	}
+@@ -87,7 +88,7 @@ func test18146(t *testing.T) {
+ 
+ 	args := append(append([]string(nil), os.Args[1:]...), "-test.run=^Test18146$")
+ 	for n := attempts; n > 0; n-- {
+-		cmd := exec.Command(os.Args[0], args...)
++		cmd := exec.Command(testenv.Executable(t), args...)
+ 		cmd.Env = append(os.Environ(), "test18146=exec")
+ 		buf := bytes.NewBuffer(nil)
+ 		cmd.Stdout = buf
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+index 035840db7e..c1423e6087 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+@@ -198,7 +198,7 @@ func TestLockNotDroppedByExecCommand(t *testing.T) {
+ 	// Some kinds of file locks are dropped when a duplicated or forked file
+ 	// descriptor is unlocked. Double-check that the approach used by os/exec does
+ 	// not accidentally drop locks.
+-	cmd := testenv.Command(t, os.Args[0], "-test.run=^$")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^$")
+ 	if err := cmd.Run(); err != nil {
+ 		t.Fatalf("exec failed: %v", err)
+ 	}
+diff --git a/src/cmd/go/internal/lockedfile/lockedfile_test.go b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+index 8cea197abc..514d0a316c 100644
+--- a/src/cmd/go/internal/lockedfile/lockedfile_test.go
++++ b/src/cmd/go/internal/lockedfile/lockedfile_test.go
+@@ -180,8 +180,6 @@ func TestSpuriousEDEADLK(t *testing.T) {
+ 	// 	P.2 unblocks and locks file B.
+ 	// 	P.2 unlocks file B.
+ 
+-	testenv.MustHaveExec(t)
+-
+ 	dirVar := t.Name() + "DIR"
+ 
+ 	if dir := os.Getenv(dirVar); dir != "" {
+@@ -216,7 +214,7 @@ func TestSpuriousEDEADLK(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$")
+ 	cmd.Env = append(os.Environ(), fmt.Sprintf("%s=%s", dirVar, dir))
+ 
+ 	qDone := make(chan struct{})
+diff --git a/src/crypto/internal/fips140test/check_test.go b/src/crypto/internal/fips140test/check_test.go
+index c014fff2a6..f516455fb4 100644
+--- a/src/crypto/internal/fips140test/check_test.go
++++ b/src/crypto/internal/fips140test/check_test.go
+@@ -35,7 +35,7 @@ func TestIntegrityCheck(t *testing.T) {
+ 		t.Skipf("skipping: %v", err)
+ 	}
+ 
+-	cmd := testenv.Command(t, os.Args[0], "-test.v", "-test.run=TestIntegrityCheck")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.v", "-test.run=TestIntegrityCheck")
+ 	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/crypto/internal/sysrand/rand_linux_test.go b/src/crypto/internal/sysrand/rand_linux_test.go
+index ab43904f91..ee28ebe135 100644
+--- a/src/crypto/internal/sysrand/rand_linux_test.go
++++ b/src/crypto/internal/sysrand/rand_linux_test.go
+@@ -49,7 +49,7 @@ func TestNoGetrandom(t *testing.T) {
+ 			return
+ 		}
+ 
+-		cmd := testenv.Command(t, os.Args[0], "-test.v")
++		cmd := testenv.Command(t, testenv.Executable(t), "-test.v")
+ 		cmd.Env = append(os.Environ(), "GO_GETRANDOM_DISABLED=1")
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+diff --git a/src/crypto/internal/sysrand/rand_test.go b/src/crypto/internal/sysrand/rand_test.go
+index 2b9620c2fb..55b11a929b 100644
+--- a/src/crypto/internal/sysrand/rand_test.go
++++ b/src/crypto/internal/sysrand/rand_test.go
+@@ -105,7 +105,7 @@ func TestReadError(t *testing.T) {
+ 		return
+ 	}
+ 
+-	cmd := testenv.Command(t, os.Args[0], "-test.run=TestReadError")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestReadError")
+ 	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1")
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+diff --git a/src/crypto/rand/rand_test.go b/src/crypto/rand/rand_test.go
+index 2590dc3e37..9047ac193b 100644
+--- a/src/crypto/rand/rand_test.go
++++ b/src/crypto/rand/rand_test.go
+@@ -168,7 +168,6 @@ func TestReadError(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping test in short mode")
+ 	}
+-	testenv.MustHaveExec(t)
+ 
+ 	// We run this test in a subprocess because it's expected to crash.
+ 	if os.Getenv("GO_TEST_READ_ERROR") == "1" {
+@@ -181,7 +180,7 @@ func TestReadError(t *testing.T) {
+ 		return
+ 	}
+ 
+-	cmd := testenv.Command(t, os.Args[0], "-test.run=TestReadError")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestReadError")
+ 	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1")
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+diff --git a/src/flag/flag_test.go b/src/flag/flag_test.go
+index 14a5038917..278ae7e4e0 100644
+--- a/src/flag/flag_test.go
++++ b/src/flag/flag_test.go
+@@ -701,7 +701,7 @@ func TestExitCode(t *testing.T) {
+ 	}
+ 
+ 	for _, test := range tests {
+-		cmd := exec.Command(os.Args[0], "-test.run=^TestExitCode$")
++		cmd := exec.Command(testenv.Executable(t), "-test.run=^TestExitCode$")
+ 		cmd.Env = append(
+ 			os.Environ(),
+ 			"GO_CHILD_FLAG="+test.flag,
+diff --git a/src/internal/cpu/cpu_test.go b/src/internal/cpu/cpu_test.go
+index a6fe7f77f3..3bff9bed4e 100644
+--- a/src/internal/cpu/cpu_test.go
++++ b/src/internal/cpu/cpu_test.go
+@@ -8,7 +8,6 @@ import (
+ 	. "internal/cpu"
+ 	"internal/godebug"
+ 	"internal/testenv"
+-	"os"
+ 	"os/exec"
+ 	"testing"
+ )
+@@ -26,11 +25,9 @@ func MustSupportFeatureDetection(t *testing.T) {
+ func runDebugOptionsTest(t *testing.T, test string, options string) {
+ 	MustHaveDebugOptionsSupport(t)
+ 
+-	testenv.MustHaveExec(t)
+-
+ 	env := "GODEBUG=" + options
+ 
+-	cmd := exec.Command(os.Args[0], "-test.run=^"+test+"$")
++	cmd := exec.Command(testenv.Executable(t), "-test.run=^"+test+"$")
+ 	cmd.Env = append(cmd.Env, env)
+ 
+ 	output, err := cmd.CombinedOutput()
+diff --git a/src/internal/godebug/godebug_test.go b/src/internal/godebug/godebug_test.go
+index fe1e67225c..fbabc657fe 100644
+--- a/src/internal/godebug/godebug_test.go
++++ b/src/internal/godebug/godebug_test.go
+@@ -78,7 +78,7 @@ func TestPanicNilRace(t *testing.T) {
+ 		t.Skip("Skipping test intended for use with -race.")
+ 	}
+ 	if os.Getenv("GODEBUG") != "panicnil=1" {
+-		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestPanicNilRace$", "-test.v", "-test.parallel=2", "-test.count=1"))
++		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestPanicNilRace$", "-test.v", "-test.parallel=2", "-test.count=1"))
+ 		cmd.Env = append(cmd.Env, "GODEBUG=panicnil=1")
+ 		out, err := cmd.CombinedOutput()
+ 		t.Logf("output:\n%s", out)
+diff --git a/src/internal/syscall/windows/exec_windows_test.go b/src/internal/syscall/windows/exec_windows_test.go
+index 72550b5a84..fc694199f7 100644
+--- a/src/internal/syscall/windows/exec_windows_test.go
++++ b/src/internal/syscall/windows/exec_windows_test.go
+@@ -9,6 +9,7 @@ package windows_test
+ import (
+ 	"fmt"
+ 	"internal/syscall/windows"
++	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"syscall"
+@@ -29,7 +30,7 @@ func TestRunAtLowIntegrity(t *testing.T) {
+ 		return
+ 	}
+ 
+-	cmd := exec.Command(os.Args[0], "-test.run=^TestRunAtLowIntegrity$", "--")
++	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestRunAtLowIntegrity$", "--")
+ 	cmd.Env = []string{"GO_WANT_HELPER_PROCESS=1"}
+ 
+ 	token, err := getIntegrityLevelToken(sidWilLow)
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 4d5e79a592..63802c575e 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -548,7 +548,7 @@ func startTestSocketPeer(t testing.TB, conn Conn, op string, chunkSize, totalSiz
+ 		return nil, err
+ 	}
+ 
+-	cmd := testenv.Command(t, os.Args[0])
++	cmd := testenv.Command(t, testenv.Executable(t))
+ 	cmd.Env = []string{
+ 		"GO_NET_TEST_TRANSFER=1",
+ 		"GO_NET_TEST_TRANSFER_OP=" + op,
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index 480e89dfd7..bc3171b4ea 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -100,7 +100,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
+ 	defer ln.Close()
+ 
+ 	// Start child process that connects to our listener.
+-	cmd := exec.Command(os.Args[0], "-test.run=TestAcceptIgnoreSomeErrors")
++	cmd := exec.Command(testenv.Executable(t), "-test.run=TestAcceptIgnoreSomeErrors")
+ 	cmd.Env = append(os.Environ(), "GOTEST_DIAL_ADDR="+ln.Addr().String())
+ 	stdout, err := cmd.StdoutPipe()
+ 	if err != nil {
+diff --git a/src/os/pipe_test.go b/src/os/pipe_test.go
+index a9e0c8bc8a..ccae6f61bf 100644
+--- a/src/os/pipe_test.go
++++ b/src/os/pipe_test.go
+@@ -118,7 +118,7 @@ func TestStdPipe(t *testing.T) {
+ 	// all writes should fail with EPIPE and then exit 0.
+ 	for _, sig := range []bool{false, true} {
+ 		for dest := 1; dest < 4; dest++ {
+-			cmd := testenv.Command(t, os.Args[0], "-test.run", "TestStdPipe")
++			cmd := testenv.Command(t, testenv.Executable(t), "-test.run", "TestStdPipe")
+ 			cmd.Stdout = w
+ 			cmd.Stderr = w
+ 			cmd.ExtraFiles = []*os.File{w}
+@@ -145,7 +145,7 @@ func TestStdPipe(t *testing.T) {
+ 	}
+ 
+ 	// Test redirecting stdout but not stderr.  Issue 40076.
+-	cmd := testenv.Command(t, os.Args[0], "-test.run", "TestStdPipe")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.run", "TestStdPipe")
+ 	cmd.Stdout = w
+ 	var stderr bytes.Buffer
+ 	cmd.Stderr = &stderr
+@@ -263,7 +263,7 @@ func TestReadNonblockingFd(t *testing.T) {
+ 	}
+ 	defer r.Close()
+ 	defer w.Close()
+-	cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$")
+ 	cmd.Env = append(cmd.Environ(), "GO_WANT_READ_NONBLOCKING_FD=1")
+ 	cmd.Stdin = r
+ 	output, err := cmd.CombinedOutput()
+diff --git a/src/os/signal/signal_test.go b/src/os/signal/signal_test.go
+index d54787bc19..0aa0439b90 100644
+--- a/src/os/signal/signal_test.go
++++ b/src/os/signal/signal_test.go
+@@ -304,7 +304,7 @@ func TestDetectNohup(t *testing.T) {
+ 		// We have no intention of reading from c.
+ 		c := make(chan os.Signal, 1)
+ 		Notify(c, syscall.SIGHUP)
+-		if out, err := testenv.Command(t, os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput(); err == nil {
++		if out, err := testenv.Command(t, testenv.Executable(t), "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput(); err == nil {
+ 			t.Errorf("ran test with -check_sighup_ignored and it succeeded: expected failure.\nOutput:\n%s", out)
+ 		}
+ 		Stop(c)
+@@ -316,7 +316,7 @@ func TestDetectNohup(t *testing.T) {
+ 		}
+ 		Ignore(syscall.SIGHUP)
+ 		os.Remove("nohup.out")
+-		out, err := testenv.Command(t, "/usr/bin/nohup", os.Args[0], "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput()
++		out, err := testenv.Command(t, "/usr/bin/nohup", testenv.Executable(t), "-test.run=^TestDetectNohup$", "-check_sighup_ignored").CombinedOutput()
+ 
+ 		data, _ := os.ReadFile("nohup.out")
+ 		os.Remove("nohup.out")
+@@ -454,7 +454,7 @@ func TestNohup(t *testing.T) {
+ 				if subTimeout != 0 {
+ 					args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
+ 				}
+-				out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
++				out, err := testenv.Command(t, testenv.Executable(t), args...).CombinedOutput()
+ 
+ 				if err == nil {
+ 					t.Errorf("ran test with -send_uncaught_sighup=%d and it succeeded: expected failure.\nOutput:\n%s", i, out)
+@@ -562,7 +562,7 @@ func TestAtomicStop(t *testing.T) {
+ 		if deadline, ok := t.Deadline(); ok {
+ 			timeout = time.Until(deadline).String()
+ 		}
+-		cmd := testenv.Command(t, os.Args[0], "-test.run=^TestAtomicStop$", "-test.timeout="+timeout)
++		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestAtomicStop$", "-test.timeout="+timeout)
+ 		cmd.Env = append(os.Environ(), "GO_TEST_ATOMIC_STOP=1")
+ 		out, err := cmd.CombinedOutput()
+ 		if err == nil {
+@@ -765,7 +765,7 @@ func TestNotifyContextNotifications(t *testing.T) {
+ 			if subTimeout != 0 {
+ 				args = append(args, fmt.Sprintf("-test.timeout=%v", subTimeout))
+ 			}
+-			out, err := testenv.Command(t, os.Args[0], args...).CombinedOutput()
++			out, err := testenv.Command(t, testenv.Executable(t), args...).CombinedOutput()
+ 			if err != nil {
+ 				t.Errorf("ran test with -check_notify_ctx_notification and it failed with %v.\nOutput:\n%s", err, out)
+ 			}
+diff --git a/src/runtime/abi_test.go b/src/runtime/abi_test.go
+index d2e79c6dc4..af187fc7a8 100644
+--- a/src/runtime/abi_test.go
++++ b/src/runtime/abi_test.go
+@@ -44,12 +44,10 @@ type TintPointer struct {
+ func (*TintPointer) m() {}
+ 
+ func TestFinalizerRegisterABI(t *testing.T) {
+-	testenv.MustHaveExec(t)
+-
+ 	// Actually run the test in a subprocess because we don't want
+ 	// finalizers from other tests interfering.
+ 	if os.Getenv("TEST_FINALIZER_REGABI") != "1" {
+-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestFinalizerRegisterABI$", "-test.v"))
++		cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestFinalizerRegisterABI$", "-test.v"))
+ 		cmd.Env = append(cmd.Env, "TEST_FINALIZER_REGABI=1")
+ 		out, err := cmd.CombinedOutput()
+ 		if !strings.Contains(string(out), "PASS\n") || err != nil {
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index fcf5ef85ce..00e84a3879 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -889,8 +889,7 @@ func init() {
+ }
+ 
+ func TestRuntimePanic(t *testing.T) {
+-	testenv.MustHaveExec(t)
+-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestRuntimePanic$"))
++	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestRuntimePanic$"))
+ 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_PANIC=1")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%s", out)
+@@ -902,8 +901,7 @@ func TestRuntimePanic(t *testing.T) {
+ }
+ 
+ func TestTracebackRuntimeFunction(t *testing.T) {
+-	testenv.MustHaveExec(t)
+-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeFunction"))
++	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=TestTracebackRuntimeFunction"))
+ 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_READMEMSTATS=1")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%s", out)
+@@ -915,8 +913,7 @@ func TestTracebackRuntimeFunction(t *testing.T) {
+ }
+ 
+ func TestTracebackRuntimeMethod(t *testing.T) {
+-	testenv.MustHaveExec(t)
+-	cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=TestTracebackRuntimeMethod"))
++	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=TestTracebackRuntimeMethod"))
+ 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_FUNCMETHOD=1")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%s", out)
+@@ -929,14 +926,12 @@ func TestTracebackRuntimeMethod(t *testing.T) {
+ 
+ // Test that g0 stack overflows are handled gracefully.
+ func TestG0StackOverflow(t *testing.T) {
+-	testenv.MustHaveExec(t)
+-
+ 	if runtime.GOOS == "ios" {
+ 		testenv.SkipFlaky(t, 62671)
+ 	}
+ 
+ 	if os.Getenv("TEST_G0_STACK_OVERFLOW") != "1" {
+-		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestG0StackOverflow$", "-test.v"))
++		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestG0StackOverflow$", "-test.v"))
+ 		cmd.Env = append(cmd.Env, "TEST_G0_STACK_OVERFLOW=1")
+ 		out, err := cmd.CombinedOutput()
+ 		t.Logf("output:\n%s", out)
+@@ -977,7 +972,7 @@ func init() {
+ func TestCrashWhileTracing(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 
+-	cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0]))
++	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t)))
+ 	cmd.Env = append(cmd.Env, "TEST_CRASH_WHILE_TRACING=1")
+ 	stdOut, err := cmd.StdoutPipe()
+ 	var errOut bytes.Buffer
+diff --git a/src/runtime/crash_unix_test.go b/src/runtime/crash_unix_test.go
+index 123a462423..101107d2f7 100644
+--- a/src/runtime/crash_unix_test.go
++++ b/src/runtime/crash_unix_test.go
+@@ -163,7 +163,7 @@ func TestPanicSystemstack(t *testing.T) {
+ 	}
+ 
+ 	t.Parallel()
+-	cmd := exec.Command(os.Args[0], "testPanicSystemstackInternal")
++	cmd := exec.Command(testenv.Executable(t), "testPanicSystemstackInternal")
+ 	cmd = testenv.CleanCmdEnv(cmd)
+ 	cmd.Dir = t.TempDir() // put any core file in tempdir
+ 	cmd.Env = append(cmd.Env, "GOTRACEBACK=crash")
+diff --git a/src/runtime/debug/stack_test.go b/src/runtime/debug/stack_test.go
+index e1559303f0..88d4ad0c0f 100644
+--- a/src/runtime/debug/stack_test.go
++++ b/src/runtime/debug/stack_test.go
+@@ -87,12 +87,7 @@ func TestStack(t *testing.T) {
+ 		// initial (not current) environment. Spawn a subprocess to determine the
+ 		// real baked-in GOROOT.
+ 		t.Logf("found GOROOT %q from environment; checking embedded GOROOT value", envGoroot)
+-		testenv.MustHaveExec(t)
+-		exe, err := os.Executable()
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		cmd := exec.Command(exe)
++		cmd := exec.Command(testenv.Executable(t))
+ 		cmd.Env = append(os.Environ(), "GOROOT=", "GO_RUNTIME_DEBUG_TEST_ENTRYPOINT=dumpgoroot")
+ 		out, err := cmd.Output()
+ 		if err != nil {
+@@ -137,18 +132,12 @@ func TestStack(t *testing.T) {
+ }
+ 
+ func TestSetCrashOutput(t *testing.T) {
+-	testenv.MustHaveExec(t)
+-	exe, err := os.Executable()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+ 	crashOutput := filepath.Join(t.TempDir(), "crash.out")
+ 
+-	cmd := exec.Command(exe)
++	cmd := exec.Command(testenv.Executable(t))
+ 	cmd.Stderr = new(strings.Builder)
+ 	cmd.Env = append(os.Environ(), "GO_RUNTIME_DEBUG_TEST_ENTRYPOINT=setcrashoutput", "CRASHOUTPUT="+crashOutput)
+-	err = cmd.Run()
++	err := cmd.Run()
+ 	stderr := fmt.Sprint(cmd.Stderr)
+ 	if err == nil {
+ 		t.Fatalf("child process succeeded unexpectedly (stderr: %s)", stderr)
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 24c04b260e..3ef9f9addb 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -638,11 +638,10 @@ func TestSmhasherSeed(t *testing.T) {
+ }
+ 
+ func TestIssue66841(t *testing.T) {
+-	testenv.MustHaveExec(t)
+ 	if *UseAeshash && os.Getenv("TEST_ISSUE_66841") == "" {
+ 		// We want to test the backup hash, so if we're running on a machine
+ 		// that uses aeshash, exec ourselves while turning aes off.
+-		cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestIssue66841$"))
++		cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestIssue66841$"))
+ 		cmd.Env = append(cmd.Env, "GODEBUG=cpu.aes=off", "TEST_ISSUE_66841=1")
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+diff --git a/src/runtime/malloc_test.go b/src/runtime/malloc_test.go
+index 67bceef2e3..6cd525d5e9 100644
+--- a/src/runtime/malloc_test.go
++++ b/src/runtime/malloc_test.go
+@@ -270,12 +270,10 @@ type acLink struct {
+ var arenaCollisionSink []*acLink
+ 
+ func TestArenaCollision(t *testing.T) {
+-	testenv.MustHaveExec(t)
+-
+ 	// Test that mheap.sysAlloc handles collisions with other
+ 	// memory mappings.
+ 	if os.Getenv("TEST_ARENA_COLLISION") != "1" {
+-		cmd := testenv.CleanCmdEnv(exec.Command(os.Args[0], "-test.run=^TestArenaCollision$", "-test.v"))
++		cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestArenaCollision$", "-test.v"))
+ 		cmd.Env = append(cmd.Env, "TEST_ARENA_COLLISION=1")
+ 		out, err := cmd.CombinedOutput()
+ 		if race.Enabled {
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index c522c44a4e..b1ff02d851 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -1106,7 +1106,7 @@ func computeHash() uintptr {
+ func subprocessHash(t *testing.T, env string) uintptr {
+ 	t.Helper()
+ 
+-	cmd := testenv.CleanCmdEnv(testenv.Command(t, os.Args[0], "-test.run=^TestMemHashGlobalSeed$"))
++	cmd := testenv.CleanCmdEnv(testenv.Command(t, testenv.Executable(t), "-test.run=^TestMemHashGlobalSeed$"))
+ 	cmd.Env = append(cmd.Env, "GO_TEST_SUBPROCESS_HASH=1")
+ 	if env != "" {
+ 		cmd.Env = append(cmd.Env, env)
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 01a9ca3b8c..7a7269d125 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -1043,7 +1043,7 @@ func TestNumCPU(t *testing.T) {
+ 	_GetProcessAffinityMask := kernel32.MustFindProc("GetProcessAffinityMask")
+ 	_SetProcessAffinityMask := kernel32.MustFindProc("SetProcessAffinityMask")
+ 
+-	cmd := exec.Command(os.Args[0], "-test.run=TestNumCPU")
++	cmd := exec.Command(testenv.Executable(t), "-test.run=TestNumCPU")
+ 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 	var buf strings.Builder
+ 	cmd.Stdout = &buf
+diff --git a/src/sync/mutex_test.go b/src/sync/mutex_test.go
+index cca0986a30..c9e5ec22c2 100644
+--- a/src/sync/mutex_test.go
++++ b/src/sync/mutex_test.go
+@@ -187,9 +187,8 @@ func init() {
+ }
+ 
+ func TestMutexMisuse(t *testing.T) {
+-	testenv.MustHaveExec(t)
+ 	for _, test := range misuseTests {
+-		out, err := exec.Command(os.Args[0], "TESTMISUSE", test.name).CombinedOutput()
++		out, err := exec.Command(testenv.Executable(t), "TESTMISUSE", test.name).CombinedOutput()
+ 		if err == nil || !strings.Contains(string(out), "unlocked") {
+ 			t.Errorf("%s: did not find failure with message about unlocked lock: %s\n%s\n", test.name, err, out)
+ 		}
+diff --git a/src/syscall/exec_unix_test.go b/src/syscall/exec_unix_test.go
+index fda9019e39..3a95356c1e 100644
+--- a/src/syscall/exec_unix_test.go
++++ b/src/syscall/exec_unix_test.go
+@@ -302,8 +302,7 @@ func TestInvalidExec(t *testing.T) {
+ 
+ // TestExec is for issue #41702.
+ func TestExec(t *testing.T) {
+-	testenv.MustHaveExec(t)
+-	cmd := exec.Command(os.Args[0], "-test.run=^TestExecHelper$")
++	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestExecHelper$")
+ 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=2")
+ 	o, err := cmd.CombinedOutput()
+ 	if err != nil {
+diff --git a/src/syscall/exec_windows_test.go b/src/syscall/exec_windows_test.go
+index 5cacf42b6b..90a13af8d1 100644
+--- a/src/syscall/exec_windows_test.go
++++ b/src/syscall/exec_windows_test.go
+@@ -6,6 +6,7 @@ package syscall_test
+ 
+ import (
+ 	"fmt"
++	"internal/testenv"
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+@@ -73,7 +74,7 @@ func TestChangingProcessParent(t *testing.T) {
+ 
+ 	// run parent process
+ 
+-	parent := exec.Command(os.Args[0], "-test.run=^TestChangingProcessParent$")
++	parent := exec.Command(testenv.Executable(t), "-test.run=^TestChangingProcessParent$")
+ 	parent.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=parent")
+ 	err := parent.Start()
+ 	if err != nil {
+@@ -96,7 +97,7 @@ func TestChangingProcessParent(t *testing.T) {
+ 	}
+ 	defer syscall.CloseHandle(ph)
+ 
+-	child := exec.Command(os.Args[0], "-test.run=^TestChangingProcessParent$")
++	child := exec.Command(testenv.Executable(t), "-test.run=^TestChangingProcessParent$")
+ 	child.Env = append(os.Environ(),
+ 		"GO_WANT_HELPER_PROCESS=child",
+ 		"GO_WANT_HELPER_PROCESS_FILE="+childDumpPath)
+diff --git a/src/syscall/syscall_unix_test.go b/src/syscall/syscall_unix_test.go
+index 56e771e086..8c6de43231 100644
+--- a/src/syscall/syscall_unix_test.go
++++ b/src/syscall/syscall_unix_test.go
+@@ -99,7 +99,7 @@ func TestFcntlFlock(t *testing.T) {
+ 			t.Fatalf("FcntlFlock(F_SETLK) failed: %v", err)
+ 		}
+ 
+-		cmd := exec.Command(os.Args[0], "-test.run=^TestFcntlFlock$")
++		cmd := exec.Command(testenv.Executable(t), "-test.run=^TestFcntlFlock$")
+ 		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 		cmd.ExtraFiles = []*os.File{f}
+ 		out, err := cmd.CombinedOutput()
+@@ -171,7 +171,7 @@ func TestPassFD(t *testing.T) {
+ 	defer writeFile.Close()
+ 	defer readFile.Close()
+ 
+-	cmd := exec.Command(os.Args[0], "-test.run=^TestPassFD$", "--", tempDir)
++	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestPassFD$", "--", tempDir)
+ 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 	cmd.ExtraFiles = []*os.File{writeFile}
+ 
+diff --git a/src/testing/panic_test.go b/src/testing/panic_test.go
+index 6307b84a7a..1c42f9f8dd 100644
+--- a/src/testing/panic_test.go
++++ b/src/testing/panic_test.go
+@@ -139,7 +139,7 @@ ran outer cleanup
+ 	}}
+ 	for _, tc := range testCases {
+ 		t.Run(tc.desc, func(t *testing.T) {
+-			cmd := exec.Command(os.Args[0], "-test.run=^TestPanicHelper$")
++			cmd := exec.Command(testenv.Executable(t), "-test.run=^TestPanicHelper$")
+ 			cmd.Args = append(cmd.Args, tc.flags...)
+ 			cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 			b, _ := cmd.CombinedOutput()
+@@ -232,7 +232,7 @@ func TestMorePanic(t *testing.T) {
+ 	}
+ 
+ 	for _, tc := range testCases {
+-		cmd := exec.Command(os.Args[0], tc.flags...)
++		cmd := exec.Command(testenv.Executable(t), tc.flags...)
+ 		cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 		b, _ := cmd.CombinedOutput()
+ 		got := string(b)
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index addf6cad91..907d0701f0 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -801,7 +801,7 @@ func TestRunningTests(t *testing.T) {
+ 
+ 	timeout := 10 * time.Millisecond
+ 	for {
+-		cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String(), "-test.parallel=4")
++		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String(), "-test.parallel=4")
+ 		cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 		out, err := cmd.CombinedOutput()
+ 		t.Logf("%v:\n%s", cmd, out)
+@@ -860,7 +860,7 @@ func TestRunningTestsInCleanup(t *testing.T) {
+ 
+ 	timeout := 10 * time.Millisecond
+ 	for {
+-		cmd := testenv.Command(t, os.Args[0], "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String())
++		cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$", "-test.timeout="+timeout.String())
+ 		cmd.Env = append(cmd.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 		out, err := cmd.CombinedOutput()
+ 		t.Logf("%v:\n%s", cmd, out)

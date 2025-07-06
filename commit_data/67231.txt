@@ -1,0 +1,34 @@
+commit 3db50924e2c74dfa0cb9295215529a65880eb708
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri May 23 19:28:37 2025 +0200
+
+    hash: mention the new Cloner interface in Hash docs.
+    
+    We mention that already in Cloner docs, but to be consistent, also
+    mention that in Hash.
+    
+    Change-Id: Iee33d545662b7054973666bd45998a37f3037a51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/hash/hash.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/hash/hash.go b/src/hash/hash.go
+index 6483bc1086..af84e7796b 100644
+--- a/src/hash/hash.go
++++ b/src/hash/hash.go
+@@ -10,8 +10,8 @@ import "io"
+ // Hash is the common interface implemented by all hash functions.
+ //
+ // Hash implementations in the standard library (e.g. [hash/crc32] and
+-// [crypto/sha256]) implement the [encoding.BinaryMarshaler], [encoding.BinaryAppender]
+-// and [encoding.BinaryUnmarshaler] interfaces. Marshaling a hash implementation
++// [crypto/sha256]) implement the [encoding.BinaryMarshaler], [encoding.BinaryAppender],
++// [encoding.BinaryUnmarshaler] and [Cloner] interfaces. Marshaling a hash implementation
+ // allows its internal state to be saved and used for additional processing
+ // later, without having to re-write the data previously written to the hash.
+ // The hash state may contain portions of the input in its original form,

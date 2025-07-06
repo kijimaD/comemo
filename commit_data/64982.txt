@@ -1,0 +1,104 @@
+commit 841bb62f19b782277b9ce3ce80dab010fcc583c6
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Mon Aug 19 13:51:59 2024 -0700
+
+    internal/runtime/atomic: add Xchg8 for amd64
+    
+    For #68578
+    
+    Change-Id: Idecfdbb793f46560dd69287af9170c07cf4ee973
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606900
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/internal/runtime/atomic/atomic_amd64.go |  3 +++
+ src/internal/runtime/atomic/atomic_amd64.s  | 12 +++++++++
+ src/internal/runtime/atomic/xchg8_test.go   | 39 +++++++++++++++++++++++++++++
+ 3 files changed, 54 insertions(+)
+
+diff --git a/src/internal/runtime/atomic/atomic_amd64.go b/src/internal/runtime/atomic/atomic_amd64.go
+index b439954093..2a2d07e511 100644
+--- a/src/internal/runtime/atomic/atomic_amd64.go
++++ b/src/internal/runtime/atomic/atomic_amd64.go
+@@ -57,6 +57,9 @@ func Xadd64(ptr *uint64, delta int64) uint64
+ //go:noescape
+ func Xadduintptr(ptr *uintptr, delta uintptr) uintptr
+ 
++//go:noescape
++func Xchg8(ptr *uint8, new uint8) uint8
++
+ //go:noescape
+ func Xchg(ptr *uint32, new uint32) uint32
+ 
+diff --git a/src/internal/runtime/atomic/atomic_amd64.s b/src/internal/runtime/atomic/atomic_amd64.s
+index ec75bf9332..d6dc7a32d6 100644
+--- a/src/internal/runtime/atomic/atomic_amd64.s
++++ b/src/internal/runtime/atomic/atomic_amd64.s
+@@ -117,6 +117,18 @@ TEXT ·Xaddint64(SB), NOSPLIT, $0-24
+ TEXT ·Xadduintptr(SB), NOSPLIT, $0-24
+ 	JMP	·Xadd64(SB)
+ 
++// uint8 Xchg(ptr *uint8, new uint8)
++// Atomically:
++//	old := *ptr;
++//	*ptr = new;
++//	return old;
++TEXT ·Xchg8(SB), NOSPLIT, $0-17
++	MOVQ	ptr+0(FP), BX
++	MOVB	new+8(FP), AX
++	XCHGB	AX, 0(BX)
++	MOVB	AX, ret+16(FP)
++	RET
++
+ // uint32 Xchg(ptr *uint32, new uint32)
+ // Atomically:
+ //	old := *ptr;
+diff --git a/src/internal/runtime/atomic/xchg8_test.go b/src/internal/runtime/atomic/xchg8_test.go
+new file mode 100644
+index 0000000000..139062422e
+--- /dev/null
++++ b/src/internal/runtime/atomic/xchg8_test.go
+@@ -0,0 +1,39 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64
++
++package atomic_test
++
++import (
++	"internal/runtime/atomic"
++	"testing"
++)
++
++func TestXchg8(t *testing.T) {
++	var a [16]uint8
++	for i := range a {
++		next := uint8(i + 50)
++		a[i] = next
++	}
++	b := a
++
++	// Compare behavior against non-atomic implementation. Expect the operation
++	// to work at any byte offset and to not clobber neighboring values.
++	for i := range a {
++		next := uint8(i + 100)
++		pa := atomic.Xchg8(&a[i], next)
++		pb := b[i]
++		b[i] = next
++		if pa != pb {
++			t.Errorf("atomic.Xchg8(a[%d]); %d != %d", i, pa, pb)
++		}
++		if a != b {
++			t.Errorf("after atomic.Xchg8(a[%d]); %d != %d", i, a, b)
++		}
++		if t.Failed() {
++			break
++		}
++	}
++}

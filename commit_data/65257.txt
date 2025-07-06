@@ -1,0 +1,56 @@
+commit 900578d09c42eef2fa5139246794ac6f3aff2e0a
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Oct 25 14:22:23 2024 -0700
+
+    internal/runtime/maps: removed unused convertNonFullToEmptyAndFullToDeleted
+    
+    I don't think we have any code that uses this function.
+    Unless it is something for the future.
+    
+    Change-Id: I7e44634f7a9c1d4d64d84c358447ccf213668d92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622077
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/internal/runtime/maps/group.go | 27 ---------------------------
+ 1 file changed, 27 deletions(-)
+
+diff --git a/src/internal/runtime/maps/group.go b/src/internal/runtime/maps/group.go
+index 48527629ae..3e06a534ab 100644
+--- a/src/internal/runtime/maps/group.go
++++ b/src/internal/runtime/maps/group.go
+@@ -124,33 +124,6 @@ func (g ctrlGroup) matchEmptyOrDeleted() bitset {
+ 	return bitset(v & bitsetMSB)
+ }
+ 
+-// convertNonFullToEmptyAndFullToDeleted converts deleted control bytes in a
+-// group to empty control bytes, and control bytes indicating full slots to
+-// deleted control bytes.
+-func (g *ctrlGroup) convertNonFullToEmptyAndFullToDeleted() {
+-	// An empty slot is     1000 0000
+-	// A deleted slot is    1111 1110
+-	// A full slot is       0??? ????
+-	//
+-	// We select the MSB, invert, add 1 if the MSB was set and zero out the low
+-	// bit.
+-	//
+-	//  - if the MSB was set (i.e. slot was empty, or deleted):
+-	//     v:             1000 0000
+-	//     ^v:            0111 1111
+-	//     ^v + (v >> 7): 1000 0000
+-	//     &^ bitsetLSB:  1000 0000 = empty slot.
+-	//
+-	// - if the MSB was not set (i.e. full slot):
+-	//     v:             0000 0000
+-	//     ^v:            1111 1111
+-	//     ^v + (v >> 7): 1111 1111
+-	//     &^ bitsetLSB:  1111 1110 = deleted slot.
+-	//
+-	v := uint64(*g) & bitsetMSB
+-	*g = ctrlGroup((^v + (v >> 7)) &^ bitsetLSB)
+-}
+-
+ // groupReference is a wrapper type representing a single slot group stored at
+ // data.
+ //

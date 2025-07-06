@@ -1,0 +1,44 @@
+commit 76e44f42c819e0fdd23918ea05a96b1f2d764de7
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Sep 13 13:14:51 2024 +0000
+
+    encoding/gob: make use of maps.Clone
+    
+    Change-Id: I6a23219a9e05350bdd9205e19165d5944f15de31
+    GitHub-Last-Rev: 8c295bf55feaa07cd487e6015029c4682a1480b0
+    GitHub-Pull-Request: golang/go#69429
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612719
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/encoding/gob/type.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/encoding/gob/type.go b/src/encoding/gob/type.go
+index c3ac1dbd61..a26070713f 100644
+--- a/src/encoding/gob/type.go
++++ b/src/encoding/gob/type.go
+@@ -8,6 +8,7 @@ import (
+ 	"encoding"
+ 	"errors"
+ 	"fmt"
++	"maps"
+ 	"os"
+ 	"reflect"
+ 	"sync"
+@@ -779,10 +780,7 @@ func buildTypeInfo(ut *userTypeInfo, rt reflect.Type) (*typeInfo, error) {
+ 
+ 	// Create new map with old contents plus new entry.
+ 	m, _ := typeInfoMap.Load().(map[reflect.Type]*typeInfo)
+-	newm := make(map[reflect.Type]*typeInfo, len(m))
+-	for k, v := range m {
+-		newm[k] = v
+-	}
++	newm := maps.Clone(m)
+ 	newm[rt] = info
+ 	typeInfoMap.Store(newm)
+ 	return info, nil

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 30313: 35d342eb7d2e0c661b3bc5abd5f82d1d0717fb56
+# Index 30313: 675ba53c7671d5506887eec2a65fabb4cbda0d59
 
 echo "🚀 Generating explanation for commit 30313..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 30313..."
 
 ### メタデータ
 - **コミットインデックス**: 30313
-- **コミットハッシュ**: 35d342eb7d2e0c661b3bc5abd5f82d1d0717fb56
-- **GitHub URL**: https://github.com/golang/go/commit/35d342eb7d2e0c661b3bc5abd5f82d1d0717fb56
+- **コミットハッシュ**: 675ba53c7671d5506887eec2a65fabb4cbda0d59
+- **GitHub URL**: https://github.com/golang/go/commit/675ba53c7671d5506887eec2a65fabb4cbda0d59
 
 ### 章構成
 

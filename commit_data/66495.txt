@@ -1,0 +1,35 @@
+commit be2ecfbff88f20a888ec49446a45dd6bc8ed8d12
+Author: Than McIntosh <thanm@golang.org>
+Date:   Tue Mar 11 09:16:05 2025 -0400
+
+    debug/dwarf: read DWARF 5 cu base offsets on SeekPC() path
+    
+    This patch fixes a bug in CL 655976 relating to DWARF 5 support; we
+    were reading in compile unit base offsets on the Seek() path but not
+    on the corresponding SeekPC path (we need the offsets to be read in
+    both cases).
+    
+    Updates #26379.
+    Fixes #72778.
+    
+    Change-Id: I02850b786a53142307219292f2c5099eb0271559
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656675
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/debug/dwarf/entry.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index ed0f213a3c..07b9259be5 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -919,6 +919,7 @@ func (r *Reader) SeekPC(pc uint64) (*Entry, error) {
+ 		r.cu = nil
+ 		u := &r.d.unit[unit]
+ 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
++		r.collectDwarf5BaseOffsets(u)
+ 		e, err := r.Next()
+ 		if err != nil {
+ 			return nil, err

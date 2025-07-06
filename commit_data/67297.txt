@@ -1,0 +1,264 @@
+commit baa72c25f19c5b515e9f92ce7f54041127c80f69
+Merge: 0ff18a9cca 711ff943af
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 2 14:42:04 2025 -0400
+
+    [dev.simd] all: merge master (711ff94) into dev.simd
+    
+    Merge List:
+    
+    + 2025-06-02 711ff943af testing: add Output method to TB
+    + 2025-06-02 e9d3b030ed slices,sort: explicitly discard results in benchmarks
+    + 2025-05-30 a8e99ab19c internal/trace: expose the go version read by the reader
+    + 2025-05-30 68b51e99f9 cmd/distpack: add test case for pack tool being excluded
+    + 2025-05-30 67f052121e cmd/distpack: don't keep the pack tool
+    + 2025-05-30 1947c4233a runtime: set HeapGoal to zero when the GC is disabled
+    + 2025-05-30 8cd7f17248 testing, testing/synctest: report correct duration after panics
+    + 2025-05-30 29782bd347 os: add implementation of fs.ReadLinkFS to *rootFS
+    + 2025-05-29 78e86297f5 cmd/compile/internal/noder: rename RelIndex to match codebase
+    + 2025-05-29 fece9871bb cmd/compile: update default PGO profile
+    + 2025-05-29 9f3dd846e2 cmd/internal/obj/s390x: fix potential recursive String call
+    + 2025-05-29 21b7e60c6b runtime, testing/synctest: breaking bubble isolation with Cond is fatal
+    + 2025-05-29 555d425d17 testing, testing/synctest: write bubble errors to parent test log
+    + 2025-05-29 f14f3aae1c internal/pkgbits: explain the rationale for reference tables
+    + 2025-05-29 4878b4471b slices: document and test nilness behavior of all functions
+    + 2025-05-29 7b4d065267 runtime: add vgetrandom lock rank
+    + 2025-05-29 e481a08e0e runtime: guarantee no GOMAXPROCS update syscalls after GOMAXPROCS call
+    + 2025-05-29 dd678172e3 doc/next: delete
+    + 2025-05-29 c2f0fe5854 internal/synctest: speed up TestWeak
+    + 2025-05-29 b170c7e94c runtime, internal/synctest, sync: associate WaitGroups with bubbles
+    + 2025-05-29 3b77085b40 runtime: increment updatemaxprocs metric only when disabled
+    + 2025-05-29 f8c51b1a6c go/doc: NewFromFiles: fix panic on Files with SkipObjectResolution
+    + 2025-05-29 263bc50c90 api: promote next to go1.25
+    + 2025-05-28 dbaa2d3e65 cmd/compile: do nil check before calling duff functions, on arm64 and amd64
+    + 2025-05-28 6160fa59b6 runtime: rename updateGOMAXPROCS to updateMaxProcsG
+    + 2025-05-28 ae6c098f48 doc/next: add release note for riscv64 plugin build mode
+    + 2025-05-28 18ad74dd36 go/types, types2: dump position stack for non-bailout panics
+    + 2025-05-28 70109eb326 cmd/link: allow linkname reference to a TEXT symbol regardless of size
+    + 2025-05-28 eff3288042 doc/next: tweak runtime release notes
+    + 2025-05-28 c61e5e7244 lib/time: update to 2025b/2025b
+    + 2025-05-27 ed08d2ad09 os: don't follow symlinks on Windows when O_CREATE|O_EXCL and read-only
+    + 2025-05-27 fce9d4515d runtime, testing/synctest: verify cleanups/finalizers run outside bubbles
+    + 2025-05-27 b78e38065e runtime: define lock ranking between weak pointers and synctest
+    + 2025-05-27 961818e013 cmd/compile/internal/walk: use original type for composite literals in addrTemp
+    + 2025-05-27 c8c3d661b0 runtime/trace: add a trace validation test for different trace orders
+    + 2025-05-27 0e1b14bc2e cmd/go: fix get with the new 'work' pattern
+    + 2025-05-27 09f1546cba log/slog: fix longtests with empty source
+    + 2025-05-27 de05282a2c doc/next: add small header to TODO
+    + 2025-05-27 c146a61d4c go/token: benchmark FileSet.{Position,AddExistingFiles}
+    + 2025-05-27 ae0824883e go/ast: deprecate FilterPackage, PackageExports, MergePackageFiles
+    + 2025-05-27 8dd7d2111b runtime: skip nil Ps in allp during cleanup flush
+    + 2025-05-27 3a3c006ac0 crypto/tls: enable signature algorithm BoGo tests (and fix two bugs)
+    + 2025-05-27 ed70477909 errors: add joinError Unwrap example
+    + 2025-05-27 787362327f io/fs: add examples for Glob,ReadFile and ValidPath
+    + 2025-05-24 3fd729b2a1 log/slog: make TextHandler discard empty Source
+    + 2025-05-24 c07ffe980a testing/synctest: correct duration in doc example
+    + 2025-05-24 3db50924e2 hash: mention the new Cloner interface in Hash docs.
+    + 2025-05-23 aca9f4e484 crypto/tls: signature_algorithms in CertificateRequest can't be empty
+    + 2025-05-23 8cb0941a85 net: use runtime.AddCleanup instead of runtime.SetFinalizer
+    + 2025-05-23 68f4434df0 runtime/trace: match traceClockNow types
+    + 2025-05-23 8b1978f614 doc/next: add crudely processed todos
+    + 2025-05-23 c0e149b6b1 net/http: document that ServeMux.Handler can also synthetize a 405
+    + 2025-05-23 db3e02994c runtime/trace: fix flaky test for SetMinAge
+    + 2025-05-22 db55b83ce4 doc: fix TBD mark
+    + 2025-05-22 aec96d686b doc: mention stack allocation of variable-sized make calls
+    + 2025-05-22 c684dfcb8a runtime: don't spin looking for a tiny alloc address with asan or race
+    + 2025-05-22 bfbf736564 cmd/compile: do not shapify when reading reshaping expr
+    + 2025-05-22 b1f259b1b4 cmd/compile: fix ICE with recursive alias type parameter
+    + 2025-05-22 155ba387a9 cmd/doc: properly set GOPROXY to avoid deprecation checks
+    + 2025-05-22 ef3bb638de Revert "cmd/doc: better support for no network"
+    + 2025-05-22 a0dc7bf084 cmd/compile: fix ICE when transforming loopvar
+    
+    Change-Id: I9010808984e73ed2de6041127a222f725f0f52e6
+
+ api/go1.25.txt                                     | 111 ++++++++++++++
+ api/next/43936.txt                                 |   4 -
+ api/next/46771.txt                                 |   1 -
+ api/next/49580.txt                                 |   8 -
+ api/next/59928.txt                                 |   3 -
+ api/next/62121.txt                                 |   1 -
+ api/next/63185.txt                                 |   9 --
+ api/next/63405.txt                                 |   5 -
+ api/next/63796.txt                                 |   1 -
+ api/next/63963.txt                                 |   4 -
+ api/next/66365.txt                                 |   1 -
+ api/next/67002.txt                                 |  10 --
+ api/next/67434.txt                                 |   2 -
+ api/next/67516.txt                                 |   1 -
+ api/next/69518.txt                                 |   5 -
+ api/next/69521.txt                                 |   9 --
+ api/next/70250.txt                                 |  17 ---
+ api/next/70280.txt                                 |   1 -
+ api/next/70780.txt                                 |   3 -
+ api/next/71122.txt                                 |   1 -
+ api/next/71920.txt                                 |   1 -
+ api/next/72843.txt                                 |   4 -
+ api/next/73126.txt                                 |   2 -
+ api/next/73193.txt                                 |   1 -
+ api/next/73205.txt                                 |   1 -
+ api/next/73319.txt                                 |   1 -
+ api/next/73626.txt                                 |   7 -
+ doc/next/1-intro.md                                |   8 -
+ doc/next/2-language.md                             |   3 -
+ doc/next/3-tools.md                                |  42 -----
+ doc/next/4-runtime.md                              |  63 --------
+ doc/next/5-toolchain.md                            |  44 ------
+ doc/next/6-stdlib/0-heading.md                     |   2 -
+ doc/next/6-stdlib/1-synctest.md                    |  11 --
+ doc/next/6-stdlib/99-minor/0-heading.md            |   3 -
+ doc/next/6-stdlib/99-minor/README                  |   1 -
+ doc/next/6-stdlib/99-minor/archive/tar/49580.md    |   2 -
+ doc/next/6-stdlib/99-minor/crypto/63405.md         |   1 -
+ doc/next/6-stdlib/99-minor/crypto/ecdsa/63963.md   |   3 -
+ .../6-stdlib/99-minor/crypto/elliptic/hidden.md    |   2 -
+ doc/next/6-stdlib/99-minor/crypto/sha3/69521.md    |   1 -
+ doc/next/6-stdlib/99-minor/crypto/tls/67516.md     |   2 -
+ doc/next/6-stdlib/99-minor/crypto/tls/71920.md     |   3 -
+ doc/next/6-stdlib/99-minor/crypto/tls/72883.md     |   3 -
+ doc/next/6-stdlib/99-minor/crypto/tls/fips.md      |   2 -
+ .../6-stdlib/99-minor/crypto/tls/version_pref.md   |   1 -
+ doc/next/6-stdlib/99-minor/crypto/x509/63405.md    |   1 -
+ doc/next/6-stdlib/99-minor/crypto/x509/71746.md    |   2 -
+ doc/next/6-stdlib/99-minor/debug/elf/72843.md      |   4 -
+ doc/next/6-stdlib/99-minor/go/ast/73319.md         |   4 -
+ doc/next/6-stdlib/99-minor/go/parser/71122.md      |   1 -
+ doc/next/6-stdlib/99-minor/go/token/73205.md       |   4 -
+ doc/next/6-stdlib/99-minor/go/types/70250.md       |   3 -
+ doc/next/6-stdlib/99-minor/go/types/70737.md       |   3 -
+ doc/next/6-stdlib/99-minor/hash/69518.md           |   3 -
+ doc/next/6-stdlib/99-minor/hash/69521.md           |   2 -
+ doc/next/6-stdlib/99-minor/hash/maphash/69521.md   |   1 -
+ doc/next/6-stdlib/99-minor/io/fs/49580.md          |   1 -
+ doc/next/6-stdlib/99-minor/log/slog/66365.md       |   1 -
+ doc/next/6-stdlib/99-minor/log/slog/70280.md       |   1 -
+ doc/next/6-stdlib/99-minor/mime/multipart/46771.md |   2 -
+ doc/next/6-stdlib/99-minor/net/10350.md            |   3 -
+ doc/next/6-stdlib/99-minor/net/56025.md            |   5 -
+ doc/next/6-stdlib/99-minor/net/63529.md            |   1 -
+ doc/next/6-stdlib/99-minor/net/9503.md             |   2 -
+ doc/next/6-stdlib/99-minor/net/http/73626.md       |   7 -
+ doc/next/6-stdlib/99-minor/os/15388.md             |  14 --
+ doc/next/6-stdlib/99-minor/os/49580.md             |   2 -
+ doc/next/6-stdlib/99-minor/os/67002.md             |  14 --
+ doc/next/6-stdlib/99-minor/os/73126.md             |   1 -
+ doc/next/6-stdlib/99-minor/reflect/62121.md        |   3 -
+ doc/next/6-stdlib/99-minor/regexp/syntax/70781.md  |   4 -
+ doc/next/6-stdlib/99-minor/runtime/71825.md        |   5 -
+ doc/next/6-stdlib/99-minor/runtime/72949.md        |   8 -
+ doc/next/6-stdlib/99-minor/runtime/73193.md        |   5 -
+ doc/next/6-stdlib/99-minor/runtime/pprof/66999.md  |   6 -
+ doc/next/6-stdlib/99-minor/runtime/trace/63185.md  |   2 -
+ doc/next/6-stdlib/99-minor/sync/63769.md           |   2 -
+ doc/next/6-stdlib/99-minor/testing/43936.md        |  10 --
+ doc/next/6-stdlib/99-minor/testing/59928.md        |   4 -
+ doc/next/6-stdlib/99-minor/testing/fstest/49580.md |   3 -
+ .../6-stdlib/99-minor/testing/synctest/67434.md    |   1 -
+ doc/next/6-stdlib/99-minor/unicode/70780.md        |   4 -
+ doc/next/6-stdlib/99-minor/unique/71772.md         |   4 -
+ doc/next/6-stdlib/99-minor/unique/71846.md         |   4 -
+ doc/next/7-ports.md                                |  11 --
+ lib/time/update.bash                               |   4 +-
+ lib/time/zoneinfo.zip                              | Bin 405501 -> 406973 bytes
+ src/cmd/compile/default.pgo                        | Bin 241719 -> 293923 bytes
+ src/cmd/compile/internal/ir/expr.go                |   4 +
+ src/cmd/compile/internal/loopvar/loopvar.go        |   1 +
+ src/cmd/compile/internal/noder/doc.go              |   7 +-
+ src/cmd/compile/internal/noder/reader.go           |  17 ++-
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go      |  12 +-
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go      |  10 +-
+ src/cmd/compile/internal/ssa/opGen.go              |  40 +++--
+ src/cmd/compile/internal/types2/check.go           |  20 ++-
+ src/cmd/compile/internal/types2/stdlib_test.go     |   1 +
+ src/cmd/compile/internal/walk/order.go             |   4 +-
+ src/cmd/distpack/pack.go                           |   2 +-
+ src/cmd/distpack/test.go                           |   4 +
+ src/cmd/doc/main.go                                |  21 +--
+ src/cmd/go/internal/load/pkg.go                    |   2 +-
+ src/cmd/go/internal/modget/get.go                  |  35 +++++
+ src/cmd/go/internal/work/gc.go                     |   2 +-
+ src/cmd/go/testdata/script/mod_get_nopkgs.txt      |   8 +
+ src/cmd/go/testdata/script/mod_get_work.txt        |  46 ++++++
+ ...mplete.txt => mod_get_workspace_incomplete.txt} |   7 +
+ src/cmd/internal/obj/s390x/condition_code.go       |   2 +-
+ src/cmd/link/internal/loader/loader.go             |  61 +++++---
+ src/cmd/link/link_test.go                          |   5 +-
+ src/cmd/link/testdata/linkname/textvar/asm.s       |   6 +
+ src/cmd/link/testdata/linkname/textvar/main.go     |  17 +++
+ src/crypto/tls/auth.go                             |  23 ++-
+ src/crypto/tls/bogo_config.json                    |  34 ++---
+ src/crypto/tls/bogo_shim_test.go                   | 170 +++++++++++++++++----
+ src/crypto/tls/common.go                           |  65 +++++---
+ src/crypto/tls/conn.go                             |   2 +
+ src/crypto/tls/defaults.go                         |  42 -----
+ src/crypto/tls/fips140_test.go                     |   9 +-
+ src/crypto/tls/handshake_client.go                 |  13 +-
+ src/crypto/tls/handshake_client_tls13.go           |   1 +
+ src/crypto/tls/handshake_messages.go               |   2 +-
+ src/crypto/tls/handshake_server.go                 |   7 +-
+ src/crypto/tls/handshake_server_tls13.go           |   1 +
+ src/crypto/tls/key_agreement.go                    |  41 ++---
+ src/errors/example_test.go                         |   2 +
+ src/go/ast/filter.go                               |  14 ++
+ src/go/build/deps_test.go                          |   4 +-
+ src/go/doc/doc.go                                  |  44 +++---
+ src/go/doc/example_test.go                         |   2 +-
+ src/go/token/export_test.go                        |   9 ++
+ src/go/token/position_bench_test.go                | 103 ++++++++++++-
+ src/go/types/check.go                              |  20 ++-
+ src/go/types/stdlib_test.go                        |   1 +
+ src/hash/hash.go                                   |   4 +-
+ src/internal/pkgbits/reloc.go                      |  63 +++++++-
+ src/internal/synctest/synctest.go                  |  32 +++-
+ src/internal/synctest/synctest_test.go             | 115 +++++++++++++-
+ src/internal/trace/export_reader_test.go           |  12 ++
+ src/internal/trace/reader_test.go                  |   5 +
+ src/io/fs/example_test.go                          |  81 ++++++++++
+ src/log/slog/handler.go                            |   3 +
+ src/log/slog/handler_test.go                       |   2 +-
+ src/log/slog/logger_test.go                        |   2 +-
+ src/log/slog/record.go                             |   3 +
+ src/net/fd_fake.go                                 |   2 +
+ src/net/fd_posix.go                                |   2 +
+ src/net/http/server.go                             |   7 +-
+ src/os/os_test.go                                  |   4 +-
+ src/os/root.go                                     |  20 ++-
+ src/runtime/crash_test.go                          |  17 +++
+ src/runtime/debug.go                               |  15 +-
+ src/runtime/lockrank.go                            |  66 ++++----
+ src/runtime/mcleanup.go                            |   7 +
+ src/runtime/mheap.go                               |   9 ++
+ src/runtime/mklockrank.go                          |  21 ++-
+ src/runtime/proc.go                                | 122 ++++++++++++---
+ src/runtime/runtime2.go                            |  27 ++--
+ src/runtime/sema.go                                |  12 +-
+ src/runtime/synctest.go                            | 104 ++++++++++++-
+ src/runtime/testdata/testprog/checkfinalizers.go   |  31 ++--
+ src/runtime/testdata/testprog/synctest.go          |  58 +++++++
+ src/runtime/testdata/testsynctest/main.go          |  31 +++-
+ src/runtime/trace/flightrecorder_test.go           |  19 ++-
+ src/runtime/trace/recorder.go                      |   2 +-
+ src/runtime/trace/subscribe.go                     |  17 +++
+ src/runtime/trace/subscribe_test.go                | 153 +++++++++++++++++++
+ src/runtime/traceruntime.go                        |   4 +-
+ src/runtime/vgetrandom_linux.go                    |   2 +-
+ src/slices/iter.go                                 |   5 +
+ src/slices/slices.go                               |  10 ++
+ src/slices/slices_test.go                          |  83 ++++++++++
+ src/slices/sort_benchmark_test.go                  |   4 +-
+ src/slices/sort_test.go                            |   8 +-
+ src/sort/sort_slices_benchmark_test.go             |   2 +-
+ src/sync/runtime.go                                |   2 +-
+ src/sync/waitgroup.go                              |  53 ++++++-
+ src/syscall/syscall_windows.go                     |  30 ++--
+ src/testing/synctest/synctest.go                   |  40 ++++-
+ src/testing/synctest/synctest_test.go              |  42 +++--
+ src/testing/testing.go                             |  10 +-
+ test/fixedbugs/issue71184.go                       |  17 +++
+ test/fixedbugs/issue73309.go                       |  18 +++
+ test/fixedbugs/issue73748a.go                      |  32 ++++
+ test/fixedbugs/issue73748b.go                      |  32 ++++
+ test/fixedbugs/issue73823.go                       |  58 +++++++
+ test/fixedbugs/issue73888.go                       |  34 +++++
+ test/fixedbugs/issue73888b.go                      |  34 +++++
+ 189 files changed, 2198 insertions(+), 906 deletions(-)
+

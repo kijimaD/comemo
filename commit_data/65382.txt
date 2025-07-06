@@ -1,0 +1,52 @@
+commit f61c2603e928d40d7a77263b07b24bdb15b470e0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 14 22:05:50 2024 +0100
+
+    crypto/internal/fips/check: enable windows/arm64
+    
+    Looks like it works.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64
+    Change-Id: I4914d5076eccaf1dd850a148070f179edf291c40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627958
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+---
+ src/cmd/internal/obj/fips.go            | 7 +++----
+ src/crypto/internal/fips/check/check.go | 1 -
+ 2 files changed, 3 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/obj/fips.go b/src/cmd/internal/obj/fips.go
+index a1ac4aac2a..acf74691f6 100644
+--- a/src/cmd/internal/obj/fips.go
++++ b/src/cmd/internal/obj/fips.go
+@@ -191,12 +191,11 @@ func EnableFIPS() bool {
+ 	// after which we could remove this case, but until then,
+ 	// skip FIPS on windows-386.
+ 	//
+-	// We don't know whether arm or arm64 works, because it is
+-	// too hard to get builder time to test them. Disable since they
+-	// are not important right now.
++	// We don't know whether arm works, because it is too hard to get builder
++	// time to test it. Disable since it's not important right now.
+ 	if buildcfg.GOOS == "windows" {
+ 		switch buildcfg.GOARCH {
+-		case "386", "arm", "arm64":
++		case "386", "arm":
+ 			return false
+ 		}
+ 	}
+diff --git a/src/crypto/internal/fips/check/check.go b/src/crypto/internal/fips/check/check.go
+index ac64697f3f..71405cdf7f 100644
+--- a/src/crypto/internal/fips/check/check.go
++++ b/src/crypto/internal/fips/check/check.go
+@@ -39,7 +39,6 @@ func supported() bool {
+ 	case runtime.GOARCH == "wasm",
+ 		runtime.GOOS == "windows" && runtime.GOARCH == "386",
+ 		runtime.GOOS == "windows" && runtime.GOARCH == "arm",
+-		runtime.GOOS == "windows" && runtime.GOARCH == "arm64",
+ 		runtime.GOOS == "aix":
+ 		return false
+ 	}

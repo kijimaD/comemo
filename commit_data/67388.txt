@@ -1,0 +1,133 @@
+commit ef60769b46c5ef796876c6b4407562646fb27d15
+Author: Adam Bender <abender@gmail.com>
+Date:   Wed Jun 11 21:24:20 2025 -0700
+
+    go/doc: add a golden test that reproduces #62640
+    
+    For #62640.
+    For #61394.
+    
+    This is a copy of https://go-review.googlesource.com/c/go/+/528402,
+    which has stalled in review and the owner is no longer working on Go.
+    
+    Change-Id: Ic7a1ae65c70d4857ab1061ccae1a926bf5c4ff55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/go/doc/testdata/issue62640.0.golden | 22 ++++++++++++++++++++++
+ src/go/doc/testdata/issue62640.1.golden | 22 ++++++++++++++++++++++
+ src/go/doc/testdata/issue62640.2.golden | 25 +++++++++++++++++++++++++
+ src/go/doc/testdata/issue62640.go       | 15 +++++++++++++++
+ 4 files changed, 84 insertions(+)
+
+diff --git a/src/go/doc/testdata/issue62640.0.golden b/src/go/doc/testdata/issue62640.0.golden
+new file mode 100644
+index 0000000000..90775fd283
+--- /dev/null
++++ b/src/go/doc/testdata/issue62640.0.golden
+@@ -0,0 +1,22 @@
++// 
++PACKAGE issue62640
++
++IMPORTPATH
++	testdata/issue62640
++
++FILENAMES
++	testdata/issue62640.go
++
++TYPES
++	// 
++	type E struct{}
++
++	// F should be hidden within S because of the S.F field. 
++	func (E) F()
++
++	// 
++	type S struct {
++		E
++		F	int
++	}
++
+diff --git a/src/go/doc/testdata/issue62640.1.golden b/src/go/doc/testdata/issue62640.1.golden
+new file mode 100644
+index 0000000000..90775fd283
+--- /dev/null
++++ b/src/go/doc/testdata/issue62640.1.golden
+@@ -0,0 +1,22 @@
++// 
++PACKAGE issue62640
++
++IMPORTPATH
++	testdata/issue62640
++
++FILENAMES
++	testdata/issue62640.go
++
++TYPES
++	// 
++	type E struct{}
++
++	// F should be hidden within S because of the S.F field. 
++	func (E) F()
++
++	// 
++	type S struct {
++		E
++		F	int
++	}
++
+diff --git a/src/go/doc/testdata/issue62640.2.golden b/src/go/doc/testdata/issue62640.2.golden
+new file mode 100644
+index 0000000000..6e871aa370
+--- /dev/null
++++ b/src/go/doc/testdata/issue62640.2.golden
+@@ -0,0 +1,25 @@
++// 
++PACKAGE issue62640
++
++IMPORTPATH
++	testdata/issue62640
++
++FILENAMES
++	testdata/issue62640.go
++
++TYPES
++	// 
++	type E struct{}
++
++	// F should be hidden within S because of the S.F field. 
++	func (E) F()
++
++	// 
++	type S struct {
++		E
++		F	int
++	}
++
++	// F should be hidden within S because of the S.F field. 
++	func (S) F()
++
+diff --git a/src/go/doc/testdata/issue62640.go b/src/go/doc/testdata/issue62640.go
+new file mode 100644
+index 0000000000..f109de46fa
+--- /dev/null
++++ b/src/go/doc/testdata/issue62640.go
+@@ -0,0 +1,15 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package issue62640
++
++type E struct{}
++
++// F should be hidden within S because of the S.F field.
++func (E) F() {}
++
++type S struct {
++	E
++	F int
++}

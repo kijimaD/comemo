@@ -1,0 +1,54 @@
+commit 8841f50d98b224ecf5ee27d9b7e6f18ad2c98e46
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 12 22:56:49 2023 +1100
+
+    syscall: reroute SYS_IOCTL and SYS_SYSCTL on openbsd
+    
+    OpenBSD 7.5 no longer supports indirect syscalls. A number of Go
+    packages make use of syscall.Syscall with SYS_IOCTL or SYS_SYSCTL,
+    since neither is well supported by golang.org/x/sys/unix. Reroute
+    calls with either of these system call numbers to the respective
+    libc stub so that they continue to work.
+    
+    Updates #63900
+    
+    Change-Id: I3323a3fa311ee9227e6220417834253763866881
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582256
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/syscall/syscall_openbsd_libc.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/src/syscall/syscall_openbsd_libc.go b/src/syscall/syscall_openbsd_libc.go
+index ddf62f4d3f..81047eef3e 100644
+--- a/src/syscall/syscall_openbsd_libc.go
++++ b/src/syscall/syscall_openbsd_libc.go
+@@ -19,10 +19,26 @@ func init() {
+ //sys directSyscall(trap uintptr, a1 uintptr, a2 uintptr, a3 uintptr, a4 uintptr, a5 uintptr) (ret uintptr, err error) = SYS_syscall
+ 
+ func syscallInternal(trap, a1, a2, a3 uintptr) (r1, r2 uintptr, err Errno) {
++	// OpenBSD 7.5+ no longer supports indirect syscalls. A number of Go
++	// packages make use of syscall.Syscall with SYS_IOCTL since it is
++	// not well supported by golang.org/x/sys/unix. Reroute this system
++	// call number to the respective libc stub so that it continues to
++	// work for the time being. See #63900 for further details.
++	if trap == SYS_IOCTL {
++		return syscallX(abi.FuncPCABI0(libc_ioctl_trampoline), a1, a2, a3)
++	}
+ 	return syscall6X(abi.FuncPCABI0(libc_syscall_trampoline), trap, a1, a2, a3, 0, 0)
+ }
+ 
+ func syscall6Internal(trap, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err Errno) {
++	// OpenBSD 7.5+ no longer supports indirect syscalls. A number of Go
++	// packages make use of syscall.Syscall with SYS___SYSCTL since it is
++	// not well supported by golang.org/x/sys/unix. Reroute this system
++	// call number to the respective libc stub so that it continues to
++	// work for the time being. See #63900 for further details.
++	if trap == SYS___SYSCTL {
++		return syscall6X(abi.FuncPCABI0(libc_sysctl_trampoline), a1, a2, a3, a4, a5, a6)
++	}
+ 	return syscall10X(abi.FuncPCABI0(libc_syscall_trampoline), trap, a1, a2, a3, a4, a5, a6, 0, 0, 0)
+ }
+ 

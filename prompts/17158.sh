@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 17158: db324ccd72c93d34effa24e6f1a2a12c0cd39f04
+# Index 17158: 4850f5d5ea5913af57c9ae37121ad88aba2d612c
 
 echo "🚀 Generating explanation for commit 17158..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 17158..."
 
 ### メタデータ
 - **コミットインデックス**: 17158
-- **コミットハッシュ**: db324ccd72c93d34effa24e6f1a2a12c0cd39f04
-- **GitHub URL**: https://github.com/golang/go/commit/db324ccd72c93d34effa24e6f1a2a12c0cd39f04
+- **コミットハッシュ**: 4850f5d5ea5913af57c9ae37121ad88aba2d612c
+- **GitHub URL**: https://github.com/golang/go/commit/4850f5d5ea5913af57c9ae37121ad88aba2d612c
 
 ### 章構成
 

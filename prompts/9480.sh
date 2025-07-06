@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9480: de20cec9c94ae1c29830cbb288f19bdf5fd961df
+# Index 9480: aca429371539b1e22ca6eebaa66689c03cf49673
 
 echo "🚀 Generating explanation for commit 9480..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 9480..."
 
 ### メタデータ
 - **コミットインデックス**: 9480
-- **コミットハッシュ**: de20cec9c94ae1c29830cbb288f19bdf5fd961df
-- **GitHub URL**: https://github.com/golang/go/commit/de20cec9c94ae1c29830cbb288f19bdf5fd961df
+- **コミットハッシュ**: aca429371539b1e22ca6eebaa66689c03cf49673
+- **GitHub URL**: https://github.com/golang/go/commit/aca429371539b1e22ca6eebaa66689c03cf49673
 
 ### 章構成
 

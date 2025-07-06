@@ -1,0 +1,306 @@
+commit 9a3ef861732031dc70794531452922d70855e27a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 21 23:50:52 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥5,000 dependents
+    
+    For #67401.
+    
+    Change-Id: Ifea84af92017b405466937f50fb8f28e6893c8cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587220
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+---
+ src/crypto/tls/badlinkname.go   |  3 --
+ src/crypto/tls/cipher_suites.go | 10 +++++++
+ src/math/big/arith_decl.go      | 65 +++++++++++++++++++++++++++++++++++++++++
+ src/math/big/badlinkname.go     | 21 -------------
+ src/runtime/linkname.go         |  3 --
+ src/runtime/map.go              |  3 ++
+ src/runtime/time_fake.go        |  1 +
+ src/runtime/time_nofake.go      | 12 ++++++++
+ src/syscall/linkname_darwin.go  | 10 +++++++
+ src/syscall/linkname_openbsd.go | 10 +++++++
+ 10 files changed, 111 insertions(+), 27 deletions(-)
+
+diff --git a/src/crypto/tls/badlinkname.go b/src/crypto/tls/badlinkname.go
+index 97350e42af..4eef04d1ff 100644
+--- a/src/crypto/tls/badlinkname.go
++++ b/src/crypto/tls/badlinkname.go
+@@ -14,9 +14,6 @@ import _ "unsafe"
+ 
+ //go:linkname aeadAESGCMTLS13
+ //go:linkname cipherSuiteTLS13ByID
+-//go:linkname cipherSuitesTLS13
+-//go:linkname defaultCipherSuitesTLS13
+-//go:linkname defaultCipherSuitesTLS13NoAES
+ //go:linkname errShutdown
+ 
+ // The compiler doesn't allow linknames on methods, for good reasons.
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 83301f3783..5f37bf6eb4 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -18,6 +18,7 @@ import (
+ 	"hash"
+ 	"internal/cpu"
+ 	"runtime"
++	_ "unsafe" // for linkname
+ 
+ 	"golang.org/x/crypto/chacha20poly1305"
+ )
+@@ -197,6 +198,15 @@ type cipherSuiteTLS13 struct {
+ 	hash   crypto.Hash
+ }
+ 
++// cipherSuitesTLS13 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/quic-go/quic-go
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname cipherSuitesTLS13
+ var cipherSuitesTLS13 = []*cipherSuiteTLS13{ // TODO: replace with a map.
+ 	{TLS_AES_128_GCM_SHA256, 16, aeadAESGCMTLS13, crypto.SHA256},
+ 	{TLS_CHACHA20_POLY1305_SHA256, 32, aeadChaCha20Poly1305, crypto.SHA256},
+diff --git a/src/math/big/arith_decl.go b/src/math/big/arith_decl.go
+index f14f8d6794..3230a781a9 100644
+--- a/src/math/big/arith_decl.go
++++ b/src/math/big/arith_decl.go
+@@ -6,28 +6,93 @@
+ 
+ package big
+ 
++import _ "unsafe" // for linkname
++
+ // implemented in arith_$GOARCH.s
+ 
++// addVV should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/remyoudompheng/bigfft
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname addVV
+ //go:noescape
+ func addVV(z, x, y []Word) (c Word)
+ 
++// subVV should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/remyoudompheng/bigfft
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname subVV
+ //go:noescape
+ func subVV(z, x, y []Word) (c Word)
+ 
++// addVW should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/remyoudompheng/bigfft
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname addVW
+ //go:noescape
+ func addVW(z, x []Word, y Word) (c Word)
+ 
++// subVW should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/remyoudompheng/bigfft
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname subVW
+ //go:noescape
+ func subVW(z, x []Word, y Word) (c Word)
+ 
++// shlVU should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/remyoudompheng/bigfft
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname shlVU
+ //go:noescape
+ func shlVU(z, x []Word, s uint) (c Word)
+ 
+ //go:noescape
+ func shrVU(z, x []Word, s uint) (c Word)
+ 
++// mulAddVWW should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/remyoudompheng/bigfft
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mulAddVWW
+ //go:noescape
+ func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ 
++// addMulVVW should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/remyoudompheng/bigfft
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname addMulVVW
+ //go:noescape
+ func addMulVVW(z, x []Word, y Word) (c Word)
+diff --git a/src/math/big/badlinkname.go b/src/math/big/badlinkname.go
+deleted file mode 100644
+index 2f47d89064..0000000000
+--- a/src/math/big/badlinkname.go
++++ /dev/null
+@@ -1,21 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package big
+-
+-import _ "unsafe"
+-
+-// As of Go 1.22, the symbols below are found to be pulled via
+-// linkname in the wild. We provide a push linkname here, to
+-// keep them accessible with pull linknames.
+-// This may change in the future. Please do not depend on them
+-// in new code.
+-
+-//go:linkname addMulVVW
+-//go:linkname addVV
+-//go:linkname addVW
+-//go:linkname mulAddVWW
+-//go:linkname shlVU
+-//go:linkname subVV
+-//go:linkname subVW
+diff --git a/src/runtime/linkname.go b/src/runtime/linkname.go
+index 1b8a321c1c..f5f62cb54a 100644
+--- a/src/runtime/linkname.go
++++ b/src/runtime/linkname.go
+@@ -6,9 +6,6 @@ package runtime
+ 
+ import _ "unsafe"
+ 
+-// used in time and internal/poll
+-//go:linkname nanotime
+-
+ // used in internal/godebug and syscall
+ //go:linkname write
+ 
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index a55feb45fb..276b204432 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -917,6 +917,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
++//   - gonum.org/v1/gonum
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+@@ -1493,6 +1494,7 @@ func reflect_mapiternext(it *hiter) {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/goccy/go-json
++//   - gonum.org/v1/gonum
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+@@ -1506,6 +1508,7 @@ func reflect_mapiterkey(it *hiter) unsafe.Pointer {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/goccy/go-json
++//   - gonum.org/v1/gonum
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/time_fake.go b/src/runtime/time_fake.go
+index 9e24f70931..aad1950c48 100644
+--- a/src/runtime/time_fake.go
++++ b/src/runtime/time_fake.go
+@@ -31,6 +31,7 @@ var faketimeState struct {
+ 	lastfd uintptr
+ }
+ 
++//go:linkname nanotime
+ //go:nosplit
+ func nanotime() int64 {
+ 	return faketime
+diff --git a/src/runtime/time_nofake.go b/src/runtime/time_nofake.go
+index ad3d550ad8..c7800c34e3 100644
+--- a/src/runtime/time_nofake.go
++++ b/src/runtime/time_nofake.go
+@@ -14,6 +14,18 @@ import "unsafe"
+ // Zero means not to use faketime.
+ var faketime int64
+ 
++// Many external packages linkname nanotime to get a fast monotonic time.
++// Such code should be updated to use:
++//
++//	var start = time.Now() // at init time
++//
++// and then replace nanotime() with time.Since(start), which is equally fast.
++//
++// However, all the code linknaming nanotime is never going to go away.
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname nanotime
+ //go:nosplit
+ func nanotime() int64 {
+ 	return nanotime1()
+diff --git a/src/syscall/linkname_darwin.go b/src/syscall/linkname_darwin.go
+index 2ed83a4fad..3a3c314029 100644
+--- a/src/syscall/linkname_darwin.go
++++ b/src/syscall/linkname_darwin.go
+@@ -21,3 +21,13 @@ import _ "unsafe"
+ // used by cmd/link
+ //go:linkname msync
+ //go:linkname fcntl
++
++// mmap should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - modernc.org/memory
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mmap
+diff --git a/src/syscall/linkname_openbsd.go b/src/syscall/linkname_openbsd.go
+index 5f5c517ab5..ffd5c138e3 100644
+--- a/src/syscall/linkname_openbsd.go
++++ b/src/syscall/linkname_openbsd.go
+@@ -13,3 +13,13 @@ import _ "unsafe"
+ //go:linkname openat
+ //go:linkname fstatat
+ //go:linkname getentropy
++
++// mmap should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - modernc.org/memory
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mmap

@@ -1,0 +1,66 @@
+commit 0ae3ca0a20db5f9df978fa59cd0e8751ac9f5250
+Author: Andy Pan <i@andypan.me>
+Date:   Wed Mar 5 16:14:42 2025 +0800
+
+    [release-branch.go1.24] runtime: explicitly disable async preempt for internal/runtime
+    
+    Fixes #72115
+    For #71591
+    Relevant CL 560155
+    
+    Change-Id: Iebc497d56b36d50c13a6dd88e7bca4578a03cf63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654916
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    (cherry picked from commit 92a63bdfee9f8347df70293e5733661ae31ae285)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660857
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/internal/objabi/pkgspecial.go |  3 +++
+ src/runtime/preempt.go                | 11 +++++++++--
+ 2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 9828e12281..871c28f588 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -43,6 +43,9 @@ type PkgSpecial struct {
+ }
+ 
+ var runtimePkgs = []string{
++	// TODO(panjf2000): consider syncing the list inside the
++	// 	isAsyncSafePoint in preempt.go based on this list?
++
+ 	"runtime",
+ 
+ 	"internal/runtime/atomic",
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 45b1b5e9c7..839f3875be 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -419,14 +419,21 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 	name := u.srcFunc(uf).name()
+ 	if stringslite.HasPrefix(name, "runtime.") ||
+ 		stringslite.HasPrefix(name, "runtime/internal/") ||
++		stringslite.HasPrefix(name, "internal/runtime/") ||
+ 		stringslite.HasPrefix(name, "reflect.") {
+ 		// For now we never async preempt the runtime or
+ 		// anything closely tied to the runtime. Known issues
+ 		// include: various points in the scheduler ("don't
+ 		// preempt between here and here"), much of the defer
+ 		// implementation (untyped info on stack), bulk write
+-		// barriers (write barrier check),
+-		// reflect.{makeFuncStub,methodValueCall}.
++		// barriers (write barrier check), atomic functions in
++		// internal/runtime/atomic, reflect.{makeFuncStub,methodValueCall}.
++		//
++		// Note that this is a subset of the runtimePkgs in pkgspecial.go
++		// and these checks are theoretically redundant because the compiler
++		// marks "all points" in runtime functions as unsafe for async preemption.
++		// But for some reason, we can't eliminate these checks until https://go.dev/issue/72031
++		// is resolved.
+ 		//
+ 		// TODO(austin): We should improve this, or opt things
+ 		// in incrementally.

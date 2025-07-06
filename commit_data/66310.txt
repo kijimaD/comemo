@@ -1,0 +1,65 @@
+commit 6adf08f747aff60810e754ca74e1bef381cbae86
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Feb 24 15:00:55 2025 -0800
+
+    go/types, types2: remove coreType call in lookup
+    
+    For #70128.
+    
+    Change-Id: I7d16ad7fdc6b07a2632b4eaefaedfa2bcceffe1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/lookup.go | 10 +++++-----
+ src/go/types/lookup.go                    | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index b8d120f154..8f87dc0961 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -67,13 +67,13 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
+ 
+ 	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, foldCase)
+ 
+-	// If we didn't find anything and if we have a type parameter with a core type,
+-	// see if there is a matching field (but not a method, those need to be declared
+-	// explicitly in the constraint). If the constraint is a named pointer type (see
+-	// above), we are ok here because only fields are accepted as results.
++	// If we didn't find anything and if we have a type parameter with a shared underlying
++	// type, see if there is a matching field (but not a method, those need to be declared
++	// explicitly in the constraint). If the constraint is a named pointer type (see above),
++	// we are ok here because only fields are accepted as results.
+ 	const enableTParamFieldLookup = false // see go.dev/issue/51576
+ 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
+-		if t := coreType(T); t != nil {
++		if t := sharedUnder(nil, T, nil); t != nil {
+ 			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase)
+ 			if _, ok := obj.(*Var); !ok {
+ 				obj, index, indirect = nil, nil, false // accept fields (variables) only
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index 6c95a9c8d7..cbf16ae7c8 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -70,13 +70,13 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
+ 
+ 	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, foldCase)
+ 
+-	// If we didn't find anything and if we have a type parameter with a core type,
+-	// see if there is a matching field (but not a method, those need to be declared
+-	// explicitly in the constraint). If the constraint is a named pointer type (see
+-	// above), we are ok here because only fields are accepted as results.
++	// If we didn't find anything and if we have a type parameter with a shared underlying
++	// type, see if there is a matching field (but not a method, those need to be declared
++	// explicitly in the constraint). If the constraint is a named pointer type (see above),
++	// we are ok here because only fields are accepted as results.
+ 	const enableTParamFieldLookup = false // see go.dev/issue/51576
+ 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
+-		if t := coreType(T); t != nil {
++		if t := sharedUnder(nil, T, nil); t != nil {
+ 			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase)
+ 			if _, ok := obj.(*Var); !ok {
+ 				obj, index, indirect = nil, nil, false // accept fields (variables) only

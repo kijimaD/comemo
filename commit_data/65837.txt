@@ -1,0 +1,96 @@
+commit 8790372a8d7e777d23d6b77d248318d01f4d7c4d
+Author: wangshuo <wangshuo@kylinos.cn>
+Date:   Tue Dec 17 12:50:44 2024 +0000
+
+    cmd, go: fix some typos
+    
+    Change-Id: I0fd54ae5294eb4ef30cdef05adb8825f69077b14
+    GitHub-Last-Rev: ccfa48cbe4525dc2bd60e9ac7e2c150e480ba13f
+    GitHub-Pull-Request: golang/go#70823
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635915
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/README.md                 | 2 +-
+ src/cmd/compile/internal/types2/signature.go              | 2 +-
+ src/cmd/go/testdata/script/build_version_stamping_git.txt | 4 ++--
+ src/cmd/vet/vet_test.go                                   | 2 +-
+ src/go/types/signature.go                                 | 2 +-
+ 5 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/README.md b/src/cmd/compile/internal/types2/README.md
+index 3d70cdbcf4..73253b4920 100644
+--- a/src/cmd/compile/internal/types2/README.md
++++ b/src/cmd/compile/internal/types2/README.md
+@@ -56,7 +56,7 @@ The tests are in:
+ Tests are .go files annotated with `/* ERROR "msg" */` or `/* ERRORx "msg" */`
+ comments (or the respective line comment form).
+ For each such error comment, typechecking the respective file is expected to
+-report an error at the position of the syntactic token _immediately preceeding_
++report an error at the position of the syntactic token _immediately preceding_
+ the comment.
+ For `ERROR`, the `"msg"` string must be a substring of the error message
+ reported by the typechecker;
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index d3169630ea..de4f1eaa20 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -174,7 +174,7 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (*V
+ 	} else {
+ 		// If there are type parameters, rbase must denote a generic base type.
+ 		// Important: rbase must be resolved before declaring any receiver type
+-		// parameters (wich may have the same name, see below).
++		// parameters (which may have the same name, see below).
+ 		var baseType *Named // nil if not valid
+ 		var cause string
+ 		if t := check.genericType(rbase, &cause); isValid(t) {
+diff --git a/src/cmd/go/testdata/script/build_version_stamping_git.txt b/src/cmd/go/testdata/script/build_version_stamping_git.txt
+index ed07e00c7b..db804b3847 100644
+--- a/src/cmd/go/testdata/script/build_version_stamping_git.txt
++++ b/src/cmd/go/testdata/script/build_version_stamping_git.txt
+@@ -51,7 +51,7 @@ go version -m example$GOEXE
+ stdout '\s+mod\s+example\s+v1.0.1\s+'
+ rm example$GOEXE
+ 
+-# Use tag+dirty when there are uncomitted changes present.
++# Use tag+dirty when there are uncommitted changes present.
+ cp $WORK/copy/README $WORK/repo/README
+ go build
+ go version -m example$GOEXE
+@@ -82,7 +82,7 @@ go version -m example$GOEXE
+ stdout '\s+mod\s+example\s+v1.0.3-0.20220719150702-deaeab06f7fe\s+'
+ rm example$GOEXE
+ 
+-# Use pseudo+dirty when uncomitted changes are present.
++# Use pseudo+dirty when uncommitted changes are present.
+ mv README2 README3
+ go build
+ go version -m example$GOEXE
+diff --git a/src/cmd/vet/vet_test.go b/src/cmd/vet/vet_test.go
+index f1450dcbd2..3860895a0a 100644
+--- a/src/cmd/vet/vet_test.go
++++ b/src/cmd/vet/vet_test.go
+@@ -108,7 +108,7 @@ func TestVet(t *testing.T) {
+ 	// is a no-op for files whose version >= go1.22, so we use a
+ 	// go.mod file in the rangeloop directory to "downgrade".
+ 	//
+-	// TOOD(adonovan): delete when go1.21 goes away.
++	// TODO(adonovan): delete when go1.21 goes away.
+ 	t.Run("loopclosure", func(t *testing.T) {
+ 		cmd := testenv.Command(t, testenv.GoToolPath(t), "vet", "-vettool="+vetPath(t), ".")
+ 		cmd.Env = append(os.Environ(), "GOWORK=off")
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 681eb85fd7..ff405318ee 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -195,7 +195,7 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var,
+ 	} else {
+ 		// If there are type parameters, rbase must denote a generic base type.
+ 		// Important: rbase must be resolved before declaring any receiver type
+-		// parameters (wich may have the same name, see below).
++		// parameters (which may have the same name, see below).
+ 		var baseType *Named // nil if not valid
+ 		var cause string
+ 		if t := check.genericType(rbase, &cause); isValid(t) {

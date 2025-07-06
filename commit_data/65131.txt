@@ -1,0 +1,1987 @@
+commit 8eeac50cb521df8ee81c62896a237d6e38479b77
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Sep 19 20:04:30 2024 +0200
+
+    crypto/sha256,crypto/sha512: move implementation to crypto/internal/fips
+    
+    For #69536
+    
+    Change-Id: I1efa916e6e9fcddeffa52bc3d23286e6465dae54
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615235
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/compile/internal/types2/stdlib_test.go     |  17 +-
+ src/crypto/{ => internal/fips}/sha256/_asm/go.mod  |   0
+ src/crypto/{ => internal/fips}/sha256/_asm/go.sum  |   0
+ .../fips}/sha256/_asm/sha256block_amd64_asm.go     |   0
+ .../fips}/sha256/_asm/sha256block_amd64_avx2.go    |   0
+ .../fips}/sha256/_asm/sha256block_amd64_shani.go   |   0
+ src/crypto/internal/fips/sha256/sha256.go          | 229 +++++++++++++++
+ .../{ => internal/fips}/sha256/sha256block.go      |   2 +-
+ .../{ => internal/fips}/sha256/sha256block_386.s   |   0
+ .../fips}/sha256/sha256block_amd64.go              |   8 +-
+ .../{ => internal/fips}/sha256/sha256block_amd64.s |   6 +-
+ .../fips}/sha256/sha256block_arm64.go              |   4 +-
+ .../{ => internal/fips}/sha256/sha256block_arm64.s |   2 +-
+ .../{ => internal/fips}/sha256/sha256block_asm.go  |   2 +-
+ .../fips}/sha256/sha256block_loong64.s             |   2 +-
+ .../fips}/sha256/sha256block_noasm.go              |   2 +-
+ .../fips}/sha256/sha256block_ppc64x.go             |   4 +-
+ .../fips}/sha256/sha256block_ppc64x.s              |   2 +-
+ .../fips}/sha256/sha256block_riscv64.s             |   2 +-
+ .../fips}/sha256/sha256block_s390x.go              |   4 +-
+ .../{ => internal/fips}/sha256/sha256block_s390x.s |   2 +-
+ src/crypto/{ => internal/fips}/sha512/_asm/go.mod  |   0
+ src/crypto/{ => internal/fips}/sha512/_asm/go.sum  |   0
+ .../fips}/sha512/_asm/sha512block_amd64_asm.go     |   0
+ src/crypto/internal/fips/sha512/sha512.go          | 299 +++++++++++++++++++
+ .../{ => internal/fips}/sha512/sha512block.go      |   2 +-
+ .../fips}/sha512/sha512block_amd64.go              |   6 +-
+ .../{ => internal/fips}/sha512/sha512block_amd64.s |   4 +-
+ .../fips}/sha512/sha512block_arm64.go              |   4 +-
+ .../{ => internal/fips}/sha512/sha512block_arm64.s |   2 +-
+ .../{ => internal/fips}/sha512/sha512block_asm.go  |   2 +-
+ .../fips}/sha512/sha512block_loong64.s             |   2 +-
+ .../fips}/sha512/sha512block_noasm.go              |   2 +-
+ .../fips}/sha512/sha512block_ppc64x.go             |   4 +-
+ .../fips}/sha512/sha512block_ppc64x.s              |   2 +-
+ .../fips}/sha512/sha512block_riscv64.s             |   2 +-
+ .../fips}/sha512/sha512block_s390x.go              |   4 +-
+ .../{ => internal/fips}/sha512/sha512block_s390x.s |   2 +-
+ src/crypto/sha256/sha256.go                        | 228 +--------------
+ src/crypto/sha256/sha256_test.go                   |  31 +-
+ src/crypto/sha512/sha512.go                        | 323 ++-------------------
+ src/crypto/sha512/sha512_test.go                   |  45 ++-
+ src/go/build/deps_test.go                          |  15 +-
+ src/go/types/stdlib_test.go                        |  17 +-
+ 44 files changed, 686 insertions(+), 598 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 45c692d511..0c63e5d77c 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -17,6 +17,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -354,17 +355,6 @@ func TestStdKen(t *testing.T) {
+ // Package paths of excluded packages.
+ var excluded = map[string]bool{
+ 	"builtin": true,
+-
+-	// go.dev/issue/46027: some imports are missing for this submodule.
+-	"crypto/aes/_asm/gcm":                     true,
+-	"crypto/aes/_asm/standard":                true,
+-	"crypto/internal/bigmod/_asm":             true,
+-	"crypto/internal/edwards25519/field/_asm": true,
+-	"crypto/internal/nistec/_asm":             true,
+-	"crypto/md5/_asm":                         true,
+-	"crypto/sha1/_asm":                        true,
+-	"crypto/sha256/_asm":                      true,
+-	"crypto/sha512/_asm":                      true,
+ }
+ 
+ // printPackageMu synchronizes the printing of type-checked package files in
+@@ -447,6 +437,11 @@ func pkgFilenames(dir string, includeTest bool) ([]string, error) {
+ 	if excluded[pkg.ImportPath] {
+ 		return nil, nil
+ 	}
++	if slices.Contains(strings.Split(pkg.ImportPath, "/"), "_asm") {
++		// Submodules where not all dependencies are available.
++		// See go.dev/issue/46027.
++		return nil, nil
++	}
+ 	var filenames []string
+ 	for _, name := range pkg.GoFiles {
+ 		filenames = append(filenames, filepath.Join(pkg.Dir, name))
+diff --git a/src/crypto/sha256/_asm/go.mod b/src/crypto/internal/fips/sha256/_asm/go.mod
+similarity index 100%
+rename from src/crypto/sha256/_asm/go.mod
+rename to src/crypto/internal/fips/sha256/_asm/go.mod
+diff --git a/src/crypto/sha256/_asm/go.sum b/src/crypto/internal/fips/sha256/_asm/go.sum
+similarity index 100%
+rename from src/crypto/sha256/_asm/go.sum
+rename to src/crypto/internal/fips/sha256/_asm/go.sum
+diff --git a/src/crypto/sha256/_asm/sha256block_amd64_asm.go b/src/crypto/internal/fips/sha256/_asm/sha256block_amd64_asm.go
+similarity index 100%
+rename from src/crypto/sha256/_asm/sha256block_amd64_asm.go
+rename to src/crypto/internal/fips/sha256/_asm/sha256block_amd64_asm.go
+diff --git a/src/crypto/sha256/_asm/sha256block_amd64_avx2.go b/src/crypto/internal/fips/sha256/_asm/sha256block_amd64_avx2.go
+similarity index 100%
+rename from src/crypto/sha256/_asm/sha256block_amd64_avx2.go
+rename to src/crypto/internal/fips/sha256/_asm/sha256block_amd64_avx2.go
+diff --git a/src/crypto/sha256/_asm/sha256block_amd64_shani.go b/src/crypto/internal/fips/sha256/_asm/sha256block_amd64_shani.go
+similarity index 100%
+rename from src/crypto/sha256/_asm/sha256block_amd64_shani.go
+rename to src/crypto/internal/fips/sha256/_asm/sha256block_amd64_shani.go
+diff --git a/src/crypto/internal/fips/sha256/sha256.go b/src/crypto/internal/fips/sha256/sha256.go
+new file mode 100644
+index 0000000000..37652996ce
+--- /dev/null
++++ b/src/crypto/internal/fips/sha256/sha256.go
+@@ -0,0 +1,229 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package sha256 implements the SHA-224 and SHA-256 hash algorithms as defined
++// in FIPS 180-4.
++package sha256
++
++import (
++	"errors"
++	"internal/byteorder"
++)
++
++// The size of a SHA-256 checksum in bytes.
++const size = 32
++
++// The size of a SHA-224 checksum in bytes.
++const size224 = 28
++
++// The block size of SHA-256 and SHA-224 in bytes.
++const blockSize = 64
++
++const (
++	chunk     = 64
++	init0     = 0x6A09E667
++	init1     = 0xBB67AE85
++	init2     = 0x3C6EF372
++	init3     = 0xA54FF53A
++	init4     = 0x510E527F
++	init5     = 0x9B05688C
++	init6     = 0x1F83D9AB
++	init7     = 0x5BE0CD19
++	init0_224 = 0xC1059ED8
++	init1_224 = 0x367CD507
++	init2_224 = 0x3070DD17
++	init3_224 = 0xF70E5939
++	init4_224 = 0xFFC00B31
++	init5_224 = 0x68581511
++	init6_224 = 0x64F98FA7
++	init7_224 = 0xBEFA4FA4
++)
++
++// Digest is a SHA-224 or SHA-256 [hash.Hash] implementation.
++type Digest struct {
++	h     [8]uint32
++	x     [chunk]byte
++	nx    int
++	len   uint64
++	is224 bool // mark if this digest is SHA-224
++}
++
++const (
++	magic224      = "sha\x02"
++	magic256      = "sha\x03"
++	marshaledSize = len(magic256) + 8*4 + chunk + 8
++)
++
++func (d *Digest) MarshalBinary() ([]byte, error) {
++	return d.AppendBinary(make([]byte, 0, marshaledSize))
++}
++
++func (d *Digest) AppendBinary(b []byte) ([]byte, error) {
++	if d.is224 {
++		b = append(b, magic224...)
++	} else {
++		b = append(b, magic256...)
++	}
++	b = byteorder.BeAppendUint32(b, d.h[0])
++	b = byteorder.BeAppendUint32(b, d.h[1])
++	b = byteorder.BeAppendUint32(b, d.h[2])
++	b = byteorder.BeAppendUint32(b, d.h[3])
++	b = byteorder.BeAppendUint32(b, d.h[4])
++	b = byteorder.BeAppendUint32(b, d.h[5])
++	b = byteorder.BeAppendUint32(b, d.h[6])
++	b = byteorder.BeAppendUint32(b, d.h[7])
++	b = append(b, d.x[:d.nx]...)
++	b = append(b, make([]byte, len(d.x)-d.nx)...)
++	b = byteorder.BeAppendUint64(b, d.len)
++	return b, nil
++}
++
++func (d *Digest) UnmarshalBinary(b []byte) error {
++	if len(b) < len(magic224) || (d.is224 && string(b[:len(magic224)]) != magic224) || (!d.is224 && string(b[:len(magic256)]) != magic256) {
++		return errors.New("crypto/sha256: invalid hash state identifier")
++	}
++	if len(b) != marshaledSize {
++		return errors.New("crypto/sha256: invalid hash state size")
++	}
++	b = b[len(magic224):]
++	b, d.h[0] = consumeUint32(b)
++	b, d.h[1] = consumeUint32(b)
++	b, d.h[2] = consumeUint32(b)
++	b, d.h[3] = consumeUint32(b)
++	b, d.h[4] = consumeUint32(b)
++	b, d.h[5] = consumeUint32(b)
++	b, d.h[6] = consumeUint32(b)
++	b, d.h[7] = consumeUint32(b)
++	b = b[copy(d.x[:], b):]
++	b, d.len = consumeUint64(b)
++	d.nx = int(d.len % chunk)
++	return nil
++}
++
++func consumeUint64(b []byte) ([]byte, uint64) {
++	return b[8:], byteorder.BeUint64(b)
++}
++
++func consumeUint32(b []byte) ([]byte, uint32) {
++	return b[4:], byteorder.BeUint32(b)
++}
++
++func (d *Digest) Reset() {
++	if !d.is224 {
++		d.h[0] = init0
++		d.h[1] = init1
++		d.h[2] = init2
++		d.h[3] = init3
++		d.h[4] = init4
++		d.h[5] = init5
++		d.h[6] = init6
++		d.h[7] = init7
++	} else {
++		d.h[0] = init0_224
++		d.h[1] = init1_224
++		d.h[2] = init2_224
++		d.h[3] = init3_224
++		d.h[4] = init4_224
++		d.h[5] = init5_224
++		d.h[6] = init6_224
++		d.h[7] = init7_224
++	}
++	d.nx = 0
++	d.len = 0
++}
++
++// New returns a new Digest computing the SHA-256 hash.
++func New() *Digest {
++	d := new(Digest)
++	d.Reset()
++	return d
++}
++
++// New224 returns a new Digest computing the SHA-224 hash.
++func New224() *Digest {
++	d := new(Digest)
++	d.is224 = true
++	d.Reset()
++	return d
++}
++
++func (d *Digest) Size() int {
++	if !d.is224 {
++		return size
++	}
++	return size224
++}
++
++func (d *Digest) BlockSize() int { return blockSize }
++
++func (d *Digest) Write(p []byte) (nn int, err error) {
++	nn = len(p)
++	d.len += uint64(nn)
++	if d.nx > 0 {
++		n := copy(d.x[d.nx:], p)
++		d.nx += n
++		if d.nx == chunk {
++			block(d, d.x[:])
++			d.nx = 0
++		}
++		p = p[n:]
++	}
++	if len(p) >= chunk {
++		n := len(p) &^ (chunk - 1)
++		block(d, p[:n])
++		p = p[n:]
++	}
++	if len(p) > 0 {
++		d.nx = copy(d.x[:], p)
++	}
++	return
++}
++
++func (d *Digest) Sum(in []byte) []byte {
++	// Make a copy of d so that caller can keep writing and summing.
++	d0 := *d
++	hash := d0.checkSum()
++	if d0.is224 {
++		return append(in, hash[:size224]...)
++	}
++	return append(in, hash[:]...)
++}
++
++func (d *Digest) checkSum() [size]byte {
++	len := d.len
++	// Padding. Add a 1 bit and 0 bits until 56 bytes mod 64.
++	var tmp [64 + 8]byte // padding + length buffer
++	tmp[0] = 0x80
++	var t uint64
++	if len%64 < 56 {
++		t = 56 - len%64
++	} else {
++		t = 64 + 56 - len%64
++	}
++
++	// Length in bits.
++	len <<= 3
++	padlen := tmp[:t+8]
++	byteorder.BePutUint64(padlen[t+0:], len)
++	d.Write(padlen)
++
++	if d.nx != 0 {
++		panic("d.nx != 0")
++	}
++
++	var digest [size]byte
++
++	byteorder.BePutUint32(digest[0:], d.h[0])
++	byteorder.BePutUint32(digest[4:], d.h[1])
++	byteorder.BePutUint32(digest[8:], d.h[2])
++	byteorder.BePutUint32(digest[12:], d.h[3])
++	byteorder.BePutUint32(digest[16:], d.h[4])
++	byteorder.BePutUint32(digest[20:], d.h[5])
++	byteorder.BePutUint32(digest[24:], d.h[6])
++	if !d.is224 {
++		byteorder.BePutUint32(digest[28:], d.h[7])
++	}
++
++	return digest
++}
+diff --git a/src/crypto/sha256/sha256block.go b/src/crypto/internal/fips/sha256/sha256block.go
+similarity index 98%
+rename from src/crypto/sha256/sha256block.go
+rename to src/crypto/internal/fips/sha256/sha256block.go
+index bd2f9da93c..3fbad71864 100644
+--- a/src/crypto/sha256/sha256block.go
++++ b/src/crypto/internal/fips/sha256/sha256block.go
+@@ -77,7 +77,7 @@ var _K = []uint32{
+ 	0xc67178f2,
+ }
+ 
+-func blockGeneric(dig *digest, p []byte) {
++func blockGeneric(dig *Digest, p []byte) {
+ 	var w [64]uint32
+ 	h0, h1, h2, h3, h4, h5, h6, h7 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7]
+ 	for len(p) >= chunk {
+diff --git a/src/crypto/sha256/sha256block_386.s b/src/crypto/internal/fips/sha256/sha256block_386.s
+similarity index 100%
+rename from src/crypto/sha256/sha256block_386.s
+rename to src/crypto/internal/fips/sha256/sha256block_386.s
+diff --git a/src/crypto/sha256/sha256block_amd64.go b/src/crypto/internal/fips/sha256/sha256block_amd64.go
+similarity index 80%
+rename from src/crypto/sha256/sha256block_amd64.go
+rename to src/crypto/internal/fips/sha256/sha256block_amd64.go
+index ec3a4870d4..7c19bbb19b 100644
+--- a/src/crypto/sha256/sha256block_amd64.go
++++ b/src/crypto/internal/fips/sha256/sha256block_amd64.go
+@@ -20,15 +20,15 @@ func init() {
+ }
+ 
+ //go:noescape
+-func blockAMD64(dig *digest, p []byte)
++func blockAMD64(dig *Digest, p []byte)
+ 
+ //go:noescape
+-func blockAVX2(dig *digest, p []byte)
++func blockAVX2(dig *Digest, p []byte)
+ 
+ //go:noescape
+-func blockSHANI(dig *digest, p []byte)
++func blockSHANI(dig *Digest, p []byte)
+ 
+-func block(dig *digest, p []byte) {
++func block(dig *Digest, p []byte) {
+ 	if useSHANI {
+ 		blockSHANI(dig, p)
+ 	} else if useAVX2 {
+diff --git a/src/crypto/sha256/sha256block_amd64.s b/src/crypto/internal/fips/sha256/sha256block_amd64.s
+similarity index 99%
+rename from src/crypto/sha256/sha256block_amd64.s
+rename to src/crypto/internal/fips/sha256/sha256block_amd64.s
+index d073c5fe30..7d9ed5acea 100644
+--- a/src/crypto/sha256/sha256block_amd64.s
++++ b/src/crypto/internal/fips/sha256/sha256block_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// func blockAMD64(dig *digest, p []byte)
++// func blockAMD64(dig *Digest, p []byte)
+ TEXT ·blockAMD64(SB), $264-32
+ 	MOVQ p_base+8(FP), SI
+ 	MOVQ p_len+16(FP), DX
+@@ -3490,7 +3490,7 @@ loop:
+ end:
+ 	RET
+ 
+-// func blockAVX2(dig *digest, p []byte)
++// func blockAVX2(dig *Digest, p []byte)
+ // Requires: AVX, AVX2, BMI2
+ TEXT ·blockAVX2(SB), $536-32
+ 	MOVQ dig+0(FP), SI
+@@ -4772,7 +4772,7 @@ DATA shuff_DC00<>+16(SB)/8, $0xffffffffffffffff
+ DATA shuff_DC00<>+24(SB)/8, $0x0b0a090803020100
+ GLOBL shuff_DC00<>(SB), RODATA, $32
+ 
+-// func blockSHANI(dig *digest, p []byte)
++// func blockSHANI(dig *Digest, p []byte)
+ // Requires: AVX, SHA, SSE2, SSE4.1, SSSE3
+ TEXT ·blockSHANI(SB), $0-32
+ 	MOVQ    dig+0(FP), DI
+diff --git a/src/crypto/sha256/sha256block_arm64.go b/src/crypto/internal/fips/sha256/sha256block_arm64.go
+similarity index 85%
+rename from src/crypto/sha256/sha256block_arm64.go
+rename to src/crypto/internal/fips/sha256/sha256block_arm64.go
+index 6eb1c89a6b..c0301aef25 100644
+--- a/src/crypto/sha256/sha256block_arm64.go
++++ b/src/crypto/internal/fips/sha256/sha256block_arm64.go
+@@ -18,9 +18,9 @@ func init() {
+ }
+ 
+ //go:noescape
+-func blockSHA2(dig *digest, p []byte)
++func blockSHA2(dig *Digest, p []byte)
+ 
+-func block(dig *digest, p []byte) {
++func block(dig *Digest, p []byte) {
+ 	if useSHA2 {
+ 		blockSHA2(dig, p)
+ 	} else {
+diff --git a/src/crypto/sha256/sha256block_arm64.s b/src/crypto/internal/fips/sha256/sha256block_arm64.s
+similarity index 99%
+rename from src/crypto/sha256/sha256block_arm64.s
+rename to src/crypto/internal/fips/sha256/sha256block_arm64.s
+index f6d19e35c6..0e63cda99c 100644
+--- a/src/crypto/sha256/sha256block_arm64.s
++++ b/src/crypto/internal/fips/sha256/sha256block_arm64.s
+@@ -11,7 +11,7 @@
+ 	SHA256H2	V9.S4, V8, V3 \
+ 	VMOV	V2.B16, V8.B16
+ 
+-// func blockSHA2(dig *digest, p []byte)
++// func blockSHA2(dig *Digest, p []byte)
+ TEXT ·blockSHA2(SB),NOSPLIT,$0
+ 	MOVD	dig+0(FP), R0                              // Hash value first address
+ 	MOVD	p_base+8(FP), R1                           // message first address
+diff --git a/src/crypto/sha256/sha256block_asm.go b/src/crypto/internal/fips/sha256/sha256block_asm.go
+similarity index 87%
+rename from src/crypto/sha256/sha256block_asm.go
+rename to src/crypto/internal/fips/sha256/sha256block_asm.go
+index 50e9615c5e..1b157d744d 100644
+--- a/src/crypto/sha256/sha256block_asm.go
++++ b/src/crypto/internal/fips/sha256/sha256block_asm.go
+@@ -7,4 +7,4 @@
+ package sha256
+ 
+ //go:noescape
+-func block(dig *digest, p []byte)
++func block(dig *Digest, p []byte)
+diff --git a/src/crypto/sha256/sha256block_loong64.s b/src/crypto/internal/fips/sha256/sha256block_loong64.s
+similarity index 99%
+rename from src/crypto/sha256/sha256block_loong64.s
+rename to src/crypto/internal/fips/sha256/sha256block_loong64.s
+index 2a2fbe6833..971ad97ab8 100644
+--- a/src/crypto/sha256/sha256block_loong64.s
++++ b/src/crypto/internal/fips/sha256/sha256block_loong64.s
+@@ -141,7 +141,7 @@
+ // the frame size used for data expansion is 64 bytes.
+ // See the definition of the macro LOAD1 above (4 bytes * 16 entries).
+ //
+-//func block(dig *digest, p []byte)
++//func block(dig *Digest, p []byte)
+ TEXT ·block(SB),NOSPLIT,$64-32
+ 	MOVV	p_base+8(FP), R5
+ 	MOVV	p_len+16(FP), R6
+diff --git a/src/crypto/sha256/sha256block_noasm.go b/src/crypto/internal/fips/sha256/sha256block_noasm.go
+similarity index 89%
+rename from src/crypto/sha256/sha256block_noasm.go
+rename to src/crypto/internal/fips/sha256/sha256block_noasm.go
+index 8ca8401f65..cc7abf6a38 100644
+--- a/src/crypto/sha256/sha256block_noasm.go
++++ b/src/crypto/internal/fips/sha256/sha256block_noasm.go
+@@ -6,6 +6,6 @@
+ 
+ package sha256
+ 
+-func block(dig *digest, p []byte) {
++func block(dig *Digest, p []byte) {
+ 	blockGeneric(dig, p)
+ }
+diff --git a/src/crypto/sha256/sha256block_ppc64x.go b/src/crypto/internal/fips/sha256/sha256block_ppc64x.go
+similarity index 91%
+rename from src/crypto/sha256/sha256block_ppc64x.go
+rename to src/crypto/internal/fips/sha256/sha256block_ppc64x.go
+index 6cc8c2ec52..1854fdf04a 100644
+--- a/src/crypto/sha256/sha256block_ppc64x.go
++++ b/src/crypto/internal/fips/sha256/sha256block_ppc64x.go
+@@ -22,9 +22,9 @@ func init() {
+ }
+ 
+ //go:noescape
+-func blockPOWER(dig *digest, p []byte)
++func blockPOWER(dig *Digest, p []byte)
+ 
+-func block(dig *digest, p []byte) {
++func block(dig *Digest, p []byte) {
+ 	if ppc64sha2 {
+ 		blockPOWER(dig, p)
+ 	} else {
+diff --git a/src/crypto/sha256/sha256block_ppc64x.s b/src/crypto/internal/fips/sha256/sha256block_ppc64x.s
+similarity index 99%
+rename from src/crypto/sha256/sha256block_ppc64x.s
+rename to src/crypto/internal/fips/sha256/sha256block_ppc64x.s
+index a5f40ff04a..b28f80dcfa 100644
+--- a/src/crypto/sha256/sha256block_ppc64x.s
++++ b/src/crypto/internal/fips/sha256/sha256block_ppc64x.s
+@@ -284,7 +284,7 @@ GLOBL ·kcon(SB), RODATA, $1088
+ #define VPERMLE(va,vb,vc,vt)
+ #endif
+ 
+-// func blockPOWER(dig *digest, p []byte)
++// func blockPOWER(dig *Digest, p []byte)
+ TEXT ·blockPOWER(SB),0,$0-32
+ 	MOVD	dig+0(FP), CTX
+ 	MOVD	p_base+8(FP), INP
+diff --git a/src/crypto/sha256/sha256block_riscv64.s b/src/crypto/internal/fips/sha256/sha256block_riscv64.s
+similarity index 99%
+rename from src/crypto/sha256/sha256block_riscv64.s
+rename to src/crypto/internal/fips/sha256/sha256block_riscv64.s
+index f31bfb8d53..730ba64abe 100644
+--- a/src/crypto/sha256/sha256block_riscv64.s
++++ b/src/crypto/internal/fips/sha256/sha256block_riscv64.s
+@@ -141,7 +141,7 @@
+ // Note that 64 bytes of stack space is used as a circular buffer
+ // for the message schedule (4 bytes * 16 entries).
+ //
+-// func block(dig *digest, p []byte)
++// func block(dig *Digest, p []byte)
+ TEXT ·block(SB),0,$64-32
+ 	MOV	p_base+8(FP), X29
+ 	MOV	p_len+16(FP), X30
+diff --git a/src/crypto/sha256/sha256block_s390x.go b/src/crypto/internal/fips/sha256/sha256block_s390x.go
+similarity index 88%
+rename from src/crypto/sha256/sha256block_s390x.go
+rename to src/crypto/internal/fips/sha256/sha256block_s390x.go
+index 06bba55117..4cc4713f3a 100644
+--- a/src/crypto/sha256/sha256block_s390x.go
++++ b/src/crypto/internal/fips/sha256/sha256block_s390x.go
+@@ -20,9 +20,9 @@ func init() {
+ }
+ 
+ //go:noescape
+-func blockS390X(dig *digest, p []byte)
++func blockS390X(dig *Digest, p []byte)
+ 
+-func block(dig *digest, p []byte) {
++func block(dig *Digest, p []byte) {
+ 	if useSHA256 {
+ 		blockS390X(dig, p)
+ 	} else {
+diff --git a/src/crypto/sha256/sha256block_s390x.s b/src/crypto/internal/fips/sha256/sha256block_s390x.s
+similarity index 92%
+rename from src/crypto/sha256/sha256block_s390x.s
+rename to src/crypto/internal/fips/sha256/sha256block_s390x.s
+index 6372d67738..06469d68d6 100644
+--- a/src/crypto/sha256/sha256block_s390x.s
++++ b/src/crypto/internal/fips/sha256/sha256block_s390x.s
+@@ -6,7 +6,7 @@
+ 
+ #include "textflag.h"
+ 
+-// func blockS390X(dig *digest, p []byte)
++// func blockS390X(dig *Digest, p []byte)
+ TEXT ·blockS390X(SB), NOSPLIT|NOFRAME, $0-32
+ 	LMG    dig+0(FP), R1, R3            // R2 = &p[0], R3 = len(p)
+ 	MOVBZ  $2, R0                       // SHA-256 function code
+diff --git a/src/crypto/sha512/_asm/go.mod b/src/crypto/internal/fips/sha512/_asm/go.mod
+similarity index 100%
+rename from src/crypto/sha512/_asm/go.mod
+rename to src/crypto/internal/fips/sha512/_asm/go.mod
+diff --git a/src/crypto/sha512/_asm/go.sum b/src/crypto/internal/fips/sha512/_asm/go.sum
+similarity index 100%
+rename from src/crypto/sha512/_asm/go.sum
+rename to src/crypto/internal/fips/sha512/_asm/go.sum
+diff --git a/src/crypto/sha512/_asm/sha512block_amd64_asm.go b/src/crypto/internal/fips/sha512/_asm/sha512block_amd64_asm.go
+similarity index 100%
+rename from src/crypto/sha512/_asm/sha512block_amd64_asm.go
+rename to src/crypto/internal/fips/sha512/_asm/sha512block_amd64_asm.go
+diff --git a/src/crypto/internal/fips/sha512/sha512.go b/src/crypto/internal/fips/sha512/sha512.go
+new file mode 100644
+index 0000000000..e613fd17a2
+--- /dev/null
++++ b/src/crypto/internal/fips/sha512/sha512.go
+@@ -0,0 +1,299 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package sha512 implements the SHA-384, SHA-512, SHA-512/224, and SHA-512/256
++// hash algorithms as defined in FIPS 180-4.
++package sha512
++
++import (
++	"errors"
++	"internal/byteorder"
++)
++
++const (
++	// size512 is the size, in bytes, of a SHA-512 checksum.
++	size512 = 64
++
++	// size224 is the size, in bytes, of a SHA-512/224 checksum.
++	size224 = 28
++
++	// size256 is the size, in bytes, of a SHA-512/256 checksum.
++	size256 = 32
++
++	// size384 is the size, in bytes, of a SHA-384 checksum.
++	size384 = 48
++
++	// blockSize is the block size, in bytes, of the SHA-512/224,
++	// SHA-512/256, SHA-384 and SHA-512 hash functions.
++	blockSize = 128
++)
++
++const (
++	chunk     = 128
++	init0     = 0x6a09e667f3bcc908
++	init1     = 0xbb67ae8584caa73b
++	init2     = 0x3c6ef372fe94f82b
++	init3     = 0xa54ff53a5f1d36f1
++	init4     = 0x510e527fade682d1
++	init5     = 0x9b05688c2b3e6c1f
++	init6     = 0x1f83d9abfb41bd6b
++	init7     = 0x5be0cd19137e2179
++	init0_224 = 0x8c3d37c819544da2
++	init1_224 = 0x73e1996689dcd4d6
++	init2_224 = 0x1dfab7ae32ff9c82
++	init3_224 = 0x679dd514582f9fcf
++	init4_224 = 0x0f6d2b697bd44da8
++	init5_224 = 0x77e36f7304c48942
++	init6_224 = 0x3f9d85a86a1d36c8
++	init7_224 = 0x1112e6ad91d692a1
++	init0_256 = 0x22312194fc2bf72c
++	init1_256 = 0x9f555fa3c84c64c2
++	init2_256 = 0x2393b86b6f53b151
++	init3_256 = 0x963877195940eabd
++	init4_256 = 0x96283ee2a88effe3
++	init5_256 = 0xbe5e1e2553863992
++	init6_256 = 0x2b0199fc2c85b8aa
++	init7_256 = 0x0eb72ddc81c52ca2
++	init0_384 = 0xcbbb9d5dc1059ed8
++	init1_384 = 0x629a292a367cd507
++	init2_384 = 0x9159015a3070dd17
++	init3_384 = 0x152fecd8f70e5939
++	init4_384 = 0x67332667ffc00b31
++	init5_384 = 0x8eb44a8768581511
++	init6_384 = 0xdb0c2e0d64f98fa7
++	init7_384 = 0x47b5481dbefa4fa4
++)
++
++// Digest is a SHA-384, SHA-512, SHA-512/224, or SHA-512/256 [hash.Hash]
++// implementation.
++type Digest struct {
++	h    [8]uint64
++	x    [chunk]byte
++	nx   int
++	len  uint64
++	size int // size224, size256, size384, or size512
++}
++
++func (d *Digest) Reset() {
++	switch d.size {
++	case size384:
++		d.h[0] = init0_384
++		d.h[1] = init1_384
++		d.h[2] = init2_384
++		d.h[3] = init3_384
++		d.h[4] = init4_384
++		d.h[5] = init5_384
++		d.h[6] = init6_384
++		d.h[7] = init7_384
++	case size224:
++		d.h[0] = init0_224
++		d.h[1] = init1_224
++		d.h[2] = init2_224
++		d.h[3] = init3_224
++		d.h[4] = init4_224
++		d.h[5] = init5_224
++		d.h[6] = init6_224
++		d.h[7] = init7_224
++	case size256:
++		d.h[0] = init0_256
++		d.h[1] = init1_256
++		d.h[2] = init2_256
++		d.h[3] = init3_256
++		d.h[4] = init4_256
++		d.h[5] = init5_256
++		d.h[6] = init6_256
++		d.h[7] = init7_256
++	case size512:
++		d.h[0] = init0
++		d.h[1] = init1
++		d.h[2] = init2
++		d.h[3] = init3
++		d.h[4] = init4
++		d.h[5] = init5
++		d.h[6] = init6
++		d.h[7] = init7
++	default:
++		panic("unknown size")
++	}
++	d.nx = 0
++	d.len = 0
++}
++
++const (
++	magic384      = "sha\x04"
++	magic512_224  = "sha\x05"
++	magic512_256  = "sha\x06"
++	magic512      = "sha\x07"
++	marshaledSize = len(magic512) + 8*8 + chunk + 8
++)
++
++func (d *Digest) MarshalBinary() ([]byte, error) {
++	return d.AppendBinary(make([]byte, 0, marshaledSize))
++}
++
++func (d *Digest) AppendBinary(b []byte) ([]byte, error) {
++	switch d.size {
++	case size384:
++		b = append(b, magic384...)
++	case size224:
++		b = append(b, magic512_224...)
++	case size256:
++		b = append(b, magic512_256...)
++	case size512:
++		b = append(b, magic512...)
++	default:
++		panic("unknown size")
++	}
++	b = byteorder.BeAppendUint64(b, d.h[0])
++	b = byteorder.BeAppendUint64(b, d.h[1])
++	b = byteorder.BeAppendUint64(b, d.h[2])
++	b = byteorder.BeAppendUint64(b, d.h[3])
++	b = byteorder.BeAppendUint64(b, d.h[4])
++	b = byteorder.BeAppendUint64(b, d.h[5])
++	b = byteorder.BeAppendUint64(b, d.h[6])
++	b = byteorder.BeAppendUint64(b, d.h[7])
++	b = append(b, d.x[:d.nx]...)
++	b = append(b, make([]byte, len(d.x)-d.nx)...)
++	b = byteorder.BeAppendUint64(b, d.len)
++	return b, nil
++}
++
++func (d *Digest) UnmarshalBinary(b []byte) error {
++	if len(b) < len(magic512) {
++		return errors.New("crypto/sha512: invalid hash state identifier")
++	}
++	switch {
++	case d.size == size384 && string(b[:len(magic384)]) == magic384:
++	case d.size == size224 && string(b[:len(magic512_224)]) == magic512_224:
++	case d.size == size256 && string(b[:len(magic512_256)]) == magic512_256:
++	case d.size == size512 && string(b[:len(magic512)]) == magic512:
++	default:
++		return errors.New("crypto/sha512: invalid hash state identifier")
++	}
++	if len(b) != marshaledSize {
++		return errors.New("crypto/sha512: invalid hash state size")
++	}
++	b = b[len(magic512):]
++	b, d.h[0] = consumeUint64(b)
++	b, d.h[1] = consumeUint64(b)
++	b, d.h[2] = consumeUint64(b)
++	b, d.h[3] = consumeUint64(b)
++	b, d.h[4] = consumeUint64(b)
++	b, d.h[5] = consumeUint64(b)
++	b, d.h[6] = consumeUint64(b)
++	b, d.h[7] = consumeUint64(b)
++	b = b[copy(d.x[:], b):]
++	b, d.len = consumeUint64(b)
++	d.nx = int(d.len % chunk)
++	return nil
++}
++
++func consumeUint64(b []byte) ([]byte, uint64) {
++	return b[8:], byteorder.BeUint64(b)
++}
++
++// New returns a new Digest computing the SHA-512 hash.
++func New() *Digest {
++	d := &Digest{size: size512}
++	d.Reset()
++	return d
++}
++
++// New512_224 returns a new Digest computing the SHA-512/224 hash.
++func New512_224() *Digest {
++	d := &Digest{size: size224}
++	d.Reset()
++	return d
++}
++
++// New512_256 returns a new Digest computing the SHA-512/256 hash.
++func New512_256() *Digest {
++	d := &Digest{size: size256}
++	d.Reset()
++	return d
++}
++
++// New384 returns a new Digest computing the SHA-384 hash.
++func New384() *Digest {
++	d := &Digest{size: size384}
++	d.Reset()
++	return d
++}
++
++func (d *Digest) Size() int {
++	return d.size
++}
++
++func (d *Digest) BlockSize() int { return blockSize }
++
++func (d *Digest) Write(p []byte) (nn int, err error) {
++	nn = len(p)
++	d.len += uint64(nn)
++	if d.nx > 0 {
++		n := copy(d.x[d.nx:], p)
++		d.nx += n
++		if d.nx == chunk {
++			block(d, d.x[:])
++			d.nx = 0
++		}
++		p = p[n:]
++	}
++	if len(p) >= chunk {
++		n := len(p) &^ (chunk - 1)
++		block(d, p[:n])
++		p = p[n:]
++	}
++	if len(p) > 0 {
++		d.nx = copy(d.x[:], p)
++	}
++	return
++}
++
++func (d *Digest) Sum(in []byte) []byte {
++	// Make a copy of d so that caller can keep writing and summing.
++	d0 := new(Digest)
++	*d0 = *d
++	hash := d0.checkSum()
++	return append(in, hash[:d.size]...)
++}
++
++func (d *Digest) checkSum() [size512]byte {
++	// Padding. Add a 1 bit and 0 bits until 112 bytes mod 128.
++	len := d.len
++	var tmp [128 + 16]byte // padding + length buffer
++	tmp[0] = 0x80
++	var t uint64
++	if len%128 < 112 {
++		t = 112 - len%128
++	} else {
++		t = 128 + 112 - len%128
++	}
++
++	// Length in bits.
++	len <<= 3
++	padlen := tmp[:t+16]
++	// Upper 64 bits are always zero, because len variable has type uint64,
++	// and tmp is already zeroed at that index, so we can skip updating it.
++	// byteorder.BePutUint64(padlen[t+0:], 0)
++	byteorder.BePutUint64(padlen[t+8:], len)
++	d.Write(padlen)
++
++	if d.nx != 0 {
++		panic("d.nx != 0")
++	}
++
++	var digest [size512]byte
++	byteorder.BePutUint64(digest[0:], d.h[0])
++	byteorder.BePutUint64(digest[8:], d.h[1])
++	byteorder.BePutUint64(digest[16:], d.h[2])
++	byteorder.BePutUint64(digest[24:], d.h[3])
++	byteorder.BePutUint64(digest[32:], d.h[4])
++	byteorder.BePutUint64(digest[40:], d.h[5])
++	if d.size != size384 {
++		byteorder.BePutUint64(digest[48:], d.h[6])
++		byteorder.BePutUint64(digest[56:], d.h[7])
++	}
++
++	return digest
++}
+diff --git a/src/crypto/sha512/sha512block.go b/src/crypto/internal/fips/sha512/sha512block.go
+similarity index 98%
+rename from src/crypto/sha512/sha512block.go
+rename to src/crypto/internal/fips/sha512/sha512block.go
+index 81569c5f84..3c96cc343a 100644
+--- a/src/crypto/sha512/sha512block.go
++++ b/src/crypto/internal/fips/sha512/sha512block.go
+@@ -93,7 +93,7 @@ var _K = []uint64{
+ 	0x6c44198c4a475817,
+ }
+ 
+-func blockGeneric(dig *digest, p []byte) {
++func blockGeneric(dig *Digest, p []byte) {
+ 	var w [80]uint64
+ 	h0, h1, h2, h3, h4, h5, h6, h7 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7]
+ 	for len(p) >= chunk {
+diff --git a/src/crypto/sha512/sha512block_amd64.go b/src/crypto/internal/fips/sha512/sha512block_amd64.go
+similarity index 81%
+rename from src/crypto/sha512/sha512block_amd64.go
+rename to src/crypto/internal/fips/sha512/sha512block_amd64.go
+index 39d14597fd..1fec14e229 100644
+--- a/src/crypto/sha512/sha512block_amd64.go
++++ b/src/crypto/internal/fips/sha512/sha512block_amd64.go
+@@ -18,12 +18,12 @@ func init() {
+ }
+ 
+ //go:noescape
+-func blockAVX2(dig *digest, p []byte)
++func blockAVX2(dig *Digest, p []byte)
+ 
+ //go:noescape
+-func blockAMD64(dig *digest, p []byte)
++func blockAMD64(dig *Digest, p []byte)
+ 
+-func block(dig *digest, p []byte) {
++func block(dig *Digest, p []byte) {
+ 	if useAVX2 {
+ 		blockAVX2(dig, p)
+ 	} else {
+diff --git a/src/crypto/sha512/sha512block_amd64.s b/src/crypto/internal/fips/sha512/sha512block_amd64.s
+similarity index 99%
+rename from src/crypto/sha512/sha512block_amd64.s
+rename to src/crypto/internal/fips/sha512/sha512block_amd64.s
+index fdcef22215..ffccdf229f 100644
+--- a/src/crypto/sha512/sha512block_amd64.s
++++ b/src/crypto/internal/fips/sha512/sha512block_amd64.s
+@@ -4,7 +4,7 @@
+ 
+ #include "textflag.h"
+ 
+-// func blockAMD64(dig *digest, p []byte)
++// func blockAMD64(dig *Digest, p []byte)
+ TEXT ·blockAMD64(SB), $648-32
+ 	MOVQ p_base+8(FP), SI
+ 	MOVQ p_len+16(FP), DX
+@@ -4504,7 +4504,7 @@ DATA PSHUFFLE_BYTE_FLIP_MASK<>+16(SB)/8, $0x1011121314151617
+ DATA PSHUFFLE_BYTE_FLIP_MASK<>+24(SB)/8, $0x18191a1b1c1d1e1f
+ GLOBL PSHUFFLE_BYTE_FLIP_MASK<>(SB), RODATA|NOPTR, $32
+ 
+-// func blockAVX2(dig *digest, p []byte)
++// func blockAVX2(dig *Digest, p []byte)
+ // Requires: AVX, AVX2, BMI2
+ TEXT ·blockAVX2(SB), NOSPLIT, $56-32
+ 	MOVQ    dig+0(FP), SI
+diff --git a/src/crypto/sha512/sha512block_arm64.go b/src/crypto/internal/fips/sha512/sha512block_arm64.go
+similarity index 85%
+rename from src/crypto/sha512/sha512block_arm64.go
+rename to src/crypto/internal/fips/sha512/sha512block_arm64.go
+index ea9e8d9a84..617c646da4 100644
+--- a/src/crypto/sha512/sha512block_arm64.go
++++ b/src/crypto/internal/fips/sha512/sha512block_arm64.go
+@@ -18,9 +18,9 @@ func init() {
+ }
+ 
+ //go:noescape
+-func blockSHA512(dig *digest, p []byte)
++func blockSHA512(dig *Digest, p []byte)
+ 
+-func block(dig *digest, p []byte) {
++func block(dig *Digest, p []byte) {
+ 	if useSHA512 {
+ 		blockSHA512(dig, p)
+ 	} else {
+diff --git a/src/crypto/sha512/sha512block_arm64.s b/src/crypto/internal/fips/sha512/sha512block_arm64.s
+similarity index 99%
+rename from src/crypto/sha512/sha512block_arm64.s
+rename to src/crypto/internal/fips/sha512/sha512block_arm64.s
+index 15242e4bbc..1b192ae079 100644
+--- a/src/crypto/sha512/sha512block_arm64.s
++++ b/src/crypto/internal/fips/sha512/sha512block_arm64.s
+@@ -40,7 +40,7 @@
+ 	VADD	i3.D2, i1.D2, i4.D2 \
+ 	SHA512H2	i0.D2, i1, i3
+ 
+-// func blockSHA512(dig *digest, p []byte)
++// func blockSHA512(dig *Digest, p []byte)
+ TEXT ·blockSHA512(SB),NOSPLIT,$0
+ 	MOVD	dig+0(FP), R0
+ 	MOVD	p_base+8(FP), R1
+diff --git a/src/crypto/sha512/sha512block_asm.go b/src/crypto/internal/fips/sha512/sha512block_asm.go
+similarity index 87%
+rename from src/crypto/sha512/sha512block_asm.go
+rename to src/crypto/internal/fips/sha512/sha512block_asm.go
+index 888804678e..532345108f 100644
+--- a/src/crypto/sha512/sha512block_asm.go
++++ b/src/crypto/internal/fips/sha512/sha512block_asm.go
+@@ -7,4 +7,4 @@
+ package sha512
+ 
+ //go:noescape
+-func block(dig *digest, p []byte)
++func block(dig *Digest, p []byte)
+diff --git a/src/crypto/sha512/sha512block_loong64.s b/src/crypto/internal/fips/sha512/sha512block_loong64.s
+similarity index 99%
+rename from src/crypto/sha512/sha512block_loong64.s
+rename to src/crypto/internal/fips/sha512/sha512block_loong64.s
+index e508f23c58..00f686c9f7 100644
+--- a/src/crypto/sha512/sha512block_loong64.s
++++ b/src/crypto/internal/fips/sha512/sha512block_loong64.s
+@@ -104,7 +104,7 @@
+ // the frame size used for data expansion is 128 bytes.
+ // See the definition of the macro LOAD1 above (8 bytes * 16 entries).
+ //
+-// func block(dig *digest, p []byte)
++// func block(dig *Digest, p []byte)
+ TEXT ·block(SB),NOSPLIT,$128-32
+ 	MOVV	p_len+16(FP), R6
+ 	MOVV	p_base+8(FP), R5
+diff --git a/src/crypto/sha512/sha512block_noasm.go b/src/crypto/internal/fips/sha512/sha512block_noasm.go
+similarity index 89%
+rename from src/crypto/sha512/sha512block_noasm.go
+rename to src/crypto/internal/fips/sha512/sha512block_noasm.go
+index 5d556606ed..a1051ca2db 100644
+--- a/src/crypto/sha512/sha512block_noasm.go
++++ b/src/crypto/internal/fips/sha512/sha512block_noasm.go
+@@ -6,6 +6,6 @@
+ 
+ package sha512
+ 
+-func block(dig *digest, p []byte) {
++func block(dig *Digest, p []byte) {
+ 	blockGeneric(dig, p)
+ }
+diff --git a/src/crypto/sha512/sha512block_ppc64x.go b/src/crypto/internal/fips/sha512/sha512block_ppc64x.go
+similarity index 91%
+rename from src/crypto/sha512/sha512block_ppc64x.go
+rename to src/crypto/internal/fips/sha512/sha512block_ppc64x.go
+index 0a87aa9cf2..8e5e7d74a0 100644
+--- a/src/crypto/sha512/sha512block_ppc64x.go
++++ b/src/crypto/internal/fips/sha512/sha512block_ppc64x.go
+@@ -22,9 +22,9 @@ func init() {
+ }
+ 
+ //go:noescape
+-func blockPOWER(dig *digest, p []byte)
++func blockPOWER(dig *Digest, p []byte)
+ 
+-func block(dig *digest, p []byte) {
++func block(dig *Digest, p []byte) {
+ 	if ppc64sha512 {
+ 		blockPOWER(dig, p)
+ 	} else {
+diff --git a/src/crypto/sha512/sha512block_ppc64x.s b/src/crypto/internal/fips/sha512/sha512block_ppc64x.s
+similarity index 99%
+rename from src/crypto/sha512/sha512block_ppc64x.s
+rename to src/crypto/internal/fips/sha512/sha512block_ppc64x.s
+index cccce22797..fd2c47bc7e 100644
+--- a/src/crypto/sha512/sha512block_ppc64x.s
++++ b/src/crypto/internal/fips/sha512/sha512block_ppc64x.s
+@@ -304,7 +304,7 @@ GLOBL ·kcon(SB), RODATA, $1312
+ 	VADDUDM		S0, h, h; \
+ 	VADDUDM		s1, xj, xj
+ 
+-// func blockPOWER(dig *digest, p []byte)
++// func blockPOWER(dig *Digest, p []byte)
+ TEXT ·blockPOWER(SB),0,$0-32
+ 	MOVD	dig+0(FP), CTX
+ 	MOVD	p_base+8(FP), INP
+diff --git a/src/crypto/sha512/sha512block_riscv64.s b/src/crypto/internal/fips/sha512/sha512block_riscv64.s
+similarity index 99%
+rename from src/crypto/sha512/sha512block_riscv64.s
+rename to src/crypto/internal/fips/sha512/sha512block_riscv64.s
+index 7dcb0f80d0..0839cf0350 100644
+--- a/src/crypto/sha512/sha512block_riscv64.s
++++ b/src/crypto/internal/fips/sha512/sha512block_riscv64.s
+@@ -150,7 +150,7 @@
+ 	MSGSCHEDULE1(index); \
+ 	SHA512ROUND(index, a, b, c, d, e, f, g, h)
+ 
+-// func block(dig *digest, p []byte)
++// func block(dig *Digest, p []byte)
+ TEXT ·block(SB),0,$128-32
+ 	MOV	p_base+8(FP), X29
+ 	MOV	p_len+16(FP), X30
+diff --git a/src/crypto/sha512/sha512block_s390x.go b/src/crypto/internal/fips/sha512/sha512block_s390x.go
+similarity index 88%
+rename from src/crypto/sha512/sha512block_s390x.go
+rename to src/crypto/internal/fips/sha512/sha512block_s390x.go
+index 6fd4057ab0..eff6b49b5a 100644
+--- a/src/crypto/sha512/sha512block_s390x.go
++++ b/src/crypto/internal/fips/sha512/sha512block_s390x.go
+@@ -20,9 +20,9 @@ func init() {
+ }
+ 
+ //go:noescape
+-func blockS390X(dig *digest, p []byte)
++func blockS390X(dig *Digest, p []byte)
+ 
+-func block(dig *digest, p []byte) {
++func block(dig *Digest, p []byte) {
+ 	if useSHA512 {
+ 		blockS390X(dig, p)
+ 	} else {
+diff --git a/src/crypto/sha512/sha512block_s390x.s b/src/crypto/internal/fips/sha512/sha512block_s390x.s
+similarity index 92%
+rename from src/crypto/sha512/sha512block_s390x.s
+rename to src/crypto/internal/fips/sha512/sha512block_s390x.s
+index bd3cd43967..5e943ed11f 100644
+--- a/src/crypto/sha512/sha512block_s390x.s
++++ b/src/crypto/internal/fips/sha512/sha512block_s390x.s
+@@ -6,7 +6,7 @@
+ 
+ #include "textflag.h"
+ 
+-// func blockS390X(dig *digest, p []byte)
++// func blockS390X(dig *Digest, p []byte)
+ TEXT ·blockS390X(SB), NOSPLIT|NOFRAME, $0-32
+ 	LMG    dig+0(FP), R1, R3            // R2 = &p[0], R3 = len(p)
+ 	MOVBZ  $3, R0                       // SHA-512 function code
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index 7844f191e1..d87c689c90 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -9,9 +9,8 @@ package sha256
+ import (
+ 	"crypto"
+ 	"crypto/internal/boring"
+-	"errors"
++	"crypto/internal/fips/sha256"
+ 	"hash"
+-	"internal/byteorder"
+ )
+ 
+ func init() {
+@@ -28,119 +27,6 @@ const Size224 = 28
+ // The blocksize of SHA256 and SHA224 in bytes.
+ const BlockSize = 64
+ 
+-const (
+-	chunk     = 64
+-	init0     = 0x6A09E667
+-	init1     = 0xBB67AE85
+-	init2     = 0x3C6EF372
+-	init3     = 0xA54FF53A
+-	init4     = 0x510E527F
+-	init5     = 0x9B05688C
+-	init6     = 0x1F83D9AB
+-	init7     = 0x5BE0CD19
+-	init0_224 = 0xC1059ED8
+-	init1_224 = 0x367CD507
+-	init2_224 = 0x3070DD17
+-	init3_224 = 0xF70E5939
+-	init4_224 = 0xFFC00B31
+-	init5_224 = 0x68581511
+-	init6_224 = 0x64F98FA7
+-	init7_224 = 0xBEFA4FA4
+-)
+-
+-// digest represents the partial evaluation of a checksum.
+-type digest struct {
+-	h     [8]uint32
+-	x     [chunk]byte
+-	nx    int
+-	len   uint64
+-	is224 bool // mark if this digest is SHA-224
+-}
+-
+-const (
+-	magic224      = "sha\x02"
+-	magic256      = "sha\x03"
+-	marshaledSize = len(magic256) + 8*4 + chunk + 8
+-)
+-
+-func (d *digest) MarshalBinary() ([]byte, error) {
+-	return d.AppendBinary(make([]byte, 0, marshaledSize))
+-}
+-
+-func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+-	if d.is224 {
+-		b = append(b, magic224...)
+-	} else {
+-		b = append(b, magic256...)
+-	}
+-	b = byteorder.BeAppendUint32(b, d.h[0])
+-	b = byteorder.BeAppendUint32(b, d.h[1])
+-	b = byteorder.BeAppendUint32(b, d.h[2])
+-	b = byteorder.BeAppendUint32(b, d.h[3])
+-	b = byteorder.BeAppendUint32(b, d.h[4])
+-	b = byteorder.BeAppendUint32(b, d.h[5])
+-	b = byteorder.BeAppendUint32(b, d.h[6])
+-	b = byteorder.BeAppendUint32(b, d.h[7])
+-	b = append(b, d.x[:d.nx]...)
+-	b = append(b, make([]byte, len(d.x)-d.nx)...)
+-	b = byteorder.BeAppendUint64(b, d.len)
+-	return b, nil
+-}
+-
+-func (d *digest) UnmarshalBinary(b []byte) error {
+-	if len(b) < len(magic224) || (d.is224 && string(b[:len(magic224)]) != magic224) || (!d.is224 && string(b[:len(magic256)]) != magic256) {
+-		return errors.New("crypto/sha256: invalid hash state identifier")
+-	}
+-	if len(b) != marshaledSize {
+-		return errors.New("crypto/sha256: invalid hash state size")
+-	}
+-	b = b[len(magic224):]
+-	b, d.h[0] = consumeUint32(b)
+-	b, d.h[1] = consumeUint32(b)
+-	b, d.h[2] = consumeUint32(b)
+-	b, d.h[3] = consumeUint32(b)
+-	b, d.h[4] = consumeUint32(b)
+-	b, d.h[5] = consumeUint32(b)
+-	b, d.h[6] = consumeUint32(b)
+-	b, d.h[7] = consumeUint32(b)
+-	b = b[copy(d.x[:], b):]
+-	b, d.len = consumeUint64(b)
+-	d.nx = int(d.len % chunk)
+-	return nil
+-}
+-
+-func consumeUint64(b []byte) ([]byte, uint64) {
+-	return b[8:], byteorder.BeUint64(b)
+-}
+-
+-func consumeUint32(b []byte) ([]byte, uint32) {
+-	return b[4:], byteorder.BeUint32(b)
+-}
+-
+-func (d *digest) Reset() {
+-	if !d.is224 {
+-		d.h[0] = init0
+-		d.h[1] = init1
+-		d.h[2] = init2
+-		d.h[3] = init3
+-		d.h[4] = init4
+-		d.h[5] = init5
+-		d.h[6] = init6
+-		d.h[7] = init7
+-	} else {
+-		d.h[0] = init0_224
+-		d.h[1] = init1_224
+-		d.h[2] = init2_224
+-		d.h[3] = init3_224
+-		d.h[4] = init4_224
+-		d.h[5] = init5_224
+-		d.h[6] = init6_224
+-		d.h[7] = init7_224
+-	}
+-	d.nx = 0
+-	d.len = 0
+-}
+-
+ // New returns a new [hash.Hash] computing the SHA256 checksum. The Hash
+ // also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+ // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+@@ -149,9 +35,7 @@ func New() hash.Hash {
+ 	if boring.Enabled {
+ 		return boring.NewSHA256()
+ 	}
+-	d := new(digest)
+-	d.Reset()
+-	return d
++	return sha256.New()
+ }
+ 
+ // New224 returns a new [hash.Hash] computing the SHA224 checksum. The Hash
+@@ -162,92 +46,7 @@ func New224() hash.Hash {
+ 	if boring.Enabled {
+ 		return boring.NewSHA224()
+ 	}
+-	d := new(digest)
+-	d.is224 = true
+-	d.Reset()
+-	return d
+-}
+-
+-func (d *digest) Size() int {
+-	if !d.is224 {
+-		return Size
+-	}
+-	return Size224
+-}
+-
+-func (d *digest) BlockSize() int { return BlockSize }
+-
+-func (d *digest) Write(p []byte) (nn int, err error) {
+-	boring.Unreachable()
+-	nn = len(p)
+-	d.len += uint64(nn)
+-	if d.nx > 0 {
+-		n := copy(d.x[d.nx:], p)
+-		d.nx += n
+-		if d.nx == chunk {
+-			block(d, d.x[:])
+-			d.nx = 0
+-		}
+-		p = p[n:]
+-	}
+-	if len(p) >= chunk {
+-		n := len(p) &^ (chunk - 1)
+-		block(d, p[:n])
+-		p = p[n:]
+-	}
+-	if len(p) > 0 {
+-		d.nx = copy(d.x[:], p)
+-	}
+-	return
+-}
+-
+-func (d *digest) Sum(in []byte) []byte {
+-	boring.Unreachable()
+-	// Make a copy of d so that caller can keep writing and summing.
+-	d0 := *d
+-	hash := d0.checkSum()
+-	if d0.is224 {
+-		return append(in, hash[:Size224]...)
+-	}
+-	return append(in, hash[:]...)
+-}
+-
+-func (d *digest) checkSum() [Size]byte {
+-	len := d.len
+-	// Padding. Add a 1 bit and 0 bits until 56 bytes mod 64.
+-	var tmp [64 + 8]byte // padding + length buffer
+-	tmp[0] = 0x80
+-	var t uint64
+-	if len%64 < 56 {
+-		t = 56 - len%64
+-	} else {
+-		t = 64 + 56 - len%64
+-	}
+-
+-	// Length in bits.
+-	len <<= 3
+-	padlen := tmp[:t+8]
+-	byteorder.BePutUint64(padlen[t+0:], len)
+-	d.Write(padlen)
+-
+-	if d.nx != 0 {
+-		panic("d.nx != 0")
+-	}
+-
+-	var digest [Size]byte
+-
+-	byteorder.BePutUint32(digest[0:], d.h[0])
+-	byteorder.BePutUint32(digest[4:], d.h[1])
+-	byteorder.BePutUint32(digest[8:], d.h[2])
+-	byteorder.BePutUint32(digest[12:], d.h[3])
+-	byteorder.BePutUint32(digest[16:], d.h[4])
+-	byteorder.BePutUint32(digest[20:], d.h[5])
+-	byteorder.BePutUint32(digest[24:], d.h[6])
+-	if !d.is224 {
+-		byteorder.BePutUint32(digest[28:], d.h[7])
+-	}
+-
+-	return digest
++	return sha256.New224()
+ }
+ 
+ // Sum256 returns the SHA256 checksum of the data.
+@@ -255,10 +54,11 @@ func Sum256(data []byte) [Size]byte {
+ 	if boring.Enabled {
+ 		return boring.SHA256(data)
+ 	}
+-	var d digest
+-	d.Reset()
+-	d.Write(data)
+-	return d.checkSum()
++	h := New()
++	h.Write(data)
++	var sum [Size]byte
++	h.Sum(sum[:0])
++	return sum
+ }
+ 
+ // Sum224 returns the SHA224 checksum of the data.
+@@ -266,11 +66,9 @@ func Sum224(data []byte) [Size224]byte {
+ 	if boring.Enabled {
+ 		return boring.SHA224(data)
+ 	}
+-	var d digest
+-	d.is224 = true
+-	d.Reset()
+-	d.Write(data)
+-	sum := d.checkSum()
+-	ap := (*[Size224]byte)(sum[:])
+-	return *ap
++	h := New224()
++	h.Write(data)
++	var sum [Size224]byte
++	h.Sum(sum[:0])
++	return sum
+ }
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index a7965b6726..40be1480dd 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -300,16 +300,27 @@ func TestAllocations(t *testing.T) {
+ 	if boring.Enabled {
+ 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+ 	}
+-	in := []byte("hello, world!")
+-	out := make([]byte, 0, Size)
+-	h := New()
+-	n := int(testing.AllocsPerRun(10, func() {
+-		h.Reset()
+-		h.Write(in)
+-		out = h.Sum(out[:0])
+-	}))
+-	if n > 0 {
+-		t.Errorf("allocs = %d, want 0", n)
++	if n := testing.AllocsPerRun(10, func() {
++		in := []byte("hello, world!")
++		out := make([]byte, 0, Size)
++
++		{
++			h := New()
++			h.Reset()
++			h.Write(in)
++			out = h.Sum(out[:0])
++		}
++		{
++			h := New224()
++			h.Reset()
++			h.Write(in)
++			out = h.Sum(out[:0])
++		}
++
++		Sum256(in)
++		Sum224(in)
++	}); n > 0 {
++		t.Errorf("allocs = %v, want 0", n)
+ 	}
+ }
+ 
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index 0e2a34a1e3..0a12fde7bc 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -13,9 +13,8 @@ package sha512
+ import (
+ 	"crypto"
+ 	"crypto/internal/boring"
+-	"errors"
++	"crypto/internal/fips/sha512"
+ 	"hash"
+-	"internal/byteorder"
+ )
+ 
+ func init() {
+@@ -43,167 +42,6 @@ const (
+ 	BlockSize = 128
+ )
+ 
+-const (
+-	chunk     = 128
+-	init0     = 0x6a09e667f3bcc908
+-	init1     = 0xbb67ae8584caa73b
+-	init2     = 0x3c6ef372fe94f82b
+-	init3     = 0xa54ff53a5f1d36f1
+-	init4     = 0x510e527fade682d1
+-	init5     = 0x9b05688c2b3e6c1f
+-	init6     = 0x1f83d9abfb41bd6b
+-	init7     = 0x5be0cd19137e2179
+-	init0_224 = 0x8c3d37c819544da2
+-	init1_224 = 0x73e1996689dcd4d6
+-	init2_224 = 0x1dfab7ae32ff9c82
+-	init3_224 = 0x679dd514582f9fcf
+-	init4_224 = 0x0f6d2b697bd44da8
+-	init5_224 = 0x77e36f7304c48942
+-	init6_224 = 0x3f9d85a86a1d36c8
+-	init7_224 = 0x1112e6ad91d692a1
+-	init0_256 = 0x22312194fc2bf72c
+-	init1_256 = 0x9f555fa3c84c64c2
+-	init2_256 = 0x2393b86b6f53b151
+-	init3_256 = 0x963877195940eabd
+-	init4_256 = 0x96283ee2a88effe3
+-	init5_256 = 0xbe5e1e2553863992
+-	init6_256 = 0x2b0199fc2c85b8aa
+-	init7_256 = 0x0eb72ddc81c52ca2
+-	init0_384 = 0xcbbb9d5dc1059ed8
+-	init1_384 = 0x629a292a367cd507
+-	init2_384 = 0x9159015a3070dd17
+-	init3_384 = 0x152fecd8f70e5939
+-	init4_384 = 0x67332667ffc00b31
+-	init5_384 = 0x8eb44a8768581511
+-	init6_384 = 0xdb0c2e0d64f98fa7
+-	init7_384 = 0x47b5481dbefa4fa4
+-)
+-
+-// digest represents the partial evaluation of a checksum.
+-type digest struct {
+-	h        [8]uint64
+-	x        [chunk]byte
+-	nx       int
+-	len      uint64
+-	function crypto.Hash
+-}
+-
+-func (d *digest) Reset() {
+-	switch d.function {
+-	case crypto.SHA384:
+-		d.h[0] = init0_384
+-		d.h[1] = init1_384
+-		d.h[2] = init2_384
+-		d.h[3] = init3_384
+-		d.h[4] = init4_384
+-		d.h[5] = init5_384
+-		d.h[6] = init6_384
+-		d.h[7] = init7_384
+-	case crypto.SHA512_224:
+-		d.h[0] = init0_224
+-		d.h[1] = init1_224
+-		d.h[2] = init2_224
+-		d.h[3] = init3_224
+-		d.h[4] = init4_224
+-		d.h[5] = init5_224
+-		d.h[6] = init6_224
+-		d.h[7] = init7_224
+-	case crypto.SHA512_256:
+-		d.h[0] = init0_256
+-		d.h[1] = init1_256
+-		d.h[2] = init2_256
+-		d.h[3] = init3_256
+-		d.h[4] = init4_256
+-		d.h[5] = init5_256
+-		d.h[6] = init6_256
+-		d.h[7] = init7_256
+-	default:
+-		d.h[0] = init0
+-		d.h[1] = init1
+-		d.h[2] = init2
+-		d.h[3] = init3
+-		d.h[4] = init4
+-		d.h[5] = init5
+-		d.h[6] = init6
+-		d.h[7] = init7
+-	}
+-	d.nx = 0
+-	d.len = 0
+-}
+-
+-const (
+-	magic384      = "sha\x04"
+-	magic512_224  = "sha\x05"
+-	magic512_256  = "sha\x06"
+-	magic512      = "sha\x07"
+-	marshaledSize = len(magic512) + 8*8 + chunk + 8
+-)
+-
+-func (d *digest) MarshalBinary() ([]byte, error) {
+-	return d.AppendBinary(make([]byte, 0, marshaledSize))
+-}
+-
+-func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+-	switch d.function {
+-	case crypto.SHA384:
+-		b = append(b, magic384...)
+-	case crypto.SHA512_224:
+-		b = append(b, magic512_224...)
+-	case crypto.SHA512_256:
+-		b = append(b, magic512_256...)
+-	case crypto.SHA512:
+-		b = append(b, magic512...)
+-	default:
+-		return nil, errors.New("crypto/sha512: invalid hash function")
+-	}
+-	b = byteorder.BeAppendUint64(b, d.h[0])
+-	b = byteorder.BeAppendUint64(b, d.h[1])
+-	b = byteorder.BeAppendUint64(b, d.h[2])
+-	b = byteorder.BeAppendUint64(b, d.h[3])
+-	b = byteorder.BeAppendUint64(b, d.h[4])
+-	b = byteorder.BeAppendUint64(b, d.h[5])
+-	b = byteorder.BeAppendUint64(b, d.h[6])
+-	b = byteorder.BeAppendUint64(b, d.h[7])
+-	b = append(b, d.x[:d.nx]...)
+-	b = append(b, make([]byte, len(d.x)-d.nx)...)
+-	b = byteorder.BeAppendUint64(b, d.len)
+-	return b, nil
+-}
+-
+-func (d *digest) UnmarshalBinary(b []byte) error {
+-	if len(b) < len(magic512) {
+-		return errors.New("crypto/sha512: invalid hash state identifier")
+-	}
+-	switch {
+-	case d.function == crypto.SHA384 && string(b[:len(magic384)]) == magic384:
+-	case d.function == crypto.SHA512_224 && string(b[:len(magic512_224)]) == magic512_224:
+-	case d.function == crypto.SHA512_256 && string(b[:len(magic512_256)]) == magic512_256:
+-	case d.function == crypto.SHA512 && string(b[:len(magic512)]) == magic512:
+-	default:
+-		return errors.New("crypto/sha512: invalid hash state identifier")
+-	}
+-	if len(b) != marshaledSize {
+-		return errors.New("crypto/sha512: invalid hash state size")
+-	}
+-	b = b[len(magic512):]
+-	b, d.h[0] = consumeUint64(b)
+-	b, d.h[1] = consumeUint64(b)
+-	b, d.h[2] = consumeUint64(b)
+-	b, d.h[3] = consumeUint64(b)
+-	b, d.h[4] = consumeUint64(b)
+-	b, d.h[5] = consumeUint64(b)
+-	b, d.h[6] = consumeUint64(b)
+-	b, d.h[7] = consumeUint64(b)
+-	b = b[copy(d.x[:], b):]
+-	b, d.len = consumeUint64(b)
+-	d.nx = int(d.len % chunk)
+-	return nil
+-}
+-
+-func consumeUint64(b []byte) ([]byte, uint64) {
+-	return b[8:], byteorder.BeUint64(b)
+-}
+-
+ // New returns a new [hash.Hash] computing the SHA-512 checksum. The Hash
+ // also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+ // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+@@ -212,9 +50,7 @@ func New() hash.Hash {
+ 	if boring.Enabled {
+ 		return boring.NewSHA512()
+ 	}
+-	d := &digest{function: crypto.SHA512}
+-	d.Reset()
+-	return d
++	return sha512.New()
+ }
+ 
+ // New512_224 returns a new [hash.Hash] computing the SHA-512/224 checksum. The Hash
+@@ -222,9 +58,7 @@ func New() hash.Hash {
+ // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+ // state of the hash.
+ func New512_224() hash.Hash {
+-	d := &digest{function: crypto.SHA512_224}
+-	d.Reset()
+-	return d
++	return sha512.New512_224()
+ }
+ 
+ // New512_256 returns a new [hash.Hash] computing the SHA-512/256 checksum. The Hash
+@@ -232,9 +66,7 @@ func New512_224() hash.Hash {
+ // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+ // state of the hash.
+ func New512_256() hash.Hash {
+-	d := &digest{function: crypto.SHA512_256}
+-	d.Reset()
+-	return d
++	return sha512.New512_256()
+ }
+ 
+ // New384 returns a new [hash.Hash] computing the SHA-384 checksum. The Hash
+@@ -245,110 +77,7 @@ func New384() hash.Hash {
+ 	if boring.Enabled {
+ 		return boring.NewSHA384()
+ 	}
+-	d := &digest{function: crypto.SHA384}
+-	d.Reset()
+-	return d
+-}
+-
+-func (d *digest) Size() int {
+-	switch d.function {
+-	case crypto.SHA512_224:
+-		return Size224
+-	case crypto.SHA512_256:
+-		return Size256
+-	case crypto.SHA384:
+-		return Size384
+-	default:
+-		return Size
+-	}
+-}
+-
+-func (d *digest) BlockSize() int { return BlockSize }
+-
+-func (d *digest) Write(p []byte) (nn int, err error) {
+-	if d.function != crypto.SHA512_224 && d.function != crypto.SHA512_256 {
+-		boring.Unreachable()
+-	}
+-	nn = len(p)
+-	d.len += uint64(nn)
+-	if d.nx > 0 {
+-		n := copy(d.x[d.nx:], p)
+-		d.nx += n
+-		if d.nx == chunk {
+-			block(d, d.x[:])
+-			d.nx = 0
+-		}
+-		p = p[n:]
+-	}
+-	if len(p) >= chunk {
+-		n := len(p) &^ (chunk - 1)
+-		block(d, p[:n])
+-		p = p[n:]
+-	}
+-	if len(p) > 0 {
+-		d.nx = copy(d.x[:], p)
+-	}
+-	return
+-}
+-
+-func (d *digest) Sum(in []byte) []byte {
+-	if d.function != crypto.SHA512_224 && d.function != crypto.SHA512_256 {
+-		boring.Unreachable()
+-	}
+-	// Make a copy of d so that caller can keep writing and summing.
+-	d0 := new(digest)
+-	*d0 = *d
+-	hash := d0.checkSum()
+-	switch d0.function {
+-	case crypto.SHA384:
+-		return append(in, hash[:Size384]...)
+-	case crypto.SHA512_224:
+-		return append(in, hash[:Size224]...)
+-	case crypto.SHA512_256:
+-		return append(in, hash[:Size256]...)
+-	default:
+-		return append(in, hash[:]...)
+-	}
+-}
+-
+-func (d *digest) checkSum() [Size]byte {
+-	// Padding. Add a 1 bit and 0 bits until 112 bytes mod 128.
+-	len := d.len
+-	var tmp [128 + 16]byte // padding + length buffer
+-	tmp[0] = 0x80
+-	var t uint64
+-	if len%128 < 112 {
+-		t = 112 - len%128
+-	} else {
+-		t = 128 + 112 - len%128
+-	}
+-
+-	// Length in bits.
+-	len <<= 3
+-	padlen := tmp[:t+16]
+-	// Upper 64 bits are always zero, because len variable has type uint64,
+-	// and tmp is already zeroed at that index, so we can skip updating it.
+-	// byteorder.BePutUint64(padlen[t+0:], 0)
+-	byteorder.BePutUint64(padlen[t+8:], len)
+-	d.Write(padlen)
+-
+-	if d.nx != 0 {
+-		panic("d.nx != 0")
+-	}
+-
+-	var digest [Size]byte
+-	byteorder.BePutUint64(digest[0:], d.h[0])
+-	byteorder.BePutUint64(digest[8:], d.h[1])
+-	byteorder.BePutUint64(digest[16:], d.h[2])
+-	byteorder.BePutUint64(digest[24:], d.h[3])
+-	byteorder.BePutUint64(digest[32:], d.h[4])
+-	byteorder.BePutUint64(digest[40:], d.h[5])
+-	if d.function != crypto.SHA384 {
+-		byteorder.BePutUint64(digest[48:], d.h[6])
+-		byteorder.BePutUint64(digest[56:], d.h[7])
+-	}
+-
+-	return digest
++	return sha512.New384()
+ }
+ 
+ // Sum512 returns the SHA512 checksum of the data.
+@@ -356,10 +85,11 @@ func Sum512(data []byte) [Size]byte {
+ 	if boring.Enabled {
+ 		return boring.SHA512(data)
+ 	}
+-	d := digest{function: crypto.SHA512}
+-	d.Reset()
+-	d.Write(data)
+-	return d.checkSum()
++	h := New()
++	h.Write(data)
++	var sum [Size]byte
++	h.Sum(sum[:0])
++	return sum
+ }
+ 
+ // Sum384 returns the SHA384 checksum of the data.
+@@ -367,30 +97,27 @@ func Sum384(data []byte) [Size384]byte {
+ 	if boring.Enabled {
+ 		return boring.SHA384(data)
+ 	}
+-	d := digest{function: crypto.SHA384}
+-	d.Reset()
+-	d.Write(data)
+-	sum := d.checkSum()
+-	ap := (*[Size384]byte)(sum[:])
+-	return *ap
++	h := New384()
++	h.Write(data)
++	var sum [Size384]byte
++	h.Sum(sum[:0])
++	return sum
+ }
+ 
+ // Sum512_224 returns the Sum512/224 checksum of the data.
+ func Sum512_224(data []byte) [Size224]byte {
+-	d := digest{function: crypto.SHA512_224}
+-	d.Reset()
+-	d.Write(data)
+-	sum := d.checkSum()
+-	ap := (*[Size224]byte)(sum[:])
+-	return *ap
++	h := New512_224()
++	h.Write(data)
++	var sum [Size224]byte
++	h.Sum(sum[:0])
++	return sum
+ }
+ 
+ // Sum512_256 returns the Sum512/256 checksum of the data.
+ func Sum512_256(data []byte) [Size256]byte {
+-	d := digest{function: crypto.SHA512_256}
+-	d.Reset()
+-	d.Write(data)
+-	sum := d.checkSum()
+-	ap := (*[Size256]byte)(sum[:])
+-	return *ap
++	h := New512_256()
++	h.Write(data)
++	var sum [Size256]byte
++	h.Sum(sum[:0])
++	return sum
+ }
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index 9c41bdc367..6e3d9bce1c 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -905,16 +905,41 @@ func TestAllocations(t *testing.T) {
+ 	if boring.Enabled {
+ 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+ 	}
+-	in := []byte("hello, world!")
+-	out := make([]byte, 0, Size)
+-	h := New()
+-	n := int(testing.AllocsPerRun(10, func() {
+-		h.Reset()
+-		h.Write(in)
+-		out = h.Sum(out[:0])
+-	}))
+-	if n > 0 {
+-		t.Errorf("allocs = %d, want 0", n)
++	if n := testing.AllocsPerRun(10, func() {
++		in := []byte("hello, world!")
++		out := make([]byte, 0, Size)
++
++		{
++			h := New()
++			h.Reset()
++			h.Write(in)
++			out = h.Sum(out[:0])
++		}
++		{
++			h := New512_224()
++			h.Reset()
++			h.Write(in)
++			out = h.Sum(out[:0])
++		}
++		{
++			h := New512_256()
++			h.Reset()
++			h.Write(in)
++			out = h.Sum(out[:0])
++		}
++		{
++			h := New384()
++			h.Reset()
++			h.Write(in)
++			out = h.Sum(out[:0])
++		}
++
++		Sum512(in)
++		Sum384(in)
++		Sum512_224(in)
++		Sum512_256(in)
++	}); n > 0 {
++		t.Errorf("allocs = %v, want 0", n)
+ 	}
+ }
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 43c3fb5aed..01f4f2c3c6 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -442,16 +442,25 @@ var depsRules = `
+ 	NET, log
+ 	< net/mail;
+ 
++	NONE < crypto/internal/impl;
++
++	# FIPS is the FIPS 140 module.
++	# It must not depend on external crypto packages.
++	# Internal packages imported by FIPS might need to retain
++	# backwards compatibility with older versions of the module.
++	RUNTIME, crypto/internal/impl
++	< crypto/internal/fips/sha256
++	< crypto/internal/fips/sha512
++	< FIPS;
++
+ 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+ 	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
+ 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
+ 
+-	NONE < crypto/internal/impl;
+-
+ 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
++	FIPS,
+ 	crypto/internal/boring/sig,
+ 	crypto/internal/boring/syso,
+-	crypto/internal/impl,
+ 	golang.org/x/sys/cpu,
+ 	hash, embed
+ 	< crypto
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index 8913c7d2c9..3b9b2852c4 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -20,6 +20,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -356,17 +357,6 @@ func TestStdKen(t *testing.T) {
+ // Package paths of excluded packages.
+ var excluded = map[string]bool{
+ 	"builtin": true,
+-
+-	// See go.dev/issue/46027: some imports are missing for this submodule.
+-	"crypto/aes/_asm/gcm":                     true,
+-	"crypto/aes/_asm/standard":                true,
+-	"crypto/internal/bigmod/_asm":             true,
+-	"crypto/internal/edwards25519/field/_asm": true,
+-	"crypto/internal/nistec/_asm":             true,
+-	"crypto/md5/_asm":                         true,
+-	"crypto/sha1/_asm":                        true,
+-	"crypto/sha256/_asm":                      true,
+-	"crypto/sha512/_asm":                      true,
+ }
+ 
+ // printPackageMu synchronizes the printing of type-checked package files in
+@@ -448,6 +438,11 @@ func pkgFilenames(dir string, includeTest bool) ([]string, error) {
+ 	if excluded[pkg.ImportPath] {
+ 		return nil, nil
+ 	}
++	if slices.Contains(strings.Split(pkg.ImportPath, "/"), "_asm") {
++		// Submodules where not all dependencies are available.
++		// See go.dev/issue/46027.
++		return nil, nil
++	}
+ 	var filenames []string
+ 	for _, name := range pkg.GoFiles {
+ 		filenames = append(filenames, filepath.Join(pkg.Dir, name))

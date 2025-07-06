@@ -1,0 +1,263 @@
+commit 68ca584ffaf3f647eda2706500fba5280f2ad19c
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon Apr 28 13:17:31 2025 -0400
+
+    pkgbits: alias the Index type to clarify it is section relative
+    
+    Change-Id: I214eb97ef3b11a6de8584498f2df4baff1903e1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668537
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/pkgbits/decoder.go | 30 +++++++++++++++---------------
+ src/internal/pkgbits/encoder.go | 22 +++++++++++-----------
+ src/internal/pkgbits/reloc.go   | 10 +++++++---
+ 3 files changed, 33 insertions(+), 29 deletions(-)
+
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 5a2b3f4a6a..6268ed13fc 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -131,7 +131,7 @@ func (pr *PkgDecoder) Fingerprint() [8]byte {
+ 
+ // AbsIdx returns the absolute index for the given (section, index)
+ // pair.
+-func (pr *PkgDecoder) AbsIdx(k RelocKind, idx Index) int {
++func (pr *PkgDecoder) AbsIdx(k RelocKind, idx RelIndex) int {
+ 	absIdx := int(idx)
+ 	if k > 0 {
+ 		absIdx += int(pr.elemEndsEnds[k-1])
+@@ -144,7 +144,7 @@ func (pr *PkgDecoder) AbsIdx(k RelocKind, idx Index) int {
+ 
+ // DataIdx returns the raw element bitstream for the given (section,
+ // index) pair.
+-func (pr *PkgDecoder) DataIdx(k RelocKind, idx Index) string {
++func (pr *PkgDecoder) DataIdx(k RelocKind, idx RelIndex) string {
+ 	absIdx := pr.AbsIdx(k, idx)
+ 
+ 	var start uint32
+@@ -157,13 +157,13 @@ func (pr *PkgDecoder) DataIdx(k RelocKind, idx Index) string {
+ }
+ 
+ // StringIdx returns the string value for the given string index.
+-func (pr *PkgDecoder) StringIdx(idx Index) string {
++func (pr *PkgDecoder) StringIdx(idx RelIndex) string {
+ 	return pr.DataIdx(RelocString, idx)
+ }
+ 
+ // NewDecoder returns a Decoder for the given (section, index) pair,
+ // and decodes the given SyncMarker from the element bitstream.
+-func (pr *PkgDecoder) NewDecoder(k RelocKind, idx Index, marker SyncMarker) Decoder {
++func (pr *PkgDecoder) NewDecoder(k RelocKind, idx RelIndex, marker SyncMarker) Decoder {
+ 	r := pr.NewDecoderRaw(k, idx)
+ 	r.Sync(marker)
+ 	return r
+@@ -173,7 +173,7 @@ func (pr *PkgDecoder) NewDecoder(k RelocKind, idx Index, marker SyncMarker) Deco
+ // and decodes the given SyncMarker from the element bitstream.
+ // If possible the Decoder should be RetireDecoder'd when it is no longer
+ // needed, this will avoid heap allocations.
+-func (pr *PkgDecoder) TempDecoder(k RelocKind, idx Index, marker SyncMarker) Decoder {
++func (pr *PkgDecoder) TempDecoder(k RelocKind, idx RelIndex, marker SyncMarker) Decoder {
+ 	r := pr.TempDecoderRaw(k, idx)
+ 	r.Sync(marker)
+ 	return r
+@@ -187,7 +187,7 @@ func (pr *PkgDecoder) RetireDecoder(d *Decoder) {
+ // NewDecoderRaw returns a Decoder for the given (section, index) pair.
+ //
+ // Most callers should use NewDecoder instead.
+-func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx Index) Decoder {
++func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx RelIndex) Decoder {
+ 	r := Decoder{
+ 		common: pr,
+ 		k:      k,
+@@ -199,13 +199,13 @@ func (pr *PkgDecoder) NewDecoderRaw(k RelocKind, idx Index) Decoder {
+ 	r.Relocs = make([]RelocEnt, r.Len())
+ 	for i := range r.Relocs {
+ 		r.Sync(SyncReloc)
+-		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), Index(r.Len())}
++		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), RelIndex(r.Len())}
+ 	}
+ 
+ 	return r
+ }
+ 
+-func (pr *PkgDecoder) TempDecoderRaw(k RelocKind, idx Index) Decoder {
++func (pr *PkgDecoder) TempDecoderRaw(k RelocKind, idx RelIndex) Decoder {
+ 	r := Decoder{
+ 		common: pr,
+ 		k:      k,
+@@ -223,7 +223,7 @@ func (pr *PkgDecoder) TempDecoderRaw(k RelocKind, idx Index) Decoder {
+ 	}
+ 	for i := range r.Relocs {
+ 		r.Sync(SyncReloc)
+-		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), Index(r.Len())}
++		r.Relocs[i] = RelocEnt{RelocKind(r.Len()), RelIndex(r.Len())}
+ 	}
+ 
+ 	return r
+@@ -238,7 +238,7 @@ type Decoder struct {
+ 	Data   strings.Reader
+ 
+ 	k   RelocKind
+-	Idx Index
++	Idx RelIndex
+ }
+ 
+ func (r *Decoder) checkErr(err error) {
+@@ -292,7 +292,7 @@ func (r *Decoder) rawVarint() int64 {
+ 	return x
+ }
+ 
+-func (r *Decoder) rawReloc(k RelocKind, idx int) Index {
++func (r *Decoder) rawReloc(k RelocKind, idx int) RelIndex {
+ 	e := r.Relocs[idx]
+ 	assert(e.Kind == k)
+ 	return e.Idx
+@@ -401,7 +401,7 @@ func (r *Decoder) Code(mark SyncMarker) int {
+ 
+ // Reloc decodes a relocation of expected section k from the element
+ // bitstream and returns an index to the referenced element.
+-func (r *Decoder) Reloc(k RelocKind) Index {
++func (r *Decoder) Reloc(k RelocKind) RelIndex {
+ 	r.Sync(SyncUseReloc)
+ 	return r.rawReloc(k, r.Len())
+ }
+@@ -478,7 +478,7 @@ func (r *Decoder) bigFloat() *big.Float {
+ 
+ // PeekPkgPath returns the package path for the specified package
+ // index.
+-func (pr *PkgDecoder) PeekPkgPath(idx Index) string {
++func (pr *PkgDecoder) PeekPkgPath(idx RelIndex) string {
+ 	var path string
+ 	{
+ 		r := pr.TempDecoder(RelocPkg, idx, SyncPkgDef)
+@@ -493,8 +493,8 @@ func (pr *PkgDecoder) PeekPkgPath(idx Index) string {
+ 
+ // PeekObj returns the package path, object name, and CodeObj for the
+ // specified object index.
+-func (pr *PkgDecoder) PeekObj(idx Index) (string, string, CodeObj) {
+-	var ridx Index
++func (pr *PkgDecoder) PeekObj(idx RelIndex) (string, string, CodeObj) {
++	var ridx RelIndex
+ 	var name string
+ 	var rcode int
+ 	{
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index 015842f58c..2d5b8f0ab7 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -27,7 +27,7 @@ type PkgEncoder struct {
+ 	// stringsIdx maps previously encoded strings to their index within
+ 	// the RelocString section, to allow deduplication. That is,
+ 	// elems[RelocString][stringsIdx[s]] == s (if present).
+-	stringsIdx map[string]Index
++	stringsIdx map[string]RelIndex
+ 
+ 	// syncFrames is the number of frames to write at each sync
+ 	// marker. A negative value means sync markers are omitted.
+@@ -47,7 +47,7 @@ func (pw *PkgEncoder) SyncMarkers() bool { return pw.syncFrames >= 0 }
+ func NewPkgEncoder(version Version, syncFrames int) PkgEncoder {
+ 	return PkgEncoder{
+ 		version:    version,
+-		stringsIdx: make(map[string]Index),
++		stringsIdx: make(map[string]RelIndex),
+ 		syncFrames: syncFrames,
+ 	}
+ }
+@@ -106,13 +106,13 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
+ 
+ // StringIdx adds a string value to the strings section, if not
+ // already present, and returns its index.
+-func (pw *PkgEncoder) StringIdx(s string) Index {
++func (pw *PkgEncoder) StringIdx(s string) RelIndex {
+ 	if idx, ok := pw.stringsIdx[s]; ok {
+ 		assert(pw.elems[RelocString][idx] == s)
+ 		return idx
+ 	}
+ 
+-	idx := Index(len(pw.elems[RelocString]))
++	idx := RelIndex(len(pw.elems[RelocString]))
+ 	pw.elems[RelocString] = append(pw.elems[RelocString], s)
+ 	pw.stringsIdx[s] = idx
+ 	return idx
+@@ -132,7 +132,7 @@ func (pw *PkgEncoder) NewEncoder(k RelocKind, marker SyncMarker) Encoder {
+ //
+ // Most callers should use NewEncoder instead.
+ func (pw *PkgEncoder) NewEncoderRaw(k RelocKind) Encoder {
+-	idx := Index(len(pw.elems[k]))
++	idx := RelIndex(len(pw.elems[k]))
+ 	pw.elems[k] = append(pw.elems[k], "") // placeholder
+ 
+ 	return Encoder{
+@@ -154,11 +154,11 @@ type Encoder struct {
+ 	encodingRelocHeader bool
+ 
+ 	k   RelocKind
+-	Idx Index // index within relocation section
++	Idx RelIndex // index within relocation section
+ }
+ 
+-// Flush finalizes the element's bitstream and returns its Index.
+-func (w *Encoder) Flush() Index {
++// Flush finalizes the element's bitstream and returns its [RelIndex].
++func (w *Encoder) Flush() RelIndex {
+ 	var sb strings.Builder
+ 
+ 	// Backup the data so we write the relocations at the front.
+@@ -210,7 +210,7 @@ func (w *Encoder) rawVarint(x int64) {
+ 	w.rawUvarint(ux)
+ }
+ 
+-func (w *Encoder) rawReloc(r RelocKind, idx Index) int {
++func (w *Encoder) rawReloc(r RelocKind, idx RelIndex) int {
+ 	e := RelocEnt{r, idx}
+ 	if w.RelocMap != nil {
+ 		if i, ok := w.RelocMap[e]; ok {
+@@ -302,7 +302,7 @@ func (w *Encoder) Uint(x uint) { w.Uint64(uint64(x)) }
+ // Note: Only the index is formally written into the element
+ // bitstream, so bitstream decoders must know from context which
+ // section an encoded relocation refers to.
+-func (w *Encoder) Reloc(r RelocKind, idx Index) {
++func (w *Encoder) Reloc(r RelocKind, idx RelIndex) {
+ 	w.Sync(SyncUseReloc)
+ 	w.Len(w.rawReloc(r, idx))
+ }
+@@ -325,7 +325,7 @@ func (w *Encoder) String(s string) {
+ 
+ // StringRef writes a reference to the given index, which must be a
+ // previously encoded string value.
+-func (w *Encoder) StringRef(idx Index) {
++func (w *Encoder) StringRef(idx RelIndex) {
+ 	w.Sync(SyncString)
+ 	w.Reloc(RelocString, idx)
+ }
+diff --git a/src/internal/pkgbits/reloc.go b/src/internal/pkgbits/reloc.go
+index d920bb9b4f..63be6c0afc 100644
+--- a/src/internal/pkgbits/reloc.go
++++ b/src/internal/pkgbits/reloc.go
+@@ -28,16 +28,20 @@ const (
+ // particular section.
+ type Index int32
+ 
++// TODO(markfreeman): Make RelIndex its own named type once we point external
++// references from Index to RelIndex.
++type RelIndex = Index
++
+ // A RelocEnt, or relocation entry, is an entry in an element's reference
+ // table. All elements are preceded by a reference table which provides
+ // locations for all dereferences that the element may use.
+ type RelocEnt struct {
+ 	Kind RelocKind
+-	Idx  Index
++	Idx  RelIndex
+ }
+ 
+ // Reserved indices within the [RelocMeta] section.
+ const (
+-	PublicRootIdx  Index = 0
+-	PrivateRootIdx Index = 1
++	PublicRootIdx  RelIndex = 0
++	PrivateRootIdx RelIndex = 1
+ )

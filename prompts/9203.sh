@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9203: eb3f2083f91fa2c48bad4c997f5d8a4378aaf04e
+# Index 9203: c3a86dab36dfbe3ae6a36832ddf3e96ae3175baa
 
 echo "🚀 Generating explanation for commit 9203..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 9203..."
 
 ### メタデータ
 - **コミットインデックス**: 9203
-- **コミットハッシュ**: eb3f2083f91fa2c48bad4c997f5d8a4378aaf04e
-- **GitHub URL**: https://github.com/golang/go/commit/eb3f2083f91fa2c48bad4c997f5d8a4378aaf04e
+- **コミットハッシュ**: c3a86dab36dfbe3ae6a36832ddf3e96ae3175baa
+- **GitHub URL**: https://github.com/golang/go/commit/c3a86dab36dfbe3ae6a36832ddf3e96ae3175baa
 
 ### 章構成
 

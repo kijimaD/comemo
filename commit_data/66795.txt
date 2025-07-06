@@ -1,0 +1,99 @@
+commit bbf4d57c220e4acf2599bda8b1a32e0dd8095697
+Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
+Date:   Thu Apr 10 21:52:15 2025 +0000
+
+    cmd/compile/internal/ssa: use built-in min, max function
+    
+    Change-Id: I6dd6e3f8a581931fcea3c3e0ac30ce450253e1d8
+    GitHub-Last-Rev: c476f8b9a3741a682340d3a37d6d5a9a44a56e5f
+    GitHub-Pull-Request: golang/go#73318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/ssa/prove.go | 52 ++++++++++-------------------------
+ 1 file changed, 14 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index acbba2b27a..ad03ce87ec 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -133,62 +133,38 @@ func (l limit) String() string {
+ }
+ 
+ func (l limit) intersect(l2 limit) limit {
+-	if l.min < l2.min {
+-		l.min = l2.min
+-	}
+-	if l.umin < l2.umin {
+-		l.umin = l2.umin
+-	}
+-	if l.max > l2.max {
+-		l.max = l2.max
+-	}
+-	if l.umax > l2.umax {
+-		l.umax = l2.umax
+-	}
++	l.min = max(l.min, l2.min)
++	l.umin = max(l.umin, l2.umin)
++	l.max = min(l.max, l2.max)
++	l.umax = min(l.umax, l2.umax)
+ 	return l
+ }
+ 
+ func (l limit) signedMin(m int64) limit {
+-	if l.min < m {
+-		l.min = m
+-	}
++	l.min = max(l.min, m)
+ 	return l
+ }
+ func (l limit) signedMax(m int64) limit {
+-	if l.max > m {
+-		l.max = m
+-	}
++	l.max = min(l.max, m)
+ 	return l
+ }
+-func (l limit) signedMinMax(min, max int64) limit {
+-	if l.min < min {
+-		l.min = min
+-	}
+-	if l.max > max {
+-		l.max = max
+-	}
++func (l limit) signedMinMax(minimum, maximum int64) limit {
++	l.min = max(l.min, minimum)
++	l.max = min(l.max, maximum)
+ 	return l
+ }
+ 
+ func (l limit) unsignedMin(m uint64) limit {
+-	if l.umin < m {
+-		l.umin = m
+-	}
++	l.umin = max(l.umin, m)
+ 	return l
+ }
+ func (l limit) unsignedMax(m uint64) limit {
+-	if l.umax > m {
+-		l.umax = m
+-	}
++	l.umax = min(l.umax, m)
+ 	return l
+ }
+-func (l limit) unsignedMinMax(min, max uint64) limit {
+-	if l.umin < min {
+-		l.umin = min
+-	}
+-	if l.umax > max {
+-		l.umax = max
+-	}
++func (l limit) unsignedMinMax(minimum, maximum uint64) limit {
++	l.umin = max(l.umin, minimum)
++	l.umax = min(l.umax, maximum)
+ 	return l
+ }
+ 

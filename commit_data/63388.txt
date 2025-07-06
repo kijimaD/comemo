@@ -1,0 +1,122 @@
+commit 7dd8f39ebac6d8b27c0ad7cf421aa5d71f155220
+Author: cui fliter <imcusg@gmail.com>
+Date:   Tue Jan 2 14:25:45 2024 +0800
+
+    all: fix some comments
+    
+    Change-Id: I0ee85161846c13d938213ef04d3a34f690a93e48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/553435
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+---
+ src/cmd/compile/internal/noder/unified.go  | 2 +-
+ src/cmd/compile/internal/ssagen/abi.go     | 2 +-
+ src/cmd/compile/internal/typecheck/expr.go | 2 +-
+ src/cmd/compile/internal/types/type.go     | 4 ++--
+ src/net/conf.go                            | 2 +-
+ src/runtime/pinner.go                      | 2 +-
+ test/makechan.go                           | 2 +-
+ 7 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index da04ac5a2a..bbc58ee340 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -27,7 +27,7 @@ import (
+ // later.
+ var localPkgReader *pkgReader
+ 
+-// LookupMethodFunc returns the ir.Func for an arbitrary full symbol name if
++// LookupFunc returns the ir.Func for an arbitrary full symbol name if
+ // that function exists in the set of available export data.
+ //
+ // This allows lookup of arbitrary functions and methods that aren't otherwise
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 56af9ce781..5c4a8aff69 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -403,7 +403,7 @@ func resultsToWasmFields(f *ir.Func, result *abi.ABIParamResultInfo, abiParams [
+ 	return wfs
+ }
+ 
+-// setupTextLSym initializes the LSym for a with-body text symbol.
++// setupWasmABI calculates the params and results in terms of WebAssembly values for the given function.
+ func setupWasmABI(f *ir.Func) {
+ 	wi := obj.WasmImport{
+ 		Module: f.WasmImport.Module,
+diff --git a/src/cmd/compile/internal/typecheck/expr.go b/src/cmd/compile/internal/typecheck/expr.go
+index eb9dc62d8a..eb92797259 100644
+--- a/src/cmd/compile/internal/typecheck/expr.go
++++ b/src/cmd/compile/internal/typecheck/expr.go
+@@ -433,7 +433,7 @@ func dot(pos src.XPos, typ *types.Type, op ir.Op, x ir.Node, selection *types.Fi
+ 	return n
+ }
+ 
+-// XDotMethod returns an expression representing the field selection
++// XDotField returns an expression representing the field selection
+ // x.sym. If any implicit field selection are necessary, those are
+ // inserted too.
+ func XDotField(pos src.XPos, x ir.Node, sym *types.Sym) *ir.SelectorExpr {
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index f372af32b5..b29b2aca06 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -844,7 +844,7 @@ func (t *Type) wantEtype(et Kind) {
+ 	}
+ }
+ 
+-// ResultTuple returns the result type of signature type t as a tuple.
++// ResultsTuple returns the result type of signature type t as a tuple.
+ // This can be used as the type of multi-valued call expressions.
+ func (t *Type) ResultsTuple() *Type { return t.funcType().resultsTuple }
+ 
+@@ -858,7 +858,7 @@ func (t *Type) Params() []*Field { return t.funcType().params() }
+ // Results returns a slice of result parameters of signature type t.
+ func (t *Type) Results() []*Field { return t.funcType().results() }
+ 
+-// RecvsParamsResults returns a slice containing all of the
++// RecvParamsResults returns a slice containing all of the
+ // signature's parameters in receiver (if any), (normal) parameters,
+ // and then results.
+ func (t *Type) RecvParamsResults() []*Field { return t.funcType().allParams }
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 6fe1e4725a..20c81b95de 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -190,7 +190,7 @@ func (c *conf) mustUseGoResolver(r *Resolver) bool {
+ 	if runtime.GOOS == "plan9" {
+ 		// TODO(bradfitz): for now we only permit use of the PreferGo
+ 		// implementation when there's a non-nil Resolver with a
+-		// non-nil Dialer. This is a sign that they the code is trying
++		// non-nil Dialer. This is a sign that the code is trying
+ 		// to use their DNS-speaking net.Conn (such as an in-memory
+ 		// DNS cache) and they don't want to actually hit the network.
+ 		// Once we add support for looking the default DNS servers
+diff --git a/src/runtime/pinner.go b/src/runtime/pinner.go
+index 208fc983ee..7a9c381580 100644
+--- a/src/runtime/pinner.go
++++ b/src/runtime/pinner.go
+@@ -272,7 +272,7 @@ func (s *mspan) pinnerBitSize() uintptr {
+ }
+ 
+ // newPinnerBits returns a pointer to 8 byte aligned bytes to be used for this
+-// span's pinner bits. newPinneBits is used to mark objects that are pinned.
++// span's pinner bits. newPinnerBits is used to mark objects that are pinned.
+ // They are copied when the span is swept.
+ func (s *mspan) newPinnerBits() *pinnerBits {
+ 	return (*pinnerBits)(newMarkBits(uintptr(s.nelems) * 2))
+diff --git a/test/makechan.go b/test/makechan.go
+index 9fabd1701f..c60248e4ea 100644
+--- a/test/makechan.go
++++ b/test/makechan.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Ensure that typed non-integer, negative and to large
++// Ensure that typed non-integer, negative and too large
+ // values are not accepted as size argument in make for
+ // channels.
+ 

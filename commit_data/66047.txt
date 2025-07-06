@@ -1,0 +1,388 @@
+commit 7472b4c324970895b1d44f39c284d72c40d4b621
+Author: David Chase <drchase@google.com>
+Date:   Wed Jan 8 17:01:05 2025 -0500
+
+    cmd/compile: include liveness info in GOSSAFUNC output
+    
+    For this function
+    ```
+    func test(a, b int, c string, s []int, r [3]int, f ifn) {
+            in(a)
+            in(b)
+            sl(s)
+            ar(r)
+            fu(f)
+    }
+    ```
+    this output
+    ```
+    HASH live at entry to test: f s
+    HASH /Users/drchase/work/src/live/main.go
+            00000 (15) TEXT main.test(SB), ABIInternal
+            00001 (15) FUNCDATA $0, gclocals·vYpXgR4/KsH5nhFsqkHG1Q==(SB)
+            00002 (15) FUNCDATA $1, gclocals·Soq6RzO4SX8YA1O9euewoQ==(SB)
+            00003 (15) FUNCDATA $5, main.test.arginfo1(SB)
+            00004 (15) FUNCDATA $6, main.test.argliveinfo(SB)
+    b1      00005 (15) PCDATA $3, $1
+    v32     00006 (21) MOVD R6, main.s+72(RSP)
+    v27     00007 (21) MOVD R5, main.s+64(RSP)
+    v30     00008 (21) MOVD R4, main.s+56(RSP)
+    v7      00009 (21) MOVD R1, main.b+32(RSP)
+    v34     00010 (21) MOVD R7, main.f+80(RSP)
+    v34     00011 (21) PCDATA $3, $2
+    v15     00012 (+16) PCDATA $1, $0
+    HASH live at call to in: f s
+    v15     00013 (+16) CALL main.in(SB)
+    v3      00014 (+17) MOVD main.b+32(RSP), R0
+    HASH live at call to in: f s
+    v17     00015 (+17) CALL main.in(SB)
+    v8      00016 (+18) MOVD main.s+56(RSP), R0
+    v21     00017 (18) MOVD main.s+64(RSP), R1
+    v33     00018 (18) MOVD main.s+72(RSP), R2
+    v19     00019 (+18) PCDATA $1, $1
+    HASH live at call to sl: f
+    v19     00020 (+18) CALL main.sl(SB)
+    v29     00021 (+19) LDP main.r(RSP), (R1, R2)
+    v9      00022 (19) STP (R1, R2), 8(RSP)
+    v12     00023 (19) MOVD main.r+16(RSP), R1
+    v31     00024 (19) MOVD R1, 24(RSP)
+    HASH live at call to ar: f
+    v22     00025 (+19) CALL main.ar(SB)
+    v35     00026 (+20) MOVD main.f+80(RSP), R0
+    v24     00027 (+20) PCDATA $1, $2
+    HASH live at call to fu:
+    v24     00028 (+20) CALL main.fu(SB)
+    b1      00029 (21) RET
+            00030 (?) END
+    ```
+    
+    Where "HASH" is the git commit comment character I don't know how
+    to escape and this was easier than fighting with git.
+    
+    Change-Id: I0691a3f7988db111d11d69388ace83641a841e57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641360
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/compile/internal/liveness/mergelocals.go |  2 +-
+ src/cmd/compile/internal/liveness/plive.go       | 76 +++++++++++++++---------
+ src/cmd/compile/internal/ssagen/ssa.go           | 27 ++++++++-
+ 3 files changed, 75 insertions(+), 30 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/mergelocals.go b/src/cmd/compile/internal/liveness/mergelocals.go
+index cbe49aa655..6967ee016e 100644
+--- a/src/cmd/compile/internal/liveness/mergelocals.go
++++ b/src/cmd/compile/internal/liveness/mergelocals.go
+@@ -56,7 +56,7 @@ type candRegion struct {
+ type cstate struct {
+ 	fn             *ir.Func
+ 	f              *ssa.Func
+-	lv             *liveness
++	lv             *Liveness
+ 	cands          []*ir.Name
+ 	nameToSlot     map[*ir.Name]int32
+ 	regions        []candRegion
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index a20d856aa2..ac0c2dff0a 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -102,8 +102,8 @@ type blockEffects struct {
+ 	liveout bitvec.BitVec
+ }
+ 
+-// A collection of global state used by liveness analysis.
+-type liveness struct {
++// A collection of global state used by Liveness analysis.
++type Liveness struct {
+ 	fn         *ir.Func
+ 	f          *ssa.Func
+ 	vars       []*ir.Name
+@@ -235,7 +235,7 @@ func getvariables(fn *ir.Func) ([]*ir.Name, map[*ir.Name]int32) {
+ 	return vars, idx
+ }
+ 
+-func (lv *liveness) initcache() {
++func (lv *Liveness) initcache() {
+ 	if lv.cache.initialized {
+ 		base.Fatalf("liveness cache initialized twice")
+ 		return
+@@ -281,7 +281,7 @@ const (
+ // valueEffects returns the index of a variable in lv.vars and the
+ // liveness effects v has on that variable.
+ // If v does not affect any tracked variables, it returns -1, 0.
+-func (lv *liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
++func (lv *Liveness) valueEffects(v *ssa.Value) (int32, liveEffect) {
+ 	n, e := affectedVar(v)
+ 	if e == 0 || n == nil { // cheapest checks first
+ 		return -1, 0
+@@ -392,8 +392,8 @@ type livenessFuncCache struct {
+ // Constructs a new liveness structure used to hold the global state of the
+ // liveness computation. The cfg argument is a slice of *BasicBlocks and the
+ // vars argument is a slice of *Nodes.
+-func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int32, stkptrsize int64) *liveness {
+-	lv := &liveness{
++func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int32, stkptrsize int64) *Liveness {
++	lv := &Liveness{
+ 		fn:         fn,
+ 		f:          f,
+ 		vars:       vars,
+@@ -447,14 +447,14 @@ func newliveness(fn *ir.Func, f *ssa.Func, vars []*ir.Name, idx map[*ir.Name]int
+ 	return lv
+ }
+ 
+-func (lv *liveness) blockEffects(b *ssa.Block) *blockEffects {
++func (lv *Liveness) blockEffects(b *ssa.Block) *blockEffects {
+ 	return &lv.be[b.ID]
+ }
+ 
+ // Generates live pointer value maps for arguments and local variables. The
+ // this argument and the in arguments are always assumed live. The vars
+ // argument is a slice of *Nodes.
+-func (lv *liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, locals bitvec.BitVec) {
++func (lv *Liveness) pointerMap(liveout bitvec.BitVec, vars []*ir.Name, args, locals bitvec.BitVec) {
+ 	var slotsSeen map[int64]*ir.Name
+ 	checkForDuplicateSlots := base.Debug.MergeLocals != 0
+ 	if checkForDuplicateSlots {
+@@ -504,7 +504,7 @@ func IsUnsafe(f *ssa.Func) bool {
+ }
+ 
+ // markUnsafePoints finds unsafe points and computes lv.unsafePoints.
+-func (lv *liveness) markUnsafePoints() {
++func (lv *Liveness) markUnsafePoints() {
+ 	if IsUnsafe(lv.f) {
+ 		// No complex analysis necessary.
+ 		lv.allUnsafe = true
+@@ -647,7 +647,7 @@ func (lv *liveness) markUnsafePoints() {
+ // This does not necessarily mean the instruction is a safe-point. In
+ // particular, call Values can have a stack map in case the callee
+ // grows the stack, but not themselves be a safe-point.
+-func (lv *liveness) hasStackMap(v *ssa.Value) bool {
++func (lv *Liveness) hasStackMap(v *ssa.Value) bool {
+ 	if !v.Op.IsCall() {
+ 		return false
+ 	}
+@@ -663,7 +663,7 @@ func (lv *liveness) hasStackMap(v *ssa.Value) bool {
+ // Initializes the sets for solving the live variables. Visits all the
+ // instructions in each basic block to summarizes the information at each basic
+ // block
+-func (lv *liveness) prologue() {
++func (lv *Liveness) prologue() {
+ 	lv.initcache()
+ 
+ 	for _, b := range lv.f.Blocks {
+@@ -685,7 +685,7 @@ func (lv *liveness) prologue() {
+ }
+ 
+ // Solve the liveness dataflow equations.
+-func (lv *liveness) solve() {
++func (lv *Liveness) solve() {
+ 	// These temporary bitvectors exist to avoid successive allocations and
+ 	// frees within the loop.
+ 	nvars := int32(len(lv.vars))
+@@ -745,7 +745,7 @@ func (lv *liveness) solve() {
+ 
+ // Visits all instructions in a basic block and computes a bit vector of live
+ // variables at each safe point locations.
+-func (lv *liveness) epilogue() {
++func (lv *Liveness) epilogue() {
+ 	nvars := int32(len(lv.vars))
+ 	liveout := bitvec.New(nvars)
+ 	livedefer := bitvec.New(nvars) // always-live variables
+@@ -914,7 +914,7 @@ func (lv *liveness) epilogue() {
+ // is actually a net loss: we save about 50k of argument bitmaps but the new
+ // PCDATA tables cost about 100k. So for now we keep using a single index for
+ // both bitmap lists.
+-func (lv *liveness) compact(b *ssa.Block) {
++func (lv *Liveness) compact(b *ssa.Block) {
+ 	pos := 0
+ 	if b == lv.f.Entry {
+ 		// Handle entry stack map.
+@@ -939,7 +939,7 @@ func (lv *liveness) compact(b *ssa.Block) {
+ 	lv.livevars = lv.livevars[:0]
+ }
+ 
+-func (lv *liveness) enableClobber() {
++func (lv *Liveness) enableClobber() {
+ 	// The clobberdead experiment inserts code to clobber pointer slots in all
+ 	// the dead variables (locals and args) at every synchronous safepoint.
+ 	if !base.Flag.ClobberDead {
+@@ -994,7 +994,7 @@ func (lv *liveness) enableClobber() {
+ 
+ // Inserts code to clobber pointer slots in all the dead variables (locals and args)
+ // at every synchronous safepoint in b.
+-func (lv *liveness) clobber(b *ssa.Block) {
++func (lv *Liveness) clobber(b *ssa.Block) {
+ 	// Copy block's values to a temporary.
+ 	oldSched := append([]*ssa.Value{}, b.Values...)
+ 	b.Values = b.Values[:0]
+@@ -1029,7 +1029,7 @@ func (lv *liveness) clobber(b *ssa.Block) {
+ // clobber generates code to clobber pointer slots in all dead variables
+ // (those not marked in live). Clobbering instructions are added to the end
+ // of b.Values.
+-func clobber(lv *liveness, b *ssa.Block, live bitvec.BitVec) {
++func clobber(lv *Liveness, b *ssa.Block, live bitvec.BitVec) {
+ 	for i, n := range lv.vars {
+ 		if !live.Get(int32(i)) && !n.Addrtaken() && !n.OpenDeferSlot() && !n.IsOutputParamHeapAddr() {
+ 			// Don't clobber stack objects (address-taken). They are
+@@ -1102,7 +1102,7 @@ func clobberPtr(b *ssa.Block, v *ir.Name, offset int64) {
+ 	b.NewValue0IA(src.NoXPos, ssa.OpClobber, types.TypeVoid, offset, v)
+ }
+ 
+-func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
++func (lv *Liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
+ 	if base.Flag.Live == 0 || ir.FuncName(lv.fn) == "init" || strings.HasPrefix(ir.FuncName(lv.fn), ".") {
+ 		return
+ 	}
+@@ -1119,6 +1119,24 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
+ 		return
+ 	}
+ 
++	pos, s := lv.format(v, live)
++
++	base.WarnfAt(pos, "%s", s)
++}
++
++func (lv *Liveness) Format(v *ssa.Value) string {
++	if v == nil {
++		_, s := lv.format(nil, lv.stackMaps[0])
++		return s
++	}
++	if idx := lv.livenessMap.Get(v); idx.StackMapValid() {
++		_, s := lv.format(v, lv.stackMaps[idx])
++		return s
++	}
++	return ""
++}
++
++func (lv *Liveness) format(v *ssa.Value, live bitvec.BitVec) (src.XPos, string) {
+ 	pos := lv.fn.Nname.Pos()
+ 	if v != nil {
+ 		pos = v.Pos
+@@ -1149,11 +1167,10 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
+ 	for _, v := range names {
+ 		s += " " + v
+ 	}
+-
+-	base.WarnfAt(pos, "%s", s)
++	return pos, s
+ }
+ 
+-func (lv *liveness) printbvec(printed bool, name string, live bitvec.BitVec) bool {
++func (lv *Liveness) printbvec(printed bool, name string, live bitvec.BitVec) bool {
+ 	if live.IsEmpty() {
+ 		return printed
+ 	}
+@@ -1177,7 +1194,7 @@ func (lv *liveness) printbvec(printed bool, name string, live bitvec.BitVec) boo
+ }
+ 
+ // printeffect is like printbvec, but for valueEffects.
+-func (lv *liveness) printeffect(printed bool, name string, pos int32, x bool) bool {
++func (lv *Liveness) printeffect(printed bool, name string, pos int32, x bool) bool {
+ 	if !x {
+ 		return printed
+ 	}
+@@ -1197,7 +1214,7 @@ func (lv *liveness) printeffect(printed bool, name string, pos int32, x bool) bo
+ // Prints the computed liveness information and inputs, for debugging.
+ // This format synthesizes the information used during the multiple passes
+ // into a single presentation.
+-func (lv *liveness) printDebug() {
++func (lv *Liveness) printDebug() {
+ 	fmt.Printf("liveness: %s\n", ir.FuncName(lv.fn))
+ 
+ 	for i, b := range lv.f.Blocks {
+@@ -1309,7 +1326,7 @@ func (lv *liveness) printDebug() {
+ // first word dumped is the total number of bitmaps. The second word is the
+ // length of the bitmaps. All bitmaps are assumed to be of equal length. The
+ // remaining bytes are the raw bitmaps.
+-func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
++func (lv *Liveness) emit() (argsSym, liveSym *obj.LSym) {
+ 	// Size args bitmaps to be just large enough to hold the largest pointer.
+ 	// First, find the largest Xoffset node we care about.
+ 	// (Nodes without pointers aren't in lv.vars; see ShouldTrack.)
+@@ -1370,7 +1387,7 @@ func (lv *liveness) emit() (argsSym, liveSym *obj.LSym) {
+ // structure read by the garbage collector.
+ // Returns a map from GC safe points to their corresponding stack map index,
+ // and a map that contains all input parameters that may be partially live.
+-func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) (Map, map[*ir.Name]bool) {
++func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs, retLiveness bool) (Map, map[*ir.Name]bool, *Liveness) {
+ 	// Construct the global liveness state.
+ 	vars, idx := getvariables(curfn)
+ 	lv := newliveness(curfn, f, vars, idx, stkptrsize)
+@@ -1432,10 +1449,15 @@ func Compute(curfn *ir.Func, f *ssa.Func, stkptrsize int64, pp *objw.Progs) (Map
+ 		p.To.Sym = x
+ 	}
+ 
+-	return lv.livenessMap, lv.partLiveArgs
++	retLv := lv
++	if !retLiveness {
++		retLv = nil
++	}
++
++	return lv.livenessMap, lv.partLiveArgs, retLv
+ }
+ 
+-func (lv *liveness) emitStackObjects() *obj.LSym {
++func (lv *Liveness) emitStackObjects() *obj.LSym {
+ 	var vars []*ir.Name
+ 	for _, n := range lv.fn.Dcl {
+ 		if shouldTrack(n) && n.Addrtaken() && n.Esc() != ir.EscHeap {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index edd1ffb0c9..6e8a8b9cc8 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -6335,7 +6335,10 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 
+ 	e := f.Frontend().(*ssafn)
+ 
+-	s.livenessMap, s.partLiveArgs = liveness.Compute(e.curfn, f, e.stkptrsize, pp)
++	gatherPrintInfo := f.PrintOrHtmlSSA || ssa.GenssaDump[f.Name]
++
++	var lv *liveness.Liveness
++	s.livenessMap, s.partLiveArgs, lv = liveness.Compute(e.curfn, f, e.stkptrsize, pp, gatherPrintInfo)
+ 	emitArgInfo(e, f, pp)
+ 	argLiveBlockMap, argLiveValueMap := liveness.ArgLiveness(e.curfn, f, pp)
+ 
+@@ -6358,7 +6361,6 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 	var progToValue map[*obj.Prog]*ssa.Value
+ 	var progToBlock map[*obj.Prog]*ssa.Block
+ 	var valueToProgAfter []*obj.Prog // The first Prog following computation of a value v; v is visible at this point.
+-	gatherPrintInfo := f.PrintOrHtmlSSA || ssa.GenssaDump[f.Name]
+ 	if gatherPrintInfo {
+ 		progToValue = make(map[*obj.Prog]*ssa.Value, f.NumValues())
+ 		progToBlock = make(map[*obj.Prog]*ssa.Block, f.NumBlocks())
+@@ -6766,6 +6768,14 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		buf.WriteString("<code>")
+ 		buf.WriteString("<dl class=\"ssa-gen\">")
+ 		filename := ""
++
++		liveness := lv.Format(nil)
++		if liveness != "" {
++			buf.WriteString("<dt class=\"ssa-prog-src\"></dt><dd class=\"ssa-prog\">")
++			buf.WriteString(html.EscapeString("# " + liveness))
++			buf.WriteString("</dd>")
++		}
++
+ 		for p := s.pp.Text; p != nil; p = p.Link {
+ 			// Don't spam every line with the file name, which is often huge.
+ 			// Only print changes, and "unknown" is not a change.
+@@ -6778,6 +6788,19 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 
+ 			buf.WriteString("<dt class=\"ssa-prog-src\">")
+ 			if v, ok := progToValue[p]; ok {
++
++				// Prefix calls with their liveness, if any
++				if p.As != obj.APCDATA {
++					if liveness := lv.Format(v); liveness != "" {
++						// Steal this line, and restart a line
++						buf.WriteString("</dt><dd class=\"ssa-prog\">")
++						buf.WriteString(html.EscapeString("# " + liveness))
++						buf.WriteString("</dd>")
++						// restarting a line
++						buf.WriteString("<dt class=\"ssa-prog-src\">")
++					}
++				}
++
+ 				buf.WriteString(v.HTML())
+ 			} else if b, ok := progToBlock[p]; ok {
+ 				buf.WriteString("<b>" + b.HTML() + "</b>")

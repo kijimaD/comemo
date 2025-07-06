@@ -1,0 +1,43 @@
+commit 08770a5b944ba1cf4f62f075bfd94cd36a061bdb
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Dec 13 15:05:27 2024 -0500
+
+    cmd/link: make dwarf name slice index self-describing
+    
+    cmd/compile/internal/dwarfgen.createComplexVar does it this way, which
+    has the nice property of documenting the expected prefix.
+    
+    This is primarily for newtype, since defgotype checks for the prefix
+    immediately prior, but I changed both for consistency.
+    
+    Change-Id: I49fa7c6166bdcbd19aaf91fe3dc20537080afcfc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635177
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/link/internal/ld/dwarf.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 14c0b687d8..b653e09a3c 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -520,7 +520,7 @@ func (d *dwctxt) defgotype(gotype loader.Sym) loader.Sym {
+ 		d.linkctxt.Errorf(gotype, "dwarf: type name doesn't start with \"type:\"")
+ 		return d.mustFind("<unspecified>")
+ 	}
+-	name := sn[5:] // could also decode from Type.string
++	name := sn[len("type:"):] // could also decode from Type.string
+ 
+ 	sdie := d.find(name)
+ 	if sdie != 0 {
+@@ -534,7 +534,7 @@ func (d *dwctxt) defgotype(gotype loader.Sym) loader.Sym {
+ 
+ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 	sn := d.ldr.SymName(gotype)
+-	name := sn[5:] // could also decode from Type.string
++	name := sn[len("type:"):] // could also decode from Type.string
+ 	tdata := d.ldr.Data(gotype)
+ 	if len(tdata) == 0 {
+ 		d.linkctxt.Errorf(gotype, "missing type")

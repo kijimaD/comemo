@@ -1,0 +1,64 @@
+commit b64e5e38ab66320bbd7886836d192772d21c4d9a
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu May 2 20:29:29 2024 +0200
+
+    net: use stringslite.HasPrefix
+    
+    Change-Id: Ib14c70f580d0891b3fbedf9e4cde93077409d4e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/net/dnsconfig_unix.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/dnsconfig_unix.go b/src/net/dnsconfig_unix.go
+index b0a318279b..0fcf2c6cc3 100644
+--- a/src/net/dnsconfig_unix.go
++++ b/src/net/dnsconfig_unix.go
+@@ -10,6 +10,7 @@ package net
+ 
+ import (
+ 	"internal/bytealg"
++	"internal/stringslite"
+ 	"net/netip"
+ 	"time"
+ )
+@@ -75,7 +76,7 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 		case "options": // magic options
+ 			for _, s := range f[1:] {
+ 				switch {
+-				case hasPrefix(s, "ndots:"):
++				case stringslite.HasPrefix(s, "ndots:"):
+ 					n, _, _ := dtoi(s[6:])
+ 					if n < 0 {
+ 						n = 0
+@@ -83,13 +84,13 @@ func dnsReadConfig(filename string) *dnsConfig {
+ 						n = 15
+ 					}
+ 					conf.ndots = n
+-				case hasPrefix(s, "timeout:"):
++				case stringslite.HasPrefix(s, "timeout:"):
+ 					n, _, _ := dtoi(s[8:])
+ 					if n < 1 {
+ 						n = 1
+ 					}
+ 					conf.timeout = time.Duration(n) * time.Second
+-				case hasPrefix(s, "attempts:"):
++				case stringslite.HasPrefix(s, "attempts:"):
+ 					n, _, _ := dtoi(s[9:])
+ 					if n < 1 {
+ 						n = 1
+@@ -155,10 +156,6 @@ func dnsDefaultSearch() []string {
+ 	return nil
+ }
+ 
+-func hasPrefix(s, prefix string) bool {
+-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+-}
+-
+ func ensureRooted(s string) string {
+ 	if len(s) > 0 && s[len(s)-1] == '.' {
+ 		return s

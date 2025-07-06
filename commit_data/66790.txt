@@ -1,0 +1,35 @@
+commit 037112464b4439571b45536de9ebe4bc9e10ecb7
+Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
+Date:   Thu Apr 10 21:52:32 2025 +0000
+
+    cmd/compile/internal/ssa: use built-in min function
+    
+    Change-Id: Id4276adea58afdf98c6f9b547cca0546fc659ae1
+    GitHub-Last-Rev: 4c836241c86d51c69330153dea1c5679958c37f9
+    GitHub-Pull-Request: golang/go#73323
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/compile/internal/ssa/writebarrier.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index aed24feda2..e235659dc0 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -593,10 +593,7 @@ func (f *Func) computeZeroMap(select1 []*Value) map[ID]ZeroRegion {
+ 					continue
+ 				}
+ 
+-				nptr := v.Type.Elem().Size() / ptrSize
+-				if nptr > 64 {
+-					nptr = 64
+-				}
++				nptr := min(64, v.Type.Elem().Size()/ptrSize)
+ 				zeroes[mem.ID] = ZeroRegion{base: v, mask: 1<<uint(nptr) - 1}
+ 			}
+ 		}

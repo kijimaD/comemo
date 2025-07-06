@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 47051: 4048491234203e1ee803d489d11a02c90b14596a
+# Index 47051: 216714e44f703470f102cf248f7e9097160093d4
 
 echo "🚀 Generating explanation for commit 47051..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 47051..."
 
 ### メタデータ
 - **コミットインデックス**: 47051
-- **コミットハッシュ**: 4048491234203e1ee803d489d11a02c90b14596a
-- **GitHub URL**: https://github.com/golang/go/commit/4048491234203e1ee803d489d11a02c90b14596a
+- **コミットハッシュ**: 216714e44f703470f102cf248f7e9097160093d4
+- **GitHub URL**: https://github.com/golang/go/commit/216714e44f703470f102cf248f7e9097160093d4
 
 ### 章構成
 

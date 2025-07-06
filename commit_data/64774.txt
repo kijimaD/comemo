@@ -1,0 +1,58 @@
+commit ca2cb8d7a77c06530e2cef3931c195ad8abb2b4f
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 22:40:31 2024 -0700
+
+    cmd/internal/testdir: remove temp files
+    
+    Function stdlibImportcfgFile creates a temporary directory and a file in
+    it, which are never deleted.
+    
+    The easiest to fix this (without creating the file unnecessarily, or
+    creating it multiple times) is to add a global tmpDir and use it in
+    stdlibImportcfgFile.
+    
+    Change-Id: Ia971b4478d9e0fa7c3a9b4c66e13fd5a4af9cbaa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610818
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/internal/testdir/testdir_test.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index c3cadd5fc6..1b78e605c8 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -63,6 +63,7 @@ var (
+ 	cgoEnabled   bool
+ 	goExperiment string
+ 	goDebug      string
++	tmpDir       string
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+@@ -115,6 +116,7 @@ func Test(t *testing.T) {
+ 	cgoEnabled, _ = strconv.ParseBool(env.CGO_ENABLED)
+ 	goExperiment = env.GOEXPERIMENT
+ 	goDebug = env.GODEBUG
++	tmpDir = t.TempDir()
+ 
+ 	common := testCommon{
+ 		gorootTestDir: filepath.Join(testenv.GOROOT(t), "test"),
+@@ -220,12 +222,8 @@ var stdlibImportcfg = sync.OnceValue(func() string {
+ })
+ 
+ var stdlibImportcfgFile = sync.OnceValue(func() string {
+-	tmpdir, err := os.MkdirTemp("", "importcfg")
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	filename := filepath.Join(tmpdir, "importcfg")
+-	err = os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
++	filename := filepath.Join(tmpDir, "importcfg")
++	err := os.WriteFile(filename, []byte(stdlibImportcfg()), 0644)
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}

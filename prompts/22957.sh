@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 22957: db1f9cdd3fc3b7238b5fbd58447e6b742a90f422
+# Index 22957: e6248c9c99cf8bd0d195a972305c0235d92101a8
 
 echo "🚀 Generating explanation for commit 22957..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 22957..."
 
 ### メタデータ
 - **コミットインデックス**: 22957
-- **コミットハッシュ**: db1f9cdd3fc3b7238b5fbd58447e6b742a90f422
-- **GitHub URL**: https://github.com/golang/go/commit/db1f9cdd3fc3b7238b5fbd58447e6b742a90f422
+- **コミットハッシュ**: e6248c9c99cf8bd0d195a972305c0235d92101a8
+- **GitHub URL**: https://github.com/golang/go/commit/e6248c9c99cf8bd0d195a972305c0235d92101a8
 
 ### 章構成
 

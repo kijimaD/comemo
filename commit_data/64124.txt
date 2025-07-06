@@ -1,0 +1,35 @@
+commit 62c3a6350b2a6224481e3440eb0a9cf68353990d
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jun 20 10:23:42 2024 -0700
+
+    [release-branch.go1.23] internal/godebugs: fix old value for httpservecontentkeepheaders
+    
+    The pre-Go 1.23 behavior is httpservecontentkeepheaders=1.
+    
+    For #66343
+    
+    Change-Id: If6f92853b38522f19a8908ff11ac49b12f3dc3e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593775
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593795
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/internal/godebugs/table.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index f4262b6695..4c084635fb 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -36,7 +36,7 @@ var All = []Info{
+ 	{Name: "http2server", Package: "net/http"},
+ 	{Name: "httplaxcontentlength", Package: "net/http", Changed: 22, Old: "1"},
+ 	{Name: "httpmuxgo121", Package: "net/http", Changed: 22, Old: "1"},
+-	{Name: "httpservecontentkeepheaders", Package: "net/http", Changed: 23, Old: "0"},
++	{Name: "httpservecontentkeepheaders", Package: "net/http", Changed: 23, Old: "1"},
+ 	{Name: "installgoroot", Package: "go/build"},
+ 	{Name: "jstmpllitinterp", Package: "html/template", Opaque: true}, // bug #66217: remove Opaque
+ 	//{Name: "multipartfiles", Package: "mime/multipart"},

@@ -1,0 +1,26 @@
+commit 8f3f22eef807250155301822a8960afec160cc02
+Author: Gopher Robot <gobot@golang.org>
+Date:   Tue Dec 3 17:22:36 2024 +0000
+
+    [release-branch.go1.22] go1.22.10
+    
+    Change-Id: I5e9be77389bcb215c114013c169841cfbcaa9550
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Veronica Silina <veronicasilina@google.com>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index 582ca187f5..e1fb2ecc6a 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.22.9
+-time 2024-11-06T18:46:45Z
++go1.22.10
++time 2024-11-27T20:27:20Z

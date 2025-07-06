@@ -1,0 +1,127 @@
+commit 711552e98acbfda7e974dacf4e3a0a8f8dcaa371
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Tue Oct 8 12:49:30 2024 +0800
+
+    cmd/compile: optimize type switch for a single runtime known type with a case var
+    
+    Change-Id: I03ba70076d6dd3c0b9624d14699b7dd91a3c0e9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618476
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ src/cmd/compile/internal/walk/switch.go | 35 +++++++++++++++++++++++++++++----
+ test/codegen/typeswitch.go              | 22 ++++++++++++++++++++-
+ 2 files changed, 52 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/switch.go b/src/cmd/compile/internal/walk/switch.go
+index a45ca6e638..cbe38b54bc 100644
+--- a/src/cmd/compile/internal/walk/switch.go
++++ b/src/cmd/compile/internal/walk/switch.go
+@@ -440,6 +440,13 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 		// we're looking for is not a compile-time constant (typ.Type()
+ 		// will be its shape).
+ 		typ ir.Node
++
++		// For a single runtime known type with a case var, create a
++		// temporary variable to hold the value returned by the dynamic
++		// type assert expr, so that we do not need one more dynamic
++		// type assert expr later.
++		val ir.Node
++		idx int // index of the single runtime known type in sw.Cases
+ 	}
+ 	var cases []oneCase
+ 	var defaultGoto, nilGoto ir.Node
+@@ -459,10 +466,19 @@ func walkSwitchType(sw *ir.SwitchStmt) {
+ 				nilGoto = jmp
+ 				continue
+ 			}
++			idx := -1
++			var val ir.Node
++			// for a single runtime known type with a case var, create the tmpVar
++			if len(ncase.List) == 1 && ncase.List[0].Op() == ir.ODYNAMICTYPE && ncase.Var != nil {
++				val = typecheck.TempAt(ncase.Pos(), ir.CurFunc, ncase.Var.Type())
++				idx = i
++			}
+ 			cases = append(cases, oneCase{
+ 				pos: ncase.Pos(),
+ 				typ: n1,
+ 				jmp: jmp,
++				val: val,
++				idx: idx,
+ 			})
+ 		}
+ 	}
+@@ -570,6 +586,9 @@ caseLoop:
+ 
+ 			as := ir.NewAssignListStmt(c.pos, ir.OAS2, nil, nil)
+ 			as.Lhs = []ir.Node{ir.BlankNode, s.okName} // _, ok =
++			if c.val != nil {
++				as.Lhs[0] = c.val // tmpVar, ok =
++			}
+ 			as.Rhs = []ir.Node{dot}
+ 			typecheck.Stmt(as)
+ 
+@@ -640,10 +659,18 @@ caseLoop:
+ 						val = ifaceData(ncase.Pos(), s.srcName, t)
+ 					}
+ 				} else if ncase.List[0].Op() == ir.ODYNAMICTYPE { // single runtime known type
+-					dt := ncase.List[0].(*ir.DynamicType)
+-					x := ir.NewDynamicTypeAssertExpr(ncase.Pos(), ir.ODYNAMICDOTTYPE, val, dt.RType)
+-					x.ITab = dt.ITab
+-					val = x
++					var found bool
++					for _, c := range cases {
++						if c.idx == i {
++							val = c.val
++							found = val != nil
++							break
++						}
++					}
++					// the tmpVar must always be found
++					if !found {
++						base.Fatalf("an error occurred when processing type switch case %v", ncase.List[0])
++					}
+ 				} else if ir.IsNil(ncase.List[0]) {
+ 				} else {
+ 					base.Fatalf("unhandled type switch case %v", ncase.List[0])
+diff --git a/test/codegen/typeswitch.go b/test/codegen/typeswitch.go
+index 495853ed3c..93f8e84269 100644
+--- a/test/codegen/typeswitch.go
++++ b/test/codegen/typeswitch.go
+@@ -37,11 +37,31 @@ func swGYZ[T any](a Ig[T]) {
+ 		t.Y()
+ 	case Iz: // amd64:-".*typeAssert"
+ 		t.Z()
+-	case interface{ G() T }: // amd64:-".*typeAssert",".*assertE2I"
++	case interface{ G() T }: // amd64:-".*typeAssert",-".*assertE2I\\(",".*assertE2I2"
++		t.G()
++	}
++}
++
++func swE2G[T any](a any) {
++	switch t := a.(type) {
++	case Iy:
++		t.Y()
++	case Ig[T]: // amd64:-".*assertE2I\\(",".*assertE2I2"
++		t.G()
++	}
++}
++
++func swI2G[T any](a Ix) {
++	switch t := a.(type) {
++	case Iy:
++		t.Y()
++	case Ig[T]: // amd64:-".*assertE2I\\(",".*assertE2I2"
+ 		t.G()
+ 	}
+ }
+ 
+ func swCaller() {
+ 	swGYZ[int]((Ig[int])(nil))
++	swE2G[int]((Ig[int])(nil))
++	swI2G[int]((Ix)(nil))
+ }

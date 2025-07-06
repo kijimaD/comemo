@@ -1,0 +1,70 @@
+commit a8e2ecc8b188f4f6c8529477392e344243ce40bd
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Oct 17 12:57:26 2024 +0000
+
+    internal/runtime/atomic: add Xchg8 for 386
+    
+    For #69735
+    
+    Change-Id: I5b9f57315d693d613dc88dc02c10bee39aeeef76
+    GitHub-Last-Rev: 690337e5b81a48bdcb808526d0c5f4837e8912b7
+    GitHub-Pull-Request: golang/go#69923
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620756
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/internal/runtime/atomic/atomic_386.go | 3 +++
+ src/internal/runtime/atomic/atomic_386.s  | 8 ++++++++
+ src/internal/runtime/atomic/xchg8_test.go | 2 +-
+ 3 files changed, 12 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/runtime/atomic/atomic_386.go b/src/internal/runtime/atomic/atomic_386.go
+index a023baddb7..b6cdea61ab 100644
+--- a/src/internal/runtime/atomic/atomic_386.go
++++ b/src/internal/runtime/atomic/atomic_386.go
+@@ -53,6 +53,9 @@ func Xchg64(ptr *uint64, new uint64) uint64
+ //go:noescape
+ func Xchg(ptr *uint32, new uint32) uint32
+ 
++//go:noescape
++func Xchg8(ptr *uint8, new uint8) uint8
++
+ //go:noescape
+ func Xchguintptr(ptr *uintptr, new uintptr) uintptr
+ 
+diff --git a/src/internal/runtime/atomic/atomic_386.s b/src/internal/runtime/atomic/atomic_386.s
+index 08812c37ec..58a56e63c0 100644
+--- a/src/internal/runtime/atomic/atomic_386.s
++++ b/src/internal/runtime/atomic/atomic_386.s
+@@ -153,6 +153,14 @@ addloop:
+ 	MOVL	CX, ret_hi+16(FP)
+ 	RET
+ 
++// uint8 Xchg8(uint8 *ptr, uint8 new)
++TEXT ·Xchg8(SB), NOSPLIT, $0-9
++	MOVL	ptr+0(FP), BX
++	MOVB	new+4(FP), AX
++	XCHGB	AX, 0(BX)
++	MOVB	AX, ret+8(FP)
++	RET
++
+ TEXT ·Xchg(SB), NOSPLIT, $0-12
+ 	MOVL	ptr+0(FP), BX
+ 	MOVL	new+4(FP), AX
+diff --git a/src/internal/runtime/atomic/xchg8_test.go b/src/internal/runtime/atomic/xchg8_test.go
+index a04fcfc4bd..d9f1d8854e 100644
+--- a/src/internal/runtime/atomic/xchg8_test.go
++++ b/src/internal/runtime/atomic/xchg8_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build amd64 || arm64 || ppc64 || ppc64le
++//go:build 386 || amd64 || arm64 || ppc64 || ppc64le
+ 
+ package atomic_test
+ 

@@ -1,0 +1,48 @@
+commit 99d97d7c4f2c2bb0df30f0ca79924754b3b424ec
+Author: junya koyama <arukiidou@yahoo.co.jp>
+Date:   Sun Mar 23 10:04:50 2025 +0000
+
+    testing/slogtest: test nested groups in empty record
+    
+    Updates #62280
+    
+    Change-Id: I1c80cb18bb174b47ff156974f72c37baf6b73635
+    GitHub-Last-Rev: d98b6cd57eb028af8513f583cbef3ce46505b590
+    GitHub-Pull-Request: golang/go#65597
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562635
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+---
+ src/testing/slogtest/slogtest.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/src/testing/slogtest/slogtest.go b/src/testing/slogtest/slogtest.go
+index f9e2d90041..7378b0613d 100644
+--- a/src/testing/slogtest/slogtest.go
++++ b/src/testing/slogtest/slogtest.go
+@@ -171,6 +171,22 @@ var cases = []testCase{
+ 			inGroup("G", missingKey("H")),
+ 		},
+ 	},
++	{
++		name:        "nested-empty-group-record",
++		explanation: withSource("a Handler should not output nested groups if there are no attributes"),
++		f: func(l *slog.Logger) {
++			l.With("a", "b").WithGroup("G").With("c", "d").WithGroup("H").WithGroup("I").Info("msg")
++		},
++		checks: []check{
++			hasKey(slog.TimeKey),
++			hasKey(slog.LevelKey),
++			hasAttr(slog.MessageKey, "msg"),
++			hasAttr("a", "b"),
++			inGroup("G", hasAttr("c", "d")),
++			inGroup("G", missingKey("H")),
++			inGroup("G", missingKey("I")),
++		},
++	},
+ 	{
+ 		name:        "resolve",
+ 		explanation: withSource("a Handler should call Resolve on attribute values"),

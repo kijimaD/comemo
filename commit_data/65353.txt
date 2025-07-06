@@ -1,0 +1,511 @@
+commit 7c405444417f4f5412f96f0406cabd081e95b603
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Nov 8 16:29:27 2024 -0500
+
+    internal/runtime/maps: use match to skip non-full slots in iteration
+    
+    Iteration over swissmaps with low load (think map with large hint but
+    only one entry) is signicantly regressed vs old maps. See noswiss vs
+    swiss-tip below (+60%).
+    
+    Currently we visit every single slot and individually check if the slot
+    is full or not.
+    
+    We can do much better by using the control word to find all full slots
+    in a group in a single operation. This lets us skip completely empty
+    groups for instance.
+    
+    Always using the control match approach is great for maps with low load,
+    but is a regression for mostly full maps. Mostly full maps have the
+    majority of slots full, so most calls to mapiternext will return the
+    next slot. In that case, doing the full group match on every call is
+    more expensive than checking the individual slot.
+    
+    Thus we take a hybrid approach: on each call, we first check an
+    individual slot. If that slot is full, we're done. If that slot is
+    non-full, then we fall back to doing full group matches.
+    
+    This trade-off works well. Both mostly empty and mostly full maps
+    perform nearly as well as doing all matching and all individual,
+    respectively.
+    
+    The fast path is placed above the slow path loop rather than combined
+    (with some sort of `useMatch` variable) into a single loop to help the
+    compiler's code generation. The compiler really struggles with code
+    generation on a combined loop for some reason, yielding ~15% additional
+    instructions/op.
+    
+    Comparison with old maps prior to this CL:
+    
+                                                     │    noswiss    │              swiss-tip               │
+                                                     │    sec/op     │    sec/op      vs base               │
+    MapIter/Key=int64/Elem=int64/len=6-12               11.53n ±  2%    10.64n ±  2%   -7.72% (p=0.002 n=6)
+    MapIter/Key=int64/Elem=int64/len=64-12             10.180n ±  2%    9.670n ±  5%   -5.01% (p=0.004 n=6)
+    MapIter/Key=int64/Elem=int64/len=65536-12           10.78n ±  1%    10.15n ±  2%   -5.84% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=6-12        6.116n ±  2%    6.840n ±  2%  +11.84% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=64-12       2.403n ±  2%    3.892n ±  0%  +61.95% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=65536-12    1.940n ±  3%    3.237n ±  1%  +66.81% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=6-12                66.20n ±  2%    60.14n ±  3%   -9.15% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=64-12               97.24n ±  1%   171.35n ±  1%  +76.21% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=65536-12            826.1n ± 12%    842.5n ± 10%        ~ (p=0.937 n=6)
+    geomean                                             17.93n          20.96n        +16.88%
+    
+    After this CL:
+    
+                                                     │    noswiss    │              swiss-cl               │
+                                                     │    sec/op     │    sec/op     vs base               │
+    MapIter/Key=int64/Elem=int64/len=6-12               11.53n ±  2%    10.90n ± 3%   -5.42% (p=0.002 n=6)
+    MapIter/Key=int64/Elem=int64/len=64-12             10.180n ±  2%    9.719n ± 9%   -4.53% (p=0.043 n=6)
+    MapIter/Key=int64/Elem=int64/len=65536-12           10.78n ±  1%    10.07n ± 2%   -6.63% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=6-12        6.116n ±  2%    7.022n ± 1%  +14.82% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=64-12       2.403n ±  2%    1.475n ± 1%  -38.63% (p=0.002 n=6)
+    MapIterLowLoad/Key=int64/Elem=int64/len=65536-12    1.940n ±  3%    1.210n ± 6%  -37.67% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=6-12                66.20n ±  2%    61.54n ± 2%   -7.02% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=64-12               97.24n ±  1%   110.10n ± 1%  +13.23% (p=0.002 n=6)
+    MapPop/Key=int64/Elem=int64/len=65536-12            826.1n ± 12%    504.7n ± 6%  -38.91% (p=0.002 n=6)
+    geomean                                             17.93n          15.29n       -14.74%
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10
+    Change-Id: Ic07f9df763239e85be57873103df5007144fdaef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627156
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/internal/runtime/maps/group.go |  21 ++-
+ src/internal/runtime/maps/table.go | 288 +++++++++++++++++++++++++++----------
+ src/runtime/map_test.go            |  32 +++++
+ 3 files changed, 268 insertions(+), 73 deletions(-)
+
+diff --git a/src/internal/runtime/maps/group.go b/src/internal/runtime/maps/group.go
+index 3e06a534ab..35b39bbc37 100644
+--- a/src/internal/runtime/maps/group.go
++++ b/src/internal/runtime/maps/group.go
+@@ -44,11 +44,19 @@ func (b bitset) first() uintptr {
+ 	return uintptr(sys.TrailingZeros64(uint64(b))) >> 3
+ }
+ 
+-// removeFirst removes the first set bit (that is, resets the least significant set bit to 0).
++// removeFirst removes the first set bit (that is, resets the least significant
++// set bit to 0).
+ func (b bitset) removeFirst() bitset {
+ 	return b & (b - 1)
+ }
+ 
++// removeBelow removes all set bits below slot i (non-inclusive).
++func (b bitset) removeBelow(i uintptr) bitset {
++	// Clear all bits below slot i's byte.
++	mask := (uint64(1) << (8*uint64(i))) - 1
++	return b &^ bitset(mask)
++}
++
+ // Each slot in the hash table has a control byte which can have one of three
+ // states: empty, deleted, and full. They have the following bit patterns:
+ //
+@@ -124,6 +132,17 @@ func (g ctrlGroup) matchEmptyOrDeleted() bitset {
+ 	return bitset(v & bitsetMSB)
+ }
+ 
++// matchFull returns the set of slots in the group that are full.
++func (g ctrlGroup) matchFull() bitset {
++	// An empty slot is  1000 0000
++	// A deleted slot is 1111 1110
++	// A full slot is    0??? ????
++	//
++	// A slot is full iff bit 7 is unset.
++	v := uint64(g)
++	return bitset(^v & bitsetMSB)
++}
++
+ // groupReference is a wrapper type representing a single slot group stored at
+ // data.
+ //
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index eae23d84c9..847ff7fa6b 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -584,6 +584,83 @@ func (it *Iter) Elem() unsafe.Pointer {
+ 	return it.elem
+ }
+ 
++func (it *Iter) nextDirIdx() {
++	// Skip other entries in the directory that refer to the same
++	// logical table. There are two cases of this:
++	//
++	// Consider this directory:
++	//
++	// - 0: *t1
++	// - 1: *t1
++	// - 2: *t2a
++	// - 3: *t2b
++	//
++	// At some point, the directory grew to accomodate a split of
++	// t2. t1 did not split, so entries 0 and 1 both point to t1.
++	// t2 did split, so the two halves were installed in entries 2
++	// and 3.
++	//
++	// If dirIdx is 0 and it.tab is t1, then we should skip past
++	// entry 1 to avoid repeating t1.
++	//
++	// If dirIdx is 2 and it.tab is t2 (pre-split), then we should
++	// skip past entry 3 because our pre-split t2 already covers
++	// all keys from t2a and t2b (except for new insertions, which
++	// iteration need not return).
++	//
++	// We can achieve both of these by using to difference between
++	// the directory and table depth to compute how many entries
++	// the table covers.
++	entries := 1 << (it.m.globalDepth - it.tab.localDepth)
++	it.dirIdx += entries
++	it.tab = nil
++	it.group = groupReference{}
++	it.entryIdx = 0
++}
++
++// Return the appropriate key/elem for key at slotIdx index within it.group, if
++// any.
++func (it *Iter) grownKeyElem(key unsafe.Pointer, slotIdx uintptr) (unsafe.Pointer, unsafe.Pointer, bool) {
++	newKey, newElem, ok := it.m.getWithKey(it.typ, key)
++	if !ok {
++		// Key has likely been deleted, and
++		// should be skipped.
++		//
++		// One exception is keys that don't
++		// compare equal to themselves (e.g.,
++		// NaN). These keys cannot be looked
++		// up, so getWithKey will fail even if
++		// the key exists.
++		//
++		// However, we are in luck because such
++		// keys cannot be updated and they
++		// cannot be deleted except with clear.
++		// Thus if no clear has occurred, the
++		// key/elem must still exist exactly as
++		// in the old groups, so we can return
++		// them from there.
++		//
++		// TODO(prattmic): Consider checking
++		// clearSeq early. If a clear occurred,
++		// Next could always return
++		// immediately, as iteration doesn't
++		// need to return anything added after
++		// clear.
++		if it.clearSeq == it.m.clearSeq && !it.typ.Key.Equal(key, key) {
++			elem := it.group.elem(it.typ, slotIdx)
++			if it.typ.IndirectElem() {
++				elem = *((*unsafe.Pointer)(elem))
++			}
++			return key, elem, true
++		}
++
++		// This entry doesn't exist anymore.
++		return nil, nil, false
++	}
++
++	return newKey, newElem, true
++}
++
+ // Next proceeds to the next element in iteration, which can be accessed via
+ // the Key and Elem methods.
+ //
+@@ -698,8 +775,8 @@ func (it *Iter) Next() {
+ 	}
+ 
+ 	// Continue iteration until we find a full slot.
+-	for it.dirIdx < it.m.dirLen {
+-		// Find next table.
++	for ; it.dirIdx < it.m.dirLen; it.nextDirIdx() {
++		// Resolve the table.
+ 		if it.tab == nil {
+ 			dirIdx := int((uint64(it.dirIdx) + it.dirOffset) & uint64(it.m.dirLen-1))
+ 			newTab := it.m.directoryAt(uintptr(dirIdx))
+@@ -725,7 +802,90 @@ func (it *Iter) Next() {
+ 		// N.B. Use it.tab, not newTab. It is important to use the old
+ 		// table for key selection if the table has grown. See comment
+ 		// on grown below.
+-		for ; it.entryIdx <= it.tab.groups.entryMask; it.entryIdx++ {
++
++		if it.entryIdx > it.tab.groups.entryMask {
++			// Continue to next table.
++			continue
++		}
++
++		// Fast path: skip matching and directly check if entryIdx is a
++		// full slot.
++		//
++		// In the slow path below, we perform an 8-slot match check to
++		// look for full slots within the group.
++		//
++		// However, with a max load factor of 7/8, each slot in a
++		// mostly full map has a high probability of being full. Thus
++		// it is cheaper to check a single slot than do a full control
++		// match.
++
++		entryIdx := (it.entryIdx + it.entryOffset) & it.tab.groups.entryMask
++		slotIdx := uintptr(entryIdx & (abi.SwissMapGroupSlots - 1))
++		if slotIdx == 0 || it.group.data == nil {
++			// Only compute the group (a) when we switch
++			// groups (slotIdx rolls over) and (b) on the
++			// first iteration in this table (slotIdx may
++			// not be zero due to entryOffset).
++			groupIdx := entryIdx >> abi.SwissMapGroupSlotsBits
++			it.group = it.tab.groups.group(it.typ, groupIdx)
++		}
++
++		if (it.group.ctrls().get(slotIdx) & ctrlEmpty) == 0 {
++			// Slot full.
++
++			key := it.group.key(it.typ, slotIdx)
++			if it.typ.IndirectKey() {
++				key = *((*unsafe.Pointer)(key))
++			}
++
++			grown := it.tab.index == -1
++			var elem unsafe.Pointer
++			if grown {
++				newKey, newElem, ok := it.grownKeyElem(key, slotIdx)
++				if !ok {
++					// This entry doesn't exist
++					// anymore. Continue to the
++					// next one.
++					goto next
++				} else {
++					key = newKey
++					elem = newElem
++				}
++			} else {
++				elem = it.group.elem(it.typ, slotIdx)
++				if it.typ.IndirectElem() {
++					elem = *((*unsafe.Pointer)(elem))
++				}
++			}
++
++			it.entryIdx++
++			it.key = key
++			it.elem = elem
++			return
++		}
++
++next:
++		it.entryIdx++
++
++		// Slow path: use a match on the control word to jump ahead to
++		// the next full slot.
++		//
++		// This is highly effective for maps with particularly low load
++		// (e.g., map allocated with large hint but few insertions).
++		//
++		// For maps with medium load (e.g., 3-4 empty slots per group)
++		// it also tends to work pretty well. Since slots within a
++		// group are filled in order, then if there have been no
++		// deletions, a match will allow skipping past all empty slots
++		// at once.
++		//
++		// Note: it is tempting to cache the group match result in the
++		// iterator to use across Next calls. However because entries
++		// may be deleted between calls later calls would still need to
++		// double-check the control value.
++
++		var groupMatch bitset
++		for it.entryIdx <= it.tab.groups.entryMask {
+ 			entryIdx := (it.entryIdx + it.entryOffset) & it.tab.groups.entryMask
+ 			slotIdx := uintptr(entryIdx & (abi.SwissMapGroupSlots - 1))
+ 
+@@ -738,13 +898,32 @@ func (it *Iter) Next() {
+ 				it.group = it.tab.groups.group(it.typ, groupIdx)
+ 			}
+ 
+-			// TODO(prattmic): Skip over groups that are composed of only empty
+-			// or deleted slots using matchEmptyOrDeleted() and counting the
+-			// number of bits set.
++			if groupMatch == 0 {
++				groupMatch = it.group.ctrls().matchFull()
+ 
+-			if (it.group.ctrls().get(slotIdx) & ctrlEmpty) == ctrlEmpty {
+-				// Empty or deleted.
+-				continue
++				if slotIdx != 0 {
++					// Starting in the middle of the group.
++					// Ignore earlier groups.
++					groupMatch = groupMatch.removeBelow(slotIdx)
++				}
++
++				// Skip over groups that are composed of only empty or
++				// deleted slots.
++				if groupMatch == 0 {
++					// Jump past remaining slots in this
++					// group.
++					it.entryIdx += abi.SwissMapGroupSlots - uint64(slotIdx)
++					continue
++				}
++
++				i := groupMatch.first()
++				it.entryIdx += uint64(i - slotIdx)
++				if it.entryIdx > it.tab.groups.entryMask {
++					// Past the end of this table's iteration.
++					continue
++				}
++				entryIdx += uint64(i - slotIdx)
++				slotIdx = i
+ 			}
+ 
+ 			key := it.group.key(it.typ, slotIdx)
+@@ -766,40 +945,23 @@ func (it *Iter) Next() {
+ 			grown := it.tab.index == -1
+ 			var elem unsafe.Pointer
+ 			if grown {
+-				var ok bool
+-				newKey, newElem, ok := it.m.getWithKey(it.typ, key)
++				newKey, newElem, ok := it.grownKeyElem(key, slotIdx)
+ 				if !ok {
+-					// Key has likely been deleted, and
+-					// should be skipped.
+-					//
+-					// One exception is keys that don't
+-					// compare equal to themselves (e.g.,
+-					// NaN). These keys cannot be looked
+-					// up, so getWithKey will fail even if
+-					// the key exists.
+-					//
+-					// However, we are in luck because such
+-					// keys cannot be updated and they
+-					// cannot be deleted except with clear.
+-					// Thus if no clear has occurted, the
+-					// key/elem must still exist exactly as
+-					// in the old groups, so we can return
+-					// them from there.
+-					//
+-					// TODO(prattmic): Consider checking
+-					// clearSeq early. If a clear occurred,
+-					// Next could always return
+-					// immediately, as iteration doesn't
+-					// need to return anything added after
+-					// clear.
+-					if it.clearSeq == it.m.clearSeq && !it.typ.Key.Equal(key, key) {
+-						elem = it.group.elem(it.typ, slotIdx)
+-						if it.typ.IndirectElem() {
+-							elem = *((*unsafe.Pointer)(elem))
+-						}
+-					} else {
++					// This entry doesn't exist anymore.
++					// Continue to the next one.
++					groupMatch = groupMatch.removeFirst()
++					if groupMatch == 0 {
++						// No more entries in this
++						// group. Continue to next
++						// group.
++						it.entryIdx += abi.SwissMapGroupSlots - uint64(slotIdx)
+ 						continue
+ 					}
++
++					// Next full slot.
++					i := groupMatch.first()
++					it.entryIdx += uint64(i - slotIdx)
++					continue
+ 				} else {
+ 					key = newKey
+ 					elem = newElem
+@@ -811,43 +973,25 @@ func (it *Iter) Next() {
+ 				}
+ 			}
+ 
+-			it.entryIdx++
++			// Jump ahead to the next full slot or next group.
++			groupMatch = groupMatch.removeFirst()
++			if groupMatch == 0 {
++				// No more entries in
++				// this group. Continue
++				// to next group.
++				it.entryIdx += abi.SwissMapGroupSlots - uint64(slotIdx)
++			} else {
++				// Next full slot.
++				i := groupMatch.first()
++				it.entryIdx += uint64(i - slotIdx)
++			}
++
+ 			it.key = key
+ 			it.elem = elem
+ 			return
+ 		}
+ 
+-		// Skip other entries in the directory that refer to the same
+-		// logical table. There are two cases of this:
+-		//
+-		// Consider this directory:
+-		//
+-		// - 0: *t1
+-		// - 1: *t1
+-		// - 2: *t2a
+-		// - 3: *t2b
+-		//
+-		// At some point, the directory grew to accomodate a split of
+-		// t2. t1 did not split, so entries 0 and 1 both point to t1.
+-		// t2 did split, so the two halves were installed in entries 2
+-		// and 3.
+-		//
+-		// If dirIdx is 0 and it.tab is t1, then we should skip past
+-		// entry 1 to avoid repeating t1.
+-		//
+-		// If dirIdx is 2 and it.tab is t2 (pre-split), then we should
+-		// skip past entry 3 because our pre-split t2 already covers
+-		// all keys from t2a and t2b (except for new insertions, which
+-		// iteration need not return).
+-		//
+-		// We can achieve both of these by using to difference between
+-		// the directory and table depth to compute how many entries
+-		// the table covers.
+-		entries := 1 << (it.m.globalDepth - it.tab.localDepth)
+-		it.dirIdx += entries
+-		it.tab = nil
+-		it.group = groupReference{}
+-		it.entryIdx = 0
++		// Continue to next table.
+ 	}
+ 
+ 	it.key = nil
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 1b4ebe276f..e3c092bef9 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -539,6 +539,38 @@ NextRound:
+ 	}
+ }
+ 
++// Map iteration must not return duplicate entries.
++func TestMapIterDuplicate(t *testing.T) {
++	// Run several rounds to increase the probability
++	// of failure. One is not enough.
++	for range 1000 {
++		m := make(map[int]bool)
++		// Add 1000 items, remove 980.
++		for i := 0; i < 1000; i++ {
++			m[i] = true
++		}
++		for i := 20; i < 1000; i++ {
++			delete(m, i)
++		}
++
++		var want []int
++		for i := 0; i < 20; i++ {
++			want = append(want, i)
++		}
++
++		var got []int
++		for i := range m {
++			got = append(got, i)
++		}
++
++		slices.Sort(got)
++
++		if !reflect.DeepEqual(got, want) {
++			t.Errorf("iteration got %v want %v\n", got, want)
++		}
++	}
++}
++
+ func TestMapStringBytesLookup(t *testing.T) {
+ 	// Use large string keys to avoid small-allocation coalescing,
+ 	// which can cause AllocsPerRun to report lower counts than it should.

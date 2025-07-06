@@ -1,0 +1,249 @@
+commit b66d83cceaa016297c436fa3da8c7821edf90989
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Jan 16 11:23:46 2025 -0500
+
+    math/big: clean up GCD a little
+    
+    The GCD code was setting one *Int to the value of another
+    by smashing one struct on top of the other, instead of using Set.
+    That was safe in this one case, but it's not idiomatic in math/big
+    nor safe in general, so rewrite the code not to do that.
+    (In one case, by swapping variables around; in another, by calling Set.)
+    
+    The added Set call does slow down GCDs by a small amount,
+    since the answer has to be copied out. To compensate for that,
+    optimize a bit: remove the s, t temporaries entirely and handle
+    vector x word multiplication directly. The net result is that almost
+    all GCDs are faster, except for small ones, which are a few
+    nanoseconds slower.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: math/big
+    cpu: Apple M3 Pro
+                                  │ bench.before │             bench.after             │
+                                  │    sec/op    │   sec/op     vs base                │
+    GCD10x10/WithoutXY-12            23.80n ± 1%   31.71n ± 1%  +33.24% (p=0.000 n=10)
+    GCD10x10/WithXY-12              100.40n ± 0%   92.14n ± 1%   -8.22% (p=0.000 n=10)
+    GCD10x100/WithoutXY-12           63.70n ± 0%   70.73n ± 0%  +11.05% (p=0.000 n=10)
+    GCD10x100/WithXY-12              278.6n ± 0%   233.1n ± 1%  -16.35% (p=0.000 n=10)
+    GCD10x1000/WithoutXY-12          153.4n ± 0%   162.2n ± 1%   +5.74% (p=0.000 n=10)
+    GCD10x1000/WithXY-12             456.0n ± 0%   411.8n ± 1%   -9.69% (p=0.000 n=10)
+    GCD10x10000/WithoutXY-12         1.002µ ± 1%   1.036µ ± 0%   +3.39% (p=0.000 n=10)
+    GCD10x10000/WithXY-12            2.330µ ± 1%   2.210µ ± 0%   -5.13% (p=0.000 n=10)
+    GCD10x100000/WithoutXY-12        8.894µ ± 0%   8.889µ ± 1%        ~ (p=0.754 n=10)
+    GCD10x100000/WithXY-12           20.84µ ± 0%   20.24µ ± 0%   -2.84% (p=0.000 n=10)
+    GCD100x100/WithoutXY-12          373.3n ± 3%   314.4n ± 0%  -15.76% (p=0.000 n=10)
+    GCD100x100/WithXY-12             662.5n ± 0%   572.4n ± 1%  -13.59% (p=0.000 n=10)
+    GCD100x1000/WithoutXY-12         641.8n ± 0%   598.1n ± 1%   -6.81% (p=0.000 n=10)
+    GCD100x1000/WithXY-12            1.123µ ± 0%   1.019µ ± 1%   -9.26% (p=0.000 n=10)
+    GCD100x10000/WithoutXY-12        2.870µ ± 0%   2.831µ ± 0%   -1.38% (p=0.000 n=10)
+    GCD100x10000/WithXY-12           4.930µ ± 1%   4.675µ ± 0%   -5.16% (p=0.000 n=10)
+    GCD100x100000/WithoutXY-12       24.08µ ± 0%   23.97µ ± 0%   -0.48% (p=0.007 n=10)
+    GCD100x100000/WithXY-12          43.66µ ± 0%   42.52µ ± 0%   -2.61% (p=0.001 n=10)
+    GCD1000x1000/WithoutXY-12        3.999µ ± 0%   3.569µ ± 1%  -10.75% (p=0.000 n=10)
+    GCD1000x1000/WithXY-12           6.397µ ± 0%   5.534µ ± 0%  -13.49% (p=0.000 n=10)
+    GCD1000x10000/WithoutXY-12       6.875µ ± 0%   6.450µ ± 0%   -6.18% (p=0.000 n=10)
+    GCD1000x10000/WithXY-12          20.75µ ± 1%   19.17µ ± 1%   -7.64% (p=0.000 n=10)
+    GCD1000x100000/WithoutXY-12      36.38µ ± 0%   35.60µ ± 1%   -2.13% (p=0.000 n=10)
+    GCD1000x100000/WithXY-12         172.1µ ± 0%   174.4µ ± 3%        ~ (p=0.052 n=10)
+    GCD10000x10000/WithoutXY-12      79.89µ ± 1%   75.16µ ± 2%   -5.92% (p=0.000 n=10)
+    GCD10000x10000/WithXY-12         160.1µ ± 0%   150.0µ ± 0%   -6.33% (p=0.000 n=10)
+    GCD10000x100000/WithoutXY-12     213.2µ ± 1%   209.0µ ± 1%   -1.98% (p=0.000 n=10)
+    GCD10000x100000/WithXY-12        1.399m ± 0%   1.342m ± 3%   -4.08% (p=0.002 n=10)
+    GCD100000x100000/WithoutXY-12    5.463m ± 1%   5.504m ± 2%        ~ (p=0.190 n=10)
+    GCD100000x100000/WithXY-12       11.36m ± 0%   11.46m ± 1%   +0.86% (p=0.000 n=10)
+    geomean                          6.953µ        6.695µ        -3.71%
+    
+    goos: linux
+    goarch: amd64
+    pkg: math/big
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+                                  │ bench.before │             bench.after             │
+                                  │    sec/op    │   sec/op     vs base                │
+    GCD10x10/WithoutXY-32           39.66n ±  4%   44.34n ± 4%  +11.77% (p=0.000 n=10)
+    GCD10x10/WithXY-32              156.7n ± 12%   130.8n ± 2%  -16.53% (p=0.000 n=10)
+    GCD10x100/WithoutXY-32          115.8n ±  5%   120.2n ± 2%   +3.89% (p=0.000 n=10)
+    GCD10x100/WithXY-32             465.3n ±  3%   368.1n ± 2%  -20.91% (p=0.000 n=10)
+    GCD10x1000/WithoutXY-32         201.1n ±  1%   210.8n ± 2%   +4.82% (p=0.000 n=10)
+    GCD10x1000/WithXY-32            652.9n ±  4%   605.0n ± 1%   -7.32% (p=0.002 n=10)
+    GCD10x10000/WithoutXY-32        1.046µ ±  2%   1.143µ ± 1%   +9.33% (p=0.000 n=10)
+    GCD10x10000/WithXY-32           3.360µ ±  1%   3.258µ ± 1%   -3.04% (p=0.000 n=10)
+    GCD10x100000/WithoutXY-32       9.391µ ±  3%   9.997µ ± 1%   +6.46% (p=0.000 n=10)
+    GCD10x100000/WithXY-32          27.92µ ±  1%   28.21µ ± 0%   +1.04% (p=0.043 n=10)
+    GCD100x100/WithoutXY-32         443.7n ±  5%   320.0n ± 2%  -27.88% (p=0.000 n=10)
+    GCD100x100/WithXY-32            789.9n ±  2%   690.4n ± 1%  -12.60% (p=0.000 n=10)
+    GCD100x1000/WithoutXY-32        718.4n ±  3%   600.0n ± 1%  -16.48% (p=0.000 n=10)
+    GCD100x1000/WithXY-32           1.388µ ±  4%   1.175µ ± 1%  -15.28% (p=0.000 n=10)
+    GCD100x10000/WithoutXY-32       2.750µ ±  1%   2.668µ ± 1%   -2.96% (p=0.000 n=10)
+    GCD100x10000/WithXY-32          6.016µ ±  1%   5.590µ ± 1%   -7.09% (p=0.000 n=10)
+    GCD100x100000/WithoutXY-32      21.40µ ±  1%   22.30µ ± 1%   +4.21% (p=0.000 n=10)
+    GCD100x100000/WithXY-32         47.02µ ±  4%   48.80µ ± 0%   +3.78% (p=0.015 n=10)
+    GCD1000x1000/WithoutXY-32       3.417µ ±  4%   3.020µ ± 1%  -11.65% (p=0.000 n=10)
+    GCD1000x1000/WithXY-32          5.752µ ±  0%   5.418µ ± 2%   -5.81% (p=0.000 n=10)
+    GCD1000x10000/WithoutXY-32      6.150µ ±  0%   6.246µ ± 1%   +1.55% (p=0.000 n=10)
+    GCD1000x10000/WithXY-32         24.68µ ±  3%   25.07µ ± 1%        ~ (p=0.051 n=10)
+    GCD1000x100000/WithoutXY-32     34.60µ ±  2%   36.85µ ± 1%   +6.51% (p=0.000 n=10)
+    GCD1000x100000/WithXY-32        209.5µ ±  4%   227.4µ ± 0%   +8.56% (p=0.000 n=10)
+    GCD10000x10000/WithoutXY-32     90.69µ ±  0%   88.48µ ± 0%   -2.44% (p=0.000 n=10)
+    GCD10000x10000/WithXY-32        197.1µ ±  0%   200.5µ ± 0%   +1.73% (p=0.000 n=10)
+    GCD10000x100000/WithoutXY-32    239.1µ ±  0%   242.5µ ± 0%   +1.42% (p=0.000 n=10)
+    GCD10000x100000/WithXY-32       1.963m ±  3%   2.028m ± 0%   +3.28% (p=0.000 n=10)
+    GCD100000x100000/WithoutXY-32   7.466m ±  0%   7.412m ± 0%   -0.71% (p=0.000 n=10)
+    GCD100000x100000/WithXY-32      16.10m ±  2%   16.47m ± 0%   +2.25% (p=0.000 n=10)
+    geomean                         8.388µ         8.127µ        -3.12%
+    
+    Change-Id: I161dc409bad11bcc553bc8116449905ae5b06742
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650636
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+---
+ src/math/big/int.go | 76 ++++++++++++++++++++++-------------------------------
+ 1 file changed, 31 insertions(+), 45 deletions(-)
+
+diff --git a/src/math/big/int.go b/src/math/big/int.go
+index df44e9dccf..0b710c6968 100644
+--- a/src/math/big/int.go
++++ b/src/math/big/int.go
+@@ -707,42 +707,36 @@ func lehmerSimulate(A, B *Int) (u0, u1, v0, v1 Word, even bool) {
+ // For even == true: u0, v1 >= 0 && u1, v0 <= 0
+ // For even == false: u0, v1 <= 0 && u1, v0 >= 0
+ // q, r, s, t are temporary variables to avoid allocations in the multiplication.
+-func lehmerUpdate(A, B, q, r, s, t *Int, u0, u1, v0, v1 Word, even bool) {
+-
+-	t.abs = t.abs.setWord(u0)
+-	s.abs = s.abs.setWord(v0)
+-	t.neg = !even
+-	s.neg = even
+-
+-	t.Mul(A, t)
+-	s.Mul(B, s)
+-
+-	r.abs = r.abs.setWord(u1)
+-	q.abs = q.abs.setWord(v1)
+-	r.neg = even
+-	q.neg = !even
+-
+-	r.Mul(A, r)
+-	q.Mul(B, q)
++func lehmerUpdate(A, B, q, r *Int, u0, u1, v0, v1 Word, even bool) {
++	mulW(q, B, even, v0)
++	mulW(r, A, even, u1)
++	mulW(A, A, !even, u0)
++	mulW(B, B, !even, v1)
++	A.Add(A, q)
++	B.Add(B, r)
++}
+ 
+-	A.Add(t, s)
+-	B.Add(r, q)
++// mulW sets z = x * (-?)w
++// where the minus sign is present when neg is true.
++func mulW(z, x *Int, neg bool, w Word) {
++	z.abs = z.abs.mulAddWW(x.abs, w, 0)
++	z.neg = x.neg != neg
+ }
+ 
+ // euclidUpdate performs a single step of the Euclidean GCD algorithm
+ // if extended is true, it also updates the cosequence Ua, Ub.
+-func euclidUpdate(A, B, Ua, Ub, q, r, s, t *Int, extended bool) {
+-	q, r = q.QuoRem(A, B, r)
+-
+-	*A, *B, *r = *B, *r, *A
++// q and r are used as temporaries; the initial values are ignored.
++func euclidUpdate(A, B, Ua, Ub, q, r *Int, extended bool) (nA, nB, nr, nUa, nUb *Int) {
++	q.QuoRem(A, B, r)
+ 
+ 	if extended {
+-		// Ua, Ub = Ub, Ua - q*Ub
+-		t.Set(Ub)
+-		s.Mul(Ub, q)
+-		Ub.Sub(Ua, s)
+-		Ua.Set(t)
++		// Ua, Ub = Ub, Ua-q*Ub
++		q.Mul(q, Ub)
++		Ua, Ub = Ub, Ua
++		Ub.Sub(Ub, q)
+ 	}
++
++	return B, r, A, Ua, Ub
+ }
+ 
+ // lehmerGCD sets z to the greatest common divisor of a and b,
+@@ -772,8 +766,6 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
+ 	// temp variables for multiprecision update
+ 	q := new(Int)
+ 	r := new(Int)
+-	s := new(Int)
+-	t := new(Int)
+ 
+ 	// ensure A >= B
+ 	if A.abs.cmp(B.abs) < 0 {
+@@ -791,18 +783,18 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
+ 			// Simulate the effect of the single-precision steps using the cosequences.
+ 			// A = u0*A + v0*B
+ 			// B = u1*A + v1*B
+-			lehmerUpdate(A, B, q, r, s, t, u0, u1, v0, v1, even)
++			lehmerUpdate(A, B, q, r, u0, u1, v0, v1, even)
+ 
+ 			if extended {
+ 				// Ua = u0*Ua + v0*Ub
+ 				// Ub = u1*Ua + v1*Ub
+-				lehmerUpdate(Ua, Ub, q, r, s, t, u0, u1, v0, v1, even)
++				lehmerUpdate(Ua, Ub, q, r, u0, u1, v0, v1, even)
+ 			}
+ 
+ 		} else {
+ 			// Single-digit calculations failed to simulate any quotients.
+ 			// Do a standard Euclidean step.
+-			euclidUpdate(A, B, Ua, Ub, q, r, s, t, extended)
++			A, B, r, Ua, Ub = euclidUpdate(A, B, Ua, Ub, q, r, extended)
+ 		}
+ 	}
+ 
+@@ -810,7 +802,7 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
+ 		// extended Euclidean algorithm base case if B is a single Word
+ 		if len(A.abs) > 1 {
+ 			// A is longer than a single Word, so one update is needed.
+-			euclidUpdate(A, B, Ua, Ub, q, r, s, t, extended)
++			A, B, r, Ua, Ub = euclidUpdate(A, B, Ua, Ub, q, r, extended)
+ 		}
+ 		if len(B.abs) > 0 {
+ 			// A and B are both a single Word.
+@@ -828,15 +820,9 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
+ 					even = !even
+ 				}
+ 
+-				t.abs = t.abs.setWord(ua)
+-				s.abs = s.abs.setWord(va)
+-				t.neg = !even
+-				s.neg = even
+-
+-				t.Mul(Ua, t)
+-				s.Mul(Ub, s)
+-
+-				Ua.Add(t, s)
++				mulW(Ua, Ua, !even, ua)
++				mulW(Ub, Ub, even, va)
++				Ua.Add(Ua, Ub)
+ 			} else {
+ 				for bWord != 0 {
+ 					aWord, bWord = bWord, aWord%bWord
+@@ -863,13 +849,13 @@ func (z *Int) lehmerGCD(x, y, a, b *Int) *Int {
+ 	}
+ 
+ 	if x != nil {
+-		*x = *Ua
++		x.Set(Ua)
+ 		if negA {
+ 			x.neg = !x.neg
+ 		}
+ 	}
+ 
+-	*z = *A
++	z.Set(A)
+ 
+ 	return z
+ }

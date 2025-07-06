@@ -1,0 +1,45 @@
+commit 7303a283c4e8aa734463ec85d90dd0732b826c71
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Sep 1 00:55:35 2024 +0000
+
+    testing: skip TestChdir/relative when on Windows when GOROOT and TMPDIR are on different drives
+    
+    Fixes #69159
+    
+    Change-Id: I0bbcf7075bdcf7a277a5053bcb543563a3074784
+    GitHub-Last-Rev: 86052a9ce32a871d6ad62f772f22852b2c6139a6
+    GitHub-Pull-Request: golang/go#69160
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609304
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/testing/testing_test.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 1dd2039399..f53c233905 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -300,7 +300,9 @@ func TestChdir(t *testing.T) {
+ 	}
+ 	rel, err := filepath.Rel(oldDir, tmp)
+ 	if err != nil {
+-		t.Fatal(err)
++		// If GOROOT is on C: volume and tmp is on the D: volume, there
++		// is no relative path between them, so skip that test case.
++		rel = "skip"
+ 	}
+ 
+ 	for _, tc := range []struct {
+@@ -331,6 +333,9 @@ func TestChdir(t *testing.T) {
+ 		},
+ 	} {
+ 		t.Run(tc.name, func(t *testing.T) {
++			if tc.dir == "skip" {
++				t.Skipf("skipping test because there is no relative path between %s and %s", oldDir, tmp)
++			}
+ 			if !filepath.IsAbs(tc.pwd) {
+ 				t.Fatalf("Bad tc.pwd: %q (must be absolute)", tc.pwd)
+ 			}

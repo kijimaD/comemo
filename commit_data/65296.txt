@@ -1,0 +1,30 @@
+commit 840ac5e037e8182444da957d0c48ffeb330d7cd2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 6 11:19:37 2024 -0500
+
+    context: listen on localhost in example
+    
+    Listening on ":0" triggers a Mac firewall box while the test runs.
+    
+    Change-Id: Ie6f8eb07eb76ea222f43bc40b1c30645294bc239
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/context/example_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/context/example_test.go b/src/context/example_test.go
+index 03333b5cca..b597b09f16 100644
+--- a/src/context/example_test.go
++++ b/src/context/example_test.go
+@@ -205,7 +205,7 @@ func ExampleAfterFunc_connection() {
+ 		return n, err
+ 	}
+ 
+-	listener, err := net.Listen("tcp", ":0")
++	listener, err := net.Listen("tcp", "localhost:0")
+ 	if err != nil {
+ 		fmt.Println(err)
+ 		return

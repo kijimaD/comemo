@@ -1,0 +1,53 @@
+commit 683810a36805cd81e59be9984001bd0f604b6024
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 13 11:31:06 2025 -0400
+
+    cmd/link: block new standard library linknames
+    
+    In Go 1.25 we added a number of new linknames for standard library
+    internal uses. Add them to the linker's blocklist to keep them
+    internal.
+    
+    Change-Id: I5b6051a669b7ff132a1d2c05deefbbf74701c5d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681475
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/link/internal/loader/loader.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 6561362210..2bf52d221b 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2368,7 +2368,6 @@ var blockedLinknames = map[string][]string{
+ 	"crypto/internal/sysrand.fatal":         {"crypto/internal/sysrand"},
+ 	"crypto/rand.fatal":                     {"crypto/rand"},
+ 	"internal/runtime/maps.errNilAssign":    {"internal/runtime/maps"},
+-	"internal/runtime/maps.typeString":      {"internal/runtime/maps"},
+ 	"internal/runtime/maps.fatal":           {"internal/runtime/maps"},
+ 	"internal/runtime/maps.newarray":        {"internal/runtime/maps"},
+ 	"internal/runtime/maps.newobject":       {"internal/runtime/maps"},
+@@ -2399,6 +2398,22 @@ var blockedLinknames = map[string][]string{
+ 	"runtime.mapdelete_fast32":   {"runtime"},
+ 	"runtime.mapdelete_fast64":   {"runtime"},
+ 	"runtime.mapdelete_faststr":  {"runtime"},
++	// New internal linknames in Go 1.25
++	// Pushed from runtime
++	"internal/runtime/cgroup.throw":                  {"internal/runtime/cgroup"},
++	"internal/runtime/maps.typeString":               {"internal/runtime/maps"},
++	"internal/synctest.IsInBubble":                   {"internal/synctest"},
++	"internal/synctest.associate":                    {"internal/synctest"},
++	"internal/synctest.disassociate":                 {"internal/synctest"},
++	"internal/synctest.isAssociated":                 {"internal/synctest"},
++	"runtime/trace.runtime_readTrace":                {"runtime/trace"},
++	"runtime/trace.runtime_traceClockUnitsPerSecond": {"runtime/trace"},
++	"sync_test.runtime_blockUntilEmptyCleanupQueue":  {"sync_test"},
++	"time.runtimeIsBubbled":                          {"time"},
++	"unique.runtime_blockUntilEmptyCleanupQueue":     {"unique"},
++	// Others
++	"net.newWindowsFile":                   {"net"},              // pushed from os
++	"testing/synctest.testingSynctestTest": {"testing/synctest"}, // pushed from testing
+ }
+ 
+ // check if a linkname reference to symbol s from pkg is allowed

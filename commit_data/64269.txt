@@ -1,0 +1,140 @@
+commit b8f83e22703ee23d49d95154449ce7066402d5c9
+Author: rhysd <lin90162@yahoo.co.jp>
+Date:   Wed Jul 17 11:44:35 2024 +0000
+
+    os: check relative paths in UserConfigDir and UserCacheDir
+    
+    Return errors by UserConfigDir and UserCacheDir when XDG environment
+    variables contain relative paths.
+    
+    Fixes #68470
+    
+    Change-Id: Ib36b56d73b066e002023be55ecfe74d5c0eedb15
+    GitHub-Last-Rev: c03f371a042c475a6f3f2259b06b140ade511404
+    GitHub-Pull-Request: golang/go#68471
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598655
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+---
+ src/os/file.go    | 12 ++++++++----
+ src/os/os_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 62 insertions(+), 4 deletions(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index c3ee31583e..b2fb328e13 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -472,8 +472,8 @@ func TempDir() string {
+ // On Windows, it returns %LocalAppData%.
+ // On Plan 9, it returns $home/lib/cache.
+ //
+-// If the location cannot be determined (for example, $HOME is not defined),
+-// then it will return an error.
++// If the location cannot be determined (for example, $HOME is not defined) or
++// the path in $XDG_CACHE_HOME is relative, then it will return an error.
+ func UserCacheDir() (string, error) {
+ 	var dir string
+ 
+@@ -506,6 +506,8 @@ func UserCacheDir() (string, error) {
+ 				return "", errors.New("neither $XDG_CACHE_HOME nor $HOME are defined")
+ 			}
+ 			dir += "/.cache"
++		} else if !filepathlite.IsAbs(dir) {
++			return "", errors.New("path in $XDG_CACHE_HOME is relative")
+ 		}
+ 	}
+ 
+@@ -523,8 +525,8 @@ func UserCacheDir() (string, error) {
+ // On Windows, it returns %AppData%.
+ // On Plan 9, it returns $home/lib.
+ //
+-// If the location cannot be determined (for example, $HOME is not defined),
+-// then it will return an error.
++// If the location cannot be determined (for example, $HOME is not defined) or
++// the path in $XDG_CONFIG_HOME is relative, then it will return an error.
+ func UserConfigDir() (string, error) {
+ 	var dir string
+ 
+@@ -557,6 +559,8 @@ func UserConfigDir() (string, error) {
+ 				return "", errors.New("neither $XDG_CONFIG_HOME nor $HOME are defined")
+ 			}
+ 			dir += "/.config"
++		} else if !filepathlite.IsAbs(dir) {
++			return "", errors.New("path in $XDG_CONFIG_HOME is relative")
+ 		}
+ 	}
+ 
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 878974384d..5a36abd7c6 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2817,6 +2817,33 @@ func TestUserCacheDir(t *testing.T) {
+ 	}
+ }
+ 
++func TestUserCacheDirXDGConfigDirEnvVar(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows", "darwin", "plan9":
++		t.Skip("$XDG_CACHE_HOME is effective only on Unix systems")
++	}
++
++	wd, err := Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Setenv("XDG_CACHE_HOME", wd)
++
++	dir, err := UserCacheDir()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if dir != wd {
++		t.Fatalf("UserCacheDir returned %q; want the value of $XDG_CACHE_HOME %q", dir, wd)
++	}
++
++	t.Setenv("XDG_CACHE_HOME", "some-dir")
++	_, err = UserCacheDir()
++	if err == nil {
++		t.Fatal("UserCacheDir succeeded though $XDG_CACHE_HOME contains a relative path")
++	}
++}
++
+ func TestUserConfigDir(t *testing.T) {
+ 	t.Parallel()
+ 
+@@ -2841,6 +2868,33 @@ func TestUserConfigDir(t *testing.T) {
+ 	}
+ }
+ 
++func TestUserConfigDirXDGConfigDirEnvVar(t *testing.T) {
++	switch runtime.GOOS {
++	case "windows", "darwin", "plan9":
++		t.Skip("$XDG_CONFIG_HOME is effective only on Unix systems")
++	}
++
++	wd, err := Getwd()
++	if err != nil {
++		t.Fatal(err)
++	}
++	t.Setenv("XDG_CONFIG_HOME", wd)
++
++	dir, err := UserConfigDir()
++	if err != nil {
++		t.Fatal(err)
++	}
++	if dir != wd {
++		t.Fatalf("UserConfigDir returned %q; want the value of $XDG_CONFIG_HOME %q", dir, wd)
++	}
++
++	t.Setenv("XDG_CONFIG_HOME", "some-dir")
++	_, err = UserConfigDir()
++	if err == nil {
++		t.Fatal("UserConfigDir succeeded though $XDG_CONFIG_HOME contains a relative path")
++	}
++}
++
+ func TestUserHomeDir(t *testing.T) {
+ 	t.Parallel()
+ 

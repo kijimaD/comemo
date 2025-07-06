@@ -1,0 +1,38 @@
+commit b91f054a64e2a09135e416ceb49165575b2491b2
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 29 10:38:15 2024 -0700
+
+    crypto/tls: fix test caching for bogo
+    
+    Use a stat to tell the test caching infrastructure that we care about
+    the bogo config file.
+    
+    Change-Id: Iae2336bfc45cd6a9e73cb83a3b68ade8b4f23927
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589155
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/tls/bogo_shim_test.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index b9db73de81..09b20a1c70 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -301,6 +301,14 @@ func TestBogoSuite(t *testing.T) {
+ 		t.Skip("#66913: windows network connections are flakey on builders")
+ 	}
+ 
++	// In order to make Go test caching work as expected, we stat the
++	// bogo_config.json file, so that the Go testing hooks know that it is
++	// important for this test and will invalidate a cached test result if the
++	// file changes.
++	if _, err := os.Stat("bogo_config.json"); err != nil {
++		t.Fatal(err)
++	}
++
+ 	var bogoDir string
+ 	if *bogoLocalDir != "" {
+ 		bogoDir = *bogoLocalDir

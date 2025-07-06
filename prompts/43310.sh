@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 43310: 91b8b130dda2c3a5933baee439e3fed1098e8318
+# Index 43310: 2c87be436bddd9b49f11959adee1ae817cb48ee1
 
 echo "🚀 Generating explanation for commit 43310..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 43310..."
 
 ### メタデータ
 - **コミットインデックス**: 43310
-- **コミットハッシュ**: 91b8b130dda2c3a5933baee439e3fed1098e8318
-- **GitHub URL**: https://github.com/golang/go/commit/91b8b130dda2c3a5933baee439e3fed1098e8318
+- **コミットハッシュ**: 2c87be436bddd9b49f11959adee1ae817cb48ee1
+- **GitHub URL**: https://github.com/golang/go/commit/2c87be436bddd9b49f11959adee1ae817cb48ee1
 
 ### 章構成
 

@@ -1,0 +1,244 @@
+commit fdaac84480b02e600660d0ca7c15339138807107
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Dec 23 11:27:20 2024 -0500
+
+    os: use AddCleanup to close files
+    
+    This changes the finalizer mechanism used to close files from
+    runtime.SetFinalizer to runtime.AddCleanup.
+    
+    Updates #70907
+    
+    Change-Id: I47582b81b0ed69609dd9dac158ec7bb8819c8c77
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638555
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/os/file_plan9.go   | 16 +++++++++-------
+ src/os/file_unix.go    | 21 ++++++++++++---------
+ src/os/file_windows.go | 16 +++++++++-------
+ src/os/root_openat.go  | 13 ++++++++-----
+ src/os/root_unix.go    |  2 +-
+ src/os/root_windows.go |  2 +-
+ 6 files changed, 40 insertions(+), 30 deletions(-)
+
+diff --git a/src/os/file_plan9.go b/src/os/file_plan9.go
+index c123fe6961..f74dbf20c4 100644
+--- a/src/os/file_plan9.go
++++ b/src/os/file_plan9.go
+@@ -23,7 +23,7 @@ func fixLongPath(path string) string {
+ 
+ // file is the real representation of *File.
+ // The extra level of indirection ensures that no clients of os
+-// can overwrite this data, which could cause the finalizer
++// can overwrite this data, which could cause the cleanup
+ // to close the wrong file descriptor.
+ type file struct {
+ 	fdmu       poll.FDMutex
+@@ -31,13 +31,14 @@ type file struct {
+ 	name       string
+ 	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
+ 	appendMode bool                    // whether file is opened for appending
++	cleanup    runtime.Cleanup         // cleanup closes the file when no longer referenced
+ }
+ 
+ // Fd returns the integer Plan 9 file descriptor referencing the open file.
+ // If f is closed, the file descriptor becomes invalid.
+-// If f is garbage collected, a finalizer may close the file descriptor,
+-// making it invalid; see [runtime.SetFinalizer] for more information on when
+-// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
++// If f is garbage collected, a cleanup may close the file descriptor,
++// making it invalid; see [runtime.AddCleanup] for more information on when
++// a cleanup might be run. On Unix systems this will cause the [File.SetDeadline]
+ // methods to stop working.
+ //
+ // As an alternative, see the f.SyscallConn method.
+@@ -57,7 +58,7 @@ func NewFile(fd uintptr, name string) *File {
+ 		return nil
+ 	}
+ 	f := &File{&file{fd: fdi, name: name}}
+-	runtime.SetFinalizer(f.file, (*file).close)
++	f.cleanup = runtime.AddCleanup(f, func(f *file) { f.close() }, f.file)
+ 	return f
+ }
+ 
+@@ -168,8 +169,9 @@ func (file *file) close() error {
+ 
+ 	err := file.decref()
+ 
+-	// no need for a finalizer anymore
+-	runtime.SetFinalizer(file, nil)
++	// There is no need for a cleanup at this point. File must be alive at the point
++	// where cleanup.stop is called.
++	file.cleanup.Stop()
+ 	return err
+ }
+ 
+diff --git a/src/os/file_unix.go b/src/os/file_unix.go
+index b5c0baf3ab..5e9239edc5 100644
+--- a/src/os/file_unix.go
++++ b/src/os/file_unix.go
+@@ -54,7 +54,7 @@ func rename(oldname, newname string) error {
+ 
+ // file is the real representation of *File.
+ // The extra level of indirection ensures that no clients of os
+-// can overwrite this data, which could cause the finalizer
++// can overwrite this data, which could cause the cleanup
+ // to close the wrong file descriptor.
+ type file struct {
+ 	pfd         poll.FD
+@@ -63,17 +63,18 @@ type file struct {
+ 	nonblock    bool                    // whether we set nonblocking mode
+ 	stdoutOrErr bool                    // whether this is stdout or stderr
+ 	appendMode  bool                    // whether file is opened for appending
++	cleanup     runtime.Cleanup         // cleanup closes the file when no longer referenced
+ }
+ 
+ // Fd returns the integer Unix file descriptor referencing the open file.
+ // If f is closed, the file descriptor becomes invalid.
+-// If f is garbage collected, a finalizer may close the file descriptor,
+-// making it invalid; see [runtime.SetFinalizer] for more information on when
+-// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
++// If f is garbage collected, a cleanup may close the file descriptor,
++// making it invalid; see [runtime.AddCleanup] for more information on when
++// a cleanup might be run. On Unix systems this will cause the [File.SetDeadline]
+ // methods to stop working.
+ // Because file descriptors can be reused, the returned file descriptor may
+-// only be closed through the [File.Close] method of f, or by its finalizer during
+-// garbage collection. Otherwise, during garbage collection the finalizer
++// only be closed through the [File.Close] method of f, or by its cleanup during
++// garbage collection. Otherwise, during garbage collection the cleanup
+ // may close an unrelated file descriptor with the same (reused) number.
+ //
+ // As an alternative, see the f.SyscallConn method.
+@@ -240,7 +241,8 @@ func newFile(fd int, name string, kind newFileKind, nonBlocking bool) *File {
+ 		}
+ 	}
+ 
+-	runtime.SetFinalizer(f.file, (*file).close)
++	// Close the file when the File is not live.
++	f.cleanup = runtime.AddCleanup(f, func(f *file) { f.close() }, f.file)
+ 	return f
+ }
+ 
+@@ -337,8 +339,9 @@ func (file *file) close() error {
+ 		err = &PathError{Op: "close", Path: file.name, Err: e}
+ 	}
+ 
+-	// no need for a finalizer anymore
+-	runtime.SetFinalizer(file, nil)
++	// There is no need for a cleanup at this point. File must be alive at the point
++	// where cleanup.stop is called.
++	file.cleanup.Stop()
+ 	return err
+ }
+ 
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index 2160f1e6ff..2da924fe43 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -22,20 +22,21 @@ const _UTIME_OMIT = -1
+ 
+ // file is the real representation of *File.
+ // The extra level of indirection ensures that no clients of os
+-// can overwrite this data, which could cause the finalizer
++// can overwrite this data, which could cause the cleanup
+ // to close the wrong file descriptor.
+ type file struct {
+ 	pfd        poll.FD
+ 	name       string
+ 	dirinfo    atomic.Pointer[dirInfo] // nil unless directory being read
+ 	appendMode bool                    // whether file is opened for appending
++	cleanup    runtime.Cleanup         // cleanup closes the file when no longer referenced
+ }
+ 
+ // Fd returns the Windows handle referencing the open file.
+ // If f is closed, the file descriptor becomes invalid.
+-// If f is garbage collected, a finalizer may close the file descriptor,
+-// making it invalid; see [runtime.SetFinalizer] for more information on when
+-// a finalizer might be run. On Unix systems this will cause the [File.SetDeadline]
++// If f is garbage collected, a cleanup may close the file descriptor,
++// making it invalid; see [runtime.AddCleanup] for more information on when
++// a cleanup might be run. On Unix systems this will cause the [File.SetDeadline]
+ // methods to stop working.
+ func (file *File) Fd() uintptr {
+ 	if file == nil {
+@@ -65,7 +66,7 @@ func newFile(h syscall.Handle, name string, kind string) *File {
+ 		},
+ 		name: name,
+ 	}}
+-	runtime.SetFinalizer(f.file, (*file).close)
++	f.cleanup = runtime.AddCleanup(f, func(f *file) { f.close() }, f.file)
+ 
+ 	// Ignore initialization errors.
+ 	// Assume any problems will show up in later I/O.
+@@ -129,8 +130,9 @@ func (file *file) close() error {
+ 		err = &PathError{Op: "close", Path: file.name, Err: e}
+ 	}
+ 
+-	// no need for a finalizer anymore
+-	runtime.SetFinalizer(file, nil)
++	// There is no need for a cleanup at this point. File must be alive at the point
++	// where cleanup.stop is called.
++	file.cleanup.Stop()
+ 	return err
+ }
+ 
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index 97e389db8d..5038c822f5 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -21,10 +21,11 @@ type root struct {
+ 	// refs is incremented while an operation is using fd.
+ 	// closed is set when Close is called.
+ 	// fd is closed when closed is true and refs is 0.
+-	mu     sync.Mutex
+-	fd     sysfdType
+-	refs   int  // number of active operations
+-	closed bool // set when closed
++	mu      sync.Mutex
++	fd      sysfdType
++	refs    int             // number of active operations
++	closed  bool            // set when closed
++	cleanup runtime.Cleanup // cleanup closes the file when no longer referenced
+ }
+ 
+ func (r *root) Close() error {
+@@ -34,7 +35,9 @@ func (r *root) Close() error {
+ 		syscall.Close(r.fd)
+ 	}
+ 	r.closed = true
+-	runtime.SetFinalizer(r, nil) // no need for a finalizer any more
++	// There is no need for a cleanup at this point. Root must be alive at the point
++	// where cleanup.stop is called.
++	r.cleanup.Stop()
+ 	return nil
+ }
+ 
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index 31773ef681..06da8da15e 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -52,7 +52,7 @@ func newRoot(fd int, name string) (*Root, error) {
+ 		fd:   fd,
+ 		name: name,
+ 	}}
+-	runtime.SetFinalizer(r.root, (*root).Close)
++	r.root.cleanup = runtime.AddCleanup(r, func(f *root) { f.Close() }, r.root)
+ 	return r, nil
+ }
+ 
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index ba809bd6e0..9b57d5648e 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -109,7 +109,7 @@ func newRoot(fd syscall.Handle, name string) (*Root, error) {
+ 		fd:   fd,
+ 		name: name,
+ 	}}
+-	runtime.SetFinalizer(r.root, (*root).Close)
++	r.root.cleanup = runtime.AddCleanup(r, func(f *root) { f.Close() }, r.root)
+ 	return r, nil
+ }
+ 

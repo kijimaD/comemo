@@ -1,0 +1,65 @@
+commit 4f5863c2ce7d18f2c51db02cebe3f715d4efb925
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Jan 8 04:08:29 2023 +1100
+
+    cmd/internal/obj/arm64: provide and use an oprrrr function
+    
+    Provide a four register version of oprrr, which takes an additional 'ra'
+    register. Use this instead of oprrr where appropriate.
+    
+    Change-Id: I8882957a83c2b08e407f37a37c61864cd920bbc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/471519
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/obj/arm64/asm7.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 6209aee386..213c4e13b0 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -3782,8 +3782,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 				ra = REGZERO
+ 			}
+ 		}
+-		o1 = c.oprrr(p, p.As, rt, r, rf)
+-		o1 |= uint32(ra&31) << 10
++		o1 = c.oprrrr(p, p.As, rt, r, rf, ra)
+ 
+ 	case 16: /* XremY R[,R],R -> XdivY; XmsubY */
+ 		rt, r, rf := p.To.Reg, p.Reg, p.From.Reg
+@@ -3791,9 +3790,8 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 			r = rt
+ 		}
+ 		o1 = c.oprrr(p, p.As, REGTMP, r, rf)
+-		o2 = c.oprrr(p, AMSUBW, rt, REGTMP, rf)
++		o2 = c.oprrrr(p, AMSUBW, rt, REGTMP, rf, r)
+ 		o2 |= o1 & (1 << 31) /* same size */
+-		o2 |= uint32(r&31) << 10
+ 
+ 	case 17: /* op Rm,[Rn],Rd; default Rn=ZR */
+ 		rt, r, rf := p.To.Reg, p.Reg, p.From.Reg
+@@ -5763,9 +5761,7 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 			break
+ 		}
+ 
+-		o1 = c.oprrr(p, p.As, p.To.Reg, p.GetFrom3().Reg, p.Reg)
+-		ra := int(p.From.Reg)
+-		o1 |= uint32(ra&31) << 10
++		o1 = c.oprrrr(p, p.As, p.To.Reg, p.GetFrom3().Reg, p.Reg, p.From.Reg)
+ 
+ 	case 104: /* vxar $imm4, Vm.<T>, Vn.<T>, Vd.<T> */
+ 		af := ((p.GetFrom3().Reg) >> 5) & 15
+@@ -6576,6 +6572,10 @@ func (c *ctxt7) oprrr(p *obj.Prog, a obj.As, rd, rn, rm int16) uint32 {
+ 	return op
+ }
+ 
++func (c *ctxt7) oprrrr(p *obj.Prog, a obj.As, rd, rn, rm, ra int16) uint32 {
++	return c.oprrr(p, a, rd, rn, rm) | uint32(ra&0x1f)<<10
++}
++
+ /*
+  * imm -> Rd
+  * imm op Rn -> Rd

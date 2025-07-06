@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40130: dbe32284ff4fb96906cdb121508eba668dbc5bae
+# Index 40130: d7183ca40360bd5f8f1fcc199461344b6ee4de05
 
 echo "🚀 Generating explanation for commit 40130..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40130..."
 
 ### メタデータ
 - **コミットインデックス**: 40130
-- **コミットハッシュ**: dbe32284ff4fb96906cdb121508eba668dbc5bae
-- **GitHub URL**: https://github.com/golang/go/commit/dbe32284ff4fb96906cdb121508eba668dbc5bae
+- **コミットハッシュ**: d7183ca40360bd5f8f1fcc199461344b6ee4de05
+- **GitHub URL**: https://github.com/golang/go/commit/d7183ca40360bd5f8f1fcc199461344b6ee4de05
 
 ### 章構成
 

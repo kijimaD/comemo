@@ -1,0 +1,62 @@
+commit 5428570af7f668c840569a596cb1c23644f408cf
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Oct 9 09:36:41 2024 -0700
+
+    cmd/compile: use call block instead of entry block for tail call expansion
+    
+    The expand-calls pass assumed that tail calls were always done in the
+    entry block. That used to be true, but with tail calls in wrappers
+    (enabled by CL 578235) and libfuzzer instrumentation, that is no
+    longer the case. Libfuzzer instrumentation adds an IF statement to the
+    start of the wrapper function.
+    
+    Fixes #69825
+    
+    Change-Id: I9ab7133691d8235f9df128be39bff154b0b8853b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619075
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssa/expand_calls.go |  2 +-
+ test/fixedbugs/issue69825.go                 | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/expand_calls.go b/src/cmd/compile/internal/ssa/expand_calls.go
+index f589db4199..fb281f2f84 100644
+--- a/src/cmd/compile/internal/ssa/expand_calls.go
++++ b/src/cmd/compile/internal/ssa/expand_calls.go
+@@ -286,7 +286,7 @@ func (x *expandState) rewriteCallArgs(v *Value, firstArg int) {
+ 	if v.Op == OpTailLECall {
+ 		// For tail call, we unwind the frame before the call so we'll use the caller's
+ 		// SP.
+-		sp = x.f.Entry.NewValue1(src.NoXPos, OpGetCallerSP, x.typs.Uintptr, mem)
++		sp = v.Block.NewValue1(src.NoXPos, OpGetCallerSP, x.typs.Uintptr, mem)
+ 	}
+ 
+ 	for i, a := range argsWithoutMem { // skip leading non-parameter SSA Args and trailing mem SSA Arg.
+diff --git a/test/fixedbugs/issue69825.go b/test/fixedbugs/issue69825.go
+new file mode 100644
+index 0000000000..d3d3ec5e6a
+--- /dev/null
++++ b/test/fixedbugs/issue69825.go
+@@ -0,0 +1,18 @@
++// compile -d=libfuzzer
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T struct {
++	A
++}
++
++type A struct {
++}
++
++//go:noinline
++func (a *A) Foo(s [2]string) {
++}

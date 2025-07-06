@@ -1,0 +1,36 @@
+commit f9159b11e501f1b4cb79fe6807b97b1a1bbd2544
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 8 19:58:26 2024 -0800
+
+    internal/runtime/maps: get rid of a few obsolete TODOs
+    
+    Change-Id: I7b3d95c0861ae2b6e0721b65aa75cda036435e9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625903
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/runtime/maps/table.go | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index 7b3895c0a1..55c9879c3f 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -68,16 +68,11 @@ type table struct {
+ 	// locality, but it comes at the expense of wasted space for some types
+ 	// (consider uint8 key, uint64 element). Consider placing all keys
+ 	// together in these cases to save space.
+-	//
+-	// TODO(prattmic): Support indirect keys/values? This means storing
+-	// keys/values as pointers rather than inline in the slot. This avoid
+-	// bloating the table size if either type is very large.
+ 	groups groupsReference
+ }
+ 
+ func newTable(typ *abi.SwissMapType, capacity uint64, index int, localDepth uint8) *table {
+ 	if capacity < abi.SwissMapGroupSlots {
+-		// TODO: temporary until we have a real map type.
+ 		capacity = abi.SwissMapGroupSlots
+ 	}
+ 

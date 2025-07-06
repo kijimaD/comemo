@@ -1,0 +1,284 @@
+commit 1cc624fd6265abe16de78e9cd84272435156aa72
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 12 23:40:58 2025 +1100
+
+    cmd/internal/obj/riscv: add support for vector permutation instructions
+    
+    Add support for vector permutation instructions to the RISC-V assembler.
+    This includes integer scalar move, floating point scalar move, slide up
+    and slide down, register gather, compression and whole vector register
+    move instructions.
+    
+    Change-Id: I1da9f393091504fd81714006355725b8b9ecadea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646780
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+---
+ src/cmd/asm/internal/asm/testdata/riscv64.s        | 45 +++++++++++++
+ src/cmd/asm/internal/asm/testdata/riscv64error.s   | 12 ++++
+ .../asm/internal/asm/testdata/riscv64validation.s  | 28 ++++++++
+ src/cmd/internal/obj/riscv/obj.go                  | 77 +++++++++++++++++++++-
+ 4 files changed, 159 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index c5eef10b7c..a9447861bd 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -1229,6 +1229,51 @@ start:
+ 	VIDV		V3				// d7a10852
+ 	VIDV		V0, V3				// d7a10850
+ 
++	// 31.16.1: Integer Scalar Move Instructions
++	VMVXS		V2, X10				// 57252042
++	VMVSX		X10, V2				// 57610542
++
++	// 31.16.2: Floating-Point Scalar Move Instructions
++	VFMVFS		V2, F10				// 57152042
++	VFMVSF		F10, V2				// 57510542
++
++	// 31.16.3: Vector Slide Instructions
++	VSLIDEUPVX	X10, V2, V3			// d741253a
++	VSLIDEUPVX	X10, V2, V0, V3			// d7412538
++	VSLIDEUPVI	$16, V2, V3			// d731283a
++	VSLIDEUPVI	$16, V2, V0, V3			// d7312838
++	VSLIDEDOWNVX	X10, V2, V3			// d741253e
++	VSLIDEDOWNVX	X10, V2, V0, V3			// d741253c
++	VSLIDEDOWNVI	$16, V2, V3			// d731283e
++	VSLIDEDOWNVI	$16, V2, V0, V3			// d731283c
++	VSLIDE1UPVX	X10, V2, V3			// d761253a
++	VSLIDE1UPVX	X10, V2, V0, V3			// d7612538
++	VFSLIDE1UPVF	F10, V2, V3			// d751253a
++	VFSLIDE1UPVF	F10, V2, V0, V3			// d7512538
++	VSLIDE1DOWNVX	X10, V2, V3			// d761253e
++	VSLIDE1DOWNVX	X10, V2, V0, V3			// d761253c
++	VFSLIDE1DOWNVF	F10, V2, V3			// d751253e
++	VFSLIDE1DOWNVF	F10, V2, V0, V3			// d751253c
++
++	// 31.16.4: Vector Register Gather Instructions
++	VRGATHERVV	V1, V2, V3			// d7812032
++	VRGATHERVV	V1, V2, V0, V3			// d7812030
++	VRGATHEREI16VV	V1, V2, V3			// d781203a
++	VRGATHEREI16VV	V1, V2, V0, V3			// d7812038
++	VRGATHERVX	X10, V2, V3			// d7412532
++	VRGATHERVX	X10, V2, V0, V3			// d7412530
++	VRGATHERVI	$16, V2, V3			// d7312832
++	VRGATHERVI	$16, V2, V0, V3			// d7312830
++
++	// 31.16.5: Vector Compress Instruction
++	VCOMPRESSVM	V1, V2, V3			// d7a1205e
++
++	// 31.16.6: Whole Vector Register Move
++	VMV1RV		V2, V1				// d730209e
++	VMV2RV		V12, V10			// 57b5c09e
++	VMV4RV		V8, V4				// 57b2819e
++	VMV8RV		V8, V0				// 57b0839e
++
+ 	//
+ 	// Privileged ISA
+ 	//
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+index b076cf50e0..4238197893 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64error.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -368,5 +368,17 @@ TEXT errors(SB),$0
+ 	VMSIFM		V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VMSOFM		V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VIOTAM		V2, V4, V3			// ERROR "invalid vector mask register"
++	VSLIDEUPVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSLIDEUPVI	$16, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSLIDEDOWNVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSLIDEDOWNVI	$16, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSLIDE1UPVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VFSLIDE1UPVF	F10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VSLIDE1DOWNVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VFSLIDE1DOWNVF	F10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VRGATHERVV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VRGATHEREI16VV	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VRGATHERVX	X10, V2, V4, V3			// ERROR "invalid vector mask register"
++	VRGATHERVI	$16, V2, V4, V3			// ERROR "invalid vector mask register"
+ 
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64validation.s b/src/cmd/asm/internal/asm/testdata/riscv64validation.s
+index 8b0349584f..374a97dcfe 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64validation.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64validation.s
+@@ -399,5 +399,33 @@ TEXT validation(SB),$0
+ 	VMSOFM		X10, V3				// ERROR "expected vector register in vs2 position"
+ 	VIOTAM		X10, V3				// ERROR "expected vector register in vs2 position"
+ 	VIDV		X10				// ERROR "expected vector register in vd position"
++	VMVXS		X11, X10			// ERROR "expected vector register in vs2 position"
++	VMVXS		V2, V1				// ERROR "expected integer register in rd position"
++	VMVSX		X11, X10			// ERROR "expected vector register in vd position"
++	VMVSX		V2, V1				// ERROR "expected integer register in rs2 position"
++	VFMVFS		X10, F10			// ERROR "expected vector register in vs2 position"
++	VFMVFS		V2, V1				// ERROR "expected float register in rd position"
++	VFMVSF		X10, V2				// ERROR "expected float register in rs2 position"
++	VFMVSF		V2, V1				// ERROR "expected float register in rs2 position"
++	VSLIDEUPVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VSLIDEUPVI	$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
++	VSLIDEUPVI	$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
++	VSLIDEDOWNVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VSLIDEDOWNVI	$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
++	VSLIDEDOWNVI	$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
++	VSLIDE1UPVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VFSLIDE1UPVF	V1, V2, V3			// ERROR "expected float register in rs1 position"
++	VSLIDE1DOWNVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VFSLIDE1DOWNVF	V1, V2, V3			// ERROR "expected float register in rs1 position"
++	VRGATHERVV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VRGATHEREI16VV	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VRGATHERVX	V1, V2, V3			// ERROR "expected integer register in rs1 position"
++	VRGATHERVI	$-1, V2, V3			// ERROR "unsigned immediate -1 must be in range [0, 31]"
++	VRGATHERVI	$32, V2, V3			// ERROR "unsigned immediate 32 must be in range [0, 31]"
++	VCOMPRESSVM	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMV1RV		X10, V1				// ERROR "expected vector register in vs2 position"
++	VMV2RV		X10, V10			// ERROR "expected vector register in vs2 position"
++	VMV4RV		X10, V4				// ERROR "expected vector register in vs2 position"
++	VMV8RV		X10, V0				// ERROR "expected vector register in vs2 position"
+ 
+ 	RET
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index c911ea01f3..8228ce287f 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1307,6 +1307,13 @@ func validateRFI(ctxt *obj.Link, ins *instruction) {
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
++func validateRFV(ctxt *obj.Link, ins *instruction) {
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
++	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
++	wantFloatReg(ctxt, ins, "rs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
+ func validateRFF(ctxt *obj.Link, ins *instruction) {
+ 	wantFloatReg(ctxt, ins, "rd", ins.rd)
+ 	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
+@@ -1321,6 +1328,20 @@ func validateRIF(ctxt *obj.Link, ins *instruction) {
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
++func validateRIV(ctxt *obj.Link, ins *instruction) {
++	wantVectorReg(ctxt, ins, "vd", ins.rd)
++	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
++	wantIntReg(ctxt, ins, "rs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
++func validateRVF(ctxt *obj.Link, ins *instruction) {
++	wantFloatReg(ctxt, ins, "rd", ins.rd)
++	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
++	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
+ func validateRVFV(ctxt *obj.Link, ins *instruction) {
+ 	wantVectorReg(ctxt, ins, "vd", ins.rd)
+ 	wantFloatReg(ctxt, ins, "rs1", ins.rs1)
+@@ -1576,10 +1597,22 @@ func encodeRFF(ins *instruction) uint32 {
+ 	return encodeR(ins.as, regF(ins.rs2), 0, regF(ins.rd), ins.funct3, ins.funct7)
+ }
+ 
++func encodeRFV(ins *instruction) uint32 {
++	return encodeR(ins.as, regF(ins.rs2), 0, regV(ins.rd), ins.funct3, ins.funct7)
++}
++
+ func encodeRIF(ins *instruction) uint32 {
+ 	return encodeR(ins.as, regI(ins.rs2), 0, regF(ins.rd), ins.funct3, ins.funct7)
+ }
+ 
++func encodeRIV(ins *instruction) uint32 {
++	return encodeR(ins.as, regI(ins.rs2), 0, regV(ins.rd), ins.funct3, ins.funct7)
++}
++
++func encodeRVF(ins *instruction) uint32 {
++	return encodeR(ins.as, 0, regV(ins.rs2), regF(ins.rd), ins.funct3, ins.funct7)
++}
++
+ func encodeRVFV(ins *instruction) uint32 {
+ 	return encodeR(ins.as, regF(ins.rs1), regV(ins.rs2), regV(ins.rd), ins.funct3, ins.funct7)
+ }
+@@ -1889,8 +1922,11 @@ var (
+ 	rFFFFEncoding = encoding{encode: encodeRFFFF, validate: validateRFFFF, length: 4}
+ 	rFFIEncoding  = encoding{encode: encodeRFFI, validate: validateRFFI, length: 4}
+ 	rFIEncoding   = encoding{encode: encodeRFI, validate: validateRFI, length: 4}
++	rFVEncoding   = encoding{encode: encodeRFV, validate: validateRFV, length: 4}
+ 	rIFEncoding   = encoding{encode: encodeRIF, validate: validateRIF, length: 4}
++	rIVEncoding   = encoding{encode: encodeRIV, validate: validateRIV, length: 4}
+ 	rFFEncoding   = encoding{encode: encodeRFF, validate: validateRFF, length: 4}
++	rVFEncoding   = encoding{encode: encodeRVF, validate: validateRVF, length: 4}
+ 	rVFVEncoding  = encoding{encode: encodeRVFV, validate: validateRVFV, length: 4}
+ 	rVIEncoding   = encoding{encode: encodeRVI, validate: validateRVI, length: 4}
+ 	rVIVEncoding  = encoding{encode: encodeRVIV, validate: validateRVIV, length: 4}
+@@ -2638,6 +2674,39 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AVIOTAM & obj.AMask:   {enc: rVVEncoding},
+ 	AVIDV & obj.AMask:     {enc: rVVEncoding},
+ 
++	// 31.16.1: Integer Scalar Move Instructions
++	AVMVXS & obj.AMask: {enc: rVIEncoding},
++	AVMVSX & obj.AMask: {enc: rIVEncoding},
++
++	// 31.16.2: Floating-Point Scalar Move Instructions
++	AVFMVFS & obj.AMask: {enc: rVFEncoding},
++	AVFMVSF & obj.AMask: {enc: rFVEncoding},
++
++	// 31.16.3: Vector Slide Instructions
++	AVSLIDEUPVX & obj.AMask:     {enc: rVIVEncoding},
++	AVSLIDEUPVI & obj.AMask:     {enc: rVVuEncoding},
++	AVSLIDEDOWNVX & obj.AMask:   {enc: rVIVEncoding},
++	AVSLIDEDOWNVI & obj.AMask:   {enc: rVVuEncoding},
++	AVSLIDE1UPVX & obj.AMask:    {enc: rVIVEncoding},
++	AVFSLIDE1UPVF & obj.AMask:   {enc: rVFVEncoding},
++	AVSLIDE1DOWNVX & obj.AMask:  {enc: rVIVEncoding},
++	AVFSLIDE1DOWNVF & obj.AMask: {enc: rVFVEncoding},
++
++	// 31.16.4: Vector Register Gather Instructions
++	AVRGATHERVV & obj.AMask:     {enc: rVVVEncoding},
++	AVRGATHEREI16VV & obj.AMask: {enc: rVVVEncoding},
++	AVRGATHERVX & obj.AMask:     {enc: rVIVEncoding},
++	AVRGATHERVI & obj.AMask:     {enc: rVVuEncoding},
++
++	// 31.16.5: Vector Compress Instruction
++	AVCOMPRESSVM & obj.AMask: {enc: rVVVEncoding},
++
++	// 31.16.6: Whole Vector Register Move
++	AVMV1RV & obj.AMask: {enc: rVVEncoding},
++	AVMV2RV & obj.AMask: {enc: rVVEncoding},
++	AVMV4RV & obj.AMask: {enc: rVVEncoding},
++	AVMV8RV & obj.AMask: {enc: rVVEncoding},
++
+ 	//
+ 	// Privileged ISA
+ 	//
+@@ -3633,7 +3702,9 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		AVFSGNJVV, AVFSGNJVF, AVFSGNJNVV, AVFSGNJNVF, AVFSGNJXVV, AVFSGNJXVF,
+ 		AVMFEQVV, AVMFEQVF, AVMFNEVV, AVMFNEVF, AVMFLTVV, AVMFLTVF, AVMFLEVV, AVMFLEVF, AVMFGTVF, AVMFGEVF,
+ 		AVREDSUMVS, AVREDMAXUVS, AVREDMAXVS, AVREDMINUVS, AVREDMINVS, AVREDANDVS, AVREDORVS, AVREDXORVS,
+-		AVWREDSUMUVS, AVWREDSUMVS, AVFREDOSUMVS, AVFREDUSUMVS, AVFREDMAXVS, AVFREDMINVS, AVFWREDOSUMVS, AVFWREDUSUMVS:
++		AVWREDSUMUVS, AVWREDSUMVS, AVFREDOSUMVS, AVFREDUSUMVS, AVFREDMAXVS, AVFREDMINVS, AVFWREDOSUMVS, AVFWREDUSUMVS,
++		AVSLIDEUPVX, AVSLIDEDOWNVX, AVSLIDE1UPVX, AVFSLIDE1UPVF, AVSLIDE1DOWNVX, AVFSLIDE1DOWNVF,
++		AVRGATHERVV, AVRGATHEREI16VV, AVRGATHERVX:
+ 		// Set mask bit
+ 		switch {
+ 		case ins.rs3 == obj.REG_NONE:
+@@ -3655,7 +3726,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		ins.rd, ins.rs1, ins.rs2, ins.rs3 = uint32(p.To.Reg), uint32(p.Reg), uint32(p.From.Reg), obj.REG_NONE
+ 
+ 	case AVADDVI, AVRSUBVI, AVANDVI, AVORVI, AVXORVI, AVMSEQVI, AVMSNEVI, AVMSLEUVI, AVMSLEVI, AVMSGTUVI, AVMSGTVI,
+-		AVSLLVI, AVSRLVI, AVSRAVI, AVNSRLWI, AVNSRAWI:
++		AVSLLVI, AVSRLVI, AVSRAVI, AVNSRLWI, AVNSRAWI, AVRGATHERVI, AVSLIDEUPVI, AVSLIDEDOWNVI:
+ 		// Set mask bit
+ 		switch {
+ 		case ins.rs3 == obj.REG_NONE:
+@@ -3795,7 +3866,7 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		}
+ 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.From.Reg)
+ 
+-	case AVMANDMM, AVMNANDMM, AVMANDNMM, AVMXORMM, AVMORMM, AVMNORMM, AVMORNMM, AVMXNORMM, AVMMVM, AVMNOTM:
++	case AVMANDMM, AVMNANDMM, AVMANDNMM, AVMXORMM, AVMORMM, AVMNORMM, AVMORNMM, AVMXNORMM, AVMMVM, AVMNOTM, AVCOMPRESSVM:
+ 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg)
+ 		switch ins.as {
+ 		case AVMMVM:

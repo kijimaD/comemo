@@ -1,0 +1,107 @@
+commit ac341b8e6bc1eb99ddd62c3dea293e41bc582c10
+Author: Ian Alexander <jitsu@google.com>
+Date:   Tue May 6 15:16:03 2025 -0400
+
+    cmd/go/internal/pkg: fail on bad filenames
+    
+    Unhidden filenames with forbidden characters in subdirectories now
+    correctly fail the build instead of silently being skipped.
+    Previously this behavior would only trigger on files in the root of
+    the embedded directory.
+    
+    Fixes #54003
+    Change-Id: I52967d90d6b7929e4ae474b78d3f88732bdd3ac4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670615
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/load/pkg.go      | 12 ++++++++++--
+ src/cmd/go/testdata/script/embed.txt | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 43 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 2b0eb7ca0d..934a97aba1 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2227,12 +2227,20 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
+ 					rel := filepath.ToSlash(str.TrimFilePathPrefix(path, pkgdir))
+ 					name := d.Name()
+ 					if path != file && (isBadEmbedName(name) || ((name[0] == '.' || name[0] == '_') && !all)) {
+-						// Ignore bad names, assuming they won't go into modules.
+-						// Also avoid hidden files that user may not know about.
++						// Avoid hidden files that user may not know about.
+ 						// See golang.org/issue/42328.
+ 						if d.IsDir() {
+ 							return fs.SkipDir
+ 						}
++						// Ignore hidden files.
++						if name[0] == '.' || name[0] == '_' {
++							return nil
++						}
++						// Error on bad embed names.
++						// See golang.org/issue/54003.
++						if isBadEmbedName(name) {
++							return fmt.Errorf("cannot embed file %s: invalid name %s", rel, name)
++						}
+ 						return nil
+ 					}
+ 					if d.IsDir() {
+diff --git a/src/cmd/go/testdata/script/embed.txt b/src/cmd/go/testdata/script/embed.txt
+index 0e6bb63737..dcd250549b 100644
+--- a/src/cmd/go/testdata/script/embed.txt
++++ b/src/cmd/go/testdata/script/embed.txt
+@@ -95,6 +95,29 @@ go build -x
+ [symlink] stderr 'x.go:5:12: pattern symdir/x.txt: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
+ [symlink] env 'GODEBUG='
+ 
++# build rejects names in subdirectories with invalid punctuation
++cp x.go6 x.go
++mkdir photos/subdir
++cp x.txt photos/subdir/foo.jpg
++cp x.txt 'photos/subdir/2022-07-22T15''02''45Z.jpg'
++! go build -x
++stderr '^x.go:5:12: pattern photos/\*: cannot embed file photos/subdir/2022-07-22T15''02''45Z.jpg: invalid name 2022-07-22T15''02''45Z.jpg$'
++[!GOOS:windows] mv 'photos/subdir/2022-07-22T15''02''45Z.jpg' photos/subdir/2022-07-22T15:02:45Z.jpg
++[!GOOS:windows] ! go build -x
++[!GOOS:windows] stderr '^x.go:5:12: pattern photos/\*: cannot embed file photos/subdir/2022-07-22T15:02:45Z.jpg: invalid name 2022-07-22T15:02:45Z.jpg$'
++rm photos
++
++# build ignores hidden names in subdirectories with invalid punctuation
++cp x.go6 x.go
++mkdir photos/subdir
++[!GOOS:windows] cp x.txt photos/subdir/.2022-07-22T15:02:45Z.jpg
++[!GOOS:windows] cp x.txt photos/subdir/_2022-07-22T15:02:45Z.jpg
++cp x.txt 'photos/subdir/.2022-07-22T15''02''45Z.jpg'
++cp x.txt 'photos/subdir/_2022-07-22T15''02''45Z.jpg'
++cp x.txt photos/subdir/foo.jpg
++go build -x
++rm photos
++
+ -- x.go --
+ package p
+ 
+@@ -142,6 +165,7 @@ import "embed"
+ 
+ //go:embed symdir/*
+ var X embed.FS
++
+ -- x.go5 --
+ package p
+ 
+@@ -149,6 +173,15 @@ import "embed"
+ 
+ //go:embed symdir/x.txt
+ var Z string
++
++-- x.go6 --
++package p
++
++import "embed"
++
++//go:embed photos/*
++var X embed.FS
++
+ -- x.txt --
+ hello
+ 

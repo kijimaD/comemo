@@ -1,0 +1,32 @@
+commit 2bf57a3534f478d9c072391b1deba1d211545661
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Mar 22 00:48:16 2025 +0000
+
+    testing: document exit codes
+    
+    Fixes #25989
+    
+    Change-Id: I2e2a2a17854034ff68e69b8973018b1b2e7d59f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660076
+    Reviewed-by: Thanyalak Detkhong (Palm’my) <pmy4416@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/testing/testing.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 5b0a33f28d..b03e6fdeda 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -2043,6 +2043,9 @@ var testingTesting bool
+ var realStderr *os.File
+ 
+ // Run runs the tests. It returns an exit code to pass to os.Exit.
++// The exit code is zero when all tests pass, and non-zero for any kind
++// of failure. For machine readable test results, parse the output of
++// 'go test -json'.
+ func (m *M) Run() (code int) {
+ 	defer func() {
+ 		code = m.exitCode

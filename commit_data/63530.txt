@@ -1,0 +1,38 @@
+commit 5a3b6400ef053d52a3dd25e945f647bc7ea2b088
+Author: Lev Ustimenko <Leva3175@gmail.com>
+Date:   Mon Apr 22 20:09:05 2024 +0000
+
+    Refactor output message
+    
+    "/reflect/all_test.go : refactor message."
+    
+    This PR corrects a syntax
+    
+    %value -> %v
+    
+    Change-Id: Ie56b93d238f090c564a88eb963dc9b7773054356
+    GitHub-Last-Rev: 023fde3ed4f31d5d702d76a593a63aaad1b4ac39
+    GitHub-Pull-Request: golang/go#66974
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580935
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/reflect/all_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 5df83bef7a..f2cb604bac 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -8521,7 +8521,7 @@ func TestClear(t *testing.T) {
+ 		t.Run(tc.name, func(t *testing.T) {
+ 			t.Parallel()
+ 			if !tc.testFunc(tc.value) {
+-				t.Errorf("unexpected result for value.Clear(): %value", tc.value)
++				t.Errorf("unexpected result for value.Clear(): %v", tc.value)
+ 			}
+ 		})
+ 	}

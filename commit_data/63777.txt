@@ -1,0 +1,174 @@
+commit a6023db835ca61f363c5775824af48d9436f4fca
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Mon Dec 4 18:29:35 2023 -0500
+
+    [release-branch.go1.21] cmd/go/internal/modfetch/codehost: add new git tags before statLocal instead of after
+    
+    gitRepo.statLocal reports tag and version information.
+    If we are statting a hash that corresponds to a tag, we need to add that tag
+    before calling statLocal so that it can be included in that information.
+    
+    For #53955.
+    For #56881.
+    For #64586
+    
+    Change-Id: I69a71428e6ed9096d4cb8ed1bb79531415ff06c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/547155
+    Auto-Submit: Bryan Mills <bcmills@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    (cherry picked from commit 7b5a3733fce46aa44449c5ba28876f5a1e630650)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585815
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/go/internal/modfetch/codehost/git.go  | 24 ++++++----
+ src/cmd/go/testdata/script/get_issue53955.txt | 67 +++++++++++++++++++++++++++
+ 2 files changed, 82 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index d1a18a8d58..294e50ff12 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -18,6 +18,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"slices"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -154,7 +155,7 @@ type gitRepo struct {
+ 	refsErr error
+ 
+ 	localTagsOnce sync.Once
+-	localTags     map[string]bool
++	localTags     sync.Map // map[string]bool
+ }
+ 
+ const (
+@@ -166,7 +167,6 @@ const (
+ 
+ // loadLocalTags loads tag references from the local git cache
+ // into the map r.localTags.
+-// Should only be called as r.localTagsOnce.Do(r.loadLocalTags).
+ func (r *gitRepo) loadLocalTags(ctx context.Context) {
+ 	// The git protocol sends all known refs and ls-remote filters them on the client side,
+ 	// so we might as well record both heads and tags in one shot.
+@@ -176,10 +176,9 @@ func (r *gitRepo) loadLocalTags(ctx context.Context) {
+ 		return
+ 	}
+ 
+-	r.localTags = make(map[string]bool)
+ 	for _, line := range strings.Split(string(out), "\n") {
+ 		if line != "" {
+-			r.localTags[line] = true
++			r.localTags.Store(line, true)
+ 		}
+ 	}
+ }
+@@ -430,7 +429,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
+ 	// Maybe rev is a tag we already have locally.
+ 	// (Note that we're excluding branches, which can be stale.)
+ 	r.localTagsOnce.Do(func() { r.loadLocalTags(ctx) })
+-	if r.localTags[rev] {
++	if _, ok := r.localTags.Load(rev); ok {
+ 		return r.statLocal(ctx, rev, "refs/tags/"+rev)
+ 	}
+ 
+@@ -506,11 +505,18 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
+ 	// Either way, try a local stat before falling back to network I/O.
+ 	if !didStatLocal {
+ 		if info, err := r.statLocal(ctx, rev, hash); err == nil {
+-			if after, found := strings.CutPrefix(ref, "refs/tags/"); found {
+-				// Make sure tag exists, so it will be in localTags next time the go command is run.
+-				Run(ctx, r.dir, "git", "tag", after, hash)
++			tag, fromTag := strings.CutPrefix(ref, "refs/tags/")
++			if fromTag && !slices.Contains(info.Tags, tag) {
++				// The local repo includes the commit hash we want, but it is missing
++				// the corresponding tag. Add that tag and try again.
++				_, err := Run(ctx, r.dir, "git", "tag", tag, hash)
++				if err != nil {
++					return nil, err
++				}
++				r.localTags.Store(tag, true)
++				return r.statLocal(ctx, rev, ref)
+ 			}
+-			return info, nil
++			return info, err
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/script/get_issue53955.txt b/src/cmd/go/testdata/script/get_issue53955.txt
+new file mode 100644
+index 0000000000..c6d45d5c50
+--- /dev/null
++++ b/src/cmd/go/testdata/script/get_issue53955.txt
+@@ -0,0 +1,67 @@
++# Regression test for https://go.dev/issue/53955.
++# New remote tags were erroneously added to the local clone of a repo
++# only *after* extracting version information for a locally-cached commit,
++# causing the version information to have incomplete Tags and Version fields.
++
++[short] skip 'constructs a local git repo'
++[!git] skip
++[!net:github.com] skip 'does not actually use github.com because of insteadOf, but silence network check just in case'
++
++env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
++env GIT_ALLOW_PROTOCOL=file
++env GOPRIVATE=github.com/golang/issue53955
++
++[!GOOS:windows] exec git config --global 'url.file://'$WORK'/repo.insteadOf' 'https://github.com/golang/issue53955'
++[GOOS:windows]  exec git config --global 'url.file:///'$WORK'/repo.insteadOf' 'https://github.com/golang/issue53955'
++
++cd $WORK/repo
++
++env GIT_AUTHOR_NAME='Go Gopher'
++env GIT_AUTHOR_EMAIL='gopher@golang.org'
++env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
++env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
++
++exec git init
++
++env GIT_COMMITTER_DATE=2022-07-19T11:07:00-04:00
++env GIT_AUTHOR_DATE=2022-07-19T11:07:00-04:00
++exec git add go.mod issue53955.go
++exec git commit -m 'initial commit'
++exec git branch -m main
++exec git tag v1.0.9
++
++env GIT_COMMITTER_DATE=2022-07-19T11:07:01-04:00
++env GIT_AUTHOR_DATE=2022-07-19T11:07:01-04:00
++exec git add extra.go
++exec git commit -m 'next commit'
++exec git show-ref --tags --heads
++cmp stdout $WORK/.git-refs-1
++
++cd $WORK/m
++go get -x github.com/golang/issue53955@2cb3d49f
++stderr '^go: added github.com/golang/issue53955 v1.0.10-0.20220719150701-2cb3d49f8874$'
++
++cd $WORK/repo
++exec git tag v1.0.10
++
++cd $WORK/m
++go get -x github.com/golang/issue53955@v1.0.10
++! stderr 'v1\.0\.10 is not a tag'
++stderr '^go: upgraded github.com/golang/issue53955 v.* => v1\.0\.10$'
++
++-- $WORK/repo/go.mod --
++module github.com/golang/issue53955
++
++go 1.18
++-- $WORK/repo/issue53955.go --
++package issue53955
++-- $WORK/repo/extra.go --
++package issue53955
++-- $WORK/.git-refs-1 --
++2cb3d49f8874b9362ed0ddd2a6512e4108bbf6b1 refs/heads/main
++050526ebf5883191e990529eb3cc9345abaf838c refs/tags/v1.0.9
++-- $WORK/m/go.mod --
++module m
++
++go 1.18
++-- $WORK/.gitconfig --

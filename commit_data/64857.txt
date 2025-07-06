@@ -1,0 +1,1094 @@
+commit 4f881115d4067bda8a236aabcae8c41cdd13b4d0
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 16 15:58:36 2024 -0400
+
+    runtime: move getcallersp to internal/runtime/sys
+    
+    Moving these intrinsics to a base package enables other internal/runtime
+    packages to use them.
+    
+    For #54766.
+    
+    Change-Id: I45a530422207dd94b5ad4eee51216c9410a84040
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613261
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/inline/inl.go             | 14 +++-------
+ src/cmd/compile/internal/ir/node.go                |  2 +-
+ src/cmd/compile/internal/ssa/_gen/genericOps.go    |  2 +-
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 16 +++++------
+ src/cmd/compile/internal/ssagen/intrinsics_test.go | 32 +++++++++++-----------
+ src/cmd/internal/testdir/testdir_test.go           |  2 +-
+ src/internal/runtime/sys/intrinsics.go             | 12 ++++----
+ src/runtime/asan.go                                |  8 +++---
+ src/runtime/debugcall.go                           |  2 +-
+ src/runtime/export_test.go                         |  4 +--
+ src/runtime/export_windows_test.go                 |  2 +-
+ src/runtime/lock_js.go                             |  9 ++++--
+ src/runtime/mprof.go                               |  8 +++---
+ src/runtime/os2_aix.go                             | 14 +++++-----
+ src/runtime/os_solaris.go                          | 14 +++++-----
+ src/runtime/os_windows.go                          |  2 +-
+ src/runtime/panic.go                               | 26 +++++++++---------
+ src/runtime/proc.go                                | 16 +++++------
+ src/runtime/signal_unix.go                         |  4 +--
+ src/runtime/stubs.go                               | 26 ------------------
+ src/runtime/stubs_wasm.go                          |  4 +--
+ src/runtime/sys_libc.go                            |  2 +-
+ src/runtime/traceback.go                           |  6 ++--
+ test/internal/runtime/sys/inlinegcpc.go            | 11 +++++++-
+ test/runtime/README                                |  7 -----
+ test/runtime/inlinegcpc.go                         | 20 --------------
+ 26 files changed, 110 insertions(+), 155 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index aeabc98993..f343f64952 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -459,21 +459,15 @@ opSwitch:
+ 					}
+ 				case "internal/runtime/sys":
+ 					switch fn {
+-					case "GetCallerPC":
+-						// Functions that call GetCallerPC can not be inlined
+-						// because users expect the PC of the logical caller,
+-						// but GetCallerPC returns the physical caller.
++					case "GetCallerPC", "GetCallerSP":
++						// Functions that call GetCallerPC/SP can not be inlined
++						// because users expect the PC/SP of the logical caller,
++						// but GetCallerPC/SP returns the physical caller.
+ 						v.reason = "call to " + fn
+ 						return true
+ 					}
+ 				case "runtime":
+ 					switch fn {
+-					case "getcallersp":
+-						// Functions that call getcallersp can not be inlined
+-						// because users expect the SP of the logical caller,
+-						// but getcallersp returns the physical caller.
+-						v.reason = "call to " + fn
+-						return true
+ 					case "throw":
+ 						// runtime.throw is a "cheap call" like panic in normal code.
+ 						v.budget -= inlineExtraThrowCost
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index 1daa181610..058ada5ac3 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -303,7 +303,7 @@ const (
+ 	// arch-specific opcodes
+ 	OTAILCALL    // tail call to another function
+ 	OGETG        // runtime.getg() (read g pointer)
+-	OGETCALLERSP // runtime.getcallersp() (stack pointer in caller frame)
++	OGETCALLERSP // internal/runtime/sys.GetCallerSP() (stack pointer in caller frame)
+ 
+ 	OEND
+ )
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index ca8dcf0441..cf472dd208 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -489,7 +489,7 @@ var genericOps = []opData{
+ 	{name: "GetG", argLength: 1, zeroWidth: true}, // runtime.getg() (read g pointer). arg0=mem
+ 	{name: "GetClosurePtr"},                       // get closure pointer from dedicated register
+ 	{name: "GetCallerPC"},                         // for GetCallerPC intrinsic
+-	{name: "GetCallerSP", argLength: 1},           // for getcallersp intrinsic. arg0=mem.
++	{name: "GetCallerSP", argLength: 1},           // for GetCallerSP intrinsic. arg0=mem.
+ 
+ 	// Indexing operations
+ 	{name: "PtrIndex", argLength: 2},             // arg0=ptr, arg1=index. Computes ptr+sizeof(*v.type)*index, where index is extended to ptrwidth type
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 3b38c37051..8de374221b 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -162,12 +162,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		},
+ 		all...)
+ 
+-	add("runtime", "getcallersp",
+-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			return s.newValue1(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr, s.mem())
+-		},
+-		all...)
+-
+ 	addF("runtime", "publicationBarrier",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue1(ssa.OpPubBarrier, types.TypeMem, s.mem())
+@@ -182,6 +176,12 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		},
+ 		all...)
+ 
++	add("internal/runtime/sys", "GetCallerSP",
++		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			return s.newValue1(ssa.OpGetCallerSP, s.f.Config.Types.Uintptr, s.mem())
++		},
++		all...)
++
+ 	brev_arch := []sys.ArchFamily{sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X}
+ 	if cfg.goppc64 >= 10 {
+ 		// Use only on Power10 as the new byte reverse instructions that Power10 provide
+@@ -1083,9 +1083,9 @@ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
+ 
+ 	fn := sym.Name
+ 	if ssa.IntrinsicsDisable {
+-		if pkg == "runtime" && (fn == "getcallersp" || fn == "getclosureptr") {
++		if pkg == "runtime" && fn == "getclosureptr" {
+ 			// These runtime functions don't have definitions, must be intrinsics.
+-		} else if pkg == "internal/runtime/sys" && fn == "GetCallerPC" {
++		} else if pkg == "internal/runtime/sys" && (fn == "GetCallerPC" || fn == "GrtCallerSP") {
+ 			// These runtime functions don't have definitions, must be intrinsics.
+ 		} else {
+ 			return nil
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index dd5399b12b..22cb2df271 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -27,6 +27,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"386", "internal/runtime/sys", "Bswap32"}:                 struct{}{},
+ 	{"386", "internal/runtime/sys", "Bswap64"}:                 struct{}{},
+ 	{"386", "internal/runtime/sys", "GetCallerPC"}:             struct{}{},
++	{"386", "internal/runtime/sys", "GetCallerSP"}:             struct{}{},
+ 	{"386", "internal/runtime/sys", "TrailingZeros32"}:         struct{}{},
+ 	{"386", "internal/runtime/sys", "TrailingZeros64"}:         struct{}{},
+ 	{"386", "internal/runtime/sys", "TrailingZeros8"}:          struct{}{},
+@@ -38,7 +39,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"386", "math/bits", "TrailingZeros64"}:                    struct{}{},
+ 	{"386", "math/bits", "TrailingZeros8"}:                     struct{}{},
+ 	{"386", "runtime", "KeepAlive"}:                            struct{}{},
+-	{"386", "runtime", "getcallersp"}:                          struct{}{},
+ 	{"386", "runtime", "getclosureptr"}:                        struct{}{},
+ 	{"386", "runtime", "slicebytetostringtmp"}:                 struct{}{},
+ 	{"amd64", "internal/runtime/atomic", "And"}:                struct{}{},
+@@ -93,6 +93,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"amd64", "internal/runtime/sys", "Bswap32"}:               struct{}{},
+ 	{"amd64", "internal/runtime/sys", "Bswap64"}:               struct{}{},
+ 	{"amd64", "internal/runtime/sys", "GetCallerPC"}:           struct{}{},
++	{"amd64", "internal/runtime/sys", "GetCallerSP"}:           struct{}{},
+ 	{"amd64", "internal/runtime/sys", "Len64"}:                 struct{}{},
+ 	{"amd64", "internal/runtime/sys", "Len8"}:                  struct{}{},
+ 	{"amd64", "internal/runtime/sys", "OnesCount64"}:           struct{}{},
+@@ -137,7 +138,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"amd64", "math/bits", "TrailingZeros64"}:                  struct{}{},
+ 	{"amd64", "math/bits", "TrailingZeros8"}:                   struct{}{},
+ 	{"amd64", "runtime", "KeepAlive"}:                          struct{}{},
+-	{"amd64", "runtime", "getcallersp"}:                        struct{}{},
+ 	{"amd64", "runtime", "getclosureptr"}:                      struct{}{},
+ 	{"amd64", "runtime", "slicebytetostringtmp"}:               struct{}{},
+ 	{"amd64", "sync", "runtime_LoadAcquintptr"}:                struct{}{},
+@@ -181,6 +181,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"arm", "internal/runtime/sys", "Bswap32"}:                 struct{}{},
+ 	{"arm", "internal/runtime/sys", "Bswap64"}:                 struct{}{},
+ 	{"arm", "internal/runtime/sys", "GetCallerPC"}:             struct{}{},
++	{"arm", "internal/runtime/sys", "GetCallerSP"}:             struct{}{},
+ 	{"arm", "internal/runtime/sys", "Len64"}:                   struct{}{},
+ 	{"arm", "internal/runtime/sys", "Len8"}:                    struct{}{},
+ 	{"arm", "internal/runtime/sys", "TrailingZeros32"}:         struct{}{},
+@@ -202,7 +203,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"arm", "math/bits", "TrailingZeros64"}:                    struct{}{},
+ 	{"arm", "math/bits", "TrailingZeros8"}:                     struct{}{},
+ 	{"arm", "runtime", "KeepAlive"}:                            struct{}{},
+-	{"arm", "runtime", "getcallersp"}:                          struct{}{},
+ 	{"arm", "runtime", "getclosureptr"}:                        struct{}{},
+ 	{"arm", "runtime", "slicebytetostringtmp"}:                 struct{}{},
+ 	{"arm64", "internal/runtime/atomic", "And"}:                struct{}{},
+@@ -259,6 +259,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"arm64", "internal/runtime/sys", "Bswap32"}:               struct{}{},
+ 	{"arm64", "internal/runtime/sys", "Bswap64"}:               struct{}{},
+ 	{"arm64", "internal/runtime/sys", "GetCallerPC"}:           struct{}{},
++	{"arm64", "internal/runtime/sys", "GetCallerSP"}:           struct{}{},
+ 	{"arm64", "internal/runtime/sys", "Len64"}:                 struct{}{},
+ 	{"arm64", "internal/runtime/sys", "Len8"}:                  struct{}{},
+ 	{"arm64", "internal/runtime/sys", "OnesCount64"}:           struct{}{},
+@@ -305,7 +306,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"arm64", "math/bits", "TrailingZeros64"}:                  struct{}{},
+ 	{"arm64", "math/bits", "TrailingZeros8"}:                   struct{}{},
+ 	{"arm64", "runtime", "KeepAlive"}:                          struct{}{},
+-	{"arm64", "runtime", "getcallersp"}:                        struct{}{},
+ 	{"arm64", "runtime", "getclosureptr"}:                      struct{}{},
+ 	{"arm64", "runtime", "publicationBarrier"}:                 struct{}{},
+ 	{"arm64", "runtime", "slicebytetostringtmp"}:               struct{}{},
+@@ -389,6 +389,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "internal/runtime/math", "Mul64"}:              struct{}{},
+ 	{"loong64", "internal/runtime/math", "MulUintptr"}:         struct{}{},
+ 	{"loong64", "internal/runtime/sys", "GetCallerPC"}:         struct{}{},
++	{"loong64", "internal/runtime/sys", "GetCallerSP"}:         struct{}{},
+ 	{"loong64", "math", "Abs"}:                                 struct{}{},
+ 	{"loong64", "math", "Copysign"}:                            struct{}{},
+ 	{"loong64", "math", "sqrt"}:                                struct{}{},
+@@ -403,7 +404,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "math/bits", "Sub"}:                            struct{}{},
+ 	{"loong64", "math/bits", "Sub64"}:                          struct{}{},
+ 	{"loong64", "runtime", "KeepAlive"}:                        struct{}{},
+-	{"loong64", "runtime", "getcallersp"}:                      struct{}{},
+ 	{"loong64", "runtime", "getclosureptr"}:                    struct{}{},
+ 	{"loong64", "runtime", "slicebytetostringtmp"}:             struct{}{},
+ 	{"loong64", "sync", "runtime_LoadAcquintptr"}:              struct{}{},
+@@ -465,6 +465,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips", "internal/runtime/atomic", "Xchgint32"}:           struct{}{},
+ 	{"mips", "internal/runtime/atomic", "Xchguintptr"}:         struct{}{},
+ 	{"mips", "internal/runtime/sys", "GetCallerPC"}:            struct{}{},
++	{"mips", "internal/runtime/sys", "GetCallerSP"}:            struct{}{},
+ 	{"mips", "internal/runtime/sys", "Len64"}:                  struct{}{},
+ 	{"mips", "internal/runtime/sys", "Len8"}:                   struct{}{},
+ 	{"mips", "internal/runtime/sys", "TrailingZeros32"}:        struct{}{},
+@@ -482,7 +483,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips", "math/bits", "TrailingZeros64"}:                   struct{}{},
+ 	{"mips", "math/bits", "TrailingZeros8"}:                    struct{}{},
+ 	{"mips", "runtime", "KeepAlive"}:                           struct{}{},
+-	{"mips", "runtime", "getcallersp"}:                         struct{}{},
+ 	{"mips", "runtime", "getclosureptr"}:                       struct{}{},
+ 	{"mips", "runtime", "slicebytetostringtmp"}:                struct{}{},
+ 	{"mips", "sync", "runtime_LoadAcquintptr"}:                 struct{}{},
+@@ -549,6 +549,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips64", "internal/runtime/math", "Mul64"}:               struct{}{},
+ 	{"mips64", "internal/runtime/math", "MulUintptr"}:          struct{}{},
+ 	{"mips64", "internal/runtime/sys", "GetCallerPC"}:          struct{}{},
++	{"mips64", "internal/runtime/sys", "GetCallerSP"}:          struct{}{},
+ 	{"mips64", "math", "Abs"}:                                  struct{}{},
+ 	{"mips64", "math", "sqrt"}:                                 struct{}{},
+ 	{"mips64", "math/big", "mulWW"}:                            struct{}{},
+@@ -559,7 +560,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips64", "math/bits", "Sub"}:                             struct{}{},
+ 	{"mips64", "math/bits", "Sub64"}:                           struct{}{},
+ 	{"mips64", "runtime", "KeepAlive"}:                         struct{}{},
+-	{"mips64", "runtime", "getcallersp"}:                       struct{}{},
+ 	{"mips64", "runtime", "getclosureptr"}:                     struct{}{},
+ 	{"mips64", "runtime", "slicebytetostringtmp"}:              struct{}{},
+ 	{"mips64", "sync", "runtime_LoadAcquintptr"}:               struct{}{},
+@@ -636,6 +636,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips64le", "internal/runtime/math", "Mul64"}:             struct{}{},
+ 	{"mips64le", "internal/runtime/math", "MulUintptr"}:        struct{}{},
+ 	{"mips64le", "internal/runtime/sys", "GetCallerPC"}:        struct{}{},
++	{"mips64le", "internal/runtime/sys", "GetCallerSP"}:        struct{}{},
+ 	{"mips64le", "math", "Abs"}:                                struct{}{},
+ 	{"mips64le", "math", "sqrt"}:                               struct{}{},
+ 	{"mips64le", "math/big", "mulWW"}:                          struct{}{},
+@@ -646,7 +647,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips64le", "math/bits", "Sub"}:                           struct{}{},
+ 	{"mips64le", "math/bits", "Sub64"}:                         struct{}{},
+ 	{"mips64le", "runtime", "KeepAlive"}:                       struct{}{},
+-	{"mips64le", "runtime", "getcallersp"}:                     struct{}{},
+ 	{"mips64le", "runtime", "getclosureptr"}:                   struct{}{},
+ 	{"mips64le", "runtime", "slicebytetostringtmp"}:            struct{}{},
+ 	{"mips64le", "sync", "runtime_LoadAcquintptr"}:             struct{}{},
+@@ -708,6 +708,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mipsle", "internal/runtime/atomic", "Xchgint32"}:         struct{}{},
+ 	{"mipsle", "internal/runtime/atomic", "Xchguintptr"}:       struct{}{},
+ 	{"mipsle", "internal/runtime/sys", "GetCallerPC"}:          struct{}{},
++	{"mipsle", "internal/runtime/sys", "GetCallerSP"}:          struct{}{},
+ 	{"mipsle", "internal/runtime/sys", "Len64"}:                struct{}{},
+ 	{"mipsle", "internal/runtime/sys", "Len8"}:                 struct{}{},
+ 	{"mipsle", "internal/runtime/sys", "TrailingZeros32"}:      struct{}{},
+@@ -725,7 +726,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mipsle", "math/bits", "TrailingZeros64"}:                 struct{}{},
+ 	{"mipsle", "math/bits", "TrailingZeros8"}:                  struct{}{},
+ 	{"mipsle", "runtime", "KeepAlive"}:                         struct{}{},
+-	{"mipsle", "runtime", "getcallersp"}:                       struct{}{},
+ 	{"mipsle", "runtime", "getclosureptr"}:                     struct{}{},
+ 	{"mipsle", "runtime", "slicebytetostringtmp"}:              struct{}{},
+ 	{"mipsle", "sync", "runtime_LoadAcquintptr"}:               struct{}{},
+@@ -793,6 +793,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64", "internal/runtime/sys", "Bswap32"}:               struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "Bswap64"}:               struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "GetCallerPC"}:           struct{}{},
++	{"ppc64", "internal/runtime/sys", "GetCallerSP"}:           struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "Len64"}:                 struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "Len8"}:                  struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "OnesCount64"}:           struct{}{},
+@@ -834,7 +835,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64", "math/bits", "TrailingZeros32"}:                  struct{}{},
+ 	{"ppc64", "math/bits", "TrailingZeros64"}:                  struct{}{},
+ 	{"ppc64", "runtime", "KeepAlive"}:                          struct{}{},
+-	{"ppc64", "runtime", "getcallersp"}:                        struct{}{},
+ 	{"ppc64", "runtime", "getclosureptr"}:                      struct{}{},
+ 	{"ppc64", "runtime", "publicationBarrier"}:                 struct{}{},
+ 	{"ppc64", "runtime", "slicebytetostringtmp"}:               struct{}{},
+@@ -913,6 +913,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64le", "internal/runtime/sys", "Bswap32"}:             struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "Bswap64"}:             struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "GetCallerPC"}:         struct{}{},
++	{"ppc64le", "internal/runtime/sys", "GetCallerSP"}:         struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "Len64"}:               struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "Len8"}:                struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "OnesCount64"}:         struct{}{},
+@@ -954,7 +955,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64le", "math/bits", "TrailingZeros32"}:                struct{}{},
+ 	{"ppc64le", "math/bits", "TrailingZeros64"}:                struct{}{},
+ 	{"ppc64le", "runtime", "KeepAlive"}:                        struct{}{},
+-	{"ppc64le", "runtime", "getcallersp"}:                      struct{}{},
+ 	{"ppc64le", "runtime", "getclosureptr"}:                    struct{}{},
+ 	{"ppc64le", "runtime", "publicationBarrier"}:               struct{}{},
+ 	{"ppc64le", "runtime", "slicebytetostringtmp"}:             struct{}{},
+@@ -1032,6 +1032,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"riscv64", "internal/runtime/math", "Mul64"}:              struct{}{},
+ 	{"riscv64", "internal/runtime/math", "MulUintptr"}:         struct{}{},
+ 	{"riscv64", "internal/runtime/sys", "GetCallerPC"}:         struct{}{},
++	{"riscv64", "internal/runtime/sys", "GetCallerSP"}:         struct{}{},
+ 	{"riscv64", "math", "Abs"}:                                 struct{}{},
+ 	{"riscv64", "math", "Copysign"}:                            struct{}{},
+ 	{"riscv64", "math", "FMA"}:                                 struct{}{},
+@@ -1049,7 +1050,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"riscv64", "math/bits", "Sub"}:                            struct{}{},
+ 	{"riscv64", "math/bits", "Sub64"}:                          struct{}{},
+ 	{"riscv64", "runtime", "KeepAlive"}:                        struct{}{},
+-	{"riscv64", "runtime", "getcallersp"}:                      struct{}{},
+ 	{"riscv64", "runtime", "getclosureptr"}:                    struct{}{},
+ 	{"riscv64", "runtime", "publicationBarrier"}:               struct{}{},
+ 	{"riscv64", "runtime", "slicebytetostringtmp"}:             struct{}{},
+@@ -1128,6 +1128,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"s390x", "internal/runtime/sys", "Bswap32"}:               struct{}{},
+ 	{"s390x", "internal/runtime/sys", "Bswap64"}:               struct{}{},
+ 	{"s390x", "internal/runtime/sys", "GetCallerPC"}:           struct{}{},
++	{"s390x", "internal/runtime/sys", "GetCallerSP"}:           struct{}{},
+ 	{"s390x", "internal/runtime/sys", "Len64"}:                 struct{}{},
+ 	{"s390x", "internal/runtime/sys", "Len8"}:                  struct{}{},
+ 	{"s390x", "internal/runtime/sys", "OnesCount64"}:           struct{}{},
+@@ -1167,7 +1168,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"s390x", "math/bits", "TrailingZeros64"}:                  struct{}{},
+ 	{"s390x", "math/bits", "TrailingZeros8"}:                   struct{}{},
+ 	{"s390x", "runtime", "KeepAlive"}:                          struct{}{},
+-	{"s390x", "runtime", "getcallersp"}:                        struct{}{},
+ 	{"s390x", "runtime", "getclosureptr"}:                      struct{}{},
+ 	{"s390x", "runtime", "slicebytetostringtmp"}:               struct{}{},
+ 	{"s390x", "sync", "runtime_LoadAcquintptr"}:                struct{}{},
+@@ -1199,6 +1199,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"s390x", "sync/atomic", "SwapUint64"}:                     struct{}{},
+ 	{"s390x", "sync/atomic", "SwapUintptr"}:                    struct{}{},
+ 	{"wasm", "internal/runtime/sys", "GetCallerPC"}:            struct{}{},
++	{"wasm", "internal/runtime/sys", "GetCallerSP"}:            struct{}{},
+ 	{"wasm", "internal/runtime/sys", "Len64"}:                  struct{}{},
+ 	{"wasm", "internal/runtime/sys", "Len8"}:                   struct{}{},
+ 	{"wasm", "internal/runtime/sys", "OnesCount64"}:            struct{}{},
+@@ -1229,7 +1230,6 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"wasm", "math/bits", "TrailingZeros64"}:                   struct{}{},
+ 	{"wasm", "math/bits", "TrailingZeros8"}:                    struct{}{},
+ 	{"wasm", "runtime", "KeepAlive"}:                           struct{}{},
+-	{"wasm", "runtime", "getcallersp"}:                         struct{}{},
+ 	{"wasm", "runtime", "getclosureptr"}:                       struct{}{},
+ 	{"wasm", "runtime", "slicebytetostringtmp"}:                struct{}{},
+ }
+@@ -1282,8 +1282,8 @@ func TestIntrinsicBuilders(t *testing.T) {
+ 	initIntrinsics(cfg)
+ 
+ 	for _, arch := range sys.Archs {
+-		if intrinsics.lookup(arch, "runtime", "getcallersp") == nil {
+-			t.Errorf("No intrinsic for runtime.getcallersp on arch %v", arch)
++		if intrinsics.lookup(arch, "internal/runtime/sys", "GetCallerSP") == nil {
++			t.Errorf("No intrinsic for internal/runtime/sys.GetCallerSP on arch %v", arch)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 41d8f87dd2..8ebf6eafde 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -67,7 +67,7 @@ var (
+ 
+ 	// dirs are the directories to look for *.go files in.
+ 	// TODO(bradfitz): just use all directories?
+-	dirs = []string{".", "ken", "chan", "interface", "internal/runtime/sys", "syntax", "dwarf", "fixedbugs", "codegen", "runtime", "abi", "typeparam", "typeparam/mdempsky", "arenas"}
++	dirs = []string{".", "ken", "chan", "interface", "internal/runtime/sys", "syntax", "dwarf", "fixedbugs", "codegen", "abi", "typeparam", "typeparam/mdempsky", "arenas"}
+ )
+ 
+ // Test is the main entrypoint that runs tests in the GOROOT/test directory.
+diff --git a/src/internal/runtime/sys/intrinsics.go b/src/internal/runtime/sys/intrinsics.go
+index 9607f805c8..8a431d0b36 100644
+--- a/src/internal/runtime/sys/intrinsics.go
++++ b/src/internal/runtime/sys/intrinsics.go
+@@ -208,26 +208,28 @@ func Prefetch(addr uintptr) {}
+ func PrefetchStreamed(addr uintptr) {}
+ 
+ // GetCallerPC returns the program counter (PC) of its caller's caller.
+-// getcallersp returns the stack pointer (SP) of its caller's caller.
++// GetCallerSP returns the stack pointer (SP) of its caller's caller.
+ // Both are implemented as intrinsics on every platform.
+ //
+ // For example:
+ //
+ //	func f(arg1, arg2, arg3 int) {
+ //		pc := GetCallerPC()
+-//		sp := getcallersp()
++//		sp := GetCallerSP()
+ //	}
+ //
+ // These two lines find the PC and SP immediately following
+ // the call to f (where f will return).
+ //
+-// The call to GetCallerPC and getcallersp must be done in the
++// The call to GetCallerPC and GetCallerSP must be done in the
+ // frame being asked about.
+ //
+-// The result of getcallersp is correct at the time of the return,
++// The result of GetCallerSP is correct at the time of the return,
+ // but it may be invalidated by any subsequent call to a function
+ // that might relocate the stack in order to grow or shrink it.
+-// A general rule is that the result of getcallersp should be used
++// A general rule is that the result of GetCallerSP should be used
+ // immediately and can only be passed to nosplit functions.
+ 
+ func GetCallerPC() uintptr
++
++func GetCallerSP() uintptr
+diff --git a/src/runtime/asan.go b/src/runtime/asan.go
+index 76b958efbb..6fb1d00c3c 100644
+--- a/src/runtime/asan.go
++++ b/src/runtime/asan.go
+@@ -13,13 +13,13 @@ import (
+ 
+ // Public address sanitizer API.
+ func ASanRead(addr unsafe.Pointer, len int) {
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	pc := sys.GetCallerPC()
+ 	doasanread(addr, uintptr(len), sp, pc)
+ }
+ 
+ func ASanWrite(addr unsafe.Pointer, len int) {
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	pc := sys.GetCallerPC()
+ 	doasanwrite(addr, uintptr(len), sp, pc)
+ }
+@@ -33,7 +33,7 @@ const asanenabled = true
+ //go:linkname asanread
+ //go:nosplit
+ func asanread(addr unsafe.Pointer, sz uintptr) {
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	pc := sys.GetCallerPC()
+ 	doasanread(addr, sz, sp, pc)
+ }
+@@ -41,7 +41,7 @@ func asanread(addr unsafe.Pointer, sz uintptr) {
+ //go:linkname asanwrite
+ //go:nosplit
+ func asanwrite(addr unsafe.Pointer, sz uintptr) {
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	pc := sys.GetCallerPC()
+ 	doasanwrite(addr, sz, sp, pc)
+ }
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index 8d0174e6ae..e6554475c0 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -35,7 +35,7 @@ func debugCallCheck(pc uintptr) string {
+ 	if getg() != getg().m.curg {
+ 		return debugCallSystemStack
+ 	}
+-	if sp := getcallersp(); !(getg().stack.lo < sp && sp <= getg().stack.hi) {
++	if sp := sys.GetCallerSP(); !(getg().stack.lo < sp && sp <= getg().stack.hi) {
+ 		// Fast syscalls (nanotime) and racecall switch to the
+ 		// g0 stack without switching g. We can't safely make
+ 		// a call in this state. (We can't even safely
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index e5f571814b..3bde1aea29 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -504,7 +504,7 @@ func LockOSCounts() (external, internal uint32) {
+ //go:noinline
+ func TracebackSystemstack(stk []uintptr, i int) int {
+ 	if i == 0 {
+-		pc, sp := sys.GetCallerPC(), getcallersp()
++		pc, sp := sys.GetCallerPC(), sys.GetCallerSP()
+ 		var u unwinder
+ 		u.initAt(pc, sp, 0, getg(), unwindJumpStack) // Don't ignore errors, for testing
+ 		return tracebackPCs(&u, 0, stk)
+@@ -587,7 +587,7 @@ func unexportedPanicForTesting(b []byte, i int) byte {
+ func G0StackOverflow() {
+ 	systemstack(func() {
+ 		g0 := getg()
+-		sp := getcallersp()
++		sp := sys.GetCallerSP()
+ 		// The stack bounds for g0 stack is not always precise.
+ 		// Use an artificially small stack, to trigger a stack overflow
+ 		// without actually run out of the system stack (which may seg fault).
+diff --git a/src/runtime/export_windows_test.go b/src/runtime/export_windows_test.go
+index 6e98fe9789..13d30d4bc4 100644
+--- a/src/runtime/export_windows_test.go
++++ b/src/runtime/export_windows_test.go
+@@ -35,7 +35,7 @@ func (c ContextStub) GetPC() uintptr {
+ func NewContextStub() *ContextStub {
+ 	var ctx context
+ 	ctx.set_ip(sys.GetCallerPC())
+-	ctx.set_sp(getcallersp())
++	ctx.set_sp(sys.GetCallerSP())
+ 	ctx.set_fp(getcallerfp())
+ 	return &ContextStub{ctx}
+ }
+diff --git a/src/runtime/lock_js.go b/src/runtime/lock_js.go
+index f19e20a4c3..e70a881895 100644
+--- a/src/runtime/lock_js.go
++++ b/src/runtime/lock_js.go
+@@ -6,7 +6,10 @@
+ 
+ package runtime
+ 
+-import _ "unsafe" // for go:linkname
++import (
++	"internal/runtime/sys"
++	_ "unsafe" // for go:linkname
++)
+ 
+ // js/wasm has no support for threads yet. There is no preemption.
+ 
+@@ -244,7 +247,7 @@ var idleStart int64
+ 
+ func handleAsyncEvent() {
+ 	idleStart = nanotime()
+-	pause(getcallersp() - 16)
++	pause(sys.GetCallerSP() - 16)
+ }
+ 
+ // clearIdleTimeout clears our record of the timeout started by beforeIdle.
+@@ -291,7 +294,7 @@ func handleEvent() {
+ 
+ 	// return execution to JavaScript
+ 	idleStart = nanotime()
+-	pause(getcallersp() - 16)
++	pause(sys.GetCallerSP() - 16)
+ }
+ 
+ // eventHandler retrieves and executes handlers for pending JavaScript events.
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 6b6e896e9d..d84f8d26ea 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -810,7 +810,7 @@ func (prof *mLockProfile) captureStack() {
+ 
+ 	var nstk int
+ 	gp := getg()
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	pc := sys.GetCallerPC()
+ 	systemstack(func() {
+ 		var u unwinder
+@@ -1401,7 +1401,7 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels
+ 	}
+ 
+ 	// Save current goroutine.
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	pc := sys.GetCallerPC()
+ 	systemstack(func() {
+ 		saveg(pc, sp, ourg, &p[0], pcbuf)
+@@ -1597,7 +1597,7 @@ func goroutineProfileWithLabelsSync(p []profilerecord.StackRecord, labels []unsa
+ 		r, lbl := p, labels
+ 
+ 		// Save current goroutine.
+-		sp := getcallersp()
++		sp := sys.GetCallerSP()
+ 		pc := sys.GetCallerPC()
+ 		systemstack(func() {
+ 			saveg(pc, sp, gp, &r[0], pcbuf)
+@@ -1699,7 +1699,7 @@ func Stack(buf []byte, all bool) int {
+ 	n := 0
+ 	if len(buf) > 0 {
+ 		gp := getg()
+-		sp := getcallersp()
++		sp := sys.GetCallerSP()
+ 		pc := sys.GetCallerPC()
+ 		systemstack(func() {
+ 			g0 := getg()
+diff --git a/src/runtime/os2_aix.go b/src/runtime/os2_aix.go
+index 39fa9fbf73..51758bd304 100644
+--- a/src/runtime/os2_aix.go
++++ b/src/runtime/os2_aix.go
+@@ -186,7 +186,7 @@ func syscall0(fn *libFunc) (r, err uintptr) {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		resetLibcall = false // See comment in sys_darwin.go:libcCall
+ 	}
+@@ -217,7 +217,7 @@ func syscall1(fn *libFunc, a0 uintptr) (r, err uintptr) {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		resetLibcall = false // See comment in sys_darwin.go:libcCall
+ 	}
+@@ -249,7 +249,7 @@ func syscall2(fn *libFunc, a0, a1 uintptr) (r, err uintptr) {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		resetLibcall = false // See comment in sys_darwin.go:libcCall
+ 	}
+@@ -281,7 +281,7 @@ func syscall3(fn *libFunc, a0, a1, a2 uintptr) (r, err uintptr) {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		resetLibcall = false // See comment in sys_darwin.go:libcCall
+ 	}
+@@ -313,7 +313,7 @@ func syscall4(fn *libFunc, a0, a1, a2, a3 uintptr) (r, err uintptr) {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		resetLibcall = false // See comment in sys_darwin.go:libcCall
+ 	}
+@@ -345,7 +345,7 @@ func syscall5(fn *libFunc, a0, a1, a2, a3, a4 uintptr) (r, err uintptr) {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		resetLibcall = false // See comment in sys_darwin.go:libcCall
+ 	}
+@@ -377,7 +377,7 @@ func syscall6(fn *libFunc, a0, a1, a2, a3, a4, a5 uintptr) (r, err uintptr) {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		resetLibcall = false // See comment in sys_darwin.go:libcCall
+ 	}
+diff --git a/src/runtime/os_solaris.go b/src/runtime/os_solaris.go
+index 8cb9869925..5f6163f131 100644
+--- a/src/runtime/os_solaris.go
++++ b/src/runtime/os_solaris.go
+@@ -48,7 +48,7 @@ func sysvicall0(fn *libcFunc) uintptr {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		mp = nil // See comment in sys_darwin.go:libcCall
+ 	}
+@@ -86,7 +86,7 @@ func sysvicall1Err(fn *libcFunc, a1 uintptr) (r1, err uintptr) {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		mp = nil
+ 	}
+@@ -126,7 +126,7 @@ func sysvicall2Err(fn *libcFunc, a1, a2 uintptr) (uintptr, uintptr) {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		mp = nil
+ 	}
+@@ -165,7 +165,7 @@ func sysvicall3Err(fn *libcFunc, a1, a2, a3 uintptr) (r1, err uintptr) {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		mp = nil
+ 	}
+@@ -195,7 +195,7 @@ func sysvicall4(fn *libcFunc, a1, a2, a3, a4 uintptr) uintptr {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		mp = nil
+ 	}
+@@ -225,7 +225,7 @@ func sysvicall5(fn *libcFunc, a1, a2, a3, a4, a5 uintptr) uintptr {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		mp = nil
+ 	}
+@@ -255,7 +255,7 @@ func sysvicall6(fn *libcFunc, a1, a2, a3, a4, a5, a6 uintptr) uintptr {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		mp = nil
+ 	}
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 1961d68ad8..7183e79f7d 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -965,7 +965,7 @@ func stdcall(fn stdFunction) uintptr {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 		resetLibcall = true // See comment in sys_darwin.go:libcCall
+ 	}
+ 	asmcgocall(asmstdcallAddr, unsafe.Pointer(&mp.libcall))
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index e74a7feb05..5b62e019d9 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -281,10 +281,10 @@ func deferproc(fn func()) {
+ 	gp._defer = d
+ 	d.fn = fn
+ 	d.pc = sys.GetCallerPC()
+-	// We must not be preempted between calling getcallersp and
+-	// storing it to d.sp because getcallersp's result is a
++	// We must not be preempted between calling GetCallerSP and
++	// storing it to d.sp because GetCallerSP's result is a
+ 	// uintptr stack pointer.
+-	d.sp = getcallersp()
++	d.sp = sys.GetCallerSP()
+ 
+ 	// deferproc returns 0 normally.
+ 	// a deferred func that stops a panic
+@@ -395,10 +395,10 @@ func deferrangefunc() any {
+ 	d.link = gp._defer
+ 	gp._defer = d
+ 	d.pc = sys.GetCallerPC()
+-	// We must not be preempted between calling getcallersp and
+-	// storing it to d.sp because getcallersp's result is a
++	// We must not be preempted between calling GetCallerSP and
++	// storing it to d.sp because GetCallerSP's result is a
+ 	// uintptr stack pointer.
+-	d.sp = getcallersp()
++	d.sp = sys.GetCallerSP()
+ 
+ 	d.rangefunc = true
+ 	d.head = new(atomic.Pointer[_defer])
+@@ -484,7 +484,7 @@ func deferprocStack(d *_defer) {
+ 	// are initialized here.
+ 	d.heap = false
+ 	d.rangefunc = false
+-	d.sp = getcallersp()
++	d.sp = sys.GetCallerSP()
+ 	d.pc = sys.GetCallerPC()
+ 	// The lines below implement:
+ 	//   d.panic = nil
+@@ -596,7 +596,7 @@ func deferreturn() {
+ 	var p _panic
+ 	p.deferreturn = true
+ 
+-	p.start(sys.GetCallerPC(), unsafe.Pointer(getcallersp()))
++	p.start(sys.GetCallerPC(), unsafe.Pointer(sys.GetCallerSP()))
+ 	for {
+ 		fn, ok := p.nextDefer()
+ 		if !ok {
+@@ -622,7 +622,7 @@ func Goexit() {
+ 	var p _panic
+ 	p.goexit = true
+ 
+-	p.start(sys.GetCallerPC(), unsafe.Pointer(getcallersp()))
++	p.start(sys.GetCallerPC(), unsafe.Pointer(sys.GetCallerSP()))
+ 	for {
+ 		fn, ok := p.nextDefer()
+ 		if !ok {
+@@ -778,7 +778,7 @@ func gopanic(e any) {
+ 
+ 	runningPanicDefers.Add(1)
+ 
+-	p.start(sys.GetCallerPC(), unsafe.Pointer(getcallersp()))
++	p.start(sys.GetCallerPC(), unsafe.Pointer(sys.GetCallerSP()))
+ 	for {
+ 		fn, ok := p.nextDefer()
+ 		if !ok {
+@@ -818,7 +818,7 @@ func (p *_panic) start(pc uintptr, sp unsafe.Pointer) {
+ 	// can restart its defer processing loop if a recovered panic tries
+ 	// to jump past it.
+ 	p.startPC = sys.GetCallerPC()
+-	p.startSP = unsafe.Pointer(getcallersp())
++	p.startSP = unsafe.Pointer(sys.GetCallerSP())
+ 
+ 	if p.deferreturn {
+ 		p.sp = sp
+@@ -1228,7 +1228,7 @@ func recovery(gp *g) {
+ //go:nosplit
+ func fatalthrow(t throwType) {
+ 	pc := sys.GetCallerPC()
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	gp := getg()
+ 
+ 	if gp.m.throwing == throwTypeNone {
+@@ -1264,7 +1264,7 @@ func fatalthrow(t throwType) {
+ //go:nosplit
+ func fatalpanic(msgs *_panic) {
+ 	pc := sys.GetCallerPC()
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	gp := getg()
+ 	var docrash bool
+ 	// Switch to the system stack to avoid any stack growth, which
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8f5919bbf6..7ff339ea46 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -274,7 +274,7 @@ func main() {
+ 			// Using the caller's SP unwinds this frame and backs to
+ 			// goexit. The -16 is: 8 for goexit's (fake) return PC,
+ 			// and pause's epilogue pops 8.
+-			pause(getcallersp() - 16) // should not return
++			pause(sys.GetCallerSP() - 16) // should not return
+ 			panic("unreachable")
+ 		}
+ 		return
+@@ -1811,7 +1811,7 @@ func mstart0() {
+ 	mexit(osStack)
+ }
+ 
+-// The go:noinline is to guarantee the sys.GetCallerPC/getcallersp below are safe,
++// The go:noinline is to guarantee the sys.GetCallerPC/sys.GetCallerSP below are safe,
+ // so that we can set up g0.sched to return to the call of mstart1 above.
+ //
+ //go:noinline
+@@ -1830,7 +1830,7 @@ func mstart1() {
+ 	// and let mstart0 exit the thread.
+ 	gp.sched.g = guintptr(unsafe.Pointer(gp))
+ 	gp.sched.pc = sys.GetCallerPC()
+-	gp.sched.sp = getcallersp()
++	gp.sched.sp = sys.GetCallerSP()
+ 
+ 	asminit()
+ 	minit()
+@@ -2329,7 +2329,7 @@ func needm(signal bool) {
+ 	// Install g (= m->g0) and set the stack bounds
+ 	// to match the current stack.
+ 	setg(mp.g0)
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	callbackUpdateSystemStack(mp, sp, signal)
+ 
+ 	// Should mark we are already in Go now.
+@@ -4496,7 +4496,7 @@ func entersyscall() {
+ 	// the stack. This results in exceeding the nosplit stack requirements
+ 	// on some platforms.
+ 	fp := getcallerfp()
+-	reentersyscall(sys.GetCallerPC(), getcallersp(), fp)
++	reentersyscall(sys.GetCallerPC(), sys.GetCallerSP(), fp)
+ }
+ 
+ func entersyscall_sysmon() {
+@@ -4562,7 +4562,7 @@ func entersyscallblock() {
+ 
+ 	// Leave SP around for GC and traceback.
+ 	pc := sys.GetCallerPC()
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	bp := getcallerfp()
+ 	save(pc, sp, bp)
+ 	gp.syscallsp = gp.sched.sp
+@@ -4594,7 +4594,7 @@ func entersyscallblock() {
+ 	systemstack(entersyscallblock_handoff)
+ 
+ 	// Resave for traceback during blocked call.
+-	save(sys.GetCallerPC(), getcallersp(), getcallerfp())
++	save(sys.GetCallerPC(), sys.GetCallerSP(), getcallerfp())
+ 
+ 	gp.m.locks--
+ }
+@@ -4632,7 +4632,7 @@ func exitsyscall() {
+ 	gp := getg()
+ 
+ 	gp.m.locks++ // see comment in entersyscall
+-	if getcallersp() > gp.syscallsp {
++	if sys.GetCallerSP() > gp.syscallsp {
+ 		throw("exitsyscall: syscall frame is no longer valid")
+ 	}
+ 
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index a42972bb35..a6373093b5 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -405,7 +405,7 @@ func sigFetchG(c *sigctxt) *g {
+ 			// bottom of the signal stack. Fetch from there.
+ 			// TODO: in efence mode, stack is sysAlloc'd, so this wouldn't
+ 			// work.
+-			sp := getcallersp()
++			sp := sys.GetCallerSP()
+ 			s := spanOf(sp)
+ 			if s != nil && s.state.get() == mSpanManual && s.base() < sp && sp < s.limit {
+ 				gp := *(**g)(unsafe.Pointer(s.base()))
+@@ -479,7 +479,7 @@ func sigtrampgo(sig uint32, info *siginfo, ctx unsafe.Pointer) {
+ 	var gsignalStack gsignalStack
+ 	setStack := adjustSignalStack(sig, gp.m, &gsignalStack)
+ 	if setStack {
+-		gp.m.gsignal.stktopsp = getcallersp()
++		gp.m.gsignal.stktopsp = sys.GetCallerSP()
+ 	}
+ 
+ 	if gp.stackguard0 == stackFork {
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index ccb2e7f931..84f478db07 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -307,32 +307,6 @@ func goexit(neverCallThisFunction)
+ // data dependency ordering.
+ func publicationBarrier()
+ 
+-// getcallerpc returns the program counter (PC) of its caller's caller.
+-// getcallersp returns the stack pointer (SP) of its caller's caller.
+-// Both are implemented as intrinsics on every platform.
+-//
+-// For example:
+-//
+-//	func f(arg1, arg2, arg3 int) {
+-//		pc := getcallerpc()
+-//		sp := getcallersp()
+-//	}
+-//
+-// These two lines find the PC and SP immediately following
+-// the call to f (where f will return).
+-//
+-// The call to getcallerpc and getcallersp must be done in the
+-// frame being asked about.
+-//
+-// The result of getcallersp is correct at the time of the return,
+-// but it may be invalidated by any subsequent call to a function
+-// that might relocate the stack in order to grow or shrink it.
+-// A general rule is that the result of getcallersp should be used
+-// immediately and can only be passed to nosplit functions.
+-
+-
+-func getcallersp() uintptr
+-
+ // getclosureptr returns the pointer to the current closure.
+ // getclosureptr can only be used in an assignment statement
+ // at the entry of a function. Moreover, go:nosplit directive
+diff --git a/src/runtime/stubs_wasm.go b/src/runtime/stubs_wasm.go
+index 75078b53eb..fafc923b76 100644
+--- a/src/runtime/stubs_wasm.go
++++ b/src/runtime/stubs_wasm.go
+@@ -11,6 +11,6 @@ package runtime
+ // returning to the host, the SP is newsp+8.
+ // If we want to set the SP such that when it calls back into Go, the
+ // Go function appears to be called from pause's caller's caller, then
+-// call pause with newsp = getcallersp()-16 (another 8 is the return
+-// PC pushed to the stack).
++// call pause with newsp = internal/runtime/sys.GetCallerSP()-16 (another 8 is
++// the return PC pushed to the stack).
+ func pause(newsp uintptr)
+diff --git a/src/runtime/sys_libc.go b/src/runtime/sys_libc.go
+index 556f388662..72d8991559 100644
+--- a/src/runtime/sys_libc.go
++++ b/src/runtime/sys_libc.go
+@@ -29,7 +29,7 @@ func libcCall(fn, arg unsafe.Pointer) int32 {
+ 		mp.libcallpc = sys.GetCallerPC()
+ 		// sp must be the last, because once async cpu profiler finds
+ 		// all three values to be non-zero, it will use them
+-		mp.libcallsp = getcallersp()
++		mp.libcallsp = sys.GetCallerSP()
+ 	} else {
+ 		// Make sure we don't reset libcallsp. This makes
+ 		// libcCall reentrant; We remember the g/pc/sp for the
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index ee6a7e7acc..95a57bd2b7 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -143,7 +143,7 @@ func (u *unwinder) initAt(pc0, sp0, lr0 uintptr, gp *g, flags unwindFlags) {
+ 		// on another stack. That could confuse callers quite a bit.
+ 		// Instead, we require that initAt and any other function that
+ 		// accepts an sp for the current goroutine (typically obtained by
+-		// calling getcallersp) must not run on that goroutine's stack but
++		// calling GetCallerSP) must not run on that goroutine's stack but
+ 		// instead on the g0 stack.
+ 		throw("cannot trace user goroutine on its own stack")
+ 	}
+@@ -804,7 +804,7 @@ func traceback(pc, sp, lr uintptr, gp *g) {
+ }
+ 
+ // tracebacktrap is like traceback but expects that the PC and SP were obtained
+-// from a trap, not from gp->sched or gp->syscallpc/gp->syscallsp or GetCallerPC/getcallersp.
++// from a trap, not from gp->sched or gp->syscallpc/gp->syscallsp or GetCallerPC/GetCallerSP.
+ // Because they are from a trap instead of from a saved pair,
+ // the initial PC must not be rewound to the previous instruction.
+ // (All the saved pairs record a PC that is a return address, so we
+@@ -1090,7 +1090,7 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
+ //
+ //go:linkname callers
+ func callers(skip int, pcbuf []uintptr) int {
+-	sp := getcallersp()
++	sp := sys.GetCallerSP()
+ 	pc := sys.GetCallerPC()
+ 	gp := getg()
+ 	var n int
+diff --git a/test/internal/runtime/sys/inlinegcpc.go b/test/internal/runtime/sys/inlinegcpc.go
+index c8bdce6aae..7cadc639d1 100644
+--- a/test/internal/runtime/sys/inlinegcpc.go
++++ b/test/internal/runtime/sys/inlinegcpc.go
+@@ -6,10 +6,11 @@
+ 
+ package sys
+ 
+-// A function that calls sys.GetCallerPC
++// A function that calls sys.GetCallerPC or sys.GetCallerSP
+ // cannot be inlined, no matter how small it is.
+ 
+ func GetCallerPC() uintptr
++func GetCallerSP() uintptr
+ 
+ func pc() uintptr {
+ 	return GetCallerPC() + 1
+@@ -18,3 +19,11 @@ func pc() uintptr {
+ func cpc() uintptr { // ERROR "can inline cpc"
+ 	return pc() + 2
+ }
++
++func sp() uintptr {
++	return GetCallerSP() + 3
++}
++
++func csp() uintptr { // ERROR "can inline csp"
++	return sp() + 4
++}
+diff --git a/test/runtime/README b/test/runtime/README
+deleted file mode 100644
+index 249031afc1..0000000000
+--- a/test/runtime/README
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-The runtime directory contains tests that specifically need
+-to be compiled as-if in the runtime package.  For error-check
+-tests, these require the additional flags -+ and -p=runtime.
+diff --git a/test/runtime/inlinegcpc.go b/test/runtime/inlinegcpc.go
+deleted file mode 100644
+index 66683dbdab..0000000000
+--- a/test/runtime/inlinegcpc.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// errorcheck -0 -+ -p=runtime -m
+-
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package runtime
+-
+-// A function that calls runtime.getcallersp()
+-// cannot be inlined, no matter how small it is.
+-
+-func getcallersp() uintptr
+-
+-func sp() uintptr {
+-	return getcallersp() + 3
+-}
+-
+-func csp() uintptr { // ERROR "can inline csp"
+-	return sp() + 4
+-}

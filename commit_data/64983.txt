@@ -1,0 +1,139 @@
+commit dc8902f4eb00c66ba4f300c640dcea723abdf146
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Mon Aug 19 13:58:42 2024 -0700
+
+    cmd/compile/internal/ssa: intrinsify atomic.Xchg8 on amd64
+    
+    For #68578
+    
+    Change-Id: Ia9580579bfc4709945bfcf6ec3803d5d11812187
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606901
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Martin Möhrmann <moehrmann@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules      |  1 +
+ src/cmd/compile/internal/ssa/_gen/genericOps.go    |  1 +
+ src/cmd/compile/internal/ssa/opGen.go              |  7 +++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 17 +++++++++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics.go      |  7 +++++++
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  1 +
+ 6 files changed, 34 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index 7ac9d5ca16..ce9a6e9914 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -563,6 +563,7 @@
+ (AtomicStorePtrNoWB ptr val mem) => (Select1 (XCHGQ <types.NewTuple(typ.BytePtr,types.TypeMem)> val ptr mem))
+ 
+ // Atomic exchanges.
++(AtomicExchange8 ptr val mem) => (XCHGB val ptr mem)
+ (AtomicExchange32 ptr val mem) => (XCHGL val ptr mem)
+ (AtomicExchange64 ptr val mem) => (XCHGQ val ptr mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 9baceb1920..86bcef9980 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -604,6 +604,7 @@ var genericOps = []opData{
+ 	{name: "AtomicStorePtrNoWB", argLength: 3, typ: "Mem", hasSideEffects: true},               // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+ 	{name: "AtomicStoreRel32", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
+ 	{name: "AtomicStoreRel64", argLength: 3, typ: "Mem", hasSideEffects: true},                 // Store arg1 to *arg0.  arg2=memory.  Lock release, returns memory.
++	{name: "AtomicExchange8", argLength: 3, typ: "(UInt8,Mem)", hasSideEffects: true},          // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 	{name: "AtomicExchange32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 	{name: "AtomicExchange64", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},        // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 	{name: "AtomicAdd32", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},             // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 574bbbdc61..a96d07a9a3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -3249,6 +3249,7 @@ const (
+ 	OpAtomicStorePtrNoWB
+ 	OpAtomicStoreRel32
+ 	OpAtomicStoreRel64
++	OpAtomicExchange8
+ 	OpAtomicExchange32
+ 	OpAtomicExchange64
+ 	OpAtomicAdd32
+@@ -41142,6 +41143,12 @@ var opcodeTable = [...]opInfo{
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
++	{
++		name:           "AtomicExchange8",
++		argLen:         3,
++		hasSideEffects: true,
++		generic:        true,
++	},
+ 	{
+ 		name:           "AtomicExchange32",
+ 		argLen:         3,
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 77d53997f6..f17c4be516 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -587,6 +587,8 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpAtomicExchange32(v)
+ 	case OpAtomicExchange64:
+ 		return rewriteValueAMD64_OpAtomicExchange64(v)
++	case OpAtomicExchange8:
++		return rewriteValueAMD64_OpAtomicExchange8(v)
+ 	case OpAtomicLoad32:
+ 		return rewriteValueAMD64_OpAtomicLoad32(v)
+ 	case OpAtomicLoad64:
+@@ -23990,6 +23992,21 @@ func rewriteValueAMD64_OpAtomicExchange64(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueAMD64_OpAtomicExchange8(v *Value) bool {
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (AtomicExchange8 ptr val mem)
++	// result: (XCHGB val ptr mem)
++	for {
++		ptr := v_0
++		val := v_1
++		mem := v_2
++		v.reset(OpAMD64XCHGB)
++		v.AddArg3(val, ptr, mem)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpAtomicLoad32(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 39a72533df..4bf4d3006c 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -296,6 +296,13 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		},
+ 		sys.PPC64)
+ 
++	addF("internal/runtime/atomic", "Xchg8",
++		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			v := s.newValue3(ssa.OpAtomicExchange8, types.NewTuple(types.Types[types.TUINT8], types.TypeMem), args[0], args[1], s.mem())
++			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
++			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT8], v)
++		},
++		sys.AMD64)
+ 	addF("internal/runtime/atomic", "Xchg",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicExchange32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 888063cbda..d5c55ae278 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -84,6 +84,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"amd64", "internal/runtime/atomic", "Xadduintptr"}:        struct{}{},
+ 	{"amd64", "internal/runtime/atomic", "Xchg"}:               struct{}{},
+ 	{"amd64", "internal/runtime/atomic", "Xchg64"}:             struct{}{},
++	{"amd64", "internal/runtime/atomic", "Xchg8"}:              struct{}{},
+ 	{"amd64", "internal/runtime/atomic", "Xchgint32"}:          struct{}{},
+ 	{"amd64", "internal/runtime/atomic", "Xchgint64"}:          struct{}{},
+ 	{"amd64", "internal/runtime/atomic", "Xchguintptr"}:        struct{}{},

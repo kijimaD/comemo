@@ -1,0 +1,63 @@
+commit 0c7311e9ca8440801b40928878db623f98e3008f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 16 16:40:55 2025 -0400
+
+    cmd/go: do not try to load 'all' packages with invalid import paths
+    
+    Before this change, when we tried to compute the set of packages in
+    'all', we'd add packages with invalid import paths to the set and try to
+    load them, which would fail. Instead, do not add them to the list of
+    packages to load in the second iteration of the loader. We'll still
+    return errors for invalid imports in the importing packages.
+    Change-Id: I682229011f555ed1d0c827f79100c1c43bf7f93a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673655
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/modload/load.go                  |  7 +++++++
+ src/cmd/go/testdata/script/list_empty_importpath.txt | 17 +++++++++++++++++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 6cb6b9e742..8b2be3b300 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -2009,6 +2009,13 @@ func (ld *loader) stdVendor(parentPath, path string) string {
+ // starting with a list of the import paths for the packages in the main module.
+ func (ld *loader) computePatternAll() (all []string) {
+ 	for _, pkg := range ld.pkgs {
++		if module.CheckImportPath(pkg.path) != nil {
++			// Don't add packages with invalid paths. This means that
++			// we don't try to load invalid imports of the main modules'
++			// packages. We will still report an errors invalid imports
++			// when we load the importing package.
++			continue
++		}
+ 		if pkg.flags.has(pkgInAll) && !pkg.isTest() {
+ 			all = append(all, pkg.path)
+ 		}
+diff --git a/src/cmd/go/testdata/script/list_empty_importpath.txt b/src/cmd/go/testdata/script/list_empty_importpath.txt
+new file mode 100644
+index 0000000000..0960a7795d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_empty_importpath.txt
+@@ -0,0 +1,17 @@
++! go list all
++! stderr 'panic'
++stderr 'invalid import path'
++
++# go list produces a package for 'p' but not for ''
++go list -e all
++cmp stdout wantlist.txt
++-- wantlist.txt --
++example.com/e
++-- go.mod --
++module example.com/e
++
++go 1.25
++-- p.go --
++package p
++
++import ""
+\ No newline at end of file

@@ -1,0 +1,55 @@
+commit 2a65100e68cd82172b214a4d12cd2586c0b9ef99
+Author: Jake Bailey <jacob.b.bailey@gmail.com>
+Date:   Tue May 13 22:01:43 2025 -0700
+
+    cmd/internal/testdir: filter out errors outside input file set
+    
+    When an errorcheck test uses -m and instantiates an imported generic
+    function, the errors will include -m messages from the imported package
+    (since the new function has not previously been walked). These errors
+    cannot be matched since we can't write errors in files outside the test
+    input.
+    
+    To fix this (and enable the other CLs in this stack), drop any unmatched
+    errors that occur in files outside those in the input set.
+    
+    Change-Id: I2fcf0dd4693125d2e5823ea4437011730d8b1b1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672515
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/internal/testdir/testdir_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 7e7867d83f..483a9ec33c 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -1242,6 +1242,24 @@ func (t test) errorCheck(outStr string, wantAuto bool, fullshort ...string) (err
+ 		}
+ 	}
+ 
++	if len(out) > 0 {
++		// If a test uses -m and instantiates an imported generic function,
++		// the errors will include messages for the instantiated function
++		// with locations in the other package. Filter those out.
++		localOut := make([]string, 0, len(out))
++	outLoop:
++		for _, errLine := range out {
++			for j := 0; j < len(fullshort); j += 2 {
++				full, short := fullshort[j], fullshort[j+1]
++				if strings.HasPrefix(errLine, full+":") || strings.HasPrefix(errLine, short+":") {
++					localOut = append(localOut, errLine)
++					continue outLoop
++				}
++			}
++		}
++		out = localOut
++	}
++
+ 	if len(out) > 0 {
+ 		errs = append(errs, fmt.Errorf("Unmatched Errors:"))
+ 		for _, errLine := range out {

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40143: d17d41e58d2f69d284398f1d86d93c0f31648b16
+# Index 40143: 8c5c2b71f4124eb5e72cde327d740a8dbdd4eeb8
 
 echo "🚀 Generating explanation for commit 40143..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40143..."
 
 ### メタデータ
 - **コミットインデックス**: 40143
-- **コミットハッシュ**: d17d41e58d2f69d284398f1d86d93c0f31648b16
-- **GitHub URL**: https://github.com/golang/go/commit/d17d41e58d2f69d284398f1d86d93c0f31648b16
+- **コミットハッシュ**: 8c5c2b71f4124eb5e72cde327d740a8dbdd4eeb8
+- **GitHub URL**: https://github.com/golang/go/commit/8c5c2b71f4124eb5e72cde327d740a8dbdd4eeb8
 
 ### 章構成
 

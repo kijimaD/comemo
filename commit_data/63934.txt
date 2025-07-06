@@ -1,0 +1,219 @@
+commit 1d3d6ae725697c5b224b26cb3aa1325ac37f72d7
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 22 00:14:42 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥1,000 dependents
+    
+    For #67401.
+    
+    Change-Id: If23a2c07e3dd042a3c439da7088437a330b9caa4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587222
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/runtime/badlinkname.go    |  3 ---
+ src/runtime/chan.go           | 10 ++++++++++
+ src/runtime/malloc.go         |  2 ++
+ src/runtime/map.go            |  4 ++++
+ src/runtime/mbarrier.go       | 19 +++++++++++++++++++
+ src/runtime/stubs.go          |  3 ++-
+ src/runtime/sys_darwin.go     |  7 +++++++
+ src/syscall/syscall_darwin.go |  9 +++++++++
+ 8 files changed, 53 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/badlinkname.go b/src/runtime/badlinkname.go
+index 47ebbad9a4..f826701aa4 100644
+--- a/src/runtime/badlinkname.go
++++ b/src/runtime/badlinkname.go
+@@ -20,7 +20,6 @@ import _ "unsafe"
+ //go:linkname add
+ //go:linkname atomicwb
+ //go:linkname callers
+-//go:linkname chanbuf
+ //go:linkname entersyscallblock
+ //go:linkname fastexprand
+ //go:linkname gopanic
+@@ -33,8 +32,6 @@ import _ "unsafe"
+ //go:linkname startTheWorld
+ //go:linkname stopTheWorld
+ //go:linkname stringHash
+-//go:linkname typedmemmove
+-//go:linkname typedslicecopy
+ //go:linkname typehash
+ //go:linkname wakep
+ 
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index 6ce824f62c..f1cd74a3fd 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -120,6 +120,16 @@ func makechan(t *chantype, size int) *hchan {
+ }
+ 
+ // chanbuf(c, i) is pointer to the i'th slot in the buffer.
++//
++// chanbuf should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/fjl/memsize
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname chanbuf
+ func chanbuf(c *hchan, i uint) unsafe.Pointer {
+ 	return add(c.buf, uintptr(i)*uintptr(c.elemsize))
+ }
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 097946df66..e2f296e7c4 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1407,6 +1407,7 @@ func reflectlite_unsafe_New(typ *_type) unsafe.Pointer {
+ // newarray should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/segmentio/encoding
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+@@ -1430,6 +1431,7 @@ func newarray(typ *_type, n int) unsafe.Pointer {
+ //   - github.com/bytedance/sonic
+ //   - github.com/goccy/json
+ //   - github.com/modern-go/reflect2
++//   - github.com/segmentio/encoding
+ //   - github.com/segmentio/kafka-go
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 276b204432..4818cdcd92 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -602,6 +602,7 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
++//   - github.com/segmentio/encoding
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+@@ -860,6 +861,7 @@ search:
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+ //   - github.com/goccy/go-json
++//   - github.com/segmentio/encoding
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+@@ -917,6 +919,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
++//   - github.com/segmentio/encoding
+ //   - gonum.org/v1/gonum
+ //
+ // Do not remove or change the type signature.
+@@ -1370,6 +1373,7 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
+ // Notable members of the hall of shame include:
+ //   - github.com/modern-go/reflect2
+ //   - github.com/goccy/go-json
++//   - github.com/segmentio/encoding
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index f09151d913..c90c5f729e 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -148,6 +148,15 @@ import (
+ // TODO: Perfect for go:nosplitrec since we can't have a safe point
+ // anywhere in the bulk barrier or memmove.
+ //
++// typedmemmove should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/segmentio/encoding
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname typedmemmove
+ //go:nosplit
+ func typedmemmove(typ *abi.Type, dst, src unsafe.Pointer) {
+ 	if dst == src {
+@@ -258,6 +267,15 @@ func reflectcallmove(typ *_type, dst, src unsafe.Pointer, size uintptr, regs *ab
+ 	}
+ }
+ 
++// typedslicecopy should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/segmentio/encoding
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname typedslicecopy
+ //go:nosplit
+ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe.Pointer, srcLen int) int {
+ 	n := dstLen
+@@ -317,6 +335,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/modern-go/reflect2
++//   - github.com/segmentio/encoding
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 7ec24d30e4..8770b59b02 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -119,8 +119,9 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+-//   - github.com/ugorji/go/codec
+ //   - github.com/ebitengine/purego
++//   - github.com/tetratelabs/wazero
++//   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index a96e2fe1e3..d8fa39429f 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -46,6 +46,13 @@ func syscallX()
+ // (in addition to standard package syscall).
+ // Do not remove or change the type signature.
+ //
++// syscall.syscall6 is meant for package syscall (and x/sys),
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/tetratelabs/wazero
++//
++// See go.dev/issue/67401.
++//
+ //go:linkname syscall_syscall6 syscall.syscall6
+ //go:nosplit
+ func syscall_syscall6(fn, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+diff --git a/src/syscall/syscall_darwin.go b/src/syscall/syscall_darwin.go
+index 2e13b57cd3..5b38aeae31 100644
+--- a/src/syscall/syscall_darwin.go
++++ b/src/syscall/syscall_darwin.go
+@@ -113,6 +113,15 @@ func libc_getfsstat_trampoline()
+ 
+ //go:cgo_import_dynamic libc_getfsstat getfsstat "/usr/lib/libSystem.B.dylib"
+ 
++// utimensat should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/tetratelabs/wazero
++//
++// See go.dev/issue/67401.
++//
++//go:linkname utimensat
++
+ //sys	utimensat(dirfd int, path string, times *[2]Timespec, flags int) (err error)
+ 
+ /*

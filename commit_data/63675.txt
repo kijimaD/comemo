@@ -1,0 +1,101 @@
+commit a878d3dfa0f9d7cd1de26e3df9eb3983a9f64b53
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed May 8 18:26:42 2024 +0000
+
+    encoding/hex: don't overallocate memory in DecodeString
+    
+    Now as []byte(string) doesn't always cause heap allocation (CL 520599, #2205)
+    we can make DecodeString simpler and more performant, by not allocating
+    x2 the required memory.
+    
+    goos: linux
+    goarch: amd64
+    pkg: encoding/hex
+    cpu: AMD Ryzen 5 4600G with Radeon Graphics
+                          │  beforehex   │              afterhex               │
+                          │    sec/op    │   sec/op     vs base                │
+    DecodeString/256-12      197.9n ± 1%   172.2n ± 1%  -13.01% (p=0.000 n=10)
+    DecodeString/1024-12     684.9n ± 1%   598.5n ± 1%  -12.61% (p=0.000 n=10)
+    DecodeString/4096-12     2.764µ ± 0%   2.343µ ± 1%  -15.23% (p=0.000 n=10)
+    DecodeString/16384-12   10.774µ ± 1%   9.348µ ± 1%  -13.23% (p=0.000 n=10)
+    geomean                  1.417µ        1.226µ       -13.53%
+    
+                          │  beforehex   │               afterhex               │
+                          │     B/s      │     B/s       vs base                │
+    DecodeString/256-12     1.205Gi ± 1%   1.385Gi ± 1%  +14.94% (p=0.000 n=10)
+    DecodeString/1024-12    1.393Gi ± 1%   1.593Gi ± 1%  +14.42% (p=0.000 n=10)
+    DecodeString/4096-12    1.380Gi ± 0%   1.628Gi ± 1%  +17.97% (p=0.000 n=10)
+    DecodeString/16384-12   1.416Gi ± 1%   1.632Gi ± 1%  +15.25% (p=0.000 n=10)
+    geomean                 1.346Gi        1.556Gi       +15.64%
+    
+                          │   beforehex   │               afterhex               │
+                          │     B/op      │     B/op      vs base                │
+    DecodeString/256-12        256.0 ± 0%     128.0 ± 0%  -50.00% (p=0.000 n=10)
+    DecodeString/1024-12      1024.0 ± 0%     512.0 ± 0%  -50.00% (p=0.000 n=10)
+    DecodeString/4096-12     4.000Ki ± 0%   2.000Ki ± 0%  -50.00% (p=0.000 n=10)
+    DecodeString/16384-12   16.000Ki ± 0%   8.000Ki ± 0%  -50.00% (p=0.000 n=10)
+    geomean                  2.000Ki        1.000Ki       -50.00%
+    
+                          │ beforehex  │              afterhex               │
+                          │ allocs/op  │ allocs/op   vs base                 │
+    DecodeString/256-12     1.000 ± 0%   1.000 ± 0%       ~ (p=1.000 n=10) ¹
+    DecodeString/1024-12    1.000 ± 0%   1.000 ± 0%       ~ (p=1.000 n=10) ¹
+    DecodeString/4096-12    1.000 ± 0%   1.000 ± 0%       ~ (p=1.000 n=10) ¹
+    DecodeString/16384-12   1.000 ± 0%   1.000 ± 0%       ~ (p=1.000 n=10) ¹
+    geomean                 1.000        1.000       +0.00%
+    
+    Change-Id: I5676e48f222d90786ea18e808cb4ecde9de82597
+    GitHub-Last-Rev: aeedf3f6c4a2505ae9cc0ae58a94c6b2f30806fd
+    GitHub-Pull-Request: golang/go#67259
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584118
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/encoding/hex/hex.go      |  8 +++-----
+ src/encoding/hex/hex_test.go | 12 ++++++++++++
+ 2 files changed, 15 insertions(+), 5 deletions(-)
+
+diff --git a/src/encoding/hex/hex.go b/src/encoding/hex/hex.go
+index 791d2bd4ad..ba9cc0f967 100644
+--- a/src/encoding/hex/hex.go
++++ b/src/encoding/hex/hex.go
+@@ -136,11 +136,9 @@ func EncodeToString(src []byte) string {
+ // If the input is malformed, DecodeString returns
+ // the bytes decoded before the error.
+ func DecodeString(s string) ([]byte, error) {
+-	src := []byte(s)
+-	// We can use the source slice itself as the destination
+-	// because the decode loop increments by one and then the 'seen' byte is not used anymore.
+-	n, err := Decode(src, src)
+-	return src[:n], err
++	dst := make([]byte, DecodedLen(len(s)))
++	n, err := Decode(dst, []byte(s))
++	return dst[:n], err
+ }
+ 
+ // Dump returns a string that contains a hex dump of the given data. The format
+diff --git a/src/encoding/hex/hex_test.go b/src/encoding/hex/hex_test.go
+index 03331eaae5..f90dec5315 100644
+--- a/src/encoding/hex/hex_test.go
++++ b/src/encoding/hex/hex_test.go
+@@ -275,6 +275,18 @@ func BenchmarkDecode(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkDecodeString(b *testing.B) {
++	for _, size := range []int{256, 1024, 4096, 16384} {
++		src := strings.Repeat("2b744faa", size/8)
++		b.Run(fmt.Sprintf("%v", size), func(b *testing.B) {
++			b.SetBytes(int64(size))
++			for i := 0; i < b.N; i++ {
++				sink, _ = DecodeString(src)
++			}
++		})
++	}
++}
++
+ func BenchmarkDump(b *testing.B) {
+ 	for _, size := range []int{256, 1024, 4096, 16384} {
+ 		src := bytes.Repeat([]byte{2, 3, 5, 7, 9, 11, 13, 17}, size/8)

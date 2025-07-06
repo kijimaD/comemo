@@ -1,0 +1,113 @@
+commit 194fa2eb6cdeaddc4a89fae4610f99d8060d10a0
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Tue Aug 13 17:17:06 2024 +0200
+
+    cmd/compile: compute Modu's maximum limits from argument's limits
+    
+    addLocalFacts loop already ft.update which sets up limits correctly, but doing this in flowLimit help us since other values might depend on this limit.
+    
+    Updates #68857
+    
+    We could improve this further:
+    - remove mod alltogheter when we can prove a < b.
+    - we could do more adhoc computation in flowLimit to set umax and umin tighter
+    
+    Change-Id: I5184913577b6a51a07cb53a6e6b73552a982de0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605156
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/prove.go |  7 +++++
+ test/prove.go                         | 52 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 807f198787..c90b380096 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1775,6 +1775,11 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 		a := ft.limits[v.Args[0].ID]
+ 		b := ft.limits[v.Args[1].ID]
+ 		return ft.newLimit(v, a.mul(b.exp2(8), 8))
++	case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
++		a := ft.limits[v.Args[0].ID]
++		b := ft.limits[v.Args[1].ID]
++		// Underflow in the arithmetic below is ok, it gives to MaxUint64 which does nothing to the limit.
++		return ft.unsignedMax(v, minU(a.umax, b.umax-1))
+ 
+ 	case OpPhi:
+ 		// Compute the union of all the input phis.
+@@ -1909,6 +1914,8 @@ func addLocalFacts(ft *factsTable, b *Block) {
+ 
+ 	// Add facts about individual operations.
+ 	for _, v := range b.Values {
++		// FIXME(go.dev/issue/68857): this loop only set up limits properly when b.Values is in topological order.
++		// flowLimit can also depend on limits given by this loop which right now is not handled.
+ 		switch v.Op {
+ 		case OpAnd64, OpAnd32, OpAnd16, OpAnd8:
+ 			ft.update(b, v, v.Args[0], unsigned, lt|eq)
+diff --git a/test/prove.go b/test/prove.go
+index 8e65404431..a1aa67d472 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1426,6 +1426,58 @@ func or64(a, b uint64, ensureBothBranchesCouldHappen bool) int {
+ 	return int(z)
+ }
+ 
++func mod64uWithSmallerDividendMax(a, b uint64, ensureBothBranchesCouldHappen bool) int {
++	a &= 0xff
++	b &= 0xfff
++
++	z := bits.Len64(a % b) // see go.dev/issue/68857 for bits.Len64
++
++	if ensureBothBranchesCouldHappen {
++		if z > bits.Len64(0xff) { // ERROR "Disproved Less64$"
++			return 42
++		}
++	} else {
++		if z <= bits.Len64(0xff) { // ERROR "Proved Leq64$"
++			return 1337
++		}
++	}
++	return z
++}
++func mod64uWithSmallerDivisorMax(a, b uint64, ensureBothBranchesCouldHappen bool) int {
++	a &= 0xfff
++	b &= 0x10 // we need bits.Len64(b.umax) != bits.Len64(b.umax-1)
++
++	z := bits.Len64(a % b) // see go.dev/issue/68857 for bits.Len64
++
++	if ensureBothBranchesCouldHappen {
++		if z > bits.Len64(0x10-1) { // ERROR "Disproved Less64$"
++			return 42
++		}
++	} else {
++		if z <= bits.Len64(0x10-1) { // ERROR "Proved Leq64$"
++			return 1337
++		}
++	}
++	return z
++}
++func mod64uWithIdenticalMax(a, b uint64, ensureBothBranchesCouldHappen bool) int {
++	a &= 0x10
++	b &= 0x10 // we need bits.Len64(b.umax) != bits.Len64(b.umax-1)
++
++	z := bits.Len64(a % b) // see go.dev/issue/68857 for bits.Len64
++
++	if ensureBothBranchesCouldHappen {
++		if z > bits.Len64(0x10-1) { // ERROR "Disproved Less64$"
++			return 42
++		}
++	} else {
++		if z <= bits.Len64(0x10-1) { // ERROR "Proved Leq64$"
++			return 1337
++		}
++	}
++	return z
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

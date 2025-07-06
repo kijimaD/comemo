@@ -1,0 +1,31 @@
+commit f99f5da18fdebe5ce73839604541f17f4e2bfd88
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Thu Nov 14 15:25:33 2024 -0600
+
+    cmd/internal/obj/fips: mark R_ADDRPOWR_GOT as a pcrel relocation
+    
+    It's actually a TOC relative relocation, but those are also accepted
+    as pcrel relocations here too. This fixes compilation on GOPPC64 <= power9.
+    
+    Change-Id: I235125a76f59ab26c6c753540cfaeb398f9c105d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628157
+    Auto-Submit: Paul Murphy <murp@ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/internal/obj/fips.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/internal/obj/fips.go b/src/cmd/internal/obj/fips.go
+index 6505ce79ee..a1ac4aac2a 100644
+--- a/src/cmd/internal/obj/fips.go
++++ b/src/cmd/internal/obj/fips.go
+@@ -317,6 +317,7 @@ func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
+ 		objabi.R_ADDRMIPSU, // used by adding to REGSB, so position-independent
+ 		objabi.R_ADDRMIPSTLS,
+ 		objabi.R_ADDROFF,
++		objabi.R_ADDRPOWER_GOT,
+ 		objabi.R_ADDRPOWER_GOT_PCREL34,
+ 		objabi.R_ADDRPOWER_PCREL,
+ 		objabi.R_ADDRPOWER_TOCREL,

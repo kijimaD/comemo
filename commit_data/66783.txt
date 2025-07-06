@@ -1,0 +1,39 @@
+commit d60a684c87104ed7836403eab74eb2be1e4a97cb
+Author: Zxilly <zxilly@outlook.com>
+Date:   Wed Apr 9 12:17:21 2025 +0000
+
+    cmd/internal/obj/wasm: use i64 for large return addr
+    
+    Use i64 to avoid overflow when getting PC_F from the return addr.
+    
+    Fixes #73246
+    
+    Change-Id: I5683dccf7eada4b8536edf53e2e83116a2f6d943
+    GitHub-Last-Rev: 267d9a1a031868430d0af530de14229ee1ae8609
+    GitHub-Pull-Request: golang/go#73277
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663995
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/internal/obj/wasm/wasmobj.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 42e5534f3b..9a3520f319 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -1006,9 +1006,10 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
+ 	// In the unwinding case, we call wasm_pc_f_loop_export to handle stack switch and rewinding,
+ 	// until a normal return (non-unwinding) back to this function.
+ 	p = appendp(p, AIf)
+-	p = appendp(p, AI32Const, retAddr)
+-	p = appendp(p, AI32Const, constAddr(16))
+-	p = appendp(p, AI32ShrU)
++	p = appendp(p, AI64Const, retAddr)
++	p = appendp(p, AI64Const, constAddr(16))
++	p = appendp(p, AI64ShrU)
++	p = appendp(p, AI32WrapI64)
+ 	p = appendp(p, ACall, obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: wasm_pc_f_loop_export})
+ 	p = appendp(p, AEnd)
+ 

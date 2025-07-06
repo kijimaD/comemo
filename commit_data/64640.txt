@@ -1,0 +1,48 @@
+commit 00c48ad6155a209841dbfb6154f650c622aaa10b
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Aug 28 18:13:05 2024 -0400
+
+    os/exec: document interaction of Dir, PWD, os.Getwd and C
+    
+    Fixes #68000
+    
+    Change-Id: Ie70a8ecc9573b2a4cf57119bda57e0af5e16c42f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/os/exec/exec.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index da9f68fe28..363759546f 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -166,11 +166,27 @@ type Cmd struct {
+ 	// value in the slice for each duplicate key is used.
+ 	// As a special case on Windows, SYSTEMROOT is always added if
+ 	// missing and not explicitly set to the empty string.
++	//
++	// See also the Dir field, which may set PWD in the environment.
+ 	Env []string
+ 
+ 	// Dir specifies the working directory of the command.
+ 	// If Dir is the empty string, Run runs the command in the
+ 	// calling process's current directory.
++	//
++	// On Unix systems, the value of Dir also determines the
++	// child process's PWD environment variable if not otherwise
++	// specified. A Unix process represents its working directory
++	// not by name but as an implicit reference to a node in the
++	// file tree. So, if the child process obtains its working
++	// directory by calling a function such as C's getcwd, which
++	// computes the canonical name by walking up the file tree, it
++	// will not recover the original value of Dir if that value
++	// was an alias involving symbolic links. However, if the
++	// child process calls Go's [os.Getwd] or GNU C's
++	// get_current_dir_name, and the value of PWD is an alias for
++	// the current directory, those functions will return the
++	// value of PWD, which matches the value of Dir.
+ 	Dir string
+ 
+ 	// Stdin specifies the process's standard input.

@@ -1,0 +1,71 @@
+commit bfb1f563716f513b1c58883c7217f468c53a0f1a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 11 20:33:20 2024 +0000
+
+    internal/trace/v2: make TestGCStress less random
+    
+    Currently TestGCStress' main loop allocates a randomly-sized byte slice
+    in a loop. On the windows-386 builder, it looks like the following is
+    happening.
+    
+    In such heavily-allocating scenarios, the test seems to be able to
+    outrun the GC. This is a known issue on all platforms, but it looks to
+    me like there may be a real issue with mark termination. (Fixing that is
+    outside the scope of this change, but relevant here.)
+    
+    Furthermore, while the test is ramping up, the pacer is taking time to
+    acclimate to the high allocation rate. This is probably made worse due
+    to the coarse time granularity on Windows, since the pacer relies on
+    accurate time measurements.
+    
+    Because the pacer is ramping up, it isn't starting early enough, causing
+    a lot of memory to get allocated black and inflate the live heap size.
+    This happens for more than one cycle.
+    
+    Last but not least, because the core allocating loop of this test
+    allocates randomly-sized byte slices, we could just get unlucky and
+    inflate the live heap by much more sometimes. Furthermore, the
+    randomness creates chaos for the pacer that is totally unnecessary for
+    this test.
+    
+    Although I couldn't reproduce the issue we're seeing on the trybots in a
+    gomote, I *could* reproduce memory spikes in general. These memory
+    spikes always occurred before the pacer had a chance to "warm up," in
+    the first two cycles after the heavy allocating begins.
+    
+    I believe the flakiness we're seeing is all of these factors lining up,
+    because if I just make the size of the allocated byte slices smaller and
+    non-random, I can no longer reproduce the memory spikes. This change
+    implements this as a fix in the hope that it'll resolve the flakiness.
+    
+    Fixes #66624.
+    
+    Change-Id: I478d45e7c600e5aee4b21dbe831e1f287284f5e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578319
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/trace/v2/testdata/testprog/gc-stress.go | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/internal/trace/v2/testdata/testprog/gc-stress.go b/src/internal/trace/v2/testdata/testprog/gc-stress.go
+index e56245bb8f..7979234c40 100644
+--- a/src/internal/trace/v2/testdata/testprog/gc-stress.go
++++ b/src/internal/trace/v2/testdata/testprog/gc-stress.go
+@@ -11,7 +11,6 @@ package main
+ 
+ import (
+ 	"log"
+-	"math/rand"
+ 	"os"
+ 	"runtime"
+ 	"runtime/trace"
+@@ -62,7 +61,7 @@ func main() {
+ 		i := i
+ 		go func() {
+ 			for {
+-				sink[i] = make([]byte, rand.Intn(32<<10))
++				sink[i] = make([]byte, 4<<10)
+ 			}
+ 		}()
+ 	}

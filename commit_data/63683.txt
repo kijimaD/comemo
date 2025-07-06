@@ -1,0 +1,52 @@
+commit cecbf4f28eed1327249ebb39e13c2e3ec6d12476
+Author: CP Lepage <32472542+cplepage@users.noreply.github.com>
+Date:   Tue May 7 12:35:25 2024 +0000
+
+    cmd/link: Add missing platform for Mac Catalyst
+    
+    Fixes #67175
+    
+    Defines a MachoPlatorm constant in OS_Darwin for MacCatalyst build. This enables adding the suffix $INODE64 on syscall methods needed for amd64 Darwin platform.
+    
+    Change-Id: Ie677e241599e2a14359c5809fa9ddb3b63161629
+    GitHub-Last-Rev: feae982e682d5b0479fe1c7eccdc423dc4bf2ea4
+    GitHub-Pull-Request: golang/go#67176
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583295
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/link/internal/ld/macho.go | 13 +++++++------
+ 1 file changed, 7 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 91e908c97f..33d44a3bec 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -195,11 +195,12 @@ const (
+ )
+ 
+ const (
+-	PLATFORM_MACOS    MachoPlatform = 1
+-	PLATFORM_IOS      MachoPlatform = 2
+-	PLATFORM_TVOS     MachoPlatform = 3
+-	PLATFORM_WATCHOS  MachoPlatform = 4
+-	PLATFORM_BRIDGEOS MachoPlatform = 5
++	PLATFORM_MACOS		MachoPlatform = 1
++	PLATFORM_IOS		MachoPlatform = 2
++	PLATFORM_TVOS		MachoPlatform = 3
++	PLATFORM_WATCHOS	MachoPlatform = 4
++	PLATFORM_BRIDGEOS	MachoPlatform = 5
++	PLATFORM_MACCATALYST	MachoPlatform = 6
+ )
+ 
+ // rebase table opcode
+@@ -969,7 +970,7 @@ func collectmachosyms(ctxt *Link) {
+ 		// Some 64-bit functions have a "$INODE64" or "$INODE64$UNIX2003" suffix.
+ 		if t == sym.SDYNIMPORT && ldr.SymDynimplib(s) == "/usr/lib/libSystem.B.dylib" {
+ 			// But only on macOS.
+-			if machoPlatform == PLATFORM_MACOS {
++			if machoPlatform == PLATFORM_MACOS || machoPlatform == PLATFORM_MACCATALYST {
+ 				switch n := ldr.SymExtname(s); n {
+ 				case "fdopendir":
+ 					switch buildcfg.GOARCH {

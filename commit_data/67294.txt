@@ -1,0 +1,65 @@
+commit a8e99ab19cbf8568cb452b899d0ed3f0d65848c5
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Fri May 30 16:05:04 2025 -0400
+
+    internal/trace: expose the go version read by the reader
+    
+    This change adds a function to expose the version set by the trace
+    reader after reading the trace header (in tests). The trace validator
+    needs to be able to determine what version of the trace it needs to
+    validate against. Clock snapshot checks have been disabled for
+    Windows and WASM.
+    
+    For #63185
+    
+    Change-Id: Ia3d63e6ed7a5ecd87e63292b84cc417d982aaa5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/internal/trace/export_reader_test.go | 12 ++++++++++++
+ src/internal/trace/reader_test.go        |  5 +++++
+ 2 files changed, 17 insertions(+)
+
+diff --git a/src/internal/trace/export_reader_test.go b/src/internal/trace/export_reader_test.go
+new file mode 100644
+index 0000000000..042c70864c
+--- /dev/null
++++ b/src/internal/trace/export_reader_test.go
+@@ -0,0 +1,12 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package trace
++
++import "internal/trace/version"
++
++// GoVersion is the version set in the trace header.
++func (r *Reader) GoVersion() version.Version {
++	return r.version
++}
+diff --git a/src/internal/trace/reader_test.go b/src/internal/trace/reader_test.go
+index 691cda6688..39ae77471e 100644
+--- a/src/internal/trace/reader_test.go
++++ b/src/internal/trace/reader_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"os"
+ 	"path/filepath"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -109,6 +110,10 @@ func testReader(t *testing.T, tr io.Reader, v *testtrace.Validator, exp *testtra
+ 		if err == io.EOF {
+ 			break
+ 		}
++		v.GoVersion = r.GoVersion()
++		if runtime.GOOS == "windows" || runtime.GOARCH == "wasm" {
++			v.SkipClockSnapshotChecks()
++		}
+ 		if err != nil {
+ 			if err := exp.Check(err); err != nil {
+ 				t.Error(err)

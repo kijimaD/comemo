@@ -1,0 +1,363 @@
+commit 66abc557077c026cf21b228fe0f53afe652a4d1c
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 4 11:21:04 2024 -0800
+
+    net/http: add support for unencrypted HTTP/2
+    
+    Add an UnencryptedHTTP2 protocol value.
+    
+    Both Server and Transport implement "HTTP/2 with prior knowledge"
+    as described in RFC 9113, section 3.3. Neither supports the
+    deprecated HTTP/2 upgrade mechanism (RFC 7540, section 3.2 "h2c").
+    
+    For Server, UnencryptedHTTP2 controls whether the server
+    will accept HTTP/2 connections on unencrypted ports.
+    When enabled, the server checks new connections for
+    the HTTP/2 preface and routes them appropriately.
+    
+    For Transport, enabling UnencryptedHTTP2 and disabling HTTP1
+    causes http:// requests to be made over unencrypted HTTP/2
+    connections.
+    
+    For #67816
+    
+    Change-Id: I2763c4cdec1c2bc6bb8157edb93b94377de8a59b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622976
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+---
+ api/next/67816.txt                           |  2 +
+ doc/next/6-stdlib/99-minor/net/http/67816.md | 15 +++++
+ src/net/http/http.go                         | 12 ++++
+ src/net/http/server.go                       | 84 +++++++++++++++++++++++++++-
+ src/net/http/transport.go                    | 23 +++++++-
+ src/net/http/transport_test.go               | 64 +++++++++++++++++++++
+ 6 files changed, 198 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/67816.txt b/api/next/67816.txt
+new file mode 100644
+index 0000000000..91187448bc
+--- /dev/null
++++ b/api/next/67816.txt
+@@ -0,0 +1,2 @@
++pkg net/http, method (*Protocols) SetUnencryptedHTTP2(bool) #67816
++pkg net/http, method (Protocols) UnencryptedHTTP2() bool #67816
+diff --git a/doc/next/6-stdlib/99-minor/net/http/67816.md b/doc/next/6-stdlib/99-minor/net/http/67816.md
+new file mode 100644
+index 0000000000..c96d85258c
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/http/67816.md
+@@ -0,0 +1,15 @@
++The server and client may be configured to support unencrypted HTTP/2
++connections.
++
++When [Server.Protocols] contains UnencryptedHTTP2, the server will accept
++HTTP/2 connections on unencrypted ports. The server can accept both
++HTTP/1 and unencrypted HTTP/2 on the same port.
++
++When [Transport.Protocols] contains UnencryptedHTTP2 and does not contain
++HTTP1, the transport will use unencrypted HTTP/2 for http:// URLs.
++If the transport is configured to use both HTTP/1 and unencrypted HTTP/2,
++it will use HTTP/1.
++
++Unencrypted HTTP/2 support uses "HTTP/2 with Prior Knowledge"
++(RFC 9113, section 3.3). The deprecated "Upgrade: h2c" header
++is not supported.
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index 55f518607d..4da77889b1 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -24,6 +24,8 @@ import (
+ //     HTTP1 is supported on both unsecured TCP and secured TLS connections.
+ //
+ //   - HTTP2 is the HTTP/2 protcol over a TLS connection.
++//
++//   - UnencryptedHTTP2 is the HTTP/2 protocol over an unsecured TCP connection.
+ type Protocols struct {
+ 	bits uint8
+ }
+@@ -31,6 +33,7 @@ type Protocols struct {
+ const (
+ 	protoHTTP1 = 1 << iota
+ 	protoHTTP2
++	protoUnencryptedHTTP2
+ )
+ 
+ // HTTP1 reports whether p includes HTTP/1.
+@@ -45,6 +48,12 @@ func (p Protocols) HTTP2() bool { return p.bits&protoHTTP2 != 0 }
+ // SetHTTP2 adds or removes HTTP/2 from p.
+ func (p *Protocols) SetHTTP2(ok bool) { p.setBit(protoHTTP2, ok) }
+ 
++// UnencryptedHTTP2 reports whether p includes unencrypted HTTP/2.
++func (p Protocols) UnencryptedHTTP2() bool { return p.bits&protoUnencryptedHTTP2 != 0 }
++
++// SetUnencryptedHTTP2 adds or removes unencrypted HTTP/2 from p.
++func (p *Protocols) SetUnencryptedHTTP2(ok bool) { p.setBit(protoUnencryptedHTTP2, ok) }
++
+ func (p *Protocols) setBit(bit uint8, ok bool) {
+ 	if ok {
+ 		p.bits |= bit
+@@ -61,6 +70,9 @@ func (p Protocols) String() string {
+ 	if p.HTTP2() {
+ 		s = append(s, "HTTP2")
+ 	}
++	if p.UnencryptedHTTP2() {
++		s = append(s, "UnencryptedHTTP2")
++	}
+ 	return "{" + strings.Join(s, ",") + "}"
+ }
+ 
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 2c9774a7a5..1e8e1437d2 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2013,6 +2013,16 @@ func (c *conn) serve(ctx context.Context) {
+ 	c.bufr = newBufioReader(c.r)
+ 	c.bufw = newBufioWriterSize(checkConnErrorWriter{c}, 4<<10)
+ 
++	protos := c.server.protocols()
++	if c.tlsState == nil && protos.UnencryptedHTTP2() {
++		if c.maybeServeUnencryptedHTTP2(ctx) {
++			return
++		}
++	}
++	if !protos.HTTP1() {
++		return
++	}
++
+ 	for {
+ 		w, err := c.readRequest(ctx)
+ 		if c.r.remain != c.server.initialReadLimitSize() {
+@@ -2132,6 +2142,70 @@ func (c *conn) serve(ctx context.Context) {
+ 	}
+ }
+ 
++// unencryptedHTTP2Request is an HTTP handler that initializes
++// certain uninitialized fields in its *Request.
++//
++// It's the unencrypted version of initALPNRequest.
++type unencryptedHTTP2Request struct {
++	ctx context.Context
++	c   net.Conn
++	h   serverHandler
++}
++
++func (h unencryptedHTTP2Request) BaseContext() context.Context { return h.ctx }
++
++func (h unencryptedHTTP2Request) ServeHTTP(rw ResponseWriter, req *Request) {
++	if req.Body == nil {
++		req.Body = NoBody
++	}
++	if req.RemoteAddr == "" {
++		req.RemoteAddr = h.c.RemoteAddr().String()
++	}
++	h.h.ServeHTTP(rw, req)
++}
++
++// unencryptedNetConnInTLSConn is used to pass an unencrypted net.Conn to
++// functions that only accept a *tls.Conn.
++type unencryptedNetConnInTLSConn struct {
++	net.Conn // panic on all net.Conn methods
++	conn     net.Conn
++}
++
++func (c unencryptedNetConnInTLSConn) UnencryptedNetConn() net.Conn {
++	return c.conn
++}
++
++func unencryptedTLSConn(c net.Conn) *tls.Conn {
++	return tls.Client(unencryptedNetConnInTLSConn{conn: c}, nil)
++}
++
++// TLSNextProto key to use for unencrypted HTTP/2 connections.
++// Not actually a TLS-negotiated protocol.
++const nextProtoUnencryptedHTTP2 = "unencrypted_http2"
++
++func (c *conn) maybeServeUnencryptedHTTP2(ctx context.Context) bool {
++	fn, ok := c.server.TLSNextProto[nextProtoUnencryptedHTTP2]
++	if !ok {
++		return false
++	}
++	hasPreface := func(c *conn, preface []byte) bool {
++		c.r.setReadLimit(int64(len(preface)) - int64(c.bufr.Buffered()))
++		got, err := c.bufr.Peek(len(preface))
++		c.r.setInfiniteReadLimit()
++		return err == nil && bytes.Equal(got, preface)
++	}
++	if !hasPreface(c, []byte("PRI * HTTP/2.0")) {
++		return false
++	}
++	if !hasPreface(c, []byte("PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n")) {
++		return false
++	}
++	c.setState(c.rwc, StateActive, skipHooks)
++	h := unencryptedHTTP2Request{ctx, c.rwc, serverHandler{c.server}}
++	fn(c.server, unencryptedTLSConn(c.rwc), h)
++	return true
++}
++
+ func (w *response) sendExpectationFailed() {
+ 	// TODO(bradfitz): let ServeHTTP handlers handle
+ 	// requests with non-standard expectation[s]? Seems
+@@ -2981,6 +3055,10 @@ type Server struct {
+ 
+ 	// Protocols is the set of protocols accepted by the server.
+ 	//
++	// If Protocols includes UnencryptedHTTP2, the server will accept
++	// unencrypted HTTP/2 connections. The server can serve both
++	// HTTP/1 and unencrypted HTTP/2 on the same address and port.
++	//
+ 	// If Protocols is nil, the default is usually HTTP/1 and HTTP/2.
+ 	// If TLSNextProto is non-nil and does not contain an "h2" entry,
+ 	// the default is HTTP/1 only.
+@@ -3286,6 +3364,9 @@ func (s *Server) shouldConfigureHTTP2ForServe() bool {
+ 		// in case the listener returns an "h2" *tls.Conn.
+ 		return true
+ 	}
++	if s.protocols().UnencryptedHTTP2() {
++		return true
++	}
+ 	// The user specified a TLSConfig on their http.Server.
+ 	// In this, case, only configure HTTP/2 if their tls.Config
+ 	// explicitly mentions "h2". Otherwise http2.ConfigureServer
+@@ -3658,7 +3739,8 @@ func (s *Server) onceSetNextProtoDefaults() {
+ 	if omitBundledHTTP2 {
+ 		return
+ 	}
+-	if !s.protocols().HTTP2() {
++	p := s.protocols()
++	if !p.HTTP2() && !p.UnencryptedHTTP2() {
+ 		return
+ 	}
+ 	if http2server.Value() == "0" {
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index c44d81e901..e2ce4dde3d 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -302,6 +302,9 @@ type Transport struct {
+ 
+ 	// Protocols is the set of protocols supported by the transport.
+ 	//
++	// If Protocols includes UnencryptedHTTP2 and does not include HTTP1,
++	// the transport will use unencrypted HTTP/2 for requests for http:// URLs.
++	//
+ 	// If Protocols is nil, the default is usually HTTP/1 only.
+ 	// If ForceAttemptHTTP2 is true, or if TLSNextProto contains an "h2" entry,
+ 	// the default is HTTP/1 and HTTP/2.
+@@ -410,7 +413,7 @@ func (t *Transport) onceSetNextProtoDefaults() {
+ 	}
+ 
+ 	protocols := t.protocols()
+-	if !protocols.HTTP2() {
++	if !protocols.HTTP2() && !protocols.UnencryptedHTTP2() {
+ 		return
+ 	}
+ 	if omitBundledHTTP2 {
+@@ -1902,6 +1905,24 @@ func (t *Transport) dialConn(ctx context.Context, cm connectMethod) (pconn *pers
+ 		}
+ 	}
+ 
++	// Possible unencrypted HTTP/2 with prior knowledge.
++	unencryptedHTTP2 := pconn.tlsState == nil &&
++		t.Protocols != nil &&
++		t.Protocols.UnencryptedHTTP2() &&
++		!t.Protocols.HTTP1()
++	if unencryptedHTTP2 {
++		next, ok := t.TLSNextProto[nextProtoUnencryptedHTTP2]
++		if !ok {
++			return nil, errors.New("http: Transport does not support unencrypted HTTP/2")
++		}
++		alt := next(cm.targetAddr, unencryptedTLSConn(pconn.conn))
++		if e, ok := alt.(erringRoundTripper); ok {
++			// pconn.conn was closed by next (http2configureTransports.upgradeFn).
++			return nil, e.RoundTripErr()
++		}
++		return &persistConn{t: t, cacheKey: pconn.cacheKey, alt: alt}, nil
++	}
++
+ 	if s := pconn.tlsState; s != nil && s.NegotiatedProtocolIsMutual && s.NegotiatedProtocol != "" {
+ 		if next, ok := t.TLSNextProto[s.NegotiatedProtocol]; ok {
+ 			alt := next(cm.targetAddr, pconn.conn.(*tls.Conn))
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 2fc18c5903..d742b78cf8 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -7312,6 +7312,67 @@ func TestTransportServerProtocols(t *testing.T) {
+ 			tr.Protocols.SetHTTP2(true)
+ 		},
+ 		want: "HTTP/1.1",
++	}, {
++		name:   "unencrypted HTTP2 with prior knowledge",
++		scheme: "http",
++		transport: func(tr *Transport) {
++			tr.Protocols = &Protocols{}
++			tr.Protocols.SetUnencryptedHTTP2(true)
++		},
++		server: func(srv *Server) {
++			srv.Protocols = &Protocols{}
++			srv.Protocols.SetHTTP1(true)
++			srv.Protocols.SetUnencryptedHTTP2(true)
++		},
++		want: "HTTP/2.0",
++	}, {
++		name:   "unencrypted HTTP2 only on server",
++		scheme: "http",
++		transport: func(tr *Transport) {
++			tr.Protocols = &Protocols{}
++			tr.Protocols.SetUnencryptedHTTP2(true)
++		},
++		server: func(srv *Server) {
++			srv.Protocols = &Protocols{}
++			srv.Protocols.SetUnencryptedHTTP2(true)
++		},
++		want: "HTTP/2.0",
++	}, {
++		name:   "unencrypted HTTP2 with no server support",
++		scheme: "http",
++		transport: func(tr *Transport) {
++			tr.Protocols = &Protocols{}
++			tr.Protocols.SetUnencryptedHTTP2(true)
++		},
++		server: func(srv *Server) {
++			srv.Protocols = &Protocols{}
++			srv.Protocols.SetHTTP1(true)
++		},
++		want: "error",
++	}, {
++		name:   "HTTP1 with no server support",
++		scheme: "http",
++		transport: func(tr *Transport) {
++			tr.Protocols = &Protocols{}
++			tr.Protocols.SetHTTP1(true)
++		},
++		server: func(srv *Server) {
++			srv.Protocols = &Protocols{}
++			srv.Protocols.SetUnencryptedHTTP2(true)
++		},
++		want: "error",
++	}, {
++		name:   "HTTPS1 with no server support",
++		scheme: "https",
++		transport: func(tr *Transport) {
++			tr.Protocols = &Protocols{}
++			tr.Protocols.SetHTTP1(true)
++		},
++		server: func(srv *Server) {
++			srv.Protocols = &Protocols{}
++			srv.Protocols.SetHTTP2(true)
++		},
++		want: "error",
+ 	}} {
+ 		t.Run(test.name, func(t *testing.T) {
+ 			// We don't use httptest here because it makes its own decisions
+@@ -7362,6 +7423,9 @@ func TestTransportServerProtocols(t *testing.T) {
+ 			client := &Client{Transport: tr}
+ 			resp, err := client.Get(test.scheme + "://" + listener.Addr().String())
+ 			if err != nil {
++				if test.want == "error" {
++					return
++				}
+ 				t.Fatal(err)
+ 			}
+ 			if got := resp.Header.Get("X-Proto"); got != test.want {

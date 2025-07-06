@@ -1,0 +1,214 @@
+commit ce46c9db867fb54a9c1f39b73ac8c2f339ca0587
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 12 18:02:39 2025 +0100
+
+    internal/godebug,crypto/fips140: make fips140 setting immutable
+    
+    Updates #70123
+    
+    Co-authored-by: qmuntal <quimmuntal@gmail.com>
+    Change-Id: I6a6a4656fd23ecd82428cccbd7c48692287fc75a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657116
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+---
+ src/crypto/fips140/fips140.go        |  8 ------
+ src/crypto/fips140/fips140_test.go   | 51 ++++++++++++++++++++++++++++++++++++
+ src/go/build/deps_test.go            |  4 +--
+ src/internal/godebug/godebug.go      |  8 +++++-
+ src/internal/godebug/godebug_test.go | 29 ++++++++++++++++++++
+ src/internal/godebugs/table.go       | 13 ++++-----
+ 6 files changed, 95 insertions(+), 18 deletions(-)
+
+diff --git a/src/crypto/fips140/fips140.go b/src/crypto/fips140/fips140.go
+index 1c4036d5e7..830b6f80af 100644
+--- a/src/crypto/fips140/fips140.go
++++ b/src/crypto/fips140/fips140.go
+@@ -7,11 +7,8 @@ package fips140
+ import (
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/check"
+-	"internal/godebug"
+ )
+ 
+-var fips140GODEBUG = godebug.New("fips140")
+-
+ // Enabled reports whether the cryptography libraries are operating in FIPS
+ // 140-3 mode.
+ //
+@@ -21,11 +18,6 @@ var fips140GODEBUG = godebug.New("fips140")
+ //
+ // This can't be changed after the program has started.
+ func Enabled() bool {
+-	godebug := fips140GODEBUG.Value()
+-	currentlyEnabled := godebug == "on" || godebug == "only" || godebug == "debug"
+-	if currentlyEnabled != fips140.Enabled {
+-		panic("crypto/fips140: GODEBUG setting changed after program start")
+-	}
+ 	if fips140.Enabled && !check.Verified {
+ 		panic("crypto/fips140: FIPS 140-3 mode enabled, but integrity check didn't pass")
+ 	}
+diff --git a/src/crypto/fips140/fips140_test.go b/src/crypto/fips140/fips140_test.go
+new file mode 100644
+index 0000000000..c038add947
+--- /dev/null
++++ b/src/crypto/fips140/fips140_test.go
+@@ -0,0 +1,51 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips140
++
++import (
++	"internal/godebug"
++	"os"
++	"testing"
++)
++
++func TestImmutableGODEBUG(t *testing.T) {
++	defer func(v string) { os.Setenv("GODEBUG", v) }(os.Getenv("GODEBUG"))
++
++	fips140Enabled := Enabled()
++	fips140Setting := godebug.New("fips140")
++	fips140SettingValue := fips140Setting.Value()
++
++	os.Setenv("GODEBUG", "fips140=off")
++	if Enabled() != fips140Enabled {
++		t.Errorf("Enabled() changed after setting GODEBUG=fips140=off")
++	}
++	if fips140Setting.Value() != fips140SettingValue {
++		t.Errorf("fips140Setting.Value() changed after setting GODEBUG=fips140=off")
++	}
++
++	os.Setenv("GODEBUG", "fips140=on")
++	if Enabled() != fips140Enabled {
++		t.Errorf("Enabled() changed after setting GODEBUG=fips140=on")
++	}
++	if fips140Setting.Value() != fips140SettingValue {
++		t.Errorf("fips140Setting.Value() changed after setting GODEBUG=fips140=on")
++	}
++
++	os.Setenv("GODEBUG", "fips140=")
++	if Enabled() != fips140Enabled {
++		t.Errorf("Enabled() changed after setting GODEBUG=fips140=")
++	}
++	if fips140Setting.Value() != fips140SettingValue {
++		t.Errorf("fips140Setting.Value() changed after setting GODEBUG=fips140=")
++	}
++
++	os.Setenv("GODEBUG", "")
++	if Enabled() != fips140Enabled {
++		t.Errorf("Enabled() changed after setting GODEBUG=")
++	}
++	if fips140Setting.Value() != fips140SettingValue {
++		t.Errorf("fips140Setting.Value() changed after setting GODEBUG=")
++	}
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 23b6fd6c81..b2668a3d7d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -519,9 +519,7 @@ var depsRules = `
+ 	< crypto/internal/fips140/edwards25519
+ 	< crypto/internal/fips140/ed25519
+ 	< crypto/internal/fips140/rsa
+-	< FIPS;
+-
+-	FIPS, internal/godebug < crypto/fips140;
++	< FIPS < crypto/fips140;
+ 
+ 	crypto !< FIPS;
+ 
+diff --git a/src/internal/godebug/godebug.go b/src/internal/godebug/godebug.go
+index 0756d313e6..8c66a8a19a 100644
+--- a/src/internal/godebug/godebug.go
++++ b/src/internal/godebug/godebug.go
+@@ -237,8 +237,14 @@ func update(def, env string) {
+ 	// Update all the cached values, creating new ones as needed.
+ 	// We parse the environment variable first, so that any settings it has
+ 	// are already locked in place (did[name] = true) before we consider
+-	// the defaults.
++	// the defaults. Existing immutable settings are always locked.
+ 	did := make(map[string]bool)
++	cache.Range(func(name, s any) bool {
++		if info := s.(*setting).info; info != nil && info.Immutable {
++			did[name.(string)] = true
++		}
++		return true
++	})
+ 	parse(did, env)
+ 	parse(did, def)
+ 
+diff --git a/src/internal/godebug/godebug_test.go b/src/internal/godebug/godebug_test.go
+index 60c35a9619..47f4cc2761 100644
+--- a/src/internal/godebug/godebug_test.go
++++ b/src/internal/godebug/godebug_test.go
+@@ -162,3 +162,32 @@ func TestBisectTestCase(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestImmutable(t *testing.T) {
++	defer func(godebug string) {
++		os.Setenv("GODEBUG", godebug)
++	}(os.Getenv("GODEBUG"))
++
++	setting := New("fips140")
++	value := setting.Value()
++
++	os.Setenv("GODEBUG", "fips140=off")
++	if setting.Value() != value {
++		t.Errorf("Value() changed after setting GODEBUG=fips140=off")
++	}
++
++	os.Setenv("GODEBUG", "fips140=on")
++	if setting.Value() != value {
++		t.Errorf("Value() changed after setting GODEBUG=fips140=on")
++	}
++
++	os.Setenv("GODEBUG", "fips140=")
++	if setting.Value() != value {
++		t.Errorf("Value() changed after setting GODEBUG=fips140=")
++	}
++
++	os.Setenv("GODEBUG", "")
++	if setting.Value() != value {
++		t.Errorf("Value() changed after setting GODEBUG=")
++	}
++}
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 9262ce23ba..d7d3f430cd 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -9,11 +9,12 @@ package godebugs
+ 
+ // An Info describes a single known GODEBUG setting.
+ type Info struct {
+-	Name    string // name of the setting ("panicnil")
+-	Package string // package that uses the setting ("runtime")
+-	Changed int    // minor version when default changed, if any; 21 means Go 1.21
+-	Old     string // value that restores behavior prior to Changed
+-	Opaque  bool   // setting does not export information to runtime/metrics using [internal/godebug.Setting.IncNonDefault]
++	Name      string // name of the setting ("panicnil")
++	Package   string // package that uses the setting ("runtime")
++	Changed   int    // minor version when default changed, if any; 21 means Go 1.21
++	Old       string // value that restores behavior prior to Changed
++	Opaque    bool   // setting does not export information to runtime/metrics using [internal/godebug.Setting.IncNonDefault]
++	Immutable bool   // setting cannot be changed after program start
+ }
+ 
+ // All is the table of known settings, sorted by Name.
+@@ -31,7 +32,7 @@ var All = []Info{
+ 	{Name: "decoratemappings", Package: "runtime", Opaque: true, Changed: 25, Old: "0"},
+ 	{Name: "embedfollowsymlinks", Package: "cmd/go"},
+ 	{Name: "execerrdot", Package: "os/exec"},
+-	{Name: "fips140", Package: "crypto/fips140", Opaque: true},
++	{Name: "fips140", Package: "crypto/fips140", Opaque: true, Immutable: true},
+ 	{Name: "gocachehash", Package: "cmd/go"},
+ 	{Name: "gocachetest", Package: "cmd/go"},
+ 	{Name: "gocacheverify", Package: "cmd/go"},

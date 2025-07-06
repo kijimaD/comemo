@@ -1,0 +1,64 @@
+commit 33d3f603c19f46e6529483230465cd6f420ce23b
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed May 21 13:13:48 2025 -0400
+
+    cmd/link/internal/ld: use 12.0.0 OS/SDK versions for macOS linking
+    
+    Go 1.25 will require macOS 12 Monterey or later, so macOS 11 will be
+    unsupported. The comment here suggests using a supported macOS version,
+    and that it can be the most recent one.
+    
+    For now, make a minimal change of going from 11.0.0 to 12.0.0 so that
+    the chosen version is a supported one (although not the most recent).
+    
+    However, it looks like even in CL 460476 (where the comment was added)
+    we were staying with the macOS version that matched Go's oldest, so we
+    might not have have recent experience with going beyond that. Update
+    the comment accordingly.
+    
+    For #69839.
+    
+    Change-Id: I90908971b0d5a8235ce77dc6bc9649e86008270a
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest,gotip-darwin-arm64-longtest,gotip-darwin-amd64_12,gotip-darwin-amd64_14,gotip-darwin-arm64_12,gotip-darwin-arm64_15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675095
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/link/internal/ld/macho.go | 6 ++++--
+ src/cmd/link/link_test.go         | 4 ++--
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index f55f342d6e..431dad9d6b 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -430,8 +430,10 @@ func (ctxt *Link) domacho() {
+ 				// This must be fairly recent for Apple signing (go.dev/issue/30488).
+ 				// Having too old a version here was also implicated in some problems
+ 				// calling into macOS libraries (go.dev/issue/56784).
+-				// In general this can be the most recent supported macOS version.
+-				version = 11<<16 | 0<<8 | 0<<0 // 11.0.0
++				// CL 460476 noted that in general this can be the most recent supported
++				// macOS version, but we haven't tested if going higher than Go's oldest
++				// supported macOS version could cause new problems.
++				version = 12<<16 | 0<<8 | 0<<0 // 12.0.0
+ 			}
+ 			ml := newMachoLoad(ctxt.Arch, imacho.LC_BUILD_VERSION, 4)
+ 			ml.data[0] = uint32(machoPlatform)
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index c3614c73f0..7c3ca427ed 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -397,8 +397,8 @@ func TestMachOBuildVersion(t *testing.T) {
+ 	found := false
+ 	checkMin := func(ver uint32) {
+ 		major, minor, patch := (ver>>16)&0xff, (ver>>8)&0xff, (ver>>0)&0xff
+-		if major < 11 {
+-			t.Errorf("LC_BUILD_VERSION version %d.%d.%d < 11.0.0", major, minor, patch)
++		if major < 12 {
++			t.Errorf("LC_BUILD_VERSION version %d.%d.%d < 12.0.0", major, minor, patch)
+ 		}
+ 	}
+ 	for _, cmd := range exem.Loads {

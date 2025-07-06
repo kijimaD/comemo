@@ -1,0 +1,539 @@
+commit a65f1a467ff6a10dc6688f292dfa8a2e08cc1eb4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Nov 15 20:42:32 2024 +0000
+
+    weak: move internal/weak to weak, and update according to proposal
+    
+    The updates are:
+    - API documentation changes.
+    - Removal of the old package documentation discouraging linkname.
+    - Addition of new package documentation with some advice.
+    - Renaming of weak.Pointer.Strong -> weak.Pointer.Value.
+    
+    Fixes #67552.
+    
+    Change-Id: Ifad7e629b6d339dacaf2ca37b459d7f903e31bf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ api/next/67552.txt                       |  3 ++
+ doc/next/6-stdlib/1-weak.md              | 12 +++++
+ doc/next/6-stdlib/99-minor/weak/67552.md |  1 +
+ src/cmd/link/internal/loader/loader.go   |  3 --
+ src/go/build/deps_test.go                |  2 +-
+ src/go/doc/comment/std.go                |  1 +
+ src/internal/weak/pointer.go             | 83 --------------------------------
+ src/runtime/gc_test.go                   |  6 +--
+ src/runtime/mgcsweep.go                  |  2 +-
+ src/runtime/mheap.go                     |  4 +-
+ src/unique/handle.go                     |  6 +--
+ src/unique/handle_test.go                |  2 +-
+ src/weak/doc.go                          | 26 ++++++++++
+ src/weak/pointer.go                      | 62 ++++++++++++++++++++++++
+ src/{internal => }/weak/pointer_test.go  | 26 +++++-----
+ 15 files changed, 129 insertions(+), 110 deletions(-)
+
+diff --git a/api/next/67552.txt b/api/next/67552.txt
+new file mode 100644
+index 0000000000..5e2c21fc3d
+--- /dev/null
++++ b/api/next/67552.txt
+@@ -0,0 +1,3 @@
++pkg weak, func Make[$0 interface{}](*$0) Pointer[$0] #67552
++pkg weak, method (Pointer[$0]) Value() *$0 #67552
++pkg weak, type Pointer[$0 interface{}] struct #67552
+diff --git a/doc/next/6-stdlib/1-weak.md b/doc/next/6-stdlib/1-weak.md
+new file mode 100644
+index 0000000000..1965c1f9b9
+--- /dev/null
++++ b/doc/next/6-stdlib/1-weak.md
+@@ -0,0 +1,12 @@
++### New weak package
++
++The new [weak](/pkg/weak) package provides weak pointers.
++
++Weak pointers are a low-level primitive provided to enable the
++creation of memory-efficient structures, such as weak maps for
++associating values, canonicalization maps for anything not
++covered by package [unique](/pkg/unique), and various kinds
++of caches.
++For supporting these use-cases, this release also provides
++[runtime.AddCleanup](/pkg/runtime#AddCleanup) and
++[maphash.Comparable](/pkg/maphash#Comparable).
+diff --git a/doc/next/6-stdlib/99-minor/weak/67552.md b/doc/next/6-stdlib/99-minor/weak/67552.md
+new file mode 100644
+index 0000000000..e7210389d4
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/weak/67552.md
+@@ -0,0 +1 @@
++<!-- This is a new package; covered in 6-stdlib/1-weak.md. -->
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index fe11f91526..688971146d 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2336,9 +2336,6 @@ var blockedLinknames = map[string][]string{
+ 	// coroutines
+ 	"runtime.coroswitch": {"iter"},
+ 	"runtime.newcoro":    {"iter"},
+-	// weak references
+-	"internal/weak.runtime_registerWeakPointer": {"internal/weak"},
+-	"internal/weak.runtime_makeStrongFromWeak":  {"internal/weak"},
+ 	// fips info
+ 	"go:fipsinfo": {"crypto/internal/fips/check"},
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4d80aa7356..8d721a02b8 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -96,8 +96,8 @@ var depsRules = `
+ 	< internal/runtime/maps
+ 	< runtime
+ 	< sync/atomic
+-	< internal/weak
+ 	< internal/sync
++	< weak
+ 	< sync
+ 	< internal/bisect
+ 	< internal/godebug
+diff --git a/src/go/doc/comment/std.go b/src/go/doc/comment/std.go
+index f6958512c2..191e1f1291 100644
+--- a/src/go/doc/comment/std.go
++++ b/src/go/doc/comment/std.go
+@@ -47,4 +47,5 @@ var stdPkgs = []string{
+ 	"unicode",
+ 	"unique",
+ 	"unsafe",
++	"weak",
+ }
+diff --git a/src/internal/weak/pointer.go b/src/internal/weak/pointer.go
+deleted file mode 100644
+index 8e05af2d23..0000000000
+--- a/src/internal/weak/pointer.go
++++ /dev/null
+@@ -1,83 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-/*
+-The weak package is a package for managing weak pointers.
+-
+-Weak pointers are pointers that explicitly do not keep a value live and
+-must be queried for a regular Go pointer.
+-The result of such a query may be observed as nil at any point after a
+-weakly-pointed-to object becomes eligible for reclamation by the garbage
+-collector.
+-More specifically, weak pointers become nil as soon as the garbage collector
+-identifies that the object is unreachable, before it is made reachable
+-again by a finalizer.
+-In terms of the C# language, these semantics are roughly equivalent to the
+-the semantics of "short" weak references.
+-In terms of the Java language, these semantics are roughly equivalent to the
+-semantics of the WeakReference type.
+-
+-Using go:linkname to access this package and the functions it references
+-is explicitly forbidden by the toolchain because the semantics of this
+-package have not gone through the proposal process. By exposing this
+-functionality, we risk locking in the existing semantics due to Hyrum's Law.
+-
+-If you believe you have a good use-case for weak references not already
+-covered by the standard library, file a proposal issue at
+-https://github.com/golang/go/issues instead of relying on this package.
+-*/
+-package weak
+-
+-import (
+-	"internal/abi"
+-	"runtime"
+-	"unsafe"
+-)
+-
+-// Pointer is a weak pointer to a value of type T.
+-//
+-// This value is comparable is guaranteed to compare equal if the pointers
+-// that they were created from compare equal. This property is retained even
+-// after the object referenced by the pointer used to create a weak reference
+-// is reclaimed.
+-//
+-// If multiple weak pointers are made to different offsets within same object
+-// (for example, pointers to different fields of the same struct), those pointers
+-// will not compare equal.
+-// If a weak pointer is created from an object that becomes reachable again due
+-// to a finalizer, that weak pointer will not compare equal with weak pointers
+-// created before it became unreachable.
+-type Pointer[T any] struct {
+-	u unsafe.Pointer
+-}
+-
+-// Make creates a weak pointer from a strong pointer to some value of type T.
+-func Make[T any](ptr *T) Pointer[T] {
+-	// Explicitly force ptr to escape to the heap.
+-	ptr = abi.Escape(ptr)
+-
+-	var u unsafe.Pointer
+-	if ptr != nil {
+-		u = runtime_registerWeakPointer(unsafe.Pointer(ptr))
+-	}
+-	runtime.KeepAlive(ptr)
+-	return Pointer[T]{u}
+-}
+-
+-// Strong creates a strong pointer from the weak pointer.
+-// Returns nil if the original value for the weak pointer was reclaimed by
+-// the garbage collector.
+-// If a weak pointer points to an object with a finalizer, then Strong will
+-// return nil as soon as the object's finalizer is queued for execution.
+-func (p Pointer[T]) Strong() *T {
+-	return (*T)(runtime_makeStrongFromWeak(p.u))
+-}
+-
+-// Implemented in runtime.
+-
+-//go:linkname runtime_registerWeakPointer
+-func runtime_registerWeakPointer(unsafe.Pointer) unsafe.Pointer
+-
+-//go:linkname runtime_makeStrongFromWeak
+-func runtime_makeStrongFromWeak(unsafe.Pointer) unsafe.Pointer
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 35ddfeadc1..35cb634936 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"internal/asan"
+ 	"internal/testenv"
+-	"internal/weak"
+ 	"math/bits"
+ 	"math/rand"
+ 	"os"
+@@ -22,6 +21,7 @@ import (
+ 	"testing"
+ 	"time"
+ 	"unsafe"
++	"weak"
+ )
+ 
+ func TestGcSys(t *testing.T) {
+@@ -826,7 +826,7 @@ func TestWeakToStrongMarkTermination(t *testing.T) {
+ 
+ 	// Start a GC, and wait a little bit to get something spinning in mark termination.
+ 	// Simultaneously, fire off another goroutine to disable spinning. If everything's
+-	// working correctly, then weak.Strong will block, so we need to make sure something
++	// working correctly, then weak.Value will block, so we need to make sure something
+ 	// prevents the GC from continuing to spin.
+ 	done := make(chan struct{})
+ 	go func() {
+@@ -847,7 +847,7 @@ func TestWeakToStrongMarkTermination(t *testing.T) {
+ 		wg.Add(1)
+ 		go func() {
+ 			defer wg.Done()
+-			wp.Strong()
++			wp.Value()
+ 		}()
+ 	}
+ 
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index eb6d985ce0..b6890bac47 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -564,7 +564,7 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 			}
+ 			if hasFinAndRevived {
+ 				// Pass 2: queue all finalizers and clear any weak handles. Weak handles are cleared
+-				// before finalization as specified by the internal/weak package. See the documentation
++				// before finalization as specified by the weak package. See the documentation
+ 				// for that package for more details.
+ 				for siter.valid() && uintptr(siter.s.offset) < endOffset {
+ 					// Find the exact byte for which the special was setup
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 031c7ee9c3..47b2d6f40a 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -2092,12 +2092,12 @@ type specialWeakHandle struct {
+ 	handle *atomic.Uintptr
+ }
+ 
+-//go:linkname internal_weak_runtime_registerWeakPointer internal/weak.runtime_registerWeakPointer
++//go:linkname internal_weak_runtime_registerWeakPointer weak.runtime_registerWeakPointer
+ func internal_weak_runtime_registerWeakPointer(p unsafe.Pointer) unsafe.Pointer {
+ 	return unsafe.Pointer(getOrAddWeakHandle(unsafe.Pointer(p)))
+ }
+ 
+-//go:linkname internal_weak_runtime_makeStrongFromWeak internal/weak.runtime_makeStrongFromWeak
++//go:linkname internal_weak_runtime_makeStrongFromWeak weak.runtime_makeStrongFromWeak
+ func internal_weak_runtime_makeStrongFromWeak(u unsafe.Pointer) unsafe.Pointer {
+ 	handle := (*atomic.Uintptr)(u)
+ 
+diff --git a/src/unique/handle.go b/src/unique/handle.go
+index ba4b3d1687..46f2da3ddc 100644
+--- a/src/unique/handle.go
++++ b/src/unique/handle.go
+@@ -7,10 +7,10 @@ package unique
+ import (
+ 	"internal/abi"
+ 	isync "internal/sync"
+-	"internal/weak"
+ 	"runtime"
+ 	"sync"
+ 	"unsafe"
++	"weak"
+ )
+ 
+ var zero uintptr
+@@ -76,7 +76,7 @@ func Make[T comparable](value T) Handle[T] {
+ 		}
+ 		// Now that we're sure there's a value in the map, let's
+ 		// try to get the pointer we need out of it.
+-		ptr = wp.Strong()
++		ptr = wp.Value()
+ 		if ptr != nil {
+ 			break
+ 		}
+@@ -132,7 +132,7 @@ func addUniqueMap[T comparable](typ *abi.Type) *uniqueMap[T] {
+ 			// Delete all the entries whose weak references are nil and clean up
+ 			// deleted entries.
+ 			m.All()(func(key T, wp weak.Pointer[T]) bool {
+-				if wp.Strong() == nil {
++				if wp.Value() == nil {
+ 					m.CompareAndDelete(key, wp)
+ 				}
+ 				return true
+diff --git a/src/unique/handle_test.go b/src/unique/handle_test.go
+index e271770651..4b70876029 100644
+--- a/src/unique/handle_test.go
++++ b/src/unique/handle_test.go
+@@ -114,7 +114,7 @@ func checkMapsFor[T comparable](t *testing.T, value T) {
+ 	if !ok {
+ 		return
+ 	}
+-	if wp.Strong() != nil {
++	if wp.Value() != nil {
+ 		t.Errorf("value %v still referenced a handle (or tiny block?) ", value)
+ 		return
+ 	}
+diff --git a/src/weak/doc.go b/src/weak/doc.go
+new file mode 100644
+index 0000000000..e6fc9b63f8
+--- /dev/null
++++ b/src/weak/doc.go
+@@ -0,0 +1,26 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++Package weak provides weak pointers with the goal of memory efficiency.
++The primary use-cases for weak pointers are for implementing caches,
++canonicalization maps (like the unique package), and for tying together
++the lifetimes of separate values.
++
++## Advice
++
++This package is intended to target niche use-cases like the unique
++package, not as a general replacement for regular Go pointers, maps,
++etc.
++Misuse of the structures in this package will generate unexpected and
++hard-to-reproduce bugs.
++Using the facilities in this package to try and resolve out-of-memory
++issues and/or memory leaks is very likely the wrong answer.
++
++The structures in this package are intended to be an implementation
++detail of the package they are used by (again, see the unique package).
++Avoid exposing weak structures across API boundaries, since that exposes
++users of your package to the subtleties of this package.
++*/
++package weak
+diff --git a/src/weak/pointer.go b/src/weak/pointer.go
+new file mode 100644
+index 0000000000..f6d20530ab
+--- /dev/null
++++ b/src/weak/pointer.go
+@@ -0,0 +1,62 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package weak
++
++import (
++	"internal/abi"
++	"runtime"
++	"unsafe"
++)
++
++// Pointer is a weak pointer to a value of type T.
++//
++// Two Pointer values compare equal if the pointers
++// that they were created from compare equal. This property is retained even
++// after the object referenced by the pointer used to create a weak reference
++// is reclaimed.
++//
++// If multiple weak pointers are made to different offsets within same object
++// (for example, pointers to different fields of the same struct), those pointers
++// will not compare equal.
++// If a weak pointer is created from an object that becomes unreachable, but is
++// then resurrected due to a finalizer, that weak pointer will not compare equal
++// with weak pointers created after resurrection.
++//
++// Calling Make with a nil pointer returns a weak pointer whose Value method
++// always returns nil. The zero value of a Pointer behaves as if it was created
++// by passing nil to Make and compares equal with such pointers.
++type Pointer[T any] struct {
++	u unsafe.Pointer
++}
++
++// Make creates a weak pointer from a strong pointer to some value of type T.
++func Make[T any](ptr *T) Pointer[T] {
++	// Explicitly force ptr to escape to the heap.
++	ptr = abi.Escape(ptr)
++
++	var u unsafe.Pointer
++	if ptr != nil {
++		u = runtime_registerWeakPointer(unsafe.Pointer(ptr))
++	}
++	runtime.KeepAlive(ptr)
++	return Pointer[T]{u}
++}
++
++// Value returns the original pointer used to create the weak pointer.
++// It returns nil if the value pointed to by the original pointer was reclaimed by
++// the garbage collector.
++// If a weak pointer points to an object with a finalizer, then Value will
++// return nil as soon as the object's finalizer is queued for execution.
++func (p Pointer[T]) Value() *T {
++	return (*T)(runtime_makeStrongFromWeak(p.u))
++}
++
++// Implemented in runtime.
++
++//go:linkname runtime_registerWeakPointer
++func runtime_registerWeakPointer(unsafe.Pointer) unsafe.Pointer
++
++//go:linkname runtime_makeStrongFromWeak
++func runtime_makeStrongFromWeak(unsafe.Pointer) unsafe.Pointer
+diff --git a/src/internal/weak/pointer_test.go b/src/weak/pointer_test.go
+similarity index 93%
+rename from src/internal/weak/pointer_test.go
+rename to src/weak/pointer_test.go
+index 5a861bb9ca..213dde8c40 100644
+--- a/src/internal/weak/pointer_test.go
++++ b/src/weak/pointer_test.go
+@@ -6,11 +6,11 @@ package weak_test
+ 
+ import (
+ 	"context"
+-	"internal/weak"
+ 	"runtime"
+ 	"sync"
+ 	"testing"
+ 	"time"
++	"weak"
+ )
+ 
+ type T struct {
+@@ -23,19 +23,19 @@ type T struct {
+ func TestPointer(t *testing.T) {
+ 	bt := new(T)
+ 	wt := weak.Make(bt)
+-	if st := wt.Strong(); st != bt {
++	if st := wt.Value(); st != bt {
+ 		t.Fatalf("weak pointer is not the same as strong pointer: %p vs. %p", st, bt)
+ 	}
+ 	// bt is still referenced.
+ 	runtime.GC()
+ 
+-	if st := wt.Strong(); st != bt {
++	if st := wt.Value(); st != bt {
+ 		t.Fatalf("weak pointer is not the same as strong pointer after GC: %p vs. %p", st, bt)
+ 	}
+ 	// bt is no longer referenced.
+ 	runtime.GC()
+ 
+-	if st := wt.Strong(); st != nil {
++	if st := wt.Value(); st != nil {
+ 		t.Fatalf("expected weak pointer to be nil, got %p", st)
+ 	}
+ }
+@@ -48,7 +48,7 @@ func TestPointerEquality(t *testing.T) {
+ 		wt[i] = weak.Make(bt[i])
+ 	}
+ 	for i := range bt {
+-		st := wt[i].Strong()
++		st := wt[i].Value()
+ 		if st != bt[i] {
+ 			t.Fatalf("weak pointer is not the same as strong pointer: %p vs. %p", st, bt[i])
+ 		}
+@@ -65,7 +65,7 @@ func TestPointerEquality(t *testing.T) {
+ 	// bt is still referenced.
+ 	runtime.GC()
+ 	for i := range bt {
+-		st := wt[i].Strong()
++		st := wt[i].Value()
+ 		if st != bt[i] {
+ 			t.Fatalf("weak pointer is not the same as strong pointer: %p vs. %p", st, bt[i])
+ 		}
+@@ -83,7 +83,7 @@ func TestPointerEquality(t *testing.T) {
+ 	// bt is no longer referenced.
+ 	runtime.GC()
+ 	for i := range bt {
+-		st := wt[i].Strong()
++		st := wt[i].Value()
+ 		if st != nil {
+ 			t.Fatalf("expected weak pointer to be nil, got %p", st)
+ 		}
+@@ -101,7 +101,7 @@ func TestPointerFinalizer(t *testing.T) {
+ 	wt := weak.Make(bt)
+ 	done := make(chan struct{}, 1)
+ 	runtime.SetFinalizer(bt, func(bt *T) {
+-		if wt.Strong() != nil {
++		if wt.Value() != nil {
+ 			t.Errorf("weak pointer did not go nil before finalizer ran")
+ 		}
+ 		done <- struct{}{}
+@@ -109,7 +109,7 @@ func TestPointerFinalizer(t *testing.T) {
+ 
+ 	// Make sure the weak pointer stays around while bt is live.
+ 	runtime.GC()
+-	if wt.Strong() == nil {
++	if wt.Value() == nil {
+ 		t.Errorf("weak pointer went nil too soon")
+ 	}
+ 	runtime.KeepAlive(bt)
+@@ -118,7 +118,7 @@ func TestPointerFinalizer(t *testing.T) {
+ 	//
+ 	// Run one cycle to queue the finalizer.
+ 	runtime.GC()
+-	if wt.Strong() != nil {
++	if wt.Value() != nil {
+ 		t.Errorf("weak pointer did not go nil when finalizer was enqueued")
+ 	}
+ 
+@@ -127,7 +127,7 @@ func TestPointerFinalizer(t *testing.T) {
+ 
+ 	// The weak pointer should still be nil after the finalizer runs.
+ 	runtime.GC()
+-	if wt.Strong() != nil {
++	if wt.Value() != nil {
+ 		t.Errorf("weak pointer is non-nil even after finalization: %v", wt)
+ 	}
+ }
+@@ -150,7 +150,7 @@ func TestIssue69210(t *testing.T) {
+ 	// bug happens. Specifically, we want:
+ 	//
+ 	// 1. To create a whole bunch of objects that are only weakly-pointed-to,
+-	// 2. To call Strong while the GC is in the mark phase,
++	// 2. To call Value while the GC is in the mark phase,
+ 	// 3. The new strong pointer to be missed by the GC,
+ 	// 4. The following GC cycle to mark a free object.
+ 	//
+@@ -192,7 +192,7 @@ func TestIssue69210(t *testing.T) {
+ 					wt := weak.Make(bt)
+ 					bt = nil
+ 					time.Sleep(1 * time.Millisecond)
+-					bt = wt.Strong()
++					bt = wt.Value()
+ 					if bt != nil {
+ 						time.Sleep(4 * time.Millisecond)
+ 						bt.t = bt

@@ -1,0 +1,43 @@
+commit 043708eb08652cfefe9972bcfbf94464a3566920
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 22 10:48:45 2024 -0800
+
+    crypto/internal/fips140/aes: handle fallback correctly
+    
+    Don't fallthrough to the hardware version if we used the generic version.
+    
+    This might fix the s390x build on the dashboard.
+    
+    (Originally broken on CL 624738.)
+    
+    Change-Id: Idad1f1973a34fc64550ecf0d012651f62bcd6272
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631315
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+---
+ src/crypto/internal/fips140/aes/cbc_s390x.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/crypto/internal/fips140/aes/cbc_s390x.go b/src/crypto/internal/fips140/aes/cbc_s390x.go
+index 39e7879aa8..b4eb997a60 100644
+--- a/src/crypto/internal/fips140/aes/cbc_s390x.go
++++ b/src/crypto/internal/fips140/aes/cbc_s390x.go
+@@ -15,6 +15,7 @@ func cryptBlocksChain(c code, iv, key, dst, src *byte, length int)
+ func cryptBlocksEnc(b *Block, civ *[BlockSize]byte, dst, src []byte) {
+ 	if b.fallback != nil {
+ 		cryptBlocksEncGeneric(b, civ, dst, src)
++		return
+ 	}
+ 	cryptBlocksChain(b.function, &civ[0], &b.key[0], &dst[0], &src[0], len(src))
+ }
+@@ -22,6 +23,7 @@ func cryptBlocksEnc(b *Block, civ *[BlockSize]byte, dst, src []byte) {
+ func cryptBlocksDec(b *Block, civ *[BlockSize]byte, dst, src []byte) {
+ 	if b.fallback != nil {
+ 		cryptBlocksDecGeneric(b, civ, dst, src)
++		return
+ 	}
+ 	// Decrypt function code is encrypt + 128.
+ 	cryptBlocksChain(b.function+128, &civ[0], &b.key[0], &dst[0], &src[0], len(src))

@@ -1,0 +1,74 @@
+commit bd8977be0c429a6eec8a99bfefc4e41c74891865
+Author: j2gg0s <j2gg0s@gmail.com>
+Date:   Thu Aug 15 02:11:44 2024 +0000
+
+    encoding/json: merge FieldStack if the error's Field exists.
+    
+    When people return UnmarshalTypeError in UnmarshalJSON, we should append error's Field to FieldStack.
+    
+    Fixes #68750
+    
+    Change-Id: I0a5a9b259a1b569de1bebc815ec936c913e10469
+    GitHub-Last-Rev: 18796addc3fa0d367ba1a3f4bd268ca246890fe0
+    GitHub-Pull-Request: golang/go#68870
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605455
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/encoding/json/decode.go      |  6 +++++-
+ src/encoding/json/decode_test.go | 16 ++++++++++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 69a1013b85..19d4563e33 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -255,7 +255,11 @@ func (d *decodeState) addErrorContext(err error) error {
+ 		switch err := err.(type) {
+ 		case *UnmarshalTypeError:
+ 			err.Struct = d.errorContext.Struct.Name()
+-			err.Field = strings.Join(d.errorContext.FieldStack, ".")
++			fieldStack := d.errorContext.FieldStack
++			if err.Field != "" {
++				fieldStack = append(fieldStack, err.Field)
++			}
++			err.Field = strings.Join(fieldStack, ".")
+ 		}
+ 	}
+ 	return err
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index ed90695039..752825cffe 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -62,6 +62,21 @@ func (*SS) UnmarshalJSON(data []byte) error {
+ 	return &UnmarshalTypeError{Value: "number", Type: reflect.TypeFor[SS]()}
+ }
+ 
++type TAlias T
++
++func (tt *TAlias) UnmarshalJSON(data []byte) error {
++	t := T{}
++	if err := Unmarshal(data, &t); err != nil {
++		return err
++	}
++	*tt = TAlias(t)
++	return nil
++}
++
++type TOuter struct {
++	T TAlias
++}
++
+ // ifaceNumAsFloat64/ifaceNumAsNumber are used to test unmarshaling with and
+ // without UseNumber
+ var ifaceNumAsFloat64 = map[string]any{
+@@ -428,6 +443,7 @@ var unmarshalTests = []struct {
+ 	{CaseName: Name(""), in: `{"x": 1}`, ptr: new(tx), out: tx{}},
+ 	{CaseName: Name(""), in: `{"x": 1}`, ptr: new(tx), err: fmt.Errorf("json: unknown field \"x\""), disallowUnknownFields: true},
+ 	{CaseName: Name(""), in: `{"S": 23}`, ptr: new(W), out: W{}, err: &UnmarshalTypeError{"number", reflect.TypeFor[SS](), 0, "W", "S"}},
++	{CaseName: Name(""), in: `{"T": {"X": 23}}`, ptr: new(TOuter), out: TOuter{}, err: &UnmarshalTypeError{"number", reflect.TypeFor[string](), 0, "TOuter", "T.X"}},
+ 	{CaseName: Name(""), in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: float64(1), F2: int32(2), F3: Number("3")}},
+ 	{CaseName: Name(""), in: `{"F1":1,"F2":2,"F3":3}`, ptr: new(V), out: V{F1: Number("1"), F2: int32(2), F3: Number("3")}, useNumber: true},
+ 	{CaseName: Name(""), in: `{"k1":1,"k2":"s","k3":[1,2.0,3e-3],"k4":{"kk1":"s","kk2":2}}`, ptr: new(any), out: ifaceNumAsFloat64},

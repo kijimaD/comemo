@@ -1,0 +1,264 @@
+commit 1cf6b502630034980ba7de8156e4d7c1da7a7845
+Author: David Chase <drchase@google.com>
+Date:   Wed Mar 5 14:27:15 2025 -0500
+
+    cmd/compile: remove no-longer-necessary recursive inlining checks
+    
+    this does result in a little bit more inlining,
+    cmd/compile text is 0.5% larger,
+    bent-benchmark text geomeans grow by only 0.02%.
+    some of our tests make assumptions about inlining.
+    
+    Change-Id: I999d1798aca5dc64a1928bd434258a61e702951a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655157
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ src/cmd/cgo/internal/test/issue42018_windows.go |  2 +
+ src/cmd/compile/internal/inline/inl.go          | 68 +------------------------
+ src/runtime/pprof/proto_test.go                 |  3 ++
+ test/fixedbugs/issue40954.go                    |  2 +
+ test/fixedbugs/issue52193.go                    |  4 +-
+ test/fixedbugs/issue54159.go                    |  3 +-
+ test/inline.go                                  | 10 ++--
+ test/loopbce.go                                 |  1 +
+ test/newinline.go                               |  6 +--
+ 9 files changed, 21 insertions(+), 78 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/test/issue42018_windows.go b/src/cmd/cgo/internal/test/issue42018_windows.go
+index 8f4570ab2a..ea11b8b20b 100644
+--- a/src/cmd/cgo/internal/test/issue42018_windows.go
++++ b/src/cmd/cgo/internal/test/issue42018_windows.go
+@@ -27,6 +27,7 @@ func test42018(t *testing.T) {
+ 	recurseHWND(400, hwnd, uintptr(unsafe.Pointer(&i)))
+ }
+ 
++//go:noinline
+ func recurseHANDLE(n int, p C.HANDLE, v uintptr) {
+ 	if n > 0 {
+ 		recurseHANDLE(n-1, p, v)
+@@ -36,6 +37,7 @@ func recurseHANDLE(n int, p C.HANDLE, v uintptr) {
+ 	}
+ }
+ 
++//go:noinline
+ func recurseHWND(n int, p C.HWND, v uintptr) {
+ 	if n > 0 {
+ 		recurseHWND(n-1, p, v)
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 29f15a03db..07db16b280 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -170,19 +170,8 @@ func CanInlineFuncs(funcs []*ir.Func, profile *pgoir.Profile) {
+ 	}
+ 
+ 	ir.VisitFuncsBottomUp(funcs, func(funcs []*ir.Func, recursive bool) {
+-		numfns := numNonClosures(funcs)
+-
+ 		for _, fn := range funcs {
+-			if !recursive || numfns > 1 {
+-				// We allow inlining if there is no
+-				// recursion, or the recursion cycle is
+-				// across more than one function.
+-				CanInline(fn, profile)
+-			} else {
+-				if base.Flag.LowerM > 1 && fn.OClosure == nil {
+-					fmt.Printf("%v: cannot inline %v: recursive\n", ir.Line(fn), fn.Nname)
+-				}
+-			}
++			CanInline(fn, profile)
+ 			if inlheur.Enabled() {
+ 				analyzeFuncProps(fn, profile)
+ 			}
+@@ -1023,61 +1012,6 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ 		}
+ 	}
+ 
+-	if callee == callerfn {
+-		// Can't recursively inline a function into itself.
+-		if log && logopt.Enabled() {
+-			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to %s", ir.FuncName(callerfn)))
+-		}
+-		return false, 0, false
+-	}
+-
+-	if ir.ContainsClosure(callee, callerfn) {
+-		// Can't recursively inline a parent of the closure into itself.
+-		if log && logopt.Enabled() {
+-			logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to closure parent: %s, %s", ir.FuncName(callerfn), ir.FuncName(callee)))
+-		}
+-		return false, 0, false
+-	}
+-
+-	if ir.ContainsClosure(callerfn, callee) {
+-		// Can't recursively inline a closure if there's a call to the parent in closure body.
+-		if ir.Any(callee, func(node ir.Node) bool {
+-			if call, ok := node.(*ir.CallExpr); ok {
+-				if name, ok := call.Fun.(*ir.Name); ok && ir.ContainsClosure(name.Func, callerfn) {
+-					return true
+-				}
+-			}
+-			return false
+-		}) {
+-			if log && logopt.Enabled() {
+-				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to closure parent: %s, %s", ir.FuncName(callerfn), ir.FuncName(callee)))
+-			}
+-			return false, 0, false
+-		}
+-	}
+-	do := func(fn *ir.Func) bool {
+-		// Can't recursively inline a function if the function body contains
+-		// a call to a function f, which the function f is one of the call arguments.
+-		return ir.Any(fn, func(node ir.Node) bool {
+-			if call, ok := node.(*ir.CallExpr); ok {
+-				for _, arg := range call.Args {
+-					if call.Fun == arg {
+-						return true
+-					}
+-				}
+-			}
+-			return false
+-		})
+-	}
+-	for _, fn := range []*ir.Func{callerfn, callee} {
+-		if do(fn) {
+-			if log && logopt.Enabled() {
+-				logopt.LogOpt(n.Pos(), "cannotInlineCall", "inline", fmt.Sprintf("recursive call to function: %s", ir.FuncName(fn)))
+-			}
+-			return false, 0, false
+-		}
+-	}
+-
+ 	if base.Flag.Cfg.Instrumenting && types.IsNoInstrumentPkg(callee.Sym().Pkg) {
+ 		// Runtime package must not be instrumented.
+ 		// Instrument skips runtime package. However, some runtime code can be
+diff --git a/src/runtime/pprof/proto_test.go b/src/runtime/pprof/proto_test.go
+index caaaa45f12..a4ae95d4c4 100644
+--- a/src/runtime/pprof/proto_test.go
++++ b/src/runtime/pprof/proto_test.go
+@@ -73,7 +73,10 @@ func TestConvertCPUProfileNoSamples(t *testing.T) {
+ 	checkProfile(t, p, 2000*1000, periodType, sampleType, nil, "")
+ }
+ 
++//go:noinline
+ func f1() { f1() }
++
++//go:noinline
+ func f2() { f2() }
+ 
+ // testPCs returns two PCs and two corresponding memory mappings
+diff --git a/test/fixedbugs/issue40954.go b/test/fixedbugs/issue40954.go
+index 0beaabb743..8b303b12e6 100644
+--- a/test/fixedbugs/issue40954.go
++++ b/test/fixedbugs/issue40954.go
+@@ -30,6 +30,8 @@ func main() {
+ 	// should not be adjusted when the stack is copied.
+ 	recurse(100, p, v)
+ }
++
++//go:noinline
+ func recurse(n int, p *S, v uintptr) {
+ 	if n > 0 {
+ 		recurse(n-1, p, v)
+diff --git a/test/fixedbugs/issue52193.go b/test/fixedbugs/issue52193.go
+index 1c42210f08..c7afc9312f 100644
+--- a/test/fixedbugs/issue52193.go
++++ b/test/fixedbugs/issue52193.go
+@@ -11,14 +11,14 @@ package p
+ 
+ func f() { // ERROR "can inline f"
+ 	var i interface{ m() } = T(0) // ERROR "T\(0\) does not escape"
+-	i.m()                         // ERROR "devirtualizing i.m" "inlining call to T.m"
++	i.m()                         // ERROR "devirtualizing i.m" "inlining call to T.m" "inlining call to f" "T\(0\) does not escape"
+ }
+ 
+ type T int
+ 
+ func (T) m() { // ERROR "can inline T.m"
+ 	if never {
+-		f() // ERROR "inlining call to f" "devirtualizing i.m" "T\(0\) does not escape"
++		f() // ERROR "inlining call to f" "devirtualizing i.m" "T\(0\) does not escape" "inlining call to T.m"
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/issue54159.go b/test/fixedbugs/issue54159.go
+index 0f607b38e1..8a29bc5cba 100644
+--- a/test/fixedbugs/issue54159.go
++++ b/test/fixedbugs/issue54159.go
+@@ -6,7 +6,8 @@
+ 
+ package main
+ 
+-func run() { // ERROR "cannot inline run: recursive"
++//go:noinline
++func run() { // ERROR "cannot inline run: marked go:noinline"
+ 	f := func() { // ERROR "can inline run.func1 with cost .* as:.*" "func literal does not escape"
+ 		g() // ERROR "inlining call to g"
+ 	}
+diff --git a/test/inline.go b/test/inline.go
+index 4714c795c2..3ed4b1de45 100644
+--- a/test/inline.go
++++ b/test/inline.go
+@@ -280,13 +280,13 @@ func ff(x int) { // ERROR "can inline ff"
+ 	if x < 0 {
+ 		return
+ 	}
+-	gg(x - 1) // ERROR "inlining call to gg" "inlining call to hh"
++	gg(x - 1) // ERROR "inlining call to gg" "inlining call to hh" "inlining call to ff"
+ }
+ func gg(x int) { // ERROR "can inline gg"
+-	hh(x - 1) // ERROR "inlining call to hh" "inlining call to ff"
++	hh(x - 1) // ERROR "inlining call to hh" "inlining call to ff" "inlining call to gg"
+ }
+ func hh(x int) { // ERROR "can inline hh"
+-	ff(x - 1) // ERROR "inlining call to ff" "inlining call to gg"
++	ff(x - 1) // ERROR "inlining call to ff" "inlining call to gg" "inlining call to hh"
+ }
+ 
+ // Issue #14768 - make sure we can inline for loops.
+@@ -332,9 +332,9 @@ func ii() { // ERROR "can inline ii"
+ // Issue #42194 - make sure that functions evaluated in
+ // go and defer statements can be inlined.
+ func gd1(int) {
+-	defer gd1(gd2()) // ERROR "inlining call to gd2"
++	defer gd1(gd2()) // ERROR "inlining call to gd2" "can inline gd1.deferwrap1"
+ 	defer gd3()()    // ERROR "inlining call to gd3"
+-	go gd1(gd2())    // ERROR "inlining call to gd2"
++	go gd1(gd2())    // ERROR "inlining call to gd2" "can inline gd1.gowrap2"
+ 	go gd3()()       // ERROR "inlining call to gd3"
+ }
+ 
+diff --git a/test/loopbce.go b/test/loopbce.go
+index 2d5c965ae7..8bc44ece94 100644
+--- a/test/loopbce.go
++++ b/test/loopbce.go
+@@ -88,6 +88,7 @@ func f5_int8(a [10]int) int {
+ 	return x
+ }
+ 
++//go:noinline
+ func f6(a []int) {
+ 	for i := range a { // ERROR "Induction variable: limits \[0,\?\), increment 1$"
+ 		b := a[0:i] // ERROR "(\([0-9]+\) )?Proved IsSliceInBounds$"
+diff --git a/test/newinline.go b/test/newinline.go
+index a7288691cd..da299d5543 100644
+--- a/test/newinline.go
++++ b/test/newinline.go
+@@ -280,13 +280,13 @@ func ff(x int) { // ERROR "can inline ff"
+ 	if x < 0 {
+ 		return
+ 	}
+-	gg(x - 1) // ERROR "inlining call to gg" "inlining call to hh"
++	gg(x - 1) // ERROR "inlining call to gg" "inlining call to hh" "inlining call to ff"
+ }
+ func gg(x int) { // ERROR "can inline gg"
+-	hh(x - 1) // ERROR "inlining call to hh" "inlining call to ff"
++	hh(x - 1) // ERROR "inlining call to hh" "inlining call to ff" "inlining call to gg"
+ }
+ func hh(x int) { // ERROR "can inline hh"
+-	ff(x - 1) // ERROR "inlining call to ff" "inlining call to gg"
++	ff(x - 1) // ERROR "inlining call to ff" "inlining call to gg" "inlining call to hh"
+ }
+ 
+ // Issue #14768 - make sure we can inline for loops.

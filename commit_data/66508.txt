@@ -1,0 +1,48 @@
+commit 4acc5b4da659732293dc025881d3982bf116b2fb
+Author: cuishuang <imcusg@gmail.com>
+Date:   Tue Mar 11 18:27:50 2025 +0800
+
+    cmp: add examples for Compare and Less
+    
+    Change-Id: I6900f52736d5316ca523a213c65896861d855433
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656635
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/cmp/cmp_test.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/src/cmp/cmp_test.go b/src/cmp/cmp_test.go
+index 43d9ef365e..c9816cba11 100644
+--- a/src/cmp/cmp_test.go
++++ b/src/cmp/cmp_test.go
+@@ -176,3 +176,27 @@ func ExampleOr_sort() {
+ 	// bar carol 1.00
+ 	// baz carol 4.00
+ }
++
++func ExampleLess() {
++	fmt.Println(cmp.Less(1, 2))
++	fmt.Println(cmp.Less("a", "aa"))
++	fmt.Println(cmp.Less(1.0, math.NaN()))
++	fmt.Println(cmp.Less(math.NaN(), 1.0))
++	// Output:
++	// true
++	// true
++	// false
++	// true
++}
++
++func ExampleCompare() {
++	fmt.Println(cmp.Compare(1, 2))
++	fmt.Println(cmp.Compare("a", "aa"))
++	fmt.Println(cmp.Compare(1.5, 1.5))
++	fmt.Println(cmp.Compare(math.NaN(), 1.0))
++	// Output:
++	// -1
++	// -1
++	// 0
++	// -1
++}

@@ -1,0 +1,74 @@
+commit cf5ec0720f5b0996d4e2b429cdf82e7872593e1b
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Oct 9 16:44:17 2024 -0400
+
+    cmd/compile: remove types.Compare map bucket special cases
+    
+    runtime.hmap never directly refers to the bucket type (it uses an
+    unsafe.Pointer), thus it shouldn't be possible to have infinite
+    recursion here.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race,gotip-linux-amd64-longtest-aliastypeparams
+    Change-Id: I457885e48bbc352acedae1c0c389078f39ed9d65
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619037
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/compile/internal/types/type.go | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 79c890d46c..c4080ed0b5 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1190,6 +1190,7 @@ func (t *Type) cmp(x *Type) Cmp {
+ 
+ 	case TSTRUCT:
+ 		if buildcfg.Experiment.SwissMap {
++			// Is this a map group type?
+ 			if t.StructType().Map == nil {
+ 				if x.StructType().Map != nil {
+ 					return CMPlt // nil < non-nil
+@@ -1197,11 +1198,14 @@ func (t *Type) cmp(x *Type) Cmp {
+ 				// to the fallthrough
+ 			} else if x.StructType().Map == nil {
+ 				return CMPgt // nil > non-nil
+-			} else {
+-				// TODO: I am confused by the purpose of the OldBucket stuff below.
+-				return t.StructType().Map.cmp(x.StructType().Map)
+-			} // If t != t.Map.SwissBucket, fall through to general case
++			}
++			// Both have non-nil Map, fallthrough to the general
++			// case. Note that the map type does not directly refer
++			// to the group type (it uses unsafe.Pointer). If it
++			// did, this would need special handling to avoid
++			// infinite recursion.
+ 		} else {
++			// Is this a map bucket type?
+ 			if t.StructType().Map == nil {
+ 				if x.StructType().Map != nil {
+ 					return CMPlt // nil < non-nil
+@@ -1209,16 +1213,12 @@ func (t *Type) cmp(x *Type) Cmp {
+ 				// to the fallthrough
+ 			} else if x.StructType().Map == nil {
+ 				return CMPgt // nil > non-nil
+-			} else if t.StructType().Map.MapType().OldBucket == t {
+-				// Both have non-nil Map
+-				// Special case for Maps which include a recursive type where the recursion is not broken with a named type
+-				if x.StructType().Map.MapType().OldBucket != x {
+-					return CMPlt // bucket maps are least
+-				}
+-				return t.StructType().Map.cmp(x.StructType().Map)
+-			} else if x.StructType().Map.MapType().OldBucket == x {
+-				return CMPgt // bucket maps are least
+-			} // If t != t.Map.OldBucket, fall through to general case
++			}
++			// Both have non-nil Map, fallthrough to the general
++			// case. Note that the map type does not directly refer
++			// to the bucket type (it uses unsafe.Pointer). If it
++			// did, this would need special handling to avoid
++			// infinite recursion.
+ 		}
+ 
+ 		tfs := t.Fields()

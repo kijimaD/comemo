@@ -1,0 +1,321 @@
+commit eb6743d9d7dd48f785e48b1967f405658a6444d7
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 23 15:11:14 2024 -0400
+
+    runtime: rename dlogger to dloggerImpl
+    
+    This is a mechanical change, other than adding the type alias for dlogger.
+    
+    This is a step in preparing us to make debuglog testable without the
+    debuglog build tag.
+    
+    Change-Id: Ief12f0eaf5db98a8b006c759fd325dabcc9a52d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600695
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/debuglog.go             | 58 +++++++++++++++++++------------------
+ src/runtime/debuglog_off.go         |  4 +--
+ src/runtime/debuglog_on.go          |  8 ++---
+ src/runtime/export_debuglog_test.go | 18 ++++++------
+ 4 files changed, 45 insertions(+), 43 deletions(-)
+
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index 25186af7e0..ee649fb007 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -31,6 +31,8 @@ const debugLogBytes = 16 << 10
+ // Above this, the string will be truncated with "..(n more bytes).."
+ const debugLogStringLimit = debugLogBytes / 8
+ 
++type dlogger = dloggerImpl
++
+ // dlog returns a debug logger. The caller can use methods on the
+ // returned logger to add values, which will be space-separated in the
+ // final output, much like println. The caller must call end() to
+@@ -48,7 +50,7 @@ const debugLogStringLimit = debugLogBytes / 8
+ //
+ //go:nosplit
+ //go:nowritebarrierrec
+-func dlog() *dlogger {
++func dlog() *dloggerImpl {
+ 	if !dlogEnabled {
+ 		return nil
+ 	}
+@@ -63,7 +65,7 @@ func dlog() *dlogger {
+ 	// global pool.
+ 	if l == nil {
+ 		allp := (*uintptr)(unsafe.Pointer(&allDloggers))
+-		all := (*dlogger)(unsafe.Pointer(atomic.Loaduintptr(allp)))
++		all := (*dloggerImpl)(unsafe.Pointer(atomic.Loaduintptr(allp)))
+ 		for l1 := all; l1 != nil; l1 = l1.allLink {
+ 			if l1.owned.Load() == 0 && l1.owned.CompareAndSwap(0, 1) {
+ 				l = l1
+@@ -76,7 +78,7 @@ func dlog() *dlogger {
+ 	if l == nil {
+ 		// Use sysAllocOS instead of sysAlloc because we want to interfere
+ 		// with the runtime as little as possible, and sysAlloc updates accounting.
+-		l = (*dlogger)(sysAllocOS(unsafe.Sizeof(dlogger{})))
++		l = (*dloggerImpl)(sysAllocOS(unsafe.Sizeof(dloggerImpl{})))
+ 		if l == nil {
+ 			throw("failed to allocate debug log")
+ 		}
+@@ -87,7 +89,7 @@ func dlog() *dlogger {
+ 		headp := (*uintptr)(unsafe.Pointer(&allDloggers))
+ 		for {
+ 			head := atomic.Loaduintptr(headp)
+-			l.allLink = (*dlogger)(unsafe.Pointer(head))
++			l.allLink = (*dloggerImpl)(unsafe.Pointer(head))
+ 			if atomic.Casuintptr(headp, head, uintptr(unsafe.Pointer(l))) {
+ 				break
+ 			}
+@@ -119,16 +121,16 @@ func dlog() *dlogger {
+ 	return l
+ }
+ 
+-// A dlogger writes to the debug log.
++// A dloggerImpl writes to the debug log.
+ //
+-// To obtain a dlogger, call dlog(). When done with the dlogger, call
++// To obtain a dloggerImpl, call dlog(). When done with the dloggerImpl, call
+ // end().
+-type dlogger struct {
++type dloggerImpl struct {
+ 	_ sys.NotInHeap
+ 	w debugLogWriter
+ 
+ 	// allLink is the next dlogger in the allDloggers list.
+-	allLink *dlogger
++	allLink *dloggerImpl
+ 
+ 	// owned indicates that this dlogger is owned by an M. This is
+ 	// accessed atomically.
+@@ -138,10 +140,10 @@ type dlogger struct {
+ // allDloggers is a list of all dloggers, linked through
+ // dlogger.allLink. This is accessed atomically. This is prepend only,
+ // so it doesn't need to protect against ABA races.
+-var allDloggers *dlogger
++var allDloggers *dloggerImpl
+ 
+ //go:nosplit
+-func (l *dlogger) end() {
++func (l *dloggerImpl) end() {
+ 	if !dlogEnabled {
+ 		return
+ 	}
+@@ -181,7 +183,7 @@ const (
+ )
+ 
+ //go:nosplit
+-func (l *dlogger) b(x bool) *dlogger {
++func (l *dloggerImpl) b(x bool) *dloggerImpl {
+ 	if !dlogEnabled {
+ 		return l
+ 	}
+@@ -194,27 +196,27 @@ func (l *dlogger) b(x bool) *dlogger {
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) i(x int) *dlogger {
++func (l *dloggerImpl) i(x int) *dloggerImpl {
+ 	return l.i64(int64(x))
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) i8(x int8) *dlogger {
++func (l *dloggerImpl) i8(x int8) *dloggerImpl {
+ 	return l.i64(int64(x))
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) i16(x int16) *dlogger {
++func (l *dloggerImpl) i16(x int16) *dloggerImpl {
+ 	return l.i64(int64(x))
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) i32(x int32) *dlogger {
++func (l *dloggerImpl) i32(x int32) *dloggerImpl {
+ 	return l.i64(int64(x))
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) i64(x int64) *dlogger {
++func (l *dloggerImpl) i64(x int64) *dloggerImpl {
+ 	if !dlogEnabled {
+ 		return l
+ 	}
+@@ -224,32 +226,32 @@ func (l *dlogger) i64(x int64) *dlogger {
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) u(x uint) *dlogger {
++func (l *dloggerImpl) u(x uint) *dloggerImpl {
+ 	return l.u64(uint64(x))
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) uptr(x uintptr) *dlogger {
++func (l *dloggerImpl) uptr(x uintptr) *dloggerImpl {
+ 	return l.u64(uint64(x))
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) u8(x uint8) *dlogger {
++func (l *dloggerImpl) u8(x uint8) *dloggerImpl {
+ 	return l.u64(uint64(x))
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) u16(x uint16) *dlogger {
++func (l *dloggerImpl) u16(x uint16) *dloggerImpl {
+ 	return l.u64(uint64(x))
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) u32(x uint32) *dlogger {
++func (l *dloggerImpl) u32(x uint32) *dloggerImpl {
+ 	return l.u64(uint64(x))
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) u64(x uint64) *dlogger {
++func (l *dloggerImpl) u64(x uint64) *dloggerImpl {
+ 	if !dlogEnabled {
+ 		return l
+ 	}
+@@ -259,7 +261,7 @@ func (l *dlogger) u64(x uint64) *dlogger {
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) hex(x uint64) *dlogger {
++func (l *dloggerImpl) hex(x uint64) *dloggerImpl {
+ 	if !dlogEnabled {
+ 		return l
+ 	}
+@@ -269,7 +271,7 @@ func (l *dlogger) hex(x uint64) *dlogger {
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) p(x any) *dlogger {
++func (l *dloggerImpl) p(x any) *dloggerImpl {
+ 	if !dlogEnabled {
+ 		return l
+ 	}
+@@ -289,7 +291,7 @@ func (l *dlogger) p(x any) *dlogger {
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) s(x string) *dlogger {
++func (l *dloggerImpl) s(x string) *dloggerImpl {
+ 	if !dlogEnabled {
+ 		return l
+ 	}
+@@ -325,7 +327,7 @@ func (l *dlogger) s(x string) *dlogger {
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) pc(x uintptr) *dlogger {
++func (l *dloggerImpl) pc(x uintptr) *dloggerImpl {
+ 	if !dlogEnabled {
+ 		return l
+ 	}
+@@ -335,7 +337,7 @@ func (l *dlogger) pc(x uintptr) *dlogger {
+ }
+ 
+ //go:nosplit
+-func (l *dlogger) traceback(x []uintptr) *dlogger {
++func (l *dloggerImpl) traceback(x []uintptr) *dloggerImpl {
+ 	if !dlogEnabled {
+ 		return l
+ 	}
+@@ -704,7 +706,7 @@ func printDebugLog() {
+ 
+ 	// Get the list of all debug logs.
+ 	allp := (*uintptr)(unsafe.Pointer(&allDloggers))
+-	all := (*dlogger)(unsafe.Pointer(atomic.Loaduintptr(allp)))
++	all := (*dloggerImpl)(unsafe.Pointer(atomic.Loaduintptr(allp)))
+ 
+ 	// Count the logs.
+ 	n := 0
+diff --git a/src/runtime/debuglog_off.go b/src/runtime/debuglog_off.go
+index fa3be39c70..7ebec31bf6 100644
+--- a/src/runtime/debuglog_off.go
++++ b/src/runtime/debuglog_off.go
+@@ -10,10 +10,10 @@ const dlogEnabled = false
+ 
+ type dlogPerM struct{}
+ 
+-func getCachedDlogger() *dlogger {
++func getCachedDlogger() *dloggerImpl {
+ 	return nil
+ }
+ 
+-func putCachedDlogger(l *dlogger) bool {
++func putCachedDlogger(l *dloggerImpl) bool {
+ 	return false
+ }
+diff --git a/src/runtime/debuglog_on.go b/src/runtime/debuglog_on.go
+index b815020225..b81d66498c 100644
+--- a/src/runtime/debuglog_on.go
++++ b/src/runtime/debuglog_on.go
+@@ -11,18 +11,18 @@ const dlogEnabled = true
+ // dlogPerM is the per-M debug log data. This is embedded in the m
+ // struct.
+ type dlogPerM struct {
+-	dlogCache *dlogger
++	dlogCache *dloggerImpl
+ }
+ 
+ // getCachedDlogger returns a cached dlogger if it can do so
+ // efficiently, or nil otherwise. The returned dlogger will be owned.
+-func getCachedDlogger() *dlogger {
++func getCachedDlogger() *dloggerImpl {
+ 	mp := acquirem()
+ 	// We don't return a cached dlogger if we're running on the
+ 	// signal stack in case the signal arrived while in
+ 	// get/putCachedDlogger. (Too bad we don't have non-atomic
+ 	// exchange!)
+-	var l *dlogger
++	var l *dloggerImpl
+ 	if getg() != mp.gsignal {
+ 		l = mp.dlogCache
+ 		mp.dlogCache = nil
+@@ -33,7 +33,7 @@ func getCachedDlogger() *dlogger {
+ 
+ // putCachedDlogger attempts to return l to the local cache. It
+ // returns false if this fails.
+-func putCachedDlogger(l *dlogger) bool {
++func putCachedDlogger(l *dloggerImpl) bool {
+ 	mp := acquirem()
+ 	if getg() != mp.gsignal && mp.dlogCache == nil {
+ 		mp.dlogCache = l
+diff --git a/src/runtime/export_debuglog_test.go b/src/runtime/export_debuglog_test.go
+index 04ac79f357..e4b4ab9914 100644
+--- a/src/runtime/export_debuglog_test.go
++++ b/src/runtime/export_debuglog_test.go
+@@ -14,15 +14,15 @@ const DebugLogStringLimit = debugLogStringLimit
+ 
+ var Dlog = dlog
+ 
+-func (l *dlogger) End()                  { l.end() }
+-func (l *dlogger) B(x bool) *dlogger     { return l.b(x) }
+-func (l *dlogger) I(x int) *dlogger      { return l.i(x) }
+-func (l *dlogger) I16(x int16) *dlogger  { return l.i16(x) }
+-func (l *dlogger) U64(x uint64) *dlogger { return l.u64(x) }
+-func (l *dlogger) Hex(x uint64) *dlogger { return l.hex(x) }
+-func (l *dlogger) P(x any) *dlogger      { return l.p(x) }
+-func (l *dlogger) S(x string) *dlogger   { return l.s(x) }
+-func (l *dlogger) PC(x uintptr) *dlogger { return l.pc(x) }
++func (l *dloggerImpl) End()                      { l.end() }
++func (l *dloggerImpl) B(x bool) *dloggerImpl     { return l.b(x) }
++func (l *dloggerImpl) I(x int) *dloggerImpl      { return l.i(x) }
++func (l *dloggerImpl) I16(x int16) *dloggerImpl  { return l.i16(x) }
++func (l *dloggerImpl) U64(x uint64) *dloggerImpl { return l.u64(x) }
++func (l *dloggerImpl) Hex(x uint64) *dloggerImpl { return l.hex(x) }
++func (l *dloggerImpl) P(x any) *dloggerImpl      { return l.p(x) }
++func (l *dloggerImpl) S(x string) *dloggerImpl   { return l.s(x) }
++func (l *dloggerImpl) PC(x uintptr) *dloggerImpl { return l.pc(x) }
+ 
+ func DumpDebugLog() string {
+ 	gp := getg()

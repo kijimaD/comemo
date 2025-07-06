@@ -1,0 +1,93 @@
+commit 10cef816aa9769345016c04032090ae7f5851f5c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 13 14:40:01 2025 -0800
+
+    internal/godebugs: add fips140 as an opaque godebug setting
+    
+    This permits using "godebug fips140=on" in go.mod and
+    using "//go:debug fips140=on" in the main package.
+    
+    Change code references to the godebug setting to remove the #
+    which is no longer required.
+    
+    For #71666
+    
+    Change-Id: I3a60ecc55b03848dadd6d431eb43137b6df6568b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649495
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/fips140/fips140.go                  | 2 +-
+ src/crypto/internal/fips140/check/check.go     | 2 +-
+ src/crypto/internal/fips140only/fips140only.go | 2 +-
+ src/crypto/internal/fips140test/check_test.go  | 2 +-
+ src/internal/godebugs/table.go                 | 1 +
+ 5 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/fips140/fips140.go b/src/crypto/fips140/fips140.go
+index 41d0d170cf..1c4036d5e7 100644
+--- a/src/crypto/fips140/fips140.go
++++ b/src/crypto/fips140/fips140.go
+@@ -10,7 +10,7 @@ import (
+ 	"internal/godebug"
+ )
+ 
+-var fips140GODEBUG = godebug.New("#fips140")
++var fips140GODEBUG = godebug.New("fips140")
+ 
+ // Enabled reports whether the cryptography libraries are operating in FIPS
+ // 140-3 mode.
+diff --git a/src/crypto/internal/fips140/check/check.go b/src/crypto/internal/fips140/check/check.go
+index f8a5d7a41e..454cd6c738 100644
+--- a/src/crypto/internal/fips140/check/check.go
++++ b/src/crypto/internal/fips140/check/check.go
+@@ -100,7 +100,7 @@ func init() {
+ 	clear(nbuf[:])
+ 	h.Reset()
+ 
+-	if godebug.Value("#fips140") == "debug" {
++	if godebug.Value("fips140") == "debug" {
+ 		println("fips140: verified code+data")
+ 	}
+ 
+diff --git a/src/crypto/internal/fips140only/fips140only.go b/src/crypto/internal/fips140only/fips140only.go
+index 7126781af0..147877a34f 100644
+--- a/src/crypto/internal/fips140only/fips140only.go
++++ b/src/crypto/internal/fips140only/fips140only.go
+@@ -16,7 +16,7 @@ import (
+ 
+ // Enabled reports whether FIPS 140-only mode is enabled, in which non-approved
+ // cryptography returns an error or panics.
+-var Enabled = godebug.New("#fips140").Value() == "only"
++var Enabled = godebug.New("fips140").Value() == "only"
+ 
+ func ApprovedHash(h hash.Hash) bool {
+ 	switch h.(type) {
+diff --git a/src/crypto/internal/fips140test/check_test.go b/src/crypto/internal/fips140test/check_test.go
+index 3c594bdb33..c014fff2a6 100644
+--- a/src/crypto/internal/fips140test/check_test.go
++++ b/src/crypto/internal/fips140test/check_test.go
+@@ -27,7 +27,7 @@ func TestIntegrityCheck(t *testing.T) {
+ 		return
+ 	}
+ 
+-	if godebug.New("#fips140").Value() == "on" {
++	if godebug.New("fips140").Value() == "on" {
+ 		t.Fatalf("GODEBUG=fips140=on but verification did not run")
+ 	}
+ 
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 9c48a923f0..e0fde01f09 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -28,6 +28,7 @@ var All = []Info{
+ 	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
+ 	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
+ 	{Name: "execerrdot", Package: "os/exec"},
++	{Name: "fips140", Package: "crypto/fips140", Opaque: true},
+ 	{Name: "gocachehash", Package: "cmd/go"},
+ 	{Name: "gocachetest", Package: "cmd/go"},
+ 	{Name: "gocacheverify", Package: "cmd/go"},

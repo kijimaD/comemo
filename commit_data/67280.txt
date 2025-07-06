@@ -1,0 +1,29 @@
+commit 71c0e550cd357f05230db70f17c3ba78d8600068
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Thu May 29 19:05:40 2025 +0000
+
+    [dev.simd] cmd/dist: disable API check on dev branch
+    
+    Change-Id: I5a167e95a3275bfc39fddc793b0775976747dc9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677277
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/dist/test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 82c6ee4631..a940fd12ed 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -939,7 +939,9 @@ func (t *tester) registerTests() {
+ 	// which is darwin,linux,windows/amd64 and darwin/arm64.
+ 	//
+ 	// The same logic applies to the release notes that correspond to each api/next file.
+-	if goos == "darwin" || ((goos == "linux" || goos == "windows") && goarch == "amd64") {
++	//
++	// TODO: remove the exclusion of goexperiment simd right before dev.simd branch is merged to master.
++	if goos == "darwin" || ((goos == "linux" || goos == "windows") && (goarch == "amd64" && !strings.Contains(goexperiment, "simd"))) {
+ 		t.registerTest("API release note check", &goTest{variant: "check", pkg: "cmd/relnote", testFlags: []string{"-check"}})
+ 		t.registerTest("API check", &goTest{variant: "check", pkg: "cmd/api", timeout: 5 * time.Minute, testFlags: []string{"-check"}})
+ 	}

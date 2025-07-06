@@ -1,0 +1,37 @@
+commit 1646f725bb15ec857c4b6945bcd2d47f615c6ec3
+Author: qiu laidongfeng2 <2645477756@qq.com>
+Date:   Fri Sep 27 17:24:38 2024 +0000
+
+    Revert "cmd/go: relax the regular expression of TestScript/list_pkgconfig_error"
+    
+    This reverts commit 906338f82fc6641e834964def3199ac25df93e94.
+    
+    Reason for revert: break gotip-linux-loong64 builder.
+    
+    Fixes #69651
+    Updates #68283
+    
+    Change-Id: I909b52ed0fd999e21c00c1d9d80d7fe2fd4898a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616336
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/testdata/script/list_pkgconfig_error.txt | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/list_pkgconfig_error.txt b/src/cmd/go/testdata/script/list_pkgconfig_error.txt
+index d40d45e39c..f554d2a4ed 100644
+--- a/src/cmd/go/testdata/script/list_pkgconfig_error.txt
++++ b/src/cmd/go/testdata/script/list_pkgconfig_error.txt
+@@ -2,9 +2,7 @@
+ [!exec:pkg-config] skip 'test requires pkg-config tool'
+ 
+ ! go list -export .
+-# 'Package .* not found appears' in pkg-config and pkgconf; while
+-# 'could not find package .*' appears in u-config. See #68283.
+-stderr '#^ example\n#pkg-config .*\n(.*\n)*(Package .* not found)|(could not find package .*)'
++stderr '^# example\n# \[pkg-config .*\]\n(.*\n)*Package .* not found'
+ 
+ -- go.mod --
+ module example

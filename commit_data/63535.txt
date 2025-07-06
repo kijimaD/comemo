@@ -1,0 +1,49 @@
+commit 0304d035cd1a35762b0d1e394f13345e29107b63
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Apr 22 15:24:42 2024 +0000
+
+    runtime: switch to systemstack before throw in casgstatus
+    
+    CL 580255 increased the frame size of entersyscall and reentersyscall,
+    which is causing the x/sys repository to fail to build for
+    windows/arm64 because of an overflow of the nosplit stack reservation.
+    
+    Fix this by wrapping the other call to throw in casgstatus in a system
+    stack switch. This is a fatal throw anyway indicating a core runtime
+    invariant is broken, so this path is basically never taken. This cuts
+    off the nosplit frame chain and allows x/sys to build.
+    
+    Change-Id: I00b16c9db3a7467413ed48953c7f8a9a750f000a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580775
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/proc.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e469f20e5e..56f97fa9f7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1105,6 +1105,8 @@ var casgstatusAlwaysTrack = false
+ func casgstatus(gp *g, oldval, newval uint32) {
+ 	if (oldval&_Gscan != 0) || (newval&_Gscan != 0) || oldval == newval {
+ 		systemstack(func() {
++			// Call on the systemstack to prevent print and throw from counting
++			// against the nosplit stack reservation.
+ 			print("runtime: casgstatus: oldval=", hex(oldval), " newval=", hex(newval), "\n")
+ 			throw("casgstatus: bad incoming values")
+ 		})
+@@ -1120,7 +1122,11 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 	// GC time to finish and change the state to oldval.
+ 	for i := 0; !gp.atomicstatus.CompareAndSwap(oldval, newval); i++ {
+ 		if oldval == _Gwaiting && gp.atomicstatus.Load() == _Grunnable {
+-			throw("casgstatus: waiting for Gwaiting but is Grunnable")
++			systemstack(func() {
++				// Call on the systemstack to prevent throw from counting
++				// against the nosplit stack reservation.
++				throw("casgstatus: waiting for Gwaiting but is Grunnable")
++			})
+ 		}
+ 		if i == 0 {
+ 			nextYield = nanotime() + yieldDelay

@@ -1,0 +1,99 @@
+commit fdd7713fe5a7bc054fe08f79a1877f90c7188e53
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Mon Jul 1 00:49:11 2024 +0200
+
+    internal/goexperiment: fix godoc formatting
+    
+    In internal/goexperiment fix godoc formatting (list indent, add godoc
+    links).
+    
+    In internal/buildcfg fix godoc for Experiment.baseline.
+    
+    Change-Id: I30eaba60cbf3978a375b50dda19dbb2830903bdb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595915
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/buildcfg/exp.go       |  4 ++--
+ src/internal/goexperiment/flags.go | 20 ++++++++++----------
+ 2 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index e36ec08a5b..689ca8ce58 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -25,7 +25,7 @@ type ExperimentFlags struct {
+ // (This is not necessarily the set of experiments the compiler itself
+ // was built with.)
+ //
+-// experimentBaseline specifies the experiment flags that are enabled by
++// Experiment.baseline specifies the experiment flags that are enabled by
+ // default in the current toolchain. This is, in effect, the "control"
+ // configuration and any variation from this is an experiment.
+ var Experiment ExperimentFlags = func() ExperimentFlags {
+@@ -54,7 +54,7 @@ var FramePointerEnabled = GOARCH == "amd64" || GOARCH == "arm64"
+ // configuration tuple and returns the enabled and baseline experiment
+ // flag sets.
+ //
+-// TODO(mdempsky): Move to internal/goexperiment.
++// TODO(mdempsky): Move to [internal/goexperiment].
+ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 	// regabiSupported is set to true on platforms where register ABI is
+ 	// supported and enabled by default.
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index ceff24193d..63a3388839 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -14,32 +14,32 @@
+ //
+ // Experiments are exposed to the build in the following ways:
+ //
+-// - Build tag goexperiment.x is set if experiment x (lower case) is
+-// enabled.
++//   - Build tag goexperiment.x is set if experiment x (lower case) is
++//     enabled.
+ //
+-// - For each experiment x (in camel case), this package contains a
+-// boolean constant x and an integer constant xInt.
++//   - For each experiment x (in camel case), this package contains a
++//     boolean constant x and an integer constant xInt.
+ //
+-// - In runtime assembly, the macro GOEXPERIMENT_x is defined if
+-// experiment x (lower case) is enabled.
++//   - In runtime assembly, the macro GOEXPERIMENT_x is defined if
++//     experiment x (lower case) is enabled.
+ //
+ // In the toolchain, the set of experiments enabled for the current
+ // build should be accessed via objabi.Experiment.
+ //
+-// The set of experiments is included in the output of runtime.Version()
++// The set of experiments is included in the output of [runtime.Version]()
+ // and "go version <binary>" if it differs from the default experiments.
+ //
+ // For the set of experiments supported by the current toolchain, see
+ // "go doc goexperiment.Flags".
+ //
+-// Note that this package defines the set of experiments (in Flags)
++// Note that this package defines the set of experiments (in [Flags])
+ // and records the experiments that were enabled when the package
+ // was compiled (as boolean and integer constants).
+ //
+ // Note especially that this package does not itself change behavior
+ // at run time based on the GOEXPERIMENT variable.
+ // The code used in builds to interpret the GOEXPERIMENT variable
+-// is in the separate package internal/buildcfg.
++// is in the separate package [internal/buildcfg].
+ package goexperiment
+ 
+ //go:generate go run mkconsts.go
+@@ -51,7 +51,7 @@ package goexperiment
+ // tags, experiments use the strings.ToLower of their field name.
+ //
+ // For the baseline experimental configuration, see
+-// [internal/buildcfg.ParseGOEXPERIMENT].
++// [internal/buildcfg.Experiment].
+ //
+ // If you change this struct definition, run "go generate".
+ type Flags struct {

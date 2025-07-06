@@ -1,0 +1,44 @@
+commit 5e82cba9bdf45d81da549477d172f6b5e23106d4
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Nov 18 11:07:07 2024 +0100
+
+    os/user: skip tests that create users when running on dev machines
+    
+    Creating and deleting users is tricky to get right, and it's not
+    something we want to do on a developer machine. This change skips the
+    tests that create users when not running on a Go builder.
+    
+    This will fix #70396, although I still don't understand why the test
+    user couldn't be recreated.
+    
+    Fixes #70396
+    
+    Change-Id: Ie7004dc209f94e72152c7d6bd8ec95cc12c79757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627877
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/os/user/user_windows_test.go | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/os/user/user_windows_test.go b/src/os/user/user_windows_test.go
+index 635b6f3513..c71503372e 100644
+--- a/src/os/user/user_windows_test.go
++++ b/src/os/user/user_windows_test.go
+@@ -24,6 +24,13 @@ import (
+ // If the user already exists, it will be deleted and recreated.
+ // The caller is responsible for closing the token.
+ func windowsTestAccount(t *testing.T) (syscall.Token, *User) {
++	if testenv.Builder() == "" {
++		// Adding and deleting users requires special permissions.
++		// Even if we have them, we don't want to create users on
++		// on dev machines, as they may not be cleaned up.
++		// See https://dev.go/issue/70396.
++		t.Skip("skipping non-hermetic test outside of Go builders")
++	}
+ 	const testUserName = "GoStdTestUser01"
+ 	var password [33]byte
+ 	rand.Read(password[:])

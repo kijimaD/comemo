@@ -1,0 +1,350 @@
+commit 0b652e3ef6413b343d0e7ee38a58f1cc15c933f6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Oct 14 15:05:07 2024 -0400
+
+    internal/runtime/maps: use uintptr instead of uint32 for index in group
+    
+    This avoids some zero-extension ops on 64-bit machines.
+    
+    Based on khr@'s CL 619479.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Ie9a56da26382dc9e515c613abc8cf6fec3767671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620216
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/internal/runtime/maps/export_test.go           |  2 +-
+ src/internal/runtime/maps/group.go                 | 16 ++++++++--------
+ src/internal/runtime/maps/map.go                   |  4 ++--
+ src/internal/runtime/maps/runtime_fast32_swiss.go  | 10 +++++-----
+ src/internal/runtime/maps/runtime_fast64_swiss.go  | 10 +++++-----
+ src/internal/runtime/maps/runtime_faststr_swiss.go |  6 +++---
+ src/internal/runtime/maps/runtime_swiss.go         |  4 ++--
+ src/internal/runtime/maps/table.go                 | 12 ++++++------
+ src/internal/runtime/maps/table_debug.go           |  4 ++--
+ 9 files changed, 34 insertions(+), 34 deletions(-)
+
+diff --git a/src/internal/runtime/maps/export_test.go b/src/internal/runtime/maps/export_test.go
+index c9c1da6a1c..3846fea21b 100644
+--- a/src/internal/runtime/maps/export_test.go
++++ b/src/internal/runtime/maps/export_test.go
+@@ -82,7 +82,7 @@ func (m *Map) KeyFromFullGroup(typ *abi.SwissMapType) unsafe.Pointer {
+ 			}
+ 
+ 			// All full or deleted slots.
+-			for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
++			for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
+ 				if g.ctrls().get(j) == ctrlDeleted {
+ 					continue
+ 				}
+diff --git a/src/internal/runtime/maps/group.go b/src/internal/runtime/maps/group.go
+index 74bc79088b..dab98cd4ff 100644
+--- a/src/internal/runtime/maps/group.go
++++ b/src/internal/runtime/maps/group.go
+@@ -40,8 +40,8 @@ type bitset uint64
+ // first control byte in the group that has the MSB set.
+ //
+ // Returns abi.SwissMapGroupSlots if the bitset is empty.
+-func (b bitset) first() uint32 {
+-	return uint32(sys.TrailingZeros64(uint64(b))) >> 3
++func (b bitset) first() uintptr {
++	return uintptr(sys.TrailingZeros64(uint64(b))) >> 3
+ }
+ 
+ // removeFirst removes the first set bit (that is, resets the least significant set bit to 0).
+@@ -64,7 +64,7 @@ type ctrl uint8
+ type ctrlGroup uint64
+ 
+ // get returns the i-th control byte.
+-func (g *ctrlGroup) get(i uint32) ctrl {
++func (g *ctrlGroup) get(i uintptr) ctrl {
+ 	if goarch.BigEndian {
+ 		return *(*ctrl)(unsafe.Add(unsafe.Pointer(g), 7-i))
+ 	}
+@@ -72,7 +72,7 @@ func (g *ctrlGroup) get(i uint32) ctrl {
+ }
+ 
+ // set sets the i-th control byte.
+-func (g *ctrlGroup) set(i uint32, c ctrl) {
++func (g *ctrlGroup) set(i uintptr, c ctrl) {
+ 	if goarch.BigEndian {
+ 		*(*ctrl)(unsafe.Add(unsafe.Pointer(g), 7-i)) = c
+ 		return
+@@ -202,15 +202,15 @@ func (g *groupReference) ctrls() *ctrlGroup {
+ }
+ 
+ // key returns a pointer to the key at index i.
+-func (g *groupReference) key(typ *abi.SwissMapType, i uint32) unsafe.Pointer {
+-	offset := groupSlotsOffset + uintptr(i)*typ.SlotSize
++func (g *groupReference) key(typ *abi.SwissMapType, i uintptr) unsafe.Pointer {
++	offset := groupSlotsOffset + i*typ.SlotSize
+ 
+ 	return unsafe.Pointer(uintptr(g.data) + offset)
+ }
+ 
+ // elem returns a pointer to the element at index i.
+-func (g *groupReference) elem(typ *abi.SwissMapType, i uint32) unsafe.Pointer {
+-	offset := groupSlotsOffset + uintptr(i)*typ.SlotSize + typ.ElemOff
++func (g *groupReference) elem(typ *abi.SwissMapType, i uintptr) unsafe.Pointer {
++	offset := groupSlotsOffset + i*typ.SlotSize + typ.ElemOff
+ 
+ 	return unsafe.Pointer(uintptr(g.data) + offset)
+ }
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 80de397d31..4ac7914d81 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -430,7 +430,7 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
+ 	h2 := uint8(h2(hash))
+ 	ctrls := *g.ctrls()
+ 
+-	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
++	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+ 		c := uint8(ctrls)
+ 		ctrls >>= 8
+ 		if c != h2 {
+@@ -590,7 +590,7 @@ func (m *Map) growToTable(typ *abi.SwissMapType) {
+ 		data: m.dirPtr,
+ 	}
+ 
+-	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
++	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+ 		if (g.ctrls().get(i) & ctrlEmpty) == ctrlEmpty {
+ 			// Empty
+ 			continue
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+index db4472186c..4a548c3a83 100644
+--- a/src/internal/runtime/maps/runtime_fast32_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -21,7 +21,7 @@ func (m *Map) getWithoutKeySmallFast32(typ *abi.SwissMapType, hash uintptr, key
+ 	h2 := uint8(h2(hash))
+ 	ctrls := *g.ctrls()
+ 
+-	for i := uint32(0); i < 8; i++ {
++	for i := uintptr(0); i < 8; i++ {
+ 		c := uint8(ctrls)
+ 		ctrls >>= 8
+ 		if c != h2 {
+@@ -245,7 +245,7 @@ outer:
+ 		// we find, which we'll use to insert the new entry if
+ 		// necessary.
+ 		var firstDeletedGroup groupReference
+-		var firstDeletedSlot uint32
++		var firstDeletedSlot uintptr
+ 
+ 		for ; ; seq = seq.next() {
+ 			g := t.groups.group(typ, seq.offset)
+@@ -272,7 +272,7 @@ outer:
+ 				// Finding an empty slot means we've reached the end of
+ 				// the probe sequence.
+ 
+-				var i uint32
++				var i uintptr
+ 
+ 				// If we found a deleted slot along the way, we
+ 				// can replace it without consuming growthLeft.
+@@ -386,7 +386,7 @@ outer:
+ 		// As we look for a match, keep track of the first deleted slot we
+ 		// find, which we'll use to insert the new entry if necessary.
+ 		var firstDeletedGroup groupReference
+-		var firstDeletedSlot uint32
++		var firstDeletedSlot uintptr
+ 
+ 		for ; ; seq = seq.next() {
+ 			g := t.groups.group(typ, seq.offset)
+@@ -413,7 +413,7 @@ outer:
+ 				// Finding an empty slot means we've reached the end of
+ 				// the probe sequence.
+ 
+-				var i uint32
++				var i uintptr
+ 
+ 				// If we found a deleted slot along the way, we
+ 				// can replace it without consuming growthLeft.
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index f20df2069b..5ffb248336 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -21,7 +21,7 @@ func (m *Map) getWithoutKeySmallFast64(typ *abi.SwissMapType, hash uintptr, key
+ 	h2 := uint8(h2(hash))
+ 	ctrls := *g.ctrls()
+ 
+-	for i := uint32(0); i < 8; i++ {
++	for i := uintptr(0); i < 8; i++ {
+ 		c := uint8(ctrls)
+ 		ctrls >>= 8
+ 		if c != h2 {
+@@ -245,7 +245,7 @@ outer:
+ 		// we find, which we'll use to insert the new entry if
+ 		// necessary.
+ 		var firstDeletedGroup groupReference
+-		var firstDeletedSlot uint32
++		var firstDeletedSlot uintptr
+ 
+ 		for ; ; seq = seq.next() {
+ 			g := t.groups.group(typ, seq.offset)
+@@ -272,7 +272,7 @@ outer:
+ 				// Finding an empty slot means we've reached the end of
+ 				// the probe sequence.
+ 
+-				var i uint32
++				var i uintptr
+ 
+ 				// If we found a deleted slot along the way, we
+ 				// can replace it without consuming growthLeft.
+@@ -424,7 +424,7 @@ outer:
+ 		// we find, which we'll use to insert the new entry if
+ 		// necessary.
+ 		var firstDeletedGroup groupReference
+-		var firstDeletedSlot uint32
++		var firstDeletedSlot uintptr
+ 
+ 		for ; ; seq = seq.next() {
+ 			g := t.groups.group(typ, seq.offset)
+@@ -451,7 +451,7 @@ outer:
+ 				// Finding an empty slot means we've reached the end of
+ 				// the probe sequence.
+ 
+-				var i uint32
++				var i uintptr
+ 
+ 				// If we found a deleted slot along the way, we
+ 				// can replace it without consuming growthLeft.
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index abdd894077..a103839cb6 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -23,7 +23,7 @@ func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, hash uintptr, key
+ 	h2 := uint8(h2(hash))
+ 	ctrls := *g.ctrls()
+ 
+-	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
++	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+ 		c := uint8(ctrls)
+ 		ctrls >>= 8
+ 		if c != h2 {
+@@ -249,7 +249,7 @@ outer:
+ 		// we find, which we'll use to insert the new entry if
+ 		// necessary.
+ 		var firstDeletedGroup groupReference
+-		var firstDeletedSlot uint32
++		var firstDeletedSlot uintptr
+ 
+ 		for ; ; seq = seq.next() {
+ 			g := t.groups.group(typ, seq.offset)
+@@ -279,7 +279,7 @@ outer:
+ 				// Finding an empty slot means we've reached the end of
+ 				// the probe sequence.
+ 
+-				var i uint32
++				var i uintptr
+ 
+ 				// If we found a deleted slot along the way, we
+ 				// can replace it without consuming growthLeft.
+diff --git a/src/internal/runtime/maps/runtime_swiss.go b/src/internal/runtime/maps/runtime_swiss.go
+index f2c5d9e2e5..58ac893486 100644
+--- a/src/internal/runtime/maps/runtime_swiss.go
++++ b/src/internal/runtime/maps/runtime_swiss.go
+@@ -245,7 +245,7 @@ outer:
+ 		// we find, which we'll use to insert the new entry if
+ 		// necessary.
+ 		var firstDeletedGroup groupReference
+-		var firstDeletedSlot uint32
++		var firstDeletedSlot uintptr
+ 
+ 		for ; ; seq = seq.next() {
+ 			g := t.groups.group(typ, seq.offset)
+@@ -282,7 +282,7 @@ outer:
+ 				// Finding an empty slot means we've reached the end of
+ 				// the probe sequence.
+ 
+-				var i uint32
++				var i uintptr
+ 
+ 				// If we found a deleted slot along the way, we
+ 				// can replace it without consuming growthLeft.
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index a23193f63b..59d84761c6 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -271,7 +271,7 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
+ 	// As we look for a match, keep track of the first deleted slot we
+ 	// find, which we'll use to insert the new entry if necessary.
+ 	var firstDeletedGroup groupReference
+-	var firstDeletedSlot uint32
++	var firstDeletedSlot uintptr
+ 
+ 	for ; ; seq = seq.next() {
+ 		g := t.groups.group(typ, seq.offset)
+@@ -308,7 +308,7 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
+ 			// Finding an empty slot means we've reached the end of
+ 			// the probe sequence.
+ 
+-			var i uint32
++			var i uintptr
+ 
+ 			// If we found a deleted slot along the way, we can
+ 			// replace it without consuming growthLeft.
+@@ -618,7 +618,7 @@ func (it *Iter) Next() {
+ 		// Map was small at Init.
+ 		g := it.groupSmall
+ 		for ; it.entryIdx < abi.SwissMapGroupSlots; it.entryIdx++ {
+-			k := uint32(it.entryIdx+it.entryOffset) % abi.SwissMapGroupSlots
++			k := uintptr(it.entryIdx+it.entryOffset) % abi.SwissMapGroupSlots
+ 
+ 			if (g.ctrls().get(k) & ctrlEmpty) == ctrlEmpty {
+ 				// Empty or deleted.
+@@ -745,7 +745,7 @@ func (it *Iter) Next() {
+ 		// on grown below.
+ 		for ; it.entryIdx <= it.tab.groups.entryMask; it.entryIdx++ {
+ 			entryIdx := (it.entryIdx + it.entryOffset) & it.tab.groups.entryMask
+-			slotIdx := uint32(entryIdx & (abi.SwissMapGroupSlots - 1))
++			slotIdx := uintptr(entryIdx & (abi.SwissMapGroupSlots - 1))
+ 
+ 			if slotIdx == 0 || g.data == nil {
+ 				// Only compute the group (a) when we switch
+@@ -922,7 +922,7 @@ func (t *table) split(typ *abi.SwissMapType, m *Map) {
+ 
+ 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+ 		g := t.groups.group(typ, i)
+-		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
++		for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
+ 			if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
+ 				// Empty or deleted
+ 				continue
+@@ -968,7 +968,7 @@ func (t *table) grow(typ *abi.SwissMapType, m *Map, newCapacity uint16) {
+ 	if t.capacity > 0 {
+ 		for i := uint64(0); i <= t.groups.lengthMask; i++ {
+ 			g := t.groups.group(typ, i)
+-			for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
++			for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
+ 				if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
+ 					// Empty or deleted
+ 					continue
+diff --git a/src/internal/runtime/maps/table_debug.go b/src/internal/runtime/maps/table_debug.go
+index b1def3b85e..a754592f70 100644
+--- a/src/internal/runtime/maps/table_debug.go
++++ b/src/internal/runtime/maps/table_debug.go
+@@ -24,7 +24,7 @@ func (t *table) checkInvariants(typ *abi.SwissMapType, m *Map) {
+ 	var empty uint16
+ 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+ 		g := t.groups.group(typ, i)
+-		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
++		for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
+ 			c := g.ctrls().get(j)
+ 			switch {
+ 			case c == ctrlDeleted:
+@@ -96,7 +96,7 @@ func (t *table) Print(typ *abi.SwissMapType, m *Map) {
+ 
+ 		g := t.groups.group(typ, i)
+ 		ctrls := g.ctrls()
+-		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
++		for j := uintptr(0); j < abi.SwissMapGroupSlots; j++ {
+ 			print("\t\t\tslot ", j, "\n")
+ 
+ 			c := ctrls.get(j)

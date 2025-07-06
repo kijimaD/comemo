@@ -1,0 +1,519 @@
+commit fa2bb342d7b0024440d996c2d6d6778b7a5e0247
+Author: Keith Randall <khr@golang.org>
+Date:   Mon May 5 10:51:52 2025 -0700
+
+    Revert "cmd/compile: allow all of the preamble to be preemptible"
+    
+    This reverts commits
+    
+    3f3782feed6e0726ddb08afd32dad7d94fbb38c6 (CL 648518)
+    b386b628521780c048af14a148f373c84e687b26 (CL 668475)
+    
+    Fixes #73542
+    
+    Change-Id: I218851c5c0b62700281feb0b3f82b6b9b97b910d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670055
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/obj/arm/obj5.go    | 15 ++++++++++++--
+ src/cmd/internal/obj/arm64/obj7.go  | 15 ++++++++++++--
+ src/cmd/internal/obj/loong64/obj.go | 13 +++++++++++--
+ src/cmd/internal/obj/mips/obj0.go   |  8 ++++++++
+ src/cmd/internal/obj/plist.go       | 25 ++++++++++++++++++++++--
+ src/cmd/internal/obj/ppc64/obj9.go  |  8 ++++++++
+ src/cmd/internal/obj/riscv/obj.go   |  8 ++++++++
+ src/cmd/internal/obj/s390x/objz.go  | 10 ++++++++++
+ src/cmd/internal/obj/x86/obj6.go    | 21 ++++++++++++++++----
+ src/runtime/preempt.go              |  1 -
+ src/runtime/runtime2.go             | 39 +++++++++++++++----------------------
+ src/runtime/stack.go                | 23 ----------------------
+ 12 files changed, 127 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index a975d8a1b3..2f04fd7316 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -703,6 +703,12 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REG_R1
+ 
++	// Mark the stack bound check and morestack call async nonpreemptible.
++	// If we get preempted here, when resumed the preemption request is
++	// cleared, but we'll still call morestack, which will double the stack
++	// unnecessarily. See issue #35470.
++	p = c.ctxt.StartUnsafePoint(p, c.newprog)
++
+ 	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+ 		//	CMP	stackguard, SP
+@@ -766,6 +772,8 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	bls.As = ABLS
+ 	bls.To.Type = obj.TYPE_BRANCH
+ 
++	end := c.ctxt.EndUnsafePoint(bls, c.newprog, -1)
++
+ 	var last *obj.Prog
+ 	for last = c.cursym.Func().Text; last.Link != nil; last = last.Link {
+ 	}
+@@ -778,6 +786,7 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	spfix.Spadj = -framesize
+ 
+ 	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
++	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
+ 
+ 	// MOVW	LR, R3
+ 	movw := obj.Appendp(pcdata, c.newprog)
+@@ -802,14 +811,16 @@ func (c *ctxt5) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	}
+ 	call.To.Sym = c.ctxt.Lookup(morestack)
+ 
++	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
++
+ 	// B start
+-	b := obj.Appendp(call, c.newprog)
++	b := obj.Appendp(pcdata, c.newprog)
+ 	b.As = obj.AJMP
+ 	b.To.Type = obj.TYPE_BRANCH
+ 	b.To.SetTarget(startPred.Link)
+ 	b.Spadj = +framesize
+ 
+-	return bls
++	return end
+ }
+ 
+ var unaryDst = map[obj.As]bool{
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 1e6ce72c48..368a631ff5 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -163,6 +163,12 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REGRT1
+ 
++	// Mark the stack bound check and morestack call async nonpreemptible.
++	// If we get preempted here, when resumed the preemption request is
++	// cleared, but we'll still call morestack, which will double the stack
++	// unnecessarily. See issue #35470.
++	p = c.ctxt.StartUnsafePoint(p, c.newprog)
++
+ 	q := (*obj.Prog)(nil)
+ 	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+@@ -229,6 +235,8 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	bls.As = ABLS
+ 	bls.To.Type = obj.TYPE_BRANCH
+ 
++	end := c.ctxt.EndUnsafePoint(bls, c.newprog, -1)
++
+ 	var last *obj.Prog
+ 	for last = c.cursym.Func().Text; last.Link != nil; last = last.Link {
+ 	}
+@@ -241,6 +249,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	spfix.Spadj = -framesize
+ 
+ 	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
++	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
+ 
+ 	if q != nil {
+ 		q.To.SetTarget(pcdata)
+@@ -280,7 +289,9 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	}
+ 	call.To.Sym = c.ctxt.Lookup(morestack)
+ 
+-	unspill := c.cursym.Func().UnspillRegisterArgs(call, c.newprog)
++	// The instructions which unspill regs should be preemptible.
++	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
++	unspill := c.cursym.Func().UnspillRegisterArgs(pcdata, c.newprog)
+ 
+ 	// B	start
+ 	jmp := obj.Appendp(unspill, c.newprog)
+@@ -289,7 +300,7 @@ func (c *ctxt7) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	jmp.To.SetTarget(startPred.Link)
+ 	jmp.Spadj = +framesize
+ 
+-	return bls
++	return end
+ }
+ 
+ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index e9ff365b8c..f75e2d8716 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -717,6 +717,12 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REG_R20
+ 
++	// Mark the stack bound check and morestack call async nonpreemptible.
++	// If we get preempted here, when resumed the preemption request is
++	// cleared, but we'll still call morestack, which will double the stack
++	// unnecessarily. See issue #35470.
++	p = c.ctxt.StartUnsafePoint(p, c.newprog)
++
+ 	var q *obj.Prog
+ 	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+@@ -788,7 +794,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.To.Type = obj.TYPE_BRANCH
+ 	p.Mark |= BRANCH
+ 
+-	end := p
++	end := c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+ 
+ 	var last *obj.Prog
+ 	for last = c.cursym.Func().Text; last.Link != nil; last = last.Link {
+@@ -802,6 +808,7 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	spfix.Spadj = -framesize
+ 
+ 	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
++	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
+ 
+ 	if q != nil {
+ 		q.To.SetTarget(pcdata)
+@@ -836,7 +843,9 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	}
+ 	call.Mark |= BRANCH
+ 
+-	unspill := c.cursym.Func().UnspillRegisterArgs(call, c.newprog)
++	// The instructions which unspill regs should be preemptible.
++	pcdata = c.ctxt.EndUnsafePoint(call, c.newprog, -1)
++	unspill := c.cursym.Func().UnspillRegisterArgs(pcdata, c.newprog)
+ 
+ 	// JMP start
+ 	jmp := obj.Appendp(unspill, c.newprog)
+diff --git a/src/cmd/internal/obj/mips/obj0.go b/src/cmd/internal/obj/mips/obj0.go
+index ef242c5f3b..b9152fe57e 100644
+--- a/src/cmd/internal/obj/mips/obj0.go
++++ b/src/cmd/internal/obj/mips/obj0.go
+@@ -767,6 +767,12 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REG_R1
+ 
++	// Mark the stack bound check and morestack call async nonpreemptible.
++	// If we get preempted here, when resumed the preemption request is
++	// cleared, but we'll still call morestack, which will double the stack
++	// unnecessarily. See issue #35470.
++	p = c.ctxt.StartUnsafePoint(p, c.newprog)
++
+ 	var q *obj.Prog
+ 	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+@@ -870,6 +876,8 @@ func (c *ctxt0) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	}
+ 	p.Mark |= BRANCH
+ 
++	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
++
+ 	// JMP	start
+ 	p = obj.Appendp(p, c.newprog)
+ 
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 5d60e1e3b6..698e5ace9c 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -262,8 +262,16 @@ func (ctxt *Link) GloblPos(s *LSym, size int64, flag int, pos src.XPos) {
+ 	s.setFIPSType(ctxt)
+ }
+ 
+-// EmitEntryStackMap generates PCDATA Progs after p to switch to the
+-// liveness map active at the entry of function s.
++// EmitEntryLiveness generates PCDATA Progs after p to switch to the
++// liveness map active at the entry of function s. It returns the last
++// Prog generated.
++func (ctxt *Link) EmitEntryLiveness(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
++	pcdata := ctxt.EmitEntryStackMap(s, p, newprog)
++	pcdata = ctxt.EmitEntryUnsafePoint(s, pcdata, newprog)
++	return pcdata
++}
++
++// Similar to EmitEntryLiveness, but just emit stack map.
+ func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+ 	pcdata := Appendp(p, newprog)
+ 	pcdata.Pos = s.Func().Text.Pos
+@@ -276,6 +284,19 @@ func (ctxt *Link) EmitEntryStackMap(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
+ 	return pcdata
+ }
+ 
++// Similar to EmitEntryLiveness, but just emit unsafe point map.
++func (ctxt *Link) EmitEntryUnsafePoint(s *LSym, p *Prog, newprog ProgAlloc) *Prog {
++	pcdata := Appendp(p, newprog)
++	pcdata.Pos = s.Func().Text.Pos
++	pcdata.As = APCDATA
++	pcdata.From.Type = TYPE_CONST
++	pcdata.From.Offset = abi.PCDATA_UnsafePoint
++	pcdata.To.Type = TYPE_CONST
++	pcdata.To.Offset = -1
++
++	return pcdata
++}
++
+ // StartUnsafePoint generates PCDATA Progs after p to mark the
+ // beginning of an unsafe point. The unsafe point starts immediately
+ // after p.
+diff --git a/src/cmd/internal/obj/ppc64/obj9.go b/src/cmd/internal/obj/ppc64/obj9.go
+index 77f13fadf9..2d2c198ab9 100644
+--- a/src/cmd/internal/obj/ppc64/obj9.go
++++ b/src/cmd/internal/obj/ppc64/obj9.go
+@@ -1364,6 +1364,12 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REG_R22
+ 
++	// Mark the stack bound check and morestack call async nonpreemptible.
++	// If we get preempted here, when resumed the preemption request is
++	// cleared, but we'll still call morestack, which will double the stack
++	// unnecessarily. See issue #35470.
++	p = c.ctxt.StartUnsafePoint(p, c.newprog)
++
+ 	var q *obj.Prog
+ 	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+@@ -1550,6 +1556,8 @@ func (c *ctxt9) stacksplit(p *obj.Prog, framesize int32) *obj.Prog {
+ 		p.To.Reg = REG_R2
+ 	}
+ 
++	// The instructions which unspill regs should be preemptible.
++	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+ 	unspill := c.cursym.Func().UnspillRegisterArgs(p, c.newprog)
+ 
+ 	// BR	start
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 8228ce287f..f4a2cb5fa4 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -978,6 +978,12 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REG_X6
+ 
++	// Mark the stack bound check and morestack call async nonpreemptible.
++	// If we get preempted here, when resumed the preemption request is
++	// cleared, but we'll still call morestack, which will double the stack
++	// unnecessarily. See issue #35470.
++	p = ctxt.StartUnsafePoint(p, newprog)
++
+ 	var to_done, to_more *obj.Prog
+ 
+ 	if framesize <= abi.StackSmall {
+@@ -1064,6 +1070,8 @@ func stacksplit(ctxt *obj.Link, p *obj.Prog, cursym *obj.LSym, newprog obj.ProgA
+ 	}
+ 	jalToSym(ctxt, p, REG_X5)
+ 
++	// The instructions which unspill regs should be preemptible.
++	p = ctxt.EndUnsafePoint(p, newprog, -1)
+ 	p = cursym.Func().UnspillRegisterArgs(p, newprog)
+ 
+ 	// JMP start
+diff --git a/src/cmd/internal/obj/s390x/objz.go b/src/cmd/internal/obj/s390x/objz.go
+index a3196c66fd..80b233d832 100644
+--- a/src/cmd/internal/obj/s390x/objz.go
++++ b/src/cmd/internal/obj/s390x/objz.go
+@@ -327,6 +327,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			if !p.From.Sym.NoSplit() {
+ 				p, pPreempt, pCheck = c.stacksplitPre(p, autosize) // emit pre part of split check
+ 				pPre = p
++				p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
+ 				wasSplit = true //need post part of split
+ 			}
+ 
+@@ -656,6 +657,12 @@ func (c *ctxtz) stacksplitPre(p *obj.Prog, framesize int32) (pPre, pPreempt, pCh
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = REG_R3
+ 
++	// Mark the stack bound check and morestack call async nonpreemptible.
++	// If we get preempted here, when resumed the preemption request is
++	// cleared, but we'll still call morestack, which will double the stack
++	// unnecessarily. See issue #35470.
++	p = c.ctxt.StartUnsafePoint(p, c.newprog)
++
+ 	if framesize <= abi.StackSmall {
+ 		// small stack: SP < stackguard
+ 		//	CMPUBGE	stackguard, SP, label-of-call-to-morestack
+@@ -736,6 +743,7 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre, pPreempt, pCheck *obj.Prog, fr
+ 	spfix.Spadj = -framesize
+ 
+ 	pcdata := c.ctxt.EmitEntryStackMap(c.cursym, spfix, c.newprog)
++	pcdata = c.ctxt.StartUnsafePoint(pcdata, c.newprog)
+ 
+ 	// MOVD	LR, R5
+ 	p = obj.Appendp(pcdata, c.newprog)
+@@ -762,6 +770,8 @@ func (c *ctxtz) stacksplitPost(p *obj.Prog, pPre, pPreempt, pCheck *obj.Prog, fr
+ 		p.To.Sym = c.ctxt.Lookup("runtime.morestack")
+ 	}
+ 
++	p = c.ctxt.EndUnsafePoint(p, c.newprog, -1)
++
+ 	// BR	pCheck
+ 	p = obj.Appendp(p, c.newprog)
+ 
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index 7ec93cf650..53c0918254 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -1106,6 +1106,11 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 		}
+ 
++		// Mark the stack bound check and morestack call async nonpreemptible.
++		// If we get preempted here, when resumed the preemption request is
++		// cleared, but we'll still call morestack, which will double the stack
++		// unnecessarily. See issue #35470.
++		p = ctxt.StartUnsafePoint(p, newprog)
+ 	} else if framesize <= abi.StackBig {
+ 		// large stack: SP-framesize <= stackguard-StackSmall
+ 		//	LEAQ -xxx(SP), tmp
+@@ -1130,6 +1135,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 			p.To.Offset = 3 * int64(ctxt.Arch.PtrSize) // G.stackguard1
+ 		}
+ 
++		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
+ 	} else {
+ 		// Such a large stack we need to protect against underflow.
+ 		// The runtime guarantees SP > objabi.StackBig, but
+@@ -1152,6 +1158,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = tmp
+ 
++		p = ctxt.StartUnsafePoint(p, newprog) // see the comment above
++
+ 		p = obj.Appendp(p, newprog)
+ 		p.As = sub
+ 		p.From.Type = obj.TYPE_CONST
+@@ -1181,6 +1189,8 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	jls.As = AJLS
+ 	jls.To.Type = obj.TYPE_BRANCH
+ 
++	end := ctxt.EndUnsafePoint(jls, newprog, -1)
++
+ 	var last *obj.Prog
+ 	for last = cursym.Func().Text; last.Link != nil; last = last.Link {
+ 	}
+@@ -1192,8 +1202,9 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 	spfix.As = obj.ANOP
+ 	spfix.Spadj = -framesize
+ 
+-	spill := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
+-	pcdata := cursym.Func().SpillRegisterArgs(spill, newprog)
++	pcdata := ctxt.EmitEntryStackMap(cursym, spfix, newprog)
++	spill := ctxt.StartUnsafePoint(pcdata, newprog)
++	pcdata = cursym.Func().SpillRegisterArgs(spill, newprog)
+ 
+ 	call := obj.Appendp(pcdata, newprog)
+ 	call.Pos = cursym.Func().Text.Pos
+@@ -1218,7 +1229,9 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		progedit(ctxt, callend.Link, newprog)
+ 	}
+ 
+-	unspill := cursym.Func().UnspillRegisterArgs(callend, newprog)
++	// The instructions which unspill regs should be preemptible.
++	pcdata = ctxt.EndUnsafePoint(callend, newprog, -1)
++	unspill := cursym.Func().UnspillRegisterArgs(pcdata, newprog)
+ 
+ 	jmp := obj.Appendp(unspill, newprog)
+ 	jmp.As = obj.AJMP
+@@ -1231,7 +1244,7 @@ func stacksplit(ctxt *obj.Link, cursym *obj.LSym, p *obj.Prog, newprog obj.ProgA
+ 		q1.To.SetTarget(spill)
+ 	}
+ 
+-	return jls, rg
++	return end, rg
+ }
+ 
+ func isR15(r int16) bool {
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 364929f635..c41c355835 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -173,7 +173,6 @@ func suspendG(gp *g) suspendGState {
+ 			// _Gscan bit and thus own the stack.
+ 			gp.preemptStop = false
+ 			gp.preempt = false
+-			gp.preemptRecent = true
+ 			gp.stackguard0 = gp.stack.lo + stackGuard
+ 
+ 			// The goroutine was already at a safe-point
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index f42c940b8e..05cf345baf 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -466,29 +466,22 @@ type g struct {
+ 	runnableTime  int64 // the amount of time spent runnable, cleared when running, only used when tracking
+ 	lockedm       muintptr
+ 	fipsIndicator uint8
+-
+-	// preemptRecent is set when a goroutine is preempted.  It is
+-	// reset by code passing through the synchronous preemption
+-	// path. It is used to avoid growing the stack when we were
+-	// just preempting, see issue 35470.
+-	preemptRecent bool
+-
+-	sig        uint32
+-	writebuf   []byte
+-	sigcode0   uintptr
+-	sigcode1   uintptr
+-	sigpc      uintptr
+-	parentGoid uint64          // goid of goroutine that created this goroutine
+-	gopc       uintptr         // pc of go statement that created this goroutine
+-	ancestors  *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
+-	startpc    uintptr         // pc of goroutine function
+-	racectx    uintptr
+-	waiting    *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
+-	cgoCtxt    []uintptr      // cgo traceback context
+-	labels     unsafe.Pointer // profiler labels
+-	timer      *timer         // cached timer for time.Sleep
+-	sleepWhen  int64          // when to sleep until
+-	selectDone atomic.Uint32  // are we participating in a select and did someone win the race?
++	sig           uint32
++	writebuf      []byte
++	sigcode0      uintptr
++	sigcode1      uintptr
++	sigpc         uintptr
++	parentGoid    uint64          // goid of goroutine that created this goroutine
++	gopc          uintptr         // pc of go statement that created this goroutine
++	ancestors     *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
++	startpc       uintptr         // pc of goroutine function
++	racectx       uintptr
++	waiting       *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
++	cgoCtxt       []uintptr      // cgo traceback context
++	labels        unsafe.Pointer // profiler labels
++	timer         *timer         // cached timer for time.Sleep
++	sleepWhen     int64          // when to sleep until
++	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
+ 
+ 	// goroutineProfiled indicates the status of this goroutine's stack for the
+ 	// current in-progress goroutine profile
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 67a394cd12..2fedaa9421 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1075,29 +1075,6 @@ func newstack() {
+ 		gopreempt_m(gp) // never return
+ 	}
+ 
+-	if stackguard0 == gp.stack.lo+stackGuard && gp.preemptRecent {
+-		// The case happens because of an interaction between synchronous
+-		// and asynchronous preemption. First, we set the cooperative
+-		// preemption signal (g.stackguard0 = stackPreempt), and as a
+-		// result the function fails the stack check and enters its
+-		// morestack path. If it gets suspended at that point, we might
+-		// give up waiting for it and send an async preempt. That async
+-		// preempt gets processed and clears the cooperative preemption
+-		// signal (g.stackguard0 = g.stack.lo+stackGuard) and resumes
+-		// the function. But even though the cooperative preemption
+-		// signal is cleared, we're already on the morestack path and
+-		// can't avoid calling morestack. See issue 35470.
+-		//
+-		// To avoid this problem, if we've been preempted recently,
+-		// clear the "preempted recently" flag and resume the G.
+-		// If we really did need more stack, the morestack check will
+-		// immediately fail and we'll get back here to try again (with
+-		// preemptRecent==false, so we don't take this case the
+-		// second time).
+-		gp.preemptRecent = false
+-		gogo(&gp.sched) // never return
+-	}
+-
+ 	// Allocate a bigger segment and move the stack.
+ 	oldsize := gp.stack.hi - gp.stack.lo
+ 	newsize := oldsize * 2

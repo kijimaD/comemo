@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 37042: feeff23556bc82778aab0ed80b576b953f064024
+# Index 37042: 0eacf8cbdfaec174f29fd8c734ac2f02442af79a
 
 echo "🚀 Generating explanation for commit 37042..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 37042..."
 
 ### メタデータ
 - **コミットインデックス**: 37042
-- **コミットハッシュ**: feeff23556bc82778aab0ed80b576b953f064024
-- **GitHub URL**: https://github.com/golang/go/commit/feeff23556bc82778aab0ed80b576b953f064024
+- **コミットハッシュ**: 0eacf8cbdfaec174f29fd8c734ac2f02442af79a
+- **GitHub URL**: https://github.com/golang/go/commit/0eacf8cbdfaec174f29fd8c734ac2f02442af79a
 
 ### 章構成
 

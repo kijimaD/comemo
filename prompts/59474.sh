@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 59474: bedda245740d766bfad36b2d91a22781575fe463
+# Index 59474: dd21a77bfae041eefe7b02ab5a40a7c4d3403f8d
 
 echo "🚀 Generating explanation for commit 59474..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 59474..."
 
 ### メタデータ
 - **コミットインデックス**: 59474
-- **コミットハッシュ**: bedda245740d766bfad36b2d91a22781575fe463
-- **GitHub URL**: https://github.com/golang/go/commit/bedda245740d766bfad36b2d91a22781575fe463
+- **コミットハッシュ**: dd21a77bfae041eefe7b02ab5a40a7c4d3403f8d
+- **GitHub URL**: https://github.com/golang/go/commit/dd21a77bfae041eefe7b02ab5a40a7c4d3403f8d
 
 ### 章構成
 

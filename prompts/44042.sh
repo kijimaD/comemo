@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 44042: ee330385ca684f7c166913e10998f791d1be06e7
+# Index 44042: 980f0c00bb07b01d2150a5b858573d9ba0a15890
 
 echo "🚀 Generating explanation for commit 44042..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 44042..."
 
 ### メタデータ
 - **コミットインデックス**: 44042
-- **コミットハッシュ**: ee330385ca684f7c166913e10998f791d1be06e7
-- **GitHub URL**: https://github.com/golang/go/commit/ee330385ca684f7c166913e10998f791d1be06e7
+- **コミットハッシュ**: 980f0c00bb07b01d2150a5b858573d9ba0a15890
+- **GitHub URL**: https://github.com/golang/go/commit/980f0c00bb07b01d2150a5b858573d9ba0a15890
 
 ### 章構成
 

@@ -1,0 +1,80 @@
+commit 35c619398b976bf90fb8c813653cf48ce732b032
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 18 14:05:55 2024 -0700
+
+    runtime: for fallback hash, get rid of constant xors
+    
+    There's no need for these. If hashkey[i] is uniform over [0,1<<64), then
+    hashkey[0]^C has exactly the same distribution, for any constant C.
+    
+    Change-Id: I4e10c27eff15e4b7a45139654ac41f410b1b12fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580218
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/hash64.go | 20 ++++++++------------
+ 1 file changed, 8 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+index bd16b7cd96..05cdb81113 100644
+--- a/src/runtime/hash64.go
++++ b/src/runtime/hash64.go
+@@ -15,16 +15,12 @@ import (
+ )
+ 
+ const (
+-	m1 = 0xa0761d6478bd642f
+-	m2 = 0xe7037ed1a0b428db
+-	m3 = 0x8ebc6af09c88c6e3
+-	m4 = 0x589965cc75374cc3
+ 	m5 = 0x1d8e4e27c47d124f
+ )
+ 
+ func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
+ 	var a, b uintptr
+-	seed ^= hashkey[0] ^ m1
++	seed ^= hashkey[0]
+ 	switch {
+ 	case s == 0:
+ 		return seed
+@@ -50,32 +46,32 @@ func memhashFallback(p unsafe.Pointer, seed, s uintptr) uintptr {
+ 			seed1 := seed
+ 			seed2 := seed
+ 			for ; l > 48; l -= 48 {
+-				seed = mix(r8(p)^hashkey[1]^m2, r8(add(p, 8))^seed)
+-				seed1 = mix(r8(add(p, 16))^hashkey[2]^m3, r8(add(p, 24))^seed1)
+-				seed2 = mix(r8(add(p, 32))^hashkey[3]^m4, r8(add(p, 40))^seed2)
++				seed = mix(r8(p)^hashkey[1], r8(add(p, 8))^seed)
++				seed1 = mix(r8(add(p, 16))^hashkey[2], r8(add(p, 24))^seed1)
++				seed2 = mix(r8(add(p, 32))^hashkey[3], r8(add(p, 40))^seed2)
+ 				p = add(p, 48)
+ 			}
+ 			seed ^= seed1 ^ seed2
+ 		}
+ 		for ; l > 16; l -= 16 {
+-			seed = mix(r8(p)^hashkey[1]^m2, r8(add(p, 8))^seed)
++			seed = mix(r8(p)^hashkey[1], r8(add(p, 8))^seed)
+ 			p = add(p, 16)
+ 		}
+ 		a = r8(add(p, l-16))
+ 		b = r8(add(p, l-8))
+ 	}
+ 
+-	return mix(m5^s, mix(a^hashkey[1]^m2, b^seed))
++	return mix(m5^s, mix(a^hashkey[1], b^seed))
+ }
+ 
+ func memhash32Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+ 	a := r4(p)
+-	return mix(m5^4, mix(a^hashkey[1]^m2, a^seed^hashkey[0]^m1))
++	return mix(m5^4, mix(a^hashkey[1], a^seed^hashkey[0]))
+ }
+ 
+ func memhash64Fallback(p unsafe.Pointer, seed uintptr) uintptr {
+ 	a := r8(p)
+-	return mix(m5^8, mix(a^hashkey[1]^m2, a^seed^hashkey[0]^m1))
++	return mix(m5^8, mix(a^hashkey[1], a^seed^hashkey[0]))
+ }
+ 
+ func mix(a, b uintptr) uintptr {

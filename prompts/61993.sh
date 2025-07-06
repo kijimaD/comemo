@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 61993: 1d20bce981005777424b9c8da199015ab2148810
+# Index 61993: d5b5ab929bf49403de3e2b61e9e771e775893d01
 
 echo "🚀 Generating explanation for commit 61993..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 61993..."
 
 ### メタデータ
 - **コミットインデックス**: 61993
-- **コミットハッシュ**: 1d20bce981005777424b9c8da199015ab2148810
-- **GitHub URL**: https://github.com/golang/go/commit/1d20bce981005777424b9c8da199015ab2148810
+- **コミットハッシュ**: d5b5ab929bf49403de3e2b61e9e771e775893d01
+- **GitHub URL**: https://github.com/golang/go/commit/d5b5ab929bf49403de3e2b61e9e771e775893d01
 
 ### 章構成
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41103: ff197f326fe607bba27a0b53e47b7a565601569d
+# Index 41103: b4baa8dd1d8bc1d65e80e88c294729554bab72b8
 
 echo "🚀 Generating explanation for commit 41103..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 41103..."
 
 ### メタデータ
 - **コミットインデックス**: 41103
-- **コミットハッシュ**: ff197f326fe607bba27a0b53e47b7a565601569d
-- **GitHub URL**: https://github.com/golang/go/commit/ff197f326fe607bba27a0b53e47b7a565601569d
+- **コミットハッシュ**: b4baa8dd1d8bc1d65e80e88c294729554bab72b8
+- **GitHub URL**: https://github.com/golang/go/commit/b4baa8dd1d8bc1d65e80e88c294729554bab72b8
 
 ### 章構成
 

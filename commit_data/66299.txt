@@ -1,0 +1,40 @@
+commit e382bf5b322c9814e910212ebd19907b68606c49
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Fri Feb 14 12:39:44 2025 -0500
+
+    unique: use runtime.AddCleanup instead of runtime.SetFinalizer
+    
+    Replace the usage of runtime.SetFinalizer with runtime.AddCleanup in
+    tests.
+    
+    Updates #70907
+    
+    Change-Id: I0d91b6af9643bde278215318f6176277373ddd19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649458
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/unique/handle_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/unique/handle_test.go b/src/unique/handle_test.go
+index 4b70876029..c8fd20b4cb 100644
+--- a/src/unique/handle_test.go
++++ b/src/unique/handle_test.go
+@@ -124,12 +124,12 @@ func checkMapsFor[T comparable](t *testing.T, value T) {
+ func TestMakeClonesStrings(t *testing.T) {
+ 	s := strings.Clone("abcdefghijklmnopqrstuvwxyz") // N.B. Must be big enough to not be tiny-allocated.
+ 	ran := make(chan bool)
+-	runtime.SetFinalizer(unsafe.StringData(s), func(_ *byte) {
+-		ran <- true
+-	})
++	runtime.AddCleanup(unsafe.StringData(s), func(ch chan bool) {
++		ch <- true
++	}, ran)
+ 	h := Make(s)
+ 
+-	// Clean up s (hopefully) and run the finalizer.
++	// Clean up s (hopefully) and run the cleanup.
+ 	runtime.GC()
+ 
+ 	select {

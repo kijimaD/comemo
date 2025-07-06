@@ -1,0 +1,186 @@
+commit 09fdcdc97d6dcf90aaac3177a6ce2088613547be
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 6 09:07:08 2025 +0100
+
+    {all,clean,make,race,run}.bat: remove %GOBUILDEXIT% and %GOBUILDFAIL%
+    
+    %GOBUILDEXIT% is used to avoid closing the terminal window when the
+    build or the tests fail on a dev machine. It is only set in CI to get
+    a non-zero exit code in case of failure.
+    
+    %GOBUILDFAIL% is used to pass the exit code from a child batch file to
+    the parent batch file. It is set to 1 in the child batch file if the
+    build or the tests fail.
+    
+    These two variables add complexity to the batch files and impose some
+    limitations on how they are implemented. For example, the child files
+    can't use setlocal, as it would make the parent file unable to read the
+    %GOBUILDFAIL% variable.
+    
+    This CL removes these two variables and replaces them with unconditional
+    calls to "exit /b 1" in case of failure, which is more idiomatic and
+    composable. The trick is that the "/b" parameter makes the exit only
+    apply to the current batch file, not the entire shell session (unless
+    the bat file is the root, in which case the parameter is ignored), so
+    the parent batch file can continue executing, potentially checking the
+    errorlevel of the child batch file (which we always set to 1).
+    
+    Change-Id: Ib053fb181ab14d58679551e03485700de77878d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647115
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/all.bat   | 12 ++++++------
+ src/clean.bat |  9 ++-------
+ src/make.bat  |  5 +----
+ src/race.bat  | 17 +++++------------
+ src/run.bat   | 10 +++-------
+ 5 files changed, 17 insertions(+), 36 deletions(-)
+
+diff --git a/src/all.bat b/src/all.bat
+index d5abec141f..016987f86e 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -8,15 +8,15 @@ setlocal
+ 
+ if exist make.bat goto ok
+ echo all.bat must be run from go\src
+-:: cannot exit: would kill parent command interpreter
+-goto end
++exit /b 1
+ :ok
+ 
+ call .\make.bat --no-banner --no-local
+-if %GOBUILDFAIL%==1 goto end
++if errorlevel 1 goto fail
+ call .\run.bat --no-rebuild --no-local
+-if %GOBUILDFAIL%==1 goto end
++if errorlevel 1 goto fail
+ "%GOTOOLDIR%/dist" banner
++goto :eof
+ 
+-:end
+-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
++:fail
++exit /b 1
+diff --git a/src/clean.bat b/src/clean.bat
+index 6688b41e5e..ceba3a56cf 100644
+--- a/src/clean.bat
++++ b/src/clean.bat
+@@ -6,8 +6,6 @@
+ 
+ setlocal
+ 
+-set GOBUILDFAIL=0
+-
+ go tool dist env -w -p >env.bat
+ if errorlevel 1 goto fail
+ call .\env.bat
+@@ -23,10 +21,7 @@ goto fail
+ "%GOBIN%\go" tool dist clean
+ "%GOBIN%\go" clean -i cmd
+ 
+-goto end
++goto :eof
+ 
+ :fail
+-set GOBUILDFAIL=1
+-
+-:end
+-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
++exit /b 1
+diff --git a/src/make.bat b/src/make.bat
+index 3b5a4663dc..3a72a59470 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -47,8 +47,6 @@ if x%4==x--no-local goto nolocal
+ setlocal
+ :nolocal
+ 
+-set GOBUILDFAIL=0
+-
+ if exist make.bat goto ok
+ echo Must run make.bat from Go src directory.
+ goto fail
+@@ -180,5 +178,4 @@ echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
+ echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go %bootgo%.
+ 
+ :fail
+-set GOBUILDFAIL=1
+-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
++exit /b 1
+diff --git a/src/race.bat b/src/race.bat
+index d395e19f97..64510b6012 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -11,8 +11,7 @@ setlocal
+ 
+ if exist make.bat goto ok
+ echo race.bat must be run from go\src
+-:: cannot exit: would kill parent command interpreter
+-goto end
++exit /b 1
+ :ok
+ 
+ set GOROOT=%CD%\..
+@@ -29,7 +28,7 @@ goto fail
+ 
+ :continue
+ call .\make.bat --no-banner --no-local
+-if %GOBUILDFAIL%==1 goto end
++if errorlevel 1 goto fail
+ echo # go install -race std
+ go install -race std
+ if errorlevel 1 goto fail
+@@ -37,15 +36,9 @@ if errorlevel 1 goto fail
+ go tool dist test -race
+ 
+ if errorlevel 1 goto fail
+-goto succ
++echo All tests passed.
++goto :eof
+ 
+ :fail
+-set GOBUILDFAIL=1
+ echo Fail.
+-goto end
+-
+-:succ
+-echo All tests passed.
+-
+-:end
+-if x%GOBUILDEXIT%==x1 exit %GOBUILDFAIL%
++exit /b 1
+diff --git a/src/run.bat b/src/run.bat
+index 35c8ead8cb..8815a1109f 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -16,8 +16,6 @@ if x%2==x--no-local goto nolocal
+ setlocal
+ :nolocal
+ 
+-set GOBUILDFAIL=0
+-
+ set GOENV=off
+ ..\bin\go tool dist env > env.bat
+ if errorlevel 1 goto fail
+@@ -29,14 +27,12 @@ set GOPATH=c:\nonexist-gopath
+ if x%1==x--no-rebuild goto norebuild
+ ..\bin\go tool dist test --rebuild
+ if errorlevel 1 goto fail
+-goto end
++goto :eof
+ 
+ :norebuild
+ ..\bin\go tool dist test
+ if errorlevel 1 goto fail
+-goto end
++goto :eof
+ 
+ :fail
+-set GOBUILDFAIL=1
+-
+-:end
++exit /b 1

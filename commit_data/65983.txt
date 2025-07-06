@@ -1,0 +1,63 @@
+commit e0aeee82f3ab81b2a2ac77b352be52d13030820e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jan 27 19:56:42 2025 +0100
+
+    crypto/ecdsa: avoid needless ScalarBaseMult in s390x
+    
+    We are running the (slow on s390x) ScalarBaseMult and then discarding
+    the point because we are reusing randomPoint.
+    
+    Copied the function 1:1 removing the point computation.
+    
+    Change-Id: I6a6a46561633ab3bbbaef804481f6c5da15fe2fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go | 21 ++++++++++++++++++++-
+ 1 file changed, 20 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go b/src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go
+index 271a35897f..d0a49cad61 100644
+--- a/src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go
++++ b/src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go
+@@ -59,6 +59,25 @@ func hashToBytes[P Point[P]](c *Curve[P], hash []byte) []byte {
+ 	return e.Bytes(c.N)
+ }
+ 
++// randomScalar is a copy of [randomPoint] that doesn't call ScalarBaseMult.
++func randomScalar[P Point[P]](c *Curve[P], generate func([]byte) error) (k *bigmod.Nat, err error) {
++	for {
++		b := make([]byte, c.N.Size())
++		if err := generate(b); err != nil {
++			return nil, err
++		}
++		if excess := len(b)*8 - c.N.BitLen(); excess > 0 {
++			if c.curve != p521 {
++				panic("ecdsa: internal error: unexpectedly masking off bits")
++			}
++			b = rightShift(b, excess)
++		}
++		if k, err := bigmod.NewNat().SetBytes(b, c.N); err == nil && k.IsZero() == 0 {
++			return k, nil
++		}
++	}
++}
++
+ func appendBlock(p []byte, blocksize int, b []byte) []byte {
+ 	if len(b) > blocksize {
+ 		panic("ecdsa: internal error: appendBlock input larger than block")
+@@ -83,7 +102,7 @@ func sign[P Point[P]](c *Curve[P], priv *PrivateKey, drbg *hmacDRBG, hash []byte
+ 		return signGeneric(c, priv, drbg, hash)
+ 	}
+ 	for {
+-		k, _, err := randomPoint(c, func(b []byte) error {
++		k, err := randomScalar(c, func(b []byte) error {
+ 			drbg.Generate(b)
+ 			return nil
+ 		})

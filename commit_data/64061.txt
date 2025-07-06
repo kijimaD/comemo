@@ -1,0 +1,52 @@
+commit 532cf270590da822a0803ebd1b5d40f454007ddf
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu May 23 13:43:45 2024 -0700
+
+    syscall: rm go:linkname from origRlimitNofile
+    
+    Since CL 588076 runc can do fine without the kludge. The code accessing the symbol is now guarded with `go:build !go1.23` in all supported runc branches (main: [1], release-1.1: [2]).
+    
+    This reverts part of CL 587219.
+    
+    Updates #67401.
+    
+    For #66797.
+    
+    [1]: https://github.com/opencontainers/runc/pull/4290
+    [2]: https://github.com/opencontainers/runc/pull/4299
+    
+    Change-Id: I204843a93c36857e21ab9b43bd7aaf046e8b9787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587918
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/syscall/rlimit.go | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+diff --git a/src/syscall/rlimit.go b/src/syscall/rlimit.go
+index f94b894b90..8184f17ab6 100644
+--- a/src/syscall/rlimit.go
++++ b/src/syscall/rlimit.go
+@@ -8,20 +8,9 @@ package syscall
+ 
+ import (
+ 	"sync/atomic"
+-	_ "unsafe"
+ )
+ 
+ // origRlimitNofile, if non-nil, is the original soft RLIMIT_NOFILE.
+-//
+-// origRlimitNofile should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/opencontainers/runc
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname origRlimitNofile
+ var origRlimitNofile atomic.Pointer[Rlimit]
+ 
+ // Some systems set an artificially low soft limit on open file count, for compatibility

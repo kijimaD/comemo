@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 14001: cf513387c3839e0815016ec8d9b4cf0cd1802aae
+# Index 14001: 69d7a560e97f65215c79aad3afd62290e1fa5cca
 
 echo "🚀 Generating explanation for commit 14001..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 14001..."
 
 ### メタデータ
 - **コミットインデックス**: 14001
-- **コミットハッシュ**: cf513387c3839e0815016ec8d9b4cf0cd1802aae
-- **GitHub URL**: https://github.com/golang/go/commit/cf513387c3839e0815016ec8d9b4cf0cd1802aae
+- **コミットハッシュ**: 69d7a560e97f65215c79aad3afd62290e1fa5cca
+- **GitHub URL**: https://github.com/golang/go/commit/69d7a560e97f65215c79aad3afd62290e1fa5cca
 
 ### 章構成
 

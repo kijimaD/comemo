@@ -1,0 +1,85 @@
+commit 8898450841e2febb86028389e358d9d906fddbfb
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Oct 23 22:45:58 2024 +0800
+
+    cmd/go: only print GOCACHE value in env -changed if it's not the default
+    
+    When other environment variables are set to default values,
+    we will not print it in go env -changed,
+    GOCACHE should do the same.
+    
+    For #69994
+    
+    Change-Id: I16661803cf1f56dd132b4db1c2d5cb4823fc0e58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621997
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/go/internal/cache/default.go       | 27 ++++++++++++++-------------
+ src/cmd/go/testdata/script/env_changed.txt |  5 +++++
+ 2 files changed, 19 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index eec2be9fa0..b2dd69edc5 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -78,26 +78,27 @@ func DefaultDir() (string, bool, error) {
+ 	// otherwise distinguish between an explicit "off" and a UserCacheDir error.
+ 
+ 	defaultDirOnce.Do(func() {
+-		defaultDir = cfg.Getenv("GOCACHE")
+-		if defaultDir != "" {
+-			defaultDirChanged = true
+-			if filepath.IsAbs(defaultDir) || defaultDir == "off" {
+-				return
+-			}
+-			defaultDir = "off"
+-			defaultDirErr = fmt.Errorf("GOCACHE is not an absolute path")
+-			return
+-		}
+-
+ 		// Compute default location.
+ 		dir, err := os.UserCacheDir()
+ 		if err != nil {
+ 			defaultDir = "off"
+-			defaultDirChanged = true
+ 			defaultDirErr = fmt.Errorf("GOCACHE is not defined and %v", err)
++		} else {
++			defaultDir = filepath.Join(dir, "go-build")
++		}
++
++		newDir := cfg.Getenv("GOCACHE")
++		if newDir != "" {
++			defaultDirErr = nil
++			defaultDirChanged = newDir != defaultDir
++			defaultDir = newDir
++			if filepath.IsAbs(defaultDir) || defaultDir == "off" {
++				return
++			}
++			defaultDir = "off"
++			defaultDirErr = fmt.Errorf("GOCACHE is not an absolute path")
+ 			return
+ 		}
+-		defaultDir = filepath.Join(dir, "go-build")
+ 	})
+ 
+ 	return defaultDir, defaultDirChanged, defaultDirErr
+diff --git a/src/cmd/go/testdata/script/env_changed.txt b/src/cmd/go/testdata/script/env_changed.txt
+index 10db765407..5ba13b4dbf 100644
+--- a/src/cmd/go/testdata/script/env_changed.txt
++++ b/src/cmd/go/testdata/script/env_changed.txt
+@@ -67,6 +67,11 @@ env GOROOT=./b
+ go env -changed
+ ! stdout 'GOTOOLCHAIN=''?local''?'
+ 
++[GOOS:windows] env LocalAppData=C:\
++[GOOS:windows] env GOCACHE=C:\go-build
++[GOOS:windows] go env -changed
++[GOOS:windows] ! stdout 'GOCACHE'
++
+ --  a/go.env --
+ GOPROXY=s
+ GOAMD64=v1

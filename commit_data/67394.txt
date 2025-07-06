@@ -1,0 +1,27 @@
+commit a8669c78f5547904f1771e5d1d2a515c0c97dc18
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 20 16:03:01 2025 -0400
+
+    [dev.simd] sync: correct the type of runtime_StoreReluintptr
+    
+    runtime_StoreReluintptr linknames to internal/runtime/atomic.StoreReluintptr,
+    which does not have a result.
+    
+    Change-Id: I468cce82985f391c221768188a5eaff43cbcd037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683095
+    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/sync/pool.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index 0fa8f8cdaa..f9a8405b79 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -315,4 +315,4 @@ func runtime_procUnpin()
+ func runtime_LoadAcquintptr(ptr *uintptr) uintptr
+ 
+ //go:linkname runtime_StoreReluintptr internal/runtime/atomic.StoreReluintptr
+-func runtime_StoreReluintptr(ptr *uintptr, val uintptr) uintptr
++func runtime_StoreReluintptr(ptr *uintptr, val uintptr)

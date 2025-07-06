@@ -1,0 +1,144 @@
+commit 5616ab602566b0daa87dfd250a76c61960c4b634
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 30 14:41:49 2024 +0200
+
+    os: use filepathlite.VolumeName
+    
+    It is better to have a single implementation of VolumeName, which is
+    quite tricky to get right on Windows.
+    
+    Change-Id: Ibba82dd71fe10b594cb6f782582430aa422e7078
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582499
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/os/file_windows.go |  4 ++--
+ src/os/path.go         |  3 ++-
+ src/os/path_plan9.go   |  4 ----
+ src/os/path_unix.go    |  4 ----
+ src/os/path_windows.go | 40 +---------------------------------------
+ 5 files changed, 5 insertions(+), 50 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index d40f335d83..245f994321 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -292,10 +292,10 @@ func Symlink(oldname, newname string) error {
+ 
+ 	// need the exact location of the oldname when it's relative to determine if it's a directory
+ 	destpath := oldname
+-	if v := volumeName(oldname); v == "" {
++	if v := filepathlite.VolumeName(oldname); v == "" {
+ 		if len(oldname) > 0 && IsPathSeparator(oldname[0]) {
+ 			// oldname is relative to the volume containing newname.
+-			if v = volumeName(newname); v != "" {
++			if v = filepathlite.VolumeName(newname); v != "" {
+ 				// Prepend the volume explicitly, because it may be different from the
+ 				// volume of the current working directory.
+ 				destpath = v + oldname
+diff --git a/src/os/path.go b/src/os/path.go
+index a46c20bfd2..42de603ae1 100644
+--- a/src/os/path.go
++++ b/src/os/path.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ )
+ 
+@@ -43,7 +44,7 @@ func MkdirAll(path string, perm FileMode) error {
+ 
+ 	// If there is a parent directory, and it is not the volume name,
+ 	// recurse to ensure parent directory exists.
+-	if parent := path[:i]; len(parent) > len(volumeName(path)) {
++	if parent := path[:i]; len(parent) > len(filepathlite.VolumeName(path)) {
+ 		err = MkdirAll(parent, perm)
+ 		if err != nil {
+ 			return err
+diff --git a/src/os/path_plan9.go b/src/os/path_plan9.go
+index f1c9dbc048..b09b53a3d8 100644
+--- a/src/os/path_plan9.go
++++ b/src/os/path_plan9.go
+@@ -13,7 +13,3 @@ const (
+ func IsPathSeparator(c uint8) bool {
+ 	return PathSeparator == c
+ }
+-
+-func volumeName(p string) string {
+-	return ""
+-}
+diff --git a/src/os/path_unix.go b/src/os/path_unix.go
+index 1c80fa91f8..062c07c91e 100644
+--- a/src/os/path_unix.go
++++ b/src/os/path_unix.go
+@@ -69,7 +69,3 @@ func splitPath(path string) (string, string) {
+ 
+ 	return dirname, basename
+ }
+-
+-func volumeName(p string) string {
+-	return ""
+-}
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index 47d5b443b3..162b63194c 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -45,44 +45,6 @@ func basename(name string) string {
+ 	return name
+ }
+ 
+-func volumeName(path string) (v string) {
+-	if len(path) < 2 {
+-		return ""
+-	}
+-	// with drive letter
+-	c := path[0]
+-	if path[1] == ':' &&
+-		('0' <= c && c <= '9' || 'a' <= c && c <= 'z' ||
+-			'A' <= c && c <= 'Z') {
+-		return path[:2]
+-	}
+-	// is it UNC
+-	if l := len(path); l >= 5 && IsPathSeparator(path[0]) && IsPathSeparator(path[1]) &&
+-		!IsPathSeparator(path[2]) && path[2] != '.' {
+-		// first, leading `\\` and next shouldn't be `\`. its server name.
+-		for n := 3; n < l-1; n++ {
+-			// second, next '\' shouldn't be repeated.
+-			if IsPathSeparator(path[n]) {
+-				n++
+-				// third, following something characters. its share name.
+-				if !IsPathSeparator(path[n]) {
+-					if path[n] == '.' {
+-						break
+-					}
+-					for ; n < l; n++ {
+-						if IsPathSeparator(path[n]) {
+-							break
+-						}
+-					}
+-					return path[:n]
+-				}
+-				break
+-			}
+-		}
+-	}
+-	return ""
+-}
+-
+ func fromSlash(path string) string {
+ 	// Replace each '/' with '\\' if present
+ 	var pathbuf []byte
+@@ -106,7 +68,7 @@ func fromSlash(path string) string {
+ }
+ 
+ func dirname(path string) string {
+-	vol := volumeName(path)
++	vol := filepathlite.VolumeName(path)
+ 	i := len(path) - 1
+ 	for i >= len(vol) && !IsPathSeparator(path[i]) {
+ 		i--

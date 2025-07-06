@@ -1,0 +1,205 @@
+commit a85b8810c49515c469d265c399febfa48442a983
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 12 14:41:32 2024 +0000
+
+    cmd/go: fix problems with coverage percentage reporting w/ -coverpkg
+    
+    This patch resolves a set of problems with "percent covered" metrics
+    reported when the "-coverpkg" is in effect; these bugs were introduced
+    in Go 1.22 with the rollout of CL 495452 and related changes.
+    Specifically, for runs with multiple packages selected but without
+    -coverpkg, "percent covered" metrics were generated for package P not
+    based just on P's statements but on the entire corpus of statements.
+    
+    Fixes #65570.
+    
+    Change-Id: I38d61886cb46ebd38d8c4313c326d671197c3568
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592205
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/internal/load/test.go                   | 17 ++++++
+ .../testdata/script/cover_single_vs_multiple.txt   | 63 ++++++++++++++++++++++
+ src/internal/coverage/cfile/testsupport.go         |  4 +-
+ src/internal/coverage/cfile/ts_test.go             |  4 +-
+ src/testing/internal/testdeps/deps.go              |  5 +-
+ 5 files changed, 87 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 73e66ddcc2..d29f64a51c 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -683,6 +683,22 @@ func (t *testFuncs) Covered() string {
+ 	return " in " + strings.Join(t.Cover.Paths, ", ")
+ }
+ 
++func (t *testFuncs) CoverSelectedPackages() string {
++	if t.Cover == nil || t.Cover.Paths == nil {
++		return `[]string{"` + t.Package.ImportPath + `"}`
++	}
++	var sb strings.Builder
++	fmt.Fprintf(&sb, "[]string{")
++	for k, p := range t.Cover.Pkgs {
++		if k != 0 {
++			sb.WriteString(", ")
++		}
++		fmt.Fprintf(&sb, `"%s"`, p.ImportPath)
++	}
++	sb.WriteString("}")
++	return sb.String()
++}
++
+ // Tested returns the name of the package being tested.
+ func (t *testFuncs) Tested() string {
+ 	return t.Package.Name
+@@ -950,6 +966,7 @@ func init() {
+ {{if .Cover}}
+ 	testdeps.CoverMode = {{printf "%q" .Cover.Mode}}
+ 	testdeps.Covered = {{printf "%q" .Covered}}
++	testdeps.CoverSelectedPackages = {{printf "%s" .CoverSelectedPackages}}
+ 	testdeps.CoverSnapshotFunc = cfile.Snapshot
+ 	testdeps.CoverProcessTestDirFunc = cfile.ProcessCoverTestDir
+ 	testdeps.CoverMarkProfileEmittedFunc = cfile.MarkProfileEmitted
+diff --git a/src/cmd/go/testdata/script/cover_single_vs_multiple.txt b/src/cmd/go/testdata/script/cover_single_vs_multiple.txt
+new file mode 100644
+index 0000000000..47fbae8f2e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_single_vs_multiple.txt
+@@ -0,0 +1,63 @@
++# Without -coverpkg, we should get the same value for a given
++# package regardless of how many other packages are selected
++# (see issue 65570).
++
++[short] skip
++
++go test -count=1 -cover ./a ./b ./main
++stdout '^ok\s+M/main\s+\S+\s+coverage: 75.0% of statements'
++go test -count=1 -cover ./main
++stdout '^ok\s+M/main\s+\S+\s+coverage: 75.0% of statements'
++
++-- go.mod --
++module M
++
++go 1.21
++-- a/a.go --
++package a
++
++func AFunc() int {
++	return 42
++}
++-- b/b.go --
++package b
++
++func BFunc() int {
++	return -42
++}
++-- main/main.go --
++package main
++
++import (
++	"M/a"
++)
++
++func MFunc() string {
++	return "42"
++}
++
++func M2Func() int {
++	return a.AFunc()
++}
++
++func init() {
++	println("package 'main' init")
++}
++
++func main() {
++	println(a.AFunc())
++}
++-- main/main_test.go --
++package main
++
++import "testing"
++
++func TestMain(t *testing.T) {
++	if MFunc() != "42" {
++		t.Fatalf("bad!")
++	}
++	if M2Func() != 42 {
++		t.Fatalf("also bad!")
++	}
++}
++
+diff --git a/src/internal/coverage/cfile/testsupport.go b/src/internal/coverage/cfile/testsupport.go
+index 72d09150cf..3594b32aee 100644
+--- a/src/internal/coverage/cfile/testsupport.go
++++ b/src/internal/coverage/cfile/testsupport.go
+@@ -27,7 +27,7 @@ import (
+ // testmain code when "go test -cover" is in effect. It is not
+ // intended to be used other than internally by the Go command's
+ // generated code.
+-func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.Writer) error {
++func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.Writer, selpkgs []string) error {
+ 	cmode := coverage.ParseCounterMode(cm)
+ 	if cmode == coverage.CtrModeInvalid {
+ 		return fmt.Errorf("invalid counter mode %q", cm)
+@@ -103,7 +103,7 @@ func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.
+ 	}
+ 
+ 	// Emit percent.
+-	if err := ts.cf.EmitPercent(w, nil, cpkg, true, true); err != nil {
++	if err := ts.cf.EmitPercent(w, selpkgs, cpkg, true, true); err != nil {
+ 		return err
+ 	}
+ 
+diff --git a/src/internal/coverage/cfile/ts_test.go b/src/internal/coverage/cfile/ts_test.go
+index fa05c82eec..d3441821a4 100644
+--- a/src/internal/coverage/cfile/ts_test.go
++++ b/src/internal/coverage/cfile/ts_test.go
+@@ -45,7 +45,7 @@ func TestTestSupport(t *testing.T) {
+ 	textfile := filepath.Join(t.TempDir(), "file.txt")
+ 	var sb strings.Builder
+ 	err := ProcessCoverTestDir(tgcd, textfile,
+-		testing.CoverMode(), "", &sb)
++		testing.CoverMode(), "", &sb, nil)
+ 	if err != nil {
+ 		t.Fatalf("bad: %v", err)
+ 	}
+@@ -168,7 +168,7 @@ func TestAuxMetaDataFiles(t *testing.T) {
+ 	var sb strings.Builder
+ 	textfile := filepath.Join(td, "file2.txt")
+ 	err = ProcessCoverTestDir(tgcd, textfile,
+-		testing.CoverMode(), "", &sb)
++		testing.CoverMode(), "", &sb, nil)
+ 	if err != nil {
+ 		t.Fatalf("bad: %v", err)
+ 	}
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 3b5dc7198f..6f42d4722c 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -203,6 +203,7 @@ func (TestDeps) SnapshotCoverage() {
+ 
+ var CoverMode string
+ var Covered string
++var CoverSelectedPackages []string
+ 
+ // These variables below are set at runtime (via code in testmain) to point
+ // to the equivalent functions in package internal/coverage/cfile; doing
+@@ -210,7 +211,7 @@ var Covered string
+ // only when -cover is in effect (as opposed to importing for all tests).
+ var (
+ 	CoverSnapshotFunc           func() float64
+-	CoverProcessTestDirFunc     func(dir string, cfile string, cm string, cpkg string, w io.Writer) error
++	CoverProcessTestDirFunc     func(dir string, cfile string, cm string, cpkg string, w io.Writer, selpkgs []string) error
+ 	CoverMarkProfileEmittedFunc func(val bool)
+ )
+ 
+@@ -232,7 +233,7 @@ func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
+ 	}
+ 	CoverMarkProfileEmittedFunc(true)
+ 	cmode := CoverMode
+-	if err := CoverProcessTestDirFunc(gocoverdir, coverprofile, cmode, Covered, os.Stdout); err != nil {
++	if err := CoverProcessTestDirFunc(gocoverdir, coverprofile, cmode, Covered, os.Stdout, CoverSelectedPackages); err != nil {
+ 		return "error generating coverage report", err
+ 	}
+ 	return "", nil

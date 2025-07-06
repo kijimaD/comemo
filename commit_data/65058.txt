@@ -1,0 +1,33 @@
+commit cbdb3545ad7d15204ef15daf124393aefb7b2c3d
+Author: Robert Pająk <pellared@hotmail.com>
+Date:   Mon Oct 14 20:30:20 2024 +0000
+
+    timer: fix Stop link in Timer.Reset doc comment
+    
+    Change-Id: I0fccb18b2d5d3f7c86f026c988f90734546f7be0
+    GitHub-Last-Rev: a72cfe970e74dd3a9fffec9604ae58126514542c
+    GitHub-Pull-Request: golang/go#69856
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619056
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/time/sleep.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index d128efb0f1..e9cd483be5 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -165,8 +165,8 @@ func NewTimer(d Duration) *Timer {
+ // to receive a time value corresponding to the previous timer settings;
+ // if the program has not received from t.C already and the timer is
+ // running, Reset is guaranteed to return true.
+-// Before Go 1.23, the only safe way to use Reset was to [Stop] and
+-// explicitly drain the timer first.
++// Before Go 1.23, the only safe way to use Reset was to call [Timer.Stop]
++// and explicitly drain the timer first.
+ // See the [NewTimer] documentation for more details.
+ func (t *Timer) Reset(d Duration) bool {
+ 	if !t.initTimer {

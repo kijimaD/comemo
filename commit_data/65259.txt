@@ -1,0 +1,631 @@
+commit 47cd14f268722882cc954a46277a80eb95821aa7
+Author: khr@golang.org <khr@golang.org>
+Date:   Thu Oct 31 10:42:23 2024 -0700
+
+    internal/runtime/maps: clean up put slot calls
+    
+    Use matchEmptyOrDeleted instead of matchEmpty.
+    Streamline the code a bit.
+    TODO: replicate in all the _fast files.
+    Change-Id: I4df16a13a19df3aaae0c42e0c12f20552f08ead6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/internal/runtime/maps/runtime_fast32_swiss.go  | 158 +++++++++------------
+ src/internal/runtime/maps/runtime_fast64_swiss.go  | 158 +++++++++------------
+ src/internal/runtime/maps/runtime_faststr_swiss.go |  79 +++++------
+ src/internal/runtime/maps/table.go                 | 103 ++++++--------
+ 4 files changed, 222 insertions(+), 276 deletions(-)
+
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+index a61257d5de..84c85772f4 100644
+--- a/src/internal/runtime/maps/runtime_fast32_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -256,58 +256,49 @@ outer:
+ 
+ 			// No existing slot for this key in this group. Is this the end
+ 			// of the probe sequence?
+-			match = g.ctrls().matchEmpty()
+-			if match != 0 {
+-				// Finding an empty slot means we've reached the end of
+-				// the probe sequence.
+-
+-				var i uintptr
+-
+-				// If we found a deleted slot along the way, we
+-				// can replace it without consuming growthLeft.
+-				if firstDeletedGroup.data != nil {
+-					g = firstDeletedGroup
+-					i = firstDeletedSlot
+-					t.growthLeft++ // will be decremented below to become a no-op.
+-				} else {
+-					// Otherwise, use the empty slot.
+-					i = match.first()
++			match = g.ctrls().matchEmptyOrDeleted()
++			if match == 0 {
++				continue // nothing but filled slots. Keep probing.
++			}
++			i := match.first()
++			if g.ctrls().get(i) == ctrlDeleted {
++				// There are some deleted slots. Remember
++				// the first one, and keep probing.
++				if firstDeletedGroup.data == nil {
++					firstDeletedGroup = g
++					firstDeletedSlot = i
+ 				}
++				continue
++			}
++			// We've found an empty slot, which means we've reached the end of
++			// the probe sequence.
+ 
+-				// If there is room left to grow, just insert the new entry.
+-				if t.growthLeft > 0 {
+-					slotKey := g.key(typ, i)
+-					*(*uint32)(slotKey) = key
++			// If we found a deleted slot along the way, we can
++			// replace it without consuming growthLeft.
++			if firstDeletedGroup.data != nil {
++				g = firstDeletedGroup
++				i = firstDeletedSlot
++				t.growthLeft++ // will be decremented below to become a no-op.
++			}
+ 
+-					slotElem = g.elem(typ, i)
++			// If there is room left to grow, just insert the new entry.
++			if t.growthLeft > 0 {
++				slotKey := g.key(typ, i)
++				*(*uint32)(slotKey) = key
+ 
+-					g.ctrls().set(i, ctrl(h2(hash)))
+-					t.growthLeft--
+-					t.used++
+-					m.used++
++				slotElem = g.elem(typ, i)
+ 
+-					t.checkInvariants(typ, m)
+-					break outer
+-				}
++				g.ctrls().set(i, ctrl(h2(hash)))
++				t.growthLeft--
++				t.used++
++				m.used++
+ 
+-				t.rehash(typ, m)
+-				continue outer
++				t.checkInvariants(typ, m)
++				break outer
+ 			}
+ 
+-			// No empty slots in this group. Check for a deleted
+-			// slot, which we'll use if we don't find a match later
+-			// in the probe sequence.
+-			//
+-			// We only need to remember a single deleted slot.
+-			if firstDeletedGroup.data == nil {
+-				// Since we already checked for empty slots
+-				// above, matches here must be deleted slots.
+-				match = g.ctrls().matchEmptyOrDeleted()
+-				if match != 0 {
+-					firstDeletedGroup = g
+-					firstDeletedSlot = match.first()
+-				}
+-			}
++			t.rehash(typ, m)
++			continue outer
+ 		}
+ 	}
+ 
+@@ -397,58 +388,49 @@ outer:
+ 
+ 			// No existing slot for this key in this group. Is this the end
+ 			// of the probe sequence?
+-			match = g.ctrls().matchEmpty()
+-			if match != 0 {
+-				// Finding an empty slot means we've reached the end of
+-				// the probe sequence.
+-
+-				var i uintptr
+-
+-				// If we found a deleted slot along the way, we
+-				// can replace it without consuming growthLeft.
+-				if firstDeletedGroup.data != nil {
+-					g = firstDeletedGroup
+-					i = firstDeletedSlot
+-					t.growthLeft++ // will be decremented below to become a no-op.
+-				} else {
+-					// Otherwise, use the empty slot.
+-					i = match.first()
++			match = g.ctrls().matchEmptyOrDeleted()
++			if match == 0 {
++				continue // nothing but filled slots. Keep probing.
++			}
++			i := match.first()
++			if g.ctrls().get(i) == ctrlDeleted {
++				// There are some deleted slots. Remember
++				// the first one, and keep probing.
++				if firstDeletedGroup.data == nil {
++					firstDeletedGroup = g
++					firstDeletedSlot = i
+ 				}
++				continue
++			}
++			// We've found an empty slot, which means we've reached the end of
++			// the probe sequence.
+ 
+-				// If there is room left to grow, just insert the new entry.
+-				if t.growthLeft > 0 {
+-					slotKey := g.key(typ, i)
+-					*(*unsafe.Pointer)(slotKey) = key
++			// If we found a deleted slot along the way, we can
++			// replace it without consuming growthLeft.
++			if firstDeletedGroup.data != nil {
++				g = firstDeletedGroup
++				i = firstDeletedSlot
++				t.growthLeft++ // will be decremented below to become a no-op.
++			}
+ 
+-					slotElem = g.elem(typ, i)
++			// If there is room left to grow, just insert the new entry.
++			if t.growthLeft > 0 {
++				slotKey := g.key(typ, i)
++				*(*unsafe.Pointer)(slotKey) = key
+ 
+-					g.ctrls().set(i, ctrl(h2(hash)))
+-					t.growthLeft--
+-					t.used++
+-					m.used++
++				slotElem = g.elem(typ, i)
+ 
+-					t.checkInvariants(typ, m)
+-					break outer
+-				}
++				g.ctrls().set(i, ctrl(h2(hash)))
++				t.growthLeft--
++				t.used++
++				m.used++
+ 
+-				t.rehash(typ, m)
+-				continue outer
++				t.checkInvariants(typ, m)
++				break outer
+ 			}
+ 
+-			// No empty slots in this group. Check for a deleted
+-			// slot, which we'll use if we don't find a match later
+-			// in the probe sequence.
+-			//
+-			// We only need to remember a single deleted slot.
+-			if firstDeletedGroup.data == nil {
+-				// Since we already checked for empty slots
+-				// above, matches here must be deleted slots.
+-				match = g.ctrls().matchEmptyOrDeleted()
+-				if match != 0 {
+-					firstDeletedGroup = g
+-					firstDeletedSlot = match.first()
+-				}
+-			}
++			t.rehash(typ, m)
++			continue outer
+ 		}
+ 	}
+ 
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index 85e9b7a392..7c9ce87cdc 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -255,58 +255,49 @@ outer:
+ 
+ 			// No existing slot for this key in this group. Is this the end
+ 			// of the probe sequence?
+-			match = g.ctrls().matchEmpty()
+-			if match != 0 {
+-				// Finding an empty slot means we've reached the end of
+-				// the probe sequence.
+-
+-				var i uintptr
+-
+-				// If we found a deleted slot along the way, we
+-				// can replace it without consuming growthLeft.
+-				if firstDeletedGroup.data != nil {
+-					g = firstDeletedGroup
+-					i = firstDeletedSlot
+-					t.growthLeft++ // will be decremented below to become a no-op.
+-				} else {
+-					// Otherwise, use the empty slot.
+-					i = match.first()
++			match = g.ctrls().matchEmptyOrDeleted()
++			if match == 0 {
++				continue // nothing but filled slots. Keep probing.
++			}
++			i := match.first()
++			if g.ctrls().get(i) == ctrlDeleted {
++				// There are some deleted slots. Remember
++				// the first one, and keep probing.
++				if firstDeletedGroup.data == nil {
++					firstDeletedGroup = g
++					firstDeletedSlot = i
+ 				}
++				continue
++			}
++			// We've found an empty slot, which means we've reached the end of
++			// the probe sequence.
+ 
+-				// If there is room left to grow, just insert the new entry.
+-				if t.growthLeft > 0 {
+-					slotKey := g.key(typ, i)
+-					*(*uint64)(slotKey) = key
++			// If we found a deleted slot along the way, we can
++			// replace it without consuming growthLeft.
++			if firstDeletedGroup.data != nil {
++				g = firstDeletedGroup
++				i = firstDeletedSlot
++				t.growthLeft++ // will be decremented below to become a no-op.
++			}
+ 
+-					slotElem = g.elem(typ, i)
++			// If there is room left to grow, just insert the new entry.
++			if t.growthLeft > 0 {
++				slotKey := g.key(typ, i)
++				*(*uint64)(slotKey) = key
+ 
+-					g.ctrls().set(i, ctrl(h2(hash)))
+-					t.growthLeft--
+-					t.used++
+-					m.used++
++				slotElem = g.elem(typ, i)
+ 
+-					t.checkInvariants(typ, m)
+-					break outer
+-				}
++				g.ctrls().set(i, ctrl(h2(hash)))
++				t.growthLeft--
++				t.used++
++				m.used++
+ 
+-				t.rehash(typ, m)
+-				continue outer
++				t.checkInvariants(typ, m)
++				break outer
+ 			}
+ 
+-			// No empty slots in this group. Check for a deleted
+-			// slot, which we'll use if we don't find a match later
+-			// in the probe sequence.
+-			//
+-			// We only need to remember a single deleted slot.
+-			if firstDeletedGroup.data == nil {
+-				// Since we already checked for empty slots
+-				// above, matches here must be deleted slots.
+-				match = g.ctrls().matchEmptyOrDeleted()
+-				if match != 0 {
+-					firstDeletedGroup = g
+-					firstDeletedSlot = match.first()
+-				}
+-			}
++			t.rehash(typ, m)
++			continue outer
+ 		}
+ 	}
+ 
+@@ -435,58 +426,49 @@ outer:
+ 
+ 			// No existing slot for this key in this group. Is this the end
+ 			// of the probe sequence?
+-			match = g.ctrls().matchEmpty()
+-			if match != 0 {
+-				// Finding an empty slot means we've reached the end of
+-				// the probe sequence.
+-
+-				var i uintptr
+-
+-				// If we found a deleted slot along the way, we
+-				// can replace it without consuming growthLeft.
+-				if firstDeletedGroup.data != nil {
+-					g = firstDeletedGroup
+-					i = firstDeletedSlot
+-					t.growthLeft++ // will be decremented below to become a no-op.
+-				} else {
+-					// Otherwise, use the empty slot.
+-					i = match.first()
++			match = g.ctrls().matchEmptyOrDeleted()
++			if match == 0 {
++				continue // nothing but filled slots. Keep probing.
++			}
++			i := match.first()
++			if g.ctrls().get(i) == ctrlDeleted {
++				// There are some deleted slots. Remember
++				// the first one, and keep probing.
++				if firstDeletedGroup.data == nil {
++					firstDeletedGroup = g
++					firstDeletedSlot = i
+ 				}
++				continue
++			}
++			// We've found an empty slot, which means we've reached the end of
++			// the probe sequence.
+ 
+-				// If there is room left to grow, just insert the new entry.
+-				if t.growthLeft > 0 {
+-					slotKey := g.key(typ, i)
+-					*(*unsafe.Pointer)(slotKey) = key
++			// If we found a deleted slot along the way, we can
++			// replace it without consuming growthLeft.
++			if firstDeletedGroup.data != nil {
++				g = firstDeletedGroup
++				i = firstDeletedSlot
++				t.growthLeft++ // will be decremented below to become a no-op.
++			}
+ 
+-					slotElem = g.elem(typ, i)
++			// If there is room left to grow, just insert the new entry.
++			if t.growthLeft > 0 {
++				slotKey := g.key(typ, i)
++				*(*unsafe.Pointer)(slotKey) = key
+ 
+-					g.ctrls().set(i, ctrl(h2(hash)))
+-					t.growthLeft--
+-					t.used++
+-					m.used++
++				slotElem = g.elem(typ, i)
+ 
+-					t.checkInvariants(typ, m)
+-					break outer
+-				}
++				g.ctrls().set(i, ctrl(h2(hash)))
++				t.growthLeft--
++				t.used++
++				m.used++
+ 
+-				t.rehash(typ, m)
+-				continue outer
++				t.checkInvariants(typ, m)
++				break outer
+ 			}
+ 
+-			// No empty slots in this group. Check for a deleted
+-			// slot, which we'll use if we don't find a match later
+-			// in the probe sequence.
+-			//
+-			// We only need to remember a single deleted slot.
+-			if firstDeletedGroup.data == nil {
+-				// Since we already checked for empty slots
+-				// above, matches here must be deleted slots.
+-				match = g.ctrls().matchEmptyOrDeleted()
+-				if match != 0 {
+-					firstDeletedGroup = g
+-					firstDeletedSlot = match.first()
+-				}
+-			}
++			t.rehash(typ, m)
++			continue outer
+ 		}
+ 	}
+ 
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index b7f88ab1ef..ab0213ba33 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -275,58 +275,49 @@ outer:
+ 
+ 			// No existing slot for this key in this group. Is this the end
+ 			// of the probe sequence?
+-			match = g.ctrls().matchEmpty()
+-			if match != 0 {
+-				// Finding an empty slot means we've reached the end of
+-				// the probe sequence.
+-
+-				var i uintptr
+-
+-				// If we found a deleted slot along the way, we
+-				// can replace it without consuming growthLeft.
+-				if firstDeletedGroup.data != nil {
+-					g = firstDeletedGroup
+-					i = firstDeletedSlot
+-					t.growthLeft++ // will be decremented below to become a no-op.
+-				} else {
+-					// Otherwise, use the empty slot.
+-					i = match.first()
++			match = g.ctrls().matchEmptyOrDeleted()
++			if match == 0 {
++				continue // nothing but filled slots. Keep probing.
++			}
++			i := match.first()
++			if g.ctrls().get(i) == ctrlDeleted {
++				// There are some deleted slots. Remember
++				// the first one, and keep probing.
++				if firstDeletedGroup.data == nil {
++					firstDeletedGroup = g
++					firstDeletedSlot = i
+ 				}
++				continue
++			}
++			// We've found an empty slot, which means we've reached the end of
++			// the probe sequence.
+ 
+-				// If there is room left to grow, just insert the new entry.
+-				if t.growthLeft > 0 {
+-					slotKey := g.key(typ, i)
+-					*(*string)(slotKey) = key
++			// If we found a deleted slot along the way, we can
++			// replace it without consuming growthLeft.
++			if firstDeletedGroup.data != nil {
++				g = firstDeletedGroup
++				i = firstDeletedSlot
++				t.growthLeft++ // will be decremented below to become a no-op.
++			}
+ 
+-					slotElem = g.elem(typ, i)
++			// If there is room left to grow, just insert the new entry.
++			if t.growthLeft > 0 {
++				slotKey := g.key(typ, i)
++				*(*string)(slotKey) = key
+ 
+-					g.ctrls().set(i, ctrl(h2(hash)))
+-					t.growthLeft--
+-					t.used++
+-					m.used++
++				slotElem = g.elem(typ, i)
+ 
+-					t.checkInvariants(typ, m)
+-					break outer
+-				}
++				g.ctrls().set(i, ctrl(h2(hash)))
++				t.growthLeft--
++				t.used++
++				m.used++
+ 
+-				t.rehash(typ, m)
+-				continue outer
++				t.checkInvariants(typ, m)
++				break outer
+ 			}
+ 
+-			// No empty slots in this group. Check for a deleted
+-			// slot, which we'll use if we don't find a match later
+-			// in the probe sequence.
+-			//
+-			// We only need to remember a single deleted slot.
+-			if firstDeletedGroup.data == nil {
+-				// Since we already checked for empty slots
+-				// above, matches here must be deleted slots.
+-				match = g.ctrls().matchEmptyOrDeleted()
+-				if match != 0 {
+-					firstDeletedGroup = g
+-					firstDeletedSlot = match.first()
+-				}
+-			}
++			t.rehash(typ, m)
++			continue outer
+ 		}
+ 	}
+ 
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index 8eb4a38c07..494ede7911 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -155,7 +155,7 @@ func (t *table) Get(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsafe.P
+ 	//   without hashing.
+ 	// - String keys could do quick checks of a few bytes before hashing.
+ 	hash := typ.Hasher(key, m.seed)
+- 	_, elem, ok := t.getWithKey(typ, hash, key)
++	_, elem, ok := t.getWithKey(typ, hash, key)
+ 	return elem, ok
+ }
+ 
+@@ -306,68 +306,59 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
+ 
+ 		// No existing slot for this key in this group. Is this the end
+ 		// of the probe sequence?
+-		match = g.ctrls().matchEmpty()
+-		if match != 0 {
+-			// Finding an empty slot means we've reached the end of
+-			// the probe sequence.
+-
+-			var i uintptr
+-
+-			// If we found a deleted slot along the way, we can
+-			// replace it without consuming growthLeft.
+-			if firstDeletedGroup.data != nil {
+-				g = firstDeletedGroup
+-				i = firstDeletedSlot
+-				t.growthLeft++ // will be decremented below to become a no-op.
+-			} else {
+-				// Otherwise, use the empty slot.
+-				i = match.first()
++		match = g.ctrls().matchEmptyOrDeleted()
++		if match == 0 {
++			continue // nothing but filled slots. Keep probing.
++		}
++		i := match.first()
++		if g.ctrls().get(i) == ctrlDeleted {
++			// There are some deleted slots. Remember
++			// the first one, and keep probing.
++			if firstDeletedGroup.data == nil {
++				firstDeletedGroup = g
++				firstDeletedSlot = i
+ 			}
++			continue
++		}
++		// We've found an empty slot, which means we've reached the end of
++		// the probe sequence.
++
++		// If we found a deleted slot along the way, we can
++		// replace it without consuming growthLeft.
++		if firstDeletedGroup.data != nil {
++			g = firstDeletedGroup
++			i = firstDeletedSlot
++			t.growthLeft++ // will be decremented below to become a no-op.
++		}
+ 
+-			// If there is room left to grow, just insert the new entry.
+-			if t.growthLeft > 0 {
+-				slotKey := g.key(typ, i)
+-				if typ.IndirectKey() {
+-					kmem := newobject(typ.Key)
+-					*(*unsafe.Pointer)(slotKey) = kmem
+-					slotKey = kmem
+-				}
+-				typedmemmove(typ.Key, slotKey, key)
+-
+-				slotElem := g.elem(typ, i)
+-				if typ.IndirectElem() {
+-					emem := newobject(typ.Elem)
+-					*(*unsafe.Pointer)(slotElem) = emem
+-					slotElem = emem
+-				}
+-
+-				g.ctrls().set(i, ctrl(h2(hash)))
+-				t.growthLeft--
+-				t.used++
+-				m.used++
++		// If there is room left to grow, just insert the new entry.
++		if t.growthLeft > 0 {
++			slotKey := g.key(typ, i)
++			if typ.IndirectKey() {
++				kmem := newobject(typ.Key)
++				*(*unsafe.Pointer)(slotKey) = kmem
++				slotKey = kmem
++			}
++			typedmemmove(typ.Key, slotKey, key)
+ 
+-				t.checkInvariants(typ, m)
+-				return slotElem, true
++			slotElem := g.elem(typ, i)
++			if typ.IndirectElem() {
++				emem := newobject(typ.Elem)
++				*(*unsafe.Pointer)(slotElem) = emem
++				slotElem = emem
+ 			}
+ 
+-			t.rehash(typ, m)
+-			return nil, false
+-		}
++			g.ctrls().set(i, ctrl(h2(hash)))
++			t.growthLeft--
++			t.used++
++			m.used++
+ 
+-		// No empty slots in this group. Check for a deleted
+-		// slot, which we'll use if we don't find a match later
+-		// in the probe sequence.
+-		//
+-		// We only need to remember a single deleted slot.
+-		if firstDeletedGroup.data == nil {
+-			// Since we already checked for empty slots
+-			// above, matches here must be deleted slots.
+-			match = g.ctrls().matchEmptyOrDeleted()
+-			if match != 0 {
+-				firstDeletedGroup = g
+-				firstDeletedSlot = match.first()
+-			}
++			t.checkInvariants(typ, m)
++			return slotElem, true
+ 		}
++
++		t.rehash(typ, m)
++		return nil, false
+ 	}
+ }
+ 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 25919: 76483877052eaa9b2242deee2239e82d3953fd16
+# Index 25919: 79480ca07a1515223d49031c59ae37b662f45b5e
 
 echo "🚀 Generating explanation for commit 25919..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 25919..."
 
 ### メタデータ
 - **コミットインデックス**: 25919
-- **コミットハッシュ**: 76483877052eaa9b2242deee2239e82d3953fd16
-- **GitHub URL**: https://github.com/golang/go/commit/76483877052eaa9b2242deee2239e82d3953fd16
+- **コミットハッシュ**: 79480ca07a1515223d49031c59ae37b662f45b5e
+- **GitHub URL**: https://github.com/golang/go/commit/79480ca07a1515223d49031c59ae37b662f45b5e
 
 ### 章構成
 

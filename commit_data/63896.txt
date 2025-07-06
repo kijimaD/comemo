@@ -1,0 +1,124 @@
+commit 2bf686dfe902c900bb0c9a140b49e5697d451944
+Author: islishude <islishude@gmail.com>
+Date:   Wed May 22 00:44:40 2024 +0000
+
+    net/http: add partitioned attribute to cookie type
+    
+    Fixes #62490
+    
+    Change-Id: Ibe7df96f50275c9321462e994a962031cb1f3018
+    GitHub-Last-Rev: 7df8738b804c3d82460eec1fc4acd7c6ad733fe1
+    GitHub-Pull-Request: golang/go#62499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/526435
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Théo Dury <tdury2@gmail.com>
+---
+ api/next/62490.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/net/http/62490.md |  1 +
+ src/net/http/cookie.go                       | 24 ++++++++++++++++++------
+ src/net/http/cookie_test.go                  |  6 ++++++
+ 4 files changed, 26 insertions(+), 6 deletions(-)
+
+diff --git a/api/next/62490.txt b/api/next/62490.txt
+new file mode 100644
+index 0000000000..e8772aca3f
+--- /dev/null
++++ b/api/next/62490.txt
+@@ -0,0 +1 @@
++pkg net/http, type Cookie struct, Partitioned bool #62490
+diff --git a/doc/next/6-stdlib/99-minor/net/http/62490.md b/doc/next/6-stdlib/99-minor/net/http/62490.md
+new file mode 100644
+index 0000000000..891eb45dae
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/http/62490.md
+@@ -0,0 +1 @@
++The new [Cookie.Partitioned] field identifies cookies with the Partitioned attribute.
+\ No newline at end of file
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index 2a8170709b..3483e16381 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -33,12 +33,13 @@ type Cookie struct {
+ 	// MaxAge=0 means no 'Max-Age' attribute specified.
+ 	// MaxAge<0 means delete cookie now, equivalently 'Max-Age: 0'
+ 	// MaxAge>0 means Max-Age attribute present and given in seconds
+-	MaxAge   int
+-	Secure   bool
+-	HttpOnly bool
+-	SameSite SameSite
+-	Raw      string
+-	Unparsed []string // Raw text of unparsed attribute-value pairs
++	MaxAge      int
++	Secure      bool
++	HttpOnly    bool
++	SameSite    SameSite
++	Partitioned bool
++	Raw         string
++	Unparsed    []string // Raw text of unparsed attribute-value pairs
+ }
+ 
+ // SameSite allows a server to define a cookie attribute making it impossible for
+@@ -185,6 +186,9 @@ func ParseSetCookie(line string) (*Cookie, error) {
+ 		case "path":
+ 			c.Path = val
+ 			continue
++		case "partitioned":
++			c.Partitioned = true
++			continue
+ 		}
+ 		c.Unparsed = append(c.Unparsed, parts[i])
+ 	}
+@@ -280,6 +284,9 @@ func (c *Cookie) String() string {
+ 	case SameSiteStrictMode:
+ 		b.WriteString("; SameSite=Strict")
+ 	}
++	if c.Partitioned {
++		b.WriteString("; Partitioned")
++	}
+ 	return b.String()
+ }
+ 
+@@ -311,6 +318,11 @@ func (c *Cookie) Valid() error {
+ 			return errors.New("http: invalid Cookie.Domain")
+ 		}
+ 	}
++	if c.Partitioned {
++		if !c.Secure {
++			return errors.New("http: partitioned cookies must be set with Secure")
++		}
++	}
+ 	return nil
+ }
+ 
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index 1817fe1507..aac6956362 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -81,6 +81,10 @@ var writeSetCookiesTests = []struct {
+ 		&Cookie{Name: "cookie-15", Value: "samesite-none", SameSite: SameSiteNoneMode},
+ 		"cookie-15=samesite-none; SameSite=None",
+ 	},
++	{
++		&Cookie{Name: "cookie-16", Value: "partitioned", SameSite: SameSiteNoneMode, Secure: true, Path: "/", Partitioned: true},
++		"cookie-16=partitioned; Path=/; Secure; SameSite=None; Partitioned",
++	},
+ 	// The "special" cookies have values containing commas or spaces which
+ 	// are disallowed by RFC 6265 but are common in the wild.
+ 	{
+@@ -570,12 +574,14 @@ func TestCookieValid(t *testing.T) {
+ 		{&Cookie{Name: ""}, false},
+ 		{&Cookie{Name: "invalid-value", Value: "foo\"bar"}, false},
+ 		{&Cookie{Name: "invalid-path", Path: "/foo;bar/"}, false},
++		{&Cookie{Name: "invalid-secure-for-partitioned", Value: "foo", Path: "/", Secure: false, Partitioned: true}, false},
+ 		{&Cookie{Name: "invalid-domain", Domain: "example.com:80"}, false},
+ 		{&Cookie{Name: "invalid-expiry", Value: "", Expires: time.Date(1600, 1, 1, 1, 1, 1, 1, time.UTC)}, false},
+ 		{&Cookie{Name: "valid-empty"}, true},
+ 		{&Cookie{Name: "valid-expires", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0)}, true},
+ 		{&Cookie{Name: "valid-max-age", Value: "foo", Path: "/bar", Domain: "example.com", MaxAge: 60}, true},
+ 		{&Cookie{Name: "valid-all-fields", Value: "foo", Path: "/bar", Domain: "example.com", Expires: time.Unix(0, 0), MaxAge: 0}, true},
++		{&Cookie{Name: "valid-partitioned", Value: "foo", Path: "/", Secure: true, Partitioned: true}, true},
+ 	}
+ 
+ 	for _, tt := range tests {

@@ -1,0 +1,1617 @@
+commit d91a2e5b11cc1badd7c760a911218a64d91ac8b0
+Author: Zxilly <zxilly@outlook.com>
+Date:   Tue Sep 3 17:46:10 2024 +0000
+
+    cmd: replace many sort.Interface with slices.Sort and SortFunc
+    
+    with slices there's no need to implement sort.Interface
+    
+    Change-Id: I59167e78881cb1df89a71e33d738d6aeca7adb71
+    GitHub-Last-Rev: 507ba84453f7305b6b2bf6317292111c00c93ffe
+    GitHub-Pull-Request: golang/go#68724
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602895
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/dwarfgen/dwarf.go      |  6 +-
+ src/cmd/compile/internal/importer/gcimporter.go |  6 --
+ src/cmd/compile/internal/importer/iimport.go    |  5 +-
+ src/cmd/compile/internal/reflectdata/reflect.go | 36 +++++-----
+ src/cmd/compile/internal/ssa/_gen/main.go       | 11 ++-
+ src/cmd/compile/internal/ssa/cse.go             | 93 ++++++++-----------------
+ src/cmd/compile/internal/ssa/debug.go           | 30 +++-----
+ src/cmd/compile/internal/ssa/html.go            | 17 ++---
+ src/cmd/compile/internal/ssa/schedule.go        | 19 +++--
+ src/cmd/compile/internal/ssagen/ssa.go          |  4 +-
+ src/cmd/compile/internal/typecheck/subr.go      |  4 +-
+ src/cmd/compile/internal/types/size.go          |  3 +-
+ src/cmd/compile/internal/types/sort.go          | 23 +++---
+ src/cmd/compile/internal/types2/resolver.go     |  1 +
+ src/cmd/compile/internal/types2/typeset.go      |  1 +
+ src/cmd/cover/cover.go                          | 13 ++--
+ src/cmd/fix/fix.go                              | 14 ----
+ src/cmd/fix/main.go                             | 10 ++-
+ src/cmd/internal/dwarf/dwarf.go                 | 17 ++---
+ src/cmd/internal/obj/arm/asm5.go                | 40 ++++-------
+ src/cmd/internal/obj/arm64/asm7.go              | 32 +++------
+ src/cmd/internal/obj/dwarf.go                   | 13 ++--
+ src/cmd/internal/obj/loong64/asm.go             | 40 ++++-------
+ src/cmd/internal/obj/mips/asm0.go               | 40 ++++-------
+ src/cmd/internal/obj/objfile.go                 | 16 ++---
+ src/cmd/internal/obj/s390x/asmz.go              | 45 ++++--------
+ src/cmd/internal/objfile/macho.go               |  9 +--
+ src/cmd/internal/objfile/objfile.go             | 13 ++--
+ src/cmd/internal/objfile/pe.go                  |  3 +-
+ src/cmd/internal/objfile/plan9obj.go            |  3 +-
+ src/cmd/link/internal/ld/dwarf.go               | 26 +++----
+ src/cmd/link/internal/ld/elf.go                 |  7 +-
+ src/cmd/link/internal/ld/pe.go                  |  7 +-
+ src/cmd/link/internal/ld/symtab.go              | 14 ----
+ src/cmd/link/internal/ld/typelink.go            | 15 ++--
+ src/cmd/link/internal/loader/symbolbuilder.go   | 18 ++---
+ src/go/types/resolver.go                        |  1 +
+ src/go/types/typeset.go                         |  1 +
+ 38 files changed, 239 insertions(+), 417 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 36cc253e82..0451534a4c 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -9,7 +9,9 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/buildcfg"
++	"slices"
+ 	"sort"
++	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -130,7 +132,9 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Sc
+ 	for t := range fnsym.Func().Autot {
+ 		typesyms = append(typesyms, t)
+ 	}
+-	sort.Sort(obj.BySymName(typesyms))
++	slices.SortFunc(typesyms, func(a, b *obj.LSym) int {
++		return strings.Compare(a.Name, b.Name)
++	})
+ 	for _, sym := range typesyms {
+ 		r := obj.Addrel(infosym)
+ 		r.Sym = sym
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index 1f7b49c8c3..c35d7604f2 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -245,9 +245,3 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
+ 
+ 	return
+ }
+-
+-type byPath []*types2.Package
+-
+-func (a byPath) Len() int           { return len(a) }
+-func (a byPath) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+-func (a byPath) Less(i, j int) bool { return a[i].Path() < a[j].Path() }
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 97feb7f3fd..652f62766e 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -17,6 +17,7 @@ import (
+ 	"go/token"
+ 	"io"
+ 	"math/big"
++	"slices"
+ 	"sort"
+ 	"strings"
+ )
+@@ -188,7 +189,9 @@ func ImportData(imports map[string]*types2.Package, data, path string) (pkg *typ
+ 	}
+ 	// record all referenced packages as imports
+ 	list := append(([]*types2.Package)(nil), pkgList[1:]...)
+-	sort.Sort(byPath(list))
++	slices.SortFunc(list, func(a, b *types2.Package) int {
++		return strings.Compare(a.Path(), b.Path())
++	})
+ 	localpkg.SetImports(list)
+ 
+ 	// package was imported completely and without errors
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index 06a3314c47..c2dc0174d5 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -10,6 +10,7 @@ import (
+ 	"internal/abi"
+ 	"internal/buildcfg"
+ 	"os"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+@@ -991,7 +992,7 @@ func WriteRuntimeTypes() {
+ 	for len(signatslice) > 0 {
+ 		signats := signatslice
+ 		// Sort for reproducible builds.
+-		sort.Sort(typesByString(signats))
++		slices.SortFunc(signats, typesStrCmp)
+ 		for _, ts := range signats {
+ 			t := ts.t
+ 			writeType(t)
+@@ -1009,7 +1010,7 @@ func WriteGCSymbols() {
+ 	for t := range gcsymset {
+ 		gcsyms = append(gcsyms, typeAndStr{t: t, short: types.TypeSymName(t), regular: t.String()})
+ 	}
+-	sort.Sort(typesByString(gcsyms))
++	slices.SortFunc(gcsyms, typesStrCmp)
+ 	for _, ts := range gcsyms {
+ 		dgcsym(ts.t, true)
+ 	}
+@@ -1187,20 +1188,17 @@ type typeAndStr struct {
+ 	regular string
+ }
+ 
+-type typesByString []typeAndStr
+-
+-func (a typesByString) Len() int { return len(a) }
+-func (a typesByString) Less(i, j int) bool {
++func typesStrCmp(a, b typeAndStr) int {
+ 	// put named types before unnamed types
+-	if a[i].t.Sym() != nil && a[j].t.Sym() == nil {
+-		return true
++	if a.t.Sym() != nil && b.t.Sym() == nil {
++		return -1
+ 	}
+-	if a[i].t.Sym() == nil && a[j].t.Sym() != nil {
+-		return false
++	if a.t.Sym() == nil && b.t.Sym() != nil {
++		return +1
+ 	}
+ 
+-	if a[i].short != a[j].short {
+-		return a[i].short < a[j].short
++	if r := strings.Compare(a.short, b.short); r != 0 {
++		return r
+ 	}
+ 	// When the only difference between the types is whether
+ 	// they refer to byte or uint8, such as **byte vs **uint8,
+@@ -1211,19 +1209,21 @@ func (a typesByString) Less(i, j int) bool {
+ 	// avoid naming collisions, and there shouldn't be a reason to care
+ 	// about "byte" vs "uint8": they share the same runtime type
+ 	// descriptor anyway.
+-	if a[i].regular != a[j].regular {
+-		return a[i].regular < a[j].regular
++	if r := strings.Compare(a.regular, b.regular); r != 0 {
++		return r
+ 	}
+ 	// Identical anonymous interfaces defined in different locations
+ 	// will be equal for the above checks, but different in DWARF output.
+ 	// Sort by source position to ensure deterministic order.
+ 	// See issues 27013 and 30202.
+-	if a[i].t.Kind() == types.TINTER && len(a[i].t.AllMethods()) > 0 {
+-		return a[i].t.AllMethods()[0].Pos.Before(a[j].t.AllMethods()[0].Pos)
++	if a.t.Kind() == types.TINTER && len(a.t.AllMethods()) > 0 {
++		if a.t.AllMethods()[0].Pos.Before(b.t.AllMethods()[0].Pos) {
++			return -1
++		}
++		return +1
+ 	}
+-	return false
++	return 0
+ }
+-func (a typesByString) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+ 
+ // GCSym returns a data symbol containing GC information for type t, along
+ // with a boolean reporting whether the UseGCProg bit should be set in the
+diff --git a/src/cmd/compile/internal/ssa/_gen/main.go b/src/cmd/compile/internal/ssa/_gen/main.go
+index 086418c7cb..c2d4ca2665 100644
+--- a/src/cmd/compile/internal/ssa/_gen/main.go
++++ b/src/cmd/compile/internal/ssa/_gen/main.go
+@@ -19,6 +19,7 @@ import (
+ 	"runtime"
+ 	"runtime/pprof"
+ 	"runtime/trace"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 	"sync"
+@@ -142,7 +143,9 @@ func main() {
+ 		defer trace.Stop()
+ 	}
+ 
+-	sort.Sort(ArchsByName(archs))
++	slices.SortFunc(archs, func(a, b arch) int {
++		return strings.Compare(a.name, b.name)
++	})
+ 
+ 	// The generate tasks are run concurrently, since they are CPU-intensive
+ 	// that can easily make use of many cores on a machine.
+@@ -563,9 +566,3 @@ type byKey []intPair
+ func (a byKey) Len() int           { return len(a) }
+ func (a byKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+ func (a byKey) Less(i, j int) bool { return a[i].key < a[j].key }
+-
+-type ArchsByName []arch
+-
+-func (x ArchsByName) Len() int           { return len(x) }
+-func (x ArchsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x ArchsByName) Less(i, j int) bool { return x[i].name < x[j].name }
+diff --git a/src/cmd/compile/internal/ssa/cse.go b/src/cmd/compile/internal/ssa/cse.go
+index d6497977c7..5285ef5203 100644
+--- a/src/cmd/compile/internal/ssa/cse.go
++++ b/src/cmd/compile/internal/ssa/cse.go
+@@ -7,8 +7,9 @@ package ssa
+ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/src"
++	"cmp"
+ 	"fmt"
+-	"sort"
++	"slices"
+ )
+ 
+ // cse does common-subexpression elimination on the Function.
+@@ -86,7 +87,6 @@ func cse(f *Func) {
+ 	// non-equivalent arguments.  Repeat until we can't find any
+ 	// more splits.
+ 	var splitPoints []int
+-	byArgClass := new(partitionByArgClass) // reusable partitionByArgClass to reduce allocations
+ 	for {
+ 		changed := false
+ 
+@@ -105,9 +105,18 @@ func cse(f *Func) {
+ 			}
+ 
+ 			// Sort by eq class of arguments.
+-			byArgClass.a = e
+-			byArgClass.eqClass = valueEqClass
+-			sort.Sort(byArgClass)
++			slices.SortFunc(e, func(v, w *Value) int {
++				for i, a := range v.Args {
++					b := w.Args[i]
++					if valueEqClass[a.ID] < valueEqClass[b.ID] {
++						return -1
++					}
++					if valueEqClass[a.ID] > valueEqClass[b.ID] {
++						return +1
++					}
++				}
++				return 0
++			})
+ 
+ 			// Find split points.
+ 			splitPoints = append(splitPoints[:0], 0)
+@@ -164,11 +173,11 @@ func cse(f *Func) {
+ 	// if v and w are in the same equivalence class and v dominates w.
+ 	rewrite := f.Cache.allocValueSlice(f.NumValues())
+ 	defer f.Cache.freeValueSlice(rewrite)
+-	byDom := new(partitionByDom) // reusable partitionByDom to reduce allocs
+ 	for _, e := range partition {
+-		byDom.a = e
+-		byDom.sdom = sdom
+-		sort.Sort(byDom)
++		slices.SortFunc(e, func(v, w *Value) int {
++			return cmp.Compare(sdom.domorder(v.Block), sdom.domorder(w.Block))
++		})
++
+ 		for i := 0; i < len(e)-1; i++ {
+ 			// e is sorted by domorder, so a maximal dominant element is first in the slice
+ 			v := e[i]
+@@ -253,7 +262,17 @@ type eqclass []*Value
+ // backed by the same storage as the input slice.
+ // Equivalence classes of size 1 are ignored.
+ func partitionValues(a []*Value, auxIDs auxmap) []eqclass {
+-	sort.Sort(sortvalues{a, auxIDs})
++	slices.SortFunc(a, func(v, w *Value) int {
++		switch cmpVal(v, w, auxIDs) {
++		case types.CMPlt:
++			return -1
++		case types.CMPgt:
++			return +1
++		default:
++			// Sort by value ID last to keep the sort result deterministic.
++			return cmp.Compare(v.ID, w.ID)
++		}
++	})
+ 
+ 	var partition []eqclass
+ 	for len(a) > 0 {
+@@ -322,57 +341,3 @@ func cmpVal(v, w *Value, auxIDs auxmap) types.Cmp {
+ 
+ 	return types.CMPeq
+ }
+-
+-// Sort values to make the initial partition.
+-type sortvalues struct {
+-	a      []*Value // array of values
+-	auxIDs auxmap   // aux -> aux ID map
+-}
+-
+-func (sv sortvalues) Len() int      { return len(sv.a) }
+-func (sv sortvalues) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
+-func (sv sortvalues) Less(i, j int) bool {
+-	v := sv.a[i]
+-	w := sv.a[j]
+-	if cmp := cmpVal(v, w, sv.auxIDs); cmp != types.CMPeq {
+-		return cmp == types.CMPlt
+-	}
+-
+-	// Sort by value ID last to keep the sort result deterministic.
+-	return v.ID < w.ID
+-}
+-
+-type partitionByDom struct {
+-	a    []*Value // array of values
+-	sdom SparseTree
+-}
+-
+-func (sv partitionByDom) Len() int      { return len(sv.a) }
+-func (sv partitionByDom) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
+-func (sv partitionByDom) Less(i, j int) bool {
+-	v := sv.a[i]
+-	w := sv.a[j]
+-	return sv.sdom.domorder(v.Block) < sv.sdom.domorder(w.Block)
+-}
+-
+-type partitionByArgClass struct {
+-	a       []*Value // array of values
+-	eqClass []ID     // equivalence class IDs of values
+-}
+-
+-func (sv partitionByArgClass) Len() int      { return len(sv.a) }
+-func (sv partitionByArgClass) Swap(i, j int) { sv.a[i], sv.a[j] = sv.a[j], sv.a[i] }
+-func (sv partitionByArgClass) Less(i, j int) bool {
+-	v := sv.a[i]
+-	w := sv.a[j]
+-	for i, a := range v.Args {
+-		b := w.Args[i]
+-		if sv.eqClass[a.ID] < sv.eqClass[b.ID] {
+-			return true
+-		}
+-		if sv.eqClass[a.ID] > sv.eqClass[b.ID] {
+-			return false
+-		}
+-	}
+-	return false
+-}
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 04025f7882..ccd403386e 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -12,11 +12,12 @@ import (
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
++	"cmp"
+ 	"encoding/hex"
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"math/bits"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -231,10 +232,9 @@ type debugState struct {
+ 	// The pending location list entry for each user variable, indexed by VarID.
+ 	pendingEntries []pendingEntry
+ 
+-	varParts         map[*ir.Name][]SlotID
+-	blockDebug       []BlockDebug
+-	pendingSlotLocs  []VarLoc
+-	partsByVarOffset sort.Interface
++	varParts        map[*ir.Name][]SlotID
++	blockDebug      []BlockDebug
++	pendingSlotLocs []VarLoc
+ }
+ 
+ func (state *debugState) initializeCache(f *Func, numVars, numSlots int) {
+@@ -649,17 +649,16 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
+ 		state.slotVars = state.slotVars[:len(state.slots)]
+ 	}
+ 
+-	if state.partsByVarOffset == nil {
+-		state.partsByVarOffset = &partsByVarOffset{}
+-	}
+ 	for varID, n := range state.vars {
+ 		parts := state.varParts[n]
++		slices.SortFunc(parts, func(a, b SlotID) int {
++			return cmp.Compare(varOffset(state.slots[a]), varOffset(state.slots[b]))
++		})
++
+ 		state.varSlots[varID] = parts
+ 		for _, slotID := range parts {
+ 			state.slotVars[slotID] = VarID(varID)
+ 		}
+-		*state.partsByVarOffset.(*partsByVarOffset) = partsByVarOffset{parts, state.slots}
+-		sort.Sort(state.partsByVarOffset)
+ 	}
+ 
+ 	state.initializeCache(f, len(state.varParts), len(state.slots))
+@@ -1180,17 +1179,6 @@ func varOffset(slot LocalSlot) int64 {
+ 	return offset
+ }
+ 
+-type partsByVarOffset struct {
+-	slotIDs []SlotID
+-	slots   []LocalSlot
+-}
+-
+-func (a partsByVarOffset) Len() int { return len(a.slotIDs) }
+-func (a partsByVarOffset) Less(i, j int) bool {
+-	return varOffset(a.slots[a.slotIDs[i]]) < varOffset(a.slots[a.slotIDs[j]])
+-}
+-func (a partsByVarOffset) Swap(i, j int) { a.slotIDs[i], a.slotIDs[j] = a.slotIDs[j], a.slotIDs[i] }
+-
+ // A pendingEntry represents the beginning of a location list entry, missing
+ // only its end coordinate.
+ type pendingEntry struct {
+diff --git a/src/cmd/compile/internal/ssa/html.go b/src/cmd/compile/internal/ssa/html.go
+index ea170fbcdb..1d6b47da6d 100644
+--- a/src/cmd/compile/internal/ssa/html.go
++++ b/src/cmd/compile/internal/ssa/html.go
+@@ -7,6 +7,7 @@ package ssa
+ import (
+ 	"bytes"
+ 	"cmd/internal/src"
++	"cmp"
+ 	"fmt"
+ 	"html"
+ 	"io"
+@@ -827,19 +828,13 @@ type FuncLines struct {
+ 	Lines       []string
+ }
+ 
+-// ByTopo sorts topologically: target function is on top,
++// ByTopoCmp sorts topologically: target function is on top,
+ // followed by inlined functions sorted by filename and line numbers.
+-type ByTopo []*FuncLines
+-
+-func (x ByTopo) Len() int      { return len(x) }
+-func (x ByTopo) Swap(i, j int) { x[i], x[j] = x[j], x[i] }
+-func (x ByTopo) Less(i, j int) bool {
+-	a := x[i]
+-	b := x[j]
+-	if a.Filename == b.Filename {
+-		return a.StartLineno < b.StartLineno
++func ByTopoCmp(a, b *FuncLines) int {
++	if r := strings.Compare(a.Filename, b.Filename); r != 0 {
++		return r
+ 	}
+-	return a.Filename < b.Filename
++	return cmp.Compare(a.StartLineno, b.StartLineno)
+ }
+ 
+ // WriteSources writes lines as source code in a column headed by title.
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index 4093a380c9..b42727674f 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -8,6 +8,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+ 	"container/heap"
++	"slices"
+ 	"sort"
+ )
+ 
+@@ -525,13 +526,13 @@ func storeOrder(values []*Value, sset *sparseSet, storeNumber []int32) []*Value
+ 				}
+ 			} else {
+ 				if start != -1 {
+-					sort.Sort(bySourcePos(order[start:i]))
++					slices.SortFunc(order[start:i], valuePosCmp)
+ 					start = -1
+ 				}
+ 			}
+ 		}
+ 		if start != -1 {
+-			sort.Sort(bySourcePos(order[start:]))
++			slices.SortFunc(order[start:], valuePosCmp)
+ 		}
+ 	}
+ 
+@@ -568,8 +569,12 @@ func (v *Value) hasFlagInput() bool {
+ 	return false
+ }
+ 
+-type bySourcePos []*Value
+-
+-func (s bySourcePos) Len() int           { return len(s) }
+-func (s bySourcePos) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+-func (s bySourcePos) Less(i, j int) bool { return s[i].Pos.Before(s[j].Pos) }
++func valuePosCmp(a, b *Value) int {
++	if a.Pos.Before(b.Pos) {
++		return -1
++	}
++	if a.Pos.After(b.Pos) {
++		return +1
++	}
++	return 0
++}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 5b63cbc47c..c05b5a6241 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -13,7 +13,7 @@ import (
+ 	"internal/buildcfg"
+ 	"os"
+ 	"path/filepath"
+-	"sort"
++	"slices"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/abi"
+@@ -789,7 +789,7 @@ func dumpSourcesColumn(writer *ssa.HTMLWriter, fn *ir.Func) {
+ 		inlFns = append(inlFns, fnLines)
+ 	}
+ 
+-	sort.Sort(ssa.ByTopo(inlFns))
++	slices.SortFunc(inlFns, ssa.ByTopoCmp)
+ 	if targetFn != nil {
+ 		inlFns = append([]*ssa.FuncLines{targetFn}, inlFns...)
+ 	}
+diff --git a/src/cmd/compile/internal/typecheck/subr.go b/src/cmd/compile/internal/typecheck/subr.go
+index d64b0f0e22..af7ab38638 100644
+--- a/src/cmd/compile/internal/typecheck/subr.go
++++ b/src/cmd/compile/internal/typecheck/subr.go
+@@ -6,7 +6,7 @@ package typecheck
+ 
+ import (
+ 	"fmt"
+-	"sort"
++	"slices"
+ 	"strings"
+ 
+ 	"cmd/compile/internal/base"
+@@ -144,7 +144,7 @@ func CalcMethods(t *types.Type) {
+ 	}
+ 
+ 	ms = append(ms, t.Methods()...)
+-	sort.Sort(types.MethodsByName(ms))
++	slices.SortFunc(ms, types.MethodsByNameCmp)
+ 	t.SetAllMethods(ms)
+ }
+ 
+diff --git a/src/cmd/compile/internal/types/size.go b/src/cmd/compile/internal/types/size.go
+index 00707fc86e..308245d9b7 100644
+--- a/src/cmd/compile/internal/types/size.go
++++ b/src/cmd/compile/internal/types/size.go
+@@ -6,6 +6,7 @@ package types
+ 
+ import (
+ 	"math"
++	"slices"
+ 	"sort"
+ 
+ 	"cmd/compile/internal/base"
+@@ -146,7 +147,7 @@ func expandiface(t *Type) {
+ 		m.Pos = src.NoXPos
+ 	}
+ 
+-	sort.Sort(MethodsByName(methods))
++	slices.SortFunc(methods, MethodsByNameCmp)
+ 
+ 	if int64(len(methods)) >= MaxWidth/int64(PtrSize) {
+ 		base.ErrorfAt(typePos(t), 0, "interface too large")
+diff --git a/src/cmd/compile/internal/types/sort.go b/src/cmd/compile/internal/types/sort.go
+index 765c070cd9..83b1237634 100644
+--- a/src/cmd/compile/internal/types/sort.go
++++ b/src/cmd/compile/internal/types/sort.go
+@@ -4,16 +4,13 @@
+ 
+ package types
+ 
+-// MethodsByName sorts methods by name.
+-type MethodsByName []*Field
+-
+-func (x MethodsByName) Len() int           { return len(x) }
+-func (x MethodsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x MethodsByName) Less(i, j int) bool { return x[i].Sym.Less(x[j].Sym) }
+-
+-// EmbeddedsByName sorts embedded types by name.
+-type EmbeddedsByName []*Field
+-
+-func (x EmbeddedsByName) Len() int           { return len(x) }
+-func (x EmbeddedsByName) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x EmbeddedsByName) Less(i, j int) bool { return x[i].Type.Sym().Less(x[j].Type.Sym()) }
++// MethodsByNameCmp sorts methods by name.
++func MethodsByNameCmp(x, y *Field) int {
++	if x.Sym.Less(y.Sym) {
++		return -1
++	}
++	if y.Sym.Less(x.Sym) {
++		return +1
++	}
++	return 0
++}
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 28e4a7faa6..9a3664eafd 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -716,6 +716,7 @@ func (check *Checker) packageObjects() {
+ }
+ 
+ // inSourceOrder implements the sort.Sort interface.
++// TODO(gri) replace with slices.SortFunc
+ type inSourceOrder []Object
+ 
+ func (a inSourceOrder) Len() int           { return len(a) }
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 01636ed379..83498ad21d 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -360,6 +360,7 @@ func assertSortedMethods(list []*Func) {
+ }
+ 
+ // byUniqueMethodName method lists can be sorted by their unique method names.
++// todo: replace with slices.SortFunc
+ type byUniqueMethodName []*Func
+ 
+ func (a byUniqueMethodName) Len() int           { return len(a) }
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index d8bb989bcc..9207fa0e8b 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bytes"
+ 	"cmd/internal/cov/covcmd"
++	"cmp"
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
+@@ -20,7 +21,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"path/filepath"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 
+@@ -975,12 +976,6 @@ type block1 struct {
+ 	index int
+ }
+ 
+-type blockSlice []block1
+-
+-func (b blockSlice) Len() int           { return len(b) }
+-func (b blockSlice) Less(i, j int) bool { return b[i].startByte < b[j].startByte }
+-func (b blockSlice) Swap(i, j int)      { b[i], b[j] = b[j], b[i] }
+-
+ // offset translates a token position into a 0-indexed byte offset.
+ func (f *File) offset(pos token.Pos) int {
+ 	return f.fset.Position(pos).Offset
+@@ -997,7 +992,9 @@ func (f *File) addVariables(w io.Writer) {
+ 		t[i].Block = f.blocks[i]
+ 		t[i].index = i
+ 	}
+-	sort.Sort(blockSlice(t))
++	slices.SortFunc(t, func(a, b block1) int {
++		return cmp.Compare(a.startByte, b.startByte)
++	})
+ 	for i := 1; i < len(t); i++ {
+ 		if t[i-1].endByte > t[i].startByte {
+ 			fmt.Fprintf(os.Stderr, "cover: internal error: block %d overlaps block %d\n", t[i-1].index, t[i].index)
+diff --git a/src/cmd/fix/fix.go b/src/cmd/fix/fix.go
+index 7abdab28a8..26adae41ee 100644
+--- a/src/cmd/fix/fix.go
++++ b/src/cmd/fix/fix.go
+@@ -20,20 +20,6 @@ type fix struct {
+ 	disabled bool // whether this fix should be disabled by default
+ }
+ 
+-// main runs sort.Sort(byName(fixes)) before printing list of fixes.
+-type byName []fix
+-
+-func (f byName) Len() int           { return len(f) }
+-func (f byName) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+-func (f byName) Less(i, j int) bool { return f[i].name < f[j].name }
+-
+-// main runs sort.Sort(byDate(fixes)) before applying fixes.
+-type byDate []fix
+-
+-func (f byDate) Len() int           { return len(f) }
+-func (f byDate) Swap(i, j int)      { f[i], f[j] = f[j], f[i] }
+-func (f byDate) Less(i, j int) bool { return f[i].date < f[j].date }
+-
+ var fixes []fix
+ 
+ func register(f fix) {
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index 6f1ff120da..44ce396e37 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -19,7 +19,7 @@ import (
+ 	"io/fs"
+ 	"os"
+ 	"path/filepath"
+-	"sort"
++	"slices"
+ 	"strings"
+ 
+ 	"cmd/internal/telemetry/counter"
+@@ -50,7 +50,9 @@ func usage() {
+ 	fmt.Fprintf(os.Stderr, "usage: go tool fix [-diff] [-r fixname,...] [-force fixname,...] [path ...]\n")
+ 	flag.PrintDefaults()
+ 	fmt.Fprintf(os.Stderr, "\nAvailable rewrites are:\n")
+-	sort.Sort(byName(fixes))
++	slices.SortFunc(fixes, func(a, b fix) int {
++		return strings.Compare(a.name, b.name)
++	})
+ 	for _, f := range fixes {
+ 		if f.disabled {
+ 			fmt.Fprintf(os.Stderr, "\n%s (disabled)\n", f.name)
+@@ -76,7 +78,9 @@ func main() {
+ 		os.Exit(exitCode)
+ 	}
+ 
+-	sort.Sort(byDate(fixes))
++	slices.SortFunc(fixes, func(a, b fix) int {
++		return strings.Compare(a.date, b.date)
++	})
+ 
+ 	if *allowedRewrites != "" {
+ 		allowed = make(map[string]bool)
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 6d4e78fb26..eb363a2436 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -10,11 +10,12 @@ package dwarf
+ import (
+ 	"bytes"
+ 	"cmd/internal/src"
++	"cmp"
+ 	"errors"
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"os/exec"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ )
+@@ -1112,7 +1113,7 @@ func putPrunedScopes(ctxt Context, s *FnState, fnabbrev int) error {
+ 				pruned.Vars = append(pruned.Vars, s.Vars[i])
+ 			}
+ 		}
+-		sort.Sort(byChildIndex(pruned.Vars))
++		slices.SortFunc(pruned.Vars, byChildIndexCmp)
+ 		scopes[k] = pruned
+ 	}
+ 
+@@ -1181,7 +1182,7 @@ func PutAbstractFunc(ctxt Context, s *FnState) error {
+ 			}
+ 		}
+ 		if len(flattened) > 0 {
+-			sort.Sort(byChildIndex(flattened))
++			slices.SortFunc(flattened, byChildIndexCmp)
+ 
+ 			if logDwarf {
+ 				ctxt.Logf("putAbstractScope(%v): vars:", s.Info)
+@@ -1245,7 +1246,7 @@ func putInlinedFunc(ctxt Context, s *FnState, callIdx int) error {
+ 
+ 	// Variables associated with this inlined routine instance.
+ 	vars := ic.InlVars
+-	sort.Sort(byChildIndex(vars))
++	slices.SortFunc(vars, byChildIndexCmp)
+ 	inlIndex := ic.InlIndex
+ 	var encbuf [20]byte
+ 	for _, v := range vars {
+@@ -1562,12 +1563,8 @@ func putvar(ctxt Context, s *FnState, v *Var, absfn Sym, fnabbrev, inlIndex int,
+ 	// Var has no children => no terminator
+ }
+ 
+-// byChildIndex implements sort.Interface for []*dwarf.Var by child index.
+-type byChildIndex []*Var
+-
+-func (s byChildIndex) Len() int           { return len(s) }
+-func (s byChildIndex) Less(i, j int) bool { return s[i].ChildIndex < s[j].ChildIndex }
+-func (s byChildIndex) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++// byChildIndexCmp compares two *dwarf.Var by child index.
++func byChildIndexCmp(a, b *Var) int { return cmp.Compare(a.ChildIndex, b.ChildIndex) }
+ 
+ // IsDWARFEnabledOnAIXLd returns true if DWARF is possible on the
+ // current extld.
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index 4e6eff9e17..a02519c147 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -37,7 +37,7 @@ import (
+ 	"internal/buildcfg"
+ 	"log"
+ 	"math"
+-	"sort"
++	"slices"
+ )
+ 
+ // ctxt5 holds state while assembling a single function.
+@@ -1203,36 +1203,20 @@ func cmp(a int, b int) bool {
+ 	return false
+ }
+ 
+-type ocmp []Optab
+-
+-func (x ocmp) Len() int {
+-	return len(x)
+-}
+-
+-func (x ocmp) Swap(i, j int) {
+-	x[i], x[j] = x[j], x[i]
+-}
+-
+-func (x ocmp) Less(i, j int) bool {
+-	p1 := &x[i]
+-	p2 := &x[j]
+-	n := int(p1.as) - int(p2.as)
+-	if n != 0 {
+-		return n < 0
++func ocmp(a, b Optab) int {
++	if a.as != b.as {
++		return int(a.as) - int(b.as)
+ 	}
+-	n = int(p1.a1) - int(p2.a1)
+-	if n != 0 {
+-		return n < 0
++	if a.a1 != b.a1 {
++		return int(a.a1) - int(b.a1)
+ 	}
+-	n = int(p1.a2) - int(p2.a2)
+-	if n != 0 {
+-		return n < 0
++	if a.a2 != b.a2 {
++		return int(a.a2) - int(b.a2)
+ 	}
+-	n = int(p1.a3) - int(p2.a3)
+-	if n != 0 {
+-		return n < 0
++	if a.a3 != b.a3 {
++		return int(a.a3) - int(b.a3)
+ 	}
+-	return false
++	return 0
+ }
+ 
+ func opset(a, b0 obj.As) {
+@@ -1271,7 +1255,7 @@ func buildop(ctxt *obj.Link) {
+ 		}
+ 	}
+ 
+-	sort.Sort(ocmp(optab[:n]))
++	slices.SortFunc(optab[:n], ocmp)
+ 	for i := 0; i < n; i++ {
+ 		r := optab[i].as
+ 		r0 := r & obj.AMask
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index bd2bd037ba..33c0b19611 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -36,7 +36,7 @@ import (
+ 	"fmt"
+ 	"log"
+ 	"math"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -2700,38 +2700,26 @@ func cmp(a int, b int) bool {
+ 	return false
+ }
+ 
+-type ocmp []Optab
+-
+-func (x ocmp) Len() int {
+-	return len(x)
+-}
+-
+-func (x ocmp) Swap(i, j int) {
+-	x[i], x[j] = x[j], x[i]
+-}
+-
+-func (x ocmp) Less(i, j int) bool {
+-	p1 := &x[i]
+-	p2 := &x[j]
++func ocmp(p1, p2 Optab) int {
+ 	if p1.as != p2.as {
+-		return p1.as < p2.as
++		return int(p1.as) - int(p2.as)
+ 	}
+ 	if p1.a1 != p2.a1 {
+-		return p1.a1 < p2.a1
++		return int(p1.a1) - int(p2.a1)
+ 	}
+ 	if p1.a2 != p2.a2 {
+-		return p1.a2 < p2.a2
++		return int(p1.a2) - int(p2.a2)
+ 	}
+ 	if p1.a3 != p2.a3 {
+-		return p1.a3 < p2.a3
++		return int(p1.a3) - int(p2.a3)
+ 	}
+ 	if p1.a4 != p2.a4 {
+-		return p1.a4 < p2.a4
++		return int(p1.a4) - int(p2.a4)
+ 	}
+ 	if p1.scond != p2.scond {
+-		return p1.scond < p2.scond
++		return int(p1.scond) - int(p2.scond)
+ 	}
+-	return false
++	return 0
+ }
+ 
+ func oprangeset(a obj.As, t []Optab) {
+@@ -2754,7 +2742,7 @@ func buildop(ctxt *obj.Link) {
+ 		}
+ 	}
+ 
+-	sort.Sort(ocmp(optab))
++	slices.SortFunc(optab, ocmp)
+ 	for i := 0; i < len(optab); i++ {
+ 		as, start := optab[i].as, i
+ 		for ; i < len(optab)-1; i++ {
+diff --git a/src/cmd/internal/obj/dwarf.go b/src/cmd/internal/obj/dwarf.go
+index 47882723dd..9b38cebf83 100644
+--- a/src/cmd/internal/obj/dwarf.go
++++ b/src/cmd/internal/obj/dwarf.go
+@@ -11,7 +11,8 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+ 	"fmt"
+-	"sort"
++	"slices"
++	"strings"
+ 	"sync"
+ )
+ 
+@@ -665,7 +666,9 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
+ 		fns[idx] = fn
+ 		idx++
+ 	}
+-	sort.Sort(BySymName(fns))
++	slices.SortFunc(fns, func(a, b *LSym) int {
++		return strings.Compare(a.Name, b.Name)
++	})
+ 
+ 	// Should not be called during parallel portion of compilation.
+ 	if ft.ctxt.InParallel {
+@@ -692,9 +695,3 @@ func (ft *DwarfFixupTable) Finalize(myimportpath string, trace bool) {
+ 		}
+ 	}
+ }
+-
+-type BySymName []*LSym
+-
+-func (s BySymName) Len() int           { return len(s) }
+-func (s BySymName) Less(i, j int) bool { return s[i].Name < s[j].Name }
+-func (s BySymName) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index d78e594fc9..261e4a13c8 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -9,7 +9,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"fmt"
+ 	"log"
+-	"sort"
++	"slices"
+ )
+ 
+ // ctxt0 holds state while assembling a single function.
+@@ -964,36 +964,20 @@ func cmp(a int, b int) bool {
+ 	return false
+ }
+ 
+-type ocmp []Optab
+-
+-func (x ocmp) Len() int {
+-	return len(x)
+-}
+-
+-func (x ocmp) Swap(i, j int) {
+-	x[i], x[j] = x[j], x[i]
+-}
+-
+-func (x ocmp) Less(i, j int) bool {
+-	p1 := &x[i]
+-	p2 := &x[j]
+-	n := int(p1.as) - int(p2.as)
+-	if n != 0 {
+-		return n < 0
++func ocmp(p1, p2 Optab) int {
++	if p1.as != p2.as {
++		return int(p1.as) - int(p2.as)
+ 	}
+-	n = int(p1.from1) - int(p2.from1)
+-	if n != 0 {
+-		return n < 0
++	if p1.from1 != p2.from1 {
++		return int(p1.from1) - int(p2.from1)
+ 	}
+-	n = int(p1.reg) - int(p2.reg)
+-	if n != 0 {
+-		return n < 0
++	if p1.reg != p2.reg {
++		return int(p1.reg) - int(p2.reg)
+ 	}
+-	n = int(p1.to1) - int(p2.to1)
+-	if n != 0 {
+-		return n < 0
++	if p1.to1 != p2.to1 {
++		return int(p1.to1) - int(p2.to1)
+ 	}
+-	return false
++	return 0
+ }
+ 
+ func opset(a, b0 obj.As) {
+@@ -1025,7 +1009,7 @@ func buildop(ctxt *obj.Link) {
+ 	}
+ 	for n = 0; optab[n].as != obj.AXXX; n++ {
+ 	}
+-	sort.Sort(ocmp(optab[:n]))
++	slices.SortFunc(optab[:n], ocmp)
+ 	for i := 0; i < n; i++ {
+ 		r := optab[i].as
+ 		r0 := r & obj.AMask
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 2dd4818ded..5c52ee63a4 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -35,7 +35,7 @@ import (
+ 	"cmd/internal/sys"
+ 	"fmt"
+ 	"log"
+-	"sort"
++	"slices"
+ )
+ 
+ // ctxt0 holds state while assembling a single function.
+@@ -875,36 +875,20 @@ func cmp(a int, b int) bool {
+ 	return false
+ }
+ 
+-type ocmp []Optab
+-
+-func (x ocmp) Len() int {
+-	return len(x)
+-}
+-
+-func (x ocmp) Swap(i, j int) {
+-	x[i], x[j] = x[j], x[i]
+-}
+-
+-func (x ocmp) Less(i, j int) bool {
+-	p1 := &x[i]
+-	p2 := &x[j]
+-	n := int(p1.as) - int(p2.as)
+-	if n != 0 {
+-		return n < 0
++func ocmp(p1, p2 Optab) int {
++	if p1.as != p2.as {
++		return int(p1.as) - int(p2.as)
+ 	}
+-	n = int(p1.a1) - int(p2.a1)
+-	if n != 0 {
+-		return n < 0
++	if p1.a1 != p2.a1 {
++		return int(p1.a1) - int(p2.a1)
+ 	}
+-	n = int(p1.a2) - int(p2.a2)
+-	if n != 0 {
+-		return n < 0
++	if p1.a2 != p2.a2 {
++		return int(p1.a2) - int(p2.a2)
+ 	}
+-	n = int(p1.a3) - int(p2.a3)
+-	if n != 0 {
+-		return n < 0
++	if p1.a3 != p2.a3 {
++		return int(p1.a3) - int(p2.a3)
+ 	}
+-	return false
++	return 0
+ }
+ 
+ func opset(a, b0 obj.As) {
+@@ -930,7 +914,7 @@ func buildop(ctxt *obj.Link) {
+ 	}
+ 	for n = 0; optab[n].as != obj.AXXX; n++ {
+ 	}
+-	sort.Sort(ocmp(optab[:n]))
++	slices.SortFunc(optab[:n], ocmp)
+ 	for i := 0; i < n; i++ {
+ 		r := optab[i].as
+ 		r0 := r & obj.AMask
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index de38349930..bf135af554 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/internal/notsha256"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
++	"cmp"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"internal/abi"
+@@ -20,6 +21,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"path/filepath"
++	"slices"
+ 	"sort"
+ 	"strings"
+ )
+@@ -177,7 +179,7 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 	h.Offsets[goobj.BlkReloc] = w.Offset()
+ 	for _, list := range lists {
+ 		for _, s := range list {
+-			sort.Sort(relocByOff(s.R)) // some platforms (e.g. PE) requires relocations in address order
++			slices.SortFunc(s.R, relocByOffCmp) // some platforms (e.g. PE) requires relocations in address order
+ 			for i := range s.R {
+ 				w.Reloc(&s.R[i])
+ 			}
+@@ -935,7 +937,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+ 		fmt.Fprintf(ctxt.Bso, "\n")
+ 	}
+ 
+-	sort.Sort(relocByOff(s.R)) // generate stable output
++	slices.SortFunc(s.R, relocByOffCmp) // generate stable output
+ 	for _, r := range s.R {
+ 		name := ""
+ 		ver := ""
+@@ -955,9 +957,7 @@ func (ctxt *Link) writeSymDebugNamed(s *LSym, name string) {
+ 	}
+ }
+ 
+-// relocByOff sorts relocations by their offsets.
+-type relocByOff []Reloc
+-
+-func (x relocByOff) Len() int           { return len(x) }
+-func (x relocByOff) Less(i, j int) bool { return x[i].Off < x[j].Off }
+-func (x relocByOff) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
++// relocByOffCmp compare relocations by their offsets.
++func relocByOffCmp(x, y Reloc) int {
++	return cmp.Compare(x.Off, y.Off)
++}
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 6d2962acd6..4af92a27f8 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -35,7 +35,7 @@ import (
+ 	"fmt"
+ 	"log"
+ 	"math"
+-	"sort"
++	"slices"
+ )
+ 
+ // ctxtz holds state while assembling a single function.
+@@ -853,40 +853,23 @@ func cmp(a int, b int) bool {
+ 	return false
+ }
+ 
+-type ocmp []Optab
+-
+-func (x ocmp) Len() int {
+-	return len(x)
+-}
+-
+-func (x ocmp) Swap(i, j int) {
+-	x[i], x[j] = x[j], x[i]
+-}
+-
+-func (x ocmp) Less(i, j int) bool {
+-	p1 := &x[i]
+-	p2 := &x[j]
+-	n := int(p1.as) - int(p2.as)
+-	if n != 0 {
+-		return n < 0
++func ocmp(p1, p2 Optab) int {
++	if p1.as != p2.as {
++		return int(p1.as) - int(p2.as)
+ 	}
+-	n = int(p1.a1) - int(p2.a1)
+-	if n != 0 {
+-		return n < 0
++	if p1.a1 != p2.a1 {
++		return int(p1.a1) - int(p2.a1)
+ 	}
+-	n = int(p1.a2) - int(p2.a2)
+-	if n != 0 {
+-		return n < 0
++	if p1.a2 != p2.a2 {
++		return int(p1.a2) - int(p2.a2)
+ 	}
+-	n = int(p1.a3) - int(p2.a3)
+-	if n != 0 {
+-		return n < 0
++	if p1.a3 != p2.a3 {
++		return int(p1.a3) - int(p2.a3)
+ 	}
+-	n = int(p1.a4) - int(p2.a4)
+-	if n != 0 {
+-		return n < 0
++	if p1.a4 != p2.a4 {
++		return int(p1.a4) - int(p2.a4)
+ 	}
+-	return false
++	return 0
+ }
+ func opset(a, b obj.As) {
+ 	oprange[a&obj.AMask] = oprange[b&obj.AMask]
+@@ -907,7 +890,7 @@ func buildop(ctxt *obj.Link) {
+ 			}
+ 		}
+ 	}
+-	sort.Sort(ocmp(optab))
++	slices.SortFunc(optab, ocmp)
+ 	for i := 0; i < len(optab); i++ {
+ 		r := optab[i].as
+ 		start := i
+diff --git a/src/cmd/internal/objfile/macho.go b/src/cmd/internal/objfile/macho.go
+index c92497527a..8258145f26 100644
+--- a/src/cmd/internal/objfile/macho.go
++++ b/src/cmd/internal/objfile/macho.go
+@@ -11,6 +11,7 @@ import (
+ 	"debug/macho"
+ 	"fmt"
+ 	"io"
++	"slices"
+ 	"sort"
+ )
+ 
+@@ -42,7 +43,7 @@ func (f *machoFile) symbols() ([]Sym, error) {
+ 			addrs = append(addrs, s.Value)
+ 		}
+ 	}
+-	sort.Sort(uint64s(addrs))
++	slices.Sort(addrs)
+ 
+ 	var syms []Sym
+ 	for _, s := range f.macho.Symtab.Syms {
+@@ -121,12 +122,6 @@ func (f *machoFile) goarch() string {
+ 	return ""
+ }
+ 
+-type uint64s []uint64
+-
+-func (x uint64s) Len() int           { return len(x) }
+-func (x uint64s) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-func (x uint64s) Less(i, j int) bool { return x[i] < x[j] }
+-
+ func (f *machoFile) loadAddress() (uint64, error) {
+ 	if seg := f.macho.Segment("__TEXT"); seg != nil {
+ 		return seg.Addr, nil
+diff --git a/src/cmd/internal/objfile/objfile.go b/src/cmd/internal/objfile/objfile.go
+index d890a0b756..2f2d771813 100644
+--- a/src/cmd/internal/objfile/objfile.go
++++ b/src/cmd/internal/objfile/objfile.go
+@@ -7,12 +7,13 @@ package objfile
+ 
+ import (
+ 	"cmd/internal/archive"
++	"cmp"
+ 	"debug/dwarf"
+ 	"debug/gosym"
+ 	"fmt"
+ 	"io"
+ 	"os"
+-	"sort"
++	"slices"
+ )
+ 
+ type rawFile interface {
+@@ -131,16 +132,12 @@ func (e *Entry) Symbols() ([]Sym, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	sort.Sort(byAddr(syms))
++	slices.SortFunc(syms, func(a, b Sym) int {
++		return cmp.Compare(a.Addr, b.Addr)
++	})
+ 	return syms, nil
+ }
+ 
+-type byAddr []Sym
+-
+-func (x byAddr) Less(i, j int) bool { return x[i].Addr < x[j].Addr }
+-func (x byAddr) Len() int           { return len(x) }
+-func (x byAddr) Swap(i, j int)      { x[i], x[j] = x[j], x[i] }
+-
+ func (e *Entry) PCLineTable() (Liner, error) {
+ 	// If the raw file implements Liner directly, use that.
+ 	// Currently, only Go intermediate objects and archives (goobj) use this path.
+diff --git a/src/cmd/internal/objfile/pe.go b/src/cmd/internal/objfile/pe.go
+index 4c4be1e6b7..774760829c 100644
+--- a/src/cmd/internal/objfile/pe.go
++++ b/src/cmd/internal/objfile/pe.go
+@@ -11,6 +11,7 @@ import (
+ 	"debug/pe"
+ 	"fmt"
+ 	"io"
++	"slices"
+ 	"sort"
+ )
+ 
+@@ -78,7 +79,7 @@ func (f *peFile) symbols() ([]Sym, error) {
+ 		addrs = append(addrs, sym.Addr)
+ 	}
+ 
+-	sort.Sort(uint64s(addrs))
++	slices.Sort(addrs)
+ 	for i := range syms {
+ 		j := sort.Search(len(addrs), func(x int) bool { return addrs[x] > syms[i].Addr })
+ 		if j < len(addrs) {
+diff --git a/src/cmd/internal/objfile/plan9obj.go b/src/cmd/internal/objfile/plan9obj.go
+index da0b345f53..c91970762c 100644
+--- a/src/cmd/internal/objfile/plan9obj.go
++++ b/src/cmd/internal/objfile/plan9obj.go
+@@ -12,6 +12,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"slices"
+ 	"sort"
+ )
+ 
+@@ -51,7 +52,7 @@ func (f *plan9File) symbols() ([]Sym, error) {
+ 		}
+ 		addrs = append(addrs, s.Value)
+ 	}
+-	sort.Sort(uint64s(addrs))
++	slices.Sort(addrs)
+ 
+ 	var syms []Sym
+ 
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index c44a689a10..da4ca6d5cc 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -21,13 +21,14 @@ import (
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
++	"cmp"
+ 	"fmt"
+ 	"internal/abi"
+ 	"internal/buildcfg"
+ 	"log"
+ 	"path"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"sync"
+ )
+@@ -2090,7 +2091,7 @@ func (d *dwctxt) dwarfGenerateDebugSyms() {
+ 	abbrevSec := d.writeabbrev()
+ 	dwarfp = append(dwarfp, abbrevSec)
+ 	d.calcCompUnitRanges()
+-	sort.Sort(compilationUnitByStartPC(d.linkctxt.compUnits))
++	slices.SortFunc(d.linkctxt.compUnits, compilationUnitByStartPCCmp)
+ 
+ 	// newdie adds DIEs to the *beginning* of the parent's DIE list.
+ 	// Now that we're done creating DIEs, reverse the trees so DIEs
+@@ -2357,21 +2358,16 @@ func dwarfcompress(ctxt *Link) {
+ 	Segdwarf.Length = pos - Segdwarf.Vaddr
+ }
+ 
+-type compilationUnitByStartPC []*sym.CompilationUnit
+-
+-func (v compilationUnitByStartPC) Len() int      { return len(v) }
+-func (v compilationUnitByStartPC) Swap(i, j int) { v[i], v[j] = v[j], v[i] }
+-
+-func (v compilationUnitByStartPC) Less(i, j int) bool {
++func compilationUnitByStartPCCmp(a, b *sym.CompilationUnit) int {
+ 	switch {
+-	case len(v[i].Textp) == 0 && len(v[j].Textp) == 0:
+-		return v[i].Lib.Pkg < v[j].Lib.Pkg
+-	case len(v[i].Textp) != 0 && len(v[j].Textp) == 0:
+-		return true
+-	case len(v[i].Textp) == 0 && len(v[j].Textp) != 0:
+-		return false
++	case len(a.Textp) == 0 && len(b.Textp) == 0:
++		return strings.Compare(a.Lib.Pkg, b.Lib.Pkg)
++	case len(a.Textp) != 0 && len(b.Textp) == 0:
++		return -1
++	case len(a.Textp) == 0 && len(b.Textp) != 0:
++		return +1
+ 	default:
+-		return v[i].PCs[0].Start < v[j].PCs[0].Start
++		return cmp.Compare(a.PCs[0].Start, b.PCs[0].Start)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 0d8455d92e..3a1bcbfd63 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -18,7 +18,7 @@ import (
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -1678,8 +1678,9 @@ func (ctxt *Link) doelf() {
+ 		ldr.SetAttrSpecial(s, true)
+ 		sb.SetReachable(true)
+ 		sb.SetSize(notsha256.Size)
+-
+-		sort.Sort(byPkg(ctxt.Library))
++		slices.SortFunc(ctxt.Library, func(a, b *sym.Library) int {
++			return strings.Compare(a.Pkg, b.Pkg)
++		})
+ 		h := notsha256.New()
+ 		for _, l := range ctxt.Library {
+ 			h.Write(l.Fingerprint[:])
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 6d6eda4b33..cd553e909a 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -17,6 +17,7 @@ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"math"
++	"slices"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -1490,10 +1491,6 @@ type peBaseRelocBlock struct {
+ // it can be sorted.
+ type pePages []uint32
+ 
+-func (p pePages) Len() int           { return len(p) }
+-func (p pePages) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+-func (p pePages) Less(i, j int) bool { return p[i] < p[j] }
+-
+ // A PE base relocation table is a list of blocks, where each block
+ // contains relocation information for a single page. The blocks
+ // must be emitted in order of page virtual address.
+@@ -1547,7 +1544,7 @@ func (rt *peBaseRelocTable) write(ctxt *Link) {
+ 	out := ctxt.Out
+ 
+ 	// sort the pages array
+-	sort.Sort(rt.pages)
++	slices.Sort(rt.pages)
+ 
+ 	// .reloc section must be 32-bit aligned
+ 	if out.Offset()&3 != 0 {
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 92e856a766..f48e2087c1 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -361,20 +361,6 @@ func asmbPlan9Sym(ctxt *Link) {
+ 	}
+ }
+ 
+-type byPkg []*sym.Library
+-
+-func (libs byPkg) Len() int {
+-	return len(libs)
+-}
+-
+-func (libs byPkg) Less(a, b int) bool {
+-	return libs[a].Pkg < libs[b].Pkg
+-}
+-
+-func (libs byPkg) Swap(a, b int) {
+-	libs[a], libs[b] = libs[b], libs[a]
+-}
+-
+ // Create a table with information on the text sections.
+ // Return the symbol of the table, and number of sections.
+ func textsectionmap(ctxt *Link) (loader.Sym, uint32) {
+diff --git a/src/cmd/link/internal/ld/typelink.go b/src/cmd/link/internal/ld/typelink.go
+index 5eca6e0181..966de5571c 100644
+--- a/src/cmd/link/internal/ld/typelink.go
++++ b/src/cmd/link/internal/ld/typelink.go
+@@ -8,26 +8,21 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+-	"sort"
++	"slices"
++	"strings"
+ )
+ 
+-type byTypeStr []typelinkSortKey
+-
+ type typelinkSortKey struct {
+ 	TypeStr string
+ 	Type    loader.Sym
+ }
+ 
+-func (s byTypeStr) Less(i, j int) bool { return s[i].TypeStr < s[j].TypeStr }
+-func (s byTypeStr) Len() int           { return len(s) }
+-func (s byTypeStr) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+-
+ // typelink generates the typelink table which is used by reflect.typelinks().
+ // Types that should be added to the typelinks table are marked with the
+ // MakeTypelink attribute by the compiler.
+ func (ctxt *Link) typelink() {
+ 	ldr := ctxt.loader
+-	typelinks := byTypeStr{}
++	var typelinks []typelinkSortKey
+ 	var itabs []loader.Sym
+ 	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
+ 		if !ldr.AttrReachable(s) {
+@@ -39,7 +34,9 @@ func (ctxt *Link) typelink() {
+ 			itabs = append(itabs, s)
+ 		}
+ 	}
+-	sort.Sort(typelinks)
++	slices.SortFunc(typelinks, func(a, b typelinkSortKey) int {
++		return strings.Compare(a.TypeStr, b.TypeStr)
++	})
+ 
+ 	tl := ldr.CreateSymForUpdate("runtime.typelink", 0)
+ 	tl.SetType(sym.STYPELINK)
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index b9eaca7fb6..8abbb931e5 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -9,7 +9,8 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/sys"
+ 	"cmd/link/internal/sym"
+-	"sort"
++	"cmp"
++	"slices"
+ )
+ 
+ // SymbolBuilder is a helper designed to help with the construction
+@@ -154,18 +155,11 @@ func (sb *SymbolBuilder) AddRel(typ objabi.RelocType) (Reloc, int) {
+ 	return relocs.At(j), j
+ }
+ 
+-// Sort relocations by offset.
++// SortRelocs Sort relocations by offset.
+ func (sb *SymbolBuilder) SortRelocs() {
+-	sort.Sort((*relocsByOff)(sb.extSymPayload))
+-}
+-
+-// Implement sort.Interface
+-type relocsByOff extSymPayload
+-
+-func (p *relocsByOff) Len() int           { return len(p.relocs) }
+-func (p *relocsByOff) Less(i, j int) bool { return p.relocs[i].Off() < p.relocs[j].Off() }
+-func (p *relocsByOff) Swap(i, j int) {
+-	p.relocs[i], p.relocs[j] = p.relocs[j], p.relocs[i]
++	slices.SortFunc(sb.extSymPayload.relocs, func(a, b goobj.Reloc) int {
++		return cmp.Compare(a.Off(), b.Off())
++	})
+ }
+ 
+ func (sb *SymbolBuilder) Reachable() bool {
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 2953c4fffc..3ca9bb5422 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -713,6 +713,7 @@ func (check *Checker) packageObjects() {
+ }
+ 
+ // inSourceOrder implements the sort.Sort interface.
++// TODO(gri) replace with slices.SortFunc
+ type inSourceOrder []Object
+ 
+ func (a inSourceOrder) Len() int           { return len(a) }
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index a94d4fada4..1ffe6ee14c 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -363,6 +363,7 @@ func assertSortedMethods(list []*Func) {
+ }
+ 
+ // byUniqueMethodName method lists can be sorted by their unique method names.
++// todo: replace with slices.SortFunc
+ type byUniqueMethodName []*Func
+ 
+ func (a byUniqueMethodName) Len() int           { return len(a) }

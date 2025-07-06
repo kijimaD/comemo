@@ -1,0 +1,35 @@
+commit c969491ed7b0d3c7db951abfb95cf96777efbfbc
+Author: shenleban tongying <shenlebantongying@gmail.com>
+Date:   Tue Nov 12 02:10:06 2024 +0000
+
+    doc/go_mem: fix broken paper link in go_mem.html
+    
+    The link is no longer accessible.
+    
+    Replace it with the ACM one.
+    
+    Change-Id: I4095fd07a1bc193568cd93fbf69955ba0ba96f2b
+    GitHub-Last-Rev: 33b142d6e864d9c59c5fb2bd21dbe4a6fd65ab36
+    GitHub-Pull-Request: golang/go#70295
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626485
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ doc/go_mem.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_mem.html b/doc/go_mem.html
+index c0b81d3fac..633d35cd07 100644
+--- a/doc/go_mem.html
++++ b/doc/go_mem.html
+@@ -82,7 +82,7 @@ while still insisting that races are errors and that tools can diagnose and repo
+ <p>
+ The following formal definition of Go's memory model closely follows
+ the approach presented by Hans-J. Boehm and Sarita V. Adve in
+-“<a href="https://www.hpl.hp.com/techreports/2008/HPL-2008-56.pdf">Foundations of the C++ Concurrency Memory Model</a>”,
++“<a href="https://dl.acm.org/doi/10.1145/1375581.1375591">Foundations of the C++ Concurrency Memory Model</a>”,
+ published in PLDI 2008.
+ The definition of data-race-free programs and the guarantee of sequential consistency
+ for race-free programs are equivalent to the ones in that work.

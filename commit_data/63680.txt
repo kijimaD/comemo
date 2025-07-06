@@ -1,0 +1,116 @@
+commit 483a913a55215a063ee7a7f218e9ed8f3c7ba21b
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Mar 11 16:11:39 2024 -0400
+
+    cmd/compile: add support for telemetry
+    
+    Add cmd/internal/telemetry to cmd/dist's bootstrapDirs so it's built
+    when bootstrapping the compiler. cmd/internal/telemetry is a wrapper
+    arount telemetry functions that stubs out the functions when built in
+    bootstrap mode to avoid dependencies on x/telemetry in bootstrap mode.
+    
+    Call telemetry.Start with an empty config to open the counter file, and
+    increment a counter for when the command is invoked.
+    
+    After flags are parsed, increment a counter for each of the names of the
+    flags that were passed in. The counter names will be compile/flag:<name>
+    so for example we'll have compile/flag:e and compile/flag:E.
+    
+    In FatalfAt, increment a stack counter for internal errors.
+    
+    For #58894
+    
+    Change-Id: Ia5a8a63aa43b2276641181626cbfbea7e4647faa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570679
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/base/flag.go  | 2 ++
+ src/cmd/compile/internal/base/print.go | 5 +++++
+ src/cmd/compile/internal/gc/main.go    | 3 +++
+ src/cmd/dist/buildtool.go              | 1 +
+ 4 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 1ee3337088..0d3c7c2226 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -6,6 +6,7 @@ package base
+ 
+ import (
+ 	"cmd/internal/cov/covcmd"
++	"cmd/internal/telemetry"
+ 	"encoding/json"
+ 	"flag"
+ 	"fmt"
+@@ -193,6 +194,7 @@ func ParseFlags() {
+ 	objabi.AddVersionFlag() // -V
+ 	registerFlags()
+ 	objabi.Flagparse(usage)
++	telemetry.CountFlags("compile/flag:", *flag.CommandLine)
+ 
+ 	if gcd := os.Getenv("GOCOMPILEDEBUG"); gcd != "" {
+ 		// This will only override the flags set in gcd;
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index cc36acec4b..15256186af 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -14,6 +14,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/internal/src"
++	"cmd/internal/telemetry"
+ )
+ 
+ // An errorMsg is a queued error message, waiting to be printed.
+@@ -194,6 +195,8 @@ func Fatalf(format string, args ...interface{}) {
+ 	FatalfAt(Pos, format, args...)
+ }
+ 
++var bugStack = telemetry.NewStackCounter("compile/bug", 16) // 16 is arbitrary; used by gopls and crashmonitor
++
+ // FatalfAt reports a fatal error - an internal problem - at pos and exits.
+ // If other errors have already been printed, then FatalfAt just quietly exits.
+ // (The internal problem may have been caused by incomplete information
+@@ -209,6 +212,8 @@ func Fatalf(format string, args ...interface{}) {
+ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
+ 	FlushErrors()
+ 
++	bugStack.Inc()
++
+ 	if Debug.Panic != 0 || numErrors == 0 {
+ 		fmt.Printf("%v: internal compiler error: ", FmtPos(pos))
+ 		fmt.Printf(format, args...)
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 130feafb24..7ab64f4748 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -30,6 +30,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
++	"cmd/internal/telemetry"
+ 	"flag"
+ 	"fmt"
+ 	"internal/buildcfg"
+@@ -58,6 +59,8 @@ func handlePanic() {
+ // code, and finally writes the compiled package definition to disk.
+ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	base.Timer.Start("fe", "init")
++	telemetry.Start()
++	telemetry.Inc("compile/invocations")
+ 
+ 	defer handlePanic()
+ 
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index a47b7f90da..453b37285f 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -52,6 +52,7 @@ var bootstrapDirs = []string{
+ 	"cmd/internal/quoted",
+ 	"cmd/internal/src",
+ 	"cmd/internal/sys",
++	"cmd/internal/telemetry",
+ 	"cmd/link",
+ 	"cmd/link/internal/...",
+ 	"compress/flate",

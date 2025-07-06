@@ -1,0 +1,64 @@
+commit 498899e20549a9e30f7641fc3a3592f89a933a95
+Author: ICHINOSE Shogo <shogo82148@gmail.com>
+Date:   Sun May 18 17:28:09 2025 +0000
+
+    math: fix portable FMA implementation when x*y ~ 0, x*y < 0 and z = 0
+    
+    Adding zero usually does not change the original value.
+    However, there is an exception with negative zero. (e.g. (-0) + (+0) = (+0))
+    This applies when x * y is negative and underflows.
+    
+    Fixes #73757
+    
+    Change-Id: Ib7b54bdacd1dcfe3d392802ea35cdb4e989f9371
+    GitHub-Last-Rev: 30d74883b21667fc9439d9d14932b7edb3e72cd5
+    GitHub-Pull-Request: golang/go#73759
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673856
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/math/all_test.go | 5 +++++
+ src/math/fma.go      | 9 ++++++++-
+ 2 files changed, 13 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index c253b7bc02..4e5f451762 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -2126,6 +2126,11 @@ var fmaC = []struct{ x, y, z, want float64 }{
+ 	// Issue #61130
+ 	{-1, 1, 1, 0},
+ 	{1, 1, -1, 0},
++
++	// Issue #73757
++	{0x1p-1022, -0x1p-1022, 0, Copysign(0, -1)},
++	{Copysign(0, -1), 1, 0, 0},
++	{1, Copysign(0, -1), 0, 0},
+ }
+ 
+ var sqrt32 = []float32{
+diff --git a/src/math/fma.go b/src/math/fma.go
+index ba03fbe8a9..c806b914da 100644
+--- a/src/math/fma.go
++++ b/src/math/fma.go
+@@ -96,9 +96,16 @@ func FMA(x, y, z float64) float64 {
+ 	bx, by, bz := Float64bits(x), Float64bits(y), Float64bits(z)
+ 
+ 	// Inf or NaN or zero involved. At most one rounding will occur.
+-	if x == 0.0 || y == 0.0 || z == 0.0 || bx&uvinf == uvinf || by&uvinf == uvinf {
++	if x == 0.0 || y == 0.0 || bx&uvinf == uvinf || by&uvinf == uvinf {
+ 		return x*y + z
+ 	}
++	// Handle z == 0.0 separately.
++	// Adding zero usually does not change the original value.
++	// However, there is an exception with negative zero. (e.g. (-0) + (+0) = (+0))
++	// This applies when x * y is negative and underflows.
++	if z == 0.0 {
++		return x * y
++	}
+ 	// Handle non-finite z separately. Evaluating x*y+z where
+ 	// x and y are finite, but z is infinite, should always result in z.
+ 	if bz&uvinf == uvinf {

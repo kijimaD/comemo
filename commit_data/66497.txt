@@ -1,0 +1,209 @@
+commit 31658ace9d277b7322413e9c3a21528bdc6db884
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Mar 7 01:04:13 2025 +0000
+
+    runtime/internal: clean up completely
+    
+    We've been slowly moving packages from runtime/internal to
+    internal/runtime. For now, runtime/internal only has test packages.
+    
+    It's a good chance to clean up the references to runtime/internal
+    in the toolchain.
+    
+    For #65355.
+    
+    Change-Id: Ie6f9091a44511d0db9946ea6de7a78d3afe9f063
+    GitHub-Last-Rev: fad32e2e81d11508e734c3c3d3b0c1da583f89f5
+    GitHub-Pull-Request: golang/go#72137
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655515
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/dist/test.go                                                  | 2 +-
+ src/cmd/go/internal/load/pkg.go                                       | 2 +-
+ src/cmd/internal/objabi/pkgspecial.go                                 | 2 +-
+ src/cmd/link/internal/ld/data.go                                      | 3 +--
+ .../internal => internal/runtime}/startlinetest/func_amd64.go         | 0
+ src/{runtime/internal => internal/runtime}/startlinetest/func_amd64.s | 0
+ src/{runtime/internal => internal/runtime}/wasitest/host_test.go      | 0
+ src/{runtime/internal => internal/runtime}/wasitest/nonblock_test.go  | 0
+ src/{runtime/internal => internal/runtime}/wasitest/tcpecho_test.go   | 0
+ .../internal => internal/runtime}/wasitest/testdata/nonblock.go       | 0
+ .../internal => internal/runtime}/wasitest/testdata/tcpecho.go        | 0
+ src/net/file_wasip1_test.go                                           | 2 +-
+ src/runtime/atomic_pointer.go                                         | 4 ++--
+ src/runtime/panic.go                                                  | 2 +-
+ src/runtime/pprof/protomem_test.go                                    | 3 ---
+ src/runtime/preempt.go                                                | 1 -
+ src/runtime/start_line_amd64_test.go                                  | 2 +-
+ 17 files changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 6199dbbb93..a380e46c5d 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -926,7 +926,7 @@ func (t *tester) registerTests() {
+ 		t.registerTest("wasip1 host tests",
+ 			&goTest{
+ 				variant:   "host",
+-				pkg:       "runtime/internal/wasitest",
++				pkg:       "internal/runtime/wasitest",
+ 				timeout:   1 * time.Minute,
+ 				runOnHost: true,
+ 			})
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 8f62abe663..9d8523725a 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -3561,7 +3561,7 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
+ 		// $GOROOT/src/internal/coverage/pkid.go dealing with
+ 		// hard-coding of runtime package IDs.
+ 		cmode := cfg.BuildCoverMode
+-		if cfg.BuildRace && p.Standard && (p.ImportPath == "runtime" || strings.HasPrefix(p.ImportPath, "runtime/internal")) {
++		if cfg.BuildRace && p.Standard && p.ImportPath == "runtime" {
+ 			cmode = "regonly"
+ 		}
+ 
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 871c28f588..118d2d4126 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -92,7 +92,7 @@ var allowAsmABIPkgs = []string{
+ 	"internal/bytealg",
+ 	"internal/chacha8rand",
+ 	"internal/runtime/syscall",
+-	"runtime/internal/startlinetest",
++	"internal/runtime/startlinetest",
+ }
+ 
+ // LookupPkgSpecial returns special build properties for the given package path.
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 0fd3bacd2f..67ee71bab3 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -78,8 +78,7 @@ func isRuntimeDepPkg(pkg string) bool {
+ 		"unsafe":
+ 		return true
+ 	}
+-	return (strings.HasPrefix(pkg, "runtime/internal/") || strings.HasPrefix(pkg, "internal/runtime/")) &&
+-		!strings.HasSuffix(pkg, "_test")
++	return strings.HasPrefix(pkg, "internal/runtime/") && !strings.HasSuffix(pkg, "_test")
+ }
+ 
+ // Estimate the max size needed to hold any new trampolines created for this function. This
+diff --git a/src/runtime/internal/startlinetest/func_amd64.go b/src/internal/runtime/startlinetest/func_amd64.go
+similarity index 100%
+rename from src/runtime/internal/startlinetest/func_amd64.go
+rename to src/internal/runtime/startlinetest/func_amd64.go
+diff --git a/src/runtime/internal/startlinetest/func_amd64.s b/src/internal/runtime/startlinetest/func_amd64.s
+similarity index 100%
+rename from src/runtime/internal/startlinetest/func_amd64.s
+rename to src/internal/runtime/startlinetest/func_amd64.s
+diff --git a/src/runtime/internal/wasitest/host_test.go b/src/internal/runtime/wasitest/host_test.go
+similarity index 100%
+rename from src/runtime/internal/wasitest/host_test.go
+rename to src/internal/runtime/wasitest/host_test.go
+diff --git a/src/runtime/internal/wasitest/nonblock_test.go b/src/internal/runtime/wasitest/nonblock_test.go
+similarity index 100%
+rename from src/runtime/internal/wasitest/nonblock_test.go
+rename to src/internal/runtime/wasitest/nonblock_test.go
+diff --git a/src/runtime/internal/wasitest/tcpecho_test.go b/src/internal/runtime/wasitest/tcpecho_test.go
+similarity index 100%
+rename from src/runtime/internal/wasitest/tcpecho_test.go
+rename to src/internal/runtime/wasitest/tcpecho_test.go
+diff --git a/src/runtime/internal/wasitest/testdata/nonblock.go b/src/internal/runtime/wasitest/testdata/nonblock.go
+similarity index 100%
+rename from src/runtime/internal/wasitest/testdata/nonblock.go
+rename to src/internal/runtime/wasitest/testdata/nonblock.go
+diff --git a/src/runtime/internal/wasitest/testdata/tcpecho.go b/src/internal/runtime/wasitest/testdata/tcpecho.go
+similarity index 100%
+rename from src/runtime/internal/wasitest/testdata/tcpecho.go
+rename to src/internal/runtime/wasitest/testdata/tcpecho.go
+diff --git a/src/net/file_wasip1_test.go b/src/net/file_wasip1_test.go
+index 4f4259069d..91f57eecda 100644
+--- a/src/net/file_wasip1_test.go
++++ b/src/net/file_wasip1_test.go
+@@ -20,7 +20,7 @@ import (
+ // socket extensions with the net package using net.FileConn/net.FileListener.
+ //
+ // Note that the creation of net.Conn and net.Listener values for TCP sockets
+-// has an end-to-end test in src/runtime/internal/wasitest, here we are only
++// has an end-to-end test in src/internal/runtime/wasitest, here we are only
+ // verifying the code paths specific to UDP, and error handling for invalid use
+ // of the functions.
+ 
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index df067ede77..311ef7d0bd 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -49,7 +49,7 @@ func atomicstorep(ptr unsafe.Pointer, new unsafe.Pointer) {
+ 	atomic.StorepNoWB(noescape(ptr), new)
+ }
+ 
+-// atomic_storePointer is the implementation of runtime/internal/UnsafePointer.Store
++// atomic_storePointer is the implementation of internal/runtime/atomic.UnsafePointer.Store
+ // (like StoreNoWB but with the write barrier).
+ //
+ //go:nosplit
+@@ -58,7 +58,7 @@ func atomic_storePointer(ptr *unsafe.Pointer, new unsafe.Pointer) {
+ 	atomicstorep(unsafe.Pointer(ptr), new)
+ }
+ 
+-// atomic_casPointer is the implementation of runtime/internal/UnsafePointer.CompareAndSwap
++// atomic_casPointer is the implementation of internal/runtime/atomic.UnsafePointer.CompareAndSwap
+ // (like CompareAndSwapNoWB but with the write barrier).
+ //
+ //go:nosplit
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index c31cfd6e1a..07a96a237b 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -59,7 +59,7 @@ func panicCheck1(pc uintptr, msg string) {
+ 		throw(msg)
+ 	}
+ 	// TODO: is this redundant? How could we be in malloc
+-	// but not in the runtime? runtime/internal/*, maybe?
++	// but not in the runtime? internal/runtime/*, maybe?
+ 	gp := getg()
+ 	if gp != nil && gp.m != nil && gp.m.mallocing != 0 {
+ 		throw(msg)
+diff --git a/src/runtime/pprof/protomem_test.go b/src/runtime/pprof/protomem_test.go
+index 4d08e67ddc..43f4d3efe1 100644
+--- a/src/runtime/pprof/protomem_test.go
++++ b/src/runtime/pprof/protomem_test.go
+@@ -275,9 +275,6 @@ func TestHeapRuntimeFrames(t *testing.T) {
+ 		if strings.Contains(l, "internal/runtime/") {
+ 			t.Errorf("Sample got %s, want no runtime frames", l)
+ 		}
+-		if strings.Contains(l, "runtime/internal/") {
+-			t.Errorf("Sample got %s, want no runtime frames", l)
+-		}
+ 		if strings.Contains(l, "mapassign") { // in case mapassign moves to a package not matching above paths.
+ 			t.Errorf("Sample got %s, want no mapassign frames", l)
+ 		}
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 839f3875be..c41c355835 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -418,7 +418,6 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 	u, uf := newInlineUnwinder(f, pc)
+ 	name := u.srcFunc(uf).name()
+ 	if stringslite.HasPrefix(name, "runtime.") ||
+-		stringslite.HasPrefix(name, "runtime/internal/") ||
+ 		stringslite.HasPrefix(name, "internal/runtime/") ||
+ 		stringslite.HasPrefix(name, "reflect.") {
+ 		// For now we never async preempt the runtime or
+diff --git a/src/runtime/start_line_amd64_test.go b/src/runtime/start_line_amd64_test.go
+index 305ed0b126..0b4807ad15 100644
+--- a/src/runtime/start_line_amd64_test.go
++++ b/src/runtime/start_line_amd64_test.go
+@@ -5,7 +5,7 @@
+ package runtime_test
+ 
+ import (
+-	"runtime/internal/startlinetest"
++	"internal/runtime/startlinetest"
+ 	"testing"
+ )
+ 

@@ -1,0 +1,278 @@
+commit b3799ba6344688e550273054c99b02f6c0e521fd
+Merge: 16afa6a740 9a44df6675
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 8 13:20:26 2025 -0500
+
+    [release-branch.go1.24] all: merge master (9a44df6) into release-branch.go1.24
+    
+    Merge List:
+    
+    + 2025-01-08 9a44df6675 cmd/go/testdata/script: fix TestScript/env_gocacheprog on Windows
+    + 2025-01-08 f025d19e7b runtime: hold traceAcquire across casgstatus in injectglist
+    + 2025-01-08 1e9835f5b1 internal/sync: fix typo of panic message
+    + 2025-01-07 39f2032c17 testing/synctest: add some examples
+    + 2025-01-07 b50ccef67a cmd/go/internal/modindex: don't write index entry if file open
+    + 2025-01-07 b2aa18b96c cmd/internal/hash: stop using md5, sha1
+    + 2025-01-07 d93b549f05 cmd/go/internal/cache: handle cacheprog not responding to close
+    + 2025-01-07 d62154db83 weak: don't panic when calling Value on a zero Pointer
+    + 2025-01-07 9d0772b23e cmd/compile/internal/syntax: add test case for invalid label use
+    + 2025-01-07 1d20bce981 go/types, types2: expand documentation for Info.Types map
+    + 2025-01-07 a9bd6239a4 cmd/go/internal/env: add GOCACHEPROG to go env output
+    + 2025-01-07 850b276a67 crypto/tls: send illegal_parameter on invalid ECHClientHello.type
+    + 2025-01-06 27c5164374 crypto/internal/fips140: zeroise integrity test temporary values
+    + 2025-01-06 d8ad4af78b cmd/internal/disasm: correct instruction length handling for riscv64
+    + 2025-01-06 a76cc5a4ec crypto/rsa: use λ(N) instead of φ(N)
+    + 2025-01-06 3f002abb60 internal/sync: add test from issue 70970
+    + 2025-01-06 7a2e88e911 net/http: update NewRequestWithContext wrong link to NewRequest
+    + 2025-01-06 c112c0af13 Revert "internal/sync: optimize CompareAndSwap and Swap"
+    + 2025-01-03 705b5a569a crypto/ecdsa: drop SEC 1 reference from package doc
+    + 2025-01-03 f966695cce context: use "canceled" in docs to refer to timed-out contexts
+    + 2025-01-03 5da026354c cmd/go/internal/vcweb: close the .access file
+    + 2025-01-03 31cabcf084 crypto/internal/fips140: mark OpenBSD unsupported
+    + 2025-01-03 eb0c2b2f96 crypto/internal/fips140: add Supported
+    + 2025-01-03 f0a9b6df45 internal/fuzz: remove the exp2 method
+    + 2025-01-03 5d626c49ec spec: fix a dead link
+    + 2025-01-03 81566aff3a internal/exportdata: add missing return
+    + 2025-01-03 e7a8bd5d8b crypto/internal/fips140/check: remove Enabled
+    + 2025-01-02 4b652e9f5f cmd/go: fix two typos in helpdoc.go
+    + 2025-01-02 0afd7e85e5 cmd/go: document GOCACHEPROG in go help environment
+    + 2025-01-02 3c8e5b13df cmd/go/internal/cacheprog: drop redundant Prog prefixes
+    + 2025-01-02 20da34c6d2 cmd/go: move GOCACHEPROG protocol types to their own package
+    + 2025-01-02 858a0e9dfd crypto/tls: properly return ECH retry configs
+    + 2025-01-02 a63aee4955 cmd/go: improve GOCACHEPROG types documentation
+    + 2025-01-02 847c357bbb cmd/go: remove references to gopath-get
+    + 2025-01-01 d1d9312950 crypto/tls: fix Config.Time in tests using expired certificates
+    + 2024-12-31 94f15810e6 cmd/go: document default GOARM value
+    + 2024-12-30 856a7bc8e9 builtin: use list instead of indentation for comments in cap, len, and make
+    + 2024-12-30 5efb4239c6 spec: document that string conversions don't guarantee result slice capacity
+    + 2024-12-30 0d8aa8cce6 spec: describe representation of values
+    + 2024-12-30 8857a5a33f crypto/tls: fix misspelling in comment
+    + 2024-12-30 3c4102bfd4 encoding/binary: add documentation for endian methods
+    + 2024-12-30 b702a26cf8 os: mention fsys modifications during CopyFS
+    + 2024-12-30 15f232456a encoding/json: remove suggestion on Unmarshaler with JSON null
+    + 2024-12-30 ba1deb1cee cmd/link: document that -s implies -w
+    + 2024-12-30 fd5e0d26d9 go/doc: resolve imports before predeclared identifiers in examples
+    + 2024-12-30 a785d11ac4 unique: fix typo
+    + 2024-12-27 2b794ed86c encoding/json: expand and modernize TestInterfaceSet
+    + 2024-12-27 e3cd55e9d2 cmd/go/internal/work: allow @ character in some -Wl, linker flags on darwin
+    + 2024-12-27 39794819aa doc/initial: remove fixed-width spacing notice
+    + 2024-12-27 7c03fe70b8 cmd/compile: improve compiler directive docs
+    + 2024-12-27 d7c3e93c16 iter: improve documentation with iterator example
+    + 2024-12-26 cce75da30b crypto/mlkem: swap order of return values of Encapsulate
+    + 2024-12-23 772f024c61 weak: fix typo in warning about tiny allocator optimization
+    + 2024-12-23 b9955f0ad9 cmd/link, runtime: apply a delta to RODATA->DATA relocations
+    + 2024-12-23 eef35e3bd9 internal/goexperiment: run go generate for synctest
+    + 2024-12-23 9f6c80a76a cmd/go/internal/work: allow single character values in -Wl, linker flags
+    + 2024-12-22 05d8984781 net: document LookupTXT behavior with multiple strings per record
+    + 2024-12-21 500675a7c8 cmd/compile: load map length with the right type
+    + 2024-12-21 06b191e11f internal/syscall/unix: apply fstatat fix to linux/mips64le
+    + 2024-12-21 110ab1aaf4 slices: document two oddities
+    + 2024-12-19 669d87a935 runtime/pprof: continued attempt to deflake the VMInfo test.
+    + 2024-12-19 45f49139f5 runtime: test trap panic parsing in TestTracebackSystem
+    + 2024-12-19 e63eb98e98 net/http: fix nil panic in test
+    + 2024-12-19 7b6c94dd03 cmd/go: drop fips140 build ID hacks
+    + 2024-12-19 cb72406c36 cmd/go: fix two-step toolchain upgrade through go install, GOTOOLCHAIN
+    + 2024-12-18 4f0561f9d3 cmd/dist: skip fips140test in exe mode on Android
+    + 2024-12-18 87dbfb9fa7 weak: improve grammar in doc comments
+    + 2024-12-18 f4e3ec3dbe crypto/ecdsa: fix condition for fips140=only check
+    + 2024-12-18 6aa46eb750 crypto/tls: normalize spelling of "ClientHello" in comments
+    + 2024-12-18 10ca5ba4ff crypto/pbkdf2: update RFC reference in package doc
+    + 2024-12-18 8ff4cee564 cmd/go,crypto: reject using Go+BoringCrypto and fips140 together
+    + 2024-12-18 971448ddf8 testing: support B.Context and F.Context
+    + 2024-12-17 95b433eed4 debug/elf: adjust version API per issue discussion
+    + 2024-12-17 b2c0168893 crypto/internal/fips140/aes/gcm: use aes.EncryptBlockInternal on ppc64x and s390x
+    + 2024-12-17 b9e2ffdcd2 crypto/internal/fips140: add Name and Version
+    + 2024-12-17 8790372a8d cmd, go: fix some typos
+    + 2024-12-17 b057b8872d bytes, strings: add cross-references in docstrings
+    + 2024-12-17 e977b83b32 cmd/go/internal/help: use secure link to swig.org
+    + 2024-12-17 4ac8f552e9 syscall, internal/syscall/unix: fix fstatat on linux/mips64
+    + 2024-12-17 236a0b4ffb spec: explain function invocation and passing of parameters more precisely
+    + 2024-12-17 9f806bb76c go/build: streamline the crypto package graph in TestDependencies
+    + 2024-12-17 0cd833d198 go/build: remove nonexistent package from TestDependencies
+    + 2024-12-17 31e50af5f3 crypto/rsa: revert minimum GenerateKey size to 32 bits
+    + 2024-12-17 b47ce8b0e9 crypto/cipher: block non-AES CTR and CBC in fips140=only mode
+    + 2024-12-17 dd7a7ba38f crypto/internal/fips140/aes: mark AES-ECB as not approved
+    + 2024-12-17 427a2401af cmd/go/testdata/script: update test_flags for new test output
+    + 2024-12-17 75736cc169 fmt, strconv: document that exponent is always two digits
+    + 2024-12-16 1218566fe5 cmd/link: update runtime dependency list
+    + 2024-12-16 d92c34a387 cmd/go: don't create test actions for incomplete packages
+    + 2024-12-16 3bd08b9792 runtime: usleep in TestWeakToStrongMarkTermination
+    + 2024-12-15 18b5435fc8 testing: don't measure cleanup time after B.Loop
+    + 2024-12-15 c1f2542c8b testing: improve B.Loop test
+    + 2024-12-15 6bd56fcaeb testing: improve b.Loop example
+    + 2024-12-15 090748d6c7 testing: improve B.Loop docs, use B.Loop in examples
+    + 2024-12-13 e39e965e0e cmd/go: drop FailedBuild field if gotestjsonbuildtext=1
+    + 2024-12-13 08770a5b94 cmd/link: make dwarf name slice index self-describing
+    + 2024-12-13 c4f356dd86 crypto/ecdsa: fix s390x assembly with P-521
+    + 2024-12-13 08725f9de2 crypto/internal/cryptotest: skip TestAllocations on s390x
+    + 2024-12-13 1cbfe8c482 fmt: add more function and allocation tests
+    + 2024-12-13 8391579ece runtime: migrate missing map linkname allowlists
+    + 2024-12-12 80a2982a80 spec: align EBNF rules consistently (cosmetic change)
+    + 2024-12-12 38e9a671d7 syscall: on freebsd-386 only update written for certain errors
+    + 2024-12-12 6f7a4540b1 net: fix example function name for IP.To4
+    + 2024-12-12 14e5093ee5 cmd/internal/obj: disallow linknamed access to builtin symbols
+    + 2024-12-12 fb764cdad0 cmd/link: block new standard library linknames
+    
+    Change-Id: Ie423f050db80034c3af6c12bd6007db273c5d281
+
+ api/go1.24.txt                                     |  18 +-
+ doc/go_spec.html                                   | 243 ++++++++----
+ doc/initial/1-intro.md                             |   6 -
+ src/builtin/builtin.go                             |  48 +--
+ src/bytes/iter.go                                  |  10 +-
+ src/cmd/compile/doc.go                             |  69 ++--
+ src/cmd/compile/internal/ssagen/ssa.go             |  13 +-
+ .../compile/internal/syntax/testdata/issue70974.go |  17 +
+ src/cmd/compile/internal/types2/README.md          |   2 +-
+ src/cmd/compile/internal/types2/api.go             |  18 +-
+ src/cmd/compile/internal/types2/signature.go       |   2 +-
+ src/cmd/dist/test.go                               |  25 +-
+ src/cmd/go/alldocs.go                              |  26 +-
+ src/cmd/go/internal/cache/cache.go                 |  24 +-
+ src/cmd/go/internal/cache/default.go               |   4 +-
+ src/cmd/go/internal/cache/prog.go                  | 150 ++-----
+ src/cmd/go/internal/cacheprog/cacheprog.go         | 137 +++++++
+ src/cmd/go/internal/cfg/cfg.go                     |   5 +-
+ src/cmd/go/internal/envcmd/env.go                  |   1 +
+ src/cmd/go/internal/fips140/fips140.go             |  14 +-
+ src/cmd/go/internal/help/helpdoc.go                |  21 +-
+ src/cmd/go/internal/load/pkg.go                    |  21 +-
+ src/cmd/go/internal/mmap/mmap.go                   |   7 +-
+ src/cmd/go/internal/modget/get.go                  |   5 -
+ src/cmd/go/internal/modindex/read.go               |  22 +-
+ src/cmd/go/internal/test/test.go                   |  36 +-
+ src/cmd/go/internal/toolchain/select.go            |  10 +-
+ src/cmd/go/internal/vcweb/auth.go                  |   1 +
+ src/cmd/go/internal/work/buildid.go                |  16 +-
+ src/cmd/go/internal/work/exec.go                   |   1 +
+ src/cmd/go/internal/work/security.go               |  34 +-
+ src/cmd/go/internal/work/security_test.go          |  51 +++
+ .../testdata/script/build_cacheprog_issue70848.txt |  27 ++
+ .../testdata/script/build_version_stamping_git.txt |   4 +-
+ src/cmd/go/testdata/script/env_changed.txt         |   3 +
+ src/cmd/go/testdata/script/env_gocacheprog.txt     |  42 ++
+ src/cmd/go/testdata/script/fips.txt                |   9 +-
+ src/cmd/go/testdata/script/fipssnap.txt            |   7 +-
+ src/cmd/go/testdata/script/gotoolchain_local.txt   |  11 +
+ src/cmd/go/testdata/script/mod_help.txt            |   2 +-
+ src/cmd/go/testdata/script/test_flags.txt          |   4 +-
+ src/cmd/go/testdata/script/test_fuzz_context.txt   |  47 +++
+ src/cmd/go/testdata/script/test_json_build.txt     |  27 +-
+ src/cmd/go/testdata/script/test_setup_error.txt    |  30 +-
+ src/cmd/internal/disasm/disasm.go                  |   4 +-
+ src/cmd/internal/hash/hash.go                      |  41 +-
+ src/cmd/internal/obj/sym.go                        |   2 +-
+ src/cmd/link/doc.go                                |   1 +
+ src/cmd/link/internal/ld/data.go                   |  27 +-
+ src/cmd/link/internal/ld/dwarf.go                  |   4 +-
+ src/cmd/link/internal/ld/symtab.go                 |  11 +
+ src/cmd/link/internal/loader/loader.go             |  39 ++
+ src/cmd/link/link_test.go                          |   2 +
+ src/cmd/link/testdata/linkname/builtin.go          |  17 +
+ src/cmd/vet/vet_test.go                            |   2 +-
+ src/context/context.go                             |  42 +-
+ src/context/example_test.go                        |   4 +-
+ src/crypto/cipher/cbc.go                           |   7 +
+ src/crypto/cipher/ctr.go                           |   4 +
+ src/crypto/ecdsa/ecdsa.go                          |   6 +-
+ src/crypto/fips140/fips140.go                      |   2 +-
+ src/crypto/internal/boring/boring.go               |   7 +
+ src/crypto/internal/cryptotest/allocations.go      |   6 +
+ src/crypto/internal/fips140/aes/aes.go             |  13 +-
+ src/crypto/internal/fips140/aes/cbc.go             |   4 +-
+ src/crypto/internal/fips140/aes/ctr.go             |   2 +-
+ src/crypto/internal/fips140/aes/gcm/cmac.go        |   8 +-
+ src/crypto/internal/fips140/aes/gcm/gcm_asm.go     |   4 +-
+ src/crypto/internal/fips140/aes/gcm/gcm_generic.go |   8 +-
+ src/crypto/internal/fips140/aes/gcm/gcm_ppc64x.go  |   6 +-
+ src/crypto/internal/fips140/aes/gcm/gcm_s390x.go   |   4 +-
+ src/crypto/internal/fips140/{check => }/asan.go    |   2 +-
+ src/crypto/internal/fips140/bigmod/nat.go          |  85 +++-
+ src/crypto/internal/fips140/boring.go              |  10 +
+ src/crypto/internal/fips140/check/check.go         |  64 +--
+ src/crypto/internal/fips140/ecdsa/ecdsa.go         |   4 +-
+ src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go   |  53 ++-
+ src/crypto/internal/fips140/fips140.go             |  50 ++-
+ src/crypto/internal/fips140/mlkem/cast.go          |   2 +-
+ src/crypto/internal/fips140/mlkem/mlkem1024.go     |  12 +-
+ src/crypto/internal/fips140/mlkem/mlkem768.go      |  12 +-
+ .../fips140/{check/noasan.go => notasan.go}        |   2 +-
+ src/crypto/internal/fips140/notboring.go           |   9 +
+ src/crypto/internal/fips140/rsa/keygen.go          |  85 +++-
+ src/crypto/internal/fips140/rsa/keygen_test.go     |  88 +++++
+ src/crypto/internal/fips140/rsa/rsa.go             |   2 +-
+ .../fips140/rsa/testdata/gcd_lcm_tests.txt         | 279 +++++++++++++
+ src/crypto/internal/fips140test/check_test.go      |  15 +-
+ src/crypto/mlkem/mlkem1024.go                      |   2 +-
+ src/crypto/mlkem/mlkem768.go                       |   2 +-
+ src/crypto/mlkem/mlkem_test.go                     |  18 +-
+ src/crypto/pbkdf2/pbkdf2.go                        |  20 +-
+ src/crypto/rsa/rsa_test.go                         |   4 +-
+ src/crypto/tls/bogo_config.json                    |   5 +-
+ src/crypto/tls/common.go                           |   4 +-
+ src/crypto/tls/ech.go                              |  16 +-
+ src/crypto/tls/handshake_client.go                 |   3 +-
+ src/crypto/tls/handshake_client_test.go            |  30 +-
+ src/crypto/tls/handshake_client_tls13.go           |  16 +-
+ src/crypto/tls/handshake_messages.go               |   2 +-
+ src/crypto/tls/handshake_server_test.go            |   2 +
+ src/crypto/tls/handshake_server_tls13.go           |   2 +-
+ src/crypto/tls/handshake_test.go                   |   5 +
+ src/crypto/tls/tls_test.go                         |   6 +-
+ src/debug/elf/file.go                              |  94 +++--
+ src/debug/elf/file_test.go                         | 384 +++++++++---------
+ src/debug/elf/symbols_test.go                      | 439 +++++++++++----------
+ src/encoding/binary/binary.go                      |  18 +
+ src/encoding/json/decode.go                        |   3 -
+ src/encoding/json/decode_test.go                   |  65 ++-
+ src/fmt/doc.go                                     |   3 +
+ src/fmt/fmt_test.go                                |  68 +++-
+ src/go/build/deps_test.go                          |  93 +++--
+ src/go/doc/example.go                              |  14 +-
+ src/go/doc/testdata/examples/shadow_predeclared.go |  19 +
+ .../testdata/examples/shadow_predeclared.golden    |  16 +
+ src/go/types/api.go                                |  18 +-
+ src/go/types/signature.go                          |   2 +-
+ src/internal/exportdata/exportdata.go              |   1 +
+ src/internal/fuzz/mutators_byteslice_test.go       |   6 -
+ src/internal/fuzz/pcg.go                           |   6 -
+ src/internal/goexperiment/exp_synctest_off.go      |   8 +
+ src/internal/goexperiment/exp_synctest_on.go       |   8 +
+ src/internal/pkgbits/encoder.go                    |   4 +-
+ src/internal/runtime/maps/map.go                   |   1 +
+ src/internal/sync/hashtriemap.go                   | 185 ++++-----
+ src/internal/sync/hashtriemap_test.go              |  59 +++
+ src/internal/syscall/unix/at_fstatat.go            |   2 +-
+ src/internal/syscall/unix/at_fstatat2.go           |   2 +-
+ src/iter/iter.go                                   |  20 +-
+ src/net/example_test.go                            |   2 +-
+ src/net/http/request.go                            |   6 +-
+ src/net/http/transport_test.go                     |   4 +-
+ src/net/lookup.go                                  |   6 +
+ src/os/dir.go                                      |   3 +
+ src/runtime/crash_test.go                          |   7 +-
+ src/runtime/gc_test.go                             |   6 +-
+ src/runtime/map_swiss.go                           | 158 ++++++++
+ src/runtime/pprof/vminfo_darwin_test.go            |   2 +-
+ src/runtime/proc.go                                |  14 +-
+ src/runtime/symtab.go                              |  12 +
+ src/runtime/traceback_system_test.go               | 249 +++++++++---
+ src/runtime/type.go                                |   4 +
+ src/slices/slices.go                               |   4 +
+ src/strconv/ftoa.go                                |   2 +
+ src/strings/iter.go                                |  10 +-
+ src/syscall/syscall_freebsd_386.go                 |   8 +-
+ src/syscall/syscall_linux_mips64x.go               |  13 +-
+ src/syscall/zsyscall_linux_mips64.go               |  30 +-
+ src/syscall/zsyscall_linux_mips64le.go             |  30 +-
+ src/testing/benchmark.go                           |  62 +--
+ src/testing/benchmark_test.go                      |  74 ++--
+ src/testing/example_loop_test.go                   |  48 +++
+ src/testing/fuzz.go                                |  49 ++-
+ src/testing/loop_test.go                           |  57 +++
+ src/testing/synctest/context_example_test.go       |  78 ++++
+ src/testing/testing.go                             |  50 ++-
+ src/unique/handle.go                               |   2 +-
+ src/weak/pointer.go                                |  19 +-
+ src/weak/pointer_test.go                           |  15 +
+ 160 files changed, 3497 insertions(+), 1523 deletions(-)

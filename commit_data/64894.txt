@@ -1,0 +1,234 @@
+commit 68bcef7e9f979b24f42bbddd3400cae97b9de846
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Tue Jul 23 23:11:10 2024 -0600
+
+    cmd/go: add support for go get -tool
+    
+    Running `go get -tool example.com/m1` will add a tool line to your mod
+    file and add any missing dependencies.
+    
+    Running `go get -tool example.com/m1@none` will drop the tool line from
+    your mod file.
+    
+    For golang/go#48429
+    
+    Change-Id: I07b4776f1f55eff588d08cb6649d94cc42a729d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563175
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/alldocs.go                       |  5 ++-
+ src/cmd/go/internal/modget/get.go           | 36 +++++++++++++++-
+ src/cmd/go/internal/modload/init.go         | 13 +++++-
+ src/cmd/go/testdata/script/mod_get_tool.txt | 66 +++++++++++++++++++++++++++++
+ 4 files changed, 117 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 286c1ddcbb..f5af683195 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -663,7 +663,7 @@
+ //
+ // Usage:
+ //
+-//	go get [-t] [-u] [-v] [build flags] [packages]
++//	go get [-t] [-u] [-v] [-tool] [build flags] [packages]
+ //
+ // Get resolves its command-line arguments to packages at specific module versions,
+ // updates go.mod to require those versions, and downloads source code into the
+@@ -717,6 +717,9 @@
+ // When the -t and -u flags are used together, get will update
+ // test dependencies as well.
+ //
++// The -tool flag instructs go to add a matching tool line to go.mod for each
++// listed package. If -tool is used with @none, the line will be removed.
++//
+ // The -x flag prints commands as they are executed. This is useful for
+ // debugging version control commands when a module is downloaded directly
+ // from a repository.
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 96b72adba5..5119bcb3e5 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -54,7 +54,7 @@ import (
+ var CmdGet = &base.Command{
+ 	// Note: flags below are listed explicitly because they're the most common.
+ 	// Do not send CLs removing them because they're covered by [get flags].
+-	UsageLine: "go get [-t] [-u] [-v] [build flags] [packages]",
++	UsageLine: "go get [-t] [-u] [-v] [-tool] [build flags] [packages]",
+ 	Short:     "add dependencies to current module and install them",
+ 	Long: `
+ Get resolves its command-line arguments to packages at specific module versions,
+@@ -109,6 +109,9 @@ but changes the default to select patch releases.
+ When the -t and -u flags are used together, get will update
+ test dependencies as well.
+ 
++The -tool flag instructs go to add a matching tool line to go.mod for each
++listed package. If -tool is used with @none, the line will be removed.
++
+ The -x flag prints commands as they are executed. This is useful for
+ debugging version control commands when a module is downloaded directly
+ from a repository.
+@@ -217,6 +220,7 @@ var (
+ 	getM        = CmdGet.Flag.Bool("m", false, "")
+ 	getT        = CmdGet.Flag.Bool("t", false, "")
+ 	getU        upgradeFlag
++	getTool     = CmdGet.Flag.Bool("tool", false, "")
+ 	getInsecure = CmdGet.Flag.Bool("insecure", false, "")
+ 	// -v is cfg.BuildV
+ )
+@@ -402,6 +406,10 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ 	r.checkPackageProblems(ctx, pkgPatterns)
+ 
++	if *getTool {
++		updateTools(ctx, queries, &opts)
++	}
++
+ 	// Everything succeeded. Update go.mod.
+ 	oldReqs := reqsFromGoMod(modload.ModFile())
+ 
+@@ -425,6 +433,32 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	}
+ }
+ 
++func updateTools(ctx context.Context, queries []*query, opts *modload.WriteOpts) {
++	pkgOpts := modload.PackageOpts{
++		VendorModulesInGOROOTSrc: true,
++		LoadTests:                *getT,
++		ResolveMissingImports:    false,
++		AllowErrors:              true,
++		SilenceNoGoErrors:        true,
++	}
++	patterns := []string{}
++	for _, q := range queries {
++		if search.IsMetaPackage(q.pattern) || q.pattern == "toolchain" {
++			base.Fatalf("go: go get -tool does not work with \"%s\".", q.pattern)
++		}
++		patterns = append(patterns, q.pattern)
++	}
++
++	matches, _ := modload.LoadPackages(ctx, pkgOpts, patterns...)
++	for i, m := range matches {
++		if queries[i].version == "none" {
++			opts.DropTools = append(opts.DropTools, m.Pkgs...)
++		} else {
++			opts.AddTools = append(opts.DropTools, m.Pkgs...)
++		}
++	}
++}
++
+ // parseArgs parses command-line arguments and reports errors.
+ //
+ // The command-line arguments are of the form path@version or simply path, with
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 91b7f5c2d9..f513b0c8b0 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1767,6 +1767,9 @@ type WriteOpts struct {
+ 	DropToolchain     bool // go get toolchain@none
+ 	ExplicitToolchain bool // go get has set explicit toolchain version
+ 
++	AddTools  []string // go get -tool example.com/m1
++	DropTools []string // go get -tool example.com/m1@none
++
+ 	// TODO(bcmills): Make 'go mod tidy' update the go version in the Requirements
+ 	// instead of writing directly to the modfile.File
+ 	TidyWroteGo bool // Go.Version field already updated by 'go mod tidy'
+@@ -1866,6 +1869,14 @@ func UpdateGoModFromReqs(ctx context.Context, opts WriteOpts) (before, after []b
+ 		modFile.AddToolchainStmt(toolchain)
+ 	}
+ 
++	for _, path := range opts.AddTools {
++		modFile.AddTool(path)
++	}
++
++	for _, path := range opts.DropTools {
++		modFile.DropTool(path)
++	}
++
+ 	// Update require blocks.
+ 	if gover.Compare(goVersion, gover.SeparateIndirectVersion) < 0 {
+ 		modFile.SetRequire(list)
+@@ -1904,7 +1915,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 	}
+ 
+ 	index := MainModules.GetSingleIndexOrNil()
+-	dirty := index.modFileIsDirty(modFile)
++	dirty := index.modFileIsDirty(modFile) || len(opts.DropTools) > 0 || len(opts.AddTools) > 0
+ 	if dirty && cfg.BuildMod != "mod" {
+ 		// If we're about to fail due to -mod=readonly,
+ 		// prefer to report a dirty go.mod over a dirty go.sum
+diff --git a/src/cmd/go/testdata/script/mod_get_tool.txt b/src/cmd/go/testdata/script/mod_get_tool.txt
+new file mode 100644
+index 0000000000..f0e4371ee6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_get_tool.txt
+@@ -0,0 +1,66 @@
++# test go get -tool
++go get -tool example.com/tools/cmd/hello
++cmp go.mod go.mod.want
++
++# test -tool with @none
++go get -tool example.com/tools/cmd/hello@none
++cmp go.mod go.mod.gone
++
++go mod tidy
++cmp go.mod go.mod.empty
++
++# test -tool with wildcards
++go get -tool ./cmd/...
++cmp go.mod go.mod.wildcard
++! go get -tool ./cmd/...@none
++stderr 'can''t request explicit version "none" of path "./cmd/..." in main module'
++
++# test -tool with all
++! go get -tool all
++stderr 'go get -tool does not work with "all"'
++
++-- main.go --
++package main
++
++func main() {}
++
++-- go.mod --
++module example.com/foo
++go 1.24
++
++-- go.mod.want --
++module example.com/foo
++
++go 1.24
++
++tool example.com/tools/cmd/hello
++
++require example.com/tools v1.0.0 // indirect
++-- go.mod.gone --
++module example.com/foo
++
++go 1.24
++
++require example.com/tools v1.0.0 // indirect
++-- go.mod.empty --
++module example.com/foo
++
++go 1.24
++-- go.mod.wildcard --
++module example.com/foo
++
++go 1.24
++
++tool (
++	example.com/foo/cmd/a
++	example.com/foo/cmd/b
++)
++-- cmd/a/a.go --
++package a
++
++func main() {}
++
++-- cmd/b/b.go --
++package b
++
++func main() {}

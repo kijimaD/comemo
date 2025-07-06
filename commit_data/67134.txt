@@ -1,0 +1,102 @@
+commit 2d216141a10fc7bb7872f13b95b070df471ece45
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Fri Feb 28 16:07:45 2025 +0100
+
+    internal/trace: expose clock snapshot timestamps on sync event
+    
+    Add ClockSnapshot field to the Sync event type and populate it with the
+    information from the new EvClockSnapshot event when available.
+    
+    For #69869
+    
+    Change-Id: I3b24b5bfa15cc7a7dba270f5e6bf189adb096840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653576
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ src/internal/trace/event.go | 47 +++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 41 insertions(+), 6 deletions(-)
+
+diff --git a/src/internal/trace/event.go b/src/internal/trace/event.go
+index 896ab7f73a..21f1569f43 100644
+--- a/src/internal/trace/event.go
++++ b/src/internal/trace/event.go
+@@ -665,17 +665,22 @@ func (e Event) Sync() Sync {
+ 	if e.Kind() != EventSync {
+ 		panic("Sync called on non-Sync event")
+ 	}
+-	var expBatches map[string][]ExperimentalBatch
++	s := Sync{N: int(e.base.args[0])}
+ 	if e.table != nil {
+-		expBatches = make(map[string][]ExperimentalBatch)
++		expBatches := make(map[string][]ExperimentalBatch)
+ 		for exp, batches := range e.table.expBatches {
+ 			expBatches[tracev2.Experiments()[exp]] = batches
+ 		}
++		s.ExperimentalBatches = expBatches
++		if e.table.hasClockSnapshot {
++			s.ClockSnapshot = &ClockSnapshot{
++				Trace: e.table.freq.mul(e.table.snapTime),
++				Wall:  e.table.snapWall,
++				Mono:  e.table.snapMono,
++			}
++		}
+ 	}
+-	return Sync{
+-		N:                   int(e.base.args[0]),
+-		ExperimentalBatches: expBatches,
+-	}
++	return s
+ }
+ 
+ // Sync contains details potentially relevant to all the following events, up to but excluding
+@@ -684,10 +689,30 @@ type Sync struct {
+ 	// N indicates that this is the Nth sync event in the trace.
+ 	N int
+ 
++	// ClockSnapshot is a snapshot of different clocks taken in close in time
++	// that can be used to correlate trace events with data captured by other
++	// tools. May be nil for older trace versions.
++	ClockSnapshot *ClockSnapshot
++
+ 	// ExperimentalBatches contain all the unparsed batches of data for a given experiment.
+ 	ExperimentalBatches map[string][]ExperimentalBatch
+ }
+ 
++// ClockSnapshot represents a near-simultaneous clock reading of several
++// different system clocks. The snapshot can be used as a reference to convert
++// timestamps to different clocks, which is helpful for correlating timestamps
++// with data captured by other tools.
++type ClockSnapshot struct {
++	// Trace is a snapshot of the trace clock.
++	Trace Time
++
++	// Wall is a snapshot of the system's wall clock.
++	Wall time.Time
++
++	// Mono is a snapshot of the system's monotonic clock.
++	Mono uint64
++}
++
+ // Experimental returns a view of the raw event for an experimental event.
+ //
+ // Panics if Kind != EventExperimental.
+@@ -844,6 +869,16 @@ func (e Event) String() string {
+ 			fmt.Fprintf(&sb, "%s=%s", arg, r.ArgValue(i).String())
+ 		}
+ 		fmt.Fprintf(&sb, "]")
++	case EventSync:
++		s := e.Sync()
++		fmt.Fprintf(&sb, " N=%d", s.N)
++		if s.ClockSnapshot != nil {
++			fmt.Fprintf(&sb, " Trace=%d Mono=%d Wall=%s",
++				s.ClockSnapshot.Trace,
++				s.ClockSnapshot.Mono,
++				s.ClockSnapshot.Wall.Format(time.RFC3339),
++			)
++		}
+ 	}
+ 	if stk := e.Stack(); stk != NoStack {
+ 		fmt.Fprintln(&sb)

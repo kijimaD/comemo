@@ -1,0 +1,249 @@
+commit dbf30d88f3b8c8129fb0978dda7452cc931b75d6
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu Jun 26 15:46:31 2025 -0400
+
+    [release-branch.go1.24] cmd/link: permit a larger size BSS reference to a smaller DATA symbol
+    
+    Currently, if there is a BSS reference and a DATA symbol
+    definition with the same name, we pick the DATA symbol, as it
+    contains the right content. In this case, if the BSS reference
+    has a larger size, we error out, because it is not safe to access
+    a smaller symbol as if it has a larger size.
+    
+    Sometimes code declares a global variable in Go and defines it
+    in assembly with content. They are expected to be of the same
+    size. However, in ASAN mode, we insert a red zone for the variable
+    on the Go side, making it have a larger size, whereas the assembly
+    symbol is unchanged. This causes the Go reference (BSS) has a
+    larger size than the assembly definition (DATA). It results in an
+    error currently. This code is valid and safe, so we should permit
+    that.
+    
+    We support this case by increasing the symbol size to match the
+    larger size (of the BSS side). The symbol content (from the DATA
+    side) is kept. In some sense, we merge the two symbols. When
+    loading symbols, it is not easy to change its size (as the object
+    file may be mapped read-only), so we add it to a fixup list, and
+    fix it up later after all Go symbols are loaded. This is a very
+    rare case, so the list should not be long.
+    
+    We could limit this to just ASAN mode. But it seems okay to allow
+    this in general. As long as the symbol has the larger size, it is
+    safe to access it with the larger size.
+    
+    Updates #74314.
+    Fixes #74403.
+    
+    Change-Id: I3ee6e46161d8f59500e2b81befea11e563355a57
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684236
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    (cherry picked from commit 0f8ab2db177baee7b04182f5641693df3b212aa9)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684455
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/cgo/internal/testsanitizers/asan_test.go   |  2 ++
+ src/cmd/cgo/internal/testsanitizers/cc_test.go     |  2 +-
+ .../testsanitizers/testdata/asan_global_asm/asm.s  |  8 +++++
+ .../testdata/asan_global_asm/main.go               | 11 ++++++
+ .../testdata/asan_global_asm2_fail/asm.s           |  8 +++++
+ .../testdata/asan_global_asm2_fail/main.go         | 20 +++++++++++
+ src/cmd/link/internal/loader/loader.go             | 41 ++++++++++++++++++----
+ 7 files changed, 84 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/asan_test.go b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+index 19810aafb6..2cd2abde29 100644
+--- a/src/cmd/cgo/internal/testsanitizers/asan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+@@ -42,6 +42,8 @@ func TestASAN(t *testing.T) {
+ 		{src: "asan_global3_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global3_fail.go:13"},
+ 		{src: "asan_global4_fail.go", memoryAccessError: "global-buffer-overflow", errorLocation: "asan_global4_fail.go:21"},
+ 		{src: "asan_global5.go"},
++		{src: "asan_global_asm"},
++		{src: "asan_global_asm2_fail", memoryAccessError: "global-buffer-overflow", errorLocation: "main.go:17"},
+ 		{src: "arena_fail.go", memoryAccessError: "use-after-poison", errorLocation: "arena_fail.go:26", experiments: []string{"arenas"}},
+ 	}
+ 	for _, tc := range cases {
+diff --git a/src/cmd/cgo/internal/testsanitizers/cc_test.go b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+index 96a9e71cd7..63ec9cd5d4 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cc_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+@@ -536,7 +536,7 @@ func (c *config) checkRuntime() (skip bool, err error) {
+ 
+ // srcPath returns the path to the given file relative to this test's source tree.
+ func srcPath(path string) string {
+-	return filepath.Join("testdata", path)
++	return "./testdata/" + path
+ }
+ 
+ // A tempDir manages a temporary directory within a test.
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm/asm.s b/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm/asm.s
+new file mode 100644
+index 0000000000..b4b9766f57
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm/asm.s
+@@ -0,0 +1,8 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++DATA	·x(SB)/8, $123
++GLOBL	·x(SB), NOPTR, $8
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm/main.go b/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm/main.go
+new file mode 100644
+index 0000000000..2ae54486f3
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm/main.go
+@@ -0,0 +1,11 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var x uint64
++
++func main() {
++	println(x)
++}
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm2_fail/asm.s b/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm2_fail/asm.s
+new file mode 100644
+index 0000000000..b4b9766f57
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm2_fail/asm.s
+@@ -0,0 +1,8 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++DATA	·x(SB)/8, $123
++GLOBL	·x(SB), NOPTR, $8
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm2_fail/main.go b/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm2_fail/main.go
+new file mode 100644
+index 0000000000..2d02a1b542
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/asan_global_asm2_fail/main.go
+@@ -0,0 +1,20 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "unsafe"
++
++var x uint64
++
++func main() {
++	bar(&x)
++}
++
++func bar(a *uint64) {
++	p := (*uint64)(unsafe.Add(unsafe.Pointer(a), 1*unsafe.Sizeof(uint64(1))))
++	if *p == 10 { // BOOM
++		println("its value is 10")
++	}
++}
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index fa0d3457c8..988f743c24 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -253,6 +253,12 @@ type Loader struct {
+ 
+ 	WasmExports []Sym
+ 
++	// sizeFixups records symbols that we need to fix up the size
++	// after loading. It is very rarely needed, only for a DATA symbol
++	// and a BSS symbol with the same name, and the BSS symbol has
++	// larger size.
++	sizeFixups []symAndSize
++
+ 	flags uint32
+ 
+ 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
+@@ -469,18 +475,17 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
+ 	// In summary, the "overwrite" variable and the final result are
+ 	//
+ 	// new sym       old sym       result
+-	// ---------------------------------------------
++	// -------------------------------------------------------
+ 	// TEXT          BSS           new wins
+ 	// DATA          DATA          ERROR
+ 	// DATA lg/eq    BSS  sm/eq    new wins
+-	// DATA small    BSS  large    ERROR
+-	// BSS  large    DATA small    ERROR
++	// DATA small    BSS  large    merge: new with larger size
++	// BSS  large    DATA small    merge: old with larger size
+ 	// BSS  large    BSS  small    new wins
+ 	// BSS  sm/eq    D/B  lg/eq    old wins
+ 	// BSS           TEXT          old wins
+ 	oldtyp := sym.AbiSymKindToSymKind[objabi.SymKind(oldsym.Type())]
+ 	newtyp := sym.AbiSymKindToSymKind[objabi.SymKind(osym.Type())]
+-	oldIsText := oldtyp.IsText()
+ 	newIsText := newtyp.IsText()
+ 	oldHasContent := oldr.DataSize(oldli) != 0
+ 	newHasContent := r.DataSize(li) != 0
+@@ -488,12 +493,28 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
+ 	newIsBSS := newtyp.IsData() && !newHasContent
+ 	switch {
+ 	case newIsText && oldIsBSS,
+-		newHasContent && oldIsBSS && sz >= oldsz,
++		newHasContent && oldIsBSS,
+ 		newIsBSS && oldIsBSS && sz > oldsz:
+ 		// new symbol overwrites old symbol.
+ 		l.objSyms[oldi] = objSym{r.objidx, li}
+-	case newIsBSS && (oldsz >= sz || oldIsText):
++		if oldsz > sz {
++			// If the BSS symbol has a larger size, expand the data
++			// symbol's size so access from the BSS side cannot overrun.
++			// It is hard to modify the symbol size until all Go objects
++			// (potentially read-only) are loaded, so we record it in
++			// a fixup table and apply them later. This is very rare.
++			// One case is a global variable with a Go declaration and an
++			// assembly definition, which typically have the same size,
++			// but in ASAN mode the Go declaration has a larger size due
++			// to the inserted red zone.
++			l.sizeFixups = append(l.sizeFixups, symAndSize{oldi, uint32(oldsz)})
++		}
++	case newIsBSS:
+ 		// old win, just ignore the new symbol.
++		if sz > oldsz {
++			// See the comment above for sizeFixups.
++			l.sizeFixups = append(l.sizeFixups, symAndSize{oldi, uint32(sz)})
++		}
+ 	default:
+ 		log.Fatalf("duplicated definition of symbol %s, from %s (type %s size %d) and %s (type %s size %d)", name, r.unit.Lib.Pkg, newtyp, sz, oldr.unit.Lib.Pkg, oldtyp, oldsz)
+ 	}
+@@ -2285,6 +2306,10 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
+ 		st.preloadSyms(r, hashedDef)
+ 		st.preloadSyms(r, nonPkgDef)
+ 	}
++	for _, sf := range l.sizeFixups {
++		pp := l.cloneToExternal(sf.sym)
++		pp.size = int64(sf.size)
++	}
+ 	for _, vr := range st.linknameVarRefs {
+ 		l.checkLinkname(vr.pkg, vr.name, vr.sym)
+ 	}
+@@ -2490,7 +2515,7 @@ func topLevelSym(sname string, skind sym.SymKind) bool {
+ // a symbol originally discovered as part of an object file, it's
+ // easier to do this if we make the updates to an external symbol
+ // payload.
+-func (l *Loader) cloneToExternal(symIdx Sym) {
++func (l *Loader) cloneToExternal(symIdx Sym) *extSymPayload {
+ 	if l.IsExternal(symIdx) {
+ 		panic("sym is already external, no need for clone")
+ 	}
+@@ -2542,6 +2567,8 @@ func (l *Loader) cloneToExternal(symIdx Sym) {
+ 	// Some attributes were encoded in the object file. Copy them over.
+ 	l.SetAttrDuplicateOK(symIdx, r.Sym(li).Dupok())
+ 	l.SetAttrShared(symIdx, r.Shared())
++
++	return pp
+ }
+ 
+ // Copy the payload of symbol src to dst. Both src and dst must be external

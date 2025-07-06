@@ -1,0 +1,78 @@
+commit 614f2284d94364f8e245e2c6ea9b4eca50e650d1
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed May 22 11:40:09 2024 -0400
+
+    doc/initial, doc/next: add draft notice to introduction
+    
+    Go release notes always start out as a draft with a clear notice.
+    That notice is removed when the final release (go1.N.0) is made.
+    For example, the last time was in CL 562255.
+    
+    Add this to the Go 1.23 draft and to the future fragment template.
+    
+    Also switch to the main pkg.go.dev instance and use a relative issue
+    link in 3-tools.md while here.
+    
+    For #64169.
+    For #65614.
+    
+    Change-Id: I16bc0fa8a3a43ee7a9edd7fa253999041f1892e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587415
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ doc/initial/1-intro.md | 4 +++-
+ doc/next/1-intro.md    | 4 +++-
+ doc/next/3-tools.md    | 4 ++--
+ 3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/doc/initial/1-intro.md b/doc/initial/1-intro.md
+index e28191ca9e..8c9948ddf6 100644
+--- a/doc/initial/1-intro.md
++++ b/doc/initial/1-intro.md
+@@ -8,5 +8,7 @@ set fixed-width phrases with non-fixed-width spaces, as in
+   main ul li { margin: 0.5em 0; }
+ </style>
+ 
+-## Introduction to Go 1.XX {#introduction}
++## DRAFT RELEASE NOTES — Introduction to Go 1.N {#introduction}
+ 
++**Go 1.N is not yet released. These are work-in-progress release notes.
++Go 1.N is expected to be released in {Month} {Year}.**
+diff --git a/doc/next/1-intro.md b/doc/next/1-intro.md
+index 639550f92a..585c6c8e52 100644
+--- a/doc/next/1-intro.md
++++ b/doc/next/1-intro.md
+@@ -8,5 +8,7 @@ set fixed-width phrases with non-fixed-width spaces, as in
+   main ul li { margin: 0.5em 0; }
+ </style>
+ 
+-## Introduction to Go 1.23 {#introduction}
++## DRAFT RELEASE NOTES — Introduction to Go 1.23 {#introduction}
+ 
++**Go 1.23 is not yet released. These are work-in-progress release notes.
++Go 1.23 is expected to be released in August 2024.**
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 4112fb61ac..434a6273fb 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -3,7 +3,7 @@
+ ### Go command {#go-command}
+ 
+ Setting the `GOROOT_FINAL` environment variable no longer has an effect
+-([#62047](https://go.dev/issue/62047)).
++([#62047](/issue/62047)).
+ Distributions that install the `go` command to a location other than
+ `$GOROOT/bin/go` should install a symlink instead of relocating
+ or copying the `go` binary.
+@@ -15,7 +15,7 @@ that would be obtained in an empty environment with no prior uses of the `-w` fl
+ ### Vet {#vet}
+ 
+ The `go vet` subcommand now includes the
+-[stdversion](https://beta.pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdversion)
++[stdversion](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdversion)
+ analyzer, which flags references to symbols that are too new for the version
+ of Go in effect in the referring file. (The effective version is determined
+ by the `go` directive in the file's enclosing `go.mod` file, and

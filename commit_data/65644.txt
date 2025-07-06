@@ -1,0 +1,69 @@
+commit 83e6781cb75f9470430fd40c9751e846b998a49e
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Nov 21 09:20:46 2024 -0800
+
+    os: drop unnecessary trailing . from symlink targets
+    
+    Adjust splitPathInRoot to match its documented behavior
+    of dropping . path components except at the end of the path.
+    This function takes a prefix, path, and suffix; previously
+    it would preserve a trailing . at the end of the path
+    even when joining to a suffix.
+    
+    The practical effect of this change is that we we'll skip
+    a pointless open of . when following a symlink under some
+    circumstances:
+    
+      - open "a/target"
+      - "a" is a symlink to "b/."
+      - previously: we rewrite our path to "b/./target"
+      - now: we rewrite our path to "b/target"
+    
+    This is a fairly unimportant edge case, and our observable
+    behavior isn't changing. The main motivation for this change is
+    that the overall behavior is more comprehensible if splitPathInRoot
+    follows its documentation.
+    
+    Change-Id: I96c6a5e3f489cdac991ba1bd702180d69625bc64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630615
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/os/root.go      | 4 ++++
+ src/os/root_test.go | 8 ++++++++
+ 2 files changed, 12 insertions(+)
+
+diff --git a/src/os/root.go b/src/os/root.go
+index d9fc6358a5..04741c0281 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -230,6 +230,10 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error)
+ 		}
+ 		i = j
+ 	}
++	if len(suffix) > 0 && len(parts) > 0 && parts[len(parts)-1] == "." {
++		// Remove a trailing "." component if we're joining to a suffix.
++		parts = parts[:len(parts)-1]
++	}
+ 	parts = append(parts, suffix...)
+ 	return parts, nil
+ }
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 95c30606f1..b461ee2208 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -242,6 +242,14 @@ var rootTestCases = []rootTest{{
+ 	},
+ 	open:   "b/../a/target",
+ 	target: "b/c/target",
++}, {
++	name: "symlink ends in dot",
++	fs: []string{
++		"a => b/.",
++		"b/",
++	},
++	open:   "a/target",
++	target: "b/target",
+ }, {
+ 	name:        "directory does not exist",
+ 	fs:          []string{},

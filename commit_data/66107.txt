@@ -1,0 +1,348 @@
+commit a4fcfaa1676f40a1dc5879cdabe98471c6054daf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Feb 6 13:51:51 2025 -0800
+
+    go/types, types2: better error messages for channel sends and receives
+    
+    Use the same code pattern for sends and receives and factor it out
+    into a new helper method Checker.chanElem.
+    
+    Provide the exact error cause rather than simply referring to the
+    core type.
+    
+    For #70128.
+    
+    Change-Id: I4a0b597a487b78c057eebe06c4ac28f9bf1f7719
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647455
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/expr.go            | 79 ++++++++++++++++-----
+ src/cmd/compile/internal/types2/stmt.go            | 16 +----
+ src/go/types/expr.go                               | 80 +++++++++++++++++-----
+ src/go/types/stmt.go                               | 16 +----
+ .../types/testdata/fixedbugs/issue43671.go         |  8 +--
+ .../types/testdata/fixedbugs/issue47115.go         |  8 +--
+ 6 files changed, 134 insertions(+), 73 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 28a5d78872..a73e073ac3 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -148,26 +148,13 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 		return
+ 
+ 	case syntax.Recv:
+-		u := coreType(x.typ)
+-		if u == nil {
+-			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from %s (no core type)", x)
+-			x.mode = invalid
++		if elem := check.chanElem(x, x, true); elem != nil {
++			x.mode = commaok
++			x.typ = elem
++			check.hasCallOrRecv = true
+ 			return
+ 		}
+-		ch, _ := u.(*Chan)
+-		if ch == nil {
+-			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from non-channel %s", x)
+-			x.mode = invalid
+-			return
+-		}
+-		if ch.dir == SendOnly {
+-			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from send-only channel %s", x)
+-			x.mode = invalid
+-			return
+-		}
+-		x.mode = commaok
+-		x.typ = ch.elem
+-		check.hasCallOrRecv = true
++		x.mode = invalid
+ 		return
+ 
+ 	case syntax.Tilde:
+@@ -205,6 +192,62 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ 	// x.typ remains unchanged
+ }
+ 
++// chanElem returns the channel element type of x for a receive from x (recv == true)
++// or send to x (recv == false) operation. If the operation is not valid, chanElem
++// reports an error and returns nil.
++func (check *Checker) chanElem(pos poser, x *operand, recv bool) Type {
++	var elem Type
++	var cause string
++	typeset(x.typ, func(t, u Type) bool {
++		if u == nil {
++			// Type set contains no explicit terms.
++			// It is either empty or contains all types (any)
++			cause = "no specific channel type"
++			return false
++		}
++		ch, _ := u.(*Chan)
++		if ch == nil {
++			cause = check.sprintf("non-channel %s", t)
++			return false
++		}
++		if recv && ch.dir == SendOnly {
++			cause = check.sprintf("send-only channel %s", t)
++			return false
++		}
++		if !recv && ch.dir == RecvOnly {
++			cause = check.sprintf("receive-only channel %s", t)
++			return false
++		}
++		if elem != nil && !Identical(elem, ch.elem) {
++			cause = check.sprintf("channels with different element types %s and %s", elem, ch.elem)
++			return false
++		}
++		elem = ch.elem
++		return true
++	})
++
++	if cause == "" {
++		return elem
++	}
++
++	if recv {
++		if isTypeParam(x.typ) {
++			check.errorf(pos, InvalidReceive, invalidOp+"cannot receive from %s: type set contains %s", x, cause)
++		} else {
++			// In this case, only the non-channel and send-only channel error are possible.
++			check.errorf(pos, InvalidReceive, invalidOp+"cannot receive from %s %s", cause, x)
++		}
++	} else {
++		if isTypeParam(x.typ) {
++			check.errorf(pos, InvalidSend, invalidOp+"cannot send to %s: type set contains %s", x, cause)
++		} else {
++			// In this case, only the non-channel and receive-only channel error are possible.
++			check.errorf(pos, InvalidSend, invalidOp+"cannot send to %s %s", cause, x)
++		}
++	}
++	return nil
++}
++
+ func isShift(op syntax.Operator) bool {
+ 	return op == syntax.Shl || op == syntax.Shr
+ }
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index c46ea7a091..60955da4fc 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -465,21 +465,9 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 		if ch.mode == invalid || val.mode == invalid {
+ 			return
+ 		}
+-		u := coreType(ch.typ)
+-		if u == nil {
+-			check.errorf(s, InvalidSend, invalidOp+"cannot send to %s: no core type", &ch)
+-			return
+-		}
+-		uch, _ := u.(*Chan)
+-		if uch == nil {
+-			check.errorf(s, InvalidSend, invalidOp+"cannot send to non-channel %s", &ch)
+-			return
+-		}
+-		if uch.dir == RecvOnly {
+-			check.errorf(s, InvalidSend, invalidOp+"cannot send to receive-only channel %s", &ch)
+-			return
++		if elem := check.chanElem(s, &ch, false); elem != nil {
++			check.assignment(&val, elem, "send")
+ 		}
+-		check.assignment(&val, uch.elem, "send")
+ 
+ 	case *syntax.AssignStmt:
+ 		if s.Rhs == nil {
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index e2e8928a12..aaafe95eba 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -147,27 +147,13 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 		return
+ 
+ 	case token.ARROW:
+-		u := coreType(x.typ)
+-		if u == nil {
+-			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from %s (no core type)", x)
+-			x.mode = invalid
++		if elem := check.chanElem(x, x, true); elem != nil {
++			x.mode = commaok
++			x.typ = elem
++			check.hasCallOrRecv = true
+ 			return
+ 		}
+-		ch, _ := u.(*Chan)
+-		if ch == nil {
+-			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from non-channel %s", x)
+-			x.mode = invalid
+-			return
+-		}
+-		if ch.dir == SendOnly {
+-			check.errorf(x, InvalidReceive, invalidOp+"cannot receive from send-only channel %s", x)
+-			x.mode = invalid
+-			return
+-		}
+-
+-		x.mode = commaok
+-		x.typ = ch.elem
+-		check.hasCallOrRecv = true
++		x.mode = invalid
+ 		return
+ 
+ 	case token.TILDE:
+@@ -205,6 +191,62 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ 	// x.typ remains unchanged
+ }
+ 
++// chanElem returns the channel element type of x for a receive from x (recv == true)
++// or send to x (recv == false) operation. If the operation is not valid, chanElem
++// reports an error and returns nil.
++func (check *Checker) chanElem(pos positioner, x *operand, recv bool) Type {
++	var elem Type
++	var cause string
++	typeset(x.typ, func(t, u Type) bool {
++		if u == nil {
++			// Type set contains no explicit terms.
++			// It is either empty or contains all types (any)
++			cause = "no specific channel type"
++			return false
++		}
++		ch, _ := u.(*Chan)
++		if ch == nil {
++			cause = check.sprintf("non-channel %s", t)
++			return false
++		}
++		if recv && ch.dir == SendOnly {
++			cause = check.sprintf("send-only channel %s", t)
++			return false
++		}
++		if !recv && ch.dir == RecvOnly {
++			cause = check.sprintf("receive-only channel %s", t)
++			return false
++		}
++		if elem != nil && !Identical(elem, ch.elem) {
++			cause = check.sprintf("channels with different element types %s and %s", elem, ch.elem)
++			return false
++		}
++		elem = ch.elem
++		return true
++	})
++
++	if cause == "" {
++		return elem
++	}
++
++	if recv {
++		if isTypeParam(x.typ) {
++			check.errorf(pos, InvalidReceive, invalidOp+"cannot receive from %s: type set contains %s", x, cause)
++		} else {
++			// In this case, only the non-channel and send-only channel error are possible.
++			check.errorf(pos, InvalidReceive, invalidOp+"cannot receive from %s %s", cause, x)
++		}
++	} else {
++		if isTypeParam(x.typ) {
++			check.errorf(pos, InvalidSend, invalidOp+"cannot send to %s: type set contains %s", x, cause)
++		} else {
++			// In this case, only the non-channel and receive-only channel error are possible.
++			check.errorf(pos, InvalidSend, invalidOp+"cannot send to %s %s", cause, x)
++		}
++	}
++	return nil
++}
++
+ func isShift(op token.Token) bool {
+ 	return op == token.SHL || op == token.SHR
+ }
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index de3d01e8dd..d6a9fdd2de 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -466,21 +466,9 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		if ch.mode == invalid || val.mode == invalid {
+ 			return
+ 		}
+-		u := coreType(ch.typ)
+-		if u == nil {
+-			check.errorf(inNode(s, s.Arrow), InvalidSend, invalidOp+"cannot send to %s: no core type", &ch)
+-			return
+-		}
+-		uch, _ := u.(*Chan)
+-		if uch == nil {
+-			check.errorf(inNode(s, s.Arrow), InvalidSend, invalidOp+"cannot send to non-channel %s", &ch)
+-			return
+-		}
+-		if uch.dir == RecvOnly {
+-			check.errorf(inNode(s, s.Arrow), InvalidSend, invalidOp+"cannot send to receive-only channel %s", &ch)
+-			return
++		if elem := check.chanElem(inNode(s, s.Arrow), &ch, false); elem != nil {
++			check.assignment(&val, elem, "send")
+ 		}
+-		check.assignment(&val, uch.elem, "send")
+ 
+ 	case *ast.IncDecStmt:
+ 		var op token.Token
+diff --git a/src/internal/types/testdata/fixedbugs/issue43671.go b/src/internal/types/testdata/fixedbugs/issue43671.go
+index be4c9ee5dd..19da7e0ccc 100644
+--- a/src/internal/types/testdata/fixedbugs/issue43671.go
++++ b/src/internal/types/testdata/fixedbugs/issue43671.go
+@@ -12,11 +12,11 @@ type C4 interface{ chan int | chan<- int }
+ type C5[T any] interface{ ~chan T | <-chan T }
+ 
+ func _[T any](ch T) {
+-	<-ch // ERRORx `cannot receive from ch .* \(no core type\)`
++	<-ch // ERRORx `cannot receive from ch .*: type set contains no specific channel type`
+ }
+ 
+ func _[T C0](ch T) {
+-	<-ch // ERROR "cannot receive from non-channel ch"
++	<-ch // ERRORx `cannot receive from ch .*: type set contains non-channel int`
+ }
+ 
+ func _[T C1](ch T) {
+@@ -28,11 +28,11 @@ func _[T C2](ch T) {
+ }
+ 
+ func _[T C3](ch T) {
+-	<-ch // ERRORx `cannot receive from ch .* \(no core type\)`
++	<-ch // ERRORx `cannot receive from ch .*: type set contains channels with different element types int and float32`
+ }
+ 
+ func _[T C4](ch T) {
+-	<-ch // ERROR "cannot receive from send-only channel"
++	<-ch // ERRORx `cannot receive from ch .*: type set contains send-only channel chan<- int`
+ }
+ 
+ func _[T C5[X], X any](ch T, x X) {
+diff --git a/src/internal/types/testdata/fixedbugs/issue47115.go b/src/internal/types/testdata/fixedbugs/issue47115.go
+index 2d2be34104..1de85b3791 100644
+--- a/src/internal/types/testdata/fixedbugs/issue47115.go
++++ b/src/internal/types/testdata/fixedbugs/issue47115.go
+@@ -12,11 +12,11 @@ type C4 interface{ chan int | chan<- int }
+ type C5[T any] interface{ ~chan T | chan<- T }
+ 
+ func _[T any](ch T) {
+-	ch <- /* ERRORx `cannot send to ch .* no core type` */ 0
++	ch <- /* ERRORx `cannot send to ch .*: type set contains no specific channel type` */ 0
+ }
+ 
+ func _[T C0](ch T) {
+-	ch <- /* ERROR "cannot send to non-channel" */ 0
++	ch <- /* ERRORx `cannot send to ch .*: type set contains non-channel int` */ 0
+ }
+ 
+ func _[T C1](ch T) {
+@@ -24,11 +24,11 @@ func _[T C1](ch T) {
+ }
+ 
+ func _[T C2](ch T) {
+-	ch  <-/* ERROR "cannot send to receive-only channel" */ 0
++	ch <- /* ERRORx `cannot send to ch .*: type set contains receive-only channel <-chan int` */ 0
+ }
+ 
+ func _[T C3](ch T) {
+-	ch <- /* ERRORx `cannot send to ch .* no core type` */ 0
++	ch <- /* ERRORx `cannot send to ch .*: type set contains channels with different element types` */ 0
+ }
+ 
+ func _[T C4](ch T) {

@@ -1,0 +1,55 @@
+commit 35ef4a9f330fdff870ff637558ec2fd03a93fd9c
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu May 23 14:12:10 2024 -0700
+
+    runtime: x_cgo_getstackbound: initialize pthread attr
+    
+    In glibc versions older than 2.32 (before commit 4721f95058),
+    pthread_getattr_np does not always initialize the `attr` argument,
+    and when it fails, it results in a NULL pointer dereference in
+    pthread_attr_destroy down the road.
+    
+    This is the simplest way to avoid this, and an alternative to CL 585019.
+    
+    Updates #65625.
+    
+    Change-Id: If490fd37020b03eb084ebbdbf9ae0248916426d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587919
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+---
+ src/runtime/cgo/gcc_stack_unix.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgo/gcc_stack_unix.c b/src/runtime/cgo/gcc_stack_unix.c
+index eb1d7f9ec5..fcb03d0dea 100644
+--- a/src/runtime/cgo/gcc_stack_unix.c
++++ b/src/runtime/cgo/gcc_stack_unix.c
+@@ -18,6 +18,9 @@ x_cgo_getstackbound(uintptr bounds[2])
+ 	void *addr;
+ 	size_t size;
+ 
++	// Needed before pthread_getattr_np, too, since before glibc 2.32
++	// it did not call pthread_attr_init in all cases (see #65625).
++	pthread_attr_init(&attr);
+ #if defined(__GLIBC__) || (defined(__sun) && !defined(__illumos__))
+ 	// pthread_getattr_np is a GNU extension supported in glibc.
+ 	// Solaris is not glibc but does support pthread_getattr_np
+@@ -25,13 +28,11 @@ x_cgo_getstackbound(uintptr bounds[2])
+ 	pthread_getattr_np(pthread_self(), &attr);  // GNU extension
+ 	pthread_attr_getstack(&attr, &addr, &size); // low address
+ #elif defined(__illumos__)
+-	pthread_attr_init(&attr);
+ 	pthread_attr_get_np(pthread_self(), &attr);
+ 	pthread_attr_getstack(&attr, &addr, &size); // low address
+ #else
+ 	// We don't know how to get the current stacks, so assume they are the
+ 	// same as the default stack bounds.
+-	pthread_attr_init(&attr);
+ 	pthread_attr_getstacksize(&attr, &size);
+ 	addr = __builtin_frame_address(0) + 4096 - size;
+ #endif

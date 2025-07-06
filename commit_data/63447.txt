@@ -1,0 +1,136 @@
+commit d6c972ad41043f38bfa31f3c7036e6d8a3361f2d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Fri Apr 12 15:46:09 2024 -0400
+
+    [release-branch.go1.22] net/http: update bundled golang.org/x/net/http2
+    
+    Pull in CL 578338:
+    
+            db050b07 http2: send correct LastStreamID in stream-caused GOAWAY
+    
+    For #66668.
+    Fixes #66698.
+    
+    Change-Id: Ie7cbc44cd559eb8bc34f6c4ad4ead678ec2f55ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578358
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/go.mod                |  2 +-
+ src/go.sum                |  4 ++--
+ src/net/http/h2_bundle.go | 22 +++++++++++++++-------
+ src/vendor/modules.txt    |  2 +-
+ 4 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index a74fab1e9a..737d78da5d 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.22
+ 
+ require (
+ 	golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb
+-	golang.org/x/net v0.19.1-0.20240403170707-76ee45185083
++	golang.org/x/net v0.19.1-0.20240412193750-db050b07227e
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index 3cbcd58b5c..86d173c9e6 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb h1:1ceSY7sk6sJuiDREHpfyrqDnDljsLfEP2GuTClhBBfI=
+ golang.org/x/crypto v0.16.1-0.20231129163542-152cdb1503eb/go.mod h1:gCAAfMLgwOJRpTjQ2zCCt2OcSfYMTeZVSRtQlPC7Nq4=
+-golang.org/x/net v0.19.1-0.20240403170707-76ee45185083 h1:8tdFD3C1Gb+KNXEUMnvI+1IE/OvT1UG6CuelnIAPIk0=
+-golang.org/x/net v0.19.1-0.20240403170707-76ee45185083/go.mod h1:CfAk/cbD4CthTvqiEl8NpboMuiuOYsAr/7NOjZJtv1U=
++golang.org/x/net v0.19.1-0.20240412193750-db050b07227e h1:oDnvqaqHo3ho8OChMtkQbQAyp9eqnm3J7JRtt0+Cabc=
++golang.org/x/net v0.19.1-0.20240412193750-db050b07227e/go.mod h1:CfAk/cbD4CthTvqiEl8NpboMuiuOYsAr/7NOjZJtv1U=
+ golang.org/x/sys v0.15.0 h1:h48lPFYpsTvQJZF4EKyI4aLHaev3CxivZmv7yZig9pc=
+ golang.org/x/sys v0.15.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 75454dba38..c1a2e76ea4 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -1894,6 +1894,9 @@ func http2terminalReadFrameError(err error) bool {
+ // returned error is ErrFrameTooLarge. Other errors may be of type
+ // ConnectionError, StreamError, or anything else from the underlying
+ // reader.
++//
++// If ReadFrame returns an error and a non-nil Frame, the Frame's StreamID
++// indicates the stream responsible for the error.
+ func (fr *http2Framer) ReadFrame() (http2Frame, error) {
+ 	fr.errDetail = nil
+ 	if fr.lastFrame != nil {
+@@ -2926,7 +2929,7 @@ func (fr *http2Framer) maxHeaderStringLen() int {
+ // readMetaFrame returns 0 or more CONTINUATION frames from fr and
+ // merge them into the provided hf and returns a MetaHeadersFrame
+ // with the decoded hpack values.
+-func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (*http2MetaHeadersFrame, error) {
++func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (http2Frame, error) {
+ 	if fr.AllowIllegalReads {
+ 		return nil, errors.New("illegal use of AllowIllegalReads with ReadMetaHeaders")
+ 	}
+@@ -2996,8 +2999,8 @@ func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (*http2MetaHeadersFr
+ 				log.Printf("http2: header list too large")
+ 			}
+ 			// It would be nice to send a RST_STREAM before sending the GOAWAY,
+-			// but the struture of the server's frame writer makes this difficult.
+-			return nil, http2ConnectionError(http2ErrCodeProtocol)
++			// but the structure of the server's frame writer makes this difficult.
++			return mh, http2ConnectionError(http2ErrCodeProtocol)
+ 		}
+ 
+ 		// Also close the connection after any CONTINUATION frame following an
+@@ -3008,12 +3011,12 @@ func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (*http2MetaHeadersFr
+ 				log.Printf("http2: invalid header: %v", invalid)
+ 			}
+ 			// It would be nice to send a RST_STREAM before sending the GOAWAY,
+-			// but the struture of the server's frame writer makes this difficult.
+-			return nil, http2ConnectionError(http2ErrCodeProtocol)
++			// but the structure of the server's frame writer makes this difficult.
++			return mh, http2ConnectionError(http2ErrCodeProtocol)
+ 		}
+ 
+ 		if _, err := hdec.Write(frag); err != nil {
+-			return nil, http2ConnectionError(http2ErrCodeCompression)
++			return mh, http2ConnectionError(http2ErrCodeCompression)
+ 		}
+ 
+ 		if hc.HeadersEnded() {
+@@ -3030,7 +3033,7 @@ func (fr *http2Framer) readMetaFrame(hf *http2HeadersFrame) (*http2MetaHeadersFr
+ 	mh.http2HeadersFrame.invalidate()
+ 
+ 	if err := hdec.Close(); err != nil {
+-		return nil, http2ConnectionError(http2ErrCodeCompression)
++		return mh, http2ConnectionError(http2ErrCodeCompression)
+ 	}
+ 	if invalid != nil {
+ 		fr.errDetail = invalid
+@@ -5297,6 +5300,11 @@ func (sc *http2serverConn) processFrameFromReader(res http2readFrameResult) bool
+ 		sc.goAway(http2ErrCodeFlowControl)
+ 		return true
+ 	case http2ConnectionError:
++		if res.f != nil {
++			if id := res.f.Header().StreamID; id > sc.maxClientStreamID {
++				sc.maxClientStreamID = id
++			}
++		}
+ 		sc.logf("http2: server connection error from %v: %v", sc.conn.RemoteAddr(), ev)
+ 		sc.goAway(http2ErrCode(ev))
+ 		return true // goAway will handle shutdown
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 7edc29d7cf..9a234e59b1 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -7,7 +7,7 @@ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.19.1-0.20240403170707-76ee45185083
++# golang.org/x/net v0.19.1-0.20240412193750-db050b07227e
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

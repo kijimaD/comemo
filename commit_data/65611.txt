@@ -1,0 +1,200 @@
+commit a1b5394dba07cbb61c1f23c2610ef1a3be4c567b
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Nov 18 17:49:14 2024 -0800
+
+    os: add Root.FS
+    
+    For #67002
+    
+    Change-Id: Ib687c92d645b9172677e5781a3e51ef1a0427c30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629518
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ api/next/67002.txt    |  1 +
+ src/os/file.go        |  5 +++
+ src/os/os_test.go     | 13 +++++++-
+ src/os/root.go        | 88 +++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/os/stat_wasip1.go |  1 -
+ 5 files changed, 106 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+index fc839e95e4..67c47969f4 100644
+--- a/api/next/67002.txt
++++ b/api/next/67002.txt
+@@ -1,6 +1,7 @@
+ pkg os, func OpenRoot(string) (*Root, error) #67002
+ pkg os, method (*Root) Close() error #67002
+ pkg os, method (*Root) Create(string) (*File, error) #67002
++pkg os, method (*Root) FS() fs.FS #67002
+ pkg os, method (*Root) Lstat(string) (fs.FileInfo, error) #67002
+ pkg os, method (*Root) Mkdir(string, fs.FileMode) error #67002
+ pkg os, method (*Root) Name() string #67002
+diff --git a/src/os/file.go b/src/os/file.go
+index 0e2948867c..a5063680f9 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -696,6 +696,8 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
+ // a general substitute for a chroot-style security mechanism when the directory tree
+ // contains arbitrary content.
+ //
++// Use [Root.FS] to obtain a fs.FS that prevents escapes from the tree via symbolic links.
++//
+ // The directory dir must not be "".
+ //
+ // The result implements [io/fs.StatFS], [io/fs.ReadFileFS] and
+@@ -800,7 +802,10 @@ func ReadFile(name string) ([]byte, error) {
+ 		return nil, err
+ 	}
+ 	defer f.Close()
++	return readFileContents(f)
++}
+ 
++func readFileContents(f *File) ([]byte, error) {
+ 	var size int
+ 	if info, err := f.Stat(); err == nil {
+ 		size64 := info.Size()
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index c646ca8246..dbf77db990 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -3188,10 +3188,21 @@ func forceMFTUpdateOnWindows(t *testing.T, path string) {
+ 
+ func TestDirFS(t *testing.T) {
+ 	t.Parallel()
++	testDirFS(t, DirFS("./testdata/dirfs"))
++}
++
++func TestRootDirFS(t *testing.T) {
++	t.Parallel()
++	r, err := OpenRoot("./testdata/dirfs")
++	if err != nil {
++		t.Fatal(err)
++	}
++	testDirFS(t, r.FS())
++}
+ 
++func testDirFS(t *testing.T, fsys fs.FS) {
+ 	forceMFTUpdateOnWindows(t, "./testdata/dirfs")
+ 
+-	fsys := DirFS("./testdata/dirfs")
+ 	if err := fstest.TestFS(fsys, "a", "b", "dir/x"); err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/os/root.go b/src/os/root.go
+index 1070698f4d..c7d9b5b071 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -6,8 +6,12 @@ package os
+ 
+ import (
+ 	"errors"
++	"internal/bytealg"
++	"internal/stringslite"
+ 	"internal/testlog"
++	"io/fs"
+ 	"runtime"
++	"slices"
+ )
+ 
+ // Root may be used to only access files within a single directory tree.
+@@ -213,3 +217,87 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error)
+ 	parts = append(parts, suffix...)
+ 	return parts, nil
+ }
++
++// FS returns a file system (an fs.FS) for the tree of files in the root.
++//
++// The result implements [io/fs.StatFS], [io/fs.ReadFileFS] and
++// [io/fs.ReadDirFS].
++func (r *Root) FS() fs.FS {
++	return (*rootFS)(r)
++}
++
++type rootFS Root
++
++func (rfs *rootFS) Open(name string) (fs.File, error) {
++	r := (*Root)(rfs)
++	if !isValidRootFSPath(name) {
++		return nil, &PathError{Op: "open", Path: name, Err: ErrInvalid}
++	}
++	f, err := r.Open(name)
++	if err != nil {
++		return nil, err
++	}
++	return f, nil
++}
++
++func (rfs *rootFS) ReadDir(name string) ([]DirEntry, error) {
++	r := (*Root)(rfs)
++	if !isValidRootFSPath(name) {
++		return nil, &PathError{Op: "readdir", Path: name, Err: ErrInvalid}
++	}
++
++	// This isn't efficient: We just open a regular file and ReadDir it.
++	// Ideally, we would skip creating a *File entirely and operate directly
++	// on the file descriptor, but that will require some extensive reworking
++	// of directory reading in general.
++	//
++	// This suffices for the moment.
++	f, err := r.Open(name)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++	dirs, err := f.ReadDir(-1)
++	slices.SortFunc(dirs, func(a, b DirEntry) int {
++		return bytealg.CompareString(a.Name(), b.Name())
++	})
++	return dirs, err
++}
++
++func (rfs *rootFS) ReadFile(name string) ([]byte, error) {
++	r := (*Root)(rfs)
++	if !isValidRootFSPath(name) {
++		return nil, &PathError{Op: "readfile", Path: name, Err: ErrInvalid}
++	}
++	f, err := r.Open(name)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++	return readFileContents(f)
++}
++
++func (rfs *rootFS) Stat(name string) (FileInfo, error) {
++	r := (*Root)(rfs)
++	if !isValidRootFSPath(name) {
++		return nil, &PathError{Op: "stat", Path: name, Err: ErrInvalid}
++	}
++	return r.Stat(name)
++}
++
++// isValidRootFSPath reprots whether name is a valid filename to pass a Root.FS method.
++func isValidRootFSPath(name string) bool {
++	if !fs.ValidPath(name) {
++		return false
++	}
++	if runtime.GOOS == "windows" {
++		// fs.FS paths are /-separated.
++		// On Windows, reject the path if it contains any \ separators.
++		// Other forms of invalid path (for example, "NUL") are handled by
++		// Root's usual file lookup mechanisms.
++		if stringslite.IndexByte(name, '\\') >= 0 {
++			return false
++		}
++	}
++	return true
++}
+diff --git a/src/os/stat_wasip1.go b/src/os/stat_wasip1.go
+index 8561e44680..dcf2e38dde 100644
+--- a/src/os/stat_wasip1.go
++++ b/src/os/stat_wasip1.go
+@@ -15,7 +15,6 @@ import (
+ func fillFileStatFromSys(fs *fileStat, name string) {
+ 	fs.name = filepathlite.Base(name)
+ 	fs.size = int64(fs.sys.Size)
+-	fs.mode = FileMode(fs.sys.Mode)
+ 	fs.modTime = time.Unix(0, int64(fs.sys.Mtime))
+ 
+ 	switch fs.sys.Filetype {

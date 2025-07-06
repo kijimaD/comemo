@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 29021: 747a158ef314bb458b90da95f3e3d67aa4140622
+# Index 29021: 981395103e9addfc494245979063dc59a327e888
 
 echo "🚀 Generating explanation for commit 29021..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 29021..."
 
 ### メタデータ
 - **コミットインデックス**: 29021
-- **コミットハッシュ**: 747a158ef314bb458b90da95f3e3d67aa4140622
-- **GitHub URL**: https://github.com/golang/go/commit/747a158ef314bb458b90da95f3e3d67aa4140622
+- **コミットハッシュ**: 981395103e9addfc494245979063dc59a327e888
+- **GitHub URL**: https://github.com/golang/go/commit/981395103e9addfc494245979063dc59a327e888
 
 ### 章構成
 

@@ -1,0 +1,321 @@
+commit 44483133fd991ec929fb1404e087d08f679c8d28
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 21 13:43:42 2024 -0700
+
+    syscall: honor prlimit set by a different process
+    
+    On Linux one process can call prlimit to change the resource limit
+    of another process. With this change we treat that as though the
+    current process called prlimit (or setrlimit) to set its own limit.
+    The cost is one additional getrlimit system call per fork/exec,
+    for cases in which the rlimit Cur and Max values differ at startup.
+    
+    This revealed a bug: the setrlimit (not Setrlimit) function should not
+    change the cached rlimit. That means that it must call prlimit1, not prlimit.
+    
+    Fixes #66797
+    
+    Change-Id: I46bfd06e09ab7273fe8dd9b5b744dffdf31d828b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607516
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Aleksa Sarai <cyphar@cyphar.com>
+    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/syscall/exec_linux.go         |  19 +++-
+ src/syscall/rlimit.go             |  12 ++-
+ src/syscall/syscall_linux.go      |   2 +-
+ src/syscall/syscall_linux_test.go | 195 ++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 223 insertions(+), 5 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 5ef62450a8..415706c032 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -252,10 +252,12 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 		cred                      *Credential
+ 		ngroups, groups           uintptr
+ 		c                         uintptr
++		rlim                      *Rlimit
++		lim                       Rlimit
+ 	)
+ 	pidfd = -1
+ 
+-	rlim := origRlimitNofile.Load()
++	rlim = origRlimitNofile.Load()
+ 
+ 	if sys.UidMappings != nil {
+ 		puid = []byte("/proc/self/uid_map\000")
+@@ -632,7 +634,20 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 
+ 	// Restore original rlimit.
+ 	if rlim != nil {
+-		RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
++		// Some other process may have changed our rlimit by
++		// calling prlimit. We can check for that case because
++		// our current rlimit will not be the value we set when
++		// caching the rlimit in the init function in rlimit.go.
++		//
++		// Note that this test is imperfect, since it won't catch
++		// the case in which some other process used prlimit to
++		// set our rlimits to max-1/max. In that case we will fall
++		// back to the original cur/max when starting the child.
++		// We hope that setting to max-1/max is unlikely.
++		_, _, err1 = RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, 0, uintptr(unsafe.Pointer(&lim)), 0, 0)
++		if err1 != 0 || (lim.Cur == rlim.Max-1 && lim.Max == rlim.Max) {
++			RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
++		}
+ 	}
+ 
+ 	// Enable tracing if requested.
+diff --git a/src/syscall/rlimit.go b/src/syscall/rlimit.go
+index 8184f17ab6..3812303feb 100644
+--- a/src/syscall/rlimit.go
++++ b/src/syscall/rlimit.go
+@@ -29,10 +29,18 @@ var origRlimitNofile atomic.Pointer[Rlimit]
+ // which Go of course has no choice but to respect.
+ func init() {
+ 	var lim Rlimit
+-	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Cur != lim.Max {
++	if err := Getrlimit(RLIMIT_NOFILE, &lim); err == nil && lim.Max > 0 && lim.Cur < lim.Max-1 {
+ 		origRlimitNofile.Store(&lim)
+ 		nlim := lim
+-		nlim.Cur = nlim.Max
++
++		// We set Cur to Max - 1 so that we are more likely to
++		// detect cases where another process uses prlimit
++		// to change our resource limits. The theory is that
++		// using prlimit to change to Cur == Max is more likely
++		// than using prlimit to change to Cur == Max - 1.
++		// The place we check for this is in exec_linux.go.
++		nlim.Cur = nlim.Max - 1
++
+ 		adjustFileLimit(&nlim)
+ 		setrlimit(RLIMIT_NOFILE, &nlim)
+ 	}
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 1fe422d691..003f7a538c 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -1296,7 +1296,7 @@ func Getrlimit(resource int, rlim *Rlimit) (err error) {
+ // setrlimit sets a resource limit.
+ // The Setrlimit function is in rlimit.go, and calls this one.
+ func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	return prlimit(0, resource, rlim, nil)
++	return prlimit1(0, resource, rlim, nil)
+ }
+ 
+ // prlimit changes a resource limit. We use a single definition so that
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index d7543ceb4b..43c0ba0ce3 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -5,6 +5,7 @@
+ package syscall_test
+ 
+ import (
++	"context"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+@@ -720,3 +721,197 @@ func TestPrlimitOtherProcess(t *testing.T) {
+ 		t.Fatalf("origRlimitNofile got=%v, want=%v", rlimLater, rlimOrig)
+ 	}
+ }
++
++const magicRlimitValue = 42
++
++// TestPrlimitFileLimit tests that we can start a Go program, use
++// prlimit to change its NOFILE limit, and have that updated limit be
++// seen by children. See issue #66797.
++func TestPrlimitFileLimit(t *testing.T) {
++	switch os.Getenv("GO_WANT_HELPER_PROCESS") {
++	case "prlimit1":
++		testPrlimitFileLimitHelper1(t)
++		return
++	case "prlimit2":
++		testPrlimitFileLimitHelper2(t)
++		return
++	}
++
++	origRlimitNofile := syscall.GetInternalOrigRlimitNofile()
++	defer origRlimitNofile.Store(origRlimitNofile.Load())
++
++	// Set our rlimit to magic+1/max.
++	// That will also become the rlimit of the child.
++
++	var lim syscall.Rlimit
++	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim); err != nil {
++		t.Fatal(err)
++	}
++	max := lim.Max
++
++	lim = syscall.Rlimit{
++		Cur: magicRlimitValue + 1,
++		Max: max,
++	}
++	if err := syscall.Setrlimit(syscall.RLIMIT_NOFILE, &lim); err != nil {
++		t.Fatal(err)
++	}
++
++	ctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
++
++	exe, err := os.Executable()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	r1, w1, err := os.Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r1.Close()
++	defer w1.Close()
++
++	r2, w2, err := os.Pipe()
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer r2.Close()
++	defer w2.Close()
++
++	var output strings.Builder
++
++	const arg = "-test.run=^TestPrlimitFileLimit$"
++	cmd := testenv.CommandContext(t, ctx, exe, arg, "-test.v")
++	cmd = testenv.CleanCmdEnv(cmd)
++	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=prlimit1")
++	cmd.ExtraFiles = []*os.File{r1, w2}
++	cmd.Stdout = &output
++	cmd.Stderr = &output
++
++	t.Logf("running %s %s", exe, arg)
++
++	if err := cmd.Start(); err != nil {
++		t.Fatal(err)
++	}
++
++	// Wait for the child to start.
++	b := make([]byte, 1)
++	if n, err := r2.Read(b); err != nil {
++		t.Fatal(err)
++	} else if n != 1 {
++		t.Fatalf("read %d bytes, want 1", n)
++	}
++
++	// Set the child's prlimit.
++	lim = syscall.Rlimit{
++		Cur: magicRlimitValue,
++		Max: max,
++	}
++	if err := syscall.Prlimit(cmd.Process.Pid, syscall.RLIMIT_NOFILE, &lim, nil); err != nil {
++		t.Fatalf("Prlimit failed: %v", err)
++	}
++
++	// Tell the child to continue.
++	if n, err := w1.Write(b); err != nil {
++		t.Fatal(err)
++	} else if n != 1 {
++		t.Fatalf("wrote %d bytes, want 1", n)
++	}
++
++	err = cmd.Wait()
++	if output.Len() > 0 {
++		t.Logf("%s", output.String())
++	}
++
++	if err != nil {
++		t.Errorf("child failed: %v", err)
++	}
++}
++
++// testPrlimitFileLimitHelper1 is run by TestPrlimitFileLimit.
++func testPrlimitFileLimitHelper1(t *testing.T) {
++	var lim syscall.Rlimit
++	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim); err != nil {
++		t.Fatal(err)
++	}
++	t.Logf("helper1 rlimit is %v", lim)
++	t.Logf("helper1 cached rlimit is %v", syscall.OrigRlimitNofile())
++
++	// Tell the parent that we are ready.
++	b := []byte{0}
++	if n, err := syscall.Write(4, b); err != nil {
++		t.Fatal(err)
++	} else if n != 1 {
++		t.Fatalf("wrote %d bytes, want 1", n)
++	}
++
++	// Wait for the parent to tell us that prlimit was used.
++	if n, err := syscall.Read(3, b); err != nil {
++		t.Fatal(err)
++	} else if n != 1 {
++		t.Fatalf("read %d bytes, want 1", n)
++	}
++
++	if err := syscall.Close(3); err != nil {
++		t.Errorf("Close(3): %v", err)
++	}
++	if err := syscall.Close(4); err != nil {
++		t.Errorf("Close(4): %v", err)
++	}
++
++	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim); err != nil {
++		t.Fatal(err)
++	}
++	t.Logf("after prlimit helper1 rlimit is %v", lim)
++	t.Logf("after prlimit helper1 cached rlimit is %v", syscall.OrigRlimitNofile())
++
++	// Start the grandchild, which should see the rlimit
++	// set by the prlimit called by the parent.
++
++	ctx, cancel := context.WithCancel(context.Background())
++	defer cancel()
++
++	exe, err := os.Executable()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	const arg = "-test.run=^TestPrlimitFileLimit$"
++	cmd := testenv.CommandContext(t, ctx, exe, arg, "-test.v")
++	cmd = testenv.CleanCmdEnv(cmd)
++	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=prlimit2")
++	t.Logf("running %s %s", exe, arg)
++	out, err := cmd.CombinedOutput()
++	if len(out) > 0 {
++		t.Logf("%s", out)
++	}
++	if err != nil {
++		t.Errorf("grandchild failed: %v", err)
++	} else {
++		fmt.Println("OK")
++	}
++}
++
++// testPrlimitFileLimitHelper2 is run by testPrlimitFileLimit1.
++func testPrlimitFileLimitHelper2(t *testing.T) {
++	var lim syscall.Rlimit
++	if err := syscall.Getrlimit(syscall.RLIMIT_NOFILE, &lim); err != nil {
++		t.Fatal(err)
++	}
++
++	t.Logf("helper2 rlimit is %v", lim)
++	cached := syscall.OrigRlimitNofile()
++	t.Logf("helper2 cached rlimit is %v", cached)
++
++	// The value return by Getrlimit will have been adjusted.
++	// We should have cached the value set by prlimit called by the parent.
++
++	if cached == nil {
++		t.Fatal("no cached rlimit")
++	} else if cached.Cur != magicRlimitValue {
++		t.Fatalf("cached rlimit is %d, want %d", cached.Cur, magicRlimitValue)
++	}
++
++	fmt.Println("OK")
++}

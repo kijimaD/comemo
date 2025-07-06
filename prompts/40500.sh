@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40500: c6f9321b5a46e4af3233417d068c0efb4113d8e7
+# Index 40500: 706b54bb85df2eb9a21da9e049fd1dff77342d25
 
 echo "🚀 Generating explanation for commit 40500..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40500..."
 
 ### メタデータ
 - **コミットインデックス**: 40500
-- **コミットハッシュ**: c6f9321b5a46e4af3233417d068c0efb4113d8e7
-- **GitHub URL**: https://github.com/golang/go/commit/c6f9321b5a46e4af3233417d068c0efb4113d8e7
+- **コミットハッシュ**: 706b54bb85df2eb9a21da9e049fd1dff77342d25
+- **GitHub URL**: https://github.com/golang/go/commit/706b54bb85df2eb9a21da9e049fd1dff77342d25
 
 ### 章構成
 

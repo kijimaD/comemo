@@ -1,0 +1,107 @@
+commit 88bd9852394c02a71040226d523903bcb718e51c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Jun 17 15:02:10 2024 -0700
+
+    cmd/compile/internal/types2: use syntax.EndPos instead of local computation
+    
+    Previously, the end position for a select statement clause body was
+    computed explicitly as the start of the next clause or the closing "}"
+    of the select statement, respectively.
+    
+    Since syntax.EndPos computes the end position of a node, there's no
+    need to compute these positions "manually", we can simply use the
+    syntax.ExdPos for each clause. The positions are not exactly the
+    same as before but for the purpose of identifier visibility in
+    scopes there is no semantic change.
+    
+    Simplifies the code and brings it more in line with go/types.
+    
+    Change-Id: I24bca85a131a0ea31a2adaafc08ab713450258fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593016
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/stmt.go | 26 ++++++--------------------
+ 1 file changed, 6 insertions(+), 20 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index e0e4ee6a02..3027aef2e7 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -150,11 +150,7 @@ func (check *Checker) multipleSelectDefaults(list []*syntax.CommClause) {
+ }
+ 
+ func (check *Checker) openScope(node syntax.Node, comment string) {
+-	check.openScopeUntil(node, syntax.EndPos(node), comment)
+-}
+-
+-func (check *Checker) openScopeUntil(node syntax.Node, end syntax.Pos, comment string) {
+-	scope := NewScope(check.scope, node.Pos(), end, comment)
++	scope := NewScope(check.scope, node.Pos(), syntax.EndPos(node), comment)
+ 	check.recordScope(node, scope)
+ 	check.scope = scope
+ }
+@@ -637,7 +633,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 
+ 		check.multipleSelectDefaults(s.Body)
+ 
+-		for i, clause := range s.Body {
++		for _, clause := range s.Body {
+ 			if clause == nil {
+ 				continue // error reported before
+ 			}
+@@ -667,11 +663,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 				check.error(clause.Comm, InvalidSelectCase, "select case must be send or receive (possibly with assignment)")
+ 				continue
+ 			}
+-			end := s.Rbrace
+-			if i+1 < len(s.Body) {
+-				end = s.Body[i+1].Pos()
+-			}
+-			check.openScopeUntil(clause, end, "case")
++			check.openScope(clause, "case")
+ 			if clause.Comm != nil {
+ 				check.stmt(inner, clause.Comm)
+ 			}
+@@ -747,16 +739,14 @@ func (check *Checker) switchStmt(inner stmtContext, s *syntax.SwitchStmt) {
+ 			check.error(clause, InvalidSyntaxTree, "incorrect expression switch case")
+ 			continue
+ 		}
+-		end := s.Rbrace
+ 		inner := inner
+ 		if i+1 < len(s.Body) {
+-			end = s.Body[i+1].Pos()
+ 			inner |= fallthroughOk
+ 		} else {
+ 			inner |= finalSwitchCase
+ 		}
+ 		check.caseValues(&x, syntax.UnpackListExpr(clause.Cases), seen)
+-		check.openScopeUntil(clause, end, "case")
++		check.openScope(clause, "case")
+ 		check.stmtList(inner, clause.Body)
+ 		check.closeScope()
+ 	}
+@@ -802,19 +792,15 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 
+ 	var lhsVars []*Var                 // list of implicitly declared lhs variables
+ 	seen := make(map[Type]syntax.Expr) // map of seen types to positions
+-	for i, clause := range s.Body {
++	for _, clause := range s.Body {
+ 		if clause == nil {
+ 			check.error(s, InvalidSyntaxTree, "incorrect type switch case")
+ 			continue
+ 		}
+-		end := s.Rbrace
+-		if i+1 < len(s.Body) {
+-			end = s.Body[i+1].Pos()
+-		}
+ 		// Check each type in this type switch case.
+ 		cases := syntax.UnpackListExpr(clause.Cases)
+ 		T := check.caseTypes(sx, cases, seen)
+-		check.openScopeUntil(clause, end, "case")
++		check.openScope(clause, "case")
+ 		// If lhs exists, declare a corresponding variable in the case-local scope.
+ 		if lhs != nil {
+ 			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)

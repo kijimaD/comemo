@@ -1,0 +1,98 @@
+commit 559c77592f182a2f77f2d70328cb649609517bd3
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Jul 24 10:29:13 2024 -0700
+
+    [release-branch.go1.23] os: document CopyFS behavior for symlinks in destination
+    
+    Also clarify the permissions of created files,
+    and note that CopyFS will not overwrite files.
+    
+    Update a few places in documentation to use 0oXXX for octal consts.
+    
+    For #62484
+    
+    Change-Id: I208ed2bde250304bc7fac2b93963ba57037e791e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600775
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    (cherry picked from commit 910e6b5fae7cbf84e4a3fcfa6739e20239080bcd)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600815
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/os/dir.go          | 18 ++++++++++--------
+ src/os/example_test.go |  2 +-
+ src/os/file.go         |  8 ++++----
+ 3 files changed, 15 insertions(+), 13 deletions(-)
+
+diff --git a/src/os/dir.go b/src/os/dir.go
+index 471a291345..dab75b5d43 100644
+--- a/src/os/dir.go
++++ b/src/os/dir.go
+@@ -132,15 +132,17 @@ func ReadDir(name string) ([]DirEntry, error) {
+ // CopyFS copies the file system fsys into the directory dir,
+ // creating dir if necessary.
+ //
+-// Newly created directories and files have their default modes
+-// where any bits from the file in fsys that are not part of the
+-// standard read, write, and execute permissions will be zeroed
+-// out, and standard read and write permissions are set for owner,
+-// group, and others while retaining any existing execute bits from
+-// the file in fsys.
++// Files are created with mode 0o666 plus any execute permissions
++// from the source, and directories are created with mode 0o777
++// (before umask).
+ //
+-// Symbolic links in fsys are not supported, a *PathError with Err set
+-// to ErrInvalid is returned on symlink.
++// CopyFS will not overwrite existing files, and returns an error
++// if a file name in fsys already exists in the destination.
++//
++// Symbolic links in fsys are not supported. A *PathError with Err set
++// to ErrInvalid is returned when copying from a symbolic link.
++//
++// Symbolic links in dir are followed.
+ //
+ // Copying stops at and returns the first error encountered.
+ func CopyFS(dir string, fsys fs.FS) error {
+diff --git a/src/os/example_test.go b/src/os/example_test.go
+index 7437a74cd0..c507d46c46 100644
+--- a/src/os/example_test.go
++++ b/src/os/example_test.go
+@@ -61,7 +61,7 @@ func ExampleFileMode() {
+ 		log.Fatal(err)
+ 	}
+ 
+-	fmt.Printf("permissions: %#o\n", fi.Mode().Perm()) // 0400, 0777, etc.
++	fmt.Printf("permissions: %#o\n", fi.Mode().Perm()) // 0o400, 0o777, etc.
+ 	switch mode := fi.Mode(); {
+ 	case mode.IsRegular():
+ 		fmt.Println("regular file")
+diff --git a/src/os/file.go b/src/os/file.go
+index c3ee31583e..ad869fc493 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -366,7 +366,7 @@ func Open(name string) (*File, error) {
+ }
+ 
+ // Create creates or truncates the named file. If the file already exists,
+-// it is truncated. If the file does not exist, it is created with mode 0666
++// it is truncated. If the file does not exist, it is created with mode 0o666
+ // (before umask). If successful, methods on the returned File can
+ // be used for I/O; the associated file descriptor has mode O_RDWR.
+ // If there is an error, it will be of type *PathError.
+@@ -602,11 +602,11 @@ func UserHomeDir() (string, error) {
+ // On Unix, the mode's permission bits, ModeSetuid, ModeSetgid, and
+ // ModeSticky are used.
+ //
+-// On Windows, only the 0200 bit (owner writable) of mode is used; it
++// On Windows, only the 0o200 bit (owner writable) of mode is used; it
+ // controls whether the file's read-only attribute is set or cleared.
+ // The other bits are currently unused. For compatibility with Go 1.12
+-// and earlier, use a non-zero mode. Use mode 0400 for a read-only
+-// file and 0600 for a readable+writable file.
++// and earlier, use a non-zero mode. Use mode 0o400 for a read-only
++// file and 0o600 for a readable+writable file.
+ //
+ // On Plan 9, the mode's permission bits, ModeAppend, ModeExclusive,
+ // and ModeTemporary are used.

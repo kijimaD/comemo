@@ -1,0 +1,45 @@
+commit 0ff18a9cca710d5045ec00cc910507bf2e051eaf
+Author: David Chase <drchase@google.com>
+Date:   Fri May 30 12:45:11 2025 -0400
+
+    [dev.simd] cmd/compile: disable intrinsics test for new simd stuff
+    
+    this test has been unpossible to get working correctly/
+    as-expected across architectures, experiments, trybots.
+    There benefit is a fairy-tale (we're going to check at the merge),
+    and it costs us time to keep it happy, so for now it is disabled.
+    
+    Change-Id: Iad913d2590deec606d29bedfa100310e6e9a75bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677556
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssagen/intrinsics_test.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 6c7e65abfd..7a212f1c3a 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -7,7 +7,6 @@ package ssagen
+ import (
+ 	"flag"
+ 	"fmt"
+-	"internal/buildcfg"
+ 	"slices"
+ 	"strings"
+ 	"testing"
+@@ -17,9 +16,8 @@ import (
+ 
+ var updateIntrinsics = flag.Bool("update", false, "Print an updated intrinsics table")
+ 
+-// TODO turn on always.  Current setting insures that simd intrinsics do not leak past experiment,
+-// but also avoids fail+rubber-stamp-update friction while SIMD is under active development.
+-var simd = flag.Bool("simd", !buildcfg.Experiment.SIMD, "Also check SIMD intrinsics; default to GOEXPERIMENT = NO simd")
++// TODO turn on after SIMD is stable.  The time burned keeping this test happy during SIMD development has already well exceeded any plausible benefit.
++var simd = flag.Bool("simd", false, "Also check SIMD intrinsics; for now, it is noisy and not helpful")
+ 
+ type testIntrinsicKey struct {
+ 	archName string

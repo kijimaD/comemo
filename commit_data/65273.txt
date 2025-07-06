@@ -1,0 +1,79 @@
+commit e8bb9129d185bf98ba173ec018bf2b6c9d62aa6c
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Fri Nov 1 13:43:34 2024 -0400
+
+    runtime/pprof: relax TestProfilerStackDepth
+    
+    The TestProfilerStackDepth/heap test can spuriously fail if the profiler
+    happens to capture a stack with an allocation several frames deep into
+    runtime code. The pprof API hides runtime frames at the leaf-end of
+    stacks, but those frames still count against the profiler's stack depth
+    limit. The test checks only the first stack it finds with the desired
+    prefix and fails if it's not deep enough or doesn't have the right root
+    frame. So it can fail in that scenario, even though the implementation
+    isn't really broken.
+    
+    Relax the test to check that there is at least one stack with desired
+    prefix, depth, and root frame.
+    
+    Fixes #70112
+    
+    Change-Id: I337fb3cccd1ddde76530b03aa1ec0f9608aa4112
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623998
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/pprof/pprof_test.go | 35 +++++++++++++++++++++++++----------
+ 1 file changed, 25 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 19641f62aa..64ca9957d2 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -2545,19 +2545,34 @@ func TestProfilerStackDepth(t *testing.T) {
+ 			t.Logf("Profile = %v", p)
+ 
+ 			stks := profileStacks(p)
+-			var stk []string
+-			for _, s := range stks {
+-				if hasPrefix(s, test.prefix) {
+-					stk = s
+-					break
++			var matchedStacks [][]string
++			for _, stk := range stks {
++				if !hasPrefix(stk, test.prefix) {
++					continue
+ 				}
++				// We may get multiple stacks which contain the prefix we want, but
++				// which might not have enough frames, e.g. if the profiler hides
++				// some leaf frames that would count against the stack depth limit.
++				// Check for at least one match
++				matchedStacks = append(matchedStacks, stk)
++				if len(stk) != depth {
++					continue
++				}
++				if rootFn, wantFn := stk[depth-1], "runtime/pprof.produceProfileEvents"; rootFn != wantFn {
++					continue
++				}
++				// Found what we wanted
++				return
+ 			}
+-			if len(stk) != depth {
+-				t.Fatalf("want stack depth = %d, got %d", depth, len(stk))
+-			}
++			for _, stk := range matchedStacks {
++				t.Logf("matched stack=%s", stk)
++				if len(stk) != depth {
++					t.Errorf("want stack depth = %d, got %d", depth, len(stk))
++				}
+ 
+-			if rootFn, wantFn := stk[depth-1], "runtime/pprof.produceProfileEvents"; rootFn != wantFn {
+-				t.Fatalf("want stack stack root %s, got %v", wantFn, rootFn)
++				if rootFn, wantFn := stk[depth-1], "runtime/pprof.produceProfileEvents"; rootFn != wantFn {
++					t.Errorf("want stack stack root %s, got %v", wantFn, rootFn)
++				}
+ 			}
+ 		})
+ 	}

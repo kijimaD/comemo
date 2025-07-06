@@ -1,0 +1,38 @@
+commit 28b09d5846da23ed3b8d2b2a93eca5ae94ce43f8
+Author: Sean Liao <sean@liao.dev>
+Date:   Wed Oct 16 00:47:44 2024 +0100
+
+    net/http/pprof: include Symbol in Index
+    
+    Fixes #69897
+    
+    Change-Id: I5887f34504b39018e16f269e087b43bc6a80964b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/net/http/pprof/pprof.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/pprof/pprof.go b/src/net/http/pprof/pprof.go
+index cf4b8415ca..2167f060be 100644
+--- a/src/net/http/pprof/pprof.go
++++ b/src/net/http/pprof/pprof.go
+@@ -367,6 +367,7 @@ var profileDescriptions = map[string]string{
+ 	"heap":         "A sampling of memory allocations of live objects. You can specify the gc GET parameter to run GC before taking the heap sample.",
+ 	"mutex":        "Stack traces of holders of contended mutexes",
+ 	"profile":      "CPU profile. You can specify the duration in the seconds GET parameter. After you get the profile file, use the go tool pprof command to investigate the profile.",
++	"symbol":       "Maps given program counters to function names. Counters can be specifed in a GET raw query or POST body, multiple counters are separated by '+'.",
+ 	"threadcreate": "Stack traces that led to the creation of new OS threads",
+ 	"trace":        "A trace of execution of the current program. You can specify the duration in the seconds GET parameter. After you get the trace file, use the go tool trace command to investigate the trace.",
+ }
+@@ -404,7 +405,7 @@ func Index(w http.ResponseWriter, r *http.Request) {
+ 	}
+ 
+ 	// Adding other profiles exposed from within this package
+-	for _, p := range []string{"cmdline", "profile", "trace"} {
++	for _, p := range []string{"cmdline", "profile", "symbol", "trace"} {
+ 		profiles = append(profiles, profileEntry{
+ 			Name: p,
+ 			Href: p,

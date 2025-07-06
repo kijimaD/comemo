@@ -1,0 +1,39 @@
+commit a2891aef7533f66870fc9fef0c2d7d54167f2d1d
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Sep 3 20:00:56 2024 -0700
+
+    cmd/link/internal/ld: rm os.Getwd from elf_test
+    
+    When specifying the package to build, a relative path is sufficient.
+    
+    Change-Id: I1ae08065b5cd77ec25be42dc1e664720a07baa62
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610039
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/link/internal/ld/elf_test.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index c2a0885985..c42a1173b6 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -94,14 +94,8 @@ func TestNoDuplicateNeededEntries(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	dir := t.TempDir()
+-
+-	wd, err := os.Getwd()
+-	if err != nil {
+-		t.Fatalf("Failed to get working directory: %v", err)
+-	}
+-
+ 	path := filepath.Join(dir, "x")
+-	argv := []string{"build", "-o", path, filepath.Join(wd, "testdata", "issue39256")}
++	argv := []string{"build", "-o", path, "./testdata/issue39256"}
+ 	out, err := testenv.Command(t, testenv.GoToolPath(t), argv...).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("Build failure: %s\n%s\n", err, string(out))

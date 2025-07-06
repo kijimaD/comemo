@@ -1,0 +1,303 @@
+commit 2b82a4f488179a62a69dd318ea62f0624641ae63
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 18 20:54:55 2024 +0000
+
+    runtime: track frame pointer while in syscall
+    
+    Currently the runtime only tracks the PC and SP upon entering a syscall,
+    but not the FP (BP). This is mainly for historical reasons, and because
+    the tracer (which uses the frame pointer unwinder) does not need it.
+    
+    Until it did, of course, in CL 567076, where the tracer tries to take a
+    stack trace of a goroutine that's in a syscall from afar. It tries to
+    use gp.sched.bp and lots of things go wrong. It *really* should be using
+    the equivalent of gp.syscallbp, which doesn't exist before this CL.
+    
+    This change introduces gp.syscallbp and tracks it. It also introduces
+    getcallerfp which is nice for simplifying some code. Because we now have
+    gp.syscallbp, we can also delete the frame skip count computation in
+    traceLocker.GoSysCall, because it's now the same regardless of whether
+    frame pointer unwinding is used.
+    
+    Fixes #66889.
+    
+    Change-Id: Ib6d761c9566055e0a037134138cb0f81be73ecf7
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-nocgo
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580255
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/runtime/cgocall.go             |  3 ++-
+ src/runtime/export_windows_test.go |  7 +------
+ src/runtime/proc.go                | 30 +++++++++++++++++++-----------
+ src/runtime/runtime2.go            | 15 +++++++++++++++
+ src/runtime/sizeof_test.go         |  2 +-
+ src/runtime/traceruntime.go        | 17 +----------------
+ src/runtime/tracestack.go          | 20 +++++++++++++++-----
+ 7 files changed, 54 insertions(+), 40 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 19de06fd85..8f09b6831b 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -314,6 +314,7 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	// save syscall* and let reentersyscall restore them.
+ 	savedsp := unsafe.Pointer(gp.syscallsp)
+ 	savedpc := gp.syscallpc
++	savedbp := gp.syscallbp
+ 	exitsyscall() // coming out of cgo call
+ 	gp.m.incgo = false
+ 	if gp.m.isextra {
+@@ -345,7 +346,7 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	osPreemptExtEnter(gp.m)
+ 
+ 	// going back to cgo call
+-	reentersyscall(savedpc, uintptr(savedsp))
++	reentersyscall(savedpc, uintptr(savedsp), savedbp)
+ 
+ 	gp.m.winsyscall = winsyscall
+ }
+diff --git a/src/runtime/export_windows_test.go b/src/runtime/export_windows_test.go
+index cf0db576b8..4880e62a55 100644
+--- a/src/runtime/export_windows_test.go
++++ b/src/runtime/export_windows_test.go
+@@ -33,11 +33,6 @@ func NewContextStub() *ContextStub {
+ 	var ctx context
+ 	ctx.set_ip(getcallerpc())
+ 	ctx.set_sp(getcallersp())
+-	fp := getfp()
+-	// getfp is not implemented on windows/386 and windows/arm,
+-	// in which case it returns 0.
+-	if fp != 0 {
+-		ctx.set_fp(*(*uintptr)(unsafe.Pointer(fp)))
+-	}
++	ctx.set_fp(getcallerfp())
+ 	return &ContextStub{ctx}
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 8f5787dbbb..cb5a80455d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4237,7 +4237,7 @@ func gdestroy(gp *g) {
+ //
+ //go:nosplit
+ //go:nowritebarrierrec
+-func save(pc, sp uintptr) {
++func save(pc, sp, bp uintptr) {
+ 	gp := getg()
+ 
+ 	if gp == gp.m.g0 || gp == gp.m.gsignal {
+@@ -4253,6 +4253,7 @@ func save(pc, sp uintptr) {
+ 	gp.sched.sp = sp
+ 	gp.sched.lr = 0
+ 	gp.sched.ret = 0
++	gp.sched.bp = bp
+ 	// We need to ensure ctxt is zero, but can't have a write
+ 	// barrier here. However, it should always already be zero.
+ 	// Assert that.
+@@ -4285,7 +4286,7 @@ func save(pc, sp uintptr) {
+ // entry point for syscalls, which obtains the SP and PC from the caller.
+ //
+ //go:nosplit
+-func reentersyscall(pc, sp uintptr) {
++func reentersyscall(pc, sp, bp uintptr) {
+ 	trace := traceAcquire()
+ 	gp := getg()
+ 
+@@ -4301,14 +4302,15 @@ func reentersyscall(pc, sp uintptr) {
+ 	gp.throwsplit = true
+ 
+ 	// Leave SP around for GC and traceback.
+-	save(pc, sp)
++	save(pc, sp, bp)
+ 	gp.syscallsp = sp
+ 	gp.syscallpc = pc
++	gp.syscallbp = bp
+ 	casgstatus(gp, _Grunning, _Gsyscall)
+ 	if staticLockRanking {
+ 		// When doing static lock ranking casgstatus can call
+ 		// systemstack which clobbers g.sched.
+-		save(pc, sp)
++		save(pc, sp, bp)
+ 	}
+ 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
+ 		systemstack(func() {
+@@ -4325,18 +4327,18 @@ func reentersyscall(pc, sp uintptr) {
+ 		// systemstack itself clobbers g.sched.{pc,sp} and we might
+ 		// need them later when the G is genuinely blocked in a
+ 		// syscall
+-		save(pc, sp)
++		save(pc, sp, bp)
+ 	}
+ 
+ 	if sched.sysmonwait.Load() {
+ 		systemstack(entersyscall_sysmon)
+-		save(pc, sp)
++		save(pc, sp, bp)
+ 	}
+ 
+ 	if gp.m.p.ptr().runSafePointFn != 0 {
+ 		// runSafePointFn may stack split if run on this stack
+ 		systemstack(runSafePointFn)
+-		save(pc, sp)
++		save(pc, sp, bp)
+ 	}
+ 
+ 	gp.m.syscalltick = gp.m.p.ptr().syscalltick
+@@ -4347,7 +4349,7 @@ func reentersyscall(pc, sp uintptr) {
+ 	atomic.Store(&pp.status, _Psyscall)
+ 	if sched.gcwaiting.Load() {
+ 		systemstack(entersyscall_gcwait)
+-		save(pc, sp)
++		save(pc, sp, bp)
+ 	}
+ 
+ 	gp.m.locks--
+@@ -4360,7 +4362,12 @@ func reentersyscall(pc, sp uintptr) {
+ //go:nosplit
+ //go:linkname entersyscall
+ func entersyscall() {
+-	reentersyscall(getcallerpc(), getcallersp())
++	// N.B. getcallerfp cannot be written directly as argument in the call
++	// to reentersyscall because it forces spilling the other arguments to
++	// the stack. This results in exceeding the nosplit stack requirements
++	// on some platforms.
++	fp := getcallerfp()
++	reentersyscall(getcallerpc(), getcallersp(), fp)
+ }
+ 
+ func entersyscall_sysmon() {
+@@ -4418,7 +4425,8 @@ func entersyscallblock() {
+ 	// Leave SP around for GC and traceback.
+ 	pc := getcallerpc()
+ 	sp := getcallersp()
+-	save(pc, sp)
++	bp := getcallerfp()
++	save(pc, sp, bp)
+ 	gp.syscallsp = gp.sched.sp
+ 	gp.syscallpc = gp.sched.pc
+ 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
+@@ -4441,7 +4449,7 @@ func entersyscallblock() {
+ 	systemstack(entersyscallblock_handoff)
+ 
+ 	// Resave for traceback during blocked call.
+-	save(getcallerpc(), getcallersp())
++	save(getcallerpc(), getcallersp(), getcallerfp())
+ 
+ 	gp.m.locks--
+ }
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 83252abb44..b58255f279 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -437,6 +437,7 @@ type g struct {
+ 	sched     gobuf
+ 	syscallsp uintptr // if status==Gsyscall, syscallsp = sched.sp to use during gc
+ 	syscallpc uintptr // if status==Gsyscall, syscallpc = sched.pc to use during gc
++	syscallbp uintptr // if status==Gsyscall, syscallbp = sched.bp to use in fpTraceback
+ 	stktopsp  uintptr // expected sp at top of stack, to check in traceback
+ 	// param is a generic pointer parameter field used to pass
+ 	// values in particular contexts where other storage for the
+@@ -1263,3 +1264,17 @@ var (
+ 
+ // Must agree with internal/buildcfg.FramePointerEnabled.
+ const framepointer_enabled = GOARCH == "amd64" || GOARCH == "arm64"
++
++// getcallerfp returns the frame pointer of the caller of the caller
++// of this function.
++//
++//go:nosplit
++//go:noinline
++func getcallerfp() uintptr {
++	fp := getfp() // This frame's FP.
++	if fp != 0 {
++		fp = *(*uintptr)(unsafe.Pointer(fp)) // The caller's FP.
++		fp = *(*uintptr)(unsafe.Pointer(fp)) // The caller's caller's FP.
++	}
++	return fp
++}
+diff --git a/src/runtime/sizeof_test.go b/src/runtime/sizeof_test.go
+index 0ef916b044..d235d6a3f8 100644
+--- a/src/runtime/sizeof_test.go
++++ b/src/runtime/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr // size on 32bit platforms
+ 		_64bit uintptr // size on 64bit platforms
+ 	}{
+-		{runtime.G{}, 268, 432},   // g, but exported for testing
++		{runtime.G{}, 272, 440},   // g, but exported for testing
+ 		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
+ 	}
+ 
+diff --git a/src/runtime/traceruntime.go b/src/runtime/traceruntime.go
+index dcaea364e2..3e0e3b3a76 100644
+--- a/src/runtime/traceruntime.go
++++ b/src/runtime/traceruntime.go
+@@ -481,25 +481,10 @@ func emitUnblockStatus(w traceWriter, gp *g, gen uintptr) traceWriter {
+ //
+ // Must be called with a valid P.
+ func (tl traceLocker) GoSysCall() {
+-	var skip int
+-	switch {
+-	case tracefpunwindoff():
+-		// Unwind by skipping 1 frame relative to gp.syscallsp which is captured 3
+-		// results by hard coding the number of frames in between our caller and the
+-		// actual syscall, see cases below.
+-		// TODO(felixge): Implement gp.syscallbp to avoid this workaround?
+-		skip = 1
+-	case GOOS == "solaris" || GOOS == "illumos":
+-		// These platforms don't use a libc_read_trampoline.
+-		skip = 3
+-	default:
+-		// Skip the extra trampoline frame used on most systems.
+-		skip = 4
+-	}
+ 	// Scribble down the M that the P is currently attached to.
+ 	pp := tl.mp.p.ptr()
+ 	pp.trace.mSyscallID = int64(tl.mp.procid)
+-	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoSyscallBegin, pp.trace.nextSeq(tl.gen), tl.stack(skip))
++	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvGoSyscallBegin, pp.trace.nextSeq(tl.gen), tl.stack(1))
+ }
+ 
+ // GoSysExit emits a GoSyscallEnd event, possibly along with a GoSyscallBlocked event
+diff --git a/src/runtime/tracestack.go b/src/runtime/tracestack.go
+index f651a1fca9..04b935a2c9 100644
+--- a/src/runtime/tracestack.go
++++ b/src/runtime/tracestack.go
+@@ -92,7 +92,7 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
+ 		if getg() == gp {
+ 			nstk += fpTracebackPCs(unsafe.Pointer(getfp()), pcBuf[1:])
+ 		} else if gp != nil {
+-			// Two cases:
++			// Three cases:
+ 			//
+ 			// (1) We're called on the g0 stack through mcall(fn) or systemstack(fn). To
+ 			// behave like gcallers above, we start unwinding from sched.bp, which
+@@ -100,11 +100,21 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
+ 			// address of the leaf frame is stored in sched.pc, which we manually
+ 			// capture here.
+ 			//
+-			// (2) We're called against a gp that we're not currently executing on, in
+-			// which case it's currently not executing. gp.sched contains the most up-to-date
++			// (2) We're called against a gp that we're not currently executing on, but that isn't
++			// in a syscall, in which case it's currently not executing. gp.sched contains the most
++			// up-to-date information about where it stopped, and like case (1), we match gcallers
++			// here.
++			//
++			// (3) We're called against a gp that we're not currently executing on, but that is in
++			// a syscall, in which case gp.syscallsp != 0. gp.syscall* contains the most up-to-date
+ 			// information about where it stopped, and like case (1), we match gcallers here.
+-			pcBuf[1] = gp.sched.pc
+-			nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
++			if gp.syscallsp != 0 {
++				pcBuf[1] = gp.syscallpc
++				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.syscallbp), pcBuf[2:])
++			} else {
++				pcBuf[1] = gp.sched.pc
++				nstk += 1 + fpTracebackPCs(unsafe.Pointer(gp.sched.bp), pcBuf[2:])
++			}
+ 		}
+ 	}
+ 	if nstk > 0 {

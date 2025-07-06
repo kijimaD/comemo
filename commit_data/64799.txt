@@ -1,0 +1,460 @@
+commit 493517bb5c84e8f88ba74d4d2e8c3ac58fda7839
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jul 11 14:49:43 2024 -0700
+
+    runtime, reflect: avoid allocation in structType.Field common cases
+    
+    Use assembler to make runtime.staticuint64s into a readonly array
+    so that the reflect package can safely create a slice without requiring
+    any allocation.
+    
+    Fixes #2320
+    Fixes #68380
+    
+    Change-Id: If2c97238eca782d0632db265c840581d4ecb9d18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597855
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+---
+ src/reflect/all_test.go |  28 +++++
+ src/reflect/type.go     |  35 +++++--
+ src/runtime/iface.go    |  43 ++------
+ src/runtime/ints.s      | 264 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 329 insertions(+), 41 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index f5a77ba854..e1bd37a70a 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -23,6 +23,7 @@ import (
+ 	"reflect/internal/example1"
+ 	"reflect/internal/example2"
+ 	"runtime"
++	"runtime/debug"
+ 	"slices"
+ 	"strconv"
+ 	"strings"
+@@ -3532,6 +3533,14 @@ func TestAllocations(t *testing.T) {
+ 			panic("wrong result")
+ 		}
+ 	})
++	if runtime.GOOS != "js" && runtime.GOOS != "wasip1" {
++		typ := TypeFor[struct{ f int }]()
++		noAlloc(t, 100, func(int) {
++			if typ.Field(0).Index[0] != 0 {
++				panic("wrong field index")
++			}
++		})
++	}
+ }
+ 
+ func TestSmallNegativeInt(t *testing.T) {
+@@ -6862,6 +6871,25 @@ func TestTypeFieldOutOfRangePanic(t *testing.T) {
+ 	}
+ }
+ 
++func TestTypeFieldReadOnly(t *testing.T) {
++	if runtime.GOOS == "js" || runtime.GOOS == "wasip1" {
++		// This is OK because we don't use the optimization
++		// for js or wasip1.
++		t.Skip("test does not fault on GOOS=js")
++	}
++
++	// It's important that changing one StructField.Index
++	// value not affect other StructField.Index values.
++	// Right now StructField.Index is read-only;
++	// that saves allocations but is otherwise not important.
++	typ := TypeFor[struct{ f int }]()
++	f := typ.Field(0)
++	defer debug.SetPanicOnFault(debug.SetPanicOnFault(true))
++	shouldPanic("", func() {
++		f.Index[0] = 1
++	})
++}
++
+ // Issue 9179.
+ func TestCallGC(t *testing.T) {
+ 	f := func(a, b, c, d, e string) {
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index f790182547..3ae50c1fb9 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -18,6 +18,7 @@ package reflect
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"runtime"
+ 	"strconv"
+ 	"sync"
+ 	"unicode"
+@@ -1114,17 +1115,35 @@ func (t *structType) Field(i int) (f StructField) {
+ 	}
+ 	f.Offset = p.Offset
+ 
+-	// NOTE(rsc): This is the only allocation in the interface
+-	// presented by a reflect.Type. It would be nice to avoid,
+-	// at least in the common cases, but we need to make sure
+-	// that misbehaving clients of reflect cannot affect other
+-	// uses of reflect. One possibility is CL 5371098, but we
+-	// postponed that ugliness until there is a demonstrated
+-	// need for the performance. This is issue 2320.
+-	f.Index = []int{i}
++	// We can't safely use this optimization on js or wasi,
++	// which do not appear to support read-only data.
++	if i < 256 && runtime.GOOS != "js" && runtime.GOOS != "wasip1" {
++		staticuint64s := getStaticuint64s()
++		p := unsafe.Pointer(&(*staticuint64s)[i])
++		if unsafe.Sizeof(int(0)) == 4 && goarch.BigEndian {
++			p = unsafe.Add(p, 4)
++		}
++		f.Index = unsafe.Slice((*int)(p), 1)
++	} else {
++		// NOTE(rsc): This is the only allocation in the interface
++		// presented by a reflect.Type. It would be nice to avoid,
++		// but we need to make sure that misbehaving clients of
++		// reflect cannot affect other uses of reflect.
++		// One possibility is CL 5371098, but we postponed that
++		// ugliness until there is a demonstrated
++		// need for the performance. This is issue 2320.
++		f.Index = []int{i}
++	}
+ 	return
+ }
+ 
++// getStaticuint64s returns a pointer to an array of 256 uint64 values,
++// defined in the runtime package in read-only memory.
++// staticuint64s[0] == 0, staticuint64s[1] == 1, and so forth.
++//
++//go:linkname getStaticuint64s runtime.getStaticuint64s
++func getStaticuint64s() *[256]uint64
++
+ // TODO(gri): Should there be an error/bool indicator if the index
+ // is wrong for FieldByIndex?
+ 
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 5316182f4a..f35698f621 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -692,39 +692,16 @@ func iterate_itabs(fn func(*itab)) {
+ }
+ 
+ // staticuint64s is used to avoid allocating in convTx for small integer values.
+-var staticuint64s = [...]uint64{
+-	0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+-	0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+-	0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17,
+-	0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f,
+-	0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
+-	0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f,
+-	0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37,
+-	0x38, 0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f,
+-	0x40, 0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47,
+-	0x48, 0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f,
+-	0x50, 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57,
+-	0x58, 0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f,
+-	0x60, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66, 0x67,
+-	0x68, 0x69, 0x6a, 0x6b, 0x6c, 0x6d, 0x6e, 0x6f,
+-	0x70, 0x71, 0x72, 0x73, 0x74, 0x75, 0x76, 0x77,
+-	0x78, 0x79, 0x7a, 0x7b, 0x7c, 0x7d, 0x7e, 0x7f,
+-	0x80, 0x81, 0x82, 0x83, 0x84, 0x85, 0x86, 0x87,
+-	0x88, 0x89, 0x8a, 0x8b, 0x8c, 0x8d, 0x8e, 0x8f,
+-	0x90, 0x91, 0x92, 0x93, 0x94, 0x95, 0x96, 0x97,
+-	0x98, 0x99, 0x9a, 0x9b, 0x9c, 0x9d, 0x9e, 0x9f,
+-	0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7,
+-	0xa8, 0xa9, 0xaa, 0xab, 0xac, 0xad, 0xae, 0xaf,
+-	0xb0, 0xb1, 0xb2, 0xb3, 0xb4, 0xb5, 0xb6, 0xb7,
+-	0xb8, 0xb9, 0xba, 0xbb, 0xbc, 0xbd, 0xbe, 0xbf,
+-	0xc0, 0xc1, 0xc2, 0xc3, 0xc4, 0xc5, 0xc6, 0xc7,
+-	0xc8, 0xc9, 0xca, 0xcb, 0xcc, 0xcd, 0xce, 0xcf,
+-	0xd0, 0xd1, 0xd2, 0xd3, 0xd4, 0xd5, 0xd6, 0xd7,
+-	0xd8, 0xd9, 0xda, 0xdb, 0xdc, 0xdd, 0xde, 0xdf,
+-	0xe0, 0xe1, 0xe2, 0xe3, 0xe4, 0xe5, 0xe6, 0xe7,
+-	0xe8, 0xe9, 0xea, 0xeb, 0xec, 0xed, 0xee, 0xef,
+-	0xf0, 0xf1, 0xf2, 0xf3, 0xf4, 0xf5, 0xf6, 0xf7,
+-	0xf8, 0xf9, 0xfa, 0xfb, 0xfc, 0xfd, 0xfe, 0xff,
++// staticuint64s[0] == 0, staticuint64s[1] == 1, and so forth.
++// It is defined in assembler code so that it is read-only.
++var staticuint64s [256]uint64
++
++// getStaticuint64s is called by the reflect package to get a pointer
++// to the read-only array.
++//
++//go:linkname getStaticuint64s
++func getStaticuint64s() *[256]uint64 {
++	return &staticuint64s
+ }
+ 
+ // The linker redirects a reference of a method that it determined
+diff --git a/src/runtime/ints.s b/src/runtime/ints.s
+new file mode 100644
+index 0000000000..b816a2fb76
+--- /dev/null
++++ b/src/runtime/ints.s
+@@ -0,0 +1,264 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++DATA ·staticuint64s+0x000(SB)/8, $0
++DATA ·staticuint64s+0x008(SB)/8, $1
++DATA ·staticuint64s+0x010(SB)/8, $2
++DATA ·staticuint64s+0x018(SB)/8, $3
++DATA ·staticuint64s+0x020(SB)/8, $4
++DATA ·staticuint64s+0x028(SB)/8, $5
++DATA ·staticuint64s+0x030(SB)/8, $6
++DATA ·staticuint64s+0x038(SB)/8, $7
++DATA ·staticuint64s+0x040(SB)/8, $8
++DATA ·staticuint64s+0x048(SB)/8, $9
++DATA ·staticuint64s+0x050(SB)/8, $10
++DATA ·staticuint64s+0x058(SB)/8, $11
++DATA ·staticuint64s+0x060(SB)/8, $12
++DATA ·staticuint64s+0x068(SB)/8, $13
++DATA ·staticuint64s+0x070(SB)/8, $14
++DATA ·staticuint64s+0x078(SB)/8, $15
++DATA ·staticuint64s+0x080(SB)/8, $16
++DATA ·staticuint64s+0x088(SB)/8, $17
++DATA ·staticuint64s+0x090(SB)/8, $18
++DATA ·staticuint64s+0x098(SB)/8, $19
++DATA ·staticuint64s+0x0a0(SB)/8, $20
++DATA ·staticuint64s+0x0a8(SB)/8, $21
++DATA ·staticuint64s+0x0b0(SB)/8, $22
++DATA ·staticuint64s+0x0b8(SB)/8, $23
++DATA ·staticuint64s+0x0c0(SB)/8, $24
++DATA ·staticuint64s+0x0c8(SB)/8, $25
++DATA ·staticuint64s+0x0d0(SB)/8, $26
++DATA ·staticuint64s+0x0d8(SB)/8, $27
++DATA ·staticuint64s+0x0e0(SB)/8, $28
++DATA ·staticuint64s+0x0e8(SB)/8, $29
++DATA ·staticuint64s+0x0f0(SB)/8, $30
++DATA ·staticuint64s+0x0f8(SB)/8, $31
++DATA ·staticuint64s+0x100(SB)/8, $32
++DATA ·staticuint64s+0x108(SB)/8, $33
++DATA ·staticuint64s+0x110(SB)/8, $34
++DATA ·staticuint64s+0x118(SB)/8, $35
++DATA ·staticuint64s+0x120(SB)/8, $36
++DATA ·staticuint64s+0x128(SB)/8, $37
++DATA ·staticuint64s+0x130(SB)/8, $38
++DATA ·staticuint64s+0x138(SB)/8, $39
++DATA ·staticuint64s+0x140(SB)/8, $40
++DATA ·staticuint64s+0x148(SB)/8, $41
++DATA ·staticuint64s+0x150(SB)/8, $42
++DATA ·staticuint64s+0x158(SB)/8, $43
++DATA ·staticuint64s+0x160(SB)/8, $44
++DATA ·staticuint64s+0x168(SB)/8, $45
++DATA ·staticuint64s+0x170(SB)/8, $46
++DATA ·staticuint64s+0x178(SB)/8, $47
++DATA ·staticuint64s+0x180(SB)/8, $48
++DATA ·staticuint64s+0x188(SB)/8, $49
++DATA ·staticuint64s+0x190(SB)/8, $50
++DATA ·staticuint64s+0x198(SB)/8, $51
++DATA ·staticuint64s+0x1a0(SB)/8, $52
++DATA ·staticuint64s+0x1a8(SB)/8, $53
++DATA ·staticuint64s+0x1b0(SB)/8, $54
++DATA ·staticuint64s+0x1b8(SB)/8, $55
++DATA ·staticuint64s+0x1c0(SB)/8, $56
++DATA ·staticuint64s+0x1c8(SB)/8, $57
++DATA ·staticuint64s+0x1d0(SB)/8, $58
++DATA ·staticuint64s+0x1d8(SB)/8, $59
++DATA ·staticuint64s+0x1e0(SB)/8, $60
++DATA ·staticuint64s+0x1e8(SB)/8, $61
++DATA ·staticuint64s+0x1f0(SB)/8, $62
++DATA ·staticuint64s+0x1f8(SB)/8, $63
++DATA ·staticuint64s+0x200(SB)/8, $64
++DATA ·staticuint64s+0x208(SB)/8, $65
++DATA ·staticuint64s+0x210(SB)/8, $66
++DATA ·staticuint64s+0x218(SB)/8, $67
++DATA ·staticuint64s+0x220(SB)/8, $68
++DATA ·staticuint64s+0x228(SB)/8, $69
++DATA ·staticuint64s+0x230(SB)/8, $70
++DATA ·staticuint64s+0x238(SB)/8, $71
++DATA ·staticuint64s+0x240(SB)/8, $72
++DATA ·staticuint64s+0x248(SB)/8, $73
++DATA ·staticuint64s+0x250(SB)/8, $74
++DATA ·staticuint64s+0x258(SB)/8, $75
++DATA ·staticuint64s+0x260(SB)/8, $76
++DATA ·staticuint64s+0x268(SB)/8, $77
++DATA ·staticuint64s+0x270(SB)/8, $78
++DATA ·staticuint64s+0x278(SB)/8, $79
++DATA ·staticuint64s+0x280(SB)/8, $80
++DATA ·staticuint64s+0x288(SB)/8, $81
++DATA ·staticuint64s+0x290(SB)/8, $82
++DATA ·staticuint64s+0x298(SB)/8, $83
++DATA ·staticuint64s+0x2a0(SB)/8, $84
++DATA ·staticuint64s+0x2a8(SB)/8, $85
++DATA ·staticuint64s+0x2b0(SB)/8, $86
++DATA ·staticuint64s+0x2b8(SB)/8, $87
++DATA ·staticuint64s+0x2c0(SB)/8, $88
++DATA ·staticuint64s+0x2c8(SB)/8, $89
++DATA ·staticuint64s+0x2d0(SB)/8, $90
++DATA ·staticuint64s+0x2d8(SB)/8, $91
++DATA ·staticuint64s+0x2e0(SB)/8, $92
++DATA ·staticuint64s+0x2e8(SB)/8, $93
++DATA ·staticuint64s+0x2f0(SB)/8, $94
++DATA ·staticuint64s+0x2f8(SB)/8, $95
++DATA ·staticuint64s+0x300(SB)/8, $96
++DATA ·staticuint64s+0x308(SB)/8, $97
++DATA ·staticuint64s+0x310(SB)/8, $98
++DATA ·staticuint64s+0x318(SB)/8, $99
++DATA ·staticuint64s+0x320(SB)/8, $100
++DATA ·staticuint64s+0x328(SB)/8, $101
++DATA ·staticuint64s+0x330(SB)/8, $102
++DATA ·staticuint64s+0x338(SB)/8, $103
++DATA ·staticuint64s+0x340(SB)/8, $104
++DATA ·staticuint64s+0x348(SB)/8, $105
++DATA ·staticuint64s+0x350(SB)/8, $106
++DATA ·staticuint64s+0x358(SB)/8, $107
++DATA ·staticuint64s+0x360(SB)/8, $108
++DATA ·staticuint64s+0x368(SB)/8, $109
++DATA ·staticuint64s+0x370(SB)/8, $110
++DATA ·staticuint64s+0x378(SB)/8, $111
++DATA ·staticuint64s+0x380(SB)/8, $112
++DATA ·staticuint64s+0x388(SB)/8, $113
++DATA ·staticuint64s+0x390(SB)/8, $114
++DATA ·staticuint64s+0x398(SB)/8, $115
++DATA ·staticuint64s+0x3a0(SB)/8, $116
++DATA ·staticuint64s+0x3a8(SB)/8, $117
++DATA ·staticuint64s+0x3b0(SB)/8, $118
++DATA ·staticuint64s+0x3b8(SB)/8, $119
++DATA ·staticuint64s+0x3c0(SB)/8, $120
++DATA ·staticuint64s+0x3c8(SB)/8, $121
++DATA ·staticuint64s+0x3d0(SB)/8, $122
++DATA ·staticuint64s+0x3d8(SB)/8, $123
++DATA ·staticuint64s+0x3e0(SB)/8, $124
++DATA ·staticuint64s+0x3e8(SB)/8, $125
++DATA ·staticuint64s+0x3f0(SB)/8, $126
++DATA ·staticuint64s+0x3f8(SB)/8, $127
++DATA ·staticuint64s+0x400(SB)/8, $128
++DATA ·staticuint64s+0x408(SB)/8, $129
++DATA ·staticuint64s+0x410(SB)/8, $130
++DATA ·staticuint64s+0x418(SB)/8, $131
++DATA ·staticuint64s+0x420(SB)/8, $132
++DATA ·staticuint64s+0x428(SB)/8, $133
++DATA ·staticuint64s+0x430(SB)/8, $134
++DATA ·staticuint64s+0x438(SB)/8, $135
++DATA ·staticuint64s+0x440(SB)/8, $136
++DATA ·staticuint64s+0x448(SB)/8, $137
++DATA ·staticuint64s+0x450(SB)/8, $138
++DATA ·staticuint64s+0x458(SB)/8, $139
++DATA ·staticuint64s+0x460(SB)/8, $140
++DATA ·staticuint64s+0x468(SB)/8, $141
++DATA ·staticuint64s+0x470(SB)/8, $142
++DATA ·staticuint64s+0x478(SB)/8, $143
++DATA ·staticuint64s+0x480(SB)/8, $144
++DATA ·staticuint64s+0x488(SB)/8, $145
++DATA ·staticuint64s+0x490(SB)/8, $146
++DATA ·staticuint64s+0x498(SB)/8, $147
++DATA ·staticuint64s+0x4a0(SB)/8, $148
++DATA ·staticuint64s+0x4a8(SB)/8, $149
++DATA ·staticuint64s+0x4b0(SB)/8, $150
++DATA ·staticuint64s+0x4b8(SB)/8, $151
++DATA ·staticuint64s+0x4c0(SB)/8, $152
++DATA ·staticuint64s+0x4c8(SB)/8, $153
++DATA ·staticuint64s+0x4d0(SB)/8, $154
++DATA ·staticuint64s+0x4d8(SB)/8, $155
++DATA ·staticuint64s+0x4e0(SB)/8, $156
++DATA ·staticuint64s+0x4e8(SB)/8, $157
++DATA ·staticuint64s+0x4f0(SB)/8, $158
++DATA ·staticuint64s+0x4f8(SB)/8, $159
++DATA ·staticuint64s+0x500(SB)/8, $160
++DATA ·staticuint64s+0x508(SB)/8, $161
++DATA ·staticuint64s+0x510(SB)/8, $162
++DATA ·staticuint64s+0x518(SB)/8, $163
++DATA ·staticuint64s+0x520(SB)/8, $164
++DATA ·staticuint64s+0x528(SB)/8, $165
++DATA ·staticuint64s+0x530(SB)/8, $166
++DATA ·staticuint64s+0x538(SB)/8, $167
++DATA ·staticuint64s+0x540(SB)/8, $168
++DATA ·staticuint64s+0x548(SB)/8, $169
++DATA ·staticuint64s+0x550(SB)/8, $170
++DATA ·staticuint64s+0x558(SB)/8, $171
++DATA ·staticuint64s+0x560(SB)/8, $172
++DATA ·staticuint64s+0x568(SB)/8, $173
++DATA ·staticuint64s+0x570(SB)/8, $174
++DATA ·staticuint64s+0x578(SB)/8, $175
++DATA ·staticuint64s+0x580(SB)/8, $176
++DATA ·staticuint64s+0x588(SB)/8, $177
++DATA ·staticuint64s+0x590(SB)/8, $178
++DATA ·staticuint64s+0x598(SB)/8, $179
++DATA ·staticuint64s+0x5a0(SB)/8, $180
++DATA ·staticuint64s+0x5a8(SB)/8, $181
++DATA ·staticuint64s+0x5b0(SB)/8, $182
++DATA ·staticuint64s+0x5b8(SB)/8, $183
++DATA ·staticuint64s+0x5c0(SB)/8, $184
++DATA ·staticuint64s+0x5c8(SB)/8, $185
++DATA ·staticuint64s+0x5d0(SB)/8, $186
++DATA ·staticuint64s+0x5d8(SB)/8, $187
++DATA ·staticuint64s+0x5e0(SB)/8, $188
++DATA ·staticuint64s+0x5e8(SB)/8, $189
++DATA ·staticuint64s+0x5f0(SB)/8, $190
++DATA ·staticuint64s+0x5f8(SB)/8, $191
++DATA ·staticuint64s+0x600(SB)/8, $192
++DATA ·staticuint64s+0x608(SB)/8, $193
++DATA ·staticuint64s+0x610(SB)/8, $194
++DATA ·staticuint64s+0x618(SB)/8, $195
++DATA ·staticuint64s+0x620(SB)/8, $196
++DATA ·staticuint64s+0x628(SB)/8, $197
++DATA ·staticuint64s+0x630(SB)/8, $198
++DATA ·staticuint64s+0x638(SB)/8, $199
++DATA ·staticuint64s+0x640(SB)/8, $200
++DATA ·staticuint64s+0x648(SB)/8, $201
++DATA ·staticuint64s+0x650(SB)/8, $202
++DATA ·staticuint64s+0x658(SB)/8, $203
++DATA ·staticuint64s+0x660(SB)/8, $204
++DATA ·staticuint64s+0x668(SB)/8, $205
++DATA ·staticuint64s+0x670(SB)/8, $206
++DATA ·staticuint64s+0x678(SB)/8, $207
++DATA ·staticuint64s+0x680(SB)/8, $208
++DATA ·staticuint64s+0x688(SB)/8, $209
++DATA ·staticuint64s+0x690(SB)/8, $210
++DATA ·staticuint64s+0x698(SB)/8, $211
++DATA ·staticuint64s+0x6a0(SB)/8, $212
++DATA ·staticuint64s+0x6a8(SB)/8, $213
++DATA ·staticuint64s+0x6b0(SB)/8, $214
++DATA ·staticuint64s+0x6b8(SB)/8, $215
++DATA ·staticuint64s+0x6c0(SB)/8, $216
++DATA ·staticuint64s+0x6c8(SB)/8, $217
++DATA ·staticuint64s+0x6d0(SB)/8, $218
++DATA ·staticuint64s+0x6d8(SB)/8, $219
++DATA ·staticuint64s+0x6e0(SB)/8, $220
++DATA ·staticuint64s+0x6e8(SB)/8, $221
++DATA ·staticuint64s+0x6f0(SB)/8, $222
++DATA ·staticuint64s+0x6f8(SB)/8, $223
++DATA ·staticuint64s+0x700(SB)/8, $224
++DATA ·staticuint64s+0x708(SB)/8, $225
++DATA ·staticuint64s+0x710(SB)/8, $226
++DATA ·staticuint64s+0x718(SB)/8, $227
++DATA ·staticuint64s+0x720(SB)/8, $228
++DATA ·staticuint64s+0x728(SB)/8, $229
++DATA ·staticuint64s+0x730(SB)/8, $230
++DATA ·staticuint64s+0x738(SB)/8, $231
++DATA ·staticuint64s+0x740(SB)/8, $232
++DATA ·staticuint64s+0x748(SB)/8, $233
++DATA ·staticuint64s+0x750(SB)/8, $234
++DATA ·staticuint64s+0x758(SB)/8, $235
++DATA ·staticuint64s+0x760(SB)/8, $236
++DATA ·staticuint64s+0x768(SB)/8, $237
++DATA ·staticuint64s+0x770(SB)/8, $238
++DATA ·staticuint64s+0x778(SB)/8, $239
++DATA ·staticuint64s+0x780(SB)/8, $240
++DATA ·staticuint64s+0x788(SB)/8, $241
++DATA ·staticuint64s+0x790(SB)/8, $242
++DATA ·staticuint64s+0x798(SB)/8, $243
++DATA ·staticuint64s+0x7a0(SB)/8, $244
++DATA ·staticuint64s+0x7a8(SB)/8, $245
++DATA ·staticuint64s+0x7b0(SB)/8, $246
++DATA ·staticuint64s+0x7b8(SB)/8, $247
++DATA ·staticuint64s+0x7c0(SB)/8, $248
++DATA ·staticuint64s+0x7c8(SB)/8, $249
++DATA ·staticuint64s+0x7d0(SB)/8, $250
++DATA ·staticuint64s+0x7d8(SB)/8, $251
++DATA ·staticuint64s+0x7e0(SB)/8, $252
++DATA ·staticuint64s+0x7e8(SB)/8, $253
++DATA ·staticuint64s+0x7f0(SB)/8, $254
++DATA ·staticuint64s+0x7f8(SB)/8, $255
++
++GLOBL ·staticuint64s(SB), RODATA, $0x800

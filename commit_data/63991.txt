@@ -1,0 +1,71 @@
+commit fa08befb25e6f4993021429aa222dad71a27ed07
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 29 18:12:37 2024 +0000
+
+    cmd/cgo/internal/swig,cmd/go: skip swig tests on 386
+    
+    We recently added a C++ toolchain to the image, and this is causing
+    problems on 386 and clang builders. The likely culprit is that we're
+    missing 32-bit C++ libraries on the builders.
+    
+    Even if this theory is wrong, these tests *never* ran (always skipped,
+    or truly never ran) on these platforms, so just skip them for now. We
+    can look into getting the libraries installed later, but skip for now
+    to unblock the builders.
+    
+    There are also problems with clang, but I believe they'll be resolved by
+    setting CXX to clang++ in golangbuild.
+    
+    For #67698.
+    
+    Change-Id: I20fc1c5fa1285001ff86a4226771c30cf2e7f92d
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-386-clang15,gotip-linux-386
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588938
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cgo/internal/swig/swig_test.go      | 8 ++++++++
+ src/cmd/go/testdata/script/list_swigcxx.txt | 3 +++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/swig/swig_test.go b/src/cmd/cgo/internal/swig/swig_test.go
+index 41563138a7..1bb52b6efb 100644
+--- a/src/cmd/cgo/internal/swig/swig_test.go
++++ b/src/cmd/cgo/internal/swig/swig_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
++	"runtime"
+ 	"strconv"
+ 	"strings"
+ 	"sync"
+@@ -73,6 +74,13 @@ func mustHaveCxx(t *testing.T) {
+ 		t.Skip("no C++ compiler")
+ 	}
+ 	testenv.MustHaveExecPath(t, string(args[0]))
++
++	// On the builders, the C++ toolchain doesn't quite work for these tests
++	// for 386 builders or on the clang builders. Thing is, these tests historically
++	// didn't even run on these builders *at all*, so just skip. See #67698.
++	if builder := testenv.Builder(); builder != "" && runtime.GOARCH == "386" {
++		t.Skip("test skipped on 386 on builders because of incompatibility with the C++ toolchain available on builders; see go.dev/issue/67698")
++	}
+ }
+ 
+ var (
+diff --git a/src/cmd/go/testdata/script/list_swigcxx.txt b/src/cmd/go/testdata/script/list_swigcxx.txt
+index 731c1e5a7b..10510f6299 100644
+--- a/src/cmd/go/testdata/script/list_swigcxx.txt
++++ b/src/cmd/go/testdata/script/list_swigcxx.txt
+@@ -4,6 +4,9 @@
+ [!exec:g++] skip
+ [!cgo] skip
+ 
++# See go.dev/issue/67698.
++[GOARCH:386] skip
++
+ # CompiledGoFiles should contain 4 files:
+ #  a.go
+ #  _cgo_import.go [gc only]

@@ -1,0 +1,227 @@
+commit d69ab99f3f1765ebd496591fd8ca3f798e105d94
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Mar 26 14:14:38 2025 +0100
+
+    net: run unix socket stream tests on Windows
+    
+    The net package supports Unix domain sockets on Windows, but most of
+    the tests related to them are skipped.
+    
+    This CL unskip the SOCK_STREAM tests. SOCK_DGRAM probablye can also
+    make to work, but that will come in a follow-up CL.
+    
+    Change-Id: If9506a8af57e9bfe58bd7b48a98fc39335627a61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/net/platform_plan9_test.go   |  9 +++++++++
+ src/net/platform_test.go         | 29 ++++++-----------------------
+ src/net/platform_unix_test.go    | 40 ++++++++++++++++++++++++++++++++++++++++
+ src/net/platform_windows_test.go | 11 +++++++++++
+ src/net/rawconn_windows_test.go  |  5 +++++
+ src/net/unixsock_test.go         | 13 +++++++++++--
+ 6 files changed, 82 insertions(+), 25 deletions(-)
+
+diff --git a/src/net/platform_plan9_test.go b/src/net/platform_plan9_test.go
+new file mode 100644
+index 0000000000..e1ca0aadae
+--- /dev/null
++++ b/src/net/platform_plan9_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++func supportsUnixSocket() bool {
++	return false
++}
+diff --git a/src/net/platform_test.go b/src/net/platform_test.go
+index 709d4a3eb7..f8317104d0 100644
+--- a/src/net/platform_test.go
++++ b/src/net/platform_test.go
+@@ -7,30 +7,11 @@ package net
+ import (
+ 	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"runtime"
+-	"strconv"
+ 	"strings"
+ 	"testing"
+ )
+ 
+-var unixEnabledOnAIX bool
+-
+-func init() {
+-	if runtime.GOOS == "aix" {
+-		// Unix network isn't properly working on AIX 7.2 with
+-		// Technical Level < 2.
+-		// The information is retrieved only once in this init()
+-		// instead of everytime testableNetwork is called.
+-		out, _ := exec.Command("oslevel", "-s").Output()
+-		if len(out) >= len("7200-XX-ZZ-YYMM") { // AIX 7.2, Tech Level XX, Service Pack ZZ, date YYMM
+-			aixVer := string(out[:4])
+-			tl, _ := strconv.Atoi(string(out[5:7]))
+-			unixEnabledOnAIX = aixVer > "7200" || (aixVer == "7200" && tl >= 2)
+-		}
+-	}
+-}
+-
+ // testableNetwork reports whether network is testable on the current
+ // platform configuration.
+ func testableNetwork(network string) bool {
+@@ -46,13 +27,15 @@ func testableNetwork(network string) bool {
+ 				return false
+ 			}
+ 		}
+-	case "unix", "unixgram":
++	case "unixgram":
+ 		switch runtime.GOOS {
+-		case "android", "ios", "plan9", "windows":
++		case "windows":
+ 			return false
+-		case "aix":
+-			return unixEnabledOnAIX
++		default:
++			return supportsUnixSocket()
+ 		}
++	case "unix":
++		return supportsUnixSocket()
+ 	case "unixpacket":
+ 		switch runtime.GOOS {
+ 		case "aix", "android", "darwin", "ios", "plan9", "windows":
+diff --git a/src/net/platform_unix_test.go b/src/net/platform_unix_test.go
+new file mode 100644
+index 0000000000..b6b3a5549d
+--- /dev/null
++++ b/src/net/platform_unix_test.go
+@@ -0,0 +1,40 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix || js || wasip1
++
++package net
++
++import (
++	"os/exec"
++	"runtime"
++	"strconv"
++)
++
++var unixEnabledOnAIX bool
++
++func init() {
++	if runtime.GOOS == "aix" {
++		// Unix network isn't properly working on AIX 7.2 with
++		// Technical Level < 2.
++		// The information is retrieved only once in this init()
++		// instead of everytime testableNetwork is called.
++		out, _ := exec.Command("oslevel", "-s").Output()
++		if len(out) >= len("7200-XX-ZZ-YYMM") { // AIX 7.2, Tech Level XX, Service Pack ZZ, date YYMM
++			aixVer := string(out[:4])
++			tl, _ := strconv.Atoi(string(out[5:7]))
++			unixEnabledOnAIX = aixVer > "7200" || (aixVer == "7200" && tl >= 2)
++		}
++	}
++}
++
++func supportsUnixSocket() bool {
++	switch runtime.GOOS {
++	case "android", "ios":
++		return false
++	case "aix":
++		return unixEnabledOnAIX
++	}
++	return true
++}
+diff --git a/src/net/platform_windows_test.go b/src/net/platform_windows_test.go
+new file mode 100644
+index 0000000000..ec2c861e80
+--- /dev/null
++++ b/src/net/platform_windows_test.go
+@@ -0,0 +1,11 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "internal/syscall/windows"
++
++func supportsUnixSocket() bool {
++	return windows.SupportUnixSocket()
++}
+diff --git a/src/net/rawconn_windows_test.go b/src/net/rawconn_windows_test.go
+index 5febf08f77..ebfec3499a 100644
+--- a/src/net/rawconn_windows_test.go
++++ b/src/net/rawconn_windows_test.go
+@@ -95,6 +95,11 @@ func controlOnConnSetup(network string, address string, c syscall.RawConn) error
+ 	switch network {
+ 	case "tcp", "udp", "ip":
+ 		return errors.New("ambiguous network: " + network)
++	case "unix", "unixpacket", "unixgram":
++		fn = func(s uintptr) {
++			const SO_ERROR = 0x1007
++			_, operr = syscall.GetsockoptInt(syscall.Handle(s), syscall.SOL_SOCKET, SO_ERROR)
++		}
+ 	default:
+ 		switch network[len(network)-1] {
+ 		case '4':
+diff --git a/src/net/unixsock_test.go b/src/net/unixsock_test.go
+index 6906ecc046..1bbe53db10 100644
+--- a/src/net/unixsock_test.go
++++ b/src/net/unixsock_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !plan9 && !windows
++//go:build !plan9
+ 
+ package net
+ 
+@@ -282,7 +282,7 @@ func TestUnixConnLocalAndRemoteNames(t *testing.T) {
+ 		}
+ 
+ 		switch runtime.GOOS {
+-		case "android", "linux":
++		case "android", "linux", "windows":
+ 			if laddr == "" {
+ 				laddr = "@" // autobind feature
+ 			}
+@@ -398,6 +398,9 @@ func TestUnixUnlink(t *testing.T) {
+ 
+ 	// FileListener should not.
+ 	t.Run("FileListener", func(t *testing.T) {
++		if runtime.GOOS == "windows" {
++			t.Skip("skipping: FileListener not implemented on windows")
++		}
+ 		l := listen(t)
+ 		f, _ := l.File()
+ 		l1, _ := FileListener(f)
+@@ -445,6 +448,9 @@ func TestUnixUnlink(t *testing.T) {
+ 	})
+ 
+ 	t.Run("FileListener/SetUnlinkOnClose(true)", func(t *testing.T) {
++		if runtime.GOOS == "windows" {
++			t.Skip("skipping: FileListener not implemented on windows")
++		}
+ 		l := listen(t)
+ 		f, _ := l.File()
+ 		l1, _ := FileListener(f)
+@@ -458,6 +464,9 @@ func TestUnixUnlink(t *testing.T) {
+ 	})
+ 
+ 	t.Run("FileListener/SetUnlinkOnClose(false)", func(t *testing.T) {
++		if runtime.GOOS == "windows" {
++			t.Skip("skipping: FileListener not implemented on windows")
++		}
+ 		l := listen(t)
+ 		f, _ := l.File()
+ 		l1, _ := FileListener(f)

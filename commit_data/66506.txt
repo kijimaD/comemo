@@ -1,0 +1,32 @@
+commit 817218a26c39911176c0d67258c637459f8d2fca
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat Mar 8 18:32:14 2025 -0800
+
+    net/http: document Redirect behavior for non-ASCII characters
+    
+    For #4385
+    For #72745
+    
+    Change-Id: Ibd54fc03467eb948001299001bb2e2529512a7c0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656135
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/net/http/server.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 2daf9d38e3..be25e9a450 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2362,6 +2362,8 @@ func StripPrefix(prefix string, h Handler) Handler {
+ 
+ // Redirect replies to the request with a redirect to url,
+ // which may be a path relative to the request path.
++// Any non-ASCII characters in url will be percent-encoded,
++// but existing percent encodings will not be changed.
+ //
+ // The provided code should be in the 3xx range and is usually
+ // [StatusMovedPermanently], [StatusFound] or [StatusSeeOther].

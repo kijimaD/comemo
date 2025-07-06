@@ -1,0 +1,23 @@
+commit 4b3a0b9785452879e5e4cb175df0bcd85463b093
+Merge: 5abb1d84f8 da0e8c4517
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 9 12:41:15 2025 -0400
+
+    [release-branch.go1.25] all: merge master (da0e8c4) into release-branch.go1.25
+    
+    Merge List:
+    
+    + 2025-06-09 da0e8c4517 cmd/compile: relax reshaping condition
+    + 2025-06-09 7800f4f0ad log/slog: fix level doc on handlers
+    + 2025-06-07 d184f8dc02 runtime: check for gsignal in racecall on loong64
+    + 2025-06-06 0ccfbc834a os/signal: doc link to syscall.EPIPE
+    
+    Change-Id: I4e3cfdb4769207ba87788da1650ed2a1f731ed86
+
+ src/cmd/compile/internal/noder/reader.go       |  20 +++-
+ src/cmd/compile/testdata/script/issue73947.txt | 125 +++++++++++++++++++++++++
+ src/log/slog/json_handler.go                   |   4 +-
+ src/log/slog/text_handler.go                   |   4 +-
+ src/os/signal/doc.go                           |   7 +-
+ src/runtime/race_loong64.s                     |   7 +-
+ 6 files changed, 156 insertions(+), 11 deletions(-)

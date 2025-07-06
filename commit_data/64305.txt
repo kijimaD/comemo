@@ -1,0 +1,274 @@
+commit 05861ff90cfc855620d0dcbd1d6cc488ebf04880
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:47:14 2024 +0000
+
+    os,path/filepath,testing: use slices to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal which is much faster.
+    
+    Change-Id: I299db6f998738174983731f08c1021346b87dfaa
+    GitHub-Last-Rev: 44ca9015d6af4e0fbe8d23c93b3f2da08a2d7728
+    GitHub-Pull-Request: golang/go#67613
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587938
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/os/env_test.go                     | 4 ++--
+ src/os/exec/env_test.go                | 4 ++--
+ src/os/exec/exec_posix_test.go         | 6 +++---
+ src/os/os_test.go                      | 5 ++---
+ src/os/os_windows_test.go              | 3 +--
+ src/path/filepath/match_test.go        | 3 +--
+ src/path/filepath/path_test.go         | 6 +++---
+ src/path/filepath/path_windows_test.go | 4 ++--
+ src/testing/fstest/testfs.go           | 3 +--
+ src/testing/sub_test.go                | 4 ++--
+ 10 files changed, 19 insertions(+), 23 deletions(-)
+
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index 5809f4b866..e3de64196a 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -6,7 +6,7 @@ package os_test
+ 
+ import (
+ 	. "os"
+-	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -91,7 +91,7 @@ func TestConsistentEnviron(t *testing.T) {
+ 	e0 := Environ()
+ 	for i := 0; i < 10; i++ {
+ 		e1 := Environ()
+-		if !reflect.DeepEqual(e0, e1) {
++		if !slices.Equal(e0, e1) {
+ 			t.Fatalf("environment changed")
+ 		}
+ 	}
+diff --git a/src/os/exec/env_test.go b/src/os/exec/env_test.go
+index ea06af3885..9fd022b2ee 100644
+--- a/src/os/exec/env_test.go
++++ b/src/os/exec/env_test.go
+@@ -5,7 +5,7 @@
+ package exec
+ 
+ import (
+-	"reflect"
++	"slices"
+ 	"testing"
+ )
+ 
+@@ -60,7 +60,7 @@ func TestDedupEnv(t *testing.T) {
+ 	}
+ 	for _, tt := range tests {
+ 		got, err := dedupEnvCase(tt.noCase, tt.nulOK, tt.in)
+-		if !reflect.DeepEqual(got, tt.want) || (err != nil) != tt.wantErr {
++		if !slices.Equal(got, tt.want) || (err != nil) != tt.wantErr {
+ 			t.Errorf("Dedup(%v, %q) = %q, %v; want %q, error:%v", tt.noCase, tt.in, got, err, tt.want, tt.wantErr)
+ 		}
+ 	}
+diff --git a/src/os/exec/exec_posix_test.go b/src/os/exec/exec_posix_test.go
+index 5d828b3475..45604203dd 100644
+--- a/src/os/exec/exec_posix_test.go
++++ b/src/os/exec/exec_posix_test.go
+@@ -13,8 +13,8 @@ import (
+ 	"os"
+ 	"os/user"
+ 	"path/filepath"
+-	"reflect"
+ 	"runtime"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"syscall"
+@@ -184,7 +184,7 @@ func TestImplicitPWD(t *testing.T) {
+ 					wantPWDs = nil
+ 				}
+ 			}
+-			if !reflect.DeepEqual(pwds, wantPWDs) {
++			if !slices.Equal(pwds, wantPWDs) {
+ 				t.Errorf("PWD entries in cmd.Environ():\n\t%s\nwant:\n\t%s", strings.Join(pwds, "\n\t"), strings.Join(wantPWDs, "\n\t"))
+ 			}
+ 
+@@ -257,7 +257,7 @@ func TestExplicitPWD(t *testing.T) {
+ 			}
+ 
+ 			wantPWDs := []string{tc.pwd}
+-			if !reflect.DeepEqual(pwds, wantPWDs) {
++			if !slices.Equal(pwds, wantPWDs) {
+ 				t.Errorf("PWD entries in cmd.Environ():\n\t%s\nwant:\n\t%s", strings.Join(pwds, "\n\t"), strings.Join(wantPWDs, "\n\t"))
+ 			}
+ 
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 5a36abd7c6..46c4f138c3 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -16,7 +16,6 @@ import (
+ 	. "os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"reflect"
+ 	"runtime"
+ 	"runtime/debug"
+ 	"slices"
+@@ -805,13 +804,13 @@ func TestReaddirStatFailures(t *testing.T) {
+ 	}
+ 
+ 	if got, want := names(mustReadDir("initial readdir")),
+-		[]string{"good1", "good2", "x"}; !reflect.DeepEqual(got, want) {
++		[]string{"good1", "good2", "x"}; !slices.Equal(got, want) {
+ 		t.Errorf("initial readdir got %q; want %q", got, want)
+ 	}
+ 
+ 	xerr = ErrNotExist
+ 	if got, want := names(mustReadDir("with x disappearing")),
+-		[]string{"good1", "good2"}; !reflect.DeepEqual(got, want) {
++		[]string{"good1", "good2"}; !slices.Equal(got, want) {
+ 		t.Errorf("with x disappearing, got %q; want %q", got, want)
+ 	}
+ 
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index caff011122..4a8d0d07ef 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -17,7 +17,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"reflect"
+ 	"runtime"
+ 	"slices"
+ 	"strings"
+@@ -778,7 +777,7 @@ func TestReadStdin(t *testing.T) {
+ 					for len(want) < 5 {
+ 						want = append(want, "")
+ 					}
+-					if !reflect.DeepEqual(all, want) {
++					if !slices.Equal(all, want) {
+ 						t.Errorf("reading %q:\nhave %x\nwant %x", s, all, want)
+ 					}
+ 				})
+diff --git a/src/path/filepath/match_test.go b/src/path/filepath/match_test.go
+index c6b1c50520..3cee92f8ae 100644
+--- a/src/path/filepath/match_test.go
++++ b/src/path/filepath/match_test.go
+@@ -9,7 +9,6 @@ import (
+ 	"internal/testenv"
+ 	"os"
+ 	. "path/filepath"
+-	"reflect"
+ 	"runtime"
+ 	"slices"
+ 	"strings"
+@@ -367,7 +366,7 @@ func TestNonWindowsGlobEscape(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Glob error for %q: %s", pattern, err)
+ 	}
+-	if !reflect.DeepEqual(matches, want) {
++	if !slices.Equal(matches, want) {
+ 		t.Fatalf("Glob(%#q) = %v want %v", pattern, matches, want)
+ 	}
+ }
+diff --git a/src/path/filepath/path_test.go b/src/path/filepath/path_test.go
+index b24f39c5aa..5d3cbc991f 100644
+--- a/src/path/filepath/path_test.go
++++ b/src/path/filepath/path_test.go
+@@ -364,7 +364,7 @@ func TestSplitList(t *testing.T) {
+ 		tests = append(tests, winsplitlisttests...)
+ 	}
+ 	for _, test := range tests {
+-		if l := filepath.SplitList(test.list); !reflect.DeepEqual(l, test.result) {
++		if l := filepath.SplitList(test.list); !slices.Equal(l, test.result) {
+ 			t.Errorf("SplitList(%#q) = %#q, want %#q", test.list, l, test.result)
+ 		}
+ 	}
+@@ -1004,7 +1004,7 @@ func TestWalkSymlinkRoot(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 
+-			if !reflect.DeepEqual(walked, tt.want) {
++			if !slices.Equal(walked, tt.want) {
+ 				t.Logf("Walk(%#q) visited %#q; want %#q", tt.root, walked, tt.want)
+ 				if slices.Contains(tt.buggyGOOS, runtime.GOOS) {
+ 					t.Logf("(ignoring known bug on %v)", runtime.GOOS)
+@@ -1950,7 +1950,7 @@ func TestIssue51617(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	want := []string{".", "a", filepath.Join("a", "bad"), filepath.Join("a", "next")}
+-	if !reflect.DeepEqual(saw, want) {
++	if !slices.Equal(saw, want) {
+ 		t.Errorf("got directories %v, want %v", saw, want)
+ 	}
+ }
+diff --git a/src/path/filepath/path_windows_test.go b/src/path/filepath/path_windows_test.go
+index 2862f390d0..603b179405 100644
+--- a/src/path/filepath/path_windows_test.go
++++ b/src/path/filepath/path_windows_test.go
+@@ -13,8 +13,8 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
+-	"reflect"
+ 	"runtime/debug"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -83,7 +83,7 @@ func testWinSplitListTestIsValid(t *testing.T, ti int, tt SplitListTest,
+ 		case err != nil:
+ 			t.Errorf("%d,%d: execution error %v\n%q", ti, i, err, out)
+ 			return
+-		case !reflect.DeepEqual(out, exp):
++		case !slices.Equal(out, exp):
+ 			t.Errorf("%d,%d: expected %#q, got %#q", ti, i, exp, out)
+ 			return
+ 		default:
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index 080bcdd65f..76a2cff62d 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -11,7 +11,6 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"path"
+-	"reflect"
+ 	"slices"
+ 	"strings"
+ 	"testing/iotest"
+@@ -358,7 +357,7 @@ func (t *fsTester) checkGlob(dir string, list []fs.DirEntry) {
+ 		t.errorf("%s: Glob(%#q): %w", dir, glob, err)
+ 		return
+ 	}
+-	if reflect.DeepEqual(want, names) {
++	if slices.Equal(want, names) {
+ 		return
+ 	}
+ 
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 1c23d054a0..90c2afe605 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -7,9 +7,9 @@ package testing
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"reflect"
+ 	"regexp"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 	"sync/atomic"
+@@ -886,7 +886,7 @@ func TestCleanup(t *T) {
+ 		t.Cleanup(func() { cleanups = append(cleanups, 1) })
+ 		t.Cleanup(func() { cleanups = append(cleanups, 2) })
+ 	})
+-	if got, want := cleanups, []int{2, 1}; !reflect.DeepEqual(got, want) {
++	if got, want := cleanups, []int{2, 1}; !slices.Equal(got, want) {
+ 		t.Errorf("unexpected cleanup record; got %v want %v", got, want)
+ 	}
+ }

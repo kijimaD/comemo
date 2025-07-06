@@ -1,0 +1,48 @@
+commit 06b191e11f6f78b19e5c5a43b3d0c461226c7084
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Sat Dec 21 00:07:34 2024 -0500
+
+    internal/syscall/unix: apply fstatat fix to linux/mips64le
+    
+    Apply CL 633280 to linux/mips64le, as it has the same struct as
+    mips64.
+    
+    Updates #70659.
+    
+    Change-Id: Ibab635e69e44682eb214bf6a00f4cd75816b2d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637739
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/syscall/unix/at_fstatat.go  | 2 +-
+ src/internal/syscall/unix/at_fstatat2.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at_fstatat.go b/src/internal/syscall/unix/at_fstatat.go
+index 217e19a776..18cd62be20 100644
+--- a/src/internal/syscall/unix/at_fstatat.go
++++ b/src/internal/syscall/unix/at_fstatat.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build dragonfly || (linux && !(loong64 || mips64)) || netbsd || (openbsd && mips64)
++//go:build dragonfly || (linux && !(loong64 || mips64 || mips64le)) || netbsd || (openbsd && mips64)
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/at_fstatat2.go b/src/internal/syscall/unix/at_fstatat2.go
+index b18098b7d3..b09aecbcdd 100644
+--- a/src/internal/syscall/unix/at_fstatat2.go
++++ b/src/internal/syscall/unix/at_fstatat2.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build freebsd || (linux && (loong64 || mips64))
++//go:build freebsd || (linux && (loong64 || mips64 || mips64le))
+ 
+ package unix
+ 

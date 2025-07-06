@@ -1,0 +1,1093 @@
+commit 312e7e9f8a85bbab449daae6ebe969ad1d4f0840
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Oct 2 11:37:38 2024 +0200
+
+    crypto/internal/fips/sha3: restructure as an internal package
+    
+    Main changes are
+    
+        - return concrete *Digest and *SHAKE instead of interfaces
+    
+        - make tests external (sha3_test) so they will be easy to move to
+          the public package
+    
+        - drop most of the developer guidance docs (to be updated and
+          reintroduced in the public package)
+    
+        - consolidate the _noasm.go files (matching the single _s390x.go)
+    
+        - move TestAllocations from build tags to testenv
+    
+        - temporarily disable s390x code, to refactor in a following CL
+    
+    For #69536
+    
+    Change-Id: Ie5fd3e2b589b9eb835b9e3174b7a79c2ac728ab1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617357
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+---
+ src/crypto/internal/fips/hmac/hmac.go             |   4 +-
+ src/crypto/internal/fips/sha3/allocations_test.go |  60 --------
+ src/crypto/internal/fips/sha3/doc.go              |  66 ---------
+ src/crypto/internal/fips/sha3/hashes.go           |  98 ++++---------
+ src/crypto/internal/fips/sha3/hashes_noasm.go     |  23 ----
+ src/crypto/internal/fips/sha3/sha3.go             |  52 +++----
+ src/crypto/internal/fips/sha3/sha3_noasm.go       |  31 +++++
+ src/crypto/internal/fips/sha3/sha3_s390x.go       |  15 +-
+ src/crypto/internal/fips/sha3/sha3_s390x.s        |   2 +-
+ src/crypto/internal/fips/sha3/sha3_test.go        | 130 +++++++++++++++---
+ src/crypto/internal/fips/sha3/shake.go            | 160 +++++++++-------------
+ src/crypto/internal/fips/sha3/shake_noasm.go      |  15 --
+ 12 files changed, 264 insertions(+), 392 deletions(-)
+
+diff --git a/src/crypto/internal/fips/hmac/hmac.go b/src/crypto/internal/fips/hmac/hmac.go
+index 8c795927d1..ab0b2c29e7 100644
+--- a/src/crypto/internal/fips/hmac/hmac.go
++++ b/src/crypto/internal/fips/hmac/hmac.go
+@@ -10,6 +10,7 @@ package hmac
+ import (
+ 	"crypto/internal/fips"
+ 	"crypto/internal/fips/sha256"
++	"crypto/internal/fips/sha3"
+ 	"crypto/internal/fips/sha512"
+ )
+ 
+@@ -158,8 +159,7 @@ func setServiceIndicator(h fips.Hash, key []byte) {
+ 	}
+ 
+ 	switch h.(type) {
+-	case *sha256.Digest, *sha512.Digest:
+-	// TODO(fips): SHA-3
++	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
+ 	default:
+ 		return
+ 	}
+diff --git a/src/crypto/internal/fips/sha3/allocations_test.go b/src/crypto/internal/fips/sha3/allocations_test.go
+deleted file mode 100644
+index 4f5bc6be35..0000000000
+--- a/src/crypto/internal/fips/sha3/allocations_test.go
++++ /dev/null
+@@ -1,60 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !noopt
+-
+-package sha3_test
+-
+-import (
+-	"crypto/internal/fips/sha3"
+-	"runtime"
+-	"testing"
+-)
+-
+-var sink byte
+-
+-func TestAllocations(t *testing.T) {
+-	want := 0.0
+-
+-	if runtime.GOARCH == "s390x" {
+-		// On s390x the returned hash.Hash is conditional so it escapes.
+-		want = 3.0
+-	}
+-
+-	t.Run("New", func(t *testing.T) {
+-		if allocs := testing.AllocsPerRun(10, func() {
+-			h := sha3.New256()
+-			b := []byte("ABC")
+-			h.Write(b)
+-			out := make([]byte, 0, 32)
+-			out = h.Sum(out)
+-			sink ^= out[0]
+-		}); allocs > want {
+-			t.Errorf("expected zero allocations, got %0.1f", allocs)
+-		}
+-	})
+-	t.Run("NewShake", func(t *testing.T) {
+-		if allocs := testing.AllocsPerRun(10, func() {
+-			h := sha3.NewShake128()
+-			b := []byte("ABC")
+-			h.Write(b)
+-			out := make([]byte, 0, 32)
+-			out = h.Sum(out)
+-			sink ^= out[0]
+-			h.Read(out)
+-			sink ^= out[0]
+-		}); allocs > want {
+-			t.Errorf("expected zero allocations, got %0.1f", allocs)
+-		}
+-	})
+-	t.Run("Sum", func(t *testing.T) {
+-		if allocs := testing.AllocsPerRun(10, func() {
+-			b := []byte("ABC")
+-			out := sha3.Sum256(b)
+-			sink ^= out[0]
+-		}); allocs > want {
+-			t.Errorf("expected zero allocations, got %0.1f", allocs)
+-		}
+-	})
+-}
+diff --git a/src/crypto/internal/fips/sha3/doc.go b/src/crypto/internal/fips/sha3/doc.go
+deleted file mode 100644
+index bbf391fe6e..0000000000
+--- a/src/crypto/internal/fips/sha3/doc.go
++++ /dev/null
+@@ -1,66 +0,0 @@
+-// Copyright 2014 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package sha3 implements the SHA-3 fixed-output-length hash functions and
+-// the SHAKE variable-output-length hash functions defined by FIPS-202.
+-//
+-// All types in this package also implement [encoding.BinaryMarshaler],
+-// [encoding.BinaryAppender] and [encoding.BinaryUnmarshaler] to marshal and
+-// unmarshal the internal state of the hash.
+-//
+-// Both types of hash function use the "sponge" construction and the Keccak
+-// permutation. For a detailed specification see http://keccak.noekeon.org/
+-//
+-// # Guidance
+-//
+-// If you aren't sure what function you need, use SHAKE256 with at least 64
+-// bytes of output. The SHAKE instances are faster than the SHA3 instances;
+-// the latter have to allocate memory to conform to the hash.Hash interface.
+-//
+-// If you need a secret-key MAC (message authentication code), prepend the
+-// secret key to the input, hash with SHAKE256 and read at least 32 bytes of
+-// output.
+-//
+-// # Security strengths
+-//
+-// The SHA3-x (x equals 224, 256, 384, or 512) functions have a security
+-// strength against preimage attacks of x bits. Since they only produce "x"
+-// bits of output, their collision-resistance is only "x/2" bits.
+-//
+-// The SHAKE-256 and -128 functions have a generic security strength of 256 and
+-// 128 bits against all attacks, provided that at least 2x bits of their output
+-// is used.  Requesting more than 64 or 32 bytes of output, respectively, does
+-// not increase the collision-resistance of the SHAKE functions.
+-//
+-// # The sponge construction
+-//
+-// A sponge builds a pseudo-random function from a public pseudo-random
+-// permutation, by applying the permutation to a state of "rate + capacity"
+-// bytes, but hiding "capacity" of the bytes.
+-//
+-// A sponge starts out with a zero state. To hash an input using a sponge, up
+-// to "rate" bytes of the input are XORed into the sponge's state. The sponge
+-// is then "full" and the permutation is applied to "empty" it. This process is
+-// repeated until all the input has been "absorbed". The input is then padded.
+-// The digest is "squeezed" from the sponge in the same way, except that output
+-// is copied out instead of input being XORed in.
+-//
+-// A sponge is parameterized by its generic security strength, which is equal
+-// to half its capacity; capacity + rate is equal to the permutation's width.
+-// Since the KeccakF-1600 permutation is 1600 bits (200 bytes) wide, this means
+-// that the security strength of a sponge instance is equal to (1600 - bitrate) / 2.
+-//
+-// # Recommendations
+-//
+-// The SHAKE functions are recommended for most new uses. They can produce
+-// output of arbitrary length. SHAKE256, with an output length of at least
+-// 64 bytes, provides 256-bit security against all attacks.  The Keccak team
+-// recommends it for most applications upgrading from SHA2-512. (NIST chose a
+-// much stronger, but much slower, sponge instance for SHA3-512.)
+-//
+-// The SHA-3 functions are "drop-in" replacements for the SHA-2 functions.
+-// They produce output of the same length, with the same security strengths
+-// against all attacks. This means, in particular, that SHA3-256 only has
+-// 128-bit collision resistance, because its output length is 32 bytes.
+-package sha3
+diff --git a/src/crypto/internal/fips/sha3/hashes.go b/src/crypto/internal/fips/sha3/hashes.go
+index 24014a2545..b3d4b0a39a 100644
+--- a/src/crypto/internal/fips/sha3/hashes.go
++++ b/src/crypto/internal/fips/sha3/hashes.go
+@@ -4,37 +4,23 @@
+ 
+ package sha3
+ 
+-// This file provides functions for creating instances of the SHA-3
+-// and SHAKE hash functions, as well as utility functions for hashing
+-// bytes.
+-
+-import "crypto/internal/fips"
+-
+-// New224 creates a new SHA3-224 hash.
+-// Its generic security strength is 224 bits against preimage attacks,
+-// and 112 bits against collision attacks.
+-func New224() fips.Hash {
++// New224 returns a new Digest computing the SHA3-224 hash.
++func New224() *Digest {
+ 	return new224()
+ }
+ 
+-// New256 creates a new SHA3-256 hash.
+-// Its generic security strength is 256 bits against preimage attacks,
+-// and 128 bits against collision attacks.
+-func New256() fips.Hash {
++// New256 returns a new Digest computing the SHA3-256 hash.
++func New256() *Digest {
+ 	return new256()
+ }
+ 
+-// New384 creates a new SHA3-384 hash.
+-// Its generic security strength is 384 bits against preimage attacks,
+-// and 192 bits against collision attacks.
+-func New384() fips.Hash {
++// New384 returns a new Digest computing the SHA3-384 hash.
++func New384() *Digest {
+ 	return new384()
+ }
+ 
+-// New512 creates a new SHA3-512 hash.
+-// Its generic security strength is 512 bits against preimage attacks,
+-// and 256 bits against collision attacks.
+-func New512() fips.Hash {
++// New512 returns a new Digest computing the SHA3-512 hash.
++func New512() *Digest {
+ 	return new512()
+ }
+ 
+@@ -60,66 +46,30 @@ const (
+ 	rateK1024 = (1600 - 1024) / 8
+ )
+ 
+-func new224Generic() *state {
+-	return &state{rate: rateK448, outputLen: 28, dsbyte: dsbyteSHA3}
+-}
+-
+-func new256Generic() *state {
+-	return &state{rate: rateK512, outputLen: 32, dsbyte: dsbyteSHA3}
+-}
+-
+-func new384Generic() *state {
+-	return &state{rate: rateK768, outputLen: 48, dsbyte: dsbyteSHA3}
++func new224Generic() *Digest {
++	return &Digest{rate: rateK448, outputLen: 28, dsbyte: dsbyteSHA3}
+ }
+ 
+-func new512Generic() *state {
+-	return &state{rate: rateK1024, outputLen: 64, dsbyte: dsbyteSHA3}
+-}
+-
+-// NewLegacyKeccak256 creates a new Keccak-256 hash.
+-//
+-// Only use this function if you require compatibility with an existing cryptosystem
+-// that uses non-standard padding. All other users should use New256 instead.
+-func NewLegacyKeccak256() fips.Hash {
+-	return &state{rate: rateK512, outputLen: 32, dsbyte: dsbyteKeccak}
+-}
+-
+-// NewLegacyKeccak512 creates a new Keccak-512 hash.
+-//
+-// Only use this function if you require compatibility with an existing cryptosystem
+-// that uses non-standard padding. All other users should use New512 instead.
+-func NewLegacyKeccak512() fips.Hash {
+-	return &state{rate: rateK1024, outputLen: 64, dsbyte: dsbyteKeccak}
++func new256Generic() *Digest {
++	return &Digest{rate: rateK512, outputLen: 32, dsbyte: dsbyteSHA3}
+ }
+ 
+-// Sum224 returns the SHA3-224 digest of the data.
+-func Sum224(data []byte) (digest [28]byte) {
+-	h := New224()
+-	h.Write(data)
+-	h.Sum(digest[:0])
+-	return
++func new384Generic() *Digest {
++	return &Digest{rate: rateK768, outputLen: 48, dsbyte: dsbyteSHA3}
+ }
+ 
+-// Sum256 returns the SHA3-256 digest of the data.
+-func Sum256(data []byte) (digest [32]byte) {
+-	h := New256()
+-	h.Write(data)
+-	h.Sum(digest[:0])
+-	return
++func new512Generic() *Digest {
++	return &Digest{rate: rateK1024, outputLen: 64, dsbyte: dsbyteSHA3}
+ }
+ 
+-// Sum384 returns the SHA3-384 digest of the data.
+-func Sum384(data []byte) (digest [48]byte) {
+-	h := New384()
+-	h.Write(data)
+-	h.Sum(digest[:0])
+-	return
++// NewLegacyKeccak256 returns a new Digest computing the legacy, non-standard
++// Keccak-256 hash.
++func NewLegacyKeccak256() *Digest {
++	return &Digest{rate: rateK512, outputLen: 32, dsbyte: dsbyteKeccak}
+ }
+ 
+-// Sum512 returns the SHA3-512 digest of the data.
+-func Sum512(data []byte) (digest [64]byte) {
+-	h := New512()
+-	h.Write(data)
+-	h.Sum(digest[:0])
+-	return
++// NewLegacyKeccak512 returns a new Digest computing the legacy, non-standard
++// Keccak-512 hash.
++func NewLegacyKeccak512() *Digest {
++	return &Digest{rate: rateK1024, outputLen: 64, dsbyte: dsbyteKeccak}
+ }
+diff --git a/src/crypto/internal/fips/sha3/hashes_noasm.go b/src/crypto/internal/fips/sha3/hashes_noasm.go
+deleted file mode 100644
+index 9d85fb6214..0000000000
+--- a/src/crypto/internal/fips/sha3/hashes_noasm.go
++++ /dev/null
+@@ -1,23 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !gc || purego || !s390x
+-
+-package sha3
+-
+-func new224() *state {
+-	return new224Generic()
+-}
+-
+-func new256() *state {
+-	return new256Generic()
+-}
+-
+-func new384() *state {
+-	return new384Generic()
+-}
+-
+-func new512() *state {
+-	return new512Generic()
+-}
+diff --git a/src/crypto/internal/fips/sha3/sha3.go b/src/crypto/internal/fips/sha3/sha3.go
+index 7ef08a5a3a..8f80839ec6 100644
+--- a/src/crypto/internal/fips/sha3/sha3.go
++++ b/src/crypto/internal/fips/sha3/sha3.go
+@@ -2,6 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Package sha3 implements the SHA-3 fixed-output-length hash functions and
++// the SHAKE variable-output-length functions defined by [FIPS 202], as well as
++// the cSHAKE extendable-output-length functions defined by [SP 800-185].
++//
++// [FIPS 202]: https://doi.org/10.6028/NIST.FIPS.202
++// [SP 800-185]: https://doi.org/10.6028/NIST.SP.800-185
+ package sha3
+ 
+ import (
+@@ -22,7 +28,7 @@ const (
+ 	spongeSqueezing
+ )
+ 
+-type state struct {
++type Digest struct {
+ 	a [1600 / 8]byte // main state of the hash
+ 
+ 	// a[n:rate] is the buffer. If absorbing, it's the remaining space to XOR
+@@ -49,14 +55,13 @@ type state struct {
+ }
+ 
+ // BlockSize returns the rate of sponge underlying this hash function.
+-func (d *state) BlockSize() int { return d.rate }
++func (d *Digest) BlockSize() int { return d.rate }
+ 
+ // Size returns the output size of the hash function in bytes.
+-func (d *state) Size() int { return d.outputLen }
++func (d *Digest) Size() int { return d.outputLen }
+ 
+-// Reset clears the internal state by zeroing the sponge state and
+-// the buffer indexes, and setting Sponge.state to absorbing.
+-func (d *state) Reset() {
++// Reset resets the Digest to its initial state.
++func (d *Digest) Reset() {
+ 	// Zero the permutation's state.
+ 	for i := range d.a {
+ 		d.a[i] = 0
+@@ -65,13 +70,13 @@ func (d *state) Reset() {
+ 	d.n = 0
+ }
+ 
+-func (d *state) clone() *state {
++func (d *Digest) Clone() *Digest {
+ 	ret := *d
+ 	return &ret
+ }
+ 
+ // permute applies the KeccakF-1600 permutation.
+-func (d *state) permute() {
++func (d *Digest) permute() {
+ 	var a *[25]uint64
+ 	if goarch.BigEndian {
+ 		a = new([25]uint64)
+@@ -92,9 +97,9 @@ func (d *state) permute() {
+ 	}
+ }
+ 
+-// pads appends the domain separation bits in dsbyte, applies
++// padAndPermute appends the domain separation bits in dsbyte, applies
+ // the multi-bitrate 10..1 padding rule, and permutes the state.
+-func (d *state) padAndPermute() {
++func (d *Digest) padAndPermute() {
+ 	// Pad with this instance's domain-separator bits. We know that there's
+ 	// at least one byte of space in the sponge because, if it were full,
+ 	// permute would have been called to empty it. dsbyte also contains the
+@@ -109,9 +114,8 @@ func (d *state) padAndPermute() {
+ 	d.state = spongeSqueezing
+ }
+ 
+-// Write absorbs more data into the hash's state. It panics if any
+-// output has already been read.
+-func (d *state) Write(p []byte) (n int, err error) {
++// Write absorbs more data into the hash's state.
++func (d *Digest) Write(p []byte) (n int, err error) {
+ 	if d.state != spongeAbsorbing {
+ 		panic("sha3: Write after Read")
+ 	}
+@@ -132,8 +136,8 @@ func (d *state) Write(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// Read squeezes an arbitrary number of bytes from the sponge.
+-func (d *state) Read(out []byte) (n int, err error) {
++// read squeezes an arbitrary number of bytes from the sponge.
++func (d *Digest) read(out []byte) (n int, err error) {
+ 	// If we're still absorbing, pad and apply the permutation.
+ 	if d.state == spongeAbsorbing {
+ 		d.padAndPermute()
+@@ -156,19 +160,19 @@ func (d *state) Read(out []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// Sum applies padding to the hash state and then squeezes out the desired
+-// number of output bytes. It panics if any output has already been read.
+-func (d *state) Sum(in []byte) []byte {
++// Sum appends the current hash to b and returns the resulting slice.
++// It does not change the underlying hash state.
++func (d *Digest) Sum(b []byte) []byte {
+ 	if d.state != spongeAbsorbing {
+ 		panic("sha3: Sum after Read")
+ 	}
+ 
+ 	// Make a copy of the original hash so that caller can keep writing
+ 	// and summing.
+-	dup := d.clone()
++	dup := d.Clone()
+ 	hash := make([]byte, dup.outputLen, 64) // explicit cap to allow stack allocation
+-	dup.Read(hash)
+-	return append(in, hash...)
++	dup.read(hash)
++	return append(b, hash...)
+ }
+ 
+ const (
+@@ -180,11 +184,11 @@ const (
+ 	marshaledSize = len(magicSHA3) + 1 + 200 + 1 + 1
+ )
+ 
+-func (d *state) MarshalBinary() ([]byte, error) {
++func (d *Digest) MarshalBinary() ([]byte, error) {
+ 	return d.AppendBinary(make([]byte, 0, marshaledSize))
+ }
+ 
+-func (d *state) AppendBinary(b []byte) ([]byte, error) {
++func (d *Digest) AppendBinary(b []byte) ([]byte, error) {
+ 	switch d.dsbyte {
+ 	case dsbyteSHA3:
+ 		b = append(b, magicSHA3...)
+@@ -204,7 +208,7 @@ func (d *state) AppendBinary(b []byte) ([]byte, error) {
+ 	return b, nil
+ }
+ 
+-func (d *state) UnmarshalBinary(b []byte) error {
++func (d *Digest) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize {
+ 		return errors.New("sha3: invalid hash state")
+ 	}
+diff --git a/src/crypto/internal/fips/sha3/sha3_noasm.go b/src/crypto/internal/fips/sha3/sha3_noasm.go
+new file mode 100644
+index 0000000000..aaee0d9742
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/sha3_noasm.go
+@@ -0,0 +1,31 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !gc || purego || !s390x || !ignore
++
++package sha3
++
++func new224() *Digest {
++	return new224Generic()
++}
++
++func new256() *Digest {
++	return new256Generic()
++}
++
++func new384() *Digest {
++	return new384Generic()
++}
++
++func new512() *Digest {
++	return new512Generic()
++}
++
++func newShake128() *SHAKE {
++	return newShake128Generic()
++}
++
++func newShake256() *SHAKE {
++	return newShake256Generic()
++}
+diff --git a/src/crypto/internal/fips/sha3/sha3_s390x.go b/src/crypto/internal/fips/sha3/sha3_s390x.go
+index 8cb58c28cb..d60acc349d 100644
+--- a/src/crypto/internal/fips/sha3/sha3_s390x.go
++++ b/src/crypto/internal/fips/sha3/sha3_s390x.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build gc && !purego
++//go:build gc && !purego && ignore
+ 
+ package sha3
+ 
+@@ -10,10 +10,7 @@ package sha3
+ // message digest' (KIMD) and 'compute last message digest' (KLMD)
+ // instructions to compute SHA-3 and SHAKE hashes on IBM Z.
+ 
+-import (
+-	"crypto/internal/fips"
+-	"internal/cpu"
+-)
++import "internal/cpu"
+ 
+ // codes represent 7-bit KIMD/KLMD function codes as defined in
+ // the Principles of Operation.
+@@ -249,7 +246,7 @@ func (s *asmState) Clone() ShakeHash {
+ 
+ // new224 returns an assembly implementation of SHA3-224 if available,
+ // otherwise it returns a generic implementation.
+-func new224() fips.Hash {
++func new224() *Digest {
+ 	if cpu.S390X.HasSHA3 {
+ 		return newAsmState(sha3_224)
+ 	}
+@@ -258,7 +255,7 @@ func new224() fips.Hash {
+ 
+ // new256 returns an assembly implementation of SHA3-256 if available,
+ // otherwise it returns a generic implementation.
+-func new256() fips.Hash {
++func new256() *Digest {
+ 	if cpu.S390X.HasSHA3 {
+ 		return newAsmState(sha3_256)
+ 	}
+@@ -267,7 +264,7 @@ func new256() fips.Hash {
+ 
+ // new384 returns an assembly implementation of SHA3-384 if available,
+ // otherwise it returns a generic implementation.
+-func new384() fips.Hash {
++func new384() *Digest {
+ 	if cpu.S390X.HasSHA3 {
+ 		return newAsmState(sha3_384)
+ 	}
+@@ -276,7 +273,7 @@ func new384() fips.Hash {
+ 
+ // new512 returns an assembly implementation of SHA3-512 if available,
+ // otherwise it returns a generic implementation.
+-func new512() fips.Hash {
++func new512() *Digest {
+ 	if cpu.S390X.HasSHA3 {
+ 		return newAsmState(sha3_512)
+ 	}
+diff --git a/src/crypto/internal/fips/sha3/sha3_s390x.s b/src/crypto/internal/fips/sha3/sha3_s390x.s
+index 826b862c77..df51683097 100644
+--- a/src/crypto/internal/fips/sha3/sha3_s390x.s
++++ b/src/crypto/internal/fips/sha3/sha3_s390x.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build gc && !purego
++//go:build gc && !purego && ignore
+ 
+ #include "textflag.h"
+ 
+diff --git a/src/crypto/internal/fips/sha3/sha3_test.go b/src/crypto/internal/fips/sha3/sha3_test.go
+index 980ed43a5f..486213ca34 100644
+--- a/src/crypto/internal/fips/sha3/sha3_test.go
++++ b/src/crypto/internal/fips/sha3/sha3_test.go
+@@ -2,26 +2,77 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package sha3
++package sha3_test
+ 
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	. "crypto/internal/fips/sha3"
+ 	"encoding"
+ 	"encoding/hex"
+ 	"fmt"
++	"internal/testenv"
+ 	"io"
+ 	"math/rand"
++	"runtime"
+ 	"strings"
+ 	"testing"
+ )
+ 
++// TODO(fips): move tests to the stdlib crypto/sha3 package.
++
++// Sum224 returns the SHA3-224 digest of the data.
++func Sum224(data []byte) (digest [28]byte) {
++	h := New224()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
++
++// Sum256 returns the SHA3-256 digest of the data.
++func Sum256(data []byte) (digest [32]byte) {
++	h := New256()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
++
++// Sum384 returns the SHA3-384 digest of the data.
++func Sum384(data []byte) (digest [48]byte) {
++	h := New384()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
++
++// Sum512 returns the SHA3-512 digest of the data.
++func Sum512(data []byte) (digest [64]byte) {
++	h := New512()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
++
++// ShakeSum128 writes an arbitrary-length digest of data into hash.
++func ShakeSum128(hash, data []byte) {
++	h := NewShake128()
++	h.Write(data)
++	h.Read(hash)
++}
++
++// ShakeSum256 writes an arbitrary-length digest of data into hash.
++func ShakeSum256(hash, data []byte) {
++	h := NewShake256()
++	h.Write(data)
++	h.Read(hash)
++}
++
+ const testString = "brekeccakkeccak koax koax"
+ 
+ // testDigests contains functions returning hash.Hash instances
+ // with output-length equal to the KAT length for SHA-3, Keccak
+ // and SHAKE instances.
+-var testDigests = map[string]func() fips.Hash{
++var testDigests = map[string]func() *Digest{
+ 	"SHA3-224":   New224,
+ 	"SHA3-256":   New256,
+ 	"SHA3-384":   New384,
+@@ -30,10 +81,10 @@ var testDigests = map[string]func() fips.Hash{
+ 	"Keccak-512": NewLegacyKeccak512,
+ }
+ 
+-// testShakes contains functions that return sha3.ShakeHash instances for
++// testShakes contains functions that return *sha3.SHAKE instances for
+ // with output-length equal to the KAT length.
+ var testShakes = map[string]struct {
+-	constructor  func(N []byte, S []byte) ShakeHash
++	constructor  func(N []byte, S []byte) *SHAKE
+ 	defAlgoName  string
+ 	defCustomStr string
+ }{
+@@ -56,7 +107,7 @@ func decodeHex(s string) []byte {
+ // TestKeccak does a basic test of the non-standardized Keccak hash functions.
+ func TestKeccak(t *testing.T) {
+ 	tests := []struct {
+-		fn   func() fips.Hash
++		fn   func() *Digest
+ 		data []byte
+ 		want string
+ 	}{
+@@ -87,7 +138,7 @@ func TestKeccak(t *testing.T) {
+ func TestShakeSum(t *testing.T) {
+ 	tests := [...]struct {
+ 		name        string
+-		hash        ShakeHash
++		hash        *SHAKE
+ 		expectedLen int
+ 	}{
+ 		{"SHAKE128", NewShake128(), 32},
+@@ -283,6 +334,55 @@ func TestClone(t *testing.T) {
+ 	}
+ }
+ 
++var sink byte
++
++func TestAllocations(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
++
++	want := 0.0
++
++	if runtime.GOARCH == "s390x" {
++		// On s390x the returned hash.Hash is conditional so it escapes.
++		want = 3.0
++	}
++
++	t.Run("New", func(t *testing.T) {
++		if allocs := testing.AllocsPerRun(10, func() {
++			h := New256()
++			b := []byte("ABC")
++			h.Write(b)
++			out := make([]byte, 0, 32)
++			out = h.Sum(out)
++			sink ^= out[0]
++		}); allocs > want {
++			t.Errorf("expected zero allocations, got %0.1f", allocs)
++		}
++	})
++	t.Run("NewShake", func(t *testing.T) {
++		if allocs := testing.AllocsPerRun(10, func() {
++			h := NewShake128()
++			b := []byte("ABC")
++			h.Write(b)
++			out := make([]byte, 0, 32)
++			out = h.Sum(out)
++			sink ^= out[0]
++			h.Read(out)
++			sink ^= out[0]
++		}); allocs > want {
++			t.Errorf("expected zero allocations, got %0.1f", allocs)
++		}
++	})
++	t.Run("Sum", func(t *testing.T) {
++		if allocs := testing.AllocsPerRun(10, func() {
++			b := []byte("ABC")
++			out := Sum256(b)
++			sink ^= out[0]
++		}); allocs > want {
++			t.Errorf("expected zero allocations, got %0.1f", allocs)
++		}
++	})
++}
++
+ func TestCSHAKEAccumulated(t *testing.T) {
+ 	// Generated with pycryptodome@3.20.0
+ 	//
+@@ -328,16 +428,16 @@ func TestCSHAKEAccumulated(t *testing.T) {
+ 	//    console.log(bytesToHex(acc.xof(32)));
+ 	//
+ 	t.Run("cSHAKE128", func(t *testing.T) {
+-		testCSHAKEAccumulated(t, NewCShake128, rateK256,
++		testCSHAKEAccumulated(t, NewCShake128, (1600-256)/8,
+ 			"bb14f8657c6ec5403d0b0e2ef3d3393497e9d3b1a9a9e8e6c81dbaa5fd809252")
+ 	})
+ 	t.Run("cSHAKE256", func(t *testing.T) {
+-		testCSHAKEAccumulated(t, NewCShake256, rateK512,
++		testCSHAKEAccumulated(t, NewCShake256, (1600-512)/8,
+ 			"0baaf9250c6e25f0c14ea5c7f9bfde54c8a922c8276437db28f3895bdf6eeeef")
+ 	})
+ }
+ 
+-func testCSHAKEAccumulated(t *testing.T, newCShake func(N, S []byte) ShakeHash, rate int64, exp string) {
++func testCSHAKEAccumulated(t *testing.T, newCShake func(N, S []byte) *SHAKE, rate int64, exp string) {
+ 	rnd := newCShake(nil, nil)
+ 	acc := newCShake(nil, nil)
+ 	for n := 0; n < 200; n++ {
+@@ -430,16 +530,6 @@ func testMarshalUnmarshal(t *testing.T, h fips.Hash) {
+ 	}
+ }
+ 
+-// BenchmarkPermutationFunction measures the speed of the permutation function
+-// with no input data.
+-func BenchmarkPermutationFunction(b *testing.B) {
+-	b.SetBytes(int64(200))
+-	var lanes [25]uint64
+-	for i := 0; i < b.N; i++ {
+-		keccakF1600(&lanes)
+-	}
+-}
+-
+ // benchmarkHash tests the speed to hash num buffers of buflen each.
+ func benchmarkHash(b *testing.B, h fips.Hash, size, num int) {
+ 	b.StopTimer()
+@@ -461,7 +551,7 @@ func benchmarkHash(b *testing.B, h fips.Hash, size, num int) {
+ 
+ // benchmarkShake is specialized to the Shake instances, which don't
+ // require a copy on reading output.
+-func benchmarkShake(b *testing.B, h ShakeHash, size, num int) {
++func benchmarkShake(b *testing.B, h *SHAKE, size, num int) {
+ 	b.StopTimer()
+ 	h.Reset()
+ 	data := sequentialBytes(size)
+diff --git a/src/crypto/internal/fips/sha3/shake.go b/src/crypto/internal/fips/sha3/shake.go
+index dae9411e4d..6e7292a006 100644
+--- a/src/crypto/internal/fips/sha3/shake.go
++++ b/src/crypto/internal/fips/sha3/shake.go
+@@ -4,46 +4,15 @@
+ 
+ package sha3
+ 
+-// This file defines the ShakeHash interface, and provides
+-// functions for creating SHAKE and cSHAKE instances, as well as utility
+-// functions for hashing bytes to arbitrary-length output.
+-//
+-//
+-// SHAKE implementation is based on FIPS PUB 202 [1]
+-// cSHAKE implementations is based on NIST SP 800-185 [2]
+-//
+-// [1] https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
+-// [2] https://doi.org/10.6028/NIST.SP.800-185
+-
+ import (
+ 	"bytes"
+-	"crypto/internal/fips"
+ 	"errors"
+ 	"internal/byteorder"
+-	"io"
+ 	"math/bits"
+ )
+ 
+-// ShakeHash defines the interface to hash functions that support
+-// arbitrary-length output. When used as a plain [hash.Hash], it
+-// produces minimum-length outputs that provide full-strength generic
+-// security.
+-type ShakeHash interface {
+-	fips.Hash
+-
+-	// Read reads more output from the hash; reading affects the hash's
+-	// state. (ShakeHash.Read is thus very different from Hash.Sum)
+-	// It never returns an error, but subsequent calls to Write or Sum
+-	// will panic.
+-	io.Reader
+-
+-	// Clone returns a copy of the ShakeHash in its current state.
+-	Clone() ShakeHash
+-}
+-
+-// cSHAKE specific context
+-type cshakeState struct {
+-	*state // SHA-3 state context and Read/Write operations
++type SHAKE struct {
++	d Digest // SHA-3 state context and Read/Write operations
+ 
+ 	// initBlock is the cSHAKE specific initialization set of bytes. It is initialized
+ 	// by newCShake function and stores concatenation of N followed by S, encoded
+@@ -77,117 +46,112 @@ func leftEncode(x uint64) []byte {
+ 	return b
+ }
+ 
+-func newCShake(N, S []byte, rate, outputLen int, dsbyte byte) ShakeHash {
+-	c := cshakeState{state: &state{rate: rate, outputLen: outputLen, dsbyte: dsbyte}}
++func newCShake(N, S []byte, rate, outputLen int, dsbyte byte) *SHAKE {
++	c := &SHAKE{d: Digest{rate: rate, outputLen: outputLen, dsbyte: dsbyte}}
+ 	c.initBlock = make([]byte, 0, 9+len(N)+9+len(S)) // leftEncode returns max 9 bytes
+ 	c.initBlock = append(c.initBlock, leftEncode(uint64(len(N))*8)...)
+ 	c.initBlock = append(c.initBlock, N...)
+ 	c.initBlock = append(c.initBlock, leftEncode(uint64(len(S))*8)...)
+ 	c.initBlock = append(c.initBlock, S...)
+-	c.Write(bytepad(c.initBlock, c.rate))
+-	return &c
++	c.Write(bytepad(c.initBlock, c.d.rate))
++	return c
+ }
+ 
+-// Reset resets the hash to initial state.
+-func (c *cshakeState) Reset() {
+-	c.state.Reset()
+-	c.Write(bytepad(c.initBlock, c.rate))
++func (s *SHAKE) BlockSize() int { return s.d.BlockSize() }
++func (s *SHAKE) Size() int      { return s.d.Size() }
++
++// Sum appends a portion of output to b and returns the resulting slice. The
++// output length is selected to provide full-strength generic security: 32 bytes
++// for SHAKE128 and 64 bytes for SHAKE256. It does not change the underlying
++// state. It panics if any output has already been read.
++func (s *SHAKE) Sum(in []byte) []byte { return s.d.Sum(in) }
++
++// Write absorbs more data into the hash's state.
++// It panics if any output has already been read.
++func (s *SHAKE) Write(p []byte) (n int, err error) { return s.d.Write(p) }
++
++func (s *SHAKE) Read(out []byte) (n int, err error) {
++	// Note that read is not exposed on Digest since SHA-3 does not offer
++	// variable output length. It is only used internally by Sum.
++	return s.d.read(out)
+ }
+ 
+-// Clone returns copy of a cSHAKE context within its current state.
+-func (c *cshakeState) Clone() ShakeHash {
+-	b := make([]byte, len(c.initBlock))
+-	copy(b, c.initBlock)
+-	return &cshakeState{state: c.clone(), initBlock: b}
++// Reset resets the hash to initial state.
++func (s *SHAKE) Reset() {
++	s.d.Reset()
++	if len(s.initBlock) != 0 {
++		s.Write(bytepad(s.initBlock, s.d.rate))
++	}
+ }
+ 
+-// Clone returns copy of SHAKE context within its current state.
+-func (c *state) Clone() ShakeHash {
+-	return c.clone()
++// Clone returns a copy of the SHAKE context in its current state.
++func (s *SHAKE) Clone() *SHAKE {
++	ret := *s
++	return &ret
+ }
+ 
+-func (c *cshakeState) MarshalBinary() ([]byte, error) {
+-	return c.AppendBinary(make([]byte, 0, marshaledSize+len(c.initBlock)))
++func (s *SHAKE) MarshalBinary() ([]byte, error) {
++	return s.AppendBinary(make([]byte, 0, marshaledSize+len(s.initBlock)))
+ }
+ 
+-func (c *cshakeState) AppendBinary(b []byte) ([]byte, error) {
+-	b, err := c.state.AppendBinary(b)
++func (s *SHAKE) AppendBinary(b []byte) ([]byte, error) {
++	b, err := s.d.AppendBinary(b)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	b = append(b, c.initBlock...)
++	b = append(b, s.initBlock...)
+ 	return b, nil
+ }
+ 
+-func (c *cshakeState) UnmarshalBinary(b []byte) error {
+-	if len(b) <= marshaledSize {
++func (s *SHAKE) UnmarshalBinary(b []byte) error {
++	if len(b) < marshaledSize {
+ 		return errors.New("sha3: invalid hash state")
+ 	}
+-	if err := c.state.UnmarshalBinary(b[:marshaledSize]); err != nil {
++	if err := s.d.UnmarshalBinary(b[:marshaledSize]); err != nil {
+ 		return err
+ 	}
+-	c.initBlock = bytes.Clone(b[marshaledSize:])
++	s.initBlock = bytes.Clone(b[marshaledSize:])
+ 	return nil
+ }
+ 
+-// NewShake128 creates a new SHAKE128 variable-output-length ShakeHash.
+-// Its generic security strength is 128 bits against all attacks if at
+-// least 32 bytes of its output are used.
+-func NewShake128() ShakeHash {
++// NewShake128 creates a new SHAKE128 XOF.
++func NewShake128() *SHAKE {
+ 	return newShake128()
+ }
+ 
+-// NewShake256 creates a new SHAKE256 variable-output-length ShakeHash.
+-// Its generic security strength is 256 bits against all attacks if
+-// at least 64 bytes of its output are used.
+-func NewShake256() ShakeHash {
++// NewShake256 creates a new SHAKE256 XOF.
++func NewShake256() *SHAKE {
+ 	return newShake256()
+ }
+ 
+-func newShake128Generic() *state {
+-	return &state{rate: rateK256, outputLen: 32, dsbyte: dsbyteShake}
++func newShake128Generic() *SHAKE {
++	return &SHAKE{d: Digest{rate: rateK256, outputLen: 32, dsbyte: dsbyteShake}}
+ }
+ 
+-func newShake256Generic() *state {
+-	return &state{rate: rateK512, outputLen: 64, dsbyte: dsbyteShake}
++func newShake256Generic() *SHAKE {
++	return &SHAKE{d: Digest{rate: rateK512, outputLen: 64, dsbyte: dsbyteShake}}
+ }
+ 
+-// NewCShake128 creates a new instance of cSHAKE128 variable-output-length ShakeHash,
+-// a customizable variant of SHAKE128.
+-// N is used to define functions based on cSHAKE, it can be empty when plain cSHAKE is
+-// desired. S is a customization byte string used for domain separation - two cSHAKE
+-// computations on same input with different S yield unrelated outputs.
+-// When N and S are both empty, this is equivalent to NewShake128.
+-func NewCShake128(N, S []byte) ShakeHash {
++// NewCShake128 creates a new cSHAKE128 XOF.
++//
++// N is used to define functions based on cSHAKE, it can be empty when plain
++// cSHAKE is desired. S is a customization byte string used for domain
++// separation. When N and S are both empty, this is equivalent to NewShake128.
++func NewCShake128(N, S []byte) *SHAKE {
+ 	if len(N) == 0 && len(S) == 0 {
+ 		return NewShake128()
+ 	}
+ 	return newCShake(N, S, rateK256, 32, dsbyteCShake)
+ }
+ 
+-// NewCShake256 creates a new instance of cSHAKE256 variable-output-length ShakeHash,
+-// a customizable variant of SHAKE256.
+-// N is used to define functions based on cSHAKE, it can be empty when plain cSHAKE is
+-// desired. S is a customization byte string used for domain separation - two cSHAKE
+-// computations on same input with different S yield unrelated outputs.
+-// When N and S are both empty, this is equivalent to NewShake256.
+-func NewCShake256(N, S []byte) ShakeHash {
++// NewCShake256 creates a new cSHAKE256 XOF.
++//
++// N is used to define functions based on cSHAKE, it can be empty when plain
++// cSHAKE is desired. S is a customization byte string used for domain
++// separation. When N and S are both empty, this is equivalent to NewShake256.
++func NewCShake256(N, S []byte) *SHAKE {
+ 	if len(N) == 0 && len(S) == 0 {
+ 		return NewShake256()
+ 	}
+ 	return newCShake(N, S, rateK512, 64, dsbyteCShake)
+ }
+-
+-// ShakeSum128 writes an arbitrary-length digest of data into hash.
+-func ShakeSum128(hash, data []byte) {
+-	h := NewShake128()
+-	h.Write(data)
+-	h.Read(hash)
+-}
+-
+-// ShakeSum256 writes an arbitrary-length digest of data into hash.
+-func ShakeSum256(hash, data []byte) {
+-	h := NewShake256()
+-	h.Write(data)
+-	h.Read(hash)
+-}
+diff --git a/src/crypto/internal/fips/sha3/shake_noasm.go b/src/crypto/internal/fips/sha3/shake_noasm.go
+deleted file mode 100644
+index 4276ba4ab2..0000000000
+--- a/src/crypto/internal/fips/sha3/shake_noasm.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !gc || purego || !s390x
+-
+-package sha3
+-
+-func newShake128() *state {
+-	return newShake128Generic()
+-}
+-
+-func newShake256() *state {
+-	return newShake256Generic()
+-}

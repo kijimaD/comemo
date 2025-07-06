@@ -1,0 +1,72 @@
+commit 11660d537b3387ba380f3bc2e85b9b59dac0dff5
+Author: Mark Freeman <mark@golang.org>
+Date:   Thu May 29 15:43:47 2025 -0400
+
+    cmd/compile/internal/noder: fill in SectionName
+    
+    Change-Id: Ib99d40a546cb095c1b6c2d33e0735f3b5c681539
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677237
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/noder/doc.go | 32 ++++++++++++++++++++++++++++----
+ 1 file changed, 28 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/doc.go b/src/cmd/compile/internal/noder/doc.go
+index baf7c67463..05fcddadc5 100644
+--- a/src/cmd/compile/internal/noder/doc.go
++++ b/src/cmd/compile/internal/noder/doc.go
+@@ -25,7 +25,7 @@ determines its index in the series.
+                   SectionMeta
+                   SectionPosBase
+                   SectionPkg
+-                  SectionName    // TODO(markfreeman) Define.
++                  SectionName
+                   SectionType    // TODO(markfreeman) Define.
+                   SectionObj     // TODO(markfreeman) Define.
+                   SectionObjExt  // TODO(markfreeman) Define.
+@@ -35,9 +35,11 @@ determines its index in the series.
+ 
+ # Sections
+ A section is a series of elements of a type determined by the section's
+-kind. Go constructs are mapped onto (potentially multiple) elements.
+-Elements are accessed using an index relative to the start of the
+-section.
++kind. Go constructs are mapped onto one or more elements with possibly
++different types; in that case, the elements are in different sections.
++
++Elements are accessed using an element index relative to the start of
++the section.
+ 
+     RelElemIdx = Uint64 .
+ 
+@@ -135,6 +137,28 @@ Note, a PkgRef is *not* equivalent to Ref[Pkg] due to an extra marker.
+                  Ref[Pkg]
+                  .
+ 
++## Object Sections
++Information about an object (e.g. variable, function, type name, etc.)
++is split into multiple elements in different sections. Those elements
++have the same section-relative element index.
++
++### Name Section
++The name section holds a series of names.
++
++    SectionName = { Name } .
++
++Names are elements holding qualified identifiers and type information
++for objects.
++
++    Name        = RefTable
++                  [ Sync ]
++                  [ Sync ]
++                  PkgRef    // the object's package
++                  StringRef // the object's package-local name
++                  [ Sync ]
++                  Uint64    // the object's type (e.g. Var, Func, etc.)
++                  .
++
+ # References
+ A reference table precedes every element. Each entry in the table
+ contains a (section, index) pair denoting the location of the

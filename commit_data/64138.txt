@@ -1,0 +1,141 @@
+commit 0af2148fdcd047e5aa15776a54ccc29d9aa36f7f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Jun 21 16:32:37 2024 -0400
+
+    cmd: vendor golang.org/x/telemetry@a740542
+    
+    Commands run:
+            go get golang.org/x/telemetry@a740542
+            go mod tidy
+            go mod vendor
+    
+    Change-Id: I8b1a71adc05f3c54f9492dfb9cfd1873727e5680
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594017
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../golang.org/x/telemetry/counter/counter.go      |  4 ---
+ .../x/telemetry/internal/counter/file.go           | 35 +++++++++++++---------
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 5 files changed, 25 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 0625195931..0a17a414b5 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.18.0
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.21.0
+-	golang.org/x/telemetry v0.0.0-20240621183135-b4de734908f6
++	golang.org/x/telemetry v0.0.0-20240621194115-a740542b267c
+ 	golang.org/x/term v0.20.0
+ 	golang.org/x/tools v0.22.1-0.20240618181713-f2d2ebe43e72
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 25276c92b2..49849d10b4 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,8 +16,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.21.0 h1:rF+pYz3DAGSQAxAu1CbC7catZg4ebC4UIeIhKxBZvws=
+ golang.org/x/sys v0.21.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240621183135-b4de734908f6 h1:2+8QyQRLYDeEKd+CM/BsuaBaLdhAsNdasS/SnZfPS9g=
+-golang.org/x/telemetry v0.0.0-20240621183135-b4de734908f6/go.mod h1:n38mvGdgc4dA684EC4NwQwoPKSw4jyKw8/DgZHDA1Dk=
++golang.org/x/telemetry v0.0.0-20240621194115-a740542b267c h1:zNxtD9mZQCgRwCNanVRlJ/XlOyATHcbR+09LzoArRl4=
++golang.org/x/telemetry v0.0.0-20240621194115-a740542b267c/go.mod h1:n38mvGdgc4dA684EC4NwQwoPKSw4jyKw8/DgZHDA1Dk=
+ golang.org/x/term v0.20.0 h1:VnkxpohqXaOBYJtBmEppKUG6mXpi+4O6purfc2+sMhw=
+ golang.org/x/term v0.20.0/go.mod h1:8UkIAJTvZgivsXaD6/pH6U9ecQzZ45awqEOzuCvwpFY=
+ golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+index 7a7e66b22d..ff727ad97c 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+@@ -83,8 +83,6 @@ func NewStack(name string, depth int) *StackCounter {
+ // If the telemetry mode is "off", Open is a no-op. Otherwise, it opens the
+ // counter file on disk and starts to mmap telemetry counters to the file.
+ // Open also persists any counters already created in the current process.
+-//
+-// Programs using telemetry should call either Open or OpenDir exactly once.
+ func Open() {
+ 	counter.Open()
+ }
+@@ -95,8 +93,6 @@ func Open() {
+ // If the telemetry mode is "off", Open is a no-op. Otherwise, it opens the
+ // counter file on disk and starts to mmap telemetry counters to the file.
+ // Open also persists any counters already created in the current process.
+-//
+-// Programs using telemetry should call either Open or OpenDir exactly once.
+ func OpenDir(telemetryDir string) {
+ 	if telemetryDir != "" {
+ 		telemetry.Default = telemetry.NewDir(telemetryDir)
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index 0cb6cc22de..e3c574dcb4 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -340,6 +340,8 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
+ 	return v, cleanup
+ }
+ 
++var openOnce sync.Once
++
+ // Open associates counting with the defaultFile.
+ // The returned function is for testing only, and should
+ // be called after all Inc()s are finished, but before
+@@ -349,22 +351,27 @@ func Open() func() {
+ 	if telemetry.DisabledOnPlatform {
+ 		return func() {}
+ 	}
+-	if mode, _ := telemetry.Default.Mode(); mode == "off" {
+-		// Don't open the file when telemetry is off.
+-		defaultFile.err = ErrDisabled
+-		return func() {} // No need to clean up.
+-	}
+-	debugPrintf("Open")
+-	defaultFile.rotate()
+-	return func() {
+-		// Once this has been called, the defaultFile is no longer usable.
+-		mf := defaultFile.current.Load()
+-		if mf == nil {
+-			// telemetry might have been off
++	close := func() {}
++	openOnce.Do(func() {
++		if mode, _ := telemetry.Default.Mode(); mode == "off" {
++			// Don't open the file when telemetry is off.
++			defaultFile.err = ErrDisabled
++			// No need to clean up.
+ 			return
+ 		}
+-		mf.close()
+-	}
++		debugPrintf("Open")
++		defaultFile.rotate()
++		close = func() {
++			// Once this has been called, the defaultFile is no longer usable.
++			mf := defaultFile.current.Load()
++			if mf == nil {
++				// telemetry might have been off
++				return
++			}
++			mf.close()
++		}
++	})
++	return close
+ }
+ 
+ // A mappedFile is a counter file mmapped into memory.
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index fc1f25588a..5184adb1f2 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240621183135-b4de734908f6
++# golang.org/x/telemetry v0.0.0-20240621194115-a740542b267c
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

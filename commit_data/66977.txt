@@ -1,0 +1,119 @@
+commit 8d7c43b51722f5841f8c0907797f24d4d71dae19
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue Apr 29 17:15:45 2025 +0800
+
+    crypto/sha256: improve performance of loong64
+    
+    1. Replaced WORD with instruction REVB2W.
+    2. Simplified the implementation of Ch and Maj by reducing instructions, refer to the implementation of riscv64.
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/sha256
+    cpu: Loongson-3A6000-HV @ 2500.00MHz
+                      |  bench.old  |             bench.new              |
+                      |   sec/op    |   sec/op     vs base               |
+    Hash8Bytes/New      313.9n ± 0%   293.4n ± 0%  -6.53% (p=0.000 n=10)
+    Hash8Bytes/Sum224   324.0n ± 0%   304.2n ± 0%  -6.11% (p=0.000 n=10)
+    Hash8Bytes/Sum256   322.8n ± 0%   301.8n ± 0%  -6.51% (p=0.000 n=10)
+    Hash1K/New          4.513µ ± 0%   4.183µ ± 0%  -7.31% (p=0.000 n=10)
+    Hash1K/Sum224       4.522µ ± 0%   4.189µ ± 0%  -7.36% (p=0.000 n=10)
+    Hash1K/Sum256       4.522µ ± 0%   4.190µ ± 0%  -7.34% (p=0.000 n=10)
+    Hash8K/New          33.92µ ± 0%   31.42µ ± 0%  -7.38% (p=0.000 n=10)
+    Hash8K/Sum224       33.94µ ± 0%   31.42µ ± 0%  -7.40% (p=0.000 n=10)
+    Hash8K/Sum256       33.94µ ± 0%   31.42µ ± 0%  -7.41% (p=0.000 n=10)
+    geomean             3.662µ        3.404µ       -7.04%
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/sha256
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                      |  bench.old  |             bench.new              |
+                      |   sec/op    |   sec/op     vs base               |
+    Hash8Bytes/New      382.2n ± 0%   357.3n ± 0%  -6.51% (p=0.000 n=10)
+    Hash8Bytes/Sum224   392.3n ± 0%   367.0n ± 0%  -6.45% (p=0.000 n=10)
+    Hash8Bytes/Sum256   393.9n ± 0%   368.8n ± 0%  -6.37% (p=0.000 n=10)
+    Hash1K/New          5.173µ ± 0%   4.725µ ± 0%  -8.66% (p=0.000 n=10)
+    Hash1K/Sum224       5.189µ ± 0%   4.742µ ± 0%  -8.62% (p=0.000 n=10)
+    Hash1K/Sum256       5.188µ ± 0%   4.742µ ± 0%  -8.60% (p=0.000 n=10)
+    Hash8K/New          38.75µ ± 0%   35.34µ ± 0%  -8.78% (p=0.000 n=10)
+    Hash8K/Sum224       38.77µ ± 0%   35.35µ ± 0%  -8.80% (p=0.000 n=10)
+    Hash8K/Sum256       38.76µ ± 0%   35.35µ ± 0%  -8.80% (p=0.000 n=10)
+    geomean             4.277µ        3.936µ       -7.96%
+    
+    Change-Id: I561f6db118d05fe44485af8ea25df85afa6905a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668775
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+---
+ .../internal/fips140/sha256/sha256block_loong64.s  | 31 +++++++++++-----------
+ 1 file changed, 15 insertions(+), 16 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/sha256/sha256block_loong64.s b/src/crypto/internal/fips140/sha256/sha256block_loong64.s
+index 971ad97ab8..e171d93e0b 100644
+--- a/src/crypto/internal/fips140/sha256/sha256block_loong64.s
++++ b/src/crypto/internal/fips140/sha256/sha256block_loong64.s
+@@ -56,7 +56,7 @@
+ // W[i] = M[i]; for 0 <= i <= 15
+ #define LOAD0(index) \
+ 	MOVW	(index*4)(R5), REGTMP4; \
+-	WORD	$0x38e7; \	// REVB2W REGTMP4, REGTMP4 to big-endian
++	REVB2W	REGTMP4, REGTMP4; \
+ 	MOVW	REGTMP4, (index*4)(R3)
+ 
+ // W[i] = SIGMA1(W[i-2]) + W[i-7] + SIGMA0(W[i-15]) + W[i-16]; for 16 <= i <= 63
+@@ -87,38 +87,37 @@
+ // T1 = h + BIGSIGMA1(e) + Ch(e, f, g) + K[i] + W[i]
+ // BIGSIGMA1(x) = ROTR(6,x) XOR ROTR(11,x) XOR ROTR(25,x)
+ // Ch(x, y, z) = (x AND y) XOR (NOT x AND z)
++//             = ((y XOR z) AND x) XOR z
+ // Calculate T1 in REGTMP4
+ #define SHA256T1(const, e, f, g, h) \
+ 	ADDV	$const, h; \
+ 	ADD	REGTMP4, h; \
+-	ROTR	$6, e, REGTMP4; \
++	ROTR	$6, e, REGTMP5; \
+ 	ROTR	$11, e, REGTMP; \
+ 	ROTR	$25, e, REGTMP3; \
+-	AND	f, e, REGTMP2; \
+-	XOR	REGTMP, REGTMP4; \
+-	MOVV	$0xffffffff, REGTMP; \
+-	XOR	REGTMP4, REGTMP3; \
+-	XOR	REGTMP, e, REGTMP5; \
++	XOR	f, g, REGTMP2; \
++	XOR	REGTMP, REGTMP5; \
++	AND	e, REGTMP2; \
++	XOR	REGTMP5, REGTMP3; \
++	XOR	g, REGTMP2; \
+ 	ADD	REGTMP3, h; \
+-	AND	g, REGTMP5; \
+-	XOR	REGTMP2, REGTMP5; \
+-	ADD	h, REGTMP5, REGTMP4
++	ADD	h, REGTMP2, REGTMP4
+ 
+ // T2 = BIGSIGMA0(a) + Maj(a, b, c)
+ // BIGSIGMA0(x) = ROTR(2,x) XOR ROTR(13,x) XOR ROTR(22,x)
+ // Maj(x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
++//              = ((y XOR z) AND x) XOR (y AND z)
+ // Calculate T2 in REGTMP1
+ #define SHA256T2(a, b, c) \
+ 	ROTR	$2, a, REGTMP5; \
+-	AND	b, c, REGTMP1; \
+ 	ROTR	$13, a, REGTMP3; \
+-	AND	c, a, REGTMP; \
+-	XOR	REGTMP3, REGTMP5; \
+-	XOR	REGTMP, REGTMP1; \
+ 	ROTR	$22, a, REGTMP2; \
+-	AND	a, b, REGTMP3; \
++	XOR	b, c, REGTMP; \
++	AND	b, c, REGTMP1; \
++	XOR	REGTMP3, REGTMP5; \
++	AND	REGTMP, a, REGTMP; \
+ 	XOR	REGTMP2, REGTMP5; \
+-	XOR	REGTMP3, REGTMP1; \
++	XOR	REGTMP, REGTMP1; \
+ 	ADD	REGTMP5, REGTMP1
+ 
+ // Calculate T1 and T2, then e = d + T1 and a = T1 + T2.

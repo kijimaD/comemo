@@ -1,0 +1,179 @@
+commit 4513f1a1c1037574bfd94b8637329246f475a534
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 8 16:27:03 2024 +0000
+
+    internal/trace/v2: correctly handle a broken spilled batch
+    
+    Currently if the first batch of the next generation in the trace is
+    broken, then the previous generation will fail to parse. The parser
+    currently relies on one complete batch of the next generation to
+    continue.
+    
+    However, this means that recovering a complete generation from a trace
+    with a broken tail doesn't always work. Luckily, this is fixable. When
+    the parser encounters an error reading a batch in a generation, it
+    simply writes down that error and processes it later, once the
+    generation has been handled. If it turns out the error was for the same
+    generation and something bigger is broken, then the parser will catch
+    that sooner when validating the generation's events and the error will
+    never show up. Otherwise, the generation will parse through successfully
+    and we'll emit the error once that's done.
+    
+    Fixes #55160.
+    
+    Change-Id: I9c9c19d5bb163c5225e18d11594ca2a8793c6950
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584275
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/trace/v2/generation.go                | 13 ++++++-
+ src/internal/trace/v2/reader.go                    |  8 +++-
+ .../generators/go122-fail-first-gen-first.go       | 44 ++++++++++++++++++++++
+ .../testdata/tests/go122-fail-first-gen-first.test |  9 +++++
+ 4 files changed, 72 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/trace/v2/generation.go b/src/internal/trace/v2/generation.go
+index c6f1568179..0fdbfc3b20 100644
+--- a/src/internal/trace/v2/generation.go
++++ b/src/internal/trace/v2/generation.go
+@@ -41,6 +41,9 @@ type spilledBatch struct {
+ // out of r. spill is the first batch of the new generation (already buffered and
+ // parsed from reading the last generation). Returns the generation and the first
+ // batch read of the next generation, if any.
++//
++// If gen is non-nil, it is valid and must be processed before handling the returned
++// error.
+ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilledBatch, error) {
+ 	g := &generation{
+ 		evTable: &evTable{
+@@ -58,12 +61,20 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
+ 	}
+ 	// Read batches one at a time until we either hit EOF or
+ 	// the next generation.
++	var spillErr error
+ 	for {
+ 		b, gen, err := readBatch(r)
+ 		if err == io.EOF {
+ 			break
+ 		}
+ 		if err != nil {
++			if g.gen != 0 {
++				// This is an error reading the first batch of the next generation.
++				// This is fine. Let's forge ahead assuming that what we've got so
++				// far is fine.
++				spillErr = err
++				break
++			}
+ 			return nil, nil, err
+ 		}
+ 		if gen == 0 {
+@@ -121,7 +132,7 @@ func readGeneration(r *bufio.Reader, spill *spilledBatch) (*generation, *spilled
+ 	slices.SortFunc(g.cpuSamples, func(a, b cpuSample) int {
+ 		return cmp.Compare(a.time, b.time)
+ 	})
+-	return g, spill, nil
++	return g, spill, spillErr
+ }
+ 
+ // processBatch adds the batch to the generation.
+diff --git a/src/internal/trace/v2/reader.go b/src/internal/trace/v2/reader.go
+index 45f0d13787..8f886772bf 100644
+--- a/src/internal/trace/v2/reader.go
++++ b/src/internal/trace/v2/reader.go
+@@ -22,6 +22,7 @@ type Reader struct {
+ 	lastTs      Time
+ 	gen         *generation
+ 	spill       *spilledBatch
++	spillErr    error // error from reading spill
+ 	frontier    []*batchCursor
+ 	cpuSamples  []cpuSample
+ 	order       ordering
+@@ -118,6 +119,9 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ 			r.emittedSync = true
+ 			return syncEvent(r.gen.evTable, r.lastTs), nil
+ 		}
++		if r.spillErr != nil {
++			return Event{}, r.spillErr
++		}
+ 		if r.gen != nil && r.spill == nil {
+ 			// If we have a generation from the last read,
+ 			// and there's nothing left in the frontier, and
+@@ -127,10 +131,12 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ 			return Event{}, io.EOF
+ 		}
+ 		// Read the next generation.
++		var err error
+ 		r.gen, r.spill, err = readGeneration(r.r, r.spill)
+-		if err != nil {
++		if r.gen == nil {
+ 			return Event{}, err
+ 		}
++		r.spillErr = err
+ 
+ 		// Reset CPU samples cursor.
+ 		r.cpuSamples = r.gen.cpuSamples
+diff --git a/src/internal/trace/v2/testdata/generators/go122-fail-first-gen-first.go b/src/internal/trace/v2/testdata/generators/go122-fail-first-gen-first.go
+new file mode 100644
+index 0000000000..e5dea24e3b
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/generators/go122-fail-first-gen-first.go
+@@ -0,0 +1,44 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Regression test for #55160.
++//
++// The issue is that the parser reads ahead to the first batch of the
++// next generation to find generation boundaries, but if it finds an
++// error, it needs to delay handling that error until later. Previously
++// it would handle that error immediately and a totally valid generation
++// would be skipped for parsing and rejected because of an error in a
++// batch in the following generation.
++//
++// This test captures this behavior by making both the first generation
++// and second generation bad. It requires that the issue in the first
++// generation, which is caught when actually ordering events, be reported
++// instead of the second one.
++
++package main
++
++import (
++	"internal/trace/v2/event/go122"
++	testgen "internal/trace/v2/internal/testgen/go122"
++)
++
++func main() {
++	testgen.Main(gen)
++}
++
++func gen(t *testgen.Trace) {
++	// A running goroutine emits a task begin.
++	t.RawEvent(go122.EvEventBatch, nil, 1 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 5 /*batch length*/)
++	t.RawEvent(go122.EvFrequency, nil, 15625000)
++
++	// A running goroutine emits a task begin.
++	t.RawEvent(go122.EvEventBatch, nil, 1 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 5 /*batch length*/)
++	t.RawEvent(go122.EvGoCreate, nil, 0 /*timestamp delta*/, 1 /*go ID*/, 0, 0)
++
++	// Write an invalid batch event for the next generation.
++	t.RawEvent(go122.EvEventBatch, nil, 2 /*gen*/, 0 /*thread ID*/, 0 /*timestamp*/, 50 /*batch length (invalid)*/)
++
++	// We should fail at the first issue, not the second one.
++	t.ExpectFailure("expected a proc but didn't have one")
++}
+diff --git a/src/internal/trace/v2/testdata/tests/go122-fail-first-gen-first.test b/src/internal/trace/v2/testdata/tests/go122-fail-first-gen-first.test
+new file mode 100644
+index 0000000000..cc4240de40
+--- /dev/null
++++ b/src/internal/trace/v2/testdata/tests/go122-fail-first-gen-first.test
+@@ -0,0 +1,9 @@
++-- expect --
++FAILURE "expected a proc but didn't have one"
++-- trace --
++Trace Go1.22
++EventBatch gen=1 m=0 time=0 size=5
++Frequency freq=15625000
++EventBatch gen=1 m=0 time=0 size=5
++GoCreate dt=0 new_g=1 new_stack=0 stack=0
++EventBatch gen=2 m=0 time=0 size=50

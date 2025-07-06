@@ -1,0 +1,82 @@
+commit 850b276a6765d20bf01c44d6126386e8fb7d8a76
+Author: thekuwayama <thekuwayama@gmail.com>
+Date:   Mon Dec 30 19:28:35 2024 +0000
+
+    crypto/tls: send illegal_parameter on invalid ECHClientHello.type
+    
+    The spec indicates that if a client sends an invalid ECHClientHello.type
+    in ClientHelloOuter, the server will abort the handshake with a
+    decode_error alert.
+    
+    Define errInvalidECHExt for invalid ECHClientHello.type. If parseECHExt
+    returns an errInvalidECHExt error, Conn now sends an illegal_parameter
+    alert.
+    
+    Fixes #71061.
+    
+    Change-Id: I240241fe8bbe3e77d6ad1af989794647bfa2ff87
+    GitHub-Last-Rev: 3d6c233ccd401453bfb1a4fc97fa5deeb5b2fbc8
+    GitHub-Pull-Request: golang/go#71062
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639235
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/tls/ech.go | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/tls/ech.go b/src/crypto/tls/ech.go
+index 55d52179c2..d9795b4ee2 100644
+--- a/src/crypto/tls/ech.go
++++ b/src/crypto/tls/ech.go
+@@ -378,7 +378,7 @@ func decodeInnerClientHello(outer *clientHelloMsg, encoded []byte) (*clientHello
+ 	}
+ 
+ 	if !bytes.Equal(inner.encryptedClientHello, []byte{uint8(innerECHExt)}) {
+-		return nil, errors.New("tls: client sent invalid encrypted_client_hello extension")
++		return nil, errInvalidECHExt
+ 	}
+ 
+ 	if len(inner.supportedVersions) != 1 || (len(inner.supportedVersions) >= 1 && inner.supportedVersions[0] != VersionTLS13) {
+@@ -481,6 +481,7 @@ func (e *ECHRejectionError) Error() string {
+ }
+ 
+ var errMalformedECHExt = errors.New("tls: malformed encrypted_client_hello extension")
++var errInvalidECHExt = errors.New("tls: client sent invalid encrypted_client_hello extension")
+ 
+ type echExtType uint8
+ 
+@@ -507,7 +508,7 @@ func parseECHExt(ext []byte) (echType echExtType, cs echCipher, configID uint8,
+ 		return echType, cs, 0, nil, nil, nil
+ 	}
+ 	if echType != outerECHExt {
+-		err = errMalformedECHExt
++		err = errInvalidECHExt
+ 		return
+ 	}
+ 	if !s.ReadUint16(&cs.KDFID) {
+@@ -549,8 +550,13 @@ func marshalEncryptedClientHelloConfigList(configs []EncryptedClientHelloKey) ([
+ func (c *Conn) processECHClientHello(outer *clientHelloMsg) (*clientHelloMsg, *echServerContext, error) {
+ 	echType, echCiphersuite, configID, encap, payload, err := parseECHExt(outer.encryptedClientHello)
+ 	if err != nil {
+-		c.sendAlert(alertDecodeError)
+-		return nil, nil, errors.New("tls: client sent invalid encrypted_client_hello extension")
++		if errors.Is(err, errInvalidECHExt) {
++			c.sendAlert(alertIllegalParameter)
++		} else {
++			c.sendAlert(alertDecodeError)
++		}
++
++		return nil, nil, errInvalidECHExt
+ 	}
+ 
+ 	if echType == innerECHExt {
+@@ -597,7 +603,7 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg) (*clientHelloMsg, *e
+ 		echInner, err := decodeInnerClientHello(outer, encodedInner)
+ 		if err != nil {
+ 			c.sendAlert(alertIllegalParameter)
+-			return nil, nil, errors.New("tls: client sent invalid encrypted_client_hello extension")
++			return nil, nil, errInvalidECHExt
+ 		}
+ 
+ 		c.echAccepted = true

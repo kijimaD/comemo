@@ -1,0 +1,16 @@
+commit e06b6fc58d635d4f2683bd0cbff0e89b33750e80
+Merge: b3799ba634 e966a2773c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jan 8 14:01:57 2025 -0500
+
+    [release-branch.go1.24] all: merge master (e966a27) into release-branch.go1.24
+    
+    Merge List:
+    
+    + 2025-01-08 e966a2773c crypto/internal/fips140/drbg: avoid global lock on rand state
+    
+    Change-Id: I1ca8f6bf2ba14ff3d5c4183a26cbd51ac20dad0a
+
+ src/crypto/internal/fips140/drbg/rand.go      | 21 +++++++++++----------
+ src/crypto/internal/fips140/drbg/rand_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 10 deletions(-)

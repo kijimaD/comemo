@@ -1,0 +1,2230 @@
+commit 9eeb627f606e713854e117dd4e52af5bcad28b66
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu Apr 11 08:50:36 2024 -0700
+
+    crypto/tls: add ech client support
+    
+    This CL adds a (very opinionated) client-side ECH implementation.
+    
+    In particular, if a user configures a ECHConfigList, by setting the
+    Config.EncryptedClientHelloConfigList, but we determine that none of
+    the configs are appropriate, we will not fallback to plaintext SNI, and
+    will instead return an error. It is then up to the user to decide if
+    they wish to fallback to plaintext themselves (by removing the config
+    list).
+    
+    Additionally if Config.EncryptedClientHelloConfigList is provided, we
+    will not offer TLS support lower than 1.3, since negotiating any other
+    version, while offering ECH, is a hard error anyway. Similarly, if a
+    user wishes to fallback to plaintext SNI by using 1.2, they may do so
+    by removing the config list.
+    
+    With regard to PSK GREASE, we match the boringssl  behavior, which does
+    not include PSK identities/binders in the outer hello when doing ECH.
+    
+    If the server rejects ECH, we will return a ECHRejectionError error,
+    which, if provided by the server, will contain a ECHConfigList in the
+    RetryConfigList field containing configs that should be used if the user
+    wishes to retry. It is up to the user to replace their existing
+    Config.EncryptedClientHelloConfigList with the retry config list.
+    
+    Fixes #63369
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I9bc373c044064221a647a388ac61624efd6bbdbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578575
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ api/next/63369.txt                             |   6 +
+ doc/next/6-stdlib/99-minor/crypto/tls/63369.md |   3 +
+ src/crypto/tls/alert.go                        |   2 +
+ src/crypto/tls/bogo_config.json                |  61 +++++-
+ src/crypto/tls/bogo_shim_test.go               | 243 +++++++++++----------
+ src/crypto/tls/common.go                       | 107 +++++++---
+ src/crypto/tls/conn.go                         |   2 +
+ src/crypto/tls/ech.go                          | 283 +++++++++++++++++++++++++
+ src/crypto/tls/ech_test.go                     |  48 +++++
+ src/crypto/tls/handshake_client.go             | 166 ++++++++++++---
+ src/crypto/tls/handshake_client_test.go        | 125 +++++++++++
+ src/crypto/tls/handshake_client_tls13.go       | 148 +++++++++++--
+ src/crypto/tls/handshake_messages.go           | 252 ++++++++++++++++------
+ src/crypto/tls/handshake_messages_test.go      |   6 +
+ src/crypto/tls/handshake_test.go               |  11 +-
+ src/crypto/tls/tls_test.go                     |  11 +-
+ 16 files changed, 1223 insertions(+), 251 deletions(-)
+
+diff --git a/api/next/63369.txt b/api/next/63369.txt
+new file mode 100644
+index 0000000000..a0257a5385
+--- /dev/null
++++ b/api/next/63369.txt
+@@ -0,0 +1,6 @@
++pkg crypto/tls, type Config struct, EncryptedClientHelloConfigList []uint8 #63369
++pkg crypto/tls, type Config struct, EncryptedClientHelloRejectionVerify func(ConnectionState) error #63369
++pkg crypto/tls, type ConnectionState struct, ECHAccepted bool #63369
++pkg crypto/tls, type ECHRejectionError struct #63369
++pkg crypto/tls, type ECHRejectionError struct, RetryConfigList []uint8 #63369
++pkg crypto/tls, method (*ECHRejectionError) Error() string #63369
+diff --git a/doc/next/6-stdlib/99-minor/crypto/tls/63369.md b/doc/next/6-stdlib/99-minor/crypto/tls/63369.md
+new file mode 100644
+index 0000000000..6ec5b5bdf6
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/tls/63369.md
+@@ -0,0 +1,3 @@
++The TLS client now supports the Encrypted Client Hello [draft specification](https://www.ietf.org/archive/id/draft-ietf-tls-esni-18.html).
++This feature can be enabled by setting the [Config.EncryptedClientHelloConfigList]
++field to an encoded ECHConfigList for the host that is being connected to.
+\ No newline at end of file
+diff --git a/src/crypto/tls/alert.go b/src/crypto/tls/alert.go
+index 33022cd2b4..2301c0673d 100644
+--- a/src/crypto/tls/alert.go
++++ b/src/crypto/tls/alert.go
+@@ -58,6 +58,7 @@ const (
+ 	alertUnknownPSKIdentity           alert = 115
+ 	alertCertificateRequired          alert = 116
+ 	alertNoApplicationProtocol        alert = 120
++	alertECHRequired                  alert = 121
+ )
+ 
+ var alertText = map[alert]string{
+@@ -94,6 +95,7 @@ var alertText = map[alert]string{
+ 	alertUnknownPSKIdentity:           "unknown PSK identity",
+ 	alertCertificateRequired:          "certificate required",
+ 	alertNoApplicationProtocol:        "no application protocol",
++	alertECHRequired:                  "encrypted client hello required",
+ }
+ 
+ func (e alert) String() string {
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 21ee32cdc9..8e4cec24aa 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -1,5 +1,45 @@
+ {
+     "DisabledTests": {
++        "*-Async": "We don't support boringssl concept of async",
++
++        "TLS-ECH-Client-Reject-NoClientCertificate-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled",
++        "TLS-ECH-Client-Reject-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled",
++        "TLS-ECH-Client-TLS12-RejectRetryConfigs": "We won't attempt to negotiate 1.2 if ECH is enabled",
++        "TLS-ECH-Client-Rejected-OverrideName-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled",
++        "TLS-ECH-Client-Reject-TLS12-NoFalseStart": "We won't attempt to negotiate 1.2 if ECH is enabled",
++        "TLS-ECH-Client-TLS12SessionTicket": "We won't attempt to negotiate 1.2 if ECH is enabled",
++        "TLS-ECH-Client-TLS12SessionID": "We won't attempt to negotiate 1.2 if ECH is enabled",
++
++        "TLS-ECH-Client-Reject-ResumeInnerSession-TLS12": "We won't attempt to negotiate 1.2 if ECH is enabled (we could possibly test this if we had the ability to indicate not to send ECH on resumption?)",
++
++        "TLS-ECH-Client-Reject-EarlyDataRejected": "We don't support switiching out ECH configs with this level of granularity",
++
++        "TLS-ECH-Client-NoNPN": "We don't support NPN",
++
++        "TLS-ECH-Client-ChannelID": "We don't support sending channel ID",
++        "TLS-ECH-Client-Reject-NoChannelID-TLS13": "We don't support sending channel ID",
++        "TLS-ECH-Client-Reject-NoChannelID-TLS12": "We don't support sending channel ID",
++
++        "TLS-ECH-Client-GREASE-IgnoreHRRExtension": "We don't support ECH GREASE because we don't fallback to plaintext",
++        "TLS-ECH-Client-NoSupportedConfigs-GREASE": "We don't support ECH GREASE because we don't fallback to plaintext",
++        "TLS-ECH-Client-GREASEExtensions": "We don't support ECH GREASE because we don't fallback to plaintext",
++        "TLS-ECH-Client-GREASE-NoOverrideName": "We don't support ECH GREASE because we don't fallback to plaintext",
++
++        "TLS-ECH-Client-UnsolicitedInnerServerNameAck": "We don't allow sending empty SNI without skipping certificate verification, TODO: could add special flag to bogo to indicate 'empty sni'",
++
++        "TLS-ECH-Client-NoSupportedConfigs": "We don't support fallback to cleartext when there are no valid ECH configs",
++        "TLS-ECH-Client-SkipInvalidPublicName": "We don't support fallback to cleartext when there are no valid ECH configs",
++
++        "TLS-ECH-Client-Reject-RandomHRRExtension": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
++        "TLS-ECH-Client-Reject-UnsupportedRetryConfigs": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
++        "TLS-ECH-Client-Reject-NoRetryConfigs": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
++        "TLS-ECH-Client-Reject": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
++        "TLS-ECH-Client-Reject-HelloRetryRequest": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
++        "TLS-ECH-Client-Reject-NoClientCertificate-TLS13": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
++        "TLS-ECH-Client-Reject-OverrideName-TLS13": "TODO: bogo test cases have mismatching public certificates and public names in ECH configs. Can be removed once bogo fixed",
++
++        "*ECH-Server*": "no ECH server support",
++        "SendV2ClientHello*": "We don't support SSLv2",
+         "*QUIC*": "No QUIC support",
+         "Compliance-fips*": "No FIPS",
+         "*DTLS*": "No DTLS",
+@@ -16,8 +56,6 @@
+         "GarbageCertificate*": "TODO ask davidben, alertDecode vs alertBadCertificate",
+         "SendBogusAlertType": "sending wrong alert type",
+         "EchoTLS13CompatibilitySessionID": "TODO reject compat session ID",
+-        "*ECH-Server*": "no ECH server support",
+-        "TLS-ECH-Client-UnsolictedHRRExtension": "TODO",
+         "*Client-P-224*": "no P-224 support",
+         "*Server-P-224*": "no P-224 support",
+         "CurveID-Resume*": "unexposed curveID is not stored in the ticket yet",
+@@ -180,6 +218,23 @@
+         "DuplicateCertCompressionExt-TLS13": "TODO: first pass, this should be fixed",
+         "Client-RejectJDK11DowngradeRandom": "TODO: first pass, this should be fixed",
+         "CheckClientCertificateTypes": "TODO: first pass, this should be fixed",
+-        "CheckECDSACurve-TLS12": "TODO: first pass, this should be fixed"
++        "CheckECDSACurve-TLS12": "TODO: first pass, this should be fixed",
++        "ALPNClient-RejectUnknown-TLS-TLS1": "TODO: first pass, this should be fixed",
++        "ALPNClient-RejectUnknown-TLS-TLS11": "TODO: first pass, this should be fixed",
++        "ALPNClient-RejectUnknown-TLS-TLS12": "TODO: first pass, this should be fixed",
++        "ALPNClient-RejectUnknown-TLS-TLS13": "TODO: first pass, this should be fixed",
++        "ClientHelloPadding": "TODO: first pass, this should be fixed",
++        "TLS13-ExpectTicketEarlyDataSupport": "TODO: first pass, this should be fixed",
++        "TLS13-EarlyData-TooMuchData-Client-TLS-Sync": "TODO: first pass, this should be fixed",
++        "TLS13-EarlyData-TooMuchData-Client-TLS-Sync-SplitHandshakeRecords": "TODO: first pass, this should be fixed",
++        "TLS13-EarlyData-TooMuchData-Client-TLS-Sync-PackHandshake": "TODO: first pass, this should be fixed",
++        "WrongMessageType-TLS13-EndOfEarlyData-TLS": "TODO: first pass, this should be fixed",
++        "TrailingMessageData-TLS13-EndOfEarlyData-TLS": "TODO: first pass, this should be fixed",
++        "SendHelloRetryRequest-2-TLS13": "TODO: first pass, this should be fixed",
++        "EarlyData-SkipEndOfEarlyData-TLS13": "TODO: first pass, this should be fixed",
++        "EarlyData-Server-BadFinished-TLS13": "TODO: first pass, this should be fixed",
++        "EarlyData-UnexpectedHandshake-Server-TLS13": "TODO: first pass, this should be fixed",
++        "EarlyData-CipherMismatch-Client-TLS13": "TODO: first pass, this should be fixed",
++        "Resume-Server-UnofferedCipher-TLS13": "TODO: first pass, this should be fixed"
+     }
+ }
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index 4a95dc1d98..ad5195cce3 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -1,7 +1,9 @@
+ package tls
+ 
+ import (
++	"bytes"
+ 	"crypto/x509"
++	"encoding/base64"
+ 	"encoding/json"
+ 	"encoding/pem"
+ 	"flag"
+@@ -48,93 +50,35 @@ var (
+ 	shimID = flag.Uint64("shim-id", 0, "")
+ 	_      = flag.Bool("ipv6", false, "")
+ 
+-	// Unimplemented flags
+-	// -advertise-alpn
+-	// -advertise-npn
+-	// -allow-hint-mismatch
+-	// -async
+-	// -check-close-notify
+-	// -cipher
+-	// -curves
+-	// -delegated-credential
+-	// -dtls
+-	// -ech-config-list
+-	// -ech-server-config
+-	// -enable-channel-id
+-	// -enable-early-data
+-	// -enable-ech-grease
+-	// -enable-grease
+-	// -enable-ocsp-stapling
+-	// -enable-signed-cert-timestamps
+-	// -expect-advertised-alpn
+-	// -expect-certificate-types
+-	// -expect-channel-id
+-	// -expect-cipher-aes
+-	// -expect-client-ca-list
+-	// -expect-curve-id
+-	// -expect-early-data-reason
+-	// -expect-extended-master-secret
+-	// -expect-hrr
+-	// -expect-key-usage-invalid
+-	// -expect-msg-callback
+-	// -expect-no-session
+-	// -expect-peer-cert-file
+-	// -expect-peer-signature-algorithm
+-	// -expect-peer-verify-pref
+-	// -expect-secure-renegotiation
+-	// -expect-server-name
+-	// -expect-ticket-supports-early-data
+-	// -export-keying-material
+-	// -export-traffic-secrets
+-	// -fail-cert-callback
+-	// -fail-early-callback
+-	// -fallback-scsv
+-	// -false-start
+-	// -forbid-renegotiation-after-handshake
+-	// -handshake-twice
+-	// -host-name
+-	// -ignore-rsa-key-usage
+-	// -implicit-handshake
+-	// -install-cert-compression-algs
+-	// -install-ddos-callback
+-	// -install-one-cert-compression-alg
+-	// -jdk11-workaround
+-	// -key-update
+-	// -max-cert-list
+-	// -max-send-fragment
+-	// -no-ticket
+-	// -no-tls1
+-	// -no-tls11
+-	// -no-tls12
+-	// -ocsp-response
+-	// -on-resume-expect-accept-early-data
+-	// -on-resume-expect-reject-early-data
+-	// -on-shim-cipher
+-	// -on-shim-curves
+-	// -peek-then-read
+-	// -psk
+-	// -read-with-unfinished-write
+-	// -reject-alpn
+-	// -renegotiate-explicit
+-	// -renegotiate-freely
+-	// -renegotiate-ignore
+-	// -renegotiate-once
+-	// -select-alpn
+-	// -select-next-proto
+-	// -send-alert
+-	// -send-channel-id
+-	// -server-preference
+-	// -shim-shuts-down
+-	// -signed-cert-timestamps
+-	// -signing-prefs
+-	// -srtp-profiles
+-	// -tls-unique
+-	// -use-client-ca-list
+-	// -use-ocsp-callback
+-	// -use-old-client-cert-callback
+-	// -verify-fail
+-	// -verify-peer
+-	// -verify-prefs
++	echConfigListB64           = flag.String("ech-config-list", "", "")
++	expectECHAccepted          = flag.Bool("expect-ech-accept", false, "")
++	expectHRR                  = flag.Bool("expect-hrr", false, "")
++	expectedECHRetryConfigs    = flag.String("expect-ech-retry-configs", "", "")
++	expectNoECHRetryConfigs    = flag.Bool("expect-no-ech-retry-configs", false, "")
++	onInitialExpectECHAccepted = flag.Bool("on-initial-expect-ech-accept", false, "")
++	_                          = flag.Bool("expect-no-ech-name-override", false, "")
++	_                          = flag.String("expect-ech-name-override", "", "")
++	_                          = flag.Bool("reverify-on-resume", false, "")
++	onResumeECHConfigListB64   = flag.String("on-resume-ech-config-list", "", "")
++	_                          = flag.Bool("on-resume-expect-reject-early-data", false, "")
++	onResumeExpectECHAccepted  = flag.Bool("on-resume-expect-ech-accept", false, "")
++	_                          = flag.Bool("on-resume-expect-no-ech-name-override", false, "")
++	expectedServerName         = flag.String("expect-server-name", "", "")
++
++	expectSessionMiss = flag.Bool("expect-session-miss", false, "")
++
++	_                       = flag.Bool("enable-early-data", false, "")
++	_                       = flag.Bool("on-resume-expect-accept-early-data", false, "")
++	_                       = flag.Bool("expect-ticket-supports-early-data", false, "")
++	onResumeShimWritesFirst = flag.Bool("on-resume-shim-writes-first", false, "")
++
++	advertiseALPN = flag.String("advertise-alpn", "", "")
++	expectALPN    = flag.String("expect-alpn", "", "")
++
++	hostName = flag.String("host-name", "", "")
++
++	verifyPeer = flag.Bool("verify-peer", false, "")
++	_          = flag.Bool("use-custom-verify-callback", false, "")
+ )
+ 
+ type stringSlice []string
+@@ -168,11 +112,23 @@ func bogoShim() {
+ 
+ 		ClientSessionCache: NewLRUClientSessionCache(0),
+ 	}
+-
+ 	if *noTLS13 && cfg.MaxVersion == VersionTLS13 {
+ 		cfg.MaxVersion = VersionTLS12
+ 	}
+ 
++	if *advertiseALPN != "" {
++		alpns := *advertiseALPN
++		for len(alpns) > 0 {
++			alpnLen := int(alpns[0])
++			cfg.NextProtos = append(cfg.NextProtos, alpns[1:1+alpnLen])
++			alpns = alpns[alpnLen+1:]
++		}
++	}
++
++	if *hostName != "" {
++		cfg.ServerName = *hostName
++	}
++
+ 	if *keyfile != "" || *certfile != "" {
+ 		pair, err := LoadX509KeyPair(*certfile, *keyfile)
+ 		if err != nil {
+@@ -198,6 +154,18 @@ func bogoShim() {
+ 	if *requireAnyClientCertificate {
+ 		cfg.ClientAuth = RequireAnyClientCert
+ 	}
++	if *verifyPeer {
++		cfg.ClientAuth = VerifyClientCertIfGiven
++	}
++
++	if *echConfigListB64 != "" {
++		echConfigList, err := base64.StdEncoding.DecodeString(*echConfigListB64)
++		if err != nil {
++			log.Fatalf("parse ech-config-list err: %s", err)
++		}
++		cfg.EncryptedClientHelloConfigList = echConfigList
++		cfg.MinVersion = VersionTLS13
++	}
+ 
+ 	if len(*curves) != 0 {
+ 		for _, curveStr := range *curves {
+@@ -210,6 +178,14 @@ func bogoShim() {
+ 	}
+ 
+ 	for i := 0; i < *resumeCount+1; i++ {
++		if i > 0 && (*onResumeECHConfigListB64 != "") {
++			echConfigList, err := base64.StdEncoding.DecodeString(*onResumeECHConfigListB64)
++			if err != nil {
++				log.Fatalf("parse ech-config-list err: %s", err)
++			}
++			cfg.EncryptedClientHelloConfigList = echConfigList
++		}
++
+ 		conn, err := net.Dial("tcp", net.JoinHostPort("localhost", *port))
+ 		if err != nil {
+ 			log.Fatalf("dial err: %s", err)
+@@ -230,7 +206,7 @@ func bogoShim() {
+ 			tlsConn = Client(conn, cfg)
+ 		}
+ 
+-		if *shimWritesFirst {
++		if i == 0 && *shimWritesFirst {
+ 			if _, err := tlsConn.Write([]byte("hello")); err != nil {
+ 				log.Fatalf("write err: %s", err)
+ 			}
+@@ -238,19 +214,65 @@ func bogoShim() {
+ 
+ 		for {
+ 			buf := make([]byte, 500)
+-			n, err := tlsConn.Read(buf)
+-			if err == io.EOF {
+-				break
+-			}
++			var n int
++			n, err = tlsConn.Read(buf)
+ 			if err != nil {
+-				log.Fatalf("read err: %s", err)
++				break
+ 			}
+ 			buf = buf[:n]
+ 			for i := range buf {
+ 				buf[i] ^= 0xff
+ 			}
+-			if _, err := tlsConn.Write(buf); err != nil {
+-				log.Fatalf("write err: %s", err)
++			if _, err = tlsConn.Write(buf); err != nil {
++				break
++			}
++		}
++		if err != nil && err != io.EOF {
++			retryErr, ok := err.(*ECHRejectionError)
++			if !ok {
++				log.Fatalf("unexpected error type returned: %v", err)
++			}
++			if *expectNoECHRetryConfigs && len(retryErr.RetryConfigList) > 0 {
++				log.Fatalf("expected no ECH retry configs, got some")
++			}
++			if *expectedECHRetryConfigs != "" {
++				expectedRetryConfigs, err := base64.StdEncoding.DecodeString(*expectedECHRetryConfigs)
++				if err != nil {
++					log.Fatalf("failed to decode expected retry configs: %s", err)
++				}
++				if !bytes.Equal(retryErr.RetryConfigList, expectedRetryConfigs) {
++					log.Fatalf("unexpected retry list returned: got %x, want %x", retryErr.RetryConfigList, expectedRetryConfigs)
++				}
++			}
++			log.Fatalf("conn error: %s", err)
++		}
++
++		cs := tlsConn.ConnectionState()
++		if cs.HandshakeComplete {
++			if *expectALPN != "" && cs.NegotiatedProtocol != *expectALPN {
++				log.Fatalf("unexpected protocol negotiated: want %q, got %q", *expectALPN, cs.NegotiatedProtocol)
++			}
++
++			if *expectECHAccepted && !cs.ECHAccepted {
++				log.Fatal("expected ECH to be accepted, but connection state shows it was not")
++			} else if i == 0 && *onInitialExpectECHAccepted && !cs.ECHAccepted {
++				log.Fatal("expected ECH to be accepted, but connection state shows it was not")
++			} else if i > 0 && *onResumeExpectECHAccepted && !cs.ECHAccepted {
++				log.Fatal("expected ECH to be accepted on resumption, but connection state shows it was not")
++			} else if i == 0 && !*expectECHAccepted && cs.ECHAccepted {
++				log.Fatal("did not expect ECH, but it was accepted")
++			}
++
++			if *expectHRR && !cs.testingOnlyDidHRR {
++				log.Fatal("expected HRR but did not do it")
++			}
++
++			if *expectSessionMiss && cs.DidResume {
++				log.Fatal("unexpected session resumption")
++			}
++
++			if *expectedServerName != "" && cs.ServerName != *expectedServerName {
++				log.Fatalf("unexpected server name: got %q, want %q", cs.ServerName, *expectedServerName)
+ 			}
+ 		}
+ 
+@@ -275,21 +297,26 @@ func TestBogoSuite(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}
+-
+ 	if testenv.Builder() != "" && runtime.GOOS == "windows" {
+ 		t.Skip("#66913: windows network connections are flakey on builders")
+ 	}
+ 
+-	const boringsslModVer = "v0.0.0-20240517213134-ba62c812f01f"
+-	output, err := exec.Command("go", "mod", "download", "-json", "github.com/google/boringssl@"+boringsslModVer).CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("failed to download boringssl: %s", err)
+-	}
+-	var j struct {
+-		Dir string
+-	}
+-	if err := json.Unmarshal(output, &j); err != nil {
+-		t.Fatalf("failed to parse 'go mod download' output: %s", err)
++	var bogoDir string
++	if *bogoLocalDir != "" {
++		bogoDir = *bogoLocalDir
++	} else {
++		const boringsslModVer = "v0.0.0-20240517213134-ba62c812f01f"
++		output, err := exec.Command("go", "mod", "download", "-json", "github.com/google/boringssl@"+boringsslModVer).CombinedOutput()
++		if err != nil {
++			t.Fatalf("failed to download boringssl: %s", err)
++		}
++		var j struct {
++			Dir string
++		}
++		if err := json.Unmarshal(output, &j); err != nil {
++			t.Fatalf("failed to parse 'go mod download' output: %s", err)
++		}
++		bogoDir = j.Dir
+ 	}
+ 
+ 	cwd, err := os.Getwd()
+@@ -319,7 +346,7 @@ func TestBogoSuite(t *testing.T) {
+ 	cmd := exec.Command(goCmd, args...)
+ 	out := &strings.Builder{}
+ 	cmd.Stdout, cmd.Stderr = io.MultiWriter(os.Stdout, out), os.Stderr
+-	cmd.Dir = filepath.Join(j.Dir, "ssl/test/runner")
++	cmd.Dir = filepath.Join(bogoDir, "ssl/test/runner")
+ 	err = cmd.Run()
+ 	if err != nil {
+ 		t.Fatalf("bogo failed: %s", err)
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 498d345285..5fd92d3c63 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -125,6 +125,8 @@ const (
+ 	extensionKeyShare                uint16 = 51
+ 	extensionQUICTransportParameters uint16 = 57
+ 	extensionRenegotiationInfo       uint16 = 0xff01
++	extensionECHOuterExtensions      uint16 = 0xfd00
++	extensionEncryptedClientHello    uint16 = 0xfe0d
+ )
+ 
+ // TLS signaling cipher suite values
+@@ -287,6 +289,11 @@ type ConnectionState struct {
+ 	// resumed connections that don't support Extended Master Secret (RFC 7627).
+ 	TLSUnique []byte
+ 
++	// ECHAccepted indicates if Encrypted Client Hello was offered by the client
++	// and accepted by the server. Currently, ECH is supported only on the
++	// client side.
++	ECHAccepted bool
++
+ 	// ekm is a closure exposed via ExportKeyingMaterial.
+ 	ekm func(label string, context []byte, length int) ([]byte, error)
+ 
+@@ -777,6 +784,41 @@ type Config struct {
+ 	// used for debugging.
+ 	KeyLogWriter io.Writer
+ 
++	// EncryptedClientHelloConfigList is a serialized ECHConfigList. If
++	// provided, clients will attempt to connect to servers using Encrypted
++	// Client Hello (ECH) using one of the provided ECHConfigs. Servers
++	// currently ignore this field.
++	//
++	// If the list contains no valid ECH configs, the handshake will fail
++	// and return an error.
++	//
++	// If EncryptedClientHelloConfigList is set, MinVersion, if set, must
++	// be VersionTLS13.
++	//
++	// When EncryptedClientHelloConfigList is set, the handshake will only
++	// succeed if ECH is sucessfully negotiated. If the server rejects ECH,
++	// an ECHRejectionError error will be returned, which may contain a new
++	// ECHConfigList that the server suggests using.
++	//
++	// How this field is parsed may change in future Go versions, if the
++	// encoding described in the final Encrypted Client Hello RFC changes.
++	EncryptedClientHelloConfigList []byte
++
++	// EncryptedClientHelloRejectionVerify, if not nil, is called when ECH is
++	// rejected, in order to verify the ECH provider certificate in the outer
++	// Client Hello. If it returns a non-nil error, the handshake is aborted and
++	// that error results.
++	//
++	// Unlike VerifyPeerCertificate and VerifyConnection, normal certificate
++	// verification will not be performed before calling
++	// EncryptedClientHelloRejectionVerify.
++	//
++	// If EncryptedClientHelloRejectionVerify is nil and ECH is rejected, the
++	// roots in RootCAs will be used to verify the ECH providers public
++	// certificate. VerifyPeerCertificate and VerifyConnection are not called
++	// when ECH is rejected, even if set, and InsecureSkipVerify is ignored.
++	EncryptedClientHelloRejectionVerify func(ConnectionState) error
++
+ 	// mutex protects sessionTicketKeys and autoSessionTicketKeys.
+ 	mutex sync.RWMutex
+ 	// sessionTicketKeys contains zero or more ticket keys. If set, it means
+@@ -836,36 +878,38 @@ func (c *Config) Clone() *Config {
+ 	c.mutex.RLock()
+ 	defer c.mutex.RUnlock()
+ 	return &Config{
+-		Rand:                        c.Rand,
+-		Time:                        c.Time,
+-		Certificates:                c.Certificates,
+-		NameToCertificate:           c.NameToCertificate,
+-		GetCertificate:              c.GetCertificate,
+-		GetClientCertificate:        c.GetClientCertificate,
+-		GetConfigForClient:          c.GetConfigForClient,
+-		VerifyPeerCertificate:       c.VerifyPeerCertificate,
+-		VerifyConnection:            c.VerifyConnection,
+-		RootCAs:                     c.RootCAs,
+-		NextProtos:                  c.NextProtos,
+-		ServerName:                  c.ServerName,
+-		ClientAuth:                  c.ClientAuth,
+-		ClientCAs:                   c.ClientCAs,
+-		InsecureSkipVerify:          c.InsecureSkipVerify,
+-		CipherSuites:                c.CipherSuites,
+-		PreferServerCipherSuites:    c.PreferServerCipherSuites,
+-		SessionTicketsDisabled:      c.SessionTicketsDisabled,
+-		SessionTicketKey:            c.SessionTicketKey,
+-		ClientSessionCache:          c.ClientSessionCache,
+-		UnwrapSession:               c.UnwrapSession,
+-		WrapSession:                 c.WrapSession,
+-		MinVersion:                  c.MinVersion,
+-		MaxVersion:                  c.MaxVersion,
+-		CurvePreferences:            c.CurvePreferences,
+-		DynamicRecordSizingDisabled: c.DynamicRecordSizingDisabled,
+-		Renegotiation:               c.Renegotiation,
+-		KeyLogWriter:                c.KeyLogWriter,
+-		sessionTicketKeys:           c.sessionTicketKeys,
+-		autoSessionTicketKeys:       c.autoSessionTicketKeys,
++		Rand:                                c.Rand,
++		Time:                                c.Time,
++		Certificates:                        c.Certificates,
++		NameToCertificate:                   c.NameToCertificate,
++		GetCertificate:                      c.GetCertificate,
++		GetClientCertificate:                c.GetClientCertificate,
++		GetConfigForClient:                  c.GetConfigForClient,
++		VerifyPeerCertificate:               c.VerifyPeerCertificate,
++		VerifyConnection:                    c.VerifyConnection,
++		RootCAs:                             c.RootCAs,
++		NextProtos:                          c.NextProtos,
++		ServerName:                          c.ServerName,
++		ClientAuth:                          c.ClientAuth,
++		ClientCAs:                           c.ClientCAs,
++		InsecureSkipVerify:                  c.InsecureSkipVerify,
++		CipherSuites:                        c.CipherSuites,
++		PreferServerCipherSuites:            c.PreferServerCipherSuites,
++		SessionTicketsDisabled:              c.SessionTicketsDisabled,
++		SessionTicketKey:                    c.SessionTicketKey,
++		ClientSessionCache:                  c.ClientSessionCache,
++		UnwrapSession:                       c.UnwrapSession,
++		WrapSession:                         c.WrapSession,
++		MinVersion:                          c.MinVersion,
++		MaxVersion:                          c.MaxVersion,
++		CurvePreferences:                    c.CurvePreferences,
++		DynamicRecordSizingDisabled:         c.DynamicRecordSizingDisabled,
++		Renegotiation:                       c.Renegotiation,
++		KeyLogWriter:                        c.KeyLogWriter,
++		EncryptedClientHelloConfigList:      c.EncryptedClientHelloConfigList,
++		EncryptedClientHelloRejectionVerify: c.EncryptedClientHelloRejectionVerify,
++		sessionTicketKeys:                   c.sessionTicketKeys,
++		autoSessionTicketKeys:               c.autoSessionTicketKeys,
+ 	}
+ }
+ 
+@@ -1052,6 +1096,9 @@ func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 				continue
+ 			}
+ 		}
++		if isClient && c.EncryptedClientHelloConfigList != nil && v < VersionTLS13 {
++			continue
++		}
+ 		if c != nil && c.MinVersion != 0 && v < c.MinVersion {
+ 			continue
+ 		}
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index 850b56f793..bdbc2bde41 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -71,6 +71,7 @@ type Conn struct {
+ 	// resumptionSecret is the resumption_master_secret for handling
+ 	// or sending NewSessionTicket messages.
+ 	resumptionSecret []byte
++	echAccepted      bool
+ 
+ 	// ticketKeys is the set of active session ticket keys for this
+ 	// connection. The first one is used to encrypt new tickets and
+@@ -1652,6 +1653,7 @@ func (c *Conn) connectionStateLocked() ConnectionState {
+ 	} else {
+ 		state.ekm = c.ekm
+ 	}
++	state.ECHAccepted = c.echAccepted
+ 	return state
+ }
+ 
+diff --git a/src/crypto/tls/ech.go b/src/crypto/tls/ech.go
+new file mode 100644
+index 0000000000..7bf68589f8
+--- /dev/null
++++ b/src/crypto/tls/ech.go
+@@ -0,0 +1,283 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"crypto/internal/hpke"
++	"errors"
++	"strings"
++
++	"golang.org/x/crypto/cryptobyte"
++)
++
++type echCipher struct {
++	KDFID  uint16
++	AEADID uint16
++}
++
++type echExtension struct {
++	Type uint16
++	Data []byte
++}
++
++type echConfig struct {
++	raw []byte
++
++	Version uint16
++	Length  uint16
++
++	ConfigID             uint8
++	KemID                uint16
++	PublicKey            []byte
++	SymmetricCipherSuite []echCipher
++
++	MaxNameLength uint8
++	PublicName    []byte
++	Extensions    []echExtension
++}
++
++var errMalformedECHConfig = errors.New("tls: malformed ECHConfigList")
++
++// parseECHConfigList parses a draft-ietf-tls-esni-18 ECHConfigList, returning a
++// slice of parsed ECHConfigs, in the same order they were parsed, or an error
++// if the list is malformed.
++func parseECHConfigList(data []byte) ([]echConfig, error) {
++	s := cryptobyte.String(data)
++	// Skip the length prefix
++	var length uint16
++	if !s.ReadUint16(&length) {
++		return nil, errMalformedECHConfig
++	}
++	if length != uint16(len(data)-2) {
++		return nil, errMalformedECHConfig
++	}
++	var configs []echConfig
++	for len(s) > 0 {
++		var ec echConfig
++		ec.raw = []byte(s)
++		if !s.ReadUint16(&ec.Version) {
++			return nil, errMalformedECHConfig
++		}
++		if !s.ReadUint16(&ec.Length) {
++			return nil, errMalformedECHConfig
++		}
++		if len(ec.raw) < int(ec.Length)+4 {
++			return nil, errMalformedECHConfig
++		}
++		ec.raw = ec.raw[:ec.Length+4]
++		if ec.Version != extensionEncryptedClientHello {
++			s.Skip(int(ec.Length))
++			continue
++		}
++		if !s.ReadUint8(&ec.ConfigID) {
++			return nil, errMalformedECHConfig
++		}
++		if !s.ReadUint16(&ec.KemID) {
++			return nil, errMalformedECHConfig
++		}
++		if !s.ReadUint16LengthPrefixed((*cryptobyte.String)(&ec.PublicKey)) {
++			return nil, errMalformedECHConfig
++		}
++		var cipherSuites cryptobyte.String
++		if !s.ReadUint16LengthPrefixed(&cipherSuites) {
++			return nil, errMalformedECHConfig
++		}
++		for !cipherSuites.Empty() {
++			var c echCipher
++			if !cipherSuites.ReadUint16(&c.KDFID) {
++				return nil, errMalformedECHConfig
++			}
++			if !cipherSuites.ReadUint16(&c.AEADID) {
++				return nil, errMalformedECHConfig
++			}
++			ec.SymmetricCipherSuite = append(ec.SymmetricCipherSuite, c)
++		}
++		if !s.ReadUint8(&ec.MaxNameLength) {
++			return nil, errMalformedECHConfig
++		}
++		var publicName cryptobyte.String
++		if !s.ReadUint8LengthPrefixed(&publicName) {
++			return nil, errMalformedECHConfig
++		}
++		ec.PublicName = publicName
++		var extensions cryptobyte.String
++		if !s.ReadUint16LengthPrefixed(&extensions) {
++			return nil, errMalformedECHConfig
++		}
++		for !extensions.Empty() {
++			var e echExtension
++			if !extensions.ReadUint16(&e.Type) {
++				return nil, errMalformedECHConfig
++			}
++			if !extensions.ReadUint16LengthPrefixed((*cryptobyte.String)(&e.Data)) {
++				return nil, errMalformedECHConfig
++			}
++			ec.Extensions = append(ec.Extensions, e)
++		}
++
++		configs = append(configs, ec)
++	}
++	return configs, nil
++}
++
++func pickECHConfig(list []echConfig) *echConfig {
++	for _, ec := range list {
++		if _, ok := hpke.SupportedKEMs[ec.KemID]; !ok {
++			continue
++		}
++		var validSCS bool
++		for _, cs := range ec.SymmetricCipherSuite {
++			if _, ok := hpke.SupportedAEADs[cs.AEADID]; !ok {
++				continue
++			}
++			if _, ok := hpke.SupportedKDFs[cs.KDFID]; !ok {
++				continue
++			}
++			validSCS = true
++			break
++		}
++		if !validSCS {
++			continue
++		}
++		if !validDNSName(string(ec.PublicName)) {
++			continue
++		}
++		var unsupportedExt bool
++		for _, ext := range ec.Extensions {
++			// If high order bit is set to 1 the extension is mandatory.
++			// Since we don't support any extensions, if we see a mandatory
++			// bit, we skip the config.
++			if ext.Type&uint16(1<<15) != 0 {
++				unsupportedExt = true
++			}
++		}
++		if unsupportedExt {
++			continue
++		}
++		return &ec
++	}
++	return nil
++}
++
++func pickECHCipherSuite(suites []echCipher) (echCipher, error) {
++	for _, s := range suites {
++		// NOTE: all of the supported AEADs and KDFs are fine, rather than
++		// imposing some sort of preference here, we just pick the first valid
++		// suite.
++		if _, ok := hpke.SupportedAEADs[s.AEADID]; !ok {
++			continue
++		}
++		if _, ok := hpke.SupportedKDFs[s.KDFID]; !ok {
++			continue
++		}
++		return s, nil
++	}
++	return echCipher{}, errors.New("tls: no supported symmetric ciphersuites for ECH")
++}
++
++func encodeInnerClientHello(inner *clientHelloMsg, maxNameLength int) ([]byte, error) {
++	h, err := inner.marshalMsg(true)
++	if err != nil {
++		return nil, err
++	}
++	h = h[4:] // strip four byte prefix
++
++	var paddingLen int
++	if inner.serverName != "" {
++		paddingLen = max(0, maxNameLength-len(inner.serverName))
++	} else {
++		paddingLen = maxNameLength + 9
++	}
++	paddingLen = 31 - ((len(h) + paddingLen - 1) % 32)
++
++	return append(h, make([]byte, paddingLen)...), nil
++}
++
++func generateOuterECHExt(id uint8, kdfID, aeadID uint16, encodedKey []byte, payload []byte) ([]byte, error) {
++	var b cryptobyte.Builder
++	b.AddUint8(0) // outer
++	b.AddUint16(kdfID)
++	b.AddUint16(aeadID)
++	b.AddUint8(id)
++	b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) { b.AddBytes(encodedKey) })
++	b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) { b.AddBytes(payload) })
++	return b.Bytes()
++}
++
++func computeAndUpdateOuterECHExtension(outer, inner *clientHelloMsg, ech *echContext, useKey bool) error {
++	var encapKey []byte
++	if useKey {
++		encapKey = ech.encapsulatedKey
++	}
++	encodedInner, err := encodeInnerClientHello(inner, int(ech.config.MaxNameLength))
++	if err != nil {
++		return err
++	}
++	// NOTE: the tag lengths for all of the supported AEADs are the same (16
++	// bytes), so we have hardcoded it here. If we add support for another AEAD
++	// with a different tag length, we will need to change this.
++	encryptedLen := len(encodedInner) + 16 // AEAD tag length
++	outer.encryptedClientHello, err = generateOuterECHExt(ech.config.ConfigID, ech.kdfID, ech.aeadID, encapKey, make([]byte, encryptedLen))
++	if err != nil {
++		return err
++	}
++	serializedOuter, err := outer.marshal()
++	if err != nil {
++		return err
++	}
++	serializedOuter = serializedOuter[4:] // strip the four byte prefix
++	encryptedInner, err := ech.hpkeContext.Seal(serializedOuter, encodedInner)
++	if err != nil {
++		return err
++	}
++	outer.encryptedClientHello, err = generateOuterECHExt(ech.config.ConfigID, ech.kdfID, ech.aeadID, encapKey, encryptedInner)
++	if err != nil {
++		return err
++	}
++	return nil
++}
++
++// validDNSName is a rather rudimentary check for the validity of a DNS name.
++// This is used to check if the public_name in a ECHConfig is valid when we are
++// picking a config. This can be somewhat lax because even if we pick a
++// valid-looking name, the DNS layer will later reject it anyway.
++func validDNSName(name string) bool {
++	if len(name) > 253 {
++		return false
++	}
++	labels := strings.Split(name, ".")
++	if len(labels) <= 1 {
++		return false
++	}
++	for _, l := range labels {
++		labelLen := len(l)
++		if labelLen == 0 {
++			return false
++		}
++		for i, r := range l {
++			if r == '-' && (i == 0 || i == labelLen-1) {
++				return false
++			}
++			if (r < '0' || r > '9') && (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && r != '-' {
++				return false
++			}
++		}
++	}
++	return true
++}
++
++// ECHRejectionError is the error type returned when ECH is rejected by a remote
++// server. If the server offered a ECHConfigList to use for retries, the
++// RetryConfigList field will contain this list.
++//
++// The client may treat an ECHRejectionError with an empty set of RetryConfigs
++// as a secure signal from the server.
++type ECHRejectionError struct {
++	RetryConfigList []byte
++}
++
++func (e *ECHRejectionError) Error() string {
++	return "tls: server rejected ECH"
++}
+diff --git a/src/crypto/tls/ech_test.go b/src/crypto/tls/ech_test.go
+new file mode 100644
+index 0000000000..96312a44d7
+--- /dev/null
++++ b/src/crypto/tls/ech_test.go
+@@ -0,0 +1,48 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"encoding/hex"
++	"testing"
++)
++
++func TestDecodeECHConfigLists(t *testing.T) {
++	for _, tc := range []struct {
++		list       string
++		numConfigs int
++	}{
++		{"0045fe0d0041590020002092a01233db2218518ccbbbbc24df20686af417b37388de6460e94011974777090004000100010012636c6f7564666c6172652d6563682e636f6d0000", 1},
++		{"0105badd00050504030201fe0d0066000010004104e62b69e2bf659f97be2f1e0d948a4cd5976bb7a91e0d46fbdda9a91e9ddcba5a01e7d697a80a18f9c3c4a31e56e27c8348db161a1cf51d7ef1942d4bcf7222c1000c000100010001000200010003400e7075626c69632e6578616d706c650000fe0d003d00002000207d661615730214aeee70533366f36a609ead65c0c208e62322346ab5bcd8de1c000411112222400e7075626c69632e6578616d706c650000fe0d004d000020002085bd6a03277c25427b52e269e0c77a8eb524ba1eb3d2f132662d4b0ac6cb7357000c000100010001000200010003400e7075626c69632e6578616d706c650008aaaa000474657374", 3},
++	} {
++		b, err := hex.DecodeString(tc.list)
++		if err != nil {
++			t.Fatal(err)
++		}
++		configs, err := parseECHConfigList(b)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if len(configs) != tc.numConfigs {
++			t.Fatalf("unexpected number of configs parsed: got %d want %d", len(configs), tc.numConfigs)
++		}
++	}
++
++}
++
++func TestSkipBadConfigs(t *testing.T) {
++	b, err := hex.DecodeString("00c8badd00050504030201fe0d0029006666000401020304000c000100010001000200010003400e7075626c69632e6578616d706c650000fe0d003d000020002072e8a23b7aef67832bcc89d652e3870a60f88ca684ec65d6eace6b61f136064c000411112222400e7075626c69632e6578616d706c650000fe0d004d00002000200ce95810a81d8023f41e83679bc92701b2acd46c75869f95c72bc61c6b12297c000c000100010001000200010003400e7075626c69632e6578616d706c650008aaaa000474657374")
++	if err != nil {
++		t.Fatal(err)
++	}
++	configs, err := parseECHConfigList(b)
++	if err != nil {
++		t.Fatal(err)
++	}
++	config := pickECHConfig(configs)
++	if config != nil {
++		t.Fatal("pickECHConfig picked an invalid config")
++	}
++}
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index d80b2326b3..553d2dde01 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -10,6 +10,7 @@ import (
+ 	"crypto"
+ 	"crypto/ecdsa"
+ 	"crypto/ed25519"
++	"crypto/internal/hpke"
+ 	"crypto/internal/mlkem768"
+ 	"crypto/rsa"
+ 	"crypto/subtle"
+@@ -40,27 +41,27 @@ type clientHandshakeState struct {
+ 
+ var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
+ 
+-func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, error) {
++func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echContext, error) {
+ 	config := c.config
+ 	if len(config.ServerName) == 0 && !config.InsecureSkipVerify {
+-		return nil, nil, errors.New("tls: either ServerName or InsecureSkipVerify must be specified in the tls.Config")
++		return nil, nil, nil, errors.New("tls: either ServerName or InsecureSkipVerify must be specified in the tls.Config")
+ 	}
+ 
+ 	nextProtosLength := 0
+ 	for _, proto := range config.NextProtos {
+ 		if l := len(proto); l == 0 || l > 255 {
+-			return nil, nil, errors.New("tls: invalid NextProtos value")
++			return nil, nil, nil, errors.New("tls: invalid NextProtos value")
+ 		} else {
+ 			nextProtosLength += 1 + l
+ 		}
+ 	}
+ 	if nextProtosLength > 0xffff {
+-		return nil, nil, errors.New("tls: NextProtos values too large")
++		return nil, nil, nil, errors.New("tls: NextProtos values too large")
+ 	}
+ 
+ 	supportedVersions := config.supportedVersions(roleClient)
+ 	if len(supportedVersions) == 0 {
+-		return nil, nil, errors.New("tls: no supported versions satisfy MinVersion and MaxVersion")
++		return nil, nil, nil, errors.New("tls: no supported versions satisfy MinVersion and MaxVersion")
+ 	}
+ 	maxVersion := config.maxSupportedVersion(roleClient)
+ 
+@@ -112,7 +113,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, error)
+ 
+ 	_, err := io.ReadFull(config.rand(), hello.random)
+ 	if err != nil {
+-		return nil, nil, errors.New("tls: short read from Rand: " + err.Error())
++		return nil, nil, nil, errors.New("tls: short read from Rand: " + err.Error())
+ 	}
+ 
+ 	// A random session ID is used to detect when the server accepted a ticket
+@@ -123,7 +124,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, error)
+ 	if c.quic == nil {
+ 		hello.sessionId = make([]byte, 32)
+ 		if _, err := io.ReadFull(config.rand(), hello.sessionId); err != nil {
+-			return nil, nil, errors.New("tls: short read from Rand: " + err.Error())
++			return nil, nil, nil, errors.New("tls: short read from Rand: " + err.Error())
+ 		}
+ 	}
+ 
+@@ -151,15 +152,15 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, error)
+ 		if curveID == x25519Kyber768Draft00 {
+ 			keyShareKeys.ecdhe, err = generateECDHEKey(config.rand(), X25519)
+ 			if err != nil {
+-				return nil, nil, err
++				return nil, nil, nil, err
+ 			}
+ 			seed := make([]byte, mlkem768.SeedSize)
+ 			if _, err := io.ReadFull(config.rand(), seed); err != nil {
+-				return nil, nil, err
++				return nil, nil, nil, err
+ 			}
+ 			keyShareKeys.kyber, err = mlkem768.NewKeyFromSeed(seed)
+ 			if err != nil {
+-				return nil, nil, err
++				return nil, nil, nil, err
+ 			}
+ 			// For draft-tls-westerbaan-xyber768d00-03, we send both a hybrid
+ 			// and a standard X25519 key share, since most servers will only
+@@ -172,11 +173,11 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, error)
+ 			}
+ 		} else {
+ 			if _, ok := curveForCurveID(curveID); !ok {
+-				return nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
++				return nil, nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
+ 			}
+ 			keyShareKeys.ecdhe, err = generateECDHEKey(config.rand(), curveID)
+ 			if err != nil {
+-				return nil, nil, err
++				return nil, nil, nil, err
+ 			}
+ 			hello.keyShares = []keyShare{{group: curveID, data: keyShareKeys.ecdhe.PublicKey().Bytes()}}
+ 		}
+@@ -185,7 +186,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, error)
+ 	if c.quic != nil {
+ 		p, err := c.quicGetTransportParameters()
+ 		if err != nil {
+-			return nil, nil, err
++			return nil, nil, nil, err
+ 		}
+ 		if p == nil {
+ 			p = []byte{}
+@@ -193,7 +194,60 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, error)
+ 		hello.quicTransportParameters = p
+ 	}
+ 
+-	return hello, keyShareKeys, nil
++	var ech *echContext
++	if c.config.EncryptedClientHelloConfigList != nil {
++		if c.config.MinVersion != 0 && c.config.MinVersion < VersionTLS13 {
++			return nil, nil, nil, errors.New("tls: MinVersion must be >= VersionTLS13 if EncryptedClientHelloConfigList is populated")
++		}
++		if c.config.MaxVersion != 0 && c.config.MaxVersion <= VersionTLS12 {
++			return nil, nil, nil, errors.New("tls: MaxVersion must be >= VersionTLS13 if EncryptedClientHelloConfigList is populated")
++		}
++		echConfigs, err := parseECHConfigList(c.config.EncryptedClientHelloConfigList)
++		if err != nil {
++			return nil, nil, nil, err
++		}
++		echConfig := pickECHConfig(echConfigs)
++		if echConfig == nil {
++			return nil, nil, nil, errors.New("tls: EncryptedClientHelloConfigList contains no valid configs")
++		}
++		ech = &echContext{config: echConfig}
++		hello.encryptedClientHello = []byte{1} // indicate inner hello
++		// We need to explicitly set these 1.2 fields to nil, as we do not
++		// marshal them when encoding the inner hello, otherwise transcripts
++		// will later mismatch.
++		hello.supportedPoints = nil
++		hello.ticketSupported = false
++		hello.secureRenegotiationSupported = false
++		hello.extendedMasterSecret = false
++
++		echPK, err := hpke.ParseHPKEPublicKey(ech.config.KemID, ech.config.PublicKey)
++		if err != nil {
++			return nil, nil, nil, err
++		}
++		suite, err := pickECHCipherSuite(ech.config.SymmetricCipherSuite)
++		if err != nil {
++			return nil, nil, nil, err
++		}
++		ech.kdfID, ech.aeadID = suite.KDFID, suite.AEADID
++		info := append([]byte("tls ech\x00"), ech.config.raw...)
++		ech.encapsulatedKey, ech.hpkeContext, err = hpke.SetupSender(ech.config.KemID, suite.KDFID, suite.AEADID, echPK, info)
++		if err != nil {
++			return nil, nil, nil, err
++		}
++	}
++
++	return hello, keyShareKeys, ech, nil
++}
++
++type echContext struct {
++	config          *echConfig
++	hpkeContext     *hpke.Sender
++	encapsulatedKey []byte
++	innerHello      *clientHelloMsg
++	innerTranscript hash.Hash
++	kdfID           uint16
++	aeadID          uint16
++	echRejected     bool
+ }
+ 
+ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
+@@ -205,11 +259,10 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
+ 	// need to be reset.
+ 	c.didResume = false
+ 
+-	hello, keyShareKeys, err := c.makeClientHello()
++	hello, keyShareKeys, ech, err := c.makeClientHello()
+ 	if err != nil {
+ 		return err
+ 	}
+-	c.serverName = hello.serverName
+ 
+ 	session, earlySecret, binderKey, err := c.loadSession(hello)
+ 	if err != nil {
+@@ -231,6 +284,31 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
+ 		}()
+ 	}
+ 
++	if ech != nil {
++		// Split hello into inner and outer
++		ech.innerHello = hello.clone()
++
++		// Overwrite the server name in the outer hello with the public facing
++		// name.
++		hello.serverName = string(ech.config.PublicName)
++		// Generate a new random for the outer hello.
++		hello.random = make([]byte, 32)
++		_, err = io.ReadFull(c.config.rand(), hello.random)
++		if err != nil {
++			return errors.New("tls: short read from Rand: " + err.Error())
++		}
++
++		// NOTE: we don't do PSK GREASE, in line with boringssl, it's meant to
++		// work around _possibly_ broken middleboxes, but there is little-to-no
++		// evidence that this is actually a problem.
++
++		if err := computeAndUpdateOuterECHExtension(hello, ech.innerHello, ech, true); err != nil {
++			return err
++		}
++	}
++
++	c.serverName = hello.serverName
++
+ 	if _, err := c.writeHandshakeRecord(hello, nil); err != nil {
+ 		return err
+ 	}
+@@ -283,6 +361,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
+ 			session:      session,
+ 			earlySecret:  earlySecret,
+ 			binderKey:    binderKey,
++			echContext:   ech,
+ 		}
+ 		return hs.handshake()
+ 	}
+@@ -303,7 +382,11 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
+ 		return nil, nil, nil, nil
+ 	}
+ 
+-	hello.ticketSupported = true
++	echInner := bytes.Equal(hello.encryptedClientHello, []byte{1})
++
++	// ticketSupported is a TLS 1.2 extension (as TLS 1.3 replaced tickets with PSK
++	// identities) and ECH requires and forces TLS 1.3.
++	hello.ticketSupported = true && !echInner
+ 
+ 	if hello.supportedVersions[0] == VersionTLS13 {
+ 		// Require DHE on resumption as it guarantees forward secrecy against
+@@ -422,13 +505,7 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
+ 	earlySecret = cipherSuite.extract(session.secret, nil)
+ 	binderKey = cipherSuite.deriveSecret(earlySecret, resumptionBinderLabel, nil)
+ 	transcript := cipherSuite.hash.New()
+-	helloBytes, err := hello.marshalWithoutBinders()
+-	if err != nil {
+-		return nil, nil, nil, err
+-	}
+-	transcript.Write(helloBytes)
+-	pskBinders := [][]byte{cipherSuite.finishedHash(binderKey, transcript)}
+-	if err := hello.updateBinders(pskBinders); err != nil {
++	if err := computeAndUpdatePSK(hello, binderKey, transcript, cipherSuite.finishedHash); err != nil {
+ 		return nil, nil, nil, err
+ 	}
+ 
+@@ -1009,7 +1086,32 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 		certs[i] = cert.cert
+ 	}
+ 
+-	if !c.config.InsecureSkipVerify {
++	echRejected := c.config.EncryptedClientHelloConfigList != nil && !c.echAccepted
++	if echRejected {
++		if c.config.EncryptedClientHelloRejectionVerify != nil {
++			if err := c.config.EncryptedClientHelloRejectionVerify(c.connectionStateLocked()); err != nil {
++				c.sendAlert(alertBadCertificate)
++				return err
++			}
++		} else {
++			opts := x509.VerifyOptions{
++				Roots:         c.config.RootCAs,
++				CurrentTime:   c.config.time(),
++				DNSName:       c.serverName,
++				Intermediates: x509.NewCertPool(),
++			}
++
++			for _, cert := range certs[1:] {
++				opts.Intermediates.AddCert(cert)
++			}
++			var err error
++			c.verifiedChains, err = certs[0].Verify(opts)
++			if err != nil {
++				c.sendAlert(alertBadCertificate)
++				return &CertificateVerificationError{UnverifiedCertificates: certs, Err: err}
++			}
++		}
++	} else if !c.config.InsecureSkipVerify {
+ 		opts := x509.VerifyOptions{
+ 			Roots:         c.config.RootCAs,
+ 			CurrentTime:   c.config.time(),
+@@ -1039,14 +1141,14 @@ func (c *Conn) verifyServerCertificate(certificates [][]byte) error {
+ 	c.activeCertHandles = activeHandles
+ 	c.peerCertificates = certs
+ 
+-	if c.config.VerifyPeerCertificate != nil {
++	if c.config.VerifyPeerCertificate != nil && !echRejected {
+ 		if err := c.config.VerifyPeerCertificate(certificates, c.verifiedChains); err != nil {
+ 			c.sendAlert(alertBadCertificate)
+ 			return err
+ 		}
+ 	}
+ 
+-	if c.config.VerifyConnection != nil {
++	if c.config.VerifyConnection != nil && !echRejected {
+ 		if err := c.config.VerifyConnection(c.connectionStateLocked()); err != nil {
+ 			c.sendAlert(alertBadCertificate)
+ 			return err
+@@ -1169,3 +1271,13 @@ func hostnameInSNI(name string) string {
+ 	}
+ 	return name
+ }
++
++func computeAndUpdatePSK(m *clientHelloMsg, binderKey []byte, transcript hash.Hash, finishedHash func([]byte, hash.Hash) []byte) error {
++	helloBytes, err := m.marshalWithoutBinders()
++	if err != nil {
++		return err
++	}
++	transcript.Write(helloBytes)
++	pskBinders := [][]byte{finishedHash(binderKey, transcript)}
++	return m.updateBinders(pskBinders)
++}
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index a32b48aa9e..4570f5b05e 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -7,9 +7,14 @@ package tls
+ import (
+ 	"bytes"
+ 	"context"
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
+ 	"crypto/rsa"
+ 	"crypto/x509"
++	"crypto/x509/pkix"
+ 	"encoding/base64"
++	"encoding/hex"
+ 	"encoding/pem"
+ 	"errors"
+ 	"fmt"
+@@ -2809,3 +2814,123 @@ func TestHandshakeRSATooBig(t *testing.T) {
+ 		t.Errorf("Conn.processCertsFromClient unexpected error: want %q, got %q", expectedErr, err)
+ 	}
+ }
++
++func TestTLS13ECHRejectionCallbacks(t *testing.T) {
++	k, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatal(err)
++	}
++	tmpl := &x509.Certificate{
++		SerialNumber: big.NewInt(1),
++		Subject:      pkix.Name{CommonName: "test"},
++		DNSNames:     []string{"example.golang"},
++		NotBefore:    testConfig.Time().Add(-time.Hour),
++		NotAfter:     testConfig.Time().Add(time.Hour),
++	}
++	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, k.Public(), k)
++	if err != nil {
++		t.Fatal(err)
++	}
++	cert, err := x509.ParseCertificate(certDER)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
++	serverConfig.Certificates = []Certificate{
++		{
++			Certificate: [][]byte{certDER},
++			PrivateKey:  k,
++		},
++	}
++	serverConfig.MinVersion = VersionTLS13
++	clientConfig.RootCAs = x509.NewCertPool()
++	clientConfig.RootCAs.AddCert(cert)
++	clientConfig.MinVersion = VersionTLS13
++	clientConfig.EncryptedClientHelloConfigList, _ = hex.DecodeString("0041fe0d003d0100200020204bed0a11fc0dde595a9b78d966b0011128eb83f65d3c91c1cc5ac786cd246f000400010001ff0e6578616d706c652e676f6c616e670000")
++	clientConfig.ServerName = "example.golang"
++
++	for _, tc := range []struct {
++		name        string
++		expectedErr string
++
++		verifyConnection                    func(ConnectionState) error
++		verifyPeerCertificate               func([][]byte, [][]*x509.Certificate) error
++		encryptedClientHelloRejectionVerify func(ConnectionState) error
++	}{
++		{
++			name:        "no callbacks",
++			expectedErr: "tls: server rejected ECH",
++		},
++		{
++			name: "EncryptedClientHelloRejectionVerify, no err",
++			encryptedClientHelloRejectionVerify: func(ConnectionState) error {
++				return nil
++			},
++			expectedErr: "tls: server rejected ECH",
++		},
++		{
++			name: "EncryptedClientHelloRejectionVerify, err",
++			encryptedClientHelloRejectionVerify: func(ConnectionState) error {
++				return errors.New("callback err")
++			},
++			// testHandshake returns the server side error, so we just need to
++			// check alertBadCertificate was sent
++			expectedErr: "callback err",
++		},
++		{
++			name: "VerifyConnection, err",
++			verifyConnection: func(ConnectionState) error {
++				return errors.New("callback err")
++			},
++			expectedErr: "tls: server rejected ECH",
++		},
++		{
++			name: "VerifyPeerCertificate, err",
++			verifyPeerCertificate: func([][]byte, [][]*x509.Certificate) error {
++				return errors.New("callback err")
++			},
++			expectedErr: "tls: server rejected ECH",
++		},
++	} {
++		t.Run(tc.name, func(t *testing.T) {
++			c, s := localPipe(t)
++			done := make(chan error)
++
++			go func() {
++				serverErr := Server(s, serverConfig).Handshake()
++				s.Close()
++				done <- serverErr
++			}()
++
++			cConfig := clientConfig.Clone()
++			cConfig.VerifyConnection = tc.verifyConnection
++			cConfig.VerifyPeerCertificate = tc.verifyPeerCertificate
++			cConfig.EncryptedClientHelloRejectionVerify = tc.encryptedClientHelloRejectionVerify
++
++			clientErr := Client(c, cConfig).Handshake()
++			c.Close()
++
++			if tc.expectedErr == "" && clientErr != nil {
++				t.Fatalf("unexpected err: %s", clientErr)
++			} else if clientErr != nil && tc.expectedErr != clientErr.Error() {
++				t.Fatalf("unexpected err: got %q, want %q", clientErr, tc.expectedErr)
++			}
++		})
++	}
++}
++
++func TestECHTLS12Server(t *testing.T) {
++	clientConfig, serverConfig := testConfig.Clone(), testConfig.Clone()
++
++	serverConfig.MaxVersion = VersionTLS12
++	clientConfig.MinVersion = 0
++
++	clientConfig.EncryptedClientHelloConfigList, _ = hex.DecodeString("0041fe0d003d0100200020204bed0a11fc0dde595a9b78d966b0011128eb83f65d3c91c1cc5ac786cd246f000400010001ff0e6578616d706c652e676f6c616e670000")
++
++	expectedErr := "server: tls: client offered only unsupported versions: [304]\nclient: remote error: tls: protocol version not supported"
++	_, _, err := testHandshake(t, clientConfig, serverConfig)
++	if err == nil || err.Error() != expectedErr {
++		t.Fatalf("unexpected handshake error: got %q, want %q", err, expectedErr)
++	}
++}
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index 820532b45b..6744e713c9 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -11,6 +11,7 @@ import (
+ 	"crypto/hmac"
+ 	"crypto/internal/mlkem768"
+ 	"crypto/rsa"
++	"crypto/subtle"
+ 	"errors"
+ 	"hash"
+ 	"slices"
+@@ -35,6 +36,8 @@ type clientHandshakeStateTLS13 struct {
+ 	transcript    hash.Hash
+ 	masterSecret  []byte
+ 	trafficSecret []byte // client_application_traffic_secret_0
++
++	echContext *echContext
+ }
+ 
+ // handshake requires hs.c, hs.hello, hs.serverHello, hs.keyShareKeys, and,
+@@ -68,6 +71,13 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
+ 		return err
+ 	}
+ 
++	if hs.echContext != nil {
++		hs.echContext.innerTranscript = hs.suite.hash.New()
++		if err := transcriptMsg(hs.echContext.innerHello, hs.echContext.innerTranscript); err != nil {
++			return err
++		}
++	}
++
+ 	if bytes.Equal(hs.serverHello.random, helloRetryRequestRandom) {
+ 		if err := hs.sendDummyChangeCipherSpec(); err != nil {
+ 			return err
+@@ -77,6 +87,41 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
+ 		}
+ 	}
+ 
++	var echRetryConfigList []byte
++	if hs.echContext != nil {
++		confTranscript := cloneHash(hs.echContext.innerTranscript, hs.suite.hash)
++		confTranscript.Write(hs.serverHello.original[:30])
++		confTranscript.Write(make([]byte, 8))
++		confTranscript.Write(hs.serverHello.original[38:])
++		acceptConfirmation := hs.suite.expandLabel(
++			hs.suite.extract(hs.echContext.innerHello.random, nil),
++			"ech accept confirmation",
++			confTranscript.Sum(nil),
++			8,
++		)
++		if subtle.ConstantTimeCompare(acceptConfirmation, hs.serverHello.random[len(hs.serverHello.random)-8:]) == 1 {
++			hs.hello = hs.echContext.innerHello
++			c.serverName = c.config.ServerName
++			hs.transcript = hs.echContext.innerTranscript
++			c.echAccepted = true
++
++			if hs.serverHello.encryptedClientHello != nil {
++				c.sendAlert(alertUnsupportedExtension)
++				return errors.New("tls: unexpected encrypted_client_hello extension in server hello despite ECH being accepted")
++			}
++
++			if hs.hello.serverName == "" && hs.serverHello.serverNameAck {
++				c.sendAlert(alertUnsupportedExtension)
++				return errors.New("tls: unexpected server_name extension in server hello")
++			}
++		} else {
++			hs.echContext.echRejected = true
++			// If the server sent us retry configs, we'll return these to
++			// the user so they can update their Config.
++			echRetryConfigList = hs.serverHello.encryptedClientHello
++		}
++	}
++
+ 	if err := transcriptMsg(hs.serverHello, hs.transcript); err != nil {
+ 		return err
+ 	}
+@@ -110,6 +155,11 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
+ 		return err
+ 	}
+ 
++	if hs.echContext != nil && hs.echContext.echRejected {
++		c.sendAlert(alertECHRequired)
++		return &ECHRejectionError{echRetryConfigList}
++	}
++
+ 	c.isHandshakeComplete.Store(true)
+ 
+ 	return nil
+@@ -201,6 +251,48 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
+ 		return err
+ 	}
+ 
++	var isInnerHello bool
++	hello := hs.hello
++	if hs.echContext != nil {
++		chHash = hs.echContext.innerTranscript.Sum(nil)
++		hs.echContext.innerTranscript.Reset()
++		hs.echContext.innerTranscript.Write([]byte{typeMessageHash, 0, 0, uint8(len(chHash))})
++		hs.echContext.innerTranscript.Write(chHash)
++
++		if hs.serverHello.encryptedClientHello != nil {
++			if len(hs.serverHello.encryptedClientHello) != 8 {
++				hs.c.sendAlert(alertDecodeError)
++				return errors.New("tls: malformed encrypted client hello extension")
++			}
++
++			confTranscript := cloneHash(hs.echContext.innerTranscript, hs.suite.hash)
++			hrrHello := make([]byte, len(hs.serverHello.original))
++			copy(hrrHello, hs.serverHello.original)
++			hrrHello = bytes.Replace(hrrHello, hs.serverHello.encryptedClientHello, make([]byte, 8), 1)
++			confTranscript.Write(hrrHello)
++			acceptConfirmation := hs.suite.expandLabel(
++				hs.suite.extract(hs.echContext.innerHello.random, nil),
++				"hrr ech accept confirmation",
++				confTranscript.Sum(nil),
++				8,
++			)
++			if subtle.ConstantTimeCompare(acceptConfirmation, hs.serverHello.encryptedClientHello) == 1 {
++				hello = hs.echContext.innerHello
++				c.serverName = c.config.ServerName
++				isInnerHello = true
++				c.echAccepted = true
++			}
++		}
++
++		if err := transcriptMsg(hs.serverHello, hs.echContext.innerTranscript); err != nil {
++			return err
++		}
++	} else if hs.serverHello.encryptedClientHello != nil {
++		// Unsolicited ECH extension should be rejected
++		c.sendAlert(alertUnsupportedExtension)
++		return errors.New("tls: unexpected ECH extension in serverHello")
++	}
++
+ 	// The only HelloRetryRequest extensions we support are key_share and
+ 	// cookie, and clients must abort the handshake if the HRR would not result
+ 	// in any change in the ClientHello.
+@@ -210,7 +302,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
+ 	}
+ 
+ 	if hs.serverHello.cookie != nil {
+-		hs.hello.cookie = hs.serverHello.cookie
++		hello.cookie = hs.serverHello.cookie
+ 	}
+ 
+ 	if hs.serverHello.serverShare.group != 0 {
+@@ -222,7 +314,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
+ 	// a group we advertised but did not send a key share for, and send a key
+ 	// share for it this time.
+ 	if curveID := hs.serverHello.selectedGroup; curveID != 0 {
+-		if !slices.Contains(hs.hello.supportedCurves, curveID) {
++		if !slices.Contains(hello.supportedCurves, curveID) {
+ 			c.sendAlert(alertIllegalParameter)
+ 			return errors.New("tls: server selected unsupported group")
+ 		}
+@@ -248,10 +340,10 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
+ 			return err
+ 		}
+ 		hs.keyShareKeys = &keySharePrivateKeys{curveID: curveID, ecdhe: key}
+-		hs.hello.keyShares = []keyShare{{group: curveID, data: key.PublicKey().Bytes()}}
++		hello.keyShares = []keyShare{{group: curveID, data: key.PublicKey().Bytes()}}
+ 	}
+ 
+-	if len(hs.hello.pskIdentities) > 0 {
++	if len(hello.pskIdentities) > 0 {
+ 		pskSuite := cipherSuiteTLS13ByID(hs.session.cipherSuite)
+ 		if pskSuite == nil {
+ 			return c.sendAlert(alertInternalError)
+@@ -259,7 +351,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
+ 		if pskSuite.hash == hs.suite.hash {
+ 			// Update binders and obfuscated_ticket_age.
+ 			ticketAge := c.config.time().Sub(time.Unix(int64(hs.session.createdAt), 0))
+-			hs.hello.pskIdentities[0].obfuscatedTicketAge = uint32(ticketAge/time.Millisecond) + hs.session.ageAdd
++			hello.pskIdentities[0].obfuscatedTicketAge = uint32(ticketAge/time.Millisecond) + hs.session.ageAdd
+ 
+ 			transcript := hs.suite.hash.New()
+ 			transcript.Write([]byte{typeMessageHash, 0, 0, uint8(len(chHash))})
+@@ -267,27 +359,40 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
+ 			if err := transcriptMsg(hs.serverHello, transcript); err != nil {
+ 				return err
+ 			}
+-			helloBytes, err := hs.hello.marshalWithoutBinders()
+-			if err != nil {
+-				return err
+-			}
+-			transcript.Write(helloBytes)
+-			pskBinders := [][]byte{hs.suite.finishedHash(hs.binderKey, transcript)}
+-			if err := hs.hello.updateBinders(pskBinders); err != nil {
++
++			if err := computeAndUpdatePSK(hello, hs.binderKey, transcript, hs.suite.finishedHash); err != nil {
+ 				return err
+ 			}
+ 		} else {
+ 			// Server selected a cipher suite incompatible with the PSK.
+-			hs.hello.pskIdentities = nil
+-			hs.hello.pskBinders = nil
++			hello.pskIdentities = nil
++			hello.pskBinders = nil
+ 		}
+ 	}
+ 
+-	if hs.hello.earlyData {
+-		hs.hello.earlyData = false
++	if hello.earlyData {
++		hello.earlyData = false
+ 		c.quicRejectedEarlyData()
+ 	}
+ 
++	if isInnerHello {
++		// Any extensions which have changed in hello, but are mirrored in the
++		// outer hello and compressed, need to be copied to the outer hello, so
++		// they can be properly decompressed by the server. For now, the only
++		// extension which may have changed is keyShares.
++		hs.hello.keyShares = hello.keyShares
++		hs.echContext.innerHello = hello
++		if err := transcriptMsg(hs.echContext.innerHello, hs.echContext.innerTranscript); err != nil {
++			return err
++		}
++
++		if err := computeAndUpdateOuterECHExtension(hs.hello, hs.echContext.innerHello, hs.echContext, false); err != nil {
++			return err
++		}
++	} else {
++		hs.hello = hello
++	}
++
+ 	if _, err := hs.c.writeHandshakeRecord(hs.hello, hs.transcript); err != nil {
+ 		return err
+ 	}
+@@ -503,6 +608,10 @@ func (hs *clientHandshakeStateTLS13) readServerParameters() error {
+ 			return errors.New("tls: server accepted 0-RTT with the wrong ALPN")
+ 		}
+ 	}
++	if hs.echContext != nil && !hs.echContext.echRejected && encryptedExtensions.echRetryConfigs != nil {
++		c.sendAlert(alertUnsupportedExtension)
++		return errors.New("tls: server sent ECH retry configs after accepting ECH")
++	}
+ 
+ 	return nil
+ }
+@@ -656,6 +765,13 @@ func (hs *clientHandshakeStateTLS13) sendClientCertificate() error {
+ 		return nil
+ 	}
+ 
++	if hs.echContext != nil && hs.echContext.echRejected {
++		if _, err := hs.c.writeHandshakeRecord(&certificateMsgTLS13{}, hs.transcript); err != nil {
++			return err
++		}
++		return nil
++	}
++
+ 	cert, err := c.getClientCertificate(&CertificateRequestInfo{
+ 		AcceptableCAs:    hs.certReq.certificateAuthorities,
+ 		SignatureSchemes: hs.certReq.supportedSignatureAlgorithms,
+diff --git a/src/crypto/tls/handshake_messages.go b/src/crypto/tls/handshake_messages.go
+index 86ec493f37..8620b66a47 100644
+--- a/src/crypto/tls/handshake_messages.go
++++ b/src/crypto/tls/handshake_messages.go
+@@ -7,6 +7,7 @@ package tls
+ import (
+ 	"errors"
+ 	"fmt"
++	"slices"
+ 	"strings"
+ 
+ 	"golang.org/x/crypto/cryptobyte"
+@@ -95,9 +96,10 @@ type clientHelloMsg struct {
+ 	pskIdentities                    []pskIdentity
+ 	pskBinders                       [][]byte
+ 	quicTransportParameters          []byte
++	encryptedClientHello             []byte
+ }
+ 
+-func (m *clientHelloMsg) marshal() ([]byte, error) {
++func (m *clientHelloMsg) marshalMsg(echInner bool) ([]byte, error) {
+ 	var exts cryptobyte.Builder
+ 	if len(m.serverName) > 0 {
+ 		// RFC 6066, Section 3
+@@ -111,7 +113,7 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
+ 			})
+ 		})
+ 	}
+-	if len(m.supportedPoints) > 0 {
++	if len(m.supportedPoints) > 0 && !echInner {
+ 		// RFC 4492, Section 5.1.2
+ 		exts.AddUint16(extensionSupportedPoints)
+ 		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+@@ -120,14 +122,14 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
+ 			})
+ 		})
+ 	}
+-	if m.ticketSupported {
++	if m.ticketSupported && !echInner {
+ 		// RFC 5077, Section 3.2
+ 		exts.AddUint16(extensionSessionTicket)
+ 		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+ 			exts.AddBytes(m.sessionTicket)
+ 		})
+ 	}
+-	if m.secureRenegotiationSupported {
++	if m.secureRenegotiationSupported && !echInner {
+ 		// RFC 5746, Section 3.2
+ 		exts.AddUint16(extensionRenegotiationInfo)
+ 		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+@@ -136,7 +138,7 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
+ 			})
+ 		})
+ 	}
+-	if m.extendedMasterSecret {
++	if m.extendedMasterSecret && !echInner {
+ 		// RFC 7627
+ 		exts.AddUint16(extensionExtendedMasterSecret)
+ 		exts.AddUint16(0) // empty extension_data
+@@ -158,101 +160,158 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
+ 			exts.AddBytes(m.quicTransportParameters)
+ 		})
+ 	}
+-	if m.ocspStapling {
+-		// RFC 4366, Section 3.6
+-		exts.AddUint16(extensionStatusRequest)
++	if len(m.encryptedClientHello) > 0 {
++		exts.AddUint16(extensionEncryptedClientHello)
+ 		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+-			exts.AddUint8(1)  // status_type = ocsp
+-			exts.AddUint16(0) // empty responder_id_list
+-			exts.AddUint16(0) // empty request_extensions
++			exts.AddBytes(m.encryptedClientHello)
+ 		})
+ 	}
++	// Note that any extension that can be compressed during ECH must be
++	// contiguous. If any additional extensions are to be compressed they must
++	// be added to the following block, so that they can be properly
++	// decompressed on the other side.
++	var echOuterExts []uint16
++	if m.ocspStapling {
++		// RFC 4366, Section 3.6
++		if echInner {
++			echOuterExts = append(echOuterExts, extensionStatusRequest)
++		} else {
++			exts.AddUint16(extensionStatusRequest)
++			exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++				exts.AddUint8(1)  // status_type = ocsp
++				exts.AddUint16(0) // empty responder_id_list
++				exts.AddUint16(0) // empty request_extensions
++			})
++		}
++	}
+ 	if len(m.supportedCurves) > 0 {
+ 		// RFC 4492, sections 5.1.1 and RFC 8446, Section 4.2.7
+-		exts.AddUint16(extensionSupportedCurves)
+-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++		if echInner {
++			echOuterExts = append(echOuterExts, extensionSupportedCurves)
++		} else {
++			exts.AddUint16(extensionSupportedCurves)
+ 			exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+-				for _, curve := range m.supportedCurves {
+-					exts.AddUint16(uint16(curve))
+-				}
++				exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++					for _, curve := range m.supportedCurves {
++						exts.AddUint16(uint16(curve))
++					}
++				})
+ 			})
+-		})
++		}
+ 	}
+ 	if len(m.supportedSignatureAlgorithms) > 0 {
+ 		// RFC 5246, Section 7.4.1.4.1
+-		exts.AddUint16(extensionSignatureAlgorithms)
+-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++		if echInner {
++			echOuterExts = append(echOuterExts, extensionSignatureAlgorithms)
++		} else {
++			exts.AddUint16(extensionSignatureAlgorithms)
+ 			exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+-				for _, sigAlgo := range m.supportedSignatureAlgorithms {
+-					exts.AddUint16(uint16(sigAlgo))
+-				}
++				exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++					for _, sigAlgo := range m.supportedSignatureAlgorithms {
++						exts.AddUint16(uint16(sigAlgo))
++					}
++				})
+ 			})
+-		})
++		}
+ 	}
+ 	if len(m.supportedSignatureAlgorithmsCert) > 0 {
+ 		// RFC 8446, Section 4.2.3
+-		exts.AddUint16(extensionSignatureAlgorithmsCert)
+-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++		if echInner {
++			echOuterExts = append(echOuterExts, extensionSignatureAlgorithmsCert)
++		} else {
++			exts.AddUint16(extensionSignatureAlgorithmsCert)
+ 			exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+-				for _, sigAlgo := range m.supportedSignatureAlgorithmsCert {
+-					exts.AddUint16(uint16(sigAlgo))
+-				}
++				exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++					for _, sigAlgo := range m.supportedSignatureAlgorithmsCert {
++						exts.AddUint16(uint16(sigAlgo))
++					}
++				})
+ 			})
+-		})
++		}
+ 	}
+ 	if len(m.alpnProtocols) > 0 {
+ 		// RFC 7301, Section 3.1
+-		exts.AddUint16(extensionALPN)
+-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++		if echInner {
++			echOuterExts = append(echOuterExts, extensionALPN)
++		} else {
++			exts.AddUint16(extensionALPN)
+ 			exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+-				for _, proto := range m.alpnProtocols {
+-					exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
+-						exts.AddBytes([]byte(proto))
+-					})
+-				}
++				exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++					for _, proto := range m.alpnProtocols {
++						exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
++							exts.AddBytes([]byte(proto))
++						})
++					}
++				})
+ 			})
+-		})
++		}
+ 	}
+ 	if len(m.supportedVersions) > 0 {
+ 		// RFC 8446, Section 4.2.1
+-		exts.AddUint16(extensionSupportedVersions)
+-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+-			exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
+-				for _, vers := range m.supportedVersions {
+-					exts.AddUint16(vers)
+-				}
++		if echInner {
++			echOuterExts = append(echOuterExts, extensionSupportedVersions)
++		} else {
++			exts.AddUint16(extensionSupportedVersions)
++			exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++				exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
++					for _, vers := range m.supportedVersions {
++						exts.AddUint16(vers)
++					}
++				})
+ 			})
+-		})
++		}
+ 	}
+ 	if len(m.cookie) > 0 {
+ 		// RFC 8446, Section 4.2.2
+-		exts.AddUint16(extensionCookie)
+-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++		if echInner {
++			echOuterExts = append(echOuterExts, extensionCookie)
++		} else {
++			exts.AddUint16(extensionCookie)
+ 			exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+-				exts.AddBytes(m.cookie)
++				exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++					exts.AddBytes(m.cookie)
++				})
+ 			})
+-		})
++		}
+ 	}
+ 	if len(m.keyShares) > 0 {
+ 		// RFC 8446, Section 4.2.8
+-		exts.AddUint16(extensionKeyShare)
+-		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++		if echInner {
++			echOuterExts = append(echOuterExts, extensionKeyShare)
++		} else {
++			exts.AddUint16(extensionKeyShare)
+ 			exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+-				for _, ks := range m.keyShares {
+-					exts.AddUint16(uint16(ks.group))
+-					exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+-						exts.AddBytes(ks.data)
+-					})
+-				}
++				exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++					for _, ks := range m.keyShares {
++						exts.AddUint16(uint16(ks.group))
++						exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++							exts.AddBytes(ks.data)
++						})
++					}
++				})
+ 			})
+-		})
++		}
+ 	}
+ 	if len(m.pskModes) > 0 {
+ 		// RFC 8446, Section 4.2.9
+-		exts.AddUint16(extensionPSKModes)
++		if echInner {
++			echOuterExts = append(echOuterExts, extensionPSKModes)
++		} else {
++			exts.AddUint16(extensionPSKModes)
++			exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++				exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
++					exts.AddBytes(m.pskModes)
++				})
++			})
++		}
++	}
++	if len(echOuterExts) > 0 && echInner {
++		exts.AddUint16(extensionECHOuterExtensions)
+ 		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
+ 			exts.AddUint8LengthPrefixed(func(exts *cryptobyte.Builder) {
+-				exts.AddBytes(m.pskModes)
++				for _, e := range echOuterExts {
++					exts.AddUint16(e)
++				}
+ 			})
+ 		})
+ 	}
+@@ -288,7 +347,9 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
+ 		b.AddUint16(m.vers)
+ 		addBytesWithLength(b, m.random, 32)
+ 		b.AddUint8LengthPrefixed(func(b *cryptobyte.Builder) {
+-			b.AddBytes(m.sessionId)
++			if !echInner {
++				b.AddBytes(m.sessionId)
++			}
+ 		})
+ 		b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
+ 			for _, suite := range m.cipherSuites {
+@@ -309,6 +370,10 @@ func (m *clientHelloMsg) marshal() ([]byte, error) {
+ 	return b.Bytes()
+ }
+ 
++func (m *clientHelloMsg) marshal() ([]byte, error) {
++	return m.marshalMsg(false)
++}
++
+ // marshalWithoutBinders returns the ClientHello through the
+ // PreSharedKeyExtension.identities field, according to RFC 8446, Section
+ // 4.2.11.2. Note that m.pskBinders must be set to slices of the correct length.
+@@ -611,6 +676,39 @@ func (m *clientHelloMsg) originalBytes() []byte {
+ 	return m.original
+ }
+ 
++func (m *clientHelloMsg) clone() *clientHelloMsg {
++	return &clientHelloMsg{
++		original:                         slices.Clone(m.original),
++		vers:                             m.vers,
++		random:                           slices.Clone(m.random),
++		sessionId:                        slices.Clone(m.sessionId),
++		cipherSuites:                     slices.Clone(m.cipherSuites),
++		compressionMethods:               slices.Clone(m.compressionMethods),
++		serverName:                       m.serverName,
++		ocspStapling:                     m.ocspStapling,
++		supportedCurves:                  slices.Clone(m.supportedCurves),
++		supportedPoints:                  slices.Clone(m.supportedPoints),
++		ticketSupported:                  m.ticketSupported,
++		sessionTicket:                    slices.Clone(m.sessionTicket),
++		supportedSignatureAlgorithms:     slices.Clone(m.supportedSignatureAlgorithms),
++		supportedSignatureAlgorithmsCert: slices.Clone(m.supportedSignatureAlgorithmsCert),
++		secureRenegotiationSupported:     m.secureRenegotiationSupported,
++		secureRenegotiation:              slices.Clone(m.secureRenegotiation),
++		extendedMasterSecret:             m.extendedMasterSecret,
++		alpnProtocols:                    slices.Clone(m.alpnProtocols),
++		scts:                             m.scts,
++		supportedVersions:                slices.Clone(m.supportedVersions),
++		cookie:                           slices.Clone(m.cookie),
++		keyShares:                        slices.Clone(m.keyShares),
++		earlyData:                        m.earlyData,
++		pskModes:                         slices.Clone(m.pskModes),
++		pskIdentities:                    slices.Clone(m.pskIdentities),
++		pskBinders:                       slices.Clone(m.pskBinders),
++		quicTransportParameters:          slices.Clone(m.quicTransportParameters),
++		encryptedClientHello:             slices.Clone(m.encryptedClientHello),
++	}
++}
++
+ type serverHelloMsg struct {
+ 	original                     []byte
+ 	vers                         uint16
+@@ -630,6 +728,8 @@ type serverHelloMsg struct {
+ 	selectedIdentityPresent      bool
+ 	selectedIdentity             uint16
+ 	supportedPoints              []uint8
++	encryptedClientHello         []byte
++	serverNameAck                bool
+ 
+ 	// HelloRetryRequest extensions
+ 	cookie        []byte
+@@ -724,6 +824,16 @@ func (m *serverHelloMsg) marshal() ([]byte, error) {
+ 			})
+ 		})
+ 	}
++	if len(m.encryptedClientHello) > 0 {
++		exts.AddUint16(extensionEncryptedClientHello)
++		exts.AddUint16LengthPrefixed(func(exts *cryptobyte.Builder) {
++			exts.AddBytes(m.encryptedClientHello)
++		})
++	}
++	if m.serverNameAck {
++		exts.AddUint16(extensionServerName)
++		exts.AddUint16(0)
++	}
+ 
+ 	extBytes, err := exts.Bytes()
+ 	if err != nil {
+@@ -856,6 +966,16 @@ func (m *serverHelloMsg) unmarshal(data []byte) bool {
+ 				len(m.supportedPoints) == 0 {
+ 				return false
+ 			}
++		case extensionEncryptedClientHello: // encrypted_client_hello
++			m.encryptedClientHello = make([]byte, len(extData))
++			if !extData.CopyBytes(m.encryptedClientHello) {
++				return false
++			}
++		case extensionServerName:
++			if len(extData) != 0 {
++				return false
++			}
++			m.serverNameAck = true
+ 		default:
+ 			// Ignore unknown extensions.
+ 			continue
+@@ -877,6 +997,7 @@ type encryptedExtensionsMsg struct {
+ 	alpnProtocol            string
+ 	quicTransportParameters []byte
+ 	earlyData               bool
++	echRetryConfigs         []byte
+ }
+ 
+ func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
+@@ -906,6 +1027,12 @@ func (m *encryptedExtensionsMsg) marshal() ([]byte, error) {
+ 				b.AddUint16(extensionEarlyData)
+ 				b.AddUint16(0) // empty extension_data
+ 			}
++			if len(m.echRetryConfigs) > 0 {
++				b.AddUint16(extensionEncryptedClientHello)
++				b.AddUint16LengthPrefixed(func(b *cryptobyte.Builder) {
++					b.AddBytes(m.echRetryConfigs)
++				})
++			}
+ 		})
+ 	})
+ 
+@@ -950,6 +1077,11 @@ func (m *encryptedExtensionsMsg) unmarshal(data []byte) bool {
+ 		case extensionEarlyData:
+ 			// RFC 8446, Section 4.2.10
+ 			m.earlyData = true
++		case extensionEncryptedClientHello:
++			m.echRetryConfigs = make([]byte, len(extData))
++			if !extData.CopyBytes(m.echRetryConfigs) {
++				return false
++			}
+ 		default:
+ 			// Ignore unknown extensions.
+ 			continue
+diff --git a/src/crypto/tls/handshake_messages_test.go b/src/crypto/tls/handshake_messages_test.go
+index 6c083f1043..197a1c55ee 100644
+--- a/src/crypto/tls/handshake_messages_test.go
++++ b/src/crypto/tls/handshake_messages_test.go
+@@ -272,6 +272,12 @@ func (*serverHelloMsg) Generate(rand *rand.Rand, size int) reflect.Value {
+ 		m.selectedIdentityPresent = true
+ 		m.selectedIdentity = uint16(rand.Intn(0xffff))
+ 	}
++	if rand.Intn(10) > 5 {
++		m.encryptedClientHello = randomBytes(rand.Intn(50)+1, rand)
++	}
++	if rand.Intn(10) > 5 {
++		m.serverNameAck = rand.Intn(2) == 1
++	}
+ 
+ 	return reflect.ValueOf(m)
+ }
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index 480e050641..57fc761dbb 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -41,11 +41,12 @@ import (
+ // reference connection will always change.
+ 
+ var (
+-	update     = flag.Bool("update", false, "update golden files on failure")
+-	fast       = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
+-	keyFile    = flag.String("keylog", "", "destination file for KeyLogWriter")
+-	bogoMode   = flag.Bool("bogo-mode", false, "Enabled bogo shim mode, ignore everything else")
+-	bogoFilter = flag.String("bogo-filter", "", "BoGo test filter")
++	update       = flag.Bool("update", false, "update golden files on failure")
++	fast         = flag.Bool("fast", false, "impose a quick, possibly flaky timeout on recorded tests")
++	keyFile      = flag.String("keylog", "", "destination file for KeyLogWriter")
++	bogoMode     = flag.Bool("bogo-mode", false, "Enabled bogo shim mode, ignore everything else")
++	bogoFilter   = flag.String("bogo-filter", "", "BoGo test filter")
++	bogoLocalDir = flag.String("bogo-local-dir", "", "Local BoGo to use, instead of fetching from source")
+ )
+ 
+ func runTestAndUpdateIfNeeded(t *testing.T, name string, run func(t *testing.T, update bool), wait bool) {
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index fda3cd30db..fc5040635f 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -771,7 +771,7 @@ func TestWarningAlertFlood(t *testing.T) {
+ }
+ 
+ func TestCloneFuncFields(t *testing.T) {
+-	const expectedCount = 8
++	const expectedCount = 9
+ 	called := 0
+ 
+ 	c1 := Config{
+@@ -807,6 +807,10 @@ func TestCloneFuncFields(t *testing.T) {
+ 			called |= 1 << 7
+ 			return nil, nil
+ 		},
++		EncryptedClientHelloRejectionVerify: func(ConnectionState) error {
++			called |= 1 << 8
++			return nil
++		},
+ 	}
+ 
+ 	c2 := c1.Clone()
+@@ -819,6 +823,7 @@ func TestCloneFuncFields(t *testing.T) {
+ 	c2.VerifyConnection(ConnectionState{})
+ 	c2.UnwrapSession(nil, ConnectionState{})
+ 	c2.WrapSession(ConnectionState{}, nil)
++	c2.EncryptedClientHelloRejectionVerify(ConnectionState{})
+ 
+ 	if called != (1<<expectedCount)-1 {
+ 		t.Fatalf("expected %d calls but saw calls %b", expectedCount, called)
+@@ -837,7 +842,7 @@ func TestCloneNonFuncFields(t *testing.T) {
+ 		switch fn := typ.Field(i).Name; fn {
+ 		case "Rand":
+ 			f.Set(reflect.ValueOf(io.Reader(os.Stdin)))
+-		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession":
++		case "Time", "GetCertificate", "GetConfigForClient", "VerifyPeerCertificate", "VerifyConnection", "GetClientCertificate", "WrapSession", "UnwrapSession", "EncryptedClientHelloRejectionVerify":
+ 			// DeepEqual can't compare functions. If you add a
+ 			// function field to this list, you must also change
+ 			// TestCloneFuncFields to ensure that the func field is
+@@ -872,6 +877,8 @@ func TestCloneNonFuncFields(t *testing.T) {
+ 			f.Set(reflect.ValueOf([]CurveID{CurveP256}))
+ 		case "Renegotiation":
+ 			f.Set(reflect.ValueOf(RenegotiateOnceAsClient))
++		case "EncryptedClientHelloConfigList":
++			f.Set(reflect.ValueOf([]byte{'x'}))
+ 		case "mutex", "autoSessionTicketKeys", "sessionTicketKeys":
+ 			continue // these are unexported fields that are handled separately
+ 		default:

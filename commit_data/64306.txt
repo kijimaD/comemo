@@ -1,0 +1,185 @@
+commit b5b9d24dc38c63cca6319f2b139cb9b35b3cb058
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:32:38 2024 +0000
+
+    encoding: use slices and maps to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal/maps.Equal, which is
+    much faster.
+    
+    Change-Id: I62ad60a66e28cfb2bb49c36037bafd4b9d201e88
+    GitHub-Last-Rev: 79554baddb1856260a44ba6587c205d223a527b1
+    GitHub-Pull-Request: golang/go#67611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587818
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/encoding/asn1/marshal_test.go |  3 ++-
+ src/encoding/csv/reader_test.go   |  3 ++-
+ src/encoding/gob/encoder_test.go  | 15 ++++++++-------
+ src/encoding/json/decode_test.go  |  5 +++--
+ src/encoding/pem/pem_test.go      |  2 +-
+ 5 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/src/encoding/asn1/marshal_test.go b/src/encoding/asn1/marshal_test.go
+index d9c3cf48fa..64ce476400 100644
+--- a/src/encoding/asn1/marshal_test.go
++++ b/src/encoding/asn1/marshal_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/hex"
+ 	"math/big"
+ 	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -346,7 +347,7 @@ func TestSetEncoder(t *testing.T) {
+ 	if len(rest) != 0 {
+ 		t.Error("Unmarshal returned extra garbage")
+ 	}
+-	if !reflect.DeepEqual(expectedOrder, resultStruct.Strings) {
++	if !slices.Equal(expectedOrder, resultStruct.Strings) {
+ 		t.Errorf("Unexpected SET content. got: %s, want: %s", resultStruct.Strings, expectedOrder)
+ 	}
+ }
+diff --git a/src/encoding/csv/reader_test.go b/src/encoding/csv/reader_test.go
+index 2e5d62330c..0be236a52f 100644
+--- a/src/encoding/csv/reader_test.go
++++ b/src/encoding/csv/reader_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"unicode/utf8"
+@@ -470,7 +471,7 @@ func TestRead(t *testing.T) {
+ 					}
+ 					break
+ 				}
+-				if got, want := rec, tt.Output[recNum]; !reflect.DeepEqual(got, want) {
++				if got, want := rec, tt.Output[recNum]; !slices.Equal(got, want) {
+ 					t.Errorf("Read vs ReadAll mismatch;\ngot %q\nwant %q", got, want)
+ 				}
+ 				pos := positions[recNum]
+diff --git a/src/encoding/gob/encoder_test.go b/src/encoding/gob/encoder_test.go
+index efb13bc83b..3ee43fbc94 100644
+--- a/src/encoding/gob/encoder_test.go
++++ b/src/encoding/gob/encoder_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"encoding/hex"
+ 	"fmt"
+ 	"io"
++	"maps"
+ 	"math"
+ 	"reflect"
+ 	"slices"
+@@ -74,7 +75,7 @@ func TestEncodeIntSlice(t *testing.T) {
+ 		res := make([]int8, 9)
+ 		dec.Decode(&res)
+ 
+-		if !reflect.DeepEqual(s8, res) {
++		if !slices.Equal(s8, res) {
+ 			t.Fatalf("EncodeIntSlice: expected %v, got %v", s8, res)
+ 		}
+ 	})
+@@ -88,7 +89,7 @@ func TestEncodeIntSlice(t *testing.T) {
+ 		res := make([]int16, 9)
+ 		dec.Decode(&res)
+ 
+-		if !reflect.DeepEqual(s16, res) {
++		if !slices.Equal(s16, res) {
+ 			t.Fatalf("EncodeIntSlice: expected %v, got %v", s16, res)
+ 		}
+ 	})
+@@ -102,7 +103,7 @@ func TestEncodeIntSlice(t *testing.T) {
+ 		res := make([]int32, 9)
+ 		dec.Decode(&res)
+ 
+-		if !reflect.DeepEqual(s32, res) {
++		if !slices.Equal(s32, res) {
+ 			t.Fatalf("EncodeIntSlice: expected %v, got %v", s32, res)
+ 		}
+ 	})
+@@ -116,7 +117,7 @@ func TestEncodeIntSlice(t *testing.T) {
+ 		res := make([]int64, 9)
+ 		dec.Decode(&res)
+ 
+-		if !reflect.DeepEqual(s64, res) {
++		if !slices.Equal(s64, res) {
+ 			t.Fatalf("EncodeIntSlice: expected %v, got %v", s64, res)
+ 		}
+ 	})
+@@ -689,7 +690,7 @@ func TestMapBug1(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal("decode:", err)
+ 	}
+-	if !reflect.DeepEqual(in, out) {
++	if !maps.Equal(in, out) {
+ 		t.Errorf("mismatch: %v %v", in, out)
+ 	}
+ }
+@@ -763,7 +764,7 @@ func TestSliceReusesMemory(t *testing.T) {
+ 		if err != nil {
+ 			t.Fatal("ints: decode:", err)
+ 		}
+-		if !reflect.DeepEqual(x, y) {
++		if !slices.Equal(x, y) {
+ 			t.Errorf("ints: expected %q got %q\n", x, y)
+ 		}
+ 		if addr != &y[0] {
+@@ -1199,7 +1200,7 @@ func TestMarshalFloatMap(t *testing.T) {
+ 
+ 	got := readMap(out)
+ 	want := readMap(in)
+-	if !reflect.DeepEqual(got, want) {
++	if !slices.Equal(got, want) {
+ 		t.Fatalf("\nEncode: %v\nDecode: %v", want, got)
+ 	}
+ }
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index f5b44677b3..ed90695039 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"image"
++	"maps"
+ 	"math"
+ 	"math/big"
+ 	"net"
+@@ -1979,7 +1980,7 @@ func TestStringKind(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Unmarshal error: %v", err)
+ 	}
+-	if !reflect.DeepEqual(got, want) {
++	if !maps.Equal(got, want) {
+ 		t.Fatalf("Marshal/Unmarshal mismatch:\n\tgot:  %v\n\twant: %v", got, want)
+ 	}
+ }
+@@ -2533,7 +2534,7 @@ func TestUnmarshalRescanLiteralMangledUnquote(t *testing.T) {
+ 		t.Fatalf("Unmarshal error: %v", err)
+ 	}
+ 	want := map[textUnmarshalerString]string{"foo": "", `"`: ""}
+-	if !reflect.DeepEqual(got, want) {
++	if !maps.Equal(got, want) {
+ 		t.Errorf("Marshal/Unmarshal roundtrip:\n\tgot:  %q\n\twant: %q", gotT, wantT)
+ 	}
+ }
+diff --git a/src/encoding/pem/pem_test.go b/src/encoding/pem/pem_test.go
+index 56a7754b22..e252ffd8ed 100644
+--- a/src/encoding/pem/pem_test.go
++++ b/src/encoding/pem/pem_test.go
+@@ -163,7 +163,7 @@ func TestCVE202224675(t *testing.T) {
+ 	// Prior to CVE-2022-24675, this input would cause a stack overflow.
+ 	input := []byte(strings.Repeat("-----BEGIN \n", 10000000))
+ 	result, rest := Decode(input)
+-	if result != nil || !reflect.DeepEqual(rest, input) {
++	if result != nil || !bytes.Equal(rest, input) {
+ 		t.Errorf("Encode of %#v decoded as %#v", input, rest)
+ 	}
+ }

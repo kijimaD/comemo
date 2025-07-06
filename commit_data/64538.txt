@@ -1,0 +1,33 @@
+commit 0b23e477a2ca6056a61d6040f0763997a30b3486
+Author: Gökhan Özeloğlu <gozeloglu@gmail.com>
+Date:   Fri Aug 16 23:41:25 2024 +0300
+
+    strings: fix typo in examples
+    
+    The correct word can be seen in lines 381-382.
+    
+    Change-Id: If3876bd34b6433b69531763f63af88d60a0bfad0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606375
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/strings/example_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/strings/example_test.go b/src/strings/example_test.go
+index 413d1bf997..08efcbf68f 100644
+--- a/src/strings/example_test.go
++++ b/src/strings/example_test.go
+@@ -388,8 +388,8 @@ func ExampleToLower() {
+ }
+ 
+ func ExampleToLowerSpecial() {
+-	fmt.Println(strings.ToLowerSpecial(unicode.TurkishCase, "Önnek İş"))
+-	// Output: önnek iş
++	fmt.Println(strings.ToLowerSpecial(unicode.TurkishCase, "Örnek İş"))
++	// Output: örnek iş
+ }
+ 
+ func ExampleTrim() {

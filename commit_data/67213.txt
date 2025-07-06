@@ -1,0 +1,147 @@
+commit 27ff0f249c33fdfa9c8e17a0367b46561236f36c
+Author: Jake Bailey <jacob.b.bailey@gmail.com>
+Date:   Mon May 12 20:39:54 2025 -0700
+
+    cmd/compile/internal/ssa: eliminate string copies for calls to unique.Make
+    
+    unique.Make always copies strings passed into it, so it's safe to not
+    copy byte slices converted to strings either. Handle this just like map
+    accesses with string(b) as keys.
+    
+    This CL only handles unique.Make(string(b)), not nested cases like
+    unique.Make([2]string{string(b1), string(b2)}); this could be done in a
+    followup CL but the map lookup code in walk is sufficiently different
+    than the call handling code that I didn't attempt it. (SSA is much
+    easier).
+    
+    Fixes #71926
+    
+    Change-Id: Ic2f82f2f91963d563b4ddb1282bd49fc40da8b85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672135
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/_gen/generic.rules | 11 ++++++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 35 +++++++++++++++++++++++++
+ src/unique/handle_test.go                       |  4 +--
+ test/codegen/unique.go                          | 24 +++++++++++++++++
+ 4 files changed, 72 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index baa26133fe..b178a1add6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2832,3 +2832,14 @@
+   && clobber(sbts)
+   && clobber(key)
+ => (StaticLECall {f} [argsize] typ_ map_ (StringMake <typ.String> ptr len) mem)
++
++// Similarly to map lookups, also handle unique.Make for strings, which unique.Make will clone.
++(StaticLECall {f} [argsize] dict_ key:(SelectN [0] sbts:(StaticLECall {g} _ ptr len mem)) m:(SelectN [1] sbts))
++  && isSameCall(f, "unique.Make[go.shape.string]")
++  && isSameCall(g, "runtime.slicebytetostring")
++  && key.Uses == 1
++  && sbts.Uses == 2
++  && resetCopy(m, mem)
++  && clobber(sbts)
++  && clobber(key)
++=> (StaticLECall {f} [argsize] dict_ (StringMake <typ.String> ptr len) mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index b8866cc562..bfbd3c8522 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -30743,6 +30743,41 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+ 		v.AddArg4(typ_, map_, v0, mem)
+ 		return true
+ 	}
++	// match: (StaticLECall {f} [argsize] dict_ key:(SelectN [0] sbts:(StaticLECall {g} _ ptr len mem)) m:(SelectN [1] sbts))
++	// cond: isSameCall(f, "unique.Make[go.shape.string]") && isSameCall(g, "runtime.slicebytetostring") && key.Uses == 1 && sbts.Uses == 2 && resetCopy(m, mem) && clobber(sbts) && clobber(key)
++	// result: (StaticLECall {f} [argsize] dict_ (StringMake <typ.String> ptr len) mem)
++	for {
++		if len(v.Args) != 3 {
++			break
++		}
++		argsize := auxIntToInt32(v.AuxInt)
++		f := auxToCall(v.Aux)
++		_ = v.Args[2]
++		dict_ := v.Args[0]
++		key := v.Args[1]
++		if key.Op != OpSelectN || auxIntToInt64(key.AuxInt) != 0 {
++			break
++		}
++		sbts := key.Args[0]
++		if sbts.Op != OpStaticLECall || len(sbts.Args) != 4 {
++			break
++		}
++		g := auxToCall(sbts.Aux)
++		mem := sbts.Args[3]
++		ptr := sbts.Args[1]
++		len := sbts.Args[2]
++		m := v.Args[2]
++		if m.Op != OpSelectN || auxIntToInt64(m.AuxInt) != 1 || sbts != m.Args[0] || !(isSameCall(f, "unique.Make[go.shape.string]") && isSameCall(g, "runtime.slicebytetostring") && key.Uses == 1 && sbts.Uses == 2 && resetCopy(m, mem) && clobber(sbts) && clobber(key)) {
++			break
++		}
++		v.reset(OpStaticLECall)
++		v.AuxInt = int32ToAuxInt(argsize)
++		v.Aux = callToAux(f)
++		v0 := b.NewValue0(v.Pos, OpStringMake, typ.String)
++		v0.AddArg2(ptr, len)
++		v.AddArg3(dict_, v0, mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpStore(v *Value) bool {
+diff --git a/src/unique/handle_test.go b/src/unique/handle_test.go
+index 5c42cb494c..4c7f1f9752 100644
+--- a/src/unique/handle_test.go
++++ b/src/unique/handle_test.go
+@@ -233,7 +233,7 @@ func TestMakeAllocs(t *testing.T) {
+ 			stringHandle = Make(string(b[:]))
+ 		}},
+ 
+-		{name: "bytes", allocs: 1, f: func() {
++		{name: "bytes", allocs: 0, f: func() {
+ 			stringHandle = Make(string(heapBytes))
+ 		}},
+ 
+@@ -241,7 +241,7 @@ func TestMakeAllocs(t *testing.T) {
+ 			stringHandle = Make(string(heapBytes[:16]))
+ 		}},
+ 
+-		{name: "bytes truncated long", allocs: 1, f: func() {
++		{name: "bytes truncated long", allocs: 0, f: func() {
+ 			stringHandle = Make(string(heapBytes[:40]))
+ 		}},
+ 
+diff --git a/test/codegen/unique.go b/test/codegen/unique.go
+new file mode 100644
+index 0000000000..8ddc986c26
+--- /dev/null
++++ b/test/codegen/unique.go
+@@ -0,0 +1,24 @@
++// asmcheck
++
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++import "unique"
++
++func BytesToHandle(b []byte) unique.Handle[string] {
++	// amd64:-`.*runtime\.slicebytetostring\(`
++	return unique.Make(string(b))
++}
++
++type Pair struct {
++	S1 string
++	S2 string
++}
++
++func BytesPairToHandle(b1, b2 []byte) unique.Handle[Pair] {
++	// TODO: should not copy b1 and b2.
++	return unique.Make(Pair{string(b1), string(b2)})
++}

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 49706: 23f4f0db682fad0c8d61a5b5cdbdbad4cf1cd41f
+# Index 49706: 42b9e3a8dfb31f18829c45f0995cbf3c78fc90fb
 
 echo "🚀 Generating explanation for commit 49706..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 49706..."
 
 ### メタデータ
 - **コミットインデックス**: 49706
-- **コミットハッシュ**: 23f4f0db682fad0c8d61a5b5cdbdbad4cf1cd41f
-- **GitHub URL**: https://github.com/golang/go/commit/23f4f0db682fad0c8d61a5b5cdbdbad4cf1cd41f
+- **コミットハッシュ**: 42b9e3a8dfb31f18829c45f0995cbf3c78fc90fb
+- **GitHub URL**: https://github.com/golang/go/commit/42b9e3a8dfb31f18829c45f0995cbf3c78fc90fb
 
 ### 章構成
 

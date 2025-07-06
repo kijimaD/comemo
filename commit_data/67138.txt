@@ -1,0 +1,177 @@
+commit bfb8f1327466ac9075a5c2f4fba72ebeebe8023b
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon May 19 18:00:31 2025 -0400
+
+    internal/pkgbits: indent productions and hoist some types up
+    
+    The types being hoisted are those which cannot be referenced; that is,
+    where Ref[T] is illegal. These are most clearly owned by pkgbits. The
+    types which follow are those which can be referenced.
+    
+    Referenceable types are more hazy due to the reference mechanism of UIR
+    - sections. These are a detail of the UIR file format and are surfaced
+    directly to importers.
+    
+    I suspect that pkgbits would benefit from a reference mechanism not
+    dependent on sections. This would permit us to push down many types
+    from the noder into pkgbits, reducing the interface surface without
+    giving up deduplication.
+    
+    Change-Id: Ifaf5cd9de20c767ad0941413385b308d628aac6c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674635
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/internal/pkgbits/doc.go | 112 ++++++++++++++++++++++----------------------
+ 1 file changed, 56 insertions(+), 56 deletions(-)
+
+diff --git a/src/internal/pkgbits/doc.go b/src/internal/pkgbits/doc.go
+index bd05daa3a6..5c2a937afa 100644
+--- a/src/internal/pkgbits/doc.go
++++ b/src/internal/pkgbits/doc.go
+@@ -8,88 +8,88 @@ package pkgbits.
+ 
+ The most basic primitives are laid out as below.
+ 
+-Bool    = [ Sync ] byte .
+-Int64   = [ Sync ] zvarint .
+-Uint64  = [ Sync ] uvarint .
++       Bool    = [ Sync ] byte .
++       Int64   = [ Sync ] zvarint .
++       Uint64  = [ Sync ] uvarint .
+ 
+-zvarint = (* a zig-zag encoded signed variable-width integer *) .
+-uvarint = (* an unsigned variable-width integer *) .
++       zvarint = (* a zig-zag encoded signed variable-width integer *) .
++       uvarint = (* an unsigned variable-width integer *) .
++
++# References
++References specify the location of a value. While the representation here is
++fixed, the interpretation of a reference is left to other packages.
++
++       Ref[T] = [ Sync ] Uint64 . // points to a value of type T
++
++# Markers
++Markers provide a mechanism for asserting that encoders and decoders
++are synchronized. If an unexpected marker is found, decoding panics.
++
++       Sync = uvarint          // indicates what should follow if synchronized
++              WriterPCs
++              .
++
++A marker also records a configurable number of program counters (PCs) during
++encoding to assist with debugging.
++
++       WriterPCs = uvarint     // the number of PCs that follow
++                   { uvarint } // the PCs
++                   .
++
++Note that markers are always defined using terminals — they never contain a
++marker themselves.
+ 
+ # Strings
+ A string is a series of bytes.
+ 
+-// TODO(markfreeman): Does this need a marker?
+-String    = { byte } .
++       // TODO(markfreeman): Does this need a marker?
++       String    = { byte } .
+ 
+ Strings are typically not encoded directly. Rather, they are deduplicated
+ during encoding and referenced where needed; this process is called interning.
+ 
+-StringRef = [ Sync ] Ref[String] .
++       StringRef = [ Sync ] Ref[String] .
+ 
+ Note that StringRef is *not* equivalent to Ref[String] due to the extra marker.
+ 
+-# References
+-References specify the location of a value. While the representation here is
+-fixed, the interpretation of a reference is left to other packages.
+-
+-Ref[T] = [ Sync ] Uint64 . // points to a value of type T
+-
+ # Slices
+ Slices are a convenience for encoding a series of values of the same type.
+ 
+-// TODO(markfreeman): Does this need a marker?
+-Slice[T] = Uint64 // the number of values in the slice
+-           { T }  // the values
+-           .
++       // TODO(markfreeman): Does this need a marker?
++       Slice[T]  = Uint64 // the number of values in the slice
++                   { T }  // the values
++                   .
+ 
+ # Constants
+ Constants appear as defined via the package constant.
+ 
+-Constant = [ Sync ]
+-           Bool        // whether the constant is a complex number
+-           Scalar      // the real part
+-           [ Scalar ]  // if complex, the imaginary part
+-           .
++       Constant = [ Sync ]
++                  Bool       // whether the constant is a complex number
++                  Scalar     // the real part
++                  [ Scalar ] // if complex, the imaginary part
++                  .
+ 
+ A scalar represents a value using one of several potential formats. The exact
+ format and interpretation is distinguished by a code preceding the value.
+ 
+-Scalar   = [ Sync ]
+-           Uint64      // the code indicating the type of Val
+-           Val
+-           .
+-
+-Val      = Bool
+-         | Int64
+-         | StringRef
+-         | Term        // big integer
+-         | Term Term   // big ratio, numerator / denominator
+-         | BigBytes    // big float, precision 512
+-           .
++       Scalar   = [ Sync ]
++                  Uint64      // the code indicating the type of Val
++                  Val
++                  .
+ 
+-Term     = BigBytes
+-           Bool        // whether the term is negative
+-           .
++       Val      = Bool
++                | Int64
++                | StringRef
++                | Term        // big integer
++                | Term Term   // big ratio, numerator / denominator
++                | BigBytes    // big float, precision 512
++                .
+ 
+-BigBytes = StringRef . // bytes of a big value
+-
+-# Markers
+-Markers provide a mechanism for asserting that encoders and decoders are
+-synchronized. If an unexpected marker is found, decoding panics.
++       Term     = BigBytes
++                  Bool        // whether the term is negative
++                  .
+ 
+-Sync = uvarint          // indicates what should follow if synchronized
+-       WriterPCs
+-       .
+-
+-A marker also records a configurable number of program counters (PCs) during
+-encoding to assist with debugging.
+-
+-WriterPCs = uvarint     // the number of PCs that follow
+-            { uvarint } // the PCs
+-            .
+-
+-Note that markers are always defined using terminals — they never contain a
+-marker themselves.
++       BigBytes = StringRef . // bytes of a big value
+ */
+ 
+ // Package pkgbits implements low-level coding abstractions for Unified IR's

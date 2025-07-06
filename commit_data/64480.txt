@@ -1,0 +1,767 @@
+commit 1cf6e31f0d03bb3571cfe034f2d909591a0ae453
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Sat Aug 3 14:20:58 2024 -0400
+
+    cmd/compile: add basic wasmexport support
+    
+    This CL adds a compiler directive go:wasmexport, which applies to
+    a Go function and makes it an exported function of the Wasm module
+    being built, so it can be called directly from the host. As
+    proposed in #65199, parameter and result types are limited to
+    32-bit and 64-bit integers and floats, and there can be at most
+    one result.
+    
+    As the Go and Wasm calling conventions are different, for a
+    wasmexport function we generate a wrapper function does the ABI
+    conversion at compile time.
+    
+    Currently this CL only adds basic support. In particular,
+    - it only supports executable mode, i.e. the Go wasm module calls
+      into the host via wasmimport, which then calls back to Go via
+      wasmexport. Library (c-shared) mode is not implemented yet.
+    - only supports wasip1, not js.
+    - if the exported function unwinds stacks (goroutine switch, stack
+    growth, etc.), it probably doesn't work.
+    
+    TODO: support stack unwinding, c-shared mode, js.
+    
+    For #65199.
+    
+    Change-Id: Id1777c2d44f7d51942c1caed3173c0a82f120cc4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603055
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Reviewed-by: Randy Reddig <randy.reddig@fastly.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/gc/compile.go     |  5 ++
+ src/cmd/compile/internal/ir/func.go        |  8 +++
+ src/cmd/compile/internal/ir/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/noder/linker.go   |  5 ++
+ src/cmd/compile/internal/noder/noder.go    | 27 +++++++++
+ src/cmd/compile/internal/noder/reader.go   | 17 ++++--
+ src/cmd/compile/internal/noder/writer.go   | 13 ++++
+ src/cmd/compile/internal/ssagen/abi.go     | 76 ++++++++++++++++++++---
+ src/cmd/internal/goobj/objfile.go          |  3 +
+ src/cmd/internal/obj/link.go               | 26 +++++++-
+ src/cmd/internal/obj/objfile.go            | 12 ++++
+ src/cmd/internal/obj/sym.go                |  3 +
+ src/cmd/internal/obj/wasm/wasmobj.go       | 97 ++++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/deadcode.go       |  7 +++
+ src/cmd/link/internal/loader/loader.go     |  9 +++
+ src/cmd/link/internal/wasm/asm.go          | 23 +++++--
+ test/wasmexport.go                         | 19 ++++++
+ 17 files changed, 331 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index 81a6023e47..5ade700d46 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -105,6 +105,11 @@ func prepareFunc(fn *ir.Func) {
+ 	// Calculate parameter offsets.
+ 	types.CalcSize(fn.Type())
+ 
++	// Generate wrappers between Go ABI and Wasm ABI, for a wasmexport
++	// function.
++	// Must be done after InitLSym and CalcSize.
++	ssagen.GenWasmExportWrapper(fn)
++
+ 	ir.CurFunc = fn
+ 	walk.Walk(fn)
+ 	ir.CurFunc = nil // enforce no further uses of CurFunc
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index e005ef7a7f..0675150b2d 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -142,6 +142,9 @@ type Func struct {
+ 	// WasmImport is used by the //go:wasmimport directive to store info about
+ 	// a WebAssembly function import.
+ 	WasmImport *WasmImport
++	// WasmExport is used by the //go:wasmexport directive to store info about
++	// a WebAssembly function import.
++	WasmExport *WasmExport
+ }
+ 
+ // WasmImport stores metadata associated with the //go:wasmimport pragma.
+@@ -150,6 +153,11 @@ type WasmImport struct {
+ 	Name   string
+ }
+ 
++// WasmExport stores metadata associated with the //go:wasmexport pragma.
++type WasmExport struct {
++	Name string
++}
++
+ // NewFunc returns a new Func with the given name and type.
+ //
+ // fpos is the position of the "func" token, and npos is the position
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 68d2865595..6331cceb4a 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 176, 296},
++		{Func{}, 180, 304},
+ 		{Name{}, 96, 168},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index f5667f57ab..486013c7df 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -278,6 +278,11 @@ func (l *linker) relocFuncExt(w *pkgbits.Encoder, name *ir.Name) {
+ 			w.String("")
+ 			w.String("")
+ 		}
++		if name.Func.WasmExport != nil {
++			w.String(name.Func.WasmExport.Name)
++		} else {
++			w.String("")
++		}
+ 	}
+ 
+ 	// Relocated extension data.
+diff --git a/src/cmd/compile/internal/noder/noder.go b/src/cmd/compile/internal/noder/noder.go
+index 1652dc6618..7905c374c5 100644
+--- a/src/cmd/compile/internal/noder/noder.go
++++ b/src/cmd/compile/internal/noder/noder.go
+@@ -171,6 +171,7 @@ type pragmas struct {
+ 	Pos        []pragmaPos   // position of each individual flag
+ 	Embeds     []pragmaEmbed
+ 	WasmImport *WasmImport
++	WasmExport *WasmExport
+ }
+ 
+ // WasmImport stores metadata associated with the //go:wasmimport pragma
+@@ -180,6 +181,12 @@ type WasmImport struct {
+ 	Name   string
+ }
+ 
++// WasmExport stores metadata associated with the //go:wasmexport pragma
++type WasmExport struct {
++	Pos  syntax.Pos
++	Name string
++}
++
+ type pragmaPos struct {
+ 	Flag ir.PragmaFlag
+ 	Pos  syntax.Pos
+@@ -204,6 +211,9 @@ func (p *noder) checkUnusedDuringParse(pragma *pragmas) {
+ 	if pragma.WasmImport != nil {
+ 		p.error(syntax.Error{Pos: pragma.WasmImport.Pos, Msg: "misplaced go:wasmimport directive"})
+ 	}
++	if pragma.WasmExport != nil {
++		p.error(syntax.Error{Pos: pragma.WasmExport.Pos, Msg: "misplaced go:wasmexport directive"})
++	}
+ }
+ 
+ // pragma is called concurrently if files are parsed concurrently.
+@@ -246,6 +256,23 @@ func (p *noder) pragma(pos syntax.Pos, blankLine bool, text string, old syntax.P
+ 				Name:   f[2],
+ 			}
+ 		}
++
++	case strings.HasPrefix(text, "go:wasmexport "):
++		f := strings.Fields(text)
++		if len(f) != 2 {
++			// TODO: maybe make the name optional? It was once mentioned on proposal 65199.
++			p.error(syntax.Error{Pos: pos, Msg: "usage: //go:wasmexport exportname"})
++			break
++		}
++
++		if buildcfg.GOARCH == "wasm" {
++			// Only actually use them if we're compiling to WASM though.
++			pragma.WasmExport = &WasmExport{
++				Pos:  pos,
++				Name: f[1],
++			}
++		}
++
+ 	case strings.HasPrefix(text, "go:linkname "):
+ 		f := strings.Fields(text)
+ 		if !(2 <= len(f) && len(f) <= 3) {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index ff44adedb4..1dd2e09b0d 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1132,15 +1132,22 @@ func (r *reader) funcExt(name *ir.Name, method *types.Sym) {
+ 	r.linkname(name)
+ 
+ 	if buildcfg.GOARCH == "wasm" {
+-		xmod := r.String()
+-		xname := r.String()
++		importmod := r.String()
++		importname := r.String()
++		exportname := r.String()
+ 
+-		if xmod != "" && xname != "" {
++		if importmod != "" && importname != "" {
+ 			fn.WasmImport = &ir.WasmImport{
+-				Module: xmod,
+-				Name:   xname,
++				Module: importmod,
++				Name:   importname,
+ 			}
+ 		}
++		if exportname != "" {
++			if method != nil {
++				base.ErrorfAt(fn.Pos(), 0, "cannot use //go:wasmexport on a method")
++			}
++			fn.WasmExport = &ir.WasmExport{Name: exportname}
++		}
+ 	}
+ 
+ 	if r.Bool() {
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index c1560941b8..9f862f9a4c 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -1050,6 +1050,7 @@ func (w *writer) funcExt(obj *types2.Func) {
+ 		w.p.errorf(decl, "go:nosplit and go:systemstack cannot be combined")
+ 	}
+ 	wi := asWasmImport(decl.Pragma)
++	we := asWasmExport(decl.Pragma)
+ 
+ 	if decl.Body != nil {
+ 		if pragma&ir.Noescape != 0 {
+@@ -1104,6 +1105,11 @@ func (w *writer) funcExt(obj *types2.Func) {
+ 			w.String("")
+ 			w.String("")
+ 		}
++		if we != nil {
++			w.String(we.Name)
++		} else {
++			w.String("")
++		}
+ 	}
+ 
+ 	w.Bool(false) // stub extension
+@@ -3011,6 +3017,13 @@ func asWasmImport(p syntax.Pragma) *WasmImport {
+ 	return p.(*pragmas).WasmImport
+ }
+ 
++func asWasmExport(p syntax.Pragma) *WasmExport {
++	if p == nil {
++		return nil
++	}
++	return p.(*pragmas).WasmExport
++}
++
+ // isPtrTo reports whether from is the type *to.
+ func isPtrTo(from, to types2.Type) bool {
+ 	ptr, ok := types2.Unalias(from).(*types2.Pointer)
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index d5ae3b1793..0c42c84312 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -19,6 +19,8 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/wasm"
++
++	rtabi "internal/abi"
+ )
+ 
+ // SymABIs records information provided by the assembler about symbol
+@@ -347,7 +349,7 @@ func CreateWasmImportWrapper(fn *ir.Func) bool {
+ 
+ 	ir.InitLSym(fn, true)
+ 
+-	setupWasmABI(fn)
++	setupWasmImport(fn)
+ 
+ 	pp := objw.NewProgs(fn, 0)
+ 	defer pp.Free()
+@@ -360,7 +362,49 @@ func CreateWasmImportWrapper(fn *ir.Func) bool {
+ 	return true
+ }
+ 
+-func paramsToWasmFields(f *ir.Func, result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
++func GenWasmExportWrapper(wrapped *ir.Func) {
++	if wrapped.WasmExport == nil {
++		return
++	}
++	if buildcfg.GOARCH != "wasm" {
++		base.FatalfAt(wrapped.Pos(), "GenWasmExportWrapper call not supported on %s: func was %v", buildcfg.GOARCH, wrapped)
++	}
++
++	pos := base.AutogeneratedPos
++	sym := &types.Sym{
++		Name:     wrapped.WasmExport.Name,
++		Linkname: wrapped.WasmExport.Name,
++	}
++	ft := wrapped.Nname.Type()
++	fn := ir.NewFunc(pos, pos, sym, types.NewSignature(nil,
++		typecheck.NewFuncParams(ft.Params()),
++		typecheck.NewFuncParams(ft.Results())))
++	fn.ABI = obj.ABI0 // actually wasm ABI
++	// The wrapper function has a special calling convention that
++	// morestack currently doesn't handle. For now we require that
++	// the argument size fits in StackSmall, which we know we have
++	// on stack, so we don't need to split stack.
++	// cmd/internal/obj/wasm supports only 16 argument "registers"
++	// anyway.
++	if ft.ArgWidth() > rtabi.StackSmall {
++		base.ErrorfAt(wrapped.Pos(), 0, "wasmexport function argument too large")
++	}
++	fn.Pragma |= ir.Nosplit
++
++	ir.InitLSym(fn, true)
++
++	setupWasmExport(fn, wrapped)
++
++	pp := objw.NewProgs(fn, 0)
++	defer pp.Free()
++	pp.Text.To.Type = obj.TYPE_TEXTSIZE
++	pp.Text.To.Val = int32(0)
++	pp.Text.To.Offset = types.RoundUp(ft.ArgWidth(), int64(types.RegSize))
++	pp.Flush()
++	// Actual code geneneration is in cmd/internal/obj/wasm.
++}
++
++func paramsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
+ 	wfs := make([]obj.WasmField, len(abiParams))
+ 	for i, p := range abiParams {
+ 		t := p.Type
+@@ -376,16 +420,16 @@ func paramsToWasmFields(f *ir.Func, result *abi.ABIParamResultInfo, abiParams []
+ 		case types.TUNSAFEPTR:
+ 			wfs[i].Type = obj.WasmPtr
+ 		default:
+-			base.ErrorfAt(f.Pos(), 0, "go:wasmimport %s %s: unsupported parameter type %s", f.WasmImport.Module, f.WasmImport.Name, t.String())
++			base.ErrorfAt(f.Pos(), 0, "%s: unsupported parameter type %s", pragma, t.String())
+ 		}
+ 		wfs[i].Offset = p.FrameOffset(result)
+ 	}
+ 	return wfs
+ }
+ 
+-func resultsToWasmFields(f *ir.Func, result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
++func resultsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
+ 	if len(abiParams) > 1 {
+-		base.ErrorfAt(f.Pos(), 0, "go:wasmimport %s %s: too many return values", f.WasmImport.Module, f.WasmImport.Name)
++		base.ErrorfAt(f.Pos(), 0, "%s: too many return values", pragma)
+ 		return nil
+ 	}
+ 	wfs := make([]obj.WasmField, len(abiParams))
+@@ -408,8 +452,9 @@ func resultsToWasmFields(f *ir.Func, result *abi.ABIParamResultInfo, abiParams [
+ 	return wfs
+ }
+ 
+-// setupWasmABI calculates the params and results in terms of WebAssembly values for the given function.
+-func setupWasmABI(f *ir.Func) {
++// setupWasmImport calculates the params and results in terms of WebAssembly values for the given function,
++// and sets up the wasmimport metadata.
++func setupWasmImport(f *ir.Func) {
+ 	wi := obj.WasmImport{
+ 		Module: f.WasmImport.Module,
+ 		Name:   f.WasmImport.Name,
+@@ -438,8 +483,21 @@ func setupWasmABI(f *ir.Func) {
+ 		// 	(import "a_module" "add" (func (param i32 i32) (result i32)))
+ 		abiConfig := AbiForBodylessFuncStackMap(f)
+ 		abiInfo := abiConfig.ABIAnalyzeFuncType(f.Type())
+-		wi.Params = paramsToWasmFields(f, abiInfo, abiInfo.InParams())
+-		wi.Results = resultsToWasmFields(f, abiInfo, abiInfo.OutParams())
++		wi.Params = paramsToWasmFields(f, "go:wasmimport", abiInfo, abiInfo.InParams())
++		wi.Results = resultsToWasmFields(f, "go:wasmimport", abiInfo, abiInfo.OutParams())
+ 	}
+ 	f.LSym.Func().WasmImport = &wi
+ }
++
++// setupWasmExport calculates the params and results in terms of WebAssembly values for the given function,
++// and sets up the wasmexport metadata.
++func setupWasmExport(f, wrapped *ir.Func) {
++	we := obj.WasmExport{
++		WrappedSym: wrapped.LSym,
++	}
++	abiConfig := AbiForBodylessFuncStackMap(wrapped)
++	abiInfo := abiConfig.ABIAnalyzeFuncType(wrapped.Type())
++	we.Params = paramsToWasmFields(wrapped, "go:wasmexport", abiInfo, abiInfo.InParams())
++	we.Results = resultsToWasmFields(wrapped, "go:wasmexport", abiInfo, abiInfo.OutParams())
++	f.LSym.Func().WasmExport = &we
++}
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 56ce76ad09..d54fa993d2 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -306,6 +306,7 @@ const (
+ 	SymFlagPkgInit
+ 	SymFlagLinkname
+ 	SymFlagABIWrapper
++	SymFlagWasmExport
+ )
+ 
+ // Returns the length of the name of the symbol.
+@@ -339,6 +340,7 @@ func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
+ func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
+ func (s *Sym) IsLinkname() bool    { return s.Flag2()&SymFlagLinkname != 0 }
+ func (s *Sym) ABIWrapper() bool    { return s.Flag2()&SymFlagABIWrapper != 0 }
++func (s *Sym) WasmExport() bool    { return s.Flag2()&SymFlagWasmExport != 0 }
+ 
+ func (s *Sym) SetName(x string, w *Writer) {
+ 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
+@@ -447,6 +449,7 @@ const (
+ 	AuxPcinline
+ 	AuxPcdata
+ 	AuxWasmImport
++	AuxWasmType
+ 	AuxSehUnwindInfo
+ )
+ 
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 27626d9deb..a3e4a0d309 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -500,6 +500,7 @@ type FuncInfo struct {
+ 	FuncInfoSym *LSym
+ 
+ 	WasmImport *WasmImport
++	WasmExport *WasmExport
+ 
+ 	sehUnwindInfoSym *LSym
+ }
+@@ -665,9 +666,9 @@ func (wi *WasmImport) Read(b []byte) {
+ // parameters and results translated into WASM types based on the Go function
+ // declaration.
+ type WasmFuncType struct {
+-	// Params holds the imported function parameter fields.
++	// Params holds the function parameter fields.
+ 	Params []WasmField
+-	// Results holds the imported function result fields.
++	// Results holds the function result fields.
+ 	Results []WasmField
+ }
+ 
+@@ -724,6 +725,27 @@ func (ft *WasmFuncType) Read(b []byte) {
+ 	}
+ }
+ 
++// WasmExport represents a WebAssembly (WASM) exported function with
++// parameters and results translated into WASM types based on the Go function
++// declaration.
++type WasmExport struct {
++	WasmFuncType
++
++	WrappedSym *LSym // the wrapped Go function
++	AuxSym     *LSym // aux symbol to pass metadata to the linker
++}
++
++func (we *WasmExport) CreateAuxSym() {
++	var b bytes.Buffer
++	we.WasmFuncType.Write(&b)
++	p := b.Bytes()
++	we.AuxSym = &LSym{
++		Type: objabi.SDATA, // doesn't really matter
++		P:    append([]byte(nil), p...),
++		Size: int64(len(p)),
++	}
++}
++
+ type WasmField struct {
+ 	Type WasmFieldType
+ 	// Offset holds the frame-pointer-relative locations for Go's stack-based
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index cbdc5a3486..de38349930 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -361,6 +361,9 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.ABIWrapper() {
+ 		flag2 |= goobj.SymFlagABIWrapper
+ 	}
++	if s.Func() != nil && s.Func().WasmExport != nil {
++		flag2 |= goobj.SymFlagWasmExport
++	}
+ 	if strings.HasPrefix(name, "gofile..") {
+ 		name = filepath.ToSlash(name)
+ 	}
+@@ -627,6 +630,9 @@ func (w *writer) Aux(s *LSym) {
+ 			}
+ 			w.aux1(goobj.AuxWasmImport, fn.WasmImport.AuxSym)
+ 		}
++		if fn.WasmExport != nil {
++			w.aux1(goobj.AuxWasmType, fn.WasmExport.AuxSym)
++		}
+ 	} else if v := s.VarInfo(); v != nil {
+ 		if v.dwarfInfoSym != nil && v.dwarfInfoSym.Size != 0 {
+ 			w.aux1(goobj.AuxDwarfInfo, v.dwarfInfoSym)
+@@ -737,6 +743,9 @@ func nAuxSym(s *LSym) int {
+ 			}
+ 			n++
+ 		}
++		if fn.WasmExport != nil {
++			n++
++		}
+ 	} else if v := s.VarInfo(); v != nil {
+ 		if v.dwarfInfoSym != nil && v.dwarfInfoSym.Size != 0 {
+ 			n++
+@@ -801,6 +810,9 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		if wi := fn.WasmImport; wi != nil {
+ 			auxsyms = append(auxsyms, wi.AuxSym)
+ 		}
++		if we := fn.WasmExport; we != nil {
++			auxsyms = append(auxsyms, we.AuxSym)
++		}
+ 		for _, s := range auxsyms {
+ 			if s == nil || s.Size == 0 {
+ 				continue
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index d2e61832ba..943be3c38c 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -462,6 +462,9 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent
+ 	if wi := fninfo.WasmImport; wi != nil {
+ 		auxsyms = append(auxsyms, wi.AuxSym)
+ 	}
++	if we := fninfo.WasmExport; we != nil {
++		auxsyms = append(auxsyms, we.AuxSym)
++	}
+ 	for _, s := range auxsyms {
+ 		if s == nil || s.Size == 0 {
+ 			continue
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index dcbf35e886..4b5324cc56 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -196,6 +196,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		// isn't run. We don't want the frame expansion code because our function
+ 		// body is just the code to translate and call the imported function.
+ 		framesize = 0
++	} else if s.Func().WasmExport != nil {
++		genWasmExportWrapper(s, appendp)
+ 	} else if s.Func().Text.From.Sym.Wrapper() {
+ 		// if g._panic != nil && g._panic.argp == FP {
+ 		//   g._panic.argp = bottom-of-frame
+@@ -900,6 +902,95 @@ func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
+ 	p = appendp(p, obj.ARET)
+ }
+ 
++// Generate function body for wasmexport wrapper function.
++func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args ...obj.Addr) *obj.Prog) {
++	we := s.Func().WasmExport
++	we.CreateAuxSym()
++	p := s.Func().Text
++	if p.Link != nil {
++		panic("wrapper functions for WASM export should not have a body")
++	}
++	framesize := p.To.Offset
++
++	// Store args
++	for i, f := range we.Params {
++		p = appendp(p, AGet, regAddr(REG_SP))
++		p = appendp(p, AGet, regAddr(REG_R0+int16(i)))
++		switch f.Type {
++		case obj.WasmI32:
++			p = appendp(p, AI32Store, constAddr(f.Offset))
++		case obj.WasmI64:
++			p = appendp(p, AI64Store, constAddr(f.Offset))
++		case obj.WasmF32:
++			p = appendp(p, AF32Store, constAddr(f.Offset))
++		case obj.WasmF64:
++			p = appendp(p, AF64Store, constAddr(f.Offset))
++		case obj.WasmPtr:
++			p = appendp(p, AI64ExtendI32U)
++			p = appendp(p, AI64Store, constAddr(f.Offset))
++		default:
++			panic("bad param type")
++		}
++	}
++
++	// Call the Go function.
++	// XXX maybe use ACALL and let later phase expand? But we don't use PC_B. Maybe we should?
++	// Go calling convention expects we push a return PC before call.
++	// SP -= 8
++	p = appendp(p, AGet, regAddr(REG_SP))
++	p = appendp(p, AI32Const, constAddr(8))
++	p = appendp(p, AI32Sub)
++	p = appendp(p, ASet, regAddr(REG_SP))
++	// write return address to Go stack
++	p = appendp(p, AGet, regAddr(REG_SP))
++	p = appendp(p, AI64Const, obj.Addr{
++		Type:   obj.TYPE_ADDR,
++		Name:   obj.NAME_EXTERN,
++		Sym:    s, // PC_F
++		Offset: 1, // PC_B=1, past the prologue, so we have the right SP delta
++	})
++	p = appendp(p, AI64Store, constAddr(0))
++	// Set PC_B parameter to function entry
++	p = appendp(p, AI32Const, constAddr(0))
++	p = appendp(p, ACall, obj.Addr{Type: obj.TYPE_MEM, Name: obj.NAME_EXTERN, Sym: we.WrappedSym})
++	// return value is on the top of the stack, indicating whether to unwind the Wasm stack
++	// TODO: handle stack unwinding
++	p = appendp(p, AIf)
++	p = appendp(p, obj.AUNDEF)
++	p = appendp(p, AEnd)
++
++	// Load result
++	if len(we.Results) > 1 {
++		panic("invalid results type")
++	} else if len(we.Results) == 1 {
++		p = appendp(p, AGet, regAddr(REG_SP))
++		f := we.Results[0]
++		switch f.Type {
++		case obj.WasmI32:
++			p = appendp(p, AI32Load, constAddr(f.Offset))
++		case obj.WasmI64:
++			p = appendp(p, AI64Load, constAddr(f.Offset))
++		case obj.WasmF32:
++			p = appendp(p, AF32Load, constAddr(f.Offset))
++		case obj.WasmF64:
++			p = appendp(p, AF64Load, constAddr(f.Offset))
++		case obj.WasmPtr:
++			p = appendp(p, AI64Load, constAddr(f.Offset))
++			p = appendp(p, AI32WrapI64)
++		default:
++			panic("bad result type")
++		}
++	}
++
++	// Epilogue. Cannot use ARET as we don't follow Go calling convention.
++	// SP += framesize
++	p = appendp(p, AGet, regAddr(REG_SP))
++	p = appendp(p, AI32Const, constAddr(framesize))
++	p = appendp(p, AI32Add)
++	p = appendp(p, ASet, regAddr(REG_SP))
++	p = appendp(p, AReturn)
++}
++
+ func constAddr(value int64) obj.Addr {
+ 	return obj.Addr{Type: obj.TYPE_CONST, Offset: value}
+ }
+@@ -991,6 +1082,12 @@ func assemble(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 		// no locals
+ 		useAssemblyRegMap()
+ 	default:
++		if s.Func().WasmExport != nil {
++			// no local SP, not following Go calling convention
++			useAssemblyRegMap()
++			break
++		}
++
+ 		// Normal calling convention: PC_B as WebAssembly parameter. First local variable is local SP cache.
+ 		regVars[REG_PC_B-MINREG] = &regVar{false, 0}
+ 		hasLocalSP = true
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 3d547259a1..a1378fc02c 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -116,6 +116,13 @@ func (d *deadcodePass) init() {
+ 		}
+ 		d.mark(s, 0)
+ 	}
++	// So are wasmexports.
++	for _, s := range d.ldr.WasmExports {
++		if d.ctxt.Debugvlog > 1 {
++			d.ctxt.Logf("deadcode start wasmexport: %s<%d>\n", d.ldr.SymName(s), d.ldr.SymVersion(s))
++		}
++		d.mark(s, 0)
++	}
+ 
+ 	d.mapinitnoop = d.ldr.Lookup("runtime.mapinitnoop", abiInternalVer)
+ 	if d.mapinitnoop == 0 {
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 98bff775fb..a391c8ced9 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -251,6 +251,8 @@ type Loader struct {
+ 	// CgoExports records cgo-exported symbols by SymName.
+ 	CgoExports map[string]Sym
+ 
++	WasmExports []Sym
++
+ 	flags uint32
+ 
+ 	strictDupMsgs int // number of strict-dup warning/errors, when FlagStrictDups is enabled
+@@ -1627,6 +1629,10 @@ func (l *Loader) WasmImportSym(fnSymIdx Sym) Sym {
+ 	return l.aux1(fnSymIdx, goobj.AuxWasmImport)
+ }
+ 
++func (l *Loader) WasmTypeSym(s Sym) Sym {
++	return l.aux1(s, goobj.AuxWasmType)
++}
++
+ // SEHUnwindSym returns the auxiliary SEH unwind symbol associated with
+ // a given function symbol.
+ func (l *Loader) SEHUnwindSym(fnSymIdx Sym) Sym {
+@@ -2213,6 +2219,9 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
+ 		if a := int32(osym.Align()); a != 0 && a > l.SymAlign(gi) {
+ 			l.SetSymAlign(gi, a)
+ 		}
++		if osym.WasmExport() {
++			l.WasmExports = append(l.WasmExports, gi)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 09c54c1392..cdd8de467d 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -219,6 +219,15 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
+ 		if sig, ok := wasmFuncTypes[ldr.SymName(fn)]; ok {
+ 			typ = lookupType(sig, &types)
+ 		}
++		if s := ldr.WasmTypeSym(fn); s != 0 {
++			var o obj.WasmFuncType
++			o.Read(ldr.Data(s))
++			t := &wasmFuncType{
++				Params:  fieldsToTypes(o.Params),
++				Results: fieldsToTypes(o.Results),
++			}
++			typ = lookupType(t, &types)
++		}
+ 
+ 		name := nameRegexp.ReplaceAllString(ldr.SymName(fn), "_")
+ 		fns[i] = &wasmFunc{Name: name, Type: typ, Code: wfn.Bytes()}
+@@ -407,15 +416,21 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
+ 
+ 	switch buildcfg.GOOS {
+ 	case "wasip1":
+-		writeUleb128(ctxt.Out, 2) // number of exports
++		writeUleb128(ctxt.Out, uint64(2+len(ldr.WasmExports))) // number of exports
+ 		s := ldr.Lookup("_rt0_wasm_wasip1", 0)
+ 		idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+ 		writeName(ctxt.Out, "_start")       // the wasi entrypoint
+ 		ctxt.Out.WriteByte(0x00)            // func export
+ 		writeUleb128(ctxt.Out, uint64(idx)) // funcidx
+-		writeName(ctxt.Out, "memory")       // memory in wasi
+-		ctxt.Out.WriteByte(0x02)            // mem export
+-		writeUleb128(ctxt.Out, 0)           // memidx
++		for _, s := range ldr.WasmExports {
++			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
++			writeName(ctxt.Out, ldr.SymName(s))
++			ctxt.Out.WriteByte(0x00)            // func export
++			writeUleb128(ctxt.Out, uint64(idx)) // funcidx
++		}
++		writeName(ctxt.Out, "memory") // memory in wasi
++		ctxt.Out.WriteByte(0x02)      // mem export
++		writeUleb128(ctxt.Out, 0)     // memidx
+ 	case "js":
+ 		writeUleb128(ctxt.Out, 4) // number of exports
+ 		for _, name := range []string{"run", "resume", "getsp"} {
+diff --git a/test/wasmexport.go b/test/wasmexport.go
+new file mode 100644
+index 0000000000..3b92ae93c9
+--- /dev/null
++++ b/test/wasmexport.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that misplaced directives are diagnosed.
++
++//go:build wasm
++
++package p
++
++//go:wasmexport F
++func F() {} // OK
++
++type S int32
++
++//go:wasmexport M
++func (S) M() {} // ERROR "cannot use //go:wasmexport on a method"

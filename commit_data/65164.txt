@@ -1,0 +1,55 @@
+commit 0addb2a4ea77b3e8b08a02966e381a812082f58b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Aug 6 11:02:35 2024 +0200
+
+    runtime: document that Caller and Frame.File always use forward slashes
+    
+    Document that Caller and Frame.File always use forward slashes
+    as path separators, even on Windows.
+    
+    Fixes #3335
+    
+    Change-Id: Ic5bbf8a1f14af64277dca4783176cd8f70726b91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603275
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/runtime/extern.go | 9 +++++----
+ src/runtime/symtab.go | 3 ++-
+ 2 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index f8f81be8ef..fad19b9449 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -294,10 +294,11 @@ import (
+ 
+ // Caller reports file and line number information about function invocations on
+ // the calling goroutine's stack. The argument skip is the number of stack frames
+-// to ascend, with 0 identifying the caller of Caller.  (For historical reasons the
+-// meaning of skip differs between Caller and [Callers].) The return values report the
+-// program counter, file name, and line number within the file of the corresponding
+-// call. The boolean ok is false if it was not possible to recover the information.
++// to ascend, with 0 identifying the caller of Caller. (For historical reasons the
++// meaning of skip differs between Caller and [Callers].) The return values report
++// the program counter, the file name (using forward slashes as path separator, even
++// on Windows), and the line number within the file of the corresponding call.
++// The boolean ok is false if it was not possible to recover the information.
+ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ 	rpc := make([]uintptr, 1)
+ 	n := callers(skip+1, rpc)
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 88780b8cbf..73e0c70065 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -49,7 +49,8 @@ type Frame struct {
+ 	// File and Line are the file name and line number of the
+ 	// location in this frame. For non-leaf frames, this will be
+ 	// the location of a call. These may be the empty string and
+-	// zero, respectively, if not known.
++	// zero, respectively, if not known. The file name uses
++	// forward slashes, even on Windows.
+ 	File string
+ 	Line int
+ 

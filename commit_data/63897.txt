@@ -1,0 +1,138 @@
+commit 5ab8f90745efee77cae39f4ba9547298977fcc65
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 21 15:48:06 2024 -0700
+
+    go/types, types2: operand.convertibleTo must consider Alias types
+    
+    Fixes regression from Go 1.22.
+    
+    Fixes #67540.
+    For #67547.
+    
+    Change-Id: I61f642970c6a9bd8567654bb5ecf645ae77b3bcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587159
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/conversions.go     | 11 +++---
+ src/go/types/conversions.go                        | 11 +++---
+ .../types/testdata/fixedbugs/issue67547.go         | 40 ++++++++++++++++++++++
+ 3 files changed, 54 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 05d0d37192..43208c3d9b 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -139,13 +139,16 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		return true
+ 	}
+ 
+-	// "V and T have identical underlying types if tags are ignored
+-	// and V and T are not type parameters"
+-	V := x.typ
++	origT := T
++	V := Unalias(x.typ)
++	T = Unalias(T)
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	Vp, _ := V.(*TypeParam)
+ 	Tp, _ := T.(*TypeParam)
++
++	// "V and T have identical underlying types if tags are ignored
++	// and V and T are not type parameters"
+ 	if IdenticalIgnoreTags(Vu, Tu) && Vp == nil && Tp == nil {
+ 		return true
+ 	}
+@@ -267,7 +270,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 			}
+ 			x.typ = V.typ
+ 			if !x.convertibleTo(check, T, cause) {
+-				errorf("cannot convert %s (in %s) to type %s", V.typ, Vp, T)
++				errorf("cannot convert %s (in %s) to type %s", V.typ, Vp, origT)
+ 				return false
+ 			}
+ 			return true
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index f548e177de..d28c2294a7 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -142,13 +142,16 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 		return true
+ 	}
+ 
+-	// "V and T have identical underlying types if tags are ignored
+-	// and V and T are not type parameters"
+-	V := x.typ
++	origT := T
++	V := Unalias(x.typ)
++	T = Unalias(T)
+ 	Vu := under(V)
+ 	Tu := under(T)
+ 	Vp, _ := V.(*TypeParam)
+ 	Tp, _ := T.(*TypeParam)
++
++	// "V and T have identical underlying types if tags are ignored
++	// and V and T are not type parameters"
+ 	if IdenticalIgnoreTags(Vu, Tu) && Vp == nil && Tp == nil {
+ 		return true
+ 	}
+@@ -270,7 +273,7 @@ func (x *operand) convertibleTo(check *Checker, T Type, cause *string) bool {
+ 			}
+ 			x.typ = V.typ
+ 			if !x.convertibleTo(check, T, cause) {
+-				errorf("cannot convert %s (in %s) to type %s", V.typ, Vp, T)
++				errorf("cannot convert %s (in %s) to type %s", V.typ, Vp, origT)
+ 				return false
+ 			}
+ 			return true
+diff --git a/src/internal/types/testdata/fixedbugs/issue67547.go b/src/internal/types/testdata/fixedbugs/issue67547.go
+index 930692aa57..1ae01fa264 100644
+--- a/src/internal/types/testdata/fixedbugs/issue67547.go
++++ b/src/internal/types/testdata/fixedbugs/issue67547.go
+@@ -26,3 +26,43 @@ func _[P map[int]int]() {
+ 	var m A
+ 	clear(m) // don't report an error for m
+ }
++
++type S1 struct {
++	x int "S1.x"
++}
++
++type S2 struct {
++	x int "S2.x"
++}
++
++func _[P1 S1, P2 S2]() {
++	type A = P1
++	var p A
++	_ = P2(p) // conversion must be valid
++}
++
++func _[P1 S1, P2 S2]() {
++	var p P1
++	type A = P2
++	_ = A(p) // conversion must be valid
++}
++
++func _[P int | string]() {
++	var p P
++	type A = int
++	// preserve target type name A in error messages when using Alias types
++	// (test are run with and without Alias types enabled, so we need to
++	// keep both A and int in the error message)
++	_ = A(p /* ERRORx "cannot convert string .* to type (A|int)" */)
++}
++
++// Test case for go.dev/issue/67540.
++func _() {
++	type (
++		S struct{}
++		A = *S
++		T S
++	)
++	var p A
++	_ = (*T)(p)
++}

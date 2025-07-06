@@ -1,0 +1,51 @@
+commit 7b0fdd13230038aabf249f0335097a2cdc233f5c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Aug 22 13:47:13 2024 -0700
+
+    encoding/base32, encoding/base64: document Decode to short buffer
+    
+    Document that if one of the Decode methods in these packages is given
+    a short buffer, it panics.
+    
+    Fixes #69024
+    
+    Change-Id: I1c0e4c74274965c1cfa0422cc8f86af4fefb1d00
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607499
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/encoding/base32/base32.go | 3 ++-
+ src/encoding/base64/base64.go | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/base32/base32.go b/src/encoding/base32/base32.go
+index 9e988ef39b..66f24e98a6 100644
+--- a/src/encoding/base32/base32.go
++++ b/src/encoding/base32/base32.go
+@@ -387,7 +387,8 @@ func (enc *Encoding) decode(dst, src []byte) (n int, end bool, err error) {
+ 
+ // Decode decodes src using the encoding enc. It writes at most
+ // [Encoding.DecodedLen](len(src)) bytes to dst and returns the number of bytes
+-// written. If src contains invalid base32 data, it will return the
++// written. The caller must ensure that dst is large enough to hold all
++// the decoded data. If src contains invalid base32 data, it will return the
+ // number of bytes successfully written and [CorruptInputError].
+ // Newline characters (\r and \n) are ignored.
+ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {
+diff --git a/src/encoding/base64/base64.go b/src/encoding/base64/base64.go
+index 87f45863bd..7f0fa2de78 100644
+--- a/src/encoding/base64/base64.go
++++ b/src/encoding/base64/base64.go
+@@ -508,7 +508,8 @@ func (d *decoder) Read(p []byte) (n int, err error) {
+ 
+ // Decode decodes src using the encoding enc. It writes at most
+ // [Encoding.DecodedLen](len(src)) bytes to dst and returns the number of bytes
+-// written. If src contains invalid base64 data, it will return the
++// written. The caller must ensure that dst is large enough to hold all
++// the decoded data. If src contains invalid base64 data, it will return the
+ // number of bytes successfully written and [CorruptInputError].
+ // New line characters (\r and \n) are ignored.
+ func (enc *Encoding) Decode(dst, src []byte) (n int, err error) {

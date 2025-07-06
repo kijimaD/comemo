@@ -1,0 +1,85 @@
+commit be29a02161eae9aa7519496e3d058b3214f91508
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Apr 23 19:17:46 2024 +0000
+
+    runtime: delete dead code in the tracer
+    
+    This code was just missed during the cleanup. There's maybe some merit
+    to keeping OneNewExtraM, but it would still be fairly optimistic. It's
+    trivial to bring back, so delete it for now.
+    
+    Change-Id: I2d033c6daae787e0e8d6b92524f3e59610e2599f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583375
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/proc.go         |  6 ------
+ src/runtime/traceruntime.go | 20 --------------------
+ 2 files changed, 26 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 387c4598bb..161d14e562 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2343,11 +2343,6 @@ func oneNewExtraM() {
+ 	if raceenabled {
+ 		gp.racectx = racegostart(abi.FuncPCABIInternal(newextram) + sys.PCQuantum)
+ 	}
+-	trace := traceAcquire()
+-	if trace.ok() {
+-		trace.OneNewExtraM(gp)
+-		traceRelease(trace)
+-	}
+ 	// put on allg for garbage collector
+ 	allgadd(gp)
+ 
+@@ -5489,7 +5484,6 @@ func (pp *p) destroy() {
+ 	freemcache(pp.mcache)
+ 	pp.mcache = nil
+ 	gfpurge(pp)
+-	traceProcFree(pp)
+ 	if raceenabled {
+ 		if pp.timers.raceCtx != 0 {
+ 			// The race detector code uses a callback to fetch
+diff --git a/src/runtime/traceruntime.go b/src/runtime/traceruntime.go
+index 3e0e3b3a76..285f264463 100644
+--- a/src/runtime/traceruntime.go
++++ b/src/runtime/traceruntime.go
+@@ -560,11 +560,6 @@ func (tl traceLocker) HeapGoal() {
+ 	tl.eventWriter(traceGoRunning, traceProcRunning).commit(traceEvHeapGoal, traceArg(heapGoal))
+ }
+ 
+-// OneNewExtraM is a no-op in the new tracer. This is worth keeping around though because
+-// it's a good place to insert a thread-level event about the new extra M.
+-func (tl traceLocker) OneNewExtraM(_ *g) {
+-}
+-
+ // GoCreateSyscall indicates that a goroutine has transitioned from dead to GoSyscall.
+ //
+ // Unlike GoCreate, the caller must be running on gp.
+@@ -657,14 +652,6 @@ func trace_userLog(id uint64, category, message string) {
+ 	traceRelease(tl)
+ }
+ 
+-// traceProcFree is called when a P is destroyed.
+-//
+-// This must run on the system stack to match the old tracer.
+-//
+-//go:systemstack
+-func traceProcFree(_ *p) {
+-}
+-
+ // traceThreadDestroy is called when a thread is removed from
+ // sched.freem.
+ //
+@@ -703,10 +690,3 @@ func traceThreadDestroy(mp *m) {
+ 		throw("bad use of trace.seqlock")
+ 	}
+ }
+-
+-// Not used in the new tracer; solely for compatibility with the old tracer.
+-// nosplit because it's called from exitsyscall without a P.
+-//
+-//go:nosplit
+-func (_ traceLocker) RecordSyscallExitedTime(_ *g, _ *p) {
+-}

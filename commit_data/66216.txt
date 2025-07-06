@@ -1,0 +1,63 @@
+commit 67903012f71b6ceff7a25758c33e77c47710fbf7
+Author: cuishuang <imcusg@gmail.com>
+Date:   Thu Nov 21 17:14:21 2024 +0800
+
+    cmd/go/internal: use pathpkg name more
+    
+    The package "path" is already imported under the name pathpkg and used
+    many times in these files. It's not worth it to also make it available
+    under the name path, so keep using pathpkg.
+    
+    Change-Id: I7f8fa7a11de338b9a7c0f58a48d5af68b5639cfe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630475
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/go/internal/modfetch/proxy.go | 3 +--
+ src/cmd/go/internal/modload/load.go   | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/proxy.go b/src/cmd/go/internal/modfetch/proxy.go
+index e0efb097ec..896f310bdf 100644
+--- a/src/cmd/go/internal/modfetch/proxy.go
++++ b/src/cmd/go/internal/modfetch/proxy.go
+@@ -12,7 +12,6 @@ import (
+ 	"io"
+ 	"io/fs"
+ 	"net/url"
+-	"path"
+ 	pathpkg "path"
+ 	"path/filepath"
+ 	"strings"
+@@ -98,7 +97,7 @@ func proxyList() ([]proxySpec, error) {
+ 			// Single-word tokens are reserved for built-in behaviors, and anything
+ 			// containing the string ":/" or matching an absolute file path must be a
+ 			// complete URL. For all other paths, implicitly add "https://".
+-			if strings.ContainsAny(url, ".:/") && !strings.Contains(url, ":/") && !filepath.IsAbs(url) && !path.IsAbs(url) {
++			if strings.ContainsAny(url, ".:/") && !strings.Contains(url, ":/") && !filepath.IsAbs(url) && !pathpkg.IsAbs(url) {
+ 				url = "https://" + url
+ 			}
+ 
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 12dd9425f6..1a3a4b5a69 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -103,7 +103,6 @@ import (
+ 	"io/fs"
+ 	"maps"
+ 	"os"
+-	"path"
+ 	pathpkg "path"
+ 	"path/filepath"
+ 	"runtime"
+@@ -717,7 +716,7 @@ func pathInModuleCache(ctx context.Context, dir string, rs *Requirements) string
+ 			return "", false
+ 		}
+ 
+-		return path.Join(m.Path, filepath.ToSlash(sub)), true
++		return pathpkg.Join(m.Path, filepath.ToSlash(sub)), true
+ 	}
+ 
+ 	if rs.pruning == pruned {

@@ -1,0 +1,63 @@
+commit 7a0e2db135daef2c0aeb98d5e3019807a71a7b4d
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Apr 16 07:42:26 2024 +0000
+
+    cmd,crypto/elliptic: fix typos in comments
+    
+    Replace these incorrect fullwidth brackets with halfwidth brackets.
+    
+    Change-Id: Ie17561c18334f9c07eedbff79e5f64ed4fc281bd
+    GitHub-Last-Rev: 94214be6cea75b4d1fa7b536cac523f061614d38
+    GitHub-Pull-Request: golang/go#66846
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579117
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/internal/obj/mips/asm0.go  | 2 +-
+ src/cmd/internal/obj/s390x/asmz.go | 2 +-
+ src/crypto/elliptic/params.go      | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/obj/mips/asm0.go b/src/cmd/internal/obj/mips/asm0.go
+index 2804073db1..2dd4818ded 100644
+--- a/src/cmd/internal/obj/mips/asm0.go
++++ b/src/cmd/internal/obj/mips/asm0.go
+@@ -718,7 +718,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 			if c.instoffset <= 0xffff {
+ 				return C_ANDCON
+ 			}
+-			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && （(instoffset & (1<<31)) == 0) */
++			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && ((instoffset & (1<<31)) == 0) */
+ 				return C_UCON
+ 			}
+ 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 7b560e0053..6d2962acd6 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -691,7 +691,7 @@ func (c *ctxtz) aclass(a *obj.Addr) int {
+ 			if c.instoffset <= 0xffff {
+ 				return C_ANDCON
+ 			}
+-			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && （(instoffset & (1<<31)) == 0) */
++			if c.instoffset&0xffff == 0 && isuint32(uint64(c.instoffset)) { /* && ((instoffset & (1<<31)) == 0) */
+ 				return C_UCON
+ 			}
+ 			if isint32(c.instoffset) || isuint32(uint64(c.instoffset)) {
+diff --git a/src/crypto/elliptic/params.go b/src/crypto/elliptic/params.go
+index 716e2c06ba..0507d22b27 100644
+--- a/src/crypto/elliptic/params.go
++++ b/src/crypto/elliptic/params.go
+@@ -201,7 +201,7 @@ func (curve *CurveParams) addJacobian(x1, y1, z1, x2, y2, z2 *big.Int) (*big.Int
+ 
+ // Double implements [Curve.Double].
+ //
+-// Deprecated: the [CurveParams】 methods are deprecated and are not guaranteed to
++// Deprecated: the [CurveParams] methods are deprecated and are not guaranteed to
+ // provide any security property. For ECDH, use the [crypto/ecdh] package.
+ // For ECDSA, use the [crypto/ecdsa] package with a [Curve] value returned directly
+ // from [P224], [P256], [P384], or [P521].

@@ -1,0 +1,373 @@
+commit e45c125a3c343767b3bb68f3512d8cffbf7691b9
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed Aug 14 17:11:08 2024 +0800
+
+    cmd/compile: add patterns for bitfield opcodes on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                    |  bench.old   |              bench.new               |
+                    |    sec/op    |    sec/op     vs base                |
+    LeadingZeros      1.0095n ± 0%   0.8011n ± 0%  -20.64% (p=0.000 n=10)
+    LeadingZeros8      1.201n ± 0%    1.167n ± 0%   -2.83% (p=0.000 n=10)
+    LeadingZeros16     1.201n ± 0%    1.167n ± 0%   -2.83% (p=0.000 n=10)
+    LeadingZeros32     1.201n ± 0%    1.134n ± 0%   -5.58% (p=0.000 n=10)
+    LeadingZeros64    0.8007n ± 0%   1.0115n ± 0%  +26.32% (p=0.000 n=10)
+    TrailingZeros     0.8054n ± 0%   0.8106n ± 1%   +0.65% (p=0.000 n=10)
+    TrailingZeros8     1.067n ± 0%    1.002n ± 1%   -6.09% (p=0.000 n=10)
+    TrailingZeros16   1.0540n ± 0%   0.8389n ± 0%  -20.40% (p=0.000 n=10)
+    TrailingZeros32   0.8014n ± 0%   0.8117n ± 0%   +1.29% (p=0.000 n=10)
+    TrailingZeros64   0.8015n ± 0%   0.8124n ± 1%   +1.36% (p=0.000 n=10)
+    OnesCount          3.418n ± 0%    3.417n ± 0%        ~ (p=0.911 n=10)
+    OnesCount8        0.8004n ± 0%   0.8004n ± 0%        ~ (p=1.000 n=10)
+    OnesCount16        1.440n ± 0%    1.299n ± 0%   -9.79% (p=0.000 n=10)
+    OnesCount32        2.969n ± 0%    2.940n ± 0%   -0.94% (p=0.000 n=10)
+    OnesCount64        3.563n ± 0%    3.558n ± 0%   -0.14% (p=0.000 n=10)
+    RotateLeft        0.6677n ± 0%   0.6670n ± 0%        ~ (p=0.055 n=10)
+    RotateLeft8        1.318n ± 1%    1.321n ± 0%        ~ (p=0.117 n=10)
+    RotateLeft16      0.8457n ± 1%   0.8442n ± 0%        ~ (p=0.325 n=10)
+    RotateLeft32      0.8004n ± 0%   0.8004n ± 0%        ~ (p=0.837 n=10)
+    RotateLeft64      0.6678n ± 0%   0.6670n ± 0%   -0.13% (p=0.000 n=10)
+    Reverse           0.8004n ± 0%   0.8004n ± 0%        ~ (p=1.000 n=10)
+    Reverse8          0.6989n ± 0%   0.6969n ± 1%        ~ (p=0.138 n=10)
+    Reverse16         0.6998n ± 1%   0.7004n ± 1%        ~ (p=0.985 n=10)
+    Reverse32         0.4158n ± 1%   0.4159n ± 1%        ~ (p=0.870 n=10)
+    Reverse64         0.4165n ± 1%   0.4194n ± 2%        ~ (p=0.093 n=10)
+    ReverseBytes      0.8004n ± 0%   0.8004n ± 0%        ~ (p=1.000 n=10)
+    ReverseBytes16    0.4183n ± 2%   0.4148n ± 1%        ~ (p=0.055 n=10)
+    ReverseBytes32    0.4143n ± 2%   0.4153n ± 1%        ~ (p=0.869 n=10)
+    ReverseBytes64    0.4168n ± 1%   0.4177n ± 1%        ~ (p=0.184 n=10)
+    Add                1.201n ± 0%    1.201n ± 0%        ~ (p=0.087 n=10)
+    Add32              1.603n ± 0%    1.601n ± 0%   -0.12% (p=0.000 n=10)
+    Add64              1.201n ± 0%    1.201n ± 0%        ~ (p=0.211 n=10)
+    Add64multiple      1.839n ± 0%    1.835n ± 0%   -0.24% (p=0.001 n=10)
+    Sub                1.202n ± 0%    1.201n ± 0%   -0.04% (p=0.033 n=10)
+    Sub32              2.401n ± 0%    1.601n ± 0%  -33.32% (p=0.000 n=10)
+    Sub64              1.201n ± 0%    1.201n ± 0%        ~ (p=1.000 n=10)
+    Sub64multiple      2.105n ± 0%    2.096n ± 0%   -0.40% (p=0.000 n=10)
+    Mul               0.8008n ± 0%   0.8004n ± 0%   -0.05% (p=0.000 n=10)
+    Mul32             0.8041n ± 0%   0.8014n ± 0%   -0.34% (p=0.000 n=10)
+    Mul64             0.8008n ± 0%   0.8004n ± 0%   -0.05% (p=0.000 n=10)
+    Div                8.977n ± 0%    8.945n ± 0%   -0.36% (p=0.000 n=10)
+    Div32              4.084n ± 0%    4.086n ± 0%        ~ (p=0.445 n=10)
+    Div64              9.316n ± 0%    9.301n ± 0%   -0.17% (p=0.000 n=10)
+    geomean            1.141n         1.117n        -2.09%
+    
+    Change-Id: I4dc1eaab6728f771bc722ed331fe5c6429bd1037
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618475
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/loong64/ssa.go         |  19 ++++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  14 +++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |   6 ++
+ src/cmd/compile/internal/ssa/opGen.go           |  30 ++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 120 ++++++++++++++++++++++++
+ 5 files changed, 189 insertions(+)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index f6c1720d6a..a60da7ba58 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -186,6 +186,21 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
+ 
++	case ssa.OpLOONG64BSTRPICKV,
++		ssa.OpLOONG64BSTRPICKW:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		if v.Op == ssa.OpLOONG64BSTRPICKW {
++			p.From.Offset = v.AuxInt >> 5
++			p.AddRestSourceConst(v.AuxInt & 0x1f)
++		} else {
++			p.From.Offset = v.AuxInt >> 6
++			p.AddRestSourceConst(v.AuxInt & 0x3f)
++		}
++		p.Reg = v.Args[0].Reg()
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg()
++
+ 	case ssa.OpLOONG64FMINF,
+ 		ssa.OpLOONG64FMIND,
+ 		ssa.OpLOONG64FMAXF,
+@@ -334,6 +349,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		}
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++
+ 	case ssa.OpLOONG64MOVBloadidx,
+ 		ssa.OpLOONG64MOVBUloadidx,
+ 		ssa.OpLOONG64MOVHloadidx,
+@@ -350,6 +366,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Index = v.Args[1].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++
+ 	case ssa.OpLOONG64MOVBstoreidx,
+ 		ssa.OpLOONG64MOVHstoreidx,
+ 		ssa.OpLOONG64MOVWstoreidx,
+@@ -363,6 +380,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Name = obj.NAME_NONE
+ 		p.To.Reg = v.Args[0].Reg()
+ 		p.To.Index = v.Args[1].Reg()
++
+ 	case ssa.OpLOONG64MOVBstorezeroidx,
+ 		ssa.OpLOONG64MOVHstorezeroidx,
+ 		ssa.OpLOONG64MOVWstorezeroidx,
+@@ -374,6 +392,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Name = obj.NAME_NONE
+ 		p.To.Reg = v.Args[0].Reg()
+ 		p.To.Index = v.Args[1].Reg()
++
+ 	case ssa.OpLOONG64MOVBload,
+ 		ssa.OpLOONG64MOVBUload,
+ 		ssa.OpLOONG64MOVHload,
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index f5cd7ceb0d..a5000a1fac 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -117,6 +117,20 @@
+ (Rsh8x16 <t> x y) => (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt16to64 y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt16to64 y)))
+ (Rsh8x8  <t> x y) => (SRAV (SignExt8to64 x) (OR <t> (NEGV <t> (SGTU (ZeroExt8to64  y) (MOVVconst <typ.UInt64> [63]))) (ZeroExt8to64  y)))
+ 
++// bitfield ops
++
++// bstrpickv
++// (x << lc) >> rc
++(SRLVconst [rc] (SLLVconst [lc] x)) && lc <= rc => (BSTRPICKV [rc-lc + ((64-lc)-1)<<6] x)
++// uint64(x) >> rc
++(SRLVconst [rc] (MOVWUreg x)) && rc < 32 => (BSTRPICKV [rc + 31<<6] x)
++(SRLVconst [rc] (MOVHUreg x)) && rc < 16 => (BSTRPICKV [rc + 15<<6] x)
++(SRLVconst [rc] (MOVBUreg x)) && rc < 8 => (BSTRPICKV [rc + 7<<6] x)
++// uint64(x >> rc)
++(MOVWUreg (SRLVconst [rc] x)) && rc < 32 => (BSTRPICKV [rc + (31+rc)<<6] x)
++(MOVHUreg (SRLVconst [rc] x)) && rc < 16 => (BSTRPICKV [rc + (15+rc)<<6] x)
++(MOVBUreg (SRLVconst [rc] x)) && rc < 8 => (BSTRPICKV [rc + (7+rc)<<6] x)
++
+ // rotates
+ (RotateLeft8 <t> x (MOVVconst [c])) => (Or8 (Lsh8x64 <t> x (MOVVconst [c&7])) (Rsh8Ux64 <t> x (MOVVconst [-c&7])))
+ (RotateLeft8 <t> x y) => (OR <t> (SLLV <t> x (ANDconst <typ.Int64> [7] y)) (SRLV <t> (ZeroExt8to64 x) (ANDconst <typ.Int64> [7] (NEGV <typ.Int64> y))))
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index d5ad27c1c1..e159d48328 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -235,6 +235,12 @@ func init() {
+ 		{name: "CMPGTF", argLength: 2, reg: fp2flags, asm: "CMPGTF", typ: "Flags"}, // flags=true if arg0 > arg1, float32
+ 		{name: "CMPGTD", argLength: 2, reg: fp2flags, asm: "CMPGTD", typ: "Flags"}, // flags=true if arg0 > arg1, float64
+ 
++		// bitfield ops
++		// for bstrpick.w msbw is auxInt>>5, lsbw is auxInt&0x1f
++		// for bstrpick.d msbd is auxInt>>6, lsbd is auxInt&0x3f
++		{name: "BSTRPICKW", argLength: 1, reg: gp11, asm: "BSTRPICKW", aux: "Int64"},
++		{name: "BSTRPICKV", argLength: 1, reg: gp11, asm: "BSTRPICKV", aux: "Int64"},
++
+ 		// moves
+ 		{name: "MOVVconst", argLength: 0, reg: gp01, aux: "Int64", asm: "MOVV", typ: "UInt64", rematerializeable: true},    // auxint
+ 		{name: "MOVFconst", argLength: 0, reg: fp01, aux: "Float64", asm: "MOVF", typ: "Float32", rematerializeable: true}, // auxint as 64-bit float, convert to 32-bit float
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index b68679f0d5..c4e76548f3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1803,6 +1803,8 @@ const (
+ 	OpLOONG64CMPGED
+ 	OpLOONG64CMPGTF
+ 	OpLOONG64CMPGTD
++	OpLOONG64BSTRPICKW
++	OpLOONG64BSTRPICKV
+ 	OpLOONG64MOVVconst
+ 	OpLOONG64MOVFconst
+ 	OpLOONG64MOVDconst
+@@ -24334,6 +24336,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "BSTRPICKW",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     loong64.ABSTRPICKW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:    "BSTRPICKV",
++		auxType: auxInt64,
++		argLen:  1,
++		asm:     loong64.ABSTRPICKV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 	{
+ 		name:              "MOVVconst",
+ 		auxType:           auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 54edea4e2b..2eb9e64ee3 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -1890,6 +1890,23 @@ func rewriteValueLOONG64_OpLOONG64MOVBUloadidx(v *Value) bool {
+ }
+ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
+ 	v_0 := v.Args[0]
++	// match: (MOVBUreg (SRLVconst [rc] x))
++	// cond: rc < 8
++	// result: (BSTRPICKV [rc + (7+rc)<<6] x)
++	for {
++		if v_0.Op != OpLOONG64SRLVconst {
++			break
++		}
++		rc := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(rc < 8) {
++			break
++		}
++		v.reset(OpLOONG64BSTRPICKV)
++		v.AuxInt = int64ToAuxInt(rc + (7+rc)<<6)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVBUreg x:(SGT _ _))
+ 	// result: x
+ 	for {
+@@ -3076,6 +3093,23 @@ func rewriteValueLOONG64_OpLOONG64MOVHUloadidx(v *Value) bool {
+ }
+ func rewriteValueLOONG64_OpLOONG64MOVHUreg(v *Value) bool {
+ 	v_0 := v.Args[0]
++	// match: (MOVHUreg (SRLVconst [rc] x))
++	// cond: rc < 16
++	// result: (BSTRPICKV [rc + (15+rc)<<6] x)
++	for {
++		if v_0.Op != OpLOONG64SRLVconst {
++			break
++		}
++		rc := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(rc < 16) {
++			break
++		}
++		v.reset(OpLOONG64BSTRPICKV)
++		v.AuxInt = int64ToAuxInt(rc + (15+rc)<<6)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVHUreg x:(MOVBUload _ _))
+ 	// result: (MOVVreg x)
+ 	for {
+@@ -4182,6 +4216,23 @@ func rewriteValueLOONG64_OpLOONG64MOVWUloadidx(v *Value) bool {
+ }
+ func rewriteValueLOONG64_OpLOONG64MOVWUreg(v *Value) bool {
+ 	v_0 := v.Args[0]
++	// match: (MOVWUreg (SRLVconst [rc] x))
++	// cond: rc < 32
++	// result: (BSTRPICKV [rc + (31+rc)<<6] x)
++	for {
++		if v_0.Op != OpLOONG64SRLVconst {
++			break
++		}
++		rc := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(rc < 32) {
++			break
++		}
++		v.reset(OpLOONG64BSTRPICKV)
++		v.AuxInt = int64ToAuxInt(rc + (31+rc)<<6)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVWUreg x:(MOVBUload _ _))
+ 	// result: (MOVVreg x)
+ 	for {
+@@ -5587,6 +5638,75 @@ func rewriteValueLOONG64_OpLOONG64SRLV(v *Value) bool {
+ }
+ func rewriteValueLOONG64_OpLOONG64SRLVconst(v *Value) bool {
+ 	v_0 := v.Args[0]
++	// match: (SRLVconst [rc] (SLLVconst [lc] x))
++	// cond: lc <= rc
++	// result: (BSTRPICKV [rc-lc + ((64-lc)-1)<<6] x)
++	for {
++		rc := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpLOONG64SLLVconst {
++			break
++		}
++		lc := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(lc <= rc) {
++			break
++		}
++		v.reset(OpLOONG64BSTRPICKV)
++		v.AuxInt = int64ToAuxInt(rc - lc + ((64-lc)-1)<<6)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRLVconst [rc] (MOVWUreg x))
++	// cond: rc < 32
++	// result: (BSTRPICKV [rc + 31<<6] x)
++	for {
++		rc := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpLOONG64MOVWUreg {
++			break
++		}
++		x := v_0.Args[0]
++		if !(rc < 32) {
++			break
++		}
++		v.reset(OpLOONG64BSTRPICKV)
++		v.AuxInt = int64ToAuxInt(rc + 31<<6)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRLVconst [rc] (MOVHUreg x))
++	// cond: rc < 16
++	// result: (BSTRPICKV [rc + 15<<6] x)
++	for {
++		rc := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpLOONG64MOVHUreg {
++			break
++		}
++		x := v_0.Args[0]
++		if !(rc < 16) {
++			break
++		}
++		v.reset(OpLOONG64BSTRPICKV)
++		v.AuxInt = int64ToAuxInt(rc + 15<<6)
++		v.AddArg(x)
++		return true
++	}
++	// match: (SRLVconst [rc] (MOVBUreg x))
++	// cond: rc < 8
++	// result: (BSTRPICKV [rc + 7<<6] x)
++	for {
++		rc := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpLOONG64MOVBUreg {
++			break
++		}
++		x := v_0.Args[0]
++		if !(rc < 8) {
++			break
++		}
++		v.reset(OpLOONG64BSTRPICKV)
++		v.AuxInt = int64ToAuxInt(rc + 7<<6)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (SRLVconst [c] (MOVVconst [d]))
+ 	// result: (MOVVconst [int64(uint64(d)>>uint64(c))])
+ 	for {

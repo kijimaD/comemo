@@ -1,0 +1,75 @@
+commit 45aade7f1edd77409b967dafc58dc537f5ac34f6
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Tue Mar 4 19:54:59 2025 +0000
+
+    [release-branch.go1.23] all: updates vendored x/net
+    
+    This is to update module version to the fixed x/net.
+    
+    For #71984
+    
+    Change-Id: I8f4357f14a7d44a782c131eb856b50a103be2f2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654796
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/moddeps/moddeps_test.go | 1 -
+ src/go.mod                               | 2 +-
+ src/go.sum                               | 4 ++--
+ src/vendor/modules.txt                   | 2 +-
+ 4 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index 9a1d616861..2def029325 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -33,7 +33,6 @@ import (
+ // See issues 36852, 41409, and 43687.
+ // (Also see golang.org/issue/27348.)
+ func TestAllDependencies(t *testing.T) {
+-	t.Skip("TODO(#71985) 1.23.7 contains unreleased changes from vendored modules")
+ 	goBin := testenv.GoToolPath(t)
+ 
+ 	// Ensure that all packages imported within GOROOT
+diff --git a/src/go.mod b/src/go.mod
+index 789f5aaa1d..96513ccfc9 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -4,7 +4,7 @@ go 1.23
+ 
+ require (
+ 	golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a
+-	golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c
++	golang.org/x/net v0.25.1-0.20250304182835-b70a9e3eaa27
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index a75ea98c73..7d2f0b01d5 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+ golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a h1:37MIv+iGfwMYzWJECGyrPCtd5nuqcciRUeJfkNCkCf0=
+ golang.org/x/crypto v0.23.1-0.20240603234054-0b431c7de36a/go.mod h1:CKFgDieR+mRhux2Lsu27y0fO304Db0wZe70UKqHu0v8=
+-golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c h1:CR/7/SLUhIJw6g675eeoDiwggElO2MV9rGkNYjqi8GM=
+-golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c/go.mod h1:JkAGAh7GEvH74S6FOH42FLoXpXbE/aqXSrIQjXgsiwM=
++golang.org/x/net v0.25.1-0.20250304182835-b70a9e3eaa27 h1:BLroQt2NWk69+mgdbJFxbd1Y6nc8r9UCc/iPQ0FgpNs=
++golang.org/x/net v0.25.1-0.20250304182835-b70a9e3eaa27/go.mod h1:JkAGAh7GEvH74S6FOH42FLoXpXbE/aqXSrIQjXgsiwM=
+ golang.org/x/sys v0.22.0 h1:RI27ohtqKCnwULzJLqkv897zojh5/DwS/ENaMzUOaWI=
+ golang.org/x/sys v0.22.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index b8a0b84a28..1c88c1299f 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -8,7 +8,7 @@ golang.org/x/crypto/hkdf
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+ golang.org/x/crypto/sha3
+-# golang.org/x/net v0.25.1-0.20240603202750-6249541f2a6c
++# golang.org/x/net v0.25.1-0.20250304182835-b70a9e3eaa27
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts

@@ -1,0 +1,266 @@
+commit eb0c2b2f96d9590631c0fd502a6c570635399f0a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Dec 27 11:13:42 2024 +0100
+
+    crypto/internal/fips140: add Supported
+    
+    Move the logic duplicated in multiple places to a central function.
+    
+    Change-Id: I6a6a4656469c91dd62b0be716ec8367358f4a3e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639336
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/cmd/dist/test.go                               |  2 ++
+ src/crypto/internal/fips140/{check => }/asan.go    |  2 +-
+ src/crypto/internal/fips140/boring.go              | 10 +++++++
+ src/crypto/internal/fips140/check/check.go         | 29 ++----------------
+ src/crypto/internal/fips140/fips140.go             | 35 +++++++++++++++++++++-
+ .../fips140/{check/noasan.go => notasan.go}        |  2 +-
+ src/crypto/internal/fips140/notboring.go           |  9 ++++++
+ src/crypto/internal/fips140test/check_test.go      | 20 ++++---------
+ 8 files changed, 64 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 06bd01bc5b..bfed14c915 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1797,6 +1797,8 @@ func isEnvSet(evar string) bool {
+ }
+ 
+ func (t *tester) fipsSupported() bool {
++	// Keep this in sync with [crypto/internal/fips140.Supported].
++
+ 	// Use GOFIPS140 or GOEXPERIMENT=boringcrypto, but not both.
+ 	if strings.Contains(goexperiment, "boringcrypto") {
+ 		return false
+diff --git a/src/crypto/internal/fips140/check/asan.go b/src/crypto/internal/fips140/asan.go
+similarity index 92%
+rename from src/crypto/internal/fips140/check/asan.go
+rename to src/crypto/internal/fips140/asan.go
+index 2c78348354..af8f24df81 100644
+--- a/src/crypto/internal/fips140/check/asan.go
++++ b/src/crypto/internal/fips140/asan.go
+@@ -4,6 +4,6 @@
+ 
+ //go:build asan
+ 
+-package check
++package fips140
+ 
+ const asanEnabled = true
+diff --git a/src/crypto/internal/fips140/boring.go b/src/crypto/internal/fips140/boring.go
+new file mode 100644
+index 0000000000..d627bc6890
+--- /dev/null
++++ b/src/crypto/internal/fips140/boring.go
+@@ -0,0 +1,10 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Keep in sync with notboring.go and crypto/internal/boring/boring.go.
++//go:build boringcrypto && linux && (amd64 || arm64) && !android && !msan && cgo
++
++package fips140
++
++const boringEnabled = true
+diff --git a/src/crypto/internal/fips140/check/check.go b/src/crypto/internal/fips140/check/check.go
+index cf33a1efbe..9d2e5d5cf6 100644
+--- a/src/crypto/internal/fips140/check/check.go
++++ b/src/crypto/internal/fips140/check/check.go
+@@ -19,7 +19,6 @@ import (
+ 	"crypto/internal/fips140deps/byteorder"
+ 	"crypto/internal/fips140deps/godebug"
+ 	"io"
+-	"runtime"
+ 	"unsafe"
+ )
+ 
+@@ -27,19 +26,6 @@ import (
+ // true when [fips140.Enabled] is true, or init would have panicked.
+ var Verified bool
+ 
+-// Supported reports whether the current GOOS/GOARCH is Supported at all.
+-func Supported() bool {
+-	// See cmd/internal/obj/fips.go's EnableFIPS for commentary.
+-	switch {
+-	case runtime.GOARCH == "wasm",
+-		runtime.GOOS == "windows" && runtime.GOARCH == "386",
+-		runtime.GOOS == "windows" && runtime.GOARCH == "arm",
+-		runtime.GOOS == "aix":
+-		return false
+-	}
+-	return true
+-}
+-
+ // Linkinfo holds the go:fipsinfo symbol prepared by the linker.
+ // See cmd/link/internal/ld/fips.go for details.
+ //
+@@ -70,19 +56,8 @@ func init() {
+ 		return
+ 	}
+ 
+-	if asanEnabled {
+-		// ASAN disapproves of reading swaths of global memory below.
+-		// One option would be to expose runtime.asanunpoison through
+-		// crypto/internal/fips140deps and then call it to unpoison the range
+-		// before reading it, but it is unclear whether that would then cause
+-		// false negatives. For now, FIPS+ASAN doesn't need to work.
+-		// If this is made to work, also re-enable the test in check_test.go
+-		// and in cmd/dist/test.go.
+-		panic("fips140: cannot verify in asan mode")
+-	}
+-
+-	if !Supported() {
+-		panic("fips140: unavailable on " + runtime.GOOS + "-" + runtime.GOARCH)
++	if err := fips140.Supported(); err != nil {
++		panic("fips140: " + err.Error())
+ 	}
+ 
+ 	if Linkinfo.Magic[0] != 0xff || string(Linkinfo.Magic[1:]) != fipsMagic || Linkinfo.Sum == zeroSum {
+diff --git a/src/crypto/internal/fips140/fips140.go b/src/crypto/internal/fips140/fips140.go
+index 55b5dd43ce..cf015db644 100644
+--- a/src/crypto/internal/fips140/fips140.go
++++ b/src/crypto/internal/fips140/fips140.go
+@@ -4,7 +4,11 @@
+ 
+ package fips140
+ 
+-import "crypto/internal/fips140deps/godebug"
++import (
++	"crypto/internal/fips140deps/godebug"
++	"errors"
++	"runtime"
++)
+ 
+ var Enabled bool
+ 
+@@ -24,6 +28,35 @@ func init() {
+ 	}
+ }
+ 
++// Supported returns an error if FIPS 140-3 mode can't be enabled.
++func Supported() error {
++	// Keep this in sync with fipsSupported in cmd/dist/test.go.
++
++	// ASAN disapproves of reading swaths of global memory in fips140/check.
++	// One option would be to expose runtime.asanunpoison through
++	// crypto/internal/fips140deps and then call it to unpoison the range
++	// before reading it, but it is unclear whether that would then cause
++	// false negatives. For now, FIPS+ASAN doesn't need to work.
++	if asanEnabled {
++		return errors.New("FIPS 140-3 mode is incompatible with ASAN")
++	}
++
++	// See EnableFIPS in cmd/internal/obj/fips.go for commentary.
++	switch {
++	case runtime.GOARCH == "wasm",
++		runtime.GOOS == "windows" && runtime.GOARCH == "386",
++		runtime.GOOS == "windows" && runtime.GOARCH == "arm",
++		runtime.GOOS == "aix":
++		return errors.New("FIPS 140-3 mode is not supported on " + runtime.GOOS + "-" + runtime.GOARCH)
++	}
++
++	if boringEnabled {
++		return errors.New("FIPS 140-3 mode is incompatible with GOEXPERIMENT=boringcrypto")
++	}
++
++	return nil
++}
++
+ func Name() string {
+ 	return "Go Cryptographic Module"
+ }
+diff --git a/src/crypto/internal/fips140/check/noasan.go b/src/crypto/internal/fips140/notasan.go
+similarity index 92%
+rename from src/crypto/internal/fips140/check/noasan.go
+rename to src/crypto/internal/fips140/notasan.go
+index 876d726f98..639d419ef9 100644
+--- a/src/crypto/internal/fips140/check/noasan.go
++++ b/src/crypto/internal/fips140/notasan.go
+@@ -4,6 +4,6 @@
+ 
+ //go:build !asan
+ 
+-package check
++package fips140
+ 
+ const asanEnabled = false
+diff --git a/src/crypto/internal/fips140/notboring.go b/src/crypto/internal/fips140/notboring.go
+new file mode 100644
+index 0000000000..681521c687
+--- /dev/null
++++ b/src/crypto/internal/fips140/notboring.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !(boringcrypto && linux && (amd64 || arm64) && !android && !msan && cgo)
++
++package fips140
++
++const boringEnabled = false
+diff --git a/src/crypto/internal/fips140test/check_test.go b/src/crypto/internal/fips140test/check_test.go
+index cf42dbfa78..6b0cd3f39e 100644
+--- a/src/crypto/internal/fips140test/check_test.go
++++ b/src/crypto/internal/fips140test/check_test.go
+@@ -5,16 +5,14 @@
+ package fipstest
+ 
+ import (
+-	"crypto/internal/boring"
++	"crypto/internal/fips140"
+ 	. "crypto/internal/fips140/check"
+ 	"crypto/internal/fips140/check/checktest"
+ 	"fmt"
+ 	"internal/abi"
+-	"internal/asan"
+ 	"internal/godebug"
+ 	"internal/testenv"
+ 	"os"
+-	"runtime"
+ 	"testing"
+ 	"unicode"
+ 	"unsafe"
+@@ -23,10 +21,6 @@ import (
+ const enableFIPSTest = true
+ 
+ func TestFIPSCheckVerify(t *testing.T) {
+-	if boring.Enabled {
+-		t.Skip("not testing fips140 with boringcrypto enabled")
+-	}
+-
+ 	if Verified {
+ 		t.Logf("verified")
+ 		return
+@@ -40,12 +34,8 @@ func TestFIPSCheckVerify(t *testing.T) {
+ 		return
+ 	}
+ 
+-	if !Supported() {
+-		t.Skipf("skipping on %s-%s", runtime.GOOS, runtime.GOARCH)
+-	}
+-	if asan.Enabled {
+-		// Verification panics with asan; don't bother.
+-		t.Skipf("skipping with -asan")
++	if err := fips140.Supported(); err != nil {
++		t.Skipf("skipping: %v", err)
+ 	}
+ 
+ 	cmd := testenv.Command(t, os.Args[0], "-test.v", "-test.run=TestFIPSCheck")
+@@ -62,8 +52,8 @@ func TestFIPSCheckInfo(t *testing.T) {
+ 		return
+ 	}
+ 
+-	if !Supported() {
+-		t.Skipf("skipping on %s-%s", runtime.GOOS, runtime.GOARCH)
++	if err := fips140.Supported(); err != nil {
++		t.Skipf("skipping: %v", err)
+ 	}
+ 
+ 	// Check that the checktest symbols are initialized properly.

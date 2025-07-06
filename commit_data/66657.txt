@@ -1,0 +1,282 @@
+commit 4f11f8ff7db476c534b9b1ad8910dcdd8bbcf022
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Mar 24 04:24:35 2025 -0400
+
+    runtime: rename runfinq to runFinalizersAndCleanups
+    
+    Users see this frame in tracebacks and it serves as a hint that what is
+    running here is a finalizer or cleanup. But runfinq is a rather dense
+    name. We can give it a more obvious name to help users realize what it
+    is.
+    
+    For #73011.
+    
+    Change-Id: I6a6a636ce9a493fd00d4b4c60c23f2b1c96d3568
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660296
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/internal/objabi/funcid.go | 42 +++++++++++++++++++--------------------
+ src/internal/abi/symtab.go        |  2 +-
+ src/runtime/crash_test.go         | 27 ++++++++++++++-----------
+ src/runtime/mfinal.go             |  8 ++++----
+ src/runtime/pprof/pprof_test.go   |  4 ++--
+ src/runtime/traceback.go          | 12 ++++++-----
+ 6 files changed, 50 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index d9b47f1ec9..5fd0c02baa 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -10,27 +10,27 @@ import (
+ )
+ 
+ var funcIDs = map[string]abi.FuncID{
+-	"abort":              abi.FuncID_abort,
+-	"asmcgocall":         abi.FuncID_asmcgocall,
+-	"asyncPreempt":       abi.FuncID_asyncPreempt,
+-	"cgocallback":        abi.FuncID_cgocallback,
+-	"corostart":          abi.FuncID_corostart,
+-	"debugCallV2":        abi.FuncID_debugCallV2,
+-	"gcBgMarkWorker":     abi.FuncID_gcBgMarkWorker,
+-	"rt0_go":             abi.FuncID_rt0_go,
+-	"goexit":             abi.FuncID_goexit,
+-	"gogo":               abi.FuncID_gogo,
+-	"gopanic":            abi.FuncID_gopanic,
+-	"handleAsyncEvent":   abi.FuncID_handleAsyncEvent,
+-	"main":               abi.FuncID_runtime_main,
+-	"mcall":              abi.FuncID_mcall,
+-	"morestack":          abi.FuncID_morestack,
+-	"mstart":             abi.FuncID_mstart,
+-	"panicwrap":          abi.FuncID_panicwrap,
+-	"runfinq":            abi.FuncID_runfinq,
+-	"sigpanic":           abi.FuncID_sigpanic,
+-	"systemstack_switch": abi.FuncID_systemstack_switch,
+-	"systemstack":        abi.FuncID_systemstack,
++	"abort":                    abi.FuncID_abort,
++	"asmcgocall":               abi.FuncID_asmcgocall,
++	"asyncPreempt":             abi.FuncID_asyncPreempt,
++	"cgocallback":              abi.FuncID_cgocallback,
++	"corostart":                abi.FuncID_corostart,
++	"debugCallV2":              abi.FuncID_debugCallV2,
++	"gcBgMarkWorker":           abi.FuncID_gcBgMarkWorker,
++	"rt0_go":                   abi.FuncID_rt0_go,
++	"goexit":                   abi.FuncID_goexit,
++	"gogo":                     abi.FuncID_gogo,
++	"gopanic":                  abi.FuncID_gopanic,
++	"handleAsyncEvent":         abi.FuncID_handleAsyncEvent,
++	"main":                     abi.FuncID_runtime_main,
++	"mcall":                    abi.FuncID_mcall,
++	"morestack":                abi.FuncID_morestack,
++	"mstart":                   abi.FuncID_mstart,
++	"panicwrap":                abi.FuncID_panicwrap,
++	"runFinalizersAndCleanups": abi.FuncID_runFinalizersAndCleanups,
++	"sigpanic":                 abi.FuncID_sigpanic,
++	"systemstack_switch":       abi.FuncID_systemstack_switch,
++	"systemstack":              abi.FuncID_systemstack,
+ 
+ 	// Don't show in call stack but otherwise not special.
+ 	"deferreturn": abi.FuncIDWrapper,
+diff --git a/src/internal/abi/symtab.go b/src/internal/abi/symtab.go
+index a3c9be7aa1..0a09a58ab2 100644
+--- a/src/internal/abi/symtab.go
++++ b/src/internal/abi/symtab.go
+@@ -56,7 +56,7 @@ const (
+ 	FuncID_mstart
+ 	FuncID_panicwrap
+ 	FuncID_rt0_go
+-	FuncID_runfinq
++	FuncID_runFinalizersAndCleanups
+ 	FuncID_runtime_main
+ 	FuncID_sigpanic
+ 	FuncID_systemstack
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 6585a6f275..8504455088 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -1102,31 +1102,32 @@ func TestNetpollWaiters(t *testing.T) {
+ 	}
+ }
+ 
+-// The runtime.runfinq frame should appear in panics, even if runtime frames
+-// are normally hidden (GOTRACEBACK=all).
++// The runtime.runFinalizersAndCleanups frame should appear in panics, even if
++// runtime frames are normally hidden (GOTRACEBACK=all).
+ func TestFinalizerDeadlockPanic(t *testing.T) {
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GOTRACEBACK=all", "GO_TEST_FINALIZER_DEADLOCK=panic")
+ 
+-	want := "runtime.runfinq()"
++	want := "runtime.runFinalizersAndCleanups()"
+ 	if !strings.Contains(output, want) {
+ 		t.Errorf("output does not contain %q:\n%s", want, output)
+ 	}
+ }
+ 
+-// The runtime.runfinq frame should appear in runtime.Stack, even though
+-// runtime frames are normally hidden.
++// The runtime.runFinalizersAndCleanups frame should appear in runtime.Stack,
++// even though runtime frames are normally hidden.
+ func TestFinalizerDeadlockStack(t *testing.T) {
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=stack")
+ 
+-	want := "runtime.runfinq()"
++	want := "runtime.runFinalizersAndCleanups()"
+ 	if !strings.Contains(output, want) {
+ 		t.Errorf("output does not contain %q:\n%s", want, output)
+ 	}
+ }
+ 
+-// The runtime.runfinq frame should appear in goroutine profiles.
++// The runtime.runFinalizersAndCleanups frame should appear in goroutine
++// profiles.
+ func TestFinalizerDeadlockPprofProto(t *testing.T) {
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_proto")
+@@ -1139,7 +1140,7 @@ func TestFinalizerDeadlockPprofProto(t *testing.T) {
+ 		t.Fatalf("Error parsing proto output: %v", err)
+ 	}
+ 
+-	want := "runtime.runfinq"
++	want := "runtime.runFinalizersAndCleanups"
+ 	for _, s := range p.Sample {
+ 		for _, loc := range s.Location {
+ 			for _, line := range loc.Line {
+@@ -1154,23 +1155,25 @@ func TestFinalizerDeadlockPprofProto(t *testing.T) {
+ 	t.Errorf("Profile does not contain %q:\n%s", want, p)
+ }
+ 
+-// The runtime.runfinq frame should appear in goroutine profiles (debug=1).
++// The runtime.runFinalizersAndCleanups frame should appear in goroutine
++// profiles (debug=1).
+ func TestFinalizerDeadlockPprofDebug1(t *testing.T) {
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_debug1")
+ 
+-	want := "runtime.runfinq+"
++	want := "runtime.runFinalizersAndCleanups+"
+ 	if !strings.Contains(output, want) {
+ 		t.Errorf("output does not contain %q:\n%s", want, output)
+ 	}
+ }
+ 
+-// The runtime.runfinq frame should appear in goroutine profiles (debug=2).
++// The runtime.runFinalizersAndCleanups frame should appear in goroutine
++// profiles (debug=2).
+ func TestFinalizerDeadlockPprofDebug2(t *testing.T) {
+ 	t.Parallel()
+ 	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_debug2")
+ 
+-	want := "runtime.runfinq()"
++	want := "runtime.runFinalizersAndCleanups()"
+ 	if !strings.Contains(output, want) {
+ 		t.Errorf("output does not contain %q:\n%s", want, output)
+ 	}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 05d26e6cd6..281be9cac6 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -164,7 +164,7 @@ func wakefing() *g {
+ func createfing() {
+ 	// start the finalizer goroutine exactly once
+ 	if fingStatus.Load() == fingUninitialized && fingStatus.CompareAndSwap(fingUninitialized, fingCreated) {
+-		go runfinq()
++		go runFinalizersAndCleanups()
+ 	}
+ }
+ 
+@@ -177,7 +177,7 @@ func finalizercommit(gp *g, lock unsafe.Pointer) bool {
+ }
+ 
+ // This is the goroutine that runs all of the finalizers and cleanups.
+-func runfinq() {
++func runFinalizersAndCleanups() {
+ 	var (
+ 		frame    unsafe.Pointer
+ 		framecap uintptr
+@@ -243,7 +243,7 @@ func runfinq() {
+ 				// cleanups also have a nil fint. Cleanups should have been processed before
+ 				// reaching this point.
+ 				if f.fint == nil {
+-					throw("missing type in runfinq")
++					throw("missing type in finalizer")
+ 				}
+ 				r := frame
+ 				if argRegs > 0 {
+@@ -270,7 +270,7 @@ func runfinq() {
+ 						(*iface)(r).tab = assertE2I(ityp, (*eface)(r)._type)
+ 					}
+ 				default:
+-					throw("bad kind in runfinq")
++					throw("bad type kind in finalizer")
+ 				}
+ 				fingStatus.Or(fingRunningFinalizer)
+ 				reflectcall(nil, unsafe.Pointer(f.fn), frame, uint32(framesz), uint32(framesz), uint32(framesz), &regs)
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 8a1d8e2d1f..4b8f29c918 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1578,7 +1578,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
+ 	}
+ 
+ 	includesFinalizer := func(s string) bool {
+-		return strings.Contains(s, "runtime.runfinq")
++		return strings.Contains(s, "runtime.runFinalizersAndCleanups")
+ 	}
+ 
+ 	// Concurrent calls to the goroutine profiler should not trigger data races
+@@ -2065,7 +2065,7 @@ func TestLabelSystemstack(t *testing.T) {
+ 					// which part of the function they are
+ 					// at.
+ 					mayBeLabeled = true
+-				case "runtime.bgsweep", "runtime.bgscavenge", "runtime.forcegchelper", "runtime.gcBgMarkWorker", "runtime.runfinq", "runtime.sysmon":
++				case "runtime.bgsweep", "runtime.bgscavenge", "runtime.forcegchelper", "runtime.gcBgMarkWorker", "runtime.runFinalizersAndCleanups", "runtime.sysmon":
+ 					// Runtime system goroutines or threads
+ 					// (such as those identified by
+ 					// runtime.isSystemGoroutine). These
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index d71c1d5d0b..2ba05395d2 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1131,8 +1131,9 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
+ 		return false
+ 	}
+ 
+-	// Always show runtime.runfinq as context that this goroutine is
+-	// running finalizers, otherwise there is no obvious indicator.
++	// Always show runtime.runFinalizersAndCleanups as context that this
++	// goroutine is running finalizers, otherwise there is no obvious
++	// indicator.
+ 	//
+ 	// TODO(prattmic): A more general approach would be to always show the
+ 	// outermost frame (besides runtime.goexit), even if it is a runtime.
+@@ -1142,7 +1143,7 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
+ 	// Unfortunately, implementing this requires looking ahead at the next
+ 	// frame, which goes against traceback's incremental approach (see big
+ 	// coment in traceback1).
+-	if sf.funcID == abi.FuncID_runfinq {
++	if sf.funcID == abi.FuncID_runFinalizersAndCleanups {
+ 		return true
+ 	}
+ 
+@@ -1346,7 +1347,8 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
+ // isSystemGoroutine reports whether the goroutine g must be omitted
+ // in stack dumps and deadlock detector. This is any goroutine that
+ // starts at a runtime.* entry point, except for runtime.main,
+-// runtime.handleAsyncEvent (wasm only) and sometimes runtime.runfinq.
++// runtime.handleAsyncEvent (wasm only) and sometimes
++// runtime.runFinalizersAndCleanups.
+ //
+ // If fixed is true, any goroutine that can vary between user and
+ // system (that is, the finalizer goroutine) is considered a user
+@@ -1360,7 +1362,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
+ 	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_corostart || f.funcID == abi.FuncID_handleAsyncEvent {
+ 		return false
+ 	}
+-	if f.funcID == abi.FuncID_runfinq {
++	if f.funcID == abi.FuncID_runFinalizersAndCleanups {
+ 		// We include the finalizer goroutine if it's calling
+ 		// back into user code.
+ 		if fixed {

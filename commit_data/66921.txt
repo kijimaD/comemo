@@ -1,0 +1,72 @@
+commit f760e1fe494681297c5f050b646b5bcde9c71662
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Apr 28 23:28:20 2025 -0400
+
+    cmd/api: skip 3 non-TestCheck tests in -check mode
+    
+    TestIssue64958 takes a while, so it's not worth running both without
+    and with -check flag. The others are fast, but there's still no good
+    reason to run anything but TestCheck when the -check flag is on.
+    
+    Change-Id: I13ebb90e3c863006f21441909b05364e1b316ed6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668656
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/cmd/api/api_test.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/api/api_test.go b/src/cmd/api/api_test.go
+index 32da68982b..98ebf168ef 100644
+--- a/src/cmd/api/api_test.go
++++ b/src/cmd/api/api_test.go
+@@ -99,6 +99,11 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ func TestCompareAPI(t *testing.T) {
++	if *flagCheck {
++		// not worth repeating in -check
++		t.Skip("skipping with -check set")
++	}
++
+ 	tests := []struct {
+ 		name                          string
+ 		features, required, exception []string
+@@ -180,6 +185,11 @@ func TestCompareAPI(t *testing.T) {
+ }
+ 
+ func TestSkipInternal(t *testing.T) {
++	if *flagCheck {
++		// not worth repeating in -check
++		t.Skip("skipping with -check set")
++	}
++
+ 	tests := []struct {
+ 		pkg  string
+ 		want bool
+@@ -294,14 +304,20 @@ func TestIssue41358(t *testing.T) {
+ }
+ 
+ func TestIssue64958(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping with -short")
++	}
++	if *flagCheck {
++		// slow, not worth repeating in -check
++		t.Skip("skipping with -check set")
++	}
++	testenv.MustHaveGoBuild(t)
++
+ 	defer func() {
+ 		if x := recover(); x != nil {
+ 			t.Errorf("expected no panic; recovered %v", x)
+ 		}
+ 	}()
+-
+-	testenv.MustHaveGoBuild(t)
+-
+ 	for _, context := range contexts {
+ 		w := NewWalker(context, "testdata/src/issue64958")
+ 		pkg, err := w.importFrom("p", "", 0)

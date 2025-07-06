@@ -1,0 +1,102 @@
+commit c9b07e887169f661b9cea2ff16cbb4642d2622dc
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 4 23:45:38 2025 -0500
+
+    cmd/compile: use FMA on plan9, and drop UseFMA
+    
+    Every OS uses FMA now.
+    
+    Change-Id: Ia7ffa77c52c45aefca611ddc54e9dfffb27a48da
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655877
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/config.go        | 9 ---------
+ src/cmd/compile/internal/ssa/func.go          | 3 ---
+ src/cmd/compile/internal/ssagen/intrinsics.go | 9 ---------
+ 3 files changed, 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index 607a3936f2..cf881ee078 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -11,7 +11,6 @@ import (
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/src"
+-	"internal/buildcfg"
+ )
+ 
+ // A Config holds readonly compilation information.
+@@ -48,7 +47,6 @@ type Config struct {
+ 	SoftFloat      bool      //
+ 	Race           bool      // race detector enabled
+ 	BigEndian      bool      //
+-	UseFMA         bool      // Use hardware FMA operation
+ 	unalignedOK    bool      // Unaligned loads/stores are ok
+ 	haveBswap64    bool      // architecture implements Bswap64
+ 	haveBswap32    bool      // architecture implements Bswap32
+@@ -354,7 +352,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 	}
+ 	c.ctxt = ctxt
+ 	c.optimize = optimize
+-	c.UseFMA = true
+ 	c.SoftFloat = softfloat
+ 	if softfloat {
+ 		c.floatParamRegs = nil // no FP registers in softfloat mode
+@@ -363,12 +360,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 	c.ABI0 = abi.NewABIConfig(0, 0, ctxt.Arch.FixedFrameSize, 0)
+ 	c.ABI1 = abi.NewABIConfig(len(c.intParamRegs), len(c.floatParamRegs), ctxt.Arch.FixedFrameSize, 1)
+ 
+-	// On Plan 9, floating point operations are not allowed in note handler.
+-	if buildcfg.GOOS == "plan9" {
+-		// Don't use FMA on Plan 9
+-		c.UseFMA = false
+-	}
+-
+ 	if ctxt.Flag_shared {
+ 		// LoweredWB is secretly a CALL and CALLs on 386 in
+ 		// shared mode get rewritten by obj6.go to go through
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 12e4c268f0..51c5ec5f04 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -832,9 +832,6 @@ func (f *Func) spSb() (sp, sb *Value) {
+ // useFMA allows targeted debugging w/ GOFMAHASH
+ // If you have an architecture-dependent FP glitch, this will help you find it.
+ func (f *Func) useFMA(v *Value) bool {
+-	if !f.Config.UseFMA {
+-		return false
+-	}
+ 	if base.FmaHash == nil {
+ 		return true
+ 	}
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 4f84b6b924..7a234a5b2e 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -767,11 +767,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("math", "FMA",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			if !s.config.UseFMA {
+-				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
+-				return s.variable(n, types.Types[types.TFLOAT64])
+-			}
+-
+ 			if cfg.goamd64 >= 3 {
+ 				return s.newValue3(ssa.OpFMA, types.Types[types.TFLOAT64], args[0], args[1], args[2])
+ 			}
+@@ -804,10 +799,6 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		sys.AMD64)
+ 	addF("math", "FMA",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			if !s.config.UseFMA {
+-				s.vars[n] = s.callResult(n, callNormal) // types.Types[TFLOAT64]
+-				return s.variable(n, types.Types[types.TFLOAT64])
+-			}
+ 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARMHasVFPv4, s.sb)
+ 			v := s.load(types.Types[types.TBOOL], addr)
+ 			b := s.endBlock()

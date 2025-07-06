@@ -1,0 +1,24 @@
+commit 26682773caaa2552d8572646fe351df9b84211e8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Dec 6 21:09:39 2024 +0000
+
+    [release-branch.go1.24] update codereview.cfg for release-branch.go1.24
+    
+    Change-Id: I63ffca43a935bc5ff060f19c01152a20182cba03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634317
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ codereview.cfg | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/codereview.cfg b/codereview.cfg
+index 77a74f108e..e97659c8b4 100644
+--- a/codereview.cfg
++++ b/codereview.cfg
+@@ -1 +1,2 @@
+-branch: master
++branch: release-branch.go1.24
++parent-branch: master

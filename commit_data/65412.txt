@@ -1,0 +1,560 @@
+commit f9a95b1bdcff42730c836a792b27740b9c0df645
+Author: Austin Clements <austin@google.com>
+Date:   Tue Oct 17 17:27:00 2023 -0400
+
+    cmd/go: print build errors during go test -json in JSON
+    
+    Currently, if a test or imported package fails to build during "go
+    test -json", the build error text will be interleaved with the JSON
+    output of tests. Furthermore, there’s currently no way to reliably
+    associate a build error with the test package or packages it affected.
+    This creates unnecessary friction and complexity in tools that consume
+    the "go test -json" output.
+    
+    This CL makes "go test -json" enable JSON reporting of build errors.
+    It also adds a "FailedBuild" field to the "fail" TestEvent, which
+    gives the package ID of the package that failed to build and caused
+    the test to fail.
+    
+    Using this, CI systems should be able to consume the entire output
+    stream from "go test -json" in a structured way and easily associate
+    build failures with test failures during reporting.
+    
+    Fixes #62067.
+    Updates #35169.
+    Updates #37486.
+    
+    Change-Id: I49091dcc7aa52db01fc9fa6042771633e97b8407
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536399
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ doc/next/3-tools.md                            |  6 ++
+ src/cmd/go/alldocs.go                          | 16 ++++-
+ src/cmd/go/internal/help/helpdoc.go            | 15 ++++-
+ src/cmd/go/internal/list/list.go               |  8 +--
+ src/cmd/go/internal/load/test.go               | 11 ++--
+ src/cmd/go/internal/test/test.go               | 42 ++++++++-----
+ src/cmd/go/internal/test/testflag.go           |  3 +
+ src/cmd/go/internal/vet/vet.go                 |  6 +-
+ src/cmd/go/testdata/script/test_json_build.txt | 81 ++++++++++++++++++++++++++
+ src/cmd/internal/test2json/test2json.go        | 27 +++++++--
+ src/cmd/test2json/main.go                      | 18 ++++--
+ 11 files changed, 190 insertions(+), 43 deletions(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 9017b53b10..04e670c2f5 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -2,6 +2,12 @@
+ 
+ ### Go command {#go-command}
+ 
++The `go build` and `go install` commands now accept a `-json` flag that reports
++build output and failures as structured JSON output on standard output.
++Furthermore, passing `-json` to `go test` now reports build output and failures
++in addition to test results in JSON. For details of the reporting format, see
++`go help buildjson`.
++
+ ### Cgo {#cgo}
+ 
+ Cgo currently refuses to compile calls to a C function which has multiple
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index c81fad7738..9f0c1abfcc 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1926,6 +1926,7 @@
+ //	-json
+ //	    Convert test output to JSON suitable for automated processing.
+ //	    See 'go doc test2json' for the encoding details.
++//	    Also emits build output in JSON. See 'go help buildjson'.
+ //
+ //	-o file
+ //	    Compile the test binary to the named file.
+@@ -2145,8 +2146,9 @@
+ //
+ // # Build -json encoding
+ //
+-// The 'go build' and 'go install' commands take a -json flag that reports
+-// build output and failures as structured JSON output on standard output.
++// The 'go build', 'go install', and 'go test' commands take a -json flag that
++// reports build output and failures as structured JSON output on standard
++// output.
+ //
+ // The JSON stream is a newline-separated sequence of BuildEvent objects
+ // corresponding to the Go struct:
+@@ -2158,7 +2160,9 @@
+ //	}
+ //
+ // The ImportPath field gives the package ID of the package being built.
+-// This matches the Package.ImportPath field of go list -json.
++// This matches the Package.ImportPath field of go list -json and the
++// TestEvent.FailedBuild field of go test -json. Note that it does not
++// match TestEvent.Package.
+ //
+ // The Action field is one of the following:
+ //
+@@ -2172,6 +2176,12 @@
+ // a given ImportPath. This matches the definition of the TestEvent.Output
+ // field produced by go test -json.
+ //
++// For go test -json, this struct is designed so that parsers can distinguish
++// interleaved TestEvents and BuildEvents by inspecting the Action field.
++// Furthermore, as with TestEvent, parsers can simply concatenate the Output
++// fields of all events to reconstruct the text format output, as it would
++// have appeared from go build without the -json flag.
++//
+ // Note that there may also be non-JSON error text on stdnard error, even
+ // with the -json flag. Typically, this indicates an early, serious error.
+ // Consumers should be robust to this.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index e4324cefe7..bed8294ade 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -1049,8 +1049,9 @@ var HelpBuildJSON = &base.Command{
+ 	UsageLine: "buildjson",
+ 	Short:     "build -json encoding",
+ 	Long: `
+-The 'go build' and 'go install' commands take a -json flag that reports
+-build output and failures as structured JSON output on standard output.
++The 'go build', 'go install', and 'go test' commands take a -json flag that
++reports build output and failures as structured JSON output on standard
++output.
+ 
+ The JSON stream is a newline-separated sequence of BuildEvent objects
+ corresponding to the Go struct:
+@@ -1062,7 +1063,9 @@ corresponding to the Go struct:
+ 	}
+ 
+ The ImportPath field gives the package ID of the package being built.
+-This matches the Package.ImportPath field of go list -json.
++This matches the Package.ImportPath field of go list -json and the
++TestEvent.FailedBuild field of go test -json. Note that it does not
++match TestEvent.Package.
+ 
+ The Action field is one of the following:
+ 
+@@ -1076,6 +1079,12 @@ or more lines of output and there may be more than one output event for
+ a given ImportPath. This matches the definition of the TestEvent.Output
+ field produced by go test -json.
+ 
++For go test -json, this struct is designed so that parsers can distinguish
++interleaved TestEvents and BuildEvents by inspecting the Action field.
++Furthermore, as with TestEvent, parsers can simply concatenate the Output
++fields of all events to reconstruct the text format output, as it would
++have appeared from go build without the -json flag.
++
+ Note that there may also be non-JSON error text on stdnard error, even
+ with the -json flag. Typically, this indicates an early, serious error.
+ Consumers should be robust to this.
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index ee5f28fd7d..04fdadef3f 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -643,7 +643,6 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 		for _, p := range pkgs {
+ 			if len(p.TestGoFiles)+len(p.XTestGoFiles) > 0 {
+ 				var pmain, ptest, pxtest *load.Package
+-				var err error
+ 				if *listE {
+ 					sema.Acquire(ctx, 1)
+ 					wg.Add(1)
+@@ -653,9 +652,10 @@ func runList(ctx context.Context, cmd *base.Command, args []string) {
+ 					}
+ 					pmain, ptest, pxtest = load.TestPackagesAndErrors(ctx, done, pkgOpts, p, nil)
+ 				} else {
+-					pmain, ptest, pxtest, err = load.TestPackagesFor(ctx, pkgOpts, p, nil)
+-					if err != nil {
+-						base.Fatalf("go: can't load test package: %s", err)
++					var perr *load.Package
++					pmain, ptest, pxtest, perr = load.TestPackagesFor(ctx, pkgOpts, p, nil)
++					if perr != nil {
++						base.Fatalf("go: can't load test package: %s", perr.Error)
+ 					}
+ 				}
+ 				testPackages = append(testPackages, testPackageSet{p, pmain, ptest, pxtest})
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 4cac7ba432..ddd14a0304 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -46,9 +46,10 @@ type TestCover struct {
+ }
+ 
+ // TestPackagesFor is like TestPackagesAndErrors but it returns
+-// an error if the test packages or their dependencies have errors.
++// the package containing an error if the test packages or
++// their dependencies have errors.
+ // Only test packages without errors are returned.
+-func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest *Package, err error) {
++func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *TestCover) (pmain, ptest, pxtest, perr *Package) {
+ 	pmain, ptest, pxtest = TestPackagesAndErrors(ctx, nil, opts, p, cover)
+ 	for _, p1 := range []*Package{ptest, pxtest, pmain} {
+ 		if p1 == nil {
+@@ -56,14 +57,14 @@ func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *T
+ 			continue
+ 		}
+ 		if p1.Error != nil {
+-			err = p1.Error
++			perr = p1
+ 			break
+ 		}
+ 		if p1.Incomplete {
+ 			ps := PackageList([]*Package{p1})
+ 			for _, p := range ps {
+ 				if p.Error != nil {
+-					err = p.Error
++					perr = p
+ 					break
+ 				}
+ 			}
+@@ -79,7 +80,7 @@ func TestPackagesFor(ctx context.Context, opts PackageOpts, p *Package, cover *T
+ 	if pxtest != nil && (pxtest.Error != nil || pxtest.Incomplete) {
+ 		pxtest = nil
+ 	}
+-	return pmain, ptest, pxtest, err
++	return pmain, ptest, pxtest, perr
+ }
+ 
+ // TestPackagesAndErrors returns three packages:
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 93e0137481..534a1e2a5e 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -158,6 +158,7 @@ In addition to the build flags, the flags handled by 'go test' itself are:
+ 	-json
+ 	    Convert test output to JSON suitable for automated processing.
+ 	    See 'go doc test2json' for the encoding details.
++	    Also emits build output in JSON. See 'go help buildjson'.
+ 
+ 	-o file
+ 	    Compile the test binary to the named file.
+@@ -991,15 +992,26 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	// Prepare build + run + print actions for all packages being tested.
+ 	for _, p := range pkgs {
+-		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
++		buildTest, runTest, printTest, perr, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
+ 		if err != nil {
+ 			str := err.Error()
+ 			if p.ImportPath != "" {
+-				base.Errorf("# %s\n%s", p.ImportPath, str)
++				load.DefaultPrinter().Errorf(perr, "# %s\n%s", p.ImportPath, str)
+ 			} else {
+-				base.Errorf("%s", str)
++				load.DefaultPrinter().Errorf(perr, "%s", str)
+ 			}
+-			fmt.Printf("FAIL\t%s [setup failed]\n", p.ImportPath)
++			var stdout io.Writer = os.Stdout
++			if testJSON {
++				json := test2json.NewConverter(stdout, p.ImportPath, test2json.Timestamp)
++				defer func() {
++					json.Exited(err)
++					json.Close()
++				}()
++				json.SetFailedBuild(perr.Desc())
++				stdout = json
++			}
++			fmt.Fprintf(stdout, "FAIL\t%s [setup failed]\n", p.ImportPath)
++			base.SetExitStatus(1)
+ 			continue
+ 		}
+ 		builds = append(builds, buildTest)
+@@ -1052,7 +1064,7 @@ var windowsBadWords = []string{
+ 	"update",
+ }
+ 
+-func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, err error) {
++func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts, p *load.Package, imported bool, writeCoverMetaAct *work.Action) (buildAction, runAction, printAction *work.Action, perr *load.Package, err error) {
+ 	if len(p.TestGoFiles)+len(p.XTestGoFiles) == 0 {
+ 		if cfg.BuildCover && cfg.Experiment.CoverageRedesign {
+ 			if p.Internal.Cover.GenMeta {
+@@ -1093,7 +1105,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 			Package:    p,
+ 			IgnoreFail: true, // print even if test failed
+ 		}
+-		return build, run, print, nil
++		return build, run, print, nil, nil
+ 	}
+ 
+ 	// Build Package structs describing:
+@@ -1109,9 +1121,9 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 			Paths: cfg.BuildCoverPkg,
+ 		}
+ 	}
+-	pmain, ptest, pxtest, err := load.TestPackagesFor(ctx, pkgOpts, p, cover)
+-	if err != nil {
+-		return nil, nil, nil, err
++	pmain, ptest, pxtest, perr := load.TestPackagesFor(ctx, pkgOpts, p, cover)
++	if perr != nil {
++		return nil, nil, nil, perr, perr.Error
+ 	}
+ 
+ 	// If imported is true then this package is imported by some
+@@ -1128,7 +1140,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 
+ 	testDir := b.NewObjdir()
+ 	if err := b.BackgroundShell().Mkdir(testDir); err != nil {
+-		return nil, nil, nil, err
++		return nil, nil, nil, nil, err
+ 	}
+ 
+ 	pmain.Dir = testDir
+@@ -1143,7 +1155,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 		// writeTestmain writes _testmain.go,
+ 		// using the test description gathered in t.
+ 		if err := os.WriteFile(testDir+"_testmain.go", *pmain.Internal.TestmainGo, 0666); err != nil {
+-			return nil, nil, nil, err
++			return nil, nil, nil, nil, err
+ 		}
+ 	}
+ 
+@@ -1292,7 +1304,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 		}
+ 	}
+ 
+-	return buildAction, runAction, printAction, nil
++	return buildAction, runAction, printAction, nil, nil
+ }
+ 
+ func addTestVet(b *work.Builder, p *load.Package, runAction, installAction *work.Action) {
+@@ -1375,8 +1387,9 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 
+ 	var stdout io.Writer = os.Stdout
+ 	var err error
++	var json *test2json.Converter
+ 	if testJSON {
+-		json := test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
++		json = test2json.NewConverter(lockedStdout{}, a.Package.ImportPath, test2json.Timestamp)
+ 		defer func() {
+ 			json.Exited(err)
+ 			json.Close()
+@@ -1389,6 +1402,9 @@ func (r *runTestActor) Act(b *work.Builder, ctx context.Context, a *work.Action)
+ 
+ 	if a.Failed != nil {
+ 		// We were unable to build the binary.
++		if json != nil && a.Failed.Package != nil {
++			json.SetFailedBuild(a.Failed.Package.Desc())
++		}
+ 		a.Failed = nil
+ 		fmt.Fprintf(stdout, "FAIL\t%s [build failed]\n", a.Package.ImportPath)
+ 		// Tell the JSON converter that this was a failure, not a passing run.
+diff --git a/src/cmd/go/internal/test/testflag.go b/src/cmd/go/internal/test/testflag.go
+index 22fc2b4c16..30da2b08c1 100644
+--- a/src/cmd/go/internal/test/testflag.go
++++ b/src/cmd/go/internal/test/testflag.go
+@@ -6,6 +6,7 @@ package test
+ 
+ import (
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/cmdflag"
+ 	"cmd/go/internal/work"
+ 	"errors"
+@@ -353,6 +354,8 @@ func testFlags(args []string) (packageNames, passToTest []string) {
+ 		injectedFlags = append(injectedFlags, "-test.v=test2json")
+ 		delete(addFromGOFLAGS, "v")
+ 		delete(addFromGOFLAGS, "test.v")
++
++		cfg.BuildJSON = true
+ 	}
+ 
+ 	// Inject flags from GOFLAGS before the explicit command-line arguments.
+diff --git a/src/cmd/go/internal/vet/vet.go b/src/cmd/go/internal/vet/vet.go
+index 2d42097120..3514be80fe 100644
+--- a/src/cmd/go/internal/vet/vet.go
++++ b/src/cmd/go/internal/vet/vet.go
+@@ -100,9 +100,9 @@ func runVet(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	root := &work.Action{Mode: "go vet"}
+ 	for _, p := range pkgs {
+-		_, ptest, pxtest, err := load.TestPackagesFor(ctx, pkgOpts, p, nil)
+-		if err != nil {
+-			base.Errorf("%v", err)
++		_, ptest, pxtest, perr := load.TestPackagesFor(ctx, pkgOpts, p, nil)
++		if perr != nil {
++			base.Errorf("%v", perr.Error)
+ 			continue
+ 		}
+ 		if len(ptest.GoFiles) == 0 && len(ptest.CgoFiles) == 0 && pxtest == nil {
+diff --git a/src/cmd/go/testdata/script/test_json_build.txt b/src/cmd/go/testdata/script/test_json_build.txt
+new file mode 100644
+index 0000000000..f3e08d035f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_json_build.txt
+@@ -0,0 +1,81 @@
++[short] skip
++
++# Test a build error directly in a test file.
++! go test -json -o=$devnull ./builderror
++stdout '"ImportPath":"m/builderror \[m/builderror\.test\]","Action":"build-output","Output":"# m/builderror \[m/builderror.test\]\\n"'
++stdout '"ImportPath":"m/builderror \[m/builderror\.test\]","Action":"build-output","Output":"builderror/main_test.go:3:11: undefined: y\\n"'
++stdout '"ImportPath":"m/builderror \[m/builderror\.test\]","Action":"build-fail"'
++stdout '"Action":"start","Package":"m/builderror"'
++stdout '"Action":"output","Package":"m/builderror","Output":"FAIL\\tm/builderror \[build failed\]\\n"'
++stdout '"Action":"fail","Package":"m/builderror","Elapsed":.*,"FailedBuild":"m/builderror \[m/builderror\.test\]"'
++! stderr '.'
++
++# Test a build error in an imported package. Make sure it's attributed to the right package.
++! go test -json -o=$devnull ./builderror2
++stdout '"ImportPath":"m/builderror2/x","Action":"build-output","Output":"# m/builderror2/x\\n"'
++stdout '"ImportPath":"m/builderror2/x","Action":"build-output","Output":"builderror2/x/main.go:3:11: undefined: y\\n"'
++stdout '"ImportPath":"m/builderror2/x","Action":"build-fail"'
++stdout '"Action":"start","Package":"m/builderror2"'
++stdout '"Action":"output","Package":"m/builderror2","Output":"FAIL\\tm/builderror2 \[build failed\]\\n"'
++stdout '"Action":"fail","Package":"m/builderror2","Elapsed":.*,"FailedBuild":"m/builderror2/x"'
++! stderr '.'
++
++# Test a loading error in a test file
++# TODO(#65335): ImportPath attribution is weird
++! go test -json -o=$devnull ./loaderror
++stdout '"ImportPath":"x","Action":"build-output","Output":"# m/loaderror\\n"'
++stdout '"ImportPath":"x","Action":"build-output","Output":".*package x is not in std.*"'
++stdout '"ImportPath":"x","Action":"build-fail"'
++stdout '"Action":"start","Package":"m/loaderror"'
++stdout '"Action":"output","Package":"m/loaderror","Output":"FAIL\\tm/loaderror \[setup failed\]\\n"'
++stdout '"Action":"fail","Package":"m/loaderror","Elapsed":.*,"FailedBuild":"x"'
++! stderr '.'
++
++# Test a vet error
++! go test -json -o=$devnull ./veterror
++stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"# m/veterror\\n"'
++stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"# \[m/veterror\]\\n"'
++stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"veterror/main_test.go:9:9: fmt.Printf format %s reads arg #1, but call has 0 args\\n"'
++stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-fail"'
++stdout '"Action":"start","Package":"m/veterror"'
++stdout '"Action":"output","Package":"m/veterror","Output":"FAIL\\tm/veterror \[build failed\]\\n"'
++stdout '"Action":"fail","Package":"m/veterror","Elapsed":.*,"FailedBuild":"m/veterror \[m/veterror.test\]"'
++! stderr '.'
++
++-- go.mod --
++module m
++go 1.21
++-- builderror/main_test.go --
++package builderror
++
++const x = y
++-- builderror2/x/main.go --
++package x
++
++const x = y
++-- builderror2/main_test.go --
++package builderror2
++
++import _ "m/builderror2/x"
++-- loaderror/main_test.go --
++// A bad import causes a "[setup failed]" message from cmd/go because
++// it fails in package graph setup, before it can even get to the
++// build.
++//
++// "[setup failed]" can also occur with various low-level failures in
++// cmd/go, like failing to create a temporary directory.
++
++package loaderror
++
++import _ "x"
++-- veterror/main_test.go --
++package veterror
++
++import (
++        "fmt"
++        "testing"
++)
++
++func TestVetError(t *testing.T) {
++        fmt.Printf("%s")
++}
+diff --git a/src/cmd/internal/test2json/test2json.go b/src/cmd/internal/test2json/test2json.go
+index f7dfbe69d7..ed78764d26 100644
+--- a/src/cmd/internal/test2json/test2json.go
++++ b/src/cmd/internal/test2json/test2json.go
+@@ -29,12 +29,13 @@ const (
+ 
+ // event is the JSON struct we emit.
+ type event struct {
+-	Time    *time.Time `json:",omitempty"`
+-	Action  string
+-	Package string     `json:",omitempty"`
+-	Test    string     `json:",omitempty"`
+-	Elapsed *float64   `json:",omitempty"`
+-	Output  *textBytes `json:",omitempty"`
++	Time        *time.Time `json:",omitempty"`
++	Action      string
++	Package     string     `json:",omitempty"`
++	Test        string     `json:",omitempty"`
++	Elapsed     *float64   `json:",omitempty"`
++	Output      *textBytes `json:",omitempty"`
++	FailedBuild string     `json:",omitempty"`
+ }
+ 
+ // textBytes is a hack to get JSON to emit a []byte as a string
+@@ -59,6 +60,10 @@ type Converter struct {
+ 	input      lineBuffer // input buffer
+ 	output     lineBuffer // output buffer
+ 	needMarker bool       // require ^V marker to introduce test framing line
++
++	// failedBuild is set to the package ID of the cause of a build failure,
++	// if that's what caused this test to fail.
++	failedBuild string
+ }
+ 
+ // inBuffer and outBuffer are the input and output buffer sizes.
+@@ -140,6 +145,13 @@ func (c *Converter) Exited(err error) {
+ 	}
+ }
+ 
++// SetFailedBuild sets the package ID that is the root cause of a build failure
++// for this test. This will be reported in the final "fail" event's FailedBuild
++// field.
++func (c *Converter) SetFailedBuild(pkgID string) {
++	c.failedBuild = pkgID
++}
++
+ const marker = byte(0x16) // ^V
+ 
+ var (
+@@ -369,6 +381,9 @@ func (c *Converter) Close() error {
+ 			dt := time.Since(c.start).Round(1 * time.Millisecond).Seconds()
+ 			e.Elapsed = &dt
+ 		}
++		if c.result == "fail" {
++			e.FailedBuild = c.failedBuild
++		}
+ 		c.writeEvent(e)
+ 	}
+ 	return nil
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index b704dd4d31..dc033b1d5c 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -35,12 +35,13 @@
+ // corresponding to the Go struct:
+ //
+ //	type TestEvent struct {
+-//		Time    time.Time // encodes as an RFC3339-format string
+-//		Action  string
+-//		Package string
+-//		Test    string
+-//		Elapsed float64 // seconds
+-//		Output  string
++//		Time        time.Time // encodes as an RFC3339-format string
++//		Action      string
++//		Package     string
++//		Test        string
++//		Elapsed     float64 // seconds
++//		Output      string
++//		FailedBuild string
+ //	}
+ //
+ // The Time field holds the time the event happened.
+@@ -79,6 +80,11 @@
+ // the concatenation of the Output fields of all output events is the exact
+ // output of the test execution.
+ //
++// The FailedBuild field is set for Action == "fail" if the test failure was
++// caused by a build failure. It contains the package ID of the package that
++// failed to build. This matches the ImportPath field of the "go list" output,
++// as well as the BuildEvent.ImportPath field as emitted by "go build -json".
++//
+ // When a benchmark runs, it typically produces a single line of output
+ // giving timing results. That line is reported in an event with Action == "output"
+ // and no Test field. If a benchmark logs output or reports a failure

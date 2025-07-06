@@ -1,0 +1,156 @@
+commit 956f8a67dd7319bad60c015d982f0b2e95b9f382
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 12 18:19:24 2024 +0000
+
+    internal/coverage/cfile: harden the coverage snapshot test
+    
+    The existing testpoint TestCoverageSnapshot will fail if we happen to
+    be selecting a set of packages for inclusion in the profile that don't
+    include internal/coverage/cfile. Example:
+    
+     $ cd `go env GOROOT`
+     $ cd src/internal/coverage
+     $ go test -coverpkg=internal/coverage/decodecounter ./...
+     ...
+      --- FAIL: TestCoverageSnapshot (0.00s)
+          ts_test.go:102: 0.276074 0.276074
+          ts_test.go:104: erroneous snapshots, C1 >= C2 = true C1=0.276074 C2=0.276074
+    
+    To ensure that this doesn't happen, extract the test in question out
+    into a separate file with a special build tag, and then have the
+    original testpoint do a "go test -cover -tags ... " run to make sure
+    that for that specific test run the cfile package is instrumented.
+    
+    Fixes #67951.
+    
+    Change-Id: I8ac6e07e1a6d93275b8c6acabfce85e04c70a102
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592200
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/internal/coverage/cfile/snapshot_test.go | 49 +++++++++++++++++++++++++
+ src/internal/coverage/cfile/ts_test.go       | 55 ++++++++++------------------
+ 2 files changed, 68 insertions(+), 36 deletions(-)
+
+diff --git a/src/internal/coverage/cfile/snapshot_test.go b/src/internal/coverage/cfile/snapshot_test.go
+new file mode 100644
+index 0000000000..d6926631be
+--- /dev/null
++++ b/src/internal/coverage/cfile/snapshot_test.go
+@@ -0,0 +1,49 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build SELECT_USING_THIS_TAG
++
++package cfile
++
++import "testing"
++
++var funcInvoked bool
++
++//go:noinline
++func thisFunctionOnlyCalledFromSnapshotTest(n int) int {
++	if funcInvoked {
++		panic("bad")
++	}
++	funcInvoked = true
++
++	// Contents here not especially important, just so long as we
++	// have some statements.
++	t := 0
++	for i := 0; i < n; i++ {
++		for j := 0; j < i; j++ {
++			t += i ^ j
++		}
++	}
++	return t
++}
++
++// Tests runtime/coverage.snapshot() directly. Note that if
++// coverage is not enabled, the hook is designed to just return
++// zero.
++func TestCoverageSnapshotImpl(t *testing.T) {
++	C1 := Snapshot()
++	thisFunctionOnlyCalledFromSnapshotTest(15)
++	C2 := Snapshot()
++	cond := "C1 > C2"
++	val := C1 > C2
++	if testing.CoverMode() != "" {
++		cond = "C1 >= C2"
++		val = C1 >= C2
++	}
++	t.Logf("%f %f\n", C1, C2)
++	if val {
++		t.Errorf("erroneous snapshots, %s = true C1=%f C2=%f",
++			cond, C1, C2)
++	}
++}
+diff --git a/src/internal/coverage/cfile/ts_test.go b/src/internal/coverage/cfile/ts_test.go
+index 621a79de43..fa05c82eec 100644
+--- a/src/internal/coverage/cfile/ts_test.go
++++ b/src/internal/coverage/cfile/ts_test.go
+@@ -66,43 +66,26 @@ func TestTestSupport(t *testing.T) {
+ 	}
+ }
+ 
+-var funcInvoked bool
+-
+-//go:noinline
+-func thisFunctionOnlyCalledFromSnapshotTest(n int) int {
+-	if funcInvoked {
+-		panic("bad")
+-	}
+-	funcInvoked = true
+-
+-	// Contents here not especially important, just so long as we
+-	// have some statements.
+-	t := 0
+-	for i := 0; i < n; i++ {
+-		for j := 0; j < i; j++ {
+-			t += i ^ j
+-		}
+-	}
+-	return t
+-}
+-
+-// Tests runtime/coverage.snapshot() directly. Note that if
+-// coverage is not enabled, the hook is designed to just return
+-// zero.
++// Kicks off a sub-test to verify that Snapshot() works properly.
++// We do this as a separate shell-out, so as to avoid potential
++// interactions with -coverpkg. For example, if you do
++//
++//	$ cd `go env GOROOT`
++//	$ cd src/internal/coverage
++//	$ go test -coverpkg=internal/coverage/decodecounter ./...
++//	...
++//	$
++//
++// The previous version of this test could fail due to the fact
++// that "cfile" itself was not being instrumented, as in the
++// scenario above.
+ func TestCoverageSnapshot(t *testing.T) {
+-	C1 := Snapshot()
+-	thisFunctionOnlyCalledFromSnapshotTest(15)
+-	C2 := Snapshot()
+-	cond := "C1 > C2"
+-	val := C1 > C2
+-	if testing.CoverMode() != "" {
+-		cond = "C1 >= C2"
+-		val = C1 >= C2
+-	}
+-	t.Logf("%f %f\n", C1, C2)
+-	if val {
+-		t.Errorf("erroneous snapshots, %s = true C1=%f C2=%f",
+-			cond, C1, C2)
++	testenv.MustHaveGoRun(t)
++	args := []string{"test", "-tags", "SELECT_USING_THIS_TAG",
++		"-cover", "-run=TestCoverageSnapshotImpl", "internal/coverage/cfile"}
++	cmd := exec.Command(testenv.GoToolPath(t), args...)
++	if b, err := cmd.CombinedOutput(); err != nil {
++		t.Fatalf("go test failed (%v): %s", err, b)
+ 	}
+ }
+ 

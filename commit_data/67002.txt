@@ -1,0 +1,30 @@
+commit 8cfcad8da82a01296cfcdb8c6ab7b0b726534e21
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun May 11 21:22:47 2025 +0100
+
+    net: don't test with leading 0 in ipv4 addresses
+    
+    Updates #30999
+    Fixes #73378
+    
+    Change-Id: I6a96581e78678518473626aa5d108428cfad6619
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671795
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/net/external_test.go | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/net/external_test.go b/src/net/external_test.go
+index 38788efc3d..9b918f8986 100644
+--- a/src/net/external_test.go
++++ b/src/net/external_test.go
+@@ -90,7 +90,6 @@ var (
+ 		"www.google.com:80",
+ 		"%d.%d.%d.%d:http",
+ 		"www.google.com:http",
+-		"%03d.%03d.%03d.%03d:0080",
+ 		"[::ffff:%d.%d.%d.%d]:80",
+ 		"[::ffff:%02x%02x:%02x%02x]:80",
+ 		"[0:0:0:0:0000:ffff:%d.%d.%d.%d]:80",

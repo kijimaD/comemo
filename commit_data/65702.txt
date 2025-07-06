@@ -1,0 +1,55 @@
+commit 6405e60ca6be798c1f8c1d0365fd63b89b524df5
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue Nov 26 09:10:22 2024 +0100
+
+    cmd/trace: also show end stack traces
+    
+    Fix a regression that appeared in 1.23 when it comes to the stack traces
+    shown in the trace viewer. In 1.22 and earlier, the viewer was always
+    showing end stack traces. In 1.23 and later the viewer started to
+    exclusively show start stack traces.
+    
+    Showing only the start stack traces made it impossible to see the last
+    stack trace produced by a goroutine. It also made it hard to understand
+    why a goroutine went off-cpu, as one had to hunt down the next running
+    slice of the same goroutine.
+    
+    Emit end stack traces in addition to start stack traces to fix the
+    issue.
+    
+    Fixes #70570
+    
+    Change-Id: Ib22ea61388c1d94cdbc99fae2d207c4dce011a59
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/trace/gstate.go | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/trace/gstate.go b/src/cmd/trace/gstate.go
+index ea501ef57d..c883166e06 100644
+--- a/src/cmd/trace/gstate.go
++++ b/src/cmd/trace/gstate.go
+@@ -257,6 +257,10 @@ func (gs *gState[R]) stop(ts trace.Time, stack trace.Stack, ctx *traceContext) {
+ 	if gs.lastStopStack != trace.NoStack {
+ 		stk = ctx.Stack(viewerFrames(gs.lastStopStack))
+ 	}
++	var endStk int
++	if stack != trace.NoStack {
++		endStk = ctx.Stack(viewerFrames(stack))
++	}
+ 	// Check invariants.
+ 	if gs.startRunningTime == 0 {
+ 		panic("silently broken trace or generator invariant (startRunningTime != 0) not held")
+@@ -270,6 +274,7 @@ func (gs *gState[R]) stop(ts trace.Time, stack trace.Stack, ctx *traceContext) {
+ 		Dur:      ts.Sub(gs.startRunningTime),
+ 		Resource: uint64(gs.executing),
+ 		Stack:    stk,
++		EndStack: endStk,
+ 	})
+ 
+ 	// Flush completed ranges.

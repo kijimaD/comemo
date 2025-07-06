@@ -1,0 +1,86 @@
+commit 0fd2d4d6c2101fb615a7546f49e92a2187191fb0
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Oct 9 10:12:57 2024 +0200
+
+    syscall: implement Ftruncate using a single syscall on Windows
+    
+    Ftruncate can be implemented on Windows using a single syscall. This
+    makes the implementation more efficient and less prone to races when
+    used in combination with other Seek calls.
+    
+    Change-Id: I5d9f780fba2710403fce89d3325e519f33ad9ae8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618835
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/syscall/syscall_windows.go  | 20 +++++++-------------
+ src/syscall/zsyscall_windows.go |  9 +++++++++
+ 2 files changed, 16 insertions(+), 13 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index d49ee522c4..359681e920 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -323,6 +323,7 @@ func NewCallbackCDecl(fn any) uintptr {
+ //sys	Process32First(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32FirstW
+ //sys	Process32Next(snapshot Handle, procEntry *ProcessEntry32) (err error) = kernel32.Process32NextW
+ //sys	DeviceIoControl(handle Handle, ioControlCode uint32, inBuffer *byte, inBufferSize uint32, outBuffer *byte, outBufferSize uint32, bytesReturned *uint32, overlapped *Overlapped) (err error)
++//sys	setFileInformationByHandle(handle Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) = kernel32.SetFileInformationByHandle
+ // This function returns 1 byte BOOLEAN rather than the 4 byte BOOL.
+ //sys	CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) [failretval&0xff==0] = CreateSymbolicLinkW
+ //sys	CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) [failretval&0xff==0] = CreateHardLinkW
+@@ -610,20 +611,13 @@ func ComputerName() (name string, err error) {
+ }
+ 
+ func Ftruncate(fd Handle, length int64) (err error) {
+-	curoffset, e := Seek(fd, 0, 1)
+-	if e != nil {
+-		return e
+-	}
+-	defer Seek(fd, curoffset, 0)
+-	_, e = Seek(fd, length, 0)
+-	if e != nil {
+-		return e
++	type _FILE_END_OF_FILE_INFO struct {
++		EndOfFile int64
+ 	}
+-	e = SetEndOfFile(fd)
+-	if e != nil {
+-		return e
+-	}
+-	return nil
++	const FileEndOfFileInfo = 6
++	var info _FILE_END_OF_FILE_INFO
++	info.EndOfFile = length
++	return setFileInformationByHandle(fd, FileEndOfFileInfo, unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)))
+ }
+ 
+ func Gettimeofday(tv *Timeval) (err error) {
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index d8d8594a55..c0585a6df2 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -150,6 +150,7 @@ var (
+ 	procSetEnvironmentVariableW            = modkernel32.NewProc("SetEnvironmentVariableW")
+ 	procSetFileAttributesW                 = modkernel32.NewProc("SetFileAttributesW")
+ 	procSetFileCompletionNotificationModes = modkernel32.NewProc("SetFileCompletionNotificationModes")
++	procSetFileInformationByHandle         = modkernel32.NewProc("SetFileInformationByHandle")
+ 	procSetFilePointer                     = modkernel32.NewProc("SetFilePointer")
+ 	procSetFileTime                        = modkernel32.NewProc("SetFileTime")
+ 	procSetHandleInformation               = modkernel32.NewProc("SetHandleInformation")
+@@ -1071,6 +1072,14 @@ func SetFileCompletionNotificationModes(handle Handle, flags uint8) (err error)
+ 	return
+ }
+ 
++func setFileInformationByHandle(handle Handle, fileInformationClass uint32, buf unsafe.Pointer, bufsize uint32) (err error) {
++	r1, _, e1 := Syscall6(procSetFileInformationByHandle.Addr(), 4, uintptr(handle), uintptr(fileInformationClass), uintptr(buf), uintptr(bufsize), 0, 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) {
+ 	r0, _, e1 := Syscall6(procSetFilePointer.Addr(), 4, uintptr(handle), uintptr(lowoffset), uintptr(unsafe.Pointer(highoffsetptr)), uintptr(whence), 0, 0)
+ 	newlowoffset = uint32(r0)

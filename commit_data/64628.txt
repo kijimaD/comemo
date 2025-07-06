@@ -1,0 +1,229 @@
+commit e126129d7612349874828685c2bcd49de498a1a0
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Aug 19 23:54:17 2024 +1000
+
+    cmd/compile/internal/ssa: combine shift and addition for riscv64 rva22u64
+    
+    When GORISCV64 enables rva22u64, combined shift and addition using the
+    SH1ADD, SH2ADD and SH3ADD instructions that are available via the Zba
+    extension. This results in more than 2000 instructions being removed
+    from the Go binary on riscv64.
+    
+    Change-Id: Ia62ae7dda3d8083cff315113421bee73f518eea8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606636
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+---
+ src/cmd/compile/internal/riscv64/ssa.go         |  3 +-
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  5 +++
+ src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go |  5 +++
+ src/cmd/compile/internal/ssa/opGen.go           | 45 +++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 57 +++++++++++++++++++++++++
+ test/codegen/shift.go                           | 17 ++++++++
+ 6 files changed, 131 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 10fea07e60..e3a2889697 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -289,7 +289,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpRISCV64FEQS, ssa.OpRISCV64FNES, ssa.OpRISCV64FLTS, ssa.OpRISCV64FLES,
+ 		ssa.OpRISCV64FADDD, ssa.OpRISCV64FSUBD, ssa.OpRISCV64FMULD, ssa.OpRISCV64FDIVD,
+ 		ssa.OpRISCV64FEQD, ssa.OpRISCV64FNED, ssa.OpRISCV64FLTD, ssa.OpRISCV64FLED, ssa.OpRISCV64FSGNJD,
+-		ssa.OpRISCV64MIN, ssa.OpRISCV64MAX, ssa.OpRISCV64MINU, ssa.OpRISCV64MAXU:
++		ssa.OpRISCV64MIN, ssa.OpRISCV64MAX, ssa.OpRISCV64MINU, ssa.OpRISCV64MAXU,
++		ssa.OpRISCV64SH1ADD, ssa.OpRISCV64SH2ADD, ssa.OpRISCV64SH3ADD:
+ 		r := v.Reg()
+ 		r1 := v.Args[0].Reg()
+ 		r2 := v.Args[1].Reg()
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index 7d8fb79e17..f0afd6b345 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -839,6 +839,11 @@
+ // Optimisations for rva22u64 and above.
+ //
+ 
++// Combine left shift and addition.
++(ADD (SLLI [1] x) y) && buildcfg.GORISCV64 >= 22 => (SH1ADD x y)
++(ADD (SLLI [2] x) y) && buildcfg.GORISCV64 >= 22 => (SH2ADD x y)
++(ADD (SLLI [3] x) y) && buildcfg.GORISCV64 >= 22 => (SH3ADD x y)
++
+ // Integer minimum and maximum.
+ (Min64  x y) && buildcfg.GORISCV64 >= 22 => (MIN  x y)
+ (Max64  x y) && buildcfg.GORISCV64 >= 22 => (MAX  x y)
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+index 7323cb119c..8badefa9ac 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64Ops.go
+@@ -220,6 +220,11 @@ func init() {
+ 		{name: "SRLI", argLength: 1, reg: gp11, asm: "SRLI", aux: "Int64"},   // arg0 >> auxint, shift amount 0-63, logical right shift
+ 		{name: "SRLIW", argLength: 1, reg: gp11, asm: "SRLIW", aux: "Int64"}, // arg0 >> auxint, shift amount 0-31, logical right shift of 32 bit value, sign extended to 64 bits
+ 
++		// Shift and add
++		{name: "SH1ADD", argLength: 2, reg: gp21, asm: "SH1ADD"}, // arg0 << 1 + arg1
++		{name: "SH2ADD", argLength: 2, reg: gp21, asm: "SH2ADD"}, // arg0 << 2 + arg1
++		{name: "SH3ADD", argLength: 2, reg: gp21, asm: "SH3ADD"}, // arg0 << 3 + arg1
++
+ 		// Bitwise ops
+ 		{name: "AND", argLength: 2, reg: gp21, asm: "AND", commutative: true}, // arg0 & arg1
+ 		{name: "ANDI", argLength: 1, reg: gp11, asm: "ANDI", aux: "Int64"},    // arg0 & auxint
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index cfea0342c8..c92c96880e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2421,6 +2421,9 @@ const (
+ 	OpRISCV64SRAIW
+ 	OpRISCV64SRLI
+ 	OpRISCV64SRLIW
++	OpRISCV64SH1ADD
++	OpRISCV64SH2ADD
++	OpRISCV64SH3ADD
+ 	OpRISCV64AND
+ 	OpRISCV64ANDI
+ 	OpRISCV64NOT
+@@ -32623,6 +32626,48 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "SH1ADD",
++		argLen: 2,
++		asm:    riscv.ASH1ADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:   "SH2ADD",
++		argLen: 2,
++		asm:    riscv.ASH2ADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
++	{
++		name:   "SH3ADD",
++		argLen: 2,
++		asm:    riscv.ASH3ADD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++				{1, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++			outputs: []outputInfo{
++				{0, 1006632944}, // X5 X6 X7 X8 X9 X10 X11 X12 X13 X14 X15 X16 X17 X18 X19 X20 X21 X22 X23 X24 X25 X26 X28 X29 X30
++			},
++		},
++	},
+ 	{
+ 		name:        "AND",
+ 		argLen:      2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 0ad9078258..aa44ab311e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -3315,6 +3315,63 @@ func rewriteValueRISCV64_OpRISCV64ADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (ADD (SLLI [1] x) y)
++	// cond: buildcfg.GORISCV64 >= 22
++	// result: (SH1ADD x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64SLLI || auxIntToInt64(v_0.AuxInt) != 1 {
++				continue
++			}
++			x := v_0.Args[0]
++			y := v_1
++			if !(buildcfg.GORISCV64 >= 22) {
++				continue
++			}
++			v.reset(OpRISCV64SH1ADD)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
++	// match: (ADD (SLLI [2] x) y)
++	// cond: buildcfg.GORISCV64 >= 22
++	// result: (SH2ADD x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64SLLI || auxIntToInt64(v_0.AuxInt) != 2 {
++				continue
++			}
++			x := v_0.Args[0]
++			y := v_1
++			if !(buildcfg.GORISCV64 >= 22) {
++				continue
++			}
++			v.reset(OpRISCV64SH2ADD)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
++	// match: (ADD (SLLI [3] x) y)
++	// cond: buildcfg.GORISCV64 >= 22
++	// result: (SH3ADD x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpRISCV64SLLI || auxIntToInt64(v_0.AuxInt) != 3 {
++				continue
++			}
++			x := v_0.Args[0]
++			y := v_1
++			if !(buildcfg.GORISCV64 >= 22) {
++				continue
++			}
++			v.reset(OpRISCV64SH3ADD)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRISCV64ADDI(v *Value) bool {
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 6a2a6c40cd..bc91c61baa 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -520,3 +520,20 @@ func checkShiftToMask(u []uint64, s []int64) {
+ 	// amd64:-"SHR",-"SHL","ANDQ"
+ 	u[1] = u[1] << 5 >> 5
+ }
++
++//
++// Left shift with addition.
++//
++
++func checkLeftShiftWithAddition(a int64, b int64) int64 {
++	// riscv64/rva20u64: "SLLI","ADD"
++	// riscv64/rva22u64: "SH1ADD"
++	a = a + b<<1
++	// riscv64/rva20u64: "SLLI","ADD"
++	// riscv64/rva22u64: "SH2ADD"
++	a = a + b<<2
++	// riscv64/rva20u64: "SLLI","ADD"
++	// riscv64/rva22u64: "SH3ADD"
++	a = a + b<<3
++	return a
++}

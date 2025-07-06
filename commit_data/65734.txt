@@ -1,0 +1,42 @@
+commit a8be834912fae7e1f3f5cfc39e6a15f8782efc4d
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Sat Nov 30 04:15:07 2024 +0000
+
+    cmd/compile: fix a premature-deallocation of state in loopreschedchecks
+    
+    lastMems is free-ed before it's actually used. This results in the pass
+    breaking: multiple mem phis will present in the instrumented ssa, and
+    essentially break tighten
+    pass(https://cs.opensource.google/go/go/+/master:src/cmd/compile/internal/ssa/tighten.go;l=240).
+    
+    This CL fix that.
+    
+    Change-Id: I30cf0c3300ed59d1a15d978757a3840fbe04484d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632516
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/ssa/loopreschedchecks.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/loopreschedchecks.go b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+index 0ac473d229..125c468217 100644
+--- a/src/cmd/compile/internal/ssa/loopreschedchecks.go
++++ b/src/cmd/compile/internal/ssa/loopreschedchecks.go
+@@ -71,6 +71,7 @@ func insertLoopReschedChecks(f *Func) {
+ 	}
+ 
+ 	lastMems := findLastMems(f)
++	defer f.Cache.freeValueSlice(lastMems)
+ 
+ 	idom := f.Idom()
+ 	po := f.postorder()
+@@ -406,7 +407,6 @@ func findLastMems(f *Func) []*Value {
+ 
+ 	var stores []*Value
+ 	lastMems := f.Cache.allocValueSlice(f.NumBlocks())
+-	defer f.Cache.freeValueSlice(lastMems)
+ 	storeUse := f.newSparseSet(f.NumValues())
+ 	defer f.retSparseSet(storeUse)
+ 	for _, b := range f.Blocks {

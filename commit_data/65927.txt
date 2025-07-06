@@ -1,0 +1,74 @@
+commit 4225c6cb372e0fea7586dd646e991faa5df20671
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Wed Jan 8 12:30:01 2025 -0800
+
+    encoding/json: improve fidelity of TestUnmarshal for Numbers
+    
+    In particular, cover the behavior of unmarshaling a JSON string
+    into a Number type regardless of whether the `string` option
+    is specified or not.
+    
+    Change-Id: Ibc55f16860442240bcfeea1fd51aaa76f7e50f67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641416
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/encoding/json/decode_test.go | 43 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)
+
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index a2b462af77..278d1e94fa 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -1068,6 +1068,49 @@ var unmarshalTests = []struct {
+ 		ptr:      new(map[string]Number),
+ 		err:      fmt.Errorf("json: invalid number literal, trying to unmarshal %q into Number", `"invalid"`),
+ 	},
++
++	{
++		CaseName: Name(""),
++		in:       `5`,
++		ptr:      new(Number),
++		out:      Number("5"),
++	},
++	{
++		CaseName: Name(""),
++		in:       `"5"`,
++		ptr:      new(Number),
++		out:      Number("5"),
++	},
++	{
++		CaseName: Name(""),
++		in:       `{"N":5}`,
++		ptr:      new(struct{ N Number }),
++		out:      struct{ N Number }{"5"},
++	},
++	{
++		CaseName: Name(""),
++		in:       `{"N":"5"}`,
++		ptr:      new(struct{ N Number }),
++		out:      struct{ N Number }{"5"},
++	},
++	{
++		CaseName: Name(""),
++		in:       `{"N":5}`,
++		ptr: new(struct {
++			N Number `json:",string"`
++		}),
++		err: fmt.Errorf("json: invalid use of ,string struct tag, trying to unmarshal unquoted value into json.Number"),
++	},
++	{
++		CaseName: Name(""),
++		in:       `{"N":"5"}`,
++		ptr: new(struct {
++			N Number `json:",string"`
++		}),
++		out: struct {
++			N Number `json:",string"`
++		}{"5"},
++	},
+ }
+ 
+ func TestMarshal(t *testing.T) {

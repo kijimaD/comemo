@@ -1,0 +1,54 @@
+commit 1ae6b9e31b952ad7090406475b2b0eb0e8804fcd
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 23:22:21 2024 -0700
+
+    syscall: use t.TempDir in tests
+    
+    Change-Id: Ibeb00306ee8f038c11f261abd99c05324bf2ab51
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609837
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/syscall/exec_pdeathsig_test.go | 6 +-----
+ src/syscall/syscall_linux_test.go  | 8 ++------
+ 2 files changed, 3 insertions(+), 11 deletions(-)
+
+diff --git a/src/syscall/exec_pdeathsig_test.go b/src/syscall/exec_pdeathsig_test.go
+index a907afd900..22bb2b4474 100644
+--- a/src/syscall/exec_pdeathsig_test.go
++++ b/src/syscall/exec_pdeathsig_test.go
+@@ -34,11 +34,7 @@ func TestDeathSignalSetuid(t *testing.T) {
+ 	//
+ 	// TODO(bcmills): Why do we believe that another users will be able to
+ 	// execute a binary in this directory? (It could be mounted noexec.)
+-	tempDir, err := os.MkdirTemp("", "TestDeathSignal")
+-	if err != nil {
+-		t.Fatalf("cannot create temporary directory: %v", err)
+-	}
+-	defer os.RemoveAll(tempDir)
++	tempDir := t.TempDir()
+ 	os.Chmod(tempDir, 0755)
+ 
+ 	tmpBinary := filepath.Join(tempDir, filepath.Base(os.Args[0]))
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index 43c0ba0ce3..a150ab15be 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -213,12 +213,8 @@ func TestSyscallNoError(t *testing.T) {
+ 	}
+ 
+ 	// Copy the test binary to a location that a non-root user can read/execute
+-	// after we drop privileges
+-	tempDir, err := os.MkdirTemp("", "TestSyscallNoError")
+-	if err != nil {
+-		t.Fatalf("cannot create temporary directory: %v", err)
+-	}
+-	defer os.RemoveAll(tempDir)
++	// after we drop privileges.
++	tempDir := t.TempDir()
+ 	os.Chmod(tempDir, 0755)
+ 
+ 	tmpBinary := filepath.Join(tempDir, filepath.Base(os.Args[0]))

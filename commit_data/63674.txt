@@ -1,0 +1,32 @@
+commit 59493f32edb33181ededfe707e28190a095fe5a6
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Wed May 8 20:43:00 2024 +0300
+
+    internal/fuzz: fix names of noCopy methods
+    
+    Must be Lock/Unlock to be flagged by vet.
+    
+    Change-Id: I792ebd68b168621a660b9595b5d06a465d0d7bf2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584355
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/internal/fuzz/pcg.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/fuzz/pcg.go b/src/internal/fuzz/pcg.go
+index 4fe8aeb50c..dc07b9f5bd 100644
+--- a/src/internal/fuzz/pcg.go
++++ b/src/internal/fuzz/pcg.go
+@@ -140,6 +140,6 @@ func (r *pcgRand) bool() bool {
+ // for details.
+ type noCopy struct{}
+ 
+-// lock is a no-op used by -copylocks checker from `go vet`.
+-func (*noCopy) lock()   {}
+-func (*noCopy) unlock() {}
++// Lock is a no-op used by -copylocks checker from `go vet`.
++func (*noCopy) Lock()   {}
++func (*noCopy) Unlock() {}

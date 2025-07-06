@@ -1,0 +1,404 @@
+commit 1c4704991aeae5c9e0c6816a227390829b724ab5
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Mon Jan 22 09:31:43 2024 +0200
+
+    testing: use QueryPerformanceCounter on Windows
+    
+    Windows time.Now granularity is around 0.5ms on modern systems,
+    which introduces a significant noise into benchmark results.
+    Instead of relying time.Now use QueryPerformanceCounter, which
+    has significantly better granularity compared to time.Now.
+    
+     │ TimeNow-32  │        HighPrecisionTimeNow-32        │
+     │   sec/op    │    sec/op     vs base                 │
+       4.812n ± 0%   30.580n ± 0%  +535.43% (p=0.000 n=20)
+    
+    Fixes #31160
+    
+    Change-Id: Ib2a574d638c9c6762a2524212def02265574e267
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557315
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/internal/syscall/windows/syscall_windows.go | 11 +++++++
+ src/runtime/os_windows.go                       | 16 +++++++++++
+ src/testing/benchmark.go                        |  8 +++---
+ src/testing/export_test.go                      |  4 +++
+ src/testing/fuzz.go                             | 10 +++----
+ src/testing/testing.go                          | 28 +++++++++---------
+ src/testing/testing_other.go                    | 18 ++++++++++++
+ src/testing/testing_windows.go                  | 38 +++++++++++++++++++++++++
+ src/testing/testing_windows_test.go             | 25 ++++++++++++++++
+ 9 files changed, 135 insertions(+), 23 deletions(-)
+
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index fb15e19c0e..cc26a50bb0 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -488,3 +488,14 @@ func FinalPath(h syscall.Handle, flags uint32) (string, error) {
+ 	}
+ 	return syscall.UTF16ToString(buf), nil
+ }
++
++// QueryPerformanceCounter retrieves the current value of performance counter.
++//
++//go:linkname QueryPerformanceCounter
++func QueryPerformanceCounter() int64 // Implemented in runtime package.
++
++// QueryPerformanceFrequency retrieves the frequency of the performance counter.
++// The returned value is represented as counts per second.
++//
++//go:linkname QueryPerformanceFrequency
++func QueryPerformanceFrequency() int64 // Implemented in runtime package.
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index d65e0c91f4..4aabc29644 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -43,6 +43,7 @@ const (
+ //go:cgo_import_dynamic runtime._LoadLibraryW LoadLibraryW%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._PostQueuedCompletionStatus PostQueuedCompletionStatus%4 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._QueryPerformanceCounter QueryPerformanceCounter%1 "kernel32.dll"
++//go:cgo_import_dynamic runtime._QueryPerformanceFrequency QueryPerformanceFrequency%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._RaiseFailFastException RaiseFailFastException%3 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._ResumeThread ResumeThread%1 "kernel32.dll"
+ //go:cgo_import_dynamic runtime._RtlLookupFunctionEntry RtlLookupFunctionEntry%3 "kernel32.dll"
+@@ -100,6 +101,7 @@ var (
+ 	_LoadLibraryW,
+ 	_PostQueuedCompletionStatus,
+ 	_QueryPerformanceCounter,
++	_QueryPerformanceFrequency,
+ 	_RaiseFailFastException,
+ 	_ResumeThread,
+ 	_RtlLookupFunctionEntry,
+@@ -246,6 +248,20 @@ func windowsLoadSystemLib(name []uint16) uintptr {
+ 	return stdcall3(_LoadLibraryExW, uintptr(unsafe.Pointer(&name[0])), 0, _LOAD_LIBRARY_SEARCH_SYSTEM32)
+ }
+ 
++//go:linkname windows_QueryPerformanceCounter internal/syscall/windows.QueryPerformanceCounter
++func windows_QueryPerformanceCounter() int64 {
++	var counter int64
++	stdcall1(_QueryPerformanceCounter, uintptr(unsafe.Pointer(&counter)))
++	return counter
++}
++
++//go:linkname windows_QueryPerformanceFrequency internal/syscall/windows.QueryPerformanceFrequency
++func windows_QueryPerformanceFrequency() int64 {
++	var frequency int64
++	stdcall1(_QueryPerformanceFrequency, uintptr(unsafe.Pointer(&frequency)))
++	return frequency
++}
++
+ func loadOptionalSyscalls() {
+ 	bcryptPrimitives := windowsLoadSystemLib(bcryptprimitivesdll[:])
+ 	if bcryptPrimitives == 0 {
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 9491213ef1..db91c1478e 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -123,7 +123,7 @@ func (b *B) StartTimer() {
+ 		runtime.ReadMemStats(&memStats)
+ 		b.startAllocs = memStats.Mallocs
+ 		b.startBytes = memStats.TotalAlloc
+-		b.start = time.Now()
++		b.start = highPrecisionTimeNow()
+ 		b.timerOn = true
+ 	}
+ }
+@@ -133,7 +133,7 @@ func (b *B) StartTimer() {
+ // want to measure.
+ func (b *B) StopTimer() {
+ 	if b.timerOn {
+-		b.duration += time.Since(b.start)
++		b.duration += highPrecisionTimeSince(b.start)
+ 		runtime.ReadMemStats(&memStats)
+ 		b.netAllocs += memStats.Mallocs - b.startAllocs
+ 		b.netBytes += memStats.TotalAlloc - b.startBytes
+@@ -156,7 +156,7 @@ func (b *B) ResetTimer() {
+ 		runtime.ReadMemStats(&memStats)
+ 		b.startAllocs = memStats.Mallocs
+ 		b.startBytes = memStats.TotalAlloc
+-		b.start = time.Now()
++		b.start = highPrecisionTimeNow()
+ 	}
+ 	b.duration = 0
+ 	b.netAllocs = 0
+@@ -325,7 +325,7 @@ func (b *B) launch() {
+ func (b *B) Elapsed() time.Duration {
+ 	d := b.duration
+ 	if b.timerOn {
+-		d += time.Since(b.start)
++		d += highPrecisionTimeSince(b.start)
+ 	}
+ 	return d
+ }
+diff --git a/src/testing/export_test.go b/src/testing/export_test.go
+index 0022491ecd..10a5b04aee 100644
+--- a/src/testing/export_test.go
++++ b/src/testing/export_test.go
+@@ -5,3 +5,7 @@
+ package testing
+ 
+ var PrettyPrint = prettyPrint
++
++type HighPrecisionTime = highPrecisionTime
++
++var HighPrecisionTimeNow = highPrecisionTimeNow
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index baf1c7243c..d561225b3c 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -674,7 +674,7 @@ func fRunner(f *F, fn func(*F)) {
+ 			}
+ 			for root := &f.common; root.parent != nil; root = root.parent {
+ 				root.mu.Lock()
+-				root.duration += time.Since(root.start)
++				root.duration += highPrecisionTimeSince(root.start)
+ 				d := root.duration
+ 				root.mu.Unlock()
+ 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
+@@ -687,7 +687,7 @@ func fRunner(f *F, fn func(*F)) {
+ 		}
+ 
+ 		// No panic or inappropriate Goexit.
+-		f.duration += time.Since(f.start)
++		f.duration += highPrecisionTimeSince(f.start)
+ 
+ 		if len(f.sub) > 0 {
+ 			// Unblock inputs that called T.Parallel while running the seed corpus.
+@@ -700,9 +700,9 @@ func fRunner(f *F, fn func(*F)) {
+ 			for _, sub := range f.sub {
+ 				<-sub.signal
+ 			}
+-			cleanupStart := time.Now()
++			cleanupStart := highPrecisionTimeNow()
+ 			err := f.runCleanup(recoverAndReturnPanic)
+-			f.duration += time.Since(cleanupStart)
++			f.duration += highPrecisionTimeSince(cleanupStart)
+ 			if err != nil {
+ 				doPanic(err)
+ 			}
+@@ -719,7 +719,7 @@ func fRunner(f *F, fn func(*F)) {
+ 		}
+ 	}()
+ 
+-	f.start = time.Now()
++	f.start = highPrecisionTimeNow()
+ 	f.resetRaces()
+ 	fn(f)
+ 
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 9c1325a609..2289c6717f 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -615,10 +615,10 @@ type common struct {
+ 	isParallel     bool           // Whether the test is parallel.
+ 
+ 	parent   *common
+-	level    int       // Nesting depth of test or benchmark.
+-	creator  []uintptr // If level > 0, the stack trace at the point where the parent called t.Run.
+-	name     string    // Name of test or benchmark.
+-	start    time.Time // Time test or benchmark started
++	level    int               // Nesting depth of test or benchmark.
++	creator  []uintptr         // If level > 0, the stack trace at the point where the parent called t.Run.
++	name     string            // Name of test or benchmark.
++	start    highPrecisionTime // Time test or benchmark started
+ 	duration time.Duration
+ 	barrier  chan bool // To signal parallel subtests they may start. Nil when T.Parallel is not present (B) or not usable (when fuzzing).
+ 	signal   chan bool // To signal a test is done.
+@@ -1457,7 +1457,7 @@ func (t *T) Parallel() {
+ 	// We don't want to include the time we spend waiting for serial tests
+ 	// in the test duration. Record the elapsed time thus far and reset the
+ 	// timer afterwards.
+-	t.duration += time.Since(t.start)
++	t.duration += highPrecisionTimeSince(t.start)
+ 
+ 	// Add to the list of tests to be released by the parent.
+ 	t.parent.sub = append(t.parent.sub, t)
+@@ -1486,8 +1486,8 @@ func (t *T) Parallel() {
+ 	if t.chatty != nil {
+ 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
+ 	}
+-	running.Store(t.name, time.Now())
+-	t.start = time.Now()
++	running.Store(t.name, highPrecisionTimeNow())
++	t.start = highPrecisionTimeNow()
+ 
+ 	// Reset the local race counter to ignore any races that happened while this
+ 	// goroutine was blocked, such as in the parent test or in other parallel
+@@ -1619,7 +1619,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 			// Flush the output log up to the root before dying.
+ 			for root := &t.common; root.parent != nil; root = root.parent {
+ 				root.mu.Lock()
+-				root.duration += time.Since(root.start)
++				root.duration += highPrecisionTimeSince(root.start)
+ 				d := root.duration
+ 				root.mu.Unlock()
+ 				root.flushToParent(root.name, "--- FAIL: %s (%s)\n", root.name, fmtDuration(d))
+@@ -1634,7 +1634,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 			doPanic(err)
+ 		}
+ 
+-		t.duration += time.Since(t.start)
++		t.duration += highPrecisionTimeSince(t.start)
+ 
+ 		if len(t.sub) > 0 {
+ 			// Run parallel subtests.
+@@ -1652,10 +1652,10 @@ func tRunner(t *T, fn func(t *T)) {
+ 
+ 			// Run any cleanup callbacks, marking the test as running
+ 			// in case the cleanup hangs.
+-			cleanupStart := time.Now()
++			cleanupStart := highPrecisionTimeNow()
+ 			running.Store(t.name, cleanupStart)
+ 			err := t.runCleanup(recoverAndReturnPanic)
+-			t.duration += time.Since(cleanupStart)
++			t.duration += highPrecisionTimeSince(cleanupStart)
+ 			if err != nil {
+ 				doPanic(err)
+ 			}
+@@ -1684,7 +1684,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 		}
+ 	}()
+ 
+-	t.start = time.Now()
++	t.start = highPrecisionTimeNow()
+ 	t.resetRaces()
+ 	fn(t)
+ 
+@@ -1732,7 +1732,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 	if t.chatty != nil {
+ 		t.chatty.Updatef(t.name, "=== RUN   %s\n", t.name)
+ 	}
+-	running.Store(t.name, time.Now())
++	running.Store(t.name, highPrecisionTimeNow())
+ 
+ 	// Instead of reducing the running count of this test before calling the
+ 	// tRunner and increasing it afterwards, we rely on tRunner keeping the
+@@ -2372,7 +2372,7 @@ func (m *M) startAlarm() time.Time {
+ func runningList() []string {
+ 	var list []string
+ 	running.Range(func(k, v any) bool {
+-		list = append(list, fmt.Sprintf("%s (%v)", k.(string), time.Since(v.(time.Time)).Round(time.Second)))
++		list = append(list, fmt.Sprintf("%s (%v)", k.(string), highPrecisionTimeSince(v.(highPrecisionTime)).Round(time.Second)))
+ 		return true
+ 	})
+ 	sort.Strings(list)
+diff --git a/src/testing/testing_other.go b/src/testing/testing_other.go
+index 99a6276a4a..586f61b0ce 100644
+--- a/src/testing/testing_other.go
++++ b/src/testing/testing_other.go
+@@ -6,8 +6,26 @@
+ 
+ package testing
+ 
++import "time"
++
+ // isWindowsRetryable reports whether err is a Windows error code
+ // that may be fixed by retrying a failed filesystem operation.
+ func isWindowsRetryable(err error) bool {
+ 	return false
+ }
++
++// highPrecisionTime represents a single point in time.
++// On all systems except Windows, using time.Time is fine.
++type highPrecisionTime struct {
++	now time.Time
++}
++
++// highPrecisionTimeNow returns high precision time for benchmarking.
++func highPrecisionTimeNow() highPrecisionTime {
++	return highPrecisionTime{now: time.Now()}
++}
++
++// highPrecisionTimeSince returns duration since b.
++func highPrecisionTimeSince(b highPrecisionTime) time.Duration {
++	return time.Now().Sub(b.now)
++}
+diff --git a/src/testing/testing_windows.go b/src/testing/testing_windows.go
+index fd48ae9579..ebe4e01d23 100644
+--- a/src/testing/testing_windows.go
++++ b/src/testing/testing_windows.go
+@@ -9,7 +9,9 @@ package testing
+ import (
+ 	"errors"
+ 	"internal/syscall/windows"
++	"math/bits"
+ 	"syscall"
++	"time"
+ )
+ 
+ // isWindowsRetryable reports whether err is a Windows error code
+@@ -30,3 +32,39 @@ func isWindowsRetryable(err error) bool {
+ 	}
+ 	return false
+ }
++
++// highPrecisionTime represents a single point in time with query performance counter.
++// time.Time on Windows has low system granularity, which is not suitable for
++// measuring short time intervals.
++//
++// TODO: If Windows runtime implements high resolution timing then highPrecisionTime
++// can be removed.
++type highPrecisionTime struct {
++	now int64
++}
++
++// highPrecisionTimeNow returns high precision time for benchmarking.
++func highPrecisionTimeNow() highPrecisionTime {
++	var t highPrecisionTime
++	// This should always succeed for Windows XP and above.
++	t.now = windows.QueryPerformanceCounter()
++	return t
++}
++
++func (a highPrecisionTime) sub(b highPrecisionTime) time.Duration {
++	delta := a.now - b.now
++
++	if queryPerformanceFrequency == 0 {
++		queryPerformanceFrequency = windows.QueryPerformanceFrequency()
++	}
++	hi, lo := bits.Mul64(uint64(delta), uint64(time.Second)/uint64(time.Nanosecond))
++	quo, _ := bits.Div64(hi, lo, uint64(queryPerformanceFrequency))
++	return time.Duration(quo)
++}
++
++var queryPerformanceFrequency int64
++
++// highPrecisionTimeSince returns duration since a.
++func highPrecisionTimeSince(a highPrecisionTime) time.Duration {
++	return highPrecisionTimeNow().sub(a)
++}
+diff --git a/src/testing/testing_windows_test.go b/src/testing/testing_windows_test.go
+new file mode 100644
+index 0000000000..e75232dede
+--- /dev/null
++++ b/src/testing/testing_windows_test.go
+@@ -0,0 +1,25 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing_test
++
++import (
++	"testing"
++	"time"
++)
++
++var sink time.Time
++var sinkHPT testing.HighPrecisionTime
++
++func BenchmarkTimeNow(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sink = time.Now()
++	}
++}
++
++func BenchmarkHighPrecisionTimeNow(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		sinkHPT = testing.HighPrecisionTimeNow()
++	}
++}

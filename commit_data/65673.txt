@@ -1,0 +1,563 @@
+commit d524c954b14c861e6a442e09abd38ba074ad376d
+Author: David Chase <drchase@google.com>
+Date:   Tue Nov 19 17:18:38 2024 -0500
+
+    cmd/compile: use very high budget for once-called closures
+    
+    This should make it much more likely that rangefunc
+    iterators become "plain inline code".
+    
+    Change-Id: I8026603afdc5249f60cc663c4bc15cb1d26d1c83
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630696
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/inline/inl.go             | 87 ++++++++++++++------
+ .../internal/inline/interleaved/interleaved.go     | 96 ++++++++++++++++++----
+ test/closure3.dir/main.go                          | 50 +++++------
+ 3 files changed, 167 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 9478806842..d64ab6b487 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -53,8 +53,9 @@ const (
+ 	inlineExtraPanicCost = 1               // do not penalize inlining panics.
+ 	inlineExtraThrowCost = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
+ 
+-	inlineBigFunctionNodes   = 5000 // Functions with this many nodes are considered "big".
+-	inlineBigFunctionMaxCost = 20   // Max cost of inlinee when inlining into a "big" function.
++	inlineBigFunctionNodes      = 5000                 // Functions with this many nodes are considered "big".
++	inlineBigFunctionMaxCost    = 20                   // Max cost of inlinee when inlining into a "big" function.
++	inlineClosureCalledOnceCost = 10 * inlineMaxBudget // if a closure is just called once, inline it.
+ )
+ 
+ var (
+@@ -207,7 +208,8 @@ func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose boo
+ 		budget += inlheur.BudgetExpansion(inlineMaxBudget)
+ 	}
+ 	if fn.ClosureParent != nil {
+-		budget *= 2
++		// be very liberal here, if the closure is only called once, the budget is large
++		budget = max(budget, inlineClosureCalledOnceCost)
+ 	}
+ 	return budget
+ }
+@@ -561,11 +563,11 @@ opSwitch:
+ 			break
+ 		}
+ 
+-		if callee := inlCallee(v.curFunc, n.Fun, v.profile); callee != nil && typecheck.HaveInlineBody(callee) {
++		if callee := inlCallee(v.curFunc, n.Fun, v.profile, false); callee != nil && typecheck.HaveInlineBody(callee) {
+ 			// Check whether we'd actually inline this call. Set
+ 			// log == false since we aren't actually doing inlining
+ 			// yet.
+-			if ok, _, _ := canInlineCallExpr(v.curFunc, n, callee, v.isBigFunc, false); ok {
++			if ok, _, _ := canInlineCallExpr(v.curFunc, n, callee, v.isBigFunc, false, false); ok {
+ 				// mkinlcall would inline this call [1], so use
+ 				// the cost of the inline body as the cost of
+ 				// the call, as that is what will actually
+@@ -577,6 +579,9 @@ opSwitch:
+ 				// by looking at what has already been inlined.
+ 				// Since we haven't done any inlining yet we
+ 				// will miss those.
++				//
++				// TODO: in the case of a single-call closure, the inlining budget here is potentially much, much larger.
++				//
+ 				v.budget -= callee.Inl.Cost
+ 				break
+ 			}
+@@ -774,17 +779,18 @@ func IsBigFunc(fn *ir.Func) bool {
+ 	})
+ }
+ 
+-// TryInlineCall returns an inlined call expression for call, or nil
+-// if inlining is not possible.
+-func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile *pgoir.Profile) *ir.InlinedCallExpr {
++// inlineCallCheck returns whether a call will never be inlineable
++// for basic reasons, and whether the call is an intrinisic call.
++// The intrinsic result singles out intrinsic calls for debug logging.
++func inlineCallCheck(callerfn *ir.Func, call *ir.CallExpr) (bool, bool) {
+ 	if base.Flag.LowerL == 0 {
+-		return nil
++		return false, false
+ 	}
+ 	if call.Op() != ir.OCALLFUNC {
+-		return nil
++		return false, false
+ 	}
+ 	if call.GoDefer || call.NoInline {
+-		return nil
++		return false, false
+ 	}
+ 
+ 	// Prevent inlining some reflect.Value methods when using checkptr,
+@@ -793,26 +799,49 @@ func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile
+ 		if method := ir.MethodExprName(call.Fun); method != nil {
+ 			switch types.ReflectSymName(method.Sym()) {
+ 			case "Value.UnsafeAddr", "Value.Pointer":
+-				return nil
++				return false, false
+ 			}
+ 		}
+ 	}
++	if ir.IsIntrinsicCall(call) {
++		return false, true
++	}
++	return true, false
++}
++
++// InlineCallTarget returns the resolved-for-inlining target of a call.
++// It does not necessarily guarantee that the target can be inlined, though
++// obvious exclusions are applied.
++func InlineCallTarget(callerfn *ir.Func, call *ir.CallExpr, profile *pgoir.Profile) *ir.Func {
++	if mightInline, _ := inlineCallCheck(callerfn, call); !mightInline {
++		return nil
++	}
++	return inlCallee(callerfn, call.Fun, profile, true)
++}
++
++// TryInlineCall returns an inlined call expression for call, or nil
++// if inlining is not possible.
++func TryInlineCall(callerfn *ir.Func, call *ir.CallExpr, bigCaller bool, profile *pgoir.Profile, closureCalledOnce bool) *ir.InlinedCallExpr {
++	mightInline, isIntrinsic := inlineCallCheck(callerfn, call)
+ 
+-	if base.Flag.LowerM > 3 {
++	// Preserve old logging behavior
++	if (mightInline || isIntrinsic) && base.Flag.LowerM > 3 {
+ 		fmt.Printf("%v:call to func %+v\n", ir.Line(call), call.Fun)
+ 	}
+-	if ir.IsIntrinsicCall(call) {
++	if !mightInline {
+ 		return nil
+ 	}
+-	if fn := inlCallee(callerfn, call.Fun, profile); fn != nil && typecheck.HaveInlineBody(fn) {
+-		return mkinlcall(callerfn, call, fn, bigCaller)
++
++	if fn := inlCallee(callerfn, call.Fun, profile, false); fn != nil && typecheck.HaveInlineBody(fn) {
++		return mkinlcall(callerfn, call, fn, bigCaller, closureCalledOnce)
+ 	}
+ 	return nil
+ }
+ 
+ // inlCallee takes a function-typed expression and returns the underlying function ONAME
+ // that it refers to if statically known. Otherwise, it returns nil.
+-func inlCallee(caller *ir.Func, fn ir.Node, profile *pgoir.Profile) (res *ir.Func) {
++// resolveOnly skips cost-based inlineability checks for closures; the result may not actually be inlineable.
++func inlCallee(caller *ir.Func, fn ir.Node, profile *pgoir.Profile, resolveOnly bool) (res *ir.Func) {
+ 	fn = ir.StaticValue(fn)
+ 	switch fn.Op() {
+ 	case ir.OMETHEXPR:
+@@ -836,7 +865,9 @@ func inlCallee(caller *ir.Func, fn ir.Node, profile *pgoir.Profile) (res *ir.Fun
+ 		if len(c.ClosureVars) != 0 && c.ClosureVars[0].Outer.Curfn != caller {
+ 			return nil // inliner doesn't support inlining across closure frames
+ 		}
+-		CanInline(c, profile)
++		if !resolveOnly {
++			CanInline(c, profile)
++		}
+ 		return c
+ 	}
+ 	return nil
+@@ -862,11 +893,8 @@ var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInde
+ //   - the "max cost" limit used to make the decision (which may differ depending on func size)
+ //   - the score assigned to this specific callsite
+ //   - whether the inlined function is "hot" according to PGO.
+-func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool, int32, int32, bool) {
++func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller, closureCalledOnce bool) (bool, int32, int32, bool) {
+ 	maxCost := int32(inlineMaxBudget)
+-	if callee.ClosureParent != nil {
+-		maxCost *= 2 // favor inlining closures
+-	}
+ 
+ 	if bigCaller {
+ 		// We use this to restrict inlining into very big functions.
+@@ -874,6 +902,13 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ 		maxCost = inlineBigFunctionMaxCost
+ 	}
+ 
++	if callee.ClosureParent != nil {
++		maxCost *= 2           // favor inlining closures
++		if closureCalledOnce { // really favor inlining the one call to this closure
++			maxCost = max(maxCost, inlineClosureCalledOnceCost)
++		}
++	}
++
+ 	metric := callee.Inl.Cost
+ 	if inlheur.Enabled() {
+ 		score, ok := inlheur.GetCallSiteScore(caller, n)
+@@ -931,7 +966,7 @@ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool
+ // indicates that the 'cannot inline' reason should be logged.
+ //
+ // Preconditions: CanInline(callee) has already been called.
+-func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCaller bool, log bool) (bool, int32, bool) {
++func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCaller, closureCalledOnce bool, log bool) (bool, int32, bool) {
+ 	if callee.Inl == nil {
+ 		// callee is never inlinable.
+ 		if log && logopt.Enabled() {
+@@ -941,7 +976,7 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ 		return false, 0, false
+ 	}
+ 
+-	ok, maxCost, callSiteScore, hot := inlineCostOK(n, callerfn, callee, bigCaller)
++	ok, maxCost, callSiteScore, hot := inlineCostOK(n, callerfn, callee, bigCaller, closureCalledOnce)
+ 	if !ok {
+ 		// callee cost too high for this call site.
+ 		if log && logopt.Enabled() {
+@@ -1024,8 +1059,8 @@ func canInlineCallExpr(callerfn *ir.Func, n *ir.CallExpr, callee *ir.Func, bigCa
+ // The result of mkinlcall MUST be assigned back to n, e.g.
+ //
+ //	n.Left = mkinlcall(n.Left, fn, isddd)
+-func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller bool) *ir.InlinedCallExpr {
+-	ok, score, hot := canInlineCallExpr(callerfn, n, fn, bigCaller, true)
++func mkinlcall(callerfn *ir.Func, n *ir.CallExpr, fn *ir.Func, bigCaller, closureCalledOnce bool) *ir.InlinedCallExpr {
++	ok, score, hot := canInlineCallExpr(callerfn, n, fn, bigCaller, closureCalledOnce, true)
+ 	if !ok {
+ 		return nil
+ 	}
+diff --git a/src/cmd/compile/internal/inline/interleaved/interleaved.go b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+index 6c493d8984..a35121517a 100644
+--- a/src/cmd/compile/internal/inline/interleaved/interleaved.go
++++ b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+@@ -43,17 +43,23 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
+ 	inline.CanInlineFuncs(pkg.Funcs, inlProfile)
+ 
+ 	inlState := make(map[*ir.Func]*inlClosureState)
++	calleeUseCounts := make(map[*ir.Func]int)
+ 
++	// Pre-process all the functions, adding parentheses around call sites and starting their "inl state".
+ 	for _, fn := range typecheck.Target.Funcs {
+-		// Pre-process all the functions, adding parentheses around call sites.
+ 		bigCaller := base.Flag.LowerL != 0 && inline.IsBigFunc(fn)
+ 		if bigCaller && base.Flag.LowerM > 1 {
+ 			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
+ 		}
+ 
+-		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool)}
++		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool), useCounts: calleeUseCounts}
+ 		s.parenthesize()
+ 		inlState[fn] = s
++
++		// Do a first pass at counting call sites.
++		for i := range s.parens {
++			s.resolve(i)
++		}
+ 	}
+ 
+ 	ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
+@@ -85,15 +91,34 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
+ 				s := inlState[fn]
+ 
+ 				ir.WithFunc(fn, func() {
+-					for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
+-						paren := s.parens[i]
+-						if new := s.edit(paren.X); new != nil {
+-							// Update AST and recursively mark nodes.
+-							paren.X = new
+-							ir.EditChildren(new, s.mark) // mark may append to parens
+-							done = false
++					l1 := len(s.parens)
++					l0 := 0
++
++					// Batch iterations so that newly discovered call sites are
++					// resolved in a batch before inlining attempts.
++					// Do this to avoid discovering new closure calls 1 at a time
++					// which might cause first call to be seen as a single (high-budget)
++					// call before the second is observed.
++					for {
++						for i := l0; i < l1; i++ { // can't use "range parens" here
++							paren := s.parens[i]
++							if new := s.edit(i); new != nil {
++								// Update AST and recursively mark nodes.
++								paren.X = new
++								ir.EditChildren(new, s.mark) // mark may append to parens
++								done = false
++							}
++						}
++						l0, l1 = l1, len(s.parens)
++						if l0 == l1 {
++							break
+ 						}
++						for i := l0; i < l1; i++ {
++							s.resolve(i)
++						}
++
+ 					}
++
+ 				}) // WithFunc
+ 
+ 			}
+@@ -138,29 +163,70 @@ func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
+ 			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
+ 		}
+ 
+-		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool)}
++		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool), useCounts: make(map[*ir.Func]int)}
+ 		s.parenthesize()
+ 		s.fixpoint()
+ 		s.unparenthesize()
+ 	})
+ }
+ 
++type callSite struct {
++	fn         *ir.Func
++	whichParen int
++}
++
+ type inlClosureState struct {
+ 	fn        *ir.Func
+ 	profile   *pgoir.Profile
+ 	callSites map[*ir.ParenExpr]bool // callSites[p] == "p appears in parens" (do not append again)
++	resolved  []*ir.Func             // for each call in parens, the resolved target of the call
++	useCounts map[*ir.Func]int       // shared among all InlClosureStates
+ 	parens    []*ir.ParenExpr
+ 	bigCaller bool
+ }
+ 
+-func (s *inlClosureState) edit(n ir.Node) ir.Node {
++// resolve attempts to resolve a call to a potentially inlineable callee
++// and updates use counts on the callees.  Returns the call site count
++// for that callee.
++func (s *inlClosureState) resolve(i int) (*ir.Func, int) {
++	p := s.parens[i]
++	if i < len(s.resolved) {
++		if callee := s.resolved[i]; callee != nil {
++			return callee, s.useCounts[callee]
++		}
++	}
++	n := p.X
+ 	call, ok := n.(*ir.CallExpr)
+ 	if !ok { // previously inlined
+-		return nil
++		return nil, -1
+ 	}
+-
+ 	devirtualize.StaticCall(call)
+-	if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile); inlCall != nil {
++	if callee := inline.InlineCallTarget(s.fn, call, s.profile); callee != nil {
++		for len(s.resolved) <= i {
++			s.resolved = append(s.resolved, nil)
++		}
++		s.resolved[i] = callee
++		c := s.useCounts[callee] + 1
++		s.useCounts[callee] = c
++		return callee, c
++	}
++	return nil, 0
++}
++
++func (s *inlClosureState) edit(i int) ir.Node {
++	n := s.parens[i].X
++	call, ok := n.(*ir.CallExpr)
++	if !ok {
++		return nil
++	}
++	// This is redundant with earlier calls to
++	// resolve, but because things can change it
++	// must be re-checked.
++	callee, count := s.resolve(i)
++	if count <= 0 {
++		return nil
++	}
++	if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile, count == 1 && callee.ClosureParent != nil); inlCall != nil {
+ 		return inlCall
+ 	}
+ 	return nil
+@@ -278,7 +344,7 @@ func (s *inlClosureState) fixpoint() bool {
+ 			done = true
+ 			for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
+ 				paren := s.parens[i]
+-				if new := s.edit(paren.X); new != nil {
++				if new := s.edit(i); new != nil {
+ 					// Update AST and recursively mark nodes.
+ 					paren.X = new
+ 					ir.EditChildren(new, s.mark) // mark may append to parens
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index 1f944e7ac6..7018a4734a 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -52,7 +52,7 @@ func main() {
+ 	}
+ 
+ 	{
+-		func() { // ERROR "func literal does not escape"
++		func() { // ERROR "can inline main.func7"
+ 			y := func(x int) int { // ERROR "can inline main.func7.1" "func literal does not escape"
+ 				return x + 2
+ 			}
+@@ -62,7 +62,7 @@ func main() {
+ 			if y(40) != 41 {
+ 				ppanic("y(40) != 41")
+ 			}
+-		}()
++		}() // ERROR "func literal does not escape" "inlining call to main.func7"
+ 	}
+ 
+ 	{
+@@ -78,7 +78,7 @@ func main() {
+ 	}
+ 
+ 	{
+-		func() { // ERROR "func literal does not escape"
++		func() { // ERROR "can inline main.func10"
+ 			y := func(x int) int { // ERROR "can inline main.func10.1" "func literal does not escape"
+ 				return x + 2
+ 			}
+@@ -88,7 +88,7 @@ func main() {
+ 			if y(40) != 41 {
+ 				ppanic("y(40) != 41")
+ 			}
+-		}()
++		}() // ERROR "func literal does not escape" "inlining call to main.func10"
+ 	}
+ 
+ 	{
+@@ -106,11 +106,11 @@ func main() {
+ 	}
+ 
+ 	{
+-		func() { // ERROR "func literal does not escape"
++		func() { // ERROR "can inline main.func13"
+ 			y := func(x int) int { // ERROR "func literal does not escape" "can inline main.func13.1"
+ 				return x + 2
+ 			}
+-			y, sink = func() (func(int) int, int) { // ERROR "can inline main.func13.2"
++			y, sink = func() (func(int) int, int) { // ERROR "can inline main.func13.2" "can inline main.main.func13.func35"
+ 				return func(x int) int { // ERROR   "can inline main.func13.2" "func literal escapes to heap"
+ 					return x + 1
+ 				}, 42
+@@ -118,7 +118,7 @@ func main() {
+ 			if y(40) != 41 {
+ 				ppanic("y(40) != 41")
+ 			}
+-		}()
++		}() // ERROR "func literal does not escape" "inlining call to main.func13" "inlining call to main.main.func13.func35"
+ 	}
+ 
+ 	{
+@@ -134,7 +134,7 @@ func main() {
+ 	}
+ 
+ 	{
+-		func() { // ERROR "func literal does not escape"
++		func() { // ERROR "can inline main.func16"
+ 			y := func(x int) int { // ERROR "can inline main.func16.1" "func literal does not escape"
+ 				return x + 2
+ 			}
+@@ -144,7 +144,7 @@ func main() {
+ 			if y(40) != 41 {
+ 				ppanic("y(40) != 41")
+ 			}
+-		}()
++		}() // ERROR "func literal does not escape" "inlining call to main.func16" "map\[int\]func\(int\) int{...} does not escape" "func literal escapes to heap"
+ 	}
+ 
+ 	{
+@@ -160,7 +160,7 @@ func main() {
+ 	}
+ 
+ 	{
+-		func() { // ERROR "func literal does not escape"
++		func() { // ERROR "can inline main.func19"
+ 			y := func(x int) int { // ERROR "can inline main.func19.1" "func literal does not escape"
+ 				return x + 2
+ 			}
+@@ -170,7 +170,7 @@ func main() {
+ 			if y(40) != 41 {
+ 				ppanic("y(40) != 41")
+ 			}
+-		}()
++		}() // ERROR "func literal does not escape" "inlining call to main.func19"
+ 	}
+ 
+ 	{
+@@ -191,17 +191,17 @@ func main() {
+ 	{
+ 		x := 42
+ 		if z := func(y int) int { // ERROR "can inline main.func22"
+-			return func() int { // ERROR "can inline main.func22.1" "can inline main.main.func22.func30"
++			return func() int { // ERROR "can inline main.func22.1" "can inline main.main.func22.func40"
+ 				return x + y
+ 			}() // ERROR "inlining call to main.func22.1"
+-		}(1); z != 43 { // ERROR "inlining call to main.func22" "inlining call to main.main.func22.func30"
++		}(1); z != 43 { // ERROR "inlining call to main.func22" "inlining call to main.main.func22.func40"
+ 			ppanic("z != 43")
+ 		}
+ 		if z := func(y int) int { // ERROR "func literal does not escape" "can inline main.func23"
+-			return func() int { // ERROR "can inline main.func23.1" "can inline main.main.func23.func31"
++			return func() int { // ERROR "can inline main.func23.1" "can inline main.main.func23.func41"
+ 				return x + y
+ 			}() // ERROR "inlining call to main.func23.1"
+-		}; z(1) != 43 { // ERROR "inlining call to main.func23" "inlining call to main.main.func23.func31"
++		}; z(1) != 43 { // ERROR "inlining call to main.func23" "inlining call to main.main.func23.func41"
+ 			_ = z // prevent simple deadcode elimination after inlining
+ 			ppanic("z(1) != 43")
+ 		}
+@@ -210,10 +210,10 @@ func main() {
+ 	{
+ 		a := 1
+ 		func() { // ERROR "can inline main.func24"
+-			func() { // ERROR "can inline main.func24" "can inline main.main.func24.func32"
++			func() { // ERROR "can inline main.func24" "can inline main.main.func24.func42"
+ 				a = 2
+ 			}() // ERROR "inlining call to main.func24"
+-		}() // ERROR "inlining call to main.func24" "inlining call to main.main.func24.func32"
++		}() // ERROR "inlining call to main.func24" "inlining call to main.main.func24.func42"
+ 		if a != 2 {
+ 			ppanic("a != 2")
+ 		}
+@@ -222,13 +222,13 @@ func main() {
+ 	{
+ 		b := 2
+ 		func(b int) { // ERROR "can inline main.func25"
+-			func() { // ERROR "can inline main.func25.1" "can inline main.main.func25.func33"
++			func() { // ERROR "can inline main.func25.1" "can inline main.main.func25.func43"
+ 				b = 3
+ 			}() // ERROR "inlining call to main.func25.1"
+ 			if b != 3 {
+ 				ppanic("b != 3")
+ 			}
+-		}(b) // ERROR "inlining call to main.func25" "inlining call to main.main.func25.func33"
++		}(b) // ERROR "inlining call to main.func25" "inlining call to main.main.func25.func43"
+ 		if b != 2 {
+ 			ppanic("b != 2")
+ 		}
+@@ -258,13 +258,13 @@ func main() {
+ 		// revisit those. E.g., func34 and func36 are constructed by the inliner.
+ 		if r := func(x int) int { // ERROR "can inline main.func27"
+ 			b := 3
+-			return func(y int) int { // ERROR "can inline main.func27.1" "can inline main.main.func27.func35"
++			return func(y int) int { // ERROR "can inline main.func27.1" "can inline main.main.func27.func45"
+ 				c := 5
+-				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.main.func27.func35.1" "can inline main.func27.main.func27.1.2" "can inline main.main.func27.main.main.func27.func35.func37"
++				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.main.func27.func45.1" "can inline main.func27.main.func27.1.2" "can inline main.main.func27.main.main.func27.func45.func48"
+ 					return a*x + b*y + c*z
+ 				}(10) // ERROR "inlining call to main.func27.1.1"
+ 			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.main.func27.1.2"
+-		}(1000); r != 2350 { // ERROR "inlining call to main.func27" "inlining call to main.main.func27.func35" "inlining call to main.main.func27.main.main.func27.func35.func37"
++		}(1000); r != 2350 { // ERROR "inlining call to main.func27" "inlining call to main.main.func27.func45" "inlining call to main.main.func27.main.main.func27.func45.func48"
+ 			ppanic("r != 2350")
+ 		}
+ 	}
+@@ -273,16 +273,16 @@ func main() {
+ 		a := 2
+ 		if r := func(x int) int { // ERROR "can inline main.func28"
+ 			b := 3
+-			return func(y int) int { // ERROR "can inline main.func28.1" "can inline main.main.func28.func36"
++			return func(y int) int { // ERROR "can inline main.func28.1" "can inline main.main.func28.func46"
+ 				c := 5
+-				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.main.func28.1.2" "can inline main.main.func28.func36.1" "can inline main.main.func28.main.main.func28.func36.func38"
++				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.main.func28.1.2" "can inline main.main.func28.func46.1" "can inline main.main.func28.main.main.func28.func46.func49"
+ 					a = a * x
+ 					b = b * y
+ 					c = c * z
+ 				}(10) // ERROR "inlining call to main.func28.1.1"
+ 				return a + c
+ 			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.main.func28.1.2"
+-		}(1000); r != 2350 { // ERROR "inlining call to main.func28" "inlining call to main.main.func28.func36" "inlining call to main.main.func28.main.main.func28.func36.func38"
++		}(1000); r != 2350 { // ERROR "inlining call to main.func28" "inlining call to main.main.func28.func46" "inlining call to main.main.func28.main.main.func28.func46.func49"
+ 			ppanic("r != 2350")
+ 		}
+ 		if a != 2000 {

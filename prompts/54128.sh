@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 54128: fac5338a6c788df948edafa055ed998c46ba545e
+# Index 54128: 168bc3a76efb30910667849a03eecb69b6e8b0ea
 
 echo "🚀 Generating explanation for commit 54128..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 54128..."
 
 ### メタデータ
 - **コミットインデックス**: 54128
-- **コミットハッシュ**: fac5338a6c788df948edafa055ed998c46ba545e
-- **GitHub URL**: https://github.com/golang/go/commit/fac5338a6c788df948edafa055ed998c46ba545e
+- **コミットハッシュ**: 168bc3a76efb30910667849a03eecb69b6e8b0ea
+- **GitHub URL**: https://github.com/golang/go/commit/168bc3a76efb30910667849a03eecb69b6e8b0ea
 
 ### 章構成
 

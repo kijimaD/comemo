@@ -1,0 +1,39 @@
+commit e190638f204366bb509b77931aa58543b6300910
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 17 10:42:08 2024 +0200
+
+    net/netip: cover more AddrPort.String cases in tests
+    
+    TestInvalidAddrPortString currently only tests for invalid AddrPorts.
+    Add some valid cases as well to improve test coverage.
+    
+    Change-Id: Iaa9192e48a61daed6f7ce7d680d602a021570bdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/net/netip/netip_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index e1a0a83f64..6067a1e668 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -2179,11 +2179,14 @@ func TestPrefixString(t *testing.T) {
+ 	}
+ }
+ 
+-func TestInvalidAddrPortString(t *testing.T) {
++func TestAddrPortString(t *testing.T) {
+ 	tests := []struct {
+ 		ipp  AddrPort
+ 		want string
+ 	}{
++		{MustParseAddrPort("127.0.0.1:80"), "127.0.0.1:80"},
++		{MustParseAddrPort("[0000::0]:8080"), "[::]:8080"},
++		{MustParseAddrPort("[FFFF::1]:8080"), "[ffff::1]:8080"},
+ 		{AddrPort{}, "invalid AddrPort"},
+ 		{AddrPortFrom(Addr{}, 80), "invalid AddrPort"},
+ 	}

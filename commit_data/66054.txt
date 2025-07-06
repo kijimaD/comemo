@@ -1,0 +1,86 @@
+commit be2b809e5b888ed0ee636f1e07340640ffd88842
+Author: Amirhossein Akhlaghpour <m9.akhlaghpoor@gmail.com>
+Date:   Mon Feb 3 05:56:31 2025 +0000
+
+    os: fix race condition in readdir by atomically initializing dirinfo
+    
+    This change ensures that dirinfo in the File struct is initialized atomically,
+    avoiding redundant allocations when multiple goroutines access it concurrently.
+    Instead of creating separate buffers, we now use CompareAndSwap to guarantee
+    thread-safe initialization and reduce unnecessary memory usage.
+    
+    Although this is not a strict race condition, the update enhances efficiency by
+    eliminating duplicate allocations and ensuring safer concurrent access.
+    
+    Fixes #71496.
+    
+    Change-Id: If08699a94afa05611cdf67e82a5957a8d8f9d5c8
+    GitHub-Last-Rev: 1e1f6191439cf3ad32f3ba54bba5a0185dd55b14
+    GitHub-Pull-Request: golang/go#71501
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645720
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/os/dir_plan9.go | 17 ++++++++++++-----
+ src/os/dir_unix.go  | 16 ++++++++++++----
+ 2 files changed, 24 insertions(+), 9 deletions(-)
+
+diff --git a/src/os/dir_plan9.go b/src/os/dir_plan9.go
+index ab5c1efce5..9d28bd7dda 100644
+--- a/src/os/dir_plan9.go
++++ b/src/os/dir_plan9.go
+@@ -11,12 +11,19 @@ import (
+ )
+ 
+ func (file *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+-	// If this file has no dirinfo, create one.
+-	d := file.dirinfo.Load()
+-	if d == nil {
+-		d = new(dirInfo)
+-		file.dirinfo.Store(d)
++	var d *dirInfo
++	for {
++		d = file.dirinfo.Load()
++		if d != nil {
++			break
++		}
++		newD := new(dirInfo)
++		if file.dirinfo.CompareAndSwap(nil, newD) {
++			d = newD
++			break
++		}
+ 	}
++
+ 	d.mu.Lock()
+ 	defer d.mu.Unlock()
+ 
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index eadc1660c2..6a0135b70b 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -46,11 +46,19 @@ func (d *dirInfo) close() {
+ 
+ func (f *File) readdir(n int, mode readdirMode) (names []string, dirents []DirEntry, infos []FileInfo, err error) {
+ 	// If this file has no dirInfo, create one.
+-	d := f.dirinfo.Load()
+-	if d == nil {
+-		d = new(dirInfo)
+-		f.dirinfo.Store(d)
++	var d *dirInfo
++	for {
++		d = f.dirinfo.Load()
++		if d != nil {
++			break
++		}
++		newD := new(dirInfo)
++		if f.dirinfo.CompareAndSwap(nil, newD) {
++			d = newD
++			break
++		}
+ 	}
++
+ 	d.mu.Lock()
+ 	defer d.mu.Unlock()
+ 	if d.buf == nil {

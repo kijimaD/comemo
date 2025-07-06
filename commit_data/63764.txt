@@ -1,0 +1,83 @@
+commit bf0b605dfbc36b3555eef3315b15facca1c08bdb
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu May 9 18:16:59 2024 -0400
+
+    runtime: make convTstring write barrier unreachable from throw
+    
+    CL 581215 changed 'throw' so that instead of print(s) it called
+    a more complicated function, printpanicval, that statically
+    appeared to have convTstring in its call graph, even though this
+    isn't dynamically reachable when called with a string argument.
+    
+    However, this caused the link-time static callgraph test to point
+    out that throw (which is called in nowritebarrierrec contexts
+    such as markgc) reaches a write barrier.
+    
+    The solution is to inline and specialize the printpanicval
+    function for strings; it reduces to printindented.
+    
+    Thanks to mpratt for pointing out that the reachability
+    check is on the fully lowered code, and is thus sensitive
+    to optimizations such as inlining.
+    I added an explanatory comment on the line that generates
+    the error message to help future users confused as I was.
+    
+    Fixes golang/go#67274
+    
+    Change-Id: Ief110d554de365ce4c09509dceee000cbee30ad9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584617
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/compile/internal/ssagen/nowb.go | 8 ++++++++
+ src/runtime/panic.go                    | 5 ++---
+ 2 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/nowb.go b/src/cmd/compile/internal/ssagen/nowb.go
+index b8756eea61..8e776695e3 100644
+--- a/src/cmd/compile/internal/ssagen/nowb.go
++++ b/src/cmd/compile/internal/ssagen/nowb.go
+@@ -174,6 +174,14 @@ func (c *nowritebarrierrecChecker) check() {
+ 				fmt.Fprintf(&err, "\n\t%v: called by %v", base.FmtPos(call.lineno), call.target.Nname)
+ 				call = funcs[call.target]
+ 			}
++			// Seeing this error in a failed CI run? It indicates that
++			// a function in the runtime package marked nowritebarrierrec
++			// (the outermost stack element) was found, by a static
++			// reachability analysis over the fully lowered optimized code,
++			// to call a function (fn) that involves a write barrier.
++			//
++			// Even if the call path is infeasable,
++			// you will need to reorganize the code to avoid it.
+ 			base.ErrorfAt(fn.WBPos, 0, "write barrier prohibited by caller; %v%s", fn.Nname, err.String())
+ 			continue
+ 		}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 122fc30df2..ff9c64113f 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1014,13 +1014,12 @@ func sync_fatal(s string) {
+ // issue #67274, so as to fix longtest builders.
+ //
+ //go:nosplit
+-//go:noinline
+ func throw(s string) {
+ 	// Everything throw does should be recursively nosplit so it
+ 	// can be called even when it's unsafe to grow the stack.
+ 	systemstack(func() {
+ 		print("fatal error: ")
+-		printpanicval(s)
++		printindented(s) // logically printpanicval(s), but avoids convTstring write barrier
+ 		print("\n")
+ 	})
+ 
+@@ -1041,7 +1040,7 @@ func fatal(s string) {
+ 	// can be called even when it's unsafe to grow the stack.
+ 	systemstack(func() {
+ 		print("fatal error: ")
+-		printpanicval(s)
++		printindented(s) // logically printpanicval(s), but avoids convTstring write barrier
+ 		print("\n")
+ 	})
+ 

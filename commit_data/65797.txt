@@ -1,0 +1,29 @@
+commit 3104b6adbb36a43284f51ab0cb67c44f8ba75fac
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Dec 11 14:38:57 2024 -0500
+
+    log/slog: make DiscardHandler example package-level
+    
+    Fixes #70782.
+    
+    Change-Id: I8e8b763040bd10147eb7d1a30ac0774e28f90911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635217
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/log/slog/example_discard_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/log/slog/example_discard_test.go b/src/log/slog/example_discard_test.go
+index c0cc2a65aa..3e3e37b189 100644
+--- a/src/log/slog/example_discard_test.go
++++ b/src/log/slog/example_discard_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"os"
+ )
+ 
+-func ExampleDiscardHandler() {
++func Example_discardHandler() {
+ 	// A slog.TextHandler can output log messages.
+ 	logger1 := slog.New(slog.NewTextHandler(
+ 		os.Stdout,

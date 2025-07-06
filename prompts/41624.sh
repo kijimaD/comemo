@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41624: dad616375f054d0644e006d7794724186d7a6720
+# Index 41624: 64dc4ba73f9086709cd0cbcdc80dc116511d9081
 
 echo "🚀 Generating explanation for commit 41624..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 41624..."
 
 ### メタデータ
 - **コミットインデックス**: 41624
-- **コミットハッシュ**: dad616375f054d0644e006d7794724186d7a6720
-- **GitHub URL**: https://github.com/golang/go/commit/dad616375f054d0644e006d7794724186d7a6720
+- **コミットハッシュ**: 64dc4ba73f9086709cd0cbcdc80dc116511d9081
+- **GitHub URL**: https://github.com/golang/go/commit/64dc4ba73f9086709cd0cbcdc80dc116511d9081
 
 ### 章構成
 

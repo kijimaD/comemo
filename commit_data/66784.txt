@@ -1,0 +1,267 @@
+commit 9aad012a6e02d45b37757faeec20cc6923610baf
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Apr 9 11:15:38 2025 +0200
+
+    net: reenable sendfile on Windows
+    
+    Windows sendfile optimization is skipped since CL 472475, which started
+    passing an os.fileWithoutWriteTo instead of an os.File to sendfile,
+    and that function was only implemented for os.File.
+    
+    This CL fixes the issue by asserting against an interface rather than
+    a concrete type.
+    
+    Some tests have been reenabled, triggering bugs in poll.SendFile which
+    have been fixed in this CL.
+    
+    Fixes #67042.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Change-Id: Id6f7a0e1e0f34a72216fa9d00c5bf36f5a994219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664055
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+---
+ src/internal/poll/sendfile_windows.go | 80 ++++++++++++++++++-----------------
+ src/net/sendfile_test.go              | 25 ++++-------
+ src/net/sendfile_windows.go           | 42 +++++++++++-------
+ 3 files changed, 77 insertions(+), 70 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_windows.go b/src/internal/poll/sendfile_windows.go
+index a24c36c2d2..f6d807d5d0 100644
+--- a/src/internal/poll/sendfile_windows.go
++++ b/src/internal/poll/sendfile_windows.go
+@@ -10,78 +10,80 @@ import (
+ )
+ 
+ // SendFile wraps the TransmitFile call.
+-func SendFile(fd *FD, src syscall.Handle, n int64) (written int64, err error) {
++func SendFile(fd *FD, src syscall.Handle, size int64) (written int64, err error, handled bool) {
+ 	defer func() {
+ 		TestHookDidSendFile(fd, 0, written, err, written > 0)
+ 	}()
+ 	if fd.kind == kindPipe {
+ 		// TransmitFile does not work with pipes
+-		return 0, syscall.ESPIPE
++		return 0, syscall.ESPIPE, false
+ 	}
+ 	if ft, _ := syscall.GetFileType(src); ft == syscall.FILE_TYPE_PIPE {
+-		return 0, syscall.ESPIPE
++		return 0, syscall.ESPIPE, false
+ 	}
+ 
+ 	if err := fd.writeLock(); err != nil {
+-		return 0, err
++		return 0, err, false
+ 	}
+ 	defer fd.writeUnlock()
+ 
+-	o := &fd.wop
+-	o.handle = src
+-
+-	// TODO(brainman): skip calling syscall.Seek if OS allows it
+-	curpos, err := syscall.Seek(o.handle, 0, io.SeekCurrent)
++	// Get the file size so we don't read past the end of the file.
++	var fi syscall.ByHandleFileInformation
++	if err := syscall.GetFileInformationByHandle(src, &fi); err != nil {
++		return 0, err, false
++	}
++	fileSize := int64(fi.FileSizeHigh)<<32 + int64(fi.FileSizeLow)
++	startpos, err := syscall.Seek(src, 0, io.SeekCurrent)
+ 	if err != nil {
+-		return 0, err
++		return 0, err, false
++	}
++	maxSize := fileSize - startpos
++	if size <= 0 {
++		size = maxSize
++	} else {
++		size = min(size, maxSize)
+ 	}
+ 
+-	if n <= 0 { // We don't know the size of the file so infer it.
+-		// Find the number of bytes offset from curpos until the end of the file.
+-		n, err = syscall.Seek(o.handle, -curpos, io.SeekEnd)
+-		if err != nil {
+-			return
+-		}
+-		// Now seek back to the original position.
+-		if _, err = syscall.Seek(o.handle, curpos, io.SeekStart); err != nil {
+-			return
++	defer func() {
++		if written > 0 {
++			// Some versions of Windows (Windows 10 1803) do not set
++			// file position after TransmitFile completes.
++			// So just use Seek to set file position.
++			_, serr := syscall.Seek(src, startpos+written, io.SeekStart)
++			if err != nil {
++				err = serr
++			}
+ 		}
+-	}
++	}()
+ 
+ 	// TransmitFile can be invoked in one call with at most
+ 	// 2,147,483,646 bytes: the maximum value for a 32-bit integer minus 1.
+ 	// See https://docs.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
+ 	const maxChunkSizePerCall = int64(0x7fffffff - 1)
+ 
+-	for n > 0 {
++	o := &fd.wop
++	o.handle = src
++	for size > 0 {
+ 		chunkSize := maxChunkSizePerCall
+-		if chunkSize > n {
+-			chunkSize = n
++		if chunkSize > size {
++			chunkSize = size
+ 		}
+ 
+-		o.o.Offset = uint32(curpos)
+-		o.o.OffsetHigh = uint32(curpos >> 32)
++		off := startpos + written
++		o.o.Offset = uint32(off)
++		o.o.OffsetHigh = uint32(off >> 32)
+ 
+-		nw, err := execIO(o, func(o *operation) error {
++		n, err := execIO(o, func(o *operation) error {
+ 			o.qty = uint32(chunkSize)
+ 			return syscall.TransmitFile(o.fd.Sysfd, o.handle, o.qty, 0, &o.o, nil, syscall.TF_WRITE_BEHIND)
+ 		})
+ 		if err != nil {
+-			return written, err
+-		}
+-
+-		curpos += int64(nw)
+-
+-		// Some versions of Windows (Windows 10 1803) do not set
+-		// file position after TransmitFile completes.
+-		// So just use Seek to set file position.
+-		if _, err = syscall.Seek(o.handle, curpos, io.SeekStart); err != nil {
+-			return written, err
++			return written, err, written > 0
+ 		}
+ 
+-		n -= int64(nw)
+-		written += int64(nw)
++		size -= int64(n)
++		written += int64(n)
+ 	}
+ 
+-	return
++	return written, nil, written > 0
+ }
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index 8f98352ef6..2b23f86ff0 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -126,23 +126,16 @@ func testSendfile(t *testing.T, filePath, fileHash string, size, limit int64) {
+ 			// Return file data using io.Copy, which should use
+ 			// sendFile if available.
+ 			var sbytes int64
+-			switch runtime.GOOS {
+-			case "windows":
+-				// Windows is not using sendfile for some reason:
+-				// https://go.dev/issue/67042
+-				sbytes, err = io.Copy(conn, f)
+-			default:
+-				expectSendfile(t, conn, func() {
+-					if limit > 0 {
+-						sbytes, err = io.CopyN(conn, f, limit)
+-						if err == io.EOF && limit > size {
+-							err = nil
+-						}
+-					} else {
+-						sbytes, err = io.Copy(conn, f)
++			expectSendfile(t, conn, func() {
++				if limit > 0 {
++					sbytes, err = io.CopyN(conn, f, limit)
++					if err == io.EOF && limit > size {
++						err = nil
+ 					}
+-				})
+-			}
++				} else {
++					sbytes, err = io.Copy(conn, f)
++				}
++			})
+ 			if err != nil {
+ 				errc <- err
+ 				return
+diff --git a/src/net/sendfile_windows.go b/src/net/sendfile_windows.go
+index 0377a485da..731528f716 100644
+--- a/src/net/sendfile_windows.go
++++ b/src/net/sendfile_windows.go
+@@ -7,43 +7,55 @@ package net
+ import (
+ 	"internal/poll"
+ 	"io"
+-	"os"
+ 	"syscall"
+ )
+ 
+ const supportsSendfile = true
+ 
+-// sendFile copies the contents of r to c using the TransmitFile
++// TODO: deduplicate this file with sendfile_linux.go and sendfile_unix_alt.go.
++
++// sendFile copies the contents of r to c using the sendfile
+ // system call to minimize copies.
+ //
+-// if handled == true, sendFile returns the number of bytes copied and any
+-// non-EOF error.
++// if handled == true, sendFile returns the number (potentially zero) of bytes
++// copied and any non-EOF error.
+ //
+ // if handled == false, sendFile performed no work.
+-func sendFile(fd *netFD, r io.Reader) (written int64, err error, handled bool) {
+-	var n int64 = 0 // by default, copy until EOF.
++func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
++	var remain int64 = 0 // by default, copy until EOF.
+ 
+ 	lr, ok := r.(*io.LimitedReader)
+ 	if ok {
+-		n, r = lr.N, lr.R
+-		if n <= 0 {
++		remain, r = lr.N, lr.R
++		if remain <= 0 {
+ 			return 0, nil, true
+ 		}
+ 	}
+ 
+-	f, ok := r.(*os.File)
++	// r might be an *os.File or an os.fileWithoutWriteTo.
++	// Type assert to an interface rather than *os.File directly to handle the latter case.
++	f, ok := r.(syscall.Conn)
+ 	if !ok {
+ 		return 0, nil, false
+ 	}
+ 
+-	written, err = poll.SendFile(&fd.pfd, syscall.Handle(f.Fd()), n)
++	sc, err := f.SyscallConn()
+ 	if err != nil {
+-		err = wrapSyscallError("transmitfile", err)
++		return 0, nil, false
+ 	}
+ 
+-	// If any byte was copied, regardless of any error
+-	// encountered mid-way, handled must be set to true.
+-	handled = written > 0
++	var werr error
++	err = sc.Read(func(fd uintptr) bool {
++		written, werr, handled = poll.SendFile(&c.pfd, syscall.Handle(fd), remain)
++		return true
++	})
++	if err == nil {
++		err = werr
++	}
++
++	if lr != nil {
++		lr.N = remain - written
++	}
+ 
+-	return
++	return written, wrapSyscallError("sendfile", err), handled
+ }

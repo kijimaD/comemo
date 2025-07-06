@@ -1,0 +1,395 @@
+commit b22c585c2a90ce20acd4d3b7ae7ecc7829e81630
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 16 18:31:41 2024 +0100
+
+    crypto/ecdsa: move s390x assembly to crypto/internal/fips/ecdsa
+    
+    For #69536
+    
+    Change-Id: I85088acb3da788f688f78efff39320bd517e617d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628679
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+---
+ src/crypto/ecdsa/ecdsa.go                          |  8 --
+ src/crypto/ecdsa/ecdsa_legacy.go                   |  3 -
+ src/crypto/ecdsa/ecdsa_noasm.go                    | 17 ----
+ src/crypto/ecdsa/ecdsa_s390x_test.go               | 32 --------
+ src/crypto/ecdsa/ecdsa_test.go                     | 13 +++-
+ src/crypto/internal/fips/ecdsa/ecdsa.go            |  6 ++
+ src/crypto/internal/fips/ecdsa/ecdsa_noasm.go      | 17 ++++
+ .../{ => internal/fips}/ecdsa/ecdsa_s390x.go       | 91 +++++++++-------------
+ src/crypto/{ => internal/fips}/ecdsa/ecdsa_s390x.s |  0
+ src/crypto/internal/fipsdeps/cpu/cpu.go            |  1 +
+ 10 files changed, 69 insertions(+), 119 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 534512bcba..5ceef823a5 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -219,10 +219,6 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
+ 		return nil, err
+ 	}
+ 
+-	if sig, err := signAsm(priv, csprng, hash); err != errNoAsm {
+-		return sig, err
+-	}
+-
+ 	switch priv.Curve.Params() {
+ 	case elliptic.P224().Params():
+ 		return signFIPS(ecdsa.P224(), priv, csprng, hash)
+@@ -346,10 +342,6 @@ func VerifyASN1(pub *PublicKey, hash, sig []byte) bool {
+ 	}
+ 	boring.UnreachableExceptTests()
+ 
+-	if err := verifyAsm(pub, hash, sig); err != errNoAsm {
+-		return err == nil
+-	}
+-
+ 	switch pub.Curve.Params() {
+ 	case elliptic.P224().Params():
+ 		return verifyFIPS(ecdsa.P224(), pub, hash, sig)
+diff --git a/src/crypto/ecdsa/ecdsa_legacy.go b/src/crypto/ecdsa/ecdsa_legacy.go
+index dc1c5d120a..cb1e89e68d 100644
+--- a/src/crypto/ecdsa/ecdsa_legacy.go
++++ b/src/crypto/ecdsa/ecdsa_legacy.go
+@@ -171,9 +171,6 @@ var one = new(big.Int).SetInt64(1)
+ // randFieldElement returns a random element of the order of the given
+ // curve using the procedure given in FIPS 186-4, Appendix B.5.2.
+ func randFieldElement(c elliptic.Curve, rand io.Reader) (k *big.Int, err error) {
+-	// See randomPoint for notes on the algorithm. This has to match, or s390x
+-	// signatures will come out different from other architectures, which will
+-	// break TLS recorded tests.
+ 	for {
+ 		N := c.Params().N
+ 		b := make([]byte, (N.BitLen()+7)/8)
+diff --git a/src/crypto/ecdsa/ecdsa_noasm.go b/src/crypto/ecdsa/ecdsa_noasm.go
+deleted file mode 100644
+index e2fa8082f6..0000000000
+--- a/src/crypto/ecdsa/ecdsa_noasm.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !s390x || purego
+-
+-package ecdsa
+-
+-import "io"
+-
+-func verifyAsm(pub *PublicKey, hash []byte, sig []byte) error {
+-	return errNoAsm
+-}
+-
+-func signAsm(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err error) {
+-	return nil, errNoAsm
+-}
+diff --git a/src/crypto/ecdsa/ecdsa_s390x_test.go b/src/crypto/ecdsa/ecdsa_s390x_test.go
+deleted file mode 100644
+index ba8f810fab..0000000000
+--- a/src/crypto/ecdsa/ecdsa_s390x_test.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build s390x && !purego
+-
+-package ecdsa
+-
+-import (
+-	"crypto/elliptic"
+-	"testing"
+-)
+-
+-func TestNoAsm(t *testing.T) {
+-	testingDisableKDSA = true
+-	defer func() { testingDisableKDSA = false }()
+-
+-	curves := [...]elliptic.Curve{
+-		elliptic.P256(),
+-		elliptic.P384(),
+-		elliptic.P521(),
+-	}
+-
+-	for _, curve := range curves {
+-		name := curve.Params().Name
+-		t.Run(name, func(t *testing.T) { testKeyGeneration(t, curve) })
+-		t.Run(name, func(t *testing.T) { testSignAndVerify(t, curve) })
+-		t.Run(name, func(t *testing.T) { testNonceSafety(t, curve) })
+-		t.Run(name, func(t *testing.T) { testINDCCA(t, curve) })
+-		t.Run(name, func(t *testing.T) { testNegativeInputs(t, curve) })
+-	}
+-}
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index 5788fee3a0..6149db1dd2 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"compress/bzip2"
+ 	"crypto/elliptic"
++	"crypto/internal/cryptotest"
+ 	"crypto/rand"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+@@ -37,9 +38,11 @@ func testAllCurves(t *testing.T, f func(*testing.T, elliptic.Curve)) {
+ 	}
+ 	for _, test := range tests {
+ 		curve := test.curve
+-		t.Run(test.name, func(t *testing.T) {
+-			t.Parallel()
+-			f(t, curve)
++		cryptotest.TestAllImplementations(t, "ecdsa", func(t *testing.T) {
++			t.Run(test.name, func(t *testing.T) {
++				t.Parallel()
++				f(t, curve)
++			})
+ 		})
+ 	}
+ }
+@@ -184,6 +187,10 @@ func fromHex(s string) *big.Int {
+ }
+ 
+ func TestVectors(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "ecdsa", testVectors)
++}
++
++func testVectors(t *testing.T) {
+ 	// This test runs the full set of NIST test vectors from
+ 	// https://csrc.nist.gov/groups/STM/cavp/documents/dss/186-3ecdsatestvectors.zip
+ 	//
+diff --git a/src/crypto/internal/fips/ecdsa/ecdsa.go b/src/crypto/internal/fips/ecdsa/ecdsa.go
+index 5b4cf8a523..6b0a12df35 100644
+--- a/src/crypto/internal/fips/ecdsa/ecdsa.go
++++ b/src/crypto/internal/fips/ecdsa/ecdsa.go
+@@ -256,7 +256,10 @@ func Sign[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []by
+ 	if priv.pub.curve != c.curve {
+ 		return nil, errors.New("ecdsa: private key does not match curve")
+ 	}
++	return sign(c, priv, csprng, hash)
++}
+ 
++func signGeneric[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
+ 	// SEC 1, Version 2.0, Section 4.1.3
+ 
+ 	k, R, err := randomPoint(c, csprng)
+@@ -358,7 +361,10 @@ func Verify[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature
+ 	if pub.curve != c.curve {
+ 		return errors.New("ecdsa: public key does not match curve")
+ 	}
++	return verify(c, pub, hash, sig)
++}
+ 
++func verifyGeneric[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature) error {
+ 	Q, err := c.newPoint().SetBytes(pub.q)
+ 	if err != nil {
+ 		return err
+diff --git a/src/crypto/internal/fips/ecdsa/ecdsa_noasm.go b/src/crypto/internal/fips/ecdsa/ecdsa_noasm.go
+new file mode 100644
+index 0000000000..3d548b0db4
+--- /dev/null
++++ b/src/crypto/internal/fips/ecdsa/ecdsa_noasm.go
+@@ -0,0 +1,17 @@
++// Copyright 2020 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !s390x || purego
++
++package ecdsa
++
++import "io"
++
++func sign[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
++	return signGeneric(c, priv, csprng, hash)
++}
++
++func verify[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature) error {
++	return verifyGeneric(c, pub, hash, sig)
++}
+diff --git a/src/crypto/ecdsa/ecdsa_s390x.go b/src/crypto/internal/fips/ecdsa/ecdsa_s390x.go
+similarity index 67%
+rename from src/crypto/ecdsa/ecdsa_s390x.go
+rename to src/crypto/internal/fips/ecdsa/ecdsa_s390x.go
+index 8ebf15a525..475c141d3a 100644
+--- a/src/crypto/ecdsa/ecdsa_s390x.go
++++ b/src/crypto/internal/fips/ecdsa/ecdsa_s390x.go
+@@ -7,11 +7,11 @@
+ package ecdsa
+ 
+ import (
+-	"crypto/elliptic"
++	"crypto/internal/fips/bigmod"
++	"crypto/internal/fipsdeps/cpu"
++	"crypto/internal/impl"
+ 	"errors"
+-	"internal/cpu"
+ 	"io"
+-	"math/big"
+ )
+ 
+ // kdsa invokes the "compute digital signature authentication"
+@@ -25,62 +25,47 @@ import (
+ //go:noescape
+ func kdsa(fc uint64, params *[4096]byte) (errn uint64)
+ 
+-// testingDisableKDSA forces the generic fallback path. It must only be set in tests.
+-var testingDisableKDSA bool
++var supportsKDSA = cpu.S390XHasECDSA
++
++func init() {
++	// CP Assist for Cryptographic Functions (CPACF)
++	// https://www.ibm.com/docs/en/zos/3.1.0?topic=icsf-cp-assist-cryptographic-functions-cpacf
++	impl.Register("ecdsa", "CPACF", &supportsKDSA)
++}
+ 
+ // canUseKDSA checks if KDSA instruction is available, and if it is, it checks
+ // the name of the curve to see if it matches the curves supported(P-256, P-384, P-521).
+ // Then, based on the curve name, a function code and a block size will be assigned.
+ // If KDSA instruction is not available or if the curve is not supported, canUseKDSA
+ // will set ok to false.
+-func canUseKDSA(c elliptic.Curve) (functionCode uint64, blockSize int, ok bool) {
+-	if testingDisableKDSA {
+-		return 0, 0, false
+-	}
+-	if !cpu.S390X.HasECDSA {
++func canUseKDSA(c curveID) (functionCode uint64, blockSize int, ok bool) {
++	if !supportsKDSA {
+ 		return 0, 0, false
+ 	}
+-	switch c.Params().Name {
+-	case "P-256":
++	switch c {
++	case p256:
+ 		return 1, 32, true
+-	case "P-384":
++	case p384:
+ 		return 2, 48, true
+-	case "P-521":
++	case p521:
+ 		return 3, 80, true
+ 	}
+ 	return 0, 0, false // A mismatch
+ }
+ 
+-func hashToBytes(dst, hash []byte, c elliptic.Curve) {
+-	l := len(dst)
+-	if n := c.Params().N.BitLen(); n == l*8 {
+-		// allocation free path for curves with a length that is a whole number of bytes
+-		if len(hash) >= l {
+-			// truncate hash
+-			copy(dst, hash[:l])
+-			return
+-		}
+-		// pad hash with leading zeros
+-		p := l - len(hash)
+-		for i := 0; i < p; i++ {
+-			dst[i] = 0
+-		}
+-		copy(dst[p:], hash)
+-		return
+-	}
+-	// TODO(mundaym): avoid hashToInt call here
+-	hashToInt(hash, c).FillBytes(dst)
++func hashToBytes[P Point[P]](c *Curve[P], dst, hash []byte) {
++	e := bigmod.NewNat()
++	hashToNat(c, e, hash)
++	copy(dst, e.Bytes(c.N))
+ }
+ 
+-func signAsm(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err error) {
+-	c := priv.Curve
+-	functionCode, blockSize, ok := canUseKDSA(c)
++func sign[P Point[P]](c *Curve[P], priv *PrivateKey, csprng io.Reader, hash []byte) (*Signature, error) {
++	functionCode, blockSize, ok := canUseKDSA(c.curve)
+ 	if !ok {
+-		return nil, errNoAsm
++		return signGeneric(c, priv, csprng, hash)
+ 	}
+ 	for {
+-		var k *big.Int
+-		k, err = randFieldElement(c, csprng)
++		k, _, err := randomPoint(c, csprng)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -109,36 +94,31 @@ func signAsm(priv *PrivateKey, csprng io.Reader, hash []byte) (sig []byte, err e
+ 		// Copy content into the parameter block. In the sign case,
+ 		// we copy hashed message, private key and random number into
+ 		// the parameter block.
+-		hashToBytes(params[2*blockSize:3*blockSize], hash, c)
+-		priv.D.FillBytes(params[3*blockSize : 4*blockSize])
+-		k.FillBytes(params[4*blockSize : 5*blockSize])
++		hashToBytes(c, params[2*blockSize:3*blockSize], hash)
++		copy(params[3*blockSize+blockSize-len(priv.d):], priv.d)
++		copy(params[4*blockSize:5*blockSize], k.Bytes(c.N))
+ 		// Convert verify function code into a sign function code by adding 8.
+ 		// We also need to set the 'deterministic' bit in the function code, by
+ 		// adding 128, in order to stop the instruction using its own random number
+ 		// generator in addition to the random number we supply.
+ 		switch kdsa(functionCode+136, &params) {
+ 		case 0: // success
+-			return encodeSignature(params[:blockSize], params[blockSize:2*blockSize])
++			return &Signature{R: params[:blockSize], S: params[blockSize : 2*blockSize]}, nil
+ 		case 1: // error
+-			return nil, errZeroParam
++			return nil, errors.New("zero parameter")
+ 		case 2: // retry
+ 			continue
+ 		}
+-		panic("unreachable")
+ 	}
+ }
+ 
+-func verifyAsm(pub *PublicKey, hash []byte, sig []byte) error {
+-	c := pub.Curve
+-	functionCode, blockSize, ok := canUseKDSA(c)
++func verify[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature) error {
++	functionCode, blockSize, ok := canUseKDSA(c.curve)
+ 	if !ok {
+-		return errNoAsm
++		return verifyGeneric(c, pub, hash, sig)
+ 	}
+ 
+-	r, s, err := parseSignature(sig)
+-	if err != nil {
+-		return err
+-	}
++	r, s := sig.R, sig.S
+ 	if len(r) > blockSize || len(s) > blockSize {
+ 		return errors.New("invalid signature")
+ 	}
+@@ -169,9 +149,8 @@ func verifyAsm(pub *PublicKey, hash []byte, sig []byte) error {
+ 	// and public key y component into the parameter block.
+ 	copy(params[0*blockSize+blockSize-len(r):], r)
+ 	copy(params[1*blockSize+blockSize-len(s):], s)
+-	hashToBytes(params[2*blockSize:3*blockSize], hash, c)
+-	pub.X.FillBytes(params[3*blockSize : 4*blockSize])
+-	pub.Y.FillBytes(params[4*blockSize : 5*blockSize])
++	hashToBytes(c, params[2*blockSize:3*blockSize], hash)
++	copy(params[3*blockSize:5*blockSize], pub.q[1:]) // strip 0x04 prefix
+ 	if kdsa(functionCode, &params) != 0 {
+ 		return errors.New("invalid signature")
+ 	}
+diff --git a/src/crypto/ecdsa/ecdsa_s390x.s b/src/crypto/internal/fips/ecdsa/ecdsa_s390x.s
+similarity index 100%
+rename from src/crypto/ecdsa/ecdsa_s390x.s
+rename to src/crypto/internal/fips/ecdsa/ecdsa_s390x.s
+diff --git a/src/crypto/internal/fipsdeps/cpu/cpu.go b/src/crypto/internal/fipsdeps/cpu/cpu.go
+index 3ad35f5e9e..5470cfdb7d 100644
+--- a/src/crypto/internal/fipsdeps/cpu/cpu.go
++++ b/src/crypto/internal/fipsdeps/cpu/cpu.go
+@@ -23,6 +23,7 @@ var S390XHasAES = cpu.S390X.HasAES
+ var S390XHasAESCBC = cpu.S390X.HasAESCBC
+ var S390XHasAESCTR = cpu.S390X.HasAESCTR
+ var S390XHasAESGCM = cpu.S390X.HasAESGCM
++var S390XHasECDSA = cpu.S390X.HasECDSA
+ var S390XHasGHASH = cpu.S390X.HasGHASH
+ var S390XHasSHA256 = cpu.S390X.HasSHA256
+ var S390XHasSHA3 = cpu.S390X.HasSHA3

@@ -1,0 +1,256 @@
+commit 3108366214bb1fc15b0f261ba27f448e3bd0e685
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Mar 14 11:56:20 2025 +0100
+
+    runtime: deduplicate context call injection on Windows
+    
+    Injecting a call to a thread context is complex enough to warrant
+    a dedicated function so that we don't repeat the same code in multiple
+    places. Note that the unix sigctxt struct also follows the
+    same approach.
+    
+    The behavior is unchanged, but the implementation semantics are now
+    clearer by using goarch.StackAlign instead of a mix of goarch.PtrSize,
+    goarch.StackAlign and hardcoded values.
+    
+    While here, fix #68552.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-arm64
+    Change-Id: Ic29cd2bf322b520127fecccafd61577076945758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657815
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/runtime/defs_windows_386.go   | 12 ++++++++++++
+ src/runtime/defs_windows_amd64.go | 12 ++++++++++++
+ src/runtime/defs_windows_arm.go   | 17 +++++++++++++++++
+ src/runtime/defs_windows_arm64.go | 17 +++++++++++++++++
+ src/runtime/os_windows.go         | 39 ++-------------------------------------
+ src/runtime/signal_windows.go     | 16 ++++------------
+ 6 files changed, 64 insertions(+), 49 deletions(-)
+
+diff --git a/src/runtime/defs_windows_386.go b/src/runtime/defs_windows_386.go
+index 8cf2bfc307..12cd442eb5 100644
+--- a/src/runtime/defs_windows_386.go
++++ b/src/runtime/defs_windows_386.go
+@@ -4,6 +4,11 @@
+ 
+ package runtime
+ 
++import (
++	"internal/goarch"
++	"unsafe"
++)
++
+ const _CONTEXT_CONTROL = 0x10001
+ 
+ type floatingsavearea struct {
+@@ -59,6 +64,13 @@ func (c *context) set_sp(x uintptr) { c.esp = uint32(x) }
+ // 386 does not have frame pointer register.
+ func (c *context) set_fp(x uintptr) {}
+ 
++func (c *context) pushCall(targetPC, resumePC uintptr) {
++	sp := c.sp() - goarch.StackAlign
++	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
++	c.set_sp(sp)
++	c.set_ip(targetPC)
++}
++
+ func prepareContextForSigResume(c *context) {
+ 	c.edx = c.esp
+ 	c.ecx = c.eip
+diff --git a/src/runtime/defs_windows_amd64.go b/src/runtime/defs_windows_amd64.go
+index 9dbfb40e63..9bb7ee80ad 100644
+--- a/src/runtime/defs_windows_amd64.go
++++ b/src/runtime/defs_windows_amd64.go
+@@ -4,6 +4,11 @@
+ 
+ package runtime
+ 
++import (
++	"internal/goarch"
++	"unsafe"
++)
++
+ const _CONTEXT_CONTROL = 0x100001
+ 
+ type m128a struct {
+@@ -71,6 +76,13 @@ func (c *context) set_ip(x uintptr) { c.rip = uint64(x) }
+ func (c *context) set_sp(x uintptr) { c.rsp = uint64(x) }
+ func (c *context) set_fp(x uintptr) { c.rbp = uint64(x) }
+ 
++func (c *context) pushCall(targetPC, resumePC uintptr) {
++	sp := c.sp() - goarch.StackAlign
++	*(*uintptr)(unsafe.Pointer(sp)) = resumePC
++	c.set_sp(sp)
++	c.set_ip(targetPC)
++}
++
+ func prepareContextForSigResume(c *context) {
+ 	c.r8 = c.rsp
+ 	c.r9 = c.rip
+diff --git a/src/runtime/defs_windows_arm.go b/src/runtime/defs_windows_arm.go
+index 861a88430e..6416086f9f 100644
+--- a/src/runtime/defs_windows_arm.go
++++ b/src/runtime/defs_windows_arm.go
+@@ -4,6 +4,11 @@
+ 
+ package runtime
+ 
++import (
++	"internal/goarch"
++	"unsafe"
++)
++
+ // NOTE(rsc): _CONTEXT_CONTROL is actually 0x200001 and should include PC, SP, and LR.
+ // However, empirically, LR doesn't come along on Windows 10
+ // unless you also set _CONTEXT_INTEGER (0x200002).
+@@ -61,6 +66,18 @@ func (c *context) set_lr(x uintptr) { c.lrr = uint32(x) }
+ // arm does not have frame pointer register.
+ func (c *context) set_fp(x uintptr) {}
+ 
++func (c *context) pushCall(targetPC, resumePC uintptr) {
++	// Push LR. The injected call is responsible
++	// for restoring LR. gentraceback is aware of
++	// this extra slot. See sigctxt.pushCall in
++	// signal_arm.go.
++	sp := c.sp() - goarch.StackAlign
++	c.set_sp(sp)
++	*(*uint32)(unsafe.Pointer(sp)) = uint32(c.lr())
++	c.set_lr(resumePC)
++	c.set_ip(targetPC)
++}
++
+ func prepareContextForSigResume(c *context) {
+ 	c.r0 = c.spr
+ 	c.r1 = c.pc
+diff --git a/src/runtime/defs_windows_arm64.go b/src/runtime/defs_windows_arm64.go
+index 70e28d2ae2..077bed24e2 100644
+--- a/src/runtime/defs_windows_arm64.go
++++ b/src/runtime/defs_windows_arm64.go
+@@ -4,6 +4,11 @@
+ 
+ package runtime
+ 
++import (
++	"internal/goarch"
++	"unsafe"
++)
++
+ // NOTE(rsc): _CONTEXT_CONTROL is actually 0x400001 and should include PC, SP, and LR.
+ // However, empirically, LR doesn't come along on Windows 10
+ // unless you also set _CONTEXT_INTEGER (0x400002).
+@@ -42,6 +47,18 @@ func (c *context) set_sp(x uintptr) { c.xsp = uint64(x) }
+ func (c *context) set_lr(x uintptr) { c.x[30] = uint64(x) }
+ func (c *context) set_fp(x uintptr) { c.x[29] = uint64(x) }
+ 
++func (c *context) pushCall(targetPC, resumePC uintptr) {
++	// Push LR. The injected call is responsible
++	// for restoring LR. gentraceback is aware of
++	// this extra slot. See sigctxt.pushCall in
++	// signal_arm64.go.
++	sp := c.sp() - goarch.StackAlign
++	c.set_sp(sp)
++	*(*uint64)(unsafe.Pointer(sp)) = uint64(c.lr())
++	c.set_lr(resumePC)
++	c.set_ip(targetPC)
++}
++
+ func prepareContextForSigResume(c *context) {
+ 	c.x[0] = c.xsp
+ 	c.x[1] = c.pc
+diff --git a/src/runtime/os_windows.go b/src/runtime/os_windows.go
+index 7183e79f7d..489b396fc9 100644
+--- a/src/runtime/os_windows.go
++++ b/src/runtime/os_windows.go
+@@ -6,7 +6,6 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"internal/goarch"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/sys"
+ 	"unsafe"
+@@ -1302,44 +1301,10 @@ func preemptM(mp *m) {
+ 	// Does it want a preemption and is it safe to preempt?
+ 	gp := gFromSP(mp, c.sp())
+ 	if gp != nil && wantAsyncPreempt(gp) {
+-		if ok, newpc := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
++		if ok, resumePC := isAsyncSafePoint(gp, c.ip(), c.sp(), c.lr()); ok {
+ 			// Inject call to asyncPreempt
+ 			targetPC := abi.FuncPCABI0(asyncPreempt)
+-			switch GOARCH {
+-			default:
+-				throw("unsupported architecture")
+-			case "386", "amd64":
+-				// Make it look like the thread called targetPC.
+-				sp := c.sp()
+-				sp -= goarch.PtrSize
+-				*(*uintptr)(unsafe.Pointer(sp)) = newpc
+-				c.set_sp(sp)
+-				c.set_ip(targetPC)
+-
+-			case "arm":
+-				// Push LR. The injected call is responsible
+-				// for restoring LR. gentraceback is aware of
+-				// this extra slot. See sigctxt.pushCall in
+-				// signal_arm.go, which is similar except we
+-				// subtract 1 from IP here.
+-				sp := c.sp()
+-				sp -= goarch.PtrSize
+-				c.set_sp(sp)
+-				*(*uint32)(unsafe.Pointer(sp)) = uint32(c.lr())
+-				c.set_lr(newpc - 1)
+-				c.set_ip(targetPC)
+-
+-			case "arm64":
+-				// Push LR. The injected call is responsible
+-				// for restoring LR. gentraceback is aware of
+-				// this extra slot. See sigctxt.pushCall in
+-				// signal_arm64.go.
+-				sp := c.sp() - 16 // SP needs 16-byte alignment
+-				c.set_sp(sp)
+-				*(*uint64)(unsafe.Pointer(sp)) = uint64(c.lr())
+-				c.set_lr(newpc)
+-				c.set_ip(targetPC)
+-			}
++			c.pushCall(targetPC, resumePC)
+ 			stdcall2(_SetThreadContext, thread, uintptr(unsafe.Pointer(c)))
+ 		}
+ 	}
+diff --git a/src/runtime/signal_windows.go b/src/runtime/signal_windows.go
+index b0c653ee46..7d7734433e 100644
+--- a/src/runtime/signal_windows.go
++++ b/src/runtime/signal_windows.go
+@@ -6,7 +6,6 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
+-	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -247,18 +246,11 @@ func exceptionhandler(info *exceptionrecord, r *context, gp *g) int32 {
+ 	// sigpanic call to make it look like that. Instead, just
+ 	// overwrite the PC. (See issue #35773)
+ 	if r.ip() != 0 && r.ip() != abi.FuncPCABI0(asyncPreempt) {
+-		sp := unsafe.Pointer(r.sp())
+-		delta := uintptr(sys.StackAlign)
+-		sp = add(sp, -delta)
+-		r.set_sp(uintptr(sp))
+-		if usesLR {
+-			*((*uintptr)(sp)) = r.lr()
+-			r.set_lr(r.ip())
+-		} else {
+-			*((*uintptr)(sp)) = r.ip()
+-		}
++		r.pushCall(abi.FuncPCABI0(sigpanic0), r.ip())
++	} else {
++		// Not safe to push the call. Just clobber the frame.
++		r.set_ip(abi.FuncPCABI0(sigpanic0))
+ 	}
+-	r.set_ip(abi.FuncPCABI0(sigpanic0))
+ 	return _EXCEPTION_CONTINUE_EXECUTION
+ }
+ 

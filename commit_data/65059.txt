@@ -1,0 +1,87 @@
+commit 70f4717e96cf9d8ca8a5f439d7d6487ec822ce49
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Oct 14 15:30:13 2024 -0700
+
+    os: use relative paths in a test dir in TestOpenError
+    
+    Refactor TestOpenError to use relative paths in test cases,
+    in preparation for extending it to test os.Root.
+    
+    Use a test temporary directory instead of system directory
+    with presumed-known contents.
+    
+    Move the testcase type and case definitions inline with the test.
+    
+    For #67002
+    
+    Change-Id: Idc53dd9fcecf763d3e4eb3b4643032e3003d7ef4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620157
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/os/os_test.go | 45 +++++++++++++++++++++++----------------------
+ 1 file changed, 23 insertions(+), 22 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index e7d8e55094..4db5521fee 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1777,35 +1777,36 @@ func TestSeekError(t *testing.T) {
+ 	}
+ }
+ 
+-type openErrorTest struct {
+-	path  string
+-	mode  int
+-	error error
+-}
++func TestOpenError(t *testing.T) {
++	t.Parallel()
++
++	dir := t.TempDir()
++	if err := WriteFile(filepath.Join(dir, "is-a-file"), nil, 0o666); err != nil {
++		t.Fatal(err)
++	}
++	if err := Mkdir(filepath.Join(dir, "is-a-dir"), 0o777); err != nil {
++		t.Fatal(err)
++	}
+ 
+-var openErrorTests = []openErrorTest{
+-	{
+-		sfdir + "/no-such-file",
++	for _, tt := range []struct {
++		path  string
++		mode  int
++		error error
++	}{{
++		"no-such-file",
+ 		O_RDONLY,
+ 		syscall.ENOENT,
+-	},
+-	{
+-		sfdir,
++	}, {
++		"is-a-dir",
+ 		O_WRONLY,
+ 		syscall.EISDIR,
+-	},
+-	{
+-		sfdir + "/" + sfname + "/no-such-file",
++	}, {
++		"is-a-file/no-such-file",
+ 		O_WRONLY,
+ 		syscall.ENOTDIR,
+-	},
+-}
+-
+-func TestOpenError(t *testing.T) {
+-	t.Parallel()
+-
+-	for _, tt := range openErrorTests {
+-		f, err := OpenFile(tt.path, tt.mode, 0)
++	}} {
++		path := filepath.Join(dir, tt.path)
++		f, err := OpenFile(path, tt.mode, 0)
+ 		if err == nil {
+ 			t.Errorf("Open(%q, %d) succeeded", tt.path, tt.mode)
+ 			f.Close()

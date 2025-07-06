@@ -1,0 +1,36 @@
+commit dfd0f0d8eb7ffe77e8b61e21dc59ba28a5a098df
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Sep 20 16:51:50 2024 +0200
+
+    os: skip TestReadlink sub-tests requiring symlinks when not enough
+    permissions are held
+    
+    Some of the TestReadlink sub-tests require os.Symlink to succeed.
+    If the user doesn't have enough permissions to create symlinks, then
+    there is no point in running the test.
+    
+    Change-Id: I06ec7e3ddf0016e804667bba0ee6ebe6baa01872
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614655
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/os/os_windows_test.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index c8a133da81..fb95499c17 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -1269,6 +1269,9 @@ func TestReadlink(t *testing.T) {
+ 		}
+ 
+ 		t.Run(name, func(t *testing.T) {
++			if !tt.junction {
++				testenv.MustHaveSymlink(t)
++			}
+ 			if !tt.relative {
+ 				t.Parallel()
+ 			}

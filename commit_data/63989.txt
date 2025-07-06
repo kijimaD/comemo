@@ -1,0 +1,64 @@
+commit 5121b45d7426687076c20ae0f4fcae1238f3ed47
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 22 22:01:35 2024 -0400
+
+    crypto/tls: add linkname comments dropped from CL 587220
+    
+    A bad merge syncing before the submit of CL 587220 dropped these.
+    (I forgot to write the file out.)
+    
+    For #67401.
+    
+    Change-Id: I6f2ba69f388907f3d24eeef55c80cbb2cf51f580
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587755
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+---
+ src/crypto/tls/defaults.go | 20 ++++++++++++++++++++
+ 1 file changed, 20 insertions(+)
+
+diff --git a/src/crypto/tls/defaults.go b/src/crypto/tls/defaults.go
+index df64def63d..ef1a6137da 100644
+--- a/src/crypto/tls/defaults.go
++++ b/src/crypto/tls/defaults.go
+@@ -7,6 +7,7 @@ package tls
+ import (
+ 	"internal/godebug"
+ 	"slices"
++	_ "unsafe" // for linkname
+ )
+ 
+ // Defaults are collected in this file to allow distributions to more easily patch
+@@ -56,12 +57,31 @@ func defaultCipherSuites() []uint16 {
+ // defaultCipherSuitesTLS13 is also the preference order, since there are no
+ // disabled by default TLS 1.3 cipher suites. The same AES vs ChaCha20 logic as
+ // cipherSuitesPreferenceOrder applies.
++//
++// defaultCipherSuitesTLS13 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/quic-go/quic-go
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname defaultCipherSuitesTLS13
+ var defaultCipherSuitesTLS13 = []uint16{
+ 	TLS_AES_128_GCM_SHA256,
+ 	TLS_AES_256_GCM_SHA384,
+ 	TLS_CHACHA20_POLY1305_SHA256,
+ }
+ 
++// defaultCipherSuitesTLS13NoAES should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/quic-go/quic-go
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname defaultCipherSuitesTLS13NoAES
+ var defaultCipherSuitesTLS13NoAES = []uint16{
+ 	TLS_CHACHA20_POLY1305_SHA256,
+ 	TLS_AES_128_GCM_SHA256,

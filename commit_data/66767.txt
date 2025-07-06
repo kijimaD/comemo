@@ -1,0 +1,220 @@
+commit 3a4f077710b96ee72fcd4214280a41a7c355205b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 8 11:19:57 2025 +0200
+
+    syscall: fix dangling pointers in Windows' process attributes
+    
+    Windows' _PROC_THREAD_ATTRIBUTE_LIST can contain pointers to memory
+    owned by Go, but the GC is not aware of this. This can lead to the
+    memory being freed while the _PROC_THREAD_ATTRIBUTE_LIST is still in
+    use.
+    
+    This CL uses the same approach as in x/sys/windows to ensure that the
+    attributes are not collected by the GC.
+    
+    Fixes #73170.
+    Updates #73199.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Change-Id: I7dca8d386aed4c02fdcd4a631d0fa4dc5747a96f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/syscall/exec_windows.go     | 11 ++++++-----
+ src/syscall/syscall_windows.go  | 40 ++++++++++++++++++++++++++++++++--------
+ src/syscall/types_windows.go    | 13 +++++++++++--
+ src/syscall/zsyscall_windows.go | 19 +++++++++++++++++++
+ 4 files changed, 68 insertions(+), 15 deletions(-)
+
+diff --git a/src/syscall/exec_windows.go b/src/syscall/exec_windows.go
+index 1220de4cdf..3ba2fbe0ec 100644
+--- a/src/syscall/exec_windows.go
++++ b/src/syscall/exec_windows.go
+@@ -332,12 +332,12 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 			defer DuplicateHandle(parentProcess, fd[i], 0, nil, 0, false, DUPLICATE_CLOSE_SOURCE)
+ 		}
+ 	}
+-	si := new(_STARTUPINFOEXW)
+-	si.ProcThreadAttributeList, err = newProcThreadAttributeList(2)
++	procAttrList, err := newProcThreadAttributeList(2)
+ 	if err != nil {
+ 		return 0, 0, err
+ 	}
+-	defer deleteProcThreadAttributeList(si.ProcThreadAttributeList)
++	defer procAttrList.delete()
++	si := new(_STARTUPINFOEXW)
+ 	si.Cb = uint32(unsafe.Sizeof(*si))
+ 	si.Flags = STARTF_USESTDHANDLES
+ 	if sys.HideWindow {
+@@ -345,7 +345,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 		si.ShowWindow = SW_HIDE
+ 	}
+ 	if sys.ParentProcess != 0 {
+-		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&sys.ParentProcess), unsafe.Sizeof(sys.ParentProcess), nil, nil)
++		err = procAttrList.update(_PROC_THREAD_ATTRIBUTE_PARENT_PROCESS, unsafe.Pointer(&sys.ParentProcess), unsafe.Sizeof(sys.ParentProcess))
+ 		if err != nil {
+ 			return 0, 0, err
+ 		}
+@@ -371,7 +371,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 
+ 	// Do not accidentally inherit more than these handles.
+ 	if willInheritHandles {
+-		err = updateProcThreadAttribute(si.ProcThreadAttributeList, 0, _PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]), nil, nil)
++		err = procAttrList.update(_PROC_THREAD_ATTRIBUTE_HANDLE_LIST, unsafe.Pointer(&fd[0]), uintptr(len(fd))*unsafe.Sizeof(fd[0]))
+ 		if err != nil {
+ 			return 0, 0, err
+ 		}
+@@ -382,6 +382,7 @@ func StartProcess(argv0 string, argv []string, attr *ProcAttr) (pid int, handle
+ 		return 0, 0, err
+ 	}
+ 
++	si.ProcThreadAttributeList = procAttrList.list()
+ 	pi := new(ProcessInformation)
+ 	flags := sys.CreationFlags | CREATE_UNICODE_ENVIRONMENT | _EXTENDED_STARTUPINFO_PRESENT
+ 	if sys.Token != 0 {
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 7a349ddd34..6ecdea6971 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -287,6 +287,7 @@ func NewCallbackCDecl(fn any) uintptr {
+ //sys	GetCommandLine() (cmd *uint16) = kernel32.GetCommandLineW
+ //sys	CommandLineToArgv(cmd *uint16, argc *int32) (argv *[8192]*[8192]uint16, err error) [failretval==nil] = shell32.CommandLineToArgvW
+ //sys	LocalFree(hmem Handle) (handle Handle, err error) [failretval!=0]
++//sys	localAlloc(flags uint32, length uint32) (ptr uintptr, err error) = kernel32.LocalAlloc
+ //sys	SetHandleInformation(handle Handle, mask uint32, flags uint32) (err error)
+ //sys	FlushFileBuffers(handle Handle) (err error)
+ //sys	GetFullPathName(path *uint16, buflen uint32, buf *uint16, fname **uint16) (n uint32, err error) = kernel32.GetFullPathNameW
+@@ -1409,10 +1410,8 @@ func PostQueuedCompletionStatus(cphandle Handle, qty uint32, key uint32, overlap
+ 	return postQueuedCompletionStatus(cphandle, qty, uintptr(key), overlapped)
+ }
+ 
+-// newProcThreadAttributeList allocates new PROC_THREAD_ATTRIBUTE_LIST, with
+-// the requested maximum number of attributes, which must be cleaned up by
+-// deleteProcThreadAttributeList.
+-func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LIST, error) {
++// newProcThreadAttributeList allocates a new [procThreadAttributeListContainer], with the requested maximum number of attributes.
++func newProcThreadAttributeList(maxAttrCount uint32) (*procThreadAttributeListContainer, error) {
+ 	var size uintptr
+ 	err := initializeProcThreadAttributeList(nil, maxAttrCount, 0, &size)
+ 	if err != ERROR_INSUFFICIENT_BUFFER {
+@@ -1421,13 +1420,38 @@ func newProcThreadAttributeList(maxAttrCount uint32) (*_PROC_THREAD_ATTRIBUTE_LI
+ 		}
+ 		return nil, err
+ 	}
+-	// size is guaranteed to be ≥1 by initializeProcThreadAttributeList.
+-	al := (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(&make([]byte, size)[0]))
+-	err = initializeProcThreadAttributeList(al, maxAttrCount, 0, &size)
++	const LMEM_FIXED = 0
++	alloc, err := localAlloc(LMEM_FIXED, uint32(size))
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return al, nil
++	// size is guaranteed to be ≥1 by InitializeProcThreadAttributeList.
++	al := &procThreadAttributeListContainer{data: (*_PROC_THREAD_ATTRIBUTE_LIST)(unsafe.Pointer(alloc))}
++	err = initializeProcThreadAttributeList(al.data, maxAttrCount, 0, &size)
++	if err != nil {
++		return nil, err
++	}
++	al.pointers = make([]unsafe.Pointer, 0, maxAttrCount)
++	return al, err
++}
++
++// Update modifies the ProcThreadAttributeList using UpdateProcThreadAttribute.
++func (al *procThreadAttributeListContainer) update(attribute uintptr, value unsafe.Pointer, size uintptr) error {
++	al.pointers = append(al.pointers, value)
++	return updateProcThreadAttribute(al.data, 0, attribute, value, size, nil, nil)
++}
++
++// Delete frees ProcThreadAttributeList's resources.
++func (al *procThreadAttributeListContainer) delete() {
++	deleteProcThreadAttributeList(al.data)
++	LocalFree(Handle(unsafe.Pointer(al.data)))
++	al.data = nil
++	al.pointers = nil
++}
++
++// List returns the actual ProcThreadAttributeList to be passed to StartupInfoEx.
++func (al *procThreadAttributeListContainer) list() *_PROC_THREAD_ATTRIBUTE_LIST {
++	return al.data
+ }
+ 
+ // RegEnumKeyEx enumerates the subkeys of an open registry key.
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index b61889cc43..92fa796a80 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -4,6 +4,8 @@
+ 
+ package syscall
+ 
++import "unsafe"
++
+ const (
+ 	// Windows errors.
+ 	ERROR_FILE_NOT_FOUND      Errno = 2
+@@ -496,8 +498,15 @@ type StartupInfo struct {
+ 	StdErr        Handle
+ }
+ 
+-type _PROC_THREAD_ATTRIBUTE_LIST struct {
+-	_ [1]byte
++// _PROC_THREAD_ATTRIBUTE_LIST is a placeholder type to represent a the opaque PROC_THREAD_ATTRIBUTE_LIST.
++//
++// Manipulate this type only through [procThreadAttributeListContainer] to ensure proper handling of the
++// underlying memory. See https://g.dev/issue/73170.
++type _PROC_THREAD_ATTRIBUTE_LIST struct{}
++
++type procThreadAttributeListContainer struct {
++	data     *_PROC_THREAD_ATTRIBUTE_LIST
++	pointers []unsafe.Pointer
+ }
+ 
+ const (
+diff --git a/src/syscall/zsyscall_windows.go b/src/syscall/zsyscall_windows.go
+index a58de3412c..e480253992 100644
+--- a/src/syscall/zsyscall_windows.go
++++ b/src/syscall/zsyscall_windows.go
+@@ -134,6 +134,7 @@ var (
+ 	procGetVersion                         = modkernel32.NewProc("GetVersion")
+ 	procInitializeProcThreadAttributeList  = modkernel32.NewProc("InitializeProcThreadAttributeList")
+ 	procLoadLibraryW                       = modkernel32.NewProc("LoadLibraryW")
++	procLocalAlloc                         = modkernel32.NewProc("LocalAlloc")
+ 	procLocalFree                          = modkernel32.NewProc("LocalFree")
+ 	procMapViewOfFile                      = modkernel32.NewProc("MapViewOfFile")
+ 	procMoveFileW                          = modkernel32.NewProc("MoveFileW")
+@@ -929,6 +930,15 @@ func _LoadLibrary(libname *uint16) (handle Handle, err error) {
+ 	return
+ }
+ 
++func localAlloc(flags uint32, length uint32) (ptr uintptr, err error) {
++	r0, _, e1 := Syscall(procLocalAlloc.Addr(), 2, uintptr(flags), uintptr(length), 0)
++	ptr = uintptr(r0)
++	if ptr == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func LocalFree(hmem Handle) (handle Handle, err error) {
+ 	r0, _, e1 := Syscall(procLocalFree.Addr(), 1, uintptr(hmem), 0, 0)
+ 	handle = Handle(r0)
+@@ -938,6 +948,15 @@ func LocalFree(hmem Handle) (handle Handle, err error) {
+ 	return
+ }
+ 
++func localFree(hmem Handle) (handle Handle, err error) {
++	r0, _, e1 := Syscall(procLocalFree.Addr(), 1, uintptr(hmem), 0, 0)
++	handle = Handle(r0)
++	if handle != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func MapViewOfFile(handle Handle, access uint32, offsetHigh uint32, offsetLow uint32, length uintptr) (addr uintptr, err error) {
+ 	r0, _, e1 := Syscall6(procMapViewOfFile.Addr(), 5, uintptr(handle), uintptr(access), uintptr(offsetHigh), uintptr(offsetLow), uintptr(length), 0)
+ 	addr = uintptr(r0)

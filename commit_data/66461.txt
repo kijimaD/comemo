@@ -1,0 +1,397 @@
+commit 232dfd226bb09b03d2218055d5c8c2c6b2c67ac2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 4 09:51:41 2025 -0800
+
+    go/types, types2: rename errorCause to typeError
+    
+    Change-Id: Ib8a63cdaa12dacb5223318a7166fe3dfdac71a45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654655
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+---
+ src/cmd/compile/internal/types2/call.go       |  4 ++--
+ src/cmd/compile/internal/types2/expr.go       | 10 +++++-----
+ src/cmd/compile/internal/types2/predicates.go | 14 +++++++-------
+ src/cmd/compile/internal/types2/stmt.go       |  4 ++--
+ src/cmd/compile/internal/types2/under.go      | 28 +++++++++++++--------------
+ src/go/types/call.go                          |  4 ++--
+ src/go/types/expr.go                          | 10 +++++-----
+ src/go/types/predicates.go                    | 14 +++++++-------
+ src/go/types/stmt.go                          |  4 ++--
+ src/go/types/under.go                         | 28 +++++++++++++--------------
+ 10 files changed, 60 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index e64d6b6adf..4d1c7b5f88 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -244,9 +244,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 
+ 	// If the operand type is a type parameter, all types in its type set
+ 	// must have a common underlying type, which must be a signature.
+-	u, err := commonUnder(x.typ, func(t, u Type) *errorCause {
++	u, err := commonUnder(x.typ, func(t, u Type) *typeError {
+ 		if _, ok := u.(*Signature); u != nil && !ok {
+-			return newErrorCause("%s is not a function", t)
++			return typeErrorf("%s is not a function", t)
+ 		}
+ 		return nil
+ 	})
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 2442e39ae5..eaa55e20c9 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -196,19 +196,19 @@ func (check *Checker) unary(x *operand, e *syntax.Operation) {
+ // or send to x (recv == false) operation. If the operation is not valid, chanElem
+ // reports an error and returns nil.
+ func (check *Checker) chanElem(pos poser, x *operand, recv bool) Type {
+-	u, err := commonUnder(x.typ, func(t, u Type) *errorCause {
++	u, err := commonUnder(x.typ, func(t, u Type) *typeError {
+ 		if u == nil {
+-			return newErrorCause("no specific channel type")
++			return typeErrorf("no specific channel type")
+ 		}
+ 		ch, _ := u.(*Chan)
+ 		if ch == nil {
+-			return newErrorCause("non-channel %s", t)
++			return typeErrorf("non-channel %s", t)
+ 		}
+ 		if recv && ch.dir == SendOnly {
+-			return newErrorCause("send-only channel %s", t)
++			return typeErrorf("send-only channel %s", t)
+ 		}
+ 		if !recv && ch.dir == RecvOnly {
+-			return newErrorCause("receive-only channel %s", t)
++			return typeErrorf("receive-only channel %s", t)
+ 		}
+ 		return nil
+ 	})
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 4f3557fca1..c157672ba5 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -152,9 +152,9 @@ func Comparable(T Type) bool {
+ }
+ 
+ // If T is comparable, comparableType returns nil.
+-// Otherwise it returns an error cause explaining why T is not comparable.
++// Otherwise it returns a type error explaining why T is not comparable.
+ // If dynamic is set, non-type parameter interfaces are always comparable.
+-func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
++func comparableType(T Type, dynamic bool, seen map[Type]bool) *typeError {
+ 	if seen[T] {
+ 		return nil
+ 	}
+@@ -167,7 +167,7 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
+ 	case *Basic:
+ 		// assume invalid types to be comparable to avoid follow-up errors
+ 		if t.kind == UntypedNil {
+-			return newErrorCause("")
++			return typeErrorf("")
+ 		}
+ 
+ 	case *Pointer, *Chan:
+@@ -176,13 +176,13 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
+ 	case *Struct:
+ 		for _, f := range t.fields {
+ 			if comparableType(f.typ, dynamic, seen) != nil {
+-				return newErrorCause("struct containing %s cannot be compared", f.typ)
++				return typeErrorf("struct containing %s cannot be compared", f.typ)
+ 			}
+ 		}
+ 
+ 	case *Array:
+ 		if comparableType(t.elem, dynamic, seen) != nil {
+-			return newErrorCause("%s cannot be compared", T)
++			return typeErrorf("%s cannot be compared", T)
+ 		}
+ 
+ 	case *Interface:
+@@ -195,10 +195,10 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
+ 		} else {
+ 			cause = "incomparable types in type set"
+ 		}
+-		return newErrorCause(cause)
++		return typeErrorf(cause)
+ 
+ 	default:
+-		return newErrorCause("")
++		return typeErrorf("")
+ 	}
+ 
+ 	return nil
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 4f5021f07b..79cc0150d4 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -1004,10 +1004,10 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
+ 		return Typ[Invalid], Typ[Invalid], cause, false
+ 	}
+ 
+-	rtyp, err := commonUnder(orig, func(t, u Type) *errorCause {
++	rtyp, err := commonUnder(orig, func(t, u Type) *typeError {
+ 		// A channel must permit receive operations.
+ 		if ch, _ := u.(*Chan); ch != nil && ch.dir == SendOnly {
+-			return newErrorCause("receive from send-only channel %s", t)
++			return typeErrorf("receive from send-only channel %s", t)
+ 		}
+ 		return nil
+ 	})
+diff --git a/src/cmd/compile/internal/types2/under.go b/src/cmd/compile/internal/types2/under.go
+index d6e159b1cd..4304314789 100644
+--- a/src/cmd/compile/internal/types2/under.go
++++ b/src/cmd/compile/internal/types2/under.go
+@@ -40,51 +40,51 @@ func typeset(t Type, yield func(t, u Type) bool) {
+ 	yield(t, under(t))
+ }
+ 
+-// A errorCause describes an error cause.
+-type errorCause struct {
++// A typeError describes a type error.
++type typeError struct {
+ 	format_ string
+ 	args    []any
+ }
+ 
+-var emptyErrorCause errorCause
++var emptyTypeError typeError
+ 
+-func newErrorCause(format string, args ...any) *errorCause {
++func typeErrorf(format string, args ...any) *typeError {
+ 	if format == "" {
+-		return &emptyErrorCause
++		return &emptyTypeError
+ 	}
+-	return &errorCause{format, args}
++	return &typeError{format, args}
+ }
+ 
+-// format formats a cause as a string.
++// format formats a type error as a string.
+ // check may be nil.
+-func (err *errorCause) format(check *Checker) string {
++func (err *typeError) format(check *Checker) string {
+ 	return check.sprintf(err.format_, err.args...)
+ }
+ 
+ // If t is a type parameter, cond is nil, and t's type set contains no channel types,
+ // commonUnder returns the common underlying type of all types in t's type set if
+-// it exists, or nil and an error cause otherwise.
++// it exists, or nil and a type error otherwise.
+ //
+ // If t is a type parameter, cond is nil, and there are channel types, t's type set
+ // must only contain channel types, they must all have the same element types,
+ // channel directions must not conflict, and commonUnder returns one of the most
+-// restricted channels. Otherwise, the function returns nil and an error cause.
++// restricted channels. Otherwise, the function returns nil and a type error.
+ //
+ // If cond != nil, each pair (t, u) of type and underlying type in t's type set
+ // must satisfy the condition expressed by cond. If the result of cond is != nil,
+-// commonUnder returns nil and the error cause reported by cond.
++// commonUnder returns nil and the type error reported by cond.
+ // Note that cond is called before any other conditions are checked; specifically
+ // cond may be called with (nil, nil) if the type set contains no specific types.
+ //
+ // If t is not a type parameter, commonUnder behaves as if t was a type parameter
+ // with the single type t in its type set.
+-func commonUnder(t Type, cond func(t, u Type) *errorCause) (Type, *errorCause) {
++func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
+ 	var ct, cu Type // type and respective common underlying type
+-	var err *errorCause
++	var err *typeError
+ 
+ 	bad := func(format string, args ...any) bool {
+ 		cu = nil
+-		err = newErrorCause(format, args...)
++		err = typeErrorf(format, args...)
+ 		return false
+ 	}
+ 
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 33cb5fc9db..41663eac8e 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -246,9 +246,9 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 
+ 	// If the operand type is a type parameter, all types in its type set
+ 	// must have a common underlying type, which must be a signature.
+-	u, err := commonUnder(x.typ, func(t, u Type) *errorCause {
++	u, err := commonUnder(x.typ, func(t, u Type) *typeError {
+ 		if _, ok := u.(*Signature); u != nil && !ok {
+-			return newErrorCause("%s is not a function", t)
++			return typeErrorf("%s is not a function", t)
+ 		}
+ 		return nil
+ 	})
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 4d94ba4edd..aa8543f081 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -195,19 +195,19 @@ func (check *Checker) unary(x *operand, e *ast.UnaryExpr) {
+ // or send to x (recv == false) operation. If the operation is not valid, chanElem
+ // reports an error and returns nil.
+ func (check *Checker) chanElem(pos positioner, x *operand, recv bool) Type {
+-	u, err := commonUnder(x.typ, func(t, u Type) *errorCause {
++	u, err := commonUnder(x.typ, func(t, u Type) *typeError {
+ 		if u == nil {
+-			return newErrorCause("no specific channel type")
++			return typeErrorf("no specific channel type")
+ 		}
+ 		ch, _ := u.(*Chan)
+ 		if ch == nil {
+-			return newErrorCause("non-channel %s", t)
++			return typeErrorf("non-channel %s", t)
+ 		}
+ 		if recv && ch.dir == SendOnly {
+-			return newErrorCause("send-only channel %s", t)
++			return typeErrorf("send-only channel %s", t)
+ 		}
+ 		if !recv && ch.dir == RecvOnly {
+-			return newErrorCause("receive-only channel %s", t)
++			return typeErrorf("receive-only channel %s", t)
+ 		}
+ 		return nil
+ 	})
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 4314b46d8f..45f28726ee 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -155,9 +155,9 @@ func Comparable(T Type) bool {
+ }
+ 
+ // If T is comparable, comparableType returns nil.
+-// Otherwise it returns an error cause explaining why T is not comparable.
++// Otherwise it returns a type error explaining why T is not comparable.
+ // If dynamic is set, non-type parameter interfaces are always comparable.
+-func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
++func comparableType(T Type, dynamic bool, seen map[Type]bool) *typeError {
+ 	if seen[T] {
+ 		return nil
+ 	}
+@@ -170,7 +170,7 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
+ 	case *Basic:
+ 		// assume invalid types to be comparable to avoid follow-up errors
+ 		if t.kind == UntypedNil {
+-			return newErrorCause("")
++			return typeErrorf("")
+ 		}
+ 
+ 	case *Pointer, *Chan:
+@@ -179,13 +179,13 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
+ 	case *Struct:
+ 		for _, f := range t.fields {
+ 			if comparableType(f.typ, dynamic, seen) != nil {
+-				return newErrorCause("struct containing %s cannot be compared", f.typ)
++				return typeErrorf("struct containing %s cannot be compared", f.typ)
+ 			}
+ 		}
+ 
+ 	case *Array:
+ 		if comparableType(t.elem, dynamic, seen) != nil {
+-			return newErrorCause("%s cannot be compared", T)
++			return typeErrorf("%s cannot be compared", T)
+ 		}
+ 
+ 	case *Interface:
+@@ -198,10 +198,10 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
+ 		} else {
+ 			cause = "incomparable types in type set"
+ 		}
+-		return newErrorCause(cause)
++		return typeErrorf(cause)
+ 
+ 	default:
+-		return newErrorCause("")
++		return typeErrorf("")
+ 	}
+ 
+ 	return nil
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 7cf11b403c..68f31fef65 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -1025,10 +1025,10 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
+ 		return Typ[Invalid], Typ[Invalid], cause, false
+ 	}
+ 
+-	rtyp, err := commonUnder(orig, func(t, u Type) *errorCause {
++	rtyp, err := commonUnder(orig, func(t, u Type) *typeError {
+ 		// A channel must permit receive operations.
+ 		if ch, _ := u.(*Chan); ch != nil && ch.dir == SendOnly {
+-			return newErrorCause("receive from send-only channel %s", t)
++			return typeErrorf("receive from send-only channel %s", t)
+ 		}
+ 		return nil
+ 	})
+diff --git a/src/go/types/under.go b/src/go/types/under.go
+index 8d45363a0f..1e9a810f46 100644
+--- a/src/go/types/under.go
++++ b/src/go/types/under.go
+@@ -43,51 +43,51 @@ func typeset(t Type, yield func(t, u Type) bool) {
+ 	yield(t, under(t))
+ }
+ 
+-// A errorCause describes an error cause.
+-type errorCause struct {
++// A typeError describes a type error.
++type typeError struct {
+ 	format_ string
+ 	args    []any
+ }
+ 
+-var emptyErrorCause errorCause
++var emptyTypeError typeError
+ 
+-func newErrorCause(format string, args ...any) *errorCause {
++func typeErrorf(format string, args ...any) *typeError {
+ 	if format == "" {
+-		return &emptyErrorCause
++		return &emptyTypeError
+ 	}
+-	return &errorCause{format, args}
++	return &typeError{format, args}
+ }
+ 
+-// format formats a cause as a string.
++// format formats a type error as a string.
+ // check may be nil.
+-func (err *errorCause) format(check *Checker) string {
++func (err *typeError) format(check *Checker) string {
+ 	return check.sprintf(err.format_, err.args...)
+ }
+ 
+ // If t is a type parameter, cond is nil, and t's type set contains no channel types,
+ // commonUnder returns the common underlying type of all types in t's type set if
+-// it exists, or nil and an error cause otherwise.
++// it exists, or nil and a type error otherwise.
+ //
+ // If t is a type parameter, cond is nil, and there are channel types, t's type set
+ // must only contain channel types, they must all have the same element types,
+ // channel directions must not conflict, and commonUnder returns one of the most
+-// restricted channels. Otherwise, the function returns nil and an error cause.
++// restricted channels. Otherwise, the function returns nil and a type error.
+ //
+ // If cond != nil, each pair (t, u) of type and underlying type in t's type set
+ // must satisfy the condition expressed by cond. If the result of cond is != nil,
+-// commonUnder returns nil and the error cause reported by cond.
++// commonUnder returns nil and the type error reported by cond.
+ // Note that cond is called before any other conditions are checked; specifically
+ // cond may be called with (nil, nil) if the type set contains no specific types.
+ //
+ // If t is not a type parameter, commonUnder behaves as if t was a type parameter
+ // with the single type t in its type set.
+-func commonUnder(t Type, cond func(t, u Type) *errorCause) (Type, *errorCause) {
++func commonUnder(t Type, cond func(t, u Type) *typeError) (Type, *typeError) {
+ 	var ct, cu Type // type and respective common underlying type
+-	var err *errorCause
++	var err *typeError
+ 
+ 	bad := func(format string, args ...any) bool {
+ 		cu = nil
+-		err = newErrorCause(format, args...)
++		err = typeErrorf(format, args...)
+ 		return false
+ 	}
+ 

@@ -1,0 +1,129 @@
+commit 7715ca32fcaad84059752c944f40768374796651
+Author: apocelipes <seve3r@outlook.com>
+Date:   Sat Feb 8 01:15:29 2025 +0000
+
+    database/sql: use t.Context in tests
+    
+    Replace "context.WithCancel(context.Background())" with "t.Context()".
+    
+    Updates #36532
+    
+    Change-Id: I78a8ba422f076f4c697910922cf6dc35c628b1a7
+    GitHub-Last-Rev: 2eacdbe9ea97ac8d928704c2b605b276626d95dd
+    GitHub-Pull-Request: golang/go#71599
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647555
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/database/sql/sql_test.go | 32 ++++++++++----------------------
+ 1 file changed, 10 insertions(+), 22 deletions(-)
+
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index db1d8b3c6b..74b9bf5502 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -1374,8 +1374,7 @@ func TestConnQuery(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)
+ 
+-	ctx, cancel := context.WithCancel(context.Background())
+-	defer cancel()
++	ctx := t.Context()
+ 	conn, err := db.Conn(ctx)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -1402,8 +1401,7 @@ func TestConnRaw(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)
+ 
+-	ctx, cancel := context.WithCancel(context.Background())
+-	defer cancel()
++	ctx := t.Context()
+ 	conn, err := db.Conn(ctx)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -1518,8 +1516,7 @@ func TestInvalidNilValues(t *testing.T) {
+ 			db := newTestDB(t, "people")
+ 			defer closeDB(t, db)
+ 
+-			ctx, cancel := context.WithCancel(context.Background())
+-			defer cancel()
++			ctx := t.Context()
+ 			conn, err := db.Conn(ctx)
+ 			if err != nil {
+ 				t.Fatal(err)
+@@ -1547,8 +1544,7 @@ func TestConnTx(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)
+ 
+-	ctx, cancel := context.WithCancel(context.Background())
+-	defer cancel()
++	ctx := t.Context()
+ 	conn, err := db.Conn(ctx)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -2793,8 +2789,7 @@ func TestManyErrBadConn(t *testing.T) {
+ 	// Conn
+ 	db = manyErrBadConnSetup()
+ 	defer closeDB(t, db)
+-	ctx, cancel := context.WithCancel(context.Background())
+-	defer cancel()
++	ctx := t.Context()
+ 	conn, err := db.Conn(ctx)
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -2935,8 +2930,7 @@ func TestConnExpiresFreshOutOfPool(t *testing.T) {
+ 	}
+ 	defer func() { nowFunc = time.Now }()
+ 
+-	ctx, cancel := context.WithCancel(context.Background())
+-	defer cancel()
++	ctx := t.Context()
+ 
+ 	db := newTestDB(t, "magicquery")
+ 	defer closeDB(t, db)
+@@ -3786,8 +3780,7 @@ func TestIssue20647(t *testing.T) {
+ 	db := newTestDB(t, "people")
+ 	defer closeDB(t, db)
+ 
+-	ctx, cancel := context.WithCancel(context.Background())
+-	defer cancel()
++	ctx := t.Context()
+ 
+ 	conn, err := db.Conn(ctx)
+ 	if err != nil {
+@@ -4142,9 +4135,7 @@ func TestNamedValueChecker(t *testing.T) {
+ 	}
+ 	defer db.Close()
+ 
+-	ctx, cancel := context.WithCancel(context.Background())
+-	defer cancel()
+-
++	ctx := t.Context()
+ 	_, err = db.ExecContext(ctx, "WIPE")
+ 	if err != nil {
+ 		t.Fatal("exec wipe", err)
+@@ -4192,9 +4183,7 @@ func TestNamedValueCheckerSkip(t *testing.T) {
+ 	}
+ 	defer db.Close()
+ 
+-	ctx, cancel := context.WithCancel(context.Background())
+-	defer cancel()
+-
++	ctx := t.Context()
+ 	_, err = db.ExecContext(ctx, "WIPE")
+ 	if err != nil {
+ 		t.Fatal("exec wipe", err)
+@@ -4305,8 +4294,7 @@ func TestQueryExecContextOnly(t *testing.T) {
+ 	}
+ 	defer db.Close()
+ 
+-	ctx, cancel := context.WithCancel(context.Background())
+-	defer cancel()
++	ctx := t.Context()
+ 
+ 	conn, err := db.Conn(ctx)
+ 	if err != nil {

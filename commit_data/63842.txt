@@ -1,0 +1,152 @@
+commit 8b990f259255e9faf1ee5acee0dabf8de9ba9165
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 16 21:17:23 2024 -0700
+
+    cmd/compile/internal/syntax: implement Pos.FileBase method (cleanup)
+    
+    Factor out file base computation into a method.
+    
+    Change-Id: Ia6de100459b6df2919f2320872890320aa88866d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586156
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+---
+ src/cmd/compile/internal/noder/irgen.go    | 21 ++++++---------------
+ src/cmd/compile/internal/syntax/pos.go     | 12 ++++++++++++
+ src/cmd/compile/internal/types2/check.go   |  2 +-
+ src/cmd/compile/internal/types2/version.go | 19 +------------------
+ 4 files changed, 20 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index d54ec05b6a..4d51c6b446 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -29,9 +29,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 
+ 	// setup and syntax error reporting
+ 	files := make([]*syntax.File, len(noders))
+-	// posBaseMap maps all file pos bases back to *syntax.File
++	// fileBaseMap maps all file pos bases back to *syntax.File
+ 	// for checking Go version mismatched.
+-	posBaseMap := make(map[*syntax.PosBase]*syntax.File)
++	fileBaseMap := make(map[*syntax.PosBase]*syntax.File)
+ 	for i, p := range noders {
+ 		files[i] = p.file
+ 		// The file.Pos() is the position of the package clause.
+@@ -40,7 +40,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 		// Make sure to consistently map back to file base, here and
+ 		// when we look for a file in the conf.Error handler below,
+ 		// otherwise the file may not be found (was go.dev/issue/67141).
+-		posBaseMap[fileBase(p.file.Pos())] = p.file
++		fileBaseMap[p.file.Pos().FileBase()] = p.file
+ 	}
+ 
+ 	// typechecking
+@@ -75,9 +75,9 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 		terr := err.(types2.Error)
+ 		msg := terr.Msg
+ 		if versionErrorRx.MatchString(msg) {
+-			posBase := fileBase(terr.Pos)
+-			fileVersion := info.FileVersions[posBase]
+-			file := posBaseMap[posBase]
++			fileBase := terr.Pos.FileBase()
++			fileVersion := info.FileVersions[fileBase]
++			file := fileBaseMap[fileBase]
+ 			if file == nil {
+ 				// This should never happen, but be careful and don't crash.
+ 			} else if file.GoVersion == fileVersion {
+@@ -155,15 +155,6 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 	return pkg, info
+ }
+ 
+-// fileBase returns a file's position base given a position in the file.
+-func fileBase(pos syntax.Pos) *syntax.PosBase {
+-	base := pos.Base()
+-	for !base.IsFileBase() { // line directive base
+-		base = base.Pos().Base()
+-	}
+-	return base
+-}
+-
+ // A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).
+ type cycleFinder struct {
+ 	cyclic map[*types2.Interface]bool
+diff --git a/src/cmd/compile/internal/syntax/pos.go b/src/cmd/compile/internal/syntax/pos.go
+index dd25d4f249..5ea9f5304a 100644
+--- a/src/cmd/compile/internal/syntax/pos.go
++++ b/src/cmd/compile/internal/syntax/pos.go
+@@ -34,6 +34,18 @@ func (pos Pos) Base() *PosBase { return pos.base }
+ func (pos Pos) Line() uint     { return uint(pos.line) }
+ func (pos Pos) Col() uint      { return uint(pos.col) }
+ 
++// FileBase returns the PosBase of the file containing pos,
++// skipping over intermediate PosBases from //line directives.
++// The result is nil if pos doesn't have a file base.
++func (pos Pos) FileBase() *PosBase {
++	b := pos.base
++	for b != nil && b != b.pos.base {
++		b = b.pos.base
++	}
++	// b == nil || b == b.pos.base
++	return b
++}
++
+ func (pos Pos) RelFilename() string { return pos.base.Filename() }
+ 
+ func (pos Pos) RelLine() uint {
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index a347467b59..3bb28b46b4 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -373,7 +373,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 				check.errorf(file.PkgName, TooNew, "file requires newer Go version %v", fileVersion)
+ 			}
+ 		}
+-		versions[base(file.Pos())] = v // base(file.Pos()) may be nil for tests
++		versions[file.Pos().FileBase()] = v // file.Pos().FileBase() may be nil for tests
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/version.go b/src/cmd/compile/internal/types2/version.go
+index 241b10d3e6..39ecb9c3af 100644
+--- a/src/cmd/compile/internal/types2/version.go
++++ b/src/cmd/compile/internal/types2/version.go
+@@ -5,7 +5,6 @@
+ package types2
+ 
+ import (
+-	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	"go/version"
+ 	"internal/goversion"
+@@ -56,7 +55,7 @@ var (
+ func (check *Checker) allowVersion(at poser, v goVersion) bool {
+ 	fileVersion := check.conf.GoVersion
+ 	if pos := at.Pos(); pos.IsKnown() {
+-		fileVersion = check.versions[base(pos)]
++		fileVersion = check.versions[pos.FileBase()]
+ 	}
+ 
+ 	// We need asGoVersion (which calls version.Lang) below
+@@ -76,19 +75,3 @@ func (check *Checker) verifyVersionf(at poser, v goVersion, format string, args
+ 	}
+ 	return true
+ }
+-
+-// base finds the underlying PosBase of the source file containing pos,
+-// skipping over intermediate PosBase layers created by //line directives.
+-// The positions must be known.
+-func base(pos syntax.Pos) *syntax.PosBase {
+-	assert(pos.IsKnown())
+-	b := pos.Base()
+-	for {
+-		bb := b.Pos().Base()
+-		if bb == nil || bb == b {
+-			break
+-		}
+-		b = bb
+-	}
+-	return b
+-}

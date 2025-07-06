@@ -1,0 +1,195 @@
+commit 00709919d09904b17cfe3bfeb35521cbd3fb04f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 21 20:03:18 2024 -0500
+
+    cmd/compile, cmd/link: FIPS fixes for large programs
+    
+    1. In cmd/internal/obj, only apply the exclusion list to data symbols.
+       Text symbols are always fine since they can use PC-relative relocations.
+    
+    2. In cmd/link, only skip trampolines for text symbols in the same package
+       with the same type. Before, all text symbols had type STEXT, but now that
+       there are different sections of STEXT, we can only rely on symbols in the
+       same package in the same section being close enough not to need
+       trampolines.
+    
+    Fixes #70379.
+    
+    Change-Id: Ifad2bdd6001ad3b5b23e641127554e9ec374715e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631036
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/obj/fips140.go      | 43 +++++++++++++++++++-----------------
+ src/cmd/link/internal/arm/asm.go     |  2 +-
+ src/cmd/link/internal/arm64/asm.go   |  2 +-
+ src/cmd/link/internal/ld/data.go     |  8 +++----
+ src/cmd/link/internal/loong64/asm.go |  2 +-
+ src/cmd/link/internal/ppc64/asm.go   |  4 +---
+ src/cmd/link/internal/riscv64/asm.go |  2 +-
+ 7 files changed, 32 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/internal/obj/fips140.go b/src/cmd/internal/obj/fips140.go
+index 326301aa87..35c4cdfcc9 100644
+--- a/src/cmd/internal/obj/fips140.go
++++ b/src/cmd/internal/obj/fips140.go
+@@ -238,27 +238,30 @@ func (s *LSym) setFIPSType(ctxt *Link) {
+ 
+ 	// Now we're at least handling a FIPS symbol.
+ 	// It's okay to be slower now, since this code only runs when compiling a few packages.
++	// Text symbols are always okay, since they can use PC-relative relocations,
++	// but some data symbols are not.
++	if s.Type != objabi.STEXT && s.Type != objabi.STEXTFIPS {
++		// Even in the crypto/internal/fips140 packages,
++		// we exclude various Go runtime metadata,
++		// so that it can be allowed to contain data relocations.
++		if strings.Contains(name, ".inittask") ||
++			strings.Contains(name, ".dict") ||
++			strings.Contains(name, ".typeAssert") ||
++			strings.HasSuffix(name, ".arginfo0") ||
++			strings.HasSuffix(name, ".arginfo1") ||
++			strings.HasSuffix(name, ".argliveinfo") ||
++			strings.HasSuffix(name, ".args_stackmap") ||
++			strings.HasSuffix(name, ".opendefer") ||
++			strings.HasSuffix(name, ".stkobj") ||
++			strings.HasSuffix(name, "·f") {
++			return
++		}
+ 
+-	// Even in the crypto/internal/fips140 packages,
+-	// we exclude various Go runtime metadata,
+-	// so that it can be allowed to contain data relocations.
+-	if strings.Contains(name, ".init") ||
+-		strings.Contains(name, ".dict") ||
+-		strings.Contains(name, ".typeAssert") ||
+-		strings.HasSuffix(name, ".arginfo0") ||
+-		strings.HasSuffix(name, ".arginfo1") ||
+-		strings.HasSuffix(name, ".argliveinfo") ||
+-		strings.HasSuffix(name, ".args_stackmap") ||
+-		strings.HasSuffix(name, ".opendefer") ||
+-		strings.HasSuffix(name, ".stkobj") ||
+-		strings.HasSuffix(name, "·f") {
+-		return
+-	}
+-
+-	// This symbol is linknamed to go:fipsinfo,
+-	// so we shouldn't see it, but skip it just in case.
+-	if s.Name == "crypto/internal/fips140/check.linkinfo" {
+-		return
++		// This symbol is linknamed to go:fipsinfo,
++		// so we shouldn't see it, but skip it just in case.
++		if s.Name == "crypto/internal/fips140/check.linkinfo" {
++			return
++		}
+ 	}
+ 
+ 	// This is a FIPS symbol! Convert its type to FIPS.
+diff --git a/src/cmd/link/internal/arm/asm.go b/src/cmd/link/internal/arm/asm.go
+index 7fd0a99c75..ab816c7015 100644
+--- a/src/cmd/link/internal/arm/asm.go
++++ b/src/cmd/link/internal/arm/asm.go
+@@ -455,7 +455,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 			if ldr.SymType(tramp) == 0 {
+ 				// trampoline does not exist, create one
+ 				trampb := ldr.MakeSymbolUpdater(tramp)
+-				ctxt.AddTramp(trampb)
++				ctxt.AddTramp(trampb, ldr.SymType(s))
+ 				if ctxt.DynlinkingGo() || ldr.SymType(rs) == sym.SDYNIMPORT {
+ 					if immrot(uint32(offset)) == 0 {
+ 						ctxt.Errorf(s, "odd offset in dynlink direct call: %v+%d", ldr.SymName(rs), offset)
+diff --git a/src/cmd/link/internal/arm64/asm.go b/src/cmd/link/internal/arm64/asm.go
+index 4ec4b65793..68474b4484 100644
+--- a/src/cmd/link/internal/arm64/asm.go
++++ b/src/cmd/link/internal/arm64/asm.go
+@@ -1365,7 +1365,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 			if ldr.SymType(tramp) == 0 {
+ 				// trampoline does not exist, create one
+ 				trampb := ldr.MakeSymbolUpdater(tramp)
+-				ctxt.AddTramp(trampb)
++				ctxt.AddTramp(trampb, ldr.SymType(s))
+ 				if ldr.SymType(rs) == sym.SDYNIMPORT {
+ 					if r.Add() != 0 {
+ 						ctxt.Errorf(s, "nonzero addend for DYNIMPORT call: %v+%d", ldr.SymName(rs), r.Add())
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 185e1cc36c..b6eaf69ca4 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -129,7 +129,7 @@ func trampoline(ctxt *Link, s loader.Sym) {
+ 			// don't randomize the function order).
+ 			// Except that if SymPkg(s) == "", it is a host object symbol
+ 			// which may call an external symbol via PLT.
+-			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) && *flagRandLayout == 0 {
++			if ldr.SymPkg(s) != "" && ldr.SymPkg(rs) == ldr.SymPkg(s) && ldr.SymType(rs) == ldr.SymType(s) && *flagRandLayout == 0 {
+ 				// RISC-V is only able to reach +/-1MiB via a JAL instruction.
+ 				// We need to generate a trampoline when an address is
+ 				// currently unknown.
+@@ -1643,7 +1643,7 @@ func (ctxt *Link) dodata(symGroupType []sym.SymKind) {
+ 
+ 		st := state.symType(s)
+ 
+-		if st <= sym.STEXT || st >= sym.SXREF {
++		if st <= sym.STEXTFIPSEND || st >= sym.SXREF {
+ 			continue
+ 		}
+ 		state.data[st] = append(state.data[st], s)
+@@ -3127,8 +3127,8 @@ func (ctxt *Link) layout(order []*sym.Segment) uint64 {
+ }
+ 
+ // add a trampoline with symbol s (to be laid down after the current function)
+-func (ctxt *Link) AddTramp(s *loader.SymbolBuilder) {
+-	s.SetType(sym.STEXT)
++func (ctxt *Link) AddTramp(s *loader.SymbolBuilder, typ sym.SymKind) {
++	s.SetType(typ)
+ 	s.SetReachable(true)
+ 	s.SetOnList(true)
+ 	ctxt.tramps = append(ctxt.tramps, s.Sym())
+diff --git a/src/cmd/link/internal/loong64/asm.go b/src/cmd/link/internal/loong64/asm.go
+index 7d1c8df6ed..2e69594f92 100644
+--- a/src/cmd/link/internal/loong64/asm.go
++++ b/src/cmd/link/internal/loong64/asm.go
+@@ -308,7 +308,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 			if ldr.SymType(tramp) == 0 {
+ 				// trampoline does not exist, create one
+ 				trampb := ldr.MakeSymbolUpdater(tramp)
+-				ctxt.AddTramp(trampb)
++				ctxt.AddTramp(trampb, ldr.SymType(s))
+ 				if ldr.SymType(rs) == sym.SDYNIMPORT {
+ 					if r.Add() != 0 {
+ 						ctxt.Errorf(s, "nonzero addend for DYNIMPORT call: %v+%d", ldr.SymName(rs), r.Add())
+diff --git a/src/cmd/link/internal/ppc64/asm.go b/src/cmd/link/internal/ppc64/asm.go
+index 94660beba8..af7cddff7f 100644
+--- a/src/cmd/link/internal/ppc64/asm.go
++++ b/src/cmd/link/internal/ppc64/asm.go
+@@ -1189,9 +1189,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 	}
+ 	switch r.Type() {
+ 	case objabi.R_CALLPOWER:
+-
+ 		// If branch offset is too far then create a trampoline.
+-
+ 		if (ctxt.IsExternal() && ldr.SymSect(s) != ldr.SymSect(rs)) || (ctxt.IsInternal() && int64(int32(t<<6)>>6) != t) || ldr.SymValue(rs) == 0 || (*ld.FlagDebugTramp > 1 && ldr.SymPkg(s) != ldr.SymPkg(rs)) {
+ 			var tramp loader.Sym
+ 			for i := 0; ; i++ {
+@@ -1229,7 +1227,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 			}
+ 			if ldr.SymType(tramp) == 0 {
+ 				trampb := ldr.MakeSymbolUpdater(tramp)
+-				ctxt.AddTramp(trampb)
++				ctxt.AddTramp(trampb, ldr.SymType(s))
+ 				gentramp(ctxt, ldr, trampb, rs, r.Add())
+ 			}
+ 			sb := ldr.MakeSymbolUpdater(s)
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index 587b10f512..a3f50dc54f 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -682,7 +682,7 @@ func trampoline(ctxt *ld.Link, ldr *loader.Loader, ri int, rs, s loader.Sym) {
+ 		}
+ 		if ldr.SymType(tramp) == 0 {
+ 			trampb := ldr.MakeSymbolUpdater(tramp)
+-			ctxt.AddTramp(trampb)
++			ctxt.AddTramp(trampb, ldr.SymType(s))
+ 			genCallTramp(ctxt.Arch, ctxt.LinkMode, ldr, trampb, rs, int64(r.Add()))
+ 		}
+ 		sb := ldr.MakeSymbolUpdater(s)

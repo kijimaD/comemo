@@ -1,0 +1,428 @@
+commit dbfa3cacc7a4178ff3b81c79f7678ac9d61c54ab
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Jun 25 14:01:09 2024 -0700
+
+    cmd/compile: fix typing of atomic logical operations
+    
+    For atomic AND and OR operations on memory, we currently have two
+    views of the op. One just does the operation on the memory and returns
+    just a memory. The other does the operation on the memory and returns
+    the old value (before having the logical operation done to it) and
+    memory.
+    
+    Update #61395
+    
+    These two type differently, and there's currently some confusion in
+    our rules about which is which. Use different names for the two
+    different flavors so we don't get them confused.
+    
+    Change-Id: I07b4542db672b2cee98169ac42b67db73c482093
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594976
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules   |  8 ++--
+ src/cmd/compile/internal/ssa/_gen/genericOps.go | 32 ++++++++-----
+ src/cmd/compile/internal/ssa/opGen.go           | 64 ++++++++++++++++++-------
+ src/cmd/compile/internal/ssa/rewriteARM64.go    | 24 +++++-----
+ src/cmd/compile/internal/ssagen/ssa.go          | 52 ++++++++++++--------
+ 5 files changed, 113 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 721095f653..12badbdcb6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -580,10 +580,10 @@
+ (AtomicCompareAndSwap(32|64)Variant ...) => (LoweredAtomicCas(32|64)Variant      ...)
+ 
+ // Return old contents.
+-(AtomicAnd(64|32|8)            ...) => (LoweredAtomicAnd(64|32|8)            ...)
+-(AtomicOr(64|32|8)             ...) => (LoweredAtomicOr(64|32|8)             ...)
+-(AtomicAnd(64|32|8)Variant     ...) => (LoweredAtomicAnd(64|32|8)Variant     ...)
+-(AtomicOr(64|32|8)Variant      ...) => (LoweredAtomicOr(64|32|8)Variant      ...)
++(AtomicAnd(64|32|8)value            ...) => (LoweredAtomicAnd(64|32|8)            ...)
++(AtomicOr(64|32|8)value             ...) => (LoweredAtomicOr(64|32|8)             ...)
++(AtomicAnd(64|32|8)valueVariant     ...) => (LoweredAtomicAnd(64|32|8)Variant     ...)
++(AtomicOr(64|32|8)valueVariant      ...) => (LoweredAtomicOr(64|32|8)Variant      ...)
+ 
+ // Write barrier.
+ (WB ...) => (LoweredWB ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 6805408b46..47d82924e6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -609,12 +609,20 @@ var genericOps = []opData{
+ 	{name: "AtomicCompareAndSwap32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+ 	{name: "AtomicCompareAndSwap64", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true},    // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+ 	{name: "AtomicCompareAndSwapRel32", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Lock release, reports whether store happens and new memory.
+-	{name: "AtomicAnd8", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},              // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+-	{name: "AtomicOr8", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},               // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+-	{name: "AtomicAnd64", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},            // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+-	{name: "AtomicAnd32", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},            // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+-	{name: "AtomicOr64", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},             // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+-	{name: "AtomicOr32", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},             // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++
++	// Older atomic logical operations which don't return the old value.
++	{name: "AtomicAnd8", argLength: 3, typ: "Mem", hasSideEffects: true},  // *arg0 &= arg1.  arg2=memory.  Returns memory.
++	{name: "AtomicOr8", argLength: 3, typ: "Mem", hasSideEffects: true},   // *arg0 |= arg1.  arg2=memory.  Returns memory.
++	{name: "AtomicAnd32", argLength: 3, typ: "Mem", hasSideEffects: true}, // *arg0 &= arg1.  arg2=memory.  Returns memory.
++	{name: "AtomicOr32", argLength: 3, typ: "Mem", hasSideEffects: true},  // *arg0 |= arg1.  arg2=memory.  Returns memory.
++
++	// Newer atomic logical operations which return the old value.
++	{name: "AtomicAnd64value", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true}, // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicAnd32value", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true}, // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicAnd8value", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},   // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicOr64value", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},  // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicOr32value", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},  // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicOr8value", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},    // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 
+ 	// Atomic operation variants
+ 	// These variants have the same semantics as above atomic operations.
+@@ -628,12 +636,12 @@ var genericOps = []opData{
+ 	{name: "AtomicExchange64Variant", argLength: 3, typ: "(UInt64,Mem)", hasSideEffects: true},     // Store arg1 to *arg0.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 	{name: "AtomicCompareAndSwap32Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+ 	{name: "AtomicCompareAndSwap64Variant", argLength: 4, typ: "(Bool,Mem)", hasSideEffects: true}, // if *arg0==arg1, then set *arg0=arg2.  Returns true if store happens and new memory.
+-	{name: "AtomicAnd8Variant", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},           // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+-	{name: "AtomicOr8Variant", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},            // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+-	{name: "AtomicAnd64Variant", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},         // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+-	{name: "AtomicOr64Variant", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},          // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+-	{name: "AtomicAnd32Variant", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},         // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+-	{name: "AtomicOr32Variant", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},          // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicAnd64valueVariant", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},    // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicOr64valueVariant", argLength: 3, typ: "(Uint64, Mem)", hasSideEffects: true},     // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicAnd32valueVariant", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},    // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicOr32valueVariant", argLength: 3, typ: "(Uint32, Mem)", hasSideEffects: true},     // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicAnd8valueVariant", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},      // *arg0 &= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
++	{name: "AtomicOr8valueVariant", argLength: 3, typ: "(Uint8, Mem)", hasSideEffects: true},       // *arg0 |= arg1.  arg2=memory.  Returns old contents of *arg0 and new memory.
+ 
+ 	// Publication barrier
+ 	{name: "PubBarrier", argLength: 1, hasSideEffects: true}, // Do data barrier. arg0=memory.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 847d62c0a5..9c464f6a1f 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -3231,22 +3231,26 @@ const (
+ 	OpAtomicCompareAndSwapRel32
+ 	OpAtomicAnd8
+ 	OpAtomicOr8
+-	OpAtomicAnd64
+ 	OpAtomicAnd32
+-	OpAtomicOr64
+ 	OpAtomicOr32
++	OpAtomicAnd64value
++	OpAtomicAnd32value
++	OpAtomicAnd8value
++	OpAtomicOr64value
++	OpAtomicOr32value
++	OpAtomicOr8value
+ 	OpAtomicAdd32Variant
+ 	OpAtomicAdd64Variant
+ 	OpAtomicExchange32Variant
+ 	OpAtomicExchange64Variant
+ 	OpAtomicCompareAndSwap32Variant
+ 	OpAtomicCompareAndSwap64Variant
+-	OpAtomicAnd8Variant
+-	OpAtomicOr8Variant
+-	OpAtomicAnd64Variant
+-	OpAtomicOr64Variant
+-	OpAtomicAnd32Variant
+-	OpAtomicOr32Variant
++	OpAtomicAnd64valueVariant
++	OpAtomicOr64valueVariant
++	OpAtomicAnd32valueVariant
++	OpAtomicOr32valueVariant
++	OpAtomicAnd8valueVariant
++	OpAtomicOr8valueVariant
+ 	OpPubBarrier
+ 	OpClobber
+ 	OpClobberReg
+@@ -40739,25 +40743,49 @@ var opcodeTable = [...]opInfo{
+ 		generic:        true,
+ 	},
+ 	{
+-		name:           "AtomicAnd64",
++		name:           "AtomicAnd32",
+ 		argLen:         3,
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
+ 	{
+-		name:           "AtomicAnd32",
++		name:           "AtomicOr32",
+ 		argLen:         3,
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
+ 	{
+-		name:           "AtomicOr64",
++		name:           "AtomicAnd64value",
+ 		argLen:         3,
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
+ 	{
+-		name:           "AtomicOr32",
++		name:           "AtomicAnd32value",
++		argLen:         3,
++		hasSideEffects: true,
++		generic:        true,
++	},
++	{
++		name:           "AtomicAnd8value",
++		argLen:         3,
++		hasSideEffects: true,
++		generic:        true,
++	},
++	{
++		name:           "AtomicOr64value",
++		argLen:         3,
++		hasSideEffects: true,
++		generic:        true,
++	},
++	{
++		name:           "AtomicOr32value",
++		argLen:         3,
++		hasSideEffects: true,
++		generic:        true,
++	},
++	{
++		name:           "AtomicOr8value",
+ 		argLen:         3,
+ 		hasSideEffects: true,
+ 		generic:        true,
+@@ -40799,37 +40827,37 @@ var opcodeTable = [...]opInfo{
+ 		generic:        true,
+ 	},
+ 	{
+-		name:           "AtomicAnd8Variant",
++		name:           "AtomicAnd64valueVariant",
+ 		argLen:         3,
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
+ 	{
+-		name:           "AtomicOr8Variant",
++		name:           "AtomicOr64valueVariant",
+ 		argLen:         3,
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
+ 	{
+-		name:           "AtomicAnd64Variant",
++		name:           "AtomicAnd32valueVariant",
+ 		argLen:         3,
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
+ 	{
+-		name:           "AtomicOr64Variant",
++		name:           "AtomicOr32valueVariant",
+ 		argLen:         3,
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
+ 	{
+-		name:           "AtomicAnd32Variant",
++		name:           "AtomicAnd8valueVariant",
+ 		argLen:         3,
+ 		hasSideEffects: true,
+ 		generic:        true,
+ 	},
+ 	{
+-		name:           "AtomicOr32Variant",
++		name:           "AtomicOr8valueVariant",
+ 		argLen:         3,
+ 		hasSideEffects: true,
+ 		generic:        true,
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index a548f6bd97..44b171d605 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -469,22 +469,22 @@ func rewriteValueARM64(v *Value) bool {
+ 	case OpAtomicAdd64Variant:
+ 		v.Op = OpARM64LoweredAtomicAdd64Variant
+ 		return true
+-	case OpAtomicAnd32:
++	case OpAtomicAnd32value:
+ 		v.Op = OpARM64LoweredAtomicAnd32
+ 		return true
+-	case OpAtomicAnd32Variant:
++	case OpAtomicAnd32valueVariant:
+ 		v.Op = OpARM64LoweredAtomicAnd32Variant
+ 		return true
+-	case OpAtomicAnd64:
++	case OpAtomicAnd64value:
+ 		v.Op = OpARM64LoweredAtomicAnd64
+ 		return true
+-	case OpAtomicAnd64Variant:
++	case OpAtomicAnd64valueVariant:
+ 		v.Op = OpARM64LoweredAtomicAnd64Variant
+ 		return true
+-	case OpAtomicAnd8:
++	case OpAtomicAnd8value:
+ 		v.Op = OpARM64LoweredAtomicAnd8
+ 		return true
+-	case OpAtomicAnd8Variant:
++	case OpAtomicAnd8valueVariant:
+ 		v.Op = OpARM64LoweredAtomicAnd8Variant
+ 		return true
+ 	case OpAtomicCompareAndSwap32:
+@@ -523,22 +523,22 @@ func rewriteValueARM64(v *Value) bool {
+ 	case OpAtomicLoadPtr:
+ 		v.Op = OpARM64LDAR
+ 		return true
+-	case OpAtomicOr32:
++	case OpAtomicOr32value:
+ 		v.Op = OpARM64LoweredAtomicOr32
+ 		return true
+-	case OpAtomicOr32Variant:
++	case OpAtomicOr32valueVariant:
+ 		v.Op = OpARM64LoweredAtomicOr32Variant
+ 		return true
+-	case OpAtomicOr64:
++	case OpAtomicOr64value:
+ 		v.Op = OpARM64LoweredAtomicOr64
+ 		return true
+-	case OpAtomicOr64Variant:
++	case OpAtomicOr64valueVariant:
+ 		v.Op = OpARM64LoweredAtomicOr64Variant
+ 		return true
+-	case OpAtomicOr8:
++	case OpAtomicOr8value:
+ 		v.Op = OpARM64LoweredAtomicOr8
+ 		return true
+-	case OpAtomicOr8Variant:
++	case OpAtomicOr8valueVariant:
+ 		v.Op = OpARM64LoweredAtomicOr8Variant
+ 		return true
+ 	case OpAtomicStore32:
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index e6d5a13957..98259f43ce 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4410,13 +4410,13 @@ func InitTables() {
+ 		},
+ 		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 
+-	type atomicOpEmitter func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind)
++	type atomicOpEmitter func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind, needReturn bool)
+ 
+-	makeAtomicGuardedIntrinsicARM64 := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter) intrinsicBuilder {
++	makeAtomicGuardedIntrinsicARM64common := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter, needReturn bool) intrinsicBuilder {
+ 
+ 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			if buildcfg.GOARM64.LSE {
+-				emit(s, n, args, op1, typ)
++				emit(s, n, args, op1, typ, needReturn)
+ 			} else {
+ 				// Target Atomic feature is identified by dynamic detection
+ 				addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.ARM64HasATOMICS, s.sb)
+@@ -4433,29 +4433,37 @@ func InitTables() {
+ 
+ 				// We have atomic instructions - use it directly.
+ 				s.startBlock(bTrue)
+-				emit(s, n, args, op1, typ)
++				emit(s, n, args, op1, typ, needReturn)
+ 				s.endBlock().AddEdgeTo(bEnd)
+ 
+ 				// Use original instruction sequence.
+ 				s.startBlock(bFalse)
+-				emit(s, n, args, op0, typ)
++				emit(s, n, args, op0, typ, needReturn)
+ 				s.endBlock().AddEdgeTo(bEnd)
+ 
+ 				// Merge results.
+ 				s.startBlock(bEnd)
+ 			}
+-			if typ == types.TNIL {
+-				return nil
+-			} else {
++			if needReturn {
+ 				return s.variable(n, types.Types[typ])
++			} else {
++				return nil
+ 			}
+ 		}
+ 	}
++	makeAtomicGuardedIntrinsicARM64 := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter) intrinsicBuilder {
++		return makeAtomicGuardedIntrinsicARM64common(op0, op1, typ, emit, true)
++	}
++	makeAtomicGuardedIntrinsicARM64old := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter) intrinsicBuilder {
++		return makeAtomicGuardedIntrinsicARM64common(op0, op1, typ, emit, false)
++	}
+ 
+-	atomicEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind) {
++	atomicEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind, needReturn bool) {
+ 		v := s.newValue3(op, types.NewTuple(types.Types[typ], types.TypeMem), args[0], args[1], s.mem())
+ 		s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+-		s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
++		if needReturn {
++			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
++		}
+ 	}
+ 	addF("internal/runtime/atomic", "Xchg",
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange32, ssa.OpAtomicExchange32Variant, types.TUINT32, atomicEmitterARM64),
+@@ -4508,10 +4516,12 @@ func InitTables() {
+ 		},
+ 		sys.PPC64)
+ 
+-	atomicCasEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind) {
++	atomicCasEmitterARM64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind, needReturn bool) {
+ 		v := s.newValue4(op, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
+ 		s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+-		s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
++		if needReturn {
++			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
++		}
+ 	}
+ 
+ 	addF("internal/runtime/atomic", "Cas",
+@@ -4538,7 +4548,7 @@ func InitTables() {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.ARM64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
++		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("internal/runtime/atomic", "Or",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
+@@ -4547,28 +4557,28 @@ func InitTables() {
+ 		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 
+ 	addF("internal/runtime/atomic", "And8",
+-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd8, ssa.OpAtomicAnd8Variant, types.TUINT8, atomicEmitterARM64),
++		makeAtomicGuardedIntrinsicARM64old(ssa.OpAtomicAnd8value, ssa.OpAtomicAnd8valueVariant, types.TUINT8, atomicEmitterARM64),
+ 		sys.ARM64)
+ 	addF("internal/runtime/atomic", "Or8",
+-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr8, ssa.OpAtomicOr8Variant, types.TUINT8, atomicEmitterARM64),
++		makeAtomicGuardedIntrinsicARM64old(ssa.OpAtomicOr8value, ssa.OpAtomicOr8valueVariant, types.TUINT8, atomicEmitterARM64),
+ 		sys.ARM64)
+ 	addF("internal/runtime/atomic", "And64",
+-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd64, ssa.OpAtomicAnd64Variant, types.TUINT64, atomicEmitterARM64),
++		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd64value, ssa.OpAtomicAnd64valueVariant, types.TUINT64, atomicEmitterARM64),
+ 		sys.ARM64)
+ 	addF("internal/runtime/atomic", "And32",
+-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd32, ssa.OpAtomicAnd32Variant, types.TUINT32, atomicEmitterARM64),
++		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd32value, ssa.OpAtomicAnd32valueVariant, types.TUINT32, atomicEmitterARM64),
+ 		sys.ARM64)
+ 	addF("internal/runtime/atomic", "And",
+-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicAnd32, ssa.OpAtomicAnd32Variant, types.TUINT32, atomicEmitterARM64),
++		makeAtomicGuardedIntrinsicARM64old(ssa.OpAtomicAnd32value, ssa.OpAtomicAnd32valueVariant, types.TUINT32, atomicEmitterARM64),
+ 		sys.ARM64)
+ 	addF("internal/runtime/atomic", "Or64",
+-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr64, ssa.OpAtomicOr64Variant, types.TUINT64, atomicEmitterARM64),
++		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr64value, ssa.OpAtomicOr64valueVariant, types.TUINT64, atomicEmitterARM64),
+ 		sys.ARM64)
+ 	addF("internal/runtime/atomic", "Or32",
+-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TUINT32, atomicEmitterARM64),
++		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32value, ssa.OpAtomicOr32valueVariant, types.TUINT32, atomicEmitterARM64),
+ 		sys.ARM64)
+ 	addF("internal/runtime/atomic", "Or",
+-		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicOr32, ssa.OpAtomicOr32Variant, types.TUINT32, atomicEmitterARM64),
++		makeAtomicGuardedIntrinsicARM64old(ssa.OpAtomicOr32value, ssa.OpAtomicOr32valueVariant, types.TUINT32, atomicEmitterARM64),
+ 		sys.ARM64)
+ 
+ 	// Aliases for atomic load operations

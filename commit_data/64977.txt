@@ -1,0 +1,46 @@
+commit 658a6a6e1f0a4e0a41ccb5618b0cbf9abe9a7ff4
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Sep 27 13:46:56 2024 -0400
+
+    src/net/http: remove ServeMux.patterns
+    
+    Remove an unexported field from ServeMux that was there only to support
+    some Google-internal packages. It is no longer needed.
+    
+    Change-Id: I6a4d542c6c016f5a9f3d24d0c73f6ddd44c9562e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616355
+    Reviewed-by: Chressie Himpel <chressie@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/net/http/server.go | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 0b56edf231..bd16eeb08e 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2503,11 +2503,10 @@ func RedirectHandler(url string, code int) Handler {
+ //     This change mostly affects how paths with %2F escapes adjacent to slashes are treated.
+ //     See https://go.dev/issue/21955 for details.
+ type ServeMux struct {
+-	mu       sync.RWMutex
+-	tree     routingNode
+-	index    routingIndex
+-	patterns []*pattern  // TODO(jba): remove if possible
+-	mux121   serveMux121 // used only when GODEBUG=httpmuxgo121=1
++	mu     sync.RWMutex
++	tree   routingNode
++	index  routingIndex
++	mux121 serveMux121 // used only when GODEBUG=httpmuxgo121=1
+ }
+ 
+ // NewServeMux allocates and returns a new [ServeMux].
+@@ -2838,7 +2837,6 @@ func (mux *ServeMux) registerErr(patstr string, handler Handler) error {
+ 	}
+ 	mux.tree.addPattern(pat, handler)
+ 	mux.index.addPattern(pat)
+-	mux.patterns = append(mux.patterns, pat)
+ 	return nil
+ }
+ 

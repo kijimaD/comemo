@@ -1,0 +1,318 @@
+commit ca63101df47a4467bc80faa654fc19d68e583952
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Tue Mar 26 20:23:42 2024 +0100
+
+    runtime/pprof: reduce label overhead
+    
+    Switch labelMap from map[string]string to use LabelSet as a data
+    structure. Optimize Labels() for the case where the keys are given in
+    sorted order without duplicates.
+    
+    This is primarily motivated by reducing the overhead of distributed
+    tracing systems that use pprof labels. We have encountered cases where
+    users complained about the overhead relative to the rest of our
+    distributed tracing library code. Additionally, we see this as an
+    opportunity to free up hundreds of CPU cores across our fleet.
+    
+    A secondary motivation is eBPF profilers that try to access pprof
+    labels. The current map[string]string requires them to implement Go map
+    access in eBPF, which is non-trivial. With the enablement of swiss maps,
+    this complexity is only increasing. The slice data structure introduced
+    in this CL will greatly lower the implementation complexity for eBPF
+    profilers in the future. But to be clear: This change does not imply
+    that the pprof label mechanism is now a stable ABI. They are still an
+    implementation detail and may change again in the future.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: runtime/pprof
+    cpu: Apple M1 Max
+                                       │ baseline.txt │             patch1.txt              │
+                                       │    sec/op    │   sec/op     vs base                │
+    Labels/set-one-10                    153.50n ± 3%   75.00n ± 1%  -51.14% (p=0.000 n=10)
+    Labels/merge-one-10                   187.8n ± 1%   128.8n ± 1%  -31.42% (p=0.000 n=10)
+    Labels/overwrite-one-10               193.1n ± 2%   102.0n ± 1%  -47.18% (p=0.000 n=10)
+    Labels/ordered/set-many-10            502.6n ± 4%   146.1n ± 2%  -70.94% (p=0.000 n=10)
+    Labels/ordered/merge-many-10          516.3n ± 2%   238.1n ± 1%  -53.89% (p=0.000 n=10)
+    Labels/ordered/overwrite-many-10      569.3n ± 4%   247.6n ± 2%  -56.51% (p=0.000 n=10)
+    Labels/unordered/set-many-10          488.9n ± 2%   308.3n ± 3%  -36.94% (p=0.000 n=10)
+    Labels/unordered/merge-many-10        523.6n ± 1%   258.5n ± 1%  -50.64% (p=0.000 n=10)
+    Labels/unordered/overwrite-many-10    571.4n ± 1%   412.1n ± 2%  -27.89% (p=0.000 n=10)
+    geomean                               366.8n        186.9n       -49.05%
+    
+                                       │ baseline.txt │             patch1b.txt              │
+                                       │     B/op     │     B/op      vs base                │
+    Labels/set-one-10                      424.0 ± 0%     104.0 ± 0%  -75.47% (p=0.000 n=10)
+    Labels/merge-one-10                    424.0 ± 0%     200.0 ± 0%  -52.83% (p=0.000 n=10)
+    Labels/overwrite-one-10                424.0 ± 0%     136.0 ± 0%  -67.92% (p=0.000 n=10)
+    Labels/ordered/set-many-10            1344.0 ± 0%     392.0 ± 0%  -70.83% (p=0.000 n=10)
+    Labels/ordered/merge-many-10          1184.0 ± 0%     712.0 ± 0%  -39.86% (p=0.000 n=10)
+    Labels/ordered/overwrite-many-10      1056.0 ± 0%     712.0 ± 0%  -32.58% (p=0.000 n=10)
+    Labels/unordered/set-many-10          1344.0 ± 0%     712.0 ± 0%  -47.02% (p=0.000 n=10)
+    Labels/unordered/merge-many-10        1184.0 ± 0%     712.0 ± 0%  -39.86% (p=0.000 n=10)
+    Labels/unordered/overwrite-many-10   1.031Ki ± 0%   1.008Ki ± 0%   -2.27% (p=0.000 n=10)
+    geomean                                843.1          405.1       -51.95%
+    
+                                       │ baseline.txt │             patch1b.txt              │
+                                       │  allocs/op   │ allocs/op   vs base                  │
+    Labels/set-one-10                      5.000 ± 0%   3.000 ± 0%  -40.00% (p=0.000 n=10)
+    Labels/merge-one-10                    5.000 ± 0%   5.000 ± 0%        ~ (p=1.000 n=10) ¹
+    Labels/overwrite-one-10                5.000 ± 0%   4.000 ± 0%  -20.00% (p=0.000 n=10)
+    Labels/ordered/set-many-10             8.000 ± 0%   3.000 ± 0%  -62.50% (p=0.000 n=10)
+    Labels/ordered/merge-many-10           8.000 ± 0%   5.000 ± 0%  -37.50% (p=0.000 n=10)
+    Labels/ordered/overwrite-many-10       7.000 ± 0%   4.000 ± 0%  -42.86% (p=0.000 n=10)
+    Labels/unordered/set-many-10           8.000 ± 0%   4.000 ± 0%  -50.00% (p=0.000 n=10)
+    Labels/unordered/merge-many-10         8.000 ± 0%   5.000 ± 0%  -37.50% (p=0.000 n=10)
+    Labels/unordered/overwrite-many-10     7.000 ± 0%   5.000 ± 0%  -28.57% (p=0.000 n=10)
+    geomean                                6.640        4.143       -37.60%
+    ¹ all samples are equal
+    
+    Change-Id: Ie68e960a25c2d97bcfb6239dc481832fa8a39754
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574516
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/pprof/label.go        | 81 ++++++++++++++++++++++++++++++---------
+ src/runtime/pprof/label_test.go   | 14 ++++---
+ src/runtime/pprof/pprof.go        |  4 +-
+ src/runtime/pprof/pprof_test.go   |  6 +--
+ src/runtime/pprof/proto.go        |  4 +-
+ src/runtime/pprof/runtime_test.go |  6 ++-
+ 6 files changed, 82 insertions(+), 33 deletions(-)
+
+diff --git a/src/runtime/pprof/label.go b/src/runtime/pprof/label.go
+index 41eece2f74..4c1d8d38ce 100644
+--- a/src/runtime/pprof/label.go
++++ b/src/runtime/pprof/label.go
+@@ -27,7 +27,7 @@ type labelContextKey struct{}
+ func labelValue(ctx context.Context) labelMap {
+ 	labels, _ := ctx.Value(labelContextKey{}).(*labelMap)
+ 	if labels == nil {
+-		return labelMap(nil)
++		return labelMap{}
+ 	}
+ 	return *labels
+ }
+@@ -35,7 +35,9 @@ func labelValue(ctx context.Context) labelMap {
+ // labelMap is the representation of the label set held in the context type.
+ // This is an initial implementation, but it will be replaced with something
+ // that admits incremental immutable modification more efficiently.
+-type labelMap map[string]string
++type labelMap struct {
++	LabelSet
++}
+ 
+ // String satisfies Stringer and returns key, value pairs in a consistent
+ // order.
+@@ -43,14 +45,13 @@ func (l *labelMap) String() string {
+ 	if l == nil {
+ 		return ""
+ 	}
+-	keyVals := make([]string, 0, len(*l))
++	keyVals := make([]string, 0, len(l.list))
+ 
+-	for k, v := range *l {
+-		keyVals = append(keyVals, fmt.Sprintf("%q:%q", k, v))
++	for _, lbl := range l.list {
++		keyVals = append(keyVals, fmt.Sprintf("%q:%q", lbl.key, lbl.value))
+ 	}
+ 
+ 	slices.Sort(keyVals)
+-
+ 	return "{" + strings.Join(keyVals, ", ") + "}"
+ }
+ 
+@@ -58,17 +59,38 @@ func (l *labelMap) String() string {
+ // A label overwrites a prior label with the same key.
+ func WithLabels(ctx context.Context, labels LabelSet) context.Context {
+ 	parentLabels := labelValue(ctx)
+-	childLabels := make(labelMap, len(parentLabels))
+-	// TODO(matloob): replace the map implementation with something
+-	// more efficient so creating a child context WithLabels doesn't need
+-	// to clone the map.
+-	for k, v := range parentLabels {
+-		childLabels[k] = v
++	return context.WithValue(ctx, labelContextKey{}, &labelMap{mergeLabelSets(parentLabels.LabelSet, labels)})
++}
++
++func mergeLabelSets(left, right LabelSet) LabelSet {
++	if len(left.list) == 0 {
++		return right
++	} else if len(right.list) == 0 {
++		return left
+ 	}
+-	for _, label := range labels.list {
+-		childLabels[label.key] = label.value
++
++	l, r := 0, 0
++	result := make([]label, 0, len(right.list))
++	for l < len(left.list) && r < len(right.list) {
++		switch strings.Compare(left.list[l].key, right.list[r].key) {
++		case -1: // left key < right key
++			result = append(result, left.list[l])
++			l++
++		case 1: // right key < left key
++			result = append(result, right.list[r])
++			r++
++		case 0: // keys are equal, right value overwrites left value
++			result = append(result, right.list[r])
++			l++
++			r++
++		}
+ 	}
+-	return context.WithValue(ctx, labelContextKey{}, &childLabels)
++
++	// Append the remaining elements
++	result = append(result, left.list[l:]...)
++	result = append(result, right.list[r:]...)
++
++	return LabelSet{list: result}
+ }
+ 
+ // Labels takes an even number of strings representing key-value pairs
+@@ -82,8 +104,25 @@ func Labels(args ...string) LabelSet {
+ 		panic("uneven number of arguments to pprof.Labels")
+ 	}
+ 	list := make([]label, 0, len(args)/2)
++	sortedNoDupes := true
+ 	for i := 0; i+1 < len(args); i += 2 {
+ 		list = append(list, label{key: args[i], value: args[i+1]})
++		sortedNoDupes = sortedNoDupes && (i < 2 || args[i] > args[i-2])
++	}
++	if !sortedNoDupes {
++		// slow path: keys are unsorted, contain duplicates, or both
++		slices.SortStableFunc(list, func(a, b label) int {
++			return strings.Compare(a.key, b.key)
++		})
++		deduped := make([]label, 0, len(list))
++		for i, lbl := range list {
++			if i == 0 || lbl.key != list[i-1].key {
++				deduped = append(deduped, lbl)
++			} else {
++				deduped[len(deduped)-1] = lbl
++			}
++		}
++		list = deduped
+ 	}
+ 	return LabelSet{list: list}
+ }
+@@ -92,16 +131,20 @@ func Labels(args ...string) LabelSet {
+ // whether that label exists.
+ func Label(ctx context.Context, key string) (string, bool) {
+ 	ctxLabels := labelValue(ctx)
+-	v, ok := ctxLabels[key]
+-	return v, ok
++	for _, lbl := range ctxLabels.list {
++		if lbl.key == key {
++			return lbl.value, true
++		}
++	}
++	return "", false
+ }
+ 
+ // ForLabels invokes f with each label set on the context.
+ // The function f should return true to continue iteration or false to stop iteration early.
+ func ForLabels(ctx context.Context, f func(key, value string) bool) {
+ 	ctxLabels := labelValue(ctx)
+-	for k, v := range ctxLabels {
+-		if !f(k, v) {
++	for _, lbl := range ctxLabels.list {
++		if !f(lbl.key, lbl.value) {
+ 			break
+ 		}
+ 	}
+diff --git a/src/runtime/pprof/label_test.go b/src/runtime/pprof/label_test.go
+index 5cab9f21a5..3018693c24 100644
+--- a/src/runtime/pprof/label_test.go
++++ b/src/runtime/pprof/label_test.go
+@@ -93,16 +93,18 @@ func TestLabelMapStringer(t *testing.T) {
+ 			expected: "{}",
+ 		}, {
+ 			m: labelMap{
+-				"foo": "bar",
++				Labels("foo", "bar"),
+ 			},
+ 			expected: `{"foo":"bar"}`,
+ 		}, {
+ 			m: labelMap{
+-				"foo":             "bar",
+-				"key1":            "value1",
+-				"key2":            "value2",
+-				"key3":            "value3",
+-				"key4WithNewline": "\nvalue4",
++				Labels(
++					"foo", "bar",
++					"key1", "value1",
++					"key2", "value2",
++					"key3", "value3",
++					"key4WithNewline", "\nvalue4",
++				),
+ 			},
+ 			expected: `{"foo":"bar", "key1":"value1", "key2":"value2", "key3":"value3", "key4WithNewline":"\nvalue4"}`,
+ 		},
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index b8458367f8..f6b4a5c367 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -516,8 +516,8 @@ func printCountProfile(w io.Writer, debug int, name string, p countProfile) erro
+ 		var labels func()
+ 		if p.Label(idx) != nil {
+ 			labels = func() {
+-				for k, v := range *p.Label(idx) {
+-					b.pbLabel(tagSample_Label, k, v, 0)
++				for _, lbl := range p.Label(idx).list {
++					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
+ 				}
+ 			}
+ 		}
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 64ca9957d2..78138b2f62 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1482,11 +1482,11 @@ func TestGoroutineCounts(t *testing.T) {
+ 	goroutineProf.WriteTo(&w, 1)
+ 	prof := w.String()
+ 
+-	labels := labelMap{"label": "value"}
++	labels := labelMap{Labels("label", "value")}
+ 	labelStr := "\n# labels: " + labels.String()
+-	selfLabel := labelMap{"self-label": "self-value"}
++	selfLabel := labelMap{Labels("self-label", "self-value")}
+ 	selfLabelStr := "\n# labels: " + selfLabel.String()
+-	fingLabel := labelMap{"fing-label": "fing-value"}
++	fingLabel := labelMap{Labels("fing-label", "fing-value")}
+ 	fingLabelStr := "\n# labels: " + fingLabel.String()
+ 	orderedPrefix := []string{
+ 		"\n50 @ ",
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index b01f541375..a664fdc6ed 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -367,8 +367,8 @@ func (b *profileBuilder) build() {
+ 		var labels func()
+ 		if e.tag != nil {
+ 			labels = func() {
+-				for k, v := range *(*labelMap)(e.tag) {
+-					b.pbLabel(tagSample_Label, k, v, 0)
++				for _, lbl := range (*labelMap)(e.tag).list {
++					b.pbLabel(tagSample_Label, lbl.key, lbl.value, 0)
+ 				}
+ 			}
+ 		}
+diff --git a/src/runtime/pprof/runtime_test.go b/src/runtime/pprof/runtime_test.go
+index e77c7f2bc9..353ed8a3f1 100644
+--- a/src/runtime/pprof/runtime_test.go
++++ b/src/runtime/pprof/runtime_test.go
+@@ -92,5 +92,9 @@ func getProfLabel() map[string]string {
+ 	if l == nil {
+ 		return map[string]string{}
+ 	}
+-	return *l
++	m := make(map[string]string, len(l.list))
++	for _, lbl := range l.list {
++		m[lbl.key] = lbl.value
++	}
++	return m
+ }

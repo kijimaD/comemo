@@ -1,0 +1,63 @@
+commit db8f1dc9481b31ac616e9f2d187c86291786e1a6
+Author: Vladislav Yarmak <vladislav@vm-0.com>
+Date:   Sat May 10 17:58:48 2025 +0000
+
+    [release-branch.go1.24] hash/maphash: hash channels in purego version of maphash.Comparable
+    
+    This change makes purego implementation of maphash.Comparable consistent
+    with the one in runtime and fixes hashing of channels.
+    
+    For #73657
+    Fixes #73669
+    
+    Change-Id: If78a21d996f0c20c0224d4014e4a4177b09c3aa3
+    GitHub-Last-Rev: 2537216a1e4e62791c7e417441ee770ca149f38a
+    GitHub-Pull-Request: golang/go#73660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671655
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    (cherry picked from commit 1635aed9413233ba8f974447ca3359b7a9159985)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676817
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ src/hash/maphash/maphash_purego.go | 2 +-
+ src/hash/maphash/maphash_test.go   | 5 +++++
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/hash/maphash/maphash_purego.go b/src/hash/maphash/maphash_purego.go
+index 53636a48ca..07b5eaa460 100644
+--- a/src/hash/maphash/maphash_purego.go
++++ b/src/hash/maphash/maphash_purego.go
+@@ -161,7 +161,7 @@ func appendT(h *Hash, v reflect.Value) {
+ 	case reflect.Bool:
+ 		h.WriteByte(btoi(v.Bool()))
+ 		return
+-	case reflect.UnsafePointer, reflect.Pointer:
++	case reflect.UnsafePointer, reflect.Pointer, reflect.Chan:
+ 		var buf [8]byte
+ 		// because pointing to the abi.Escape call in comparableReady,
+ 		// So this is ok to hash pointer,
+diff --git a/src/hash/maphash/maphash_test.go b/src/hash/maphash/maphash_test.go
+index 4a85c8a6ac..c39876c3af 100644
+--- a/src/hash/maphash/maphash_test.go
++++ b/src/hash/maphash/maphash_test.go
+@@ -253,12 +253,17 @@ func TestComparable(t *testing.T) {
+ 	}
+ 	testComparable(t, s1, s2)
+ 	testComparable(t, s1.s, s2.s)
++	c1 := make(chan struct{})
++	c2 := make(chan struct{})
++	testComparable(t, c1, c1)
++	testComparable(t, chan struct{}(nil))
+ 	testComparable(t, float32(0), negativeZero[float32]())
+ 	testComparable(t, float64(0), negativeZero[float64]())
+ 	testComparableNoEqual(t, math.NaN(), math.NaN())
+ 	testComparableNoEqual(t, [2]string{"a", ""}, [2]string{"", "a"})
+ 	testComparableNoEqual(t, struct{ a, b string }{"foo", ""}, struct{ a, b string }{"", "foo"})
+ 	testComparableNoEqual(t, struct{ a, b any }{int(0), struct{}{}}, struct{ a, b any }{struct{}{}, int(0)})
++	testComparableNoEqual(t, c1, c2)
+ }
+ 
+ func testComparableNoEqual[T comparable](t *testing.T, v1, v2 T) {

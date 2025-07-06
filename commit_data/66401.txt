@@ -1,0 +1,42 @@
+commit 14647b0ac881f084f0063ddb32341fba71e1d2e4
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Mar 3 12:28:01 2025 +0100
+
+    os: only call GetConsoleMode for char devices
+    
+    There is no need to call GetConsoleMode if we know that the file
+    type is not FILE_TYPE_CHAR. This is a tiny performance optimization,
+    as I sometimes see this call in profiles.
+    
+    Change-Id: I9e9237908585d0ec8360930a0406b26f52699b92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654155
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/os/file_windows.go | 12 +++++++-----
+ 1 file changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index c209a9f003..07984be5c4 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -44,11 +44,13 @@ func (file *File) fd() uintptr {
+ // Unlike NewFile, it does not check that h is syscall.InvalidHandle.
+ func newFile(h syscall.Handle, name string, kind string) *File {
+ 	if kind == "file" {
+-		var m uint32
+-		if syscall.GetConsoleMode(h, &m) == nil {
+-			kind = "console"
+-		}
+-		if t, err := syscall.GetFileType(h); err == nil && t == syscall.FILE_TYPE_PIPE {
++		t, err := syscall.GetFileType(h)
++		if err != nil || t == syscall.FILE_TYPE_CHAR {
++			var m uint32
++			if syscall.GetConsoleMode(h, &m) == nil {
++				kind = "console"
++			}
++		} else if t == syscall.FILE_TYPE_PIPE {
+ 			kind = "pipe"
+ 		}
+ 	}

@@ -1,0 +1,132 @@
+commit 37026a7c563c580bef0fac1e5b60e9498650e3a2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Feb 28 16:57:44 2025 -0500
+
+    cmd/go: skip some tests that run builds in short mode
+    
+    cmd/go tests that run builds are generally skipped in short mode. This
+    change will adds skips for some tests that were running builds.
+    
+    I found these by sorting tests by elapsed time and removing the top
+    tests that invoked go build. It's our practice to skip tests that run go
+    build without the -n flag (which prints but doesn't execute commands).
+    
+    On my work laptop this reduces test run time from about 20 seconds to
+    about 16 seconds. On my linux workstation it reduces test run time from
+    about 10 seconds to about 5 seconds.
+    
+    Change-Id: I18ffcc231df013cb6ac5f5eb3544bed28dadeda8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653775
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/go_test.go                          | 2 ++
+ src/cmd/go/note_test.go                        | 2 ++
+ src/cmd/go/testdata/script/build_GOTMPDIR.txt  | 2 ++
+ src/cmd/go/testdata/script/cgo_path.txt        | 2 ++
+ src/cmd/go/testdata/script/clean_cache_n.txt   | 2 ++
+ src/cmd/go/testdata/script/goauth_userauth.txt | 2 ++
+ src/cmd/go/testdata/script/test_skip.txt       | 2 ++
+ src/cmd/go/testdata/script/vet_flags.txt       | 2 ++
+ src/cmd/go/testdata/script/work.txt            | 2 ++
+ 9 files changed, 18 insertions(+)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 1df7cf8faa..84e4b7abea 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1147,6 +1147,8 @@ func TestGoListCompiledCgo(t *testing.T) {
+ }
+ 
+ func TestGoListExport(t *testing.T) {
++	tooSlow(t, "runs build for -export")
++
+ 	skipIfGccgo(t, "gccgo does not have standard packages")
+ 	tg := testgo(t)
+ 	defer tg.cleanup()
+diff --git a/src/cmd/go/note_test.go b/src/cmd/go/note_test.go
+index ba7ec2a47b..3b8751b4db 100644
+--- a/src/cmd/go/note_test.go
++++ b/src/cmd/go/note_test.go
+@@ -13,6 +13,8 @@ import (
+ )
+ 
+ func TestNoteReading(t *testing.T) {
++	tooSlow(t, "runs build")
++
+ 	// cmd/internal/buildid already has tests that the basic reading works.
+ 	// This test is essentially checking that -ldflags=-buildid=XXX works,
+ 	// both in internal and external linking mode.
+diff --git a/src/cmd/go/testdata/script/build_GOTMPDIR.txt b/src/cmd/go/testdata/script/build_GOTMPDIR.txt
+index 4c9129ec45..6ad0157e5f 100644
+--- a/src/cmd/go/testdata/script/build_GOTMPDIR.txt
++++ b/src/cmd/go/testdata/script/build_GOTMPDIR.txt
+@@ -1,3 +1,5 @@
++[short] skip 'runs build'
++
+ # Set GOCACHE to a clean directory to ensure that 'go build' has work to report.
+ [!GOOS:windows] env GOCACHE=$WORK/gocache
+ [GOOS:windows] env GOCACHE=$WORK\gocache
+diff --git a/src/cmd/go/testdata/script/cgo_path.txt b/src/cmd/go/testdata/script/cgo_path.txt
+index be23893df5..0c8838e354 100644
+--- a/src/cmd/go/testdata/script/cgo_path.txt
++++ b/src/cmd/go/testdata/script/cgo_path.txt
+@@ -1,3 +1,5 @@
++[short] skip 'runs build'
++
+ [!cgo] skip
+ 
+ # Require that CC is something that requires a PATH lookup.
+diff --git a/src/cmd/go/testdata/script/clean_cache_n.txt b/src/cmd/go/testdata/script/clean_cache_n.txt
+index 72f9abf9ae..b93134e6bb 100644
+--- a/src/cmd/go/testdata/script/clean_cache_n.txt
++++ b/src/cmd/go/testdata/script/clean_cache_n.txt
+@@ -1,3 +1,5 @@
++[short] skip 'runs go build'
++
+ # We're testing cache behavior, so start with a clean GOCACHE.
+ env GOCACHE=$WORK/cache
+ 
+diff --git a/src/cmd/go/testdata/script/goauth_userauth.txt b/src/cmd/go/testdata/script/goauth_userauth.txt
+index 036573e07a..f70933cf58 100644
+--- a/src/cmd/go/testdata/script/goauth_userauth.txt
++++ b/src/cmd/go/testdata/script/goauth_userauth.txt
+@@ -1,6 +1,8 @@
+ # This test covers the HTTP authentication mechanism over GOAUTH by using a custom authenticator.
+ # See golang.org/issue/26232
+ 
++[short] skip 'runs build to create authenticators'
++
+ env GOPROXY=direct
+ env GOSUMDB=off
+ mkdir $WORK/bin
+diff --git a/src/cmd/go/testdata/script/test_skip.txt b/src/cmd/go/testdata/script/test_skip.txt
+index 2e5f4d65d7..350becbb20 100644
+--- a/src/cmd/go/testdata/script/test_skip.txt
++++ b/src/cmd/go/testdata/script/test_skip.txt
+@@ -1,3 +1,5 @@
++[short] skip 'runs test'
++
+ go test -v -run Test -skip T skip_test.go
+ ! stdout RUN
+ stdout '^ok.*\[no tests to run\]'
+diff --git a/src/cmd/go/testdata/script/vet_flags.txt b/src/cmd/go/testdata/script/vet_flags.txt
+index 73f4e4135b..21606dc4f1 100644
+--- a/src/cmd/go/testdata/script/vet_flags.txt
++++ b/src/cmd/go/testdata/script/vet_flags.txt
+@@ -1,3 +1,5 @@
++[short] skip 'runs test'
++
+ env GO111MODULE=on
+ 
+ # Issue 35837: "go vet -<analyzer> <std package>" should use the requested
+diff --git a/src/cmd/go/testdata/script/work.txt b/src/cmd/go/testdata/script/work.txt
+index 28df1a008c..3159792868 100644
+--- a/src/cmd/go/testdata/script/work.txt
++++ b/src/cmd/go/testdata/script/work.txt
+@@ -1,3 +1,5 @@
++[short] skip 'runs go run'
++
+ ! go work init doesnotexist
+ stderr 'go: directory doesnotexist does not exist'
+ go env GOWORK

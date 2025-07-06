@@ -1,0 +1,34 @@
+commit 325ee1ce3dae4879b00fb06059e8d33d49d6ba11
+Author: George Adams <georgeadams1995@gmail.com>
+Date:   Wed Oct 30 11:07:27 2024 +0000
+
+    os: fix findOneDriveDir to expand REG_SZ registry values
+    
+    On some Windows systems the SOFTWARE\Microsoft\OneDrive registry key is REG_SZ rather than REG_EXPAND_SZ.
+    
+    Change-Id: I3ccb8771377a73456f48da1b5cfae668130b3f7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623515
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/os/os_windows_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index d4cd61067e..9208fe3b16 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -931,7 +931,9 @@ func findOneDriveDir() (string, error) {
+ 		return "", fmt.Errorf("reading UserFolder failed: %v", err)
+ 	}
+ 
+-	if valtype == registry.EXPAND_SZ {
++	// REG_SZ values may also contain environment variables that need to be expanded.
++	// It's recommended but not required to use REG_EXPAND_SZ for paths that contain environment variables.
++	if valtype == registry.EXPAND_SZ || valtype == registry.SZ {
+ 		expanded, err := registry.ExpandString(path)
+ 		if err != nil {
+ 			return "", fmt.Errorf("expanding UserFolder failed: %v", err)

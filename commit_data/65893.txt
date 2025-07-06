@@ -1,0 +1,31 @@
+commit 5da026354c0229c5a61dbe907c080cef7adc11bc
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 3 13:49:20 2025 -0800
+
+    cmd/go/internal/vcweb: close the .access file
+    
+    For #71112
+    
+    Change-Id: Ifda4fc8de148c42a2154da54b53d7215b9a6faa0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/go/internal/vcweb/auth.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/go/internal/vcweb/auth.go b/src/cmd/go/internal/vcweb/auth.go
+index 383bf759ff..e7c7c6ca26 100644
+--- a/src/cmd/go/internal/vcweb/auth.go
++++ b/src/cmd/go/internal/vcweb/auth.go
+@@ -63,6 +63,7 @@ func (h *authHandler) Handler(dir string, env []string, logger *log.Logger) (htt
+ 			var err error
+ 			accessFile, err = fs.Open(path.Join(accessDir, ".access"))
+ 			if err == nil {
++				defer accessFile.Close()
+ 				break
+ 			}
+ 

@@ -1,0 +1,108 @@
+commit 8054d2da5bdbaf154b258d8d2fd24025a809b0de
+Author: zhi.wang <zhi.wang@kunlun-inc.com>
+Date:   Sun Apr 6 13:08:57 2025 +0000
+
+    strconv: use switch for '+'/'-' prefix handling
+    
+    Follow the approach used in strconv's readFloat, decimal.set, and Atoi,
+    where leading '+' and '-' are handled using a switch for clarity and
+    consistency.
+    
+    Change-Id: I41eff34ce90b5ac43fcdbc0bb88910d6d5fb4d39
+    GitHub-Last-Rev: 0c9d2efb5a828515fa00afdba8c436aa31fb0e53
+    GitHub-Pull-Request: golang/go#73185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663257
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/strconv/atof.go | 26 ++++++++++++++------------
+ src/strconv/atoi.go |  7 ++++---
+ 2 files changed, 18 insertions(+), 15 deletions(-)
+
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index fe0dfdce55..fbbd84deb3 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -77,12 +77,12 @@ func (b *decimal) set(s string) (ok bool) {
+ 	if i >= len(s) {
+ 		return
+ 	}
+-	switch {
+-	case s[i] == '+':
++	switch s[i] {
++	case '+':
+ 		i++
+-	case s[i] == '-':
+-		b.neg = true
++	case '-':
+ 		i++
++		b.neg = true
+ 	}
+ 
+ 	// digits
+@@ -135,9 +135,10 @@ func (b *decimal) set(s string) (ok bool) {
+ 			return
+ 		}
+ 		esign := 1
+-		if s[i] == '+' {
++		switch s[i] {
++		case '+':
+ 			i++
+-		} else if s[i] == '-' {
++		case '-':
+ 			i++
+ 			esign = -1
+ 		}
+@@ -176,12 +177,12 @@ func readFloat(s string) (mantissa uint64, exp int, neg, trunc, hex bool, i int,
+ 	if i >= len(s) {
+ 		return
+ 	}
+-	switch {
+-	case s[i] == '+':
++	switch s[i] {
++	case '+':
+ 		i++
+-	case s[i] == '-':
+-		neg = true
++	case '-':
+ 		i++
++		neg = true
+ 	}
+ 
+ 	// digits
+@@ -268,9 +269,10 @@ loop:
+ 			return
+ 		}
+ 		esign := 1
+-		if s[i] == '+' {
++		switch s[i] {
++		case '+':
+ 			i++
+-		} else if s[i] == '-' {
++		case '-':
+ 			i++
+ 			esign = -1
+ 		}
+diff --git a/src/strconv/atoi.go b/src/strconv/atoi.go
+index 599ad9b895..83e931fe24 100644
+--- a/src/strconv/atoi.go
++++ b/src/strconv/atoi.go
+@@ -204,11 +204,12 @@ func ParseInt(s string, base int, bitSize int) (i int64, err error) {
+ 	// Pick off leading sign.
+ 	s0 := s
+ 	neg := false
+-	if s[0] == '+' {
++	switch s[0] {
++	case '+':
+ 		s = s[1:]
+-	} else if s[0] == '-' {
+-		neg = true
++	case '-':
+ 		s = s[1:]
++		neg = true
+ 	}
+ 
+ 	// Convert unsigned and check range.

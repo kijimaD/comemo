@@ -1,0 +1,46 @@
+commit 5a18e79687dea15680ff5f799b549fa0efd0cad9
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 21 12:20:38 2024 -0400
+
+    cmd/link: don't skip code sign even if dsymutil didn't generate a file
+    
+    Even if dsymutil didn't generate a file (which should not happen
+    with the Apple toolchain with the correct setup), we should not
+    skip next steps, e.g. code sign. A return statement makes it exit
+    too early.
+    
+    Updates #68088.
+    
+    Change-Id: Ic1271ed1b7fe5bdee5a25cc5d669a105173b389e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593660
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+---
+ src/cmd/link/internal/ld/lib.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index fee7888b7c..4f1eebb9e3 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2050,14 +2050,13 @@ func (ctxt *Link) hostlink() {
+ 			Exitf("%s: running strip failed: %v\n%s\n%s", os.Args[0], err, cmd, out)
+ 		}
+ 		// Skip combining if `dsymutil` didn't generate a file. See #11994.
+-		if _, err := os.Stat(dsym); os.IsNotExist(err) {
+-			return
++		if _, err := os.Stat(dsym); err == nil {
++			updateMachoOutFile("combining dwarf",
++				func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
++					return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
++				})
++			uuidUpdated = true
+ 		}
+-		updateMachoOutFile("combining dwarf",
+-			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
+-				return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
+-			})
+-		uuidUpdated = true
+ 	}
+ 	if ctxt.IsDarwin() && !uuidUpdated && *flagBuildid != "" {
+ 		updateMachoOutFile("rewriting uuid",

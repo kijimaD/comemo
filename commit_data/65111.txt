@@ -1,0 +1,129 @@
+commit 0753396628c6d7282ca87fa8811fe6fc9007226c
+Author: limeidan <limeidan@loongson.cn>
+Date:   Fri Oct 18 09:30:23 2024 +0800
+
+    cmd/compile/internal/ssa: optimize store-zero rules on loong64
+    
+    Change-Id: I4c6ce7b77da05636895127de7bc687c59bd79787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  5 ++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 64 +++++++++++++++++++++++++
+ 2 files changed, 69 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index a5000a1fac..eec31f9f6c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -569,6 +569,11 @@
+ (MOVWstore [off] {sym} ptr (MOVWreg x) mem) => (MOVWstore [off] {sym} ptr x mem)
+ (MOVWstore [off] {sym} ptr (MOVWUreg x) mem) => (MOVWstore [off] {sym} ptr x mem)
+ 
++(MOVBstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVBstorezero [off] {sym} ptr mem)
++(MOVHstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVHstorezero [off] {sym} ptr mem)
++(MOVWstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVWstorezero [off] {sym} ptr mem)
++(MOVVstore [off] {sym} ptr (MOVVconst [0]) mem) => (MOVVstorezero [off] {sym} ptr mem)
++
+ // register indexed load
+ (MOVVload [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVVloadidx ptr idx mem)
+ (MOVWUload [off] {sym} (ADDV ptr idx) mem) && off == 0 && sym == nil => (MOVWUloadidx ptr idx mem)
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 2eb9e64ee3..30dc407df1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -2263,6 +2263,22 @@ func rewriteValueLOONG64_OpLOONG64MOVBstore(v *Value) bool {
+ 		v.AddArg3(ptr, x, mem)
+ 		return true
+ 	}
++	// match: (MOVBstore [off] {sym} ptr (MOVVconst [0]) mem)
++	// result: (MOVBstorezero [off] {sym} ptr mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_1.AuxInt) != 0 {
++			break
++		}
++		mem := v_2
++		v.reset(OpLOONG64MOVBstorezero)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg2(ptr, mem)
++		return true
++	}
+ 	// match: (MOVBstore [off] {sym} (ADDV ptr idx) val mem)
+ 	// cond: off == 0 && sym == nil
+ 	// result: (MOVBstoreidx ptr idx val mem)
+@@ -3478,6 +3494,22 @@ func rewriteValueLOONG64_OpLOONG64MOVHstore(v *Value) bool {
+ 		v.AddArg3(ptr, x, mem)
+ 		return true
+ 	}
++	// match: (MOVHstore [off] {sym} ptr (MOVVconst [0]) mem)
++	// result: (MOVHstorezero [off] {sym} ptr mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_1.AuxInt) != 0 {
++			break
++		}
++		mem := v_2
++		v.reset(OpLOONG64MOVHstorezero)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg2(ptr, mem)
++		return true
++	}
+ 	// match: (MOVHstore [off] {sym} (ADDV ptr idx) val mem)
+ 	// cond: off == 0 && sym == nil
+ 	// result: (MOVHstoreidx ptr idx val mem)
+@@ -3892,6 +3924,22 @@ func rewriteValueLOONG64_OpLOONG64MOVVstore(v *Value) bool {
+ 		v.AddArg3(ptr, val, mem)
+ 		return true
+ 	}
++	// match: (MOVVstore [off] {sym} ptr (MOVVconst [0]) mem)
++	// result: (MOVVstorezero [off] {sym} ptr mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_1.AuxInt) != 0 {
++			break
++		}
++		mem := v_2
++		v.reset(OpLOONG64MOVVstorezero)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg2(ptr, mem)
++		return true
++	}
+ 	// match: (MOVVstore [off] {sym} (ADDV ptr idx) val mem)
+ 	// cond: off == 0 && sym == nil
+ 	// result: (MOVVstoreidx ptr idx val mem)
+@@ -4639,6 +4687,22 @@ func rewriteValueLOONG64_OpLOONG64MOVWstore(v *Value) bool {
+ 		v.AddArg3(ptr, x, mem)
+ 		return true
+ 	}
++	// match: (MOVWstore [off] {sym} ptr (MOVVconst [0]) mem)
++	// result: (MOVWstorezero [off] {sym} ptr mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_1.AuxInt) != 0 {
++			break
++		}
++		mem := v_2
++		v.reset(OpLOONG64MOVWstorezero)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v.AddArg2(ptr, mem)
++		return true
++	}
+ 	// match: (MOVWstore [off] {sym} (ADDV ptr idx) val mem)
+ 	// cond: off == 0 && sym == nil
+ 	// result: (MOVWstoreidx ptr idx val mem)

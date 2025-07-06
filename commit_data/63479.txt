@@ -1,0 +1,100 @@
+commit 626f6db5889b284478a15071739db62da38231d5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Apr 16 19:15:55 2024 -0400
+
+    all: update vendored golang.org/x/crypto
+    
+    Pull in CL 578715:
+    
+            5defcc19 sha3: fix Sum results for SHAKE functions on s390x
+    
+    Fixes #66804.
+    
+    Change-Id: I72bb7862778c6e10a40b1aaeeafea49e1a0d80f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579455
+    Reviewed-by: Michael Munday <mike.munday@lowrisc.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/go.mod                                        |  2 +-
+ src/go.sum                                        |  4 ++--
+ src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go | 19 +++++++++++++++++--
+ src/vendor/modules.txt                            |  2 +-
+ 4 files changed, 21 insertions(+), 6 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index f7c8f6fad0..352f760093 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,7 +3,7 @@ module std
+ go 1.23
+ 
+ require (
+-	golang.org/x/crypto v0.22.0
++	golang.org/x/crypto v0.22.1-0.20240415215343-5defcc193aab
+ 	golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114
+ )
+ 
+diff --git a/src/go.sum b/src/go.sum
+index d6799d4b3f..d7db74cc8c 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,5 +1,5 @@
+-golang.org/x/crypto v0.22.0 h1:g1v0xeRhjcugydODzvb3mEM9SQ0HGp9s/nh3COQ/C30=
+-golang.org/x/crypto v0.22.0/go.mod h1:vr6Su+7cTlO45qkww3VDJlzDn0ctJvRgYbC2NvXHt+M=
++golang.org/x/crypto v0.22.1-0.20240415215343-5defcc193aab h1:7X80n3mDJrqepjWApLRTQmLYC+hKHXsvFi/LO2SE324=
++golang.org/x/crypto v0.22.1-0.20240415215343-5defcc193aab/go.mod h1:vr6Su+7cTlO45qkww3VDJlzDn0ctJvRgYbC2NvXHt+M=
+ golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114 h1:0+DQSN4OXt0ivfKIOXFQ+8vsRb1pNvvdl7DZ6AR07OQ=
+ golang.org/x/net v0.24.1-0.20240405221309-ec05fdcd7114/go.mod h1:2Q7sJY5mzlzWjKtYUEXSlBWCdyaioyXzRB2RtU8KVE8=
+ golang.org/x/sys v0.19.0 h1:q5f1RH2jigJ1MoAWp2KTp3gm5zAGFUTarQZ5U386+4o=
+diff --git a/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go b/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go
+index d861bca528..b4fbbf8695 100644
+--- a/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go
++++ b/src/vendor/golang.org/x/crypto/sha3/sha3_s390x.go
+@@ -143,6 +143,12 @@ func (s *asmState) Write(b []byte) (int, error) {
+ 
+ // Read squeezes an arbitrary number of bytes from the sponge.
+ func (s *asmState) Read(out []byte) (n int, err error) {
++	// The 'compute last message digest' instruction only stores the digest
++	// at the first operand (dst) for SHAKE functions.
++	if s.function != shake_128 && s.function != shake_256 {
++		panic("sha3: can only call Read for SHAKE functions")
++	}
++
+ 	n = len(out)
+ 
+ 	// need to pad if we were absorbing
+@@ -202,8 +208,17 @@ func (s *asmState) Sum(b []byte) []byte {
+ 
+ 	// Hash the buffer. Note that we don't clear it because we
+ 	// aren't updating the state.
+-	klmd(s.function, &a, nil, s.buf)
+-	return append(b, a[:s.outputLen]...)
++	switch s.function {
++	case sha3_224, sha3_256, sha3_384, sha3_512:
++		klmd(s.function, &a, nil, s.buf)
++		return append(b, a[:s.outputLen]...)
++	case shake_128, shake_256:
++		d := make([]byte, s.outputLen, 64)
++		klmd(s.function, &a, d, s.buf)
++		return append(b, d[:s.outputLen]...)
++	default:
++		panic("sha3: unknown function")
++	}
+ }
+ 
+ // Reset resets the Hash to its initial state.
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index a6de6f5650..aaa19e420a 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.22.0
++# golang.org/x/crypto v0.22.1-0.20240415215343-5defcc193aab
+ ## explicit; go 1.18
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305

@@ -1,0 +1,122 @@
+commit 6bd56fcaebde61eb6bd21906a7d7136d009be4a6
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 12 18:19:43 2024 -0500
+
+    testing: improve b.Loop example
+    
+    The current b.Loop example doesn't focus on the basic usage of b.Loop.
+    Replace this with a new example that uses (slightly) more realistic
+    things to demonstrate the most salient points of b.Loop.
+    
+    We also move the example into an example file so that we can write a
+    real Benchmark function and a real function to be benchmarks, which
+    makes this much closer to what a user would actually write.
+    
+    Updates #61515.
+    
+    Change-Id: I4d830b3bfe3eb3cd8cdecef469fea0541baebb43
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635896
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/testing/benchmark_test.go    | 30 -------------------------
+ src/testing/example_loop_test.go | 48 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 48 insertions(+), 30 deletions(-)
+
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index b3089b3119..239e730021 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -149,36 +149,6 @@ func TestBLoopHasResults(t *testing.T) {
+ 	}
+ }
+ 
+-func ExampleB_Loop() {
+-	simpleFunc := func(i int) int {
+-		return i + 1
+-	}
+-	n := 0
+-	testing.Benchmark(func(b *testing.B) {
+-		// Unlike "for i := range b.N {...}" style loops, this
+-		// setup logic will only be executed once, so simpleFunc
+-		// will always get argument 1.
+-		n++
+-		// It behaves just like "for i := range N {...}", except with keeping
+-		// function call parameters and results alive.
+-		for b.Loop() {
+-			// This function call, if was in a normal loop, will be optimized away
+-			// completely, first by inlining, then by dead code elimination.
+-			// In a b.Loop loop, the compiler ensures that this function is not optimized away.
+-			simpleFunc(n)
+-		}
+-		// This clean-up will only be executed once, so after the benchmark, the user
+-		// will see n == 2.
+-		n++
+-		// Use b.ReportMetric as usual just like what a user may do after
+-		// b.N loop.
+-	})
+-	// We can expect n == 2 here.
+-
+-	// The return value of the above Benchmark could be used just like
+-	// a b.N loop benchmark as well.
+-}
+-
+ func ExampleB_RunParallel() {
+ 	// Parallel benchmark for text/template.Template.Execute on a single object.
+ 	testing.Benchmark(func(b *testing.B) {
+diff --git a/src/testing/example_loop_test.go b/src/testing/example_loop_test.go
+new file mode 100644
+index 0000000000..eff8bab352
+--- /dev/null
++++ b/src/testing/example_loop_test.go
+@@ -0,0 +1,48 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing_test
++
++import (
++	"math/rand/v2"
++	"testing"
++)
++
++// ExBenchmark shows how to use b.Loop in a benchmark.
++//
++// (If this were a real benchmark, not an example, this would be named
++// BenchmarkSomething.)
++func ExBenchmark(b *testing.B) {
++	// Generate a large random slice to use as an input.
++	// Since this is done before the first call to b.Loop(),
++	// it doesn't count toward the benchmark time.
++	input := make([]int, 128<<10)
++	for i := range input {
++		input[i] = rand.Int()
++	}
++
++	// Perform the benchmark.
++	for b.Loop() {
++		// Normally, the compiler would be allowed to optimize away the call
++		// to sum because it has no side effects and the result isn't used.
++		// However, inside a b.Loop loop, the compiler ensures function calls
++		// aren't optimized away.
++		sum(input)
++	}
++
++	// Outside the loop, the timer is stopped, so we could perform
++	// cleanup if necessary without affecting the result.
++}
++
++func sum(data []int) int {
++	total := 0
++	for _, value := range data {
++		total += value
++	}
++	return total
++}
++
++func ExampleB_Loop() {
++	testing.Benchmark(ExBenchmark)
++}

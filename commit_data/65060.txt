@@ -1,0 +1,40 @@
+commit 24cb743d1faa6c8f612faa3c17ac9de5cc385832
+Author: Ryan Granger <rygrange@cisco.com>
+Date:   Fri Oct 11 16:53:56 2024 +0000
+
+    crypto/tls: include close notify in client tls test recordings
+    
+    This commit fixes the issue where tls testdata recordings made with the
+    newer version of the prerecorded tls conversation test harness, doesn't
+    end up capturing the final close notify message. The fix simply ensures
+    that the tls.Client closes before the recording of the conversation is
+    closed. The closing of the client connection directly is no longer
+    needed when updating the recording since it will be closed when the
+    tls.Client is closed.
+    
+    Fixes golang/go#69846
+    
+    Change-Id: I93898de32abd89659a32ed240df6daea5aeaa7fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620395
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/crypto/tls/handshake_client_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index 501f9c6755..c001822b17 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -433,7 +433,7 @@ func (test *clientTest) run(t *testing.T, write bool) {
+ 	}
+ 
+ 	if write {
+-		clientConn.Close()
++		client.Close()
+ 		path := test.dataPath()
+ 		out, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+ 		if err != nil {

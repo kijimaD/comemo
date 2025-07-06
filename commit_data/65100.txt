@@ -1,0 +1,31 @@
+commit b3a9bf1f62a1cdc792916f7fb8042c07732d8f16
+Author: Shuo Wang <wangshuo@kylinos.cn>
+Date:   Mon Oct 21 06:29:38 2024 +0000
+
+    cmd/compile: fix the typos in genericOps.go
+    
+    Change-Id: I7ff869e21e67cf6a193f7a92bf7b05f047ee005c
+    GitHub-Last-Rev: bf01f582492c95ff169eab89b688bfb938695c50
+    GitHub-Pull-Request: golang/go#69957
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620778
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/_gen/genericOps.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index ceaff221d7..7f6e386499 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -630,7 +630,7 @@ var genericOps = []opData{
+ 	// Atomic operation variants
+ 	// These variants have the same semantics as above atomic operations.
+ 	// But they are used for generating more efficient code on certain modern machines, with run-time CPU feature detection.
+-	// On ARM64, these are used when the LSE hardware feature is avaliable (either known at compile time or detected at runtime). If LSE is not avaliable,
++	// On ARM64, these are used when the LSE hardware feature is available (either known at compile time or detected at runtime). If LSE is not available,
+ 	// then the basic atomic oprations are used instead.
+ 	// These are not currently used on any other platform.
+ 	{name: "AtomicAdd32Variant", argLength: 3, typ: "(UInt32,Mem)", hasSideEffects: true},          // Do *arg0 += arg1.  arg2=memory.  Returns sum and new memory.

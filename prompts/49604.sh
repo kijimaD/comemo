@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 49604: aed59d172ad532bd2eedcf78ba97fdd113d2dccd
+# Index 49604: 0c633125f25966fa749ff8003393216aa454e909
 
 echo "🚀 Generating explanation for commit 49604..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 49604..."
 
 ### メタデータ
 - **コミットインデックス**: 49604
-- **コミットハッシュ**: aed59d172ad532bd2eedcf78ba97fdd113d2dccd
-- **GitHub URL**: https://github.com/golang/go/commit/aed59d172ad532bd2eedcf78ba97fdd113d2dccd
+- **コミットハッシュ**: 0c633125f25966fa749ff8003393216aa454e909
+- **GitHub URL**: https://github.com/golang/go/commit/0c633125f25966fa749ff8003393216aa454e909
 
 ### 章構成
 

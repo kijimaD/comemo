@@ -1,0 +1,177 @@
+commit 2ad53d5a1928c6afd368c5ff00d2f6c4425e6bcd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Nov 19 10:28:45 2024 -0800
+
+    go/types, types2: disallow new methods on (aliases to) cgo-generated types
+    
+    This makes methods on aliases of cgo-generated types a new compiler error.
+    That is ok because cgo-behavior is not covered by the G1 compatibility
+    guarantee.
+    
+    Background: In 2023 we fixed a gopls issue related to this by actually
+    enabling methods on cgo-generated types in the first place (#59944).
+    See the discussion in #60725 and this CL for why we believe it is ok
+    to make this an error now.
+    
+    Based on a variation of CL 503596 (by Xie Cui).
+    
+    Fixes #60725.
+    For #59944.
+    
+    Change-Id: I7e9e6e1a76447167483a282b268f5183214027c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629715
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/issues_test.go     |  5 +++--
+ src/cmd/compile/internal/types2/signature.go       | 10 ++++++++-
+ .../testdata/script/cgo_badmethod_issue60725.txt   | 26 ++++++++++++++++++++++
+ src/go/types/issues_test.go                        |  5 +++--
+ src/go/types/signature.go                          | 10 ++++++++-
+ 5 files changed, 50 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 317a5f80c8..a856fcc790 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -839,7 +839,8 @@ func TestIssue59944(t *testing.T) {
+ 	testenv.MustHaveCGO(t)
+ 
+ 	// The typechecker should resolve methods declared on aliases of cgo types.
+-	const src = `
++	const src = `// -gotypesalias=1
++
+ package p
+ 
+ /*
+@@ -851,7 +852,7 @@ import "C"
+ 
+ type Layout = C.struct_layout
+ 
+-func (l *Layout) Binding() {}
++func (l /* ERROR "cannot define new methods on non-local type Layout" */ *Layout) Binding() {}
+ 
+ func _() {
+ 	_ = (*Layout).Binding
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 43233aeb5a..7199e9c0e4 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -8,6 +8,8 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"fmt"
+ 	. "internal/types/errors"
++	"path/filepath"
++	"strings"
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -410,7 +412,7 @@ func (check *Checker) validRecv(recv *Var) {
+ 	// as the method."
+ 	switch T := atyp.(type) {
+ 	case *Named:
+-		if T.obj.pkg != check.pkg {
++		if T.obj.pkg != check.pkg || isCGoTypeObj(T.obj) {
+ 			check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+ 			break
+ 		}
+@@ -437,3 +439,9 @@ func (check *Checker) validRecv(recv *Var) {
+ 		check.errorf(recv, InvalidRecv, "invalid receiver type %s", recv.typ)
+ 	}
+ }
++
++// isCGoTypeObj reports whether the given type name was created by cgo.
++func isCGoTypeObj(obj *TypeName) bool {
++	return strings.HasPrefix(obj.name, "_Ctype_") ||
++		strings.HasPrefix(filepath.Base(obj.pos.FileBase().Filename()), "_cgo_")
++}
+diff --git a/src/cmd/go/testdata/script/cgo_badmethod_issue60725.txt b/src/cmd/go/testdata/script/cgo_badmethod_issue60725.txt
+new file mode 100644
+index 0000000000..1ed087aa74
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cgo_badmethod_issue60725.txt
+@@ -0,0 +1,26 @@
++[short] skip
++[!cgo] skip
++
++# Test that cgo rejects attempts to declare methods
++# on the types A or *A; see issue #60725.
++
++! go build ./a
++stderr 'cannot define new methods on non-local type A'
++stderr 'cannot define new methods on non-local type A'
++
++-- go.mod --
++module example.com
++go 1.24
++
++-- a/a.go --
++package a
++
++/*
++typedef int T;
++*/
++import "C"
++
++type A = C.T
++
++func (A) m1() {}
++func (*A) m2() {}
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 5a55822aba..925ca0ebfa 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -848,7 +848,8 @@ func TestIssue59944(t *testing.T) {
+ 	testenv.MustHaveCGO(t)
+ 
+ 	// The typechecker should resolve methods declared on aliases of cgo types.
+-	const src = `
++	const src = `// -gotypesalias=1
++
+ package p
+ 
+ /*
+@@ -860,7 +861,7 @@ import "C"
+ 
+ type Layout = C.struct_layout
+ 
+-func (l *Layout) Binding() {}
++func (l /* ERROR "cannot define new methods on non-local type Layout" */ *Layout) Binding() {}
+ 
+ func _() {
+ 	_ = (*Layout).Binding
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index 384389c8f4..c0f2e61120 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -9,6 +9,8 @@ import (
+ 	"go/ast"
+ 	"go/token"
+ 	. "internal/types/errors"
++	"path/filepath"
++	"strings"
+ )
+ 
+ // ----------------------------------------------------------------------------
+@@ -430,7 +432,7 @@ func (check *Checker) validRecv(recv *Var) {
+ 	// as the method."
+ 	switch T := atyp.(type) {
+ 	case *Named:
+-		if T.obj.pkg != check.pkg {
++		if T.obj.pkg != check.pkg || isCGoTypeObj(check.fset, T.obj) {
+ 			check.errorf(recv, InvalidRecv, "cannot define new methods on non-local type %s", rtyp)
+ 			break
+ 		}
+@@ -457,3 +459,9 @@ func (check *Checker) validRecv(recv *Var) {
+ 		check.errorf(recv, InvalidRecv, "invalid receiver type %s", recv.typ)
+ 	}
+ }
++
++// isCGoTypeObj reports whether the given type name was created by cgo.
++func isCGoTypeObj(fset *token.FileSet, obj *TypeName) bool {
++	return strings.HasPrefix(obj.name, "_Ctype_") ||
++		strings.HasPrefix(filepath.Base(fset.File(obj.pos).Name()), "_cgo_")
++}

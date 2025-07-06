@@ -1,0 +1,81 @@
+commit c01fa0cc21caf2fee9b04154e5ee83cbc239cc98
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Feb 23 22:31:35 2025 +1100
+
+    test/codegen: add riscv64/rva23u64 specifiers to existing tests
+    
+    Tests that exist for riscv64/rva22u64 should also be applied to
+    riscv64/rva23u64.
+    
+    Change-Id: Ia529fdf0ac55b8bcb3dcd24fa80efef2351f3842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652315
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ test/codegen/arithmetic.go | 8 ++++----
+ test/codegen/shift.go      | 6 +++---
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 063055053e..f09af769f5 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -647,7 +647,7 @@ func Int64Min(a, b int64) int64 {
+ 	// amd64: "CMPQ","CMOVQLT"
+ 	// arm64: "CMP","CSEL"
+ 	// riscv64/rva20u64:"BLT\t"
+-	// riscv64/rva22u64:"MIN\t"
++	// riscv64/rva22u64,riscv64/rva23u64:"MIN\t"
+ 	return min(a, b)
+ }
+ 
+@@ -655,7 +655,7 @@ func Int64Max(a, b int64) int64 {
+ 	// amd64: "CMPQ","CMOVQGT"
+ 	// arm64: "CMP","CSEL"
+ 	// riscv64/rva20u64:"BLT\t"
+-	// riscv64/rva22u64:"MAX\t"
++	// riscv64/rva22u64,riscv64/rva23u64:"MAX\t"
+ 	return max(a, b)
+ }
+ 
+@@ -663,7 +663,7 @@ func Uint64Min(a, b uint64) uint64 {
+ 	// amd64: "CMPQ","CMOVQCS"
+ 	// arm64: "CMP","CSEL"
+ 	// riscv64/rva20u64:"BLTU"
+-	// riscv64/rva22u64:"MINU"
++	// riscv64/rva22u64,riscv64/rva23u64:"MINU"
+ 	return min(a, b)
+ }
+ 
+@@ -671,6 +671,6 @@ func Uint64Max(a, b uint64) uint64 {
+ 	// amd64: "CMPQ","CMOVQHI"
+ 	// arm64: "CMP","CSEL"
+ 	// riscv64/rva20u64:"BLTU"
+-	// riscv64/rva22u64:"MAXU"
++	// riscv64/rva22u64,riscv64/rva23u64:"MAXU"
+ 	return max(a, b)
+ }
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 02842a5739..b7819d236f 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -582,13 +582,13 @@ func checkShiftToMask(u []uint64, s []int64) {
+ 
+ func checkLeftShiftWithAddition(a int64, b int64) int64 {
+ 	// riscv64/rva20u64: "SLLI","ADD"
+-	// riscv64/rva22u64: "SH1ADD"
++	// riscv64/rva22u64,riscv64/rva23u64: "SH1ADD"
+ 	a = a + b<<1
+ 	// riscv64/rva20u64: "SLLI","ADD"
+-	// riscv64/rva22u64: "SH2ADD"
++	// riscv64/rva22u64,riscv64/rva23u64: "SH2ADD"
+ 	a = a + b<<2
+ 	// riscv64/rva20u64: "SLLI","ADD"
+-	// riscv64/rva22u64: "SH3ADD"
++	// riscv64/rva22u64,riscv64/rva23u64: "SH3ADD"
+ 	a = a + b<<3
+ 	return a
+ }

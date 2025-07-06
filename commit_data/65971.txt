@@ -1,0 +1,141 @@
+commit 40b3c0e58a0ae8dec4684a009bf3806769e0fc41
+Author: Than McIntosh <thanm@golang.org>
+Date:   Tue Nov 12 12:12:44 2024 -0500
+
+    internal/coverage: refactor EmitTextual in preparation for bugfix
+    
+    Refactor cformat.EmitTextual to accept a package filter (list of
+    packages to report). This is a no-op in terms of exposed coverage
+    functionality, but we will need this feature in a subsequent patch.
+    
+    Updates #70244.
+    
+    Change-Id: I1e6bcbfb5e68187d4d69d54b667e97bc1fdfa2d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627315
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/covdata/dump.go                    |  2 +-
+ src/internal/coverage/cfile/testsupport.go |  2 +-
+ src/internal/coverage/cformat/fmt_test.go  | 16 ++++++++++++++--
+ src/internal/coverage/cformat/format.go    | 22 +++++++++++++++++-----
+ 4 files changed, 33 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/covdata/dump.go b/src/cmd/covdata/dump.go
+index cbbeae0a80..e141689b00 100644
+--- a/src/cmd/covdata/dump.go
++++ b/src/cmd/covdata/dump.go
+@@ -331,7 +331,7 @@ func (d *dstate) Finish() {
+ 			d.format.EmitFuncs(os.Stdout)
+ 		}
+ 		if d.textfmtoutf != nil {
+-			if err := d.format.EmitTextual(d.textfmtoutf); err != nil {
++			if err := d.format.EmitTextual(nil, d.textfmtoutf); err != nil {
+ 				fatal("writing to %s: %v", *textfmtoutflag, err)
+ 			}
+ 		}
+diff --git a/src/internal/coverage/cfile/testsupport.go b/src/internal/coverage/cfile/testsupport.go
+index 3594b32aee..56b39c5859 100644
+--- a/src/internal/coverage/cfile/testsupport.go
++++ b/src/internal/coverage/cfile/testsupport.go
+@@ -109,7 +109,7 @@ func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.
+ 
+ 	// Emit text output.
+ 	if tf != nil {
+-		if err := ts.cf.EmitTextual(tf); err != nil {
++		if err := ts.cf.EmitTextual(nil, tf); err != nil {
+ 			return err
+ 		}
+ 		tfClosed = true
+diff --git a/src/internal/coverage/cformat/fmt_test.go b/src/internal/coverage/cformat/fmt_test.go
+index d296939d5c..a26de964c4 100644
+--- a/src/internal/coverage/cformat/fmt_test.go
++++ b/src/internal/coverage/cformat/fmt_test.go
+@@ -47,8 +47,8 @@ func TestBasics(t *testing.T) {
+ 		fm.AddUnit("lit.go", "f3", true, u, 0)
+ 	}
+ 
+-	var b1, b2, b3, b4 strings.Builder
+-	if err := fm.EmitTextual(&b1); err != nil {
++	var b1, b2, b3, b4, b5 strings.Builder
++	if err := fm.EmitTextual(nil, &b1); err != nil {
+ 		t.Fatalf("EmitTextual returned %v", err)
+ 	}
+ 	wantText := strings.TrimSpace(`
+@@ -64,6 +64,18 @@ lit.go:99.0,100.0 1 0`)
+ 		t.Errorf("emit text: got:\n%s\nwant:\n%s\n", gotText, wantText)
+ 	}
+ 
++	selected := []string{"my/pack2"}
++	if err := fm.EmitTextual(selected, &b5); err != nil {
++		t.Fatalf("EmitTextual returned %v", err)
++	}
++	wantText = strings.TrimSpace(`
++mode: atomic
++lit.go:99.0,100.0 1 0`)
++	gotText = strings.TrimSpace(b5.String())
++	if wantText != gotText {
++		t.Errorf("emit text: got:\n%s\nwant:\n%s\n", gotText, wantText)
++	}
++
+ 	// Percent output with no aggregation.
+ 	noCoverPkg := ""
+ 	if err := fm.EmitPercent(&b2, nil, noCoverPkg, false, false); err != nil {
+diff --git a/src/internal/coverage/cformat/format.go b/src/internal/coverage/cformat/format.go
+index 4df0e70b81..01d3109e31 100644
+--- a/src/internal/coverage/cformat/format.go
++++ b/src/internal/coverage/cformat/format.go
+@@ -24,7 +24,7 @@ package cformat
+ //			}
+ //		}
+ //		myformatter.EmitPercent(os.Stdout, nil, "", true, true)
+-//		myformatter.EmitTextual(somefile)
++//		myformatter.EmitTextual(nil, somefile)
+ //
+ // These apis are linked into tests that are built with "-cover", and
+ // called at the end of test execution to produce text output or
+@@ -38,6 +38,7 @@ import (
+ 	"io"
+ 	"maps"
+ 	"slices"
++	"sort"
+ 	"strings"
+ 	"text/tabwriter"
+ )
+@@ -163,20 +164,31 @@ func (p *pstate) sortUnits(units []extcu) {
+ 	})
+ }
+ 
+-// EmitTextual writes the accumulated coverage data in the legacy
+-// cmd/cover text format to the writer 'w'. We sort the data items by
++// EmitTextual writes the accumulated coverage data for 'pkgs' in the legacy
++// cmd/cover text format to the writer 'w'; if pkgs is empty, text output
++// is emitted for all packages recorded.  We sort the data items by
+ // importpath, source file, and line number before emitting (this sorting
+ // is not explicitly mandated by the format, but seems like a good idea
+ // for repeatable/deterministic dumps).
+-func (fm *Formatter) EmitTextual(w io.Writer) error {
++func (fm *Formatter) EmitTextual(pkgs []string, w io.Writer) error {
+ 	if fm.cm == coverage.CtrModeInvalid {
+ 		panic("internal error, counter mode unset")
+ 	}
++	if len(pkgs) == 0 {
++		pkgs = make([]string, 0, len(fm.pm))
++		for importpath := range fm.pm {
++			pkgs = append(pkgs, importpath)
++		}
++	}
+ 	if _, err := fmt.Fprintf(w, "mode: %s\n", fm.cm.String()); err != nil {
+ 		return err
+ 	}
+-	for _, importpath := range slices.Sorted(maps.Keys(fm.pm)) {
++	sort.Strings(pkgs)
++	for _, importpath := range pkgs {
+ 		p := fm.pm[importpath]
++		if p == nil {
++			continue
++		}
+ 		units := make([]extcu, 0, len(p.unitTable))
+ 		for u := range p.unitTable {
+ 			units = append(units, u)

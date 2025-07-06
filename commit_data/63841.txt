@@ -1,0 +1,115 @@
+commit b8a410c434b297e95270dea17982c02de0f6609b
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 16 20:12:26 2024 -0700
+
+    cmd/compile: initialize posBaseMap correctly
+    
+    The posBaseMap is used to identify a file's syntax tree node
+    given a source position. The position is mapped to the file
+    base which is then used to look up the file node in posBaseMap.
+    
+    When posBaseMap is initialized, the file position base
+    is not the file base if there's a line directive before
+    the package clause. This can happen in cgo-generated files,
+    for instance due to an import "C" declaration.
+    
+    If the wrong file position base is used during initialization,
+    looking up a file given a position will not find the file.
+    
+    If a version error occurs and the corresponding file is
+    not found, the old code panicked with a null pointer exception.
+    
+    Make sure to consistently initialize the posBaseMap by factoring
+    out the code computing the file base from a given position.
+    
+    While at it, check for a nil file pointer. This should not happen
+    anymore, but don't crash if it happens (at the cost of a slightly
+    less informative error message).
+    
+    Fixes #67141.
+    
+    Change-Id: I4a6af88699c32ad01fffce124b06bb7f9e06f43d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586238
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/noder/irgen.go | 26 ++++++++++++++++++++------
+ test/fixedbugs/issue67141.go            | 15 +++++++++++++++
+ 2 files changed, 35 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 281f619f6f..d54ec05b6a 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -34,7 +34,13 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 	posBaseMap := make(map[*syntax.PosBase]*syntax.File)
+ 	for i, p := range noders {
+ 		files[i] = p.file
+-		posBaseMap[p.file.Pos().Base()] = p.file
++		// The file.Pos() is the position of the package clause.
++		// If there's a //line directive before that, file.Pos().Base()
++		// refers to that directive, not the file itself.
++		// Make sure to consistently map back to file base, here and
++		// when we look for a file in the conf.Error handler below,
++		// otherwise the file may not be found (was go.dev/issue/67141).
++		posBaseMap[fileBase(p.file.Pos())] = p.file
+ 	}
+ 
+ 	// typechecking
+@@ -69,13 +75,12 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 		terr := err.(types2.Error)
+ 		msg := terr.Msg
+ 		if versionErrorRx.MatchString(msg) {
+-			posBase := terr.Pos.Base()
+-			for !posBase.IsFileBase() { // line directive base
+-				posBase = posBase.Pos().Base()
+-			}
++			posBase := fileBase(terr.Pos)
+ 			fileVersion := info.FileVersions[posBase]
+ 			file := posBaseMap[posBase]
+-			if file.GoVersion == fileVersion {
++			if file == nil {
++				// This should never happen, but be careful and don't crash.
++			} else if file.GoVersion == fileVersion {
+ 				// If we have a version error caused by //go:build, report it.
+ 				msg = fmt.Sprintf("%s (file declares //go:build %s)", msg, fileVersion)
+ 			} else {
+@@ -150,6 +155,15 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 	return pkg, info
+ }
+ 
++// fileBase returns a file's position base given a position in the file.
++func fileBase(pos syntax.Pos) *syntax.PosBase {
++	base := pos.Base()
++	for !base.IsFileBase() { // line directive base
++		base = base.Pos().Base()
++	}
++	return base
++}
++
+ // A cycleFinder detects anonymous interface cycles (go.dev/issue/56103).
+ type cycleFinder struct {
+ 	cyclic map[*types2.Interface]bool
+diff --git a/test/fixedbugs/issue67141.go b/test/fixedbugs/issue67141.go
+new file mode 100644
+index 0000000000..0464d1f9e5
+--- /dev/null
++++ b/test/fixedbugs/issue67141.go
+@@ -0,0 +1,15 @@
++// errorcheck -lang=go1.22
++
++//go:build go1.21
++
++// We need a line directive before the package clause,
++// but don't change file name or position so that the
++// error message appears at the right place.
++
++//line issue67141.go:10
++package p
++
++func _() {
++	for range 10 { // ERROR "cannot range over 10"
++	}
++}

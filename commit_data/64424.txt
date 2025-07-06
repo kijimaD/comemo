@@ -1,0 +1,31 @@
+commit 2ca1ae8e09a9f821d4bc04c06b18114eafdea12f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 31 20:35:47 2024 -0700
+
+    os: clarify Rename docs for renaming to a directory
+    
+    Fixes #68690
+    
+    Change-Id: Iebc27d5f385d787e568550a863f59f16c7a79fd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602178
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+---
+ src/os/file.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index 541b432081..b8cf89ce76 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -404,6 +404,7 @@ var lstat = Lstat
+ 
+ // Rename renames (moves) oldpath to newpath.
+ // If newpath already exists and is not a directory, Rename replaces it.
++// If newpath already exists and is a directory, Rename returns an error.
+ // OS-specific restrictions may apply when oldpath and newpath are in different directories.
+ // Even within the same directory, on non-Unix platforms Rename is not an atomic operation.
+ // If there is an error, it will be of type *LinkError.

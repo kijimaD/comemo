@@ -1,0 +1,46 @@
+commit 89228ca439b7ecfc4fa6641e79bb3119e600e519
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Oct 1 13:12:39 2024 -0400
+
+    runtime/pprof: add context to short stack panic
+    
+    Over the years we've had various bugs in pprof stack handling resulting
+    in appendLocsForStack crashing because stk is too short for a cached
+    location. i.e., the cached location claims several inlined frames. Those
+    should always appear together in stk. If some frames are missing from
+    stk, appendLocsForStack.
+    
+    If we find this case, replace the slice out of bounds panic with an
+    explicit panic that contains more context.
+    
+    Change-Id: I52725a689baf42b8db627ce3e1bc6c654ef245d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617135
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/pprof/proto.go | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/runtime/pprof/proto.go b/src/runtime/pprof/proto.go
+index 5214374bd9..b01f541375 100644
+--- a/src/runtime/pprof/proto.go
++++ b/src/runtime/pprof/proto.go
+@@ -404,6 +404,7 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
+ 	b.deck.reset()
+ 
+ 	// The last frame might be truncated. Recover lost inline frames.
++	origStk := stk
+ 	stk = runtime_expandFinalInlineFrame(stk)
+ 
+ 	for len(stk) > 0 {
+@@ -440,6 +441,9 @@ func (b *profileBuilder) appendLocsForStack(locs []uint64, stk []uintptr) (newLo
+ 			// Even if stk was truncated due to the stack depth
+ 			// limit, expandFinalInlineFrame above has already
+ 			// fixed the truncation, ensuring it is long enough.
++			if len(l.pcs) > len(stk) {
++				panic(fmt.Sprintf("stack too short to match cached location; stk = %#x, l.pcs = %#x, original stk = %#x", stk, l.pcs, origStk))
++			}
+ 			stk = stk[len(l.pcs):]
+ 			continue
+ 		}

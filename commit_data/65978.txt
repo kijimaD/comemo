@@ -1,0 +1,94 @@
+commit 9d21ef3bd43acedfe5317184e63cc6b3dd19cbdf
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue Jan 21 11:52:41 2025 -0500
+
+    runtime: fix the equality check in AddCleanup
+    
+    This fixes the check that ensures that arg is not equal to ptr in
+    AddCleanup. This also changes any use of throw to panic in AddCleanup.
+    
+    Fixes #71316
+    
+    Change-Id: Ie5a3e0163b254dff44b7fefedf75207ba587b771
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643655
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mcleanup.go      | 14 +++++++-------
+ src/runtime/mcleanup_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 34 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/mcleanup.go b/src/runtime/mcleanup.go
+index 22d40a5e84..972532d475 100644
+--- a/src/runtime/mcleanup.go
++++ b/src/runtime/mcleanup.go
+@@ -70,19 +70,19 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
+ 
+ 	// The pointer to the object must be valid.
+ 	if ptr == nil {
+-		throw("runtime.AddCleanup: ptr is nil")
++		panic("runtime.AddCleanup: ptr is nil")
+ 	}
+ 	usptr := uintptr(unsafe.Pointer(ptr))
+ 
+ 	// Check that arg is not equal to ptr.
+-	// TODO(67535) this does not cover the case where T and *S are the same
+-	// type and ptr and arg are equal.
+-	if unsafe.Pointer(&arg) == unsafe.Pointer(ptr) {
+-		throw("runtime.AddCleanup: ptr is equal to arg, cleanup will never run")
++	if kind := abi.TypeOf(arg).Kind(); kind == abi.Pointer || kind == abi.UnsafePointer {
++		if unsafe.Pointer(ptr) == *((*unsafe.Pointer)(unsafe.Pointer(&arg))) {
++			panic("runtime.AddCleanup: ptr is equal to arg, cleanup will never run")
++		}
+ 	}
+ 	if inUserArenaChunk(usptr) {
+ 		// Arena-allocated objects are not eligible for cleanup.
+-		throw("runtime.AddCleanup: ptr is arena-allocated")
++		panic("runtime.AddCleanup: ptr is arena-allocated")
+ 	}
+ 	if debug.sbrk != 0 {
+ 		// debug.sbrk never frees memory, so no cleanup will ever run
+@@ -105,7 +105,7 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
+ 			// Cleanup is a noop.
+ 			return Cleanup{}
+ 		}
+-		throw("runtime.AddCleanup: ptr not in allocated block")
++		panic("runtime.AddCleanup: ptr not in allocated block")
+ 	}
+ 
+ 	// Ensure we have a finalizer processing goroutine running.
+diff --git a/src/runtime/mcleanup_test.go b/src/runtime/mcleanup_test.go
+index 8c2d1f0647..d62356feef 100644
+--- a/src/runtime/mcleanup_test.go
++++ b/src/runtime/mcleanup_test.go
+@@ -269,3 +269,30 @@ func TestCleanupStopAfterCleanupRuns(t *testing.T) {
+ 	<-ch
+ 	stop()
+ }
++
++func TestCleanupPointerEqualsArg(t *testing.T) {
++	// See go.dev/issue/71316
++	defer func() {
++		want := "runtime.AddCleanup: ptr is equal to arg, cleanup will never run"
++		if r := recover(); r == nil {
++			t.Error("want panic, test did not panic")
++		} else if r == want {
++			// do nothing
++		} else {
++			t.Errorf("wrong panic: want=%q, got=%q", want, r)
++		}
++	}()
++
++	// allocate struct with pointer to avoid hitting tinyalloc.
++	// Otherwise we can't be sure when the allocation will
++	// be freed.
++	type T struct {
++		v int
++		p unsafe.Pointer
++	}
++	v := &new(T).v
++	*v = 97531
++	runtime.AddCleanup(v, func(x *int) {}, v)
++	v = nil
++	runtime.GC()
++}

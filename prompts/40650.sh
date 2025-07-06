@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40650: 350f71f4cb52dd6c4a9a84225153d9fafe7b4d40
+# Index 40650: d4cad3c4b15a6364d8d98424ee264559f3dd5bdb
 
 echo "🚀 Generating explanation for commit 40650..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40650..."
 
 ### メタデータ
 - **コミットインデックス**: 40650
-- **コミットハッシュ**: 350f71f4cb52dd6c4a9a84225153d9fafe7b4d40
-- **GitHub URL**: https://github.com/golang/go/commit/350f71f4cb52dd6c4a9a84225153d9fafe7b4d40
+- **コミットハッシュ**: d4cad3c4b15a6364d8d98424ee264559f3dd5bdb
+- **GitHub URL**: https://github.com/golang/go/commit/d4cad3c4b15a6364d8d98424ee264559f3dd5bdb
 
 ### 章構成
 

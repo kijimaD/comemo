@@ -1,0 +1,50 @@
+commit 1683628d29ca77f9c44804c987c3570c89ffd29d
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 12 14:39:19 2024 +0000
+
+    cmd/go: fix handling of builtin packages in WriteCoverMetaFilesFile
+    
+    In certain unusual situations we can wind up with a build action for a
+    dummy (built-in) package as a dependency for the writeCoverMeta
+    pseudo-action generated when -coverpkg is in effect; this was causing
+    a panic in WriteCoverMetaFilesFile when it discovered a predecessor
+    whose Mode field was not "build". Update the code that constructs deps
+    for writeCoverMeta action to skip dummy builds.
+    
+    Fixes #67953.
+    
+    Change-Id: If747aeb9bae061c84290d1e10f6ea7abb0828aca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592202
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/internal/test/test.go                | 2 +-
+ src/cmd/go/testdata/script/test_n_cover_std.txt | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index a13070a91e..0ac5666620 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -1067,7 +1067,7 @@ func builderTest(b *work.Builder, ctx context.Context, pkgOpts load.PackageOpts,
+ 			Package:    p,
+ 			IgnoreFail: true, // run (prepare output) even if build failed
+ 		}
+-		if writeCoverMetaAct != nil {
++		if writeCoverMetaAct != nil && build.Actor != nil {
+ 			// There is no real "run" for this package (since there
+ 			// are no tests), but if coverage is turned on, we can
+ 			// collect coverage data for the code in the package by
+diff --git a/src/cmd/go/testdata/script/test_n_cover_std.txt b/src/cmd/go/testdata/script/test_n_cover_std.txt
+new file mode 100644
+index 0000000000..77b92df37f
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_n_cover_std.txt
+@@ -0,0 +1,7 @@
++# Issue 67953: test to make sure that the go commands static coverage
++# meta-data handling code handles pseudo-packages (ex: "unsafe") properly.
++
++[short] skip
++
++cd $GOROOT/src
++go test -vet=off -p=1 -n -coverpkg=internal/coverage/decodecounter internal/coverage/decodecounter sync unsafe

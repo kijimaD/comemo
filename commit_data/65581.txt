@@ -1,0 +1,100 @@
+commit 847cb6f9ca43da48cb10e98808a74a40b41242fa
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Nov 5 16:01:45 2024 +0100
+
+    [release-branch.go1.23] syscall: mark SyscallN as noescape
+    
+    syscall.SyscallN is implemented by runtime.syscall_syscalln, which makes
+    sure that the variadic argument doesn't escape.
+    
+    There is no need to worry about the lifetime of the elements of the
+    variadic argument, as the compiler will keep them live until the
+    function returns.
+    
+    For #70197
+    Fixes #70202
+    
+    Change-Id: I12991f0be12062eea68f2b103fa0a794c1b527eb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625297
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    (cherry picked from commit 7fff741016c8157e107cce8013ee3ca621725384)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630196
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+---
+ src/syscall/dll_windows.go          |  1 +
+ src/syscall/syscall_windows_test.go | 45 +++++++++++++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+)
+
+diff --git a/src/syscall/dll_windows.go b/src/syscall/dll_windows.go
+index 81134cb0bd..a7873e6ad8 100644
+--- a/src/syscall/dll_windows.go
++++ b/src/syscall/dll_windows.go
+@@ -42,6 +42,7 @@ func Syscall15(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a
+ // Deprecated: Use [SyscallN] instead.
+ func Syscall18(trap, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2 uintptr, err Errno)
+ 
++//go:noescape
+ func SyscallN(trap uintptr, args ...uintptr) (r1, r2 uintptr, err Errno)
+ func loadlibrary(filename *uint16) (handle uintptr, err Errno)
+ func loadsystemlibrary(filename *uint16) (handle uintptr, err Errno)
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index f67e899159..a6c6eff31f 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -213,6 +213,51 @@ func TestGetStartupInfo(t *testing.T) {
+ 	}
+ }
+ 
++func TestSyscallAllocations(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
++
++	// Test that syscall.SyscallN arguments do not escape.
++	// The function used (in this case GetVersion) doesn't matter
++	// as long as it is always available and doesn't panic.
++	h, err := syscall.LoadLibrary("kernel32.dll")
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer syscall.FreeLibrary(h)
++	proc, err := syscall.GetProcAddress(h, "GetVersion")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	testAllocs := func(t *testing.T, name string, fn func() error) {
++		t.Run(name, func(t *testing.T) {
++			n := int(testing.AllocsPerRun(10, func() {
++				if err := fn(); err != nil {
++					t.Fatalf("%s: %v", name, err)
++				}
++			}))
++			if n > 0 {
++				t.Errorf("allocs = %d, want 0", n)
++			}
++		})
++	}
++
++	testAllocs(t, "SyscallN", func() error {
++		r0, _, e1 := syscall.SyscallN(proc, 0, 0, 0)
++		if r0 == 0 {
++			return syscall.Errno(e1)
++		}
++		return nil
++	})
++	testAllocs(t, "Syscall", func() error {
++		r0, _, e1 := syscall.Syscall(proc, 3, 0, 0, 0)
++		if r0 == 0 {
++			return syscall.Errno(e1)
++		}
++		return nil
++	})
++}
++
+ func FuzzUTF16FromString(f *testing.F) {
+ 	f.Add("hi")           // ASCII
+ 	f.Add("â")            // latin1

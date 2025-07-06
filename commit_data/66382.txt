@@ -1,0 +1,41 @@
+commit 555974734fa9c6ed88fa16d25e2ad6ee398cf085
+Author: KangJi <kjhmd9726@gmail.com>
+Date:   Thu Feb 27 12:26:57 2025 +0000
+
+    cmd/cgo: update generated headers for compatibility with latest MSVC C++ standards
+    
+    Updates #71921
+    
+    Change-Id: Idfbb72e259b169121c8ced6d89ee2f13d6254d0d
+    GitHub-Last-Rev: fcf12e5a221621f749841055df1d2c2ada3bf844
+    GitHub-Pull-Request: golang/go#72004
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653141
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cgo/out.go | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 43c30a2000..2c3f1e06ff 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1991,10 +1991,16 @@ typedef size_t GoUintptr;
+ typedef float GoFloat32;
+ typedef double GoFloat64;
+ #ifdef _MSC_VER
++#if !defined(__cplusplus) || _MSVC_LANG <= 201402L
+ #include <complex.h>
+ typedef _Fcomplex GoComplex64;
+ typedef _Dcomplex GoComplex128;
+ #else
++#include <complex>
++typedef std::complex<float> GoComplex64;
++typedef std::complex<double> GoComplex128;
++#endif
++#else
+ typedef float _Complex GoComplex64;
+ typedef double _Complex GoComplex128;
+ #endif

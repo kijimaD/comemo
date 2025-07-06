@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8860: 10d0dffd7672ee27a5a1ed3451d9d9aa547075da
+# Index 8860: 73d741fd5b767f671dc3bb466ae28c51b0222f8c
 
 echo "🚀 Generating explanation for commit 8860..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 8860..."
 
 ### メタデータ
 - **コミットインデックス**: 8860
-- **コミットハッシュ**: 10d0dffd7672ee27a5a1ed3451d9d9aa547075da
-- **GitHub URL**: https://github.com/golang/go/commit/10d0dffd7672ee27a5a1ed3451d9d9aa547075da
+- **コミットハッシュ**: 73d741fd5b767f671dc3bb466ae28c51b0222f8c
+- **GitHub URL**: https://github.com/golang/go/commit/73d741fd5b767f671dc3bb466ae28c51b0222f8c
 
 ### 章構成
 

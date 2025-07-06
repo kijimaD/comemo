@@ -1,0 +1,46 @@
+commit d168ad18e15c4e052260bb8c3446c90ab46fdde0
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sat Jun 28 02:20:22 2025 +0200
+
+    slices: update TestIssue68488 to avoid false positives
+    
+    Fixes #74387
+    
+    Even tho we are abusing unsafe.SliceData a bit here it's probably fine;
+    in case this test fail, it means some memory alias is happening
+    which is not good for GC purposes.
+    
+    We don't care about false keep alives for stack locations tho.
+    
+    Change-Id: I9434bad8c6d9fbc39c738690617dc7cf91d82aef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684755
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+---
+ src/slices/slices_test.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index edf7e7b610..19a3e9b0dd 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -1454,6 +1454,8 @@ func TestRepeatPanics(t *testing.T) {
+ 	}
+ }
+ 
++var leak *int
++
+ func TestIssue68488(t *testing.T) {
+ 	s := make([]int, 3)
+ 	clone := Clone(s[1:1])
+@@ -1461,6 +1463,7 @@ func TestIssue68488(t *testing.T) {
+ 	case &s[0], &s[1], &s[2]:
+ 		t.Error("clone keeps alive s due to array overlap")
+ 	}
++	leak = &s[1] // see go.dev/issue/74387
+ }
+ 
+ // This test asserts the behavior when the primary slice operand is nil.

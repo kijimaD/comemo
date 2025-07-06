@@ -1,0 +1,32 @@
+commit bcd0ebbd2abcd3e2e876862f287c46a2de56eaab
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Mar 6 20:07:24 2025 +0800
+
+    internal/cpu: use correct variable when parsing CPU features lamcas and lam_bh on loong64
+    
+    Change-Id: I5019f4e32243911f735f775bcb3c0dba5adb4162
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655395
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/cpu/cpu_loong64.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/cpu/cpu_loong64.go b/src/internal/cpu/cpu_loong64.go
+index 9a58ea251c..de7eaf0c6c 100644
+--- a/src/internal/cpu/cpu_loong64.go
++++ b/src/internal/cpu/cpu_loong64.go
+@@ -44,8 +44,8 @@ func doinit() {
+ 	cfg2 := get_cpucfg(2)
+ 
+ 	Loong64.HasCRC32 = cfgIsSet(cfg1, cpucfg1_CRC32)
+-	Loong64.HasLAMCAS = cfgIsSet(cfg2, cpucfg2_LAM_BH)
+-	Loong64.HasLAM_BH = cfgIsSet(cfg2, cpucfg2_LAMCAS)
++	Loong64.HasLAMCAS = cfgIsSet(cfg2, cpucfg2_LAMCAS)
++	Loong64.HasLAM_BH = cfgIsSet(cfg2, cpucfg2_LAM_BH)
+ 
+ 	osInit()
+ }

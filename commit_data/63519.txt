@@ -1,0 +1,175 @@
+commit 4bb67bc21eea06afadceec239bae6e5e40a9e759
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Fri Apr 19 22:12:18 2024 +0000
+
+    runtime: always acquire M when acquiring locks by rank
+    
+    Profiling of runtime-internal locks checks gp.m.locks to see if it's
+    safe to add a new record to the profile, but direct use of
+    acquireLockRank can change the list of the M's active lock ranks without
+    updating gp.m.locks to match. The runtime's internal rwmutex
+    implementation makes a point of calling acquirem/releasem when
+    manipulating the lock rank list, but the other user of acquireLockRank
+    (the GC's Gscan bit) relied on the GC's invariants to avoid deadlocks.
+    
+    Codify the rwmutex approach by renaming acquireLockRank to
+    acquireLockRankAndM and having it include a call to aquirem. Do the same
+    for release.
+    
+    Fixes #64706
+    Fixes #66004
+    
+    Change-Id: Ib76eaa0cc1c45b64861d03345e17e1e843c19713
+    GitHub-Last-Rev: 160577bdb2bb2a4e869c6fd7e53e3be8fb819182
+    GitHub-Pull-Request: golang/go#66276
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571056
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/lockrank_off.go |  6 ++++--
+ src/runtime/lockrank_on.go  | 16 ++++++++++++----
+ src/runtime/proc.go         |  9 ++++-----
+ src/runtime/rwmutex.go      |  7 ++-----
+ 4 files changed, 22 insertions(+), 16 deletions(-)
+
+diff --git a/src/runtime/lockrank_off.go b/src/runtime/lockrank_off.go
+index c86726f3dd..edeb265f43 100644
+--- a/src/runtime/lockrank_off.go
++++ b/src/runtime/lockrank_off.go
+@@ -27,7 +27,8 @@ func lockWithRank(l *mutex, rank lockRank) {
+ // This function may be called in nosplit context and thus must be nosplit.
+ //
+ //go:nosplit
+-func acquireLockRank(rank lockRank) {
++func acquireLockRankAndM(rank lockRank) {
++	acquirem()
+ }
+ 
+ func unlockWithRank(l *mutex) {
+@@ -37,7 +38,8 @@ func unlockWithRank(l *mutex) {
+ // This function may be called in nosplit context and thus must be nosplit.
+ //
+ //go:nosplit
+-func releaseLockRank(rank lockRank) {
++func releaseLockRankAndM(rank lockRank) {
++	releasem(getg().m)
+ }
+ 
+ func lockWithRankMayAcquire(l *mutex, rank lockRank) {
+diff --git a/src/runtime/lockrank_on.go b/src/runtime/lockrank_on.go
+index e95190f0b2..120ebc21fa 100644
+--- a/src/runtime/lockrank_on.go
++++ b/src/runtime/lockrank_on.go
+@@ -104,12 +104,16 @@ func printHeldLocks(gp *g) {
+ 	}
+ }
+ 
+-// acquireLockRank acquires a rank which is not associated with a mutex lock
++// acquireLockRankAndM acquires a rank which is not associated with a mutex
++// lock. To maintain the invariant that an M with m.locks==0 does not hold any
++// lock-like resources, it also acquires the M.
+ //
+ // This function may be called in nosplit context and thus must be nosplit.
+ //
+ //go:nosplit
+-func acquireLockRank(rank lockRank) {
++func acquireLockRankAndM(rank lockRank) {
++	acquirem()
++
+ 	gp := getg()
+ 	// Log the new class. See comment on lockWithRank.
+ 	systemstack(func() {
+@@ -189,12 +193,14 @@ func unlockWithRank(l *mutex) {
+ 	})
+ }
+ 
+-// releaseLockRank releases a rank which is not associated with a mutex lock
++// releaseLockRankAndM releases a rank which is not associated with a mutex
++// lock. To maintain the invariant that an M with m.locks==0 does not hold any
++// lock-like resources, it also releases the M.
+ //
+ // This function may be called in nosplit context and thus must be nosplit.
+ //
+ //go:nosplit
+-func releaseLockRank(rank lockRank) {
++func releaseLockRankAndM(rank lockRank) {
+ 	gp := getg()
+ 	systemstack(func() {
+ 		found := false
+@@ -211,6 +217,8 @@ func releaseLockRank(rank lockRank) {
+ 			throw("lockRank release without matching lockRank acquire")
+ 		}
+ 	})
++
++	releasem(getg().m)
+ }
+ 
+ // nosplit because it may be called from nosplit contexts.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index cb5a80455d..54408dbab7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1067,7 +1067,7 @@ func casfrom_Gscanstatus(gp *g, oldval, newval uint32) {
+ 		dumpgstatus(gp)
+ 		throw("casfrom_Gscanstatus: gp->status is not in scan state")
+ 	}
+-	releaseLockRank(lockRankGscan)
++	releaseLockRankAndM(lockRankGscan)
+ }
+ 
+ // This will return false if the gp is not in the expected status and the cas fails.
+@@ -1081,7 +1081,7 @@ func castogscanstatus(gp *g, oldval, newval uint32) bool {
+ 		if newval == oldval|_Gscan {
+ 			r := gp.atomicstatus.CompareAndSwap(oldval, newval)
+ 			if r {
+-				acquireLockRank(lockRankGscan)
++				acquireLockRankAndM(lockRankGscan)
+ 			}
+ 			return r
+ 
+@@ -1110,8 +1110,7 @@ func casgstatus(gp *g, oldval, newval uint32) {
+ 		})
+ 	}
+ 
+-	acquireLockRank(lockRankGscan)
+-	releaseLockRank(lockRankGscan)
++	lockWithRankMayAcquire(nil, lockRankGscan)
+ 
+ 	// See https://golang.org/cl/21503 for justification of the yield delay.
+ 	const yieldDelay = 5 * 1000
+@@ -1245,7 +1244,7 @@ func casGToPreemptScan(gp *g, old, new uint32) {
+ 	if old != _Grunning || new != _Gscan|_Gpreempted {
+ 		throw("bad g transition")
+ 	}
+-	acquireLockRank(lockRankGscan)
++	acquireLockRankAndM(lockRankGscan)
+ 	for !gp.atomicstatus.CompareAndSwap(_Grunning, _Gscan|_Gpreempted) {
+ 	}
+ }
+diff --git a/src/runtime/rwmutex.go b/src/runtime/rwmutex.go
+index 5833d59576..4f9585f98d 100644
+--- a/src/runtime/rwmutex.go
++++ b/src/runtime/rwmutex.go
+@@ -72,9 +72,7 @@ func (rw *rwmutex) rlock() {
+ 	// things blocking on the lock may consume all of the Ps and
+ 	// deadlock (issue #20903). Alternatively, we could drop the P
+ 	// while sleeping.
+-	acquirem()
+-
+-	acquireLockRank(rw.readRank)
++	acquireLockRankAndM(rw.readRank)
+ 	lockWithRankMayAcquire(&rw.rLock, getLockRank(&rw.rLock))
+ 
+ 	if rw.readerCount.Add(1) < 0 {
+@@ -116,8 +114,7 @@ func (rw *rwmutex) runlock() {
+ 			unlock(&rw.rLock)
+ 		}
+ 	}
+-	releaseLockRank(rw.readRank)
+-	releasem(getg().m)
++	releaseLockRankAndM(rw.readRank)
+ }
+ 
+ // lock locks rw for writing.

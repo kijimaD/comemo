@@ -1,0 +1,48 @@
+commit eb1e505f3f04721763e001e607322aea0f7465ba
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Nov 12 14:53:50 2024 +0000
+
+    runtime: make Frames example produce documented output
+    
+    I believe now this code can work in both test and standalone situations.
+    
+    Fixes #70057
+    
+    Change-Id: Ieb5163e6b917fd03d050f65589df6c31ad2515fe
+    GitHub-Last-Rev: db4863c05e4d4bcbd40caf459d29e2eee81f847b
+    GitHub-Pull-Request: golang/go#70270
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625904
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/runtime/example_test.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/example_test.go b/src/runtime/example_test.go
+index dcb8f7798e..eae9dbd7bf 100644
+--- a/src/runtime/example_test.go
++++ b/src/runtime/example_test.go
+@@ -32,15 +32,14 @@ func ExampleFrames() {
+ 		for {
+ 			frame, more := frames.Next()
+ 
+-			// Process this frame.
+-			//
+-			// To keep this example's output stable
+-			// even if there are changes in the testing package,
+-			// stop unwinding when we leave package runtime.
+-			if !strings.Contains(frame.File, "runtime/") {
++			// Canonicalize function name and skip callers of this function
++			// for predictable example output.
++			// You probably don't need this in your own code.
++			function := strings.ReplaceAll(frame.Function, "main.main", "runtime_test.ExampleFrames")
++			fmt.Printf("- more:%v | %s\n", more, function)
++			if function == "runtime_test.ExampleFrames" {
+ 				break
+ 			}
+-			fmt.Printf("- more:%v | %s\n", more, frame.Function)
+ 
+ 			// Check whether there are more frames to process after this one.
+ 			if !more {

@@ -1,0 +1,99 @@
+commit ad87d4404782d816f7a4497113b6b983b45aa442
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 18 08:51:27 2024 -0700
+
+    go/types, types2: use correct predicate when asserting comma-ok types
+    
+    While at it and unrelated, up-date testdata/manual.go sample file so
+    we can just copy its contents into a test file after debugging, without
+    fixing the date.
+    
+    Fixes #66878.
+    
+    Change-Id: Ie49a341b78d99bdc0f1a0ba1ca42fa2d3a807bd6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580075
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/check.go            |  2 +-
+ src/cmd/compile/internal/types2/testdata/manual.go  |  2 +-
+ src/go/types/check.go                               |  2 +-
+ src/go/types/testdata/manual.go                     |  2 +-
+ src/internal/types/testdata/fixedbugs/issue66878.go | 21 +++++++++++++++++++++
+ 5 files changed, 25 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 6066acdb35..ee7e2e8683 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -600,7 +600,7 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
+ 		return
+ 	}
+ 	t0, t1 := a[0].typ, a[1].typ
+-	assert(isTyped(t0) && isTyped(t1) && (isBoolean(t1) || t1 == universeError))
++	assert(isTyped(t0) && isTyped(t1) && (allBoolean(t1) || t1 == universeError))
+ 	if m := check.Types; m != nil {
+ 		for {
+ 			tv := m[x]
+diff --git a/src/cmd/compile/internal/types2/testdata/manual.go b/src/cmd/compile/internal/types2/testdata/manual.go
+index 57dcc227a5..d8f312f61d 100644
+--- a/src/cmd/compile/internal/types2/testdata/manual.go
++++ b/src/cmd/compile/internal/types2/testdata/manual.go
+@@ -1,4 +1,4 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
++// Copyright 2024 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 87106c4d01..94f2bbfd78 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -579,7 +579,7 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a []*operand) {
+ 		return
+ 	}
+ 	t0, t1 := a[0].typ, a[1].typ
+-	assert(isTyped(t0) && isTyped(t1) && (isBoolean(t1) || t1 == universeError))
++	assert(isTyped(t0) && isTyped(t1) && (allBoolean(t1) || t1 == universeError))
+ 	if m := check.Types; m != nil {
+ 		for {
+ 			tv := m[x]
+diff --git a/src/go/types/testdata/manual.go b/src/go/types/testdata/manual.go
+index 57dcc227a5..d8f312f61d 100644
+--- a/src/go/types/testdata/manual.go
++++ b/src/go/types/testdata/manual.go
+@@ -1,4 +1,4 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
++// Copyright 2024 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue66878.go b/src/internal/types/testdata/fixedbugs/issue66878.go
+new file mode 100644
+index 0000000000..bd6315f9c3
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue66878.go
+@@ -0,0 +1,21 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _[T bool](ch chan T) {
++	var _, _ T = <-ch
++}
++
++// offending code snippets from issue
++
++func _[T ~bool](ch <-chan T) {
++	var x, ok T = <-ch
++	println(x, ok)
++}
++
++func _[T ~bool](m map[int]T) {
++	var x, ok T = m[0]
++	println(x, ok)
++}

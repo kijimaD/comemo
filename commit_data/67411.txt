@@ -1,0 +1,53 @@
+commit 34cf5f6205c97eccca4fee5a33deca9d6b05e7b3
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue Jun 24 00:38:37 2025 +0000
+
+    go/types: add test for interface method field type
+    
+    Add a test that would have detected the regression in #74303: interface
+    method fields should have a recorded type.
+    
+    For #74303
+    
+    Change-Id: Ide5df51cd71c38809c364bb4f95950163ecefb66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683595
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+---
+ src/cmd/compile/internal/types2/api_test.go | 5 +++++
+ src/go/types/api_test.go                    | 5 +++++
+ 2 files changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index 44fb6afe98..0d3c8b8e3e 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -358,6 +358,11 @@ func TestTypesInfo(t *testing.T) {
+ 		// go.dev/issue/47895
+ 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
+ 
++		// go.dev/issue/74303. Note that interface field types are synthetic, so
++		// even though `func()` doesn't appear in the source, it appears in the
++		// syntax tree.
++		{`package p; type T interface { M(int) }`, `func(int)`, `func(int)`},
++
+ 		// go.dev/issue/50093
+ 		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
+ 		{`package u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index f5a911306f..4396b8ae89 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -364,6 +364,11 @@ func TestTypesInfo(t *testing.T) {
+ 		// go.dev/issue/47895
+ 		{`package p; import "unsafe"; type S struct { f int }; var s S; var _ = unsafe.Offsetof(s.f)`, `s.f`, `int`},
+ 
++		// go.dev/issue/74303. Note that interface field types are synthetic, so
++		// even though `func()` doesn't appear in the source, it appears in the
++		// syntax tree.
++		{`package p; type T interface { M(int) }`, `func(int)`, `func(int)`},
++
+ 		// go.dev/issue/50093
+ 		{`package u0a; func _[_ interface{int}]() {}`, `int`, `int`},
+ 		{`package u1a; func _[_ interface{~int}]() {}`, `~int`, `~int`},

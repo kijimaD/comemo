@@ -1,0 +1,36 @@
+commit 1947c4233a33953088468a23457f6779c34be2d1
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Thu Jan 2 14:41:59 2025 -0500
+
+    runtime: set HeapGoal to zero when the GC is disabled
+    
+    When the GC is disabled, the tracer should emit a heap goal of 0. Not
+    setting the heap goal to 0 causes an inaccurate NextGC value to be
+    emmited.
+    
+    Fixes #63864
+    
+    Change-Id: Iecceaca86c0a43c1cc4d9433f1f9bb736f01ccbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639417
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/traceruntime.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/traceruntime.go b/src/runtime/traceruntime.go
+index 98ac1082a8..39adeb4c07 100644
+--- a/src/runtime/traceruntime.go
++++ b/src/runtime/traceruntime.go
+@@ -574,7 +574,9 @@ func (tl traceLocker) HeapAlloc(live uint64) {
+ // HeapGoal reads the current heap goal and emits a HeapGoal event.
+ func (tl traceLocker) HeapGoal() {
+ 	heapGoal := gcController.heapGoal()
+-	if heapGoal == ^uint64(0) {
++	// The heapGoal calculations will result in strange numbers if the GC if off. See go.dev/issue/63864.
++	// Check gcPercent before using the heapGoal in the trace.
++	if heapGoal == ^uint64(0) || gcController.gcPercent.Load() < 0 {
+ 		// Heap-based triggering is disabled.
+ 		heapGoal = 0
+ 	}

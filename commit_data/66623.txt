@@ -1,0 +1,392 @@
+commit e9558d39476199f05bb08e7e32a2df054c3aab1b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Mar 20 10:02:31 2025 +0100
+
+    all: use exec.Command.String in test logs
+    
+    There is no need to manually construct a human-friendly string for
+    a exec.Command. The String method does that for us.
+    
+    Change-Id: Iff1033478000bade9cbdc079f6143a7690374258
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659475
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cgo/internal/testerrors/errors_test.go     |  6 +++---
+ src/cmd/cgo/internal/testgodefs/testgodefs_test.go |  4 ++--
+ src/cmd/cgo/internal/testplugin/plugin_test.go     |  6 +++---
+ src/cmd/cgo/internal/testsanitizers/asan_test.go   |  4 ++--
+ src/cmd/cgo/internal/testsanitizers/cc_test.go     | 11 +++++------
+ src/cmd/cgo/internal/testsanitizers/msan_test.go   |  2 +-
+ src/cmd/cgo/internal/testshared/shared_test.go     |  4 ++--
+ src/cmd/cgo/internal/testso/so_test.go             | 18 +++++++++---------
+ src/cmd/dist/test.go                               |  4 ++--
+ src/cmd/internal/moddeps/moddeps_test.go           |  6 +++---
+ src/os/exec/read3.go                               |  3 +--
+ src/runtime/testdata/testprog/numcpu_freebsd.go    | 16 +++++++---------
+ 12 files changed, 40 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testerrors/errors_test.go b/src/cmd/cgo/internal/testerrors/errors_test.go
+index 1a0de6da03..80d2c402ce 100644
+--- a/src/cmd/cgo/internal/testerrors/errors_test.go
++++ b/src/cmd/cgo/internal/testerrors/errors_test.go
+@@ -108,7 +108,7 @@ func sizeofLongDouble(t *testing.T) int {
+ 	cmd := exec.Command(testenv.GoToolPath(t), "run", path("long_double_size.go"))
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("%#q: %v:\n%s", strings.Join(cmd.Args, " "), err, out)
++		t.Fatalf("%#q: %v:\n%s", cmd, err, out)
+ 	}
+ 
+ 	i, err := strconv.Atoi(strings.TrimSpace(string(out)))
+@@ -162,7 +162,7 @@ func TestToleratesOptimizationFlag(t *testing.T) {
+ 			cmd.Env = append(os.Environ(), "CGO_CFLAGS="+cflags)
+ 			out, err := cmd.CombinedOutput()
+ 			if err != nil {
+-				t.Errorf("%#q: %v:\n%s", strings.Join(cmd.Args, " "), err, out)
++				t.Errorf("%#q: %v:\n%s", cmd, err, out)
+ 			}
+ 		})
+ 	}
+@@ -176,7 +176,7 @@ func TestMallocCrashesOnNil(t *testing.T) {
+ 	cmd := exec.Command(testenv.GoToolPath(t), "run", path("malloc.go"))
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+-		t.Logf("%#q:\n%s", strings.Join(cmd.Args, " "), out)
++		t.Logf("%#q:\n%s", cmd, out)
+ 		t.Fatalf("succeeded unexpectedly")
+ 	}
+ }
+diff --git a/src/cmd/cgo/internal/testgodefs/testgodefs_test.go b/src/cmd/cgo/internal/testgodefs/testgodefs_test.go
+index 0ee953f57f..d68fd4fc14 100644
+--- a/src/cmd/cgo/internal/testgodefs/testgodefs_test.go
++++ b/src/cmd/cgo/internal/testgodefs/testgodefs_test.go
+@@ -60,7 +60,7 @@ func TestGoDefs(t *testing.T) {
+ 
+ 		out, err := cmd.Output()
+ 		if err != nil {
+-			t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++			t.Fatalf("%#q: %v\n%s", cmd, err, cmd.Stderr)
+ 		}
+ 
+ 		fn := fp + "_defs.go"
+@@ -111,6 +111,6 @@ func TestGoDefs(t *testing.T) {
+ 	cmd.Env = append(os.Environ(), "GOPATH="+gopath)
+ 	cmd.Dir = dir
+ 	if out, err := cmd.CombinedOutput(); err != nil {
+-		t.Fatalf("%s [%s]: %v\n%s", strings.Join(cmd.Args, " "), dir, err, out)
++		t.Fatalf("%#q [%s]: %v\n%s", cmd, dir, err, out)
+ 	}
+ }
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index 85dfd31123..a8d4c0ea58 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -194,10 +194,10 @@ func run(t *testing.T, bin string, args ...string) string {
+ 	out, err := cmd.Output()
+ 	if err != nil {
+ 		if t == nil {
+-			log.Panicf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++			log.Panicf("%#q: %v\n%s", cmd, err, cmd.Stderr)
+ 		} else {
+ 			t.Helper()
+-			t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++			t.Fatalf("%#q: %v\n%s", cmd, err, cmd.Stderr)
+ 		}
+ 	}
+ 
+@@ -245,7 +245,7 @@ func TestIssue18676(t *testing.T) {
+ 	cmd := exec.CommandContext(ctx, "./issue18676.exe")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, out)
++		t.Fatalf("%#q: %v\n%s", cmd, err, out)
+ 	}
+ }
+ 
+diff --git a/src/cmd/cgo/internal/testsanitizers/asan_test.go b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+index 19810aafb6..f7f53da334 100644
+--- a/src/cmd/cgo/internal/testsanitizers/asan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+@@ -71,11 +71,11 @@ func TestASAN(t *testing.T) {
+ 						!strings.Contains(out, noSymbolizer) &&
+ 						compilerSupportsLocation() {
+ 
+-						t.Errorf("%#q exited without expected location of the error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.errorLocation, out)
++						t.Errorf("%#q exited without expected location of the error\n%s; got failure\n%s", cmd, tc.errorLocation, out)
+ 					}
+ 					return
+ 				}
+-				t.Fatalf("%#q exited without expected memory access error\n%s; got failure\n%s", strings.Join(cmd.Args, " "), tc.memoryAccessError, out)
++				t.Fatalf("%#q exited without expected memory access error\n%s; got failure\n%s", cmd, tc.memoryAccessError, out)
+ 			}
+ 			mustRun(t, cmd)
+ 		})
+diff --git a/src/cmd/cgo/internal/testsanitizers/cc_test.go b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+index 7233b6a775..8052f34f36 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cc_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+@@ -494,7 +494,7 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
+ 				bytes.Contains(out, []byte("unsupported"))) {
+ 			return true, errors.New(string(out))
+ 		}
+-		return true, fmt.Errorf("%#q failed: %v\n%s", strings.Join(cmd.Args, " "), err, out)
++		return true, fmt.Errorf("%#q failed: %v\n%s", cmd, err, out)
+ 	}
+ 
+ 	if c.sanitizer == "fuzzer" {
+@@ -504,10 +504,10 @@ func (c *config) checkCSanitizer() (skip bool, err error) {
+ 
+ 	if out, err := exec.Command(dst).CombinedOutput(); err != nil {
+ 		if os.IsNotExist(err) {
+-			return true, fmt.Errorf("%#q failed to produce executable: %v", strings.Join(cmd.Args, " "), err)
++			return true, fmt.Errorf("%#q failed to produce executable: %v", cmd, err)
+ 		}
+ 		snippet, _, _ := bytes.Cut(out, []byte("\n"))
+-		return true, fmt.Errorf("%#q generated broken executable: %v\n%s", strings.Join(cmd.Args, " "), err, snippet)
++		return true, fmt.Errorf("%#q generated broken executable: %v\n%s", cmd, err, snippet)
+ 	}
+ 
+ 	return false, nil
+@@ -542,13 +542,12 @@ func (c *config) checkRuntime() (skip bool, err error) {
+ 		return false, err
+ 	}
+ 	cmd.Args = append(cmd.Args, "-dM", "-E", "../../../../runtime/cgo/libcgo.h")
+-	cmdStr := strings.Join(cmd.Args, " ")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		return false, fmt.Errorf("%#q exited with %v\n%s", cmdStr, err, out)
++		return false, fmt.Errorf("%#q exited with %v\n%s", cmd, err, out)
+ 	}
+ 	if !bytes.Contains(out, []byte("#define CGO_TSAN")) {
+-		return true, fmt.Errorf("%#q did not define CGO_TSAN", cmdStr)
++		return true, fmt.Errorf("%#q did not define CGO_TSAN", cmd)
+ 	}
+ 	return false, nil
+ }
+diff --git a/src/cmd/cgo/internal/testsanitizers/msan_test.go b/src/cmd/cgo/internal/testsanitizers/msan_test.go
+index 83d66f6660..554cceaff8 100644
+--- a/src/cmd/cgo/internal/testsanitizers/msan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/msan_test.go
+@@ -79,7 +79,7 @@ func TestMSAN(t *testing.T) {
+ 				if err != nil {
+ 					return
+ 				}
+-				t.Fatalf("%#q exited without error; want MSAN failure\n%s", strings.Join(cmd.Args, " "), out)
++				t.Fatalf("%#q exited without error; want MSAN failure\n%s", cmd, out)
+ 			}
+ 			mustRun(t, cmd)
+ 		})
+diff --git a/src/cmd/cgo/internal/testshared/shared_test.go b/src/cmd/cgo/internal/testshared/shared_test.go
+index a2214ac5b9..e927460376 100644
+--- a/src/cmd/cgo/internal/testshared/shared_test.go
++++ b/src/cmd/cgo/internal/testshared/shared_test.go
+@@ -79,10 +79,10 @@ func goCmd(t *testing.T, args ...string) string {
+ 	if err != nil {
+ 		if t != nil {
+ 			t.Helper()
+-			t.Fatalf("executing %q failed %v:\n%s\n%s", c, err, stderr, output)
++			t.Fatalf("executing %#q failed %v:\n%s\n%s", c, err, stderr, output)
+ 		} else {
+ 			// Panic instead of using log.Fatalf so that deferred cleanup may run in testMain.
+-			log.Panicf("executing %q failed %v:\n%s\n%s", c, err, stderr, output)
++			log.Panicf("executing %#q failed %v:\n%s\n%s", c, err, stderr, output)
+ 		}
+ 	}
+ 	if testing.Verbose() && t != nil {
+diff --git a/src/cmd/cgo/internal/testso/so_test.go b/src/cmd/cgo/internal/testso/so_test.go
+index 2be7807f77..48eb97c8de 100644
+--- a/src/cmd/cgo/internal/testso/so_test.go
++++ b/src/cmd/cgo/internal/testso/so_test.go
+@@ -52,11 +52,11 @@ func testSO(t *testing.T, dir string) {
+ 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+ 	out, err := cmd.Output()
+ 	if err != nil {
+-		t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++		t.Fatalf("%#q: %v\n%s", cmd, err, cmd.Stderr)
+ 	}
+ 	lines := strings.Split(string(out), "\n")
+ 	if len(lines) != 3 || lines[2] != "" {
+-		t.Fatalf("Unexpected output from %s:\n%s", strings.Join(cmd.Args, " "), lines)
++		t.Fatalf("Unexpected output from %q:\n%s", cmd, lines)
+ 	}
+ 
+ 	cc := lines[0]
+@@ -90,9 +90,9 @@ func testSO(t *testing.T, dir string) {
+ 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++		t.Fatalf("%#q: %s\n%s", cmd, err, out)
+ 	}
+-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++	t.Logf("%#q:\n%s", cmd, out)
+ 
+ 	if runtime.GOOS == "aix" {
+ 		// Shared object must be wrapped by an archive
+@@ -100,7 +100,7 @@ func testSO(t *testing.T, dir string) {
+ 		cmd.Dir = modRoot
+ 		out, err = cmd.CombinedOutput()
+ 		if err != nil {
+-			t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++			t.Fatalf("%#q: %s\n%s", cmd, err, out)
+ 		}
+ 	}
+ 
+@@ -109,9 +109,9 @@ func testSO(t *testing.T, dir string) {
+ 	cmd.Env = append(os.Environ(), "GOPATH="+GOPATH)
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++		t.Fatalf("%#q: %s\n%s", cmd, err, out)
+ 	}
+-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++	t.Logf("%#q:\n%s", cmd, out)
+ 
+ 	cmd = exec.Command("./main.exe")
+ 	cmd.Dir = modRoot
+@@ -131,7 +131,7 @@ func testSO(t *testing.T, dir string) {
+ 	}
+ 	out, err = cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("%s: %s\n%s", strings.Join(cmd.Args, " "), err, out)
++		t.Fatalf("%#q: %s\n%s", cmd, err, out)
+ 	}
+-	t.Logf("%s:\n%s", strings.Join(cmd.Args, " "), out)
++	t.Logf("%#q:\n%s", cmd, out)
+ }
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index a380e46c5d..e939768a2f 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1098,7 +1098,7 @@ func (t *tester) dirCmd(dir string, cmdline ...interface{}) *exec.Cmd {
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
+ 	if vflag > 1 {
+-		errprintf("%s\n", strings.Join(cmd.Args, " "))
++		errprintf("%#q\n", cmd)
+ 	}
+ 	return cmd
+ }
+@@ -1450,7 +1450,7 @@ func (t *tester) runPending(nextTest *distTest) {
+ 			}
+ 		}
+ 		if vflag > 1 {
+-			errprintf("%s\n", strings.Join(w.cmd.Args, " "))
++			errprintf("%#q\n", w.cmd)
+ 		}
+ 		ended++
+ 		<-w.end
+diff --git a/src/cmd/internal/moddeps/moddeps_test.go b/src/cmd/internal/moddeps/moddeps_test.go
+index 2def029325..0467b0ebbf 100644
+--- a/src/cmd/internal/moddeps/moddeps_test.go
++++ b/src/cmd/internal/moddeps/moddeps_test.go
+@@ -62,7 +62,7 @@ func TestAllDependencies(t *testing.T) {
+ 				cmd.Stderr = new(strings.Builder)
+ 				_, err := cmd.Output()
+ 				if err != nil {
+-					t.Errorf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++					t.Errorf("%#q: %v\n%s", cmd, err, cmd.Stderr)
+ 					t.Logf("(Run 'go mod vendor' in %s to ensure that dependencies have been vendored.)", m.Dir)
+ 				}
+ 				return
+@@ -76,10 +76,10 @@ func TestAllDependencies(t *testing.T) {
+ 			cmd.Stderr = new(strings.Builder)
+ 			out, err := cmd.Output()
+ 			if err != nil {
+-				t.Fatalf("%s: %v\n%s", strings.Join(cmd.Args, " "), err, cmd.Stderr)
++				t.Fatalf("%#q: %v\n%s", cmd, err, cmd.Stderr)
+ 			}
+ 			if strings.TrimSpace(string(out)) != m.Path {
+-				t.Errorf("'%s' reported active modules other than %s:\n%s", strings.Join(cmd.Args, " "), m.Path, out)
++				t.Errorf("%#q reported active modules other than %s:\n%s", cmd, m.Path, out)
+ 				t.Logf("(Run 'go mod tidy' in %s to ensure that no extraneous dependencies were added, or 'go mod vendor' to copy in imported packages.)", m.Dir)
+ 			}
+ 		})
+diff --git a/src/os/exec/read3.go b/src/os/exec/read3.go
+index 8327d73e51..3ccf1cacc8 100644
+--- a/src/os/exec/read3.go
++++ b/src/os/exec/read3.go
+@@ -20,7 +20,6 @@ import (
+ 	"os/exec"
+ 	"os/exec/internal/fdtest"
+ 	"runtime"
+-	"strings"
+ )
+ 
+ func main() {
+@@ -81,7 +80,7 @@ func main() {
+ 		cmd := exec.Command(ofcmd, args...)
+ 		out, err := cmd.CombinedOutput()
+ 		if err != nil {
+-			fmt.Fprintf(os.Stderr, "%s failed: %v\n", strings.Join(cmd.Args, " "), err)
++			fmt.Fprintf(os.Stderr, "%#q failed: %v\n", cmd, err)
+ 		}
+ 		fmt.Printf("%s", out)
+ 		os.Exit(1)
+diff --git a/src/runtime/testdata/testprog/numcpu_freebsd.go b/src/runtime/testdata/testprog/numcpu_freebsd.go
+index 310c21244c..a51c04a483 100644
+--- a/src/runtime/testdata/testprog/numcpu_freebsd.go
++++ b/src/runtime/testdata/testprog/numcpu_freebsd.go
+@@ -45,7 +45,7 @@ func FreeBSDNumCPU() {
+ 	cmd := exec.Command("sysctl", "-n", "kern.smp.active")
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		fmt.Printf("fail to launch '%s', error: %s, output: %s\n", strings.Join(cmd.Args, " "), err, output)
++		fmt.Printf("fail to launch %#q, error: %s, output: %s\n", cmd, err, output)
+ 		return
+ 	}
+ 	if !bytes.Equal(output, []byte("1\n")) {
+@@ -80,19 +80,18 @@ func getList() ([]string, error) {
+ 
+ 	// Launch cpuset to print a list of available CPUs: pid <PID> mask: 0, 1, 2, 3.
+ 	cmd := exec.Command("cpuset", "-g", "-p", strconv.Itoa(pid))
+-	cmdline := strings.Join(cmd.Args, " ")
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		return nil, fmt.Errorf("fail to execute '%s': %s", cmdline, err)
++		return nil, fmt.Errorf("fail to execute %#q: %s", cmd, err)
+ 	}
+ 	output, _, ok := bytes.Cut(output, []byte("\n"))
+ 	if !ok {
+-		return nil, fmt.Errorf("invalid output from '%s', '\\n' not found: %s", cmdline, output)
++		return nil, fmt.Errorf("invalid output from %#q, '\\n' not found: %s", cmd, output)
+ 	}
+ 
+ 	_, cpus, ok := bytes.Cut(output, []byte(":"))
+ 	if !ok {
+-		return nil, fmt.Errorf("invalid output from '%s', ':' not found: %s", cmdline, output)
++		return nil, fmt.Errorf("invalid output from %#q, ':' not found: %s", cmd, output)
+ 	}
+ 
+ 	var list []string
+@@ -104,7 +103,7 @@ func getList() ([]string, error) {
+ 		list = append(list, index)
+ 	}
+ 	if len(list) == 0 {
+-		return nil, fmt.Errorf("empty CPU list from '%s': %s", cmdline, output)
++		return nil, fmt.Errorf("empty CPU list from %#q: %s", cmd, output)
+ 	}
+ 	return list, nil
+ }
+@@ -121,17 +120,16 @@ func checkNCPU(list []string) error {
+ 	}
+ 	// Launch FreeBSDNumCPUHelper() with specified CPUs list.
+ 	cmd := exec.Command("cpuset", "-l", cListString, os.Args[0], "FreeBSDNumCPUHelper")
+-	cmdline := strings.Join(cmd.Args, " ")
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		return fmt.Errorf("fail to launch child '%s', error: %s, output: %s", cmdline, err, output)
++		return fmt.Errorf("fail to launch child %#q, error: %s, output: %s", cmd, err, output)
+ 	}
+ 
+ 	// NumCPU from FreeBSDNumCPUHelper come with '\n'.
+ 	output = bytes.TrimSpace(output)
+ 	n, err := strconv.Atoi(string(output))
+ 	if err != nil {
+-		return fmt.Errorf("fail to parse output from child '%s', error: %s, output: %s", cmdline, err, output)
++		return fmt.Errorf("fail to parse output from child %#q, error: %s, output: %s", cmd, err, output)
+ 	}
+ 	if n != len(list) {
+ 		return fmt.Errorf("runtime.NumCPU() expected to %d, got %d when run with CPU list %s", len(list), n, cListString)

@@ -1,0 +1,70 @@
+commit d05825468921f8d0e54c81f59330d3b263057a54
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jun 16 16:31:10 2025 +0000
+
+    cmd/dist: always include variant in package names
+    
+    Our attempt to evenly distribute tests across shards struggles a bit
+    because certain long-running targets are very difficult to distinguish
+    in ResultDB, namely racebench and the test directory tests. These are
+    the only tests where the JSON output from dist omits the variant from
+    the package, making it impossible to distinguish them in the test result
+    data. My current suspicion is that this is preventing the load balancing
+    from being effective for the race builders in particular, though I worry
+    the longtest builders have a similar situation with the test directory
+    tests.
+    
+    For #65814.
+    
+    Change-Id: I5804c2af092ff9aa4a3f0f6897b4a57c4628f837
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681955
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/dist/test.go | 18 ++++++++++++++----
+ 1 file changed, 14 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 637433d451..c2eaeb1248 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -336,6 +336,10 @@ type goTest struct {
+ 	// omitVariant indicates that variant is used solely for the dist test name and
+ 	// that the set of test names run by each variant (including empty) of a package
+ 	// is non-overlapping.
++	//
++	// TODO(mknyszek): Consider removing omitVariant as it is no longer set to true
++	// by any test. It's too valuable to have timing information in ResultDB that
++	// corresponds directly with dist names for tests.
+ 	omitVariant bool
+ 
+ 	// We have both pkg and pkgs as a convenience. Both may be set, in which
+@@ -595,8 +599,11 @@ func (t *tester) registerRaceBenchTest(pkg string) {
+ 		defer timelog("end", dt.name)
+ 		ranGoBench = true
+ 		return (&goTest{
+-			variant:     "racebench",
+-			omitVariant: true,               // The only execution of benchmarks in dist; benchmark names are guaranteed not to overlap with test names.
++			variant: "racebench",
++			// Include the variant even though there's no overlap in test names.
++			// This makes the test targets distinct, allowing our build system to record
++			// elapsed time for each one, which is useful for load-balancing test shards.
++			omitVariant: false,
+ 			timeout:     1200 * time.Second, // longer timeout for race with benchmarks
+ 			race:        true,
+ 			bench:       true,
+@@ -983,8 +990,11 @@ func (t *tester) registerTests() {
+ 			id := fmt.Sprintf("%d_%d", shard, nShards)
+ 			t.registerTest("../test",
+ 				&goTest{
+-					variant:     id,
+-					omitVariant: true, // Shards of the same Go package; tests are guaranteed not to overlap.
++					variant: id,
++					// Include the variant even though there's no overlap in test names.
++					// This makes the test target more clearly distinct in our build
++					// results and is important for load-balancing test shards.
++					omitVariant: false,
+ 					pkg:         "cmd/internal/testdir",
+ 					testFlags:   []string{fmt.Sprintf("-shard=%d", shard), fmt.Sprintf("-shards=%d", nShards)},
+ 					runOnHost:   true,

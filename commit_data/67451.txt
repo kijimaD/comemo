@@ -1,0 +1,146 @@
+commit 9ae38be3025fa71ec2967111e0a184f886876cb1
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Jun 27 08:46:28 2025 -0700
+
+    sync: disassociate WaitGroups from bubbles on Wait
+    
+    Fix a race condition in disassociating a WaitGroup in a synctest
+    bubble from its bubble. We previously disassociated the WaitGroup
+    when count becomes 0, but this causes problems when an Add call
+    setting count to 0 races with one incrementing the count.
+    
+    Instead, disassociate a WaitGroup from its bubble when Wait returns.
+    Wait must not be called concurrently with an Add call with a
+    positive delta and a 0 count, so we know that the disassociation
+    will not race with an Add call trying to create a new association.
+    
+    Fixes #74386
+    
+    Change-Id: I9b519519921f7691869a64a245a5ee65d071d054
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684635
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/synctest/synctest_test.go | 33 +++++++++++++++++++++++++--------
+ src/sync/waitgroup.go                  | 21 +++++++++++++--------
+ 2 files changed, 38 insertions(+), 16 deletions(-)
+
+diff --git a/src/internal/synctest/synctest_test.go b/src/internal/synctest/synctest_test.go
+index 222cae2597..6cebf86c31 100644
+--- a/src/internal/synctest/synctest_test.go
++++ b/src/internal/synctest/synctest_test.go
+@@ -654,6 +654,17 @@ func TestWaitGroupInBubble(t *testing.T) {
+ 	})
+ }
+ 
++// https://go.dev/issue/74386
++func TestWaitGroupRacingAdds(t *testing.T) {
++	synctest.Run(func() {
++		var wg sync.WaitGroup
++		for range 100 {
++			wg.Go(func() {})
++		}
++		wg.Wait()
++	})
++}
++
+ func TestWaitGroupOutOfBubble(t *testing.T) {
+ 	var wg sync.WaitGroup
+ 	wg.Add(1)
+@@ -705,29 +716,35 @@ func TestWaitGroupMovedBetweenBubblesWithNonZeroCount(t *testing.T) {
+ 	})
+ }
+ 
+-func TestWaitGroupMovedBetweenBubblesWithZeroCount(t *testing.T) {
++func TestWaitGroupDisassociateInWait(t *testing.T) {
+ 	var wg sync.WaitGroup
+ 	synctest.Run(func() {
+ 		wg.Add(1)
+ 		wg.Done()
++		// Count and waiters are 0, so Wait disassociates the WaitGroup.
++		wg.Wait()
+ 	})
+ 	synctest.Run(func() {
+-		// Reusing the WaitGroup is safe, because its count is zero.
++		// Reusing the WaitGroup is safe, because it is no longer bubbled.
+ 		wg.Add(1)
+ 		wg.Done()
+ 	})
+ }
+ 
+-func TestWaitGroupMovedBetweenBubblesAfterWait(t *testing.T) {
++func TestWaitGroupDisassociateInAdd(t *testing.T) {
+ 	var wg sync.WaitGroup
+ 	synctest.Run(func() {
+-		wg.Go(func() {})
+-		wg.Wait()
++		wg.Add(1)
++		go wg.Wait()
++		synctest.Wait() // wait for Wait to block
++		// Count is 0 and waiters != 0, so Done wakes the waiters and
++		// disassociates the WaitGroup.
++		wg.Done()
+ 	})
+ 	synctest.Run(func() {
+-		// Reusing the WaitGroup is safe, because its count is zero.
+-		wg.Go(func() {})
+-		wg.Wait()
++		// Reusing the WaitGroup is safe, because it is no longer bubbled.
++		wg.Add(1)
++		wg.Done()
+ 	})
+ }
+ 
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index 0bd618a241..5b035aa396 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -120,13 +120,6 @@ func (wg *WaitGroup) Add(delta int) {
+ 	if w != 0 && delta > 0 && v == int32(delta) {
+ 		panic("sync: WaitGroup misuse: Add called concurrently with Wait")
+ 	}
+-	if v == 0 && bubbled {
+-		// Disassociate the WaitGroup from its bubble.
+-		synctest.Disassociate(wg)
+-		if w == 0 {
+-			wg.state.Store(0)
+-		}
+-	}
+ 	if v > 0 || w == 0 {
+ 		return
+ 	}
+@@ -140,6 +133,11 @@ func (wg *WaitGroup) Add(delta int) {
+ 	}
+ 	// Reset waiters count to 0.
+ 	wg.state.Store(0)
++	if bubbled {
++		// Adds must not happen concurrently with wait when counter is 0,
++		// so we can safely disassociate wg from its current bubble.
++		synctest.Disassociate(wg)
++	}
+ 	for ; w != 0; w-- {
+ 		runtime_Semrelease(&wg.sema, false, 0)
+ 	}
+@@ -166,13 +164,20 @@ func (wg *WaitGroup) Wait() {
+ 	for {
+ 		state := wg.state.Load()
+ 		v := int32(state >> 32)
+-		w := uint32(state)
++		w := uint32(state & 0x7fffffff)
+ 		if v == 0 {
+ 			// Counter is 0, no need to wait.
+ 			if race.Enabled {
+ 				race.Enable()
+ 				race.Acquire(unsafe.Pointer(wg))
+ 			}
++			if w == 0 && state&waitGroupBubbleFlag != 0 && synctest.IsAssociated(wg) {
++				// Adds must not happen concurrently with wait when counter is 0,
++				// so we can disassociate wg from its current bubble.
++				if wg.state.CompareAndSwap(state, 0) {
++					synctest.Disassociate(wg)
++				}
++			}
+ 			return
+ 		}
+ 		// Increment waiters count.

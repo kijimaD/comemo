@@ -1,0 +1,80 @@
+commit 16ce8b3925deaeb72541ee96b6ee23a08fc21dea
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sun Apr 28 14:39:56 2024 +0200
+
+    net: fix lookupHost on Plan 9
+    
+    CL 532217 added the newDNSError function.
+    
+    However, the implementation was not correct on
+    Plan 9, which lead TestLookupNoSuchHost to fail.
+    
+    This change fixes lookupHost on Plan 9.
+    
+    Fixes #67096.
+    
+    Change-Id: I39271f7d588b19c1b1608f18a24d871460be09cd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582236
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/net/lookup_plan9.go | 19 +++++--------------
+ src/net/lookup_test.go  |  4 ++++
+ 2 files changed, 9 insertions(+), 14 deletions(-)
+
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 2532a0e967..588174b1fc 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -109,17 +109,11 @@ func queryDNS(ctx context.Context, addr string, typ string) (res []string, err e
+ func handlePlan9DNSError(err error, name string) error {
+ 	if stringsHasSuffix(err.Error(), "dns: name does not exist") ||
+ 		stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode 0") ||
+-		stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode") {
+-		return &DNSError{
+-			Err:        errNoSuchHost.Error(),
+-			Name:       name,
+-			IsNotFound: true,
+-		}
+-	}
+-	return &DNSError{
+-		Err:  err.Error(),
+-		Name: name,
++		stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode") ||
++		stringsHasSuffix(err.Error(), "dns failure") {
++		err = errNoSuchHost
+ 	}
++	return newDNSError(err, name, "")
+ }
+ 
+ // toLower returns a lower-case version of in. Restricting us to
+@@ -169,10 +163,7 @@ func (*Resolver) lookupHost(ctx context.Context, host string) (addrs []string, e
+ 	// host names in local network (e.g. from /lib/ndb/local)
+ 	lines, err := queryCS(ctx, "net", host, "1")
+ 	if err != nil {
+-		if stringsHasSuffix(err.Error(), "dns failure") {
+-			err = errNoSuchHost
+-		}
+-		return nil, newDNSError(err, host, "")
++		return nil, handlePlan9DNSError(err, host)
+ 	}
+ loop:
+ 	for _, line := range lines {
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index bd58498fbc..97b37f2841 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -1634,6 +1634,10 @@ func TestLookupNoSuchHost(t *testing.T) {
+ }
+ 
+ func TestDNSErrorUnwrap(t *testing.T) {
++	if runtime.GOOS == "plan9" {
++		// The Plan 9 implementation of the resolver doesn't use the Dial function yet. See https://go.dev/cl/409234
++		t.Skip("skipping on plan9")
++	}
+ 	rDeadlineExcceeded := &Resolver{PreferGo: true, Dial: func(ctx context.Context, network, address string) (Conn, error) {
+ 		return nil, context.DeadlineExceeded
+ 	}}

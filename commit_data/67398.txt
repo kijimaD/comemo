@@ -1,0 +1,94 @@
+commit dd63b7aa0e47da12c8db937e486e977690d2e19b
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Fri Jun 20 19:35:35 2025 +0000
+
+    [dev.simd] simd: add AVX512 aggregated check
+    
+    This added check could make AI test code generation's life easier.
+    
+    Change-Id: I725f567100159acd1ee537e8b1e6cb9c9e2bc690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683016
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/simd/cpu.go       |  9 +++------
+ src/simd/simd_test.go | 20 ++++++++++----------
+ 2 files changed, 13 insertions(+), 16 deletions(-)
+
+diff --git a/src/simd/cpu.go b/src/simd/cpu.go
+index 52a5614e68..b07b5288f2 100644
+--- a/src/simd/cpu.go
++++ b/src/simd/cpu.go
+@@ -11,10 +11,7 @@ package simd
+ 
+ import "internal/cpu"
+ 
+-func HasAVX512BW() bool {
+-	return cpu.X86.HasAVX512BW
+-}
+-
+-func HasAVX512VL() bool {
+-	return cpu.X86.HasAVX512VL
++// HasAVX512 checks AVX512 CPU feature F+CD+BW+DQ+VL.
++func HasAVX512() bool {
++	return cpu.X86.HasAVX512
+ }
+diff --git a/src/simd/simd_test.go b/src/simd/simd_test.go
+index c92463bb3f..28e25132e6 100644
+--- a/src/simd/simd_test.go
++++ b/src/simd/simd_test.go
+@@ -38,8 +38,8 @@ func TestType(t *testing.T) {
+ 	v.y = &y
+ 	sink = y
+ 
+-	if !simd.HasAVX512BW() || !simd.HasAVX512VL() {
+-		t.Skip("Test requires HasAVX512BW+VL, not available on this hardware")
++	if !simd.HasAVX512() {
++		t.Skip("Test requires HasAVX512, not available on this hardware")
+ 		return
+ 	}
+ 	v.z = maskT(simd.LoadInt32x4(&maskv).AsMask32x4())
+@@ -113,8 +113,8 @@ func TestAdd(t *testing.T) {
+ }
+ 
+ func TestVectorConversion(t *testing.T) {
+-	if !simd.HasAVX512BW() || !simd.HasAVX512VL() {
+-		t.Skip("Test requires HasAVX512BW+VL, not available on this hardware")
++	if !simd.HasAVX512() {
++		t.Skip("Test requires HasAVX512, not available on this hardware")
+ 		return
+ 	}
+ 	xv := [4]int32{1, 2, 3, 4}
+@@ -131,8 +131,8 @@ func TestVectorConversion(t *testing.T) {
+ }
+ 
+ func TestMaskConversion(t *testing.T) {
+-	if !simd.HasAVX512BW() || !simd.HasAVX512VL() {
+-		t.Skip("Test requires HasAVX512BW+VL, not available on this hardware")
++	if !simd.HasAVX512() {
++		t.Skip("Test requires HasAVX512, not available on this hardware")
+ 		return
+ 	}
+ 	v := [4]int32{1, 0, 1, 0}
+@@ -152,8 +152,8 @@ func TestMaskConversion(t *testing.T) {
+ }
+ 
+ func TestMaskedAdd(t *testing.T) {
+-	if !simd.HasAVX512BW() || !simd.HasAVX512VL() {
+-		t.Skip("Test requires HasAVX512BW+VL, not available on this hardware")
++	if !simd.HasAVX512() {
++		t.Skip("Test requires HasAVX512, not available on this hardware")
+ 		return
+ 	}
+ 	xv := [4]int32{1, 2, 3, 4}
+@@ -180,8 +180,8 @@ func TestCompare(t *testing.T) {
+ 	want := []int32{8, 0, 8, 0}
+ 	x := simd.LoadInt32x4(&xv)
+ 	y := simd.LoadInt32x4(&yv)
+-	if !simd.HasAVX512BW() {
+-		t.Skip("Test requires HasAVX512BW, not available on this hardware")
++	if !simd.HasAVX512() {
++		t.Skip("Test requires HasAVX512, not available on this hardware")
+ 		return
+ 	}
+ 	mask := x.Greater(y)

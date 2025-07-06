@@ -1,0 +1,17 @@
+commit 7e4d6c2bcb494a074ca4e9f7f8d88e7504896426
+Merge: 8bd4ed6cbb 6948b4df8c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jul 15 16:40:36 2024 -0400
+
+    [release-branch.go1.23] all: merge master (6948b4d) into release-branch.go1.23
+    
+    Merge List:
+    
+    + 2024-07-15 6948b4df8c Revert "runtime: avoid multiple records with identical stacks from MutexProfile"
+    
+    Change-Id: I94d1f445b0304eb4355ef6e91bf9f8585abfe0f8
+
+ src/runtime/mprof.go            | 105 +++++-----------------------------------
+ src/runtime/pprof/pprof.go      |  23 +--------
+ src/runtime/pprof/pprof_test.go |  78 -----------------------------
+ 3 files changed, 14 insertions(+), 192 deletions(-)

@@ -1,0 +1,141 @@
+commit 281cfcfc1b15fbb87fd32660b0a1d50be996d108
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jun 10 16:42:59 2025 +0000
+
+    runtime: handle system goroutines later in goroutine profiling
+    
+    Before CL 650697, there was only one system goroutine that could
+    dynamically change between being a user goroutine and a system
+    goroutine, and that was the finalizer/cleanup goroutine. In goroutine
+    profiles, it was handled explicitly. It's status would be checked during
+    the first STW, and its stack would be recorded. This let the goroutine
+    profiler completely ignore system goroutines once the world was started
+    again.
+    
+    CL 650697 added dedicated cleanup goroutines (there may be more than
+    one), and with this, the logic for finalizer goroutines no longer
+    scaled. In that CL, I let the isSystemGoroutine check be dynamic and
+    dropped the special case, but this was based on incorrect assumptions.
+    Namely, it's possible for the scheduler to observe, for example, the
+    finalizer goroutine as a system goroutine and ignore it, but then later
+    the goroutine profiler itself sees it as a user goroutine. At that point
+    it's too late and already running. This violates the invariant of the
+    goroutine profile that all goroutines are handled by the profiler before
+    they start executing. In practice, the result is that the goroutine
+    profiler can crash when it checks this invariant (not checking the
+    invariant means racily reading goroutine stack memory).
+    
+    The root cause of the problem is that these system goroutines do not
+    participate in the goroutine profiler's state machine. Normally, when
+    profiling, goroutines transition from 'absent' to 'in-progress' to
+    'satisfied'. However with system goroutines, the state machine is
+    ignored entirely. They always stay in the 'absent' state. This means
+    that if a goroutine transitions from system to user, it is eligible for
+    a profile record when it shouldn't be. That transition shouldn't be
+    allowed to occur with respect to the goroutine profiler, because the
+    goroutine profiler is trying to snapshot the state of every goroutine.
+    
+    The fix to this problem is simple: don't ignore system goroutines. Let
+    them participate in the goroutine profile state machine. Instead, decide
+    whether or not to record the stack after the goroutine has been acquired
+    for goroutine profiling. This means if the scheduler observes the
+    finalizer goroutine as a system goroutine, it will get promoted in the
+    goroutine profiler's state machine, and no other part of the goroutine
+    profiler will observe the goroutine again. Simultaneously, the
+    stack record for the goroutine will be correctly skipped.
+    
+    Fixes #74090.
+    
+    Change-Id: Icb9a164a033be22aaa942d19e828e895f700ca74
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680477
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mprof.go            | 15 +++++++++++----
+ src/runtime/pprof/pprof_test.go | 39 +++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 50 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index a033e28479..b2ff257f65 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -1431,10 +1431,6 @@ func tryRecordGoroutineProfile(gp1 *g, pcbuf []uintptr, yield func()) {
+ 		// so here we check _Gdead first.
+ 		return
+ 	}
+-	if isSystemGoroutine(gp1, false) {
+-		// System goroutines should not appear in the profile.
+-		return
+-	}
+ 
+ 	for {
+ 		prev := gp1.goroutineProfiled.Load()
+@@ -1472,6 +1468,17 @@ func tryRecordGoroutineProfile(gp1 *g, pcbuf []uintptr, yield func()) {
+ // stack), or from the scheduler in preparation to execute gp1 (running on the
+ // system stack).
+ func doRecordGoroutineProfile(gp1 *g, pcbuf []uintptr) {
++	if isSystemGoroutine(gp1, false) {
++		// System goroutines should not appear in the profile.
++		// Check this here and not in tryRecordGoroutineProfile because isSystemGoroutine
++		// may change on a goroutine while it is executing, so while the scheduler might
++		// see a system goroutine, goroutineProfileWithLabelsConcurrent might not, and
++		// this inconsistency could cause invariants to be violated, such as trying to
++		// record the stack of a running goroutine below. In short, we still want system
++		// goroutines to participate in the same state machine on gp1.goroutineProfiled as
++		// everything else, we just don't record the stack in the profile.
++		return
++	}
+ 	if readgstatus(gp1) == _Grunning {
+ 		print("doRecordGoroutineProfile gp1=", gp1.goid, "\n")
+ 		throw("cannot read stack of running goroutine")
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index f2ee39dd49..5f83f37b50 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1808,6 +1808,45 @@ func TestGoroutineProfileCoro(t *testing.T) {
+ 	goroutineProf.WriteTo(io.Discard, 1)
+ }
+ 
++// This test tries to provoke a situation wherein the finalizer goroutine is
++// erroneously inspected by the goroutine profiler in such a way that could
++// cause a crash. See go.dev/issue/74090.
++func TestGoroutineProfileIssue74090(t *testing.T) {
++	testenv.MustHaveParallelism(t)
++
++	goroutineProf := Lookup("goroutine")
++
++	// T is a pointer type so it won't be allocated by the tiny
++	// allocator, which can lead to its finalizer not being called
++	// during this test.
++	type T *byte
++	for range 10 {
++		// We use finalizers for this test because finalizers transition between
++		// system and user goroutine on each call, since there's substantially
++		// more work to do to set up a finalizer call. Cleanups, on the other hand,
++		// transition once for a whole batch, and so are less likely to trigger
++		// the failure. Under stress testing conditions this test fails approximately
++		// 5 times every 1000 executions on a 64 core machine without the appropriate
++		// fix, which is not ideal but if this test crashes at all, it's a clear
++		// signal that something is broken.
++		var objs []*T
++		for range 10000 {
++			obj := new(T)
++			runtime.SetFinalizer(obj, func(_ interface{}) {})
++			objs = append(objs, obj)
++		}
++		objs = nil
++
++		// Queue up all the finalizers.
++		runtime.GC()
++
++		// Try to run a goroutine profile concurrently with finalizer execution
++		// to trigger the bug.
++		var w strings.Builder
++		goroutineProf.WriteTo(&w, 1)
++	}
++}
++
+ func BenchmarkGoroutine(b *testing.B) {
+ 	withIdle := func(n int, fn func(b *testing.B)) func(b *testing.B) {
+ 		return func(b *testing.B) {

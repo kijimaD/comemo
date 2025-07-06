@@ -1,0 +1,46 @@
+commit b30fa1bcc411f3a65a6e8f40ff3acdb1526ce0d0
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 24 11:10:05 2025 -0700
+
+    runtime: improve scan inner loop
+    
+    On every arch except amd64, it is faster to do x&(x-1) than x^(1<<n).
+    
+    Most archs need 3 instructions for the latter: MOV $1, R; SLL n, R;
+    ANDN R, x. Maybe 4 if there's no ANDN.
+    
+    Most archs need only 2 instructions to do x&(x-1). It takes 3 on
+    x86/amd64 because NEG only works in place.
+    
+    Only amd64 can do x^(1<<n) in a single instruction.
+    (We could on 386 also, but that's currently not implemented.)
+    
+    Change-Id: I3b74b7a466ab972b20a25dbb21b572baf95c3467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672956
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mbitmap.go | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 7d528b94b4..f9a4c4ce3d 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -219,8 +219,13 @@ func (tp typePointers) nextFast() (typePointers, uintptr) {
+ 	} else {
+ 		i = sys.TrailingZeros32(uint32(tp.mask))
+ 	}
+-	// BTCQ
+-	tp.mask ^= uintptr(1) << (i & (ptrBits - 1))
++	if GOARCH == "amd64" {
++		// BTCQ
++		tp.mask ^= uintptr(1) << (i & (ptrBits - 1))
++	} else {
++		// SUB, AND
++		tp.mask &= tp.mask - 1
++	}
+ 	// LEAQ (XX)(XX*8)
+ 	return tp, tp.addr + uintptr(i)*goarch.PtrSize
+ }

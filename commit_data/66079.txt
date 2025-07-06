@@ -1,0 +1,35 @@
+commit 5c9b13d90f4c751c61ccb4560f79a1189cab2279
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 7 10:47:01 2025 -0800
+
+    crypto/internal/fips140/drbg: add package comment
+    
+    For #69536
+    
+    Change-Id: I70d2ed10555fed244f08c898899399e3032e17b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640597
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+---
+ src/crypto/internal/fips140/drbg/rand.go | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/crypto/internal/fips140/drbg/rand.go b/src/crypto/internal/fips140/drbg/rand.go
+index e7ab19a4cf..c1a3ea0ae6 100644
+--- a/src/crypto/internal/fips140/drbg/rand.go
++++ b/src/crypto/internal/fips140/drbg/rand.go
+@@ -2,6 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Package drbg provides cryptographically secure random bytes
++// usable by FIPS code. In FIPS mode it uses an SP 800-90A Rev. 1
++// Deterministic Random Bit Generator (DRBG). Otherwise,
++// it uses the operating system's random number generator.
+ package drbg
+ 
+ import (

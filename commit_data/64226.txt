@@ -1,0 +1,127 @@
+commit 6b97448132736ab24902d0c9016f31f4d1d681b4
+Author: cui fliter <imcusg@gmail.com>
+Date:   Sun Feb 4 21:08:40 2024 +0800
+
+    sort: add example for Find
+    
+    Change-Id: Id7b12356dd2114dfbab260cff00114b6055ee011
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561175
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/sort/example_search_test.go | 21 +++++++++++++++++++++
+ src/sort/sort_test.go           | 18 +++++++++---------
+ 2 files changed, 30 insertions(+), 9 deletions(-)
+
+diff --git a/src/sort/example_search_test.go b/src/sort/example_search_test.go
+index 856422a385..eadac9a7ad 100644
+--- a/src/sort/example_search_test.go
++++ b/src/sort/example_search_test.go
+@@ -7,6 +7,7 @@ package sort_test
+ import (
+ 	"fmt"
+ 	"sort"
++	"strings"
+ )
+ 
+ // This example demonstrates searching a list sorted in ascending order.
+@@ -41,6 +42,26 @@ func ExampleSearch_descendingOrder() {
+ 	// found 6 at index 7 in [55 45 36 28 21 15 10 6 3 1]
+ }
+ 
++// This example demonstrates finding a string in a list sorted in ascending order.
++func ExampleFind() {
++	a := []string{"apple", "banana", "lemon", "mango", "pear", "strawberry"}
++
++	for _, x := range []string{"banana", "orange"} {
++		i, found := sort.Find(len(a), func(i int) int {
++			return strings.Compare(x, a[i])
++		})
++		if found {
++			fmt.Printf("found %s at index %d\n", x, i)
++		} else {
++			fmt.Printf("%s not found, would insert at %d\n", x, i)
++		}
++	}
++
++	// Output:
++	// found banana at index 1
++	// orange not found, would insert at 4
++}
++
+ // This example demonstrates searching for float64 in a list sorted in ascending order.
+ func ExampleSearchFloat64s() {
+ 	a := []float64{1.0, 2.0, 3.3, 4.6, 6.1, 7.2, 8.0}
+diff --git a/src/sort/sort_test.go b/src/sort/sort_test.go
+index ba0f0c5224..12903ab6ba 100644
+--- a/src/sort/sort_test.go
++++ b/src/sort/sort_test.go
+@@ -13,13 +13,13 @@ import (
+ 	"slices"
+ 	. "sort"
+ 	"strconv"
+-	stringspkg "strings"
++	"strings"
+ 	"testing"
+ )
+ 
+ var ints = [...]int{74, 59, 238, -784, 9845, 959, 905, 0, 0, 42, 7586, -5467984, 7586}
+ var float64s = [...]float64{74.3, 59.0, math.Inf(1), 238.2, -784.0, 2.3, math.NaN(), math.NaN(), math.Inf(-1), 9845.768, -959.7485, 905, 7.8, 7.8}
+-var strings = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
++var stringsData = [...]string{"", "Hello", "foo", "bar", "foo", "f00", "%*&^*&^&", "***"}
+ 
+ func TestSortIntSlice(t *testing.T) {
+ 	data := ints
+@@ -56,11 +56,11 @@ func TestSortFloat64sCompareSlicesSort(t *testing.T) {
+ }
+ 
+ func TestSortStringSlice(t *testing.T) {
+-	data := strings
++	data := stringsData
+ 	a := StringSlice(data[0:])
+ 	Sort(a)
+ 	if !IsSorted(a) {
+-		t.Errorf("sorted %v", strings)
++		t.Errorf("sorted %v", stringsData)
+ 		t.Errorf("   got %v", data)
+ 	}
+ }
+@@ -84,21 +84,21 @@ func TestFloat64s(t *testing.T) {
+ }
+ 
+ func TestStrings(t *testing.T) {
+-	data := strings
++	data := stringsData
+ 	Strings(data[0:])
+ 	if !StringsAreSorted(data[0:]) {
+-		t.Errorf("sorted %v", strings)
++		t.Errorf("sorted %v", stringsData)
+ 		t.Errorf("   got %v", data)
+ 	}
+ }
+ 
+ func TestSlice(t *testing.T) {
+-	data := strings
++	data := stringsData
+ 	Slice(data[:], func(i, j int) bool {
+ 		return data[i] < data[j]
+ 	})
+ 	if !SliceIsSorted(data[:], func(i, j int) bool { return data[i] < data[j] }) {
+-		t.Errorf("sorted %v", strings)
++		t.Errorf("sorted %v", stringsData)
+ 		t.Errorf("   got %v", data)
+ 	}
+ }
+@@ -715,7 +715,7 @@ func TestCountStableOps(t *testing.T) { countOps(t, Stable, "Stable") }
+ func TestCountSortOps(t *testing.T)   { countOps(t, Sort, "Sort  ") }
+ 
+ func bench(b *testing.B, size int, algo func(Interface), name string) {
+-	if stringspkg.HasSuffix(testenv.Builder(), "-race") && size > 1e4 {
++	if strings.HasSuffix(testenv.Builder(), "-race") && size > 1e4 {
+ 		b.Skip("skipping slow benchmark on race builder")
+ 	}
+ 	b.StopTimer()

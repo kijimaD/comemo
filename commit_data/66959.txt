@@ -1,0 +1,206 @@
+commit d13da63929df73ab506314f35524ebb9b0f8a216
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue May 6 10:10:30 2025 +0800
+
+    cmd/internal/obj/loong64: add [X]VFRINT[{RNE/RZ/RP/RM}].{S/D} instructions
+    
+    Go asm syntax:
+             VFRINT[{RNE/RZ/RP/RM}]{F/D}    VJ, VD
+            XVFRINT[{RNE/RZ/RP/RM}]{F/D}    XJ, XD
+    
+    Equivalent platform assembler syntax:
+             vfrint[{rne/rz/rp/rm}].{s/d}   vd, vj
+            xvfrint[{rne/rz/rp/rm}].{s/d}   xd, xj
+    
+    Change-Id: I4ed8782289ae3329d675239f799d5f75b1adc4ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670235
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 22 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 22 +++++++++
+ src/cmd/internal/obj/loong64/anames.go          | 20 +++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 60 +++++++++++++++++++++++++
+ 4 files changed, 124 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index cfda9ba0b4..a901da9b69 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -964,3 +964,25 @@ lable2:
+ 	XVSETALLNEH	X1, FCC0	// 20b49c76
+ 	XVSETALLNEW	X1, FCC0	// 20b89c76
+ 	XVSETALLNEV	X1, FCC0	// 20bc9c76
++
++	// [X]VFRINT[{RNE/RZ/RP/RM}].{S/D} instructions
++	VFRINTRNEF	V1, V2		// 22749d72
++	VFRINTRNED	V1, V2		// 22789d72
++	VFRINTRZF	V1, V2		// 22649d72
++	VFRINTRZD	V1, V2		// 22689d72
++	VFRINTRPF	V1, V2		// 22549d72
++	VFRINTRPD	V1, V2		// 22589d72
++	VFRINTRMF	V1, V2		// 22449d72
++	VFRINTRMD	V1, V2		// 22489d72
++	VFRINTF		V1, V2		// 22349d72
++	VFRINTD		V1, V2		// 22389d72
++	XVFRINTRNEF	X1, X2		// 22749d76
++	XVFRINTRNED	X1, X2		// 22789d76
++	XVFRINTRZF	X1, X2		// 22649d76
++	XVFRINTRZD	X1, X2		// 22689d76
++	XVFRINTRPF	X1, X2		// 22549d76
++	XVFRINTRPD	X1, X2		// 22589d76
++	XVFRINTRMF	X1, X2		// 22449d76
++	XVFRINTRMD	X1, X2		// 22489d76
++	XVFRINTF	X1, X2		// 22349d76
++	XVFRINTD	X1, X2		// 22389d76
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 4bef470c86..5e8210d5dd 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -950,6 +950,28 @@ const (
+ 	AXVFRSQRTF
+ 	AXVFRSQRTD
+ 
++	// LSX and LASX floating point conversion instructions
++	AVFRINTRNEF
++	AVFRINTRNED
++	AVFRINTRZF
++	AVFRINTRZD
++	AVFRINTRPF
++	AVFRINTRPD
++	AVFRINTRMF
++	AVFRINTRMD
++	AVFRINTF
++	AVFRINTD
++	AXVFRINTRNEF
++	AXVFRINTRNED
++	AXVFRINTRZF
++	AXVFRINTRZD
++	AXVFRINTRPF
++	AXVFRINTRPD
++	AXVFRINTRMF
++	AXVFRINTRMD
++	AXVFRINTF
++	AXVFRINTD
++
+ 	// LSX and LASX integer neg instructions
+ 	AVNEGB
+ 	AVNEGH
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index d50c29a9f9..86110c217d 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -449,6 +449,26 @@ var Anames = []string{
+ 	"XVFRECIPD",
+ 	"XVFRSQRTF",
+ 	"XVFRSQRTD",
++	"VFRINTRNEF",
++	"VFRINTRNED",
++	"VFRINTRZF",
++	"VFRINTRZD",
++	"VFRINTRPF",
++	"VFRINTRPD",
++	"VFRINTRMF",
++	"VFRINTRMD",
++	"VFRINTF",
++	"VFRINTD",
++	"XVFRINTRNEF",
++	"XVFRINTRNED",
++	"XVFRINTRZF",
++	"XVFRINTRZD",
++	"XVFRINTRPF",
++	"XVFRINTRPD",
++	"XVFRINTRMF",
++	"XVFRINTRMD",
++	"XVFRINTF",
++	"XVFRINTD",
+ 	"VNEGB",
+ 	"VNEGH",
+ 	"VNEGW",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 7fdba0c6c2..1b46aa68a1 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1722,6 +1722,16 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVNEGH, r0)
+ 			opset(AVNEGW, r0)
+ 			opset(AVNEGV, r0)
++			opset(AVFRINTRNEF, r0)
++			opset(AVFRINTRNED, r0)
++			opset(AVFRINTRZF, r0)
++			opset(AVFRINTRZD, r0)
++			opset(AVFRINTRPF, r0)
++			opset(AVFRINTRPD, r0)
++			opset(AVFRINTRMF, r0)
++			opset(AVFRINTRMD, r0)
++			opset(AVFRINTF, r0)
++			opset(AVFRINTD, r0)
+ 
+ 		case AXVPCNTB:
+ 			opset(AXVPCNTH, r0)
+@@ -1737,6 +1747,16 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AXVNEGH, r0)
+ 			opset(AXVNEGW, r0)
+ 			opset(AXVNEGV, r0)
++			opset(AXVFRINTRNEF, r0)
++			opset(AXVFRINTRNED, r0)
++			opset(AXVFRINTRZF, r0)
++			opset(AXVFRINTRZD, r0)
++			opset(AXVFRINTRPF, r0)
++			opset(AXVFRINTRPD, r0)
++			opset(AXVFRINTRMF, r0)
++			opset(AXVFRINTRMD, r0)
++			opset(AXVFRINTF, r0)
++			opset(AXVFRINTD, r0)
+ 
+ 		case AVADDB:
+ 			opset(AVADDH, r0)
+@@ -3583,6 +3603,46 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x1da70e << 10 // xvneg.w
+ 	case AXVNEGV:
+ 		return 0x1da70f << 10 // xvneg.d
++	case AVFRINTRNEF:
++		return 0x1ca75d << 10 // vfrintrne.s
++	case AVFRINTRNED:
++		return 0x1ca75e << 10 // vfrintrne.d
++	case AVFRINTRZF:
++		return 0x1ca759 << 10 // vfrintrz.s
++	case AVFRINTRZD:
++		return 0x1ca75a << 10 // vfrintrz.d
++	case AVFRINTRPF:
++		return 0x1ca755 << 10 // vfrintrp.s
++	case AVFRINTRPD:
++		return 0x1ca756 << 10 // vfrintrp.d
++	case AVFRINTRMF:
++		return 0x1ca751 << 10 // vfrintrm.s
++	case AVFRINTRMD:
++		return 0x1ca752 << 10 // vfrintrm.d
++	case AVFRINTF:
++		return 0x1ca74d << 10 // vfrint.s
++	case AVFRINTD:
++		return 0x1ca74e << 10 // vfrint.d
++	case AXVFRINTRNEF:
++		return 0x1da75d << 10 // xvfrintrne.s
++	case AXVFRINTRNED:
++		return 0x1da75e << 10 // xvfrintrne.d
++	case AXVFRINTRZF:
++		return 0x1da759 << 10 // xvfrintrz.s
++	case AXVFRINTRZD:
++		return 0x1da75a << 10 // xvfrintrz.d
++	case AXVFRINTRPF:
++		return 0x1da755 << 10 // xvfrintrp.s
++	case AXVFRINTRPD:
++		return 0x1da756 << 10 // xvfrintrp.d
++	case AXVFRINTRMF:
++		return 0x1da751 << 10 // xvfrintrm.s
++	case AXVFRINTRMD:
++		return 0x1da752 << 10 // xvfrintrm.d
++	case AXVFRINTF:
++		return 0x1da74d << 10 // xvfrint.s
++	case AXVFRINTD:
++		return 0x1da74e << 10 // xvfrint.d
+ 	case AVSETEQV:
+ 		return 0x1ca726<<10 | 0x0<<3 // vseteqz.v
+ 	case AVSETNEV:

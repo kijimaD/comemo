@@ -1,0 +1,78 @@
+commit ef20ccc10bf6e4d3991c9e29c7fae1c9ab338629
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Thu Sep 7 14:15:33 2023 -0400
+
+    reflect: leak packEface input to result rather than heap
+    
+    This is part of a series of CLs that aim to help allocations
+    in reflect and reduce how often interface arguments escape
+    for the print functions in fmt.
+    
+    Before this change, the reflect.Value parameter for packEface leaks
+    immediately to the heap due to the various ODOTPTR operations on the
+    *emptyInterface.  The -m=2 logs report:
+    
+     parameter v leaks to <heap> for packEface with derefs=0:
+       flow: <heap> ← v:
+         from v.ptr (dot) at .\value.go:145:13
+         from e.word = v.ptr (assign) at .\value.go:145:10
+    
+    After this change, the input leaks to the result, which is what
+    we want:
+    
+     parameter v leaks to ~r0 with derefs=0:
+       flow: e = v:
+         from v.ptr (dot) at .\value.go:143:13
+         from e.Data = v.ptr (assign) at .\value.go:143:10
+       flow: ~r0 = e:
+         from &e (address-of) at .\value.go:147:32
+         from *(*any)(unsafe.Pointer(&e)) (indirection) at .\value.go:147:9
+         from return *(*any)(unsafe.Pointer(&e)) (return) at .\value.go:147:2
+    
+    This change here is needed, but reflect.Value.Interface still leaks its
+    input to the heap for other reasons having to do with method values,
+    which we attempt to address in CL 530097, CL 530095, and CL 530096.
+    
+    Updates #8618
+    Updates #71349
+    
+    Change-Id: Ie77bc850ff261212eeafe190bd6f9a879676a51d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/528535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/reflect/value.go | 11 ++++-------
+ 1 file changed, 4 insertions(+), 7 deletions(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 1fadd01298..68b97e9229 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -121,8 +121,8 @@ func (v Value) pointer() unsafe.Pointer {
+ // packEface converts v to the empty interface.
+ func packEface(v Value) any {
+ 	t := v.typ()
+-	var i any
+-	e := (*abi.EmptyInterface)(unsafe.Pointer(&i))
++	// Declare e as a struct (and not pointer to struct) to help escape analysis.
++	e := abi.EmptyInterface{}
+ 	// First, fill in the data portion of the interface.
+ 	switch {
+ 	case t.IfaceIndir():
+@@ -145,12 +145,9 @@ func packEface(v Value) any {
+ 		// Value is direct, and so is the interface.
+ 		e.Data = v.ptr
+ 	}
+-	// Now, fill in the type portion. We're very careful here not
+-	// to have any operation between the e.word and e.typ assignments
+-	// that would let the garbage collector observe the partially-built
+-	// interface value.
++	// Now, fill in the type portion.
+ 	e.Type = t
+-	return i
++	return *(*any)(unsafe.Pointer(&e))
+ }
+ 
+ // unpackEface converts the empty interface i to a Value.

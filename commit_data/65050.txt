@@ -1,0 +1,56 @@
+commit 7e0159c50bd0a819ed00938f10792415393f951f
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Oct 11 15:47:16 2024 +0200
+
+    net: use slices.Contains{,Func} in lookup tests
+    
+    Change-Id: I66199995ca34c92aeb8234b43cb2166f2976c903
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619735
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/net/lookup_test.go | 21 +++++----------------
+ 1 file changed, 5 insertions(+), 16 deletions(-)
+
+diff --git a/src/net/lookup_test.go b/src/net/lookup_test.go
+index d106f98eef..514cbd098a 100644
+--- a/src/net/lookup_test.go
++++ b/src/net/lookup_test.go
+@@ -246,14 +246,10 @@ func TestLookupGmailTXT(t *testing.T) {
+ 		if len(txts) == 0 {
+ 			t.Error("got no record")
+ 		}
+-		found := false
+-		for _, txt := range txts {
+-			if strings.Contains(txt, tt.txt) && (strings.HasSuffix(txt, tt.host) || strings.HasSuffix(txt, tt.host+".")) {
+-				found = true
+-				break
+-			}
+-		}
+-		if !found {
++
++		if !slices.ContainsFunc(txts, func(txt string) bool {
++			return strings.Contains(txt, tt.txt) && (strings.HasSuffix(txt, tt.host) || strings.HasSuffix(txt, tt.host+"."))
++		}) {
+ 			t.Errorf("got %v; want a record containing %s, %s", txts, tt.txt, tt.host)
+ 		}
+ 	}
+@@ -302,14 +298,7 @@ func TestLookupIPv6LinkLocalAddr(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	found := false
+-	for _, addr := range addrs {
+-		if addr == "fe80::1%lo0" {
+-			found = true
+-			break
+-		}
+-	}
+-	if !found {
++	if !slices.Contains(addrs, "fe80::1%lo0") {
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 	if _, err := LookupAddr("fe80::1%lo0"); err != nil {

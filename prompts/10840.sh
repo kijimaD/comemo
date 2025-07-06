@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 10840: ecc317647b831c44af46af5ecee29f62ff815e7c
+# Index 10840: bcbb2f93eebcde483291481b9f3d80077959c0be
 
 echo "🚀 Generating explanation for commit 10840..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 10840..."
 
 ### メタデータ
 - **コミットインデックス**: 10840
-- **コミットハッシュ**: ecc317647b831c44af46af5ecee29f62ff815e7c
-- **GitHub URL**: https://github.com/golang/go/commit/ecc317647b831c44af46af5ecee29f62ff815e7c
+- **コミットハッシュ**: bcbb2f93eebcde483291481b9f3d80077959c0be
+- **GitHub URL**: https://github.com/golang/go/commit/bcbb2f93eebcde483291481b9f3d80077959c0be
 
 ### 章構成
 

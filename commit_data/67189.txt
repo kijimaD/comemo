@@ -1,0 +1,35 @@
+commit c06eef27d754b0c4e112dbff1233e393a8362844
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 21 16:14:19 2025 -0400
+
+    runtime: skip TestTimePprof on sanitizers
+    
+    This test asserts there is no external code, but the sanitizer runtimes
+    are external code.
+    
+    Fixes #73783.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race
+    Change-Id: I6a6a636cf93b7950e3ea35e00ec2eaf89911d712
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675296
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/crash_test.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 63c4426806..221a9a95cc 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -854,6 +854,9 @@ func TestTimePprof(t *testing.T) {
+ 	case "aix", "darwin", "illumos", "openbsd", "solaris":
+ 		t.Skipf("skipping on %s because nanotime calls libc", runtime.GOOS)
+ 	}
++	if race.Enabled || asan.Enabled || msan.Enabled {
++		t.Skip("skipping on sanitizers because the sanitizer runtime is external code")
++	}
+ 
+ 	// Pass GOTRACEBACK for issue #41120 to try to get more
+ 	// information on timeout.

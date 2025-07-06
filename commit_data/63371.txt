@@ -1,0 +1,26 @@
+commit d8392e69973a64d96534d544d1f8ac2defc1bc64
+Author: Gopher Robot <gobot@golang.org>
+Date:   Wed Apr 3 15:17:56 2024 +0000
+
+    [release-branch.go1.21] go1.21.9
+    
+    Change-Id: I6c69376d434dcf310336a0344051037bf58a4cf7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576117
+    Commit-Queue: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index bb1697798a..88ae47650b 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.21.8
+-time 2024-02-29T18:18:48Z
++go1.21.9
++time 2024-03-29T15:27:02Z

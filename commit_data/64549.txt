@@ -1,0 +1,209 @@
+commit f432b5f756c223564fd397b7568bd2ce949c7c6f
+Author: Vladimir Varankin <vladimir@varank.in>
+Date:   Tue Aug 20 09:19:22 2024 +0000
+
+    testing: add Context
+    
+    Adds a new Context method to testing.T, that returns a context, that is
+    canceled before the end of its test function.
+    
+    Fixes #36532.
+    
+    Change-Id: I9315ad4dad25529d0b5be809e2d9db4e7528b5f2
+    GitHub-Last-Rev: 1c3fd6c4d8a9cc68a61f2df284d04d3d080216be
+    GitHub-Pull-Request: golang/go#68828
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603959
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ api/next/36532.txt                          |  4 +++
+ doc/next/6-stdlib/99-minor/testing/36532.md |  2 ++
+ doc/next/6-stdlib/99-minor/testing/62516.md |  4 +--
+ src/testing/testing.go                      | 54 ++++++++++++++++++++++-------
+ src/testing/testing_test.go                 | 28 +++++++++++++++
+ 5 files changed, 77 insertions(+), 15 deletions(-)
+
+diff --git a/api/next/36532.txt b/api/next/36532.txt
+new file mode 100644
+index 0000000000..ac4ec95a8f
+--- /dev/null
++++ b/api/next/36532.txt
+@@ -0,0 +1,4 @@
++pkg testing, method (*B) Context() context.Context #36532
++pkg testing, method (*F) Context() context.Context #36532
++pkg testing, method (*T) Context() context.Context #36532
++pkg testing, type TB interface, Context() context.Context #36532
+diff --git a/doc/next/6-stdlib/99-minor/testing/36532.md b/doc/next/6-stdlib/99-minor/testing/36532.md
+new file mode 100644
+index 0000000000..ffa92acf0c
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/testing/36532.md
+@@ -0,0 +1,2 @@
++The new [T.Context] and [B.Context] methods return a context that's canceled
++before the end of its associated test or benchmark function.
+diff --git a/doc/next/6-stdlib/99-minor/testing/62516.md b/doc/next/6-stdlib/99-minor/testing/62516.md
+index a7a90cdbcd..5847151e2f 100644
+--- a/doc/next/6-stdlib/99-minor/testing/62516.md
++++ b/doc/next/6-stdlib/99-minor/testing/62516.md
+@@ -1,2 +1,2 @@
+-The new [T.Chdir] and [B.Chdir] methods can be used to change the working
+-directory for the duration of a test or benchmark.
++The new [T.Context] and [B.Context] methods return a context that is canceled
++after the test completes and before test cleanup functions run.
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 49d14f5f66..eb6efed5a8 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -371,6 +371,7 @@ package testing
+ 
+ import (
+ 	"bytes"
++	"context"
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+@@ -633,6 +634,9 @@ type common struct {
+ 	tempDir    string
+ 	tempDirErr error
+ 	tempDirSeq int32
++
++	ctx       context.Context
++	cancelCtx context.CancelFunc
+ }
+ 
+ // Short reports whether the -test.short flag is set.
+@@ -898,6 +902,7 @@ type TB interface {
+ 	Skipf(format string, args ...any)
+ 	Skipped() bool
+ 	TempDir() string
++	Context() context.Context
+ 
+ 	// A private method to prevent users implementing the
+ 	// interface and so future additions to it will not
+@@ -1351,6 +1356,16 @@ func (c *common) Chdir(dir string) {
+ 	})
+ }
+ 
++// Context returns a context that is canceled just before
++// [T.Cleanup]-registered functions are called.
++//
++// Cleanup functions can wait for any resources
++// that shut down on Context.Done before the test completes.
++func (c *common) Context() context.Context {
++	c.checkFuzzFn("Context")
++	return c.ctx
++}
++
+ // panicHandling controls the panic handling used by runCleanup.
+ type panicHandling int
+ 
+@@ -1383,6 +1398,10 @@ func (c *common) runCleanup(ph panicHandling) (panicVal any) {
+ 		}
+ 	}()
+ 
++	if c.cancelCtx != nil {
++		c.cancelCtx()
++	}
++
+ 	for {
+ 		var cleanup func()
+ 		c.mu.Lock()
+@@ -1771,15 +1790,21 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 	// continue walking the stack into the parent test.
+ 	var pc [maxStackLen]uintptr
+ 	n := runtime.Callers(2, pc[:])
++
++	// There's no reason to inherit this context from parent. The user's code can't observe
++	// the difference between the background context and the one from the parent test.
++	ctx, cancelCtx := context.WithCancel(context.Background())
+ 	t = &T{
+ 		common: common{
+-			barrier: make(chan bool),
+-			signal:  make(chan bool, 1),
+-			name:    testName,
+-			parent:  &t.common,
+-			level:   t.level + 1,
+-			creator: pc[:n],
+-			chatty:  t.chatty,
++			barrier:   make(chan bool),
++			signal:    make(chan bool, 1),
++			name:      testName,
++			parent:    &t.common,
++			level:     t.level + 1,
++			creator:   pc[:n],
++			chatty:    t.chatty,
++			ctx:       ctx,
++			cancelCtx: cancelCtx,
+ 		},
+ 		context: t.context,
+ 	}
+@@ -2205,15 +2230,18 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 				// to keep trying.
+ 				break
+ 			}
+-			ctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
+-			ctx.deadline = deadline
++			ctx, cancelCtx := context.WithCancel(context.Background())
++			tctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
++			tctx.deadline = deadline
+ 			t := &T{
+ 				common: common{
+-					signal:  make(chan bool, 1),
+-					barrier: make(chan bool),
+-					w:       os.Stdout,
++					signal:    make(chan bool, 1),
++					barrier:   make(chan bool),
++					w:         os.Stdout,
++					ctx:       ctx,
++					cancelCtx: cancelCtx,
+ 				},
+-				context: ctx,
++				context: tctx,
+ 			}
+ 			if Verbose() {
+ 				t.chatty = newChattyPrinter(t.w)
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index af6035fd27..ff674fc3d1 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -6,6 +6,8 @@ package testing_test
+ 
+ import (
+ 	"bytes"
++	"context"
++	"errors"
+ 	"fmt"
+ 	"internal/race"
+ 	"internal/testenv"
+@@ -918,3 +920,29 @@ func TestParentRun(t1 *testing.T) {
+ 		})
+ 	})
+ }
++
++func TestContext(t *testing.T) {
++	ctx := t.Context()
++	if err := ctx.Err(); err != nil {
++		t.Fatalf("expected non-canceled context, got %v", err)
++	}
++
++	var innerCtx context.Context
++	t.Run("inner", func(t *testing.T) {
++		innerCtx = t.Context()
++		if err := innerCtx.Err(); err != nil {
++			t.Fatalf("expected inner test to not inherit canceled context, got %v", err)
++		}
++	})
++	t.Run("inner2", func(t *testing.T) {
++		if !errors.Is(innerCtx.Err(), context.Canceled) {
++			t.Fatal("expected context of sibling test to be canceled after its test function finished")
++		}
++	})
++
++	t.Cleanup(func() {
++		if !errors.Is(ctx.Err(), context.Canceled) {
++			t.Fatal("expected context canceled before cleanup")
++		}
++	})
++}

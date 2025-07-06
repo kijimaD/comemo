@@ -1,0 +1,111 @@
+commit c1fc209c41c18806b7cef1cf114f1ca9b3731eb9
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Apr 23 14:15:51 2025 -0700
+
+    runtime: use precise bounds of Go data/bss for race detector
+    
+    We only want to call into the race detector for Go global variables.
+    By rounding up the region bounds, we can include some C globals.
+    Even worse, we can include only *part* of a C global, leading to
+    race{read,write}range calls which straddle the end of shadow memory.
+    That causes the race detector to barf.
+    
+    Fix some off-by-one errors in the assembly comparisons. We want to
+    skip calling the race detector when addr == racedataend.
+    
+    Fixes #73483
+    
+    Change-Id: I436b0f588d6165b61f30cb7653016ba9b7cbf585
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667655
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+---
+ src/runtime/race.go          | 10 ++++++----
+ src/runtime/race_arm64.s     |  2 +-
+ src/runtime/race_ppc64le.s   |  2 +-
+ test/fixedbugs/issue73483.go | 20 ++++++++++++++++++++
+ 4 files changed, 28 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/race.go b/src/runtime/race.go
+index 6b7bbe5245..fa781a3ccc 100644
+--- a/src/runtime/race.go
++++ b/src/runtime/race.go
+@@ -455,7 +455,6 @@ func raceinit() (gctx, pctx uintptr) {
+ 
+ 	racecall(&__tsan_init, uintptr(unsafe.Pointer(&gctx)), uintptr(unsafe.Pointer(&pctx)), abi.FuncPCABI0(racecallbackthunk), 0)
+ 
+-	// Round data segment to page boundaries, because it's used in mmap().
+ 	start := ^uintptr(0)
+ 	end := uintptr(0)
+ 	if start > firstmoduledata.noptrdata {
+@@ -482,10 +481,13 @@ func raceinit() (gctx, pctx uintptr) {
+ 	if end < firstmoduledata.ebss {
+ 		end = firstmoduledata.ebss
+ 	}
+-	size := alignUp(end-start, _PageSize)
+-	racecall(&__tsan_map_shadow, start, size, 0, 0)
++	// Use exact bounds for boundary check in racecalladdr. See issue 73483.
+ 	racedatastart = start
+-	racedataend = start + size
++	racedataend = end
++	// Round data segment to page boundaries for race detector (TODO: still needed?)
++	start = alignDown(start, _PageSize)
++	end = alignUp(end, _PageSize)
++	racecall(&__tsan_map_shadow, start, end-start, 0, 0)
+ 
+ 	return
+ }
+diff --git a/src/runtime/race_arm64.s b/src/runtime/race_arm64.s
+index c42a6c1377..83dfdef2e5 100644
+--- a/src/runtime/race_arm64.s
++++ b/src/runtime/race_arm64.s
+@@ -163,7 +163,7 @@ data:
+ 	BLT	ret
+ 	MOVD	runtime·racedataend(SB), R10
+ 	CMP	R10, R1
+-	BGT	ret
++	BGE	ret
+ call:
+ 	JMP	racecall<>(SB)
+ ret:
+diff --git a/src/runtime/race_ppc64le.s b/src/runtime/race_ppc64le.s
+index 43829479bd..d3cac03ff4 100644
+--- a/src/runtime/race_ppc64le.s
++++ b/src/runtime/race_ppc64le.s
+@@ -153,7 +153,7 @@ data:
+ 	BLT	ret
+ 	MOVD	runtime·racedataend(SB), R9
+ 	CMP	R4, R9
+-	BGT	ret
++	BGE	ret
+ call:
+ 	// Careful!! racecall will save LR on its
+ 	// stack, which is OK as long as racecalladdr
+diff --git a/test/fixedbugs/issue73483.go b/test/fixedbugs/issue73483.go
+new file mode 100644
+index 0000000000..8cd0c3433a
+--- /dev/null
++++ b/test/fixedbugs/issue73483.go
+@@ -0,0 +1,20 @@
++// run -race
++
++//go:build race && cgo
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++   int v[8192];
++*/
++import "C"
++
++var x [8192]C.int
++
++func main() {
++	copy(C.v[:], x[:])
++}

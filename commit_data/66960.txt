@@ -1,0 +1,65 @@
+commit 5a1f47a7f716ce0dbd88128d18ce556dd9280c68
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Tue May 6 13:02:34 2025 +0200
+
+    cmd/internal/obj/riscv: fix LMUL encoding for MF2 and MF8
+    
+    The encodings for the riscv64 special operands SPOP_MF2 and SPOP_MF8
+    are incorrect, i.e., their values are swapped.  This leads to
+    incorrect encodings for the VSETVLI and VSETIVLI instructions.  The
+    assembler currently encodes
+    
+    VSETVLI X10, E32, MF8, TA, MA, X12
+    
+    as
+    
+    VSETVLI X10, E32, MF2, TA, MA, X12
+    
+    We update the encodings for SPOP_MF2 and SPOP_MF8 so that they match
+    the LMUL table in section "31.3.4. Vector type register, vtype" of
+    the "RISC-V Instruction Set Manual Volume 1".
+    
+    Change-Id: Ic73355533d7c2a901ee060b35c2f7af6d58453e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670016
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+---
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 4 ++--
+ src/cmd/internal/obj/riscv/cpu.go           | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index a9447861bd..0db846a3a1 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -438,9 +438,9 @@ start:
+ 	VSETVLI	X10, E32, M2, TA, MA, X12		// 5776150d
+ 	VSETVLI	X10, E32, M4, TA, MA, X12		// 5776250d
+ 	VSETVLI	X10, E32, M8, TA, MA, X12		// 5776350d
+-	VSETVLI	X10, E32, MF2, TA, MA, X12		// 5776550d
++	VSETVLI	X10, E32, MF8, TA, MA, X12		// 5776550d
+ 	VSETVLI	X10, E32, MF4, TA, MA, X12		// 5776650d
+-	VSETVLI	X10, E32, MF8, TA, MA, X12		// 5776750d
++	VSETVLI	X10, E32, MF2, TA, MA, X12		// 5776750d
+ 	VSETVLI	X10, E32, M1, TA, MA, X12		// 5776050d
+ 	VSETVLI	$15, E32, M1, TA, MA, X12		// 57f607cd
+ 	VSETIVLI $0, E32, M1, TA, MA, X12		// 577600cd
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index d87b6b1efb..382c08a9d9 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -1297,9 +1297,9 @@ var specialOperands = map[SpecialOperand]struct {
+ 	SPOP_M2:  {encoding: 1, name: "M2"},
+ 	SPOP_M4:  {encoding: 2, name: "M4"},
+ 	SPOP_M8:  {encoding: 3, name: "M8"},
+-	SPOP_MF2: {encoding: 5, name: "MF2"},
++	SPOP_MF8: {encoding: 5, name: "MF8"},
+ 	SPOP_MF4: {encoding: 6, name: "MF4"},
+-	SPOP_MF8: {encoding: 7, name: "MF8"},
++	SPOP_MF2: {encoding: 7, name: "MF2"},
+ 
+ 	SPOP_E8:  {encoding: 0, name: "E8"},
+ 	SPOP_E16: {encoding: 1, name: "E16"},

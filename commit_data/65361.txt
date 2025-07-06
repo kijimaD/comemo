@@ -1,0 +1,112 @@
+commit 26e1010372216d013a0279be6b453fd680130881
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 6 11:29:54 2024 -0500
+
+    cmd/dist: add more pie tests, fips tests
+    
+    Check the various pie combinations with the new FIPS code.
+    
+    For #69536.
+    
+    Change-Id: I8fc771eab465c4af46a0ec8154d550c1bf95f7d4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625999
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/dist/test.go | 52 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 48 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index eb1ea1c6ab..3d56f863cc 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -802,7 +802,7 @@ func (t *tester) registerTests() {
+ 
+ 	// Test internal linking of PIE binaries where it is supported.
+ 	if t.internalLinkPIE() && !disablePIE {
+-		t.registerTest("internal linking of -buildmode=pie",
++		t.registerTest("internal linking, -buildmode=pie",
+ 			&goTest{
+ 				variant:   "pie_internal",
+ 				timeout:   60 * time.Second,
+@@ -811,9 +811,18 @@ func (t *tester) registerTests() {
+ 				env:       []string{"CGO_ENABLED=0"},
+ 				pkg:       "reflect",
+ 			})
++		t.registerTest("internal linking, -buildmode=pie",
++			&goTest{
++				variant:   "pie_internal",
++				timeout:   60 * time.Second,
++				buildmode: "pie",
++				ldflags:   "-linkmode=internal",
++				env:       []string{"CGO_ENABLED=0"},
++				pkg:       "crypto/internal/fips/check",
++			})
+ 		// Also test a cgo package.
+ 		if t.cgoEnabled && t.internalLink() && !disablePIE {
+-			t.registerTest("internal linking of -buildmode=pie",
++			t.registerTest("internal linking, -buildmode=pie",
+ 				&goTest{
+ 					variant:   "pie_internal",
+ 					timeout:   60 * time.Second,
+@@ -824,6 +833,29 @@ func (t *tester) registerTests() {
+ 		}
+ 	}
+ 
++	if t.extLink() && !t.compileOnly {
++		t.registerTest("external linking, -buildmode=exe",
++			&goTest{
++				variant:   "exe_external",
++				timeout:   60 * time.Second,
++				buildmode: "exe",
++				ldflags:   "-linkmode=external",
++				env:       []string{"CGO_ENABLED=1"},
++				pkg:       "crypto/internal/fips/check",
++			})
++		if t.externalLinkPIE() && !disablePIE {
++			t.registerTest("external linking, -buildmode=pie",
++				&goTest{
++					variant:   "pie_external",
++					timeout:   60 * time.Second,
++					buildmode: "pie",
++					ldflags:   "-linkmode=external",
++					env:       []string{"CGO_ENABLED=1"},
++					pkg:       "crypto/internal/fips/check",
++				})
++		}
++	}
++
+ 	// sync tests
+ 	if t.hasParallelism() {
+ 		t.registerTest("sync -cpu=10",
+@@ -1058,9 +1090,11 @@ func (t *tester) out(v string) {
+ }
+ 
+ // extLink reports whether the current goos/goarch supports
+-// external linking. This should match the test in determineLinkMode
+-// in cmd/link/internal/ld/config.go.
++// external linking.
+ func (t *tester) extLink() bool {
++	if !cgoEnabled[goos+"/"+goarch] {
++		return false
++	}
+ 	if goarch == "ppc64" && goos != "aix" {
+ 		return false
+ 	}
+@@ -1113,6 +1147,16 @@ func (t *tester) internalLinkPIE() bool {
+ 	return false
+ }
+ 
++func (t *tester) externalLinkPIE() bool {
++	// General rule is if -buildmode=pie and -linkmode=external both work, then they work together.
++	// Handle exceptions and then fall back to the general rule.
++	switch goos + "-" + goarch {
++	case "linux-s390x":
++		return true
++	}
++	return t.internalLinkPIE() && t.extLink()
++}
++
+ // supportedBuildMode reports whether the given build mode is supported.
+ func (t *tester) supportedBuildmode(mode string) bool {
+ 	switch mode {

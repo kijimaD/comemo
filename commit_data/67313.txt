@@ -1,0 +1,246 @@
+commit d4bf7167935e84e7200e95649563d1368cf05331
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jun 3 19:28:00 2025 +0000
+
+    runtime: reduce per-P memory footprint when greenteagc is disabled
+    
+    There are two additional sources of memory overhead per P that come from
+    greenteagc. One is for ptrBuf, but on platforms other than Windows it
+    doesn't actually cost anything due to demand-paging (Windows also
+    demand-pages, but the memory is 'committed' so it still counts against
+    OS RSS metrics). The other is for per-sizeclass scan stats. However when
+    greenteagc is disabled, most of these scan stats are completely unused.
+    
+    The worst-case memory overhead from these two sources is relatively
+    small (about 10 KiB per P), but for programs with a small memory
+    footprint running on a machine with a lot of cores, this can be
+    significant (single-digit percent).
+    
+    This change does two things. First, it puts ptrBuf initialization behind
+    the greenteagc experiment, so now that memory is never allocated by
+    default. Second, it abstracts the implementation details of scan stat
+    collection and emission, such that we can have two different
+    implementations depending on the build tag. This lets us remove all the
+    unused stats when the greenteagc experiment is disabled, reducing the
+    memory overhead of the stats from ~2.6 KiB per P to 536 bytes per P.
+    This is enough to make the difference no longer noticable in our
+    benchmark suite.
+    
+    Fixes #73931.
+    
+    Change-Id: I4351f1cbb3f6743d8f5922d757d73442c6d6ad3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/678535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/mgc.go                  | 45 +++----------------------------
+ src/runtime/mgcmark_greenteagc.go   | 54 +++++++++++++++++++++++++++++++++++++
+ src/runtime/mgcmark_nogreenteagc.go | 32 ++++++++++++++++++++++
+ src/runtime/mstats.go               |  8 ------
+ 4 files changed, 90 insertions(+), 49 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 87b6a748e1..38f343164c 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -131,6 +131,7 @@ package runtime
+ import (
+ 	"internal/cpu"
+ 	"internal/goarch"
++	"internal/goexperiment"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/gc"
+ 	"unsafe"
+@@ -717,7 +718,7 @@ func gcStart(trigger gcTrigger) {
+ 			throw("p mcache not flushed")
+ 		}
+ 		// Initialize ptrBuf if necessary.
+-		if p.gcw.ptrBuf == nil {
++		if goexperiment.GreenTeaGC && p.gcw.ptrBuf == nil {
+ 			p.gcw.ptrBuf = (*[gc.PageSize / goarch.PtrSize]uintptr)(persistentalloc(gc.PageSize, goarch.PtrSize, &memstats.gcMiscSys))
+ 		}
+ 	}
+@@ -1233,14 +1234,7 @@ func gcMarkTermination(stw worldStop) {
+ 			})
+ 		}
+ 		if debug.gctrace > 1 {
+-			for i := range pp.gcw.stats {
+-				memstats.lastScanStats[i].spansDenseScanned += pp.gcw.stats[i].spansDenseScanned
+-				memstats.lastScanStats[i].spanObjsDenseScanned += pp.gcw.stats[i].spanObjsDenseScanned
+-				memstats.lastScanStats[i].spansSparseScanned += pp.gcw.stats[i].spansSparseScanned
+-				memstats.lastScanStats[i].spanObjsSparseScanned += pp.gcw.stats[i].spanObjsSparseScanned
+-				memstats.lastScanStats[i].sparseObjsScanned += pp.gcw.stats[i].sparseObjsScanned
+-			}
+-			clear(pp.gcw.stats[:])
++			pp.gcw.flushScanStats(&memstats.lastScanStats)
+ 		}
+ 		pp.pinnerCache = nil
+ 	})
+@@ -1301,38 +1295,7 @@ func gcMarkTermination(stw worldStop) {
+ 		print("\n")
+ 
+ 		if debug.gctrace > 1 {
+-			var (
+-				spansDenseScanned     uint64
+-				spanObjsDenseScanned  uint64
+-				spansSparseScanned    uint64
+-				spanObjsSparseScanned uint64
+-				sparseObjsScanned     uint64
+-			)
+-			for _, stats := range memstats.lastScanStats {
+-				spansDenseScanned += stats.spansDenseScanned
+-				spanObjsDenseScanned += stats.spanObjsDenseScanned
+-				spansSparseScanned += stats.spansSparseScanned
+-				spanObjsSparseScanned += stats.spanObjsSparseScanned
+-				sparseObjsScanned += stats.sparseObjsScanned
+-			}
+-			totalObjs := sparseObjsScanned + spanObjsSparseScanned + spanObjsDenseScanned
+-			totalSpans := spansSparseScanned + spansDenseScanned
+-			print("scan: total ", sparseObjsScanned, "+", spanObjsSparseScanned, "+", spanObjsDenseScanned, "=", totalObjs, " objs")
+-			print(", ", spansSparseScanned, "+", spansDenseScanned, "=", totalSpans, " spans\n")
+-			for i, stats := range memstats.lastScanStats {
+-				if stats == (sizeClassScanStats{}) {
+-					continue
+-				}
+-				totalObjs := stats.sparseObjsScanned + stats.spanObjsSparseScanned + stats.spanObjsDenseScanned
+-				totalSpans := stats.spansSparseScanned + stats.spansDenseScanned
+-				if i == 0 {
+-					print("scan: class L ")
+-				} else {
+-					print("scan: class ", gc.SizeClassToSize[i], "B ")
+-				}
+-				print(stats.sparseObjsScanned, "+", stats.spanObjsSparseScanned, "+", stats.spanObjsDenseScanned, "=", totalObjs, " objs")
+-				print(", ", stats.spansSparseScanned, "+", stats.spansDenseScanned, "=", totalSpans, " spans\n")
+-			}
++			dumpScanStats()
+ 		}
+ 		printunlock()
+ 	}
+diff --git a/src/runtime/mgcmark_greenteagc.go b/src/runtime/mgcmark_greenteagc.go
+index 84cb6c99ab..75c347b9e9 100644
+--- a/src/runtime/mgcmark_greenteagc.go
++++ b/src/runtime/mgcmark_greenteagc.go
+@@ -763,3 +763,57 @@ func heapBitsSmallForAddrInline(spanBase, addr, elemsize uintptr) uintptr {
+ 	}
+ 	return read
+ }
++
++type sizeClassScanStats struct {
++	spansDenseScanned     uint64
++	spanObjsDenseScanned  uint64
++	spansSparseScanned    uint64
++	spanObjsSparseScanned uint64
++	sparseObjsScanned     uint64
++}
++
++func dumpScanStats() {
++	var (
++		spansDenseScanned     uint64
++		spanObjsDenseScanned  uint64
++		spansSparseScanned    uint64
++		spanObjsSparseScanned uint64
++		sparseObjsScanned     uint64
++	)
++	for _, stats := range memstats.lastScanStats {
++		spansDenseScanned += stats.spansDenseScanned
++		spanObjsDenseScanned += stats.spanObjsDenseScanned
++		spansSparseScanned += stats.spansSparseScanned
++		spanObjsSparseScanned += stats.spanObjsSparseScanned
++		sparseObjsScanned += stats.sparseObjsScanned
++	}
++	totalObjs := sparseObjsScanned + spanObjsSparseScanned + spanObjsDenseScanned
++	totalSpans := spansSparseScanned + spansDenseScanned
++	print("scan: total ", sparseObjsScanned, "+", spanObjsSparseScanned, "+", spanObjsDenseScanned, "=", totalObjs, " objs")
++	print(", ", spansSparseScanned, "+", spansDenseScanned, "=", totalSpans, " spans\n")
++	for i, stats := range memstats.lastScanStats {
++		if stats == (sizeClassScanStats{}) {
++			continue
++		}
++		totalObjs := stats.sparseObjsScanned + stats.spanObjsSparseScanned + stats.spanObjsDenseScanned
++		totalSpans := stats.spansSparseScanned + stats.spansDenseScanned
++		if i == 0 {
++			print("scan: class L ")
++		} else {
++			print("scan: class ", gc.SizeClassToSize[i], "B ")
++		}
++		print(stats.sparseObjsScanned, "+", stats.spanObjsSparseScanned, "+", stats.spanObjsDenseScanned, "=", totalObjs, " objs")
++		print(", ", stats.spansSparseScanned, "+", stats.spansDenseScanned, "=", totalSpans, " spans\n")
++	}
++}
++
++func (w *gcWork) flushScanStats(dst *[gc.NumSizeClasses]sizeClassScanStats) {
++	for i := range w.stats {
++		dst[i].spansDenseScanned += w.stats[i].spansDenseScanned
++		dst[i].spanObjsDenseScanned += w.stats[i].spanObjsDenseScanned
++		dst[i].spansSparseScanned += w.stats[i].spansSparseScanned
++		dst[i].spanObjsSparseScanned += w.stats[i].spanObjsSparseScanned
++		dst[i].sparseObjsScanned += w.stats[i].sparseObjsScanned
++	}
++	clear(w.stats[:])
++}
+diff --git a/src/runtime/mgcmark_nogreenteagc.go b/src/runtime/mgcmark_nogreenteagc.go
+index 08f726a980..c0ca5c21ea 100644
+--- a/src/runtime/mgcmark_nogreenteagc.go
++++ b/src/runtime/mgcmark_nogreenteagc.go
+@@ -6,6 +6,8 @@
+ 
+ package runtime
+ 
++import "internal/runtime/gc"
++
+ func (s *mspan) markBitsForIndex(objIndex uintptr) markBits {
+ 	bytep, mask := s.gcmarkBits.bitp(objIndex)
+ 	return markBits{bytep, mask, objIndex}
+@@ -78,3 +80,33 @@ func (w *gcWork) tryGetSpan(steal bool) objptr {
+ func scanSpan(p objptr, gcw *gcWork) {
+ 	throw("unimplemented")
+ }
++
++type sizeClassScanStats struct {
++	sparseObjsScanned uint64
++}
++
++func dumpScanStats() {
++	var sparseObjsScanned uint64
++	for _, stats := range memstats.lastScanStats {
++		sparseObjsScanned += stats.sparseObjsScanned
++	}
++	print("scan: total ", sparseObjsScanned, " objs\n")
++	for i, stats := range memstats.lastScanStats {
++		if stats == (sizeClassScanStats{}) {
++			continue
++		}
++		if i == 0 {
++			print("scan: class L ")
++		} else {
++			print("scan: class ", gc.SizeClassToSize[i], "B ")
++		}
++		print(stats.sparseObjsScanned, " objs\n")
++	}
++}
++
++func (w *gcWork) flushScanStats(dst *[gc.NumSizeClasses]sizeClassScanStats) {
++	for i := range w.stats {
++		dst[i].sparseObjsScanned += w.stats[i].sparseObjsScanned
++	}
++	clear(w.stats[:])
++}
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 29ace5ec16..e34f0b10ea 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -49,14 +49,6 @@ type mstats struct {
+ 	enablegc bool
+ }
+ 
+-type sizeClassScanStats struct {
+-	spansDenseScanned     uint64
+-	spanObjsDenseScanned  uint64
+-	spansSparseScanned    uint64
+-	spanObjsSparseScanned uint64
+-	sparseObjsScanned     uint64
+-}
+-
+ var memstats mstats
+ 
+ // A MemStats records statistics about the memory allocator.

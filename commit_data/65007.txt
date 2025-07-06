@@ -1,0 +1,541 @@
+commit 65679cfeb4b2fa0f24ac4ed8757b8a83ab0d5690
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Aug 24 21:44:23 2024 +0200
+
+    crypto/rand: reintroduce urandom fallback for legacy Linux kernels
+    
+    Reintroduce the urandom fallback, but this time with a robust set of
+    tests all pointing guns at each other, including a seccomp'd respawn
+    simulating the lack of getrandom, to make sure the fallback both works
+    and is never hit unexpectedly.
+    
+    Unlike the Go 1.23 fallback, the new one only triggers on ENOSYS (which
+    is cached by unix.GetRandom) and doesn't handle the EAGAIN errors we
+    never got an explanation for.
+    
+    We still crash the program from Read if we have to go to /dev/urandom
+    and we fail to open it.
+    
+    For #67001
+    Updates #66821
+    
+    Tested on legacy SlowBots (without plan9 and illumos, which don't work):
+    TRY=aix-ppc64,dragonfly-amd64,freebsd-amd64,freebsd-386,netbsd-amd64
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-solaris-amd64,gotip-js-wasm,gotip-wasip1-wasm_wasmtime,gotip-wasip1-wasm_wazero,gotip-windows-amd64,gotip-windows-386,gotip-linux-386,gotip-linux-amd64-longtest-race,gotip-linux-amd64-boringcrypto
+    Change-Id: Idecc96a18cd6363087f5b2a4671c6fd1c41a3b0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608175
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/rand/internal/seccomp/seccomp_linux.go  | 83 ++++++++++++++++++++++
+ .../rand/internal/seccomp/seccomp_unsupported.go   | 13 ++++
+ src/crypto/rand/rand.go                            | 38 ++++++++--
+ src/crypto/rand/rand_aix.go                        | 49 +------------
+ src/crypto/rand/rand_getrandom.go                  |  5 ++
+ src/crypto/rand/rand_linux_test.go                 | 69 ++++++++++++++++++
+ src/crypto/rand/rand_test.go                       | 70 +++++++++++++++---
+ src/go/build/deps_test.go                          |  3 +
+ 8 files changed, 268 insertions(+), 62 deletions(-)
+
+diff --git a/src/crypto/rand/internal/seccomp/seccomp_linux.go b/src/crypto/rand/internal/seccomp/seccomp_linux.go
+new file mode 100644
+index 0000000000..32ef52ad9e
+--- /dev/null
++++ b/src/crypto/rand/internal/seccomp/seccomp_linux.go
+@@ -0,0 +1,83 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package seccomp
++
++/*
++#include <sys/prctl.h>
++#include <sys/syscall.h>
++#include <errno.h>
++#include <stddef.h>
++#include <unistd.h>
++#include <stdint.h>
++
++// A few definitions copied from linux/filter.h and linux/seccomp.h,
++// which might not be available on all systems.
++
++struct sock_filter {
++    uint16_t code;
++    uint8_t jt;
++    uint8_t jf;
++    uint32_t k;
++};
++
++struct sock_fprog {
++    unsigned short len;
++    struct sock_filter *filter;
++};
++
++#define BPF_LD	0x00
++#define BPF_W	0x00
++#define BPF_ABS	0x20
++#define BPF_JMP	0x05
++#define BPF_JEQ	0x10
++#define BPF_K	0x00
++#define BPF_RET	0x06
++
++#define BPF_STMT(code, k) { (unsigned short)(code), 0, 0, k }
++#define BPF_JUMP(code, k, jt, jf) { (unsigned short)(code), jt, jf, k }
++
++struct seccomp_data {
++	int nr;
++	uint32_t arch;
++	uint64_t instruction_pointer;
++	uint64_t args[6];
++};
++
++#define SECCOMP_RET_ERRNO 0x00050000U
++#define SECCOMP_RET_ALLOW 0x7fff0000U
++#define SECCOMP_SET_MODE_FILTER 1
++
++int disable_getrandom() {
++    if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
++        return 1;
++    }
++    struct sock_filter filter[] = {
++        BPF_STMT(BPF_LD | BPF_W | BPF_ABS, (offsetof(struct seccomp_data, nr))),
++        BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SYS_getrandom, 0, 1),
++        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ERRNO | ENOSYS),
++        BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW),
++    };
++    struct sock_fprog prog = {
++        .len = sizeof(filter) / sizeof((filter)[0]),
++        .filter = filter,
++    };
++    if (syscall(SYS_seccomp, SECCOMP_SET_MODE_FILTER, 0, &prog)) {
++        return 2;
++    }
++    return 0;
++}
++*/
++import "C"
++import "fmt"
++
++// DisableGetrandom makes future calls to getrandom(2) fail with ENOSYS. It
++// applies only to the current thread and to any programs executed from it.
++// Callers should use [runtime.LockOSThread] in a dedicated goroutine.
++func DisableGetrandom() error {
++	if errno := C.disable_getrandom(); errno != 0 {
++		return fmt.Errorf("failed to disable getrandom: %v", errno)
++	}
++	return nil
++}
+diff --git a/src/crypto/rand/internal/seccomp/seccomp_unsupported.go b/src/crypto/rand/internal/seccomp/seccomp_unsupported.go
+new file mode 100644
+index 0000000000..f08cd1f4ec
+--- /dev/null
++++ b/src/crypto/rand/internal/seccomp/seccomp_unsupported.go
+@@ -0,0 +1,13 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !linux || !cgo
++
++package seccomp
++
++import "errors"
++
++func DisableGetrandom() error {
++	return errors.New("disabling getrandom is not supported on this system")
++}
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index 20a2438e84..0911666f00 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -9,6 +9,8 @@ package rand
+ import (
+ 	"crypto/internal/boring"
+ 	"io"
++	"os"
++	"sync"
+ 	"sync/atomic"
+ 	"time"
+ 	_ "unsafe"
+@@ -18,15 +20,13 @@ import (
+ // secure random number generator. It is safe for concurrent use.
+ //
+ //   - On Linux, FreeBSD, Dragonfly, and Solaris, Reader uses getrandom(2).
++//   - On legacy Linux (< 3.17), Reader opens /dev/urandom on first use.
+ //   - On macOS and iOS, Reader uses arc4random_buf(3).
+ //   - On OpenBSD, Reader uses getentropy(2).
+ //   - On NetBSD, Reader uses the kern.arandom sysctl.
+ //   - On Windows, Reader uses the ProcessPrng API.
+ //   - On js/wasm, Reader uses the Web Crypto API.
+ //   - On wasip1/wasm, Reader uses random_get.
+-//
+-// All the platform APIs above are documented to never return an error
+-// when used as they are in this package.
+ var Reader io.Reader
+ 
+ func init() {
+@@ -45,6 +45,7 @@ func warnBlocked() {
+ 
+ type reader struct{}
+ 
++// Read always returns len(b) or an error.
+ func (r *reader) Read(b []byte) (n int, err error) {
+ 	boring.Unreachable()
+ 	if firstUse.CompareAndSwap(false, true) {
+@@ -67,8 +68,9 @@ func fatal(string)
+ // Read fills b with cryptographically secure random bytes. It never returns an
+ // error, and always fills b entirely.
+ //
+-// If [Reader] is set to a non-default value, Read calls [io.ReadFull] on
+-// [Reader] and crashes the program irrecoverably if an error is returned.
++// Read calls [io.ReadFull] on [Reader] and crashes the program irrecoverably if
++// an error is returned. The default Reader uses operating system APIs that are
++// documented to never return an error on all but legacy Linux systems.
+ func Read(b []byte) (n int, err error) {
+ 	// We don't want b to escape to the heap, but escape analysis can't see
+ 	// through a potentially overridden Reader, so we special-case the default
+@@ -87,3 +89,29 @@ func Read(b []byte) (n int, err error) {
+ 	}
+ 	return len(b), nil
+ }
++
++// The urandom fallback is only used on Linux kernels before 3.17 and on AIX.
++
++var urandomOnce sync.Once
++var urandomFile *os.File
++var urandomErr error
++
++func urandomRead(b []byte) error {
++	urandomOnce.Do(func() {
++		urandomFile, urandomErr = os.Open("/dev/urandom")
++	})
++	if urandomErr != nil {
++		return urandomErr
++	}
++	for len(b) > 0 {
++		n, err := urandomFile.Read(b)
++		// Note that we don't ignore EAGAIN because it should not be possible to
++		// hit for a blocking read from urandom, although there were
++		// unreproducible reports of it at https://go.dev/issue/9205.
++		if err != nil {
++			return err
++		}
++		b = b[n:]
++	}
++	return nil
++}
+diff --git a/src/crypto/rand/rand_aix.go b/src/crypto/rand/rand_aix.go
+index 9e916488ac..4cc080d8fc 100644
+--- a/src/crypto/rand/rand_aix.go
++++ b/src/crypto/rand/rand_aix.go
+@@ -4,53 +4,6 @@
+ 
+ package rand
+ 
+-import (
+-	"errors"
+-	"io"
+-	"os"
+-	"sync"
+-	"sync/atomic"
+-	"syscall"
+-)
+-
+-const urandomDevice = "/dev/urandom"
+-
+-var (
+-	f    io.Reader
+-	mu   sync.Mutex
+-	used atomic.Bool
+-)
+-
+ func read(b []byte) error {
+-	if !used.Load() {
+-		mu.Lock()
+-		if !used.Load() {
+-			dev, err := os.Open(urandomDevice)
+-			if err != nil {
+-				mu.Unlock()
+-				return err
+-			}
+-			f = hideAgainReader{dev}
+-			used.Store(true)
+-		}
+-		mu.Unlock()
+-	}
+-	if _, err := io.ReadFull(f, b); err != nil {
+-		return err
+-	}
+-	return nil
+-}
+-
+-// hideAgainReader masks EAGAIN reads from /dev/urandom.
+-// See golang.org/issue/9205.
+-type hideAgainReader struct {
+-	r io.Reader
+-}
+-
+-func (hr hideAgainReader) Read(p []byte) (n int, err error) {
+-	n, err = hr.r.Read(p)
+-	if errors.Is(err, syscall.EAGAIN) {
+-		err = nil
+-	}
+-	return
++	return urandomRead(b)
+ }
+diff --git a/src/crypto/rand/rand_getrandom.go b/src/crypto/rand/rand_getrandom.go
+index d53c2180ed..26ba716100 100644
+--- a/src/crypto/rand/rand_getrandom.go
++++ b/src/crypto/rand/rand_getrandom.go
+@@ -44,6 +44,11 @@ func read(b []byte) error {
+ 			size = maxSize
+ 		}
+ 		n, err := unix.GetRandom(b[:size], 0)
++		if errors.Is(err, syscall.ENOSYS) {
++			// If getrandom(2) is not available, presumably on Linux versions
++			// earlier than 3.17, fall back to reading from /dev/urandom.
++			return urandomRead(b)
++		}
+ 		if errors.Is(err, syscall.EINTR) {
+ 			// If getrandom(2) is blocking, either because it is waiting for the
+ 			// entropy pool to become initialized or because we requested more
+diff --git a/src/crypto/rand/rand_linux_test.go b/src/crypto/rand/rand_linux_test.go
+new file mode 100644
+index 0000000000..7516008208
+--- /dev/null
++++ b/src/crypto/rand/rand_linux_test.go
+@@ -0,0 +1,69 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand_test
++
++import (
++	"bytes"
++	"crypto/rand/internal/seccomp"
++	"internal/syscall/unix"
++	"internal/testenv"
++	"os"
++	"runtime"
++	"syscall"
++	"testing"
++)
++
++func TestNoGetrandom(t *testing.T) {
++	if os.Getenv("GO_GETRANDOM_DISABLED") == "1" {
++		// We are running under seccomp, the rest of the test suite will take
++		// care of actually testing the implementation, we check that getrandom
++		// is actually disabled.
++		_, err := unix.GetRandom(make([]byte, 16), 0)
++		if err != syscall.ENOSYS {
++			t.Errorf("GetRandom returned %v, want ENOSYS", err)
++		} else {
++			t.Log("GetRandom returned ENOSYS as expected")
++		}
++		return
++	}
++
++	if testing.Short() {
++		t.Skip("skipping test in short mode")
++	}
++	testenv.MustHaveExec(t)
++	testenv.MustHaveCGO(t)
++
++	done := make(chan struct{})
++	go func() {
++		defer close(done)
++		// Call LockOSThread in a new goroutine, where we will apply the seccomp
++		// filter. We exit without unlocking the thread, so the thread will die
++		// and won't be reused.
++		runtime.LockOSThread()
++
++		if err := seccomp.DisableGetrandom(); err != nil {
++			t.Errorf("failed to disable getrandom: %v", err)
++			return
++		}
++
++		buf := &bytes.Buffer{}
++		cmd := testenv.Command(t, os.Args[0], "-test.v")
++		cmd.Stdout = buf
++		cmd.Stderr = buf
++		cmd.Env = append(os.Environ(), "GO_GETRANDOM_DISABLED=1")
++		if err := cmd.Run(); err != nil {
++			t.Errorf("subprocess failed: %v\n%s", err, buf.Bytes())
++			return
++		}
++
++		if !bytes.Contains(buf.Bytes(), []byte("GetRandom returned ENOSYS")) {
++			t.Errorf("subprocess did not disable getrandom")
++		}
++		if !bytes.Contains(buf.Bytes(), []byte("TestRead")) {
++			t.Errorf("subprocess did not run TestRead")
++		}
++	}()
++	<-done
++}
+diff --git a/src/crypto/rand/rand_test.go b/src/crypto/rand/rand_test.go
+index 6d949ea9ac..d3040cbe30 100644
+--- a/src/crypto/rand/rand_test.go
++++ b/src/crypto/rand/rand_test.go
+@@ -2,28 +2,42 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand_test
++package rand
+ 
+ import (
+ 	"bytes"
+ 	"compress/flate"
+ 	"crypto/internal/boring"
+-	. "crypto/rand"
++	"internal/race"
+ 	"io"
++	"os"
+ 	"runtime"
+ 	"sync"
+ 	"testing"
+ )
+ 
++func testReadAndReader(t *testing.T, f func(*testing.T, func([]byte) (int, error))) {
++	t.Run("Read", func(t *testing.T) {
++		f(t, Read)
++	})
++	t.Run("Reader.Read", func(t *testing.T) {
++		f(t, Reader.Read)
++	})
++}
++
+ func TestRead(t *testing.T) {
++	testReadAndReader(t, testRead)
++}
++
++func testRead(t *testing.T, Read func([]byte) (int, error)) {
+ 	var n int = 4e6
+ 	if testing.Short() {
+ 		n = 1e5
+ 	}
+ 	b := make([]byte, n)
+-	n, err := io.ReadFull(Reader, b)
++	n, err := Read(b)
+ 	if n != len(b) || err != nil {
+-		t.Fatalf("ReadFull(buf) = %d, %s", n, err)
++		t.Fatalf("Read(buf) = %d, %s", n, err)
+ 	}
+ 
+ 	var z bytes.Buffer
+@@ -36,6 +50,10 @@ func TestRead(t *testing.T) {
+ }
+ 
+ func TestReadLoops(t *testing.T) {
++	testReadAndReader(t, testReadLoops)
++}
++
++func testReadLoops(t *testing.T, Read func([]byte) (int, error)) {
+ 	b := make([]byte, 1)
+ 	for {
+ 		n, err := Read(b)
+@@ -58,6 +76,10 @@ func TestReadLoops(t *testing.T) {
+ }
+ 
+ func TestLargeRead(t *testing.T) {
++	testReadAndReader(t, testLargeRead)
++}
++
++func testLargeRead(t *testing.T, Read func([]byte) (int, error)) {
+ 	// 40MiB, more than the documented maximum of 32Mi-1 on Linux 32-bit.
+ 	b := make([]byte, 40<<20)
+ 	if n, err := Read(b); err != nil {
+@@ -68,11 +90,15 @@ func TestLargeRead(t *testing.T) {
+ }
+ 
+ func TestReadEmpty(t *testing.T) {
+-	n, err := Reader.Read(make([]byte, 0))
++	testReadAndReader(t, testReadEmpty)
++}
++
++func testReadEmpty(t *testing.T, Read func([]byte) (int, error)) {
++	n, err := Read(make([]byte, 0))
+ 	if n != 0 || err != nil {
+ 		t.Fatalf("Read(make([]byte, 0)) = %d, %v", n, err)
+ 	}
+-	n, err = Reader.Read(nil)
++	n, err = Read(nil)
+ 	if n != 0 || err != nil {
+ 		t.Fatalf("Read(nil) = %d, %v", n, err)
+ 	}
+@@ -101,6 +127,10 @@ func TestReadUsesReader(t *testing.T) {
+ }
+ 
+ func TestConcurrentRead(t *testing.T) {
++	testReadAndReader(t, testConcurrentRead)
++}
++
++func testConcurrentRead(t *testing.T, Read func([]byte) (int, error)) {
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}
+@@ -130,12 +160,12 @@ func TestAllocations(t *testing.T) {
+ 		// Might be fixable with https://go.dev/issue/56378.
+ 		t.Skip("boringcrypto allocates")
+ 	}
+-	if runtime.GOOS == "aix" {
+-		t.Skip("/dev/urandom read path allocates")
+-	}
+ 	if runtime.GOOS == "js" {
+ 		t.Skip("syscall/js allocates")
+ 	}
++	if race.Enabled {
++		t.Skip("urandomRead allocates under -race")
++	}
+ 
+ 	n := int(testing.AllocsPerRun(10, func() {
+ 		buf := make([]byte, 32)
+@@ -147,6 +177,28 @@ func TestAllocations(t *testing.T) {
+ 	}
+ }
+ 
++// TestNoUrandomFallback ensures the urandom fallback is not reached in
++// normal operations.
++func TestNoUrandomFallback(t *testing.T) {
++	expectFallback := false
++	if runtime.GOOS == "aix" {
++		// AIX always uses the urandom fallback.
++		expectFallback = true
++	}
++	if os.Getenv("GO_GETRANDOM_DISABLED") == "1" {
++		// We are testing the urandom fallback intentionally.
++		expectFallback = true
++	}
++	Read(make([]byte, 1))
++	if urandomFile != nil && !expectFallback {
++		t.Error("/dev/urandom fallback used unexpectedly")
++		t.Log("note: if this test fails, it may be because the system does not have getrandom(2)")
++	}
++	if urandomFile == nil && expectFallback {
++		t.Error("/dev/urandom fallback not used as expected")
++	}
++}
++
+ func BenchmarkRead(b *testing.B) {
+ 	b.Run("4", func(b *testing.B) {
+ 		benchmarkRead(b, 4)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e233535f75..6545dd421d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -645,6 +645,9 @@ var depsRules = `
+ 	CRYPTO-MATH, testing
+ 	< crypto/internal/cryptotest;
+ 
++	CGO, FMT
++	< crypto/rand/internal/seccomp;
++
+ 	# v2 execution trace parser.
+ 	FMT
+ 	< internal/trace/event;

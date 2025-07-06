@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40970: 2b598944257fade6af18216acc94940a706d66da
+# Index 40970: 4aff88ded24c575bed9c1c0d1fc149eab405111a
 
 echo "🚀 Generating explanation for commit 40970..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40970..."
 
 ### メタデータ
 - **コミットインデックス**: 40970
-- **コミットハッシュ**: 2b598944257fade6af18216acc94940a706d66da
-- **GitHub URL**: https://github.com/golang/go/commit/2b598944257fade6af18216acc94940a706d66da
+- **コミットハッシュ**: 4aff88ded24c575bed9c1c0d1fc149eab405111a
+- **GitHub URL**: https://github.com/golang/go/commit/4aff88ded24c575bed9c1c0d1fc149eab405111a
 
 ### 章構成
 

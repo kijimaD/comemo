@@ -1,0 +1,40 @@
+commit d39b366841b6582535f540467e70f5a78056e7ec
+Author: Zxilly <zxilly@outlook.com>
+Date:   Sun Sep 22 19:04:36 2024 +0000
+
+    runtime: disable epipe check for wasm platform
+    
+    Pipe operation seems impossible for wasm build
+    
+    Fixes #59099
+    
+    Change-Id: Ibb526693dce4e867dabd92e5ace38a1adf18f401
+    GitHub-Last-Rev: d7dc3362717f4ddae2c026016812008d25783f4f
+    GitHub-Pull-Request: golang/go#69583
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/runtime/os_wasm.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/os_wasm.go b/src/runtime/os_wasm.go
+index fbf58439b9..15bc3131f1 100644
+--- a/src/runtime/os_wasm.go
++++ b/src/runtime/os_wasm.go
+@@ -109,10 +109,10 @@ func newosproc(mp *m) {
+ 	throw("newosproc: not implemented")
+ }
+ 
++// Do nothing on WASM platform, always return EPIPE to caller.
++//
+ //go:linkname os_sigpipe os.sigpipe
+-func os_sigpipe() {
+-	throw("too many writes on closed pipe")
+-}
++func os_sigpipe() {}
+ 
+ //go:linkname syscall_now syscall.now
+ func syscall_now() (sec int64, nsec int32) {

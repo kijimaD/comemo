@@ -1,0 +1,125 @@
+commit 8659ad972f0f1fb389397cb35f810d9ccb36539f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 23 20:50:25 2024 -0700
+
+    encoding/json: rewrite interface{} to any
+    
+    For #49884
+    
+    Change-Id: I1623201c47c820a152773d2f43d0072a1466d3bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588118
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Emmanuel Odeke <emmanuel@orijtech.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+---
+ src/encoding/json/decode.go    | 12 ++++++------
+ src/encoding/json/encode.go    |  2 +-
+ src/encoding/json/fuzz_test.go |  8 ++++----
+ src/encoding/json/stream.go    |  4 ++--
+ 4 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index f8205704e3..69a1013b85 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -53,8 +53,8 @@ import (
+ //   - bool, for JSON booleans
+ //   - float64, for JSON numbers
+ //   - string, for JSON strings
+-//   - []interface{}, for JSON arrays
+-//   - map[string]interface{}, for JSON objects
++//   - []any, for JSON arrays
++//   - map[string]any, for JSON objects
+ //   - nil for JSON null
+ //
+ // To unmarshal a JSON array into a slice, Unmarshal resets the slice length
+@@ -466,7 +466,7 @@ func indirect(v reflect.Value, decodingNull bool) (Unmarshaler, encoding.TextUnm
+ 		}
+ 
+ 		// Prevent infinite loop if v is an interface pointing to its own address:
+-		//     var v interface{}
++		//     var v any
+ 		//     v = &v
+ 		if v.Elem().Kind() == reflect.Interface && v.Elem().Elem() == v {
+ 			v = v.Elem()
+@@ -1019,7 +1019,7 @@ func (d *decodeState) literalStore(item []byte, v reflect.Value, fromQuoted bool
+ // in an empty interface. They are not strictly necessary,
+ // but they avoid the weight of reflection in this common case.
+ 
+-// valueInterface is like value but returns interface{}
++// valueInterface is like value but returns any.
+ func (d *decodeState) valueInterface() (val any) {
+ 	switch d.opcode {
+ 	default:
+@@ -1036,7 +1036,7 @@ func (d *decodeState) valueInterface() (val any) {
+ 	return
+ }
+ 
+-// arrayInterface is like array but returns []interface{}.
++// arrayInterface is like array but returns []any.
+ func (d *decodeState) arrayInterface() []any {
+ 	var v = make([]any, 0)
+ 	for {
+@@ -1062,7 +1062,7 @@ func (d *decodeState) arrayInterface() []any {
+ 	return v
+ }
+ 
+-// objectInterface is like object but returns map[string]interface{}.
++// objectInterface is like object but returns map[string]any.
+ func (d *decodeState) objectInterface() map[string]any {
+ 	m := make(map[string]any)
+ 	for {
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 7bee1a6805..988de71612 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -819,7 +819,7 @@ func (se sliceEncoder) encode(e *encodeState, v reflect.Value, opts encOpts) {
+ 		// Here we use a struct to memorize the pointer to the first element of the slice
+ 		// and its length.
+ 		ptr := struct {
+-			ptr interface{} // always an unsafe.Pointer, but avoids a dependency on package unsafe
++			ptr any // always an unsafe.Pointer, but avoids a dependency on package unsafe
+ 			len int
+ 		}{v.UnsafePointer(), v.Len()}
+ 		if _, ok := e.ptrSeen[ptr]; ok {
+diff --git a/src/encoding/json/fuzz_test.go b/src/encoding/json/fuzz_test.go
+index 778664c3e5..f01960398a 100644
+--- a/src/encoding/json/fuzz_test.go
++++ b/src/encoding/json/fuzz_test.go
+@@ -28,10 +28,10 @@ func FuzzUnmarshalJSON(f *testing.F) {
+ }`))
+ 
+ 	f.Fuzz(func(t *testing.T, b []byte) {
+-		for _, typ := range []func() interface{}{
+-			func() interface{} { return new(interface{}) },
+-			func() interface{} { return new(map[string]interface{}) },
+-			func() interface{} { return new([]interface{}) },
++		for _, typ := range []func() any{
++			func() any { return new(any) },
++			func() any { return new(map[string]any) },
++			func() any { return new([]any) },
+ 		} {
+ 			i := typ()
+ 			if err := Unmarshal(b, i); err != nil {
+diff --git a/src/encoding/json/stream.go b/src/encoding/json/stream.go
+index cb61ea7212..e2d9470bcc 100644
+--- a/src/encoding/json/stream.go
++++ b/src/encoding/json/stream.go
+@@ -32,8 +32,8 @@ func NewDecoder(r io.Reader) *Decoder {
+ 	return &Decoder{r: r}
+ }
+ 
+-// UseNumber causes the Decoder to unmarshal a number into an interface{} as a
+-// [Number] instead of as a float64.
++// UseNumber causes the Decoder to unmarshal a number into an
++// interface value as a [Number] instead of as a float64.
+ func (dec *Decoder) UseNumber() { dec.d.useNumber = true }
+ 
+ // DisallowUnknownFields causes the Decoder to return an error when the destination

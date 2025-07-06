@@ -1,0 +1,38 @@
+commit c386ed107e65f495acb6aacb0efcaade27da6a15
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Wed Dec 11 18:09:32 2024 +0100
+
+    cmd/internal/obj/riscv: fix the encoding for REV8 and ORCB
+    
+    The instructions are currently encoded and validated using an
+    iIIEncoding which is incorrect as these instructions do not
+    take an immediate operand.  Encode them instead using an
+    rIIEncoding as is done for the other two register argument bitmanip
+    instructions.
+    
+    Change-Id: Ia4d9c6f6ebd2dfc381935ebc11afa8fc3664232b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637317
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/internal/obj/riscv/obj.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index f9ae5fe677..d3b6857a75 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2094,8 +2094,8 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	ARORI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+ 	ARORIW & obj.AMask: {enc: iIIEncoding, ternary: true},
+ 	ARORW & obj.AMask:  {enc: rIIIEncoding, immForm: ARORIW, ternary: true},
+-	AORCB & obj.AMask:  {enc: iIIEncoding},
+-	AREV8 & obj.AMask:  {enc: iIIEncoding},
++	AORCB & obj.AMask:  {enc: rIIEncoding},
++	AREV8 & obj.AMask:  {enc: rIIEncoding},
+ 
+ 	// 28.4.4: Single-bit Instructions (Zbs)
+ 	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},

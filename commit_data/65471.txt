@@ -1,0 +1,386 @@
+commit ecdc8c1b3f54367338de37174531f81574c791b2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 8 14:41:06 2024 +0100
+
+    crypto/internal/cryptotest: add SkipTestAllocations
+    
+    [                                                                     ]
+    [    It has been [ 0 ] days since Filippo broke a TestAllocations.    ]
+    [                                                                     ]
+    
+    Concentrate all the skips in one place, so we don't have to re-discover
+    always the same ones via trial and error.
+    
+    This might over-skip fixable allocations, but all these targets are not
+    fast anyway, so they are not worth going back for.
+    
+    Removed the sysrand TestAllocations because it causes an import loop
+    with cryptotest and it's covered by TestAllocations in crypto/rand.
+    
+    Change-Id: Icd40e97f9128e037f567147f8c9dafa758a47fac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626438
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/ed25519/ed25519_test.go                 |  9 ++----
+ src/crypto/internal/cryptotest/allocations.go      | 37 ++++++++++++++++++++++
+ .../internal/edwards25519/edwards25519_test.go     |  5 ++-
+ src/crypto/internal/fips/sha3/sha3_test.go         |  3 +-
+ src/crypto/internal/nistec/nistec_test.go          |  5 ++-
+ src/crypto/internal/sysrand/rand_test.go           | 24 --------------
+ src/crypto/md5/md5_test.go                         |  1 +
+ src/crypto/rand/rand_test.go                       | 19 ++---------
+ src/crypto/rsa/rsa_test.go                         |  8 ++---
+ src/crypto/sha1/sha1_test.go                       |  4 +--
+ src/crypto/sha256/sha256_test.go                   |  7 +---
+ src/crypto/sha512/sha512_test.go                   |  7 +---
+ 12 files changed, 52 insertions(+), 77 deletions(-)
+
+diff --git a/src/crypto/ed25519/ed25519_test.go b/src/crypto/ed25519/ed25519_test.go
+index 64901328a5..461c0cb5d7 100644
+--- a/src/crypto/ed25519/ed25519_test.go
++++ b/src/crypto/ed25519/ed25519_test.go
+@@ -9,11 +9,10 @@ import (
+ 	"bytes"
+ 	"compress/gzip"
+ 	"crypto"
+-	"crypto/internal/boring"
++	"crypto/internal/cryptotest"
+ 	"crypto/rand"
+ 	"crypto/sha512"
+ 	"encoding/hex"
+-	"internal/testenv"
+ 	"log"
+ 	"os"
+ 	"strings"
+@@ -319,11 +318,7 @@ func TestMalleability(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
+-	if boring.Enabled {
+-		t.Skip("skipping allocations test with BoringCrypto")
+-	}
+-	testenv.SkipIfOptimizationOff(t)
+-
++	cryptotest.SkipTestAllocations(t)
+ 	if allocs := testing.AllocsPerRun(100, func() {
+ 		seed := make([]byte, SeedSize)
+ 		message := []byte("Hello, world!")
+diff --git a/src/crypto/internal/cryptotest/allocations.go b/src/crypto/internal/cryptotest/allocations.go
+new file mode 100644
+index 0000000000..0194c2f89d
+--- /dev/null
++++ b/src/crypto/internal/cryptotest/allocations.go
+@@ -0,0 +1,37 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cryptotest
++
++import (
++	"crypto/internal/boring"
++	"internal/asan"
++	"internal/msan"
++	"internal/race"
++	"internal/testenv"
++	"runtime"
++	"testing"
++)
++
++// SkipTestAllocations skips the test if there are any factors that interfere
++// with allocation optimizations.
++func SkipTestAllocations(t *testing.T) {
++	// Go+BoringCrypto uses cgo.
++	if boring.Enabled {
++		t.Skip("skipping allocations test with BoringCrypto")
++	}
++
++	// The sanitizers sometimes cause allocations.
++	if race.Enabled || msan.Enabled || asan.Enabled {
++		t.Skip("skipping allocations test with sanitizers")
++	}
++
++	// The plan9 crypto/rand allocates.
++	if runtime.GOOS == "plan9" {
++		t.Skip("skipping allocations test on plan9")
++	}
++
++	// Some APIs rely on inliner and devirtualization to allocate on the stack.
++	testenv.SkipIfOptimizationOff(t)
++}
+diff --git a/src/crypto/internal/edwards25519/edwards25519_test.go b/src/crypto/internal/edwards25519/edwards25519_test.go
+index 307ae26a6b..6edea03546 100644
+--- a/src/crypto/internal/edwards25519/edwards25519_test.go
++++ b/src/crypto/internal/edwards25519/edwards25519_test.go
+@@ -5,9 +5,9 @@
+ package edwards25519
+ 
+ import (
++	"crypto/internal/cryptotest"
+ 	"crypto/internal/edwards25519/field"
+ 	"encoding/hex"
+-	"internal/testenv"
+ 	"reflect"
+ 	"testing"
+ )
+@@ -280,8 +280,7 @@ func TestNonCanonicalPoints(t *testing.T) {
+ var testAllocationsSink byte
+ 
+ func TestAllocations(t *testing.T) {
+-	testenv.SkipIfOptimizationOff(t)
+-
++	cryptotest.SkipTestAllocations(t)
+ 	if allocs := testing.AllocsPerRun(100, func() {
+ 		p := NewIdentityPoint()
+ 		p.Add(p, NewGeneratorPoint())
+diff --git a/src/crypto/internal/fips/sha3/sha3_test.go b/src/crypto/internal/fips/sha3/sha3_test.go
+index c85a4f8e01..42b5d8ea98 100644
+--- a/src/crypto/internal/fips/sha3/sha3_test.go
++++ b/src/crypto/internal/fips/sha3/sha3_test.go
+@@ -12,7 +12,6 @@ import (
+ 	"encoding"
+ 	"encoding/hex"
+ 	"fmt"
+-	"internal/testenv"
+ 	"io"
+ 	"math/rand"
+ 	"strings"
+@@ -370,7 +369,7 @@ func testClone(t *testing.T) {
+ var sink byte
+ 
+ func TestAllocations(t *testing.T) {
+-	testenv.SkipIfOptimizationOff(t)
++	cryptotest.SkipTestAllocations(t)
+ 	t.Run("New", func(t *testing.T) {
+ 		if allocs := testing.AllocsPerRun(10, func() {
+ 			h := New256()
+diff --git a/src/crypto/internal/nistec/nistec_test.go b/src/crypto/internal/nistec/nistec_test.go
+index 0d4e7dc7e4..d608b4bd17 100644
+--- a/src/crypto/internal/nistec/nistec_test.go
++++ b/src/crypto/internal/nistec/nistec_test.go
+@@ -7,17 +7,16 @@ package nistec_test
+ import (
+ 	"bytes"
+ 	"crypto/elliptic"
++	"crypto/internal/cryptotest"
+ 	"crypto/internal/nistec"
+ 	"fmt"
+-	"internal/testenv"
+ 	"math/big"
+ 	"math/rand"
+ 	"testing"
+ )
+ 
+ func TestAllocations(t *testing.T) {
+-	testenv.SkipIfOptimizationOff(t)
+-
++	cryptotest.SkipTestAllocations(t)
+ 	t.Run("P224", func(t *testing.T) {
+ 		if allocs := testing.AllocsPerRun(10, func() {
+ 			p := nistec.NewP224Point().SetGenerator()
+diff --git a/src/crypto/internal/sysrand/rand_test.go b/src/crypto/internal/sysrand/rand_test.go
+index 41eee469c1..2b9620c2fb 100644
+--- a/src/crypto/internal/sysrand/rand_test.go
++++ b/src/crypto/internal/sysrand/rand_test.go
+@@ -7,9 +7,6 @@ package sysrand
+ import (
+ 	"bytes"
+ 	"compress/flate"
+-	"internal/asan"
+-	"internal/msan"
+-	"internal/race"
+ 	"internal/testenv"
+ 	"os"
+ 	"runtime"
+@@ -72,27 +69,6 @@ func TestConcurrentRead(t *testing.T) {
+ 	wg.Wait()
+ }
+ 
+-var sink byte
+-
+-func TestAllocations(t *testing.T) {
+-	if race.Enabled || msan.Enabled || asan.Enabled {
+-		t.Skip("urandomRead allocates under -race, -asan, and -msan")
+-	}
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("plan9 allocates")
+-	}
+-	testenv.SkipIfOptimizationOff(t)
+-
+-	n := int(testing.AllocsPerRun(10, func() {
+-		buf := make([]byte, 32)
+-		Read(buf)
+-		sink ^= buf[0]
+-	}))
+-	if n > 0 {
+-		t.Errorf("allocs = %d, want 0", n)
+-	}
+-}
+-
+ // TestNoUrandomFallback ensures the urandom fallback is not reached in
+ // normal operations.
+ func TestNoUrandomFallback(t *testing.T) {
+diff --git a/src/crypto/md5/md5_test.go b/src/crypto/md5/md5_test.go
+index 6a8258a67e..437d9b9d4c 100644
+--- a/src/crypto/md5/md5_test.go
++++ b/src/crypto/md5/md5_test.go
+@@ -225,6 +225,7 @@ func TestLargeHashes(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
++	cryptotest.SkipTestAllocations(t)
+ 	in := []byte("hello, world!")
+ 	out := make([]byte, 0, Size)
+ 	h := New()
+diff --git a/src/crypto/rand/rand_test.go b/src/crypto/rand/rand_test.go
+index 5ddb9437b6..2590dc3e37 100644
+--- a/src/crypto/rand/rand_test.go
++++ b/src/crypto/rand/rand_test.go
+@@ -7,15 +7,11 @@ package rand
+ import (
+ 	"bytes"
+ 	"compress/flate"
+-	"crypto/internal/boring"
++	"crypto/internal/cryptotest"
+ 	"errors"
+-	"internal/asan"
+-	"internal/msan"
+-	"internal/race"
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+-	"runtime"
+ 	"sync"
+ 	"testing"
+ )
+@@ -157,18 +153,7 @@ func testConcurrentRead(t *testing.T, Read func([]byte) (int, error)) {
+ var sink byte
+ 
+ func TestAllocations(t *testing.T) {
+-	if boring.Enabled {
+-		// Might be fixable with https://go.dev/issue/56378.
+-		t.Skip("boringcrypto allocates")
+-	}
+-	if race.Enabled || msan.Enabled || asan.Enabled {
+-		t.Skip("urandomRead allocates under -race, -asan, and -msan")
+-	}
+-	if runtime.GOOS == "plan9" {
+-		t.Skip("plan9 allocates")
+-	}
+-	testenv.SkipIfOptimizationOff(t)
+-
++	cryptotest.SkipTestAllocations(t)
+ 	n := int(testing.AllocsPerRun(10, func() {
+ 		buf := make([]byte, 32)
+ 		Read(buf)
+diff --git a/src/crypto/rsa/rsa_test.go b/src/crypto/rsa/rsa_test.go
+index 2afa045a3a..a440f86f42 100644
+--- a/src/crypto/rsa/rsa_test.go
++++ b/src/crypto/rsa/rsa_test.go
+@@ -8,7 +8,7 @@ import (
+ 	"bufio"
+ 	"bytes"
+ 	"crypto"
+-	"crypto/internal/boring"
++	"crypto/internal/cryptotest"
+ 	"crypto/rand"
+ 	. "crypto/rsa"
+ 	"crypto/sha1"
+@@ -17,7 +17,6 @@ import (
+ 	"encoding/pem"
+ 	"flag"
+ 	"fmt"
+-	"internal/testenv"
+ 	"math/big"
+ 	"strings"
+ 	"testing"
+@@ -132,10 +131,7 @@ func testKeyBasics(t *testing.T, priv *PrivateKey) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
+-	if boring.Enabled {
+-		t.Skip("skipping allocations test with BoringCrypto")
+-	}
+-	testenv.SkipIfOptimizationOff(t)
++	cryptotest.SkipTestAllocations(t)
+ 
+ 	m := []byte("Hello Gophers")
+ 	c, err := EncryptPKCS1v15(rand.Reader, &test2048Key.PublicKey, m)
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index d03892c57d..9d707b7cde 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -231,9 +231,7 @@ func TestLargeHashes(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
+-	if boring.Enabled {
+-		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+-	}
++	cryptotest.SkipTestAllocations(t)
+ 	in := []byte("hello, world!")
+ 	out := make([]byte, 0, Size)
+ 	h := New()
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index 4693bcaacb..e1af9640e2 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -8,12 +8,10 @@ package sha256
+ 
+ import (
+ 	"bytes"
+-	"crypto/internal/boring"
+ 	"crypto/internal/cryptotest"
+ 	"encoding"
+ 	"fmt"
+ 	"hash"
+-	"internal/testenv"
+ 	"io"
+ 	"testing"
+ )
+@@ -298,10 +296,7 @@ func TestLargeHashes(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
+-	testenv.SkipIfOptimizationOff(t)
+-	if boring.Enabled {
+-		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+-	}
++	cryptotest.SkipTestAllocations(t)
+ 	if n := testing.AllocsPerRun(10, func() {
+ 		in := []byte("hello, world!")
+ 		out := make([]byte, 0, Size)
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index fd362e2a46..1fe9d132bb 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -8,13 +8,11 @@ package sha512
+ 
+ import (
+ 	"bytes"
+-	"crypto/internal/boring"
+ 	"crypto/internal/cryptotest"
+ 	"encoding"
+ 	"encoding/hex"
+ 	"fmt"
+ 	"hash"
+-	"internal/testenv"
+ 	"io"
+ 	"testing"
+ )
+@@ -903,10 +901,7 @@ func TestLargeHashes(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
+-	testenv.SkipIfOptimizationOff(t)
+-	if boring.Enabled {
+-		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+-	}
++	cryptotest.SkipTestAllocations(t)
+ 	if n := testing.AllocsPerRun(10, func() {
+ 		in := []byte("hello, world!")
+ 		out := make([]byte, 0, Size)

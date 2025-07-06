@@ -1,0 +1,1094 @@
+commit f7b8dd9033663944e3b563afaeb55dace4c060fc
+Author: Roxy Light <roxy@zombiezen.com>
+Date:   Tue Jul 16 10:21:30 2024 -0700
+
+    io/fs: add ReadLinkFS interface
+    
+    Added implementations for *io/fs.subFS, os.DirFS, and testing/fstest.MapFS.
+    Amended testing/fstest.TestFS to check behavior.
+    
+    Addressed TODOs in archive/tar and os.CopyFS around symbolic links.
+    
+    I am deliberately not changing archive/zip in this CL,
+    since it currently does not resolve symlinks
+    as part of its filesystem implementation.
+    I am unsure of the compatibility restrictions on doing so,
+    so figured it would be better to address independently.
+    
+    testing/fstest.MapFS now includes resolution of symlinks,
+    with MapFile.Data storing the symlink data.
+    The behavior change there seemed less intrusive,
+    especially given its intended usage in tests,
+    and it is especially helpful in testing the io/fs function implementations.
+    
+    Fixes #49580
+    
+    Change-Id: I58ec6915e8cc97341cdbfd9c24c67d1b60139447
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/385534
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Funda Secgin <fundasecgin33@gmail.com>
+---
+ api/next/49580.txt                                 |   8 ++
+ doc/next/6-stdlib/99-minor/archive/tar/49580.md    |   2 +
+ doc/next/6-stdlib/99-minor/io/fs/49580.md          |   1 +
+ doc/next/6-stdlib/99-minor/os/49580.md             |   2 +
+ doc/next/6-stdlib/99-minor/testing/fstest/49580.md |   3 +
+ src/archive/tar/writer.go                          |  14 +-
+ src/archive/tar/writer_test.go                     |  32 +++--
+ src/io/fs/readlink.go                              |  45 ++++++
+ src/io/fs/readlink_test.go                         | 106 ++++++++++++++
+ src/io/fs/sub.go                                   |  33 ++++-
+ src/io/fs/walk_test.go                             |  41 ++++++
+ src/os/dir.go                                      |  60 ++++----
+ src/os/file.go                                     |  31 +++-
+ src/os/file_test.go                                | 156 +++++++++++++++++++++
+ src/os/os_test.go                                  |   8 +-
+ src/testing/fstest/mapfs.go                        | 115 +++++++++++++--
+ src/testing/fstest/mapfs_test.go                   |  66 +++++++++
+ src/testing/fstest/testfs.go                       |  29 +++-
+ src/testing/fstest/testfs_test.go                  |   3 +
+ 19 files changed, 688 insertions(+), 67 deletions(-)
+
+diff --git a/api/next/49580.txt b/api/next/49580.txt
+new file mode 100644
+index 0000000000..ce213cc9ca
+--- /dev/null
++++ b/api/next/49580.txt
+@@ -0,0 +1,8 @@
++pkg io/fs, func Lstat(FS, string) (FileInfo, error) #49580
++pkg io/fs, func ReadLink(FS, string) (string, error) #49580
++pkg io/fs, type ReadLinkFS interface { Lstat, Open, ReadLink } #49580
++pkg io/fs, type ReadLinkFS interface, Lstat(string) (FileInfo, error) #49580
++pkg io/fs, type ReadLinkFS interface, Open(string) (File, error) #49580
++pkg io/fs, type ReadLinkFS interface, ReadLink(string) (string, error) #49580
++pkg testing/fstest, method (MapFS) Lstat(string) (fs.FileInfo, error) #49580
++pkg testing/fstest, method (MapFS) ReadLink(string) (string, error) #49580
+diff --git a/doc/next/6-stdlib/99-minor/archive/tar/49580.md b/doc/next/6-stdlib/99-minor/archive/tar/49580.md
+new file mode 100644
+index 0000000000..8fa43681fa
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/archive/tar/49580.md
+@@ -0,0 +1,2 @@
++The [*Writer.AddFS] implementation now supports symbolic links
++for filesystems that implement [io/fs.ReadLinkFS].
+diff --git a/doc/next/6-stdlib/99-minor/io/fs/49580.md b/doc/next/6-stdlib/99-minor/io/fs/49580.md
+new file mode 100644
+index 0000000000..c1cba5a395
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/io/fs/49580.md
+@@ -0,0 +1 @@
++A new [ReadLinkFS] interface provides the ability to read symbolic links in a filesystem.
+diff --git a/doc/next/6-stdlib/99-minor/os/49580.md b/doc/next/6-stdlib/99-minor/os/49580.md
+new file mode 100644
+index 0000000000..18d8831e7b
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/os/49580.md
+@@ -0,0 +1,2 @@
++The filesystem returned by [DirFS] implements the new [io/fs.ReadLinkFS] interface.
++[CopyFS] supports symlinks when copying filesystems that implement [io/fs.ReadLinkFS].
+diff --git a/doc/next/6-stdlib/99-minor/testing/fstest/49580.md b/doc/next/6-stdlib/99-minor/testing/fstest/49580.md
+new file mode 100644
+index 0000000000..5b3c0d6a84
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/testing/fstest/49580.md
+@@ -0,0 +1,3 @@
++[MapFS] implements the new [io/fs.ReadLinkFS] interface.
++[TestFS] will verify the functionality of the [io/fs.ReadLinkFS] interface if implemented.
++[TestFS] will no longer follow symlinks to avoid unbounded recursion.
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index f966c5b4c6..336c9fd758 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -415,11 +415,17 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		// TODO(#49580): Handle symlinks when fs.ReadLinkFS is available.
+-		if !d.IsDir() && !info.Mode().IsRegular() {
++		linkTarget := ""
++		if typ := d.Type(); typ == fs.ModeSymlink {
++			var err error
++			linkTarget, err = fs.ReadLink(fsys, name)
++			if err != nil {
++				return err
++			}
++		} else if !typ.IsRegular() && typ != fs.ModeDir {
+ 			return errors.New("tar: cannot add non-regular file")
+ 		}
+-		h, err := FileInfoHeader(info, "")
++		h, err := FileInfoHeader(info, linkTarget)
+ 		if err != nil {
+ 			return err
+ 		}
+@@ -430,7 +436,7 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
+ 		if err := tw.WriteHeader(h); err != nil {
+ 			return err
+ 		}
+-		if d.IsDir() {
++		if !d.Type().IsRegular() {
+ 			return nil
+ 		}
+ 		f, err := fsys.Open(name)
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 7b10bf6a70..9e484432ea 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -1342,6 +1342,7 @@ func TestWriterAddFS(t *testing.T) {
+ 		"emptyfolder":          {Mode: 0o755 | os.ModeDir},
+ 		"file.go":              {Data: []byte("hello")},
+ 		"subfolder/another.go": {Data: []byte("world")},
++		"symlink.go":           {Mode: 0o777 | os.ModeSymlink, Data: []byte("file.go")},
+ 		// Notably missing here is the "subfolder" directory. This makes sure even
+ 		// if we don't have a subfolder directory listed.
+ 	}
+@@ -1370,7 +1371,7 @@ func TestWriterAddFS(t *testing.T) {
+ 	for _, name := range names {
+ 		entriesLeft--
+ 
+-		entryInfo, err := fsys.Stat(name)
++		entryInfo, err := fsys.Lstat(name)
+ 		if err != nil {
+ 			t.Fatalf("getting entry info error: %v", err)
+ 		}
+@@ -1396,18 +1397,23 @@ func TestWriterAddFS(t *testing.T) {
+ 				name, entryInfo.Mode(), hdr.FileInfo().Mode())
+ 		}
+ 
+-		if entryInfo.IsDir() {
+-			continue
+-		}
+-
+-		data, err := io.ReadAll(tr)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		origdata := fsys[name].Data
+-		if string(data) != string(origdata) {
+-			t.Fatalf("test fs has file content %v; archive header has %v",
+-				data, origdata)
++		switch entryInfo.Mode().Type() {
++		case fs.ModeDir:
++			// No additional checks necessary.
++		case fs.ModeSymlink:
++			origtarget := string(fsys[name].Data)
++			if hdr.Linkname != origtarget {
++				t.Fatalf("test fs has link content %s; archive header %v", origtarget, hdr.Linkname)
++			}
++		default:
++			data, err := io.ReadAll(tr)
++			if err != nil {
++				t.Fatal(err)
++			}
++			origdata := fsys[name].Data
++			if string(data) != string(origdata) {
++				t.Fatalf("test fs has file content %v; archive header has %v", origdata, data)
++			}
+ 		}
+ 	}
+ 	if entriesLeft > 0 {
+diff --git a/src/io/fs/readlink.go b/src/io/fs/readlink.go
+new file mode 100644
+index 0000000000..64340b9fb4
+--- /dev/null
++++ b/src/io/fs/readlink.go
+@@ -0,0 +1,45 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs
++
++// ReadLinkFS is the interface implemented by a file system
++// that supports reading symbolic links.
++type ReadLinkFS interface {
++	FS
++
++	// ReadLink returns the destination of the named symbolic link.
++	// If there is an error, it should be of type [*PathError].
++	ReadLink(name string) (string, error)
++
++	// Lstat returns a [FileInfo] describing the named file.
++	// If the file is a symbolic link, the returned [FileInfo] describes the symbolic link.
++	// Lstat makes no attempt to follow the link.
++	// If there is an error, it should be of type [*PathError].
++	Lstat(name string) (FileInfo, error)
++}
++
++// ReadLink returns the destination of the named symbolic link.
++//
++// If fsys does not implement [ReadLinkFS], then ReadLink returns an error.
++func ReadLink(fsys FS, name string) (string, error) {
++	sym, ok := fsys.(ReadLinkFS)
++	if !ok {
++		return "", &PathError{Op: "readlink", Path: name, Err: ErrInvalid}
++	}
++	return sym.ReadLink(name)
++}
++
++// Lstat returns a [FileInfo] describing the named file.
++// If the file is a symbolic link, the returned [FileInfo] describes the symbolic link.
++// Lstat makes no attempt to follow the link.
++//
++// If fsys does not implement [ReadLinkFS], then Lstat is identical to [Stat].
++func Lstat(fsys FS, name string) (FileInfo, error) {
++	sym, ok := fsys.(ReadLinkFS)
++	if !ok {
++		return Stat(fsys, name)
++	}
++	return sym.Lstat(name)
++}
+diff --git a/src/io/fs/readlink_test.go b/src/io/fs/readlink_test.go
+new file mode 100644
+index 0000000000..3932c7b778
+--- /dev/null
++++ b/src/io/fs/readlink_test.go
+@@ -0,0 +1,106 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fs_test
++
++import (
++	. "io/fs"
++	"testing"
++	"testing/fstest"
++)
++
++func TestReadLink(t *testing.T) {
++	testFS := fstest.MapFS{
++		"foo": {
++			Data: []byte("bar"),
++			Mode: ModeSymlink | 0o777,
++		},
++		"bar": {
++			Data: []byte("Hello, World!\n"),
++			Mode: 0o644,
++		},
++
++		"dir/parentlink": {
++			Data: []byte("../bar"),
++			Mode: ModeSymlink | 0o777,
++		},
++		"dir/link": {
++			Data: []byte("file"),
++			Mode: ModeSymlink | 0o777,
++		},
++		"dir/file": {
++			Data: []byte("Hello, World!\n"),
++			Mode: 0o644,
++		},
++	}
++
++	check := func(fsys FS, name string, want string) {
++		t.Helper()
++		got, err := ReadLink(fsys, name)
++		if got != want || err != nil {
++			t.Errorf("ReadLink(%q) = %q, %v; want %q, <nil>", name, got, err, want)
++		}
++	}
++
++	check(testFS, "foo", "bar")
++	check(testFS, "dir/parentlink", "../bar")
++	check(testFS, "dir/link", "file")
++
++	// Test that ReadLink on Sub works.
++	sub, err := Sub(testFS, "dir")
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	check(sub, "link", "file")
++	check(sub, "parentlink", "../bar")
++}
++
++func TestLstat(t *testing.T) {
++	testFS := fstest.MapFS{
++		"foo": {
++			Data: []byte("bar"),
++			Mode: ModeSymlink | 0o777,
++		},
++		"bar": {
++			Data: []byte("Hello, World!\n"),
++			Mode: 0o644,
++		},
++
++		"dir/parentlink": {
++			Data: []byte("../bar"),
++			Mode: ModeSymlink | 0o777,
++		},
++		"dir/link": {
++			Data: []byte("file"),
++			Mode: ModeSymlink | 0o777,
++		},
++		"dir/file": {
++			Data: []byte("Hello, World!\n"),
++			Mode: 0o644,
++		},
++	}
++
++	check := func(fsys FS, name string, want FileMode) {
++		t.Helper()
++		info, err := Lstat(fsys, name)
++		var got FileMode
++		if err == nil {
++			got = info.Mode()
++		}
++		if got != want || err != nil {
++			t.Errorf("Lstat(%q) = %v, %v; want %v, <nil>", name, got, err, want)
++		}
++	}
++
++	check(testFS, "foo", ModeSymlink|0o777)
++	check(testFS, "bar", 0o644)
++
++	// Test that Lstat on Sub works.
++	sub, err := Sub(testFS, "dir")
++	if err != nil {
++		t.Fatal(err)
++	}
++	check(sub, "link", ModeSymlink|0o777)
++}
+diff --git a/src/io/fs/sub.go b/src/io/fs/sub.go
+index 70ac623077..376d561bad 100644
+--- a/src/io/fs/sub.go
++++ b/src/io/fs/sub.go
+@@ -23,7 +23,8 @@ type SubFS interface {
+ // Otherwise, if fs implements [SubFS], Sub returns fsys.Sub(dir).
+ // Otherwise, Sub returns a new [FS] implementation sub that,
+ // in effect, implements sub.Open(name) as fsys.Open(path.Join(dir, name)).
+-// The implementation also translates calls to ReadDir, ReadFile, and Glob appropriately.
++// The implementation also translates calls to ReadDir, ReadFile,
++// ReadLink, Lstat, and Glob appropriately.
+ //
+ // Note that Sub(os.DirFS("/"), "prefix") is equivalent to os.DirFS("/prefix")
+ // and that neither of them guarantees to avoid operating system
+@@ -44,6 +45,12 @@ func Sub(fsys FS, dir string) (FS, error) {
+ 	return &subFS{fsys, dir}, nil
+ }
+ 
++var _ FS = (*subFS)(nil)
++var _ ReadDirFS = (*subFS)(nil)
++var _ ReadFileFS = (*subFS)(nil)
++var _ ReadLinkFS = (*subFS)(nil)
++var _ GlobFS = (*subFS)(nil)
++
+ type subFS struct {
+ 	fsys FS
+ 	dir  string
+@@ -105,6 +112,30 @@ func (f *subFS) ReadFile(name string) ([]byte, error) {
+ 	return data, f.fixErr(err)
+ }
+ 
++func (f *subFS) ReadLink(name string) (string, error) {
++	full, err := f.fullName("readlink", name)
++	if err != nil {
++		return "", err
++	}
++	target, err := ReadLink(f.fsys, full)
++	if err != nil {
++		return "", f.fixErr(err)
++	}
++	return target, nil
++}
++
++func (f *subFS) Lstat(name string) (FileInfo, error) {
++	full, err := f.fullName("lstat", name)
++	if err != nil {
++		return nil, err
++	}
++	info, err := Lstat(f.fsys, full)
++	if err != nil {
++		return nil, f.fixErr(err)
++	}
++	return info, nil
++}
++
+ func (f *subFS) Glob(pattern string) ([]string, error) {
+ 	// Check pattern is well-formed.
+ 	if _, err := path.Match(pattern, ""); err != nil {
+diff --git a/src/io/fs/walk_test.go b/src/io/fs/walk_test.go
+index a5fc715e15..91f195f7be 100644
+--- a/src/io/fs/walk_test.go
++++ b/src/io/fs/walk_test.go
+@@ -110,6 +110,47 @@ func TestWalkDir(t *testing.T) {
+ 	})
+ }
+ 
++func TestWalkDirSymlink(t *testing.T) {
++	fsys := fstest.MapFS{
++		"link":    {Data: []byte("dir"), Mode: ModeSymlink},
++		"dir/a":   {},
++		"dir/b/c": {},
++		"dir/d":   {Data: []byte("b"), Mode: ModeSymlink},
++	}
++
++	wantTypes := map[string]FileMode{
++		"link":     ModeDir,
++		"link/a":   0,
++		"link/b":   ModeDir,
++		"link/b/c": 0,
++		"link/d":   ModeSymlink,
++	}
++	marks := make(map[string]int)
++	walkFn := func(path string, entry DirEntry, err error) error {
++		marks[path]++
++		if want, ok := wantTypes[path]; !ok {
++			t.Errorf("Unexpected path %q in walk", path)
++		} else if got := entry.Type(); got != want {
++			t.Errorf("%s entry type = %v; want %v", path, got, want)
++		}
++		if err != nil {
++			t.Errorf("Walking %s: %v", path, err)
++		}
++		return nil
++	}
++
++	// Expect no errors.
++	err := WalkDir(fsys, "link", walkFn)
++	if err != nil {
++		t.Fatalf("no error expected, found: %s", err)
++	}
++	for path := range wantTypes {
++		if got := marks[path]; got != 1 {
++			t.Errorf("%s visited %d times; expected 1", path, got)
++		}
++	}
++}
++
+ func TestIssue51617(t *testing.T) {
+ 	dir := t.TempDir()
+ 	for _, sub := range []string{"a", filepath.Join("a", "bad"), filepath.Join("a", "next")} {
+diff --git a/src/os/dir.go b/src/os/dir.go
+index 939b208d8c..cc3fd602af 100644
+--- a/src/os/dir.go
++++ b/src/os/dir.go
+@@ -140,9 +140,6 @@ func ReadDir(name string) ([]DirEntry, error) {
+ // already exists in the destination, CopyFS will return an error
+ // such that errors.Is(err, fs.ErrExist) will be true.
+ //
+-// Symbolic links in fsys are not supported. A *PathError with Err set
+-// to ErrInvalid is returned when copying from a symbolic link.
+-//
+ // Symbolic links in dir are followed.
+ //
+ // New files added to fsys (including if dir is a subdirectory of fsys)
+@@ -160,35 +157,38 @@ func CopyFS(dir string, fsys fs.FS) error {
+ 			return err
+ 		}
+ 		newPath := joinPath(dir, fpath)
+-		if d.IsDir() {
+-			return MkdirAll(newPath, 0777)
+-		}
+ 
+-		// TODO(panjf2000): handle symlinks with the help of fs.ReadLinkFS
+-		// 		once https://go.dev/issue/49580 is done.
+-		//		we also need filepathlite.IsLocal from https://go.dev/cl/564295.
+-		if !d.Type().IsRegular() {
++		switch d.Type() {
++		case ModeDir:
++			return MkdirAll(newPath, 0777)
++		case ModeSymlink:
++			target, err := fs.ReadLink(fsys, path)
++			if err != nil {
++				return err
++			}
++			return Symlink(target, newPath)
++		case 0:
++			r, err := fsys.Open(path)
++			if err != nil {
++				return err
++			}
++			defer r.Close()
++			info, err := r.Stat()
++			if err != nil {
++				return err
++			}
++			w, err := OpenFile(newPath, O_CREATE|O_EXCL|O_WRONLY, 0666|info.Mode()&0777)
++			if err != nil {
++				return err
++			}
++
++			if _, err := io.Copy(w, r); err != nil {
++				w.Close()
++				return &PathError{Op: "Copy", Path: newPath, Err: err}
++			}
++			return w.Close()
++		default:
+ 			return &PathError{Op: "CopyFS", Path: path, Err: ErrInvalid}
+ 		}
+-
+-		r, err := fsys.Open(path)
+-		if err != nil {
+-			return err
+-		}
+-		defer r.Close()
+-		info, err := r.Stat()
+-		if err != nil {
+-			return err
+-		}
+-		w, err := OpenFile(newPath, O_CREATE|O_EXCL|O_WRONLY, 0666|info.Mode()&0777)
+-		if err != nil {
+-			return err
+-		}
+-
+-		if _, err := io.Copy(w, r); err != nil {
+-			w.Close()
+-			return &PathError{Op: "Copy", Path: newPath, Err: err}
+-		}
+-		return w.Close()
+ 	})
+ }
+diff --git a/src/os/file.go b/src/os/file.go
+index a5063680f9..1d4382e486 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -700,12 +700,17 @@ func (f *File) SyscallConn() (syscall.RawConn, error) {
+ //
+ // The directory dir must not be "".
+ //
+-// The result implements [io/fs.StatFS], [io/fs.ReadFileFS] and
+-// [io/fs.ReadDirFS].
++// The result implements [io/fs.StatFS], [io/fs.ReadFileFS], [io/fs.ReadDirFS], and
++// [io/fs.ReadLinkFS].
+ func DirFS(dir string) fs.FS {
+ 	return dirFS(dir)
+ }
+ 
++var _ fs.StatFS = dirFS("")
++var _ fs.ReadFileFS = dirFS("")
++var _ fs.ReadDirFS = dirFS("")
++var _ fs.ReadLinkFS = dirFS("")
++
+ type dirFS string
+ 
+ func (dir dirFS) Open(name string) (fs.File, error) {
+@@ -777,6 +782,28 @@ func (dir dirFS) Stat(name string) (fs.FileInfo, error) {
+ 	return f, nil
+ }
+ 
++func (dir dirFS) Lstat(name string) (fs.FileInfo, error) {
++	fullname, err := dir.join(name)
++	if err != nil {
++		return nil, &PathError{Op: "lstat", Path: name, Err: err}
++	}
++	f, err := Lstat(fullname)
++	if err != nil {
++		// See comment in dirFS.Open.
++		err.(*PathError).Path = name
++		return nil, err
++	}
++	return f, nil
++}
++
++func (dir dirFS) ReadLink(name string) (string, error) {
++	fullname, err := dir.join(name)
++	if err != nil {
++		return "", &PathError{Op: "readlink", Path: name, Err: err}
++	}
++	return Readlink(fullname)
++}
++
+ // join returns the path for name in dir.
+ func (dir dirFS) join(name string) (string, error) {
+ 	if dir == "" {
+diff --git a/src/os/file_test.go b/src/os/file_test.go
+new file mode 100644
+index 0000000000..f56a34da3e
+--- /dev/null
++++ b/src/os/file_test.go
+@@ -0,0 +1,156 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os_test
++
++import (
++	"internal/testenv"
++	"io/fs"
++	. "os"
++	"path/filepath"
++	"testing"
++)
++
++func TestDirFSReadLink(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	root := t.TempDir()
++	subdir := filepath.Join(root, "dir")
++	if err := Mkdir(subdir, 0o777); err != nil {
++		t.Fatal(err)
++	}
++	links := map[string]string{
++		filepath.Join(root, "parent-link"):        filepath.Join("..", "foo"),
++		filepath.Join(root, "sneaky-parent-link"): filepath.Join("dir", "..", "..", "foo"),
++		filepath.Join(root, "abs-link"):           filepath.Join(root, "foo"),
++		filepath.Join(root, "rel-link"):           "foo",
++		filepath.Join(root, "rel-sub-link"):       filepath.Join("dir", "foo"),
++		filepath.Join(subdir, "parent-link"):      filepath.Join("..", "foo"),
++	}
++	for newname, oldname := range links {
++		if err := Symlink(oldname, newname); err != nil {
++			t.Fatal(err)
++		}
++	}
++
++	fsys := DirFS(root)
++	want := map[string]string{
++		"rel-link":           "foo",
++		"rel-sub-link":       filepath.Join("dir", "foo"),
++		"dir/parent-link":    filepath.Join("..", "foo"),
++		"parent-link":        filepath.Join("..", "foo"),
++		"sneaky-parent-link": filepath.Join("dir", "..", "..", "foo"),
++		"abs-link":           filepath.Join(root, "foo"),
++	}
++	for name, want := range want {
++		got, err := fs.ReadLink(fsys, name)
++		if got != want || err != nil {
++			t.Errorf("fs.ReadLink(fsys, %q) = %q, %v; want %q, <nil>", name, got, err, want)
++		}
++	}
++}
++
++func TestDirFSLstat(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	root := t.TempDir()
++	subdir := filepath.Join(root, "dir")
++	if err := Mkdir(subdir, 0o777); err != nil {
++		t.Fatal(err)
++	}
++	if err := Symlink("dir", filepath.Join(root, "link")); err != nil {
++		t.Fatal(err)
++	}
++
++	fsys := DirFS(root)
++	want := map[string]fs.FileMode{
++		"link": fs.ModeSymlink,
++		"dir":  fs.ModeDir,
++	}
++	for name, want := range want {
++		info, err := fs.Lstat(fsys, name)
++		var got fs.FileMode
++		if info != nil {
++			got = info.Mode().Type()
++		}
++		if got != want || err != nil {
++			t.Errorf("fs.Lstat(fsys, %q).Mode().Type() = %v, %v; want %v, <nil>", name, got, err, want)
++		}
++	}
++}
++
++func TestDirFSWalkDir(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++
++	root := t.TempDir()
++	subdir := filepath.Join(root, "dir")
++	if err := Mkdir(subdir, 0o777); err != nil {
++		t.Fatal(err)
++	}
++	if err := Symlink("dir", filepath.Join(root, "link")); err != nil {
++		t.Fatal(err)
++	}
++	if err := WriteFile(filepath.Join(root, "dir", "a"), nil, 0o666); err != nil {
++		t.Fatal(err)
++	}
++	fsys := DirFS(root)
++
++	t.Run("SymlinkRoot", func(t *testing.T) {
++		wantTypes := map[string]fs.FileMode{
++			"link":   fs.ModeDir,
++			"link/a": 0,
++		}
++		marks := make(map[string]int)
++		err := fs.WalkDir(fsys, "link", func(path string, entry fs.DirEntry, err error) error {
++			marks[path]++
++			if want, ok := wantTypes[path]; !ok {
++				t.Errorf("Unexpected path %q in walk", path)
++			} else if got := entry.Type(); got != want {
++				t.Errorf("%s entry type = %v; want %v", path, got, want)
++			}
++			if err != nil {
++				t.Errorf("%s: %v", path, err)
++			}
++			return nil
++		})
++		if err != nil {
++			t.Fatal(err)
++		}
++		for path := range wantTypes {
++			if got := marks[path]; got != 1 {
++				t.Errorf("%s visited %d times; expected 1", path, got)
++			}
++		}
++	})
++
++	t.Run("SymlinkPresent", func(t *testing.T) {
++		wantTypes := map[string]fs.FileMode{
++			".":     fs.ModeDir,
++			"dir":   fs.ModeDir,
++			"dir/a": 0,
++			"link":  fs.ModeSymlink,
++		}
++		marks := make(map[string]int)
++		err := fs.WalkDir(fsys, ".", func(path string, entry fs.DirEntry, err error) error {
++			marks[path]++
++			if want, ok := wantTypes[path]; !ok {
++				t.Errorf("Unexpected path %q in walk", path)
++			} else if got := entry.Type(); got != want {
++				t.Errorf("%s entry type = %v; want %v", path, got, want)
++			}
++			if err != nil {
++				t.Errorf("%s: %v", path, err)
++			}
++			return nil
++		})
++		if err != nil {
++			t.Fatal(err)
++		}
++		for path := range wantTypes {
++			if got := marks[path]; got != 1 {
++				t.Errorf("%s visited %d times; expected 1", path, got)
++			}
++		}
++	})
++}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 1e2db94dea..6bb89f5870 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -3725,13 +3725,9 @@ func TestCopyFSWithSymlinks(t *testing.T) {
+ 		t.Fatalf("Mkdir: %v", err)
+ 	}
+ 
+-	// TODO(panjf2000): symlinks are currently not supported, and a specific error
+-	// 			will be returned. Verify that error and skip the subsequent test,
+-	//			revisit this once #49580 is closed.
+-	if err := CopyFS(tmpDupDir, fsys); !errors.Is(err, ErrInvalid) {
+-		t.Fatalf("got %v, want ErrInvalid", err)
++	if err := CopyFS(tmpDupDir, fsys); err != nil {
++		t.Fatalf("CopyFS: %v", err)
+ 	}
+-	t.Skip("skip the subsequent test and wait for #49580")
+ 
+ 	forceMFTUpdateOnWindows(t, tmpDupDir)
+ 	tmpFsys := DirFS(tmpDupDir)
+diff --git a/src/testing/fstest/mapfs.go b/src/testing/fstest/mapfs.go
+index 5e3720b0ed..5ce03985e1 100644
+--- a/src/testing/fstest/mapfs.go
++++ b/src/testing/fstest/mapfs.go
+@@ -15,7 +15,7 @@ import (
+ 
+ // A MapFS is a simple in-memory file system for use in tests,
+ // represented as a map from path names (arguments to Open)
+-// to information about the files or directories they represent.
++// to information about the files, directories, or symbolic links they represent.
+ //
+ // The map need not include parent directories for files contained
+ // in the map; those will be synthesized if needed.
+@@ -34,21 +34,27 @@ type MapFS map[string]*MapFile
+ 
+ // A MapFile describes a single file in a [MapFS].
+ type MapFile struct {
+-	Data    []byte      // file content
++	Data    []byte      // file content or symlink destination
+ 	Mode    fs.FileMode // fs.FileInfo.Mode
+ 	ModTime time.Time   // fs.FileInfo.ModTime
+ 	Sys     any         // fs.FileInfo.Sys
+ }
+ 
+ var _ fs.FS = MapFS(nil)
++var _ fs.ReadLinkFS = MapFS(nil)
+ var _ fs.File = (*openMapFile)(nil)
+ 
+-// Open opens the named file.
++// Open opens the named file after following any symbolic links.
+ func (fsys MapFS) Open(name string) (fs.File, error) {
+ 	if !fs.ValidPath(name) {
+ 		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
+ 	}
+-	file := fsys[name]
++	realName, ok := fsys.resolveSymlinks(name)
++	if !ok {
++		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
++	}
++
++	file := fsys[realName]
+ 	if file != nil && file.Mode&fs.ModeDir == 0 {
+ 		// Ordinary file
+ 		return &openMapFile{name, mapFileInfo{path.Base(name), file}, 0}, nil
+@@ -59,10 +65,8 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
+ 	// But file can also be non-nil, in case the user wants to set metadata for the directory explicitly.
+ 	// Either way, we need to construct the list of children of this directory.
+ 	var list []mapFileInfo
+-	var elem string
+ 	var need = make(map[string]bool)
+-	if name == "." {
+-		elem = "."
++	if realName == "." {
+ 		for fname, f := range fsys {
+ 			i := strings.Index(fname, "/")
+ 			if i < 0 {
+@@ -74,8 +78,7 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
+ 			}
+ 		}
+ 	} else {
+-		elem = name[strings.LastIndex(name, "/")+1:]
+-		prefix := name + "/"
++		prefix := realName + "/"
+ 		for fname, f := range fsys {
+ 			if strings.HasPrefix(fname, prefix) {
+ 				felem := fname[len(prefix):]
+@@ -107,9 +110,103 @@ func (fsys MapFS) Open(name string) (fs.File, error) {
+ 	if file == nil {
+ 		file = &MapFile{Mode: fs.ModeDir | 0555}
+ 	}
++	var elem string
++	if name == "." {
++		elem = "."
++	} else {
++		elem = name[strings.LastIndex(name, "/")+1:]
++	}
+ 	return &mapDir{name, mapFileInfo{elem, file}, list, 0}, nil
+ }
+ 
++func (fsys MapFS) resolveSymlinks(name string) (_ string, ok bool) {
++	// Fast path: if a symlink is in the map, resolve it.
++	if file := fsys[name]; file != nil && file.Mode.Type() == fs.ModeSymlink {
++		target := string(file.Data)
++		if path.IsAbs(target) {
++			return "", false
++		}
++		return fsys.resolveSymlinks(path.Join(path.Dir(name), target))
++	}
++
++	// Check if each parent directory (starting at root) is a symlink.
++	for i := 0; i < len(name); {
++		j := strings.Index(name[i:], "/")
++		var dir string
++		if j < 0 {
++			dir = name
++			i = len(name)
++		} else {
++			dir = name[:i+j]
++			i += j
++		}
++		if file := fsys[dir]; file != nil && file.Mode.Type() == fs.ModeSymlink {
++			target := string(file.Data)
++			if path.IsAbs(target) {
++				return "", false
++			}
++			return fsys.resolveSymlinks(path.Join(path.Dir(dir), target) + name[i:])
++		}
++		i += len("/")
++	}
++	return name, fs.ValidPath(name)
++}
++
++// ReadLink returns the destination of the named symbolic link.
++func (fsys MapFS) ReadLink(name string) (string, error) {
++	info, err := fsys.lstat(name)
++	if err != nil {
++		return "", &fs.PathError{Op: "readlink", Path: name, Err: err}
++	}
++	if info.f.Mode.Type() != fs.ModeSymlink {
++		return "", &fs.PathError{Op: "readlink", Path: name, Err: fs.ErrInvalid}
++	}
++	return string(info.f.Data), nil
++}
++
++// Lstat returns a FileInfo describing the named file.
++// If the file is a symbolic link, the returned FileInfo describes the symbolic link.
++// Lstat makes no attempt to follow the link.
++func (fsys MapFS) Lstat(name string) (fs.FileInfo, error) {
++	info, err := fsys.lstat(name)
++	if err != nil {
++		return nil, &fs.PathError{Op: "lstat", Path: name, Err: err}
++	}
++	return info, nil
++}
++
++func (fsys MapFS) lstat(name string) (*mapFileInfo, error) {
++	if !fs.ValidPath(name) {
++		return nil, fs.ErrNotExist
++	}
++	realDir, ok := fsys.resolveSymlinks(path.Dir(name))
++	if !ok {
++		return nil, fs.ErrNotExist
++	}
++	elem := path.Base(name)
++	realName := path.Join(realDir, elem)
++
++	file := fsys[realName]
++	if file != nil {
++		return &mapFileInfo{elem, file}, nil
++	}
++
++	if realName == "." {
++		return &mapFileInfo{elem, &MapFile{Mode: fs.ModeDir | 0555}}, nil
++	}
++	// Maybe a directory.
++	prefix := realName + "/"
++	for fname := range fsys {
++		if strings.HasPrefix(fname, prefix) {
++			return &mapFileInfo{elem, &MapFile{Mode: fs.ModeDir | 0555}}, nil
++		}
++	}
++	// If the directory name is not in the map,
++	// and there are no children of the name in the map,
++	// then the directory is treated as not existing.
++	return nil, fs.ErrNotExist
++}
++
+ // fsOnly is a wrapper that hides all but the fs.FS methods,
+ // to avoid an infinite recursion when implementing special
+ // methods in terms of helpers that would use them.
+diff --git a/src/testing/fstest/mapfs_test.go b/src/testing/fstest/mapfs_test.go
+index 6381a2e56c..e7ff4180ec 100644
+--- a/src/testing/fstest/mapfs_test.go
++++ b/src/testing/fstest/mapfs_test.go
+@@ -57,3 +57,69 @@ func TestMapFSFileInfoName(t *testing.T) {
+ 		t.Errorf("MapFS FileInfo.Name want:\n%s\ngot:\n%s\n", want, got)
+ 	}
+ }
++
++func TestMapFSSymlink(t *testing.T) {
++	const fileContent = "If a program is too slow, it must have a loop.\n"
++	m := MapFS{
++		"fortune/k/ken.txt": {Data: []byte(fileContent)},
++		"dirlink":           {Data: []byte("fortune/k"), Mode: fs.ModeSymlink},
++		"linklink":          {Data: []byte("dirlink"), Mode: fs.ModeSymlink},
++		"ken.txt":           {Data: []byte("dirlink/ken.txt"), Mode: fs.ModeSymlink},
++	}
++	if err := TestFS(m, "fortune/k/ken.txt", "dirlink", "ken.txt", "linklink"); err != nil {
++		t.Error(err)
++	}
++
++	gotData, err := fs.ReadFile(m, "ken.txt")
++	if string(gotData) != fileContent || err != nil {
++		t.Errorf("fs.ReadFile(m, \"ken.txt\") = %q, %v; want %q, <nil>", gotData, err, fileContent)
++	}
++	gotLink, err := fs.ReadLink(m, "dirlink")
++	if want := "fortune/k"; gotLink != want || err != nil {
++		t.Errorf("fs.ReadLink(m, \"dirlink\") = %q, %v; want %q, <nil>", gotLink, err, fileContent)
++	}
++	gotInfo, err := fs.Lstat(m, "dirlink")
++	if err != nil {
++		t.Errorf("fs.Lstat(m, \"dirlink\") = _, %v; want _, <nil>", err)
++	} else {
++		if got, want := gotInfo.Name(), "dirlink"; got != want {
++			t.Errorf("fs.Lstat(m, \"dirlink\").Name() = %q; want %q", got, want)
++		}
++		if got, want := gotInfo.Mode(), fs.ModeSymlink; got != want {
++			t.Errorf("fs.Lstat(m, \"dirlink\").Mode() = %v; want %v", got, want)
++		}
++	}
++	gotInfo, err = fs.Stat(m, "dirlink")
++	if err != nil {
++		t.Errorf("fs.Stat(m, \"dirlink\") = _, %v; want _, <nil>", err)
++	} else {
++		if got, want := gotInfo.Name(), "dirlink"; got != want {
++			t.Errorf("fs.Stat(m, \"dirlink\").Name() = %q; want %q", got, want)
++		}
++		if got, want := gotInfo.Mode(), fs.ModeDir|0555; got != want {
++			t.Errorf("fs.Stat(m, \"dirlink\").Mode() = %v; want %v", got, want)
++		}
++	}
++	gotInfo, err = fs.Lstat(m, "linklink")
++	if err != nil {
++		t.Errorf("fs.Lstat(m, \"linklink\") = _, %v; want _, <nil>", err)
++	} else {
++		if got, want := gotInfo.Name(), "linklink"; got != want {
++			t.Errorf("fs.Lstat(m, \"linklink\").Name() = %q; want %q", got, want)
++		}
++		if got, want := gotInfo.Mode(), fs.ModeSymlink; got != want {
++			t.Errorf("fs.Lstat(m, \"linklink\").Mode() = %v; want %v", got, want)
++		}
++	}
++	gotInfo, err = fs.Stat(m, "linklink")
++	if err != nil {
++		t.Errorf("fs.Stat(m, \"linklink\") = _, %v; want _, <nil>", err)
++	} else {
++		if got, want := gotInfo.Name(), "linklink"; got != want {
++			t.Errorf("fs.Stat(m, \"linklink\").Name() = %q; want %q", got, want)
++		}
++		if got, want := gotInfo.Mode(), fs.ModeDir|0555; got != want {
++			t.Errorf("fs.Stat(m, \"linklink\").Mode() = %v; want %v", got, want)
++		}
++	}
++}
+diff --git a/src/testing/fstest/testfs.go b/src/testing/fstest/testfs.go
+index affdfa6429..1fb84b8928 100644
+--- a/src/testing/fstest/testfs.go
++++ b/src/testing/fstest/testfs.go
+@@ -20,6 +20,9 @@ import (
+ // TestFS tests a file system implementation.
+ // It walks the entire tree of files in fsys,
+ // opening and checking that each file behaves correctly.
++// Symbolic links are not followed,
++// but their Lstat values are checked
++// if the file system implements [fs.ReadLinkFS].
+ // It also checks that the file system contains at least the expected files.
+ // As a special case, if no expected files are listed, fsys must be empty.
+ // Otherwise, fsys must contain at least the listed files; it can also contain others.
+@@ -156,9 +159,14 @@ func (t *fsTester) checkDir(dir string) {
+ 		path := prefix + name
+ 		t.checkStat(path, info)
+ 		t.checkOpen(path)
+-		if info.IsDir() {
++		switch info.Type() {
++		case fs.ModeDir:
+ 			t.checkDir(path)
+-		} else {
++		case fs.ModeSymlink:
++			// No further processing.
++			// Avoid following symlinks to avoid potentially unbounded recursion.
++			t.files = append(t.files, path)
++		default:
+ 			t.checkFile(path)
+ 		}
+ 	}
+@@ -440,6 +448,23 @@ func (t *fsTester) checkStat(path string, entry fs.DirEntry) {
+ 			t.errorf("%s: fsys.Stat(...) = %s\n\twant %s", path, finfo2, finfo)
+ 		}
+ 	}
++
++	if fsys, ok := t.fsys.(fs.ReadLinkFS); ok {
++		info2, err := fsys.Lstat(path)
++		if err != nil {
++			t.errorf("%s: fsys.Lstat: %v", path, err)
++			return
++		}
++		fientry2 := formatInfoEntry(info2)
++		if fentry != fientry2 {
++			t.errorf("%s: mismatch:\n\tentry = %s\n\tfsys.Lstat(...) = %s", path, fentry, fientry2)
++		}
++		feinfo := formatInfo(einfo)
++		finfo2 := formatInfo(info2)
++		if feinfo != finfo2 {
++			t.errorf("%s: mismatch:\n\tentry.Info() = %s\n\tfsys.Lstat(...) = %s\n", path, feinfo, finfo2)
++		}
++	}
+ }
+ 
+ // checkDirList checks that two directory lists contain the same files and file info.
+diff --git a/src/testing/fstest/testfs_test.go b/src/testing/fstest/testfs_test.go
+index 2ef1053a01..d6d6d89b89 100644
+--- a/src/testing/fstest/testfs_test.go
++++ b/src/testing/fstest/testfs_test.go
+@@ -28,6 +28,9 @@ func TestSymlink(t *testing.T) {
+ 	if err := os.Symlink(filepath.Join(tmp, "hello"), filepath.Join(tmp, "hello.link")); err != nil {
+ 		t.Fatal(err)
+ 	}
++	if err := os.Symlink("hello", filepath.Join(tmp, "hello_rel.link")); err != nil {
++		t.Fatal(err)
++	}
+ 
+ 	if err := TestFS(tmpfs, "hello", "hello.link"); err != nil {
+ 		t.Fatal(err)

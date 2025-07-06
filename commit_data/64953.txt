@@ -1,0 +1,126 @@
+commit c7f70433d9110e0f2be9be025545a9eeaa6b5dbc
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Sep 30 16:29:40 2024 +0000
+
+    go/ast: update (*File).Imports field in SortImports
+    
+    Fixes #69694
+    
+    Change-Id: I7884d42482f4f9d17e7d050d7c7730f20948169d
+    GitHub-Last-Rev: ecd6efabaa43cc87e31e94002febc9ed4273125a
+    GitHub-Pull-Request: golang/go#69695
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616340
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/go/ast/import.go                          | 10 ++++
+ src/go/ast/internal/tests/sortimports_test.go | 78 +++++++++++++++++++++++++++
+ 2 files changed, 88 insertions(+)
+
+diff --git a/src/go/ast/import.go b/src/go/ast/import.go
+index 17f0db470f..00f44ee338 100644
+--- a/src/go/ast/import.go
++++ b/src/go/ast/import.go
+@@ -51,6 +51,16 @@ func SortImports(fset *token.FileSet, f *File) {
+ 			}
+ 		}
+ 	}
++
++	// Make File.Imports order consistent.
++	f.Imports = f.Imports[:0]
++	for _, decl := range f.Decls {
++		if decl, ok := decl.(*GenDecl); ok && decl.Tok == token.IMPORT {
++			for _, spec := range decl.Specs {
++				f.Imports = append(f.Imports, spec.(*ImportSpec))
++			}
++		}
++	}
+ }
+ 
+ func lineAt(fset *token.FileSet, pos token.Pos) int {
+diff --git a/src/go/ast/internal/tests/sortimports_test.go b/src/go/ast/internal/tests/sortimports_test.go
+new file mode 100644
+index 0000000000..983de78384
+--- /dev/null
++++ b/src/go/ast/internal/tests/sortimports_test.go
+@@ -0,0 +1,78 @@
++// Tests is a helper package to avoid cyclic dependency between go/ast and go/parser.
++package tests
++
++import (
++	"go/ast"
++	"go/parser"
++	"go/token"
++	"testing"
++)
++
++func TestSortImportsUpdatesFileImportsField(t *testing.T) {
++	t.Run("one import statement", func(t *testing.T) {
++		const src = `package test
++
++import (
++	"test"
++	"test" // test comment
++)
++`
++
++		fset := token.NewFileSet()
++		f, err := parser.ParseFile(fset, "test.go", src, parser.ParseComments|parser.SkipObjectResolution)
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		ast.SortImports(fset, f)
++
++		// Check that the duplicate import spec is eliminated.
++		importDeclSpecCount := len(f.Decls[0].(*ast.GenDecl).Specs)
++		if importDeclSpecCount != 1 {
++			t.Fatalf("len(f.Decls[0].(*ast.GenDecl).Specs) = %v; want = 1", importDeclSpecCount)
++		}
++
++		// Check that File.Imports is consistent.
++		if len(f.Imports) != 1 {
++			t.Fatalf("len(f.Imports) = %v; want = 1", len(f.Imports))
++		}
++	})
++
++	t.Run("multiple import statements", func(t *testing.T) {
++		const src = `package test
++
++import "unsafe"
++
++import (
++	"package"
++	"package"
++)
++
++import (
++	"test"
++	"test"
++)
++`
++
++		fset := token.NewFileSet()
++		f, err := parser.ParseFile(fset, "test.go", src, parser.ParseComments|parser.SkipObjectResolution)
++		if err != nil {
++			t.Fatal(err)
++		}
++
++		ast.SortImports(fset, f)
++
++		// Check that three single-spec import decls remain.
++		for i := range 3 {
++			importDeclSpecCount := len(f.Decls[i].(*ast.GenDecl).Specs)
++			if importDeclSpecCount != 1 {
++				t.Fatalf("len(f.Decls[%v].(*ast.GenDecl).Specs) = %v; want = 1", i, importDeclSpecCount)
++			}
++		}
++
++		// Check that File.Imports is consistent.
++		if len(f.Imports) != 3 {
++			t.Fatalf("len(f.Imports) = %v; want = 3", len(f.Imports))
++		}
++	})
++}

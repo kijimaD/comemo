@@ -1,0 +1,190 @@
+commit da0e8c4517178f545ee78b11e3d91e1daa7ce07a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Jun 3 21:35:20 2025 +0700
+
+    cmd/compile: relax reshaping condition
+    
+    CL 641955 changes the Unified IR reader to not doing shapify when
+    reading reshaping expression. However, this condition only matters with
+    pointer type shaping, which will lose the original type, causes the
+    reshaping ends up with a completely different type.
+    
+    This CL relaxes the condition, always allow non-pointer types shaping.
+    
+    Updates #71184
+    Fixes #73947
+    
+    Change-Id: Ib0bafd8932c52d99266f311b6cbfc75c00383f9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/678335
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/cmd/compile/internal/noder/reader.go       |  20 +++-
+ src/cmd/compile/testdata/script/issue73947.txt | 125 +++++++++++++++++++++++++
+ 2 files changed, 144 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 2c3f7161a8..38b0bc1d8a 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1014,7 +1014,25 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits
+ 	// arguments.
+ 	for i, targ := range dict.targs {
+ 		basic := r.Bool()
+-		if dict.shaped && !pr.reshaping {
++		isPointerShape := basic && targ.IsPtr() && !targ.Elem().NotInHeap()
++		// We should not do shapify during the reshaping process, see #71184.
++		// However, this only matters for shapify a pointer type, which will
++		// lose the original underlying type.
++		//
++		// Example with a pointer type:
++		//
++		// - First, shapifying *[]T -> *uint8
++		// - During the reshaping process, *uint8 is shapified to *go.shape.uint8
++		// - This ends up with a different type with the original *[]T
++		//
++		// For a non-pointer type:
++		//
++		// - int -> go.shape.int
++		// - go.shape.int -> go.shape.int
++		//
++		// We always end up with the identical type.
++		canShapify := !pr.reshaping || !isPointerShape
++		if dict.shaped && canShapify {
+ 			dict.targs[i] = shapify(targ, basic)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/testdata/script/issue73947.txt b/src/cmd/compile/testdata/script/issue73947.txt
+new file mode 100644
+index 0000000000..f888ae2bfa
+--- /dev/null
++++ b/src/cmd/compile/testdata/script/issue73947.txt
+@@ -0,0 +1,125 @@
++go build main.go
++! stdout .
++! stderr .
++
++-- main.go --
++
++package main
++
++import (
++	"p/b"
++)
++
++func main() {
++	f()
++}
++
++func f() {
++	typ := indexedPageType{newIndexedType(nil)}
++	page := newPage(typ.indexedType)
++	page.Data()
++}
++
++func newPage(typ *indexedType) Page {
++	values := typ.NewValues(nil, nil)
++	return &indexedPage{
++		typ:         typ,
++		values:      values.Int32(),
++		columnIndex: ^0,
++	}
++}
++
++type Type interface {
++	NewPage(columnIndex, numValues int, data b.Values) Page
++	NewValues(values []byte, offsets []uint32) b.Values
++}
++
++type Page interface {
++	Type() Type
++	Data() b.Values
++}
++
++type indexedPage struct {
++	typ         *indexedType
++	values      []int32
++	columnIndex int16
++}
++
++func (page *indexedPage) Type() Type { return indexedPageType{page.typ} }
++
++func (page *indexedPage) Data() b.Values { return b.Int32Values(page.values) }
++
++type indexedType struct {
++	Type
++}
++
++func newIndexedType(typ Type) *indexedType {
++	return &indexedType{Type: typ}
++}
++
++type indexedPageType struct{ *indexedType }
++
++func (t indexedPageType) NewValues(values []byte, _ []uint32) b.Values {
++	return b.Int32ValuesFromBytes(values)
++}
++
++-- go.mod --
++module p
++
++go 1.24
++
++-- internal/a/a.go --
++package a
++
++import "unsafe"
++
++type slice struct {
++	ptr unsafe.Pointer
++	len int
++	cap int
++}
++
++func Slice[To, From any](data []From) []To {
++	// This function could use unsafe.Slice but it would drop the capacity
++	// information, so instead we implement the type conversion.
++	var zf From
++	var zt To
++	var s = slice{
++		ptr: unsafe.Pointer(unsafe.SliceData(data)),
++		len: int((uintptr(len(data)) * unsafe.Sizeof(zf)) / unsafe.Sizeof(zt)),
++		cap: int((uintptr(cap(data)) * unsafe.Sizeof(zf)) / unsafe.Sizeof(zt)),
++	}
++	return *(*[]To)(unsafe.Pointer(&s))
++}
++
++-- b/b.go --
++package b
++
++import "p/internal/a"
++
++type Kind int32
++
++const Int32 Kind = iota + 2
++
++type Values struct {
++	kind    Kind
++	size    int32
++	data    []byte
++	offsets []uint32
++}
++
++func (v *Values) Int32() []int32 {
++	return a.Slice[int32](v.data)
++}
++
++func makeValues[T any](kind Kind, values []T) Values {
++	return Values{kind: kind, data: a.Slice[byte](values)}
++}
++
++func Int32Values(values []int32) Values {
++	return makeValues(Int32, values)
++}
++
++func Int32ValuesFromBytes(values []byte) Values {
++	return Values{kind: Int32, data: values}
++}

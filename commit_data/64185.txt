@@ -1,0 +1,25 @@
+commit 12e9b968bc8890b072b98facbd079ca337bd33a0
+Author: Gopher Robot <gobot@golang.org>
+Date:   Tue Jul 2 18:19:15 2024 +0000
+
+    [release-branch.go1.21] go1.21.12
+    
+    Change-Id: I5d0af46471907bc3d28f18348bb208689e4d9949
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index 1194c3f295..8857359e6f 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.21.11
+-time 2024-05-30T19:26:07Z
++go1.21.12
++time 2024-06-27T20:11:12Z

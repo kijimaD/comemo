@@ -1,0 +1,70 @@
+commit f849225b3b747627939aa1c3604336638d78bc38
+Merge: 9eeb1e7a9a 740857f529
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 30 15:10:56 2025 -0400
+
+    [dev.simd] all: merge master (740857f) into dev.simd
+    
+    Merge List:
+    
+    + 2025-06-30 740857f529 runtime: stash allpSnapshot on the M
+    + 2025-06-30 9ae38be302 sync: disassociate WaitGroups from bubbles on Wait
+    + 2025-06-30 4731832342 crypto/hmac: wrap ErrUnsupported returned by Clone
+    + 2025-06-30 03ad694dcb runtime: update skips for TestGdbBacktrace
+    + 2025-06-30 9d1cd0b881 iter: add missing type parameter in doc
+    + 2025-06-29 acb914f2c2 cmd/doc: fix -http on Windows
+    + 2025-06-27 b51f1cdb87 runtime: remove arbitrary 5-second timeout in TestNeedmDeadlock
+    + 2025-06-27 f1e6ae2f6f reflect: fix TypeAssert on nil interface values
+    + 2025-06-27 e81c624656 os: use minimal file permissions when opening parent directory in RemoveAll
+    + 2025-06-27 2a22aefa1f encoding/json: add security section to doc
+    + 2025-06-27 742fda9524 runtime: account for missing frame pointer in preamble
+    + 2025-06-27 fdc076ce76 net/http: fix RoundTrip context cancellation for js/wasm
+    + 2025-06-27 d9d2cadd63 encoding/json: fix typo in hotlink for jsontext.PreserveRawStrings
+    + 2025-06-26 0f8ab2db17 cmd/link: permit a larger size BSS reference to a smaller DATA symbol
+    + 2025-06-26 988a20c8c5 cmd/compile/internal/escape: evaluate any side effects when rewriting with literals
+    + 2025-06-25 b5d555991a encoding/json/jsontext: remove Encoder.UnusedBuffer
+    + 2025-06-25 0b4d2eab2f encoding/json/jsontext: rename Encoder.UnusedBuffer as Encoder.AvailableBuffer
+    
+    Change-Id: Iea44ab825bdf087fbe7570df8d2d66d1d3327c31
+
+ src/cmd/cgo/internal/testsanitizers/asan_test.go   |  2 +
+ src/cmd/cgo/internal/testsanitizers/cc_test.go     |  2 +-
+ .../testsanitizers/testdata/asan_global_asm/asm.s  |  8 +++
+ .../testdata/asan_global_asm/main.go               | 11 ++++
+ .../testdata/asan_global_asm2_fail/asm.s           |  8 +++
+ .../testdata/asan_global_asm2_fail/main.go         | 20 ++++++
+ src/cmd/compile/internal/escape/escape.go          | 28 ++++++---
+ src/cmd/go/alldocs.go                              | 44 +++++++------
+ src/cmd/go/internal/doc/doc.go                     |  4 ++
+ src/cmd/internal/doc/main.go                       | 12 +++-
+ src/cmd/link/internal/loader/loader.go             | 41 +++++++++---
+ src/crypto/hmac/hmac_test.go                       | 13 ++++
+ src/crypto/internal/fips140/hmac/hmac.go           | 20 ++++--
+ src/encoding/json/decode.go                        | 13 ++--
+ src/encoding/json/encode.go                        | 38 +++++++++++-
+ src/encoding/json/jsontext/encode.go               | 20 +++---
+ src/encoding/json/v2/arshal_inlined.go             |  2 +-
+ src/encoding/json/v2_decode.go                     |  2 +-
+ src/encoding/json/v2_options.go                    |  2 +-
+ src/hash/hash.go                                   |  7 ++-
+ src/internal/synctest/synctest_test.go             | 33 +++++++---
+ src/internal/trace/testdata/testprog/stacks.go     | 14 +++++
+ src/internal/trace/trace_test.go                   | 15 +++--
+ src/iter/iter.go                                   |  2 +-
+ src/net/http/roundtrip_js.go                       |  8 +++
+ src/os/removeall_at.go                             | 11 +++-
+ src/reflect/all_test.go                            |  5 ++
+ src/reflect/value.go                               | 72 +++++++++++-----------
+ src/runtime/proc.go                                | 45 +++++++++++++-
+ src/runtime/runtime-gdb_test.go                    |  3 +-
+ src/runtime/runtime2.go                            |  2 +
+ src/runtime/stack.go                               |  3 +
+ src/runtime/testdata/testprogcgo/needmdeadlock.go  | 10 +--
+ src/runtime/traceruntime.go                        |  2 +-
+ src/runtime/tracestack.go                          | 17 ++++-
+ src/sync/waitgroup.go                              | 21 ++++---
+ test/fixedbugs/issue74379.go                       | 30 +++++++++
+ test/fixedbugs/issue74379b.go                      | 32 ++++++++++
+ test/fixedbugs/issue74379c.go                      | 54 ++++++++++++++++
+ 39 files changed, 537 insertions(+), 139 deletions(-)
+

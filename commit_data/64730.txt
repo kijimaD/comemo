@@ -1,0 +1,50 @@
+commit 2707d42966f8985a6663c93e943b9a44b9399fca
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Mon Sep 2 17:36:12 2024 +0800
+
+    runtime: use regabi for riscv64 cputicks
+    
+    goos: linux
+    goarch: riscv64
+    pkg: runtime
+    cpu: Spacemit(R) X60
+                         │ select.old.log │           select.new.log           │
+                         │     sec/op     │   sec/op     vs base               │
+    SelectUncontended         490.5n ± 0%   486.8n ± 0%  -0.77% (p=0.000 n=10)
+    SelectSyncContended       2.754µ ± 0%   2.726µ ± 0%  -1.02% (p=0.000 n=10)
+    SelectAsyncContended      488.2n ± 0%   484.2n ± 0%  -0.84% (p=0.000 n=10)
+    SelectNonblock            112.2n ± 0%   111.5n ± 0%  -0.58% (p=0.000 n=10)
+    SelectProdCons            1.420µ ± 0%   1.417µ ± 0%       ~ (p=0.069 n=10)
+    GoroutineSelect           10.79m ± 3%   10.74m ± 3%       ~ (p=0.529 n=10)
+    geomean                   3.228µ        3.208µ       -0.63%
+    
+    Change-Id: Idb519ef8b2872284dca6dbf1cf94c3fff65bfd37
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610095
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/asm_riscv64.s | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 491635b1cf..ef654a3a22 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -80,12 +80,11 @@ TEXT setg_gcc<>(SB),NOSPLIT,$0-0
+ 	RET
+ 
+ // func cputicks() int64
+-TEXT runtime·cputicks(SB),NOSPLIT,$0-8
++TEXT runtime·cputicks<ABIInternal>(SB),NOSPLIT,$0-0
+ 	// RDTIME to emulate cpu ticks
+ 	// RDCYCLE reads counter that is per HART(core) based
+ 	// according to the riscv manual, see issue 46737
+-	RDTIME	A0
+-	MOV	A0, ret+0(FP)
++	RDTIME	X10
+ 	RET
+ 
+ // systemstack_switch is a dummy routine that systemstack leaves at the bottom

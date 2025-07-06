@@ -1,0 +1,134 @@
+commit d4b0bd28eef0a212930fb196230171a9f11e5ec4
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 8 17:17:15 2024 -0800
+
+    internal/runtime/maps: don't copy indirect key/elem when growing maps
+    
+    We can reuse the same indirect storage when growing, so we don't
+    need an additional allocation.
+    
+    Change-Id: I57adb406becfbec648188ec66f4bb2e94d4b9cab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625902
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/internal/runtime/maps/map.go   |  8 +------
+ src/internal/runtime/maps/table.go | 49 ++++++++++++++++----------------------
+ 2 files changed, 21 insertions(+), 36 deletions(-)
+
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 969da13432..ffafcacdea 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -621,13 +621,7 @@ func (m *Map) growToTable(typ *abi.SwissMapType) {
+ 
+ 		hash := typ.Hasher(key, m.seed)
+ 
+-		// TODO(prattmic): For indirect key/elem, this is
+-		// allocating new objects for key/elem. That is
+-		// unnecessary; the new table could simply point to the
+-		// existing object.
+-		slotElem := tab.uncheckedPutSlot(typ, hash, key)
+-		typedmemmove(typ.Elem, slotElem, elem)
+-		tab.used++
++		tab.uncheckedPutSlot(typ, hash, key, elem)
+ 	}
+ 
+ 	directory := make([]*table, 1)
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index 80745e9a72..a4eb6695bc 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -357,20 +357,23 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
+ 	}
+ }
+ 
+-// uncheckedPutSlot inserts an entry known not to be in the table, returning an
+-// entry to the element slot where the element should be written. Used by
+-// PutSlot after it has failed to find an existing entry to overwrite duration
+-// insertion.
++// uncheckedPutSlot inserts an entry known not to be in the table.
++// This is used for grow/split where we are making a new table from
++// entries in an existing table.
+ //
+-// Updates growthLeft if necessary, but does not update used.
++// Decrements growthLeft and increments used.
+ //
+ // Requires that the entry does not exist in the table, and that the table has
+ // room for another element without rehashing.
+ //
+ // Requires that there are no deleted entries in the table.
+ //
+-// Never returns nil.
+-func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
++// For indirect keys and/or elements, the key and elem pointers can be
++// put directly into the map, they do not need to be copied. This
++// requires the caller to ensure that the referenced memory never
++// changes (by sourcing those pointers from another indirect key/elem
++// map).
++func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key, elem unsafe.Pointer) {
+ 	if t.growthLeft == 0 {
+ 		panic("invariant failed: growthLeft is unexpectedly 0")
+ 	}
+@@ -389,22 +392,22 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe
+ 
+ 			slotKey := g.key(typ, i)
+ 			if typ.IndirectKey() {
+-				kmem := newobject(typ.Key)
+-				*(*unsafe.Pointer)(slotKey) = kmem
+-				slotKey = kmem
++				*(*unsafe.Pointer)(slotKey) = key
++			} else {
++				typedmemmove(typ.Key, slotKey, key)
+ 			}
+-			typedmemmove(typ.Key, slotKey, key)
+ 
+ 			slotElem := g.elem(typ, i)
+ 			if typ.IndirectElem() {
+-				emem := newobject(typ.Elem)
+-				*(*unsafe.Pointer)(slotElem) = emem
+-				slotElem = emem
++				*(*unsafe.Pointer)(slotElem) = elem
++			} else {
++				typedmemmove(typ.Elem, slotElem, elem)
+ 			}
+ 
+ 			t.growthLeft--
++			t.used++
+ 			g.ctrls().set(i, ctrl(h2(hash)))
+-			return slotElem
++			return
+ 		}
+ 	}
+ }
+@@ -1073,13 +1076,7 @@ func (t *table) split(typ *abi.SwissMapType, m *Map) {
+ 			} else {
+ 				newTable = right
+ 			}
+-			// TODO(prattmic): For indirect key/elem, this is
+-			// allocating new objects for key/elem. That is
+-			// unnecessary; the new table could simply point to the
+-			// existing object.
+-			slotElem := newTable.uncheckedPutSlot(typ, hash, key)
+-			typedmemmove(typ.Elem, slotElem, elem)
+-			newTable.used++
++			newTable.uncheckedPutSlot(typ, hash, key, elem)
+ 		}
+ 	}
+ 
+@@ -1115,13 +1112,7 @@ func (t *table) grow(typ *abi.SwissMapType, m *Map, newCapacity uint16) {
+ 
+ 				hash := typ.Hasher(key, m.seed)
+ 
+-				// TODO(prattmic): For indirect key/elem, this is
+-				// allocating new objects for key/elem. That is
+-				// unnecessary; the new table could simply point to the
+-				// existing object.
+-				slotElem := newTable.uncheckedPutSlot(typ, hash, key)
+-				typedmemmove(typ.Elem, slotElem, elem)
+-				newTable.used++
++				newTable.uncheckedPutSlot(typ, hash, key, elem)
+ 			}
+ 		}
+ 	}

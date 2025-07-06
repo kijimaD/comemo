@@ -1,0 +1,110 @@
+commit 07a121383c52fc2edb96d4d58d1dd600bc3e7dfd
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Wed Feb 19 22:35:48 2025 +0000
+
+    go/*: use go/types.Func.Signature and go/ast.Preorder
+    
+    In the few obvious candidates that I found after a bit of grepping.
+    
+    Change-Id: I36af79c46d29e4422bce1f43bbbac9db7de2001a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650656
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/api/main_test.go                        |  4 ++--
+ src/go/doc/example.go                           | 11 ++++-------
+ src/go/internal/gcimporter/gcimporter_test.go   |  2 +-
+ src/go/internal/gcimporter/ureader.go           |  2 +-
+ src/go/internal/srcimporter/srcimporter_test.go |  2 +-
+ 5 files changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/api/main_test.go b/src/cmd/api/main_test.go
+index a0820c2274..ed366be4e7 100644
+--- a/src/cmd/api/main_test.go
++++ b/src/cmd/api/main_test.go
+@@ -1058,7 +1058,7 @@ func (w *Walker) emitIfaceType(name string, typ *types.Interface) {
+ 		if w.isDeprecated(m) {
+ 			w.emitf("%s //deprecated", m.Name())
+ 		}
+-		w.emitf("%s%s", m.Name(), w.signatureString(m.Type().(*types.Signature)))
++		w.emitf("%s%s", m.Name(), w.signatureString(m.Signature()))
+ 	}
+ 
+ 	if !complete {
+@@ -1088,7 +1088,7 @@ func (w *Walker) emitIfaceType(name string, typ *types.Interface) {
+ }
+ 
+ func (w *Walker) emitFunc(f *types.Func) {
+-	sig := f.Type().(*types.Signature)
++	sig := f.Signature()
+ 	if sig.Recv() != nil {
+ 		panic("method considered a regular function: " + f.String())
+ 	}
+diff --git a/src/go/doc/example.go b/src/go/doc/example.go
+index 7a8c26291d..5c03c6612f 100644
+--- a/src/go/doc/example.go
++++ b/src/go/doc/example.go
+@@ -491,17 +491,14 @@ func findDeclsAndUnresolved(body ast.Node, topDecls map[*ast.Object]ast.Decl, ty
+ }
+ 
+ func hasIota(s ast.Spec) bool {
+-	has := false
+-	ast.Inspect(s, func(n ast.Node) bool {
++	for n := range ast.Preorder(s) {
+ 		// Check that this is the special built-in "iota" identifier, not
+ 		// a user-defined shadow.
+ 		if id, ok := n.(*ast.Ident); ok && id.Name == "iota" && id.Obj == nil {
+-			has = true
+-			return false
++			return true
+ 		}
+-		return true
+-	})
+-	return has
++	}
++	return false
+ }
+ 
+ // findImportGroupStarts finds the start positions of each sequence of import
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index b92c9c9c96..caf2d6f8e3 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -472,7 +472,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
+ 	// check explicitly declared methods
+ 	for i := 0; i < iface.NumExplicitMethods(); i++ {
+ 		m := iface.ExplicitMethod(i)
+-		recv := m.Type().(*types.Signature).Recv()
++		recv := m.Signature().Recv()
+ 		if recv == nil {
+ 			t.Errorf("%s: missing receiver type", m)
+ 			continue
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 88f27641c9..3432f08d85 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -525,7 +525,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 				methods := make([]*types.Func, iface.NumExplicitMethods())
+ 				for i := range methods {
+ 					fn := iface.ExplicitMethod(i)
+-					sig := fn.Type().(*types.Signature)
++					sig := fn.Signature()
+ 
+ 					recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
+ 					methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
+diff --git a/src/go/internal/srcimporter/srcimporter_test.go b/src/go/internal/srcimporter/srcimporter_test.go
+index 87dfdc75bb..5adb8831a9 100644
+--- a/src/go/internal/srcimporter/srcimporter_test.go
++++ b/src/go/internal/srcimporter/srcimporter_test.go
+@@ -157,7 +157,7 @@ func verifyInterfaceMethodRecvs(t *testing.T, named *types.Named, level int) {
+ 	// check explicitly declared methods
+ 	for i := 0; i < iface.NumExplicitMethods(); i++ {
+ 		m := iface.ExplicitMethod(i)
+-		recv := m.Type().(*types.Signature).Recv()
++		recv := m.Signature().Recv()
+ 		if recv == nil {
+ 			t.Errorf("%s: missing receiver type", m)
+ 			continue

@@ -1,0 +1,49 @@
+commit 72e2220b50db5179ddca2226a64bf1d3aa94f49a
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Jun 18 23:43:21 2024 +0800
+
+    encoding/json: clarify the map's key type for Unmarshal
+    
+    While here, also fix doc link for encoding.TextMarshaler.
+    
+    Fixes #67495
+    
+    Change-Id: Ia2a674c5c35b5a849ce8f5eef3d34d165b3195b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593335
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/encoding/json/decode.go | 3 +--
+ src/encoding/json/encode.go | 2 +-
+ 2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index efceecdf82..f8205704e3 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -73,8 +73,7 @@ import (
+ // use. If the map is nil, Unmarshal allocates a new map. Otherwise Unmarshal
+ // reuses the existing map, keeping existing entries. Unmarshal then stores
+ // key-value pairs from the JSON object into the map. The map's key type must
+-// either be any string type, an integer, implement [json.Unmarshaler], or
+-// implement [encoding.TextUnmarshaler].
++// either be any string type, an integer, or implement [encoding.TextUnmarshaler].
+ //
+ // If the JSON-encoded data contain a syntax error, Unmarshal returns a [SyntaxError].
+ //
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index cb28feb279..7bee1a6805 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -141,7 +141,7 @@ import (
+ // are sorted and used as JSON object keys by applying the following rules,
+ // subject to the UTF-8 coercion described for string values above:
+ //   - keys of any string type are used directly
+-//   - [encoding.TextMarshalers] are marshaled
++//   - keys that implement [encoding.TextMarshaler] are marshaled
+ //   - integer keys are converted to strings
+ //
+ // Pointer values encode as the value pointed to.

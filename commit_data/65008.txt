@@ -1,0 +1,511 @@
+commit dd6b3821ca4ffec1ae074e60f5a990835b976662
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Aug 25 13:55:59 2024 +0200
+
+    crypto/rand: use arc4random_buf() on OpenBSD
+    
+    OpenBSD system calls are mediated by libc anyway, and arc4random_buf()
+    is the preferred mechanism to obtain random bytes.
+    
+    Also, rename NetBSD's function to reflect it's not actually calling
+    getentropy(3).
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-openbsd-amd64
+    Change-Id: Id1f3f7af16750537e2420bcf44b086de5854198c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608395
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/rand/rand.go                            |  3 +--
+ .../rand/{rand_darwin.go => rand_arc4random.go}    |  2 ++
+ .../rand/{rand_getentropy.go => rand_netbsd.go}    |  8 +++----
+ .../{getentropy_netbsd.go => arandom_netbsd.go}    |  4 +---
+ src/internal/syscall/unix/arc4random_openbsd.go    | 23 ++++++++++++++++++++
+ src/internal/syscall/unix/asm_openbsd.s            |  2 ++
+ src/internal/syscall/unix/getentropy_openbsd.go    | 18 ----------------
+ .../syscall/unix/getentropy_openbsd_mips64.go      | 25 ----------------------
+ src/syscall/linkname_openbsd.go                    |  1 -
+ src/syscall/syscall_openbsd_libc.go                |  1 -
+ src/syscall/zsyscall_openbsd_386.go                | 20 -----------------
+ src/syscall/zsyscall_openbsd_386.s                 |  2 --
+ src/syscall/zsyscall_openbsd_amd64.go              | 20 -----------------
+ src/syscall/zsyscall_openbsd_amd64.s               |  2 --
+ src/syscall/zsyscall_openbsd_arm.go                | 20 -----------------
+ src/syscall/zsyscall_openbsd_arm.s                 |  2 --
+ src/syscall/zsyscall_openbsd_arm64.go              | 20 -----------------
+ src/syscall/zsyscall_openbsd_arm64.s               |  2 --
+ src/syscall/zsyscall_openbsd_ppc64.go              | 20 -----------------
+ src/syscall/zsyscall_openbsd_ppc64.s               |  3 ---
+ src/syscall/zsyscall_openbsd_riscv64.go            | 20 -----------------
+ src/syscall/zsyscall_openbsd_riscv64.s             |  2 --
+ 22 files changed, 33 insertions(+), 187 deletions(-)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index 0911666f00..b3d0a7368f 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -21,8 +21,7 @@ import (
+ //
+ //   - On Linux, FreeBSD, Dragonfly, and Solaris, Reader uses getrandom(2).
+ //   - On legacy Linux (< 3.17), Reader opens /dev/urandom on first use.
+-//   - On macOS and iOS, Reader uses arc4random_buf(3).
+-//   - On OpenBSD, Reader uses getentropy(2).
++//   - On macOS, iOS, and OpenBSD Reader, uses arc4random_buf(3).
+ //   - On NetBSD, Reader uses the kern.arandom sysctl.
+ //   - On Windows, Reader uses the ProcessPrng API.
+ //   - On js/wasm, Reader uses the Web Crypto API.
+diff --git a/src/crypto/rand/rand_darwin.go b/src/crypto/rand/rand_arc4random.go
+similarity index 95%
+rename from src/crypto/rand/rand_darwin.go
+rename to src/crypto/rand/rand_arc4random.go
+index abbfec87cb..f2e27004f8 100644
+--- a/src/crypto/rand/rand_darwin.go
++++ b/src/crypto/rand/rand_arc4random.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build darwin || openbsd
++
+ package rand
+ 
+ import "internal/syscall/unix"
+diff --git a/src/crypto/rand/rand_getentropy.go b/src/crypto/rand/rand_netbsd.go
+similarity index 60%
+rename from src/crypto/rand/rand_getentropy.go
+rename to src/crypto/rand/rand_netbsd.go
+index b9e41433a2..b25d261e15 100644
+--- a/src/crypto/rand/rand_getentropy.go
++++ b/src/crypto/rand/rand_netbsd.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build openbsd || netbsd
+-
+ package rand
+ 
+ import "internal/syscall/unix"
+@@ -11,11 +9,13 @@ import "internal/syscall/unix"
+ func read(b []byte) error {
+ 	for len(b) > 0 {
+ 		size := len(b)
++		// "Returns independent uniformly distributed bytes at random each time,
++		// as many as requested up to 256, derived from the system entropy pool;
++		// see rnd(4)." -- man sysctl(7)
+ 		if size > 256 {
+ 			size = 256
+ 		}
+-		// getentropy(2) returns a maximum of 256 bytes per call.
+-		if err := unix.GetEntropy(b[:size]); err != nil {
++		if err := unix.Arandom(b[:size]); err != nil {
+ 			return err
+ 		}
+ 		b = b[size:]
+diff --git a/src/internal/syscall/unix/getentropy_netbsd.go b/src/internal/syscall/unix/arandom_netbsd.go
+similarity index 93%
+rename from src/internal/syscall/unix/getentropy_netbsd.go
+rename to src/internal/syscall/unix/arandom_netbsd.go
+index 02bac1be00..23ca8739e8 100644
+--- a/src/internal/syscall/unix/getentropy_netbsd.go
++++ b/src/internal/syscall/unix/arandom_netbsd.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build netbsd
+-
+ package unix
+ 
+ import (
+@@ -17,7 +15,7 @@ const (
+ 	_KERN_ARND = 81
+ )
+ 
+-func GetEntropy(p []byte) error {
++func Arandom(p []byte) error {
+ 	mib := [2]uint32{_CTL_KERN, _KERN_ARND}
+ 	n := uintptr(len(p))
+ 	_, _, errno := syscall.Syscall6(
+diff --git a/src/internal/syscall/unix/arc4random_openbsd.go b/src/internal/syscall/unix/arc4random_openbsd.go
+new file mode 100644
+index 0000000000..652e0cb19d
+--- /dev/null
++++ b/src/internal/syscall/unix/arc4random_openbsd.go
+@@ -0,0 +1,23 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"internal/abi"
++	"syscall"
++	"unsafe"
++)
++
++//go:linkname syscall_syscall syscall.syscall
++func syscall_syscall(fn, a1, a2, a3 uintptr) (r1, r2 uintptr, err syscall.Errno)
++
++//go:cgo_import_dynamic libc_arc4random_buf arc4random_buf "libc.so"
++
++func libc_arc4random_buf_trampoline()
++
++func ARC4Random(p []byte) {
++	syscall_syscall(abi.FuncPCABI0(libc_arc4random_buf_trampoline),
++		uintptr(unsafe.Pointer(unsafe.SliceData(p))), uintptr(len(p)), 0)
++}
+diff --git a/src/internal/syscall/unix/asm_openbsd.s b/src/internal/syscall/unix/asm_openbsd.s
+index cc54a14ca5..d6c4320539 100644
+--- a/src/internal/syscall/unix/asm_openbsd.s
++++ b/src/internal/syscall/unix/asm_openbsd.s
+@@ -8,3 +8,5 @@
+ 
+ TEXT ·libc_faccessat_trampoline(SB),NOSPLIT,$0-0
+         JMP	libc_faccessat(SB)
++TEXT ·libc_arc4random_buf_trampoline(SB),NOSPLIT,$0-0
++        JMP	libc_arc4random_buf(SB)
+diff --git a/src/internal/syscall/unix/getentropy_openbsd.go b/src/internal/syscall/unix/getentropy_openbsd.go
+deleted file mode 100644
+index 7516ac7ce7..0000000000
+--- a/src/internal/syscall/unix/getentropy_openbsd.go
++++ /dev/null
+@@ -1,18 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build openbsd && !mips64
+-
+-package unix
+-
+-import _ "unsafe" // for linkname
+-
+-// GetEntropy calls the OpenBSD getentropy system call.
+-func GetEntropy(p []byte) error {
+-	return getentropy(p)
+-}
+-
+-//go:linkname getentropy syscall.getentropy
+-//go:noescape
+-func getentropy(p []byte) error
+diff --git a/src/internal/syscall/unix/getentropy_openbsd_mips64.go b/src/internal/syscall/unix/getentropy_openbsd_mips64.go
+deleted file mode 100644
+index d5caa8095a..0000000000
+--- a/src/internal/syscall/unix/getentropy_openbsd_mips64.go
++++ /dev/null
+@@ -1,25 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package unix
+-
+-import (
+-	"syscall"
+-	"unsafe"
+-)
+-
+-// getentropy(2)'s syscall number, from /usr/src/sys/kern/syscalls.master
+-const entropyTrap uintptr = 7
+-
+-// GetEntropy calls the OpenBSD getentropy system call.
+-func GetEntropy(p []byte) error {
+-	_, _, errno := syscall.Syscall(entropyTrap,
+-		uintptr(unsafe.Pointer(&p[0])),
+-		uintptr(len(p)),
+-		0)
+-	if errno != 0 {
+-		return errno
+-	}
+-	return nil
+-}
+diff --git a/src/syscall/linkname_openbsd.go b/src/syscall/linkname_openbsd.go
+index 5f5c517ab5..bbb56c10ec 100644
+--- a/src/syscall/linkname_openbsd.go
++++ b/src/syscall/linkname_openbsd.go
+@@ -12,4 +12,3 @@ import _ "unsafe"
+ //go:linkname unlinkat
+ //go:linkname openat
+ //go:linkname fstatat
+-//go:linkname getentropy
+diff --git a/src/syscall/syscall_openbsd_libc.go b/src/syscall/syscall_openbsd_libc.go
+index 5dea268c3e..13311398b9 100644
+--- a/src/syscall/syscall_openbsd_libc.go
++++ b/src/syscall/syscall_openbsd_libc.go
+@@ -79,7 +79,6 @@ func syscall9X(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
+ //sysnb execve(path *byte, argv **byte, envp **byte) (err error)
+ //sysnb exit(res int) (err error)
+ //sys   ptrace(request int, pid int, addr uintptr, data uintptr) (err error)
+-//sysnb getentropy(p []byte) (err error)
+ //sys   fstatat(fd int, path string, stat *Stat_t, flags int) (err error)
+ //sys   unlinkat(fd int, path string, flags int) (err error)
+ //sys   openat(fd int, path string, flags int, perm uint32) (fdret int, err error)
+diff --git a/src/syscall/zsyscall_openbsd_386.go b/src/syscall/zsyscall_openbsd_386.go
+index d2bd3ea012..c8cf7f231b 100644
+--- a/src/syscall/zsyscall_openbsd_386.go
++++ b/src/syscall/zsyscall_openbsd_386.go
+@@ -1854,26 +1854,6 @@ func libc_ptrace_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getentropy(p []byte) (err error) {
+-	var _p0 unsafe.Pointer
+-	if len(p) > 0 {
+-		_p0 = unsafe.Pointer(&p[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_getentropy_trampoline), uintptr(_p0), uintptr(len(p)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_getentropy_trampoline()
+-
+-//go:cgo_import_dynamic libc_getentropy getentropy "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_openbsd_386.s b/src/syscall/zsyscall_openbsd_386.s
+index 9a820e9f3e..f86ac2c077 100644
+--- a/src/syscall/zsyscall_openbsd_386.s
++++ b/src/syscall/zsyscall_openbsd_386.s
+@@ -227,8 +227,6 @@ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+ TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_ptrace(SB)
+-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getentropy(SB)
+ TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatat(SB)
+ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_amd64.go b/src/syscall/zsyscall_openbsd_amd64.go
+index 170a74b457..9188756a87 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.go
++++ b/src/syscall/zsyscall_openbsd_amd64.go
+@@ -1854,26 +1854,6 @@ func libc_ptrace_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getentropy(p []byte) (err error) {
+-	var _p0 unsafe.Pointer
+-	if len(p) > 0 {
+-		_p0 = unsafe.Pointer(&p[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_getentropy_trampoline), uintptr(_p0), uintptr(len(p)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_getentropy_trampoline()
+-
+-//go:cgo_import_dynamic libc_getentropy getentropy "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_openbsd_amd64.s b/src/syscall/zsyscall_openbsd_amd64.s
+index 9b70dc096e..4ec6220281 100644
+--- a/src/syscall/zsyscall_openbsd_amd64.s
++++ b/src/syscall/zsyscall_openbsd_amd64.s
+@@ -227,8 +227,6 @@ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+ TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_ptrace(SB)
+-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getentropy(SB)
+ TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatat(SB)
+ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_arm.go b/src/syscall/zsyscall_openbsd_arm.go
+index e75bd0b443..ecdfa63672 100644
+--- a/src/syscall/zsyscall_openbsd_arm.go
++++ b/src/syscall/zsyscall_openbsd_arm.go
+@@ -1854,26 +1854,6 @@ func libc_ptrace_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getentropy(p []byte) (err error) {
+-	var _p0 unsafe.Pointer
+-	if len(p) > 0 {
+-		_p0 = unsafe.Pointer(&p[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_getentropy_trampoline), uintptr(_p0), uintptr(len(p)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_getentropy_trampoline()
+-
+-//go:cgo_import_dynamic libc_getentropy getentropy "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_openbsd_arm.s b/src/syscall/zsyscall_openbsd_arm.s
+index 0333377b8b..75251d0305 100644
+--- a/src/syscall/zsyscall_openbsd_arm.s
++++ b/src/syscall/zsyscall_openbsd_arm.s
+@@ -227,8 +227,6 @@ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+ TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_ptrace(SB)
+-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getentropy(SB)
+ TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatat(SB)
+ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_arm64.go b/src/syscall/zsyscall_openbsd_arm64.go
+index bc027b4475..d28d3c5e1e 100644
+--- a/src/syscall/zsyscall_openbsd_arm64.go
++++ b/src/syscall/zsyscall_openbsd_arm64.go
+@@ -1854,26 +1854,6 @@ func libc_ptrace_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getentropy(p []byte) (err error) {
+-	var _p0 unsafe.Pointer
+-	if len(p) > 0 {
+-		_p0 = unsafe.Pointer(&p[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_getentropy_trampoline), uintptr(_p0), uintptr(len(p)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_getentropy_trampoline()
+-
+-//go:cgo_import_dynamic libc_getentropy getentropy "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_openbsd_arm64.s b/src/syscall/zsyscall_openbsd_arm64.s
+index 654e6c69a3..deea88ec7c 100644
+--- a/src/syscall/zsyscall_openbsd_arm64.s
++++ b/src/syscall/zsyscall_openbsd_arm64.s
+@@ -227,8 +227,6 @@ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+ TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_ptrace(SB)
+-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getentropy(SB)
+ TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatat(SB)
+ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0
+diff --git a/src/syscall/zsyscall_openbsd_ppc64.go b/src/syscall/zsyscall_openbsd_ppc64.go
+index 6808092a5a..0e6828bcaf 100644
+--- a/src/syscall/zsyscall_openbsd_ppc64.go
++++ b/src/syscall/zsyscall_openbsd_ppc64.go
+@@ -1854,26 +1854,6 @@ func libc_ptrace_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getentropy(p []byte) (err error) {
+-	var _p0 unsafe.Pointer
+-	if len(p) > 0 {
+-		_p0 = unsafe.Pointer(&p[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_getentropy_trampoline), uintptr(_p0), uintptr(len(p)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_getentropy_trampoline()
+-
+-//go:cgo_import_dynamic libc_getentropy getentropy "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_openbsd_ppc64.s b/src/syscall/zsyscall_openbsd_ppc64.s
+index 86a5745c0a..cc4eb952eb 100644
+--- a/src/syscall/zsyscall_openbsd_ppc64.s
++++ b/src/syscall/zsyscall_openbsd_ppc64.s
+@@ -340,9 +340,6 @@ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
+ 	CALL	libc_ptrace(SB)
+ 	RET
+-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
+-	CALL	libc_getentropy(SB)
+-	RET
+ TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
+ 	CALL	libc_fstatat(SB)
+ 	RET
+diff --git a/src/syscall/zsyscall_openbsd_riscv64.go b/src/syscall/zsyscall_openbsd_riscv64.go
+index 2979ff78c2..920147074d 100644
+--- a/src/syscall/zsyscall_openbsd_riscv64.go
++++ b/src/syscall/zsyscall_openbsd_riscv64.go
+@@ -1854,26 +1854,6 @@ func libc_ptrace_trampoline()
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getentropy(p []byte) (err error) {
+-	var _p0 unsafe.Pointer
+-	if len(p) > 0 {
+-		_p0 = unsafe.Pointer(&p[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	_, _, e1 := rawSyscall(abi.FuncPCABI0(libc_getentropy_trampoline), uintptr(_p0), uintptr(len(p)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-func libc_getentropy_trampoline()
+-
+-//go:cgo_import_dynamic libc_getentropy getentropy "libc.so"
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func fstatat(fd int, path string, stat *Stat_t, flags int) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_openbsd_riscv64.s b/src/syscall/zsyscall_openbsd_riscv64.s
+index c8728190e5..14b7b23222 100644
+--- a/src/syscall/zsyscall_openbsd_riscv64.s
++++ b/src/syscall/zsyscall_openbsd_riscv64.s
+@@ -227,8 +227,6 @@ TEXT ·libc_exit_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_exit(SB)
+ TEXT ·libc_ptrace_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_ptrace(SB)
+-TEXT ·libc_getentropy_trampoline(SB),NOSPLIT,$0-0
+-	JMP	libc_getentropy(SB)
+ TEXT ·libc_fstatat_trampoline(SB),NOSPLIT,$0-0
+ 	JMP	libc_fstatat(SB)
+ TEXT ·libc_unlinkat_trampoline(SB),NOSPLIT,$0-0

@@ -1,0 +1,44 @@
+commit 74b70eead70872ccb0b7bfe0435ef3e4a1eb288e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jun 3 13:08:06 2025 -0400
+
+    go/token: remove unreachable code
+    
+    Reported by go vet.
+    
+    Change-Id: I6a6a636c79923fafd8c649c583383cdf455c6ce2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/678317
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/go/token/tree.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/token/tree.go b/src/go/token/tree.go
+index eaa2b30ee5..2354ad0f33 100644
+--- a/src/go/token/tree.go
++++ b/src/go/token/tree.go
+@@ -325,7 +325,9 @@ func (t *tree) set(file *File, pos **node, parent *node) {
+ 		// This code path isn't currently needed
+ 		// because FileSet never updates an existing entry.
+ 		// Remove this assertion if things change.
+-		panic("unreachable according to current FileSet requirements")
++		if true {
++			panic("unreachable according to current FileSet requirements")
++		}
+ 		x.file = file
+ 		return
+ 	}
+@@ -344,7 +346,9 @@ func (t *tree) delete(pos **node) {
+ 		// This code path isn't currently needed because FileSet
+ 		// only calls delete after a positive locate.
+ 		// Remove this assertion if things change.
+-		panic("unreachable according to current FileSet requirements")
++		if true {
++			panic("unreachable according to current FileSet requirements")
++		}
+ 		return
+ 
+ 	case x.left == nil:

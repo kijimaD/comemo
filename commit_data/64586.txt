@@ -1,0 +1,662 @@
+commit 440c9ee73d2698912918755d023e5de813ec2f83
+Author: Vladimir Varankin <vladimir@varank.in>
+Date:   Wed Aug 21 20:47:11 2024 +0200
+
+    testing: rename testContext to testState
+    
+    Following up to CL 603959, update internals of testing package to
+    reduce the confusion around "context". The changes rename
+    testContext/benchContext/fuzzContext to testState/benchState/fuzzState.
+    
+    Change-Id: Ib8855dab456d41ab343488fcf5fefff2431f7b72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607555
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/testing/benchmark.go | 36 +++++++++++++-------------
+ src/testing/fuzz.go      | 66 ++++++++++++++++++++++++------------------------
+ src/testing/sub_test.go  | 39 ++++++++++++++--------------
+ src/testing/testing.go   | 66 ++++++++++++++++++++++++------------------------
+ 4 files changed, 103 insertions(+), 104 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 80a1b7de77..5591cd4e4d 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -93,7 +93,7 @@ type InternalBenchmark struct {
+ type B struct {
+ 	common
+ 	importPath       string // import path of the package containing the benchmark
+-	context          *benchContext
++	bstate           *benchState
+ 	N                int
+ 	previousN        int           // number of iterations in the previous run
+ 	previousDuration time.Duration // total duration of the previous run
+@@ -199,10 +199,10 @@ func (b *B) runN(n int) {
+ // run1 runs the first iteration of benchFunc. It reports whether more
+ // iterations of this benchmarks should be run.
+ func (b *B) run1() bool {
+-	if ctx := b.context; ctx != nil {
++	if bstate := b.bstate; bstate != nil {
+ 		// Extend maxLen, if needed.
+-		if n := len(b.name) + ctx.extLen + 1; n > ctx.maxLen {
+-			ctx.maxLen = n + 8 // Add additional slack to avoid too many jumps in size.
++		if n := len(b.name) + bstate.extLen + 1; n > bstate.maxLen {
++			bstate.maxLen = n + 8 // Add additional slack to avoid too many jumps in size.
+ 		}
+ 	}
+ 	go func() {
+@@ -253,9 +253,9 @@ func (b *B) run() {
+ 			fmt.Fprintf(b.w, "cpu: %s\n", cpu)
+ 		}
+ 	})
+-	if b.context != nil {
++	if b.bstate != nil {
+ 		// Running go test --test.bench
+-		b.context.processBench(b) // Must call doBench.
++		b.bstate.processBench(b) // Must call doBench.
+ 	} else {
+ 		// Running func Benchmark.
+ 		b.doBench()
+@@ -492,7 +492,7 @@ func benchmarkName(name string, n int) string {
+ 	return name
+ }
+ 
+-type benchContext struct {
++type benchState struct {
+ 	match *matcher
+ 
+ 	maxLen int // The largest recorded benchmark name.
+@@ -517,17 +517,17 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
+ 			maxprocs = procs
+ 		}
+ 	}
+-	ctx := &benchContext{
++	bstate := &benchState{
+ 		match:  newMatcher(matchString, *matchBenchmarks, "-test.bench", *skip),
+ 		extLen: len(benchmarkName("", maxprocs)),
+ 	}
+ 	var bs []InternalBenchmark
+ 	for _, Benchmark := range benchmarks {
+-		if _, matched, _ := ctx.match.fullName(nil, Benchmark.Name); matched {
++		if _, matched, _ := bstate.match.fullName(nil, Benchmark.Name); matched {
+ 			bs = append(bs, Benchmark)
+ 			benchName := benchmarkName(Benchmark.Name, maxprocs)
+-			if l := len(benchName) + ctx.extLen + 1; l > ctx.maxLen {
+-				ctx.maxLen = l
++			if l := len(benchName) + bstate.extLen + 1; l > bstate.maxLen {
++				bstate.maxLen = l
+ 			}
+ 		}
+ 	}
+@@ -544,7 +544,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
+ 			}
+ 		},
+ 		benchTime: benchTime,
+-		context:   ctx,
++		bstate:    bstate,
+ 	}
+ 	if Verbose() {
+ 		main.chatty = newChattyPrinter(main.w)
+@@ -554,7 +554,7 @@ func runBenchmarks(importPath string, matchString func(pat, str string) (bool, e
+ }
+ 
+ // processBench runs bench b for the configured CPU counts and prints the results.
+-func (ctx *benchContext) processBench(b *B) {
++func (s *benchState) processBench(b *B) {
+ 	for i, procs := range cpuList {
+ 		for j := uint(0); j < *count; j++ {
+ 			runtime.GOMAXPROCS(procs)
+@@ -562,7 +562,7 @@ func (ctx *benchContext) processBench(b *B) {
+ 
+ 			// If it's chatty, we've already printed this information.
+ 			if b.chatty == nil {
+-				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
++				fmt.Fprintf(b.w, "%-*s\t", s.maxLen, benchName)
+ 			}
+ 			// Recompute the running time for all but the first iteration.
+ 			if i > 0 || j > 0 {
+@@ -589,7 +589,7 @@ func (ctx *benchContext) processBench(b *B) {
+ 			}
+ 			results := r.String()
+ 			if b.chatty != nil {
+-				fmt.Fprintf(b.w, "%-*s\t", ctx.maxLen, benchName)
++				fmt.Fprintf(b.w, "%-*s\t", s.maxLen, benchName)
+ 			}
+ 			if *benchmarkMemory || b.showAllocResult {
+ 				results += "\t" + r.MemString()
+@@ -629,8 +629,8 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 	defer benchmarkLock.Lock()
+ 
+ 	benchName, ok, partial := b.name, true, false
+-	if b.context != nil {
+-		benchName, ok, partial = b.context.match.fullName(&b.common, name)
++	if b.bstate != nil {
++		benchName, ok, partial = b.bstate.match.fullName(&b.common, name)
+ 	}
+ 	if !ok {
+ 		return true
+@@ -651,7 +651,7 @@ func (b *B) Run(name string, f func(b *B)) bool {
+ 		importPath: b.importPath,
+ 		benchFunc:  f,
+ 		benchTime:  b.benchTime,
+-		context:    b.context,
++		bstate:     b.bstate,
+ 	}
+ 	if partial {
+ 		// Partial name match, like -bench=X/Y matching BenchmarkX.
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index d561225b3c..b41a07f88e 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -67,8 +67,8 @@ type InternalFuzzTarget struct {
+ // that are allowed in the (*F).Fuzz function are (*F).Failed and (*F).Name.
+ type F struct {
+ 	common
+-	fuzzContext *fuzzContext
+-	testContext *testContext
++	fstate *fuzzState
++	tstate *testState
+ 
+ 	// inFuzzFn is true when the fuzz function is running. Most F methods cannot
+ 	// be called when inFuzzFn is true.
+@@ -244,22 +244,22 @@ func (f *F) Fuzz(ff any) {
+ 	// corpus and entries declared with F.Add.
+ 	//
+ 	// Don't load the seed corpus if this is a worker process; we won't use it.
+-	if f.fuzzContext.mode != fuzzWorker {
++	if f.fstate.mode != fuzzWorker {
+ 		for _, c := range f.corpus {
+-			if err := f.fuzzContext.deps.CheckCorpus(c.Values, types); err != nil {
++			if err := f.fstate.deps.CheckCorpus(c.Values, types); err != nil {
+ 				// TODO(#48302): Report the source location of the F.Add call.
+ 				f.Fatal(err)
+ 			}
+ 		}
+ 
+ 		// Load seed corpus
+-		c, err := f.fuzzContext.deps.ReadCorpus(filepath.Join(corpusDir, f.name), types)
++		c, err := f.fstate.deps.ReadCorpus(filepath.Join(corpusDir, f.name), types)
+ 		if err != nil {
+ 			f.Fatal(err)
+ 		}
+ 		for i := range c {
+ 			c[i].IsSeed = true // these are all seed corpus values
+-			if f.fuzzContext.mode == fuzzCoordinator {
++			if f.fstate.mode == fuzzCoordinator {
+ 				// If this is the coordinator process, zero the values, since we don't need
+ 				// to hold onto them.
+ 				c[i].Values = nil
+@@ -285,12 +285,12 @@ func (f *F) Fuzz(ff any) {
+ 		if e.Path != "" {
+ 			testName = fmt.Sprintf("%s/%s", testName, filepath.Base(e.Path))
+ 		}
+-		if f.testContext.isFuzzing {
++		if f.tstate.isFuzzing {
+ 			// Don't preserve subtest names while fuzzing. If fn calls T.Run,
+ 			// there will be a very large number of subtests with duplicate names,
+ 			// which will use a large amount of memory. The subtest names aren't
+ 			// useful since there's no way to re-run them deterministically.
+-			f.testContext.match.clearSubNames()
++			f.tstate.match.clearSubNames()
+ 		}
+ 
+ 		// Record the stack trace at the point of this call so that if the subtest
+@@ -308,7 +308,7 @@ func (f *F) Fuzz(ff any) {
+ 				creator: pc[:n],
+ 				chatty:  f.chatty,
+ 			},
+-			context: f.testContext,
++			tstate: f.tstate,
+ 		}
+ 		if captureOut != nil {
+ 			// t.parent aliases f.common.
+@@ -328,9 +328,9 @@ func (f *F) Fuzz(ff any) {
+ 			// we make sure it is called right before the tRunner function
+ 			// exits, regardless of whether it was executed cleanly, panicked,
+ 			// or if the fuzzFn called t.Fatal.
+-			if f.testContext.isFuzzing {
+-				defer f.fuzzContext.deps.SnapshotCoverage()
+-				f.fuzzContext.deps.ResetCoverage()
++			if f.tstate.isFuzzing {
++				defer f.fstate.deps.SnapshotCoverage()
++				f.fstate.deps.ResetCoverage()
+ 			}
+ 			fn.Call(args)
+ 		})
+@@ -342,14 +342,14 @@ func (f *F) Fuzz(ff any) {
+ 		return !t.Failed()
+ 	}
+ 
+-	switch f.fuzzContext.mode {
++	switch f.fstate.mode {
+ 	case fuzzCoordinator:
+ 		// Fuzzing is enabled, and this is the test process started by 'go test'.
+ 		// Act as the coordinator process, and coordinate workers to perform the
+ 		// actual fuzzing.
+ 		corpusTargetDir := filepath.Join(corpusDir, f.name)
+ 		cacheTargetDir := filepath.Join(*fuzzCacheDir, f.name)
+-		err := f.fuzzContext.deps.CoordinateFuzzing(
++		err := f.fstate.deps.CoordinateFuzzing(
+ 			fuzzDuration.d,
+ 			int64(fuzzDuration.n),
+ 			minimizeDuration.d,
+@@ -376,7 +376,7 @@ func (f *F) Fuzz(ff any) {
+ 	case fuzzWorker:
+ 		// Fuzzing is enabled, and this is a worker process. Follow instructions
+ 		// from the coordinator.
+-		if err := f.fuzzContext.deps.RunFuzzWorker(func(e corpusEntry) error {
++		if err := f.fstate.deps.RunFuzzWorker(func(e corpusEntry) error {
+ 			// Don't write to f.w (which points to Stdout) if running from a
+ 			// fuzz worker. This would become very verbose, particularly during
+ 			// minimization. Return the error instead, and let the caller deal
+@@ -398,7 +398,7 @@ func (f *F) Fuzz(ff any) {
+ 		// corpus now.
+ 		for _, e := range f.corpus {
+ 			name := fmt.Sprintf("%s/%s", f.name, filepath.Base(e.Path))
+-			if _, ok, _ := f.testContext.match.fullName(nil, name); ok {
++			if _, ok, _ := f.tstate.match.fullName(nil, name); ok {
+ 				run(f.w, e)
+ 			}
+ 		}
+@@ -451,8 +451,8 @@ type fuzzCrashError interface {
+ 	CrashPath() string
+ }
+ 
+-// fuzzContext holds fields common to all fuzz tests.
+-type fuzzContext struct {
++// fuzzState holds fields common to all fuzz tests.
++type fuzzState struct {
+ 	deps testDeps
+ 	mode fuzzMode
+ }
+@@ -486,9 +486,9 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
+ 				break
+ 			}
+ 
+-			tctx := newTestContext(*parallel, m)
+-			tctx.deadline = deadline
+-			fctx := &fuzzContext{deps: deps, mode: seedCorpusOnly}
++			tstate := newTestState(*parallel, m)
++			tstate.deadline = deadline
++			fstate := &fuzzState{deps: deps, mode: seedCorpusOnly}
+ 			root := common{w: os.Stdout} // gather output in one place
+ 			if Verbose() {
+ 				root.chatty = newChattyPrinter(root.w)
+@@ -497,7 +497,7 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
+ 				if shouldFailFast() {
+ 					break
+ 				}
+-				testName, matched, _ := tctx.match.fullName(nil, ft.Name)
++				testName, matched, _ := tstate.match.fullName(nil, ft.Name)
+ 				if !matched {
+ 					continue
+ 				}
+@@ -517,8 +517,8 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
+ 						level:   root.level + 1,
+ 						chatty:  root.chatty,
+ 					},
+-					testContext: tctx,
+-					fuzzContext: fctx,
++					tstate: tstate,
++					fstate: fstate,
+ 				}
+ 				f.w = indenter{&f.common}
+ 				if f.chatty != nil {
+@@ -554,17 +554,17 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
+ 		return true
+ 	}
+ 	m := newMatcher(deps.MatchString, *matchFuzz, "-test.fuzz", *skip)
+-	tctx := newTestContext(1, m)
+-	tctx.isFuzzing = true
+-	fctx := &fuzzContext{
++	tstate := newTestState(1, m)
++	tstate.isFuzzing = true
++	fstate := &fuzzState{
+ 		deps: deps,
+ 	}
+ 	root := common{w: os.Stdout}
+ 	if *isFuzzWorker {
+ 		root.w = io.Discard
+-		fctx.mode = fuzzWorker
++		fstate.mode = fuzzWorker
+ 	} else {
+-		fctx.mode = fuzzCoordinator
++		fstate.mode = fuzzCoordinator
+ 	}
+ 	if Verbose() && !*isFuzzWorker {
+ 		root.chatty = newChattyPrinter(root.w)
+@@ -573,7 +573,7 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
+ 	var testName string
+ 	var matched []string
+ 	for i := range fuzzTests {
+-		name, ok, _ := tctx.match.fullName(nil, fuzzTests[i].Name)
++		name, ok, _ := tstate.match.fullName(nil, fuzzTests[i].Name)
+ 		if !ok {
+ 			continue
+ 		}
+@@ -599,8 +599,8 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
+ 			level:   root.level + 1,
+ 			chatty:  root.chatty,
+ 		},
+-		fuzzContext: fctx,
+-		testContext: tctx,
++		fstate: fstate,
++		tstate: tstate,
+ 	}
+ 	f.w = indenter{&f.common}
+ 	if f.chatty != nil {
+@@ -694,7 +694,7 @@ func fRunner(f *F, fn func(*F)) {
+ 			// This only affects fuzz tests run as normal tests.
+ 			// While fuzzing, T.Parallel has no effect, so f.sub is empty, and this
+ 			// branch is not taken. f.barrier is nil in that case.
+-			f.testContext.release()
++			f.tstate.release()
+ 			close(f.barrier)
+ 			// Wait for the subtests to complete.
+ 			for _, sub := range f.sub {
+diff --git a/src/testing/sub_test.go b/src/testing/sub_test.go
+index 90c2afe605..82ec5809e5 100644
+--- a/src/testing/sub_test.go
++++ b/src/testing/sub_test.go
+@@ -21,12 +21,11 @@ func init() {
+ 	benchTime.d = 100 * time.Millisecond
+ }
+ 
+-func TestTestContext(t *T) {
++func TestTestState(t *T) {
+ 	const (
+ 		add1 = 0
+ 		done = 1
+ 	)
+-	// After each of the calls are applied to the context, the
+ 	type call struct {
+ 		typ int // run or done
+ 		// result from applying the call
+@@ -72,7 +71,7 @@ func TestTestContext(t *T) {
+ 		},
+ 	}}
+ 	for i, tc := range testCases {
+-		ctx := &testContext{
++		tstate := &testState{
+ 			startParallel: make(chan bool),
+ 			maxParallel:   tc.max,
+ 		}
+@@ -88,18 +87,18 @@ func TestTestContext(t *T) {
+ 			started := false
+ 			switch call.typ {
+ 			case add1:
+-				signal := doCall(ctx.waitParallel)
++				signal := doCall(tstate.waitParallel)
+ 				select {
+ 				case <-signal:
+ 					started = true
+-				case ctx.startParallel <- true:
++				case tstate.startParallel <- true:
+ 					<-signal
+ 				}
+ 			case done:
+-				signal := doCall(ctx.release)
++				signal := doCall(tstate.release)
+ 				select {
+ 				case <-signal:
+-				case <-ctx.startParallel:
++				case <-tstate.startParallel:
+ 					started = true
+ 					<-signal
+ 				}
+@@ -107,11 +106,11 @@ func TestTestContext(t *T) {
+ 			if started != call.started {
+ 				t.Errorf("%d:%d:started: got %v; want %v", i, j, started, call.started)
+ 			}
+-			if ctx.running != call.running {
+-				t.Errorf("%d:%d:running: got %v; want %v", i, j, ctx.running, call.running)
++			if tstate.running != call.running {
++				t.Errorf("%d:%d:running: got %v; want %v", i, j, tstate.running, call.running)
+ 			}
+-			if ctx.numWaiting != call.waiting {
+-				t.Errorf("%d:%d:waiting: got %v; want %v", i, j, ctx.numWaiting, call.waiting)
++			if tstate.numWaiting != call.waiting {
++				t.Errorf("%d:%d:waiting: got %v; want %v", i, j, tstate.numWaiting, call.waiting)
+ 			}
+ 		}
+ 	}
+@@ -507,7 +506,7 @@ func TestTRun(t *T) {
+ 	}}
+ 	for _, tc := range testCases {
+ 		t.Run(tc.desc, func(t *T) {
+-			ctx := newTestContext(tc.maxPar, allMatcher())
++			tstate := newTestState(tc.maxPar, allMatcher())
+ 			buf := &strings.Builder{}
+ 			root := &T{
+ 				common: common{
+@@ -516,14 +515,14 @@ func TestTRun(t *T) {
+ 					name:    "",
+ 					w:       buf,
+ 				},
+-				context: ctx,
++				tstate: tstate,
+ 			}
+ 			if tc.chatty {
+ 				root.chatty = newChattyPrinter(root.w)
+ 				root.chatty.json = tc.json
+ 			}
+ 			ok := root.Run(tc.desc, tc.f)
+-			ctx.release()
++			tstate.release()
+ 
+ 			if ok != tc.ok {
+ 				t.Errorf("%s:ok: got %v; want %v", tc.desc, ok, tc.ok)
+@@ -531,8 +530,8 @@ func TestTRun(t *T) {
+ 			if ok != !root.Failed() {
+ 				t.Errorf("%s:root failed: got %v; want %v", tc.desc, !ok, root.Failed())
+ 			}
+-			if ctx.running != 0 || ctx.numWaiting != 0 {
+-				t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, ctx.running, ctx.numWaiting)
++			if tstate.running != 0 || tstate.numWaiting != 0 {
++				t.Errorf("%s:running and waiting non-zero: got %d and %d", tc.desc, tstate.running, tstate.numWaiting)
+ 			}
+ 			got := strings.TrimSpace(buf.String())
+ 			want := strings.TrimSpace(tc.output)
+@@ -790,8 +789,8 @@ func TestRacyOutput(t *T) {
+ 	}
+ 
+ 	root := &T{
+-		common:  common{w: &funcWriter{raceDetector}},
+-		context: newTestContext(1, allMatcher()),
++		common: common{w: &funcWriter{raceDetector}},
++		tstate: newTestState(1, allMatcher()),
+ 	}
+ 	root.chatty = newChattyPrinter(root.w)
+ 	root.Run("", func(t *T) {
+@@ -815,7 +814,7 @@ func TestRacyOutput(t *T) {
+ 
+ // The late log message did not include the test name.  Issue 29388.
+ func TestLogAfterComplete(t *T) {
+-	ctx := newTestContext(1, allMatcher())
++	tstate := newTestState(1, allMatcher())
+ 	var buf bytes.Buffer
+ 	t1 := &T{
+ 		common: common{
+@@ -824,7 +823,7 @@ func TestLogAfterComplete(t *T) {
+ 			signal: make(chan bool, 1),
+ 			w:      &buf,
+ 		},
+-		context: ctx,
++		tstate: tstate,
+ 	}
+ 
+ 	c1 := make(chan bool)
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index eb6efed5a8..e353ceb741 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -925,7 +925,7 @@ var _ TB = (*B)(nil)
+ type T struct {
+ 	common
+ 	denyParallel bool
+-	context      *testContext // For running tests and subtests.
++	tstate       *testState // For running tests and subtests.
+ }
+ 
+ func (c *common) private() {}
+@@ -1547,7 +1547,7 @@ func (t *T) Parallel() {
+ 
+ 	t.signal <- true   // Release calling test.
+ 	<-t.parent.barrier // Wait for the parent test to complete.
+-	t.context.waitParallel()
++	t.tstate.waitParallel()
+ 
+ 	if t.chatty != nil {
+ 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
+@@ -1657,7 +1657,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 			}
+ 		}
+ 
+-		if err != nil && t.context.isFuzzing {
++		if err != nil && t.tstate.isFuzzing {
+ 			prefix := "panic: "
+ 			if err == errNilPanicOrGoexit {
+ 				prefix = ""
+@@ -1715,7 +1715,7 @@ func tRunner(t *T, fn func(t *T)) {
+ 			// Run parallel subtests.
+ 
+ 			// Decrease the running count for this test and mark it as no longer running.
+-			t.context.release()
++			t.tstate.release()
+ 			running.Delete(t.name)
+ 
+ 			// Release the parallel subtests.
+@@ -1737,12 +1737,12 @@ func tRunner(t *T, fn func(t *T)) {
+ 			t.checkRaces()
+ 			if !t.isParallel {
+ 				// Reacquire the count for sequential tests. See comment in Run.
+-				t.context.waitParallel()
++				t.tstate.waitParallel()
+ 			}
+ 		} else if t.isParallel {
+ 			// Only release the count for this test if it was run as a parallel
+ 			// test. See comment in Run method.
+-			t.context.release()
++			t.tstate.release()
+ 		}
+ 		t.report() // Report after all subtests have finished.
+ 
+@@ -1781,7 +1781,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 	}
+ 
+ 	t.hasSub.Store(true)
+-	testName, ok, _ := t.context.match.fullName(&t.common, name)
++	testName, ok, _ := t.tstate.match.fullName(&t.common, name)
+ 	if !ok || shouldFailFast() {
+ 		return true
+ 	}
+@@ -1806,7 +1806,7 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ 			ctx:       ctx,
+ 			cancelCtx: cancelCtx,
+ 		},
+-		context: t.context,
++		tstate: t.tstate,
+ 	}
+ 	t.w = indenter{&t.common}
+ 
+@@ -1845,17 +1845,17 @@ func (t *T) Run(name string, f func(t *T)) bool {
+ //
+ // The ok result is false if the -timeout flag indicates “no timeout” (0).
+ func (t *T) Deadline() (deadline time.Time, ok bool) {
+-	deadline = t.context.deadline
++	deadline = t.tstate.deadline
+ 	return deadline, !deadline.IsZero()
+ }
+ 
+-// testContext holds all fields that are common to all tests. This includes
++// testState holds all fields that are common to all tests. This includes
+ // synchronization primitives to run at most *parallel tests.
+-type testContext struct {
++type testState struct {
+ 	match    *matcher
+ 	deadline time.Time
+ 
+-	// isFuzzing is true in the context used when generating random inputs
++	// isFuzzing is true in the state used when generating random inputs
+ 	// for fuzz targets. isFuzzing is false when running normal tests and
+ 	// when running fuzz tests as unit tests (without -fuzz or when -fuzz
+ 	// does not match).
+@@ -1877,8 +1877,8 @@ type testContext struct {
+ 	maxParallel int
+ }
+ 
+-func newTestContext(maxParallel int, m *matcher) *testContext {
+-	return &testContext{
++func newTestState(maxParallel int, m *matcher) *testState {
++	return &testState{
+ 		match:         m,
+ 		startParallel: make(chan bool),
+ 		maxParallel:   maxParallel,
+@@ -1886,28 +1886,28 @@ func newTestContext(maxParallel int, m *matcher) *testContext {
+ 	}
+ }
+ 
+-func (c *testContext) waitParallel() {
+-	c.mu.Lock()
+-	if c.running < c.maxParallel {
+-		c.running++
+-		c.mu.Unlock()
++func (s *testState) waitParallel() {
++	s.mu.Lock()
++	if s.running < s.maxParallel {
++		s.running++
++		s.mu.Unlock()
+ 		return
+ 	}
+-	c.numWaiting++
+-	c.mu.Unlock()
+-	<-c.startParallel
++	s.numWaiting++
++	s.mu.Unlock()
++	<-s.startParallel
+ }
+ 
+-func (c *testContext) release() {
+-	c.mu.Lock()
+-	if c.numWaiting == 0 {
+-		c.running--
+-		c.mu.Unlock()
++func (s *testState) release() {
++	s.mu.Lock()
++	if s.numWaiting == 0 {
++		s.running--
++		s.mu.Unlock()
+ 		return
+ 	}
+-	c.numWaiting--
+-	c.mu.Unlock()
+-	c.startParallel <- true // Pick a waiting test to be run.
++	s.numWaiting--
++	s.mu.Unlock()
++	s.startParallel <- true // Pick a waiting test to be run.
+ }
+ 
+ // No one should be using func Main anymore.
+@@ -2231,8 +2231,8 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 				break
+ 			}
+ 			ctx, cancelCtx := context.WithCancel(context.Background())
+-			tctx := newTestContext(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
+-			tctx.deadline = deadline
++			tstate := newTestState(*parallel, newMatcher(matchString, *match, "-test.run", *skip))
++			tstate.deadline = deadline
+ 			t := &T{
+ 				common: common{
+ 					signal:    make(chan bool, 1),
+@@ -2241,7 +2241,7 @@ func runTests(matchString func(pat, str string) (bool, error), tests []InternalT
+ 					ctx:       ctx,
+ 					cancelCtx: cancelCtx,
+ 				},
+-				context: tctx,
++				tstate: tstate,
+ 			}
+ 			if Verbose() {
+ 				t.chatty = newChattyPrinter(t.w)

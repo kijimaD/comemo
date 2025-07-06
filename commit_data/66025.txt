@@ -1,0 +1,31 @@
+commit 3caf5bd09e84f77cc5e0394819d57a1beca87fcb
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Feb 1 16:42:22 2025 +0000
+
+    text/scanner: add required ScanComments in example
+    
+    Fixes #71133
+    
+    Change-Id: I11f792bf4cb275e7bc3585cd92a4b327a3b6e368
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646036
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/text/scanner/scanner.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/text/scanner/scanner.go b/src/text/scanner/scanner.go
+index 6ae7a9b987..316fb4380f 100644
+--- a/src/text/scanner/scanner.go
++++ b/src/text/scanner/scanner.go
+@@ -50,7 +50,7 @@ func (pos Position) String() string {
+ // to configure a [Scanner] such that it only recognizes (Go) identifiers,
+ // integers, and skips comments, set the Scanner's Mode field to:
+ //
+-//	ScanIdents | ScanInts | SkipComments
++//	ScanIdents | ScanInts | ScanComments | SkipComments
+ //
+ // With the exceptions of comments, which are skipped if SkipComments is
+ // set, unrecognized tokens are not ignored. Instead, the scanner simply

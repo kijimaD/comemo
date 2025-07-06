@@ -1,0 +1,35 @@
+commit a9428eab40f799c96c0de7385545c03d989d491a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Nov 20 14:21:33 2024 -0800
+
+    cmd/cgo/internal/testsanitizers: use t.TempDir
+    
+    Change-Id: I6b2c25ab045aaec8bb6c25511b12d178d155fc25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630338
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/cgo/internal/testsanitizers/cc_test.go | 7 +------
+ 1 file changed, 1 insertion(+), 6 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/cc_test.go b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+index e650de835a..96a9e71cd7 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cc_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cc_test.go
+@@ -563,12 +563,7 @@ func (d *tempDir) Join(name string) string {
+ }
+ 
+ func newTempDir(t *testing.T) *tempDir {
+-	t.Helper()
+-	dir, err := os.MkdirTemp("", filepath.Dir(t.Name()))
+-	if err != nil {
+-		t.Fatalf("Failed to create temp dir: %v", err)
+-	}
+-	return &tempDir{base: dir}
++	return &tempDir{base: t.TempDir()}
+ }
+ 
+ // hangProneCmd returns an exec.Cmd for a command that is likely to hang.

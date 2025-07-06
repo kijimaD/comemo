@@ -1,0 +1,34 @@
+commit cdca67185573ca94734249584afd6cd2d3d58a84
+Author: WuGuangyao <wuguangyaocoder@gmail.com>
+Date:   Sun Sep 8 06:18:22 2024 +0000
+
+    runtime: update documentation for ios addr bits
+    
+    After this merge: https://go-review.googlesource.com/c/go/+/344401, ios/arm64 was treated as a 64 bit system and the addr bits of ios/arm64 was set to 40
+    
+    Change-Id: I32d72787d20a3cf952b036e3e887cf5bae2273d8
+    GitHub-Last-Rev: 8917029fddc4d187b24fad8245fd7eed2bd570ba
+    GitHub-Pull-Request: golang/go#69343
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610856
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/malloc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index b24ebec27d..a35f806aa3 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -227,7 +227,7 @@ const (
+ 	// --------------  ---------  ----------  ----------  -----------
+ 	//       */64-bit         48        64MB           1    4M (32MB)
+ 	// windows/64-bit         48         4MB          64    1M  (8MB)
+-	//      ios/arm64         33         4MB           1  2048  (8KB)
++	//      ios/arm64         40         4MB           1  256K  (2MB)
+ 	//       */32-bit         32         4MB           1  1024  (4KB)
+ 	//     */mips(le)         31         4MB           1   512  (2KB)
+ 

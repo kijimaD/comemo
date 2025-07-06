@@ -1,0 +1,165 @@
+commit bfc8c5b85a8b749b6bf3c8004b30acb598cdc962
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Oct 23 09:19:57 2024 -0700
+
+    go/types, types2: simplify cycle reporting code (minor cleanup)
+    
+    Change-Id: I49c7107d9624c9a8aa97dcc87e2d4722b9ba0a20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/decl.go      | 23 ++++++++++-------------
+ src/cmd/compile/internal/types2/initorder.go |  7 ++++---
+ src/go/types/decl.go                         | 24 ++++++++++--------------
+ src/go/types/initorder.go                    |  7 ++++---
+ 4 files changed, 28 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index b8e43231a1..517a3d3def 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -306,9 +306,8 @@ func (check *Checker) cycleError(cycle []Object, start int) {
+ 		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
+ 	}
+ 
+-	obj := cycle[start]
+-	objName := name(obj)
+ 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
++	obj := cycle[start]
+ 	tname, _ := obj.(*TypeName)
+ 	if tname != nil && tname.IsAlias() {
+ 		// If we use Alias nodes, it is initialized with Typ[Invalid].
+@@ -321,26 +320,24 @@ func (check *Checker) cycleError(cycle []Object, start int) {
+ 	// report a more concise error for self references
+ 	if len(cycle) == 1 {
+ 		if tname != nil {
+-			check.errorf(obj, InvalidDeclCycle, "invalid recursive type: %s refers to itself", objName)
++			check.errorf(obj, InvalidDeclCycle, "invalid recursive type: %s refers to itself", name(obj))
+ 		} else {
+-			check.errorf(obj, InvalidDeclCycle, "invalid cycle in declaration: %s refers to itself", objName)
++			check.errorf(obj, InvalidDeclCycle, "invalid cycle in declaration: %s refers to itself", name(obj))
+ 		}
+ 		return
+ 	}
+ 
+ 	err := check.newError(InvalidDeclCycle)
+ 	if tname != nil {
+-		err.addf(obj, "invalid recursive type %s", objName)
++		err.addf(obj, "invalid recursive type %s", name(obj))
+ 	} else {
+-		err.addf(obj, "invalid cycle in declaration of %s", objName)
+-	}
+-	// "cycle[i] refers to cycle[j]" for (i,j) = (s, s+1), (s+1, s+2), ..., (n, 0), (0,1), ..., (s-1,s) for len(cycle) = n, s = start.
+-	n := len(cycle)
+-	rotate := func(i int) int { return (i + start) % n }
+-	for i := range n {
+-		obj := cycle[rotate(i)]
+-		next := cycle[rotate(i+1)]
++		err.addf(obj, "invalid cycle in declaration of %s", name(obj))
++	}
++	// "cycle[i] refers to cycle[j]" for (i,j) = (s,s+1), (s+1,s+2), ..., (n-1,0), (0,1), ..., (s-1,s) for len(cycle) = n, s = start.
++	for i := range cycle {
++		next := cycle[(start+i+1)%len(cycle)]
+ 		err.addf(obj, "%s refers to %s", name(obj), name(next))
++		obj = next
+ 	}
+ 	err.report()
+ }
+diff --git a/src/cmd/compile/internal/types2/initorder.go b/src/cmd/compile/internal/types2/initorder.go
+index 9efbf7f69f..ef2ad010a6 100644
+--- a/src/cmd/compile/internal/types2/initorder.go
++++ b/src/cmd/compile/internal/types2/initorder.go
+@@ -163,10 +163,11 @@ func (check *Checker) reportCycle(cycle []Object) {
+ 
+ 	err := check.newError(InvalidInitCycle)
+ 	err.addf(obj, "initialization cycle for %s", obj.Name())
+-	// "cycle[i] refers to cycle[j]" for (i,j) = (0, n-1), (n-1, n-2), ..., (1,0) for len(cycle) = n.
++	// "cycle[i] refers to cycle[j]" for (i,j) = (0,n-1), (n-1,n-2), ..., (1,0) for len(cycle) = n.
+ 	for j := len(cycle) - 1; j >= 0; j-- {
+-		err.addf(obj, "%s refers to %s", obj.Name(), cycle[j].Name())
+-		obj = cycle[j]
++		next := cycle[j]
++		err.addf(obj, "%s refers to %s", obj.Name(), next.Name())
++		obj = next
+ 	}
+ 	err.report()
+ }
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 498eb16f84..04dfc5af4b 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -302,14 +302,13 @@ func (check *Checker) cycleError(cycle []Object, start int) {
+ 	// name returns the (possibly qualified) object name.
+ 	// This is needed because with generic types, cycles
+ 	// may refer to imported types. See go.dev/issue/50788.
+-	// TODO(gri) Thus functionality is used elsewhere. Factor it out.
++	// TODO(gri) This functionality is used elsewhere. Factor it out.
+ 	name := func(obj Object) string {
+ 		return packagePrefix(obj.Pkg(), check.qualifier) + obj.Name()
+ 	}
+ 
+-	obj := cycle[start]
+-	objName := name(obj)
+ 	// If obj is a type alias, mark it as valid (not broken) in order to avoid follow-on errors.
++	obj := cycle[start]
+ 	tname, _ := obj.(*TypeName)
+ 	if tname != nil && tname.IsAlias() {
+ 		// If we use Alias nodes, it is initialized with Typ[Invalid].
+@@ -322,27 +321,24 @@ func (check *Checker) cycleError(cycle []Object, start int) {
+ 	// report a more concise error for self references
+ 	if len(cycle) == 1 {
+ 		if tname != nil {
+-			check.errorf(obj, InvalidDeclCycle, "invalid recursive type: %s refers to itself", objName)
++			check.errorf(obj, InvalidDeclCycle, "invalid recursive type: %s refers to itself", name(obj))
+ 		} else {
+-			check.errorf(obj, InvalidDeclCycle, "invalid cycle in declaration: %s refers to itself", objName)
++			check.errorf(obj, InvalidDeclCycle, "invalid cycle in declaration: %s refers to itself", name(obj))
+ 		}
+ 		return
+ 	}
+ 
+ 	err := check.newError(InvalidDeclCycle)
+ 	if tname != nil {
+-		err.addf(obj, "invalid recursive type %s", objName)
++		err.addf(obj, "invalid recursive type %s", name(obj))
+ 	} else {
+-		err.addf(obj, "invalid cycle in declaration of %s", objName)
++		err.addf(obj, "invalid cycle in declaration of %s", name(obj))
+ 	}
+-
+-	// "cycle[i] refers to cycle[j]" for (i,j) = (s, s+1), (s+1, s+2), ..., (n, 0), (0,1), ..., (s-1,s) for len(cycle) = n, s = start.
+-	n := len(cycle)
+-	rotate := func(i int) int { return (i + start) % n }
+-	for i := range n {
+-		obj := cycle[rotate(i)]
+-		next := cycle[rotate(i+1)]
++	// "cycle[i] refers to cycle[j]" for (i,j) = (s,s+1), (s+1,s+2), ..., (n-1,0), (0,1), ..., (s-1,s) for len(cycle) = n, s = start.
++	for i := range cycle {
++		next := cycle[(start+i+1)%len(cycle)]
+ 		err.addf(obj, "%s refers to %s", name(obj), name(next))
++		obj = next
+ 	}
+ 	err.report()
+ }
+diff --git a/src/go/types/initorder.go b/src/go/types/initorder.go
+index 682a63e2d7..7625c20667 100644
+--- a/src/go/types/initorder.go
++++ b/src/go/types/initorder.go
+@@ -166,10 +166,11 @@ func (check *Checker) reportCycle(cycle []Object) {
+ 
+ 	err := check.newError(InvalidInitCycle)
+ 	err.addf(obj, "initialization cycle for %s", obj.Name())
+-	// "cycle[i] refers to cycle[j]" for (i,j) = (0, n-1), (n-1, n-2), ..., (1,0) for len(cycle) = n.
++	// "cycle[i] refers to cycle[j]" for (i,j) = (0,n-1), (n-1,n-2), ..., (1,0) for len(cycle) = n.
+ 	for j := len(cycle) - 1; j >= 0; j-- {
+-		err.addf(obj, "%s refers to %s", obj.Name(), cycle[j].Name())
+-		obj = cycle[j]
++		next := cycle[j]
++		err.addf(obj, "%s refers to %s", obj.Name(), next.Name())
++		obj = next
+ 	}
+ 	err.report()
+ }

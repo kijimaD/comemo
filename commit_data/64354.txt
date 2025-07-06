@@ -1,0 +1,176 @@
+commit ac51262592a20e16afec77163eff98be1d336f5c
+Author: apocelipes <seve3r@outlook.com>
+Date:   Mon Jul 29 10:23:14 2024 +0000
+
+    cmd,log,net,runtime: simplify string prefix and suffix processing
+    
+    Use the TrimPrefix, TrimSuffix and CutPrefix to simplify the code.
+    
+    Change-Id: I3e2b271ec0d3f9ce664b830e2b0c21ab47337ed0
+    GitHub-Last-Rev: 4bd1577d2496173800d609da75b08f6de177aba9
+    GitHub-Pull-Request: golang/go#68629
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/cgo/out.go                          | 4 +---
+ src/cmd/compile/internal/types2/resolver.go | 5 +----
+ src/cmd/go/internal/load/pkg.go             | 6 +-----
+ src/cmd/go/internal/work/gc.go              | 5 +----
+ src/log/slog/logger.go                      | 5 ++---
+ src/net/dnsclient_unix.go                   | 5 ++---
+ src/net/http/cookiejar/jar.go               | 4 +---
+ src/runtime/os_darwin.go                    | 6 ++----
+ 8 files changed, 11 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 5329cb3cd2..0a0ef88fbc 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -378,9 +378,7 @@ func dynimport(obj string) {
+ 		defer f.Close()
+ 		sym, _ := f.ImportedSymbols()
+ 		for _, s := range sym {
+-			if len(s) > 0 && s[0] == '_' {
+-				s = s[1:]
+-			}
++			s = strings.TrimPrefix(s, "_")
+ 			checkImportSymName(s)
+ 			fmt.Fprintf(stdout, "//go:cgo_import_dynamic %s %s %q\n", s, s, "")
+ 		}
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index b381b541b7..28e4a7faa6 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -167,10 +167,7 @@ func (check *Checker) importPackage(pos syntax.Pos, path, dir string) *Package {
+ 			if imp == nil {
+ 				// create a new fake package
+ 				// come up with a sensible package name (heuristic)
+-				name := path
+-				if i := len(name); i > 0 && name[i-1] == '/' {
+-					name = name[:i-1]
+-				}
++				name := strings.TrimSuffix(path, "/")
+ 				if i := strings.LastIndex(name, "/"); i >= 0 {
+ 					name = name[i+1:]
+ 				}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index bf432f0bb7..238fb6efd2 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2076,11 +2076,7 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
+ 	for _, pattern = range patterns {
+ 		pid++
+ 
+-		glob := pattern
+-		all := strings.HasPrefix(pattern, "all:")
+-		if all {
+-			glob = pattern[len("all:"):]
+-		}
++		glob, all := strings.CutPrefix(pattern, "all:")
+ 		// Check pattern is valid for //go:embed.
+ 		if _, err := pathpkg.Match(glob, ""); err != nil || !validEmbedPattern(glob) {
+ 			return nil, nil, fmt.Errorf("invalid pattern syntax")
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 99bcaf9266..1fbd267e09 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -248,10 +248,7 @@ func (a *Action) trimpath() string {
+ 	// same situations.
+ 
+ 	// Strip the object directory entirely.
+-	objdir := a.Objdir
+-	if len(objdir) > 1 && objdir[len(objdir)-1] == filepath.Separator {
+-		objdir = objdir[:len(objdir)-1]
+-	}
++	objdir := strings.TrimSuffix(a.Objdir, string(filepath.Separator))
+ 	rewrite := ""
+ 
+ 	rewriteDir := a.Package.Dir
+diff --git a/src/log/slog/logger.go b/src/log/slog/logger.go
+index 10aa6a2b31..961e0cd2ce 100644
+--- a/src/log/slog/logger.go
++++ b/src/log/slog/logger.go
+@@ -5,6 +5,7 @@
+ package slog
+ 
+ import (
++	"bytes"
+ 	"context"
+ 	"log"
+ 	loginternal "log/internal"
+@@ -96,9 +97,7 @@ func (w *handlerWriter) Write(buf []byte) (int, error) {
+ 
+ 	// Remove final newline.
+ 	origLen := len(buf) // Report that the entire buf was written.
+-	if len(buf) > 0 && buf[len(buf)-1] == '\n' {
+-		buf = buf[:len(buf)-1]
+-	}
++	buf = bytes.TrimSuffix(buf, []byte{'\n'})
+ 	r := NewRecord(time.Now(), level, string(buf), pc)
+ 	return origLen, w.h.Handle(context.Background(), r)
+ }
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 54c7dc83ba..5e060a6b48 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -18,6 +18,7 @@ import (
+ 	"internal/bytealg"
+ 	"internal/godebug"
+ 	"internal/itoa"
++	"internal/stringslite"
+ 	"io"
+ 	"os"
+ 	"runtime"
+@@ -487,9 +488,7 @@ func avoidDNS(name string) bool {
+ 	if name == "" {
+ 		return true
+ 	}
+-	if name[len(name)-1] == '.' {
+-		name = name[:len(name)-1]
+-	}
++	name = stringslite.TrimSuffix(name, ".")
+ 	return stringsHasSuffixFold(name, ".onion")
+ }
+ 
+diff --git a/src/net/http/cookiejar/jar.go b/src/net/http/cookiejar/jar.go
+index 2eec1a3e74..edf14d03ad 100644
+--- a/src/net/http/cookiejar/jar.go
++++ b/src/net/http/cookiejar/jar.go
+@@ -500,9 +500,7 @@ func (j *Jar) domainAndType(host, domain string) (string, bool, error) {
+ 	// From here on: If the cookie is valid, it is a domain cookie (with
+ 	// the one exception of a public suffix below).
+ 	// See RFC 6265 section 5.2.3.
+-	if domain[0] == '.' {
+-		domain = domain[1:]
+-	}
++	domain = strings.TrimPrefix(domain, ".")
+ 
+ 	if len(domain) == 0 || domain[0] == '.' {
+ 		// Received either "Domain=." or "Domain=..some.thing",
+diff --git a/src/runtime/os_darwin.go b/src/runtime/os_darwin.go
+index 430d1865df..c6e2018817 100644
+--- a/src/runtime/os_darwin.go
++++ b/src/runtime/os_darwin.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/stringslite"
+ 	"unsafe"
+ )
+ 
+@@ -465,10 +466,7 @@ func sysargs(argc int32, argv **byte) {
+ 	executablePath = gostringnocopy(argv_index(argv, n+1))
+ 
+ 	// strip "executable_path=" prefix if available, it's added after OS X 10.11.
+-	const prefix = "executable_path="
+-	if len(executablePath) > len(prefix) && executablePath[:len(prefix)] == prefix {
+-		executablePath = executablePath[len(prefix):]
+-	}
++	executablePath = stringslite.TrimPrefix(executablePath, "executable_path=")
+ }
+ 
+ func signalM(mp *m, sig int) {

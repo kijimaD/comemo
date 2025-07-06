@@ -1,0 +1,157 @@
+commit 7fd0b133dc1bb4af59914650660c644381c84e35
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Wed Aug 28 16:26:30 2024 +0000
+
+    cmd/go: add Mercurial based version stamping for binaries
+    
+    This CL adds a local only VCS lookup for Mercurial.
+    It fixes a bug in pkg.go by passing in the repo directory to
+    the LookupLocal function instead of the module directory. It could be
+    the case that a binary is built in a subdirectory of the repo.
+    
+    For: #50603
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Ic36b5a361a8ba3b0ba1a6968cde5f5263c9c8dd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609155
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/internal/load/pkg.go                    |  2 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       | 22 ++++++++++++++++++++--
+ src/cmd/go/testdata/script/version_buildvcs_hg.txt | 11 +++++++++++
+ 3 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 9f3c914597..05f2441557 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2494,7 +2494,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 		}
+ 		appendSetting("vcs.modified", strconv.FormatBool(st.Uncommitted))
+ 		// Determine the correct version of this module at the current revision and update the build metadata accordingly.
+-		repo := modfetch.LookupLocal(ctx, p.Module.Dir)
++		repo := modfetch.LookupLocal(ctx, repoDir)
+ 		revInfo, err := repo.Stat(ctx, st.Revision)
+ 		if err != nil {
+ 			goto omitVCS
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 75fde763ae..58f340c821 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -70,6 +70,7 @@ type vcsRepo struct {
+ 	remote string
+ 	cmd    *vcsCmd
+ 	dir    string
++	local  bool
+ 
+ 	tagsOnce sync.Once
+ 	tags     map[string]bool
+@@ -85,15 +86,27 @@ func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, erro
+ 	if vcs == "git" {
+ 		return newGitRepo(ctx, remote, local)
+ 	}
++	r := &vcsRepo{remote: remote, local: local}
+ 	cmd := vcsCmds[vcs]
+ 	if cmd == nil {
+ 		return nil, fmt.Errorf("unknown vcs: %s %s", vcs, remote)
+ 	}
++	r.cmd = cmd
++	if local {
++		info, err := os.Stat(remote)
++		if err != nil {
++			return nil, err
++		}
++		if !info.IsDir() {
++			return nil, fmt.Errorf("%s exists but is not a directory", remote)
++		}
++		r.dir = remote
++		r.mu.Path = r.dir + ".lock"
++		return r, nil
++	}
+ 	if !strings.Contains(remote, "://") {
+ 		return nil, fmt.Errorf("invalid vcs remote: %s %s", vcs, remote)
+ 	}
+-
+-	r := &vcsRepo{remote: remote, cmd: cmd}
+ 	var err error
+ 	r.dir, r.mu.Path, err = WorkDir(ctx, vcsWorkDirType+vcs, r.remote)
+ 	if err != nil {
+@@ -341,6 +354,11 @@ func (r *vcsRepo) Stat(ctx context.Context, rev string) (*RevInfo, error) {
+ 		rev = r.cmd.latest
+ 	}
+ 	r.branchesOnce.Do(func() { r.loadBranches(ctx) })
++	if r.local {
++		// Ignore the badLocalRevRE precondition in local only mode.
++		// We cannot fetch latest upstream changes so only serve what's in the local cache.
++		return r.statLocal(ctx, rev)
++	}
+ 	revOK := (r.cmd.badLocalRevRE == nil || !r.cmd.badLocalRevRE.MatchString(rev)) && !r.branches[rev]
+ 	if revOK {
+ 		if info, err := r.statLocal(ctx, rev); err == nil {
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_hg.txt b/src/cmd/go/testdata/script/version_buildvcs_hg.txt
+index 13904fae12..4f9fa7f2f4 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_hg.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_hg.txt
+@@ -14,6 +14,7 @@ cd repo/a
+ go install
+ go version -m $GOBIN/a$GOEXE
+ ! stdout hgrevision
++stdout '\s+mod\s+example.com/a\s+\(devel\)'
+ rm $GOBIN/a$GOEXE
+ 
+ # If there is a repository, but it can't be used for some reason,
+@@ -40,17 +41,23 @@ go version -m $GOBIN/a$GOEXE
+ stdout '^\tbuild\tvcs.revision=0000000000000000000000000000000000000000$'
+ stdout '^\tbuild\tvcs.time=1970-01-01T00:00:00Z$'
+ stdout '^\tbuild\tvcs.modified=true$'
++stdout '\s+mod\s+example.com/a\s+v0.0.0-19700101000000-000000000000\+dirty'
+ cd ..
+ 
+ # Revision and commit time are tagged for repositories with commits.
+ exec hg add a README
+ exec hg commit -m 'initial commit' --user test-user --date '2024-07-31T01:21:27+00:00'
++exec hg tag v1.2.3
++# Switch back to the tagged branch.
++# Tagging a commit causes a new commit to be created. (See https://repo.mercurial-scm.org/hg/help/revsets)
++exec hg update '.~1'
+ cd a
+ go install
+ go version -m $GOBIN/a$GOEXE
+ stdout '^\tbuild\tvcs.revision=71eaed52daeaafea83cb604f75b0a0336ef2c345$'
+ stdout '^\tbuild\tvcs.time=2024-07-31T01:21:27Z$'
+ stdout '^\tbuild\tvcs.modified=false$'
++stdout '\s+mod\s+example.com/a\s+v1.2.3\s+'
+ rm $GOBIN/a$GOEXE
+ 
+ # Add an extra commit and then back off of it to show that the hash is
+@@ -69,12 +76,14 @@ go version -m $GOBIN/a$GOEXE
+ stdout '^\tbuild\tvcs.revision=71eaed52daeaafea83cb604f75b0a0336ef2c345$'
+ stdout '^\tbuild\tvcs.time=2024-07-31T01:21:27Z$'
+ stdout '^\tbuild\tvcs.modified=false$'
++stdout '\s+mod\s+example.com/a\s+v1.2.3\s+'
+ rm $GOBIN/a$GOEXE
+ 
+ # Building with -buildvcs=false suppresses the info.
+ go install -buildvcs=false
+ go version -m $GOBIN/a$GOEXE
+ ! stdout hgrevision
++stdout '\s+mod\s+example.com/a\s+\(devel\)'
+ rm $GOBIN/a$GOEXE
+ 
+ # An untracked file is shown as uncommitted, even if it isn't part of the build.
+@@ -82,6 +91,7 @@ cp ../../outside/empty.txt .
+ go install
+ go version -m $GOBIN/a$GOEXE
+ stdout '^\tbuild\tvcs.modified=true$'
++stdout '\s+mod\s+example.com/a\s+v1.2.3\+dirty\s+'
+ rm empty.txt
+ rm $GOBIN/a$GOEXE
+ 
+@@ -90,6 +100,7 @@ cp ../../outside/empty.txt ../README
+ go install
+ go version -m $GOBIN/a$GOEXE
+ stdout '^\tbuild\tvcs.modified=true$'
++stdout '\s+mod\s+example.com/a\s+v1.2.3\+dirty\s+'
+ exec hg revert ../README
+ rm $GOBIN/a$GOEXE
+ 

@@ -1,0 +1,294 @@
+commit fe7d97d0322c283462b38c0f53bc340b642fe1cb
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Oct 30 19:11:49 2024 +0800
+
+    cmd/compile, internal/runtime/atomic: add Xchg8 for loong64
+    
+    In Loongson's new microstructure LA664 (Loongson-3A6000) and later, the atomic
+    instruction AMSWAP[DB]{B,H} [1] is supported. Therefore, the implementation of
+    the atomic operation exchange can be selected according to the CPUCFG flag LAM_BH:
+    AMSWAPDBB(full barrier) instruction is used on new microstructures, and traditional
+    LL-SC is used on LA464 (Loongson-3A5000) and older microstructures. This can
+    significantly improve the performance of Go programs on new microstructures.
+    
+    Because Xchg8 implemented using traditional LL-SC uses too many temporary
+    registers, it is not suitable for intrinsics.
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A6000 @ 2500.00MHz
+    BenchmarkXchg8                  100000000               10.41 ns/op
+    BenchmarkXchg8-2                100000000               10.41 ns/op
+    BenchmarkXchg8-4                100000000               10.41 ns/op
+    BenchmarkXchg8Parallel          96647592                12.41 ns/op
+    BenchmarkXchg8Parallel-2        58376136                20.60 ns/op
+    BenchmarkXchg8Parallel-4        78458899                17.97 ns/op
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A5000-HV @ 2500.00MHz
+    BenchmarkXchg8                  38323825                31.23 ns/op
+    BenchmarkXchg8-2                38368219                31.23 ns/op
+    BenchmarkXchg8-4                37154156                31.26 ns/op
+    BenchmarkXchg8Parallel          37908301                31.63 ns/op
+    BenchmarkXchg8Parallel-2        30413440                39.42 ns/op
+    BenchmarkXchg8Parallel-4        30737626                39.03 ns/op
+    
+    For #69735
+    
+    [1]: https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html
+    
+    Change-Id: I02ba68f66a2210b6902344fdc9975eb62de728ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623058
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/compile/internal/loong64/ssa.go            |  9 +++++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  1 +
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  5 +++
+ src/cmd/compile/internal/ssa/opGen.go              | 17 ++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     |  3 ++
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 35 ++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  1 +
+ src/internal/runtime/atomic/atomic_loong64.go      |  3 ++
+ src/internal/runtime/atomic/atomic_loong64.s       | 38 ++++++++++++++++++++++
+ src/internal/runtime/atomic/xchg8_test.go          |  2 +-
+ 10 files changed, 113 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index f46ec74a28..0ba9efa1d3 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -722,6 +722,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = v.Args[0].Reg()
+ 		p.RegTo2 = v.Reg0()
+ 
++	case ssa.OpLOONG64LoweredAtomicExchange8Variant:
++		// AMSWAPDBB	Rarg1, (Rarg0), Rout
++		p := s.Prog(loong64.AAMSWAPDBB)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = v.Args[0].Reg()
++		p.RegTo2 = v.Reg0()
++
+ 	case ssa.OpLOONG64LoweredAtomicAdd32, ssa.OpLOONG64LoweredAtomicAdd64:
+ 		// AMADDx  Rarg1, (Rarg0), Rout
+ 		// ADDV    Rarg1, Rout, Rout
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 1f1434c4be..00a0a84f33 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -450,6 +450,7 @@
+ (AtomicStorePtrNoWB ...) => (LoweredAtomicStore64 ...)
+ 
+ (AtomicExchange(32|64) ...) => (LoweredAtomicExchange(32|64) ...)
++(AtomicExchange8Variant  ...) => (LoweredAtomicExchange8Variant  ...)
+ 
+ (AtomicAdd(32|64) ...) => (LoweredAtomicAdd(32|64) ...)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 360458b96a..8f17158b64 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -466,6 +466,11 @@ func init() {
+ 		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+ 		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+ 
++		// atomic exchange variant.
++		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>. auxint must be zero.
++		// AMSWAPDBB   Rarg1, (Rarg0), Rout
++		{name: "LoweredAtomicExchange8Variant", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++
+ 		// atomic add.
+ 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
+ 		{name: "LoweredAtomicAdd32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index f7179d98d5..86d8924943 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1924,6 +1924,7 @@ const (
+ 	OpLOONG64LoweredAtomicStore64Variant
+ 	OpLOONG64LoweredAtomicExchange32
+ 	OpLOONG64LoweredAtomicExchange64
++	OpLOONG64LoweredAtomicExchange8Variant
+ 	OpLOONG64LoweredAtomicAdd32
+ 	OpLOONG64LoweredAtomicAdd64
+ 	OpLOONG64LoweredAtomicCas32
+@@ -25855,6 +25856,22 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredAtomicExchange8Variant",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 	{
+ 		name:            "LoweredAtomicAdd32",
+ 		argLen:          3,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 40265bd124..ab39040de1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -80,6 +80,9 @@ func rewriteValueLOONG64(v *Value) bool {
+ 	case OpAtomicExchange64:
+ 		v.Op = OpLOONG64LoweredAtomicExchange64
+ 		return true
++	case OpAtomicExchange8Variant:
++		v.Op = OpLOONG64LoweredAtomicExchange8Variant
++		return true
+ 	case OpAtomicLoad32:
+ 		v.Op = OpLOONG64LoweredAtomicLoad32
+ 		return true
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index f69d7bdc66..8a721b4134 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -439,6 +439,41 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicExchange64, ssa.OpAtomicExchange64Variant, types.TUINT64, atomicEmitterARM64),
+ 		sys.ARM64)
+ 
++	makeAtomicXchg8GuardedIntrinsicLoong64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLAM_BH, s.sb)
++			v := s.load(types.Types[types.TBOOL], addr)
++			b := s.endBlock()
++			b.Kind = ssa.BlockIf
++			b.SetControl(v)
++			bTrue := s.f.NewBlock(ssa.BlockPlain)
++			bFalse := s.f.NewBlock(ssa.BlockPlain)
++			bEnd := s.f.NewBlock(ssa.BlockPlain)
++			b.AddEdgeTo(bTrue)
++			b.AddEdgeTo(bFalse)
++			b.Likely = ssa.BranchLikely // most loong64 machines support the amswapdb.b
++
++			// We have the intrinsic - use it directly.
++			s.startBlock(bTrue)
++			s.vars[n] = s.newValue3(op, types.NewTuple(types.Types[types.TUINT8], types.TypeMem), args[0], args[1], s.mem())
++			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, s.vars[n])
++			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[types.TUINT8], s.vars[n])
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Call the pure Go version.
++			s.startBlock(bFalse)
++			s.vars[n] = s.callResult(n, callNormal) // types.Types[TUINT8]
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Merge results.
++			s.startBlock(bEnd)
++			return s.variable(n, types.Types[types.TUINT8])
++		}
++	}
++	addF("internal/runtime/atomic", "Xchg8",
++		makeAtomicXchg8GuardedIntrinsicLoong64(ssa.OpAtomicExchange8Variant),
++		sys.Loong64)
++
+ 	addF("internal/runtime/atomic", "Xadd",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAdd32, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 7603327b2f..df2a6b3187 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -392,6 +392,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "internal/runtime/atomic", "Xaddint32"}:        struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Xaddint64"}:        struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Xadduintptr"}:      struct{}{},
++	{"loong64", "internal/runtime/atomic", "Xchg8"}:            struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Xchg"}:             struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Xchg64"}:           struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Xchgint32"}:        struct{}{},
+diff --git a/src/internal/runtime/atomic/atomic_loong64.go b/src/internal/runtime/atomic/atomic_loong64.go
+index 6586ad2f6c..1fa1a9fa5a 100644
+--- a/src/internal/runtime/atomic/atomic_loong64.go
++++ b/src/internal/runtime/atomic/atomic_loong64.go
+@@ -25,6 +25,9 @@ func Xadd64(ptr *uint64, delta int64) uint64
+ //go:noescape
+ func Xadduintptr(ptr *uintptr, delta uintptr) uintptr
+ 
++//go:noescape
++func Xchg8(ptr *uint8, new uint8) uint8
++
+ //go:noescape
+ func Xchg(ptr *uint32, new uint32) uint32
+ 
+diff --git a/src/internal/runtime/atomic/atomic_loong64.s b/src/internal/runtime/atomic/atomic_loong64.s
+index d67300afc4..5222b77e77 100644
+--- a/src/internal/runtime/atomic/atomic_loong64.s
++++ b/src/internal/runtime/atomic/atomic_loong64.s
+@@ -150,6 +150,44 @@ TEXT ·Xadd64(SB), NOSPLIT, $0-24
+ 	MOVV	R4, ret+16(FP)
+ 	RET
+ 
++// uint8 Xchg8(ptr *uint8, new uint8)
++// Atomically:
++//     old := *ptr;
++//     *ptr = new;
++//     return old;
++TEXT ·Xchg8(SB), NOSPLIT, $0-17
++	MOVV	ptr+0(FP), R4
++	MOVBU	new+8(FP), R5
++
++	// R6 = ((ptr & 3) * 8)
++	AND	$3, R4, R6
++	SLLV	$3, R6
++
++	// R7 = ((0xFF) << R6) ^ (-1)
++	MOVV	$0xFF, R8
++	SLLV	R6, R8, R7
++	XOR	$-1, R7
++
++	// R4 = ptr & (~3)
++	MOVV	$~3, R8
++	AND	R8, R4
++
++	// R5 = ((val) << R6)
++	SLLV	R6, R5
++
++	DBAR	$0x14	// LoadAcquire barrier
++_xchg8_again:
++	LL	(R4), R8
++	MOVV	R8, R9	// backup old val
++	AND	R7, R8
++	OR	R5, R8
++	SC	R8, (R4)
++	BEQ	R8, _xchg8_again
++	DBAR	$0x12	// StoreRelease barrier
++	SRLV	R6, R9, R9
++	MOVBU	R9, ret+16(FP)
++	RET
++
+ // func Xchg(ptr *uint32, new uint32) uint32
+ TEXT ·Xchg(SB), NOSPLIT, $0-20
+ 	MOVV	ptr+0(FP), R4
+diff --git a/src/internal/runtime/atomic/xchg8_test.go b/src/internal/runtime/atomic/xchg8_test.go
+index d9c0a8dd24..016ce819b0 100644
+--- a/src/internal/runtime/atomic/xchg8_test.go
++++ b/src/internal/runtime/atomic/xchg8_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build 386 || amd64 || arm || arm64 || ppc64 || ppc64le
++//go:build 386 || amd64 || arm || arm64 || loong64 || ppc64 || ppc64le
+ 
+ package atomic_test
+ 

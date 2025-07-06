@@ -1,0 +1,177 @@
+commit 9ce47e66e8eb7348005f1e45a77a729e7f146a1e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jun 15 01:29:02 2024 +1000
+
+    cmd/internal/obj/arm64: add support for BTI instruction
+    
+    Add support for the `BTI' instruction to the arm64 assembler. This
+    instruction provides Branch Target Identification for targets of
+    indirect branches. A BTI can be marked with a target type of
+    'C' (call), 'J' (jump) or 'JC' (jump or call).
+    
+    Updates #66054
+    
+    Change-Id: I1cf31a0382207bb75b9b2deb49ac298a59c00d8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646781
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Marvin Drees <marvin.drees@9elements.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/asm/internal/asm/testdata/arm64.s          |  6 ++++++
+ src/cmd/asm/internal/asm/testdata/arm64error.s     |  2 ++
+ src/cmd/internal/obj/arm64/a.out.go                |  9 +++++++--
+ src/cmd/internal/obj/arm64/anames.go               |  1 +
+ src/cmd/internal/obj/arm64/asm7.go                 | 23 +++++++++++++++++++++-
+ .../internal/obj/arm64/specialoperand_string.go    |  9 ++++++---
+ 6 files changed, 44 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index 14a1c9141d..236f1a6697 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -1888,4 +1888,10 @@ next:
+ 	DC	CIGDVAC, R25                       // b97e0bd5
+ 	DC	CVAP, R26                          // 3a7c0bd5
+ 	DC	CVADP, R27                         // 3b7d0bd5
++
++// Branch Target Identification
++	BTI	C                                  // 5f2403d5
++	BTI	J                                  // 9f2403d5
++	BTI	JC                                 // df2403d5
++
+ 	END
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64error.s b/src/cmd/asm/internal/asm/testdata/arm64error.s
+index 3ac8788424..55890ce3e6 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64error.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64error.s
+@@ -420,4 +420,6 @@ TEXT errors(SB),$0
+ 	AESE	V1.B16, V2.B8                                    // ERROR "invalid arrangement"
+ 	SHA256SU1	V1.S4, V2.B16, V3.S4                     // ERROR "invalid arrangement"
+ 	SHA1H	V1.B16, V2.B16                                   // ERROR "invalid operands"
++	BTI                                       		 // ERROR "missing operand"
++	BTI	PLDL1KEEP					 // ERROR "illegal argument"
+ 	RET
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index de04a24280..710dd64b30 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -1019,6 +1019,7 @@ const (
+ 	AWFI
+ 	AWORD
+ 	AYIELD
++	ABTI
+ 	ALAST
+ 	AB  = obj.AJMP
+ 	ABL = obj.ACALL
+@@ -1189,7 +1190,7 @@ const (
+ 	SPOP_DAIFSet
+ 	SPOP_DAIFClr
+ 
+-	// Condition code, EQ, NE, etc. Their relative order to EQ is matter.
++	// Condition code, EQ, NE, etc. Their relative order to EQ matters.
+ 	SPOP_EQ
+ 	SPOP_NE
+ 	SPOP_HS
+@@ -1206,7 +1207,11 @@ const (
+ 	SPOP_LE
+ 	SPOP_AL
+ 	SPOP_NV
+-	// Condition code end.
++
++	// Branch Target Indicator (BTI) targets
++	SPOP_C
++	SPOP_J
++	SPOP_JC
+ 
+ 	SPOP_END
+ )
+diff --git a/src/cmd/internal/obj/arm64/anames.go b/src/cmd/internal/obj/arm64/anames.go
+index bac8b40e77..379f53bab3 100644
+--- a/src/cmd/internal/obj/arm64/anames.go
++++ b/src/cmd/internal/obj/arm64/anames.go
+@@ -536,5 +536,6 @@ var Anames = []string{
+ 	"WFI",
+ 	"WORD",
+ 	"YIELD",
++	"BTI",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index a2e8f47f11..2e03d65b0d 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -872,6 +872,8 @@ var optab = []Optab{
+ 	{ASYSL, C_VCON, C_NONE, C_NONE, C_ZREG, C_NONE, 50, 4, 0, 0, 0},
+ 	{ATLBI, C_SPOP, C_NONE, C_NONE, C_NONE, C_NONE, 107, 4, 0, 0, 0},
+ 	{ATLBI, C_SPOP, C_NONE, C_NONE, C_ZREG, C_NONE, 107, 4, 0, 0, 0},
++	{ABTI, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 108, 4, 0, 0, 0},
++	{ABTI, C_SPOP, C_NONE, C_NONE, C_NONE, C_NONE, 108, 4, 0, 0, 0},
+ 
+ 	/* encryption instructions */
+ 	{AAESD, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 26, 4, 0, 0, 0}, // for compatibility with old code
+@@ -3036,6 +3038,7 @@ func buildop(ctxt *obj.Link) {
+ 			ABL,
+ 			AWORD,
+ 			ADWORD,
++			ABTI,
+ 			obj.ARET,
+ 			obj.ATEXT:
+ 			break
+@@ -5864,6 +5867,24 @@ func (c *ctxt7) asmout(p *obj.Prog, out []uint32) (count int) {
+ 			o1 |= uint32(0x1F)
+ 		}
+ 		o1 |= uint32(SYSARG4(int(op.op1), int(op.cn), int(op.cm), int(op.op2)))
++
++	case 108: /* bti */
++		o1 = SYSHINT(32)
++		if p.From.Type != obj.TYPE_SPECIAL {
++			c.ctxt.Diag("missing operand: %v\n", p)
++			break
++		}
++		switch SpecialOperand(p.From.Offset) {
++		case SPOP_C:
++			o1 |= 1 << 6
++		case SPOP_J:
++			o1 |= 2 << 6
++		case SPOP_JC:
++			o1 |= 3 << 6
++		default:
++			c.ctxt.Diag("illegal argument: %v\n", p)
++			break
++		}
+ 	}
+ 	out[0] = o1
+ 	out[1] = o2
+@@ -6751,7 +6772,7 @@ func (c *ctxt7) opirr(p *obj.Prog, a obj.As) uint32 {
+ 		return SYSOP(0, 0, 3, 3, 0, 6, 0x1F)
+ 
+ 	case AHINT:
+-		return SYSOP(0, 0, 3, 2, 0, 0, 0x1F)
++		return SYSHINT(0)
+ 
+ 	case AVEXT:
+ 		return 0x2E<<24 | 0<<23 | 0<<21 | 0<<15
+diff --git a/src/cmd/internal/obj/arm64/specialoperand_string.go b/src/cmd/internal/obj/arm64/specialoperand_string.go
+index 0a73c69b12..8fb3e9603e 100644
+--- a/src/cmd/internal/obj/arm64/specialoperand_string.go
++++ b/src/cmd/internal/obj/arm64/specialoperand_string.go
+@@ -151,12 +151,15 @@ func _() {
+ 	_ = x[SPOP_LE-139]
+ 	_ = x[SPOP_AL-140]
+ 	_ = x[SPOP_NV-141]
+-	_ = x[SPOP_END-142]
++	_ = x[SPOP_C-142]
++	_ = x[SPOP_J-143]
++	_ = x[SPOP_JC-144]
++	_ = x[SPOP_END-145]
+ }
+ 
+-const _SpecialOperand_name = "PLDL1KEEPPLDL1STRMPLDL2KEEPPLDL2STRMPLDL3KEEPPLDL3STRMPLIL1KEEPPLIL1STRMPLIL2KEEPPLIL2STRMPLIL3KEEPPLIL3STRMPSTL1KEEPPSTL1STRMPSTL2KEEPPSTL2STRMPSTL3KEEPPSTL3STRMVMALLE1ISVAE1ISASIDE1ISVAAE1ISVALE1ISVAALE1ISVMALLE1VAE1ASIDE1VAAE1VALE1VAALE1IPAS2E1ISIPAS2LE1ISALLE2ISVAE2ISALLE1ISVALE2ISVMALLS12E1ISIPAS2E1IPAS2LE1ALLE2VAE2ALLE1VALE2VMALLS12E1ALLE3ISVAE3ISVALE3ISALLE3VAE3VALE3VMALLE1OSVAE1OSASIDE1OSVAAE1OSVALE1OSVAALE1OSRVAE1ISRVAAE1ISRVALE1ISRVAALE1ISRVAE1OSRVAAE1OSRVALE1OSRVAALE1OSRVAE1RVAAE1RVALE1RVAALE1RIPAS2E1ISRIPAS2LE1ISALLE2OSVAE2OSALLE1OSVALE2OSVMALLS12E1OSRVAE2ISRVALE2ISIPAS2E1OSRIPAS2E1RIPAS2E1OSIPAS2LE1OSRIPAS2LE1RIPAS2LE1OSRVAE2OSRVALE2OSRVAE2RVALE2ALLE3OSVAE3OSVALE3OSRVAE3ISRVALE3ISRVAE3OSRVALE3OSRVAE3RVALE3IVACISWCSWCISWZVACVACCVAUCIVACIGVACIGSWIGDVACIGDSWCGSWCGDSWCIGSWCIGDSWGVAGZVACGVACCGDVACCGVAPCGDVAPCGVADPCGDVADPCIGVACCIGDVACCVAPCVADPDAIFSetDAIFClrEQNEHSLOMIPLVSVCHILSGELTGTLEALNVEND"
++const _SpecialOperand_name = "PLDL1KEEPPLDL1STRMPLDL2KEEPPLDL2STRMPLDL3KEEPPLDL3STRMPLIL1KEEPPLIL1STRMPLIL2KEEPPLIL2STRMPLIL3KEEPPLIL3STRMPSTL1KEEPPSTL1STRMPSTL2KEEPPSTL2STRMPSTL3KEEPPSTL3STRMVMALLE1ISVAE1ISASIDE1ISVAAE1ISVALE1ISVAALE1ISVMALLE1VAE1ASIDE1VAAE1VALE1VAALE1IPAS2E1ISIPAS2LE1ISALLE2ISVAE2ISALLE1ISVALE2ISVMALLS12E1ISIPAS2E1IPAS2LE1ALLE2VAE2ALLE1VALE2VMALLS12E1ALLE3ISVAE3ISVALE3ISALLE3VAE3VALE3VMALLE1OSVAE1OSASIDE1OSVAAE1OSVALE1OSVAALE1OSRVAE1ISRVAAE1ISRVALE1ISRVAALE1ISRVAE1OSRVAAE1OSRVALE1OSRVAALE1OSRVAE1RVAAE1RVALE1RVAALE1RIPAS2E1ISRIPAS2LE1ISALLE2OSVAE2OSALLE1OSVALE2OSVMALLS12E1OSRVAE2ISRVALE2ISIPAS2E1OSRIPAS2E1RIPAS2E1OSIPAS2LE1OSRIPAS2LE1RIPAS2LE1OSRVAE2OSRVALE2OSRVAE2RVALE2ALLE3OSVAE3OSVALE3OSRVAE3ISRVALE3ISRVAE3OSRVALE3OSRVAE3RVALE3IVACISWCSWCISWZVACVACCVAUCIVACIGVACIGSWIGDVACIGDSWCGSWCGDSWCIGSWCIGDSWGVAGZVACGVACCGDVACCGVAPCGDVAPCGVADPCGDVADPCIGVACCIGDVACCVAPCVADPDAIFSetDAIFClrEQNEHSLOMIPLVSVCHILSGELTGTLEALNVCJJCEND"
+ 
+-var _SpecialOperand_index = [...]uint16{0, 9, 18, 27, 36, 45, 54, 63, 72, 81, 90, 99, 108, 117, 126, 135, 144, 153, 162, 171, 177, 185, 192, 199, 207, 214, 218, 224, 229, 234, 240, 249, 259, 266, 272, 279, 286, 298, 305, 313, 318, 322, 327, 332, 342, 349, 355, 362, 367, 371, 376, 385, 391, 399, 406, 413, 421, 428, 436, 444, 453, 460, 468, 476, 485, 490, 496, 502, 509, 519, 530, 537, 543, 550, 557, 569, 576, 584, 593, 601, 611, 621, 630, 641, 648, 656, 661, 667, 674, 680, 687, 694, 702, 709, 717, 722, 728, 732, 735, 738, 742, 745, 749, 753, 758, 763, 767, 773, 778, 782, 787, 792, 798, 801, 805, 810, 816, 821, 827, 833, 840, 846, 853, 857, 862, 869, 876, 878, 880, 882, 884, 886, 888, 890, 892, 894, 896, 898, 900, 902, 904, 906, 908, 911}
++var _SpecialOperand_index = [...]uint16{0, 9, 18, 27, 36, 45, 54, 63, 72, 81, 90, 99, 108, 117, 126, 135, 144, 153, 162, 171, 177, 185, 192, 199, 207, 214, 218, 224, 229, 234, 240, 249, 259, 266, 272, 279, 286, 298, 305, 313, 318, 322, 327, 332, 342, 349, 355, 362, 367, 371, 376, 385, 391, 399, 406, 413, 421, 428, 436, 444, 453, 460, 468, 476, 485, 490, 496, 502, 509, 519, 530, 537, 543, 550, 557, 569, 576, 584, 593, 601, 611, 621, 630, 641, 648, 656, 661, 667, 674, 680, 687, 694, 702, 709, 717, 722, 728, 732, 735, 738, 742, 745, 749, 753, 758, 763, 767, 773, 778, 782, 787, 792, 798, 801, 805, 810, 816, 821, 827, 833, 840, 846, 853, 857, 862, 869, 876, 878, 880, 882, 884, 886, 888, 890, 892, 894, 896, 898, 900, 902, 904, 906, 908, 909, 910, 912, 915}
+ 
+ func (i SpecialOperand) String() string {
+ 	if i < 0 || i >= SpecialOperand(len(_SpecialOperand_index)-1) {

@@ -1,0 +1,237 @@
+commit fd999fda5941f215ef082c6ef70e44e648db5485
+Author: Emma Haruka Iwao <yuryu@google.com>
+Date:   Mon Oct 2 17:32:28 2023 +0000
+
+    strings: intrinsify and optimize Compare
+    
+    slices.SortFunc requires a three-way comparison and we need an
+    efficient strings.Compare to perform three-way string comparisons.
+    This new implementation adds bytealg.CompareString as a wrapper of
+    runtime_cmpstring and changes Compare to use bytealg.CompareString.
+    
+    The new implementation of Compare with runtime_cmpstring is about
+    28% faster than the previous one.
+    
+    Fixes #61725
+    
+                               │ /tmp/gobench-sort-cmp.txt │    /tmp/gobench-sort-strings.txt    │
+                               │          sec/op           │   sec/op     vs base                │
+    SortFuncStruct/Size16-48                   918.8n ± 1%   726.6n ± 0%  -20.92% (p=0.000 n=10)
+    SortFuncStruct/Size32-48                   2.666µ ± 1%   2.003µ ± 1%  -24.85% (p=0.000 n=10)
+    SortFuncStruct/Size64-48                   1.934µ ± 1%   1.331µ ± 1%  -31.22% (p=0.000 n=10)
+    SortFuncStruct/Size128-48                  3.560µ ± 1%   2.423µ ± 0%  -31.94% (p=0.000 n=10)
+    SortFuncStruct/Size512-48                 13.019µ ± 0%   9.071µ ± 0%  -30.33% (p=0.000 n=10)
+    SortFuncStruct/Size1024-48                 25.61µ ± 0%   17.75µ ± 0%  -30.70% (p=0.000 n=10)
+    geomean                                    4.217µ        3.018µ       -28.44%
+    
+    Change-Id: I2513b6f8c1b9b273ef2d23f0a86f691e2d097eb6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/532195
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmp/cmp_test.go                     |  5 +++--
+ src/internal/bytealg/compare_generic.go |  4 ++++
+ src/internal/bytealg/compare_native.go  |  4 ++++
+ src/slices/example_test.go              | 10 +++++-----
+ src/slices/sort_benchmark_test.go       | 34 +++++++++++++++++++++++++++++++--
+ src/strings/compare.go                  | 23 ++++++----------------
+ 6 files changed, 54 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmp/cmp_test.go b/src/cmp/cmp_test.go
+index e265464f4f..43d9ef365e 100644
+--- a/src/cmp/cmp_test.go
++++ b/src/cmp/cmp_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"math"
+ 	"slices"
+ 	"sort"
++	"strings"
+ 	"testing"
+ 	"unsafe"
+ )
+@@ -158,8 +159,8 @@ func ExampleOr_sort() {
+ 	// Sort by customer first, product second, and last by higher price
+ 	slices.SortFunc(orders, func(a, b Order) int {
+ 		return cmp.Or(
+-			cmp.Compare(a.Customer, b.Customer),
+-			cmp.Compare(a.Product, b.Product),
++			strings.Compare(a.Customer, b.Customer),
++			strings.Compare(a.Product, b.Product),
+ 			cmp.Compare(b.Price, a.Price),
+ 		)
+ 	})
+diff --git a/src/internal/bytealg/compare_generic.go b/src/internal/bytealg/compare_generic.go
+index b04e275061..8c08b7e6f5 100644
+--- a/src/internal/bytealg/compare_generic.go
++++ b/src/internal/bytealg/compare_generic.go
+@@ -35,6 +35,10 @@ samebytes:
+ 	return 0
+ }
+ 
++func CompareString(a, b string) int {
++	return runtime_cmpstring(a, b)
++}
++
+ //go:linkname runtime_cmpstring runtime.cmpstring
+ func runtime_cmpstring(a, b string) int {
+ 	l := len(a)
+diff --git a/src/internal/bytealg/compare_native.go b/src/internal/bytealg/compare_native.go
+index 34964e281c..983ab069db 100644
+--- a/src/internal/bytealg/compare_native.go
++++ b/src/internal/bytealg/compare_native.go
+@@ -11,6 +11,10 @@ import _ "unsafe" // For go:linkname
+ //go:noescape
+ func Compare(a, b []byte) int
+ 
++func CompareString(a, b string) int {
++	return abigen_runtime_cmpstring(a, b)
++}
++
+ // The declaration below generates ABI wrappers for functions
+ // implemented in assembly in this package but declared in another
+ // package.
+diff --git a/src/slices/example_test.go b/src/slices/example_test.go
+index 76ebe0dfac..e1bda36e28 100644
+--- a/src/slices/example_test.go
++++ b/src/slices/example_test.go
+@@ -34,7 +34,7 @@ func ExampleBinarySearchFunc() {
+ 		{"Gopher", 13},
+ 	}
+ 	n, found := slices.BinarySearchFunc(people, Person{"Bob", 0}, func(a, b Person) int {
+-		return cmp.Compare(a.Name, b.Name)
++		return strings.Compare(a.Name, b.Name)
+ 	})
+ 	fmt.Println("Bob:", n, found)
+ 	// Output:
+@@ -181,7 +181,7 @@ func ExampleIsSorted() {
+ func ExampleIsSortedFunc() {
+ 	names := []string{"alice", "Bob", "VERA"}
+ 	isSortedInsensitive := slices.IsSortedFunc(names, func(a, b string) int {
+-		return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
++		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
+ 	})
+ 	fmt.Println(isSortedInsensitive)
+ 	fmt.Println(slices.IsSorted(names))
+@@ -269,7 +269,7 @@ func ExampleSort() {
+ func ExampleSortFunc_caseInsensitive() {
+ 	names := []string{"Bob", "alice", "VERA"}
+ 	slices.SortFunc(names, func(a, b string) int {
+-		return cmp.Compare(strings.ToLower(a), strings.ToLower(b))
++		return strings.Compare(strings.ToLower(a), strings.ToLower(b))
+ 	})
+ 	fmt.Println(names)
+ 	// Output:
+@@ -288,7 +288,7 @@ func ExampleSortFunc_multiField() {
+ 		{"Alice", 20},
+ 	}
+ 	slices.SortFunc(people, func(a, b Person) int {
+-		if n := cmp.Compare(a.Name, b.Name); n != 0 {
++		if n := strings.Compare(a.Name, b.Name); n != 0 {
+ 			return n
+ 		}
+ 		// If names are equal, order by age
+@@ -312,7 +312,7 @@ func ExampleSortStableFunc() {
+ 	}
+ 	// Stable sort by name, keeping age ordering of Alices intact
+ 	slices.SortStableFunc(people, func(a, b Person) int {
+-		return cmp.Compare(a.Name, b.Name)
++		return strings.Compare(a.Name, b.Name)
+ 	})
+ 	fmt.Println(people)
+ 	// Output:
+diff --git a/src/slices/sort_benchmark_test.go b/src/slices/sort_benchmark_test.go
+index d73a3182c9..1dde26ef1c 100644
+--- a/src/slices/sort_benchmark_test.go
++++ b/src/slices/sort_benchmark_test.go
+@@ -5,8 +5,10 @@
+ package slices_test
+ 
+ import (
++	"cmp"
+ 	"fmt"
+ 	"slices"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -41,10 +43,38 @@ func BenchmarkBinarySearchFuncStruct(b *testing.B) {
+ 			}
+ 			midpoint := len(structs) / 2
+ 			needle := &myStruct{n: (structs[midpoint].n + structs[midpoint+1].n) / 2}
+-			lessFunc := func(a, b *myStruct) int { return a.n - b.n }
++			cmpFunc := func(a, b *myStruct) int { return a.n - b.n }
+ 			b.ResetTimer()
+ 			for i := 0; i < b.N; i++ {
+-				slices.BinarySearchFunc(structs, needle, lessFunc)
++				slices.BinarySearchFunc(structs, needle, cmpFunc)
++			}
++		})
++	}
++}
++
++func BenchmarkSortFuncStruct(b *testing.B) {
++	for _, size := range []int{16, 32, 64, 128, 512, 1024} {
++		b.Run(fmt.Sprintf("Size%d", size), func(b *testing.B) {
++			structs := make([]*myStruct, size)
++			for i := range structs {
++				structs[i] = &myStruct{
++					a: fmt.Sprintf("string%d", i%10),
++					n: i * 11 % size,
++				}
++			}
++			cmpFunc := func(a, b *myStruct) int {
++				if n := strings.Compare(a.a, b.a); n != 0 {
++					return n
++				}
++				return cmp.Compare(a.n, b.n)
++			}
++			// Presort the slice so all benchmark iterations are identical.
++			slices.SortFunc(structs, cmpFunc)
++			b.ResetTimer()
++			for i := 0; i < b.N; i++ {
++				// Sort the slice twice because slices.SortFunc modifies the slice in place.
++				slices.SortFunc(structs, func(a, b *myStruct) int { return cmpFunc(b, a) })
++				slices.SortFunc(structs, cmpFunc)
+ 			}
+ 		})
+ 	}
+diff --git a/src/strings/compare.go b/src/strings/compare.go
+index 2bd4a243db..b3c01fddc1 100644
+--- a/src/strings/compare.go
++++ b/src/strings/compare.go
+@@ -4,25 +4,14 @@
+ 
+ package strings
+ 
++import "internal/bytealg"
++
+ // Compare returns an integer comparing two strings lexicographically.
+ // The result will be 0 if a == b, -1 if a < b, and +1 if a > b.
+ //
+-// Compare is included only for symmetry with package bytes.
+-// It is usually clearer and always faster to use the built-in
+-// string comparison operators ==, <, >, and so on.
++// Use Compare when you need to perform a three-way comparison (with
++// slices.SortFunc, for example). It is usually clearer and always faster
++// to use the built-in string comparison operators ==, <, >, and so on.
+ func Compare(a, b string) int {
+-	// NOTE(rsc): This function does NOT call the runtime cmpstring function,
+-	// because we do not want to provide any performance justification for
+-	// using strings.Compare. Basically no one should use strings.Compare.
+-	// As the comment above says, it is here only for symmetry with package bytes.
+-	// If performance is important, the compiler should be changed to recognize
+-	// the pattern so that all code doing three-way comparisons, not just code
+-	// using strings.Compare, can benefit.
+-	if a == b {
+-		return 0
+-	}
+-	if a < b {
+-		return -1
+-	}
+-	return +1
++	return bytealg.CompareString(a, b)
+ }

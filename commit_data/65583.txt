@@ -1,0 +1,41 @@
+commit 30b09bccfd2446de566f9dfd0592cb4406e639b2
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 20 10:08:18 2024 -0500
+
+    crypto/internal/fipstest: fix TestACVP not to write to module cache
+    
+    Not sure how this ever worked; the module cache is read-only.
+    
+    Change-Id: I22e4945fa0bac101995ab9101d22dcfdcee40776
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629976
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/fipstest/acvp_test.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/fipstest/acvp_test.go b/src/crypto/internal/fipstest/acvp_test.go
+index 48559f6013..e59978e880 100644
+--- a/src/crypto/internal/fipstest/acvp_test.go
++++ b/src/crypto/internal/fipstest/acvp_test.go
+@@ -368,9 +368,11 @@ func TestACVP(t *testing.T) {
+ 	t.Log("building acvptool")
+ 
+ 	// Build the acvptool binary.
++	toolPath := filepath.Join(t.TempDir(), "acvptool.exe")
+ 	goTool := testenv.GoToolPath(t)
+ 	cmd := testenv.Command(t, goTool,
+ 		"build",
++		"-o", toolPath,
+ 		"./util/fipstools/acvp/acvptool")
+ 	cmd.Dir = bsslDir
+ 	out := &strings.Builder{}
+@@ -387,7 +389,6 @@ func TestACVP(t *testing.T) {
+ 		t.Fatalf("failed to fetch cwd: %s", err)
+ 	}
+ 	configPath := filepath.Join(cwd, "acvp_test.config.json")
+-	toolPath := filepath.Join(bsslDir, "acvptool")
+ 	t.Logf("running check_expected.go\ncwd: %q\ndata_dir: %q\nconfig: %q\ntool: %q\nmodule-wrapper: %q\n",
+ 		cwd, dataDir, configPath, toolPath, os.Args[0])
+ 

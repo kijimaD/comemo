@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 16059: babbd55e5d0c940b8c527ef27261ab7f87e42f17
+# Index 16059: 7903e3600c988f9d5950355a7f611dcdba004f5e
 
 echo "🚀 Generating explanation for commit 16059..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 16059..."
 
 ### メタデータ
 - **コミットインデックス**: 16059
-- **コミットハッシュ**: babbd55e5d0c940b8c527ef27261ab7f87e42f17
-- **GitHub URL**: https://github.com/golang/go/commit/babbd55e5d0c940b8c527ef27261ab7f87e42f17
+- **コミットハッシュ**: 7903e3600c988f9d5950355a7f611dcdba004f5e
+- **GitHub URL**: https://github.com/golang/go/commit/7903e3600c988f9d5950355a7f611dcdba004f5e
 
 ### 章構成
 

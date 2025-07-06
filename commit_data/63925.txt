@@ -1,0 +1,560 @@
+commit bde905af5b11e3e34bc1f5d4846d7767f7197236
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue May 21 23:24:47 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥20,000 dependents
+    
+    For #67401.
+    
+    Change-Id: Icc10ede72547d8020c0ba45e89d954822a4b2455
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587218
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/encoding/json/decode.go | 10 ++++++++++
+ src/encoding/json/encode.go | 21 +++++++++++++++++++++
+ src/runtime/alg.go          | 10 ++++++++++
+ src/runtime/checkptr.go     | 10 ++++++++++
+ src/runtime/iface.go        | 36 ++++++++++++++++++++++++++++++++++++
+ src/runtime/linkname.go     |  1 -
+ src/runtime/malloc.go       |  2 ++
+ src/runtime/map.go          | 13 +++++++++++++
+ src/runtime/map_fast32.go   |  1 +
+ src/runtime/map_fast64.go   |  2 ++
+ src/runtime/map_faststr.go  |  1 +
+ src/runtime/mbarrier.go     |  9 +++++++++
+ src/runtime/mbitmap.go      |  9 +++++++++
+ src/runtime/mgc.go          | 10 ++++++++++
+ src/runtime/panic.go        |  9 +++++++++
+ src/runtime/proc.go         | 24 ++++++++++++++++++++++++
+ src/runtime/slice.go        | 10 ++++++++++
+ src/runtime/stubs.go        | 30 ++++++++++++++++++++++++++++++
+ 18 files changed, 207 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index ce566f7955..efceecdf82 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -17,6 +17,7 @@ import (
+ 	"unicode"
+ 	"unicode/utf16"
+ 	"unicode/utf8"
++	_ "unsafe" // for linkname
+ )
+ 
+ // Unmarshal parses the JSON-encoded data and stores the result
+@@ -1178,6 +1179,15 @@ func unquote(s []byte) (t string, ok bool) {
+ 	return
+ }
+ 
++// unquoteBytes should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname unquoteBytes
+ func unquoteBytes(s []byte) (t []byte, ok bool) {
+ 	if len(s) < 2 || s[0] != '"' || s[len(s)-1] != '"' {
+ 		return
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index bd55c7caf0..cb28feb279 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -24,6 +24,7 @@ import (
+ 	"sync"
+ 	"unicode"
+ 	"unicode/utf8"
++	_ "unsafe" // for linkname
+ )
+ 
+ // Marshal returns the JSON encoding of v.
+@@ -591,6 +592,16 @@ func stringEncoder(e *encodeState, v reflect.Value, opts encOpts) {
+ }
+ 
+ // isValidNumber reports whether s is a valid JSON number literal.
++//
++// isValidNumber should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname isValidNumber
+ func isValidNumber(s string) bool {
+ 	// This function implements the JSON numbers grammar.
+ 	// See https://tools.ietf.org/html/rfc7159#section-6
+@@ -1045,6 +1056,16 @@ type field struct {
+ // typeFields returns a list of fields that JSON should recognize for the given type.
+ // The algorithm is breadth-first search over the set of structs to include - the top struct
+ // and then any reachable anonymous structs.
++//
++// typeFields should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname typeFields
+ func typeFields(t reflect.Type) structFields {
+ 	// Anonymous fields to explore at the current level and the next.
+ 	current := []field{}
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index cab0abf577..42b332d244 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -48,6 +48,16 @@ var useAeshash bool
+ func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+ func memhash32(p unsafe.Pointer, h uintptr) uintptr
+ func memhash64(p unsafe.Pointer, h uintptr) uintptr
++
++// strhash should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname strhash
+ func strhash(p unsafe.Pointer, h uintptr) uintptr
+ 
+ func strhashFallback(a unsafe.Pointer, h uintptr) uintptr {
+diff --git a/src/runtime/checkptr.go b/src/runtime/checkptr.go
+index 810787bff5..be64ae7f0c 100644
+--- a/src/runtime/checkptr.go
++++ b/src/runtime/checkptr.go
+@@ -76,6 +76,16 @@ func checkptrArithmetic(p unsafe.Pointer, originals []unsafe.Pointer) {
+ // checkptrBase(p1) == checkptrBase(p2). However, the converse/inverse
+ // is not necessarily true as allocations can have trailing padding,
+ // and multiple variables may be packed into a single allocation.
++//
++// checkptrBase should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname checkptrBase
+ func checkptrBase(p unsafe.Pointer) uintptr {
+ 	// stack
+ 	if gp := getg(); gp.stack.lo <= uintptr(p) && uintptr(p) < gp.stack.hi {
+diff --git a/src/runtime/iface.go b/src/runtime/iface.go
+index 67e7038691..94bc07e380 100644
+--- a/src/runtime/iface.go
++++ b/src/runtime/iface.go
+@@ -32,6 +32,15 @@ func itabHashFunc(inter *interfacetype, typ *_type) uintptr {
+ 	return uintptr(inter.Type.Hash ^ typ.Hash)
+ }
+ 
++// getitab should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname getitab
+ func getitab(inter *interfacetype, typ *_type, canfail bool) *itab {
+ 	if len(inter.Methods) == 0 {
+ 		throw("internal error - misuse of itab")
+@@ -379,6 +388,15 @@ func convT32(val uint32) (x unsafe.Pointer) {
+ 	return
+ }
+ 
++// convT64 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname convT64
+ func convT64(val uint64) (x unsafe.Pointer) {
+ 	if val < uint64(len(staticuint64s)) {
+ 		x = unsafe.Pointer(&staticuint64s[val])
+@@ -389,6 +407,15 @@ func convT64(val uint64) (x unsafe.Pointer) {
+ 	return
+ }
+ 
++// convTstring should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname convTstring
+ func convTstring(val string) (x unsafe.Pointer) {
+ 	if val == "" {
+ 		x = unsafe.Pointer(&zeroVal[0])
+@@ -399,6 +426,15 @@ func convTstring(val string) (x unsafe.Pointer) {
+ 	return
+ }
+ 
++// convTslice should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname convTslice
+ func convTslice(val []byte) (x unsafe.Pointer) {
+ 	// Note: this must work for any element type, not just byte.
+ 	if (*slice)(unsafe.Pointer(&val)).array == nil {
+diff --git a/src/runtime/linkname.go b/src/runtime/linkname.go
+index ebad9e1972..1b8a321c1c 100644
+--- a/src/runtime/linkname.go
++++ b/src/runtime/linkname.go
+@@ -25,7 +25,6 @@ import _ "unsafe"
+ //go:linkname cgoNoCallback
+ //go:linkname gobytes
+ //go:linkname gostringn
+-//go:linkname throw
+ 
+ // used in plugin
+ //go:linkname doInit
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 0e43b7acf4..5820ac8594 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -969,6 +969,7 @@ func (c *mcache) nextFree(spc spanClass) (v gclinkptr, s *mspan, shouldhelpgc bo
+ // mallocgc should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+@@ -1425,6 +1426,7 @@ func newarray(typ *_type, n int) unsafe.Pointer {
+ // reflect_unsafe_NewArray is meant for package reflect,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/goccy/json
+ //   - github.com/modern-go/reflect2
+ //
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index d284acf803..a55feb45fb 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -283,6 +283,16 @@ func makemap64(t *maptype, hint int64, h *hmap) *hmap {
+ // makemap_small implements Go map creation for make(map[k]v) and
+ // make(map[k]v, hint) when hint is known to be at most bucketCnt
+ // at compile time and the map needs to be allocated on the heap.
++//
++// makemap_small should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname makemap_small
+ func makemap_small() *hmap {
+ 	h := new(hmap)
+ 	h.hash0 = uint32(rand())
+@@ -591,6 +601,7 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
+ // mapassign should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+@@ -847,6 +858,7 @@ search:
+ // mapiterinit should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/goccy/go-json
+ //   - github.com/ugorji/go/codec
+ //
+@@ -903,6 +915,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ // mapiternext should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/map_fast32.go b/src/runtime/map_fast32.go
+index 98aa42ff6b..f3d830ea43 100644
+--- a/src/runtime/map_fast32.go
++++ b/src/runtime/map_fast32.go
+@@ -102,6 +102,7 @@ func mapaccess2_fast32(t *maptype, h *hmap, key uint32) (unsafe.Pointer, bool) {
+ // mapassign_fast32 should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/map_fast64.go b/src/runtime/map_fast64.go
+index ae3a8123c4..29cee968cd 100644
+--- a/src/runtime/map_fast64.go
++++ b/src/runtime/map_fast64.go
+@@ -102,6 +102,7 @@ func mapaccess2_fast64(t *maptype, h *hmap, key uint64) (unsafe.Pointer, bool) {
+ // mapassign_fast64 should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+@@ -201,6 +202,7 @@ done:
+ // mapassign_fast64ptr should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/map_faststr.go b/src/runtime/map_faststr.go
+index bef5d7f95a..1494348be7 100644
+--- a/src/runtime/map_faststr.go
++++ b/src/runtime/map_faststr.go
+@@ -212,6 +212,7 @@ dohash:
+ // mapassign_faststr should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 5876d86fbd..f09151d913 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -391,6 +391,15 @@ func reflect_typedarrayclear(typ *_type, ptr unsafe.Pointer, len int) {
+ // pointers, usually by checking typ.PtrBytes. However, ptr
+ // does not have to point to the start of the allocation.
+ //
++// memclrHasPointers should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname memclrHasPointers
+ //go:nosplit
+ func memclrHasPointers(ptr unsafe.Pointer, n uintptr) {
+ 	// Pass nil for the type since we don't have one here anyway.
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index e7a712377b..689fac103c 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -1261,6 +1261,15 @@ func badPointer(s *mspan, p, refBase, refOff uintptr) {
+ // It is nosplit so it is safe for p to be a pointer to the current goroutine's stack.
+ // Since p is a uintptr, it would not be adjusted if the stack were to move.
+ //
++// findObject should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname findObject
+ //go:nosplit
+ func findObject(p, refBase, refOff uintptr) (base uintptr, s *mspan, objIndex uintptr) {
+ 	s = spanOf(p)
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 1316af72ba..9bfcf06069 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -215,6 +215,16 @@ var gcphase uint32
+ // If you change it, you must change builtin/runtime.go, too.
+ // If you change the first four bytes, you must also change the write
+ // barrier insertion code.
++//
++// writeBarrier should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname writeBarrier
+ var writeBarrier struct {
+ 	enabled bool    // compiler emits a check of this before calling write barrier
+ 	pad     [3]byte // compiler uses 32-bit load for "enabled" field
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index e68d857c6d..145b1a45b1 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1034,6 +1034,15 @@ func sync_fatal(s string) {
+ // NOTE: temporarily marked "go:noinline" pending investigation/fix of
+ // issue #67274, so as to fix longtest builders.
+ //
++// throw should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname throw
+ //go:nosplit
+ func throw(s string) {
+ 	// Everything throw does should be recursively nosplit so it
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 12f26fbb6c..ba44f05c16 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4731,6 +4731,14 @@ func exitsyscall0(gp *g) {
+ 
+ // Called from syscall package before fork.
+ //
++// syscall_runtime_BeforeFork is for package syscall,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/containerd/containerd
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
+ //go:linkname syscall_runtime_BeforeFork syscall.runtime_BeforeFork
+ //go:nosplit
+ func syscall_runtime_BeforeFork() {
+@@ -4752,6 +4760,14 @@ func syscall_runtime_BeforeFork() {
+ 
+ // Called from syscall package after fork in parent.
+ //
++// syscall_runtime_AfterFork is for package syscall,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/containerd/containerd
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
+ //go:linkname syscall_runtime_AfterFork syscall.runtime_AfterFork
+ //go:nosplit
+ func syscall_runtime_AfterFork() {
+@@ -4777,6 +4793,14 @@ var inForkedChild bool
+ // temporarily sharing address space with the parent process, this must
+ // not change any global variables or calling into C code that may do so.
+ //
++// syscall_runtime_AfterForkInChild is for package syscall,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/containerd/containerd
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
+ //go:linkname syscall_runtime_AfterForkInChild syscall.runtime_AfterForkInChild
+ //go:nosplit
+ //go:nowritebarrierrec
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 3439a0d751..7ffca036c0 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -89,6 +89,15 @@ func makeslicecopy(et *_type, tolen int, fromlen int, from unsafe.Pointer) unsaf
+ 	return to
+ }
+ 
++// makeslice should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname makeslice
+ func makeslice(et *_type, len, cap int) unsafe.Pointer {
+ 	mem, overflow := math.MulUintptr(et.Size_, uintptr(cap))
+ 	if overflow || mem > maxAlloc || len < 0 || len > cap {
+@@ -156,6 +165,7 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
+ // growslice should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 8196eb0c90..83f5e4e330 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -83,6 +83,15 @@ func badsystemstack() {
+ //
+ // The (CPU-specific) implementations of this function are in memclr_*.s.
+ //
++// memclrNoHeapPointers should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname memclrNoHeapPointers
+ //go:noescape
+ func memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr)
+ 
+@@ -108,6 +117,7 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
+ // memmove should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+@@ -127,6 +137,15 @@ const hashLoad = float32(loadFactorNum) / float32(loadFactorDen)
+ 
+ // in internal/bytealg/equal_*.s
+ //
++// memequal should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname memequal
+ //go:noescape
+ func memequal(a, b unsafe.Pointer, size uintptr) bool
+ 
+@@ -387,7 +406,18 @@ func abort()
+ 
+ // Called from compiled code; declared for vet; do NOT call from Go.
+ func gcWriteBarrier1()
++
++// gcWriteBarrier2 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname gcWriteBarrier2
+ func gcWriteBarrier2()
++
+ func gcWriteBarrier3()
+ func gcWriteBarrier4()
+ func gcWriteBarrier5()

@@ -1,0 +1,56 @@
+commit 81fc6162675ea2543aa30ae35e56769c3d8a39ca
+Author: Mike Beaumont <mjboamail@gmail.com>
+Date:   Mon Apr 29 12:14:32 2024 +0200
+
+    [release-branch.go1.22] crypto/tls: don't call tlsrsakex.IncNonDefault with FIPS
+    
+    We haven't called tlsrsakex.Value() yet at this point if we're using
+    FIPS, like if CipherSuites != nil. This adds needFIPS as a gate next to
+    CipherSuites != nil. FIPS specifies suites that would be skipped if
+    tlsarsakex were set.
+    
+    For #65991.
+    Fixes #65994.
+    
+    Change-Id: I8070d8f43f27c04067490af8cc7ec5e787f2b9bd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582315
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    (cherry picked from commit 78e50d0fa0bc78d197bd1b41e1bdef8c20a03396)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/tls/handshake_client.go | 2 +-
+ src/crypto/tls/handshake_server.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index f016e01b4b..08a2d47974 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -526,7 +526,7 @@ func (hs *clientHandshakeState) pickCipherSuite() error {
+ 		return errors.New("tls: server chose an unconfigured cipher suite")
+ 	}
+ 
+-	if hs.c.config.CipherSuites == nil && rsaKexCiphers[hs.suite.id] {
++	if hs.c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
+ 		tlsrsakex.IncNonDefault()
+ 	}
+ 
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 8129e9c616..4e84aa9d8f 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -370,7 +370,7 @@ func (hs *serverHandshakeState) pickCipherSuite() error {
+ 	}
+ 	c.cipherSuite = hs.suite.id
+ 
+-	if c.config.CipherSuites == nil && rsaKexCiphers[hs.suite.id] {
++	if c.config.CipherSuites == nil && !needFIPS() && rsaKexCiphers[hs.suite.id] {
+ 		tlsrsakex.IncNonDefault()
+ 	}
+ 

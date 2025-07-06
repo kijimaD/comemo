@@ -1,0 +1,187 @@
+commit d1ce116e409453be764bde7c3f494e7fe1565102
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 17:16:03 2024 -0700
+
+    cmd/go/internal: use sync.OnceFunc, sync.OnceValue
+    
+    Cleaner code, less global variables
+    
+    Change-Id: I6d842932e538849260b36fa408bc5ddae68c05ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611018
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/go/internal/base/path.go     | 10 +++-------
+ src/cmd/go/internal/base/signal.go   |  4 ++--
+ src/cmd/go/internal/cache/default.go | 16 ++++++----------
+ src/cmd/go/internal/imports/tags.go  | 26 ++++++++------------------
+ src/cmd/go/internal/work/buildid.go  |  4 ++--
+ 5 files changed, 21 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/path.go b/src/cmd/go/internal/base/path.go
+index c17b14e67b..1c9dace54a 100644
+--- a/src/cmd/go/internal/base/path.go
++++ b/src/cmd/go/internal/base/path.go
+@@ -15,9 +15,6 @@ import (
+ 	"cmd/go/internal/str"
+ )
+ 
+-var cwd string
+-var cwdOnce sync.Once
+-
+ // UncachedCwd returns the current working directory.
+ // Most callers should use Cwd, which caches the result for future use.
+ // UncachedCwd is appropriate to call early in program startup before flag parsing,
+@@ -30,12 +27,11 @@ func UncachedCwd() string {
+ 	return wd
+ }
+ 
++var cwdOnce = sync.OnceValue(UncachedCwd)
++
+ // Cwd returns the current working directory at the time of the first call.
+ func Cwd() string {
+-	cwdOnce.Do(func() {
+-		cwd = UncachedCwd()
+-	})
+-	return cwd
++	return cwdOnce()
+ }
+ 
+ // ShortPath returns an absolute or relative name for path, whatever is shorter.
+diff --git a/src/cmd/go/internal/base/signal.go b/src/cmd/go/internal/base/signal.go
+index 05befcf7f0..c15dd47b7d 100644
+--- a/src/cmd/go/internal/base/signal.go
++++ b/src/cmd/go/internal/base/signal.go
+@@ -23,9 +23,9 @@ func processSignals() {
+ 	}()
+ }
+ 
+-var onceProcessSignals sync.Once
++var processSignalsOnce = sync.OnceFunc(processSignals)
+ 
+ // StartSigHandlers starts the signal handlers.
+ func StartSigHandlers() {
+-	onceProcessSignals.Do(processSignals)
++	processSignalsOnce()
+ }
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index 5430d9651e..b0f4425173 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -18,14 +18,10 @@ import (
+ // Default returns the default cache to use.
+ // It never returns nil.
+ func Default() Cache {
+-	defaultOnce.Do(initDefaultCache)
+-	return defaultCache
++	return initDefaultCacheOnce()
+ }
+ 
+-var (
+-	defaultOnce  sync.Once
+-	defaultCache Cache
+-)
++var initDefaultCacheOnce = sync.OnceValue(initDefaultCache)
+ 
+ // cacheREADME is a message stored in a README in the cache directory.
+ // Because the cache lives outside the normal Go trees, we leave the
+@@ -38,7 +34,7 @@ See golang.org to learn more about Go.
+ 
+ // initDefaultCache does the work of finding the default cache
+ // the first time Default is called.
+-func initDefaultCache() {
++func initDefaultCache() Cache {
+ 	dir, _ := DefaultDir()
+ 	if dir == "off" {
+ 		if defaultDirErr != nil {
+@@ -60,10 +56,10 @@ func initDefaultCache() {
+ 	}
+ 
+ 	if v := cfg.Getenv("GOCACHEPROG"); v != "" && goexperiment.CacheProg {
+-		defaultCache = startCacheProg(v, diskCache)
+-	} else {
+-		defaultCache = diskCache
++		return startCacheProg(v, diskCache)
+ 	}
++
++	return diskCache
+ }
+ 
+ var (
+diff --git a/src/cmd/go/internal/imports/tags.go b/src/cmd/go/internal/imports/tags.go
+index d1467b81b0..42b25af7b6 100644
+--- a/src/cmd/go/internal/imports/tags.go
++++ b/src/cmd/go/internal/imports/tags.go
+@@ -9,21 +9,15 @@ import (
+ 	"sync"
+ )
+ 
+-var (
+-	tags     map[string]bool
+-	tagsOnce sync.Once
+-)
+-
+ // Tags returns a set of build tags that are true for the target platform.
+ // It includes GOOS, GOARCH, the compiler, possibly "cgo",
+ // release tags like "go1.13", and user-specified build tags.
+ func Tags() map[string]bool {
+-	tagsOnce.Do(func() {
+-		tags = loadTags()
+-	})
+-	return tags
++	return loadTagsOnce()
+ }
+ 
++var loadTagsOnce = sync.OnceValue(loadTags)
++
+ func loadTags() map[string]bool {
+ 	tags := map[string]bool{
+ 		cfg.BuildContext.GOOS:     true,
+@@ -45,17 +39,13 @@ func loadTags() map[string]bool {
+ 	return tags
+ }
+ 
+-var (
+-	anyTags     map[string]bool
+-	anyTagsOnce sync.Once
+-)
+-
+ // AnyTags returns a special set of build tags that satisfy nearly all
+ // build tag expressions. Only "ignore" and malformed build tag requirements
+ // are considered false.
+ func AnyTags() map[string]bool {
+-	anyTagsOnce.Do(func() {
+-		anyTags = map[string]bool{"*": true}
+-	})
+-	return anyTags
++	return anyTagsOnce()
+ }
++
++var anyTagsOnce = sync.OnceValue(func() map[string]bool {
++	return map[string]bool{"*": true}
++})
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 2134079f83..7ec3f94d9d 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -410,8 +410,8 @@ var (
+ 	counterCacheHit  = counter.New("go/buildcache/hit")
+ 	counterCacheMiss = counter.New("go/buildcache/miss")
+ 
+-	onceIncStdlibRecompiled sync.Once
+ 	stdlibRecompiled        = counter.New("go/buildcache/stdlib-recompiled")
++	stdlibRecompiledIncOnce = sync.OnceFunc(stdlibRecompiled.Inc)
+ )
+ 
+ // useCache tries to satisfy the action a, which has action ID actionHash,
+@@ -467,7 +467,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string,
+ 			counterCacheHit.Inc()
+ 		} else {
+ 			if a.Package != nil && a.Package.Standard {
+-				onceIncStdlibRecompiled.Do(stdlibRecompiled.Inc)
++				stdlibRecompiledIncOnce()
+ 			}
+ 			counterCacheMiss.Inc()
+ 		}

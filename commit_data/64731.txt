@@ -1,0 +1,65 @@
+commit 53487e5477151ed75da50e50a0ba8f1ca64c00a3
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Mon Jun 10 15:34:12 2024 -0700
+
+    [release-branch.go1.23] go/parser: track depth in nested element lists
+    
+    Prevents stack exhaustion with extremely deeply nested literal values,
+    i.e. field values in structs.
+    
+    Updates #69138
+    Fixes #69143
+    Fixes CVE-2024-34155
+    
+    Change-Id: I2e8e33b44105cc169d7ed1ae83fb56df0c10f1ee
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1520
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Russ Cox <rsc@google.com>
+    (cherry picked from commit eb1b038c0d01761694e7a735ef87ac9164c6568e)
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1560
+    Commit-Queue: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611175
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/go/parser/parser.go      | 2 ++
+ src/go/parser/parser_test.go | 9 +++++----
+ 2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 17808b366f..f268dea1a6 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -1676,6 +1676,8 @@ func (p *parser) parseElementList() (list []ast.Expr) {
+ }
+ 
+ func (p *parser) parseLiteralValue(typ ast.Expr) ast.Expr {
++	defer decNestLev(incNestLev(p))
++
+ 	if p.trace {
+ 		defer un(trace(p, "LiteralValue"))
+ 	}
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index eea743c2b5..2c33e9ef31 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -598,10 +598,11 @@ var parseDepthTests = []struct {
+ 	{name: "chan2", format: "package main; var x «<-chan »int"},
+ 	{name: "interface", format: "package main; var x «interface { M() «int» }»", scope: true, scopeMultiplier: 2}, // Scopes: InterfaceType, FuncType
+ 	{name: "map", format: "package main; var x «map[int]»int"},
+-	{name: "slicelit", format: "package main; var x = «[]any{«»}»", parseMultiplier: 2},             // Parser nodes: UnaryExpr, CompositeLit
+-	{name: "arraylit", format: "package main; var x = «[1]any{«nil»}»", parseMultiplier: 2},         // Parser nodes: UnaryExpr, CompositeLit
+-	{name: "structlit", format: "package main; var x = «struct{x any}{«nil»}»", parseMultiplier: 2}, // Parser nodes: UnaryExpr, CompositeLit
+-	{name: "maplit", format: "package main; var x = «map[int]any{1:«nil»}»", parseMultiplier: 2},    // Parser nodes: CompositeLit, KeyValueExpr
++	{name: "slicelit", format: "package main; var x = []any{«[]any{«»}»}", parseMultiplier: 3},      // Parser nodes: UnaryExpr, CompositeLit
++	{name: "arraylit", format: "package main; var x = «[1]any{«nil»}»", parseMultiplier: 3},         // Parser nodes: UnaryExpr, CompositeLit
++	{name: "structlit", format: "package main; var x = «struct{x any}{«nil»}»", parseMultiplier: 3}, // Parser nodes: UnaryExpr, CompositeLit
++	{name: "maplit", format: "package main; var x = «map[int]any{1:«nil»}»", parseMultiplier: 3},    // Parser nodes: CompositeLit, KeyValueExpr
++	{name: "element", format: "package main; var x = struct{x any}{x: «{«»}»}"},
+ 	{name: "dot", format: "package main; var x = «x.»x"},
+ 	{name: "index", format: "package main; var x = x«[1]»"},
+ 	{name: "slice", format: "package main; var x = x«[1:2]»"},

@@ -1,0 +1,141 @@
+commit 50087aa1b46460c8cd65f28afb59c5f79d8f27d8
+Author: Sean Liao <sean@liao.dev>
+Date:   Thu Nov 14 18:43:29 2024 +0000
+
+    crypto/rand: add Text for secure random strings
+    
+    Fixes #67057
+    
+    Change-Id: Id4a1d07bc45d9ebf90b7e6ef507002908dcfa12d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627477
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ api/next/67057.txt                              |  1 +
+ doc/next/6-stdlib/99-minor/crypto/rand/67057.md |  1 +
+ src/crypto/rand/text.go                         | 22 ++++++++
+ src/crypto/rand/text_test.go                    | 71 +++++++++++++++++++++++++
+ 4 files changed, 95 insertions(+)
+
+diff --git a/api/next/67057.txt b/api/next/67057.txt
+new file mode 100644
+index 0000000000..ad1dbb84bb
+--- /dev/null
++++ b/api/next/67057.txt
+@@ -0,0 +1 @@
++pkg crypto/rand, func Text() string #67057
+diff --git a/doc/next/6-stdlib/99-minor/crypto/rand/67057.md b/doc/next/6-stdlib/99-minor/crypto/rand/67057.md
+new file mode 100644
+index 0000000000..1ec1dc3c45
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/rand/67057.md
+@@ -0,0 +1 @@
++The new [Text] function can be used to generate cryptographically secure random text strings. <!-- go.dev/issue/67057 -->
+diff --git a/src/crypto/rand/text.go b/src/crypto/rand/text.go
+new file mode 100644
+index 0000000000..176326dd96
+--- /dev/null
++++ b/src/crypto/rand/text.go
+@@ -0,0 +1,22 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++const base32alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
++
++// Text returns a cryptographically random string using the standard RFC 4648 base32 alphabet
++// for use when a secret string, token, password, or other text is needed.
++// The result contains at least 128 bits of randomness, enough to prevent brute force
++// guessing attacks and to make the likelihood of collisions vanishingly small.
++// A future version may return longer texts as needed to maintain those properties.
++func Text() string {
++	// ⌈log₃₂ 2¹²⁸⌉ = 26 chars
++	src := make([]byte, 26)
++	Read(src)
++	for i := range src {
++		src[i] = base32alphabet[src[i]%32]
++	}
++	return string(src)
++}
+diff --git a/src/crypto/rand/text_test.go b/src/crypto/rand/text_test.go
+new file mode 100644
+index 0000000000..062f6a9870
+--- /dev/null
++++ b/src/crypto/rand/text_test.go
+@@ -0,0 +1,71 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand_test
++
++import (
++	"crypto/rand"
++	"fmt"
++	"testing"
++)
++
++func TestText(t *testing.T) {
++	set := make(map[string]struct{}) // hold every string produced
++	var indexSet [26]map[rune]int    // hold every char produced at every position
++	for i := range indexSet {
++		indexSet[i] = make(map[rune]int)
++	}
++
++	// not getting a char in a position: (31/32)¹⁰⁰⁰ = 1.6e-14
++	// test completion within 1000 rounds: (1-(31/32)¹⁰⁰⁰)²⁶ = 0.9999999999996
++	// empirically, this should complete within 400 rounds = 0.999921
++	rounds := 1000
++	var done bool
++	for range rounds {
++		s := rand.Text()
++		if len(s) != 26 {
++			t.Errorf("len(Text()) = %d, want = 26", len(s))
++		}
++		for i, r := range s {
++			if ('A' > r || r > 'Z') && ('2' > r || r > '7') {
++				t.Errorf("Text()[%d] = %v, outside of base32 alphabet", i, r)
++			}
++		}
++		if _, ok := set[s]; ok {
++			t.Errorf("Text() = %s, duplicate of previously produced string", s)
++		}
++		set[s] = struct{}{}
++
++		done = true
++		for i, r := range s {
++			indexSet[i][r]++
++			if len(indexSet[i]) != 32 {
++				done = false
++			}
++		}
++		if done {
++			break
++		}
++	}
++	if !done {
++		t.Errorf("failed to produce every char at every index after %d rounds", rounds)
++		indexSetTable(t, indexSet)
++	}
++}
++
++func indexSetTable(t *testing.T, indexSet [26]map[rune]int) {
++	alphabet := "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
++	line := "   "
++	for _, r := range alphabet {
++		line += fmt.Sprintf(" %3s", string(r))
++	}
++	t.Log(line)
++	for i, set := range indexSet {
++		line = fmt.Sprintf("%2d:", i)
++		for _, r := range alphabet {
++			line += fmt.Sprintf(" %3d", set[r])
++		}
++		t.Log(line)
++	}
++}

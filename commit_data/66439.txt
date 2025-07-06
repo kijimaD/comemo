@@ -1,0 +1,568 @@
+commit 9189921e4759055141b51fdbb8b7b69ee4fdd477
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Feb 19 22:07:09 2025 +0000
+
+    go/types,types2: externalize used objects
+    
+    The 'used' field on Var and PkgName is fundamentally an aspect of the
+    type checking pass: it records when objects are used, for the purposes
+    of reporting errors for unused variables or package names. While
+    expedient and performant, recording this information in the types.Object
+    instances themselves increases the memory footprint of type-checked
+    packages, and (as we saw in golang/go#71817) can lead to data races when
+    Objects are reused in follow-up type checking, such as is done with the
+    CheckExpr and Eval APIs.
+    
+    Fix this by externalizing the 'used' information into two maps (one for
+    variables and one for packages) on the types.Checker, so that they are
+    garbage-collected after type checking, and cannot be a source of data
+    races.
+    
+    Benchmarks showed essentially no change in performance.
+    
+    Fixes golang/go#71817
+    
+    Change-Id: I40daeabe4ecaca3bcb494e2f1c62a04232098e49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650796
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/assignments.go |  4 ++--
+ src/cmd/compile/internal/types2/call.go        |  6 +++---
+ src/cmd/compile/internal/types2/check.go       | 21 +++++++++++++++------
+ src/cmd/compile/internal/types2/object.go      | 10 +++-------
+ src/cmd/compile/internal/types2/resolver.go    |  4 ++--
+ src/cmd/compile/internal/types2/sizeof_test.go |  2 +-
+ src/cmd/compile/internal/types2/stmt.go        | 11 +++++++----
+ src/cmd/compile/internal/types2/typexpr.go     |  6 +++---
+ src/go/types/assignments.go                    |  4 ++--
+ src/go/types/call.go                           |  6 +++---
+ src/go/types/check.go                          | 25 +++++++++++++++++--------
+ src/go/types/object.go                         | 10 +++-------
+ src/go/types/resolver.go                       |  4 ++--
+ src/go/types/sizeof_test.go                    |  2 +-
+ src/go/types/stmt.go                           | 14 ++++++++++----
+ src/go/types/typexpr.go                        |  6 +++---
+ 16 files changed, 77 insertions(+), 58 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index 33810643cb..20ba215fac 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -204,7 +204,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
+ 			// dot-imported variables.
+ 			if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
+ 				v = w
+-				v_used = v.used
++				v_used = check.usedVars[v]
+ 			}
+ 		}
+ 	}
+@@ -213,7 +213,7 @@ func (check *Checker) lhsVar(lhs syntax.Expr) Type {
+ 	check.expr(nil, &x, lhs)
+ 
+ 	if v != nil {
+-		v.used = v_used // restore v.used
++		check.usedVars[v] = v_used // restore v.used
+ 	}
+ 
+ 	if x.mode == invalid || !isValid(x.typ) {
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 9294afcea9..c4e6ad895c 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -686,7 +686,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 		if pname, _ := obj.(*PkgName); pname != nil {
+ 			assert(pname.pkg == check.pkg)
+ 			check.recordUse(ident, pname)
+-			pname.used = true
++			check.usedPkgNames[pname] = true
+ 			pkg := pname.imported
+ 
+ 			var exp Object
+@@ -971,13 +971,13 @@ func (check *Checker) use1(e syntax.Expr, lhs bool) bool {
+ 				// dot-imported variables.
+ 				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
+ 					v = w
+-					v_used = v.used
++					v_used = check.usedVars[v]
+ 				}
+ 			}
+ 		}
+ 		check.exprOrType(&x, n, true)
+ 		if v != nil {
+-			v.used = v_used // restore v.used
++			check.usedVars[v] = v_used // restore v.used
+ 		}
+ 	case *syntax.ListExpr:
+ 		return check.useN(n.ElemList, lhs)
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index a158f55585..68cfdb5d1e 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -162,6 +162,8 @@ type Checker struct {
+ 	dotImportMap  map[dotImportKey]*PkgName  // maps dot-imported objects to the package they were dot-imported through
+ 	brokenAliases map[*TypeName]bool         // set of aliases with broken (not yet determined) types
+ 	unionTypeSets map[*Union]*_TypeSet       // computed type sets for union types
++	usedVars      map[*Var]bool              // set of used variables
++	usedPkgNames  map[*PkgName]bool          // set of used package names
+ 	mono          monoGraph                  // graph for detecting non-monomorphizable instantiation loops
+ 
+ 	firstErr error                    // first error encountered
+@@ -285,12 +287,14 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
+ 
+ 	return &Checker{
+-		conf:   conf,
+-		ctxt:   conf.Context,
+-		pkg:    pkg,
+-		Info:   info,
+-		objMap: make(map[Object]*declInfo),
+-		impMap: make(map[importKey]*Package),
++		conf:         conf,
++		ctxt:         conf.Context,
++		pkg:          pkg,
++		Info:         info,
++		objMap:       make(map[Object]*declInfo),
++		impMap:       make(map[importKey]*Package),
++		usedVars:     make(map[*Var]bool),
++		usedPkgNames: make(map[*PkgName]bool),
+ 	}
+ }
+ 
+@@ -298,6 +302,8 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ // The provided files must all belong to the same package.
+ func (check *Checker) initFiles(files []*syntax.File) {
+ 	// start with a clean slate (check.Files may be called multiple times)
++	// TODO(gri): what determines which fields are zeroed out here, vs at the end
++	// of checkFiles?
+ 	check.files = nil
+ 	check.imports = nil
+ 	check.dotImportMap = nil
+@@ -482,8 +488,11 @@ func (check *Checker) checkFiles(files []*syntax.File) {
+ 	check.seenPkgMap = nil
+ 	check.brokenAliases = nil
+ 	check.unionTypeSets = nil
++	check.usedVars = nil
++	check.usedPkgNames = nil
+ 	check.ctxt = nil
+ 
++	// TODO(gri): shouldn't the cleanup above occur after the bailout?
+ 	// TODO(gri) There's more memory we should release at this point.
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index 2eef5b5dae..26752c44b0 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -242,13 +242,12 @@ func (a *object) cmp(b *object) int {
+ type PkgName struct {
+ 	object
+ 	imported *Package
+-	used     bool // set if the package was used
+ }
+ 
+ // NewPkgName returns a new PkgName object representing an imported package.
+ // The remaining arguments set the attributes found with all Objects.
+ func NewPkgName(pos syntax.Pos, pkg *Package, name string, imported *Package) *PkgName {
+-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported, false}
++	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported}
+ }
+ 
+ // Imported returns the package that was imported.
+@@ -331,10 +330,9 @@ func (obj *TypeName) IsAlias() bool {
+ // A Variable represents a declared variable (including function parameters and results, and struct fields).
+ type Var struct {
+ 	object
++	origin   *Var // if non-nil, the Var from which this one was instantiated
+ 	kind     VarKind
+ 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
+-	used     bool // set if the variable was used
+-	origin   *Var // if non-nil, the Var from which this one was instantiated
+ }
+ 
+ // A VarKind discriminates the various kinds of variables.
+@@ -403,9 +401,7 @@ func NewField(pos syntax.Pos, pkg *Package, name string, typ Type, embedded bool
+ // newVar returns a new variable.
+ // The arguments set the attributes found with all Objects.
+ func newVar(kind VarKind, pos syntax.Pos, pkg *Package, name string, typ Type) *Var {
+-	// Function parameters are always 'used'.
+-	used := kind == RecvVar || kind == ParamVar || kind == ResultVar
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, kind: kind, used: used}
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, kind: kind}
+ }
+ 
+ // Anonymous reports whether the variable is an embedded field.
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 6a8b270849..b9ece5e694 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -295,7 +295,7 @@ func (check *Checker) collectObjects() {
+ 
+ 				if imp.fake {
+ 					// match 1.17 cmd/compile (not prescribed by spec)
+-					pkgName.used = true
++					check.usedPkgNames[pkgName] = true
+ 				}
+ 
+ 				// add import to file scope
+@@ -715,7 +715,7 @@ func (check *Checker) unusedImports() {
+ 	// (initialization), use the blank identifier as explicit package name."
+ 
+ 	for _, obj := range check.imports {
+-		if !obj.used && obj.name != "_" {
++		if obj.name != "_" && !check.usedPkgNames[obj] {
+ 			check.errorUnusedPkg(obj)
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/sizeof_test.go b/src/cmd/compile/internal/types2/sizeof_test.go
+index 740dbc9276..d435c049c5 100644
+--- a/src/cmd/compile/internal/types2/sizeof_test.go
++++ b/src/cmd/compile/internal/types2/sizeof_test.go
+@@ -36,7 +36,7 @@ func TestSizeof(t *testing.T) {
+ 		{term{}, 12, 24},
+ 
+ 		// Objects
+-		{PkgName{}, 64, 104},
++		{PkgName{}, 60, 96},
+ 		{Const{}, 64, 104},
+ 		{TypeName{}, 56, 88},
+ 		{Var{}, 64, 104},
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 586ae75b1c..6eb6b2ac17 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -55,10 +55,13 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ }
+ 
+ func (check *Checker) usage(scope *Scope) {
++	needUse := func(kind VarKind) bool {
++		return !(kind == RecvVar || kind == ParamVar || kind == ResultVar)
++	}
+ 	var unused []*Var
+ 	for name, elem := range scope.elems {
+ 		elem = resolve(name, elem)
+-		if v, _ := elem.(*Var); v != nil && !v.used {
++		if v, _ := elem.(*Var); v != nil && needUse(v.kind) && !check.usedVars[v] {
+ 			unused = append(unused, v)
+ 		}
+ 	}
+@@ -812,10 +815,10 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 	if lhs != nil {
+ 		var used bool
+ 		for _, v := range lhsVars {
+-			if v.used {
++			if check.usedVars[v] {
+ 				used = true
+ 			}
+-			v.used = true // avoid usage error when checking entire function
++			check.usedVars[v] = true // avoid usage error when checking entire function
+ 		}
+ 		if !used {
+ 			check.softErrorf(lhs, UnusedVar, "%s declared and not used", lhs.Value)
+@@ -921,7 +924,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 			if typ == nil || typ == Typ[Invalid] {
+ 				// typ == Typ[Invalid] can happen if allowVersion fails.
+ 				obj.typ = Typ[Invalid]
+-				obj.used = true // don't complain about unused variable
++				check.usedVars[obj] = true // don't complain about unused variable
+ 				continue
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 0964c53fe0..8accc46751 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -55,7 +55,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 		// avoid "declared but not used" errors
+ 		// (don't use Checker.use - we don't want to evaluate too much)
+ 		if v, _ := obj.(*Var); v != nil && v.pkg == check.pkg /* see Checker.use1 */ {
+-			v.used = true
++			check.usedVars[v] = true
+ 		}
+ 		return
+ 	}
+@@ -83,7 +83,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 	// (This code is only needed for dot-imports. Without them,
+ 	// we only have to mark variables, see *Var case below).
+ 	if pkgName := check.dotImportMap[dotImportKey{scope, obj.Name()}]; pkgName != nil {
+-		pkgName.used = true
++		check.usedPkgNames[pkgName] = true
+ 	}
+ 
+ 	switch obj := obj.(type) {
+@@ -120,7 +120,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 		// from other packages to avoid potential race conditions with
+ 		// dot-imported variables.
+ 		if obj.pkg == check.pkg {
+-			obj.used = true
++			check.usedVars[obj] = true
+ 		}
+ 		check.addDeclDep(obj)
+ 		if !isValid(typ) {
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 39dbcf9bb4..7820b18b56 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -207,7 +207,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
+ 			// dot-imported variables.
+ 			if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
+ 				v = w
+-				v_used = v.used
++				v_used = check.usedVars[v]
+ 			}
+ 		}
+ 	}
+@@ -216,7 +216,7 @@ func (check *Checker) lhsVar(lhs ast.Expr) Type {
+ 	check.expr(nil, &x, lhs)
+ 
+ 	if v != nil {
+-		v.used = v_used // restore v.used
++		check.usedVars[v] = v_used // restore v.used
+ 	}
+ 
+ 	if x.mode == invalid || !isValid(x.typ) {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 702fe55cbd..17d9152be5 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -688,7 +688,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 		if pname, _ := obj.(*PkgName); pname != nil {
+ 			assert(pname.pkg == check.pkg)
+ 			check.recordUse(ident, pname)
+-			pname.used = true
++			check.usedPkgNames[pname] = true
+ 			pkg := pname.imported
+ 
+ 			var exp Object
+@@ -1019,13 +1019,13 @@ func (check *Checker) use1(e ast.Expr, lhs bool) bool {
+ 				// dot-imported variables.
+ 				if w, _ := obj.(*Var); w != nil && w.pkg == check.pkg {
+ 					v = w
+-					v_used = v.used
++					v_used = check.usedVars[v]
+ 				}
+ 			}
+ 		}
+ 		check.exprOrType(&x, n, true)
+ 		if v != nil {
+-			v.used = v_used // restore v.used
++			check.usedVars[v] = v_used // restore v.used
+ 		}
+ 	default:
+ 		check.rawExpr(nil, &x, e, nil, true)
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 8c68a1aafd..eda0a58ad0 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -182,6 +182,8 @@ type Checker struct {
+ 	dotImportMap  map[dotImportKey]*PkgName // maps dot-imported objects to the package they were dot-imported through
+ 	brokenAliases map[*TypeName]bool        // set of aliases with broken (not yet determined) types
+ 	unionTypeSets map[*Union]*_TypeSet      // computed type sets for union types
++	usedVars      map[*Var]bool             // set of used variables
++	usedPkgNames  map[*PkgName]bool         // set of used package names
+ 	mono          monoGraph                 // graph for detecting non-monomorphizable instantiation loops
+ 
+ 	firstErr error                 // first error encountered
+@@ -308,13 +310,15 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 	conf._EnableAlias = gotypesalias.Value() != "0"
+ 
+ 	return &Checker{
+-		conf:   conf,
+-		ctxt:   conf.Context,
+-		fset:   fset,
+-		pkg:    pkg,
+-		Info:   info,
+-		objMap: make(map[Object]*declInfo),
+-		impMap: make(map[importKey]*Package),
++		conf:         conf,
++		ctxt:         conf.Context,
++		fset:         fset,
++		pkg:          pkg,
++		Info:         info,
++		objMap:       make(map[Object]*declInfo),
++		impMap:       make(map[importKey]*Package),
++		usedVars:     make(map[*Var]bool),
++		usedPkgNames: make(map[*PkgName]bool),
+ 	}
+ }
+ 
+@@ -322,6 +326,8 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ // The provided files must all belong to the same package.
+ func (check *Checker) initFiles(files []*ast.File) {
+ 	// start with a clean slate (check.Files may be called multiple times)
++	// TODO(gri): what determines which fields are zeroed out here, vs at the end
++	// of checkFiles?
+ 	check.files = nil
+ 	check.imports = nil
+ 	check.dotImportMap = nil
+@@ -507,9 +513,12 @@ func (check *Checker) checkFiles(files []*ast.File) {
+ 	check.seenPkgMap = nil
+ 	check.brokenAliases = nil
+ 	check.unionTypeSets = nil
++	check.usedVars = nil
++	check.usedPkgNames = nil
+ 	check.ctxt = nil
+ 
+-	// TODO(rFindley) There's more memory we should release at this point.
++	// TODO(gri): shouldn't the cleanup above occur after the bailout?
++	// TODO(gri) There's more memory we should release at this point.
+ }
+ 
+ // processDelayed processes all delayed actions pushed after top.
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 86bd37128f..aa7dcb835c 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -245,13 +245,12 @@ func (a *object) cmp(b *object) int {
+ type PkgName struct {
+ 	object
+ 	imported *Package
+-	used     bool // set if the package was used
+ }
+ 
+ // NewPkgName returns a new PkgName object representing an imported package.
+ // The remaining arguments set the attributes found with all Objects.
+ func NewPkgName(pos token.Pos, pkg *Package, name string, imported *Package) *PkgName {
+-	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported, false}
++	return &PkgName{object{nil, pos, pkg, name, Typ[Invalid], 0, black, nopos}, imported}
+ }
+ 
+ // Imported returns the package that was imported.
+@@ -334,10 +333,9 @@ func (obj *TypeName) IsAlias() bool {
+ // A Variable represents a declared variable (including function parameters and results, and struct fields).
+ type Var struct {
+ 	object
++	origin   *Var // if non-nil, the Var from which this one was instantiated
+ 	kind     VarKind
+ 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
+-	used     bool // set if the variable was used
+-	origin   *Var // if non-nil, the Var from which this one was instantiated
+ }
+ 
+ // A VarKind discriminates the various kinds of variables.
+@@ -406,9 +404,7 @@ func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool)
+ // newVar returns a new variable.
+ // The arguments set the attributes found with all Objects.
+ func newVar(kind VarKind, pos token.Pos, pkg *Package, name string, typ Type) *Var {
+-	// Function parameters are always 'used'.
+-	used := kind == RecvVar || kind == ParamVar || kind == ResultVar
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, kind: kind, used: used}
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, kind: kind}
+ }
+ 
+ // Anonymous reports whether the variable is an embedded field.
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index 9e47b85c7f..f11a510c1f 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -310,7 +310,7 @@ func (check *Checker) collectObjects() {
+ 
+ 				if imp.fake {
+ 					// match 1.17 cmd/compile (not prescribed by spec)
+-					pkgName.used = true
++					check.usedPkgNames[pkgName] = true
+ 				}
+ 
+ 				// add import to file scope
+@@ -710,7 +710,7 @@ func (check *Checker) unusedImports() {
+ 	// (initialization), use the blank identifier as explicit package name."
+ 
+ 	for _, obj := range check.imports {
+-		if !obj.used && obj.name != "_" {
++		if obj.name != "_" && !check.usedPkgNames[obj] {
+ 			check.errorUnusedPkg(obj)
+ 		}
+ 	}
+diff --git a/src/go/types/sizeof_test.go b/src/go/types/sizeof_test.go
+index 9e5b5f8b20..fa07eb10f1 100644
+--- a/src/go/types/sizeof_test.go
++++ b/src/go/types/sizeof_test.go
+@@ -35,7 +35,7 @@ func TestSizeof(t *testing.T) {
+ 		{term{}, 12, 24},
+ 
+ 		// Objects
+-		{PkgName{}, 48, 88},
++		{PkgName{}, 44, 80},
+ 		{Const{}, 48, 88},
+ 		{TypeName{}, 40, 72},
+ 		{Var{}, 48, 88},
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 76ab2063e2..6615f0d8ef 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -56,10 +56,13 @@ func (check *Checker) funcBody(decl *declInfo, name string, sig *Signature, body
+ }
+ 
+ func (check *Checker) usage(scope *Scope) {
++	needUse := func(kind VarKind) bool {
++		return !(kind == RecvVar || kind == ParamVar || kind == ResultVar)
++	}
+ 	var unused []*Var
+ 	for name, elem := range scope.elems {
+ 		elem = resolve(name, elem)
+-		if v, _ := elem.(*Var); v != nil && !v.used {
++		if v, _ := elem.(*Var); v != nil && needUse(v.kind) && !check.usedVars[v] {
+ 			unused = append(unused, v)
+ 		}
+ 	}
+@@ -765,13 +768,16 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 		}
+ 
+ 		// If lhs exists, we must have at least one lhs variable that was used.
++		// (We can't use check.usage because that only looks at one scope; and
++		// we don't want to use the same variable for all scopes and change the
++		// variable type underfoot.)
+ 		if lhs != nil {
+ 			var used bool
+ 			for _, v := range lhsVars {
+-				if v.used {
++				if check.usedVars[v] {
+ 					used = true
+ 				}
+-				v.used = true // avoid usage error when checking entire function
++				check.usedVars[v] = true // avoid usage error when checking entire function
+ 			}
+ 			if !used {
+ 				check.softErrorf(lhs, UnusedVar, "%s declared and not used", lhs.Name)
+@@ -939,7 +945,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 			if typ == nil || typ == Typ[Invalid] {
+ 				// typ == Typ[Invalid] can happen if allowVersion fails.
+ 				obj.typ = Typ[Invalid]
+-				obj.used = true // don't complain about unused variable
++				check.usedVars[obj] = true // don't complain about unused variable
+ 				continue
+ 			}
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 549a84b3cc..c040ee2a29 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -54,7 +54,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 		// avoid "declared but not used" errors
+ 		// (don't use Checker.use - we don't want to evaluate too much)
+ 		if v, _ := obj.(*Var); v != nil && v.pkg == check.pkg /* see Checker.use1 */ {
+-			v.used = true
++			check.usedVars[v] = true
+ 		}
+ 		return
+ 	}
+@@ -82,7 +82,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 	// (This code is only needed for dot-imports. Without them,
+ 	// we only have to mark variables, see *Var case below).
+ 	if pkgName := check.dotImportMap[dotImportKey{scope, obj.Name()}]; pkgName != nil {
+-		pkgName.used = true
++		check.usedPkgNames[pkgName] = true
+ 	}
+ 
+ 	switch obj := obj.(type) {
+@@ -119,7 +119,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 		// from other packages to avoid potential race conditions with
+ 		// dot-imported variables.
+ 		if obj.pkg == check.pkg {
+-			obj.used = true
++			check.usedVars[obj] = true
+ 		}
+ 		check.addDeclDep(obj)
+ 		if !isValid(typ) {

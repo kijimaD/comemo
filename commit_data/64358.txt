@@ -1,0 +1,36 @@
+commit ff0c2d96348fd86f77ecf6868dc1a0f09e35ff90
+Author: limeidan <limeidan@loongson.cn>
+Date:   Sat Jan 6 17:26:37 2024 +0800
+
+    cmd/internal/obj/loong64: fixed operand assignment error for BFPT/BFPF instructions
+    
+    The BFPT correspond to BCNEZ instruction of LoongArch64 which structure
+    is:
+            | op-p1 | offs[15:0] | op-p2 | cj | offs[20:16] |
+    The register REG_FCC0 should be assigned to the source operand cj which named rj here.
+    
+    Change-Id: I696d0a46028924da1cd7e240fbb40a1913f1a757
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565620
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+---
+ src/cmd/internal/obj/loong64/asm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 6d21767645..749db66421 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1373,7 +1373,7 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 			width = 21
+ 			// FCC0 is the implicit source operand, now that we
+ 			// don't register-allocate from the FCC bank.
+-			rd = REG_FCC0
++			rj = REG_FCC0
+ 		case ABEQ, ABNE:
+ 			if rd == 0 || rd == REGZERO || rj == REGZERO {
+ 				// BEQZ/BNEZ can be encoded with 21-bit offsets.

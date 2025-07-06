@@ -1,0 +1,26 @@
+commit dddf0ae40fa0c1223aba191d73a44425a08e1035
+Author: Gopher Robot <gobot@golang.org>
+Date:   Wed Apr 3 15:18:03 2024 +0000
+
+    [release-branch.go1.22] go1.22.2
+    
+    Change-Id: I9f348a8ddc79c65be86099839523548edef30095
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576118
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Commit-Queue: Gopher Robot <gobot@golang.org>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index 37f601fdaf..90486b0138 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.22.1
+-time 2024-02-29T18:18:48Z
++go1.22.2
++time 2024-03-29T15:27:02Z

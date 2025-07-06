@@ -1,0 +1,74 @@
+commit f0d736ded081b33b92524050b451a820f67c2a16
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon Apr 28 12:55:44 2025 -0400
+
+    pkgbits: improve documentation in reloc.go
+    
+    Change-Id: I71cc0db153c559d4c5b48d1d744daf16deffe6d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668536
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/pkgbits/reloc.go | 43 ++++++++++++++++++++++---------------------
+ 1 file changed, 22 insertions(+), 21 deletions(-)
+
+diff --git a/src/internal/pkgbits/reloc.go b/src/internal/pkgbits/reloc.go
+index fcdfb97ca9..d920bb9b4f 100644
+--- a/src/internal/pkgbits/reloc.go
++++ b/src/internal/pkgbits/reloc.go
+@@ -4,27 +4,10 @@
+ 
+ package pkgbits
+ 
+-// A RelocKind indicates a particular section within a unified IR export.
+-type RelocKind int32
+-
+-// An Index represents a bitstream element index within a particular
+-// section.
+-type Index int32
+-
+-// A relocEnt (relocation entry) is an entry in an element's local
+-// reference table.
+-//
+-// TODO(mdempsky): Rename this too.
+-type RelocEnt struct {
+-	Kind RelocKind
+-	Idx  Index
+-}
+-
+-// Reserved indices within the meta relocation section.
+-const (
+-	PublicRootIdx  Index = 0
+-	PrivateRootIdx Index = 1
+-)
++// A RelocKind indicates a section, as well as the ordering of sections within
++// unified export data. Any object given a dedicated section can be referred to
++// via a section / index pair (and thus dereferenced) in other sections.
++type RelocKind int32 // TODO(markfreeman): Replace with uint8.
+ 
+ const (
+ 	RelocString RelocKind = iota
+@@ -40,3 +23,21 @@ const (
+ 
+ 	numRelocs = iota
+ )
++
++// An Index represents a bitstream element index *within* (i.e., relative to) a
++// particular section.
++type Index int32
++
++// A RelocEnt, or relocation entry, is an entry in an element's reference
++// table. All elements are preceded by a reference table which provides
++// locations for all dereferences that the element may use.
++type RelocEnt struct {
++	Kind RelocKind
++	Idx  Index
++}
++
++// Reserved indices within the [RelocMeta] section.
++const (
++	PublicRootIdx  Index = 0
++	PrivateRootIdx Index = 1
++)

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40220: 8ef45cf60b347abb1a08416fca1b6d19d317b26e
+# Index 40220: 689fae2d7861fe14032762479011f9e48562e1e0
 
 echo "🚀 Generating explanation for commit 40220..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40220..."
 
 ### メタデータ
 - **コミットインデックス**: 40220
-- **コミットハッシュ**: 8ef45cf60b347abb1a08416fca1b6d19d317b26e
-- **GitHub URL**: https://github.com/golang/go/commit/8ef45cf60b347abb1a08416fca1b6d19d317b26e
+- **コミットハッシュ**: 689fae2d7861fe14032762479011f9e48562e1e0
+- **GitHub URL**: https://github.com/golang/go/commit/689fae2d7861fe14032762479011f9e48562e1e0
 
 ### 章構成
 

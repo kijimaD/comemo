@@ -1,0 +1,325 @@
+commit 11fa0de475f9446870bc086bfb42cb67bac40634
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 24 14:34:10 2025 -0700
+
+    cmd/compile: use OpMove instead of memmove more on arm64
+    
+    OpMove is faster for small moves of fixed size.
+    
+    For safety, we have to rewrite the Move rewrite rules a bit so that
+    all the loads are done before any stores happen.
+    
+    Also use an 8-byte move instead of a 16-byte move if the tail is
+    at most 8 bytes.
+    
+    Change-Id: I7f6c7496ac6d5eb2e0706fd59ca4b5d797c51101
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672997
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  29 +++--
+ src/cmd/compile/internal/ssa/rewrite.go       |   4 +-
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 155 ++++++++++++++++++++++----
+ 3 files changed, 160 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index e906f7b35a..a0069eb5dc 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -472,26 +472,39 @@
+ 		(MOVDstore dst (MOVDload src mem) mem))
+ (Move [16] dst src mem) =>
+ 	(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)
+-(Move [32] dst src mem) =>
+-	(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
++
++(Move [s] dst src mem) && s > 16 && s <= 24 =>
++	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
++		(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
++(Move [s] dst src mem) && s > 24 && s <= 32 =>
++	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
+ 		(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
+-(Move [48] dst src mem) =>
+-	(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
++(Move [s] dst src mem) && s > 32 && s <= 40 =>
++	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
++		(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
++			(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
++(Move [s] dst src mem) && s > 40 && s <= 48 =>
++	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
+ 		(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
+ 			(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
+-(Move [64] dst src mem) =>
+-	(STP [48] dst (Select0 <typ.UInt64> (LDP [48] src mem)) (Select1 <typ.UInt64> (LDP [48] src mem))
++(Move [s] dst src mem) && s > 48 && s <= 56 =>
++	(MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem)
++		(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
++			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
++				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
++(Move [s] dst src mem) && s > 56 && s <= 64 =>
++	(STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem))
+ 		(STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem))
+ 			(STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem))
+ 				(STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
+ 
+ // strip off fractional word move
+-(Move [s] dst src mem) && s%16 != 0 && s%16 <= 8 && s > 16 =>
++(Move [s] dst src mem) && s%16 != 0 && s%16 <= 8 && s > 64 =>
+ 	(Move [8]
+ 		(OffPtr <dst.Type> dst [s-8])
+ 		(OffPtr <src.Type> src [s-8])
+ 		(Move [s-s%16] dst src mem))
+-(Move [s] dst src mem) && s%16 != 0 && s%16 > 8 && s > 16 =>
++(Move [s] dst src mem) && s%16 != 0 && s%16 > 8 && s > 64 =>
+ 	(Move [16]
+ 		(OffPtr <dst.Type> dst [s-16])
+ 		(OffPtr <src.Type> src [s-16])
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index c94c1586e9..7db5c99061 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1490,7 +1490,9 @@ func isInlinableMemmove(dst, src *Value, sz int64, c *Config) bool {
+ 	switch c.arch {
+ 	case "amd64":
+ 		return sz <= 16 || (sz < 1024 && disjoint(dst, sz, src, sz))
+-	case "386", "arm64":
++	case "arm64":
++		return sz <= 64 || (sz <= 1024 && disjoint(dst, sz, src, sz))
++	case "386":
+ 		return sz <= 8
+ 	case "s390x", "ppc64", "ppc64le":
+ 		return sz <= 8 || disjoint(dst, sz, src, sz)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 0c107262fd..c3b961dde8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -19282,20 +19282,49 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		v.AddArg4(dst, v0, v2, mem)
+ 		return true
+ 	}
+-	// match: (Move [32] dst src mem)
+-	// result: (STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
++	// match: (Move [s] dst src mem)
++	// cond: s > 16 && s <= 24
++	// result: (MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
+ 	for {
+-		if auxIntToInt64(v.AuxInt) != 32 {
++		s := auxIntToInt64(v.AuxInt)
++		dst := v_0
++		src := v_1
++		mem := v_2
++		if !(s > 16 && s <= 24) {
+ 			break
+ 		}
++		v.reset(OpARM64MOVDstore)
++		v.AuxInt = int32ToAuxInt(int32(s - 8))
++		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
++		v0.AuxInt = int32ToAuxInt(int32(s - 8))
++		v0.AddArg2(src, mem)
++		v1 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v2 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v3 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v3.AddArg2(src, mem)
++		v2.AddArg(v3)
++		v4 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v4.AddArg(v3)
++		v1.AddArg4(dst, v2, v4, mem)
++		v.AddArg3(dst, v0, v1)
++		return true
++	}
++	// match: (Move [s] dst src mem)
++	// cond: s > 24 && s <= 32
++	// result: (STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))
++	for {
++		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
++		if !(s > 24 && s <= 32) {
++			break
++		}
+ 		v.reset(OpARM64STP)
+-		v.AuxInt = int32ToAuxInt(16)
++		v.AuxInt = int32ToAuxInt(int32(s - 16))
+ 		v0 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
+ 		v1 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
+-		v1.AuxInt = int32ToAuxInt(16)
++		v1.AuxInt = int32ToAuxInt(int32(s - 16))
+ 		v1.AddArg2(src, mem)
+ 		v0.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
+@@ -19311,20 +19340,59 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		v.AddArg4(dst, v0, v2, v3)
+ 		return true
+ 	}
+-	// match: (Move [48] dst src mem)
+-	// result: (STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem)) (STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
++	// match: (Move [s] dst src mem)
++	// cond: s > 32 && s <= 40
++	// result: (MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem) (STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
+ 	for {
+-		if auxIntToInt64(v.AuxInt) != 48 {
++		s := auxIntToInt64(v.AuxInt)
++		dst := v_0
++		src := v_1
++		mem := v_2
++		if !(s > 32 && s <= 40) {
+ 			break
+ 		}
++		v.reset(OpARM64MOVDstore)
++		v.AuxInt = int32ToAuxInt(int32(s - 8))
++		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
++		v0.AuxInt = int32ToAuxInt(int32(s - 8))
++		v0.AddArg2(src, mem)
++		v1 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v1.AuxInt = int32ToAuxInt(16)
++		v2 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v3 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v3.AuxInt = int32ToAuxInt(16)
++		v3.AddArg2(src, mem)
++		v2.AddArg(v3)
++		v4 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v4.AddArg(v3)
++		v5 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v6 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v7 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v7.AddArg2(src, mem)
++		v6.AddArg(v7)
++		v8 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v8.AddArg(v7)
++		v5.AddArg4(dst, v6, v8, mem)
++		v1.AddArg4(dst, v2, v4, v5)
++		v.AddArg3(dst, v0, v1)
++		return true
++	}
++	// match: (Move [s] dst src mem)
++	// cond: s > 40 && s <= 48
++	// result: (STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem)) (STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem)))
++	for {
++		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
++		if !(s > 40 && s <= 48) {
++			break
++		}
+ 		v.reset(OpARM64STP)
+-		v.AuxInt = int32ToAuxInt(32)
++		v.AuxInt = int32ToAuxInt(int32(s - 16))
+ 		v0 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
+ 		v1 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
+-		v1.AuxInt = int32ToAuxInt(32)
++		v1.AuxInt = int32ToAuxInt(int32(s - 16))
+ 		v1.AddArg2(src, mem)
+ 		v0.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
+@@ -19350,20 +19418,69 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		v.AddArg4(dst, v0, v2, v3)
+ 		return true
+ 	}
+-	// match: (Move [64] dst src mem)
+-	// result: (STP [48] dst (Select0 <typ.UInt64> (LDP [48] src mem)) (Select1 <typ.UInt64> (LDP [48] src mem)) (STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem)) (STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
++	// match: (Move [s] dst src mem)
++	// cond: s > 48 && s <= 56
++	// result: (MOVDstore [int32(s-8)] dst (MOVDload [int32(s-8)] src mem) (STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem)) (STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
+ 	for {
+-		if auxIntToInt64(v.AuxInt) != 64 {
++		s := auxIntToInt64(v.AuxInt)
++		dst := v_0
++		src := v_1
++		mem := v_2
++		if !(s > 48 && s <= 56) {
+ 			break
+ 		}
++		v.reset(OpARM64MOVDstore)
++		v.AuxInt = int32ToAuxInt(int32(s - 8))
++		v0 := b.NewValue0(v.Pos, OpARM64MOVDload, typ.UInt64)
++		v0.AuxInt = int32ToAuxInt(int32(s - 8))
++		v0.AddArg2(src, mem)
++		v1 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v1.AuxInt = int32ToAuxInt(32)
++		v2 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v3 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v3.AuxInt = int32ToAuxInt(32)
++		v3.AddArg2(src, mem)
++		v2.AddArg(v3)
++		v4 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v4.AddArg(v3)
++		v5 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v5.AuxInt = int32ToAuxInt(16)
++		v6 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v7 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v7.AuxInt = int32ToAuxInt(16)
++		v7.AddArg2(src, mem)
++		v6.AddArg(v7)
++		v8 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v8.AddArg(v7)
++		v9 := b.NewValue0(v.Pos, OpARM64STP, types.TypeMem)
++		v10 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
++		v11 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
++		v11.AddArg2(src, mem)
++		v10.AddArg(v11)
++		v12 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
++		v12.AddArg(v11)
++		v9.AddArg4(dst, v10, v12, mem)
++		v5.AddArg4(dst, v6, v8, v9)
++		v1.AddArg4(dst, v2, v4, v5)
++		v.AddArg3(dst, v0, v1)
++		return true
++	}
++	// match: (Move [s] dst src mem)
++	// cond: s > 56 && s <= 64
++	// result: (STP [int32(s-16)] dst (Select0 <typ.UInt64> (LDP [int32(s-16)] src mem)) (Select1 <typ.UInt64> (LDP [int32(s-16)] src mem)) (STP [32] dst (Select0 <typ.UInt64> (LDP [32] src mem)) (Select1 <typ.UInt64> (LDP [32] src mem)) (STP [16] dst (Select0 <typ.UInt64> (LDP [16] src mem)) (Select1 <typ.UInt64> (LDP [16] src mem)) (STP dst (Select0 <typ.UInt64> (LDP src mem)) (Select1 <typ.UInt64> (LDP src mem)) mem))))
++	for {
++		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
++		if !(s > 56 && s <= 64) {
++			break
++		}
+ 		v.reset(OpARM64STP)
+-		v.AuxInt = int32ToAuxInt(48)
++		v.AuxInt = int32ToAuxInt(int32(s - 16))
+ 		v0 := b.NewValue0(v.Pos, OpSelect0, typ.UInt64)
+ 		v1 := b.NewValue0(v.Pos, OpARM64LDP, types.NewTuple(typ.UInt64, typ.UInt64))
+-		v1.AuxInt = int32ToAuxInt(48)
++		v1.AuxInt = int32ToAuxInt(int32(s - 16))
+ 		v1.AddArg2(src, mem)
+ 		v0.AddArg(v1)
+ 		v2 := b.NewValue0(v.Pos, OpSelect1, typ.UInt64)
+@@ -19400,14 +19517,14 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s%16 != 0 && s%16 <= 8 && s > 16
++	// cond: s%16 != 0 && s%16 <= 8 && s > 64
+ 	// result: (Move [8] (OffPtr <dst.Type> dst [s-8]) (OffPtr <src.Type> src [s-8]) (Move [s-s%16] dst src mem))
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s%16 != 0 && s%16 <= 8 && s > 16) {
++		if !(s%16 != 0 && s%16 <= 8 && s > 64) {
+ 			break
+ 		}
+ 		v.reset(OpMove)
+@@ -19425,14 +19542,14 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s%16 != 0 && s%16 > 8 && s > 16
++	// cond: s%16 != 0 && s%16 > 8 && s > 64
+ 	// result: (Move [16] (OffPtr <dst.Type> dst [s-16]) (OffPtr <src.Type> src [s-16]) (Move [s-s%16] dst src mem))
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s%16 != 0 && s%16 > 8 && s > 16) {
++		if !(s%16 != 0 && s%16 > 8 && s > 64) {
+ 			break
+ 		}
+ 		v.reset(OpMove)

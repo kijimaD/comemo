@@ -1,0 +1,38 @@
+commit 4b89120b124f96153c0eff3ae09975b5abb7333f
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Wed Nov 22 08:55:40 2023 +0800
+
+    cmd/internal/obj/loong64: switch Lookup function call to ABIInternal mode
+    
+    CL 521790 has experimentally enabled RegABI support on Loong64, so it
+    is possible to switch the Lookup function call to ABIInternal mode.
+    
+    Change-Id: I3ae053e20c0791efebe6b6bdc9a1550a11372bc2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/544435
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/internal/obj/loong64/obj.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index 0446fb78a0..f75e2d8716 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -101,9 +101,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
+ 		var sym *obj.LSym
+ 		if p.As == obj.ADUFFZERO {
+-			sym = ctxt.Lookup("runtime.duffzero")
++			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
+ 		} else {
+-			sym = ctxt.Lookup("runtime.duffcopy")
++			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
+ 		}
+ 		offset := p.To.Offset
+ 		p.As = AMOVV

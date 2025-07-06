@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 19255: fee51f45ab37c77ad8b7967b091ddf19d4e259a3
+# Index 19255: 373466380586b04b8a9163938a8daf3f5cb9dd45
 
 echo "🚀 Generating explanation for commit 19255..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 19255..."
 
 ### メタデータ
 - **コミットインデックス**: 19255
-- **コミットハッシュ**: fee51f45ab37c77ad8b7967b091ddf19d4e259a3
-- **GitHub URL**: https://github.com/golang/go/commit/fee51f45ab37c77ad8b7967b091ddf19d4e259a3
+- **コミットハッシュ**: 373466380586b04b8a9163938a8daf3f5cb9dd45
+- **GitHub URL**: https://github.com/golang/go/commit/373466380586b04b8a9163938a8daf3f5cb9dd45
 
 ### 章構成
 

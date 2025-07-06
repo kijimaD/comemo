@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 25986: cdc65778a2c36a4dcfcdb412dfcd4008f966af35
+# Index 25986: bd7de94d7fe8a0ba7742e90b1d6a09baa468bb58
 
 echo "🚀 Generating explanation for commit 25986..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 25986..."
 
 ### メタデータ
 - **コミットインデックス**: 25986
-- **コミットハッシュ**: cdc65778a2c36a4dcfcdb412dfcd4008f966af35
-- **GitHub URL**: https://github.com/golang/go/commit/cdc65778a2c36a4dcfcdb412dfcd4008f966af35
+- **コミットハッシュ**: bd7de94d7fe8a0ba7742e90b1d6a09baa468bb58
+- **GitHub URL**: https://github.com/golang/go/commit/bd7de94d7fe8a0ba7742e90b1d6a09baa468bb58
 
 ### 章構成
 

@@ -1,0 +1,129 @@
+commit dc28aca56830f8eca7005d045cbcc438cc1e8fe3
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Nov 20 19:25:37 2024 +0100
+
+    crypto/ed25519: fix GenerateKey with rand nil
+    
+    GenerateKey(nil) is documented to use crypto/rand.Reader, but we didn't
+    have a test.
+    
+    While at it, since it's documented to be equivalent to NewKeyFromSeed,
+    actually implement it that way. This has the probably good side effect
+    of making it deterministic in FIPS mode. The other GenerateKey use
+    MaybeReadByte, so can change, but this one is probably worth keeping
+    deterministic. It's just slightly less compliant, but ok as long as
+    crypto/rand.Reader is the default one.
+    
+    Intentionally leaving crypto/internal/fips/ed25519.GenerateKey in, in
+    case we need to switch to it during the life of the module.
+    
+    Change-Id: Ic203436ff452bb9740291b9ca17f85aa6ae20b6e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630099
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/crypto/ed25519/ed25519.go      | 17 +++++++------
+ src/crypto/ed25519/ed25519_test.go | 50 ++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 59 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index dccb8a2c2c..3b033f14a1 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -18,6 +18,7 @@ package ed25519
+ import (
+ 	"crypto"
+ 	"crypto/internal/fips/ed25519"
++	cryptorand "crypto/rand"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"io"
+@@ -130,17 +131,17 @@ func (o *Options) HashFunc() crypto.Hash { return o.Hash }
+ // The output of this function is deterministic, and equivalent to reading
+ // [SeedSize] bytes from rand, and passing them to [NewKeyFromSeed].
+ func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) {
+-	k, err := ed25519.GenerateKey(rand)
+-	if err != nil {
+-		return nil, nil, err
++	if rand == nil {
++		rand = cryptorand.Reader
+ 	}
+ 
+-	privateKey := make([]byte, PrivateKeySize)
+-	copy(privateKey, k.Bytes())
+-
+-	publicKey := make([]byte, PublicKeySize)
+-	copy(publicKey, privateKey[32:])
++	seed := make([]byte, SeedSize)
++	if _, err := io.ReadFull(rand, seed); err != nil {
++		return nil, nil, err
++	}
+ 
++	privateKey := NewKeyFromSeed(seed)
++	publicKey := privateKey.Public().(PublicKey)
+ 	return publicKey, privateKey, nil
+ }
+ 
+diff --git a/src/crypto/ed25519/ed25519_test.go b/src/crypto/ed25519/ed25519_test.go
+index 461c0cb5d7..87d0132df1 100644
+--- a/src/crypto/ed25519/ed25519_test.go
++++ b/src/crypto/ed25519/ed25519_test.go
+@@ -41,6 +41,56 @@ func Example_ed25519ctx() {
+ 	}
+ }
+ 
++func TestGenerateKey(t *testing.T) {
++	// nil is like using crypto/rand.Reader.
++	public, private, err := GenerateKey(nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	if len(public) != PublicKeySize {
++		t.Errorf("public key has the wrong size: %d", len(public))
++	}
++	if len(private) != PrivateKeySize {
++		t.Errorf("private key has the wrong size: %d", len(private))
++	}
++	if !bytes.Equal(private.Public().(PublicKey), public) {
++		t.Errorf("public key doesn't match private key")
++	}
++	fromSeed := NewKeyFromSeed(private.Seed())
++	if !bytes.Equal(private, fromSeed) {
++		t.Errorf("recreating key pair from seed gave different private key")
++	}
++
++	_, k2, err := GenerateKey(nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if bytes.Equal(private, k2) {
++		t.Errorf("GenerateKey returned the same private key twice")
++	}
++
++	_, k3, err := GenerateKey(rand.Reader)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if bytes.Equal(private, k3) {
++		t.Errorf("GenerateKey returned the same private key twice")
++	}
++
++	// GenerateKey is documented to be the same as NewKeyFromSeed.
++	seed := make([]byte, SeedSize)
++	rand.Read(seed)
++	_, k4, err := GenerateKey(bytes.NewReader(seed))
++	if err != nil {
++		t.Fatal(err)
++	}
++	k4n := NewKeyFromSeed(seed)
++	if !bytes.Equal(k4, k4n) {
++		t.Errorf("GenerateKey with seed gave different private key")
++	}
++}
++
+ type zeroReader struct{}
+ 
+ func (zeroReader) Read(buf []byte) (int, error) {

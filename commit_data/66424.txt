@@ -1,0 +1,194 @@
+commit 0cfc641420662795aa60568d622511ce4dda6179
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Jan 3 20:46:29 2025 +0100
+
+    crypto/elliptic: drop hidden Inverse and CombinedMult methods
+    
+    These methods were previously used by crypto/ecdsa, but now not even
+    ecdsa_legacy.go uses them. Neither were ever documented.
+    
+    Inverse was available only on P256() and only on amd64 and arm64, so
+    hopefully no one used it. CombinedMult was always available on all
+    curves, so it's possible some application might have used it, but all
+    the samples on GitHub I can find copied the old crypto/ecdsa package,
+    which does a conditional interface upgrade with a fallback, so they
+    won't break.
+    
+    Change-Id: I6a6a4656ee1ab98438ca0fb20bea53b229cd7e71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640116
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ .../6-stdlib/99-minor/crypto/elliptic/hidden.md    |  2 +
+ src/crypto/elliptic/nistec.go                      | 28 +---------
+ src/crypto/elliptic/nistec_p256.go                 | 29 ----------
+ src/crypto/elliptic/p256_test.go                   | 63 ----------------------
+ 4 files changed, 4 insertions(+), 118 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/crypto/elliptic/hidden.md b/doc/next/6-stdlib/99-minor/crypto/elliptic/hidden.md
+new file mode 100644
+index 0000000000..eb3bef50d3
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/elliptic/hidden.md
+@@ -0,0 +1,2 @@
++The hidden and undocumented `Inverse` and `CombinedMult` methods on some [Curve]
++implementations have been removed.
+diff --git a/src/crypto/elliptic/nistec.go b/src/crypto/elliptic/nistec.go
+index 043e57607c..690c0c2c9e 100644
+--- a/src/crypto/elliptic/nistec.go
++++ b/src/crypto/elliptic/nistec.go
+@@ -27,13 +27,9 @@ func initP224() {
+ 	}
+ }
+ 
+-type p256Curve struct {
+-	nistCurve[*nistec.P256Point]
+-}
+-
+-var p256 = &p256Curve{nistCurve[*nistec.P256Point]{
++var p256 = &nistCurve[*nistec.P256Point]{
+ 	newPoint: nistec.NewP256Point,
+-}}
++}
+ 
+ func initP256() {
+ 	p256.params = &CurveParams{
+@@ -228,26 +224,6 @@ func (curve *nistCurve[Point]) ScalarBaseMult(scalar []byte) (*big.Int, *big.Int
+ 	return curve.pointToAffine(p)
+ }
+ 
+-// CombinedMult returns [s1]G + [s2]P where G is the generator. It's used
+-// through an interface upgrade in crypto/ecdsa.
+-func (curve *nistCurve[Point]) CombinedMult(Px, Py *big.Int, s1, s2 []byte) (x, y *big.Int) {
+-	s1 = curve.normalizeScalar(s1)
+-	q, err := curve.newPoint().ScalarBaseMult(s1)
+-	if err != nil {
+-		panic("crypto/elliptic: nistec rejected normalized scalar")
+-	}
+-	p, err := curve.pointFromAffine(Px, Py)
+-	if err != nil {
+-		panic("crypto/elliptic: CombinedMult was called on an invalid point")
+-	}
+-	s2 = curve.normalizeScalar(s2)
+-	p, err = p.ScalarMult(p, s2)
+-	if err != nil {
+-		panic("crypto/elliptic: nistec rejected normalized scalar")
+-	}
+-	return curve.pointToAffine(p.Add(p, q))
+-}
+-
+ func (curve *nistCurve[Point]) Unmarshal(data []byte) (x, y *big.Int) {
+ 	if len(data) == 0 || data[0] != 4 {
+ 		return nil, nil
+diff --git a/src/crypto/elliptic/nistec_p256.go b/src/crypto/elliptic/nistec_p256.go
+deleted file mode 100644
+index 41aace7421..0000000000
+--- a/src/crypto/elliptic/nistec_p256.go
++++ /dev/null
+@@ -1,29 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build amd64 || arm64
+-
+-package elliptic
+-
+-import (
+-	"crypto/internal/fips140/nistec"
+-	"math/big"
+-)
+-
+-func (c p256Curve) Inverse(k *big.Int) *big.Int {
+-	if k.Sign() < 0 {
+-		// This should never happen.
+-		k = new(big.Int).Neg(k)
+-	}
+-	if k.Cmp(c.params.N) >= 0 {
+-		// This should never happen.
+-		k = new(big.Int).Mod(k, c.params.N)
+-	}
+-	scalar := k.FillBytes(make([]byte, 32))
+-	inverse, err := nistec.P256OrdInverse(scalar)
+-	if err != nil {
+-		panic("crypto/elliptic: nistec rejected normalized scalar")
+-	}
+-	return new(big.Int).SetBytes(inverse)
+-}
+diff --git a/src/crypto/elliptic/p256_test.go b/src/crypto/elliptic/p256_test.go
+index a607766bc6..a2c2b44104 100644
+--- a/src/crypto/elliptic/p256_test.go
++++ b/src/crypto/elliptic/p256_test.go
+@@ -74,69 +74,6 @@ func TestP256Mult(t *testing.T) {
+ 	}
+ }
+ 
+-type synthCombinedMult struct {
+-	Curve
+-}
+-
+-func (s synthCombinedMult) CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int) {
+-	x1, y1 := s.ScalarBaseMult(baseScalar)
+-	x2, y2 := s.ScalarMult(bigX, bigY, scalar)
+-	return s.Add(x1, y1, x2, y2)
+-}
+-
+-func TestP256CombinedMult(t *testing.T) {
+-	type combinedMult interface {
+-		Curve
+-		CombinedMult(bigX, bigY *big.Int, baseScalar, scalar []byte) (x, y *big.Int)
+-	}
+-
+-	p256, ok := P256().(combinedMult)
+-	if !ok {
+-		p256 = &synthCombinedMult{P256()}
+-	}
+-
+-	gx := p256.Params().Gx
+-	gy := p256.Params().Gy
+-
+-	zero := make([]byte, 32)
+-	one := make([]byte, 32)
+-	one[31] = 1
+-	two := make([]byte, 32)
+-	two[31] = 2
+-
+-	// 0×G + 0×G = ∞
+-	x, y := p256.CombinedMult(gx, gy, zero, zero)
+-	if x.Sign() != 0 || y.Sign() != 0 {
+-		t.Errorf("0×G + 0×G = (%d, %d), should be ∞", x, y)
+-	}
+-
+-	// 1×G + 0×G = G
+-	x, y = p256.CombinedMult(gx, gy, one, zero)
+-	if x.Cmp(gx) != 0 || y.Cmp(gy) != 0 {
+-		t.Errorf("1×G + 0×G = (%d, %d), should be (%d, %d)", x, y, gx, gy)
+-	}
+-
+-	// 0×G + 1×G = G
+-	x, y = p256.CombinedMult(gx, gy, zero, one)
+-	if x.Cmp(gx) != 0 || y.Cmp(gy) != 0 {
+-		t.Errorf("0×G + 1×G = (%d, %d), should be (%d, %d)", x, y, gx, gy)
+-	}
+-
+-	// 1×G + 1×G = 2×G
+-	x, y = p256.CombinedMult(gx, gy, one, one)
+-	ggx, ggy := p256.ScalarBaseMult(two)
+-	if x.Cmp(ggx) != 0 || y.Cmp(ggy) != 0 {
+-		t.Errorf("1×G + 1×G = (%d, %d), should be (%d, %d)", x, y, ggx, ggy)
+-	}
+-
+-	minusOne := new(big.Int).Sub(p256.Params().N, big.NewInt(1))
+-	// 1×G + (-1)×G = ∞
+-	x, y = p256.CombinedMult(gx, gy, one, minusOne.Bytes())
+-	if x.Sign() != 0 || y.Sign() != 0 {
+-		t.Errorf("1×G + (-1)×G = (%d, %d), should be ∞", x, y)
+-	}
+-}
+-
+ func TestIssue52075(t *testing.T) {
+ 	Gx, Gy := P256().Params().Gx, P256().Params().Gy
+ 	scalar := make([]byte, 33)

@@ -1,0 +1,38 @@
+commit 2315412535290d7513484e3ab0caf2bfddab8f74
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu May 9 16:08:49 2024 -0700
+
+    reflect: improved ifaceIndir comment
+    
+    Change-Id: Ic88ef6b60b5a772865603971411fd5d37ef45006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584656
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/reflect/type.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 47f7e45d7c..6ad2ace266 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -3033,14 +3033,8 @@ func TypeFor[T any]() Type {
+ }
+ 
+ // ifaceIndir reports whether t is stored indirectly in an interface value.
+-// This function is no longer called by the reflect package.
+-// Unfortunately, it is accessed using go:linkname by the popular
+-// github.com/goccy/go-json package.
+-// A bug has been filed to fix this upstream:
+-// https://github.com/goccy/go-json/issues/506
+-// Until that bug is fixed and the fix is distributed,
+-// keep this function available.
+-// With luck we can remove this in the 1.24 release.
++// This function is no longer called by the reflect package,
++// and https://go.dev/issue/67279 tracks its deletion.
+ func ifaceIndir(t *abi.Type) bool {
+ 	return t.Kind_&abi.KindDirectIface == 0
+ }

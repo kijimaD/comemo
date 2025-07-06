@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 13646: deb53889c200deba1d4048a155e936c11b6a8492
+# Index 13646: 689931c5b02f7509a125f06480d3673ac85f21d5
 
 echo "🚀 Generating explanation for commit 13646..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 13646..."
 
 ### メタデータ
 - **コミットインデックス**: 13646
-- **コミットハッシュ**: deb53889c200deba1d4048a155e936c11b6a8492
-- **GitHub URL**: https://github.com/golang/go/commit/deb53889c200deba1d4048a155e936c11b6a8492
+- **コミットハッシュ**: 689931c5b02f7509a125f06480d3673ac85f21d5
+- **GitHub URL**: https://github.com/golang/go/commit/689931c5b02f7509a125f06480d3673ac85f21d5
 
 ### 章構成
 

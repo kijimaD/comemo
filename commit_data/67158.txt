@@ -1,0 +1,114 @@
+commit 4b7aa542ebc5144b2df7ee455ab137eb90de6f00
+Author: Damien Neil <dneil@google.com>
+Date:   Mon May 19 15:51:14 2025 -0700
+
+    os: add Root.ReadFile and Root.WriteFile
+    
+    For #73126
+    
+    Change-Id: Ie69cc274e7b59f958c239520318b89ff0141e26b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674315
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+---
+ api/next/73126.txt                     |  2 ++
+ doc/next/6-stdlib/99-minor/os/67002.md |  2 ++
+ doc/next/6-stdlib/99-minor/os/73126.md |  1 +
+ src/os/root.go                         | 25 +++++++++++++++++++++++++
+ src/os/root_test.go                    | 20 ++++++++++++++++++++
+ 5 files changed, 50 insertions(+)
+
+diff --git a/api/next/73126.txt b/api/next/73126.txt
+new file mode 100644
+index 0000000000..9392448c02
+--- /dev/null
++++ b/api/next/73126.txt
+@@ -0,0 +1,2 @@
++pkg os, method (*Root) ReadFile(string) ([]uint8, error) #73126
++pkg os, method (*Root) WriteFile(string, []uint8, fs.FileMode) error #73126
+diff --git a/doc/next/6-stdlib/99-minor/os/67002.md b/doc/next/6-stdlib/99-minor/os/67002.md
+index a8e79437b6..481a2c171c 100644
+--- a/doc/next/6-stdlib/99-minor/os/67002.md
++++ b/doc/next/6-stdlib/99-minor/os/67002.md
+@@ -6,7 +6,9 @@ The [os.Root] type supports the following additional methods:
+   * [os.Root.Lchown]
+   * [os.Root.Link]
+   * [os.Root.MkdirAll]
++  * [os.Root.ReadFile]
+   * [os.Root.Readlink]
+   * [os.Root.RemoveAll]
+   * [os.Root.Rename]
+   * [os.Root.Symlink]
++  * [os.Root.WriteFile]
+diff --git a/doc/next/6-stdlib/99-minor/os/73126.md b/doc/next/6-stdlib/99-minor/os/73126.md
+new file mode 100644
+index 0000000000..1cd40d79ee
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/os/73126.md
+@@ -0,0 +1 @@
++<!-- go.dev/issue/73126 is documented as part of 67002 -->
+diff --git a/src/os/root.go b/src/os/root.go
+index 02bf0b5a3a..953cd6b9b9 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -248,6 +248,31 @@ func (r *Root) Symlink(oldname, newname string) error {
+ 	return rootSymlink(r, oldname, newname)
+ }
+ 
++// ReadFile reads the named file in the root and returns its contents.
++// See [ReadFile] for more details.
++func (r *Root) ReadFile(name string) ([]byte, error) {
++	f, err := r.Open(name)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++	return readFileContents(statOrZero(f), f.Read)
++}
++
++// WriteFile writes data to the named file in the root, creating it if necessary.
++// See [WriteFile] for more details.
++func (r *Root) WriteFile(name string, data []byte, perm FileMode) error {
++	f, err := r.OpenFile(name, O_WRONLY|O_CREATE|O_TRUNC, perm)
++	if err != nil {
++		return err
++	}
++	_, err = f.Write(data)
++	if err1 := f.Close(); err == nil {
++		err = err1
++	}
++	return err
++}
++
+ func (r *Root) logOpen(name string) {
+ 	if log := testlog.Logger(); log != nil {
+ 		// This won't be right if r's name has changed since it was opened,
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 4e09cb9621..effcdeab43 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -1899,3 +1899,23 @@ func TestRootRemoveDot(t *testing.T) {
+ 		t.Error(`root.Remove(All)?(".") removed the root`)
+ 	}
+ }
++
++func TestRootWriteReadFile(t *testing.T) {
++	dir := t.TempDir()
++	root, err := os.OpenRoot(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer root.Close()
++
++	name := "filename"
++	want := []byte("file contents")
++	if err := root.WriteFile(name, want, 0o666); err != nil {
++		t.Fatalf("root.WriteFile(%q, %q, 0o666) = %v; want nil", name, want, err)
++	}
++
++	got, err := root.ReadFile(name)
++	if err != nil {
++		t.Fatalf("root.ReadFile(%q) = %q, %v; want %q, nil", name, got, err, want)
++	}
++}

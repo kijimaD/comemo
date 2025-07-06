@@ -1,0 +1,147 @@
+commit af133d86e4de00e65581799c155659ce9c8c556c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Feb 18 18:23:27 2025 +1100
+
+    cmd/internal/obj/riscv: factor out shift constant code
+    
+    Move the code that tests to see if a constant can be represented by a
+    32 bit signed integer and a logical left shift. This reduces duplication
+    and increases readability. Also add test coverage now that this is an
+    independent function.
+    
+    Change-Id: Id25395b1380b00cf5b69ca201b7715ef84f7ade6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652777
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/internal/obj/riscv/obj.go      | 30 +++++++++++-----
+ src/cmd/internal/obj/riscv/obj_test.go | 64 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 86 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index d3b6857a75..b50709729e 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -135,10 +135,7 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 
+ 	case AMOV:
+ 		if p.From.Type == obj.TYPE_CONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE && int64(int32(p.From.Offset)) != p.From.Offset {
+-			ctz := bits.TrailingZeros64(uint64(p.From.Offset))
+-			val := p.From.Offset >> ctz
+-			if int64(int32(val)) == val {
+-				// It's ok. We can handle constants with many trailing zeros.
++			if isShiftConst(p.From.Offset) {
+ 				break
+ 			}
+ 			// Put >32-bit constants in memory and load them.
+@@ -2223,6 +2220,24 @@ func encodingForAs(as obj.As) (*encoding, error) {
+ 	return &insData.enc, nil
+ }
+ 
++// splitShiftConst attempts to split a constant into a signed 32 bit integer
++// and a corresponding left shift.
++func splitShiftConst(v int64) (imm int64, lsh int, ok bool) {
++	lsh = bits.TrailingZeros64(uint64(v))
++	c := v >> lsh
++	if int64(int32(c)) != c {
++		return 0, 0, false
++	}
++	return c, lsh, true
++}
++
++// isShiftConst indicates whether a constant can be represented as a signed
++// 32 bit integer that is left shifted.
++func isShiftConst(v int64) bool {
++	_, lsh, ok := splitShiftConst(v)
++	return ok && lsh > 0
++}
++
+ type instruction struct {
+ 	p      *obj.Prog // Prog that instruction is for
+ 	as     obj.As    // Assembler opcode
+@@ -2504,10 +2519,9 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 		// 	SLLI $63, X10, X10
+ 		var insSLLI *instruction
+ 		if err := immIFits(ins.imm, 32); err != nil {
+-			ctz := bits.TrailingZeros64(uint64(ins.imm))
+-			if err := immIFits(ins.imm>>ctz, 32); err == nil {
+-				ins.imm = ins.imm >> ctz
+-				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(ctz)}
++			if c, lsh, ok := splitShiftConst(ins.imm); ok {
++				ins.imm = c
++				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(lsh)}
+ 			}
+ 		}
+ 
+diff --git a/src/cmd/internal/obj/riscv/obj_test.go b/src/cmd/internal/obj/riscv/obj_test.go
+new file mode 100644
+index 0000000000..688f262d8f
+--- /dev/null
++++ b/src/cmd/internal/obj/riscv/obj_test.go
+@@ -0,0 +1,64 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv
++
++import (
++	"fmt"
++	"testing"
++)
++
++func TestSplitShiftConst(t *testing.T) {
++	tests := []struct {
++		v       int64
++		wantImm int64
++		wantLsh int
++		wantOk  bool
++	}{
++		{0x100000000, 1, 32, true},
++		{0xfffff001, 0, 0, false},
++		{0xfffff801, 0, 0, false},
++		{0xfffffff1, 0, 0, false},
++		{0xffffffff, 0, 0, false},
++		{0xfffffffe, 0x7fffffff, 1, true},
++		{0xfffffffffffda, 0, 0, false},
++		{0xfffffffffffde, 0, 0, false},
++		{0x000003ffffffffff, 0, 0, false},
++		{0x0007ffffffffffff, 0, 0, false},
++		{0x7fffffff00000000, 0x7fffffff, 32, true},
++		{0x7fffffffffffffff, 0, 0, false},
++		{0x7f7f7f7f7f7f7f7f, 0, 0, false},
++		{0x0080000010000000, 0x8000001, 28, true},
++		{0x0abcdabcd0000000, 0, 0, false},
++		{-4503599610593281, 0, 0, false}, // 0x8abcdabcd0000000
++		{-7543254330000000, 0, 0, false}, // 0xfff0000000ffffff
++	}
++	for _, test := range tests {
++		t.Run(fmt.Sprintf("0x%x", test.v), func(t *testing.T) {
++			c, l, ok := splitShiftConst(test.v)
++
++			if got, want := c, test.wantImm; got != want {
++				t.Errorf("Got immediate %d, want %d", got, want)
++			}
++			if got, want := l, test.wantLsh; got != want {
++				t.Errorf("Got left shift %d, want %d", got, want)
++			}
++			switch {
++			case !ok && test.wantOk:
++				t.Error("Failed to split shift constant, want success")
++			case ok && !test.wantOk:
++				t.Error("Successfully split shift constant, want failure")
++			}
++			if !ok || ok != test.wantOk {
++				return
++			}
++
++			// Reconstruct as a 32 bit signed constant.
++			v := int64(uint64(int32(test.wantImm)) << l)
++			if v != test.v {
++				t.Errorf("Got v = %d (%x), want v = %d (%x)", v, v, test.v, test.v)
++			}
++		})
++	}
++}

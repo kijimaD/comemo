@@ -1,0 +1,2061 @@
+commit f782e161623e68e25cc3a81e55dac887afd301d5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Sep 19 16:06:40 2024 -0400
+
+    runtime,internal/runtime/maps: specialized swissmaps
+    
+    Add all the specialized variants that exist for the existing maps.
+    
+    Like the existing maps, the fast variants do not support indirect
+    key/elem.
+    
+    Note that as of this CL, the Get and Put methods on Map/table are
+    effectively dead. They are only reachable from the internal/runtime/maps
+    unit tests.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I95297750be6200f34ec483e4cfc897f048c26db7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616463
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/walk/walk.go              |  26 +-
+ src/internal/runtime/maps/map.go                   |   1 +
+ src/internal/runtime/maps/runtime_fast32_swiss.go  | 487 +++++++++++++++++++
+ src/internal/runtime/maps/runtime_fast64_swiss.go  | 525 +++++++++++++++++++++
+ src/internal/runtime/maps/runtime_faststr_swiss.go | 353 ++++++++++++++
+ src/internal/runtime/maps/runtime_swiss.go         |  73 +++
+ src/reflect/map_swiss.go                           |   8 +-
+ src/runtime/map_fast32_swiss.go                    |  64 ++-
+ src/runtime/map_fast64_swiss.go                    |  65 ++-
+ src/runtime/map_faststr_swiss.go                   |  48 +-
+ src/runtime/map_swiss.go                           |  28 +-
+ test/live.go                                       |  20 +
+ test/live_noswiss.go                               |  29 --
+ test/live_regabi.go                                |  22 +
+ test/live_regabi_noswiss.go                        |  26 -
+ test/live_regabi_swiss.go                          |  28 --
+ test/live_swiss.go                                 |  31 --
+ 17 files changed, 1621 insertions(+), 213 deletions(-)
+
+diff --git a/src/cmd/compile/internal/walk/walk.go b/src/cmd/compile/internal/walk/walk.go
+index 9d84f31694..25e03359fd 100644
+--- a/src/cmd/compile/internal/walk/walk.go
++++ b/src/cmd/compile/internal/walk/walk.go
+@@ -192,8 +192,30 @@ func mapfast(t *types.Type) int {
+ }
+ 
+ func mapfastSwiss(t *types.Type) int {
+-	// TODO(#54766): Temporarily avoid specialized variants to minimize
+-	// required code.
++	if t.Elem().Size() > abi.OldMapMaxElemBytes {
++		return mapslow
++	}
++	switch reflectdata.AlgType(t.Key()) {
++	case types.AMEM32:
++		if !t.Key().HasPointers() {
++			return mapfast32
++		}
++		if types.PtrSize == 4 {
++			return mapfast32ptr
++		}
++		base.Fatalf("small pointer %v", t.Key())
++	case types.AMEM64:
++		if !t.Key().HasPointers() {
++			return mapfast64
++		}
++		if types.PtrSize == 8 {
++			return mapfast64ptr
++		}
++		// Two-word object, at least one of which is a pointer.
++		// Use the slow path.
++	case types.ASTRING:
++		return mapfaststr
++	}
+ 	return mapslow
+ }
+ 
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index c2c7c41805..d9df9fd015 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -445,6 +445,7 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
+ 		if typ.IndirectKey() {
+ 			slotKey = *((*unsafe.Pointer)(slotKey))
+ 		}
++
+ 		if typ.Key.Equal(key, slotKey) {
+ 			slotElem := g.elem(typ, i)
+ 			if typ.IndirectElem() {
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+new file mode 100644
+index 0000000000..2c3ddc26c2
+--- /dev/null
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -0,0 +1,487 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.swissmap
++
++package maps
++
++import (
++	"internal/abi"
++	"internal/race"
++	"internal/runtime/sys"
++	"unsafe"
++)
++
++func (m *Map) getWithoutKeySmallFast32(typ *abi.SwissMapType, hash uintptr, key uint32) (unsafe.Pointer, bool) {
++	g := groupReference{
++		data: m.dirPtr,
++	}
++
++	h2 := uint8(h2(hash))
++	ctrls := *g.ctrls()
++
++	for i := uint32(0); i < 8; i++ {
++		c := uint8(ctrls)
++		ctrls >>= 8
++		if c != h2 {
++			continue
++		}
++
++		slotKey := g.key(typ, i)
++
++		if key == *(*uint32)(slotKey) {
++			slotElem := g.elem(typ, i)
++			return slotElem, true
++		}
++	}
++
++	return nil, false
++}
++
++//go:linkname runtime_mapaccess1_fast32 runtime.mapaccess1_fast32
++func runtime_mapaccess1_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe.Pointer {
++	if race.Enabled && m != nil {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
++	}
++
++	if m == nil || m.Used() == 0 {
++		return unsafe.Pointer(&zeroVal[0])
++	}
++
++	if m.writing != 0 {
++		fatal("concurrent map read and map write")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	if m.dirLen <= 0 {
++		elem, ok := m.getWithoutKeySmallFast32(typ, hash, key)
++		if !ok {
++			return unsafe.Pointer(&zeroVal[0])
++		}
++		return elem
++	}
++
++	// Select table.
++	idx := m.directoryIndex(hash)
++	t := m.directoryAt(idx)
++
++	// Probe table.
++	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++	for ; ; seq = seq.next() {
++		g := t.groups.group(typ, seq.offset)
++
++		match := g.ctrls().matchH2(h2(hash))
++
++		for match != 0 {
++			i := match.first()
++
++			slotKey := g.key(typ, i)
++			if key == *(*uint32)(slotKey) {
++				slotElem := g.elem(typ, i)
++				return slotElem
++			}
++			match = match.removeFirst()
++		}
++
++		match = g.ctrls().matchEmpty()
++		if match != 0 {
++			// Finding an empty slot means we've reached the end of
++			// the probe sequence.
++			return unsafe.Pointer(&zeroVal[0])
++		}
++	}
++}
++
++//go:linkname runtime_mapaccess2_fast32 runtime.mapaccess2_fast32
++func runtime_mapaccess2_fast32(typ *abi.SwissMapType, m *Map, key uint32) (unsafe.Pointer, bool) {
++	if race.Enabled && m != nil {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
++	}
++
++	if m == nil || m.Used() == 0 {
++		return unsafe.Pointer(&zeroVal[0]), false
++	}
++
++	if m.writing != 0 {
++		fatal("concurrent map read and map write")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	if m.dirLen <= 0 {
++		elem, ok := m.getWithoutKeySmallFast32(typ, hash, key)
++		if !ok {
++			return unsafe.Pointer(&zeroVal[0]), false
++		}
++		return elem, true
++	}
++
++	// Select table.
++	idx := m.directoryIndex(hash)
++	t := m.directoryAt(idx)
++
++	// Probe table.
++	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++	for ; ; seq = seq.next() {
++		g := t.groups.group(typ, seq.offset)
++
++		match := g.ctrls().matchH2(h2(hash))
++
++		for match != 0 {
++			i := match.first()
++
++			slotKey := g.key(typ, i)
++			if key == *(*uint32)(slotKey) {
++				slotElem := g.elem(typ, i)
++				return slotElem, true
++			}
++			match = match.removeFirst()
++		}
++
++		match = g.ctrls().matchEmpty()
++		if match != 0 {
++			// Finding an empty slot means we've reached the end of
++			// the probe sequence.
++			return unsafe.Pointer(&zeroVal[0]), false
++		}
++	}
++}
++
++func (m *Map) putSlotSmallFast32(typ *abi.SwissMapType, hash uintptr, key uint32) unsafe.Pointer {
++	g := groupReference{
++		data: m.dirPtr,
++	}
++
++	match := g.ctrls().matchH2(h2(hash))
++
++	// Look for an existing slot containing this key.
++	for match != 0 {
++		i := match.first()
++
++		slotKey := g.key(typ, i)
++		if key == *(*uint32)(slotKey) {
++			slotElem := g.elem(typ, i)
++			return slotElem
++		}
++		match = match.removeFirst()
++	}
++
++	// No need to look for deleted slots, small maps can't have them (see
++	// deleteSmall).
++	match = g.ctrls().matchEmpty()
++	if match == 0 {
++		fatal("small map with no empty slot (concurrent map writes?)")
++	}
++
++	i := match.first()
++
++	slotKey := g.key(typ, i)
++	*(*uint32)(slotKey) = key
++
++	slotElem := g.elem(typ, i)
++
++	g.ctrls().set(i, ctrl(h2(hash)))
++	m.used++
++
++	return slotElem
++}
++
++//go:linkname runtime_mapassign_fast32 runtime.mapassign_fast32
++func runtime_mapassign_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe.Pointer {
++	if m == nil {
++		panic(errNilAssign)
++	}
++	if race.Enabled {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		race.WritePC(unsafe.Pointer(m), callerpc, pc)
++	}
++	if m.writing != 0 {
++		fatal("concurrent map writes")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	// Set writing after calling Hasher, since Hasher may panic, in which
++	// case we have not actually done a write.
++	m.writing ^= 1 // toggle, see comment on writing
++
++	if m.dirPtr == nil {
++		m.growToSmall(typ)
++	}
++
++	if m.dirLen == 0 {
++		if m.used < abi.SwissMapGroupSlots {
++			elem := m.putSlotSmallFast32(typ, hash, key)
++
++			if m.writing == 0 {
++				fatal("concurrent map writes")
++			}
++			m.writing ^= 1
++
++			return elem
++		}
++
++		// Can't fit another entry, grow to full size map.
++		m.growToTable(typ)
++	}
++
++	var slotElem unsafe.Pointer
++outer:
++	for {
++		// Select table.
++		idx := m.directoryIndex(hash)
++		t := m.directoryAt(idx)
++
++		seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++
++		// As we look for a match, keep track of the first deleted slot
++		// we find, which we'll use to insert the new entry if
++		// necessary.
++		var firstDeletedGroup groupReference
++		var firstDeletedSlot uint32
++
++		for ; ; seq = seq.next() {
++			g := t.groups.group(typ, seq.offset)
++			match := g.ctrls().matchH2(h2(hash))
++
++			// Look for an existing slot containing this key.
++			for match != 0 {
++				i := match.first()
++
++				slotKey := g.key(typ, i)
++				if key == *(*uint32)(slotKey) {
++					slotElem = g.elem(typ, i)
++
++					t.checkInvariants(typ)
++					break outer
++				}
++				match = match.removeFirst()
++			}
++
++			// No existing slot for this key in this group. Is this the end
++			// of the probe sequence?
++			match = g.ctrls().matchEmpty()
++			if match != 0 {
++				// Finding an empty slot means we've reached the end of
++				// the probe sequence.
++
++				var i uint32
++
++				// If we found a deleted slot along the way, we
++				// can replace it without consuming growthLeft.
++				if firstDeletedGroup.data != nil {
++					g = firstDeletedGroup
++					i = firstDeletedSlot
++					t.growthLeft++ // will be decremented below to become a no-op.
++				} else {
++					// Otherwise, use the empty slot.
++					i = match.first()
++				}
++
++				// If there is room left to grow, just insert the new entry.
++				if t.growthLeft > 0 {
++					slotKey := g.key(typ, i)
++					*(*uint32)(slotKey) = key
++
++					slotElem = g.elem(typ, i)
++
++					g.ctrls().set(i, ctrl(h2(hash)))
++					t.growthLeft--
++					t.used++
++					m.used++
++
++					t.checkInvariants(typ)
++					break outer
++				}
++
++				t.rehash(typ, m)
++				continue outer
++			}
++
++			// No empty slots in this group. Check for a deleted
++			// slot, which we'll use if we don't find a match later
++			// in the probe sequence.
++			//
++			// We only need to remember a single deleted slot.
++			if firstDeletedGroup.data == nil {
++				// Since we already checked for empty slots
++				// above, matches here must be deleted slots.
++				match = g.ctrls().matchEmptyOrDeleted()
++				if match != 0 {
++					firstDeletedGroup = g
++					firstDeletedSlot = match.first()
++				}
++			}
++		}
++	}
++
++	if m.writing == 0 {
++		fatal("concurrent map writes")
++	}
++	m.writing ^= 1
++
++	return slotElem
++}
++
++// Key is a 32-bit pointer (only called on 32-bit GOARCH). This source is identical to fast64ptr.
++//
++// TODO(prattmic): With some compiler refactoring we could avoid duplication of this function.
++//
++//go:linkname runtime_mapassign_fast32ptr runtime.mapassign_fast32ptr
++func runtime_mapassign_fast32ptr(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
++	if m == nil {
++		panic(errNilAssign)
++	}
++	if race.Enabled {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		race.WritePC(unsafe.Pointer(m), callerpc, pc)
++	}
++	if m.writing != 0 {
++		fatal("concurrent map writes")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	// Set writing after calling Hasher, since Hasher may panic, in which
++	// case we have not actually done a write.
++	m.writing ^= 1 // toggle, see comment on writing
++
++	if m.dirPtr == nil {
++		m.growToSmall(typ)
++	}
++
++	if m.dirLen == 0 {
++		if m.used < abi.SwissMapGroupSlots {
++			elem := m.putSlotSmallFastPtr(typ, hash, key)
++
++			if m.writing == 0 {
++				fatal("concurrent map writes")
++			}
++			m.writing ^= 1
++
++			return elem
++		}
++
++		// Can't fit another entry, grow to full size map.
++		m.growToTable(typ)
++	}
++
++	var slotElem unsafe.Pointer
++outer:
++	for {
++		// Select table.
++		idx := m.directoryIndex(hash)
++		t := m.directoryAt(idx)
++
++		seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++
++		// As we look for a match, keep track of the first deleted slot we
++		// find, which we'll use to insert the new entry if necessary.
++		var firstDeletedGroup groupReference
++		var firstDeletedSlot uint32
++
++		for ; ; seq = seq.next() {
++			g := t.groups.group(typ, seq.offset)
++			match := g.ctrls().matchH2(h2(hash))
++
++			// Look for an existing slot containing this key.
++			for match != 0 {
++				i := match.first()
++
++				slotKey := g.key(typ, i)
++				if key == *(*unsafe.Pointer)(slotKey) {
++					slotElem = g.elem(typ, i)
++
++					t.checkInvariants(typ)
++					break outer
++				}
++				match = match.removeFirst()
++			}
++
++			// No existing slot for this key in this group. Is this the end
++			// of the probe sequence?
++			match = g.ctrls().matchEmpty()
++			if match != 0 {
++				// Finding an empty slot means we've reached the end of
++				// the probe sequence.
++
++				var i uint32
++
++				// If we found a deleted slot along the way, we
++				// can replace it without consuming growthLeft.
++				if firstDeletedGroup.data != nil {
++					g = firstDeletedGroup
++					i = firstDeletedSlot
++					t.growthLeft++ // will be decremented below to become a no-op.
++				} else {
++					// Otherwise, use the empty slot.
++					i = match.first()
++				}
++
++				// If there is room left to grow, just insert the new entry.
++				if t.growthLeft > 0 {
++					slotKey := g.key(typ, i)
++					*(*unsafe.Pointer)(slotKey) = key
++
++					slotElem = g.elem(typ, i)
++
++					g.ctrls().set(i, ctrl(h2(hash)))
++					t.growthLeft--
++					t.used++
++					m.used++
++
++					t.checkInvariants(typ)
++					break outer
++				}
++
++				t.rehash(typ, m)
++				continue outer
++			}
++
++			// No empty slots in this group. Check for a deleted
++			// slot, which we'll use if we don't find a match later
++			// in the probe sequence.
++			//
++			// We only need to remember a single deleted slot.
++			if firstDeletedGroup.data == nil {
++				// Since we already checked for empty slots
++				// above, matches here must be deleted slots.
++				match = g.ctrls().matchEmptyOrDeleted()
++				if match != 0 {
++					firstDeletedGroup = g
++					firstDeletedSlot = match.first()
++				}
++			}
++		}
++	}
++
++	if m.writing == 0 {
++		fatal("concurrent map writes")
++	}
++	m.writing ^= 1
++
++	return slotElem
++}
++
++//go:linkname runtime_mapdelete_fast32 runtime.mapdelete_fast32
++func runtime_mapdelete_fast32(typ *abi.SwissMapType, m *Map, key uint32) {
++	if race.Enabled {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		race.WritePC(unsafe.Pointer(m), callerpc, pc)
++	}
++
++	if m == nil || m.Used() == 0 {
++		return
++	}
++
++	m.Delete(typ, abi.NoEscape(unsafe.Pointer(&key)))
++}
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+new file mode 100644
+index 0000000000..e2d1792ffa
+--- /dev/null
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -0,0 +1,525 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.swissmap
++
++package maps
++
++import (
++	"internal/abi"
++	"internal/race"
++	"internal/runtime/sys"
++	"unsafe"
++)
++
++func (m *Map) getWithoutKeySmallFast64(typ *abi.SwissMapType, hash uintptr, key uint64) (unsafe.Pointer, bool) {
++	g := groupReference{
++		data: m.dirPtr,
++	}
++
++	h2 := uint8(h2(hash))
++	ctrls := *g.ctrls()
++
++	for i := uint32(0); i < 8; i++ {
++		c := uint8(ctrls)
++		ctrls >>= 8
++		if c != h2 {
++			continue
++		}
++
++		slotKey := g.key(typ, i)
++
++		if key == *(*uint64)(slotKey) {
++			slotElem := g.elem(typ, i)
++			return slotElem, true
++		}
++	}
++
++	return nil, false
++}
++
++//go:linkname runtime_mapaccess1_fast64 runtime.mapaccess1_fast64
++func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe.Pointer {
++	if race.Enabled && m != nil {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
++	}
++
++	if m == nil || m.Used() == 0 {
++		return unsafe.Pointer(&zeroVal[0])
++	}
++
++	if m.writing != 0 {
++		fatal("concurrent map read and map write")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	if m.dirLen <= 0 {
++		elem, ok := m.getWithoutKeySmallFast64(typ, hash, key)
++		if !ok {
++			return unsafe.Pointer(&zeroVal[0])
++		}
++		return elem
++	}
++
++	// Select table.
++	idx := m.directoryIndex(hash)
++	t := m.directoryAt(idx)
++
++	// Probe table.
++	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++	for ; ; seq = seq.next() {
++		g := t.groups.group(typ, seq.offset)
++
++		match := g.ctrls().matchH2(h2(hash))
++
++		for match != 0 {
++			i := match.first()
++
++			slotKey := g.key(typ, i)
++			if key == *(*uint64)(slotKey) {
++				slotElem := g.elem(typ, i)
++				return slotElem
++			}
++			match = match.removeFirst()
++		}
++
++		match = g.ctrls().matchEmpty()
++		if match != 0 {
++			// Finding an empty slot means we've reached the end of
++			// the probe sequence.
++			return unsafe.Pointer(&zeroVal[0])
++		}
++	}
++}
++
++//go:linkname runtime_mapaccess2_fast64 runtime.mapaccess2_fast64
++func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsafe.Pointer, bool) {
++	if race.Enabled && m != nil {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
++	}
++
++	if m == nil || m.Used() == 0 {
++		return unsafe.Pointer(&zeroVal[0]), false
++	}
++
++	if m.writing != 0 {
++		fatal("concurrent map read and map write")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	if m.dirLen <= 0 {
++		elem, ok := m.getWithoutKeySmallFast64(typ, hash, key)
++		if !ok {
++			return unsafe.Pointer(&zeroVal[0]), false
++		}
++		return elem, true
++	}
++
++	// Select table.
++	idx := m.directoryIndex(hash)
++	t := m.directoryAt(idx)
++
++	// Probe table.
++	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++	for ; ; seq = seq.next() {
++		g := t.groups.group(typ, seq.offset)
++
++		match := g.ctrls().matchH2(h2(hash))
++
++		for match != 0 {
++			i := match.first()
++
++			slotKey := g.key(typ, i)
++			if key == *(*uint64)(slotKey) {
++				slotElem := g.elem(typ, i)
++				return slotElem, true
++			}
++			match = match.removeFirst()
++		}
++
++		match = g.ctrls().matchEmpty()
++		if match != 0 {
++			// Finding an empty slot means we've reached the end of
++			// the probe sequence.
++			return unsafe.Pointer(&zeroVal[0]), false
++		}
++	}
++}
++
++func (m *Map) putSlotSmallFast64(typ *abi.SwissMapType, hash uintptr, key uint64) unsafe.Pointer {
++	g := groupReference{
++		data: m.dirPtr,
++	}
++
++	match := g.ctrls().matchH2(h2(hash))
++
++	// Look for an existing slot containing this key.
++	for match != 0 {
++		i := match.first()
++
++		slotKey := g.key(typ, i)
++		if key == *(*uint64)(slotKey) {
++			slotElem := g.elem(typ, i)
++			return slotElem
++		}
++		match = match.removeFirst()
++	}
++
++	// No need to look for deleted slots, small maps can't have them (see
++	// deleteSmall).
++	match = g.ctrls().matchEmpty()
++	if match == 0 {
++		fatal("small map with no empty slot (concurrent map writes?)")
++	}
++
++	i := match.first()
++
++	slotKey := g.key(typ, i)
++	*(*uint64)(slotKey) = key
++
++	slotElem := g.elem(typ, i)
++
++	g.ctrls().set(i, ctrl(h2(hash)))
++	m.used++
++
++	return slotElem
++}
++
++//go:linkname runtime_mapassign_fast64 runtime.mapassign_fast64
++func runtime_mapassign_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe.Pointer {
++	if m == nil {
++		panic(errNilAssign)
++	}
++	if race.Enabled {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		race.WritePC(unsafe.Pointer(m), callerpc, pc)
++	}
++	if m.writing != 0 {
++		fatal("concurrent map writes")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	// Set writing after calling Hasher, since Hasher may panic, in which
++	// case we have not actually done a write.
++	m.writing ^= 1 // toggle, see comment on writing
++
++	if m.dirPtr == nil {
++		m.growToSmall(typ)
++	}
++
++	if m.dirLen == 0 {
++		if m.used < abi.SwissMapGroupSlots {
++			elem := m.putSlotSmallFast64(typ, hash, key)
++
++			if m.writing == 0 {
++				fatal("concurrent map writes")
++			}
++			m.writing ^= 1
++
++			return elem
++		}
++
++		// Can't fit another entry, grow to full size map.
++		m.growToTable(typ)
++	}
++
++	var slotElem unsafe.Pointer
++outer:
++	for {
++		// Select table.
++		idx := m.directoryIndex(hash)
++		t := m.directoryAt(idx)
++
++		seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++
++		// As we look for a match, keep track of the first deleted slot
++		// we find, which we'll use to insert the new entry if
++		// necessary.
++		var firstDeletedGroup groupReference
++		var firstDeletedSlot uint32
++
++		for ; ; seq = seq.next() {
++			g := t.groups.group(typ, seq.offset)
++			match := g.ctrls().matchH2(h2(hash))
++
++			// Look for an existing slot containing this key.
++			for match != 0 {
++				i := match.first()
++
++				slotKey := g.key(typ, i)
++				if key == *(*uint64)(slotKey) {
++					slotElem = g.elem(typ, i)
++
++					t.checkInvariants(typ)
++					break outer
++				}
++				match = match.removeFirst()
++			}
++
++			// No existing slot for this key in this group. Is this the end
++			// of the probe sequence?
++			match = g.ctrls().matchEmpty()
++			if match != 0 {
++				// Finding an empty slot means we've reached the end of
++				// the probe sequence.
++
++				var i uint32
++
++				// If we found a deleted slot along the way, we
++				// can replace it without consuming growthLeft.
++				if firstDeletedGroup.data != nil {
++					g = firstDeletedGroup
++					i = firstDeletedSlot
++					t.growthLeft++ // will be decremented below to become a no-op.
++				} else {
++					// Otherwise, use the empty slot.
++					i = match.first()
++				}
++
++				// If there is room left to grow, just insert the new entry.
++				if t.growthLeft > 0 {
++					slotKey := g.key(typ, i)
++					*(*uint64)(slotKey) = key
++
++					slotElem = g.elem(typ, i)
++
++					g.ctrls().set(i, ctrl(h2(hash)))
++					t.growthLeft--
++					t.used++
++					m.used++
++
++					t.checkInvariants(typ)
++					break outer
++				}
++
++				t.rehash(typ, m)
++				continue outer
++			}
++
++			// No empty slots in this group. Check for a deleted
++			// slot, which we'll use if we don't find a match later
++			// in the probe sequence.
++			//
++			// We only need to remember a single deleted slot.
++			if firstDeletedGroup.data == nil {
++				// Since we already checked for empty slots
++				// above, matches here must be deleted slots.
++				match = g.ctrls().matchEmptyOrDeleted()
++				if match != 0 {
++					firstDeletedGroup = g
++					firstDeletedSlot = match.first()
++				}
++			}
++		}
++	}
++
++	if m.writing == 0 {
++		fatal("concurrent map writes")
++	}
++	m.writing ^= 1
++
++	return slotElem
++}
++
++func (m *Map) putSlotSmallFastPtr(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
++	g := groupReference{
++		data: m.dirPtr,
++	}
++
++	match := g.ctrls().matchH2(h2(hash))
++
++	// Look for an existing slot containing this key.
++	for match != 0 {
++		i := match.first()
++
++		slotKey := g.key(typ, i)
++		if key == *(*unsafe.Pointer)(slotKey) {
++			slotElem := g.elem(typ, i)
++			return slotElem
++		}
++		match = match.removeFirst()
++	}
++
++	// No need to look for deleted slots, small maps can't have them (see
++	// deleteSmall).
++	match = g.ctrls().matchEmpty()
++	if match == 0 {
++		fatal("small map with no empty slot (concurrent map writes?)")
++	}
++
++	i := match.first()
++
++	slotKey := g.key(typ, i)
++	*(*unsafe.Pointer)(slotKey) = key
++
++	slotElem := g.elem(typ, i)
++
++	g.ctrls().set(i, ctrl(h2(hash)))
++	m.used++
++
++	return slotElem
++}
++
++// Key is a 64-bit pointer (only called on 64-bit GOARCH).
++//
++//go:linkname runtime_mapassign_fast64ptr runtime.mapassign_fast64ptr
++func runtime_mapassign_fast64ptr(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
++	if m == nil {
++		panic(errNilAssign)
++	}
++	if race.Enabled {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		race.WritePC(unsafe.Pointer(m), callerpc, pc)
++	}
++	if m.writing != 0 {
++		fatal("concurrent map writes")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	// Set writing after calling Hasher, since Hasher may panic, in which
++	// case we have not actually done a write.
++	m.writing ^= 1 // toggle, see comment on writing
++
++	if m.dirPtr == nil {
++		m.growToSmall(typ)
++	}
++
++	if m.dirLen == 0 {
++		if m.used < abi.SwissMapGroupSlots {
++			elem := m.putSlotSmallFastPtr(typ, hash, key)
++
++			if m.writing == 0 {
++				fatal("concurrent map writes")
++			}
++			m.writing ^= 1
++
++			return elem
++		}
++
++		// Can't fit another entry, grow to full size map.
++		m.growToTable(typ)
++	}
++
++	var slotElem unsafe.Pointer
++outer:
++	for {
++		// Select table.
++		idx := m.directoryIndex(hash)
++		t := m.directoryAt(idx)
++
++		seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++
++		// As we look for a match, keep track of the first deleted slot
++		// we find, which we'll use to insert the new entry if
++		// necessary.
++		var firstDeletedGroup groupReference
++		var firstDeletedSlot uint32
++
++		for ; ; seq = seq.next() {
++			g := t.groups.group(typ, seq.offset)
++			match := g.ctrls().matchH2(h2(hash))
++
++			// Look for an existing slot containing this key.
++			for match != 0 {
++				i := match.first()
++
++				slotKey := g.key(typ, i)
++				if key == *(*unsafe.Pointer)(slotKey) {
++					slotElem = g.elem(typ, i)
++
++					t.checkInvariants(typ)
++					break outer
++				}
++				match = match.removeFirst()
++			}
++
++			// No existing slot for this key in this group. Is this the end
++			// of the probe sequence?
++			match = g.ctrls().matchEmpty()
++			if match != 0 {
++				// Finding an empty slot means we've reached the end of
++				// the probe sequence.
++
++				var i uint32
++
++				// If we found a deleted slot along the way, we
++				// can replace it without consuming growthLeft.
++				if firstDeletedGroup.data != nil {
++					g = firstDeletedGroup
++					i = firstDeletedSlot
++					t.growthLeft++ // will be decremented below to become a no-op.
++				} else {
++					// Otherwise, use the empty slot.
++					i = match.first()
++				}
++
++				// If there is room left to grow, just insert the new entry.
++				if t.growthLeft > 0 {
++					slotKey := g.key(typ, i)
++					*(*unsafe.Pointer)(slotKey) = key
++
++					slotElem = g.elem(typ, i)
++
++					g.ctrls().set(i, ctrl(h2(hash)))
++					t.growthLeft--
++					t.used++
++					m.used++
++
++					t.checkInvariants(typ)
++					break outer
++				}
++
++				t.rehash(typ, m)
++				continue outer
++			}
++
++			// No empty slots in this group. Check for a deleted
++			// slot, which we'll use if we don't find a match later
++			// in the probe sequence.
++			//
++			// We only need to remember a single deleted slot.
++			if firstDeletedGroup.data == nil {
++				// Since we already checked for empty slots
++				// above, matches here must be deleted slots.
++				match = g.ctrls().matchEmptyOrDeleted()
++				if match != 0 {
++					firstDeletedGroup = g
++					firstDeletedSlot = match.first()
++				}
++			}
++		}
++	}
++
++	if m.writing == 0 {
++		fatal("concurrent map writes")
++	}
++	m.writing ^= 1
++
++	return slotElem
++}
++
++//go:linkname runtime_mapdelete_fast64 runtime.mapdelete_fast64
++func runtime_mapdelete_fast64(typ *abi.SwissMapType, m *Map, key uint64) {
++	if race.Enabled {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		race.WritePC(unsafe.Pointer(m), callerpc, pc)
++	}
++
++	if m == nil || m.Used() == 0 {
++		return
++	}
++
++	m.Delete(typ, abi.NoEscape(unsafe.Pointer(&key)))
++}
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+new file mode 100644
+index 0000000000..3da6cbf3a1
+--- /dev/null
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -0,0 +1,353 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.swissmap
++
++package maps
++
++import (
++	"internal/abi"
++	"internal/race"
++	"internal/runtime/sys"
++	"unsafe"
++)
++
++// TODO: more string-specific optimizations possible.
++
++func (m *Map) getWithoutKeySmallFastStr(typ *abi.SwissMapType, hash uintptr, key string) (unsafe.Pointer, bool) {
++	g := groupReference{
++		data: m.dirPtr,
++	}
++
++	h2 := uint8(h2(hash))
++	ctrls := *g.ctrls()
++
++	for i := uint32(0); i < abi.SwissMapGroupSlots; i++ {
++		c := uint8(ctrls)
++		ctrls >>= 8
++		if c != h2 {
++			continue
++		}
++
++		slotKey := g.key(typ, i)
++
++		if key == *(*string)(slotKey) {
++			slotElem := g.elem(typ, i)
++			return slotElem, true
++		}
++	}
++
++	return nil, false
++}
++
++//go:linkname runtime_mapaccess1_faststr runtime.mapaccess1_faststr
++func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe.Pointer {
++	if race.Enabled && m != nil {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
++	}
++
++	if m == nil || m.Used() == 0 {
++		return unsafe.Pointer(&zeroVal[0])
++	}
++
++	if m.writing != 0 {
++		fatal("concurrent map read and map write")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	if m.dirLen <= 0 {
++		elem, ok := m.getWithoutKeySmallFastStr(typ, hash, key)
++		if !ok {
++			return unsafe.Pointer(&zeroVal[0])
++		}
++		return elem
++	}
++
++	// Select table.
++	idx := m.directoryIndex(hash)
++	t := m.directoryAt(idx)
++
++	// Probe table.
++	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++	for ; ; seq = seq.next() {
++		g := t.groups.group(typ, seq.offset)
++
++		match := g.ctrls().matchH2(h2(hash))
++
++		for match != 0 {
++			i := match.first()
++
++			slotKey := g.key(typ, i)
++			if key == *(*string)(slotKey) {
++				slotElem := g.elem(typ, i)
++				return slotElem
++			}
++			match = match.removeFirst()
++		}
++
++		match = g.ctrls().matchEmpty()
++		if match != 0 {
++			// Finding an empty slot means we've reached the end of
++			// the probe sequence.
++			return unsafe.Pointer(&zeroVal[0])
++		}
++	}
++}
++
++//go:linkname runtime_mapaccess2_faststr runtime.mapaccess2_faststr
++func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsafe.Pointer, bool) {
++	if race.Enabled && m != nil {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
++	}
++
++	if m == nil || m.Used() == 0 {
++		return unsafe.Pointer(&zeroVal[0]), false
++	}
++
++	if m.writing != 0 {
++		fatal("concurrent map read and map write")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	if m.dirLen <= 0 {
++		elem, ok := m.getWithoutKeySmallFastStr(typ, hash, key)
++		if !ok {
++			return unsafe.Pointer(&zeroVal[0]), false
++		}
++		return elem, true
++	}
++
++	// Select table.
++	idx := m.directoryIndex(hash)
++	t := m.directoryAt(idx)
++
++	// Probe table.
++	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++	for ; ; seq = seq.next() {
++		g := t.groups.group(typ, seq.offset)
++
++		match := g.ctrls().matchH2(h2(hash))
++
++		for match != 0 {
++			i := match.first()
++
++			slotKey := g.key(typ, i)
++			if key == *(*string)(slotKey) {
++				slotElem := g.elem(typ, i)
++				return slotElem, true
++			}
++			match = match.removeFirst()
++		}
++
++		match = g.ctrls().matchEmpty()
++		if match != 0 {
++			// Finding an empty slot means we've reached the end of
++			// the probe sequence.
++			return unsafe.Pointer(&zeroVal[0]), false
++		}
++	}
++}
++
++func (m *Map) putSlotSmallFastStr(typ *abi.SwissMapType, hash uintptr, key string) unsafe.Pointer {
++	g := groupReference{
++		data: m.dirPtr,
++	}
++
++	match := g.ctrls().matchH2(h2(hash))
++
++	// Look for an existing slot containing this key.
++	for match != 0 {
++		i := match.first()
++
++		slotKey := g.key(typ, i)
++		if key == *(*string)(slotKey) {
++			// Key needs update, as the backing storage may differ.
++			*(*string)(slotKey) = key
++			slotElem := g.elem(typ, i)
++			return slotElem
++		}
++		match = match.removeFirst()
++	}
++
++	// No need to look for deleted slots, small maps can't have them (see
++	// deleteSmall).
++	match = g.ctrls().matchEmpty()
++	if match == 0 {
++		fatal("small map with no empty slot (concurrent map writes?)")
++	}
++
++	i := match.first()
++
++	slotKey := g.key(typ, i)
++	*(*string)(slotKey) = key
++
++	slotElem := g.elem(typ, i)
++
++	g.ctrls().set(i, ctrl(h2(hash)))
++	m.used++
++
++	return slotElem
++}
++
++//go:linkname runtime_mapassign_faststr runtime.mapassign_faststr
++func runtime_mapassign_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe.Pointer {
++	if m == nil {
++		panic(errNilAssign)
++	}
++	if race.Enabled {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		race.WritePC(unsafe.Pointer(m), callerpc, pc)
++	}
++	if m.writing != 0 {
++		fatal("concurrent map writes")
++	}
++
++	hash := typ.Hasher(abi.NoEscape(unsafe.Pointer(&key)), m.seed)
++
++	// Set writing after calling Hasher, since Hasher may panic, in which
++	// case we have not actually done a write.
++	m.writing ^= 1 // toggle, see comment on writing
++
++	if m.dirPtr == nil {
++		m.growToSmall(typ)
++	}
++
++	if m.dirLen == 0 {
++		if m.used < abi.SwissMapGroupSlots {
++			elem := m.putSlotSmallFastStr(typ, hash, key)
++
++			if m.writing == 0 {
++				fatal("concurrent map writes")
++			}
++			m.writing ^= 1
++
++			return elem
++		}
++
++		// Can't fit another entry, grow to full size map.
++		m.growToTable(typ)
++	}
++
++	var slotElem unsafe.Pointer
++outer:
++	for {
++		// Select table.
++		idx := m.directoryIndex(hash)
++		t := m.directoryAt(idx)
++
++		seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++
++		// As we look for a match, keep track of the first deleted slot
++		// we find, which we'll use to insert the new entry if
++		// necessary.
++		var firstDeletedGroup groupReference
++		var firstDeletedSlot uint32
++
++		for ; ; seq = seq.next() {
++			g := t.groups.group(typ, seq.offset)
++			match := g.ctrls().matchH2(h2(hash))
++
++			// Look for an existing slot containing this key.
++			for match != 0 {
++				i := match.first()
++
++				slotKey := g.key(typ, i)
++				if key == *(*string)(slotKey) {
++					// Key needs update, as the backing
++					// storage may differ.
++					*(*string)(slotKey) = key
++					slotElem = g.elem(typ, i)
++
++					t.checkInvariants(typ)
++					break outer
++				}
++				match = match.removeFirst()
++			}
++
++			// No existing slot for this key in this group. Is this the end
++			// of the probe sequence?
++			match = g.ctrls().matchEmpty()
++			if match != 0 {
++				// Finding an empty slot means we've reached the end of
++				// the probe sequence.
++
++				var i uint32
++
++				// If we found a deleted slot along the way, we
++				// can replace it without consuming growthLeft.
++				if firstDeletedGroup.data != nil {
++					g = firstDeletedGroup
++					i = firstDeletedSlot
++					t.growthLeft++ // will be decremented below to become a no-op.
++				} else {
++					// Otherwise, use the empty slot.
++					i = match.first()
++				}
++
++				// If there is room left to grow, just insert the new entry.
++				if t.growthLeft > 0 {
++					slotKey := g.key(typ, i)
++					*(*string)(slotKey) = key
++
++					slotElem = g.elem(typ, i)
++
++					g.ctrls().set(i, ctrl(h2(hash)))
++					t.growthLeft--
++					t.used++
++					m.used++
++
++					t.checkInvariants(typ)
++					break outer
++				}
++
++				t.rehash(typ, m)
++				continue outer
++			}
++
++			// No empty slots in this group. Check for a deleted
++			// slot, which we'll use if we don't find a match later
++			// in the probe sequence.
++			//
++			// We only need to remember a single deleted slot.
++			if firstDeletedGroup.data == nil {
++				// Since we already checked for empty slots
++				// above, matches here must be deleted slots.
++				match = g.ctrls().matchEmptyOrDeleted()
++				if match != 0 {
++					firstDeletedGroup = g
++					firstDeletedSlot = match.first()
++				}
++			}
++		}
++	}
++
++	if m.writing == 0 {
++		fatal("concurrent map writes")
++	}
++	m.writing ^= 1
++
++	return slotElem
++}
++
++//go:linkname runtime_mapdelete_faststr runtime.mapdelete_faststr
++func runtime_mapdelete_faststr(typ *abi.SwissMapType, m *Map, key string) {
++	if race.Enabled {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		race.WritePC(unsafe.Pointer(m), callerpc, pc)
++	}
++
++	if m == nil || m.Used() == 0 {
++		return
++	}
++
++	m.Delete(typ, abi.NoEscape(unsafe.Pointer(&key)))
++}
+diff --git a/src/internal/runtime/maps/runtime_swiss.go b/src/internal/runtime/maps/runtime_swiss.go
+index 401c69a224..4cf96cab64 100644
+--- a/src/internal/runtime/maps/runtime_swiss.go
++++ b/src/internal/runtime/maps/runtime_swiss.go
+@@ -112,6 +112,79 @@ func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsaf
+ 	}
+ }
+ 
++//go:linkname runtime_mapaccess2 runtime.mapaccess2
++func runtime_mapaccess2(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
++	if race.Enabled && m != nil {
++		callerpc := sys.GetCallerPC()
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
++		race.ReadObjectPC(typ.Key, key, callerpc, pc)
++	}
++	if msan.Enabled && m != nil {
++		msan.Read(key, typ.Key.Size_)
++	}
++	if asan.Enabled && m != nil {
++		asan.Read(key, typ.Key.Size_)
++	}
++
++	if m == nil || m.Used() == 0 {
++		if err := mapKeyError(typ, key); err != nil {
++			panic(err) // see issue 23734
++		}
++		return unsafe.Pointer(&zeroVal[0]), false
++	}
++
++	if m.writing != 0 {
++		fatal("concurrent map read and map write")
++	}
++
++	hash := typ.Hasher(key, m.seed)
++
++	if m.dirLen == 0 {
++		_, elem, ok := m.getWithKeySmall(typ, hash, key)
++		if !ok {
++			return unsafe.Pointer(&zeroVal[0]), false
++		}
++		return elem, true
++	}
++
++	// Select table.
++	idx := m.directoryIndex(hash)
++	t := m.directoryAt(idx)
++
++	// Probe table.
++	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++	for ; ; seq = seq.next() {
++		g := t.groups.group(typ, seq.offset)
++
++		match := g.ctrls().matchH2(h2(hash))
++
++		for match != 0 {
++			i := match.first()
++
++			slotKey := g.key(typ, i)
++			if typ.IndirectKey() {
++				slotKey = *((*unsafe.Pointer)(slotKey))
++			}
++			if typ.Key.Equal(key, slotKey) {
++				slotElem := g.elem(typ, i)
++				if typ.IndirectElem() {
++					slotElem = *((*unsafe.Pointer)(slotElem))
++				}
++				return slotElem, true
++			}
++			match = match.removeFirst()
++		}
++
++		match = g.ctrls().matchEmpty()
++		if match != 0 {
++			// Finding an empty slot means we've reached the end of
++			// the probe sequence.
++			return unsafe.Pointer(&zeroVal[0]), false
++		}
++	}
++}
++
+ //go:linkname runtime_mapassign runtime.mapassign
+ func runtime_mapassign(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
+ 	if m == nil {
+diff --git a/src/reflect/map_swiss.go b/src/reflect/map_swiss.go
+index 2240f9c0bf..a278f81e81 100644
+--- a/src/reflect/map_swiss.go
++++ b/src/reflect/map_swiss.go
+@@ -153,9 +153,7 @@ func (v Value) MapIndex(key Value) Value {
+ 	// of unexported fields.
+ 
+ 	var e unsafe.Pointer
+-	// TODO(#54766): temporarily disable specialized variants.
+-	//if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.SwissMapMaxElemBytes {
+-	if false {
++	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.SwissMapMaxElemBytes {
+ 		k := *(*string)(key.ptr)
+ 		e = mapaccess_faststr(v.typ(), v.pointer(), k)
+ 	} else {
+@@ -376,9 +374,7 @@ func (v Value) SetMapIndex(key, elem Value) {
+ 	key.mustBeExported()
+ 	tt := (*mapType)(unsafe.Pointer(v.typ()))
+ 
+-	// TODO(#54766): temporarily disable specialized variants.
+-	//if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.SwissMapMaxElemBytes {
+-	if false {
++	if (tt.Key == stringType || key.kind() == String) && tt.Key == key.typ() && tt.Elem.Size() <= abi.SwissMapMaxElemBytes {
+ 		k := *(*string)(key.ptr)
+ 		if elem.typ() == nil {
+ 			mapdelete_faststr(v.typ(), v.pointer(), k)
+diff --git a/src/runtime/map_fast32_swiss.go b/src/runtime/map_fast32_swiss.go
+index 5cc2376982..0a241d3793 100644
+--- a/src/runtime/map_fast32_swiss.go
++++ b/src/runtime/map_fast32_swiss.go
+@@ -12,26 +12,44 @@ import (
+ 	"unsafe"
+ )
+ 
+-func mapaccess1_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) unsafe.Pointer {
+-	throw("mapaccess1_fast32 unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapaccess2_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) (unsafe.Pointer, bool) {
+-	throw("mapaccess2_fast32 unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapassign_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) unsafe.Pointer {
+-	throw("mapassign_fast32 unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapassign_fast32ptr(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer {
+-	throw("mapassign_fast32ptr unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapdelete_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) {
+-	throw("mapdelete_fast32 unimplemented")
+-}
++// Functions below pushed from internal/runtime/maps.
++
++//go:linkname mapaccess1_fast32
++func mapaccess1_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) unsafe.Pointer
++
++// mapaccess2_fast32 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/ugorji/go/codec
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mapaccess2_fast32
++func mapaccess2_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) (unsafe.Pointer, bool)
++
++// mapassign_fast32 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//   - github.com/ugorji/go/codec
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mapassign_fast32
++func mapassign_fast32(t *abi.SwissMapType, m *maps.Map, key uint32) unsafe.Pointer
++
++// mapassign_fast32ptr should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/ugorji/go/codec
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mapassign_fast32ptr
++func mapassign_fast32ptr(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
++
++//go:linkname mapdelete_fast32
++func mapdelete_fast32(t *abi.SwissMapType, m *maps.Map, key uint32)
+diff --git a/src/runtime/map_fast64_swiss.go b/src/runtime/map_fast64_swiss.go
+index bf892fe83f..8b7fcf88e8 100644
+--- a/src/runtime/map_fast64_swiss.go
++++ b/src/runtime/map_fast64_swiss.go
+@@ -12,26 +12,45 @@ import (
+ 	"unsafe"
+ )
+ 
+-func mapaccess1_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) unsafe.Pointer {
+-	throw("mapaccess1_fast64 unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapaccess2_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) (unsafe.Pointer, bool) {
+-	throw("mapaccess2_fast64 unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapassign_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) unsafe.Pointer {
+-	throw("mapassign_fast64 unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapassign_fast64ptr(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer {
+-	throw("mapassign_fast64ptr unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapdelete_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) {
+-	throw("mapdelete_fast64 unimplemented")
+-}
++// Functions below pushed from internal/runtime/maps.
++
++//go:linkname mapaccess1_fast64
++func mapaccess1_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) unsafe.Pointer
++
++// mapaccess2_fast64 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/ugorji/go/codec
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mapaccess2_fast64
++func mapaccess2_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) (unsafe.Pointer, bool)
++
++// mapassign_fast64 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//   - github.com/ugorji/go/codec
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mapassign_fast64
++func mapassign_fast64(t *abi.SwissMapType, m *maps.Map, key uint64) unsafe.Pointer
++
++// mapassign_fast64ptr should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//   - github.com/ugorji/go/codec
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mapassign_fast64ptr
++func mapassign_fast64ptr(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
++
++//go:linkname mapdelete_fast64
++func mapdelete_fast64(t *abi.SwissMapType, m *maps.Map, key uint64)
+diff --git a/src/runtime/map_faststr_swiss.go b/src/runtime/map_faststr_swiss.go
+index b0fb54315a..23f6c1e810 100644
+--- a/src/runtime/map_faststr_swiss.go
++++ b/src/runtime/map_faststr_swiss.go
+@@ -12,21 +12,33 @@ import (
+ 	"unsafe"
+ )
+ 
+-func mapaccess1_faststr(t *abi.SwissMapType, m *maps.Map, ky string) unsafe.Pointer {
+-	throw("mapaccess1_faststr unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapaccess2_faststr(t *abi.SwissMapType, m *maps.Map, ky string) (unsafe.Pointer, bool) {
+-	throw("mapaccess2_faststr unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapassign_faststr(t *abi.SwissMapType, m *maps.Map, s string) unsafe.Pointer {
+-	throw("mapassign_faststr unimplemented")
+-	panic("unreachable")
+-}
+-
+-func mapdelete_faststr(t *abi.SwissMapType, m *maps.Map, ky string) {
+-	throw("mapdelete_faststr unimplemented")
+-}
++// Functions below pushed from internal/runtime/maps.
++
++//go:linkname mapaccess1_faststr
++func mapaccess1_faststr(t *abi.SwissMapType, m *maps.Map, ky string) unsafe.Pointer
++
++// mapaccess2_faststr should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/ugorji/go/codec
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mapaccess2_faststr
++func mapaccess2_faststr(t *abi.SwissMapType, m *maps.Map, ky string) (unsafe.Pointer, bool)
++
++// mapassign_faststr should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//   - github.com/ugorji/go/codec
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mapassign_faststr
++func mapassign_faststr(t *abi.SwissMapType, m *maps.Map, s string) unsafe.Pointer
++
++//go:linkname mapdelete_faststr
++func mapdelete_faststr(t *abi.SwissMapType, m *maps.Map, ky string)
+diff --git a/src/runtime/map_swiss.go b/src/runtime/map_swiss.go
+index 2f48d29ac6..3a6f40252a 100644
+--- a/src/runtime/map_swiss.go
++++ b/src/runtime/map_swiss.go
+@@ -69,33 +69,7 @@ func makemap(t *abi.SwissMapType, hint int, m *maps.Map) *maps.Map {
+ //go:linkname mapaccess1
+ func mapaccess1(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
+ 
+-func mapaccess2(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
+-	if raceenabled && m != nil {
+-		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(mapaccess2)
+-		racereadpc(unsafe.Pointer(m), callerpc, pc)
+-		raceReadObjectPC(t.Key, key, callerpc, pc)
+-	}
+-	if msanenabled && m != nil {
+-		msanread(key, t.Key.Size_)
+-	}
+-	if asanenabled && m != nil {
+-		asanread(key, t.Key.Size_)
+-	}
+-
+-	if m == nil || m.Used() == 0 {
+-		if err := mapKeyError(t, key); err != nil {
+-			panic(err) // see issue 23734
+-		}
+-		return unsafe.Pointer(&zeroVal[0]), false
+-	}
+-
+-	elem, ok := m.Get(t, key)
+-	if !ok {
+-		return unsafe.Pointer(&zeroVal[0]), false
+-	}
+-	return elem, true
+-}
++func mapaccess2(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 
+ func mapaccess1_fat(t *abi.SwissMapType, m *maps.Map, key, zero unsafe.Pointer) unsafe.Pointer {
+ 	e := mapaccess1(t, m, key)
+diff --git a/test/live.go b/test/live.go
+index 703e9950af..aef7c50c64 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -277,6 +277,26 @@ func f17a(p *byte) { // ERROR "live at entry to f17a: p$"
+ 	m2[x2] = p // ERROR "live at call to mapassign: p$"
+ }
+ 
++func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
++	// key temporary
++	if b {
++		m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
++	}
++	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
++	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
++}
++
++func f17c() {
++	// key and value temporaries
++	if b {
++		m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
++	}
++	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
++	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
++}
++
++func f17d() *byte
++
+ func g18() [2]string
+ 
+ func f18() {
+diff --git a/test/live_noswiss.go b/test/live_noswiss.go
+index 8a96cb05fc..e72073196a 100644
+--- a/test/live_noswiss.go
++++ b/test/live_noswiss.go
+@@ -9,38 +9,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ // non-swissmap-specific tests for live.go
+-// TODO(#54766): temporary while fast variants are disabled.
+ 
+ package main
+ 
+-// str is used to ensure that a temp is required for runtime calls below.
+-func str() string
+-
+-var b bool
+-var m2 map[[2]string]*byte
+-var m2s map[string]*byte
+-var x2 [2]string
+-
+-func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
+-	// key temporary
+-	if b {
+-		m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
+-	}
+-	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
+-	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
+-}
+-
+-func f17c() {
+-	// key and value temporaries
+-	if b {
+-		m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
+-	}
+-	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
+-	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
+-}
+-
+-func f17d() *byte
+-
+ func printnl()
+ 
+ type T40 struct {
+diff --git a/test/live_regabi.go b/test/live_regabi.go
+index 28b4077493..196294a138 100644
+--- a/test/live_regabi.go
++++ b/test/live_regabi.go
+@@ -261,6 +261,7 @@ func f16() {
+ 	delete(mi, iface())
+ }
+ 
++var m2s map[string]*byte
+ var m2 map[[2]string]*byte
+ var x2 [2]string
+ var bp *byte
+@@ -273,6 +274,27 @@ func f17a(p *byte) { // ERROR "live at entry to f17a: p$"
+ 	m2[x2] = p // ERROR "live at call to mapassign: p$"
+ }
+ 
++func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
++	// key temporary
++	if b {
++		m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
++
++	}
++	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
++	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
++}
++
++func f17c() {
++	// key and value temporaries
++	if b {
++		m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
++	}
++	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
++	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
++}
++
++func f17d() *byte
++
+ func g18() [2]string
+ 
+ func f18() {
+diff --git a/test/live_regabi_noswiss.go b/test/live_regabi_noswiss.go
+index 43881c3b61..6404d65d27 100644
+--- a/test/live_regabi_noswiss.go
++++ b/test/live_regabi_noswiss.go
+@@ -11,32 +11,6 @@
+ 
+ package main
+ 
+-func str() string
+-
+-var b bool
+-var m2s map[string]*byte
+-
+-func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
+-	// key temporary
+-	if b {
+-		m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
+-
+-	}
+-	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
+-	m2s[str()] = p // ERROR "live at call to mapassign_faststr: p$" "live at call to str: p$"
+-}
+-
+-func f17c() {
+-	// key and value temporaries
+-	if b {
+-		m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
+-	}
+-	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
+-	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign_faststr: .autotmp_[0-9]+$"
+-}
+-
+-func f17d() *byte
+-
+ func printnl()
+ 
+ type T40 struct {
+diff --git a/test/live_regabi_swiss.go b/test/live_regabi_swiss.go
+index ef1d8fb0ff..ef347d27f8 100644
+--- a/test/live_regabi_swiss.go
++++ b/test/live_regabi_swiss.go
+@@ -11,34 +11,6 @@
+ 
+ package main
+ 
+-func str() string
+-
+-var b bool
+-var m2s map[string]*byte
+-
+-func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
+-	// key temporary
+-	if b {
+-		// TODO(go.dev/issue/54766): There is an extra autotmp here vs old maps.
+-		m2s[str()] = p // ERROR "live at call to mapassign: p$" "live at call to str: p$" "stack object .autotmp_1 string$" "stack object .autotmp_2 string$"
+-
+-	}
+-	m2s[str()] = p // ERROR "live at call to mapassign: p$" "live at call to str: p$"
+-	m2s[str()] = p // ERROR "live at call to mapassign: p$" "live at call to str: p$"
+-}
+-
+-func f17c() {
+-	// key and value temporaries
+-	if b {
+-		// TODO(go.dev/issue/54766): There is an extra autotmp here vs old maps.
+-		m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+$" "stack object .autotmp_0 string$" "stack object .autotmp_1 string$"
+-	}
+-	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+$"
+-	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+$"
+-}
+-
+-func f17d() *byte
+-
+ func printnl()
+ 
+ type T40 struct {
+diff --git a/test/live_swiss.go b/test/live_swiss.go
+index fab15fc9f3..eacd23ab5a 100644
+--- a/test/live_swiss.go
++++ b/test/live_swiss.go
+@@ -9,40 +9,9 @@
+ // license that can be found in the LICENSE file.
+ 
+ // swissmap-specific tests for live.go
+-// TODO(#54766): temporary while fast variants are disabled.
+ 
+ package main
+ 
+-// str is used to ensure that a temp is required for runtime calls below.
+-func str() string
+-
+-var b bool
+-var m2 map[[2]string]*byte
+-var m2s map[string]*byte
+-var x2 [2]string
+-
+-func f17b(p *byte) { // ERROR "live at entry to f17b: p$"
+-	// key temporary
+-	if b {
+-		// TODO(go.dev/issue/54766): There is an extra autotmp here vs old maps.
+-		m2s[str()] = p // ERROR "live at call to mapassign: p$" "live at call to str: p$" "stack object .autotmp_[0-9]+ string$"
+-	}
+-	m2s[str()] = p // ERROR "live at call to mapassign: p$" "live at call to str: p$"
+-	m2s[str()] = p // ERROR "live at call to mapassign: p$" "live at call to str: p$"
+-}
+-
+-func f17c() {
+-	// key and value temporaries
+-	if b {
+-		// TODO(go.dev/issue/54766): There is an extra autotmp here vs old maps.
+-		m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ string$"
+-	}
+-	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+$"
+-	m2s[str()] = f17d() // ERROR "live at call to f17d: .autotmp_[0-9]+$" "live at call to mapassign: .autotmp_[0-9]+$"
+-}
+-
+-func f17d() *byte
+-
+ func printnl()
+ 
+ type T40 struct {

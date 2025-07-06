@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 14125: 2100947d4a25dcf875be1941d0e3a409ea85051e
+# Index 14125: deb53889c200deba1d4048a155e936c11b6a8492
 
 echo "🚀 Generating explanation for commit 14125..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 14125..."
 
 ### メタデータ
 - **コミットインデックス**: 14125
-- **コミットハッシュ**: 2100947d4a25dcf875be1941d0e3a409ea85051e
-- **GitHub URL**: https://github.com/golang/go/commit/2100947d4a25dcf875be1941d0e3a409ea85051e
+- **コミットハッシュ**: deb53889c200deba1d4048a155e936c11b6a8492
+- **GitHub URL**: https://github.com/golang/go/commit/deb53889c200deba1d4048a155e936c11b6a8492
 
 ### 章構成
 

@@ -1,0 +1,74 @@
+commit 679cd8e7798db593d0973519f6d3ee7ea7659142
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Feb 12 07:16:32 2025 +0000
+
+    reflect, internal/abi: speed up TypeFor[T]
+    
+    goos: linux
+    goarch: amd64
+    pkg: reflect
+    cpu: AMD Ryzen 5 4600G with Radeon Graphics
+                     │ /tmp/before  │              /tmp/after              │
+                     │    sec/op    │    sec/op     vs base                │
+    TypeForString-12    2.091n ± 1%    1.174n ± 1%  -43.84% (p=0.000 n=20)
+    TypeForError-12    7.5810n ± 3%   0.9372n ± 1%  -87.64% (p=0.000 n=20)
+    
+    Change-Id: I22022f99b2dd2029f02d9ed8477b209adf7e9496
+    GitHub-Last-Rev: 64d2ac5bb2f3b2a659663832a4641ff4fc83bddd
+    GitHub-Pull-Request: golang/go#71654
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/abi/type.go |  6 +-----
+ src/reflect/type.go      | 14 +++++---------
+ 2 files changed, 6 insertions(+), 14 deletions(-)
+
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index 1c1793fcf5..4671b0da28 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -187,11 +187,7 @@ func TypeOf(a any) *Type {
+ 
+ // TypeFor returns the abi.Type for a type parameter.
+ func TypeFor[T any]() *Type {
+-	var v T
+-	if t := TypeOf(v); t != nil {
+-		return t // optimize for T being a non-interface kind
+-	}
+-	return TypeOf((*T)(nil)).Elem() // only for an interface kind
++	return (*PtrType)(unsafe.Pointer(TypeOf((*T)(nil)))).Elem
+ }
+ 
+ func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 0e41a6db99..e5ee7f90d0 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1303,6 +1303,11 @@ func TypeOf(i any) Type {
+ 	return toType(abi.TypeOf(i))
+ }
+ 
++// TypeFor returns the [Type] that represents the type argument T.
++func TypeFor[T any]() Type {
++	return toType(abi.TypeFor[T]())
++}
++
+ // rtypeOf directly extracts the *rtype of the provided value.
+ func rtypeOf(i any) *abi.Type {
+ 	return abi.TypeOf(i)
+@@ -2850,12 +2855,3 @@ func addTypeBits(bv *bitVector, offset uintptr, t *abi.Type) {
+ 		}
+ 	}
+ }
+-
+-// TypeFor returns the [Type] that represents the type argument T.
+-func TypeFor[T any]() Type {
+-	var v T
+-	if t := TypeOf(v); t != nil {
+-		return t // optimize for T being a non-interface kind
+-	}
+-	return TypeOf((*T)(nil)).Elem() // only for an interface kind
+-}

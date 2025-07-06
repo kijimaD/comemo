@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 25094: 0befa47ae8a32fcc42bca8d126f9420da27b9e4b
+# Index 25094: 52d76f7a6a02cf5834251a4ceadc686a9f83ac81
 
 echo "🚀 Generating explanation for commit 25094..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 25094..."
 
 ### メタデータ
 - **コミットインデックス**: 25094
-- **コミットハッシュ**: 0befa47ae8a32fcc42bca8d126f9420da27b9e4b
-- **GitHub URL**: https://github.com/golang/go/commit/0befa47ae8a32fcc42bca8d126f9420da27b9e4b
+- **コミットハッシュ**: 52d76f7a6a02cf5834251a4ceadc686a9f83ac81
+- **GitHub URL**: https://github.com/golang/go/commit/52d76f7a6a02cf5834251a4ceadc686a9f83ac81
 
 ### 章構成
 

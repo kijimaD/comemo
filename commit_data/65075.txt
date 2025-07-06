@@ -1,0 +1,136 @@
+commit c0a126b8dce5c7ed8f16d8687331159763d1b19d
+Author: Shuo Wang <wangshuo@kylinos.cn>
+Date:   Fri Oct 18 02:51:35 2024 +0000
+
+    runtime: revise the documentation comments for netpoll
+    
+    Supplement to CL 511455.
+    
+    Updates #61454
+    
+    Change-Id: I111cbf297dd9159cffba333d610a7a4542915c55
+    GitHub-Last-Rev: fe8fa184868d665a4d08d534d3bfb5ea446d12c0
+    GitHub-Pull-Request: golang/go#69900
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620495
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/runtime/netpoll.go         | 2 +-
+ src/runtime/netpoll_aix.go     | 5 ++++-
+ src/runtime/netpoll_epoll.go   | 5 ++++-
+ src/runtime/netpoll_kqueue.go  | 5 ++++-
+ src/runtime/netpoll_solaris.go | 5 ++++-
+ src/runtime/netpoll_stub.go    | 4 +++-
+ src/runtime/netpoll_windows.go | 5 ++++-
+ 7 files changed, 24 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index 36b9edfe21..8d65a81edc 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -31,7 +31,7 @@ import (
+ //     poll without blocking. If delta > 0, block for up to delta nanoseconds.
+ //     Return a list of goroutines built by calling netpollready,
+ //     and a delta to add to netpollWaiters when all goroutines are ready.
+-//     This will never return an empty list with a non-zero delta.
++//     This must never return an empty list with a non-zero delta.
+ //
+ // func netpollBreak()
+ //     Wake up the network poller, assumed to be blocked in netpoll.
+diff --git a/src/runtime/netpoll_aix.go b/src/runtime/netpoll_aix.go
+index 2df5a57111..4cf34d1c61 100644
+--- a/src/runtime/netpoll_aix.go
++++ b/src/runtime/netpoll_aix.go
+@@ -148,7 +148,10 @@ func netpollBreak() {
+ }
+ 
+ // netpoll checks for ready network connections.
+-// Returns list of goroutines that become runnable.
++// Returns a list of goroutines that become runnable,
++// and a delta to add to netpollWaiters.
++// This must never return an empty list with a non-zero delta.
++//
+ // delay < 0: blocks indefinitely
+ // delay == 0: does not block, just polls
+ // delay > 0: block for up to that many nanoseconds
+diff --git a/src/runtime/netpoll_epoll.go b/src/runtime/netpoll_epoll.go
+index ff6e0b5f89..c43bab0882 100644
+--- a/src/runtime/netpoll_epoll.go
++++ b/src/runtime/netpoll_epoll.go
+@@ -89,7 +89,10 @@ func netpollBreak() {
+ }
+ 
+ // netpoll checks for ready network connections.
+-// Returns list of goroutines that become runnable.
++// Returns a list of goroutines that become runnable,
++// and a delta to add to netpollWaiters.
++// This must never return an empty list with a non-zero delta.
++//
+ // delay < 0: blocks indefinitely
+ // delay == 0: does not block, just polls
+ // delay > 0: block for up to that many nanoseconds
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 6cd80d5c30..ca7898205e 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -80,7 +80,10 @@ func netpollBreak() {
+ }
+ 
+ // netpoll checks for ready network connections.
+-// Returns list of goroutines that become runnable.
++// Returns a list of goroutines that become runnable,
++// and a delta to add to netpollWaiters.
++// This must never return an empty list with a non-zero delta.
++//
+ // delay < 0: blocks indefinitely
+ // delay == 0: does not block, just polls
+ // delay > 0: block for up to that many nanoseconds
+diff --git a/src/runtime/netpoll_solaris.go b/src/runtime/netpoll_solaris.go
+index fddc29000b..90459c08df 100644
+--- a/src/runtime/netpoll_solaris.go
++++ b/src/runtime/netpoll_solaris.go
+@@ -215,7 +215,10 @@ func netpollBreak() {
+ }
+ 
+ // netpoll checks for ready network connections.
+-// Returns list of goroutines that become runnable.
++// Returns a list of goroutines that become runnable,
++// and a delta to add to netpollWaiters.
++// This must never return an empty list with a non-zero delta.
++//
+ // delay < 0: blocks indefinitely
+ // delay == 0: does not block, just polls
+ // delay > 0: block for up to that many nanoseconds
+diff --git a/src/runtime/netpoll_stub.go b/src/runtime/netpoll_stub.go
+index c1bda3fa8b..dc5d708b4c 100644
+--- a/src/runtime/netpoll_stub.go
++++ b/src/runtime/netpoll_stub.go
+@@ -32,7 +32,9 @@ func netpollBreak() {
+ }
+ 
+ // Polls for ready network connections.
+-// Returns list of goroutines that become runnable.
++// Returns a list of goroutines that become runnable,
++// and a delta to add to netpollWaiters.
++// This must never return an empty list with a non-zero delta.
+ func netpoll(delay int64) (gList, int32) {
+ 	// Implementation for platforms that do not support
+ 	// integrated network poller.
+diff --git a/src/runtime/netpoll_windows.go b/src/runtime/netpoll_windows.go
+index c3c10af723..fb35d41c0c 100644
+--- a/src/runtime/netpoll_windows.go
++++ b/src/runtime/netpoll_windows.go
+@@ -144,7 +144,10 @@ func netpollBreak() {
+ }
+ 
+ // netpoll checks for ready network connections.
+-// Returns list of goroutines that become runnable.
++// Returns a list of goroutines that become runnable,
++// and a delta to add to netpollWaiters.
++// This must never return an empty list with a non-zero delta.
++//
+ // delay < 0: blocks indefinitely
+ // delay == 0: does not block, just polls
+ // delay > 0: block for up to that many nanoseconds

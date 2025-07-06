@@ -1,0 +1,654 @@
+commit daa6c9310e6bc94426b04f908962dff558209408
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Nov 1 14:56:25 2024 -0400
+
+    cmd/link: remove dummy argument from ld.Errorf
+    
+    As the comment notes, all calls to Errorf now pass nil,
+    so remove that argument entirely.
+    
+    There is a TODO to remove uses of Errorf entirely, but
+    that seems wrong: sometimes there is no symbol on
+    which to report the error, and in that situation, Errorf is
+    appropriate. So clarify that in the docs.
+    
+    Change-Id: I92b3b6e8e3f61ba8356ace8cd09573d0b55d7869
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625617
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/link/internal/ld/ar.go       |  2 +-
+ src/cmd/link/internal/ld/data.go     | 12 +++++-----
+ src/cmd/link/internal/ld/dwarf.go    |  2 +-
+ src/cmd/link/internal/ld/elf.go      | 12 +++++-----
+ src/cmd/link/internal/ld/go.go       |  2 +-
+ src/cmd/link/internal/ld/ld.go       |  2 +-
+ src/cmd/link/internal/ld/lib.go      | 46 ++++++++++++++++++------------------
+ src/cmd/link/internal/ld/macho.go    |  2 +-
+ src/cmd/link/internal/ld/main.go     |  6 ++---
+ src/cmd/link/internal/ld/pcln.go     |  6 ++---
+ src/cmd/link/internal/ld/pe.go       | 12 +++++-----
+ src/cmd/link/internal/ld/util.go     |  8 +++----
+ src/cmd/link/internal/ld/xcoff.go    | 14 +++++------
+ src/cmd/link/internal/riscv64/asm.go |  4 ++--
+ src/cmd/link/internal/wasm/asm.go    |  4 ++--
+ 15 files changed, 66 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ar.go b/src/cmd/link/internal/ld/ar.go
+index 73c1cd3a2c..c3eb437c9c 100644
+--- a/src/cmd/link/internal/ld/ar.go
++++ b/src/cmd/link/internal/ld/ar.go
+@@ -174,7 +174,7 @@ func hostArchive(ctxt *Link, name string) {
+ 			libar := sym.Library{Pkg: pkname}
+ 			h := ldobj(ctxt, f, &libar, l, pname, name)
+ 			if h.ld == nil {
+-				Errorf(nil, "%s unrecognized object file at offset %d", name, off)
++				Errorf("%s unrecognized object file at offset %d", name, off)
+ 				continue
+ 			}
+ 			f.MustSeek(h.off, 0)
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index f07ace1447..31a1d4f160 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1215,7 +1215,7 @@ func addstrdata(arch *sys.Arch, l *loader.Loader, name, value string) {
+ 	if goType := l.SymGoType(s); goType == 0 {
+ 		return
+ 	} else if typeName := l.SymName(goType); typeName != "type:string" {
+-		Errorf(nil, "%s: cannot set with -X: not a var of type string (%s)", name, typeName)
++		Errorf("%s: cannot set with -X: not a var of type string (%s)", name, typeName)
+ 		return
+ 	}
+ 	if !l.AttrReachable(s) {
+@@ -1376,7 +1376,7 @@ const cutoff = 2e9 // 2 GB (or so; looks better in errors than 2^31)
+ // check accumulated size of data sections
+ func (state *dodataState) checkdatsize(symn sym.SymKind) {
+ 	if state.datsize > cutoff {
+-		Errorf(nil, "too much data, last section %v (%d, over %v bytes)", symn, state.datsize, cutoff)
++		Errorf("too much data, last section %v (%d, over %v bytes)", symn, state.datsize, cutoff)
+ 	}
+ }
+ 
+@@ -1385,7 +1385,7 @@ func checkSectSize(sect *sym.Section) {
+ 	// make sure we generate unsigned offset in relocations and check
+ 	// for overflow.
+ 	if sect.Length > cutoff {
+-		Errorf(nil, "too much data in section %s (%d, over %v bytes)", sect.Name, sect.Length, cutoff)
++		Errorf("too much data in section %s (%d, over %v bytes)", sect.Name, sect.Length, cutoff)
+ 	}
+ }
+ 
+@@ -1876,7 +1876,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 
+ 	if ctxt.HeadType == objabi.Haix {
+ 		if len(state.data[sym.SINITARR]) > 0 {
+-			Errorf(nil, "XCOFF format doesn't allow .init_array section")
++			Errorf("XCOFF format doesn't allow .init_array section")
+ 		}
+ 	}
+ 
+@@ -1995,7 +1995,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	/* read-only executable ELF, Mach-O sections */
+ 	if len(state.data[sym.STEXT]) != 0 {
+ 		culprit := ldr.SymName(state.data[sym.STEXT][0])
+-		Errorf(nil, "dodata found an sym.STEXT symbol: %s", culprit)
++		Errorf("dodata found an sym.STEXT symbol: %s", culprit)
+ 	}
+ 	state.allocateSingleSymSections(&Segtext, sym.SELFRXSECT, sym.SRODATA, 05)
+ 	state.allocateSingleSymSections(&Segtext, sym.SMACHOPLT, sym.SRODATA, 05)
+@@ -2161,7 +2161,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 
+ 	// 6g uses 4-byte relocation offsets, so the entire segment must fit in 32 bits.
+ 	if state.datsize != int64(uint32(state.datsize)) {
+-		Errorf(nil, "read-only data segment too large: %d", state.datsize)
++		Errorf("read-only data segment too large: %d", state.datsize)
+ 	}
+ 
+ 	siz := 0
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 14751046da..b1cce52ae0 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -480,7 +480,7 @@ func (d *dwctxt) dotypedef(parent *dwarf.DWDie, name string, def *dwarf.DWDie) *
+ 		return nil
+ 	}
+ 	if def == nil {
+-		Errorf(nil, "dwarf: bad def in dotypedef")
++		Errorf("dwarf: bad def in dotypedef")
+ 	}
+ 
+ 	// Create a new loader symbol for the typedef. We no longer
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index fb3e4f5071..52a284ae9a 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -409,7 +409,7 @@ func elfwritephdrs(out *OutBuf) uint32 {
+ func newElfPhdr() *ElfPhdr {
+ 	e := new(ElfPhdr)
+ 	if ehdr.Phnum >= NSECT {
+-		Errorf(nil, "too many phdrs")
++		Errorf("too many phdrs")
+ 	} else {
+ 		phdr[ehdr.Phnum] = e
+ 		ehdr.Phnum++
+@@ -427,7 +427,7 @@ func newElfShdr(name int64) *ElfShdr {
+ 	e.Name = uint32(name)
+ 	e.shnum = elf.SectionIndex(ehdr.Shnum)
+ 	if ehdr.Shnum >= NSECT {
+-		Errorf(nil, "too many shdrs")
++		Errorf("too many shdrs")
+ 	} else {
+ 		shdr[ehdr.Shnum] = e
+ 		ehdr.Shnum++
+@@ -1161,7 +1161,7 @@ func elfshnamedup(name string) *ElfShdr {
+ 		}
+ 	}
+ 
+-	Errorf(nil, "cannot find elf name %s", name)
++	Errorf("cannot find elf name %s", name)
+ 	errorexit()
+ 	return nil
+ }
+@@ -1195,7 +1195,7 @@ func elfshbits(linkmode LinkMode, sect *sym.Section) *ElfShdr {
+ 			// list note). The real fix is probably to define new values
+ 			// for Symbol.Type corresponding to mapped and unmapped notes
+ 			// and handle them in dodata().
+-			Errorf(nil, "sh.Type == SHT_NOTE in elfshbits when linking internally")
++			Errorf("sh.Type == SHT_NOTE in elfshbits when linking internally")
+ 		}
+ 		sh.Addralign = uint64(sect.Align)
+ 		sh.Size = sect.Length
+@@ -2386,13 +2386,13 @@ elfobj:
+ 	}
+ 
+ 	if a > elfreserve {
+-		Errorf(nil, "ELFRESERVE too small: %d > %d with %d text sections", a, elfreserve, numtext)
++		Errorf("ELFRESERVE too small: %d > %d with %d text sections", a, elfreserve, numtext)
+ 	}
+ 
+ 	// Verify the amount of space allocated for the elf header is sufficient.  The file offsets are
+ 	// already computed in layout, so we could spill into another section.
+ 	if a > int64(HEADR) {
+-		Errorf(nil, "HEADR too small: %d > %d with %d text sections", a, HEADR, numtext)
++		Errorf("HEADR too small: %d > %d with %d text sections", a, HEADR, numtext)
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/go.go b/src/cmd/link/internal/ld/go.go
+index a2db0bf655..ed84ba4fd0 100644
+--- a/src/cmd/link/internal/ld/go.go
++++ b/src/cmd/link/internal/ld/go.go
+@@ -357,7 +357,7 @@ func adddynlib(ctxt *Link, lib string) {
+ 		du := ctxt.loader.MakeSymbolUpdater(ctxt.Dynamic)
+ 		Elfwritedynent(ctxt.Arch, du, elf.DT_NEEDED, uint64(dsu.Addstring(lib)))
+ 	} else {
+-		Errorf(nil, "adddynlib: unsupported binary format")
++		Errorf("adddynlib: unsupported binary format")
+ 	}
+ }
+ 
+diff --git a/src/cmd/link/internal/ld/ld.go b/src/cmd/link/internal/ld/ld.go
+index 77fde0b41d..774dc84897 100644
+--- a/src/cmd/link/internal/ld/ld.go
++++ b/src/cmd/link/internal/ld/ld.go
+@@ -196,7 +196,7 @@ func addlibpath(ctxt *Link, srcref, objref, file, pkg, shlib string, fingerprint
+ 		if strings.HasSuffix(shlib, ".shlibname") {
+ 			data, err := os.ReadFile(shlib)
+ 			if err != nil {
+-				Errorf(nil, "cannot read %s: %v", shlib, err)
++				Errorf("cannot read %s: %v", shlib, err)
+ 			}
+ 			shlib = strings.TrimSpace(string(data))
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 0c37a1dc1f..e74c96c09d 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -416,7 +416,7 @@ func libinit(ctxt *Link) {
+ 		case BuildModeShared, BuildModePlugin:
+ 			// No *flagEntrySymbol for -buildmode=shared and plugin
+ 		default:
+-			Errorf(nil, "unknown *flagEntrySymbol for buildmode %v", ctxt.BuildMode)
++			Errorf("unknown *flagEntrySymbol for buildmode %v", ctxt.BuildMode)
+ 		}
+ 	}
+ }
+@@ -742,7 +742,7 @@ func loadWindowsHostArchives(ctxt *Link) {
+ 	// Fix up references to DLL import symbols now that we're done
+ 	// pulling in new objects.
+ 	if err := loadpe.PostProcessImports(); err != nil {
+-		Errorf(nil, "%v", err)
++		Errorf("%v", err)
+ 	}
+ 
+ 	// TODO: maybe do something similar to peimporteddlls to collect
+@@ -848,7 +848,7 @@ func (ctxt *Link) linksetup() {
+ 			sb.SetType(sym.STLSBSS)
+ 			sb.SetSize(int64(ctxt.Arch.PtrSize))
+ 		} else if sb.Type() != sym.SDYNIMPORT {
+-			Errorf(nil, "runtime declared tlsg variable %v", sb.Type())
++			Errorf("runtime declared tlsg variable %v", sb.Type())
+ 		}
+ 		ctxt.loader.SetAttrReachable(tlsg, true)
+ 		ctxt.Tlsg = tlsg
+@@ -1226,7 +1226,7 @@ func hostobjs(ctxt *Link) {
+ 		}
+ 		f.MustSeek(h.off, 0)
+ 		if h.ld == nil {
+-			Errorf(nil, "%s: unrecognized object file format", h.pn)
++			Errorf("%s: unrecognized object file format", h.pn)
+ 			continue
+ 		}
+ 		h.ld(ctxt, f, h.pkg, h.length, h.pn)
+@@ -1352,7 +1352,7 @@ INSERT AFTER .debug_types;
+ `
+ 	err := os.WriteFile(path, []byte(src), 0666)
+ 	if err != nil {
+-		Errorf(nil, "WriteFile %s failed: %v", name, err)
++		Errorf("WriteFile %s failed: %v", name, err)
+ 	}
+ 	return path
+ }
+@@ -2127,7 +2127,7 @@ func linkerFlagSupported(arch *sys.Arch, linker, altLinker, flag string) bool {
+ 	createTrivialCOnce.Do(func() {
+ 		src := filepath.Join(*flagTmpdir, "trivial.c")
+ 		if err := os.WriteFile(src, []byte("int main() { return 0; }"), 0666); err != nil {
+-			Errorf(nil, "WriteFile trivial.c failed: %v", err)
++			Errorf("WriteFile trivial.c failed: %v", err)
+ 		}
+ 	})
+ 
+@@ -2267,7 +2267,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 		ldelf := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			textp, flags, err := loadelf.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn, ehdr.Flags)
+ 			if err != nil {
+-				Errorf(nil, "%v", err)
++				Errorf("%v", err)
+ 				return
+ 			}
+ 			ehdr.Flags = flags
+@@ -2280,7 +2280,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 		ldmacho := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			textp, err := loadmacho.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
+ 			if err != nil {
+-				Errorf(nil, "%v", err)
++				Errorf("%v", err)
+ 				return
+ 			}
+ 			ctxt.Textp = append(ctxt.Textp, textp...)
+@@ -2296,7 +2296,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 		ldpe := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			ls, err := loadpe.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
+ 			if err != nil {
+-				Errorf(nil, "%v", err)
++				Errorf("%v", err)
+ 				return
+ 			}
+ 			if len(ls.Resources) != 0 {
+@@ -2317,7 +2317,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 		ldxcoff := func(ctxt *Link, f *bio.Reader, pkg string, length int64, pn string) {
+ 			textp, err := loadxcoff.Load(ctxt.loader, ctxt.Arch, ctxt.IncVersion(), f, pkg, length, pn)
+ 			if err != nil {
+-				Errorf(nil, "%v", err)
++				Errorf("%v", err)
+ 				return
+ 			}
+ 			ctxt.Textp = append(ctxt.Textp, textp...)
+@@ -2336,7 +2336,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 	/* check the header */
+ 	line, err := f.ReadString('\n')
+ 	if err != nil {
+-		Errorf(nil, "truncated object file: %s: %v", pn, err)
++		Errorf("truncated object file: %s: %v", pn, err)
+ 		return nil
+ 	}
+ 
+@@ -2348,17 +2348,17 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 
+ 		if line == ctxt.Arch.Name {
+ 			// old header format: just $GOOS
+-			Errorf(nil, "%s: stale object file", pn)
++			Errorf("%s: stale object file", pn)
+ 			return nil
+ 		}
+ 
+-		Errorf(nil, "%s: not an object file: @%d %q", pn, start, line)
++		Errorf("%s: not an object file: @%d %q", pn, start, line)
+ 		return nil
+ 	}
+ 
+ 	// First, check that the basic GOOS, GOARCH, and Version match.
+ 	if line != wantHdr {
+-		Errorf(nil, "%s: linked object header mismatch:\nhave %q\nwant %q\n", pn, line, wantHdr)
++		Errorf("%s: linked object header mismatch:\nhave %q\nwant %q\n", pn, line, wantHdr)
+ 	}
+ 
+ 	// Skip over exports and other info -- ends with \n!\n.
+@@ -2388,7 +2388,7 @@ func ldobj(ctxt *Link, f *bio.Reader, lib *sym.Library, length int64, pn string,
+ 		c2 = c3
+ 		c3 = bgetc(f)
+ 		if c3 == -1 {
+-			Errorf(nil, "truncated object file: %s", pn)
++			Errorf("truncated object file: %s", pn)
+ 			return nil
+ 		}
+ 	}
+@@ -2484,11 +2484,11 @@ func readelfsymboldata(ctxt *Link, f *elf.File, sym *elf.Symbol) []byte {
+ 	data := make([]byte, sym.Size)
+ 	sect := f.Sections[sym.Section]
+ 	if sect.Type != elf.SHT_PROGBITS && sect.Type != elf.SHT_NOTE {
+-		Errorf(nil, "reading %s from non-data section", sym.Name)
++		Errorf("reading %s from non-data section", sym.Name)
+ 	}
+ 	n, err := sect.ReadAt(data, int64(sym.Value-sect.Addr))
+ 	if uint64(n) != sym.Size {
+-		Errorf(nil, "reading contents of %s: %v", sym.Name, err)
++		Errorf("reading contents of %s: %v", sym.Name, err)
+ 	}
+ 	return data
+ }
+@@ -2552,7 +2552,7 @@ func findshlib(ctxt *Link, shlib string) string {
+ 			return libpath
+ 		}
+ 	}
+-	Errorf(nil, "cannot find shared library: %s", shlib)
++	Errorf("cannot find shared library: %s", shlib)
+ 	return ""
+ }
+ 
+@@ -2578,7 +2578,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 
+ 	f, err := elf.Open(libpath)
+ 	if err != nil {
+-		Errorf(nil, "cannot open shared library: %s", libpath)
++		Errorf("cannot open shared library: %s", libpath)
+ 		return
+ 	}
+ 	// Keep the file open as decodetypeGcprog needs to read from it.
+@@ -2587,13 +2587,13 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 
+ 	hash, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GOABIHASH_TAG)
+ 	if err != nil {
+-		Errorf(nil, "cannot read ABI hash from shared library %s: %v", libpath, err)
++		Errorf("cannot read ABI hash from shared library %s: %v", libpath, err)
+ 		return
+ 	}
+ 
+ 	depsbytes, err := readnote(f, ELF_NOTE_GO_NAME, ELF_NOTE_GODEPS_TAG)
+ 	if err != nil {
+-		Errorf(nil, "cannot read dep list from shared library %s: %v", libpath, err)
++		Errorf("cannot read dep list from shared library %s: %v", libpath, err)
+ 		return
+ 	}
+ 	var deps []string
+@@ -2615,7 +2615,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 
+ 	syms, err := f.DynamicSymbols()
+ 	if err != nil {
+-		Errorf(nil, "cannot read symbols from shared library: %s", libpath)
++		Errorf("cannot read symbols from shared library: %s", libpath)
+ 		return
+ 	}
+ 
+@@ -2741,7 +2741,7 @@ func Entryvalue(ctxt *Link) int64 {
+ 	ldr := ctxt.loader
+ 	s := ldr.Lookup(a, 0)
+ 	if s == 0 {
+-		Errorf(nil, "missing entry symbol %q", a)
++		Errorf("missing entry symbol %q", a)
+ 		return 0
+ 	}
+ 	st := ldr.SymType(s)
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index eb2bd6bff6..57b7cd9c4c 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -559,7 +559,7 @@ func machoshbits(ctxt *Link, mseg *MachoSeg, sect *sym.Section, segname string)
+ 	if sect.Vaddr < sect.Seg.Vaddr+sect.Seg.Filelen {
+ 		// data in file
+ 		if sect.Length > sect.Seg.Vaddr+sect.Seg.Filelen-sect.Vaddr {
+-			Errorf(nil, "macho cannot represent section %s crossing data and bss", sect.Name)
++			Errorf("macho cannot represent section %s crossing data and bss", sect.Name)
+ 		}
+ 		msect.off = uint32(sect.Seg.Fileoff + sect.Vaddr - sect.Seg.Vaddr)
+ 	} else {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 17a05414e4..3aff220a46 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -226,7 +226,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		windowsgui = true
+ 	default:
+ 		if err := ctxt.HeadType.Set(*flagHeadType); err != nil {
+-			Errorf(nil, "%v", err)
++			Errorf("%v", err)
+ 			usage()
+ 		}
+ 	}
+@@ -235,7 +235,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	}
+ 
+ 	if !*flagAslr && ctxt.BuildMode != BuildModeCShared {
+-		Errorf(nil, "-aslr=false is only allowed for -buildmode=c-shared")
++		Errorf("-aslr=false is only allowed for -buildmode=c-shared")
+ 		usage()
+ 	}
+ 
+@@ -307,7 +307,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		} else if *benchmarkFlag == "cpu" {
+ 			bench = benchmark.New(benchmark.NoGC, *benchmarkFileFlag)
+ 		} else {
+-			Errorf(nil, "unknown benchmark flag: %q", *benchmarkFlag)
++			Errorf("unknown benchmark flag: %q", *benchmarkFlag)
+ 			usage()
+ 		}
+ 	}
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index 57c88c03af..ea08fd3d31 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -887,16 +887,16 @@ func (ctxt *Link) findfunctab(state *pclntab, container loader.Bitmap) {
+ 		for i := int32(0); i < nbuckets; i++ {
+ 			base := indexes[i*SUBBUCKETS]
+ 			if base == NOIDX {
+-				Errorf(nil, "hole in findfunctab")
++				Errorf("hole in findfunctab")
+ 			}
+ 			t.SetUint32(ctxt.Arch, int64(i)*(4+SUBBUCKETS), uint32(base))
+ 			for j := int32(0); j < SUBBUCKETS && i*SUBBUCKETS+j < n; j++ {
+ 				idx = indexes[i*SUBBUCKETS+j]
+ 				if idx == NOIDX {
+-					Errorf(nil, "hole in findfunctab")
++					Errorf("hole in findfunctab")
+ 				}
+ 				if idx-base >= 256 {
+-					Errorf(nil, "too many functions in a findfunc bucket! %d/%d %d %d", i, nbuckets, j, idx-base)
++					Errorf("too many functions in a findfunc bucket! %d/%d %d %d", i, nbuckets, j, idx-base)
+ 				}
+ 
+ 				t.SetUint8(ctxt.Arch, int64(i)*(4+SUBBUCKETS)+4+int64(j), uint8(idx-base))
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index cd553e909a..09867ec7c9 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -358,7 +358,7 @@ type peSection struct {
+ // checkOffset verifies COFF section sect offset in the file.
+ func (sect *peSection) checkOffset(off int64) {
+ 	if off != int64(sect.pointerToRawData) {
+-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(off))
++		Errorf("%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(off))
+ 		errorexit()
+ 	}
+ }
+@@ -367,11 +367,11 @@ func (sect *peSection) checkOffset(off int64) {
+ // and file offset provided in segment seg.
+ func (sect *peSection) checkSegment(seg *sym.Segment) {
+ 	if seg.Vaddr-uint64(PEBASE) != uint64(sect.virtualAddress) {
+-		Errorf(nil, "%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(seg.Vaddr-uint64(PEBASE))))
++		Errorf("%s.VirtualAddress = %#x, want %#x", sect.name, uint64(int64(sect.virtualAddress)), uint64(int64(seg.Vaddr-uint64(PEBASE))))
+ 		errorexit()
+ 	}
+ 	if seg.Fileoff != uint64(sect.pointerToRawData) {
+-		Errorf(nil, "%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(int64(seg.Fileoff)))
++		Errorf("%s.PointerToRawData = %#x, want %#x", sect.name, uint64(int64(sect.pointerToRawData)), uint64(int64(seg.Fileoff)))
+ 		errorexit()
+ 	}
+ }
+@@ -669,7 +669,7 @@ dwarfLoop:
+ 				continue dwarfLoop
+ 			}
+ 		}
+-		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
++		Errorf("emitRelocations: could not find %q section", sect.Name)
+ 	}
+ 
+ 	if f.ctorsSect == nil {
+@@ -1548,7 +1548,7 @@ func (rt *peBaseRelocTable) write(ctxt *Link) {
+ 
+ 	// .reloc section must be 32-bit aligned
+ 	if out.Offset()&3 != 0 {
+-		Errorf(nil, "internal error, start of .reloc not 32-bit aligned")
++		Errorf("internal error, start of .reloc not 32-bit aligned")
+ 	}
+ 
+ 	for _, p := range rt.pages {
+@@ -1650,7 +1650,7 @@ func (ctxt *Link) dope() {
+ 
+ func setpersrc(ctxt *Link, syms []loader.Sym) {
+ 	if len(rsrcsyms) != 0 {
+-		Errorf(nil, "too many .rsrc sections")
++		Errorf("too many .rsrc sections")
+ 	}
+ 	rsrcsyms = syms
+ }
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index 9873a50dcc..948bfa020e 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -53,16 +53,14 @@ func afterErrorAction() {
+ 	}
+ }
+ 
+-// Errorf logs an error message.
++// Errorf logs an error message without a specific symbol for context.
++// Use ctxt.Errorf when possible.
+ //
+ // If more than 20 errors have been printed, exit with an error.
+ //
+ // Logging an error means that on exit cmd/link will delete any
+ // output file and return a non-zero error code.
+-//
+-// TODO: remove. Use ctxt.Errorf instead.
+-// All remaining calls use nil as first arg.
+-func Errorf(dummy *int, format string, args ...interface{}) {
++func Errorf(format string, args ...interface{}) {
+ 	format += "\n"
+ 	fmt.Fprintf(os.Stderr, format, args...)
+ 	afterErrorAction()
+diff --git a/src/cmd/link/internal/ld/xcoff.go b/src/cmd/link/internal/ld/xcoff.go
+index d915ab393b..8f566283b1 100644
+--- a/src/cmd/link/internal/ld/xcoff.go
++++ b/src/cmd/link/internal/ld/xcoff.go
+@@ -534,7 +534,7 @@ func (f *xcoffFile) getXCOFFscnum(sect *sym.Section) int16 {
+ 	case &Segrelrodata:
+ 		return f.sectNameToScnum[".data"]
+ 	}
+-	Errorf(nil, "getXCOFFscnum not implemented for section %s", sect.Name)
++	Errorf("getXCOFFscnum not implemented for section %s", sect.Name)
+ 	return -1
+ }
+ 
+@@ -545,11 +545,11 @@ func Xcoffinit(ctxt *Link) {
+ 
+ 	HEADR = int32(Rnd(XCOFFHDRRESERVE, XCOFFSECTALIGN))
+ 	if *FlagRound != -1 {
+-		Errorf(nil, "-R not available on AIX")
++		Errorf("-R not available on AIX")
+ 	}
+ 	*FlagRound = XCOFFSECTALIGN
+ 	if *FlagTextAddr != -1 {
+-		Errorf(nil, "-T not available on AIX")
++		Errorf("-T not available on AIX")
+ 	}
+ 	*FlagTextAddr = Rnd(XCOFFTEXTBASE, *FlagRound) + int64(HEADR)
+ }
+@@ -583,7 +583,7 @@ func xcoffUpdateOuterSize(ctxt *Link, size int64, stype sym.SymKind) {
+ 	ldr := ctxt.loader
+ 	switch stype {
+ 	default:
+-		Errorf(nil, "unknown XCOFF outer symbol for type %s", stype.String())
++		Errorf("unknown XCOFF outer symbol for type %s", stype.String())
+ 	case sym.SRODATA, sym.SRODATARELRO, sym.SFUNCTAB, sym.SSTRING:
+ 		// Nothing to do
+ 	case sym.STYPERELRO:
+@@ -1046,7 +1046,7 @@ func (f *xcoffFile) asmaixsym(ctxt *Link) {
+ 	for name, size := range outerSymSize {
+ 		sym := ldr.Lookup(name, 0)
+ 		if sym == 0 {
+-			Errorf(nil, "unknown outer symbol with name %s", name)
++			Errorf("unknown outer symbol with name %s", name)
+ 		} else {
+ 			s := ldr.MakeSymbolUpdater(sym)
+ 			s.SetSize(size)
+@@ -1767,7 +1767,7 @@ dwarfLoop:
+ 				continue dwarfLoop
+ 			}
+ 		}
+-		Errorf(nil, "emitRelocations: could not find %q section", sect.Name)
++		Errorf("emitRelocations: could not find %q section", sect.Name)
+ 	}
+ }
+ 
+@@ -1802,7 +1802,7 @@ func xcoffCreateExportFile(ctxt *Link) (fname string) {
+ 
+ 	err := os.WriteFile(fname, buf.Bytes(), 0666)
+ 	if err != nil {
+-		Errorf(nil, "WriteFile %s failed: %v", fname, err)
++		Errorf("WriteFile %s failed: %v", fname, err)
+ 	}
+ 
+ 	return fname
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index 6a4dd01240..73a8815459 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -223,7 +223,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 		case 8:
+ 			out.Write64(uint64(elf.R_RISCV_64) | uint64(elfsym)<<32)
+ 		default:
+-			ld.Errorf(nil, "unknown size %d for %v relocation", r.Size, r.Type)
++			ld.Errorf("unknown size %d for %v relocation", r.Size, r.Type)
+ 			return false
+ 		}
+ 		out.Write64(uint64(r.Xadd))
+@@ -240,7 +240,7 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 		offset := int64(relocs.At(ri).Off())
+ 		hi20Sym := findHI20Symbol(ctxt, ldr, ldr.SymValue(s)+offset)
+ 		if hi20Sym == 0 {
+-			ld.Errorf(nil, "failed to find text symbol for HI20 relocation at %d (%x)", sectoff, ldr.SymValue(s)+offset)
++			ld.Errorf("failed to find text symbol for HI20 relocation at %d (%x)", sectoff, ldr.SymValue(s)+offset)
+ 			return false
+ 		}
+ 		hi20ElfSym := ld.ElfSymForReloc(ctxt, hi20Sym)
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 3728cc6dc3..ca4363f4a0 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -429,7 +429,7 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
+ 		}
+ 		s := ldr.Lookup(entry, 0)
+ 		if s == 0 {
+-			ld.Errorf(nil, "export symbol %s not defined", entry)
++			ld.Errorf("export symbol %s not defined", entry)
+ 		}
+ 		idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+ 		writeName(ctxt.Out, entryExpName)   // the wasi entrypoint
+@@ -449,7 +449,7 @@ func writeExportSec(ctxt *ld.Link, ldr *loader.Loader, lenHostImports int) {
+ 		for _, name := range []string{"run", "resume", "getsp"} {
+ 			s := ldr.Lookup("wasm_export_"+name, 0)
+ 			if s == 0 {
+-				ld.Errorf(nil, "export symbol %s not defined", "wasm_export_"+name)
++				ld.Errorf("export symbol %s not defined", "wasm_export_"+name)
+ 			}
+ 			idx := uint32(lenHostImports) + uint32(ldr.SymValue(s)>>16) - funcValueOffset
+ 			writeName(ctxt.Out, name)           // inst.exports.run/resume/getsp in wasm_exec.js

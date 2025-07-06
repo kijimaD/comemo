@@ -1,0 +1,633 @@
+commit 927fdb7843ce96b42791912b42d0d3e6735e8dde
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Feb 22 23:26:21 2025 +1100
+
+    cmd/compile: simplify intrinsification of TrailingZeros16 and TrailingZeros8
+    
+    Decompose Ctz16 and Ctz8 within the SSA rules for LOONG64, MIPS, PPC64
+    and S390X, rather than having a custom intrinsic. Note that for PPC64 this
+    actually allows the existing Ctz16 and Ctz8 rules to be used.
+    
+    Change-Id: I27a5e978f852b9d75396d2a80f5d7dfcb5ef7dd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651816
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Run-TryBot: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  4 +-
+ src/cmd/compile/internal/ssa/_gen/MIPS.rules       |  5 +-
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules      | 21 +++----
+ src/cmd/compile/internal/ssa/_gen/S390X.rules      |  6 +-
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 46 +++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteMIPS.go        | 44 +++++++++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go       | 64 +++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/rewriteS390X.go       | 46 +++++++++++++++-
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 36 +-----------
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  6 +-
+ test/codegen/mathbits.go                           |  4 +-
+ 11 files changed, 225 insertions(+), 57 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index e285f9fe27..7ffd579dc7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -153,8 +153,10 @@
+ (BitRev16 <t> x) => (REVB2H (BITREV4B <t> x))
+ (BitRev32 ...) => (BITREVW ...)
+ (BitRev64 ...) => (BITREVV ...)
+-(Ctz(32|64)NonZero ...) => (Ctz(32|64) ...)
++(Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
+ (Ctz(32|64) ...) => (CTZ(W|V) ...)
++(Ctz16 x) => (CTZV (OR <typ.UInt64> x (MOVVconst [1<<16])))
++(Ctz8  x) => (CTZV (OR <typ.UInt64> x (MOVVconst [1<<8])))
+ 
+ (PopCount64 <t> x) => (MOVVfpgp <t> (VPCNT64 <typ.Float64> (MOVVgpfp <typ.Float64> x)))
+ (PopCount32 <t> x) => (MOVWfpgp <t> (VPCNT32 <typ.Float32> (MOVWgpfp <typ.Float32> x)))
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS.rules b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+index 9a48164f55..4471763462 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS.rules
+@@ -126,12 +126,13 @@
+ (Sqrt ...) => (SQRTD ...)
+ (Sqrt32 ...) => (SQRTF ...)
+ 
+-// TODO: optimize this case?
+-(Ctz32NonZero ...) => (Ctz32 ...)
++(Ctz(32|16|8)NonZero ...) => (Ctz32 ...)
+ 
+ // count trailing zero
+ // 32 - CLZ(x&-x - 1)
+ (Ctz32 <t> x) => (SUB (MOVWconst [32]) (CLZ <t> (SUBconst <t> [1] (AND <t> x (NEG <t> x)))))
++(Ctz16 x) => (Ctz32 (Or32 <typ.UInt32> x (MOVWconst [1<<16])))
++(Ctz8  x) => (Ctz32 (Or32 <typ.UInt32> x (MOVWconst [1<<8])))
+ 
+ // bit length
+ (BitLen32 <t> x) => (SUB (MOVWconst [32]) (CLZ <t> x))
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index 768e37406f..1749811b84 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -254,16 +254,17 @@
+ (MOVDaddr {sym} [n] p:(ADD x y)) && sym == nil && n == 0 => p
+ (MOVDaddr {sym} [n] ptr) && sym == nil && n == 0 && (ptr.Op == OpArgIntReg || ptr.Op == OpPhi) => ptr
+ 
+-// TODO: optimize these cases?
+-(Ctz32NonZero ...) => (Ctz32 ...)
+-(Ctz64NonZero ...) => (Ctz64 ...)
+-
+-(Ctz64 x) && buildcfg.GOPPC64<=8 => (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+-(Ctz64 x) => (CNTTZD x)
+-(Ctz32 x) && buildcfg.GOPPC64<=8 => (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+-(Ctz32 x) => (CNTTZW (MOVWZreg x))
+-(Ctz16 x) => (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
+-(Ctz8 x)  => (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
++(Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
++
++(Ctz64 x) && buildcfg.GOPPC64 <= 8 => (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
++(Ctz32 x) && buildcfg.GOPPC64 <= 8 => (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
++(Ctz16 x) && buildcfg.GOPPC64 <= 8 => (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
++(Ctz8  x) && buildcfg.GOPPC64 <= 8 => (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
++
++(Ctz64 x) && buildcfg.GOPPC64 >= 9 => (CNTTZD x)
++(Ctz32 x) && buildcfg.GOPPC64 >= 9 => (CNTTZW (MOVWZreg x))
++(Ctz16 x) && buildcfg.GOPPC64 >= 9 => (CNTTZD (OR <typ.UInt64> x (MOVDconst [1<<16])))
++(Ctz8  x) && buildcfg.GOPPC64 >= 9 => (CNTTZD (OR <typ.UInt64> x (MOVDconst [1<<8])))
+ 
+ (BitLen64 x) => (SUBFCconst [64] (CNTLZD <typ.Int> x))
+ (BitLen32 x) => (SUBFCconst [32] (CNTLZW <typ.Int> x))
+diff --git a/src/cmd/compile/internal/ssa/_gen/S390X.rules b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+index 3a903af5d0..78de5bb5a2 100644
+--- a/src/cmd/compile/internal/ssa/_gen/S390X.rules
++++ b/src/cmd/compile/internal/ssa/_gen/S390X.rules
+@@ -80,13 +80,13 @@
+ (OffPtr [off] ptr) && is32Bit(off) => (ADDconst [int32(off)] ptr)
+ (OffPtr [off] ptr) => (ADD (MOVDconst [off]) ptr)
+ 
+-// TODO: optimize these cases?
+-(Ctz64NonZero ...) => (Ctz64 ...)
+-(Ctz32NonZero ...) => (Ctz32 ...)
++(Ctz(64|32|16|8)NonZero ...) => (Ctz64 ...)
+ 
+ // Ctz(x) = 64 - findLeftmostOne((x-1)&^x)
+ (Ctz64 <t> x) => (SUB (MOVDconst [64]) (FLOGR (AND <t> (SUBconst <t> [1] x) (NOT <t> x))))
+ (Ctz32 <t> x) => (SUB (MOVDconst [64]) (FLOGR (MOVWZreg (ANDW <t> (SUBWconst <t> [1] x) (NOTW <t> x)))))
++(Ctz16 x) => (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<16])))
++(Ctz8  x) => (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<8])))
+ 
+ (BitLen64 x) => (SUB (MOVDconst [64]) (FLOGR x))
+ (BitLen(32|16|8) x) => (BitLen64 (ZeroExt(32|16|8)to64 x))
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index ba0ea088d4..4499efa01d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -189,11 +189,16 @@ func rewriteValueLOONG64(v *Value) bool {
+ 	case OpCopysign:
+ 		v.Op = OpLOONG64FCOPYSGD
+ 		return true
++	case OpCtz16:
++		return rewriteValueLOONG64_OpCtz16(v)
++	case OpCtz16NonZero:
++		v.Op = OpCtz64
++		return true
+ 	case OpCtz32:
+ 		v.Op = OpLOONG64CTZW
+ 		return true
+ 	case OpCtz32NonZero:
+-		v.Op = OpCtz32
++		v.Op = OpCtz64
+ 		return true
+ 	case OpCtz64:
+ 		v.Op = OpLOONG64CTZV
+@@ -201,6 +206,11 @@ func rewriteValueLOONG64(v *Value) bool {
+ 	case OpCtz64NonZero:
+ 		v.Op = OpCtz64
+ 		return true
++	case OpCtz8:
++		return rewriteValueLOONG64_OpCtz8(v)
++	case OpCtz8NonZero:
++		v.Op = OpCtz64
++		return true
+ 	case OpCvt32Fto32:
+ 		v.Op = OpLOONG64TRUNCFW
+ 		return true
+@@ -1242,6 +1252,40 @@ func rewriteValueLOONG64_OpConstNil(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueLOONG64_OpCtz16(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz16 x)
++	// result: (CTZV (OR <typ.UInt64> x (MOVVconst [1<<16])))
++	for {
++		x := v_0
++		v.reset(OpLOONG64CTZV)
++		v0 := b.NewValue0(v.Pos, OpLOONG64OR, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
++		v1.AuxInt = int64ToAuxInt(1 << 16)
++		v0.AddArg2(x, v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueLOONG64_OpCtz8(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz8 x)
++	// result: (CTZV (OR <typ.UInt64> x (MOVVconst [1<<8])))
++	for {
++		x := v_0
++		v.reset(OpLOONG64CTZV)
++		v0 := b.NewValue0(v.Pos, OpLOONG64OR, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
++		v1.AuxInt = int64ToAuxInt(1 << 8)
++		v0.AddArg2(x, v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueLOONG64_OpDiv16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS.go b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+index 5b95549486..1bc2cb6e6d 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS.go
+@@ -113,11 +113,21 @@ func rewriteValueMIPS(v *Value) bool {
+ 		return rewriteValueMIPS_OpConstBool(v)
+ 	case OpConstNil:
+ 		return rewriteValueMIPS_OpConstNil(v)
++	case OpCtz16:
++		return rewriteValueMIPS_OpCtz16(v)
++	case OpCtz16NonZero:
++		v.Op = OpCtz32
++		return true
+ 	case OpCtz32:
+ 		return rewriteValueMIPS_OpCtz32(v)
+ 	case OpCtz32NonZero:
+ 		v.Op = OpCtz32
+ 		return true
++	case OpCtz8:
++		return rewriteValueMIPS_OpCtz8(v)
++	case OpCtz8NonZero:
++		v.Op = OpCtz32
++		return true
+ 	case OpCvt32Fto32:
+ 		v.Op = OpMIPSTRUNCFW
+ 		return true
+@@ -929,6 +939,23 @@ func rewriteValueMIPS_OpConstNil(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS_OpCtz16(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz16 x)
++	// result: (Ctz32 (Or32 <typ.UInt32> x (MOVWconst [1<<16])))
++	for {
++		x := v_0
++		v.reset(OpCtz32)
++		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
++		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
++		v1.AuxInt = int32ToAuxInt(1 << 16)
++		v0.AddArg2(x, v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueMIPS_OpCtz32(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+@@ -954,6 +981,23 @@ func rewriteValueMIPS_OpCtz32(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueMIPS_OpCtz8(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz8 x)
++	// result: (Ctz32 (Or32 <typ.UInt32> x (MOVWconst [1<<8])))
++	for {
++		x := v_0
++		v.reset(OpCtz32)
++		v0 := b.NewValue0(v.Pos, OpOr32, typ.UInt32)
++		v1 := b.NewValue0(v.Pos, OpMIPSMOVWconst, typ.UInt32)
++		v1.AuxInt = int32ToAuxInt(1 << 8)
++		v0.AddArg2(x, v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueMIPS_OpDiv16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index e900ebe0be..e987ae9662 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -158,10 +158,13 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpCopysign(v)
+ 	case OpCtz16:
+ 		return rewriteValuePPC64_OpCtz16(v)
++	case OpCtz16NonZero:
++		v.Op = OpCtz64
++		return true
+ 	case OpCtz32:
+ 		return rewriteValuePPC64_OpCtz32(v)
+ 	case OpCtz32NonZero:
+-		v.Op = OpCtz32
++		v.Op = OpCtz64
+ 		return true
+ 	case OpCtz64:
+ 		return rewriteValuePPC64_OpCtz64(v)
+@@ -170,6 +173,9 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return true
+ 	case OpCtz8:
+ 		return rewriteValuePPC64_OpCtz8(v)
++	case OpCtz8NonZero:
++		v.Op = OpCtz64
++		return true
+ 	case OpCvt32Fto32:
+ 		return rewriteValuePPC64_OpCvt32Fto32(v)
+ 	case OpCvt32Fto64:
+@@ -1534,9 +1540,13 @@ func rewriteValuePPC64_OpCtz16(v *Value) bool {
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz16 x)
++	// cond: buildcfg.GOPPC64 <= 8
+ 	// result: (POPCNTW (MOVHZreg (ANDN <typ.Int16> (ADDconst <typ.Int16> [-1] x) x)))
+ 	for {
+ 		x := v_0
++		if !(buildcfg.GOPPC64 <= 8) {
++			break
++		}
+ 		v.reset(OpPPC64POPCNTW)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVHZreg, typ.Int64)
+ 		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.Int16)
+@@ -1548,13 +1558,30 @@ func rewriteValuePPC64_OpCtz16(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Ctz16 x)
++	// cond: buildcfg.GOPPC64 >= 9
++	// result: (CNTTZD (OR <typ.UInt64> x (MOVDconst [1<<16])))
++	for {
++		x := v_0
++		if !(buildcfg.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64CNTTZD)
++		v0 := b.NewValue0(v.Pos, OpPPC64OR, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
++		v1.AuxInt = int64ToAuxInt(1 << 16)
++		v0.AddArg2(x, v1)
++		v.AddArg(v0)
++		return true
++	}
++	return false
+ }
+ func rewriteValuePPC64_OpCtz32(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz32 x)
+-	// cond: buildcfg.GOPPC64<=8
++	// cond: buildcfg.GOPPC64 <= 8
+ 	// result: (POPCNTW (MOVWZreg (ANDN <typ.Int> (ADDconst <typ.Int> [-1] x) x)))
+ 	for {
+ 		x := v_0
+@@ -1573,22 +1600,27 @@ func rewriteValuePPC64_OpCtz32(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Ctz32 x)
++	// cond: buildcfg.GOPPC64 >= 9
+ 	// result: (CNTTZW (MOVWZreg x))
+ 	for {
+ 		x := v_0
++		if !(buildcfg.GOPPC64 >= 9) {
++			break
++		}
+ 		v.reset(OpPPC64CNTTZW)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVWZreg, typ.Int64)
+ 		v0.AddArg(x)
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	return false
+ }
+ func rewriteValuePPC64_OpCtz64(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz64 x)
+-	// cond: buildcfg.GOPPC64<=8
++	// cond: buildcfg.GOPPC64 <= 8
+ 	// result: (POPCNTD (ANDN <typ.Int64> (ADDconst <typ.Int64> [-1] x) x))
+ 	for {
+ 		x := v_0
+@@ -1605,22 +1637,31 @@ func rewriteValuePPC64_OpCtz64(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Ctz64 x)
++	// cond: buildcfg.GOPPC64 >= 9
+ 	// result: (CNTTZD x)
+ 	for {
+ 		x := v_0
++		if !(buildcfg.GOPPC64 >= 9) {
++			break
++		}
+ 		v.reset(OpPPC64CNTTZD)
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	return false
+ }
+ func rewriteValuePPC64_OpCtz8(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
+ 	// match: (Ctz8 x)
++	// cond: buildcfg.GOPPC64 <= 8
+ 	// result: (POPCNTB (MOVBZreg (ANDN <typ.UInt8> (ADDconst <typ.UInt8> [-1] x) x)))
+ 	for {
+ 		x := v_0
++		if !(buildcfg.GOPPC64 <= 8) {
++			break
++		}
+ 		v.reset(OpPPC64POPCNTB)
+ 		v0 := b.NewValue0(v.Pos, OpPPC64MOVBZreg, typ.Int64)
+ 		v1 := b.NewValue0(v.Pos, OpPPC64ANDN, typ.UInt8)
+@@ -1632,6 +1673,23 @@ func rewriteValuePPC64_OpCtz8(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Ctz8 x)
++	// cond: buildcfg.GOPPC64 >= 9
++	// result: (CNTTZD (OR <typ.UInt64> x (MOVDconst [1<<8])))
++	for {
++		x := v_0
++		if !(buildcfg.GOPPC64 >= 9) {
++			break
++		}
++		v.reset(OpPPC64CNTTZD)
++		v0 := b.NewValue0(v.Pos, OpPPC64OR, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpPPC64MOVDconst, typ.Int64)
++		v1.AuxInt = int64ToAuxInt(1 << 8)
++		v0.AddArg2(x, v1)
++		v.AddArg(v0)
++		return true
++	}
++	return false
+ }
+ func rewriteValuePPC64_OpCvt32Fto32(v *Value) bool {
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssa/rewriteS390X.go b/src/cmd/compile/internal/ssa/rewriteS390X.go
+index 357b17f8fd..7e652a19bc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteS390X.go
++++ b/src/cmd/compile/internal/ssa/rewriteS390X.go
+@@ -139,16 +139,26 @@ func rewriteValueS390X(v *Value) bool {
+ 		return rewriteValueS390X_OpConstBool(v)
+ 	case OpConstNil:
+ 		return rewriteValueS390X_OpConstNil(v)
++	case OpCtz16:
++		return rewriteValueS390X_OpCtz16(v)
++	case OpCtz16NonZero:
++		v.Op = OpCtz64
++		return true
+ 	case OpCtz32:
+ 		return rewriteValueS390X_OpCtz32(v)
+ 	case OpCtz32NonZero:
+-		v.Op = OpCtz32
++		v.Op = OpCtz64
+ 		return true
+ 	case OpCtz64:
+ 		return rewriteValueS390X_OpCtz64(v)
+ 	case OpCtz64NonZero:
+ 		v.Op = OpCtz64
+ 		return true
++	case OpCtz8:
++		return rewriteValueS390X_OpCtz8(v)
++	case OpCtz8NonZero:
++		v.Op = OpCtz64
++		return true
+ 	case OpCvt32Fto32:
+ 		v.Op = OpS390XCFEBRA
+ 		return true
+@@ -1449,6 +1459,23 @@ func rewriteValueS390X_OpConstNil(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpCtz16(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz16 x)
++	// result: (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<16])))
++	for {
++		x := v_0
++		v.reset(OpCtz64)
++		v0 := b.NewValue0(v.Pos, OpOr64, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
++		v1.AuxInt = int64ToAuxInt(1 << 16)
++		v0.AddArg2(x, v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueS390X_OpCtz32(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+@@ -1501,6 +1528,23 @@ func rewriteValueS390X_OpCtz64(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueS390X_OpCtz8(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (Ctz8 x)
++	// result: (Ctz64 (Or64 <typ.UInt64> x (MOVDconst [1<<8])))
++	for {
++		x := v_0
++		v.reset(OpCtz64)
++		v0 := b.NewValue0(v.Pos, OpOr64, typ.UInt64)
++		v1 := b.NewValue0(v.Pos, OpS390XMOVDconst, typ.UInt64)
++		v1.AuxInt = int64ToAuxInt(1 << 8)
++		v0.AddArg2(x, v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueS390X_OpDiv16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 39d070a090..4f84b6b924 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -899,48 +899,16 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			return s.newValue1(ssa.OpCtz32, types.Types[types.TINT], args[0])
+ 		},
+ 		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+-	addF("math/bits", "TrailingZeros16",
+-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			x := s.newValue1(ssa.OpZeroExt16to32, types.Types[types.TUINT32], args[0])
+-			c := s.constInt32(types.Types[types.TUINT32], 1<<16)
+-			y := s.newValue2(ssa.OpOr32, types.Types[types.TUINT32], x, c)
+-			return s.newValue1(ssa.OpCtz32, types.Types[types.TINT], y)
+-		},
+-		sys.MIPS)
+ 	addF("math/bits", "TrailingZeros16",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz16, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.I386, sys.ARM, sys.ARM64, sys.Wasm)
+-	addF("math/bits", "TrailingZeros16",
+-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[types.TUINT64], args[0])
+-			c := s.constInt64(types.Types[types.TUINT64], 1<<16)
+-			y := s.newValue2(ssa.OpOr64, types.Types[types.TUINT64], x, c)
+-			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], y)
+-		},
+-		sys.Loong64, sys.S390X, sys.PPC64)
+-	addF("math/bits", "TrailingZeros8",
+-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			x := s.newValue1(ssa.OpZeroExt8to32, types.Types[types.TUINT32], args[0])
+-			c := s.constInt32(types.Types[types.TUINT32], 1<<8)
+-			y := s.newValue2(ssa.OpOr32, types.Types[types.TUINT32], x, c)
+-			return s.newValue1(ssa.OpCtz32, types.Types[types.TINT], y)
+-		},
+-		sys.MIPS)
++		sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.MIPS, sys.Loong64, sys.PPC64, sys.S390X, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz8, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.I386, sys.ARM, sys.ARM64, sys.Wasm)
+-	addF("math/bits", "TrailingZeros8",
+-		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[types.TUINT64], args[0])
+-			c := s.constInt64(types.Types[types.TUINT64], 1<<8)
+-			y := s.newValue2(ssa.OpOr64, types.Types[types.TUINT64], x, c)
+-			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], y)
+-		},
+-		sys.Loong64, sys.S390X)
++		sys.AMD64, sys.ARM, sys.ARM64, sys.I386, sys.MIPS, sys.Loong64, sys.PPC64, sys.S390X, sys.Wasm)
+ 	alias("math/bits", "ReverseBytes64", "internal/runtime/sys", "Bswap64", all...)
+ 	alias("math/bits", "ReverseBytes32", "internal/runtime/sys", "Bswap32", all...)
+ 	addF("math/bits", "ReverseBytes16",
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 2e29a45c0b..0f8a8a83b4 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -867,6 +867,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64", "internal/runtime/sys", "OnesCount64"}:                   struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "Prefetch"}:                      struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "PrefetchStreamed"}:              struct{}{},
++	{"ppc64", "internal/runtime/sys", "TrailingZeros8"}:                struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "TrailingZeros32"}:               struct{}{},
+ 	{"ppc64", "internal/runtime/sys", "TrailingZeros64"}:               struct{}{},
+ 	{"ppc64", "math", "Abs"}:                                           struct{}{},
+@@ -899,6 +900,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64", "math/bits", "RotateLeft64"}:                             struct{}{},
+ 	{"ppc64", "math/bits", "Sub"}:                                      struct{}{},
+ 	{"ppc64", "math/bits", "Sub64"}:                                    struct{}{},
++	{"ppc64", "math/bits", "TrailingZeros8"}:                           struct{}{},
+ 	{"ppc64", "math/bits", "TrailingZeros16"}:                          struct{}{},
+ 	{"ppc64", "math/bits", "TrailingZeros32"}:                          struct{}{},
+ 	{"ppc64", "math/bits", "TrailingZeros64"}:                          struct{}{},
+@@ -988,6 +990,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64le", "internal/runtime/sys", "OnesCount64"}:                 struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "Prefetch"}:                    struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "PrefetchStreamed"}:            struct{}{},
++	{"ppc64le", "internal/runtime/sys", "TrailingZeros8"}:              struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "TrailingZeros32"}:             struct{}{},
+ 	{"ppc64le", "internal/runtime/sys", "TrailingZeros64"}:             struct{}{},
+ 	{"ppc64le", "math", "Abs"}:                                         struct{}{},
+@@ -1020,6 +1023,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"ppc64le", "math/bits", "RotateLeft64"}:                           struct{}{},
+ 	{"ppc64le", "math/bits", "Sub"}:                                    struct{}{},
+ 	{"ppc64le", "math/bits", "Sub64"}:                                  struct{}{},
++	{"ppc64le", "math/bits", "TrailingZeros8"}:                         struct{}{},
+ 	{"ppc64le", "math/bits", "TrailingZeros16"}:                        struct{}{},
+ 	{"ppc64le", "math/bits", "TrailingZeros32"}:                        struct{}{},
+ 	{"ppc64le", "math/bits", "TrailingZeros64"}:                        struct{}{},
+@@ -1340,7 +1344,7 @@ func TestIntrinsics(t *testing.T) {
+ 
+ 	for ik, _ := range wantIntrinsics {
+ 		if _, found := gotIntrinsics[ik]; !found {
+-			t.Errorf("Want intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
++			t.Errorf("Want missing intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
+ 		}
+ 	}
+ }
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index baed4f7c67..78556c636f 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -409,7 +409,7 @@ func TrailingZeros16(n uint16) int {
+ 	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
+ 	// loong64:"CTZV"
+ 	// s390x:"FLOGR","OR\t\\$65536"
+-	// ppc64x/power8:"POPCNTD","ORIS\\t\\$1"
++	// ppc64x/power8:"POPCNTW","ADD\t\\$-1"
+ 	// ppc64x/power9:"CNTTZD","ORIS\\t\\$1"
+ 	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros16(n)
+@@ -421,6 +421,8 @@ func TrailingZeros8(n uint8) int {
+ 	// arm:"ORR\t\\$256","CLZ",-"MOVBU\tR"
+ 	// arm64:"ORR\t\\$256","RBITW","CLZW",-"MOVBU\tR",-"RBIT\t",-"CLZ\t"
+ 	// loong64:"CTZV"
++	// ppc64x/power8:"POPCNTB","ADD\t\\$-1"
++	// ppc64x/power9:"CNTTZD","OR\t\\$256"
+ 	// s390x:"FLOGR","OR\t\\$256"
+ 	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros8(n)

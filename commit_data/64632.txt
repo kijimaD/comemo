@@ -1,0 +1,120 @@
+commit 9625a7faaefd85ce9dd0b7efbaad7731c2018200
+Author: Tim King <taking@google.com>
+Date:   Thu Aug 15 16:48:42 2024 -0700
+
+    [release-branch.go1.23] go/types, types2: unalias tilde terms in underIs
+    
+    Unalias the ~T terms during underIs. Before, if T was an alias
+    of U, it may pass T to the iteration function. The iterator
+    function expects an underlying type, under(U), to be passed.
+    This caused several bugs where underIs is used without
+    eventually taking the underlying type.
+    
+    Fixes #68905
+    
+    Change-Id: Ie8691d8dddaea00e1dcba94d17c0f1b021fc49a2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606075
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    (cherry picked from commit 1a90dcdaaf46d9dd0ee61781dcb9b6e05b80d926)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607635
+---
+ src/cmd/compile/internal/types2/typeset.go         |  4 ++--
+ src/go/types/typeset.go                            |  4 ++--
+ .../types/testdata/fixedbugs/issue68903.go         | 24 ++++++++++++++++++++
+ .../types/testdata/fixedbugs/issue68935.go         | 26 ++++++++++++++++++++++
+ 4 files changed, 54 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 0457502e39..a2d9e42c61 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -131,8 +131,8 @@ func (s *_TypeSet) underIs(f func(Type) bool) bool {
+ 	}
+ 	for _, t := range s.terms {
+ 		assert(t.typ != nil)
+-		// x == under(x) for ~x terms
+-		u := t.typ
++		// Unalias(x) == under(x) for ~x terms
++		u := Unalias(t.typ)
+ 		if !t.tilde {
+ 			u = under(u)
+ 		}
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index d280bf2f5f..a1d7e6cc99 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -134,8 +134,8 @@ func (s *_TypeSet) underIs(f func(Type) bool) bool {
+ 	}
+ 	for _, t := range s.terms {
+ 		assert(t.typ != nil)
+-		// x == under(x) for ~x terms
+-		u := t.typ
++		// Unalias(x) == under(x) for ~x terms
++		u := Unalias(t.typ)
+ 		if !t.tilde {
+ 			u = under(u)
+ 		}
+diff --git a/src/internal/types/testdata/fixedbugs/issue68903.go b/src/internal/types/testdata/fixedbugs/issue68903.go
+new file mode 100644
+index 0000000000..b1369aa0f6
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue68903.go
+@@ -0,0 +1,24 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A = [4]int
++type B = map[string]interface{}
++
++func _[T ~A](x T) {
++	_ = len(x)
++}
++
++func _[U ~A](x U) {
++	_ = cap(x)
++}
++
++func _[V ~A]() {
++	_ = V{}
++}
++
++func _[W ~B](a interface{}) {
++	_ = a.(W)["key"]
++}
+diff --git a/src/internal/types/testdata/fixedbugs/issue68935.go b/src/internal/types/testdata/fixedbugs/issue68935.go
+new file mode 100644
+index 0000000000..2e72468f05
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue68935.go
+@@ -0,0 +1,26 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A = struct {
++	F string
++	G int
++}
++
++func Make[T ~A]() T {
++	return T{
++		F: "blah",
++		G: 1234,
++	}
++}
++
++type N struct {
++	F string
++	G int
++}
++
++func _() {
++	_ = Make[N]()
++}

@@ -1,0 +1,65 @@
+commit ce94e916fe262a51c398153b03dd9a657418bbe8
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Apr 3 14:55:21 2025 +0200
+
+    internal/syscall/windows: define NtQueryInformationFile buffer as unsafe.Pointer
+    
+    The unsafe.Pointer -> uintptr conversion must happen when calling
+    syscall.Syscall, not when calling the auto-generated wrapper function,
+    else the Go compiler doesn't know that it has to keep the pointer alive.
+    
+    This can cause undefined behavior and stack corruption.
+    
+    Fixes #73135.
+    Fixes #73112 (potentially).
+    Fixes #73128 (potentially).
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race
+    Change-Id: Ib3ad8b99618d8997bfd0742c0e44aeda696856c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662575
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+---
+ src/internal/poll/fd_windows.go                  | 2 +-
+ src/internal/syscall/windows/syscall_windows.go  | 2 +-
+ src/internal/syscall/windows/zsyscall_windows.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index 1b085004ea..f94d6f49d3 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -365,7 +365,7 @@ func (fd *FD) initIO() error {
+ 			// Handle opened for overlapped I/O (aka non-blocking) that are not added
+ 			// to the runtime poller need special handling when reading and writing.
+ 			var info windows.FILE_MODE_INFORMATION
+-			if err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{}, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)), windows.FileModeInformation); err == nil {
++			if err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{}, unsafe.Pointer(&info), uint32(unsafe.Sizeof(info)), windows.FileModeInformation); err == nil {
+ 				fd.isBlocking = info.Mode&(windows.FILE_SYNCHRONOUS_IO_ALERT|windows.FILE_SYNCHRONOUS_IO_NONALERT) != 0
+ 			} else {
+ 				// If we fail to get the file mode information, assume the file is blocking.
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 67d8f512f6..2f35d83c44 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -558,4 +558,4 @@ type FILE_MODE_INFORMATION struct {
+ //sys   rtlNtStatusToDosErrorNoTeb(ntstatus NTStatus) (ret syscall.Errno) = ntdll.RtlNtStatusToDosErrorNoTeb
+ //sys   NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtSetInformationFile
+ //sys	RtlIsDosDeviceName_U(name *uint16) (ret uint32) = ntdll.RtlIsDosDeviceName_U
+-//sys   NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtQueryInformationFile
++//sys   NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtQueryInformationFile
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index aa336747f1..b9de47927d 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -522,7 +522,7 @@ func NtOpenFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, io
+ 	return
+ }
+ 
+-func NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) {
++func NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) {
+ 	r0, _, _ := syscall.Syscall6(procNtQueryInformationFile.Addr(), 5, uintptr(handle), uintptr(unsafe.Pointer(iosb)), uintptr(inBuffer), uintptr(inBufferLen), uintptr(class), 0)
+ 	if r0 != 0 {
+ 		ntstatus = NTStatus(r0)

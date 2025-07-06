@@ -1,0 +1,56 @@
+commit 485480faaac82e4179f7b56c1c370020157f25a8
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Tue Mar 11 21:14:01 2025 -0700
+
+    net: deflake recently added TestCloseUnblocksReadUDP
+    
+    Fixes #72802
+    
+    Change-Id: I0dd457ef81a354f61c9de306e4609efdbe3d69b4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656857
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Brad Fitzpatrick <bradfitz@golang.org>
+---
+ src/net/net_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/src/net/net_test.go b/src/net/net_test.go
+index 705ac45c6b..bca6c99074 100644
+--- a/src/net/net_test.go
++++ b/src/net/net_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"net/internal/socktest"
+ 	"os"
+ 	"runtime"
++	"sync"
+ 	"testing"
+ 	"time"
+ )
+@@ -511,11 +512,25 @@ func TestCloseUnblocksRead(t *testing.T) {
+ // Issue 72770: verify that a blocked UDP read is woken up by a Close.
+ func TestCloseUnblocksReadUDP(t *testing.T) {
+ 	t.Parallel()
++	var (
++		mu   sync.Mutex
++		done bool
++	)
++	defer func() {
++		mu.Lock()
++		defer mu.Unlock()
++		done = true
++	}()
+ 	pc, err := ListenPacket("udp", "127.0.0.1:0")
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	time.AfterFunc(250*time.Millisecond, func() {
++		mu.Lock()
++		defer mu.Unlock()
++		if done {
++			return
++		}
+ 		t.Logf("closing conn...")
+ 		pc.Close()
+ 	})

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40233: 6b692300a136ab92bd16ccc6134a0f19f2cd63be
+# Index 40233: d029058b5912312963225c40ae4bf44e3cb4be76
 
 echo "🚀 Generating explanation for commit 40233..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40233..."
 
 ### メタデータ
 - **コミットインデックス**: 40233
-- **コミットハッシュ**: 6b692300a136ab92bd16ccc6134a0f19f2cd63be
-- **GitHub URL**: https://github.com/golang/go/commit/6b692300a136ab92bd16ccc6134a0f19f2cd63be
+- **コミットハッシュ**: d029058b5912312963225c40ae4bf44e3cb4be76
+- **GitHub URL**: https://github.com/golang/go/commit/d029058b5912312963225c40ae4bf44e3cb4be76
 
 ### 章構成
 

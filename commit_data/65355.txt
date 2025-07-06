@@ -1,0 +1,87 @@
+commit f1add185301a55f29eac65e88caa3ae1f713e766
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Sun Nov 10 16:57:06 2024 +0100
+
+    testing: replace CRLF by LF on windows before comparing to the expected output
+    
+    Fixes #51269
+    
+    Change-Id: I06747db18ca078c1f1bda9b7bc60006f53191f4d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627035
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/go/testdata/script/test_crlf_example.txt | 39 ++++++++++++++++++++++++
+ src/testing/example.go                           |  5 +++
+ 2 files changed, 44 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/test_crlf_example.txt b/src/cmd/go/testdata/script/test_crlf_example.txt
+new file mode 100644
+index 0000000000..9c2a70aa39
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_crlf_example.txt
+@@ -0,0 +1,39 @@
++# Tests that crlf in the output of examples are handled.
++# Verifies golang.org/issue/51269
++go test x_test.go
++
++-- x_test.go --
++package  x
++
++import (
++    "io"
++    "fmt"
++    "os"
++    "runtime"
++)
++
++func Example_lf() {
++	fmt.Print("foo", "\n", "bar")
++	// Output:
++	// foo
++	// bar
++}
++
++func Example_println() {
++	fmt.Println("foo")
++	fmt.Println("bar")
++	// Output:
++	// foo
++	// bar
++}
++
++func Example_crlf() {
++	if runtime.GOOS == "windows" {
++		io.WriteString(os.Stdout, "foo\r\nbar\r\n")
++	} else {
++		io.WriteString(os.Stdout, "foo\nbar\n")
++	}
++	// Output:
++	// foo
++	// bar
++}
+diff --git a/src/testing/example.go b/src/testing/example.go
+index b14477a406..c343ae2aa2 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -6,6 +6,7 @@ package testing
+ 
+ import (
+ 	"fmt"
++	"runtime"
+ 	"slices"
+ 	"strings"
+ 	"time"
+@@ -66,6 +67,10 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
+ 	var fail string
+ 	got := strings.TrimSpace(stdout)
+ 	want := strings.TrimSpace(eg.Output)
++	if runtime.GOOS == "windows" {
++		got = strings.ReplaceAll(got, "\r\n", "\n")
++		want = strings.ReplaceAll(want, "\r\n", "\n")
++	}
+ 	if eg.Unordered {
+ 		if sortLines(got) != sortLines(want) && recovered == nil {
+ 			fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", stdout, eg.Output)

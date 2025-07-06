@@ -1,0 +1,768 @@
+commit a62566fbb9e5d96b08869634d70a4e5a34f89958
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Aug 1 16:28:24 2024 +0200
+
+    crypto/rand: remove /dev/urandom fallback and improve getrandom batching
+    
+    The fallback was reachable on
+    
+        - Linux, where starting in Go 1.24 we require a kernel with
+          getrandom(2), see #67001.
+    
+        - FreeBSD, which added getrandom(2) in FreeBSD 12.0, which we
+          require since Go 1.19.
+    
+        - OpenBSD, which added getentropy(2) in OpenBSD 5.6, and we only
+          support the latest version.
+    
+        - DragonFly BSD, which has getrandom(2) and where we support only
+          the latest version.
+    
+        - NetBSD, where we switched to kern.arandom in CL 511036, available
+          since NetBSD 4.0.
+    
+        - illumos, which has getrandom(2). (Supported versions unclear.)
+    
+        - Solaris, which had getrandom(2) at least since Oracle
+          Solaris 11.4.
+    
+        - AIX, which... ugh, fine, but that code is now in rand_aix.go.
+    
+    At the end of the day the platform-specific code is just a global
+    func(b []byte) error, so simplified the package around that assumption.
+    
+    This also includes the following change, which used to be a separate CL.
+    
+        crypto/rand: improve getrandom batching and retry logic
+    
+        The previous logic assumed getrandom never returned short, and then
+        applied stricter-than-necessary batch size limits, presumably to
+        avoid short returns.
+    
+        This was still not sufficient because above 256 bytes getrandom(2)
+        can be interrupted by a signal and return short *or* it can simply
+        return EINTR if the pool is not initialized (regardless of buffer
+        size).
+    
+        https://man.archlinux.org/man/getrandom.2#Interruption_by_a_signal_handler
+    
+        Whether this ever failed in practice is unknown: it would have been
+        masked by the /dev/urandom fallback before.
+    
+        Instead, we apply buffer size limits only where necessary (really,
+        only Solaris in practice and FreeBSD in theory) and then handle
+        gracefully short returns and EINTR.
+    
+        Change-Id: I8677b457aab68a8fb6137a3b43538efc62eb7c93
+    
+    It turns out that we now know that large getrandom calls *did* fail in
+    practice, falling back on /dev/urandom, because when we removed the
+    fallback TestBidiStreamReverseProxy with its 4KiB read started failing.
+    
+    https://cr-buildbucket.appspot.com/build/8740779846954406033
+    
+    For #66821
+    
+    Change-Id: Iaca62997604f326501a51401cdc2659c2790ff22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602495
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/rand/rand.go            | 48 ++++++++++++++++++---
+ src/crypto/rand/rand_aix.go        | 56 ++++++++++++++++++++++++
+ src/crypto/rand/rand_darwin.go     | 21 ++++-----
+ src/crypto/rand/rand_getentropy.go |  6 +--
+ src/crypto/rand/rand_getrandom.go  | 69 +++++++++++++++++-------------
+ src/crypto/rand/rand_js.go         | 24 ++---------
+ src/crypto/rand/rand_plan9.go      | 46 +++++++++-----------
+ src/crypto/rand/rand_test.go       | 81 ++++++++++++++++++++++++++++++++++-
+ src/crypto/rand/rand_unix.go       | 87 --------------------------------------
+ src/crypto/rand/rand_wasip1.go     | 16 +------
+ src/crypto/rand/rand_windows.go    | 18 ++------
+ src/net/http/clientserver_test.go  |  1 +
+ 12 files changed, 259 insertions(+), 214 deletions(-)
+
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index d16d7a1c9c..130ab60962 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -6,21 +6,55 @@
+ // random number generator.
+ package rand
+ 
+-import "io"
++import (
++	"crypto/internal/boring"
++	"io"
++	"sync/atomic"
++	"time"
++)
+ 
+ // Reader is a global, shared instance of a cryptographically
+-// secure random number generator.
++// secure random number generator. It is safe for concurrent use.
+ //
+-//   - On Linux, FreeBSD, Dragonfly, and Solaris, Reader uses getrandom(2)
+-//     if available, and /dev/urandom otherwise.
++//   - On Linux, FreeBSD, Dragonfly, and Solaris, Reader uses getrandom(2).
+ //   - On macOS and iOS, Reader uses arc4random_buf(3).
+-//   - On OpenBSD and NetBSD, Reader uses getentropy(2).
+-//   - On other Unix-like systems, Reader reads from /dev/urandom.
++//   - On OpenBSD, Reader uses getentropy(2).
++//   - On NetBSD, Reader uses the kern.arandom sysctl.
+ //   - On Windows, Reader uses the ProcessPrng API.
+ //   - On js/wasm, Reader uses the Web Crypto API.
+-//   - On wasip1/wasm, Reader uses random_get from wasi_snapshot_preview1.
++//   - On wasip1/wasm, Reader uses random_get.
+ var Reader io.Reader
+ 
++func init() {
++	if boring.Enabled {
++		Reader = boring.RandReader
++		return
++	}
++	Reader = &reader{}
++}
++
++var firstUse atomic.Bool
++
++func warnBlocked() {
++	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
++}
++
++type reader struct{}
++
++func (r *reader) Read(b []byte) (n int, err error) {
++	boring.Unreachable()
++	if firstUse.CompareAndSwap(false, true) {
++		// First use of randomness. Start timer to warn about
++		// being blocked on entropy not being available.
++		t := time.AfterFunc(time.Minute, warnBlocked)
++		defer t.Stop()
++	}
++	if err := read(b); err != nil {
++		return 0, err
++	}
++	return len(b), nil
++}
++
+ // Read is a helper function that calls Reader.Read using io.ReadFull.
+ // On return, n == len(b) if and only if err == nil.
+ func Read(b []byte) (n int, err error) {
+diff --git a/src/crypto/rand/rand_aix.go b/src/crypto/rand/rand_aix.go
+new file mode 100644
+index 0000000000..9e916488ac
+--- /dev/null
++++ b/src/crypto/rand/rand_aix.go
+@@ -0,0 +1,56 @@
++// Copyright 2010 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rand
++
++import (
++	"errors"
++	"io"
++	"os"
++	"sync"
++	"sync/atomic"
++	"syscall"
++)
++
++const urandomDevice = "/dev/urandom"
++
++var (
++	f    io.Reader
++	mu   sync.Mutex
++	used atomic.Bool
++)
++
++func read(b []byte) error {
++	if !used.Load() {
++		mu.Lock()
++		if !used.Load() {
++			dev, err := os.Open(urandomDevice)
++			if err != nil {
++				mu.Unlock()
++				return err
++			}
++			f = hideAgainReader{dev}
++			used.Store(true)
++		}
++		mu.Unlock()
++	}
++	if _, err := io.ReadFull(f, b); err != nil {
++		return err
++	}
++	return nil
++}
++
++// hideAgainReader masks EAGAIN reads from /dev/urandom.
++// See golang.org/issue/9205.
++type hideAgainReader struct {
++	r io.Reader
++}
++
++func (hr hideAgainReader) Read(p []byte) (n int, err error) {
++	n, err = hr.r.Read(p)
++	if errors.Is(err, syscall.EAGAIN) {
++		err = nil
++	}
++	return
++}
+diff --git a/src/crypto/rand/rand_darwin.go b/src/crypto/rand/rand_darwin.go
+index 363ad69ec4..abbfec87cb 100644
+--- a/src/crypto/rand/rand_darwin.go
++++ b/src/crypto/rand/rand_darwin.go
+@@ -6,14 +6,15 @@ package rand
+ 
+ import "internal/syscall/unix"
+ 
+-func init() {
+-	// arc4random_buf is the recommended application CSPRNG, accepts buffers of
+-	// any size, and never returns an error.
+-	//
+-	// "The subsystem is re-seeded from the kernel random number subsystem on a
+-	// regular basis, and also upon fork(2)." - arc4random(3)
+-	//
+-	// Note that despite its legacy name, it uses a secure CSPRNG (not RC4) in
+-	// all supported macOS versions.
+-	altGetRandom = func(b []byte) error { unix.ARC4Random(b); return nil }
++// arc4random_buf is the recommended application CSPRNG, accepts buffers of
++// any size, and never returns an error.
++//
++// "The subsystem is re-seeded from the kernel random number subsystem on a
++// regular basis, and also upon fork(2)." - arc4random(3)
++//
++// Note that despite its legacy name, it uses a secure CSPRNG (not RC4) in
++// all supported macOS versions.
++func read(b []byte) error {
++	unix.ARC4Random(b)
++	return nil
+ }
+diff --git a/src/crypto/rand/rand_getentropy.go b/src/crypto/rand/rand_getentropy.go
+index 855716c83d..47320133e5 100644
+--- a/src/crypto/rand/rand_getentropy.go
++++ b/src/crypto/rand/rand_getentropy.go
+@@ -8,7 +8,5 @@ package rand
+ 
+ import "internal/syscall/unix"
+ 
+-func init() {
+-	// getentropy(2) returns a maximum of 256 bytes per call.
+-	altGetRandom = batched(unix.GetEntropy, 256)
+-}
++// getentropy(2) returns a maximum of 256 bytes per call.
++var read = batched(unix.GetEntropy, 256)
+diff --git a/src/crypto/rand/rand_getrandom.go b/src/crypto/rand/rand_getrandom.go
+index 09e9ae82b0..d53c2180ed 100644
+--- a/src/crypto/rand/rand_getrandom.go
++++ b/src/crypto/rand/rand_getrandom.go
+@@ -7,42 +7,53 @@
+ package rand
+ 
+ import (
++	"errors"
+ 	"internal/syscall/unix"
++	"math"
+ 	"runtime"
+ 	"syscall"
+ )
+ 
+-func init() {
+-	var maxGetRandomRead int
+-	switch runtime.GOOS {
+-	case "linux", "android":
+-		// Per the manpage:
+-		//     When reading from the urandom source, a maximum of 33554431 bytes
+-		//     is returned by a single call to getrandom() on systems where int
+-		//     has a size of 32 bits.
+-		maxGetRandomRead = (1 << 25) - 1
+-	case "dragonfly", "freebsd", "illumos", "solaris":
+-		maxGetRandomRead = 1 << 8
+-	default:
+-		panic("no maximum specified for GetRandom")
+-	}
+-	altGetRandom = batched(getRandom, maxGetRandomRead)
+-}
++func read(b []byte) error {
++	// Linux, DragonFly, and illumos don't have a limit on the buffer size.
++	// FreeBSD has a limit of IOSIZE_MAX, which seems to be either INT_MAX or
++	// SSIZE_MAX. 2^31-1 is a safe and high enough value to use for all of them.
++	//
++	// Note that Linux returns "a maximum of 32Mi-1 bytes", but that will only
++	// result in a short read, not an error. Short reads can also happen above
++	// 256 bytes due to signals. Reads up to 256 bytes are guaranteed not to
++	// return short (and not to return an error IF THE POOL IS INITIALIZED) on
++	// at least Linux, FreeBSD, DragonFly, and Oracle Solaris, but we don't make
++	// use of that.
++	maxSize := math.MaxInt32
+ 
+-// If the kernel is too old to support the getrandom syscall(),
+-// unix.GetRandom will immediately return ENOSYS and we will then fall back to
+-// reading from /dev/urandom in rand_unix.go. unix.GetRandom caches the ENOSYS
+-// result so we only suffer the syscall overhead once in this case.
+-// If the kernel supports the getrandom() syscall, unix.GetRandom will block
+-// until the kernel has sufficient randomness (as we don't use GRND_NONBLOCK).
+-// In this case, unix.GetRandom will not return an error.
+-func getRandom(p []byte) error {
+-	n, err := unix.GetRandom(p, 0)
+-	if err != nil {
+-		return err
++	// Oracle Solaris has a limit of 133120 bytes. Very specific.
++	//
++	//    The getrandom() and getentropy() functions fail if: [...]
++	//
++	//    - bufsz is <= 0 or > 133120, when GRND_RANDOM is not set
++	//
++	// https://docs.oracle.com/cd/E88353_01/html/E37841/getrandom-2.html
++	if runtime.GOOS == "solaris" {
++		maxSize = 133120
+ 	}
+-	if n != len(p) {
+-		return syscall.EIO
++
++	for len(b) > 0 {
++		size := len(b)
++		if size > maxSize {
++			size = maxSize
++		}
++		n, err := unix.GetRandom(b[:size], 0)
++		if errors.Is(err, syscall.EINTR) {
++			// If getrandom(2) is blocking, either because it is waiting for the
++			// entropy pool to become initialized or because we requested more
++			// than 256 bytes, it might get interrupted by a signal.
++			continue
++		}
++		if err != nil {
++			return err
++		}
++		b = b[n:]
+ 	}
+ 	return nil
+ }
+diff --git a/src/crypto/rand/rand_js.go b/src/crypto/rand/rand_js.go
+index d8fe81580b..3345e4874a 100644
+--- a/src/crypto/rand/rand_js.go
++++ b/src/crypto/rand/rand_js.go
+@@ -2,8 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build js && wasm
+-
+ package rand
+ 
+ import "syscall/js"
+@@ -12,27 +10,13 @@ import "syscall/js"
+ // https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues#exceptions
+ const maxGetRandomRead = 64 << 10
+ 
+-var batchedGetRandom func([]byte) error
+-
+-func init() {
+-	Reader = &reader{}
+-	batchedGetRandom = batched(getRandom, maxGetRandomRead)
+-}
+-
+-var jsCrypto = js.Global().Get("crypto")
+-var uint8Array = js.Global().Get("Uint8Array")
+-
+-// reader implements a pseudorandom generator
++// read implements a pseudorandom generator
+ // using JavaScript crypto.getRandomValues method.
+ // See https://developer.mozilla.org/en-US/docs/Web/API/Crypto/getRandomValues.
+-type reader struct{}
++var read = batched(getRandom, maxGetRandomRead)
+ 
+-func (r *reader) Read(b []byte) (int, error) {
+-	if err := batchedGetRandom(b); err != nil {
+-		return 0, err
+-	}
+-	return len(b), nil
+-}
++var jsCrypto = js.Global().Get("crypto")
++var uint8Array = js.Global().Get("Uint8Array")
+ 
+ func getRandom(b []byte) error {
+ 	a := uint8Array.New(len(b))
+diff --git a/src/crypto/rand/rand_plan9.go b/src/crypto/rand/rand_plan9.go
+index d5320210fd..0614d85ba7 100644
+--- a/src/crypto/rand/rand_plan9.go
++++ b/src/crypto/rand/rand_plan9.go
+@@ -2,9 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Plan9 cryptographically secure pseudorandom number
+-// generator.
+-
+ package rand
+ 
+ import (
+@@ -18,44 +15,40 @@ import (
+ 
+ const randomDevice = "/dev/random"
+ 
+-func init() {
+-	Reader = &reader{}
+-}
++// This is a pseudorandom generator that seeds itself by reading from
++// /dev/random. The read function always returns the full amount asked for, or
++// else it returns an error. The generator is a fast key erasure RNG.
+ 
+-// reader is a new pseudorandom generator that seeds itself by
+-// reading from /dev/random. The Read method on the returned
+-// reader always returns the full amount asked for, or else it
+-// returns an error. The generator is a fast key erasure RNG.
+-type reader struct {
++var (
+ 	mu      sync.Mutex
+ 	seeded  sync.Once
+ 	seedErr error
+ 	key     [32]byte
+-}
++)
+ 
+-func (r *reader) Read(b []byte) (n int, err error) {
+-	r.seeded.Do(func() {
++func read(b []byte) error {
++	seeded.Do(func() {
+ 		t := time.AfterFunc(time.Minute, func() {
+ 			println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+ 		})
+ 		defer t.Stop()
+ 		entropy, err := os.Open(randomDevice)
+ 		if err != nil {
+-			r.seedErr = err
++			seedErr = err
+ 			return
+ 		}
+ 		defer entropy.Close()
+-		_, r.seedErr = io.ReadFull(entropy, r.key[:])
++		_, seedErr = io.ReadFull(entropy, key[:])
+ 	})
+-	if r.seedErr != nil {
+-		return 0, r.seedErr
++	if seedErr != nil {
++		return seedErr
+ 	}
+ 
+-	r.mu.Lock()
+-	blockCipher, err := aes.NewCipher(r.key[:])
++	mu.Lock()
++	blockCipher, err := aes.NewCipher(key[:])
+ 	if err != nil {
+-		r.mu.Unlock()
+-		return 0, err
++		mu.Unlock()
++		return err
+ 	}
+ 	var (
+ 		counter uint64
+@@ -68,13 +61,12 @@ func (r *reader) Read(b []byte) (n int, err error) {
+ 		}
+ 		byteorder.LePutUint64(block[:], counter)
+ 	}
+-	blockCipher.Encrypt(r.key[:aes.BlockSize], block[:])
++	blockCipher.Encrypt(key[:aes.BlockSize], block[:])
+ 	inc()
+-	blockCipher.Encrypt(r.key[aes.BlockSize:], block[:])
++	blockCipher.Encrypt(key[aes.BlockSize:], block[:])
+ 	inc()
+-	r.mu.Unlock()
++	mu.Unlock()
+ 
+-	n = len(b)
+ 	for len(b) >= aes.BlockSize {
+ 		blockCipher.Encrypt(b[:aes.BlockSize], block[:])
+ 		inc()
+@@ -84,5 +76,5 @@ func (r *reader) Read(b []byte) (n int, err error) {
+ 		blockCipher.Encrypt(block[:], block[:])
+ 		copy(b, block[:])
+ 	}
+-	return n, nil
++	return nil
+ }
+diff --git a/src/crypto/rand/rand_test.go b/src/crypto/rand/rand_test.go
+index ec6e8a24d9..35a7d59338 100644
+--- a/src/crypto/rand/rand_test.go
++++ b/src/crypto/rand/rand_test.go
+@@ -2,12 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package rand
++package rand_test
+ 
+ import (
+ 	"bytes"
+ 	"compress/flate"
++	. "crypto/rand"
+ 	"io"
++	"sync"
+ 	"testing"
+ )
+ 
+@@ -31,6 +33,38 @@ func TestRead(t *testing.T) {
+ 	}
+ }
+ 
++func TestReadLoops(t *testing.T) {
++	b := make([]byte, 1)
++	for {
++		n, err := Read(b)
++		if n != 1 || err != nil {
++			t.Fatalf("Read(b) = %d, %v", n, err)
++		}
++		if b[0] == 42 {
++			break
++		}
++	}
++	for {
++		n, err := Read(b)
++		if n != 1 || err != nil {
++			t.Fatalf("Read(b) = %d, %v", n, err)
++		}
++		if b[0] == 0 {
++			break
++		}
++	}
++}
++
++func TestLargeRead(t *testing.T) {
++	// 40MiB, more than the documented maximum of 32Mi-1 on Linux 32-bit.
++	b := make([]byte, 40<<20)
++	if n, err := Read(b); err != nil {
++		t.Fatal(err)
++	} else if n != len(b) {
++		t.Fatalf("Read(b) = %d, want %d", n, len(b))
++	}
++}
++
+ func TestReadEmpty(t *testing.T) {
+ 	n, err := Reader.Read(make([]byte, 0))
+ 	if n != 0 || err != nil {
+@@ -42,6 +76,51 @@ func TestReadEmpty(t *testing.T) {
+ 	}
+ }
+ 
++type readerFunc func([]byte) (int, error)
++
++func (f readerFunc) Read(b []byte) (int, error) {
++	return f(b)
++}
++
++func TestReadUsesReader(t *testing.T) {
++	var called bool
++	defer func(r io.Reader) { Reader = r }(Reader)
++	Reader = readerFunc(func(b []byte) (int, error) {
++		called = true
++		return len(b), nil
++	})
++	n, err := Read(make([]byte, 32))
++	if n != 32 || err != nil {
++		t.Fatalf("Read(make([]byte, 32)) = %d, %v", n, err)
++	}
++	if !called {
++		t.Error("Read did not use Reader")
++	}
++}
++
++func TestConcurrentRead(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping in short mode")
++	}
++	const N = 100
++	const M = 1000
++	var wg sync.WaitGroup
++	wg.Add(N)
++	for i := 0; i < N; i++ {
++		go func() {
++			defer wg.Done()
++			for i := 0; i < M; i++ {
++				b := make([]byte, 32)
++				n, err := Read(b)
++				if n != 32 || err != nil {
++					t.Errorf("Read = %d, %v", n, err)
++				}
++			}
++		}()
++	}
++	wg.Wait()
++}
++
+ func BenchmarkRead(b *testing.B) {
+ 	b.Run("4", func(b *testing.B) {
+ 		benchmarkRead(b, 4)
+diff --git a/src/crypto/rand/rand_unix.go b/src/crypto/rand/rand_unix.go
+deleted file mode 100644
+index 40fce36314..0000000000
+--- a/src/crypto/rand/rand_unix.go
++++ /dev/null
+@@ -1,87 +0,0 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build unix
+-
+-// Unix cryptographically secure pseudorandom number
+-// generator.
+-
+-package rand
+-
+-import (
+-	"crypto/internal/boring"
+-	"errors"
+-	"io"
+-	"os"
+-	"sync"
+-	"sync/atomic"
+-	"syscall"
+-	"time"
+-)
+-
+-const urandomDevice = "/dev/urandom"
+-
+-func init() {
+-	if boring.Enabled {
+-		Reader = boring.RandReader
+-		return
+-	}
+-	Reader = &reader{}
+-}
+-
+-// A reader satisfies reads by reading from urandomDevice
+-type reader struct {
+-	f    io.Reader
+-	mu   sync.Mutex
+-	used atomic.Uint32 // Atomic: 0 - never used, 1 - used, but f == nil, 2 - used, and f != nil
+-}
+-
+-// altGetRandom if non-nil specifies an OS-specific function to get
+-// urandom-style randomness.
+-var altGetRandom func([]byte) (err error)
+-
+-func warnBlocked() {
+-	println("crypto/rand: blocked for 60 seconds waiting to read random data from the kernel")
+-}
+-
+-func (r *reader) Read(b []byte) (n int, err error) {
+-	boring.Unreachable()
+-	if r.used.CompareAndSwap(0, 1) {
+-		// First use of randomness. Start timer to warn about
+-		// being blocked on entropy not being available.
+-		t := time.AfterFunc(time.Minute, warnBlocked)
+-		defer t.Stop()
+-	}
+-	if altGetRandom != nil && altGetRandom(b) == nil {
+-		return len(b), nil
+-	}
+-	if r.used.Load() != 2 {
+-		r.mu.Lock()
+-		if r.used.Load() != 2 {
+-			f, err := os.Open(urandomDevice)
+-			if err != nil {
+-				r.mu.Unlock()
+-				return 0, err
+-			}
+-			r.f = hideAgainReader{f}
+-			r.used.Store(2)
+-		}
+-		r.mu.Unlock()
+-	}
+-	return io.ReadFull(r.f, b)
+-}
+-
+-// hideAgainReader masks EAGAIN reads from /dev/urandom.
+-// See golang.org/issue/9205
+-type hideAgainReader struct {
+-	r io.Reader
+-}
+-
+-func (hr hideAgainReader) Read(p []byte) (n int, err error) {
+-	n, err = hr.r.Read(p)
+-	if errors.Is(err, syscall.EAGAIN) {
+-		err = nil
+-	}
+-	return
+-}
+diff --git a/src/crypto/rand/rand_wasip1.go b/src/crypto/rand/rand_wasip1.go
+index 984f99d4c3..3ffc18d203 100644
+--- a/src/crypto/rand/rand_wasip1.go
++++ b/src/crypto/rand/rand_wasip1.go
+@@ -2,26 +2,14 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build wasip1
+-
+ package rand
+ 
+ import "syscall"
+ 
+-func init() {
+-	Reader = &reader{}
+-}
+-
+-type reader struct{}
+-
+-func (r *reader) Read(b []byte) (int, error) {
++func read(b []byte) error {
+ 	// This uses the wasi_snapshot_preview1 random_get syscall defined in
+ 	// https://github.com/WebAssembly/WASI/blob/23a52736049f4327dd335434851d5dc40ab7cad1/legacy/preview1/docs.md#-random_getbuf-pointeru8-buf_len-size---result-errno.
+ 	// The definition does not explicitly guarantee that the entire buffer will
+ 	// be filled, but this appears to be the case in all runtimes tested.
+-	err := syscall.RandomGet(b)
+-	if err != nil {
+-		return 0, err
+-	}
+-	return len(b), nil
++	return syscall.RandomGet(b)
+ }
+diff --git a/src/crypto/rand/rand_windows.go b/src/crypto/rand/rand_windows.go
+index 7380f1f0f1..ef513ffca0 100644
+--- a/src/crypto/rand/rand_windows.go
++++ b/src/crypto/rand/rand_windows.go
+@@ -2,22 +2,10 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Windows cryptographically secure pseudorandom number
+-// generator.
+-
+ package rand
+ 
+-import (
+-	"internal/syscall/windows"
+-)
+-
+-func init() { Reader = &rngReader{} }
+-
+-type rngReader struct{}
++import "internal/syscall/windows"
+ 
+-func (r *rngReader) Read(b []byte) (int, error) {
+-	if err := windows.ProcessPrng(b); err != nil {
+-		return 0, err
+-	}
+-	return len(b), nil
++func read(b []byte) error {
++	return windows.ProcessPrng(b)
+ }
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 3734e28afb..606715a25c 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1598,6 +1598,7 @@ func testBidiStreamReverseProxy(t *testing.T, mode testMode) {
+ 		_, err := io.CopyN(io.MultiWriter(h, pw), rand.Reader, size)
+ 		go pw.Close()
+ 		if err != nil {
++			t.Errorf("body copy: %v", err)
+ 			bodyRes <- err
+ 		} else {
+ 			bodyRes <- h

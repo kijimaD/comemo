@@ -1,0 +1,594 @@
+commit 03e5d83ca7323e354dfff6ba50720302ed835b7c
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Aug 5 13:40:18 2024 -0400
+
+    cmd/internal/obj: minor refactor of wasmimport code
+    
+    This CL does some minor refactoring of the code handling
+    wasmimport.
+    - Put the WasmImport aux reading and writing code together for
+      symmetry.
+    - Define WasmFuncType, embedded in WasmImport. WasmFuncType could
+      also be used (later) for wasmexport.
+    - Move code generation code to a separate function. The containing
+      function is already pretty large.
+    - Simplify linker code a little bit. The loader convention is to
+      return the 0 Sym for nonexistent symbol, instead of a separate
+      boolean.
+    
+    No change in generated code. Passes toolstash -cmp
+    (GOARCH=wasm GOOS=wasip1 go build -toolexec "toolstash -cmp" -a std cmd).
+    
+    Change-Id: Idc2514f84a08621333841ae4034b81130e0ce411
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603135
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/internal/obj/link.go           | 114 ++++++++++++++---
+ src/cmd/internal/obj/objfile.go        |  13 +-
+ src/cmd/internal/obj/sym.go            |   5 +-
+ src/cmd/internal/obj/wasm/wasmobj.go   | 216 +++++++++++++++++----------------
+ src/cmd/link/internal/loader/loader.go |  14 +--
+ src/cmd/link/internal/wasm/asm.go      |  54 +--------
+ 6 files changed, 222 insertions(+), 194 deletions(-)
+
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 647a459d59..27626d9deb 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -32,6 +32,7 @@ package obj
+ 
+ import (
+ 	"bufio"
++	"bytes"
+ 	"cmd/internal/dwarf"
+ 	"cmd/internal/goobj"
+ 	"cmd/internal/objabi"
+@@ -496,9 +497,9 @@ type FuncInfo struct {
+ 	WrapInfo           *LSym // for wrapper, info of wrapped function
+ 	JumpTables         []JumpTable
+ 
+-	FuncInfoSym   *LSym
+-	WasmImportSym *LSym
+-	WasmImport    *WasmImport
++	FuncInfoSym *LSym
++
++	WasmImport *WasmImport
+ 
+ 	sehUnwindInfoSym *LSym
+ }
+@@ -609,45 +610,118 @@ type WasmImport struct {
+ 	// Name holds the WASM imported function name specified by the
+ 	// //go:wasmimport directive.
+ 	Name string
++
++	WasmFuncType // type of the imported function
++
++	// aux symbol to pass metadata to the linker, serialization of
++	// the fields above.
++	AuxSym *LSym
++}
++
++func (wi *WasmImport) CreateAuxSym() {
++	var b bytes.Buffer
++	wi.Write(&b)
++	p := b.Bytes()
++	wi.AuxSym = &LSym{
++		Type: objabi.SDATA, // doesn't really matter
++		P:    append([]byte(nil), p...),
++		Size: int64(len(p)),
++	}
++}
++
++func (wi *WasmImport) Write(w *bytes.Buffer) {
++	var b [8]byte
++	writeUint32 := func(x uint32) {
++		binary.LittleEndian.PutUint32(b[:], x)
++		w.Write(b[:4])
++	}
++	writeString := func(s string) {
++		writeUint32(uint32(len(s)))
++		w.WriteString(s)
++	}
++	writeString(wi.Module)
++	writeString(wi.Name)
++	wi.WasmFuncType.Write(w)
++}
++
++func (wi *WasmImport) Read(b []byte) {
++	readUint32 := func() uint32 {
++		x := binary.LittleEndian.Uint32(b)
++		b = b[4:]
++		return x
++	}
++	readString := func() string {
++		n := readUint32()
++		s := string(b[:n])
++		b = b[n:]
++		return s
++	}
++	wi.Module = readString()
++	wi.Name = readString()
++	wi.WasmFuncType.Read(b)
++}
++
++// WasmFuncType represents a WebAssembly (WASM) function type with
++// parameters and results translated into WASM types based on the Go function
++// declaration.
++type WasmFuncType struct {
+ 	// Params holds the imported function parameter fields.
+ 	Params []WasmField
+ 	// Results holds the imported function result fields.
+ 	Results []WasmField
+ }
+ 
+-func (wi *WasmImport) CreateSym(ctxt *Link) *LSym {
+-	var sym LSym
+-
++func (ft *WasmFuncType) Write(w *bytes.Buffer) {
+ 	var b [8]byte
+ 	writeByte := func(x byte) {
+-		sym.WriteBytes(ctxt, sym.Size, []byte{x})
++		w.WriteByte(x)
+ 	}
+ 	writeUint32 := func(x uint32) {
+ 		binary.LittleEndian.PutUint32(b[:], x)
+-		sym.WriteBytes(ctxt, sym.Size, b[:4])
++		w.Write(b[:4])
+ 	}
+ 	writeInt64 := func(x int64) {
+ 		binary.LittleEndian.PutUint64(b[:], uint64(x))
+-		sym.WriteBytes(ctxt, sym.Size, b[:])
+-	}
+-	writeString := func(s string) {
+-		writeUint32(uint32(len(s)))
+-		sym.WriteString(ctxt, sym.Size, len(s), s)
++		w.Write(b[:])
+ 	}
+-	writeString(wi.Module)
+-	writeString(wi.Name)
+-	writeUint32(uint32(len(wi.Params)))
+-	for _, f := range wi.Params {
++	writeUint32(uint32(len(ft.Params)))
++	for _, f := range ft.Params {
+ 		writeByte(byte(f.Type))
+ 		writeInt64(f.Offset)
+ 	}
+-	writeUint32(uint32(len(wi.Results)))
+-	for _, f := range wi.Results {
++	writeUint32(uint32(len(ft.Results)))
++	for _, f := range ft.Results {
+ 		writeByte(byte(f.Type))
+ 		writeInt64(f.Offset)
+ 	}
++}
+ 
+-	return &sym
++func (ft *WasmFuncType) Read(b []byte) {
++	readByte := func() byte {
++		x := b[0]
++		b = b[1:]
++		return x
++	}
++	readUint32 := func() uint32 {
++		x := binary.LittleEndian.Uint32(b)
++		b = b[4:]
++		return x
++	}
++	readInt64 := func() int64 {
++		x := binary.LittleEndian.Uint64(b)
++		b = b[8:]
++		return int64(x)
++	}
++	ft.Params = make([]WasmField, readUint32())
++	for i := range ft.Params {
++		ft.Params[i].Type = WasmFieldType(readByte())
++		ft.Params[i].Offset = int64(readInt64())
++	}
++	ft.Results = make([]WasmField, readUint32())
++	for i := range ft.Results {
++		ft.Results[i].Type = WasmFieldType(readByte())
++		ft.Results[i].Offset = int64(readInt64())
++	}
+ }
+ 
+ type WasmField struct {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 2ed98cb577..cbdc5a3486 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -621,11 +621,11 @@ func (w *writer) Aux(s *LSym) {
+ 		for _, pcSym := range fn.Pcln.Pcdata {
+ 			w.aux1(goobj.AuxPcdata, pcSym)
+ 		}
+-		if fn.WasmImportSym != nil {
+-			if fn.WasmImportSym.Size == 0 {
++		if fn.WasmImport != nil {
++			if fn.WasmImport.AuxSym.Size == 0 {
+ 				panic("wasmimport aux sym must have non-zero size")
+ 			}
+-			w.aux1(goobj.AuxWasmImport, fn.WasmImportSym)
++			w.aux1(goobj.AuxWasmImport, fn.WasmImport.AuxSym)
+ 		}
+ 	} else if v := s.VarInfo(); v != nil {
+ 		if v.dwarfInfoSym != nil && v.dwarfInfoSym.Size != 0 {
+@@ -732,7 +732,7 @@ func nAuxSym(s *LSym) int {
+ 		}
+ 		n += len(fn.Pcln.Pcdata)
+ 		if fn.WasmImport != nil {
+-			if fn.WasmImportSym == nil || fn.WasmImportSym.Size == 0 {
++			if fn.WasmImport.AuxSym == nil || fn.WasmImport.AuxSym.Size == 0 {
+ 				panic("wasmimport aux sym must exist and have non-zero size")
+ 			}
+ 			n++
+@@ -797,7 +797,10 @@ func genFuncInfoSyms(ctxt *Link) {
+ 		fn.FuncInfoSym = isym
+ 		b.Reset()
+ 
+-		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym, fn.WasmImportSym}
++		auxsyms := []*LSym{fn.dwarfRangesSym, fn.dwarfLocSym, fn.dwarfDebugLinesSym, fn.dwarfInfoSym}
++		if wi := fn.WasmImport; wi != nil {
++			auxsyms = append(auxsyms, wi.AuxSym)
++		}
+ 		for _, s := range auxsyms {
+ 			if s == nil || s.Size == 0 {
+ 				continue
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 22153050f2..d2e61832ba 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -458,7 +458,10 @@ func (ctxt *Link) traverseFuncAux(flag traverseFlag, fsym *LSym, fn func(parent
+ 		}
+ 	}
+ 
+-	auxsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym, fninfo.WasmImportSym, fninfo.sehUnwindInfoSym}
++	auxsyms := []*LSym{fninfo.dwarfRangesSym, fninfo.dwarfLocSym, fninfo.dwarfDebugLinesSym, fninfo.dwarfInfoSym, fninfo.sehUnwindInfoSym}
++	if wi := fninfo.WasmImport; wi != nil {
++		auxsyms = append(auxsyms, wi.AuxSym)
++	}
+ 	for _, s := range auxsyms {
+ 		if s == nil || s.Size == 0 {
+ 			continue
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 23f51f8b42..dcbf35e886 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -188,111 +188,8 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	// If the function exits just to call out to a wasmimport, then
+ 	// generate the code to translate from our internal Go-stack
+ 	// based call convention to the native webassembly call convention.
+-	if wi := s.Func().WasmImport; wi != nil {
+-		s.Func().WasmImportSym = wi.CreateSym(ctxt)
+-		p := s.Func().Text
+-		if p.Link != nil {
+-			panic("wrapper functions for WASM imports should not have a body")
+-		}
+-		to := obj.Addr{
+-			Type: obj.TYPE_MEM,
+-			Name: obj.NAME_EXTERN,
+-			Sym:  s,
+-		}
+-
+-		// If the module that the import is for is our magic "gojs" module, then this
+-		// indicates that the called function understands the Go stack-based call convention
+-		// so we just pass the stack pointer to it, knowing it will read the params directly
+-		// off the stack and push the results into memory based on the stack pointer.
+-		if wi.Module == GojsModule {
+-			// The called function has a signature of 'func(sp int)'. It has access to the memory
+-			// value somewhere to be able to address the memory based on the "sp" value.
+-
+-			p = appendp(p, AGet, regAddr(REG_SP))
+-			p = appendp(p, ACall, to)
+-
+-			p.Mark = WasmImport
+-		} else {
+-			if len(wi.Results) > 1 {
+-				// TODO(evanphx) implement support for the multi-value proposal:
+-				// https://github.com/WebAssembly/multi-value/blob/master/proposals/multi-value/Overview.md
+-				panic("invalid results type") // impossible until multi-value proposal has landed
+-			}
+-			if len(wi.Results) == 1 {
+-				// If we have a result (rather than returning nothing at all), then
+-				// we'll write the result to the Go stack relative to the current stack pointer.
+-				// We cache the current stack pointer value on the wasm stack here and then use
+-				// it after the Call instruction to store the result.
+-				p = appendp(p, AGet, regAddr(REG_SP))
+-			}
+-			for _, f := range wi.Params {
+-				// Each load instructions will consume the value of sp on the stack, so
+-				// we need to read sp for each param. WASM appears to not have a stack dup instruction
+-				// (a strange omission for a stack-based VM), if it did, we'd be using the dup here.
+-				p = appendp(p, AGet, regAddr(REG_SP))
+-
+-				// Offset is the location of the param on the Go stack (ie relative to sp).
+-				// Because of our call convention, the parameters are located an additional 8 bytes
+-				// from sp because we store the return address as an int64 at the bottom of the stack.
+-				// Ie the stack looks like [return_addr, param3, param2, param1, etc]
+-
+-				// Ergo, we add 8 to the true byte offset of the param to skip the return address.
+-				loadOffset := f.Offset + 8
+-
+-				// We're reading the value from the Go stack onto the WASM stack and leaving it there
+-				// for CALL to pick them up.
+-				switch f.Type {
+-				case obj.WasmI32:
+-					p = appendp(p, AI32Load, constAddr(loadOffset))
+-				case obj.WasmI64:
+-					p = appendp(p, AI64Load, constAddr(loadOffset))
+-				case obj.WasmF32:
+-					p = appendp(p, AF32Load, constAddr(loadOffset))
+-				case obj.WasmF64:
+-					p = appendp(p, AF64Load, constAddr(loadOffset))
+-				case obj.WasmPtr:
+-					p = appendp(p, AI64Load, constAddr(loadOffset))
+-					p = appendp(p, AI32WrapI64)
+-				default:
+-					panic("bad param type")
+-				}
+-			}
+-
+-			// The call instruction is marked as being for a wasm import so that a later phase
+-			// will generate relocation information that allows us to patch this with then
+-			// offset of the imported function in the wasm imports.
+-			p = appendp(p, ACall, to)
+-			p.Mark = WasmImport
+-
+-			if len(wi.Results) == 1 {
+-				f := wi.Results[0]
+-
+-				// Much like with the params, we need to adjust the offset we store the result value
+-				// to by 8 bytes to account for the return address on the Go stack.
+-				storeOffset := f.Offset + 8
+-
+-				// This code is paired the code above that reads the stack pointer onto the wasm
+-				// stack. We've done this so we have a consistent view of the sp value as it might
+-				// be manipulated by the call and we want to ignore that manipulation here.
+-				switch f.Type {
+-				case obj.WasmI32:
+-					p = appendp(p, AI32Store, constAddr(storeOffset))
+-				case obj.WasmI64:
+-					p = appendp(p, AI64Store, constAddr(storeOffset))
+-				case obj.WasmF32:
+-					p = appendp(p, AF32Store, constAddr(storeOffset))
+-				case obj.WasmF64:
+-					p = appendp(p, AF64Store, constAddr(storeOffset))
+-				case obj.WasmPtr:
+-					p = appendp(p, AI64ExtendI32U)
+-					p = appendp(p, AI64Store, constAddr(storeOffset))
+-				default:
+-					panic("bad result type")
+-				}
+-			}
+-		}
+-
+-		p = appendp(p, obj.ARET)
++	if s.Func().WasmImport != nil {
++		genWasmImportWrapper(s, appendp)
+ 
+ 		// It should be 0 already, but we'll set it to 0 anyway just to be sure
+ 		// that the code below which adds frame expansion code to the function body
+@@ -894,6 +791,115 @@ func preprocess(ctxt *obj.Link, s *obj.LSym, newprog obj.ProgAlloc) {
+ 	}
+ }
+ 
++// Generate function body for wasmimport wrapper function.
++func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args ...obj.Addr) *obj.Prog) {
++	wi := s.Func().WasmImport
++	wi.CreateAuxSym()
++	p := s.Func().Text
++	if p.Link != nil {
++		panic("wrapper functions for WASM imports should not have a body")
++	}
++	to := obj.Addr{
++		Type: obj.TYPE_MEM,
++		Name: obj.NAME_EXTERN,
++		Sym:  s,
++	}
++
++	// If the module that the import is for is our magic "gojs" module, then this
++	// indicates that the called function understands the Go stack-based call convention
++	// so we just pass the stack pointer to it, knowing it will read the params directly
++	// off the stack and push the results into memory based on the stack pointer.
++	if wi.Module == GojsModule {
++		// The called function has a signature of 'func(sp int)'. It has access to the memory
++		// value somewhere to be able to address the memory based on the "sp" value.
++
++		p = appendp(p, AGet, regAddr(REG_SP))
++		p = appendp(p, ACall, to)
++
++		p.Mark = WasmImport
++	} else {
++		if len(wi.Results) > 1 {
++			// TODO(evanphx) implement support for the multi-value proposal:
++			// https://github.com/WebAssembly/multi-value/blob/master/proposals/multi-value/Overview.md
++			panic("invalid results type") // impossible until multi-value proposal has landed
++		}
++		if len(wi.Results) == 1 {
++			// If we have a result (rather than returning nothing at all), then
++			// we'll write the result to the Go stack relative to the current stack pointer.
++			// We cache the current stack pointer value on the wasm stack here and then use
++			// it after the Call instruction to store the result.
++			p = appendp(p, AGet, regAddr(REG_SP))
++		}
++		for _, f := range wi.Params {
++			// Each load instructions will consume the value of sp on the stack, so
++			// we need to read sp for each param. WASM appears to not have a stack dup instruction
++			// (a strange omission for a stack-based VM), if it did, we'd be using the dup here.
++			p = appendp(p, AGet, regAddr(REG_SP))
++
++			// Offset is the location of the param on the Go stack (ie relative to sp).
++			// Because of our call convention, the parameters are located an additional 8 bytes
++			// from sp because we store the return address as an int64 at the bottom of the stack.
++			// Ie the stack looks like [return_addr, param3, param2, param1, etc]
++
++			// Ergo, we add 8 to the true byte offset of the param to skip the return address.
++			loadOffset := f.Offset + 8
++
++			// We're reading the value from the Go stack onto the WASM stack and leaving it there
++			// for CALL to pick them up.
++			switch f.Type {
++			case obj.WasmI32:
++				p = appendp(p, AI32Load, constAddr(loadOffset))
++			case obj.WasmI64:
++				p = appendp(p, AI64Load, constAddr(loadOffset))
++			case obj.WasmF32:
++				p = appendp(p, AF32Load, constAddr(loadOffset))
++			case obj.WasmF64:
++				p = appendp(p, AF64Load, constAddr(loadOffset))
++			case obj.WasmPtr:
++				p = appendp(p, AI64Load, constAddr(loadOffset))
++				p = appendp(p, AI32WrapI64)
++			default:
++				panic("bad param type")
++			}
++		}
++
++		// The call instruction is marked as being for a wasm import so that a later phase
++		// will generate relocation information that allows us to patch this with then
++		// offset of the imported function in the wasm imports.
++		p = appendp(p, ACall, to)
++		p.Mark = WasmImport
++
++		if len(wi.Results) == 1 {
++			f := wi.Results[0]
++
++			// Much like with the params, we need to adjust the offset we store the result value
++			// to by 8 bytes to account for the return address on the Go stack.
++			storeOffset := f.Offset + 8
++
++			// This code is paired the code above that reads the stack pointer onto the wasm
++			// stack. We've done this so we have a consistent view of the sp value as it might
++			// be manipulated by the call and we want to ignore that manipulation here.
++			switch f.Type {
++			case obj.WasmI32:
++				p = appendp(p, AI32Store, constAddr(storeOffset))
++			case obj.WasmI64:
++				p = appendp(p, AI64Store, constAddr(storeOffset))
++			case obj.WasmF32:
++				p = appendp(p, AF32Store, constAddr(storeOffset))
++			case obj.WasmF64:
++				p = appendp(p, AF64Store, constAddr(storeOffset))
++			case obj.WasmPtr:
++				p = appendp(p, AI64ExtendI32U)
++				p = appendp(p, AI64Store, constAddr(storeOffset))
++			default:
++				panic("bad result type")
++			}
++		}
++	}
++
++	p = appendp(p, obj.ARET)
++}
++
+ func constAddr(value int64) obj.Addr {
+ 	return obj.Addr{Type: obj.TYPE_CONST, Offset: value}
+ }
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index f448a3ee7c..98bff775fb 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -1620,21 +1620,11 @@ func (l *Loader) Aux(i Sym, j int) Aux {
+ // contains the information necessary for the linker to add a WebAssembly
+ // import statement.
+ // (https://webassembly.github.io/spec/core/syntax/modules.html#imports)
+-func (l *Loader) WasmImportSym(fnSymIdx Sym) (Sym, bool) {
++func (l *Loader) WasmImportSym(fnSymIdx Sym) Sym {
+ 	if l.SymType(fnSymIdx) != sym.STEXT {
+ 		log.Fatalf("error: non-function sym %d/%s t=%s passed to WasmImportSym", fnSymIdx, l.SymName(fnSymIdx), l.SymType(fnSymIdx).String())
+ 	}
+-	r, li := l.toLocal(fnSymIdx)
+-	auxs := r.Auxs(li)
+-	for i := range auxs {
+-		a := &auxs[i]
+-		switch a.Type() {
+-		case goobj.AuxWasmImport:
+-			return l.resolve(r, a.Sym()), true
+-		}
+-	}
+-
+-	return 0, false
++	return l.aux1(fnSymIdx, goobj.AuxWasmImport)
+ }
+ 
+ // SEHUnwindSym returns the auxiliary SEH unwind symbol associated with
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index 2f511b97c7..09c54c1392 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -12,7 +12,6 @@ import (
+ 	"cmd/link/internal/ld"
+ 	"cmd/link/internal/loader"
+ 	"cmd/link/internal/sym"
+-	"encoding/binary"
+ 	"fmt"
+ 	"internal/abi"
+ 	"internal/buildcfg"
+@@ -61,55 +60,8 @@ type wasmFuncType struct {
+ }
+ 
+ func readWasmImport(ldr *loader.Loader, s loader.Sym) obj.WasmImport {
+-	reportError := func(err error) { panic(fmt.Sprintf("failed to read WASM import in sym %v: %v", s, err)) }
+-
+-	data := ldr.Data(s)
+-
+-	readUint32 := func() (v uint32) {
+-		v = binary.LittleEndian.Uint32(data)
+-		data = data[4:]
+-		return
+-	}
+-
+-	readUint64 := func() (v uint64) {
+-		v = binary.LittleEndian.Uint64(data)
+-		data = data[8:]
+-		return
+-	}
+-
+-	readByte := func() byte {
+-		if len(data) == 0 {
+-			reportError(io.EOF)
+-		}
+-
+-		b := data[0]
+-		data = data[1:]
+-		return b
+-	}
+-
+-	readString := func() string {
+-		n := readUint32()
+-
+-		s := string(data[:n])
+-
+-		data = data[n:]
+-
+-		return s
+-	}
+-
+ 	var wi obj.WasmImport
+-	wi.Module = readString()
+-	wi.Name = readString()
+-	wi.Params = make([]obj.WasmField, readUint32())
+-	for i := range wi.Params {
+-		wi.Params[i].Type = obj.WasmFieldType(readByte())
+-		wi.Params[i].Offset = int64(readUint64())
+-	}
+-	wi.Results = make([]obj.WasmField, readUint32())
+-	for i := range wi.Results {
+-		wi.Results[i].Type = obj.WasmFieldType(readByte())
+-		wi.Results[i].Offset = int64(readUint64())
+-	}
++	wi.Read(ldr.Data(s))
+ 	return wi
+ }
+ 
+@@ -207,8 +159,8 @@ func asmb2(ctxt *ld.Link, ldr *loader.Loader) {
+ 		for ri := 0; ri < relocs.Count(); ri++ {
+ 			r := relocs.At(ri)
+ 			if r.Type() == objabi.R_WASMIMPORT {
+-				if lsym, ok := ldr.WasmImportSym(fn); ok {
+-					wi := readWasmImport(ldr, lsym)
++				if wsym := ldr.WasmImportSym(fn); wsym != 0 {
++					wi := readWasmImport(ldr, wsym)
+ 					hostImportMap[fn] = int64(len(hostImports))
+ 					hostImports = append(hostImports, &wasmFunc{
+ 						Module: wi.Module,

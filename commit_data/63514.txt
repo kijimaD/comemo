@@ -1,0 +1,34 @@
+commit c260de24b688d72206f1224e298181c8363fc33d
+Author: khr@golang.org <khr@golang.org>
+Date:   Mon Apr 15 18:23:38 2024 -0700
+
+    runtime: remove odd-forcing of hash constants
+    
+    We don't multiply by them any more, so no need to make them odd.
+    
+    Suggested by me here in 2021:
+    https://go-review.googlesource.com/c/go/+/280372/comment/1a86b8aa_f64310bf/
+    Never got around to it until now.
+    
+    Change-Id: Iddc675e6a18b4a7a785acbf77c96e127003cc3c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579116
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/runtime/alg.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index aadd5f1002..cab0abf577 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -391,7 +391,7 @@ func alginit() {
+ 		return
+ 	}
+ 	for i := range hashkey {
+-		hashkey[i] = uintptr(bootstrapRand()) | 1 // make sure these numbers are odd
++		hashkey[i] = uintptr(bootstrapRand())
+ 	}
+ }
+ 

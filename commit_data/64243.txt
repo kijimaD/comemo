@@ -1,0 +1,75 @@
+commit 9e148a4150ece0c24e60197893c8821b2c67e151
+Author: Zxilly <zxilly@outlook.com>
+Date:   Wed Jul 17 05:34:55 2024 +0000
+
+    [release-branch.go1.22] internal/bytealg: extend memchr result correctly on wasm
+    
+    The mem address should be regarded as uint32.
+    
+    Fixes #68475
+    
+    Change-Id: Icee38d11f2d93eeca7d50b2e133159e321daeb90
+    GitHub-Last-Rev: c2568b104369bcf5c4d42c6281d235a52bb9675f
+    GitHub-Pull-Request: golang/go#68400
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597955
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    (cherry picked from commit 90c6558b6acef5a9b9fb8f3c35cff58423c8b00e)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598975
+---
+ src/bytes/bytes_js_wasm_test.go       | 21 +++++++++++++++++++++
+ src/internal/bytealg/indexbyte_wasm.s |  4 ++--
+ 2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/bytes/bytes_js_wasm_test.go b/src/bytes/bytes_js_wasm_test.go
+new file mode 100644
+index 0000000000..ad9db34318
+--- /dev/null
++++ b/src/bytes/bytes_js_wasm_test.go
+@@ -0,0 +1,21 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build js && wasm
++
++package bytes_test
++
++import (
++	"bytes"
++	"testing"
++)
++
++func TestIssue65571(t *testing.T) {
++	b := make([]byte, 1<<31+1)
++	b[1<<31] = 1
++	i := bytes.IndexByte(b, 1)
++	if i != 1<<31 {
++		t.Errorf("IndexByte(b, 1) = %d; want %d", i, 1<<31)
++	}
++}
+diff --git a/src/internal/bytealg/indexbyte_wasm.s b/src/internal/bytealg/indexbyte_wasm.s
+index ef4bd93070..d22e90448d 100644
+--- a/src/internal/bytealg/indexbyte_wasm.s
++++ b/src/internal/bytealg/indexbyte_wasm.s
+@@ -12,7 +12,7 @@ TEXT ·IndexByte(SB), NOSPLIT, $0-40
+ 	I64Load b_len+8(FP)
+ 	I32WrapI64
+ 	Call memchr<>(SB)
+-	I64ExtendI32S
++	I64ExtendI32U
+ 	Set R0
+ 
+ 	Get SP
+@@ -35,7 +35,7 @@ TEXT ·IndexByteString(SB), NOSPLIT, $0-32
+ 	I64Load s_len+8(FP)
+ 	I32WrapI64
+ 	Call memchr<>(SB)
+-	I64ExtendI32S
++	I64ExtendI32U
+ 	Set R0
+ 
+ 	I64Const $-1

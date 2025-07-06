@@ -1,0 +1,116 @@
+commit 187fd2698d2f9fc2fc52aa7d4c0922552f848e98
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 23 17:35:02 2024 -0800
+
+    cmd/compile: make write barrier code amenable to paired loads/stores
+    
+    It currently isn't because it does load/store/load/store/...
+    Rework to do overwrite processing in pairs so it is instead
+    load/load/store/store/...
+    
+    Change-Id: If7be629bc4048da5f2386dafb8f05759b79e9e2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631495
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/writebarrier.go | 49 +++++++++++++++++++---------
+ test/codegen/writebarrier.go                 | 13 ++++++++
+ 2 files changed, 47 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/writebarrier.go b/src/cmd/compile/internal/ssa/writebarrier.go
+index 71acefbf8a..bf04f1b5c2 100644
+--- a/src/cmd/compile/internal/ssa/writebarrier.go
++++ b/src/cmd/compile/internal/ssa/writebarrier.go
+@@ -376,21 +376,6 @@ func writebarrier(f *Func) {
+ 
+ 		// For each write barrier store, append write barrier code to bThen.
+ 		memThen := mem
+-		var curCall *Value
+-		var curPtr *Value
+-		addEntry := func(pos src.XPos, v *Value) {
+-			if curCall == nil || curCall.AuxInt == maxEntries {
+-				t := types.NewTuple(types.Types[types.TUINTPTR].PtrTo(), types.TypeMem)
+-				curCall = bThen.NewValue1(pos, OpWB, t, memThen)
+-				curPtr = bThen.NewValue1(pos, OpSelect0, types.Types[types.TUINTPTR].PtrTo(), curCall)
+-				memThen = bThen.NewValue1(pos, OpSelect1, types.TypeMem, curCall)
+-			}
+-			// Store value in write buffer
+-			num := curCall.AuxInt
+-			curCall.AuxInt = num + 1
+-			wbuf := bThen.NewValue1I(pos, OpOffPtr, types.Types[types.TUINTPTR].PtrTo(), num*f.Config.PtrSize, curPtr)
+-			memThen = bThen.NewValue3A(pos, OpStore, types.TypeMem, types.Types[types.TUINTPTR], wbuf, v, memThen)
+-		}
+ 
+ 		// Note: we can issue the write barrier code in any order. In particular,
+ 		// it doesn't matter if they are in a different order *even if* they end
+@@ -410,6 +395,38 @@ func writebarrier(f *Func) {
+ 		dsts := sset2
+ 		dsts.clear()
+ 
++		// Buffer up entries that we need to put in the write barrier buffer.
++		type write struct {
++			ptr *Value   // value to put in write barrier buffer
++			pos src.XPos // location to use for the write
++		}
++		var writeStore [maxEntries]write
++		writes := writeStore[:0]
++
++		flush := func() {
++			if len(writes) == 0 {
++				return
++			}
++			// Issue a call to get a write barrier buffer.
++			t := types.NewTuple(types.Types[types.TUINTPTR].PtrTo(), types.TypeMem)
++			call := bThen.NewValue1I(pos, OpWB, t, int64(len(writes)), memThen)
++			curPtr := bThen.NewValue1(pos, OpSelect0, types.Types[types.TUINTPTR].PtrTo(), call)
++			memThen = bThen.NewValue1(pos, OpSelect1, types.TypeMem, call)
++			// Write each pending pointer to a slot in the buffer.
++			for i, write := range writes {
++				wbuf := bThen.NewValue1I(write.pos, OpOffPtr, types.Types[types.TUINTPTR].PtrTo(), int64(i)*f.Config.PtrSize, curPtr)
++				memThen = bThen.NewValue3A(write.pos, OpStore, types.TypeMem, types.Types[types.TUINTPTR], wbuf, write.ptr, memThen)
++			}
++			writes = writes[:0]
++		}
++		addEntry := func(pos src.XPos, ptr *Value) {
++			writes = append(writes, write{ptr: ptr, pos: pos})
++			if len(writes) == maxEntries {
++				flush()
++			}
++		}
++
++		// Find all the pointers we need to write to the buffer.
+ 		for _, w := range stores {
+ 			if w.Op != OpStoreWB {
+ 				continue
+@@ -437,7 +454,9 @@ func writebarrier(f *Func) {
+ 			f.fe.Func().SetWBPos(pos)
+ 			nWBops--
+ 		}
++		flush()
+ 
++		// Now do the rare cases, Zeros and Moves.
+ 		for _, w := range stores {
+ 			pos := w.Pos
+ 			switch w.Op {
+diff --git a/test/codegen/writebarrier.go b/test/codegen/writebarrier.go
+index e2b1399399..c3c39c58f7 100644
+--- a/test/codegen/writebarrier.go
++++ b/test/codegen/writebarrier.go
+@@ -88,3 +88,16 @@ func issue71228(dst *S, ptr *int) {
+ 	//amd64:`.*runtime[.]wbMove`
+ 	*dst = *sp
+ }
++
++func writeDouble(p *[2]*int, x, y *int) {
++	// arm64: `LDP\s`, `STP\s\(R[0-9]+, R[0-9]+\), \(`,
++	p[0] = x
++	// arm64: `STP\s\(R[0-9]+, R[0-9]+\), 16\(`,
++	p[1] = y
++}
++
++func writeDoubleNil(p *[2]*int) {
++	// arm64: `LDP\s`, `STP\s\(R[0-9]+, R[0-9]+\),`, `STP\s\(ZR, ZR\),`
++	p[0] = nil
++	p[1] = nil
++}

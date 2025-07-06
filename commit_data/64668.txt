@@ -1,0 +1,65 @@
+commit 57df33814afc02bda314abea28ee8a3dc997505c
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Aug 9 16:35:46 2024 +0200
+
+    cmd/compile: compute OR's maximum limits from argument's limits
+    
+    Change-Id: I6902c405cab7bd573f6a721a6ca7c783713ea39a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604456
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/ssa/prove.go |  6 ++++--
+ test/prove.go                         | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 5195a48608..807f198787 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1698,10 +1698,12 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 		b := ft.limits[v.Args[1].ID]
+ 		return ft.unsignedMax(v, minU(a.umax, b.umax))
+ 	case OpOr64, OpOr32, OpOr16, OpOr8:
+-		// OR can only make the value bigger.
++		// OR can only make the value bigger and can't flip bits proved to be zero in both inputs.
+ 		a := ft.limits[v.Args[0].ID]
+ 		b := ft.limits[v.Args[1].ID]
+-		return ft.unsignedMin(v, maxU(a.umin, b.umin))
++		return ft.unsignedMinMax(v,
++			maxU(a.umin, b.umin),
++			1<<bits.Len64(a.umax|b.umax)-1)
+ 	case OpXor64, OpXor32, OpXor16, OpXor8:
+ 		// XOR can't flip bits that are proved to be zero in both inputs.
+ 		a := ft.limits[v.Args[0].ID]
+diff --git a/test/prove.go b/test/prove.go
+index 2d5d181aa9..8e65404431 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1408,6 +1408,24 @@ func xor64(a, b uint64, ensureBothBranchesCouldHappen bool) int {
+ 	return int(z)
+ }
+ 
++func or64(a, b uint64, ensureBothBranchesCouldHappen bool) int {
++	a &= 0xff
++	b &= 0xfff
++
++	z := a | b
++
++	if ensureBothBranchesCouldHappen {
++		if z > 0xfff { // ERROR "Disproved Less64U$"
++			return 42
++		}
++	} else {
++		if z <= 0xfff { // ERROR "Proved Leq64U$"
++			return 1337
++		}
++	}
++	return int(z)
++}
++
+ //go:noinline
+ func useInt(a int) {
+ }

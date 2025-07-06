@@ -1,0 +1,43 @@
+commit 1cb13ac7f6ece4374056555c2c3b7802ba2de28d
+Author: David du Colombier <0intro@gmail.com>
+Date:   Mon May 20 19:00:09 2024 +0200
+
+    cmd/compile: disable AlignHot on plan9/386
+    
+    CL 577935 enabled hot block alignment on 386
+    and amd64 architecture.
+    
+    However, this change broke the plan9/386 build.
+    
+    This change disables  AlignHot on plan9/386.
+    
+    Updates #67502.
+    
+    Change-Id: If73b066824c7218a9408c6e8f06aec5908b7a64f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586835
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Run-TryBot: David du Colombier <0intro@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/cmd/compile/internal/base/flag.go | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index fe515aafbf..8c17c5f27d 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -363,6 +363,11 @@ func ParseFlags() {
+ 
+ 	// set via a -d flag
+ 	Ctxt.Debugpcln = Debug.PCTab
++
++	// https://golang.org/issue/67502
++	if buildcfg.GOOS == "plan9" && buildcfg.GOARCH == "386" {
++		Debug.AlignHot = 0
++	}
+ }
+ 
+ // registerFlags adds flag registrations for all the fields in Flag.

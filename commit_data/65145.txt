@@ -1,0 +1,60 @@
+commit 651e839df81efd6b6cc26d8a11e51b8ec990127c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Oct 23 20:01:36 2024 +0200
+
+    crypto/sha256,crypto/sha512: skip TestAllocations without optimizations
+    
+    Fixes #70004
+    Fixes #70005
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-noopt
+    Change-Id: I6766a722f124646262fa0d2a1ff245f8b93bc920
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622095
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/crypto/sha256/sha256_test.go | 2 ++
+ src/crypto/sha512/sha512_test.go | 2 ++
+ 2 files changed, 4 insertions(+)
+
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index 40be1480dd..ffd1638651 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"encoding"
+ 	"fmt"
+ 	"hash"
++	"internal/testenv"
+ 	"io"
+ 	"testing"
+ )
+@@ -297,6 +298,7 @@ func TestLargeHashes(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
+ 	if boring.Enabled {
+ 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+ 	}
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index 6e3d9bce1c..fdad37b186 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"encoding/hex"
+ 	"fmt"
+ 	"hash"
++	"internal/testenv"
+ 	"io"
+ 	"testing"
+ )
+@@ -902,6 +903,7 @@ func TestLargeHashes(t *testing.T) {
+ }
+ 
+ func TestAllocations(t *testing.T) {
++	testenv.SkipIfOptimizationOff(t)
+ 	if boring.Enabled {
+ 		t.Skip("BoringCrypto doesn't allocate the same way as stdlib")
+ 	}

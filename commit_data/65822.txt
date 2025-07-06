@@ -1,0 +1,87 @@
+commit 18b5435fc84225ca303da7a110c7e8065dc4bbda
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 12 21:18:44 2024 -0500
+
+    testing: don't measure cleanup time after B.Loop
+    
+    B.Loop resets the timer on the first iteration so that setup code
+    isn't measured, but it currently leaves the timer running after the
+    last iteration, meaning that cleanup code will still be measured. Fix
+    this by stopping the timer when B.Loop returns false to indicate the
+    end of the benchmark.
+    
+    Updates #61515
+    
+    Change-Id: I0e0502cb2ce3c24cf872682b88d74e8be2c4529b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635898
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/testing/benchmark.go | 6 +++++-
+ src/testing/loop_test.go | 6 ++++++
+ 2 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 8b84444f38..2660c9bba0 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -366,6 +366,8 @@ func (b *B) ReportMetric(n float64, unit string) {
+ func (b *B) stopOrScaleBLoop() bool {
+ 	timeElapsed := highPrecisionTimeSince(b.start)
+ 	if timeElapsed >= b.benchTime.d {
++		// Stop the timer so we don't count cleanup time
++		b.StopTimer()
+ 		return false
+ 	}
+ 	// Loop scaling
+@@ -393,6 +395,7 @@ func (b *B) loopSlowPath() bool {
+ 			b.loopN++
+ 			return true
+ 		}
++		b.StopTimer()
+ 		return false
+ 	}
+ 	// Handles fixed time case
+@@ -413,7 +416,8 @@ func (b *B) loopSlowPath() bool {
+ //
+ // Loop resets the benchmark timer the first time it is called in a benchmark,
+ // so any setup performed prior to starting the benchmark loop does not count
+-// toward the benchmark measurement.
++// toward the benchmark measurement. Likewise, when it returns false, it stops
++// the timer so cleanup code is not measured.
+ //
+ // The compiler never optimizes away calls to functions within the body of a
+ // "for b.Loop() { ... }" loop. This prevents surprises that can otherwise occur
+diff --git a/src/testing/loop_test.go b/src/testing/loop_test.go
+index ae1a5e019b..7a1a93fcee 100644
+--- a/src/testing/loop_test.go
++++ b/src/testing/loop_test.go
+@@ -8,6 +8,7 @@ func TestBenchmarkBLoop(t *T) {
+ 	var initialStart highPrecisionTime
+ 	var firstStart highPrecisionTime
+ 	var lastStart highPrecisionTime
++	var runningEnd bool
+ 	runs := 0
+ 	iters := 0
+ 	finalBN := 0
+@@ -22,6 +23,7 @@ func TestBenchmarkBLoop(t *T) {
+ 			iters++
+ 		}
+ 		finalBN = b.N
++		runningEnd = b.timerOn
+ 	})
+ 	// Verify that a b.Loop benchmark is invoked just once.
+ 	if runs != 1 {
+@@ -46,6 +48,10 @@ func TestBenchmarkBLoop(t *T) {
+ 	if lastStart != firstStart {
+ 		t.Errorf("timer was reset during iteration")
+ 	}
++	// Verify that it stopped the timer after the last loop.
++	if runningEnd {
++		t.Errorf("timer was still running after last iteration")
++	}
+ }
+ 
+ // See also TestBenchmarkBLoop* in other files.

@@ -1,0 +1,425 @@
+commit 07fc59199b9522bfe0d14f35c4391394efc336c9
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat May 11 06:59:33 2024 +0000
+
+    hash: use internal/byteorder
+    
+    Change-Id: I58c24a58a7b32d3f8d544509db04baac1ea1b56e
+    GitHub-Last-Rev: 7a648fda00ad30aa00d72013d9c6e22e207c31b2
+    GitHub-Pull-Request: golang/go#67318
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585015
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+---
+ src/hash/adler32/adler32.go        | 23 ++----------
+ src/hash/crc32/crc32.go            | 29 ++++-----------
+ src/hash/crc64/crc64.go            | 34 ++++--------------
+ src/hash/fnv/fnv.go                | 74 +++++++++-----------------------------
+ src/hash/maphash/maphash_purego.go | 18 +++-------
+ 5 files changed, 36 insertions(+), 142 deletions(-)
+
+diff --git a/src/hash/adler32/adler32.go b/src/hash/adler32/adler32.go
+index 07695e947a..ed9ccad910 100644
+--- a/src/hash/adler32/adler32.go
++++ b/src/hash/adler32/adler32.go
+@@ -16,6 +16,7 @@ package adler32
+ import (
+ 	"errors"
+ 	"hash"
++	"internal/byteorder"
+ )
+ 
+ const (
+@@ -59,7 +60,7 @@ const (
+ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize)
+ 	b = append(b, magic...)
+-	b = appendUint32(b, uint32(*d))
++	b = byteorder.BeAppendUint32(b, uint32(*d))
+ 	return b, nil
+ }
+ 
+@@ -70,28 +71,10 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize {
+ 		return errors.New("hash/adler32: invalid hash state size")
+ 	}
+-	*d = digest(readUint32(b[len(magic):]))
++	*d = digest(byteorder.BeUint32(b[len(magic):]))
+ 	return nil
+ }
+ 
+-// appendUint32 is semantically the same as [binary.BigEndian.AppendUint32]
+-// We copied this function because we can not import "encoding/binary" here.
+-func appendUint32(b []byte, x uint32) []byte {
+-	return append(b,
+-		byte(x>>24),
+-		byte(x>>16),
+-		byte(x>>8),
+-		byte(x),
+-	)
+-}
+-
+-// readUint32 is semantically the same as [binary.BigEndian.Uint32]
+-// We copied this function because we can not import "encoding/binary" here.
+-func readUint32(b []byte) uint32 {
+-	_ = b[3]
+-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+-}
+-
+ // Add p to the running checksum d.
+ func update(d digest, p []byte) digest {
+ 	s1, s2 := uint32(d&0xffff), uint32(d>>16)
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index 170f05cf8a..3964646b27 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -15,6 +15,7 @@ package crc32
+ import (
+ 	"errors"
+ 	"hash"
++	"internal/byteorder"
+ 	"sync"
+ 	"sync/atomic"
+ )
+@@ -172,8 +173,8 @@ const (
+ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize)
+ 	b = append(b, magic...)
+-	b = appendUint32(b, tableSum(d.tab))
+-	b = appendUint32(b, d.crc)
++	b = byteorder.BeAppendUint32(b, tableSum(d.tab))
++	b = byteorder.BeAppendUint32(b, d.crc)
+ 	return b, nil
+ }
+ 
+@@ -184,31 +185,13 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize {
+ 		return errors.New("hash/crc32: invalid hash state size")
+ 	}
+-	if tableSum(d.tab) != readUint32(b[4:]) {
++	if tableSum(d.tab) != byteorder.BeUint32(b[4:]) {
+ 		return errors.New("hash/crc32: tables do not match")
+ 	}
+-	d.crc = readUint32(b[8:])
++	d.crc = byteorder.BeUint32(b[8:])
+ 	return nil
+ }
+ 
+-// appendUint32 is semantically the same as [binary.BigEndian.AppendUint32]
+-// We copied this function because we can not import "encoding/binary" here.
+-func appendUint32(b []byte, x uint32) []byte {
+-	return append(b,
+-		byte(x>>24),
+-		byte(x>>16),
+-		byte(x>>8),
+-		byte(x),
+-	)
+-}
+-
+-// readUint32 is semantically the same as [binary.BigEndian.Uint32]
+-// We copied this function because we can not import "encoding/binary" here.
+-func readUint32(b []byte) uint32 {
+-	_ = b[3]
+-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+-}
+-
+ func update(crc uint32, tab *Table, p []byte, checkInitIEEE bool) uint32 {
+ 	switch {
+ 	case haveCastagnoli.Load() && tab == castagnoliTable:
+@@ -261,7 +244,7 @@ func tableSum(t *Table) uint32 {
+ 	b := a[:0]
+ 	if t != nil {
+ 		for _, x := range t {
+-			b = appendUint32(b, x)
++			b = byteorder.BeAppendUint32(b, x)
+ 		}
+ 	}
+ 	return ChecksumIEEE(b)
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index 17ee8eb04e..e3f1d1627f 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -10,6 +10,7 @@ package crc64
+ import (
+ 	"errors"
+ 	"hash"
++	"internal/byteorder"
+ 	"sync"
+ )
+ 
+@@ -113,8 +114,8 @@ const (
+ func (d *digest) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize)
+ 	b = append(b, magic...)
+-	b = appendUint64(b, tableSum(d.tab))
+-	b = appendUint64(b, d.crc)
++	b = byteorder.BeAppendUint64(b, tableSum(d.tab))
++	b = byteorder.BeAppendUint64(b, d.crc)
+ 	return b, nil
+ }
+ 
+@@ -125,36 +126,13 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize {
+ 		return errors.New("hash/crc64: invalid hash state size")
+ 	}
+-	if tableSum(d.tab) != readUint64(b[4:]) {
++	if tableSum(d.tab) != byteorder.BeUint64(b[4:]) {
+ 		return errors.New("hash/crc64: tables do not match")
+ 	}
+-	d.crc = readUint64(b[12:])
++	d.crc = byteorder.BeUint64(b[12:])
+ 	return nil
+ }
+ 
+-// appendUint64 is semantically the same as [binary.BigEndian.AppendUint64]
+-// We copied this function because we can not import "encoding/binary" here.
+-func appendUint64(b []byte, x uint64) []byte {
+-	return append(b,
+-		byte(x>>56),
+-		byte(x>>48),
+-		byte(x>>40),
+-		byte(x>>32),
+-		byte(x>>24),
+-		byte(x>>16),
+-		byte(x>>8),
+-		byte(x),
+-	)
+-}
+-
+-// readUint64 is semantically the same as [binary.BigEndian.Uint64]
+-// We copied this function because we can not import "encoding/binary" here.
+-func readUint64(b []byte) uint64 {
+-	_ = b[7]
+-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+-}
+-
+ func update(crc uint64, tab *Table, p []byte) uint64 {
+ 	buildSlicing8TablesOnce()
+ 	crc = ^crc
+@@ -222,7 +200,7 @@ func tableSum(t *Table) uint64 {
+ 	b := a[:0]
+ 	if t != nil {
+ 		for _, x := range t {
+-			b = appendUint64(b, x)
++			b = byteorder.BeAppendUint64(b, x)
+ 		}
+ 	}
+ 	return Checksum(b, MakeTable(ISO))
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index 29439e2c1d..dc77b30788 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -15,6 +15,7 @@ package fnv
+ import (
+ 	"errors"
+ 	"hash"
++	"internal/byteorder"
+ 	"math/bits"
+ )
+ 
+@@ -225,44 +226,44 @@ const (
+ func (s *sum32) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize32)
+ 	b = append(b, magic32...)
+-	b = appendUint32(b, uint32(*s))
++	b = byteorder.BeAppendUint32(b, uint32(*s))
+ 	return b, nil
+ }
+ 
+ func (s *sum32a) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize32)
+ 	b = append(b, magic32a...)
+-	b = appendUint32(b, uint32(*s))
++	b = byteorder.BeAppendUint32(b, uint32(*s))
+ 	return b, nil
+ }
+ 
+ func (s *sum64) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize64)
+ 	b = append(b, magic64...)
+-	b = appendUint64(b, uint64(*s))
++	b = byteorder.BeAppendUint64(b, uint64(*s))
+ 	return b, nil
+ }
+ 
+ func (s *sum64a) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize64)
+ 	b = append(b, magic64a...)
+-	b = appendUint64(b, uint64(*s))
++	b = byteorder.BeAppendUint64(b, uint64(*s))
+ 	return b, nil
+ }
+ 
+ func (s *sum128) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize128)
+ 	b = append(b, magic128...)
+-	b = appendUint64(b, s[0])
+-	b = appendUint64(b, s[1])
++	b = byteorder.BeAppendUint64(b, s[0])
++	b = byteorder.BeAppendUint64(b, s[1])
+ 	return b, nil
+ }
+ 
+ func (s *sum128a) MarshalBinary() ([]byte, error) {
+ 	b := make([]byte, 0, marshaledSize128)
+ 	b = append(b, magic128a...)
+-	b = appendUint64(b, s[0])
+-	b = appendUint64(b, s[1])
++	b = byteorder.BeAppendUint64(b, s[0])
++	b = byteorder.BeAppendUint64(b, s[1])
+ 	return b, nil
+ }
+ 
+@@ -273,7 +274,7 @@ func (s *sum32) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize32 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	*s = sum32(readUint32(b[4:]))
++	*s = sum32(byteorder.BeUint32(b[4:]))
+ 	return nil
+ }
+ 
+@@ -284,7 +285,7 @@ func (s *sum32a) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize32 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	*s = sum32a(readUint32(b[4:]))
++	*s = sum32a(byteorder.BeUint32(b[4:]))
+ 	return nil
+ }
+ 
+@@ -295,7 +296,7 @@ func (s *sum64) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize64 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	*s = sum64(readUint64(b[4:]))
++	*s = sum64(byteorder.BeUint64(b[4:]))
+ 	return nil
+ }
+ 
+@@ -306,7 +307,7 @@ func (s *sum64a) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize64 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	*s = sum64a(readUint64(b[4:]))
++	*s = sum64a(byteorder.BeUint64(b[4:]))
+ 	return nil
+ }
+ 
+@@ -317,8 +318,8 @@ func (s *sum128) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize128 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	s[0] = readUint64(b[4:])
+-	s[1] = readUint64(b[12:])
++	s[0] = byteorder.BeUint64(b[4:])
++	s[1] = byteorder.BeUint64(b[12:])
+ 	return nil
+ }
+ 
+@@ -329,48 +330,7 @@ func (s *sum128a) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize128 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	s[0] = readUint64(b[4:])
+-	s[1] = readUint64(b[12:])
++	s[0] = byteorder.BeUint64(b[4:])
++	s[1] = byteorder.BeUint64(b[12:])
+ 	return nil
+ }
+-
+-// readUint32 is semantically the same as [binary.BigEndian.Uint32]
+-// We copied this function because we can not import "encoding/binary" here.
+-func readUint32(b []byte) uint32 {
+-	_ = b[3]
+-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+-}
+-
+-// appendUint32 is semantically the same as [binary.BigEndian.AppendUint32]
+-// We copied this function because we can not import "encoding/binary" here.
+-func appendUint32(b []byte, x uint32) []byte {
+-	return append(b,
+-		byte(x>>24),
+-		byte(x>>16),
+-		byte(x>>8),
+-		byte(x),
+-	)
+-}
+-
+-// appendUint64 is semantically the same as [binary.BigEndian.AppendUint64]
+-// We copied this function because we can not import "encoding/binary" here.
+-func appendUint64(b []byte, x uint64) []byte {
+-	return append(b,
+-		byte(x>>56),
+-		byte(x>>48),
+-		byte(x>>40),
+-		byte(x>>32),
+-		byte(x>>24),
+-		byte(x>>16),
+-		byte(x>>8),
+-		byte(x),
+-	)
+-}
+-
+-// readUint64 is semantically the same as [binary.BigEndian.Uint64]
+-// We copied this function because we can not import "encoding/binary" here.
+-func readUint64(b []byte) uint64 {
+-	_ = b[7]
+-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+-}
+diff --git a/src/hash/maphash/maphash_purego.go b/src/hash/maphash/maphash_purego.go
+index d49a44ae64..38ac8c4df3 100644
+--- a/src/hash/maphash/maphash_purego.go
++++ b/src/hash/maphash/maphash_purego.go
+@@ -8,6 +8,7 @@ package maphash
+ 
+ import (
+ 	"crypto/rand"
++	"internal/byteorder"
+ 	"math/bits"
+ )
+ 
+@@ -25,7 +26,7 @@ func rthashString(s string, state uint64) uint64 {
+ func randUint64() uint64 {
+ 	buf := make([]byte, 8)
+ 	_, _ = rand.Read(buf)
+-	return leUint64(buf)
++	return byteorder.LeUint64(buf)
+ }
+ 
+ // This is a port of wyhash implementation in runtime/hash64.go,
+@@ -80,25 +81,14 @@ func r3(p []byte, k uint64) uint64 {
+ }
+ 
+ func r4(p []byte) uint64 {
+-	return uint64(leUint32(p))
++	return uint64(byteorder.LeUint32(p))
+ }
+ 
+ func r8(p []byte) uint64 {
+-	return leUint64(p)
++	return byteorder.LeUint64(p)
+ }
+ 
+ func mix(a, b uint64) uint64 {
+ 	hi, lo := bits.Mul64(a, b)
+ 	return hi ^ lo
+ }
+-
+-func leUint32(b []byte) uint32 {
+-	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+-}
+-
+-func leUint64(b []byte) uint64 {
+-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+-		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
+-}

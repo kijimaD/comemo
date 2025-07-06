@@ -1,0 +1,86 @@
+commit d8b92c2e2d15094e99c589782d6135e3e7e68236
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 22 15:53:38 2024 -0400
+
+    cmd/go/internal/work: add telemetry counters for build cache hits/misses
+    
+    The following counters are added in this cl
+        go/buildcache/hit
+        go/buildcache/miss
+        go/buildcache/stdlibrecompiled (incremented at most once per
+            invocation)
+    
+    Change-Id: Ia78e136feac8226cb35e554503b672343cc30262
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587577
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/internal/work/buildid.go | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index acbda1af55..889cc6ca50 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -10,6 +10,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"strings"
++	"sync"
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cache"
+@@ -18,6 +19,7 @@ import (
+ 	"cmd/go/internal/str"
+ 	"cmd/internal/buildid"
+ 	"cmd/internal/quoted"
++	"cmd/internal/telemetry"
+ )
+ 
+ // Build IDs
+@@ -403,6 +405,14 @@ func (b *Builder) fileHash(file string) string {
+ 	return buildid.HashToString(sum)
+ }
+ 
++var (
++	counterCacheHit  = telemetry.NewCounter("go/buildcache/hit")
++	counterCacheMiss = telemetry.NewCounter("go/buildcache/miss")
++
++	onceIncStdlibRecompiled sync.Once
++	stdlibRecompiled        = telemetry.NewCounter("go/buildcache/stdlib-recompiled")
++)
++
+ // useCache tries to satisfy the action a, which has action ID actionHash,
+ // by using a cached result from an earlier build. At the moment, the only
+ // cached result is the installed package or binary at target.
+@@ -416,7 +426,7 @@ func (b *Builder) fileHash(file string) string {
+ // during a's work. The caller should defer b.flushOutput(a), to make sure
+ // that flushOutput is eventually called regardless of whether the action
+ // succeeds. The flushOutput call must happen after updateBuildID.
+-func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, printOutput bool) bool {
++func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string, printOutput bool) (ok bool) {
+ 	// The second half of the build ID here is a placeholder for the content hash.
+ 	// It's important that the overall buildID be unlikely verging on impossible
+ 	// to appear in the output by chance, but that should be taken care of by
+@@ -448,6 +458,20 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string,
+ 		return false
+ 	}
+ 
++	defer func() {
++		// Increment counters for cache hits and misses based on the return value
++		// of this function. Don't increment counters if we return early because of
++		// cfg.BuildA above because we don't even look at the cache in that case.
++		if ok {
++			counterCacheHit.Inc()
++		} else {
++			if a.Package != nil && a.Package.Standard {
++				onceIncStdlibRecompiled.Do(stdlibRecompiled.Inc)
++			}
++			counterCacheMiss.Inc()
++		}
++	}()
++
+ 	c := cache.Default()
+ 
+ 	if target != "" {

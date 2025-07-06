@@ -1,0 +1,78 @@
+commit 50c298a5a3b0d8534a724960f949ac3c56ff64bd
+Author: David Chase <drchase@google.com>
+Date:   Wed May 22 16:15:43 2024 -0400
+
+    cmd/compile: repairing variable names and comments
+    
+    Change-Id: I2e775e92dcebf068426b3e2acbe088679c318ec4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587578
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ir/func.go           | 12 ++++++------
+ src/cmd/compile/internal/rangefunc/rewrite.go |  4 +++-
+ 2 files changed, 9 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index 328a56c860..d0c8ee359b 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -426,20 +426,20 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
+ 	}
+ 	pkg := types.LocalPkg
+ 	outer := "glob."
+-	var prefix string = "."
++	var suffix string = "."
+ 	switch why {
+ 	default:
+ 		base.FatalfAt(pos, "closureName: bad Op: %v", why)
+ 	case OCLOSURE:
+ 		if outerfn == nil || outerfn.OClosure == nil {
+-			prefix = ".func"
++			suffix = ".func"
+ 		}
+ 	case ORANGE:
+-		prefix = "-range"
++		suffix = "-range"
+ 	case OGO:
+-		prefix = ".gowrap"
++		suffix = ".gowrap"
+ 	case ODEFER:
+-		prefix = ".deferwrap"
++		suffix = ".deferwrap"
+ 	}
+ 	gen := &globClosgen
+ 
+@@ -472,7 +472,7 @@ func closureName(outerfn *Func, pos src.XPos, why Op) *types.Sym {
+ 	}
+ 
+ 	*gen++
+-	return pkg.Lookup(fmt.Sprintf("%s%s%d", outer, prefix, *gen))
++	return pkg.Lookup(fmt.Sprintf("%s%s%d", outer, suffix, *gen))
+ }
+ 
+ // NewClosureFunc creates a new Func to represent a function literal
+diff --git a/src/cmd/compile/internal/rangefunc/rewrite.go b/src/cmd/compile/internal/rangefunc/rewrite.go
+index 8d09782a9e..2dcdc3f018 100644
+--- a/src/cmd/compile/internal/rangefunc/rewrite.go
++++ b/src/cmd/compile/internal/rangefunc/rewrite.go
+@@ -160,7 +160,7 @@ The value of #stateK transitions
+ 	if #stateN != abi.RF_READY { runtime.panicrangestate(#stateN) }
+ 	#stateN = abi.RF_PANIC
+ 
+-(4) when loop iteration continues, and
++(4) when loop iteration continues,
+ 
+ 	#stateN = abi.RF_READY
+ 	[return true]
+@@ -447,6 +447,8 @@ becomes
+ 					#state3 = abi.RF_READY
+ 					return true
+ 				})
++				if #state3 == abi.RF_PANIC {runtime.panicrangestate(abi.RF_MISSING_PANIC)}
++				#state3 = abi.RF_EXHAUSTED
+ 				if #next < 0 {
+ 					#state2 = abi.RF_DONE
+ 					return false

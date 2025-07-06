@@ -1,0 +1,45 @@
+commit 0c460ad0142b6ca1866272002f90fb8166ce4cc0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 22 17:21:33 2024 -0700
+
+    runtime/debug: document ParseBuildInfo and (*BuildInfo).String
+    
+    For #51026
+    Fixes #69971
+    
+    Change-Id: I47f2938d20cbe9462bf738a506baedad4a7006c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621837
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/debug/mod.go | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/runtime/debug/mod.go b/src/runtime/debug/mod.go
+index a4705605b8..8a1b1666bd 100644
+--- a/src/runtime/debug/mod.go
++++ b/src/runtime/debug/mod.go
+@@ -101,6 +101,7 @@ func quoteValue(value string) bool {
+ 	return strings.ContainsAny(value, " \t\r\n\"`")
+ }
+ 
++// String returns a string representation of a [BuildInfo].
+ func (bi *BuildInfo) String() string {
+ 	buf := new(strings.Builder)
+ 	if bi.GoVersion != "" {
+@@ -146,6 +147,12 @@ func (bi *BuildInfo) String() string {
+ 	return buf.String()
+ }
+ 
++// ParseBuildInfo parses the string returned by [*BuildInfo.String],
++// restoring the original BuildInfo,
++// except that the GoVersion field is not set.
++// Programs should normally not call this function,
++// but instead call [ReadBuildInfo], [debug/buildinfo.ReadFile],
++// or [debug/buildinfo.Read].
+ func ParseBuildInfo(data string) (bi *BuildInfo, err error) {
+ 	lineNum := 1
+ 	defer func() {

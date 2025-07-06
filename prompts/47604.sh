@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 47604: ca3aefc4a96f2e26c7bed549a6c90b6f12c1ecea
+# Index 47604: 3923460dda205721d9bee2714a7f0dd403082a90
 
 echo "🚀 Generating explanation for commit 47604..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 47604..."
 
 ### メタデータ
 - **コミットインデックス**: 47604
-- **コミットハッシュ**: ca3aefc4a96f2e26c7bed549a6c90b6f12c1ecea
-- **GitHub URL**: https://github.com/golang/go/commit/ca3aefc4a96f2e26c7bed549a6c90b6f12c1ecea
+- **コミットハッシュ**: 3923460dda205721d9bee2714a7f0dd403082a90
+- **GitHub URL**: https://github.com/golang/go/commit/3923460dda205721d9bee2714a7f0dd403082a90
 
 ### 章構成
 

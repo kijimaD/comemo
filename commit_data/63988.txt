@@ -1,0 +1,840 @@
+commit 9a8995b8b6a08d5fe01122771f962b36336f8aec
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 22 17:09:02 2024 -0400
+
+    all: document legacy //go:linkname for modules with ≥100 dependents
+    
+    For #67401.
+    
+    Change-Id: I015408a3f437c1733d97160ef2fb5da6d4efcc5c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587598
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+---
+ src/go/build/build.go                   |  9 +++++
+ src/go/build/read.go                    | 11 ++++++
+ src/go/types/badlinkname.go             | 18 ++++-----
+ src/internal/bytealg/compare_generic.go |  1 +
+ src/internal/cpu/cpu_arm64_darwin.go    |  1 +
+ src/reflect/badlinkname.go              |  1 +
+ src/reflect/type.go                     |  3 ++
+ src/runtime/alg.go                      | 22 +++++++++++
+ src/runtime/atomic_pointer.go           |  1 +
+ src/runtime/badlinkname.go              |  2 -
+ src/runtime/cpuprof.go                  | 10 ++++-
+ src/runtime/linkname.go                 |  1 -
+ src/runtime/malloc.go                   |  1 +
+ src/runtime/map.go                      |  4 ++
+ src/runtime/mbarrier.go                 |  2 +
+ src/runtime/mgc.go                      |  1 +
+ src/runtime/panic.go                    |  1 +
+ src/runtime/pprof/pprof.go              |  2 +-
+ src/runtime/proc.go                     | 12 ++++++
+ src/runtime/proflabel.go                |  2 +
+ src/runtime/rand.go                     |  9 +++++
+ src/runtime/slice.go                    |  9 +++++
+ src/runtime/stubs.go                    | 14 +++++++
+ src/runtime/symtab.go                   | 65 ++++++++++++++++++++++++++++-----
+ src/runtime/symtabinl.go                | 28 +++++++++++++-
+ src/runtime/timestub.go                 |  1 +
+ src/runtime/traceback.go                | 10 +++++
+ src/sync/pool.go                        |  1 +
+ src/time/badlinkname.go                 | 15 --------
+ src/time/time.go                        | 11 ++++++
+ 30 files changed, 228 insertions(+), 40 deletions(-)
+
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 297384d84c..000db9fb65 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -1626,6 +1626,15 @@ func (ctxt *Context) shouldBuild(content []byte, allTags map[string]bool) (shoul
+ 	return shouldBuild, sawBinaryOnly, nil
+ }
+ 
++// parseFileHeader should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bazelbuild/bazel-gazelle
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname parseFileHeader
+ func parseFileHeader(content []byte) (trimmed, goBuild []byte, sawBinaryOnly bool, err error) {
+ 	end := 0
+ 	p := content
+diff --git a/src/go/build/read.go b/src/go/build/read.go
+index 52891975c1..1273066dbc 100644
+--- a/src/go/build/read.go
++++ b/src/go/build/read.go
+@@ -18,6 +18,7 @@ import (
+ 	"strings"
+ 	"unicode"
+ 	"unicode/utf8"
++	_ "unsafe" // for linkname
+ )
+ 
+ type importReader struct {
+@@ -378,6 +379,16 @@ func (r *importReader) readImport() {
+ 
+ // readComments is like io.ReadAll, except that it only reads the leading
+ // block of comments in the file.
++//
++// readComments should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bazelbuild/bazel-gazelle
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname readComments
+ func readComments(f io.Reader) ([]byte, error) {
+ 	r := newImportReader("", f)
+ 	r.peekByte(true)
+diff --git a/src/go/types/badlinkname.go b/src/go/types/badlinkname.go
+index 38b6a103a9..432322ad90 100644
+--- a/src/go/types/badlinkname.go
++++ b/src/go/types/badlinkname.go
+@@ -6,15 +6,15 @@ package types
+ 
+ import _ "unsafe"
+ 
+-// As of Go 1.22, the symbols below are found to be pulled via
+-// linkname in the wild. We provide a push linkname here, to
+-// keep them accessible with pull linknames.
+-// This may change in the future. Please do not depend on them
+-// in new code.
+-
+-// The compiler doesn't allow linknames on methods, for good reasons.
+-// We use this trick to push linknames of the methods.
+-// Do not call them in this package.
++// This should properly be in infer.go, but that file is auto-generated.
+ 
++// infer should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/goplus/gox
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
+ //go:linkname badlinkname_Checker_infer go/types.(*Checker).infer
+ func badlinkname_Checker_infer(*Checker, positioner, []*TypeParam, []Type, *Tuple, []*operand, bool, *error_) []Type
+diff --git a/src/internal/bytealg/compare_generic.go b/src/internal/bytealg/compare_generic.go
+index 74126ae805..204b9a9b1a 100644
+--- a/src/internal/bytealg/compare_generic.go
++++ b/src/internal/bytealg/compare_generic.go
+@@ -45,6 +45,7 @@ func CompareString(a, b string) int {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/gopkg
++//   - github.com/songzhibin97/gkit
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/internal/cpu/cpu_arm64_darwin.go b/src/internal/cpu/cpu_arm64_darwin.go
+index fad66c6c90..2507780e5f 100644
+--- a/src/internal/cpu/cpu_arm64_darwin.go
++++ b/src/internal/cpu/cpu_arm64_darwin.go
+@@ -30,6 +30,7 @@ func getsysctlbyname(name []byte) (int32, int32)
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/gopkg
++//   - github.com/songzhibin97/gkit
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/reflect/badlinkname.go b/src/reflect/badlinkname.go
+index e2e1d4abc9..62c5675158 100644
+--- a/src/reflect/badlinkname.go
++++ b/src/reflect/badlinkname.go
+@@ -12,6 +12,7 @@ import (
+ // Widely used packages access these symbols using linkname,
+ // most notably:
+ //	- github.com/goccy/go-json
++//     - github.com/goccy/go-reflect
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 1c9260124f..af2d8ecf25 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -1664,6 +1664,7 @@ func rtypeOff(section unsafe.Pointer, off int32) *abi.Type {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/aristanetworks/goarista
++//   - fortio.org/log
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+@@ -2920,7 +2921,9 @@ func appendVarint(x []byte, v uintptr) []byte {
+ // toType should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - fortio.org/log
+ //   - github.com/goccy/go-json
++//   - github.com/goccy/go-reflect
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index c11ef4c6ef..c55f916a7a 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -51,10 +51,12 @@ var useAeshash bool
+ // Notable members of the hall of shame include:
+ //   - github.com/aacfactory/fns
+ //   - github.com/dgraph-io/ristretto
++//   - github.com/minio/simdjson-go
+ //   - github.com/nbd-wtf/go-nostr
+ //   - github.com/outcaste-io/ristretto
+ //   - github.com/puzpuzpuz/xsync/v2
+ //   - github.com/puzpuzpuz/xsync/v3
++//   - github.com/segmentio/parquet-go
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+@@ -62,7 +64,26 @@ var useAeshash bool
+ //go:linkname memhash
+ func memhash(p unsafe.Pointer, h, s uintptr) uintptr
+ 
++// memhash32 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/segmentio/parquet-go
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname memhash32
+ func memhash32(p unsafe.Pointer, h uintptr) uintptr
++
++// memhash64 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/segmentio/parquet-go
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname memhash64
+ func memhash64(p unsafe.Pointer, h uintptr) uintptr
+ 
+ // strhash should be an internal detail,
+@@ -72,6 +93,7 @@ func memhash64(p unsafe.Pointer, h uintptr) uintptr
+ //   - github.com/bytedance/sonic
+ //   - github.com/bytedance/go-tagexpr/v2
+ //   - github.com/cloudwego/frugal
++//   - github.com/cloudwego/dynamicgo
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/atomic_pointer.go b/src/runtime/atomic_pointer.go
+index 9711fb208b..df067ede77 100644
+--- a/src/runtime/atomic_pointer.go
++++ b/src/runtime/atomic_pointer.go
+@@ -22,6 +22,7 @@ import (
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/gopkg
++//   - github.com/songzhibin97/gkit
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/badlinkname.go b/src/runtime/badlinkname.go
+index a0bdab2ca6..4094e0b9b2 100644
+--- a/src/runtime/badlinkname.go
++++ b/src/runtime/badlinkname.go
+@@ -17,8 +17,6 @@ import _ "unsafe"
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+ 
+-//go:linkname add
+-//go:linkname callers
+ //go:linkname fastexprand
+ //go:linkname gopanic
+ //go:linkname sched
+diff --git a/src/runtime/cpuprof.go b/src/runtime/cpuprof.go
+index 80490aa585..997a949a30 100644
+--- a/src/runtime/cpuprof.go
++++ b/src/runtime/cpuprof.go
+@@ -209,7 +209,15 @@ func CPUProfile() []byte {
+ 	panic("CPUProfile no longer available")
+ }
+ 
+-//go:linkname pprof_cyclesPerSecond
++// runtime/pprof.runtime_cyclesPerSecond should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/grafana/pyroscope-go/godeltaprof
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname pprof_cyclesPerSecond runtime/pprof.runtime_cyclesPerSecond
+ func pprof_cyclesPerSecond() int64 {
+ 	return ticksPerSecond()
+ }
+diff --git a/src/runtime/linkname.go b/src/runtime/linkname.go
+index 19318cd9a9..39217b68a4 100644
+--- a/src/runtime/linkname.go
++++ b/src/runtime/linkname.go
+@@ -31,7 +31,6 @@ import _ "unsafe"
+ 
+ // used in tests
+ //go:linkname extraMInUse
+-//go:linkname getm
+ //go:linkname blockevent
+ //go:linkname haveHighResSleep
+ //go:linkname blockUntilEmptyFinalizerQueue
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 70a198a81c..8108419529 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1411,6 +1411,7 @@ func reflectlite_unsafe_New(typ *_type) unsafe.Pointer {
+ // newarray should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/RomiChan/protobuf
+ //   - github.com/segmentio/encoding
+ //   - github.com/ugorji/go/codec
+ //
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 5b13fda304..8757f18b3b 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -604,6 +604,7 @@ func mapaccess2_fat(t *maptype, h *hmap, key, zero unsafe.Pointer) (unsafe.Point
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+ //   - github.com/cloudwego/frugal
++//   - github.com/RomiChan/protobuf
+ //   - github.com/segmentio/encoding
+ //   - github.com/ugorji/go/codec
+ //
+@@ -864,6 +865,7 @@ search:
+ //   - github.com/bytedance/sonic
+ //   - github.com/cloudwego/frugal
+ //   - github.com/goccy/go-json
++//   - github.com/RomiChan/protobuf
+ //   - github.com/segmentio/encoding
+ //   - github.com/ugorji/go/codec
+ //
+@@ -922,6 +924,7 @@ func mapiterinit(t *maptype, h *hmap, it *hiter) {
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+ //   - github.com/cloudwego/frugal
++//   - github.com/RomiChan/protobuf
+ //   - github.com/segmentio/encoding
+ //   - github.com/ugorji/go/codec
+ //   - gonum.org/v1/gonum
+@@ -1389,6 +1392,7 @@ func advanceEvacuationMark(h *hmap, t *maptype, newbit uintptr) {
+ //   - gitee.com/quant1x/gox
+ //   - github.com/modern-go/reflect2
+ //   - github.com/goccy/go-json
++//   - github.com/RomiChan/protobuf
+ //   - github.com/segmentio/encoding
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index c83e5c6fcd..b4fc48977f 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -151,6 +151,7 @@ import (
+ // typedmemmove should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/RomiChan/protobuf
+ //   - github.com/segmentio/encoding
+ //
+ // Do not remove or change the type signature.
+@@ -337,6 +338,7 @@ func typedslicecopy(typ *_type, dstPtr unsafe.Pointer, dstLen int, srcPtr unsafe
+ // Notable members of the hall of shame include:
+ //   - gitee.com/quant1x/gox
+ //   - github.com/modern-go/reflect2
++//   - github.com/RomiChan/protobuf
+ //   - github.com/segmentio/encoding
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 9874a9afde..2654c69658 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1708,6 +1708,7 @@ var uniqueMapCleanup chan struct{} // for unique
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/gopkg
++//   - github.com/songzhibin97/gkit
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 2e15649092..6929862a7d 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1034,6 +1034,7 @@ func sync_fatal(s string) {
+ //   - github.com/cockroachdb/pebble
+ //   - github.com/dgraph-io/ristretto
+ //   - github.com/outcaste-io/ristretto
++//   - github.com/pingcap/br
+ //   - gvisor.dev/gvisor
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index b387397d42..43ef66f0b0 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -948,7 +948,7 @@ func writeProfileInternal(w io.Writer, debug int, name string, runtimeProfile fu
+ //go:linkname pprof_goroutineProfileWithLabels runtime.pprof_goroutineProfileWithLabels
+ func pprof_goroutineProfileWithLabels(p []profilerecord.StackRecord, labels []unsafe.Pointer) (n int, ok bool)
+ 
+-//go:linkname pprof_cyclesPerSecond runtime.pprof_cyclesPerSecond
++//go:linkname pprof_cyclesPerSecond runtime/pprof.runtime_cyclesPerSecond
+ func pprof_cyclesPerSecond() int64
+ 
+ //go:linkname pprof_memProfileInternal runtime.pprof_memProfileInternal
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 17b2e4d9c2..9574628ee2 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -2577,6 +2577,16 @@ func cgoBindM() {
+ }
+ 
+ // A helper function for EnsureDropM.
++//
++// getm should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - fortio.org/log
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname getm
+ func getm() uintptr {
+ 	return uintptr(unsafe.Pointer(getg().m))
+ }
+@@ -7051,6 +7061,7 @@ func setMaxThreads(in int) (out int) {
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/gopkg
+ //   - github.com/choleraehyq/pid
++//   - github.com/songzhibin97/gkit
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+@@ -7070,6 +7081,7 @@ func procPin() int {
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/gopkg
+ //   - github.com/choleraehyq/pid
++//   - github.com/songzhibin97/gkit
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/proflabel.go b/src/runtime/proflabel.go
+index 7c29c0ef83..1a5e7e5e2f 100644
+--- a/src/runtime/proflabel.go
++++ b/src/runtime/proflabel.go
+@@ -11,6 +11,7 @@ var labelSync uintptr
+ // runtime_setProfLabel should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/cloudwego/localsession
+ //   - github.com/DataDog/datadog-agent
+ //
+ // Do not remove or change the type signature.
+@@ -45,6 +46,7 @@ func runtime_setProfLabel(labels unsafe.Pointer) {
+ // runtime_getProfLabel should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/cloudwego/localsession
+ //   - github.com/DataDog/datadog-agent
+ //
+ // Do not remove or change the type signature.
+diff --git a/src/runtime/rand.go b/src/runtime/rand.go
+index 827d182d12..7e313c19bd 100644
+--- a/src/runtime/rand.go
++++ b/src/runtime/rand.go
+@@ -233,6 +233,15 @@ func cheaprand64() int64 {
+ // the rule is that other packages using runtime-provided
+ // randomness must always use randn.
+ //
++// cheaprandn should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/phuslu/log
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname cheaprandn
+ //go:nosplit
+ func cheaprandn(n uint32) uint32 {
+ 	// See https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index b91caf0dfe..78475735af 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -167,6 +167,7 @@ func makeslice64(et *_type, len64, cap64 int64) unsafe.Pointer {
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
+ //   - github.com/chenzhuoyu/iasm
++//   - github.com/cloudwego/dynamicgo
+ //   - github.com/ugorji/go/codec
+ //
+ // Do not remove or change the type signature.
+@@ -319,6 +320,14 @@ func nextslicecap(newLen, oldCap int) int {
+ 	return newcap
+ }
+ 
++// reflect_growslice should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/cloudwego/dynamicgo
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
+ //go:linkname reflect_growslice reflect.growslice
+ func reflect_growslice(et *_type, old slice, num int) slice {
+ 	// Semantically equivalent to slices.Grow, except that the caller
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index ff4fe5eafd..d3f75bfcac 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -11,6 +11,15 @@ import (
+ 
+ // Should be a built-in for unsafe.Pointer?
+ //
++// add should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - fortio.org/log
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname add
+ //go:nosplit
+ func add(p unsafe.Pointer, x uintptr) unsafe.Pointer {
+ 	return unsafe.Pointer(uintptr(p) + x)
+@@ -122,6 +131,7 @@ func reflect_memclrNoHeapPointers(ptr unsafe.Pointer, n uintptr) {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/sonic
++//   - github.com/cloudwego/dynamicgo
+ //   - github.com/cloudwego/frugal
+ //   - github.com/ebitengine/purego
+ //   - github.com/tetratelabs/wazero
+@@ -168,7 +178,9 @@ func memequal(a, b unsafe.Pointer, size uintptr) bool
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/gopkg
+ //   - github.com/ebitengine/purego
++//   - github.com/hamba/avro/v2
+ //   - github.com/puzpuzpuz/xsync/v3
++//   - github.com/songzhibin97/gkit
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+@@ -255,7 +267,9 @@ func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSi
+ // procyield should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/sagernet/sing-tun
+ //   - github.com/slackhq/nebula
++//   - github.com/tailscale/wireguard-go
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 40f0be6542..993b29d5c0 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -196,6 +196,14 @@ func (ci *Frames) Next() (frame Frame, more bool) {
+ 
+ // runtime_FrameStartLine returns the start line of the function in a Frame.
+ //
++// runtime_FrameStartLine should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/grafana/pyroscope-go/godeltaprof
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
+ //go:linkname runtime_FrameStartLine runtime/pprof.runtime_FrameStartLine
+ func runtime_FrameStartLine(f *Frame) int {
+ 	return f.startLine
+@@ -205,6 +213,14 @@ func runtime_FrameStartLine(f *Frame) int {
+ // For generic functions this differs from f.Function in that this doesn't replace
+ // the shape name to "...".
+ //
++// runtime_FrameSymbolName should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/grafana/pyroscope-go/godeltaprof
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
+ //go:linkname runtime_FrameSymbolName runtime/pprof.runtime_FrameSymbolName
+ func runtime_FrameSymbolName(f *Frame) string {
+ 	if !f.funcInfo.valid() {
+@@ -218,6 +234,14 @@ func runtime_FrameSymbolName(f *Frame) string {
+ // runtime_expandFinalInlineFrame expands the final pc in stk to include all
+ // "callers" if pc is inline.
+ //
++// runtime_expandFinalInlineFrame should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/grafana/pyroscope-go/godeltaprof
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
+ //go:linkname runtime_expandFinalInlineFrame runtime/pprof.runtime_expandFinalInlineFrame
+ func runtime_expandFinalInlineFrame(stk []uintptr) []uintptr {
+ 	// TODO: It would be more efficient to report only physical PCs to pprof and
+@@ -814,10 +838,21 @@ func (f *_func) isInlined() bool {
+ }
+ 
+ // entry returns the entry PC for f.
++//
++// entry should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/phuslu/log
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
+ func (f funcInfo) entry() uintptr {
+ 	return f.datap.textAddr(f.entryOff)
+ }
+ 
++//go:linkname badFuncInfoEntry runtime.funcInfo.entry
++func badFuncInfoEntry(funcInfo) uintptr
++
+ // findfunc looks up function metadata for a PC.
+ //
+ // It is nosplit because it's part of the isgoexception
+@@ -827,6 +862,7 @@ func (f funcInfo) entry() uintptr {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/cloudwego/frugal
++//   - github.com/phuslu/log
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+@@ -878,6 +914,13 @@ func (f funcInfo) srcFunc() srcFunc {
+ 	return srcFunc{f.datap, f.nameOff, f.startLine, f.funcID}
+ }
+ 
++// name should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/phuslu/log
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
+ func (s srcFunc) name() string {
+ 	if s.datap == nil {
+ 		return ""
+@@ -885,6 +928,9 @@ func (s srcFunc) name() string {
+ 	return s.datap.funcName(s.nameOff)
+ }
+ 
++//go:linkname badSrcFuncName runtime.srcFunc.name
++func badSrcFuncName(srcFunc) string
++
+ type pcvalueCache struct {
+ 	entries [2][8]pcvalueCacheEnt
+ 	inUse   int
+@@ -1074,6 +1120,15 @@ func funcfile(f funcInfo, fileno int32) string {
+ 	return "?"
+ }
+ 
++// funcline1 should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/phuslu/log
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname funcline1
+ func funcline1(f funcInfo, targetpc uintptr, strict bool) (file string, line int32) {
+ 	datap := f.datap
+ 	if !f.valid() {
+@@ -1159,16 +1214,6 @@ func pcdatavalue2(f funcInfo, table uint32, targetpc uintptr) (int32, uintptr) {
+ 
+ // funcdata returns a pointer to the ith funcdata for f.
+ // funcdata should be kept in sync with cmd/link:writeFuncs.
+-//
+-// funcdata should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/cloudwego/frugal
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname funcdata
+ func funcdata(f funcInfo, i uint8) unsafe.Pointer {
+ 	if i < 0 || i >= f.nfuncdata {
+ 		return nil
+diff --git a/src/runtime/symtabinl.go b/src/runtime/symtabinl.go
+index 9273b49b11..faa01decb9 100644
+--- a/src/runtime/symtabinl.go
++++ b/src/runtime/symtabinl.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "internal/abi"
++import (
++	"internal/abi"
++	_ "unsafe" // for linkname
++)
+ 
+ // inlinedCall is the encoding of entries in the FUNCDATA_InlTree table.
+ type inlinedCall struct {
+@@ -51,6 +54,16 @@ type inlineFrame struct {
+ // This unwinder uses non-strict handling of PC because it's assumed this is
+ // only ever used for symbolic debugging. If things go really wrong, it'll just
+ // fall back to the outermost frame.
++//
++// newInlineUnwinder should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/phuslu/log
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname newInlineUnwinder
+ func newInlineUnwinder(f funcInfo, pc uintptr) (inlineUnwinder, inlineFrame) {
+ 	inldata := funcdata(f, abi.FUNCDATA_InlTree)
+ 	if inldata == nil {
+@@ -90,6 +103,16 @@ func (u *inlineUnwinder) isInlined(uf inlineFrame) bool {
+ }
+ 
+ // srcFunc returns the srcFunc representing the given frame.
++//
++// srcFunc should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/phuslu/log
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++// The go:linkname is below.
+ func (u *inlineUnwinder) srcFunc(uf inlineFrame) srcFunc {
+ 	if uf.index < 0 {
+ 		return u.f.srcFunc()
+@@ -103,6 +126,9 @@ func (u *inlineUnwinder) srcFunc(uf inlineFrame) srcFunc {
+ 	}
+ }
+ 
++//go:linkname badSrcFunc runtime.(*inlineUnwinder).srcFunc
++func badSrcFunc(*inlineUnwinder, inlineFrame) srcFunc
++
+ // fileLine returns the file name and line number of the call within the given
+ // frame. As a convenience, for the innermost frame, it returns the file and
+ // line of the PC this unwinder was started at (often this is a call to another
+diff --git a/src/runtime/timestub.go b/src/runtime/timestub.go
+index a9d71c1fd4..da8699b5ee 100644
+--- a/src/runtime/timestub.go
++++ b/src/runtime/timestub.go
+@@ -15,6 +15,7 @@ import _ "unsafe" // for go:linkname
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - gitee.com/quant1x/gox
++//   - github.com/phuslu/log
+ //   - github.com/sethvargo/go-limiter
+ //   - github.com/ulule/limiter/v3
+ //
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index ebee16c6a7..03c02f7771 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1079,6 +1079,16 @@ func printAncestorTracebackFuncInfo(f funcInfo, pc uintptr) {
+ 	print("\n")
+ }
+ 
++// callers should be an internal detail,
++// (and is almost identical to Callers),
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/phuslu/log
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname callers
+ func callers(skip int, pcbuf []uintptr) int {
+ 	sp := getcallersp()
+ 	pc := getcallerpc()
+diff --git a/src/sync/pool.go b/src/sync/pool.go
+index 881cd1f4c2..4b586d6fb9 100644
+--- a/src/sync/pool.go
++++ b/src/sync/pool.go
+@@ -246,6 +246,7 @@ func (p *Pool) pinSlow() (*poolLocal, int) {
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/bytedance/gopkg
++//   - github.com/songzhibin97/gkit
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+diff --git a/src/time/badlinkname.go b/src/time/badlinkname.go
+deleted file mode 100644
+index 097a823ccf..0000000000
+--- a/src/time/badlinkname.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package time
+-
+-import _ "unsafe"
+-
+-// As of Go 1.22, the symbols below are found to be pulled via
+-// linkname in the wild. We provide a push linkname here, to
+-// keep them accessible with pull linknames.
+-// This may change in the future. Please do not depend on them
+-// in new code.
+-
+-//go:linkname absClock
+diff --git a/src/time/time.go b/src/time/time.go
+index 63ee6f6f94..27ff975784 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -579,6 +579,16 @@ func (t Time) Clock() (hour, min, sec int) {
+ }
+ 
+ // absClock is like clock but operates on an absolute time.
++//
++// absClock should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/phuslu/log
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname absClock
+ func absClock(abs uint64) (hour, min, sec int) {
+ 	sec = int(abs % secondsPerDay)
+ 	hour = sec / secondsPerHour
+@@ -992,6 +1002,7 @@ func (t Time) date(full bool) (year int, month Month, day int, yday int) {
+ // absDate should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
++//   - github.com/phuslu/log
+ //   - gitee.com/quant1x/gox
+ //
+ // Do not remove or change the type signature.

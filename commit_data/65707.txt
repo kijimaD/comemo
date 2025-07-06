@@ -1,0 +1,299 @@
+commit 91d7ab2cefcc653f8b438fbfaa48d504dbfa4f00
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 26 11:40:28 2024 -0500
+
+    cmd/internal/obj: handle static assembly symbols correctly in FIPS check
+    
+    Static symbols don't have the package prefix, so we need to identify
+    them specially.
+    
+    Change-Id: Iaa0456de802478f6a257164e9703f18f8dc7eb50
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631975
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/obj/fips140.go                    | 76 ++++++++++++----------
+ .../internal/fips140/check/checktest/asm_386.s     | 23 +++++++
+ .../internal/fips140/check/checktest/asm_amd64.s   | 23 +++++++
+ .../internal/fips140/check/checktest/asm_arm.s     | 23 +++++++
+ .../internal/fips140/check/checktest/asm_arm64.s   | 23 +++++++
+ .../internal/fips140/check/checktest/asm_none.go   | 12 ++++
+ .../internal/fips140/check/checktest/asm_stub.go   | 12 ++++
+ src/crypto/internal/fips140test/check_test.go      |  9 +++
+ 8 files changed, 167 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/internal/obj/fips140.go b/src/cmd/internal/obj/fips140.go
+index 35c4cdfcc9..eb6ffff009 100644
+--- a/src/cmd/internal/obj/fips140.go
++++ b/src/cmd/internal/obj/fips140.go
+@@ -221,47 +221,55 @@ func (s *LSym) setFIPSType(ctxt *Link) {
+ 		return
+ 	}
+ 
+-	// Name must begin with crypto/internal/fips140, then dot or slash.
+-	// The quick check for 'c' before the string compare is probably overkill,
+-	// but this function is called a fair amount, and we don't want to
+-	// slow down all the non-FIPS compilations.
+-	const prefix = "crypto/internal/fips140"
+-	name := s.Name
+-	if len(name) <= len(prefix) || (name[len(prefix)] != '.' && name[len(prefix)] != '/') || name[0] != 'c' || name[:len(prefix)] != prefix {
+-		return
+-	}
+-
+-	if strings.Contains(name, "_test.") {
+-		// External test packages are not in the scope.
++	// External test packages are not in scope.
++	if strings.HasSuffix(ctxt.Pkgpath, "_test") {
+ 		return
+ 	}
+ 
+-	// Now we're at least handling a FIPS symbol.
+-	// It's okay to be slower now, since this code only runs when compiling a few packages.
+-	// Text symbols are always okay, since they can use PC-relative relocations,
+-	// but some data symbols are not.
+-	if s.Type != objabi.STEXT && s.Type != objabi.STEXTFIPS {
+-		// Even in the crypto/internal/fips140 packages,
+-		// we exclude various Go runtime metadata,
+-		// so that it can be allowed to contain data relocations.
+-		if strings.Contains(name, ".inittask") ||
+-			strings.Contains(name, ".dict") ||
+-			strings.Contains(name, ".typeAssert") ||
+-			strings.HasSuffix(name, ".arginfo0") ||
+-			strings.HasSuffix(name, ".arginfo1") ||
+-			strings.HasSuffix(name, ".argliveinfo") ||
+-			strings.HasSuffix(name, ".args_stackmap") ||
+-			strings.HasSuffix(name, ".opendefer") ||
+-			strings.HasSuffix(name, ".stkobj") ||
+-			strings.HasSuffix(name, "·f") {
++	if s.Attribute.Static() {
++		// Static (file-scoped) symbol does not have name prefix,
++		// but must be local to package; rely on whether package is FIPS.
++		if !ctxt.IsFIPS() {
+ 			return
+ 		}
+-
+-		// This symbol is linknamed to go:fipsinfo,
+-		// so we shouldn't see it, but skip it just in case.
+-		if s.Name == "crypto/internal/fips140/check.linkinfo" {
++	} else {
++		// Name must begin with crypto/internal/fips140, then dot or slash.
++		// The quick check for 'c' before the string compare is probably overkill,
++		// but this function is called a fair amount, and we don't want to
++		// slow down all the non-FIPS compilations.
++		const prefix = "crypto/internal/fips140"
++		name := s.Name
++		if len(name) <= len(prefix) || (name[len(prefix)] != '.' && name[len(prefix)] != '/') || name[0] != 'c' || name[:len(prefix)] != prefix {
+ 			return
+ 		}
++
++		// Now we're at least handling a FIPS symbol.
++		// It's okay to be slower now, since this code only runs when compiling a few packages.
++		// Text symbols are always okay, since they can use PC-relative relocations,
++		// but some data symbols are not.
++		if s.Type != objabi.STEXT && s.Type != objabi.STEXTFIPS {
++			// Even in the crypto/internal/fips140 packages,
++			// we exclude various Go runtime metadata,
++			// so that it can be allowed to contain data relocations.
++			if strings.Contains(name, ".inittask") ||
++				strings.Contains(name, ".dict") ||
++				strings.Contains(name, ".typeAssert") ||
++				strings.HasSuffix(name, ".arginfo0") ||
++				strings.HasSuffix(name, ".arginfo1") ||
++				strings.HasSuffix(name, ".argliveinfo") ||
++				strings.HasSuffix(name, ".args_stackmap") ||
++				strings.HasSuffix(name, ".opendefer") ||
++				strings.HasSuffix(name, ".stkobj") ||
++				strings.HasSuffix(name, "·f") {
++				return
++			}
++
++			// This symbol is linknamed to go:fipsinfo,
++			// so we shouldn't see it, but skip it just in case.
++			if s.Name == "crypto/internal/fips140/check.linkinfo" {
++				return
++			}
++		}
+ 	}
+ 
+ 	// This is a FIPS symbol! Convert its type to FIPS.
+diff --git a/src/crypto/internal/fips140/check/checktest/asm_386.s b/src/crypto/internal/fips140/check/checktest/asm_386.s
+new file mode 100644
+index 0000000000..c2978b5162
+--- /dev/null
++++ b/src/crypto/internal/fips140/check/checktest/asm_386.s
+@@ -0,0 +1,23 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++#include "textflag.h"
++
++DATA StaticData<>(SB)/4, $10
++GLOBL StaticData<>(SB), NOPTR, $4
++
++TEXT StaticText<>(SB), $0
++	RET
++
++TEXT ·PtrStaticData(SB), $0-4
++	MOVL $StaticData<>(SB), AX
++	MOVL AX, ret+0(FP)
++	RET
++
++TEXT ·PtrStaticText(SB), $0-4
++	MOVL $StaticText<>(SB), AX
++	MOVL AX, ret+0(FP)
++	RET
+diff --git a/src/crypto/internal/fips140/check/checktest/asm_amd64.s b/src/crypto/internal/fips140/check/checktest/asm_amd64.s
+new file mode 100644
+index 0000000000..88e4d94074
+--- /dev/null
++++ b/src/crypto/internal/fips140/check/checktest/asm_amd64.s
+@@ -0,0 +1,23 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++#include "textflag.h"
++
++DATA StaticData<>(SB)/4, $10
++GLOBL StaticData<>(SB), NOPTR, $4
++
++TEXT StaticText<>(SB), $0
++	RET
++
++TEXT ·PtrStaticData(SB), $0-8
++	MOVQ $StaticData<>(SB), AX
++	MOVQ AX, ret+0(FP)
++	RET
++
++TEXT ·PtrStaticText(SB), $0-8
++	MOVQ $StaticText<>(SB), AX
++	MOVQ AX, ret+0(FP)
++	RET
+diff --git a/src/crypto/internal/fips140/check/checktest/asm_arm.s b/src/crypto/internal/fips140/check/checktest/asm_arm.s
+new file mode 100644
+index 0000000000..5cc9230100
+--- /dev/null
++++ b/src/crypto/internal/fips140/check/checktest/asm_arm.s
+@@ -0,0 +1,23 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++#include "textflag.h"
++
++DATA StaticData<>(SB)/4, $10
++GLOBL StaticData<>(SB), NOPTR, $4
++
++TEXT StaticText<>(SB), $0
++	RET
++
++TEXT ·PtrStaticData(SB), $0-4
++	MOVW $StaticData<>(SB), R1
++	MOVW R1, ret+0(FP)
++	RET
++
++TEXT ·PtrStaticText(SB), $0-4
++	MOVW $StaticText<>(SB), R1
++	MOVW R1, ret+0(FP)
++	RET
+diff --git a/src/crypto/internal/fips140/check/checktest/asm_arm64.s b/src/crypto/internal/fips140/check/checktest/asm_arm64.s
+new file mode 100644
+index 0000000000..721bb03ada
+--- /dev/null
++++ b/src/crypto/internal/fips140/check/checktest/asm_arm64.s
+@@ -0,0 +1,23 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++#include "textflag.h"
++
++DATA StaticData<>(SB)/4, $10
++GLOBL StaticData<>(SB), NOPTR, $4
++
++TEXT StaticText<>(SB), $0
++	RET
++
++TEXT ·PtrStaticData(SB), $0-8
++	MOVD $StaticData<>(SB), R1
++	MOVD R1, ret+0(FP)
++	RET
++
++TEXT ·PtrStaticText(SB), $0-8
++	MOVD $StaticText<>(SB), R1
++	MOVD R1, ret+0(FP)
++	RET
+diff --git a/src/crypto/internal/fips140/check/checktest/asm_none.go b/src/crypto/internal/fips140/check/checktest/asm_none.go
+new file mode 100644
+index 0000000000..956bad1cda
+--- /dev/null
++++ b/src/crypto/internal/fips140/check/checktest/asm_none.go
+@@ -0,0 +1,12 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (!386 && !amd64 && !arm && !arm64) || purego
++
++package checktest
++
++import "unsafe"
++
++func PtrStaticData() *uint32        { return nil }
++func PtrStaticText() unsafe.Pointer { return nil }
+diff --git a/src/crypto/internal/fips140/check/checktest/asm_stub.go b/src/crypto/internal/fips140/check/checktest/asm_stub.go
+new file mode 100644
+index 0000000000..ebb5b17b28
+--- /dev/null
++++ b/src/crypto/internal/fips140/check/checktest/asm_stub.go
+@@ -0,0 +1,12 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (386 || amd64 || arm || arm64) && !purego
++
++package checktest
++
++import "unsafe"
++
++func PtrStaticData() *uint32
++func PtrStaticText() unsafe.Pointer
+diff --git a/src/crypto/internal/fips140test/check_test.go b/src/crypto/internal/fips140test/check_test.go
+index 8e1998a525..b156de2cbb 100644
+--- a/src/crypto/internal/fips140test/check_test.go
++++ b/src/crypto/internal/fips140test/check_test.go
+@@ -80,6 +80,9 @@ func TestFIPSCheckInfo(t *testing.T) {
+ 	if checktest.BSS != nil {
+ 		t.Errorf("checktest.BSS = %p, want nil", checktest.BSS)
+ 	}
++	if p := checktest.PtrStaticData(); p != nil && *p != 10 {
++		t.Errorf("*checktest.PtrStaticData() = %d, want 10", *p)
++	}
+ 
+ 	// Check that the checktest symbols are in the right go:fipsinfo sections.
+ 	sect := func(i int, name string, p unsafe.Pointer) {
+@@ -89,8 +92,14 @@ func TestFIPSCheckInfo(t *testing.T) {
+ 		}
+ 	}
+ 	sect(0, "TEXT", unsafe.Pointer(abi.FuncPCABIInternal(checktest.TEXT)))
++	if p := checktest.PtrStaticText(); p != nil {
++		sect(0, "StaticText", p)
++	}
+ 	sect(1, "RODATA", unsafe.Pointer(&checktest.RODATA))
+ 	sect(2, "NOPTRDATA", unsafe.Pointer(&checktest.NOPTRDATA))
++	if p := checktest.PtrStaticData(); p != nil {
++		sect(2, "StaticData", unsafe.Pointer(p))
++	}
+ 	sect(3, "DATA", unsafe.Pointer(&checktest.DATA))
+ 
+ 	// Check that some symbols are not in FIPS sections.

@@ -1,0 +1,59 @@
+commit 88108cc563418ab962e41bdcc54a1d2010c2efcf
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Feb 6 15:01:17 2025 -0800
+
+    cmd/go: adjust testsuite to add reraised panic message
+    
+    A couple of tests generate different output due to CL 645916
+    for issue #71517.
+    
+    Fixes #71593
+    Fixes #71594
+    
+    Change-Id: Ifaeff4e9de8d881202bd9e6394c9b9cff8959596
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647495
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/cmd/go/testdata/script/test_cleanup_failnow.txt | 6 +++---
+ src/cmd/go/testdata/script/test_fuzz_return.txt     | 2 +-
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_cleanup_failnow.txt b/src/cmd/go/testdata/script/test_cleanup_failnow.txt
+index 0aba8c7c00..80182cd9e3 100644
+--- a/src/cmd/go/testdata/script/test_cleanup_failnow.txt
++++ b/src/cmd/go/testdata/script/test_cleanup_failnow.txt
+@@ -14,8 +14,8 @@ env GOGC=off
+ 
+ ! go test -v cleanup_failnow/panic_nocleanup_test.go
+ ! stdout 'no tests to run'
+-stdout '(?s)panic: die \[recovered\].*panic: die'
+-! stdout '(?s)panic: die \[recovered\].*panic: die.*panic: die'
++stdout '(?s)panic: die \[recovered, reraised\]'
++! stdout '(?s)panic: die \[recovered, reraised\].*panic: die'
+ 
+ ! go test -v cleanup_failnow/panic_withcleanup_test.go
+ ! stdout 'no tests to run'
+@@ -43,4 +43,4 @@ func TestCleanupWithFailNow(t *testing.T) {
+ 			panic("die")
+ 		})
+ 	})
+-}
+\ No newline at end of file
++}
+diff --git a/src/cmd/go/testdata/script/test_fuzz_return.txt b/src/cmd/go/testdata/script/test_fuzz_return.txt
+index 2f7b85bcc0..d86783e9cb 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_return.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_return.txt
+@@ -3,7 +3,7 @@
+ # Disable vet, as its "tests" analyzer would report the same problem statically.
+ 
+ ! go test -vet=off .
+-stdout '^panic: testing: fuzz target must not return a value \[recovered\]$'
++stdout '^panic: testing: fuzz target must not return a value \[recovered, reraised\]$'
+ 
+ -- go.mod --
+ module test

@@ -1,0 +1,82 @@
+commit 44f18706661db8b865719d15a5cfa0515d1a4fca
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Jun 17 14:44:42 2024 -0400
+
+    cmd/link: handle dynamic import variables on Darwin in plugin mode
+    
+    CL 501855 added support for cgo_dynamic_import variables on Darwin.
+    But it didn't support the plugin build mode on amd64, where the
+    assembler turns a direct load (R_PCREL) to a load via GOT
+    (R_GOTPCREL). This CL adds the support. We just need to handle
+    external linking mode, as this can only occur in plugin or shared
+    build mode, which requires external linking.
+    
+    Fixes #67976.
+    Updates #50891.
+    
+    Change-Id: I0f56265d50bfcb36047fa5538ad7a5ec77e7ef96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592499
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cgo/internal/testplugin/plugin_test.go           |  8 ++++++++
+ .../internal/testplugin/testdata/issue67976/plugin.go    | 16 ++++++++++++++++
+ src/cmd/link/internal/amd64/asm.go                       |  7 +++++++
+ 3 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index 4900ada182..85dfd31123 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -414,3 +414,11 @@ func TestTextSectionSplit(t *testing.T) {
+ 		t.Errorf("runtime.text.1 not found, text section not split?")
+ 	}
+ }
++
++func TestIssue67976(t *testing.T) {
++	// Issue 67976: build failure with loading a dynimport variable (the runtime/pprof
++	// package does this on darwin) in a plugin on darwin/amd64.
++	// The test program uses runtime/pprof in a plugin.
++	globalSkip(t)
++	goCmd(t, "build", "-buildmode=plugin", "-o", "issue67976.so", "./issue67976/plugin.go")
++}
+diff --git a/src/cmd/cgo/internal/testplugin/testdata/issue67976/plugin.go b/src/cmd/cgo/internal/testplugin/testdata/issue67976/plugin.go
+new file mode 100644
+index 0000000000..502ecc5c47
+--- /dev/null
++++ b/src/cmd/cgo/internal/testplugin/testdata/issue67976/plugin.go
+@@ -0,0 +1,16 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"io"
++	"runtime/pprof"
++)
++
++func main() {}
++
++func Start() {
++	pprof.StartCPUProfile(io.Discard)
++}
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index f86d224932..9da0541f52 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -398,6 +398,13 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 			// (e.g. go version).
+ 			return true
+ 		}
++	case objabi.R_GOTPCREL:
++		if target.IsExternal() {
++			// External linker will do this relocation.
++			return true
++		}
++		// We only need to handle external linking mode, as R_GOTPCREL can
++		// only occur in plugin or shared build modes.
+ 	}
+ 
+ 	return false

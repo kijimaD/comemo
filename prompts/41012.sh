@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41012: 991b0fd46c3e8160c9b5c622478caf7b5ebe139c
+# Index 41012: abf8e355a8fe4b77009cb55f6bef11f74e6ade03
 
 echo "🚀 Generating explanation for commit 41012..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 41012..."
 
 ### メタデータ
 - **コミットインデックス**: 41012
-- **コミットハッシュ**: 991b0fd46c3e8160c9b5c622478caf7b5ebe139c
-- **GitHub URL**: https://github.com/golang/go/commit/991b0fd46c3e8160c9b5c622478caf7b5ebe139c
+- **コミットハッシュ**: abf8e355a8fe4b77009cb55f6bef11f74e6ade03
+- **GitHub URL**: https://github.com/golang/go/commit/abf8e355a8fe4b77009cb55f6bef11f74e6ade03
 
 ### 章構成
 

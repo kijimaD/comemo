@@ -1,0 +1,97 @@
+commit 4324d5a88cf8ac1d6cf1cb57f5df82ddd6c6283e
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Apr 19 04:41:01 2024 +0000
+
+    internal/concurrent: handle boundary case for hash bits in HashTrieMap
+    
+    Currently the HashTrieMap has a panic for running out of hash bits, but
+    it turns out we can end up in these paths in valid cases, like inserting
+    or deleting an element that requires *all* the hash bits to finds its
+    position in the tree. There's basically an off-by-one error here where
+    the panic fires erroneously.
+    
+    This wasn't caught before the original CL landed because it's very
+    unlikely on 64-bit platforms, with a 64-bit hash, but much more likely
+    on 32-bit platforms, where using all 32 bits of a 32-bit hash is much
+    more likely.
+    
+    This CL makes the condition for panicking much more explicit, which
+    avoids the off-by-one error.
+    
+    After this CL, I can't get the tests to fail on 32-bit under stress
+    testing.
+    
+    Change-Id: I855e301e3b3893e2b6b017f6dd9f3d83a94a558d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580138
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/internal/concurrent/hashtriemap.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/concurrent/hashtriemap.go b/src/internal/concurrent/hashtriemap.go
+index 69d9a3876a..348e3b6c47 100644
+--- a/src/internal/concurrent/hashtriemap.go
++++ b/src/internal/concurrent/hashtriemap.go
+@@ -78,6 +78,7 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
+ 		// Find the key or a candidate location for insertion.
+ 		i = ht.root
+ 		hashShift = 8 * goarch.PtrSize
++		haveInsertPoint := false
+ 		for hashShift != 0 {
+ 			hashShift -= nChildrenLog2
+ 
+@@ -85,6 +86,7 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
+ 			n = slot.Load()
+ 			if n == nil {
+ 				// We found a nil slot which is a candidate for insertion.
++				haveInsertPoint = true
+ 				break
+ 			}
+ 			if n.isEntry {
+@@ -94,11 +96,12 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
+ 				if v, ok := n.entry().lookup(key, ht.keyEqual); ok {
+ 					return v, true
+ 				}
++				haveInsertPoint = true
+ 				break
+ 			}
+ 			i = n.indirect()
+ 		}
+-		if hashShift == 0 {
++		if !haveInsertPoint {
+ 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
+ 		}
+ 
+@@ -188,6 +191,7 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+ 		// Find the key or return when there's nothing to delete.
+ 		i = ht.root
+ 		hashShift = 8 * goarch.PtrSize
++		found := false
+ 		for hashShift != 0 {
+ 			hashShift -= nChildrenLog2
+ 
+@@ -204,11 +208,12 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+ 					return
+ 				}
+ 				// We've got something to delete.
++				found = true
+ 				break
+ 			}
+ 			i = n.indirect()
+ 		}
+-		if hashShift == 0 {
++		if !found {
+ 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
+ 		}
+ 
+@@ -248,7 +253,7 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+ 
+ 	// Check if the node is now empty (and isn't the root), and delete it if able.
+ 	for i.parent != nil && i.empty() {
+-		if hashShift == 64 {
++		if hashShift == 8*goarch.PtrSize {
+ 			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
+ 		}
+ 		hashShift += nChildrenLog2

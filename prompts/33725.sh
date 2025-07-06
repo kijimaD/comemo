@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 33725: fda8269cc6b8223ba5125ddadefe8f2f2302a309
+# Index 33725: 29e88d513004749b6a84fc6ed32e026976ac1960
 
 echo "🚀 Generating explanation for commit 33725..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 33725..."
 
 ### メタデータ
 - **コミットインデックス**: 33725
-- **コミットハッシュ**: fda8269cc6b8223ba5125ddadefe8f2f2302a309
-- **GitHub URL**: https://github.com/golang/go/commit/fda8269cc6b8223ba5125ddadefe8f2f2302a309
+- **コミットハッシュ**: 29e88d513004749b6a84fc6ed32e026976ac1960
+- **GitHub URL**: https://github.com/golang/go/commit/29e88d513004749b6a84fc6ed32e026976ac1960
 
 ### 章構成
 

@@ -1,0 +1,43 @@
+commit f234c9423bd87e7bf81ad7d1bab2b452c722b3b1
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 25 17:33:15 2024 -0700
+
+    go/types, types2: fix test name (for debugging)
+    
+    Change-Id: I982cf4da98af73ac41936a9d0b51588e3dbfd706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594739
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/api_test.go | 2 +-
+ src/go/types/api_test.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index f23c50ba46..d73e8fa95e 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -764,7 +764,7 @@ func TestUsesInfo(t *testing.T) {
+ 
+ 		// Uses of fields are instantiated.
+ 		{`package s1; type N[A any] struct{ a A }; var f = N[int]{}.a`, `a`, `field a int`},
+-		{`package s1; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
++		{`package s2; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
+ 
+ 		// Uses of methods are uses of the instantiated method.
+ 		{`package m0; type N[A any] int; func (r N[B]) m() { r.n() }; func (N[C]) n() {}`, `n`, `func (m0.N[B]).n()`},
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 0854a119c2..f94fe6be4c 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -763,7 +763,7 @@ func TestUsesInfo(t *testing.T) {
+ 
+ 		// Uses of fields are instantiated.
+ 		{`package s1; type N[A any] struct{ a A }; var f = N[int]{}.a`, `a`, `field a int`},
+-		{`package s1; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
++		{`package s2; type N[A any] struct{ a A }; func (r N[B]) m(b B) { r.a = b }`, `a`, `field a B`},
+ 
+ 		// Uses of methods are uses of the instantiated method.
+ 		{`package m0; type N[A any] int; func (r N[B]) m() { r.n() }; func (N[C]) n() {}`, `n`, `func (m0.N[B]).n()`},

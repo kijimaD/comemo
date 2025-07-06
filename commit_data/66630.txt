@@ -1,0 +1,202 @@
+commit a20d583bb99cb2715dd412738c3c5f56e8700158
+Author: Derek Parker <parkerderek86@gmail.com>
+Date:   Wed Mar 19 01:54:41 2025 +0000
+
+    cmd/compile/internal/abi: fix ComputePadding
+    
+    Fixes the ComputePadding calculation to take into account
+    the padding added for the current offset. This fixes an issue
+    where padding can be added incorrectly for certain structs.
+    
+    Related: https://github.com/go-delve/delve/issues/3923
+    
+    Fixes #72053
+    
+    Change-Id: I277629799168c6b44bc9ed03df4345e0318064ce
+    GitHub-Last-Rev: 9478b29a137e20421ad348bb93a54406b1977008
+    GitHub-Pull-Request: golang/go#72805
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656736
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/abi/abiutils.go       |   3 +-
+ src/cmd/compile/internal/ssa/debug.go          |   2 +-
+ src/cmd/compile/internal/test/abiutils_test.go |   4 +-
+ src/cmd/link/internal/ld/dwarf_test.go         | 113 +++++++++++++++++++++++++
+ 4 files changed, 117 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index e88a80d564..c013aba19c 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -673,10 +673,9 @@ func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
+ 		panic("internal error")
+ 	}
+ 	offsets, _ := appendParamOffsets([]int64{}, 0, pa.Type)
+-	off := int64(0)
+ 	for idx, t := range types {
+ 		ts := t.Size()
+-		off += int64(ts)
++		off := offsets[idx] + ts
+ 		if idx < len(types)-1 {
+ 			noff := offsets[idx+1]
+ 			if noff != off {
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 59d0294264..6faef7c255 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -557,7 +557,7 @@ func PopulateABIInRegArgOps(f *Func) {
+ 	f.Entry.Values = append(newValues, f.Entry.Values...)
+ }
+ 
+-// BuildFuncDebug debug information for f, placing the results
++// BuildFuncDebug builds debug information for f, placing the results
+ // in "rval". f must be fully processed, so that each Value is where it
+ // will be when machine code is emitted.
+ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(LocalSlot) int32, rval *FuncDebug) {
+diff --git a/src/cmd/compile/internal/test/abiutils_test.go b/src/cmd/compile/internal/test/abiutils_test.go
+index b500de9f18..da807f5a0a 100644
+--- a/src/cmd/compile/internal/test/abiutils_test.go
++++ b/src/cmd/compile/internal/test/abiutils_test.go
+@@ -390,9 +390,9 @@ func TestABIUtilsComputePadding(t *testing.T) {
+ 	padding := make([]uint64, 32)
+ 	parm := regRes.InParams()[1]
+ 	padding = parm.ComputePadding(padding)
+-	want := "[1 1 1 0]"
++	want := "[1 0 0 0]"
+ 	got := fmt.Sprintf("%+v", padding)
+ 	if got != want {
+-		t.Errorf("padding mismatch: wanted %q got %q\n", got, want)
++		t.Errorf("padding mismatch: wanted %q got %q\n", want, got)
+ 	}
+ }
+diff --git a/src/cmd/link/internal/ld/dwarf_test.go b/src/cmd/link/internal/ld/dwarf_test.go
+index 28b5ddf74c..99bf1a1778 100644
+--- a/src/cmd/link/internal/ld/dwarf_test.go
++++ b/src/cmd/link/internal/ld/dwarf_test.go
+@@ -5,7 +5,9 @@
+ package ld
+ 
+ import (
++	"bytes"
+ 	"debug/dwarf"
++	"debug/elf"
+ 	"debug/pe"
+ 	"fmt"
+ 	"internal/platform"
+@@ -2042,3 +2044,114 @@ func TestConsistentGoKindAndRuntimeType(t *testing.T) {
+ 		t.Logf("%d types checked\n", typesChecked)
+ 	}
+ }
++
++func TestIssue72053(t *testing.T) {
++	if runtime.GOOS != "linux" || runtime.GOARCH != "amd64" {
++		t.Skip("skipping test: requires ELF binary and amd64 arch")
++	}
++
++	testenv.MustHaveGoBuild(t)
++
++	mustHaveDWARF(t)
++
++	t.Parallel()
++
++	dir := t.TempDir()
++
++	const prog = `package main
++
++import (
++		"fmt"
++		"strings"
++)
++
++func main() {
++		u := Address{Addr: "127.0.0.1"}
++		fmt.Println(u) // line 10
++}
++
++type Address struct {
++		TLS  bool
++		Addr string
++}
++
++func (a Address) String() string {
++		sb := new(strings.Builder)
++		sb.WriteString(a.Addr)
++		return sb.String()
++}
++`
++
++	bf := gobuild(t, dir, prog, NoOpt)
++
++	defer bf.Close()
++
++	f, err := elf.Open(bf.path)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	dwrf, err := f.DWARF()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	rdr := dwrf.Reader()
++
++	found := false
++	for {
++		e, err := rdr.Next()
++		if err != nil {
++			t.Fatal(err)
++		}
++		if e == nil {
++			break
++		}
++
++		name, _ := e.Val(dwarf.AttrName).(string)
++
++		if e.Tag == dwarf.TagSubprogram && name == "main.Address.String" {
++			found = true
++			continue
++		}
++
++		if found && name == "a" {
++			loc := e.AttrField(dwarf.AttrLocation)
++			if loc != nil {
++				switch loc.Class {
++				case dwarf.ClassLocListPtr:
++					offset := loc.Val.(int64)
++					buf := make([]byte, 32)
++					s := f.Section(".debug_loc")
++					if s == nil {
++						t.Fatal("could not find debug_loc section")
++					}
++					d := s.Open()
++					// Seek past the first 16 bytes which establishes the base address and
++					// can be brittle and unreliable in the test due to compiler changes or DWARF
++					// version used.
++					d.Seek(offset+16, io.SeekStart)
++					d.Read(buf)
++
++					// DW_OP_reg0 DW_OP_piece 0x1 DW_OP_piece 0x7 DW_OP_reg3 DW_OP_piece 0x8 DW_OP_reg2 DW_OP_piece 0x8
++					expected := []byte{
++						0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++						0x1f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++						0x0b, 0x00, 0x50, 0x93, 0x01, 0x93, 0x07, 0x53,
++						0x93, 0x08, 0x52, 0x93, 0x08, 0x1f, 0x00, 0x00,
++					}
++
++					if !bytes.Equal(buf, expected) {
++						t.Fatalf("unexpected DWARF sequence found, expected:\n%#v\nfound:\n%#v\n", expected, buf)
++					}
++				}
++			} else {
++				t.Fatal("unable to find expected DWARF location list")
++			}
++			break
++		}
++	}
++	if !found {
++		t.Fatal("unable to find expected DWARF location list")
++	}
++}

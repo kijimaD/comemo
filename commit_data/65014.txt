@@ -1,0 +1,248 @@
+commit 092d18b31824d35a07f796c90380d5e607b61681
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 3 10:36:36 2024 +0200
+
+    internal/coverage: use 128-bit FNV-1a hash instead of MD5
+    
+    This change replaces the MD5 hash used to identify coverage files with a
+    128-bit FNV-1a hash. This change is motivated by the fact that MD5
+    should only be used for legacy cryptographic purposes.
+    
+    The 128-bit FNV-1a hash is sufficient for the purpose of identifying
+    coverage files, it having the same theoretical collision resistance as
+    MD5, but with the added benefit of being faster to compute.
+    
+    Change-Id: I7b547ce2ea784f8f4071599a10fcb512b87ee469
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617360
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/covdata/metamerge.go                   |  9 ++++++---
+ src/go/build/deps_test.go                      |  2 +-
+ src/internal/coverage/cfile/emit.go            |  4 ++--
+ src/internal/coverage/decodemeta/decodefile.go |  6 ++++--
+ src/internal/coverage/encodemeta/encode.go     |  6 +++---
+ src/internal/coverage/encodemeta/encodefile.go |  6 ++++--
+ src/internal/coverage/pods/pods_test.go        | 28 +++++++++++++++-----------
+ 7 files changed, 36 insertions(+), 25 deletions(-)
+
+diff --git a/src/cmd/covdata/metamerge.go b/src/cmd/covdata/metamerge.go
+index bf088b1136..b3c62460e4 100644
+--- a/src/cmd/covdata/metamerge.go
++++ b/src/cmd/covdata/metamerge.go
+@@ -9,8 +9,8 @@ package main
+ // and "intersect" subcommands.
+ 
+ import (
+-	"crypto/md5"
+ 	"fmt"
++	"hash/fnv"
+ 	"internal/coverage"
+ 	"internal/coverage/calloc"
+ 	"internal/coverage/cmerge"
+@@ -207,7 +207,8 @@ func (mm *metaMerge) endPod(pcombine bool) {
+ // part of a merge operation, specifically a merge with the
+ // "-pcombine" flag.
+ func (mm *metaMerge) emitMeta(outdir string, pcombine bool) [16]byte {
+-	fh := md5.New()
++	fh := fnv.New128a()
++	fhSum := fnv.New128a()
+ 	blobs := [][]byte{}
+ 	tlen := uint64(unsafe.Sizeof(coverage.MetaFileHeader{}))
+ 	for _, p := range mm.pkgs {
+@@ -219,7 +220,9 @@ func (mm *metaMerge) emitMeta(outdir string, pcombine bool) [16]byte {
+ 		} else {
+ 			blob = p.mdblob
+ 		}
+-		ph := md5.Sum(blob)
++		fhSum.Reset()
++		fhSum.Write(blob)
++		ph := fhSum.Sum(nil)
+ 		blobs = append(blobs, blob)
+ 		if _, err := fh.Write(ph[:]); err != nil {
+ 			panic(fmt.Sprintf("internal error: md5 sum failed: %v", err))
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 6545dd421d..3adc26ae2b 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -685,7 +685,7 @@ var depsRules = `
+ 	< internal/trace/traceviewer;
+ 
+ 	# Coverage.
+-	FMT, crypto/md5, encoding/binary, regexp, sort, text/tabwriter,
++	FMT, hash/fnv, encoding/binary, regexp, sort, text/tabwriter,
+ 	internal/coverage, internal/coverage/uleb128
+ 	< internal/coverage/cmerge,
+ 	  internal/coverage/pods,
+diff --git a/src/internal/coverage/cfile/emit.go b/src/internal/coverage/cfile/emit.go
+index 3993e9cb42..47de7778b0 100644
+--- a/src/internal/coverage/cfile/emit.go
++++ b/src/internal/coverage/cfile/emit.go
+@@ -9,8 +9,8 @@
+ package cfile
+ 
+ import (
+-	"crypto/md5"
+ 	"fmt"
++	"hash/fnv"
+ 	"internal/coverage"
+ 	"internal/coverage/encodecounter"
+ 	"internal/coverage/encodemeta"
+@@ -206,7 +206,7 @@ func prepareForMetaEmit() ([]rtcov.CovMetaBlob, error) {
+ 		}
+ 	}
+ 
+-	h := md5.New()
++	h := fnv.New128a()
+ 	tlen := uint64(unsafe.Sizeof(coverage.MetaFileHeader{}))
+ 	for _, entry := range ml {
+ 		if _, err := h.Write(entry.Hash[:]); err != nil {
+diff --git a/src/internal/coverage/decodemeta/decodefile.go b/src/internal/coverage/decodemeta/decodefile.go
+index 96e076596f..6f4dd1a3ec 100644
+--- a/src/internal/coverage/decodemeta/decodefile.go
++++ b/src/internal/coverage/decodemeta/decodefile.go
+@@ -12,9 +12,9 @@ package decodemeta
+ 
+ import (
+ 	"bufio"
+-	"crypto/md5"
+ 	"encoding/binary"
+ 	"fmt"
++	"hash/fnv"
+ 	"internal/coverage"
+ 	"internal/coverage/slicereader"
+ 	"internal/coverage/stringtab"
+@@ -171,8 +171,10 @@ func (r *CoverageMetaFileReader) FileHash() [16]byte {
+ func (r *CoverageMetaFileReader) GetPackageDecoder(pkIdx uint32, payloadbuf []byte) (*CoverageMetaDataDecoder, []byte, error) {
+ 	pp, err := r.GetPackagePayload(pkIdx, payloadbuf)
+ 	if r.debug {
++		h := fnv.New128a()
++		h.Write(pp)
+ 		fmt.Fprintf(os.Stderr, "=-= pkidx=%d payload length is %d hash=%s\n",
+-			pkIdx, len(pp), fmt.Sprintf("%x", md5.Sum(pp)))
++			pkIdx, len(pp), fmt.Sprintf("%x", h.Sum(nil)))
+ 	}
+ 	if err != nil {
+ 		return nil, nil, err
+diff --git a/src/internal/coverage/encodemeta/encode.go b/src/internal/coverage/encodemeta/encode.go
+index 549b3f55a8..e8f70fe575 100644
+--- a/src/internal/coverage/encodemeta/encode.go
++++ b/src/internal/coverage/encodemeta/encode.go
+@@ -10,10 +10,10 @@ package encodemeta
+ 
+ import (
+ 	"bytes"
+-	"crypto/md5"
+ 	"encoding/binary"
+ 	"fmt"
+ 	"hash"
++	"hash/fnv"
+ 	"internal/coverage"
+ 	"internal/coverage/stringtab"
+ 	"internal/coverage/uleb128"
+@@ -39,7 +39,7 @@ func NewCoverageMetaDataBuilder(pkgpath string, pkgname string, modulepath strin
+ 	}
+ 	x := &CoverageMetaDataBuilder{
+ 		tmp: make([]byte, 0, 256),
+-		h:   md5.New(),
++		h:   fnv.New128a(),
+ 	}
+ 	x.stab.InitWriter()
+ 	x.stab.Lookup("")
+@@ -188,7 +188,7 @@ func (b *CoverageMetaDataBuilder) Emit(w io.WriteSeeker) ([16]byte, error) {
+ // HashFuncDesc computes an md5 sum of a coverage.FuncDesc and returns
+ // a digest for it.
+ func HashFuncDesc(f *coverage.FuncDesc) [16]byte {
+-	h := md5.New()
++	h := fnv.New128a()
+ 	tmp := make([]byte, 0, 32)
+ 	hashFuncDesc(h, f, tmp)
+ 	var r [16]byte
+diff --git a/src/internal/coverage/encodemeta/encodefile.go b/src/internal/coverage/encodemeta/encodefile.go
+index 38ae46e4f5..ae7c23ad97 100644
+--- a/src/internal/coverage/encodemeta/encodefile.go
++++ b/src/internal/coverage/encodemeta/encodefile.go
+@@ -6,9 +6,9 @@ package encodemeta
+ 
+ import (
+ 	"bufio"
+-	"crypto/md5"
+ 	"encoding/binary"
+ 	"fmt"
++	"hash/fnv"
+ 	"internal/coverage"
+ 	"internal/coverage/stringtab"
+ 	"io"
+@@ -112,7 +112,9 @@ func (m *CoverageMetaFileWriter) Write(finalHash [16]byte, blobs [][]byte, mode
+ 	// Now emit blobs themselves.
+ 	for k, blob := range blobs {
+ 		if m.debug {
+-			fmt.Fprintf(os.Stderr, "=+= writing blob %d len %d at off=%d hash %s\n", k, len(blob), off2, fmt.Sprintf("%x", md5.Sum(blob)))
++			h := fnv.New128a()
++			h.Write(blob)
++			fmt.Fprintf(os.Stderr, "=+= writing blob %d len %d at off=%d hash %s\n", k, len(blob), off2, fmt.Sprintf("%x", h.Sum(nil)))
+ 		}
+ 		if _, err = m.w.Write(blob); err != nil {
+ 			return fmt.Errorf("error writing %s: %v", m.mfname, err)
+diff --git a/src/internal/coverage/pods/pods_test.go b/src/internal/coverage/pods/pods_test.go
+index 69c16e00eb..eed01698e2 100644
+--- a/src/internal/coverage/pods/pods_test.go
++++ b/src/internal/coverage/pods/pods_test.go
+@@ -5,8 +5,8 @@
+ package pods_test
+ 
+ import (
+-	"crypto/md5"
+ 	"fmt"
++	"hash/fnv"
+ 	"internal/coverage"
+ 	"internal/coverage/pods"
+ 	"os"
+@@ -35,13 +35,17 @@ func TestPodCollection(t *testing.T) {
+ 	}
+ 
+ 	mkmeta := func(dir string, tag string) string {
+-		hash := md5.Sum([]byte(tag))
++		h := fnv.New128a()
++		h.Write([]byte(tag))
++		hash := h.Sum(nil)
+ 		fn := fmt.Sprintf("%s.%x", coverage.MetaFilePref, hash)
+ 		return mkfile(dir, fn)
+ 	}
+ 
+ 	mkcounter := func(dir string, tag string, nt int, pid int) string {
+-		hash := md5.Sum([]byte(tag))
++		h := fnv.New128a()
++		h.Write([]byte(tag))
++		hash := h.Sum(nil)
+ 		fn := fmt.Sprintf(coverage.CounterFileTempl, coverage.CounterFilePref, hash, pid, nt)
+ 		return mkfile(dir, fn)
+ 	}
+@@ -112,16 +116,16 @@ func TestPodCollection(t *testing.T) {
+ 	}
+ 
+ 	expected := []string{
+-		`o1/covmeta.ae7be26cdaa742ca148068d5ac90eaca [
+-o1/covcounters.ae7be26cdaa742ca148068d5ac90eaca.40.2 o:0
+-o1/covcounters.ae7be26cdaa742ca148068d5ac90eaca.41.2 o:0
+-o1/covcounters.ae7be26cdaa742ca148068d5ac90eaca.42.1 o:0
+-o2/covcounters.ae7be26cdaa742ca148068d5ac90eaca.35.11 o:1
++		`o1/covmeta.0880952782ab1be95aa0733055a4d06b [
++o1/covcounters.0880952782ab1be95aa0733055a4d06b.40.2 o:0
++o1/covcounters.0880952782ab1be95aa0733055a4d06b.41.2 o:0
++o1/covcounters.0880952782ab1be95aa0733055a4d06b.42.1 o:0
++o2/covcounters.0880952782ab1be95aa0733055a4d06b.35.11 o:1
+ ]`,
+-		`o2/covmeta.aaf2f89992379705dac844c0a2a1d45f [
+-o2/covcounters.aaf2f89992379705dac844c0a2a1d45f.36.3 o:1
+-o2/covcounters.aaf2f89992379705dac844c0a2a1d45f.37.2 o:1
+-o2/covcounters.aaf2f89992379705dac844c0a2a1d45f.38.1 o:1
++		`o2/covmeta.0880952783ab1be95aa0733055a4d1a6 [
++o2/covcounters.0880952783ab1be95aa0733055a4d1a6.36.3 o:1
++o2/covcounters.0880952783ab1be95aa0733055a4d1a6.37.2 o:1
++o2/covcounters.0880952783ab1be95aa0733055a4d1a6.38.1 o:1
+ ]`,
+ 	}
+ 	for k, exp := range expected {

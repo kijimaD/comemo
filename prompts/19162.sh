@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 19162: cabdb85333bc0af0ce32ce45e58385e61f84dc43
+# Index 19162: 475e7d037299c3187054319f5e984c57524cabef
 
 echo "🚀 Generating explanation for commit 19162..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 19162..."
 
 ### メタデータ
 - **コミットインデックス**: 19162
-- **コミットハッシュ**: cabdb85333bc0af0ce32ce45e58385e61f84dc43
-- **GitHub URL**: https://github.com/golang/go/commit/cabdb85333bc0af0ce32ce45e58385e61f84dc43
+- **コミットハッシュ**: 475e7d037299c3187054319f5e984c57524cabef
+- **GitHub URL**: https://github.com/golang/go/commit/475e7d037299c3187054319f5e984c57524cabef
 
 ### 章構成
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 32306: dc444418d919b72f7744a521cc898252f3f355df
+# Index 32306: 9ef65dbe0683634a2e8a557d12267d0309ae1570
 
 echo "🚀 Generating explanation for commit 32306..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 32306..."
 
 ### メタデータ
 - **コミットインデックス**: 32306
-- **コミットハッシュ**: dc444418d919b72f7744a521cc898252f3f355df
-- **GitHub URL**: https://github.com/golang/go/commit/dc444418d919b72f7744a521cc898252f3f355df
+- **コミットハッシュ**: 9ef65dbe0683634a2e8a557d12267d0309ae1570
+- **GitHub URL**: https://github.com/golang/go/commit/9ef65dbe0683634a2e8a557d12267d0309ae1570
 
 ### 章構成
 

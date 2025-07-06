@@ -1,0 +1,77 @@
+commit 21417518a9e826973c316d3328e069b7535bb23c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Oct 12 17:37:23 2022 +1100
+
+    cmd/compile: combine negation and word sign extension on riscv64
+    
+    Use NEGW to produce a negated and sign extended word, rather than doing
+    the same via two instructions:
+    
+       neg     t0, t0
+       sext.w  a0, t0
+    
+    Becomes:
+    
+       negw    t0, t0
+    
+    Change-Id: I824ab25001bd3304bdbd435e7b244fcc036ef212
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652319
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  3 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 11 +++++++++++
+ test/codegen/arithmetic.go                      |  2 +-
+ 3 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index 5c9ce19773..770a9095f6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -589,6 +589,9 @@
+ (MOVHUreg (ANDI [c] x)) && c < 0 => (ANDI [int64(uint16(c))] x)
+ (MOVWUreg (ANDI [c] x)) && c < 0 => (AND (MOVDconst [int64(uint32(c))]) x)
+ 
++// Combine negation and sign extension.
++(MOVWreg (NEG x)) => (NEGW x)
++
+ // Avoid sign/zero extension for consts.
+ (MOVBreg  (MOVDconst [c])) => (MOVDconst [int64(int8(c))])
+ (MOVHreg  (MOVDconst [c])) => (MOVDconst [int64(int16(c))])
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index eb0480e080..e19e28ea23 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -5644,6 +5644,17 @@ func rewriteValueRISCV64_OpRISCV64MOVWreg(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (MOVWreg (NEG x))
++	// result: (NEGW x)
++	for {
++		if v_0.Op != OpRISCV64NEG {
++			break
++		}
++		x := v_0.Args[0]
++		v.reset(OpRISCV64NEGW)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (MOVWreg (MOVDconst [c]))
+ 	// result: (MOVDconst [int64(int32(c))])
+ 	for {
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 07fd0c961f..530891293e 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -174,7 +174,7 @@ func AddAddSubSimplify(a, b, c int) int {
+ }
+ 
+ func NegToInt32(a int) int {
+-	// riscv64: "NEG","MOVW"
++	// riscv64: "NEGW",-"MOVW"
+ 	r := int(int32(-a))
+ 	return r
+ }

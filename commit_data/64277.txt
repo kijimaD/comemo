@@ -1,0 +1,136 @@
+commit f66db499769002f1f804f52234b7c3e5917bbad6
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 12 18:25:55 2024 -0700
+
+    cmd/compile: store constant floats using integer constants
+    
+    x86 is better at storing constant ints than constant floats.
+    (It uses a constant directly in the instruction stream, instead of
+    loading it from a constant global memory.)
+    
+    Noticed as part of #67957
+    
+    Change-Id: I9b7b586ad8e0fe9ce245324f020e9526f82b209d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592596
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules |  3 ++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go  | 50 +++++++++++++++++++++++++++
+ test/codegen/floats.go                        |  9 +++++
+ 3 files changed, 62 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index 2a4c59ebfc..0f7b0bb6d8 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -1583,6 +1583,9 @@
+ (MOVSDstore [off] {sym} ptr (MOVQi2f val) mem) => (MOVQstore  [off] {sym} ptr val mem)
+ (MOVSSstore [off] {sym} ptr (MOVLi2f val) mem) => (MOVLstore  [off] {sym} ptr val mem)
+ 
++(MOVSDstore [off] {sym} ptr (MOVSDconst [f]) mem) && f == f => (MOVQstore [off] {sym} ptr (MOVQconst [int64(math.Float64bits(f))]) mem)
++(MOVSSstore [off] {sym} ptr (MOVSSconst [f]) mem) && f == f => (MOVLstore [off] {sym} ptr (MOVLconst [int32(math.Float32bits(f))]) mem)
++
+ // Load args directly into the register class where it will be used.
+ // We do this by just modifying the type of the Arg.
+ (MOVQf2i <t> (Arg <u> [off] {sym})) && t.Size() == u.Size() => @b.Func.Entry (Arg <t> [off] {sym})
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index ba71189703..2670ba91b8 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -12304,6 +12304,8 @@ func rewriteValueAMD64_OpAMD64MOVSDstore(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (MOVSDstore [off1] {sym} (ADDQconst [off2] ptr) val mem)
+ 	// cond: is32Bit(int64(off1)+int64(off2))
+ 	// result: (MOVSDstore [off1+off2] {sym} ptr val mem)
+@@ -12366,6 +12368,29 @@ func rewriteValueAMD64_OpAMD64MOVSDstore(v *Value) bool {
+ 		v.AddArg3(ptr, val, mem)
+ 		return true
+ 	}
++	// match: (MOVSDstore [off] {sym} ptr (MOVSDconst [f]) mem)
++	// cond: f == f
++	// result: (MOVQstore [off] {sym} ptr (MOVQconst [int64(math.Float64bits(f))]) mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpAMD64MOVSDconst {
++			break
++		}
++		f := auxIntToFloat64(v_1.AuxInt)
++		mem := v_2
++		if !(f == f) {
++			break
++		}
++		v.reset(OpAMD64MOVQstore)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVQconst, typ.UInt64)
++		v0.AuxInt = int64ToAuxInt(int64(math.Float64bits(f)))
++		v.AddArg3(ptr, v0, mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVSSload(v *Value) bool {
+@@ -12437,6 +12462,8 @@ func rewriteValueAMD64_OpAMD64MOVSSstore(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
+ 	// match: (MOVSSstore [off1] {sym} (ADDQconst [off2] ptr) val mem)
+ 	// cond: is32Bit(int64(off1)+int64(off2))
+ 	// result: (MOVSSstore [off1+off2] {sym} ptr val mem)
+@@ -12499,6 +12526,29 @@ func rewriteValueAMD64_OpAMD64MOVSSstore(v *Value) bool {
+ 		v.AddArg3(ptr, val, mem)
+ 		return true
+ 	}
++	// match: (MOVSSstore [off] {sym} ptr (MOVSSconst [f]) mem)
++	// cond: f == f
++	// result: (MOVLstore [off] {sym} ptr (MOVLconst [int32(math.Float32bits(f))]) mem)
++	for {
++		off := auxIntToInt32(v.AuxInt)
++		sym := auxToSym(v.Aux)
++		ptr := v_0
++		if v_1.Op != OpAMD64MOVSSconst {
++			break
++		}
++		f := auxIntToFloat32(v_1.AuxInt)
++		mem := v_2
++		if !(f == f) {
++			break
++		}
++		v.reset(OpAMD64MOVLstore)
++		v.AuxInt = int32ToAuxInt(off)
++		v.Aux = symToAux(sym)
++		v0 := b.NewValue0(v.Pos, OpAMD64MOVLconst, typ.UInt32)
++		v0.AuxInt = int32ToAuxInt(int32(math.Float32bits(f)))
++		v.AddArg3(ptr, v0, mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueAMD64_OpAMD64MOVWQSX(v *Value) bool {
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index baa745bdee..d38df1cacb 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -227,3 +227,12 @@ func Float64DenormalFloat32Constant() float64 {
+ 	// ppc64x:"FMOVD\t[$]f64\\.3800000000000000\\(SB\\)"
+ 	return 0x1p-127
+ }
++
++func Float64ConstantStore(p *float64) {
++	// amd64: "MOVQ\t[$]4617801906721357038"
++	*p = 5.432
++}
++func Float32ConstantStore(p *float32) {
++	// amd64: "MOVL\t[$]1085133554"
++	*p = 5.432
++}

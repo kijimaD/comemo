@@ -1,0 +1,75 @@
+commit b47ce8b0e997f09abd6e1e5c23eb59d6e9d5be2c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Dec 16 19:30:58 2024 +0100
+
+    crypto/cipher: block non-AES CTR and CBC in fips140=only mode
+    
+    Somehow I had missed these.
+    
+    For #69536
+    
+    Change-Id: I5e60b6f052bbfb707742ad15f663517c6c5f68d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636795
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/crypto/cipher/cbc.go | 7 +++++++
+ src/crypto/cipher/ctr.go | 4 ++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/src/crypto/cipher/cbc.go b/src/crypto/cipher/cbc.go
+index b4536aceb9..8e61406296 100644
+--- a/src/crypto/cipher/cbc.go
++++ b/src/crypto/cipher/cbc.go
+@@ -15,6 +15,7 @@ import (
+ 	"bytes"
+ 	"crypto/internal/fips140/aes"
+ 	"crypto/internal/fips140/alias"
++	"crypto/internal/fips140only"
+ 	"crypto/subtle"
+ )
+ 
+@@ -53,6 +54,9 @@ func NewCBCEncrypter(b Block, iv []byte) BlockMode {
+ 	if b, ok := b.(*aes.Block); ok {
+ 		return aes.NewCBCEncrypter(b, [16]byte(iv))
+ 	}
++	if fips140only.Enabled {
++		panic("crypto/cipher: use of CBC with non-AES ciphers is not allowed in FIPS 140-only mode")
++	}
+ 	if cbc, ok := b.(cbcEncAble); ok {
+ 		return cbc.NewCBCEncrypter(iv)
+ 	}
+@@ -129,6 +133,9 @@ func NewCBCDecrypter(b Block, iv []byte) BlockMode {
+ 	if b, ok := b.(*aes.Block); ok {
+ 		return aes.NewCBCDecrypter(b, [16]byte(iv))
+ 	}
++	if fips140only.Enabled {
++		panic("crypto/cipher: use of CBC with non-AES ciphers is not allowed in FIPS 140-only mode")
++	}
+ 	if cbc, ok := b.(cbcDecAble); ok {
+ 		return cbc.NewCBCDecrypter(iv)
+ 	}
+diff --git a/src/crypto/cipher/ctr.go b/src/crypto/cipher/ctr.go
+index c868635b8a..49512ca5dd 100644
+--- a/src/crypto/cipher/ctr.go
++++ b/src/crypto/cipher/ctr.go
+@@ -16,6 +16,7 @@ import (
+ 	"bytes"
+ 	"crypto/internal/fips140/aes"
+ 	"crypto/internal/fips140/alias"
++	"crypto/internal/fips140only"
+ 	"crypto/subtle"
+ )
+ 
+@@ -41,6 +42,9 @@ func NewCTR(block Block, iv []byte) Stream {
+ 	if block, ok := block.(*aes.Block); ok {
+ 		return aesCtrWrapper{aes.NewCTR(block, iv)}
+ 	}
++	if fips140only.Enabled {
++		panic("crypto/cipher: use of CTR with non-AES ciphers is not allowed in FIPS 140-only mode")
++	}
+ 	if ctr, ok := block.(ctrAble); ok {
+ 		return ctr.NewCTR(iv)
+ 	}

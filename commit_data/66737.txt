@@ -1,0 +1,133 @@
+commit 5eaeb7b455d0bb6a39dacb4317ea177cbe0358de
+Author: Mark Freeman <markfreeman@google.com>
+Date:   Thu Apr 3 14:26:55 2025 -0700
+
+    go/types, types2: better error messages for invalid qualified identifiers
+    
+    This change borrows code from CL 631356 by Emmanuel Odeke (thanks!).
+    
+    Fixes #70549.
+    
+    Change-Id: Id6f794ea2a95b4297999456f22c6e02890fce13b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+---
+ src/cmd/compile/internal/types2/call.go             |  9 ++++++++-
+ src/cmd/compile/internal/types2/scope.go            | 13 +++++++++++++
+ src/go/types/call.go                                |  9 ++++++++-
+ src/go/types/scope.go                               | 13 +++++++++++++
+ src/internal/types/testdata/fixedbugs/issue70549.go | 15 +++++++++++++++
+ 5 files changed, 57 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 4d1c7b5f88..b7a2ebb41e 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -720,7 +720,14 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 				exp = pkg.scope.Lookup(sel)
+ 				if exp == nil {
+ 					if !pkg.fake && isValidName(sel) {
+-						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e))
++						// Try to give a better error message when selector matches an object name ignoring case.
++						exps := pkg.scope.lookupIgnoringCase(sel, true)
++						if len(exps) >= 1 {
++							// report just the first one
++							check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s (but have %s)", syntax.Expr(e), exps[0].Name())
++						} else {
++							check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", syntax.Expr(e))
++						}
+ 					}
+ 					goto Error
+ 				}
+diff --git a/src/cmd/compile/internal/types2/scope.go b/src/cmd/compile/internal/types2/scope.go
+index fc2a261ad6..566184df73 100644
+--- a/src/cmd/compile/internal/types2/scope.go
++++ b/src/cmd/compile/internal/types2/scope.go
+@@ -83,6 +83,19 @@ func (s *Scope) Lookup(name string) Object {
+ 	return obj
+ }
+ 
++// lookupIgnoringCase returns the objects in scope s whose names match
++// the given name ignoring case. If exported is set, only exported names
++// are returned.
++func (s *Scope) lookupIgnoringCase(name string, exported bool) []Object {
++	var matches []Object
++	for _, n := range s.Names() {
++		if (!exported || isExported(n)) && strings.EqualFold(n, name) {
++			matches = append(matches, s.Lookup(n))
++		}
++	}
++	return matches
++}
++
+ // Insert attempts to insert an object obj into scope s.
+ // If s already contains an alternative object alt with
+ // the same name, Insert leaves s unchanged and returns alt.
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 41663eac8e..33fe8bb9bf 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -722,7 +722,14 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 				exp = pkg.scope.Lookup(sel)
+ 				if exp == nil {
+ 					if !pkg.fake && isValidName(sel) {
+-						check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e))
++						// Try to give a better error message when selector matches an object name ignoring case.
++						exps := pkg.scope.lookupIgnoringCase(sel, true)
++						if len(exps) >= 1 {
++							// report just the first one
++							check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s (but have %s)", ast.Expr(e), exps[0].Name())
++						} else {
++							check.errorf(e.Sel, UndeclaredImportedName, "undefined: %s", ast.Expr(e))
++						}
+ 					}
+ 					goto Error
+ 				}
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index e3fb7b6eff..81366df741 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -86,6 +86,19 @@ func (s *Scope) Lookup(name string) Object {
+ 	return obj
+ }
+ 
++// lookupIgnoringCase returns the objects in scope s whose names match
++// the given name ignoring case. If exported is set, only exported names
++// are returned.
++func (s *Scope) lookupIgnoringCase(name string, exported bool) []Object {
++	var matches []Object
++	for _, n := range s.Names() {
++		if (!exported || isExported(n)) && strings.EqualFold(n, name) {
++			matches = append(matches, s.Lookup(n))
++		}
++	}
++	return matches
++}
++
+ // Insert attempts to insert an object obj into scope s.
+ // If s already contains an alternative object alt with
+ // the same name, Insert leaves s unchanged and returns alt.
+diff --git a/src/internal/types/testdata/fixedbugs/issue70549.go b/src/internal/types/testdata/fixedbugs/issue70549.go
+new file mode 100644
+index 0000000000..eadca0c5d8
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue70549.go
+@@ -0,0 +1,15 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "math"
++
++var (
++	_ = math.Sin
++	_ = math.SIn /* ERROR "undefined: math.SIn (but have Sin)" */
++	_ = math.sin /* ERROR "name sin not exported by package math" */
++	_ = math.Foo /* ERROR "undefined: math.Foo" */
++	_ = math.foo /* ERROR "undefined: math.foo" */
++)

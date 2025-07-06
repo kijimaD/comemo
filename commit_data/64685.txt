@@ -1,0 +1,155 @@
+commit 68c431e89f2cb5422d53c65be988b15598a9c692
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Tue Aug 13 18:40:44 2024 +0200
+
+    cmd/compile: propagate unsigned limits for Div and Mod if arguments are positive
+    
+    I didn't implemented negative limits since prove is most useful for BCE which
+    should never be negative in the first place.
+    
+    Change-Id: I302ee462cdc20bd4edff0618f7e49ff66fc2a007
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605136
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/ssa/prove.go | 16 +++++++
+ test/prove.go                         | 85 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 101 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 4094857614..f76e863453 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1775,11 +1775,27 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 		a := ft.limits[v.Args[0].ID]
+ 		b := ft.limits[v.Args[1].ID]
+ 		return ft.newLimit(v, a.mul(b.exp2(8), 8))
++	case OpMod64, OpMod32, OpMod16, OpMod8:
++		a := ft.limits[v.Args[0].ID]
++		b := ft.limits[v.Args[1].ID]
++		if !(a.nonnegative() && b.nonnegative()) {
++			// TODO: we could handle signed limits but I didn't bother.
++			break
++		}
++		fallthrough
+ 	case OpMod64u, OpMod32u, OpMod16u, OpMod8u:
+ 		a := ft.limits[v.Args[0].ID]
+ 		b := ft.limits[v.Args[1].ID]
+ 		// Underflow in the arithmetic below is ok, it gives to MaxUint64 which does nothing to the limit.
+ 		return ft.unsignedMax(v, minU(a.umax, b.umax-1))
++	case OpDiv64, OpDiv32, OpDiv16, OpDiv8:
++		a := ft.limits[v.Args[0].ID]
++		b := ft.limits[v.Args[1].ID]
++		if !(a.nonnegative() && b.nonnegative()) {
++			// TODO: we could handle signed limits but I didn't bother.
++			break
++		}
++		fallthrough
+ 	case OpDiv64u, OpDiv32u, OpDiv16u, OpDiv8u:
+ 		a := ft.limits[v.Args[0].ID]
+ 		b := ft.limits[v.Args[1].ID]
+diff --git a/test/prove.go b/test/prove.go
+index 5ea81bffff..28b950ce41 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1477,6 +1477,66 @@ func mod64uWithIdenticalMax(a, b uint64, ensureBothBranchesCouldHappen bool) int
+ 	}
+ 	return z
+ }
++func mod64sPositiveWithSmallerDividendMax(a, b int64, ensureBothBranchesCouldHappen bool) int64 {
++	if a < 0 || b < 0 {
++		return 42
++	}
++	a &= 0xff
++	b &= 0xfff
++
++	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
++
++	if ensureBothBranchesCouldHappen {
++		if z > 0xff { // ERROR "Disproved Less64$"
++			return 42
++		}
++	} else {
++		if z <= 0xff { // ERROR "Proved Leq64$"
++			return 1337
++		}
++	}
++	return z
++}
++func mod64sPositiveWithSmallerDivisorMax(a, b int64, ensureBothBranchesCouldHappen bool) int64 {
++	if a < 0 || b < 0 {
++		return 42
++	}
++	a &= 0xfff
++	b &= 0xff
++
++	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
++
++	if ensureBothBranchesCouldHappen {
++		if z > 0xff-1 { // ERROR "Disproved Less64$"
++			return 42
++		}
++	} else {
++		if z <= 0xff-1 { // ERROR "Proved Leq64$"
++			return 1337
++		}
++	}
++	return z
++}
++func mod64sPositiveWithIdenticalMax(a, b int64, ensureBothBranchesCouldHappen bool) int64 {
++	if a < 0 || b < 0 {
++		return 42
++	}
++	a &= 0xfff
++	b &= 0xfff
++
++	z := a % b // ERROR "Proved Mod64 does not need fix-up$"
++
++	if ensureBothBranchesCouldHappen {
++		if z > 0xfff-1 { // ERROR "Disproved Less64$"
++			return 42
++		}
++	} else {
++		if z <= 0xfff-1 { // ERROR "Proved Leq64$"
++			return 1337
++		}
++	}
++	return z
++}
+ 
+ func div64u(a, b uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
+ 	a &= 0xffff
+@@ -1500,6 +1560,31 @@ func div64u(a, b uint64, ensureAllBranchesCouldHappen func() bool) uint64 {
+ 	}
+ 	return z
+ }
++func div64s(a, b int64, ensureAllBranchesCouldHappen func() bool) int64 {
++	if a < 0 || b < 0 {
++		return 42
++	}
++	a &= 0xffff
++	a |= 0xfff
++	b &= 0xff
++	b |= 0xf
++
++	z := a / b // ERROR "(Proved Div64 does not need fix-up|Proved Neq64)$"
++
++	if ensureAllBranchesCouldHappen() && z > 0xffff/0xf { // ERROR "Disproved Less64$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && z <= 0xffff/0xf { // ERROR "Proved Leq64$"
++		return 1337
++	}
++	if ensureAllBranchesCouldHappen() && z < 0xfff/0xff { // ERROR "Disproved Less64$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && z >= 0xfff/0xff { // ERROR "Proved Leq64$"
++		return 42
++	}
++	return z
++}
+ 
+ //go:noinline
+ func useInt(a int) {

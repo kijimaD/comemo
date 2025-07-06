@@ -1,0 +1,25 @@
+commit 194de8fbfaf4c3ed54e1a3c1b14fc67a830b8d95
+Author: Gopher Robot <gobot@golang.org>
+Date:   Tue Dec 3 17:22:32 2024 +0000
+
+    [release-branch.go1.23] go1.23.4
+    
+    Change-Id: I8d26e5231e868476949390ec900f0273c816d807
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633217
+    Reviewed-by: Veronica Silina <veronicasilina@google.com>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index 66e6565be5..139c590eb8 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.23.3
+-time 2024-11-06T18:46:45Z
++go1.23.4
++time 2024-11-27T20:27:20Z

@@ -1,0 +1,78 @@
+commit 0d478d8e07f9667d7c32ea5bb10647dd14725829
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 11 08:57:37 2024 -0700
+
+    go/types, types2: add missing Unalias calls in type unifier
+    
+    The unification code has "early exits" when the compared
+    types are pointer-identical.
+    
+    Because of Alias nodes, we cannot simply compare x == y but we
+    must compare Unalias(x) == Unalias(y). Still, in the common case
+    there are no aliases, so as a minor optimization we write:
+    
+            x == y || Unalias(x) == Unalias(y)
+    
+    to test whether x and y are (pointer-) identical.
+    Add the missing Unalias calls in the place where we forgot them.
+    
+    Fixes #67872.
+    
+    Change-Id: Ia26ffe7205b0417fc698287a4aeb1c900d30cc0d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591975
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/unify.go            |  2 +-
+ src/go/types/unify.go                               |  2 +-
+ src/internal/types/testdata/fixedbugs/issue67872.go | 14 ++++++++++++++
+ 3 files changed, 16 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/unify.go b/src/cmd/compile/internal/types2/unify.go
+index 8c91294d2b..1c611a3e2a 100644
+--- a/src/cmd/compile/internal/types2/unify.go
++++ b/src/cmd/compile/internal/types2/unify.go
+@@ -344,7 +344,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 		// that is a type parameter.
+ 		assert(!isTypeParam(y))
+ 		// x and y may be identical now
+-		if x == y {
++		if x == y || Unalias(x) == Unalias(y) {
+ 			return true
+ 		}
+ 	}
+diff --git a/src/go/types/unify.go b/src/go/types/unify.go
+index d8f1b4a5b7..e4b50d7d4f 100644
+--- a/src/go/types/unify.go
++++ b/src/go/types/unify.go
+@@ -347,7 +347,7 @@ func (u *unifier) nify(x, y Type, mode unifyMode, p *ifacePair) (result bool) {
+ 		// that is a type parameter.
+ 		assert(!isTypeParam(y))
+ 		// x and y may be identical now
+-		if x == y {
++		if x == y || Unalias(x) == Unalias(y) {
+ 			return true
+ 		}
+ 	}
+diff --git a/src/internal/types/testdata/fixedbugs/issue67872.go b/src/internal/types/testdata/fixedbugs/issue67872.go
+new file mode 100644
+index 0000000000..3d96613142
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue67872.go
+@@ -0,0 +1,14 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A = uint8
++type E uint8
++
++func f[P ~A](P) {}
++
++func g(e E) {
++	f(e)
++}

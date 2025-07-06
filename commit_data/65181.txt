@@ -1,0 +1,329 @@
+commit f0b51a2099446d3835c8d54edef8300c0f081116
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Oct 17 12:48:11 2024 +0200
+
+    crypto/internal/fips: add service indicator mechanism
+    
+    Placed the fipsIndicator field in some 64-bit alignment padding in the g
+    struct to avoid growing per-goroutine memory requirements on 64-bit
+    targets.
+    
+    Fixes #69911
+    Updates #69536
+    
+    Change-Id: I176419d0e3814574758cb88a47340a944f405604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620795
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Derek Parker <parkerderek86@gmail.com>
+---
+ src/crypto/internal/fips/hmac/hmac.go      |  7 ++-
+ src/crypto/internal/fips/indicator.go      | 57 ++++++++++++++++++++++
+ src/crypto/internal/fips/indicator_test.go | 76 ++++++++++++++++++++++++++++++
+ src/crypto/internal/fips/sha256/sha256.go  |  2 +
+ src/crypto/internal/fips/sha3/sha3.go      |  7 ++-
+ src/crypto/internal/fips/sha3/shake.go     |  2 +
+ src/crypto/internal/fips/sha512/sha512.go  |  2 +
+ src/runtime/runtime1.go                    | 10 ++++
+ src/runtime/runtime2.go                    |  1 +
+ src/runtime/sizeof_test.go                 |  2 +-
+ 10 files changed, 160 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/internal/fips/hmac/hmac.go b/src/crypto/internal/fips/hmac/hmac.go
+index ab0b2c29e7..ef6136e155 100644
+--- a/src/crypto/internal/fips/hmac/hmac.go
++++ b/src/crypto/internal/fips/hmac/hmac.go
+@@ -155,14 +155,13 @@ func setServiceIndicator(h fips.Hash, key []byte) {
+ 	// Per FIPS 140-3 IG C.M, key lengths below 112 bits are only allowed for
+ 	// legacy use (i.e. verification only) and we don't support that.
+ 	if len(key) < 112/8 {
+-		return
++		fips.RecordNonApproved()
+ 	}
+ 
+ 	switch h.(type) {
+ 	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
++		fips.RecordApproved()
+ 	default:
+-		return
++		fips.RecordNonApproved()
+ 	}
+-
+-	// TODO(fips): set service indicator.
+ }
+diff --git a/src/crypto/internal/fips/indicator.go b/src/crypto/internal/fips/indicator.go
+new file mode 100644
+index 0000000000..538531d143
+--- /dev/null
++++ b/src/crypto/internal/fips/indicator.go
+@@ -0,0 +1,57 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips
++
++import _ "unsafe" // for go:linkname
++
++// The service indicator lets users of the module query whether invoked services
++// are approved. Three states are stored in a per-goroutine value by the
++// runtime. The indicator starts at indicatorUnset after a reset. Invoking an
++// approved service transitions to indicatorTrue. Invoking a non-approved
++// service transitions to indicatorFalse, and it can't leave that state until a
++// reset. The idea is that functions can "delegate" checks to inner functions,
++// and if there's anything non-approved in the stack, the final result is
++// negative. Finally, we expose indicatorUnset as negative to the user, so that
++// we don't need to explicitly annotate fully non-approved services.
++
++//go:linkname getIndicator
++func getIndicator() uint8
++
++//go:linkname setIndicator
++func setIndicator(uint8)
++
++const (
++	indicatorUnset uint8 = iota
++	indicatorFalse
++	indicatorTrue
++)
++
++// ResetServiceIndicator clears the service indicator for the running goroutine.
++func ResetServiceIndicator() {
++	setIndicator(indicatorUnset)
++}
++
++// ServiceIndicator returns true if and only if all services invoked by this
++// goroutine since the last ResetServiceIndicator call are approved.
++//
++// If ResetServiceIndicator was not called before by this goroutine, its return
++// value is undefined.
++func ServiceIndicator() bool {
++	return getIndicator() == indicatorTrue
++}
++
++// RecordApproved is an internal function that records the use of an approved
++// service. It does not override RecordNonApproved calls in the same span.
++func RecordApproved() {
++	if getIndicator() == indicatorUnset {
++		setIndicator(indicatorTrue)
++	}
++}
++
++// RecordNonApproved is an internal function that records the use of a
++// non-approved service. It overrides any RecordApproved calls in the same span.
++func RecordNonApproved() {
++	setIndicator(indicatorFalse)
++}
+diff --git a/src/crypto/internal/fips/indicator_test.go b/src/crypto/internal/fips/indicator_test.go
+new file mode 100644
+index 0000000000..8134b609c9
+--- /dev/null
++++ b/src/crypto/internal/fips/indicator_test.go
+@@ -0,0 +1,76 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips_test
++
++import (
++	"crypto/internal/fips"
++	"testing"
++)
++
++func TestIndicator(t *testing.T) {
++	fips.ResetServiceIndicator()
++	if fips.ServiceIndicator() {
++		t.Error("indicator should be false if no calls are made")
++	}
++
++	fips.ResetServiceIndicator()
++	fips.RecordApproved()
++	if !fips.ServiceIndicator() {
++		t.Error("indicator should be true if RecordApproved is called")
++	}
++
++	fips.ResetServiceIndicator()
++	fips.RecordApproved()
++	fips.RecordApproved()
++	if !fips.ServiceIndicator() {
++		t.Error("indicator should be true if RecordApproved is called multiple times")
++	}
++
++	fips.ResetServiceIndicator()
++	fips.RecordNonApproved()
++	if fips.ServiceIndicator() {
++		t.Error("indicator should be false if RecordNonApproved is called")
++	}
++
++	fips.ResetServiceIndicator()
++	fips.RecordApproved()
++	fips.RecordNonApproved()
++	if fips.ServiceIndicator() {
++		t.Error("indicator should be false if both RecordApproved and RecordNonApproved are called")
++	}
++
++	fips.ResetServiceIndicator()
++	fips.RecordNonApproved()
++	fips.RecordApproved()
++	if fips.ServiceIndicator() {
++		t.Error("indicator should be false if both RecordNonApproved and RecordApproved are called")
++	}
++
++	fips.ResetServiceIndicator()
++	fips.RecordNonApproved()
++	done := make(chan struct{})
++	go func() {
++		fips.ResetServiceIndicator()
++		fips.RecordApproved()
++		close(done)
++	}()
++	<-done
++	if fips.ServiceIndicator() {
++		t.Error("indicator should be false if RecordApproved is called in a different goroutine")
++	}
++
++	fips.ResetServiceIndicator()
++	fips.RecordApproved()
++	done = make(chan struct{})
++	go func() {
++		fips.ResetServiceIndicator()
++		fips.RecordNonApproved()
++		close(done)
++	}()
++	<-done
++	if !fips.ServiceIndicator() {
++		t.Error("indicator should be true if RecordNonApproved is called in a different goroutine")
++	}
++}
+diff --git a/src/crypto/internal/fips/sha256/sha256.go b/src/crypto/internal/fips/sha256/sha256.go
+index 37652996ce..ccef116a80 100644
+--- a/src/crypto/internal/fips/sha256/sha256.go
++++ b/src/crypto/internal/fips/sha256/sha256.go
+@@ -7,6 +7,7 @@
+ package sha256
+ 
+ import (
++	"crypto/internal/fips"
+ 	"errors"
+ 	"internal/byteorder"
+ )
+@@ -181,6 +182,7 @@ func (d *Digest) Write(p []byte) (nn int, err error) {
+ }
+ 
+ func (d *Digest) Sum(in []byte) []byte {
++	fips.RecordApproved()
+ 	// Make a copy of d so that caller can keep writing and summing.
+ 	d0 := *d
+ 	hash := d0.checkSum()
+diff --git a/src/crypto/internal/fips/sha3/sha3.go b/src/crypto/internal/fips/sha3/sha3.go
+index 3c00f18411..90c8a6ac72 100644
+--- a/src/crypto/internal/fips/sha3/sha3.go
++++ b/src/crypto/internal/fips/sha3/sha3.go
+@@ -11,6 +11,7 @@
+ package sha3
+ 
+ import (
++	"crypto/internal/fips"
+ 	"crypto/internal/fips/subtle"
+ 	"errors"
+ )
+@@ -144,7 +145,11 @@ func (d *Digest) readGeneric(out []byte) (n int, err error) {
+ 
+ // Sum appends the current hash to b and returns the resulting slice.
+ // It does not change the underlying hash state.
+-func (d *Digest) Sum(b []byte) []byte { return d.sum(b) }
++func (d *Digest) Sum(b []byte) []byte {
++	fips.RecordApproved()
++	return d.sum(b)
++}
++
+ func (d *Digest) sumGeneric(b []byte) []byte {
+ 	if d.state != spongeAbsorbing {
+ 		panic("sha3: Sum after Read")
+diff --git a/src/crypto/internal/fips/sha3/shake.go b/src/crypto/internal/fips/sha3/shake.go
+index b93fd5c559..1f2e2542de 100644
+--- a/src/crypto/internal/fips/sha3/shake.go
++++ b/src/crypto/internal/fips/sha3/shake.go
+@@ -6,6 +6,7 @@ package sha3
+ 
+ import (
+ 	"bytes"
++	"crypto/internal/fips"
+ 	"errors"
+ 	"internal/byteorder"
+ 	"math/bits"
+@@ -71,6 +72,7 @@ func (s *SHAKE) Sum(in []byte) []byte { return s.d.Sum(in) }
+ func (s *SHAKE) Write(p []byte) (n int, err error) { return s.d.Write(p) }
+ 
+ func (s *SHAKE) Read(out []byte) (n int, err error) {
++	fips.RecordApproved()
+ 	// Note that read is not exposed on Digest since SHA-3 does not offer
+ 	// variable output length. It is only used internally by Sum.
+ 	return s.d.read(out)
+diff --git a/src/crypto/internal/fips/sha512/sha512.go b/src/crypto/internal/fips/sha512/sha512.go
+index e613fd17a2..19e799560f 100644
+--- a/src/crypto/internal/fips/sha512/sha512.go
++++ b/src/crypto/internal/fips/sha512/sha512.go
+@@ -7,6 +7,7 @@
+ package sha512
+ 
+ import (
++	"crypto/internal/fips"
+ 	"errors"
+ 	"internal/byteorder"
+ )
+@@ -251,6 +252,7 @@ func (d *Digest) Write(p []byte) (nn int, err error) {
+ }
+ 
+ func (d *Digest) Sum(in []byte) []byte {
++	fips.RecordApproved()
+ 	// Make a copy of d so that caller can keep writing and summing.
+ 	d0 := new(Digest)
+ 	*d0 = *d
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 2f87b8b967..56886ea571 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -724,3 +724,13 @@ func reflect_addReflectOff(ptr unsafe.Pointer) int32 {
+ 	reflectOffsUnlock()
+ 	return id
+ }
++
++//go:linkname fips_getIndicator crypto/internal/fips.getIndicator
++func fips_getIndicator() uint8 {
++	return getg().fipsIndicator
++}
++
++//go:linkname fips_setIndicator crypto/internal/fips.setIndicator
++func fips_setIndicator(indicator uint8) {
++	getg().fipsIndicator = indicator
++}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 68b0be48aa..34aefd4c47 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -466,6 +466,7 @@ type g struct {
+ 	trackingStamp int64 // timestamp of when the G last started being tracked
+ 	runnableTime  int64 // the amount of time spent runnable, cleared when running, only used when tracking
+ 	lockedm       muintptr
++	fipsIndicator uint8
+ 	sig           uint32
+ 	writebuf      []byte
+ 	sigcode0      uintptr
+diff --git a/src/runtime/sizeof_test.go b/src/runtime/sizeof_test.go
+index 43aba98dce..c1b201caf1 100644
+--- a/src/runtime/sizeof_test.go
++++ b/src/runtime/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr // size on 32bit platforms
+ 		_64bit uintptr // size on 64bit platforms
+ 	}{
+-		{runtime.G{}, 272, 432},   // g, but exported for testing
++		{runtime.G{}, 276, 432},   // g, but exported for testing
+ 		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
+ 	}
+ 

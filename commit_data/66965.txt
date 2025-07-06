@@ -1,0 +1,168 @@
+commit 8cd6d68a0881d2bc0081081a847bb36fc314e761
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Oct 23 20:55:43 2024 +0800
+
+    cmd/go: fix incorrect determining default value of CGO_ENABLED
+    
+    The default value is the value obtained when
+    no environment variables are set and go env  -w is not used.
+    
+    In the past,
+    we used the current value
+    (may be modified by an environment variable to a non-default value),
+    error was used as the default value.
+    
+    For #69994
+    
+    Change-Id: Iead3a6cacd04dc51a094ffb9f7bb7553320fcd78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621995
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/dist/build.go                      |  1 -
+ src/cmd/dist/buildgo.go                    | 17 -----------------
+ src/cmd/dist/buildruntime.go               |  2 ++
+ src/cmd/go/internal/cfg/cfg.go             | 11 +++++++----
+ src/cmd/go/testdata/script/env_changed.txt |  3 +++
+ src/go/build/build.go                      |  2 +-
+ 6 files changed, 13 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index aa106e45c5..b50f3342fe 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -673,7 +673,6 @@ var gentab = []struct {
+ 	file string
+ 	gen  func(dir, file string)
+ }{
+-	{"go/build", "zcgo.go", mkzcgo},
+ 	{"cmd/go/internal/cfg", "zdefaultcc.go", mkzdefaultcc},
+ 	{"internal/runtime/sys", "zversion.go", mkzversion},
+ 	{"time/tzdata", "zzipdata.go", mktzdata},
+diff --git a/src/cmd/dist/buildgo.go b/src/cmd/dist/buildgo.go
+index 884e9d729a..6bd8a9ce8d 100644
+--- a/src/cmd/dist/buildgo.go
++++ b/src/cmd/dist/buildgo.go
+@@ -7,7 +7,6 @@ package main
+ import (
+ 	"fmt"
+ 	"io"
+-	"os"
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
+@@ -108,22 +107,6 @@ func defaultCCFunc(name string, defaultcc map[string]string) string {
+ 	return buf.String()
+ }
+ 
+-// mkzcgo writes zcgo.go for the go/build package:
+-//
+-//	package build
+-//	const defaultCGO_ENABLED = <CGO_ENABLED>
+-//
+-// It is invoked to write go/build/zcgo.go.
+-func mkzcgo(dir, file string) {
+-	var buf strings.Builder
+-	writeHeader(&buf)
+-	fmt.Fprintf(&buf, "package build\n")
+-	fmt.Fprintln(&buf)
+-	fmt.Fprintf(&buf, "const defaultCGO_ENABLED = %s\n", quote(os.Getenv("CGO_ENABLED")))
+-
+-	writefile(buf.String(), file, writeSkipSame)
+-}
+-
+ // mktzdata src/time/tzdata/zzipdata.go:
+ //
+ //	package tzdata
+diff --git a/src/cmd/dist/buildruntime.go b/src/cmd/dist/buildruntime.go
+index 04b5b45410..87e8867176 100644
+--- a/src/cmd/dist/buildruntime.go
++++ b/src/cmd/dist/buildruntime.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"fmt"
++	"os"
+ 	"strings"
+ )
+ 
+@@ -66,6 +67,7 @@ func mkbuildcfg(file string) {
+ 	fmt.Fprintf(&buf, "const defaultGOOS = runtime.GOOS\n")
+ 	fmt.Fprintf(&buf, "const defaultGOARCH = runtime.GOARCH\n")
+ 	fmt.Fprintf(&buf, "const DefaultGOFIPS140 = `%s`\n", gofips140)
++	fmt.Fprintf(&buf, "const DefaultCGO_ENABLED = %s\n", quote(os.Getenv("CGO_ENABLED")))
+ 
+ 	writefile(buf.String(), file, writeSkipSame)
+ }
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 3b9f27e91d..49d87839f4 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -13,6 +13,7 @@ import (
+ 	"go/build"
+ 	"internal/buildcfg"
+ 	"internal/cfg"
++	"internal/platform"
+ 	"io"
+ 	"io/fs"
+ 	"os"
+@@ -140,10 +141,12 @@ func defaultContext() build.Context {
+ 	// Recreate that logic here with the new GOOS/GOARCH setting.
+ 	// We need to run steps 2 and 3 to determine what the default value
+ 	// of CgoEnabled would be for computing CGOChanged.
+-	defaultCgoEnabled := ctxt.CgoEnabled
+-	if ctxt.GOOS != runtime.GOOS || ctxt.GOARCH != runtime.GOARCH {
+-		defaultCgoEnabled = false
+-	} else {
++	defaultCgoEnabled := false
++	if buildcfg.DefaultCGO_ENABLED == "1" {
++		defaultCgoEnabled = true
++	} else if buildcfg.DefaultCGO_ENABLED == "0" {
++	} else if runtime.GOARCH == ctxt.GOARCH && runtime.GOOS == ctxt.GOOS {
++		defaultCgoEnabled = platform.CgoSupported(ctxt.GOOS, ctxt.GOARCH)
+ 		// Use built-in default cgo setting for GOOS/GOARCH.
+ 		// Note that ctxt.GOOS/GOARCH are derived from the preference list
+ 		// (1) environment, (2) go/env file, (3) runtime constants,
+diff --git a/src/cmd/go/testdata/script/env_changed.txt b/src/cmd/go/testdata/script/env_changed.txt
+index 5ba13b4dbf..05fb71d020 100644
+--- a/src/cmd/go/testdata/script/env_changed.txt
++++ b/src/cmd/go/testdata/script/env_changed.txt
+@@ -11,6 +11,7 @@ env GO111MODULE=auto
+ env CGO_CFLAGS=nodefault
+ env CGO_CPPFLAGS=nodefault
+ env GOFIPS140=latest
++[cgo] env CGO_ENABLED=0
+ 
+ go env -changed
+ # linux output like GOTOOLCHAIN='local'
+@@ -22,6 +23,7 @@ stdout 'GO111MODULE=''?auto''?'
+ stdout 'CGO_CFLAGS=''?nodefault''?'
+ stdout 'CGO_CPPFLAGS=''?nodefault''?'
+ stdout 'GOFIPS140=''?latest''?'
++[cgo] stdout 'CGO_ENABLED=''?0''?'
+ 
+ go env -changed -json
+ stdout '"GOTOOLCHAIN": "local"'
+@@ -31,6 +33,7 @@ stdout '"GO111MODULE": "auto"'
+ stdout '"CGO_CFLAGS": "nodefault"'
+ stdout '"CGO_CPPFLAGS": "nodefault"'
+ stdout '"GOFIPS140": "latest"'
++[cgo] stdout '"CGO_ENABLED": "0"'
+ 
+ [GOOS:windows] env GOOS=linux
+ [!GOOS:windows] env GOOS=windows
+diff --git a/src/go/build/build.go b/src/go/build/build.go
+index 0e5c7e512d..50288fcec6 100644
+--- a/src/go/build/build.go
++++ b/src/go/build/build.go
+@@ -359,7 +359,7 @@ func defaultContext() Context {
+ 
+ 	env := os.Getenv("CGO_ENABLED")
+ 	if env == "" {
+-		env = defaultCGO_ENABLED
++		env = buildcfg.DefaultCGO_ENABLED
+ 	}
+ 	switch env {
+ 	case "1":

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40091: 431b5c69ca214ce4291f008c1ce2a50b22bc2d2d
+# Index 40091: 03eb137aa311e6a5fe43f75c9f0178d042b560d9
 
 echo "🚀 Generating explanation for commit 40091..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40091..."
 
 ### メタデータ
 - **コミットインデックス**: 40091
-- **コミットハッシュ**: 431b5c69ca214ce4291f008c1ce2a50b22bc2d2d
-- **GitHub URL**: https://github.com/golang/go/commit/431b5c69ca214ce4291f008c1ce2a50b22bc2d2d
+- **コミットハッシュ**: 03eb137aa311e6a5fe43f75c9f0178d042b560d9
+- **GitHub URL**: https://github.com/golang/go/commit/03eb137aa311e6a5fe43f75c9f0178d042b560d9
 
 ### 章構成
 

@@ -1,0 +1,122 @@
+commit a01820c7337c0c918da2dae2b2158697683bde50
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Aug 1 16:26:32 2024 +0200
+
+    os/user: speed up Current on Windows
+    
+    user.Current is slow on Windows sessions connected to an Active
+    Directory domain. This is because it uses Windows APIs that do RPC
+    calls to the domain controller, such as TranslateAccountW and
+    NetUserGetInfo.
+    
+    This change speeds up user.Current by using the GetUserNameEx API
+    instead, which is already optimized for retrieving the current user
+    name in different formats.
+    
+    These are the improvements I see with the new implementation:
+    
+    goos: windows
+    goarch: amd64
+    pkg: os/user
+    cpu: Intel(R) Core(TM) i7-10850H CPU @ 2.70GHz
+               │   old.txt   │               new.txt                │
+               │   sec/op    │    sec/op     vs base                │
+    Current-12   501.8µ ± 7%   118.6µ ± 11%  -76.36% (p=0.000 n=10)
+    
+               │  old.txt   │              new.txt              │
+               │    B/op    │    B/op     vs base               │
+    Current-12   888.0 ± 0%   832.0 ± 0%  -6.31% (p=0.000 n=10)
+    
+               │  old.txt   │              new.txt               │
+               │ allocs/op  │ allocs/op   vs base                │
+    Current-12   15.00 ± 0%   11.00 ± 0%  -26.67% (p=0.000 n=10)
+    
+    Updates #5298
+    Fixes #21867
+    Fixes #68312
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Change-Id: I893c5fcca6969050d73a20ed34770846becd5f5e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597255
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/syscall/windows/security_windows.go | 19 +++++++++++++++++++
+ src/os/user/lookup_windows.go                    | 16 +++++++++++++---
+ src/os/user/user_test.go                         |  3 ++-
+ 3 files changed, 34 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/syscall/windows/security_windows.go b/src/internal/syscall/windows/security_windows.go
+index 95694c368a..e528744caa 100644
+--- a/src/internal/syscall/windows/security_windows.go
++++ b/src/internal/syscall/windows/security_windows.go
+@@ -156,3 +156,22 @@ type UserInfo4 struct {
+ //
+ //go:linkname GetSystemDirectory
+ func GetSystemDirectory() string // Implemented in runtime package.
++
++// GetUserName retrieves the user name of the current thread
++// in the specified format.
++func GetUserName(format uint32) (string, error) {
++	n := uint32(50)
++	for {
++		b := make([]uint16, n)
++		e := syscall.GetUserNameEx(format, &b[0], &n)
++		if e == nil {
++			return syscall.UTF16ToString(b[:n]), nil
++		}
++		if e != syscall.ERROR_MORE_DATA {
++			return "", e
++		}
++		if n <= uint32(len(b)) {
++			return "", e
++		}
++	}
++}
+diff --git a/src/os/user/lookup_windows.go b/src/os/user/lookup_windows.go
+index f259269a53..c319324d11 100644
+--- a/src/os/user/lookup_windows.go
++++ b/src/os/user/lookup_windows.go
+@@ -232,12 +232,22 @@ func current() (*User, error) {
+ 		if e != nil {
+ 			return e
+ 		}
+-		username, domain, e := lookupUsernameAndDomain(u.User.Sid)
++		username, e := windows.GetUserName(syscall.NameSamCompatible)
+ 		if e != nil {
+ 			return e
+ 		}
+-		usr, e = newUser(uid, gid, dir, username, domain)
+-		return e
++		displayName, e := windows.GetUserName(syscall.NameDisplay)
++		if e != nil {
++			return e
++		}
++		usr = &User{
++			Uid:      uid,
++			Gid:      gid,
++			Username: username,
++			Name:     displayName,
++			HomeDir:  dir,
++		}
++		return nil
+ 	})
+ 	return usr, err
+ }
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index fa597b78ec..31486aed03 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -45,8 +45,9 @@ func TestCurrent(t *testing.T) {
+ }
+ 
+ func BenchmarkCurrent(b *testing.B) {
++	// Benchmark current instead of Current because Current caches the result.
+ 	for i := 0; i < b.N; i++ {
+-		Current()
++		current()
+ 	}
+ }
+ 

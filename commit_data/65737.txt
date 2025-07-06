@@ -1,0 +1,210 @@
+commit bdedc5c1d7facb2e6c803e0a319734e60025cbf5
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Dec 2 17:13:49 2024 -0500
+
+    crypto/internal/fips140/bigmod: disable race detector on tight loops
+    
+    These kinds of loops over all words of a Nat
+    were in assembly in math/big, so the race detector
+    did not instrument them. Now that they are in Go,
+    they dramatically slow down crypto code under the
+    race detector. Disable instrumenting them, just like
+    if they were still in assembly.
+    
+    goos: darwin
+    goarch: arm64
+    cpu: Apple M3 Pro
+    race: on
+    
+    pkg: crypto/internal/fips140/bigmod
+                      │     old      │                 new                 │
+                      │    sec/op    │   sec/op     vs base                │
+    ModAdd-12           1191.0n ± 1%   164.7n ± 2%  -86.18% (p=0.000 n=30)
+    ModSub-12           1179.5n ± 5%   145.6n ± 2%  -87.66% (p=0.000 n=30)
+    MontgomeryRepr-12    2.022µ ± 0%   1.300µ ± 1%  -35.71% (p=0.000 n=30)
+    MontgomeryMul-12     2.111µ ± 1%   1.302µ ± 0%  -38.34% (p=0.000 n=30)
+    ModMul-12            4.160µ ± 1%   2.868µ ± 1%  -31.06% (p=0.000 n=30)
+    ExpBig-12            2.780m ± 0%   2.767m ± 0%   -0.49% (p=0.000 n=30)
+    Exp-12               8.751m ± 4%   3.451m ± 1%  -60.56% (p=0.000 n=30)
+    geomean              17.98µ        7.306µ       -59.36%
+    
+    pkg: crypto/rsa
+                                 │      old      │                 new                  │
+                                 │    sec/op     │    sec/op     vs base                │
+    DecryptPKCS1v15/2048-12         5.537m ±  4%   1.754m ±  1%  -68.32% (p=0.000 n=30)
+    DecryptPKCS1v15/3072-12        12.153m ±  1%   3.827m ±  1%  -68.51% (p=0.000 n=30)
+    DecryptPKCS1v15/4096-12        21.889m ±  1%   7.251m ±  1%  -66.87% (p=0.000 n=30)
+    EncryptPKCS1v15/2048-12         87.98µ ±  0%   45.47µ ±  1%  -48.33% (p=0.000 n=30)
+    DecryptOAEP/2048-12             5.583m ±  5%   1.777m ±  2%  -68.17% (p=0.000 n=30)
+    EncryptOAEP/2048-12             98.99µ ±  0%   54.57µ ±  0%  -44.87% (p=0.000 n=30)
+    SignPKCS1v15/2048-12            5.542m ±  3%   1.756m ±  2%  -68.32% (p=0.000 n=30)
+    VerifyPKCS1v15/2048-12          84.22µ ±  1%   44.80µ ±  1%  -46.81% (p=0.000 n=30)
+    SignPSS/2048-12                 5.595m ±  5%   1.799m ±  2%  -67.84% (p=0.000 n=30)
+    VerifyPSS/2048-12               92.06µ ±  1%   52.72µ ±  1%  -42.73% (p=0.000 n=30)
+    GenerateKey/2048-12            2744.0m ± 38%   304.1m ± 11%  -88.92% (p=0.000 n=30)
+    ParsePKCS8PrivateKey/2048-12    888.0µ ±  1%   101.8µ ±  0%  -88.54% (p=0.000 n=30)
+    geomean                         2.428m         778.5µ        -67.93%
+    
+    
+    goos: linux
+    goarch: amd64
+    cpu: AMD Ryzen 9 7950X 16-Core Processor
+    race: on
+    
+    pkg: crypto/internal/fips140/bigmod
+                      │     old     │                 new                 │
+                      │   sec/op    │   sec/op     vs base                │
+    ModAdd-32           900.7n ± 3%   124.2n ± 2%  -86.21% (p=0.000 n=30)
+    ModSub-32           895.5n ± 8%   117.1n ± 1%  -86.92% (p=0.000 n=30)
+    MontgomeryRepr-32   1.669µ ± 3%   1.038µ ± 1%  -37.82% (p=0.000 n=30)
+    MontgomeryMul-32    1.646µ ± 4%   1.033µ ± 1%  -37.25% (p=0.000 n=30)
+    ModMul-32           3.384µ ± 5%   2.124µ ± 1%  -37.22% (p=0.000 n=30)
+    ExpBig-32           2.573m ± 2%   2.561m ± 1%        ~ (p=0.146 n=30)
+    Exp-32              7.188m ± 2%   2.746m ± 1%  -61.80% (p=0.000 n=30)
+    geomean             14.56µ        5.844µ       -59.86%
+    
+    pkg: crypto/rsa
+                                 │      old      │                 new                  │
+                                 │    sec/op     │    sec/op     vs base                │
+    DecryptPKCS1v15/2048-32         4.111m ±  1%   1.233m ±  1%  -70.00% (p=0.000 n=30)
+    DecryptPKCS1v15/3072-32         9.443m ±  1%   2.955m ±  1%  -68.70% (p=0.000 n=30)
+    DecryptPKCS1v15/4096-32        17.261m ±  1%   5.744m ±  1%  -66.72% (p=0.000 n=30)
+    EncryptPKCS1v15/2048-32         66.31µ ±  1%   36.16µ ±  1%  -45.46% (p=0.000 n=30)
+    DecryptOAEP/2048-32             4.107m ±  2%   1.241m ±  1%  -69.80% (p=0.000 n=30)
+    EncryptOAEP/2048-32             72.19µ ±  0%   42.35µ ±  1%  -41.34% (p=0.000 n=30)
+    SignPKCS1v15/2048-32            4.145m ±  1%   1.257m ±  2%  -69.68% (p=0.000 n=30)
+    VerifyPKCS1v15/2048-32          65.14µ ±  1%   34.95µ ±  1%  -46.36% (p=0.000 n=30)
+    SignPSS/2048-32                 4.005m ±  2%   1.271m ±  1%  -68.26% (p=0.000 n=30)
+    VerifyPSS/2048-32               70.76µ ±  0%   40.72µ ±  1%  -42.46% (p=0.000 n=30)
+    GenerateKey/2048-32            1946.4m ± 19%   236.3m ± 18%  -87.86% (p=0.000 n=30)
+    ParsePKCS8PrivateKey/2048-32   713.94µ ±  1%   85.89µ ±  1%  -87.97% (p=0.000 n=30)
+    geomean                         1.829m         591.5µ        -67.66%
+    
+    Change-Id: I49cbb6d14b187100bf5e6002e30096667689d852
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632978
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/internal/fips140/bigmod/nat.go | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/src/crypto/internal/fips140/bigmod/nat.go b/src/crypto/internal/fips140/bigmod/nat.go
+index 987065901b..bcf827b1b5 100644
+--- a/src/crypto/internal/fips140/bigmod/nat.go
++++ b/src/crypto/internal/fips140/bigmod/nat.go
+@@ -221,6 +221,8 @@ func (x *Nat) SetUint(y uint) *Nat {
+ // Equal returns 1 if x == y, and 0 otherwise.
+ //
+ // Both operands must have the same announced length.
++//
++//go:norace
+ func (x *Nat) Equal(y *Nat) choice {
+ 	// Eliminate bounds checks in the loop.
+ 	size := len(x.limbs)
+@@ -235,6 +237,8 @@ func (x *Nat) Equal(y *Nat) choice {
+ }
+ 
+ // IsZero returns 1 if x == 0, and 0 otherwise.
++//
++//go:norace
+ func (x *Nat) IsZero() choice {
+ 	// Eliminate bounds checks in the loop.
+ 	size := len(x.limbs)
+@@ -248,6 +252,8 @@ func (x *Nat) IsZero() choice {
+ }
+ 
+ // IsOne returns 1 if x == 1, and 0 otherwise.
++//
++//go:norace
+ func (x *Nat) IsOne() choice {
+ 	// Eliminate bounds checks in the loop.
+ 	size := len(x.limbs)
+@@ -268,6 +274,8 @@ func (x *Nat) IsOne() choice {
+ //
+ // The length of x must be the same as the modulus. x must already be reduced
+ // modulo m.
++//
++//go:norace
+ func (x *Nat) IsMinusOne(m *Modulus) choice {
+ 	minusOne := m.Nat()
+ 	minusOne.SubOne(m)
+@@ -275,6 +283,8 @@ func (x *Nat) IsMinusOne(m *Modulus) choice {
+ }
+ 
+ // IsOdd returns 1 if x is odd, and 0 otherwise.
++//
++//go:norace
+ func (x *Nat) IsOdd() choice {
+ 	if len(x.limbs) == 0 {
+ 		return no
+@@ -300,6 +310,8 @@ func (x *Nat) TrailingZeroBitsVarTime() uint {
+ // cmpGeq returns 1 if x >= y, and 0 otherwise.
+ //
+ // Both operands must have the same announced length.
++//
++//go:norace
+ func (x *Nat) cmpGeq(y *Nat) choice {
+ 	// Eliminate bounds checks in the loop.
+ 	size := len(x.limbs)
+@@ -318,6 +330,8 @@ func (x *Nat) cmpGeq(y *Nat) choice {
+ // assign sets x <- y if on == 1, and does nothing otherwise.
+ //
+ // Both operands must have the same announced length.
++//
++//go:norace
+ func (x *Nat) assign(on choice, y *Nat) *Nat {
+ 	// Eliminate bounds checks in the loop.
+ 	size := len(x.limbs)
+@@ -334,6 +348,8 @@ func (x *Nat) assign(on choice, y *Nat) *Nat {
+ // add computes x += y and returns the carry.
+ //
+ // Both operands must have the same announced length.
++//
++//go:norace
+ func (x *Nat) add(y *Nat) (c uint) {
+ 	// Eliminate bounds checks in the loop.
+ 	size := len(x.limbs)
+@@ -349,6 +365,8 @@ func (x *Nat) add(y *Nat) (c uint) {
+ // sub computes x -= y. It returns the borrow of the subtraction.
+ //
+ // Both operands must have the same announced length.
++//
++//go:norace
+ func (x *Nat) sub(y *Nat) (c uint) {
+ 	// Eliminate bounds checks in the loop.
+ 	size := len(x.limbs)
+@@ -364,6 +382,8 @@ func (x *Nat) sub(y *Nat) (c uint) {
+ // ShiftRightVarTime sets x = x >> n.
+ //
+ // The announced length of x is unchanged.
++//
++//go:norace
+ func (x *Nat) ShiftRightVarTime(n uint) *Nat {
+ 	// Eliminate bounds checks in the loop.
+ 	size := len(x.limbs)
+@@ -563,6 +583,8 @@ func (m *Modulus) Nat() *Nat {
+ // shiftIn calculates x = x << _W + y mod m.
+ //
+ // This assumes that x is already reduced mod m.
++//
++//go:norace
+ func (x *Nat) shiftIn(y uint, m *Modulus) *Nat {
+ 	d := NewNat().resetFor(m)
+ 
+@@ -846,6 +868,8 @@ func (x *Nat) montgomeryMul(a *Nat, b *Nat, m *Modulus) *Nat {
+ // addMulVVW multiplies the multi-word value x by the single-word value y,
+ // adding the result to the multi-word value z and returning the final carry.
+ // It can be thought of as one row of a pen-and-paper column multiplication.
++//
++//go:norace
+ func addMulVVW(z, x []uint, y uint) (carry uint) {
+ 	_ = x[len(z)-1] // bounds check elimination hint
+ 	for i := range z {
+@@ -1112,6 +1136,7 @@ func (x *Nat) InverseVarTime(a *Nat, m *Modulus) (*Nat, bool) {
+ 	}
+ }
+ 
++//go:norace
+ func rshift1(a *Nat, carry uint) {
+ 	size := len(a.limbs)
+ 	aLimbs := a.limbs[:size]

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9072: aec89c4c404d408c95ba309d65d7be78260f0045
+# Index 9072: daaf29cf9320011af9b5feee36f75cb2ac175718
 
 echo "🚀 Generating explanation for commit 9072..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 9072..."
 
 ### メタデータ
 - **コミットインデックス**: 9072
-- **コミットハッシュ**: aec89c4c404d408c95ba309d65d7be78260f0045
-- **GitHub URL**: https://github.com/golang/go/commit/aec89c4c404d408c95ba309d65d7be78260f0045
+- **コミットハッシュ**: daaf29cf9320011af9b5feee36f75cb2ac175718
+- **GitHub URL**: https://github.com/golang/go/commit/daaf29cf9320011af9b5feee36f75cb2ac175718
 
 ### 章構成
 

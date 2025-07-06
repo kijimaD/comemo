@@ -1,0 +1,433 @@
+commit 06450a82b04dc4b3599ae4864827e6f8a5b7d628
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 24 09:20:30 2025 +0000
+
+    internal/runtime/cgroup: add line-by-line reader using a single scratch buffer
+    
+    Change-Id: I6a6a636ca21edcc6f16705fbb72a5241d4f7f22d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668637
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/objabi/pkgspecial.go           |   1 +
+ src/go/build/deps_test.go                       |   1 +
+ src/internal/runtime/cgroup/export_test.go      |  24 ++++
+ src/internal/runtime/cgroup/line_reader.go      | 179 ++++++++++++++++++++++++
+ src/internal/runtime/cgroup/line_reader_test.go | 170 ++++++++++++++++++++++
+ 5 files changed, 375 insertions(+)
+
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index d4773b1ecf..e09aeadbc2 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -49,6 +49,7 @@ var runtimePkgs = []string{
+ 	"runtime",
+ 
+ 	"internal/runtime/atomic",
++	"internal/runtime/cgroup",
+ 	"internal/runtime/exithook",
+ 	"internal/runtime/gc",
+ 	"internal/runtime/maps",
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 3a81f5a8ca..6fee3b6679 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -98,6 +98,7 @@ var depsRules = `
+ 	< internal/runtime/math
+ 	< internal/runtime/maps
+ 	< internal/runtime/strconv
++	< internal/runtime/cgroup
+ 	< runtime
+ 	< sync/atomic
+ 	< internal/sync
+diff --git a/src/internal/runtime/cgroup/export_test.go b/src/internal/runtime/cgroup/export_test.go
+new file mode 100644
+index 0000000000..200e5aee12
+--- /dev/null
++++ b/src/internal/runtime/cgroup/export_test.go
+@@ -0,0 +1,24 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgroup
++
++type LineReader = lineReader
++
++func (l *LineReader) Next() error {
++	return l.next()
++}
++
++func (l *LineReader) Line() []byte {
++	return l.line()
++}
++
++func NewLineReader(fd int, scratch []byte, read func(fd int, b []byte) (int, uintptr)) *LineReader {
++	return newLineReader(fd, scratch, read)
++}
++
++var (
++	ErrEOF            = errEOF
++	ErrIncompleteLine = errIncompleteLine
++)
+diff --git a/src/internal/runtime/cgroup/line_reader.go b/src/internal/runtime/cgroup/line_reader.go
+new file mode 100644
+index 0000000000..382cfd70d1
+--- /dev/null
++++ b/src/internal/runtime/cgroup/line_reader.go
+@@ -0,0 +1,179 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgroup
++
++import (
++	"internal/bytealg"
++)
++
++// stringError is a trival implementation of error, equivalent to errors.New,
++// which cannot be imported from a runtime package.
++type stringError string
++
++func (e stringError) Error() string {
++	return string(e)
++}
++
++// All errors are explicit converted to type error in global initialization to
++// ensure that the linker allocates a static interface value. This is necessary
++// because these errors may be used before the allocator is available.
++
++var (
++	// The entire line did not fit into the scratch buffer.
++	errIncompleteLine error = stringError("incomplete line")
++
++	// A system call failed.
++	errSyscallFailed error = stringError("syscall failed")
++
++	// Reached EOF.
++	errEOF error = stringError("end of file")
++)
++
++// lineReader reads line-by-line using only a single fixed scratch buffer.
++//
++// When a single line is too long for the scratch buffer, the remainder of the
++// line will be skipped.
++type lineReader struct {
++	read    func(fd int, b []byte) (int, uintptr)
++	fd      int
++	scratch []byte
++
++	n       int // bytes of scratch in use.
++	newline int // index of the first newline in scratch.
++
++	eof bool // read reached EOF.
++}
++
++// newLineReader returns a lineReader which reads lines from fd.
++//
++// fd is the file descriptor to read from.
++//
++// scratch is the scratch buffer to read into. Note that len(scratch) is the
++// longest line that can be read. Lines longer than len(scratch) will have the
++// remainder of the line skipped. See next for more details.
++//
++// read is the function used to read more bytes from fd. This is usually
++// internal/runtime/syscall.Read. Note that this follows syscall semantics (not
++// io.Reader), so EOF is indicated with n=0, errno=0.
++func newLineReader(fd int, scratch []byte, read func(fd int, b []byte) (n int, errno uintptr)) *lineReader {
++	return &lineReader{
++		read:    read,
++		fd:      fd,
++		scratch: scratch,
++		n:       0,
++		newline: -1,
++	}
++}
++
++// next advances to the next line.
++//
++// May return errIncompleteLine if the scratch buffer is too small to hold the
++// entire line, in which case [r.line] will return the beginning of the line. A
++// subsequent call to next will skip the remainder of the incomplete line.
++//
++// N.B. this behavior is important for /proc/self/mountinfo. Some lines
++// (mounts), such as overlayfs, may be extremely long due to long super-block
++// options, but we don't care about those. The mount type will appear early in
++// the line.
++//
++// Returns errEOF when there are no more lines.
++func (r *lineReader) next() error {
++	// Three cases:
++	//
++	// 1. First call, no data read.
++	// 2. Previous call had a complete line. Drop it and look for the end
++	//    of the next line.
++	// 3. Previous call had an incomplete line. Find the end of that line
++	//    (start of the next line), and the end of the next line.
++
++	prevComplete := r.newline >= 0
++	firstCall := r.n == 0
++
++	for {
++		if prevComplete {
++			// Drop the previous line.
++			copy(r.scratch, r.scratch[r.newline+1:r.n])
++			r.n -= r.newline + 1
++
++			r.newline = bytealg.IndexByte(r.scratch[:r.n], '\n')
++			if r.newline >= 0 {
++				// We have another line already in scratch. Done.
++				return nil
++			}
++		}
++
++		// No newline available.
++
++		if !prevComplete {
++			// If the previous line was incomplete, we are
++			// searching for the end of that line and have no need
++			// for any buffered data.
++			r.n = 0
++		}
++
++		n, errno := r.read(r.fd, r.scratch[r.n:len(r.scratch)])
++		if errno != 0 {
++			return errSyscallFailed
++		}
++		r.n += n
++
++		if r.n == 0 {
++			// Nothing left.
++			//
++			// N.B. we can't immediately return EOF when read
++			// returns 0 as we may still need to return an
++			// incomplete line.
++			return errEOF
++		}
++
++		r.newline = bytealg.IndexByte(r.scratch[:r.n], '\n')
++		if prevComplete || firstCall {
++			// Already have the start of the line, just need to find the end.
++
++			if r.newline < 0 {
++				// We filled the entire buffer or hit EOF, but
++				// still no newline.
++				return errIncompleteLine
++			}
++
++			// Found the end of the line. Done.
++			return nil
++		} else {
++			// Don't have the start of the line. We are currently
++			// looking for the end of the previous line.
++
++			if r.newline < 0 {
++				// Not there yet.
++				if n == 0 {
++					// No more to read.
++					return errEOF
++				}
++				continue
++			}
++
++			// Found the end of the previous line. The next
++			// iteration will drop the remainder of the previous
++			// line and look for the next line.
++			prevComplete = true
++		}
++	}
++}
++
++// line returns a view of the current line, excluding the trailing newline.
++//
++// If [r.next] returned errIncompleteLine, then this returns only the beginning
++// of the line.
++//
++// Preconditions: [r.next] is called prior to the first call to line.
++//
++// Postconditions: The caller must not keep a reference to the returned slice.
++func (r *lineReader) line() []byte {
++	if r.newline < 0 {
++		// Incomplete line
++		return r.scratch[:r.n]
++	}
++	// Complete line.
++	return r.scratch[:r.newline]
++}
+diff --git a/src/internal/runtime/cgroup/line_reader_test.go b/src/internal/runtime/cgroup/line_reader_test.go
+new file mode 100644
+index 0000000000..ceef1b5b4c
+--- /dev/null
++++ b/src/internal/runtime/cgroup/line_reader_test.go
+@@ -0,0 +1,170 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cgroup_test
++
++import (
++	"internal/runtime/cgroup"
++	"io"
++	"strings"
++	"testing"
++)
++
++func TestLineReader(t *testing.T) {
++	type nextLine struct {
++		line       string
++		incomplete bool // next call before this line should return incomplete
++	}
++	complete := func(s string) nextLine {
++		return nextLine{line: s}
++	}
++	incomplete := func(s string) nextLine {
++		return nextLine{line: s, incomplete: true}
++	}
++
++	const scratchSize = 8
++
++	tests := []struct {
++		name     string
++		contents string
++		want     []nextLine
++	}{
++		{
++			name:     "empty",
++			contents: "",
++		},
++		{
++			name:     "single",
++			contents: "1234\n",
++			want: []nextLine{
++				complete("1234"),
++			},
++		},
++		{
++			name:     "single-incomplete",
++			contents: "1234",
++			want: []nextLine{
++				incomplete("1234"),
++			},
++		},
++		{
++			name:     "single-exact",
++			contents: "1234567\n",
++			want: []nextLine{
++				complete("1234567"),
++			},
++		},
++		{
++			name:     "single-exact-incomplete",
++			contents: "12345678",
++			want: []nextLine{
++				incomplete("12345678"),
++			},
++		},
++		{
++			name: "multi",
++			contents: `1234
++5678
++`,
++			want: []nextLine{
++				complete("1234"),
++				complete("5678"),
++			},
++		},
++		{
++			name: "multi-short",
++			contents: `12
++34
++56
++78
++`,
++			want: []nextLine{
++				complete("12"),
++				complete("34"),
++				complete("56"),
++				complete("78"),
++			},
++		},
++		{
++			name: "multi-notrailingnewline",
++			contents: `1234
++5678`,
++			want: []nextLine{
++				complete("1234"),
++				incomplete("5678"),
++			},
++		},
++		{
++			name: "middle-too-long",
++			contents: `1234
++1234567890
++5678
++`,
++			want: []nextLine{
++				complete("1234"),
++				incomplete("12345678"),
++				complete("5678"),
++			},
++		},
++		{
++			// Multiple reads required to find newline.
++			name: "middle-way-too-long",
++			contents: `1234
++12345678900000000000000000000000000000000000000000000000000
++5678
++`,
++			want: []nextLine{
++				complete("1234"),
++				incomplete("12345678"),
++				complete("5678"),
++			},
++		},
++	}
++
++	for _, tc := range tests {
++		t.Run(tc.name, func(t *testing.T) {
++			r := strings.NewReader(tc.contents)
++			read := func(fd int, b []byte) (int, uintptr) {
++				n, err := r.Read(b)
++				if err != nil && err != io.EOF {
++					const dummyErrno = 42
++					return n, dummyErrno
++				}
++				return n, 0
++			}
++
++			var scratch [scratchSize]byte
++			l := cgroup.NewLineReader(0, scratch[:], read)
++
++			var got []nextLine
++			for {
++				err := l.Next()
++				if err == cgroup.ErrEOF {
++					break
++				} else if err == cgroup.ErrIncompleteLine {
++					got = append(got, incomplete(string(l.Line())))
++				} else if err != nil {
++					t.Fatalf("next got err %v", err)
++				} else {
++					got = append(got, complete(string(l.Line())))
++				}
++			}
++
++			if len(got) != len(tc.want) {
++				t.Logf("got lines %+v", got)
++				t.Logf("want lines %+v", tc.want)
++				t.Fatalf("lineReader got %d lines, want %d", len(got), len(tc.want))
++			}
++
++			for i := range got {
++				if got[i].line != tc.want[i].line {
++					t.Errorf("line %d got %q want %q", i, got[i].line, tc.want[i].line)
++				}
++				if got[i].incomplete != tc.want[i].incomplete {
++					t.Errorf("line %d got incomplete %v want %v", i, got[i].incomplete, tc.want[i].incomplete)
++				}
++			}
++		})
++	}
++}

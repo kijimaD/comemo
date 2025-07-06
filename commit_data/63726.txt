@@ -1,0 +1,139 @@
+commit 59003b6d8795f337c8916e814343182116183491
+Author: lifubang <lifubang@acmcoder.com>
+Date:   Fri May 10 03:29:45 2024 +0000
+
+    syscall: don't change local limit if prlimit used for another process
+    
+    Fixes: #67184
+    
+    Change-Id: Ibdf3810cbba30ae29f466f7f95f357e8512f228b
+    GitHub-Last-Rev: 5eabc760be6b89ae85629627da37b517e8ec356f
+    GitHub-Pull-Request: golang/go#67185
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583299
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/syscall/export_linux_test.go  |  1 +
+ src/syscall/export_rlimit_test.go |  6 ++++
+ src/syscall/syscall_linux.go      |  2 +-
+ src/syscall/syscall_linux_test.go | 66 +++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 1 deletion(-)
+
+diff --git a/src/syscall/export_linux_test.go b/src/syscall/export_linux_test.go
+index 9bcf73e771..d9309bf234 100644
+--- a/src/syscall/export_linux_test.go
++++ b/src/syscall/export_linux_test.go
+@@ -11,6 +11,7 @@ import (
+ var (
+ 	RawSyscallNoError = rawSyscallNoError
+ 	ForceClone3       = &forceClone3
++	Prlimit           = prlimit
+ )
+ 
+ const (
+diff --git a/src/syscall/export_rlimit_test.go b/src/syscall/export_rlimit_test.go
+index 8b1545cb03..f584ac410d 100644
+--- a/src/syscall/export_rlimit_test.go
++++ b/src/syscall/export_rlimit_test.go
+@@ -6,6 +6,12 @@
+ 
+ package syscall
+ 
++import "sync/atomic"
++
+ func OrigRlimitNofile() *Rlimit {
+ 	return origRlimitNofile.Load()
+ }
++
++func GetInternalOrigRlimitNofile() *atomic.Pointer[Rlimit] {
++	return &origRlimitNofile
++}
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 6547c517a7..f35e78c26a 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -1289,7 +1289,7 @@ func Munmap(b []byte) (err error) {
+ // This is unexported but can be called from x/sys/unix.
+ func prlimit(pid int, resource int, newlimit *Rlimit, old *Rlimit) (err error) {
+ 	err = prlimit1(pid, resource, newlimit, old)
+-	if err == nil && newlimit != nil && resource == RLIMIT_NOFILE {
++	if err == nil && newlimit != nil && resource == RLIMIT_NOFILE && (pid == 0 || pid == Getpid()) {
+ 		origRlimitNofile.Store(nil)
+ 	}
+ 	return err
+diff --git a/src/syscall/syscall_linux_test.go b/src/syscall/syscall_linux_test.go
+index 1300fc046e..675406fba0 100644
+--- a/src/syscall/syscall_linux_test.go
++++ b/src/syscall/syscall_linux_test.go
+@@ -654,3 +654,69 @@ func TestAllThreadsSyscallBlockedSyscall(t *testing.T) {
+ 	wr.Close()
+ 	wg.Wait()
+ }
++
++func TestPrlimitSelf(t *testing.T) {
++	origLimit := syscall.OrigRlimitNofile()
++	origRlimitNofile := syscall.GetInternalOrigRlimitNofile()
++
++	if origLimit == nil {
++		defer origRlimitNofile.Store(origLimit)
++		origRlimitNofile.Store(&syscall.Rlimit{
++			Cur: 1024,
++			Max: 65536,
++		})
++	}
++
++	// Get current process's nofile limit
++	var lim syscall.Rlimit
++	if err := syscall.Prlimit(0, syscall.RLIMIT_NOFILE, nil, &lim); err != nil {
++		t.Fatalf("Failed to get the current nofile limit: %v", err)
++	}
++	// Set current process's nofile limit through prlimit
++	if err := syscall.Prlimit(0, syscall.RLIMIT_NOFILE, &lim, nil); err != nil {
++		t.Fatalf("Prlimit self failed: %v", err)
++	}
++
++	rlimLater := origRlimitNofile.Load()
++	if rlimLater != nil {
++		t.Fatalf("origRlimitNofile got=%v, want=nil", rlimLater)
++	}
++}
++
++func TestPrlimitOtherProcess(t *testing.T) {
++	origLimit := syscall.OrigRlimitNofile()
++	origRlimitNofile := syscall.GetInternalOrigRlimitNofile()
++
++	if origLimit == nil {
++		defer origRlimitNofile.Store(origLimit)
++		origRlimitNofile.Store(&syscall.Rlimit{
++			Cur: 1024,
++			Max: 65536,
++		})
++	}
++	rlimOrig := origRlimitNofile.Load()
++
++	// Start a child process firstly,
++	// so we can use Prlimit to set it's nofile limit.
++	cmd := exec.Command("sleep", "infinity")
++	cmd.Start()
++	defer func() {
++		cmd.Process.Kill()
++		cmd.Process.Wait()
++	}()
++
++	// Get child process's current nofile limit
++	var lim syscall.Rlimit
++	if err := syscall.Prlimit(cmd.Process.Pid, syscall.RLIMIT_NOFILE, nil, &lim); err != nil {
++		t.Fatalf("Failed to get the current nofile limit: %v", err)
++	}
++	// Set child process's nofile rlimit through prlimit
++	if err := syscall.Prlimit(cmd.Process.Pid, syscall.RLIMIT_NOFILE, &lim, nil); err != nil {
++		t.Fatalf("Prlimit(%d) failed: %v", cmd.Process.Pid, err)
++	}
++
++	rlimLater := origRlimitNofile.Load()
++	if rlimLater != rlimOrig {
++		t.Fatalf("origRlimitNofile got=%v, want=%v", rlimLater, rlimOrig)
++	}
++}

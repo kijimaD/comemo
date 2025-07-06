@@ -1,0 +1,71 @@
+commit d62154db837fef880714f710bafbe0af94034b40
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jan 7 16:01:46 2025 +0000
+
+    weak: don't panic when calling Value on a zero Pointer
+    
+    Currently weak.Pointer.Value will panic if the weak.Pointer is
+    uninitialized (zero value) which goes against it's documentation. Fix
+    this and add a test. While we're here, also add a test to ensure
+    weak.Make[T](nil) is equivalent to the zero value of weak.Pointer[T].
+    
+    Fixes #71153.
+    
+    Change-Id: I4d9196026360bc42a5bfcb33ce449131ec251dba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641095
+    Reviewed-by: David Finkel <david.finkel@gmail.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/weak/pointer.go      |  3 +++
+ src/weak/pointer_test.go | 15 +++++++++++++++
+ 2 files changed, 18 insertions(+)
+
+diff --git a/src/weak/pointer.go b/src/weak/pointer.go
+index 50af0c2fdc..39c512e76d 100644
+--- a/src/weak/pointer.go
++++ b/src/weak/pointer.go
+@@ -78,6 +78,9 @@ func Make[T any](ptr *T) Pointer[T] {
+ // If a weak pointer points to an object with a finalizer, then Value will
+ // return nil as soon as the object's finalizer is queued for execution.
+ func (p Pointer[T]) Value() *T {
++	if p.u == nil {
++		return nil
++	}
+ 	return (*T)(runtime_makeStrongFromWeak(p.u))
+ }
+ 
+diff --git a/src/weak/pointer_test.go b/src/weak/pointer_test.go
+index 002b4130f0..e0ef30377e 100644
+--- a/src/weak/pointer_test.go
++++ b/src/weak/pointer_test.go
+@@ -21,6 +21,15 @@ type T struct {
+ }
+ 
+ func TestPointer(t *testing.T) {
++	var zero weak.Pointer[T]
++	if zero.Value() != nil {
++		t.Error("Value of zero value of weak.Pointer is not nil")
++	}
++	zeroNil := weak.Make[T](nil)
++	if zeroNil.Value() != nil {
++		t.Error("Value of weak.Make[T](nil) is not nil")
++	}
++
+ 	bt := new(T)
+ 	wt := weak.Make(bt)
+ 	if st := wt.Value(); st != bt {
+@@ -41,6 +50,12 @@ func TestPointer(t *testing.T) {
+ }
+ 
+ func TestPointerEquality(t *testing.T) {
++	var zero weak.Pointer[T]
++	zeroNil := weak.Make[T](nil)
++	if zero != zeroNil {
++		t.Error("weak.Make[T](nil) != zero value of weak.Pointer[T]")
++	}
++
+ 	bt := make([]*T, 10)
+ 	wt := make([]weak.Pointer[T], 10)
+ 	wo := make([]weak.Pointer[int], 10)

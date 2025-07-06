@@ -1,0 +1,82 @@
+commit 08a7ab97baaa7f57f58701fd205dfdaf02aeea16
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 8 22:59:46 2024 +0000
+
+    runtime: factor out GC pause time CPU stats update
+    
+    Currently this is done manually in two places. Replace these manual
+    updates with a method that also forces the caller to be mindful that the
+    number will be multiplied (and that it needs to be). This will make
+    follow-up changes simpler too.
+    
+    Change-Id: I81ea844b47a40ff3470d23214b4b2fb5b71a4abe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570255
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mgc.go    | 12 ++++--------
+ src/runtime/mstats.go | 10 ++++++++++
+ 2 files changed, 14 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 6321254f26..74a96768a7 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -747,9 +747,8 @@ func gcStart(trigger gcTrigger) {
+ 		work.pauseNS += now - stw.start
+ 		work.tMark = now
+ 
+-		sweepTermCpu := int64(work.stwprocs) * (work.tMark - work.tSweepTerm)
+-		work.cpuStats.gcPauseTime += sweepTermCpu
+-		work.cpuStats.gcTotalTime += sweepTermCpu
++		// Update the CPU stats pause time.
++		work.cpuStats.accumulateGCPauseTime(now-work.tSweepTerm, work.stwprocs)
+ 
+ 		// Release the CPU limiter.
+ 		gcCPULimiter.finishGCTransition(now)
+@@ -1017,13 +1016,10 @@ func gcMarkTermination(stw worldStop) {
+ 	memstats.pause_end[memstats.numgc%uint32(len(memstats.pause_end))] = uint64(unixNow)
+ 	memstats.pause_total_ns += uint64(work.pauseNS)
+ 
+-	markTermCpu := int64(work.stwprocs) * (work.tEnd - work.tMarkTerm)
+-	work.cpuStats.gcPauseTime += markTermCpu
+-	work.cpuStats.gcTotalTime += markTermCpu
+-
+ 	// Accumulate CPU stats.
+ 	//
+ 	// Pass gcMarkPhase=true so we can get all the latest GC CPU stats in there too.
++	work.cpuStats.accumulateGCPauseTime(work.tEnd-work.tMarkTerm, work.stwprocs)
+ 	work.cpuStats.accumulate(now, true)
+ 
+ 	// Compute overall GC CPU utilization.
+@@ -1166,7 +1162,7 @@ func gcMarkTermination(stw worldStop) {
+ 			gcController.assistTime.Load(),
+ 			gcController.dedicatedMarkTime.Load() + gcController.fractionalMarkTime.Load(),
+ 			gcController.idleMarkTime.Load(),
+-			markTermCpu,
++			int64(work.stwprocs) * (work.tEnd - work.tMarkTerm),
+ 		} {
+ 			if i == 2 || i == 3 {
+ 				// Separate mark time components with /.
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index 1b634bd81e..f838d139b5 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -921,6 +921,16 @@ type cpuStats struct {
+ 	totalTime int64 // GOMAXPROCS * (monotonic wall clock time elapsed)
+ }
+ 
++// accumulateGCPauseTime add dt*stwProcs to the GC CPU pause time stats. dt should be
++// the actual time spent paused, for orthogonality. stwProcs should be GOMAXPROCS,
++// not work.stwprocs, since this number must be comparable to a total time computed
++// from GOMAXPROCS.
++func (s *cpuStats) accumulateGCPauseTime(dt int64, stwProcs int32) {
++	cpu := dt * int64(stwProcs)
++	s.gcPauseTime += cpu
++	s.gcTotalTime += cpu
++}
++
+ // accumulate takes a cpuStats and adds in the current state of all GC CPU
+ // counters.
+ //

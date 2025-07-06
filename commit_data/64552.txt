@@ -1,0 +1,42 @@
+commit ef0b015407547838ed17518e932ba9c372599c70
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 19 15:21:46 2024 -0700
+
+    os: use t.TempDir in TestReadOnlyWriteFile
+    
+    This test is checking WriteFile, not MkdirTemp, and using t.TempDir
+    makes the test case code a tad smaller and simpler.
+    
+    Change-Id: I48837f77572f375d56f3a387efa9a4ee1d3706fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606898
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/os/read_test.go | 9 ++-------
+ 1 file changed, 2 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/read_test.go b/src/os/read_test.go
+index 1f79e89baf..4659191d83 100644
+--- a/src/os/read_test.go
++++ b/src/os/read_test.go
+@@ -78,16 +78,11 @@ func TestReadOnlyWriteFile(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	// We don't want to use CreateTemp directly, since that opens a file for us as 0600.
+-	tempDir, err := MkdirTemp("", t.Name())
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer RemoveAll(tempDir)
+-	filename := filepath.Join(tempDir, "blurp.txt")
++	filename := filepath.Join(t.TempDir(), "blurp.txt")
+ 
+ 	shmorp := []byte("shmorp")
+ 	florp := []byte("florp")
+-	err = WriteFile(filename, shmorp, 0444)
++	err := WriteFile(filename, shmorp, 0444)
+ 	if err != nil {
+ 		t.Fatalf("WriteFile %s: %v", filename, err)
+ 	}

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 21907: cdc2b0568feac1867377dddccf6eafa45cd27352
+# Index 21907: db406241107353323b5cf484d6abd05c4722a104
 
 echo "🚀 Generating explanation for commit 21907..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 21907..."
 
 ### メタデータ
 - **コミットインデックス**: 21907
-- **コミットハッシュ**: cdc2b0568feac1867377dddccf6eafa45cd27352
-- **GitHub URL**: https://github.com/golang/go/commit/cdc2b0568feac1867377dddccf6eafa45cd27352
+- **コミットハッシュ**: db406241107353323b5cf484d6abd05c4722a104
+- **GitHub URL**: https://github.com/golang/go/commit/db406241107353323b5cf484d6abd05c4722a104
 
 ### 章構成
 

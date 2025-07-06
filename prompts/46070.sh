@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 46070: 35f3b7053addf842690162d4d4937c0fbf438c50
+# Index 46070: f758dabf52d38333985e24762f9b53a29e2e7da0
 
 echo "🚀 Generating explanation for commit 46070..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 46070..."
 
 ### メタデータ
 - **コミットインデックス**: 46070
-- **コミットハッシュ**: 35f3b7053addf842690162d4d4937c0fbf438c50
-- **GitHub URL**: https://github.com/golang/go/commit/35f3b7053addf842690162d4d4937c0fbf438c50
+- **コミットハッシュ**: f758dabf52d38333985e24762f9b53a29e2e7da0
+- **GitHub URL**: https://github.com/golang/go/commit/f758dabf52d38333985e24762f9b53a29e2e7da0
 
 ### 章構成
 

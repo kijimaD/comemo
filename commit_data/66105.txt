@@ -1,0 +1,299 @@
+commit 646d285d7d0f5a8b18195e3fdfce7470219175c3
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 23 11:27:13 2024 -0800
+
+    os: simplify Process.Release
+    
+    Consolidate release/deactivation into a single doRelease method.
+    It needs to check GOOS for backward compatibility, but it's
+    simpler to keep all the logic in one place.
+    
+    Change-Id: I242eb084d44d2682f862a8fbf55c410fb8c53358
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638580
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/os/exec.go         | 115 +++++++++++++++++++++----------------------------
+ src/os/exec_plan9.go   |  11 +----
+ src/os/exec_unix.go    |  25 +----------
+ src/os/exec_windows.go |  19 +++-----
+ src/os/pidfd_linux.go  |   8 ++--
+ 5 files changed, 61 insertions(+), 117 deletions(-)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index 212689b0fa..6206ae28cd 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -176,40 +176,6 @@ func (p *Process) handleTransientRelease() {
+ 	p.handle.release()
+ }
+ 
+-// Drop the Process' persistent reference on the handle, deactivating future
+-// Wait/Signal calls with the passed reason.
+-//
+-// Returns the status prior to this call. If this is not statusOK, then the
+-// reference was not dropped or status changed.
+-func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
+-	if p.handle == nil {
+-		panic("handlePersistentRelease called in invalid mode")
+-	}
+-
+-	for {
+-		state := p.state.Load()
+-		status := processStatus(state)
+-		if status != statusOK {
+-			// Both Release and successful Wait will drop the
+-			// Process' persistent reference on the handle. We
+-			// can't allow concurrent calls to drop the reference
+-			// twice, so we use the status as a guard to ensure the
+-			// reference is dropped exactly once.
+-			return status
+-		}
+-		if !p.state.CompareAndSwap(state, uint32(reason)) {
+-			continue
+-		}
+-
+-		// No need for more cleanup.
+-		p.cleanup.Stop()
+-
+-		p.handle.release()
+-
+-		return status
+-	}
+-}
+-
+ func (p *Process) pidStatus() processStatus {
+ 	if p.handle != nil {
+ 		panic("pidStatus called in invalid mode")
+@@ -218,22 +184,6 @@ func (p *Process) pidStatus() processStatus {
+ 	return processStatus(p.state.Load())
+ }
+ 
+-func (p *Process) pidDeactivate(reason processStatus) {
+-	if p.handle != nil {
+-		panic("pidDeactivate called in invalid mode")
+-	}
+-
+-	// Both Release and successful Wait will deactivate the PID. Only one
+-	// of those should win, so nothing left to do here if the compare
+-	// fails.
+-	//
+-	// N.B. This means that results can be inconsistent. e.g., with a
+-	// racing Release and Wait, Wait may successfully wait on the process,
+-	// returning the wait status, while future calls error with "process
+-	// released" rather than "process done".
+-	p.state.CompareAndSwap(0, uint32(reason))
+-}
+-
+ // ProcAttr holds the attributes that will be applied to a new process
+ // started by StartProcess.
+ type ProcAttr struct {
+@@ -310,23 +260,54 @@ func StartProcess(name string, argv []string, attr *ProcAttr) (*Process, error)
+ // rendering it unusable in the future.
+ // Release only needs to be called if [Process.Wait] is not.
+ func (p *Process) Release() error {
+-	// Note to future authors: the Release API is cursed.
+-	//
+-	// On Unix and Plan 9, Release sets p.Pid = -1. This is the only part of the
+-	// Process API that is not thread-safe, but it can't be changed now.
+-	//
+-	// On Windows, Release does _not_ modify p.Pid.
+-	//
+-	// On Windows, Wait calls Release after successfully waiting to
+-	// proactively clean up resources.
+-	//
+-	// On Unix and Plan 9, Wait also proactively cleans up resources, but
+-	// can not call Release, as Wait does not set p.Pid = -1.
+-	//
+-	// On Unix and Plan 9, calling Release a second time has no effect.
+-	//
+-	// On Windows, calling Release a second time returns EINVAL.
+-	return p.release()
++	// Unfortunately, for historical reasons, on systems other
++	// than Windows, Release sets the Pid field to -1.
++	// This causes the race detector to report a problem
++	// on concurrent calls to Release, but we can't change it now.
++	if runtime.GOOS != "windows" {
++		p.Pid = -1
++	}
++
++	oldStatus := p.doRelease(statusReleased)
++
++	// For backward compatibility, on Windows only,
++	// we return EINVAL on a second call to Release.
++	if runtime.GOOS == "windows" {
++		if oldStatus == statusReleased {
++			return syscall.EINVAL
++		}
++	}
++
++	return nil
++}
++
++// doRelease releases a [Process], setting the status to newStatus.
++// If the previous status is not statusOK, this does nothing.
++// It returns the previous status.
++func (p *Process) doRelease(newStatus processStatus) processStatus {
++	for {
++		state := p.state.Load()
++		oldStatus := processStatus(state)
++		if oldStatus != statusOK {
++			return oldStatus
++		}
++
++		if !p.state.CompareAndSwap(state, uint32(newStatus)) {
++			continue
++		}
++
++		// We have successfully released the Process.
++		// If it has a handle, release the reference we
++		// created in newHandleProcess.
++		if p.handle != nil {
++			// No need for more cleanup.
++			p.cleanup.Stop()
++
++			p.handle.release()
++		}
++
++		return statusOK
++	}
+ }
+ 
+ // Kill causes the [Process] to exit immediately. Kill does not wait until
+diff --git a/src/os/exec_plan9.go b/src/os/exec_plan9.go
+index 6e32a1ae17..357b925b36 100644
+--- a/src/os/exec_plan9.go
++++ b/src/os/exec_plan9.go
+@@ -80,7 +80,7 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 		return nil, NewSyscallError("wait", err)
+ 	}
+ 
+-	p.pidDeactivate(statusDone)
++	p.doRelease(statusDone)
+ 	ps = &ProcessState{
+ 		pid:    waitmsg.Pid,
+ 		status: &waitmsg,
+@@ -88,15 +88,6 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	return ps, nil
+ }
+ 
+-func (p *Process) release() error {
+-	p.Pid = -1
+-
+-	// Just mark the PID unusable.
+-	p.pidDeactivate(statusReleased)
+-
+-	return nil
+-}
+-
+ func findProcess(pid int) (p *Process, err error) {
+ 	// NOOP for Plan 9.
+ 	return newPIDProcess(pid), nil
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 3b2552eb51..f9be8dc068 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -49,7 +49,7 @@ func (p *Process) pidWait() (*ProcessState, error) {
+ 	if ready {
+ 		// Mark the process done now, before the call to Wait4,
+ 		// so that Process.pidSignal will not send a signal.
+-		p.pidDeactivate(statusDone)
++		p.doRelease(statusDone)
+ 		// Acquire a write lock on sigMu to wait for any
+ 		// active call to the signal method to complete.
+ 		p.sigMu.Lock()
+@@ -66,7 +66,7 @@ func (p *Process) pidWait() (*ProcessState, error) {
+ 	if err != nil {
+ 		return nil, NewSyscallError("wait", err)
+ 	}
+-	p.pidDeactivate(statusDone)
++	p.doRelease(statusDone)
+ 	return &ProcessState{
+ 		pid:    pid1,
+ 		status: status,
+@@ -118,27 +118,6 @@ func convertESRCH(err error) error {
+ 	return err
+ }
+ 
+-func (p *Process) release() error {
+-	// We clear the Pid field only for API compatibility. On Unix, Release
+-	// has always set Pid to -1. Internally, the implementation relies
+-	// solely on statusReleased to determine that the Process is released.
+-	p.Pid = pidReleased
+-
+-	if p.handle != nil {
+-		// Drop the Process' reference and mark handle unusable for
+-		// future calls.
+-		//
+-		// Ignore the return value: we don't care if this was a no-op
+-		// racing with Wait, or a double Release.
+-		p.handlePersistentRelease(statusReleased)
+-	} else {
+-		// Just mark the PID unusable.
+-		p.pidDeactivate(statusReleased)
+-	}
+-
+-	return nil
+-}
+-
+ func findProcess(pid int) (p *Process, err error) {
+ 	h, err := pidfdFind(pid)
+ 	if err == ErrProcessDone {
+diff --git a/src/os/exec_windows.go b/src/os/exec_windows.go
+index 0eebe76da3..68c7064d2d 100644
+--- a/src/os/exec_windows.go
++++ b/src/os/exec_windows.go
+@@ -44,7 +44,11 @@ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	if e != nil {
+ 		return nil, NewSyscallError("GetProcessTimes", e)
+ 	}
+-	defer p.Release()
++
++	// For compatibility we use statusReleased here rather
++	// than statusDone.
++	p.doRelease(statusReleased)
++
+ 	return &ProcessState{p.Pid, syscall.WaitStatus{ExitCode: ec}, &u}, nil
+ }
+ 
+@@ -73,19 +77,6 @@ func (p *Process) signal(sig Signal) error {
+ 	return syscall.Errno(syscall.EWINDOWS)
+ }
+ 
+-func (p *Process) release() error {
+-	// Drop the Process' reference and mark handle unusable for
+-	// future calls.
+-	//
+-	// The API on Windows expects EINVAL if Release is called multiple
+-	// times.
+-	if old := p.handlePersistentRelease(statusReleased); old == statusReleased {
+-		return syscall.EINVAL
+-	}
+-
+-	return nil
+-}
+-
+ func (ph *processHandle) closeHandle() {
+ 	syscall.CloseHandle(syscall.Handle(ph.handle))
+ }
+diff --git a/src/os/pidfd_linux.go b/src/os/pidfd_linux.go
+index fe4a743cf8..7a6f4cfad0 100644
+--- a/src/os/pidfd_linux.go
++++ b/src/os/pidfd_linux.go
+@@ -108,9 +108,11 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
+ 	if err != nil {
+ 		return nil, NewSyscallError("waitid", err)
+ 	}
+-	// Release the Process' handle reference, in addition to the reference
+-	// we took above.
+-	p.handlePersistentRelease(statusDone)
++
++	// Update the Process status to statusDone.
++	// This also releases a reference to the handle.
++	p.doRelease(statusDone)
++
+ 	return &ProcessState{
+ 		pid:    int(info.Pid),
+ 		status: info.WaitStatus(),

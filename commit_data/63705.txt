@@ -1,0 +1,234 @@
+commit f6c3a3e3c8c532e73e9dff7acdf04e2b4d5d9537
+Author: Matt Layher <mdlayher@gmail.com>
+Date:   Fri Feb 9 10:34:58 2024 -0500
+
+    slices: add Chunk
+    
+    Chunk returns an iterator over consecutive sub-slices of up to n elements of s.
+    
+    Fixes #53987.
+    
+    Change-Id: I508274eca388db39550eb9e4d8abd5ce68d29d8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562935
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ api/next/53987.txt                         |   1 +
+ doc/next/6-stdlib/3-iter.md                |   2 +
+ doc/next/6-stdlib/99-minor/slices/53987.md |   1 +
+ src/slices/example_test.go                 |  27 +++++++
+ src/slices/iter.go                         |  24 +++++++
+ src/slices/iter_test.go                    | 110 +++++++++++++++++++++++++++++
+ 6 files changed, 165 insertions(+)
+
+diff --git a/api/next/53987.txt b/api/next/53987.txt
+new file mode 100644
+index 0000000000..1861d0b783
+--- /dev/null
++++ b/api/next/53987.txt
+@@ -0,0 +1 @@
++pkg slices, func Chunk[$0 interface{ ~[]$1 }, $1 interface{}]($0, int) iter.Seq[$0] #53987
+diff --git a/doc/next/6-stdlib/3-iter.md b/doc/next/6-stdlib/3-iter.md
+index bc74f4556c..6b52b7c7e5 100644
+--- a/doc/next/6-stdlib/3-iter.md
++++ b/doc/next/6-stdlib/3-iter.md
+@@ -19,3 +19,5 @@ with iterators:
+   comparison function.
+ - [SortedStableFunc](/pkg/slices#SortedStableFunc) is like `SortFunc`
+   but uses a stable sort algorithm.
++- [Chunk](/pkg/slices#Chunk) returns an iterator over consecutive
++  sub-slices of up to n elements of a slice.
+diff --git a/doc/next/6-stdlib/99-minor/slices/53987.md b/doc/next/6-stdlib/99-minor/slices/53987.md
+new file mode 100644
+index 0000000000..02d77cd11d
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/slices/53987.md
+@@ -0,0 +1 @@
++<!-- see ../../3-iter.md -->
+diff --git a/src/slices/example_test.go b/src/slices/example_test.go
+index e1bda36e28..cb601ada0a 100644
+--- a/src/slices/example_test.go
++++ b/src/slices/example_test.go
+@@ -384,3 +384,30 @@ func ExampleRepeat() {
+ 	// Output:
+ 	// [0 1 2 3 0 1 2 3]
+ }
++
++func ExampleChunk() {
++	type Person struct {
++		Name string
++		Age  int
++	}
++
++	type People []Person
++
++	people := People{
++		{"Gopher", 13},
++		{"Alice", 20},
++		{"Bob", 5},
++		{"Vera", 24},
++		{"Zac", 15},
++	}
++
++	// Chunk people into []Person 2 elements at a time.
++	for c := range slices.Chunk(people, 2) {
++		fmt.Println(c)
++	}
++
++	// Output:
++	// [{Gopher 13} {Alice 20}]
++	// [{Bob 5} {Vera 24}]
++	// [{Zac 15}]
++}
+diff --git a/src/slices/iter.go b/src/slices/iter.go
+index 985bd27a10..a0f642e423 100644
+--- a/src/slices/iter.go
++++ b/src/slices/iter.go
+@@ -84,3 +84,27 @@ func SortedStableFunc[E any](seq iter.Seq[E], cmp func(E, E) int) []E {
+ 	SortStableFunc(s, cmp)
+ 	return s
+ }
++
++// Chunk returns an iterator over consecutive sub-slices of up to n elements of s.
++// All but the last sub-slice will have size n.
++// All sub-slices are clipped to have no capacity beyond the length.
++// If s is empty, the sequence is empty: there is no empty slice in the sequence.
++// Chunk panics if n is less than 1.
++func Chunk[Slice ~[]E, E any](s Slice, n int) iter.Seq[Slice] {
++	if n < 1 {
++		panic("cannot be less than 1")
++	}
++
++	return func(yield func(Slice) bool) {
++		for i := 0; i < len(s); i += n {
++			// Clamp the last chunk to the slice bound as necessary.
++			end := min(n, len(s[i:]))
++
++			// Set the capacity of each chunk so that appending to a chunk does
++			// not modify the original slice.
++			if !yield(s[i : i+end : i+end]) {
++				return
++			}
++		}
++	}
++}
+diff --git a/src/slices/iter_test.go b/src/slices/iter_test.go
+index 67520f60c9..07d73e90e2 100644
+--- a/src/slices/iter_test.go
++++ b/src/slices/iter_test.go
+@@ -182,3 +182,113 @@ func TestSortedStableFunc(t *testing.T) {
+ 		t.Errorf("SortedStableFunc wasn't stable on %d reverse ints", n)
+ 	}
+ }
++
++func TestChunk(t *testing.T) {
++	cases := []struct {
++		name   string
++		s      []int
++		n      int
++		chunks [][]int
++	}{
++		{
++			name:   "nil",
++			s:      nil,
++			n:      1,
++			chunks: nil,
++		},
++		{
++			name:   "empty",
++			s:      []int{},
++			n:      1,
++			chunks: nil,
++		},
++		{
++			name:   "short",
++			s:      []int{1, 2},
++			n:      3,
++			chunks: [][]int{{1, 2}},
++		},
++		{
++			name:   "one",
++			s:      []int{1, 2},
++			n:      2,
++			chunks: [][]int{{1, 2}},
++		},
++		{
++			name:   "even",
++			s:      []int{1, 2, 3, 4},
++			n:      2,
++			chunks: [][]int{{1, 2}, {3, 4}},
++		},
++		{
++			name:   "odd",
++			s:      []int{1, 2, 3, 4, 5},
++			n:      2,
++			chunks: [][]int{{1, 2}, {3, 4}, {5}},
++		},
++	}
++
++	for _, tc := range cases {
++		t.Run(tc.name, func(t *testing.T) {
++			var chunks [][]int
++			for c := range Chunk(tc.s, tc.n) {
++				chunks = append(chunks, c)
++			}
++
++			if !chunkEqual(chunks, tc.chunks) {
++				t.Errorf("Chunk(%v, %d) = %v, want %v", tc.s, tc.n, chunks, tc.chunks)
++			}
++
++			if len(chunks) == 0 {
++				return
++			}
++
++			// Verify that appending to the end of the first chunk does not
++			// clobber the beginning of the next chunk.
++			s := Clone(tc.s)
++			chunks[0] = append(chunks[0], -1)
++			if !Equal(s, tc.s) {
++				t.Errorf("slice was clobbered: %v, want %v", s, tc.s)
++			}
++		})
++	}
++}
++
++func TestChunkPanics(t *testing.T) {
++	for _, test := range []struct {
++		name string
++		x    []struct{}
++		n    int
++	}{
++		{
++			name: "cannot be less than 1",
++			x:    make([]struct{}, 0),
++			n:    0,
++		},
++	} {
++		if !panics(func() { _ = Chunk(test.x, test.n) }) {
++			t.Errorf("Chunk %s: got no panic, want panic", test.name)
++		}
++	}
++}
++
++func TestChunkRange(t *testing.T) {
++	// Verify Chunk iteration can be stopped.
++	var got [][]int
++	for c := range Chunk([]int{1, 2, 3, 4, -100}, 2) {
++		if len(got) == 2 {
++			// Found enough values, break early.
++			break
++		}
++
++		got = append(got, c)
++	}
++
++	if want := [][]int{{1, 2}, {3, 4}}; !chunkEqual(got, want) {
++		t.Errorf("Chunk iteration did not stop, got %v, want %v", got, want)
++	}
++}
++
++func chunkEqual[Slice ~[]E, E comparable](s1, s2 []Slice) bool {
++	return EqualFunc(s1, s2, Equal[Slice])
++}

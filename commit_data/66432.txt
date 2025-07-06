@@ -1,0 +1,31 @@
+commit 2e6cbab1c84363638ed48f259c3db57c4d2aaab3
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Aug 6 14:28:16 2022 +0100
+
+    encoding/pem: clarify Decode only works on lines
+    
+    Fixes #53524
+    
+    Change-Id: I929ee3c055c3ca564cd6cc374124f493aea2fbf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/421636
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/encoding/pem/pem.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/encoding/pem/pem.go b/src/encoding/pem/pem.go
+index 7a515fd363..dcc7416ee2 100644
+--- a/src/encoding/pem/pem.go
++++ b/src/encoding/pem/pem.go
+@@ -85,7 +85,7 @@ var colon = []byte(":")
+ // Decode will find the next PEM formatted block (certificate, private key
+ // etc) in the input. It returns that block and the remainder of the input. If
+ // no PEM data is found, p is nil and the whole of the input is returned in
+-// rest.
++// rest. Blocks must start at the beginning of a line and end at the end of a line.
+ func Decode(data []byte) (p *Block, rest []byte) {
+ 	// pemStart begins with a newline. However, at the very beginning of
+ 	// the byte array, we'll accept the start string without it.

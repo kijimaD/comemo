@@ -1,0 +1,92 @@
+commit f8937cb6255970de3f0c8cbccc5253ae81249c47
+Author: yincong <yincong@baidu.com>
+Date:   Wed Jan 22 02:23:08 2025 +0000
+
+    archive/zip, archive/tar: writer appends slash to directory names
+    
+    Fixes #71235
+    
+    Change-Id: I62aebb9d421db0e4b57ad5cae25c70f47aa5f8f9
+    GitHub-Last-Rev: 6e0fba07dd128e20e32a3a6258edf80ee91d4690
+    GitHub-Pull-Request: golang/go#71239
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642375
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+---
+ src/archive/tar/writer.go      | 3 +++
+ src/archive/tar/writer_test.go | 6 +++++-
+ src/archive/zip/writer.go      | 3 +++
+ src/archive/zip/writer_test.go | 5 ++++-
+ 4 files changed, 15 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/tar/writer.go b/src/archive/tar/writer.go
+index 059669767f..f966c5b4c6 100644
+--- a/src/archive/tar/writer.go
++++ b/src/archive/tar/writer.go
+@@ -424,6 +424,9 @@ func (tw *Writer) AddFS(fsys fs.FS) error {
+ 			return err
+ 		}
+ 		h.Name = name
++		if d.IsDir() {
++			h.Name += "/"
++		}
+ 		if err := tw.WriteHeader(h); err != nil {
+ 			return err
+ 		}
+diff --git a/src/archive/tar/writer_test.go b/src/archive/tar/writer_test.go
+index 2a01915d36..7b10bf6a70 100644
+--- a/src/archive/tar/writer_test.go
++++ b/src/archive/tar/writer_test.go
+@@ -1382,7 +1382,11 @@ func TestWriterAddFS(t *testing.T) {
+ 			t.Fatal(err)
+ 		}
+ 
+-		if hdr.Name != name {
++		tmpName := name
++		if entryInfo.IsDir() {
++			tmpName += "/"
++		}
++		if hdr.Name != tmpName {
+ 			t.Errorf("test fs has filename %v; archive header has %v",
+ 				name, hdr.Name)
+ 		}
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index cbe5ba2627..0a310054e3 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -520,6 +520,9 @@ func (w *Writer) AddFS(fsys fs.FS) error {
+ 			return err
+ 		}
+ 		h.Name = name
++		if d.IsDir() {
++			h.Name += "/"
++		}
+ 		h.Method = Deflate
+ 		fw, err := w.CreateHeader(h)
+ 		if err != nil {
+diff --git a/src/archive/zip/writer_test.go b/src/archive/zip/writer_test.go
+index 27a99b6b3a..44592ce831 100644
+--- a/src/archive/zip/writer_test.go
++++ b/src/archive/zip/writer_test.go
+@@ -633,7 +633,7 @@ func TestWriterAddFS(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	// Add subfolder into fsys to match what we'll read from the tar.
++	// Add subfolder into fsys to match what we'll read from the zip.
+ 	tests = append(tests[:2:2], WriteTest{Name: "subfolder", Mode: 0o555 | os.ModeDir}, tests[2])
+ 
+ 	// read it back
+@@ -642,6 +642,9 @@ func TestWriterAddFS(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	for i, wt := range tests {
++		if wt.Mode.IsDir() {
++			wt.Name += "/"
++		}
+ 		testReadFile(t, r.File[i], &wt)
+ 	}
+ }

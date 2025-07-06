@@ -1,0 +1,179 @@
+commit 3ae819ad1c962e5b4e6d4a7d855477b02755951b
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Thu Jun 6 14:25:38 2024 +0800
+
+    cmd/internal/obj/loong64: add support for instructions FTINT{RM/RP/RZ/RNE}.{W/L}.{S/D}
+    
+    These instructions convert floating-point numbers to fixed-point numbers
+    with the specified rounding pattern.
+    
+    Go asm syntax:
+                FTINT{RM/RP/RZ/RNE}{W/V}{F/D}       FJ, FD
+    
+    Equivalent platform assembler syntax:
+                ftint{rm/rp/rz/rne}.{w/l}.{s/d}     fd, fj
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: I6d650d1b48b10296d01a98fadf9d806206f9b96e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590995
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+---
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 17 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 18 ++++++++++
+ src/cmd/internal/obj/loong64/anames.go          | 16 +++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 48 +++++++++++++++++++++++++
+ 4 files changed, 99 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 57f16839eb..ba3327d4e8 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -292,3 +292,20 @@ lable2:
+ 	FTINTWD		F0, F1		// 01081b01
+ 	FTINTVF		F0, F1		// 01241b01
+ 	FTINTVD		F0, F1		// 01281b01
++
++	FTINTRMWF	F0, F2		// 02041a01
++	FTINTRMWD	F0, F2		// 02081a01
++	FTINTRMVF	F0, F2		// 02241a01
++	FTINTRMVD	F0, F2		// 02281a01
++	FTINTRPWF	F0, F2		// 02441a01
++	FTINTRPWD	F0, F2		// 02481a01
++	FTINTRPVF	F0, F2		// 02641a01
++	FTINTRPVD	F0, F2		// 02681a01
++	FTINTRZWF	F0, F2		// 02841a01
++	FTINTRZWD	F0, F2		// 02881a01
++	FTINTRZVF	F0, F2		// 02a41a01
++	FTINTRZVD	F0, F2		// 02a81a01
++	FTINTRNEWF	F0, F2		// 02c41a01
++	FTINTRNEWD	F0, F2		// 02c81a01
++	FTINTRNEVF	F0, F2		// 02e41a01
++	FTINTRNEVD	F0, F2		// 02e81a01
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 4dc7a84994..22de5e8203 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -464,6 +464,24 @@ const (
+ 	AFTINTVF
+ 	AFTINTVD
+ 
++	// 3.2.3.3
++	AFTINTRPWF
++	AFTINTRPWD
++	AFTINTRPVF
++	AFTINTRPVD
++	AFTINTRMWF
++	AFTINTRMWD
++	AFTINTRMVF
++	AFTINTRMVD
++	AFTINTRZWF
++	AFTINTRZWD
++	AFTINTRZVF
++	AFTINTRZVD
++	AFTINTRNEWF
++	AFTINTRNEWD
++	AFTINTRNEVF
++	AFTINTRNEVD
++
+ 	ALAST
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 2d80a8aa10..0749db8312 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -195,5 +195,21 @@ var Anames = []string{
+ 	"FTINTWD",
+ 	"FTINTVF",
+ 	"FTINTVD",
++	"FTINTRPWF",
++	"FTINTRPWD",
++	"FTINTRPVF",
++	"FTINTRPVD",
++	"FTINTRMWF",
++	"FTINTRMWD",
++	"FTINTRMVF",
++	"FTINTRMVD",
++	"FTINTRZWF",
++	"FTINTRZWD",
++	"FTINTRZVF",
++	"FTINTRZVD",
++	"FTINTRNEWF",
++	"FTINTRNEWD",
++	"FTINTRNEVF",
++	"FTINTRNEVD",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 02ecbe71f6..18578fdedc 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1045,6 +1045,22 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AFTINTWD, r0)
+ 			opset(AFTINTVF, r0)
+ 			opset(AFTINTVD, r0)
++			opset(AFTINTRPWF, r0)
++			opset(AFTINTRPWD, r0)
++			opset(AFTINTRPVF, r0)
++			opset(AFTINTRPVD, r0)
++			opset(AFTINTRMWF, r0)
++			opset(AFTINTRMWD, r0)
++			opset(AFTINTRMVF, r0)
++			opset(AFTINTRMVD, r0)
++			opset(AFTINTRZWF, r0)
++			opset(AFTINTRZWD, r0)
++			opset(AFTINTRZVF, r0)
++			opset(AFTINTRZVD, r0)
++			opset(AFTINTRNEWF, r0)
++			opset(AFTINTRNEWD, r0)
++			opset(AFTINTRNEVF, r0)
++			opset(AFTINTRNEVD, r0)
+ 
+ 		case AADD:
+ 			opset(ASGT, r0)
+@@ -1988,6 +2004,38 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x46c9 << 10 // ftint.l.s
+ 	case AFTINTVD:
+ 		return 0x46ca << 10 // ftint.l.d
++	case AFTINTRMWF:
++		return 0x4681 << 10 // ftintrm.w.s
++	case AFTINTRMWD:
++		return 0x4682 << 10 // ftintrm.w.d
++	case AFTINTRMVF:
++		return 0x4689 << 10 // ftintrm.l.s
++	case AFTINTRMVD:
++		return 0x468a << 10 // ftintrm.l.d
++	case AFTINTRPWF:
++		return 0x4691 << 10 // ftintrp.w.s
++	case AFTINTRPWD:
++		return 0x4692 << 10 // ftintrp.w.d
++	case AFTINTRPVF:
++		return 0x4699 << 10 // ftintrp.l.s
++	case AFTINTRPVD:
++		return 0x469a << 10 // ftintrp.l.d
++	case AFTINTRZWF:
++		return 0x46a1 << 10 // ftintrz.w.s
++	case AFTINTRZWD:
++		return 0x46a2 << 10 // ftintrz.w.d
++	case AFTINTRZVF:
++		return 0x46a9 << 10 // ftintrz.l.s
++	case AFTINTRZVD:
++		return 0x46aa << 10 // ftintrz.l.d
++	case AFTINTRNEWF:
++		return 0x46b1 << 10 // ftintrne.w.s
++	case AFTINTRNEWD:
++		return 0x46b2 << 10 // ftintrne.w.d
++	case AFTINTRNEVF:
++		return 0x46b9 << 10 // ftintrne.l.s
++	case AFTINTRNEVD:
++		return 0x46ba << 10 // ftintrne.l.d
+ 	}
+ 
+ 	c.ctxt.Diag("bad rr opcode %v", a)

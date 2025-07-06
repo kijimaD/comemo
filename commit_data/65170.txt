@@ -1,0 +1,219 @@
+commit 6dc99aa7eb26e7cf9af0d2cab74c5027fec8cde2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 24 21:50:29 2024 -0700
+
+    cmd/link: for asan align coverage counter section to 8 bytes
+    
+    Fixes #66966
+    
+    Change-Id: I92777a7d7d8afaa82ffcd605aa3e607289b645f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622477
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cgo/internal/testsanitizers/asan_test.go   | 100 +++++++++++----------
+ .../testsanitizers/testdata/asan_fuzz_test.go      |  30 +++++++
+ src/cmd/link/internal/ld/data.go                   |   6 ++
+ 3 files changed, 91 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/asan_test.go b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+index 7db356244a..0d819f2797 100644
+--- a/src/cmd/cgo/internal/testsanitizers/asan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+@@ -7,6 +7,7 @@
+ package sanitizers_test
+ 
+ import (
++	"bytes"
+ 	"fmt"
+ 	"internal/platform"
+ 	"internal/testenv"
+@@ -15,34 +16,9 @@ import (
+ )
+ 
+ func TestASAN(t *testing.T) {
+-	testenv.MustHaveGoBuild(t)
+-	testenv.MustHaveCGO(t)
+-	goos, err := goEnv("GOOS")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	goarch, err := goEnv("GOARCH")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	// The asan tests require support for the -asan option.
+-	if !platform.ASanSupported(goos, goarch) {
+-		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
+-	}
+-	// The current implementation is only compatible with the ASan library from version
+-	// v7 to v9 (See the description in src/runtime/asan/asan.go). Therefore, using the
+-	// -asan option must use a compatible version of ASan library, which requires that
+-	// the gcc version is not less than 7 and the clang version is not less than 9,
+-	// otherwise a segmentation fault will occur.
+-	if !compilerRequiredAsanVersion(goos, goarch) {
+-		t.Skipf("skipping on %s/%s: too old version of compiler", goos, goarch)
+-	}
++	config := mustHaveASAN(t)
+ 
+ 	t.Parallel()
+-	requireOvercommit(t)
+-	config := configure("address")
+-	config.skipIfCSanitizerBroken(t)
+-
+ 	mustRun(t, config.goCmd("build", "std"))
+ 
+ 	cases := []struct {
+@@ -106,9 +82,53 @@ func TestASAN(t *testing.T) {
+ }
+ 
+ func TestASANLinkerX(t *testing.T) {
++	// Test ASAN with linker's -X flag (see issue 56175).
++	config := mustHaveASAN(t)
++
++	t.Parallel()
++
++	dir := newTempDir(t)
++	defer dir.RemoveAll(t)
++
++	var ldflags string
++	for i := 1; i <= 10; i++ {
++		ldflags += fmt.Sprintf("-X=main.S%d=%d -X=cmd/cgo/internal/testsanitizers/testdata/asan_linkerx/p.S%d=%d ", i, i, i, i)
++	}
++
++	// build the binary
++	outPath := dir.Join("main.exe")
++	cmd := config.goCmd("build", "-ldflags="+ldflags, "-o", outPath)
++	cmd.Dir = srcPath("asan_linkerx")
++	mustRun(t, cmd)
++
++	// run the binary
++	mustRun(t, hangProneCmd(outPath))
++}
++
++// Issue 66966.
++func TestASANFuzz(t *testing.T) {
++	config := mustHaveASAN(t)
++
++	t.Parallel()
++
++	dir := newTempDir(t)
++	defer dir.RemoveAll(t)
++
++	cmd := config.goCmd("test", "-fuzz=Fuzz", srcPath("asan_fuzz_test.go"))
++	t.Logf("%v", cmd)
++	out, err := cmd.CombinedOutput()
++	t.Logf("%s", out)
++	if err == nil {
++		t.Error("expected fuzzing failure")
++	}
++	if bytes.Contains(out, []byte("AddressSanitizer")) {
++		t.Error(`output contains "AddressSanitizer", but should not`)
++	}
++}
++
++func mustHaveASAN(t *testing.T) *config {
+ 	testenv.MustHaveGoBuild(t)
+ 	testenv.MustHaveCGO(t)
+-	// Test ASAN with linker's -X flag (see issue 56175).
+ 	goos, err := goEnv("GOOS")
+ 	if err != nil {
+ 		t.Fatal(err)
+@@ -117,33 +137,23 @@ func TestASANLinkerX(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	// The asan tests require support for the -asan option.
+ 	if !platform.ASanSupported(goos, goarch) {
+ 		t.Skipf("skipping on %s/%s; -asan option is not supported.", goos, goarch)
+ 	}
++
++	// The current implementation is only compatible with the ASan library from version
++	// v7 to v9 (See the description in src/runtime/asan/asan.go). Therefore, using the
++	// -asan option must use a compatible version of ASan library, which requires that
++	// the gcc version is not less than 7 and the clang version is not less than 9,
++	// otherwise a segmentation fault will occur.
+ 	if !compilerRequiredAsanVersion(goos, goarch) {
+ 		t.Skipf("skipping on %s/%s: too old version of compiler", goos, goarch)
+ 	}
+ 
+-	t.Parallel()
+ 	requireOvercommit(t)
++
+ 	config := configure("address")
+ 	config.skipIfCSanitizerBroken(t)
+ 
+-	dir := newTempDir(t)
+-	defer dir.RemoveAll(t)
+-
+-	var ldflags string
+-	for i := 1; i <= 10; i++ {
+-		ldflags += fmt.Sprintf("-X=main.S%d=%d -X=cmd/cgo/internal/testsanitizers/testdata/asan_linkerx/p.S%d=%d ", i, i, i, i)
+-	}
+-
+-	// build the binary
+-	outPath := dir.Join("main.exe")
+-	cmd := config.goCmd("build", "-ldflags="+ldflags, "-o", outPath)
+-	cmd.Dir = srcPath("asan_linkerx")
+-	mustRun(t, cmd)
+-
+-	// run the binary
+-	mustRun(t, hangProneCmd(outPath))
++	return config
+ }
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/asan_fuzz_test.go b/src/cmd/cgo/internal/testsanitizers/testdata/asan_fuzz_test.go
+new file mode 100644
+index 0000000000..fb7ebd4078
+--- /dev/null
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/asan_fuzz_test.go
+@@ -0,0 +1,30 @@
++package main
++
++import (
++	"slices"
++	"testing"
++)
++
++func Reverse(s string) string {
++	runes := []rune(s)
++	slices.Reverse(runes)
++	return string(runes)
++}
++
++// This fuzz test should quickly fail, because Reverse doesn't
++// work for strings that are not valid UTF-8.
++// What we are testing for is whether we see a failure from ASAN;
++// we should see a fuzzing failure, not an ASAN failure.
++
++func FuzzReverse(f *testing.F) {
++	f.Add("Go")
++	f.Add("Gopher")
++	f.Add("Hello, 世界")
++	f.Fuzz(func(t *testing.T, s string) {
++		r1 := Reverse(s)
++		r2 := Reverse(r1)
++		if s != r2 {
++			t.Errorf("got %q want %q", r2, s)
++		}
++	})
++}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index cf4b88f895..421293e1f9 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2981,6 +2981,12 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	ctxt.xdefine("runtime.end", sym.SBSS, int64(Segdata.Vaddr+Segdata.Length))
+ 
+ 	if fuzzCounters != nil {
++		if *flagAsan {
++			// ASAN requires that the symbol marking the end
++			// of the section be aligned on an 8 byte boundary.
++			// See issue #66966.
++			fuzzCounters.Length = uint64(Rnd(int64(fuzzCounters.Length), 8))
++		}
+ 		ctxt.xdefine("runtime.__start___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr))
+ 		ctxt.xdefine("runtime.__stop___sancov_cntrs", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr+fuzzCounters.Length))
+ 		ctxt.xdefine("internal/fuzz._counters", sym.SLIBFUZZER_8BIT_COUNTER, int64(fuzzCounters.Vaddr))

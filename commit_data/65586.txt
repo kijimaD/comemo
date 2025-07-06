@@ -1,0 +1,35 @@
+commit e1dc707f33b0cecae32e6e649fbd58a7274fc322
+Author: Brian Gabin <bpgabin@gmail.com>
+Date:   Sun Oct 20 21:58:08 2024 -0700
+
+    cmd/go/testdata/script: restrict test to check only exe name
+    
+    Avoid test failures caused by 'v2' in user environment paths.
+    Modify the test to check only the output executable name and ensure it is not 'v2', rather than inspecting the entire path.
+    
+    Fixes #67989
+    
+    Change-Id: Ida2131f6c9b41724df1b6b5e31413252c5009d25
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/testdata/script/mod_install_versioned.txt | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/mod_install_versioned.txt b/src/cmd/go/testdata/script/mod_install_versioned.txt
+index 627a9a81b0..51b78968e9 100644
+--- a/src/cmd/go/testdata/script/mod_install_versioned.txt
++++ b/src/cmd/go/testdata/script/mod_install_versioned.txt
+@@ -7,7 +7,7 @@ stdout 'fortune(\.exe)?$'
+ 
+ go get rsc.io/fortune/v2
+ go list -f '{{.Target}}' rsc.io/fortune/v2
+-! stdout v2
++! stdout 'v2(\.exe)?$'
+ stdout 'fortune(\.exe)?$'
+ 
+ -- go.mod --

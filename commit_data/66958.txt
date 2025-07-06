@@ -1,0 +1,46 @@
+commit ec7d955abf8bbaa6fdc65b460d957767e13e6378
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Mon May 5 14:05:53 2025 -0700
+
+    cmd/compile/internal/test: verify inlining for mutex fast paths
+    
+    Change-Id: I17568a898ea8514c7b32d2f48c44365ae37cf898
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670195
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/compile/internal/test/inl_test.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 619c57874f..091933e1e7 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -284,6 +284,25 @@ func TestIntendedInlining(t *testing.T) {
+ 		}
+ 	}
+ 
++	if runtime.GOARCH != "wasm" {
++		// mutex implementation for multi-threaded GOARCHes
++		want["runtime"] = append(want["runtime"],
++			// in the fast paths of lock2 and unlock2
++			"key8",
++			"(*mLockProfile).store",
++		)
++		if bits.UintSize == 64 {
++			// these use 64-bit arithmetic, which is hard to inline on 32-bit platforms
++			want["runtime"] = append(want["runtime"],
++				// in the fast paths of lock2 and unlock2
++				"mutexSampleContention",
++
++				// in a slow path of lock2, but within the critical section
++				"(*mLockProfile).end",
++			)
++		}
++	}
++
+ 	// Functions that must actually be inlined; they must have actual callers.
+ 	must := map[string]bool{
+ 		"compress/flate.byLiteral.Len":  true,

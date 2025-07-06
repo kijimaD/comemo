@@ -1,0 +1,250 @@
+commit ea54d8a0efc22c092c1f714cb3c6f12f429c1459
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Fri Jan 10 11:10:12 2025 -0500
+
+    crypto/internal/fips140test: add RSA ACVP tests
+    
+    Adds ACVP test coverage for the RSA algorithm based on the NIST spec:
+      https://pages.nist.gov/ACVP/draft-celi-acvp-rsa.html
+    
+    Includes coverage for keyGen, sigGen and sigVer across a variety of
+    modulus sizes. For sigGen and sigVer both PKCS1v1.5 and PSS are
+    supported with a variety of SHA2 digests.
+    
+    The static test data from go-acvp only includes sigVer vectors/expected.
+    The keyGen and sigGen test types aren't amenable to fixed data testing.
+    
+    Updates #69642
+    
+    Change-Id: Ia61a69115f2d2a984b95435a37d4c9c6db90a89a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642135
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ .../internal/fips140test/acvp_capabilities.json    |   6 +-
+ .../internal/fips140test/acvp_test.config.json     |   4 +-
+ src/crypto/internal/fips140test/acvp_test.go       | 145 ++++++++++++++++++++-
+ 3 files changed, 152 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/internal/fips140test/acvp_capabilities.json b/src/crypto/internal/fips140test/acvp_capabilities.json
+index ecfb6b9e0f..d6c1b02b43 100644
+--- a/src/crypto/internal/fips140test/acvp_capabilities.json
++++ b/src/crypto/internal/fips140test/acvp_capabilities.json
+@@ -69,5 +69,9 @@
+ 
+   {"algorithm":"KAS-ECC-SSC","revision":"Sp800-56Ar3","scheme":{"ephemeralUnified":{"kasRole":["initiator","responder"]},"staticUnified":{"kasRole":["initiator","responder"]}},"domainParameterGenerationMethods":["P-224","P-256","P-384","P-521"]},
+ 
+-  {"algorithm":"KDF","revision":"1.0","capabilities":[{"kdfMode":"counter","macMode":["CMAC-AES128","CMAC-AES192","CMAC-AES256"],"supportedLengths":[256],"fixedDataOrder":["before fixed data"],"counterLength":[16]}]}
++  {"algorithm":"KDF","revision":"1.0","capabilities":[{"kdfMode":"counter","macMode":["CMAC-AES128","CMAC-AES192","CMAC-AES256"],"supportedLengths":[256],"fixedDataOrder":["before fixed data"],"counterLength":[16]}]},
++
++  {"algorithm":"RSA","mode":"keyGen","revision":"FIPS186-5","infoGeneratedByServer":true,"pubExpMode":"fixed","fixedPubExp":"010001","keyFormat":"standard","capabilities":[{"randPQ":"probable","properties":[{"modulo":2048,"primeTest":["2powSecStr"]},{"modulo":3072,"primeTest":["2powSecStr"]},{"modulo":4096,"primeTest":["2powSecStr"]}]}]},
++  {"algorithm":"RSA","mode":"sigGen","revision":"FIPS186-5","capabilities":[{"sigType":"pkcs1v1.5","properties":[{"modulo":2048,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]},{"modulo":3072,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]},{"modulo":4096,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]}]},{"sigType":"pss","properties":[{"maskFunction":["mgf1"],"modulo":2048,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]},{"maskFunction":["mgf1"],"modulo":3072,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]},{"maskFunction":["mgf1"],"modulo":4096,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]}]}]},
++  {"algorithm":"RSA","mode":"sigVer","revision":"FIPS186-5","pubExpMode":"fixed","fixedPubExp":"010001","capabilities":[{"sigType":"pkcs1v1.5","properties":[{"modulo":2048,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]}]},{"sigType":"pkcs1v1.5","properties":[{"modulo":3072,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]}]},{"sigType":"pkcs1v1.5","properties":[{"modulo":4096,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]}]},{"sigType":"pss","properties":[{"maskFunction":["mgf1"],"modulo":2048,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]}]},{"sigType":"pss","properties":[{"maskFunction":["mgf1"],"modulo":3072,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]}]},{"sigType":"pss","properties":[{"maskFunction":["mgf1"],"modulo":4096,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]}]}]}
+ ]
+diff --git a/src/crypto/internal/fips140test/acvp_test.config.json b/src/crypto/internal/fips140test/acvp_test.config.json
+index 10f73faac7..2f905e0870 100644
+--- a/src/crypto/internal/fips140test/acvp_test.config.json
++++ b/src/crypto/internal/fips140test/acvp_test.config.json
+@@ -49,5 +49,7 @@
+   {"Wrapper": "go", "In": "vectors/TLS-v1.2.bz2", "Out": "expected/TLS-v1.2.bz2"},
+   {"Wrapper": "go", "In": "vectors/TLS-v1.3.bz2", "Out": "expected/TLS-v1.3.bz2"},
+ 
+-  {"Wrapper": "go", "In": "vectors/kdf-components.bz2", "Out": "expected/kdf-components.bz2"}
++  {"Wrapper": "go", "In": "vectors/kdf-components.bz2", "Out": "expected/kdf-components.bz2"},
++
++  {"Wrapper": "go", "In": "vectors/RSA.bz2", "Out": "expected/RSA.bz2"}
+ ]
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index e76d2daf1c..1552a07d61 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -26,6 +26,7 @@ import (
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/aes"
+ 	"crypto/internal/fips140/aes/gcm"
++	"crypto/internal/fips140/bigmod"
+ 	"crypto/internal/fips140/drbg"
+ 	"crypto/internal/fips140/ecdh"
+ 	"crypto/internal/fips140/ecdsa"
+@@ -35,6 +36,7 @@ import (
+ 	"crypto/internal/fips140/hmac"
+ 	"crypto/internal/fips140/mlkem"
+ 	"crypto/internal/fips140/pbkdf2"
++	"crypto/internal/fips140/rsa"
+ 	"crypto/internal/fips140/sha256"
+ 	"crypto/internal/fips140/sha3"
+ 	"crypto/internal/fips140/sha512"
+@@ -131,6 +133,8 @@ var (
+ 	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
+ 	// KDF-Counter algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kbkdf.html#section-7.3
++	// RSA algorithm capabilities:
++	//   https://pages.nist.gov/ACVP/draft-celi-acvp-rsa.html#section-7.3
+ 	//go:embed acvp_capabilities.json
+ 	capabilitiesJson []byte
+ 
+@@ -269,6 +273,26 @@ var (
+ 		"ctrDRBG-reseed/AES-256": cmdCtrDrbgReseedAft(),
+ 
+ 		"KDF-counter": cmdKdfCounterAft(),
++
++		"RSA/keyGen": cmdRsaKeyGenAft(),
++
++		"RSA/sigGen/SHA2-224/pkcs1v1.5": cmdRsaSigGenAft(func() fips140.Hash { return sha256.New224() }, "SHA-224", false),
++		"RSA/sigGen/SHA2-256/pkcs1v1.5": cmdRsaSigGenAft(func() fips140.Hash { return sha256.New() }, "SHA-256", false),
++		"RSA/sigGen/SHA2-384/pkcs1v1.5": cmdRsaSigGenAft(func() fips140.Hash { return sha512.New384() }, "SHA-384", false),
++		"RSA/sigGen/SHA2-512/pkcs1v1.5": cmdRsaSigGenAft(func() fips140.Hash { return sha512.New() }, "SHA-512", false),
++		"RSA/sigGen/SHA2-224/pss":       cmdRsaSigGenAft(func() fips140.Hash { return sha256.New224() }, "SHA-224", true),
++		"RSA/sigGen/SHA2-256/pss":       cmdRsaSigGenAft(func() fips140.Hash { return sha256.New() }, "SHA-256", true),
++		"RSA/sigGen/SHA2-384/pss":       cmdRsaSigGenAft(func() fips140.Hash { return sha512.New384() }, "SHA-384", true),
++		"RSA/sigGen/SHA2-512/pss":       cmdRsaSigGenAft(func() fips140.Hash { return sha512.New() }, "SHA-512", true),
++
++		"RSA/sigVer/SHA2-224/pkcs1v1.5": cmdRsaSigVerAft(func() fips140.Hash { return sha256.New224() }, "SHA-224", false),
++		"RSA/sigVer/SHA2-256/pkcs1v1.5": cmdRsaSigVerAft(func() fips140.Hash { return sha256.New() }, "SHA-256", false),
++		"RSA/sigVer/SHA2-384/pkcs1v1.5": cmdRsaSigVerAft(func() fips140.Hash { return sha512.New384() }, "SHA-384", false),
++		"RSA/sigVer/SHA2-512/pkcs1v1.5": cmdRsaSigVerAft(func() fips140.Hash { return sha512.New() }, "SHA-512", false),
++		"RSA/sigVer/SHA2-224/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha256.New224() }, "SHA-224", true),
++		"RSA/sigVer/SHA2-256/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha256.New() }, "SHA-256", true),
++		"RSA/sigVer/SHA2-384/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha512.New384() }, "SHA-384", true),
++		"RSA/sigVer/SHA2-512/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha512.New() }, "SHA-512", true),
+ 	}
+ )
+ 
+@@ -1634,6 +1658,125 @@ func cmdKdfCounterAft() command {
+ 	}
+ }
+ 
++func cmdRsaKeyGenAft() command {
++	return command{
++		requiredArgs: 1, // Modulus bit-size
++		handler: func(args [][]byte) ([][]byte, error) {
++			bitSize := binary.LittleEndian.Uint32(args[0])
++
++			key, err := getRSAKey((int)(bitSize))
++			if err != nil {
++				return nil, fmt.Errorf("generating RSA key: %w", err)
++			}
++
++			N, e, d, P, Q, _, _, _ := key.Export()
++
++			eBytes := make([]byte, 4)
++			binary.BigEndian.PutUint32(eBytes, uint32(e))
++
++			return [][]byte{eBytes, P, Q, N, d}, nil
++		},
++	}
++}
++
++func cmdRsaSigGenAft(hashFunc func() fips140.Hash, hashName string, pss bool) command {
++	return command{
++		requiredArgs: 2, // Modulus bit-size, message
++		handler: func(args [][]byte) ([][]byte, error) {
++			bitSize := binary.LittleEndian.Uint32(args[0])
++			msg := args[1]
++
++			key, err := getRSAKey((int)(bitSize))
++			if err != nil {
++				return nil, fmt.Errorf("generating RSA key: %w", err)
++			}
++
++			h := hashFunc()
++			h.Write(msg)
++			digest := h.Sum(nil)
++
++			var sig []byte
++			if !pss {
++				sig, err = rsa.SignPKCS1v15(key, hashName, digest)
++				if err != nil {
++					return nil, fmt.Errorf("signing RSA message: %w", err)
++				}
++			} else {
++				sig, err = rsa.SignPSS(rand.Reader, key, hashFunc(), digest, h.Size())
++				if err != nil {
++					return nil, fmt.Errorf("signing RSA message: %w", err)
++				}
++			}
++
++			N, e, _, _, _, _, _, _ := key.Export()
++			eBytes := make([]byte, 4)
++			binary.BigEndian.PutUint32(eBytes, uint32(e))
++
++			return [][]byte{N, eBytes, sig}, nil
++		},
++	}
++}
++
++func cmdRsaSigVerAft(hashFunc func() fips140.Hash, hashName string, pss bool) command {
++	return command{
++		requiredArgs: 4, // n, e, message, signature
++		handler: func(args [][]byte) ([][]byte, error) {
++			nBytes := args[0]
++			eBytes := args[1]
++			msg := args[2]
++			sig := args[3]
++
++			paddedE := make([]byte, 4)
++			copy(paddedE[4-len(eBytes):], eBytes)
++			e := int(binary.BigEndian.Uint32(paddedE))
++
++			n, err := bigmod.NewModulus(nBytes)
++			if err != nil {
++				return nil, fmt.Errorf("invalid RSA modulus: %w", err)
++			}
++
++			pub := &rsa.PublicKey{
++				N: n,
++				E: e,
++			}
++
++			h := hashFunc()
++			h.Write(msg)
++			digest := h.Sum(nil)
++
++			if !pss {
++				err = rsa.VerifyPKCS1v15(pub, hashName, digest, sig)
++			} else {
++				err = rsa.VerifyPSS(pub, hashFunc(), digest, sig)
++			}
++			if err != nil {
++				return [][]byte{{0}}, nil
++			}
++
++			return [][]byte{{1}}, nil
++		},
++	}
++}
++
++// rsaKeyCache caches generated keys by modulus bit-size.
++var rsaKeyCache = map[int]*rsa.PrivateKey{}
++
++// getRSAKey returns a cached RSA private key with the specified modulus bit-size
++// or generates one if necessary.
++func getRSAKey(bits int) (*rsa.PrivateKey, error) {
++	if key, exists := rsaKeyCache[bits]; exists {
++		return key, nil
++	}
++
++	key, err := rsa.GenerateKey(rand.Reader, bits)
++	if err != nil {
++		return nil, err
++	}
++
++	rsaKeyCache[bits] = key
++	return key, nil
++}
++
+ func TestACVP(t *testing.T) {
+ 	testenv.SkipIfShortAndSlow(t)
+ 
+@@ -1641,7 +1784,7 @@ func TestACVP(t *testing.T) {
+ 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
+ 		bsslVersion   = "v0.0.0-20250116010235-21f54b2730ee"
+ 		goAcvpModule  = "github.com/cpu/go-acvp"
+-		goAcvpVersion = "v0.0.0-20250102201911-6839fc40f9f8"
++		goAcvpVersion = "v0.0.0-20250110181646-e47fea3b5d7d"
+ 	)
+ 
+ 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"

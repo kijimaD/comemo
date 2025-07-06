@@ -1,0 +1,200 @@
+commit 90b15211382ca10bd3256b17a6d9cc02da169d6a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Apr 18 18:04:54 2024 -0400
+
+    cmd/go/internal/modload: compute direct in workspace mode
+    
+    The Requirements structure, which represents the root level requirements
+    of the module graph also has a 'direct' field which contains the set of
+    direct dependencies of a module.
+    
+    Before this change, in workspace mode, the direct field was not set on
+    the Requirements structure. This change sets direct in the two places
+    it's needed: when initializing Requirements from the workspace's mod
+    files and when updating Requirements based on imports.
+    
+    When initializing Requirements from the workspace's mod files, this
+    change will use the 'indirect' comments in those mod files to record the
+    set of direct modules passed to the Requirements.
+    
+    There is a loop in updateRequirements where we consider the imports of
+    the packages we loaded from the main module to make sure that all those
+    imported packages' modules are required.  The loop also updates direct
+    for each of those modules (which have at least one package directly
+    imported by the main modules).  Before this change, in the workspace
+    case we continued early from the loop and didn't proceed to the code
+    where direct is computed. This change fixes that.
+    
+    Fixes #66789
+    
+    Change-Id: I2b497fbf28c2197e8ba8e8ca5314c1a720f16364
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/cmd/go/internal/modload/buildlist.go           |  6 +-
+ src/cmd/go/internal/modload/init.go                | 13 ++++
+ src/cmd/go/internal/modload/load.go                |  5 +-
+ .../go/testdata/script/mod_list_direct_work.txt    | 76 ++++++++++++++++++++++
+ 4 files changed, 93 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index 9c11bd4d13..e7f0da1b69 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -795,13 +795,13 @@ func updateRoots(ctx context.Context, direct map[string]bool, rs *Requirements,
+ 	case pruned:
+ 		return updatePrunedRoots(ctx, direct, rs, pkgs, add, rootsImported)
+ 	case workspace:
+-		return updateWorkspaceRoots(ctx, rs, add)
++		return updateWorkspaceRoots(ctx, direct, rs, add)
+ 	default:
+ 		panic(fmt.Sprintf("unsupported pruning mode: %v", rs.pruning))
+ 	}
+ }
+ 
+-func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Version) (*Requirements, error) {
++func updateWorkspaceRoots(ctx context.Context, direct map[string]bool, rs *Requirements, add []module.Version) (*Requirements, error) {
+ 	if len(add) != 0 {
+ 		// add should be empty in workspace mode because workspace mode implies
+ 		// -mod=readonly, which in turn implies no new requirements. The code path
+@@ -812,7 +812,7 @@ func updateWorkspaceRoots(ctx context.Context, rs *Requirements, add []module.Ve
+ 		// return an error.
+ 		panic("add is not empty")
+ 	}
+-	return rs, nil
++	return newRequirements(workspace, rs.rootModules, direct), nil
+ }
+ 
+ // tidyPrunedRoots returns a minimal set of root requirements that maintains the
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index fe3a98b0c8..2d82ea4187 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1318,6 +1318,7 @@ func requirementsFromModFiles(ctx context.Context, workFile *modfile.WorkFile, m
+ 			toolchain = workFile.Toolchain.Name
+ 		}
+ 		roots = appendGoAndToolchainRoots(roots, goVersion, toolchain, direct)
++		direct = directRequirements(modFiles)
+ 	} else {
+ 		pruning = pruningForGoVersion(MainModules.GoVersion())
+ 		if len(modFiles) != 1 {
+@@ -1339,6 +1340,18 @@ const (
+ 	withToolchainRoot                  = true
+ )
+ 
++func directRequirements(modFiles []*modfile.File) map[string]bool {
++	direct := make(map[string]bool)
++	for _, modFile := range modFiles {
++		for _, r := range modFile.Require {
++			if !r.Indirect {
++				direct[r.Mod.Path] = true
++			}
++		}
++	}
++	return direct
++}
++
+ func rootsFromModFile(m module.Version, modFile *modfile.File, addToolchainRoot addToolchainRoot) (roots []module.Version, direct map[string]bool) {
+ 	direct = make(map[string]bool)
+ 	padding := 2 // Add padding for the toolchain and go version, added upon return.
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 408c109f5b..4e2eb63be2 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -1375,10 +1375,7 @@ func (ld *loader) updateRequirements(ctx context.Context) (changed bool, err err
+ 						Module:       dep.mod,
+ 					}
+ 				}
+-				continue
+-			}
+-
+-			if pkg.err == nil && cfg.BuildMod != "mod" {
++			} else if pkg.err == nil && cfg.BuildMod != "mod" {
+ 				if v, ok := rs.rootSelected(dep.mod.Path); !ok || v != dep.mod.Version {
+ 					// dep.mod is not an explicit dependency, but needs to be.
+ 					// Because we are not in "mod" mode, we will not be able to update it.
+diff --git a/src/cmd/go/testdata/script/mod_list_direct_work.txt b/src/cmd/go/testdata/script/mod_list_direct_work.txt
+new file mode 100644
+index 0000000000..eeede6dad1
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_list_direct_work.txt
+@@ -0,0 +1,76 @@
++# Test that ModuleDirect.Public is correctly set on go list output.
++# This is a regression test for issue #66789.
++
++# In this test, the workspace contains modules example.com/a and
++# example.com/b. Module example.com/a has a direct requirement
++# on rsc.io/sampler, and an indirect requirement on golang.org/x/text
++# through rsc.io/isampler. Module example.com/b has a direct
++# requirement on example.com/c which is incorrectly marked as indirect
++# in module example.com/b's go.mod file.
++
++# Check that go list -m processes the indirect annotations in the
++# go.mod file.
++go list -f '{{.Path}} {{.Indirect}}' -m all
++stdout 'example.com/a false'
++stdout 'example.com/b false'
++stdout 'rsc.io/sampler false'
++stdout 'golang.org/x/text true'
++stdout 'example.com/c true' # Uses the information in go.mod without checking imports.
++
++# Check that 'go list all' correctly populates "indirect" module annotation.
++go list -f '{{.ImportPath}} {{with .Module}}{{.Indirect}}{{end}}' all
++stdout 'example.com/a false'
++stdout 'example.com/b false'
++stdout 'rsc.io/sampler false'
++stdout 'golang.org/x/text/language true'
++stdout 'example.com/c false'
++
++-- go.work --
++go 1.23
++
++use ./a
++use ./b
++-- a/go.mod --
++module example.com/a
++
++go 1.23
++
++require rsc.io/sampler v1.2.1
++
++require golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect
++-- a/a.go --
++package a
++
++import "rsc.io/sampler"
++
++func A() string {
++    return sampler.Hello()
++}
++-- b/go.mod --
++module example.com/b
++
++go 1.23
++
++// The indrect comment below is inaccurate. Its purpose
++// is to test that it is corrected when enough packages
++// are loaded to correct it.
++
++require example.com/c v1.0.0 // indirect
++
++replace example.com/c => ../c
++-- b/b.go --
++package b
++
++import "example.com/c"
++
++func B() {
++    c.C()
++}
++-- c/go.mod --
++module example.com/c
++
++go 1.23
++-- c/c.go --
++package c
++
++func C() {}
+\ No newline at end of file

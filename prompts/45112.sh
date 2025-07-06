@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 45112: 6f2c92e1e11b61dfede9ce861f2fe6217b5ce130
+# Index 45112: 5c9bd499e103709a181f7a1a895d221ae6e7ffc8
 
 echo "🚀 Generating explanation for commit 45112..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 45112..."
 
 ### メタデータ
 - **コミットインデックス**: 45112
-- **コミットハッシュ**: 6f2c92e1e11b61dfede9ce861f2fe6217b5ce130
-- **GitHub URL**: https://github.com/golang/go/commit/6f2c92e1e11b61dfede9ce861f2fe6217b5ce130
+- **コミットハッシュ**: 5c9bd499e103709a181f7a1a895d221ae6e7ffc8
+- **GitHub URL**: https://github.com/golang/go/commit/5c9bd499e103709a181f7a1a895d221ae6e7ffc8
 
 ### 章構成
 

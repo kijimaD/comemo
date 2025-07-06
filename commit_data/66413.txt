@@ -1,0 +1,98 @@
+commit 32fdcd7ca5156b2a0e928aa34a7b88f301ddc6f1
+Author: Simon Ser <contact@emersion.fr>
+Date:   Sun Dec 22 10:28:56 2024 +0000
+
+    mime/quotedprintable: accept LWSP-char after =
+    
+    SP and HTAB are allowed after a = before the following CRLF.
+    
+    RFC 2045 section 6.7 describes the ABNF for the quoted-printable encoding:
+    
+        qp-line := *(qp-segment transport-padding CRLF)
+                   qp-part transport-padding
+        qp-segment := qp-section *(SPACE / TAB) "="
+        transport-padding := *LWSP-char
+                              ; Composers MUST NOT generate
+                              ; non-zero length transport
+                              ; padding, but receivers MUST
+                              ; be able to handle padding
+                              ; added by message transports.
+    
+    RFC 822 defines LWSP-char as:
+    
+        LWSP-char   =  SPACE / HTAB
+    
+    Dovecot's imaptest contains such a message in
+    src/tests/fetch-binary-mime-qp.mbox.
+    
+    Fixes #70952
+    
+    Change-Id: Ie05921088d7e4d6c92c4bf79b0f4a13586230753
+    GitHub-Last-Rev: e6e6eee8ebc2f629644a1d99129fb57cce58058f
+    GitHub-Pull-Request: golang/go#70951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638276
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+---
+ src/mime/quotedprintable/reader.go      |  3 ++-
+ src/mime/quotedprintable/reader_test.go | 14 +++++++++-----
+ 2 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/src/mime/quotedprintable/reader.go b/src/mime/quotedprintable/reader.go
+index 4239625402..9e70a1bb3d 100644
+--- a/src/mime/quotedprintable/reader.go
++++ b/src/mime/quotedprintable/reader.go
+@@ -66,6 +66,7 @@ var (
+ 	crlf       = []byte("\r\n")
+ 	lf         = []byte("\n")
+ 	softSuffix = []byte("=")
++	lwspChar   = " \t"
+ )
+ 
+ // Read reads and decodes quoted-printable data from the underlying reader.
+@@ -92,7 +93,7 @@ func (r *Reader) Read(p []byte) (n int, err error) {
+ 			wholeLine := r.line
+ 			r.line = bytes.TrimRightFunc(wholeLine, isQPDiscardWhitespace)
+ 			if bytes.HasSuffix(r.line, softSuffix) {
+-				rightStripped := wholeLine[len(r.line):]
++				rightStripped := bytes.TrimLeft(wholeLine[len(r.line):], lwspChar)
+ 				r.line = r.line[:len(r.line)-1]
+ 				if !bytes.HasPrefix(rightStripped, lf) && !bytes.HasPrefix(rightStripped, crlf) &&
+ 					!(len(rightStripped) == 0 && len(r.line) > 0 && r.rerr == io.EOF) {
+diff --git a/src/mime/quotedprintable/reader_test.go b/src/mime/quotedprintable/reader_test.go
+index 504bd5ef29..1ff858a69c 100644
+--- a/src/mime/quotedprintable/reader_test.go
++++ b/src/mime/quotedprintable/reader_test.go
+@@ -66,6 +66,10 @@ func TestReader(t *testing.T) {
+ 			want: "Now's the time for all folk to come to the aid of their country."},
+ 		{in: "accept UTF-8 right quotation mark: ’",
+ 			want: "accept UTF-8 right quotation mark: ’"},
++
++		// Transport padding
++		{in: "foo= \r\nbar", want: "foobar"},
++		{in: "foo=\t \r\nbar", want: "foobar"},
+ 	}
+ 	for _, tt := range tests {
+ 		var buf strings.Builder
+@@ -199,13 +203,13 @@ func TestExhaustive(t *testing.T) {
+ 	}
+ 	slices.Sort(outcomes)
+ 	got := strings.Join(outcomes, "\n")
+-	want := `OK: 28934
+-invalid bytes after =: 3949
+-quotedprintable: invalid hex byte 0x0d: 2048
++	want := `OK: 30638
++invalid bytes after =: 2243
++quotedprintable: invalid hex byte 0x0d: 2050
+ unexpected EOF: 194`
+ 	if testing.Short() {
+-		want = `OK: 896
+-invalid bytes after =: 100
++		want = `OK: 935
++invalid bytes after =: 61
+ quotedprintable: invalid hex byte 0x0d: 26
+ unexpected EOF: 3`
+ 	}

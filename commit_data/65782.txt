@@ -1,0 +1,132 @@
+commit 07398d2e57ac5df6f95b0344252f1560376328f3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Dec 7 02:58:00 2024 +0000
+
+    weak: align weak.Pointer documentation with runtime.AddCleanup
+    
+    In hindsight, I think the "advice" I wrote is a bit heavy-handed and
+    better suited for something like the GC guide. Listing the use-cases
+    seems good, and all the possible things that go wrong seems to do the
+    trick in terms of deterrence, like it does with finalizers.
+    
+    Also, include some points I missed, like the tiny allocator warning and
+    the fact that weak pointers are not guaranteed to ever return nil.
+    
+    Also, a lot of this actually shouldn't have been in the package docs.
+    Many of the warnings only apply to weak pointers, but not other data
+    structures that may live in this package in the future, like weak-keyed
+    maps.
+    
+    Change-Id: Id245661540ffd93de4b727cd272284491d085c1e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634376
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ src/weak/doc.go     | 27 ++-------------------------
+ src/weak/pointer.go | 42 +++++++++++++++++++++++++++++++++++-------
+ 2 files changed, 37 insertions(+), 32 deletions(-)
+
+diff --git a/src/weak/doc.go b/src/weak/doc.go
+index e66d5ab5ac..1af8e4c69b 100644
+--- a/src/weak/doc.go
++++ b/src/weak/doc.go
+@@ -3,30 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ /*
+-Package weak provides weak pointers with the goal of memory efficiency.
+-The primary use-cases for weak pointers are for implementing caches,
+-canonicalization maps (like the unique package), and for tying together
+-the lifetimes of separate values (for example, through a map with weak
+-keys).
+-
+-# Advice
+-
+-This package is intended to target niche use-cases like the unique
+-package, and the structures inside are not intended to be general
+-replacements for regular Go pointers, maps, etc.
+-Misuse of the structures in this package may generate unexpected and
+-hard-to-reproduce bugs.
+-Using the facilities in this package to try and resolve out-of-memory
+-issues requires careful consideration, and even so, will likely be the
+-wrong answer if the solution does not fall into one of the listed
+-use-cases above.
+-
+-The structures in this package are intended to be an implementation
+-detail of the package they are used by (again, see the unique package).
+-If you're writing a package intended to be used by others, as a rule of
+-thumb, avoid exposing the behavior of any weak structures in your package's
+-API.
+-Doing so will almost certainly make your package more difficult to use
+-correctly.
++Package weak provides ways to safely reference memory weakly,
++that is, without preventing its reclamation.
+ */
+ package weak
+diff --git a/src/weak/pointer.go b/src/weak/pointer.go
+index f6d20530ab..fb10bc2d69 100644
+--- a/src/weak/pointer.go
++++ b/src/weak/pointer.go
+@@ -12,11 +12,21 @@ import (
+ 
+ // Pointer is a weak pointer to a value of type T.
+ //
+-// Two Pointer values compare equal if the pointers
+-// that they were created from compare equal. This property is retained even
+-// after the object referenced by the pointer used to create a weak reference
+-// is reclaimed.
++// Just like regular pointers, Pointer may reference any part of an
++// object, such as the field of a struct or an element of an array.
++// Objects that are only pointed to by weak pointers are not considered
++// reachable and once the object becomes unreachable [Pointer.Value]
++// may return nil.
+ //
++// The primary use-cases for weak pointers are for implementing caches,
++// canonicalization maps (like the unique package), and for tying together
++// the lifetimes of separate values (for example, through a map with weak
++// keys).
++//
++// Two Pointer values always compare equal if the pointers that they were
++// created from compare equal. This property is retained even after the
++// object referenced by the pointer used to create a weak reference is
++// reclaimed.
+ // If multiple weak pointers are made to different offsets within same object
+ // (for example, pointers to different fields of the same struct), those pointers
+ // will not compare equal.
+@@ -24,14 +34,32 @@ import (
+ // then resurrected due to a finalizer, that weak pointer will not compare equal
+ // with weak pointers created after resurrection.
+ //
+-// Calling Make with a nil pointer returns a weak pointer whose Value method
++// Calling [Make] with a nil pointer returns a weak pointer whose [Pointer.Value]
+ // always returns nil. The zero value of a Pointer behaves as if it was created
+-// by passing nil to Make and compares equal with such pointers.
++// by passing nil to [Make] and compares equal with such pointers.
++//
++// [Pointer.Value] is not guaranteed to eventually return nil.
++// [Pointer.Value] may return nil as soon as the object becomes
++// unreachable.
++// Values stored in global variables, or that can be found by tracing
++// pointers from a global variable, are reachable. A function argument or
++// receiver may become unreachable at the last point where the function
++// mentions it. To ensure [Pointer.Value] does not return nil,
++// pass a pointer to the object to the [runtime.KeepAlive] function after
++// the last point where the object must remain reachable.
++//
++// Note that because [Pointer.Value] is not guaranteed to eventually return
++// nil, even after an object is no longer referenced, the runtime is allowed to
++// perform a space-saving optimization that batches objects together in a single
++// allocation slot. The weak pointer for an unreferenced object in such an
++// allocation may never be called if it always exists in the same batch as a
++// referenced object. Typically, this batching only happens for tiny
++// (on the order of 16 bytes or less) and pointer-free objects.
+ type Pointer[T any] struct {
+ 	u unsafe.Pointer
+ }
+ 
+-// Make creates a weak pointer from a strong pointer to some value of type T.
++// Make creates a weak pointer from a pointer to some value of type T.
+ func Make[T any](ptr *T) Pointer[T] {
+ 	// Explicitly force ptr to escape to the heap.
+ 	ptr = abi.Escape(ptr)

@@ -1,0 +1,38 @@
+commit 89f29a772a519cbf352513b55356291a94e15ada
+Author: Austin Clements <austin@google.com>
+Date:   Thu Oct 10 14:20:45 2024 -0400
+
+    runtime: clarify work.bytesMarked documentation
+    
+    Change-Id: If5132400aac0ef00e467958beeaab5e64d053d10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619099
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mgc.go | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index a2b6b979c1..e9cb2fdfc3 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -334,11 +334,12 @@ type workType struct {
+ 
+ 	// bytesMarked is the number of bytes marked this cycle. This
+ 	// includes bytes blackened in scanned objects, noscan objects
+-	// that go straight to black, and permagrey objects scanned by
+-	// markroot during the concurrent scan phase. This is updated
+-	// atomically during the cycle. Updates may be batched
+-	// arbitrarily, since the value is only read at the end of the
+-	// cycle.
++	// that go straight to black, objects allocated as black during
++	// the cycle, and permagrey objects scanned by markroot during
++	// the concurrent scan phase.
++	//
++	// This is updated atomically during the cycle. Updates may be batched
++	// arbitrarily, since the value is only read at the end of the cycle.
+ 	//
+ 	// Because of benign races during marking, this number may not
+ 	// be the exact number of marked bytes, but it should be very

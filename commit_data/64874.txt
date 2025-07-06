@@ -1,0 +1,43 @@
+commit 402dc98759b4708beebcd0729f308bb0c03d3ed6
+Author: sunnymilk <shaojunyang@google.com>
+Date:   Thu Sep 12 12:23:37 2024 -0700
+
+    testing: enable better loop time measurement for benchmarking.
+    
+    With b.Loop() in place, the time measurement of loop scaling could be improved to be tighter. By identifying the first call to b.Loop(), we can avoid measuring the expensive ramp-up time by reset the timer tightly before the loop starts. The remaining loop scaling logic of b.N style loop is largely reused.
+    
+    For #61515.
+    
+    Change-Id: Ia7b8f0a8838f57c00ac6c5ef779d86f8d713c9b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612835
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/testing/benchmark.go | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 0271308346..2c7083db02 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -114,6 +114,7 @@ type B struct {
+ 	// Extra metrics collected by ReportMetric.
+ 	extra map[string]float64
+ 	// Remaining iterations of Loop() to be executed in benchFunc.
++	// See issue #61515.
+ 	loopN int
+ }
+ 
+@@ -358,6 +359,11 @@ func (b *B) ReportMetric(n float64, unit string) {
+ // After the benchmark finishes, b.N will contain the total number of calls to op, so the benchmark
+ // may use b.N to compute other average metrics.
+ func (b *B) Loop() bool {
++	if b.loopN == b.N {
++		// If it's the first call to b.Loop() in the benchmark function.
++		// Allows more precise measurement of benchmark loop cost counts.
++		b.ResetTimer()
++	}
+ 	b.loopN--
+ 	return b.loopN >= 0
+ }

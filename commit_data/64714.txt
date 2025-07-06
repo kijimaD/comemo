@@ -1,0 +1,47 @@
+commit d6d5d8c8fbe574349422b444a8cf0ff0647a6dcf
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Sep 5 00:38:06 2024 +0700
+
+    cmd/compile: remove NameSet.Sorted
+    
+    The only usage of it was removed in CL 517617
+    
+    Change-Id: If1898b7cde4f8c7ab906a2c27a01125415b463c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610600
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ir/node.go | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/node.go b/src/cmd/compile/internal/ir/node.go
+index acdd47d219..4f5ad53d63 100644
+--- a/src/cmd/compile/internal/ir/node.go
++++ b/src/cmd/compile/internal/ir/node.go
+@@ -9,7 +9,6 @@ package ir
+ import (
+ 	"fmt"
+ 	"go/constant"
+-	"sort"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/types"
+@@ -429,16 +428,6 @@ func (s *NameSet) Add(n *Name) {
+ 	(*s)[n] = struct{}{}
+ }
+ 
+-// Sorted returns s sorted according to less.
+-func (s NameSet) Sorted(less func(*Name, *Name) bool) []*Name {
+-	var res []*Name
+-	for n := range s {
+-		res = append(res, n)
+-	}
+-	sort.Slice(res, func(i, j int) bool { return less(res[i], res[j]) })
+-	return res
+-}
+-
+ type PragmaFlag uint16
+ 
+ const (

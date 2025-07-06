@@ -1,0 +1,83 @@
+commit 42e2abd110097201f6dd92d7bb5a46b2bd34473e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Fri Nov 15 16:34:13 2024 +0100
+
+    os: use ignoringEINTR in (*Process).blockUntilWaitable
+    
+    Instead of open-coding it.
+    
+    Change-Id: I7430066550a82e5d69846a1ec08b74474207c006
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627478
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+---
+ src/os/wait_wait6.go  | 17 +++++++----------
+ src/os/wait_waitid.go | 17 +++++++----------
+ 2 files changed, 14 insertions(+), 20 deletions(-)
+
+diff --git a/src/os/wait_wait6.go b/src/os/wait_wait6.go
+index 1031428826..00848bfdc2 100644
+--- a/src/os/wait_wait6.go
++++ b/src/os/wait_wait6.go
+@@ -15,18 +15,15 @@ import (
+ // succeed immediately, and reports whether it has done so.
+ // It does not actually call p.Wait.
+ func (p *Process) blockUntilWaitable() (bool, error) {
+-	var errno syscall.Errno
+-	for {
+-		_, errno = wait6(_P_PID, p.Pid, syscall.WEXITED|syscall.WNOWAIT)
+-		if errno != syscall.EINTR {
+-			break
+-		}
+-	}
++	err := ignoringEINTR(func() error {
++		_, errno := wait6(_P_PID, p.Pid, syscall.WEXITED|syscall.WNOWAIT)
++		return errno
++	})
+ 	runtime.KeepAlive(p)
+-	if errno == syscall.ENOSYS {
++	if err == syscall.ENOSYS {
+ 		return false, nil
+-	} else if errno != 0 {
+-		return false, NewSyscallError("wait6", errno)
++	} else if err != nil {
++		return false, NewSyscallError("wait6", err)
+ 	}
+ 	return true, nil
+ }
+diff --git a/src/os/wait_waitid.go b/src/os/wait_waitid.go
+index cd078f3522..73012404eb 100644
+--- a/src/os/wait_waitid.go
++++ b/src/os/wait_waitid.go
+@@ -27,22 +27,19 @@ func (p *Process) blockUntilWaitable() (bool, error) {
+ 	// We don't care about the values it returns.
+ 	var siginfo [16]uint64
+ 	psig := &siginfo[0]
+-	var e syscall.Errno
+-	for {
+-		_, _, e = syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
+-		if e != syscall.EINTR {
+-			break
+-		}
+-	}
++	err := ignoringEINTR(func() error {
++		_, _, errno := syscall.Syscall6(syscall.SYS_WAITID, _P_PID, uintptr(p.Pid), uintptr(unsafe.Pointer(psig)), syscall.WEXITED|syscall.WNOWAIT, 0, 0)
++		return errno
++	})
+ 	runtime.KeepAlive(p)
+-	if e != 0 {
++	if err != nil {
+ 		// waitid has been available since Linux 2.6.9, but
+ 		// reportedly is not available in Ubuntu on Windows.
+ 		// See issue 16610.
+-		if e == syscall.ENOSYS {
++		if err == syscall.ENOSYS {
+ 			return false, nil
+ 		}
+-		return false, NewSyscallError("waitid", e)
++		return false, NewSyscallError("waitid", err)
+ 	}
+ 	return true, nil
+ }

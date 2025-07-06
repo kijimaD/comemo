@@ -1,0 +1,45 @@
+commit c41b8cf1a39c972f461afe32da4fe43198eb2767
+Author: Sean Liao <sean@liao.dev>
+Date:   Wed Oct 16 00:51:22 2024 +0100
+
+    strconv: display format options as list
+    
+    Fixes #69890
+    
+    Change-Id: I1da4eb76c008679a687f4faa4294fe32b5fc7f42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620236
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/strconv/ftoa.go | 16 ++++++++--------
+ 1 file changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/strconv/ftoa.go b/src/strconv/ftoa.go
+index 220869898f..6db0d47e0f 100644
+--- a/src/strconv/ftoa.go
++++ b/src/strconv/ftoa.go
+@@ -28,14 +28,14 @@ var float64info = floatInfo{52, 11, -1023}
+ // value of bitSize bits (32 for float32, 64 for float64).
+ //
+ // The format fmt is one of
+-// 'b' (-ddddp±ddd, a binary exponent),
+-// 'e' (-d.dddde±dd, a decimal exponent),
+-// 'E' (-d.ddddE±dd, a decimal exponent),
+-// 'f' (-ddd.dddd, no exponent),
+-// 'g' ('e' for large exponents, 'f' otherwise),
+-// 'G' ('E' for large exponents, 'f' otherwise),
+-// 'x' (-0xd.ddddp±ddd, a hexadecimal fraction and binary exponent), or
+-// 'X' (-0Xd.ddddP±ddd, a hexadecimal fraction and binary exponent).
++//   - 'b' (-ddddp±ddd, a binary exponent),
++//   - 'e' (-d.dddde±dd, a decimal exponent),
++//   - 'E' (-d.ddddE±dd, a decimal exponent),
++//   - 'f' (-ddd.dddd, no exponent),
++//   - 'g' ('e' for large exponents, 'f' otherwise),
++//   - 'G' ('E' for large exponents, 'f' otherwise),
++//   - 'x' (-0xd.ddddp±ddd, a hexadecimal fraction and binary exponent), or
++//   - 'X' (-0Xd.ddddP±ddd, a hexadecimal fraction and binary exponent).
+ //
+ // The precision prec controls the number of digits (excluding the exponent)
+ // printed by the 'e', 'E', 'f', 'g', 'G', 'x', and 'X' formats.

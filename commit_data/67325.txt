@@ -1,0 +1,23 @@
+commit 5abb1d84f8fc4c2c5d56e40b2eef298c432ccf35
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Fri Jun 6 15:09:25 2025 -0400
+
+    [release-branch.go1.25] update codereview.cfg for release-branch.go1.25
+    
+    Change-Id: Id2aa864e4549623cc6d98d95028858d41459fa63
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/679176
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ codereview.cfg | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/codereview.cfg b/codereview.cfg
+index 77a74f108e..cf7900b596 100644
+--- a/codereview.cfg
++++ b/codereview.cfg
+@@ -1 +1,2 @@
+-branch: master
++branch: release-branch.go1.25
++parent-branch: master

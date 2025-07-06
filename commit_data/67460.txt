@@ -1,0 +1,120 @@
+commit e46d586eddfdd2186d77a5e996bbd6415cfcf2f5
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Sat Jun 28 16:53:37 2025 -0400
+
+    cmd/compile/internal/escape: add debug hash for literal allocation optimizations
+    
+    Several CLs earlier in this stack added optimizations to reduce
+    user allocations by recognizing and taking advantage of literals,
+    including CL 649555, CL 649079, and CL 649035.
+    
+    This CL adds debug hashing of those changes, which enables use of the
+    bisect tool, such as 'bisect -compile=literalalloc go test -run=Foo'.
+    This also allows these optimizations to be manually disabled via
+    '-gcflags=all=-d=literalallochash=n'.
+    
+    Updates #71359
+    
+    Change-Id: I854f7742a6efa5b17d914932d61a32b2297f0c88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/base/debug.go     | 1 +
+ src/cmd/compile/internal/base/flag.go      | 4 ++++
+ src/cmd/compile/internal/base/hashdebug.go | 1 +
+ src/cmd/compile/internal/escape/escape.go  | 8 ++++++++
+ src/cmd/compile/internal/walk/order.go     | 8 ++++++--
+ 5 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 10393e773c..85873dcc40 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -40,6 +40,7 @@ type DebugFlags struct {
+ 	InlFuncsWithClosures  int    `help:"allow functions with closures to be inlined" concurrent:"ok"`
+ 	InlStaticInit         int    `help:"allow static initialization of inlined calls" concurrent:"ok"`
+ 	Libfuzzer             int    `help:"enable coverage instrumentation for libfuzzer"`
++	LiteralAllocHash      string `help:"hash value for use in debugging literal allocation optimizations" concurrent:"ok"`
+ 	LoopVar               int    `help:"shared (0, default), 1 (private loop variables), 2, private + log"`
+ 	LoopVarHash           string `help:"for debugging changes in loop behavior. Overrides experiment and loopvar flag."`
+ 	LocationLists         int    `help:"print information about DWARF location list creation"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index abf85c7e78..e87f57cdaa 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -268,6 +268,10 @@ func ParseFlags() {
+ 	if Debug.PGOHash != "" {
+ 		PGOHash = NewHashDebug("pgohash", Debug.PGOHash, nil)
+ 	}
++	if Debug.LiteralAllocHash != "" {
++		LiteralAllocHash = NewHashDebug("literalalloc", Debug.LiteralAllocHash, nil)
++	}
++
+ 	if Debug.MergeLocalsHash != "" {
+ 		MergeLocalsHash = NewHashDebug("mergelocals", Debug.MergeLocalsHash, nil)
+ 	}
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index c54b6e17aa..fa63deb46a 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -56,6 +56,7 @@ var hashDebug *HashDebug
+ var FmaHash *HashDebug          // for debugging fused-multiply-add floating point changes
+ var LoopVarHash *HashDebug      // for debugging shared/private loop variable changes
+ var PGOHash *HashDebug          // for debugging PGO optimization decisions
++var LiteralAllocHash *HashDebug // for debugging literal allocation optimizations
+ var MergeLocalsHash *HashDebug  // for debugging local stack slot merging changes
+ var VariableMakeHash *HashDebug // for debugging variable-sized make optimizations
+ 
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 600b986d3f..72d40bd258 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -567,6 +567,10 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
+ 					base.Fatalf("unexpected BasicLit Kind")
+ 				}
+ 				if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
++					if !base.LiteralAllocHash.MatchPos(n.Pos(), nil) {
++						// De-selected by literal alloc optimizations debug hash.
++						return
++					}
+ 					// Preserve any side effects of the original expression, then replace it.
+ 					assignTemp(*r, n.PtrInit())
+ 					*r = lit
+@@ -580,6 +584,10 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
+ 		if conv.X.Op() != ir.OLITERAL && !conv.X.Type().IsInterface() {
+ 			v := ro.StaticValue(conv.X)
+ 			if v != nil && v.Op() == ir.OLITERAL && ir.ValidTypeForConst(conv.X.Type(), v.Val()) {
++				if !base.LiteralAllocHash.MatchPos(n.Pos(), nil) {
++					// De-selected by literal alloc optimizations debug hash.
++					return
++				}
+ 				if base.Debug.EscapeDebug >= 3 {
+ 					base.WarnfAt(n.Pos(), "rewriting OCONVIFACE value from %v (%v) to %v (%v)", conv.X, conv.X.Type(), v, v.Type())
+ 				}
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 8ba8dd96cc..cb022faddf 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -246,14 +246,18 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
+ 	if v == nil {
+ 		v = n
+ 	}
++	optEnabled := func(n ir.Node) bool {
++		// Do this optimization only when enabled for this node.
++		return base.LiteralAllocHash.MatchPos(n.Pos(), nil)
++	}
+ 	if (v.Op() == ir.OSTRUCTLIT || v.Op() == ir.OARRAYLIT) && !base.Ctxt.IsFIPS() {
+-		if ir.IsZero(v) && 0 < v.Type().Size() && v.Type().Size() <= abi.ZeroValSize {
++		if ir.IsZero(v) && 0 < v.Type().Size() && v.Type().Size() <= abi.ZeroValSize && optEnabled(n) {
+ 			// This zero value can be represented by the read-only zeroVal.
+ 			zeroVal := ir.NewLinksymExpr(v.Pos(), ir.Syms.ZeroVal, n.Type())
+ 			vstat := typecheck.Expr(zeroVal).(*ir.LinksymOffsetExpr)
+ 			return vstat
+ 		}
+-		if isStaticCompositeLiteral(v) {
++		if isStaticCompositeLiteral(v) && optEnabled(n) {
+ 			// v can be directly represented in the read-only data section.
+ 			lit := v.(*ir.CompLitExpr)
+ 			vstat := readonlystaticname(n.Type())

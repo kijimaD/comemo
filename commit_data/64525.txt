@@ -1,0 +1,656 @@
+commit f7cdadafbee0c7d78fcfd6c5281a82c6c7ac2a50
+Author: Andy Pan <i@andypan.me>
+Date:   Sat Aug 10 11:26:02 2024 +0800
+
+    internal,os: employ copy_file_range(2) for file-to-file copying on FreeBSD
+    
+    FreeBSD 13.0 introduced the Linux-compatible copy_file_range(2) system call,
+    we should make use of it.
+    
+    Ref:
+    https://www.gnu.org/software/gnulib/manual/html_node/copy_005ffile_005frange.html
+    https://reviews.freebsd.org/D20584?id=60021
+    https://man.freebsd.org/cgi/man.cgi?copy_file_range(2)
+    
+    Change-Id: I75edb5629717289c8887be436613d3a8b3820bdc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604655
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/poll/copy_file_range_freebsd.go       |  53 ++++++++
+ src/internal/poll/copy_file_range_linux.go         | 144 +++++++--------------
+ src/internal/poll/copy_file_range_unix.go          |  77 +++++++++++
+ ...file_range_linux.go => copy_file_range_unix.go} |   2 +
+ .../syscall/unix/kernel_version_freebsd.go         |  48 +++++++
+ .../syscall/unix/kernel_version_freebsd_test.go    |  23 ++++
+ src/internal/syscall/unix/kernel_version_linux.go  |   8 +-
+ src/internal/syscall/unix/kernel_version_other.go  |   2 +-
+ src/internal/syscall/unix/sysnum_freebsd.go        |   7 +
+ src/os/export_freebsd_test.go                      |   9 ++
+ src/os/readfrom_freebsd_test.go                    |  57 ++++++++
+ src/os/readfrom_unix_test.go                       |   2 +-
+ src/os/zero_copy_freebsd.go                        |  57 ++++++++
+ src/os/zero_copy_stub.go                           |   2 +-
+ 14 files changed, 389 insertions(+), 102 deletions(-)
+
+diff --git a/src/internal/poll/copy_file_range_freebsd.go b/src/internal/poll/copy_file_range_freebsd.go
+new file mode 100644
+index 0000000000..47d0de04ea
+--- /dev/null
++++ b/src/internal/poll/copy_file_range_freebsd.go
+@@ -0,0 +1,53 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package poll
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
++
++func supportCopyFileRange() bool {
++	return unix.SupportCopyFileRange()
++}
++
++// For best performance, call copy_file_range() with the largest len value
++// possible. It is interruptible on most file systems, so there is no penalty
++// for using very large len values, even SSIZE_MAX.
++const maxCopyFileRangeRound = 1<<31 - 1
++
++func handleCopyFileRangeErr(err error, copied, written int64) (bool, error) {
++	switch err {
++	case syscall.ENOSYS:
++		// The copy_file_range(2) function first appeared in FreeBSD 13.0.
++		// Go supports FreeBSD>= 12, so the system call
++		// may not be present. We've detected the FreeBSD version with
++		// unix.SupportCopyFileRange() at the beginning of this function,
++		// but we still want to check for ENOSYS here to prevent some rare
++		// case like https://go.dev/issue/58592
++		//
++		// If we see ENOSYS, we have certainly not transferred
++		// any data, so we can tell the caller that we
++		// couldn't handle the transfer and let them fall
++		// back to more generic code.
++		return false, nil
++	case syscall.EFBIG, syscall.EINVAL, syscall.EIO:
++		// For EFBIG, the copy has exceeds the process's file size limit
++		// or the maximum file size for the filesystem dst resides on, in
++		// this case, we leave it to generic copy.
++		//
++		// For EINVAL, there could be a few reasons:
++		// 1. Either dst or src refers to a file object that
++		// is not a regular file, for instance, a pipe.
++		// 2. src and dst refer to the same file and byte ranges
++		// overlap.
++		// 3. The flags argument is not 0.
++		// Neither of these cases should be considered handled by
++		// copy_file_range(2) because there is no data transfer, so
++		// just fall back to generic copy.
++		return false, nil
++	}
++	return true, err
++}
+diff --git a/src/internal/poll/copy_file_range_linux.go b/src/internal/poll/copy_file_range_linux.go
+index 3d51333d73..eda799893a 100644
+--- a/src/internal/poll/copy_file_range_linux.go
++++ b/src/internal/poll/copy_file_range_linux.go
+@@ -10,6 +10,10 @@ import (
+ 	"syscall"
+ )
+ 
++func supportCopyFileRange() bool {
++	return isKernelVersionGE53()
++}
++
+ var isKernelVersionGE53 = sync.OnceValue(func() bool {
+ 	major, minor := unix.KernelVersion()
+ 	// copy_file_range(2) is broken in various ways on kernels older than 5.3,
+@@ -20,102 +24,54 @@ var isKernelVersionGE53 = sync.OnceValue(func() bool {
+ 
+ const maxCopyFileRangeRound = 1 << 30
+ 
+-// CopyFileRange copies at most remain bytes of data from src to dst, using
+-// the copy_file_range system call. dst and src must refer to regular files.
+-func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err error) {
+-	if !isKernelVersionGE53() {
+-		return 0, false, nil
+-	}
+-
+-	for remain > 0 {
+-		max := remain
+-		if max > maxCopyFileRangeRound {
+-			max = maxCopyFileRangeRound
+-		}
+-		n, err := copyFileRange(dst, src, int(max))
+-		switch err {
+-		case syscall.ENOSYS:
+-			// copy_file_range(2) was introduced in Linux 4.5.
+-			// Go supports Linux >= 2.6.33, so the system call
+-			// may not be present.
+-			//
+-			// If we see ENOSYS, we have certainly not transferred
+-			// any data, so we can tell the caller that we
+-			// couldn't handle the transfer and let them fall
+-			// back to more generic code.
+-			return 0, false, nil
+-		case syscall.EXDEV, syscall.EINVAL, syscall.EIO, syscall.EOPNOTSUPP, syscall.EPERM:
+-			// Prior to Linux 5.3, it was not possible to
+-			// copy_file_range across file systems. Similarly to
+-			// the ENOSYS case above, if we see EXDEV, we have
+-			// not transferred any data, and we can let the caller
+-			// fall back to generic code.
+-			//
+-			// As for EINVAL, that is what we see if, for example,
+-			// dst or src refer to a pipe rather than a regular
+-			// file. This is another case where no data has been
+-			// transferred, so we consider it unhandled.
+-			//
+-			// If src and dst are on CIFS, we can see EIO.
+-			// See issue #42334.
+-			//
+-			// If the file is on NFS, we can see EOPNOTSUPP.
+-			// See issue #40731.
+-			//
+-			// If the process is running inside a Docker container,
+-			// we might see EPERM instead of ENOSYS. See issue
+-			// #40893. Since EPERM might also be a legitimate error,
+-			// don't mark copy_file_range(2) as unsupported.
+-			return 0, false, nil
+-		case nil:
+-			if n == 0 {
+-				// If we did not read any bytes at all,
+-				// then this file may be in a file system
+-				// where copy_file_range silently fails.
+-				// https://lore.kernel.org/linux-fsdevel/20210126233840.GG4626@dread.disaster.area/T/#m05753578c7f7882f6e9ffe01f981bc223edef2b0
+-				if written == 0 {
+-					return 0, false, nil
+-				}
+-				// Otherwise src is at EOF, which means
+-				// we are done.
+-				return written, true, nil
++func handleCopyFileRangeErr(err error, copied, written int64) (bool, error) {
++	switch err {
++	case syscall.ENOSYS:
++		// copy_file_range(2) was introduced in Linux 4.5.
++		// Go supports Linux >= 2.6.33, so the system call
++		// may not be present.
++		//
++		// If we see ENOSYS, we have certainly not transferred
++		// any data, so we can tell the caller that we
++		// couldn't handle the transfer and let them fall
++		// back to more generic code.
++		return false, nil
++	case syscall.EXDEV, syscall.EINVAL, syscall.EIO, syscall.EOPNOTSUPP, syscall.EPERM:
++		// Prior to Linux 5.3, it was not possible to
++		// copy_file_range across file systems. Similarly to
++		// the ENOSYS case above, if we see EXDEV, we have
++		// not transferred any data, and we can let the caller
++		// fall back to generic code.
++		//
++		// As for EINVAL, that is what we see if, for example,
++		// dst or src refer to a pipe rather than a regular
++		// file. This is another case where no data has been
++		// transferred, so we consider it unhandled.
++		//
++		// If src and dst are on CIFS, we can see EIO.
++		// See issue #42334.
++		//
++		// If the file is on NFS, we can see EOPNOTSUPP.
++		// See issue #40731.
++		//
++		// If the process is running inside a Docker container,
++		// we might see EPERM instead of ENOSYS. See issue
++		// #40893. Since EPERM might also be a legitimate error,
++		// don't mark copy_file_range(2) as unsupported.
++		return false, nil
++	case nil:
++		if copied == 0 {
++			// If we did not read any bytes at all,
++			// then this file may be in a file system
++			// where copy_file_range silently fails.
++			// https://lore.kernel.org/linux-fsdevel/20210126233840.GG4626@dread.disaster.area/T/#m05753578c7f7882f6e9ffe01f981bc223edef2b0
++			if written == 0 {
++				return false, nil
+ 			}
+-			remain -= n
+-			written += n
+-		default:
+-			return written, true, err
+-		}
+-	}
+-	return written, true, nil
+-}
+ 
+-// copyFileRange performs one round of copy_file_range(2).
+-func copyFileRange(dst, src *FD, max int) (written int64, err error) {
+-	// The signature of copy_file_range(2) is:
+-	//
+-	// ssize_t copy_file_range(int fd_in, loff_t *off_in,
+-	//                         int fd_out, loff_t *off_out,
+-	//                         size_t len, unsigned int flags);
+-	//
+-	// Note that in the call to unix.CopyFileRange below, we use nil
+-	// values for off_in and off_out. For the system call, this means
+-	// "use and update the file offsets". That is why we must acquire
+-	// locks for both file descriptors (and why this whole machinery is
+-	// in the internal/poll package to begin with).
+-	if err := dst.writeLock(); err != nil {
+-		return 0, err
+-	}
+-	defer dst.writeUnlock()
+-	if err := src.readLock(); err != nil {
+-		return 0, err
+-	}
+-	defer src.readUnlock()
+-	var n int
+-	for {
+-		n, err = unix.CopyFileRange(src.Sysfd, nil, dst.Sysfd, nil, max, 0)
+-		if err != syscall.EINTR {
+-			break
++			// Otherwise src is at EOF, which means
++			// we are done.
+ 		}
+ 	}
+-	return int64(n), err
++	return true, err
+ }
+diff --git a/src/internal/poll/copy_file_range_unix.go b/src/internal/poll/copy_file_range_unix.go
+new file mode 100644
+index 0000000000..73193a1991
+--- /dev/null
++++ b/src/internal/poll/copy_file_range_unix.go
+@@ -0,0 +1,77 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build freebsd || linux
++
++package poll
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
++
++// CopyFileRange copies at most remain bytes of data from src to dst, using
++// the copy_file_range system call. dst and src must refer to regular files.
++func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err error) {
++	if !supportCopyFileRange() {
++		return 0, false, nil
++	}
++
++	for remain > 0 {
++		max := remain
++		if max > maxCopyFileRangeRound {
++			max = maxCopyFileRangeRound
++		}
++		n, e := copyFileRange(dst, src, int(max))
++		if e == nil {
++			remain -= n
++			written += n
++		}
++		handled, err = handleCopyFileRangeErr(e, n, written)
++		if n == 0 || !handled || err != nil {
++			return
++		}
++	}
++
++	return written, true, nil
++}
++
++// copyFileRange performs one round of copy_file_range(2).
++func copyFileRange(dst, src *FD, max int) (written int64, err error) {
++	// For Linux, the signature of copy_file_range(2) is:
++	//
++	// ssize_t copy_file_range(int fd_in, loff_t *off_in,
++	//                         int fd_out, loff_t *off_out,
++	//                         size_t len, unsigned int flags);
++	//
++	// For FreeBSD, the signature of copy_file_range(2) is:
++	//
++	// ssize_t
++	// copy_file_range(int infd, off_t *inoffp, int outfd, off_t *outoffp,
++	//                 size_t len, unsigned int flags);
++	//
++	// Note that in the call to unix.CopyFileRange below, we use nil
++	// values for off_in/off_out and inoffp/outoffp, which means "the file
++	// offset for infd(fd_in) or outfd(fd_out) respectively will be used and
++	// updated by the number of bytes copied".
++	//
++	// That is why we must acquire locks for both file descriptors (and why
++	// this whole machinery is in the internal/poll package to begin with).
++	if err := dst.writeLock(); err != nil {
++		return 0, err
++	}
++	defer dst.writeUnlock()
++	if err := src.readLock(); err != nil {
++		return 0, err
++	}
++	defer src.readUnlock()
++	var n int
++	for {
++		n, err = unix.CopyFileRange(src.Sysfd, nil, dst.Sysfd, nil, max, 0)
++		if err != syscall.EINTR {
++			break
++		}
++	}
++	return int64(n), err
++}
+diff --git a/src/internal/syscall/unix/copy_file_range_linux.go b/src/internal/syscall/unix/copy_file_range_unix.go
+similarity index 95%
+rename from src/internal/syscall/unix/copy_file_range_linux.go
+rename to src/internal/syscall/unix/copy_file_range_unix.go
+index cf0a279a7a..16a434219e 100644
+--- a/src/internal/syscall/unix/copy_file_range_linux.go
++++ b/src/internal/syscall/unix/copy_file_range_unix.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build freebsd || linux
++
+ package unix
+ 
+ import (
+diff --git a/src/internal/syscall/unix/kernel_version_freebsd.go b/src/internal/syscall/unix/kernel_version_freebsd.go
+new file mode 100644
+index 0000000000..ef9ee136f3
+--- /dev/null
++++ b/src/internal/syscall/unix/kernel_version_freebsd.go
+@@ -0,0 +1,48 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"sync"
++	"syscall"
++)
++
++// KernelVersion returns major and minor kernel version numbers
++// parsed from the syscall.Sysctl("kern.osrelease")'s value,
++// or (0, 0) if the version can't be obtained or parsed.
++func KernelVersion() (major, minor int) {
++	release, err := syscall.Sysctl("kern.osrelease")
++	if err != nil {
++		return 0, 0
++	}
++
++	parseNext := func() (n int) {
++		for i, c := range release {
++			if c == '.' {
++				release = release[i+1:]
++				return
++			}
++			if '0' <= c && c <= '9' {
++				n = n*10 + int(c-'0')
++			}
++		}
++		release = ""
++		return
++	}
++
++	major = parseNext()
++	minor = parseNext()
++
++	return
++}
++
++// SupportCopyFileRange reports whether the kernel supports the copy_file_range(2).
++// This function will examine both the kernel version and the availability of the system call.
++var SupportCopyFileRange = sync.OnceValue(func() bool {
++	// The copy_file_range() function first appeared in FreeBSD 13.0.
++	major, _ := KernelVersion()
++	_, err := CopyFileRange(0, nil, 0, nil, 0, 0)
++	return major >= 13 && err != syscall.ENOSYS
++})
+diff --git a/src/internal/syscall/unix/kernel_version_freebsd_test.go b/src/internal/syscall/unix/kernel_version_freebsd_test.go
+new file mode 100644
+index 0000000000..694440e325
+--- /dev/null
++++ b/src/internal/syscall/unix/kernel_version_freebsd_test.go
+@@ -0,0 +1,23 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix_test
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++	"testing"
++)
++
++func TestSupportCopyFileRange(t *testing.T) {
++	major, minor := unix.KernelVersion()
++	t.Logf("Running on FreeBSD %d.%d\n", major, minor)
++
++	_, err := unix.CopyFileRange(0, nil, 0, nil, 0, 0)
++	want := err != syscall.ENOSYS
++	got := unix.SupportCopyFileRange()
++	if want != got {
++		t.Fatalf("SupportCopyFileRange, got %t; want %t", got, want)
++	}
++}
+diff --git a/src/internal/syscall/unix/kernel_version_linux.go b/src/internal/syscall/unix/kernel_version_linux.go
+index 71e8aa4c57..f3656288ef 100644
+--- a/src/internal/syscall/unix/kernel_version_linux.go
++++ b/src/internal/syscall/unix/kernel_version_linux.go
+@@ -8,11 +8,9 @@ import (
+ 	"syscall"
+ )
+ 
+-// KernelVersion returns major and minor kernel version numbers, parsed from
+-// the syscall.Uname's Release field, or 0, 0 if the version can't be obtained
+-// or parsed.
+-//
+-// Currently only implemented for Linux.
++// KernelVersion returns major and minor kernel version numbers
++// parsed from the syscall.Uname's Release field, or (0, 0) if
++// the version can't be obtained or parsed.
+ func KernelVersion() (major, minor int) {
+ 	var uname syscall.Utsname
+ 	if err := syscall.Uname(&uname); err != nil {
+diff --git a/src/internal/syscall/unix/kernel_version_other.go b/src/internal/syscall/unix/kernel_version_other.go
+index fc65c1c823..91c14b31d9 100644
+--- a/src/internal/syscall/unix/kernel_version_other.go
++++ b/src/internal/syscall/unix/kernel_version_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !linux && !solaris
++//go:build !freebsd && !linux && !solaris
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/sysnum_freebsd.go b/src/internal/syscall/unix/sysnum_freebsd.go
+new file mode 100644
+index 0000000000..2c81110409
+--- /dev/null
++++ b/src/internal/syscall/unix/sysnum_freebsd.go
+@@ -0,0 +1,7 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++const copyFileRangeTrap uintptr = 569
+diff --git a/src/os/export_freebsd_test.go b/src/os/export_freebsd_test.go
+new file mode 100644
+index 0000000000..56bfcc6c71
+--- /dev/null
++++ b/src/os/export_freebsd_test.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++var (
++	PollCopyFileRangeP = &pollCopyFileRange
++)
+diff --git a/src/os/readfrom_freebsd_test.go b/src/os/readfrom_freebsd_test.go
+new file mode 100644
+index 0000000000..186049951f
+--- /dev/null
++++ b/src/os/readfrom_freebsd_test.go
+@@ -0,0 +1,57 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os_test
++
++import (
++	"internal/poll"
++	. "os"
++	"testing"
++)
++
++var (
++	copyFileTests = []copyFileTestFunc{newCopyFileRangeTest}
++	copyFileHooks = []copyFileTestHook{hookCopyFileRange}
++)
++
++func testCopyFiles(t *testing.T, size, limit int64) {
++	testCopyFileRange(t, size, limit)
++}
++
++func testCopyFileRange(t *testing.T, size int64, limit int64) {
++	dst, src, data, hook, name := newCopyFileRangeTest(t, size)
++	testCopyFile(t, dst, src, data, hook, limit, name)
++}
++
++// newCopyFileRangeTest initializes a new test for copy_file_range.
++// It hooks package os' call to poll.CopyFileRange and returns the hook,
++// so it can be inspected.
++func newCopyFileRangeTest(t *testing.T, size int64) (dst, src *File, data []byte, hook *copyFileHook, name string) {
++	t.Helper()
++
++	name = "newCopyFileRangeTest"
++
++	dst, src, data = newCopyFileTest(t, size)
++	hook, _ = hookCopyFileRange(t)
++
++	return
++}
++
++func hookCopyFileRange(t *testing.T) (hook *copyFileHook, name string) {
++	name = "hookCopyFileRange"
++
++	hook = new(copyFileHook)
++	orig := *PollCopyFileRangeP
++	t.Cleanup(func() {
++		*PollCopyFileRangeP = orig
++	})
++	*PollCopyFileRangeP = func(dst, src *poll.FD, remain int64) (int64, bool, error) {
++		hook.called = true
++		hook.dstfd = dst.Sysfd
++		hook.srcfd = src.Sysfd
++		hook.written, hook.handled, hook.err = orig(dst, src, remain)
++		return hook.written, hook.handled, hook.err
++	}
++	return
++}
+diff --git a/src/os/readfrom_unix_test.go b/src/os/readfrom_unix_test.go
+index 9ed633639a..98a4e6af81 100644
+--- a/src/os/readfrom_unix_test.go
++++ b/src/os/readfrom_unix_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || solaris
++//go:build freebsd || linux || solaris
+ 
+ package os_test
+ 
+diff --git a/src/os/zero_copy_freebsd.go b/src/os/zero_copy_freebsd.go
+new file mode 100644
+index 0000000000..4751ca46be
+--- /dev/null
++++ b/src/os/zero_copy_freebsd.go
+@@ -0,0 +1,57 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package os
++
++import (
++	"internal/poll"
++	"io"
++)
++
++var pollCopyFileRange = poll.CopyFileRange
++
++func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
++	return 0, false, nil
++}
++
++func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
++	// copy_file_range(2) doesn't supports destinations opened with
++	// O_APPEND, so don't bother to try zero-copy with these system calls.
++	//
++	// Visit https://man.freebsd.org/cgi/man.cgi?copy_file_range(2)#ERRORS for details.
++	if f.appendMode {
++		return 0, false, nil
++	}
++
++	var (
++		remain int64
++		lr     *io.LimitedReader
++	)
++	if lr, r, remain = tryLimitedReader(r); remain <= 0 {
++		return 0, true, nil
++	}
++
++	var src *File
++	switch v := r.(type) {
++	case *File:
++		src = v
++	case fileWithoutWriteTo:
++		src = v.File
++	default:
++		return 0, false, nil
++	}
++
++	if src.checkValid("ReadFrom") != nil {
++		// Avoid returning the error as we report handled as false,
++		// leave further error handling as the responsibility of the caller.
++		return 0, false, nil
++	}
++
++	written, handled, err = pollCopyFileRange(&f.pfd, &src.pfd, remain)
++	if lr != nil {
++		lr.N -= written
++	}
++
++	return written, handled, wrapSyscallError("copy_file_range", err)
++}
+diff --git a/src/os/zero_copy_stub.go b/src/os/zero_copy_stub.go
+index fb70124fca..0470a205ef 100644
+--- a/src/os/zero_copy_stub.go
++++ b/src/os/zero_copy_stub.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !linux && !solaris
++//go:build !freebsd && !linux && !solaris
+ 
+ package os
+ 

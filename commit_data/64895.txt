@@ -1,0 +1,298 @@
+commit 5a1de4ed34c476d443946c2d8bbf118ef389b968
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Sep 23 13:02:16 2024 -0700
+
+    go/types, types2: check that alias type arguments satisfy constraints
+    
+    Fixes #69576.
+    
+    Change-Id: I8fc077970276977dd89fc2dd3867f2765d52e54e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615275
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/call.go            |  1 +
+ src/cmd/compile/internal/types2/context.go         |  8 ++--
+ src/cmd/compile/internal/types2/instantiate.go     |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go         | 46 ++++++++++------------
+ src/go/types/call.go                               |  1 +
+ src/go/types/context.go                            |  8 ++--
+ src/go/types/instantiate.go                        |  2 +-
+ src/go/types/typexpr.go                            | 46 ++++++++++------------
+ .../types/testdata/fixedbugs/issue69576.go         | 11 ++++++
+ 9 files changed, 65 insertions(+), 60 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 33bea5e9ff..551b1c1a90 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -150,6 +150,7 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ
+ 	// verify instantiation lazily (was go.dev/issue/50450)
+ 	check.later(func() {
+ 		tparams := typ.TypeParams().list()
++		// check type constraints
+ 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
+ 			// best position for error reporting
+ 			pos := pos
+diff --git a/src/cmd/compile/internal/types2/context.go b/src/cmd/compile/internal/types2/context.go
+index 772312463e..23efd06586 100644
+--- a/src/cmd/compile/internal/types2/context.go
++++ b/src/cmd/compile/internal/types2/context.go
+@@ -101,10 +101,10 @@ func (ctxt *Context) lookup(h string, orig Type, targs []Type) Type {
+ 	return nil
+ }
+ 
+-// update de-duplicates n against previously seen types with the hash h.  If an
+-// identical type is found with the type hash h, the previously seen type is
+-// returned. Otherwise, n is returned, and recorded in the Context for the hash
+-// h.
++// update de-duplicates inst against previously seen types with the hash h.
++// If an identical type is found with the type hash h, the previously seen
++// type is returned. Otherwise, inst is returned, and recorded in the Context
++// for the hash h.
+ func (ctxt *Context) update(h string, orig Type, targs []Type, inst Type) Type {
+ 	assert(inst != nil)
+ 
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 732d076ec3..df6aaf1ffa 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -140,7 +140,7 @@ func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, e
+ 			return orig // nothing to do (minor optimization)
+ 		}
+ 
+-		return check.newAliasInstance(pos, orig, targs, expanding, ctxt)
++		res = check.newAliasInstance(pos, orig, targs, expanding, ctxt)
+ 
+ 	case *Signature:
+ 		assert(expanding == nil) // function instances cannot be reached from Named types
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index b917a86c10..265f5b2512 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -450,13 +450,18 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 	}()
+ 
+ 	var cause string
+-	gtyp := check.genericType(x, &cause)
++	typ := check.genericType(x, &cause)
+ 	if cause != "" {
+ 		check.errorf(x, NotAGenericType, invalidOp+"%s%s (%s)", x, xlist, cause)
+ 	}
+-	if !isValid(gtyp) {
+-		return gtyp // error already reported
++	if !isValid(typ) {
++		return typ // error already reported
+ 	}
++	// typ must be a generic Alias or Named type (but not a *Signature)
++	if _, ok := typ.(*Signature); ok {
++		panic("unexpected generic signature")
++	}
++	gtyp := typ.(genericType)
+ 
+ 	// evaluate arguments
+ 	targs := check.typeList(xlist)
+@@ -464,27 +469,23 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 		return Typ[Invalid]
+ 	}
+ 
+-	if orig, _ := gtyp.(*Alias); orig != nil {
+-		return check.instance(x.Pos(), orig, targs, nil, check.context())
+-	}
+-
+-	orig := asNamed(gtyp)
+-	if orig == nil {
+-		panic(fmt.Sprintf("%v: cannot instantiate %v", x.Pos(), gtyp))
+-	}
+-
+-	// create the instance
+-	inst := asNamed(check.instance(x.Pos(), orig, targs, nil, check.context()))
++	// create instance
++	// The instance is not generic anymore as it has type arguments, but it still
++	// satisfies the genericType interface because it has type parameters, too.
++	inst := check.instance(x.Pos(), gtyp, targs, nil, check.context()).(genericType)
+ 
+-	// orig.tparams may not be set up, so we need to do expansion later.
++	// For Named types, orig.tparams may not be set up, so we need to do expansion later.
+ 	check.later(func() {
+ 		// This is an instance from the source, not from recursive substitution,
+ 		// and so it must be resolved during type-checking so that we can report
+ 		// errors.
+-		check.recordInstance(x, inst.TypeArgs().list(), inst)
++		check.recordInstance(x, targs, inst)
+ 
+-		if check.validateTArgLen(x.Pos(), inst.obj.name, inst.TypeParams().Len(), inst.TypeArgs().Len()) {
+-			if i, err := check.verify(x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
++		name := inst.(interface{ Obj() *TypeName }).Obj().name
++		tparams := inst.TypeParams().list()
++		if check.validateTArgLen(x.Pos(), name, len(tparams), len(targs)) {
++			// check type constraints
++			if i, err := check.verify(x.Pos(), inst.TypeParams().list(), targs, check.context()); err != nil {
+ 				// best position for error reporting
+ 				pos := x.Pos()
+ 				if i < len(xlist) {
+@@ -492,15 +493,10 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 				}
+ 				check.softErrorf(pos, InvalidTypeArg, "%s", err)
+ 			} else {
+-				check.mono.recordInstance(check.pkg, x.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), xlist)
++				check.mono.recordInstance(check.pkg, x.Pos(), tparams, targs, xlist)
+ 			}
+ 		}
+-
+-		// TODO(rfindley): remove this call: we don't need to call validType here,
+-		// as cycles can only occur for types used inside a Named type declaration,
+-		// and so it suffices to call validType from declared types.
+-		check.validType(inst)
+-	}).describef(x, "resolve instance %s", inst)
++	}).describef(x, "verify instantiation %s", inst)
+ 
+ 	return inst
+ }
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index d1324d425a..60a5b2d972 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -152,6 +152,7 @@ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Si
+ 	// verify instantiation lazily (was go.dev/issue/50450)
+ 	check.later(func() {
+ 		tparams := typ.TypeParams().list()
++		// check type constraints
+ 		if i, err := check.verify(pos, tparams, targs, check.context()); err != nil {
+ 			// best position for error reporting
+ 			pos := pos
+diff --git a/src/go/types/context.go b/src/go/types/context.go
+index 5fe336a82f..84f2468a85 100644
+--- a/src/go/types/context.go
++++ b/src/go/types/context.go
+@@ -104,10 +104,10 @@ func (ctxt *Context) lookup(h string, orig Type, targs []Type) Type {
+ 	return nil
+ }
+ 
+-// update de-duplicates n against previously seen types with the hash h.  If an
+-// identical type is found with the type hash h, the previously seen type is
+-// returned. Otherwise, n is returned, and recorded in the Context for the hash
+-// h.
++// update de-duplicates inst against previously seen types with the hash h.
++// If an identical type is found with the type hash h, the previously seen
++// type is returned. Otherwise, inst is returned, and recorded in the Context
++// for the hash h.
+ func (ctxt *Context) update(h string, orig Type, targs []Type, inst Type) Type {
+ 	assert(inst != nil)
+ 
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index cef495314e..b6e5b1f34e 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -143,7 +143,7 @@ func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, ex
+ 			return orig // nothing to do (minor optimization)
+ 		}
+ 
+-		return check.newAliasInstance(pos, orig, targs, expanding, ctxt)
++		res = check.newAliasInstance(pos, orig, targs, expanding, ctxt)
+ 
+ 	case *Signature:
+ 		assert(expanding == nil) // function instances cannot be reached from Named types
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 926013b16c..aa2d782563 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -440,13 +440,18 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName)
+ 	}()
+ 
+ 	var cause string
+-	gtyp := check.genericType(ix.X, &cause)
++	typ := check.genericType(ix.X, &cause)
+ 	if cause != "" {
+ 		check.errorf(ix.Orig, NotAGenericType, invalidOp+"%s (%s)", ix.Orig, cause)
+ 	}
+-	if !isValid(gtyp) {
+-		return gtyp // error already reported
++	if !isValid(typ) {
++		return typ // error already reported
+ 	}
++	// typ must be a generic Alias or Named type (but not a *Signature)
++	if _, ok := typ.(*Signature); ok {
++		panic("unexpected generic signature")
++	}
++	gtyp := typ.(genericType)
+ 
+ 	// evaluate arguments
+ 	targs := check.typeList(ix.Indices)
+@@ -454,27 +459,23 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName)
+ 		return Typ[Invalid]
+ 	}
+ 
+-	if orig, _ := gtyp.(*Alias); orig != nil {
+-		return check.instance(ix.Pos(), orig, targs, nil, check.context())
+-	}
+-
+-	orig := asNamed(gtyp)
+-	if orig == nil {
+-		panic(fmt.Sprintf("%v: cannot instantiate %v", ix.Pos(), gtyp))
+-	}
+-
+-	// create the instance
+-	inst := asNamed(check.instance(ix.Pos(), orig, targs, nil, check.context()))
++	// create instance
++	// The instance is not generic anymore as it has type arguments, but it still
++	// satisfies the genericType interface because it has type parameters, too.
++	inst := check.instance(ix.Pos(), gtyp, targs, nil, check.context()).(genericType)
+ 
+-	// orig.tparams may not be set up, so we need to do expansion later.
++	// For Named types, orig.tparams may not be set up, so we need to do expansion later.
+ 	check.later(func() {
+ 		// This is an instance from the source, not from recursive substitution,
+ 		// and so it must be resolved during type-checking so that we can report
+ 		// errors.
+-		check.recordInstance(ix.Orig, inst.TypeArgs().list(), inst)
++		check.recordInstance(ix.Orig, targs, inst)
+ 
+-		if check.validateTArgLen(ix.Pos(), inst.obj.name, inst.TypeParams().Len(), inst.TypeArgs().Len()) {
+-			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), check.context()); err != nil {
++		name := inst.(interface{ Obj() *TypeName }).Obj().name
++		tparams := inst.TypeParams().list()
++		if check.validateTArgLen(ix.Pos(), name, len(tparams), len(targs)) {
++			// check type constraints
++			if i, err := check.verify(ix.Pos(), inst.TypeParams().list(), targs, check.context()); err != nil {
+ 				// best position for error reporting
+ 				pos := ix.Pos()
+ 				if i < len(ix.Indices) {
+@@ -482,15 +483,10 @@ func (check *Checker) instantiatedType(ix *typeparams.IndexExpr, def *TypeName)
+ 				}
+ 				check.softErrorf(atPos(pos), InvalidTypeArg, "%v", err)
+ 			} else {
+-				check.mono.recordInstance(check.pkg, ix.Pos(), inst.TypeParams().list(), inst.TypeArgs().list(), ix.Indices)
++				check.mono.recordInstance(check.pkg, ix.Pos(), tparams, targs, ix.Indices)
+ 			}
+ 		}
+-
+-		// TODO(rfindley): remove this call: we don't need to call validType here,
+-		// as cycles can only occur for types used inside a Named type declaration,
+-		// and so it suffices to call validType from declared types.
+-		check.validType(inst)
+-	}).describef(ix, "resolve instance %s", inst)
++	}).describef(ix, "verify instantiation %s", inst)
+ 
+ 	return inst
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue69576.go b/src/internal/types/testdata/fixedbugs/issue69576.go
+new file mode 100644
+index 0000000000..97e03dfab4
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue69576.go
+@@ -0,0 +1,11 @@
++// -goexperiment=aliastypeparams -gotypesalias=1
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A[P int] = struct{}
++
++var _ A[string /* ERROR "string does not satisfy int (string missing in int)" */]

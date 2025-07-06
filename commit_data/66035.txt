@@ -1,0 +1,117 @@
+commit 4160ebf28f69a738203571bba6abab6ec0913080
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 9 13:04:51 2025 -0800
+
+    net: permit Interface with no Name
+    
+    On darwin the utun interface sometimes has no name.
+    
+    Fixes #71064
+    
+    Change-Id: Iec51641880515f8bd3f97bd892c26f68fd588fa3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641855
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/internal/routebsd/interface_classic.go | 21 +++++++++++++--------
+ src/net/interface.go                       | 10 ++++++----
+ src/net/interface_test.go                  | 14 ++++++++------
+ 3 files changed, 27 insertions(+), 18 deletions(-)
+
+diff --git a/src/internal/routebsd/interface_classic.go b/src/internal/routebsd/interface_classic.go
+index 7b26c7eb2a..af9531c0df 100644
+--- a/src/internal/routebsd/interface_classic.go
++++ b/src/internal/routebsd/interface_classic.go
+@@ -20,9 +20,7 @@ func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
+ 		return nil, errInvalidMessage
+ 	}
+ 	attrs := uint(nativeEndian.Uint32(b[4:8]))
+-	if attrs&syscall.RTA_IFP == 0 {
+-		return nil, nil
+-	}
++
+ 	m := &InterfaceMessage{
+ 		Version: int(b[2]),
+ 		Type:    int(b[3]),
+@@ -32,12 +30,19 @@ func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
+ 		extOff:  w.extOff,
+ 		raw:     b[:l],
+ 	}
+-	a, err := parseLinkAddr(b[w.bodyOff:])
+-	if err != nil {
+-		return nil, err
++
++	// We used to require that RTA_IFP always be set.
++	// It turns out that on darwin messages about the
++	// utun interface may not include a name. Issue #71064.
++	if attrs&syscall.RTA_IFP != 0 {
++		a, err := parseLinkAddr(b[w.bodyOff:])
++		if err != nil {
++			return nil, err
++		}
++		m.Addrs[syscall.RTAX_IFP] = a
++		m.Name = a.(*LinkAddr).Name
+ 	}
+-	m.Addrs[syscall.RTAX_IFP] = a
+-	m.Name = a.(*LinkAddr).Name
++
+ 	return m, nil
+ }
+ 
+diff --git a/src/net/interface.go b/src/net/interface.go
+index 74bb4f0e1c..b6057780c4 100644
+--- a/src/net/interface.go
++++ b/src/net/interface.go
+@@ -42,7 +42,7 @@ var (
+ type Interface struct {
+ 	Index        int          // positive integer that starts at one, zero is never used
+ 	MTU          int          // maximum transmission unit
+-	Name         string       // e.g., "en0", "lo0", "eth0.100"
++	Name         string       // e.g., "en0", "lo0", "eth0.100"; may be the empty string
+ 	HardwareAddr HardwareAddr // IEEE MAC-48, EUI-48 and EUI-64 form
+ 	Flags        Flags        // e.g., FlagUp, FlagLoopback, FlagMulticast
+ }
+@@ -221,9 +221,11 @@ func (zc *ipv6ZoneCache) update(ift []Interface, force bool) (updated bool) {
+ 	zc.toIndex = make(map[string]int, len(ift))
+ 	zc.toName = make(map[int]string, len(ift))
+ 	for _, ifi := range ift {
+-		zc.toIndex[ifi.Name] = ifi.Index
+-		if _, ok := zc.toName[ifi.Index]; !ok {
+-			zc.toName[ifi.Index] = ifi.Name
++		if ifi.Name != "" {
++			zc.toIndex[ifi.Name] = ifi.Index
++			if _, ok := zc.toName[ifi.Index]; !ok {
++				zc.toName[ifi.Index] = ifi.Name
++			}
+ 		}
+ 	}
+ 	return true
+diff --git a/src/net/interface_test.go b/src/net/interface_test.go
+index a97d675e7e..72befca0d8 100644
+--- a/src/net/interface_test.go
++++ b/src/net/interface_test.go
+@@ -68,12 +68,14 @@ func TestInterfaces(t *testing.T) {
+ 				t.Errorf("got %v; want %v", ifxi, ifi)
+ 			}
+ 		}
+-		ifxn, err := InterfaceByName(ifi.Name)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		if !reflect.DeepEqual(ifxn, &ifi) {
+-			t.Errorf("got %v; want %v", ifxn, ifi)
++		if ifi.Name != "" {
++			ifxn, err := InterfaceByName(ifi.Name)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if !reflect.DeepEqual(ifxn, &ifi) {
++				t.Errorf("got %v; want %v", ifxn, ifi)
++			}
+ 		}
+ 		t.Logf("%s: flags=%v index=%d mtu=%d hwaddr=%v", ifi.Name, ifi.Flags, ifi.Index, ifi.MTU, ifi.HardwareAddr)
+ 	}

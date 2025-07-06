@@ -1,0 +1,229 @@
+commit 988a20c8c5e2c9eb49f8749e5ee94ce3c964fe59
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed Jun 25 19:01:11 2025 -0400
+
+    cmd/compile/internal/escape: evaluate any side effects when rewriting with literals
+    
+    CL 649035 and CL 649079 updated escape analysis to rewrite
+    certain operands in OMAKE and OCONVIFACE nodes from non-constant
+    expressions to basic literals that evaluate to the same value.
+    
+    However, when doing that rewriting, we need to evaluate any
+    side effects prior to replacing the expression, which is what
+    this CL now does.
+    
+    Issue #74379 reported a problem with OCONVIFACE nodes due to CL 649079.
+    CL 649035 has essentially the same issue with OMAKE nodes. To illustrate
+    that, we add a test for the OMAKE case in fixedbugs/issue74379b.go,
+    which fails without this change. To avoid introducing an unnecessary
+    temporary for OMAKE nodes, we also conditionalize the main work of
+    CL 649035 on whether the OMAKE operand is already an OLITERAL.
+    
+    CL 649555 and CL 649078 were related changes that created read-only
+    global storage for composite literals used in an interface conversion.
+    This CL adds a test in fixedbugs/issue74379c.go to illustrate
+    that they do not have the same problem.
+    
+    Updates #71359
+    Fixes #74379
+    
+    Change-Id: I6645575ef34f1fe2b0241a22dc205875d66b7ada
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684116
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/escape/escape.go | 28 ++++++++++++----
+ test/fixedbugs/issue74379.go              | 30 +++++++++++++++++
+ test/fixedbugs/issue74379b.go             | 32 ++++++++++++++++++
+ test/fixedbugs/issue74379c.go             | 54 +++++++++++++++++++++++++++++++
+ 4 files changed, 137 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 06dee7ec41..a39d6b49a6 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -545,6 +545,14 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
+ 		base.Fatalf("no ReassignOracle for function %v with closure parent %v", fn, fn.ClosureParent)
+ 	}
+ 
++	assignTemp := func(n ir.Node, init *ir.Nodes) {
++		// Preserve any side effects of n by assigning it to an otherwise unused temp.
++		pos := n.Pos()
++		tmp := typecheck.TempAt(pos, fn, n.Type())
++		init.Append(typecheck.Stmt(ir.NewDecl(pos, ir.ODCL, tmp)))
++		init.Append(typecheck.Stmt(ir.NewAssignStmt(pos, tmp, n)))
++	}
++
+ 	switch n.Op() {
+ 	case ir.OMAKESLICE:
+ 		// Check if we can replace a non-constant argument to make with
+@@ -556,13 +564,17 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
+ 			r = &n.Len
+ 		}
+ 
+-		if s := ro.StaticValue(*r); s.Op() == ir.OLITERAL {
+-			lit, ok := s.(*ir.BasicLit)
+-			if !ok || lit.Val().Kind() != constant.Int {
+-				base.Fatalf("unexpected BasicLit Kind")
+-			}
+-			if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
+-				*r = lit
++		if (*r).Op() != ir.OLITERAL {
++			if s := ro.StaticValue(*r); s.Op() == ir.OLITERAL {
++				lit, ok := s.(*ir.BasicLit)
++				if !ok || lit.Val().Kind() != constant.Int {
++					base.Fatalf("unexpected BasicLit Kind")
++				}
++				if constant.Compare(lit.Val(), token.GEQ, constant.MakeInt64(0)) {
++					// Preserve any side effects of the original expression, then replace it.
++					assignTemp(*r, n.PtrInit())
++					*r = lit
++				}
+ 			}
+ 		}
+ 	case ir.OCONVIFACE:
+@@ -575,6 +587,8 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
+ 				if base.Debug.EscapeDebug >= 3 {
+ 					base.WarnfAt(n.Pos(), "rewriting OCONVIFACE value from %v (%v) to %v (%v)", conv.X, conv.X.Type(), v, v.Type())
+ 				}
++				// Preserve any side effects of the original expression, then replace it.
++				assignTemp(conv.X, conv.PtrInit())
+ 				v := v.(*ir.BasicLit)
+ 				conv.X = ir.NewBasicLit(conv.X.Pos(), conv.X.Type(), v.Val())
+ 				typecheck.Expr(conv)
+diff --git a/test/fixedbugs/issue74379.go b/test/fixedbugs/issue74379.go
+new file mode 100644
+index 0000000000..e516505fbe
+--- /dev/null
++++ b/test/fixedbugs/issue74379.go
+@@ -0,0 +1,30 @@
++// run
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"errors"
++	"fmt"
++	"os"
++)
++
++func crashOnErr(err error) bool {
++	if err != nil {
++		panic(err)
++	}
++	return false
++}
++
++func main() {
++	defer func() {
++		if recover() == nil {
++			fmt.Println("failed to have expected panic")
++			os.Exit(1)
++		}
++	}()
++	fmt.Println(crashOnErr(errors.New("test error")))
++}
+diff --git a/test/fixedbugs/issue74379b.go b/test/fixedbugs/issue74379b.go
+new file mode 100644
+index 0000000000..2603587914
+--- /dev/null
++++ b/test/fixedbugs/issue74379b.go
+@@ -0,0 +1,32 @@
++// run
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"errors"
++	"fmt"
++	"os"
++)
++
++func crashOnErr(err error) int {
++	if err != nil {
++		panic(err)
++	}
++	return 10
++}
++
++func main() {
++	defer func() {
++		if recover() == nil {
++			fmt.Println("failed to have expected panic")
++			os.Exit(1)
++		}
++	}()
++
++	s := make([]int, crashOnErr(errors.New("test error")))
++	println("unreachable: len(s) =", len(s))
++}
+diff --git a/test/fixedbugs/issue74379c.go b/test/fixedbugs/issue74379c.go
+new file mode 100644
+index 0000000000..871307bf89
+--- /dev/null
++++ b/test/fixedbugs/issue74379c.go
+@@ -0,0 +1,54 @@
++// run
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"errors"
++	"fmt"
++	"os"
++)
++
++type S struct{ a, b int }
++
++func crashOnErr1(err error) S {
++	if err != nil {
++		panic(err)
++	}
++	return S{} // zero value struct
++}
++
++func f1() {
++	defer func() {
++		if recover() == nil {
++			fmt.Println("failed to have expected panic")
++			os.Exit(1)
++		}
++	}()
++	fmt.Println(crashOnErr1(errors.New("test error")))
++}
++
++func crashOnErr2(err error) S {
++	if err != nil {
++		panic(err)
++	}
++	return S{1, 2} // not zero value struct
++}
++
++func f2() {
++	defer func() {
++		if recover() == nil {
++			fmt.Println("failed to have expected panic")
++			os.Exit(1)
++		}
++	}()
++	fmt.Println(crashOnErr2(errors.New("test error")))
++}
++
++func main() {
++	f1()
++	f2()
++}

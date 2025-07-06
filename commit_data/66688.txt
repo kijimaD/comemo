@@ -1,0 +1,237 @@
+commit d37624881f60f79dfba4ef81661024bee9dfc2d3
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 27 22:54:51 2025 +1100
+
+    cmd/internal/obj/riscv: improve constant construction
+    
+    Attempt to construct large constants that have a consecutive sequence
+    of ones from a small negative constant, with a logical right and/or
+    left shift. This allows for a large range of mask like constants to be
+    constructed with only two or three instructions, avoiding the need to
+    load from memory.
+    
+    Change-Id: I35a77fecdd2df0ed3f33b772d518f85119d4ff66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652778
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+---
+ src/cmd/asm/internal/asm/testdata/riscv64.s | 12 +++---
+ src/cmd/internal/obj/riscv/obj.go           | 62 ++++++++++++++++++++++-------
+ src/cmd/internal/obj/riscv/obj_test.go      | 48 ++++++++++++----------
+ 3 files changed, 82 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 243fa590ef..df78659c83 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -572,24 +572,24 @@ start:
+ 	MOV	$0x7fffffff, X5		// MOV	$2147483647, X5			// b70200809b82f2ff
+ 	MOV	$-0x7fffffff, X5	// MOV	$-2147483647, X5		// b70200809b821200
+ 
+-	// Converted to load and shift (MOV + SLLI)
++	// Converted to load and shift(s)
++	MOV	$0xffffffff, X5		// MOV	$4294967295, X5			// 9302f0ff93d20202
+ 	MOV	$0x100000000, X5	// MOV	$4294967296, X5			// 9302100093920202
++	MOV	$0xfffffffffffda, X5	// MOV	$4503599627370458, X5		// 9302d0fe9392d20093d2c200
++	MOV	$0xffffffffffffe, X5	// MOV	$4503599627370494, X5		// 9302f0ff9392d20093d2c200
+ 	MOV	$0x7fffffff00000000, X5	// MOV	$9223372032559808512, X5	// b70200809b82f2ff93920202
+ 	MOV	$0x8000000100000000, X5	// MOV	$-9223372032559808512, X5	// b70200809b82120093920202
+ 	MOV	$0xffffffff00000000, X5	// MOV	$-4294967296, X5		// 9302f0ff93920202
++	MOV	$0x1ffffffff0000000, X5	// MOV	$2305843008945258496, X5	// 9302f0ff9392f20193d23200
++	MOV	$0x7fffffffffffffff, X5 // MOV	$9223372036854775807, X5	// 9302f0ff93d21200
+ 
+ 	// Converted to load of symbol (AUIPC + LD)
+ 	MOV	$0x80000001, X5		// MOV	$2147483649, X5			// 9702000083b20200
+-	MOV	$0xffffffff, X5		// MOV	$4294967295, X5			// 9702000083b20200
+ 	MOV	$0x100000001, X5	// MOV	$4294967297, X5			// 9702000083b20200
+-	MOV	$0xfffffffffffda, X5	// MOV	$4503599627370458, X5		// 9702000083b20200
+-	MOV	$0xffffffffffffe, X5	// MOV	$4503599627370494, X5		// 9702000083b20200
+ 	MOV	$0x0800000010000000, X5	// MOV	$576460752571858944, X5		// 9702000083b20200
+ 	MOV	$0x8000000010000000, X5	// MOV	$-9223372036586340352, X5	// 9702000083b20200
+ 	MOV	$0x0abcdabcd0000000, X5	// MOV	$773733740479250432, X5		// 9702000083b20200
+ 	MOV	$0x8abcdabcd0000000, X5	// MOV	$-8449638296375525376, X5	// 9702000083b20200
+-	MOV	$0x1ffffffff0000000, X5	// MOV	$2305843008945258496, X5	// 9702000083b20200
+-	MOV	$0x7fffffffffffffff, X5 // MOV	$9223372036854775807, X5	// 9702000083b20200
+ 	MOV	$0xfff0000000ffffff, X5 // MOV	$-4503599610593281, X5		// 9702000083b20200
+ 
+ 	MOV	(X5), X6				// 03b30200
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index b50709729e..13f1864dea 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -2220,22 +2220,35 @@ func encodingForAs(as obj.As) (*encoding, error) {
+ 	return &insData.enc, nil
+ }
+ 
+-// splitShiftConst attempts to split a constant into a signed 32 bit integer
+-// and a corresponding left shift.
+-func splitShiftConst(v int64) (imm int64, lsh int, ok bool) {
++// splitShiftConst attempts to split a constant into a signed 12 bit or
++// 32 bit integer, with corresponding logical right shift and/or left shift.
++func splitShiftConst(v int64) (imm int64, lsh int, rsh int, ok bool) {
++	// See if we can reconstruct this value from a signed 32 bit integer.
+ 	lsh = bits.TrailingZeros64(uint64(v))
+ 	c := v >> lsh
+-	if int64(int32(c)) != c {
+-		return 0, 0, false
++	if int64(int32(c)) == c {
++		return c, lsh, 0, true
+ 	}
+-	return c, lsh, true
++
++	// See if we can reconstruct this value from a small negative constant.
++	rsh = bits.LeadingZeros64(uint64(v))
++	ones := bits.OnesCount64((uint64(v) >> lsh) >> 11)
++	c = signExtend(1<<11|((v>>lsh)&0x7ff), 12)
++	if rsh+ones+lsh+11 == 64 {
++		if lsh > 0 || c != -1 {
++			lsh += rsh
++		}
++		return c, lsh, rsh, true
++	}
++
++	return 0, 0, 0, false
+ }
+ 
+ // isShiftConst indicates whether a constant can be represented as a signed
+ // 32 bit integer that is left shifted.
+ func isShiftConst(v int64) bool {
+-	_, lsh, ok := splitShiftConst(v)
+-	return ok && lsh > 0
++	_, lsh, rsh, ok := splitShiftConst(v)
++	return ok && (lsh > 0 || rsh > 0)
+ }
+ 
+ type instruction struct {
+@@ -2512,16 +2525,34 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 		// For constants larger than 32 bits in size that have trailing zeros,
+ 		// use the value with the trailing zeros removed and then use a SLLI
+ 		// instruction to restore the original constant.
++		//
+ 		// For example:
+-		// 	MOV $0x8000000000000000, X10
++		//     MOV $0x8000000000000000, X10
+ 		// becomes
+-		// 	MOV $1, X10
+-		// 	SLLI $63, X10, X10
+-		var insSLLI *instruction
++		//     MOV $1, X10
++		//     SLLI $63, X10, X10
++		//
++		// Similarly, we can construct large constants that have a consecutive
++		// sequence of ones from a small negative constant, with a right and/or
++		// left shift.
++		//
++		// For example:
++		//     MOV $0x000fffffffffffda, X10
++		// becomes
++		//     MOV $-19, X10
++		//     SLLI $13, X10
++		//     SRLI $12, X10
++		//
++		var insSLLI, insSRLI *instruction
+ 		if err := immIFits(ins.imm, 32); err != nil {
+-			if c, lsh, ok := splitShiftConst(ins.imm); ok {
++			if c, lsh, rsh, ok := splitShiftConst(ins.imm); ok {
+ 				ins.imm = c
+-				insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(lsh)}
++				if lsh > 0 {
++					insSLLI = &instruction{as: ASLLI, rd: ins.rd, rs1: ins.rd, imm: int64(lsh)}
++				}
++				if rsh > 0 {
++					insSRLI = &instruction{as: ASRLI, rd: ins.rd, rs1: ins.rd, imm: int64(rsh)}
++				}
+ 			}
+ 		}
+ 
+@@ -2548,6 +2579,9 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 		if insSLLI != nil {
+ 			inss = append(inss, insSLLI)
+ 		}
++		if insSRLI != nil {
++			inss = append(inss, insSRLI)
++		}
+ 
+ 	case p.From.Type == obj.TYPE_CONST && p.To.Type != obj.TYPE_REG:
+ 		p.Ctxt.Diag("%v: constant load must target register", p)
+diff --git a/src/cmd/internal/obj/riscv/obj_test.go b/src/cmd/internal/obj/riscv/obj_test.go
+index 688f262d8f..87b31e5a89 100644
+--- a/src/cmd/internal/obj/riscv/obj_test.go
++++ b/src/cmd/internal/obj/riscv/obj_test.go
+@@ -14,29 +14,30 @@ func TestSplitShiftConst(t *testing.T) {
+ 		v       int64
+ 		wantImm int64
+ 		wantLsh int
++		wantRsh int
+ 		wantOk  bool
+ 	}{
+-		{0x100000000, 1, 32, true},
+-		{0xfffff001, 0, 0, false},
+-		{0xfffff801, 0, 0, false},
+-		{0xfffffff1, 0, 0, false},
+-		{0xffffffff, 0, 0, false},
+-		{0xfffffffe, 0x7fffffff, 1, true},
+-		{0xfffffffffffda, 0, 0, false},
+-		{0xfffffffffffde, 0, 0, false},
+-		{0x000003ffffffffff, 0, 0, false},
+-		{0x0007ffffffffffff, 0, 0, false},
+-		{0x7fffffff00000000, 0x7fffffff, 32, true},
+-		{0x7fffffffffffffff, 0, 0, false},
+-		{0x7f7f7f7f7f7f7f7f, 0, 0, false},
+-		{0x0080000010000000, 0x8000001, 28, true},
+-		{0x0abcdabcd0000000, 0, 0, false},
+-		{-4503599610593281, 0, 0, false}, // 0x8abcdabcd0000000
+-		{-7543254330000000, 0, 0, false}, // 0xfff0000000ffffff
++		{0x100000000, 1, 32, 0, true},
++		{0xfffff001, 0, 0, 0, false},
++		{0xfffff801, -2047, 32, 32, true},
++		{0xfffffff1, -15, 32, 32, true},
++		{0xffffffff, -1, 0, 32, true},
++		{0xfffffffe, 0x7fffffff, 1, 0, true},
++		{0xfffffffffffda, -19, 13, 12, true},
++		{0xfffffffffffde, -17, 13, 12, true},
++		{0x000003ffffffffff, -1, 0, 22, true},
++		{0x0007ffffffffffff, -1, 0, 13, true},
++		{0x7fffffff00000000, 0x7fffffff, 32, 0, true},
++		{0x7fffffffffffffff, -1, 0, 1, true},
++		{0x7f7f7f7f7f7f7f7f, 0, 0, 0, false},
++		{0x0080000010000000, 0x8000001, 28, 0, true},
++		{0x0abcdabcd0000000, 0, 0, 0, false},
++		{-4503599610593281, 0, 0, 0, false}, // 0x8abcdabcd0000000
++		{-7543254330000000, 0, 0, 0, false}, // 0xfff0000000ffffff
+ 	}
+ 	for _, test := range tests {
+ 		t.Run(fmt.Sprintf("0x%x", test.v), func(t *testing.T) {
+-			c, l, ok := splitShiftConst(test.v)
++			c, l, r, ok := splitShiftConst(test.v)
+ 
+ 			if got, want := c, test.wantImm; got != want {
+ 				t.Errorf("Got immediate %d, want %d", got, want)
+@@ -44,6 +45,9 @@ func TestSplitShiftConst(t *testing.T) {
+ 			if got, want := l, test.wantLsh; got != want {
+ 				t.Errorf("Got left shift %d, want %d", got, want)
+ 			}
++			if got, want := r, test.wantRsh; got != want {
++				t.Errorf("Got right shift %d, want %d", got, want)
++			}
+ 			switch {
+ 			case !ok && test.wantOk:
+ 				t.Error("Failed to split shift constant, want success")
+@@ -54,8 +58,12 @@ func TestSplitShiftConst(t *testing.T) {
+ 				return
+ 			}
+ 
+-			// Reconstruct as a 32 bit signed constant.
+-			v := int64(uint64(int32(test.wantImm)) << l)
++			// Reconstruct as either a 12 bit or 32 bit signed constant.
++			s := 64 - 12
++			v := int64((uint64(((c << s) >> s)) << l) >> r)
++			if test.wantImm != ((test.wantImm << s) >> s) {
++				v = int64((uint64(int32(test.wantImm)) << l) >> r)
++			}
+ 			if v != test.v {
+ 				t.Errorf("Got v = %d (%x), want v = %d (%x)", v, v, test.v, test.v)
+ 			}

@@ -1,0 +1,57 @@
+commit 5856162487a3f380a271afac84ab19d5020679d2
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Mon Feb 5 13:12:51 2024 -0800
+
+    crypto/x509: properly reject invalid DNS names when checking constraints
+    
+    A DNS name prefixed with an empty label should be considered invalid
+    when checking constraints (i.e. ".example.com" does not satisfy a
+    constraint of "example.com").
+    
+    Updates #65085
+    
+    Change-Id: I42919dc06abedc0e242ff36b2a42b583b14857b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/561615
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/x509/name_constraints_test.go | 8 ++++++++
+ src/crypto/x509/verify.go                | 5 +++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/src/crypto/x509/name_constraints_test.go b/src/crypto/x509/name_constraints_test.go
+index 4c22c4cd8e..008c7028f4 100644
+--- a/src/crypto/x509/name_constraints_test.go
++++ b/src/crypto/x509/name_constraints_test.go
+@@ -1599,6 +1599,14 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 			cn:   "foo.bar",
+ 		},
+ 	},
++
++	// #85: .example.com is an invalid DNS name, it should not match the
++	// constraint example.com.
++	{
++		roots:         []constraintsSpec{{ok: []string{"dns:example.com"}}},
++		leaf:          leafSpec{sans: []string{"dns:.example.com"}},
++		expectedError: "cannot parse dnsName \".example.com\"",
++	},
+ }
+ 
+ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 6efbff28bf..ba972ae244 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -366,6 +366,11 @@ func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
+ 		} else {
+ 			reverseLabels = append(reverseLabels, domain[i+1:])
+ 			domain = domain[:i]
++			if i == 0 { // domain == ""
++				// domain is prefixed with an empty label, append an empty
++				// string to reverseLabels to indicate this.
++				reverseLabels = append(reverseLabels, "")
++			}
+ 		}
+ 	}
+ 

@@ -1,0 +1,57 @@
+commit d704ef76068eb7da15520b08dc7df98f45f85ffa
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jan 10 13:38:35 2025 +0100
+
+    crypto/tls/internal/fips140tls: use crypto/fips140
+    
+    There is no need for fips140tls to depend on an internal package, it
+    can use crypto/fips140 directly.
+    
+    Both approaches are equivalent, but using crypto/fips140 makes us
+    exercise a public API and sets precedence.
+    
+    Change-Id: I668e80ee62b711bc60821cee3a54232a33295ee1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642035
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/crypto/tls/internal/fips140tls/fipstls.go | 4 ++--
+ src/go/build/deps_test.go                     | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/internal/fips140tls/fipstls.go b/src/crypto/tls/internal/fips140tls/fipstls.go
+index 24d78d60cf..0b87185683 100644
+--- a/src/crypto/tls/internal/fips140tls/fipstls.go
++++ b/src/crypto/tls/internal/fips140tls/fipstls.go
+@@ -6,14 +6,14 @@
+ package fips140tls
+ 
+ import (
+-	"crypto/internal/fips140"
++	"crypto/fips140"
+ 	"sync/atomic"
+ )
+ 
+ var required atomic.Bool
+ 
+ func init() {
+-	if fips140.Enabled {
++	if fips140.Enabled() {
+ 		Force()
+ 	}
+ }
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 580500c033..c355cb42f7 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -552,7 +552,7 @@ var depsRules = `
+ 
+ 	# TLS, Prince of Dependencies.
+ 
+-	FIPS, sync/atomic < crypto/tls/internal/fips140tls;
++	crypto/fips140, sync/atomic < crypto/tls/internal/fips140tls;
+ 
+ 	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;
+ 

@@ -1,0 +1,146 @@
+commit 2c9689ab0e7ebfbcd875ac3c54740a8295c43d42
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Tue Apr 8 07:35:11 2025 -0400
+
+    cmd/compile/internal/escape: add hash for bisecting stack allocation of variable-sized makeslice
+    
+    CL 653856 enabled stack allocation of variable-sized makeslice results.
+    
+    This CL adds debug hashing of that change, plus a debug flag
+    to control the byte threshold used.
+    
+    The debug hashing machinery means we also now have a way to disable just
+    the CL 653856 optimization by doing -gcflags='all=-d=variablemakehash=n'
+    or similar, though the stderr output will then typically have many
+    lines of debug hash output.
+    
+    Using this CL plus the bisect command, I was able to retroactively
+    find one of the lines of code responsible for #73199:
+    
+      $ bisect -compile=variablemake go test -skip TestListWireGuardDrivers
+      [...]
+      bisect: FOUND failing change set
+      --- change set #1 (enabling changes causes failure)
+      ./security_windows.go:1321:38 (variablemake)
+      ./security_windows.go:1321:38 (variablemake)
+      ---
+    
+    Previously, I had tracked down those lines by diffing '-gcflags=-m=1'
+    output and brief code inspection, but seeing the bisect was very nice.
+    
+    This CL also adds a compiler debug flag to control the threshold for
+    stack allocation of variably sized make results. This can help
+    us identify more code that is relying on certain stack allocations.
+    This might be a temporary flag that we delete prior to Go 1.25
+    (given we would not want people to rely on it), or maybe it
+    might make sense to keep it for some period of time beyond the release
+    of Go 1.25 to help the ecosystem shake out other bugs.
+    
+    Using these two flags together (and picking a threshold of 64 rather
+    than the default of 32), it looks for example like this
+    x/sys/windows code might be relying on stack allocation of
+    a byte slice:
+    
+      $ bisect -compile=variablemake go test -gcflags=-d=variablemakethreshold=64 -skip TestListWireGuardDrivers
+      [...]
+      bisect: FOUND failing change set
+      --- change set #1 (enabling changes causes failure)
+      ./syscall_windows_test.go:1178:16 (variablemake)
+    
+    Updates #73199
+    Fixes #73253
+    
+    Change-Id: I160179a0e3c148c3ea86be5c9b6cea8a52c3e5b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663795
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/base/debug.go     | 2 ++
+ src/cmd/compile/internal/base/flag.go      | 6 +++++-
+ src/cmd/compile/internal/base/hashdebug.go | 9 +++++----
+ src/cmd/compile/internal/walk/builtin.go   | 5 +++--
+ 4 files changed, 15 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index d42e11b2fa..7bcbcb3e2c 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -72,6 +72,8 @@ type DebugFlags struct {
+ 	PGOInlineBudget       int    `help:"inline budget for hot functions" concurrent:"ok"`
+ 	PGODevirtualize       int    `help:"enable profile-guided devirtualization; 0 to disable, 1 to enable interface devirtualization, 2 to enable function devirtualization" concurrent:"ok"`
+ 	RangeFuncCheck        int    `help:"insert code to check behavior of range iterator functions" concurrent:"ok"`
++	VariableMakeHash      string `help:"hash value for debugging stack allocation of variable-sized make results" concurrent:"ok"`
++	VariableMakeThreshold int    `help:"threshold in bytes for possible stack allocation of variable-sized make results" concurrent:"ok"`
+ 	WrapGlobalMapDbg      int    `help:"debug trace output for global map init wrapping"`
+ 	WrapGlobalMapCtl      int    `help:"global map init wrap control (0 => default, 1 => off, 2 => stress mode, no size cutoff)"`
+ 	ZeroCopy              int    `help:"enable zero-copy string->[]byte conversions" concurrent:"ok"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index 31ea8622b9..abf85c7e78 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -183,7 +183,8 @@ func ParseFlags() {
+ 	Debug.InlStaticInit = 1
+ 	Debug.PGOInline = 1
+ 	Debug.PGODevirtualize = 2
+-	Debug.SyncFrames = -1 // disable sync markers by default
++	Debug.SyncFrames = -1            // disable sync markers by default
++	Debug.VariableMakeThreshold = 32 // 32 byte default for stack allocated make results
+ 	Debug.ZeroCopy = 1
+ 	Debug.RangeFuncCheck = 1
+ 	Debug.MergeLocals = 1
+@@ -270,6 +271,9 @@ func ParseFlags() {
+ 	if Debug.MergeLocalsHash != "" {
+ 		MergeLocalsHash = NewHashDebug("mergelocals", Debug.MergeLocalsHash, nil)
+ 	}
++	if Debug.VariableMakeHash != "" {
++		VariableMakeHash = NewHashDebug("variablemake", Debug.VariableMakeHash, nil)
++	}
+ 
+ 	if Flag.MSan && !platform.MSanSupported(buildcfg.GOOS, buildcfg.GOARCH) {
+ 		log.Fatalf("%s/%s does not support -msan", buildcfg.GOOS, buildcfg.GOARCH)
+diff --git a/src/cmd/compile/internal/base/hashdebug.go b/src/cmd/compile/internal/base/hashdebug.go
+index 7a5cc42578..c54b6e17aa 100644
+--- a/src/cmd/compile/internal/base/hashdebug.go
++++ b/src/cmd/compile/internal/base/hashdebug.go
+@@ -53,10 +53,11 @@ func (d *HashDebug) SetInlineSuffixOnly(b bool) *HashDebug {
+ // The default compiler-debugging HashDebug, for "-d=gossahash=..."
+ var hashDebug *HashDebug
+ 
+-var FmaHash *HashDebug         // for debugging fused-multiply-add floating point changes
+-var LoopVarHash *HashDebug     // for debugging shared/private loop variable changes
+-var PGOHash *HashDebug         // for debugging PGO optimization decisions
+-var MergeLocalsHash *HashDebug // for debugging local stack slot merging changes
++var FmaHash *HashDebug          // for debugging fused-multiply-add floating point changes
++var LoopVarHash *HashDebug      // for debugging shared/private loop variable changes
++var PGOHash *HashDebug          // for debugging PGO optimization decisions
++var MergeLocalsHash *HashDebug  // for debugging local stack slot merging changes
++var VariableMakeHash *HashDebug // for debugging variable-sized make optimizations
+ 
+ // DebugHashMatchPkgFunc reports whether debug variable Gossahash
+ //
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 018782211b..2e13daf879 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -568,7 +568,8 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 			// The conv is necessary in case n.Type is named.
+ 			return walkExpr(typecheck.Expr(typecheck.Conv(s, n.Type())), init)
+ 		}
+-		tryStack = base.Flag.N == 0
++		// Check that this optimization is enabled in general and for this node.
++		tryStack = base.Flag.N == 0 && base.VariableMakeHash.MatchPos(n.Pos(), nil)
+ 	}
+ 
+ 	// The final result is assigned to this variable.
+@@ -582,7 +583,7 @@ func walkMakeSlice(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		// } else {
+ 		//     slice = makeslice(elemType, len, cap)
+ 		// }
+-		const maxStackSize = 32
++		maxStackSize := int64(base.Debug.VariableMakeThreshold)
+ 		K := maxStackSize / t.Elem().Size() // rounds down
+ 		if K > 0 {                          // skip if elem size is too big.
+ 			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, typecheck.Conv(cap, types.Types[types.TUINT64]), ir.NewInt(base.Pos, K)), nil, nil)

@@ -1,0 +1,52 @@
+commit 7c54e024e892cbb8ed24274f0b22505356220f10
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Aug 5 00:33:25 2024 +1000
+
+    cmd/compile/internal/ssagen: add check for duplicate intrinsics
+    
+    Add a check to ensure that intrinsics are not being overwritten.
+    Remove two S390X intrinsics that are being replaced by aliases and
+    are therefore ineffective.
+    
+    Change-Id: I4187a169c14ca75c45a67f41a1d626d76b82bb72
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605479
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/ssagen/intrinsics.go | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index e8fc0639fe..e09438dc44 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -45,6 +45,9 @@ type intrinsicBuilders map[intrinsicKey]intrinsicBuilder
+ 
+ // add adds the intrinsic builder b for pkg.fn for the given architecture.
+ func (ib intrinsicBuilders) add(arch *sys.Arch, pkg, fn string, b intrinsicBuilder) {
++	if _, found := ib[intrinsicKey{arch, pkg, fn}]; found {
++		panic(fmt.Sprintf("intrinsic already exists for %v.%v on %v", pkg, fn, arch.Name))
++	}
+ 	ib[intrinsicKey{arch, pkg, fn}] = b
+ }
+ 
+@@ -239,7 +242,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TUINT32], v)
+ 		},
+-		sys.PPC64, sys.S390X)
++		sys.PPC64)
+ 	addF("internal/runtime/atomic", "LoadAcq64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue2(ssa.OpAtomicLoadAcq64, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], s.mem())
+@@ -284,7 +287,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStoreRel32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.PPC64, sys.S390X)
++		sys.PPC64)
+ 	addF("internal/runtime/atomic", "StoreRel64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicStoreRel64, types.TypeMem, args[0], args[1], s.mem())

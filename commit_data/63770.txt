@@ -1,0 +1,144 @@
+commit bf279b71e247f9676ec18d636b9f70669b653924
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 7 09:38:28 2024 -0700
+
+    go/types, types2: add Alias.{TypeParams, SetTypeParams, TypeArgs, Origin}
+    
+    Fixes #67143.
+    
+    Change-Id: I8bf9c2559f95d3d6a40874454208ae074b68875c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583757
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ api/next/67143.txt                           |  4 ++++
+ doc/next/6-stdlib/99-minor/go/types/67143.md |  2 ++
+ src/cmd/compile/internal/types2/alias.go     | 26 +++++++++++++++++++++++++-
+ src/go/types/alias.go                        | 26 +++++++++++++++++++++++++-
+ 4 files changed, 56 insertions(+), 2 deletions(-)
+
+diff --git a/api/next/67143.txt b/api/next/67143.txt
+new file mode 100644
+index 0000000000..f124034849
+--- /dev/null
++++ b/api/next/67143.txt
+@@ -0,0 +1,4 @@
++pkg go/types, method (*Alias) Origin() *Alias #67143
++pkg go/types, method (*Alias) SetTypeParams([]*TypeParam) #67143
++pkg go/types, method (*Alias) TypeArgs() *TypeList #67143
++pkg go/types, method (*Alias) TypeParams() *TypeParamList #67143
+diff --git a/doc/next/6-stdlib/99-minor/go/types/67143.md b/doc/next/6-stdlib/99-minor/go/types/67143.md
+new file mode 100644
+index 0000000000..405c679378
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/types/67143.md
+@@ -0,0 +1,2 @@
++The methods [Alias.Origin], [Alias.SetTypeParams], [Alias.TypeParams],
++and [Alias.TypeArgs] have been added. They are needed for generic alias types.
+diff --git a/src/cmd/compile/internal/types2/alias.go b/src/cmd/compile/internal/types2/alias.go
+index ecd8637814..68475c54a4 100644
+--- a/src/cmd/compile/internal/types2/alias.go
++++ b/src/cmd/compile/internal/types2/alias.go
+@@ -14,7 +14,9 @@ import "fmt"
+ // which points directly to the actual (aliased) type.
+ type Alias struct {
+ 	obj     *TypeName      // corresponding declared alias object
++	orig    *Alias         // original, uninstantiated alias
+ 	tparams *TypeParamList // type parameters, or nil
++	targs   *TypeList      // type arguments, or nil
+ 	fromRHS Type           // RHS of type alias declaration; may be an alias
+ 	actual  Type           // actual (aliased) type; never an alias
+ }
+@@ -38,6 +40,25 @@ func (a *Alias) String() string { return TypeString(a, nil) }
+ // [underlying type]: https://go.dev/ref/spec#Underlying_types.
+ func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+ 
++// Origin returns the generic Alias type of which a is an instance.
++// If a is not an instance of a generic alias, Origin returns a.
++func (a *Alias) Origin() *Alias { return a.orig }
++
++// TypeParams returns the type parameters of the alias type a, or nil.
++// A generic Alias and its instances have the same type parameters.
++func (a *Alias) TypeParams() *TypeParamList { return a.tparams }
++
++// SetTypeParams sets the type parameters of the alias type a.
++// The alias a must not have type arguments.
++func (a *Alias) SetTypeParams(tparams []*TypeParam) {
++	assert(a.targs == nil)
++	a.tparams = bindTParams(tparams)
++}
++
++// TypeArgs returns the type arguments used to instantiate the Alias type.
++// If a is not an instance of a generic alias, the result is nil.
++func (a *Alias) TypeArgs() *TypeList { return a.targs }
++
+ // Rhs returns the type R on the right-hand side of an alias
+ // declaration "type A = R", which may be another alias.
+ func (a *Alias) Rhs() Type { return a.fromRHS }
+@@ -88,7 +109,10 @@ func asNamed(t Type) *Named {
+ // rhs must not be nil.
+ func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
+ 	assert(rhs != nil)
+-	a := &Alias{obj, nil, rhs, nil}
++	a := new(Alias)
++	a.obj = obj
++	a.orig = a
++	a.fromRHS = rhs
+ 	if obj.typ == nil {
+ 		obj.typ = a
+ 	}
+diff --git a/src/go/types/alias.go b/src/go/types/alias.go
+index 48bf9c0feb..3fdd12ea02 100644
+--- a/src/go/types/alias.go
++++ b/src/go/types/alias.go
+@@ -17,7 +17,9 @@ import "fmt"
+ // which points directly to the actual (aliased) type.
+ type Alias struct {
+ 	obj     *TypeName      // corresponding declared alias object
++	orig    *Alias         // original, uninstantiated alias
+ 	tparams *TypeParamList // type parameters, or nil
++	targs   *TypeList      // type arguments, or nil
+ 	fromRHS Type           // RHS of type alias declaration; may be an alias
+ 	actual  Type           // actual (aliased) type; never an alias
+ }
+@@ -41,6 +43,25 @@ func (a *Alias) String() string { return TypeString(a, nil) }
+ // [underlying type]: https://go.dev/ref/spec#Underlying_types.
+ func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+ 
++// Origin returns the generic Alias type of which a is an instance.
++// If a is not an instance of a generic alias, Origin returns a.
++func (a *Alias) Origin() *Alias { return a.orig }
++
++// TypeParams returns the type parameters of the alias type a, or nil.
++// A generic Alias and its instances have the same type parameters.
++func (a *Alias) TypeParams() *TypeParamList { return a.tparams }
++
++// SetTypeParams sets the type parameters of the alias type a.
++// The alias a must not have type arguments.
++func (a *Alias) SetTypeParams(tparams []*TypeParam) {
++	assert(a.targs == nil)
++	a.tparams = bindTParams(tparams)
++}
++
++// TypeArgs returns the type arguments used to instantiate the Alias type.
++// If a is not an instance of a generic alias, the result is nil.
++func (a *Alias) TypeArgs() *TypeList { return a.targs }
++
+ // Rhs returns the type R on the right-hand side of an alias
+ // declaration "type A = R", which may be another alias.
+ func (a *Alias) Rhs() Type { return a.fromRHS }
+@@ -91,7 +112,10 @@ func asNamed(t Type) *Named {
+ // rhs must not be nil.
+ func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
+ 	assert(rhs != nil)
+-	a := &Alias{obj, nil, rhs, nil}
++	a := new(Alias)
++	a.obj = obj
++	a.orig = a
++	a.fromRHS = rhs
+ 	if obj.typ == nil {
+ 		obj.typ = a
+ 	}

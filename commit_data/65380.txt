@@ -1,0 +1,192 @@
+commit 3d61de41a28b310fedc345d76320829bd08146b3
+Author: Carlana Johnson <mail@carlana.net>
+Date:   Thu Nov 14 19:43:57 2024 +0000
+
+    log/slog: add DiscardHandler
+    
+    This adds a package-level variable, slog.DiscardHandler, which is a
+    slog.Handler which performs no output. This serves a similar purpose
+    to io.Discard.
+    
+    Fixes #62005
+    
+    Change-Id: Ia8babc55f860dec9b663a5c400090a7669608fd5
+    GitHub-Last-Rev: 0a611174ee8819a2f4e1b8e196a60d5acc6ef9f7
+    GitHub-Pull-Request: golang/go#70296
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626486
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ api/next/62005.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/log/slog/62005.md |  1 +
+ src/log/slog/example_discard_test.go         | 23 +++++++++++++++++++++++
+ src/log/slog/handler.go                      | 11 +++++++++++
+ src/log/slog/handler_test.go                 | 21 +++++++++++++++++++++
+ src/log/slog/logger_test.go                  | 21 ++++++++++-----------
+ 6 files changed, 67 insertions(+), 11 deletions(-)
+
+diff --git a/api/next/62005.txt b/api/next/62005.txt
+new file mode 100644
+index 0000000000..73aff4a0ca
+--- /dev/null
++++ b/api/next/62005.txt
+@@ -0,0 +1 @@
++pkg log/slog, var DiscardHandler Handler #62005
+diff --git a/doc/next/6-stdlib/99-minor/log/slog/62005.md b/doc/next/6-stdlib/99-minor/log/slog/62005.md
+new file mode 100644
+index 0000000000..de8802439b
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/log/slog/62005.md
+@@ -0,0 +1 @@
++The new [DiscardHandler] is a handler that is never enabled and always discards its output.
+diff --git a/src/log/slog/example_discard_test.go b/src/log/slog/example_discard_test.go
+new file mode 100644
+index 0000000000..a1aec65bcf
+--- /dev/null
++++ b/src/log/slog/example_discard_test.go
+@@ -0,0 +1,23 @@
++package slog_test
++
++import (
++	"log/slog"
++	"log/slog/internal/slogtest"
++	"os"
++)
++
++func ExampleDiscardHandler() {
++	// A slog.TextHandler can output log messages.
++	logger1 := slog.New(slog.NewTextHandler(
++		os.Stdout,
++		&slog.HandlerOptions{ReplaceAttr: slogtest.RemoveTime},
++	))
++	logger1.Info("message 1")
++
++	// A slog.DiscardHandler will discard all messages.
++	logger2 := slog.New(slog.DiscardHandler)
++	logger2.Info("message 2")
++
++	// Output:
++	// level=INFO msg="message 1"
++}
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 2ff85b582e..1ca4f9dba3 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -602,3 +602,14 @@ func appendRFC3339Millis(b []byte, t time.Time) []byte {
+ 	b = append(b[:n+prefixLen], b[n+prefixLen+1:]...) // drop the 4th digit
+ 	return b
+ }
++
++// DiscardHandler discards all log output.
++// DiscardHandler.Enabled returns false for all Levels.
++var DiscardHandler Handler = discardHandler{}
++
++type discardHandler struct{}
++
++func (dh discardHandler) Enabled(context.Context, Level) bool  { return false }
++func (dh discardHandler) Handle(context.Context, Record) error { return nil }
++func (dh discardHandler) WithAttrs(attrs []Attr) Handler       { return dh }
++func (dh discardHandler) WithGroup(name string) Handler        { return dh }
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 8ce34526d0..d34025f1bb 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"context"
+ 	"encoding/json"
+ 	"io"
++	"os"
+ 	"path/filepath"
+ 	"slices"
+ 	"strconv"
+@@ -711,3 +712,23 @@ func BenchmarkWriteTime(b *testing.B) {
+ 		buf = appendRFC3339Millis(buf[:0], tm)
+ 	}
+ }
++
++func TestDiscardHandler(t *testing.T) {
++	ctx := context.Background()
++	stdout, stderr := os.Stdout, os.Stderr
++	os.Stdout, os.Stderr = nil, nil // panic on write
++	t.Cleanup(func() {
++		os.Stdout, os.Stderr = stdout, stderr
++	})
++
++	// Just ensure nothing panics during normal usage
++	l := New(DiscardHandler)
++	l.Info("msg", "a", 1, "b", 2)
++	l.Debug("bg", Int("a", 1), "b", 2)
++	l.Warn("w", Duration("dur", 3*time.Second))
++	l.Error("bad", "a", 1)
++	l.Log(ctx, LevelWarn+1, "w", Int("a", 1), String("b", "two"))
++	l.LogAttrs(ctx, LevelInfo+1, "a b c", Int("a", 1), String("b", "two"))
++	l.Info("info", "a", []Attr{Int("i", 1)})
++	l.Info("info", "a", GroupValue(Int("i", 1)))
++}
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index 9efd4ed0e9..0f1b2113c1 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -231,7 +231,7 @@ func TestCallDepth(t *testing.T) {
+ 
+ func TestAlloc(t *testing.T) {
+ 	ctx := context.Background()
+-	dl := New(discardHandler{})
++	dl := New(discardTestHandler{})
+ 	defer SetDefault(Default()) // restore
+ 	SetDefault(dl)
+ 
+@@ -258,7 +258,7 @@ func TestAlloc(t *testing.T) {
+ 		})
+ 	})
+ 	t.Run("2 pairs disabled inline", func(t *testing.T) {
+-		l := New(discardHandler{disabled: true})
++		l := New(DiscardHandler)
+ 		s := "abc"
+ 		i := 2000
+ 		wantAllocs(t, 2, func() {
+@@ -269,7 +269,7 @@ func TestAlloc(t *testing.T) {
+ 		})
+ 	})
+ 	t.Run("2 pairs disabled", func(t *testing.T) {
+-		l := New(discardHandler{disabled: true})
++		l := New(DiscardHandler)
+ 		s := "abc"
+ 		i := 2000
+ 		wantAllocs(t, 0, func() {
+@@ -305,7 +305,7 @@ func TestAlloc(t *testing.T) {
+ 		})
+ 	})
+ 	t.Run("attrs3 disabled", func(t *testing.T) {
+-		logger := New(discardHandler{disabled: true})
++		logger := New(DiscardHandler)
+ 		wantAllocs(t, 0, func() {
+ 			logger.LogAttrs(ctx, LevelInfo, "hello", Int("a", 1), String("b", "two"), Duration("c", time.Second))
+ 		})
+@@ -568,18 +568,17 @@ func (c *captureHandler) clear() {
+ 	c.r = Record{}
+ }
+ 
+-type discardHandler struct {
+-	disabled bool
+-	attrs    []Attr
++type discardTestHandler struct {
++	attrs []Attr
+ }
+ 
+-func (d discardHandler) Enabled(context.Context, Level) bool { return !d.disabled }
+-func (discardHandler) Handle(context.Context, Record) error  { return nil }
+-func (d discardHandler) WithAttrs(as []Attr) Handler {
++func (d discardTestHandler) Enabled(context.Context, Level) bool { return true }
++func (discardTestHandler) Handle(context.Context, Record) error  { return nil }
++func (d discardTestHandler) WithAttrs(as []Attr) Handler {
+ 	d.attrs = concat(d.attrs, as)
+ 	return d
+ }
+-func (h discardHandler) WithGroup(name string) Handler {
++func (h discardTestHandler) WithGroup(name string) Handler {
+ 	return h
+ }
+ 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 18650: f9b384f554143901ddf771214bfacf8041862f0c
+# Index 18650: a025e1caac516c967486f4644fbe4c647100b632
 
 echo "🚀 Generating explanation for commit 18650..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 18650..."
 
 ### メタデータ
 - **コミットインデックス**: 18650
-- **コミットハッシュ**: f9b384f554143901ddf771214bfacf8041862f0c
-- **GitHub URL**: https://github.com/golang/go/commit/f9b384f554143901ddf771214bfacf8041862f0c
+- **コミットハッシュ**: a025e1caac516c967486f4644fbe4c647100b632
+- **GitHub URL**: https://github.com/golang/go/commit/a025e1caac516c967486f4644fbe4c647100b632
 
 ### 章構成
 

@@ -1,0 +1,251 @@
+commit f9ce1dddc264cb30e68bfedbabf159b32bb6a719
+Author: Julien Cretel <jub0bsinthecloud@gmail.com>
+Date:   Tue Apr 22 16:49:42 2025 +0000
+
+    mime: speed up ParseMediaType
+    
+    Add benchmarks for ParseMediaType.
+    
+    Eschew UTF-8 decoding and strings.IndexFunc where possible, and rely
+    on 128-bit bitmaps instead. Eliminate some bounds checks.
+    
+    Some benchmark results (no changes to allocations):
+    
+    goos: darwin
+    goarch: amd64
+    pkg: mime
+    cpu: Intel(R) Core(TM) i7-6700HQ CPU @ 2.60GHz
+                          │     old     │                 new                 │
+                          │   sec/op    │   sec/op     vs base                │
+    ParseMediaType-8        71.75µ ± 0%   55.53µ ± 0%  -22.60% (p=0.000 n=20)
+    ParseMediaTypeBogus-8   5.330µ ± 0%   3.603µ ± 0%  -32.41% (p=0.000 n=20)
+    geomean                 19.56µ        14.14µ       -27.67%
+    
+    Change-Id: I324c9990fe43581484916ecff61ca6c708467a89
+    GitHub-Last-Rev: e2293d64b3852722bef920169eaa44e7ded3111c
+    GitHub-Pull-Request: golang/go#73436
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666655
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+---
+ src/mime/grammar.go        | 73 +++++++++++++++++++++++++++++++++++++++-------
+ src/mime/mediatype.go      | 20 +++++--------
+ src/mime/mediatype_test.go | 27 +++++++++++++++--
+ 3 files changed, 93 insertions(+), 27 deletions(-)
+
+diff --git a/src/mime/grammar.go b/src/mime/grammar.go
+index 6a6f71dbd4..cc578fbcfd 100644
+--- a/src/mime/grammar.go
++++ b/src/mime/grammar.go
+@@ -4,22 +4,68 @@
+ 
+ package mime
+ 
+-import (
+-	"strings"
+-)
+-
+-// isTSpecial reports whether rune is in 'tspecials' as defined by RFC
++// isTSpecial reports whether c is in 'tspecials' as defined by RFC
+ // 1521 and RFC 2045.
+-func isTSpecial(r rune) bool {
+-	return strings.ContainsRune(`()<>@,;:\"/[]?=`, r)
++func isTSpecial(c byte) bool {
++	// tspecials :=  "(" / ")" / "<" / ">" / "@" /
++	//               "," / ";" / ":" / "\" / <">
++	//               "/" / "[" / "]" / "?" / "="
++	//
++	// mask is a 128-bit bitmap with 1s for allowed bytes,
++	// so that the byte c can be tested with a shift and an and.
++	// If c >= 128, then 1<<c and 1<<(c-64) will both be zero,
++	// and this function will return false.
++	const mask = 0 |
++		1<<'(' |
++		1<<')' |
++		1<<'<' |
++		1<<'>' |
++		1<<'@' |
++		1<<',' |
++		1<<';' |
++		1<<':' |
++		1<<'\\' |
++		1<<'"' |
++		1<<'/' |
++		1<<'[' |
++		1<<']' |
++		1<<'?' |
++		1<<'='
++	return ((uint64(1)<<c)&(mask&(1<<64-1)) |
++		(uint64(1)<<(c-64))&(mask>>64)) != 0
+ }
+ 
+-// isTokenChar reports whether rune is in 'token' as defined by RFC
++// isTokenChar reports whether c is in 'token' as defined by RFC
+ // 1521 and RFC 2045.
+-func isTokenChar(r rune) bool {
++func isTokenChar(c byte) bool {
+ 	// token := 1*<any (US-ASCII) CHAR except SPACE, CTLs,
+ 	//             or tspecials>
+-	return r > 0x20 && r < 0x7f && !isTSpecial(r)
++	//
++	// mask is a 128-bit bitmap with 1s for allowed bytes,
++	// so that the byte c can be tested with a shift and an and.
++	// If c >= 128, then 1<<c and 1<<(c-64) will both be zero,
++	// and this function will return false.
++	const mask = 0 |
++		(1<<(10)-1)<<'0' |
++		(1<<(26)-1)<<'a' |
++		(1<<(26)-1)<<'A' |
++		1<<'!' |
++		1<<'#' |
++		1<<'$' |
++		1<<'%' |
++		1<<'&' |
++		1<<'\'' |
++		1<<'*' |
++		1<<'+' |
++		1<<'-' |
++		1<<'.' |
++		1<<'^' |
++		1<<'_' |
++		1<<'`' |
++		1<<'|' |
++		1<<'~'
++	return ((uint64(1)<<c)&(mask&(1<<64-1)) |
++		(uint64(1)<<(c-64))&(mask>>64)) != 0
+ }
+ 
+ // isToken reports whether s is a 'token' as defined by RFC 1521
+@@ -28,5 +74,10 @@ func isToken(s string) bool {
+ 	if s == "" {
+ 		return false
+ 	}
+-	return strings.IndexFunc(s, isNotTokenChar) < 0
++	for _, c := range []byte(s) {
++		if !isTokenChar(c) {
++			return false
++		}
++	}
++	return true
+ }
+diff --git a/src/mime/mediatype.go b/src/mime/mediatype.go
+index f0a0be2155..66684a68b2 100644
+--- a/src/mime/mediatype.go
++++ b/src/mime/mediatype.go
+@@ -60,7 +60,7 @@ func FormatMediaType(t string, param map[string]string) string {
+ 				// attribute-char := <any (US-ASCII) CHAR except SPACE, CTLs, "*", "'", "%", or tspecials>
+ 				if ch <= ' ' || ch >= 0x7F ||
+ 					ch == '*' || ch == '\'' || ch == '%' ||
+-					isTSpecial(rune(ch)) {
++					isTSpecial(ch) {
+ 
+ 					b.WriteString(value[offset:index])
+ 					offset = index + 1
+@@ -250,23 +250,17 @@ func decode2231Enc(v string) (string, bool) {
+ 	return encv, true
+ }
+ 
+-func isNotTokenChar(r rune) bool {
+-	return !isTokenChar(r)
+-}
+-
+ // consumeToken consumes a token from the beginning of provided
+ // string, per RFC 2045 section 5.1 (referenced from 2183), and return
+ // the token consumed and the rest of the string. Returns ("", v) on
+ // failure to consume at least one character.
+ func consumeToken(v string) (token, rest string) {
+-	notPos := strings.IndexFunc(v, isNotTokenChar)
+-	if notPos == -1 {
+-		return v, ""
+-	}
+-	if notPos == 0 {
+-		return "", v
++	for i := range len(v) {
++		if !isTokenChar(v[i]) {
++			return v[:i], v[i:]
++		}
+ 	}
+-	return v[0:notPos], v[notPos:]
++	return v, ""
+ }
+ 
+ // consumeValue consumes a "value" per RFC 2045, where a value is
+@@ -299,7 +293,7 @@ func consumeValue(v string) (value, rest string) {
+ 		// and intended as a literal backslash. This makes Go servers deal better
+ 		// with MSIE without affecting the way they handle conforming MIME
+ 		// generators.
+-		if r == '\\' && i+1 < len(v) && isTSpecial(rune(v[i+1])) {
++		if r == '\\' && i+1 < len(v) && isTSpecial(v[i+1]) {
+ 			buffer.WriteByte(v[i+1])
+ 			i++
+ 			continue
+diff --git a/src/mime/mediatype_test.go b/src/mime/mediatype_test.go
+index 1731f7361e..251df8d669 100644
+--- a/src/mime/mediatype_test.go
++++ b/src/mime/mediatype_test.go
+@@ -96,7 +96,9 @@ type mediaTypeTest struct {
+ 	p  map[string]string
+ }
+ 
+-func TestParseMediaType(t *testing.T) {
++var parseMediaTypeTests []mediaTypeTest
++
++func init() {
+ 	// Convenience map initializer
+ 	m := func(s ...string) map[string]string {
+ 		sm := make(map[string]string)
+@@ -107,7 +109,7 @@ func TestParseMediaType(t *testing.T) {
+ 	}
+ 
+ 	nameFoo := map[string]string{"name": "foo"}
+-	tests := []mediaTypeTest{
++	parseMediaTypeTests = []mediaTypeTest{
+ 		{`form-data; name="foo"`, "form-data", nameFoo},
+ 		{` form-data ; name=foo`, "form-data", nameFoo},
+ 		{`FORM-DATA;name="foo"`, "form-data", nameFoo},
+@@ -412,7 +414,10 @@ func TestParseMediaType(t *testing.T) {
+ 		{`text; charset=utf-8; charset=utf-8; format=fixed`, "text", m("charset", "utf-8", "format", "fixed")},
+ 		{`text; charset=utf-8; format=flowed; charset=utf-8`, "text", m("charset", "utf-8", "format", "flowed")},
+ 	}
+-	for _, test := range tests {
++}
++
++func TestParseMediaType(t *testing.T) {
++	for _, test := range parseMediaTypeTests {
+ 		mt, params, err := ParseMediaType(test.in)
+ 		if err != nil {
+ 			if test.t != "" {
+@@ -438,6 +443,14 @@ func TestParseMediaType(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkParseMediaType(b *testing.B) {
++	for range b.N {
++		for _, test := range parseMediaTypeTests {
++			ParseMediaType(test.in)
++		}
++	}
++}
++
+ type badMediaTypeTest struct {
+ 	in  string
+ 	mt  string
+@@ -486,6 +499,14 @@ func TestParseMediaTypeBogus(t *testing.T) {
+ 	}
+ }
+ 
++func BenchmarkParseMediaTypeBogus(b *testing.B) {
++	for range b.N {
++		for _, test := range badMediaTypeTests {
++			ParseMediaType(test.in)
++		}
++	}
++}
++
+ type formatTest struct {
+ 	typ    string
+ 	params map[string]string

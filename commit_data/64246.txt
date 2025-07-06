@@ -1,0 +1,314 @@
+commit 7321aa91c6c7f4c7faa59819a2013971712eba84
+Author: Rob Findley <rfindley@google.com>
+Date:   Wed Jul 17 20:18:06 2024 +0000
+
+    cmd: vendor golang.org/x/telemetry@0b706e1
+    
+    Update x/telemetry to fix problems caused by the file rotation timer.
+    
+    Commands run:
+      go get golang.org/x/telemetry@0b706e1
+      go mod tidy
+      go mod vendor
+    
+    Fixes golang/go#68497
+    
+    Change-Id: I29861ec89dfaaf260eb051eb23ab9251903b5ea8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598957
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 ++--
+ src/cmd/vendor/golang.org/x/telemetry/LICENSE      |  4 ++--
+ .../golang.org/x/telemetry/counter/counter.go      | 17 +++++++++++--
+ .../x/telemetry/counter/countertest/countertest.go |  3 +++
+ .../x/telemetry/internal/counter/file.go           | 28 ++++++++++++++++++----
+ .../x/telemetry/internal/telemetry/dir.go          |  6 ++---
+ .../x/telemetry/internal/telemetry/types.go        |  6 ++---
+ .../golang.org/x/telemetry/internal/upload/date.go |  2 +-
+ .../x/telemetry/internal/upload/reports.go         |  2 +-
+ .../x/telemetry/internal/upload/upload.go          |  6 ++---
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 12 files changed, 58 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index f568996fd0..49f02012d3 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.19.0
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.22.0
+-	golang.org/x/telemetry v0.0.0-20240712210958-268b4a8ec2d7
++	golang.org/x/telemetry v0.0.0-20240717194752-0b706e19b701
+ 	golang.org/x/term v0.20.0
+ 	golang.org/x/tools v0.22.1-0.20240618181713-f2d2ebe43e72
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index f822fa372a..ee671f9512 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,8 +16,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.22.0 h1:RI27ohtqKCnwULzJLqkv897zojh5/DwS/ENaMzUOaWI=
+ golang.org/x/sys v0.22.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240712210958-268b4a8ec2d7 h1:nU8/tAV/21mkPrCjACUeSibjhynTovgRMXc32+Y1Aec=
+-golang.org/x/telemetry v0.0.0-20240712210958-268b4a8ec2d7/go.mod h1:amNmu/SBSm2GAF3X+9U2C0epLocdh+r5Z+7oMYO5cLM=
++golang.org/x/telemetry v0.0.0-20240717194752-0b706e19b701 h1:+bltxAtk8YFEQ61B/lcYQM8e+7XjLwSDbpspVaVYkz8=
++golang.org/x/telemetry v0.0.0-20240717194752-0b706e19b701/go.mod h1:amNmu/SBSm2GAF3X+9U2C0epLocdh+r5Z+7oMYO5cLM=
+ golang.org/x/term v0.20.0 h1:VnkxpohqXaOBYJtBmEppKUG6mXpi+4O6purfc2+sMhw=
+ golang.org/x/term v0.20.0/go.mod h1:8UkIAJTvZgivsXaD6/pH6U9ecQzZ45awqEOzuCvwpFY=
+ golang.org/x/text v0.16.0 h1:a94ExnEXNtEwYLGJSIUxnWoxoRz/ZcCsV63ROupILh4=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/LICENSE b/src/cmd/vendor/golang.org/x/telemetry/LICENSE
+index 6a66aea5ea..2a7cf70da6 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/LICENSE
++++ b/src/cmd/vendor/golang.org/x/telemetry/LICENSE
+@@ -1,4 +1,4 @@
+-Copyright (c) 2009 The Go Authors. All rights reserved.
++Copyright 2009 The Go Authors.
+ 
+ Redistribution and use in source and binary forms, with or without
+ modification, are permitted provided that the following conditions are
+@@ -10,7 +10,7 @@ notice, this list of conditions and the following disclaimer.
+ copyright notice, this list of conditions and the following disclaimer
+ in the documentation and/or other materials provided with the
+ distribution.
+-   * Neither the name of Google Inc. nor the names of its
++   * Neither the name of Google LLC nor the names of its
+ contributors may be used to endorse or promote products derived from
+ this software without specific prior written permission.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+index ff727ad97c..fe2d0f693f 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/counter.go
+@@ -83,8 +83,21 @@ func NewStack(name string, depth int) *StackCounter {
+ // If the telemetry mode is "off", Open is a no-op. Otherwise, it opens the
+ // counter file on disk and starts to mmap telemetry counters to the file.
+ // Open also persists any counters already created in the current process.
++//
++// Open should only be called from short-lived processes such as command line
++// tools. If your process is long-running, use [OpenAndRotate].
+ func Open() {
+-	counter.Open()
++	counter.Open(false)
++}
++
++// OpenAndRotate is like [Open], but also schedules a rotation of the counter
++// file when it expires.
++//
++// See golang/go#68497 for background on why [OpenAndRotate] is a separate API.
++//
++// TODO(rfindley): refactor Open and OpenAndRotate for Go 1.24.
++func OpenAndRotate() {
++	counter.Open(true)
+ }
+ 
+ // OpenDir prepares telemetry counters for recording to the file system, using
+@@ -97,7 +110,7 @@ func OpenDir(telemetryDir string) {
+ 	if telemetryDir != "" {
+ 		telemetry.Default = telemetry.NewDir(telemetryDir)
+ 	}
+-	counter.Open()
++	counter.Open(false)
+ }
+ 
+ // CountFlags creates a counter for every flag that is set
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/countertest/countertest.go b/src/cmd/vendor/golang.org/x/telemetry/counter/countertest/countertest.go
+index dc8bb112b1..533f5e538d 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/countertest/countertest.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/countertest/countertest.go
+@@ -40,6 +40,9 @@ func Open(telemetryDir string) {
+ 	}
+ 	telemetry.Default = telemetry.NewDir(telemetryDir)
+ 
++	// TODO(rfindley): reinstate test coverage with counter rotation enabled.
++	// Before the [counter.Open] and [counter.OpenAndRotate] APIs were split,
++	// this called counter.Open (which rotated!).
+ 	counter.Open()
+ 	opened = true
+ }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index 4fe9e577b1..5df6dd7249 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -297,7 +297,7 @@ func (f *file) rotate1() time.Time {
+ 		goVers,
+ 		runtime.GOOS,
+ 		runtime.GOARCH,
+-		f.timeBegin.Format("2006-01-02"),
++		f.timeBegin.Format(time.DateOnly),
+ 		FileVersion,
+ 	)
+ 	dir := telemetry.Default.LocalDir()
+@@ -357,27 +357,42 @@ func (f *file) newCounter1(name string) (v *atomic.Uint64, cleanup func()) {
+ 	return v, cleanup
+ }
+ 
+-var openOnce sync.Once
++var (
++	openOnce sync.Once
++	// rotating reports whether the call to Open had rotate = true.
++	//
++	// In golang/go#68497, we observed that file rotation can break runtime
++	// deadlock detection. To minimize the fix for 1.23, we are splitting the
++	// Open API into one version that rotates the counter file, and another that
++	// does not. The rotating variable guards against use of both APIs from the
++	// same process.
++	rotating bool
++)
+ 
+ // Open associates counting with the defaultFile.
+ // The returned function is for testing only, and should
+ // be called after all Inc()s are finished, but before
+ // any reports are generated.
+ // (Otherwise expired count files will not be deleted on Windows.)
+-func Open() func() {
++func Open(rotate bool) func() {
+ 	if telemetry.DisabledOnPlatform {
+ 		return func() {}
+ 	}
+ 	close := func() {}
+ 	openOnce.Do(func() {
++		rotating = rotate
+ 		if mode, _ := telemetry.Default.Mode(); mode == "off" {
+ 			// Don't open the file when telemetry is off.
+ 			defaultFile.err = ErrDisabled
+ 			// No need to clean up.
+ 			return
+ 		}
+-		debugPrintf("Open")
+-		defaultFile.rotate()
++		debugPrintf("Open(%v)", rotate)
++		if rotate {
++			defaultFile.rotate() // calls rotate1 and schedules a rotation
++		} else {
++			defaultFile.rotate1()
++		}
+ 		close = func() {
+ 			// Once this has been called, the defaultFile is no longer usable.
+ 			mf := defaultFile.current.Load()
+@@ -388,6 +403,9 @@ func Open() func() {
+ 			mf.close()
+ 		}
+ 	})
++	if rotating != rotate {
++		panic("BUG: Open called with inconsistent values for 'rotate'")
++	}
+ 	return close
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
+index 915b5cadbe..dd7a63c816 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
+@@ -102,9 +102,9 @@ func (d Dir) SetModeAsOf(mode string, asofTime time.Time) error {
+ 		return fmt.Errorf("cannot create a telemetry mode file: %w", err)
+ 	}
+ 
+-	asof := asofTime.UTC().Format("2006-01-02")
++	asof := asofTime.UTC().Format(time.DateOnly)
+ 	// Defensively guarantee that we can parse the asof time.
+-	if _, err := time.Parse("2006-01-02", asof); err != nil {
++	if _, err := time.Parse(time.DateOnly, asof); err != nil {
+ 		return fmt.Errorf("internal error: invalid mode date %q: %v", asof, err)
+ 	}
+ 
+@@ -136,7 +136,7 @@ func (d Dir) Mode() (string, time.Time) {
+ 	//
+ 	// If the modefile contains a date, return it.
+ 	if idx := strings.Index(mode, " "); idx >= 0 {
+-		d, err := time.Parse("2006-01-02", mode[idx+1:])
++		d, err := time.Parse(time.DateOnly, mode[idx+1:])
+ 		if err != nil {
+ 			d = time.Time{}
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
+index 7c788b3415..69053dc181 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/types.go
+@@ -41,9 +41,9 @@ type Report struct {
+ }
+ 
+ type ProgramReport struct {
+-	Program   string
+-	Version   string
+-	GoVersion string
++	Program   string // Package path of the program.
++	Version   string // Program version. Go version if the program is part of the go distribution. Module version, otherwise.
++	GoVersion string // Go version used to build the program.
+ 	GOOS      string
+ 	GOARCH    string
+ 	Counters  map[string]int64
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
+index 22e4e8aa30..b054b46a62 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
+@@ -19,7 +19,7 @@ var distantPast = 21 * 24 * time.Hour
+ 
+ // reports that are too old (21 days) are not uploaded
+ func (u *uploader) tooOld(date string, uploadStartTime time.Time) bool {
+-	t, err := time.Parse("2006-01-02", date)
++	t, err := time.Parse(time.DateOnly, date)
+ 	if err != nil {
+ 		u.logger.Printf("tooOld: %v", err)
+ 		return false
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+index 31bda70676..8b17e325d4 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+@@ -26,7 +26,7 @@ func (u *uploader) reports(todo *work) ([]string, error) {
+ 		return nil, nil // no reports
+ 	}
+ 	thisInstant := u.startTime
+-	today := thisInstant.Format("2006-01-02")
++	today := thisInstant.Format(time.DateOnly)
+ 	lastWeek := latestReport(todo.uploaded)
+ 	if lastWeek >= today { //should never happen
+ 		lastWeek = ""
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+index aa0f4f0c87..5643241c1b 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+@@ -16,7 +16,7 @@ import (
+ 
+ var (
+ 	dateRE     = regexp.MustCompile(`(\d\d\d\d-\d\d-\d\d)[.]json$`)
+-	dateFormat = "2006-01-02"
++	dateFormat = time.DateOnly
+ 	// TODO(rfindley): use dateFormat throughout.
+ )
+ 
+@@ -41,7 +41,7 @@ func (u *uploader) uploadReport(fname string) {
+ 	// TODO(rfindley): use uploadReportDate here, once we've done a gopls release.
+ 
+ 	// first make sure it is not in the future
+-	today := thisInstant.Format("2006-01-02")
++	today := thisInstant.Format(time.DateOnly)
+ 	match := dateRE.FindStringSubmatch(fname)
+ 	if match == nil || len(match) < 2 {
+ 		u.logger.Printf("Report name %q missing date", filepath.Base(fname))
+@@ -62,7 +62,7 @@ func (u *uploader) uploadReport(fname string) {
+ // try to upload the report, 'true' if successful
+ func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
+ 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
+-	fdate = fdate[len(fdate)-len("2006-01-02"):]
++	fdate = fdate[len(fdate)-len(time.DateOnly):]
+ 
+ 	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
+ 
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 8a3cc87dcb..bf9c1341b9 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240712210958-268b4a8ec2d7
++# golang.org/x/telemetry v0.0.0-20240717194752-0b706e19b701
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

@@ -1,0 +1,56 @@
+commit 4b767cf6fd31c8459378cb3298c46245202aea63
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 19 14:28:41 2024 -0700
+
+    os: simplify TestRemoveAllDot
+    
+    Use t.Chdir and t.TempDir to simplify test case code.
+    
+    Change-Id: If4de06d2373100ce53a5b8f6702d5f4866e3b23d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606897
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/os/removeall_test.go | 23 ++---------------------
+ 1 file changed, 2 insertions(+), 21 deletions(-)
+
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 454a6b5d0a..474db2cac8 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -187,30 +187,11 @@ func TestRemoveAllLongPath(t *testing.T) {
+ }
+ 
+ func TestRemoveAllDot(t *testing.T) {
+-	prevDir, err := Getwd()
+-	if err != nil {
+-		t.Fatalf("Could not get wd: %s", err)
+-	}
+-	tempDir, err := MkdirTemp("", "TestRemoveAllDot-")
+-	if err != nil {
+-		t.Fatalf("Could not create TempDir: %s", err)
+-	}
+-	defer RemoveAll(tempDir)
++	t.Chdir(t.TempDir())
+ 
+-	err = Chdir(tempDir)
+-	if err != nil {
+-		t.Fatalf("Could not chdir to tempdir: %s", err)
+-	}
+-
+-	err = RemoveAll(".")
+-	if err == nil {
++	if err := RemoveAll("."); err == nil {
+ 		t.Errorf("RemoveAll succeed to remove .")
+ 	}
+-
+-	err = Chdir(prevDir)
+-	if err != nil {
+-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
+-	}
+ }
+ 
+ func TestRemoveAllDotDot(t *testing.T) {

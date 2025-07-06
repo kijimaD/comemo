@@ -1,0 +1,247 @@
+commit 20e18c95504b047c5ba82d252318de625fabfa70
+Author: Diego Augusto Molina <diegoaugustomolina@gmail.com>
+Date:   Tue Jun 25 22:15:16 2024 -0300
+
+    unicode/utf8: AppendRune and EncodeRune performance improvement
+    
+    - Prefer the evaluation of the valid higher byte-width runes branches
+    over the one for invalid ones
+    - Avoid the evaluation of the bytes of the RuneError constant, and
+    instead hard code its byte values
+    - EncodeRune only: inline for fast handling of ASCII
+    
+    goos: linux
+    goarch: amd64
+    pkg: unicode/utf8
+    cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+                                  │ baseline.test-append.txt │ append-rune-invalid-case-last.test.txt │
+                                  │          sec/op          │     sec/op      vs base                │
+    AppendASCIIRune-8                           0.2135n ± 0%     0.2135n ± 0%        ~ (p=0.578 n=20)
+    AppendSpanishRune-8                          1.645n ± 1%      1.509n ± 2%   -8.30% (p=0.000 n=20)
+    AppendJapaneseRune-8                         2.196n ± 1%      2.004n ± 1%   -8.74% (p=0.000 n=20)
+    AppendMaxRune-8                              2.670n ± 1%      2.349n ± 3%  -12.01% (p=0.000 n=20)
+    AppendInvalidRuneMaxPlusOne-8                2.214n ± 2%      1.798n ± 3%  -18.77% (p=0.000 n=20)
+    AppendInvalidRuneSurrogate-8                 2.258n ± 1%      1.793n ± 2%  -20.59% (p=0.000 n=20)
+    AppendInvalidRuneNegative-8                  2.171n ± 2%      1.767n ± 2%  -18.61% (p=0.000 n=20)
+    geomean                                      1.559n           1.361n       -12.69%
+    
+    goos: linux
+    goarch: amd64
+    pkg: unicode/utf8
+    cpu: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz
+                                  │ baseline.test-encode.txt │     encode-rune-invalid-last.txt     │
+                                  │          sec/op          │    sec/op     vs base                │
+    EncodeASCIIRune-8                           1.0950n ± 1%   0.2140n ± 0%  -80.46% (p=0.000 n=20)
+    EncodeSpanishRune-8                          1.499n ± 0%    1.414n ± 2%   -5.64% (p=0.000 n=20)
+    EncodeJapaneseRune-8                         1.960n ± 2%    1.716n ± 4%  -12.43% (p=0.000 n=20)
+    EncodeMaxRune-8                              2.145n ± 2%    2.227n ± 1%   +3.78% (p=0.000 n=20)
+    EncodeInvalidRuneMaxPlusOne-8                1.955n ± 2%    1.802n ± 2%   -7.80% (p=0.000 n=20)
+    EncodeInvalidRuneSurrogate-8                 1.946n ± 3%    1.777n ± 2%   -8.68% (p=0.000 n=20)
+    EncodeInvalidRuneNegative-8                  1.968n ± 2%    1.766n ± 2%  -10.29% (p=0.000 n=20)
+    geomean                                      1.757n         1.308n       -25.57%
+    
+    Fixes #68131
+    
+    Change-Id: Ibcafa75d63cca07a2e78cd06f6f1e382cb8c716e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/unicode/utf8/utf8.go      | 40 ++++++++++++++--------
+ src/unicode/utf8/utf8_test.go | 78 ++++++++++++++++++++++++++++++++++++++++---
+ 2 files changed, 101 insertions(+), 17 deletions(-)
+
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index c7389d4d6f..1c1391d55b 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -61,6 +61,12 @@ const (
+ 	s7 = 0x44 // accept 4, size 4
+ )
+ 
++const (
++	runeErrorByte0 = t3 | (RuneError >> 12)
++	runeErrorByte1 = tx | (RuneError>>6)&maskx
++	runeErrorByte2 = tx | RuneError&maskx
++)
++
+ // first is information about the first byte in a UTF-8 sequence.
+ var first = [256]uint8{
+ 	//   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
+@@ -340,32 +346,41 @@ func RuneLen(r rune) int {
+ // If the rune is out of range, it writes the encoding of [RuneError].
+ // It returns the number of bytes written.
+ func EncodeRune(p []byte, r rune) int {
+-	// Negative values are erroneous. Making it unsigned addresses the problem.
+-	switch i := uint32(r); {
+-	case i <= rune1Max:
++	// This function is inlineable for fast handling of ASCII.
++	if uint32(r) <= rune1Max {
+ 		p[0] = byte(r)
+ 		return 1
++	}
++	return encodeRuneNonASCII(p, r)
++}
++
++func encodeRuneNonASCII(p []byte, r rune) int {
++	// Negative values are erroneous. Making it unsigned addresses the problem.
++	switch i := uint32(r); {
+ 	case i <= rune2Max:
+ 		_ = p[1] // eliminate bounds checks
+ 		p[0] = t2 | byte(r>>6)
+ 		p[1] = tx | byte(r)&maskx
+ 		return 2
+-	case i > MaxRune, surrogateMin <= i && i <= surrogateMax:
+-		r = RuneError
+-		fallthrough
+-	case i <= rune3Max:
++	case i < surrogateMin, surrogateMax < i && i <= rune3Max:
+ 		_ = p[2] // eliminate bounds checks
+ 		p[0] = t3 | byte(r>>12)
+ 		p[1] = tx | byte(r>>6)&maskx
+ 		p[2] = tx | byte(r)&maskx
+ 		return 3
+-	default:
++	case i > rune3Max && i <= MaxRune:
+ 		_ = p[3] // eliminate bounds checks
+ 		p[0] = t4 | byte(r>>18)
+ 		p[1] = tx | byte(r>>12)&maskx
+ 		p[2] = tx | byte(r>>6)&maskx
+ 		p[3] = tx | byte(r)&maskx
+ 		return 4
++	default:
++		_ = p[2] // eliminate bounds checks
++		p[0] = runeErrorByte0
++		p[1] = runeErrorByte1
++		p[2] = runeErrorByte2
++		return 3
+ 	}
+ }
+ 
+@@ -385,13 +400,12 @@ func appendRuneNonASCII(p []byte, r rune) []byte {
+ 	switch i := uint32(r); {
+ 	case i <= rune2Max:
+ 		return append(p, t2|byte(r>>6), tx|byte(r)&maskx)
+-	case i > MaxRune, surrogateMin <= i && i <= surrogateMax:
+-		r = RuneError
+-		fallthrough
+-	case i <= rune3Max:
++	case i < surrogateMin, surrogateMax < i && i <= rune3Max:
+ 		return append(p, t3|byte(r>>12), tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
+-	default:
++	case i > rune3Max && i <= MaxRune:
+ 		return append(p, t4|byte(r>>18), tx|byte(r>>12)&maskx, tx|byte(r>>6)&maskx, tx|byte(r)&maskx)
++	default:
++		return append(p, runeErrorByte0, runeErrorByte1, runeErrorByte2)
+ 	}
+ }
+ 
+diff --git a/src/unicode/utf8/utf8_test.go b/src/unicode/utf8/utf8_test.go
+index 19a04dc92e..fa23419b36 100644
+--- a/src/unicode/utf8/utf8_test.go
++++ b/src/unicode/utf8/utf8_test.go
+@@ -641,28 +641,98 @@ func init() {
+ func BenchmarkEncodeASCIIRune(b *testing.B) {
+ 	buf := make([]byte, UTFMax)
+ 	for i := 0; i < b.N; i++ {
+-		EncodeRune(buf, 'a')
++		EncodeRune(buf, 'a') // 1 byte
++	}
++}
++
++func BenchmarkEncodeSpanishRune(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		EncodeRune(buf, 'Ñ') // 2 bytes
+ 	}
+ }
+ 
+ func BenchmarkEncodeJapaneseRune(b *testing.B) {
+ 	buf := make([]byte, UTFMax)
+ 	for i := 0; i < b.N; i++ {
+-		EncodeRune(buf, '本')
++		EncodeRune(buf, '本') // 3 bytes
++	}
++}
++
++func BenchmarkEncodeMaxRune(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		EncodeRune(buf, MaxRune) // 4 bytes
++	}
++}
++
++func BenchmarkEncodeInvalidRuneMaxPlusOne(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		EncodeRune(buf, MaxRune+1) // 3 bytes: RuneError
++	}
++}
++
++func BenchmarkEncodeInvalidRuneSurrogate(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		EncodeRune(buf, 0xD800) // 3 bytes: RuneError
++	}
++}
++
++func BenchmarkEncodeInvalidRuneNegative(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		EncodeRune(buf, -1) // 3 bytes: RuneError
+ 	}
+ }
+ 
+ func BenchmarkAppendASCIIRune(b *testing.B) {
+ 	buf := make([]byte, UTFMax)
+ 	for i := 0; i < b.N; i++ {
+-		AppendRune(buf[:0], 'a')
++		AppendRune(buf[:0], 'a') // 1 byte
++	}
++}
++
++func BenchmarkAppendSpanishRune(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		AppendRune(buf[:0], 'Ñ') // 2 bytes
+ 	}
+ }
+ 
+ func BenchmarkAppendJapaneseRune(b *testing.B) {
+ 	buf := make([]byte, UTFMax)
+ 	for i := 0; i < b.N; i++ {
+-		AppendRune(buf[:0], '本')
++		AppendRune(buf[:0], '本') // 3 bytes
++	}
++}
++
++func BenchmarkAppendMaxRune(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		AppendRune(buf[:0], MaxRune) // 4 bytes
++	}
++}
++
++func BenchmarkAppendInvalidRuneMaxPlusOne(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		AppendRune(buf[:0], MaxRune+1) // 3 bytes: RuneError
++	}
++}
++
++func BenchmarkAppendInvalidRuneSurrogate(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		AppendRune(buf[:0], 0xD800) // 3 bytes: RuneError
++	}
++}
++
++func BenchmarkAppendInvalidRuneNegative(b *testing.B) {
++	buf := make([]byte, UTFMax)
++	for i := 0; i < b.N; i++ {
++		AppendRune(buf[:0], -1) // 3 bytes: RuneError
+ 	}
+ }
+ 

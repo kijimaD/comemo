@@ -1,0 +1,72 @@
+commit 607975cfa15768e3587facfbde18ef9f18c46170
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Sep 24 12:53:21 2024 +0000
+
+    cmd/dist: enforce the lowest bootstrap version
+    
+    The go1.24 release notes say that go1.22.6 is the
+    minimum bootstraps required,
+    the go team also use go1.22.6 bootstraps in testing,
+    so if there's a problem with using an older version,
+    automated testing won't uncover it.
+    
+    Now enforce this in dist to avoid
+    release notes that do not match reality, which can be confusing.
+    
+    For #64751
+    
+    Change-Id: Icd2f8a47b2bbb2d7c3dab9be9a228f43b9630063
+    GitHub-Last-Rev: 425cd7f03c09ca5e4017d5a70a71fe8cf56d63e5
+    GitHub-Pull-Request: golang/go#69168
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609762
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/dist/buildtool.go | 16 ++++++++++++++--
+ 1 file changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 045f136c22..89a1c0ec8b 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -13,6 +13,7 @@ package main
+ 
+ import (
+ 	"fmt"
++	"go/version"
+ 	"os"
+ 	"path/filepath"
+ 	"regexp"
+@@ -118,9 +119,11 @@ var ignoreSuffixes = []string{
+ 	"~",
+ }
+ 
++const minBootstrap = "go1.22.6"
++
+ var tryDirs = []string{
+-	"sdk/go1.22.6",
+-	"go1.22.6",
++	"sdk/" + minBootstrap,
++	minBootstrap,
+ }
+ 
+ func bootstrapBuildTools() {
+@@ -134,6 +137,15 @@ func bootstrapBuildTools() {
+ 			}
+ 		}
+ 	}
++
++	// check bootstrap version.
++	ver := run(pathf("%s/bin", goroot_bootstrap), CheckExit, pathf("%s/bin/go", goroot_bootstrap), "env", "GOVERSION")
++	// go env GOVERSION output like "go1.22.6\n" or "devel go1.24-ffb3e574 Thu Aug 29 20:16:26 2024 +0000\n".
++	ver = ver[:len(ver)-1]
++	if version.Compare(ver, version.Lang(minBootstrap)) > 0 && version.Compare(ver, minBootstrap) < 0 {
++		fatalf("%s does not meet the minimum bootstrap requirement of %s or later", ver, minBootstrap)
++	}
++
+ 	xprintf("Building Go toolchain1 using %s.\n", goroot_bootstrap)
+ 
+ 	mkbuildcfg(pathf("%s/src/internal/buildcfg/zbootstrap.go", goroot))

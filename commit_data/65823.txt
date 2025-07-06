@@ -1,0 +1,39 @@
+commit 3bd08b97921826c1b0a5fbf0789f4b49d7619977
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Dec 13 23:18:59 2024 +0000
+
+    runtime: usleep in TestWeakToStrongMarkTermination
+    
+    There's a subtle bug in this test (big surprise): time.Sleep allocates,
+    so the time.Sleep(100*time.Millisecond) before unblocking gcMarkDone
+    might itself end up in gcMarkDone.
+    
+    Work around this by using usleep here instead.
+    
+    Fixes #70532.
+    
+    Change-Id: I4c642ebb12f737cdb0d79ccff64b6059fc3d8b34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636155
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/gc_test.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 35cb634936..00280ed1b5 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -834,7 +834,11 @@ func TestWeakToStrongMarkTermination(t *testing.T) {
+ 		done <- struct{}{}
+ 	}()
+ 	go func() {
+-		time.Sleep(100 * time.Millisecond)
++		// Usleep here instead of time.Sleep. time.Sleep
++		// can allocate, and if we get unlucky, then it
++		// can end up stuck in gcMarkDone with nothing to
++		// wake it.
++		runtime.Usleep(100000) // 100ms
+ 
+ 		// Let mark termination continue.
+ 		runtime.SetSpinInGCMarkDone(false)

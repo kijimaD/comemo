@@ -1,0 +1,266 @@
+commit a1c4fb4361c3bc58760400b99f026fb2088610c6
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Sep 20 20:56:40 2024 +0000
+
+    runtime: specialize heapSetType
+    
+    Last CL we separated mallocgc into several specialized paths. Let's
+    split up heapSetType too. This will make the specialized heapSetType
+    functions inlineable and cut out some branches as well as a function
+    call.
+    
+    Microbenchmark results at this point in the stack:
+    
+                       │ before.out  │            after-5.out             │
+                       │   sec/op    │   sec/op     vs base               │
+    Malloc8-4            13.52n ± 3%   12.15n ± 2%  -10.13% (p=0.002 n=6)
+    Malloc16-4           21.49n ± 2%   18.32n ± 4%  -14.75% (p=0.002 n=6)
+    MallocTypeInfo8-4    27.12n ± 1%   18.64n ± 2%  -31.30% (p=0.002 n=6)
+    MallocTypeInfo16-4   28.71n ± 3%   21.63n ± 5%  -24.65% (p=0.002 n=6)
+    geomean              21.81n        17.31n       -20.64%
+    
+    Change-Id: I5de9ac5089b9eb49bf563af2a74e6dc564420e05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614795
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/test/inl_test.go |   2 +
+ src/runtime/malloc.go                     |   6 +-
+ src/runtime/mbitmap.go                    | 161 ++++++++++++++++--------------
+ 3 files changed, 92 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 758479b622..9a1a8bb105 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -45,6 +45,8 @@ func TestIntendedInlining(t *testing.T) {
+ 			"funcspdelta",
+ 			"getm",
+ 			"getMCache",
++			"heapSetTypeNoHeader",
++			"heapSetTypeSmallHeader",
+ 			"isDirectIface",
+ 			"itabHashFunc",
+ 			"nextslicecap",
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index fb19907b20..3416b599f9 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1356,7 +1356,7 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
+ 	if needzero && span.needzero != 0 {
+ 		memclrNoHeapPointers(x, size)
+ 	}
+-	c.scanAlloc += heapSetType(uintptr(x), size, typ, nil, span)
++	c.scanAlloc += heapSetTypeNoHeader(uintptr(x), size, typ, span)
+ 	size = uintptr(class_to_size[sizeclass])
+ 
+ 	// Ensure that the stores above that initialize x to
+@@ -1450,7 +1450,7 @@ func mallocgcSmallScanHeader(size uintptr, typ *_type, needzero bool) (unsafe.Po
+ 	}
+ 	header := (**_type)(x)
+ 	x = add(x, mallocHeaderSize)
+-	c.scanAlloc += heapSetType(uintptr(x), size-mallocHeaderSize, typ, header, span)
++	c.scanAlloc += heapSetTypeSmallHeader(uintptr(x), size-mallocHeaderSize, typ, header, span)
+ 
+ 	// Ensure that the stores above that initialize x to
+ 	// type-safe memory and set the heap bits occur before
+@@ -1583,7 +1583,7 @@ func mallocgcLarge(size uintptr, typ *_type, needzero bool) (unsafe.Pointer, uin
+ 		// Finish storing the type information for this case.
+ 		if !noscan {
+ 			mp := acquirem()
+-			getMCache(mp).scanAlloc += heapSetType(uintptr(x), size, typ, &span.largeType, span)
++			getMCache(mp).scanAlloc += heapSetTypeLarge(uintptr(x), size, typ, span)
+ 
+ 			// Publish the type information with the zeroed memory.
+ 			publicationBarrier()
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 65590f5c22..855acbdaa3 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -694,97 +694,110 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
+ 	return
+ }
+ 
+-// heapSetType records that the new allocation [x, x+size)
++// heapSetType* functions record that the new allocation [x, x+size)
+ // holds in [x, x+dataSize) one or more values of type typ.
+ // (The number of values is given by dataSize / typ.Size.)
+ // If dataSize < size, the fragment [x+dataSize, x+size) is
+ // recorded as non-pointer data.
+ // It is known that the type has pointers somewhere;
+-// malloc does not call heapSetType when there are no pointers.
++// malloc does not call heapSetType* when there are no pointers.
+ //
+-// There can be read-write races between heapSetType and things
++// There can be read-write races between heapSetType* and things
+ // that read the heap metadata like scanobject. However, since
+-// heapSetType is only used for objects that have not yet been
++// heapSetType* is only used for objects that have not yet been
+ // made reachable, readers will ignore bits being modified by this
+ // function. This does mean this function cannot transiently modify
+ // shared memory that belongs to neighboring objects. Also, on weakly-ordered
+ // machines, callers must execute a store/store (publication) barrier
+ // between calling this function and making the object reachable.
+-func heapSetType(x, dataSize uintptr, typ *_type, header **_type, span *mspan) (scanSize uintptr) {
+-	const doubleCheck = false
+ 
+-	gctyp := typ
+-	if header == nil {
+-		if doubleCheck && (!heapBitsInSpan(dataSize) || !heapBitsInSpan(span.elemsize)) {
+-			throw("tried to write heap bits, but no heap bits in span")
+-		}
+-		// Handle the case where we have no malloc header.
+-		scanSize = span.writeHeapBitsSmall(x, dataSize, typ)
+-	} else {
+-		if typ.Kind_&abi.KindGCProg != 0 {
+-			// Allocate space to unroll the gcprog. This space will consist of
+-			// a dummy _type value and the unrolled gcprog. The dummy _type will
+-			// refer to the bitmap, and the mspan will refer to the dummy _type.
+-			if span.spanclass.sizeclass() != 0 {
+-				throw("GCProg for type that isn't large")
+-			}
+-			spaceNeeded := alignUp(unsafe.Sizeof(_type{}), goarch.PtrSize)
+-			heapBitsOff := spaceNeeded
+-			spaceNeeded += alignUp(typ.PtrBytes/goarch.PtrSize/8, goarch.PtrSize)
+-			npages := alignUp(spaceNeeded, pageSize) / pageSize
+-			var progSpan *mspan
+-			systemstack(func() {
+-				progSpan = mheap_.allocManual(npages, spanAllocPtrScalarBits)
+-				memclrNoHeapPointers(unsafe.Pointer(progSpan.base()), progSpan.npages*pageSize)
+-			})
+-			// Write a dummy _type in the new space.
+-			//
+-			// We only need to write size, PtrBytes, and GCData, since that's all
+-			// the GC cares about.
+-			gctyp = (*_type)(unsafe.Pointer(progSpan.base()))
+-			gctyp.Size_ = typ.Size_
+-			gctyp.PtrBytes = typ.PtrBytes
+-			gctyp.GCData = (*byte)(add(unsafe.Pointer(progSpan.base()), heapBitsOff))
+-			gctyp.TFlag = abi.TFlagUnrolledBitmap
+-
+-			// Expand the GC program into space reserved at the end of the new span.
+-			runGCProg(addb(typ.GCData, 4), gctyp.GCData)
+-		}
++const doubleCheckHeapSetType = doubleCheckMalloc
+ 
+-		// Write out the header.
+-		*header = gctyp
+-		scanSize = span.elemsize
++func heapSetTypeNoHeader(x, dataSize uintptr, typ *_type, span *mspan) uintptr {
++	if doubleCheckHeapSetType && (!heapBitsInSpan(dataSize) || !heapBitsInSpan(span.elemsize)) {
++		throw("tried to write heap bits, but no heap bits in span")
+ 	}
++	scanSize := span.writeHeapBitsSmall(x, dataSize, typ)
++	if doubleCheckHeapSetType {
++		doubleCheckHeapType(x, dataSize, typ, nil, span)
++	}
++	return scanSize
++}
+ 
+-	if doubleCheck {
+-		doubleCheckHeapPointers(x, dataSize, gctyp, header, span)
+-
+-		// To exercise the less common path more often, generate
+-		// a random interior pointer and make sure iterating from
+-		// that point works correctly too.
+-		maxIterBytes := span.elemsize
+-		if header == nil {
+-			maxIterBytes = dataSize
+-		}
+-		off := alignUp(uintptr(cheaprand())%dataSize, goarch.PtrSize)
+-		size := dataSize - off
+-		if size == 0 {
+-			off -= goarch.PtrSize
+-			size += goarch.PtrSize
+-		}
+-		interior := x + off
+-		size -= alignDown(uintptr(cheaprand())%size, goarch.PtrSize)
+-		if size == 0 {
+-			size = goarch.PtrSize
+-		}
+-		// Round up the type to the size of the type.
+-		size = (size + gctyp.Size_ - 1) / gctyp.Size_ * gctyp.Size_
+-		if interior+size > x+maxIterBytes {
+-			size = x + maxIterBytes - interior
+-		}
+-		doubleCheckHeapPointersInterior(x, interior, size, dataSize, gctyp, header, span)
++func heapSetTypeSmallHeader(x, dataSize uintptr, typ *_type, header **_type, span *mspan) uintptr {
++	*header = typ
++	if doubleCheckHeapSetType {
++		doubleCheckHeapType(x, dataSize, typ, header, span)
+ 	}
+-	return
++	return span.elemsize
++}
++
++func heapSetTypeLarge(x, dataSize uintptr, typ *_type, span *mspan) uintptr {
++	gctyp := typ
++	if typ.Kind_&abi.KindGCProg != 0 {
++		// Allocate space to unroll the gcprog. This space will consist of
++		// a dummy _type value and the unrolled gcprog. The dummy _type will
++		// refer to the bitmap, and the mspan will refer to the dummy _type.
++		if span.spanclass.sizeclass() != 0 {
++			throw("GCProg for type that isn't large")
++		}
++		spaceNeeded := alignUp(unsafe.Sizeof(_type{}), goarch.PtrSize)
++		heapBitsOff := spaceNeeded
++		spaceNeeded += alignUp(typ.PtrBytes/goarch.PtrSize/8, goarch.PtrSize)
++		npages := alignUp(spaceNeeded, pageSize) / pageSize
++		var progSpan *mspan
++		systemstack(func() {
++			progSpan = mheap_.allocManual(npages, spanAllocPtrScalarBits)
++			memclrNoHeapPointers(unsafe.Pointer(progSpan.base()), progSpan.npages*pageSize)
++		})
++		// Write a dummy _type in the new space.
++		//
++		// We only need to write size, PtrBytes, and GCData, since that's all
++		// the GC cares about.
++		gctyp = (*_type)(unsafe.Pointer(progSpan.base()))
++		gctyp.Size_ = typ.Size_
++		gctyp.PtrBytes = typ.PtrBytes
++		gctyp.GCData = (*byte)(add(unsafe.Pointer(progSpan.base()), heapBitsOff))
++		gctyp.TFlag = abi.TFlagUnrolledBitmap
++
++		// Expand the GC program into space reserved at the end of the new span.
++		runGCProg(addb(typ.GCData, 4), gctyp.GCData)
++	}
++	// Write out the header.
++	span.largeType = gctyp
++	if doubleCheckHeapSetType {
++		doubleCheckHeapType(x, dataSize, typ, &span.largeType, span)
++	}
++	return span.elemsize
++}
++
++func doubleCheckHeapType(x, dataSize uintptr, gctyp *_type, header **_type, span *mspan) {
++	doubleCheckHeapPointers(x, dataSize, gctyp, header, span)
++
++	// To exercise the less common path more often, generate
++	// a random interior pointer and make sure iterating from
++	// that point works correctly too.
++	maxIterBytes := span.elemsize
++	if header == nil {
++		maxIterBytes = dataSize
++	}
++	off := alignUp(uintptr(cheaprand())%dataSize, goarch.PtrSize)
++	size := dataSize - off
++	if size == 0 {
++		off -= goarch.PtrSize
++		size += goarch.PtrSize
++	}
++	interior := x + off
++	size -= alignDown(uintptr(cheaprand())%size, goarch.PtrSize)
++	if size == 0 {
++		size = goarch.PtrSize
++	}
++	// Round up the type to the size of the type.
++	size = (size + gctyp.Size_ - 1) / gctyp.Size_ * gctyp.Size_
++	if interior+size > x+maxIterBytes {
++		size = x + maxIterBytes - interior
++	}
++	doubleCheckHeapPointersInterior(x, interior, size, dataSize, gctyp, header, span)
+ }
+ 
+ func doubleCheckHeapPointers(x, dataSize uintptr, typ *_type, header **_type, span *mspan) {

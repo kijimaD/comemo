@@ -1,0 +1,297 @@
+commit 4f86f2267167a63b673c4a2a2994e008b32c90ea
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jun 5 13:47:06 2025 -0700
+
+    testing/synctest, runtime: avoid panic when using linker-alloc WG from bubble
+    
+    We associate WaitGroups with synctest bubbles by attaching a
+    special to the WaitGroup. It is not possible to attach a special
+    to a linker-allocated value, such as:
+    
+        var wg sync.WaitGroup
+    
+    Avoid panicking when accessing a linker-allocated WaitGroup
+    from a bubble. We have no way to associate these WaitGroups
+    with a bubble, so just treat them as always unbubbled.
+    This is probably fine, since the WaitGroup was always
+    created outside the bubble in this case.
+    
+    Fixes #74005
+    
+    Change-Id: Ic71514b0b8d0cecd62e45cc929ffcbeb16f54a55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/679695
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/synctest/synctest.go      | 22 +++++++++++++++++-----
+ src/internal/synctest/synctest_test.go | 28 ++++++++++++++++++++++++++++
+ src/runtime/export_test.go             |  6 ++++++
+ src/runtime/synctest.go                | 29 +++++++++++++++++++++--------
+ src/runtime/synctest_test.go           | 12 ++++++++++++
+ src/sync/waitgroup.go                  | 12 ++++++++----
+ src/testing/synctest/synctest.go       |  5 +++++
+ 7 files changed, 97 insertions(+), 17 deletions(-)
+
+diff --git a/src/internal/synctest/synctest.go b/src/internal/synctest/synctest.go
+index 4d7fa3730c..cb3333a627 100644
+--- a/src/internal/synctest/synctest.go
++++ b/src/internal/synctest/synctest.go
+@@ -8,6 +8,7 @@
+ package synctest
+ 
+ import (
++	"internal/abi"
+ 	"unsafe"
+ )
+ 
+@@ -22,14 +23,25 @@ func Wait()
+ //go:linkname IsInBubble
+ func IsInBubble() bool
+ 
+-// Associate associates p with the current bubble.
+-// It returns false if p has an existing association with a different bubble.
+-func Associate[T any](p *T) (ok bool) {
+-	return associate(unsafe.Pointer(p))
++// Association is the state of a pointer's bubble association.
++type Association int
++
++const (
++	Unbubbled     = Association(iota) // not associated with any bubble
++	CurrentBubble                     // associated with the current bubble
++	OtherBubble                       // associated with a different bubble
++)
++
++// Associate attempts to associate p with the current bubble.
++// It returns the new association status of p.
++func Associate[T any](p *T) Association {
++	// Ensure p escapes to permit us to attach a special to it.
++	escapedP := abi.Escape(p)
++	return Association(associate(unsafe.Pointer(escapedP)))
+ }
+ 
+ //go:linkname associate
+-func associate(p unsafe.Pointer) bool
++func associate(p unsafe.Pointer) int
+ 
+ // Disassociate disassociates p from any bubble.
+ func Disassociate[T any](p *T) {
+diff --git a/src/internal/synctest/synctest_test.go b/src/internal/synctest/synctest_test.go
+index fe6eb63702..222cae2597 100644
+--- a/src/internal/synctest/synctest_test.go
++++ b/src/internal/synctest/synctest_test.go
+@@ -731,6 +731,34 @@ func TestWaitGroupMovedBetweenBubblesAfterWait(t *testing.T) {
+ 	})
+ }
+ 
++var testWaitGroupLinkerAllocatedWG sync.WaitGroup
++
++func TestWaitGroupLinkerAllocated(t *testing.T) {
++	synctest.Run(func() {
++		// This WaitGroup is probably linker-allocated and has no span,
++		// so we won't be able to add a special to it associating it with
++		// this bubble.
++		//
++		// Operations on it may not be durably blocking,
++		// but they shouldn't fail.
++		testWaitGroupLinkerAllocatedWG.Go(func() {})
++		testWaitGroupLinkerAllocatedWG.Wait()
++	})
++}
++
++var testWaitGroupHeapAllocatedWG = new(sync.WaitGroup)
++
++func TestWaitGroupHeapAllocated(t *testing.T) {
++	synctest.Run(func() {
++		// This package-scoped WaitGroup var should have been heap-allocated,
++		// so we can associate it with a bubble.
++		testWaitGroupHeapAllocatedWG.Add(1)
++		go testWaitGroupHeapAllocatedWG.Wait()
++		synctest.Wait()
++		testWaitGroupHeapAllocatedWG.Done()
++	})
++}
++
+ func TestHappensBefore(t *testing.T) {
+ 	// Use two parallel goroutines accessing different vars to ensure that
+ 	// we correctly account for multiple goroutines in the bubble.
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index a9cc767e30..83cf301be4 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1911,3 +1911,9 @@ func (b BitCursor) Write(data *byte, cnt uintptr) {
+ func (b BitCursor) Offset(cnt uintptr) BitCursor {
+ 	return BitCursor{b: b.b.offset(cnt)}
+ }
++
++const (
++	BubbleAssocUnbubbled     = bubbleAssocUnbubbled
++	BubbleAssocCurrentBubble = bubbleAssocCurrentBubble
++	BubbleAssocOtherBubble   = bubbleAssocOtherBubble
++)
+diff --git a/src/runtime/synctest.go b/src/runtime/synctest.go
+index 08a0e5d444..16af1209b4 100644
+--- a/src/runtime/synctest.go
++++ b/src/runtime/synctest.go
+@@ -363,6 +363,13 @@ type specialBubble struct {
+ 	bubbleid uint64
+ }
+ 
++// Keep these in sync with internal/synctest.
++const (
++	bubbleAssocUnbubbled     = iota // not associated with any bubble
++	bubbleAssocCurrentBubble        // associated with the current bubble
++	bubbleAssocOtherBubble          // associated with a different bubble
++)
++
+ // getOrSetBubbleSpecial checks the special record for p's bubble membership.
+ //
+ // If add is true and p is not associated with any bubble,
+@@ -371,10 +378,12 @@ type specialBubble struct {
+ // It returns ok==true if p is associated with bubbleid
+ // (including if a new association was added),
+ // and ok==false if not.
+-func getOrSetBubbleSpecial(p unsafe.Pointer, bubbleid uint64, add bool) (ok bool) {
++func getOrSetBubbleSpecial(p unsafe.Pointer, bubbleid uint64, add bool) (assoc int) {
+ 	span := spanOfHeap(uintptr(p))
+ 	if span == nil {
+-		throw("getOrSetBubbleSpecial on invalid pointer")
++		// This is probably a package var.
++		// We can't attach a special to it, so always consider it unbubbled.
++		return bubbleAssocUnbubbled
+ 	}
+ 
+ 	// Ensure that the span is swept.
+@@ -393,7 +402,11 @@ func getOrSetBubbleSpecial(p unsafe.Pointer, bubbleid uint64, add bool) (ok bool
+ 		// p is already associated with a bubble.
+ 		// Return true iff it's the same bubble.
+ 		s := (*specialBubble)((unsafe.Pointer)(*iter))
+-		ok = s.bubbleid == bubbleid
++		if s.bubbleid == bubbleid {
++			assoc = bubbleAssocCurrentBubble
++		} else {
++			assoc = bubbleAssocOtherBubble
++		}
+ 	} else if add {
+ 		// p is not associated with a bubble,
+ 		// and we've been asked to add an association.
+@@ -404,23 +417,23 @@ func getOrSetBubbleSpecial(p unsafe.Pointer, bubbleid uint64, add bool) (ok bool
+ 		s.special.next = *iter
+ 		*iter = (*special)(unsafe.Pointer(s))
+ 		spanHasSpecials(span)
+-		ok = true
++		assoc = bubbleAssocCurrentBubble
+ 	} else {
+ 		// p is not associated with a bubble.
+-		ok = false
++		assoc = bubbleAssocUnbubbled
+ 	}
+ 
+ 	unlock(&span.speciallock)
+ 	releasem(mp)
+ 
+-	return ok
++	return assoc
+ }
+ 
+ // synctest_associate associates p with the current bubble.
+ // It returns false if p is already associated with a different bubble.
+ //
+ //go:linkname synctest_associate internal/synctest.associate
+-func synctest_associate(p unsafe.Pointer) (ok bool) {
++func synctest_associate(p unsafe.Pointer) int {
+ 	return getOrSetBubbleSpecial(p, getg().bubble.id, true)
+ }
+ 
+@@ -435,5 +448,5 @@ func synctest_disassociate(p unsafe.Pointer) {
+ //
+ //go:linkname synctest_isAssociated internal/synctest.isAssociated
+ func synctest_isAssociated(p unsafe.Pointer) bool {
+-	return getOrSetBubbleSpecial(p, getg().bubble.id, false)
++	return getOrSetBubbleSpecial(p, getg().bubble.id, false) == bubbleAssocCurrentBubble
+ }
+diff --git a/src/runtime/synctest_test.go b/src/runtime/synctest_test.go
+index 0fdd032fc9..1059d629d3 100644
+--- a/src/runtime/synctest_test.go
++++ b/src/runtime/synctest_test.go
+@@ -5,6 +5,8 @@
+ package runtime_test
+ 
+ import (
++	"internal/synctest"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -15,3 +17,13 @@ func TestSynctest(t *testing.T) {
+ 		t.Fatalf("output:\n%s\n\nwanted:\n%s", output, want)
+ 	}
+ }
++
++// TestSynctestAssocConsts verifies that constants defined
++// in both runtime and internal/synctest match.
++func TestSynctestAssocConsts(t *testing.T) {
++	if runtime.BubbleAssocUnbubbled != synctest.Unbubbled ||
++		runtime.BubbleAssocCurrentBubble != synctest.CurrentBubble ||
++		runtime.BubbleAssocOtherBubble != synctest.OtherBubble {
++		t.Fatal("mismatch: runtime.BubbleAssoc? != synctest.*")
++	}
++}
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index efc63be099..0bd618a241 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -83,13 +83,17 @@ func (wg *WaitGroup) Add(delta int) {
+ 		race.Disable()
+ 		defer race.Enable()
+ 	}
++	bubbled := false
+ 	if synctest.IsInBubble() {
+ 		// If Add is called from within a bubble, then all Add calls must be made
+ 		// from the same bubble.
+-		if !synctest.Associate(wg) {
++		switch synctest.Associate(wg) {
++		case synctest.Unbubbled:
++		case synctest.OtherBubble:
+ 			// wg is already associated with a different bubble.
+ 			fatal("sync: WaitGroup.Add called from multiple synctest bubbles")
+-		} else {
++		case synctest.CurrentBubble:
++			bubbled = true
+ 			state := wg.state.Or(waitGroupBubbleFlag)
+ 			if state != 0 && state&waitGroupBubbleFlag == 0 {
+ 				// Add has been called from outside this bubble.
+@@ -98,7 +102,7 @@ func (wg *WaitGroup) Add(delta int) {
+ 		}
+ 	}
+ 	state := wg.state.Add(uint64(delta) << 32)
+-	if state&waitGroupBubbleFlag != 0 && !synctest.IsInBubble() {
++	if state&waitGroupBubbleFlag != 0 && !bubbled {
+ 		// Add has been called from within a synctest bubble (and we aren't in one).
+ 		fatal("sync: WaitGroup.Add called from inside and outside synctest bubble")
+ 	}
+@@ -116,7 +120,7 @@ func (wg *WaitGroup) Add(delta int) {
+ 	if w != 0 && delta > 0 && v == int32(delta) {
+ 		panic("sync: WaitGroup misuse: Add called concurrently with Wait")
+ 	}
+-	if v == 0 && state&waitGroupBubbleFlag != 0 {
++	if v == 0 && bubbled {
+ 		// Disassociate the WaitGroup from its bubble.
+ 		synctest.Disassociate(wg)
+ 		if w == 0 {
+diff --git a/src/testing/synctest/synctest.go b/src/testing/synctest/synctest.go
+index 57a6fbfbd6..0911519aab 100644
+--- a/src/testing/synctest/synctest.go
++++ b/src/testing/synctest/synctest.go
+@@ -93,6 +93,11 @@
+ // A [sync.WaitGroup] becomes associated with a bubble on the first
+ // call to Add or Go. Once a WaitGroup is associated with a bubble,
+ // calling Add or Go from outside that bubble is a fatal error.
++// (As a technical limitation, a WaitGroup defined as a package
++// variable, such as "var wg sync.WaitGroup", cannot be associated
++// with a bubble and operations on it may not be durably blocking.
++// This limitation does not apply to a *WaitGroup stored in a
++// package variable, such as "var wg = new(sync.WaitGroup)".)
+ //
+ // [sync.Cond.Wait] is durably blocking. Waking a goroutine in a bubble
+ // blocked on Cond.Wait from outside the bubble is a fatal error.

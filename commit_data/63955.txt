@@ -1,0 +1,64 @@
+commit 13e3068b9c0f8640207b1497d15b730b8e31bb51
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu May 23 13:54:17 2024 -0700
+
+    go/types, types2: add missing Unalias call to type string functionality
+    
+    For #67547.
+    
+    Change-Id: I999cd31f9a01f91e7984b4e7012c81e8bd9c6b06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587940
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/operand.go          | 2 +-
+ src/go/types/operand.go                             | 2 +-
+ src/internal/types/testdata/fixedbugs/issue67547.go | 7 +++++++
+ 3 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 66002aa6c5..a176b9faf3 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -186,7 +186,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 			}
+ 			buf.WriteString(intro)
+ 			WriteType(&buf, x.typ, qf)
+-			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
++			if tpar, _ := Unalias(x.typ).(*TypeParam); tpar != nil {
+ 				buf.WriteString(" constrained by ")
+ 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+ 				// If we have the type set and it's empty, say so for better error messages.
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index fb91e7e612..060a408c26 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -190,7 +190,7 @@ func operandString(x *operand, qf Qualifier) string {
+ 			}
+ 			buf.WriteString(intro)
+ 			WriteType(&buf, x.typ, qf)
+-			if tpar, _ := x.typ.(*TypeParam); tpar != nil {
++			if tpar, _ := Unalias(x.typ).(*TypeParam); tpar != nil {
+ 				buf.WriteString(" constrained by ")
+ 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+ 				// If we have the type set and it's empty, say so for better error messages.
+diff --git a/src/internal/types/testdata/fixedbugs/issue67547.go b/src/internal/types/testdata/fixedbugs/issue67547.go
+index 791d5d5e90..1c2f66b6b9 100644
+--- a/src/internal/types/testdata/fixedbugs/issue67547.go
++++ b/src/internal/types/testdata/fixedbugs/issue67547.go
+@@ -77,6 +77,13 @@ func _[P []int | struct{}]() {
+ 	_ = a
+ }
+ 
++func _[P any]() {
++	type A = P
++	var x A
++	// keep "constrained by" for aliased type parameters in error messages
++	var _ int = x // ERRORx `cannot use x \(variable of type (A|P) constrained by any\) as int value in variable declaration`
++}
++
+ // Test case for go.dev/issue/67540.
+ func _() {
+ 	type (

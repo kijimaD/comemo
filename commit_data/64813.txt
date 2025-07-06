@@ -1,0 +1,260 @@
+commit 69827b5c8ddf93be65bfc8b17d331bb3ff7b704c
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue Jun 4 13:03:06 2024 +0800
+
+    crypto/subtle: implement xorBytes in hardware on loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/subtle
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                        │  bench.old   │              bench.new              │
+                        │    sec/op    │   sec/op     vs base                │
+    XORBytes/8Bytes       11.250n ± 0%   6.403n ± 0%  -43.08% (p=0.000 n=20)
+    XORBytes/128Bytes      24.61n ± 0%   12.21n ± 0%  -50.39% (p=0.000 n=20)
+    XORBytes/2048Bytes     216.7n ± 0%   108.3n ± 0%  -50.02% (p=0.000 n=20)
+    XORBytes/32768Bytes    3.657µ ± 0%   1.683µ ± 0%  -53.98% (p=0.000 n=20)
+    geomean                121.7n        61.44n       -49.52%
+    
+                        │  bench.old   │               bench.new                │
+                        │     B/s      │      B/s       vs base                 │
+    XORBytes/8Bytes       678.1Mi ± 0%   1191.5Mi ± 0%   +75.72% (p=0.000 n=20)
+    XORBytes/128Bytes     4.844Gi ± 0%    9.766Gi ± 0%  +101.63% (p=0.000 n=20)
+    XORBytes/2048Bytes    8.801Gi ± 0%   17.619Gi ± 0%  +100.18% (p=0.000 n=20)
+    XORBytes/32768Bytes   8.346Gi ± 0%   18.137Gi ± 0%  +117.32% (p=0.000 n=20)
+    geomean               3.918Gi         7.763Gi        +98.14%
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/subtle
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                        │  bench.old   │              bench.new              │
+                        │    sec/op    │   sec/op     vs base                │
+    XORBytes/8Bytes       16.420n ± 0%   8.806n ± 0%  -46.37% (p=0.000 n=20)
+    XORBytes/128Bytes      35.84n ± 0%   16.42n ± 0%  -54.19% (p=0.000 n=20)
+    XORBytes/2048Bytes     332.0n ± 0%   160.5n ± 0%  -51.64% (p=0.000 n=20)
+    XORBytes/32768Bytes    4.944µ ± 0%   2.474µ ± 0%  -49.96% (p=0.000 n=20)
+    geomean                176.3n        87.05n       -50.62%
+    
+                        │  bench.old   │               bench.new                │
+                        │     B/s      │      B/s       vs base                 │
+    XORBytes/8Bytes       464.7Mi ± 0%    866.4Mi ± 0%   +86.45% (p=0.000 n=20)
+    XORBytes/128Bytes     3.326Gi ± 0%    7.261Gi ± 0%  +118.31% (p=0.000 n=20)
+    XORBytes/2048Bytes    5.745Gi ± 0%   11.880Gi ± 0%  +106.80% (p=0.000 n=20)
+    XORBytes/32768Bytes   6.172Gi ± 0%   12.334Gi ± 0%   +99.83% (p=0.000 n=20)
+    geomean               2.705Gi         5.477Gi       +102.52%
+    
+    Change-Id: Id404f9023a57025f78b6922659cfa8870881d646
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590175
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Tim King <taking@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+---
+ src/crypto/subtle/xor_generic.go |   2 +-
+ src/crypto/subtle/xor_loong64.go |  10 +++
+ src/crypto/subtle/xor_loong64.s  | 166 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 177 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/subtle/xor_generic.go b/src/crypto/subtle/xor_generic.go
+index 7dc89e315b..e575c35696 100644
+--- a/src/crypto/subtle/xor_generic.go
++++ b/src/crypto/subtle/xor_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (!amd64 && !arm64 && !ppc64 && !ppc64le) || purego
++//go:build (!amd64 && !arm64 && !loong64 && !ppc64 && !ppc64le) || purego
+ 
+ package subtle
+ 
+diff --git a/src/crypto/subtle/xor_loong64.go b/src/crypto/subtle/xor_loong64.go
+new file mode 100644
+index 0000000000..e49f0fc9e3
+--- /dev/null
++++ b/src/crypto/subtle/xor_loong64.go
+@@ -0,0 +1,10 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++package subtle
++
++//go:noescape
++func xorBytes(dst, a, b *byte, n int)
+diff --git a/src/crypto/subtle/xor_loong64.s b/src/crypto/subtle/xor_loong64.s
+new file mode 100644
+index 0000000000..09dc80eb93
+--- /dev/null
++++ b/src/crypto/subtle/xor_loong64.s
+@@ -0,0 +1,166 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++#include "textflag.h"
++
++// func xorBytes(dst, a, b *byte, n int)
++TEXT ·xorBytes(SB), NOSPLIT, $0
++	MOVV	dst+0(FP), R4
++	MOVV	a+8(FP), R5
++	MOVV	b+16(FP), R6
++	MOVV	n+24(FP), R7
++
++	MOVV	$64, R9
++	BGEU	R7, R9, loop64	// n >= 64
++tail:
++	SRLV	$1, R9
++	BGEU	R7, R9, xor_32	// n >= 32 && n < 64
++	SRLV	$1, R9
++	BGEU	R7, R9, xor_16	// n >= 16 && n < 32
++	SRLV	$1, R9
++	BGEU	R7, R9, xor_8	// n >= 8 && n < 16
++	SRLV	$1, R9
++	BGEU	R7, R9, xor_4	// n >= 4 && n < 8
++	SRLV	$1, R9
++	BGEU	R7, R9, xor_2	// n >= 2 && n < 4
++	SRLV	$1, R9
++	BGEU	R7, R9, xor_1	// n = 1
++
++loop64:
++	MOVV	(R5), R10
++	MOVV	8(R5), R11
++	MOVV	16(R5), R12
++	MOVV	24(R5), R13
++	MOVV	(R6), R14
++	MOVV	8(R6), R15
++	MOVV	16(R6), R16
++	MOVV	24(R6), R17
++	XOR	R10, R14
++	XOR	R11, R15
++	XOR	R12, R16
++	XOR	R13, R17
++	MOVV	R14, (R4)
++	MOVV	R15, 8(R4)
++	MOVV	R16, 16(R4)
++	MOVV	R17, 24(R4)
++	MOVV	32(R5), R10
++	MOVV	40(R5), R11
++	MOVV	48(R5), R12
++	MOVV	56(R5), R13
++	MOVV	32(R6), R14
++	MOVV	40(R6), R15
++	MOVV	48(R6), R16
++	MOVV	56(R6), R17
++	XOR	R10, R14
++	XOR	R11, R15
++	XOR	R12, R16
++	XOR	R13, R17
++	MOVV	R14, 32(R4)
++	MOVV	R15, 40(R4)
++	MOVV	R16, 48(R4)
++	MOVV	R17, 56(R4)
++	ADDV	$64, R5
++	ADDV	$64, R6
++	ADDV	$64, R4
++	SUBV	$64, R7
++	// 64 in R9
++	BGEU	R7, R9, loop64
++	BEQ	R7, R0, end
++
++xor_32_check:
++	SRLV	$1, R9
++	BLT	R7, R9, xor_16_check
++xor_32:
++	MOVV	(R5), R10
++	MOVV	8(R5), R11
++	MOVV	16(R5), R12
++	MOVV	24(R5), R13
++	MOVV	(R6), R14
++	MOVV	8(R6), R15
++	MOVV	16(R6), R16
++	MOVV	24(R6), R17
++	XOR	R10, R14
++	XOR	R11, R15
++	XOR	R12, R16
++	XOR	R13, R17
++	MOVV	R14, (R4)
++	MOVV	R15, 8(R4)
++	MOVV	R16, 16(R4)
++	MOVV	R17, 24(R4)
++	ADDV	$32, R5
++	ADDV	$32, R6
++	ADDV	$32, R4
++	SUBV	$32, R7
++	BEQ	R7, R0, end
++
++xor_16_check:
++	SRLV	$1, R9
++	BLT	R7, R9, xor_8_check
++xor_16:
++	MOVV	(R5), R10
++	MOVV	8(R5), R11
++	MOVV	(R6), R12
++	MOVV	8(R6), R13
++	XOR	R10, R12
++	XOR	R11, R13
++	MOVV	R12, (R4)
++	MOVV	R13, 8(R4)
++	ADDV	$16, R5
++	ADDV	$16, R6
++	ADDV	$16, R4
++	SUBV	$16, R7
++	BEQ	R7, R0, end
++
++xor_8_check:
++	SRLV	$1, R9
++	BLT	R7, R9, xor_4_check
++xor_8:
++	MOVV	(R5), R10
++	MOVV	(R6), R11
++	XOR	R10, R11
++	MOVV	R11, (R4)
++	ADDV	$8, R5
++	ADDV	$8, R6
++	ADDV	$8, R4
++	SUBV	$8, R7
++	BEQ	R7, R0, end
++
++xor_4_check:
++	SRLV	$1, R9
++	BLT	R7, R9, xor_2_check
++xor_4:
++	MOVW	(R5), R10
++	MOVW	(R6), R11
++	XOR	R10, R11
++	MOVW	R11, (R4)
++	ADDV	$4, R5
++	ADDV	$4, R6
++	ADDV	$4, R4
++	SUBV	$4, R7
++	BEQ	R7, R0, end
++
++xor_2_check:
++	SRLV	$1, R9
++	BLT	R7, R9, xor_1
++xor_2:
++	MOVH	(R5), R10
++	MOVH	(R6), R11
++	XOR	R10, R11
++	MOVH	R11, (R4)
++	ADDV	$2, R5
++	ADDV	$2, R6
++	ADDV	$2, R4
++	SUBV	$2, R7
++	BEQ	R7, R0, end
++
++xor_1:
++	MOVB	(R5), R10
++	MOVB	(R6), R11
++	XOR	R10, R11
++	MOVB	R11, (R4)
++
++end:
++	RET

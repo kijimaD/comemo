@@ -1,0 +1,75 @@
+commit 1edb49a6eb37af8593e25fed63029343fc9177f5
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Thu Oct 3 13:11:43 2024 +0000
+
+    Revert "runtime/pprof: make TestBlockMutexProfileInlineExpansion stricter"
+    
+    This reverts commit 5b0f8596b766afae9dd1f117a4a5dcfbbf1b80f1.
+    
+    Reason for revert: This CL breaks gotip-linux-amd64-noopt builder.
+    
+    Change-Id: I3950211f05c90e4955c0785409b796987741a9f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617715
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/pprof/pprof_test.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 6c41495f03..e9f287df60 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -2727,38 +2727,38 @@ func TestBlockMutexProfileInlineExpansion(t *testing.T) {
+ 	wg.Wait()
+ 
+ 	tcs := []struct {
+-		Name    string
+-		Collect func([]runtime.BlockProfileRecord) (int, bool)
+-		Stack   string
++		Name     string
++		Collect  func([]runtime.BlockProfileRecord) (int, bool)
++		SubStack string
+ 	}{
+ 		{
+ 			Name:    "mutex",
+ 			Collect: runtime.MutexProfile,
+-			Stack: `sync.(*Mutex).Unlock
++			SubStack: `sync.(*Mutex).Unlock
+ runtime/pprof.inlineF
+ runtime/pprof.inlineE
+-runtime/pprof.inlineD
+-runtime.goexit`,
++runtime/pprof.inlineD`,
+ 		},
+ 		{
+ 			Name:    "block",
+ 			Collect: runtime.BlockProfile,
+-			Stack: `sync.(*Mutex).Lock
++			SubStack: `sync.(*Mutex).Lock
+ runtime/pprof.inlineC
+ runtime/pprof.inlineB
+-runtime/pprof.inlineA
+-runtime.goexit`,
++runtime/pprof.inlineA`,
+ 		},
+ 	}
+ 
+ 	for _, tc := range tcs {
+ 		t.Run(tc.Name, func(t *testing.T) {
+ 			stacks := getProfileStacks(tc.Collect, false)
+-			if slices.Contains(stacks, tc.Stack) {
+-				return
++			for _, s := range stacks {
++				if strings.Contains(s, tc.SubStack) {
++					return
++				}
+ 			}
+ 			t.Error("did not see expected stack")
+-			t.Logf("wanted:\n%s", tc.Stack)
++			t.Logf("wanted:\n%s", tc.SubStack)
+ 			t.Logf("got: %s", stacks)
+ 		})
+ 	}

@@ -1,0 +1,69 @@
+commit 4c75671871af56fa68076ee3741780e52726ec82
+Author: Alexandr Primak <primak.aa@gmail.com>
+Date:   Sat Feb 15 16:52:57 2025 +0300
+
+    runtime: Added usage example for the runtime.AddCleanup() function.
+    
+    The existing description of the function lacks usage examples, which makes it difficult to understand, so I added one.
+    
+    There is no open issue about this, since the implementation seems trivial.
+    
+    Change-Id: I96b29f0b21d1c7fda04128239633c8a2fc36fef2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649995
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/example_test.go | 34 ++++++++++++++++++++++++++++++++++
+ 1 file changed, 34 insertions(+)
+
+diff --git a/src/runtime/example_test.go b/src/runtime/example_test.go
+index eae9dbd7bf..8fa8122b00 100644
+--- a/src/runtime/example_test.go
++++ b/src/runtime/example_test.go
+@@ -6,6 +6,7 @@ package runtime_test
+ 
+ import (
+ 	"fmt"
++	"os"
+ 	"runtime"
+ 	"strings"
+ )
+@@ -59,3 +60,36 @@ func ExampleFrames() {
+ 	// - more:true | runtime_test.ExampleFrames.func3
+ 	// - more:true | runtime_test.ExampleFrames
+ }
++
++func ExampleAddCleanup() {
++	tempFile, err := os.CreateTemp(os.TempDir(), "file.*")
++	if err != nil {
++		fmt.Println("failed to create temp file:", err)
++		return
++	}
++
++	ch := make(chan struct{})
++
++	// Attach a cleanup function to the file object.
++	runtime.AddCleanup(&tempFile, func(fileName string) {
++		if err := os.Remove(fileName); err == nil {
++			fmt.Println("temp file has been removed")
++		}
++		ch <- struct{}{}
++	}, tempFile.Name())
++
++	if err := tempFile.Close(); err != nil {
++		fmt.Println("failed to close temp file:", err)
++		return
++	}
++
++	// Run the garbage collector to reclaim unreachable objects
++	// and enqueue their cleanup functions.
++	runtime.GC()
++
++	// Wait until cleanup function is done.
++	<-ch
++
++	// Output:
++	// temp file has been removed
++}

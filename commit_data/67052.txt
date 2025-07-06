@@ -1,0 +1,32 @@
+commit 2b3794e3e8a0ecf9d0ff7d8689ca9cdaea974e08
+Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+Date:   Mon Apr 21 09:42:45 2025 +0200
+
+    cmd/go/internal/work: update minimum supported s390x version on go
+    
+    This updates cgo support for s390x changing from z196 to z13, as
+    z13 is the minimum machine level running on go for s390x.
+    
+    Change-Id: I1a102294b2108c35ddb1428bf287ce83debaeac8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666995
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/work/exec.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 6fc865421d..63fd13f754 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -2587,7 +2587,8 @@ func (b *Builder) gccArchArgs() []string {
+ 	case "arm":
+ 		return []string{"-marm"} // not thumb
+ 	case "s390x":
+-		return []string{"-m64", "-march=z196"}
++		// minimum supported s390x version on Go is z13
++		return []string{"-m64", "-march=z13"}
+ 	case "mips64", "mips64le":
+ 		args := []string{"-mabi=64"}
+ 		if cfg.GOMIPS64 == "hardfloat" {

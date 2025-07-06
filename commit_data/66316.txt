@@ -1,0 +1,53 @@
+commit c441eecbe9324f4278cedb89df191ed226b798d4
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Feb 25 18:13:29 2025 +0100
+
+    crypto/internal/fips140test: add a test for a non-approved function
+    
+    Change-Id: I6a6a46560bfca588e5874f3769f33b561c33096a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652415
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/crypto/internal/fips140test/fips_test.go | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/src/crypto/internal/fips140test/fips_test.go b/src/crypto/internal/fips140test/fips_test.go
+index 81ccd0cf7f..3ed6152ea3 100644
+--- a/src/crypto/internal/fips140test/fips_test.go
++++ b/src/crypto/internal/fips140test/fips_test.go
+@@ -240,6 +240,13 @@ func TestFIPS140(t *testing.T) {
+ 		fatalIfErr(t, err)
+ 	})
+ 
++	t.Run("RSA KeyGen w/ small key [NOT APPROVED]", func(t *testing.T) {
++		ensureServiceIndicatorFalse(t)
++		_, err := rsa.GenerateKey(rand.Reader, 512)
++		fatalIfErr(t, err)
++		t.Log("RSA key generated")
++	})
++
+ 	t.Run("KTS IFC OAEP", func(t *testing.T) {
+ 		ensureServiceIndicator(t)
+ 		c, err := rsa.EncryptOAEP(sha256.New(), sha256.New(), rand.Reader, rsaKey.PublicKey(), plaintextSHA256, nil)
+@@ -423,6 +430,17 @@ func ensureServiceIndicator(t *testing.T) {
+ 	})
+ }
+ 
++func ensureServiceIndicatorFalse(t *testing.T) {
++	fips140.ResetServiceIndicator()
++	t.Cleanup(func() {
++		if !fips140.ServiceIndicator() {
++			t.Logf("Service indicator is not set")
++		} else {
++			t.Errorf("Service indicator is set")
++		}
++	})
++}
++
+ func fatalIfErr(t *testing.T, err error) {
+ 	t.Helper()
+ 	if err != nil {

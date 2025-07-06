@@ -1,0 +1,76 @@
+commit ae5a5132eb105e712799be4717929d55d75a04b2
+Author: zxc111 <zxc9007@gmail.com>
+Date:   Tue May 11 12:57:36 2021 +0000
+
+    net/http: add test for proxyAuth
+    
+    Change-Id: Ib4edae749ce8da433e992e08a90c9cf3d4357081
+    GitHub-Last-Rev: 19d87d12ab6b299b37e8907429f4dff52ab53745
+    GitHub-Pull-Request: golang/go#46102
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/318690
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/net/http/proxy_test.go | 42 +++++++++++++++++++++++++++++++++++++++---
+ 1 file changed, 39 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/proxy_test.go b/src/net/http/proxy_test.go
+index 0dd57b4125..6090506f42 100644
+--- a/src/net/http/proxy_test.go
++++ b/src/net/http/proxy_test.go
+@@ -10,9 +10,6 @@ import (
+ 	"testing"
+ )
+ 
+-// TODO(mattn):
+-//	test ProxyAuth
+-
+ var cacheKeysTests = []struct {
+ 	proxy  string
+ 	scheme string
+@@ -48,3 +45,42 @@ func ResetProxyEnv() {
+ 	}
+ 	ResetCachedEnvironment()
+ }
++
++var proxyAuthTests = []struct {
++	proxy string
++	key   string
++}{
++	{
++		"",
++		"",
++	},
++	{
++		"http://bar.com",
++		"",
++	},
++	{
++		"http://foo@bar.com",
++		"Basic Zm9vOg==",
++	},
++	{
++		"http://foo:bar@bar.com",
++		"Basic Zm9vOmJhcg==",
++	},
++}
++
++func TestProxyAuthKeys(t *testing.T) {
++	for _, tt := range proxyAuthTests {
++		var proxy *url.URL
++		if tt.proxy != "" {
++			u, err := url.Parse(tt.proxy)
++			if err != nil {
++				t.Fatal(err)
++			}
++			proxy = u
++		}
++		cm := connectMethod{proxyURL: proxy}
++		if got := cm.proxyAuth(); got != tt.key {
++			t.Fatalf("{%q} proxyAuth key = %q; want %q", tt.proxy, got, tt.key)
++		}
++	}
++}

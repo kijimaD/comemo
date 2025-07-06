@@ -1,0 +1,39 @@
+commit 8d767ff38df003e9cd85e4bba9a026ba1b70e80e
+Author: Than McIntosh <thanm@golang.org>
+Date:   Tue Mar 11 21:33:25 2025 -0400
+
+    runtime: increase GDB version testing requirement to 10 from 7.7
+    
+    Bump the required version of GDB up to 10 from 7.7 in the runtime GDB
+    tests, so as to ensure that we have something that can handle DWARF 5
+    when running tests. In theory there is some DWARF 5 support on the
+    version 9 release branch, but we get "Dwarf Error: DW_FORM_addrx"
+    errors for some archs on builders where GDB 9.2 is installed.
+    
+    Updates #26379.
+    
+    Change-Id: I1b7b45f8e4dd1fafccf22f2dda0124458ecf7cba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656836
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/runtime/runtime-gdb_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index 9c54d68949..2286868567 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -73,7 +73,9 @@ func checkGdbVersion(t *testing.T) {
+ 	if err1 != nil || err2 != nil {
+ 		t.Skipf("skipping: can't determine gdb version: %v, %v", err1, err2)
+ 	}
+-	if major < 7 || (major == 7 && minor < 7) {
++	// The Go toolchain now generates DWARF 5 by default, which needs
++	// a GDB version of 10 or above.
++	if major < 10 {
+ 		t.Skipf("skipping: gdb version %d.%d too old", major, minor)
+ 	}
+ 	t.Logf("gdb version %d.%d", major, minor)

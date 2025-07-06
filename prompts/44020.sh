@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 44020: a1ffbe9c69c716c597f74bd281ca9166e0d54ff5
+# Index 44020: 37715cce695e96d3d5a8e01f5009517121241330
 
 echo "🚀 Generating explanation for commit 44020..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 44020..."
 
 ### メタデータ
 - **コミットインデックス**: 44020
-- **コミットハッシュ**: a1ffbe9c69c716c597f74bd281ca9166e0d54ff5
-- **GitHub URL**: https://github.com/golang/go/commit/a1ffbe9c69c716c597f74bd281ca9166e0d54ff5
+- **コミットハッシュ**: 37715cce695e96d3d5a8e01f5009517121241330
+- **GitHub URL**: https://github.com/golang/go/commit/37715cce695e96d3d5a8e01f5009517121241330
 
 ### 章構成
 

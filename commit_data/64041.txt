@@ -1,0 +1,538 @@
+commit d2909ec8858371ce19d7fd021f80f9e6ca84911f
+Author: Gopher Robot <gobot@golang.org>
+Date:   Wed Jun 5 18:04:59 2024 +0000
+
+    api: promote next to go1.23
+    
+    Change-Id: I219c59b5efc2ed7fcfdd7cd3c418635831b17b8a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590835
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ api/go1.23.txt     | 128 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next/42888.txt |   2 -
+ api/next/44940.txt |   1 -
+ api/next/46443.txt |   1 -
+ api/next/50102.txt |   9 ----
+ api/next/53987.txt |   1 -
+ api/next/57151.txt |   1 -
+ api/next/59473.txt |   1 -
+ api/next/60023.txt |   3 --
+ api/next/60427.txt |   4 --
+ api/next/61308.txt |   1 -
+ api/next/61395.txt |  20 ---------
+ api/next/61472.txt |   1 -
+ api/next/61696.txt |   1 -
+ api/next/61716.txt |   2 -
+ api/next/61897.txt |   4 --
+ api/next/61899.txt |   8 ----
+ api/next/61900.txt |   5 ---
+ api/next/62254.txt |  12 -----
+ api/next/62483.txt |   3 --
+ api/next/62484.txt |   1 -
+ api/next/62490.txt |   1 -
+ api/next/63116.txt |   2 -
+ api/next/63369.txt |   6 ---
+ api/next/63691.txt |   8 ----
+ api/next/65238.txt |   1 -
+ api/next/65772.txt |   1 -
+ api/next/66008.txt |   2 -
+ api/next/66054.txt |   2 -
+ api/next/66056.txt |   4 --
+ api/next/66249.txt |   5 ---
+ api/next/66339.txt |   1 -
+ api/next/66405.txt |   1 -
+ api/next/66408.txt |   1 -
+ api/next/66559.txt |   1 -
+ api/next/66836.txt |   6 ---
+ api/next/67059.txt |   1 -
+ api/next/67143.txt |   4 --
+ 38 files changed, 128 insertions(+), 128 deletions(-)
+
+diff --git a/api/go1.23.txt b/api/go1.23.txt
+new file mode 100644
+index 0000000000..a548554591
+--- /dev/null
++++ b/api/go1.23.txt
+@@ -0,0 +1,128 @@
++pkg archive/tar, type FileInfoNames interface { Gname, IsDir, ModTime, Mode, Name, Size, Sys, Uname } #50102
++pkg archive/tar, type FileInfoNames interface, Gname() (string, error) #50102
++pkg archive/tar, type FileInfoNames interface, IsDir() bool #50102
++pkg archive/tar, type FileInfoNames interface, ModTime() time.Time #50102
++pkg archive/tar, type FileInfoNames interface, Mode() fs.FileMode #50102
++pkg archive/tar, type FileInfoNames interface, Name() string #50102
++pkg archive/tar, type FileInfoNames interface, Size() int64 #50102
++pkg archive/tar, type FileInfoNames interface, Sys() interface{} #50102
++pkg archive/tar, type FileInfoNames interface, Uname() (string, error) #50102
++pkg crypto/tls, const QUICResumeSession = 8 #63691
++pkg crypto/tls, const QUICResumeSession QUICEventKind #63691
++pkg crypto/tls, const QUICStoreSession = 9 #63691
++pkg crypto/tls, const QUICStoreSession QUICEventKind #63691
++pkg crypto/tls, method (*ECHRejectionError) Error() string #63369
++pkg crypto/tls, method (*QUICConn) StoreSession(*SessionState) error #63691
++pkg crypto/tls, type Config struct, EncryptedClientHelloConfigList []uint8 #63369
++pkg crypto/tls, type Config struct, EncryptedClientHelloRejectionVerify func(ConnectionState) error #63369
++pkg crypto/tls, type ConnectionState struct, ECHAccepted bool #63369
++pkg crypto/tls, type ECHRejectionError struct #63369
++pkg crypto/tls, type ECHRejectionError struct, RetryConfigList []uint8 #63369
++pkg crypto/tls, type QUICConfig struct, EnableStoreSessionEvent bool #63691
++pkg crypto/tls, type QUICEvent struct, SessionState *SessionState #63691
++pkg crypto/tls, type QUICSessionTicketOptions struct, Extra [][]uint8 #63691
++pkg crypto/x509, func ParseOID(string) (OID, error) #66249
++pkg crypto/x509, method (*OID) UnmarshalBinary([]uint8) error #66249
++pkg crypto/x509, method (*OID) UnmarshalText([]uint8) error #66249
++pkg crypto/x509, method (OID) MarshalBinary() ([]uint8, error) #66249
++pkg crypto/x509, method (OID) MarshalText() ([]uint8, error) #66249
++pkg debug/elf, const PT_OPENBSD_NOBTCFI = 1705237480 #66054
++pkg debug/elf, const PT_OPENBSD_NOBTCFI ProgType #66054
++pkg debug/elf, const STT_GNU_IFUNC = 10 #66836
++pkg debug/elf, const STT_GNU_IFUNC SymType #66836
++pkg debug/elf, const STT_RELC = 8 #66836
++pkg debug/elf, const STT_RELC SymType #66836
++pkg debug/elf, const STT_SRELC = 9 #66836
++pkg debug/elf, const STT_SRELC SymType #66836
++pkg encoding/binary, func Append([]uint8, ByteOrder, interface{}) ([]uint8, error) #60023
++pkg encoding/binary, func Decode([]uint8, ByteOrder, interface{}) (int, error) #60023
++pkg encoding/binary, func Encode([]uint8, ByteOrder, interface{}) (int, error) #60023
++pkg go/ast, func Preorder(Node) iter.Seq[Node] #66339
++pkg go/types, method (*Alias) Origin() *Alias #67143
++pkg go/types, method (*Alias) Rhs() Type #66559
++pkg go/types, method (*Alias) SetTypeParams([]*TypeParam) #67143
++pkg go/types, method (*Alias) TypeArgs() *TypeList #67143
++pkg go/types, method (*Alias) TypeParams() *TypeParamList #67143
++pkg go/types, method (*Func) Signature() *Signature #65772
++pkg iter, func Pull2[$0 interface{}, $1 interface{}](Seq2[$0, $1]) (func() ($0, $1, bool), func()) #61897
++pkg iter, func Pull[$0 interface{}](Seq[$0]) (func() ($0, bool), func()) #61897
++pkg iter, type Seq2[$0 interface{}, $1 interface{}] func(func($0, $1) bool) #61897
++pkg iter, type Seq[$0 interface{}] func(func($0) bool) #61897
++pkg maps, func All[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) iter.Seq2[$1, $2] #61900
++pkg maps, func Collect[$0 comparable, $1 interface{}](iter.Seq2[$0, $1]) map[$0]$1 #61900
++pkg maps, func Insert[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0, iter.Seq2[$1, $2]) #61900
++pkg maps, func Keys[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) iter.Seq[$1] #61900
++pkg maps, func Values[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) iter.Seq[$2] #61900
++pkg math/rand/v2, func Uint() uint #61716
++pkg math/rand/v2, method (*ChaCha8) Read([]uint8) (int, error) #67059
++pkg math/rand/v2, method (*Rand) Uint() uint #61716
++pkg net, method (*DNSError) Unwrap() error #63116
++pkg net, method (*TCPConn) SetKeepAliveConfig(KeepAliveConfig) error #62254
++pkg net, type DNSError struct, UnwrapErr error #63116
++pkg net, type Dialer struct, KeepAliveConfig KeepAliveConfig #62254
++pkg net, type KeepAliveConfig struct #62254
++pkg net, type KeepAliveConfig struct, Count int #62254
++pkg net, type KeepAliveConfig struct, Enable bool #62254
++pkg net, type KeepAliveConfig struct, Idle time.Duration #62254
++pkg net, type KeepAliveConfig struct, Interval time.Duration #62254
++pkg net, type ListenConfig struct, KeepAliveConfig KeepAliveConfig #62254
++pkg net/http, func ParseCookie(string) ([]*Cookie, error) #66008
++pkg net/http, func ParseSetCookie(string) (*Cookie, error) #66008
++pkg net/http, method (*Request) CookiesNamed(string) []*Cookie #61472
++pkg net/http, type Cookie struct, Partitioned bool #62490
++pkg net/http, type Cookie struct, Quoted bool #46443
++pkg net/http, type Request struct, Pattern string #66405
++pkg net/http/httptest, func NewRequestWithContext(context.Context, string, string, io.Reader) *http.Request #59473
++pkg os, func CopyFS(string, fs.FS) error #62484
++pkg path/filepath, func Localize(string) (string, error) #57151
++pkg reflect, func SliceAt(Type, unsafe.Pointer, int) Value #61308
++pkg reflect, method (Value) Seq() iter.Seq[Value] #66056
++pkg reflect, method (Value) Seq2() iter.Seq2[Value, Value] #66056
++pkg reflect, type Type interface, CanSeq() bool #66056
++pkg reflect, type Type interface, CanSeq2() bool #66056
++pkg reflect, type Type interface, OverflowComplex(complex128) bool #60427
++pkg reflect, type Type interface, OverflowFloat(float64) bool #60427
++pkg reflect, type Type interface, OverflowInt(int64) bool #60427
++pkg reflect, type Type interface, OverflowUint(uint64) bool #60427
++pkg runtime/debug, func SetCrashOutput(*os.File, CrashOptions) error #42888
++pkg runtime/debug, type CrashOptions struct #67182
++pkg slices, func All[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq2[int, $1] #61899
++pkg slices, func AppendSeq[$0 interface{ ~[]$1 }, $1 interface{}]($0, iter.Seq[$1]) $0 #61899
++pkg slices, func Backward[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq2[int, $1] #61899
++pkg slices, func Chunk[$0 interface{ ~[]$1 }, $1 interface{}]($0, int) iter.Seq[$0] #53987
++pkg slices, func Collect[$0 interface{}](iter.Seq[$0]) []$0 #61899
++pkg slices, func Repeat[$0 interface{ ~[]$1 }, $1 interface{}]($0, int) $0 #65238
++pkg slices, func SortedFunc[$0 interface{}](iter.Seq[$0], func($0, $0) int) []$0 #61899
++pkg slices, func SortedStableFunc[$0 interface{}](iter.Seq[$0], func($0, $0) int) []$0 #61899
++pkg slices, func Sorted[$0 cmp.Ordered](iter.Seq[$0]) []$0 #61899
++pkg slices, func Values[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq[$1] #61899
++pkg structs, type HostLayout struct #66408
++pkg sync, method (*Map) Clear() #61696
++pkg sync/atomic, func AndInt32(*int32, int32) int32 #61395
++pkg sync/atomic, func AndInt64(*int64, int64) int64 #61395
++pkg sync/atomic, func AndUint32(*uint32, uint32) uint32 #61395
++pkg sync/atomic, func AndUint64(*uint64, uint64) uint64 #61395
++pkg sync/atomic, func AndUintptr(*uintptr, uintptr) uintptr #61395
++pkg sync/atomic, func OrInt32(*int32, int32) int32 #61395
++pkg sync/atomic, func OrInt64(*int64, int64) int64 #61395
++pkg sync/atomic, func OrUint32(*uint32, uint32) uint32 #61395
++pkg sync/atomic, func OrUint64(*uint64, uint64) uint64 #61395
++pkg sync/atomic, func OrUintptr(*uintptr, uintptr) uintptr #61395
++pkg sync/atomic, method (*Int32) And(int32) int32 #61395
++pkg sync/atomic, method (*Int32) Or(int32) int32 #61395
++pkg sync/atomic, method (*Int64) And(int64) int64 #61395
++pkg sync/atomic, method (*Int64) Or(int64) int64 #61395
++pkg sync/atomic, method (*Uint32) And(uint32) uint32 #61395
++pkg sync/atomic, method (*Uint32) Or(uint32) uint32 #61395
++pkg sync/atomic, method (*Uint64) And(uint64) uint64 #61395
++pkg sync/atomic, method (*Uint64) Or(uint64) uint64 #61395
++pkg sync/atomic, method (*Uintptr) And(uintptr) uintptr #61395
++pkg sync/atomic, method (*Uintptr) Or(uintptr) uintptr #61395
++pkg syscall (windows-386), const WSAENOPROTOOPT = 10042 #62254
++pkg syscall (windows-386), const WSAENOPROTOOPT Errno #62254
++pkg syscall (windows-amd64), const WSAENOPROTOOPT = 10042 #62254
++pkg syscall (windows-amd64), const WSAENOPROTOOPT Errno #62254
++pkg unicode/utf16, func RuneLen(int32) int #44940
++pkg unique, func Make[$0 comparable]($0) Handle[$0] #62483
++pkg unique, method (Handle[$0]) Value() $0 #62483
++pkg unique, type Handle[$0 comparable] struct #62483
+diff --git a/api/next/42888.txt b/api/next/42888.txt
+deleted file mode 100644
+index 279536f2ab..0000000000
+--- a/api/next/42888.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-pkg runtime/debug, type CrashOptions struct #67182
+-pkg runtime/debug, func SetCrashOutput(*os.File, CrashOptions) error #42888
+diff --git a/api/next/44940.txt b/api/next/44940.txt
+deleted file mode 100644
+index 4efb7c5782..0000000000
+--- a/api/next/44940.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg unicode/utf16, func RuneLen(int32) int #44940
+diff --git a/api/next/46443.txt b/api/next/46443.txt
+deleted file mode 100644
+index a4e6fc4d4b..0000000000
+--- a/api/next/46443.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg net/http, type Cookie struct, Quoted bool #46443
+diff --git a/api/next/50102.txt b/api/next/50102.txt
+deleted file mode 100644
+index a142c3c220..0000000000
+--- a/api/next/50102.txt
++++ /dev/null
+@@ -1,9 +0,0 @@
+-pkg archive/tar, type FileInfoNames interface { Gname, IsDir, ModTime, Mode, Name, Size, Sys, Uname } #50102
+-pkg archive/tar, type FileInfoNames interface, Gname() (string, error) #50102
+-pkg archive/tar, type FileInfoNames interface, IsDir() bool #50102
+-pkg archive/tar, type FileInfoNames interface, ModTime() time.Time #50102
+-pkg archive/tar, type FileInfoNames interface, Mode() fs.FileMode #50102
+-pkg archive/tar, type FileInfoNames interface, Name() string #50102
+-pkg archive/tar, type FileInfoNames interface, Size() int64 #50102
+-pkg archive/tar, type FileInfoNames interface, Sys() interface{} #50102
+-pkg archive/tar, type FileInfoNames interface, Uname() (string, error) #50102
+diff --git a/api/next/53987.txt b/api/next/53987.txt
+deleted file mode 100644
+index 1861d0b783..0000000000
+--- a/api/next/53987.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg slices, func Chunk[$0 interface{ ~[]$1 }, $1 interface{}]($0, int) iter.Seq[$0] #53987
+diff --git a/api/next/57151.txt b/api/next/57151.txt
+deleted file mode 100644
+index 5d0e34e8b7..0000000000
+--- a/api/next/57151.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg path/filepath, func Localize(string) (string, error) #57151
+diff --git a/api/next/59473.txt b/api/next/59473.txt
+deleted file mode 100644
+index da6902d424..0000000000
+--- a/api/next/59473.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg net/http/httptest, func NewRequestWithContext(context.Context, string, string, io.Reader) *http.Request #59473
+diff --git a/api/next/60023.txt b/api/next/60023.txt
+deleted file mode 100644
+index 4b5770830b..0000000000
+--- a/api/next/60023.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-pkg encoding/binary, func Encode([]uint8, ByteOrder, interface{}) (int, error) #60023
+-pkg encoding/binary, func Decode([]uint8, ByteOrder, interface{}) (int, error) #60023
+-pkg encoding/binary, func Append([]uint8, ByteOrder, interface{}) ([]uint8, error) #60023
+diff --git a/api/next/60427.txt b/api/next/60427.txt
+deleted file mode 100644
+index 0be9da0782..0000000000
+--- a/api/next/60427.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-pkg reflect, type Type interface, OverflowComplex(complex128) bool #60427
+-pkg reflect, type Type interface, OverflowFloat(float64) bool #60427
+-pkg reflect, type Type interface, OverflowInt(int64) bool #60427
+-pkg reflect, type Type interface, OverflowUint(uint64) bool #60427
+diff --git a/api/next/61308.txt b/api/next/61308.txt
+deleted file mode 100644
+index 73a6035480..0000000000
+--- a/api/next/61308.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg reflect, func SliceAt(Type, unsafe.Pointer, int) Value #61308
+diff --git a/api/next/61395.txt b/api/next/61395.txt
+deleted file mode 100644
+index 0efca67b62..0000000000
+--- a/api/next/61395.txt
++++ /dev/null
+@@ -1,20 +0,0 @@
+-pkg sync/atomic, func AndInt32(*int32, int32) int32 #61395
+-pkg sync/atomic, func AndInt64(*int64, int64) int64 #61395
+-pkg sync/atomic, func AndUint32(*uint32, uint32) uint32 #61395
+-pkg sync/atomic, func AndUint64(*uint64, uint64) uint64 #61395
+-pkg sync/atomic, func AndUintptr(*uintptr, uintptr) uintptr #61395
+-pkg sync/atomic, func OrInt32(*int32, int32) int32 #61395
+-pkg sync/atomic, func OrInt64(*int64, int64) int64 #61395
+-pkg sync/atomic, func OrUint32(*uint32, uint32) uint32 #61395
+-pkg sync/atomic, func OrUint64(*uint64, uint64) uint64 #61395
+-pkg sync/atomic, func OrUintptr(*uintptr, uintptr) uintptr #61395
+-pkg sync/atomic, method (*Int32) And(int32) int32 #61395
+-pkg sync/atomic, method (*Int64) And(int64) int64 #61395
+-pkg sync/atomic, method (*Uint32) And(uint32) uint32 #61395
+-pkg sync/atomic, method (*Uint64) And(uint64) uint64 #61395
+-pkg sync/atomic, method (*Uintptr) And(uintptr) uintptr #61395
+-pkg sync/atomic, method (*Int32) Or(int32) int32 #61395
+-pkg sync/atomic, method (*Int64) Or(int64) int64 #61395
+-pkg sync/atomic, method (*Uint32) Or(uint32) uint32 #61395
+-pkg sync/atomic, method (*Uint64) Or(uint64) uint64 #61395
+-pkg sync/atomic, method (*Uintptr) Or(uintptr) uintptr #61395
+diff --git a/api/next/61472.txt b/api/next/61472.txt
+deleted file mode 100644
+index 2e39c4b193..0000000000
+--- a/api/next/61472.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg net/http, method (*Request) CookiesNamed(string) []*Cookie #61472
+diff --git a/api/next/61696.txt b/api/next/61696.txt
+deleted file mode 100644
+index 8adaf3d80e..0000000000
+--- a/api/next/61696.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg sync, method (*Map) Clear() #61696
+diff --git a/api/next/61716.txt b/api/next/61716.txt
+deleted file mode 100644
+index 524ca4b8a5..0000000000
+--- a/api/next/61716.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-pkg math/rand/v2, func Uint() uint #61716
+-pkg math/rand/v2, method (*Rand) Uint() uint #61716
+diff --git a/api/next/61897.txt b/api/next/61897.txt
+deleted file mode 100644
+index 9f5a2d94df..0000000000
+--- a/api/next/61897.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-pkg iter, func Pull2[$0 interface{}, $1 interface{}](Seq2[$0, $1]) (func() ($0, $1, bool), func()) #61897
+-pkg iter, func Pull[$0 interface{}](Seq[$0]) (func() ($0, bool), func()) #61897
+-pkg iter, type Seq2[$0 interface{}, $1 interface{}] func(func($0, $1) bool) #61897
+-pkg iter, type Seq[$0 interface{}] func(func($0) bool) #61897
+diff --git a/api/next/61899.txt b/api/next/61899.txt
+deleted file mode 100644
+index 60b04ceed7..0000000000
+--- a/api/next/61899.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-pkg slices, func All[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq2[int, $1] #61899
+-pkg slices, func AppendSeq[$0 interface{ ~[]$1 }, $1 interface{}]($0, iter.Seq[$1]) $0 #61899
+-pkg slices, func Backward[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq2[int, $1] #61899
+-pkg slices, func Collect[$0 interface{}](iter.Seq[$0]) []$0 #61899
+-pkg slices, func SortedFunc[$0 interface{}](iter.Seq[$0], func($0, $0) int) []$0 #61899
+-pkg slices, func SortedStableFunc[$0 interface{}](iter.Seq[$0], func($0, $0) int) []$0 #61899
+-pkg slices, func Sorted[$0 cmp.Ordered](iter.Seq[$0]) []$0 #61899
+-pkg slices, func Values[$0 interface{ ~[]$1 }, $1 interface{}]($0) iter.Seq[$1] #61899
+diff --git a/api/next/61900.txt b/api/next/61900.txt
+deleted file mode 100644
+index 4a669b90ab..0000000000
+--- a/api/next/61900.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-pkg maps, func All[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) iter.Seq2[$1, $2] #61900
+-pkg maps, func Collect[$0 comparable, $1 interface{}](iter.Seq2[$0, $1]) map[$0]$1 #61900
+-pkg maps, func Insert[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0, iter.Seq2[$1, $2]) #61900
+-pkg maps, func Keys[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) iter.Seq[$1] #61900
+-pkg maps, func Values[$0 interface{ ~map[$1]$2 }, $1 comparable, $2 interface{}]($0) iter.Seq[$2] #61900
+diff --git a/api/next/62254.txt b/api/next/62254.txt
+deleted file mode 100644
+index 49d3214310..0000000000
+--- a/api/next/62254.txt
++++ /dev/null
+@@ -1,12 +0,0 @@
+-pkg net, method (*TCPConn) SetKeepAliveConfig(KeepAliveConfig) error #62254
+-pkg net, type Dialer struct, KeepAliveConfig KeepAliveConfig #62254
+-pkg net, type KeepAliveConfig struct #62254
+-pkg net, type KeepAliveConfig struct, Count int #62254
+-pkg net, type KeepAliveConfig struct, Enable bool #62254
+-pkg net, type KeepAliveConfig struct, Idle time.Duration #62254
+-pkg net, type KeepAliveConfig struct, Interval time.Duration #62254
+-pkg net, type ListenConfig struct, KeepAliveConfig KeepAliveConfig #62254
+-pkg syscall (windows-386), const WSAENOPROTOOPT = 10042 #62254
+-pkg syscall (windows-386), const WSAENOPROTOOPT Errno #62254
+-pkg syscall (windows-amd64), const WSAENOPROTOOPT = 10042 #62254
+-pkg syscall (windows-amd64), const WSAENOPROTOOPT Errno #62254
+diff --git a/api/next/62483.txt b/api/next/62483.txt
+deleted file mode 100644
+index 11b8ff6fd9..0000000000
+--- a/api/next/62483.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-pkg unique, func Make[$0 comparable]($0) Handle[$0] #62483
+-pkg unique, method (Handle[$0]) Value() $0 #62483
+-pkg unique, type Handle[$0 comparable] struct #62483
+diff --git a/api/next/62484.txt b/api/next/62484.txt
+deleted file mode 100644
+index 7f5b5ca90c..0000000000
+--- a/api/next/62484.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg os, func CopyFS(string, fs.FS) error #62484
+diff --git a/api/next/62490.txt b/api/next/62490.txt
+deleted file mode 100644
+index e8772aca3f..0000000000
+--- a/api/next/62490.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg net/http, type Cookie struct, Partitioned bool #62490
+diff --git a/api/next/63116.txt b/api/next/63116.txt
+deleted file mode 100644
+index 47214a9e05..0000000000
+--- a/api/next/63116.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-pkg net, type DNSError struct, UnwrapErr error #63116
+-pkg net, method (*DNSError) Unwrap() error #63116
+diff --git a/api/next/63369.txt b/api/next/63369.txt
+deleted file mode 100644
+index a0257a5385..0000000000
+--- a/api/next/63369.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-pkg crypto/tls, type Config struct, EncryptedClientHelloConfigList []uint8 #63369
+-pkg crypto/tls, type Config struct, EncryptedClientHelloRejectionVerify func(ConnectionState) error #63369
+-pkg crypto/tls, type ConnectionState struct, ECHAccepted bool #63369
+-pkg crypto/tls, type ECHRejectionError struct #63369
+-pkg crypto/tls, type ECHRejectionError struct, RetryConfigList []uint8 #63369
+-pkg crypto/tls, method (*ECHRejectionError) Error() string #63369
+diff --git a/api/next/63691.txt b/api/next/63691.txt
+deleted file mode 100644
+index ba419e2a04..0000000000
+--- a/api/next/63691.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-pkg crypto/tls, const QUICResumeSession = 8 #63691
+-pkg crypto/tls, const QUICResumeSession QUICEventKind #63691
+-pkg crypto/tls, const QUICStoreSession = 9 #63691
+-pkg crypto/tls, const QUICStoreSession QUICEventKind #63691
+-pkg crypto/tls, method (*QUICConn) StoreSession(*SessionState) error #63691
+-pkg crypto/tls, type QUICConfig struct, EnableStoreSessionEvent bool #63691
+-pkg crypto/tls, type QUICEvent struct, SessionState *SessionState #63691
+-pkg crypto/tls, type QUICSessionTicketOptions struct, Extra [][]uint8 #63691
+diff --git a/api/next/65238.txt b/api/next/65238.txt
+deleted file mode 100644
+index e04939e859..0000000000
+--- a/api/next/65238.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg slices, func Repeat[$0 interface{ ~[]$1 }, $1 interface{}]($0, int) $0 #65238
+diff --git a/api/next/65772.txt b/api/next/65772.txt
+deleted file mode 100644
+index 1244df8dd3..0000000000
+--- a/api/next/65772.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg go/types, method (*Func) Signature() *Signature #65772
+diff --git a/api/next/66008.txt b/api/next/66008.txt
+deleted file mode 100644
+index ea72f64068..0000000000
+--- a/api/next/66008.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-pkg net/http, func ParseCookie(string) ([]*Cookie, error) #66008
+-pkg net/http, func ParseSetCookie(string) (*Cookie, error) #66008
+diff --git a/api/next/66054.txt b/api/next/66054.txt
+deleted file mode 100644
+index bef794c7cf..0000000000
+--- a/api/next/66054.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-pkg debug/elf, const PT_OPENBSD_NOBTCFI = 1705237480 #66054
+-pkg debug/elf, const PT_OPENBSD_NOBTCFI ProgType #66054
+diff --git a/api/next/66056.txt b/api/next/66056.txt
+deleted file mode 100644
+index db7065ade3..0000000000
+--- a/api/next/66056.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-pkg reflect, method (Value) Seq() iter.Seq[Value] #66056
+-pkg reflect, method (Value) Seq2() iter.Seq2[Value, Value] #66056
+-pkg reflect, type Type interface, CanSeq() bool #66056
+-pkg reflect, type Type interface, CanSeq2() bool #66056
+diff --git a/api/next/66249.txt b/api/next/66249.txt
+deleted file mode 100644
+index f9d7a1addc..0000000000
+--- a/api/next/66249.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-pkg crypto/x509, func ParseOID(string) (OID, error) #66249
+-pkg crypto/x509, method (*OID) UnmarshalBinary([]uint8) error #66249
+-pkg crypto/x509, method (*OID) UnmarshalText([]uint8) error #66249
+-pkg crypto/x509, method (OID) MarshalBinary() ([]uint8, error) #66249
+-pkg crypto/x509, method (OID) MarshalText() ([]uint8, error) #66249
+diff --git a/api/next/66339.txt b/api/next/66339.txt
+deleted file mode 100644
+index a6b45adcd2..0000000000
+--- a/api/next/66339.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg go/ast, func Preorder(Node) iter.Seq[Node] #66339
+diff --git a/api/next/66405.txt b/api/next/66405.txt
+deleted file mode 100644
+index 0b39494f92..0000000000
+--- a/api/next/66405.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg net/http, type Request struct, Pattern string #66405
+diff --git a/api/next/66408.txt b/api/next/66408.txt
+deleted file mode 100644
+index 32147bd813..0000000000
+--- a/api/next/66408.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg structs, type HostLayout struct #66408
+diff --git a/api/next/66559.txt b/api/next/66559.txt
+deleted file mode 100644
+index 8b83bcca40..0000000000
+--- a/api/next/66559.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg go/types, method (*Alias) Rhs() Type #66559
+diff --git a/api/next/66836.txt b/api/next/66836.txt
+deleted file mode 100644
+index 07e87a7039..0000000000
+--- a/api/next/66836.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-pkg debug/elf, const STT_GNU_IFUNC = 10 #66836
+-pkg debug/elf, const STT_GNU_IFUNC SymType #66836
+-pkg debug/elf, const STT_RELC = 8 #66836
+-pkg debug/elf, const STT_RELC SymType #66836
+-pkg debug/elf, const STT_SRELC = 9 #66836
+-pkg debug/elf, const STT_SRELC SymType #66836
+diff --git a/api/next/67059.txt b/api/next/67059.txt
+deleted file mode 100644
+index c128585d14..0000000000
+--- a/api/next/67059.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg math/rand/v2, method (*ChaCha8) Read([]uint8) (int, error) #67059
+diff --git a/api/next/67143.txt b/api/next/67143.txt
+deleted file mode 100644
+index f124034849..0000000000
+--- a/api/next/67143.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-pkg go/types, method (*Alias) Origin() *Alias #67143
+-pkg go/types, method (*Alias) SetTypeParams([]*TypeParam) #67143
+-pkg go/types, method (*Alias) TypeArgs() *TypeList #67143
+-pkg go/types, method (*Alias) TypeParams() *TypeParamList #67143

@@ -1,0 +1,75 @@
+commit 6ac87aa5b36e7a9389754cf5569af94447266b47
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Fri Jul 26 10:14:20 2024 -0700
+
+    runtime: measure speed of procyield and osyield
+    
+    These are delay primitives for lock2. If a mutex isn't immediately
+    available, we can use procyield to tell the processor to wait for a
+    moment, or osyield to allow the OS to run a different process or thread
+    if one is waiting. We expect a processor-level yield to be faster than
+    an os-level yield, and for both of them to be fast relative to entering
+    a full sleep (via futexsleep or semasleep).
+    
+    Each architecture has its own way of hinting to the processor that it's
+    in a spin-wait loop, so procyield presents an architecture-independent
+    interface for use in lock_futex.go and lock_sema.go.
+    
+    Measure the (single-threaded) speed of these to confirm.
+    
+    For #68578
+    
+    Change-Id: I90cd46ea553f2990395aceb048206285558c877e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601396
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/export_test.go  |  3 +++
+ src/runtime/runtime_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 25 insertions(+)
+
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 759463755a..b18480d0af 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1223,6 +1223,9 @@ func PageCachePagesLeaked() (leaked uintptr) {
+ 	return
+ }
+ 
++var ProcYield = procyield
++var OSYield = osyield
++
+ type Mutex = mutex
+ 
+ var Lock = lock
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index c1bf7f87db..0b51dd8c8d 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -539,3 +539,25 @@ func TestTimediv(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func BenchmarkProcYield(b *testing.B) {
++	benchN := func(n uint32) func(*testing.B) {
++		return func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				ProcYield(n)
++			}
++		}
++	}
++
++	b.Run("1", benchN(1))
++	b.Run("10", benchN(10))
++	b.Run("30", benchN(30)) // active_spin_cnt in lock_sema.go and lock_futex.go
++	b.Run("100", benchN(100))
++	b.Run("1000", benchN(1000))
++}
++
++func BenchmarkOSYield(b *testing.B) {
++	for i := 0; i < b.N; i++ {
++		OSYield()
++	}
++}

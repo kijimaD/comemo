@@ -1,0 +1,68 @@
+commit 3452d80da3cf4f08da0f5905b1aa19cec475936e
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Apr 24 08:38:56 2025 -0700
+
+    cmd/compile: add cast in range loop final value computation
+    
+    When replacing a loop where the iteration variable has a named type,
+    we need to compute the last iteration value as i = T(len(a)-1), not
+    just i = len(a)-1.
+    
+    Fixes #73491
+    
+    Change-Id: Ic1cc3bdf8571a40c10060f929a9db8a888de2b70
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667815
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/walk/range.go |  2 +-
+ test/fixedbugs/issue73491.go           | 25 +++++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index a1e5442a69..3d3547b84b 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -605,7 +605,7 @@ func arrayClear(wbPos src.XPos, a ir.Node, nrange *ir.RangeStmt) ir.Node {
+ 
+ 	// For array range clear, also set "i = len(a) - 1"
+ 	if nrange != nil {
+-		idx := ir.NewAssignStmt(base.Pos, nrange.Key, ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, 1)))
++		idx := ir.NewAssignStmt(base.Pos, nrange.Key, typecheck.Conv(ir.NewBinaryExpr(base.Pos, ir.OSUB, ir.NewUnaryExpr(base.Pos, ir.OLEN, a), ir.NewInt(base.Pos, 1)), nrange.Key.Type()))
+ 		n.Body.Append(idx)
+ 	}
+ 
+diff --git a/test/fixedbugs/issue73491.go b/test/fixedbugs/issue73491.go
+new file mode 100644
+index 0000000000..4137088bde
+--- /dev/null
++++ b/test/fixedbugs/issue73491.go
+@@ -0,0 +1,25 @@
++// build
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type T int
++
++const K T = 5
++
++type P struct {
++	a [K]*byte
++}
++
++//go:noinline
++func f(p *P) {
++	for i := range K {
++		p.a[i] = nil
++	}
++}
++func main() {
++	f(nil)
++}

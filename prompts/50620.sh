@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50620: 604963052072d7895138c78751c477cf25625e7d
+# Index 50620: 9e8a312b71b3ad271026947d15f4d9fc483b0132
 
 echo "🚀 Generating explanation for commit 50620..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 50620..."
 
 ### メタデータ
 - **コミットインデックス**: 50620
-- **コミットハッシュ**: 604963052072d7895138c78751c477cf25625e7d
-- **GitHub URL**: https://github.com/golang/go/commit/604963052072d7895138c78751c477cf25625e7d
+- **コミットハッシュ**: 9e8a312b71b3ad271026947d15f4d9fc483b0132
+- **GitHub URL**: https://github.com/golang/go/commit/9e8a312b71b3ad271026947d15f4d9fc483b0132
 
 ### 章構成
 

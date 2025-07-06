@@ -1,0 +1,39 @@
+commit 3452f07457497c7e2efbdee50d707367308566e5
+Author: changwang ma <machangwang.cn@gmail.com>
+Date:   Thu Oct 24 00:43:28 2024 +0800
+
+    runtime: fix out-of-date comment doc
+    
+    Change-Id: I352fa0e4e048b896d63427f1c2c519bfed24c702
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622017
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/runtime/mbarrier.go | 13 -------------
+ 1 file changed, 13 deletions(-)
+
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index dd99bf3a6a..19006044ae 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -92,19 +92,6 @@ import (
+ // barriers, which will slow down both the mutator and the GC, we always grey
+ // the ptr object regardless of the slot's color.
+ //
+-// Another place where we intentionally omit memory barriers is when
+-// accessing mheap_.arena_used to check if a pointer points into the
+-// heap. On relaxed memory machines, it's possible for a mutator to
+-// extend the size of the heap by updating arena_used, allocate an
+-// object from this new region, and publish a pointer to that object,
+-// but for tracing running on another processor to observe the pointer
+-// but use the old value of arena_used. In this case, tracing will not
+-// mark the object, even though it's reachable. However, the mutator
+-// is guaranteed to execute a write barrier when it publishes the
+-// pointer, so it will take care of marking the object. A general
+-// consequence of this is that the garbage collector may cache the
+-// value of mheap_.arena_used. (See issue #9984.)
+-//
+ //
+ // Stack writes:
+ //

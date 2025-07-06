@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 26420: c7f5831fa9277edebb863ab11c9527fb09637ce9
+# Index 26420: dbdd8c2c94ec118050331455681606b9f14b6244
 
 echo "🚀 Generating explanation for commit 26420..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 26420..."
 
 ### メタデータ
 - **コミットインデックス**: 26420
-- **コミットハッシュ**: c7f5831fa9277edebb863ab11c9527fb09637ce9
-- **GitHub URL**: https://github.com/golang/go/commit/c7f5831fa9277edebb863ab11c9527fb09637ce9
+- **コミットハッシュ**: dbdd8c2c94ec118050331455681606b9f14b6244
+- **GitHub URL**: https://github.com/golang/go/commit/dbdd8c2c94ec118050331455681606b9f14b6244
 
 ### 章構成
 

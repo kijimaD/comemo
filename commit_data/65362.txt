@@ -1,0 +1,90 @@
+commit 4ffa2aecc119bd70f4765cbb9b911f47dbadd117
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Nov 1 12:04:49 2024 -0400
+
+    cmd/internal/obj/wasm: correct return PC for frameless wasmexport wrappers
+    
+    For a wasmexport wrapper, we generate a call to the actual
+    exported Go function, and use the wrapper function's PC 1 as the
+    (fake) return address. This address is not used for returning,
+    which is handled by the Wasm call stack. It is used for stack
+    unwinding, and PC 1 makes it past the prologue and therefore has
+    the right SP delta. But if the function has no arguments and
+    results, the wrapper is frameless, with no prologue, and PC 1
+    doesn't exist. This causes the unwinder to fail. In this case, we
+    put PC 0, which also has the correct SP delta (0).
+    
+    Fixes #69584.
+    
+    Change-Id: Ic047a6e62100db540b5099cc5a56a1d0f16d58b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624000
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ lib/wasm/wasm_exec.js                |  1 +
+ src/cmd/internal/obj/wasm/wasmobj.go | 16 +++++++++++-----
+ src/syscall/js/js_test.go            |  5 +++++
+ 3 files changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/lib/wasm/wasm_exec.js b/lib/wasm/wasm_exec.js
+index af7e28f5f4..ec96d42db5 100644
+--- a/lib/wasm/wasm_exec.js
++++ b/lib/wasm/wasm_exec.js
+@@ -217,6 +217,7 @@
+ 			}
+ 
+ 			const testCallExport = (a, b) => {
++				this._inst.exports.testExport0();
+ 				return this._inst.exports.testExport(a, b);
+ 			}
+ 
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 28ecd20cd0..48eee4e3ea 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -974,6 +974,10 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
+ 		Sym:    s, // PC_F
+ 		Offset: 1, // PC_B=1, past the prologue, so we have the right SP delta
+ 	}
++	if framesize == 0 {
++		// Frameless function, no prologue.
++		retAddr.Offset = 0
++	}
+ 	p = appendp(p, AI64Const, retAddr)
+ 	p = appendp(p, AI64Store, constAddr(0))
+ 	// Set PC_B parameter to function entry
+@@ -1014,11 +1018,13 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
+ 	}
+ 
+ 	// Epilogue. Cannot use ARET as we don't follow Go calling convention.
+-	// SP += framesize
+-	p = appendp(p, AGet, regAddr(REG_SP))
+-	p = appendp(p, AI32Const, constAddr(framesize))
+-	p = appendp(p, AI32Add)
+-	p = appendp(p, ASet, regAddr(REG_SP))
++	if framesize > 0 {
++		// SP += framesize
++		p = appendp(p, AGet, regAddr(REG_SP))
++		p = appendp(p, AI32Const, constAddr(framesize))
++		p = appendp(p, AI32Add)
++		p = appendp(p, ASet, regAddr(REG_SP))
++	}
+ 	p = appendp(p, AReturn)
+ }
+ 
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index 76fa442442..9ab913f2ab 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -75,6 +75,11 @@ func testExport(a int32, b int64) int64 {
+ 	return <-ch + <-ch
+ }
+ 
++//go:wasmexport testExport0
++func testExport0() { // no arg or result (see issue 69584)
++	runtime.GC()
++}
++
+ var testExportCalled bool
+ 
+ func growStack(n int64) {

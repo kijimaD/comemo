@@ -1,0 +1,2325 @@
+commit 1b40dbce1ab039f6715b8b151a4db093ede87fff
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Mar 12 18:52:58 2025 +0000
+
+    runtime: mark and scan small objects in whole spans [green tea]
+    
+    Our current parallel mark algorithm suffers from frequent stalls on
+    memory since its access pattern is essentially random. Small objects
+    are the worst offenders, since each one forces pulling in at least one
+    full cache line to access even when the amount to be scanned is far
+    smaller than that. Each object also requires an independent access to
+    per-object metadata.
+    
+    The purpose of this change is to improve garbage collector performance
+    by scanning small objects in batches to obtain better cache locality
+    than our current approach. The core idea behind this change is to defer
+    marking and scanning small objects, and then scan them in batches
+    localized to a span.
+    
+    This change adds scanned bits to each small object (<=512 bytes) span in
+    addition to mark bits. The scanned bits indicate that the object has
+    been scanned. (One way to think of them is "grey" bits and "black" bits
+    in the tri-color mark-sweep abstraction.) Each of these spans is always
+    8 KiB and if they contain pointers, the pointer/scalar data is already
+    packed together at the end of the span, allowing us to further optimize
+    the mark algorithm for this specific case.
+    
+    When the GC encounters a pointer, it first checks if it points into a
+    small object span. If so, it is first marked in the mark bits, and then
+    the object is queued on a work-stealing P-local queue. This object
+    represents the whole span, and we ensure that a span can only appear at
+    most once in any queue by maintaining an atomic ownership bit for each
+    span. Later, when the pointer is dequeued, we scan every object with a
+    set mark that doesn't have a corresponding scanned bit. If it turns out
+    that was the only object in the mark bits since the last time we scanned
+    the span, we scan just that object directly, essentially falling back to
+    the existing algorithm. noscan objects have no scan work, so they are
+    never queued.
+    
+    Each span's mark and scanned bits are co-located together at the end of
+    the span. Since the span is always 8 KiB in size, it can be found with
+    simple pointer arithmetic. Next to the marks and scans we also store the
+    size class, eliminating the need to access the span's mspan altogether.
+    
+    The work-stealing P-local queue is a new source of GC work. If this
+    queue gets full, half of it is dumped to a global linked list of spans
+    to scan. The regular scan queues are always prioritized over this queue
+    to allow time for darts to accumulate. Stealing work from other Ps is a
+    last resort.
+    
+    This change also adds a new debug mode under GODEBUG=gctrace=2 that
+    dumps whole-span scanning statistics by size class on every GC cycle.
+    
+    A future extension to this CL is to use SIMD-accelerated scanning
+    kernels for scanning spans with high mark bit density.
+    
+    For #19112. (Deadlock averted in GOEXPERIMENT.)
+    For #73581.
+    
+    Change-Id: I4bbb4e36f376950a53e61aaaae157ce842c341bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658036
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/test/inl_test.go |   6 +-
+ src/internal/runtime/gc/malloc.go         |   3 +
+ src/internal/runtime/gc/scan.go           |  15 +
+ src/runtime/export_test.go                |  25 +
+ src/runtime/gc_test.go                    | 193 ++++++++
+ src/runtime/mbitmap.go                    |  41 +-
+ src/runtime/mcentral.go                   |   6 +-
+ src/runtime/mgc.go                        |  68 ++-
+ src/runtime/mgcmark.go                    | 153 ++++--
+ src/runtime/mgcmark_greenteagc.go         | 765 ++++++++++++++++++++++++++++++
+ src/runtime/mgcmark_nogreenteagc.go       |  80 ++++
+ src/runtime/mgcpacer.go                   |  41 +-
+ src/runtime/mgcsweep.go                   |  10 +
+ src/runtime/mgcwork.go                    |  90 +++-
+ src/runtime/mheap.go                      | 157 +++++-
+ src/runtime/mstats.go                     |  10 +
+ src/runtime/mwbbuf.go                     |   5 +-
+ 17 files changed, 1554 insertions(+), 114 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 760bb7a999..619c57874f 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -67,16 +67,18 @@ func TestIntendedInlining(t *testing.T) {
+ 			// GC-related ones
+ 			"cgoInRange",
+ 			"gclinkptr.ptr",
++			"gcUsesSpanInlineMarkBits",
+ 			"guintptr.ptr",
+ 			"heapBitsSlice",
+ 			"markBits.isMarked",
+ 			"muintptr.ptr",
+ 			"puintptr.ptr",
++			"spanHeapBitsRange",
+ 			"spanOf",
+ 			"spanOfUnchecked",
+ 			"typePointers.nextFast",
+-			"(*gcWork).putFast",
+-			"(*gcWork).tryGetFast",
++			"(*gcWork).putObjFast",
++			"(*gcWork).tryGetObjFast",
+ 			"(*guintptr).set",
+ 			"(*markBits).advance",
+ 			"(*mspan).allocBitsForIndex",
+diff --git a/src/internal/runtime/gc/malloc.go b/src/internal/runtime/gc/malloc.go
+index 5eb99e2f0d..bb54fff686 100644
+--- a/src/internal/runtime/gc/malloc.go
++++ b/src/internal/runtime/gc/malloc.go
+@@ -44,4 +44,7 @@ const (
+ 	// more complex check or possibly storing additional state to determine whether a
+ 	// span has malloc headers.
+ 	MinSizeForMallocHeader = goarch.PtrSize * ptrBits
++
++	// PageSize is the increment in which spans are managed.
++	PageSize = 1 << PageShift
+ )
+diff --git a/src/internal/runtime/gc/scan.go b/src/internal/runtime/gc/scan.go
+new file mode 100644
+index 0000000000..066a32151a
+--- /dev/null
++++ b/src/internal/runtime/gc/scan.go
+@@ -0,0 +1,15 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package gc
++
++import "internal/goarch"
++
++// ObjMask is a bitmap where each bit corresponds to an object in a span.
++//
++// It is sized to accomodate all size classes.
++type ObjMask [MaxObjsPerSpan / (goarch.PtrSize * 8)]uintptr
++
++// PtrMask is a bitmap where each bit represents a pointer-word in a single runtime page.
++type PtrMask [PageSize / goarch.PtrSize / (goarch.PtrSize * 8)]uintptr
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 195a56963d..980066df70 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1232,6 +1232,7 @@ func AllocMSpan() *MSpan {
+ 	systemstack(func() {
+ 		lock(&mheap_.lock)
+ 		s = (*mspan)(mheap_.spanalloc.alloc())
++		s.init(0, 0)
+ 		unlock(&mheap_.lock)
+ 	})
+ 	return (*MSpan)(s)
+@@ -1255,6 +1256,30 @@ func MSpanCountAlloc(ms *MSpan, bits []byte) int {
+ 	return result
+ }
+ 
++type MSpanQueue mSpanQueue
++
++func (q *MSpanQueue) Size() int {
++	return (*mSpanQueue)(q).n
++}
++
++func (q *MSpanQueue) Push(s *MSpan) {
++	(*mSpanQueue)(q).push((*mspan)(s))
++}
++
++func (q *MSpanQueue) Pop() *MSpan {
++	s := (*mSpanQueue)(q).pop()
++	return (*MSpan)(s)
++}
++
++func (q *MSpanQueue) TakeAll(p *MSpanQueue) {
++	(*mSpanQueue)(q).takeAll((*mSpanQueue)(p))
++}
++
++func (q *MSpanQueue) PopN(n int) MSpanQueue {
++	p := (*mSpanQueue)(q).popN(n)
++	return (MSpanQueue)(p)
++}
++
+ const (
+ 	TimeHistSubBucketBits = timeHistSubBucketBits
+ 	TimeHistNumSubBuckets = timeHistNumSubBuckets
+diff --git a/src/runtime/gc_test.go b/src/runtime/gc_test.go
+index 00280ed1b5..e084460b8e 100644
+--- a/src/runtime/gc_test.go
++++ b/src/runtime/gc_test.go
+@@ -875,3 +875,196 @@ func TestWeakToStrongMarkTermination(t *testing.T) {
+ 		t.Errorf("gcMarkDone restarted")
+ 	}
+ }
++
++func TestMSpanQueue(t *testing.T) {
++	expectSize := func(t *testing.T, q *runtime.MSpanQueue, want int) {
++		t.Helper()
++		if got := q.Size(); got != want {
++			t.Errorf("expected size %d, got %d", want, got)
++		}
++	}
++	expectMSpan := func(t *testing.T, got, want *runtime.MSpan, op string) {
++		t.Helper()
++		if got != want {
++			t.Errorf("expected mspan %p from %s, got %p", want, op, got)
++		}
++	}
++	makeSpans := func(t *testing.T, n int) ([]*runtime.MSpan, func()) {
++		t.Helper()
++		spans := make([]*runtime.MSpan, 0, n)
++		for range cap(spans) {
++			spans = append(spans, runtime.AllocMSpan())
++		}
++		return spans, func() {
++			for i, s := range spans {
++				runtime.FreeMSpan(s)
++				spans[i] = nil
++			}
++		}
++	}
++	t.Run("Empty", func(t *testing.T) {
++		var q runtime.MSpanQueue
++		expectSize(t, &q, 0)
++		expectMSpan(t, q.Pop(), nil, "pop")
++	})
++	t.Run("PushPop", func(t *testing.T) {
++		s := runtime.AllocMSpan()
++		defer runtime.FreeMSpan(s)
++
++		var q runtime.MSpanQueue
++		q.Push(s)
++		expectSize(t, &q, 1)
++		expectMSpan(t, q.Pop(), s, "pop")
++		expectMSpan(t, q.Pop(), nil, "pop")
++	})
++	t.Run("PushPopPushPop", func(t *testing.T) {
++		s0 := runtime.AllocMSpan()
++		defer runtime.FreeMSpan(s0)
++		s1 := runtime.AllocMSpan()
++		defer runtime.FreeMSpan(s1)
++
++		var q runtime.MSpanQueue
++
++		// Push and pop s0.
++		q.Push(s0)
++		expectSize(t, &q, 1)
++		expectMSpan(t, q.Pop(), s0, "pop")
++		expectMSpan(t, q.Pop(), nil, "pop")
++
++		// Push and pop s1.
++		q.Push(s1)
++		expectSize(t, &q, 1)
++		expectMSpan(t, q.Pop(), s1, "pop")
++		expectMSpan(t, q.Pop(), nil, "pop")
++	})
++	t.Run("PushPushPopPop", func(t *testing.T) {
++		s0 := runtime.AllocMSpan()
++		defer runtime.FreeMSpan(s0)
++		s1 := runtime.AllocMSpan()
++		defer runtime.FreeMSpan(s1)
++
++		var q runtime.MSpanQueue
++		q.Push(s0)
++		expectSize(t, &q, 1)
++		q.Push(s1)
++		expectSize(t, &q, 2)
++		expectMSpan(t, q.Pop(), s0, "pop")
++		expectMSpan(t, q.Pop(), s1, "pop")
++		expectMSpan(t, q.Pop(), nil, "pop")
++	})
++	t.Run("EmptyTakeAll", func(t *testing.T) {
++		var q runtime.MSpanQueue
++		var p runtime.MSpanQueue
++		expectSize(t, &p, 0)
++		expectSize(t, &q, 0)
++		p.TakeAll(&q)
++		expectSize(t, &p, 0)
++		expectSize(t, &q, 0)
++		expectMSpan(t, q.Pop(), nil, "pop")
++		expectMSpan(t, p.Pop(), nil, "pop")
++	})
++	t.Run("Push4TakeAll", func(t *testing.T) {
++		spans, free := makeSpans(t, 4)
++		defer free()
++
++		var q runtime.MSpanQueue
++		for i, s := range spans {
++			expectSize(t, &q, i)
++			q.Push(s)
++			expectSize(t, &q, i+1)
++		}
++
++		var p runtime.MSpanQueue
++		p.TakeAll(&q)
++		expectSize(t, &p, 4)
++		for i := range p.Size() {
++			expectMSpan(t, p.Pop(), spans[i], "pop")
++		}
++		expectSize(t, &p, 0)
++		expectMSpan(t, q.Pop(), nil, "pop")
++		expectMSpan(t, p.Pop(), nil, "pop")
++	})
++	t.Run("Push4Pop3", func(t *testing.T) {
++		spans, free := makeSpans(t, 4)
++		defer free()
++
++		var q runtime.MSpanQueue
++		for i, s := range spans {
++			expectSize(t, &q, i)
++			q.Push(s)
++			expectSize(t, &q, i+1)
++		}
++		p := q.PopN(3)
++		expectSize(t, &p, 3)
++		expectSize(t, &q, 1)
++		for i := range p.Size() {
++			expectMSpan(t, p.Pop(), spans[i], "pop")
++		}
++		expectMSpan(t, q.Pop(), spans[len(spans)-1], "pop")
++		expectSize(t, &p, 0)
++		expectSize(t, &q, 0)
++		expectMSpan(t, q.Pop(), nil, "pop")
++		expectMSpan(t, p.Pop(), nil, "pop")
++	})
++	t.Run("Push4Pop0", func(t *testing.T) {
++		spans, free := makeSpans(t, 4)
++		defer free()
++
++		var q runtime.MSpanQueue
++		for i, s := range spans {
++			expectSize(t, &q, i)
++			q.Push(s)
++			expectSize(t, &q, i+1)
++		}
++		p := q.PopN(0)
++		expectSize(t, &p, 0)
++		expectSize(t, &q, 4)
++		for i := range q.Size() {
++			expectMSpan(t, q.Pop(), spans[i], "pop")
++		}
++		expectSize(t, &p, 0)
++		expectSize(t, &q, 0)
++		expectMSpan(t, q.Pop(), nil, "pop")
++		expectMSpan(t, p.Pop(), nil, "pop")
++	})
++	t.Run("Push4Pop4", func(t *testing.T) {
++		spans, free := makeSpans(t, 4)
++		defer free()
++
++		var q runtime.MSpanQueue
++		for i, s := range spans {
++			expectSize(t, &q, i)
++			q.Push(s)
++			expectSize(t, &q, i+1)
++		}
++		p := q.PopN(4)
++		expectSize(t, &p, 4)
++		expectSize(t, &q, 0)
++		for i := range p.Size() {
++			expectMSpan(t, p.Pop(), spans[i], "pop")
++		}
++		expectSize(t, &p, 0)
++		expectMSpan(t, q.Pop(), nil, "pop")
++		expectMSpan(t, p.Pop(), nil, "pop")
++	})
++	t.Run("Push4Pop5", func(t *testing.T) {
++		spans, free := makeSpans(t, 4)
++		defer free()
++
++		var q runtime.MSpanQueue
++		for i, s := range spans {
++			expectSize(t, &q, i)
++			q.Push(s)
++			expectSize(t, &q, i+1)
++		}
++		p := q.PopN(5)
++		expectSize(t, &p, 4)
++		expectSize(t, &q, 0)
++		for i := range p.Size() {
++			expectMSpan(t, p.Pop(), spans[i], "pop")
++		}
++		expectSize(t, &p, 0)
++		expectMSpan(t, q.Pop(), nil, "pop")
++		expectMSpan(t, p.Pop(), nil, "pop")
++	})
++}
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index e705676785..7d528b94b4 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -58,6 +58,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/goexperiment"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/gc"
+ 	"internal/runtime/sys"
+@@ -507,6 +508,9 @@ func (s *mspan) initHeapBits() {
+ 		b := s.heapBits()
+ 		clear(b)
+ 	}
++	if goexperiment.GreenTeaGC && gcUsesSpanInlineMarkBits(s.elemsize) {
++		s.initInlineMarkBits()
++	}
+ }
+ 
+ // heapBits returns the heap ptr/scalar bits stored at the end of the span for
+@@ -539,22 +543,32 @@ func (span *mspan) heapBits() []uintptr {
+ 	// Nearly every span with heap bits is exactly one page in size. Arenas are the only exception.
+ 	if span.npages == 1 {
+ 		// This will be inlined and constant-folded down.
+-		return heapBitsSlice(span.base(), pageSize)
++		return heapBitsSlice(span.base(), pageSize, span.elemsize)
+ 	}
+-	return heapBitsSlice(span.base(), span.npages*pageSize)
++	return heapBitsSlice(span.base(), span.npages*pageSize, span.elemsize)
+ }
+ 
+ // Helper for constructing a slice for the span's heap bits.
+ //
+ //go:nosplit
+-func heapBitsSlice(spanBase, spanSize uintptr) []uintptr {
+-	bitmapSize := spanSize / goarch.PtrSize / 8
++func heapBitsSlice(spanBase, spanSize, elemsize uintptr) []uintptr {
++	base, bitmapSize := spanHeapBitsRange(spanBase, spanSize, elemsize)
+ 	elems := int(bitmapSize / goarch.PtrSize)
+ 	var sl notInHeapSlice
+-	sl = notInHeapSlice{(*notInHeap)(unsafe.Pointer(spanBase + spanSize - bitmapSize)), elems, elems}
++	sl = notInHeapSlice{(*notInHeap)(unsafe.Pointer(base)), elems, elems}
+ 	return *(*[]uintptr)(unsafe.Pointer(&sl))
+ }
+ 
++//go:nosplit
++func spanHeapBitsRange(spanBase, spanSize, elemsize uintptr) (base, size uintptr) {
++	size = spanSize / goarch.PtrSize / 8
++	base = spanBase + spanSize - size
++	if goexperiment.GreenTeaGC && gcUsesSpanInlineMarkBits(elemsize) {
++		base -= unsafe.Sizeof(spanInlineMarkBits{})
++	}
++	return
++}
++
+ // heapBitsSmallForAddr loads the heap bits for the object stored at addr from span.heapBits.
+ //
+ // addr must be the base pointer of an object in the span. heapBitsInSpan(span.elemsize)
+@@ -562,9 +576,8 @@ func heapBitsSlice(spanBase, spanSize uintptr) []uintptr {
+ //
+ //go:nosplit
+ func (span *mspan) heapBitsSmallForAddr(addr uintptr) uintptr {
+-	spanSize := span.npages * pageSize
+-	bitmapSize := spanSize / goarch.PtrSize / 8
+-	hbits := (*byte)(unsafe.Pointer(span.base() + spanSize - bitmapSize))
++	hbitsBase, _ := spanHeapBitsRange(span.base(), span.npages*pageSize, span.elemsize)
++	hbits := (*byte)(unsafe.Pointer(hbitsBase))
+ 
+ 	// These objects are always small enough that their bitmaps
+ 	// fit in a single word, so just load the word or two we need.
+@@ -630,7 +643,8 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
+ 
+ 	// Since we're never writing more than one uintptr's worth of bits, we're either going
+ 	// to do one or two writes.
+-	dst := unsafe.Pointer(span.base() + pageSize - pageSize/goarch.PtrSize/8)
++	dstBase, _ := spanHeapBitsRange(span.base(), pageSize, span.elemsize)
++	dst := unsafe.Pointer(dstBase)
+ 	o := (x - span.base()) / goarch.PtrSize
+ 	i := o / ptrBits
+ 	j := o % ptrBits
+@@ -1118,15 +1132,6 @@ func markBitsForAddr(p uintptr) markBits {
+ 	return s.markBitsForIndex(objIndex)
+ }
+ 
+-func (s *mspan) markBitsForIndex(objIndex uintptr) markBits {
+-	bytep, mask := s.gcmarkBits.bitp(objIndex)
+-	return markBits{bytep, mask, objIndex}
+-}
+-
+-func (s *mspan) markBitsForBase() markBits {
+-	return markBits{&s.gcmarkBits.x, uint8(1), 0}
+-}
+-
+ // isMarked reports whether mark bit m is set.
+ func (m markBits) isMarked() bool {
+ 	return *m.bytep&m.mask != 0
+diff --git a/src/runtime/mcentral.go b/src/runtime/mcentral.go
+index 21731f3fec..c71ecbbcd5 100644
+--- a/src/runtime/mcentral.go
++++ b/src/runtime/mcentral.go
+@@ -256,11 +256,7 @@ func (c *mcentral) grow() *mspan {
+ 	if s == nil {
+ 		return nil
+ 	}
+-
+-	// Use division by multiplication and shifts to quickly compute:
+-	// n := (npages << gc.PageShift) / size
+-	n := s.divideByElemSize(npages << gc.PageShift)
+-	s.limit = s.base() + size*n
++	s.limit = s.base() + size*uintptr(s.nelems)
+ 	s.initHeapBits()
+ 	return s
+ }
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index bf4633a033..d5f3403425 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -130,7 +130,9 @@ package runtime
+ 
+ import (
+ 	"internal/cpu"
++	"internal/goarch"
+ 	"internal/runtime/atomic"
++	"internal/runtime/gc"
+ 	"unsafe"
+ )
+ 
+@@ -328,9 +330,15 @@ type workType struct {
+ 		// one of the workbuf lists.
+ 		busy mSpanList
+ 	}
++	_ cpu.CacheLinePad // prevents false-sharing between wbufSpans and spanq
++
++	// Global queue of spans to scan.
++	//
++	// Only used if goexperiment.GreenTeaGC.
++	spanq spanQueue
+ 
+ 	// Restore 64-bit alignment on 32-bit.
+-	_ uint32
++	// _ uint32
+ 
+ 	// bytesMarked is the number of bytes marked this cycle. This
+ 	// includes bytes blackened in scanned objects, noscan objects
+@@ -702,6 +710,10 @@ func gcStart(trigger gcTrigger) {
+ 			println("runtime: p", p.id, "flushGen", fg, "!= sweepgen", mheap_.sweepgen)
+ 			throw("p mcache not flushed")
+ 		}
++		// Initialize ptrBuf if necessary.
++		if p.gcw.ptrBuf == nil {
++			p.gcw.ptrBuf = (*[gc.PageSize / goarch.PtrSize]uintptr)(persistentalloc(gc.PageSize, goarch.PtrSize, &memstats.gcMiscSys))
++		}
+ 	}
+ 
+ 	gcBgMarkStartWorkers()
+@@ -1218,6 +1230,9 @@ func gcMarkTermination(stw worldStop) {
+ 	//
+ 	// Also, flush the pinner cache, to avoid leaking that memory
+ 	// indefinitely.
++	if debug.gctrace > 1 {
++		clear(memstats.lastScanStats[:])
++	}
+ 	forEachP(waitReasonFlushProcCaches, func(pp *p) {
+ 		pp.mcache.prepareForSweep()
+ 		if pp.status == _Pidle {
+@@ -1227,6 +1242,16 @@ func gcMarkTermination(stw worldStop) {
+ 				unlock(&mheap_.lock)
+ 			})
+ 		}
++		if debug.gctrace > 1 {
++			for i := range pp.gcw.stats {
++				memstats.lastScanStats[i].spansDenseScanned += pp.gcw.stats[i].spansDenseScanned
++				memstats.lastScanStats[i].spanObjsDenseScanned += pp.gcw.stats[i].spanObjsDenseScanned
++				memstats.lastScanStats[i].spansSparseScanned += pp.gcw.stats[i].spansSparseScanned
++				memstats.lastScanStats[i].spanObjsSparseScanned += pp.gcw.stats[i].spanObjsSparseScanned
++				memstats.lastScanStats[i].sparseObjsScanned += pp.gcw.stats[i].sparseObjsScanned
++			}
++			clear(pp.gcw.stats[:])
++		}
+ 		pp.pinnerCache = nil
+ 	})
+ 	if sl.valid {
+@@ -1284,6 +1309,41 @@ func gcMarkTermination(stw worldStop) {
+ 			print(" (forced)")
+ 		}
+ 		print("\n")
++
++		if debug.gctrace > 1 {
++			var (
++				spansDenseScanned     uint64
++				spanObjsDenseScanned  uint64
++				spansSparseScanned    uint64
++				spanObjsSparseScanned uint64
++				sparseObjsScanned     uint64
++			)
++			for _, stats := range memstats.lastScanStats {
++				spansDenseScanned += stats.spansDenseScanned
++				spanObjsDenseScanned += stats.spanObjsDenseScanned
++				spansSparseScanned += stats.spansSparseScanned
++				spanObjsSparseScanned += stats.spanObjsSparseScanned
++				sparseObjsScanned += stats.sparseObjsScanned
++			}
++			totalObjs := sparseObjsScanned + spanObjsSparseScanned + spanObjsDenseScanned
++			totalSpans := spansSparseScanned + spansDenseScanned
++			print("scan: total ", sparseObjsScanned, "+", spanObjsSparseScanned, "+", spanObjsDenseScanned, "=", totalObjs, " objs")
++			print(", ", spansSparseScanned, "+", spansDenseScanned, "=", totalSpans, " spans\n")
++			for i, stats := range memstats.lastScanStats {
++				if stats == (sizeClassScanStats{}) {
++					continue
++				}
++				totalObjs := stats.sparseObjsScanned + stats.spanObjsSparseScanned + stats.spanObjsDenseScanned
++				totalSpans := stats.spansSparseScanned + stats.spansDenseScanned
++				if i == 0 {
++					print("scan: class L ")
++				} else {
++					print("scan: class ", gc.SizeClassToSize[i], "B ")
++				}
++				print(stats.sparseObjsScanned, "+", stats.spanObjsSparseScanned, "+", stats.spanObjsDenseScanned, "=", totalObjs, " objs")
++				print(", ", stats.spansSparseScanned, "+", stats.spansDenseScanned, "=", totalSpans, " spans\n")
++			}
++		}
+ 		printunlock()
+ 	}
+ 
+@@ -1582,7 +1642,7 @@ func gcMarkWorkAvailable(p *p) bool {
+ 	if p != nil && !p.gcw.empty() {
+ 		return true
+ 	}
+-	if !work.full.empty() {
++	if !work.full.empty() || !work.spanq.empty() {
+ 		return true // global work available
+ 	}
+ 	if work.markrootNext < work.markrootJobs {
+@@ -1601,8 +1661,8 @@ func gcMark(startTime int64) {
+ 	work.tstart = startTime
+ 
+ 	// Check that there's no marking work remaining.
+-	if work.full != 0 || work.markrootNext < work.markrootJobs {
+-		print("runtime: full=", hex(work.full), " next=", work.markrootNext, " jobs=", work.markrootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, "\n")
++	if work.full != 0 || work.markrootNext < work.markrootJobs || !work.spanq.empty() {
++		print("runtime: full=", hex(work.full), " next=", work.markrootNext, " jobs=", work.markrootJobs, " nDataRoots=", work.nDataRoots, " nBSSRoots=", work.nBSSRoots, " nSpanRoots=", work.nSpanRoots, " nStackRoots=", work.nStackRoots, " spanq.n=", work.spanq.size(), "\n")
+ 		panic("non-empty mark queue after concurrent mark")
+ 	}
+ 
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 583f79e75d..274acd3374 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -9,6 +9,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/goexperiment"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/sys"
+ 	"unsafe"
+@@ -1187,6 +1188,14 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 			if check != nil && check() {
+ 				goto done
+ 			}
++
++			// Spin up a new worker if requested.
++			if goexperiment.GreenTeaGC && gcw.mayNeedWorker {
++				gcw.mayNeedWorker = false
++				if gcphase == _GCmark {
++					gcController.enlistWorker()
++				}
++			}
+ 		}
+ 	}
+ 
+@@ -1210,22 +1219,38 @@ func gcDrain(gcw *gcWork, flags gcDrainFlags) {
+ 			gcw.balance()
+ 		}
+ 
+-		b := gcw.tryGetFast()
+-		if b == 0 {
+-			b = gcw.tryGet()
+-			if b == 0 {
+-				// Flush the write barrier
+-				// buffer; this may create
+-				// more work.
+-				wbBufFlush()
+-				b = gcw.tryGet()
++		// See mgcwork.go for the rationale behind the order in which we check these queues.
++		var b uintptr
++		var s objptr
++		if b = gcw.tryGetObjFast(); b == 0 {
++			if s = gcw.tryGetSpan(false); s == 0 {
++				if b = gcw.tryGetObj(); b == 0 {
++					// Flush the write barrier
++					// buffer; this may create
++					// more work.
++					wbBufFlush()
++					if b = gcw.tryGetObj(); b == 0 {
++						s = gcw.tryGetSpan(true)
++					}
++				}
+ 			}
+ 		}
+-		if b == 0 {
++		if b != 0 {
++			scanobject(b, gcw)
++		} else if s != 0 {
++			scanSpan(s, gcw)
++		} else {
+ 			// Unable to get work.
+ 			break
+ 		}
+-		scanobject(b, gcw)
++
++		// Spin up a new worker if requested.
++		if goexperiment.GreenTeaGC && gcw.mayNeedWorker {
++			gcw.mayNeedWorker = false
++			if gcphase == _GCmark {
++				gcController.enlistWorker()
++			}
++		}
+ 
+ 		// Flush background scan work credit to the global
+ 		// account if we've accumulated enough locally so
+@@ -1290,38 +1315,53 @@ func gcDrainN(gcw *gcWork, scanWork int64) int64 {
+ 			gcw.balance()
+ 		}
+ 
+-		b := gcw.tryGetFast()
+-		if b == 0 {
+-			b = gcw.tryGet()
+-			if b == 0 {
+-				// Flush the write barrier buffer;
+-				// this may create more work.
+-				wbBufFlush()
+-				b = gcw.tryGet()
+-			}
+-		}
+-
+-		if b == 0 {
+-			// Try to do a root job.
+-			if work.markrootNext < work.markrootJobs {
+-				job := atomic.Xadd(&work.markrootNext, +1) - 1
+-				if job < work.markrootJobs {
+-					workFlushed += markroot(gcw, job, false)
+-					continue
++		// See mgcwork.go for the rationale behind the order in which we check these queues.
++		var b uintptr
++		var s objptr
++		if b = gcw.tryGetObjFast(); b == 0 {
++			if s = gcw.tryGetSpan(false); s == 0 {
++				if b = gcw.tryGetObj(); b == 0 {
++					// Flush the write barrier
++					// buffer; this may create
++					// more work.
++					wbBufFlush()
++					if b = gcw.tryGetObj(); b == 0 {
++						// Try to do a root job.
++						if work.markrootNext < work.markrootJobs {
++							job := atomic.Xadd(&work.markrootNext, +1) - 1
++							if job < work.markrootJobs {
++								workFlushed += markroot(gcw, job, false)
++								continue
++							}
++						}
++						s = gcw.tryGetSpan(true)
++					}
+ 				}
+ 			}
+-			// No heap or root jobs.
++		}
++		if b != 0 {
++			scanobject(b, gcw)
++		} else if s != 0 {
++			scanSpan(s, gcw)
++		} else {
++			// Unable to get work.
+ 			break
+ 		}
+ 
+-		scanobject(b, gcw)
+-
+ 		// Flush background scan work credit.
+ 		if gcw.heapScanWork >= gcCreditSlack {
+ 			gcController.heapScanWork.Add(gcw.heapScanWork)
+ 			workFlushed += gcw.heapScanWork
+ 			gcw.heapScanWork = 0
+ 		}
++
++		// Spin up a new worker if requested.
++		if goexperiment.GreenTeaGC && gcw.mayNeedWorker {
++			gcw.mayNeedWorker = false
++			if gcphase == _GCmark {
++				gcController.enlistWorker()
++			}
++		}
+ 	}
+ 
+ 	// Unlike gcDrain, there's no need to flush remaining work
+@@ -1359,10 +1399,14 @@ func scanblock(b0, n0 uintptr, ptrmask *uint8, gcw *gcWork, stk *stackScanState)
+ 				// Same work as in scanobject; see comments there.
+ 				p := *(*uintptr)(unsafe.Pointer(b + i))
+ 				if p != 0 {
+-					if obj, span, objIndex := findObject(p, b, i); obj != 0 {
+-						greyobject(obj, b, i, span, gcw, objIndex)
+-					} else if stk != nil && p >= stk.stack.lo && p < stk.stack.hi {
++					if stk != nil && p >= stk.stack.lo && p < stk.stack.hi {
+ 						stk.putPtr(p, false)
++					} else {
++						if !tryDeferToSpanScan(p, gcw) {
++							if obj, span, objIndex := findObject(p, b, i); obj != 0 {
++								greyobject(obj, b, i, span, gcw, objIndex)
++							}
++						}
+ 					}
+ 				}
+ 			}
+@@ -1412,8 +1456,8 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 			// so we'll drop out immediately when we go to
+ 			// scan those.
+ 			for oblet := b + maxObletBytes; oblet < s.base()+s.elemsize; oblet += maxObletBytes {
+-				if !gcw.putFast(oblet) {
+-					gcw.put(oblet)
++				if !gcw.putObjFast(oblet) {
++					gcw.putObj(oblet)
+ 				}
+ 			}
+ 		}
+@@ -1459,13 +1503,18 @@ func scanobject(b uintptr, gcw *gcWork) {
+ 			// heap. In this case, we know the object was
+ 			// just allocated and hence will be marked by
+ 			// allocation itself.
+-			if obj, span, objIndex := findObject(obj, b, addr-b); obj != 0 {
+-				greyobject(obj, b, addr-b, span, gcw, objIndex)
++			if !tryDeferToSpanScan(obj, gcw) {
++				if obj, span, objIndex := findObject(obj, b, addr-b); obj != 0 {
++					greyobject(obj, b, addr-b, span, gcw, objIndex)
++				}
+ 			}
+ 		}
+ 	}
+ 	gcw.bytesMarked += uint64(n)
+ 	gcw.heapScanWork += int64(scanSize)
++	if debug.gctrace > 1 {
++		gcw.stats[s.spanclass.sizeclass()].sparseObjsScanned++
++	}
+ }
+ 
+ // scanConservative scans block [b, b+n) conservatively, treating any
+@@ -1559,7 +1608,9 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
+ 
+ 		// val points to an allocated object. Mark it.
+ 		obj := span.base() + idx*span.elemsize
+-		greyobject(obj, b, i, span, gcw, idx)
++		if !tryDeferToSpanScan(obj, gcw) {
++			greyobject(obj, b, i, span, gcw, idx)
++		}
+ 	}
+ }
+ 
+@@ -1569,9 +1620,11 @@ func scanConservative(b, n uintptr, ptrmask *uint8, gcw *gcWork, state *stackSca
+ //
+ //go:nowritebarrier
+ func shade(b uintptr) {
+-	if obj, span, objIndex := findObject(b, 0, 0); obj != 0 {
+-		gcw := &getg().m.p.ptr().gcw
+-		greyobject(obj, 0, 0, span, gcw, objIndex)
++	gcw := &getg().m.p.ptr().gcw
++	if !tryDeferToSpanScan(b, gcw) {
++		if obj, span, objIndex := findObject(b, 0, 0); obj != 0 {
++			greyobject(obj, 0, 0, span, gcw, objIndex)
++		}
+ 	}
+ }
+ 
+@@ -1629,8 +1682,8 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
+ 	// some benefit on platforms with inclusive shared caches.
+ 	sys.Prefetch(obj)
+ 	// Queue the obj for scanning.
+-	if !gcw.putFast(obj) {
+-		gcw.put(obj)
++	if !gcw.putObjFast(obj) {
++		gcw.putObj(obj)
+ 	}
+ }
+ 
+@@ -1700,6 +1753,10 @@ func gcmarknewobject(span *mspan, obj uintptr) {
+ 	// Mark object.
+ 	objIndex := span.objIndex(obj)
+ 	span.markBitsForIndex(objIndex).setMarked()
++	if goexperiment.GreenTeaGC && gcUsesSpanInlineMarkBits(span.elemsize) {
++		// No need to scan the new object.
++		span.scannedBitsForIndex(objIndex).setMarked()
++	}
+ 
+ 	// Mark span.
+ 	arena, pageIdx, pageMask := pageIndexOf(span.base())
+@@ -1722,8 +1779,10 @@ func gcMarkTinyAllocs() {
+ 		if c == nil || c.tiny == 0 {
+ 			continue
+ 		}
+-		_, span, objIndex := findObject(c.tiny, 0, 0)
+ 		gcw := &p.gcw
+-		greyobject(c.tiny, 0, 0, span, gcw, objIndex)
++		if !tryDeferToSpanScan(c.tiny, gcw) {
++			_, span, objIndex := findObject(c.tiny, 0, 0)
++			greyobject(c.tiny, 0, 0, span, gcw, objIndex)
++		}
+ 	}
+ }
+diff --git a/src/runtime/mgcmark_greenteagc.go b/src/runtime/mgcmark_greenteagc.go
+new file mode 100644
+index 0000000000..84cb6c99ab
+--- /dev/null
++++ b/src/runtime/mgcmark_greenteagc.go
+@@ -0,0 +1,765 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Green Tea mark algorithm
++//
++// The core idea behind Green Tea is simple: achieve better locality during
++// mark/scan by delaying scanning so that we can accumulate objects to scan
++// within the same span, then scan the objects that have accumulated on the
++// span all together.
++//
++// By batching objects this way, we increase the chance that adjacent objects
++// will be accessed, amortize the cost of accessing object metadata, and create
++// better opportunities for prefetching. We can take this even further and
++// optimize the scan loop by size class (not yet completed) all the way to the
++// point of applying SIMD techniques to really tear through the heap.
++//
++// Naturally, this depends on being able to create opportunties to batch objects
++// together. The basic idea here is to have two sets of mark bits. One set is the
++// regular set of mark bits ("marks"), while the other essentially says that the
++// objects have been scanned already ("scans"). When we see a pointer for the first
++// time we set its mark and enqueue its span. We track these spans in work queues
++// with a FIFO policy, unlike workbufs which have a LIFO policy. Empirically, a
++// FIFO policy appears to work best for accumulating objects to scan on a span.
++// Later, when we dequeue the span, we find both the union and intersection of the
++// mark and scan bitsets. The union is then written back into the scan bits, while
++// the intersection is used to decide which objects need scanning, such that the GC
++// is still precise.
++//
++// Below is the bulk of the implementation, focusing on the worst case
++// for locality, small objects. Specifically, those that are smaller than
++// a few cache lines in size and whose metadata is stored the same way (at the
++// end of the span).
++
++//go:build goexperiment.greenteagc
++
++package runtime
++
++import (
++	"internal/cpu"
++	"internal/goarch"
++	"internal/runtime/atomic"
++	"internal/runtime/gc"
++	"internal/runtime/sys"
++	"unsafe"
++)
++
++const doubleCheckGreenTea = false
++
++// spanInlineMarkBits are mark bits that are inlined into the span
++// itself. gcUsesSpanInlineMarkBits may be used to check if objects
++// of a particular size use inline mark bits.
++//
++// Inline mark bits are a little bit more than just mark bits. They
++// consist of two parts: scans and marks. Marks are like pre-mark
++// bits. They're set once a pointer to an object is discovered for
++// the first time. The marks allow us to scan many objects in bulk
++// if we queue the whole span for scanning. Before we scan such objects
++// in bulk, we copy the marks to the scans, computing a diff along the
++// way. The resulting bitmap tells us which objects we should scan.
++//
++// The inlineMarkBits also hold state sufficient for scanning any
++// object in the span, as well as state for acquiring ownership of
++// the span for queuing. This avoids the need to look at the mspan when
++// scanning.
++type spanInlineMarkBits struct {
++	scans [63]uint8         // scanned bits.
++	owned spanScanOwnership // see the comment on spanScanOwnership.
++	marks [63]uint8         // mark bits.
++	class spanClass
++}
++
++// spanScanOwnership indicates whether some thread has acquired
++// the span for scanning, and whether there has been one or more
++// attempts to acquire the span. The latter information helps to
++// fast-track span scans that only apply to a single mark, skipping
++// the relatively costly merge-and-diff process for scans and marks
++// by allowing one to just set the mark directly.
++type spanScanOwnership uint8
++
++const (
++	spanScanUnowned  spanScanOwnership = 0         // Indicates the span is not acquired for scanning.
++	spanScanOneMark                    = 1 << iota // Indicates that only one mark bit is set relative to the scan bits.
++	spanScanManyMark                               // Indicates one or more scan bits may be set relative to the mark bits.
++	// "ManyMark" need not be exactly the value it has. In practice we just
++	// want to distinguish "none" from "one" from "many," so a comparison is
++	// sufficient (as opposed to a bit test) to check between these cases.
++)
++
++// load atomically loads from a pointer to a spanScanOwnership.
++func (o *spanScanOwnership) load() spanScanOwnership {
++	return spanScanOwnership(atomic.Load8((*uint8)(unsafe.Pointer(o))))
++}
++
++func (o *spanScanOwnership) or(v spanScanOwnership) spanScanOwnership {
++	// N.B. We round down the address and use Or32 because Or8 doesn't
++	// return a result, and it's strictly necessary for this protocol.
++	//
++	// Making Or8 return a result, while making the code look nicer, would
++	// not be strictly better on any supported platform, as an Or8 that
++	// returns a result is not a common instruction. On many platforms it
++	// would be implemented exactly as it is here, and since Or8 is
++	// exclusively used in the runtime and a hot function, we want to keep
++	// using its no-result version elsewhere for performance.
++	o32 := (*uint32)(unsafe.Pointer(uintptr(unsafe.Pointer(o)) &^ 0b11))
++	off := (uintptr(unsafe.Pointer(o)) & 0b11) * 8
++	if goarch.BigEndian {
++		off = 32 - off - 8
++	}
++	return spanScanOwnership(atomic.Or32(o32, uint32(v)<<off) >> off)
++}
++
++func (imb *spanInlineMarkBits) init(class spanClass) {
++	*imb = spanInlineMarkBits{}
++	imb.class = class
++}
++
++// tryAcquire attempts to acquire the span for scanning. On success, the caller
++// must queue the span for scanning or scan the span immediately.
++func (imb *spanInlineMarkBits) tryAcquire() bool {
++	switch imb.owned.load() {
++	case spanScanUnowned:
++		// Try to mark the span as having only one object marked.
++		if imb.owned.or(spanScanOneMark) == spanScanUnowned {
++			return true
++		}
++		// If we didn't see an old value of spanScanUnowned, then we must
++		// have raced with someone else and seen spanScanOneMark or greater.
++		// Fall through and try to set spanScanManyMark.
++		fallthrough
++	case spanScanOneMark:
++		// We may be the first to set *any* bit on owned. In such a case,
++		// we still need to make sure the span is queued.
++		return imb.owned.or(spanScanManyMark) == spanScanUnowned
++	}
++	return false
++}
++
++// release releases the span for scanning, allowing another thread to queue the span.
++//
++// Returns an upper bound on the number of mark bits set since the span was queued. The
++// upper bound is described as "one" (spanScanOneMark) or "many" (spanScanManyMark, with or
++// without spanScanOneMark). If the return value indicates only one mark bit was set, the
++// caller can be certain that it was the same mark bit that caused the span to get queued.
++// Take note of the fact that this is *only* an upper-bound. In particular, it may still
++// turn out that only one mark bit was set, even if the return value indicates "many".
++func (imb *spanInlineMarkBits) release() spanScanOwnership {
++	return spanScanOwnership(atomic.Xchg8((*uint8)(unsafe.Pointer(&imb.owned)), uint8(spanScanUnowned)))
++}
++
++// spanInlineMarkBitsFromBase returns the spanInlineMarkBits for a span whose start address is base.
++//
++// The span must be gcUsesSpanInlineMarkBits(span.elemsize).
++func spanInlineMarkBitsFromBase(base uintptr) *spanInlineMarkBits {
++	return (*spanInlineMarkBits)(unsafe.Pointer(base + gc.PageSize - unsafe.Sizeof(spanInlineMarkBits{})))
++}
++
++// initInlineMarkBits initializes the inlineMarkBits stored at the end of the span.
++func (s *mspan) initInlineMarkBits() {
++	if doubleCheckGreenTea && !gcUsesSpanInlineMarkBits(s.elemsize) {
++		throw("expected span with inline mark bits")
++	}
++	s.inlineMarkBits().init(s.spanclass)
++}
++
++// mergeInlineMarks merges the span's inline mark bits into dst.
++//
++// gcUsesSpanInlineMarkBits(s.elemsize) must be true.
++func (s *mspan) mergeInlineMarks(dst *gcBits) {
++	if doubleCheckGreenTea && !gcUsesSpanInlineMarkBits(s.elemsize) {
++		throw("expected span with inline mark bits")
++	}
++	bytes := divRoundUp(uintptr(s.nelems), 8)
++	imb := s.inlineMarkBits()
++	_ = imb.marks[bytes-1]
++	for i := uintptr(0); i < bytes; i++ {
++		*dst.bytep(i) |= imb.marks[i]
++	}
++	if doubleCheckGreenTea && !s.spanclass.noscan() && imb.marks != imb.scans {
++		throw("marks don't match scans for span with pointer")
++	}
++}
++
++// inlineMarkBits returns the inline mark bits for the span.
++//
++// gcUsesSpanInlineMarkBits(s.elemsize) must be true.
++func (s *mspan) inlineMarkBits() *spanInlineMarkBits {
++	if doubleCheckGreenTea && !gcUsesSpanInlineMarkBits(s.elemsize) {
++		throw("expected span with inline mark bits")
++	}
++	return spanInlineMarkBitsFromBase(s.base())
++}
++
++func (s *mspan) markBitsForIndex(objIndex uintptr) (bits markBits) {
++	if gcUsesSpanInlineMarkBits(s.elemsize) {
++		bits.bytep = &s.inlineMarkBits().marks[objIndex/8]
++	} else {
++		bits.bytep = s.gcmarkBits.bytep(objIndex / 8)
++	}
++	bits.mask = uint8(1) << (objIndex % 8)
++	bits.index = objIndex
++	return
++}
++
++func (s *mspan) markBitsForBase() markBits {
++	if gcUsesSpanInlineMarkBits(s.elemsize) {
++		return markBits{&s.inlineMarkBits().marks[0], uint8(1), 0}
++	}
++	return markBits{&s.gcmarkBits.x, uint8(1), 0}
++}
++
++// scannedBitsForIndex returns a markBits representing the scanned bit
++// for objIndex in the inline mark bits.
++func (s *mspan) scannedBitsForIndex(objIndex uintptr) markBits {
++	return markBits{&s.inlineMarkBits().scans[objIndex/8], uint8(1) << (objIndex % 8), objIndex}
++}
++
++// gcUsesSpanInlineMarkBits returns true if a span holding objects of a certain size
++// has inline mark bits. size must be the span's elemsize.
++//
++// nosplit because this is called from gcmarknewobject, which is nosplit.
++//
++//go:nosplit
++func gcUsesSpanInlineMarkBits(size uintptr) bool {
++	return heapBitsInSpan(size) && size >= 16
++}
++
++// tryQueueOnSpan tries to queue p on the span it points to, if it
++// points to a small object span (gcUsesSpanQueue size).
++func tryDeferToSpanScan(p uintptr, gcw *gcWork) bool {
++	if useCheckmark {
++		return false
++	}
++
++	// Quickly to see if this is a span that has inline mark bits.
++	ha := heapArenaOf(p)
++	if ha == nil {
++		return false
++	}
++	pageIdx := ((p / pageSize) / 8) % uintptr(len(ha.pageInUse))
++	pageMask := byte(1 << ((p / pageSize) % 8))
++	if ha.pageUseSpanInlineMarkBits[pageIdx]&pageMask == 0 {
++		return false
++	}
++
++	// Find the object's index from the span class info stored in the inline mark bits.
++	base := alignDown(p, gc.PageSize)
++	q := spanInlineMarkBitsFromBase(base)
++	objIndex := uint16((uint64(p-base) * uint64(gc.SizeClassToDivMagic[q.class.sizeclass()])) >> 32)
++
++	// Set mark bit.
++	idx, mask := objIndex/8, uint8(1)<<(objIndex%8)
++	if atomic.Load8(&q.marks[idx])&mask != 0 {
++		return true
++	}
++	atomic.Or8(&q.marks[idx], mask)
++
++	// Fast-track noscan objects.
++	if q.class.noscan() {
++		gcw.bytesMarked += uint64(gc.SizeClassToSize[q.class.sizeclass()])
++		return true
++	}
++
++	// Queue up the pointer (as a representative for its span).
++	if q.tryAcquire() {
++		if gcw.spanq.put(makeObjPtr(base, objIndex)) {
++			if gcphase == _GCmark {
++				gcw.mayNeedWorker = true
++			}
++			gcw.flushedWork = true
++		}
++	}
++	return true
++}
++
++// tryGetSpan attempts to get an entire span to scan.
++func (w *gcWork) tryGetSpan(slow bool) objptr {
++	if s := w.spanq.get(); s != 0 {
++		return s
++	}
++
++	if slow {
++		// Check the global span queue.
++		if s := work.spanq.get(w); s != 0 {
++			return s
++		}
++
++		// Attempt to steal spans to scan from other Ps.
++		return spanQueueSteal(w)
++	}
++	return 0
++}
++
++// spanQueue is a concurrent safe queue of mspans. Each mspan is represented
++// as an objptr whose spanBase is the base address of the span.
++type spanQueue struct {
++	avail atomic.Bool      // optimization to check emptiness w/o the lock
++	_     cpu.CacheLinePad // prevents false-sharing between lock and avail
++	lock  mutex
++	q     mSpanQueue
++}
++
++func (q *spanQueue) empty() bool {
++	return !q.avail.Load()
++}
++
++func (q *spanQueue) size() int {
++	return q.q.n
++}
++
++// putBatch adds a whole batch of spans to the queue.
++func (q *spanQueue) putBatch(batch []objptr) {
++	var list mSpanQueue
++	for _, p := range batch {
++		s := spanOfUnchecked(p.spanBase())
++		s.scanIdx = p.objIndex()
++		list.push(s)
++	}
++
++	lock(&q.lock)
++	if q.q.n == 0 {
++		q.avail.Store(true)
++	}
++	q.q.takeAll(&list)
++	unlock(&q.lock)
++}
++
++// get tries to take a span off the queue.
++//
++// Returns a non-zero objptr on success. Also, moves additional
++// spans to gcw's local span queue.
++func (q *spanQueue) get(gcw *gcWork) objptr {
++	if q.empty() {
++		return 0
++	}
++	lock(&q.lock)
++	if q.q.n == 0 {
++		unlock(&q.lock)
++		return 0
++	}
++	n := q.q.n/int(gomaxprocs) + 1
++	if n > q.q.n {
++		n = q.q.n
++	}
++	if max := len(gcw.spanq.ring) / 2; n > max {
++		n = max
++	}
++	newQ := q.q.popN(n)
++	if q.q.n == 0 {
++		q.avail.Store(false)
++	}
++	unlock(&q.lock)
++
++	s := newQ.pop()
++	for newQ.n > 0 {
++		s := newQ.pop()
++		gcw.spanq.put(makeObjPtr(s.base(), s.scanIdx))
++	}
++	return makeObjPtr(s.base(), s.scanIdx)
++}
++
++// localSpanQueue is a P-local ring buffer of objptrs that represent spans.
++// Accessed without a lock.
++//
++// Multi-consumer, single-producer. The only producer is the P that owns this
++// queue, but any other P may consume from it.
++//
++// This is based on the scheduler runqueues. If making changes there, consider
++// also making them here.
++type localSpanQueue struct {
++	head atomic.Uint32
++	tail atomic.Uint32
++	ring [256]objptr
++}
++
++// put adds s to the queue. Returns true if put flushed to the global queue
++// because it was full.
++func (q *localSpanQueue) put(s objptr) (flushed bool) {
++	for {
++		h := q.head.Load() // synchronize with consumers
++		t := q.tail.Load()
++		if t-h < uint32(len(q.ring)) {
++			q.ring[t%uint32(len(q.ring))] = s
++			q.tail.Store(t + 1) // Makes the item avail for consumption.
++			return false
++		}
++		if q.putSlow(s, h, t) {
++			return true
++		}
++		// The queue is not full, now the put above must succeed.
++	}
++}
++
++// putSlow is a helper for put to move spans to the global queue.
++// Returns true on success, false on failure (nothing moved).
++func (q *localSpanQueue) putSlow(s objptr, h, t uint32) bool {
++	var batch [len(q.ring)/2 + 1]objptr
++
++	// First, grab a batch from local queue.
++	n := t - h
++	n = n / 2
++	if n != uint32(len(q.ring)/2) {
++		throw("localSpanQueue.putSlow: queue is not full")
++	}
++	for i := uint32(0); i < n; i++ {
++		batch[i] = q.ring[(h+i)%uint32(len(q.ring))]
++	}
++	if !q.head.CompareAndSwap(h, h+n) { // Commits consume.
++		return false
++	}
++	batch[n] = s
++
++	work.spanq.putBatch(batch[:])
++	return true
++}
++
++// get attempts to take a span off the queue. Might fail if the
++// queue is empty. May be called by multiple threads, but callers
++// are better off using stealFrom to amortize the cost of stealing.
++// This method is intended for use by the owner of this queue.
++func (q *localSpanQueue) get() objptr {
++	for {
++		h := q.head.Load()
++		t := q.tail.Load()
++		if t == h {
++			return 0
++		}
++		s := q.ring[h%uint32(len(q.ring))]
++		if q.head.CompareAndSwap(h, h+1) {
++			return s
++		}
++	}
++}
++
++func (q *localSpanQueue) empty() bool {
++	h := q.head.Load()
++	t := q.tail.Load()
++	return t == h
++}
++
++// stealFrom takes spans from q2 and puts them into q1. One span is removed
++// from the stolen spans and returned on success. Failure to steal returns a
++// zero objptr.
++func (q1 *localSpanQueue) stealFrom(q2 *localSpanQueue) objptr {
++	writeHead := q1.tail.Load()
++
++	var n uint32
++	for {
++		h := q2.head.Load() // load-acquire, synchronize with other consumers
++		t := q2.tail.Load() // load-acquire, synchronize with the producer
++		n = t - h
++		n = n - n/2
++		if n == 0 {
++			return 0
++		}
++		if n > uint32(len(q2.ring)/2) { // read inconsistent h and t
++			continue
++		}
++		for i := uint32(0); i < n; i++ {
++			c := q2.ring[(h+i)%uint32(len(q2.ring))]
++			q1.ring[(writeHead+i)%uint32(len(q1.ring))] = c
++		}
++		if q2.head.CompareAndSwap(h, h+n) {
++			break
++		}
++	}
++	n--
++	c := q1.ring[(writeHead+n)%uint32(len(q1.ring))]
++	if n == 0 {
++		return c
++	}
++	h := q1.head.Load()
++	if writeHead-h+n >= uint32(len(q1.ring)) {
++		throw("localSpanQueue.stealFrom: queue overflow")
++	}
++	q1.tail.Store(writeHead + n)
++	return c
++}
++
++// drain moves all spans in the queue to the global queue.
++//
++// Returns true if anything was moved.
++func (q *localSpanQueue) drain() bool {
++	var batch [len(q.ring)]objptr
++
++	var n uint32
++	for {
++		var h uint32
++		for {
++			h = q.head.Load()
++			t := q.tail.Load()
++			n = t - h
++			if n == 0 {
++				return false
++			}
++			if n <= uint32(len(q.ring)) {
++				break
++			}
++			// Read inconsistent h and t.
++		}
++		for i := uint32(0); i < n; i++ {
++			batch[i] = q.ring[(h+i)%uint32(len(q.ring))]
++		}
++		if q.head.CompareAndSwap(h, h+n) { // Commits consume.
++			break
++		}
++	}
++	if !q.empty() {
++		throw("drained local span queue, but not empty")
++	}
++
++	work.spanq.putBatch(batch[:n])
++	return true
++}
++
++// spanQueueSteal attempts to steal a span from another P's local queue.
++//
++// Returns a non-zero objptr on success.
++func spanQueueSteal(gcw *gcWork) objptr {
++	pp := getg().m.p.ptr()
++
++	for enum := stealOrder.start(cheaprand()); !enum.done(); enum.next() {
++		p2 := allp[enum.position()]
++		if pp == p2 {
++			continue
++		}
++		if s := gcw.spanq.stealFrom(&p2.gcw.spanq); s != 0 {
++			return s
++		}
++	}
++	return 0
++}
++
++// objptr consists of a span base and the index of the object in the span.
++type objptr uintptr
++
++// makeObjPtr creates an objptr from a span base address and an object index.
++func makeObjPtr(spanBase uintptr, objIndex uint16) objptr {
++	if doubleCheckGreenTea && spanBase&((1<<gc.PageShift)-1) != 0 {
++		throw("created objptr with address that is incorrectly aligned")
++	}
++	return objptr(spanBase | uintptr(objIndex))
++}
++
++func (p objptr) spanBase() uintptr {
++	return uintptr(p) &^ ((1 << gc.PageShift) - 1)
++}
++
++func (p objptr) objIndex() uint16 {
++	return uint16(p) & ((1 << gc.PageShift) - 1)
++}
++
++// scanSpan scans objects indicated marks&^scans and then scans those objects,
++// queuing the resulting pointers into gcw.
++func scanSpan(p objptr, gcw *gcWork) {
++	spanBase := p.spanBase()
++	imb := spanInlineMarkBitsFromBase(spanBase)
++	spanclass := imb.class
++	if spanclass.noscan() {
++		throw("noscan object in scanSpan")
++	}
++	elemsize := uintptr(gc.SizeClassToSize[spanclass.sizeclass()])
++
++	// Release span.
++	if imb.release() == spanScanOneMark {
++		// Nobody else set any mark bits on this span while it was acquired.
++		// That means p is the sole object we need to handle. Fast-track it.
++		objIndex := p.objIndex()
++		bytep := &imb.scans[objIndex/8]
++		mask := uint8(1) << (objIndex % 8)
++		if atomic.Load8(bytep)&mask != 0 {
++			return
++		}
++		atomic.Or8(bytep, mask)
++		gcw.bytesMarked += uint64(elemsize)
++		if debug.gctrace > 1 {
++			gcw.stats[spanclass.sizeclass()].spansSparseScanned++
++			gcw.stats[spanclass.sizeclass()].spanObjsSparseScanned++
++		}
++		b := spanBase + uintptr(objIndex)*elemsize
++		scanObjectSmall(spanBase, b, elemsize, gcw)
++		return
++	}
++
++	// Compute nelems.
++	divMagic := uint64(gc.SizeClassToDivMagic[spanclass.sizeclass()])
++	usableSpanSize := uint64(gc.PageSize - unsafe.Sizeof(spanInlineMarkBits{}))
++	if !spanclass.noscan() {
++		usableSpanSize -= gc.PageSize / goarch.PtrSize / 8
++	}
++	nelems := uint16((usableSpanSize * divMagic) >> 32)
++
++	// Grey objects and return if there's nothing else to do.
++	var toScan gc.ObjMask
++	objsMarked := spanSetScans(spanBase, nelems, imb, &toScan)
++	if objsMarked == 0 {
++		return
++	}
++	gcw.bytesMarked += uint64(objsMarked) * uint64(elemsize)
++	if debug.gctrace > 1 {
++		gcw.stats[spanclass.sizeclass()].spansDenseScanned++
++		gcw.stats[spanclass.sizeclass()].spanObjsDenseScanned += uint64(objsMarked)
++	}
++	scanObjectsSmall(spanBase, elemsize, nelems, gcw, &toScan)
++}
++
++// spanSetScans sets any unset mark bits that have their mark bits set in the inline mark bits.
++//
++// toScan is populated with bits indicating whether a particular mark bit was set.
++//
++// Returns the number of objects marked, which could be zero.
++func spanSetScans(spanBase uintptr, nelems uint16, imb *spanInlineMarkBits, toScan *gc.ObjMask) int {
++	arena, pageIdx, pageMask := pageIndexOf(spanBase)
++	if arena.pageMarks[pageIdx]&pageMask == 0 {
++		atomic.Or8(&arena.pageMarks[pageIdx], pageMask)
++	}
++
++	bytes := divRoundUp(uintptr(nelems), 8)
++	objsMarked := 0
++
++	// Careful: these two structures alias since ObjMask is much bigger
++	// than marks or scans. We do these unsafe shenanigans so that we can
++	// access the marks and scans by uintptrs rather than by byte.
++	imbMarks := (*gc.ObjMask)(unsafe.Pointer(&imb.marks))
++	imbScans := (*gc.ObjMask)(unsafe.Pointer(&imb.scans))
++
++	// Iterate over one uintptr-sized chunks at a time, computing both
++	// the union and intersection of marks and scans. Store the union
++	// into scans, and the intersection into toScan.
++	for i := uintptr(0); i < bytes; i += goarch.PtrSize {
++		scans := atomic.Loaduintptr(&imbScans[i/goarch.PtrSize])
++		marks := imbMarks[i/goarch.PtrSize]
++		scans = bswapIfBigEndian(scans)
++		marks = bswapIfBigEndian(marks)
++		if i/goarch.PtrSize == 64/goarch.PtrSize-1 {
++			scans &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out owned
++			marks &^= 0xff << ((goarch.PtrSize - 1) * 8) // mask out class
++		}
++		toGrey := marks &^ scans
++		toScan[i/goarch.PtrSize] = toGrey
++
++		// If there's anything left to grey, do it.
++		if toGrey != 0 {
++			toGrey = bswapIfBigEndian(toGrey)
++			if goarch.PtrSize == 4 {
++				atomic.Or32((*uint32)(unsafe.Pointer(&imbScans[i/goarch.PtrSize])), uint32(toGrey))
++			} else {
++				atomic.Or64((*uint64)(unsafe.Pointer(&imbScans[i/goarch.PtrSize])), uint64(toGrey))
++			}
++		}
++		objsMarked += sys.OnesCount64(uint64(toGrey))
++	}
++	return objsMarked
++}
++
++func scanObjectSmall(spanBase, b, objSize uintptr, gcw *gcWork) {
++	ptrBits := heapBitsSmallForAddrInline(spanBase, b, objSize)
++	gcw.heapScanWork += int64(sys.Len64(uint64(ptrBits)) * goarch.PtrSize)
++	nptrs := 0
++	n := sys.OnesCount64(uint64(ptrBits))
++	for range n {
++		k := sys.TrailingZeros64(uint64(ptrBits))
++		ptrBits &^= 1 << k
++		addr := b + uintptr(k)*goarch.PtrSize
++
++		// Prefetch addr since we're about to use it. This point for prefetching
++		// was chosen empirically.
++		sys.Prefetch(addr)
++
++		// N.B. ptrBuf is always large enough to hold pointers for an entire 1-page span.
++		gcw.ptrBuf[nptrs] = addr
++		nptrs++
++	}
++
++	// Process all the pointers we just got.
++	for _, p := range gcw.ptrBuf[:nptrs] {
++		p = *(*uintptr)(unsafe.Pointer(p))
++		if p == 0 {
++			continue
++		}
++		if !tryDeferToSpanScan(p, gcw) {
++			if obj, span, objIndex := findObject(p, 0, 0); obj != 0 {
++				greyobject(obj, 0, 0, span, gcw, objIndex)
++			}
++		}
++	}
++}
++
++func scanObjectsSmall(base, objSize uintptr, elems uint16, gcw *gcWork, scans *gc.ObjMask) {
++	nptrs := 0
++	for i, bits := range scans {
++		if i*(goarch.PtrSize*8) > int(elems) {
++			break
++		}
++		n := sys.OnesCount64(uint64(bits))
++		for range n {
++			j := sys.TrailingZeros64(uint64(bits))
++			bits &^= 1 << j
++
++			b := base + uintptr(i*(goarch.PtrSize*8)+j)*objSize
++			ptrBits := heapBitsSmallForAddrInline(base, b, objSize)
++			gcw.heapScanWork += int64(sys.Len64(uint64(ptrBits)) * goarch.PtrSize)
++
++			n := sys.OnesCount64(uint64(ptrBits))
++			for range n {
++				k := sys.TrailingZeros64(uint64(ptrBits))
++				ptrBits &^= 1 << k
++				addr := b + uintptr(k)*goarch.PtrSize
++
++				// Prefetch addr since we're about to use it. This point for prefetching
++				// was chosen empirically.
++				sys.Prefetch(addr)
++
++				// N.B. ptrBuf is always large enough to hold pointers for an entire 1-page span.
++				gcw.ptrBuf[nptrs] = addr
++				nptrs++
++			}
++		}
++	}
++
++	// Process all the pointers we just got.
++	for _, p := range gcw.ptrBuf[:nptrs] {
++		p = *(*uintptr)(unsafe.Pointer(p))
++		if p == 0 {
++			continue
++		}
++		if !tryDeferToSpanScan(p, gcw) {
++			if obj, span, objIndex := findObject(p, 0, 0); obj != 0 {
++				greyobject(obj, 0, 0, span, gcw, objIndex)
++			}
++		}
++	}
++}
++
++func heapBitsSmallForAddrInline(spanBase, addr, elemsize uintptr) uintptr {
++	hbitsBase, _ := spanHeapBitsRange(spanBase, gc.PageSize, elemsize)
++	hbits := (*byte)(unsafe.Pointer(hbitsBase))
++
++	// These objects are always small enough that their bitmaps
++	// fit in a single word, so just load the word or two we need.
++	//
++	// Mirrors mspan.writeHeapBitsSmall.
++	//
++	// We should be using heapBits(), but unfortunately it introduces
++	// both bounds checks panics and throw which causes us to exceed
++	// the nosplit limit in quite a few cases.
++	i := (addr - spanBase) / goarch.PtrSize / ptrBits
++	j := (addr - spanBase) / goarch.PtrSize % ptrBits
++	bits := elemsize / goarch.PtrSize
++	word0 := (*uintptr)(unsafe.Pointer(addb(hbits, goarch.PtrSize*(i+0))))
++	word1 := (*uintptr)(unsafe.Pointer(addb(hbits, goarch.PtrSize*(i+1))))
++
++	var read uintptr
++	if j+bits > ptrBits {
++		// Two reads.
++		bits0 := ptrBits - j
++		bits1 := bits - bits0
++		read = *word0 >> j
++		read |= (*word1 & ((1 << bits1) - 1)) << bits0
++	} else {
++		// One read.
++		read = (*word0 >> j) & ((1 << bits) - 1)
++	}
++	return read
++}
+diff --git a/src/runtime/mgcmark_nogreenteagc.go b/src/runtime/mgcmark_nogreenteagc.go
+new file mode 100644
+index 0000000000..08f726a980
+--- /dev/null
++++ b/src/runtime/mgcmark_nogreenteagc.go
+@@ -0,0 +1,80 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !goexperiment.greenteagc
++
++package runtime
++
++func (s *mspan) markBitsForIndex(objIndex uintptr) markBits {
++	bytep, mask := s.gcmarkBits.bitp(objIndex)
++	return markBits{bytep, mask, objIndex}
++}
++
++func (s *mspan) markBitsForBase() markBits {
++	return markBits{&s.gcmarkBits.x, uint8(1), 0}
++}
++
++func tryDeferToSpanScan(p uintptr, gcw *gcWork) bool {
++	return false
++}
++
++func (s *mspan) initInlineMarkBits() {
++}
++
++func (s *mspan) mergeInlineMarks(to *gcBits) {
++	throw("unimplemented")
++}
++
++func gcUsesSpanInlineMarkBits(_ uintptr) bool {
++	return false
++}
++
++func (s *mspan) inlineMarkBits() *spanInlineMarkBits {
++	return nil
++}
++
++func (s *mspan) scannedBitsForIndex(objIndex uintptr) markBits {
++	throw("unimplemented")
++	return markBits{}
++}
++
++type spanInlineMarkBits struct {
++}
++
++func (q *spanInlineMarkBits) tryAcquire() bool {
++	return false
++}
++
++type spanQueue struct {
++	_ uint32 // To match alignment padding requirements for atomically-accessed variables in workType.
++}
++
++func (q *spanQueue) empty() bool {
++	return true
++}
++
++func (q *spanQueue) size() int {
++	return 0
++}
++
++type localSpanQueue struct {
++}
++
++func (q *localSpanQueue) drain() bool {
++	return false
++}
++
++func (q *localSpanQueue) empty() bool {
++	return true
++}
++
++type objptr uintptr
++
++func (w *gcWork) tryGetSpan(steal bool) objptr {
++	return 0
++}
++
++func scanSpan(p objptr, gcw *gcWork) {
++	throw("unimplemented")
++}
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index 3e80fae4f5..2e05244d95 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -687,21 +687,42 @@ func (c *gcControllerState) endCycle(now int64, procs int, userForced bool) {
+ // another P if there are spare worker slots. It is used by putfull
+ // when more work is made available.
+ //
++// If goexperiment.GreenTeaGC, the caller must not hold a G's scan bit,
++// otherwise this could cause a deadlock. This is already enforced by
++// the static lock ranking.
++//
+ //go:nowritebarrier
+ func (c *gcControllerState) enlistWorker() {
+-	// If there are idle Ps, wake one so it will run an idle worker.
+-	// NOTE: This is suspected of causing deadlocks. See golang.org/issue/19112.
++	needDedicated := c.dedicatedMarkWorkersNeeded.Load() > 0
++
++	// Create new workers from idle Ps with goexperiment.GreenTeaGC.
+ 	//
+-	//	if sched.npidle.Load() != 0 && sched.nmspinning.Load() == 0 {
+-	//		wakep()
+-	//		return
+-	//	}
+-
+-	// There are no idle Ps. If we need more dedicated workers,
+-	// try to preempt a running P so it will switch to a worker.
+-	if c.dedicatedMarkWorkersNeeded.Load() <= 0 {
++	// Note: with Green Tea, this places a requirement on enlistWorker
++	// that it must not be called while a G's scan bit is held.
++	if goexperiment.GreenTeaGC {
++		needIdle := c.needIdleMarkWorker()
++
++		// If we're all full on dedicated and idle workers, nothing
++		// to do.
++		if !needDedicated && !needIdle {
++			return
++		}
++
++		// If there are idle Ps, wake one so it will run a worker
++		// (the scheduler will already prefer to spin up a new
++		// dedicated worker over an idle one).
++		if sched.npidle.Load() != 0 && sched.nmspinning.Load() == 0 {
++			wakep()
++			return
++		}
++	}
++
++	// If we still need more dedicated workers, try to preempt a running P
++	// so it will switch to a worker.
++	if !needDedicated {
+ 		return
+ 	}
++
+ 	// Pick a random other P to preempt.
+ 	if gomaxprocs <= 1 {
+ 		return
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 4fd80a6883..1a9c3b3e5f 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -640,6 +640,11 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 		}
+ 	}
+ 
++	// Copy over the inline mark bits if necessary.
++	if gcUsesSpanInlineMarkBits(s.elemsize) {
++		s.mergeInlineMarks(s.gcmarkBits)
++	}
++
+ 	// Check for zombie objects.
+ 	if s.freeindex < s.nelems {
+ 		// Everything < freeindex is allocated and hence
+@@ -689,6 +694,11 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 	// Initialize alloc bits cache.
+ 	s.refillAllocCache(0)
+ 
++	// Reset the object queue, if we have one.
++	if gcUsesSpanInlineMarkBits(s.elemsize) {
++		s.initInlineMarkBits()
++	}
++
+ 	// The span must be in our exclusive ownership until we update sweepgen,
+ 	// check for potential races.
+ 	if state := s.state.get(); state != mSpanInUse || s.sweepgen != sweepgen-1 {
+diff --git a/src/runtime/mgcwork.go b/src/runtime/mgcwork.go
+index 2d66fa4002..ee7eec9ef7 100644
+--- a/src/runtime/mgcwork.go
++++ b/src/runtime/mgcwork.go
+@@ -6,7 +6,9 @@ package runtime
+ 
+ import (
+ 	"internal/goarch"
++	"internal/goexperiment"
+ 	"internal/runtime/atomic"
++	"internal/runtime/gc"
+ 	"internal/runtime/sys"
+ 	"unsafe"
+ )
+@@ -32,13 +34,37 @@ func init() {
+ // Garbage collector work pool abstraction.
+ //
+ // This implements a producer/consumer model for pointers to grey
+-// objects. A grey object is one that is marked and on a work
+-// queue. A black object is marked and not on a work queue.
++// objects.
++//
++// For objects in workbufs, a grey object is one that is marked and
++// on a work queue. A black object is marked and not on a work queue.
++//
++// For objects in the span queue, a grey object is one that is marked
++// and has an unset scan bit. A black object is marked and has its scan
++// bit set. (Green Tea GC only.)
+ //
+ // Write barriers, root discovery, stack scanning, and object scanning
+ // produce pointers to grey objects. Scanning consumes pointers to
+ // grey objects, thus blackening them, and then scans them,
+ // potentially producing new pointers to grey objects.
++//
++// Work queues must be prioritized in the following order wherever work
++// is processed.
++//
++// +----------------------------------------------------------+
++// | Priority | Work queue | Restrictions | Function          |
++// |----------------------------------------------------------|
++// | 1        | Workbufs   | P-local      | tryGetObjFast     |
++// | 2        | Span queue | P-local      | tryGetSpan(false) | [greenteagc]
++// | 3        | Workbufs   | None         | tryGetObj         |
++// | 4        | Span queue | None         | tryGetSpan(true)  | [greenteagc]
++// +----------------------------------------------------------+
++//
++// The rationale behind this ordering comes from two insights:
++// 1. It's always preferable to look for P-local work first to avoid hammering on
++//    global lists.
++// 2. It's always preferable to scan individual objects first to increase the
++//    likelihood that spans will accumulate more objects to scan.
+ 
+ // A gcWork provides the interface to produce and consume work for the
+ // garbage collector.
+@@ -74,6 +100,14 @@ type gcWork struct {
+ 	// Invariant: Both wbuf1 and wbuf2 are nil or neither are.
+ 	wbuf1, wbuf2 *workbuf
+ 
++	// spanq is a queue of spans to process.
++	//
++	// Only used if goexperiment.GreenTeaGC.
++	spanq localSpanQueue
++
++	// ptrBuf is a temporary buffer used by span scanning.
++	ptrBuf *[pageSize / goarch.PtrSize]uintptr
++
+ 	// Bytes marked (blackened) on this gcWork. This is aggregated
+ 	// into work.bytesMarked by dispose.
+ 	bytesMarked uint64
+@@ -88,6 +122,15 @@ type gcWork struct {
+ 	// termination check. Specifically, this indicates that this
+ 	// gcWork may have communicated work to another gcWork.
+ 	flushedWork bool
++
++	// mayNeedWorker is a hint that we may need to spin up a new
++	// worker, and that gcDrain* should call enlistWorker. This flag
++	// is set only if goexperiment.GreenTeaGC. If !goexperiment.GreenTeaGC,
++	// enlistWorker is called directly instead.
++	mayNeedWorker bool
++
++	// stats are scan stats broken down by size class.
++	stats [gc.NumSizeClasses]sizeClassScanStats
+ }
+ 
+ // Most of the methods of gcWork are go:nowritebarrierrec because the
+@@ -106,11 +149,11 @@ func (w *gcWork) init() {
+ 	w.wbuf2 = wbuf2
+ }
+ 
+-// put enqueues a pointer for the garbage collector to trace.
++// putObj enqueues a pointer for the garbage collector to trace.
+ // obj must point to the beginning of a heap object or an oblet.
+ //
+ //go:nowritebarrierrec
+-func (w *gcWork) put(obj uintptr) {
++func (w *gcWork) putObj(obj uintptr) {
+ 	flushed := false
+ 	wbuf := w.wbuf1
+ 	// Record that this may acquire the wbufSpans or heap lock to
+@@ -141,15 +184,19 @@ func (w *gcWork) put(obj uintptr) {
+ 	// the end of put so that w is in a consistent state, since
+ 	// enlistWorker may itself manipulate w.
+ 	if flushed && gcphase == _GCmark {
+-		gcController.enlistWorker()
++		if goexperiment.GreenTeaGC {
++			w.mayNeedWorker = true
++		} else {
++			gcController.enlistWorker()
++		}
+ 	}
+ }
+ 
+-// putFast does a put and reports whether it can be done quickly
++// putObjFast does a put and reports whether it can be done quickly
+ // otherwise it returns false and the caller needs to call put.
+ //
+ //go:nowritebarrierrec
+-func (w *gcWork) putFast(obj uintptr) bool {
++func (w *gcWork) putObjFast(obj uintptr) bool {
+ 	wbuf := w.wbuf1
+ 	if wbuf == nil || wbuf.nobj == len(wbuf.obj) {
+ 		return false
+@@ -160,11 +207,11 @@ func (w *gcWork) putFast(obj uintptr) bool {
+ 	return true
+ }
+ 
+-// putBatch performs a put on every pointer in obj. See put for
++// putObjBatch performs a put on every pointer in obj. See put for
+ // constraints on these pointers.
+ //
+ //go:nowritebarrierrec
+-func (w *gcWork) putBatch(obj []uintptr) {
++func (w *gcWork) putObjBatch(obj []uintptr) {
+ 	if len(obj) == 0 {
+ 		return
+ 	}
+@@ -190,18 +237,22 @@ func (w *gcWork) putBatch(obj []uintptr) {
+ 	}
+ 
+ 	if flushed && gcphase == _GCmark {
+-		gcController.enlistWorker()
++		if goexperiment.GreenTeaGC {
++			w.mayNeedWorker = true
++		} else {
++			gcController.enlistWorker()
++		}
+ 	}
+ }
+ 
+-// tryGet dequeues a pointer for the garbage collector to trace.
++// tryGetObj dequeues a pointer for the garbage collector to trace.
+ //
+ // If there are no pointers remaining in this gcWork or in the global
+ // queue, tryGet returns 0.  Note that there may still be pointers in
+ // other gcWork instances or other caches.
+ //
+ //go:nowritebarrierrec
+-func (w *gcWork) tryGet() uintptr {
++func (w *gcWork) tryGetObj() uintptr {
+ 	wbuf := w.wbuf1
+ 	if wbuf == nil {
+ 		w.init()
+@@ -226,12 +277,12 @@ func (w *gcWork) tryGet() uintptr {
+ 	return wbuf.obj[wbuf.nobj]
+ }
+ 
+-// tryGetFast dequeues a pointer for the garbage collector to trace
++// tryGetObjFast dequeues a pointer for the garbage collector to trace
+ // if one is readily available. Otherwise it returns 0 and
+ // the caller is expected to call tryGet().
+ //
+ //go:nowritebarrierrec
+-func (w *gcWork) tryGetFast() uintptr {
++func (w *gcWork) tryGetObjFast() uintptr {
+ 	wbuf := w.wbuf1
+ 	if wbuf == nil || wbuf.nobj == 0 {
+ 		return 0
+@@ -267,6 +318,9 @@ func (w *gcWork) dispose() {
+ 		}
+ 		w.wbuf2 = nil
+ 	}
++	if w.spanq.drain() {
++		w.flushedWork = true
++	}
+ 	if w.bytesMarked != 0 {
+ 		// dispose happens relatively infrequently. If this
+ 		// atomic becomes a problem, we should first try to
+@@ -301,7 +355,11 @@ func (w *gcWork) balance() {
+ 	}
+ 	// We flushed a buffer to the full list, so wake a worker.
+ 	if gcphase == _GCmark {
+-		gcController.enlistWorker()
++		if goexperiment.GreenTeaGC {
++			w.mayNeedWorker = true
++		} else {
++			gcController.enlistWorker()
++		}
+ 	}
+ }
+ 
+@@ -309,7 +367,7 @@ func (w *gcWork) balance() {
+ //
+ //go:nowritebarrierrec
+ func (w *gcWork) empty() bool {
+-	return w.wbuf1 == nil || (w.wbuf1.nobj == 0 && w.wbuf2.nobj == 0)
++	return (w.wbuf1 == nil || (w.wbuf1.nobj == 0 && w.wbuf2.nobj == 0)) && w.spanq.empty()
+ }
+ 
+ // Internally, the GC work pool is kept in arrays in work buffers.
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 775e9dee8d..aaade7e750 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -12,6 +12,7 @@ import (
+ 	"internal/abi"
+ 	"internal/cpu"
+ 	"internal/goarch"
++	"internal/goexperiment"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/gc"
+ 	"internal/runtime/sys"
+@@ -308,6 +309,10 @@ type heapArena struct {
+ 	// during marking.
+ 	pageSpecials [pagesPerArena / 8]uint8
+ 
++	// pageUseSpanDartboard is a bitmap that indicates which spans are
++	// heap spans and also gcUsesSpanDartboard.
++	pageUseSpanInlineMarkBits [pagesPerArena / 8]uint8
++
+ 	// checkmarks stores the debug.gccheckmark state. It is only
+ 	// used if debug.gccheckmark > 0.
+ 	checkmarks *checkmarksMap
+@@ -407,13 +412,6 @@ func (b *mSpanStateBox) get() mSpanState {
+ 	return mSpanState(b.s.Load())
+ }
+ 
+-// mSpanList heads a linked list of spans.
+-type mSpanList struct {
+-	_     sys.NotInHeap
+-	first *mspan // first span in list, or nil if none
+-	last  *mspan // last span in list, or nil if none
+-}
+-
+ type mspan struct {
+ 	_    sys.NotInHeap
+ 	next *mspan     // next span in list, or nil if none
+@@ -452,6 +450,12 @@ type mspan struct {
+ 	// mallocgc, and issue 54596).
+ 	freeIndexForScan uint16
+ 
++	// Temporary storage for the object index that caused this span to
++	// be queued for scanning.
++	//
++	// Used only with goexperiment.GreenTeaGC.
++	scanIdx uint16
++
+ 	// Cache of the allocBits at freeindex. allocCache is shifted
+ 	// such that the lowest bit corresponds to the bit freeindex.
+ 	// allocCache holds the complement of allocBits, thus allowing
+@@ -757,6 +761,27 @@ func pageIndexOf(p uintptr) (arena *heapArena, pageIdx uintptr, pageMask uint8)
+ 	return
+ }
+ 
++// heapArenaOf returns the heap arena for p, if one exists.
++func heapArenaOf(p uintptr) *heapArena {
++	ri := arenaIndex(p)
++	if arenaL1Bits == 0 {
++		// If there's no L1, then ri.l1() can't be out of bounds but ri.l2() can.
++		if ri.l2() >= uint(len(mheap_.arenas[0])) {
++			return nil
++		}
++	} else {
++		// If there's an L1, then ri.l1() can be out of bounds but ri.l2() can't.
++		if ri.l1() >= uint(len(mheap_.arenas)) {
++			return nil
++		}
++	}
++	l2 := mheap_.arenas[ri.l1()]
++	if arenaL1Bits != 0 && l2 == nil { // Should never happen if there's no L1.
++		return nil
++	}
++	return l2[ri.l2()]
++}
++
+ // Initialize the heap.
+ func (h *mheap) init() {
+ 	lockInit(&h.lock, lockRankMheap)
+@@ -1425,11 +1450,24 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
+ 			s.divMul = 0
+ 		} else {
+ 			s.elemsize = uintptr(gc.SizeClassToSize[sizeclass])
+-			if !s.spanclass.noscan() && heapBitsInSpan(s.elemsize) {
+-				// Reserve space for the pointer/scan bitmap at the end.
+-				s.nelems = uint16((nbytes - (nbytes / goarch.PtrSize / 8)) / s.elemsize)
++			if goexperiment.GreenTeaGC {
++				var reserve uintptr
++				if gcUsesSpanInlineMarkBits(s.elemsize) {
++					// Reserve space for the inline mark bits.
++					reserve += unsafe.Sizeof(spanInlineMarkBits{})
++				}
++				if heapBitsInSpan(s.elemsize) && !s.spanclass.noscan() {
++					// Reserve space for the pointer/scan bitmap at the end.
++					reserve += nbytes / goarch.PtrSize / 8
++				}
++				s.nelems = uint16((nbytes - reserve) / s.elemsize)
+ 			} else {
+-				s.nelems = uint16(nbytes / s.elemsize)
++				if !s.spanclass.noscan() && heapBitsInSpan(s.elemsize) {
++					// Reserve space for the pointer/scan bitmap at the end.
++					s.nelems = uint16((nbytes - (nbytes / goarch.PtrSize / 8)) / s.elemsize)
++				} else {
++					s.nelems = uint16(nbytes / s.elemsize)
++				}
+ 			}
+ 			s.divMul = gc.SizeClassToDivMagic[sizeclass]
+ 		}
+@@ -1477,6 +1515,11 @@ func (h *mheap) initSpan(s *mspan, typ spanAllocType, spanclass spanClass, base,
+ 		arena, pageIdx, pageMask := pageIndexOf(s.base())
+ 		atomic.Or8(&arena.pageInUse[pageIdx], pageMask)
+ 
++		// Mark packed span.
++		if gcUsesSpanInlineMarkBits(s.elemsize) {
++			atomic.Or8(&arena.pageUseSpanInlineMarkBits[pageIdx], pageMask)
++		}
++
+ 		// Update related page sweeper stats.
+ 		h.pagesInUse.Add(npages)
+ 	}
+@@ -1652,6 +1695,11 @@ func (h *mheap) freeSpanLocked(s *mspan, typ spanAllocType) {
+ 		// Clear in-use bit in arena page bitmap.
+ 		arena, pageIdx, pageMask := pageIndexOf(s.base())
+ 		atomic.And8(&arena.pageInUse[pageIdx], ^pageMask)
++
++		// Clear small heap span bit if necessary.
++		if gcUsesSpanInlineMarkBits(s.elemsize) {
++			atomic.And8(&arena.pageUseSpanInlineMarkBits[pageIdx], ^pageMask)
++		}
+ 	default:
+ 		throw("mheap.freeSpanLocked - invalid span state")
+ 	}
+@@ -1743,6 +1791,13 @@ func (span *mspan) inList() bool {
+ 	return span.list != nil
+ }
+ 
++// mSpanList heads a linked list of spans.
++type mSpanList struct {
++	_     sys.NotInHeap
++	first *mspan // first span in list, or nil if none
++	last  *mspan // last span in list, or nil if none
++}
++
+ // Initialize an empty doubly-linked list.
+ func (list *mSpanList) init() {
+ 	list.first = nil
+@@ -1834,6 +1889,86 @@ func (list *mSpanList) takeAll(other *mSpanList) {
+ 	other.first, other.last = nil, nil
+ }
+ 
++// mSpanQueue is like an mSpanList but is FIFO instead of LIFO and may
++// be allocated on the stack. (mSpanList can be visible from the mspan
++// itself, so it is marked as not-in-heap).
++type mSpanQueue struct {
++	head, tail *mspan
++	n          int
++}
++
++// push adds s to the end of the queue.
++func (q *mSpanQueue) push(s *mspan) {
++	if s.next != nil {
++		throw("span already on list")
++	}
++	if q.tail == nil {
++		q.tail, q.head = s, s
++	} else {
++		q.tail.next = s
++		q.tail = s
++	}
++	q.n++
++}
++
++// pop removes a span from the head of the queue, if any.
++func (q *mSpanQueue) pop() *mspan {
++	if q.head == nil {
++		return nil
++	}
++	s := q.head
++	q.head = s.next
++	s.next = nil
++	if q.head == nil {
++		q.tail = nil
++	}
++	q.n--
++	return s
++}
++
++// takeAll removes all the spans from q2 and adds them to the end of q1, in order.
++func (q1 *mSpanQueue) takeAll(q2 *mSpanQueue) {
++	if q2.head == nil {
++		return
++	}
++	if q1.head == nil {
++		*q1 = *q2
++	} else {
++		q1.tail.next = q2.head
++		q1.tail = q2.tail
++		q1.n += q2.n
++	}
++	q2.tail = nil
++	q2.head = nil
++	q2.n = 0
++}
++
++// popN removes n spans from the head of the queue and returns them as a new queue.
++func (q *mSpanQueue) popN(n int) mSpanQueue {
++	var newQ mSpanQueue
++	if n <= 0 {
++		return newQ
++	}
++	if n >= q.n {
++		newQ = *q
++		q.tail = nil
++		q.head = nil
++		q.n = 0
++		return newQ
++	}
++	s := q.head
++	for range n - 1 {
++		s = s.next
++	}
++	q.n -= n
++	newQ.head = q.head
++	newQ.tail = s
++	newQ.n = n
++	q.head = s.next
++	s.next = nil
++	return newQ
++}
++
+ const (
+ 	// _KindSpecialFinalizer is for tracking finalizers.
+ 	_KindSpecialFinalizer = 1
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index ea61385998..5507b873e5 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -44,9 +44,19 @@ type mstats struct {
+ 	last_gc_nanotime uint64 // last gc (monotonic time)
+ 	lastHeapInUse    uint64 // heapInUse at mark termination of the previous GC
+ 
++	lastScanStats [gc.NumSizeClasses]sizeClassScanStats
++
+ 	enablegc bool
+ }
+ 
++type sizeClassScanStats struct {
++	spansDenseScanned     uint64
++	spanObjsDenseScanned  uint64
++	spansSparseScanned    uint64
++	spanObjsSparseScanned uint64
++	sparseObjsScanned     uint64
++}
++
+ var memstats mstats
+ 
+ // A MemStats records statistics about the memory allocator.
+diff --git a/src/runtime/mwbbuf.go b/src/runtime/mwbbuf.go
+index b998d2b2bd..537d558592 100644
+--- a/src/runtime/mwbbuf.go
++++ b/src/runtime/mwbbuf.go
+@@ -237,6 +237,9 @@ func wbBufFlush1(pp *p) {
+ 			// path to reduce the rate of flushes?
+ 			continue
+ 		}
++		if tryDeferToSpanScan(ptr, gcw) {
++			continue
++		}
+ 		obj, span, objIndex := findObject(ptr, 0, 0)
+ 		if obj == 0 {
+ 			continue
+@@ -264,7 +267,7 @@ func wbBufFlush1(pp *p) {
+ 	}
+ 
+ 	// Enqueue the greyed objects.
+-	gcw.putBatch(ptrs[:pos])
++	gcw.putObjBatch(ptrs[:pos])
+ 
+ 	pp.wbBuf.reset()
+ }

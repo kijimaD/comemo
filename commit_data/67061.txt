@@ -1,0 +1,175 @@
+commit 198c3cb785282ee4c199680ec2d05381805a6f66
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Dec 11 15:42:06 2024 -0500
+
+    std: pass bytes.Buffer and strings.Builder by pointer
+    
+    This CL fixes a number of (all true positive) findings of vet's
+    copylock analyzer patched to treat the Bu{ff,uild}er types
+    as non-copyable after first use.
+    
+    This does require imposing an additional indirection
+    between noder.writer and Encoder since the field is
+    embedded by value but its constructor now returns a pointer.
+    
+    Updates golang/go#25907
+    Updates golang/go#47276
+    
+    Change-Id: I0b4d77ac12bcecadf06a91709e695365da10766c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635339
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+---
+ src/bytes/buffer_test.go                 |  2 +-
+ src/cmd/compile/internal/noder/linker.go | 16 ++++++++--------
+ src/cmd/compile/internal/noder/writer.go |  2 +-
+ src/compress/flate/inflate_test.go       |  4 ++--
+ src/internal/pkgbits/encoder.go          |  6 +++---
+ src/runtime/pprof/pprof_test.go          |  4 ++--
+ 6 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index 97fca5a9d1..b46ba1204e 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -354,7 +354,7 @@ func TestWriteAppend(t *testing.T) {
+ 		got.Write(b)
+ 	}
+ 	if !Equal(got.Bytes(), want) {
+-		t.Fatalf("Bytes() = %q, want %q", got, want)
++		t.Fatalf("Bytes() = %q, want %q", &got, want)
+ 	}
+ 
+ 	// With a sufficiently sized buffer, there should be no allocations.
+diff --git a/src/cmd/compile/internal/noder/linker.go b/src/cmd/compile/internal/noder/linker.go
+index 3e60e99850..6ee29a205b 100644
+--- a/src/cmd/compile/internal/noder/linker.go
++++ b/src/cmd/compile/internal/noder/linker.go
+@@ -84,7 +84,7 @@ func (l *linker) relocIdx(pr *pkgReader, k pkgbits.SectionKind, idx index) index
+ 		// if we do external relocations.
+ 
+ 		w := l.pw.NewEncoderRaw(k)
+-		l.relocCommon(pr, &w, k, idx)
++		l.relocCommon(pr, w, k, idx)
+ 		newidx = w.Idx
+ 	}
+ 
+@@ -168,9 +168,9 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
+ 	assert(wname.Idx == w.Idx)
+ 	assert(wdict.Idx == w.Idx)
+ 
+-	l.relocCommon(pr, &w, pkgbits.SectionObj, idx)
+-	l.relocCommon(pr, &wname, pkgbits.SectionName, idx)
+-	l.relocCommon(pr, &wdict, pkgbits.SectionObjDict, idx)
++	l.relocCommon(pr, w, pkgbits.SectionObj, idx)
++	l.relocCommon(pr, wname, pkgbits.SectionName, idx)
++	l.relocCommon(pr, wdict, pkgbits.SectionObjDict, idx)
+ 
+ 	// Generic types and functions won't have definitions, and imported
+ 	// objects may not either.
+@@ -181,15 +181,15 @@ func (l *linker) relocObj(pr *pkgReader, idx index) index {
+ 		wext.Sync(pkgbits.SyncObject1)
+ 		switch tag {
+ 		case pkgbits.ObjFunc:
+-			l.relocFuncExt(&wext, obj)
++			l.relocFuncExt(wext, obj)
+ 		case pkgbits.ObjType:
+-			l.relocTypeExt(&wext, obj)
++			l.relocTypeExt(wext, obj)
+ 		case pkgbits.ObjVar:
+-			l.relocVarExt(&wext, obj)
++			l.relocVarExt(wext, obj)
+ 		}
+ 		wext.Flush()
+ 	} else {
+-		l.relocCommon(pr, &wext, pkgbits.SectionObjExt, idx)
++		l.relocCommon(pr, wext, pkgbits.SectionObjExt, idx)
+ 	}
+ 
+ 	// Check if we need to export the inline bodies for functions and
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 60a13108bc..dd79c3ef4c 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -174,7 +174,7 @@ func (pw *pkgWriter) typeOf(expr syntax.Expr) types2.Type {
+ type writer struct {
+ 	p *pkgWriter
+ 
+-	pkgbits.Encoder
++	*pkgbits.Encoder
+ 
+ 	// sig holds the signature for the current function body, if any.
+ 	sig *types2.Signature
+diff --git a/src/compress/flate/inflate_test.go b/src/compress/flate/inflate_test.go
+index 28a0122ac6..064c832d3d 100644
+--- a/src/compress/flate/inflate_test.go
++++ b/src/compress/flate/inflate_test.go
+@@ -35,7 +35,7 @@ func TestReset(t *testing.T) {
+ 
+ 	for i, s := range ss {
+ 		if s != inflated[i].String() {
+-			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, inflated[i], s)
++			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, &inflated[i], s)
+ 		}
+ 	}
+ }
+@@ -92,7 +92,7 @@ func TestResetDict(t *testing.T) {
+ 
+ 	for i, s := range ss {
+ 		if s != inflated[i].String() {
+-			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, inflated[i], s)
++			t.Errorf("inflated[%d]:\ngot  %q\nwant %q", i, &inflated[i], s)
+ 		}
+ 	}
+ }
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index 1b38469097..5c51642e3c 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -121,7 +121,7 @@ func (pw *PkgEncoder) StringIdx(s string) RelIndex {
+ // NewEncoder returns an Encoder for a new element within the given
+ // section, and encodes the given SyncMarker as the start of the
+ // element bitstream.
+-func (pw *PkgEncoder) NewEncoder(k SectionKind, marker SyncMarker) Encoder {
++func (pw *PkgEncoder) NewEncoder(k SectionKind, marker SyncMarker) *Encoder {
+ 	e := pw.NewEncoderRaw(k)
+ 	e.Sync(marker)
+ 	return e
+@@ -131,11 +131,11 @@ func (pw *PkgEncoder) NewEncoder(k SectionKind, marker SyncMarker) Encoder {
+ // section.
+ //
+ // Most callers should use NewEncoder instead.
+-func (pw *PkgEncoder) NewEncoderRaw(k SectionKind) Encoder {
++func (pw *PkgEncoder) NewEncoderRaw(k SectionKind) *Encoder {
+ 	idx := RelIndex(len(pw.elems[k]))
+ 	pw.elems[k] = append(pw.elems[k], "") // placeholder
+ 
+-	return Encoder{
++	return &Encoder{
+ 		p:   pw,
+ 		k:   k,
+ 		Idx: idx,
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 6f9446a745..f2ee39dd49 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -465,7 +465,7 @@ func testCPUProfile(t *testing.T, matches profileMatchFunc, f func(dur time.Dura
+ 		f(duration)
+ 		StopCPUProfile()
+ 
+-		if p, ok := profileOk(t, matches, prof, duration); ok {
++		if p, ok := profileOk(t, matches, &prof, duration); ok {
+ 			return p
+ 		}
+ 
+@@ -515,7 +515,7 @@ func stackContains(spec string, count uintptr, stk []*profile.Location, labels m
+ 
+ type sampleMatchFunc func(spec string, count uintptr, stk []*profile.Location, labels map[string][]string) bool
+ 
+-func profileOk(t *testing.T, matches profileMatchFunc, prof bytes.Buffer, duration time.Duration) (_ *profile.Profile, ok bool) {
++func profileOk(t *testing.T, matches profileMatchFunc, prof *bytes.Buffer, duration time.Duration) (_ *profile.Profile, ok bool) {
+ 	ok = true
+ 
+ 	var samples uintptr

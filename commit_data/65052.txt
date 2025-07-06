@@ -1,0 +1,293 @@
+commit db8c208cbd5e20c80c1587b0d9d4166d8238089d
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri Oct 11 03:22:00 2024 +0000
+
+    cmd/cgo,cmd/go: preallocate slices if they have known fixed capacities
+    
+    This allows for more efficient use of memory.
+    
+    Change-Id: I16f399a25c23b804e55289ca055fa83ea9862f16
+    GitHub-Last-Rev: 19bb96a7cf4d27c085cfdb074905c4bf34eb660d
+    GitHub-Pull-Request: golang/go#69841
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618960
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/cgo/ast.go                           | 2 +-
+ src/cmd/cgo/main.go                          | 2 +-
+ src/cmd/go/internal/base/path.go             | 2 +-
+ src/cmd/go/internal/envcmd/env.go            | 2 +-
+ src/cmd/go/internal/fsys/fsys.go             | 2 +-
+ src/cmd/go/internal/imports/scan.go          | 2 +-
+ src/cmd/go/internal/list/list.go             | 2 +-
+ src/cmd/go/internal/load/godebug.go          | 2 +-
+ src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
+ src/cmd/go/internal/modfetch/fetch.go        | 2 +-
+ src/cmd/go/internal/modget/get.go            | 5 +++--
+ src/cmd/go/internal/modload/init.go          | 9 +++++----
+ src/cmd/go/internal/run/run.go               | 2 +-
+ src/cmd/go/internal/search/search.go         | 7 ++++---
+ src/cmd/go/internal/vcweb/vcstest/vcstest.go | 2 +-
+ src/cmd/go/internal/work/action.go           | 2 +-
+ src/cmd/go/internal/work/gc.go               | 2 +-
+ src/cmd/go/internal/work/gccgo.go            | 2 +-
+ 18 files changed, 27 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/cgo/ast.go b/src/cmd/cgo/ast.go
+index 3cbbeafdca..861479db7a 100644
+--- a/src/cmd/cgo/ast.go
++++ b/src/cmd/cgo/ast.go
+@@ -181,7 +181,7 @@ func (f *File) ParseGo(abspath string, src []byte) {
+ // Like ast.CommentGroup's Text method but preserves
+ // leading blank lines, so that line numbers line up.
+ func commentText(g *ast.CommentGroup) string {
+-	var pieces []string
++	pieces := make([]string, 0, len(g.List))
+ 	for _, com := range g.List {
+ 		c := com.Text
+ 		// Remove comment markers.
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 44252d9144..939e282ff0 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -83,7 +83,7 @@ func (f *File) offset(p token.Pos) int {
+ }
+ 
+ func nameKeys(m map[string]*Name) []string {
+-	var ks []string
++	ks := make([]string, 0, len(m))
+ 	for k := range m {
+ 		ks = append(ks, k)
+ 	}
+diff --git a/src/cmd/go/internal/base/path.go b/src/cmd/go/internal/base/path.go
+index 1c9dace54a..96cf1a2f05 100644
+--- a/src/cmd/go/internal/base/path.go
++++ b/src/cmd/go/internal/base/path.go
+@@ -78,7 +78,7 @@ func relConservative(basepath, targpath string) (string, error) {
+ // RelPaths returns a copy of paths with absolute paths
+ // made relative to the current directory if they would be shorter.
+ func RelPaths(paths []string) []string {
+-	var out []string
++	out := make([]string, 0, len(paths))
+ 	for _, p := range paths {
+ 		rel, err := relConservative(Cwd(), p)
+ 		if err == nil && len(rel) < len(p) {
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index cb5e226e7b..6be3872012 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -340,7 +340,7 @@ func runEnv(ctx context.Context, cmd *base.Command, args []string) {
+ 		// Show only the named vars.
+ 		if !*envChanged {
+ 			if *envJson {
+-				var es []cfg.EnvVar
++				es := make([]cfg.EnvVar, 0, len(args))
+ 				for _, name := range args {
+ 					e := cfg.EnvVar{Name: name, Value: findEnv(env, name)}
+ 					es = append(es, e)
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index c5889a2739..11293120f6 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -761,7 +761,7 @@ func glob(dir, pattern string, matches []string) (m []string, e error) {
+ 		return // ignore I/O error
+ 	}
+ 
+-	var names []string
++	names := make([]string, 0, len(list))
+ 	for _, info := range list {
+ 		names = append(names, info.Name())
+ 	}
+diff --git a/src/cmd/go/internal/imports/scan.go b/src/cmd/go/internal/imports/scan.go
+index ee11a8708b..e18f28c351 100644
+--- a/src/cmd/go/internal/imports/scan.go
++++ b/src/cmd/go/internal/imports/scan.go
+@@ -98,7 +98,7 @@ Files:
+ var ErrNoGo = fmt.Errorf("no Go source files")
+ 
+ func keys(m map[string]bool) []string {
+-	var list []string
++	list := make([]string, 0, len(m))
+ 	for k := range m {
+ 		list = append(list, k)
+ 	}
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index 823cfd74dc..ffcf531fec 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -389,7 +389,7 @@ func (v *jsonFlag) Set(s string) error {
+ }
+ 
+ func (v *jsonFlag) String() string {
+-	var fields []string
++	fields := make([]string, 0, len(*v))
+ 	for f := range *v {
+ 		fields = append(fields, f)
+ 	}
+diff --git a/src/cmd/go/internal/load/godebug.go b/src/cmd/go/internal/load/godebug.go
+index 301090670c..535876c513 100644
+--- a/src/cmd/go/internal/load/godebug.go
++++ b/src/cmd/go/internal/load/godebug.go
+@@ -94,7 +94,7 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
+ 		m = defaults
+ 	}
+ 
+-	var keys []string
++	keys := make([]string, 0, len(m))
+ 	for k := range m {
+ 		keys = append(keys, k)
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index 4bc3e20af5..50a4526eb3 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -319,7 +319,7 @@ func (r *gitRepo) Tags(ctx context.Context, prefix string) (*Tags, error) {
+ // the absence of a specific module version.
+ // The caller must supply refs, the result of a successful r.loadRefs.
+ func (r *gitRepo) repoSum(refs map[string]string) string {
+-	var list []string
++	list := make([]string, 0, len(refs))
+ 	for ref := range refs {
+ 		list = append(list, ref)
+ 	}
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 5cf63c45f7..791d4d8dc1 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -915,7 +915,7 @@ func tidyGoSum(data []byte, keep map[module.Version]bool) []byte {
+ 		}
+ 	}
+ 
+-	var mods []module.Version
++	mods := make([]module.Version, 0, len(goSum.m))
+ 	for m := range goSum.m {
+ 		mods = append(mods, m)
+ 	}
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index bb29651810..05bac54fe7 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -763,8 +763,9 @@ func (r *resolver) performLocalQueries(ctx context.Context) {
+ 			pkgPattern, mainModule := modload.MainModules.DirImportPath(ctx, q.pattern)
+ 			if pkgPattern == "." {
+ 				modload.MustHaveModRoot()
+-				var modRoots []string
+-				for _, m := range modload.MainModules.Versions() {
++				versions := modload.MainModules.Versions()
++				modRoots := make([]string, 0, len(versions))
++				for _, m := range versions {
+ 					modRoots = append(modRoots, modload.MainModules.ModRoot(m))
+ 				}
+ 				var plural string
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index f513b0c8b0..c41bfc38af 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -993,10 +993,11 @@ func loadModFile(ctx context.Context, opts *PackageOpts) (*Requirements, error)
+ 
+ 	if cfg.BuildMod == "vendor" {
+ 		readVendorList(VendorDir())
+-		var indexes []*modFileIndex
+-		var modFiles []*modfile.File
+-		var modRoots []string
+-		for _, m := range MainModules.Versions() {
++		versions := MainModules.Versions()
++		indexes := make([]*modFileIndex, 0, len(versions))
++		modFiles := make([]*modfile.File, 0, len(versions))
++		modRoots := make([]string, 0, len(versions))
++		for _, m := range versions {
+ 			indexes = append(indexes, MainModules.Index(m))
+ 			modFiles = append(modFiles, MainModules.ModFile(m))
+ 			modRoots = append(modRoots, MainModules.ModRoot(m))
+diff --git a/src/cmd/go/internal/run/run.go b/src/cmd/go/internal/run/run.go
+index a97d975e22..621ce4a402 100644
+--- a/src/cmd/go/internal/run/run.go
++++ b/src/cmd/go/internal/run/run.go
+@@ -128,7 +128,7 @@ func runRun(ctx context.Context, cmd *base.Command, args []string) {
+ 			base.Fatalf("go: no packages loaded from %s", arg)
+ 		}
+ 		if len(pkgs) > 1 {
+-			var names []string
++			names := make([]string, 0, len(pkgs))
+ 			for _, p := range pkgs {
+ 				names = append(names, p.ImportPath)
+ 			}
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 9b050c7a6d..450c2ed8f8 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -361,8 +361,9 @@ func ImportPaths(patterns, modRoots []string) []*Match {
+ 
+ // ImportPathsQuiet is like ImportPaths but does not warn about patterns with no matches.
+ func ImportPathsQuiet(patterns, modRoots []string) []*Match {
+-	var out []*Match
+-	for _, a := range CleanPatterns(patterns) {
++	patterns = CleanPatterns(patterns)
++	out := make([]*Match, 0, len(patterns))
++	for _, a := range patterns {
+ 		m := NewMatch(a)
+ 		if m.IsLocal() {
+ 			m.MatchDirs(modRoots)
+@@ -399,7 +400,7 @@ func CleanPatterns(patterns []string) []string {
+ 	if len(patterns) == 0 {
+ 		return []string{"."}
+ 	}
+-	var out []string
++	out := make([]string, 0, len(patterns))
+ 	for _, a := range patterns {
+ 		var p, v string
+ 		if build.IsLocalImport(a) || filepath.IsAbs(a) {
+diff --git a/src/cmd/go/internal/vcweb/vcstest/vcstest.go b/src/cmd/go/internal/vcweb/vcstest/vcstest.go
+index d460259105..fcbf27ddae 100644
+--- a/src/cmd/go/internal/vcweb/vcstest/vcstest.go
++++ b/src/cmd/go/internal/vcweb/vcstest/vcstest.go
+@@ -101,7 +101,7 @@ func NewServer() (srv *Server, err error) {
+ 	vcs.VCSTestRepoURL = srv.HTTP.URL
+ 	vcs.VCSTestHosts = Hosts
+ 
+-	var interceptors []web.Interceptor
++	interceptors := make([]web.Interceptor, 0, 2*len(Hosts))
+ 	for _, host := range Hosts {
+ 		interceptors = append(interceptors,
+ 			web.Interceptor{Scheme: "http", FromHost: host, ToHost: httpURL.Host, Client: srv.HTTP.Client()},
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 9d481412c2..ec384b6d9b 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -208,7 +208,7 @@ func actionGraphJSON(a *Action) string {
+ 		}
+ 	}
+ 
+-	var list []*actionJSON
++	list := make([]*actionJSON, 0, len(workq))
+ 	for id, a := range workq {
+ 		if a.json == nil {
+ 			a.json = &actionJSON{
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index a04794bbe5..9959928da7 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -469,7 +469,7 @@ func toolVerify(a *Action, b *Builder, p *load.Package, newTool string, ofile st
+ }
+ 
+ func (gcToolchain) pack(b *Builder, a *Action, afile string, ofiles []string) error {
+-	var absOfiles []string
++	absOfiles := make([]string, 0, len(ofiles))
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(a.Objdir, f))
+ 	}
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 84d8c9e350..3e4c204ad1 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -230,7 +230,7 @@ func (tools gccgoToolchain) pack(b *Builder, a *Action, afile string, ofiles []s
+ 	p := a.Package
+ 	sh := b.Shell(a)
+ 	objdir := a.Objdir
+-	var absOfiles []string
++	absOfiles := make([]string, 0, len(ofiles))
+ 	for _, f := range ofiles {
+ 		absOfiles = append(absOfiles, mkAbs(objdir, f))
+ 	}

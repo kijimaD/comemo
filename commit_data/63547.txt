@@ -1,0 +1,40 @@
+commit e689118852c9c1841ee4c17aeeb3ec3a5242e9a2
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Apr 24 10:04:01 2024 -0700
+
+    crypto/tls: skip bogo suite on windows builders
+    
+    Updates #66913
+    
+    Change-Id: Ie6bb262ee95593d23a93ef06656a561a7b1006ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581515
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/crypto/tls/bogo_shim_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index f12733a274..731fcd6d95 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"runtime"
+ 	"testing"
+ )
+ 
+@@ -233,6 +234,10 @@ func TestBogoSuite(t *testing.T) {
+ 		t.Skip("skipping in short mode")
+ 	}
+ 
++	if testenv.Builder() != "" && runtime.GOOS == "windows" {
++		t.Skip("#66913: windows network connections are flakey on builders")
++	}
++
+ 	const boringsslModVer = "v0.0.0-20240412155355-1c6e10495e4f"
+ 	output, err := exec.Command("go", "mod", "download", "-json", "github.com/google/boringssl@"+boringsslModVer).CombinedOutput()
+ 	if err != nil {

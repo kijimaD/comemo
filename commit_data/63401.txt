@@ -1,0 +1,173 @@
+commit d186dde81844badfa961f8af5044136dce8dc39e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Apr 5 16:51:28 2024 -0400
+
+    go/types: fix bug in premature Unalias of alias cycle
+    
+    Unalias memoizes the result of removing Alias constructors.
+    When Unalias is called too soon on a type in a cycle,
+    the initial value of the alias, Invalid, gets latched by
+    the memoization, causing it to appear Invalid forever.
+    
+    This change disables memoization of Invalid, and adds
+    a regression test.
+    
+    Fixes #66704
+    Updates #65294
+    
+    Change-Id: I479fe14c88c802504a69f177869f091656489cd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+---
+ src/cmd/compile/internal/types2/alias.go | 23 ++++++++++++++++++++---
+ src/go/types/alias.go                    | 23 ++++++++++++++++++++---
+ src/go/types/api_test.go                 | 28 ++++++++++++++++++++++++++++
+ src/go/types/decl.go                     |  5 +++++
+ 4 files changed, 73 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/alias.go b/src/cmd/compile/internal/types2/alias.go
+index 7bc0e5a9f9..030f6cd827 100644
+--- a/src/cmd/compile/internal/types2/alias.go
++++ b/src/cmd/compile/internal/types2/alias.go
+@@ -24,7 +24,7 @@ type Alias struct {
+ func NewAlias(obj *TypeName, rhs Type) *Alias {
+ 	alias := (*Checker)(nil).newAlias(obj, rhs)
+ 	// Ensure that alias.actual is set (#65455).
+-	unalias(alias)
++	alias.cleanup()
+ 	return alias
+ }
+ 
+@@ -60,7 +60,16 @@ func unalias(a0 *Alias) Type {
+ 	if t == nil {
+ 		panic(fmt.Sprintf("non-terminated alias %s", a0.obj.name))
+ 	}
+-	a0.actual = t
++
++	// Memoize the type only if valid.
++	// In the presence of unfinished cyclic declarations, Unalias
++	// would otherwise latch the invalid value (#66704).
++	// TODO(adonovan): rethink, along with checker.typeDecl's use
++	// of Invalid to mark unfinished aliases.
++	if t != Typ[Invalid] {
++		a0.actual = t
++	}
++
+ 	return t
+ }
+ 
+@@ -89,5 +98,13 @@ func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
+ }
+ 
+ func (a *Alias) cleanup() {
+-	Unalias(a)
++	// Ensure a.actual is set before types are published,
++	// so Unalias is a pure "getter", not a "setter".
++	actual := Unalias(a)
++
++	if actual == Typ[Invalid] {
++		// We don't set a.actual to Typ[Invalid] during type checking,
++		// as it may indicate that the RHS is not fully set up.
++		a.actual = actual
++	}
+ }
+diff --git a/src/go/types/alias.go b/src/go/types/alias.go
+index 3490d26c20..963eb92d35 100644
+--- a/src/go/types/alias.go
++++ b/src/go/types/alias.go
+@@ -27,7 +27,7 @@ type Alias struct {
+ func NewAlias(obj *TypeName, rhs Type) *Alias {
+ 	alias := (*Checker)(nil).newAlias(obj, rhs)
+ 	// Ensure that alias.actual is set (#65455).
+-	unalias(alias)
++	alias.cleanup()
+ 	return alias
+ }
+ 
+@@ -63,7 +63,16 @@ func unalias(a0 *Alias) Type {
+ 	if t == nil {
+ 		panic(fmt.Sprintf("non-terminated alias %s", a0.obj.name))
+ 	}
+-	a0.actual = t
++
++	// Memoize the type only if valid.
++	// In the presence of unfinished cyclic declarations, Unalias
++	// would otherwise latch the invalid value (#66704).
++	// TODO(adonovan): rethink, along with checker.typeDecl's use
++	// of Invalid to mark unfinished aliases.
++	if t != Typ[Invalid] {
++		a0.actual = t
++	}
++
+ 	return t
+ }
+ 
+@@ -92,5 +101,13 @@ func (check *Checker) newAlias(obj *TypeName, rhs Type) *Alias {
+ }
+ 
+ func (a *Alias) cleanup() {
+-	Unalias(a)
++	// Ensure a.actual is set before types are published,
++	// so Unalias is a pure "getter", not a "setter".
++	actual := Unalias(a)
++
++	if actual == Typ[Invalid] {
++		// We don't set a.actual to Typ[Invalid] during type checking,
++		// as it may indicate that the RHS is not fully set up.
++		a.actual = actual
++	}
+ }
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index ed13ebb952..5d7f793f71 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2994,3 +2994,31 @@ func TestTooNew(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// This is a regression test for #66704.
++func TestUnaliasTooSoonInCycle(t *testing.T) {
++	t.Setenv("GODEBUG", "gotypesalias=1")
++	const src = `package a
++
++var x T[B] // this appears to cause Unalias to be called on B while still Invalid
++
++type T[_ any] struct{}
++type A T[B]
++type B = T[A]
++`
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "a.go", src, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	pkg, err := new(Config).Check("a", fset, []*ast.File{f}, nil)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	B := pkg.Scope().Lookup("B")
++	got, want := Unalias(B.Type()).String(), "a.T[a.A]"
++	if got != want {
++		t.Errorf("Unalias(type B = T[A]) = %q, want %q", got, want)
++	}
++}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 7de27eeb56..b5d5334659 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -587,6 +587,11 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *ast.TypeSpec, def *TypeName
+ 			// TODO(gri) Should be able to use nil instead of Typ[Invalid] to mark
+ 			//           the alias as incomplete. Currently this causes problems
+ 			//           with certain cycles. Investigate.
++			//
++			// NOTE(adonovan): to avoid the Invalid being prematurely observed
++			// by (e.g.) a var whose type is an unfinished cycle,
++			// Unalias does not memoize if Invalid. Perhaps we should use a
++			// special sentinel distinct from Invalid.
+ 			alias := check.newAlias(obj, Typ[Invalid])
+ 			setDefType(def, alias)
+ 

@@ -1,0 +1,114 @@
+commit 740043f516f716fe359ffd3bd76f1a30a9aa5eec
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Jun 23 15:21:28 2024 -0700
+
+    net/netip: unexport fields of addrDetail
+    
+    For #68113
+    
+    Change-Id: I19c7d8eff8e3a7a1b6c8e28cb867edeca6be237d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593737
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/net/netip/export_test.go |  4 ++++
+ src/net/netip/netip.go       | 10 +++++-----
+ src/net/netip/netip_test.go  |  8 ++++----
+ 3 files changed, 13 insertions(+), 9 deletions(-)
+
+diff --git a/src/net/netip/export_test.go b/src/net/netip/export_test.go
+index 4febcad893..b2fae1aa47 100644
+--- a/src/net/netip/export_test.go
++++ b/src/net/netip/export_test.go
+@@ -16,6 +16,10 @@ type Uint128 = uint128
+ 
+ type AddrDetail = addrDetail
+ 
++func MakeAddrDetail(isV6 bool, zoneV6 string) AddrDetail {
++	return AddrDetail{isV6: isV6, zoneV6: zoneV6}
++}
++
+ func Mk128(hi, lo uint64) Uint128 {
+ 	return uint128{hi, lo}
+ }
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 57063eeb71..a1e93cb29b 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -59,8 +59,8 @@ type Addr struct {
+ 
+ // addrDetail represents the details of an Addr, like address family and IPv6 zone.
+ type addrDetail struct {
+-	IsV6   bool   // IPv4 is false, IPv6 is true.
+-	ZoneV6 string // != "" only if IsV6 is true.
++	isV6   bool   // IPv4 is false, IPv6 is true.
++	zoneV6 string // != "" only if IsV6 is true.
+ }
+ 
+ // z0, z4, and z6noz are sentinel Addr.z values.
+@@ -68,7 +68,7 @@ type addrDetail struct {
+ var (
+ 	z0    unique.Handle[addrDetail]
+ 	z4    = unique.Make(addrDetail{})
+-	z6noz = unique.Make(addrDetail{IsV6: true})
++	z6noz = unique.Make(addrDetail{isV6: true})
+ )
+ 
+ // IPv6LinkLocalAllNodes returns the IPv6 link-local all nodes multicast
+@@ -410,7 +410,7 @@ func (ip Addr) Zone() string {
+ 	if ip.z == z0 {
+ 		return ""
+ 	}
+-	return ip.z.Value().ZoneV6
++	return ip.z.Value().zoneV6
+ }
+ 
+ // Compare returns an integer comparing two IPs.
+@@ -495,7 +495,7 @@ func (ip Addr) WithZone(zone string) Addr {
+ 		ip.z = z6noz
+ 		return ip
+ 	}
+-	ip.z = unique.Make(addrDetail{IsV6: true, ZoneV6: zone})
++	ip.z = unique.Make(addrDetail{isV6: true, zoneV6: zone})
+ 	return ip
+ }
+ 
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index ad0e754208..94c70f2290 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -112,18 +112,18 @@ func TestParseAddr(t *testing.T) {
+ 		// IPv6 with a zone specifier.
+ 		{
+ 			in: "fd7a:115c:a1e0:ab12:4843:cd96:626b:430b%eth0",
+-			ip: MkAddr(Mk128(0xfd7a115ca1e0ab12, 0x4843cd96626b430b), unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth0"})),
++			ip: MkAddr(Mk128(0xfd7a115ca1e0ab12, 0x4843cd96626b430b), unique.Make(MakeAddrDetail(true, "eth0"))),
+ 		},
+ 		// IPv6 with dotted decimal and zone specifier.
+ 		{
+ 			in:  "1:2::ffff:192.168.140.255%eth1",
+-			ip:  MkAddr(Mk128(0x0001000200000000, 0x0000ffffc0a88cff), unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth1"})),
++			ip:  MkAddr(Mk128(0x0001000200000000, 0x0000ffffc0a88cff), unique.Make(MakeAddrDetail(true, "eth1"))),
+ 			str: "1:2::ffff:c0a8:8cff%eth1",
+ 		},
+ 		// 4-in-6 with zone
+ 		{
+ 			in:  "::ffff:192.168.140.255%eth1",
+-			ip:  MkAddr(Mk128(0, 0x0000ffffc0a88cff), unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth1"})),
++			ip:  MkAddr(Mk128(0, 0x0000ffffc0a88cff), unique.Make(MakeAddrDetail(true, "eth1"))),
+ 			str: "::ffff:192.168.140.255%eth1",
+ 		},
+ 		// IPv6 with capital letters.
+@@ -1723,7 +1723,7 @@ var parseBenchInputs = []struct {
+ }
+ 
+ func BenchmarkParseAddr(b *testing.B) {
+-	sinkInternValue = unique.Make(AddrDetail{IsV6: true, ZoneV6: "eth1"}) // Pin to not benchmark the intern package
++	sinkInternValue = unique.Make(MakeAddrDetail(true, "eth1")) // Pin to not benchmark the intern package
+ 	for _, test := range parseBenchInputs {
+ 		b.Run(test.name, func(b *testing.B) {
+ 			b.ReportAllocs()

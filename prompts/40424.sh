@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40424: 2fd97ee25e8a623e460aff26b4c422dec9532654
+# Index 40424: 17bf5e903184a271b04eb917a42b528c5730f38c
 
 echo "🚀 Generating explanation for commit 40424..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40424..."
 
 ### メタデータ
 - **コミットインデックス**: 40424
-- **コミットハッシュ**: 2fd97ee25e8a623e460aff26b4c422dec9532654
-- **GitHub URL**: https://github.com/golang/go/commit/2fd97ee25e8a623e460aff26b4c422dec9532654
+- **コミットハッシュ**: 17bf5e903184a271b04eb917a42b528c5730f38c
+- **GitHub URL**: https://github.com/golang/go/commit/17bf5e903184a271b04eb917a42b528c5730f38c
 
 ### 章構成
 

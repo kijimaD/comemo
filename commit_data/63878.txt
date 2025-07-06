@@ -1,0 +1,59 @@
+commit 33496c2dd310aad1d56bae9febcbd2f02b4985cb
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Wed May 22 01:30:42 2024 +0000
+
+    maps: clarify iteration order and insertion behavior
+    
+    Fixes #67537.
+    
+    Change-Id: Ic567f7d19d621a17d2a00aba5b9f927001195ea9
+    GitHub-Last-Rev: 9eec790ab6f1697f6328220e007fee8661f62c5c
+    GitHub-Pull-Request: golang/go#67539
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587015
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/maps/iter.go | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/maps/iter.go b/src/maps/iter.go
+index c53d730013..32f2d514c1 100644
+--- a/src/maps/iter.go
++++ b/src/maps/iter.go
+@@ -7,6 +7,8 @@ package maps
+ import "iter"
+ 
+ // All returns an iterator over key-value pairs from m.
++// The iteration order is not specified and is not guaranteed
++// to be the same from one call to the next.
+ func All[Map ~map[K]V, K comparable, V any](m Map) iter.Seq2[K, V] {
+ 	return func(yield func(K, V) bool) {
+ 		for k, v := range m {
+@@ -18,6 +20,8 @@ func All[Map ~map[K]V, K comparable, V any](m Map) iter.Seq2[K, V] {
+ }
+ 
+ // Keys returns an iterator over keys in m.
++// The iteration order is not specified and is not guaranteed
++// to be the same from one call to the next.
+ func Keys[Map ~map[K]V, K comparable, V any](m Map) iter.Seq[K] {
+ 	return func(yield func(K) bool) {
+ 		for k := range m {
+@@ -29,6 +33,8 @@ func Keys[Map ~map[K]V, K comparable, V any](m Map) iter.Seq[K] {
+ }
+ 
+ // Values returns an iterator over values in m.
++// The iteration order is not specified and is not guaranteed
++// to be the same from one call to the next.
+ func Values[Map ~map[K]V, K comparable, V any](m Map) iter.Seq[V] {
+ 	return func(yield func(V) bool) {
+ 		for _, v := range m {
+@@ -40,6 +46,7 @@ func Values[Map ~map[K]V, K comparable, V any](m Map) iter.Seq[V] {
+ }
+ 
+ // Insert adds the key-value pairs from seq to m.
++// If a key in seq already exists in m, its value will be overwritten.
+ func Insert[Map ~map[K]V, K comparable, V any](m Map, seq iter.Seq2[K, V]) {
+ 	for k, v := range seq {
+ 		m[k] = v

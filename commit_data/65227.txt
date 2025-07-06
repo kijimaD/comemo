@@ -1,0 +1,207 @@
+commit 5472853843bd9ae72ddc107a556558d13e39b035
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Oct 7 11:11:06 2024 -0400
+
+    [release-branch.go1.23] cmd/link: generate Mach-O UUID when -B flag is specified
+    
+    Currently, on Mach-O, the Go linker doesn't generate LC_UUID in
+    internal linking mode. This causes some macOS system tools unable
+    to track the binary, as well as in some cases the binary unable
+    to access local network on macOS 15.
+    
+    This CL makes the linker start generate LC_UUID. Currently, the
+    UUID is generated if the -B flag is specified. And we'll make it
+    generate UUID by default in a later CL. The -B flag is currently
+    for generating GNU build ID on ELF, which is a similar concept to
+    Mach-O's UUID. Instead of introducing another flag, we just use
+    the same flag and the same setting. Specifically, "-B gobuildid"
+    will generate a UUID based on the Go build ID.
+    
+    Updates #68678.
+    Fixes #69992.
+    
+    Cq-Include-Trybots: luci.golang.try:go1.23-darwin-amd64_14,go1.23-darwin-arm64_13
+    Change-Id: I90089a78ba144110bf06c1c6836daf2d737ff10a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618595
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ingo Oeser <nightlyone@googlemail.com>
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    (cherry picked from commit 20ed60311848ca40e51cb430fa602dd83a9c726f)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622595
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/link/internal/ld/elf.go               | 14 +++++++++++---
+ src/cmd/link/internal/ld/macho.go             | 16 ++++++++++++++++
+ src/cmd/link/internal/ld/macho_update_uuid.go |  2 +-
+ src/cmd/link/internal/ld/main.go              |  6 +++++-
+ test/fixedbugs/issue14636.go                  | 21 ++++++++++++++-------
+ 5 files changed, 47 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 0d8455d92e..bc484dedf6 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -805,13 +805,19 @@ func elfwritefreebsdsig(out *OutBuf) int {
+ 	return int(sh.Size)
+ }
+ 
+-func addbuildinfo(val string) {
++func addbuildinfo(ctxt *Link) {
++	val := *flagHostBuildid
+ 	if val == "gobuildid" {
+ 		buildID := *flagBuildid
+ 		if buildID == "" {
+ 			Exitf("-B gobuildid requires a Go build ID supplied via -buildid")
+ 		}
+ 
++		if ctxt.IsDarwin() {
++			buildinfo = uuidFromGoBuildId(buildID)
++			return
++		}
++
+ 		hashedBuildID := notsha256.Sum256([]byte(buildID))
+ 		buildinfo = hashedBuildID[:20]
+ 
+@@ -821,11 +827,13 @@ func addbuildinfo(val string) {
+ 	if !strings.HasPrefix(val, "0x") {
+ 		Exitf("-B argument must start with 0x: %s", val)
+ 	}
+-
+ 	ov := val
+ 	val = val[2:]
+ 
+-	const maxLen = 32
++	maxLen := 32
++	if ctxt.IsDarwin() {
++		maxLen = 16
++	}
+ 	if hex.DecodedLen(len(val)) > maxLen {
+ 		Exitf("-B option too long (max %d digits): %s", maxLen, ov)
+ 	}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 34624c25a9..c5a85f0e75 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -297,6 +297,8 @@ func getMachoHdr() *MachoHdr {
+ 	return &machohdr
+ }
+ 
++// Create a new Mach-O load command. ndata is the number of 32-bit words for
++// the data (not including the load command header).
+ func newMachoLoad(arch *sys.Arch, type_ uint32, ndata uint32) *MachoLoad {
+ 	if arch.PtrSize == 8 && (ndata&1 != 0) {
+ 		ndata++
+@@ -849,6 +851,20 @@ func asmbMacho(ctxt *Link) {
+ 			}
+ 		}
+ 
++		if ctxt.IsInternal() && len(buildinfo) > 0 {
++			ml := newMachoLoad(ctxt.Arch, LC_UUID, 4)
++			// Mach-O UUID is 16 bytes
++			if len(buildinfo) < 16 {
++				buildinfo = append(buildinfo, make([]byte, 16)...)
++			}
++			// By default, buildinfo is already in UUIDv3 format
++			// (see uuidFromGoBuildId).
++			ml.data[0] = ctxt.Arch.ByteOrder.Uint32(buildinfo)
++			ml.data[1] = ctxt.Arch.ByteOrder.Uint32(buildinfo[4:])
++			ml.data[2] = ctxt.Arch.ByteOrder.Uint32(buildinfo[8:])
++			ml.data[3] = ctxt.Arch.ByteOrder.Uint32(buildinfo[12:])
++		}
++
+ 		if ctxt.IsInternal() && ctxt.NeedCodeSign() {
+ 			ml := newMachoLoad(ctxt.Arch, LC_CODE_SIGNATURE, 2)
+ 			ml.data[0] = uint32(codesigOff)
+diff --git a/src/cmd/link/internal/ld/macho_update_uuid.go b/src/cmd/link/internal/ld/macho_update_uuid.go
+index de27e655d5..40e0c11ed1 100644
+--- a/src/cmd/link/internal/ld/macho_update_uuid.go
++++ b/src/cmd/link/internal/ld/macho_update_uuid.go
+@@ -42,7 +42,7 @@ func uuidFromGoBuildId(buildID string) []byte {
+ 	// to use this UUID flavor than any of the others. This is similar
+ 	// to how other linkers handle this (for example this code in lld:
+ 	// https://github.com/llvm/llvm-project/blob/2a3a79ce4c2149d7787d56f9841b66cacc9061d0/lld/MachO/Writer.cpp#L524).
+-	rv[6] &= 0xcf
++	rv[6] &= 0x0f
+ 	rv[6] |= 0x30
+ 	rv[8] &= 0x3f
+ 	rv[8] |= 0xc0
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 56e865d8a5..12bc896c66 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -95,6 +95,7 @@ var (
+ 	flagN             = flag.Bool("n", false, "no-op (deprecated)")
+ 	FlagS             = flag.Bool("s", false, "disable symbol table")
+ 	flag8             bool // use 64-bit addresses in symbol table
++	flagHostBuildid   = flag.String("B", "", "set ELF NT_GNU_BUILD_ID `note` or Mach-O UUID; use \"gobuildid\" to generate it from the Go build ID")
+ 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 	flagCheckLinkname = flag.Bool("checklinkname", true, "check linkname symbol references")
+ 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
+@@ -196,7 +197,6 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	flag.Var(&ctxt.LinkMode, "linkmode", "set link `mode`")
+ 	flag.Var(&ctxt.BuildMode, "buildmode", "set build `mode`")
+ 	flag.BoolVar(&ctxt.compressDWARF, "compressdwarf", true, "compress DWARF if possible")
+-	objabi.Flagfn1("B", "add an ELF NT_GNU_BUILD_ID `note` when using ELF; use \"gobuildid\" to generate it from the Go build ID", addbuildinfo)
+ 	objabi.Flagfn1("L", "add specified `directory` to library path", func(a string) { Lflag(ctxt, a) })
+ 	objabi.AddVersionFlag() // -V
+ 	objabi.Flagfn1("X", "add string value `definition` of the form importpath.name=value", func(s string) { addstrdata1(ctxt, s) })
+@@ -294,6 +294,10 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		*flagBuildid = "go-openbsd"
+ 	}
+ 
++	if *flagHostBuildid != "" {
++		addbuildinfo(ctxt)
++	}
++
+ 	// enable benchmarking
+ 	var bench *benchmark.Metrics
+ 	if len(*benchmarkFlag) != 0 {
+diff --git a/test/fixedbugs/issue14636.go b/test/fixedbugs/issue14636.go
+index c8e751fb61..a866c9a9e3 100644
+--- a/test/fixedbugs/issue14636.go
++++ b/test/fixedbugs/issue14636.go
+@@ -12,22 +12,29 @@ import (
+ 	"bytes"
+ 	"log"
+ 	"os/exec"
++	"runtime"
+ 	"strings"
+ )
+ 
+ func main() {
+-	checkLinkOutput("", "-B argument must start with 0x")
++	// The cannot open file error indicates that the parsing of -B flag
++	// succeeded and it failed at a later step.
+ 	checkLinkOutput("0", "-B argument must start with 0x")
+-	checkLinkOutput("0x", "usage")
++	checkLinkOutput("0x", "cannot open file nonexistent.o")
+ 	checkLinkOutput("0x0", "-B argument must have even number of digits")
+-	checkLinkOutput("0x00", "usage")
++	checkLinkOutput("0x00", "cannot open file nonexistent.o")
+ 	checkLinkOutput("0xYZ", "-B argument contains invalid hex digit")
+-	checkLinkOutput("0x"+strings.Repeat("00", 32), "usage")
+-	checkLinkOutput("0x"+strings.Repeat("00", 33), "-B option too long (max 32 digits)")
++
++	maxLen := 32
++	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
++		maxLen = 16
++	}
++	checkLinkOutput("0x"+strings.Repeat("00", maxLen), "cannot open file nonexistent.o")
++	checkLinkOutput("0x"+strings.Repeat("00", maxLen+1), "-B option too long")
+ }
+ 
+ func checkLinkOutput(buildid string, message string) {
+-	cmd := exec.Command("go", "tool", "link", "-B", buildid)
++	cmd := exec.Command("go", "tool", "link", "-B", buildid, "nonexistent.o")
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+ 		log.Fatalf("expected cmd/link to fail")
+@@ -39,6 +46,6 @@ func checkLinkOutput(buildid string, message string) {
+ 	}
+ 
+ 	if !strings.Contains(firstLine, message) {
+-		log.Fatalf("cmd/link output did not include expected message %q: %s", message, firstLine)
++		log.Fatalf("%s: cmd/link output did not include expected message %q: %s", buildid, message, firstLine)
+ 	}
+ }

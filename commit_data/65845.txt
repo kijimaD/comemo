@@ -1,0 +1,141 @@
+commit 1576793c513c5cd8396d1a5b004b546e82efc033
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 11 14:18:42 2024 -0800
+
+    [release-branch.go1.23] net: don't use sendfile for irregular files; handle EOPNOTSUPP/ENOTSUP
+    
+    This is not a cherry pick, because the code has changed on tip.
+    
+    For #70763
+    Fixes #70789
+    
+    Change-Id: If9fcfee17e86a746cf8c72293dc34f80b430f6e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635397
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/poll/sendfile_bsd.go |  2 +-
+ src/net/sendfile_unix_alt.go      |  3 ++
+ src/net/sendfile_unix_test.go     | 86 +++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 90 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+index 341e07ca1f..d1023d4ebb 100644
+--- a/src/internal/poll/sendfile_bsd.go
++++ b/src/internal/poll/sendfile_bsd.go
+@@ -72,6 +72,6 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error,
+ 	if err == syscall.EAGAIN {
+ 		err = nil
+ 	}
+-	handled = written != 0 || (err != syscall.ENOSYS && err != syscall.EINVAL)
++	handled = written != 0 || (err != syscall.ENOSYS && err != syscall.EINVAL && err != syscall.EOPNOTSUPP && err != syscall.ENOTSUP)
+ 	return
+ }
+diff --git a/src/net/sendfile_unix_alt.go b/src/net/sendfile_unix_alt.go
+index 9e46c4e607..4056856f30 100644
+--- a/src/net/sendfile_unix_alt.go
++++ b/src/net/sendfile_unix_alt.go
+@@ -53,6 +53,9 @@ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
+ 		if err != nil {
+ 			return 0, err, false
+ 		}
++		if fi.Mode()&(fs.ModeSymlink|fs.ModeDevice|fs.ModeCharDevice|fs.ModeIrregular) != 0 {
++			return 0, nil, false
++		}
+ 
+ 		remain = fi.Size()
+ 	}
+diff --git a/src/net/sendfile_unix_test.go b/src/net/sendfile_unix_test.go
+new file mode 100644
+index 0000000000..79fb23b310
+--- /dev/null
++++ b/src/net/sendfile_unix_test.go
+@@ -0,0 +1,86 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package net
++
++import (
++	"internal/testpty"
++	"io"
++	"os"
++	"sync"
++	"syscall"
++	"testing"
++)
++
++// Issue 70763: test that we don't fail on sendfile from a tty.
++func TestCopyFromTTY(t *testing.T) {
++	pty, ttyName, err := testpty.Open()
++	if err != nil {
++		t.Skipf("skipping test because pty open failed: %v", err)
++	}
++	defer pty.Close()
++
++	// Use syscall.Open so that the tty is blocking.
++	ttyFD, err := syscall.Open(ttyName, syscall.O_RDWR, 0)
++	if err != nil {
++		t.Skipf("skipping test because tty open failed: %v", err)
++	}
++	defer syscall.Close(ttyFD)
++
++	tty := os.NewFile(uintptr(ttyFD), "tty")
++	defer tty.Close()
++
++	ln := newLocalListener(t, "tcp")
++	defer ln.Close()
++
++	ch := make(chan bool)
++
++	const data = "data\n"
++
++	var wg sync.WaitGroup
++	defer wg.Wait()
++
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		conn, err := ln.Accept()
++		if err != nil {
++			t.Error(err)
++			return
++		}
++		defer conn.Close()
++
++		buf := make([]byte, len(data))
++		if _, err := io.ReadFull(conn, buf); err != nil {
++			t.Error(err)
++		}
++
++		ch <- true
++	}()
++
++	conn, err := Dial("tcp", ln.Addr().String())
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer conn.Close()
++
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		if _, err := pty.Write([]byte(data)); err != nil {
++			t.Error(err)
++		}
++		<-ch
++		if err := pty.Close(); err != nil {
++			t.Error(err)
++		}
++	}()
++
++	lr := io.LimitReader(tty, int64(len(data)))
++	if _, err := io.Copy(conn, lr); err != nil {
++		t.Error(err)
++	}
++}

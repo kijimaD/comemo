@@ -1,0 +1,42 @@
+commit fb5f78a14f71f043604826067d1f224e1e90a2f5
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Feb 12 09:23:14 2025 -0800
+
+    internal/syscall: add cgo_import_dynamic for Fchmodat on AIX and Solaris
+    
+    For #67002
+    
+    Change-Id: I1709fd51ba52c074501420943d311c785a49d851
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/syscall/unix/at_aix.go     | 1 +
+ src/internal/syscall/unix/at_solaris.go | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/src/internal/syscall/unix/at_aix.go b/src/internal/syscall/unix/at_aix.go
+index 5c2f00efe5..e679efc344 100644
+--- a/src/internal/syscall/unix/at_aix.go
++++ b/src/internal/syscall/unix/at_aix.go
+@@ -4,6 +4,7 @@
+ 
+ package unix
+ 
++//go:cgo_import_dynamic libc_fchmodat fchmodat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_fstatat fstatat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_openat openat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.a/shr_64.o"
+diff --git a/src/internal/syscall/unix/at_solaris.go b/src/internal/syscall/unix/at_solaris.go
+index fa65d9e8d9..a4910f1003 100644
+--- a/src/internal/syscall/unix/at_solaris.go
++++ b/src/internal/syscall/unix/at_solaris.go
+@@ -13,6 +13,7 @@ func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err
+ func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
+ 
+ //go:cgo_import_dynamic libc_faccessat faccessat "libc.so"
++//go:cgo_import_dynamic libc_fchmodat fchmodat "libc.so"
+ //go:cgo_import_dynamic libc_fstatat fstatat "libc.so"
+ //go:cgo_import_dynamic libc_openat openat "libc.so"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.so"

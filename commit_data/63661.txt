@@ -1,0 +1,1308 @@
+commit 328aa9e39f3a5da785daa015d673f19ded9e13ae
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 8 11:13:10 2024 -0400
+
+    all: vendor golang.org/x/telemetry@2790727
+    
+    Commands run (in both src/ and src/cmd/)
+        go get golang.org/x/telemetry@2790727
+        go mod tidy
+        go mod vendor
+    
+    Change-Id: Idbabcc4a3069afac08d2735fac264577846ea1d7
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584236
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+---
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../x/telemetry/counter/countertest/countertest.go |   5 +-
+ .../x/telemetry/internal/configstore/download.go   |  38 ++--
+ .../x/telemetry/internal/counter/file.go           |  12 +-
+ .../internal/telemetry/{mode.go => dir.go}         | 105 ++++++----
+ .../golang.org/x/telemetry/internal/upload/date.go |  12 +-
+ .../x/telemetry/internal/upload/findwork.go        |  16 +-
+ .../x/telemetry/internal/upload/reports.go         |  66 +++----
+ .../golang.org/x/telemetry/internal/upload/run.go  | 217 +++++++++++++--------
+ .../x/telemetry/internal/upload/upload.go          |  28 +--
+ src/cmd/vendor/golang.org/x/telemetry/mode.go      |   8 +-
+ src/cmd/vendor/golang.org/x/telemetry/start.go     | 104 ++++++++--
+ .../vendor/golang.org/x/telemetry/upload/upload.go |  33 ++--
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 15 files changed, 387 insertions(+), 265 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 50da477513..b085e8127e 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.17.0
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.20.0
+-	golang.org/x/telemetry v0.0.0-20240401194020-3640ba572dd1
++	golang.org/x/telemetry v0.0.0-20240507150523-279072785af5
+ 	golang.org/x/term v0.18.0
+ 	golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index ba3e88a3a5..74ea7fe57e 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -32,8 +32,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
+ golang.org/x/sys v0.20.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240401194020-3640ba572dd1 h1:x0E096pmZoLhjEfcM4q2gJ3eZvnTpZiYDSPDYtm4wME=
+-golang.org/x/telemetry v0.0.0-20240401194020-3640ba572dd1/go.mod h1:wQS78u8AjB4H3mN7DPniFYwsXnV9lPziq+He/eA7JIw=
++golang.org/x/telemetry v0.0.0-20240507150523-279072785af5 h1:zFQWkRwC+EyXtRREL8K8h7raUgJeU9jiQmUt9tQVxm0=
++golang.org/x/telemetry v0.0.0-20240507150523-279072785af5/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
+ golang.org/x/term v0.18.0 h1:FcHjZXDMxI8mM3nwhX9HlKop4C0YQvCVCdwYl2wOtE8=
+ golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/counter/countertest/countertest.go b/src/cmd/vendor/golang.org/x/telemetry/counter/countertest/countertest.go
+index c2f41f6d77..dc8bb112b1 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/counter/countertest/countertest.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/counter/countertest/countertest.go
+@@ -7,7 +7,6 @@
+ package countertest
+ 
+ import (
+-	"path/filepath"
+ 	"sync"
+ 
+ 	"golang.org/x/telemetry/counter"
+@@ -39,9 +38,7 @@ func Open(telemetryDir string) {
+ 	if opened {
+ 		panic("Open was called more than once")
+ 	}
+-	telemetry.ModeFile = telemetry.ModeFilePath(filepath.Join(telemetryDir, "mode"))
+-	telemetry.LocalDir = filepath.Join(telemetryDir, "local")
+-	telemetry.UploadDir = filepath.Join(telemetryDir, "upload")
++	telemetry.Default = telemetry.NewDir(telemetryDir)
+ 
+ 	counter.Open()
+ 	opened = true
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go b/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go
+index 13822433bf..b73763a9f2 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go
+@@ -21,31 +21,23 @@ import (
+ )
+ 
+ const (
+-	configModulePath = "golang.org/x/telemetry/config"
+-	configFileName   = "config.json"
++	ModulePath     = "golang.org/x/telemetry/config"
++	configFileName = "config.json"
+ )
+ 
+-// DownloadOption is an option for Download.
+-type DownloadOption struct {
+-	// Env holds the environment variables used when downloading the configuration.
+-	// If nil, the process's environment variables are used.
+-	Env []string
+-}
+-
+-// Download fetches the requested telemetry UploadConfig using "go mod download".
++// Download fetches the requested telemetry UploadConfig using "go mod
++// download". If envOverlay is provided, it is appended to the environment used
++// for invoking the go command.
+ //
+ // The second result is the canonical version of the requested configuration.
+-func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, string, error) {
++func Download(version string, envOverlay []string) (*telemetry.UploadConfig, string, error) {
+ 	if version == "" {
+ 		version = "latest"
+ 	}
+-	if opts == nil {
+-		opts = &DownloadOption{}
+-	}
+-	modVer := configModulePath + "@" + version
++	modVer := ModulePath + "@" + version
+ 	var stdout, stderr bytes.Buffer
+ 	cmd := exec.Command("go", "mod", "download", "-json", modVer)
+-	cmd.Env = opts.Env
++	cmd.Env = append(os.Environ(), envOverlay...)
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+ 	if err := cmd.Run(); err != nil {
+@@ -53,9 +45,9 @@ func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, str
+ 			Error string
+ 		}
+ 		if err := json.Unmarshal(stdout.Bytes(), &info); err == nil && info.Error != "" {
+-			return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module: %v", info.Error)
++			return nil, "", fmt.Errorf("failed to download config module: %v", info.Error)
+ 		}
+-		return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module: %w\n%s", err, &stderr)
++		return nil, "", fmt.Errorf("failed to download config module: %w\n%s", err, &stderr)
+ 	}
+ 
+ 	var info struct {
+@@ -64,15 +56,15 @@ func Download(version string, opts *DownloadOption) (telemetry.UploadConfig, str
+ 		Error   string
+ 	}
+ 	if err := json.Unmarshal(stdout.Bytes(), &info); err != nil || info.Dir == "" {
+-		return telemetry.UploadConfig{}, "", fmt.Errorf("failed to download config module (invalid JSON): %w", err)
++		return nil, "", fmt.Errorf("failed to download config module (invalid JSON): %w", err)
+ 	}
+ 	data, err := os.ReadFile(filepath.Join(info.Dir, configFileName))
+ 	if err != nil {
+-		return telemetry.UploadConfig{}, "", fmt.Errorf("invalid config module: %w", err)
++		return nil, "", fmt.Errorf("invalid config module: %w", err)
+ 	}
+-	var cfg telemetry.UploadConfig
+-	if err := json.Unmarshal(data, &cfg); err != nil {
+-		return telemetry.UploadConfig{}, "", fmt.Errorf("invalid config: %w", err)
++	cfg := new(telemetry.UploadConfig)
++	if err := json.Unmarshal(data, cfg); err != nil {
++		return nil, "", fmt.Errorf("invalid config: %w", err)
+ 	}
+ 	return cfg, info.Version, nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+index 742b1fc427..12181b25ec 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/counter/file.go
+@@ -124,11 +124,11 @@ func (f *file) init(begin, end time.Time) {
+ 		f.err = errNoBuildInfo
+ 		return
+ 	}
+-	if mode, _ := telemetry.Mode(); mode == "off" {
++	if mode, _ := telemetry.Default.Mode(); mode == "off" {
+ 		f.err = ErrDisabled
+ 		return
+ 	}
+-	dir := telemetry.LocalDir
++	dir := telemetry.Default.LocalDir()
+ 
+ 	if err := os.MkdirAll(dir, 0777); err != nil {
+ 		f.err = err
+@@ -203,11 +203,11 @@ func fileValidity(now time.Time) (int, error) {
+ 	// If there is no 'weekends' file create it and initialize it
+ 	// to a random day of the week. There is a short interval for
+ 	// a race.
+-	weekends := filepath.Join(telemetry.LocalDir, "weekends")
++	weekends := filepath.Join(telemetry.Default.LocalDir(), "weekends")
+ 	day := fmt.Sprintf("%d\n", rand.Intn(7))
+ 	if _, err := os.ReadFile(weekends); err != nil {
+-		if err := os.MkdirAll(telemetry.LocalDir, 0777); err != nil {
+-			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.LocalDir)
++		if err := os.MkdirAll(telemetry.Default.LocalDir(), 0777); err != nil {
++			debugPrintf("%v: could not create telemetry.LocalDir %s", err, telemetry.Default.LocalDir())
+ 			return 7, err
+ 		}
+ 		if err = os.WriteFile(weekends, []byte(day), 0666); err != nil {
+@@ -357,7 +357,7 @@ func Open() func() {
+ 	if telemetry.DisabledOnPlatform {
+ 		return func() {}
+ 	}
+-	if mode, _ := telemetry.Mode(); mode == "off" {
++	if mode, _ := telemetry.Default.Mode(); mode == "off" {
+ 		// Don't open the file when telemetry is off.
+ 		defaultFile.err = ErrDisabled
+ 		return func() {} // No need to clean up.
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
+similarity index 56%
+rename from src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go
+rename to src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
+index d7d3f24a18..915b5cadbe 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/mode.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
+@@ -14,32 +14,65 @@ import (
+ 	"time"
+ )
+ 
+-// The followings are the process' default Settings.
+-// The values are subdirectories and a file under
+-// os.UserConfigDir()/go/telemetry.
+-// For convenience, each field is made to global
+-// and they are not supposed to be changed.
+-var (
+-	// Default directory containing count files, local reports (not yet uploaded), and logs
+-	LocalDir string
+-	// Default directory containing uploaded reports.
+-	UploadDir string
+-	// Default file path that holds the telemetry mode info.
+-	ModeFile ModeFilePath
+-)
++// Default is the default directory containing Go telemetry configuration and
++// data.
++//
++// If Default is uninitialized, Default.Mode will be "off". As a consequence,
++// no data should be written to the directory, and so the path values of
++// LocalDir, UploadDir, etc. must not matter.
++//
++// Default is a global for convenience and testing, but should not be mutated
++// outside of tests.
++//
++// TODO(rfindley): it would be nice to completely eliminate this global state,
++// or at least push it in the golang.org/x/telemetry package
++var Default Dir
++
++// A Dir holds paths to telemetry data inside a directory.
++type Dir struct {
++	dir, local, upload, debug, modefile string
++}
+ 
+-// ModeFilePath is the telemetry mode file path with methods to manipulate the file contents.
+-type ModeFilePath string
++// NewDir creates a new Dir encapsulating paths in the given dir.
++//
++// NewDir does not create any new directories or files--it merely encapsulates
++// the telemetry directory layout.
++func NewDir(dir string) Dir {
++	return Dir{
++		dir:      dir,
++		local:    filepath.Join(dir, "local"),
++		upload:   filepath.Join(dir, "upload"),
++		debug:    filepath.Join(dir, "debug"),
++		modefile: filepath.Join(dir, "mode"),
++	}
++}
+ 
+ func init() {
+ 	cfgDir, err := os.UserConfigDir()
+ 	if err != nil {
+ 		return
+ 	}
+-	gotelemetrydir := filepath.Join(cfgDir, "go", "telemetry")
+-	LocalDir = filepath.Join(gotelemetrydir, "local")
+-	UploadDir = filepath.Join(gotelemetrydir, "upload")
+-	ModeFile = ModeFilePath(filepath.Join(gotelemetrydir, "mode"))
++	Default = NewDir(filepath.Join(cfgDir, "go", "telemetry"))
++}
++
++func (d Dir) Dir() string {
++	return d.dir
++}
++
++func (d Dir) LocalDir() string {
++	return d.local
++}
++
++func (d Dir) UploadDir() string {
++	return d.upload
++}
++
++func (d Dir) DebugDir() string {
++	return d.debug
++}
++
++func (d Dir) ModeFile() string {
++	return d.modefile
+ }
+ 
+ // SetMode updates the telemetry mode with the given mode.
+@@ -48,28 +81,24 @@ func init() {
+ // SetMode always writes the mode file, and explicitly records the date at
+ // which the modefile was updated. This means that calling SetMode with "on"
+ // effectively resets the timeout before the next telemetry report is uploaded.
+-func SetMode(mode string) error {
+-	return ModeFile.SetMode(mode)
+-}
+-
+-func (m ModeFilePath) SetMode(mode string) error {
+-	return m.SetModeAsOf(mode, time.Now())
++func (d Dir) SetMode(mode string) error {
++	return d.SetModeAsOf(mode, time.Now())
+ }
+ 
+ // SetModeAsOf is like SetMode, but accepts an explicit time to use to
+ // back-date the mode state. This exists only for testing purposes.
+-func (m ModeFilePath) SetModeAsOf(mode string, asofTime time.Time) error {
++func (d Dir) SetModeAsOf(mode string, asofTime time.Time) error {
+ 	mode = strings.TrimSpace(mode)
+ 	switch mode {
+ 	case "on", "off", "local":
+ 	default:
+ 		return fmt.Errorf("invalid telemetry mode: %q", mode)
+ 	}
+-	fname := string(m)
+-	if fname == "" {
++	if d.modefile == "" {
+ 		return fmt.Errorf("cannot determine telemetry mode file name")
+ 	}
+-	if err := os.MkdirAll(filepath.Dir(fname), 0755); err != nil {
++	// TODO(rfindley): why is this not 777, consistent with the use of 666 below?
++	if err := os.MkdirAll(filepath.Dir(d.modefile), 0755); err != nil {
+ 		return fmt.Errorf("cannot create a telemetry mode file: %w", err)
+ 	}
+ 
+@@ -80,23 +109,23 @@ func (m ModeFilePath) SetModeAsOf(mode string, asofTime time.Time) error {
+ 	}
+ 
+ 	data := []byte(mode + " " + asof)
+-	return os.WriteFile(fname, data, 0666)
++	return os.WriteFile(d.modefile, data, 0666)
+ }
+ 
+ // Mode returns the current telemetry mode, as well as the time that the mode
+ // was effective.
+ //
+ // If there is no effective time, the second result is the zero time.
+-func Mode() (string, time.Time) {
+-	return ModeFile.Mode()
+-}
+-
+-func (m ModeFilePath) Mode() (string, time.Time) {
+-	fname := string(m)
+-	if fname == "" {
++//
++// If Mode is "off", no data should be written to the telemetry directory, and
++// the other paths values referenced by Dir should be considered undefined.
++// This accounts for the case where initializing [Default] fails, and therefore
++// local telemetry paths are unknown.
++func (d Dir) Mode() (string, time.Time) {
++	if d.modefile == "" {
+ 		return "off", time.Time{} // it's likely LocalDir/UploadDir are empty too. Turn off telemetry.
+ 	}
+-	data, err := os.ReadFile(fname)
++	data, err := os.ReadFile(d.modefile)
+ 	if err != nil {
+ 		return "local", time.Time{} // default
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
+index 5a831f0816..4fc770fc0f 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
+@@ -18,10 +18,10 @@ import (
+ var distantPast = 21 * 24 * time.Hour
+ 
+ // reports that are too old (21 days) are not uploaded
+-func tooOld(date string, uploadStartTime time.Time) bool {
++func (u *Uploader) tooOld(date string, uploadStartTime time.Time) bool {
+ 	t, err := time.Parse("2006-01-02", date)
+ 	if err != nil {
+-		logger.Printf("tooOld: %v", err)
++		u.logger.Printf("tooOld: %v", err)
+ 		return false
+ 	}
+ 	age := uploadStartTime.Sub(t)
+@@ -40,17 +40,17 @@ var farFuture = time.UnixMilli(1 << 62)
+ func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time) {
+ 	parsed, err := u.parse(fname)
+ 	if err != nil {
+-		logger.Printf("expiry Parse: %v for %s", err, fname)
++		u.logger.Printf("expiry Parse: %v for %s", err, fname)
+ 		return time.Time{}, farFuture
+ 	}
+ 	begin, err = time.Parse(time.RFC3339, parsed.Meta["TimeBegin"])
+ 	if err != nil {
+-		logger.Printf("time.Parse(%s[TimeBegin]) failed: %v", fname, err)
++		u.logger.Printf("time.Parse(%s[TimeBegin]) failed: %v", fname, err)
+ 		return time.Time{}, farFuture
+ 	}
+ 	end, err = time.Parse(time.RFC3339, parsed.Meta["TimeEnd"])
+ 	if err != nil {
+-		logger.Printf("time.Parse(%s[TimeEnd]) failed: %v", fname, err)
++		u.logger.Printf("time.Parse(%s[TimeEnd]) failed: %v", fname, err)
+ 		return time.Time{}, farFuture
+ 	}
+ 	return begin, end
+@@ -59,7 +59,7 @@ func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time) {
+ // stillOpen returns true if the counter file might still be active
+ func (u *Uploader) stillOpen(fname string) bool {
+ 	_, expiry := u.counterDateSpan(fname)
+-	return expiry.After(u.StartTime)
++	return expiry.After(u.startTime)
+ }
+ 
+ // avoid parsing count files multiple times
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
+index 286d6bed3d..22add2a6f5 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
+@@ -23,16 +23,16 @@ type work struct {
+ // that need to be uploaded. (There may be unexpected leftover files
+ // and uploading is supposed to be idempotent.)
+ func (u *Uploader) findWork() work {
+-	localdir, uploaddir := u.LocalDir, u.UploadDir
++	localdir, uploaddir := u.dir.LocalDir(), u.dir.UploadDir()
+ 	var ans work
+ 	fis, err := os.ReadDir(localdir)
+ 	if err != nil {
+-		logger.Printf("could not read %s, progress impossible (%v)", localdir, err)
++		u.logger.Printf("Could not find work: failed to read local dir %s: %v", localdir, err)
+ 		return ans
+ 	}
+ 
+-	mode, asof := u.ModeFilePath.Mode()
+-	logger.Printf("mode %s, asof %s", mode, asof)
++	mode, asof := u.dir.Mode()
++	u.logger.Printf("Finding work: mode %s, asof %s", mode, asof)
+ 
+ 	// count files end in .v1.count
+ 	// reports end in .json. If they are not to be uploaded they
+@@ -41,7 +41,7 @@ func (u *Uploader) findWork() work {
+ 		if strings.HasSuffix(fi.Name(), ".v1.count") {
+ 			fname := filepath.Join(localdir, fi.Name())
+ 			if u.stillOpen(fname) {
+-				logger.Printf("still active: %s", fname)
++				u.logger.Printf("Skipping count file %s: still active", fname)
+ 				continue
+ 			}
+ 			ans.countfiles = append(ans.countfiles, fname)
+@@ -49,7 +49,7 @@ func (u *Uploader) findWork() work {
+ 			// skip
+ 		} else if strings.HasSuffix(fi.Name(), ".json") && mode == "on" {
+ 			// Collect reports that are ready for upload.
+-			reportDate := uploadReportDate(fi.Name())
++			reportDate := u.uploadReportDate(fi.Name())
+ 			if !asof.IsZero() && !reportDate.IsZero() {
+ 				// If both the mode asof date and the report date are present, do the
+ 				// right thing...
+@@ -63,7 +63,7 @@ func (u *Uploader) findWork() work {
+ 					//
+ 					// TODO(rfindley): store the begin date in reports, so that we can
+ 					// verify this assumption.
+-					logger.Printf("uploadable %s", fi.Name())
++					u.logger.Printf("uploadable %s", fi.Name())
+ 					ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
+ 				}
+ 			} else {
+@@ -73,7 +73,7 @@ func (u *Uploader) findWork() work {
+ 				// TODO(rfindley): invert this logic following more testing. We
+ 				// should only upload if we know both the asof date and the report
+ 				// date, and they are acceptable.
+-				logger.Printf("uploadable anyway %s", fi.Name())
++				u.logger.Printf("uploadable anyway %s", fi.Name())
+ 				ans.readyfiles = append(ans.readyfiles, filepath.Join(localdir, fi.Name()))
+ 			}
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+index e8a65bccfb..4052bb0ab4 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+@@ -16,23 +16,22 @@ import (
+ 	"time"
+ 
+ 	"golang.org/x/telemetry/internal/config"
+-	"golang.org/x/telemetry/internal/configstore"
+ 	"golang.org/x/telemetry/internal/counter"
+ 	"golang.org/x/telemetry/internal/telemetry"
+ )
+ 
+ // reports generates reports from inactive count files
+ func (u *Uploader) reports(todo *work) ([]string, error) {
+-	if mode, _ := u.ModeFilePath.Mode(); mode == "off" {
++	if mode, _ := u.dir.Mode(); mode == "off" {
+ 		return nil, nil // no reports
+ 	}
+-	thisInstant := u.StartTime
++	thisInstant := u.startTime
+ 	today := thisInstant.Format("2006-01-02")
+ 	lastWeek := latestReport(todo.uploaded)
+ 	if lastWeek >= today { //should never happen
+ 		lastWeek = ""
+ 	}
+-	logger.Printf("lastWeek %q, today %s", lastWeek, today)
++	u.logger.Printf("lastWeek %q, today %s", lastWeek, today)
+ 	countFiles := make(map[string][]string) // expiry date string->filenames
+ 	earliest := make(map[string]time.Time)  // earliest begin time for any counter
+ 	for _, f := range todo.countfiles {
+@@ -48,10 +47,10 @@ func (u *Uploader) reports(todo *work) ([]string, error) {
+ 	}
+ 	for expiry, files := range countFiles {
+ 		if notNeeded(expiry, *todo) {
+-			logger.Printf("files for %s not needed, deleting %v", expiry, files)
++			u.logger.Printf("files for %s not needed, deleting %v", expiry, files)
+ 			// The report already exists.
+ 			// There's another check in createReport.
+-			deleteFiles(files)
++			u.deleteFiles(files)
+ 			continue
+ 		}
+ 		fname, err := u.createReport(earliest[expiry], expiry, files, lastWeek)
+@@ -97,13 +96,13 @@ func notNeeded(date string, todo work) bool {
+ 	return false
+ }
+ 
+-func deleteFiles(files []string) {
++func (u *Uploader) deleteFiles(files []string) {
+ 	for _, f := range files {
+ 		if err := os.Remove(f); err != nil {
+ 			// this could be a race condition.
+ 			// conversely, on Windows, err may be nil and
+ 			// the file not deleted if anyone has it open.
+-			logger.Printf("%v failed to remove %s", err, f)
++			u.logger.Printf("%v failed to remove %s", err, f)
+ 		}
+ 	}
+ }
+@@ -111,46 +110,38 @@ func deleteFiles(files []string) {
+ // createReport for all the count files for the same date.
+ // returns the absolute path name of the file containing the report
+ func (u *Uploader) createReport(start time.Time, expiryDate string, files []string, lastWeek string) (string, error) {
+-	if u.Config == nil {
+-		a, v, err := configstore.Download("latest", nil)
+-		if err != nil {
+-			logger.Print(err) // or something (e.g., panic(err))
+-		}
+-		u.Config = &a
+-		u.ConfigVersion = v
+-	}
+ 	uploadOK := true
+-	mode, asof := u.ModeFilePath.Mode()
+-	if u.Config == nil || mode != "on" {
+-		logger.Printf("no upload config or mode %q is not 'on'", mode)
++	mode, asof := u.dir.Mode()
++	if mode != "on" {
++		u.logger.Printf("no upload config or mode %q is not 'on'", mode)
+ 		uploadOK = false // no config, nothing to upload
+ 	}
+-	if tooOld(expiryDate, u.StartTime) {
+-		logger.Printf("expiryDate %s is too old", expiryDate)
++	if u.tooOld(expiryDate, u.startTime) {
++		u.logger.Printf("expiryDate %s is too old", expiryDate)
+ 		uploadOK = false
+ 	}
+ 	// If the mode is recorded with an asof date, don't upload if the report
+ 	// includes any data on or before the asof date.
+ 	if !asof.IsZero() && !asof.Before(start) {
+-		logger.Printf("asof %s is not before start %s", asof, start)
++		u.logger.Printf("asof %s is not before start %s", asof, start)
+ 		uploadOK = false
+ 	}
+ 	// should we check that all the x.Meta are consistent for GOOS, GOARCH, etc?
+ 	report := &telemetry.Report{
+-		Config:   u.ConfigVersion,
++		Config:   u.configVersion,
+ 		X:        computeRandom(), // json encodes all the bits
+ 		Week:     expiryDate,
+ 		LastWeek: lastWeek,
+ 	}
+-	if report.X > u.Config.SampleRate && u.Config.SampleRate > 0 {
+-		logger.Printf("X:%f > SampleRate:%f, not uploadable", report.X, u.Config.SampleRate)
++	if report.X > u.config.SampleRate && u.config.SampleRate > 0 {
++		u.logger.Printf("X:%f > SampleRate:%f, not uploadable", report.X, u.config.SampleRate)
+ 		uploadOK = false
+ 	}
+ 	var succeeded bool
+ 	for _, f := range files {
+ 		x, err := u.parse(string(f))
+ 		if err != nil {
+-			logger.Printf("unparseable (%v) %s", err, f)
++			u.logger.Printf("unparseable (%v) %s", err, f)
+ 			continue
+ 		}
+ 		prog := findProgReport(x.Meta, report)
+@@ -175,15 +166,15 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
+ 	}
+ 	// check that the report can be read back
+ 	// TODO(pjw): remove for production?
+-	var x telemetry.Report
+-	if err := json.Unmarshal(localContents, &x); err != nil {
++	var report2 telemetry.Report
++	if err := json.Unmarshal(localContents, &report2); err != nil {
+ 		return "", fmt.Errorf("failed to unmarshal local report (%v)", err)
+ 	}
+ 
+ 	var uploadContents []byte
+ 	if uploadOK {
+ 		// 2. create the uploadable version
+-		cfg := config.NewConfig(u.Config)
++		cfg := config.NewConfig(u.config)
+ 		upload := &telemetry.Report{
+ 			Week:     report.Week,
+ 			LastWeek: report.LastWeek,
+@@ -227,18 +218,18 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
+ 			return "", fmt.Errorf("failed to marshal upload report (%v)", err)
+ 		}
+ 	}
+-	localFileName := filepath.Join(u.LocalDir, "local."+expiryDate+".json")
+-	uploadFileName := filepath.Join(u.LocalDir, expiryDate+".json")
++	localFileName := filepath.Join(u.dir.LocalDir(), "local."+expiryDate+".json")
++	uploadFileName := filepath.Join(u.dir.LocalDir(), expiryDate+".json")
+ 
+ 	/* Prepare to write files */
+ 	// if either file exists, someone has been here ahead of us
+ 	// (there is still a race, but this check shortens the open window)
+ 	if _, err := os.Stat(localFileName); err == nil {
+-		deleteFiles(files)
++		u.deleteFiles(files)
+ 		return "", fmt.Errorf("local report %s already exists", localFileName)
+ 	}
+ 	if _, err := os.Stat(uploadFileName); err == nil {
+-		deleteFiles(files)
++		u.deleteFiles(files)
+ 		return "", fmt.Errorf("report %s already exists", uploadFileName)
+ 	}
+ 	// write the uploadable file
+@@ -258,8 +249,8 @@ func (u *Uploader) createReport(start time.Time, expiryDate string, files []stri
+ 	if errUpload != nil {
+ 		return "", fmt.Errorf("failed to write upload file %s (%v)", uploadFileName, errUpload)
+ 	}
+-	logger.Printf("created %q, deleting %v", uploadFileName, files)
+-	deleteFiles(files)
++	u.logger.Printf("created %q, deleting %v", uploadFileName, files)
++	u.deleteFiles(files)
+ 	if uploadOK {
+ 		return uploadFileName, nil
+ 	}
+@@ -288,13 +279,14 @@ func findProgReport(meta map[string]string, report *telemetry.Report) *telemetry
+ 	return &prog
+ }
+ 
+-// turn 8 random bytes into a float64 in [0,1]
++// computeRandom returns a cryptographic random float64 in the range [0, 1],
++// with 52 bits of precision.
+ func computeRandom() float64 {
+ 	for {
+ 		b := make([]byte, 8)
+ 		_, err := rand.Read(b)
+ 		if err != nil {
+-			logger.Fatalf("rand.Read: %v", err)
++			panic(fmt.Sprintf("rand.Read failed: %v", err))
+ 		}
+ 		// and turn it into a float64
+ 		x := math.Float64frombits(binary.LittleEndian.Uint64(b))
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
+index f21d973c3d..de63324bf7 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
+@@ -15,50 +15,151 @@ import (
+ 	"strings"
+ 	"time"
+ 
++	"golang.org/x/telemetry/internal/configstore"
+ 	"golang.org/x/telemetry/internal/telemetry"
+ )
+ 
+-var logger *log.Logger
++// RunConfig configures non-default behavior of a call to Run.
++//
++// All fields are optional, for testing or observability.
++type RunConfig struct {
++	TelemetryDir string    // if set, overrides the telemetry data directory
++	UploadURL    string    // if set, overrides the telemetry upload endpoint
++	LogWriter    io.Writer // if set, used for detailed logging of the upload process
++	Env          []string  // if set, appended to the config download environment
++	StartTime    time.Time // if set, overrides the upload start time
++}
++
++// Uploader encapsulates a single upload operation, carrying parameters and
++// shared state.
++type Uploader struct {
++	// config is used to select counters to upload.
++	config        *telemetry.UploadConfig //
++	configVersion string                  // version of the config
++	dir           telemetry.Dir           // the telemetry dir to process
++
++	uploadServerURL string
++	startTime       time.Time
+ 
+-func init() {
+-	logger = log.New(io.Discard, "", 0)
++	cache parsedCache
++
++	logFile *os.File
++	logger  *log.Logger
+ }
+ 
+-// keep track of what SetLogOutput has seen
+-var seenlogwriters []io.Writer
++// NewUploader creates a new uploader to use for running the upload for the
++// given config.
++//
++// Uploaders should only be used for one call to [Run].
++func NewUploader(rcfg RunConfig) (*Uploader, error) {
++	// Determine the upload directory.
++	var dir telemetry.Dir
++	if rcfg.TelemetryDir != "" {
++		dir = telemetry.NewDir(rcfg.TelemetryDir)
++	} else {
++		dir = telemetry.Default
++	}
++
++	// Determine the upload URL.
++	uploadURL := rcfg.UploadURL
++	if uploadURL == "" {
++		uploadURL = "https://telemetry.go.dev/upload"
++	}
++
++	// Determine the upload logger.
++	//
++	// This depends on the provided rcfg.LogWriter and the presence of
++	// dir.DebugDir, as follows:
++	//  1. If LogWriter is present, log to it.
++	//  2. If DebugDir is present, log to a file within it.
++	//  3. If both LogWriter and DebugDir are present, log to a multi writer.
++	//  4. If neither LogWriter nor DebugDir are present, log to a noop logger.
++	var logWriters []io.Writer
++	logFile, err := debugLogFile(dir.DebugDir())
++	if err != nil {
++		logFile = nil
++	}
++	if logFile != nil {
++		logWriters = append(logWriters, logFile)
++	}
++	if rcfg.LogWriter != nil {
++		logWriters = append(logWriters, rcfg.LogWriter)
++	}
++	var logWriter io.Writer
++	switch len(logWriters) {
++	case 0:
++		logWriter = io.Discard
++	case 1:
++		logWriter = logWriters[0]
++	default:
++		logWriter = io.MultiWriter(logWriters...)
++	}
++	logger := log.New(logWriter, "", 0)
++
++	// Fetch the upload config, if it is not provided.
++	config, configVersion, err := configstore.Download("latest", rcfg.Env)
++	if err != nil {
++		return nil, err
++	}
+ 
+-// SetLogOutput sets the default logger's output destination.
+-func SetLogOutput(logging io.Writer) {
+-	if logging == nil {
+-		return
++	// Set the start time, if it is not provided.
++	startTime := time.Now().UTC()
++	if !rcfg.StartTime.IsZero() {
++		startTime = rcfg.StartTime
+ 	}
+-	logger.SetOutput(logging) // the common case
+-	seenlogwriters = append(seenlogwriters, logging)
+-	if len(seenlogwriters) > 1 {
+-		// The client asked for logging, and there is also a debug dir
+-		logger.SetOutput(io.MultiWriter(seenlogwriters...))
++
++	return &Uploader{
++		config:          config,
++		configVersion:   configVersion,
++		dir:             dir,
++		uploadServerURL: uploadURL,
++		startTime:       startTime,
++
++		logFile: logFile,
++		logger:  logger,
++	}, nil
++}
++
++// Close cleans up any resources associated with the uploader.
++func (u *Uploader) Close() error {
++	if u.logFile == nil {
++		return nil
+ 	}
++	return u.logFile.Close()
+ }
+ 
+-// LogIfDebug arranges to write a log file in the directory
+-// dirname, if it exists. If dirname is the empty string,
+-// the function tries the directory it.Localdir/debug.
+-func LogIfDebug(dirname string) error {
+-	dname := filepath.Join(telemetry.LocalDir, "debug")
+-	if dirname != "" {
+-		dname = dirname
++// Run generates and uploads reports
++func (u *Uploader) Run() error {
++	if telemetry.DisabledOnPlatform {
++		return nil
+ 	}
+-	fd, err := os.Stat(dname)
++	todo := u.findWork()
++	ready, err := u.reports(&todo)
+ 	if err != nil {
+-		return err
++		return fmt.Errorf("reports failed: %v", err)
+ 	}
+-	if fd == nil || !fd.IsDir() {
+-		// debug doesn't exist or isn't a directory
+-		return nil
++	for _, f := range ready {
++		u.uploadReport(f)
++	}
++	return nil
++}
++
++// debugLogFile arranges to write a log file in the given debug directory, if
++// it exists.
++func debugLogFile(debugDir string) (*os.File, error) {
++	fd, err := os.Stat(debugDir)
++	if os.IsNotExist(err) {
++		return nil, nil
++	}
++	if err != nil {
++		return nil, err
++	}
++	if !fd.IsDir() {
++		return nil, fmt.Errorf("debug path %q is not a directory", debugDir)
+ 	}
+ 	info, ok := debug.ReadBuildInfo()
+ 	if !ok {
+-		return fmt.Errorf("no build info")
++		return nil, fmt.Errorf("no build info")
+ 	}
+ 	year, month, day := time.Now().UTC().Date()
+ 	goVers := info.GoVersion
+@@ -71,65 +172,19 @@ func LogIfDebug(dirname string) error {
+ 	}
+ 	prog := path.Base(progPkgPath)
+ 	progVers := info.Main.Version
+-	fname := filepath.Join(dname, fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log",
++	fname := filepath.Join(debugDir, fmt.Sprintf("%s-%s-%s-%4d%02d%02d-%d.log",
+ 		prog, progVers, goVers, year, month, day, os.Getpid()))
+ 	fname = strings.ReplaceAll(fname, " ", "")
+ 	if _, err := os.Stat(fname); err == nil {
+ 		// This process previously called upload.Run
+-		return nil
+-	}
+-	logfd, err := os.Create(fname)
+-	if err != nil {
+-		return err
+-	}
+-	SetLogOutput(logfd)
+-	return nil
+-}
+-
+-// Uploader carries parameters needed for upload.
+-type Uploader struct {
+-	// Config is used to select counters to upload.
+-	Config *telemetry.UploadConfig
+-	// ConfigVersion is the version of the config.
+-	ConfigVersion string
+-
+-	// LocalDir is where the local counter files are.
+-	LocalDir string
+-	// UploadDir is where uploader leaves the copy of uploaded data.
+-	UploadDir string
+-	// ModeFilePath is the file.
+-	ModeFilePath telemetry.ModeFilePath
+-
+-	UploadServerURL string
+-	StartTime       time.Time
+-
+-	cache parsedCache
+-}
+-
+-// NewUploader creates a default uploader.
+-func NewUploader(config *telemetry.UploadConfig) *Uploader {
+-	return &Uploader{
+-		Config:          config,
+-		ConfigVersion:   "custom",
+-		LocalDir:        telemetry.LocalDir,
+-		UploadDir:       telemetry.UploadDir,
+-		ModeFilePath:    telemetry.ModeFile,
+-		UploadServerURL: "https://telemetry.go.dev/upload",
+-		StartTime:       time.Now().UTC(),
+-	}
+-}
+-
+-// Run generates and uploads reports
+-func (u *Uploader) Run() {
+-	if telemetry.DisabledOnPlatform {
+-		return
++		return nil, nil
+ 	}
+-	todo := u.findWork()
+-	ready, err := u.reports(&todo)
++	f, err := os.OpenFile(fname, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
+ 	if err != nil {
+-		logger.Printf("reports: %v", err)
+-	}
+-	for _, f := range ready {
+-		u.uploadReport(f)
++		if os.IsExist(err) {
++			return nil, nil // this process previously called upload.Run
++		}
++		return nil, err
+ 	}
++	return f, nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+index 9be10a74e5..5f3f63985d 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+@@ -22,36 +22,36 @@ var (
+ 
+ // uploadReportDate returns the date component of the upload file name, or "" if the
+ // date was unmatched.
+-func uploadReportDate(fname string) time.Time {
++func (u *Uploader) uploadReportDate(fname string) time.Time {
+ 	match := dateRE.FindStringSubmatch(fname)
+ 	if match == nil || len(match) < 2 {
+-		logger.Printf("malformed report name: missing date: %q", filepath.Base(fname))
++		u.logger.Printf("malformed report name: missing date: %q", filepath.Base(fname))
+ 		return time.Time{}
+ 	}
+ 	d, err := time.Parse(dateFormat, match[1])
+ 	if err != nil {
+-		logger.Printf("malformed report name: bad date: %q", filepath.Base(fname))
++		u.logger.Printf("malformed report name: bad date: %q", filepath.Base(fname))
+ 		return time.Time{}
+ 	}
+ 	return d
+ }
+ 
+ func (u *Uploader) uploadReport(fname string) {
+-	thisInstant := u.StartTime
++	thisInstant := u.startTime
+ 	// TODO(rfindley): use uploadReportDate here, once we've done a gopls release.
+ 
+ 	// first make sure it is not in the future
+ 	today := thisInstant.Format("2006-01-02")
+ 	match := dateRE.FindStringSubmatch(fname)
+ 	if match == nil || len(match) < 2 {
+-		logger.Printf("report name seemed to have no date %q", filepath.Base(fname))
++		u.logger.Printf("report name seemed to have no date %q", filepath.Base(fname))
+ 	} else if match[1] > today {
+-		logger.Printf("report %q is later than today %s", filepath.Base(fname), today)
++		u.logger.Printf("report %q is later than today %s", filepath.Base(fname), today)
+ 		return // report is in the future, which shouldn't happen
+ 	}
+ 	buf, err := os.ReadFile(fname)
+ 	if err != nil {
+-		logger.Printf("%v reading %s", err, fname)
++		u.logger.Printf("%v reading %s", err, fname)
+ 		return
+ 	}
+ 	if u.uploadReportContents(fname, buf) {
+@@ -64,31 +64,31 @@ func (u *Uploader) uploadReportContents(fname string, buf []byte) bool {
+ 	b := bytes.NewReader(buf)
+ 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
+ 	fdate = fdate[len(fdate)-len("2006-01-02"):]
+-	server := u.UploadServerURL + "/" + fdate
++	server := u.uploadServerURL + "/" + fdate
+ 
+ 	resp, err := http.Post(server, "application/json", b)
+ 	if err != nil {
+-		logger.Printf("error on Post: %v %q for %q", err, server, fname)
++		u.logger.Printf("error on Post: %v %q for %q", err, server, fname)
+ 		return false
+ 	}
+ 	// hope for a 200, remove file on a 4xx, otherwise it will be retried by another process
+ 	if resp.StatusCode != 200 {
+-		logger.Printf("resp error on upload %q: %v for %q %q [%+v]", server, resp.Status, fname, fdate, resp)
++		u.logger.Printf("resp error on upload %q: %v for %q %q [%+v]", server, resp.Status, fname, fdate, resp)
+ 		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+ 			err := os.Remove(fname)
+ 			if err == nil {
+-				logger.Printf("removed")
++				u.logger.Printf("removed")
+ 			} else {
+-				logger.Printf("error removing: %v", err)
++				u.logger.Printf("error removing: %v", err)
+ 			}
+ 		}
+ 		return false
+ 	}
+ 	// put a copy in the uploaded directory
+-	newname := filepath.Join(u.UploadDir, fdate+".json")
++	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
+ 	if err := os.WriteFile(newname, buf, 0644); err == nil {
+ 		os.Remove(fname) // if it exists
+ 	}
+-	logger.Printf("uploaded %s to %q", fdate+".json", server)
++	u.logger.Printf("uploaded %s to %q", fdate+".json", server)
+ 	return true
+ }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/mode.go b/src/cmd/vendor/golang.org/x/telemetry/mode.go
+index fb9672c98e..8cdcd134a6 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/mode.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/mode.go
+@@ -4,9 +4,7 @@
+ 
+ package telemetry
+ 
+-import (
+-	"golang.org/x/telemetry/internal/telemetry"
+-)
++import "golang.org/x/telemetry/internal/telemetry"
+ 
+ // Mode returns the current telemetry mode.
+ //
+@@ -24,7 +22,7 @@ import (
+ //
+ // [gotelemetry]: https://pkg.go.dev/golang.org/x/telemetry/cmd/gotelemetry
+ func Mode() string {
+-	mode, _ := telemetry.Mode()
++	mode, _ := telemetry.Default.Mode()
+ 	return mode
+ }
+ 
+@@ -36,5 +34,5 @@ func Mode() string {
+ // An error is returned if the provided mode value is invalid, or if an error
+ // occurs while persisting the mode value to the file system.
+ func SetMode(mode string) error {
+-	return telemetry.SetMode(mode)
++	return telemetry.Default.SetMode(mode)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/start.go b/src/cmd/vendor/golang.org/x/telemetry/start.go
+index 6c88992f97..2b6b15be5c 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/start.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/start.go
+@@ -10,6 +10,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"path/filepath"
++	"sync"
+ 	"time"
+ 
+ 	"golang.org/x/sync/errgroup"
+@@ -45,6 +46,19 @@ type Config struct {
+ 	// directory.
+ 	// This field is intended to be used for isolating testing environments.
+ 	TelemetryDir string
++
++	// UploadStartTime, if set, overrides the time used as the upload start time,
++	// which is the time used by the upload logic to determine whether counter
++	// file data should be uploaded. Only counter files that have expired before
++	// the start time are considered for upload.
++	//
++	// This field can be used to simulate a future upload that collects recently
++	// modified counters.
++	UploadStartTime time.Time
++
++	// UploadURL, if set, overrides the URL used to receive uploaded reports. If
++	// unset, this URL defaults to https://telemetry.go.dev/upload.
++	UploadURL string
+ }
+ 
+ // Start initializes telemetry using the specified configuration.
+@@ -68,46 +82,86 @@ type Config struct {
+ // inspecting the command line. The application should avoid expensive
+ // steps or external side effects in init functions, as they will
+ // be executed twice (parent and child).
+-func Start(config Config) {
++//
++// Start returns a StartResult, which may be awaited via [StartResult.Wait] to
++// wait for all work done by Start to complete.
++func Start(config Config) *StartResult {
+ 	if config.TelemetryDir != "" {
+-		telemetry.ModeFile = telemetry.ModeFilePath(filepath.Join(config.TelemetryDir, "mode"))
+-		telemetry.LocalDir = filepath.Join(config.TelemetryDir, "local")
+-		telemetry.UploadDir = filepath.Join(config.TelemetryDir, "upload")
++		telemetry.Default = telemetry.NewDir(config.TelemetryDir)
+ 	}
+-	mode, _ := telemetry.Mode()
++	result := new(StartResult)
++
++	mode, _ := telemetry.Default.Mode()
+ 	if mode == "off" {
+ 		// Telemetry is turned off. Crash reporting doesn't work without telemetry
+ 		// at least set to "local", and the uploader isn't started in uploaderChild if
+ 		// mode is "off"
+-		return
++		return result
+ 	}
+ 
+ 	counter.Open()
+ 
+-	if _, err := os.Stat(telemetry.LocalDir); err != nil {
++	if _, err := os.Stat(telemetry.Default.LocalDir()); err != nil {
+ 		// There was a problem statting LocalDir, which is needed for both
+ 		// crash monitoring and counter uploading. Most likely, there was an
+ 		// error creating telemetry.LocalDir in the counter.Open call above.
+ 		// Don't start the child.
+-		return
++		return result
+ 	}
+ 
+ 	// Crash monitoring and uploading both require a sidecar process.
+ 	if (config.ReportCrashes && crashmonitor.Supported()) || (config.Upload && mode != "off") {
+-		if os.Getenv(telemetryChildVar) != "" {
++		switch v := os.Getenv(telemetryChildVar); v {
++		case "":
++			// The subprocess started by parent has X_TELEMETRY_CHILD=1.
++			parent(config, result)
++		case "1":
++			// golang/go#67211: be sure to set telemetryChildVar before running the
++			// child, because the child itself invokes the go command to download the
++			// upload config. If the telemetryChildVar variable is still set to "1",
++			// that delegated go command may think that it is itself a telemetry
++			// child.
++			//
++			// On the other hand, if telemetryChildVar were simply unset, then the
++			// delegated go commands would fork themselves recursively. Short-circuit
++			// this recursion.
++			os.Setenv(telemetryChildVar, "2")
+ 			child(config)
+ 			os.Exit(0)
++		case "2":
++			// Do nothing: see note above.
++		default:
++			log.Fatalf("unexpected value for %q: %q", telemetryChildVar, v)
+ 		}
++	}
++	return result
++}
++
++// A StartResult is a handle to the result of a call to [Start]. Call
++// [StartResult.Wait] to wait for the completion of all work done on behalf of
++// Start.
++type StartResult struct {
++	wg sync.WaitGroup
++}
+ 
+-		parent(config)
++// Wait waits for the completion of all work initiated by [Start].
++func (res *StartResult) Wait() {
++	if res == nil {
++		return
+ 	}
++	res.wg.Wait()
+ }
+ 
+ var daemonize = func(cmd *exec.Cmd) {}
+ 
++// If telemetryChildVar is set to "1" in the environment, this is the telemetry
++// child.
++//
++// If telemetryChildVar is set to "2", this is a child of the child, and no
++// further forking should occur.
+ const telemetryChildVar = "X_TELEMETRY_CHILD"
+ 
+-func parent(config Config) {
++func parent(config Config, result *StartResult) {
+ 	// This process is the application (parent).
+ 	// Fork+exec the telemetry child.
+ 	exe, err := os.Executable()
+@@ -121,7 +175,7 @@ func parent(config Config) {
+ 	cmd := exec.Command(exe, "** telemetry **") // this unused arg is just for ps(1)
+ 	daemonize(cmd)
+ 	cmd.Env = append(os.Environ(), telemetryChildVar+"=1")
+-	cmd.Dir = telemetry.LocalDir
++	cmd.Dir = telemetry.Default.LocalDir()
+ 
+ 	// The child process must write to a log file, not
+ 	// the stderr file it inherited from the parent, as
+@@ -132,7 +186,7 @@ func parent(config Config) {
+ 	// By default, we discard the child process's stderr,
+ 	// but in line with the uploader, log to a file in local/debug
+ 	// only if that directory was created by the user.
+-	localDebug := filepath.Join(telemetry.LocalDir, "debug")
++	localDebug := filepath.Join(telemetry.Default.LocalDir(), "debug")
+ 	fd, err := os.Stat(localDebug)
+ 	if err != nil {
+ 		if !os.IsNotExist(err) {
+@@ -162,7 +216,11 @@ func parent(config Config) {
+ 	if err := cmd.Start(); err != nil {
+ 		log.Fatalf("can't start telemetry child process: %v", err)
+ 	}
+-	go cmd.Wait() // Release resources if cmd happens not to outlive this process.
++	result.wg.Add(1)
++	go func() {
++		cmd.Wait() // Release resources if cmd happens not to outlive this process.
++		result.wg.Done()
++	}()
+ }
+ 
+ func child(config Config) {
+@@ -176,7 +234,7 @@ func child(config Config) {
+ 
+ 	if config.Upload {
+ 		g.Go(func() error {
+-			uploaderChild()
++			uploaderChild(config.UploadStartTime, config.UploadURL)
+ 			return nil
+ 		})
+ 	}
+@@ -189,18 +247,18 @@ func child(config Config) {
+ 	g.Wait()
+ }
+ 
+-func uploaderChild() {
+-	if mode, _ := telemetry.Mode(); mode == "off" {
++func uploaderChild(asof time.Time, uploadURL string) {
++	if mode, _ := telemetry.Default.Mode(); mode == "off" {
+ 		// There's no work to be done if telemetry is turned off.
+ 		return
+ 	}
+-	if telemetry.LocalDir == "" {
++	if telemetry.Default.LocalDir() == "" {
+ 		// The telemetry dir wasn't initialized properly, probably because
+ 		// os.UserConfigDir did not complete successfully. In that case
+ 		// there are no counters to upload, so we should just do nothing.
+ 		return
+ 	}
+-	tokenfilepath := filepath.Join(telemetry.LocalDir, "upload.token")
++	tokenfilepath := filepath.Join(telemetry.Default.LocalDir(), "upload.token")
+ 	ok, err := acquireUploadToken(tokenfilepath)
+ 	if err != nil {
+ 		log.Printf("error acquiring upload token: %v", err)
+@@ -210,7 +268,13 @@ func uploaderChild() {
+ 		// a concurrently running uploader.
+ 		return
+ 	}
+-	upload.Run(&upload.Control{Logger: os.Stderr})
++	if err := upload.Run(upload.RunConfig{
++		UploadURL: uploadURL,
++		LogWriter: os.Stderr,
++		StartTime: asof,
++	}); err != nil {
++		log.Printf("upload failed: %v", err)
++	}
+ }
+ 
+ // acquireUploadToken acquires a token permitting the caller to upload.
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/upload/upload.go b/src/cmd/vendor/golang.org/x/telemetry/upload/upload.go
+index 122b725f84..0e2fb455d8 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/upload/upload.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/upload/upload.go
+@@ -5,34 +5,29 @@
+ package upload
+ 
+ import (
+-	"io"
+ 	"log"
+ 
+ 	"golang.org/x/telemetry/internal/upload"
+ )
+ 
+-// Run generates and uploads reports, as allowed by the mode file.
+-// A nil Control is legal.
+-func Run(c *Control) {
+-	if c != nil && c.Logger != nil {
+-		upload.SetLogOutput(c.Logger)
+-	}
+-	// ignore error: failed logging should not block uploads
+-	upload.LogIfDebug("")
++// TODO(rfindley): remove, in favor of all callers using Start.
+ 
++// A RunConfig controls the behavior of Run.
++// The zero value RunConfig is the default behavior; fields may be set to
++// override various reporting and uploading choices.
++type RunConfig = upload.RunConfig
++
++// Run generates and uploads reports, as allowed by the mode file.
++func Run(config RunConfig) error {
+ 	defer func() {
+ 		if err := recover(); err != nil {
+ 			log.Printf("upload recover: %v", err)
+ 		}
+ 	}()
+-	upload.NewUploader(nil).Run()
+-}
+-
+-// A Control allows the user to override various default
+-// reporting and uploading choices.
+-// Future versions may also allow the user to set the upload URL.
+-type Control struct {
+-	// Logger provides a io.Writer for error messages during uploading
+-	// nil is legal and no log messages get generated
+-	Logger io.Writer
++	uploader, err := upload.NewUploader(config)
++	if err != nil {
++		return err
++	}
++	defer uploader.Close()
++	return uploader.Run()
+ }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 6147ec180d..77761e6887 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240401194020-3640ba572dd1
++# golang.org/x/telemetry v0.0.0-20240507150523-279072785af5
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

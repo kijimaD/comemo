@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40271: d7edc91643dbc76542930ee95ff66beea6eefa02
+# Index 40271: 9be01c2eab928f9899c67eb7bcdb164728f85a2c
 
 echo "🚀 Generating explanation for commit 40271..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40271..."
 
 ### メタデータ
 - **コミットインデックス**: 40271
-- **コミットハッシュ**: d7edc91643dbc76542930ee95ff66beea6eefa02
-- **GitHub URL**: https://github.com/golang/go/commit/d7edc91643dbc76542930ee95ff66beea6eefa02
+- **コミットハッシュ**: 9be01c2eab928f9899c67eb7bcdb164728f85a2c
+- **GitHub URL**: https://github.com/golang/go/commit/9be01c2eab928f9899c67eb7bcdb164728f85a2c
 
 ### 章構成
 

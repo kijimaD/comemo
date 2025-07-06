@@ -1,0 +1,245 @@
+commit c855149768c70eb349c2e9a42b03a8a30b99672e
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Mar 14 10:50:25 2025 -0400
+
+    [release-branch.go1.23] runtime: only set isExtraInC if there are no Go frames left
+    
+    mp.isExtraInC is intended to indicate that this M has no Go frames at
+    all; it is entirely executing in C.
+    
+    If there was a cgocallback to Go and then a cgocall to C, such that the
+    leaf frames are C, that is fine. e.g., traceback can handle this fine
+    with SetCgoTraceback (or by simply skipping the C frames).
+    
+    However, we currently mismanage isExtraInC, unconditionally setting it
+    on return from cgocallback. This means that if there are two levels of
+    cgocallback, we end up running Go code with isExtraInC set.
+    
+    1. C-created thread calls into Go function 1 (via cgocallback).
+    2. Go function 1 calls into C function 1 (via cgocall).
+    3. C function 1 calls into Go function 2 (via cgocallback).
+    4. Go function 2 returns back to C function 1 (returning via the remainder of cgocallback).
+    5. C function 1 returns back to Go function 1 (returning via the remainder of cgocall).
+    6. Go function 1 is now running with mp.isExtraInC == true.
+    
+    The fix is simple; only set isExtraInC on return from cgocallback if
+    there are no more Go frames. There can't be more Go frames unless there
+    is an active cgocall out of the Go frames.
+    
+    For #72870.
+    Fixes #72871.
+    
+    Cq-Include-Trybots: luci.golang.try:go1.23-linux-amd64-longtest
+    Change-Id: I6a6a636c4e7ba75a29639d7036c5af3738033467
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658035
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    (cherry picked from commit 577bb3d0ce576b2ca311e58dd942f189838b80fc)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658055
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/cgocall.go                             |   4 +-
+ src/runtime/crash_cgo_test.go                      |  13 ++
+ src/runtime/runtime2.go                            |   2 +-
+ src/runtime/testdata/testprogcgo/callback_pprof.go | 138 +++++++++++++++++++++
+ 4 files changed, 155 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index 972de4fe03..375e9d6d4a 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -355,7 +355,9 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	gp.m.incgo = true
+ 	unlockOSThread()
+ 
+-	if gp.m.isextra {
++	if gp.m.isextra && gp.m.ncgo == 0 {
++		// There are no active cgocalls above this frame (ncgo == 0),
++		// thus there can't be more Go frames above this frame.
+ 		gp.m.isExtraInC = true
+ 	}
+ 
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index f9fbdd8f1c..755a4e619d 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -76,6 +76,19 @@ func TestCgoCallbackGC(t *testing.T) {
+ 	}
+ }
+ 
++func TestCgoCallbackPprof(t *testing.T) {
++	t.Parallel()
++	switch runtime.GOOS {
++	case "plan9", "windows":
++		t.Skipf("no pthreads on %s", runtime.GOOS)
++	}
++
++	got := runTestProg(t, "testprogcgo", "CgoCallbackPprof")
++	if want := "OK\n"; got != want {
++		t.Fatalf("expected %q, but got:\n%s", want, got)
++	}
++}
++
+ func TestCgoExternalThreadPanic(t *testing.T) {
+ 	t.Parallel()
+ 	if runtime.GOOS == "plan9" {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 4a1ee37a14..ca69719db0 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -580,7 +580,7 @@ type m struct {
+ 	printlock       int8
+ 	incgo           bool          // m is executing a cgo call
+ 	isextra         bool          // m is an extra m
+-	isExtraInC      bool          // m is an extra m that is not executing Go code
++	isExtraInC      bool          // m is an extra m that does not have any Go frames
+ 	isExtraInSig    bool          // m is an extra m in a signal handler
+ 	freeWait        atomic.Uint32 // Whether it is safe to free g0 and delete m (one of freeMRef, freeMStack, freeMWait)
+ 	needextram      bool
+diff --git a/src/runtime/testdata/testprogcgo/callback_pprof.go b/src/runtime/testdata/testprogcgo/callback_pprof.go
+new file mode 100644
+index 0000000000..cd235d0341
+--- /dev/null
++++ b/src/runtime/testdata/testprogcgo/callback_pprof.go
+@@ -0,0 +1,138 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !plan9 && !windows
++
++package main
++
++// Regression test for https://go.dev/issue/72870. Go code called from C should
++// never be reported as external code.
++
++/*
++#include <pthread.h>
++
++void go_callback1();
++void go_callback2();
++
++static void *callback_pprof_thread(void *arg) {
++    go_callback1();
++    return 0;
++}
++
++static void c_callback(void) {
++    go_callback2();
++}
++
++static void start_callback_pprof_thread() {
++    pthread_t th;
++    pthread_attr_t attr;
++    pthread_attr_init(&attr);
++    pthread_create(&th, &attr, callback_pprof_thread, 0);
++    // Don't join, caller will watch pprof.
++}
++*/
++import "C"
++
++import (
++	"bytes"
++	"fmt"
++	"internal/profile"
++	"os"
++	"runtime/pprof"
++	"time"
++)
++
++func init() {
++	register("CgoCallbackPprof", CgoCallbackPprof)
++}
++
++func CgoCallbackPprof() {
++	C.start_callback_pprof_thread()
++
++	var buf bytes.Buffer
++	if err := pprof.StartCPUProfile(&buf); err != nil {
++		fmt.Printf("Error starting CPU profile: %v\n", err)
++		os.Exit(1)
++	}
++	time.Sleep(1 * time.Second)
++	pprof.StopCPUProfile()
++
++	p, err := profile.Parse(&buf)
++	if err != nil {
++		fmt.Printf("Error parsing profile: %v\n", err)
++		os.Exit(1)
++	}
++
++	foundCallee := false
++	for _, s := range p.Sample {
++		funcs := flattenFrames(s)
++		if len(funcs) == 0 {
++			continue
++		}
++
++		leaf := funcs[0]
++		if leaf.Name != "main.go_callback1_callee" {
++			continue
++		}
++		foundCallee = true
++
++		if len(funcs) < 2 {
++			fmt.Printf("Profile: %s\n", p)
++			frames := make([]string, len(funcs))
++			for i := range funcs {
++				frames[i] = funcs[i].Name
++			}
++			fmt.Printf("FAIL: main.go_callback1_callee sample missing caller in frames %v\n", frames)
++			os.Exit(1)
++		}
++
++		if funcs[1].Name != "main.go_callback1" {
++			// In https://go.dev/issue/72870, this will be runtime._ExternalCode.
++			fmt.Printf("Profile: %s\n", p)
++			frames := make([]string, len(funcs))
++			for i := range funcs {
++				frames[i] = funcs[i].Name
++			}
++			fmt.Printf("FAIL: main.go_callback1_callee sample caller got %s want main.go_callback1 in frames %v\n", funcs[1].Name, frames)
++			os.Exit(1)
++		}
++	}
++
++	if !foundCallee {
++		fmt.Printf("Missing main.go_callback1_callee sample in profile %s\n", p)
++		os.Exit(1)
++	}
++
++	fmt.Printf("OK\n")
++}
++
++// Return the frame functions in s, regardless of inlining.
++func flattenFrames(s *profile.Sample) []*profile.Function {
++	ret := make([]*profile.Function, 0, len(s.Location))
++	for _, loc := range s.Location {
++		for _, line := range loc.Line {
++			ret = append(ret, line.Function)
++		}
++	}
++	return ret
++}
++
++//export go_callback1
++func go_callback1() {
++	// This is a separate function just to ensure we have another Go
++	// function as the caller in the profile.
++	go_callback1_callee()
++}
++
++func go_callback1_callee() {
++	C.c_callback()
++
++	// Spin for CPU samples.
++	for {
++	}
++}
++
++//export go_callback2
++func go_callback2() {
++}

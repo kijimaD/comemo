@@ -1,0 +1,45 @@
+commit 5b4209fedb10086e845cabdb02d2990a6090841b
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Wed Feb 19 13:10:36 2025 -0500
+
+    crypto/tls: update GREASE-Server-TLS13 BoGo skip
+    
+    Previously this test was skipped without a comment clarifying why. In
+    practice it's because crypto/tls doesn't generate GREASE extensions at
+    this time, and the test expects to find one in the NewSessionTicket
+    message extensions produced by a server.
+    
+    We're already skipping some other GREASE related test as
+    not-yet-implemented without explicit bogo_config.json exclusion by way
+    of the -enable-grease flag not being implemented, however for TLS
+    1.3 servers the BoGo expectation is that they _always_ send GREASE, and
+    so the -enable-grease flag isn't provided and an explicit skip must be
+    used.
+    
+    We should revisit this alongside implementing GREASE ext production in
+    general for both clients and servers.
+    
+    Updates #72006
+    
+    Change-Id: I8af4b555ac8c32cad42215fbf26aa0feae90fa21
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650717
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/crypto/tls/bogo_config.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 0ca65a6c3b..1521594034 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -53,7 +53,7 @@
+         "JustConfiguringKyberWorks": "we always send a X25519 key share with Kyber",
+         "KyberKeyShareIncludedSecond": "we always send the Kyber key share first",
+         "KyberKeyShareIncludedThird": "we always send the Kyber key share first",
+-        "GREASE-Server-TLS13": "TODO ???",
++        "GREASE-Server-TLS13": "We don't send GREASE extensions",
+         "GarbageCertificate*": "TODO ask davidben, alertDecode vs alertBadCertificate",
+         "SendBogusAlertType": "sending wrong alert type",
+         "EchoTLS13CompatibilitySessionID": "TODO reject compat session ID",

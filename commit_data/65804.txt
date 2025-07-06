@@ -1,0 +1,34 @@
+commit 9118060040ab7af4d384c2c1e2862673e2bbb8c3
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Dec 12 09:45:09 2024 +0000
+
+    builtin: document clear is a no-op if its argument's value is nil
+    
+    Just like the builtin function delete's comment does.
+    
+    Change-Id: Id94a3aaa03c7b09594bae2b1af901d9060d9e255
+    GitHub-Last-Rev: 30cbebca96d9099f67a7dfc7650357aa19d6b810
+    GitHub-Pull-Request: golang/go#70801
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635535
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+---
+ src/builtin/builtin.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/builtin/builtin.go b/src/builtin/builtin.go
+index 215c59c4ae..af01aea5dd 100644
+--- a/src/builtin/builtin.go
++++ b/src/builtin/builtin.go
+@@ -247,7 +247,7 @@ func imag(c ComplexType) FloatType
+ // to the zero value of the respective element type. If the argument
+ // type is a type parameter, the type parameter's type set must
+ // contain only map or slice types, and clear performs the operation
+-// implied by the type argument.
++// implied by the type argument. If t is nil, clear is a no-op.
+ func clear[T ~[]Type | ~map[Type]Type1](t T)
+ 
+ // The close built-in function closes a channel, which must be either

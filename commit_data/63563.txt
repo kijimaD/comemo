@@ -1,0 +1,214 @@
+commit 4370cfbdf929deaeeb744288d73eac93e39321cf
+Author: go101 <tapir.liu@gmail.com>
+Date:   Thu Nov 23 07:56:04 2023 +0000
+
+    slices: optimize Compact and CompactFunc
+    
+    Try to save a comparison in the loop bodies of Compact and CompactFunc.
+    
+    Note: due to #64272, some bound checks still fail to be removed.
+    
+                                │ old.txt  │             new.txt              │
+                                │   sec/op    │   sec/op     vs base                │
+    Compact/nil-4                 4.191n ± 9%   3.402n ± 1%  -18.84% (p=0.000 n=10)
+    Compact/one-4                 5.289n ± 2%   4.553n ± 2%  -13.93% (p=0.000 n=10)
+    Compact/sorted-4              9.865n ± 0%   6.882n ± 1%  -30.24% (p=0.000 n=10)
+    Compact/2_items-4             11.10n ± 2%   12.11n ± 2%   +9.00% (p=0.000 n=10)
+    Compact/unsorted-4            9.831n ± 3%   6.918n ± 2%  -29.62% (p=0.000 n=10)
+    Compact/many-4                16.40n ± 4%   14.90n ± 1%   -9.20% (p=0.000 n=10)
+    Compact/dup_start-4           29.87n ± 0%   28.06n ± 3%   -6.04% (p=0.001 n=10)
+    Compact_Large/all_dup-4       13.11µ ± 0%   13.12µ ± 0%        ~ (p=0.971 n=10)
+    Compact_Large/no_dup-4        6.972µ ± 0%   5.806µ ± 0%  -16.73% (p=0.000 n=10)
+    CompactFunc/nil-4             5.300n ± 0%   5.309n ± 1%        ~ (p=0.289 n=10)
+    CompactFunc/one-4             6.051n ± 1%   6.442n ± 3%   +6.46% (p=0.000 n=10)
+    CompactFunc/sorted-4          16.24n ± 1%   12.79n ± 2%  -21.24% (p=0.000 n=10)
+    CompactFunc/2_items-4         17.89n ± 1%   17.75n ± 0%   -0.75% (p=0.000 n=10)
+    CompactFunc/unsorted-4        16.26n ± 0%   12.83n ± 1%  -21.07% (p=0.000 n=10)
+    CompactFunc/many-4            30.71n ± 1%   29.07n ± 0%   -5.32% (p=0.000 n=10)
+    CompactFunc/dup_start-4       78.94n ± 1%   67.19n ± 1%  -14.89% (p=0.000 n=10)
+    CompactFunc_Large/all_dup-4   3.277m ± 0%   3.692m ± 2%  +12.67% (p=0.000 n=10)
+    CompactFunc_Large/no_dup-4    4.019m ± 0%   2.826m ± 1%  -29.68% (p=0.000 n=10)
+    geomean                       109.6n        96.99n       -11.47%
+    
+    Change-Id: Ia4c78fa62e7e9f4ff6a39d0e0a0a84cecf79b9cb
+    GitHub-Last-Rev: cea3d93155f9761d5e7b93f9880fa4e1ec7b4b72
+    GitHub-Pull-Request: golang/go#64273
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/543661
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+---
+ src/slices/slices.go      | 50 +++++++++++++++++++----------------
+ src/slices/slices_test.go | 67 ++++++++++++++++++++++++++++++++++++++---------
+ 2 files changed, 82 insertions(+), 35 deletions(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index d96dd8d37c..ae4c2adbf4 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -355,40 +355,46 @@ func Clone[S ~[]E, E any](s S) S {
+ // which may have a smaller length.
+ // Compact zeroes the elements between the new length and the original length.
+ func Compact[S ~[]E, E comparable](s S) S {
+-	if len(s) < 2 {
+-		return s
+-	}
+-	i := 1
+-	for k := 1; k < len(s); k++ {
+-		if s[k] != s[k-1] {
+-			if i != k {
+-				s[i] = s[k]
++	if len(s) > 1 {
++		for k := 1; k < len(s); k++ {
++			if s[k] == s[k-1] {
++				s2 := s[k:]
++				for k2 := 1; k2 < len(s2); k2++ {
++					if s2[k2] != s2[k2-1] {
++						s[k] = s2[k2]
++						k++
++					}
++				}
++
++				clear(s[k:]) // zero/nil out the obsolete elements, for GC
++				return s[:k]
+ 			}
+-			i++
+ 		}
+ 	}
+-	clear(s[i:]) // zero/nil out the obsolete elements, for GC
+-	return s[:i]
++	return s
+ }
+ 
+ // CompactFunc is like [Compact] but uses an equality function to compare elements.
+ // For runs of elements that compare equal, CompactFunc keeps the first one.
+ // CompactFunc zeroes the elements between the new length and the original length.
+ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
+-	if len(s) < 2 {
+-		return s
+-	}
+-	i := 1
+-	for k := 1; k < len(s); k++ {
+-		if !eq(s[k], s[k-1]) {
+-			if i != k {
+-				s[i] = s[k]
++	if len(s) > 1 {
++		for k := 1; k < len(s); k++ {
++			if eq(s[k], s[k-1]) {
++				s2 := s[k:]
++				for k2 := 1; k2 < len(s2); k2++ {
++					if !eq(s2[k2], s2[k2-1]) {
++						s[k] = s2[k2]
++						k++
++					}
++				}
++
++				clear(s[k:]) // zero/nil out the obsolete elements, for GC
++				return s[:k]
+ 			}
+-			i++
+ 		}
+ 	}
+-	clear(s[i:]) // zero/nil out the obsolete elements, for GC
+-	return s[:i]
++	return s
+ }
+ 
+ // Grow increases the slice's capacity, if necessary, to guarantee space for
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index 55de2f57d0..68c8a3adc2 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -763,7 +763,7 @@ var compactTests = []struct {
+ 		[]int{1, 2, 3},
+ 	},
+ 	{
+-		"1 item",
++		"2 items",
+ 		[]int{1, 1, 2},
+ 		[]int{1, 2},
+ 	},
+@@ -802,12 +802,26 @@ func BenchmarkCompact(b *testing.B) {
+ }
+ 
+ func BenchmarkCompact_Large(b *testing.B) {
+-	type Large [4 * 1024]byte
+-
+-	ss := make([]Large, 1024)
+-	for i := 0; i < b.N; i++ {
+-		_ = Compact(ss)
+-	}
++	type Large [16]int
++	const N = 1024
++
++	b.Run("all_dup", func(b *testing.B) {
++		ss := make([]Large, N)
++		b.ResetTimer()
++		for i := 0; i < b.N; i++ {
++			_ = Compact(ss)
++		}
++	})
++	b.Run("no_dup", func(b *testing.B) {
++		ss := make([]Large, N)
++		for i := range ss {
++			ss[i][0] = i
++		}
++		b.ResetTimer()
++		for i := 0; i < b.N; i++ {
++			_ = Compact(ss)
++		}
++	})
+ }
+ 
+ func TestCompactFunc(t *testing.T) {
+@@ -873,15 +887,42 @@ func TestCompactFuncClearTail(t *testing.T) {
+ 	}
+ }
+ 
+-func BenchmarkCompactFunc_Large(b *testing.B) {
+-	type Large [4 * 1024]byte
+-
+-	ss := make([]Large, 1024)
+-	for i := 0; i < b.N; i++ {
+-		_ = CompactFunc(ss, func(a, b Large) bool { return a == b })
++func BenchmarkCompactFunc(b *testing.B) {
++	for _, c := range compactTests {
++		b.Run(c.name, func(b *testing.B) {
++			ss := make([]int, 0, 64)
++			for k := 0; k < b.N; k++ {
++				ss = ss[:0]
++				ss = append(ss, c.s...)
++				_ = CompactFunc(ss, func(a, b int) bool { return a == b })
++			}
++		})
+ 	}
+ }
+ 
++func BenchmarkCompactFunc_Large(b *testing.B) {
++	type Element = int
++	const N = 1024 * 1024
++
++	b.Run("all_dup", func(b *testing.B) {
++		ss := make([]Element, N)
++		b.ResetTimer()
++		for i := 0; i < b.N; i++ {
++			_ = CompactFunc(ss, func(a, b Element) bool { return a == b })
++		}
++	})
++	b.Run("no_dup", func(b *testing.B) {
++		ss := make([]Element, N)
++		for i := range ss {
++			ss[i] = i
++		}
++		b.ResetTimer()
++		for i := 0; i < b.N; i++ {
++			_ = CompactFunc(ss, func(a, b Element) bool { return a == b })
++		}
++	})
++}
++
+ func TestGrow(t *testing.T) {
+ 	s1 := []int{1, 2, 3}
+ 

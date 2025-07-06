@@ -1,0 +1,102 @@
+commit 8eefc3b8f0dde0c89110817af3eccf44c79aeef0
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 23:37:08 2024 -0700
+
+    os: improve TestExecutable
+    
+    Instead of running all tests and relying on an init function, let's
+    embed the child code into the test case and only run one specific test.
+    
+    Change-Id: Ib04e8a580556e7e30ff776c2041f0b809b440a26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609838
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/os/executable_test.go | 49 ++++++++++++++++++++++-------------------------
+ 1 file changed, 23 insertions(+), 26 deletions(-)
+
+diff --git a/src/os/executable_test.go b/src/os/executable_test.go
+index be3c1dc72d..1770843c7a 100644
+--- a/src/os/executable_test.go
++++ b/src/os/executable_test.go
+@@ -13,11 +13,29 @@ import (
+ 	"testing"
+ )
+ 
+-const executable_EnvVar = "OSTEST_OUTPUT_EXECPATH"
+-
+ func TestExecutable(t *testing.T) {
+-	t.Parallel()
++	const helperEnvVar = "OSTEST_OUTPUT_EXECPATH"
++
++	if os.Getenv(helperEnvVar) != "" {
++		// First chdir to another path.
++		dir := "/"
++		if runtime.GOOS == "windows" {
++			cwd, err := os.Getwd()
++			if err != nil {
++				panic(err)
++			}
++			dir = filepath.VolumeName(cwd)
++		}
++		os.Chdir(dir)
++		if ep, err := os.Executable(); err != nil {
++			fmt.Fprint(os.Stderr, "ERROR: ", err)
++		} else {
++			fmt.Fprint(os.Stderr, ep)
++		}
++		os.Exit(0)
++	}
+ 
++	t.Parallel()
+ 	ep := testenv.Executable(t)
+ 	// we want fn to be of the form "dir/prog"
+ 	dir := filepath.Dir(filepath.Dir(ep))
+@@ -26,7 +44,7 @@ func TestExecutable(t *testing.T) {
+ 		t.Fatalf("filepath.Rel: %v", err)
+ 	}
+ 
+-	cmd := testenv.Command(t, fn, "-test.run=^$")
++	cmd := testenv.Command(t, fn, "-test.run=^"+t.Name()+"$")
+ 	// make child start with a relative program path
+ 	cmd.Dir = dir
+ 	cmd.Path = fn
+@@ -37,7 +55,7 @@ func TestExecutable(t *testing.T) {
+ 		// get real path of the executable without influenced by argv[0].
+ 		cmd.Args[0] = "-"
+ 	}
+-	cmd.Env = append(cmd.Environ(), fmt.Sprintf("%s=1", executable_EnvVar))
++	cmd.Env = append(cmd.Environ(), fmt.Sprintf("%s=1", helperEnvVar))
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("exec(self) failed: %v", err)
+@@ -63,27 +81,6 @@ func sameFile(fn1, fn2 string) bool {
+ 	return os.SameFile(fi1, fi2)
+ }
+ 
+-func init() {
+-	if e := os.Getenv(executable_EnvVar); e != "" {
+-		// first chdir to another path
+-		dir := "/"
+-		if runtime.GOOS == "windows" {
+-			cwd, err := os.Getwd()
+-			if err != nil {
+-				panic(err)
+-			}
+-			dir = filepath.VolumeName(cwd)
+-		}
+-		os.Chdir(dir)
+-		if ep, err := os.Executable(); err != nil {
+-			fmt.Fprint(os.Stderr, "ERROR: ", err)
+-		} else {
+-			fmt.Fprint(os.Stderr, ep)
+-		}
+-		os.Exit(0)
+-	}
+-}
+-
+ func TestExecutableDeleted(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	switch runtime.GOOS {

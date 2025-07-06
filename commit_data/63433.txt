@@ -1,0 +1,81 @@
+commit 48e00ab70a49652d4b015ac71b80da9f3ae7d1ab
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Apr 9 15:27:30 2024 +0200
+
+    image/gif: revert incorrect usage of clear
+    
+    CL 570555 replaced a loop which added empty
+    color.RGBA elements with a call to clear.
+    
+    color.Palette is a slice of interfaces, so using
+    clear results in a slice of nil elements, rather
+    than what we previously had which was empty
+    color.RGBA elements. This could cause a panic when
+    attempting to re-encode a GIF which had an
+    extended color palette because of the weird
+    transparency hack.
+    
+    This was discovered by OSS-Fuzz. I've added a test
+    case using their reproducer in order to prevent
+    future regressions.
+    
+    Change-Id: I00a89257d90b6cca68672173eecdaa0a24f18d9c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577555
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ src/image/gif/reader.go      |  6 ++++--
+ src/image/gif/reader_test.go | 16 ++++++++++++++++
+ 2 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/src/image/gif/reader.go b/src/image/gif/reader.go
+index 8d6faf87a3..b4ea4fdea1 100644
+--- a/src/image/gif/reader.go
++++ b/src/image/gif/reader.go
+@@ -406,8 +406,10 @@ func (d *decoder) readImageDescriptor(keepAllFrames bool) error {
+ 			// seem OK with this, so we enlarge the palette with
+ 			// transparent colors. See golang.org/issue/15059.
+ 			p := make(color.Palette, ti+1)
+-			i := copy(p, m.Palette)
+-			clear(p[i:])
++			copy(p, m.Palette)
++			for i := len(m.Palette); i < len(p); i++ {
++				p[i] = color.RGBA{}
++			}
+ 			m.Palette = p
+ 		}
+ 	}
+diff --git a/src/image/gif/reader_test.go b/src/image/gif/reader_test.go
+index f90ebc5d7d..92313c92ce 100644
+--- a/src/image/gif/reader_test.go
++++ b/src/image/gif/reader_test.go
+@@ -7,6 +7,7 @@ package gif
+ import (
+ 	"bytes"
+ 	"compress/lzw"
++	"encoding/hex"
+ 	"image"
+ 	"image/color"
+ 	"image/color/palette"
+@@ -439,3 +440,18 @@ func BenchmarkDecode(b *testing.B) {
+ 		Decode(bytes.NewReader(data))
+ 	}
+ }
++
++func TestReencodeExtendedPalette(t *testing.T) {
++	data, err := hex.DecodeString("4749463839616c02020157220221ff0b280154ffffffff00000021474946306127dc213000ff84ff840000000000800021ffffffff8f4e4554530041508f8f0202020000000000000000000000000202020202020207020202022f31050000000000000021f904ab2c3826002c00000000c00001009800462b07fc1f02061202020602020202220202930202020202020202020202020286090222202222222222222222222222222222222222222222222222222220222222222222222222222222222222222222222222222222221a22222222332223222222222222222222222222222222222222224b222222222222002200002b474946312829021f0000000000cbff002f0202073121f904ab2c2c000021f92c3803002c00e0c0000000f932")
++	if err != nil {
++		t.Fatal(err)
++	}
++	img, err := Decode(bytes.NewReader(data))
++	if err != nil {
++		t.Fatal(err)
++	}
++	err = Encode(io.Discard, img, &Options{NumColors: 1})
++	if err != nil {
++		t.Fatal(err)
++	}
++}

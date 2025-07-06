@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 13502: fda29b6a4204d8658b3c1f763ac775afcc6cac00
+# Index 13502: cc52fe30c1b962539303b829c7d99c80b0c13104
 
 echo "🚀 Generating explanation for commit 13502..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 13502..."
 
 ### メタデータ
 - **コミットインデックス**: 13502
-- **コミットハッシュ**: fda29b6a4204d8658b3c1f763ac775afcc6cac00
-- **GitHub URL**: https://github.com/golang/go/commit/fda29b6a4204d8658b3c1f763ac775afcc6cac00
+- **コミットハッシュ**: cc52fe30c1b962539303b829c7d99c80b0c13104
+- **GitHub URL**: https://github.com/golang/go/commit/cc52fe30c1b962539303b829c7d99c80b0c13104
 
 ### 章構成
 

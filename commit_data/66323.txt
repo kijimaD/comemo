@@ -1,0 +1,370 @@
+commit 61641c11455af9571e6e01449c7ea774b0069594
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Jan 24 12:23:42 2025 +0100
+
+    cmd/link: put .got section in __DATA_CONST segment
+    
+    On Darwin, the .got section can be placed in a read-only segment. Only the dynamic linker should modify it at start-up time.
+    
+    Other read-only sections, like .typelink and .itablink, are already placed in the __DATA_CONST segment. Do the same for the .got section.
+    
+    Fixes #71416.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64-longtest
+    Change-Id: I9cd9c20da63b655fabb61d742feb086c3ef3bea7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644055
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/link/internal/ld/data.go            |   5 +-
+ src/cmd/link/internal/ld/macho.go           |   6 +-
+ src/cmd/link/internal/ld/macho_test.go      | 156 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/sym/symkind.go        |   1 +
+ src/cmd/link/internal/sym/symkind_string.go | 109 +++++++++----------
+ 5 files changed, 221 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index da604e7b0e..0fd3bacd2f 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1920,7 +1920,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 		sym.SFIPSINFO,
+ 		sym.SELFSECT,
+ 		sym.SMACHO,
+-		sym.SMACHOGOT,
+ 		sym.SWINDOWS,
+ 	}
+ 	for _, symn := range writable {
+@@ -1932,6 +1931,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	if len(state.data[sym.SELFGOT]) > 0 {
+ 		state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
+ 	}
++	if len(state.data[sym.SMACHOGOT]) > 0 {
++		state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SMACHOGOT, sym.SDATA, 06)
++	}
+ 
+ 	/* pointer-free data */
+ 	sect := state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrdata", sym.SNOPTRDATA, sym.SDATA, 06)
+@@ -2203,6 +2205,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 		sect.Length = uint64(state.datsize) - sect.Vaddr
+ 
+ 		state.allocateSingleSymSections(segrelro, sym.SELFRELROSECT, sym.SRODATA, relroSecPerm)
++		state.allocateSingleSymSections(segrelro, sym.SMACHORELROSECT, sym.SRODATA, relroSecPerm)
+ 	}
+ 
+ 	/* typelink */
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index 1e7c8629ef..93b54d81c5 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -463,7 +463,11 @@ func (ctxt *Link) domacho() {
+ 
+ 		s = ctxt.loader.LookupOrCreateSym(".got", 0) // will be __nl_symbol_ptr
+ 		sb = ctxt.loader.MakeSymbolUpdater(s)
+-		sb.SetType(sym.SMACHOGOT)
++		if ctxt.UseRelro() {
++			sb.SetType(sym.SMACHORELROSECT)
++		} else {
++			sb.SetType(sym.SMACHOGOT)
++		}
+ 		sb.SetReachable(true)
+ 		sb.SetAlign(4)
+ 
+diff --git a/src/cmd/link/internal/ld/macho_test.go b/src/cmd/link/internal/ld/macho_test.go
+new file mode 100644
+index 0000000000..1a4ffd8eb8
+--- /dev/null
++++ b/src/cmd/link/internal/ld/macho_test.go
+@@ -0,0 +1,156 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin
++
++package ld
++
++import (
++	"debug/macho"
++	"fmt"
++	"internal/testenv"
++	"os"
++	"path/filepath"
++	"testing"
++)
++
++func TestMachoSectionsReadOnly(t *testing.T) {
++	t.Parallel()
++	testenv.MustHaveGoBuild(t)
++
++	const (
++		prog  = `package main; func main() {}`
++		progC = `package main; import "C"; func main() {}`
++	)
++
++	tests := []struct {
++		name             string
++		args             []string
++		prog             string
++		wantSecsRO       []string
++		mustHaveCGO      bool
++		mustInternalLink bool
++	}{
++		{
++			name:             "linkmode-internal",
++			args:             []string{"-ldflags", "-linkmode=internal"},
++			prog:             prog,
++			mustInternalLink: true,
++			wantSecsRO:       []string{"__nl_symbol_ptr", "__rodata", "__itablink", "__typelink", "__gosymtab", "__gopclntab"},
++		},
++		{
++			name:       "linkmode-external",
++			args:       []string{"-ldflags", "-linkmode=external"},
++			prog:       prog,
++			wantSecsRO: []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
++		},
++		{
++			name:             "cgo-linkmode-internal",
++			args:             []string{"-ldflags", "-linkmode=external"},
++			prog:             progC,
++			mustHaveCGO:      true,
++			mustInternalLink: true,
++			wantSecsRO:       []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
++		},
++		{
++			name:        "cgo-linkmode-external",
++			args:        []string{"-ldflags", "-linkmode=external"},
++			prog:        progC,
++			mustHaveCGO: true,
++			wantSecsRO:  []string{"__got", "__rodata", "__itablink", "__typelink", "__gopclntab"},
++		},
++	}
++
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			if test.mustInternalLink {
++				testenv.MustInternalLink(t, test.mustHaveCGO)
++			}
++			if test.mustHaveCGO {
++				testenv.MustHaveCGO(t)
++			}
++
++			var (
++				dir     = t.TempDir()
++				src     = filepath.Join(dir, fmt.Sprintf("macho_%s.go", test.name))
++				binFile = filepath.Join(dir, test.name)
++			)
++
++			if err := os.WriteFile(src, []byte(test.prog), 0666); err != nil {
++				t.Fatal(err)
++			}
++
++			cmdArgs := append([]string{"build", "-o", binFile}, append(test.args, src)...)
++			cmd := testenv.Command(t, testenv.GoToolPath(t), cmdArgs...)
++
++			if out, err := cmd.CombinedOutput(); err != nil {
++				t.Fatalf("failed to build %v: %v:\n%s", cmd.Args, err, out)
++			}
++
++			fi, err := os.Open(binFile)
++			if err != nil {
++				t.Fatalf("failed to open built file: %v", err)
++			}
++			defer fi.Close()
++
++			machoFile, err := macho.NewFile(fi)
++			if err != nil {
++				t.Fatalf("failed to parse macho file: %v", err)
++			}
++			defer machoFile.Close()
++
++			// Load segments
++			segs := make(map[string]*macho.Segment)
++			for _, l := range machoFile.Loads {
++				if s, ok := l.(*macho.Segment); ok {
++					segs[s.Name] = s
++				}
++			}
++
++			for _, wsroname := range test.wantSecsRO {
++				// Now walk the sections. Section should be part of
++				// some segment that is readonly.
++				var wsro *macho.Section
++				foundRO := false
++				for _, s := range machoFile.Sections {
++					if s.Name == wsroname {
++						seg := segs[s.Seg]
++						if seg == nil {
++							t.Fatalf("test %s: can't locate segment for %q section",
++								test.name, wsroname)
++						}
++						if seg.Flag == 0x10 { // SG_READ_ONLY
++							foundRO = true
++							wsro = s
++							break
++						}
++					}
++				}
++				if wsro == nil {
++					t.Fatalf("test %s: can't locate %q section",
++						test.name, wsroname)
++					continue
++				}
++				if !foundRO {
++					// Things went off the rails. Write out some
++					// useful information for a human looking at the
++					// test failure.
++					t.Logf("test %s: %q section not in readonly segment",
++						wsro.Name, test.name)
++					t.Logf("section %s location: st=0x%x en=0x%x\n",
++						wsro.Name, wsro.Addr, wsro.Addr+wsro.Size)
++					t.Logf("sec %s found in this segment: ", wsro.Seg)
++					t.Logf("\nall segments: \n")
++					for _, l := range machoFile.Loads {
++						if s, ok := l.(*macho.Segment); ok {
++							t.Logf("cmd=%s fl=%d st=0x%x en=0x%x\n",
++								s.Cmd, s.Flag, s.Addr, s.Addr+s.Filesz)
++						}
++					}
++					t.Fatalf("test %s failed", test.name)
++				}
++			}
++		})
++	}
++}
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 84783e16d7..0671d9d724 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -85,6 +85,7 @@ const (
+ 	SRODATARELRO
+ 	SFUNCTABRELRO
+ 	SELFRELROSECT
++	SMACHORELROSECT
+ 
+ 	// Part of .data.rel.ro if it exists, otherwise part of .rodata.
+ 	STYPELINK
+diff --git a/src/cmd/link/internal/sym/symkind_string.go b/src/cmd/link/internal/sym/symkind_string.go
+index 5e66eb2d79..5395c9571b 100644
+--- a/src/cmd/link/internal/sym/symkind_string.go
++++ b/src/cmd/link/internal/sym/symkind_string.go
+@@ -36,63 +36,64 @@ func _() {
+ 	_ = x[SRODATARELRO-25]
+ 	_ = x[SFUNCTABRELRO-26]
+ 	_ = x[SELFRELROSECT-27]
+-	_ = x[STYPELINK-28]
+-	_ = x[SITABLINK-29]
+-	_ = x[SSYMTAB-30]
+-	_ = x[SPCLNTAB-31]
+-	_ = x[SFirstWritable-32]
+-	_ = x[SBUILDINFO-33]
+-	_ = x[SFIPSINFO-34]
+-	_ = x[SELFSECT-35]
+-	_ = x[SMACHO-36]
+-	_ = x[SMACHOGOT-37]
+-	_ = x[SWINDOWS-38]
+-	_ = x[SELFGOT-39]
+-	_ = x[SNOPTRDATA-40]
+-	_ = x[SNOPTRDATAFIPSSTART-41]
+-	_ = x[SNOPTRDATAFIPS-42]
+-	_ = x[SNOPTRDATAFIPSEND-43]
+-	_ = x[SNOPTRDATAEND-44]
+-	_ = x[SINITARR-45]
+-	_ = x[SDATA-46]
+-	_ = x[SDATAFIPSSTART-47]
+-	_ = x[SDATAFIPS-48]
+-	_ = x[SDATAFIPSEND-49]
+-	_ = x[SDATAEND-50]
+-	_ = x[SXCOFFTOC-51]
+-	_ = x[SBSS-52]
+-	_ = x[SNOPTRBSS-53]
+-	_ = x[SLIBFUZZER_8BIT_COUNTER-54]
+-	_ = x[SCOVERAGE_COUNTER-55]
+-	_ = x[SCOVERAGE_AUXVAR-56]
+-	_ = x[STLSBSS-57]
+-	_ = x[SXREF-58]
+-	_ = x[SMACHOSYMSTR-59]
+-	_ = x[SMACHOSYMTAB-60]
+-	_ = x[SMACHOINDIRECTPLT-61]
+-	_ = x[SMACHOINDIRECTGOT-62]
+-	_ = x[SFILEPATH-63]
+-	_ = x[SDYNIMPORT-64]
+-	_ = x[SHOSTOBJ-65]
+-	_ = x[SUNDEFEXT-66]
+-	_ = x[SDWARFSECT-67]
+-	_ = x[SDWARFCUINFO-68]
+-	_ = x[SDWARFCONST-69]
+-	_ = x[SDWARFFCN-70]
+-	_ = x[SDWARFABSFCN-71]
+-	_ = x[SDWARFTYPE-72]
+-	_ = x[SDWARFVAR-73]
+-	_ = x[SDWARFRANGE-74]
+-	_ = x[SDWARFLOC-75]
+-	_ = x[SDWARFLINES-76]
+-	_ = x[SDWARFADDR-77]
+-	_ = x[SSEHUNWINDINFO-78]
+-	_ = x[SSEHSECT-79]
++	_ = x[SMACHORELROSECT-28]
++	_ = x[STYPELINK-29]
++	_ = x[SITABLINK-30]
++	_ = x[SSYMTAB-31]
++	_ = x[SPCLNTAB-32]
++	_ = x[SFirstWritable-33]
++	_ = x[SBUILDINFO-34]
++	_ = x[SFIPSINFO-35]
++	_ = x[SELFSECT-36]
++	_ = x[SMACHO-37]
++	_ = x[SMACHOGOT-38]
++	_ = x[SWINDOWS-39]
++	_ = x[SELFGOT-40]
++	_ = x[SNOPTRDATA-41]
++	_ = x[SNOPTRDATAFIPSSTART-42]
++	_ = x[SNOPTRDATAFIPS-43]
++	_ = x[SNOPTRDATAFIPSEND-44]
++	_ = x[SNOPTRDATAEND-45]
++	_ = x[SINITARR-46]
++	_ = x[SDATA-47]
++	_ = x[SDATAFIPSSTART-48]
++	_ = x[SDATAFIPS-49]
++	_ = x[SDATAFIPSEND-50]
++	_ = x[SDATAEND-51]
++	_ = x[SXCOFFTOC-52]
++	_ = x[SBSS-53]
++	_ = x[SNOPTRBSS-54]
++	_ = x[SLIBFUZZER_8BIT_COUNTER-55]
++	_ = x[SCOVERAGE_COUNTER-56]
++	_ = x[SCOVERAGE_AUXVAR-57]
++	_ = x[STLSBSS-58]
++	_ = x[SXREF-59]
++	_ = x[SMACHOSYMSTR-60]
++	_ = x[SMACHOSYMTAB-61]
++	_ = x[SMACHOINDIRECTPLT-62]
++	_ = x[SMACHOINDIRECTGOT-63]
++	_ = x[SFILEPATH-64]
++	_ = x[SDYNIMPORT-65]
++	_ = x[SHOSTOBJ-66]
++	_ = x[SUNDEFEXT-67]
++	_ = x[SDWARFSECT-68]
++	_ = x[SDWARFCUINFO-69]
++	_ = x[SDWARFCONST-70]
++	_ = x[SDWARFFCN-71]
++	_ = x[SDWARFABSFCN-72]
++	_ = x[SDWARFTYPE-73]
++	_ = x[SDWARFVAR-74]
++	_ = x[SDWARFRANGE-75]
++	_ = x[SDWARFLOC-76]
++	_ = x[SDWARFLINES-77]
++	_ = x[SDWARFADDR-78]
++	_ = x[SSEHUNWINDINFO-79]
++	_ = x[SSEHSECT-80]
+ }
+ 
+-const _SymKind_name = "SxxxSTEXTSTEXTFIPSSTARTSTEXTFIPSSTEXTFIPSENDSTEXTENDSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASRODATAFIPSSTARTSRODATAFIPSSRODATAFIPSENDSRODATAENDSFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSELFRELROSECTSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSFIPSINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASNOPTRDATAFIPSSTARTSNOPTRDATAFIPSSNOPTRDATAFIPSENDSNOPTRDATAENDSINITARRSDATASDATAFIPSSTARTSDATAFIPSSDATAFIPSENDSDATAENDSXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSDWARFADDRSSEHUNWINDINFOSSEHSECT"
++const _SymKind_name = "SxxxSTEXTSTEXTFIPSSTARTSTEXTFIPSSTEXTFIPSENDSTEXTENDSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASRODATAFIPSSTARTSRODATAFIPSSRODATAFIPSENDSRODATAENDSFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSELFRELROSECTSMACHORELROSECTSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSFIPSINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASNOPTRDATAFIPSSTARTSNOPTRDATAFIPSSNOPTRDATAFIPSENDSNOPTRDATAENDSINITARRSDATASDATAFIPSSTARTSDATAFIPSSDATAFIPSENDSDATAENDSXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSDWARFADDRSSEHUNWINDINFOSSEHSECT"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 23, 32, 44, 52, 62, 71, 76, 83, 92, 99, 106, 113, 129, 140, 154, 164, 172, 182, 192, 204, 218, 230, 242, 254, 267, 280, 289, 298, 305, 313, 327, 337, 346, 354, 360, 369, 377, 384, 394, 413, 427, 444, 457, 465, 470, 484, 493, 505, 513, 522, 526, 535, 558, 575, 591, 598, 603, 615, 627, 644, 661, 670, 680, 688, 697, 707, 719, 730, 739, 751, 761, 770, 781, 790, 801, 811, 825, 833}
++var _SymKind_index = [...]uint16{0, 4, 9, 23, 32, 44, 52, 62, 71, 76, 83, 92, 99, 106, 113, 129, 140, 154, 164, 172, 182, 192, 204, 218, 230, 242, 254, 267, 280, 295, 304, 313, 320, 328, 342, 352, 361, 369, 375, 384, 392, 399, 409, 428, 442, 459, 472, 480, 485, 499, 508, 520, 528, 537, 541, 550, 573, 590, 606, 613, 618, 630, 642, 659, 676, 685, 695, 703, 712, 722, 734, 745, 754, 766, 776, 785, 796, 805, 816, 826, 840, 848}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {

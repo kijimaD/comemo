@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 20004: 5cb7da754773de4fcc104d0263efb0661fb7574d
+# Index 20004: a663e0a0381c22d3b1ef58b411df5cfbf56c2930
 
 echo "🚀 Generating explanation for commit 20004..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 20004..."
 
 ### メタデータ
 - **コミットインデックス**: 20004
-- **コミットハッシュ**: 5cb7da754773de4fcc104d0263efb0661fb7574d
-- **GitHub URL**: https://github.com/golang/go/commit/5cb7da754773de4fcc104d0263efb0661fb7574d
+- **コミットハッシュ**: a663e0a0381c22d3b1ef58b411df5cfbf56c2930
+- **GitHub URL**: https://github.com/golang/go/commit/a663e0a0381c22d3b1ef58b411df5cfbf56c2930
 
 ### 章構成
 

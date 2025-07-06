@@ -1,0 +1,149 @@
+commit 1cbfe8c482a0ca0eb59daa89b92a10b7052d1a0f
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Tue Sep 19 14:44:08 2023 -0400
+
+    fmt: add more function and allocation tests
+    
+    This is part of a series of CLs that aim to reduce how often interface
+    arguments escape for the print functions in fmt.
+    
+    Currently, method values are one of two reasons reflect.Value.Interface
+    always escapes its reflect.Value.
+    
+    Our later CLs modify behavior around method values, so we add some tests
+    of function formatting (including method values) to help reduce the
+    chances of breaking behavior later.
+    
+    We also add in some allocation tests focused on interface arguments for
+    the print functions. These currently do not show any improvements
+    compared to Go 1.21.
+    
+    These tests were originally in a later CL in our stack (CL 528538),
+    but we split them out into this CL and moved them earlier in the stack.
+    
+    Updates #8618
+    
+    Change-Id: Iec51abc3b7f86a2711e7497fc2fb7a678b9f8f73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/529575
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/fmt/fmt_test.go | 68 +++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 64 insertions(+), 4 deletions(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index b7f9ccd494..82daf62771 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -11,7 +11,6 @@ import (
+ 	"io"
+ 	"math"
+ 	"reflect"
+-	"runtime"
+ 	"strings"
+ 	"testing"
+ 	"time"
+@@ -112,6 +111,19 @@ func (p *P) String() string {
+ 	return "String(p)"
+ }
+ 
++// Fn is a function type with a String method.
++type Fn func() int
++
++func (fn Fn) String() string { return "String(fn)" }
++
++var fnValue Fn
++
++// U is a type with two unexported function fields.
++type U struct {
++	u  func() string
++	fn Fn
++}
++
+ var barray = [5]renamedUint8{1, 2, 3, 4, 5}
+ var bslice = barray[:]
+ 
+@@ -714,7 +726,6 @@ var fmtTests = []struct {
+ 	// go syntax
+ 	{"%#v", A{1, 2, "a", []int{1, 2}}, `fmt_test.A{i:1, j:0x2, s:"a", x:[]int{1, 2}}`},
+ 	{"%#v", new(byte), "(*uint8)(0xPTR)"},
+-	{"%#v", TestFmtInterface, "(func(*testing.T))(0xPTR)"},
+ 	{"%#v", make(chan int), "(chan int)(0xPTR)"},
+ 	{"%#v", uint64(1<<64 - 1), "0xffffffffffffffff"},
+ 	{"%#v", 1000000000, "1000000000"},
+@@ -737,6 +748,54 @@ var fmtTests = []struct {
+ 	{"%#v", 1.2345678, "1.2345678"},
+ 	{"%#v", float32(1.2345678), "1.2345678"},
+ 
++	// functions
++	{"%v", TestFmtInterface, "0xPTR"}, // simple function
++	{"%v", reflect.ValueOf(TestFmtInterface), "0xPTR"},
++	{"%v", G.GoString, "0xPTR"}, // method expression
++	{"%v", reflect.ValueOf(G.GoString), "0xPTR"},
++	{"%v", G(23).GoString, "0xPTR"}, // method value
++	{"%v", reflect.ValueOf(G(23).GoString), "0xPTR"},
++	{"%v", reflect.ValueOf(G(23)).Method(0), "0xPTR"},
++	{"%v", Fn.String, "0xPTR"}, // method of function type
++	{"%v", reflect.ValueOf(Fn.String), "0xPTR"},
++	{"%v", fnValue, "String(fn)"}, // variable of function type with String method
++	{"%v", reflect.ValueOf(fnValue), "String(fn)"},
++	{"%v", [1]Fn{fnValue}, "[String(fn)]"}, // array of function type with String method
++	{"%v", reflect.ValueOf([1]Fn{fnValue}), "[String(fn)]"},
++	{"%v", fnValue.String, "0xPTR"}, // method value from function type
++	{"%v", reflect.ValueOf(fnValue.String), "0xPTR"},
++	{"%v", reflect.ValueOf(fnValue).Method(0), "0xPTR"},
++	{"%v", U{}.u, "<nil>"}, // unexported function field
++	{"%v", reflect.ValueOf(U{}.u), "<nil>"},
++	{"%v", reflect.ValueOf(U{}).Field(0), "<nil>"},
++	{"%v", U{fn: fnValue}.fn, "String(fn)"}, // unexported field of function type with String method
++	{"%v", reflect.ValueOf(U{fn: fnValue}.fn), "String(fn)"},
++	{"%v", reflect.ValueOf(U{fn: fnValue}).Field(1), "<nil>"},
++
++	// functions with go syntax
++	{"%#v", TestFmtInterface, "(func(*testing.T))(0xPTR)"}, // simple function
++	{"%#v", reflect.ValueOf(TestFmtInterface), "(func(*testing.T))(0xPTR)"},
++	{"%#v", G.GoString, "(func(fmt_test.G) string)(0xPTR)"}, // method expression
++	{"%#v", reflect.ValueOf(G.GoString), "(func(fmt_test.G) string)(0xPTR)"},
++	{"%#v", G(23).GoString, "(func() string)(0xPTR)"}, // method value
++	{"%#v", reflect.ValueOf(G(23).GoString), "(func() string)(0xPTR)"},
++	{"%#v", reflect.ValueOf(G(23)).Method(0), "(func() string)(0xPTR)"},
++	{"%#v", Fn.String, "(func(fmt_test.Fn) string)(0xPTR)"}, // method of function type
++	{"%#v", reflect.ValueOf(Fn.String), "(func(fmt_test.Fn) string)(0xPTR)"},
++	{"%#v", fnValue, "(fmt_test.Fn)(nil)"}, // variable of function type with String method
++	{"%#v", reflect.ValueOf(fnValue), "(fmt_test.Fn)(nil)"},
++	{"%#v", [1]Fn{fnValue}, "[1]fmt_test.Fn{(fmt_test.Fn)(nil)}"}, // array of function type with String method
++	{"%#v", reflect.ValueOf([1]Fn{fnValue}), "[1]fmt_test.Fn{(fmt_test.Fn)(nil)}"},
++	{"%#v", fnValue.String, "(func() string)(0xPTR)"}, // method value from function type
++	{"%#v", reflect.ValueOf(fnValue.String), "(func() string)(0xPTR)"},
++	{"%#v", reflect.ValueOf(fnValue).Method(0), "(func() string)(0xPTR)"},
++	{"%#v", U{}.u, "(func() string)(nil)"}, // unexported function field
++	{"%#v", reflect.ValueOf(U{}.u), "(func() string)(nil)"},
++	{"%#v", reflect.ValueOf(U{}).Field(0), "(func() string)(nil)"},
++	{"%#v", U{fn: fnValue}.fn, "(fmt_test.Fn)(nil)"}, // unexported field of function type with String method
++	{"%#v", reflect.ValueOf(U{fn: fnValue}.fn), "(fmt_test.Fn)(nil)"},
++	{"%#v", reflect.ValueOf(U{fn: fnValue}).Field(1), "(fmt_test.Fn)(nil)"},
++
+ 	// Whole number floats are printed without decimals. See Issue 27634.
+ 	{"%#v", 1.0, "1"},
+ 	{"%#v", 1000000.0, "1e+06"},
+@@ -1438,6 +1497,9 @@ var mallocTest = []struct {
+ 	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
+ 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 7) }},
+ 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 1<<16) }},
++	{1, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", i) }}, // not constant
++	{4, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); s := []int{1, 2}; Fprintf(&mallocBuf, "%v", s) }},
++	{1, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", P{1, 2}) }},
+ 	{2, `Fprintf(buf, "%80000s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%80000s", "hello") }}, // large buffer (>64KB)
+ 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
+ 	{0, `Fprintf(buf, "%x %x %x")`, func() {
+@@ -1452,8 +1514,6 @@ func TestCountMallocs(t *testing.T) {
+ 	switch {
+ 	case testing.Short():
+ 		t.Skip("skipping malloc count in short mode")
+-	case runtime.GOMAXPROCS(0) > 1:
+-		t.Skip("skipping; GOMAXPROCS>1")
+ 	case race.Enabled:
+ 		t.Skip("skipping malloc count under race detector")
+ 	}

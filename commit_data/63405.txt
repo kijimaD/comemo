@@ -1,0 +1,31 @@
+commit ddc6e165fd84cf7d46f743dabe925835f16a73ee
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sat Apr 6 06:28:34 2024 +0000
+
+    cmd/link: close the file opened in the captureHostObj function
+    
+    Change-Id: I940c63c3040035e507428798d50060cfd0d04e16
+    GitHub-Last-Rev: e27484cd43e21599ba6e798ab74a703ad290ae7c
+    GitHub-Pull-Request: golang/go#66706
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577055
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Than McIntosh <thanm@google.com>
+---
+ src/cmd/link/internal/ld/lib.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 35b9ca01d2..823c395273 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2848,6 +2848,7 @@ func captureHostObj(h *Hostobj) {
+ 		if err != nil {
+ 			log.Fatalf("capturing host obj: open failed on %s: %v", h.pn, err)
+ 		}
++		defer inf.Close()
+ 		res := make([]byte, h.length)
+ 		if n, err := inf.ReadAt(res, h.off); err != nil || n != int(h.length) {
+ 			log.Fatalf("capturing host obj: readat failed on %s: %v", h.pn, err)

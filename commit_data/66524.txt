@@ -1,0 +1,771 @@
+commit 26040b1dd7e4e8f7957b2a918c01f3343249c289
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Mar 7 11:30:07 2025 -0500
+
+    cmd/compile: remove noDuffDevice
+    
+    noDuffDevice was for Plan 9, but Plan 9 doesn't need it anymore.
+    It was also being set in s390x, mips, mipsle, and wasm, but
+    on those systems it had no effect since the SSA rules for those
+    architectures don't refer to it at all.
+    
+    Change-Id: Ib85c0832674c714f3ad5091f0a022eb7cd3ebcdf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655878
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+---
+ src/cmd/compile/internal/ssa/_gen/386.rules     |  9 ++++-----
+ src/cmd/compile/internal/ssa/_gen/AMD64.rules   |  9 ++++-----
+ src/cmd/compile/internal/ssa/_gen/ARM.rules     |  8 ++++----
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules   |  9 ++++-----
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  5 ++---
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules  |  6 +++---
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  4 ++--
+ src/cmd/compile/internal/ssa/config.go          |  4 ----
+ src/cmd/compile/internal/ssa/rewrite386.go      | 18 ++++++++----------
+ src/cmd/compile/internal/ssa/rewriteAMD64.go    | 18 ++++++++----------
+ src/cmd/compile/internal/ssa/rewriteARM.go      | 16 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go    | 18 ++++++++----------
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 10 ++++------
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go   | 12 ++++++------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  |  8 ++++----
+ 15 files changed, 69 insertions(+), 85 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/386.rules b/src/cmd/compile/internal/ssa/_gen/386.rules
+index 216f5c2e2e..97414913e4 100644
+--- a/src/cmd/compile/internal/ssa/_gen/386.rules
++++ b/src/cmd/compile/internal/ssa/_gen/386.rules
+@@ -246,7 +246,7 @@
+ // Medium copying uses a duff device.
+ (Move [s] dst src mem)
+ 	&& s > 8 && s <= 4*128 && s%4 == 0
+-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
++	&& logLargeCopy(v, s) =>
+ 	(DUFFCOPY [10*(128-s/4)] dst src mem)
+ // 10 and 128 are magic constants.  10 is the number of bytes to encode:
+ //	MOVL	(SI), CX
+@@ -256,7 +256,7 @@
+ // and 128 is the number of such blocks. See src/runtime/duff_386.s:duffcopy.
+ 
+ // Large copying uses REP MOVSL.
+-(Move [s] dst src mem) && (s > 4*128 || config.noDuffDevice) && s%4 == 0 && logLargeCopy(v, s) =>
++(Move [s] dst src mem) && s > 4*128 && s%4 == 0 && logLargeCopy(v, s) =>
+ 	(REPMOVSL dst src (MOVLconst [int32(s/4)]) mem)
+ 
+ // Lowering Zero instructions
+@@ -299,8 +299,7 @@
+ 
+ // Medium zeroing uses a duff device.
+ (Zero [s] destptr mem)
+-  && s > 16 && s <= 4*128 && s%4 == 0
+-  && !config.noDuffDevice =>
++  && s > 16 && s <= 4*128 && s%4 == 0 =>
+ 	(DUFFZERO [1*(128-s/4)] destptr (MOVLconst [0]) mem)
+ // 1 and 128 are magic constants.  1 is the number of bytes to encode STOSL.
+ // 128 is the number of STOSL instructions in duffzero.
+@@ -308,7 +307,7 @@
+ 
+ // Large zeroing uses REP STOSQ.
+ (Zero [s] destptr mem)
+-  && (s > 4*128 || (config.noDuffDevice && s > 16))
++  && s > 4*128
+   && s%4 == 0 =>
+ 	(REPSTOSL destptr (MOVLconst [int32(s/4)]) (MOVLconst [0]) mem)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64.rules b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+index f8bf1eb653..dd3b9a68d7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64.rules
+@@ -327,11 +327,11 @@
+ // Medium copying uses a duff device.
+ (Move [s] dst src mem)
+ 	&& s > 64 && s <= 16*64 && s%16 == 0
+-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
++	&& logLargeCopy(v, s) =>
+ 	(DUFFCOPY [s] dst src mem)
+ 
+ // Large copying uses REP MOVSQ.
+-(Move [s] dst src mem) && (s > 16*64 || config.noDuffDevice) && s%8 == 0 && logLargeCopy(v, s) =>
++(Move [s] dst src mem) && s > 16*64 && s%8 == 0 && logLargeCopy(v, s) =>
+ 	(REPMOVSQ dst src (MOVQconst [s/8]) mem)
+ 
+ // Lowering Zero instructions
+@@ -397,13 +397,12 @@
+ 
+ // Medium zeroing uses a duff device.
+ (Zero [s] destptr mem)
+-	&& s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice =>
++	&& s > 64 && s <= 1024 && s%16 == 0 =>
+ 	(DUFFZERO [s] destptr mem)
+ 
+ // Large zeroing uses REP STOSQ.
+ (Zero [s] destptr mem)
+-	&& (s > 1024 || (config.noDuffDevice && s > 64))
+-	&& s%8 == 0 =>
++	&& s > 1024 && s%8 == 0 =>
+ 	(REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
+ 
+ // Lowering constants
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM.rules b/src/cmd/compile/internal/ssa/_gen/ARM.rules
+index 63535a4b29..431a12f35b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM.rules
+@@ -297,12 +297,12 @@
+ // 4 and 128 are magic constants, see runtime/mkduff.go
+ (Zero [s] {t} ptr mem)
+ 	&& s%4 == 0 && s > 4 && s <= 512
+-	&& t.Alignment()%4 == 0 && !config.noDuffDevice =>
++	&& t.Alignment()%4 == 0 =>
+ 	(DUFFZERO [4 * (128 - s/4)] ptr (MOVWconst [0]) mem)
+ 
+ // Large zeroing uses a loop
+ (Zero [s] {t} ptr mem)
+-	&& (s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0 =>
++	&& s > 512 || t.Alignment()%4 != 0 =>
+ 	(LoweredZero [t.Alignment()]
+ 		ptr
+ 		(ADDconst <ptr.Type> ptr [int32(s-moveSize(t.Alignment(), config))])
+@@ -337,12 +337,12 @@
+ // 8 and 128 are magic constants, see runtime/mkduff.go
+ (Move [s] {t} dst src mem)
+ 	&& s%4 == 0 && s > 4 && s <= 512
+-	&& t.Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s) =>
++	&& t.Alignment()%4 == 0 && logLargeCopy(v, s) =>
+ 	(DUFFCOPY [8 * (128 - s/4)] dst src mem)
+ 
+ // Large move uses a loop
+ (Move [s] {t} dst src mem)
+-	&& ((s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0) && logLargeCopy(v, s) =>
++	&& (s > 512 || t.Alignment()%4 != 0) && logLargeCopy(v, s) =>
+ 	(LoweredMove [t.Alignment()]
+ 		dst
+ 		src
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 359c1811b0..f07070df0a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -420,13 +420,12 @@
+ // medium zeroing uses a duff device
+ // 4, 16, and 64 are magic constants, see runtime/mkduff.go
+ (Zero [s] ptr mem)
+-	&& s%16 == 0 && s > 64 && s <= 16*64
+-	&& !config.noDuffDevice =>
++	&& s%16 == 0 && s > 64 && s <= 16*64 =>
+ 	(DUFFZERO [4 * (64 - s/16)] ptr mem)
+ 
+ // large zeroing uses a loop
+ (Zero [s] ptr mem)
+-	&& s%16 == 0 && (s > 16*64 || config.noDuffDevice) =>
++	&& s%16 == 0 && s > 16*64 =>
+ 	(LoweredZero
+ 		ptr
+ 		(ADDconst <ptr.Type> [s-16] ptr)
+@@ -504,7 +503,7 @@
+ // medium move uses a duff device
+ (Move [s] dst src mem)
+ 	&& s > 64 && s <= 16*64 && s%16 == 0
+-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
++	&& logLargeCopy(v, s) =>
+ 	(DUFFCOPY [8 * (64 - s/16)] dst src mem)
+ // 8 is the number of bytes to encode:
+ //
+@@ -515,7 +514,7 @@
+ 
+ // large move uses a loop
+ (Move [s] dst src mem)
+-	&& s%16 == 0 && (s > 16*64 || config.noDuffDevice)
++	&& s%16 == 0 && s > 16*64
+ 	&& logLargeCopy(v, s) =>
+ 	(LoweredMove
+ 		dst
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 41c120c983..c94e1e19e2 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -341,8 +341,7 @@
+ 
+ // medium zeroing uses a duff device
+ (Zero [s] ptr mem)
+-    && s%8 == 0 && s > 16 && s <= 8*128
+-    && !config.noDuffDevice =>
++    && s%8 == 0 && s > 16 && s <= 8*128 =>
+     (DUFFZERO [8 * (128 - s/8)] ptr mem)
+ 
+ // large zeroing uses a loop
+@@ -406,7 +405,7 @@
+ // medium move uses a duff device
+ (Move [s] dst src mem)
+         && s%8 == 0 && s > 16 && s <= 8*128
+-        && !config.noDuffDevice && logLargeCopy(v, s)  =>
++        && logLargeCopy(v, s)  =>
+         (DUFFCOPY [16 * (128 - s/8)] dst src mem)
+ // 16 and 128 are magic constants.  16 is the number of bytes to encode:
+ //     MOVV    (R20), R30
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+index cc3985ecdd..5b55c3bef7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+@@ -306,12 +306,12 @@
+ // 8, and 128 are magic constants, see runtime/mkduff.go
+ (Zero [s] {t} ptr mem)
+ 	&& s%8 == 0 && s > 24 && s <= 8*128
+-	&& t.Alignment()%8 == 0 && !config.noDuffDevice =>
++	&& t.Alignment()%8 == 0 =>
+ 	(DUFFZERO [8 * (128 - s/8)] ptr mem)
+ 
+ // large or unaligned zeroing uses a loop
+ (Zero [s] {t} ptr mem)
+-	&& (s > 8*128 || config.noDuffDevice) || t.Alignment()%8 != 0 =>
++	&& s > 8*128 || t.Alignment()%8 != 0 =>
+ 	(LoweredZero [t.Alignment()]
+ 		ptr
+ 		(ADDVconst <ptr.Type> ptr [s-moveSize(t.Alignment(), config)])
+@@ -382,7 +382,7 @@
+ // medium move uses a duff device
+ (Move [s] {t} dst src mem)
+ 	&& s%8 == 0 && s >= 24 && s <= 8*128 && t.Alignment()%8 == 0
+-	&& !config.noDuffDevice && logLargeCopy(v, s)  =>
++	&& logLargeCopy(v, s)  =>
+ 	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
+ // 16 and 128 are magic constants.  16 is the number of bytes to encode:
+ //	MOVV	(R1), R23
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index a69df619a5..6319746dc7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -356,7 +356,7 @@
+ // 8 and 128 are magic constants, see runtime/mkduff.go
+ (Zero [s] {t} ptr mem)
+ 	&& s%8 == 0 && s <= 8*128
+-	&& t.Alignment()%8 == 0 && !config.noDuffDevice =>
++	&& t.Alignment()%8 == 0 =>
+ 	(DUFFZERO [8 * (128 - s/8)] ptr mem)
+ 
+ // Generic zeroing uses a loop
+@@ -445,7 +445,7 @@
+ // 16 and 128 are magic constants, see runtime/mkduff.go
+ (Move [s] {t} dst src mem)
+ 	&& s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0
+-	&& !config.noDuffDevice && logLargeCopy(v, s) =>
++	&& logLargeCopy(v, s) =>
+ 	(DUFFCOPY [16 * (128 - s/8)] dst src mem)
+ 
+ // Generic move uses a loop
+diff --git a/src/cmd/compile/internal/ssa/config.go b/src/cmd/compile/internal/ssa/config.go
+index cf881ee078..09c1ebb107 100644
+--- a/src/cmd/compile/internal/ssa/config.go
++++ b/src/cmd/compile/internal/ssa/config.go
+@@ -41,7 +41,6 @@ type Config struct {
+ 	hasGReg        bool      // has hardware g register
+ 	ctxt           *obj.Link // Generic arch information
+ 	optimize       bool      // Do optimization
+-	noDuffDevice   bool      // Don't use Duff's device
+ 	useAvg         bool      // Use optimizations that need Avg* operations
+ 	useHmul        bool      // Use optimizations that need Hmul* operations
+ 	SoftFloat      bool      //
+@@ -295,7 +294,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 		c.FPReg = framepointerRegS390X
+ 		c.LinkReg = linkRegS390X
+ 		c.hasGReg = true
+-		c.noDuffDevice = true
+ 		c.BigEndian = true
+ 		c.unalignedOK = true
+ 		c.haveBswap64 = true
+@@ -316,7 +314,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 		c.FPReg = framepointerRegMIPS
+ 		c.LinkReg = linkRegMIPS
+ 		c.hasGReg = true
+-		c.noDuffDevice = true
+ 	case "riscv64":
+ 		c.PtrSize = 8
+ 		c.RegSize = 8
+@@ -344,7 +341,6 @@ func NewConfig(arch string, types Types, ctxt *obj.Link, optimize, softfloat boo
+ 		c.FPReg = framepointerRegWasm
+ 		c.LinkReg = linkRegWasm
+ 		c.hasGReg = true
+-		c.noDuffDevice = true
+ 		c.useAvg = false
+ 		c.useHmul = false
+ 	default:
+diff --git a/src/cmd/compile/internal/ssa/rewrite386.go b/src/cmd/compile/internal/ssa/rewrite386.go
+index dbc1335fcd..9ece0e4eb7 100644
+--- a/src/cmd/compile/internal/ssa/rewrite386.go
++++ b/src/cmd/compile/internal/ssa/rewrite386.go
+@@ -8924,7 +8924,6 @@ func rewriteValue386_OpMove(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Move [0] _ _ mem)
+ 	// result: mem
+@@ -9113,14 +9112,14 @@ func rewriteValue386_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 8 && s <= 4*128 && s%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
++	// cond: s > 8 && s <= 4*128 && s%4 == 0 && logLargeCopy(v, s)
+ 	// result: (DUFFCOPY [10*(128-s/4)] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s > 8 && s <= 4*128 && s%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
++		if !(s > 8 && s <= 4*128 && s%4 == 0 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(Op386DUFFCOPY)
+@@ -9129,14 +9128,14 @@ func rewriteValue386_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: (s > 4*128 || config.noDuffDevice) && s%4 == 0 && logLargeCopy(v, s)
++	// cond: s > 4*128 && s%4 == 0 && logLargeCopy(v, s)
+ 	// result: (REPMOVSL dst src (MOVLconst [int32(s/4)]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !((s > 4*128 || config.noDuffDevice) && s%4 == 0 && logLargeCopy(v, s)) {
++		if !(s > 4*128 && s%4 == 0 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(Op386REPMOVSL)
+@@ -10575,7 +10574,6 @@ func rewriteValue386_OpZero(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Zero [0] _ mem)
+ 	// result: mem
+@@ -10769,13 +10767,13 @@ func rewriteValue386_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+-	// cond: s > 16 && s <= 4*128 && s%4 == 0 && !config.noDuffDevice
++	// cond: s > 16 && s <= 4*128 && s%4 == 0
+ 	// result: (DUFFZERO [1*(128-s/4)] destptr (MOVLconst [0]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !(s > 16 && s <= 4*128 && s%4 == 0 && !config.noDuffDevice) {
++		if !(s > 16 && s <= 4*128 && s%4 == 0) {
+ 			break
+ 		}
+ 		v.reset(Op386DUFFZERO)
+@@ -10786,13 +10784,13 @@ func rewriteValue386_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+-	// cond: (s > 4*128 || (config.noDuffDevice && s > 16)) && s%4 == 0
++	// cond: s > 4*128 && s%4 == 0
+ 	// result: (REPSTOSL destptr (MOVLconst [int32(s/4)]) (MOVLconst [0]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !((s > 4*128 || (config.noDuffDevice && s > 16)) && s%4 == 0) {
++		if !(s > 4*128 && s%4 == 0) {
+ 			break
+ 		}
+ 		v.reset(Op386REPSTOSL)
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index 10a1875794..be9ed7f6e1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -27830,7 +27830,6 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Move [0] _ _ mem)
+ 	// result: mem
+@@ -28230,14 +28229,14 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
++	// cond: s > 64 && s <= 16*64 && s%16 == 0 && logLargeCopy(v, s)
+ 	// result: (DUFFCOPY [s] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
++		if !(s > 64 && s <= 16*64 && s%16 == 0 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64DUFFCOPY)
+@@ -28246,14 +28245,14 @@ func rewriteValueAMD64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: (s > 16*64 || config.noDuffDevice) && s%8 == 0 && logLargeCopy(v, s)
++	// cond: s > 16*64 && s%8 == 0 && logLargeCopy(v, s)
+ 	// result: (REPMOVSQ dst src (MOVQconst [s/8]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !((s > 16*64 || config.noDuffDevice) && s%8 == 0 && logLargeCopy(v, s)) {
++		if !(s > 16*64 && s%8 == 0 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64REPMOVSQ)
+@@ -30443,7 +30442,6 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Zero [0] _ mem)
+ 	// result: mem
+@@ -30745,13 +30743,13 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+-	// cond: s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice
++	// cond: s > 64 && s <= 1024 && s%16 == 0
+ 	// result: (DUFFZERO [s] destptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !(s > 64 && s <= 1024 && s%16 == 0 && !config.noDuffDevice) {
++		if !(s > 64 && s <= 1024 && s%16 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64DUFFZERO)
+@@ -30760,13 +30758,13 @@ func rewriteValueAMD64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] destptr mem)
+-	// cond: (s > 1024 || (config.noDuffDevice && s > 64)) && s%8 == 0
++	// cond: s > 1024 && s%8 == 0
+ 	// result: (REPSTOSQ destptr (MOVQconst [s/8]) (MOVQconst [0]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		destptr := v_0
+ 		mem := v_1
+-		if !((s > 1024 || (config.noDuffDevice && s > 64)) && s%8 == 0) {
++		if !(s > 1024 && s%8 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpAMD64REPSTOSQ)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM.go b/src/cmd/compile/internal/ssa/rewriteARM.go
+index f958acba05..00517da4a1 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM.go
+@@ -14751,7 +14751,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] {t} dst src mem)
+-	// cond: s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
++	// cond: s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0 && logLargeCopy(v, s)
+ 	// result: (DUFFCOPY [8 * (128 - s/4)] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+@@ -14759,7 +14759,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
++		if !(s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpARMDUFFCOPY)
+@@ -14768,7 +14768,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] {t} dst src mem)
+-	// cond: ((s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0) && logLargeCopy(v, s)
++	// cond: (s > 512 || t.Alignment()%4 != 0) && logLargeCopy(v, s)
+ 	// result: (LoweredMove [t.Alignment()] dst src (ADDconst <src.Type> src [int32(s-moveSize(t.Alignment(), config))]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+@@ -14776,7 +14776,7 @@ func rewriteValueARM_OpMove(v *Value) bool {
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(((s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0) && logLargeCopy(v, s)) {
++		if !((s > 512 || t.Alignment()%4 != 0) && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpARMLoweredMove)
+@@ -16175,14 +16175,14 @@ func rewriteValueARM_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] {t} ptr mem)
+-	// cond: s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0 && !config.noDuffDevice
++	// cond: s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0
+ 	// result: (DUFFZERO [4 * (128 - s/4)] ptr (MOVWconst [0]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0 && !config.noDuffDevice) {
++		if !(s%4 == 0 && s > 4 && s <= 512 && t.Alignment()%4 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpARMDUFFZERO)
+@@ -16193,14 +16193,14 @@ func rewriteValueARM_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] {t} ptr mem)
+-	// cond: (s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0
++	// cond: s > 512 || t.Alignment()%4 != 0
+ 	// result: (LoweredZero [t.Alignment()] ptr (ADDconst <ptr.Type> ptr [int32(s-moveSize(t.Alignment(), config))]) (MOVWconst [0]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !((s > 512 || config.noDuffDevice) || t.Alignment()%4 != 0) {
++		if !(s > 512 || t.Alignment()%4 != 0) {
+ 			break
+ 		}
+ 		v.reset(OpARMLoweredZero)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index d7f99bc46c..b4ee37007e 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -20588,7 +20588,6 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Move [0] _ _ mem)
+ 	// result: mem
+@@ -21078,14 +21077,14 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
++	// cond: s > 64 && s <= 16*64 && s%16 == 0 && logLargeCopy(v, s)
+ 	// result: (DUFFCOPY [8 * (64 - s/16)] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s > 64 && s <= 16*64 && s%16 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
++		if !(s > 64 && s <= 16*64 && s%16 == 0 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64DUFFCOPY)
+@@ -21094,14 +21093,14 @@ func rewriteValueARM64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s%16 == 0 && (s > 16*64 || config.noDuffDevice) && logLargeCopy(v, s)
++	// cond: s%16 == 0 && s > 16*64 && logLargeCopy(v, s)
+ 	// result: (LoweredMove dst src (ADDconst <src.Type> src [s-16]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s%16 == 0 && (s > 16*64 || config.noDuffDevice) && logLargeCopy(v, s)) {
++		if !(s%16 == 0 && s > 16*64 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpARM64LoweredMove)
+@@ -23446,7 +23445,6 @@ func rewriteValueARM64_OpZero(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Zero [0] _ mem)
+ 	// result: mem
+@@ -23822,13 +23820,13 @@ func rewriteValueARM64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] ptr mem)
+-	// cond: s%16 == 0 && s > 64 && s <= 16*64 && !config.noDuffDevice
++	// cond: s%16 == 0 && s > 64 && s <= 16*64
+ 	// result: (DUFFZERO [4 * (64 - s/16)] ptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(s%16 == 0 && s > 64 && s <= 16*64 && !config.noDuffDevice) {
++		if !(s%16 == 0 && s > 64 && s <= 16*64) {
+ 			break
+ 		}
+ 		v.reset(OpARM64DUFFZERO)
+@@ -23837,13 +23835,13 @@ func rewriteValueARM64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] ptr mem)
+-	// cond: s%16 == 0 && (s > 16*64 || config.noDuffDevice)
++	// cond: s%16 == 0 && s > 16*64
+ 	// result: (LoweredZero ptr (ADDconst <ptr.Type> [s-16] ptr) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(s%16 == 0 && (s > 16*64 || config.noDuffDevice)) {
++		if !(s%16 == 0 && s > 16*64) {
+ 			break
+ 		}
+ 		v.reset(OpARM64LoweredZero)
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 01000db4c0..d3cdf8b9bc 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -7961,7 +7961,6 @@ func rewriteValueLOONG64_OpMove(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Move [0] _ _ mem)
+ 	// result: mem
+@@ -8311,14 +8310,14 @@ func rewriteValueLOONG64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] dst src mem)
+-	// cond: s%8 == 0 && s > 16 && s <= 8*128 && !config.noDuffDevice && logLargeCopy(v, s)
++	// cond: s%8 == 0 && s > 16 && s <= 8*128 && logLargeCopy(v, s)
+ 	// result: (DUFFCOPY [16 * (128 - s/8)] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s%8 == 0 && s > 16 && s <= 8*128 && !config.noDuffDevice && logLargeCopy(v, s)) {
++		if !(s%8 == 0 && s > 16 && s <= 8*128 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64DUFFCOPY)
+@@ -9873,7 +9872,6 @@ func rewriteValueLOONG64_OpZero(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+-	config := b.Func.Config
+ 	typ := &b.Func.Config.Types
+ 	// match: (Zero [0] _ mem)
+ 	// result: mem
+@@ -10167,13 +10165,13 @@ func rewriteValueLOONG64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] ptr mem)
+-	// cond: s%8 == 0 && s > 16 && s <= 8*128 && !config.noDuffDevice
++	// cond: s%8 == 0 && s > 16 && s <= 8*128
+ 	// result: (DUFFZERO [8 * (128 - s/8)] ptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(s%8 == 0 && s > 16 && s <= 8*128 && !config.noDuffDevice) {
++		if !(s%8 == 0 && s > 16 && s <= 8*128) {
+ 			break
+ 		}
+ 		v.reset(OpLOONG64DUFFZERO)
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index b82f027a5a..10281e7e70 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -6043,7 +6043,7 @@ func rewriteValueMIPS64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] {t} dst src mem)
+-	// cond: s%8 == 0 && s >= 24 && s <= 8*128 && t.Alignment()%8 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
++	// cond: s%8 == 0 && s >= 24 && s <= 8*128 && t.Alignment()%8 == 0 && logLargeCopy(v, s)
+ 	// result: (DUFFCOPY [16 * (128 - s/8)] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+@@ -6051,7 +6051,7 @@ func rewriteValueMIPS64_OpMove(v *Value) bool {
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s%8 == 0 && s >= 24 && s <= 8*128 && t.Alignment()%8 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
++		if !(s%8 == 0 && s >= 24 && s <= 8*128 && t.Alignment()%8 == 0 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64DUFFCOPY)
+@@ -8200,14 +8200,14 @@ func rewriteValueMIPS64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] {t} ptr mem)
+-	// cond: s%8 == 0 && s > 24 && s <= 8*128 && t.Alignment()%8 == 0 && !config.noDuffDevice
++	// cond: s%8 == 0 && s > 24 && s <= 8*128 && t.Alignment()%8 == 0
+ 	// result: (DUFFZERO [8 * (128 - s/8)] ptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(s%8 == 0 && s > 24 && s <= 8*128 && t.Alignment()%8 == 0 && !config.noDuffDevice) {
++		if !(s%8 == 0 && s > 24 && s <= 8*128 && t.Alignment()%8 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64DUFFZERO)
+@@ -8216,14 +8216,14 @@ func rewriteValueMIPS64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] {t} ptr mem)
+-	// cond: (s > 8*128 || config.noDuffDevice) || t.Alignment()%8 != 0
++	// cond: s > 8*128 || t.Alignment()%8 != 0
+ 	// result: (LoweredZero [t.Alignment()] ptr (ADDVconst <ptr.Type> ptr [s-moveSize(t.Alignment(), config)]) mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !((s > 8*128 || config.noDuffDevice) || t.Alignment()%8 != 0) {
++		if !(s > 8*128 || t.Alignment()%8 != 0) {
+ 			break
+ 		}
+ 		v.reset(OpMIPS64LoweredZero)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 3a044b5c9d..165c9799f9 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -3015,7 +3015,7 @@ func rewriteValueRISCV64_OpMove(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Move [s] {t} dst src mem)
+-	// cond: s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0 && !config.noDuffDevice && logLargeCopy(v, s)
++	// cond: s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0 && logLargeCopy(v, s)
+ 	// result: (DUFFCOPY [16 * (128 - s/8)] dst src mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+@@ -3023,7 +3023,7 @@ func rewriteValueRISCV64_OpMove(v *Value) bool {
+ 		dst := v_0
+ 		src := v_1
+ 		mem := v_2
+-		if !(s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0 && !config.noDuffDevice && logLargeCopy(v, s)) {
++		if !(s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0 && logLargeCopy(v, s)) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64DUFFCOPY)
+@@ -9053,14 +9053,14 @@ func rewriteValueRISCV64_OpZero(v *Value) bool {
+ 		return true
+ 	}
+ 	// match: (Zero [s] {t} ptr mem)
+-	// cond: s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0 && !config.noDuffDevice
++	// cond: s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0
+ 	// result: (DUFFZERO [8 * (128 - s/8)] ptr mem)
+ 	for {
+ 		s := auxIntToInt64(v.AuxInt)
+ 		t := auxToType(v.Aux)
+ 		ptr := v_0
+ 		mem := v_1
+-		if !(s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0 && !config.noDuffDevice) {
++		if !(s%8 == 0 && s <= 8*128 && t.Alignment()%8 == 0) {
+ 			break
+ 		}
+ 		v.reset(OpRISCV64DUFFZERO)

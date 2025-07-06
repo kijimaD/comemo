@@ -1,0 +1,50 @@
+commit 7b4ecaa902f1afad6093f6b6b2ea913505f91b7b
+Author: cuishuang <imcusg@gmail.com>
+Date:   Sat Aug 24 01:23:24 2024 +0800
+
+    html/template: track continue nodes correctly when escaping
+    
+    Fixes #69076
+    
+    Change-Id: I1a16675c466722f44d0734e95d3c8111e33ff580
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607736
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Zxilly Chou <zxilly@outlook.com>
+    Run-TryBot: shuang cui <imcusg@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/html/template/escape.go      | 2 +-
+ src/html/template/escape_test.go | 4 ++++
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/html/template/escape.go b/src/html/template/escape.go
+index 1eace16e25..5ab41b0ce9 100644
+--- a/src/html/template/escape.go
++++ b/src/html/template/escape.go
+@@ -145,7 +145,7 @@ func (e *escaper) escape(c context, n parse.Node) context {
+ 		return c
+ 	case *parse.ContinueNode:
+ 		c.n = n
+-		e.rangeContext.continues = append(e.rangeContext.breaks, c)
++		e.rangeContext.continues = append(e.rangeContext.continues, c)
+ 		return context{state: stateDead}
+ 	case *parse.IfNode:
+ 		return e.escapeBranch(c, &n.BranchNode, "if")
+diff --git a/src/html/template/escape_test.go b/src/html/template/escape_test.go
+index 497ead8716..003060e90f 100644
+--- a/src/html/template/escape_test.go
++++ b/src/html/template/escape_test.go
+@@ -1060,6 +1060,10 @@ func TestErrors(t *testing.T) {
+ 			"{{range .Items}}<a{{if .X}}{{continue}}{{end}}>{{end}}",
+ 			"z:1:29: at range loop continue: {{range}} branches end in different contexts",
+ 		},
++		{
++			"{{range .Items}}{{if .X}}{{break}}{{end}}<a{{if .Y}}{{continue}}{{end}}>{{if .Z}}{{continue}}{{end}}{{end}}",
++			"z:1:54: at range loop continue: {{range}} branches end in different contexts",
++		},
+ 		{
+ 			"<a b=1 c={{.H}}",
+ 			"z: ends in a non-text context: {stateAttr delimSpaceOrTagEnd",

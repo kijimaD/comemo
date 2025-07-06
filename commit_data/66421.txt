@@ -1,0 +1,26 @@
+commit 339c903a75c3fe936fb4ed6c355d15e6081d6af3
+Author: Gopher Robot <gobot@golang.org>
+Date:   Tue Mar 4 10:49:07 2025 -0800
+
+    [release-branch.go1.24] go1.24.1
+    
+    Change-Id: I774fcee39151f830ad58fd1677239bc0207c6679
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654319
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index a438070077..f87a20c23c 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.24.0
+-time 2025-02-10T23:33:55Z
++go1.24.1
++time 2025-02-27T17:57:18Z

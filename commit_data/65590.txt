@@ -1,0 +1,62 @@
+commit e0b569842d0ef5deed5c455eef001b02aec27934
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Nov 18 20:06:13 2024 -0800
+
+    spec: document restrictions for method receivers that are aliases
+    
+    For #70417.
+    
+    Change-Id: I5e6b3011f356c7ecd8f64f5dcf0a6a77dcb21bbf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629577
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ doc/go_spec.html | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 579e254790..31bea3713a 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Language version go1.23 (Oct 1, 2024)",
++	"Subtitle": "Language version go1.24 (Nov 20, 2024)",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -3093,7 +3093,7 @@ to the base type <code>Point</code>.
+ </p>
+ 
+ <p>
+-If the receiver base type is a <a href="#Type_declarations">generic type</a>, the
++If the receiver base type is a <a href="#Type_definitions">generic type</a>, the
+ receiver specification must declare corresponding type parameters for the method
+ to use. This makes the receiver type parameters available to the method.
+ Syntactically, this type parameter declaration looks like an
+@@ -3117,6 +3117,22 @@ func (p Pair[A, B]) Swap() Pair[B, A]  { … }  // receiver declares A, B
+ func (p Pair[First, _]) First() First  { … }  // receiver declares First, corresponds to A in Pair
+ </pre>
+ 
++<p>
++If the receiver type is denoted by (a pointer to) an <a href="#Alias_declarations">alias</a>,
++the alias must not be generic and it must not denote an instantiated generic type, neither
++directly nor indirectly via another alias, and irrespective of pointer indirections.
++</p>
++
++<pre>
++type GPoint[P any] = Point
++type HPoint        = *GPoint[int]
++type IPair         = Pair[int, int]
++
++func (*GPoint[P]) Draw(P)   { … }  // illegal: alias must not be generic
++func (HPoint) Draw(P)       { … }  // illegal: alias must not denote instantiated type GPoint[int]
++func (*IPair) Second() int  { … }  // illegal: alias must not denote instantiated type Pair[int, int]
++</pre>
++
+ <h2 id="Expressions">Expressions</h2>
+ 
+ <p>

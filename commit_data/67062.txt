@@ -1,0 +1,42 @@
+commit bd299852121f997b8bff3c9de244df27427819f3
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 16 19:53:21 2025 -0400
+
+    cmd/distpack: use positive list of tools to keep
+    
+    Previously, distpack filtered out tools from the packaged distribution
+    using a list of tools to remove. Instead follow mpratt's suggestion on
+    CL 666755 and instead filter out tools that are not on a list of tools
+    to keep. This will make it easier to tell which tools are actually in
+    the distribution.
+    
+    For #71867
+    
+    Change-Id: I8336465703ac820028c3381a0a743c457997e78a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673696
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+---
+ src/cmd/distpack/pack.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/distpack/pack.go b/src/cmd/distpack/pack.go
+index fd091c1ebb..8e0b58af21 100644
+--- a/src/cmd/distpack/pack.go
++++ b/src/cmd/distpack/pack.go
+@@ -167,11 +167,11 @@ func main() {
+ 			if !strings.HasPrefix(name, "pkg/tool/"+goosUnderGoarch+"/") {
+ 				return false
+ 			}
+-			// Inside pkg/tool/$GOOS_$GOARCH, discard helper tools, and tools not needed for builds.
++			// Inside pkg/tool/$GOOS_$GOARCH, keep only tools needed for build actions.
+ 			switch strings.TrimSuffix(path.Base(name), ".exe") {
+-			case "addr2line", "api", "buildid", "covdata", "dist", "distpack", "doc", "fix",
+-				"metadata", "nm", "objdump", "pprof", "test2json", "trace":
++			default:
+ 				return false
++			case "asm", "cgo", "compile", "cover", "link", "pack", "preprofile", "vet":
+ 			}
+ 		}
+ 		return true

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 23990: 2b3b7dc1a96d4e23d687e1d4cc61dcb076ee3609
+# Index 23990: 931328b8b837d0a827d05989f79f28725a704b71
 
 echo "🚀 Generating explanation for commit 23990..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 23990..."
 
 ### メタデータ
 - **コミットインデックス**: 23990
-- **コミットハッシュ**: 2b3b7dc1a96d4e23d687e1d4cc61dcb076ee3609
-- **GitHub URL**: https://github.com/golang/go/commit/2b3b7dc1a96d4e23d687e1d4cc61dcb076ee3609
+- **コミットハッシュ**: 931328b8b837d0a827d05989f79f28725a704b71
+- **GitHub URL**: https://github.com/golang/go/commit/931328b8b837d0a827d05989f79f28725a704b71
 
 ### 章構成
 

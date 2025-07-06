@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40394: c514071988ac08249c8675dfa501ad242c4c0cec
+# Index 40394: 35edc960c42e570fd196292148c985ffc3a17692
 
 echo "🚀 Generating explanation for commit 40394..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40394..."
 
 ### メタデータ
 - **コミットインデックス**: 40394
-- **コミットハッシュ**: c514071988ac08249c8675dfa501ad242c4c0cec
-- **GitHub URL**: https://github.com/golang/go/commit/c514071988ac08249c8675dfa501ad242c4c0cec
+- **コミットハッシュ**: 35edc960c42e570fd196292148c985ffc3a17692
+- **GitHub URL**: https://github.com/golang/go/commit/35edc960c42e570fd196292148c985ffc3a17692
 
 ### 章構成
 

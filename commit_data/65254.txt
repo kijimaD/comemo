@@ -1,0 +1,126 @@
+commit 7240c6cb970bd395e7005988b4ce6af73a8e59c0
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Thu Oct 31 15:11:05 2024 +0800
+
+    cmd/asm: add support for loong64 CRC32 instructions
+    
+    This patch is a copy of CL 478595.
+    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    
+    Change-Id: Ifb6e8183c83a5dfe5dec84e173a74d5de62692a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623875
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 10 ++++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 10 ++++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  8 ++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 25 ++++++++++++++++++++++++-
+ 4 files changed, 52 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index fd3cdcb753..2239fe0c68 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -208,6 +208,16 @@ lable2:
+ 	MASKEQZ	R4, R5, R6		// a6101300
+ 	MASKNEZ	R4, R5, R6		// a6901300
+ 
++	// CRC32
++	CRCWBW	R4, R5, R6		// a6102400
++	CRCWHW	R4, R5, R6		// a6902400
++	CRCWWW	R4, R5, R6		// a6102500
++	CRCWVW	R4, R5, R6		// a6902500
++	CRCCWBW	R4, R5, R6		// a6102600
++	CRCCWHW	R4, R5, R6		// a6902600
++	CRCCWWW	R4, R5, R6		// a6102700
++	CRCCWVW	R4, R5, R6		// a6902700
++
+ 	MOVFD	F4, F5			// 85241901
+ 	MOVDF	F4, F5			// 85181901
+ 	MOVWF	F4, F5			// 85101d01
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 6653b7fe98..9470f9418c 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -477,6 +477,16 @@ const (
+ 	ABSTRPICKW
+ 	ABSTRPICKV
+ 
++	// 2.2.9. CRC Check Instructions
++	ACRCWBW
++	ACRCWHW
++	ACRCWWW
++	ACRCWVW
++	ACRCCWBW
++	ACRCCWHW
++	ACRCCWWW
++	ACRCCWVW
++
+ 	// 2.2.10. Other Miscellaneous Instructions
+ 	ARDTIMELW
+ 	ARDTIMEHW
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 2cbf305196..28566d1504 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -199,6 +199,14 @@ var Anames = []string{
+ 	"BSTRINSV",
+ 	"BSTRPICKW",
+ 	"BSTRPICKV",
++	"CRCWBW",
++	"CRCWHW",
++	"CRCWWW",
++	"CRCWVW",
++	"CRCCWBW",
++	"CRCCWHW",
++	"CRCCWWW",
++	"CRCCWVW",
+ 	"RDTIMELW",
+ 	"RDTIMEHW",
+ 	"RDTIMED",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 985c054ece..3f3a352ee1 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1234,6 +1234,14 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		case AMASKEQZ:
+ 			opset(AMASKNEZ, r0)
++			opset(ACRCWBW, r0)
++			opset(ACRCWHW, r0)
++			opset(ACRCWWW, r0)
++			opset(ACRCWVW, r0)
++			opset(ACRCCWBW, r0)
++			opset(ACRCCWHW, r0)
++			opset(ACRCCWWW, r0)
++			opset(ACRCCWVW, r0)
+ 
+ 		case ANOOP:
+ 			opset(obj.AUNDEF, r0)
+@@ -1949,7 +1957,22 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return 0x45 << 15 // mod.d
+ 	case AREMVU:
+ 		return 0x47 << 15 // mod.du
+-
++	case ACRCWBW:
++		return 0x48 << 15 // crc.w.b.w
++	case ACRCWHW:
++		return 0x49 << 15 // crc.w.h.w
++	case ACRCWWW:
++		return 0x4a << 15 // crc.w.w.w
++	case ACRCWVW:
++		return 0x4b << 15 // crc.w.d.w
++	case ACRCCWBW:
++		return 0x4c << 15 // crcc.w.b.w
++	case ACRCCWHW:
++		return 0x4d << 15 // crcc.w.h.w
++	case ACRCCWWW:
++		return 0x4e << 15 // crcc.w.w.w
++	case ACRCCWVW:
++		return 0x4f << 15 // crcc.w.d.w
+ 	case AJMP:
+ 		return 0x13 << 26 // jirl r0, rj, 0
+ 	case AJAL:

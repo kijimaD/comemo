@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40565: e12efecfa7bd47e2cd8b98c9519bba63c81b8c6f
+# Index 40565: c36b5322a7bcb268fa7a4b5ef67ce807745745a9
 
 echo "🚀 Generating explanation for commit 40565..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40565..."
 
 ### メタデータ
 - **コミットインデックス**: 40565
-- **コミットハッシュ**: e12efecfa7bd47e2cd8b98c9519bba63c81b8c6f
-- **GitHub URL**: https://github.com/golang/go/commit/e12efecfa7bd47e2cd8b98c9519bba63c81b8c6f
+- **コミットハッシュ**: c36b5322a7bcb268fa7a4b5ef67ce807745745a9
+- **GitHub URL**: https://github.com/golang/go/commit/c36b5322a7bcb268fa7a4b5ef67ce807745745a9
 
 ### 章構成
 

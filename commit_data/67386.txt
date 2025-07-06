@@ -1,0 +1,43 @@
+commit 8552bcf7c261cd150d0074c4ec7e2412b20af0a5
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jun 11 16:46:21 2025 -0400
+
+    cmd/go/internal/fips140: ignore GOEXPERIMENT on error
+    
+    During toolchain selection, the GOEXPERIMENT value may not be valid for
+    the current version (but it is valid for the selected version). In this
+    case, cfg.ExperimentErr is set and cfg.Experiment is nil.
+    
+    Normally cmd/go main exits when ExperimentErr is set, so Experiment is
+    ~never nil. But that is skipped during toolchain selection, and
+    fips140.Init is used during toolchain selection.
+    
+    Fixes #74111.
+    
+    Change-Id: I6a6a636c65ee5831feaf3d29993a60613bbec6f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680976
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/go/internal/fips140/fips140.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/fips140/fips140.go b/src/cmd/go/internal/fips140/fips140.go
+index 328e06088e..7ca0cde588 100644
+--- a/src/cmd/go/internal/fips140/fips140.go
++++ b/src/cmd/go/internal/fips140/fips140.go
+@@ -114,7 +114,11 @@ func Init() {
+ 		fsys.Bind(Dir(), filepath.Join(cfg.GOROOT, "src/crypto/internal/fips140"))
+ 	}
+ 
+-	if cfg.Experiment.BoringCrypto && Enabled() {
++	// ExperimentErr != nil if GOEXPERIMENT failed to parse. Typically
++	// cmd/go main will exit in this case, but it is allowed during
++	// toolchain selection, as the GOEXPERIMENT may be valid for the
++	// selected toolchain version.
++	if cfg.ExperimentErr == nil && cfg.Experiment.BoringCrypto && Enabled() {
+ 		base.Fatalf("go: cannot use GOFIPS140 with GOEXPERIMENT=boringcrypto")
+ 	}
+ }

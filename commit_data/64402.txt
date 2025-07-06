@@ -1,0 +1,108 @@
+commit 864513dda9d96dfd0fbdbe4c2b68ebbfa3d34bc7
+Author: limeidan <limeidan@loongson.cn>
+Date:   Tue Jan 16 17:42:48 2024 +0800
+
+    cmd/internal/obj/loong64: merge two branch classes into one
+    
+    When the kind of the operand is TYPE_BRANCH, we cannot determine
+    whether it is a long branch or a short branch, so we merge these
+    two classes into one.
+    
+    Change-Id: I7d7fa8f62ff02791ec3de4e3e3f7610bc9cb1743
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/565626
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/internal/obj/loong64/a.out.go  |  3 +--
+ src/cmd/internal/obj/loong64/asm.go    | 23 +++++++++--------------
+ src/cmd/internal/obj/loong64/cnames.go |  3 +--
+ 3 files changed, 11 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 251c34c6ab..29ee1bb282 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -212,8 +212,7 @@ const (
+ 	C_LACON // $n(REG) where int12 < n <= int32
+ 	C_EXTADDR // external symbol address
+ 	C_DACON // $n(REG) where int32 < n
+-	C_SBRA
+-	C_LBRA
++	C_BRAN
+ 	C_SAUTO
+ 	C_LAUTO
+ 	C_SEXT
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 933c9c978d..2f2caa8b6d 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -240,13 +240,13 @@ var optab = []Optab{
+ 	{ASYSCALL, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
+ 	{ASYSCALL, C_ANDCON, C_NONE, C_NONE, C_NONE, C_NONE, 5, 4, 0, 0},
+ 
+-	{ABEQ, C_REG, C_REG, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
+-	{ABEQ, C_REG, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
+-	{ABLEZ, C_REG, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, 0},
+-	{ABFPT, C_NONE, C_NONE, C_NONE, C_SBRA, C_NONE, 6, 4, 0, NOTUSETMP},
++	{ABEQ, C_REG, C_REG, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
++	{ABEQ, C_REG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
++	{ABLEZ, C_REG, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, 0},
++	{ABFPT, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 6, 4, 0, NOTUSETMP},
+ 
+-	{AJMP, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // b
+-	{AJAL, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // bl
++	{AJMP, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // b
++	{AJAL, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // bl
+ 
+ 	{AJMP, C_NONE, C_NONE, C_NONE, C_ZOREG, C_NONE, 18, 4, REGZERO, 0}, // jirl r0, rj, 0
+ 	{AJAL, C_NONE, C_NONE, C_NONE, C_ZOREG, C_NONE, 18, 4, REGLINK, 0}, // jirl r1, rj, 0
+@@ -331,8 +331,8 @@ var optab = []Optab{
+ 	{obj.ANOP, C_DCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0}, // nop variants, see #40689
+ 	{obj.ANOP, C_REG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+ 	{obj.ANOP, C_FREG, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+-	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // same as AJMP
+-	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_LBRA, C_NONE, 11, 4, 0, 0}, // same as AJMP
++	{obj.ADUFFZERO, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
++	{obj.ADUFFCOPY, C_NONE, C_NONE, C_NONE, C_BRAN, C_NONE, 11, 4, 0, 0}, // same as AJMP
+ 
+ 	{obj.AXXX, C_NONE, C_NONE, C_NONE, C_NONE, C_NONE, 0, 4, 0, 0},
+ }
+@@ -807,7 +807,7 @@ func (c *ctxt0) aclass(a *obj.Addr) int {
+ 		return C_LCON
+ 
+ 	case obj.TYPE_BRANCH:
+-		return C_SBRA
++		return C_BRAN
+ 	}
+ 
+ 	return C_GOK
+@@ -950,11 +950,6 @@ func cmp(a int, b int) bool {
+ 			return true
+ 		}
+ 
+-	case C_LBRA:
+-		if b == C_SBRA {
+-			return true
+-		}
+-
+ 	case C_LEXT:
+ 		if b == C_SEXT {
+ 			return true
+diff --git a/src/cmd/internal/obj/loong64/cnames.go b/src/cmd/internal/obj/loong64/cnames.go
+index 955c464d2f..02b18272ca 100644
+--- a/src/cmd/internal/obj/loong64/cnames.go
++++ b/src/cmd/internal/obj/loong64/cnames.go
+@@ -24,8 +24,7 @@ var cnames0 = []string{
+ 	"LACON",
+ 	"EXTADDR",
+ 	"DACON",
+-	"SBRA",
+-	"LBRA",
++	"BRAN",
+ 	"SAUTO",
+ 	"LAUTO",
+ 	"SEXT",

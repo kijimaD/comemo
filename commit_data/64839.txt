@@ -1,0 +1,59 @@
+commit bc7c35a6d3bb0074d07beebedc0afcbdcebb8d3f
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Sep 13 13:07:16 2024 +0000
+
+    archive/tar: make use of maps.Clone
+    
+    Change-Id: I2a9d849410002dae1f49a53597298c1903954d12
+    GitHub-Last-Rev: 20a56b4161dd0864f67d427301cb28563f2c3d50
+    GitHub-Pull-Request: golang/go#69427
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612737
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/archive/tar/common.go | 15 +++------------
+ 1 file changed, 3 insertions(+), 12 deletions(-)
+
+diff --git a/src/archive/tar/common.go b/src/archive/tar/common.go
+index 16ba53e94d..7b3945ff15 100644
+--- a/src/archive/tar/common.go
++++ b/src/archive/tar/common.go
+@@ -15,6 +15,7 @@ import (
+ 	"fmt"
+ 	"internal/godebug"
+ 	"io/fs"
++	"maps"
+ 	"math"
+ 	"path"
+ 	"reflect"
+@@ -696,24 +697,14 @@ func FileInfoHeader(fi fs.FileInfo, link string) (*Header, error) {
+ 		h.Gname = sys.Gname
+ 		h.AccessTime = sys.AccessTime
+ 		h.ChangeTime = sys.ChangeTime
+-		if sys.Xattrs != nil {
+-			h.Xattrs = make(map[string]string)
+-			for k, v := range sys.Xattrs {
+-				h.Xattrs[k] = v
+-			}
+-		}
++		h.Xattrs = maps.Clone(sys.Xattrs)
+ 		if sys.Typeflag == TypeLink {
+ 			// hard link
+ 			h.Typeflag = TypeLink
+ 			h.Size = 0
+ 			h.Linkname = sys.Linkname
+ 		}
+-		if sys.PAXRecords != nil {
+-			h.PAXRecords = make(map[string]string)
+-			for k, v := range sys.PAXRecords {
+-				h.PAXRecords[k] = v
+-			}
+-		}
++		h.PAXRecords = maps.Clone(sys.PAXRecords)
+ 	}
+ 	var doNameLookups = true
+ 	if iface, ok := fi.(FileInfoNames); ok {

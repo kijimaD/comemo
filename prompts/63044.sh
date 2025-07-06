@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 63044: f212b6499a9944d728d514a70cca2d91a1110b2a
+# Index 63044: 90796f44d5d10163196c6116ae667eddba8b06c0
 
 echo "🚀 Generating explanation for commit 63044..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 63044..."
 
 ### メタデータ
 - **コミットインデックス**: 63044
-- **コミットハッシュ**: f212b6499a9944d728d514a70cca2d91a1110b2a
-- **GitHub URL**: https://github.com/golang/go/commit/f212b6499a9944d728d514a70cca2d91a1110b2a
+- **コミットハッシュ**: 90796f44d5d10163196c6116ae667eddba8b06c0
+- **GitHub URL**: https://github.com/golang/go/commit/90796f44d5d10163196c6116ae667eddba8b06c0
 
 ### 章構成
 

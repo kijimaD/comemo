@@ -1,0 +1,367 @@
+commit b25b5f3ff4e671aa4f5897c788137fe91f62cf57
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Aug 27 21:02:02 2024 +0000
+
+    runtime: fix GODEBUG=gccheckmark=1 and add smoke test
+    
+    This change fixes GODEBUG=gccheckmark=1 which seems to have bit-rotted.
+    Because the root jobs weren't being reset, it wasn't doing anything.
+    Then, it turned out that checkmark mode would queue up noscan objects in
+    workbufs, which caused it to fail. Then it turned out checkmark mode was
+    broken with user arenas, since their heap arenas are not registered
+    anywhere. Then, it turned out that checkmark mode could just not run
+    properly if the goroutine's preemption flag was set (since
+    sched.gcwaiting is true during the STW). And lastly, it turned out that
+    async preemption could cause erroneous checkmark failures.
+    
+    This change fixes all these issues and adds a simple smoke test to dist
+    to run the runtime tests under gccheckmark, which exercises all of these
+    issues.
+    
+    Fixes #69074.
+    Fixes #69377.
+    Fixes #69376.
+    
+    Change-Id: Iaa0bb7b9e63ed4ba34d222b47510d6292ce168bc
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/cmd/dist/test.go      | 12 ++++++++++--
+ src/runtime/arena.go      |  2 +-
+ src/runtime/malloc.go     | 45 +++++++++++++++++++++------------------------
+ src/runtime/mcheckmark.go | 18 +++++++++++++++---
+ src/runtime/mgc.go        | 13 +++++++++++--
+ src/runtime/mgcmark.go    | 16 ++++++++--------
+ src/runtime/mheap.go      | 27 ++++++++++++++++++---------
+ src/runtime/runtime1.go   | 17 +++++++++++++++++
+ 8 files changed, 101 insertions(+), 49 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 0c992118f4..58e87f16c0 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -752,8 +752,8 @@ func (t *tester) registerTests() {
+ 			})
+ 	}
+ 
+-	// GODEBUG=gcstoptheworld=2 tests. We only run these in long-test
+-	// mode (with GO_TEST_SHORT=0) because this is just testing a
++	// GC debug mode tests. We only run these in long-test mode
++	// (with GO_TEST_SHORT=0) because this is just testing a
+ 	// non-critical debug setting.
+ 	if !t.compileOnly && !t.short {
+ 		t.registerTest("GODEBUG=gcstoptheworld=2 archive/zip",
+@@ -764,6 +764,14 @@ func (t *tester) registerTests() {
+ 				env:     []string{"GODEBUG=gcstoptheworld=2"},
+ 				pkg:     "archive/zip",
+ 			})
++		t.registerTest("GODEBUG=gccheckmark=1 runtime",
++			&goTest{
++				variant: "runtime:gcstoptheworld2",
++				timeout: 300 * time.Second,
++				short:   true,
++				env:     []string{"GODEBUG=gccheckmark=1"},
++				pkg:     "runtime",
++			})
+ 	}
+ 
+ 	// morestack tests. We only run these in long-test mode
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index 0ffc74e872..34821491d5 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -1008,7 +1008,7 @@ func (h *mheap) allocUserArenaChunk() *mspan {
+ 			// is mapped contiguously.
+ 			hintList = &h.arenaHints
+ 		}
+-		v, size := h.sysAlloc(userArenaChunkBytes, hintList, false)
++		v, size := h.sysAlloc(userArenaChunkBytes, hintList, &mheap_.userArenaArenas)
+ 		if size%userArenaChunkBytes != 0 {
+ 			throw("sysAlloc size is not divisible by userArenaChunkBytes")
+ 		}
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 73d663f7f5..60ea2f5188 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -640,14 +640,13 @@ func mallocinit() {
+ // hintList is a list of hint addresses for where to allocate new
+ // heap arenas. It must be non-nil.
+ //
+-// register indicates whether the heap arena should be registered
+-// in allArenas.
+-//
+ // sysAlloc returns a memory region in the Reserved state. This region must
+ // be transitioned to Prepared and then Ready before use.
+ //
++// arenaList is the list the arena should be added to.
++//
+ // h must be locked.
+-func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, register bool) (v unsafe.Pointer, size uintptr) {
++func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx) (v unsafe.Pointer, size uintptr) {
+ 	assertLockHeld(&h.lock)
+ 
+ 	n = alignUp(n, heapArenaBytes)
+@@ -790,27 +789,25 @@ mapped:
+ 		}
+ 
+ 		// Register the arena in allArenas if requested.
+-		if register {
+-			if len(h.allArenas) == cap(h.allArenas) {
+-				size := 2 * uintptr(cap(h.allArenas)) * goarch.PtrSize
+-				if size == 0 {
+-					size = physPageSize
+-				}
+-				newArray := (*notInHeap)(persistentalloc(size, goarch.PtrSize, &memstats.gcMiscSys))
+-				if newArray == nil {
+-					throw("out of memory allocating allArenas")
+-				}
+-				oldSlice := h.allArenas
+-				*(*notInHeapSlice)(unsafe.Pointer(&h.allArenas)) = notInHeapSlice{newArray, len(h.allArenas), int(size / goarch.PtrSize)}
+-				copy(h.allArenas, oldSlice)
+-				// Do not free the old backing array because
+-				// there may be concurrent readers. Since we
+-				// double the array each time, this can lead
+-				// to at most 2x waste.
++		if len((*arenaList)) == cap((*arenaList)) {
++			size := 2 * uintptr(cap((*arenaList))) * goarch.PtrSize
++			if size == 0 {
++				size = physPageSize
+ 			}
+-			h.allArenas = h.allArenas[:len(h.allArenas)+1]
+-			h.allArenas[len(h.allArenas)-1] = ri
+-		}
++			newArray := (*notInHeap)(persistentalloc(size, goarch.PtrSize, &memstats.gcMiscSys))
++			if newArray == nil {
++				throw("out of memory allocating allArenas")
++			}
++			oldSlice := (*arenaList)
++			*(*notInHeapSlice)(unsafe.Pointer(&(*arenaList))) = notInHeapSlice{newArray, len((*arenaList)), int(size / goarch.PtrSize)}
++			copy((*arenaList), oldSlice)
++			// Do not free the old backing array because
++			// there may be concurrent readers. Since we
++			// double the array each time, this can lead
++			// to at most 2x waste.
++		}
++		(*arenaList) = (*arenaList)[:len((*arenaList))+1]
++		(*arenaList)[len((*arenaList))-1] = ri
+ 
+ 		// Store atomically just in case an object from the
+ 		// new heap arena becomes visible before the heap lock
+diff --git a/src/runtime/mcheckmark.go b/src/runtime/mcheckmark.go
+index f5560cf50f..03d769e7d3 100644
+--- a/src/runtime/mcheckmark.go
++++ b/src/runtime/mcheckmark.go
+@@ -39,7 +39,7 @@ func startCheckmarks() {
+ 	assertWorldStopped()
+ 
+ 	// Clear all checkmarks.
+-	for _, ai := range mheap_.allArenas {
++	clearCheckmarks := func(ai arenaIdx) {
+ 		arena := mheap_.arenas[ai.l1()][ai.l2()]
+ 		bitmap := arena.checkmarks
+ 
+@@ -55,6 +55,13 @@ func startCheckmarks() {
+ 			clear(bitmap.b[:])
+ 		}
+ 	}
++	for _, ai := range mheap_.heapArenas {
++		clearCheckmarks(ai)
++	}
++	for _, ai := range mheap_.userArenaArenas {
++		clearCheckmarks(ai)
++	}
++
+ 	// Enable checkmarking.
+ 	useCheckmark = true
+ }
+@@ -88,8 +95,13 @@ func setCheckmark(obj, base, off uintptr, mbits markBits) bool {
+ 
+ 	ai := arenaIndex(obj)
+ 	arena := mheap_.arenas[ai.l1()][ai.l2()]
+-	arenaWord := (obj / heapArenaBytes / 8) % uintptr(len(arena.checkmarks.b))
+-	mask := byte(1 << ((obj / heapArenaBytes) % 8))
++	if arena == nil {
++		// Non-heap pointer.
++		return false
++	}
++	wordIdx := (obj - alignDown(obj, heapArenaBytes)) / goarch.PtrSize
++	arenaWord := wordIdx / 8
++	mask := byte(1 << (wordIdx % 8))
+ 	bytep := &arena.checkmarks.b[arenaWord]
+ 
+ 	if atomic.Load8(bytep)&mask != 0 {
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 48001cfdb9..d7d97ad244 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1056,13 +1056,22 @@ func gcMarkTermination(stw worldStop) {
+ 			// mark using checkmark bits, to check that we
+ 			// didn't forget to mark anything during the
+ 			// concurrent mark process.
++			//
++			// Turn off gcwaiting because that will force
++			// gcDrain to return early if this goroutine
++			// happens to have its preemption flag set.
++			// This is fine because the world is stopped.
++			// Restore it after we're done just to be safe.
++			sched.gcwaiting.Store(false)
+ 			startCheckmarks()
+ 			gcResetMarkState()
++			gcMarkRootPrepare()
+ 			gcw := &getg().m.p.ptr().gcw
+ 			gcDrain(gcw, 0)
+ 			wbBufFlush1(getg().m.p.ptr())
+ 			gcw.dispose()
+ 			endCheckmarks()
++			sched.gcwaiting.Store(true)
+ 		}
+ 
+ 		// marking is complete so we can turn the write barrier off
+@@ -1684,7 +1693,7 @@ func gcSweep(mode gcMode) bool {
+ 	mheap_.sweepgen += 2
+ 	sweep.active.reset()
+ 	mheap_.pagesSwept.Store(0)
+-	mheap_.sweepArenas = mheap_.allArenas
++	mheap_.sweepArenas = mheap_.heapArenas
+ 	mheap_.reclaimIndex.Store(0)
+ 	mheap_.reclaimCredit.Store(0)
+ 	unlock(&mheap_.lock)
+@@ -1747,7 +1756,7 @@ func gcResetMarkState() {
+ 	// Clear page marks. This is just 1MB per 64GB of heap, so the
+ 	// time here is pretty trivial.
+ 	lock(&mheap_.lock)
+-	arenas := mheap_.allArenas
++	arenas := mheap_.heapArenas
+ 	unlock(&mheap_.lock)
+ 	for _, ai := range arenas {
+ 		ha := mheap_.arenas[ai.l1()][ai.l2()]
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 823b2bd7df..92ef215ee0 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -89,9 +89,9 @@ func gcMarkRootPrepare() {
+ 	//
+ 	// Break up the work into arenas, and further into chunks.
+ 	//
+-	// Snapshot allArenas as markArenas. This snapshot is safe because allArenas
++	// Snapshot heapArenas as markArenas. This snapshot is safe because heapArenas
+ 	// is append-only.
+-	mheap_.markArenas = mheap_.allArenas[:len(mheap_.allArenas):len(mheap_.allArenas)]
++	mheap_.markArenas = mheap_.heapArenas[:len(mheap_.heapArenas):len(mheap_.heapArenas)]
+ 	work.nSpanRoots = len(mheap_.markArenas) * (pagesPerArena / pagesPerSpanRoot)
+ 
+ 	// Scan stacks.
+@@ -1614,13 +1614,13 @@ func greyobject(obj, base, off uintptr, span *mspan, gcw *gcWork, objIndex uintp
+ 		if arena.pageMarks[pageIdx]&pageMask == 0 {
+ 			atomic.Or8(&arena.pageMarks[pageIdx], pageMask)
+ 		}
++	}
+ 
+-		// If this is a noscan object, fast-track it to black
+-		// instead of greying it.
+-		if span.spanclass.noscan() {
+-			gcw.bytesMarked += uint64(span.elemsize)
+-			return
+-		}
++	// If this is a noscan object, fast-track it to black
++	// instead of greying it.
++	if span.spanclass.noscan() {
++		gcw.bytesMarked += uint64(span.elemsize)
++		return
+ 	}
+ 
+ 	// We're adding obj to P's local workbuf, so it's likely
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index e058dd8489..21ae5b1a3b 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -108,9 +108,9 @@ type mheap struct {
+ 
+ 	// Page reclaimer state
+ 
+-	// reclaimIndex is the page index in allArenas of next page to
++	// reclaimIndex is the page index in heapArenas of next page to
+ 	// reclaim. Specifically, it refers to page (i %
+-	// pagesPerArena) of arena allArenas[i / pagesPerArena].
++	// pagesPerArena) of arena heapArenas[i / pagesPerArena].
+ 	//
+ 	// If this is >= 1<<63, the page reclaimer is done scanning
+ 	// the page marks.
+@@ -165,22 +165,31 @@ type mheap struct {
+ 	// (the actual arenas). This is only used on 32-bit.
+ 	arena linearAlloc
+ 
+-	// allArenas is the arenaIndex of every mapped arena. This can
+-	// be used to iterate through the address space.
++	// heapArenas is the arenaIndex of every mapped arena mapped for the heap.
++	// This can be used to iterate through the heap address space.
+ 	//
+ 	// Access is protected by mheap_.lock. However, since this is
+ 	// append-only and old backing arrays are never freed, it is
+ 	// safe to acquire mheap_.lock, copy the slice header, and
+ 	// then release mheap_.lock.
+-	allArenas []arenaIdx
++	heapArenas []arenaIdx
+ 
+-	// sweepArenas is a snapshot of allArenas taken at the
++	// userArenaArenas is the arenaIndex of every mapped arena mapped for
++	// user arenas.
++	//
++	// Access is protected by mheap_.lock. However, since this is
++	// append-only and old backing arrays are never freed, it is
++	// safe to acquire mheap_.lock, copy the slice header, and
++	// then release mheap_.lock.
++	userArenaArenas []arenaIdx
++
++	// sweepArenas is a snapshot of heapArenas taken at the
+ 	// beginning of the sweep cycle. This can be read safely by
+ 	// simply blocking GC (by disabling preemption).
+ 	sweepArenas []arenaIdx
+ 
+-	// markArenas is a snapshot of allArenas taken at the beginning
+-	// of the mark cycle. Because allArenas is append-only, neither
++	// markArenas is a snapshot of heapArenas taken at the beginning
++	// of the mark cycle. Because heapArenas is append-only, neither
+ 	// this slice nor its contents will change during the mark, so
+ 	// it can be read safely.
+ 	markArenas []arenaIdx
+@@ -1494,7 +1503,7 @@ func (h *mheap) grow(npage uintptr) (uintptr, bool) {
+ 		// Not enough room in the current arena. Allocate more
+ 		// arena space. This may not be contiguous with the
+ 		// current arena, so we have to request the full ask.
+-		av, asize := h.sysAlloc(ask, &h.arenaHints, true)
++		av, asize := h.sysAlloc(ask, &h.arenaHints, &h.heapArenas)
+ 		if av == nil {
+ 			inUse := gcController.heapFree.load() + gcController.heapReleased.load() + gcController.heapInUse.load()
+ 			print("runtime: out of memory: cannot allocate ", ask, "-byte block (", inUse, " in use)\n")
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index b47c589075..fb16f6daef 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -440,6 +440,23 @@ func parsedebugvars() {
+ 	debug.malloc = (debug.inittrace | debug.sbrk) != 0
+ 	debug.profstackdepth = min(debug.profstackdepth, maxProfStackDepth)
+ 
++	// Disable async preemption in checkmark mode. The following situation is
++	// problematic with checkmark mode:
++	//
++	// - The GC doesn't mark object A because it is truly dead.
++	// - The GC stops the world, asynchronously preempting G1 which has a reference
++	//   to A in its top stack frame
++	// - During the stop the world, we run the second checkmark GC. It marks the roots
++	//   and discovers A through G1.
++	// - Checkmark mode reports a failure since there's a discrepancy in mark metadata.
++	//
++	// We could disable just conservative scanning during the checkmark scan, which is
++	// safe but makes checkmark slightly less powerful, but that's a lot more invasive
++	// than just disabling async preemption altogether.
++	if debug.gccheckmark > 0 {
++		debug.asyncpreemptoff = 1
++	}
++
+ 	setTraceback(gogetenv("GOTRACEBACK"))
+ 	traceback_env = traceback_cache
+ }

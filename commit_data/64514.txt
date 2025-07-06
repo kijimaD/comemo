@@ -1,0 +1,103 @@
+commit b2cdaf73469d7f15181b3abfb7b168475375c373
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Aug 13 09:01:05 2024 -0700
+
+    cmd/compile: improve unneeded zeroing removal
+    
+    After newobject, we don't need to write zeroes to initialize the
+    object.  It has already been zeroed by the allocator.
+    
+    This is already handled in most cases, but because we run builtin
+    decomposition after the opt pass, we don't handle cases where the zero
+    of a compound builtin is being written. Improve the zero detector to
+    handle those cases.
+    
+    Fixes #68845
+    
+    Change-Id: If3dde2e304a05e5a6a6723565191d5444b334bcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605255
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/cmd/compile/internal/ssa/rewrite.go |  6 ++++
+ test/codegen/issue68845.go              | 52 +++++++++++++++++++++++++++++++++
+ 2 files changed, 58 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 75f6436979..fd7deadcdc 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1221,6 +1221,12 @@ func isConstZero(v *Value) bool {
+ 		return true
+ 	case OpConst64, OpConst32, OpConst16, OpConst8, OpConstBool, OpConst32F, OpConst64F:
+ 		return v.AuxInt == 0
++	case OpStringMake, OpIMake, OpComplexMake:
++		return isConstZero(v.Args[0]) && isConstZero(v.Args[1])
++	case OpSliceMake:
++		return isConstZero(v.Args[0]) && isConstZero(v.Args[1]) && isConstZero(v.Args[2])
++	case OpStringPtr, OpStringLen, OpSlicePtr, OpSliceLen, OpSliceCap, OpITab, OpIData, OpComplexReal, OpComplexImag:
++		return isConstZero(v.Args[0])
+ 	}
+ 	return false
+ }
+diff --git a/test/codegen/issue68845.go b/test/codegen/issue68845.go
+new file mode 100644
+index 0000000000..3b22471d06
+--- /dev/null
++++ b/test/codegen/issue68845.go
+@@ -0,0 +1,52 @@
++// asmcheck
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++type T1 struct {
++	x string
++}
++
++func f1() *T1 {
++	// amd64:-`MOVQ\s[$]0`,-`MOVUPS\sX15`
++	return &T1{}
++}
++
++type T2 struct {
++	x, y string
++}
++
++func f2() *T2 {
++	// amd64:-`MOVQ\s[$]0`,-`MOVUPS\sX15`
++	return &T2{}
++}
++
++type T3 struct {
++	x complex128
++}
++
++func f3() *T3 {
++	// amd64:-`MOVQ\s[$]0`,-`MOVUPS\sX15`
++	return &T3{}
++}
++
++type T4 struct {
++	x []byte
++}
++
++func f4() *T4 {
++	// amd64:-`MOVQ\s[$]0`,-`MOVUPS\sX15`
++	return &T4{}
++}
++
++type T5 struct {
++	x any
++}
++
++func f5() *T5 {
++	// amd64:-`MOVQ\s[$]0`,-`MOVUPS\sX15`
++	return &T5{}
++}

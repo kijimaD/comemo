@@ -1,0 +1,209 @@
+commit 1f58ad5d6d2eebc1939a65a511ca84c9b997cd6a
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jan 27 14:05:22 2025 -0800
+
+    Revert "os: employ sendfile(2) for file-to-file copying on Linux when needed"
+    
+    This reverts CL 603295.
+    
+    Reason for revert: can cause child exit_group to hang.
+    
+    This is not a clean revert. CL 603098 did a major refactoring of the
+    tests. That refactor is kept, just the sendfile-specific tests are
+    dropped from the linux tests.
+    
+    Fixes #71375.
+    
+    Change-Id: Ic4d6535759667c69a44bd9281bbb33d5b559f591
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644895
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Andy Pan <panjf2000@gmail.com>
+---
+ src/os/readfrom_linux_test.go    | 52 ++--------------------------------------
+ src/os/readfrom_sendfile_test.go |  2 +-
+ src/os/zero_copy_linux.go        | 46 ++++-------------------------------
+ 3 files changed, 7 insertions(+), 93 deletions(-)
+
+diff --git a/src/os/readfrom_linux_test.go b/src/os/readfrom_linux_test.go
+index cc0322882b..d33f9cf9c9 100644
+--- a/src/os/readfrom_linux_test.go
++++ b/src/os/readfrom_linux_test.go
+@@ -242,13 +242,12 @@ func testSpliceToTTY(t *testing.T, proto string, size int64) {
+ }
+ 
+ var (
+-	copyFileTests = []copyFileTestFunc{newCopyFileRangeTest, newSendfileOverCopyFileRangeTest}
+-	copyFileHooks = []copyFileTestHook{hookCopyFileRange, hookSendFileOverCopyFileRange}
++	copyFileTests = []copyFileTestFunc{newCopyFileRangeTest}
++	copyFileHooks = []copyFileTestHook{hookCopyFileRange}
+ )
+ 
+ func testCopyFiles(t *testing.T, size, limit int64) {
+ 	testCopyFileRange(t, size, limit)
+-	testSendfileOverCopyFileRange(t, size, limit)
+ }
+ 
+ func testCopyFileRange(t *testing.T, size int64, limit int64) {
+@@ -256,11 +255,6 @@ func testCopyFileRange(t *testing.T, size int64, limit int64) {
+ 	testCopyFile(t, dst, src, data, hook, limit, name)
+ }
+ 
+-func testSendfileOverCopyFileRange(t *testing.T, size int64, limit int64) {
+-	dst, src, data, hook, name := newSendfileOverCopyFileRangeTest(t, size)
+-	testCopyFile(t, dst, src, data, hook, limit, name)
+-}
+-
+ // newCopyFileRangeTest initializes a new test for copy_file_range.
+ //
+ // It hooks package os' call to poll.CopyFileRange and returns the hook,
+@@ -276,20 +270,6 @@ func newCopyFileRangeTest(t *testing.T, size int64) (dst, src *File, data []byte
+ 	return
+ }
+ 
+-// newSendfileOverCopyFileRangeTest initializes a new test for sendfile over copy_file_range.
+-// It hooks package os' call to poll.SendFile and returns the hook,
+-// so it can be inspected.
+-func newSendfileOverCopyFileRangeTest(t *testing.T, size int64) (dst, src *File, data []byte, hook *copyFileHook, name string) {
+-	t.Helper()
+-
+-	name = "newSendfileOverCopyFileRangeTest"
+-
+-	dst, src, data = newCopyFileTest(t, size)
+-	hook, _ = hookSendFileOverCopyFileRange(t)
+-
+-	return
+-}
+-
+ // newSpliceFileTest initializes a new test for splice.
+ //
+ // It creates source sockets and destination file, and populates the source sockets
+@@ -342,34 +322,6 @@ func hookCopyFileRange(t *testing.T) (hook *copyFileHook, name string) {
+ 	return
+ }
+ 
+-func hookSendFileOverCopyFileRange(t *testing.T) (*copyFileHook, string) {
+-	return hookSendFileTB(t), "hookSendFileOverCopyFileRange"
+-}
+-
+-func hookSendFileTB(tb testing.TB) *copyFileHook {
+-	// Disable poll.CopyFileRange to force the fallback to poll.SendFile.
+-	originalCopyFileRange := *PollCopyFileRangeP
+-	*PollCopyFileRangeP = func(dst, src *poll.FD, remain int64) (written int64, handled bool, err error) {
+-		return 0, false, nil
+-	}
+-
+-	hook := new(copyFileHook)
+-	orig := poll.TestHookDidSendFile
+-	tb.Cleanup(func() {
+-		*PollCopyFileRangeP = originalCopyFileRange
+-		poll.TestHookDidSendFile = orig
+-	})
+-	poll.TestHookDidSendFile = func(dstFD *poll.FD, src int, written int64, err error, handled bool) {
+-		hook.called = true
+-		hook.dstfd = dstFD.Sysfd
+-		hook.srcfd = src
+-		hook.written = written
+-		hook.err = err
+-		hook.handled = handled
+-	}
+-	return hook
+-}
+-
+ func hookSpliceFile(t *testing.T) *spliceFileHook {
+ 	h := new(spliceFileHook)
+ 	h.install()
+diff --git a/src/os/readfrom_sendfile_test.go b/src/os/readfrom_sendfile_test.go
+index dbe1603bd1..86ef71ee02 100644
+--- a/src/os/readfrom_sendfile_test.go
++++ b/src/os/readfrom_sendfile_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux || solaris
++//go:build solaris
+ 
+ package os_test
+ 
+diff --git a/src/os/zero_copy_linux.go b/src/os/zero_copy_linux.go
+index 27a0882560..9d666a3c79 100644
+--- a/src/os/zero_copy_linux.go
++++ b/src/os/zero_copy_linux.go
+@@ -40,17 +40,16 @@ func (f *File) writeTo(w io.Writer) (written int64, handled bool, err error) {
+ }
+ 
+ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
+-	// Neither copy_file_range(2)/sendfile(2) nor splice(2) supports destinations opened with
++	// Neither copy_file_range(2) nor splice(2) supports destinations opened with
+ 	// O_APPEND, so don't bother to try zero-copy with these system calls.
+ 	//
+ 	// Visit https://man7.org/linux/man-pages/man2/copy_file_range.2.html#ERRORS and
+-	// https://man7.org/linux/man-pages/man2/sendfile.2.html#ERRORS and
+ 	// https://man7.org/linux/man-pages/man2/splice.2.html#ERRORS for details.
+ 	if f.appendMode {
+ 		return 0, false, nil
+ 	}
+ 
+-	written, handled, err = f.copyFile(r)
++	written, handled, err = f.copyFileRange(r)
+ 	if handled {
+ 		return
+ 	}
+@@ -87,7 +86,7 @@ func (f *File) spliceToFile(r io.Reader) (written int64, handled bool, err error
+ 	return written, handled, wrapSyscallError("splice", err)
+ }
+ 
+-func (f *File) copyFile(r io.Reader) (written int64, handled bool, err error) {
++func (f *File) copyFileRange(r io.Reader) (written int64, handled bool, err error) {
+ 	var (
+ 		remain int64
+ 		lr     *io.LimitedReader
+@@ -116,44 +115,7 @@ func (f *File) copyFile(r io.Reader) (written int64, handled bool, err error) {
+ 	if lr != nil {
+ 		lr.N -= written
+ 	}
+-
+-	if handled {
+-		return written, handled, wrapSyscallError("copy_file_range", err)
+-	}
+-
+-	// If fd_in and fd_out refer to the same file and the source and target ranges overlap,
+-	// copy_file_range(2) just returns EINVAL error. poll.CopyFileRange will ignore that
+-	// error and act like it didn't call copy_file_range(2). Then the caller will fall back
+-	// to generic copy, which results in doubling the content in the file.
+-	// By contrast, sendfile(2) allows this kind of overlapping and works like a memmove,
+-	// in this case the file content will remain the same after copying, which is not what we want.
+-	// Thus, we just bail out here and leave it to generic copy when it's a file copying itself.
+-	if f.pfd.Sysfd == src.pfd.Sysfd {
+-		return 0, false, nil
+-	}
+-
+-	sc, err := src.SyscallConn()
+-	if err != nil {
+-		return
+-	}
+-
+-	// We can employ sendfile(2) when copy_file_range(2) fails to handle the copy.
+-	// sendfile(2) enabled file-to-file copying since Linux 2.6.33 and Go requires
+-	// Linux 3.2 or later, so we're good to go.
+-	// Check out https://man7.org/linux/man-pages/man2/sendfile.2.html#DESCRIPTION for more details.
+-	rerr := sc.Read(func(fd uintptr) bool {
+-		written, err, handled = poll.SendFile(&f.pfd, int(fd), remain)
+-		return true
+-	})
+-	if lr != nil {
+-		lr.N -= written
+-	}
+-
+-	if err == nil {
+-		err = rerr
+-	}
+-
+-	return written, handled, wrapSyscallError("sendfile", err)
++	return written, handled, wrapSyscallError("copy_file_range", err)
+ }
+ 
+ // getPollFDAndNetwork tries to get the poll.FD and network type from the given interface

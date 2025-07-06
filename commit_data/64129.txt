@@ -1,0 +1,56 @@
+commit 6fea4094242fe4e7be8bd7ec0b55df9f6df3f025
+Author: Rob Pike <r@golang.org>
+Date:   Fri Jun 14 09:48:09 2024 +1000
+
+    text/template/parse: fix handling of assignment/declaration in PipeNode.String
+    
+    The String method for Pipes assumed all variables were declared. Easy fix:
+    check the IsAssign bit.
+    
+    Fixes #65382
+    
+    Change-Id: I58f2760c1a8bb2821c3538645d893f58fd76ae73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592695
+    Run-TryBot: Rob Pike <r@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Rob Pike <r@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/text/template/parse/node.go       | 6 +++++-
+ src/text/template/parse/parse_test.go | 3 +++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/text/template/parse/node.go b/src/text/template/parse/node.go
+index 23ba9aec2b..a31309874d 100644
+--- a/src/text/template/parse/node.go
++++ b/src/text/template/parse/node.go
+@@ -217,7 +217,11 @@ func (p *PipeNode) writeTo(sb *strings.Builder) {
+ 			}
+ 			v.writeTo(sb)
+ 		}
+-		sb.WriteString(" := ")
++		if p.IsAssign {
++			sb.WriteString(" = ")
++		} else {
++			sb.WriteString(" := ")
++		}
+ 	}
+ 	for i, c := range p.Cmds {
+ 		if i > 0 {
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index faf226d1c3..26aff330fe 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -306,6 +306,9 @@ var parseTests = []parseTest{
+ 	{"bug1a", "{{$x:=.}}{{$x!2}}", hasError, ""},                     // ! is just illegal here.
+ 	{"bug1b", "{{$x:=.}}{{$x+2}}", hasError, ""},                     // $x+2 should not parse as ($x) (+2).
+ 	{"bug1c", "{{$x:=.}}{{$x +2}}", noError, "{{$x := .}}{{$x +2}}"}, // It's OK with a space.
++	// Check the range handles assignment vs. declaration properly.
++	{"bug2a", "{{range $x := 0}}{{$x}}{{end}}", noError, "{{range $x := 0}}{{$x}}{{end}}"},
++	{"bug2b", "{{range $x = 0}}{{$x}}{{end}}", noError, "{{range $x = 0}}{{$x}}{{end}}"},
+ 	// dot following a literal value
+ 	{"dot after integer", "{{1.E}}", hasError, ""},
+ 	{"dot after float", "{{0.1.E}}", hasError, ""},

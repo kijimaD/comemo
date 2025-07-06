@@ -1,0 +1,30 @@
+commit 82337de9f2157a132257b2e2fe5ae8f1ad57ff20
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 3 09:50:38 2025 -0800
+
+    test/issue71226: add cast to avoid clang error
+    
+    Change-Id: I2d8ecb7b5f48943697d454d09947fdb1817809d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646295
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+---
+ test/fixedbugs/issue71226.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/fixedbugs/issue71226.go b/test/fixedbugs/issue71226.go
+index 704814b601..5df05e3b29 100644
+--- a/test/fixedbugs/issue71226.go
++++ b/test/fixedbugs/issue71226.go
+@@ -14,7 +14,7 @@ package main
+ #include <stdio.h>
+ 
+ static void CFn(_GoString_ gostr) {
+-	printf("%.*s\n", _GoStringLen(gostr), _GoStringPtr(gostr));
++	printf("%.*s\n", (int)(_GoStringLen(gostr)), _GoStringPtr(gostr));
+ }
+ */
+ import "C"

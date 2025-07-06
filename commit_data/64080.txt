@@ -1,0 +1,167 @@
+commit b788e91badd523e5bb0fc8d50cd76b8ae04ffb20
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Jun 10 23:52:03 2024 +0000
+
+    os: always return syscall.ECHILD from Wait for done process
+    
+    For processes that don't exist at lookup time, CL 570036 and CL 588675
+    make Wait return unconditionally return ErrProcessDone when using pidfd,
+    rather than attempting to make a wait system call.
+    
+    This is consistent with Signal/Kill, but inconsistent with the previous
+    behavior of Wait, which would pass through the kernel error,
+    syscall.ECHILD.
+    
+    Switch the ErrProcessDone case to return syscall.ECHILD instead for
+    consistency with previous behavior.
+    
+    That said, I do think a future release should consider changing ECHILD
+    to ErrProcessDone in all cases (including when making an actual wait
+    system call) for better consistency with Signal/Kill/FindProcess.
+    
+    Fixes #67926.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-solaris-amd64,gotip-openbsd-amd64
+    Change-Id: I1f688a5751d0f3aecea99c3a5b35c7894cfc2beb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591816
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/os/exec_test.go        | 26 --------------------------
+ src/os/exec_unix_test.go   | 30 ++++++++++++++++++++++++++++++
+ src/os/pidfd_linux.go      |  5 ++++-
+ src/os/pidfd_linux_test.go |  4 +++-
+ 4 files changed, 37 insertions(+), 28 deletions(-)
+
+diff --git a/src/os/exec_test.go b/src/os/exec_test.go
+index b49dd0dd91..07a06ec0ff 100644
+--- a/src/os/exec_test.go
++++ b/src/os/exec_test.go
+@@ -6,7 +6,6 @@ package os_test
+ 
+ import (
+ 	"internal/testenv"
+-	"math"
+ 	"os"
+ 	"os/signal"
+ 	"runtime"
+@@ -76,28 +75,3 @@ func TestProcessReleaseTwice(t *testing.T) {
+ 		t.Fatalf("second Release: got err %v, want %v", err, want)
+ 	}
+ }
+-
+-// Lookup of a process that does not exist at time of lookup.
+-func TestProcessAlreadyDone(t *testing.T) {
+-	if runtime.GOOS == "windows" {
+-		t.Skip("Windows does not support lookup of non-existant process")
+-	}
+-	if runtime.GOARCH == "wasm" {
+-		t.Skip("Wait not supported om wasm port")
+-	}
+-
+-	// Theoretically MaxInt32 is a valid PID, but the chance of it actually
+-	// being used is extremely unlikely.
+-	p, err := os.FindProcess(math.MaxInt32)
+-	if err != nil {
+-		t.Fatalf("FindProcess(math.MaxInt32) got err %v, want nil", err)
+-	}
+-
+-	if ps, err := p.Wait(); err != os.ErrProcessDone {
+-		t.Errorf("Wait() got err %v (ps %+v), want ErrProcessDone", err, ps)
+-	}
+-
+-	if err := p.Release(); err != nil {
+-		t.Errorf("Release() got err %v, want nil", err)
+-	}
+-}
+diff --git a/src/os/exec_unix_test.go b/src/os/exec_unix_test.go
+index 69bcdbdad1..81d8e1cfee 100644
+--- a/src/os/exec_unix_test.go
++++ b/src/os/exec_unix_test.go
+@@ -7,8 +7,11 @@
+ package os_test
+ 
+ import (
++	"errors"
+ 	"internal/testenv"
++	"math"
+ 	. "os"
++	"runtime"
+ 	"syscall"
+ 	"testing"
+ )
+@@ -27,6 +30,33 @@ func TestErrProcessDone(t *testing.T) {
+ 	}
+ }
+ 
++// Lookup of a process that does not exist at time of lookup.
++func TestProcessAlreadyDone(t *testing.T) {
++	// Theoretically MaxInt32 is a valid PID, but the chance of it actually
++	// being used is extremely unlikely.
++	pid := math.MaxInt32
++	if runtime.GOOS == "solaris" || runtime.GOOS == "illumos" {
++		// Solaris/Illumos have a lower limit, above which wait returns
++		// EINVAL (see waitid in usr/src/uts/common/os/exit.c in
++		// illumos). This is configurable via sysconf(_SC_MAXPID), but
++		// we'll just take the default.
++		pid = 30000-1
++	}
++
++	p, err := FindProcess(pid)
++	if err != nil {
++		t.Fatalf("FindProcess(math.MaxInt32) got err %v, want nil", err)
++	}
++
++	if ps, err := p.Wait(); !errors.Is(err, syscall.ECHILD) {
++		t.Errorf("Wait() got err %v (ps %+v), want %v", err, ps, syscall.ECHILD)
++	}
++
++	if err := p.Release(); err != nil {
++		t.Errorf("Release() got err %v, want nil", err)
++	}
++}
++
+ func TestUNIXProcessAlive(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 	t.Parallel()
+diff --git a/src/os/pidfd_linux.go b/src/os/pidfd_linux.go
+index c71c366de6..0404c4ff64 100644
+--- a/src/os/pidfd_linux.go
++++ b/src/os/pidfd_linux.go
+@@ -74,7 +74,10 @@ func (p *Process) pidfdWait() (*ProcessState, error) {
+ 	handle, status := p.handleTransientAcquire()
+ 	switch status {
+ 	case statusDone:
+-		return nil, ErrProcessDone
++		// Process already completed Wait, or was not found by
++		// pidfdFind. Return ECHILD for consistency with what the wait
++		// syscall would return.
++		return nil, NewSyscallError("wait", syscall.ECHILD)
+ 	case statusReleased:
+ 		return nil, syscall.EINVAL
+ 	}
+diff --git a/src/os/pidfd_linux_test.go b/src/os/pidfd_linux_test.go
+index 2f567eed40..837593706b 100644
+--- a/src/os/pidfd_linux_test.go
++++ b/src/os/pidfd_linux_test.go
+@@ -5,8 +5,10 @@
+ package os_test
+ 
+ import (
++	"errors"
+ 	"internal/testenv"
+ 	"os"
++	"syscall"
+ 	"testing"
+ )
+ 
+@@ -47,7 +49,7 @@ func TestFindProcessViaPidfd(t *testing.T) {
+ 	if err := proc.Signal(os.Kill); err != os.ErrProcessDone {
+ 		t.Errorf("Signal: got %v, want %v", err, os.ErrProcessDone)
+ 	}
+-	if _, err := proc.Wait(); err != os.ErrProcessDone {
++	if _, err := proc.Wait(); !errors.Is(err, syscall.ECHILD) {
+ 		t.Errorf("Wait: got %v, want %v", err, os.ErrProcessDone)
+ 	}
+ 	// Release never returns errors on Unix.

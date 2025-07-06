@@ -1,0 +1,34 @@
+commit b45c7d546669c37bbfdb1dedffa1b3e12acfc18c
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Feb 3 22:50:29 2025 -0500
+
+    internal/trace: skip TestTraceCgoCallback on freebsd-amd64-race builders
+    
+    For #71556.
+    
+    Change-Id: I754f113bfdad244d0e978cf559bf45f2f4d7bf06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646396
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/internal/trace/trace_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/internal/trace/trace_test.go b/src/internal/trace/trace_test.go
+index facac47eef..4ff87c1ede 100644
+--- a/src/internal/trace/trace_test.go
++++ b/src/internal/trace/trace_test.go
+@@ -573,6 +573,11 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
+ 	onBuilder := testenv.Builder() != ""
+ 	onOldBuilder := !strings.Contains(testenv.Builder(), "gotip") && !strings.Contains(testenv.Builder(), "go1")
+ 
++	if progName == "cgo-callback.go" && onBuilder && !onOldBuilder &&
++		runtime.GOOS == "freebsd" && runtime.GOARCH == "amd64" && race.Enabled {
++		t.Skip("test fails on freebsd-amd64-race in LUCI; see go.dev/issue/71556")
++	}
++
+ 	testPath := filepath.Join("./testdata/testprog", progName)
+ 	testName := progName
+ 	runTest := func(t *testing.T, stress bool, extraGODEBUG string) {

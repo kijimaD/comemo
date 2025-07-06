@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40420: 83f205fa8829781b9a4ef67ab47ae5fc96ecb6b5
+# Index 40420: 928a4b69195f1f408e4cdb6ad4ee41f5f91f4e86
 
 echo "🚀 Generating explanation for commit 40420..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40420..."
 
 ### メタデータ
 - **コミットインデックス**: 40420
-- **コミットハッシュ**: 83f205fa8829781b9a4ef67ab47ae5fc96ecb6b5
-- **GitHub URL**: https://github.com/golang/go/commit/83f205fa8829781b9a4ef67ab47ae5fc96ecb6b5
+- **コミットハッシュ**: 928a4b69195f1f408e4cdb6ad4ee41f5f91f4e86
+- **GitHub URL**: https://github.com/golang/go/commit/928a4b69195f1f408e4cdb6ad4ee41f5f91f4e86
 
 ### 章構成
 

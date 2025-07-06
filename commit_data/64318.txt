@@ -1,0 +1,36 @@
+commit fac95803ebe49b95fe93f9f8034bace69cb60119
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sat Jul 27 00:09:04 2024 +0700
+
+    runtime: remove darwin-amd64-10_14 builder check
+    
+    By now macOS 11 is the minimum required version.
+    
+    Updates #43926
+    
+    Change-Id: I13716e2e521c26bd9997f0ea1b717cf72ab7e47c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601276
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/crash_cgo_test.go | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index f9fbdd8f1c..57111c9aef 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -65,10 +65,6 @@ func TestCgoCallbackGC(t *testing.T) {
+ 			t.Skip("too slow for mips64x builders")
+ 		}
+ 	}
+-	if testenv.Builder() == "darwin-amd64-10_14" {
+-		// TODO(#23011): When the 10.14 builders are gone, remove this skip.
+-		t.Skip("skipping due to platform bug on macOS 10.14; see https://golang.org/issue/43926")
+-	}
+ 	got := runTestProg(t, "testprogcgo", "CgoCallbackGC")
+ 	want := "OK\n"
+ 	if got != want {

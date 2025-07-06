@@ -1,0 +1,139 @@
+commit 2751443e92d9ac6adee2ce0433253fd7b2c04b0f
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Oct 17 16:26:52 2024 +0800
+
+    cmd/internal/obj/loong64: add {V,XV}PCNT.{B,H,W,D} instructions support
+    
+    Go asm syntax:
+              VPCNT{B,H,W,V}  VJ, VD
+             XVPCNT{B,H,W,V}  XJ, XD
+    
+    Equivalent platform assembler syntax:
+              vpcnt.{b,w,h,d}  vd, vj
+             xvpcnt.{b,w,h,d}  xd, xj
+    
+    Change-Id: Icec4446b1925745bc3a0bc3f6397d862953b9098
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620736
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+---
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 10 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 10 +++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  8 +++++++
+ src/cmd/internal/obj/loong64/asm.go             | 28 +++++++++++++++++++++++++
+ 4 files changed, 56 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index fbfe90a2b0..459d161748 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -443,3 +443,13 @@ lable2:
+ 	XVSEQH		X3, X2, X4      // 448c0074
+ 	XVSEQW		X3, X2, X4      // 440c0174
+ 	XVSEQV		X3, X2, X4      // 448c0174
++
++	// VPCNT{B,H,W,V}, XVPCNT{B,H,W,V} instruction
++	VPCNTB		V1, V2          // 22209c72
++	VPCNTH		V1, V2          // 22249c72
++	VPCNTW		V1, V2          // 22289c72
++	VPCNTV		V1, V2          // 222c9c72
++	XVPCNTB		X3, X2          // 62209c76
++	XVPCNTH		X3, X2          // 62249c76
++	XVPCNTW		X3, X2          // 62289c76
++	XVPCNTV		X3, X2          // 622c9c76
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 4e4135b017..80fba3c7b7 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -628,6 +628,16 @@ const (
+ 	AVMOVQ
+ 	AXVMOVQ
+ 
++	// LSX and LASX Bit-manipulation Instructions
++	AVPCNTB
++	AVPCNTH
++	AVPCNTW
++	AVPCNTV
++	AXVPCNTB
++	AXVPCNTH
++	AXVPCNTW
++	AXVPCNTV
++
+ 	// LSX and LASX integer comparison instruction
+ 	AVSEQB
+ 	AXVSEQB
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index a316c75522..3d2f329917 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -257,6 +257,14 @@ var Anames = []string{
+ 	"FTINTRNEVD",
+ 	"VMOVQ",
+ 	"XVMOVQ",
++	"VPCNTB",
++	"VPCNTH",
++	"VPCNTW",
++	"VPCNTV",
++	"XVPCNTB",
++	"XVPCNTH",
++	"XVPCNTW",
++	"XVPCNTV",
+ 	"VSEQB",
+ 	"XVSEQB",
+ 	"VSEQH",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 48a9a5389f..d1200fa598 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -93,6 +93,8 @@ var optab = []Optab{
+ 	{AMOVVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
+ 	{AMOVF, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
+ 	{AMOVD, C_FREG, C_NONE, C_NONE, C_FREG, C_NONE, 9, 4, 0, 0},
++	{AVPCNTB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 9, 4, 0, 0},
++	{AXVPCNTB, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 9, 4, 0, 0},
+ 
+ 	{AFMADDF, C_FREG, C_FREG, C_NONE, C_FREG, C_NONE, 39, 4, 0, 0},
+ 	{AFMADDF, C_FREG, C_FREG, C_FREG, C_FREG, C_NONE, 39, 4, 0, 0},
+@@ -1294,6 +1296,16 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AXVSEQH, r0)
+ 			opset(AXVSEQW, r0)
+ 			opset(AXVSEQV, r0)
++
++		case AVPCNTB:
++			opset(AVPCNTH, r0)
++			opset(AVPCNTW, r0)
++			opset(AVPCNTV, r0)
++
++		case AXVPCNTB:
++			opset(AXVPCNTH, r0)
++			opset(AXVPCNTW, r0)
++			opset(AXVPCNTV, r0)
+ 		}
+ 	}
+ }
+@@ -2322,6 +2334,22 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x46b9 << 10 // ftintrne.l.s
+ 	case AFTINTRNEVD:
+ 		return 0x46ba << 10 // ftintrne.l.d
++	case AVPCNTB:
++		return 0x1ca708 << 10 // vpcnt.b
++	case AVPCNTH:
++		return 0x1ca709 << 10 // vpcnt.h
++	case AVPCNTW:
++		return 0x1ca70a << 10 // vpcnt.w
++	case AVPCNTV:
++		return 0x1ca70b << 10 // vpcnt.v
++	case AXVPCNTB:
++		return 0x1da708 << 10 // xvpcnt.b
++	case AXVPCNTH:
++		return 0x1da709 << 10 // xvpcnt.h
++	case AXVPCNTW:
++		return 0x1da70a << 10 // xvpcnt.w
++	case AXVPCNTV:
++		return 0x1da70b << 10 // xvpcnt.v
+ 	}
+ 
+ 	c.ctxt.Diag("bad rr opcode %v", a)

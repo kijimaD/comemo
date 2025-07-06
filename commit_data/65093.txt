@@ -1,0 +1,62 @@
+commit 6a4feb56448aea1a0fe3485122d48fe7111958b1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Oct 8 12:46:01 2024 -0400
+
+    cmd/link: on Mach-O, generate LC_UUID by default
+    
+    On Mach-O, default to "-B gobuildid", so it generates the UUID
+    based on Go buildid by default.
+    
+    Fixes #68678.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-darwin-arm64_13
+    Change-Id: I6c1a6bcafd8370a13174657e05d7d9620a8d4f12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618598
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/link/internal/ld/elf.go  | 3 +++
+ src/cmd/link/internal/ld/main.go | 7 ++++---
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index a00a7bc0f2..fb3e4f5071 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -807,6 +807,9 @@ func elfwritefreebsdsig(out *OutBuf) int {
+ 
+ func addbuildinfo(ctxt *Link) {
+ 	val := *flagHostBuildid
++	if val == "" || val == "none" {
++		return
++	}
+ 	if val == "gobuildid" {
+ 		buildID := *flagBuildid
+ 		if buildID == "" {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 12bc896c66..532d6dc80e 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -95,7 +95,7 @@ var (
+ 	flagN             = flag.Bool("n", false, "no-op (deprecated)")
+ 	FlagS             = flag.Bool("s", false, "disable symbol table")
+ 	flag8             bool // use 64-bit addresses in symbol table
+-	flagHostBuildid   = flag.String("B", "", "set ELF NT_GNU_BUILD_ID `note` or Mach-O UUID; use \"gobuildid\" to generate it from the Go build ID")
++	flagHostBuildid   = flag.String("B", "", "set ELF NT_GNU_BUILD_ID `note` or Mach-O UUID; use \"gobuildid\" to generate it from the Go build ID; \"none\" to disable")
+ 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
+ 	flagCheckLinkname = flag.Bool("checklinkname", true, "check linkname symbol references")
+ 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
+@@ -294,9 +294,10 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		*flagBuildid = "go-openbsd"
+ 	}
+ 
+-	if *flagHostBuildid != "" {
+-		addbuildinfo(ctxt)
++	if *flagHostBuildid == "" && *flagBuildid != "" && ctxt.IsDarwin() {
++		*flagHostBuildid = "gobuildid"
+ 	}
++	addbuildinfo(ctxt)
+ 
+ 	// enable benchmarking
+ 	var bench *benchmark.Metrics

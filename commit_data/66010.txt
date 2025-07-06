@@ -1,0 +1,47 @@
+commit 4f11d5879a01e64cb8bd59911bb205ffedd4f265
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 31 12:39:19 2025 -0800
+
+    crypto/internal/cryptotest: print stderr if go tool fails
+    
+    Trying to find out why "go env GOMODCACHE" is failing
+    on the Windows longtest builder.
+    
+    For #71508
+    
+    Change-Id: I0642d5a5d85a549c6edde0be5bed8f0a16cca200
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645895
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/cryptotest/fetchmodule.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/cryptotest/fetchmodule.go b/src/crypto/internal/cryptotest/fetchmodule.go
+index 740b17b001..37f2a09497 100644
+--- a/src/crypto/internal/cryptotest/fetchmodule.go
++++ b/src/crypto/internal/cryptotest/fetchmodule.go
+@@ -9,6 +9,7 @@ import (
+ 	"encoding/json"
+ 	"internal/testenv"
+ 	"os"
++	"os/exec"
+ 	"testing"
+ )
+ 
+@@ -23,7 +24,11 @@ func FetchModule(t *testing.T, module, version string) string {
+ 	// instead. (For example, run.bash sets GOPATH=/nonexist-gopath.)
+ 	out, err := testenv.Command(t, goTool, "env", "GOMODCACHE").Output()
+ 	if err != nil {
+-		t.Fatalf("%s env GOMODCACHE: %v\n%s", goTool, err, out)
++		t.Errorf("%s env GOMODCACHE: %v\n%s", goTool, err, out)
++		if ee, ok := err.(*exec.ExitError); ok {
++			t.Logf("%s", ee.Stderr)
++		}
++		t.FailNow()
+ 	}
+ 	modcacheOk := false
+ 	if gomodcache := string(bytes.TrimSpace(out)); gomodcache != "" {

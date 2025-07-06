@@ -1,0 +1,110 @@
+commit f49ca5f525334e98a8f0f1bd2b2f121bc003573e
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue May 6 11:14:31 2025 +0800
+
+    cmd/internal/obj/loong64: add [X]VFCLASS.{S/D} instructions
+    
+    Go asm syntax:
+             VFCLASS{F/D}   VJ, VD
+            XVFCLASS{F/D}   XJ, XD
+    
+    Equivalent platform assembler syntax:
+             vfclass.{s/d}  vd, vj
+            xvfclass.{s/d}  xd, xj
+    
+    Change-Id: Iec373f393be315696d1fefc747a4a5882f993195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670256
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dustin Turner <dustin.turner44@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+---
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  6 ++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  5 +++++
+ src/cmd/internal/obj/loong64/anames.go          |  4 ++++
+ src/cmd/internal/obj/loong64/asm.go             | 12 ++++++++++++
+ 4 files changed, 27 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 3dfe89aab3..494023ee65 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -1004,3 +1004,9 @@ lable2:
+ 	XVMULD		X1, X2, X3	// 43043975
+ 	XVDIVF		X1, X2, X3	// 43843a75
+ 	XVDIVD		X1, X2, X3	// 43043b75
++
++	// [X]VFCLASS.{S/D} instructions
++	VFCLASSF	V1, V2		// 22d49c72
++	VFCLASSD	V1, V2		// 22d89c72
++	XVFCLASSF	X1, X2		// 22d49c76
++	XVFCLASSD	X1, X2		// 22d89c76
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index c88c556bfe..97a4d6c179 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -967,6 +967,11 @@ const (
+ 	AXVDIVF
+ 	AXVDIVD
+ 
++	AVFCLASSF
++	AVFCLASSD
++	AXVFCLASSF
++	AXVFCLASSD
++
+ 	// LSX and LASX floating point conversion instructions
+ 	AVFRINTRNEF
+ 	AVFRINTRNED
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 533e5f4154..0c1a6ea0c6 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -465,6 +465,10 @@ var Anames = []string{
+ 	"XVMULD",
+ 	"XVDIVF",
+ 	"XVDIVD",
++	"VFCLASSF",
++	"VFCLASSD",
++	"XVFCLASSF",
++	"XVFCLASSD",
+ 	"VFRINTRNEF",
+ 	"VFRINTRNED",
+ 	"VFRINTRZF",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index dc9fafc0e2..6723c67b3f 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1748,6 +1748,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVFRINTRMD, r0)
+ 			opset(AVFRINTF, r0)
+ 			opset(AVFRINTD, r0)
++			opset(AVFCLASSF, r0)
++			opset(AVFCLASSD, r0)
+ 
+ 		case AXVPCNTB:
+ 			opset(AXVPCNTH, r0)
+@@ -1773,6 +1775,8 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AXVFRINTRMD, r0)
+ 			opset(AXVFRINTF, r0)
+ 			opset(AXVFRINTD, r0)
++			opset(AXVFCLASSF, r0)
++			opset(AXVFCLASSD, r0)
+ 
+ 		case AVADDB:
+ 			opset(AVADDH, r0)
+@@ -3691,6 +3695,14 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x1da74d << 10 // xvfrint.s
+ 	case AXVFRINTD:
+ 		return 0x1da74e << 10 // xvfrint.d
++	case AVFCLASSF:
++		return 0x1ca735 << 10 // vfclass.s
++	case AVFCLASSD:
++		return 0x1ca736 << 10 // vfclass.d
++	case AXVFCLASSF:
++		return 0x1da735 << 10 // xvfclass.s
++	case AXVFCLASSD:
++		return 0x1da736 << 10 // xvfclass.d
+ 	case AVSETEQV:
+ 		return 0x1ca726<<10 | 0x0<<3 // vseteqz.v
+ 	case AVSETNEV:

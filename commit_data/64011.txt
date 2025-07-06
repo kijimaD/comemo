@@ -1,0 +1,1171 @@
+commit cc95d85fe452e2556efe29631421bac4c13f0160
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 29 14:19:14 2024 -0700
+
+    cmd/compile: remove quoting in favor of clearer prose in error messages
+    
+    In an attempt to address issue #65790 (confusing error messages),
+    quoting of names was introduced for some (but not all) names used
+    in error messages.
+    
+    That CL solved the issue at hand at the cost of extra punctuation
+    (the quotes) plus some inconsistency (not all names were quoted).
+    
+    This CL removes the quoting again in favor or adding a qualifying noun
+    (such as "name", "label", "package", "built-in" etc.) before a user-
+    specified name where needed.
+    
+    For instance, instead of
+    
+            invalid argument to `max'
+    
+    we now say
+    
+            invalid argument to built-in max
+    
+    There's still a chance for confusion. For instance, before an error
+    might have been
+    
+            `sadly' not exported by package X
+    
+    and now it would be
+    
+            name sadly not exported by package X
+    
+    but adverbs (such as "sadly") seem unlikely names in programs.
+    
+    This change touches a lot of files but only affects error messages.
+    
+    Fixes #67685.
+    
+    Change-Id: I95435b388f92cade316e2844d59ecf6953b178bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589118
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/syntax/parser.go          |  2 +-
+ .../compile/internal/syntax/testdata/issue20789.go |  2 +-
+ .../compile/internal/syntax/testdata/issue47704.go |  2 +-
+ .../compile/internal/syntax/testdata/issue49205.go |  8 ++--
+ .../compile/internal/syntax/testdata/issue52391.go |  2 +-
+ .../compile/internal/syntax/testdata/issue65790.go |  2 +-
+ src/cmd/compile/internal/types2/builtins.go        | 12 ++---
+ src/cmd/compile/internal/types2/call.go            |  2 +-
+ src/cmd/compile/internal/types2/check.go           |  2 +-
+ src/cmd/compile/internal/types2/decl.go            |  2 +-
+ src/cmd/compile/internal/types2/format.go          | 33 -------------
+ src/cmd/compile/internal/types2/issues_test.go     | 10 ++--
+ src/cmd/compile/internal/types2/labels.go          | 12 ++---
+ src/cmd/compile/internal/types2/stmt.go            |  4 +-
+ src/cmd/compile/internal/types2/typeset.go         |  8 ++--
+ src/cmd/compile/internal/types2/typexpr.go         |  4 +-
+ src/go/types/builtins.go                           | 12 ++---
+ src/go/types/call.go                               |  2 +-
+ src/go/types/check.go                              |  2 +-
+ src/go/types/decl.go                               |  2 +-
+ src/go/types/format.go                             | 33 -------------
+ src/go/types/issues_test.go                        | 10 ++--
+ src/go/types/labels.go                             | 12 ++---
+ src/go/types/stmt.go                               |  4 +-
+ src/go/types/typeset.go                            |  8 ++--
+ src/go/types/typexpr.go                            |  4 +-
+ src/internal/types/testdata/check/builtins0.go     |  4 +-
+ src/internal/types/testdata/check/decls0.go        |  2 +-
+ .../types/testdata/check/decls2/decls2a.go         |  4 +-
+ src/internal/types/testdata/check/go1_13.go        |  4 +-
+ .../testdata/check/importdecl0/importdecl0a.go     |  2 +-
+ src/internal/types/testdata/check/labels.go        | 56 +++++++++++-----------
+ src/internal/types/testdata/check/stmt0.go         |  4 +-
+ .../types/testdata/fixedbugs/issue50779.go         |  2 +-
+ .../types/testdata/fixedbugs/issue66285.go         |  6 +--
+ test/fixedbugs/issue11361.go                       |  2 +-
+ test/fixedbugs/issue20789.go                       |  2 +-
+ test/fixedbugs/issue21317.go                       |  4 +-
+ test/fixedbugs/issue23664.go                       |  6 +--
+ test/fixedbugs/issue28268.go                       |  4 +-
+ test/fixedbugs/issue29870b.go                      |  2 +-
+ test/fixedbugs/issue34329.go                       |  4 +-
+ 42 files changed, 117 insertions(+), 187 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/parser.go b/src/cmd/compile/internal/syntax/parser.go
+index f75f86587a..66570fe92a 100644
+--- a/src/cmd/compile/internal/syntax/parser.go
++++ b/src/cmd/compile/internal/syntax/parser.go
+@@ -268,7 +268,7 @@ func (p *parser) syntaxErrorAt(pos Pos, msg string) {
+ 	var tok string
+ 	switch p.tok {
+ 	case _Name:
+-		tok = "`" + p.lit + "'"
++		tok = "name " + p.lit
+ 	case _Semi:
+ 		tok = p.lit
+ 	case _Literal:
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue20789.go b/src/cmd/compile/internal/syntax/testdata/issue20789.go
+index 8a6db6d2ee..846da83694 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue20789.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue20789.go
+@@ -6,4 +6,4 @@
+ // Line 9 must end in EOF for this test (no newline).
+ 
+ package e
+-func([<-chan<-[func /* ERROR unexpected `u' */ u){go
+\ No newline at end of file
++func([<-chan<-[func /* ERROR unexpected name u */ u){go
+\ No newline at end of file
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue47704.go b/src/cmd/compile/internal/syntax/testdata/issue47704.go
+index aab3790560..e490130db0 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue47704.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue47704.go
+@@ -7,7 +7,7 @@ package p
+ func _() {
+ 	_ = m[] // ERROR expected operand
+ 	_ = m[x,]
+-	_ = m[x /* ERROR unexpected `a' */ a b c d]
++	_ = m[x /* ERROR unexpected name a */ a b c d]
+ }
+ 
+ // test case from the issue
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue49205.go b/src/cmd/compile/internal/syntax/testdata/issue49205.go
+index 9b6c769703..891a6eeb83 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue49205.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue49205.go
+@@ -7,7 +7,7 @@ package p
+ // test case from issue
+ 
+ type _ interface{
+-	m /* ERROR unexpected `int' in interface type; possibly missing semicolon or newline or } */ int
++	m /* ERROR unexpected name int in interface type; possibly missing semicolon or newline or } */ int
+ }
+ 
+ // other cases where the fix for this issue affects the error message
+@@ -16,12 +16,12 @@ const (
+ 	x int = 10 /* ERROR unexpected literal "foo" in grouped declaration; possibly missing semicolon or newline or \) */ "foo"
+ )
+ 
+-var _ = []int{1, 2, 3 /* ERROR unexpected `int' in composite literal; possibly missing comma or } */ int }
++var _ = []int{1, 2, 3 /* ERROR unexpected name int in composite literal; possibly missing comma or } */ int }
+ 
+ type _ struct {
+ 	x y /* ERROR syntax error: unexpected comma in struct type; possibly missing semicolon or newline or } */ ,
+ }
+ 
+-func f(a, b c /* ERROR unexpected `d' in parameter list; possibly missing comma or \) */ d) {
+-	f(a, b, c /* ERROR unexpected `d' in argument list; possibly missing comma or \) */ d)
++func f(a, b c /* ERROR unexpected name d in parameter list; possibly missing comma or \) */ d) {
++	f(a, b, c /* ERROR unexpected name d in argument list; possibly missing comma or \) */ d)
+ }
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue52391.go b/src/cmd/compile/internal/syntax/testdata/issue52391.go
+index 42b71cc83a..85c080c9e6 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue52391.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue52391.go
+@@ -13,5 +13,5 @@ type _ interface {
+ 	(int) | (string)
+ 	(int) | ~(string)
+ 	(/* ERROR unexpected ~ */ ~int)
+-	(int /* ERROR unexpected \| */ | /* ERROR unexpected `string' */ string /* ERROR unexpected \) */ )
++	(int /* ERROR unexpected \| */ | /* ERROR unexpected name string */ string /* ERROR unexpected \) */ )
+ }
+diff --git a/src/cmd/compile/internal/syntax/testdata/issue65790.go b/src/cmd/compile/internal/syntax/testdata/issue65790.go
+index 07ffd12678..9e079423ab 100644
+--- a/src/cmd/compile/internal/syntax/testdata/issue65790.go
++++ b/src/cmd/compile/internal/syntax/testdata/issue65790.go
+@@ -9,6 +9,6 @@ import (
+ )
+ 
+ func f() {
+-	int status // ERROR syntax error: unexpected `status' at end of statement
++	int status // ERROR syntax error: unexpected name status at end of statement
+ 	fmt.Println(status)
+ }
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index d176cf0967..808d39fd24 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -25,7 +25,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	if hasDots(call) && id != _Append {
+ 		check.errorf(dddErrPos(call),
+ 			InvalidDotDotDot,
+-			invalidOp+"invalid use of ... with built-in %s", quote(bin.name))
++			invalidOp+"invalid use of ... with built-in %s", bin.name)
+ 		check.use(argList...)
+ 		return
+ 	}
+@@ -210,7 +210,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 				if id == _Len {
+ 					code = InvalidLen
+ 				}
+-				check.errorf(x, code, invalidArg+"%s for %s", x, quote(bin.name))
++				check.errorf(x, code, invalidArg+"%s for built-in %s", x, bin.name)
+ 			}
+ 			return
+ 		}
+@@ -533,7 +533,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 	case _Max, _Min:
+ 		// max(x, ...)
+ 		// min(x, ...)
+-		check.verifyVersionf(call.Fun, go1_21, "%s", quote(bin.name))
++		check.verifyVersionf(call.Fun, go1_21, "built-in %s", bin.name)
+ 
+ 		op := token.LSS
+ 		if id == _Max {
+@@ -576,7 +576,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		if x.mode != constant_ {
+ 			x.mode = value
+ 			// A value must not be untyped.
+-			check.assignment(x, &emptyInterface, "argument to "+quote(bin.name))
++			check.assignment(x, &emptyInterface, "argument to built-in "+bin.name)
+ 			if x.mode == invalid {
+ 				return
+ 			}
+@@ -641,7 +641,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		if nargs > 0 {
+ 			params = make([]Type, nargs)
+ 			for i, a := range args {
+-				check.assignment(a, nil, "argument to "+quote(predeclaredFuncs[id].name))
++				check.assignment(a, nil, "argument to built-in"+predeclaredFuncs[id].name)
+ 				if a.mode == invalid {
+ 					return
+ 				}
+@@ -992,7 +992,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ 		default:
+ 			panic("unreachable")
+ 		}
+-		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, quote(predeclaredFuncs[id].name))
++		check.softErrorf(x, code, "%s not supported as argument to built-in %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
+ 
+ 		// Construct a suitable new type parameter for the result type.
+ 		// The type parameter is placed in the current package so export/import
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index ca9772ff41..7df4e8250e 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -719,7 +719,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 					goto Error
+ 				}
+ 				if !exp.Exported() {
+-					check.errorf(e.Sel, UnexportedName, "%s not exported by package %s", quote(sel), quote(pkg.name))
++					check.errorf(e.Sel, UnexportedName, "name %s not exported by package %s", sel, pkg.name)
+ 					// ok to continue
+ 				}
+ 			}
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 3bb28b46b4..91ad474e9d 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -310,7 +310,7 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 			check.files = append(check.files, file)
+ 
+ 		default:
+-			check.errorf(file, MismatchedPkgName, "package %s; expected %s", quote(name), quote(pkg.name))
++			check.errorf(file, MismatchedPkgName, "package %s; expected package %s", name, pkg.name)
+ 			// ignore this file
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 08c186ed0a..6a266de7fd 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -743,7 +743,7 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
+ 					// For historical consistency, we report the primary error on the
+ 					// method, and the alt decl on the field.
+ 					err := check.newError(DuplicateFieldAndMethod)
+-					err.addf(alt, "field and method with the same name %s", quote(fld.name))
++					err.addf(alt, "field and method with the same name %s", fld.name)
+ 					err.addAltDecl(fld)
+ 					err.report()
+ 				}
+diff --git a/src/cmd/compile/internal/types2/format.go b/src/cmd/compile/internal/types2/format.go
+index 1b9cf606b7..442d219d1a 100644
+--- a/src/cmd/compile/internal/types2/format.go
++++ b/src/cmd/compile/internal/types2/format.go
+@@ -14,39 +14,6 @@ import (
+ 	"strings"
+ )
+ 
+-// quote encloses s in `' quotes, as in `foo', except for _,
+-// which is left alone.
+-//
+-// Use to prevent confusion when user supplied names alter the
+-// meaning of an error message.
+-//
+-// For instance, report
+-//
+-//	duplicate method `wanted'
+-//
+-// rather than
+-//
+-//	duplicate method wanted
+-//
+-// Exceptions:
+-//
+-//   - don't quote _:
+-//     `_' is ugly and not necessary
+-//   - don't quote after a ":" as there's no need for it:
+-//     undefined name: foo
+-//   - don't quote if the name is used correctly in a statement:
+-//     goto L jumps over variable declaration
+-//
+-// quote encloses s in `' quotes, as in `foo',
+-// except for _ which is left alone.
+-func quote(s string) string {
+-	if s == "_" {
+-		// `_' is ugly and not necessary
+-		return s
+-	}
+-	return "`" + s + "'"
+-}
+-
+ func sprintf(qf Qualifier, tpSubscripts bool, format string, args ...any) string {
+ 	for i, arg := range args {
+ 		switch a := arg.(type) {
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 3d500811d4..b4da3c0b91 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -258,11 +258,11 @@ func TestIssue22525(t *testing.T) {
+ 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
+ 	typecheck(src, &conf, nil) // do not crash
+ 	want := "\n" +
+-		"p:1:27: `a' declared and not used\n" +
+-		"p:1:30: `b' declared and not used\n" +
+-		"p:1:33: `c' declared and not used\n" +
+-		"p:1:36: `d' declared and not used\n" +
+-		"p:1:39: `e' declared and not used\n"
++		"p:1:27: declared and not used: a\n" +
++		"p:1:30: declared and not used: b\n" +
++		"p:1:33: declared and not used: c\n" +
++		"p:1:36: declared and not used: d\n" +
++		"p:1:39: declared and not used: e\n"
+ 	if got != want {
+ 		t.Errorf("got: %swant: %s", got, want)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/labels.go b/src/cmd/compile/internal/types2/labels.go
+index 61b3ca7511..548df7925b 100644
+--- a/src/cmd/compile/internal/types2/labels.go
++++ b/src/cmd/compile/internal/types2/labels.go
+@@ -26,13 +26,11 @@ func (check *Checker) labels(body *syntax.BlockStmt) {
+ 		name := jmp.Label.Value
+ 		if alt := all.Lookup(name); alt != nil {
+ 			msg = "goto %s jumps into block"
+-			alt.(*Label).used = true // avoid another error
+ 			code = JumpIntoBlock
+-			// don't quote name here because "goto L" matches the code
++			alt.(*Label).used = true // avoid another error
+ 		} else {
+ 			msg = "label %s not declared"
+ 			code = UndeclaredLabel
+-			name = quote(name)
+ 		}
+ 		check.errorf(jmp.Label, code, msg, name)
+ 	}
+@@ -41,7 +39,7 @@ func (check *Checker) labels(body *syntax.BlockStmt) {
+ 	for name, obj := range all.elems {
+ 		obj = resolve(name, obj)
+ 		if lbl := obj.(*Label); !lbl.used {
+-			check.softErrorf(lbl.pos, UnusedLabel, "label %s declared and not used", quote(lbl.name))
++			check.softErrorf(lbl.pos, UnusedLabel, "label %s declared and not used", lbl.name)
+ 		}
+ 	}
+ }
+@@ -137,7 +135,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 				if alt := all.Insert(lbl); alt != nil {
+ 					err := check.newError(DuplicateLabel)
+ 					err.soft = true
+-					err.addf(lbl.pos, "label %s already declared", quote(name))
++					err.addf(lbl.pos, "label %s already declared", name)
+ 					err.addAltDecl(alt)
+ 					err.report()
+ 					// ok to continue
+@@ -193,7 +191,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 					}
+ 				}
+ 				if !valid {
+-					check.errorf(s.Label, MisplacedLabel, "invalid break label %s", quote(name))
++					check.errorf(s.Label, MisplacedLabel, "invalid break label %s", name)
+ 					return
+ 				}
+ 
+@@ -208,7 +206,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *syntax.Lab
+ 					}
+ 				}
+ 				if !valid {
+-					check.errorf(s.Label, MisplacedLabel, "invalid continue label %s", quote(name))
++					check.errorf(s.Label, MisplacedLabel, "invalid continue label %s", name)
+ 					return
+ 				}
+ 
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 655d072171..656f0e2eb2 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -64,7 +64,7 @@ func (check *Checker) usage(scope *Scope) {
+ 		return cmpPos(unused[i].pos, unused[j].pos) < 0
+ 	})
+ 	for _, v := range unused {
+-		check.softErrorf(v.pos, UnusedVar, "%s declared and not used", quote(v.name))
++		check.softErrorf(v.pos, UnusedVar, "declared and not used: %s", v.name)
+ 	}
+ 
+ 	for _, scope := range scope.children {
+@@ -496,7 +496,7 @@ func (check *Checker) stmt(ctxt stmtContext, s syntax.Stmt) {
+ 			for _, obj := range res.vars {
+ 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
+ 					err := check.newError(OutOfScopeResult)
+-					err.addf(s, "result parameter %s not in scope at return", quote(obj.name))
++					err.addf(s, "result parameter %s not in scope at return", obj.name)
+ 					err.addf(alt, "inner declaration of %s", obj)
+ 					err.report()
+ 					// ok to continue
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 2ce586e7a7..0457502e39 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -226,8 +226,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 		case explicit:
+ 			if check != nil {
+ 				err := check.newError(DuplicateDecl)
+-				err.addf(atPos(pos), "duplicate method %s", quote(m.name))
+-				err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", quote(m.name))
++				err.addf(atPos(pos), "duplicate method %s", m.name)
++				err.addf(atPos(mpos[other.(*Func)]), "other declaration of method %s", m.name)
+ 				err.report()
+ 			}
+ 		default:
+@@ -240,8 +240,8 @@ func computeInterfaceTypeSet(check *Checker, pos syntax.Pos, ityp *Interface) *_
+ 				check.later(func() {
+ 					if pos.IsKnown() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+ 						err := check.newError(DuplicateDecl)
+-						err.addf(atPos(pos), "duplicate method %s", quote(m.name))
+-						err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", quote(m.name))
++						err.addf(atPos(pos), "duplicate method %s", m.name)
++						err.addf(atPos(mpos[other.(*Func)]), "other declaration of method %s", m.name)
+ 						err.report()
+ 					}
+ 				}).describef(atPos(pos), "duplicate method check for %s", m.name)
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index eca60ada7b..6c121ae054 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -95,7 +95,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 
+ 	switch obj := obj.(type) {
+ 	case *PkgName:
+-		check.errorf(e, InvalidPkgUse, "use of package %s not in selector", quote(obj.name))
++		check.errorf(e, InvalidPkgUse, "use of package %s not in selector", obj.name)
+ 		return
+ 
+ 	case *Const:
+@@ -117,7 +117,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 
+ 	case *TypeName:
+ 		if !check.conf.EnableAlias && check.isBrokenAlias(obj) {
+-			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", quote(obj.name))
++			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", obj.name)
+ 			return
+ 		}
+ 		x.mode = typexpr
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 4761fbd6ef..d92a4279f8 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -28,7 +28,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	if hasDots(call) && id != _Append {
+ 		check.errorf(dddErrPos(call),
+ 			InvalidDotDotDot,
+-			invalidOp+"invalid use of ... with built-in %s", quote(bin.name))
++			invalidOp+"invalid use of ... with built-in %s", bin.name)
+ 		check.use(argList...)
+ 		return
+ 	}
+@@ -213,7 +213,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 				if id == _Len {
+ 					code = InvalidLen
+ 				}
+-				check.errorf(x, code, invalidArg+"%s for %s", x, quote(bin.name))
++				check.errorf(x, code, invalidArg+"%s for built-in %s", x, bin.name)
+ 			}
+ 			return
+ 		}
+@@ -536,7 +536,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 	case _Max, _Min:
+ 		// max(x, ...)
+ 		// min(x, ...)
+-		check.verifyVersionf(call.Fun, go1_21, "%s", quote(bin.name))
++		check.verifyVersionf(call.Fun, go1_21, "built-in %s", bin.name)
+ 
+ 		op := token.LSS
+ 		if id == _Max {
+@@ -579,7 +579,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		if x.mode != constant_ {
+ 			x.mode = value
+ 			// A value must not be untyped.
+-			check.assignment(x, &emptyInterface, "argument to "+quote(bin.name))
++			check.assignment(x, &emptyInterface, "argument to built-in "+bin.name)
+ 			if x.mode == invalid {
+ 				return
+ 			}
+@@ -644,7 +644,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		if nargs > 0 {
+ 			params = make([]Type, nargs)
+ 			for i, a := range args {
+-				check.assignment(a, nil, "argument to "+quote(predeclaredFuncs[id].name))
++				check.assignment(a, nil, "argument to built-in"+predeclaredFuncs[id].name)
+ 				if a.mode == invalid {
+ 					return
+ 				}
+@@ -995,7 +995,7 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ 		default:
+ 			panic("unreachable")
+ 		}
+-		check.softErrorf(x, code, "%s not supported as argument to %s for go1.18 (see go.dev/issue/50937)", x, quote(predeclaredFuncs[id].name))
++		check.softErrorf(x, code, "%s not supported as argument to built-in %s for go1.18 (see go.dev/issue/50937)", x, predeclaredFuncs[id].name)
+ 
+ 		// Construct a suitable new type parameter for the result type.
+ 		// The type parameter is placed in the current package so export/import
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index bee97a182b..8f02ffc397 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -722,7 +722,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 					goto Error
+ 				}
+ 				if !exp.Exported() {
+-					check.errorf(e.Sel, UnexportedName, "%s not exported by package %s", quote(sel), quote(pkg.name))
++					check.errorf(e.Sel, UnexportedName, "name %s not exported by package %s", sel, pkg.name)
+ 					// ok to continue
+ 				}
+ 			}
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 789c130e1c..1a5a41a3bb 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -332,7 +332,7 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 			check.files = append(check.files, file)
+ 
+ 		default:
+-			check.errorf(atPos(file.Package), MismatchedPkgName, "package %s; expected %s", quote(name), quote(pkg.name))
++			check.errorf(atPos(file.Package), MismatchedPkgName, "package %s; expected package %s", name, pkg.name)
+ 			// ignore this file
+ 		}
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 17dd1d4154..e9bf802cb8 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -842,7 +842,7 @@ func (check *Checker) checkFieldUniqueness(base *Named) {
+ 					// For historical consistency, we report the primary error on the
+ 					// method, and the alt decl on the field.
+ 					err := check.newError(DuplicateFieldAndMethod)
+-					err.addf(alt, "field and method with the same name %s", quote(fld.name))
++					err.addf(alt, "field and method with the same name %s", fld.name)
+ 					err.addAltDecl(fld)
+ 					err.report()
+ 				}
+diff --git a/src/go/types/format.go b/src/go/types/format.go
+index f5edb01449..09e599c3c3 100644
+--- a/src/go/types/format.go
++++ b/src/go/types/format.go
+@@ -15,39 +15,6 @@ import (
+ 	"strings"
+ )
+ 
+-// quote encloses s in `' quotes, as in `foo', except for _,
+-// which is left alone.
+-//
+-// Use to prevent confusion when user supplied names alter the
+-// meaning of an error message.
+-//
+-// For instance, report
+-//
+-//	duplicate method `wanted'
+-//
+-// rather than
+-//
+-//	duplicate method wanted
+-//
+-// Exceptions:
+-//
+-//   - don't quote _:
+-//     `_' is ugly and not necessary
+-//   - don't quote after a ":" as there's no need for it:
+-//     undefined name: foo
+-//   - don't quote if the name is used correctly in a statement:
+-//     goto L jumps over variable declaration
+-//
+-// quote encloses s in `' quotes, as in `foo',
+-// except for _ which is left alone.
+-func quote(s string) string {
+-	if s == "_" {
+-		// `_' is ugly and not necessary
+-		return s
+-	}
+-	return "`" + s + "'"
+-}
+-
+ func sprintf(fset *token.FileSet, qf Qualifier, tpSubscripts bool, format string, args ...any) string {
+ 	for i, arg := range args {
+ 		switch a := arg.(type) {
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 3b01478723..c99c9a9550 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -266,11 +266,11 @@ func TestIssue22525(t *testing.T) {
+ 	conf := Config{Error: func(err error) { got += err.Error() + "\n" }}
+ 	typecheck(src, &conf, nil) // do not crash
+ 	want := "\n" +
+-		"p:1:27: `a' declared and not used\n" +
+-		"p:1:30: `b' declared and not used\n" +
+-		"p:1:33: `c' declared and not used\n" +
+-		"p:1:36: `d' declared and not used\n" +
+-		"p:1:39: `e' declared and not used\n"
++		"p:1:27: declared and not used: a\n" +
++		"p:1:30: declared and not used: b\n" +
++		"p:1:33: declared and not used: c\n" +
++		"p:1:36: declared and not used: d\n" +
++		"p:1:39: declared and not used: e\n"
+ 	if got != want {
+ 		t.Errorf("got: %swant: %s", got, want)
+ 	}
+diff --git a/src/go/types/labels.go b/src/go/types/labels.go
+index c3fd437c14..2f7f7bd20c 100644
+--- a/src/go/types/labels.go
++++ b/src/go/types/labels.go
+@@ -27,13 +27,11 @@ func (check *Checker) labels(body *ast.BlockStmt) {
+ 		name := jmp.Label.Name
+ 		if alt := all.Lookup(name); alt != nil {
+ 			msg = "goto %s jumps into block"
+-			alt.(*Label).used = true // avoid another error
+ 			code = JumpIntoBlock
+-			// don't quote name here because "goto L" matches the code
++			alt.(*Label).used = true // avoid another error
+ 		} else {
+ 			msg = "label %s not declared"
+ 			code = UndeclaredLabel
+-			name = quote(name)
+ 		}
+ 		check.errorf(jmp.Label, code, msg, name)
+ 	}
+@@ -42,7 +40,7 @@ func (check *Checker) labels(body *ast.BlockStmt) {
+ 	for name, obj := range all.elems {
+ 		obj = resolve(name, obj)
+ 		if lbl := obj.(*Label); !lbl.used {
+-			check.softErrorf(lbl, UnusedLabel, "label %s declared and not used", quote(lbl.name))
++			check.softErrorf(lbl, UnusedLabel, "label %s declared and not used", lbl.name)
+ 		}
+ 	}
+ }
+@@ -142,7 +140,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
+ 				if alt := all.Insert(lbl); alt != nil {
+ 					err := check.newError(DuplicateLabel)
+ 					err.soft = true
+-					err.addf(lbl, "label %s already declared", quote(name))
++					err.addf(lbl, "label %s already declared", name)
+ 					err.addAltDecl(alt)
+ 					err.report()
+ 					// ok to continue
+@@ -198,7 +196,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
+ 					}
+ 				}
+ 				if !valid {
+-					check.errorf(s.Label, MisplacedLabel, "invalid break label %s", quote(name))
++					check.errorf(s.Label, MisplacedLabel, "invalid break label %s", name)
+ 					return
+ 				}
+ 
+@@ -213,7 +211,7 @@ func (check *Checker) blockBranches(all *Scope, parent *block, lstmt *ast.Labele
+ 					}
+ 				}
+ 				if !valid {
+-					check.errorf(s.Label, MisplacedLabel, "invalid continue label %s", quote(name))
++					check.errorf(s.Label, MisplacedLabel, "invalid continue label %s", name)
+ 					return
+ 				}
+ 
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 258ad1d327..f9a733fc3a 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -65,7 +65,7 @@ func (check *Checker) usage(scope *Scope) {
+ 		return cmpPos(unused[i].pos, unused[j].pos) < 0
+ 	})
+ 	for _, v := range unused {
+-		check.softErrorf(v, UnusedVar, "%s declared and not used", quote(v.name))
++		check.softErrorf(v, UnusedVar, "declared and not used: %s", v.name)
+ 	}
+ 
+ 	for _, scope := range scope.children {
+@@ -515,7 +515,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			for _, obj := range res.vars {
+ 				if alt := check.lookup(obj.name); alt != nil && alt != obj {
+ 					err := check.newError(OutOfScopeResult)
+-					err.addf(s, "result parameter %s not in scope at return", quote(obj.name))
++					err.addf(s, "result parameter %s not in scope at return", obj.name)
+ 					err.addf(alt, "inner declaration of %s", obj)
+ 					err.report()
+ 					// ok to continue
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index eb37de849a..d280bf2f5f 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -229,8 +229,8 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 		case explicit:
+ 			if check != nil {
+ 				err := check.newError(DuplicateDecl)
+-				err.addf(atPos(pos), "duplicate method %s", quote(m.name))
+-				err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", quote(m.name))
++				err.addf(atPos(pos), "duplicate method %s", m.name)
++				err.addf(atPos(mpos[other.(*Func)]), "other declaration of method %s", m.name)
+ 				err.report()
+ 			}
+ 		default:
+@@ -243,8 +243,8 @@ func computeInterfaceTypeSet(check *Checker, pos token.Pos, ityp *Interface) *_T
+ 				check.later(func() {
+ 					if pos.IsValid() && !check.allowVersion(atPos(pos), go1_14) || !Identical(m.typ, other.Type()) {
+ 						err := check.newError(DuplicateDecl)
+-						err.addf(atPos(pos), "duplicate method %s", quote(m.name))
+-						err.addf(atPos(mpos[other.(*Func)]), "other declaration of %s", quote(m.name))
++						err.addf(atPos(pos), "duplicate method %s", m.name)
++						err.addf(atPos(mpos[other.(*Func)]), "other declaration of method %s", m.name)
+ 						err.report()
+ 					}
+ 				}).describef(atPos(pos), "duplicate method check for %s", m.name)
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index dea6d31997..b6b6881089 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -95,7 +95,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 
+ 	switch obj := obj.(type) {
+ 	case *PkgName:
+-		check.errorf(e, InvalidPkgUse, "use of package %s not in selector", quote(obj.name))
++		check.errorf(e, InvalidPkgUse, "use of package %s not in selector", obj.name)
+ 		return
+ 
+ 	case *Const:
+@@ -117,7 +117,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 
+ 	case *TypeName:
+ 		if !check.conf._EnableAlias && check.isBrokenAlias(obj) {
+-			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", quote(obj.name))
++			check.errorf(e, InvalidDeclCycle, "invalid use of type alias %s in recursive type (see go.dev/issue/50729)", obj.name)
+ 			return
+ 		}
+ 		x.mode = typexpr
+diff --git a/src/internal/types/testdata/check/builtins0.go b/src/internal/types/testdata/check/builtins0.go
+index 2bfece824e..1c0e69200e 100644
+--- a/src/internal/types/testdata/check/builtins0.go
++++ b/src/internal/types/testdata/check/builtins0.go
+@@ -100,10 +100,10 @@ func cap1() {
+ 
+ 	var s [][]byte
+ 	_ = cap(s)
+-	_ = cap(s... /* ERROR "invalid use of ... with built-in `cap'" */ )
++	_ = cap(s... /* ERROR "invalid use of ... with built-in cap" */ )
+ 
+ 	var x int
+-	_ = cap(x /* ERROR "invalid argument: x (variable of type int) for `cap'" */ )
++	_ = cap(x /* ERROR "invalid argument: x (variable of type int) for built-in cap" */ )
+ }
+ 
+ func cap2() {
+diff --git a/src/internal/types/testdata/check/decls0.go b/src/internal/types/testdata/check/decls0.go
+index bec2b17ada..f9b0849dad 100644
+--- a/src/internal/types/testdata/check/decls0.go
++++ b/src/internal/types/testdata/check/decls0.go
+@@ -137,7 +137,7 @@ type (
+ 	}
+ 	I3 interface {
+ 		m1()
+-		m1 /* ERROR "duplicate method `m1'" */ ()
++		m1 /* ERROR "duplicate method m1" */ ()
+ 	}
+ 	I4 interface {
+ 		m1(x, y, x /* ERROR "redeclared" */ float32)
+diff --git a/src/internal/types/testdata/check/decls2/decls2a.go b/src/internal/types/testdata/check/decls2/decls2a.go
+index f14b709dcf..2362bb96ff 100644
+--- a/src/internal/types/testdata/check/decls2/decls2a.go
++++ b/src/internal/types/testdata/check/decls2/decls2a.go
+@@ -16,7 +16,7 @@ type T1 struct{
+ 
+ func (T1) m() {}
+ func (T1) m /* ERROR "already declared" */ () {}
+-func (x *T1) f /* ERROR "field and method with the same name `f'" */ () {}
++func (x *T1) f /* ERROR "field and method with the same name f" */ () {}
+ 
+ // Conflict between embedded field and method name,
+ // with the embedded field being a basic type.
+@@ -30,7 +30,7 @@ type T1c struct {
+ 	time.Time
+ }
+ 
+-func (T1c) Time /* ERROR "field and method with the same name `Time'" */ () int { return 0 }
++func (T1c) Time /* ERROR "field and method with the same name Time" */ () int { return 0 }
+ 
+ // Disabled for now: LookupFieldOrMethod will find Pointer even though
+ // it's double-declared (it would cost extra in the common case to verify
+diff --git a/src/internal/types/testdata/check/go1_13.go b/src/internal/types/testdata/check/go1_13.go
+index 3340124cfa..cc7861d616 100644
+--- a/src/internal/types/testdata/check/go1_13.go
++++ b/src/internal/types/testdata/check/go1_13.go
+@@ -14,10 +14,10 @@ type I interface { m() }
+ 
+ type _ interface {
+ 	m()
+-	I // ERROR "duplicate method `m'"
++	I // ERROR "duplicate method m"
+ }
+ 
+ type _ interface {
+ 	I
+-	I // ERROR "duplicate method `m'"
++	I // ERROR "duplicate method m"
+ }
+diff --git a/src/internal/types/testdata/check/importdecl0/importdecl0a.go b/src/internal/types/testdata/check/importdecl0/importdecl0a.go
+index b255c19375..4bfb61e5b4 100644
+--- a/src/internal/types/testdata/check/importdecl0/importdecl0a.go
++++ b/src/internal/types/testdata/check/importdecl0/importdecl0a.go
+@@ -32,7 +32,7 @@ import f2 "fmt"
+ 
+ // reflect.flag must not be visible in this package
+ type flag int
+-type _ reflect.flag /* ERROR "`flag' not exported by package `reflect'" */
++type _ reflect.flag /* ERROR "name flag not exported by package reflect" */
+ 
+ // imported package name may conflict with local objects
+ type reflect /* ERROR "reflect already declared" */ int
+diff --git a/src/internal/types/testdata/check/labels.go b/src/internal/types/testdata/check/labels.go
+index 0a59e9e2dc..5948952fbe 100644
+--- a/src/internal/types/testdata/check/labels.go
++++ b/src/internal/types/testdata/check/labels.go
+@@ -10,23 +10,23 @@ package labels
+ var x int
+ 
+ func f0() {
+-L1 /* ERROR "label `L1' declared and not used" */ :
++L1 /* ERROR "label L1 declared and not used" */ :
+ 	for {
+ 	}
+-L2 /* ERROR "label `L2' declared and not used" */ :
++L2 /* ERROR "label L2 declared and not used" */ :
+ 	select {
+ 	}
+-L3 /* ERROR "label `L3' declared and not used" */ :
++L3 /* ERROR "label L3 declared and not used" */ :
+ 	switch {
+ 	}
+-L4 /* ERROR "label `L4' declared and not used" */ :
++L4 /* ERROR "label L4 declared and not used" */ :
+ 	if true {
+ 	}
+-L5 /* ERROR "label `L5' declared and not used" */ :
++L5 /* ERROR "label L5 declared and not used" */ :
+ 	f0()
+ L6:
+ 	f0()
+-L6 /* ERROR "label `L6' already declared" */ :
++L6 /* ERROR "label L6 already declared" */ :
+ 	f0()
+ 	if x == 20 {
+ 		goto L6
+@@ -35,7 +35,7 @@ L6 /* ERROR "label `L6' already declared" */ :
+ L7:
+ 	for {
+ 		break L7
+-		break L8 /* ERROR "invalid break label `L8'" */
++		break L8 /* ERROR "invalid break label L8" */
+ 	}
+ 
+ // A label must be directly associated with a switch, select, or
+@@ -43,8 +43,8 @@ L7:
+ 
+ L7a /* ERROR "declared and not used" */ : L7b:
+ 	for {
+-		break L7a /* ERROR "invalid break label `L7a'" */
+-		continue L7a /* ERROR "invalid continue label `L7a'" */
++		break L7a /* ERROR "invalid break label L7a" */
++		continue L7a /* ERROR "invalid continue label L7a" */
+ 		continue L7b
+ 	}
+ 
+@@ -52,7 +52,7 @@ L8:
+ 	for {
+ 		if x == 21 {
+ 			continue L8
+-			continue L7 /* ERROR "invalid continue label `L7'" */
++			continue L7 /* ERROR "invalid continue label L7" */
+ 		}
+ 	}
+ 
+@@ -60,23 +60,23 @@ L9:
+ 	switch {
+ 	case true:
+ 		break L9
+-	defalt /* ERROR "label `defalt' declared and not used" */ :
++	defalt /* ERROR "label defalt declared and not used" */ :
+ 	}
+ 
+ L10:
+ 	select {
+ 	default:
+ 		break L10
+-		break L9 /* ERROR "invalid break label `L9'" */
++		break L9 /* ERROR "invalid break label L9" */
+ 	}
+ 
+ 	goto L10a
+ L10a: L10b:
+ 	select {
+ 	default:
+-		break L10a /* ERROR "invalid break label `L10a'" */
++		break L10a /* ERROR "invalid break label L10a" */
+ 		break L10b
+-		continue L10b /* ERROR "invalid continue label `L10b'" */
++		continue L10b /* ERROR "invalid continue label L10b" */
+ 	}
+ }
+ 
+@@ -99,7 +99,7 @@ L2:
+ 			break L2
+ 		}
+ 		if x == 1 {
+-			continue L2 /* ERROR "invalid continue label `L2'" */
++			continue L2 /* ERROR "invalid continue label L2" */
+ 		}
+ 		goto L2
+ 	}
+@@ -111,7 +111,7 @@ L3:
+ 			break L3
+ 		}
+ 		if x == 12 {
+-			continue L3 /* ERROR "invalid continue label `L3'" */
++			continue L3 /* ERROR "invalid continue label L3" */
+ 		}
+ 		goto L3
+ 	}
+@@ -119,10 +119,10 @@ L3:
+ L4:
+ 	if true {
+ 		if x == 13 {
+-			break L4 /* ERROR "invalid break label `L4'" */
++			break L4 /* ERROR "invalid break label L4" */
+ 		}
+ 		if x == 14 {
+-			continue L4 /* ERROR "invalid continue label `L4'" */
++			continue L4 /* ERROR "invalid continue label L4" */
+ 		}
+ 		if x == 15 {
+ 			goto L4
+@@ -132,10 +132,10 @@ L4:
+ L5:
+ 	f1()
+ 	if x == 16 {
+-		break L5 /* ERROR "invalid break label `L5'" */
++		break L5 /* ERROR "invalid break label L5" */
+ 	}
+ 	if x == 17 {
+-		continue L5 /* ERROR "invalid continue label `L5'" */
++		continue L5 /* ERROR "invalid continue label L5" */
+ 	}
+ 	if x == 18 {
+ 		goto L5
+@@ -143,10 +143,10 @@ L5:
+ 
+ 	for {
+ 		if x == 19 {
+-			break L1 /* ERROR "invalid break label `L1'" */
++			break L1 /* ERROR "invalid break label L1" */
+ 		}
+ 		if x == 20 {
+-			continue L1 /* ERROR "invalid continue label `L1'" */
++			continue L1 /* ERROR "invalid continue label L1" */
+ 		}
+ 		if x == 21 {
+ 			goto L1
+@@ -157,10 +157,10 @@ L5:
+ // Additional tests not in the original files.
+ 
+ func f2() {
+-L1 /* ERROR "label `L1' declared and not used" */ :
++L1 /* ERROR "label L1 declared and not used" */ :
+ 	if x == 0 {
+ 		for {
+-			continue L1 /* ERROR "invalid continue label `L1'" */
++			continue L1 /* ERROR "invalid continue label L1" */
+ 		}
+ 	}
+ }
+@@ -170,11 +170,11 @@ L1:
+ L2:
+ L3:
+ 	for {
+-		break L1 /* ERROR "invalid break label `L1'" */
+-		break L2 /* ERROR "invalid break label `L2'" */
++		break L1 /* ERROR "invalid break label L1" */
++		break L2 /* ERROR "invalid break label L2" */
+ 		break L3
+-		continue L1 /* ERROR "invalid continue label `L1'" */
+-		continue L2 /* ERROR "invalid continue label `L2'" */
++		continue L1 /* ERROR "invalid continue label L1" */
++		continue L2 /* ERROR "invalid continue label L2" */
+ 		continue L3
+ 		goto L1
+ 		goto L2
+diff --git a/src/internal/types/testdata/check/stmt0.go b/src/internal/types/testdata/check/stmt0.go
+index ea161279c6..e17dd650cd 100644
+--- a/src/internal/types/testdata/check/stmt0.go
++++ b/src/internal/types/testdata/check/stmt0.go
+@@ -222,7 +222,7 @@ func selects() {
+ 	ch2 := make(chan int)
+ 	select {
+ 	case <-ch1:
+-		var ch2 /* ERROR "`ch2' declared and not used" */ chan bool
++		var ch2 /* ERROR "declared and not used: ch2" */ chan bool
+ 	case i := <-ch2:
+ 		print(i + 1)
+ 	}
+@@ -394,7 +394,7 @@ func returns2() (a, b int) {
+ 	{
+ 		type a int
+ 		return 1, 2
+-		return /* ERROR "`a' not in scope at return" */
++		return /* ERROR "result parameter a not in scope at return" */
+ 	}
+ }
+ 
+diff --git a/src/internal/types/testdata/fixedbugs/issue50779.go b/src/internal/types/testdata/fixedbugs/issue50779.go
+index a0a126dff0..59c0f2d6a0 100644
+--- a/src/internal/types/testdata/fixedbugs/issue50779.go
++++ b/src/internal/types/testdata/fixedbugs/issue50779.go
+@@ -17,7 +17,7 @@ type R[S any, P any] struct{}
+ type SR = R[SS, ST]
+ 
+ type SS interface {
+-	NSR(any) *SR // ERROR "invalid use of type alias `SR' in recursive type"
++	NSR(any) *SR // ERROR "invalid use of type alias SR in recursive type"
+ }
+ 
+ type C interface {
+diff --git a/src/internal/types/testdata/fixedbugs/issue66285.go b/src/internal/types/testdata/fixedbugs/issue66285.go
+index 2e8bb59508..9811fec3f3 100644
+--- a/src/internal/types/testdata/fixedbugs/issue66285.go
++++ b/src/internal/types/testdata/fixedbugs/issue66285.go
+@@ -19,7 +19,7 @@ import "io"
+ 
+ type _ interface {
+ 	Reader
+-	Reader // ERROR "duplicate method `Read'"
++	Reader // ERROR "duplicate method Read"
+ }
+ 
+ type Reader interface {
+@@ -28,10 +28,10 @@ type Reader interface {
+ 
+ type _ interface {
+ 	io.Reader
+-	Reader // ERROR "duplicate method `Read'"
++	Reader // ERROR "duplicate method Read"
+ }
+ 
+ type _ interface {
+ 	io.Reader
+-	io /* ERROR "duplicate method `Read'" */ .Reader
++	io /* ERROR "duplicate method Read" */ .Reader
+ }
+diff --git a/test/fixedbugs/issue11361.go b/test/fixedbugs/issue11361.go
+index 84e71c73e6..1ef8735a52 100644
+--- a/test/fixedbugs/issue11361.go
++++ b/test/fixedbugs/issue11361.go
+@@ -8,4 +8,4 @@ package a
+ 
+ import "fmt"  // GC_ERROR "imported and not used"
+ 
+-const n = fmt // ERROR "fmt without selector|unexpected reference to package|use of package `fmt' not in selector"
++const n = fmt // ERROR "fmt without selector|unexpected reference to package|use of package fmt not in selector"
+diff --git a/test/fixedbugs/issue20789.go b/test/fixedbugs/issue20789.go
+index cba1290957..6a0b7961f3 100644
+--- a/test/fixedbugs/issue20789.go
++++ b/test/fixedbugs/issue20789.go
+@@ -10,4 +10,4 @@
+ // there yet, so put it here for now. See also #20800.)
+ 
+ package e
+-func([<-chan<-[func u){go // ERROR "unexpected `u'"
+\ No newline at end of file
++func([<-chan<-[func u){go // ERROR "unexpected name u"
+\ No newline at end of file
+diff --git a/test/fixedbugs/issue21317.go b/test/fixedbugs/issue21317.go
+index d525f12a58..8162548151 100644
+--- a/test/fixedbugs/issue21317.go
++++ b/test/fixedbugs/issue21317.go
+@@ -45,8 +45,8 @@ func main() {
+ 		log.Fatalf("expected cmd/compile to fail")
+ 	}
+ 	wantErrs := []string{
+-		"7:9: `n' declared and not used",
+-		"7:12: `err' declared and not used",
++		"7:9: declared and not used: n",
++		"7:12: declared and not used: err",
+ 	}
+ 	outStr := string(out)
+ 	for _, want := range wantErrs {
+diff --git a/test/fixedbugs/issue23664.go b/test/fixedbugs/issue23664.go
+index fe171c27d0..3b54f3cf1e 100644
+--- a/test/fixedbugs/issue23664.go
++++ b/test/fixedbugs/issue23664.go
+@@ -9,9 +9,9 @@
+ package p
+ 
+ func f() {
+-	if f() true { // ERROR "unexpected `true', expected {"
++	if f() true { // ERROR "unexpected name true, expected {"
+ 	}
+-	
+-	switch f() true { // ERROR "unexpected `true', expected {"
++
++	switch f() true { // ERROR "unexpected name true, expected {"
+ 	}
+ }
+diff --git a/test/fixedbugs/issue28268.go b/test/fixedbugs/issue28268.go
+index b04e42555f..263b2d1b42 100644
+--- a/test/fixedbugs/issue28268.go
++++ b/test/fixedbugs/issue28268.go
+@@ -16,8 +16,8 @@ type T struct {
+ 
+ type E struct{}
+ 
+-func (T) b()  {} // ERROR "field and method named b|redeclares struct field name|field and method with the same name `b'"
+-func (*T) E() {} // ERROR "field and method named E|redeclares struct field name|field and method with the same name `E'"
++func (T) b()  {} // ERROR "field and method named b|redeclares struct field name|field and method with the same name b"
++func (*T) E() {} // ERROR "field and method named E|redeclares struct field name|field and method with the same name E"
+ 
+ func _() {
+ 	var x T
+diff --git a/test/fixedbugs/issue29870b.go b/test/fixedbugs/issue29870b.go
+index c7cdd8c8c7..df50b0522d 100644
+--- a/test/fixedbugs/issue29870b.go
++++ b/test/fixedbugs/issue29870b.go
+@@ -10,5 +10,5 @@
+ package main
+ 
+ func _() {
+-	x := 7 // ERROR ".*x.* declared and not used"
++	x := 7 // ERROR "declared and not used"
+ }
+diff --git a/test/fixedbugs/issue34329.go b/test/fixedbugs/issue34329.go
+index 585770d87a..21f952cefd 100644
+--- a/test/fixedbugs/issue34329.go
++++ b/test/fixedbugs/issue34329.go
+@@ -6,9 +6,9 @@
+ 
+ package p
+ 
+-type I interface { M() }
++type I interface{ M() }
+ 
+ type _ interface {
+ 	I
+-	I // ERROR "duplicate method `M'"
++	I // ERROR "duplicate method M"
+ }

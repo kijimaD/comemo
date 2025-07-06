@@ -1,0 +1,51 @@
+commit 430a3dc4587a9a3f8696d6eb34c8265877022e34
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Apr 23 23:15:51 2025 +0200
+
+    crypto/internal/cryptotest: test Armv8.2 on darwin/arm64
+    
+    Fixes #69593
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-arm64_15
+    Change-Id: I6a6a4656302d65b582df582fa12bb72b88b0316d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667755
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/cryptotest/implementations.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/crypto/internal/cryptotest/implementations.go b/src/crypto/internal/cryptotest/implementations.go
+index 3fa7304590..f0ba665403 100644
+--- a/src/crypto/internal/cryptotest/implementations.go
++++ b/src/crypto/internal/cryptotest/implementations.go
+@@ -7,6 +7,7 @@ package cryptotest
+ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/impl"
++	"internal/goarch"
+ 	"internal/goos"
+ 	"internal/testenv"
+ 	"testing"
+@@ -35,15 +36,14 @@ func TestAllImplementations(t *testing.T, pkg string, f func(t *testing.T)) {
+ 			t.Run(name, f)
+ 		} else {
+ 			t.Run(name, func(t *testing.T) {
+-				// Report an error if we're on Linux CI (assumed to be the most
+-				// consistent) and the builder can't test this implementation.
+-				if testenv.Builder() != "" && goos.GOOS == "linux" {
++				// Report an error if we're on the most capable builder for the
++				// architecture and the builder can't test this implementation.
++				flagship := goos.GOOS == "linux" && goarch.GOARCH != "arm64" ||
++					goos.GOOS == "darwin" && goarch.GOARCH == "arm64"
++				if testenv.Builder() != "" && flagship {
+ 					if name == "SHA-NI" {
+ 						t.Skip("known issue, see golang.org/issue/69592")
+ 					}
+-					if name == "Armv8.2" {
+-						t.Skip("known issue, see golang.org/issue/69593")
+-					}
+ 					t.Error("builder doesn't support CPU features needed to test this implementation")
+ 				} else {
+ 					t.Skip("implementation not supported")

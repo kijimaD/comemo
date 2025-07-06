@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 60807: acce4558a0168e625e9c70f20018dad6225adc0e
+# Index 60807: 9b0361e549949a208aa6bbcdff25506a3f97d7a9
 
 echo "🚀 Generating explanation for commit 60807..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 60807..."
 
 ### メタデータ
 - **コミットインデックス**: 60807
-- **コミットハッシュ**: acce4558a0168e625e9c70f20018dad6225adc0e
-- **GitHub URL**: https://github.com/golang/go/commit/acce4558a0168e625e9c70f20018dad6225adc0e
+- **コミットハッシュ**: 9b0361e549949a208aa6bbcdff25506a3f97d7a9
+- **GitHub URL**: https://github.com/golang/go/commit/9b0361e549949a208aa6bbcdff25506a3f97d7a9
 
 ### 章構成
 

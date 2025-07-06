@@ -1,0 +1,186 @@
+commit 4edb367bac85cf16f85a3cea952375ae2539340d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun May 19 17:28:53 2024 -0700
+
+    cmd/cgo: don't force rewritten code onto a single line
+    
+    Doing that appears to have been a mistake in CL 142883.
+    
+    Fixes #67517
+    
+    Change-Id: Iec6b897984a2e27ec596fc3c4c8129e9620afab1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586676
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+---
+ src/cmd/cgo/gcc.go                                 |  6 +--
+ src/cmd/cgo/godefs.go                              | 43 ----------------------
+ src/cmd/cgo/internal/test/test.go                  | 28 ++++++++++++++
+ src/cmd/cgo/internal/testerrors/errors_test.go     |  1 +
+ .../cgo/internal/testerrors/testdata/issue67517.go | 19 ++++++++++
+ 5 files changed, 51 insertions(+), 46 deletions(-)
+
+diff --git a/src/cmd/cgo/gcc.go b/src/cmd/cgo/gcc.go
+index 6e7556de96..b596477b0a 100644
+--- a/src/cmd/cgo/gcc.go
++++ b/src/cmd/cgo/gcc.go
+@@ -924,7 +924,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 			if rtype != name.FuncType.Result.Go {
+ 				needsUnsafe = true
+ 			}
+-			sb.WriteString(gofmtLine(rtype))
++			sb.WriteString(gofmt(rtype))
+ 			result = true
+ 		}
+ 
+@@ -960,7 +960,7 @@ func (p *Package) rewriteCall(f *File, call *Call) (string, bool) {
+ 				needsUnsafe = true
+ 			}
+ 			fmt.Fprintf(&sb, "var _cgo%d %s = %s; ", i,
+-				gofmtLine(ptype), gofmtPos(arg, origArg.Pos()))
++				gofmt(ptype), gofmtPos(arg, origArg.Pos()))
+ 			continue
+ 		}
+ 
+@@ -1682,7 +1682,7 @@ func (p *Package) rewriteName(f *File, r *Ref, addPosition bool) ast.Expr {
+ // gofmtPos returns the gofmt-formatted string for an AST node,
+ // with a comment setting the position before the node.
+ func gofmtPos(n ast.Expr, pos token.Pos) string {
+-	s := gofmtLine(n)
++	s := gofmt(n)
+ 	p := fset.Position(pos)
+ 	if p.Column == 0 {
+ 		return s
+diff --git a/src/cmd/cgo/godefs.go b/src/cmd/cgo/godefs.go
+index f62867053f..9cf626c173 100644
+--- a/src/cmd/cgo/godefs.go
++++ b/src/cmd/cgo/godefs.go
+@@ -125,46 +125,3 @@ func gofmt(n interface{}) string {
+ 	}
+ 	return gofmtBuf.String()
+ }
+-
+-// gofmtLineReplacer is used to put a gofmt-formatted string for an
+-// AST expression onto a single line. The lexer normally inserts a
+-// semicolon at each newline, so we can replace newline with semicolon.
+-// However, we can't do that in cases where the lexer would not insert
+-// a semicolon. We only have to worry about cases that can occur in an
+-// expression passed through gofmt, which means composite literals and
+-// (due to the printer possibly inserting newlines because of position
+-// information) operators.
+-var gofmtLineReplacer = strings.NewReplacer(
+-	// Want to replace \n without ; after everything from
+-	// https://golang.org/ref/spec#Operators_and_punctuation
+-	// EXCEPT ++ -- ) ] }
+-	"++\n", "++;",
+-	"--\n", "--;",
+-
+-	"+\n", "+ ",
+-	"-\n", "- ",
+-	"*\n", "* ",
+-	"/\n", "/ ",
+-	"%\n", "% ",
+-	"&\n", "& ",
+-	"|\n", "| ",
+-	"^\n", "^ ",
+-	"<\n", "< ",
+-	">\n", "> ",
+-	"=\n", "= ",
+-	"!\n", "! ", // not possible in gofmt today
+-	"(\n", "(",
+-	"[\n", "[", // not possible in gofmt today
+-	"{\n", "{",
+-	",\n", ",",
+-	".\n", ". ",
+-	":\n", ": ", // not possible in gofmt today
+-
+-	"\n", ";",
+-)
+-
+-// gofmtLine returns the gofmt-formatted string for an AST node,
+-// ensuring that it is on a single line.
+-func gofmtLine(n interface{}) string {
+-	return gofmtLineReplacer.Replace(gofmt(n))
+-}
+diff --git a/src/cmd/cgo/internal/test/test.go b/src/cmd/cgo/internal/test/test.go
+index 9b3790eb11..374689631d 100644
+--- a/src/cmd/cgo/internal/test/test.go
++++ b/src/cmd/cgo/internal/test/test.go
+@@ -933,6 +933,13 @@ typedef struct issue45451Undefined issue45451;
+ extern void GoFunc49633(void*);
+ void cfunc49633(void *context) { GoFunc49633(context); }
+ 
++// Issue 67517.
++typedef struct {
++	int a;
++	int* b;
++} issue67517struct;
++static void issue67517(issue67517struct* p) {}
++
+ */
+ import "C"
+ 
+@@ -2321,3 +2328,24 @@ func test45451(t *testing.T) {
+ func func52542[T ~[]C.int]() {}
+ 
+ type type52542[T ~*C.float] struct{}
++
++// issue67517 is just a compilation test, there is no runtime test.
++func issue67517() {
++	C.issue67517(&C.issue67517struct{
++		a: 0,
++
++		b: nil,
++	})
++	C.issue67517(&C.issue67517struct{
++		a: 0,
++		// comment
++		b: nil,
++	})
++	C.issue67517(&C.issue67517struct{
++		a: 0 +
++			// comment
++			1,
++		// comment
++		b: nil,
++	})
++}
+diff --git a/src/cmd/cgo/internal/testerrors/errors_test.go b/src/cmd/cgo/internal/testerrors/errors_test.go
+index 86236249ca..07556007a8 100644
+--- a/src/cmd/cgo/internal/testerrors/errors_test.go
++++ b/src/cmd/cgo/internal/testerrors/errors_test.go
+@@ -126,6 +126,7 @@ func TestReportsTypeErrors(t *testing.T) {
+ 		"issue28721.go",
+ 		"issue33061.go",
+ 		"issue50710.go",
++		"issue67517.go",
+ 	} {
+ 		check(t, file)
+ 	}
+diff --git a/src/cmd/cgo/internal/testerrors/testdata/issue67517.go b/src/cmd/cgo/internal/testerrors/testdata/issue67517.go
+new file mode 100644
+index 0000000000..ecee8ada5d
+--- /dev/null
++++ b/src/cmd/cgo/internal/testerrors/testdata/issue67517.go
+@@ -0,0 +1,19 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++// typedef struct { int a; void* ptr; } S;
++// static void f(S* p) {}
++import "C"
++
++func main() {
++	C.f(&C.S{
++		a: 1+
++
++			(3 + ""), // ERROR HERE
++
++		ptr: nil,
++	})
++}

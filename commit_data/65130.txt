@@ -1,0 +1,648 @@
+commit f04f4c24e36440226baaa181abb1754f8b0f0b41
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Sep 20 18:06:54 2024 +0200
+
+    crypto/sha256,crypto/sha512: test fallback implementations
+    
+    This will be required for #69536 but is also good hygiene and required
+    by go.dev/wiki/AssemblyPolicy.
+    
+    > The code must be tested in our CI. This means there need to be
+    > builders that support the instructions, and if there are multiple (or
+    > fallback) paths they must be tested separately.
+    
+    The new crypto/internal/impl registry lets us select alternative
+    implementations from both the same package and importers (such as
+    crypto/sha256 tests once we have crypto/internal/fips/sha256, or
+    crypto/hmac).
+    
+    Updates #69592
+    Updates #69593
+    
+    Change-Id: Ifea22a9fc9ccffcaf4924ff6bd08da7c9bd39e99
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm64-longtest,gotip-linux-amd64-longtest,gotip-linux-ppc64le_power8,gotip-linux-ppc64_power8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614656
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/internal/cryptotest/implementations.go | 56 +++++++++++++++
+ src/crypto/internal/impl/impl.go                  | 88 +++++++++++++++++++++++
+ src/crypto/sha256/sha256_test.go                  | 40 +++++------
+ src/crypto/sha256/sha256block_amd64.go            | 17 +++--
+ src/crypto/sha256/sha256block_arm64.go            | 13 +++-
+ src/crypto/sha256/sha256block_ppc64x.go           |  9 ++-
+ src/crypto/sha256/sha256block_s390x.go            | 15 +++-
+ src/crypto/sha512/sha512_test.go                  | 46 ++++++------
+ src/crypto/sha512/sha512block_amd64.go            | 13 +++-
+ src/crypto/sha512/sha512block_arm64.go            | 13 +++-
+ src/crypto/sha512/sha512block_ppc64x.go           |  9 ++-
+ src/crypto/sha512/sha512block_s390x.go            | 15 +++-
+ src/go/build/deps_test.go                         |  5 +-
+ 13 files changed, 276 insertions(+), 63 deletions(-)
+
+diff --git a/src/crypto/internal/cryptotest/implementations.go b/src/crypto/internal/cryptotest/implementations.go
+new file mode 100644
+index 0000000000..2d922932b0
+--- /dev/null
++++ b/src/crypto/internal/cryptotest/implementations.go
+@@ -0,0 +1,56 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cryptotest
++
++import (
++	"crypto/internal/boring"
++	"crypto/internal/impl"
++	"internal/testenv"
++	"testing"
++)
++
++// TestAllImplementations runs the provided test function with each available
++// implementation of the package registered with crypto/internal/impl. If there
++// are no alternative implementations for pkg, f is invoked directly once.
++func TestAllImplementations(t *testing.T, pkg string, f func(t *testing.T)) {
++	// BoringCrypto bypasses the multiple Go implementations.
++	if boring.Enabled {
++		f(t)
++		return
++	}
++
++	impls := impl.List(pkg)
++	if len(impls) == 0 {
++		f(t)
++		return
++	}
++
++	t.Cleanup(func() { impl.Reset(pkg) })
++
++	for _, name := range impls {
++		if available := impl.Select(pkg, name); available {
++			t.Run(name, f)
++		} else {
++			t.Run(name, func(t *testing.T) {
++				if testenv.Builder() != "" {
++					if name == "SHA-NI" {
++						t.Skip("known issue, see golang.org/issue/69592")
++					}
++					if name == "Armv8.2" {
++						t.Skip("known issue, see golang.org/issue/69593")
++					}
++					t.Error("builder doesn't support CPU features needed to test this implementation")
++				} else {
++					t.Skip("implementation not supported")
++				}
++			})
++		}
++
++	}
++
++	// Test the generic implementation.
++	impl.Select(pkg, "")
++	t.Run("Base", f)
++}
+diff --git a/src/crypto/internal/impl/impl.go b/src/crypto/internal/impl/impl.go
+new file mode 100644
+index 0000000000..f90785fa1c
+--- /dev/null
++++ b/src/crypto/internal/impl/impl.go
+@@ -0,0 +1,88 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package impl is a registry of alternative implementations of cryptographic
++// primitives, to allow selecting them for testing.
++package impl
++
++type implementation struct {
++	Package   string
++	Name      string
++	Available bool
++	Toggle    *bool
++}
++
++var allImplementations []implementation
++
++// Register records an alternative implementation of a cryptographic primitive.
++// The implementation might be available or not based on CPU support. If
++// available is false, the implementation is unavailable and can't be tested on
++// this machine. If available is true, it can be set to false to disable the
++// implementation. If all alternative implementations but one are disabled, the
++// remaining one must be used (i.e. disabling one implementation must not
++// implicitly disable any other). Each package has an implicit base
++// implementation that is selected when all alternatives are unavailable or
++// disabled.
++func Register(pkg, name string, available *bool) {
++	allImplementations = append(allImplementations, implementation{
++		Package:   pkg,
++		Name:      name,
++		Available: *available,
++		Toggle:    available,
++	})
++}
++
++// List returns the names of all alternative implementations registered for the
++// given package, whether available or not. The implicit base implementation is
++// not included.
++func List(pkg string) []string {
++	var names []string
++	for _, i := range allImplementations {
++		if i.Package == pkg {
++			names = append(names, i.Name)
++		}
++	}
++	return names
++}
++
++func available(pkg, name string) bool {
++	for _, i := range allImplementations {
++		if i.Package == pkg && i.Name == name {
++			return i.Available
++		}
++	}
++	panic("unknown implementation")
++}
++
++// Select disables all implementations for the given package except the one
++// with the given name. If name is empty, the base implementation is selected.
++// It returns whether the selected implementation is available.
++func Select(pkg, name string) bool {
++	if name == "" {
++		for _, i := range allImplementations {
++			if i.Package == pkg {
++				*i.Toggle = false
++			}
++		}
++		return true
++	}
++	if !available(pkg, name) {
++		return false
++	}
++	for _, i := range allImplementations {
++		if i.Package == pkg {
++			*i.Toggle = i.Name == name
++		}
++	}
++	return true
++}
++
++func Reset(pkg string) {
++	for _, i := range allImplementations {
++		if i.Package == pkg {
++			*i.Toggle = i.Available
++			return
++		}
++	}
++}
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index 3237c6a73e..a7965b6726 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"bytes"
+ 	"crypto/internal/boring"
+ 	"crypto/internal/cryptotest"
+-	"crypto/rand"
+ 	"encoding"
+ 	"fmt"
+ 	"hash"
+@@ -93,8 +92,11 @@ var golden224 = []sha256Test{
+ }
+ 
+ func TestGolden(t *testing.T) {
+-	for i := 0; i < len(golden); i++ {
+-		g := golden[i]
++	cryptotest.TestAllImplementations(t, "crypto/sha256", testGolden)
++}
++
++func testGolden(t *testing.T) {
++	for _, g := range golden {
+ 		s := fmt.Sprintf("%x", Sum256([]byte(g.in)))
+ 		if s != g.out {
+ 			t.Fatalf("Sum256 function: sha256(%s) = %s want %s", g.in, s, g.out)
+@@ -115,8 +117,7 @@ func TestGolden(t *testing.T) {
+ 			c.Reset()
+ 		}
+ 	}
+-	for i := 0; i < len(golden224); i++ {
+-		g := golden224[i]
++	for _, g := range golden224 {
+ 		s := fmt.Sprintf("%x", Sum224([]byte(g.in)))
+ 		if s != g.out {
+ 			t.Fatalf("Sum224 function: sha224(%s) = %s want %s", g.in, s, g.out)
+@@ -140,6 +141,10 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ func TestGoldenMarshal(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "crypto/sha256", testGoldenMarshal)
++}
++
++func testGoldenMarshal(t *testing.T) {
+ 	tests := []struct {
+ 		name    string
+ 		newHash func() hash.Hash
+@@ -228,21 +233,6 @@ func TestBlockSize(t *testing.T) {
+ 	}
+ }
+ 
+-// Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
+-func TestBlockGeneric(t *testing.T) {
+-	if boring.Enabled {
+-		t.Skip("BoringCrypto doesn't expose digest")
+-	}
+-	gen, asm := New().(*digest), New().(*digest)
+-	buf := make([]byte, BlockSize*20) // arbitrary factor
+-	rand.Read(buf)
+-	blockGeneric(gen, buf)
+-	block(asm, buf)
+-	if *gen != *asm {
+-		t.Error("block and blockGeneric resulted in different states")
+-	}
+-}
+-
+ // Tests for unmarshaling hashes that have hashed a large amount of data
+ // The initial hash generation is omitted from the test, because it takes a long time.
+ // The test contains some already-generated states, and their expected sums
+@@ -338,12 +328,16 @@ func TestCgo(t *testing.T) {
+ 	h.Sum(nil)
+ }
+ 
+-func TestSHA256Hash(t *testing.T) {
++func TestHash(t *testing.T) {
+ 	t.Run("SHA-224", func(t *testing.T) {
+-		cryptotest.TestHash(t, New224)
++		cryptotest.TestAllImplementations(t, "crypto/sha256", func(t *testing.T) {
++			cryptotest.TestHash(t, New224)
++		})
+ 	})
+ 	t.Run("SHA-256", func(t *testing.T) {
+-		cryptotest.TestHash(t, New)
++		cryptotest.TestAllImplementations(t, "crypto/sha256", func(t *testing.T) {
++			cryptotest.TestHash(t, New)
++		})
+ 	})
+ }
+ 
+diff --git a/src/crypto/sha256/sha256block_amd64.go b/src/crypto/sha256/sha256block_amd64.go
+index 411f5ebf02..ec3a4870d4 100644
+--- a/src/crypto/sha256/sha256block_amd64.go
++++ b/src/crypto/sha256/sha256block_amd64.go
+@@ -6,18 +6,25 @@
+ 
+ package sha256
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/impl"
++	"internal/cpu"
++)
++
++var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI2
++var useSHANI = useAVX2 && cpu.X86.HasSHA
++
++func init() {
++	impl.Register("crypto/sha256", "AVX2", &useAVX2)
++	impl.Register("crypto/sha256", "SHA-NI", &useSHANI)
++}
+ 
+ //go:noescape
+ func blockAMD64(dig *digest, p []byte)
+ 
+-var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI2
+-
+ //go:noescape
+ func blockAVX2(dig *digest, p []byte)
+ 
+-var useSHANI = useAVX2 && cpu.X86.HasSHA
+-
+ //go:noescape
+ func blockSHANI(dig *digest, p []byte)
+ 
+diff --git a/src/crypto/sha256/sha256block_arm64.go b/src/crypto/sha256/sha256block_arm64.go
+index 4bb873ac75..6eb1c89a6b 100644
+--- a/src/crypto/sha256/sha256block_arm64.go
++++ b/src/crypto/sha256/sha256block_arm64.go
+@@ -6,13 +6,22 @@
+ 
+ package sha256
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/impl"
++	"internal/cpu"
++)
++
++var useSHA2 = cpu.ARM64.HasSHA2
++
++func init() {
++	impl.Register("crypto/sha256", "Armv8.0", &useSHA2)
++}
+ 
+ //go:noescape
+ func blockSHA2(dig *digest, p []byte)
+ 
+ func block(dig *digest, p []byte) {
+-	if cpu.ARM64.HasSHA2 {
++	if useSHA2 {
+ 		blockSHA2(dig, p)
+ 	} else {
+ 		blockGeneric(dig, p)
+diff --git a/src/crypto/sha256/sha256block_ppc64x.go b/src/crypto/sha256/sha256block_ppc64x.go
+index ae5437598e..6cc8c2ec52 100644
+--- a/src/crypto/sha256/sha256block_ppc64x.go
++++ b/src/crypto/sha256/sha256block_ppc64x.go
+@@ -6,7 +6,10 @@
+ 
+ package sha256
+ 
+-import "internal/godebug"
++import (
++	"crypto/internal/impl"
++	"internal/godebug"
++)
+ 
+ // The POWER architecture doesn't have a way to turn off SHA-2 support at
+ // runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG knob for
+@@ -14,6 +17,10 @@ import "internal/godebug"
+ // performance overhead of checking it on every block.
+ var ppc64sha2 = godebug.New("#ppc64sha2").Value() != "off"
+ 
++func init() {
++	impl.Register("crypto/sha256", "POWER8", &ppc64sha2)
++}
++
+ //go:noescape
+ func blockPOWER(dig *digest, p []byte)
+ 
+diff --git a/src/crypto/sha256/sha256block_s390x.go b/src/crypto/sha256/sha256block_s390x.go
+index 2abebc98e9..06bba55117 100644
+--- a/src/crypto/sha256/sha256block_s390x.go
++++ b/src/crypto/sha256/sha256block_s390x.go
+@@ -6,13 +6,24 @@
+ 
+ package sha256
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/impl"
++	"internal/cpu"
++)
++
++var useSHA256 = cpu.S390X.HasSHA256
++
++func init() {
++	// CP Assist for Cryptographic Functions (CPACF)
++	// https://www.ibm.com/docs/en/zos/3.1.0?topic=icsf-cp-assist-cryptographic-functions-cpacf
++	impl.Register("crypto/sha256", "CPACF", &useSHA256)
++}
+ 
+ //go:noescape
+ func blockS390X(dig *digest, p []byte)
+ 
+ func block(dig *digest, p []byte) {
+-	if cpu.S390X.HasSHA256 {
++	if useSHA256 {
+ 		blockS390X(dig, p)
+ 	} else {
+ 		blockGeneric(dig, p)
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index cfe6b57197..9c41bdc367 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"bytes"
+ 	"crypto/internal/boring"
+ 	"crypto/internal/cryptotest"
+-	"crypto/rand"
+ 	"encoding"
+ 	"encoding/hex"
+ 	"fmt"
+@@ -680,6 +679,12 @@ func testHash(t *testing.T, name, in, outHex string, oneShotResult []byte, diges
+ }
+ 
+ func TestGolden(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++		testGolden(t)
++	})
++}
++
++func testGolden(t *testing.T) {
+ 	tests := []struct {
+ 		name        string
+ 		oneShotHash func(in []byte) []byte
+@@ -720,6 +725,12 @@ func TestGolden(t *testing.T) {
+ }
+ 
+ func TestGoldenMarshal(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++		testGoldenMarshal(t)
++	})
++}
++
++func testGoldenMarshal(t *testing.T) {
+ 	tests := []struct {
+ 		name    string
+ 		newHash func() hash.Hash
+@@ -834,21 +845,6 @@ func TestBlockSize(t *testing.T) {
+ 	}
+ }
+ 
+-// Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
+-func TestBlockGeneric(t *testing.T) {
+-	if boring.Enabled {
+-		t.Skip("BoringCrypto doesn't expose digest")
+-	}
+-	gen, asm := New().(*digest), New().(*digest)
+-	buf := make([]byte, BlockSize*20) // arbitrary factor
+-	rand.Read(buf)
+-	blockGeneric(gen, buf)
+-	block(asm, buf)
+-	if *gen != *asm {
+-		t.Error("block and blockGeneric resulted in different states")
+-	}
+-}
+-
+ // Tests for unmarshaling hashes that have hashed a large amount of data
+ // The initial hash generation is omitted from the test, because it takes a long time.
+ // The test contains some already-generated states, and their expected sums
+@@ -922,18 +918,26 @@ func TestAllocations(t *testing.T) {
+ 	}
+ }
+ 
+-func TestSHA512Hash(t *testing.T) {
++func TestHash(t *testing.T) {
+ 	t.Run("SHA-384", func(t *testing.T) {
+-		cryptotest.TestHash(t, New384)
++		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++			cryptotest.TestHash(t, New384)
++		})
+ 	})
+ 	t.Run("SHA-512/224", func(t *testing.T) {
+-		cryptotest.TestHash(t, New512_224)
++		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++			cryptotest.TestHash(t, New512_224)
++		})
+ 	})
+ 	t.Run("SHA-512/256", func(t *testing.T) {
+-		cryptotest.TestHash(t, New512_256)
++		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++			cryptotest.TestHash(t, New512_256)
++		})
+ 	})
+ 	t.Run("SHA-512", func(t *testing.T) {
+-		cryptotest.TestHash(t, New)
++		cryptotest.TestAllImplementations(t, "crypto/sha512", func(t *testing.T) {
++			cryptotest.TestHash(t, New)
++		})
+ 	})
+ }
+ 
+diff --git a/src/crypto/sha512/sha512block_amd64.go b/src/crypto/sha512/sha512block_amd64.go
+index fd1baecb32..39d14597fd 100644
+--- a/src/crypto/sha512/sha512block_amd64.go
++++ b/src/crypto/sha512/sha512block_amd64.go
+@@ -6,7 +6,16 @@
+ 
+ package sha512
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/impl"
++	"internal/cpu"
++)
++
++var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
++
++func init() {
++	impl.Register("crypto/sha512", "AVX2", &useAVX2)
++}
+ 
+ //go:noescape
+ func blockAVX2(dig *digest, p []byte)
+@@ -14,8 +23,6 @@ func blockAVX2(dig *digest, p []byte)
+ //go:noescape
+ func blockAMD64(dig *digest, p []byte)
+ 
+-var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+-
+ func block(dig *digest, p []byte) {
+ 	if useAVX2 {
+ 		blockAVX2(dig, p)
+diff --git a/src/crypto/sha512/sha512block_arm64.go b/src/crypto/sha512/sha512block_arm64.go
+index d62eb92917..ea9e8d9a84 100644
+--- a/src/crypto/sha512/sha512block_arm64.go
++++ b/src/crypto/sha512/sha512block_arm64.go
+@@ -6,13 +6,22 @@
+ 
+ package sha512
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/impl"
++	"internal/cpu"
++)
++
++var useSHA512 = cpu.ARM64.HasSHA512
++
++func init() {
++	impl.Register("crypto/sha512", "Armv8.2", &useSHA512)
++}
+ 
+ //go:noescape
+ func blockSHA512(dig *digest, p []byte)
+ 
+ func block(dig *digest, p []byte) {
+-	if cpu.ARM64.HasSHA512 {
++	if useSHA512 {
+ 		blockSHA512(dig, p)
+ 	} else {
+ 		blockGeneric(dig, p)
+diff --git a/src/crypto/sha512/sha512block_ppc64x.go b/src/crypto/sha512/sha512block_ppc64x.go
+index 2f7793ba49..0a87aa9cf2 100644
+--- a/src/crypto/sha512/sha512block_ppc64x.go
++++ b/src/crypto/sha512/sha512block_ppc64x.go
+@@ -6,7 +6,10 @@
+ 
+ package sha512
+ 
+-import "internal/godebug"
++import (
++	"crypto/internal/impl"
++	"internal/godebug"
++)
+ 
+ // The POWER architecture doesn't have a way to turn off SHA-512 support at
+ // runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG knob for
+@@ -14,6 +17,10 @@ import "internal/godebug"
+ // performance overhead of checking it on every block.
+ var ppc64sha512 = godebug.New("#ppc64sha512").Value() != "off"
+ 
++func init() {
++	impl.Register("crypto/sha512", "POWER8", &ppc64sha512)
++}
++
+ //go:noescape
+ func blockPOWER(dig *digest, p []byte)
+ 
+diff --git a/src/crypto/sha512/sha512block_s390x.go b/src/crypto/sha512/sha512block_s390x.go
+index 2d1b9ed3db..6fd4057ab0 100644
+--- a/src/crypto/sha512/sha512block_s390x.go
++++ b/src/crypto/sha512/sha512block_s390x.go
+@@ -6,13 +6,24 @@
+ 
+ package sha512
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/impl"
++	"internal/cpu"
++)
++
++var useSHA512 = cpu.S390X.HasSHA512
++
++func init() {
++	// CP Assist for Cryptographic Functions (CPACF)
++	// https://www.ibm.com/docs/en/zos/3.1.0?topic=icsf-cp-assist-cryptographic-functions-cpacf
++	impl.Register("crypto/sha512", "CPACF", &useSHA512)
++}
+ 
+ //go:noescape
+ func blockS390X(dig *digest, p []byte)
+ 
+ func block(dig *digest, p []byte) {
+-	if cpu.S390X.HasSHA512 {
++	if useSHA512 {
+ 		blockS390X(dig, p)
+ 	} else {
+ 		blockGeneric(dig, p)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 64558ff135..43c3fb5aed 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -446,9 +446,12 @@ var depsRules = `
+ 	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fipstls;
+ 	crypto/internal/boring/sig, crypto/internal/boring/fipstls < crypto/tls/fipsonly;
+ 
++	NONE < crypto/internal/impl;
++
+ 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+ 	crypto/internal/boring/sig,
+ 	crypto/internal/boring/syso,
++	crypto/internal/impl,
+ 	golang.org/x/sys/cpu,
+ 	hash, embed
+ 	< crypto
+@@ -643,7 +646,7 @@ var depsRules = `
+ 	FMT
+ 	< internal/txtar;
+ 
+-	CRYPTO-MATH, testing
++	CRYPTO-MATH, testing, internal/testenv
+ 	< crypto/internal/cryptotest;
+ 
+ 	CGO, FMT

@@ -1,0 +1,274 @@
+commit c3f346a485f2fa97a7bdee82d587419b3823a1ba
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 19:51:22 2024 -0700
+
+    math,os,os/*: use testenv.Executable
+    
+    As some callers don't have a testing context, modify testenv.Executable
+    to accept nil (similar to how testenv.GOROOT works).
+    
+    Change-Id: I39112a7869933785a26b5cb6520055b3cc42b847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609835
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/internal/testenv/exec.go     | 12 ++++++++++--
+ src/math/rand/default_test.go    |  6 +-----
+ src/os/exec/exec_test.go         | 34 ++++------------------------------
+ src/os/exec/lp_windows_test.go   | 11 +++--------
+ src/os/executable_test.go        |  6 +-----
+ src/os/fifo_test.go              |  5 +----
+ src/os/os_test.go                | 13 +++----------
+ src/os/os_windows_test.go        |  5 +----
+ src/os/user/user_windows_test.go |  5 +----
+ 9 files changed, 25 insertions(+), 72 deletions(-)
+
+diff --git a/src/internal/testenv/exec.go b/src/internal/testenv/exec.go
+index 9f21b323ab..7b251b6022 100644
+--- a/src/internal/testenv/exec.go
++++ b/src/internal/testenv/exec.go
+@@ -32,8 +32,12 @@ import (
+ // for the resulting error.
+ func MustHaveExec(t testing.TB) {
+ 	if err := tryExec(); err != nil {
++		msg := fmt.Sprintf("cannot exec subprocess on %s/%s: %v", runtime.GOOS, runtime.GOARCH, err)
++		if t == nil {
++			panic(msg)
++		}
+ 		t.Helper()
+-		t.Skipf("skipping test: cannot exec subprocess on %s/%s: %v", runtime.GOOS, runtime.GOARCH, err)
++		t.Skip("skipping test:", msg)
+ 	}
+ }
+ 
+@@ -81,7 +85,11 @@ func Executable(t testing.TB) string {
+ 
+ 	exe, err := exePath()
+ 	if err != nil {
+-		t.Fatalf("os.Executable error: %v", err)
++		msg := fmt.Sprintf("os.Executable error: %v", err)
++		if t == nil {
++			panic(msg)
++		}
++		t.Fatal(msg)
+ 	}
+ 	return exe
+ }
+diff --git a/src/math/rand/default_test.go b/src/math/rand/default_test.go
+index 19fd75dfd1..b42cd165c8 100644
+--- a/src/math/rand/default_test.go
++++ b/src/math/rand/default_test.go
+@@ -37,11 +37,7 @@ func TestDefaultRace(t *testing.T) {
+ 		i := i
+ 		t.Run(strconv.Itoa(i), func(t *testing.T) {
+ 			t.Parallel()
+-			exe, err := os.Executable()
+-			if err != nil {
+-				exe = os.Args[0]
+-			}
+-			cmd := testenv.Command(t, exe, "-test.run=TestDefaultRace")
++			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestDefaultRace")
+ 			cmd = testenv.CleanCmdEnv(cmd)
+ 			cmd.Env = append(cmd.Env, fmt.Sprintf("GO_RAND_TEST_HELPER_CODE=%d", i/2))
+ 			if i%2 != 0 {
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index a0bb89e203..fd185cadcf 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -159,42 +159,16 @@ func helperCommandContext(t *testing.T, ctx context.Context, name string, args .
+ 	helperCommandUsed.LoadOrStore(name, true)
+ 
+ 	t.Helper()
+-	testenv.MustHaveExec(t)
+-
++	exe := testenv.Executable(t)
+ 	cs := append([]string{name}, args...)
+ 	if ctx != nil {
+-		cmd = exec.CommandContext(ctx, exePath(t), cs...)
++		cmd = exec.CommandContext(ctx, exe, cs...)
+ 	} else {
+-		cmd = exec.Command(exePath(t), cs...)
++		cmd = exec.Command(exe, cs...)
+ 	}
+ 	return cmd
+ }
+ 
+-// exePath returns the path to the running executable.
+-func exePath(t testing.TB) string {
+-	exeOnce.Do(func() {
+-		// Use os.Executable instead of os.Args[0] in case the caller modifies
+-		// cmd.Dir: if the test binary is invoked like "./exec.test", it should
+-		// not fail spuriously.
+-		exeOnce.path, exeOnce.err = os.Executable()
+-	})
+-
+-	if exeOnce.err != nil {
+-		if t == nil {
+-			panic(exeOnce.err)
+-		}
+-		t.Fatal(exeOnce.err)
+-	}
+-
+-	return exeOnce.path
+-}
+-
+-var exeOnce struct {
+-	path string
+-	err  error
+-	sync.Once
+-}
+-
+ func chdir(t *testing.T, dir string) {
+ 	t.Helper()
+ 
+@@ -1201,7 +1175,7 @@ func cmdHang(args ...string) {
+ 	pid := os.Getpid()
+ 
+ 	if *subsleep != 0 {
+-		cmd := exec.Command(exePath(nil), "hang", subsleep.String(), "-read=true", "-probe="+probe.String())
++		cmd := exec.Command(testenv.Executable(nil), "hang", subsleep.String(), "-read=true", "-probe="+probe.String())
+ 		cmd.Stdin = os.Stdin
+ 		cmd.Stderr = os.Stderr
+ 		out, err := cmd.StdoutPipe()
+diff --git a/src/os/exec/lp_windows_test.go b/src/os/exec/lp_windows_test.go
+index a92a29799f..15b2a0032f 100644
+--- a/src/os/exec/lp_windows_test.go
++++ b/src/os/exec/lp_windows_test.go
+@@ -25,13 +25,8 @@ func init() {
+ 	registerHelperCommand("printpath", cmdPrintPath)
+ }
+ 
+-func cmdPrintPath(args ...string) {
+-	exe, err := os.Executable()
+-	if err != nil {
+-		fmt.Fprintf(os.Stderr, "Executable: %v\n", err)
+-		os.Exit(1)
+-	}
+-	fmt.Println(exe)
++func cmdPrintPath(_ ...string) {
++	fmt.Println(testenv.Executable(nil))
+ }
+ 
+ // makePATH returns a PATH variable referring to the
+@@ -82,7 +77,7 @@ func installProgs(t *testing.T, root string, files []string) {
+ // (We use a copy instead of just a symlink to ensure that os.Executable
+ // always reports an unambiguous path, regardless of how it is implemented.)
+ func installExe(t *testing.T, dstPath string) {
+-	src, err := os.Open(exePath(t))
++	src, err := os.Open(testenv.Executable(t))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/os/executable_test.go b/src/os/executable_test.go
+index 98b72d7d5e..be3c1dc72d 100644
+--- a/src/os/executable_test.go
++++ b/src/os/executable_test.go
+@@ -16,13 +16,9 @@ import (
+ const executable_EnvVar = "OSTEST_OUTPUT_EXECPATH"
+ 
+ func TestExecutable(t *testing.T) {
+-	testenv.MustHaveExec(t)
+ 	t.Parallel()
+ 
+-	ep, err := os.Executable()
+-	if err != nil {
+-		t.Fatalf("Executable failed: %v", err)
+-	}
++	ep := testenv.Executable(t)
+ 	// we want fn to be of the form "dir/prog"
+ 	dir := filepath.Dir(filepath.Dir(ep))
+ 	fn, err := filepath.Rel(dir, ep)
+diff --git a/src/os/fifo_test.go b/src/os/fifo_test.go
+index 3b7e5eac19..111dd2aaeb 100644
+--- a/src/os/fifo_test.go
++++ b/src/os/fifo_test.go
+@@ -161,10 +161,7 @@ func TestNonPollable(t *testing.T) {
+ 
+ // Issue 60211.
+ func TestOpenFileNonBlocking(t *testing.T) {
+-	exe, err := os.Executable()
+-	if err != nil {
+-		t.Skipf("can't find executable: %v", err)
+-	}
++	exe := testenv.Executable(t)
+ 	f, err := os.OpenFile(exe, os.O_RDONLY|syscall.O_NONBLOCK, 0666)
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 70f6aa1173..4e89f9ac0e 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2336,13 +2336,8 @@ func TestStatStdin(t *testing.T) {
+ 		Exit(0)
+ 	}
+ 
+-	exe, err := Executable()
+-	if err != nil {
+-		t.Skipf("can't find executable: %v", err)
+-	}
+-
+-	testenv.MustHaveExec(t)
+ 	t.Parallel()
++	exe := testenv.Executable(t)
+ 
+ 	fi, err := Stdin.Stat()
+ 	if err != nil {
+@@ -2508,11 +2503,10 @@ func TestLongPath(t *testing.T) {
+ }
+ 
+ func testKillProcess(t *testing.T, processKiller func(p *Process)) {
+-	testenv.MustHaveExec(t)
+ 	t.Parallel()
+ 
+ 	// Re-exec the test binary to start a process that hangs until stdin is closed.
+-	cmd := testenv.Command(t, Args[0])
++	cmd := testenv.Command(t, testenv.Executable(t))
+ 	cmd.Env = append(cmd.Environ(), "GO_OS_TEST_DRAIN_STDIN=1")
+ 	stdout, err := cmd.StdoutPipe()
+ 	if err != nil {
+@@ -2561,10 +2555,9 @@ func TestGetppid(t *testing.T) {
+ 		Exit(0)
+ 	}
+ 
+-	testenv.MustHaveExec(t)
+ 	t.Parallel()
+ 
+-	cmd := testenv.Command(t, Args[0], "-test.run=^TestGetppid$")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestGetppid$")
+ 	cmd.Env = append(Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 
+ 	// verify that Getppid() from the forked process reports our process id
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 4a8d0d07ef..dd247cf885 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -1221,10 +1221,7 @@ func TestRootDirAsTemp(t *testing.T) {
+ 	testenv.MustHaveExec(t)
+ 	t.Parallel()
+ 
+-	exe, err := os.Executable()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	exe := testenv.Executable(t)
+ 
+ 	newtmp, err := findUnusedDriveLetter()
+ 	if err != nil {
+diff --git a/src/os/user/user_windows_test.go b/src/os/user/user_windows_test.go
+index deb3db6a87..f025af802c 100644
+--- a/src/os/user/user_windows_test.go
++++ b/src/os/user/user_windows_test.go
+@@ -170,10 +170,7 @@ func TestCurrentNetapi32(t *testing.T) {
+ 		os.Exit(0)
+ 		return
+ 	}
+-	exe, err := os.Executable()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	exe := testenv.Executable(t)
+ 	cmd := testenv.CleanCmdEnv(exec.Command(exe, "-test.run=^TestCurrentNetapi32$"))
+ 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+ 	out, err := cmd.CombinedOutput()

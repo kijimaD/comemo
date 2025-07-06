@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 16034: 79a0c1701262dd5b581550656a562eddd342d342
+# Index 16034: fd9049f40417781f2dca9435b03d86b1f2b96a0d
 
 echo "🚀 Generating explanation for commit 16034..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 16034..."
 
 ### メタデータ
 - **コミットインデックス**: 16034
-- **コミットハッシュ**: 79a0c1701262dd5b581550656a562eddd342d342
-- **GitHub URL**: https://github.com/golang/go/commit/79a0c1701262dd5b581550656a562eddd342d342
+- **コミットハッシュ**: fd9049f40417781f2dca9435b03d86b1f2b96a0d
+- **GitHub URL**: https://github.com/golang/go/commit/fd9049f40417781f2dca9435b03d86b1f2b96a0d
 
 ### 章構成
 

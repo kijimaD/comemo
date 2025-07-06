@@ -1,0 +1,80 @@
+commit 6a4effa08ba5c7b182d319a2a8ddd782274c2f74
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Jan 9 16:03:08 2025 +0100
+
+    crypto/x509: avoid panic when parsing partial PKCS#1 private keys
+    
+    These keys are off-spec, but have historically been accepted by
+    ParsePKCS1PrivateKey.
+    
+    Thanks to Philippe Antoine (Catena cyber) for reporting this issue.
+    
+    Fixes #71216
+    Fixes CVE-2025-22865
+    
+    Change-Id: I6a6a46564156fa32e29e8d6acbec3fbac47c7352
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1820
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Commit-Queue: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643098
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/crypto/x509/pkcs1.go     |  4 +++-
+ src/crypto/x509/x509_test.go | 26 ++++++++++++++++++++++++++
+ 2 files changed, 29 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/x509/pkcs1.go b/src/crypto/x509/pkcs1.go
+index ca23358c8c..68aa8dd980 100644
+--- a/src/crypto/x509/pkcs1.go
++++ b/src/crypto/x509/pkcs1.go
+@@ -72,7 +72,9 @@ func ParsePKCS1PrivateKey(der []byte) (*rsa.PrivateKey, error) {
+ 	}
+ 
+ 	if priv.N.Sign() <= 0 || priv.D.Sign() <= 0 || priv.P.Sign() <= 0 || priv.Q.Sign() <= 0 ||
+-		priv.Dp.Sign() <= 0 || priv.Dq.Sign() <= 0 || priv.Qinv.Sign() <= 0 {
++		priv.Dp != nil && priv.Dp.Sign() <= 0 ||
++		priv.Dq != nil && priv.Dq.Sign() <= 0 ||
++		priv.Qinv != nil && priv.Qinv.Sign() <= 0 {
+ 		return nil, errors.New("x509: private key contains zero or negative value")
+ 	}
+ 
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 941ea572e6..f67f40778b 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -59,6 +59,32 @@ func TestParsePKCS1PrivateKey(t *testing.T) {
+ 	if _, err := ParsePKCS1PrivateKey(data); err == nil {
+ 		t.Errorf("parsing invalid private key did not result in an error")
+ 	}
++
++	// A partial key without CRT values should still parse.
++	b, _ := asn1.Marshal(struct {
++		Version int
++		N       *big.Int
++		E       int
++		D       *big.Int
++		P       *big.Int
++		Q       *big.Int
++	}{
++		N: priv.N,
++		E: priv.PublicKey.E,
++		D: priv.D,
++		P: priv.Primes[0],
++		Q: priv.Primes[1],
++	})
++	p2, err := ParsePKCS1PrivateKey(b)
++	if err != nil {
++		t.Fatalf("parsing partial private key resulted in an error: %v", err)
++	}
++	if !p2.Equal(priv) {
++		t.Errorf("partial private key did not match original key")
++	}
++	if p2.Precomputed.Dp == nil || p2.Precomputed.Dq == nil || p2.Precomputed.Qinv == nil {
++		t.Errorf("precomputed values not recomputed")
++	}
+ }
+ 
+ func TestPKCS1MismatchPublicKeyFormat(t *testing.T) {

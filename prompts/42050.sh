@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 42050: ee2268c6bce9fabf3330c832e90edf1601828ace
+# Index 42050: f2694534cf3591191a125815bae24cd12ea07022
 
 echo "🚀 Generating explanation for commit 42050..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 42050..."
 
 ### メタデータ
 - **コミットインデックス**: 42050
-- **コミットハッシュ**: ee2268c6bce9fabf3330c832e90edf1601828ace
-- **GitHub URL**: https://github.com/golang/go/commit/ee2268c6bce9fabf3330c832e90edf1601828ace
+- **コミットハッシュ**: f2694534cf3591191a125815bae24cd12ea07022
+- **GitHub URL**: https://github.com/golang/go/commit/f2694534cf3591191a125815bae24cd12ea07022
 
 ### 章構成
 

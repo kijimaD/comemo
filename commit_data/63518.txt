@@ -1,0 +1,324 @@
+commit 2dddc7ef881669276c96356ec44c4e46ec20b1e9
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Mar 13 19:03:43 2024 +0000
+
+    cmd/link: move .dynamic and .got sections to relro if applicable
+    
+    This is the second of two CLs to roll forward the changes in CL
+    473495, which was subsequently reverted.
+    
+    In this patch we move the .dynamic and .got sections from the writable
+    data segment to the relro segment if the platform supports relro and
+    we're producing a PIE binary, and also moves .got.plt into relro if
+    eager binding is in effect (e.g. -bindnow or -Wl,-z,now).
+    
+    Updates #45681.
+    
+    Change-Id: I9f4fba6e825b96d1b5e27fb75844450dd0a650b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571417
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/link/internal/ld/data.go            |  3 +-
+ src/cmd/link/internal/ld/elf.go             | 20 +++++--
+ src/cmd/link/internal/ld/elf_test.go        | 58 ++++++++++++++++++-
+ src/cmd/link/internal/sym/symkind.go        |  1 +
+ src/cmd/link/internal/sym/symkind_string.go | 89 +++++++++++++++--------------
+ 5 files changed, 121 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 11dc48b18b..feaa3c34d8 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1850,7 +1850,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	}
+ 	ldr := ctxt.loader
+ 
+-	// .got
++	// writable .got (note that for PIE binaries .got goes in relro)
+ 	if len(state.data[sym.SELFGOT]) > 0 {
+ 		state.allocateNamedSectionAndAssignSyms(&Segdata, ".got", sym.SELFGOT, sym.SDATA, 06)
+ 	}
+@@ -2106,6 +2106,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 				xcoffUpdateOuterSize(ctxt, state.datsize-symnStartValue, symn)
+ 			}
+ 		}
++		state.assignToSection(sect, sym.SELFRELROSECT, sym.SRODATA)
+ 
+ 		sect.Length = uint64(state.datsize) - sect.Vaddr
+ 	}
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 97b24b0cae..0d8455d92e 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1113,6 +1113,7 @@ func elfphload(seg *sym.Segment) *ElfPhdr {
+ func elfphrelro(seg *sym.Segment) {
+ 	ph := newElfPhdr()
+ 	ph.Type = elf.PT_GNU_RELRO
++	ph.Flags = elf.PF_R
+ 	ph.Vaddr = seg.Vaddr
+ 	ph.Paddr = seg.Vaddr
+ 	ph.Memsz = seg.Length
+@@ -1562,7 +1563,11 @@ func (ctxt *Link) doelf() {
+ 
+ 		/* global offset table */
+ 		got := ldr.CreateSymForUpdate(".got", 0)
+-		got.SetType(sym.SELFGOT) // writable
++		if ctxt.UseRelro() {
++			got.SetType(sym.SELFRELROSECT)
++		} else {
++			got.SetType(sym.SELFGOT) // writable
++		}
+ 
+ 		/* ppc64 glink resolver */
+ 		if ctxt.IsPPC64() {
+@@ -1575,7 +1580,11 @@ func (ctxt *Link) doelf() {
+ 		hash.SetType(sym.SELFROSECT)
+ 
+ 		gotplt := ldr.CreateSymForUpdate(".got.plt", 0)
+-		gotplt.SetType(sym.SELFSECT) // writable
++		if ctxt.UseRelro() && *flagBindNow {
++			gotplt.SetType(sym.SELFRELROSECT)
++		} else {
++			gotplt.SetType(sym.SELFSECT) // writable
++		}
+ 
+ 		plt := ldr.CreateSymForUpdate(".plt", 0)
+ 		if ctxt.IsPPC64() {
+@@ -1597,9 +1606,12 @@ func (ctxt *Link) doelf() {
+ 
+ 		/* define dynamic elf table */
+ 		dynamic := ldr.CreateSymForUpdate(".dynamic", 0)
+-		if thearch.ELF.DynamicReadOnly {
++		switch {
++		case thearch.ELF.DynamicReadOnly:
+ 			dynamic.SetType(sym.SELFROSECT)
+-		} else {
++		case ctxt.UseRelro():
++			dynamic.SetType(sym.SELFRELROSECT)
++		default:
+ 			dynamic.SetType(sym.SELFSECT)
+ 		}
+ 
+diff --git a/src/cmd/link/internal/ld/elf_test.go b/src/cmd/link/internal/ld/elf_test.go
+index 16bf4039b1..b48cf66038 100644
+--- a/src/cmd/link/internal/ld/elf_test.go
++++ b/src/cmd/link/internal/ld/elf_test.go
+@@ -198,6 +198,7 @@ func TestElfBindNow(t *testing.T) {
+ 		name                 string
+ 		args                 []string
+ 		prog                 string
++		wantSecsRO           []string
+ 		mustHaveBuildModePIE bool
+ 		mustHaveCGO          bool
+ 		mustInternalLink     bool
+@@ -213,6 +214,7 @@ func TestElfBindNow(t *testing.T) {
+ 			mustHaveBuildModePIE: true,
+ 			mustInternalLink:     true,
+ 			wantDf1Pie:           true,
++			wantSecsRO:           []string{".dynamic", ".got"},
+ 		},
+ 		{
+ 			name:             "bindnow-linkmode-internal",
+@@ -232,6 +234,7 @@ func TestElfBindNow(t *testing.T) {
+ 			wantDfBindNow:        true,
+ 			wantDf1Now:           true,
+ 			wantDf1Pie:           true,
++			wantSecsRO:           []string{".dynamic", ".got", ".got.plt"},
+ 		},
+ 		{
+ 			name:                 "bindnow-pie-linkmode-external",
+@@ -242,6 +245,8 @@ func TestElfBindNow(t *testing.T) {
+ 			wantDfBindNow:        true,
+ 			wantDf1Now:           true,
+ 			wantDf1Pie:           true,
++			// NB: external linker produces .plt.got, not .got.plt
++			wantSecsRO: []string{".dynamic", ".got"},
+ 		},
+ 	}
+ 
+@@ -251,10 +256,14 @@ func TestElfBindNow(t *testing.T) {
+ 				return true
+ 			}
+ 		}
+-
+ 		return false
+ 	}
+ 
++	segContainsSec := func(p *elf.Prog, s *elf.Section) bool {
++		return s.Addr >= p.Vaddr &&
++			s.Addr+s.FileSize <= p.Vaddr+p.Filesz
++	}
++
+ 	for _, test := range tests {
+ 		t.Run(test.name, func(t *testing.T) {
+ 			if test.mustInternalLink {
+@@ -329,6 +338,53 @@ func TestElfBindNow(t *testing.T) {
+ 			if gotDf1Pie := gotDynFlag(flags1, uint64(elf.DF_1_PIE)); gotDf1Pie != test.wantDf1Pie {
+ 				t.Fatalf("DT_FLAGS_1 DF_1_PIE got: %v, want: %v", gotDf1Pie, test.wantDf1Pie)
+ 			}
++
++			for _, wsroname := range test.wantSecsRO {
++				// Locate section of interest.
++				var wsro *elf.Section
++				for _, s := range elfFile.Sections {
++					if s.Name == wsroname {
++						wsro = s
++						break
++					}
++				}
++				if wsro == nil {
++					t.Fatalf("test %s: can't locate %q section",
++						test.name, wsroname)
++				}
++
++				// Now walk the program headers. Section should be part of
++				// some segment that is readonly.
++				foundRO := false
++				foundSegs := []*elf.Prog{}
++				for _, p := range elfFile.Progs {
++					if segContainsSec(p, wsro) {
++						foundSegs = append(foundSegs, p)
++						if p.Flags == elf.PF_R {
++							foundRO = true
++						}
++					}
++				}
++				if !foundRO {
++					// Things went off the rails. Write out some
++					// useful information for a human looking at the
++					// test failure.
++					t.Logf("test %s: %q section not in readonly segment",
++						wsro.Name, test.name)
++					t.Logf("section %s location: st=0x%x en=0x%x\n",
++						wsro.Name, wsro.Addr, wsro.Addr+wsro.FileSize)
++					t.Logf("sec %s found in these segments: ", wsro.Name)
++					for _, p := range foundSegs {
++						t.Logf(" %q", p.Type)
++					}
++					t.Logf("\nall segments: \n")
++					for k, p := range elfFile.Progs {
++						t.Logf("%d t=%s fl=%s st=0x%x en=0x%x\n",
++							k, p.Type, p.Flags, p.Vaddr, p.Vaddr+p.Filesz)
++					}
++					t.Fatalf("test %s failed", test.name)
++				}
++			}
+ 		})
+ 	}
+ }
+diff --git a/src/cmd/link/internal/sym/symkind.go b/src/cmd/link/internal/sym/symkind.go
+index 08cafb206b..9a1f33c582 100644
+--- a/src/cmd/link/internal/sym/symkind.go
++++ b/src/cmd/link/internal/sym/symkind.go
+@@ -76,6 +76,7 @@ const (
+ 	SGCBITSRELRO
+ 	SRODATARELRO
+ 	SFUNCTABRELRO
++	SELFRELROSECT
+ 
+ 	// Part of .data.rel.ro if it exists, otherwise part of .rodata.
+ 	STYPELINK
+diff --git a/src/cmd/link/internal/sym/symkind_string.go b/src/cmd/link/internal/sym/symkind_string.go
+index 62b4fd92e5..b29c00334f 100644
+--- a/src/cmd/link/internal/sym/symkind_string.go
++++ b/src/cmd/link/internal/sym/symkind_string.go
+@@ -27,53 +27,54 @@ func _() {
+ 	_ = x[SGCBITSRELRO-16]
+ 	_ = x[SRODATARELRO-17]
+ 	_ = x[SFUNCTABRELRO-18]
+-	_ = x[STYPELINK-19]
+-	_ = x[SITABLINK-20]
+-	_ = x[SSYMTAB-21]
+-	_ = x[SPCLNTAB-22]
+-	_ = x[SFirstWritable-23]
+-	_ = x[SBUILDINFO-24]
+-	_ = x[SELFSECT-25]
+-	_ = x[SMACHO-26]
+-	_ = x[SMACHOGOT-27]
+-	_ = x[SWINDOWS-28]
+-	_ = x[SELFGOT-29]
+-	_ = x[SNOPTRDATA-30]
+-	_ = x[SINITARR-31]
+-	_ = x[SDATA-32]
+-	_ = x[SXCOFFTOC-33]
+-	_ = x[SBSS-34]
+-	_ = x[SNOPTRBSS-35]
+-	_ = x[SLIBFUZZER_8BIT_COUNTER-36]
+-	_ = x[SCOVERAGE_COUNTER-37]
+-	_ = x[SCOVERAGE_AUXVAR-38]
+-	_ = x[STLSBSS-39]
+-	_ = x[SXREF-40]
+-	_ = x[SMACHOSYMSTR-41]
+-	_ = x[SMACHOSYMTAB-42]
+-	_ = x[SMACHOINDIRECTPLT-43]
+-	_ = x[SMACHOINDIRECTGOT-44]
+-	_ = x[SFILEPATH-45]
+-	_ = x[SDYNIMPORT-46]
+-	_ = x[SHOSTOBJ-47]
+-	_ = x[SUNDEFEXT-48]
+-	_ = x[SDWARFSECT-49]
+-	_ = x[SDWARFCUINFO-50]
+-	_ = x[SDWARFCONST-51]
+-	_ = x[SDWARFFCN-52]
+-	_ = x[SDWARFABSFCN-53]
+-	_ = x[SDWARFTYPE-54]
+-	_ = x[SDWARFVAR-55]
+-	_ = x[SDWARFRANGE-56]
+-	_ = x[SDWARFLOC-57]
+-	_ = x[SDWARFLINES-58]
+-	_ = x[SSEHUNWINDINFO-59]
+-	_ = x[SSEHSECT-60]
++	_ = x[SELFRELROSECT-19]
++	_ = x[STYPELINK-20]
++	_ = x[SITABLINK-21]
++	_ = x[SSYMTAB-22]
++	_ = x[SPCLNTAB-23]
++	_ = x[SFirstWritable-24]
++	_ = x[SBUILDINFO-25]
++	_ = x[SELFSECT-26]
++	_ = x[SMACHO-27]
++	_ = x[SMACHOGOT-28]
++	_ = x[SWINDOWS-29]
++	_ = x[SELFGOT-30]
++	_ = x[SNOPTRDATA-31]
++	_ = x[SINITARR-32]
++	_ = x[SDATA-33]
++	_ = x[SXCOFFTOC-34]
++	_ = x[SBSS-35]
++	_ = x[SNOPTRBSS-36]
++	_ = x[SLIBFUZZER_8BIT_COUNTER-37]
++	_ = x[SCOVERAGE_COUNTER-38]
++	_ = x[SCOVERAGE_AUXVAR-39]
++	_ = x[STLSBSS-40]
++	_ = x[SXREF-41]
++	_ = x[SMACHOSYMSTR-42]
++	_ = x[SMACHOSYMTAB-43]
++	_ = x[SMACHOINDIRECTPLT-44]
++	_ = x[SMACHOINDIRECTGOT-45]
++	_ = x[SFILEPATH-46]
++	_ = x[SDYNIMPORT-47]
++	_ = x[SHOSTOBJ-48]
++	_ = x[SUNDEFEXT-49]
++	_ = x[SDWARFSECT-50]
++	_ = x[SDWARFCUINFO-51]
++	_ = x[SDWARFCONST-52]
++	_ = x[SDWARFFCN-53]
++	_ = x[SDWARFABSFCN-54]
++	_ = x[SDWARFTYPE-55]
++	_ = x[SDWARFVAR-56]
++	_ = x[SDWARFRANGE-57]
++	_ = x[SDWARFLOC-58]
++	_ = x[SDWARFLINES-59]
++	_ = x[SSEHUNWINDINFO-60]
++	_ = x[SSEHSECT-61]
+ }
+ 
+-const _SymKind_name = "SxxxSTEXTSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSSEHUNWINDINFOSSEHSECT"
++const _SymKind_name = "SxxxSTEXTSELFRXSECTSMACHOPLTSTYPESSTRINGSGOSTRINGSGOFUNCSGCBITSSRODATASFUNCTABSELFROSECTSTYPERELROSSTRINGRELROSGOSTRINGRELROSGOFUNCRELROSGCBITSRELROSRODATARELROSFUNCTABRELROSELFRELROSECTSTYPELINKSITABLINKSSYMTABSPCLNTABSFirstWritableSBUILDINFOSELFSECTSMACHOSMACHOGOTSWINDOWSSELFGOTSNOPTRDATASINITARRSDATASXCOFFTOCSBSSSNOPTRBSSSLIBFUZZER_8BIT_COUNTERSCOVERAGE_COUNTERSCOVERAGE_AUXVARSTLSBSSSXREFSMACHOSYMSTRSMACHOSYMTABSMACHOINDIRECTPLTSMACHOINDIRECTGOTSFILEPATHSDYNIMPORTSHOSTOBJSUNDEFEXTSDWARFSECTSDWARFCUINFOSDWARFCONSTSDWARFFCNSDWARFABSFCNSDWARFTYPESDWARFVARSDWARFRANGESDWARFLOCSDWARFLINESSSEHUNWINDINFOSSEHSECT"
+ 
+-var _SymKind_index = [...]uint16{0, 4, 9, 19, 28, 33, 40, 49, 56, 63, 70, 78, 88, 98, 110, 124, 136, 148, 160, 173, 182, 191, 198, 206, 220, 230, 238, 244, 253, 261, 268, 278, 286, 291, 300, 304, 313, 336, 353, 369, 376, 381, 393, 405, 422, 439, 448, 458, 466, 475, 485, 497, 508, 517, 529, 539, 548, 559, 568, 579, 593, 601}
++var _SymKind_index = [...]uint16{0, 4, 9, 19, 28, 33, 40, 49, 56, 63, 70, 78, 88, 98, 110, 124, 136, 148, 160, 173, 186, 195, 204, 211, 219, 233, 243, 251, 257, 266, 274, 281, 291, 299, 304, 313, 317, 326, 349, 366, 382, 389, 394, 406, 418, 435, 452, 461, 471, 479, 488, 498, 510, 521, 530, 542, 552, 561, 572, 581, 592, 606, 614}
+ 
+ func (i SymKind) String() string {
+ 	if i >= SymKind(len(_SymKind_index)-1) {

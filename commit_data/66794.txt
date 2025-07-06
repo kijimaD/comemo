@@ -1,0 +1,46 @@
+commit c3a0859720469087e1542e8e00a60700f2f8847b
+Author: Marcel Meyer <mm.marcelmeyer@gmail.com>
+Date:   Thu Apr 10 15:31:03 2025 +0000
+
+    runtime: use built-in min function
+    
+    Change-Id: I625c392864c97cefc2ac8f23612e3f62f7fbba23
+    GitHub-Last-Rev: 779f756850e7bf0cf2059ed0b4d412638c872f7e
+    GitHub-Pull-Request: golang/go#73313
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664016
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/proc.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 16339decbd..c7ae71a136 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6636,20 +6636,14 @@ func globrunqget() *g {
+ 
+ // Try get a batch of G's from the global runnable queue.
+ // sched.lock must be held.
+-func globrunqgetbatch(max int32) (gp *g, q gQueue, qsize int32) {
++func globrunqgetbatch(n int32) (gp *g, q gQueue, qsize int32) {
+ 	assertLockHeld(&sched.lock)
+ 
+ 	if sched.runqsize == 0 {
+ 		return
+ 	}
+ 
+-	n := sched.runqsize/gomaxprocs + 1
+-	if n > sched.runqsize {
+-		n = sched.runqsize
+-	}
+-	if n > max {
+-		n = max
+-	}
++	n = min(n, sched.runqsize, sched.runqsize/gomaxprocs+1)
+ 
+ 	sched.runqsize -= n
+ 

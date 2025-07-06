@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 30256: ee785f03a24e0373be4c2d7256413296735c3414
+# Index 30256: adcd34c732d01d60ca336627fc0fd7647d46a0c1
 
 echo "🚀 Generating explanation for commit 30256..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 30256..."
 
 ### メタデータ
 - **コミットインデックス**: 30256
-- **コミットハッシュ**: ee785f03a24e0373be4c2d7256413296735c3414
-- **GitHub URL**: https://github.com/golang/go/commit/ee785f03a24e0373be4c2d7256413296735c3414
+- **コミットハッシュ**: adcd34c732d01d60ca336627fc0fd7647d46a0c1
+- **GitHub URL**: https://github.com/golang/go/commit/adcd34c732d01d60ca336627fc0fd7647d46a0c1
 
 ### 章構成
 

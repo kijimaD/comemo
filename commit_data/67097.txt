@@ -1,0 +1,198 @@
+commit 123141166bf77b60062d830224b85131791647fd
+Author: Julian Zhu <julian.oerv@isrc.iscas.ac.cn>
+Date:   Sat May 17 21:45:50 2025 +0800
+
+    cmd/compile: add generic simplifications on riscv64
+    
+    file      before    after     Δ       %
+    addr2line 3636263   3636215   -48     -0.001%
+    asm       6318110   6317966   -144    -0.002%
+    buildid   3463352   3463224   -128    -0.004%
+    cgo       5672502   5672214   -288    -0.005%
+    compile   26904997  26905719  +722    +0.003%
+    cover     6405603   6405467   -136    -0.002%
+    dist      4092630   4092494   -136    -0.003%
+    doc       9728281   9723977   -4304   -0.044%
+    fix       4014891   4014835   -56     -0.001%
+    link      8327674   8327426   -248    -0.003%
+    nm        3628718   3628494   -224    -0.006%
+    objdump   5951778   5951626   -152    -0.003%
+    pack      2896080   2896040   -40     -0.001%
+    pprof     17596796  17591908  -4888   -0.028%
+    test2json 3346622   3346566   -56     -0.002%
+    trace     16179738  16175706  -4032   -0.025%
+    vet       9603472   9603264   -208    -0.002%
+    total     156070021 156055655 -14366  -0.009%
+    
+    Change-Id: Ie4a79a3c410eb79155ce2418ae64fa670d1ccd53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673477
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules |  9 +++
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 87 +++++++++++++++++++++++++
+ 2 files changed, 96 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index 80061ada2c..dc1cc97fb3 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -743,6 +743,15 @@
+ (ROL  x (NEG y)) => (ROR  x y)
+ (ROLW x (NEG y)) => (RORW x y)
+ 
++// generic simplifications
++(ADD x (NEG y)) => (SUB x y)
++(SUB x (NEG y)) => (ADD x y)
++(SUB x x) => (MOVDconst [0])
++(AND x x) => x
++(OR  x x) => x
++(ORN x x) => (MOVDconst [-1])
++(XOR x x) => (MOVDconst [0])
++
+ // Convert const subtraction into ADDI with negative immediate, where possible.
+ (SUB x (MOVDconst [val])) && is32Bit(-val) => (ADDI [-val] x)
+ (SUB <t> (MOVDconst [val]) y) && is32Bit(-val) => (NEG (ADDI <t> [-val] y))
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index 4e53ae5fe6..95c6489a51 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -586,6 +586,8 @@ func rewriteValueRISCV64(v *Value) bool {
+ 		return rewriteValueRISCV64_OpRISCV64OR(v)
+ 	case OpRISCV64ORI:
+ 		return rewriteValueRISCV64_OpRISCV64ORI(v)
++	case OpRISCV64ORN:
++		return rewriteValueRISCV64_OpRISCV64ORN(v)
+ 	case OpRISCV64ROL:
+ 		return rewriteValueRISCV64_OpRISCV64ROL(v)
+ 	case OpRISCV64ROLW:
+@@ -3522,6 +3524,21 @@ func rewriteValueRISCV64_OpRISCV64ADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (ADD x (NEG y))
++	// result: (SUB x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpRISCV64NEG {
++				continue
++			}
++			y := v_1.Args[0]
++			v.reset(OpRISCV64SUB)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
+ 	// match: (ADD (SLLI [1] x) y)
+ 	// cond: buildcfg.GORISCV64 >= 22
+ 	// result: (SH1ADD x y)
+@@ -3672,6 +3689,16 @@ func rewriteValueRISCV64_OpRISCV64AND(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (AND x x)
++	// result: x
++	for {
++		x := v_0
++		if x != v_1 {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRISCV64ANDI(v *Value) bool {
+@@ -6396,6 +6423,16 @@ func rewriteValueRISCV64_OpRISCV64OR(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (OR x x)
++	// result: x
++	for {
++		x := v_0
++		if x != v_1 {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRISCV64ORI(v *Value) bool {
+@@ -6448,6 +6485,22 @@ func rewriteValueRISCV64_OpRISCV64ORI(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueRISCV64_OpRISCV64ORN(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (ORN x x)
++	// result: (MOVDconst [-1])
++	for {
++		x := v_0
++		if x != v_1 {
++			break
++		}
++		v.reset(OpRISCV64MOVDconst)
++		v.AuxInt = int64ToAuxInt(-1)
++		return true
++	}
++	return false
++}
+ func rewriteValueRISCV64_OpRISCV64ROL(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -7093,6 +7146,29 @@ func rewriteValueRISCV64_OpRISCV64SUB(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+ 	b := v.Block
++	// match: (SUB x (NEG y))
++	// result: (ADD x y)
++	for {
++		x := v_0
++		if v_1.Op != OpRISCV64NEG {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpRISCV64ADD)
++		v.AddArg2(x, y)
++		return true
++	}
++	// match: (SUB x x)
++	// result: (MOVDconst [0])
++	for {
++		x := v_0
++		if x != v_1 {
++			break
++		}
++		v.reset(OpRISCV64MOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
+ 	// match: (SUB x (MOVDconst [val]))
+ 	// cond: is32Bit(-val)
+ 	// result: (ADDI [-val] x)
+@@ -7204,6 +7280,17 @@ func rewriteValueRISCV64_OpRISCV64XOR(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (XOR x x)
++	// result: (MOVDconst [0])
++	for {
++		x := v_0
++		if x != v_1 {
++			break
++		}
++		v.reset(OpRISCV64MOVDconst)
++		v.AuxInt = int64ToAuxInt(0)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueRISCV64_OpRotateLeft16(v *Value) bool {

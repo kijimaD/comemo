@@ -1,0 +1,53 @@
+commit 41884dcd05546ced3634496d931d0b005fc8c2e6
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Wed May 22 09:57:14 2024 -0700
+
+    runtime/pprof: ignore runtime-internal samples in test
+    
+    Tests of the mutex profile focus on sync.Mutex, which is easy to
+    control. But since those tests still use the runtime, and contention on
+    internal runtime.mutex values is now also part of the mutex profile, we
+    have to filter out those samples before examining the profile. Otherwise
+    the test may be confused by stray contention on sched.lock (or other
+    runtime-internal locks) as a natural consequence of using goroutines.
+    
+    Fixes #67563
+    
+    Change-Id: I066a24674d8b719dbeca4a5c0f76b53bc07498c1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586957
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/pprof/pprof_test.go | 11 +++++++++--
+ 1 file changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index e6fa068060..512e07e491 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1349,14 +1349,21 @@ func TestMutexProfileRateAdjust(t *testing.T) {
+ 		}
+ 
+ 		for _, s := range p.Sample {
++			var match, runtimeInternal bool
+ 			for _, l := range s.Location {
+ 				for _, line := range l.Line {
+ 					if line.Function.Name == "runtime/pprof.blockMutex.func1" {
+-						contentions += s.Value[0]
+-						delay += s.Value[1]
++						match = true
++					}
++					if line.Function.Name == "runtime.unlock" {
++						runtimeInternal = true
+ 					}
+ 				}
+ 			}
++			if match && !runtimeInternal {
++				contentions += s.Value[0]
++				delay += s.Value[1]
++			}
+ 		}
+ 		return
+ 	}

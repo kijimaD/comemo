@@ -1,0 +1,151 @@
+commit 3c8f9256067bb3917d7cae05cffdb56dc29e4b3c
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Apr 25 16:10:22 2024 -0700
+
+    go/types, types2: factor out type parameter access into genericType
+    
+    Also, remove types2.Signature.SetTypeParams as it is not used
+    and does not exist in go/types.
+    
+    Change-Id: I16c3ae988988d3735907e9c6c56e8626497ea405
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581817
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+---
+ src/cmd/compile/internal/types2/instantiate.go | 22 +++++++++++++---------
+ src/cmd/compile/internal/types2/signature.go   |  3 ---
+ src/go/types/instantiate.go                    | 22 +++++++++++++---------
+ 3 files changed, 26 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index a25cb141ec..5630d06bc9 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -14,6 +14,12 @@ import (
+ 	. "internal/types/errors"
+ )
+ 
++// A genericType implements access to its type parameters.
++type genericType interface {
++	Type
++	TypeParams() *TypeParamList
++}
++
+ // Instantiate instantiates the type orig with the given type arguments targs.
+ // orig must be a *Named or a *Signature type. If there is no error, the
+ // resulting Type is an instantiated type of the same kind (either a *Named or
+@@ -41,17 +47,15 @@ import (
+ // count is incorrect; for *Named types, a panic may occur later inside the
+ // *Named API.
+ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, error) {
++	assert(len(targs) > 0)
+ 	if ctxt == nil {
+ 		ctxt = NewContext()
+ 	}
++	orig_ := orig.(genericType) // signature of Instantiate must not change for backward-compatibility
++
+ 	if validate {
+-		var tparams []*TypeParam
+-		switch t := orig.(type) {
+-		case *Named:
+-			tparams = t.TypeParams().list()
+-		case *Signature:
+-			tparams = t.TypeParams().list()
+-		}
++		tparams := orig_.TypeParams().list()
++		assert(len(tparams) > 0)
+ 		if len(targs) != len(tparams) {
+ 			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
+ 		}
+@@ -60,7 +64,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ 		}
+ 	}
+ 
+-	inst := (*Checker)(nil).instance(nopos, orig, targs, nil, ctxt)
++	inst := (*Checker)(nil).instance(nopos, orig_, targs, nil, ctxt)
+ 	return inst, nil
+ }
+ 
+@@ -75,7 +79,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ // must be non-nil.
+ //
+ // For Named types the resulting instance may be unexpanded.
+-func (check *Checker) instance(pos syntax.Pos, orig Type, targs []Type, expanding *Named, ctxt *Context) (res Type) {
++func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
+ 	// The order of the contexts below matters: we always prefer instances in the
+ 	// expanding instance context in order to preserve reference cycles.
+ 	//
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index bb4d32b016..7a5a2c155f 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -73,9 +73,6 @@ func (s *Signature) Recv() *Var { return s.recv }
+ // TypeParams returns the type parameters of signature s, or nil.
+ func (s *Signature) TypeParams() *TypeParamList { return s.tparams }
+ 
+-// SetTypeParams sets the type parameters of signature s.
+-func (s *Signature) SetTypeParams(tparams []*TypeParam) { s.tparams = bindTParams(tparams) }
+-
+ // RecvTypeParams returns the receiver type parameters of signature s, or nil.
+ func (s *Signature) RecvTypeParams() *TypeParamList { return s.rparams }
+ 
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index d53f5d3fba..38a7e3ffe9 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -17,6 +17,12 @@ import (
+ 	. "internal/types/errors"
+ )
+ 
++// A genericType implements access to its type parameters.
++type genericType interface {
++	Type
++	TypeParams() *TypeParamList
++}
++
+ // Instantiate instantiates the type orig with the given type arguments targs.
+ // orig must be a *Named or a *Signature type. If there is no error, the
+ // resulting Type is an instantiated type of the same kind (either a *Named or
+@@ -44,17 +50,15 @@ import (
+ // count is incorrect; for *Named types, a panic may occur later inside the
+ // *Named API.
+ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, error) {
++	assert(len(targs) > 0)
+ 	if ctxt == nil {
+ 		ctxt = NewContext()
+ 	}
++	orig_ := orig.(genericType) // signature of Instantiate must not change for backward-compatibility
++
+ 	if validate {
+-		var tparams []*TypeParam
+-		switch t := orig.(type) {
+-		case *Named:
+-			tparams = t.TypeParams().list()
+-		case *Signature:
+-			tparams = t.TypeParams().list()
+-		}
++		tparams := orig_.TypeParams().list()
++		assert(len(tparams) > 0)
+ 		if len(targs) != len(tparams) {
+ 			return nil, fmt.Errorf("got %d type arguments but %s has %d type parameters", len(targs), orig, len(tparams))
+ 		}
+@@ -63,7 +67,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ 		}
+ 	}
+ 
+-	inst := (*Checker)(nil).instance(nopos, orig, targs, nil, ctxt)
++	inst := (*Checker)(nil).instance(nopos, orig_, targs, nil, ctxt)
+ 	return inst, nil
+ }
+ 
+@@ -78,7 +82,7 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ // must be non-nil.
+ //
+ // For Named types the resulting instance may be unexpanded.
+-func (check *Checker) instance(pos token.Pos, orig Type, targs []Type, expanding *Named, ctxt *Context) (res Type) {
++func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, expanding *Named, ctxt *Context) (res Type) {
+ 	// The order of the contexts below matters: we always prefer instances in the
+ 	// expanding instance context in order to preserve reference cycles.
+ 	//

@@ -1,0 +1,77 @@
+commit ec7817e385a0e8f0bcd6c8082f465d81852ab500
+Author: Conrad Irwin <conrad.irwin@gmail.com>
+Date:   Sat Nov 30 23:22:49 2024 -0700
+
+    cmd/go: add -modfile and -modcacherw to go tool
+    
+    When adding support for module tools, we added the ability for `go tool`
+    to edit the module cache. For users with `GOFLAGS=-modcacherw` this
+    could have led to a situation where some of the files in the mod cache
+    were unexpectedly not deletable.
+    
+    We also allow -modfile so that people can select which module they are
+    working in when looking for tools.
+    
+    We still do not support arbitrary build flags for tools with `go tool`.
+    If you want those, use `go run` or `go build`, etc. instead.
+    
+    Updates #48429
+    
+    Change-Id: Ic3c56bb8b6ba46114196465ca6ee2dcb08b9dcc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632575
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/go/internal/tool/tool.go            | 1 +
+ src/cmd/go/testdata/script/mod_cache_rw.txt | 9 +++++++++
+ src/cmd/go/testdata/script/modfile_flag.txt | 4 ++++
+ 3 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 9fd917e0cb..2b18a42384 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -66,6 +66,7 @@ func isGccgoTool(tool string) bool {
+ 
+ func init() {
+ 	base.AddChdirFlag(&CmdTool.Flag)
++	base.AddModCommonFlags(&CmdTool.Flag)
+ 	CmdTool.Flag.BoolVar(&toolN, "n", false, "")
+ }
+ 
+diff --git a/src/cmd/go/testdata/script/mod_cache_rw.txt b/src/cmd/go/testdata/script/mod_cache_rw.txt
+index 87f27e87de..151bdfb791 100644
+--- a/src/cmd/go/testdata/script/mod_cache_rw.txt
++++ b/src/cmd/go/testdata/script/mod_cache_rw.txt
+@@ -42,6 +42,15 @@ cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/extraneous_file.go
+ ! go mod verify
+ [!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/rsc.io/quote@v1.5.2/go.mod
+ 
++# Repeat part of the test with 'go tool'
++go mod edit -tool example.com/tools/cmd/hello -require example.com/tools@v1.0.0
++go mod download -modcacherw example.com/tools
++go clean -modcache
++go tool -modcacherw hello
++cp $WORK/extraneous.txt $GOPATH/pkg/mod/example.com/tools@v1.0.0/extraneous_file.go
++! go mod verify
++[!root] ! cp $WORK/extraneous.txt $GOPATH/pkg/mod/example.com/tools@v1.0.0/cmd/hello/hello.go
++
+ 
+ -- $WORK/extraneous.txt --
+ module oops
+diff --git a/src/cmd/go/testdata/script/modfile_flag.txt b/src/cmd/go/testdata/script/modfile_flag.txt
+index 6d28759849..7260cf656b 100644
+--- a/src/cmd/go/testdata/script/modfile_flag.txt
++++ b/src/cmd/go/testdata/script/modfile_flag.txt
+@@ -48,6 +48,10 @@ go build -n -mod=mod .
+ go test -n -mod=mod .
+ go get rsc.io/quote
+ 
++# 'go tool' and tool management should work.
++go get -tool example.com/tools/cmd/hello@v1.0.0
++grep cmd/hello go.alt.mod
++go tool hello
+ 
+ # 'go mod vendor' should work.
+ go mod vendor

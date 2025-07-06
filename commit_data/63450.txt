@@ -1,0 +1,447 @@
+commit 37f482223f331c4400797f72158fcf1eaa1793c4
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Apr 4 16:30:30 2024 +0800
+
+    net: separate the Solaris fast/slow path of setting SOCK_* from others
+    
+    Along with the removal of the slow path from Linux and *BSD.
+    
+    For #59359
+    
+    Change-Id: I6c79594252e5e5f1c1c57c11e09458fcae3793d2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577175
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+---
+ src/internal/poll/sock_cloexec.go                  | 31 +------
+ src/internal/poll/sock_cloexec_solaris.go          | 47 ++++++++++
+ src/internal/syscall/unix/asm_solaris.s            |  3 +
+ src/internal/syscall/unix/at_solaris.go            |  4 +
+ src/internal/syscall/unix/kernel_version_other.go  |  2 +-
+ .../syscall/unix/kernel_version_solaris.go         | 99 ++++++++++++++++++++++
+ .../syscall/unix/kernel_version_solaris_test.go    | 59 +++++++++++++
+ src/net/sock_cloexec.go                            | 25 +-----
+ src/net/sock_cloexec_solaris.go                    | 47 ++++++++++
+ 9 files changed, 263 insertions(+), 54 deletions(-)
+
+diff --git a/src/internal/poll/sock_cloexec.go b/src/internal/poll/sock_cloexec.go
+index 361c11bc57..cbf7021804 100644
+--- a/src/internal/poll/sock_cloexec.go
++++ b/src/internal/poll/sock_cloexec.go
+@@ -5,7 +5,7 @@
+ // This file implements accept for platforms that provide a fast path for
+ // setting SetNonblock and CloseOnExec.
+ 
+-//go:build dragonfly || freebsd || (linux && !arm) || netbsd || openbsd || solaris
++//go:build dragonfly || freebsd || (linux && !arm) || netbsd || openbsd
+ 
+ package poll
+ 
+@@ -15,35 +15,8 @@ import "syscall"
+ // descriptor as nonblocking and close-on-exec.
+ func accept(s int) (int, syscall.Sockaddr, string, error) {
+ 	ns, sa, err := Accept4Func(s, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
+-	// TODO: We can remove the fallback on Linux and *BSD,
+-	// as currently supported versions all support accept4
+-	// with SOCK_CLOEXEC, but Solaris does not. See issue #59359.
+-	switch err {
+-	case nil:
+-		return ns, sa, "", nil
+-	default: // errors other than the ones listed
+-		return -1, sa, "accept4", err
+-	case syscall.ENOSYS: // syscall missing
+-	case syscall.EINVAL: // some Linux use this instead of ENOSYS
+-	case syscall.EACCES: // some Linux use this instead of ENOSYS
+-	case syscall.EFAULT: // some Linux use this instead of ENOSYS
+-	}
+-
+-	// See ../syscall/exec_unix.go for description of ForkLock.
+-	// It is probably okay to hold the lock across syscall.Accept
+-	// because we have put fd.sysfd into non-blocking mode.
+-	// However, a call to the File method will put it back into
+-	// blocking mode. We can't take that risk, so no use of ForkLock here.
+-	ns, sa, err = AcceptFunc(s)
+-	if err == nil {
+-		syscall.CloseOnExec(ns)
+-	}
+ 	if err != nil {
+-		return -1, nil, "accept", err
+-	}
+-	if err = syscall.SetNonblock(ns, true); err != nil {
+-		CloseFunc(ns)
+-		return -1, nil, "setnonblock", err
++		return -1, nil, "accept4", err
+ 	}
+ 	return ns, sa, "", nil
+ }
+diff --git a/src/internal/poll/sock_cloexec_solaris.go b/src/internal/poll/sock_cloexec_solaris.go
+new file mode 100644
+index 0000000000..92f150b6e5
+--- /dev/null
++++ b/src/internal/poll/sock_cloexec_solaris.go
+@@ -0,0 +1,47 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements accept for platforms that provide a fast path for
++// setting SetNonblock and CloseOnExec, but don't necessarily have accept4.
++// The accept4(3c) function was added to Oracle Solaris in the Solaris 11.4.0
++// release. Thus, on releases prior to 11.4, we fall back to the combination
++// of accept(3c) and fcntl(2).
++
++package poll
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
++
++// Wrapper around the accept system call that marks the returned file
++// descriptor as nonblocking and close-on-exec.
++func accept(s int) (int, syscall.Sockaddr, string, error) {
++	// Perform a cheap test and try the fast path first.
++	if unix.SupportAccept4() {
++		ns, sa, err := Accept4Func(s, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
++		if err != nil {
++			return -1, nil, "accept4", err
++		}
++		return ns, sa, "", nil
++	}
++
++	// See ../syscall/exec_unix.go for description of ForkLock.
++	// It is probably okay to hold the lock across syscall.Accept
++	// because we have put fd.sysfd into non-blocking mode.
++	// However, a call to the File method will put it back into
++	// blocking mode. We can't take that risk, so no use of ForkLock here.
++	ns, sa, err := AcceptFunc(s)
++	if err == nil {
++		syscall.CloseOnExec(ns)
++	}
++	if err != nil {
++		return -1, nil, "accept", err
++	}
++	if err = syscall.SetNonblock(ns, true); err != nil {
++		CloseFunc(ns)
++		return -1, nil, "setnonblock", err
++	}
++	return ns, sa, "", nil
++}
+diff --git a/src/internal/syscall/unix/asm_solaris.s b/src/internal/syscall/unix/asm_solaris.s
+index 2057338315..361ca7fc2a 100644
+--- a/src/internal/syscall/unix/asm_solaris.s
++++ b/src/internal/syscall/unix/asm_solaris.s
+@@ -8,3 +8,6 @@
+ 
+ TEXT ·syscall6(SB),NOSPLIT,$0-88
+ 	JMP	syscall·sysvicall6(SB)
++
++TEXT ·rawSyscall6(SB),NOSPLIT,$0-88
++	JMP	syscall·rawSysvicall6(SB)
+diff --git a/src/internal/syscall/unix/at_solaris.go b/src/internal/syscall/unix/at_solaris.go
+index 4ab224d670..ae1c1d64ca 100644
+--- a/src/internal/syscall/unix/at_solaris.go
++++ b/src/internal/syscall/unix/at_solaris.go
+@@ -9,9 +9,13 @@ import "syscall"
+ // Implemented as sysvicall6 in runtime/syscall_solaris.go.
+ func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
+ 
++// Implemented as rawsysvicall6 in runtime/syscall_solaris.go.
++func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
++
+ //go:cgo_import_dynamic libc_fstatat fstatat "libc.so"
+ //go:cgo_import_dynamic libc_openat openat "libc.so"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.so"
++//go:cgo_import_dynamic libc_uname uname "libc.so"
+ 
+ const (
+ 	AT_REMOVEDIR        = 0x1
+diff --git a/src/internal/syscall/unix/kernel_version_other.go b/src/internal/syscall/unix/kernel_version_other.go
+index 00af9f2ba0..fc65c1c823 100644
+--- a/src/internal/syscall/unix/kernel_version_other.go
++++ b/src/internal/syscall/unix/kernel_version_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !linux
++//go:build !linux && !solaris
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/kernel_version_solaris.go b/src/internal/syscall/unix/kernel_version_solaris.go
+new file mode 100644
+index 0000000000..86161e2ee5
+--- /dev/null
++++ b/src/internal/syscall/unix/kernel_version_solaris.go
+@@ -0,0 +1,99 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"runtime"
++	"sync"
++	"syscall"
++	"unsafe"
++)
++
++//go:linkname procUname libc_uname
++
++var procUname uintptr
++
++// utsname represents the fields of a struct utsname defined in <sys/utsname.h>.
++type utsname struct {
++	Sysname  [257]byte
++	Nodename [257]byte
++	Release  [257]byte
++	Version  [257]byte
++	Machine  [257]byte
++}
++
++// KernelVersion returns major and minor kernel version numbers
++// parsed from the syscall.Uname's Version field, or (0, 0) if the
++// version can't be obtained or parsed.
++func KernelVersion() (major int, minor int) {
++	var un utsname
++	_, _, errno := rawSyscall6(uintptr(unsafe.Pointer(&procUname)), 1, uintptr(unsafe.Pointer(&un)), 0, 0, 0, 0, 0)
++	if errno != 0 {
++		return 0, 0
++	}
++
++	// The version string is in the form "<version>.<update>.<sru>.<build>.<reserved>"
++	// on Solaris: https://blogs.oracle.com/solaris/post/whats-in-a-uname-
++	// Therefore, we use the Version field on Solaris when available.
++	ver := un.Version[:]
++	if runtime.GOOS == "illumos" {
++		// Illumos distributions use different formats without a parsable
++		// and unified pattern for the Version field while Release level
++		// string is guaranteed to be in x.y or x.y.z format regardless of
++		// whether the kernel is Solaris or illumos.
++		ver = un.Release[:]
++	}
++
++	parseNext := func() (n int) {
++		for i, c := range ver {
++			if c == '.' {
++				ver = ver[i+1:]
++				return
++			}
++			if '0' <= c && c <= '9' {
++				n = n*10 + int(c-'0')
++			}
++		}
++		ver = nil
++		return
++	}
++
++	major = parseNext()
++	minor = parseNext()
++
++	return
++}
++
++// SupportSockNonblockCloexec tests if SOCK_NONBLOCK and SOCK_CLOEXEC are supported
++// for socket() system call, returns true if affirmative.
++var SupportSockNonblockCloexec = sync.OnceValue(func() bool {
++	// First test if socket() supports SOCK_NONBLOCK and SOCK_CLOEXEC directly.
++	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, 0)
++	if err == nil {
++		syscall.Close(s)
++		return true
++	}
++	if err != syscall.EPROTONOSUPPORT && err != syscall.EINVAL {
++		// Something wrong with socket(), fall back to checking the kernel version.
++		major, minor := KernelVersion()
++		if runtime.GOOS == "illumos" {
++			return major > 5 || (major == 5 && minor >= 11) // minimal requirement is SunOS 5.11
++		}
++		return major > 11 || (major == 11 && minor >= 4)
++	}
++	return false
++})
++
++// SupportAccept4 tests whether accept4 system call is available.
++var SupportAccept4 = sync.OnceValue(func() bool {
++	for {
++		// Test if the accept4() is available.
++		_, _, err := syscall.Accept4(0, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
++		if err == syscall.EINTR {
++			continue
++		}
++		return err != syscall.ENOSYS
++	}
++})
+diff --git a/src/internal/syscall/unix/kernel_version_solaris_test.go b/src/internal/syscall/unix/kernel_version_solaris_test.go
+new file mode 100644
+index 0000000000..1c51c55fa0
+--- /dev/null
++++ b/src/internal/syscall/unix/kernel_version_solaris_test.go
+@@ -0,0 +1,59 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build solaris
++
++package unix_test
++
++import (
++	"internal/syscall/unix"
++	"runtime"
++	"syscall"
++	"testing"
++)
++
++func TestSupportSockNonblockCloexec(t *testing.T) {
++	// Test that SupportSockNonblockCloexec returns true if socket succeeds with SOCK_NONBLOCK and SOCK_CLOEXEC.
++	s, err := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, 0)
++	if err == nil {
++		syscall.Close(s)
++	}
++	wantSock := err != syscall.EPROTONOSUPPORT && err != syscall.EINVAL
++	gotSock := unix.SupportSockNonblockCloexec()
++	if wantSock != gotSock {
++		t.Fatalf("SupportSockNonblockCloexec, got %t; want %t", gotSock, wantSock)
++	}
++
++	// Test that SupportAccept4 returns true if accept4 is available.
++	for {
++		_, _, err = syscall.Accept4(0, syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC)
++		if err != syscall.EINTR {
++			break
++		}
++	}
++	wantAccept4 := err != syscall.ENOSYS
++	gotAccept4 := unix.SupportAccept4()
++	if wantAccept4 != gotAccept4 {
++		t.Fatalf("SupportAccept4, got %t; want %t", gotAccept4, wantAccept4)
++	}
++
++	// Test that the version returned by KernelVersion matches expectations.
++	major, minor := unix.KernelVersion()
++	t.Logf("Kernel version: %d.%d", major, minor)
++	if runtime.GOOS == "illumos" {
++		if gotSock && gotAccept4 && (major < 5 || (major == 5 && minor < 11)) {
++			t.Fatalf("SupportSockNonblockCloexec and SupportAccept4 are true, but kernel version is older than 5.11, SunOS version: %d.%d", major, minor)
++		}
++		if !gotSock && !gotAccept4 && (major > 5 || (major == 5 && minor >= 11)) {
++			t.Errorf("SupportSockNonblockCloexec and SupportAccept4 are false, but kernel version is 5.11 or newer, SunOS version: %d.%d", major, minor)
++		}
++	} else { // Solaris
++		if gotSock && gotAccept4 && (major < 11 || (major == 11 && minor < 4)) {
++			t.Fatalf("SupportSockNonblockCloexec and SupportAccept4 are true, but kernel version is older than 11.4, Solaris version: %d.%d", major, minor)
++		}
++		if !gotSock && !gotAccept4 && (major > 11 || (major == 11 && minor >= 4)) {
++			t.Errorf("SupportSockNonblockCloexec and SupportAccept4 are false, but kernel version is 11.4 or newer, Solaris version: %d.%d", major, minor)
++		}
++	}
++}
+diff --git a/src/net/sock_cloexec.go b/src/net/sock_cloexec.go
+index 9eeb89746b..043522f0b6 100644
+--- a/src/net/sock_cloexec.go
++++ b/src/net/sock_cloexec.go
+@@ -5,12 +5,11 @@
+ // This file implements sysSocket for platforms that provide a fast path for
+ // setting SetNonblock and CloseOnExec.
+ 
+-//go:build dragonfly || freebsd || linux || netbsd || openbsd || solaris
++//go:build dragonfly || freebsd || linux || netbsd || openbsd
+ 
+ package net
+ 
+ import (
+-	"internal/poll"
+ 	"os"
+ 	"syscall"
+ )
+@@ -19,30 +18,8 @@ import (
+ // descriptor as nonblocking and close-on-exec.
+ func sysSocket(family, sotype, proto int) (int, error) {
+ 	s, err := socketFunc(family, sotype|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, proto)
+-	// TODO: We can remove the fallback on Linux and *BSD,
+-	// as currently supported versions all support accept4
+-	// with SOCK_CLOEXEC, but Solaris does not. See issue #59359.
+-	switch err {
+-	case nil:
+-		return s, nil
+-	default:
+-		return -1, os.NewSyscallError("socket", err)
+-	case syscall.EPROTONOSUPPORT, syscall.EINVAL:
+-	}
+-
+-	// See ../syscall/exec_unix.go for description of ForkLock.
+-	syscall.ForkLock.RLock()
+-	s, err = socketFunc(family, sotype, proto)
+-	if err == nil {
+-		syscall.CloseOnExec(s)
+-	}
+-	syscall.ForkLock.RUnlock()
+ 	if err != nil {
+ 		return -1, os.NewSyscallError("socket", err)
+ 	}
+-	if err = syscall.SetNonblock(s, true); err != nil {
+-		poll.CloseFunc(s)
+-		return -1, os.NewSyscallError("setnonblock", err)
+-	}
+ 	return s, nil
+ }
+diff --git a/src/net/sock_cloexec_solaris.go b/src/net/sock_cloexec_solaris.go
+new file mode 100644
+index 0000000000..04c3cdf254
+--- /dev/null
++++ b/src/net/sock_cloexec_solaris.go
+@@ -0,0 +1,47 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This file implements sysSocket for platforms that provide a fast path for
++// setting SetNonblock and CloseOnExec, but don't necessarily support it.
++// Support for SOCK_* flags as part of the type parameter was added to Oracle
++// Solaris in the 11.4 release. Thus, on releases prior to 11.4, we fall back
++// to the combination of socket(3c) and fcntl(2).
++
++package net
++
++import (
++	"internal/poll"
++	"internal/syscall/unix"
++	"os"
++	"syscall"
++)
++
++// Wrapper around the socket system call that marks the returned file
++// descriptor as nonblocking and close-on-exec.
++func sysSocket(family, sotype, proto int) (int, error) {
++	// Perform a cheap test and try the fast path first.
++	if unix.SupportSockNonblockCloexec() {
++		s, err := socketFunc(family, sotype|syscall.SOCK_NONBLOCK|syscall.SOCK_CLOEXEC, proto)
++		if err != nil {
++			return -1, os.NewSyscallError("socket", err)
++		}
++		return s, nil
++	}
++
++	// See ../syscall/exec_unix.go for description of ForkLock.
++	syscall.ForkLock.RLock()
++	s, err := socketFunc(family, sotype, proto)
++	if err == nil {
++		syscall.CloseOnExec(s)
++	}
++	syscall.ForkLock.RUnlock()
++	if err != nil {
++		return -1, os.NewSyscallError("socket", err)
++	}
++	if err = syscall.SetNonblock(s, true); err != nil {
++		poll.CloseFunc(s)
++		return -1, os.NewSyscallError("setnonblock", err)
++	}
++	return s, nil
++}

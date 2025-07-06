@@ -1,0 +1,67 @@
+commit 2fd2718f6b64000fa25e0c5d1ee48aa1426d5a6f
+Author: cuishuang <imcusg@gmail.com>
+Date:   Fri Nov 1 17:55:50 2024 +0800
+
+    bufio: add example for ReadFrom and remove unused code
+    
+    Change-Id: Ia4fbb436ca573b1820f2b4d06d2332f588334768
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624357
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/bufio/bufio_test.go   |  1 -
+ src/bufio/example_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 27 insertions(+), 1 deletion(-)
+
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index 60752d38f6..63dd2ea432 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -939,7 +939,6 @@ func (t *testReader) Read(buf []byte) (n int, err error) {
+ }
+ 
+ func testReadLine(t *testing.T, input []byte) {
+-	//for stride := 1; stride < len(input); stride++ {
+ 	for stride := 1; stride < 2; stride++ {
+ 		done := 0
+ 		reader := testReader{input, stride}
+diff --git a/src/bufio/example_test.go b/src/bufio/example_test.go
+index 6d219aecc6..7d4f0c1c28 100644
+--- a/src/bufio/example_test.go
++++ b/src/bufio/example_test.go
+@@ -33,6 +33,33 @@ func ExampleWriter_AvailableBuffer() {
+ 	// Output: 1 2 3 4
+ }
+ 
++// ExampleWriter_ReadFrom demonstrates how to use the ReadFrom method of Writer.
++func ExampleWriter_ReadFrom() {
++	var buf bytes.Buffer
++	writer := bufio.NewWriter(&buf)
++
++	data := "Hello, world!\nThis is a ReadFrom example."
++	reader := strings.NewReader(data)
++
++	n, err := writer.ReadFrom(reader)
++	if err != nil {
++		fmt.Println("ReadFrom Error:", err)
++		return
++	}
++
++	if err = writer.Flush(); err != nil {
++		fmt.Println("Flush Error:", err)
++		return
++	}
++
++	fmt.Println("Bytes written:", n)
++	fmt.Println("Buffer contents:", buf.String())
++	// Output:
++	// Bytes written: 41
++	// Buffer contents: Hello, world!
++	// This is a ReadFrom example.
++}
++
+ // The simplest use of a Scanner, to read standard input as a set of lines.
+ func ExampleScanner_lines() {
+ 	scanner := bufio.NewScanner(os.Stdin)

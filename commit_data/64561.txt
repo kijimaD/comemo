@@ -1,0 +1,155 @@
+commit ab4182251ba57b0d1fe9abbfd604861a6ae75463
+Author: Tim King <taking@google.com>
+Date:   Fri Aug 9 13:32:12 2024 -0700
+
+    cmd/internal/testdir: add a -gomodversion flag
+    
+    Adds a -gomodversion flag to testdir. This sets the go version
+    in generated go.mod files. This is just runindir tests at the moment.
+    This is a building block so that tests can be written for exported
+    type parameterized aliases (like reproducing #68526).
+    
+    This also adds a test that uses this feature. A type parameterized
+    alias is used so aliastypeparams and gotypesalias must be enabled.
+    gotypesalias is enabled by the go module version. The alias is not
+    exported and will not appear in exportdata. The test shows the
+    package containing the alias can be imported. This encapsulates
+    the level of support of type parameterized aliases in 1.23.
+    
+    Updates #68526
+    Updates #68778
+    
+    Change-Id: I8e20df6baa178e1d427d0fff627a16714d9c3b18
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604102
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+---
+ src/cmd/internal/testdir/testdir_test.go | 11 +++++++-
+ test/fixedbugs/issue68526.dir/a/a.go     | 17 ++++++++++++
+ test/fixedbugs/issue68526.dir/main.go    | 45 ++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue68526.go             |  7 +++++
+ 4 files changed, 79 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 0810cef257..86ebf7ded6 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -543,6 +543,7 @@ func (t test) run() error {
+ 
+ 	goexp := goExperiment
+ 	godebug := goDebug
++	gomodvers := ""
+ 
+ 	// collect flags
+ 	for len(args) > 0 && strings.HasPrefix(args[0], "-") {
+@@ -583,6 +584,10 @@ func (t test) run() error {
+ 			godebug += args[0]
+ 			runenv = append(runenv, "GODEBUG="+godebug)
+ 
++		case "-gomodversion": // set the GoVersion in generated go.mod files (just runindir ATM)
++			args = args[1:]
++			gomodvers = args[0]
++
+ 		default:
+ 			flags = append(flags, args[0])
+ 		}
+@@ -900,7 +905,11 @@ func (t test) run() error {
+ 			t.Fatal(err)
+ 		}
+ 
+-		modFile := fmt.Sprintf("module %s\ngo 1.14\n", modName)
++		modVersion := gomodvers
++		if modVersion == "" {
++			modVersion = "1.14"
++		}
++		modFile := fmt.Sprintf("module %s\ngo %s\n", modName, modVersion)
+ 		if err := os.WriteFile(filepath.Join(gopathSrcDir, "go.mod"), []byte(modFile), 0666); err != nil {
+ 			t.Fatal(err)
+ 		}
+diff --git a/test/fixedbugs/issue68526.dir/a/a.go b/test/fixedbugs/issue68526.dir/a/a.go
+new file mode 100644
+index 0000000000..7c2961c28f
+--- /dev/null
++++ b/test/fixedbugs/issue68526.dir/a/a.go
+@@ -0,0 +1,17 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.aliastypeparams
++
++package a
++
++// TODO(#68778): enable once type parameterized aliases are allowed in exportdata.
++// type A[T any] = struct{ F T }
++
++type B = struct{ F int }
++
++func F() B {
++	type a[T any] = struct{ F T }
++	return a[int]{}
++}
+diff --git a/test/fixedbugs/issue68526.dir/main.go b/test/fixedbugs/issue68526.dir/main.go
+new file mode 100644
+index 0000000000..0353ca5daa
+--- /dev/null
++++ b/test/fixedbugs/issue68526.dir/main.go
+@@ -0,0 +1,45 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.aliastypeparams
++
++package main
++
++import (
++	"issue68526.dir/a"
++)
++
++func main() {
++	unexported()
++	// exported()
++}
++
++func unexported() {
++	var want struct{ F int }
++
++	if any(want) != any(a.B{}) || any(want) != any(a.F()) {
++		panic("zero value of alias and concrete type not identical")
++	}
++}
++
++// TODO(#68778): enable once type parameterized aliases are allowed in exportdata.
++
++// func exported() {
++// 	var (
++// 		astr a.A[string]
++// 		aint a.A[int]
++// 	)
++
++// 	if any(astr) != any(struct{ F string }{}) || any(aint) != any(struct{ F int }{}) {
++// 		panic("zero value of alias and concrete type not identical")
++// 	}
++
++// 	if any(astr) == any(aint) {
++// 		panic("zero value of struct{ F string } and struct{ F int } are not distinct")
++// 	}
++
++// 	if got := fmt.Sprintf("%T", astr); got != "struct { F string }" {
++// 		panic(got)
++// 	}
++// }
+diff --git a/test/fixedbugs/issue68526.go b/test/fixedbugs/issue68526.go
+new file mode 100644
+index 0000000000..3067aa7622
+--- /dev/null
++++ b/test/fixedbugs/issue68526.go
+@@ -0,0 +1,7 @@
++// runindir -goexperiment aliastypeparams -gomodversion "1.23"
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

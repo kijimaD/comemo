@@ -1,0 +1,244 @@
+commit 4878b4471bf1267a8f87b40ed49b36ab82b79d18
+Author: Alan Donovan <adonovan@google.com>
+Date:   Mon May 12 13:16:23 2025 -0400
+
+    slices: document and test nilness behavior of all functions
+    
+    This change documents the current nilness behavior of all
+    functions in the package, and asserts each with a test.
+    
+    There is no change to behavior, but the postcondition is
+    strengthened, so this may require a proposal.
+    
+    Fixes #73604
+    Fixes #73048
+    
+    Change-Id: Ieb68e609a1248bd81c8507d3795785622a65f8cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671996
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+---
+ src/slices/iter.go        |  5 +++
+ src/slices/slices.go      | 10 ++++++
+ src/slices/slices_test.go | 83 +++++++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 98 insertions(+)
+
+diff --git a/src/slices/iter.go b/src/slices/iter.go
+index cd8f308ca0..bbea6134d9 100644
+--- a/src/slices/iter.go
++++ b/src/slices/iter.go
+@@ -46,6 +46,7 @@ func Values[Slice ~[]E, E any](s Slice) iter.Seq[E] {
+ 
+ // AppendSeq appends the values from seq to the slice and
+ // returns the extended slice.
++// If seq is empty, the result preserves the nilness of s.
+ func AppendSeq[Slice ~[]E, E any](s Slice, seq iter.Seq[E]) Slice {
+ 	for v := range seq {
+ 		s = append(s, v)
+@@ -54,12 +55,14 @@ func AppendSeq[Slice ~[]E, E any](s Slice, seq iter.Seq[E]) Slice {
+ }
+ 
+ // Collect collects values from seq into a new slice and returns it.
++// If seq is empty, the result is nil.
+ func Collect[E any](seq iter.Seq[E]) []E {
+ 	return AppendSeq([]E(nil), seq)
+ }
+ 
+ // Sorted collects values from seq into a new slice, sorts the slice,
+ // and returns it.
++// If seq is empty, the result is nil.
+ func Sorted[E cmp.Ordered](seq iter.Seq[E]) []E {
+ 	s := Collect(seq)
+ 	Sort(s)
+@@ -68,6 +71,7 @@ func Sorted[E cmp.Ordered](seq iter.Seq[E]) []E {
+ 
+ // SortedFunc collects values from seq into a new slice, sorts the slice
+ // using the comparison function, and returns it.
++// If seq is empty, the result is nil.
+ func SortedFunc[E any](seq iter.Seq[E], cmp func(E, E) int) []E {
+ 	s := Collect(seq)
+ 	SortFunc(s, cmp)
+@@ -78,6 +82,7 @@ func SortedFunc[E any](seq iter.Seq[E], cmp func(E, E) int) []E {
+ // It then sorts the slice while keeping the original order of equal elements,
+ // using the comparison function to compare elements.
+ // It returns the new slice.
++// If seq is empty, the result is nil.
+ func SortedStableFunc[E any](seq iter.Seq[E], cmp func(E, E) int) []E {
+ 	s := Collect(seq)
+ 	SortStableFunc(s, cmp)
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 32029cd8ed..30595793c9 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -131,6 +131,7 @@ func ContainsFunc[S ~[]E, E any](s S, f func(E) bool) bool {
+ // and, if i < len(s), r[i+len(v)] == value originally at r[i].
+ // Insert panics if i > len(s).
+ // This function is O(len(s) + len(v)).
++// If the result is empty, it has the same nilness as s.
+ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
+ 	_ = s[i:] // bounds check
+ 
+@@ -217,6 +218,7 @@ func Insert[S ~[]E, E any](s S, i int, v ...E) S {
+ // Delete is O(len(s)-i), so if many items must be deleted, it is better to
+ // make a single call deleting them all together than to delete one at a time.
+ // Delete zeroes the elements s[len(s)-(j-i):len(s)].
++// If the result is empty, it has the same nilness as s.
+ func Delete[S ~[]E, E any](s S, i, j int) S {
+ 	_ = s[i:j:len(s)] // bounds check
+ 
+@@ -233,6 +235,7 @@ func Delete[S ~[]E, E any](s S, i, j int) S {
+ // DeleteFunc removes any elements from s for which del returns true,
+ // returning the modified slice.
+ // DeleteFunc zeroes the elements between the new length and the original length.
++// If the result is empty, it has the same nilness as s.
+ func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
+ 	i := IndexFunc(s, del)
+ 	if i == -1 {
+@@ -253,6 +256,7 @@ func DeleteFunc[S ~[]E, E any](s S, del func(E) bool) S {
+ // modified slice.
+ // Replace panics if j > len(s) or s[i:j] is not a valid slice of s.
+ // When len(v) < (j-i), Replace zeroes the elements between the new length and the original length.
++// If the result is empty, it has the same nilness as s.
+ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+ 	_ = s[i:j] // bounds check
+ 
+@@ -345,6 +349,7 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+ // Clone returns a copy of the slice.
+ // The elements are copied using assignment, so this is a shallow clone.
+ // The result may have additional unused capacity.
++// The result preserves the nilness of s.
+ func Clone[S ~[]E, E any](s S) S {
+ 	// Preserve nilness in case it matters.
+ 	if s == nil {
+@@ -360,6 +365,7 @@ func Clone[S ~[]E, E any](s S) S {
+ // Compact modifies the contents of the slice s and returns the modified slice,
+ // which may have a smaller length.
+ // Compact zeroes the elements between the new length and the original length.
++// The result preserves the nilness of s.
+ func Compact[S ~[]E, E comparable](s S) S {
+ 	if len(s) < 2 {
+ 		return s
+@@ -384,6 +390,7 @@ func Compact[S ~[]E, E comparable](s S) S {
+ // CompactFunc is like [Compact] but uses an equality function to compare elements.
+ // For runs of elements that compare equal, CompactFunc keeps the first one.
+ // CompactFunc zeroes the elements between the new length and the original length.
++// The result preserves the nilness of s.
+ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
+ 	if len(s) < 2 {
+ 		return s
+@@ -409,6 +416,7 @@ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
+ // another n elements. After Grow(n), at least n elements can be appended
+ // to the slice without another allocation. If n is negative or too large to
+ // allocate the memory, Grow panics.
++// The result preserves the nilness of s.
+ func Grow[S ~[]E, E any](s S, n int) S {
+ 	if n < 0 {
+ 		panic("cannot be negative")
+@@ -421,6 +429,7 @@ func Grow[S ~[]E, E any](s S, n int) S {
+ }
+ 
+ // Clip removes unused capacity from the slice, returning s[:len(s):len(s)].
++// The result preserves the nilness of s.
+ func Clip[S ~[]E, E any](s S) S {
+ 	return s[:len(s):len(s)]
+ }
+@@ -476,6 +485,7 @@ func Reverse[S ~[]E, E any](s S) {
+ }
+ 
+ // Concat returns a new slice concatenating the passed in slices.
++// If the concatenation is empty, the result is nil.
+ func Concat[S ~[]E, E any](slices ...S) S {
+ 	size := 0
+ 	for _, s := range slices {
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index 4ced7c0759..edf7e7b610 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -1462,3 +1462,86 @@ func TestIssue68488(t *testing.T) {
+ 		t.Error("clone keeps alive s due to array overlap")
+ 	}
+ }
++
++// This test asserts the behavior when the primary slice operand is nil.
++//
++// Some operations preserve the nilness of their operand while others
++// do not, but in all cases the behavior is documented.
++func TestNilness(t *testing.T) {
++	var (
++		emptySlice = []int{}
++		nilSlice   = []int(nil)
++		emptySeq   = func(yield func(int) bool) {}
++		truth      = func(int) bool { return true }
++		equal      = func(x, y int) bool { panic("unreachable") }
++	)
++
++	wantNil := func(slice []int, cond string) {
++		if slice != nil {
++			t.Errorf("%s != nil", cond)
++		}
++	}
++	wantNonNil := func(slice []int, cond string) {
++		if slice == nil {
++			t.Errorf("%s == nil", cond)
++		}
++	}
++
++	// The update functions
++	//    Insert, AppendSeq, Delete, DeleteFunc, Clone, Compact, CompactFunc
++	// preserve nilness, like s[i:j].
++	wantNil(AppendSeq(nilSlice, emptySeq), "AppendSeq(nil, empty)")
++	wantNonNil(AppendSeq(emptySlice, emptySeq), "AppendSeq(nil, empty)")
++
++	wantNil(Insert(nilSlice, 0), "Insert(nil, 0)")
++	wantNonNil(Insert(emptySlice, 0), "Insert(empty, 0)")
++
++	wantNil(Delete(nilSlice, 0, 0), "Delete(nil, 0, 0)")
++	wantNonNil(Delete(emptySlice, 0, 0), "Delete(empty, 0, 0)")
++	wantNonNil(Delete([]int{1}, 0, 1), "Delete([]int{1}, 0, 1)")
++
++	wantNil(DeleteFunc(nilSlice, truth), "DeleteFunc(nil, f)")
++	wantNonNil(DeleteFunc(emptySlice, truth), "DeleteFunc(empty, f)")
++	wantNonNil(DeleteFunc([]int{1}, truth), "DeleteFunc([]int{1}, truth)")
++
++	wantNil(Replace(nilSlice, 0, 0), "Replace(nil, 0, 0)")
++	wantNonNil(Replace(emptySlice, 0, 0), "Replace(empty, 0, 0)")
++	wantNonNil(Replace([]int{1}, 0, 1), "Replace([]int{1}, 0, 1)")
++
++	wantNil(Clone(nilSlice), "Clone(nil)")
++	wantNonNil(Clone(emptySlice), "Clone(empty)")
++
++	wantNil(Compact(nilSlice), "Compact(nil)")
++	wantNonNil(Compact(emptySlice), "Compact(empty)")
++
++	wantNil(CompactFunc(nilSlice, equal), "CompactFunc(nil)")
++	wantNonNil(CompactFunc(emptySlice, equal), "CompactFunc(empty)")
++
++	wantNil(Grow(nilSlice, 0), "Grow(nil, 0)")
++	wantNonNil(Grow(emptySlice, 0), "Grow(empty, 0)")
++
++	wantNil(Clip(nilSlice), "Clip(nil)")
++	wantNonNil(Clip(emptySlice), "Clip(empty)")
++	wantNonNil(Clip([]int{1}[:0:0]), "Clip([]int{1}[:0:0])")
++
++	// Concat returns nil iff the result is empty.
++	// This is an unfortunate irregularity.
++	wantNil(Concat(nilSlice, emptySlice, nilSlice, emptySlice), "Concat(nil, ...empty...)")
++	wantNil(Concat(emptySlice, emptySlice, nilSlice, emptySlice), "Concat(empty, ...empty...)")
++	wantNil(Concat[[]int](), "Concat()")
++
++	// Repeat never returns nil. Another irregularity.
++	wantNonNil(Repeat(nilSlice, 0), "Repeat(nil, 0)")
++	wantNonNil(Repeat(emptySlice, 0), "Repeat(empty, 0)")
++	wantNonNil(Repeat(nilSlice, 2), "Repeat(nil, 2)")
++	wantNonNil(Repeat(emptySlice, 2), "Repeat(empty, 2)")
++
++	// The collection functions
++	//     Collect, Sorted, SortedFunc, SortedStableFunc
++	// return nil given an empty sequence.
++	wantNil(Collect(emptySeq), "Collect(empty)")
++
++	wantNil(Sorted(emptySeq), "Sorted(empty)")
++	wantNil(SortedFunc(emptySeq, cmp.Compare), "SortedFunc(empty)")
++	wantNil(SortedStableFunc(emptySeq, cmp.Compare), "SortedStableFunc(empty)")
++}

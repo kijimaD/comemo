@@ -1,0 +1,45 @@
+commit fe63d483f4385ce7376f68abd37ad202e8ab798a
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Aug 28 11:15:32 2024 -0400
+
+    cmd/go: print the proper error message for setting telemetry vars
+    
+    For #68960
+    
+    Change-Id: I5495b3d45ad3817d7edf6336a5e24a331d5cf8d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/internal/envcmd/env.go        | 2 +-
+ src/cmd/go/testdata/script/telemetry.txt | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index f19577c4df..a99b2ed140 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -590,7 +590,7 @@ func getOrigEnv(key string) string {
+ 
+ func checkEnvWrite(key, val string) error {
+ 	switch key {
+-	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOWORK", "GOTOOLDIR", "GOVERSION":
++	case "GOEXE", "GOGCCFLAGS", "GOHOSTARCH", "GOHOSTOS", "GOMOD", "GOWORK", "GOTOOLDIR", "GOVERSION", "GOTELEMETRY", "GOTELEMETRYDIR":
+ 		return fmt.Errorf("%s cannot be modified", key)
+ 	case "GOENV", "GODEBUG":
+ 		return fmt.Errorf("%s can only be set using the OS environment", key)
+diff --git a/src/cmd/go/testdata/script/telemetry.txt b/src/cmd/go/testdata/script/telemetry.txt
+index e9aa0f1085..838e743d50 100644
+--- a/src/cmd/go/testdata/script/telemetry.txt
++++ b/src/cmd/go/testdata/script/telemetry.txt
+@@ -46,6 +46,6 @@ go env
+ stdout 'GOTELEMETRY=''?on''?'
+ stdout 'GOTELEMETRYDIR=''?'$userconfig'[\\/]go[\\/]telemetry''?'
+ ! go env -w GOTELEMETRY=off
+-stderr '^go: unknown go command variable GOTELEMETRY$'
++stderr '^go: GOTELEMETRY cannot be modified$'
+ ! go env -w GOTELEMETRYDIR=foo
+-stderr '^go: unknown go command variable GOTELEMETRYDIR$'
+\ No newline at end of file
++stderr '^go: GOTELEMETRYDIR cannot be modified$'
+\ No newline at end of file

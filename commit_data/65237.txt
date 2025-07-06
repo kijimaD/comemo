@@ -1,0 +1,190 @@
+commit 6d39245514c675cdea5c7fd7f778e97bf0728dd5
+Author: Hao Liu <hliu@amperecomputing.com>
+Date:   Tue Oct 22 01:14:48 2024 -0700
+
+    cmd/internal/obj/arm64: make sure prologue and epilogue are pattern matched for small frames
+    
+    CL 379075 implemented function prologue/epilogue with STP/LDP.
+    To fix issue #53374, CL 412474 reverted the prologue STP change for
+    small frames, and the LDP in epilogue was kept. The current instructions
+    are:
+    
+      prologue:
+        MOVD.W      R30, -offset(RSP)
+        MOVD        R29, -8(RSP)
+      epilogue:
+        LDP         -8(RSP), (R29, R30)
+        ADD         $offset, RSP, RSP
+    
+    It seems a bit strange, as:
+    
+    1) The prolog and epilogue are not in the same pattern (either STR-LDR,
+       or STP-LDP).
+    2) Go Internal ABI defines that R30 is saved at 0(RSP) and R29 is saved
+       at -8(RSP), so we can not use a single STP.W/LDP.P to save/restore
+       LR&FP and adjust SP. Changing the ABI causes too much complexity,
+       and the benefit is not that big.
+    
+    This patch reverts the small frames' epilogue change in CL 379075. It
+    converts LDP in the epilogue to LDR-LDR. Another solution is to re-apply
+    the STP change in prologue, which requires to fix #53609. This seems the
+    easier and safer solution in the mean time. The new instructions are:
+    
+      prologue:
+        MOVD.W      R30, -offset(RSP)
+        MOVD        R29, -8(RSP)
+      epilogue:
+        MOVD        -8(RSP), R29
+        MOVD.P      offset(RSP), R30
+    
+    The current pattern may cause performance issues in Store-Forwarding on
+    micro-architectures like AmpereOne. Assuming a function call in the
+    middle of such code is short enough that the stores are still around,
+    then the LDP executes and it may wait longer to get the results from
+    separated stores in Store Buffers other than single STP.
+    
+    Store-Forwarding aims to improve the efficiency of the processor by
+    allowing data to be forwarded directly from a store operation to a
+    subsequent load operation when certain conditions are met. See the
+    paper: "Memory Barriers: a Hardware View for Software Hackers"
+    (chapter 3.2: Store Forwarding).
+    
+    The performance of following ARM64 Linux servers were tested:
+    
+    1) AmpereOne (ARM v8.6+) from Ampere Computing.
+    2) Ampere Altra (ARM Neoverse N1) from Ampere Computing.
+    3) Graviton2 (ARM Neoverse N1) from AWS.
+    
+    The effect of this change depends the hardware implementation of
+    store-forwarding. It can obviously improve AmpereOne, especially for
+    small functions that are frequently called and returned quickly.
+    E.g., JSON Marshal/Unmarshal benchmarks on AmpereOne:
+    
+        goos: linux
+        goarch: arm64
+        pkg: encoding/json
+                                 │ ampere-one.base │            ampere-one.new            │
+                                 │     sec/op      │    sec/op     vs base                │
+        CodeMarshal-8                 882.1µ ±  1%   779.6µ ±  1%  -11.62% (p=0.000 n=10)
+        CodeMarshalError-8            961.5µ ±  0%   855.7µ ±  1%  -11.01% (p=0.000 n=10)
+        MarshalBytes/32-8             207.6n ±  1%   187.8n ±  0%   -9.52% (p=0.000 n=10)
+        MarshalBytes/256-8            501.0n ±  1%   482.6n ±  1%   -3.68% (p=0.000 n=10)
+        MarshalBytes/4096-8           5.336µ ±  1%   5.074µ ±  1%   -4.92% (p=0.000 n=10)
+        MarshalBytesError/32-8        242.3µ ±  2%   205.7µ ±  3%  -15.08% (p=0.000 n=10)
+        MarshalBytesError/256-8       242.4µ ±  1%   205.2µ ±  2%  -15.35% (p=0.000 n=10)
+        MarshalBytesError/4096-8      247.9µ ±  0%   210.1µ ±  1%  -15.24% (p=0.000 n=10)
+        MarshalMap-8                  150.8n ±  1%   145.7n ±  0%   -3.35% (p=0.000 n=10)
+        EncodeMarshaler-8             50.30n ± 26%   54.48n ±  6%        ~ (p=0.739 n=10)
+        CodeUnmarshal-8               4.796m ±  2%   4.055m ±  1%  -15.45% (p=0.000 n=10)
+        CodeUnmarshalReuse-8          4.260m ±  1%   3.496m ±  1%  -17.94% (p=0.000 n=10)
+        UnmarshalString-8             73.89n ±  1%   65.83n ±  1%  -10.91% (p=0.000 n=10)
+        UnmarshalFloat64-8            60.63n ±  1%   58.66n ± 25%        ~ (p=0.143 n=10)
+        UnmarshalInt64-8              55.62n ±  1%   53.25n ± 22%        ~ (p=0.468 n=10)
+        UnmarshalMap-8                255.3n ±  1%   230.3n ±  1%   -9.77% (p=0.000 n=10)
+        UnmarshalNumber-8             467.2n ±  1%   367.0n ±  0%  -21.43% (p=0.000 n=10)
+        geomean                       6.224µ         5.605µ         -9.94%
+    
+    Other ARM64 micro-architectures may be not affected so much by such
+    issue. E.g., benchmarks on Ampere Altra and Graviton2 show slight
+    improvements:
+    
+                                 │ altra.base  │             altra.new              │
+                                 │   sec/op    │   sec/op     vs base               │
+        CodeMarshal-8              980.1µ ± 1%   977.3µ ± 1%       ~ (p=0.912 n=10)
+        CodeMarshalError-8         1.109m ± 3%   1.096m ± 5%       ~ (p=0.971 n=10)
+        MarshalBytes/32-8          246.8n ± 1%   245.4n ± 0%  -0.55% (p=0.002 n=10)
+        MarshalBytes/256-8         590.9n ± 1%   606.6n ± 1%  +2.67% (p=0.000 n=10)
+        MarshalBytes/4096-8        6.351µ ± 1%   6.376µ ± 1%       ~ (p=0.183 n=10)
+        MarshalBytesError/32-8     245.3µ ± 2%   246.1µ ± 2%       ~ (p=0.684 n=10)
+        MarshalBytesError/256-8    245.5µ ± 1%   248.7µ ± 2%       ~ (p=0.218 n=10)
+        MarshalBytesError/4096-8   254.2µ ± 1%   254.9µ ± 1%       ~ (p=0.481 n=10)
+        MarshalMap-8               152.7n ± 2%   151.5n ± 3%       ~ (p=0.782 n=10)
+        EncodeMarshaler-8          45.95n ± 7%   42.88n ± 5%  -6.70% (p=0.014 n=10)
+        CodeUnmarshal-8            5.121m ± 4%   5.125m ± 3%       ~ (p=0.579 n=10)
+        CodeUnmarshalReuse-8       4.616m ± 3%   4.634m ± 2%       ~ (p=0.529 n=10)
+        UnmarshalString-8          72.12n ± 2%   72.20n ± 2%       ~ (p=0.912 n=10)
+        UnmarshalFloat64-8         64.44n ± 5%   63.20n ± 4%       ~ (p=0.393 n=10)
+        UnmarshalInt64-8           61.49n ± 2%   58.14n ± 4%  -5.45% (p=0.002 n=10)
+        UnmarshalMap-8             263.6n ± 2%   266.2n ± 1%       ~ (p=0.196 n=10)
+        UnmarshalNumber-8          464.7n ± 1%   464.0n ± 0%       ~ (p=0.566 n=10)
+        geomean                    6.617µ        6.575µ       -0.64%
+    
+                                 │ graviton2.base │            graviton2.new            │
+                                 │     sec/op     │    sec/op     vs base               │
+        CodeMarshal-8                1.122m ±  0%   1.118m ±  1%       ~ (p=0.052 n=10)
+        CodeMarshalError-8           1.216m ±  1%   1.214m ±  0%       ~ (p=0.631 n=10)
+        MarshalBytes/32-8            289.9n ±  0%   280.8n ±  0%  -3.17% (p=0.000 n=10)
+        MarshalBytes/256-8           675.9n ±  0%   664.7n ±  0%  -1.66% (p=0.000 n=10)
+        MarshalBytes/4096-8          6.884µ ±  0%   6.885µ ±  0%       ~ (p=0.565 n=10)
+        MarshalBytesError/32-8       293.1µ ±  2%   288.9µ ±  2%       ~ (p=0.123 n=10)
+        MarshalBytesError/256-8      296.0µ ±  3%   289.0µ ±  1%  -2.36% (p=0.019 n=10)
+        MarshalBytesError/4096-8     300.4µ ±  1%   295.6µ ±  0%  -1.60% (p=0.000 n=10)
+        MarshalMap-8                 168.8n ±  1%   168.8n ±  1%       ~ (p=1.000 n=10)
+        EncodeMarshaler-8            53.77n ±  8%   50.05n ± 12%       ~ (p=0.579 n=10)
+        CodeUnmarshal-8              5.875m ±  2%   5.882m ±  1%       ~ (p=0.796 n=10)
+        CodeUnmarshalReuse-8         5.383m ±  1%   5.366m ±  0%       ~ (p=0.631 n=10)
+        UnmarshalString-8            74.59n ±  1%   73.99n ±  0%  -0.80% (p=0.001 n=10)
+        UnmarshalFloat64-8           68.52n ±  7%   64.19n ± 18%       ~ (p=0.868 n=10)
+        UnmarshalInt64-8             65.32n ± 13%   62.24n ±  8%       ~ (p=0.138 n=10)
+        UnmarshalMap-8               290.1n ±  0%   291.3n ±  0%  +0.43% (p=0.010 n=10)
+        UnmarshalNumber-8            514.4n ±  0%   499.4n ±  0%  -2.93% (p=0.000 n=10)
+        geomean                      7.459µ         7.317µ        -1.91%
+    
+    Change-Id: If27386fc5f514b76bdaf2012c2ce86cc65f7ca5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621775
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/obj/arm64/obj7.go | 29 +++++++++++++++++++++++++++--
+ 1 file changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 20498bc2c6..368a631ff5 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -850,8 +850,9 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				retReg = REGLINK
+ 			}
+ 			p.To = obj.Addr{}
++			aoffset := c.autosize
+ 			if c.cursym.Func().Text.Mark&LEAF != 0 {
+-				if c.autosize != 0 {
++				if aoffset != 0 {
+ 					// Restore frame pointer.
+ 					// ADD $framesize-8, RSP, R29
+ 					p.As = AADD
+@@ -871,8 +872,32 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 					p.To.Reg = REGSP
+ 					p.Spadj = -c.autosize
+ 				}
++			} else if aoffset <= 0xF0 {
++				// small frame, restore LR and update SP in a single MOVD.P instruction.
++				// There is no correctness issue to use a single LDP for LR and FP,
++				// but the instructions are not pattern matched with the prologue's
++				// MOVD.W and MOVD, which may cause performance issue in
++				// store-forwarding.
++
++				// MOVD -8(RSP), R29
++				p.As = AMOVD
++				p.From.Type = obj.TYPE_MEM
++				p.From.Reg = REGSP
++				p.From.Offset = -8
++				p.To.Type = obj.TYPE_REG
++				p.To.Reg = REGFP
++				p = obj.Appendp(p, c.newprog)
++
++				// MOVD.P offset(RSP), R30
++				p.As = AMOVD
++				p.From.Type = obj.TYPE_MEM
++				p.Scond = C_XPOST
++				p.From.Offset = int64(aoffset)
++				p.From.Reg = REGSP
++				p.To.Type = obj.TYPE_REG
++				p.To.Reg = REGLINK
++				p.Spadj = -aoffset
+ 			} else {
+-				aoffset := c.autosize
+ 				// LDP -8(RSP), (R29, R30)
+ 				p.As = ALDP
+ 				p.From.Type = obj.TYPE_MEM

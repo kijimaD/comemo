@@ -1,0 +1,682 @@
+commit 40b19b56a94c4d53a3c1d98275df44049b2f5917
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Sat Mar 22 00:58:55 2025 +0000
+
+    runtime: add valgrind instrumentation
+    
+    Add build tag gated Valgrind annotations to the runtime which let it
+    understand how the runtime manages memory. This allows for Go binaries
+    to be run under Valgrind without emitting spurious errors.
+    
+    Instead of adding the Valgrind headers to the tree, and using cgo to
+    call the various Valgrind client request macros, we just add an assembly
+    function which emits the necessary instructions to trigger client
+    requests.
+    
+    In particular we add instrumentation of the memory allocator, using a
+    two-level mempool structure (as described in the Valgrind manual [0]).
+    We also add annotations which allow Valgrind to track which memory we
+    use for stacks, which seems necessary to let it properly function.
+    
+    We describe the memory model to Valgrind as follows: we treat heap
+    arenas as a "pool" created with VALGRIND_CREATE_MEMPOOL_EXT (so that we
+    can use VALGRIND_MEMPOOL_METAPOOL and VALGRIND_MEMPOOL_AUTO_FREE).
+    Within the pool we treat spans as "superblocks", annotated with
+    VALGRIND_MEMPOOL_ALLOC. We then allocate individual objects within spans
+    with VALGRIND_MALLOCLIKE_BLOCK.
+    
+    It should be noted that running binaries under Valgrind can be _quite
+    slow_, and certain operations, such as running the GC, can be _very
+    slow_. It is recommended to run programs with GOGC=off. Additionally,
+    async preemption should be turned off, since it'll cause strange
+    behavior (GODEBUG=asyncpreemptoff=1).
+    
+    Running Valgrind with --leak-check=yes will result in some errors
+    resulting from some things not being marked fully free'd. These likely
+    need more annotations to rectify, but for now it is recommended to run
+    with --leak-check=off.
+    
+    Updates #73602
+    
+    [0] https://valgrind.org/docs/manual/mc-manual.html#mc-manual.mempools
+    
+    Change-Id: I71b26c47d7084de71ef1e03947ef6b1cc6d38301
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674077
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/os/pidfd_linux.go        |   5 +-
+ src/runtime/arena.go         |   3 +
+ src/runtime/malloc.go        |   8 +++
+ src/runtime/mgcmark.go       |   4 ++
+ src/runtime/mgcsweep.go      |   3 +
+ src/runtime/mheap.go         |  12 ++++
+ src/runtime/proc.go          |  22 +++++++
+ src/runtime/runtime2.go      |   4 ++
+ src/runtime/sizeof_test.go   |   2 +-
+ src/runtime/stack.go         |  48 +++++++++++++++
+ src/runtime/valgrind.go      | 138 +++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/valgrind0.go     |  25 ++++++++
+ src/runtime/valgrind_amd64.s |  37 ++++++++++++
+ src/runtime/valgrind_arm64.s |  29 +++++++++
+ src/syscall/exec_linux.go    |  27 ++++++++-
+ 15 files changed, 364 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/pidfd_linux.go b/src/os/pidfd_linux.go
+index 5d89c9d39d..59911e8824 100644
+--- a/src/os/pidfd_linux.go
++++ b/src/os/pidfd_linux.go
+@@ -170,7 +170,10 @@ func checkPidfd() error {
+ 
+ 	// Check waitid(P_PIDFD) works.
+ 	err = ignoringEINTR(func() error {
+-		return unix.Waitid(unix.P_PIDFD, int(fd), nil, syscall.WEXITED, nil)
++		var info unix.SiginfoChild
++		// We don't actually care about the info, but passing a nil pointer
++		// makes valgrind complain because 0x0 is unaddressable.
++		return unix.Waitid(unix.P_PIDFD, int(fd), &info, syscall.WEXITED, nil)
+ 	})
+ 	// Expect ECHILD from waitid since we're not our own parent.
+ 	if err != syscall.ECHILD {
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index 59b1bb3ba1..627c7cfdce 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -950,6 +950,9 @@ func freeUserArenaChunk(s *mspan, x unsafe.Pointer) {
+ 	if asanenabled {
+ 		asanpoison(unsafe.Pointer(s.base()), s.elemsize)
+ 	}
++	if valgrindenabled {
++		valgrindFree(unsafe.Pointer(s.base()))
++	}
+ 
+ 	// Make ourselves non-preemptible as we manipulate state and statistics.
+ 	//
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index abd94fda08..bc7dab9d20 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -754,6 +754,11 @@ func (h *mheap) sysAlloc(n uintptr, hintList **arenaHint, arenaList *[]arenaIdx)
+ 	}
+ 
+ mapped:
++	if valgrindenabled {
++		valgrindCreateMempool(v)
++		valgrindMakeMemNoAccess(v, size)
++	}
++
+ 	// Create arena metadata.
+ 	for ri := arenaIndex(uintptr(v)); ri <= arenaIndex(uintptr(v)+size-1); ri++ {
+ 		l2 := h.arenas[ri.l1()]
+@@ -1084,6 +1089,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
+ 		asanunpoison(x, size-asanRZ)
+ 	}
++	if valgrindenabled {
++		valgrindMalloc(x, size-asanRZ)
++	}
+ 
+ 	// Adjust our GC assist debt to account for internal fragmentation.
+ 	if gcBlackenEnabled != 0 && elemsize != 0 {
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index b5318e56f8..507aac7482 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -315,6 +315,10 @@ func markrootFreeGStacks() {
+ 		stackfree(gp.stack)
+ 		gp.stack.lo = 0
+ 		gp.stack.hi = 0
++		if valgrindenabled {
++			valgrindDeregisterStack(gp.valgrindStackID)
++			gp.valgrindStackID = 0
++		}
+ 	}
+ 
+ 	q := gQueue{list.head, tail.guintptr(), list.size}
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index f4d43e73f2..a3bf2989df 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -641,6 +641,9 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 				if asanenabled && !s.isUserArenaChunk {
+ 					asanpoison(unsafe.Pointer(x), size)
+ 				}
++				if valgrindenabled && !s.isUserArenaChunk {
++					valgrindFree(unsafe.Pointer(x))
++				}
+ 			}
+ 			mbits.advance()
+ 			abits.advance()
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index b5cfd113d0..0729184e22 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1388,6 +1388,10 @@ HaveSpan:
+ 	// Initialize the span.
+ 	h.initSpan(s, typ, spanclass, base, npages)
+ 
++	if valgrindenabled {
++		valgrindMempoolMalloc(unsafe.Pointer(arenaBase(arenaIndex(base))), unsafe.Pointer(base), npages*pageSize)
++	}
++
+ 	// Commit and account for any scavenged memory that the span now owns.
+ 	nbytes := npages * pageSize
+ 	if scav != 0 {
+@@ -1643,6 +1647,10 @@ func (h *mheap) freeSpan(s *mspan) {
+ 			bytes := s.npages << gc.PageShift
+ 			asanpoison(base, bytes)
+ 		}
++		if valgrindenabled {
++			base := s.base()
++			valgrindMempoolFree(unsafe.Pointer(arenaBase(arenaIndex(base))), unsafe.Pointer(base))
++		}
+ 		h.freeSpanLocked(s, spanAllocHeap)
+ 		unlock(&h.lock)
+ 	})
+@@ -1671,6 +1679,10 @@ func (h *mheap) freeManual(s *mspan, typ spanAllocType) {
+ 
+ 	s.needzero = 1
+ 	lock(&h.lock)
++	if valgrindenabled {
++		base := s.base()
++		valgrindMempoolFree(unsafe.Pointer(arenaBase(arenaIndex(base))), unsafe.Pointer(base))
++	}
+ 	h.freeSpanLocked(s, typ)
+ 	unlock(&h.lock)
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 89cd70ee88..55cb630b5d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1955,6 +1955,10 @@ func mexit(osStack bool) {
+ 	// Free the gsignal stack.
+ 	if mp.gsignal != nil {
+ 		stackfree(mp.gsignal.stack)
++		if valgrindenabled {
++			valgrindDeregisterStack(mp.gsignal.valgrindStackID)
++			mp.gsignal.valgrindStackID = 0
++		}
+ 		// On some platforms, when calling into VDSO (e.g. nanotime)
+ 		// we store our g on the gsignal stack, if there is one.
+ 		// Now the stack is freed, unlink it from the m, so we
+@@ -2252,6 +2256,10 @@ func allocm(pp *p, fn func(), id int64) *m {
+ 				// startm.
+ 				systemstack(func() {
+ 					stackfree(freem.g0.stack)
++					if valgrindenabled {
++						valgrindDeregisterStack(freem.g0.valgrindStackID)
++						freem.g0.valgrindStackID = 0
++					}
+ 				})
+ 			}
+ 			freem = freem.freelink
+@@ -5046,6 +5054,9 @@ func malg(stacksize int32) *g {
+ 		stacksize = round2(stackSystem + stacksize)
+ 		systemstack(func() {
+ 			newg.stack = stackalloc(uint32(stacksize))
++			if valgrindenabled {
++				newg.valgrindStackID = valgrindRegisterStack(unsafe.Pointer(newg.stack.lo), unsafe.Pointer(newg.stack.hi))
++			}
+ 		})
+ 		newg.stackguard0 = newg.stack.lo + stackGuard
+ 		newg.stackguard1 = ^uintptr(0)
+@@ -5234,6 +5245,10 @@ func gfput(pp *p, gp *g) {
+ 		gp.stack.lo = 0
+ 		gp.stack.hi = 0
+ 		gp.stackguard0 = 0
++		if valgrindenabled {
++			valgrindDeregisterStack(gp.valgrindStackID)
++			gp.valgrindStackID = 0
++		}
+ 	}
+ 
+ 	pp.gFree.push(gp)
+@@ -5291,12 +5306,19 @@ retry:
+ 			gp.stack.lo = 0
+ 			gp.stack.hi = 0
+ 			gp.stackguard0 = 0
++			if valgrindenabled {
++				valgrindDeregisterStack(gp.valgrindStackID)
++				gp.valgrindStackID = 0
++			}
+ 		})
+ 	}
+ 	if gp.stack.lo == 0 {
+ 		// Stack was deallocated in gfput or just above. Allocate a new one.
+ 		systemstack(func() {
+ 			gp.stack = stackalloc(startingStackSize)
++			if valgrindenabled {
++				gp.valgrindStackID = valgrindRegisterStack(unsafe.Pointer(gp.stack.lo), unsafe.Pointer(gp.stack.hi))
++			}
+ 		})
+ 		gp.stackguard0 = gp.stack.lo + stackGuard
+ 	} else {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index c8c7c233a6..65b31f737b 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -504,6 +504,10 @@ type g struct {
+ 	// and check for debt in the malloc hot path. The assist ratio
+ 	// determines how this corresponds to scan work debt.
+ 	gcAssistBytes int64
++
++	// valgrindStackID is used to track what memory is used for stacks when a program is
++	// built with the "valgrind" build tag, otherwise it is unused.
++	valgrindStackID uintptr
+ }
+ 
+ // gTrackingPeriod is the number of transitions out of _Grunning between
+diff --git a/src/runtime/sizeof_test.go b/src/runtime/sizeof_test.go
+index c1b201caf1..a5dc8aed34 100644
+--- a/src/runtime/sizeof_test.go
++++ b/src/runtime/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr // size on 32bit platforms
+ 		_64bit uintptr // size on 64bit platforms
+ 	}{
+-		{runtime.G{}, 276, 432},   // g, but exported for testing
++		{runtime.G{}, 280, 440},   // g, but exported for testing
+ 		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
+ 	}
+ 
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 2fedaa9421..7e69d65fbb 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -211,6 +211,13 @@ func stackpoolalloc(order uint8) gclinkptr {
+ 		s.elemsize = fixedStack << order
+ 		for i := uintptr(0); i < _StackCacheSize; i += s.elemsize {
+ 			x := gclinkptr(s.base() + i)
++			if valgrindenabled {
++				// The address of x.ptr() becomes the base of stacks. We need to
++				// mark it allocated here and in stackfree and stackpoolfree, and free'd in
++				// stackalloc in order to avoid overlapping allocations and
++				// uninitialized memory errors in valgrind.
++				valgrindMalloc(unsafe.Pointer(x.ptr()), unsafe.Sizeof(x.ptr()))
++			}
+ 			x.ptr().next = s.manualFreeList
+ 			s.manualFreeList = x
+ 		}
+@@ -388,6 +395,12 @@ func stackalloc(n uint32) stack {
+ 			c.stackcache[order].list = x.ptr().next
+ 			c.stackcache[order].size -= uintptr(n)
+ 		}
++		if valgrindenabled {
++			// We're about to allocate the stack region starting at x.ptr().
++			// To prevent valgrind from complaining about overlapping allocations,
++			// we need to mark the (previously allocated) memory as free'd.
++			valgrindFree(unsafe.Pointer(x.ptr()))
++		}
+ 		v = unsafe.Pointer(x)
+ 	} else {
+ 		var s *mspan
+@@ -432,6 +445,9 @@ func stackalloc(n uint32) stack {
+ 	if asanenabled {
+ 		asanunpoison(v, uintptr(n))
+ 	}
++	if valgrindenabled {
++		valgrindMalloc(v, uintptr(n))
++	}
+ 	if stackDebug >= 1 {
+ 		print("  allocated ", v, "\n")
+ 	}
+@@ -479,6 +495,9 @@ func stackfree(stk stack) {
+ 	if asanenabled {
+ 		asanpoison(v, n)
+ 	}
++	if valgrindenabled {
++		valgrindFree(v)
++	}
+ 	if n < fixedStack<<_NumStackOrders && n < _StackCacheSize {
+ 		order := uint8(0)
+ 		n2 := n
+@@ -489,6 +508,11 @@ func stackfree(stk stack) {
+ 		x := gclinkptr(v)
+ 		if stackNoCache != 0 || gp.m.p == 0 || gp.m.preemptoff != "" {
+ 			lock(&stackpool[order].item.mu)
++			if valgrindenabled {
++				// x.ptr() is the head of the list of free stacks, and will be used
++				// when allocating a new stack, so it has to be marked allocated.
++				valgrindMalloc(unsafe.Pointer(x.ptr()), unsafe.Sizeof(x.ptr()))
++			}
+ 			stackpoolfree(x, order)
+ 			unlock(&stackpool[order].item.mu)
+ 		} else {
+@@ -496,6 +520,12 @@ func stackfree(stk stack) {
+ 			if c.stackcache[order].size >= _StackCacheSize {
+ 				stackcacherelease(c, order)
+ 			}
++			if valgrindenabled {
++				// x.ptr() is the head of the list of free stacks, and will
++				// be used when allocating a new stack, so it has to be
++				// marked allocated.
++				valgrindMalloc(unsafe.Pointer(x.ptr()), unsafe.Sizeof(x.ptr()))
++			}
+ 			x.ptr().next = c.stackcache[order].list
+ 			c.stackcache[order].list = x
+ 			c.stackcache[order].size += n
+@@ -583,6 +613,16 @@ func adjustpointer(adjinfo *adjustinfo, vpp unsafe.Pointer) {
+ 	if stackDebug >= 4 {
+ 		print("        ", pp, ":", hex(p), "\n")
+ 	}
++	if valgrindenabled {
++		// p is a pointer on a stack, it is inherently initialized, as
++		// everything on the stack is, but valgrind for _some unknown reason_
++		// sometimes thinks it's uninitialized, and flags operations on p below
++		// as uninitialized. We just initialize it if valgrind thinks its
++		// uninitialized.
++		//
++		// See go.dev/issues/73801.
++		valgrindMakeMemDefined(unsafe.Pointer(&p), unsafe.Sizeof(&p))
++	}
+ 	if adjinfo.old.lo <= p && p < adjinfo.old.hi {
+ 		*pp = p + adjinfo.delta
+ 		if stackDebug >= 3 {
+@@ -936,6 +976,14 @@ func copystack(gp *g, newsize uintptr) {
+ 		adjustframe(&u.frame, &adjinfo)
+ 	}
+ 
++	if valgrindenabled {
++		if gp.valgrindStackID == 0 {
++			gp.valgrindStackID = valgrindRegisterStack(unsafe.Pointer(new.lo), unsafe.Pointer(new.hi))
++		} else {
++			valgrindChangeStack(gp.valgrindStackID, unsafe.Pointer(new.lo), unsafe.Pointer(new.hi))
++		}
++	}
++
+ 	// free old stack
+ 	if stackPoisonCopy != 0 {
+ 		fillstack(old, 0xfc)
+diff --git a/src/runtime/valgrind.go b/src/runtime/valgrind.go
+new file mode 100644
+index 0000000000..3933d63e6b
+--- /dev/null
++++ b/src/runtime/valgrind.go
+@@ -0,0 +1,138 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build valgrind && linux && (arm64 || amd64)
++
++package runtime
++
++import "unsafe"
++
++const valgrindenabled = true
++
++// Valgrind provides a mechanism to allow programs under test to modify
++// Valgrinds behavior in certain ways, referred to as client requests [0]. These
++// requests are triggered putting the address of a series of uints in a specific
++// register and emitting a very specific sequence of assembly instructions. The
++// result of the request (if there is one) is then put in another register for
++// the program to retrieve. Each request is identified by a unique uint, which
++// is passed as the first "argument".
++//
++// Valgrind provides headers (valgrind/valgrind.h, valgrind/memcheck.h) with
++// macros that emit the correct assembly for these requests. Instead of copying
++// these headers into the tree and using cgo to call the macros, we implement
++// the client request assembly ourselves. Since both the magic instruction
++// sequences, and the request uint's are stable, it is safe for us to implement.
++//
++// The client requests we add are used to describe our memory allocator to
++// Valgrind, per [1]. We describe the allocator using the two-level mempool
++// structure a We also add annotations which allow Valgrind to track which
++// memory we use for stacks, which seems necessary to let it properly function.
++//
++// We describe the memory model to Valgrind as follows: we treat heap arenas as
++// "pools" created with VALGRIND_CREATE_MEMPOOL_EXT (so that we can use
++// VALGRIND_MEMPOOL_METAPOOL and VALGRIND_MEMPOOL_AUTO_FREE). Within the pool we
++// treat spans as "superblocks", annotated with VALGRIND_MEMPOOL_ALLOC. We then
++// allocate individual objects within spans with VALGRIND_MALLOCLIKE_BLOCK.
++//
++// [0] https://valgrind.org/docs/manual/manual-core-adv.html#manual-core-adv.clientreq
++// [1] https://valgrind.org/docs/manual/mc-manual.html#mc-manual.mempools
++
++const (
++	// Valgrind request IDs, copied from valgrind/valgrind.h.
++	vg_userreq__malloclike_block = 0x1301
++	vg_userreq__freelike_block   = 0x1302
++	vg_userreq__create_mempool   = 0x1303
++	vg_userreq__mempool_alloc    = 0x1305
++	vg_userreq__mempool_free     = 0x1306
++	vg_userreq__stack_register   = 0x1501
++	vg_userreq__stack_deregister = 0x1502
++	vg_userreq__stack_change     = 0x1503
++)
++
++const (
++	// Memcheck request IDs are offset from ('M'&0xff) << 24 | ('C'&0xff) << 16, or 0x4d430000,
++	// copied from valgrind/memcheck.h.
++	vg_userreq__make_mem_noaccess = iota + ('M'&0xff)<<24 | ('C'&0xff)<<16
++	vg_userreq__make_mem_undefined
++	vg_userreq__make_mem_defined
++)
++
++const (
++	// VALGRIND_CREATE_MEMPOOL_EXT flags, copied from valgrind/valgrind.h.
++	valgrind_mempool_auto_free = 1
++	valgrind_mempool_metapool  = 2
++)
++
++//
++
++//go:noescape
++func valgrindClientRequest(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) uintptr
++
++//go:nosplit
++func valgrindRegisterStack(start, end unsafe.Pointer) uintptr {
++	// VALGRIND_STACK_REGISTER
++	return valgrindClientRequest(vg_userreq__stack_register, uintptr(start), uintptr(end), 0, 0, 0)
++}
++
++//go:nosplit
++func valgrindDeregisterStack(id uintptr) {
++	// VALGRIND_STACK_DEREGISTER
++	valgrindClientRequest(vg_userreq__stack_deregister, id, 0, 0, 0, 0)
++}
++
++//go:nosplit
++func valgrindChangeStack(id uintptr, start, end unsafe.Pointer) {
++	// VALGRIND_STACK_CHANGE
++	valgrindClientRequest(vg_userreq__stack_change, id, uintptr(start), uintptr(end), 0, 0)
++}
++
++//go:nosplit
++func valgrindMalloc(addr unsafe.Pointer, size uintptr) {
++	// VALGRIND_MALLOCLIKE_BLOCK
++	valgrindClientRequest(vg_userreq__malloclike_block, uintptr(addr), size, 0, 1, 0)
++}
++
++//go:nosplit
++func valgrindFree(addr unsafe.Pointer) {
++	// VALGRIND_FREELIKE_BLOCK
++	valgrindClientRequest(vg_userreq__freelike_block, uintptr(addr), 0, 0, 0, 0)
++}
++
++//go:nosplit
++func valgrindCreateMempool(addr unsafe.Pointer) {
++	// VALGRIND_CREATE_MEMPOOL_EXT
++	valgrindClientRequest(vg_userreq__create_mempool, uintptr(addr), 0, 1, valgrind_mempool_auto_free|valgrind_mempool_metapool, 0)
++}
++
++//go:nosplit
++func valgrindMempoolMalloc(pool, addr unsafe.Pointer, size uintptr) {
++	// VALGRIND_MEMPOOL_ALLOC
++	valgrindClientRequest(vg_userreq__mempool_alloc, uintptr(pool), uintptr(addr), size, 0, 0)
++}
++
++//go:nosplit
++func valgrindMempoolFree(pool, addr unsafe.Pointer) {
++	// VALGRIND_MEMPOOL_FREE
++	valgrindClientRequest(vg_userreq__mempool_free, uintptr(pool), uintptr(addr), 0, 0, 0)
++}
++
++// Memcheck client requests, copied from valgrind/memcheck.h
++
++//go:nosplit
++func valgrindMakeMemUndefined(addr unsafe.Pointer, size uintptr) {
++	// VALGRIND_MAKE_MEM_UNDEFINED
++	valgrindClientRequest(vg_userreq__make_mem_undefined, uintptr(addr), size, 0, 0, 0)
++}
++
++//go:nosplit
++func valgrindMakeMemDefined(addr unsafe.Pointer, size uintptr) {
++	// VALGRIND_MAKE_MEM_DEFINED
++	valgrindClientRequest(vg_userreq__make_mem_defined, uintptr(addr), size, 0, 0, 0)
++}
++
++//go:nosplit
++func valgrindMakeMemNoAccess(addr unsafe.Pointer, size uintptr) {
++	// VALGRIND_MAKE_MEM_NOACCESS
++	valgrindClientRequest(vg_userreq__make_mem_noaccess, uintptr(addr), size, 0, 0, 0)
++}
+diff --git a/src/runtime/valgrind0.go b/src/runtime/valgrind0.go
+new file mode 100644
+index 0000000000..adafa3001a
+--- /dev/null
++++ b/src/runtime/valgrind0.go
+@@ -0,0 +1,25 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Valgrind instrumentation is only available on linux amd64 and arm64.
++
++//go:build !valgrind || !linux || (!amd64 && !arm64)
++
++package runtime
++
++import "unsafe"
++
++const valgrindenabled = false
++
++func valgrindRegisterStack(start, end unsafe.Pointer) uintptr       { return 0 }
++func valgrindDeregisterStack(id uintptr)                            {}
++func valgrindChangeStack(id uintptr, start, end unsafe.Pointer)     {}
++func valgrindMalloc(addr unsafe.Pointer, size uintptr)              {}
++func valgrindFree(addr unsafe.Pointer)                              {}
++func valgrindCreateMempool(addr unsafe.Pointer)                     {}
++func valgrindMempoolMalloc(pool, addr unsafe.Pointer, size uintptr) {}
++func valgrindMempoolFree(pool, addr unsafe.Pointer)                 {}
++func valgrindMakeMemUndefined(addr unsafe.Pointer, size uintptr)    {}
++func valgrindMakeMemDefined(addr unsafe.Pointer, size uintptr)      {}
++func valgrindMakeMemNoAccess(addr unsafe.Pointer, size uintptr)     {}
+diff --git a/src/runtime/valgrind_amd64.s b/src/runtime/valgrind_amd64.s
+new file mode 100644
+index 0000000000..1c53d4f4e5
+--- /dev/null
++++ b/src/runtime/valgrind_amd64.s
+@@ -0,0 +1,37 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build valgrind && linux
++
++#include "textflag.h"
++
++// Instead of using cgo and using the Valgrind macros, we just emit the special client request
++// assembly ourselves. The client request mechanism is basically the same across all architectures,
++// with the notable difference being the special preamble that lets Valgrind know we want to do
++// a client request.
++//
++// The form of the VALGRIND_DO_CLIENT_REQUEST macro assembly can be found in the valgrind/valgrind.h
++// header file [0].
++//
++// [0] https://sourceware.org/git/?p=valgrind.git;a=blob;f=include/valgrind.h.in;h=f1710924aa7372e7b7e2abfbf7366a2286e33d2d;hb=HEAD
++
++// func valgrindClientRequest(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (ret uintptr)
++TEXT runtime·valgrindClientRequest(SB), NOSPLIT, $0-56
++	// Load the address of the first of the (contiguous) arguments into AX.
++	LEAQ args+0(FP), AX
++
++	// Zero DX, since some requests may not populate it.
++	XORL DX, DX
++
++	// Emit the special preabmle.
++	ROLQ $3, DI; ROLQ $13, DI
++	ROLQ $61, DI; ROLQ $51, DI
++
++	// "Execute" the client request.
++	XCHGQ BX, BX
++
++	// Copy the result out of DX.
++	MOVQ DX, ret+48(FP)
++
++	RET
+diff --git a/src/runtime/valgrind_arm64.s b/src/runtime/valgrind_arm64.s
+new file mode 100644
+index 0000000000..a46c3d4b9b
+--- /dev/null
++++ b/src/runtime/valgrind_arm64.s
+@@ -0,0 +1,29 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build valgrind && linux
++
++#include "textflag.h"
++
++// See valgrind_amd64.s for notes about this assembly.
++
++// func valgrindClientRequest(uintptr, uintptr, uintptr, uintptr, uintptr, uintptr) (ret uintptr)
++TEXT runtime·valgrindClientRequest(SB), NOSPLIT, $0-56
++	// Load the address of the first of the (contiguous) arguments into x4.
++	MOVD $args+0(FP), R4
++
++	// Zero x3, since some requests may not populate it.
++	MOVD ZR, R3
++
++	// Emit the special preamble.
++	ROR $3, R12; ROR $13, R12
++	ROR $51, R12; ROR $61, R12
++
++	// "Execute" the client request.
++	ORR R10, R10
++
++	// Copy the result out of x3.
++	MOVD R3, ret+48(FP)
++
++	RET
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 678bc84796..abae9d14eb 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -800,9 +800,34 @@ func os_checkClonePidfd() error {
+ 	// pidfd.
+ 	defer Close(int(pidfd))
+ 
++	// TODO(roland): this is necessary to prevent valgrind from complaining
++	// about passing 0x0 to waitid, which is doesn't like. This is clearly not
++	// ideal. The structures are copied (mostly) verbatim from syscall/unix,
++	// which we obviously cannot import because of an import loop.
++
++	const is64bit = ^uint(0) >> 63 // 0 for 32-bit hosts, 1 for 64-bit ones.
++	type sigInfo struct {
++		Signo int32
++		_     struct {
++			Errno int32
++			Code  int32
++		} // Two int32 fields, swapped on MIPS.
++		_ [is64bit]int32 // Extra padding for 64-bit hosts only.
++
++		// End of common part. Beginning of signal-specific part.
++
++		Pid    int32
++		Uid    uint32
++		Status int32
++
++		// Pad to 128 bytes.
++		_ [128 - (6+is64bit)*4]byte
++	}
++
+ 	for {
+ 		const _P_PIDFD = 3
+-		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED|WCLONE, 0, 0)
++		var info sigInfo
++		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), uintptr(unsafe.Pointer(&info)), WEXITED|WCLONE, 0, 0)
+ 		if errno != EINTR {
+ 			break
+ 		}

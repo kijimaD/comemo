@@ -1,0 +1,35 @@
+commit a4a5ef08bd15201772021620cc3a8331b30643f5
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Mar 20 09:41:28 2025 +0100
+
+    cmd/cgo/internal/testshared: log stdout when go command fails
+    
+    Understanding a failure in the goCmd call is difficult because the
+    important information might be in the stdout instead of stderr.
+    
+    Change-Id: Icf42974679103c69016129fe2ebb15d5a0a3b51a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659456
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/cgo/internal/testshared/shared_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testshared/shared_test.go b/src/cmd/cgo/internal/testshared/shared_test.go
+index 814b9994f8..a2214ac5b9 100644
+--- a/src/cmd/cgo/internal/testshared/shared_test.go
++++ b/src/cmd/cgo/internal/testshared/shared_test.go
+@@ -79,10 +79,10 @@ func goCmd(t *testing.T, args ...string) string {
+ 	if err != nil {
+ 		if t != nil {
+ 			t.Helper()
+-			t.Fatalf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
++			t.Fatalf("executing %q failed %v:\n%s\n%s", c, err, stderr, output)
+ 		} else {
+ 			// Panic instead of using log.Fatalf so that deferred cleanup may run in testMain.
+-			log.Panicf("executing %s failed %v:\n%s", strings.Join(c.Args, " "), err, stderr)
++			log.Panicf("executing %q failed %v:\n%s\n%s", c, err, stderr, output)
+ 		}
+ 	}
+ 	if testing.Verbose() && t != nil {

@@ -1,0 +1,210 @@
+commit 4e63ae46e097062b72424b2ac1da6e7dac33064b
+Author: khr@golang.org <khr@golang.org>
+Date:   Fri Nov 29 19:13:36 2024 -0800
+
+    internal/runtime/maps: make clear also erase tombstones
+    
+    This will make future uses of the map faster because the probe
+    sequences will likely be shorter.
+    
+    Change-Id: If10f3af49a5feaff7d1b82337bbbfb93bcd9dcb5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633076
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  2 ++
+ src/internal/runtime/maps/map.go                  | 15 +++++++---
+ src/internal/runtime/maps/table.go                | 34 ++++++++++++++---------
+ 3 files changed, 34 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/map_swiss.go b/src/cmd/compile/internal/reflectdata/map_swiss.go
+index 074c36a453..54266a604a 100644
+--- a/src/cmd/compile/internal/reflectdata/map_swiss.go
++++ b/src/cmd/compile/internal/reflectdata/map_swiss.go
+@@ -159,6 +159,7 @@ func SwissMapType() *types.Type {
+ 	//     globalShift uint8
+ 	//
+ 	//     writing uint8
++	//     tombstonePossible bool
+ 	//     // N.B Padding
+ 	//
+ 	//     clearSeq uint64
+@@ -172,6 +173,7 @@ func SwissMapType() *types.Type {
+ 		makefield("globalDepth", types.Types[types.TUINT8]),
+ 		makefield("globalShift", types.Types[types.TUINT8]),
+ 		makefield("writing", types.Types[types.TUINT8]),
++		makefield("tombstonePossible", types.Types[types.TBOOL]),
+ 		makefield("clearSeq", types.Types[types.TUINT64]),
+ 	}
+ 
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index c5bd01490d..3b9a06239c 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -191,6 +191,7 @@ func h2(h uintptr) uintptr {
+ 	return h & 0x7f
+ }
+ 
++// Note: changes here must be reflected in cmd/compile/internal/reflectdata/map_swiss.go:SwissMapType.
+ type Map struct {
+ 	// The number of filled slots (i.e. the number of elements in all
+ 	// tables). Excludes deleted slots.
+@@ -235,6 +236,10 @@ type Map struct {
+ 	// that both sides will detect the race.
+ 	writing uint8
+ 
++	// tombstonePossible is false if we know that no table in this map
++	// contains a tombstone.
++	tombstonePossible bool
++
+ 	// clearSeq is a sequence counter of calls to Clear. It is used to
+ 	// detect map clears during iteration.
+ 	clearSeq uint64
+@@ -657,7 +662,9 @@ func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
+ 		m.deleteSmall(typ, hash, key)
+ 	} else {
+ 		idx := m.directoryIndex(hash)
+-		m.directoryAt(idx).Delete(typ, m, hash, key)
++		if m.directoryAt(idx).Delete(typ, m, hash, key) {
++			m.tombstonePossible = true
++		}
+ 	}
+ 
+ 	if m.used == 0 {
+@@ -722,7 +729,7 @@ func (m *Map) deleteSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointe
+ 
+ // Clear deletes all entries from the map resulting in an empty map.
+ func (m *Map) Clear(typ *abi.SwissMapType) {
+-	if m == nil || m.Used() == 0 {
++	if m == nil || m.Used() == 0 && !m.tombstonePossible {
+ 		return
+ 	}
+ 
+@@ -744,9 +751,10 @@ func (m *Map) Clear(typ *abi.SwissMapType) {
+ 			lastTab = t
+ 		}
+ 		m.used = 0
+-		m.clearSeq++
++		m.tombstonePossible = false
+ 		// TODO: shrink directory?
+ 	}
++	m.clearSeq++
+ 
+ 	// Reset the hash seed to make it more difficult for attackers to
+ 	// repeatedly trigger hash collisions. See https://go.dev/issue/25237.
+@@ -767,7 +775,6 @@ func (m *Map) clearSmall(typ *abi.SwissMapType) {
+ 	g.ctrls().setEmpty()
+ 
+ 	m.used = 0
+-	m.clearSeq++
+ }
+ 
+ func (m *Map) Clone(typ *abi.SwissMapType) *Map {
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index bf5089be5c..88f87187fe 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -103,7 +103,7 @@ func (t *table) reset(typ *abi.SwissMapType, capacity uint16) {
+ 	groupCount := uint64(capacity) / abi.SwissMapGroupSlots
+ 	t.groups = newGroups(typ, groupCount)
+ 	t.capacity = capacity
+-	t.resetGrowthLeft()
++	t.growthLeft = t.maxGrowthLeft()
+ 
+ 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+ 		g := t.groups.group(typ, i)
+@@ -111,9 +111,9 @@ func (t *table) reset(typ *abi.SwissMapType, capacity uint16) {
+ 	}
+ }
+ 
+-// Preconditions: table must be empty.
+-func (t *table) resetGrowthLeft() {
+-	var growthLeft uint16
++// maxGrowthLeft is the number of inserts we can do before
++// resizing, starting from an empty table.
++func (t *table) maxGrowthLeft() uint16 {
+ 	if t.capacity == 0 {
+ 		// No real reason to support zero capacity table, since an
+ 		// empty Map simply won't have a table.
+@@ -125,15 +125,15 @@ func (t *table) resetGrowthLeft() {
+ 		//
+ 		// TODO(go.dev/issue/54766): With a special case in probing for
+ 		// single-group tables, we could fill all slots.
+-		growthLeft = t.capacity - 1
++		return t.capacity - 1
+ 	} else {
+ 		if t.capacity*maxAvgGroupLoad < t.capacity {
+ 			// TODO(prattmic): Do something cleaner.
+ 			panic("overflow")
+ 		}
+-		growthLeft = (t.capacity * maxAvgGroupLoad) / abi.SwissMapGroupSlots
++		return (t.capacity * maxAvgGroupLoad) / abi.SwissMapGroupSlots
+ 	}
+-	t.growthLeft = growthLeft
++
+ }
+ 
+ func (t *table) Used() uint64 {
+@@ -417,7 +417,8 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key, elem
+ 	}
+ }
+ 
+-func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.Pointer) {
++// Delete returns true if it put a tombstone in t.
++func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.Pointer) bool {
+ 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+ 	for ; ; seq = seq.next() {
+ 		g := t.groups.group(typ, seq.offset)
+@@ -466,15 +467,17 @@ func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.P
+ 				// full now, we can simply remove the element.
+ 				// Otherwise, we create a tombstone to mark the
+ 				// slot as deleted.
++				var tombstone bool
+ 				if g.ctrls().matchEmpty() != 0 {
+ 					g.ctrls().set(i, ctrlEmpty)
+ 					t.growthLeft++
+ 				} else {
+ 					g.ctrls().set(i, ctrlDeleted)
++					tombstone = true
+ 				}
+ 
+ 				t.checkInvariants(typ, m)
+-				return
++				return tombstone
+ 			}
+ 			match = match.removeFirst()
+ 		}
+@@ -483,7 +486,7 @@ func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.P
+ 		if match != 0 {
+ 			// Finding an empty slot means we've reached the end of
+ 			// the probe sequence.
+-			return
++			return false
+ 		}
+ 	}
+ }
+@@ -593,14 +596,19 @@ func (t *table) tombstones() uint16 {
+ 
+ // Clear deletes all entries from the map resulting in an empty map.
+ func (t *table) Clear(typ *abi.SwissMapType) {
++	mgl := t.maxGrowthLeft()
++	if t.used == 0 && t.growthLeft == mgl { // no current entries and no tombstones
++		return
++	}
+ 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+ 		g := t.groups.group(typ, i)
+-		typedmemclr(typ.Group, g.data)
++		if g.ctrls().matchFull() != 0 {
++			typedmemclr(typ.Group, g.data)
++		}
+ 		g.ctrls().setEmpty()
+ 	}
+-
+ 	t.used = 0
+-	t.resetGrowthLeft()
++	t.growthLeft = mgl
+ }
+ 
+ type Iter struct {

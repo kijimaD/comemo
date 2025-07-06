@@ -1,0 +1,66 @@
+commit 4da905bcf07d80eb62be5cb996e11a89258364ad
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Dec 2 12:45:55 2024 -0800
+
+    cmd/internal/objabi, internal/runtime: increase nosplit limit on OpenBSD
+    
+    OpenBSD is bumping up against the nosplit limit, and openbsd/ppc64
+    is over it. Increase StackGuardMultiplier on OpenBSD, matching AIX.
+    
+    Change-Id: I61e17c99ce77e1fd3f368159dc4615aeae99e913
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632996
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/internal/objabi/stack.go   | 4 ++--
+ src/internal/runtime/sys/consts.go | 4 ++--
+ test/nosplit.go                    | 2 +-
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/stack.go b/src/cmd/internal/objabi/stack.go
+index d50a7c1afd..6a1edd46c8 100644
+--- a/src/cmd/internal/objabi/stack.go
++++ b/src/cmd/internal/objabi/stack.go
+@@ -20,8 +20,8 @@ func StackNosplit(race bool) int {
+ func stackGuardMultiplier(race bool) int {
+ 	// This arithmetic must match that in internal/runtime/sys/consts.go:StackGuardMultiplier.
+ 	n := 1
+-	// On AIX, a larger stack is needed for syscalls.
+-	if buildcfg.GOOS == "aix" {
++	// On AIX and OpenBSD, a larger stack is needed for syscalls.
++	if buildcfg.GOOS == "aix" || buildcfg.GOOS == "openbsd" {
+ 		n += 1
+ 	}
+ 	// The race build also needs more stack.
+diff --git a/src/internal/runtime/sys/consts.go b/src/internal/runtime/sys/consts.go
+index 98c0f09ef1..96e630ed1c 100644
+--- a/src/internal/runtime/sys/consts.go
++++ b/src/internal/runtime/sys/consts.go
+@@ -9,10 +9,10 @@ import (
+ 	"internal/goos"
+ )
+ 
+-// AIX requires a larger stack for syscalls.
++// AIX and OpenBSD require a larger stack for syscalls.
+ // The race build also needs more stack. See issue 54291.
+ // This arithmetic must match that in cmd/internal/objabi/stack.go:stackGuardMultiplier.
+-const StackGuardMultiplier = 1 + goos.IsAix + isRace
++const StackGuardMultiplier = 1 + goos.IsAix + goos.IsOpenbsd + isRace
+ 
+ // DefaultPhysPageSize is the default physical page size.
+ const DefaultPhysPageSize = goarch.DefaultPhysPageSize
+diff --git a/test/nosplit.go b/test/nosplit.go
+index e171d1da66..4b4c93b1d0 100644
+--- a/test/nosplit.go
++++ b/test/nosplit.go
+@@ -1,6 +1,6 @@
+ // run
+ 
+-//go:build !nacl && !js && !aix && !wasip1 && !gcflags_noopt && gc
++//go:build !nacl && !js && !aix && !openbsd && !wasip1 && !gcflags_noopt && gc
+ 
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style

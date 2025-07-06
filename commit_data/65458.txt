@@ -1,0 +1,336 @@
+commit 7588cc9b00ec570043c1ee699eace8aa69c106c0
+Author: khr@golang.org <khr@golang.org>
+Date:   Wed Nov 29 22:03:22 2023 -0800
+
+    cmd/link: use types (and not GC programs) to build data/bss ptrmasks
+    
+    The linker knows the types of the global variables. We can use those
+    types to build the GC programs that describe the data and bss pointer masks.
+    
+    That way we don't use the GC programs of the constituent types.
+    This is part of an effort to remove GC programs from the runtime.
+    
+    There's a major complication in that when we're linking against a
+    shared library (typically, libstd.so), the relocations we need to
+    break apart arrays and structs into constituent types are difficult to
+    find. Load that additional data when linking against shared libraries.
+    
+    Change-Id: I8516b24a0604479895c7b8a8a358d3cd8d421530
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/546216
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/link/internal/ld/data.go      | 54 +++++++++++++++++-------
+ src/cmd/link/internal/ld/decodesym.go | 44 +++++++++++++++++---
+ src/cmd/link/internal/ld/dwarf.go     |  6 +--
+ src/cmd/link/internal/ld/lib.go       | 77 ++++++++++++++++++++++++++++++++++-
+ src/cmd/link/internal/ld/link.go      | 24 +++++++++++
+ 5 files changed, 181 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index a23e87d326..5f05399b5e 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1346,30 +1346,56 @@ func (p *GCProg) AddSym(s loader.Sym) {
+ 		return
+ 	}
+ 
+-	ptrsize := int64(p.ctxt.Arch.PtrSize)
+-	typData := ldr.Data(typ)
+-	nptr := decodetypePtrdata(p.ctxt.Arch, typData) / ptrsize
+-
+ 	if debugGCProg {
+-		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d+%d)\n", ldr.SymName(s), ldr.SymValue(s), ldr.SymValue(s)/ptrsize, nptr)
++		fmt.Fprintf(os.Stderr, "gcprog sym: %s at %d (ptr=%d)\n", ldr.SymName(s), ldr.SymValue(s), ldr.SymValue(s)/int64(p.ctxt.Arch.PtrSize))
+ 	}
+ 
+ 	sval := ldr.SymValue(s)
+-	if !decodetypeUsegcprog(p.ctxt.Arch, typData) {
++	p.AddType(sval, typ)
++}
++
++// Add to the gc program the ptr bits for the type typ at
++// byte offset off in the region being described.
++// The type must have a pointer in it.
++func (p *GCProg) AddType(off int64, typ loader.Sym) {
++	ldr := p.ctxt.loader
++	typData := ldr.Data(typ)
++	switch decodetypeKind(p.ctxt.Arch, typData) {
++	default:
++		if decodetypeUsegcprog(p.ctxt.Arch, typData) {
++			p.ctxt.Errorf(p.sym.Sym(), "GC program for non-aggregate type")
++		}
+ 		// Copy pointers from mask into program.
++		ptrsize := int64(p.ctxt.Arch.PtrSize)
++		ptrdata := decodetypePtrdata(p.ctxt.Arch, typData)
+ 		mask := decodetypeGcmask(p.ctxt, typ)
+-		for i := int64(0); i < nptr; i++ {
++		for i := int64(0); i < ptrdata/ptrsize; i++ {
+ 			if (mask[i/8]>>uint(i%8))&1 != 0 {
+-				p.w.Ptr(sval/ptrsize + i)
++				p.w.Ptr(off/ptrsize + i)
++			}
++		}
++	case abi.Array:
++		elem := decodetypeArrayElem(p.ctxt, p.ctxt.Arch, typ)
++		n := decodetypeArrayLen(ldr, p.ctxt.Arch, typ)
++		p.AddType(off, elem)
++		if n > 1 {
++			// Issue repeat for subsequent n-1 instances.
++			elemSize := decodetypeSize(p.ctxt.Arch, ldr.Data(elem))
++			ptrsize := int64(p.ctxt.Arch.PtrSize)
++			p.w.ZeroUntil((off + elemSize) / ptrsize)
++			p.w.Repeat(elemSize/ptrsize, n-1)
++		}
++	case abi.Struct:
++		nField := decodetypeStructFieldCount(ldr, p.ctxt.Arch, typ)
++		for i := 0; i < nField; i++ {
++			fTyp := decodetypeStructFieldType(p.ctxt, p.ctxt.Arch, typ, i)
++			if decodetypePtrdata(p.ctxt.Arch, ldr.Data(fTyp)) == 0 {
++				continue
+ 			}
++			fOff := decodetypeStructFieldOffset(ldr, p.ctxt.Arch, typ, i)
++			p.AddType(off+fOff, fTyp)
+ 		}
+-		return
+ 	}
+-
+-	// Copy program.
+-	prog := decodetypeGcprog(p.ctxt, typ)
+-	p.w.ZeroUntil(sval / ptrsize)
+-	p.w.Append(prog[4:], nptr)
+ }
+ 
+ // cutoff is the maximum data section size permitted by the linker
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 9bce4a7a12..22d1fd02e2 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -134,9 +134,8 @@ func decodetypeFuncOutType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym
+ 	return decodetypeFuncInType(ldr, arch, symIdx, relocs, i+decodetypeFuncInCount(arch, ldr.Data(symIdx)))
+ }
+ 
+-func decodetypeArrayElem(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
+-	relocs := ldr.Relocs(symIdx)
+-	return decodeRelocSym(ldr, symIdx, &relocs, int32(commonsize(arch))) // 0x1c / 0x30
++func decodetypeArrayElem(ctxt *Link, arch *sys.Arch, symIdx loader.Sym) loader.Sym {
++	return decodeTargetSym(ctxt, arch, symIdx, int64(commonsize(arch))) // 0x1c / 0x30
+ }
+ 
+ func decodetypeArrayLen(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) int64 {
+@@ -190,10 +189,10 @@ func decodetypeStructFieldName(ldr *loader.Loader, arch *sys.Arch, symIdx loader
+ 	return decodetypeName(ldr, symIdx, &relocs, off)
+ }
+ 
+-func decodetypeStructFieldType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, i int) loader.Sym {
++func decodetypeStructFieldType(ctxt *Link, arch *sys.Arch, symIdx loader.Sym, i int) loader.Sym {
++	ldr := ctxt.loader
+ 	off := decodetypeStructFieldArrayOff(ldr, arch, symIdx, i)
+-	relocs := ldr.Relocs(symIdx)
+-	return decodeRelocSym(ldr, symIdx, &relocs, int32(off+arch.PtrSize))
++	return decodeTargetSym(ctxt, arch, symIdx, int64(off+arch.PtrSize))
+ }
+ 
+ func decodetypeStructFieldOffset(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym, i int) int64 {
+@@ -297,3 +296,36 @@ func decodeItabType(ldr *loader.Loader, arch *sys.Arch, symIdx loader.Sym) loade
+ 	relocs := ldr.Relocs(symIdx)
+ 	return decodeRelocSym(ldr, symIdx, &relocs, int32(abi.ITabTypeOff(arch.PtrSize)))
+ }
++
++// decodeTargetSym finds the symbol pointed to by the pointer slot at offset off in s.
++func decodeTargetSym(ctxt *Link, arch *sys.Arch, s loader.Sym, off int64) loader.Sym {
++	ldr := ctxt.loader
++	if ldr.SymType(s) == sym.SDYNIMPORT {
++		// In this case, relocations are not associated with a
++		// particular symbol. Instead, they are all listed together
++		// in the containing shared library. Find the relocation
++		// in that shared library record.
++		name := ldr.SymName(s)
++		for _, sh := range ctxt.Shlibs {
++			addr, ok := sh.symAddr[name]
++			if !ok {
++				continue
++			}
++			addr += uint64(off)
++			target := sh.relocTarget[addr]
++			if target == "" {
++				Exitf("can't find relocation in %s at offset %d", name, off)
++			}
++			t := ldr.Lookup(target, 0)
++			if t == 0 {
++				Exitf("can't find target of relocation in %s at offset %d: %s", name, off, target)
++			}
++			return t
++		}
++	}
++
++	// For the normal case, just find the relocation within the symbol that
++	// lives at the requested offset.
++	relocs := ldr.Relocs(s)
++	return decodeRelocSym(ldr, s, &relocs, int32(off))
++}
+diff --git a/src/cmd/link/internal/ld/dwarf.go b/src/cmd/link/internal/ld/dwarf.go
+index 7599b937ff..14c0b687d8 100644
+--- a/src/cmd/link/internal/ld/dwarf.go
++++ b/src/cmd/link/internal/ld/dwarf.go
+@@ -584,7 +584,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_ARRAYTYPE, name)
+ 		typedefdie = d.dotypedef(&dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+-		s := decodetypeArrayElem(d.ldr, d.arch, gotype)
++		s := decodetypeArrayElem(d.linkctxt, d.arch, gotype)
+ 		d.newrefattr(die, dwarf.DW_AT_type, d.defgotype(s))
+ 		fld := d.newdie(die, dwarf.DW_ABRV_ARRAYRANGE, "range")
+ 
+@@ -661,7 +661,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 		die = d.newdie(&dwtypes, dwarf.DW_ABRV_SLICETYPE, name)
+ 		typedefdie = d.dotypedef(&dwtypes, name, die)
+ 		newattr(die, dwarf.DW_AT_byte_size, dwarf.DW_CLS_CONSTANT, bytesize, 0)
+-		s := decodetypeArrayElem(d.ldr, d.arch, gotype)
++		s := decodetypeArrayElem(d.linkctxt, d.arch, gotype)
+ 		elem := d.defgotype(s)
+ 		d.newrefattr(die, dwarf.DW_AT_go_elem, elem)
+ 
+@@ -676,7 +676,7 @@ func (d *dwctxt) newtype(gotype loader.Sym) *dwarf.DWDie {
+ 		nfields := decodetypeStructFieldCount(d.ldr, d.arch, gotype)
+ 		for i := 0; i < nfields; i++ {
+ 			f := decodetypeStructFieldName(d.ldr, d.arch, gotype, i)
+-			s := decodetypeStructFieldType(d.ldr, d.arch, gotype, i)
++			s := decodetypeStructFieldType(d.linkctxt, d.arch, gotype, i)
+ 			if f == "" {
+ 				sn := d.ldr.SymName(s)
+ 				f = sn[5:] // skip "type:"
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 46585479da..48bdf73b3b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2622,6 +2622,7 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		return
+ 	}
+ 
++	symAddr := map[string]uint64{}
+ 	for _, elfsym := range syms {
+ 		if elf.ST_TYPE(elfsym.Info) == elf.STT_NOTYPE || elf.ST_TYPE(elfsym.Info) == elf.STT_SECTION {
+ 			continue
+@@ -2673,8 +2674,82 @@ func ldshlibsyms(ctxt *Link, shlib string) {
+ 		if symname != elfsym.Name {
+ 			l.SetSymExtname(s, elfsym.Name)
+ 		}
++		symAddr[elfsym.Name] = elfsym.Value
+ 	}
+-	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f})
++
++	// Load relocations.
++	// We only really need these for grokking the links between type descriptors
++	// when dynamic linking.
++	relocTarget := map[uint64]string{}
++	addends := false
++	sect := f.SectionByType(elf.SHT_REL)
++	if sect == nil {
++		sect = f.SectionByType(elf.SHT_RELA)
++		if sect == nil {
++			log.Fatalf("can't find SHT_REL or SHT_RELA section of %s", shlib)
++		}
++		addends = true
++	}
++	// TODO: Multiple SHT_RELA/SHT_REL sections?
++	data, err := sect.Data()
++	if err != nil {
++		log.Fatalf("can't read relocation section of %s: %v", shlib, err)
++	}
++	bo := f.ByteOrder
++	for len(data) > 0 {
++		var off, idx uint64
++		var addend int64
++		switch f.Class {
++		case elf.ELFCLASS64:
++			off = bo.Uint64(data)
++			info := bo.Uint64(data[8:])
++			data = data[16:]
++			if addends {
++				addend = int64(bo.Uint64(data))
++				data = data[8:]
++			}
++
++			idx = info >> 32
++			typ := info & 0xffff
++			// buildmode=shared is only supported for amd64,arm64,loong64,s390x,ppc64le.
++			// (List found by looking at the translation of R_ADDR by ../$ARCH/asm.go:elfreloc1)
++			switch typ {
++			case uint64(elf.R_X86_64_64):
++			case uint64(elf.R_AARCH64_ABS64):
++			case uint64(elf.R_LARCH_64):
++			case uint64(elf.R_390_64):
++			case uint64(elf.R_PPC64_ADDR64):
++			default:
++				continue
++			}
++		case elf.ELFCLASS32:
++			off = uint64(bo.Uint32(data))
++			info := bo.Uint32(data[4:])
++			data = data[8:]
++			if addends {
++				addend = int64(int32(bo.Uint32(data)))
++				data = data[4:]
++			}
++
++			idx = uint64(info >> 8)
++			typ := info & 0xff
++			// buildmode=shared is only supported for 386,arm.
++			switch typ {
++			case uint32(elf.R_386_32):
++			case uint32(elf.R_ARM_ABS32):
++			default:
++				continue
++			}
++		default:
++			log.Fatalf("unknown bit size %s", f.Class)
++		}
++		if addend != 0 {
++			continue
++		}
++		relocTarget[off] = syms[idx-1].Name
++	}
++
++	ctxt.Shlibs = append(ctxt.Shlibs, Shlib{Path: libpath, Hash: hash, Deps: deps, File: f, symAddr: symAddr, relocTarget: relocTarget})
+ }
+ 
+ func addsection(ldr *loader.Loader, arch *sys.Arch, seg *sym.Segment, name string, rwx int) *sym.Section {
+diff --git a/src/cmd/link/internal/ld/link.go b/src/cmd/link/internal/ld/link.go
+index 34221dfa8a..df1fc7feab 100644
+--- a/src/cmd/link/internal/ld/link.go
++++ b/src/cmd/link/internal/ld/link.go
+@@ -44,8 +44,32 @@ type Shlib struct {
+ 	Hash []byte
+ 	Deps []string
+ 	File *elf.File
++	// For every symbol defined in the shared library, record its address
++	// in the original shared library address space.
++	symAddr map[string]uint64
++	// For relocations in the shared library, map from the address
++	// (in the shared library address space) at which that
++	// relocation applies to the target symbol.  We only keep
++	// track of a single kind of relocation: a standard absolute
++	// address relocation with no addend. These were R_ADDR
++	// relocations when the shared library was built.
++	relocTarget map[uint64]string
+ }
+ 
++// A relocation that applies to part of the shared library.
++type shlibReloc struct {
++	// Address (in the shared library address space) the relocation applies to.
++	addr uint64
++	// Target symbol name.
++	target string
++}
++
++type shlibRelocs []shlibReloc
++
++func (s shlibRelocs) Len() int           { return len(s) }
++func (s shlibRelocs) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
++func (s shlibRelocs) Less(i, j int) bool { return s[i].addr < s[j].addr }
++
+ // Link holds the context for writing object code from a compiler
+ // or for reading that input into the linker.
+ type Link struct {

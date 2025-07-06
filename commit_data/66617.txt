@@ -1,0 +1,30 @@
+commit 02014706f012a90bcd48025200d28e471dd96e09
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Mar 16 14:40:40 2025 +0800
+
+    doc: go 1.26 remove support for windows/arm
+    
+    For #71671
+    
+    Change-Id: I690aa24c0d9dd62749244c92d26a5a353f0d5c47
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658275
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ doc/next/7-ports.md | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/doc/next/7-ports.md b/doc/next/7-ports.md
+index 8bea3f8fbc..d2ba1ebb85 100644
+--- a/doc/next/7-ports.md
++++ b/doc/next/7-ports.md
+@@ -1,2 +1,6 @@
+ ## Ports {#ports}
+ 
++### Windows
++
++<!-- go.dev/issue/71671 -->
++Go 1.25 is the last release that contains the [broken](/doc/go1.24#windows) 32-bit windows/arm port (`GOOS=windows` `GOARCH=arm`). It will be removed in Go 1.26.

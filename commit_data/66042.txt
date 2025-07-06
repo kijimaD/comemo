@@ -1,0 +1,25 @@
+commit 5817e650946aaa0ac28956de96b3f9aa1de4b299
+Author: Gopher Robot <gobot@golang.org>
+Date:   Tue Feb 4 08:12:15 2025 -0800
+
+    [release-branch.go1.22] go1.22.12
+    
+    Change-Id: Ib985698fba4e6dab8dc645b115e21a9717bd122c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646479
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index 6258886559..0b594066b3 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.22.11
+-time 2025-01-10T16:44:59Z
++go1.22.12
++time 2025-01-31T18:38:03Z

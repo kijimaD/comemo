@@ -1,0 +1,56 @@
+commit 787414ca488dbb819b1ec82ff5d620b32e79de37
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 30 03:36:41 2024 +0000
+
+    cmd/cgo/internal/swig: force use of lld for LTO tests on the builders
+    
+    For whatever reason, on the builders, when using /usr/bin/ld (the
+    default linker) with -flto we end up with problems. Specifically, the
+    linker seems to require LLVMgold.so and can't find it. I'm not really
+    sure why, but what definitely seems to work is forcing use of lld, which
+    ships with our clang installation on the builders.
+    
+    Just enforce this on the builders for now; I've actually had very few
+    problems running this locally (and I think I'm also mixing and matching
+    linkers and toolchains too...), so it may be related to the version of
+    clang we're testing with.
+    
+    This change, along with CL 589295, should fully fix the clang builders.
+    
+    Fixes #67698.
+    
+    Change-Id: I3bfbcd609e7d0fd70e52ac7e2a0817db95664f20
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-clang15,gotip-linux-386-clang15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589296
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/cmd/cgo/internal/swig/swig_test.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/internal/swig/swig_test.go b/src/cmd/cgo/internal/swig/swig_test.go
+index 41563138a7..923378b2dd 100644
+--- a/src/cmd/cgo/internal/swig/swig_test.go
++++ b/src/cmd/cgo/internal/swig/swig_test.go
+@@ -44,11 +44,18 @@ func run(t *testing.T, dir string, lto bool, args ...string) {
+ 	cmd := exec.Command("go", runArgs...)
+ 	cmd.Dir = dir
+ 	if lto {
++		// On the builders we're using the default /usr/bin/ld, but
++		// that has problems when asking for LTO in particular. Force
++		// use of lld, which ships with our clang installation.
++		extraLDFlags := ""
++		if strings.Contains(testenv.Builder(), "clang") {
++			extraLDFlags += " -fuse-ld=lld"
++		}
+ 		const cflags = "-flto -Wno-lto-type-mismatch -Wno-unknown-warning-option"
+ 		cmd.Env = append(cmd.Environ(),
+ 			"CGO_CFLAGS="+cflags,
+ 			"CGO_CXXFLAGS="+cflags,
+-			"CGO_LDFLAGS="+cflags)
++			"CGO_LDFLAGS="+cflags+extraLDFlags)
+ 	}
+ 	out, err := cmd.CombinedOutput()
+ 	if string(out) != "OK\n" {

@@ -1,0 +1,34 @@
+commit b4376b8513bd0d0ace2102048c18371651ea6ae0
+Author: Austin Clements <austin@google.com>
+Date:   Fri May 17 17:07:33 2024 -0400
+
+    runtime: skip coro cgo test on platforms without cgo
+    
+    Change-Id: Ibbe82a3ae2a67fb8f2b831130123dc74bc4dc9dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586535
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/coro_test.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/coro_test.go b/src/runtime/coro_test.go
+index eeb7f256f1..10b5e1ea08 100644
+--- a/src/runtime/coro_test.go
++++ b/src/runtime/coro_test.go
+@@ -5,6 +5,7 @@
+ package runtime_test
+ 
+ import (
++	"internal/testenv"
+ 	"runtime"
+ 	"strings"
+ 	"testing"
+@@ -30,6 +31,7 @@ func TestCoroLockOSThread(t *testing.T) {
+ }
+ 
+ func TestCoroCgoCallback(t *testing.T) {
++	testenv.MustHaveCGO(t)
+ 	if runtime.GOOS == "windows" {
+ 		t.Skip("coro cgo callback tests not supported on Windows")
+ 	}

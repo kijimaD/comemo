@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 60926: af0c40311e2ee33ecd24971257606f42a49cf593
+# Index 60926: 460dc37c885b83a27d589befe3f52097fe3363b0
 
 echo "🚀 Generating explanation for commit 60926..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 60926..."
 
 ### メタデータ
 - **コミットインデックス**: 60926
-- **コミットハッシュ**: af0c40311e2ee33ecd24971257606f42a49cf593
-- **GitHub URL**: https://github.com/golang/go/commit/af0c40311e2ee33ecd24971257606f42a49cf593
+- **コミットハッシュ**: 460dc37c885b83a27d589befe3f52097fe3363b0
+- **GitHub URL**: https://github.com/golang/go/commit/460dc37c885b83a27d589befe3f52097fe3363b0
 
 ### 章構成
 

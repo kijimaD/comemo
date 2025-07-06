@@ -1,0 +1,704 @@
+commit 8aa2eed8fb90303c0876e51e097105eca7299734
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Mon Jul 15 14:37:52 2024 +0000
+
+    cmd/go: stamp the version for binaries built with go build
+    
+    This CL will set the binary version using local tag information if
+    present.
+    
+    For #50603
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I58bed345c7eea20e51a7b24ff6e943d9d1ed240d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596035
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Karam Moore <bigjimhilljameel@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/go_test.go                              |   2 +-
+ src/cmd/go/internal/load/pkg.go                    |  13 ++
+ src/cmd/go/internal/modfetch/codehost/codehost.go  |  42 ++++--
+ src/cmd/go/internal/modfetch/codehost/git.go       | 165 ++++++++++-----------
+ src/cmd/go/internal/modfetch/codehost/git_test.go  |   7 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go       |  11 +-
+ src/cmd/go/internal/modfetch/repo.go               |  33 ++++-
+ src/cmd/go/script_test.go                          |   6 +-
+ .../testdata/script/build_version_stamping_git.txt | 126 ++++++++++++++++
+ 9 files changed, 287 insertions(+), 118 deletions(-)
+
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5315779246..f3922f823e 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -468,7 +468,7 @@ func (tg *testgoData) unsetenv(name string) {
+ 		tg.env = append([]string(nil), os.Environ()...)
+ 		tg.env = append(tg.env, "GO111MODULE=off", "TESTGONETWORK=panic")
+ 		if testing.Short() {
+-			tg.env = append(tg.env, "TESTGOVCS=panic")
++			tg.env = append(tg.env, "TESTGOVCSREMOTE=panic")
+ 		}
+ 	}
+ 	for i, v := range tg.env {
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 33bc3e0c48..43429a1d93 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2494,6 +2494,19 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 			appendSetting("vcs.time", stamp)
+ 		}
+ 		appendSetting("vcs.modified", strconv.FormatBool(st.Uncommitted))
++		// Determine the correct version of this module at the current revision and update the build metadata accordingly.
++		repo := modfetch.LookupLocal(ctx, p.Module.Dir)
++		revInfo, err := repo.Stat(ctx, st.Revision)
++		if err != nil {
++			goto omitVCS
++		}
++		vers := revInfo.Version
++		if vers != "" {
++			if st.Uncommitted {
++				vers += "+dirty"
++			}
++			info.Main.Version = vers
++		}
+ 	}
+ omitVCS:
+ 
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 173ef65b1e..edb87e4089 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -296,39 +296,52 @@ func (e *RunError) Error() string {
+ 
+ var dirLock sync.Map
+ 
++type RunArgs struct {
++	cmdline []any    // the command to run
++	dir     string   // the directory to run the command in
++	local   bool     // true if the VCS information is local
++	env     []string // environment variables for the command
++	stdin   io.Reader
++}
++
+ // Run runs the command line in the given directory
+ // (an empty dir means the current directory).
+ // It returns the standard output and, for a non-zero exit,
+ // a *RunError indicating the command, exit status, and standard error.
+ // Standard error is unavailable for commands that exit successfully.
+ func Run(ctx context.Context, dir string, cmdline ...any) ([]byte, error) {
+-	return RunWithStdin(ctx, dir, nil, cmdline...)
++	return run(ctx, RunArgs{cmdline: cmdline, dir: dir})
++}
++
++// RunWithArgs is the same as Run but it also accepts additional arguments.
++func RunWithArgs(ctx context.Context, args RunArgs) ([]byte, error) {
++	return run(ctx, args)
+ }
+ 
+ // bashQuoter escapes characters that have special meaning in double-quoted strings in the bash shell.
+ // See https://www.gnu.org/software/bash/manual/html_node/Double-Quotes.html.
+ var bashQuoter = strings.NewReplacer(`"`, `\"`, `$`, `\$`, "`", "\\`", `\`, `\\`)
+ 
+-func RunWithStdin(ctx context.Context, dir string, stdin io.Reader, cmdline ...any) ([]byte, error) {
+-	if dir != "" {
+-		muIface, ok := dirLock.Load(dir)
++func run(ctx context.Context, args RunArgs) ([]byte, error) {
++	if args.dir != "" {
++		muIface, ok := dirLock.Load(args.dir)
+ 		if !ok {
+-			muIface, _ = dirLock.LoadOrStore(dir, new(sync.Mutex))
++			muIface, _ = dirLock.LoadOrStore(args.dir, new(sync.Mutex))
+ 		}
+ 		mu := muIface.(*sync.Mutex)
+ 		mu.Lock()
+ 		defer mu.Unlock()
+ 	}
+ 
+-	cmd := str.StringList(cmdline...)
+-	if os.Getenv("TESTGOVCS") == "panic" {
+-		panic(fmt.Sprintf("use of vcs: %v", cmd))
++	cmd := str.StringList(args.cmdline...)
++	if os.Getenv("TESTGOVCSREMOTE") == "panic" && !args.local {
++		panic(fmt.Sprintf("use of remote vcs: %v", cmd))
+ 	}
+ 	if xLog, ok := cfg.BuildXWriter(ctx); ok {
+ 		text := new(strings.Builder)
+-		if dir != "" {
++		if args.dir != "" {
+ 			text.WriteString("cd ")
+-			text.WriteString(dir)
++			text.WriteString(args.dir)
+ 			text.WriteString("; ")
+ 		}
+ 		for i, arg := range cmd {
+@@ -362,15 +375,14 @@ func RunWithStdin(ctx context.Context, dir string, stdin io.Reader, cmdline ...a
+ 	var stdout bytes.Buffer
+ 	c := exec.CommandContext(ctx, cmd[0], cmd[1:]...)
+ 	c.Cancel = func() error { return c.Process.Signal(os.Interrupt) }
+-	c.Dir = dir
+-	c.Stdin = stdin
++	c.Dir = args.dir
++	c.Stdin = args.stdin
+ 	c.Stderr = &stderr
+ 	c.Stdout = &stdout
+-	// For Git commands, manually supply GIT_DIR so Git works with safe.bareRepository=explicit set. Noop for other commands.
+-	c.Env = append(c.Environ(), "GIT_DIR="+dir)
++	c.Env = append(c.Environ(), args.env...)
+ 	err := c.Run()
+ 	if err != nil {
+-		err = &RunError{Cmd: strings.Join(cmd, " ") + " in " + dir, Stderr: stderr.Bytes(), Err: err}
++		err = &RunError{Cmd: strings.Join(cmd, " ") + " in " + args.dir, Stderr: stderr.Bytes(), Err: err}
+ 	}
+ 	return stdout.Bytes(), err
+ }
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index ca764611f8..474100bd59 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -33,12 +33,6 @@ import (
+ 	"golang.org/x/mod/semver"
+ )
+ 
+-// LocalGitRepo is like Repo but accepts both Git remote references
+-// and paths to repositories on the local file system.
+-func LocalGitRepo(ctx context.Context, remote string) (Repo, error) {
+-	return newGitRepoCached(ctx, remote, true)
+-}
+-
+ // A notExistError wraps another error to retain its original text
+ // but makes it opaquely equivalent to fs.ErrNotExist.
+ type notExistError struct {
+@@ -50,88 +44,73 @@ func (notExistError) Is(err error) bool { return err == fs.ErrNotExist }
+ 
+ const gitWorkDirType = "git3"
+ 
+-var gitRepoCache par.ErrCache[gitCacheKey, Repo]
+-
+-type gitCacheKey struct {
+-	remote  string
+-	localOK bool
+-}
+-
+-func newGitRepoCached(ctx context.Context, remote string, localOK bool) (Repo, error) {
+-	return gitRepoCache.Do(gitCacheKey{remote, localOK}, func() (Repo, error) {
+-		return newGitRepo(ctx, remote, localOK)
+-	})
+-}
+-
+-func newGitRepo(ctx context.Context, remote string, localOK bool) (Repo, error) {
+-	r := &gitRepo{remote: remote}
+-	if strings.Contains(remote, "://") {
+-		// This is a remote path.
+-		var err error
+-		r.dir, r.mu.Path, err = WorkDir(ctx, gitWorkDirType, r.remote)
+-		if err != nil {
+-			return nil, err
++func newGitRepo(ctx context.Context, remote string, local bool) (Repo, error) {
++	r := &gitRepo{remote: remote, local: local}
++	if local {
++		if strings.Contains(remote, "://") { // Local flag, but URL provided
++			return nil, fmt.Errorf("git remote (%s) lookup disabled", remote)
+ 		}
+-
+-		unlock, err := r.mu.Lock()
++		info, err := os.Stat(remote)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		defer unlock()
+-
+-		if _, err := os.Stat(filepath.Join(r.dir, "objects")); err != nil {
+-			if _, err := Run(ctx, r.dir, "git", "init", "--bare"); err != nil {
+-				os.RemoveAll(r.dir)
+-				return nil, err
+-			}
+-			// We could just say git fetch https://whatever later,
+-			// but this lets us say git fetch origin instead, which
+-			// is a little nicer. More importantly, using a named remote
+-			// avoids a problem with Git LFS. See golang.org/issue/25605.
+-			if _, err := Run(ctx, r.dir, "git", "remote", "add", "origin", "--", r.remote); err != nil {
+-				os.RemoveAll(r.dir)
+-				return nil, err
+-			}
+-			if runtime.GOOS == "windows" {
+-				// Git for Windows by default does not support paths longer than
+-				// MAX_PATH (260 characters) because that may interfere with navigation
+-				// in some Windows programs. However, cmd/go should be able to handle
+-				// long paths just fine, and we expect people to use 'go clean' to
+-				// manipulate the module cache, so it should be harmless to set here,
+-				// and in some cases may be necessary in order to download modules with
+-				// long branch names.
+-				//
+-				// See https://github.com/git-for-windows/git/wiki/Git-cannot-create-a-file-or-directory-with-a-long-path.
+-				if _, err := Run(ctx, r.dir, "git", "config", "core.longpaths", "true"); err != nil {
+-					os.RemoveAll(r.dir)
+-					return nil, err
+-				}
+-			}
++		if !info.IsDir() {
++			return nil, fmt.Errorf("%s exists but is not a directory", remote)
+ 		}
+-		r.remoteURL = r.remote
+-		r.remote = "origin"
+-	} else {
+-		// Local path.
+-		// Disallow colon (not in ://) because sometimes
+-		// that's rcp-style host:path syntax and sometimes it's not (c:\work).
+-		// The go command has always insisted on URL syntax for ssh.
++		r.dir = remote
++		r.mu.Path = r.dir + ".lock"
++		return r, nil
++	}
++	// This is a remote path lookup.
++	if !strings.Contains(remote, "://") { // No URL scheme, could be host:path
+ 		if strings.Contains(remote, ":") {
+-			return nil, fmt.Errorf("git remote cannot use host:path syntax")
++			return nil, fmt.Errorf("git remote (%s) must not be local directory (use URL syntax not host:path syntax)", remote)
+ 		}
+-		if !localOK {
+-			return nil, fmt.Errorf("git remote must not be local directory")
++		return nil, fmt.Errorf("git remote (%s) must not be local directory", remote)
++	}
++	var err error
++	r.dir, r.mu.Path, err = WorkDir(ctx, gitWorkDirType, r.remote)
++	if err != nil {
++		return nil, err
++	}
++
++	unlock, err := r.mu.Lock()
++	if err != nil {
++		return nil, err
++	}
++	defer unlock()
++
++	if _, err := os.Stat(filepath.Join(r.dir, "objects")); err != nil {
++		if _, err := Run(ctx, r.dir, "git", "init", "--bare"); err != nil {
++			os.RemoveAll(r.dir)
++			return nil, err
+ 		}
+-		r.local = true
+-		info, err := os.Stat(remote)
+-		if err != nil {
++		// We could just say git fetch https://whatever later,
++		// but this lets us say git fetch origin instead, which
++		// is a little nicer. More importantly, using a named remote
++		// avoids a problem with Git LFS. See golang.org/issue/25605.
++		if _, err := r.runGit(ctx, "git", "remote", "add", "origin", "--", r.remote); err != nil {
++			os.RemoveAll(r.dir)
+ 			return nil, err
+ 		}
+-		if !info.IsDir() {
+-			return nil, fmt.Errorf("%s exists but is not a directory", remote)
++		if runtime.GOOS == "windows" {
++			// Git for Windows by default does not support paths longer than
++			// MAX_PATH (260 characters) because that may interfere with navigation
++			// in some Windows programs. However, cmd/go should be able to handle
++			// long paths just fine, and we expect people to use 'go clean' to
++			// manipulate the module cache, so it should be harmless to set here,
++			// and in some cases may be necessary in order to download modules with
++			// long branch names.
++			//
++			// See https://github.com/git-for-windows/git/wiki/Git-cannot-create-a-file-or-directory-with-a-long-path.
++			if _, err := r.runGit(ctx, "git", "config", "core.longpaths", "true"); err != nil {
++				os.RemoveAll(r.dir)
++				return nil, err
++			}
+ 		}
+-		r.dir = remote
+-		r.mu.Path = r.dir + ".lock"
+ 	}
++	r.remoteURL = r.remote
++	r.remote = "origin"
+ 	return r, nil
+ }
+ 
+@@ -171,7 +150,7 @@ func (r *gitRepo) loadLocalTags(ctx context.Context) {
+ 	// The git protocol sends all known refs and ls-remote filters them on the client side,
+ 	// so we might as well record both heads and tags in one shot.
+ 	// Most of the time we only care about tags but sometimes we care about heads too.
+-	out, err := Run(ctx, r.dir, "git", "tag", "-l")
++	out, err := r.runGit(ctx, "git", "tag", "-l")
+ 	if err != nil {
+ 		return
+ 	}
+@@ -246,7 +225,7 @@ func (r *gitRepo) loadRefs(ctx context.Context) (map[string]string, error) {
+ 			r.refsErr = err
+ 			return
+ 		}
+-		out, gitErr := Run(ctx, r.dir, "git", "ls-remote", "-q", r.remote)
++		out, gitErr := r.runGit(ctx, "git", "ls-remote", "-q", r.remote)
+ 		release()
+ 
+ 		if gitErr != nil {
+@@ -509,7 +488,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
+ 			if fromTag && !slices.Contains(info.Tags, tag) {
+ 				// The local repo includes the commit hash we want, but it is missing
+ 				// the corresponding tag. Add that tag and try again.
+-				_, err := Run(ctx, r.dir, "git", "tag", tag, hash)
++				_, err := r.runGit(ctx, "git", "tag", tag, hash)
+ 				if err != nil {
+ 					return nil, err
+ 				}
+@@ -554,7 +533,7 @@ func (r *gitRepo) stat(ctx context.Context, rev string) (info *RevInfo, err erro
+ 		// an apparent Git bug introduced in Git 2.21 (commit 61c771),
+ 		// which causes the handler for protocol version 1 to sometimes miss
+ 		// tags that point to the requested commit (see https://go.dev/issue/56881).
+-		_, err = Run(ctx, r.dir, "git", "-c", "protocol.version=2", "fetch", "-f", "--depth=1", r.remote, refspec)
++		_, err = r.runGit(ctx, "git", "-c", "protocol.version=2", "fetch", "-f", "--depth=1", r.remote, refspec)
+ 		release()
+ 
+ 		if err == nil {
+@@ -597,12 +576,12 @@ func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
+ 		}
+ 		defer release()
+ 
+-		if _, err := Run(ctx, r.dir, "git", "fetch", "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
++		if _, err := r.runGit(ctx, "git", "fetch", "-f", r.remote, "refs/heads/*:refs/heads/*", "refs/tags/*:refs/tags/*"); err != nil {
+ 			return err
+ 		}
+ 
+ 		if _, err := os.Stat(filepath.Join(r.dir, "shallow")); err == nil {
+-			if _, err := Run(ctx, r.dir, "git", "fetch", "--unshallow", "-f", r.remote); err != nil {
++			if _, err := r.runGit(ctx, "git", "fetch", "--unshallow", "-f", r.remote); err != nil {
+ 				return err
+ 			}
+ 		}
+@@ -615,7 +594,7 @@ func (r *gitRepo) fetchRefsLocked(ctx context.Context) error {
+ // statLocal returns a new RevInfo describing rev in the local git repository.
+ // It uses version as info.Version.
+ func (r *gitRepo) statLocal(ctx context.Context, version, rev string) (*RevInfo, error) {
+-	out, err := Run(ctx, r.dir, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
++	out, err := r.runGit(ctx, "git", "-c", "log.showsignature=false", "log", "--no-decorate", "-n1", "--format=format:%H %ct %D", rev, "--")
+ 	if err != nil {
+ 		// Return info with Origin.RepoSum if possible to allow caching of negative lookup.
+ 		var info *RevInfo
+@@ -691,7 +670,7 @@ func (r *gitRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	out, err := Run(ctx, r.dir, "git", "cat-file", "blob", info.Name+":"+file)
++	out, err := r.runGit(ctx, "git", "cat-file", "blob", info.Name+":"+file)
+ 	if err != nil {
+ 		return nil, fs.ErrNotExist
+ 	}
+@@ -709,7 +688,7 @@ func (r *gitRepo) RecentTag(ctx context.Context, rev, prefix string, allowed fun
+ 	// result is definitive.
+ 	describe := func() (definitive bool) {
+ 		var out []byte
+-		out, err = Run(ctx, r.dir, "git", "for-each-ref", "--format", "%(refname)", "refs/tags", "--merged", rev)
++		out, err = r.runGit(ctx, "git", "for-each-ref", "--format", "%(refname)", "refs/tags", "--merged", rev)
+ 		if err != nil {
+ 			return true
+ 		}
+@@ -793,7 +772,7 @@ func (r *gitRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
+ 	//
+ 	// git merge-base --is-ancestor exits with status 0 if rev is an ancestor, or
+ 	// 1 if not.
+-	_, err := Run(ctx, r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
++	_, err := r.runGit(ctx, "git", "merge-base", "--is-ancestor", "--", tag, rev)
+ 
+ 	// Git reports "is an ancestor" with exit code 0 and "not an ancestor" with
+ 	// exit code 1.
+@@ -837,7 +816,7 @@ func (r *gitRepo) DescendsFrom(ctx context.Context, rev, tag string) (bool, erro
+ 		}
+ 	}
+ 
+-	_, err = Run(ctx, r.dir, "git", "merge-base", "--is-ancestor", "--", tag, rev)
++	_, err = r.runGit(ctx, "git", "merge-base", "--is-ancestor", "--", tag, rev)
+ 	if err == nil {
+ 		return true, nil
+ 	}
+@@ -873,7 +852,7 @@ func (r *gitRepo) ReadZip(ctx context.Context, rev, subdir string, maxSize int64
+ 	// text file line endings. Setting -c core.autocrlf=input means only
+ 	// translate files on the way into the repo, not on the way out (archive).
+ 	// The -c core.eol=lf should be unnecessary but set it anyway.
+-	archive, err := Run(ctx, r.dir, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
++	archive, err := r.runGit(ctx, "git", "-c", "core.autocrlf=input", "-c", "core.eol=lf", "archive", "--format=zip", "--prefix=prefix/", info.Name, args)
+ 	if err != nil {
+ 		if bytes.Contains(err.(*RunError).Stderr, []byte("did not match any files")) {
+ 			return nil, fs.ErrNotExist
+@@ -923,3 +902,13 @@ func ensureGitAttributes(repoDir string) (err error) {
+ 
+ 	return nil
+ }
++
++func (r *gitRepo) runGit(ctx context.Context, cmdline ...any) ([]byte, error) {
++	args := RunArgs{cmdline: cmdline, dir: r.dir, local: r.local}
++	if !r.local {
++		// Manually supply GIT_DIR so Git works with safe.bareRepository=explicit set.
++		// This is necessary only for remote repositories as they are initialized with git init --bare.
++		args.env = []string{"GIT_DIR=" + r.dir}
++	}
++	return RunWithArgs(ctx, args)
++}
+diff --git a/src/cmd/go/internal/modfetch/codehost/git_test.go b/src/cmd/go/internal/modfetch/codehost/git_test.go
+index dba9935b58..eb06d3d7a9 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git_test.go
++++ b/src/cmd/go/internal/modfetch/codehost/git_test.go
+@@ -67,7 +67,8 @@ func localGitURL(t testing.TB) string {
+ 		if localGitURLErr != nil {
+ 			return
+ 		}
+-		_, localGitURLErr = Run(context.Background(), localGitRepo, "git", "config", "daemon.uploadarch", "true")
++		repo := gitRepo{dir: localGitRepo}
++		_, localGitURLErr = repo.runGit(context.Background(), "git", "config", "daemon.uploadarch", "true")
+ 	})
+ 
+ 	if localGitURLErr != nil {
+@@ -171,7 +172,7 @@ func (w *testWriter) Write(p []byte) (int, error) {
+ 
+ func testRepo(ctx context.Context, t *testing.T, remote string) (Repo, error) {
+ 	if remote == "localGitRepo" {
+-		return LocalGitRepo(ctx, localGitURL(t))
++		return NewRepo(ctx, "git", localGitURL(t), false)
+ 	}
+ 	vcsName := "git"
+ 	for _, k := range []string{"hg"} {
+@@ -186,7 +187,7 @@ func testRepo(ctx context.Context, t *testing.T, remote string) (Repo, error) {
+ 	if runtime.GOOS == "android" && strings.HasSuffix(testenv.Builder(), "-corellium") {
+ 		testenv.SkipFlaky(t, 59940)
+ 	}
+-	return NewRepo(ctx, vcsName, remote)
++	return NewRepo(ctx, vcsName, remote, false)
+ }
+ 
+ func TestTags(t *testing.T) {
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 1878b08408..75fde763ae 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -49,11 +49,12 @@ func vcsErrorf(format string, a ...any) error {
+ type vcsCacheKey struct {
+ 	vcs    string
+ 	remote string
++	local  bool
+ }
+ 
+-func NewRepo(ctx context.Context, vcs, remote string) (Repo, error) {
+-	return vcsRepoCache.Do(vcsCacheKey{vcs, remote}, func() (Repo, error) {
+-		repo, err := newVCSRepo(ctx, vcs, remote)
++func NewRepo(ctx context.Context, vcs, remote string, local bool) (Repo, error) {
++	return vcsRepoCache.Do(vcsCacheKey{vcs, remote, local}, func() (Repo, error) {
++		repo, err := newVCSRepo(ctx, vcs, remote, local)
+ 		if err != nil {
+ 			return nil, &VCSError{err}
+ 		}
+@@ -80,9 +81,9 @@ type vcsRepo struct {
+ 	fetchErr  error
+ }
+ 
+-func newVCSRepo(ctx context.Context, vcs, remote string) (Repo, error) {
++func newVCSRepo(ctx context.Context, vcs, remote string, local bool) (Repo, error) {
+ 	if vcs == "git" {
+-		return newGitRepo(ctx, remote, false)
++		return newGitRepo(ctx, remote, local)
+ 	}
+ 	cmd := vcsCmds[vcs]
+ 	if cmd == nil {
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 65896b104a..782d1dade7 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -220,6 +220,33 @@ func Lookup(ctx context.Context, proxy, path string) Repo {
+ 	})
+ }
+ 
++var lookupLocalCache par.Cache[string, Repo] // path, Repo
++
++// LookupLocal will only use local VCS information to fetch the Repo.
++func LookupLocal(ctx context.Context, path string) Repo {
++	if traceRepo {
++		defer logCall("LookupLocal(%q)", path)()
++	}
++
++	return lookupLocalCache.Do(path, func() Repo {
++		return newCachingRepo(ctx, path, func(ctx context.Context) (Repo, error) {
++			repoDir, vcsCmd, err := vcs.FromDir(path, "", true)
++			if err != nil {
++				return nil, err
++			}
++			code, err := lookupCodeRepo(ctx, &vcs.RepoRoot{Repo: repoDir, Root: repoDir, VCS: vcsCmd}, true)
++			if err != nil {
++				return nil, err
++			}
++			r, err := newCodeRepo(code, repoDir, path)
++			if err == nil && traceRepo {
++				r = newLoggingRepo(r)
++			}
++			return r, err
++		})
++	})
++}
++
+ // lookup returns the module with the given module path.
+ func lookup(ctx context.Context, proxy, path string) (r Repo, err error) {
+ 	if cfg.BuildMod == "vendor" {
+@@ -286,15 +313,15 @@ func lookupDirect(ctx context.Context, path string) (Repo, error) {
+ 		return newProxyRepo(rr.Repo, path)
+ 	}
+ 
+-	code, err := lookupCodeRepo(ctx, rr)
++	code, err := lookupCodeRepo(ctx, rr, false)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	return newCodeRepo(code, rr.Root, path)
+ }
+ 
+-func lookupCodeRepo(ctx context.Context, rr *vcs.RepoRoot) (codehost.Repo, error) {
+-	code, err := codehost.NewRepo(ctx, rr.VCS.Cmd, rr.Repo)
++func lookupCodeRepo(ctx context.Context, rr *vcs.RepoRoot, local bool) (codehost.Repo, error) {
++	code, err := codehost.NewRepo(ctx, rr.VCS.Cmd, rr.Repo, local)
+ 	if err != nil {
+ 		if _, ok := err.(*codehost.VCSError); ok {
+ 			return nil, err
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index 09232100f5..84692f3a9e 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -263,10 +263,10 @@ func scriptEnv(srv *vcstest.Server, srvCertFile string) ([]string, error) {
+ 	if testing.Short() {
+ 		// VCS commands are always somewhat slow: they either require access to external hosts,
+ 		// or they require our intercepted vcs-test.golang.org to regenerate the repository.
+-		// Require all tests that use VCS commands to be skipped in short mode.
+-		env = append(env, "TESTGOVCS=panic")
++		// Require all tests that use VCS commands which require remote lookups to be skipped in
++		// short mode.
++		env = append(env, "TESTGOVCSREMOTE=panic")
+ 	}
+-
+ 	if os.Getenv("CGO_ENABLED") != "" || runtime.GOOS != goHostOS || runtime.GOARCH != goHostArch {
+ 		// If the actual CGO_ENABLED might not match the cmd/go default, set it
+ 		// explicitly in the environment. Otherwise, leave it unset so that we also
+diff --git a/src/cmd/go/testdata/script/build_version_stamping_git.txt b/src/cmd/go/testdata/script/build_version_stamping_git.txt
+new file mode 100644
+index 0000000000..ed07e00c7b
+--- /dev/null
++++ b/src/cmd/go/testdata/script/build_version_stamping_git.txt
+@@ -0,0 +1,126 @@
++# Test that the version of a binary is stamped using git tag information.
++# See https://go.dev/issue/50603
++
++[short] skip 'constructs a local git repo'
++[!git] skip
++
++# Redirect git to a test-specific .gitconfig.
++# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
++# For older git versions we also set $HOME.
++env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
++env HOME=$WORK${/}home${/}gopher
++exec git config --global --show-origin user.name
++stdout 'Go Gopher'
++
++cd $WORK/repo
++# Use devel when git information is missing.
++go build
++go version -m example$GOEXE
++stdout '\s+mod\s+example\s+\(devel\)'
++rm example$GOEXE
++
++env GIT_AUTHOR_NAME='Go Gopher'
++env GIT_AUTHOR_EMAIL='gopher@golang.org'
++env GIT_COMMITTER_NAME=$GIT_AUTHOR_NAME
++env GIT_COMMITTER_EMAIL=$GIT_AUTHOR_EMAIL
++
++exec git init
++env GIT_COMMITTER_DATE=2022-07-19T11:07:00-04:00
++env GIT_AUTHOR_DATE=2022-07-19T11:07:00-04:00
++exec git add .
++exec git commit -m 'initial commit'
++exec git branch -m main
++
++# Use a 0.0.0 pseudo-version when no tags are present.
++go build
++go version -m example$GOEXE
++stdout '\s+mod\s+example\s+v0.0.0-20220719150700-b52f952448d2\s+'
++rm example$GOEXE
++
++# Use a 0.0.0 pseudo-version if the current tag is not a valid semantic version.
++exec git tag 1.0.1
++go build
++go version -m example$GOEXE
++stdout '\s+mod\s+example\s+v0.0.0-20220719150700-b52f952448d2\s+'
++rm example$GOEXE
++
++# Use the current tag which has a valid semantic version to stamp the version.
++exec git tag v1.0.1
++go build
++go version -m example$GOEXE
++stdout '\s+mod\s+example\s+v1.0.1\s+'
++rm example$GOEXE
++
++# Use tag+dirty when there are uncomitted changes present.
++cp $WORK/copy/README $WORK/repo/README
++go build
++go version -m example$GOEXE
++stdout '\s+mod\s+example\s+v1.0.1\+dirty\s+'
++rm example$GOEXE
++
++env GIT_COMMITTER_DATE=2022-07-19T11:07:01-04:00
++env GIT_AUTHOR_DATE=2022-07-19T11:07:01-04:00
++exec git add .
++exec git commit -m 'commit 2'
++
++# Use the updated tag to stamp the version.
++exec git tag v1.0.2
++go build
++go version -m example$GOEXE
++stdout '\s+mod\s+example\s+v1.0.2\s+'
++rm example$GOEXE
++
++env GIT_COMMITTER_DATE=2022-07-19T11:07:02-04:00
++env GIT_AUTHOR_DATE=2022-07-19T11:07:02-04:00
++mv README README2
++exec git add .
++exec git commit -m 'commit 3'
++
++# Use a pseudo-version when current commit doesn't match a tagged version.
++go build
++go version -m example$GOEXE
++stdout '\s+mod\s+example\s+v1.0.3-0.20220719150702-deaeab06f7fe\s+'
++rm example$GOEXE
++
++# Use pseudo+dirty when uncomitted changes are present.
++mv README2 README3
++go build
++go version -m example$GOEXE
++stdout '\s+mod\s+example\s+v1.0.3-0.20220719150702-deaeab06f7fe\+dirty\s+'
++rm example$GOEXE
++
++# Make sure we always use the previously tagged version to generate the pseudo-version at a untagged revision.
++env GIT_COMMITTER_DATE=2022-07-19T11:07:03-04:00
++env GIT_AUTHOR_DATE=2022-07-19T11:07:03-04:00
++exec git add .
++exec git commit -m 'commit 4'
++
++mv README3 README4
++env GIT_COMMITTER_DATE=2022-07-19T11:07:04-04:00
++env GIT_AUTHOR_DATE=2022-07-19T11:07:04-04:00
++exec git add .
++exec git commit -m 'commit 5'
++exec git tag v1.0.4
++# Jump back to commit 4 which is untagged.
++exec git checkout ':/commit 4'
++go build
++go version -m example$GOEXE
++stdout '\s+mod\s+example\s+v1.0.3-0.20220719150703-2e239bf29c13\s+'
++rm example$GOEXE
++
++-- $WORK/repo/go.mod --
++module example
++
++go 1.18
++-- $WORK/repo/main.go --
++package main
++
++func main() {
++}
++-- $WORK/copy/README --
++hello
++
++-- $WORK/home/gopher/.gitconfig --
++[user]
++    name = Go Gopher
++    email = gopher@golang.org

@@ -1,0 +1,38 @@
+commit 9b6efc25cddad4bebfa64fd8543afd07fbb0ab3e
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Fri Aug 30 01:13:44 2024 +0000
+
+    go/ast: remove unused code
+    
+    Change-Id: I57a03961dc97d20224498a67687a8c8ecfbbb627
+    GitHub-Last-Rev: 07ca14263feb7476c7163cc4172b8d3b324d74e9
+    GitHub-Pull-Request: golang/go#69157
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609758
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/go/ast/commentmap.go | 9 ---------
+ 1 file changed, 9 deletions(-)
+
+diff --git a/src/go/ast/commentmap.go b/src/go/ast/commentmap.go
+index b62fe489e4..b72b5e2b20 100644
+--- a/src/go/ast/commentmap.go
++++ b/src/go/ast/commentmap.go
+@@ -35,15 +35,6 @@ func (cmap CommentMap) addComment(n Node, c *CommentGroup) {
+ 	cmap[n] = list
+ }
+ 
+-type byInterval []Node
+-
+-func (a byInterval) Len() int { return len(a) }
+-func (a byInterval) Less(i, j int) bool {
+-	pi, pj := a[i].Pos(), a[j].Pos()
+-	return pi < pj || pi == pj && a[i].End() > a[j].End()
+-}
+-func (a byInterval) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
+-
+ // nodeList returns the list of nodes of the AST n in source order.
+ func nodeList(n Node) []Node {
+ 	var list []Node

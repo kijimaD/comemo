@@ -1,0 +1,545 @@
+commit 1fa4bcfcdac00d186409a8d2a469cca1768824ca
+Author: David Chase <drchase@google.com>
+Date:   Fri Jun 20 15:30:55 2025 -0400
+
+    [dev.simd] simd, cmd/compile: generated code for VPINSR[BWDQ], and test
+    
+    This is paired with simdgen CL 683055
+    
+    Change-Id: I91d2c08a97ddd7cf06dd24478d552b962846131c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683035
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/amd64/simdssa.go          |   6 +
+ src/cmd/compile/internal/ssa/_gen/simdAMD64.rules  |   8 ++
+ src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go  |   4 +
+ .../compile/internal/ssa/_gen/simdgenericOps.go    |   8 ++
+ src/cmd/compile/internal/ssa/opGen.go              | 120 ++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteAMD64.go       | 136 +++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/simdintrinsics.go  |   8 ++
+ src/simd/simd_test.go                              |  13 ++
+ src/simd/stubs_amd64.go                            |  42 +++++++
+ 9 files changed, 345 insertions(+)
+
+diff --git a/src/cmd/compile/internal/amd64/simdssa.go b/src/cmd/compile/internal/amd64/simdssa.go
+index 7b47a8dddb..005a260165 100644
+--- a/src/cmd/compile/internal/amd64/simdssa.go
++++ b/src/cmd/compile/internal/amd64/simdssa.go
+@@ -718,6 +718,12 @@ func ssaGenSIMDValue(s *ssagen.State, v *ssa.Value) bool {
+ 		ssa.OpAMD64VPDPBUSDMasked512:
+ 		p = simdFp3k1fp1ResultInArg0(s, v)
+ 
++	case ssa.OpAMD64VPINSRB128,
++		ssa.OpAMD64VPINSRW128,
++		ssa.OpAMD64VPINSRD128,
++		ssa.OpAMD64VPINSRQ128:
++		p = simdFp1gp1fp1Imm8(s, v)
++
+ 	default:
+ 		// Unknown reg shape
+ 		return false
+diff --git a/src/cmd/compile/internal/ssa/_gen/simdAMD64.rules b/src/cmd/compile/internal/ssa/_gen/simdAMD64.rules
+index cb57ae31b6..615686166d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/simdAMD64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/simdAMD64.rules
+@@ -1279,6 +1279,14 @@
+ (SaturatedUnsignedSignedQuadDotProdAccumulateUint32x16 ...) => (VPDPBUSDS512 ...)
+ (SaturatedUnsignedSignedQuadDotProdAccumulateUint32x4 ...) => (VPDPBUSDS128 ...)
+ (SaturatedUnsignedSignedQuadDotProdAccumulateUint32x8 ...) => (VPDPBUSDS256 ...)
++(SetElemInt16x8 [a] x y) => (VPINSRW128 [a] x y)
++(SetElemInt32x4 [a] x y) => (VPINSRD128 [a] x y)
++(SetElemInt64x2 [a] x y) => (VPINSRQ128 [a] x y)
++(SetElemInt8x16 [a] x y) => (VPINSRB128 [a] x y)
++(SetElemUint16x8 [a] x y) => (VPINSRW128 [a] x y)
++(SetElemUint32x4 [a] x y) => (VPINSRD128 [a] x y)
++(SetElemUint64x2 [a] x y) => (VPINSRQ128 [a] x y)
++(SetElemUint8x16 [a] x y) => (VPINSRB128 [a] x y)
+ (SignInt16x16 ...) => (VPSIGNW256 ...)
+ (SignInt16x8 ...) => (VPSIGNW128 ...)
+ (SignInt32x4 ...) => (VPSIGND128 ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go b/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go
+index 259f1eff23..f4627d068c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go
+@@ -645,20 +645,24 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VPCMPWMasked512", argLength: 3, reg: fp2k1k1, asm: "VPCMPW", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPW128", argLength: 2, reg: fp2k1, asm: "VPCMPW", aux: "Int8", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPWMasked128", argLength: 3, reg: fp2k1k1, asm: "VPCMPW", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
++		{name: "VPINSRW128", argLength: 2, reg: fp1gp1fp1, asm: "VPINSRW", aux: "Int8", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPCMPD512", argLength: 2, reg: fp2k1, asm: "VPCMPD", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPDMasked512", argLength: 3, reg: fp2k1k1, asm: "VPCMPD", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPD128", argLength: 2, reg: fp2k1, asm: "VPCMPD", aux: "Int8", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPDMasked128", argLength: 3, reg: fp2k1k1, asm: "VPCMPD", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
++		{name: "VPINSRD128", argLength: 2, reg: fp1gp1fp1, asm: "VPINSRD", aux: "Int8", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPCMPD256", argLength: 2, reg: fp2k1, asm: "VPCMPD", aux: "Int8", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPDMasked256", argLength: 3, reg: fp2k1k1, asm: "VPCMPD", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPQ128", argLength: 2, reg: fp2k1, asm: "VPCMPQ", aux: "Int8", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPQMasked128", argLength: 3, reg: fp2k1k1, asm: "VPCMPQ", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
++		{name: "VPINSRQ128", argLength: 2, reg: fp1gp1fp1, asm: "VPINSRQ", aux: "Int8", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPCMPQ256", argLength: 2, reg: fp2k1, asm: "VPCMPQ", aux: "Int8", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPQMasked256", argLength: 3, reg: fp2k1k1, asm: "VPCMPQ", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPQ512", argLength: 2, reg: fp2k1, asm: "VPCMPQ", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPQMasked512", argLength: 3, reg: fp2k1k1, asm: "VPCMPQ", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPB128", argLength: 2, reg: fp2k1, asm: "VPCMPB", aux: "Int8", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPBMasked128", argLength: 3, reg: fp2k1k1, asm: "VPCMPB", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
++		{name: "VPINSRB128", argLength: 2, reg: fp1gp1fp1, asm: "VPINSRB", aux: "Int8", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPCMPB256", argLength: 2, reg: fp2k1, asm: "VPCMPB", aux: "Int8", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPBMasked256", argLength: 3, reg: fp2k1k1, asm: "VPCMPB", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPB512", argLength: 2, reg: fp2k1, asm: "VPCMPB", aux: "Int8", commutative: true, typ: "Mask", resultInArg0: false},
+diff --git a/src/cmd/compile/internal/ssa/_gen/simdgenericOps.go b/src/cmd/compile/internal/ssa/_gen/simdgenericOps.go
+index ab9b4ffd98..ca196cd9e1 100644
+--- a/src/cmd/compile/internal/ssa/_gen/simdgenericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/simdgenericOps.go
+@@ -1372,5 +1372,13 @@ func simdGenericOps() []opData {
+ 		{name: "RoundWithPrecisionFloat64x8", argLength: 1, commutative: false, aux: "Int8"},
+ 		{name: "TruncSuppressExceptionWithPrecisionFloat64x8", argLength: 1, commutative: false, aux: "Int8"},
+ 		{name: "TruncWithPrecisionFloat64x8", argLength: 1, commutative: false, aux: "Int8"},
++		{name: "SetElemInt16x8", argLength: 2, commutative: false, aux: "Int8"},
++		{name: "SetElemInt32x4", argLength: 2, commutative: false, aux: "Int8"},
++		{name: "SetElemInt64x2", argLength: 2, commutative: false, aux: "Int8"},
++		{name: "SetElemInt8x16", argLength: 2, commutative: false, aux: "Int8"},
++		{name: "SetElemUint16x8", argLength: 2, commutative: false, aux: "Int8"},
++		{name: "SetElemUint32x4", argLength: 2, commutative: false, aux: "Int8"},
++		{name: "SetElemUint64x2", argLength: 2, commutative: false, aux: "Int8"},
++		{name: "SetElemUint8x16", argLength: 2, commutative: false, aux: "Int8"},
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 4b25da4e50..121727e1f6 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1838,20 +1838,24 @@ const (
+ 	OpAMD64VPCMPWMasked512
+ 	OpAMD64VPCMPW128
+ 	OpAMD64VPCMPWMasked128
++	OpAMD64VPINSRW128
+ 	OpAMD64VPCMPD512
+ 	OpAMD64VPCMPDMasked512
+ 	OpAMD64VPCMPD128
+ 	OpAMD64VPCMPDMasked128
++	OpAMD64VPINSRD128
+ 	OpAMD64VPCMPD256
+ 	OpAMD64VPCMPDMasked256
+ 	OpAMD64VPCMPQ128
+ 	OpAMD64VPCMPQMasked128
++	OpAMD64VPINSRQ128
+ 	OpAMD64VPCMPQ256
+ 	OpAMD64VPCMPQMasked256
+ 	OpAMD64VPCMPQ512
+ 	OpAMD64VPCMPQMasked512
+ 	OpAMD64VPCMPB128
+ 	OpAMD64VPCMPBMasked128
++	OpAMD64VPINSRB128
+ 	OpAMD64VPCMPB256
+ 	OpAMD64VPCMPBMasked256
+ 	OpAMD64VPCMPB512
+@@ -5475,6 +5479,14 @@ const (
+ 	OpRoundWithPrecisionFloat64x8
+ 	OpTruncSuppressExceptionWithPrecisionFloat64x8
+ 	OpTruncWithPrecisionFloat64x8
++	OpSetElemInt16x8
++	OpSetElemInt32x4
++	OpSetElemInt64x2
++	OpSetElemInt8x16
++	OpSetElemUint16x8
++	OpSetElemUint32x4
++	OpSetElemUint64x2
++	OpSetElemUint8x16
+ )
+ 
+ var opcodeTable = [...]opInfo{
+@@ -27738,6 +27750,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "VPINSRW128",
++		auxType: auxInt8,
++		argLen:  2,
++		asm:     x86.AVPINSRW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
+ 	{
+ 		name:        "VPCMPD512",
+ 		auxType:     auxInt8,
+@@ -27803,6 +27830,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "VPINSRD128",
++		auxType: auxInt8,
++		argLen:  2,
++		asm:     x86.AVPINSRD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
+ 	{
+ 		name:    "VPCMPD256",
+ 		auxType: auxInt8,
+@@ -27867,6 +27909,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "VPINSRQ128",
++		auxType: auxInt8,
++		argLen:  2,
++		asm:     x86.AVPINSRQ,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
+ 	{
+ 		name:    "VPCMPQ256",
+ 		auxType: auxInt8,
+@@ -27964,6 +28021,21 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:    "VPINSRB128",
++		auxType: auxInt8,
++		argLen:  2,
++		asm:     x86.AVPINSRB,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 49135},      // AX CX DX BX BP SI DI R8 R9 R10 R11 R12 R13 R15
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++			outputs: []outputInfo{
++				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
++			},
++		},
++	},
+ 	{
+ 		name:    "VPCMPB256",
+ 		auxType: auxInt8,
+@@ -63153,6 +63225,54 @@ var opcodeTable = [...]opInfo{
+ 		argLen:  1,
+ 		generic: true,
+ 	},
++	{
++		name:    "SetElemInt16x8",
++		auxType: auxInt8,
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "SetElemInt32x4",
++		auxType: auxInt8,
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "SetElemInt64x2",
++		auxType: auxInt8,
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "SetElemInt8x16",
++		auxType: auxInt8,
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "SetElemUint16x8",
++		auxType: auxInt8,
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "SetElemUint32x4",
++		auxType: auxInt8,
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "SetElemUint64x2",
++		auxType: auxInt8,
++		argLen:  2,
++		generic: true,
++	},
++	{
++		name:    "SetElemUint8x16",
++		auxType: auxInt8,
++		argLen:  2,
++		generic: true,
++	},
+ }
+ 
+ func (o Op) Asm() obj.As          { return opcodeTable[o].asm }
+diff --git a/src/cmd/compile/internal/ssa/rewriteAMD64.go b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+index c532b2caa3..7ac8c22e87 100644
+--- a/src/cmd/compile/internal/ssa/rewriteAMD64.go
++++ b/src/cmd/compile/internal/ssa/rewriteAMD64.go
+@@ -4038,6 +4038,22 @@ func rewriteValueAMD64(v *Value) bool {
+ 		return rewriteValueAMD64_OpSelect1(v)
+ 	case OpSelectN:
+ 		return rewriteValueAMD64_OpSelectN(v)
++	case OpSetElemInt16x8:
++		return rewriteValueAMD64_OpSetElemInt16x8(v)
++	case OpSetElemInt32x4:
++		return rewriteValueAMD64_OpSetElemInt32x4(v)
++	case OpSetElemInt64x2:
++		return rewriteValueAMD64_OpSetElemInt64x2(v)
++	case OpSetElemInt8x16:
++		return rewriteValueAMD64_OpSetElemInt8x16(v)
++	case OpSetElemUint16x8:
++		return rewriteValueAMD64_OpSetElemUint16x8(v)
++	case OpSetElemUint32x4:
++		return rewriteValueAMD64_OpSetElemUint32x4(v)
++	case OpSetElemUint64x2:
++		return rewriteValueAMD64_OpSetElemUint64x2(v)
++	case OpSetElemUint8x16:
++		return rewriteValueAMD64_OpSetElemUint8x16(v)
+ 	case OpSignExt16to32:
+ 		v.Op = OpAMD64MOVWQSX
+ 		return true
+@@ -49462,6 +49478,126 @@ func rewriteValueAMD64_OpSelectN(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueAMD64_OpSetElemInt16x8(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SetElemInt16x8 [a] x y)
++	// result: (VPINSRW128 [a] x y)
++	for {
++		a := auxIntToInt8(v.AuxInt)
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64VPINSRW128)
++		v.AuxInt = int8ToAuxInt(a)
++		v.AddArg2(x, y)
++		return true
++	}
++}
++func rewriteValueAMD64_OpSetElemInt32x4(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SetElemInt32x4 [a] x y)
++	// result: (VPINSRD128 [a] x y)
++	for {
++		a := auxIntToInt8(v.AuxInt)
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64VPINSRD128)
++		v.AuxInt = int8ToAuxInt(a)
++		v.AddArg2(x, y)
++		return true
++	}
++}
++func rewriteValueAMD64_OpSetElemInt64x2(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SetElemInt64x2 [a] x y)
++	// result: (VPINSRQ128 [a] x y)
++	for {
++		a := auxIntToInt8(v.AuxInt)
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64VPINSRQ128)
++		v.AuxInt = int8ToAuxInt(a)
++		v.AddArg2(x, y)
++		return true
++	}
++}
++func rewriteValueAMD64_OpSetElemInt8x16(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SetElemInt8x16 [a] x y)
++	// result: (VPINSRB128 [a] x y)
++	for {
++		a := auxIntToInt8(v.AuxInt)
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64VPINSRB128)
++		v.AuxInt = int8ToAuxInt(a)
++		v.AddArg2(x, y)
++		return true
++	}
++}
++func rewriteValueAMD64_OpSetElemUint16x8(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SetElemUint16x8 [a] x y)
++	// result: (VPINSRW128 [a] x y)
++	for {
++		a := auxIntToInt8(v.AuxInt)
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64VPINSRW128)
++		v.AuxInt = int8ToAuxInt(a)
++		v.AddArg2(x, y)
++		return true
++	}
++}
++func rewriteValueAMD64_OpSetElemUint32x4(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SetElemUint32x4 [a] x y)
++	// result: (VPINSRD128 [a] x y)
++	for {
++		a := auxIntToInt8(v.AuxInt)
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64VPINSRD128)
++		v.AuxInt = int8ToAuxInt(a)
++		v.AddArg2(x, y)
++		return true
++	}
++}
++func rewriteValueAMD64_OpSetElemUint64x2(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SetElemUint64x2 [a] x y)
++	// result: (VPINSRQ128 [a] x y)
++	for {
++		a := auxIntToInt8(v.AuxInt)
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64VPINSRQ128)
++		v.AuxInt = int8ToAuxInt(a)
++		v.AddArg2(x, y)
++		return true
++	}
++}
++func rewriteValueAMD64_OpSetElemUint8x16(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (SetElemUint8x16 [a] x y)
++	// result: (VPINSRB128 [a] x y)
++	for {
++		a := auxIntToInt8(v.AuxInt)
++		x := v_0
++		y := v_1
++		v.reset(OpAMD64VPINSRB128)
++		v.AuxInt = int8ToAuxInt(a)
++		v.AddArg2(x, y)
++		return true
++	}
++}
+ func rewriteValueAMD64_OpSlicemask(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+diff --git a/src/cmd/compile/internal/ssagen/simdintrinsics.go b/src/cmd/compile/internal/ssagen/simdintrinsics.go
+index dea1f64949..db4d249979 100644
+--- a/src/cmd/compile/internal/ssagen/simdintrinsics.go
++++ b/src/cmd/compile/internal/ssagen/simdintrinsics.go
+@@ -1290,6 +1290,14 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
+ 	addF(simdPackage, "Uint32x4.SaturatedUnsignedSignedQuadDotProdAccumulate", opLen3(ssa.OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x4, types.TypeVec128), sys.AMD64)
+ 	addF(simdPackage, "Uint32x8.SaturatedUnsignedSignedQuadDotProdAccumulate", opLen3(ssa.OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x8, types.TypeVec256), sys.AMD64)
+ 	addF(simdPackage, "Uint32x16.SaturatedUnsignedSignedQuadDotProdAccumulate", opLen3(ssa.OpSaturatedUnsignedSignedQuadDotProdAccumulateUint32x16, types.TypeVec512), sys.AMD64)
++	addF(simdPackage, "Int8x16.SetElem", opLen2Imm8(ssa.OpSetElemInt8x16, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Int16x8.SetElem", opLen2Imm8(ssa.OpSetElemInt16x8, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Int32x4.SetElem", opLen2Imm8(ssa.OpSetElemInt32x4, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Int64x2.SetElem", opLen2Imm8(ssa.OpSetElemInt64x2, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x16.SetElem", opLen2Imm8(ssa.OpSetElemUint8x16, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Uint16x8.SetElem", opLen2Imm8(ssa.OpSetElemUint16x8, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Uint32x4.SetElem", opLen2Imm8(ssa.OpSetElemUint32x4, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Uint64x2.SetElem", opLen2Imm8(ssa.OpSetElemUint64x2, types.TypeVec128, 0), sys.AMD64)
+ 	addF(simdPackage, "Int8x16.Sign", opLen2(ssa.OpSignInt8x16, types.TypeVec128), sys.AMD64)
+ 	addF(simdPackage, "Int8x32.Sign", opLen2(ssa.OpSignInt8x32, types.TypeVec256), sys.AMD64)
+ 	addF(simdPackage, "Int16x8.Sign", opLen2(ssa.OpSignInt16x8, types.TypeVec128), sys.AMD64)
+diff --git a/src/simd/simd_test.go b/src/simd/simd_test.go
+index 28e25132e6..8658631e45 100644
+--- a/src/simd/simd_test.go
++++ b/src/simd/simd_test.go
+@@ -230,6 +230,19 @@ func TestSlicesInt8(t *testing.T) {
+ 	checkInt8Slices(t, a, b)
+ }
+ 
++func TestSlicesInt8SetElem(t *testing.T) {
++	a := []int8{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
++		17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32}
++	v := simd.LoadInt8x16Slice(a)
++
++	v = v.SetElem(3, 13)
++	a[3] = 13
++
++	b := make([]int8, 16, 16)
++	v.StoreSlice(b)
++	checkInt8Slices(t, a, b)
++}
++
+ func TestSlicesInt8TooShortLoad(t *testing.T) {
+ 	defer func() {
+ 		if r := recover(); r != nil {
+diff --git a/src/simd/stubs_amd64.go b/src/simd/stubs_amd64.go
+index 95d8b99c84..aeb8c6bda7 100644
+--- a/src/simd/stubs_amd64.go
++++ b/src/simd/stubs_amd64.go
+@@ -7242,6 +7242,48 @@ func (x Uint32x8) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x32, z Int
+ // Asm: VPDPBUSDS, CPU Feature: AVX512EVEX
+ func (x Uint32x16) SaturatedUnsignedSignedQuadDotProdAccumulate(y Uint8x64, z Int8x64) Uint32x16
+ 
++/* SetElem */
++
++// SetElem sets a single constant-indexed element's value
++//
++// Asm: VPINSRB, CPU Feature: AVX
++func (x Int8x16) SetElem(imm uint8, y int8) Int8x16
++
++// SetElem sets a single constant-indexed element's value
++//
++// Asm: VPINSRW, CPU Feature: AVX
++func (x Int16x8) SetElem(imm uint8, y int16) Int16x8
++
++// SetElem sets a single constant-indexed element's value
++//
++// Asm: VPINSRD, CPU Feature: AVX
++func (x Int32x4) SetElem(imm uint8, y int8) Int32x4
++
++// SetElem sets a single constant-indexed element's value
++//
++// Asm: VPINSRQ, CPU Feature: AVX
++func (x Int64x2) SetElem(imm uint8, y int64) Int64x2
++
++// SetElem sets a single constant-indexed element's value
++//
++// Asm: VPINSRB, CPU Feature: AVX
++func (x Uint8x16) SetElem(imm uint8, y uint8) Uint8x16
++
++// SetElem sets a single constant-indexed element's value
++//
++// Asm: VPINSRW, CPU Feature: AVX
++func (x Uint16x8) SetElem(imm uint8, y uint16) Uint16x8
++
++// SetElem sets a single constant-indexed element's value
++//
++// Asm: VPINSRD, CPU Feature: AVX
++func (x Uint32x4) SetElem(imm uint8, y uint8) Uint32x4
++
++// SetElem sets a single constant-indexed element's value
++//
++// Asm: VPINSRQ, CPU Feature: AVX
++func (x Uint64x2) SetElem(imm uint8, y uint64) Uint64x2
++
+ /* Sign */
+ 
+ // Sign returns the product of the first operand with -1, 0, or 1,

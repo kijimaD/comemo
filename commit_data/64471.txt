@@ -1,0 +1,29 @@
+commit ed31d642cb3465ad9cf5d891285ea82948e26026
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Wed Aug 7 20:14:30 2024 +0300
+
+    fmt: remove ineffective else branch in test
+    
+    Change-Id: I8e47266e8b3fb2f2ae07455b317de58dfcdd8016
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603536
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/fmt/fmt_test.go | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 0f4a35dd6f..b7f9ccd494 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1230,7 +1230,6 @@ func TestReorder(t *testing.T) {
+ 		s := Sprintf(tt.fmt, tt.val...)
+ 		if s != tt.out {
+ 			t.Errorf("Sprintf(%q, %v) = <%s> want <%s>", tt.fmt, tt.val, s, tt.out)
+-		} else {
+ 		}
+ 	}
+ }

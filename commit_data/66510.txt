@@ -1,0 +1,397 @@
+commit 17b9c9f2ad6f7943a4a1861dfc000d190abca55b
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Mar 6 11:06:44 2025 +0800
+
+    internal/bytealg: optimize Count{,String} in loong64
+    
+    Benchmark on Loongson 3A6000 and 3A5000:
+    
+    goos: linux
+    goarch: loong64
+    pkg: bytes
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                    |  bench.old   |              bench.new              |
+                    |    sec/op    |   sec/op     vs base                |
+    CountSingle/10    13.210n ± 0%   9.984n ± 0%  -24.42% (p=0.000 n=15)
+    CountSingle/32    31.970n ± 1%   7.205n ± 0%  -77.46% (p=0.000 n=15)
+    CountSingle/4K    4039.0n ± 0%   108.7n ± 0%  -97.31% (p=0.000 n=15)
+    CountSingle/4M    4158.9µ ± 0%   117.3µ ± 0%  -97.18% (p=0.000 n=15)
+    CountSingle/64M   68.641m ± 0%   2.585m ± 1%  -96.23% (p=0.000 n=15)
+    geomean            13.72µ        1.189µ       -91.34%
+    
+                    |  bench.old   |                bench.new                 |
+                    |     B/s      |      B/s        vs base                  |
+    CountSingle/10    722.0Mi ± 0%     955.2Mi ± 0%    +32.30% (p=0.000 n=15)
+    CountSingle/32    954.6Mi ± 1%    4235.4Mi ± 0%   +343.68% (p=0.000 n=15)
+    CountSingle/4K    967.2Mi ± 0%   35947.6Mi ± 0%  +3616.64% (p=0.000 n=15)
+    CountSingle/4M    961.8Mi ± 0%   34092.7Mi ± 0%  +3444.71% (p=0.000 n=15)
+    CountSingle/64M   932.4Mi ± 0%   24757.2Mi ± 1%  +2555.24% (p=0.000 n=15)
+    geomean           902.2Mi          10.17Gi       +1054.77%
+    
+    goos: linux
+    goarch: loong64
+    pkg: bytes
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                    |  bench.old   |              bench.new               |
+                    |    sec/op    |    sec/op     vs base                |
+    CountSingle/10     14.41n ± 0%   12.81n ±  0%  -11.10% (p=0.000 n=15)
+    CountSingle/32    36.230n ± 0%   9.609n ±  0%  -73.48% (p=0.000 n=15)
+    CountSingle/4K    4366.0n ± 0%   165.5n ±  0%  -96.21% (p=0.000 n=15)
+    CountSingle/4M    4464.7µ ± 0%   325.2µ ±  0%  -92.72% (p=0.000 n=15)
+    CountSingle/64M   75.627m ± 0%   8.307m ± 69%  -89.02% (p=0.000 n=15)
+    geomean            15.04µ        2.229µ        -85.18%
+    
+                    |  bench.old   |                 bench.new                 |
+                    |     B/s      |       B/s        vs base                  |
+    CountSingle/10    661.8Mi ± 0%     744.4Mi ±  0%    +12.49% (p=0.000 n=15)
+    CountSingle/32    842.4Mi ± 0%    3176.1Mi ±  0%   +277.03% (p=0.000 n=15)
+    CountSingle/4K    894.7Mi ± 0%   23596.7Mi ±  0%  +2537.34% (p=0.000 n=15)
+    CountSingle/4M    895.9Mi ± 0%   12299.7Mi ±  0%  +1272.88% (p=0.000 n=15)
+    CountSingle/64M   846.3Mi ± 0%    7703.9Mi ± 41%   +810.34% (p=0.000 n=15)
+    geomean           823.3Mi          5.424Gi         +574.68%
+    
+    Change-Id: Ie07592beac61bdb093470c524049ed494df4d703
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586055
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/internal/bytealg/bytealg.go       |   3 +
+ src/internal/bytealg/count_generic.go |   2 +-
+ src/internal/bytealg/count_loong64.s  | 238 ++++++++++++++++++++++++++++++++++
+ src/internal/bytealg/count_native.go  |   2 +-
+ src/internal/cpu/cpu.go               |   1 +
+ src/internal/cpu/cpu_loong64.go       |   1 +
+ src/internal/cpu/cpu_loong64_hwcap.go |   4 +-
+ 7 files changed, 248 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/bytealg/bytealg.go b/src/internal/bytealg/bytealg.go
+index 6b79a2e1fa..711df74baf 100644
+--- a/src/internal/bytealg/bytealg.go
++++ b/src/internal/bytealg/bytealg.go
+@@ -15,6 +15,9 @@ const (
+ 	offsetX86HasAVX2   = unsafe.Offsetof(cpu.X86.HasAVX2)
+ 	offsetX86HasPOPCNT = unsafe.Offsetof(cpu.X86.HasPOPCNT)
+ 
++	offsetLOONG64HasLSX  = unsafe.Offsetof(cpu.Loong64.HasLSX)
++	offsetLOONG64HasLASX = unsafe.Offsetof(cpu.Loong64.HasLASX)
++
+ 	offsetS390xHasVX = unsafe.Offsetof(cpu.S390X.HasVX)
+ 
+ 	offsetPPC64HasPOWER9 = unsafe.Offsetof(cpu.PPC64.IsPOWER9)
+diff --git a/src/internal/bytealg/count_generic.go b/src/internal/bytealg/count_generic.go
+index 54bb100cbf..e269a21dbd 100644
+--- a/src/internal/bytealg/count_generic.go
++++ b/src/internal/bytealg/count_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !amd64 && !arm && !arm64 && !mips64le && !mips64 && !ppc64le && !ppc64 && !riscv64 && !s390x
++//go:build !amd64 && !arm && !arm64 && !loong64 && !mips64le && !mips64 && !ppc64le && !ppc64 && !riscv64 && !s390x
+ 
+ package bytealg
+ 
+diff --git a/src/internal/bytealg/count_loong64.s b/src/internal/bytealg/count_loong64.s
+new file mode 100644
+index 0000000000..74c4c2472a
+--- /dev/null
++++ b/src/internal/bytealg/count_loong64.s
+@@ -0,0 +1,238 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "go_asm.h"
++#include "textflag.h"
++
++TEXT ·Count<ABIInternal>(SB),NOSPLIT,$0-40
++	// R4 = b_base
++	// R5 = b_len
++	// R6 = b_cap (unused)
++	// R7 = byte to count
++	AND	$0xff, R7, R6
++	JMP	countbody<>(SB)
++
++TEXT ·CountString<ABIInternal>(SB),NOSPLIT,$0-32
++	// R4 = s_base
++	// R5 = s_len
++	// R6 = byte to count
++	AND	$0xff, R6
++	JMP	countbody<>(SB)
++
++// input:
++//   R4 = s_base
++//   R5 = s_len
++//   R6 = byte to count
++TEXT countbody<>(SB),NOSPLIT,$0
++	MOVV	R0, R7	// count
++
++	// short path to handle 0-byte case
++	BEQ	R5, done
++
++	// jump directly to tail length < 8
++	MOVV	$8, R8
++	BLT	R5, R8, tail
++
++	// Implemented using 256-bit SMID instructions
++lasxCountBody:
++	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLASX(SB), R8
++	BEQ	R8, lsxCountBody
++	XVMOVQ	R6, X0.B32
++
++	// jump directly to lasx32 if length < 128
++	MOVV	$128, R8
++	BLT	R5, R8, lasx32
++lasx128:
++lasx128Loop:
++	XVMOVQ	0(R4), X1
++	XVMOVQ	32(R4), X2
++	XVMOVQ	64(R4), X3
++	XVMOVQ	96(R4), X4
++
++	XVSEQB  X0, X1, X5
++	XVSEQB  X0, X2, X6
++	XVSEQB  X0, X3, X7
++	XVSEQB  X0, X4, X8
++
++	XVANDB  $1, X5, X5
++	XVANDB  $1, X6, X6
++	XVANDB  $1, X7, X7
++	XVANDB  $1, X8, X8
++
++	XVPCNTV	X5, X1
++	XVPCNTV	X6, X2
++	XVPCNTV	X7, X3
++	XVPCNTV	X8, X4
++
++	XVADDV	X2, X1
++	XVADDV	X4, X3
++	XVADDV	X3, X1
++
++	XVMOVQ	X1.V[0], R9
++	XVMOVQ	X1.V[1], R10
++	XVMOVQ	X1.V[2], R11
++	XVMOVQ	X1.V[3], R12
++
++	ADDV	R9, R10
++	ADDV	R11, R12
++	ADDV	R10, R7
++	ADDV	R12, R7
++
++	ADDV	$-128, R5
++	ADDV	$128, R4
++	BGE	R5, R8, lasx128Loop
++
++lasx32:
++	// jump directly to lasx8 if length < 32
++	MOVV	$32, R8
++	BLT	R5, R8, lasx8
++lasx32Loop:
++	XVMOVQ	0(R4), X1
++	XVSEQB  X0, X1, X2
++	XVANDB  $1, X2, X2
++	XVPCNTV	X2, X1
++	XVMOVQ	X1.V[0], R9
++	XVMOVQ	X1.V[1], R10
++	XVMOVQ	X1.V[2], R11
++	XVMOVQ	X1.V[3], R12
++	ADDV	R9, R10
++	ADDV	R11, R12
++	ADDV	R10, R7
++	ADDV	R12, R7
++	ADDV	$-32, R5
++	ADDV	$32, R4
++	BGE	R5, R8, lasx32Loop
++lasx8:
++	// jump directly to tail if length < 8
++	MOVV	$8, R8
++	BLT	R5, R8, tail
++lasx8Loop:
++	MOVV	0(R4), R9
++	VMOVQ	R9, V1.V[0]
++	VSEQB	V0, V1, V2
++	VANDB	$1, V2, V2
++	VPCNTV	V2, V1
++
++	VMOVQ	V1.V[0], R9
++	ADDV	R9, R7
++	ADDV	$-8, R5
++	ADDV	$8, R4
++	BGE	R5, R8, lasx8Loop
++	JMP	tail
++
++	// Implemented using 128-bit SMID instructions
++lsxCountBody:
++	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLSX(SB), R8
++	BEQ	R8, genericCountBody
++	VMOVQ	R6, V0.B16
++
++	// jump directly to lsx16 if length < 64
++	MOVV	$64, R8
++	BLT	R5, R8, lsx16
++lsx64:
++lsx64Loop:
++	VMOVQ	0(R4),  V1
++	VMOVQ	16(R4), V2
++	VMOVQ	32(R4), V3
++	VMOVQ	48(R4), V4
++
++	VSEQB  V0, V1, V5
++	VSEQB  V0, V2, V6
++	VSEQB  V0, V3, V7
++	VSEQB  V0, V4, V8
++
++	VANDB  $1, V5, V5
++	VANDB  $1, V6, V6
++	VANDB  $1, V7, V7
++	VANDB  $1, V8, V8
++
++	VPCNTV	V5, V1
++	VPCNTV	V6, V2
++	VPCNTV	V7, V3
++	VPCNTV	V8, V4
++
++	VADDV	V2, V1
++	VADDV	V4, V3
++	VADDV	V3, V1
++
++	VMOVQ	V1.V[0], R9
++	VMOVQ	V1.V[1], R10
++	ADDV	R9, R7
++	ADDV	R10, R7
++
++	ADDV	$-64, R5
++	ADDV	$64, R4
++	BGE	R5, R8, lsx64Loop
++
++lsx16:
++	// jump directly to lsx8 if length < 16
++	MOVV	$16, R8
++	BLT	R5, R8, lsx8
++lsx16Loop:
++	VMOVQ	0(R4), V1
++	VSEQB	V0, V1, V2
++	VANDB  $1, V2, V2
++	VPCNTV	V2, V1
++	VMOVQ	V1.V[0], R9
++	VMOVQ	V1.V[1], R10
++	ADDV	R9, R7
++	ADDV	R10, R7
++	ADDV	$-16, R5
++	ADDV	$16, R4
++	BGE	R5, R8, lsx16Loop
++lsx8:
++	// jump directly to tail if length < 8
++	MOVV	$8, R8
++	BLT	R5, R8, tail
++lsx8Loop:
++	MOVV	0(R4), R9
++	VMOVQ	R9, V1.V[0]
++	VSEQB	V0, V1, V2
++	VANDB	$1, V2, V2
++	VPCNTV	V2, V1
++
++	VMOVQ	V1.V[0], R9
++	ADDV	R9, R7
++	ADDV	$-8, R5
++	ADDV	$8, R4
++	BGE	R5, R8, lsx8Loop
++	JMP	tail
++
++	// Implemented using general instructions
++genericCountBody:
++	MOVV	$4, R8
++	MOVV	$1, R9
++genericLoop:
++	BLT	R5, R8, tail
++	ADDV	$-4, R5
++	MOVWU	(R4)(R5), R10
++	BSTRPICKW	$7, R10, $0, R11
++	BSTRPICKW	$15, R10, $8, R12
++	XOR	R6, R11
++	XOR	R6, R12
++	MASKNEZ	R11, R9, R13
++	MASKNEZ	R12, R9, R14
++	ADDV	R13, R7
++	ADDV	R14, R7
++	BSTRPICKW	$23, R10, $16, R11
++	BSTRPICKW	$31, R10, $24, R12
++	XOR	R6, R11
++	XOR	R6, R12
++	MASKNEZ	R11, R9, R13
++	MASKNEZ	R12, R9, R14
++	ADDV	R13, R7
++	ADDV	R14, R7
++	JMP	genericLoop
++
++	// Work with tail shorter than 8 bytes
++tail:
++	BEQ	R5, done
++	ADDV	$-1, R5
++	MOVBU   (R4)(R5), R8
++	BNE	R6, R8, tail
++	ADDV	$1, R7
++	JMP	tail
++done:
++	MOVV	R7, R4
++	RET
+diff --git a/src/internal/bytealg/count_native.go b/src/internal/bytealg/count_native.go
+index 0a8caee87e..ba48e242d7 100644
+--- a/src/internal/bytealg/count_native.go
++++ b/src/internal/bytealg/count_native.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build amd64 || arm || arm64 || mips64le || mips64 || ppc64le || ppc64 || riscv64 || s390x
++//go:build amd64 || arm || arm64 || loong64 || mips64le || mips64 || ppc64le || ppc64 || riscv64 || s390x
+ 
+ package bytealg
+ 
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 81b8f7022e..4c945e4b96 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -83,6 +83,7 @@ var ARM64 struct {
+ var Loong64 struct {
+ 	_         CacheLinePad
+ 	HasLSX    bool // support 128-bit vector extension
++	HasLASX   bool // support 256-bit vector extension
+ 	HasCRC32  bool // support CRC instruction
+ 	HasLAMCAS bool // support AMCAS[_DB].{B/H/W/D}
+ 	HasLAM_BH bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
+diff --git a/src/internal/cpu/cpu_loong64.go b/src/internal/cpu/cpu_loong64.go
+index 92583d0bca..9a58ea251c 100644
+--- a/src/internal/cpu/cpu_loong64.go
++++ b/src/internal/cpu/cpu_loong64.go
+@@ -27,6 +27,7 @@ func get_cpucfg(reg uint32) uint32
+ func doinit() {
+ 	options = []option{
+ 		{Name: "lsx", Feature: &Loong64.HasLSX},
++		{Name: "lasx", Feature: &Loong64.HasLASX},
+ 		{Name: "crc32", Feature: &Loong64.HasCRC32},
+ 		{Name: "lamcas", Feature: &Loong64.HasLAMCAS},
+ 		{Name: "lam_bh", Feature: &Loong64.HasLAM_BH},
+diff --git a/src/internal/cpu/cpu_loong64_hwcap.go b/src/internal/cpu/cpu_loong64_hwcap.go
+index 58397adae8..2b25cc6b4a 100644
+--- a/src/internal/cpu/cpu_loong64_hwcap.go
++++ b/src/internal/cpu/cpu_loong64_hwcap.go
+@@ -12,13 +12,15 @@ var HWCap uint
+ 
+ // HWCAP bits. These are exposed by the Linux kernel.
+ const (
+-	hwcap_LOONGARCH_LSX = 1 << 4
++	hwcap_LOONGARCH_LSX  = 1 << 4
++	hwcap_LOONGARCH_LASX = 1 << 5
+ )
+ 
+ func hwcapInit() {
+ 	// TODO: Features that require kernel support like LSX and LASX can
+ 	// be detected here once needed in std library or by the compiler.
+ 	Loong64.HasLSX = hwcIsSet(HWCap, hwcap_LOONGARCH_LSX)
++	Loong64.HasLASX = hwcIsSet(HWCap, hwcap_LOONGARCH_LASX)
+ }
+ 
+ func hwcIsSet(hwc uint, val uint) bool {

@@ -1,0 +1,35 @@
+commit fc9f02c7aec81bcfcc95434d2529e0bb0bc03d66
+Author: tomocy <tomocy.dev@gmail.com>
+Date:   Thu Aug 29 12:47:40 2024 +0000
+
+    image: use Rectangle{} instead of ZR
+    
+    ZR is deprecated,
+    so replace it with the literal Rectangle to represent the zero value.
+    
+    Change-Id: I68c0ffec808eaed1e8c352bf364d295c0041594e
+    GitHub-Last-Rev: 850472888d3d0f5e68feb9ec09f0b544fe1f9446
+    GitHub-Pull-Request: golang/go#69136
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609516
+    Reviewed-by: Nigel Tao <nigeltao@golang.org>
+    Reviewed-by: Nigel Tao <nigeltao@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/image/geom.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/image/geom.go b/src/image/geom.go
+index 7731b6bad8..4ee14bff98 100644
+--- a/src/image/geom.go
++++ b/src/image/geom.go
+@@ -169,7 +169,7 @@ func (r Rectangle) Intersect(s Rectangle) Rectangle {
+ 	//
+ 	// if max(r0.Min.X, s0.Min.X) >= min(r0.Max.X, s0.Max.X) || likewiseForY { etc }
+ 	if r.Empty() {
+-		return ZR
++		return Rectangle{}
+ 	}
+ 	return r
+ }

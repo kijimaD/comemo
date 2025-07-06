@@ -1,0 +1,257 @@
+commit 7e196c04ed9e670e1eae0a7477efb53c3938839c
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Fri May 10 09:23:24 2024 +0000
+
+    fmt, internal/fmtsort: refactor SortedMap to use slice of structs for map sorting
+    
+    This change refactors the SortedMap type in the fmtsort package from using
+    two parallel slices for keys and values to a single slice of structs. This
+    improves code clarity and reduces the complexity of handling map entries.
+    Affected files and their respective functions have been updated to work
+    with the new structure, including adjustments in fmt/print.go and
+    text/template/exec.go to iterate over the new map representation.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: fmt
+    cpu: Apple M2 Max
+                                     │   old.txt    │               new.txt                │
+                                     │    sec/op    │    sec/op     vs base                │
+    SprintfPadding-12                  21.29n ±  5%   20.89n ±  8%        ~ (p=0.393 n=10)
+    SprintfEmpty-12                    2.986n ±  4%   2.997n ± 10%        ~ (p=0.697 n=10)
+    SprintfString-12                   8.327n ±  9%   8.493n ± 12%        ~ (p=0.579 n=10)
+    SprintfTruncateString-12           15.93n ± 10%   15.56n ± 10%        ~ (p=0.853 n=10)
+    SprintfTruncateBytes-12            14.56n ± 12%   14.13n ± 11%        ~ (p=0.796 n=10)
+    SprintfSlowParsingPath-12          9.026n ± 15%   9.511n ± 14%        ~ (p=0.646 n=10)
+    SprintfQuoteString-12              40.88n ±  3%   40.73n ±  1%        ~ (p=0.782 n=10)
+    SprintfInt-12                      6.279n ±  7%   6.130n ±  6%        ~ (p=0.218 n=10)
+    SprintfIntInt-12                   11.08n ± 10%   11.37n ± 10%        ~ (p=0.424 n=10)
+    SprintfPrefixedInt-12              31.24n ±  3%   31.21n ±  2%        ~ (p=0.912 n=10)
+    SprintfFloat-12                    13.96n ±  7%   13.99n ± 15%        ~ (p=0.986 n=10)
+    SprintfComplex-12                  49.16n ±  7%   50.57n ±  6%        ~ (p=0.436 n=10)
+    SprintfBoolean-12                  7.578n ± 15%   7.267n ± 11%        ~ (p=0.529 n=10)
+    SprintfHexString-12                36.14n ±  2%   35.74n ±  1%        ~ (p=0.118 n=10)
+    SprintfHexBytes-12                 48.74n ±  1%   48.34n ±  4%        ~ (p=0.128 n=10)
+    SprintfBytes-12                    60.16n ±  3%   61.36n ±  5%        ~ (p=0.218 n=10)
+    SprintfStringer-12                 39.02n ± 10%   39.31n ±  9%        ~ (p=0.739 n=10)
+    SprintfStructure-12                161.2n ±  1%   133.9n ±  4%  -16.90% (p=0.000 n=10)
+    ManyArgs-12                        31.87n ± 17%   33.00n ± 12%        ~ (p=0.165 n=10)
+    FprintInt-12                       32.32n ±  0%   33.13n ±  1%   +2.49% (p=0.000 n=10)
+    FprintfBytes-12                    47.31n ±  0%   47.99n ±  1%   +1.44% (p=0.000 n=10)
+    FprintIntNoAlloc-12                32.05n ±  1%   33.12n ±  0%   +3.34% (p=0.000 n=10)
+    ScanInts-12                        130.5µ ±  1%   131.3µ ±  0%   +0.57% (p=0.000 n=10)
+    ScanRecursiveInt-12                40.83m ±  1%   40.65m ±  2%        ~ (p=0.353 n=10)
+    ScanRecursiveIntReaderWrapper-12   40.77m ±  2%   40.83m ±  2%        ~ (p=0.971 n=10)
+    geomean                            100.6n         100.3n         -0.32%
+    
+                                     │    old.txt     │                new.txt                 │
+                                     │      B/op      │     B/op      vs base                  │
+    SprintfPadding-12                    16.00 ± 0%       16.00 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfEmpty-12                      0.000 ± 0%       0.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfString-12                     5.000 ± 0%       5.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfTruncateString-12             16.00 ± 0%       16.00 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfTruncateBytes-12              16.00 ± 0%       16.00 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfSlowParsingPath-12            5.000 ± 0%       5.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfQuoteString-12                32.00 ± 0%       32.00 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfInt-12                        0.000 ± 0%       0.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfIntInt-12                     3.000 ± 0%       3.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfPrefixedInt-12                64.00 ± 0%       64.00 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfFloat-12                      8.000 ± 0%       8.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfComplex-12                    24.00 ± 0%       24.00 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfBoolean-12                    4.000 ± 0%       4.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfHexString-12                  80.00 ± 0%       80.00 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfHexBytes-12                   104.0 ± 0%       104.0 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfBytes-12                      88.00 ± 0%       88.00 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfStringer-12                   32.00 ± 0%       32.00 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfStructure-12                  216.0 ± 0%       168.0 ± 0%  -22.22% (p=0.000 n=10)
+    ManyArgs-12                          0.000 ± 0%       0.000 ± 0%        ~ (p=1.000 n=10) ¹
+    FprintInt-12                         0.000 ± 0%       0.000 ± 0%        ~ (p=1.000 n=10) ¹
+    FprintfBytes-12                      24.00 ± 0%       24.00 ± 0%        ~ (p=1.000 n=10) ¹
+    FprintIntNoAlloc-12                  0.000 ± 0%       0.000 ± 0%        ~ (p=1.000 n=10) ¹
+    ScanInts-12                        14.87Ki ± 0%     14.87Ki ± 0%        ~ (p=1.000 n=10) ¹
+    ScanRecursiveInt-12                16.37Ki ± 0%     16.34Ki ± 9%        ~ (p=0.950 n=10)
+    ScanRecursiveIntReaderWrapper-12   16.43Ki ± 8%     16.35Ki ± 0%        ~ (p=0.052 n=10)
+    geomean                                         ²                  -1.03%                ²
+    ¹ all samples are equal
+    ² summaries must be >0 to compute geomean
+    
+                                     │    old.txt    │                new.txt                │
+                                     │   allocs/op   │  allocs/op   vs base                  │
+    SprintfPadding-12                   1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfEmpty-12                     0.000 ± 0%      0.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfString-12                    1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfTruncateString-12            1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfTruncateBytes-12             1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfSlowParsingPath-12           1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfQuoteString-12               1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfInt-12                       0.000 ± 0%      0.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfIntInt-12                    1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfPrefixedInt-12               1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfFloat-12                     1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfComplex-12                   1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfBoolean-12                   1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfHexString-12                 1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfHexBytes-12                  2.000 ± 0%      2.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfBytes-12                     2.000 ± 0%      2.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfStringer-12                  4.000 ± 0%      4.000 ± 0%        ~ (p=1.000 n=10) ¹
+    SprintfStructure-12                 8.000 ± 0%      6.000 ± 0%  -25.00% (p=0.000 n=10)
+    ManyArgs-12                         0.000 ± 0%      0.000 ± 0%        ~ (p=1.000 n=10) ¹
+    FprintInt-12                        0.000 ± 0%      0.000 ± 0%        ~ (p=1.000 n=10) ¹
+    FprintfBytes-12                     1.000 ± 0%      1.000 ± 0%        ~ (p=1.000 n=10) ¹
+    FprintIntNoAlloc-12                 0.000 ± 0%      0.000 ± 0%        ~ (p=1.000 n=10) ¹
+    ScanInts-12                        1.590k ± 0%     1.590k ± 0%        ~ (p=1.000 n=10) ¹
+    ScanRecursiveInt-12                1.592k ± 0%     1.592k ± 0%        ~ (p=0.303 n=10)
+    ScanRecursiveIntReaderWrapper-12   1.594k ± 0%     1.594k ± 0%        ~ (p=0.582 n=10)
+    geomean                                        ²                 -1.14%                ²
+    ¹ all samples are equal
+    ² summaries must be >0 to compute geomean
+    
+    Change-Id: I2e850d827d2fd7d6618db60f7071977af5639032
+    GitHub-Last-Rev: 5a4afcf045331c6864902e848ededc1562d5fa53
+    GitHub-Pull-Request: golang/go#67256
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584155
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Daniel Martí <mvdan@mvdan.cc>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/fmt/print.go                  |  6 +++---
+ src/internal/fmtsort/sort.go      | 37 +++++++++++++++----------------------
+ src/internal/fmtsort/sort_test.go |  6 +++---
+ src/text/template/exec.go         |  4 ++--
+ 4 files changed, 23 insertions(+), 30 deletions(-)
+
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index 8d6d961228..f9f200499d 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -814,7 +814,7 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
+ 			p.buf.writeString(mapString)
+ 		}
+ 		sorted := fmtsort.Sort(f)
+-		for i, key := range sorted.Key {
++		for i, m := range sorted {
+ 			if i > 0 {
+ 				if p.fmt.sharpV {
+ 					p.buf.writeString(commaSpaceString)
+@@ -822,9 +822,9 @@ func (p *pp) printValue(value reflect.Value, verb rune, depth int) {
+ 					p.buf.writeByte(' ')
+ 				}
+ 			}
+-			p.printValue(key, verb, depth+1)
++			p.printValue(m.Key, verb, depth+1)
+ 			p.buf.writeByte(':')
+-			p.printValue(sorted.Value[i], verb, depth+1)
++			p.printValue(m.Value, verb, depth+1)
+ 		}
+ 		if p.fmt.sharpV {
+ 			p.buf.writeByte('}')
+diff --git a/src/internal/fmtsort/sort.go b/src/internal/fmtsort/sort.go
+index 278a89bd75..ea042e1811 100644
+--- a/src/internal/fmtsort/sort.go
++++ b/src/internal/fmtsort/sort.go
+@@ -10,24 +10,21 @@ package fmtsort
+ 
+ import (
+ 	"reflect"
+-	"sort"
++	"slices"
+ )
+ 
+ // Note: Throughout this package we avoid calling reflect.Value.Interface as
+ // it is not always legal to do so and it's easier to avoid the issue than to face it.
+ 
+-// SortedMap represents a map's keys and values. The keys and values are
+-// aligned in index order: Value[i] is the value in the map corresponding to Key[i].
+-type SortedMap struct {
+-	Key   []reflect.Value
+-	Value []reflect.Value
+-}
++// SortedMap is a slice of KeyValue pairs that simplifies sorting
++// and iterating over map entries.
++//
++// Each KeyValue pair contains a map key and its corresponding value.
++type SortedMap []KeyValue
+ 
+-func (o *SortedMap) Len() int           { return len(o.Key) }
+-func (o *SortedMap) Less(i, j int) bool { return compare(o.Key[i], o.Key[j]) < 0 }
+-func (o *SortedMap) Swap(i, j int) {
+-	o.Key[i], o.Key[j] = o.Key[j], o.Key[i]
+-	o.Value[i], o.Value[j] = o.Value[j], o.Value[i]
++// KeyValue holds a single key and value pair found in a map.
++type KeyValue struct {
++	Key, Value reflect.Value
+ }
+ 
+ // Sort accepts a map and returns a SortedMap that has the same keys and
+@@ -48,7 +45,7 @@ func (o *SortedMap) Swap(i, j int) {
+ //     Otherwise identical arrays compare by length.
+ //   - interface values compare first by reflect.Type describing the concrete type
+ //     and then by concrete value as described in the previous rules.
+-func Sort(mapValue reflect.Value) *SortedMap {
++func Sort(mapValue reflect.Value) SortedMap {
+ 	if mapValue.Type().Kind() != reflect.Map {
+ 		return nil
+ 	}
+@@ -56,18 +53,14 @@ func Sort(mapValue reflect.Value) *SortedMap {
+ 	// of a concurrent map update. The runtime is responsible for
+ 	// yelling loudly if that happens. See issue 33275.
+ 	n := mapValue.Len()
+-	key := make([]reflect.Value, 0, n)
+-	value := make([]reflect.Value, 0, n)
++	sorted := make(SortedMap, 0, n)
+ 	iter := mapValue.MapRange()
+ 	for iter.Next() {
+-		key = append(key, iter.Key())
+-		value = append(value, iter.Value())
+-	}
+-	sorted := &SortedMap{
+-		Key:   key,
+-		Value: value,
++		sorted = append(sorted, KeyValue{iter.Key(), iter.Value()})
+ 	}
+-	sort.Stable(sorted)
++	slices.SortStableFunc(sorted, func(a, b KeyValue) int {
++		return compare(a.Key, b.Key)
++	})
+ 	return sorted
+ }
+ 
+diff --git a/src/internal/fmtsort/sort_test.go b/src/internal/fmtsort/sort_test.go
+index 7d5de9f56b..29a9c2c43f 100644
+--- a/src/internal/fmtsort/sort_test.go
++++ b/src/internal/fmtsort/sort_test.go
+@@ -142,13 +142,13 @@ func sprint(data any) string {
+ 		return "nil"
+ 	}
+ 	b := new(strings.Builder)
+-	for i, key := range om.Key {
++	for i, m := range om {
+ 		if i > 0 {
+ 			b.WriteRune(' ')
+ 		}
+-		b.WriteString(sprintKey(key))
++		b.WriteString(sprintKey(m.Key))
+ 		b.WriteRune(':')
+-		fmt.Fprint(b, om.Value[i])
++		fmt.Fprint(b, m.Value)
+ 	}
+ 	return b.String()
+ }
+diff --git a/src/text/template/exec.go b/src/text/template/exec.go
+index 4c899b1c79..1a8f2fa0df 100644
+--- a/src/text/template/exec.go
++++ b/src/text/template/exec.go
+@@ -408,8 +408,8 @@ func (s *state) walkRange(dot reflect.Value, r *parse.RangeNode) {
+ 			break
+ 		}
+ 		om := fmtsort.Sort(val)
+-		for i, key := range om.Key {
+-			oneIteration(key, om.Value[i])
++		for _, m := range om {
++			oneIteration(m.Key, m.Value)
+ 		}
+ 		return
+ 	case reflect.Chan:

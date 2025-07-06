@@ -1,0 +1,47 @@
+commit 133cdfb46979064fcf359598dd2dd93ffa57cf3c
+Author: nobishino <nobishii11@gmail.com>
+Date:   Mon May 13 21:31:18 2024 +0000
+
+    encoding/csv: clarify that Writer uses different line break than RFC 4180 by default
+    
+    Package documentation of encoding/csv says:
+    
+    > this package supports the format described in RFC 4180.
+    
+    According to section 2 of RFC 4180:
+    
+    > Each record is located on a separate line, delimited by a line break (CRLF).
+    
+    On the other hand, Writer uses LF (not CRLF) as newline character by default.
+    
+    > If [Writer.UseCRLF] is true, the Writer ends each output line with \r\n instead of \n.
+    
+    Strictly speaking, this behavior is different from RFC 4180.
+    Package documentation would improve if we clarify that point.
+    
+    Change-Id: I120e9332b593e1ac9ed8e49f6f8419ea88efc57d
+    GitHub-Last-Rev: 489167eb04331fa5c623f3da9041a9d34aa258ae
+    GitHub-Pull-Request: golang/go#67290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584835
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/encoding/csv/reader.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/csv/reader.go b/src/encoding/csv/reader.go
+index d9cab86572..df4702fede 100644
+--- a/src/encoding/csv/reader.go
++++ b/src/encoding/csv/reader.go
+@@ -4,7 +4,8 @@
+ 
+ // Package csv reads and writes comma-separated values (CSV) files.
+ // There are many kinds of CSV files; this package supports the format
+-// described in RFC 4180.
++// described in RFC 4180, except that [Writer] uses LF
++// instead of CRLF as newline character by default.
+ //
+ // A csv file contains zero or more records of one or more fields per record.
+ // Each record is separated by the newline character. The final record may

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40900: 2754118731b81baf0c812116a9b72b6153abf79d
+# Index 40900: d7518ac51879011a732440d4a49dc7043759e2c8
 
 echo "🚀 Generating explanation for commit 40900..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40900..."
 
 ### メタデータ
 - **コミットインデックス**: 40900
-- **コミットハッシュ**: 2754118731b81baf0c812116a9b72b6153abf79d
-- **GitHub URL**: https://github.com/golang/go/commit/2754118731b81baf0c812116a9b72b6153abf79d
+- **コミットハッシュ**: d7518ac51879011a732440d4a49dc7043759e2c8
+- **GitHub URL**: https://github.com/golang/go/commit/d7518ac51879011a732440d4a49dc7043759e2c8
 
 ### 章構成
 

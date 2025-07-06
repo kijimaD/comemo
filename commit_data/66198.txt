@@ -1,0 +1,88 @@
+commit baeab452d1a00c139a5096b796d7b1780ad80f1d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 20 11:01:27 2024 -0500
+
+    testing: panic in AllocsPerRun if parallel tests are running
+    
+    If other tests are running, AllocsPerRun's result will be inherently flaky.
+    Saw this with CL 630136 and #70327.
+    
+    Proposed in #70464.
+    
+    Fixes #70464.
+    
+    Change-Id: I190afdf26bc31299f6e5e8665b4fb420ffd554ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630137
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/testing/allocs.go  |  3 +++
+ src/testing/testing.go | 12 +++++++++++-
+ 2 files changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/allocs.go b/src/testing/allocs.go
+index 1eeb2d4802..8161fad06f 100644
+--- a/src/testing/allocs.go
++++ b/src/testing/allocs.go
+@@ -18,6 +18,9 @@ import (
+ // AllocsPerRun sets GOMAXPROCS to 1 during its measurement and will restore
+ // it before returning.
+ func AllocsPerRun(runs int, f func()) (avg float64) {
++	if parallelStart.Load() != parallelStop.Load() {
++		panic("testing: AllocsPerRun called during parallel test")
++	}
+ 	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+ 
+ 	// Warm up the function
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index aefcb84fc8..8b0915a0ef 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -424,6 +424,11 @@ import (
+ 
+ var initRan bool
+ 
++var (
++	parallelStart atomic.Int64 // number of parallel tests started
++	parallelStop  atomic.Int64 // number of parallel tests stopped
++)
++
+ // Init registers testing flags. These flags are automatically registered by
+ // the "go test" command before running test functions, so Init is only needed
+ // when calling functions such as Benchmark without using "go test".
+@@ -1536,7 +1541,6 @@ func (t *T) Parallel() {
+ 	if t.denyParallel {
+ 		panic(parallelConflict)
+ 	}
+-	t.isParallel = true
+ 	if t.parent.barrier == nil {
+ 		// T.Parallel has no effect when fuzzing.
+ 		// Multiple processes may run in parallel, but only one input can run at a
+@@ -1544,6 +1548,8 @@ func (t *T) Parallel() {
+ 		return
+ 	}
+ 
++	t.isParallel = true
++
+ 	// We don't want to include the time we spend waiting for serial tests
+ 	// in the test duration. Record the elapsed time thus far and reset the
+ 	// timer afterwards.
+@@ -1572,6 +1578,7 @@ func (t *T) Parallel() {
+ 	t.signal <- true   // Release calling test.
+ 	<-t.parent.barrier // Wait for the parent test to complete.
+ 	t.tstate.waitParallel()
++	parallelStart.Add(1)
+ 
+ 	if t.chatty != nil {
+ 		t.chatty.Updatef(t.name, "=== CONT  %s\n", t.name)
+@@ -1707,6 +1714,9 @@ func tRunner(t *T, fn func(t *T)) {
+ 				panic(err)
+ 			}
+ 			running.Delete(t.name)
++			if t.isParallel {
++				parallelStop.Add(1)
++			}
+ 			t.signal <- signal
+ 		}()
+ 

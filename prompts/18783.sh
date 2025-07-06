@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 18783: a1695d2ea321e9bed50d90732a8cef5e71cd7a89
+# Index 18783: 39a396d2ba470e24316be700db76aafbec963156
 
 echo "🚀 Generating explanation for commit 18783..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 18783..."
 
 ### メタデータ
 - **コミットインデックス**: 18783
-- **コミットハッシュ**: a1695d2ea321e9bed50d90732a8cef5e71cd7a89
-- **GitHub URL**: https://github.com/golang/go/commit/a1695d2ea321e9bed50d90732a8cef5e71cd7a89
+- **コミットハッシュ**: 39a396d2ba470e24316be700db76aafbec963156
+- **GitHub URL**: https://github.com/golang/go/commit/39a396d2ba470e24316be700db76aafbec963156
 
 ### 章構成
 

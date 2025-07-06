@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50230: 702e33717486cb8331db17304f2369ef641da61f
+# Index 50230: 24764496c7f7f58867a46aec7192b9425a3fea08
 
 echo "🚀 Generating explanation for commit 50230..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 50230..."
 
 ### メタデータ
 - **コミットインデックス**: 50230
-- **コミットハッシュ**: 702e33717486cb8331db17304f2369ef641da61f
-- **GitHub URL**: https://github.com/golang/go/commit/702e33717486cb8331db17304f2369ef641da61f
+- **コミットハッシュ**: 24764496c7f7f58867a46aec7192b9425a3fea08
+- **GitHub URL**: https://github.com/golang/go/commit/24764496c7f7f58867a46aec7192b9425a3fea08
 
 ### 章構成
 

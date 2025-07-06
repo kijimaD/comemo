@@ -1,0 +1,63 @@
+commit 00635de759b38610dd86f60074856367d6a1ceaa
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Thu Feb 20 11:50:53 2025 +0100
+
+    cmd/compile: don't report newLimit discovered when unsat happens multiple times
+    
+    Fixes #71852
+    
+    Change-Id: I696fcb8fc8c0c2e5e5ae6ab50596f6bdb9b7d498
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/ssa/prove.go |  3 ++-
+ test/fixedbugs/issue71852.go          | 23 +++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index 9d2ee5ceed..b3362038cf 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -552,8 +552,9 @@ func (ft *factsTable) newLimit(v *Value, newLim limit) bool {
+ 	}
+ 
+ 	if lim.unsat() {
++		r := !ft.unsat
+ 		ft.unsat = true
+-		return true
++		return r
+ 	}
+ 
+ 	// Check for recursion. This normally happens because in unsatisfiable
+diff --git a/test/fixedbugs/issue71852.go b/test/fixedbugs/issue71852.go
+new file mode 100644
+index 0000000000..a0bc0925e3
+--- /dev/null
++++ b/test/fixedbugs/issue71852.go
+@@ -0,0 +1,23 @@
++// compile
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"math"
++)
++
++func main() {
++	test(2)
++}
++
++func test(i int) {
++	if i <= 0 {
++		return
++	}
++
++	_ = math.Pow10(i + 2)
++}

@@ -1,0 +1,45 @@
+commit 201129414ffc72ce05c170ef2a4627768e890f24
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jun 18 22:12:35 2024 -0400
+
+    sync/atomic: correct result names for Or methods
+    
+    A few of the new Or methods of the atomic types use "new" as the name
+    for the result value, but it actually returns the old value. Fix this
+    by renaming the result values to "old".
+    
+    Updates #61395.
+    
+    Change-Id: Ib08db9964f5dfe91929f216d50ff0c9cc891ee49
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593855
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+---
+ src/sync/atomic/type.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/sync/atomic/type.go b/src/sync/atomic/type.go
+index 7d2b6805bc..f487cb9c5f 100644
+--- a/src/sync/atomic/type.go
++++ b/src/sync/atomic/type.go
+@@ -156,7 +156,7 @@ func (x *Uint32) And(mask uint32) (old uint32) { return AndUint32(&x.v, mask) }
+ 
+ // Or atomically performs a bitwise OR operation on x using the bitmask
+ // provided as mask and returns the old value.
+-func (x *Uint32) Or(mask uint32) (new uint32) { return OrUint32(&x.v, mask) }
++func (x *Uint32) Or(mask uint32) (old uint32) { return OrUint32(&x.v, mask) }
+ 
+ // A Uint64 is an atomic uint64. The zero value is zero.
+ type Uint64 struct {
+@@ -188,7 +188,7 @@ func (x *Uint64) And(mask uint64) (old uint64) { return AndUint64(&x.v, mask) }
+ 
+ // Or atomically performs a bitwise OR operation on x using the bitmask
+ // provided as mask and returns the old value.
+-func (x *Uint64) Or(mask uint64) (new uint64) { return OrUint64(&x.v, mask) }
++func (x *Uint64) Or(mask uint64) (old uint64) { return OrUint64(&x.v, mask) }
+ 
+ // A Uintptr is an atomic uintptr. The zero value is zero.
+ type Uintptr struct {

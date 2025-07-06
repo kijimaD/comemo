@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 59820: 196916299da7568a2a2165246e5164637df03fb9
+# Index 59820: 06fd1f30e92e0951b7a0d348221d968190da8888
 
 echo "🚀 Generating explanation for commit 59820..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 59820..."
 
 ### メタデータ
 - **コミットインデックス**: 59820
-- **コミットハッシュ**: 196916299da7568a2a2165246e5164637df03fb9
-- **GitHub URL**: https://github.com/golang/go/commit/196916299da7568a2a2165246e5164637df03fb9
+- **コミットハッシュ**: 06fd1f30e92e0951b7a0d348221d968190da8888
+- **GitHub URL**: https://github.com/golang/go/commit/06fd1f30e92e0951b7a0d348221d968190da8888
 
 ### 章構成
 

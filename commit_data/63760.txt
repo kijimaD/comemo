@@ -1,0 +1,167 @@
+commit 31c81500828993d99af3392742abde64194da858
+Author: Matthew Dempsky <mdempsky@google.com>
+Date:   Tue May 14 22:22:34 2024 -0700
+
+    cmd/compile/internal/noder: enable type aliases in type checker
+    
+    This CL fixes an initialization loop during IR construction, that
+    stems from IR lacking first-class support for aliases. As a
+    workaround, we avoid publishing alias declarations until the RHS type
+    expression has been constructed.
+    
+    Thanks to gri@ for investigating while I was out.
+    
+    Fixes #66873.
+    
+    Change-Id: I11e0d96ea6c357c295da47f44b6ec408edef89b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585399
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Matthew Dempsky <mdempsky@google.com>
+---
+ src/cmd/compile/internal/noder/irgen.go  |  4 +---
+ src/cmd/compile/internal/noder/reader.go | 25 +++++++++++++++++++++++--
+ src/cmd/compile/internal/noder/writer.go | 12 ++++++++++++
+ test/alias2.go                           | 10 +++++-----
+ test/fixedbugs/issue66873.go             | 15 +++++++++++++++
+ 5 files changed, 56 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index 34201545b5..281f619f6f 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -49,9 +49,7 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 		IgnoreBranchErrors: true, // parser already checked via syntax.CheckBranches mode
+ 		Importer:           &importer,
+ 		Sizes:              types2.SizesFor("gc", buildcfg.GOARCH),
+-		// Currently, the compiler panics when using Alias types.
+-		// TODO(gri) set to true once this is fixed (issue #66873)
+-		EnableAlias: false,
++		EnableAlias:        true,
+ 	}
+ 	if base.Flag.ErrorURL {
+ 		conf.ErrorURL = " [go.dev/e/%s]"
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index abd07ebb62..a7feadaf6e 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -427,7 +427,9 @@ func (pr *pkgReader) typIdx(info typeInfo, dict *readerDict, wrapped bool) *type
+ 	r.dict = dict
+ 
+ 	typ := r.doTyp()
+-	assert(typ != nil)
++	if typ == nil {
++		base.Fatalf("doTyp returned nil for info=%v", info)
++	}
+ 
+ 	// For recursive type declarations involving interfaces and aliases,
+ 	// above r.doTyp() call may have already set pr.typs[idx], so just
+@@ -741,7 +743,26 @@ func (pr *pkgReader) objIdxMayFail(idx pkgbits.Index, implicits, explicits []*ty
+ 
+ 	case pkgbits.ObjAlias:
+ 		name := do(ir.OTYPE, false)
+-		setType(name, r.typ())
++
++		// Clumsy dance: the r.typ() call here might recursively find this
++		// type alias name, before we've set its type (#66873). So we
++		// temporarily clear sym.Def and then restore it later, if still
++		// unset.
++		hack := sym.Def == name
++		if hack {
++			sym.Def = nil
++		}
++		typ := r.typ()
++		if hack {
++			if sym.Def != nil {
++				name = sym.Def.(*ir.Name)
++				assert(name.Type() == typ)
++				return name, nil
++			}
++			sym.Def = name
++		}
++
++		setType(name, typ)
+ 		name.SetAlias(true)
+ 		return name, nil
+ 
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 453b08dbf9..a48e193c5f 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -488,6 +488,18 @@ func (w *writer) typInfo(info typeInfo) {
+ // typIdx also reports whether typ is a derived type; that is, whether
+ // its identity depends on type parameters.
+ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
++	// Strip non-global aliases, because they only appear in inline
++	// bodies anyway. Otherwise, they can cause types.Sym collisions
++	// (e.g., "main.C" for both of the local type aliases in
++	// test/fixedbugs/issue50190.go).
++	for {
++		if alias, ok := typ.(*types2.Alias); ok && !isGlobal(alias.Obj()) {
++			typ = alias.Rhs()
++		} else {
++			break
++		}
++	}
++
+ 	if idx, ok := pw.typsIdx[typ]; ok {
+ 		return typeInfo{idx: idx, derived: false}
+ 	}
+diff --git a/test/alias2.go b/test/alias2.go
+index 2846e5dc31..95eb25a94b 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -47,7 +47,7 @@ var _ T0 = A0{}
+ 
+ // But aliases and original types cannot be used with new types based on them.
+ var _ N0 = T0{} // ERROR "cannot use T0{} \(value of type T0\) as N0 value in variable declaration"
+-var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type T0\) as N0 value in variable declaration"
++var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type A0\) as N0 value in variable declaration"
+ 
+ var _ A5 = Value{}
+ 
+@@ -83,7 +83,7 @@ func _() {
+ 	var _ T0 = A0{}
+ 
+ 	var _ N0 = T0{} // ERROR "cannot use T0{} \(value of type T0\) as N0 value in variable declaration"
+-	var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type T0\) as N0 value in variable declaration"
++	var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type A0\) as N0 value in variable declaration"
+ 
+ 	var _ A5 = Value{} // ERROR "cannot use Value{} \(value of type reflect\.Value\) as A5 value in variable declaration"
+ }
+@@ -92,10 +92,10 @@ func _() {
+ 
+ type _ = reflect.ValueOf // ERROR "reflect.ValueOf .*is not a type|expected type"
+ 
+-func (A1) m() {} // ERROR "cannot define new methods on non-local type int|may not define methods on non-local type"
++func (A1) m() {} // ERROR "cannot define new methods on non-local type|may not define methods on non-local type"
+ func (A2) m() {} // ERROR "invalid receiver type"
+-func (A3) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
+-func (A4) m() {} // ERROR "cannot define new methods on non-local type reflect.Value|may not define methods on non-local type"
++func (A3) m() {} // ERROR "cannot define new methods on non-local type|may not define methods on non-local type"
++func (A4) m() {} // ERROR "cannot define new methods on non-local type|may not define methods on non-local type"
+ 
+ type B1 = struct{}
+ 
+diff --git a/test/fixedbugs/issue66873.go b/test/fixedbugs/issue66873.go
+new file mode 100644
+index 0000000000..2f49cc933d
+--- /dev/null
++++ b/test/fixedbugs/issue66873.go
+@@ -0,0 +1,15 @@
++// compile
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func f(A) {}
++
++type T int
++
++type A = T
++
++func (A) m() {}

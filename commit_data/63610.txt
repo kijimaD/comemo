@@ -1,0 +1,71 @@
+commit 10c035acd669271dc37b9e5354b30ec939ff7c84
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri May 3 08:36:03 2024 +0000
+
+    strings: move TrimPrefix and TrimSuffix to stringslite
+    
+    To help packages use these functions like "os" which using
+    the copied function "stringsTrimSuffix".
+    
+    Change-Id: I223028ed264c7b7e95534b4883223af0988cda68
+    GitHub-Last-Rev: 2fd8fbf5286e5a4abdb03704d69f02e32d3f1a6b
+    GitHub-Pull-Request: golang/go#67151
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583075
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/stringslite/strings.go | 14 ++++++++++++++
+ src/strings/strings.go              | 10 ++--------
+ 2 files changed, 16 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/stringslite/strings.go b/src/internal/stringslite/strings.go
+index ce8a913297..c0c6e2dce5 100644
+--- a/src/internal/stringslite/strings.go
++++ b/src/internal/stringslite/strings.go
+@@ -122,3 +122,17 @@ func CutSuffix(s, suffix string) (before string, found bool) {
+ 	}
+ 	return s[:len(s)-len(suffix)], true
+ }
++
++func TrimPrefix(s, prefix string) string {
++	if HasPrefix(s, prefix) {
++		return s[len(prefix):]
++	}
++	return s
++}
++
++func TrimSuffix(s, suffix string) string {
++	if HasSuffix(s, suffix) {
++		return s[:len(s)-len(suffix)]
++	}
++	return s
++}
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index d8cc09a24e..95180828f6 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1075,19 +1075,13 @@ func TrimSpace(s string) string {
+ // TrimPrefix returns s without the provided leading prefix string.
+ // If s doesn't start with prefix, s is returned unchanged.
+ func TrimPrefix(s, prefix string) string {
+-	if HasPrefix(s, prefix) {
+-		return s[len(prefix):]
+-	}
+-	return s
++	return stringslite.TrimPrefix(s, prefix)
+ }
+ 
+ // TrimSuffix returns s without the provided trailing suffix string.
+ // If s doesn't end with suffix, s is returned unchanged.
+ func TrimSuffix(s, suffix string) string {
+-	if HasSuffix(s, suffix) {
+-		return s[:len(s)-len(suffix)]
+-	}
+-	return s
++	return stringslite.TrimSuffix(s, suffix)
+ }
+ 
+ // Replace returns a copy of the string s with the first n

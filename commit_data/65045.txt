@@ -1,0 +1,185 @@
+commit 7fc83126731de12449f7b38c32e2e318c439a6d4
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Jun 11 16:34:38 2024 -0400
+
+    [release-branch.go1.23] os: add clone(CLONE_PIDFD) check to pidfd feature check
+    
+    clone(CLONE_PIDFD) was added in Linux 5.2 and pidfd_open was added in
+    Linux 5.3. Thus our feature check for pidfd_open should be sufficient to
+    ensure that clone(CLONE_PIDFD) works.
+    
+    Unfortuantely, some alternative Linux implementations may not follow
+    this strict ordering. For example, QEMU 7.2 (Dec 2022) added pidfd_open,
+    but clone(CLONE_PIDFD) was only added in QEMU 8.0 (Apr 2023).
+    
+    Debian bookworm provides QEMU 7.2 by default.
+    
+    For #68976.
+    Fixes #69259.
+    
+    Change-Id: Ie3f3dc51f0cd76944871bf98690abf59f68fd7bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592078
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    (cherry picked from commit 7a5fc9b34deb8d9fe22c9d060a5839827344fcc2)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612218
+---
+ src/os/pidfd_linux.go     | 24 ++++++++++++--
+ src/syscall/exec_linux.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 102 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/pidfd_linux.go b/src/os/pidfd_linux.go
+index 01a98ca17c..0bfef7759c 100644
+--- a/src/os/pidfd_linux.go
++++ b/src/os/pidfd_linux.go
+@@ -8,6 +8,10 @@
+ //  v5.3: pidfd_open syscall, clone3 syscall;
+ //  v5.4: P_PIDFD idtype support for waitid syscall;
+ //  v5.6: pidfd_getfd syscall.
++//
++// N.B. Alternative Linux implementations may not follow this ordering. e.g.,
++// QEMU user mode 7.2 added pidfd_open, but CLONE_PIDFD was not added until
++// 8.0.
+ 
+ package os
+ 
+@@ -140,9 +144,9 @@ func pidfdWorks() bool {
+ 
+ var checkPidfdOnce = sync.OnceValue(checkPidfd)
+ 
+-// checkPidfd checks whether all required pidfd-related syscalls work.
+-// This consists of pidfd_open and pidfd_send_signal syscalls, and waitid
+-// syscall with idtype of P_PIDFD.
++// checkPidfd checks whether all required pidfd-related syscalls work. This
++// consists of pidfd_open and pidfd_send_signal syscalls, waitid syscall with
++// idtype of P_PIDFD, and clone(CLONE_PIDFD).
+ //
+ // Reasons for non-working pidfd syscalls include an older kernel and an
+ // execution environment in which the above system calls are restricted by
+@@ -180,9 +184,23 @@ func checkPidfd() error {
+ 		return NewSyscallError("pidfd_send_signal", err)
+ 	}
+ 
++	// Verify that clone(CLONE_PIDFD) works.
++	//
++	// This shouldn't be necessary since pidfd_open was added in Linux 5.3,
++	// after CLONE_PIDFD in Linux 5.2, but some alternative Linux
++	// implementations may not adhere to this ordering.
++	if err := checkClonePidfd(); err != nil {
++		return err
++	}
++
+ 	return nil
+ }
+ 
++// Provided by syscall.
++//
++//go:linkname checkClonePidfd
++func checkClonePidfd() error
++
+ // Provided by runtime.
+ //
+ //go:linkname ignoreSIGSYS
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 2684412191..3e15676fcb 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	errpkg "errors"
+ 	"internal/itoa"
+ 	"runtime"
+ 	"unsafe"
+@@ -328,6 +329,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 	if clone3 != nil {
+ 		pid, err1 = rawVforkSyscall(_SYS_clone3, uintptr(unsafe.Pointer(clone3)), unsafe.Sizeof(*clone3), 0)
+ 	} else {
++		// N.B. Keep in sync with doCheckClonePidfd.
+ 		flags |= uintptr(SIGCHLD)
+ 		if runtime.GOARCH == "s390x" {
+ 			// On Linux/s390, the first two arguments of clone(2) are swapped.
+@@ -743,3 +745,82 @@ func forkAndExecFailureCleanup(attr *ProcAttr, sys *SysProcAttr) {
+ 		*sys.PidFD = -1
+ 	}
+ }
++
++// checkClonePidfd verifies that clone(CLONE_PIDFD) works by actually doing a
++// clone.
++//
++//go:linkname os_checkClonePidfd os.checkClonePidfd
++func os_checkClonePidfd() error {
++	pidfd := int32(-1)
++	pid, errno := doCheckClonePidfd(&pidfd)
++	if errno != 0 {
++		return errno
++	}
++
++	if pidfd == -1 {
++		// Bad: CLONE_PIDFD failed to provide a pidfd. Reap the process
++		// before returning.
++
++		var err error
++		for {
++			var status WaitStatus
++			_, err = Wait4(int(pid), &status, 0, nil)
++			if err != EINTR {
++				break
++			}
++		}
++		if err != nil {
++			return err
++		}
++
++		return errpkg.New("clone(CLONE_PIDFD) failed to return pidfd")
++	}
++
++	// Good: CLONE_PIDFD provided a pidfd. Reap the process and close the
++	// pidfd.
++	defer Close(int(pidfd))
++
++	for {
++		const _P_PIDFD = 3
++		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED, 0, 0)
++		if errno != EINTR {
++			break
++		}
++	}
++	if errno != 0 {
++		return errno
++	}
++
++	return nil
++}
++
++// doCheckClonePidfd implements the actual clone call of os_checkClonePidfd and
++// child execution. This is a separate function so we can separate the child's
++// and parent's stack frames if we're using vfork.
++//
++// This is go:noinline because the point is to keep the stack frames of this
++// and os_checkClonePidfd separate.
++//
++//go:noinline
++func doCheckClonePidfd(pidfd *int32) (pid uintptr, errno Errno) {
++	flags := uintptr(CLONE_VFORK|CLONE_VM|CLONE_PIDFD|SIGCHLD)
++	if runtime.GOARCH == "s390x" {
++		// On Linux/s390, the first two arguments of clone(2) are swapped.
++		pid, errno = rawVforkSyscall(SYS_CLONE, 0, flags, uintptr(unsafe.Pointer(pidfd)))
++	} else {
++		pid, errno = rawVforkSyscall(SYS_CLONE, flags, 0, uintptr(unsafe.Pointer(pidfd)))
++	}
++	if errno != 0 || pid != 0 {
++		// If we're in the parent, we must return immediately
++		// so we're not in the same stack frame as the child.
++		// This can at most use the return PC, which the child
++		// will not modify, and the results of
++		// rawVforkSyscall, which must have been written after
++		// the child was replaced.
++		return
++	}
++
++	for {
++		RawSyscall(SYS_EXIT, 0, 0, 0)
++	}
++}

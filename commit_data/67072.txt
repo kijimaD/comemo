@@ -1,0 +1,71 @@
+commit 2ab210bc7416ff16da95c46c97ede2272f42f718
+Author: Mark Freeman <mark@golang.org>
+Date:   Fri May 16 10:42:06 2025 -0400
+
+    cmd/compile/internal/noder: document the PosBase section
+    
+    Positions mostly borrow their representation from package syntax. Of
+    note, constants (such as the zero value for positions) are not encoded
+    directly. Rather, a flag typically signals such values.
+    
+    Change-Id: I6b4bafc6e96bb21902dd2d6e164031e7dd5aabdd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673535
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+---
+ src/cmd/compile/internal/noder/doc.go | 34 +++++++++++++++++++++++++++++++++-
+ 1 file changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/doc.go b/src/cmd/compile/internal/noder/doc.go
+index 24590107c2..3bae6ec7f8 100644
+--- a/src/cmd/compile/internal/noder/doc.go
++++ b/src/cmd/compile/internal/noder/doc.go
+@@ -22,7 +22,7 @@ its index in the series.
+ SectionKind = Uint64 .
+ Payload     = SectionString
+               SectionMeta
+-              SectionPosBase // TODO(markfreeman) Define.
++              SectionPosBase
+               SectionPkg     // TODO(markfreeman) Define.
+               SectionName    // TODO(markfreeman) Define.
+               SectionType    // TODO(markfreeman) Define.
+@@ -67,6 +67,38 @@ PublicRoot  = Relocs
+ HasInit     = Bool .          // Whether the package uses any initialization
+                               // functions.
+ 
++## PosBase Section
++This section provides position information. It is a series of PosBase
++elements.
++
++SectionPosBase = { PosBase } .
++
++A base is either a file base or line base (produced by a line
++directive). Every base has a position, line, and column; these are
++constant for file bases and hence not encoded.
++
++PosBase = Relocs
++          [ SyncPosBase ] // TODO(markfreeman): Define.
++          StringRef       // the (absolute) file name for the base
++          Bool            // true if it is a file base, else a line base
++          // The below is ommitted for file bases.
++          [ Pos
++            Uint64        // line
++            Uint64 ]      // column
++          .
++
++A source position Pos represents a file-absolute (line, column) pair
++and a PosBase indicating the position Pos is relative to. Positions
++without a PosBase have no line or column.
++
++Pos     = [ SyncPos ]      // TODO(markfreeman): Define.
++          Bool             // true if the position has a base
++          // The below is ommitted if the position has no base.
++          [ Ref[PosBase]
++            Uint64         // line
++            Uint64 ]       // column
++          .
++
+ # References
+ A reference table precedes every element. Each entry in the table contains a
+ section / index pair denoting the location of the referenced element.

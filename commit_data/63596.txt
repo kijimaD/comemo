@@ -1,0 +1,40 @@
+commit 93d8777d244962d1b706c0b695c8b72e9702577e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Apr 11 14:36:25 2024 -0700
+
+    [release-branch.go1.22] net: check SkipAdditional error result
+    
+    This will avoid a potential endless loop for a corrupt DNS packet.
+    
+    For #66754
+    Fixes #67040
+    
+    Change-Id: I46591b3f7695bcc88d2312833e45955f8c129d2b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578375
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    (cherry picked from commit ddfab21e464b9b4c15fe3dc97eb5d93a4932f434)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581816
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/net/dnsclient_unix.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index c291d5eb4f..8b3dd5371a 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -267,7 +267,9 @@ func extractExtendedRCode(p dnsmessage.Parser, hdr dnsmessage.Header) dnsmessage
+ 		if ahdr.Type == dnsmessage.TypeOPT {
+ 			return ahdr.ExtendedRCode(hdr.RCode)
+ 		}
+-		p.SkipAdditional()
++		if err := p.SkipAdditional(); err != nil {
++			return hdr.RCode
++		}
+ 	}
+ }
+ 

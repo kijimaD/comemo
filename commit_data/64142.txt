@@ -1,0 +1,51 @@
+commit 085cf0fcdc4faa2f473839f8cc1860ec5bcf97a3
+Author: Brad Fitzpatrick <bradfitz@golang.org>
+Date:   Mon Jun 24 07:57:45 2024 -0700
+
+    net/netip: add test that Compare and reflect.DeepEqual match
+    
+    Updates #68113
+    
+    Change-Id: I1107686ef364f77f48f55534ea8ec68d1785e1e6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594375
+    Auto-Submit: Brad Fitzpatrick <bradfitz@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/net/netip/netip_test.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/src/net/netip/netip_test.go b/src/net/netip/netip_test.go
+index 94c70f2290..e1a0a83f64 100644
+--- a/src/net/netip/netip_test.go
++++ b/src/net/netip/netip_test.go
+@@ -893,6 +893,15 @@ func TestAddrLessCompare(t *testing.T) {
+ 		{mustIP("::1%a"), mustIP("::1%b"), true},
+ 		{mustIP("::1%a"), mustIP("::1%a"), false},
+ 		{mustIP("::1%b"), mustIP("::1%a"), false},
++
++		// For Issue 68113, verify that an IPv4 address and a
++		// v4-mapped-IPv6 address differing only in their zone
++		// pointer are unequal via all three of
++		// ==/Compare/reflect.DeepEqual. In Go 1.22 and
++		// earlier, these were accidentally equal via
++		// DeepEqual due to their zone pointers (z) differing
++		// but pointing to identical structures.
++		{mustIP("::ffff:11.1.1.12"), mustIP("11.1.1.12"), false},
+ 	}
+ 	for _, tt := range tests {
+ 		got := tt.a.Less(tt.b)
+@@ -920,6 +929,12 @@ func TestAddrLessCompare(t *testing.T) {
+ 				t.Errorf("Less(%q, %q) was correctly %v, but so was Less(%q, %q)", tt.a, tt.b, got, tt.b, tt.a)
+ 			}
+ 		}
++
++		// Also check reflect.DeepEqual. See issue 68113.
++		deepEq := reflect.DeepEqual(tt.a, tt.b)
++		if (cmp == 0) != deepEq {
++			t.Errorf("%q and %q differ in == (%v) vs reflect.DeepEqual (%v)", tt.a, tt.b, cmp == 0, deepEq)
++		}
+ 	}
+ 
+ 	// And just sort.

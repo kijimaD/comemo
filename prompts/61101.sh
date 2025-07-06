@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 61101: 41d189a3f68bbda96fcaf83b7db5d69d51c58bcf
+# Index 61101: 99b80993f607e1c6e2f4c14445de103ba6856cfc
 
 echo "🚀 Generating explanation for commit 61101..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 61101..."
 
 ### メタデータ
 - **コミットインデックス**: 61101
-- **コミットハッシュ**: 41d189a3f68bbda96fcaf83b7db5d69d51c58bcf
-- **GitHub URL**: https://github.com/golang/go/commit/41d189a3f68bbda96fcaf83b7db5d69d51c58bcf
+- **コミットハッシュ**: 99b80993f607e1c6e2f4c14445de103ba6856cfc
+- **GitHub URL**: https://github.com/golang/go/commit/99b80993f607e1c6e2f4c14445de103ba6856cfc
 
 ### 章構成
 

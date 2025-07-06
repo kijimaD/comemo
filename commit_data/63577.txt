@@ -1,0 +1,1352 @@
+commit ceef0633b3c5bbf5d17a12d6e663c136b30b3f36
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 24 10:58:56 2024 -0700
+
+    path/filepath, internal/filepathlite: move parts of filepath to filepathlite
+    
+    The path/filepath package needs to depend on the os package to
+    implement Abs, Walk, and other functions. Move the implementation
+    of purely lexical functions from path/filepath into
+    internal/filepathlite, so they can be used by os and
+    other low-level packages.
+    
+    Change-Id: Id211e547d6f1f58c82419695ff2d75cd6cd14a12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/566556
+    Reviewed-by: Behroz Karimpor <behrozkarimpor201@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/filepathlite/path.go                  | 262 ++++++++++++++++++++-
+ .../filepathlite}/path_nonwindows.go               |   2 +-
+ src/internal/filepathlite/path_plan9.go            |  31 ++-
+ src/internal/filepathlite/path_unix.go             |  31 ++-
+ src/internal/filepathlite/path_windows.go          | 201 +++++++++++++++-
+ src/path/filepath/match.go                         |   3 +-
+ src/path/filepath/path.go                          | 214 ++---------------
+ src/path/filepath/path_plan9.go                    |  19 +-
+ src/path/filepath/path_unix.go                     |  19 +-
+ src/path/filepath/path_windows.go                  | 200 +---------------
+ src/path/filepath/symlink.go                       |   9 +-
+ 11 files changed, 544 insertions(+), 447 deletions(-)
+
+diff --git a/src/internal/filepathlite/path.go b/src/internal/filepathlite/path.go
+index b452987b6b..e3daa447d9 100644
+--- a/src/internal/filepathlite/path.go
++++ b/src/internal/filepathlite/path.go
+@@ -1,26 +1,274 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
++// Copyright 2024 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package filepathlite manipulates operating-system file paths.
++// Package filepathlite implements a subset of path/filepath,
++// only using packages which may be imported by "os".
++//
++// Tests for these functions are in path/filepath.
+ package filepathlite
+ 
+ import (
+ 	"errors"
++	"internal/stringslite"
+ 	"io/fs"
++	"slices"
+ )
+ 
+ var errInvalidPath = errors.New("invalid path")
+ 
++// A lazybuf is a lazily constructed path buffer.
++// It supports append, reading previously appended bytes,
++// and retrieving the final string. It does not allocate a buffer
++// to hold the output until that output diverges from s.
++type lazybuf struct {
++	path       string
++	buf        []byte
++	w          int
++	volAndPath string
++	volLen     int
++}
++
++func (b *lazybuf) index(i int) byte {
++	if b.buf != nil {
++		return b.buf[i]
++	}
++	return b.path[i]
++}
++
++func (b *lazybuf) append(c byte) {
++	if b.buf == nil {
++		if b.w < len(b.path) && b.path[b.w] == c {
++			b.w++
++			return
++		}
++		b.buf = make([]byte, len(b.path))
++		copy(b.buf, b.path[:b.w])
++	}
++	b.buf[b.w] = c
++	b.w++
++}
++
++func (b *lazybuf) prepend(prefix ...byte) {
++	b.buf = slices.Insert(b.buf, 0, prefix...)
++	b.w += len(prefix)
++}
++
++func (b *lazybuf) string() string {
++	if b.buf == nil {
++		return b.volAndPath[:b.volLen+b.w]
++	}
++	return b.volAndPath[:b.volLen] + string(b.buf[:b.w])
++}
++
++// Clean is filepath.Clean.
++func Clean(path string) string {
++	originalPath := path
++	volLen := volumeNameLen(path)
++	path = path[volLen:]
++	if path == "" {
++		if volLen > 1 && IsPathSeparator(originalPath[0]) && IsPathSeparator(originalPath[1]) {
++			// should be UNC
++			return FromSlash(originalPath)
++		}
++		return originalPath + "."
++	}
++	rooted := IsPathSeparator(path[0])
++
++	// Invariants:
++	//	reading from path; r is index of next byte to process.
++	//	writing to buf; w is index of next byte to write.
++	//	dotdot is index in buf where .. must stop, either because
++	//		it is the leading slash or it is a leading ../../.. prefix.
++	n := len(path)
++	out := lazybuf{path: path, volAndPath: originalPath, volLen: volLen}
++	r, dotdot := 0, 0
++	if rooted {
++		out.append(Separator)
++		r, dotdot = 1, 1
++	}
++
++	for r < n {
++		switch {
++		case IsPathSeparator(path[r]):
++			// empty path element
++			r++
++		case path[r] == '.' && (r+1 == n || IsPathSeparator(path[r+1])):
++			// . element
++			r++
++		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || IsPathSeparator(path[r+2])):
++			// .. element: remove to last separator
++			r += 2
++			switch {
++			case out.w > dotdot:
++				// can backtrack
++				out.w--
++				for out.w > dotdot && !IsPathSeparator(out.index(out.w)) {
++					out.w--
++				}
++			case !rooted:
++				// cannot backtrack, but not rooted, so append .. element.
++				if out.w > 0 {
++					out.append(Separator)
++				}
++				out.append('.')
++				out.append('.')
++				dotdot = out.w
++			}
++		default:
++			// real path element.
++			// add slash if needed
++			if rooted && out.w != 1 || !rooted && out.w != 0 {
++				out.append(Separator)
++			}
++			// copy element
++			for ; r < n && !IsPathSeparator(path[r]); r++ {
++				out.append(path[r])
++			}
++		}
++	}
++
++	// Turn empty string into "."
++	if out.w == 0 {
++		out.append('.')
++	}
++
++	postClean(&out) // avoid creating absolute paths on Windows
++	return FromSlash(out.string())
++}
++
++// IsLocal is filepath.IsLocal.
++func IsLocal(path string) bool {
++	return isLocal(path)
++}
++
++func unixIsLocal(path string) bool {
++	if IsAbs(path) || path == "" {
++		return false
++	}
++	hasDots := false
++	for p := path; p != ""; {
++		var part string
++		part, p, _ = stringslite.Cut(p, "/")
++		if part == "." || part == ".." {
++			hasDots = true
++			break
++		}
++	}
++	if hasDots {
++		path = Clean(path)
++	}
++	if path == ".." || stringslite.HasPrefix(path, "../") {
++		return false
++	}
++	return true
++}
++
+ // Localize is filepath.Localize.
+-//
+-// It is implemented in this package to avoid a dependency cycle
+-// between os and file/filepath.
+-//
+-// Tests for this function are in path/filepath.
+ func Localize(path string) (string, error) {
+ 	if !fs.ValidPath(path) {
+ 		return "", errInvalidPath
+ 	}
+ 	return localize(path)
+ }
++
++// ToSlash is filepath.ToSlash.
++func ToSlash(path string) string {
++	if Separator == '/' {
++		return path
++	}
++	return replaceStringByte(path, Separator, '/')
++}
++
++// FromSlash is filepath.ToSlash.
++func FromSlash(path string) string {
++	if Separator == '/' {
++		return path
++	}
++	return replaceStringByte(path, '/', Separator)
++}
++
++func replaceStringByte(s string, old, new byte) string {
++	if stringslite.IndexByte(s, old) == -1 {
++		return s
++	}
++	n := []byte(s)
++	for i := range n {
++		if n[i] == old {
++			n[i] = new
++		}
++	}
++	return string(n)
++}
++
++// Split is filepath.Split.
++func Split(path string) (dir, file string) {
++	vol := VolumeName(path)
++	i := len(path) - 1
++	for i >= len(vol) && !IsPathSeparator(path[i]) {
++		i--
++	}
++	return path[:i+1], path[i+1:]
++}
++
++// Ext is filepath.Ext.
++func Ext(path string) string {
++	for i := len(path) - 1; i >= 0 && !IsPathSeparator(path[i]); i-- {
++		if path[i] == '.' {
++			return path[i:]
++		}
++	}
++	return ""
++}
++
++// Base is filepath.Base.
++func Base(path string) string {
++	if path == "" {
++		return "."
++	}
++	// Strip trailing slashes.
++	for len(path) > 0 && IsPathSeparator(path[len(path)-1]) {
++		path = path[0 : len(path)-1]
++	}
++	// Throw away volume name
++	path = path[len(VolumeName(path)):]
++	// Find the last element
++	i := len(path) - 1
++	for i >= 0 && !IsPathSeparator(path[i]) {
++		i--
++	}
++	if i >= 0 {
++		path = path[i+1:]
++	}
++	// If empty now, it had only slashes.
++	if path == "" {
++		return string(Separator)
++	}
++	return path
++}
++
++// Dir is filepath.Dir.
++func Dir(path string) string {
++	vol := VolumeName(path)
++	i := len(path) - 1
++	for i >= len(vol) && !IsPathSeparator(path[i]) {
++		i--
++	}
++	dir := Clean(path[len(vol) : i+1])
++	if dir == "." && len(vol) > 2 {
++		// must be UNC
++		return vol
++	}
++	return vol + dir
++}
++
++// VolumeName is filepath.VolumeName.
++func VolumeName(path string) string {
++	return FromSlash(path[:volumeNameLen(path)])
++}
++
++// VolumeNameLen returns the length of the leading volume name on Windows.
++// It returns 0 elsewhere.
++func VolumeNameLen(path string) int {
++	return volumeNameLen(path)
++}
+diff --git a/src/path/filepath/path_nonwindows.go b/src/internal/filepathlite/path_nonwindows.go
+similarity index 91%
+rename from src/path/filepath/path_nonwindows.go
+rename to src/internal/filepathlite/path_nonwindows.go
+index db69f0228b..c9c4c02a3d 100644
+--- a/src/path/filepath/path_nonwindows.go
++++ b/src/internal/filepathlite/path_nonwindows.go
+@@ -4,6 +4,6 @@
+ 
+ //go:build !windows
+ 
+-package filepath
++package filepathlite
+ 
+ func postClean(out *lazybuf) {}
+diff --git a/src/internal/filepathlite/path_plan9.go b/src/internal/filepathlite/path_plan9.go
+index 91a95ddb06..5bbb724f91 100644
+--- a/src/internal/filepathlite/path_plan9.go
++++ b/src/internal/filepathlite/path_plan9.go
+@@ -1,10 +1,26 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+ package filepathlite
+ 
+-import "internal/bytealg"
++import (
++	"internal/bytealg"
++	"internal/stringslite"
++)
++
++const (
++	Separator     = '/'    // OS-specific path separator
++	ListSeparator = '\000' // OS-specific path list separator
++)
++
++func IsPathSeparator(c uint8) bool {
++	return Separator == c
++}
++
++func isLocal(path string) bool {
++	return unixIsLocal(path)
++}
+ 
+ func localize(path string) (string, error) {
+ 	if path[0] == '#' || bytealg.IndexByteString(path, 0) >= 0 {
+@@ -12,3 +28,14 @@ func localize(path string) (string, error) {
+ 	}
+ 	return path, nil
+ }
++
++// IsAbs reports whether the path is absolute.
++func IsAbs(path string) bool {
++	return stringslite.HasPrefix(path, "/") || stringslite.HasPrefix(path, "#")
++}
++
++// volumeNameLen returns length of the leading volume name on Windows.
++// It returns 0 elsewhere.
++func volumeNameLen(path string) int {
++	return 0
++}
+diff --git a/src/internal/filepathlite/path_unix.go b/src/internal/filepathlite/path_unix.go
+index edad20817f..e31f1ae74f 100644
+--- a/src/internal/filepathlite/path_unix.go
++++ b/src/internal/filepathlite/path_unix.go
+@@ -1,4 +1,4 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -6,7 +6,23 @@
+ 
+ package filepathlite
+ 
+-import "internal/bytealg"
++import (
++	"internal/bytealg"
++	"internal/stringslite"
++)
++
++const (
++	Separator     = '/' // OS-specific path separator
++	ListSeparator = ':' // OS-specific path list separator
++)
++
++func IsPathSeparator(c uint8) bool {
++	return Separator == c
++}
++
++func isLocal(path string) bool {
++	return unixIsLocal(path)
++}
+ 
+ func localize(path string) (string, error) {
+ 	if bytealg.IndexByteString(path, 0) >= 0 {
+@@ -14,3 +30,14 @@ func localize(path string) (string, error) {
+ 	}
+ 	return path, nil
+ }
++
++// IsAbs reports whether the path is absolute.
++func IsAbs(path string) bool {
++	return stringslite.HasPrefix(path, "/")
++}
++
++// volumeNameLen returns length of the leading volume name on Windows.
++// It returns 0 elsewhere.
++func volumeNameLen(path string) int {
++	return 0
++}
+diff --git a/src/internal/filepathlite/path_windows.go b/src/internal/filepathlite/path_windows.go
+index 3d7290b14c..8f34838a98 100644
+--- a/src/internal/filepathlite/path_windows.go
++++ b/src/internal/filepathlite/path_windows.go
+@@ -1,4 +1,4 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
++// Copyright 2010 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+@@ -6,9 +6,52 @@ package filepathlite
+ 
+ import (
+ 	"internal/bytealg"
++	"internal/stringslite"
+ 	"syscall"
+ )
+ 
++const (
++	Separator     = '\\' // OS-specific path separator
++	ListSeparator = ';'  // OS-specific path list separator
++)
++
++func IsPathSeparator(c uint8) bool {
++	return c == '\\' || c == '/'
++}
++
++func isLocal(path string) bool {
++	if path == "" {
++		return false
++	}
++	if IsPathSeparator(path[0]) {
++		// Path rooted in the current drive.
++		return false
++	}
++	if stringslite.IndexByte(path, ':') >= 0 {
++		// Colons are only valid when marking a drive letter ("C:foo").
++		// Rejecting any path with a colon is conservative but safe.
++		return false
++	}
++	hasDots := false // contains . or .. path elements
++	for p := path; p != ""; {
++		var part string
++		part, p, _ = cutPath(p)
++		if part == "." || part == ".." {
++			hasDots = true
++		}
++		if isReservedName(part) {
++			return false
++		}
++	}
++	if hasDots {
++		path = Clean(path)
++	}
++	if path == ".." || stringslite.HasPrefix(path, `..\`) {
++		return false
++	}
++	return true
++}
++
+ func localize(path string) (string, error) {
+ 	for i := 0; i < len(path); i++ {
+ 		switch path[i] {
+@@ -29,7 +72,7 @@ func localize(path string) (string, error) {
+ 			element = p[:i]
+ 			p = p[i+1:]
+ 		}
+-		if IsReservedName(element) {
++		if isReservedName(element) {
+ 			return "", errInvalidPath
+ 		}
+ 	}
+@@ -46,12 +89,12 @@ func localize(path string) (string, error) {
+ 	return path, nil
+ }
+ 
+-// IsReservedName reports if name is a Windows reserved device name.
++// isReservedName reports if name is a Windows reserved device name.
+ // It does not detect names with an extension, which are also reserved on some Windows versions.
+ //
+ // For details, search for PRN in
+ // https://docs.microsoft.com/en-us/windows/desktop/fileio/naming-a-file.
+-func IsReservedName(name string) bool {
++func isReservedName(name string) bool {
+ 	// Device names can have arbitrary trailing characters following a dot or colon.
+ 	base := name
+ 	for i := 0; i < len(base); i++ {
+@@ -134,3 +177,153 @@ func toUpper(c byte) byte {
+ 	}
+ 	return c
+ }
++
++// IsAbs reports whether the path is absolute.
++func IsAbs(path string) (b bool) {
++	l := volumeNameLen(path)
++	if l == 0 {
++		return false
++	}
++	// If the volume name starts with a double slash, this is an absolute path.
++	if IsPathSeparator(path[0]) && IsPathSeparator(path[1]) {
++		return true
++	}
++	path = path[l:]
++	if path == "" {
++		return false
++	}
++	return IsPathSeparator(path[0])
++}
++
++// volumeNameLen returns length of the leading volume name on Windows.
++// It returns 0 elsewhere.
++//
++// See:
++// https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats
++// https://googleprojectzero.blogspot.com/2016/02/the-definitive-guide-on-win32-to-nt.html
++func volumeNameLen(path string) int {
++	switch {
++	case len(path) >= 2 && path[1] == ':':
++		// Path starts with a drive letter.
++		//
++		// Not all Windows functions necessarily enforce the requirement that
++		// drive letters be in the set A-Z, and we don't try to here.
++		//
++		// We don't handle the case of a path starting with a non-ASCII character,
++		// in which case the "drive letter" might be multiple bytes long.
++		return 2
++
++	case len(path) == 0 || !IsPathSeparator(path[0]):
++		// Path does not have a volume component.
++		return 0
++
++	case pathHasPrefixFold(path, `\\.\UNC`):
++		// We're going to treat the UNC host and share as part of the volume
++		// prefix for historical reasons, but this isn't really principled;
++		// Windows's own GetFullPathName will happily remove the first
++		// component of the path in this space, converting
++		// \\.\unc\a\b\..\c into \\.\unc\a\c.
++		return uncLen(path, len(`\\.\UNC\`))
++
++	case pathHasPrefixFold(path, `\\.`) ||
++		pathHasPrefixFold(path, `\\?`) || pathHasPrefixFold(path, `\??`):
++		// Path starts with \\.\, and is a Local Device path; or
++		// path starts with \\?\ or \??\ and is a Root Local Device path.
++		//
++		// We treat the next component after the \\.\ prefix as
++		// part of the volume name, which means Clean(`\\?\c:\`)
++		// won't remove the trailing \. (See #64028.)
++		if len(path) == 3 {
++			return 3 // exactly \\.
++		}
++		_, rest, ok := cutPath(path[4:])
++		if !ok {
++			return len(path)
++		}
++		return len(path) - len(rest) - 1
++
++	case len(path) >= 2 && IsPathSeparator(path[1]):
++		// Path starts with \\, and is a UNC path.
++		return uncLen(path, 2)
++	}
++	return 0
++}
++
++// pathHasPrefixFold tests whether the path s begins with prefix,
++// ignoring case and treating all path separators as equivalent.
++// If s is longer than prefix, then s[len(prefix)] must be a path separator.
++func pathHasPrefixFold(s, prefix string) bool {
++	if len(s) < len(prefix) {
++		return false
++	}
++	for i := 0; i < len(prefix); i++ {
++		if IsPathSeparator(prefix[i]) {
++			if !IsPathSeparator(s[i]) {
++				return false
++			}
++		} else if toUpper(prefix[i]) != toUpper(s[i]) {
++			return false
++		}
++	}
++	if len(s) > len(prefix) && !IsPathSeparator(s[len(prefix)]) {
++		return false
++	}
++	return true
++}
++
++// uncLen returns the length of the volume prefix of a UNC path.
++// prefixLen is the prefix prior to the start of the UNC host;
++// for example, for "//host/share", the prefixLen is len("//")==2.
++func uncLen(path string, prefixLen int) int {
++	count := 0
++	for i := prefixLen; i < len(path); i++ {
++		if IsPathSeparator(path[i]) {
++			count++
++			if count == 2 {
++				return i
++			}
++		}
++	}
++	return len(path)
++}
++
++// cutPath slices path around the first path separator.
++func cutPath(path string) (before, after string, found bool) {
++	for i := range path {
++		if IsPathSeparator(path[i]) {
++			return path[:i], path[i+1:], true
++		}
++	}
++	return path, "", false
++}
++
++// isUNC reports whether path is a UNC path.
++func isUNC(path string) bool {
++	return len(path) > 1 && IsPathSeparator(path[0]) && IsPathSeparator(path[1])
++}
++
++// postClean adjusts the results of Clean to avoid turning a relative path
++// into an absolute or rooted one.
++func postClean(out *lazybuf) {
++	if out.volLen != 0 || out.buf == nil {
++		return
++	}
++	// If a ':' appears in the path element at the start of a path,
++	// insert a .\ at the beginning to avoid converting relative paths
++	// like a/../c: into c:.
++	for _, c := range out.buf {
++		if IsPathSeparator(c) {
++			break
++		}
++		if c == ':' {
++			out.prepend('.', Separator)
++			return
++		}
++	}
++	// If a path begins with \??\, insert a \. at the beginning
++	// to avoid converting paths like \a\..\??\c:\x into \??\c:\x
++	// (equivalent to c:\x).
++	if len(out.buf) >= 3 && IsPathSeparator(out.buf[0]) && out.buf[1] == '?' && out.buf[2] == '?' {
++		out.prepend(Separator, '.')
++	}
++}
+diff --git a/src/path/filepath/match.go b/src/path/filepath/match.go
+index 12f0bfa7d3..67124796db 100644
+--- a/src/path/filepath/match.go
++++ b/src/path/filepath/match.go
+@@ -6,6 +6,7 @@ package filepath
+ 
+ import (
+ 	"errors"
++	"internal/filepathlite"
+ 	"os"
+ 	"runtime"
+ 	"sort"
+@@ -307,7 +308,7 @@ func cleanGlobPath(path string) string {
+ 
+ // cleanGlobPathWindows is windows version of cleanGlobPath.
+ func cleanGlobPathWindows(path string) (prefixLen int, cleaned string) {
+-	vollen := volumeNameLen(path)
++	vollen := filepathlite.VolumeNameLen(path)
+ 	switch {
+ 	case path == "":
+ 		return 0, "."
+diff --git a/src/path/filepath/path.go b/src/path/filepath/path.go
+index cd70c2b318..b0f3cbbfe9 100644
+--- a/src/path/filepath/path.go
++++ b/src/path/filepath/path.go
+@@ -13,58 +13,13 @@ package filepath
+ 
+ import (
+ 	"errors"
++	"internal/bytealg"
+ 	"internal/filepathlite"
+ 	"io/fs"
+ 	"os"
+-	"slices"
+ 	"sort"
+-	"strings"
+ )
+ 
+-// A lazybuf is a lazily constructed path buffer.
+-// It supports append, reading previously appended bytes,
+-// and retrieving the final string. It does not allocate a buffer
+-// to hold the output until that output diverges from s.
+-type lazybuf struct {
+-	path       string
+-	buf        []byte
+-	w          int
+-	volAndPath string
+-	volLen     int
+-}
+-
+-func (b *lazybuf) index(i int) byte {
+-	if b.buf != nil {
+-		return b.buf[i]
+-	}
+-	return b.path[i]
+-}
+-
+-func (b *lazybuf) append(c byte) {
+-	if b.buf == nil {
+-		if b.w < len(b.path) && b.path[b.w] == c {
+-			b.w++
+-			return
+-		}
+-		b.buf = make([]byte, len(b.path))
+-		copy(b.buf, b.path[:b.w])
+-	}
+-	b.buf[b.w] = c
+-	b.w++
+-}
+-
+-func (b *lazybuf) prepend(prefix ...byte) {
+-	b.buf = slices.Insert(b.buf, 0, prefix...)
+-	b.w += len(prefix)
+-}
+-
+-func (b *lazybuf) string() string {
+-	if b.buf == nil {
+-		return b.volAndPath[:b.volLen+b.w]
+-	}
+-	return b.volAndPath[:b.volLen] + string(b.buf[:b.w])
+-}
+-
+ const (
+ 	Separator     = os.PathSeparator
+ 	ListSeparator = os.PathListSeparator
+@@ -98,78 +53,7 @@ const (
+ // Getting Dot-Dot Right,”
+ // https://9p.io/sys/doc/lexnames.html
+ func Clean(path string) string {
+-	originalPath := path
+-	volLen := volumeNameLen(path)
+-	path = path[volLen:]
+-	if path == "" {
+-		if volLen > 1 && os.IsPathSeparator(originalPath[0]) && os.IsPathSeparator(originalPath[1]) {
+-			// should be UNC
+-			return FromSlash(originalPath)
+-		}
+-		return originalPath + "."
+-	}
+-	rooted := os.IsPathSeparator(path[0])
+-
+-	// Invariants:
+-	//	reading from path; r is index of next byte to process.
+-	//	writing to buf; w is index of next byte to write.
+-	//	dotdot is index in buf where .. must stop, either because
+-	//		it is the leading slash or it is a leading ../../.. prefix.
+-	n := len(path)
+-	out := lazybuf{path: path, volAndPath: originalPath, volLen: volLen}
+-	r, dotdot := 0, 0
+-	if rooted {
+-		out.append(Separator)
+-		r, dotdot = 1, 1
+-	}
+-
+-	for r < n {
+-		switch {
+-		case os.IsPathSeparator(path[r]):
+-			// empty path element
+-			r++
+-		case path[r] == '.' && (r+1 == n || os.IsPathSeparator(path[r+1])):
+-			// . element
+-			r++
+-		case path[r] == '.' && path[r+1] == '.' && (r+2 == n || os.IsPathSeparator(path[r+2])):
+-			// .. element: remove to last separator
+-			r += 2
+-			switch {
+-			case out.w > dotdot:
+-				// can backtrack
+-				out.w--
+-				for out.w > dotdot && !os.IsPathSeparator(out.index(out.w)) {
+-					out.w--
+-				}
+-			case !rooted:
+-				// cannot backtrack, but not rooted, so append .. element.
+-				if out.w > 0 {
+-					out.append(Separator)
+-				}
+-				out.append('.')
+-				out.append('.')
+-				dotdot = out.w
+-			}
+-		default:
+-			// real path element.
+-			// add slash if needed
+-			if rooted && out.w != 1 || !rooted && out.w != 0 {
+-				out.append(Separator)
+-			}
+-			// copy element
+-			for ; r < n && !os.IsPathSeparator(path[r]); r++ {
+-				out.append(path[r])
+-			}
+-		}
+-	}
+-
+-	// Turn empty string into "."
+-	if out.w == 0 {
+-		out.append('.')
+-	}
+-
+-	postClean(&out) // avoid creating absolute paths on Windows
+-	return FromSlash(out.string())
++	return filepathlite.Clean(path)
+ }
+ 
+ // IsLocal reports whether path, using lexical analysis only, has all of these properties:
+@@ -187,29 +71,7 @@ func Clean(path string) string {
+ // In particular, it does not account for the effect of any symbolic links
+ // that may exist in the filesystem.
+ func IsLocal(path string) bool {
+-	return isLocal(path)
+-}
+-
+-func unixIsLocal(path string) bool {
+-	if IsAbs(path) || path == "" {
+-		return false
+-	}
+-	hasDots := false
+-	for p := path; p != ""; {
+-		var part string
+-		part, p, _ = strings.Cut(p, "/")
+-		if part == "." || part == ".." {
+-			hasDots = true
+-			break
+-		}
+-	}
+-	if hasDots {
+-		path = Clean(path)
+-	}
+-	if path == ".." || strings.HasPrefix(path, "../") {
+-		return false
+-	}
+-	return true
++	return filepathlite.IsLocal(path)
+ }
+ 
+ // Localize converts a slash-separated path into an operating system path.
+@@ -228,10 +90,7 @@ func Localize(path string) (string, error) {
+ // in path with a slash ('/') character. Multiple separators are
+ // replaced by multiple slashes.
+ func ToSlash(path string) string {
+-	if Separator == '/' {
+-		return path
+-	}
+-	return strings.ReplaceAll(path, string(Separator), "/")
++	return filepathlite.ToSlash(path)
+ }
+ 
+ // FromSlash returns the result of replacing each slash ('/') character
+@@ -241,10 +100,7 @@ func ToSlash(path string) string {
+ // See also the Localize function, which converts a slash-separated path
+ // as used by the io/fs package to an operating system path.
+ func FromSlash(path string) string {
+-	if Separator == '/' {
+-		return path
+-	}
+-	return strings.ReplaceAll(path, "/", string(Separator))
++	return filepathlite.FromSlash(path)
+ }
+ 
+ // SplitList splits a list of paths joined by the OS-specific [ListSeparator],
+@@ -261,12 +117,7 @@ func SplitList(path string) []string {
+ // and file set to path.
+ // The returned values have the property that path = dir+file.
+ func Split(path string) (dir, file string) {
+-	vol := VolumeName(path)
+-	i := len(path) - 1
+-	for i >= len(vol) && !os.IsPathSeparator(path[i]) {
+-		i--
+-	}
+-	return path[:i+1], path[i+1:]
++	return filepathlite.Split(path)
+ }
+ 
+ // Join joins any number of path elements into a single path,
+@@ -285,12 +136,7 @@ func Join(elem ...string) string {
+ // in the final element of path; it is empty if there is
+ // no dot.
+ func Ext(path string) string {
+-	for i := len(path) - 1; i >= 0 && !os.IsPathSeparator(path[i]); i-- {
+-		if path[i] == '.' {
+-			return path[i:]
+-		}
+-	}
+-	return ""
++	return filepathlite.Ext(path)
+ }
+ 
+ // EvalSymlinks returns the path name after the evaluation of any symbolic
+@@ -302,6 +148,11 @@ func EvalSymlinks(path string) (string, error) {
+ 	return evalSymlinks(path)
+ }
+ 
++// IsAbs reports whether the path is absolute.
++func IsAbs(path string) bool {
++	return filepathlite.IsAbs(path)
++}
++
+ // Abs returns an absolute representation of path.
+ // If the path is not absolute it will be joined with the current
+ // working directory to turn it into an absolute path. The absolute
+@@ -342,7 +193,7 @@ func Rel(basepath, targpath string) (string, error) {
+ 	targ = targ[len(targVol):]
+ 	if base == "." {
+ 		base = ""
+-	} else if base == "" && volumeNameLen(baseVol) > 2 /* isUNC */ {
++	} else if base == "" && filepathlite.VolumeNameLen(baseVol) > 2 /* isUNC */ {
+ 		// Treat any targetpath matching `\\host\share` basepath as absolute path.
+ 		base = string(Separator)
+ 	}
+@@ -381,7 +232,7 @@ func Rel(basepath, targpath string) (string, error) {
+ 	}
+ 	if b0 != bl {
+ 		// Base elements left. Must go up before going down.
+-		seps := strings.Count(base[b0:bl], string(Separator))
++		seps := bytealg.CountString(base[b0:bl], Separator)
+ 		size := 2 + seps*3
+ 		if tl != t0 {
+ 			size += 1 + tl - t0
+@@ -602,28 +453,7 @@ func readDirNames(dirname string) ([]string, error) {
+ // If the path is empty, Base returns ".".
+ // If the path consists entirely of separators, Base returns a single separator.
+ func Base(path string) string {
+-	if path == "" {
+-		return "."
+-	}
+-	// Strip trailing slashes.
+-	for len(path) > 0 && os.IsPathSeparator(path[len(path)-1]) {
+-		path = path[0 : len(path)-1]
+-	}
+-	// Throw away volume name
+-	path = path[len(VolumeName(path)):]
+-	// Find the last element
+-	i := len(path) - 1
+-	for i >= 0 && !os.IsPathSeparator(path[i]) {
+-		i--
+-	}
+-	if i >= 0 {
+-		path = path[i+1:]
+-	}
+-	// If empty now, it had only slashes.
+-	if path == "" {
+-		return string(Separator)
+-	}
+-	return path
++	return filepathlite.Base(path)
+ }
+ 
+ // Dir returns all but the last element of path, typically the path's directory.
+@@ -633,17 +463,7 @@ func Base(path string) string {
+ // If the path consists entirely of separators, Dir returns a single separator.
+ // The returned path does not end in a separator unless it is the root directory.
+ func Dir(path string) string {
+-	vol := VolumeName(path)
+-	i := len(path) - 1
+-	for i >= len(vol) && !os.IsPathSeparator(path[i]) {
+-		i--
+-	}
+-	dir := Clean(path[len(vol) : i+1])
+-	if dir == "." && len(vol) > 2 {
+-		// must be UNC
+-		return vol
+-	}
+-	return vol + dir
++	return filepathlite.Dir(path)
+ }
+ 
+ // VolumeName returns leading volume name.
+@@ -651,5 +471,5 @@ func Dir(path string) string {
+ // Given "\\host\share\foo" it returns "\\host\share".
+ // On other platforms it returns "".
+ func VolumeName(path string) string {
+-	return FromSlash(path[:volumeNameLen(path)])
++	return filepathlite.VolumeName(path)
+ }
+diff --git a/src/path/filepath/path_plan9.go b/src/path/filepath/path_plan9.go
+index 453206aee3..0e5147b90b 100644
+--- a/src/path/filepath/path_plan9.go
++++ b/src/path/filepath/path_plan9.go
+@@ -4,22 +4,9 @@
+ 
+ package filepath
+ 
+-import "strings"
+-
+-func isLocal(path string) bool {
+-	return unixIsLocal(path)
+-}
+-
+-// IsAbs reports whether the path is absolute.
+-func IsAbs(path string) bool {
+-	return strings.HasPrefix(path, "/") || strings.HasPrefix(path, "#")
+-}
+-
+-// volumeNameLen returns length of the leading volume name on Windows.
+-// It returns 0 elsewhere.
+-func volumeNameLen(path string) int {
+-	return 0
+-}
++import (
++	"strings"
++)
+ 
+ // HasPrefix exists for historical compatibility and should not be used.
+ //
+diff --git a/src/path/filepath/path_unix.go b/src/path/filepath/path_unix.go
+index 57e6217434..6bc974db3f 100644
+--- a/src/path/filepath/path_unix.go
++++ b/src/path/filepath/path_unix.go
+@@ -6,22 +6,9 @@
+ 
+ package filepath
+ 
+-import "strings"
+-
+-func isLocal(path string) bool {
+-	return unixIsLocal(path)
+-}
+-
+-// IsAbs reports whether the path is absolute.
+-func IsAbs(path string) bool {
+-	return strings.HasPrefix(path, "/")
+-}
+-
+-// volumeNameLen returns length of the leading volume name on Windows.
+-// It returns 0 elsewhere.
+-func volumeNameLen(path string) int {
+-	return 0
+-}
++import (
++	"strings"
++)
+ 
+ // HasPrefix exists for historical compatibility and should not be used.
+ //
+diff --git a/src/path/filepath/path_windows.go b/src/path/filepath/path_windows.go
+index 44037c45ac..d53f87f1ac 100644
+--- a/src/path/filepath/path_windows.go
++++ b/src/path/filepath/path_windows.go
+@@ -1,179 +1,11 @@
+-// Copyright 2010 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+ package filepath
+ 
+ import (
+-	"internal/filepathlite"
+ 	"os"
+ 	"strings"
+ 	"syscall"
+ )
+ 
+-func isSlash(c uint8) bool {
+-	return c == '\\' || c == '/'
+-}
+-
+-func toUpper(c byte) byte {
+-	if 'a' <= c && c <= 'z' {
+-		return c - ('a' - 'A')
+-	}
+-	return c
+-}
+-
+-func isLocal(path string) bool {
+-	if path == "" {
+-		return false
+-	}
+-	if isSlash(path[0]) {
+-		// Path rooted in the current drive.
+-		return false
+-	}
+-	if strings.IndexByte(path, ':') >= 0 {
+-		// Colons are only valid when marking a drive letter ("C:foo").
+-		// Rejecting any path with a colon is conservative but safe.
+-		return false
+-	}
+-	hasDots := false // contains . or .. path elements
+-	for p := path; p != ""; {
+-		var part string
+-		part, p, _ = cutPath(p)
+-		if part == "." || part == ".." {
+-			hasDots = true
+-		}
+-		if filepathlite.IsReservedName(part) {
+-			return false
+-		}
+-	}
+-	if hasDots {
+-		path = Clean(path)
+-	}
+-	if path == ".." || strings.HasPrefix(path, `..\`) {
+-		return false
+-	}
+-	return true
+-}
+-
+-// IsAbs reports whether the path is absolute.
+-func IsAbs(path string) (b bool) {
+-	l := volumeNameLen(path)
+-	if l == 0 {
+-		return false
+-	}
+-	// If the volume name starts with a double slash, this is an absolute path.
+-	if isSlash(path[0]) && isSlash(path[1]) {
+-		return true
+-	}
+-	path = path[l:]
+-	if path == "" {
+-		return false
+-	}
+-	return isSlash(path[0])
+-}
+-
+-// volumeNameLen returns length of the leading volume name on Windows.
+-// It returns 0 elsewhere.
+-//
+-// See:
+-// https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats
+-// https://googleprojectzero.blogspot.com/2016/02/the-definitive-guide-on-win32-to-nt.html
+-func volumeNameLen(path string) int {
+-	switch {
+-	case len(path) >= 2 && path[1] == ':':
+-		// Path starts with a drive letter.
+-		//
+-		// Not all Windows functions necessarily enforce the requirement that
+-		// drive letters be in the set A-Z, and we don't try to here.
+-		//
+-		// We don't handle the case of a path starting with a non-ASCII character,
+-		// in which case the "drive letter" might be multiple bytes long.
+-		return 2
+-
+-	case len(path) == 0 || !isSlash(path[0]):
+-		// Path does not have a volume component.
+-		return 0
+-
+-	case pathHasPrefixFold(path, `\\.\UNC`):
+-		// We're going to treat the UNC host and share as part of the volume
+-		// prefix for historical reasons, but this isn't really principled;
+-		// Windows's own GetFullPathName will happily remove the first
+-		// component of the path in this space, converting
+-		// \\.\unc\a\b\..\c into \\.\unc\a\c.
+-		return uncLen(path, len(`\\.\UNC\`))
+-
+-	case pathHasPrefixFold(path, `\\.`) ||
+-		pathHasPrefixFold(path, `\\?`) || pathHasPrefixFold(path, `\??`):
+-		// Path starts with \\.\, and is a Local Device path; or
+-		// path starts with \\?\ or \??\ and is a Root Local Device path.
+-		//
+-		// We treat the next component after the \\.\ prefix as
+-		// part of the volume name, which means Clean(`\\?\c:\`)
+-		// won't remove the trailing \. (See #64028.)
+-		if len(path) == 3 {
+-			return 3 // exactly \\.
+-		}
+-		_, rest, ok := cutPath(path[4:])
+-		if !ok {
+-			return len(path)
+-		}
+-		return len(path) - len(rest) - 1
+-
+-	case len(path) >= 2 && isSlash(path[1]):
+-		// Path starts with \\, and is a UNC path.
+-		return uncLen(path, 2)
+-	}
+-	return 0
+-}
+-
+-// pathHasPrefixFold tests whether the path s begins with prefix,
+-// ignoring case and treating all path separators as equivalent.
+-// If s is longer than prefix, then s[len(prefix)] must be a path separator.
+-func pathHasPrefixFold(s, prefix string) bool {
+-	if len(s) < len(prefix) {
+-		return false
+-	}
+-	for i := 0; i < len(prefix); i++ {
+-		if isSlash(prefix[i]) {
+-			if !isSlash(s[i]) {
+-				return false
+-			}
+-		} else if toUpper(prefix[i]) != toUpper(s[i]) {
+-			return false
+-		}
+-	}
+-	if len(s) > len(prefix) && !isSlash(s[len(prefix)]) {
+-		return false
+-	}
+-	return true
+-}
+-
+-// uncLen returns the length of the volume prefix of a UNC path.
+-// prefixLen is the prefix prior to the start of the UNC host;
+-// for example, for "//host/share", the prefixLen is len("//")==2.
+-func uncLen(path string, prefixLen int) int {
+-	count := 0
+-	for i := prefixLen; i < len(path); i++ {
+-		if isSlash(path[i]) {
+-			count++
+-			if count == 2 {
+-				return i
+-			}
+-		}
+-	}
+-	return len(path)
+-}
+-
+-// cutPath slices path around the first path separator.
+-func cutPath(path string) (before, after string, found bool) {
+-	for i := range path {
+-		if isSlash(path[i]) {
+-			return path[:i], path[i+1:], true
+-		}
+-	}
+-	return path, "", false
+-}
+-
+ // HasPrefix exists for historical compatibility and should not be used.
+ //
+ // Deprecated: HasPrefix does not respect path boundaries and
+@@ -237,7 +69,7 @@ func join(elem []string) string {
+ 		switch {
+ 		case b.Len() == 0:
+ 			// Add the first non-empty path element unchanged.
+-		case isSlash(lastChar):
++		case os.IsPathSeparator(lastChar):
+ 			// If the path ends in a slash, strip any leading slashes from the next
+ 			// path element to avoid creating a UNC path (any path starting with "\\")
+ 			// from non-UNC elements.
+@@ -245,13 +77,13 @@ func join(elem []string) string {
+ 			// The correct behavior for Join when the first element is an incomplete UNC
+ 			// path (for example, "\\") is underspecified. We currently join subsequent
+ 			// elements so Join("\\", "host", "share") produces "\\host\share".
+-			for len(e) > 0 && isSlash(e[0]) {
++			for len(e) > 0 && os.IsPathSeparator(e[0]) {
+ 				e = e[1:]
+ 			}
+ 			// If the path is \ and the next path element is ??,
+ 			// add an extra .\ to create \.\?? rather than \??\
+ 			// (a Root Local Device path).
+-			if b.Len() == 1 && pathHasPrefixFold(e, "??") {
++			if b.Len() == 1 && strings.HasPrefix(e, "??") && (len(e) == len("??") || os.IsPathSeparator(e[2])) {
+ 				b.WriteString(`.\`)
+ 			}
+ 		case lastChar == ':':
+@@ -280,29 +112,3 @@ func join(elem []string) string {
+ func sameWord(a, b string) bool {
+ 	return strings.EqualFold(a, b)
+ }
+-
+-// postClean adjusts the results of Clean to avoid turning a relative path
+-// into an absolute or rooted one.
+-func postClean(out *lazybuf) {
+-	if out.volLen != 0 || out.buf == nil {
+-		return
+-	}
+-	// If a ':' appears in the path element at the start of a path,
+-	// insert a .\ at the beginning to avoid converting relative paths
+-	// like a/../c: into c:.
+-	for _, c := range out.buf {
+-		if os.IsPathSeparator(c) {
+-			break
+-		}
+-		if c == ':' {
+-			out.prepend('.', Separator)
+-			return
+-		}
+-	}
+-	// If a path begins with \??\, insert a \. at the beginning
+-	// to avoid converting paths like \a\..\??\c:\x into \??\c:\x
+-	// (equivalent to c:\x).
+-	if len(out.buf) >= 3 && os.IsPathSeparator(out.buf[0]) && out.buf[1] == '?' && out.buf[2] == '?' {
+-		out.prepend(Separator, '.')
+-	}
+-}
+diff --git a/src/path/filepath/symlink.go b/src/path/filepath/symlink.go
+index f9435e0d5b..a6047ae444 100644
+--- a/src/path/filepath/symlink.go
++++ b/src/path/filepath/symlink.go
+@@ -6,6 +6,7 @@ package filepath
+ 
+ import (
+ 	"errors"
++	"internal/filepathlite"
+ 	"io/fs"
+ 	"os"
+ 	"runtime"
+@@ -13,7 +14,7 @@ import (
+ )
+ 
+ func walkSymlinks(path string) (string, error) {
+-	volLen := volumeNameLen(path)
++	volLen := filepathlite.VolumeNameLen(path)
+ 	pathSeparator := string(os.PathSeparator)
+ 
+ 	if volLen < len(path) && os.IsPathSeparator(path[volLen]) {
+@@ -34,7 +35,7 @@ func walkSymlinks(path string) (string, error) {
+ 		// On Windows, "." can be a symlink.
+ 		// We look it up, and use the value if it is absolute.
+ 		// If not, we just return ".".
+-		isWindowsDot := runtime.GOOS == "windows" && path[volumeNameLen(path):] == "."
++		isWindowsDot := runtime.GOOS == "windows" && path[filepathlite.VolumeNameLen(path):] == "."
+ 
+ 		// The next path component is in path[start:end].
+ 		if end == start {
+@@ -73,7 +74,7 @@ func walkSymlinks(path string) (string, error) {
+ 
+ 		// Ordinary path component. Add it to result.
+ 
+-		if len(dest) > volumeNameLen(dest) && !os.IsPathSeparator(dest[len(dest)-1]) {
++		if len(dest) > filepathlite.VolumeNameLen(dest) && !os.IsPathSeparator(dest[len(dest)-1]) {
+ 			dest += pathSeparator
+ 		}
+ 
+@@ -113,7 +114,7 @@ func walkSymlinks(path string) (string, error) {
+ 
+ 		path = link + path[end:]
+ 
+-		v := volumeNameLen(link)
++		v := filepathlite.VolumeNameLen(link)
+ 		if v > 0 {
+ 			// Symlink to drive name is an absolute path.
+ 			if v < len(link) && os.IsPathSeparator(link[v]) {

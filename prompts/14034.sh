@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 14034: 4cc7bf326a26d3cc18f049424729784812fe16b6
+# Index 14034: 56c58e4e5b21f5a254b96a7a37991a4414bea43d
 
 echo "🚀 Generating explanation for commit 14034..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 14034..."
 
 ### メタデータ
 - **コミットインデックス**: 14034
-- **コミットハッシュ**: 4cc7bf326a26d3cc18f049424729784812fe16b6
-- **GitHub URL**: https://github.com/golang/go/commit/4cc7bf326a26d3cc18f049424729784812fe16b6
+- **コミットハッシュ**: 56c58e4e5b21f5a254b96a7a37991a4414bea43d
+- **GitHub URL**: https://github.com/golang/go/commit/56c58e4e5b21f5a254b96a7a37991a4414bea43d
 
 ### 章構成
 

@@ -1,0 +1,31 @@
+commit ff2cb4abb45c86c7fc1fbdf530a52ad226ef1318
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Nov 21 16:44:21 2024 -0800
+
+    net/http: skip test which depends on h2_bundle.go update
+    
+    For #67816
+    
+    Change-Id: I9ba3a245d6b18758944ca5e206a15892b2aa6028
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630976
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Damien Neil <dneil@google.com>
+---
+ src/net/http/transport_test.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index d742b78cf8..2ef754967a 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -7173,6 +7173,8 @@ func testValidateClientRequestTrailers(t *testing.T, mode testMode) {
+ }
+ 
+ func TestTransportServerProtocols(t *testing.T) {
++	t.Skip("https://go.dev/issue/67816: skip test until h2_bundle.go is updated")
++
+ 	CondSkipHTTP2(t)
+ 	DefaultTransport.(*Transport).CloseIdleConnections()
+ 

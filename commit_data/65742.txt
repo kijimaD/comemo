@@ -1,0 +1,31 @@
+commit bc0406333f686a754c2d787f93b143c27721925d
+Author: Sean Liao <sean@liao.dev>
+Date:   Tue Dec 3 22:41:38 2024 +0000
+
+    sync: document RWMutex locks cannot be upgraded / downgraded
+    
+    Fixes #38859
+    
+    Change-Id: I9f4f6fa4cb529aaadfb3812e3a5c0da982a95f68
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633415
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/sync/rwmutex.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/sync/rwmutex.go b/src/sync/rwmutex.go
+index 7fe096dbd8..3fbfd28d7f 100644
+--- a/src/sync/rwmutex.go
++++ b/src/sync/rwmutex.go
+@@ -24,6 +24,8 @@ import (
+ // the writer has acquired (and released) the lock, to ensure that
+ // the lock eventually becomes available to the writer.
+ // Note that this prohibits recursive read-locking.
++// A [RWMutex.RLock] cannot be upgraded into a [RWMutex.Lock],
++// nor can a [RWMutex.Lock] be downgraded into a [RWMutex.RLock].
+ //
+ // In the terminology of [the Go memory model],
+ // the n'th call to [RWMutex.Unlock] “synchronizes before” the m'th call to Lock

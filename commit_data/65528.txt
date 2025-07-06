@@ -1,0 +1,377 @@
+commit 8f9a420a7219674413927b35c2c80c25c200919d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 10 15:22:00 2024 +0100
+
+    crypto/internal/fips/mlkem: implement CAST, PCT, and service indicator
+    
+    For #69536
+    
+    Change-Id: Id9d2f6553ab006d0d26986d22a4a756b9cf1bf71
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626936
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+---
+ src/crypto/internal/fips/cast.go               | 19 ++++++----
+ src/crypto/internal/fips/cast_external_test.go |  4 ++
+ src/crypto/internal/fips/mlkem/cast.go         | 52 ++++++++++++++++++++++++++
+ src/crypto/internal/fips/mlkem/generate1024.go |  1 +
+ src/crypto/internal/fips/mlkem/mlkem1024.go    | 43 ++++++++++++++++-----
+ src/crypto/internal/fips/mlkem/mlkem768.go     | 43 ++++++++++++++++-----
+ src/crypto/internal/fips/mlkem/mlkem_test.go   |  2 +-
+ 7 files changed, 138 insertions(+), 26 deletions(-)
+
+diff --git a/src/crypto/internal/fips/cast.go b/src/crypto/internal/fips/cast.go
+index 17c92c1c3e..1afbfcd245 100644
+--- a/src/crypto/internal/fips/cast.go
++++ b/src/crypto/internal/fips/cast.go
+@@ -24,16 +24,21 @@ var failfipscast = godebug.New("#failfipscast")
+ // testingOnlyCASTHook is called during tests with each CAST name.
+ var testingOnlyCASTHook func(string)
+ 
+-// CAST runs the named Cryptographic Algorithm Self-Test (if operated in FIPS
+-// mode) and aborts the program (stopping the module input/output and entering
+-// the "error state") if the self-test fails.
++// CAST runs the named Cryptographic Algorithm Self-Test or Pairwise Consistency
++// Test (if operated in FIPS mode) and aborts the program (stopping the module
++// input/output and entering the "error state") if the self-test fails.
+ //
+-// These are mandatory self-checks that must be performed by FIPS 140-3 modules
+-// before the algorithm is used. See Implementation Guidance 10.3.A.
++// CASTs are mandatory self-checks that must be performed by FIPS 140-3 modules
++// before the algorithm is used. See Implementation Guidance 10.3.A. PCTs  are
++// mandatory for every key pair that is generated/imported, including ephemeral
++// keys (which effectively doubles the cost of key establishment). See
++// Implementation Guidance 10.3.A Additional Comment 1.
+ //
+ // The name must not contain commas, colons, hashes, or equal signs.
+ //
+-// When calling this function, also add the calling package to cast_external_test.go.
++// When calling this function from init(), also import the calling package from
++// cast_external_test.go, while if calling it from key generation/importing, add
++// an invocation to TestCAST.
+ func CAST(name string, f func() error) {
+ 	if strings.ContainsAny(name, ",#=:") {
+ 		panic("fips: invalid self-test name: " + name)
+@@ -47,7 +52,7 @@ func CAST(name string, f func() error) {
+ 
+ 	err := f()
+ 	if failfipscast.Value() != "" && strings.Contains(name, failfipscast.Value()) {
+-		err = errors.New("simulated CAST failure")
++		err = errors.New("simulated CAST/PCT failure")
+ 	}
+ 	if err != nil {
+ 		fatal("FIPS 140-3 self-test failed: " + name + ": " + err.Error())
+diff --git a/src/crypto/internal/fips/cast_external_test.go b/src/crypto/internal/fips/cast_external_test.go
+index 3c5007ff8d..0b895659f0 100644
+--- a/src/crypto/internal/fips/cast_external_test.go
++++ b/src/crypto/internal/fips/cast_external_test.go
+@@ -17,6 +17,7 @@ import (
+ 	_ "crypto/internal/fips/drbg"
+ 	_ "crypto/internal/fips/hkdf"
+ 	_ "crypto/internal/fips/hmac"
++	"crypto/internal/fips/mlkem"
+ 	_ "crypto/internal/fips/sha256"
+ 	_ "crypto/internal/fips/sha3"
+ 	_ "crypto/internal/fips/sha512"
+@@ -29,6 +30,9 @@ func TestCAST(t *testing.T) {
+ 		t.Errorf("no CASTs to test")
+ 	}
+ 
++	// Cause PCTs to be invoked.
++	mlkem.GenerateKey768()
++
+ 	if fips.Enabled {
+ 		for _, name := range fips.AllCASTs {
+ 			t.Logf("CAST %s completed successfully", name)
+diff --git a/src/crypto/internal/fips/mlkem/cast.go b/src/crypto/internal/fips/mlkem/cast.go
+new file mode 100644
+index 0000000000..f712fbb110
+--- /dev/null
++++ b/src/crypto/internal/fips/mlkem/cast.go
+@@ -0,0 +1,52 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package mlkem
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"errors"
++)
++
++func init() {
++	fips.CAST("ML-KEM-768", func() error {
++		var d = &[32]byte{
++			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
++			0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
++			0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
++			0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
++		}
++		var z = &[32]byte{
++			0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
++			0x29, 0x2a, 0x2b, 0x2c, 0x2d, 0x2e, 0x2f, 0x30,
++			0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38,
++			0x39, 0x3a, 0x3b, 0x3c, 0x3d, 0x3e, 0x3f, 0x40,
++		}
++		var m = &[32]byte{
++			0x41, 0x42, 0x43, 0x44, 0x45, 0x46, 0x47, 0x48,
++			0x49, 0x4a, 0x4b, 0x4c, 0x4d, 0x4e, 0x4f, 0x50,
++			0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58,
++			0x59, 0x5a, 0x5b, 0x5c, 0x5d, 0x5e, 0x5f, 0x60,
++		}
++		var K = []byte{
++			0x55, 0x01, 0xfc, 0x52, 0x3b, 0x74, 0x5f, 0x41,
++			0x76, 0x2a, 0x18, 0x8d, 0xe4, 0x4a, 0x59, 0xb9,
++			0x20, 0xf4, 0x30, 0x14, 0x62, 0x04, 0xee, 0x4e,
++			0x79, 0x37, 0x32, 0x39, 0x6d, 0xf7, 0xaa, 0x48,
++		}
++		dk := &DecapsulationKey768{}
++		kemKeyGen(dk, d, z)
++		ek := dk.EncapsulationKey()
++		c, Ke := kemEncaps(nil, ek, m)
++		Kd, err := dk.Decapsulate(c)
++		if err != nil {
++			return err
++		}
++		if !bytes.Equal(Ke, K) || !bytes.Equal(Kd, K) {
++			return errors.New("unexpected result")
++		}
++		return nil
++	})
++}
+diff --git a/src/crypto/internal/fips/mlkem/generate1024.go b/src/crypto/internal/fips/mlkem/generate1024.go
+index 7ed68debdb..94f22d54f9 100644
+--- a/src/crypto/internal/fips/mlkem/generate1024.go
++++ b/src/crypto/internal/fips/mlkem/generate1024.go
+@@ -44,6 +44,7 @@ var replacements = map[string]string{
+ 	"generateKey":    "generateKey1024",
+ 
+ 	"kemKeyGen": "kemKeyGen1024",
++	"kemPCT":    "kemPCT1024",
+ 
+ 	"encodingSize4":             "encodingSize5",
+ 	"encodingSize10":            "encodingSize11",
+diff --git a/src/crypto/internal/fips/mlkem/mlkem1024.go b/src/crypto/internal/fips/mlkem/mlkem1024.go
+index c77dae8f74..6167c8bb8f 100644
+--- a/src/crypto/internal/fips/mlkem/mlkem1024.go
++++ b/src/crypto/internal/fips/mlkem/mlkem1024.go
+@@ -3,6 +3,7 @@
+ package mlkem
+ 
+ import (
++	"crypto/internal/fips"
+ 	"crypto/internal/fips/drbg"
+ 	"crypto/internal/fips/sha3"
+ 	"crypto/internal/fips/subtle"
+@@ -81,15 +82,17 @@ type decryptionKey1024 struct {
+ func GenerateKey1024() (*DecapsulationKey1024, error) {
+ 	// The actual logic is in a separate function to outline this allocation.
+ 	dk := &DecapsulationKey1024{}
+-	return generateKey1024(dk), nil
++	return generateKey1024(dk)
+ }
+ 
+-func generateKey1024(dk *DecapsulationKey1024) *DecapsulationKey1024 {
++func generateKey1024(dk *DecapsulationKey1024) (*DecapsulationKey1024, error) {
+ 	var d [32]byte
+ 	drbg.Read(d[:])
+ 	var z [32]byte
+ 	drbg.Read(z[:])
+-	return kemKeyGen1024(dk, &d, &z)
++	kemKeyGen1024(dk, &d, &z)
++	fips.CAST("ML-KEM PCT", func() error { return kemPCT1024(dk) })
++	return dk, nil
+ }
+ 
+ // NewDecapsulationKey1024 parses a decapsulation key from a 64-byte
+@@ -106,7 +109,9 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
+ 	}
+ 	d := (*[32]byte)(seed[:32])
+ 	z := (*[32]byte)(seed[32:])
+-	return kemKeyGen1024(dk, d, z), nil
++	kemKeyGen1024(dk, d, z)
++	fips.CAST("ML-KEM PCT", func() error { return kemPCT1024(dk) })
++	return dk, nil
+ }
+ 
+ // kemKeyGen1024 generates a decapsulation key.
+@@ -114,10 +119,9 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
+ // It implements ML-KEM.KeyGen_internal according to FIPS 203, Algorithm 16, and
+ // K-PKE.KeyGen according to FIPS 203, Algorithm 13. The two are merged to save
+ // copies and allocations.
+-func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) *DecapsulationKey1024 {
+-	if dk == nil {
+-		dk = &DecapsulationKey1024{}
+-	}
++func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) {
++	fips.RecordApproved()
++
+ 	dk.d = *d
+ 	dk.z = *z
+ 
+@@ -159,8 +163,27 @@ func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) *DecapsulationKey10
+ 	ek := dk.EncapsulationKey().Bytes()
+ 	H.Write(ek)
+ 	H.Sum(dk.h[:0])
++}
+ 
+-	return dk
++// kemPCT1024 performs a Pairwise Consistency Test per FIPS 140-3 IG 10.3.A
++// Additional Comment 1: "For key pairs generated for use with approved KEMs in
++// FIPS 203, the PCT shall consist of applying the encapsulation key ek to
++// encapsulate a shared secret K leading to ciphertext c, and then applying
++// decapsulation key dk to retrieve the same shared secret K. The PCT passes if
++// the two shared secret K values are equal. The PCT shall be performed either
++// when keys are generated/imported, prior to the first exportation, or prior to
++// the first operational use (if not exported before the first use)."
++func kemPCT1024(dk *DecapsulationKey1024) error {
++	ek := dk.EncapsulationKey()
++	c, K := ek.Encapsulate()
++	K1, err := dk.Decapsulate(c)
++	if err != nil {
++		return err
++	}
++	if subtle.ConstantTimeCompare(K, K1) != 1 {
++		return errors.New("mlkem: PCT failed")
++	}
++	return nil
+ }
+ 
+ // Encapsulate generates a shared key and an associated ciphertext from an
+@@ -185,6 +208,7 @@ func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (ciphe
+ //
+ // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
+ func kemEncaps1024(cc *[CiphertextSize1024]byte, ek *EncapsulationKey1024, m *[messageSize]byte) (c, K []byte) {
++	fips.RecordApproved()
+ 	if cc == nil {
+ 		cc = &[CiphertextSize1024]byte{}
+ 	}
+@@ -300,6 +324,7 @@ func (dk *DecapsulationKey1024) Decapsulate(ciphertext []byte) (sharedKey []byte
+ //
+ // It implements ML-KEM.Decaps_internal according to FIPS 203, Algorithm 18.
+ func kemDecaps1024(dk *DecapsulationKey1024, c *[CiphertextSize1024]byte) (K []byte) {
++	fips.RecordApproved()
+ 	m := pkeDecrypt1024(&dk.decryptionKey1024, c)
+ 	g := sha3.New512()
+ 	g.Write(m[:])
+diff --git a/src/crypto/internal/fips/mlkem/mlkem768.go b/src/crypto/internal/fips/mlkem/mlkem768.go
+index 8cd6fffbcd..6c5cb85535 100644
+--- a/src/crypto/internal/fips/mlkem/mlkem768.go
++++ b/src/crypto/internal/fips/mlkem/mlkem768.go
+@@ -24,6 +24,7 @@ package mlkem
+ //go:generate go run generate1024.go -input mlkem768.go -output mlkem1024.go
+ 
+ import (
++	"crypto/internal/fips"
+ 	"crypto/internal/fips/drbg"
+ 	"crypto/internal/fips/sha3"
+ 	"crypto/internal/fips/subtle"
+@@ -138,15 +139,17 @@ type decryptionKey struct {
+ func GenerateKey768() (*DecapsulationKey768, error) {
+ 	// The actual logic is in a separate function to outline this allocation.
+ 	dk := &DecapsulationKey768{}
+-	return generateKey(dk), nil
++	return generateKey(dk)
+ }
+ 
+-func generateKey(dk *DecapsulationKey768) *DecapsulationKey768 {
++func generateKey(dk *DecapsulationKey768) (*DecapsulationKey768, error) {
+ 	var d [32]byte
+ 	drbg.Read(d[:])
+ 	var z [32]byte
+ 	drbg.Read(z[:])
+-	return kemKeyGen(dk, &d, &z)
++	kemKeyGen(dk, &d, &z)
++	fips.CAST("ML-KEM PCT", func() error { return kemPCT(dk) })
++	return dk, nil
+ }
+ 
+ // NewDecapsulationKey768 parses a decapsulation key from a 64-byte
+@@ -163,7 +166,9 @@ func newKeyFromSeed(dk *DecapsulationKey768, seed []byte) (*DecapsulationKey768,
+ 	}
+ 	d := (*[32]byte)(seed[:32])
+ 	z := (*[32]byte)(seed[32:])
+-	return kemKeyGen(dk, d, z), nil
++	kemKeyGen(dk, d, z)
++	fips.CAST("ML-KEM PCT", func() error { return kemPCT(dk) })
++	return dk, nil
+ }
+ 
+ // kemKeyGen generates a decapsulation key.
+@@ -171,10 +176,9 @@ func newKeyFromSeed(dk *DecapsulationKey768, seed []byte) (*DecapsulationKey768,
+ // It implements ML-KEM.KeyGen_internal according to FIPS 203, Algorithm 16, and
+ // K-PKE.KeyGen according to FIPS 203, Algorithm 13. The two are merged to save
+ // copies and allocations.
+-func kemKeyGen(dk *DecapsulationKey768, d, z *[32]byte) *DecapsulationKey768 {
+-	if dk == nil {
+-		dk = &DecapsulationKey768{}
+-	}
++func kemKeyGen(dk *DecapsulationKey768, d, z *[32]byte) {
++	fips.RecordApproved()
++
+ 	dk.d = *d
+ 	dk.z = *z
+ 
+@@ -216,8 +220,27 @@ func kemKeyGen(dk *DecapsulationKey768, d, z *[32]byte) *DecapsulationKey768 {
+ 	ek := dk.EncapsulationKey().Bytes()
+ 	H.Write(ek)
+ 	H.Sum(dk.h[:0])
++}
+ 
+-	return dk
++// kemPCT performs a Pairwise Consistency Test per FIPS 140-3 IG 10.3.A
++// Additional Comment 1: "For key pairs generated for use with approved KEMs in
++// FIPS 203, the PCT shall consist of applying the encapsulation key ek to
++// encapsulate a shared secret K leading to ciphertext c, and then applying
++// decapsulation key dk to retrieve the same shared secret K. The PCT passes if
++// the two shared secret K values are equal. The PCT shall be performed either
++// when keys are generated/imported, prior to the first exportation, or prior to
++// the first operational use (if not exported before the first use)."
++func kemPCT(dk *DecapsulationKey768) error {
++	ek := dk.EncapsulationKey()
++	c, K := ek.Encapsulate()
++	K1, err := dk.Decapsulate(c)
++	if err != nil {
++		return err
++	}
++	if subtle.ConstantTimeCompare(K, K1) != 1 {
++		return errors.New("mlkem: PCT failed")
++	}
++	return nil
+ }
+ 
+ // Encapsulate generates a shared key and an associated ciphertext from an
+@@ -242,6 +265,7 @@ func (ek *EncapsulationKey768) encapsulate(cc *[CiphertextSize768]byte) (ciphert
+ //
+ // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
+ func kemEncaps(cc *[CiphertextSize768]byte, ek *EncapsulationKey768, m *[messageSize]byte) (c, K []byte) {
++	fips.RecordApproved()
+ 	if cc == nil {
+ 		cc = &[CiphertextSize768]byte{}
+ 	}
+@@ -357,6 +381,7 @@ func (dk *DecapsulationKey768) Decapsulate(ciphertext []byte) (sharedKey []byte,
+ //
+ // It implements ML-KEM.Decaps_internal according to FIPS 203, Algorithm 18.
+ func kemDecaps(dk *DecapsulationKey768, c *[CiphertextSize768]byte) (K []byte) {
++	fips.RecordApproved()
+ 	m := pkeDecrypt(&dk.decryptionKey, c)
+ 	g := sha3.New512()
+ 	g.Write(m[:])
+diff --git a/src/crypto/internal/fips/mlkem/mlkem_test.go b/src/crypto/internal/fips/mlkem/mlkem_test.go
+index acd8f4821b..f852fb6eb2 100644
+--- a/src/crypto/internal/fips/mlkem/mlkem_test.go
++++ b/src/crypto/internal/fips/mlkem/mlkem_test.go
+@@ -224,7 +224,7 @@ func BenchmarkKeyGen(b *testing.B) {
+ 	rand.Read(z[:])
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		dk := kemKeyGen(&dk, &d, &z)
++		kemKeyGen(&dk, &d, &z)
+ 		sink ^= dk.EncapsulationKey().Bytes()[0]
+ 	}
+ }

@@ -1,0 +1,26 @@
+commit 69234ded30614a471c35cef5d87b0e0d3c136cd9
+Author: Gopher Robot <gobot@golang.org>
+Date:   Thu Sep 5 15:06:10 2024 +0000
+
+    [release-branch.go1.23] go1.23.1
+    
+    Change-Id: I1f2dab5560d3214c8934074a53f7750d8d431936
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611196
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Commit-Queue: Gopher Robot <gobot@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index d184425f0c..c0bacc9e28 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.23.0
+-time 2024-08-07T19:21:44Z
++go1.23.1
++time 2024-08-29T20:56:24Z

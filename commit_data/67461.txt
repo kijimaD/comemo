@@ -1,0 +1,123 @@
+commit 0710cce6eb0d75db1fc6c45807773f40edb14d73
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 30 16:42:19 2025 -0400
+
+    [dev.simd] runtime: remove write barrier in xRegRestore
+    
+    Currently, there's a write barrier in xRegRestore when it assigns
+    pp.xRegs.cache = gp.xRegs.state. This is bad because that gets called
+    on the asyncPreempt return path, where we have really limited stack
+    space, and we don't currently account for this write barrier.
+    
+    We can't simply mark xRegState as sys.NotInHeap because it's also
+    embedded in runtime.p as register scratch space, and runtime.p is heap
+    allocated.
+    
+    Hence, to fix this, we rename xRegState to just "xRegs" and introduce
+    a wrapper "xRegState" type that embeds xRegs and is itself marked
+    sys.NotInHeap. Then, anywhere we need a manually-managed pointer to
+    register state, we use the new type.
+    
+    To ensure this doesn't happen again in the future, we also mark
+    asyncPreempt2 as go:nowritebarrierrec.
+    
+    Change-Id: I5ff4841e55ff20047ff7d253ab659ab77aeb3391
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684836
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mkpreempt.go     |  2 +-
+ src/runtime/preempt.go       |  9 +++++++++
+ src/runtime/preempt_amd64.go |  2 +-
+ src/runtime/preempt_xreg.go  | 16 +++++++++++++---
+ 4 files changed, 24 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mkpreempt.go b/src/runtime/mkpreempt.go
+index 29e8288129..2bd2ef07fa 100644
+--- a/src/runtime/mkpreempt.go
++++ b/src/runtime/mkpreempt.go
+@@ -160,7 +160,7 @@ func writeXRegs(arch string, l *layout) {
+ 	fmt.Fprintf(g.w, `
+ package runtime
+ 
+-type xRegState struct {
++type xRegs struct {
+ `)
+ 	pos := 0
+ 	for _, reg := range l.regs {
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index d053747d3a..22727df74e 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -302,7 +302,16 @@ func canPreemptM(mp *m) bool {
+ // asyncPreempt is implemented in assembly.
+ func asyncPreempt()
+ 
++// asyncPreempt2 is the Go continuation of asyncPreempt.
++//
++// It must be deeply nosplit because there's untyped data on the stack from
++// asyncPreempt.
++//
++// It must not have any write barriers because we need to limit the amount of
++// stack it uses.
++//
+ //go:nosplit
++//go:nowritebarrierrec
+ func asyncPreempt2() {
+ 	// We can't grow the stack with untyped data from asyncPreempt, so switch to
+ 	// the system stack right away.
+diff --git a/src/runtime/preempt_amd64.go b/src/runtime/preempt_amd64.go
+index 44838a1df2..88c0ddd34a 100644
+--- a/src/runtime/preempt_amd64.go
++++ b/src/runtime/preempt_amd64.go
+@@ -2,7 +2,7 @@
+ 
+ package runtime
+ 
+-type xRegState struct {
++type xRegs struct {
+ 	Z0  [64]byte
+ 	Z1  [64]byte
+ 	Z2  [64]byte
+diff --git a/src/runtime/preempt_xreg.go b/src/runtime/preempt_xreg.go
+index f0a47c15d9..9e05455ddb 100644
+--- a/src/runtime/preempt_xreg.go
++++ b/src/runtime/preempt_xreg.go
+@@ -19,7 +19,17 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/runtime/sys"
++	"unsafe"
++)
++
++// xRegState is long-lived extended register state. It is allocated off-heap and
++// manually managed.
++type xRegState struct {
++	_    sys.NotInHeap // Allocated from xRegAlloc
++	regs xRegs
++}
+ 
+ // xRegPerG stores extended register state while a goroutine is asynchronously
+ // preempted. This is nil otherwise, so we can reuse a (likely small) pool of
+@@ -31,7 +41,7 @@ type xRegPerG struct {
+ type xRegPerP struct {
+ 	// scratch temporary per-P space where [asyncPreempt] saves the register
+ 	// state before entering Go. It's quickly copied to per-G state.
+-	scratch xRegState
++	scratch xRegs
+ 
+ 	// cache is a 1-element allocation cache of extended register state used by
+ 	// asynchronous preemption. On entry to preemption, this is used as a simple
+@@ -84,7 +94,7 @@ func xRegSave(gp *g) {
+ 	// If we ever need to save less state (e.g., avoid saving vector registers
+ 	// that aren't in use), we could have multiple allocation pools for
+ 	// different size states and copy only the registers we need.
+-	*dest = pp.xRegs.scratch
++	dest.regs = pp.xRegs.scratch
+ 
+ 	// Save on the G.
+ 	gp.xRegs.state = dest

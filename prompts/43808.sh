@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 43808: 6b5ab20b6587b02da1091d2ca9e6c9dbef70f6cb
+# Index 43808: 4cde749f633753cf59d0cfc912351e1b1def2b4f
 
 echo "🚀 Generating explanation for commit 43808..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 43808..."
 
 ### メタデータ
 - **コミットインデックス**: 43808
-- **コミットハッシュ**: 6b5ab20b6587b02da1091d2ca9e6c9dbef70f6cb
-- **GitHub URL**: https://github.com/golang/go/commit/6b5ab20b6587b02da1091d2ca9e6c9dbef70f6cb
+- **コミットハッシュ**: 4cde749f633753cf59d0cfc912351e1b1def2b4f
+- **GitHub URL**: https://github.com/golang/go/commit/4cde749f633753cf59d0cfc912351e1b1def2b4f
 
 ### 章構成
 

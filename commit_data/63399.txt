@@ -1,0 +1,496 @@
+commit d6a3d093c3f630e206abfc974a4a8b6c07884485
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Mar 21 18:49:05 2024 +0000
+
+    runtime: take a stack trace during tracing only when we own the stack
+    
+    Currently, the execution tracer may attempt to take a stack trace of a
+    goroutine whose stack it does not own. For example, if the goroutine is
+    in _Grunnable or _Gwaiting. This is easily fixed in all cases by simply
+    moving the emission of GoStop and GoBlock events to before the
+    casgstatus happens. The goroutine status is what is used to signal stack
+    ownership, and the GC may shrink a goroutine's stack if it can acquire
+    the scan bit.
+    
+    Although this is easily fixed, the interaction here is very subtle,
+    because stack ownership is only implicit in the goroutine's scan status.
+    To make this invariant more maintainable and less error-prone in the
+    future, this change adds a GODEBUG setting that checks, at the point of
+    taking a stack trace, whether the caller owns the goroutine. This check
+    is not quite perfect because there's no way for the stack tracing code
+    to know that the _Gscan bit was acquired by the caller, so for
+    simplicity it assumes that it was the caller that acquired the scan bit.
+    In all other cases however, we can check for ownership precisely. At the
+    very least, this check is sufficient to catch the issue this change is
+    fixing.
+    
+    To make sure this debug check doesn't bitrot, it's always enabled during
+    trace testing. This new mode has actually caught a few other issues
+    already, so this change fixes them.
+    
+    One issue that this debug mode caught was that it's not safe to take a
+    stack trace of a _Gwaiting goroutine that's being unparked.
+    
+    Another much bigger issue this debug mode caught was the fact that the
+    execution tracer could try to take a stack trace of a G that was in
+    _Gwaiting solely to avoid a deadlock in the GC. The execution tracer
+    already has a partial list of these cases since they're modeled as the
+    goroutine just executing as normal in the tracer, but this change takes
+    the list and makes it more formal. In this specific case, we now prevent
+    the GC from shrinking the stacks of goroutines in this state if tracing
+    is enabled. The stack traces from these scenarios are too useful to
+    discard, but there is indeed a race here between the tracer and any
+    attempt to shrink the stack by the GC.
+    
+    Change-Id: I019850dabc8cede202fd6dcc0a4b1f16764209fb
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-linux-amd64-longtest-race
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573155
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ src/internal/trace/v2/trace_test.go |  8 +++++--
+ src/runtime/debugcall.go            | 14 +++++++++--
+ src/runtime/extern.go               |  3 +++
+ src/runtime/mgc.go                  |  4 ++--
+ src/runtime/mgcmark.go              |  4 ++--
+ src/runtime/proc.go                 | 38 +++++++++++++++++++++++++-----
+ src/runtime/runtime1.go             | 46 +++++++++++++++++++------------------
+ src/runtime/runtime2.go             | 23 +++++++++++++++++++
+ src/runtime/stack.go                | 27 ++++++++++++++++++----
+ src/runtime/trace2.go               |  2 +-
+ src/runtime/trace2stack.go          | 23 +++++++++++++++++++
+ src/runtime/trace2status.go         |  8 +------
+ 12 files changed, 152 insertions(+), 48 deletions(-)
+
+diff --git a/src/internal/trace/v2/trace_test.go b/src/internal/trace/v2/trace_test.go
+index 18971ffd48..952d843141 100644
+--- a/src/internal/trace/v2/trace_test.go
++++ b/src/internal/trace/v2/trace_test.go
+@@ -552,10 +552,14 @@ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace
+ 		}
+ 		cmd.Args = append(cmd.Args, testPath)
+ 		cmd.Env = append(os.Environ(), "GOEXPERIMENT=exectracer2", "GOEXPERIMENT=rangefunc")
++		// Add a stack ownership check. This is cheap enough for testing.
++		godebug := "tracecheckstackownership=1"
+ 		if stress {
+-			// Advance a generation constantly.
+-			cmd.Env = append(cmd.Env, "GODEBUG=traceadvanceperiod=0")
++			// Advance a generation constantly to stress the tracer.
++			godebug += ",traceadvanceperiod=0"
+ 		}
++		cmd.Env = append(cmd.Env, "GODEBUG="+godebug)
++
+ 		// Capture stdout and stderr.
+ 		//
+ 		// The protocol for these programs is that stdout contains the trace data
+diff --git a/src/runtime/debugcall.go b/src/runtime/debugcall.go
+index dcd7a6e2a5..fee4116aa5 100644
+--- a/src/runtime/debugcall.go
++++ b/src/runtime/debugcall.go
+@@ -167,9 +167,14 @@ func debugCallWrap(dispatch uintptr) {
+ 
+ 		// Park the calling goroutine.
+ 		trace := traceAcquire()
+-		casGToWaiting(gp, _Grunning, waitReasonDebugCall)
+ 		if trace.ok() {
++			// Trace the event before the transition. It may take a
++			// stack trace, but we won't own the stack after the
++			// transition anymore.
+ 			trace.GoPark(traceBlockDebugCall, 1)
++		}
++		casGToWaiting(gp, _Grunning, waitReasonDebugCall)
++		if trace.ok() {
+ 			traceRelease(trace)
+ 		}
+ 		dropg()
+@@ -228,9 +233,14 @@ func debugCallWrap1() {
+ 		// the scheduler will schedule us again and we'll
+ 		// finish exiting.
+ 		trace := traceAcquire()
+-		casgstatus(gp, _Grunning, _Grunnable)
+ 		if trace.ok() {
++			// Trace the event before the transition. It may take a
++			// stack trace, but we won't own the stack after the
++			// transition anymore.
+ 			trace.GoSched()
++		}
++		casgstatus(gp, _Grunning, _Grunnable)
++		if trace.ok() {
+ 			traceRelease(trace)
+ 		}
+ 		dropg()
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index e42122fd3a..9a02e36829 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -211,6 +211,9 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	applies if a program is built with GOEXPERIMENT=exectracer2. Used primarily for testing
+ 	and debugging the execution tracer.
+ 
++	tracecheckstackownership: setting tracecheckstackownership=1 enables a debug check in the
++	execution tracer to double-check stack ownership before taking a stack trace.
++
+ 	asyncpreemptoff: asyncpreemptoff=1 disables signal-based
+ 	asynchronous goroutine preemption. This makes some loops
+ 	non-preemptible for long periods, which may delay GC and
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index da86fd517f..6321254f26 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -942,7 +942,7 @@ func gcMarkTermination(stw worldStop) {
+ 	// N.B. The execution tracer is not aware of this status
+ 	// transition and handles it specially based on the
+ 	// wait reason.
+-	casGToWaiting(curgp, _Grunning, waitReasonGarbageCollection)
++	casGToWaitingForGC(curgp, _Grunning, waitReasonGarbageCollection)
+ 
+ 	// Run gc on the g0 stack. We do this so that the g stack
+ 	// we're currently running on will no longer change. Cuts
+@@ -1402,7 +1402,7 @@ func gcBgMarkWorker(ready chan struct{}) {
+ 			// N.B. The execution tracer is not aware of this status
+ 			// transition and handles it specially based on the
+ 			// wait reason.
+-			casGToWaiting(gp, _Grunning, waitReasonGCWorkerActive)
++			casGToWaitingForGC(gp, _Grunning, waitReasonGCWorkerActive)
+ 			switch pp.gcMarkWorkerMode {
+ 			default:
+ 				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 7622d1e0d8..c6b50e82e4 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -218,7 +218,7 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
+ 			userG := getg().m.curg
+ 			selfScan := gp == userG && readgstatus(userG) == _Grunning
+ 			if selfScan {
+-				casGToWaiting(userG, _Grunning, waitReasonGarbageCollectionScan)
++				casGToWaitingForGC(userG, _Grunning, waitReasonGarbageCollectionScan)
+ 			}
+ 
+ 			// TODO: suspendG blocks (and spins) until gp
+@@ -655,7 +655,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
+ 	}
+ 
+ 	// gcDrainN requires the caller to be preemptible.
+-	casGToWaiting(gp, _Grunning, waitReasonGCAssistMarking)
++	casGToWaitingForGC(gp, _Grunning, waitReasonGCAssistMarking)
+ 
+ 	// drain own cached work first in the hopes that it
+ 	// will be more cache friendly.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 3b7d4f4d5d..a6813169c7 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1208,6 +1208,17 @@ func casGToWaiting(gp *g, old uint32, reason waitReason) {
+ 	casgstatus(gp, old, _Gwaiting)
+ }
+ 
++// casGToWaitingForGC transitions gp from old to _Gwaiting, and sets the wait reason.
++// The wait reason must be a valid isWaitingForGC wait reason.
++//
++// Use this over casgstatus when possible to ensure that a waitreason is set.
++func casGToWaitingForGC(gp *g, old uint32, reason waitReason) {
++	if !reason.isWaitingForGC() {
++		throw("casGToWaitingForGC with non-isWaitingForGC wait reason")
++	}
++	casGToWaiting(gp, old, reason)
++}
++
+ // casgstatus(gp, oldstatus, Gcopystack), assuming oldstatus is Gwaiting or Grunnable.
+ // Returns old status. Cannot call casgstatus directly, because we are racing with an
+ // async wakeup that might come in from netpoll. If we see Gwaiting from the readgstatus,
+@@ -1356,7 +1367,7 @@ func stopTheWorld(reason stwReason) worldStop {
+ 		// N.B. The execution tracer is not aware of this status
+ 		// transition and handles it specially based on the
+ 		// wait reason.
+-		casGToWaiting(gp, _Grunning, waitReasonStoppingTheWorld)
++		casGToWaitingForGC(gp, _Grunning, waitReasonStoppingTheWorld)
+ 		stopTheWorldContext = stopTheWorldWithSema(reason) // avoid write to stack
+ 		casgstatus(gp, _Gwaiting, _Grunning)
+ 	})
+@@ -1903,7 +1914,7 @@ func forEachP(reason waitReason, fn func(*p)) {
+ 		// N.B. The execution tracer is not aware of this status
+ 		// transition and handles it specially based on the
+ 		// wait reason.
+-		casGToWaiting(gp, _Grunning, reason)
++		casGToWaitingForGC(gp, _Grunning, reason)
+ 		forEachPInternal(fn)
+ 		casgstatus(gp, _Gwaiting, _Grunning)
+ 	})
+@@ -3961,11 +3972,16 @@ func park_m(gp *g) {
+ 
+ 	trace := traceAcquire()
+ 
++	if trace.ok() {
++		// Trace the event before the transition. It may take a
++		// stack trace, but we won't own the stack after the
++		// transition anymore.
++		trace.GoPark(mp.waitTraceBlockReason, mp.waitTraceSkip)
++	}
+ 	// N.B. Not using casGToWaiting here because the waitreason is
+ 	// set by park_m's caller.
+ 	casgstatus(gp, _Grunning, _Gwaiting)
+ 	if trace.ok() {
+-		trace.GoPark(mp.waitTraceBlockReason, mp.waitTraceSkip)
+ 		traceRelease(trace)
+ 	}
+ 
+@@ -3995,13 +4011,18 @@ func goschedImpl(gp *g, preempted bool) {
+ 		dumpgstatus(gp)
+ 		throw("bad g status")
+ 	}
+-	casgstatus(gp, _Grunning, _Grunnable)
+ 	if trace.ok() {
++		// Trace the event before the transition. It may take a
++		// stack trace, but we won't own the stack after the
++		// transition anymore.
+ 		if preempted {
+ 			trace.GoPreempt()
+ 		} else {
+ 			trace.GoSched()
+ 		}
++	}
++	casgstatus(gp, _Grunning, _Grunnable)
++	if trace.ok() {
+ 		traceRelease(trace)
+ 	}
+ 
+@@ -4104,9 +4125,14 @@ func goyield() {
+ func goyield_m(gp *g) {
+ 	trace := traceAcquire()
+ 	pp := gp.m.p.ptr()
+-	casgstatus(gp, _Grunning, _Grunnable)
+ 	if trace.ok() {
++		// Trace the event before the transition. It may take a
++		// stack trace, but we won't own the stack after the
++		// transition anymore.
+ 		trace.GoPreempt()
++	}
++	casgstatus(gp, _Grunning, _Grunnable)
++	if trace.ok() {
+ 		traceRelease(trace)
+ 	}
+ 	dropg()
+@@ -5613,7 +5639,7 @@ func procresize(nprocs int32) *p {
+ 			if trace.ok() {
+ 				// Pretend that we were descheduled
+ 				// and then scheduled again to keep
+-				// the trace sane.
++				// the trace consistent.
+ 				trace.GoSched()
+ 				trace.ProcStop(gp.m.p.ptr())
+ 				traceRelease(trace)
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index 48603da600..5b37d23e90 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -307,28 +307,29 @@ type dbgVar struct {
+ // existing int var for that value, which may
+ // already have an initial value.
+ var debug struct {
+-	cgocheck                int32
+-	clobberfree             int32
+-	disablethp              int32
+-	dontfreezetheworld      int32
+-	efence                  int32
+-	gccheckmark             int32
+-	gcpacertrace            int32
+-	gcshrinkstackoff        int32
+-	gcstoptheworld          int32
+-	gctrace                 int32
+-	invalidptr              int32
+-	madvdontneed            int32 // for Linux; issue 28466
+-	runtimeContentionStacks atomic.Int32
+-	scavtrace               int32
+-	scheddetail             int32
+-	schedtrace              int32
+-	tracebackancestors      int32
+-	asyncpreemptoff         int32
+-	harddecommit            int32
+-	adaptivestackstart      int32
+-	tracefpunwindoff        int32
+-	traceadvanceperiod      int32
++	cgocheck                 int32
++	clobberfree              int32
++	disablethp               int32
++	dontfreezetheworld       int32
++	efence                   int32
++	gccheckmark              int32
++	gcpacertrace             int32
++	gcshrinkstackoff         int32
++	gcstoptheworld           int32
++	gctrace                  int32
++	invalidptr               int32
++	madvdontneed             int32 // for Linux; issue 28466
++	runtimeContentionStacks  atomic.Int32
++	scavtrace                int32
++	scheddetail              int32
++	schedtrace               int32
++	tracebackancestors       int32
++	asyncpreemptoff          int32
++	harddecommit             int32
++	adaptivestackstart       int32
++	tracefpunwindoff         int32
++	traceadvanceperiod       int32
++	traceCheckStackOwnership int32
+ 
+ 	// debug.malloc is used as a combined debug check
+ 	// in the malloc function and should be set
+@@ -377,6 +378,7 @@ var dbgvars = []*dbgVar{
+ 	{name: "scheddetail", value: &debug.scheddetail},
+ 	{name: "schedtrace", value: &debug.schedtrace},
+ 	{name: "traceadvanceperiod", value: &debug.traceadvanceperiod},
++	{name: "tracecheckstackownership", value: &debug.traceCheckStackOwnership},
+ 	{name: "tracebackancestors", value: &debug.tracebackancestors},
+ 	{name: "tracefpunwindoff", value: &debug.tracefpunwindoff},
+ }
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index c335f8c9d0..4a5dbf1cc8 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1150,6 +1150,29 @@ func (w waitReason) isMutexWait() bool {
+ 		w == waitReasonSyncRWMutexLock
+ }
+ 
++func (w waitReason) isWaitingForGC() bool {
++	return isWaitingForGC[w]
++}
++
++// isWaitingForGC indicates that a goroutine is only entering _Gwaiting and
++// setting a waitReason because it needs to be able to let the GC take ownership
++// of its stack. The G is always actually executing on the system stack, in
++// these cases.
++//
++// TODO(mknyszek): Consider replacing this with a new dedicated G status.
++var isWaitingForGC = [len(waitReasonStrings)]bool{
++	waitReasonStoppingTheWorld:      true,
++	waitReasonGCMarkTermination:     true,
++	waitReasonGarbageCollection:     true,
++	waitReasonGarbageCollectionScan: true,
++	waitReasonTraceGoroutineStatus:  true,
++	waitReasonTraceProcStatus:       true,
++	waitReasonPageTraceFlush:        true,
++	waitReasonGCAssistMarking:       true,
++	waitReasonGCWorkerActive:        true,
++	waitReasonFlushProcCaches:       true,
++}
++
+ var (
+ 	allm       *m
+ 	gomaxprocs int32
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 8acc5e9f98..6679cd993d 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1136,21 +1136,40 @@ func gostartcallfn(gobuf *gobuf, fv *funcval) {
+ 
+ // isShrinkStackSafe returns whether it's safe to attempt to shrink
+ // gp's stack. Shrinking the stack is only safe when we have precise
+-// pointer maps for all frames on the stack.
++// pointer maps for all frames on the stack. The caller must hold the
++// _Gscan bit for gp or must be running gp itself.
+ func isShrinkStackSafe(gp *g) bool {
+ 	// We can't copy the stack if we're in a syscall.
+ 	// The syscall might have pointers into the stack and
+ 	// often we don't have precise pointer maps for the innermost
+ 	// frames.
+-	//
++	if gp.syscallsp != 0 {
++		return false
++	}
+ 	// We also can't copy the stack if we're at an asynchronous
+ 	// safe-point because we don't have precise pointer maps for
+ 	// all frames.
+-	//
++	if gp.asyncSafePoint {
++		return false
++	}
+ 	// We also can't *shrink* the stack in the window between the
+ 	// goroutine calling gopark to park on a channel and
+ 	// gp.activeStackChans being set.
+-	return gp.syscallsp == 0 && !gp.asyncSafePoint && !gp.parkingOnChan.Load()
++	if gp.parkingOnChan.Load() {
++		return false
++	}
++	// We also can't copy the stack while tracing is enabled, and
++	// gp is in _Gwaiting solely to make itself available to the GC.
++	// In these cases, the G is actually executing on the system
++	// stack, and the execution tracer may want to take a stack trace
++	// of the G's stack. Note: it's safe to access gp.waitreason here.
++	// We're only checking if this is true if we took ownership of the
++	// G with the _Gscan bit. This prevents the goroutine from transitioning,
++	// which prevents gp.waitreason from changing.
++	if traceEnabled() && readgstatus(gp)&^_Gscan == _Gwaiting && gp.waitreason.isWaitingForGC() {
++		return false
++	}
++	return true
+ }
+ 
+ // Maybe shrink the stack being used by gp.
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index 12647ca43b..d516001433 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -347,7 +347,7 @@ func traceAdvance(stopTrace bool) {
+ 			me := getg().m.curg
+ 			// We don't have to handle this G status transition because we
+ 			// already eliminated ourselves from consideration above.
+-			casGToWaiting(me, _Grunning, waitReasonTraceGoroutineStatus)
++			casGToWaitingForGC(me, _Grunning, waitReasonTraceGoroutineStatus)
+ 			// We need to suspend and take ownership of the G to safely read its
+ 			// goid. Note that we can't actually emit the event at this point
+ 			// because we might stop the G in a window where it's unsafe to write
+diff --git a/src/runtime/trace2stack.go b/src/runtime/trace2stack.go
+index 44588fa39e..4ee3b32b05 100644
+--- a/src/runtime/trace2stack.go
++++ b/src/runtime/trace2stack.go
+@@ -46,6 +46,29 @@ func traceStack(skip int, gp *g, gen uintptr) uint64 {
+ 		mp = getg().m
+ 		gp = mp.curg
+ 	}
++
++	// Double-check that we own the stack we're about to trace.
++	if debug.traceCheckStackOwnership != 0 && gp != nil {
++		status := readgstatus(gp)
++		// If the scan bit is set, assume we're the ones that acquired it.
++		if status&_Gscan == 0 {
++			// Use the trace status to check this. There are a number of cases
++			// where a running goroutine might be in _Gwaiting, and these cases
++			// are totally fine for taking a stack trace. They're captured
++			// correctly in goStatusToTraceGoStatus.
++			switch goStatusToTraceGoStatus(status, gp.waitreason) {
++			case traceGoRunning, traceGoSyscall:
++				if getg() == gp || mp.curg == gp {
++					break
++				}
++				fallthrough
++			default:
++				print("runtime: gp=", unsafe.Pointer(gp), " gp.goid=", gp.goid, " status=", gStatusStrings[status], "\n")
++				throw("attempted to trace stack of a goroutine this thread does not own")
++			}
++		}
++	}
++
+ 	if gp != nil && mp == nil {
+ 		// We're getting the backtrace for a G that's not currently executing.
+ 		// It may still have an M, if it's locked to some M.
+diff --git a/src/runtime/trace2status.go b/src/runtime/trace2status.go
+index 48ecb363a6..561953efd4 100644
+--- a/src/runtime/trace2status.go
++++ b/src/runtime/trace2status.go
+@@ -146,13 +146,7 @@ func goStatusToTraceGoStatus(status uint32, wr waitReason) traceGoStatus {
+ 		// emit an event, and we want these goroutines to appear in
+ 		// the final trace as if they're running, not blocked.
+ 		tgs = traceGoWaiting
+-		if status == _Gwaiting &&
+-			wr == waitReasonStoppingTheWorld ||
+-			wr == waitReasonGCMarkTermination ||
+-			wr == waitReasonGarbageCollection ||
+-			wr == waitReasonTraceProcStatus ||
+-			wr == waitReasonPageTraceFlush ||
+-			wr == waitReasonGCWorkerActive {
++		if status == _Gwaiting && wr.isWaitingForGC() {
+ 			tgs = traceGoRunning
+ 		}
+ 	case _Gdead:

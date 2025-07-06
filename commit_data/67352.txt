@@ -1,0 +1,250 @@
+commit 5f2cbe1f643f0ce3a314d41d2eca05d2510f3078
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 28 17:09:05 2025 -0700
+
+    [release-branch.go1.24] cmd/compile: do nil check before calling duff functions, on arm64 and amd64
+    
+    On these platforms, we set up a frame pointer record below
+    the current stack pointer, so when we're in duffcopy or duffzero,
+    we get a reasonable traceback. See #73753.
+    
+    But because this frame pointer record is below SP, it is vulnerable.
+    Anything that adds a new stack frame to the stack might clobber it.
+    Which actually happens in #73748 on amd64. I have not yet come across
+    a repro on arm64, but might as well be safe here.
+    
+    The only real situation this could happen is when duffzero or duffcopy
+    is passed a nil pointer. So we can just avoid the problem by doing the
+    nil check outside duffzero/duffcopy. That way we never add a frame
+    below duffzero/duffcopy. (Most other ways to get a new frame below the
+    current one, like async preempt or debugger-generated calls, don't
+    apply to duffzero/duffcopy because they are runtime functions; we're
+    not allowed to preempt there.)
+    
+    Longer term, we should stop putting stuff below SP. #73753 will
+    include that as part of its remit. But that's not for 1.25, so we'll
+    do the simple thing for 1.25 for this issue.
+    
+    Fixes #73908
+    
+    Change-Id: I913c49ee46dcaee8fb439415a4531f7b59d0f612
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676916
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    (cherry picked from commit dbaa2d3e6525a29defdff16f354881a93974dd2e)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677095
+---
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go | 12 ++++----
+ src/cmd/compile/internal/ssa/_gen/ARM64Ops.go | 10 +++----
+ src/cmd/compile/internal/ssa/opGen.go         | 40 ++++++++++++---------------
+ test/fixedbugs/issue73748a.go                 | 32 +++++++++++++++++++++
+ test/fixedbugs/issue73748b.go                 | 32 +++++++++++++++++++++
+ 5 files changed, 92 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index 23fb2361b5..470d323239 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -886,8 +886,8 @@ func init() {
+ 				inputs:   []regMask{buildReg("DI")},
+ 				clobbers: buildReg("DI"),
+ 			},
+-			faultOnNilArg0: true,
+-			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
++			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
++			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+ 		},
+ 
+ 		// arg0 = address of memory to zero
+@@ -924,10 +924,10 @@ func init() {
+ 				inputs:   []regMask{buildReg("DI"), buildReg("SI")},
+ 				clobbers: buildReg("DI SI X0"), // uses X0 as a temporary
+ 			},
+-			clobberFlags:   true,
+-			faultOnNilArg0: true,
+-			faultOnNilArg1: true,
+-			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
++			clobberFlags: true,
++			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
++			//faultOnNilArg1: true,
++			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+ 		},
+ 
+ 		// arg0 = destination pointer
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+index c9cb62cd17..a9dbf26a68 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64Ops.go
+@@ -536,8 +536,8 @@ func init() {
+ 				inputs:   []regMask{buildReg("R20")},
+ 				clobbers: buildReg("R16 R17 R20 R30"),
+ 			},
+-			faultOnNilArg0: true,
+-			unsafePoint:    true, // FP maintenance around DUFFZERO can be clobbered by interrupts
++			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
++			unsafePoint: true, // FP maintenance around DUFFZERO can be clobbered by interrupts
+ 		},
+ 
+ 		// large zeroing
+@@ -577,9 +577,9 @@ func init() {
+ 				inputs:   []regMask{buildReg("R21"), buildReg("R20")},
+ 				clobbers: buildReg("R16 R17 R20 R21 R26 R30"),
+ 			},
+-			faultOnNilArg0: true,
+-			faultOnNilArg1: true,
+-			unsafePoint:    true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
++			//faultOnNilArg0: true, // Note: removed for 73748. TODO: reenable at some point
++			//faultOnNilArg1: true,
++			unsafePoint: true, // FP maintenance around DUFFCOPY can be clobbered by interrupts
+ 		},
+ 
+ 		// large move
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index df1ddfa69e..347155de2e 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -13777,11 +13777,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "DUFFZERO",
+-		auxType:        auxInt64,
+-		argLen:         2,
+-		faultOnNilArg0: true,
+-		unsafePoint:    true,
++		name:        "DUFFZERO",
++		auxType:     auxInt64,
++		argLen:      2,
++		unsafePoint: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // DI
+@@ -13851,13 +13850,11 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "DUFFCOPY",
+-		auxType:        auxInt64,
+-		argLen:         3,
+-		clobberFlags:   true,
+-		faultOnNilArg0: true,
+-		faultOnNilArg1: true,
+-		unsafePoint:    true,
++		name:         "DUFFCOPY",
++		auxType:      auxInt64,
++		argLen:       3,
++		clobberFlags: true,
++		unsafePoint:  true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 128}, // DI
+@@ -22970,11 +22967,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "DUFFZERO",
+-		auxType:        auxInt64,
+-		argLen:         2,
+-		faultOnNilArg0: true,
+-		unsafePoint:    true,
++		name:        "DUFFZERO",
++		auxType:     auxInt64,
++		argLen:      2,
++		unsafePoint: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 1048576}, // R20
+@@ -22996,12 +22992,10 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:           "DUFFCOPY",
+-		auxType:        auxInt64,
+-		argLen:         3,
+-		faultOnNilArg0: true,
+-		faultOnNilArg1: true,
+-		unsafePoint:    true,
++		name:        "DUFFCOPY",
++		auxType:     auxInt64,
++		argLen:      3,
++		unsafePoint: true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2097152}, // R21
+diff --git a/test/fixedbugs/issue73748a.go b/test/fixedbugs/issue73748a.go
+new file mode 100644
+index 0000000000..c8ac10c29c
+--- /dev/null
++++ b/test/fixedbugs/issue73748a.go
+@@ -0,0 +1,32 @@
++// run
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"context"
++	"io"
++	"runtime/trace"
++)
++
++type T struct {
++	a [16]int
++}
++
++//go:noinline
++func f(x *T) {
++	*x = T{}
++}
++
++func main() {
++	trace.Start(io.Discard)
++	defer func() {
++		recover()
++		trace.Log(context.Background(), "a", "b")
++
++	}()
++	f(nil)
++}
+diff --git a/test/fixedbugs/issue73748b.go b/test/fixedbugs/issue73748b.go
+new file mode 100644
+index 0000000000..ff094a9764
+--- /dev/null
++++ b/test/fixedbugs/issue73748b.go
+@@ -0,0 +1,32 @@
++// run
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"context"
++	"io"
++	"runtime/trace"
++)
++
++type T struct {
++	a [16]int
++}
++
++//go:noinline
++func f(x, y *T) {
++	*x = *y
++}
++
++func main() {
++	trace.Start(io.Discard)
++	defer func() {
++		recover()
++		trace.Log(context.Background(), "a", "b")
++
++	}()
++	f(nil, nil)
++}

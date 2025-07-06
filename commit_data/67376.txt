@@ -1,0 +1,59 @@
+commit 816199e421f743324e9c1c82bda22d1d0f53845c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Jun 10 21:44:56 2025 +0000
+
+    runtime: don't let readTrace spin on trace.shutdown
+    
+    Issue #74045 describes a scenario in which gopark is inlined into
+    readTrace, such that there are no preemption points. This is only a
+    problem because readTrace spins if trace.shutdown is set, through
+    traceReaderAvailable. However, trace.shutdown is almost certainly
+    overkill for traceReaderAvailable. The first condition, checking whether
+    the reader gen and the flushed gen match, should be sufficient to ensure
+    the reader wakes up and finishes flushing all buffers. The first
+    condition is also safe because it guarantees progress. In the case of
+    shutdown, all the trace work that will be flushed has been flushed, and
+    so the trace reader will exit into a regular goroutine context when
+    it's finished. If not shutting down, then the trace reader will release
+    doneSema, increase readerGen, and then the gopark unlockf will let it
+    block until new work actually comes in.
+    
+    Fixes #74045.
+    
+    Change-Id: Id9b15c277cb731618488771bd484577341b68675
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680738
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/trace.go | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index 7d47ae02a9..871871c279 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -956,7 +956,7 @@ func traceReader() *g {
+ // scheduled and should be. Callers should first check that
+ // (traceEnabled() || traceShuttingDown()) is true.
+ func traceReaderAvailable() *g {
+-	// There are three conditions under which we definitely want to schedule
++	// There are two conditions under which we definitely want to schedule
+ 	// the reader:
+ 	// - The reader is lagging behind in finishing off the last generation.
+ 	//   In this case, trace buffers could even be empty, but the trace
+@@ -965,12 +965,10 @@ func traceReaderAvailable() *g {
+ 	// - The reader has pending work to process for it's reader generation
+ 	//   (assuming readerGen is not lagging behind). Note that we also want
+ 	//   to be careful *not* to schedule the reader if there's no work to do.
+-	// - The trace is shutting down. The trace stopper blocks on the reader
+-	//   to finish, much like trace advancement.
+ 	//
+ 	// We also want to be careful not to schedule the reader if there's no
+ 	// reason to.
+-	if trace.flushedGen.Load() == trace.readerGen.Load() || trace.workAvailable.Load() || trace.shutdown.Load() {
++	if trace.flushedGen.Load() == trace.readerGen.Load() || trace.workAvailable.Load() {
+ 		return trace.reader.Load()
+ 	}
+ 	return nil

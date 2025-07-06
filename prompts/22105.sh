@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 22105: edcad8639a902741dc49f77d000ed62b0cc6956f
+# Index 22105: 4b96409aacfb569ac2564240d8aadd668b7c25fa
 
 echo "🚀 Generating explanation for commit 22105..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 22105..."
 
 ### メタデータ
 - **コミットインデックス**: 22105
-- **コミットハッシュ**: edcad8639a902741dc49f77d000ed62b0cc6956f
-- **GitHub URL**: https://github.com/golang/go/commit/edcad8639a902741dc49f77d000ed62b0cc6956f
+- **コミットハッシュ**: 4b96409aacfb569ac2564240d8aadd668b7c25fa
+- **GitHub URL**: https://github.com/golang/go/commit/4b96409aacfb569ac2564240d8aadd668b7c25fa
 
 ### 章構成
 

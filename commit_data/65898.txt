@@ -1,0 +1,99 @@
+commit 3f002abb60b86a851e190d9246278aa53db11f87
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 6 18:23:21 2025 +0000
+
+    internal/sync: add test from issue 70970
+    
+    This test checks a use-case of sync.Map that's expected to be more
+    common in Go 1.24 and beyond, as a concurrent weak cache.
+    
+    The test will also fail if CompareAndSwap is not properly atomic with
+    CompareAndDelete, which is what #70970 is actually about. We should have
+    more explicit tests checking mutual atomicity of operations, but
+    for now this is OK, and still useful.
+    
+    For #70970.
+    
+    Change-Id: I6db508660691586a8af9ad511c9a96432d333343
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640737
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/sync/hashtriemap_test.go | 59 +++++++++++++++++++++++++++++++++++
+ 1 file changed, 59 insertions(+)
+
+diff --git a/src/internal/sync/hashtriemap_test.go b/src/internal/sync/hashtriemap_test.go
+index 5476add880..d9219f841a 100644
+--- a/src/internal/sync/hashtriemap_test.go
++++ b/src/internal/sync/hashtriemap_test.go
+@@ -12,6 +12,7 @@ import (
+ 	"strconv"
+ 	"sync"
+ 	"testing"
++	"weak"
+ )
+ 
+ func TestHashTrieMap(t *testing.T) {
+@@ -921,3 +922,61 @@ func init() {
+ 		testDataLarge[i] = fmt.Sprintf("%b", i)
+ 	}
+ }
++
++// TestConcurrentCache tests HashTrieMap in a scenario where it is used as
++// the basis of a memory-efficient concurrent cache. We're specifically
++// looking to make sure that CompareAndSwap and CompareAndDelete are
++// atomic with respect to one another. When competing for the same
++// key-value pair, they must not both succeed.
++//
++// This test is a regression test for issue #70970.
++func TestConcurrentCache(t *testing.T) {
++	type dummy [32]byte
++
++	var m isync.HashTrieMap[int, weak.Pointer[dummy]]
++
++	type cleanupArg struct {
++		key   int
++		value weak.Pointer[dummy]
++	}
++	cleanup := func(arg cleanupArg) {
++		m.CompareAndDelete(arg.key, arg.value)
++	}
++	get := func(m *isync.HashTrieMap[int, weak.Pointer[dummy]], key int) *dummy {
++		nv := new(dummy)
++		nw := weak.Make(nv)
++		for {
++			w, loaded := m.LoadOrStore(key, nw)
++			if !loaded {
++				runtime.AddCleanup(nv, cleanup, cleanupArg{key, nw})
++				return nv
++			}
++			if v := w.Value(); v != nil {
++				return v
++			}
++
++			// Weak pointer was reclaimed, try to replace it with nw.
++			if m.CompareAndSwap(key, w, nw) {
++				runtime.AddCleanup(nv, cleanup, cleanupArg{key, nw})
++				return nv
++			}
++		}
++	}
++
++	const N = 100_000
++	const P = 5_000
++
++	var wg sync.WaitGroup
++	wg.Add(N)
++	for i := range N {
++		go func() {
++			defer wg.Done()
++			a := get(&m, i%P)
++			b := get(&m, i%P)
++			if a != b {
++				t.Errorf("consecutive cache reads returned different values: a != b (%p vs %p)\n", a, b)
++			}
++		}()
++	}
++	wg.Wait()
++}

@@ -1,0 +1,74 @@
+commit 5164f6169725bb88a29482f497e1bbf099a5dd29
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 19 13:23:09 2024 -0700
+
+    os: simplify TestRemoveAllLongPath
+    
+    Simplify the test logic by using t.TempDir, t.Chdir, and Chdir to
+    startPath parent.
+    
+    Change-Id: Ibe71a8c26b8e54c22eb93510037605b69c67bc7a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606896
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/os/removeall_test.go | 35 ++++++++++-------------------------
+ 1 file changed, 10 insertions(+), 25 deletions(-)
+
+diff --git a/src/os/removeall_test.go b/src/os/removeall_test.go
+index 6aca98021f..454a6b5d0a 100644
+--- a/src/os/removeall_test.go
++++ b/src/os/removeall_test.go
+@@ -159,40 +159,25 @@ func TestRemoveAllLongPath(t *testing.T) {
+ 		t.Skip("skipping for not implemented platforms")
+ 	}
+ 
+-	prevDir, err := Getwd()
+-	if err != nil {
+-		t.Fatalf("Could not get wd: %s", err)
+-	}
++	startPath := t.TempDir()
++	t.Chdir(startPath)
+ 
+-	startPath, err := MkdirTemp("", "TestRemoveAllLongPath-")
+-	if err != nil {
+-		t.Fatalf("Could not create TempDir: %s", err)
+-	}
+-	defer RemoveAll(startPath)
+-
+-	err = Chdir(startPath)
+-	if err != nil {
+-		t.Fatalf("Could not chdir %s: %s", startPath, err)
+-	}
+-
+-	// Removing paths with over 4096 chars commonly fails
++	// Removing paths with over 4096 chars commonly fails.
++	name := strings.Repeat("a", 100)
+ 	for i := 0; i < 41; i++ {
+-		name := strings.Repeat("a", 100)
+-
+-		err = Mkdir(name, 0755)
+-		if err != nil {
++		if err := Mkdir(name, 0755); err != nil {
+ 			t.Fatalf("Could not mkdir %s: %s", name, err)
+ 		}
+-
+-		err = Chdir(name)
+-		if err != nil {
++		if err := Chdir(name); err != nil {
+ 			t.Fatalf("Could not chdir %s: %s", name, err)
+ 		}
+ 	}
+ 
+-	err = Chdir(prevDir)
++	// Chdir out of startPath before attempting to remove it,
++	// otherwise RemoveAll fails on aix, illumos and solaris.
++	err := Chdir(filepath.Join(startPath, ".."))
+ 	if err != nil {
+-		t.Fatalf("Could not chdir %s: %s", prevDir, err)
++		t.Fatalf("Could not chdir: %s", err)
+ 	}
+ 
+ 	err = RemoveAll(startPath)

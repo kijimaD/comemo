@@ -1,0 +1,102 @@
+commit 7d91cc26abdcc213de83bb6122a929ff6449be8f
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Aug 20 20:14:59 2024 +0000
+
+    cmd/go: support both .netrc and _netrc in windows
+    
+    For #66832
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I58e20fe0b8e38dd9383d1df334acaa3a2abad756
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607237
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/internal/auth/netrc.go               | 16 +++++++--
+ src/cmd/go/testdata/script/netrc_issue66832.txt | 48 +++++++++++++++++++++++++
+ 2 files changed, 61 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/auth/netrc.go b/src/cmd/go/internal/auth/netrc.go
+index f48dec1ab5..4191ccb293 100644
+--- a/src/cmd/go/internal/auth/netrc.go
++++ b/src/cmd/go/internal/auth/netrc.go
+@@ -78,11 +78,21 @@ func netrcPath() (string, error) {
+ 	if err != nil {
+ 		return "", err
+ 	}
+-	base := ".netrc"
++
++	// Prioritize _netrc on Windows for compatibility.
+ 	if runtime.GOOS == "windows" {
+-		base = "_netrc"
++		legacyPath := filepath.Join(dir, "_netrc")
++		_, err := os.Stat(legacyPath)
++		if err == nil {
++			return legacyPath, nil
++		}
++		if !os.IsNotExist(err) {
++			return "", err
++		}
++
+ 	}
+-	return filepath.Join(dir, base), nil
++	// Use the .netrc file (fall back to it if we're on Windows).
++	return filepath.Join(dir, ".netrc"), nil
+ }
+ 
+ var readNetrc = sync.OnceValues(func() ([]netrcLine, error) {
+diff --git a/src/cmd/go/testdata/script/netrc_issue66832.txt b/src/cmd/go/testdata/script/netrc_issue66832.txt
+new file mode 100644
+index 0000000000..19c2406305
+--- /dev/null
++++ b/src/cmd/go/testdata/script/netrc_issue66832.txt
+@@ -0,0 +1,48 @@
++# This test ensures .netrc and _netrc are both supported on windows.
++# See golang.org/issue/66832
++
++[!GOOS:windows] skip
++[short] skip
++
++env GOPROXY=direct
++env GOSUMDB=off
++mkdir $WORK\home
++env USERPROFILE=$WORK\home
++
++# Make sure _netrc works.
++cp netrc_file $WORK\home\_netrc
++cp go.mod.orig go.mod
++go mod tidy
++go list all
++stdout vcs-test.golang.org/auth/or401
++stdout vcs-test.golang.org/auth/or404
++rm $WORK\home\_netrc
++
++# Without credentials, downloading a module from a path that requires HTTPS
++# basic auth should fail.
++cp go.mod.orig go.mod
++! go mod tidy
++stderr '^\tserver response: ACCESS DENIED, buddy$'
++stderr '^\tserver response: File\? What file\?$'
++
++# Make sure .netrc works as a fallback.
++cp netrc_file $WORK\home\.netrc
++cp go.mod.orig go.mod
++go mod tidy
++go list all
++stdout vcs-test.golang.org/auth/or401
++stdout vcs-test.golang.org/auth/or404
++
++-- go.mod.orig --
++module private.example.com
++-- main.go --
++package useprivate
++
++import (
++	_ "vcs-test.golang.org/auth/or401"
++	_ "vcs-test.golang.org/auth/or404"
++)
++-- netrc_file --
++machine vcs-test.golang.org
++	login aladdin
++	password opensesame

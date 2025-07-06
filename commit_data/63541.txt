@@ -1,0 +1,75 @@
+commit fc6a5ea88c913cbeb9af432c1ec16b4c72f4b4ba
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Tue Apr 23 14:16:04 2024 -0700
+
+    runtime: test mutex contention stacks and counts
+    
+    Fully testing the runtime's profiles and metrics for contention on its
+    internal mutex values involves comparing two separate clocks (cputicks
+    for the profile and nanotime for the metric), verifying its fractional
+    sampling (when MutexProfileRate is greater than 1), and observing a very
+    small critical section outside of the test's control (semrelease).
+    Flakiness (#64253) from those parts of the test have led to skipping it
+    entirely.
+    
+    But there are portions of the mutex profiling behavior that should have
+    more consistent behavior: for a mutex under the test's control, the test
+    and the runtime should be able to agree that the test successfully
+    induced contention, and should agree on the call stack that caused the
+    contention. Allow those more consistent parts to run.
+    
+    For #64253
+    
+    Change-Id: I7f368d3265a5c003da2765164276fab616eb9959
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581296
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+---
+ src/runtime/metrics_test.go | 15 ++++++++++-----
+ 1 file changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 1d99b86fe6..859bc712f1 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -948,8 +948,6 @@ func TestSchedPauseMetrics(t *testing.T) {
+ }
+ 
+ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+-	testenv.SkipFlaky(t, 64253)
+-
+ 	old := runtime.SetMutexProfileFraction(0) // enabled during sub-tests
+ 	defer runtime.SetMutexProfileFraction(old)
+ 	if old != 0 {
+@@ -1181,12 +1179,17 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+ 			}
+ 
+ 			const slop = 1.5 // account for nanotime vs cputicks
+-			if profileGrowth > slop*metricGrowth || metricGrowth > slop*profileGrowth {
+-				t.Errorf("views differ by more than %fx", slop)
+-			}
++			t.Run("compare timers", func(t *testing.T) {
++				testenv.SkipFlaky(t, 64253)
++				if profileGrowth > slop*metricGrowth || metricGrowth > slop*profileGrowth {
++					t.Errorf("views differ by more than %fx", slop)
++				}
++			})
+ 		})
+ 
+ 		t.Run("sample-2", func(t *testing.T) {
++			testenv.SkipFlaky(t, 64253)
++
+ 			old := runtime.SetMutexProfileFraction(2)
+ 			defer runtime.SetMutexProfileFraction(old)
+ 
+@@ -1218,6 +1221,8 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+ 	})
+ 
+ 	t.Run("runtime.semrelease", func(t *testing.T) {
++		testenv.SkipFlaky(t, 64253)
++
+ 		old := runtime.SetMutexProfileFraction(1)
+ 		defer runtime.SetMutexProfileFraction(old)
+ 

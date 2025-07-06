@@ -1,0 +1,131 @@
+commit 3ada42ffedf61343cc8a7cd7d6293bd646ecf3a6
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Mar 20 16:12:15 2025 -0700
+
+    go/types, types2: align trace output a bit better for easier debugging
+    
+    Compute alignment padding rather than using a tab in trace output.
+    This aligns the ":" after the file position in typical cases (files
+    shorter than 1000 lines, lines shorter than 100 columns), resulting
+    in nicer trace output for easier debugging.
+    
+    Before this CL (example trace):
+    
+    x.go:8:2:  -- checking type A (white, objPath = )
+    x.go:8:11:  .  -- type B
+    x.go:9:2:  .  .  -- checking type B (white, objPath = A)
+    x.go:9:14:  .  .  .  -- type C[D]
+    x.go:9:13:  .  .  .  .  -- instantiating type C with [D]
+    x.go:9:13:  .  .  .  .  .  -- type C
+    x.go:10:2:  .  .  .  .  .  .  -- checking type C (white, objPath = A->B)
+    x.go:10:6:  .  .  .  .  .  .  .  -- type any
+    x.go:10:6:  .  .  .  .  .  .  .  => any (under = any) // *Alias
+    x.go:10:11:  .  .  .  .  .  .  .  -- type struct{}
+    x.go:10:11:  .  .  .  .  .  .  .  => struct{} // *Struct
+    x.go:10:2:  .  .  .  .  .  .  => type C[_ any] struct{} (black)
+    
+    With this CL:
+    
+    x.go:8:2   :  -- checking type A (white, objPath = )
+    x.go:8:11  :  .  -- type B
+    x.go:9:2   :  .  .  -- checking type B (white, objPath = A)
+    x.go:9:14  :  .  .  .  -- type C[D]
+    x.go:9:13  :  .  .  .  .  -- instantiating type C with [D]
+    x.go:9:13  :  .  .  .  .  .  -- type C
+    x.go:10:2  :  .  .  .  .  .  .  -- checking type C (white, objPath = A->B)
+    x.go:10:6  :  .  .  .  .  .  .  .  -- type any
+    x.go:10:6  :  .  .  .  .  .  .  .  => any (under = any) // *Alias
+    x.go:10:11 :  .  .  .  .  .  .  .  -- type struct{}
+    x.go:10:11 :  .  .  .  .  .  .  .  => struct{} // *Struct
+    x.go:10:2  :  .  .  .  .  .  .  => type C[_ any] struct{} (black)
+    
+    Change-Id: Ibcf346737f57ec5351d1e1e65178e2c3c155d766
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659755
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/format.go | 21 ++++++++++++++++++++-
+ src/go/types/format.go                    | 25 +++++++++++++++++++++++--
+ 2 files changed, 43 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/format.go b/src/cmd/compile/internal/types2/format.go
+index 442d219d1a..b61dfda1c8 100644
+--- a/src/cmd/compile/internal/types2/format.go
++++ b/src/cmd/compile/internal/types2/format.go
+@@ -88,13 +88,32 @@ func (check *Checker) sprintf(format string, args ...any) string {
+ }
+ 
+ func (check *Checker) trace(pos syntax.Pos, format string, args ...any) {
+-	fmt.Printf("%s:\t%s%s\n",
++	// Use the width of line and pos values to align the ":" by adding padding before it.
++	// Cap padding at 5: 3 digits for the line, 2 digits for the column number, which is
++	// ok for most cases.
++	w := ndigits(pos.Line()) + ndigits(pos.Col())
++	pad := "     "[:max(5-w, 0)]
++	fmt.Printf("%s%s:  %s%s\n",
+ 		pos,
++		pad,
+ 		strings.Repeat(".  ", check.indent),
+ 		sprintf(check.qualifier, true, format, args...),
+ 	)
+ }
+ 
++// ndigits returns the number of decimal digits in x.
++// For x > 100, the result is always 3.
++func ndigits(x uint) int {
++	switch {
++	case x < 10:
++		return 1
++	case x < 100:
++		return 2
++	default:
++		return 3
++	}
++}
++
+ // dump is only needed for debugging
+ func (check *Checker) dump(format string, args ...any) {
+ 	fmt.Println(sprintf(check.qualifier, true, format, args...))
+diff --git a/src/go/types/format.go b/src/go/types/format.go
+index 09e599c3c3..550d22f5ae 100644
+--- a/src/go/types/format.go
++++ b/src/go/types/format.go
+@@ -88,13 +88,34 @@ func (check *Checker) sprintf(format string, args ...any) string {
+ }
+ 
+ func (check *Checker) trace(pos token.Pos, format string, args ...any) {
+-	fmt.Printf("%s:\t%s%s\n",
+-		check.fset.Position(pos),
++	pos1 := check.fset.Position(pos)
++	// Use the width of line and pos values to align the ":" by adding padding before it.
++	// Cap padding at 5: 3 digits for the line, 2 digits for the column number, which is
++	// ok for most cases.
++	w := ndigits(pos1.Line) + ndigits(pos1.Column)
++	pad := "     "[:max(5-w, 0)]
++	fmt.Printf("%s%s:  %s%s\n",
++		pos1,
++		pad,
+ 		strings.Repeat(".  ", check.indent),
+ 		sprintf(check.fset, check.qualifier, true, format, args...),
+ 	)
+ }
+ 
++// ndigits returns the number of decimal digits in x.
++// For x < 10, the result is always 1.
++// For x > 100, the result is always 3.
++func ndigits(x int) int {
++	switch {
++	case x < 10:
++		return 1
++	case x < 100:
++		return 2
++	default:
++		return 3
++	}
++}
++
+ // dump is only needed for debugging
+ func (check *Checker) dump(format string, args ...any) {
+ 	fmt.Println(sprintf(check.fset, check.qualifier, true, format, args...))

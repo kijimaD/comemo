@@ -1,0 +1,77 @@
+commit 396a48bea6f2dc07ef103da298eec05cb6167892
+Author: Huang Qiqi <huangqiqi@loongson.cn>
+Date:   Tue Jun 11 19:06:29 2024 +0800
+
+    math/big: optimize subVV function for loong64
+    
+    Benchmark results on Loongson 3C5000 (which is an LA464 implementation):
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/big
+    cpu: Loongson-3C5000 @ 2200.00MHz
+                 │ test/old_3c5000_subvv.log │      test/new_3c5000_subvv.log      │
+                 │          sec/op           │   sec/op     vs base                │
+    SubVV/1                     10.920n ± 0%   7.657n ± 0%  -29.88% (p=0.000 n=20)
+    SubVV/2                     14.100n ± 0%   8.841n ± 0%  -37.30% (p=0.000 n=20)
+    SubVV/3                      16.38n ± 0%   11.06n ± 0%  -32.48% (p=0.000 n=20)
+    SubVV/4                      18.65n ± 0%   12.85n ± 0%  -31.10% (p=0.000 n=20)
+    SubVV/5                      20.93n ± 0%   14.79n ± 0%  -29.34% (p=0.000 n=20)
+    SubVV/10                     32.30n ± 0%   22.29n ± 0%  -30.99% (p=0.000 n=20)
+    SubVV/100                    244.3n ± 0%   149.2n ± 0%  -38.93% (p=0.000 n=20)
+    SubVV/1000                   2.292µ ± 0%   1.378µ ± 0%  -39.88% (p=0.000 n=20)
+    SubVV/10000                  26.26µ ± 0%   25.64µ ± 0%   -2.33% (p=0.000 n=20)
+    SubVV/100000                 341.3µ ± 0%   238.0µ ± 0%  -30.26% (p=0.000 n=20)
+    geomean                      209.1n        144.5n       -30.86%
+    
+    Change-Id: I3863c2c6728f1b0f8fecbf77de13254299c5b1cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659877
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/math/big/arith_loong64.s | 29 ++++++++++++++++++++++++++++-
+ 1 file changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/arith_loong64.s b/src/math/big/arith_loong64.s
+index 9b22a26553..2a2ffafeef 100644
+--- a/src/math/big/arith_loong64.s
++++ b/src/math/big/arith_loong64.s
+@@ -12,8 +12,35 @@
+ TEXT ·addVV(SB),NOSPLIT,$0
+ 	JMP ·addVV_g(SB)
+ 
++// func subVV(z, x, y []Word) (c Word)
+ TEXT ·subVV(SB),NOSPLIT,$0
+-	JMP ·subVV_g(SB)
++	// input:
++	//   R4: z
++	//   R5: z_len
++	//   R7: x
++	//   R10: y
++	MOVV	z+0(FP), R4
++	MOVV	z_len+8(FP), R5
++	MOVV	x+24(FP), R7
++	MOVV	y+48(FP), R10
++	MOVV	$0, R6
++	SLLV	$3, R5
++	MOVV	$0, R8
++loop:
++	BEQ	R5, R6, done
++	MOVV	(R6)(R7), R9
++	MOVV	(R6)(R10), R11
++	SUBV	R11, R9, R11	// x1 - y1 = z1', if z1' > x1 then overflow
++	SUBV	R8, R11, R12	// z1' - c0 = z1, if z1 > z1' then overflow
++	SGTU	R11, R9, R9
++	SGTU	R12, R11, R11
++	MOVV	R12, (R6)(R4)
++	OR	R9, R11, R8
++	ADDV	$8, R6
++	JMP	loop
++done:
++	MOVV	R8, c+72(FP)
++	RET
+ 
+ // func addVW(z, x []Word, y Word) (c Word)
+ TEXT ·addVW(SB),NOSPLIT,$0

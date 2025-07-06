@@ -1,0 +1,819 @@
+commit de0aafa3c7f669df0a93dd62cc336ebda52815f2
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Sep 4 12:24:55 2024 -0400
+
+    vendor/golang.org/x/tools: update to v0.24.1-0.20240904143311-70f56264139c
+    
+    Among other things, this should fix a regression in printf
+    whereby materialized aliases caused "any" and "interface{}"
+    in printf signatures not to be recognized as identical.
+    
+    It also updates ureader.go used by vendored x/tools during
+    some tests, including cmd/internal/moddeps.TestAllDependencies.
+    This test uses golang.org/x/tools/cmd/bundle which uses x/reader.
+    
+    Fixes #68796
+    
+    Change-Id: I9f0711e66a5c4daaffe695c515aea3b8fb3d01e0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610736
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../golang.org/x/tools/go/analysis/analysis.go     |   9 ++
+ .../tools/go/analysis/passes/buildtag/buildtag.go  |  53 ++++++++++
+ .../tools/go/analysis/passes/copylock/copylock.go  |  46 ++++++++-
+ .../x/tools/go/analysis/passes/printf/doc.go       |  12 +++
+ .../x/tools/go/analysis/passes/printf/printf.go    | 110 ++++++++++-----------
+ .../x/tools/go/analysis/passes/tests/tests.go      |   7 +-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |   9 ++
+ .../x/tools/go/types/objectpath/objectpath.go      |  40 +++++---
+ .../golang.org/x/tools/internal/aliases/aliases.go |  10 +-
+ .../x/tools/internal/aliases/aliases_go121.go      |  16 ++-
+ .../x/tools/internal/aliases/aliases_go122.go      |  41 +++++++-
+ .../golang.org/x/tools/internal/stdlib/manifest.go |   2 +-
+ .../x/tools/internal/typesinternal/errorcode.go    |   8 +-
+ .../x/tools/internal/versions/constraint.go        |  13 +++
+ .../x/tools/internal/versions/constraint_go121.go  |  14 +++
+ src/cmd/vendor/modules.txt                         |   4 +-
+ 18 files changed, 299 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 7e8860c5b4..88156e2bc3 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -11,7 +11,7 @@ require (
+ 	golang.org/x/sys v0.23.0
+ 	golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97
+ 	golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292
+-	golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c
++	golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index fff1e51f80..d506614388 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -22,7 +22,7 @@ golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292 h1:BOrQi08eIX3cDgGcMgFON
+ golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292/go.mod h1:F3qCibpT5AMpCRfhfT53vVJwhLtIVHhB9XDjfFvnMI4=
+ golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 h1:MlCLrwVF1WvXT14xTzwuKN3u4LpUve8sG/gJUCuBpe8=
+ golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
+-golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c h1:jGHQpjWnvPa5qmjhxUYeut+TlRYWRGaMcOnAZ4S5IOo=
+-golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c/go.mod h1:pnu6ufv6vQkll6szChhK3C3L/ruaIv5eBeztNG8wtsI=
++golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c h1:JImdv91aqIPqamNg5sOTUjNQD++5KkvchZi2BcYlNoE=
++golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c/go.mod h1:IV2Kidsnn7A8K7hHxn/wcUfHXkViw0LLHdu8LnpT8LU=
+ rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef h1:mqLYrXCXYEZOop9/Dbo6RPX11539nwiCNBb1icVPmw8=
+ rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index ad27c27d1d..aa02eeda68 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -100,6 +100,8 @@ type Pass struct {
+ 	TypesSizes   types.Sizes    // function for computing sizes of types
+ 	TypeErrors   []types.Error  // type errors (only if Analyzer.RunDespiteErrors)
+ 
++	Module *Module // the package's enclosing module (possibly nil in some drivers)
++
+ 	// Report reports a Diagnostic, a finding about a specific location
+ 	// in the analyzed source code such as a potential mistake.
+ 	// It may be called by the Run function.
+@@ -238,3 +240,10 @@ func (pass *Pass) String() string {
+ type Fact interface {
+ 	AFact() // dummy method to avoid type errors
+ }
++
++// A Module describes the module to which a package belongs.
++type Module struct {
++	Path      string // module path
++	Version   string // module version ("" if unknown, such as for workspace modules)
++	GoVersion string // go version used in module (e.g. "go1.22.0")
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+index 5b4cf9d9ed..b5a2d2775f 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+@@ -15,6 +15,7 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
++	"golang.org/x/tools/internal/versions"
+ )
+ 
+ const Doc = "check //go:build and // +build directives"
+@@ -264,6 +265,8 @@ func (check *checker) goBuildLine(pos token.Pos, line string) {
+ 		return
+ 	}
+ 
++	check.tags(pos, x)
++
+ 	if check.goBuild == nil {
+ 		check.goBuild = x
+ 	}
+@@ -323,6 +326,8 @@ func (check *checker) plusBuildLine(pos token.Pos, line string) {
+ 			check.crossCheck = false
+ 			return
+ 		}
++		check.tags(pos, y)
++
+ 		if check.plusBuild == nil {
+ 			check.plusBuild = y
+ 		} else {
+@@ -363,3 +368,51 @@ func (check *checker) finish() {
+ 		return
+ 	}
+ }
++
++// tags reports issues in go versions in tags within the expression e.
++func (check *checker) tags(pos token.Pos, e constraint.Expr) {
++	// Check that constraint.GoVersion is meaningful (>= go1.21).
++	if versions.ConstraintGoVersion == nil {
++		return
++	}
++
++	// Use Eval to visit each tag.
++	_ = e.Eval(func(tag string) bool {
++		if malformedGoTag(tag) {
++			check.pass.Reportf(pos, "invalid go version %q in build constraint", tag)
++		}
++		return false // result is immaterial as Eval does not short-circuit
++	})
++}
++
++// malformedGoTag returns true if a tag is likely to be a malformed
++// go version constraint.
++func malformedGoTag(tag string) bool {
++	// Not a go version?
++	if !strings.HasPrefix(tag, "go1") {
++		// Check for close misspellings of the "go1." prefix.
++		for _, pre := range []string{"go.", "g1.", "go"} {
++			suffix := strings.TrimPrefix(tag, pre)
++			if suffix != tag {
++				if valid, ok := validTag("go1." + suffix); ok && valid {
++					return true
++				}
++			}
++		}
++		return false
++	}
++
++	// The tag starts with "go1" so it is almost certainly a GoVersion.
++	// Report it if it is not a valid build constraint.
++	valid, ok := validTag(tag)
++	return ok && !valid
++}
++
++// validTag returns (valid, ok) where valid reports when a tag is valid,
++// and ok reports determining if the tag is valid succeeded.
++func validTag(tag string) (valid bool, ok bool) {
++	if versions.ConstraintGoVersion != nil {
++		return versions.ConstraintGoVersion(&constraint.TagExpr{Tag: tag}) != "", true
++	}
++	return false, false
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+index 8f6e7db6a2..0d63cd1612 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/copylock/copylock.go
+@@ -20,6 +20,7 @@ import (
+ 	"golang.org/x/tools/go/ast/inspector"
+ 	"golang.org/x/tools/internal/aliases"
+ 	"golang.org/x/tools/internal/typeparams"
++	"golang.org/x/tools/internal/versions"
+ )
+ 
+ const Doc = `check for locks erroneously passed by value
+@@ -40,18 +41,25 @@ var Analyzer = &analysis.Analyzer{
+ func run(pass *analysis.Pass) (interface{}, error) {
+ 	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+ 
++	var goversion string // effective file version ("" => unknown)
+ 	nodeFilter := []ast.Node{
+ 		(*ast.AssignStmt)(nil),
+ 		(*ast.CallExpr)(nil),
+ 		(*ast.CompositeLit)(nil),
++		(*ast.File)(nil),
+ 		(*ast.FuncDecl)(nil),
+ 		(*ast.FuncLit)(nil),
+ 		(*ast.GenDecl)(nil),
+ 		(*ast.RangeStmt)(nil),
+ 		(*ast.ReturnStmt)(nil),
+ 	}
+-	inspect.Preorder(nodeFilter, func(node ast.Node) {
++	inspect.WithStack(nodeFilter, func(node ast.Node, push bool, stack []ast.Node) bool {
++		if !push {
++			return false
++		}
+ 		switch node := node.(type) {
++		case *ast.File:
++			goversion = versions.FileVersion(pass.TypesInfo, node)
+ 		case *ast.RangeStmt:
+ 			checkCopyLocksRange(pass, node)
+ 		case *ast.FuncDecl:
+@@ -61,7 +69,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		case *ast.CallExpr:
+ 			checkCopyLocksCallExpr(pass, node)
+ 		case *ast.AssignStmt:
+-			checkCopyLocksAssign(pass, node)
++			checkCopyLocksAssign(pass, node, goversion, parent(stack))
+ 		case *ast.GenDecl:
+ 			checkCopyLocksGenDecl(pass, node)
+ 		case *ast.CompositeLit:
+@@ -69,16 +77,36 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 		case *ast.ReturnStmt:
+ 			checkCopyLocksReturnStmt(pass, node)
+ 		}
++		return true
+ 	})
+ 	return nil, nil
+ }
+ 
+ // checkCopyLocksAssign checks whether an assignment
+ // copies a lock.
+-func checkCopyLocksAssign(pass *analysis.Pass, as *ast.AssignStmt) {
+-	for i, x := range as.Rhs {
++func checkCopyLocksAssign(pass *analysis.Pass, assign *ast.AssignStmt, goversion string, parent ast.Node) {
++	lhs := assign.Lhs
++	for i, x := range assign.Rhs {
+ 		if path := lockPathRhs(pass, x); path != nil {
+-			pass.ReportRangef(x, "assignment copies lock value to %v: %v", analysisutil.Format(pass.Fset, as.Lhs[i]), path)
++			pass.ReportRangef(x, "assignment copies lock value to %v: %v", analysisutil.Format(pass.Fset, assign.Lhs[i]), path)
++			lhs = nil // An lhs has been reported. We prefer the assignment warning and do not report twice.
++		}
++	}
++
++	// After GoVersion 1.22, loop variables are implicitly copied on each iteration.
++	// So a for statement may inadvertently copy a lock when any of the
++	// iteration variables contain locks.
++	if assign.Tok == token.DEFINE && versions.AtLeast(goversion, versions.Go1_22) {
++		if parent, _ := parent.(*ast.ForStmt); parent != nil && parent.Init == assign {
++			for _, l := range lhs {
++				if id, ok := l.(*ast.Ident); ok && id.Name != "_" {
++					if obj := pass.TypesInfo.Defs[id]; obj != nil && obj.Type() != nil {
++						if path := lockPath(pass.Pkg, obj.Type(), nil); path != nil {
++							pass.ReportRangef(l, "for loop iteration copies lock value to %v: %v", analysisutil.Format(pass.Fset, l), path)
++						}
++					}
++				}
++			}
+ 		}
+ 	}
+ }
+@@ -340,6 +368,14 @@ func lockPath(tpkg *types.Package, typ types.Type, seen map[types.Type]bool) typ
+ 	return nil
+ }
+ 
++// parent returns the second from the last node on stack if it exists.
++func parent(stack []ast.Node) ast.Node {
++	if len(stack) >= 2 {
++		return stack[len(stack)-2]
++	}
++	return nil
++}
++
+ var lockerType *types.Interface
+ 
+ // Construct a sync.Locker interface type.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go
+index 85da8346f7..eebf40208d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go
+@@ -45,6 +45,18 @@
+ //
+ //	log.Print("%d", 123) // log.Print call has possible formatting directive %d
+ //
++// Conversely, it also reports calls to Printf-like functions with a
++// non-constant format string and no other arguments:
++//
++//	fmt.Printf(message) // non-constant format string in call to fmt.Printf
++//
++// Such calls may have been intended for the function's Print-like
++// counterpart: if the value of message happens to contain "%",
++// misformatting will occur. In this case, the checker additionally
++// suggests a fix to turn the call into:
++//
++//	fmt.Printf("%s", message)
++//
+ // # Inferred printf wrappers
+ //
+ // Functions that delegate their arguments to fmt.Printf are
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 3235019258..c548cb1c1d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -159,10 +159,11 @@ func maybePrintfWrapper(info *types.Info, decl ast.Decl) *printfWrapper {
+ 	params := sig.Params()
+ 	nparams := params.Len() // variadic => nonzero
+ 
++	// Check final parameter is "args ...interface{}".
+ 	args := params.At(nparams - 1)
+-	iface, ok := args.Type().(*types.Slice).Elem().(*types.Interface)
++	iface, ok := aliases.Unalias(args.Type().(*types.Slice).Elem()).(*types.Interface)
+ 	if !ok || !iface.Empty() {
+-		return nil // final (args) param is not ...interface{}
++		return nil
+ 	}
+ 
+ 	// Is second last param 'format string'?
+@@ -372,64 +373,29 @@ var isPrint = stringSet{
+ 	"(testing.TB).Skipf":  true,
+ }
+ 
+-// formatString returns the format string argument and its index within
+-// the given printf-like call expression.
+-//
+-// The last parameter before variadic arguments is assumed to be
+-// a format string.
+-//
+-// The first string literal or string constant is assumed to be a format string
+-// if the call's signature cannot be determined.
+-//
+-// If it cannot find any format string parameter, it returns ("", -1).
+-func formatString(pass *analysis.Pass, call *ast.CallExpr) (format string, idx int) {
++// formatStringIndex returns the index of the format string (the last
++// non-variadic parameter) within the given printf-like call
++// expression, or -1 if unknown.
++func formatStringIndex(pass *analysis.Pass, call *ast.CallExpr) int {
+ 	typ := pass.TypesInfo.Types[call.Fun].Type
+-	if typ != nil {
+-		if sig, ok := typ.(*types.Signature); ok {
+-			if !sig.Variadic() {
+-				// Skip checking non-variadic functions.
+-				return "", -1
+-			}
+-			idx := sig.Params().Len() - 2
+-			if idx < 0 {
+-				// Skip checking variadic functions without
+-				// fixed arguments.
+-				return "", -1
+-			}
+-			s, ok := stringConstantArg(pass, call, idx)
+-			if !ok {
+-				// The last argument before variadic args isn't a string.
+-				return "", -1
+-			}
+-			return s, idx
+-		}
++	if typ == nil {
++		return -1 // missing type
+ 	}
+-
+-	// Cannot determine call's signature. Fall back to scanning for the first
+-	// string constant in the call.
+-	for idx := range call.Args {
+-		if s, ok := stringConstantArg(pass, call, idx); ok {
+-			return s, idx
+-		}
+-		if pass.TypesInfo.Types[call.Args[idx]].Type == types.Typ[types.String] {
+-			// Skip checking a call with a non-constant format
+-			// string argument, since its contents are unavailable
+-			// for validation.
+-			return "", -1
+-		}
++	sig, ok := typ.(*types.Signature)
++	if !ok {
++		return -1 // ill-typed
+ 	}
+-	return "", -1
+-}
+-
+-// stringConstantArg returns call's string constant argument at the index idx.
+-//
+-// ("", false) is returned if call's argument at the index idx isn't a string
+-// constant.
+-func stringConstantArg(pass *analysis.Pass, call *ast.CallExpr, idx int) (string, bool) {
+-	if idx >= len(call.Args) {
+-		return "", false
++	if !sig.Variadic() {
++		// Skip checking non-variadic functions.
++		return -1
+ 	}
+-	return stringConstantExpr(pass, call.Args[idx])
++	idx := sig.Params().Len() - 2
++	if idx < 0 {
++		// Skip checking variadic functions without
++		// fixed arguments.
++		return -1
++	}
++	return idx
+ }
+ 
+ // stringConstantExpr returns expression's string constant value.
+@@ -536,10 +502,34 @@ type formatState struct {
+ 
+ // checkPrintf checks a call to a formatted print routine such as Printf.
+ func checkPrintf(pass *analysis.Pass, kind Kind, call *ast.CallExpr, fn *types.Func) {
+-	format, idx := formatString(pass, call)
+-	if idx < 0 {
+-		if false {
+-			pass.Reportf(call.Lparen, "can't check non-constant format in call to %s", fn.FullName())
++	idx := formatStringIndex(pass, call)
++	if idx < 0 || idx >= len(call.Args) {
++		return
++	}
++	formatArg := call.Args[idx]
++	format, ok := stringConstantExpr(pass, formatArg)
++	if !ok {
++		// Format string argument is non-constant.
++
++		// It is a common mistake to call fmt.Printf(msg) with a
++		// non-constant format string and no arguments:
++		// if msg contains "%", misformatting occurs.
++		// Report the problem and suggest a fix: fmt.Printf("%s", msg).
++		if idx == len(call.Args)-1 {
++			pass.Report(analysis.Diagnostic{
++				Pos: formatArg.Pos(),
++				End: formatArg.End(),
++				Message: fmt.Sprintf("non-constant format string in call to %s",
++					fn.FullName()),
++				SuggestedFixes: []analysis.SuggestedFix{{
++					Message: `Insert "%s" format string`,
++					TextEdits: []analysis.TextEdit{{
++						Pos:     formatArg.Pos(),
++						End:     formatArg.Pos(),
++						NewText: []byte(`"%s", `),
++					}},
++				}},
++			})
+ 		}
+ 		return
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+index f5e760ca26..5b4598235c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+@@ -6,7 +6,6 @@ package tests
+ 
+ import (
+ 	_ "embed"
+-	"fmt"
+ 	"go/ast"
+ 	"go/token"
+ 	"go/types"
+@@ -184,13 +183,13 @@ func checkAddCalls(pass *analysis.Pass, fn *ast.FuncDecl, params *types.Tuple) {
+ 				i := mismatched[0]
+ 				expr := call.Args[i]
+ 				t := pass.TypesInfo.Types[expr].Type
+-				pass.ReportRangef(expr, fmt.Sprintf("mismatched type in call to (*testing.F).Add: %v, fuzz target expects %v", t, params.At(i+1).Type()))
++				pass.ReportRangef(expr, "mismatched type in call to (*testing.F).Add: %v, fuzz target expects %v", t, params.At(i+1).Type())
+ 			} else if len(mismatched) > 1 {
+ 				var gotArgs, wantArgs []types.Type
+ 				for i := 0; i < len(call.Args); i++ {
+ 					gotArgs, wantArgs = append(gotArgs, pass.TypesInfo.Types[call.Args[i]].Type), append(wantArgs, params.At(i+1).Type())
+ 				}
+-				pass.ReportRangef(call, fmt.Sprintf("mismatched types in call to (*testing.F).Add: %v, fuzz target expects %v", gotArgs, wantArgs))
++				pass.ReportRangef(call, "mismatched types in call to (*testing.F).Add: %v, fuzz target expects %v", gotArgs, wantArgs)
+ 			}
+ 		}
+ 		return true
+@@ -244,7 +243,7 @@ func validateFuzzArgs(pass *analysis.Pass, params *types.Tuple, expr ast.Expr) b
+ 					}
+ 				}
+ 			}
+-			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: "+formatAcceptedFuzzType())
++			pass.ReportRangef(exprRange, "fuzzing arguments can only have the following types: %s", formatAcceptedFuzzType())
+ 			ok = false
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index d77fb203d8..71ebbfaef1 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -66,6 +66,8 @@ type Config struct {
+ 	GoFiles                   []string
+ 	NonGoFiles                []string
+ 	IgnoredFiles              []string
++	ModulePath                string            // module path
++	ModuleVersion             string            // module version
+ 	ImportMap                 map[string]string // maps import path to package path
+ 	PackageFile               map[string]string // maps package path to file of type information
+ 	Standard                  map[string]bool   // package belongs to standard library
+@@ -359,6 +361,12 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 				factFilter[reflect.TypeOf(f)] = true
+ 			}
+ 
++			module := &analysis.Module{
++				Path:      cfg.ModulePath,
++				Version:   cfg.ModuleVersion,
++				GoVersion: cfg.GoVersion,
++			}
++
+ 			pass := &analysis.Pass{
+ 				Analyzer:          a,
+ 				Fset:              fset,
+@@ -377,6 +385,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 				ImportPackageFact: facts.ImportPackageFact,
+ 				ExportPackageFact: facts.ExportPackageFact,
+ 				AllPackageFacts:   func() []analysis.PackageFact { return facts.AllPackageFacts(factFilter) },
++				Module:            module,
+ 			}
+ 			pass.ReadFile = analysisinternal.MakeReadFile(pass)
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+index d648c3d071..9ada177758 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/objectpath/objectpath.go
+@@ -51,7 +51,7 @@ type Path string
+ //
+ //	PO package->object	Package.Scope.Lookup
+ //	OT  object->type 	Object.Type
+-//	TT    type->type 	Type.{Elem,Key,{,{,Recv}Type}Params,Results,Underlying} [EKPRUTrC]
++//	TT    type->type 	Type.{Elem,Key,{,{,Recv}Type}Params,Results,Underlying,Rhs} [EKPRUTrCa]
+ //	TO   type->object	Type.{At,Field,Method,Obj} [AFMO]
+ //
+ // All valid paths start with a package and end at an object
+@@ -63,7 +63,7 @@ type Path string
+ //   - The only PO operator is Package.Scope.Lookup, which requires an identifier.
+ //   - The only OT operator is Object.Type,
+ //     which we encode as '.' because dot cannot appear in an identifier.
+-//   - The TT operators are encoded as [EKPRUTrC];
++//   - The TT operators are encoded as [EKPRUTrCa];
+ //     two of these ({,Recv}TypeParams) require an integer operand,
+ //     which is encoded as a string of decimal digits.
+ //   - The TO operators are encoded as [AFMO];
+@@ -106,6 +106,7 @@ const (
+ 	opTypeParam     = 'T' // .TypeParams.At(i)	(Named, Signature)
+ 	opRecvTypeParam = 'r' // .RecvTypeParams.At(i)	(Signature)
+ 	opConstraint    = 'C' // .Constraint()		(TypeParam)
++	opRhs           = 'a' // .Rhs()			(Alias)
+ 
+ 	// type->object operators
+ 	opAt     = 'A' // .At(i)	(Tuple)
+@@ -279,21 +280,26 @@ func (enc *Encoder) For(obj types.Object) (Path, error) {
+ 		path = append(path, opType)
+ 
+ 		T := o.Type()
++		if alias, ok := T.(*aliases.Alias); ok {
++			if r := findTypeParam(obj, aliases.TypeParams(alias), path, opTypeParam, nil); r != nil {
++				return Path(r), nil
++			}
++			if r := find(obj, aliases.Rhs(alias), append(path, opRhs), nil); r != nil {
++				return Path(r), nil
++			}
+ 
+-		if tname.IsAlias() {
+-			// type alias
++		} else if tname.IsAlias() {
++			// legacy alias
+ 			if r := find(obj, T, path, nil); r != nil {
+ 				return Path(r), nil
+ 			}
+-		} else {
+-			if named, _ := T.(*types.Named); named != nil {
+-				if r := findTypeParam(obj, named.TypeParams(), path, opTypeParam, nil); r != nil {
+-					// generic named type
+-					return Path(r), nil
+-				}
+-			}
++
++		} else if named, ok := T.(*types.Named); ok {
+ 			// defined (named) type
+-			if r := find(obj, T.Underlying(), append(path, opUnderlying), nil); r != nil {
++			if r := findTypeParam(obj, named.TypeParams(), path, opTypeParam, nil); r != nil {
++				return Path(r), nil
++			}
++			if r := find(obj, named.Underlying(), append(path, opUnderlying), nil); r != nil {
+ 				return Path(r), nil
+ 			}
+ 		}
+@@ -657,6 +663,16 @@ func Object(pkg *types.Package, p Path) (types.Object, error) {
+ 			}
+ 			t = named.Underlying()
+ 
++		case opRhs:
++			if alias, ok := t.(*aliases.Alias); ok {
++				t = aliases.Rhs(alias)
++			} else if false && aliases.Enabled() {
++				// The Enabled check is too expensive, so for now we
++				// simply assume that aliases are not enabled.
++				// TODO(adonovan): replace with "if true {" when go1.24 is assured.
++				return nil, fmt.Errorf("cannot apply %q to %s (got %T, want alias)", code, t, t)
++			}
++
+ 		case opTypeParam:
+ 			hasTypeParams, ok := t.(hasTypeParams) // Named, Signature
+ 			if !ok {
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go
+index c24c2eee45..f7798e3354 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go
+@@ -22,11 +22,17 @@ import (
+ // GODEBUG=gotypesalias=... by invoking the type checker. The Enabled
+ // function is expensive and should be called once per task (e.g.
+ // package import), not once per call to NewAlias.
+-func NewAlias(enabled bool, pos token.Pos, pkg *types.Package, name string, rhs types.Type) *types.TypeName {
++//
++// Precondition: enabled || len(tparams)==0.
++// If materialized aliases are disabled, there must not be any type parameters.
++func NewAlias(enabled bool, pos token.Pos, pkg *types.Package, name string, rhs types.Type, tparams []*types.TypeParam) *types.TypeName {
+ 	if enabled {
+ 		tname := types.NewTypeName(pos, pkg, name, nil)
+-		newAlias(tname, rhs)
++		newAlias(tname, rhs, tparams)
+ 		return tname
+ 	}
++	if len(tparams) > 0 {
++		panic("cannot create an alias with type parameters when gotypesalias is not enabled")
++	}
+ 	return types.NewTypeName(pos, pkg, name, rhs)
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go
+index c027b9f315..a775fcc4be 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go
+@@ -15,15 +15,21 @@ import (
+ // It will never be created by go/types.
+ type Alias struct{}
+ 
+-func (*Alias) String() string         { panic("unreachable") }
+-func (*Alias) Underlying() types.Type { panic("unreachable") }
+-func (*Alias) Obj() *types.TypeName   { panic("unreachable") }
+-func Rhs(alias *Alias) types.Type     { panic("unreachable") }
++func (*Alias) String() string                                { panic("unreachable") }
++func (*Alias) Underlying() types.Type                        { panic("unreachable") }
++func (*Alias) Obj() *types.TypeName                          { panic("unreachable") }
++func Rhs(alias *Alias) types.Type                            { panic("unreachable") }
++func TypeParams(alias *Alias) *types.TypeParamList           { panic("unreachable") }
++func SetTypeParams(alias *Alias, tparams []*types.TypeParam) { panic("unreachable") }
++func TypeArgs(alias *Alias) *types.TypeList                  { panic("unreachable") }
++func Origin(alias *Alias) *Alias                             { panic("unreachable") }
+ 
+ // Unalias returns the type t for go <=1.21.
+ func Unalias(t types.Type) types.Type { return t }
+ 
+-func newAlias(name *types.TypeName, rhs types.Type) *Alias { panic("unreachable") }
++func newAlias(name *types.TypeName, rhs types.Type, tparams []*types.TypeParam) *Alias {
++	panic("unreachable")
++}
+ 
+ // Enabled reports whether [NewAlias] should create [types.Alias] types.
+ //
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go
+index b329954841..31c159e42e 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go
+@@ -28,16 +28,51 @@ func Rhs(alias *Alias) types.Type {
+ 	return Unalias(alias)
+ }
+ 
++// TypeParams returns the type parameter list of the alias.
++func TypeParams(alias *Alias) *types.TypeParamList {
++	if alias, ok := any(alias).(interface{ TypeParams() *types.TypeParamList }); ok {
++		return alias.TypeParams() // go1.23+
++	}
++	return nil
++}
++
++// SetTypeParams sets the type parameters of the alias type.
++func SetTypeParams(alias *Alias, tparams []*types.TypeParam) {
++	if alias, ok := any(alias).(interface {
++		SetTypeParams(tparams []*types.TypeParam)
++	}); ok {
++		alias.SetTypeParams(tparams) // go1.23+
++	} else if len(tparams) > 0 {
++		panic("cannot set type parameters of an Alias type in go1.22")
++	}
++}
++
++// TypeArgs returns the type arguments used to instantiate the Alias type.
++func TypeArgs(alias *Alias) *types.TypeList {
++	if alias, ok := any(alias).(interface{ TypeArgs() *types.TypeList }); ok {
++		return alias.TypeArgs() // go1.23+
++	}
++	return nil // empty (go1.22)
++}
++
++// Origin returns the generic Alias type of which alias is an instance.
++// If alias is not an instance of a generic alias, Origin returns alias.
++func Origin(alias *Alias) *Alias {
++	if alias, ok := any(alias).(interface{ Origin() *types.Alias }); ok {
++		return alias.Origin() // go1.23+
++	}
++	return alias // not an instance of a generic alias (go1.22)
++}
++
+ // Unalias is a wrapper of types.Unalias.
+ func Unalias(t types.Type) types.Type { return types.Unalias(t) }
+ 
+ // newAlias is an internal alias around types.NewAlias.
+ // Direct usage is discouraged as the moment.
+ // Try to use NewAlias instead.
+-func newAlias(tname *types.TypeName, rhs types.Type) *Alias {
++func newAlias(tname *types.TypeName, rhs types.Type, tparams []*types.TypeParam) *Alias {
+ 	a := types.NewAlias(tname, rhs)
+-	// TODO(go.dev/issue/65455): Remove kludgy workaround to set a.actual as a side-effect.
+-	Unalias(a)
++	SetTypeParams(a, tparams)
+ 	return a
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/stdlib/manifest.go b/src/cmd/vendor/golang.org/x/tools/internal/stdlib/manifest.go
+index a928acf29f..cdaac9ab34 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/stdlib/manifest.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/stdlib/manifest.go
+@@ -951,7 +951,7 @@ var PackageSymbols = map[string][]Symbol{
+ 		{"ParseSessionState", Func, 21},
+ 		{"QUICClient", Func, 21},
+ 		{"QUICConfig", Type, 21},
+-		{"QUICConfig.EnableStoreSessionEvent", Field, 23},
++		{"QUICConfig.EnableSessionEvents", Field, 23},
+ 		{"QUICConfig.TLSConfig", Field, 21},
+ 		{"QUICConn", Type, 21},
+ 		{"QUICEncryptionLevel", Type, 21},
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go
+index 834e05381c..131caab284 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go
+@@ -838,7 +838,7 @@ const (
+ 	// InvalidCap occurs when an argument to the cap built-in function is not of
+ 	// supported type.
+ 	//
+-	// See https://golang.org/ref/spec#Lengthand_capacity for information on
++	// See https://golang.org/ref/spec#Length_and_capacity for information on
+ 	// which underlying types are supported as arguments to cap and len.
+ 	//
+ 	// Example:
+@@ -859,7 +859,7 @@ const (
+ 	// InvalidCopy occurs when the arguments are not of slice type or do not
+ 	// have compatible type.
+ 	//
+-	// See https://golang.org/ref/spec#Appendingand_copying_slices for more
++	// See https://golang.org/ref/spec#Appending_and_copying_slices for more
+ 	// information on the type requirements for the copy built-in.
+ 	//
+ 	// Example:
+@@ -897,7 +897,7 @@ const (
+ 	// InvalidLen occurs when an argument to the len built-in function is not of
+ 	// supported type.
+ 	//
+-	// See https://golang.org/ref/spec#Lengthand_capacity for information on
++	// See https://golang.org/ref/spec#Length_and_capacity for information on
+ 	// which underlying types are supported as arguments to cap and len.
+ 	//
+ 	// Example:
+@@ -914,7 +914,7 @@ const (
+ 
+ 	// InvalidMake occurs when make is called with an unsupported type argument.
+ 	//
+-	// See https://golang.org/ref/spec#Makingslices_maps_and_channels for
++	// See https://golang.org/ref/spec#Making_slices_maps_and_channels for
+ 	// information on the types that may be created using make.
+ 	//
+ 	// Example:
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint.go
+new file mode 100644
+index 0000000000..179063d484
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint.go
+@@ -0,0 +1,13 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package versions
++
++import "go/build/constraint"
++
++// ConstraintGoVersion is constraint.GoVersion (if built with go1.21+).
++// Otherwise nil.
++//
++// Deprecate once x/tools is after go1.21.
++var ConstraintGoVersion func(x constraint.Expr) string
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint_go121.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint_go121.go
+new file mode 100644
+index 0000000000..38011407d5
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint_go121.go
+@@ -0,0 +1,14 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build go1.21
++// +build go1.21
++
++package versions
++
++import "go/build/constraint"
++
++func init() {
++	ConstraintGoVersion = constraint.GoVersion
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 698b0255b3..a893906ed3 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -71,8 +71,8 @@ golang.org/x/text/internal/tag
+ golang.org/x/text/language
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/norm
+-# golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c
+-## explicit; go 1.19
++# golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c
++## explicit; go 1.22.6
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+ golang.org/x/tools/go/analysis

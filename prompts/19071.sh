@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 19071: 5556bfa9c736f63ae18ec0ab8ef9b6a986e32ef3
+# Index 19071: 2cae0591cd77cf307a661a9adc44cff2a56c64a9
 
 echo "🚀 Generating explanation for commit 19071..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 19071..."
 
 ### メタデータ
 - **コミットインデックス**: 19071
-- **コミットハッシュ**: 5556bfa9c736f63ae18ec0ab8ef9b6a986e32ef3
-- **GitHub URL**: https://github.com/golang/go/commit/5556bfa9c736f63ae18ec0ab8ef9b6a986e32ef3
+- **コミットハッシュ**: 2cae0591cd77cf307a661a9adc44cff2a56c64a9
+- **GitHub URL**: https://github.com/golang/go/commit/2cae0591cd77cf307a661a9adc44cff2a56c64a9
 
 ### 章構成
 

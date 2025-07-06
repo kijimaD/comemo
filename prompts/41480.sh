@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41480: cfe232042981972dc0c7e8d741a04556ecaae3c3
+# Index 41480: bead358611e36fe0991c171a8a4a4924f4f0e584
 
 echo "🚀 Generating explanation for commit 41480..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 41480..."
 
 ### メタデータ
 - **コミットインデックス**: 41480
-- **コミットハッシュ**: cfe232042981972dc0c7e8d741a04556ecaae3c3
-- **GitHub URL**: https://github.com/golang/go/commit/cfe232042981972dc0c7e8d741a04556ecaae3c3
+- **コミットハッシュ**: bead358611e36fe0991c171a8a4a4924f4f0e584
+- **GitHub URL**: https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584
 
 ### 章構成
 

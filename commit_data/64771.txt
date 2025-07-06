@@ -1,0 +1,52 @@
+commit 29a3a39b613c542d043ca1fdb3d7f10ed669666d
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 17:34:58 2024 -0700
+
+    cmd/nm: use t.TempDir
+    
+    Change-Id: I6c1d148ae4c899142b160533d8bdf662494bcd7c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611039
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/nm/nm_test.go | 14 +++-----------
+ 1 file changed, 3 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/nm/nm_test.go b/src/cmd/nm/nm_test.go
+index 4ee4217c59..f740a3f738 100644
+--- a/src/cmd/nm/nm_test.go
++++ b/src/cmd/nm/nm_test.go
+@@ -63,11 +63,7 @@ func TestNonGoExecs(t *testing.T) {
+ 
+ func testGoExec(t *testing.T, iscgo, isexternallinker bool) {
+ 	t.Parallel()
+-	tmpdir, err := os.MkdirTemp("", "TestGoExec")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	src := filepath.Join(tmpdir, "a.go")
+ 	file, err := os.Create(src)
+@@ -200,16 +196,12 @@ func TestGoExec(t *testing.T) {
+ 
+ func testGoLib(t *testing.T, iscgo bool) {
+ 	t.Parallel()
+-	tmpdir, err := os.MkdirTemp("", "TestGoLib")
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer os.RemoveAll(tmpdir)
++	tmpdir := t.TempDir()
+ 
+ 	gopath := filepath.Join(tmpdir, "gopath")
+ 	libpath := filepath.Join(gopath, "src", "mylib")
+ 
+-	err = os.MkdirAll(libpath, 0777)
++	err := os.MkdirAll(libpath, 0777)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}

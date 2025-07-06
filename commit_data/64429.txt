@@ -1,0 +1,65 @@
+commit 9cfe3a86d34f7f4a401dae9a22389b12f7e8bb2e
+Author: apocelipes <seve3r@outlook.com>
+Date:   Fri Aug 2 11:33:30 2024 +0000
+
+    archive/zip,cmd/compile: simplify the split function
+    
+    Use strings to simplify the code.
+    
+    This is a follow-up for the CL 586715.
+    
+    Change-Id: I9e5470ec271e8af1ad4ddbb5f01f43a8a4879557
+    GitHub-Last-Rev: b95d6179781053ea8ec9fc8ad2e18607fd35c5bb
+    GitHub-Pull-Request: golang/go#68713
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602697
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/archive/zip/reader.go                    | 10 ++--------
+ src/cmd/compile/internal/staticdata/embed.go | 10 ++--------
+ 2 files changed, 4 insertions(+), 16 deletions(-)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index fc9b1cf67c..2246d56558 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -902,14 +902,8 @@ func (r *Reader) Open(name string) (fs.File, error) {
+ }
+ 
+ func split(name string) (dir, elem string, isDir bool) {
+-	if len(name) > 0 && name[len(name)-1] == '/' {
+-		isDir = true
+-		name = name[:len(name)-1]
+-	}
+-	i := len(name) - 1
+-	for i >= 0 && name[i] != '/' {
+-		i--
+-	}
++	name, isDir = strings.CutSuffix(name, "/")
++	i := strings.LastIndexByte(name, '/')
+ 	if i < 0 {
+ 		return ".", name, isDir
+ 	}
+diff --git a/src/cmd/compile/internal/staticdata/embed.go b/src/cmd/compile/internal/staticdata/embed.go
+index a4d493ce5e..be939db877 100644
+--- a/src/cmd/compile/internal/staticdata/embed.go
++++ b/src/cmd/compile/internal/staticdata/embed.go
+@@ -80,14 +80,8 @@ func embedKind(typ *types.Type) int {
+ }
+ 
+ func embedFileNameSplit(name string) (dir, elem string, isDir bool) {
+-	if name[len(name)-1] == '/' {
+-		isDir = true
+-		name = name[:len(name)-1]
+-	}
+-	i := len(name) - 1
+-	for i >= 0 && name[i] != '/' {
+-		i--
+-	}
++	name, isDir = strings.CutSuffix(name, "/")
++	i := strings.LastIndexByte(name, '/')
+ 	if i < 0 {
+ 		return ".", name, isDir
+ 	}

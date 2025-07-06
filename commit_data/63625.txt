@@ -1,0 +1,260 @@
+commit eabf59bc47484e3f09fe46cafe10221e6c345ccb
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat May 4 20:13:15 2024 +0800
+
+    all: make use of stringslite.{HasPrefix, HasSuffix}
+    
+    Just a code cleanup.
+    
+    Change-Id: Ie887ab2c71de11b4844c4e6fd4e5aca3265ac3aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583216
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/crypto/internal/boring/boring.go      |  7 ++-----
+ src/crypto/internal/boring/fipstls/tls.go | 11 +++++------
+ src/internal/poll/fd_plan9.go             |  5 +++--
+ src/internal/poll/strconv.go              | 13 -------------
+ src/net/conf.go                           |  5 +++--
+ src/net/interface_plan9.go                |  3 ++-
+ src/net/lookup_plan9.go                   | 13 +++++++------
+ src/net/parse.go                          | 11 -----------
+ 8 files changed, 22 insertions(+), 46 deletions(-)
+
+diff --git a/src/crypto/internal/boring/boring.go b/src/crypto/internal/boring/boring.go
+index ded36a92f9..90cf1edb75 100644
+--- a/src/crypto/internal/boring/boring.go
++++ b/src/crypto/internal/boring/boring.go
+@@ -16,6 +16,7 @@ import "C"
+ import (
+ 	"crypto/internal/boring/sig"
+ 	_ "crypto/internal/boring/syso"
++	"internal/stringslite"
+ 	"math/bits"
+ 	"unsafe"
+ )
+@@ -39,16 +40,12 @@ func Unreachable() {
+ // provided by runtime to avoid os import.
+ func runtime_arg0() string
+ 
+-func hasSuffix(s, t string) bool {
+-	return len(s) > len(t) && s[len(s)-len(t):] == t
+-}
+-
+ // UnreachableExceptTests marks code that should be unreachable
+ // when BoringCrypto is in use. It panics.
+ func UnreachableExceptTests() {
+ 	name := runtime_arg0()
+ 	// If BoringCrypto ran on Windows we'd need to allow _test.exe and .test.exe as well.
+-	if !hasSuffix(name, "_test") && !hasSuffix(name, ".test") {
++	if !stringslite.HasSuffix(name, "_test") && !stringslite.HasSuffix(name, ".test") {
+ 		println("boringcrypto: unexpected code execution in", name)
+ 		panic("boringcrypto: invalid code execution")
+ 	}
+diff --git a/src/crypto/internal/boring/fipstls/tls.go b/src/crypto/internal/boring/fipstls/tls.go
+index 3bf1471fb0..b51f142fde 100644
+--- a/src/crypto/internal/boring/fipstls/tls.go
++++ b/src/crypto/internal/boring/fipstls/tls.go
+@@ -9,7 +9,10 @@
+ // of the use of BoringCrypto.
+ package fipstls
+ 
+-import "sync/atomic"
++import (
++	"internal/stringslite"
++	"sync/atomic"
++)
+ 
+ var required atomic.Bool
+ 
+@@ -33,7 +36,7 @@ func Abandon() {
+ 	// and empty string for Windows (where runtime_arg0 can't easily find the name).
+ 	// Since this is an internal package, testing that this isn't used on the
+ 	// other operating systems should suffice to catch any mistakes.
+-	if !hasSuffix(name, "_test") && !hasSuffix(name, ".test") && name != "NaClMain" && name != "" {
++	if !stringslite.HasSuffix(name, "_test") && !stringslite.HasSuffix(name, ".test") && name != "NaClMain" && name != "" {
+ 		panic("fipstls: invalid use of Abandon in " + name)
+ 	}
+ 	required.Store(false)
+@@ -42,10 +45,6 @@ func Abandon() {
+ // provided by runtime
+ func runtime_arg0() string
+ 
+-func hasSuffix(s, t string) bool {
+-	return len(s) > len(t) && s[len(s)-len(t):] == t
+-}
+-
+ // Required reports whether FIPS-approved settings are required.
+ func Required() bool {
+ 	return required.Load()
+diff --git a/src/internal/poll/fd_plan9.go b/src/internal/poll/fd_plan9.go
+index 6659e9dc9b..b65485200a 100644
+--- a/src/internal/poll/fd_plan9.go
++++ b/src/internal/poll/fd_plan9.go
+@@ -6,6 +6,7 @@ package poll
+ 
+ import (
+ 	"errors"
++	"internal/stringslite"
+ 	"io"
+ 	"sync"
+ 	"syscall"
+@@ -203,11 +204,11 @@ func (fd *FD) ReadUnlock() {
+ }
+ 
+ func isHangup(err error) bool {
+-	return err != nil && stringsHasSuffix(err.Error(), "Hangup")
++	return err != nil && stringslite.HasSuffix(err.Error(), "Hangup")
+ }
+ 
+ func isInterrupted(err error) bool {
+-	return err != nil && stringsHasSuffix(err.Error(), "interrupted")
++	return err != nil && stringslite.HasSuffix(err.Error(), "interrupted")
+ }
+ 
+ // IsPollDescriptor reports whether fd is the descriptor being used by the poller.
+diff --git a/src/internal/poll/strconv.go b/src/internal/poll/strconv.go
+deleted file mode 100644
+index 2b052fa174..0000000000
+--- a/src/internal/poll/strconv.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build plan9
+-
+-package poll
+-
+-// stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
+-// suffix.
+-func stringsHasSuffix(s, suffix string) bool {
+-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+-}
+diff --git a/src/net/conf.go b/src/net/conf.go
+index 20c81b95de..7499d49045 100644
+--- a/src/net/conf.go
++++ b/src/net/conf.go
+@@ -8,6 +8,7 @@ import (
+ 	"errors"
+ 	"internal/bytealg"
+ 	"internal/godebug"
++	"internal/stringslite"
+ 	"io/fs"
+ 	"os"
+ 	"runtime"
+@@ -335,7 +336,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
+ 	}
+ 
+ 	// Canonicalize the hostname by removing any trailing dot.
+-	if stringsHasSuffix(hostname, ".") {
++	if stringslite.HasSuffix(hostname, ".") {
+ 		hostname = hostname[:len(hostname)-1]
+ 	}
+ 
+@@ -396,7 +397,7 @@ func (c *conf) lookupOrder(r *Resolver, hostname string) (ret hostLookupOrder, d
+ 					return hostLookupCgo, dnsConf
+ 				}
+ 				continue
+-			case hostname != "" && stringsHasPrefix(src.source, "mdns"):
++			case hostname != "" && stringslite.HasPrefix(src.source, "mdns"):
+ 				if stringsHasSuffixFold(hostname, ".local") {
+ 					// Per RFC 6762, the ".local" TLD is special. And
+ 					// because Go's native resolver doesn't do mDNS or
+diff --git a/src/net/interface_plan9.go b/src/net/interface_plan9.go
+index 92b2eed259..7c44566acf 100644
+--- a/src/net/interface_plan9.go
++++ b/src/net/interface_plan9.go
+@@ -7,6 +7,7 @@ package net
+ import (
+ 	"errors"
+ 	"internal/itoa"
++	"internal/stringslite"
+ 	"os"
+ )
+ 
+@@ -70,7 +71,7 @@ func readInterface(i int) (*Interface, error) {
+ 	ifc.MTU = mtu
+ 
+ 	// Not a loopback device ("/dev/null") or packet interface (e.g. "pkt2")
+-	if stringsHasPrefix(device, netdir+"/") {
++	if stringslite.HasPrefix(device, netdir+"/") {
+ 		deviceaddrf, err := open(device + "/addr")
+ 		if err != nil {
+ 			return nil, err
+diff --git a/src/net/lookup_plan9.go b/src/net/lookup_plan9.go
+index 588174b1fc..5c869374f6 100644
+--- a/src/net/lookup_plan9.go
++++ b/src/net/lookup_plan9.go
+@@ -9,6 +9,7 @@ import (
+ 	"errors"
+ 	"internal/bytealg"
+ 	"internal/itoa"
++	"internal/stringslite"
+ 	"io"
+ 	"os"
+ )
+@@ -107,10 +108,10 @@ func queryDNS(ctx context.Context, addr string, typ string) (res []string, err e
+ }
+ 
+ func handlePlan9DNSError(err error, name string) error {
+-	if stringsHasSuffix(err.Error(), "dns: name does not exist") ||
+-		stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode 0") ||
+-		stringsHasSuffix(err.Error(), "dns: resource does not exist; negrcode") ||
+-		stringsHasSuffix(err.Error(), "dns failure") {
++	if stringslite.HasSuffix(err.Error(), "dns: name does not exist") ||
++		stringslite.HasSuffix(err.Error(), "dns: resource does not exist; negrcode 0") ||
++		stringslite.HasSuffix(err.Error(), "dns: resource does not exist; negrcode") ||
++		stringslite.HasSuffix(err.Error(), "dns failure") {
+ 		err = errNoSuchHost
+ 	}
+ 	return newDNSError(err, name, "")
+@@ -227,7 +228,7 @@ func (r *Resolver) lookupPort(ctx context.Context, network, service string) (por
+ func (*Resolver) lookupPortWithNetwork(ctx context.Context, network, errNetwork, service string) (port int, err error) {
+ 	lines, err := queryCS(ctx, network, "127.0.0.1", toLower(service))
+ 	if err != nil {
+-		if stringsHasSuffix(err.Error(), "can't translate service") {
++		if stringslite.HasSuffix(err.Error(), "can't translate service") {
+ 			return 0, &DNSError{Err: "unknown port", Name: errNetwork + "/" + service, IsNotFound: true}
+ 		}
+ 		return
+@@ -256,7 +257,7 @@ func (r *Resolver) lookupCNAME(ctx context.Context, name string) (cname string,
+ 
+ 	lines, err := queryDNS(ctx, name, "cname")
+ 	if err != nil {
+-		if stringsHasSuffix(err.Error(), "dns failure") || stringsHasSuffix(err.Error(), "resource does not exist; negrcode 0") {
++		if stringslite.HasSuffix(err.Error(), "dns failure") || stringslite.HasSuffix(err.Error(), "resource does not exist; negrcode 0") {
+ 			return absDomainName(name), nil
+ 		}
+ 		return "", handlePlan9DNSError(err, cname)
+diff --git a/src/net/parse.go b/src/net/parse.go
+index 29dffad43c..106a303dfa 100644
+--- a/src/net/parse.go
++++ b/src/net/parse.go
+@@ -251,23 +251,12 @@ func foreachField(x string, fn func(field string) error) error {
+ 	return nil
+ }
+ 
+-// stringsHasSuffix is strings.HasSuffix. It reports whether s ends in
+-// suffix.
+-func stringsHasSuffix(s, suffix string) bool {
+-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+-}
+-
+ // stringsHasSuffixFold reports whether s ends in suffix,
+ // ASCII-case-insensitively.
+ func stringsHasSuffixFold(s, suffix string) bool {
+ 	return len(s) >= len(suffix) && stringsEqualFold(s[len(s)-len(suffix):], suffix)
+ }
+ 
+-// stringsHasPrefix is strings.HasPrefix. It reports whether s begins with prefix.
+-func stringsHasPrefix(s, prefix string) bool {
+-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+-}
+-
+ // stringsEqualFold is strings.EqualFold, ASCII only. It reports whether s and t
+ // are equal, ASCII-case-insensitively.
+ func stringsEqualFold(s, t string) bool {

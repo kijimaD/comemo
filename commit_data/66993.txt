@@ -1,0 +1,58 @@
+commit 431f75a0b9890faa2b6a5ade8e19d4c23d0aaaf0
+Author: Josh Rickmar <jrick@zettaport.com>
+Date:   Thu May 1 15:09:40 2025 +0000
+
+    [release-branch.go1.24] os: fix Root.Mkdir permission bits on OpenBSD
+    
+    Pass missing mode bits in the mkdirat() syscall wrapper.
+    
+    For #73559
+    Fixes #73570
+    
+    Change-Id: I54b1985bd77b1fe5d1a48acab9f2597f8c931854
+    GitHub-Last-Rev: 669c17361d86bc9065bb6b47a2d60aa86bcfa12d
+    GitHub-Pull-Request: golang/go#73565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669375
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    (cherry picked from commit f0a9ed7dd89f35c187830742402cfebba9d6d33a)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669397
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+---
+ src/internal/syscall/unix/at_openbsd.go | 2 +-
+ src/os/root_test.go                     | 6 ++++++
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/unix/at_openbsd.go b/src/internal/syscall/unix/at_openbsd.go
+index 69463e00b9..8ff383c8c7 100644
+--- a/src/internal/syscall/unix/at_openbsd.go
++++ b/src/internal/syscall/unix/at_openbsd.go
+@@ -43,7 +43,7 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_mkdirat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(p)), 0, 0, 0, 0)
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_mkdirat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(mode), 0, 0, 0)
+ 	if errno != 0 {
+ 		return errno
+ 	}
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 398909f8c6..908d59896d 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -447,6 +447,12 @@ func TestRootMkdir(t *testing.T) {
+ 			if !fi.IsDir() {
+ 				t.Fatalf(`stat file created with Root.Mkdir(%q): not a directory`, test.open)
+ 			}
++			if mode := fi.Mode(); mode&0o777 == 0 {
++				// Issue #73559: We're not going to worry about the exact
++				// mode bits (which will have been modified by umask),
++				// but there should be mode bits.
++				t.Fatalf(`stat file created with Root.Mkdir(%q): mode=%v, want non-zero`, test.open, mode)
++			}
+ 		})
+ 	}
+ }

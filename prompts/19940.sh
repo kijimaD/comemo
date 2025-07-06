@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 19940: cfed26c7ceeaf093d975e0a748d270cd1b716816
+# Index 19940: 2497c430d846d52dbfd2e8150c51e1ad59aeee3f
 
 echo "🚀 Generating explanation for commit 19940..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 19940..."
 
 ### メタデータ
 - **コミットインデックス**: 19940
-- **コミットハッシュ**: cfed26c7ceeaf093d975e0a748d270cd1b716816
-- **GitHub URL**: https://github.com/golang/go/commit/cfed26c7ceeaf093d975e0a748d270cd1b716816
+- **コミットハッシュ**: 2497c430d846d52dbfd2e8150c51e1ad59aeee3f
+- **GitHub URL**: https://github.com/golang/go/commit/2497c430d846d52dbfd2e8150c51e1ad59aeee3f
 
 ### 章構成
 

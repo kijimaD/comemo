@@ -1,0 +1,463 @@
+commit d98c51809d89c09d157f952fe62dd2124f89ddbc
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Sat Nov 2 10:59:20 2024 +0800
+
+    cmd/compile: wire up math/bits.Len intrinsics for loong64
+    
+    For the SubFromLen64 codegen test case to work as intended, we need
+    to fold c-(-(x-d)) into x+(c-d).
+    
+    Still, some instances of LeadingZeros are not optimized into single
+    CLZ instructions right now (actually, the LeadingZeros micro-benchmarks
+    are currently still compiled with redundant adds/subs of 64, due to
+    interference of loop optimizations before lowering), but perf numbers
+    indicate it's not that bad after all.
+    
+    Micro-benchmark results on Loongson 3A5000 and 3A6000:
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                   |  bench.old  |              bench.new              |
+                   |   sec/op    |   sec/op     vs base                |
+    LeadingZeros     3.660n ± 0%   1.348n ± 0%  -63.17% (p=0.000 n=20)
+    LeadingZeros8    1.777n ± 0%   1.767n ± 0%   -0.56% (p=0.000 n=20)
+    LeadingZeros16   2.816n ± 0%   1.770n ± 0%  -37.14% (p=0.000 n=20)
+    LeadingZeros32   5.293n ± 1%   1.683n ± 0%  -68.21% (p=0.000 n=20)
+    LeadingZeros64   3.622n ± 0%   1.349n ± 0%  -62.76% (p=0.000 n=20)
+    geomean          3.229n        1.571n       -51.35%
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                   |  bench.old   |              bench.new               |
+                   |    sec/op    |    sec/op     vs base                |
+    LeadingZeros      2.410n ± 0%    1.103n ± 1%  -54.23% (p=0.000 n=20)
+    LeadingZeros8     1.236n ± 0%    1.501n ± 0%  +21.44% (p=0.000 n=20)
+    LeadingZeros16    2.106n ± 0%    1.501n ± 0%  -28.73% (p=0.000 n=20)
+    LeadingZeros32    2.860n ± 0%    1.324n ± 0%  -53.72% (p=0.000 n=20)
+    LeadingZeros64   2.6135n ± 0%   0.9509n ± 0%  -63.62% (p=0.000 n=20)
+    geomean           2.159n         1.256n       -41.81%
+    
+    Updates #59120
+    
+    This patch is a copy of CL 483356.
+    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    
+    Change-Id: Iee81a17f7da06d77a427e73dfcc016f2b15ae556
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+---
+ src/cmd/compile/internal/loong64/ssa.go            |  2 +
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  7 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  3 +
+ src/cmd/compile/internal/ssa/opGen.go              | 28 +++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 91 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 10 +--
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  7 ++
+ test/codegen/mathbits.go                           | 16 ++++
+ 8 files changed, 159 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 9a4d7aab13..f709d2728b 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -483,6 +483,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpLOONG64MOVVgpfp,
+ 		ssa.OpLOONG64NEGF,
+ 		ssa.OpLOONG64NEGD,
++		ssa.OpLOONG64CLZW,
++		ssa.OpLOONG64CLZV,
+ 		ssa.OpLOONG64SQRTD,
+ 		ssa.OpLOONG64SQRTF,
+ 		ssa.OpLOONG64ABSD:
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 674529ea37..dbb1c2c649 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -145,6 +145,9 @@
+ 
+ (Com(64|32|16|8) x) => (NOR (MOVVconst [0]) x)
+ 
++(BitLen64 <t> x) => (NEGV <t> (SUBVconst <t> [64] (CLZV <t> x)))
++(BitLen32 <t> x) => (NEGV <t> (SUBVconst <t> [32] (CLZW <t> x)))
++
+ // math package intrinsics
+ (Sqrt ...) => (SQRTD ...)
+ (Sqrt32 ...) => (SQRTF ...)
+@@ -465,6 +468,9 @@
+ 
+ (CondSelect <t> x y cond) => (OR (MASKEQZ <t> x cond) (MASKNEZ <t> y cond))
+ 
++// c > d-x => x > d-c
++(SGT (MOVVconst [c]) (NEGV (SUBVconst [d] x))) && is32Bit(d-c) => (SGT x (MOVVconst [d-c]))
++
+ (SGT  (MOVVconst [c]) x) && is32Bit(c) => (SGTconst  [c] x)
+ (SGTU (MOVVconst [c]) x) && is32Bit(c) => (SGTUconst [c] x)
+ 
+@@ -697,6 +703,7 @@
+ (SUBVconst [c] (MOVVconst [d]))  => (MOVVconst [d-c])
+ (SUBVconst [c] (SUBVconst [d] x)) && is32Bit(-c-d) => (ADDVconst [-c-d] x)
+ (SUBVconst [c] (ADDVconst [d] x)) && is32Bit(-c+d) => (ADDVconst [-c+d] x)
++(SUBV (MOVVconst [c]) (NEGV (SUBVconst [d] x))) => (ADDVconst [c-d] x)
+ (SLLVconst [c] (MOVVconst [d]))  => (MOVVconst [d<<uint64(c)])
+ (SRLVconst [c] (MOVVconst [d]))  => (MOVVconst [int64(uint64(d)>>uint64(c))])
+ (SRAVconst [c] (MOVVconst [d]))  => (MOVVconst [d>>uint64(c)])
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index e3695e87f8..cfedb64676 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -199,6 +199,9 @@ func init() {
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+ 		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
+ 
++		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"}, // Count leading (high order) zeroes (returns 0-32)
++		{name: "CLZV", argLength: 1, reg: gp11, asm: "CLZV"}, // Count leading (high order) zeroes (returns 0-64)
++
+ 		{name: "FMINF", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMINF", commutative: true, typ: "Float32"}, // min(arg0, arg1), float32
+ 		{name: "FMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64"}, // min(arg0, arg1), float64
+ 		{name: "FMAXF", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXF", commutative: true, typ: "Float32"}, // max(arg0, arg1), float32
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 1ca50bdf9e..7a822f65fa 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1788,6 +1788,8 @@ const (
+ 	OpLOONG64NEGD
+ 	OpLOONG64SQRTD
+ 	OpLOONG64SQRTF
++	OpLOONG64CLZW
++	OpLOONG64CLZV
+ 	OpLOONG64FMINF
+ 	OpLOONG64FMIND
+ 	OpLOONG64FMAXF
+@@ -23984,6 +23986,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "CLZW",
++		argLen: 1,
++		asm:    loong64.ACLZW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "CLZV",
++		argLen: 1,
++		asm:    loong64.ACLZV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 	{
+ 		name:            "FMINF",
+ 		argLen:          2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 8e696cb94b..31a67b6f16 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -90,6 +90,10 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return true
+ 	case OpAvg64u:
+ 		return rewriteValueLOONG64_OpAvg64u(v)
++	case OpBitLen32:
++		return rewriteValueLOONG64_OpBitLen32(v)
++	case OpBitLen64:
++		return rewriteValueLOONG64_OpBitLen64(v)
+ 	case OpClosureCall:
+ 		v.Op = OpLOONG64CALLclosure
+ 		return true
+@@ -819,6 +823,44 @@ func rewriteValueLOONG64_OpAvg64u(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueLOONG64_OpBitLen32(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (BitLen32 <t> x)
++	// result: (NEGV <t> (SUBVconst <t> [32] (CLZW <t> x)))
++	for {
++		t := v.Type
++		x := v_0
++		v.reset(OpLOONG64NEGV)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpLOONG64SUBVconst, t)
++		v0.AuxInt = int64ToAuxInt(32)
++		v1 := b.NewValue0(v.Pos, OpLOONG64CLZW, t)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueLOONG64_OpBitLen64(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	// match: (BitLen64 <t> x)
++	// result: (NEGV <t> (SUBVconst <t> [64] (CLZV <t> x)))
++	for {
++		t := v.Type
++		x := v_0
++		v.reset(OpLOONG64NEGV)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpLOONG64SUBVconst, t)
++		v0.AuxInt = int64ToAuxInt(64)
++		v1 := b.NewValue0(v.Pos, OpLOONG64CLZV, t)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueLOONG64_OpCom16(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+@@ -5351,6 +5393,34 @@ func rewriteValueLOONG64_OpLOONG64ROTRV(v *Value) bool {
+ func rewriteValueLOONG64_OpLOONG64SGT(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (SGT (MOVVconst [c]) (NEGV (SUBVconst [d] x)))
++	// cond: is32Bit(d-c)
++	// result: (SGT x (MOVVconst [d-c]))
++	for {
++		if v_0.Op != OpLOONG64MOVVconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		if v_1.Op != OpLOONG64NEGV {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpLOONG64SUBVconst {
++			break
++		}
++		d := auxIntToInt64(v_1_0.AuxInt)
++		x := v_1_0.Args[0]
++		if !(is32Bit(d - c)) {
++			break
++		}
++		v.reset(OpLOONG64SGT)
++		v0 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
++		v0.AuxInt = int64ToAuxInt(d - c)
++		v.AddArg2(x, v0)
++		return true
++	}
+ 	// match: (SGT (MOVVconst [c]) x)
+ 	// cond: is32Bit(c)
+ 	// result: (SGTconst [c] x)
+@@ -5987,6 +6057,27 @@ func rewriteValueLOONG64_OpLOONG64SUBV(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SUBV (MOVVconst [c]) (NEGV (SUBVconst [d] x)))
++	// result: (ADDVconst [c-d] x)
++	for {
++		if v_0.Op != OpLOONG64MOVVconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		if v_1.Op != OpLOONG64NEGV {
++			break
++		}
++		v_1_0 := v_1.Args[0]
++		if v_1_0.Op != OpLOONG64SUBVconst {
++			break
++		}
++		d := auxIntToInt64(v_1_0.AuxInt)
++		x := v_1_0.Args[0]
++		v.reset(OpLOONG64ADDVconst)
++		v.AuxInt = int64ToAuxInt(c - d)
++		v.AddArg(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueLOONG64_OpLOONG64SUBVconst(v *Value) bool {
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index b13999b82e..4faa30b13b 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -819,12 +819,12 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "Len32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen32, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.PPC64)
++		sys.AMD64, sys.ARM64, sys.Loong64, sys.PPC64)
+ 	addF("math/bits", "Len32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+@@ -843,7 +843,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			x := s.newValue1(ssa.OpZeroExt16to64, types.Types[types.TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], x)
+ 		},
+-		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
++		sys.ARM64, sys.ARM, sys.Loong64, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "Len16",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen16, types.Types[types.TINT], args[0])
+@@ -858,7 +858,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			x := s.newValue1(ssa.OpZeroExt8to64, types.Types[types.TUINT64], args[0])
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], x)
+ 		},
+-		sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
++		sys.ARM64, sys.ARM, sys.Loong64, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "Len8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpBitLen8, types.Types[types.TINT], args[0])
+@@ -871,7 +871,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			}
+ 			return s.newValue1(ssa.OpBitLen64, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	// LeadingZeros is handled because it trivially calls Len.
+ 	addF("math/bits", "Reverse64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 60f11c980f..d07ab154d8 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -393,6 +393,8 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "internal/runtime/sys", "GetCallerPC"}:         struct{}{},
+ 	{"loong64", "internal/runtime/sys", "GetCallerSP"}:         struct{}{},
+ 	{"loong64", "internal/runtime/sys", "GetClosurePtr"}:       struct{}{},
++	{"loong64", "internal/runtime/sys", "Len64"}:               struct{}{},
++	{"loong64", "internal/runtime/sys", "Len8"}:                struct{}{},
+ 	{"loong64", "math", "Abs"}:                                 struct{}{},
+ 	{"loong64", "math", "Copysign"}:                            struct{}{},
+ 	{"loong64", "math", "sqrt"}:                                struct{}{},
+@@ -401,6 +403,11 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "math/bits", "Add64"}:                          struct{}{},
+ 	{"loong64", "math/bits", "Mul"}:                            struct{}{},
+ 	{"loong64", "math/bits", "Mul64"}:                          struct{}{},
++	{"loong64", "math/bits", "Len"}:                            struct{}{},
++	{"loong64", "math/bits", "Len8"}:                           struct{}{},
++	{"loong64", "math/bits", "Len16"}:                          struct{}{},
++	{"loong64", "math/bits", "Len32"}:                          struct{}{},
++	{"loong64", "math/bits", "Len64"}:                          struct{}{},
+ 	{"loong64", "math/bits", "RotateLeft"}:                     struct{}{},
+ 	{"loong64", "math/bits", "RotateLeft32"}:                   struct{}{},
+ 	{"loong64", "math/bits", "RotateLeft64"}:                   struct{}{},
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 4754f29525..4519d8bd6c 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -17,6 +17,7 @@ func LeadingZeros(n uint) int {
+ 	// amd64/v3:"LZCNTQ", -"BSRQ"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
++	// loong64:"CLZV",-"SUB"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
+ 	// ppc64x:"CNTLZD"
+@@ -28,6 +29,7 @@ func LeadingZeros64(n uint64) int {
+ 	// amd64/v3:"LZCNTQ", -"BSRQ"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
++	// loong64:"CLZV",-"SUB"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
+ 	// ppc64x:"CNTLZD"
+@@ -39,6 +41,7 @@ func LeadingZeros32(n uint32) int {
+ 	// amd64/v3: "LZCNTL",- "BSRL"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZW"
++	// loong64:"CLZW",-"SUB"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
+ 	// ppc64x:"CNTLZW"
+@@ -50,6 +53,7 @@ func LeadingZeros16(n uint16) int {
+ 	// amd64/v3: "LZCNTL",- "BSRL"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
++	// loong64:"CLZV"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
+ 	// ppc64x:"CNTLZD"
+@@ -61,6 +65,7 @@ func LeadingZeros8(n uint8) int {
+ 	// amd64/v3: "LZCNTL",- "BSRL"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
++	// loong64:"CLZV"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
+ 	// ppc64x:"CNTLZD"
+@@ -76,6 +81,7 @@ func Len(n uint) int {
+ 	// amd64/v3: "LZCNTQ"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
++	// loong64:"CLZV"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
+ 	// ppc64x:"SUBC","CNTLZD"
+@@ -87,6 +93,7 @@ func Len64(n uint64) int {
+ 	// amd64/v3: "LZCNTQ"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
++	// loong64:"CLZV"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
+ 	// ppc64x:"SUBC","CNTLZD"
+@@ -94,15 +101,22 @@ func Len64(n uint64) int {
+ }
+ 
+ func SubFromLen64(n uint64) int {
++	// loong64:"CLZV",-"ADD"
+ 	// ppc64x:"CNTLZD",-"SUBC"
+ 	return 64 - bits.Len64(n)
+ }
+ 
++func CompareWithLen64(n uint64) bool {
++	// loong64:"CLZV",-"ADD",-"[$]64",-"[$]9"
++	return bits.Len64(n) < 9
++}
++
+ func Len32(n uint32) int {
+ 	// amd64/v1,amd64/v2:"BSRQ","LEAQ",-"CMOVQEQ"
+ 	// amd64/v3: "LZCNTL"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
++	// loong64:"CLZW"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
+ 	// ppc64x: "CNTLZW"
+@@ -114,6 +128,7 @@ func Len16(n uint16) int {
+ 	// amd64/v3: "LZCNTL"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
++	// loong64:"CLZV"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
+ 	// ppc64x:"SUBC","CNTLZD"
+@@ -125,6 +140,7 @@ func Len8(n uint8) int {
+ 	// amd64/v3: "LZCNTL"
+ 	// s390x:"FLOGR"
+ 	// arm:"CLZ" arm64:"CLZ"
++	// loong64:"CLZV"
+ 	// mips:"CLZ"
+ 	// wasm:"I64Clz"
+ 	// ppc64x:"SUBC","CNTLZD"

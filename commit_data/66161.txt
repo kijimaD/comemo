@@ -1,0 +1,84 @@
+commit a9357490919feed070e952ebc681b1a7af30aac2
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Feb 11 17:56:21 2025 +0000
+
+    runtime: make TestSpuriousWakeupsNeverHangSemasleep more robust
+    
+    This change modifies this test (which involves an arbitrary timeout) to
+    be a little less flaky by double-checking that our subprocess program
+    completed even if the ticker fires and we've exceeded our timeout. The
+    logic behind this change is that the testing goroutine might get delayed
+    for any number of reasons, but the subprocess could still complete in
+    time. Still, the goroutine will wake up to handle the ticker and see its
+    over time, even though the event it was waiting for did actually happen.
+    
+    I can't reproduce #71548 locally, so I suspect because this test calls
+    t.Parallel other load can delay the testing goroutine enough for this to
+    happen (especially with GODEBUG=gccheckmark=1, which pauses
+    everything to perform a full mark and sweep, and runtime tests love to
+    call runtime.GC).
+    
+    For #71548.
+    
+    Change-Id: I83e86a0115f65950886b57b5af0b4a517ef5f90f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648576
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/semasleep_test.go | 30 ++++++++++++++++++++++--------
+ 1 file changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/semasleep_test.go b/src/runtime/semasleep_test.go
+index 711d5df735..c891bc7e0c 100644
+--- a/src/runtime/semasleep_test.go
++++ b/src/runtime/semasleep_test.go
+@@ -91,10 +91,31 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
+ 	// pthread_cond_timedwait_relative_np.
+ 	ticker := time.NewTicker(200 * time.Millisecond)
+ 	defer ticker.Stop()
++
++	checkDoneErr := func(err error) {
++		if err != nil {
++			t.Fatalf("The program returned but unfortunately with an error: %v", err)
++		}
++		if time.Since(beforeStart) < 1*time.Second {
++			// The program was supposed to sleep for a full (monotonic) second;
++			// it should not return before that has elapsed.
++			t.Fatalf("The program stopped too quickly.")
++		}
++	}
+ 	for {
+ 		select {
+ 		case now := <-ticker.C:
+ 			if now.Sub(ready) > timeout {
++				// If we got paused for a long time, for example if GODEBUG=gcstoptheworld=2,
++				// it could be that the subprocess did actually finish and not deadlock, we
++				// just got stuck as runnable or our wakeup was delayed. Double-check that
++				// we don't have anything from doneCh before declaring failure.
++				select {
++				case err := <-doneCh:
++					checkDoneErr(err)
++					return
++				default:
++				}
+ 				t.Error("Program failed to return on time and has to be killed, issue #27520 still exists")
+ 				// Send SIGQUIT to get a goroutine dump.
+ 				// Stop sending SIGIO so that the program can clean up and actually terminate.
+@@ -107,14 +128,7 @@ func TestSpuriousWakeupsNeverHangSemasleep(t *testing.T) {
+ 			cmd.Process.Signal(syscall.SIGIO)
+ 
+ 		case err := <-doneCh:
+-			if err != nil {
+-				t.Fatalf("The program returned but unfortunately with an error: %v", err)
+-			}
+-			if time.Since(beforeStart) < 1*time.Second {
+-				// The program was supposed to sleep for a full (monotonic) second;
+-				// it should not return before that has elapsed.
+-				t.Fatalf("The program stopped too quickly.")
+-			}
++			checkDoneErr(err)
+ 			return
+ 		}
+ 	}

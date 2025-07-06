@@ -1,0 +1,47 @@
+commit 78e86297f5cccb82a6a57081947fab8e8af32586
+Author: Mark Freeman <mark@golang.org>
+Date:   Thu May 29 14:54:23 2025 -0400
+
+    cmd/compile/internal/noder: rename RelIndex to match codebase
+    
+    Change-Id: I06b64ea3c1c02b46e242852f8f0b56d77df42161
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677236
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/noder/doc.go | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/doc.go b/src/cmd/compile/internal/noder/doc.go
+index f76e5723b7..baf7c67463 100644
+--- a/src/cmd/compile/internal/noder/doc.go
++++ b/src/cmd/compile/internal/noder/doc.go
+@@ -39,8 +39,7 @@ kind. Go constructs are mapped onto (potentially multiple) elements.
+ Elements are accessed using an index relative to the start of the
+ section.
+ 
+-    // TODO(markfreeman): Rename to SectionIndex.
+-    RelIndex = Uint64 .
++    RelElemIdx = Uint64 .
+ 
+ ## String Section
+ String values are stored as elements in the string section. Elements
+@@ -147,7 +146,7 @@ referenced element.
+                     .
+     RefTableEntry = [ Sync ]
+                     SectionKind
+-                    RelIndex
++                    RelElemIdx
+                     .
+ 
+ Elements encode references to other elements as an index in the
+@@ -155,7 +154,7 @@ reference table — not the location of the referenced element directly.
+ 
+     // TODO(markfreeman): Rename to RefUse.
+     UseReloc = [ Sync ]
+-               RelIndex
++               RelElemIdx
+                .
+ 
+ # Primitives

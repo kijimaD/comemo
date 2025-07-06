@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 32049: 3e4afe2307c3db0208bc33b06829ec00f8dd6f37
+# Index 32049: 256a605faa10bc5507597c4669cc5bc400bf487a
 
 echo "🚀 Generating explanation for commit 32049..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 32049..."
 
 ### メタデータ
 - **コミットインデックス**: 32049
-- **コミットハッシュ**: 3e4afe2307c3db0208bc33b06829ec00f8dd6f37
-- **GitHub URL**: https://github.com/golang/go/commit/3e4afe2307c3db0208bc33b06829ec00f8dd6f37
+- **コミットハッシュ**: 256a605faa10bc5507597c4669cc5bc400bf487a
+- **GitHub URL**: https://github.com/golang/go/commit/256a605faa10bc5507597c4669cc5bc400bf487a
 
 ### 章構成
 

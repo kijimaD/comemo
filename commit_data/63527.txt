@@ -1,0 +1,78 @@
+commit 1f4bcee2cd064fdb5b02f36b4e96c1dc3aac48c9
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 19 13:46:16 2024 -0400
+
+    runtime: move zeroVal out of map.go
+    
+    It isn't specific to maps, so put it in a more general location.
+    
+    For #54766.
+    
+    Change-Id: Ia3f3ebe8c347cfa5a8582082a306f4df4e05818d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580777
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/abi/map.go     | 3 ---
+ src/internal/abi/runtime.go | 8 ++++++++
+ src/runtime/map.go          | 2 --
+ src/runtime/runtime.go      | 3 +++
+ 4 files changed, 11 insertions(+), 5 deletions(-)
+
+diff --git a/src/internal/abi/map.go b/src/internal/abi/map.go
+index b475cf9943..12ad1b891a 100644
+--- a/src/internal/abi/map.go
++++ b/src/internal/abi/map.go
+@@ -17,6 +17,3 @@ const (
+ 	MapMaxKeyBytes  = 128
+ 	MapMaxElemBytes = 128 // Must fit in a uint8.
+ )
+-
+-// ZeroValSize is the size in bytes of runtime.zeroVal.
+-const ZeroValSize = 1024
+diff --git a/src/internal/abi/runtime.go b/src/internal/abi/runtime.go
+new file mode 100644
+index 0000000000..9b91cdf5ef
+--- /dev/null
++++ b/src/internal/abi/runtime.go
+@@ -0,0 +1,8 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package abi
++
++// ZeroValSize is the size in bytes of runtime.zeroVal.
++const ZeroValSize = 1024
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 6a9345e0b4..d97e209deb 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -1423,8 +1423,6 @@ func reflectlite_maplen(h *hmap) int {
+ 	return h.count
+ }
+ 
+-var zeroVal [abi.ZeroValSize]byte
+-
+ // mapinitnoop is a no-op function known the Go linker; if a given global
+ // map (of the right size) is determined to be dead, the linker will
+ // rewrite the relocation (from the package init func) from the outlined
+diff --git a/src/runtime/runtime.go b/src/runtime/runtime.go
+index cc6f03d2a0..6ec0369a7e 100644
+--- a/src/runtime/runtime.go
++++ b/src/runtime/runtime.go
+@@ -5,6 +5,7 @@
+ package runtime
+ 
+ import (
++	"internal/abi"
+ 	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+@@ -296,3 +297,5 @@ func setCrashFD(fd uintptr) uintptr {
+ var auxv []uintptr
+ 
+ func getAuxv() []uintptr { return auxv } // accessed from x/sys/cpu; see issue 57336
++
++var zeroVal [abi.ZeroValSize]byte

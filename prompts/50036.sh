@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50036: ff7b04136091f8208352e97c117ca6489ca95a86
+# Index 50036: 2d4042d4ab3a2021819dce91eb228daf8fa5e557
 
 echo "🚀 Generating explanation for commit 50036..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 50036..."
 
 ### メタデータ
 - **コミットインデックス**: 50036
-- **コミットハッシュ**: ff7b04136091f8208352e97c117ca6489ca95a86
-- **GitHub URL**: https://github.com/golang/go/commit/ff7b04136091f8208352e97c117ca6489ca95a86
+- **コミットハッシュ**: 2d4042d4ab3a2021819dce91eb228daf8fa5e557
+- **GitHub URL**: https://github.com/golang/go/commit/2d4042d4ab3a2021819dce91eb228daf8fa5e557
 
 ### 章構成
 

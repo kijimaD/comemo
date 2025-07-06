@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 46407: 137f0d2e06523f6daf808ea09e77e68d8944a85a
+# Index 46407: 10b59aa5399147fc31a73b1978daec11d7563bd2
 
 echo "🚀 Generating explanation for commit 46407..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 46407..."
 
 ### メタデータ
 - **コミットインデックス**: 46407
-- **コミットハッシュ**: 137f0d2e06523f6daf808ea09e77e68d8944a85a
-- **GitHub URL**: https://github.com/golang/go/commit/137f0d2e06523f6daf808ea09e77e68d8944a85a
+- **コミットハッシュ**: 10b59aa5399147fc31a73b1978daec11d7563bd2
+- **GitHub URL**: https://github.com/golang/go/commit/10b59aa5399147fc31a73b1978daec11d7563bd2
 
 ### 章構成
 

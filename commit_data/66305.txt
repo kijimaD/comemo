@@ -1,0 +1,36 @@
+commit bdcd6d1b653dd7a5b3eb9a053623f85433ff9e6b
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Feb 24 13:05:31 2025 +0000
+
+    strconv: use builtin min function in commonPrefixLenIgnoreCase
+    
+    To make code a bit simpler.
+    
+    Change-Id: I33b3e04bc810a4838584c477854ef612b355579a
+    GitHub-Last-Rev: 6d5bbc2a2877193e1319b9e626f408eda399666e
+    GitHub-Pull-Request: golang/go#71927
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651975
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/strconv/atof.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/strconv/atof.go b/src/strconv/atof.go
+index 8fc90425f6..fe0dfdce55 100644
+--- a/src/strconv/atof.go
++++ b/src/strconv/atof.go
+@@ -18,10 +18,7 @@ var optimize = true // set to false to force slow-path conversions for testing
+ // prefix of s and prefix, with the character case of s ignored.
+ // The prefix argument must be all lower-case.
+ func commonPrefixLenIgnoreCase(s, prefix string) int {
+-	n := len(prefix)
+-	if n > len(s) {
+-		n = len(s)
+-	}
++	n := min(len(prefix), len(s))
+ 	for i := 0; i < n; i++ {
+ 		c := s[i]
+ 		if 'A' <= c && c <= 'Z' {

@@ -1,0 +1,132 @@
+commit b5ee80a85ad1a0c5f3e87b95e516d4c6ca42fa4b
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Wed Aug 21 23:17:26 2024 +0200
+
+    sort: drop implementation for Go <1.21
+    
+    Now that Go 1.22.6 is the minimum bootstrap toolchain (cf. CL 606156),
+    the fallback implementation for Go versions <1.21 can be dropped.
+    
+    For #61180
+    For #64751
+    
+    Change-Id: Idfeca0a6e9f490e1ab0f308ead372612402923ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607315
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+---
+ src/sort/sort.go            | 17 ++++++++++-------
+ src/sort/sort_impl_120.go   | 15 ---------------
+ src/sort/sort_impl_go121.go | 22 ----------------------
+ 3 files changed, 10 insertions(+), 44 deletions(-)
+
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index 6db161f0c0..042ec4a8be 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -7,7 +7,10 @@
+ // Package sort provides primitives for sorting slices and user-defined collections.
+ package sort
+ 
+-import "math/bits"
++import (
++	"math/bits"
++	"slices"
++)
+ 
+ // An implementation of Interface can be sorted by the routines in this package.
+ // The methods refer to elements of the underlying collection by integer index.
+@@ -162,34 +165,34 @@ func (x StringSlice) Sort() { Sort(x) }
+ // Ints sorts a slice of ints in increasing order.
+ //
+ // Note: as of Go 1.22, this function simply calls [slices.Sort].
+-func Ints(x []int) { intsImpl(x) }
++func Ints(x []int) { slices.Sort(x) }
+ 
+ // Float64s sorts a slice of float64s in increasing order.
+ // Not-a-number (NaN) values are ordered before other values.
+ //
+ // Note: as of Go 1.22, this function simply calls [slices.Sort].
+-func Float64s(x []float64) { float64sImpl(x) }
++func Float64s(x []float64) { slices.Sort(x) }
+ 
+ // Strings sorts a slice of strings in increasing order.
+ //
+ // Note: as of Go 1.22, this function simply calls [slices.Sort].
+-func Strings(x []string) { stringsImpl(x) }
++func Strings(x []string) { slices.Sort(x) }
+ 
+ // IntsAreSorted reports whether the slice x is sorted in increasing order.
+ //
+ // Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+-func IntsAreSorted(x []int) bool { return intsAreSortedImpl(x) }
++func IntsAreSorted(x []int) bool { return slices.IsSorted(x) }
+ 
+ // Float64sAreSorted reports whether the slice x is sorted in increasing order,
+ // with not-a-number (NaN) values before any other values.
+ //
+ // Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+-func Float64sAreSorted(x []float64) bool { return float64sAreSortedImpl(x) }
++func Float64sAreSorted(x []float64) bool { return slices.IsSorted(x) }
+ 
+ // StringsAreSorted reports whether the slice x is sorted in increasing order.
+ //
+ // Note: as of Go 1.22, this function simply calls [slices.IsSorted].
+-func StringsAreSorted(x []string) bool { return stringsAreSortedImpl(x) }
++func StringsAreSorted(x []string) bool { return slices.IsSorted(x) }
+ 
+ // Notes on stable sorting:
+ // The used algorithms are simple and provable correct on all input and use
+diff --git a/src/sort/sort_impl_120.go b/src/sort/sort_impl_120.go
+deleted file mode 100644
+index 5980da67e7..0000000000
+--- a/src/sort/sort_impl_120.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !go1.21
+-
+-package sort
+-
+-func intsImpl(x []int)         { Sort(IntSlice(x)) }
+-func float64sImpl(x []float64) { Sort(Float64Slice(x)) }
+-func stringsImpl(x []string)   { Sort(StringSlice(x)) }
+-
+-func intsAreSortedImpl(x []int) bool         { return IsSorted(IntSlice(x)) }
+-func float64sAreSortedImpl(x []float64) bool { return IsSorted(Float64Slice(x)) }
+-func stringsAreSortedImpl(x []string) bool   { return IsSorted(StringSlice(x)) }
+diff --git a/src/sort/sort_impl_go121.go b/src/sort/sort_impl_go121.go
+deleted file mode 100644
+index 0a6a6a62e7..0000000000
+--- a/src/sort/sort_impl_go121.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build go1.21
+-
+-// Starting with Go 1.21, we can leverage the new generic functions from the
+-// slices package to implement some `sort` functions faster. However, until
+-// the bootstrap compiler uses Go 1.21 or later, we keep a fallback version
+-// in sort_impl_120.go that retains the old implementation.
+-
+-package sort
+-
+-import "slices"
+-
+-func intsImpl(x []int)         { slices.Sort(x) }
+-func float64sImpl(x []float64) { slices.Sort(x) }
+-func stringsImpl(x []string)   { slices.Sort(x) }
+-
+-func intsAreSortedImpl(x []int) bool         { return slices.IsSorted(x) }
+-func float64sAreSortedImpl(x []float64) bool { return slices.IsSorted(x) }
+-func stringsAreSortedImpl(x []string) bool   { return slices.IsSorted(x) }

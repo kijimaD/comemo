@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50070: bd8009d4392fae3ad148a0fe9adb4ea4ac5ab8d3
+# Index 50070: dc1556eaef871074895ed9fdf6028475d53235be
 
 echo "🚀 Generating explanation for commit 50070..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 50070..."
 
 ### メタデータ
 - **コミットインデックス**: 50070
-- **コミットハッシュ**: bd8009d4392fae3ad148a0fe9adb4ea4ac5ab8d3
-- **GitHub URL**: https://github.com/golang/go/commit/bd8009d4392fae3ad148a0fe9adb4ea4ac5ab8d3
+- **コミットハッシュ**: dc1556eaef871074895ed9fdf6028475d53235be
+- **GitHub URL**: https://github.com/golang/go/commit/dc1556eaef871074895ed9fdf6028475d53235be
 
 ### 章構成
 

@@ -1,0 +1,32 @@
+commit aeb2c2a8966387312336768d7e7496d2cfd3cd16
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat May 18 20:15:38 2024 +0200
+
+    crypto/tls: remove typeNextProtocol
+    
+    Was this strictly necessary? No.
+    Did this deserve its own CL? Maybe not.
+    But I have a personal vendetta against NPN.
+    
+    Change-Id: Ide1ad1092259dc23e3ead5c1d5269fc5cb2793d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587275
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/tls/common.go | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 14a8daedad..1b0f19da9e 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -93,7 +93,6 @@ const (
+ 	typeFinished            uint8 = 20
+ 	typeCertificateStatus   uint8 = 22
+ 	typeKeyUpdate           uint8 = 24
+-	typeNextProtocol        uint8 = 67  // Not IANA assigned
+ 	typeMessageHash         uint8 = 254 // synthetic message
+ )
+ 

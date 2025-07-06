@@ -1,0 +1,1634 @@
+commit ed035af7b7d7c1cd2e6f852e22a9b04fc2a2cc65
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Aug 21 16:17:16 2024 -0400
+
+    internal/runtime/maps: remove type fields
+    
+    Rather than storing the same type pointer in multiple places, just pass
+    it around.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Ia6c74805c7a44125ae473177b317f16c6688e6de
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622377
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  32 ++--
+ src/internal/runtime/maps/export_test.go          |  10 +-
+ src/internal/runtime/maps/fuzz_test.go            |   8 +-
+ src/internal/runtime/maps/group.go                |  18 +--
+ src/internal/runtime/maps/map.go                  | 125 +++++++---------
+ src/internal/runtime/maps/map_test.go             |  88 +++++------
+ src/internal/runtime/maps/table.go                | 171 ++++++++++------------
+ src/internal/runtime/maps/table_debug.go          |  32 ++--
+ src/runtime/map_swiss.go                          |  12 +-
+ src/runtime/map_swiss_test.go                     |   4 +-
+ 10 files changed, 227 insertions(+), 273 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/map_swiss.go b/src/cmd/compile/internal/reflectdata/map_swiss.go
+index 38a23908a6..2b79b22235 100644
+--- a/src/cmd/compile/internal/reflectdata/map_swiss.go
++++ b/src/cmd/compile/internal/reflectdata/map_swiss.go
+@@ -86,13 +86,11 @@ func swissTableType() *types.Type {
+ 	//     localDepth uint8
+ 	//     // N.B Padding
+ 	//
+-	//     typ  unsafe.Pointer // *abi.SwissMapType
+ 	//     seed uintptr
+ 	//
+ 	//     index int
+ 	//
+ 	//     // From groups.
+-	//     groups_typ        unsafe.Pointer // *abi.SwissMapType
+ 	//     groups_data       unsafe.Pointer
+ 	//     groups_lengthMask uint64
+ 	//     groups_entryMask  uint64
+@@ -103,10 +101,8 @@ func swissTableType() *types.Type {
+ 		makefield("capacity", types.Types[types.TUINT16]),
+ 		makefield("growthLeft", types.Types[types.TUINT16]),
+ 		makefield("localDepth", types.Types[types.TUINT8]),
+-		makefield("typ", types.Types[types.TUNSAFEPTR]),
+ 		makefield("seed", types.Types[types.TUINTPTR]),
+ 		makefield("index", types.Types[types.TINT]),
+-		makefield("groups_typ", types.Types[types.TUNSAFEPTR]),
+ 		makefield("groups_data", types.Types[types.TUNSAFEPTR]),
+ 		makefield("groups_lengthMask", types.Types[types.TUINT64]),
+ 		makefield("groups_entryMask", types.Types[types.TUINT64]),
+@@ -120,9 +116,9 @@ func swissTableType() *types.Type {
+ 	table.SetUnderlying(types.NewStruct(fields))
+ 	types.CalcSize(table)
+ 
+-	// The size of table should be 64 bytes on 64 bit
+-	// and 44 bytes on 32 bit platforms.
+-	if size := int64(3*2 + 2*1 /* one extra for padding */ + 2*8 + 5*types.PtrSize); table.Size() != size {
++	// The size of table should be 48 bytes on 64 bit
++	// and 36 bytes on 32 bit platforms.
++	if size := int64(3*2 + 2*1 /* one extra for padding */ + 2*8 + 3*types.PtrSize); table.Size() != size {
+ 		base.Fatalf("internal/runtime/maps.table size not correct: got %d, want %d", table.Size(), size)
+ 	}
+ 
+@@ -141,7 +137,6 @@ func SwissMapType() *types.Type {
+ 
+ 	// type Map struct {
+ 	//     used uint64
+-	//     typ  unsafe.Pointer // *abi.SwissMapType
+ 	//     seed uintptr
+ 	//
+ 	//     dirPtr unsafe.Pointer
+@@ -156,7 +151,6 @@ func SwissMapType() *types.Type {
+ 	// must match internal/runtime/maps/map.go:Map.
+ 	fields := []*types.Field{
+ 		makefield("used", types.Types[types.TUINT64]),
+-		makefield("typ", types.Types[types.TUNSAFEPTR]),
+ 		makefield("seed", types.Types[types.TUINTPTR]),
+ 		makefield("dirPtr", types.Types[types.TUNSAFEPTR]),
+ 		makefield("dirLen", types.Types[types.TINT]),
+@@ -173,9 +167,9 @@ func SwissMapType() *types.Type {
+ 	m.SetUnderlying(types.NewStruct(fields))
+ 	types.CalcSize(m)
+ 
+-	// The size of Map should be 56 bytes on 64 bit
+-	// and 36 bytes on 32 bit platforms.
+-	if size := int64(2*8 + 5*types.PtrSize /* one extra for globalDepth + padding */); m.Size() != size {
++	// The size of Map should be 48 bytes on 64 bit
++	// and 32 bytes on 32 bit platforms.
++	if size := int64(2*8 + 4*types.PtrSize /* one extra for globalDepth + padding */); m.Size() != size {
+ 		base.Fatalf("internal/runtime/maps.Map size not correct: got %d, want %d", m.Size(), size)
+ 	}
+ 
+@@ -208,9 +202,8 @@ func SwissMapIterType() *types.Type {
+ 	//
+ 	//    dirIdx int
+ 	//
+-	//    tab             *table
+-	//    groupSmall_typ  unsafe.Pointer // *SwissMapType
+-	//    groupSmall_data unsafe.Pointer
++	//    tab        *table
++	//    groupSmall unsafe.Pointer // actually groupReference.data
+ 	//
+ 	//    entryIdx uint64
+ 	// }
+@@ -226,8 +219,7 @@ func SwissMapIterType() *types.Type {
+ 		makefield("globalDepth", types.Types[types.TUINT8]),
+ 		makefield("dirIdx", types.Types[types.TINT]),
+ 		makefield("tab", types.NewPtr(swissTableType())),
+-		makefield("groupSmall_typ", types.Types[types.TUNSAFEPTR]),
+-		makefield("groupSmall_data", types.Types[types.TUNSAFEPTR]),
++		makefield("groupSmall", types.Types[types.TUNSAFEPTR]),
+ 		makefield("entryIdx", types.Types[types.TUINT64]),
+ 	}
+ 
+@@ -240,9 +232,9 @@ func SwissMapIterType() *types.Type {
+ 	iter.SetUnderlying(types.NewStruct(fields))
+ 	types.CalcSize(iter)
+ 
+-	// The size of Iter should be 104 bytes on 64 bit
+-	// and 68 bytes on 32 bit platforms.
+-	if size := 9*types.PtrSize /* one extra for globalDepth + padding */ + 4*8; iter.Size() != int64(size) {
++	// The size of Iter should be 96 bytes on 64 bit
++	// and 64 bytes on 32 bit platforms.
++	if size := 8*types.PtrSize /* one extra for globalDepth + padding */ + 4*8; iter.Size() != int64(size) {
+ 		base.Fatalf("internal/runtime/maps.Iter size not correct: got %d, want %d", iter.Size(), size)
+ 	}
+ 
+diff --git a/src/internal/runtime/maps/export_test.go b/src/internal/runtime/maps/export_test.go
+index 15c112e737..0cc78b954f 100644
+--- a/src/internal/runtime/maps/export_test.go
++++ b/src/internal/runtime/maps/export_test.go
+@@ -57,7 +57,7 @@ func (m *Map) GroupCount() uint64 {
+ // Returns nil if there are no full groups.
+ // Returns nil if a group is full but contains entirely deleted slots.
+ // Returns nil if the map is small.
+-func (m *Map) KeyFromFullGroup() unsafe.Pointer {
++func (m *Map) KeyFromFullGroup(typ *abi.SwissMapType) unsafe.Pointer {
+ 	if m.dirLen <= 0 {
+ 		return nil
+ 	}
+@@ -71,7 +71,7 @@ func (m *Map) KeyFromFullGroup() unsafe.Pointer {
+ 		lastTab = t
+ 
+ 		for i := uint64(0); i <= t.groups.lengthMask; i++ {
+-			g := t.groups.group(i)
++			g := t.groups.group(typ, i)
+ 			match := g.ctrls().matchEmpty()
+ 			if match != 0 {
+ 				continue
+@@ -82,7 +82,7 @@ func (m *Map) KeyFromFullGroup() unsafe.Pointer {
+ 				if g.ctrls().get(j) == ctrlDeleted {
+ 					continue
+ 				}
+-				return g.key(j)
++				return g.key(typ, j)
+ 			}
+ 		}
+ 	}
+@@ -91,12 +91,12 @@ func (m *Map) KeyFromFullGroup() unsafe.Pointer {
+ }
+ 
+ // Returns nil if the map is small.
+-func (m *Map) TableFor(key unsafe.Pointer) *table {
++func (m *Map) TableFor(typ *abi.SwissMapType, key unsafe.Pointer) *table {
+ 	if m.dirLen <= 0 {
+ 		return nil
+ 	}
+ 
+-	hash := m.typ.Hasher(key, m.seed)
++	hash := typ.Hasher(key, m.seed)
+ 	idx := m.directoryIndex(hash)
+ 	return m.directoryAt(idx)
+ }
+diff --git a/src/internal/runtime/maps/fuzz_test.go b/src/internal/runtime/maps/fuzz_test.go
+index 374496b179..f3f33773db 100644
+--- a/src/internal/runtime/maps/fuzz_test.go
++++ b/src/internal/runtime/maps/fuzz_test.go
+@@ -178,12 +178,12 @@ func FuzzTable(f *testing.F) {
+ 			return
+ 		}
+ 
+-		m, _ := maps.NewTestMap[uint16, uint32](8)
++		m, typ := maps.NewTestMap[uint16, uint32](8)
+ 		ref := make(map[uint16]uint32)
+ 		for _, c := range fc {
+ 			switch c.Op {
+ 			case fuzzOpGet:
+-				elemPtr, ok := m.Get(unsafe.Pointer(&c.Key))
++				elemPtr, ok := m.Get(typ, unsafe.Pointer(&c.Key))
+ 				refElem, refOK := ref[c.Key]
+ 
+ 				if ok != refOK {
+@@ -197,10 +197,10 @@ func FuzzTable(f *testing.F) {
+ 					t.Errorf("Get(%d) got %d want %d", c.Key, gotElem, refElem)
+ 				}
+ 			case fuzzOpPut:
+-				m.Put(unsafe.Pointer(&c.Key), unsafe.Pointer(&c.Elem))
++				m.Put(typ, unsafe.Pointer(&c.Key), unsafe.Pointer(&c.Elem))
+ 				ref[c.Key] = c.Elem
+ 			case fuzzOpDelete:
+-				m.Delete(unsafe.Pointer(&c.Key))
++				m.Delete(typ, unsafe.Pointer(&c.Key))
+ 				delete(ref, c.Key)
+ 			default:
+ 				// Just skip this command to keep the fuzzer
+diff --git a/src/internal/runtime/maps/group.go b/src/internal/runtime/maps/group.go
+index ed66b5e1f2..74bc79088b 100644
+--- a/src/internal/runtime/maps/group.go
++++ b/src/internal/runtime/maps/group.go
+@@ -157,8 +157,6 @@ func (g *ctrlGroup) convertNonFullToEmptyAndFullToDeleted() {
+ // A group holds abi.SwissMapGroupSlots slots (key/elem pairs) plus their
+ // control word.
+ type groupReference struct {
+-	typ *abi.SwissMapType
+-
+ 	// data points to the group, which is described by typ.Group and has
+ 	// layout:
+ 	//
+@@ -204,15 +202,15 @@ func (g *groupReference) ctrls() *ctrlGroup {
+ }
+ 
+ // key returns a pointer to the key at index i.
+-func (g *groupReference) key(i uint32) unsafe.Pointer {
+-	offset := groupSlotsOffset + uintptr(i)*g.typ.SlotSize
++func (g *groupReference) key(typ *abi.SwissMapType, i uint32) unsafe.Pointer {
++	offset := groupSlotsOffset + uintptr(i)*typ.SlotSize
+ 
+ 	return unsafe.Pointer(uintptr(g.data) + offset)
+ }
+ 
+ // elem returns a pointer to the element at index i.
+-func (g *groupReference) elem(i uint32) unsafe.Pointer {
+-	offset := groupSlotsOffset + uintptr(i)*g.typ.SlotSize + g.typ.ElemOff
++func (g *groupReference) elem(typ *abi.SwissMapType, i uint32) unsafe.Pointer {
++	offset := groupSlotsOffset + uintptr(i)*typ.SlotSize + typ.ElemOff
+ 
+ 	return unsafe.Pointer(uintptr(g.data) + offset)
+ }
+@@ -220,8 +218,6 @@ func (g *groupReference) elem(i uint32) unsafe.Pointer {
+ // groupsReference is a wrapper type describing an array of groups stored at
+ // data.
+ type groupsReference struct {
+-	typ *abi.SwissMapType
+-
+ 	// data points to an array of groups. See groupReference above for the
+ 	// definition of group.
+ 	data unsafe.Pointer // data *[length]typ.Group
+@@ -240,7 +236,6 @@ type groupsReference struct {
+ // Length must be a power of two.
+ func newGroups(typ *abi.SwissMapType, length uint64) groupsReference {
+ 	return groupsReference{
+-		typ: typ,
+ 		// TODO: make the length type the same throughout.
+ 		data:       newarray(typ.Group, int(length)),
+ 		lengthMask: length - 1,
+@@ -249,13 +244,12 @@ func newGroups(typ *abi.SwissMapType, length uint64) groupsReference {
+ }
+ 
+ // group returns the group at index i.
+-func (g *groupsReference) group(i uint64) groupReference {
++func (g *groupsReference) group(typ *abi.SwissMapType, i uint64) groupReference {
+ 	// TODO(prattmic): Do something here about truncation on cast to
+ 	// uintptr on 32-bit systems?
+-	offset := uintptr(i) * g.typ.Group.Size_
++	offset := uintptr(i) * typ.Group.Size_
+ 
+ 	return groupReference{
+-		typ:  g.typ,
+ 		data: unsafe.Pointer(uintptr(g.data) + offset),
+ 	}
+ }
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 67e4bd6811..2bfc5b7fb7 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -195,15 +195,6 @@ type Map struct {
+ 	// tables). Excludes deleted slots.
+ 	used uint64
+ 
+-	// Type of this map.
+-	//
+-	// TODO(prattmic): Old maps pass this into every call instead of
+-	// keeping a reference in the map header. This is probably more
+-	// efficient and arguably more robust (crafty users can't reach into to
+-	// the map to change its type), but I leave it here for now for
+-	// simplicity.
+-	typ *abi.SwissMapType
+-
+ 	// seed is the hash seed, computed as a unique random number per map.
+ 	// TODO(prattmic): Populate this on table initialization.
+ 	seed uintptr
+@@ -262,8 +253,6 @@ func NewMap(mt *abi.SwissMapType, capacity uint64) *Map {
+ 	globalDepth := uint8(sys.TrailingZeros64(dirSize))
+ 
+ 	m := &Map{
+-		typ: mt,
+-
+ 		//TODO
+ 		//seed: uintptr(rand()),
+ 
+@@ -289,7 +278,6 @@ func NewMap(mt *abi.SwissMapType, capacity uint64) *Map {
+ 		m.dirLen = 0
+ 
+ 		g := groupReference{
+-			typ:  m.typ,
+ 			data: m.dirPtr,
+ 		}
+ 		g.ctrls().setEmpty()
+@@ -298,10 +286,6 @@ func NewMap(mt *abi.SwissMapType, capacity uint64) *Map {
+ 	return m
+ }
+ 
+-func (m *Map) Type() *abi.SwissMapType {
+-	return m.typ
+-}
+-
+ func (m *Map) directoryIndex(hash uintptr) uintptr {
+ 	if m.dirLen == 1 {
+ 		return 0
+@@ -367,36 +351,35 @@ func (m *Map) Used() uint64 {
+ 
+ // Get performs a lookup of the key that key points to. It returns a pointer to
+ // the element, or false if the key doesn't exist.
+-func (m *Map) Get(key unsafe.Pointer) (unsafe.Pointer, bool) {
+-	return m.getWithoutKey(key)
++func (m *Map) Get(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
++	return m.getWithoutKey(typ, key)
+ }
+ 
+-func (m *Map) getWithKey(key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
+-	hash := m.typ.Hasher(key, m.seed)
++func (m *Map) getWithKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
++	hash := typ.Hasher(key, m.seed)
+ 
+ 	if m.dirLen == 0 {
+-		return m.getWithKeySmall(hash, key)
++		return m.getWithKeySmall(typ, hash, key)
+ 	}
+ 
+ 	idx := m.directoryIndex(hash)
+-	return m.directoryAt(idx).getWithKey(hash, key)
++	return m.directoryAt(idx).getWithKey(typ, hash, key)
+ }
+ 
+-func (m *Map) getWithoutKey(key unsafe.Pointer) (unsafe.Pointer, bool) {
+-	hash := m.typ.Hasher(key, m.seed)
++func (m *Map) getWithoutKey(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
++	hash := typ.Hasher(key, m.seed)
+ 
+ 	if m.dirLen == 0 {
+-		_, elem, ok := m.getWithKeySmall(hash, key)
++		_, elem, ok := m.getWithKeySmall(typ, hash, key)
+ 		return elem, ok
+ 	}
+ 
+ 	idx := m.directoryIndex(hash)
+-	return m.directoryAt(idx).getWithoutKey(hash, key)
++	return m.directoryAt(idx).getWithoutKey(typ, hash, key)
+ }
+ 
+-func (m *Map) getWithKeySmall(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
++func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
+ 	g := groupReference{
+-		typ:  m.typ,
+ 		data: m.dirPtr,
+ 	}
+ 
+@@ -410,42 +393,42 @@ func (m *Map) getWithKeySmall(hash uintptr, key unsafe.Pointer) (unsafe.Pointer,
+ 			continue
+ 		}
+ 
+-		slotKey := g.key(i)
+-		if m.typ.Key.Equal(key, slotKey) {
+-			return slotKey, g.elem(i), true
++		slotKey := g.key(typ, i)
++		if typ.Key.Equal(key, slotKey) {
++			return slotKey, g.elem(typ, i), true
+ 		}
+ 	}
+ 
+ 	return nil, nil, false
+ }
+ 
+-func (m *Map) Put(key, elem unsafe.Pointer) {
+-	slotElem := m.PutSlot(key)
+-	typedmemmove(m.typ.Elem, slotElem, elem)
++func (m *Map) Put(typ *abi.SwissMapType, key, elem unsafe.Pointer) {
++	slotElem := m.PutSlot(typ, key)
++	typedmemmove(typ.Elem, slotElem, elem)
+ }
+ 
+ // PutSlot returns a pointer to the element slot where an inserted element
+ // should be written.
+ //
+ // PutSlot never returns nil.
+-func (m *Map) PutSlot(key unsafe.Pointer) unsafe.Pointer {
+-	hash := m.typ.Hasher(key, m.seed)
++func (m *Map) PutSlot(typ *abi.SwissMapType, key unsafe.Pointer) unsafe.Pointer {
++	hash := typ.Hasher(key, m.seed)
+ 
+ 	if m.dirLen == 0 {
+ 		if m.used < abi.SwissMapGroupSlots {
+-			return m.putSlotSmall(hash, key)
++			return m.putSlotSmall(typ, hash, key)
+ 		}
+ 
+ 		// Can't fit another entry, grow to full size map.
+ 		//
+ 		// TODO(prattmic): If this is an update to an existing key then
+ 		// we actually don't need to grow.
+-		m.growToTable()
++		m.growToTable(typ)
+ 	}
+ 
+ 	for {
+ 		idx := m.directoryIndex(hash)
+-		elem, ok := m.directoryAt(idx).PutSlot(m, hash, key)
++		elem, ok := m.directoryAt(idx).PutSlot(typ, m, hash, key)
+ 		if !ok {
+ 			continue
+ 		}
+@@ -453,9 +436,8 @@ func (m *Map) PutSlot(key unsafe.Pointer) unsafe.Pointer {
+ 	}
+ }
+ 
+-func (m *Map) putSlotSmall(hash uintptr, key unsafe.Pointer) unsafe.Pointer {
++func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+ 	g := groupReference{
+-		typ:  m.typ,
+ 		data: m.dirPtr,
+ 	}
+ 
+@@ -465,13 +447,13 @@ func (m *Map) putSlotSmall(hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+ 	for match != 0 {
+ 		i := match.first()
+ 
+-		slotKey := g.key(i)
+-		if m.typ.Key.Equal(key, slotKey) {
+-			if m.typ.NeedKeyUpdate() {
+-				typedmemmove(m.typ.Key, slotKey, key)
++		slotKey := g.key(typ, i)
++		if typ.Key.Equal(key, slotKey) {
++			if typ.NeedKeyUpdate() {
++				typedmemmove(typ.Key, slotKey, key)
+ 			}
+ 
+-			slotElem := g.elem(i)
++			slotElem := g.elem(typ, i)
+ 
+ 			return slotElem
+ 		}
+@@ -487,9 +469,9 @@ func (m *Map) putSlotSmall(hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+ 
+ 	i := match.first()
+ 
+-	slotKey := g.key(i)
+-	typedmemmove(m.typ.Key, slotKey, key)
+-	slotElem := g.elem(i)
++	slotKey := g.key(typ, i)
++	typedmemmove(typ.Key, slotKey, key)
++	slotElem := g.elem(typ, i)
+ 
+ 	g.ctrls().set(i, ctrl(h2(hash)))
+ 	m.used++
+@@ -497,11 +479,10 @@ func (m *Map) putSlotSmall(hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+ 	return slotElem
+ }
+ 
+-func (m *Map) growToTable() {
+-	tab := newTable(m.typ, 2*abi.SwissMapGroupSlots, 0, 0)
++func (m *Map) growToTable(typ *abi.SwissMapType) {
++	tab := newTable(typ, 2*abi.SwissMapGroupSlots, 0, 0)
+ 
+ 	g := groupReference{
+-		typ:  m.typ,
+ 		data: m.dirPtr,
+ 	}
+ 
+@@ -510,11 +491,11 @@ func (m *Map) growToTable() {
+ 			// Empty
+ 			continue
+ 		}
+-		key := g.key(i)
+-		elem := g.elem(i)
+-		hash := tab.typ.Hasher(key, m.seed)
+-		slotElem := tab.uncheckedPutSlot(hash, key)
+-		typedmemmove(tab.typ.Elem, slotElem, elem)
++		key := g.key(typ, i)
++		elem := g.elem(typ, i)
++		hash := typ.Hasher(key, m.seed)
++		slotElem := tab.uncheckedPutSlot(typ, hash, key)
++		typedmemmove(typ.Elem, slotElem, elem)
+ 		tab.used++
+ 	}
+ 
+@@ -526,21 +507,20 @@ func (m *Map) growToTable() {
+ 	m.dirLen = len(directory)
+ }
+ 
+-func (m *Map) Delete(key unsafe.Pointer) {
+-	hash := m.typ.Hasher(key, m.seed)
++func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
++	hash := typ.Hasher(key, m.seed)
+ 
+ 	if m.dirLen == 0 {
+-		m.deleteSmall(hash, key)
++		m.deleteSmall(typ, hash, key)
+ 		return
+ 	}
+ 
+ 	idx := m.directoryIndex(hash)
+-	m.directoryAt(idx).Delete(m, key)
++	m.directoryAt(idx).Delete(typ, m, key)
+ }
+ 
+-func (m *Map) deleteSmall(hash uintptr, key unsafe.Pointer) {
++func (m *Map) deleteSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) {
+ 	g := groupReference{
+-		typ:  m.typ,
+ 		data: m.dirPtr,
+ 	}
+ 
+@@ -548,12 +528,12 @@ func (m *Map) deleteSmall(hash uintptr, key unsafe.Pointer) {
+ 
+ 	for match != 0 {
+ 		i := match.first()
+-		slotKey := g.key(i)
+-		if m.typ.Key.Equal(key, slotKey) {
++		slotKey := g.key(typ, i)
++		if typ.Key.Equal(key, slotKey) {
+ 			m.used--
+ 
+-			typedmemclr(m.typ.Key, slotKey)
+-			typedmemclr(m.typ.Elem, g.elem(i))
++			typedmemclr(typ.Key, slotKey)
++			typedmemclr(typ.Elem, g.elem(typ, i))
+ 
+ 			// We only have 1 group, so it is OK to immediately
+ 			// reuse deleted slots.
+@@ -565,9 +545,9 @@ func (m *Map) deleteSmall(hash uintptr, key unsafe.Pointer) {
+ }
+ 
+ // Clear deletes all entries from the map resulting in an empty map.
+-func (m *Map) Clear() {
++func (m *Map) Clear(typ *abi.SwissMapType) {
+ 	if m.dirLen == 0 {
+-		m.clearSmall()
++		m.clearSmall(typ)
+ 		return
+ 	}
+ 
+@@ -577,7 +557,7 @@ func (m *Map) Clear() {
+ 		if t == lastTab {
+ 			continue
+ 		}
+-		t.Clear()
++		t.Clear(typ)
+ 		lastTab = t
+ 	}
+ 	m.used = 0
+@@ -585,13 +565,12 @@ func (m *Map) Clear() {
+ 	// TODO: shrink directory?
+ }
+ 
+-func (m *Map) clearSmall() {
++func (m *Map) clearSmall(typ *abi.SwissMapType) {
+ 	g := groupReference{
+-		typ:  m.typ,
+ 		data: m.dirPtr,
+ 	}
+ 
+-	typedmemclr(m.typ.Group, g.data)
++	typedmemclr(typ.Group, g.data)
+ 	g.ctrls().setEmpty()
+ 
+ 	m.used = 0
+diff --git a/src/internal/runtime/maps/map_test.go b/src/internal/runtime/maps/map_test.go
+index 4b39bf5ec7..cd40db8712 100644
+--- a/src/internal/runtime/maps/map_test.go
++++ b/src/internal/runtime/maps/map_test.go
+@@ -21,7 +21,7 @@ func TestCtrlSize(t *testing.T) {
+ }
+ 
+ func TestMapPut(t *testing.T) {
+-	m, _ := maps.NewTestMap[uint32, uint64](8)
++	m, typ := maps.NewTestMap[uint32, uint64](8)
+ 
+ 	key := uint32(0)
+ 	elem := uint64(256 + 0)
+@@ -29,7 +29,7 @@ func TestMapPut(t *testing.T) {
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+ 		elem += 1
+-		m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 		if maps.DebugLog {
+ 			fmt.Printf("After put %d: %v\n", key, m)
+@@ -46,7 +46,7 @@ func TestMapPut(t *testing.T) {
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+ 		elem += 1
+-		got, ok := m.Get(unsafe.Pointer(&key))
++		got, ok := m.Get(typ, unsafe.Pointer(&key))
+ 		if !ok {
+ 			t.Errorf("Get(%d) got ok false want true", key)
+ 		}
+@@ -59,7 +59,7 @@ func TestMapPut(t *testing.T) {
+ 
+ // Grow enough to cause a table split.
+ func TestMapSplit(t *testing.T) {
+-	m, _ := maps.NewTestMap[uint32, uint64](0)
++	m, typ := maps.NewTestMap[uint32, uint64](0)
+ 
+ 	key := uint32(0)
+ 	elem := uint64(256 + 0)
+@@ -67,7 +67,7 @@ func TestMapSplit(t *testing.T) {
+ 	for i := 0; i < 2*maps.MaxTableCapacity; i++ {
+ 		key += 1
+ 		elem += 1
+-		m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 		if maps.DebugLog {
+ 			fmt.Printf("After put %d: %v\n", key, m)
+@@ -84,7 +84,7 @@ func TestMapSplit(t *testing.T) {
+ 	for i := 0; i < 2*maps.MaxTableCapacity; i++ {
+ 		key += 1
+ 		elem += 1
+-		got, ok := m.Get(unsafe.Pointer(&key))
++		got, ok := m.Get(typ, unsafe.Pointer(&key))
+ 		if !ok {
+ 			t.Errorf("Get(%d) got ok false want true", key)
+ 		}
+@@ -96,7 +96,7 @@ func TestMapSplit(t *testing.T) {
+ }
+ 
+ func TestMapDelete(t *testing.T) {
+-	m, _ := maps.NewTestMap[uint32, uint64](32)
++	m, typ := maps.NewTestMap[uint32, uint64](32)
+ 
+ 	key := uint32(0)
+ 	elem := uint64(256 + 0)
+@@ -104,7 +104,7 @@ func TestMapDelete(t *testing.T) {
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+ 		elem += 1
+-		m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 		if maps.DebugLog {
+ 			fmt.Printf("After put %d: %v\n", key, m)
+@@ -116,7 +116,7 @@ func TestMapDelete(t *testing.T) {
+ 
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+-		m.Delete(unsafe.Pointer(&key))
++		m.Delete(typ, unsafe.Pointer(&key))
+ 	}
+ 
+ 	if m.Used() != 0 {
+@@ -129,7 +129,7 @@ func TestMapDelete(t *testing.T) {
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+ 		elem += 1
+-		_, ok := m.Get(unsafe.Pointer(&key))
++		_, ok := m.Get(typ, unsafe.Pointer(&key))
+ 		if ok {
+ 			t.Errorf("Get(%d) got ok true want false", key)
+ 		}
+@@ -137,7 +137,7 @@ func TestMapDelete(t *testing.T) {
+ }
+ 
+ func TestTableClear(t *testing.T) {
+-	m, _ := maps.NewTestMap[uint32, uint64](32)
++	m, typ := maps.NewTestMap[uint32, uint64](32)
+ 
+ 	key := uint32(0)
+ 	elem := uint64(256 + 0)
+@@ -145,14 +145,14 @@ func TestTableClear(t *testing.T) {
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+ 		elem += 1
+-		m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 		if maps.DebugLog {
+ 			fmt.Printf("After put %d: %v\n", key, m)
+ 		}
+ 	}
+ 
+-	m.Clear()
++	m.Clear(typ)
+ 
+ 	if m.Used() != 0 {
+ 		t.Errorf("Clear() used got %d want 0", m.Used())
+@@ -164,7 +164,7 @@ func TestTableClear(t *testing.T) {
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+ 		elem += 1
+-		_, ok := m.Get(unsafe.Pointer(&key))
++		_, ok := m.Get(typ, unsafe.Pointer(&key))
+ 		if ok {
+ 			t.Errorf("Get(%d) got ok true want false", key)
+ 		}
+@@ -174,19 +174,19 @@ func TestTableClear(t *testing.T) {
+ // +0.0 and -0.0 compare equal, but we must still must update the key slot when
+ // overwriting.
+ func TestTableKeyUpdate(t *testing.T) {
+-	m, _ := maps.NewTestMap[float64, uint64](8)
++	m, typ := maps.NewTestMap[float64, uint64](8)
+ 
+ 	zero := float64(0.0)
+ 	negZero := math.Copysign(zero, -1.0)
+ 	elem := uint64(0)
+ 
+-	m.Put(unsafe.Pointer(&zero), unsafe.Pointer(&elem))
++	m.Put(typ, unsafe.Pointer(&zero), unsafe.Pointer(&elem))
+ 	if maps.DebugLog {
+ 		fmt.Printf("After put %f: %v\n", zero, m)
+ 	}
+ 
+ 	elem = 1
+-	m.Put(unsafe.Pointer(&negZero), unsafe.Pointer(&elem))
++	m.Put(typ, unsafe.Pointer(&negZero), unsafe.Pointer(&elem))
+ 	if maps.DebugLog {
+ 		fmt.Printf("After put %f: %v\n", negZero, m)
+ 	}
+@@ -196,7 +196,7 @@ func TestTableKeyUpdate(t *testing.T) {
+ 	}
+ 
+ 	it := new(maps.Iter)
+-	it.Init(m.Type(), m)
++	it.Init(typ, m)
+ 	it.Next()
+ 	keyPtr, elemPtr := it.Key(), it.Elem()
+ 	if keyPtr == nil {
+@@ -224,7 +224,7 @@ func TestTablePutDelete(t *testing.T) {
+ 	// fill a group.
+ 
+ 	// Avoid small maps, they have no tables.
+-	m, _ := maps.NewTestMap[uint32, uint32](16)
++	m, typ := maps.NewTestMap[uint32, uint32](16)
+ 
+ 	key := uint32(0)
+ 	elem := uint32(256 + 0)
+@@ -233,7 +233,7 @@ func TestTablePutDelete(t *testing.T) {
+ 		key += 1
+ 		elem += 1
+ 
+-		m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 		// Normally a Put that fills a group would fill it with the
+ 		// inserted key, so why search the whole map for a potentially
+@@ -242,7 +242,7 @@ func TestTablePutDelete(t *testing.T) {
+ 		// Put may grow/split a table. Initial construction of the new
+ 		// table(s) could result in a full group consisting of
+ 		// arbitrary keys.
+-		fullKeyPtr := m.KeyFromFullGroup()
++		fullKeyPtr := m.KeyFromFullGroup(typ)
+ 		if fullKeyPtr != nil {
+ 			// Found a full group.
+ 			key = *(*uint32)(fullKeyPtr)
+@@ -253,16 +253,16 @@ func TestTablePutDelete(t *testing.T) {
+ 
+ 	// Key is in a full group. Deleting it will result in a ctrlDeleted
+ 	// slot.
+-	m.Delete(unsafe.Pointer(&key))
++	m.Delete(typ, unsafe.Pointer(&key))
+ 
+ 	// Re-insert key. This should reuse the deleted slot rather than
+ 	// consuming space.
+-	tabWant := m.TableFor(unsafe.Pointer(&key))
++	tabWant := m.TableFor(typ, unsafe.Pointer(&key))
+ 	growthLeftWant := tabWant.GrowthLeft()
+ 
+-	m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++	m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+-	tabGot := m.TableFor(unsafe.Pointer(&key))
++	tabGot := m.TableFor(typ, unsafe.Pointer(&key))
+ 	growthLeftGot := tabGot.GrowthLeft()
+ 
+ 	if tabGot != tabWant {
+@@ -277,7 +277,7 @@ func TestTablePutDelete(t *testing.T) {
+ }
+ 
+ func TestTableIteration(t *testing.T) {
+-	m, _ := maps.NewTestMap[uint32, uint64](8)
++	m, typ := maps.NewTestMap[uint32, uint64](8)
+ 
+ 	key := uint32(0)
+ 	elem := uint64(256 + 0)
+@@ -285,7 +285,7 @@ func TestTableIteration(t *testing.T) {
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+ 		elem += 1
+-		m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 		if maps.DebugLog {
+ 			fmt.Printf("After put %d: %v\n", key, m)
+@@ -295,7 +295,7 @@ func TestTableIteration(t *testing.T) {
+ 	got := make(map[uint32]uint64)
+ 
+ 	it := new(maps.Iter)
+-	it.Init(m.Type(), m)
++	it.Init(typ, m)
+ 	for {
+ 		it.Next()
+ 		keyPtr, elemPtr := it.Key(), it.Elem()
+@@ -331,7 +331,7 @@ func TestTableIteration(t *testing.T) {
+ 
+ // Deleted keys shouldn't be visible in iteration.
+ func TestTableIterationDelete(t *testing.T) {
+-	m, _ := maps.NewTestMap[uint32, uint64](8)
++	m, typ := maps.NewTestMap[uint32, uint64](8)
+ 
+ 	key := uint32(0)
+ 	elem := uint64(256 + 0)
+@@ -339,7 +339,7 @@ func TestTableIterationDelete(t *testing.T) {
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+ 		elem += 1
+-		m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 		if maps.DebugLog {
+ 			fmt.Printf("After put %d: %v\n", key, m)
+@@ -350,7 +350,7 @@ func TestTableIterationDelete(t *testing.T) {
+ 	first := true
+ 	deletedKey := uint32(1)
+ 	it := new(maps.Iter)
+-	it.Init(m.Type(), m)
++	it.Init(typ, m)
+ 	for {
+ 		it.Next()
+ 		keyPtr, elemPtr := it.Key(), it.Elem()
+@@ -370,7 +370,7 @@ func TestTableIterationDelete(t *testing.T) {
+ 			if key == deletedKey {
+ 				deletedKey++
+ 			}
+-			m.Delete(unsafe.Pointer(&deletedKey))
++			m.Delete(typ, unsafe.Pointer(&deletedKey))
+ 		}
+ 	}
+ 
+@@ -403,7 +403,7 @@ func TestTableIterationDelete(t *testing.T) {
+ 
+ // Deleted keys shouldn't be visible in iteration even after a grow.
+ func TestTableIterationGrowDelete(t *testing.T) {
+-	m, _ := maps.NewTestMap[uint32, uint64](8)
++	m, typ := maps.NewTestMap[uint32, uint64](8)
+ 
+ 	key := uint32(0)
+ 	elem := uint64(256 + 0)
+@@ -411,7 +411,7 @@ func TestTableIterationGrowDelete(t *testing.T) {
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+ 		elem += 1
+-		m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 		if maps.DebugLog {
+ 			fmt.Printf("After put %d: %v\n", key, m)
+@@ -422,7 +422,7 @@ func TestTableIterationGrowDelete(t *testing.T) {
+ 	first := true
+ 	deletedKey := uint32(1)
+ 	it := new(maps.Iter)
+-	it.Init(m.Type(), m)
++	it.Init(typ, m)
+ 	for {
+ 		it.Next()
+ 		keyPtr, elemPtr := it.Key(), it.Elem()
+@@ -450,7 +450,7 @@ func TestTableIterationGrowDelete(t *testing.T) {
+ 			for i := 0; i < 31; i++ {
+ 				key += 1
+ 				elem += 1
+-				m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++				m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 				if maps.DebugLog {
+ 					fmt.Printf("After put %d: %v\n", key, m)
+@@ -458,7 +458,7 @@ func TestTableIterationGrowDelete(t *testing.T) {
+ 			}
+ 
+ 			// Then delete from the grown map.
+-			m.Delete(unsafe.Pointer(&deletedKey))
++			m.Delete(typ, unsafe.Pointer(&deletedKey))
+ 		}
+ 	}
+ 
+@@ -490,7 +490,7 @@ func TestTableIterationGrowDelete(t *testing.T) {
+ }
+ 
+ func testTableIterationGrowDuplicate(t *testing.T, grow int) {
+-	m, _ := maps.NewTestMap[uint32, uint64](8)
++	m, typ := maps.NewTestMap[uint32, uint64](8)
+ 
+ 	key := uint32(0)
+ 	elem := uint64(256 + 0)
+@@ -498,7 +498,7 @@ func testTableIterationGrowDuplicate(t *testing.T, grow int) {
+ 	for i := 0; i < 31; i++ {
+ 		key += 1
+ 		elem += 1
+-		m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 		if maps.DebugLog {
+ 			fmt.Printf("After put %d: %v\n", key, m)
+@@ -507,7 +507,7 @@ func testTableIterationGrowDuplicate(t *testing.T, grow int) {
+ 
+ 	got := make(map[uint32]uint64)
+ 	it := new(maps.Iter)
+-	it.Init(m.Type(), m)
++	it.Init(typ, m)
+ 	for i := 0; ; i++ {
+ 		it.Next()
+ 		keyPtr, elemPtr := it.Key(), it.Elem()
+@@ -533,7 +533,7 @@ func testTableIterationGrowDuplicate(t *testing.T, grow int) {
+ 			for i := 0; i < grow; i++ {
+ 				key += 1
+ 				elem += 1
+-				m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++				m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 				if maps.DebugLog {
+ 					fmt.Printf("After put %d: %v\n", key, m)
+@@ -605,13 +605,13 @@ func TestMapZeroSizeSlot(t *testing.T) {
+ 	key := struct{}{}
+ 	elem := struct{}{}
+ 
+-	m.Put(unsafe.Pointer(&key), unsafe.Pointer(&elem))
++	m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
+ 
+ 	if maps.DebugLog {
+ 		fmt.Printf("After put %d: %v\n", key, m)
+ 	}
+ 
+-	got, ok := m.Get(unsafe.Pointer(&key))
++	got, ok := m.Get(typ, unsafe.Pointer(&key))
+ 	if !ok {
+ 		t.Errorf("Get(%d) got ok false want true", key)
+ 	}
+@@ -620,7 +620,7 @@ func TestMapZeroSizeSlot(t *testing.T) {
+ 		t.Errorf("Get(%d) got elem %d want %d", key, gotElem, elem)
+ 	}
+ 
+-	tab := m.TableFor(unsafe.Pointer(&key))
++	tab := m.TableFor(typ, unsafe.Pointer(&key))
+ 	start := tab.GroupsStart()
+ 	length := tab.GroupsLength()
+ 	end := unsafe.Pointer(uintptr(start) + length*typ.Group.Size() - 1) // inclusive to ensure we have a valid pointer
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index ac200133c9..9b7e43837f 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -51,13 +51,6 @@ type table struct {
+ 	// but this table has not yet been split.
+ 	localDepth uint8
+ 
+-	// TODO(prattmic): Old maps pass this into every call instead of
+-	// keeping a reference in the map header. This is probably more
+-	// efficient and arguably more robust (crafty users can't reach into to
+-	// the map to change its type), but I leave it here for now for
+-	// simplicity.
+-	typ *abi.SwissMapType
+-
+ 	// seed is the hash seed, computed as a unique random number per table.
+ 	// TODO(prattmic): Populate this on table initialization.
+ 	seed uintptr
+@@ -83,15 +76,13 @@ type table struct {
+ 	groups groupsReference
+ }
+ 
+-func newTable(mt *abi.SwissMapType, capacity uint64, index int, localDepth uint8) *table {
++func newTable(typ *abi.SwissMapType, capacity uint64, index int, localDepth uint8) *table {
+ 	if capacity < abi.SwissMapGroupSlots {
+ 		// TODO: temporary until we have a real map type.
+ 		capacity = abi.SwissMapGroupSlots
+ 	}
+ 
+ 	t := &table{
+-		typ: mt,
+-
+ 		index:      index,
+ 		localDepth: localDepth,
+ 	}
+@@ -107,21 +98,21 @@ func newTable(mt *abi.SwissMapType, capacity uint64, index int, localDepth uint8
+ 		panic("rounded-up capacity overflows uint64")
+ 	}
+ 
+-	t.reset(uint16(capacity))
++	t.reset(typ, uint16(capacity))
+ 
+ 	return t
+ }
+ 
+ // reset resets the table with new, empty groups with the specified new total
+ // capacity.
+-func (t *table) reset(capacity uint16) {
++func (t *table) reset(typ *abi.SwissMapType, capacity uint16) {
+ 	groupCount := uint64(capacity) / abi.SwissMapGroupSlots
+-	t.groups = newGroups(t.typ, groupCount)
++	t.groups = newGroups(typ, groupCount)
+ 	t.capacity = capacity
+ 	t.resetGrowthLeft()
+ 
+ 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+-		g := t.groups.group(i)
++		g := t.groups.group(typ, i)
+ 		g.ctrls().setEmpty()
+ 	}
+ }
+@@ -157,15 +148,15 @@ func (t *table) Used() uint64 {
+ 
+ // Get performs a lookup of the key that key points to. It returns a pointer to
+ // the element, or false if the key doesn't exist.
+-func (t *table) Get(key unsafe.Pointer) (unsafe.Pointer, bool) {
++func (t *table) Get(typ *abi.SwissMapType, key unsafe.Pointer) (unsafe.Pointer, bool) {
+ 	// TODO(prattmic): We could avoid hashing in a variety of special
+ 	// cases.
+ 	//
+ 	// - One entry maps could just directly compare the single entry
+ 	//   without hashing.
+ 	// - String keys could do quick checks of a few bytes before hashing.
+-	hash := t.typ.Hasher(key, t.seed)
+-	_, elem, ok := t.getWithKey(hash, key)
++	hash := typ.Hasher(key, t.seed)
++	_, elem, ok := t.getWithKey(typ, hash, key)
+ 	return elem, ok
+ }
+ 
+@@ -178,7 +169,7 @@ func (t *table) Get(key unsafe.Pointer) (unsafe.Pointer, bool) {
+ // expose updated elements. For NeedsKeyUpdate keys, iteration also must return
+ // the new key value, not the old key value.
+ // hash must be the hash of the key.
+-func (t *table) getWithKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
++func (t *table) getWithKey(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, unsafe.Pointer, bool) {
+ 	// To find the location of a key in the table, we compute hash(key). From
+ 	// h1(hash(key)) and the capacity, we construct a probeSeq that visits
+ 	// every group of slots in some interesting order. See [probeSeq].
+@@ -208,16 +199,16 @@ func (t *table) getWithKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, un
+ 	// positive comparisons we must perform is less than 1/8 per find.
+ 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+ 	for ; ; seq = seq.next() {
+-		g := t.groups.group(seq.offset)
++		g := t.groups.group(typ, seq.offset)
+ 
+ 		match := g.ctrls().matchH2(h2(hash))
+ 
+ 		for match != 0 {
+ 			i := match.first()
+ 
+-			slotKey := g.key(i)
+-			if t.typ.Key.Equal(key, slotKey) {
+-				return slotKey, g.elem(i), true
++			slotKey := g.key(typ, i)
++			if typ.Key.Equal(key, slotKey) {
++				return slotKey, g.elem(typ, i), true
+ 			}
+ 			match = match.removeFirst()
+ 		}
+@@ -231,19 +222,19 @@ func (t *table) getWithKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, un
+ 	}
+ }
+ 
+-func (t *table) getWithoutKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer, bool) {
++func (t *table) getWithoutKey(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, bool) {
+ 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+ 	for ; ; seq = seq.next() {
+-		g := t.groups.group(seq.offset)
++		g := t.groups.group(typ, seq.offset)
+ 
+ 		match := g.ctrls().matchH2(h2(hash))
+ 
+ 		for match != 0 {
+ 			i := match.first()
+ 
+-			slotKey := g.key(i)
+-			if t.typ.Key.Equal(key, slotKey) {
+-				return g.elem(i), true
++			slotKey := g.key(typ, i)
++			if typ.Key.Equal(key, slotKey) {
++				return g.elem(typ, i), true
+ 			}
+ 			match = match.removeFirst()
+ 		}
+@@ -264,7 +255,7 @@ func (t *table) getWithoutKey(hash uintptr, key unsafe.Pointer) (unsafe.Pointer,
+ // the new table.
+ //
+ // hash must be the hash of key.
+-func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, bool) {
++func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointer, bool) {
+ 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+ 
+ 	// As we look for a match, keep track of the first deleted slot we
+@@ -273,22 +264,22 @@ func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointe
+ 	var firstDeletedSlot uint32
+ 
+ 	for ; ; seq = seq.next() {
+-		g := t.groups.group(seq.offset)
++		g := t.groups.group(typ, seq.offset)
+ 		match := g.ctrls().matchH2(h2(hash))
+ 
+ 		// Look for an existing slot containing this key.
+ 		for match != 0 {
+ 			i := match.first()
+ 
+-			slotKey := g.key(i)
+-			if t.typ.Key.Equal(key, slotKey) {
+-				if t.typ.NeedKeyUpdate() {
+-					typedmemmove(t.typ.Key, slotKey, key)
++			slotKey := g.key(typ, i)
++			if typ.Key.Equal(key, slotKey) {
++				if typ.NeedKeyUpdate() {
++					typedmemmove(typ.Key, slotKey, key)
+ 				}
+ 
+-				slotElem := g.elem(i)
++				slotElem := g.elem(typ, i)
+ 
+-				t.checkInvariants()
++				t.checkInvariants(typ)
+ 				return slotElem, true
+ 			}
+ 			match = match.removeFirst()
+@@ -316,20 +307,20 @@ func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointe
+ 
+ 			// If there is room left to grow, just insert the new entry.
+ 			if t.growthLeft > 0 {
+-				slotKey := g.key(i)
+-				typedmemmove(t.typ.Key, slotKey, key)
+-				slotElem := g.elem(i)
++				slotKey := g.key(typ, i)
++				typedmemmove(typ.Key, slotKey, key)
++				slotElem := g.elem(typ, i)
+ 
+ 				g.ctrls().set(i, ctrl(h2(hash)))
+ 				t.growthLeft--
+ 				t.used++
+ 				m.used++
+ 
+-				t.checkInvariants()
++				t.checkInvariants(typ)
+ 				return slotElem, true
+ 			}
+ 
+-			t.rehash(m)
++			t.rehash(typ, m)
+ 			return nil, false
+ 		}
+ 
+@@ -361,7 +352,7 @@ func (t *table) PutSlot(m *Map, hash uintptr, key unsafe.Pointer) (unsafe.Pointe
+ // room for another element without rehashing.
+ //
+ // Never returns nil.
+-func (t *table) uncheckedPutSlot(hash uintptr, key unsafe.Pointer) unsafe.Pointer {
++func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointer) unsafe.Pointer {
+ 	if t.growthLeft == 0 {
+ 		panic("invariant failed: growthLeft is unexpectedly 0")
+ 	}
+@@ -372,15 +363,15 @@ func (t *table) uncheckedPutSlot(hash uintptr, key unsafe.Pointer) unsafe.Pointe
+ 	// the group and mark it as full with key's H2.
+ 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+ 	for ; ; seq = seq.next() {
+-		g := t.groups.group(seq.offset)
++		g := t.groups.group(typ, seq.offset)
+ 
+ 		match := g.ctrls().matchEmpty()
+ 		if match != 0 {
+ 			i := match.first()
+ 
+-			slotKey := g.key(i)
+-			typedmemmove(t.typ.Key, slotKey, key)
+-			slotElem := g.elem(i)
++			slotKey := g.key(typ, i)
++			typedmemmove(typ.Key, slotKey, key)
++			slotElem := g.elem(typ, i)
+ 
+ 			if g.ctrls().get(i) == ctrlEmpty {
+ 				t.growthLeft--
+@@ -391,23 +382,23 @@ func (t *table) uncheckedPutSlot(hash uintptr, key unsafe.Pointer) unsafe.Pointe
+ 	}
+ }
+ 
+-func (t *table) Delete(m *Map, key unsafe.Pointer) {
+-	hash := t.typ.Hasher(key, t.seed)
++func (t *table) Delete(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) {
++	hash := typ.Hasher(key, t.seed)
+ 
+ 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+ 	for ; ; seq = seq.next() {
+-		g := t.groups.group(seq.offset)
++		g := t.groups.group(typ, seq.offset)
+ 		match := g.ctrls().matchH2(h2(hash))
+ 
+ 		for match != 0 {
+ 			i := match.first()
+-			slotKey := g.key(i)
+-			if t.typ.Key.Equal(key, slotKey) {
++			slotKey := g.key(typ, i)
++			if typ.Key.Equal(key, slotKey) {
+ 				t.used--
+ 				m.used--
+ 
+-				typedmemclr(t.typ.Key, slotKey)
+-				typedmemclr(t.typ.Elem, g.elem(i))
++				typedmemclr(typ.Key, slotKey)
++				typedmemclr(typ.Elem, g.elem(typ, i))
+ 
+ 				// Only a full group can appear in the middle
+ 				// of a probe sequence (a group with at least
+@@ -424,7 +415,7 @@ func (t *table) Delete(m *Map, key unsafe.Pointer) {
+ 					g.ctrls().set(i, ctrlDeleted)
+ 				}
+ 
+-				t.checkInvariants()
++				t.checkInvariants(typ)
+ 				return
+ 			}
+ 			match = match.removeFirst()
+@@ -447,10 +438,10 @@ func (t *table) tombstones() uint16 {
+ }
+ 
+ // Clear deletes all entries from the map resulting in an empty map.
+-func (t *table) Clear() {
++func (t *table) Clear(typ *abi.SwissMapType) {
+ 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+-		g := t.groups.group(i)
+-		typedmemclr(t.typ.Group, g.data)
++		g := t.groups.group(typ, i)
++		typedmemclr(typ.Group, g.data)
+ 		g.ctrls().setEmpty()
+ 	}
+ 
+@@ -500,8 +491,8 @@ type Iter struct {
+ 
+ // Init initializes Iter for iteration.
+ func (it *Iter) Init(typ *abi.SwissMapType, m *Map) {
+-
+ 	it.typ = typ
++
+ 	if m == nil || m.used == 0 {
+ 		return
+ 	}
+@@ -512,10 +503,8 @@ func (it *Iter) Init(typ *abi.SwissMapType, m *Map) {
+ 		// Use dirIdx == -1 as sentinal for small maps.
+ 		dirIdx = -1
+ 		groupSmall.data = m.dirPtr
+-		groupSmall.typ = typ
+ 	}
+ 
+-	it.typ = m.typ
+ 	it.m = m
+ 	it.entryOffset = rand()
+ 	it.dirOffset = rand()
+@@ -575,7 +564,7 @@ func (it *Iter) Next() {
+ 				continue
+ 			}
+ 
+-			key := g.key(k)
++			key := g.key(it.typ, k)
+ 
+ 			// As below, if we have grown to a full map since Init,
+ 			// we continue to use the old group to decide the keys
+@@ -585,11 +574,11 @@ func (it *Iter) Next() {
+ 			var elem unsafe.Pointer
+ 			if grown {
+ 				var ok bool
+-				newKey, newElem, ok := it.m.getWithKey(key)
++				newKey, newElem, ok := it.m.getWithKey(it.typ, key)
+ 				if !ok {
+ 					// See comment below.
+-					if it.clearSeq == it.m.clearSeq && !it.m.typ.Key.Equal(key, key) {
+-						elem = g.elem(k)
++					if it.clearSeq == it.m.clearSeq && !it.typ.Key.Equal(key, key) {
++						elem = g.elem(it.typ, k)
+ 					} else {
+ 						continue
+ 					}
+@@ -598,7 +587,7 @@ func (it *Iter) Next() {
+ 					elem = newElem
+ 				}
+ 			} else {
+-				elem = g.elem(k)
++				elem = g.elem(it.typ, k)
+ 			}
+ 
+ 			it.entryIdx++
+@@ -694,7 +683,7 @@ func (it *Iter) Next() {
+ 				// first iteration in this table (slotIdx may
+ 				// not be zero due to entryOffset).
+ 				groupIdx := entryIdx >> abi.SwissMapGroupSlotsBits
+-				g = it.tab.groups.group(groupIdx)
++				g = it.tab.groups.group(it.typ, groupIdx)
+ 			}
+ 
+ 			// TODO(prattmic): Skip over groups that are composed of only empty
+@@ -706,7 +695,7 @@ func (it *Iter) Next() {
+ 				continue
+ 			}
+ 
+-			key := g.key(slotIdx)
++			key := g.key(it.typ, slotIdx)
+ 
+ 			// If the table has changed since the last
+ 			// call, then it has grown or split. In this
+@@ -723,7 +712,7 @@ func (it *Iter) Next() {
+ 			var elem unsafe.Pointer
+ 			if grown {
+ 				var ok bool
+-				newKey, newElem, ok := it.m.getWithKey(key)
++				newKey, newElem, ok := it.m.getWithKey(it.typ, key)
+ 				if !ok {
+ 					// Key has likely been deleted, and
+ 					// should be skipped.
+@@ -748,8 +737,8 @@ func (it *Iter) Next() {
+ 					// immediately, as iteration doesn't
+ 					// need to return anything added after
+ 					// clear.
+-					if it.clearSeq == it.m.clearSeq && !it.m.typ.Key.Equal(key, key) {
+-						elem = g.elem(slotIdx)
++					if it.clearSeq == it.m.clearSeq && !it.typ.Key.Equal(key, key) {
++						elem = g.elem(it.typ, slotIdx)
+ 					} else {
+ 						continue
+ 					}
+@@ -758,7 +747,7 @@ func (it *Iter) Next() {
+ 					elem = newElem
+ 				}
+ 			} else {
+-				elem = g.elem(slotIdx)
++				elem = g.elem(it.typ, slotIdx)
+ 			}
+ 
+ 			it.entryIdx++
+@@ -807,7 +796,7 @@ func (it *Iter) Next() {
+ // Replaces the table with one larger table or two split tables to fit more
+ // entries. Since the table is replaced, t is now stale and should not be
+ // modified.
+-func (t *table) rehash(m *Map) {
++func (t *table) rehash(typ *abi.SwissMapType, m *Map) {
+ 	// TODO(prattmic): SwissTables typically perform a "rehash in place"
+ 	// operation which recovers capacity consumed by tombstones without growing
+ 	// the table by reordering slots as necessary to maintain the probe
+@@ -828,11 +817,11 @@ func (t *table) rehash(m *Map) {
+ 
+ 	newCapacity := 2 * t.capacity
+ 	if newCapacity <= maxTableCapacity {
+-		t.grow(m, newCapacity)
++		t.grow(typ, m, newCapacity)
+ 		return
+ 	}
+ 
+-	t.split(m)
++	t.split(typ, m)
+ }
+ 
+ // Bitmask for the last selection bit at this depth.
+@@ -844,35 +833,35 @@ func localDepthMask(localDepth uint8) uintptr {
+ }
+ 
+ // split the table into two, installing the new tables in the map directory.
+-func (t *table) split(m *Map) {
++func (t *table) split(typ *abi.SwissMapType, m *Map) {
+ 	localDepth := t.localDepth
+ 	localDepth++
+ 
+ 	// TODO: is this the best capacity?
+-	left := newTable(t.typ, maxTableCapacity, -1, localDepth)
+-	right := newTable(t.typ, maxTableCapacity, -1, localDepth)
++	left := newTable(typ, maxTableCapacity, -1, localDepth)
++	right := newTable(typ, maxTableCapacity, -1, localDepth)
+ 
+ 	// Split in half at the localDepth bit from the top.
+ 	mask := localDepthMask(localDepth)
+ 
+ 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+-		g := t.groups.group(i)
++		g := t.groups.group(typ, i)
+ 		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
+ 			if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
+ 				// Empty or deleted
+ 				continue
+ 			}
+-			key := g.key(j)
+-			elem := g.elem(j)
+-			hash := t.typ.Hasher(key, t.seed)
++			key := g.key(typ, j)
++			elem := g.elem(typ, j)
++			hash := typ.Hasher(key, t.seed)
+ 			var newTable *table
+ 			if hash&mask == 0 {
+ 				newTable = left
+ 			} else {
+ 				newTable = right
+ 			}
+-			slotElem := newTable.uncheckedPutSlot(hash, key)
+-			typedmemmove(newTable.typ.Elem, slotElem, elem)
++			slotElem := newTable.uncheckedPutSlot(typ, hash, key)
++			typedmemmove(typ.Elem, slotElem, elem)
+ 			newTable.used++
+ 		}
+ 	}
+@@ -884,28 +873,28 @@ func (t *table) split(m *Map) {
+ // and uncheckedPutting each element of the table into the new table (we know
+ // that no insertion here will Put an already-present value), and discard the
+ // old table.
+-func (t *table) grow(m *Map, newCapacity uint16) {
+-	newTable := newTable(t.typ, uint64(newCapacity), t.index, t.localDepth)
++func (t *table) grow(typ *abi.SwissMapType, m *Map, newCapacity uint16) {
++	newTable := newTable(typ, uint64(newCapacity), t.index, t.localDepth)
+ 
+ 	if t.capacity > 0 {
+ 		for i := uint64(0); i <= t.groups.lengthMask; i++ {
+-			g := t.groups.group(i)
++			g := t.groups.group(typ, i)
+ 			for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
+ 				if (g.ctrls().get(j) & ctrlEmpty) == ctrlEmpty {
+ 					// Empty or deleted
+ 					continue
+ 				}
+-				key := g.key(j)
+-				elem := g.elem(j)
+-				hash := newTable.typ.Hasher(key, t.seed)
+-				slotElem := newTable.uncheckedPutSlot(hash, key)
+-				typedmemmove(newTable.typ.Elem, slotElem, elem)
++				key := g.key(typ, j)
++				elem := g.elem(typ, j)
++				hash := typ.Hasher(key, t.seed)
++				slotElem := newTable.uncheckedPutSlot(typ, hash, key)
++				typedmemmove(typ.Elem, slotElem, elem)
+ 				newTable.used++
+ 			}
+ 		}
+ 	}
+ 
+-	newTable.checkInvariants()
++	newTable.checkInvariants(typ)
+ 	m.replaceTable(newTable)
+ }
+ 
+diff --git a/src/internal/runtime/maps/table_debug.go b/src/internal/runtime/maps/table_debug.go
+index 2478b02bab..27ae611ec3 100644
+--- a/src/internal/runtime/maps/table_debug.go
++++ b/src/internal/runtime/maps/table_debug.go
+@@ -12,7 +12,7 @@ import (
+ 
+ const debugLog = false
+ 
+-func (t *table) checkInvariants() {
++func (t *table) checkInvariants(typ *abi.SwissMapType) {
+ 	if !debugLog {
+ 		return
+ 	}
+@@ -23,7 +23,7 @@ func (t *table) checkInvariants() {
+ 	var deleted uint16
+ 	var empty uint16
+ 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+-		g := t.groups.group(i)
++		g := t.groups.group(typ, i)
+ 		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
+ 			c := g.ctrls().get(j)
+ 			switch {
+@@ -34,20 +34,20 @@ func (t *table) checkInvariants() {
+ 			default:
+ 				used++
+ 
+-				key := g.key(j)
++				key := g.key(typ, j)
+ 
+ 				// Can't lookup keys that don't compare equal
+ 				// to themselves (e.g., NaN).
+-				if !t.typ.Key.Equal(key, key) {
++				if !typ.Key.Equal(key, key) {
+ 					continue
+ 				}
+ 
+-				if _, ok := t.Get(key); !ok {
+-					hash := t.typ.Hasher(key, t.seed)
++				if _, ok := t.Get(typ, key); !ok {
++					hash := typ.Hasher(key, t.seed)
+ 					print("invariant failed: slot(", i, "/", j, "): key ")
+-					dump(key, t.typ.Key.Size_)
++					dump(key, typ.Key.Size_)
+ 					print(" not found [hash=", hash, ", h2=", h2(hash), " h1=", h1(hash), "]\n")
+-					t.Print()
++					t.Print(typ)
+ 					panic("invariant failed: slot: key not found")
+ 				}
+ 			}
+@@ -56,30 +56,30 @@ func (t *table) checkInvariants() {
+ 
+ 	if used != t.used {
+ 		print("invariant failed: found ", used, " used slots, but used count is ", t.used, "\n")
+-		t.Print()
++		t.Print(typ)
+ 		panic("invariant failed: found mismatched used slot count")
+ 	}
+ 
+ 	growthLeft := (t.capacity*maxAvgGroupLoad)/abi.SwissMapGroupSlots - t.used - deleted
+ 	if growthLeft != t.growthLeft {
+ 		print("invariant failed: found ", t.growthLeft, " growthLeft, but expected ", growthLeft, "\n")
+-		t.Print()
++		t.Print(typ)
+ 		panic("invariant failed: found mismatched growthLeft")
+ 	}
+ 	if deleted != t.tombstones() {
+ 		print("invariant failed: found ", deleted, " tombstones, but expected ", t.tombstones(), "\n")
+-		t.Print()
++		t.Print(typ)
+ 		panic("invariant failed: found mismatched tombstones")
+ 	}
+ 
+ 	if empty == 0 {
+ 		print("invariant failed: found no empty slots (violates probe invariant)\n")
+-		t.Print()
++		t.Print(typ)
+ 		panic("invariant failed: found no empty slots (violates probe invariant)")
+ 	}
+ }
+ 
+-func (t *table) Print() {
++func (t *table) Print(typ *abi.SwissMapType) {
+ 	print(`table{
+ 	seed: `, t.seed, `
+ 	index: `, t.index, `
+@@ -93,7 +93,7 @@ func (t *table) Print() {
+ 	for i := uint64(0); i <= t.groups.lengthMask; i++ {
+ 		print("\t\tgroup ", i, "\n")
+ 
+-		g := t.groups.group(i)
++		g := t.groups.group(typ, i)
+ 		ctrls := g.ctrls()
+ 		for j := uint32(0); j < abi.SwissMapGroupSlots; j++ {
+ 			print("\t\t\tslot ", j, "\n")
+@@ -110,10 +110,10 @@ func (t *table) Print() {
+ 			}
+ 
+ 			print("\t\t\t\tkey  ")
+-			dump(g.key(j), t.typ.Key.Size_)
++			dump(g.key(typ, j), typ.Key.Size_)
+ 			println("")
+ 			print("\t\t\t\telem ")
+-			dump(g.elem(j), t.typ.Elem.Size_)
++			dump(g.elem(typ, j), typ.Elem.Size_)
+ 			println("")
+ 		}
+ 	}
+diff --git a/src/runtime/map_swiss.go b/src/runtime/map_swiss.go
+index e62def9677..3ea82b547f 100644
+--- a/src/runtime/map_swiss.go
++++ b/src/runtime/map_swiss.go
+@@ -122,7 +122,7 @@ func mapaccess1(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Poi
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+ 
+-	elem, ok := m.Get(key)
++	elem, ok := m.Get(t, key)
+ 	if !ok {
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+@@ -151,7 +151,7 @@ func mapaccess2(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) (unsafe.Po
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+ 
+-	elem, ok := m.Get(key)
++	elem, ok := m.Get(t, key)
+ 	if !ok {
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+@@ -192,7 +192,7 @@ func mapassign(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Poin
+ 		asanread(key, t.Key.Size_)
+ 	}
+ 
+-	return m.PutSlot(key)
++	return m.PutSlot(t, key)
+ }
+ 
+ func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
+@@ -217,7 +217,7 @@ func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
+ 		return
+ 	}
+ 
+-	m.Delete(key)
++	m.Delete(t, key)
+ }
+ 
+ // mapiterinit initializes the Iter struct used for ranging over maps.
+@@ -257,7 +257,7 @@ func mapclear(t *abi.SwissMapType, m *maps.Map) {
+ 		return
+ 	}
+ 
+-	m.Clear()
++	m.Clear(t)
+ }
+ 
+ // Reflect stubs. Called from ../reflect/asm_*.s
+@@ -386,7 +386,7 @@ func mapclone2(t *abi.SwissMapType, src *maps.Map) *maps.Map {
+ 	var iter maps.Iter
+ 	iter.Init(t, src)
+ 	for iter.Next(); iter.Key() != nil; iter.Next() {
+-		dst.Put(iter.Key(), iter.Elem())
++		dst.Put(t, iter.Key(), iter.Elem())
+ 	}
+ 
+ 	return dst
+diff --git a/src/runtime/map_swiss_test.go b/src/runtime/map_swiss_test.go
+index 536e5eec32..d5c9fdbe46 100644
+--- a/src/runtime/map_swiss_test.go
++++ b/src/runtime/map_swiss_test.go
+@@ -18,8 +18,8 @@ import (
+ func TestHmapSize(t *testing.T) {
+ 	// The structure of Map is defined in internal/runtime/maps/map.go
+ 	// and in cmd/compile/internal/reflectdata/map_swiss.go and must be in sync.
+-	// The size of Map should be 56 bytes on 64 bit and 36 bytes on 32 bit platforms.
+-	wantSize := uintptr(2*8 + 5*goarch.PtrSize)
++	// The size of Map should be 48 bytes on 64 bit and 32 bytes on 32 bit platforms.
++	wantSize := uintptr(2*8 + 4*goarch.PtrSize)
+ 	gotSize := unsafe.Sizeof(maps.Map{})
+ 	if gotSize != wantSize {
+ 		t.Errorf("sizeof(maps.Map{})==%d, want %d", gotSize, wantSize)

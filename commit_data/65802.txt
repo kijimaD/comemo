@@ -1,0 +1,49 @@
+commit fafd4477f3d19f2c11a628e6e407ecf9924309c1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 10 20:05:06 2024 -0800
+
+    cmd/cgo: use full prototype for main in C code
+    
+    Avoids pedantic errors from modern C compilers.
+    
+    Fixes #70769
+    
+    Change-Id: Ibe0d9960e998eb0346b97d7bd69eb7de0d0e6c60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635095
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cgo/doc.go | 2 +-
+ src/cmd/cgo/out.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 9ff5fd4190..ef5272299b 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -796,7 +796,7 @@ Instead, the build process generates an object file using dynamic
+ linkage to the desired libraries. The main function is provided by
+ _cgo_main.c:
+ 
+-	int main() { return 0; }
++	int main(int argc, char **argv) { return 0; }
+ 	void crosscall2(void(*fn)(void*), void *a, int c, uintptr_t ctxt) { }
+ 	uintptr_t _cgo_wait_runtime_init_done(void) { return 0; }
+ 	void _cgo_release_context(uintptr_t ctxt) { }
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index 954c4b70c9..5e67cc2d33 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -59,7 +59,7 @@ func (p *Package) writeDefs() {
+ 
+ 	// Write C main file for using gcc to resolve imports.
+ 	fmt.Fprintf(fm, "#include <stddef.h>\n") // For size_t below.
+-	fmt.Fprintf(fm, "int main() { return 0; }\n")
++	fmt.Fprintf(fm, "int main(int argc __attribute__((unused)), char **argv __attribute__((unused))) { return 0; }\n")
+ 	if *importRuntimeCgo {
+ 		fmt.Fprintf(fm, "void crosscall2(void(*fn)(void*) __attribute__((unused)), void *a __attribute__((unused)), int c __attribute__((unused)), size_t ctxt __attribute__((unused))) { }\n")
+ 		fmt.Fprintf(fm, "size_t _cgo_wait_runtime_init_done(void) { return 0; }\n")

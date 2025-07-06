@@ -1,0 +1,29 @@
+commit 42d1f08cbbe32f3734ed701975897654ae25efe6
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Sep 3 11:26:09 2024 -0400
+
+    src/cmd/go/internal/load: remove PackageError.Hard
+    
+    This field isn't actually used. The last usage was deleted in CL 518775
+    and even then it wasn't actually being set.
+    
+    Change-Id: Ifbe9da9c2a6d81a40c136a60028902176f443588
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610255
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/load/pkg.go | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 17bba88f79..9f3c914597 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -459,7 +459,6 @@ type PackageError struct {
+ 	Pos              string   // position of error
+ 	Err              error    // the error itself
+ 	IsImportCycle    bool     // the error is an import cycle
+-	Hard             bool     // whether the error is soft or hard; soft errors are ignored in some places
+ 	alwaysPrintStack bool     // whether to always print the ImportStack
+ }
+ 

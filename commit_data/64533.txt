@@ -1,0 +1,151 @@
+commit 660e7d60f28ed4b2c14f6e1fcf6d0e5a7f4aa1e0
+Author: Tim King <taking@google.com>
+Date:   Fri Aug 9 14:36:21 2024 -0700
+
+    go/internal/gcimporter: indexed format imports for type parameters aliases
+    
+    Add support for importing a new 'B' tag for type parameters aliases
+    in the indexed data format.
+    
+    Updates #68778
+    
+    Change-Id: I3bd82870d4c4619a3771de30baf6d54f6ee5959e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604635
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/importer/iimport.go  | 12 ++++++++----
+ src/cmd/compile/internal/importer/ureader.go  |  9 ++++++---
+ src/cmd/compile/internal/typecheck/iexport.go |  3 ++-
+ src/go/internal/gcimporter/iimport.go         | 11 +++++++----
+ src/go/internal/gcimporter/ureader.go         |  9 ++++++---
+ 5 files changed, 29 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/iimport.go b/src/cmd/compile/internal/importer/iimport.go
+index 4a7fece188..97feb7f3fd 100644
+--- a/src/cmd/compile/internal/importer/iimport.go
++++ b/src/cmd/compile/internal/importer/iimport.go
+@@ -321,10 +321,14 @@ func (r *importReader) obj(name string) {
+ 	pos := r.pos()
+ 
+ 	switch tag {
+-	case 'A':
+-		typ := r.typ()
+-
+-		r.declare(types2.NewTypeName(pos, r.currPkg, name, typ))
++	case 'A', 'B':
++		var tparams []*types2.TypeParam
++		if tag == 'B' {
++			tparams = r.tparamList()
++		}
++		rhs := r.typ()
++		const enabled = true // This is now always enabled within the compiler.
++		r.declare(newAliasTypeName(enabled, pos, r.currPkg, name, rhs, tparams))
+ 
+ 	case 'C':
+ 		typ, val := r.value()
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index e8d3e20cee..e0405b9afb 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -410,8 +410,9 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
+ 
+ 		case pkgbits.ObjAlias:
+ 			pos := r.pos()
++			var tparams []*types2.TypeParam // TODO(#68778): Read tparams for unified IR.
+ 			typ := r.typ()
+-			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ)
++			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ, tparams)
+ 
+ 		case pkgbits.ObjConst:
+ 			pos := r.pos()
+@@ -537,13 +538,15 @@ func (r *reader) ident(marker pkgbits.SyncMarker) (*types2.Package, string) {
+ }
+ 
+ // newAliasTypeName returns a new TypeName, with a materialized *types2.Alias if supported.
+-func newAliasTypeName(aliases bool, pos syntax.Pos, pkg *types2.Package, name string, rhs types2.Type) *types2.TypeName {
++func newAliasTypeName(aliases bool, pos syntax.Pos, pkg *types2.Package, name string, rhs types2.Type, tparams []*types2.TypeParam) *types2.TypeName {
+ 	// Copied from x/tools/internal/aliases.NewAlias via
+ 	// GOROOT/src/go/internal/gcimporter/ureader.go.
+ 	if aliases {
+ 		tname := types2.NewTypeName(pos, pkg, name, nil)
+-		_ = types2.NewAlias(tname, rhs) // form TypeName -> Alias cycle
++		a := types2.NewAlias(tname, rhs) // form TypeName -> Alias cycle
++		a.SetTypeParams(tparams)
+ 		return tname
+ 	}
++	assert(len(tparams) == 0)
+ 	return types2.NewTypeName(pos, pkg, name, rhs)
+ }
+diff --git a/src/cmd/compile/internal/typecheck/iexport.go b/src/cmd/compile/internal/typecheck/iexport.go
+index 83d35b365f..29d6b2cc2d 100644
+--- a/src/cmd/compile/internal/typecheck/iexport.go
++++ b/src/cmd/compile/internal/typecheck/iexport.go
+@@ -90,8 +90,9 @@
+ //     }
+ //
+ //     type Alias struct {
+-//         Tag  byte // 'A'
++//         Tag  byte // 'A' or 'B'
+ //         Pos  Pos
++//         TypeParams []typeOff  // only present if Tag == 'B'
+ //         Type typeOff
+ //     }
+ //
+diff --git a/src/go/internal/gcimporter/iimport.go b/src/go/internal/gcimporter/iimport.go
+index e7750e5e51..b36210c817 100644
+--- a/src/go/internal/gcimporter/iimport.go
++++ b/src/go/internal/gcimporter/iimport.go
+@@ -333,10 +333,13 @@ func (r *importReader) obj(name string) {
+ 	pos := r.pos()
+ 
+ 	switch tag {
+-	case 'A':
+-		typ := r.typ()
+-
+-		r.declare(types.NewTypeName(pos, r.currPkg, name, typ))
++	case 'A', 'B':
++		var tparams []*types.TypeParam
++		if tag == 'B' {
++			tparams = r.tparamList()
++		}
++		rhs := r.typ()
++		r.declare(newAliasTypeName(pos, r.currPkg, name, rhs, tparams))
+ 
+ 	case 'C':
+ 		typ, val := r.value()
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 5353b244e2..68d50626c5 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -482,8 +482,9 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 
+ 		case pkgbits.ObjAlias:
+ 			pos := r.pos()
++			var tparams []*types.TypeParam // TODO(#68778): Read tparams for unified IR.
+ 			typ := r.typ()
+-			declare(newAliasTypeName(pos, objPkg, objName, typ))
++			declare(newAliasTypeName(pos, objPkg, objName, typ, tparams))
+ 
+ 		case pkgbits.ObjConst:
+ 			pos := r.pos()
+@@ -661,14 +662,16 @@ func pkgScope(pkg *types.Package) *types.Scope {
+ }
+ 
+ // newAliasTypeName returns a new TypeName, with a materialized *types.Alias if supported.
+-func newAliasTypeName(pos token.Pos, pkg *types.Package, name string, rhs types.Type) *types.TypeName {
++func newAliasTypeName(pos token.Pos, pkg *types.Package, name string, rhs types.Type, tparams []*types.TypeParam) *types.TypeName {
+ 	// When GODEBUG=gotypesalias=1 or unset, the Type() of the return value is a
+ 	// *types.Alias. Copied from x/tools/internal/aliases.NewAlias.
+ 	switch godebug.New("gotypesalias").Value() {
+ 	case "", "1":
+ 		tname := types.NewTypeName(pos, pkg, name, nil)
+-		_ = types.NewAlias(tname, rhs) // form TypeName -> Alias cycle
++		a := types.NewAlias(tname, rhs) // form TypeName -> Alias cycle
++		a.SetTypeParams(tparams)
+ 		return tname
+ 	}
++	assert(len(tparams) == 0)
+ 	return types.NewTypeName(pos, pkg, name, rhs)
+ }

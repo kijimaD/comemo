@@ -1,0 +1,44 @@
+commit 4a9d98d49a4f49672521973852fe8983ba790c5f
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 19 17:40:55 2024 -0700
+
+    syscall: optimize Getwd on aix
+    
+    When looking for \0, use clen which may be optimized.
+    
+    Also, return EINVAL when returned string is empty.
+    
+    This makes it similar to how it is implemented in *bsd and solaris.
+    
+    Change-Id: I3e37ed25f47110eafd12c80291f7746de9db7b23
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606902
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Cherry Mui <cherryyz@google.com>
+---
+ src/syscall/syscall_aix.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/syscall/syscall_aix.go b/src/syscall/syscall_aix.go
+index a9bd7a3733..36dfd90678 100644
+--- a/src/syscall/syscall_aix.go
++++ b/src/syscall/syscall_aix.go
+@@ -119,11 +119,11 @@ func Getwd() (ret string, err error) {
+ 		b := make([]byte, len)
+ 		err := getcwd(&b[0], len)
+ 		if err == nil {
+-			i := 0
+-			for b[i] != 0 {
+-				i++
++			n := clen(b[:])
++			if n < 1 {
++				return "", EINVAL
+ 			}
+-			return string(b[0:i]), nil
++			return string(b[:n]), nil
+ 		}
+ 		if err != ERANGE {
+ 			return "", err

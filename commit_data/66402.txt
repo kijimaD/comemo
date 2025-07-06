@@ -1,0 +1,131 @@
+commit 0a0e6af39b0ff38f7d5a8a9f3f6d38ebc081663f
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Feb 28 15:22:58 2025 -0800
+
+    context: use atomic operation in ctx.Err
+    
+    oos: darwin
+    goarch: arm64
+    pkg: context
+    cpu: Apple M1 Pro
+                   │ /tmp/bench.0.mac │          /tmp/bench.1.mac           │
+                   │      sec/op      │   sec/op     vs base                │
+    ErrOK-10             13.750n ± 1%   2.080n ± 0%  -84.87% (p=0.000 n=10)
+    ErrCanceled-10       13.530n ± 1%   3.248n ± 1%  -76.00% (p=0.000 n=10)
+    geomean               13.64n        2.599n       -80.94%
+    
+    goos: linux
+    goarch: amd64
+    pkg: context
+    cpu: Intel(R) Xeon(R) CPU @ 2.30GHz
+                   │ /tmp/bench.0.linux │         /tmp/bench.1.linux          │
+                   │       sec/op       │   sec/op     vs base                │
+    ErrOK-16               21.435n ± 0%   4.243n ± 0%  -80.21% (p=0.000 n=10)
+    ErrCanceled-16         21.445n ± 0%   5.070n ± 0%  -76.36% (p=0.000 n=10)
+    geomean                 21.44n        4.638n       -78.37%
+    
+    Fixes #72040
+    
+    Change-Id: I3b337ab1934689d2da4134492ee7c5aac8f92845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/context/benchmark_test.go | 20 ++++++++++++++++++++
+ src/context/context.go        | 21 +++++++++++----------
+ 2 files changed, 31 insertions(+), 10 deletions(-)
+
+diff --git a/src/context/benchmark_test.go b/src/context/benchmark_test.go
+index 144f473a44..d10950d258 100644
+--- a/src/context/benchmark_test.go
++++ b/src/context/benchmark_test.go
+@@ -188,3 +188,23 @@ func BenchmarkDeepValueSameGoRoutine(b *testing.B) {
+ 		})
+ 	}
+ }
++
++func BenchmarkErrOK(b *testing.B) {
++	ctx, cancel := WithCancel(Background())
++	defer cancel()
++	for b.Loop() {
++		if err := ctx.Err(); err != nil {
++			b.Fatalf("ctx.Err() = %v", err)
++		}
++	}
++}
++
++func BenchmarkErrCanceled(b *testing.B) {
++	ctx, cancel := WithCancel(Background())
++	cancel()
++	for b.Loop() {
++		if err := ctx.Err(); err == nil {
++			b.Fatalf("ctx.Err() = %v", err)
++		}
++	}
++}
+diff --git a/src/context/context.go b/src/context/context.go
+index bef9e8aab0..6020e2d310 100644
+--- a/src/context/context.go
++++ b/src/context/context.go
+@@ -428,7 +428,7 @@ type cancelCtx struct {
+ 	mu       sync.Mutex            // protects following fields
+ 	done     atomic.Value          // of chan struct{}, created lazily, closed by first cancel call
+ 	children map[canceler]struct{} // set to nil by the first cancel call
+-	err      error                 // set to non-nil by the first cancel call
++	err      atomic.Value          // set to non-nil by the first cancel call
+ 	cause    error                 // set to non-nil by the first cancel call
+ }
+ 
+@@ -455,10 +455,11 @@ func (c *cancelCtx) Done() <-chan struct{} {
+ }
+ 
+ func (c *cancelCtx) Err() error {
+-	c.mu.Lock()
+-	err := c.err
+-	c.mu.Unlock()
+-	return err
++	// An atomic load is ~5x faster than a mutex, which can matter in tight loops.
++	if err := c.err.Load(); err != nil {
++		return err.(error)
++	}
++	return nil
+ }
+ 
+ // propagateCancel arranges for child to be canceled when parent is.
+@@ -482,9 +483,9 @@ func (c *cancelCtx) propagateCancel(parent Context, child canceler) {
+ 	if p, ok := parentCancelCtx(parent); ok {
+ 		// parent is a *cancelCtx, or derives from one.
+ 		p.mu.Lock()
+-		if p.err != nil {
++		if err := p.err.Load(); err != nil {
+ 			// parent has already been canceled
+-			child.cancel(false, p.err, p.cause)
++			child.cancel(false, err.(error), p.cause)
+ 		} else {
+ 			if p.children == nil {
+ 				p.children = make(map[canceler]struct{})
+@@ -545,11 +546,11 @@ func (c *cancelCtx) cancel(removeFromParent bool, err, cause error) {
+ 		cause = err
+ 	}
+ 	c.mu.Lock()
+-	if c.err != nil {
++	if c.err.Load() != nil {
+ 		c.mu.Unlock()
+ 		return // already canceled
+ 	}
+-	c.err = err
++	c.err.Store(err)
+ 	c.cause = cause
+ 	d, _ := c.done.Load().(chan struct{})
+ 	if d == nil {
+@@ -639,7 +640,7 @@ func WithDeadlineCause(parent Context, d time.Time, cause error) (Context, Cance
+ 	}
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+-	if c.err == nil {
++	if c.err.Load() == nil {
+ 		c.timer = time.AfterFunc(dur, func() {
+ 			c.cancel(true, DeadlineExceeded, cause)
+ 		})

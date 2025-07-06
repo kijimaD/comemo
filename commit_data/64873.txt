@@ -1,0 +1,105 @@
+commit 6600a871ef7376b151cb7e4073c4095209f112ca
+Author: sunnymilk <shaojunyang@google.com>
+Date:   Tue Aug 27 17:23:10 2024 -0400
+
+    testing: implement testing.B.Loop
+    
+    Initial implementation for testing.B.Loop,
+    right now the calculation of b.N are still done in the old fasion way,
+    as of now b.Loop is merely an alias for the old loop over b.N.
+    
+    For #61515.
+    
+    Change-Id: If211d0acc5f0c33df530096dceafe0b947ab0c8e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608798
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Run-TryBot: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ api/next/61515.txt                          |  1 +
+ doc/next/6-stdlib/99-minor/testing/61515.md |  1 +
+ src/testing/benchmark.go                    | 13 +++++++++++++
+ src/testing/benchmark_test.go               | 16 ++++++++++++++++
+ 4 files changed, 31 insertions(+)
+
+diff --git a/api/next/61515.txt b/api/next/61515.txt
+new file mode 100644
+index 0000000000..e797156a61
+--- /dev/null
++++ b/api/next/61515.txt
+@@ -0,0 +1 @@
++pkg testing, method (*B) Loop() bool #61515
+diff --git a/doc/next/6-stdlib/99-minor/testing/61515.md b/doc/next/6-stdlib/99-minor/testing/61515.md
+new file mode 100644
+index 0000000000..f724eb1b90
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/testing/61515.md
+@@ -0,0 +1 @@
++Benchmarks can use the new [B.Loop] method in `for b.Loop() { ... }` loops to determine if iteration should continue.
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 5591cd4e4d..0271308346 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -113,6 +113,8 @@ type B struct {
+ 	netBytes  uint64
+ 	// Extra metrics collected by ReportMetric.
+ 	extra map[string]float64
++	// Remaining iterations of Loop() to be executed in benchFunc.
++	loopN int
+ }
+ 
+ // StartTimer starts timing a test. This function is called automatically
+@@ -187,6 +189,7 @@ func (b *B) runN(n int) {
+ 	runtime.GC()
+ 	b.resetRaces()
+ 	b.N = n
++	b.loopN = n
+ 	b.parallelism = 1
+ 	b.ResetTimer()
+ 	b.StartTimer()
+@@ -349,6 +352,16 @@ func (b *B) ReportMetric(n float64, unit string) {
+ 	b.extra[unit] = n
+ }
+ 
++// Loop returns true until b.N calls has been made to it.
++//
++// A benchmark should either use Loop or contain an explicit loop from 0 to b.N, but not both.
++// After the benchmark finishes, b.N will contain the total number of calls to op, so the benchmark
++// may use b.N to compute other average metrics.
++func (b *B) Loop() bool {
++	b.loopN--
++	return b.loopN >= 0
++}
++
+ // BenchmarkResult contains the results of a benchmark run.
+ type BenchmarkResult struct {
+ 	N         int           // The number of iterations.
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index 66f555d1f1..b5ad213fb3 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -127,6 +127,22 @@ func TestRunParallelSkipNow(t *testing.T) {
+ 	})
+ }
+ 
++func TestLoopEqualsRangeOverBN(t *testing.T) {
++	// Verify that b.N and the b.Loop() iteration count match.
++	var nIterated, nInfered int
++	testing.Benchmark(func(b *testing.B) {
++		i := 0
++		for b.Loop() {
++			i++
++		}
++		nIterated = i
++		nInfered = b.N
++	})
++	if nIterated != nInfered {
++		t.Fatalf("Iteration of the two different benchmark loop flavor differs, got %d iterations want %d", nIterated, nInfered)
++	}
++}
++
+ func ExampleB_RunParallel() {
+ 	// Parallel benchmark for text/template.Template.Execute on a single object.
+ 	testing.Benchmark(func(b *testing.B) {

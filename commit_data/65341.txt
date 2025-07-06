@@ -1,0 +1,253 @@
+commit 3efbc30f3d6a35cb5b0fc29d8bb3f43d59304771
+Author: Tim King <taking@google.com>
+Date:   Fri Nov 8 11:49:00 2024 -0800
+
+    cmd/compile/internal/noder,go/internal/gcimporter: return an error if not an archive file
+    
+    Return an error from FindExportData variants if the contents are not
+    an archive file.
+    
+    Change-Id: I2fa8d3553638ef1de6a03e2ce46341f00ed6965f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626697
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Commit-Queue: Tim King <taking@google.com>
+---
+ src/cmd/compile/internal/importer/exportdata.go    | 42 +++++++++++-----------
+ .../compile/internal/importer/gcimporter_test.go   | 22 +++++++++---
+ src/cmd/compile/internal/noder/import.go           | 37 +++++++++----------
+ src/go/internal/gcimporter/exportdata.go           | 41 +++++++++++----------
+ src/go/internal/gcimporter/gcimporter_test.go      | 13 +++++--
+ 5 files changed, 88 insertions(+), 67 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/exportdata.go b/src/cmd/compile/internal/importer/exportdata.go
+index c7fe63c8f1..2ae8c1b4d9 100644
+--- a/src/cmd/compile/internal/importer/exportdata.go
++++ b/src/cmd/compile/internal/importer/exportdata.go
+@@ -58,30 +58,32 @@ func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
+ 		return
+ 	}
+ 
+-	if string(line) == "!<arch>\n" {
+-		// Archive file. Scan to __.PKGDEF.
+-		var name string
+-		if name, size, err = readGopackHeader(r); err != nil {
+-			return
+-		}
++	// Is the first line an archive file signature?
++	if string(line) != "!<arch>\n" {
++		err = fmt.Errorf("not the start of an archive file (%q)", line)
++		return
++	}
+ 
+-		// First entry should be __.PKGDEF.
+-		if name != "__.PKGDEF" {
+-			err = fmt.Errorf("go archive is missing __.PKGDEF")
+-			return
+-		}
++	// Archive file. Scan to __.PKGDEF.
++	var name string
++	if name, size, err = readGopackHeader(r); err != nil {
++		return
++	}
+ 
+-		// Read first line of __.PKGDEF data, so that line
+-		// is once again the first line of the input.
+-		if line, err = r.ReadSlice('\n'); err != nil {
+-			err = fmt.Errorf("can't find export data (%v)", err)
+-			return
+-		}
++	// First entry should be __.PKGDEF.
++	if name != "__.PKGDEF" {
++		err = fmt.Errorf("go archive is missing __.PKGDEF")
++		return
++	}
++
++	// Read first line of __.PKGDEF data, so that line
++	// is once again the first line of the input.
++	if line, err = r.ReadSlice('\n'); err != nil {
++		err = fmt.Errorf("can't find export data (%v)", err)
++		return
+ 	}
+-	// TODO(taking): The else case is likely dead. Otherwise, size<0. Return an error instead.
+ 
+-	// Now at __.PKGDEF in archive or still at beginning of file.
+-	// Either way, line should begin with "go object ".
++	// Now at __.PKGDEF in archive. line should begin with "go object ".
+ 	if !strings.HasPrefix(string(line), "go object ") {
+ 		err = fmt.Errorf("not a Go object file")
+ 		return
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index a202ee10de..383d2c9e27 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -162,17 +162,29 @@ func TestVersionHandling(t *testing.T) {
+ 		// test that export data can be imported
+ 		_, err := Import(make(map[string]*types2.Package), pkgpath, dir, nil)
+ 		if err != nil {
+-			// ok to fail if it fails with a no longer supported error for select files
++			// ok to fail if it fails with a 'not the start of an archive file' error for select files
+ 			if strings.Contains(err.Error(), "no longer supported") {
+ 				switch name {
+-				case "test_go1.7_0.a", "test_go1.7_1.a",
+-					"test_go1.8_4.a", "test_go1.8_5.a",
+-					"test_go1.11_6b.a", "test_go1.11_999b.a":
++				case "test_go1.8_4.a",
++					"test_go1.8_5.a":
+ 					continue
+ 				}
+ 				// fall through
+ 			}
+-			// ok to fail if it fails with a newer version error for select files
++			// ok to fail if it fails with a 'no longer supported' error for select files
++			if strings.Contains(err.Error(), "no longer supported") {
++				switch name {
++				case "test_go1.7_0.a",
++					"test_go1.7_1.a",
++					"test_go1.8_4.a",
++					"test_go1.8_5.a",
++					"test_go1.11_6b.a",
++					"test_go1.11_999b.a":
++					continue
++				}
++				// fall through
++			}
++			// ok to fail if it fails with a 'newer version' error for select files
+ 			if strings.Contains(err.Error(), "newer version") {
+ 				switch name {
+ 				case "test_go1.11_999i.a":
+diff --git a/src/cmd/compile/internal/noder/import.go b/src/cmd/compile/internal/noder/import.go
+index 1e4c1ecb63..964b01ec42 100644
+--- a/src/cmd/compile/internal/noder/import.go
++++ b/src/cmd/compile/internal/noder/import.go
+@@ -266,27 +266,22 @@ func findExportData(f *os.File) (r *bio.Reader, end int64, err error) {
+ 		return
+ 	}
+ 
+-	if line == "!<arch>\n" { // package archive
+-		// package export block should be first
+-		sz := int64(archive.ReadHeader(r.Reader, "__.PKGDEF"))
+-		if sz <= 0 {
+-			err = errors.New("not a package file")
+-			return
+-		}
+-		end = r.Offset() + sz
+-		line, err = r.ReadString('\n')
+-		if err != nil {
+-			return
+-		}
+-	} else {
+-		// Not an archive; provide end of file instead.
+-		// TODO(mdempsky): I don't think this happens anymore.
+-		var fi os.FileInfo
+-		fi, err = f.Stat()
+-		if err != nil {
+-			return
+-		}
+-		end = fi.Size()
++	// Is the first line an archive file signature?
++	if line != "!<arch>\n" {
++		err = fmt.Errorf("not the start of an archive file (%q)", line)
++		return
++	}
++
++	// package export block should be first
++	sz := int64(archive.ReadHeader(r.Reader, "__.PKGDEF"))
++	if sz <= 0 {
++		err = errors.New("not a package file")
++		return
++	}
++	end = r.Offset() + sz
++	line, err = r.ReadString('\n')
++	if err != nil {
++		return
+ 	}
+ 
+ 	if !strings.HasPrefix(line, "go object ") {
+diff --git a/src/go/internal/gcimporter/exportdata.go b/src/go/internal/gcimporter/exportdata.go
+index 4aa22d7c92..ec17c1dd1a 100644
+--- a/src/go/internal/gcimporter/exportdata.go
++++ b/src/go/internal/gcimporter/exportdata.go
+@@ -48,29 +48,32 @@ func FindExportData(r *bufio.Reader) (hdr string, size int, err error) {
+ 		return
+ 	}
+ 
+-	if string(line) == "!<arch>\n" {
+-		// Archive file. Scan to __.PKGDEF.
+-		var name string
+-		if name, size, err = readGopackHeader(r); err != nil {
+-			return
+-		}
++	// Is the first line an archive file signature?
++	if string(line) != "!<arch>\n" {
++		err = fmt.Errorf("not the start of an archive file (%q)", line)
++		return
++	}
+ 
+-		// First entry should be __.PKGDEF.
+-		if name != "__.PKGDEF" {
+-			err = fmt.Errorf("go archive is missing __.PKGDEF")
+-			return
+-		}
++	// Archive file. Scan to __.PKGDEF.
++	var name string
++	if name, size, err = readGopackHeader(r); err != nil {
++		return
++	}
+ 
+-		// Read first line of __.PKGDEF data, so that line
+-		// is once again the first line of the input.
+-		if line, err = r.ReadSlice('\n'); err != nil {
+-			err = fmt.Errorf("can't find export data (%v)", err)
+-			return
+-		}
++	// First entry should be __.PKGDEF.
++	if name != "__.PKGDEF" {
++		err = fmt.Errorf("go archive is missing __.PKGDEF")
++		return
++	}
++
++	// Read first line of __.PKGDEF data, so that line
++	// is once again the first line of the input.
++	if line, err = r.ReadSlice('\n'); err != nil {
++		err = fmt.Errorf("can't find export data (%v)", err)
++		return
+ 	}
+ 
+-	// Now at __.PKGDEF in archive or still at beginning of file.
+-	// Either way, line should begin with "go object ".
++	// Now at __.PKGDEF in archive. line should begin with "go object ".
+ 	if !strings.HasPrefix(string(line), "go object ") {
+ 		err = fmt.Errorf("not a Go object file")
+ 		return
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 11bd22d717..81094fa246 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -285,7 +285,16 @@ func TestVersionHandling(t *testing.T) {
+ 		// test that export data can be imported
+ 		_, err := Import(fset, make(map[string]*types.Package), pkgpath, dir, nil)
+ 		if err != nil {
+-			// ok to fail if it fails with a no longer supported error for select files
++			// ok to fail if it fails with a 'not the start of an archive file' error for select files
++			if strings.Contains(err.Error(), "not the start of an archive file") {
++				switch name {
++				case "test_go1.8_4.a",
++					"test_go1.8_5.a":
++					continue
++				}
++				// fall through
++			}
++			// ok to fail if it fails with a 'no longer supported' error for select files
+ 			if strings.Contains(err.Error(), "no longer supported") {
+ 				switch name {
+ 				case "test_go1.7_0.a",
+@@ -300,7 +309,7 @@ func TestVersionHandling(t *testing.T) {
+ 				}
+ 				// fall through
+ 			}
+-			// ok to fail if it fails with a newer version error for select files
++			// ok to fail if it fails with a 'newer version' error for select files
+ 			if strings.Contains(err.Error(), "newer version") {
+ 				switch name {
+ 				case "test_go1.11_999i.a":

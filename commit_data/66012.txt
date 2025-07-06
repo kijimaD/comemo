@@ -1,0 +1,91 @@
+commit 4ac729283c807cdbe0f6c7041f21606019b722cf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jan 7 10:15:19 2025 -0800
+
+    go/types, types2: don't register interface methods in Info.Types map
+    
+    Methods declared in an interface have a signature and FuncType in the
+    AST, but they do not express a syntactic function type expression.
+    Treat them like ordinary function/method declarations and do not record
+    them in the Info.Types map. This removes an inconsistency in the way
+    function types are recorded.
+    
+    Follow-up on CL 640776.
+    
+    For #70908.
+    
+    Change-Id: I60848f209b40b008039c014fb8b7b279361487b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640596
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/cmd/compile/internal/types2/interface.go | 18 ++++++++++--------
+ src/go/types/interface.go                    | 18 ++++++++++--------
+ 2 files changed, 20 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 4072098e05..67f5b98a83 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -137,17 +137,19 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 		name := f.Name.Value
+ 		if name == "_" {
+ 			check.error(f.Name, BlankIfaceMethod, "methods must have a unique non-blank name")
+-			continue // ignore
++			continue // ignore method
+ 		}
+ 
+-		typ := check.typ(f.Type)
+-		sig, _ := typ.(*Signature)
+-		if sig == nil {
+-			if isValid(typ) {
+-				check.errorf(f.Type, InvalidSyntaxTree, "%s is not a method signature", typ)
+-			}
+-			continue // ignore
++		// Type-check method declaration.
++		// Note: Don't call check.typ(f.Type) as that would record
++		// the method incorrectly as a type expression in Info.Types.
++		ftyp, _ := f.Type.(*syntax.FuncType)
++		if ftyp == nil {
++			check.errorf(f.Type, InvalidSyntaxTree, "%s is not a method signature", f.Type)
++			continue // ignore method
+ 		}
++		sig := new(Signature)
++		check.funcType(sig, nil, nil, ftyp)
+ 
+ 		// use named receiver type if available (for better error messages)
+ 		var recvTyp Type = ityp
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index 01bbb08e0e..e5ca042e75 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -176,17 +176,19 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 		name := f.Names[0]
+ 		if name.Name == "_" {
+ 			check.error(name, BlankIfaceMethod, "methods must have a unique non-blank name")
+-			continue // ignore
++			continue // ignore method
+ 		}
+ 
+-		typ := check.typ(f.Type)
+-		sig, _ := typ.(*Signature)
+-		if sig == nil {
+-			if isValid(typ) {
+-				check.errorf(f.Type, InvalidSyntaxTree, "%s is not a method signature", typ)
+-			}
+-			continue // ignore
++		// Type-check method declaration.
++		// Note: Don't call check.typ(f.Type) as that would record
++		// the method incorrectly as a type expression in Info.Types.
++		ftyp, _ := f.Type.(*ast.FuncType)
++		if ftyp == nil {
++			check.errorf(f.Type, InvalidSyntaxTree, "%s is not a method signature", f.Type)
++			continue // ignore method
+ 		}
++		sig := new(Signature)
++		check.funcType(sig, nil, ftyp)
+ 
+ 		// The go/parser doesn't accept method type parameters but an ast.FuncType may have them.
+ 		if sig.tparams != nil {

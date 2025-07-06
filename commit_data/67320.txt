@@ -1,0 +1,24 @@
+commit d375ae50633cdf1cd8536f2a199c382f9053b638
+Author: Gopher Robot <gobot@golang.org>
+Date:   Thu Jun 5 11:16:25 2025 -0700
+
+    [release-branch.go1.23] go1.23.10
+    
+    Change-Id: Id4ed8879352dfe662a0ab96981a8d59e2fd80767
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/679219
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Carlos Amedee <carlos@golang.org>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index 2ce7159904..634aa6e825 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.23.9
+-time 2025-04-30T18:13:34Z
++go1.23.10
++time 2025-05-29T19:37:36Z

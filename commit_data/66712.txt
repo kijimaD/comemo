@@ -1,0 +1,421 @@
+commit 4c32b1cc753e9005ed7c741bf69d3cb69ee3a56c
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Mar 11 11:23:24 2025 -0400
+
+    runtime: fix plan9 monotonic time, crypto randomness
+    
+    Open /dev/bintime at process start on Plan 9,
+    marked close-on-exec, hold it open for the duration of the
+    process, and use it for obtaining time.
+    
+    The change to using /dev/bintime also sets up for an upcoming
+    Plan 9 change to add monotonic time to that file. If the monotonic
+    field is available, then nanotime1 and time.now use that field.
+    Otherwise they fall back to using Unix nanoseconds as "monotonic",
+    as they always have.
+    
+    Before this CL, monotonic time went backward any time
+    aux/timesync decided to adjust the system's time-of-day backward.
+    
+    Also use /dev/random for randomness (once at startup).
+    Before this CL, there was no real randomness in the runtime
+    on Plan 9 (the crypto/rand package still had some). Now there will be.
+    
+    Change-Id: I0c20ae79d3d96eff1a5f839a56cec5c4bc517e61
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656755
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    TryBot-Bypass: Russ Cox <rsc@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/runtime/env_plan9.go      |   4 +-
+ src/runtime/os_plan9.go       | 105 ++++++++++++++++++++++++++++++++++++------
+ src/runtime/sys_plan9_386.s   |  37 ++++++---------
+ src/runtime/sys_plan9_amd64.s |  29 ++++++------
+ src/runtime/sys_plan9_arm.s   |  37 ++++++---------
+ src/runtime/timestub.go       |   2 +-
+ src/runtime/timestub2.go      |   2 +-
+ 7 files changed, 138 insertions(+), 78 deletions(-)
+
+diff --git a/src/runtime/env_plan9.go b/src/runtime/env_plan9.go
+index d206c5dbba..5622cb4eac 100644
+--- a/src/runtime/env_plan9.go
++++ b/src/runtime/env_plan9.go
+@@ -30,7 +30,7 @@ const (
+ func goenvs() {
+ 	buf := make([]byte, envBufSize)
+ 	copy(buf, envDir)
+-	dirfd := open(&buf[0], _OREAD, 0)
++	dirfd := open(&buf[0], _OREAD|_OCEXEC, 0)
+ 	if dirfd < 0 {
+ 		return
+ 	}
+@@ -40,7 +40,7 @@ func goenvs() {
+ 		buf = buf[:len(envDir)]
+ 		copy(buf, envDir)
+ 		buf = append(buf, name...)
+-		fd := open(&buf[0], _OREAD, 0)
++		fd := open(&buf[0], _OREAD|_OCEXEC, 0)
+ 		if fd < 0 {
+ 			return
+ 		}
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 2dbb42ad03..b45e409b3a 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -18,6 +18,7 @@ type mOS struct {
+ 	ignoreHangup  bool
+ }
+ 
++func dupfd(old, new int32) int32
+ func closefd(fd int32) int32
+ 
+ //go:noescape
+@@ -226,7 +227,7 @@ var sysstat = []byte("/dev/sysstat\x00")
+ 
+ func getproccount() int32 {
+ 	var buf [2048]byte
+-	fd := open(&sysstat[0], _OREAD, 0)
++	fd := open(&sysstat[0], _OREAD|_OCEXEC, 0)
+ 	if fd < 0 {
+ 		return 1
+ 	}
+@@ -255,7 +256,7 @@ var pagesize = []byte(" pagesize\n")
+ func getPageSize() uintptr {
+ 	var buf [2048]byte
+ 	var pos int
+-	fd := open(&devswap[0], _OREAD, 0)
++	fd := open(&devswap[0], _OREAD|_OCEXEC, 0)
+ 	if fd < 0 {
+ 		// There's not much we can do if /dev/swap doesn't
+ 		// exist. However, nothing in the memory manager uses
+@@ -314,11 +315,36 @@ func getpid() uint64 {
+ 	return uint64(_atoi(c))
+ }
+ 
++var (
++	bintimeFD int32 = -1
++
++	bintimeDev = []byte("/dev/bintime\x00")
++	randomDev  = []byte("/dev/random\x00")
++)
++
+ func osinit() {
+ 	physPageSize = getPageSize()
+ 	initBloc()
+ 	ncpu = getproccount()
+ 	getg().m.procid = getpid()
++
++	fd := open(&bintimeDev[0], _OREAD|_OCEXEC, 0)
++	if fd < 0 {
++		fatal("cannot open /dev/bintime")
++	}
++	bintimeFD = fd
++
++	// Move fd high up, to avoid conflicts with smaller ones
++	// that programs might hard code, and to make exec's job easier.
++	// Plan 9 allocates chunks of DELTAFD=20 fds in a row,
++	// so 18 is near the top of what's possible.
++	if bintimeFD < 18 {
++		if dupfd(bintimeFD, 18) < 0 {
++			fatal("cannot dup /dev/bintime onto 18")
++		}
++		closefd(bintimeFD)
++		bintimeFD = 18
++	}
+ }
+ 
+ //go:nosplit
+@@ -329,7 +355,13 @@ func crash() {
+ 
+ //go:nosplit
+ func readRandom(r []byte) int {
+-	return 0
++	fd := open(&randomDev[0], _OREAD|_OCEXEC, 0)
++	if fd < 0 {
++		fatal("cannot open /dev/random")
++	}
++	n := int(read(fd, unsafe.Pointer(&r[0]), int32(len(r))))
++	closefd(fd)
++	return n
+ }
+ 
+ func initsig(preinit bool) {
+@@ -362,17 +394,6 @@ func usleep_no_g(usec uint32) {
+ 	usleep(usec)
+ }
+ 
+-//go:nosplit
+-func nanotime1() int64 {
+-	var scratch int64
+-	ns := nsec(&scratch)
+-	// TODO(aram): remove hack after I fix _nsec in the pc64 kernel.
+-	if ns == 0 {
+-		return scratch
+-	}
+-	return ns
+-}
+-
+ var goexits = []byte("go: exit ")
+ var emptystatus = []byte("\x00")
+ var exiting uint32
+@@ -530,3 +551,59 @@ func preemptM(mp *m) {
+ 	//
+ 	// TODO: Use a note like we use signals on POSIX OSes
+ }
++
++//go:nosplit
++func readtime(t *uint64, min, n int) int {
++	if bintimeFD < 0 {
++		fatal("/dev/bintime not opened")
++	}
++	const uint64size = 8
++	r := pread(bintimeFD, unsafe.Pointer(t), int32(n*uint64size), 0)
++	if int(r) < min*uint64size {
++		fatal("cannot read /dev/bintime")
++	}
++	return int(r) / uint64size
++}
++
++// timesplit returns u/1e9, u%1e9
++func timesplit(u uint64) (sec int64, nsec int32)
++
++func frombe(u uint64) uint64 {
++	b := (*[8]byte)(unsafe.Pointer(&u))
++	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
++		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
++}
++
++//go:nosplit
++func nanotime1() int64 {
++	var t [4]uint64
++	if readtime(&t[0], 1, 4) == 4 {
++		// long read indicates new kernel sending monotonic time
++		// (https://github.com/rsc/plan9/commit/baf076425).
++		return int64(frombe(t[3]))
++	}
++	// fall back to unix time
++	return int64(frombe(t[0]))
++}
++
++//go:nosplit
++func walltime() (sec int64, nsec int32) {
++	var t [1]uint64
++	readtime(&t[0], 1, 1)
++	return timesplit(frombe(t[0]))
++}
++
++// Do not remove or change the type signature.
++// See comment in timestub.go.
++//
++//go:linkname time_now time.now
++func time_now() (sec int64, nsec int32, mono int64) {
++	var t [4]uint64
++	if readtime(&t[0], 1, 4) == 4 {
++		mono = int64(frombe(t[3])) // new kernel, use monotonic time
++	} else {
++		mono = int64(frombe(t[0])) // old kernel, fall back to unix time
++	}
++	sec, nsec = timesplit(frombe(t[0]))
++	return
++}
+diff --git a/src/runtime/sys_plan9_386.s b/src/runtime/sys_plan9_386.s
+index bdcb98e19e..4eefeaf80a 100644
+--- a/src/runtime/sys_plan9_386.s
++++ b/src/runtime/sys_plan9_386.s
+@@ -58,6 +58,12 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+4(FP)
+ 	RET
+ 
++TEXT runtime·dupfd(SB),NOSPLIT,$0
++	MOVL	$5, AX
++	INT	$64
++	MOVL	AX, ret+8(FP)
++	RET
++
+ TEXT runtime·exits(SB),NOSPLIT,$0
+ 	MOVL    $8, AX
+ 	INT     $64
+@@ -87,32 +93,15 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
+-TEXT nsec<>(SB),NOSPLIT,$0
+-	MOVL	$53, AX
+-	INT	$64
+-	RET
+-
+-TEXT runtime·nsec(SB),NOSPLIT,$8
+-	LEAL	ret+4(FP), AX
+-	MOVL	AX, 0(SP)
+-	CALL	nsec<>(SB)
+-	CMPL	AX, $0
+-	JGE	3(PC)
+-	MOVL	$-1, ret_lo+4(FP)
+-	MOVL	$-1, ret_hi+8(FP)
+-	RET
+-
+-// func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB),NOSPLIT,$8-12
+-	CALL	runtime·nanotime1(SB)
+-	MOVL	0(SP), AX
+-	MOVL	4(SP), DX
+-
++// func timesplit(u uint64) (sec int64, nsec int32)
++TEXT runtime·timesplit(SB),NOSPLIT,$0
++	MOVL	u_lo+0(FP), AX
++	MOVL	u_hi+4(FP), DX
+ 	MOVL	$1000000000, CX
+ 	DIVL	CX
+-	MOVL	AX, sec_lo+0(FP)
+-	MOVL	$0, sec_hi+4(FP)
+-	MOVL	DX, nsec+8(FP)
++	MOVL	AX, sec_lo+8(FP)
++	MOVL	$0, sec_hi+12(FP)
++	MOVL	DX, nsec+16(FP)
+ 	RET
+ 
+ TEXT runtime·notify(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_plan9_amd64.s b/src/runtime/sys_plan9_amd64.s
+index a53f9201f4..67cff82505 100644
+--- a/src/runtime/sys_plan9_amd64.s
++++ b/src/runtime/sys_plan9_amd64.s
+@@ -53,6 +53,17 @@ TEXT runtime·closefd(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+8(FP)
+ 	RET
+ 
++TEXT runtime·dupfd(SB),NOSPLIT,$0
++	MOVQ	$5, BP
++	// Kernel expects each int32 arg to be 64-bit-aligned.
++	// The return value slot is where the kernel
++	// expects to find the second argument, so copy it there.
++	MOVL	new+4(FP), AX
++	MOVL	AX, ret+8(FP)
++	SYSCALL
++	MOVL	AX, ret+8(FP)
++	RET
++
+ TEXT runtime·exits(SB),NOSPLIT,$0
+ 	MOVQ	$8, BP
+ 	SYSCALL
+@@ -82,17 +93,9 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0
+ 	MOVL	AX, ret+16(FP)
+ 	RET
+ 
+-TEXT runtime·nsec(SB),NOSPLIT,$0
+-	MOVQ	$53, BP
+-	SYSCALL
+-	MOVQ	AX, ret+8(FP)
+-	RET
+-
+-// func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB),NOSPLIT,$8-12
+-	CALL	runtime·nanotime1(SB)
+-	MOVQ	0(SP), AX
+-
++// func timesplit(u uint64) (sec int64, nsec int32)
++TEXT runtime·timesplit(SB),NOSPLIT,$0
++	MOVQ	u+0(FP), AX
+ 	// generated code for
+ 	//	func f(x uint64) (uint64, uint64) { return x/1000000000, x%1000000000 }
+ 	// adapted to reduce duplication
+@@ -102,10 +105,10 @@ TEXT runtime·walltime(SB),NOSPLIT,$8-12
+ 	ADDQ	CX, DX
+ 	RCRQ	$1, DX
+ 	SHRQ	$29, DX
+-	MOVQ	DX, sec+0(FP)
++	MOVQ	DX, sec+8(FP)
+ 	IMULQ	$1000000000, DX
+ 	SUBQ	DX, CX
+-	MOVL	CX, nsec+8(FP)
++	MOVL	CX, nsec+16(FP)
+ 	RET
+ 
+ TEXT runtime·notify(SB),NOSPLIT,$0
+diff --git a/src/runtime/sys_plan9_arm.s b/src/runtime/sys_plan9_arm.s
+index 5343085743..e1faacecf5 100644
+--- a/src/runtime/sys_plan9_arm.s
++++ b/src/runtime/sys_plan9_arm.s
+@@ -93,6 +93,13 @@ TEXT runtime·closefd(SB),NOSPLIT,$0-8
+ 	MOVW	R0, ret+4(FP)
+ 	RET
+ 
++//func dupfd(old, new int32) int32
++TEXT runtime·dupfd(SB),NOSPLIT,$0-12
++	MOVW	$SYS_DUP, R0
++	SWI	$0
++	MOVW	R0, ret+8(FP)
++	RET
++
+ //func exits(msg *byte)
+ TEXT runtime·exits(SB),NOSPLIT,$0-4
+ 	MOVW    $SYS_EXITS, R0
+@@ -127,26 +134,10 @@ TEXT runtime·plan9_tsemacquire(SB),NOSPLIT,$0-12
+ 	MOVW	R0, ret+8(FP)
+ 	RET
+ 
+-//func nsec(*int64) int64
+-TEXT runtime·nsec(SB),NOSPLIT|NOFRAME,$0-12
+-	MOVW	$SYS_NSEC, R0
+-	SWI	$0
+-	MOVW	arg+0(FP), R1
+-	MOVW	0(R1), R0
+-	MOVW	R0, ret_lo+4(FP)
+-	MOVW	4(R1), R0
+-	MOVW	R0, ret_hi+8(FP)
+-	RET
+-
+-// func walltime() (sec int64, nsec int32)
+-TEXT runtime·walltime(SB),NOSPLIT,$12-12
+-	// use nsec system call to get current time in nanoseconds
+-	MOVW	$sysnsec_lo-8(SP), R0	// destination addr
+-	MOVW	R0,res-12(SP)
+-	MOVW	$SYS_NSEC, R0
+-	SWI	$0
+-	MOVW	sysnsec_lo-8(SP), R1	// R1:R2 = nsec
+-	MOVW	sysnsec_hi-4(SP), R2
++// func timesplit(u uint64) (sec int64, nsec int32)
++TEXT runtime·timesplit(SB),NOSPLIT,$0
++	MOVW	u_lo+0(FP), R1	// R1:R2 = nsec
++	MOVW	u_hi+4(FP), R2
+ 
+ 	// multiply nanoseconds by reciprocal of 10**9 (scaled by 2**61)
+ 	// to get seconds (96 bit scaled result)
+@@ -173,9 +164,9 @@ TEXT runtime·walltime(SB),NOSPLIT,$12-12
+ 	SUB.HS	R5,R1			//    remainder -= 10**9
+ 	ADD.HS	$1,R6			//    sec += 1
+ 
+-	MOVW	R6,sec_lo+0(FP)
+-	MOVW	R7,sec_hi+4(FP)
+-	MOVW	R1,nsec+8(FP)
++	MOVW	R6,sec_lo+8(FP)
++	MOVW	R7,sec_hi+12(FP)
++	MOVW	R1,nsec+16(FP)
+ 	RET
+ 
+ //func notify(fn unsafe.Pointer) int32
+diff --git a/src/runtime/timestub.go b/src/runtime/timestub.go
+index da8699b5ee..eb91c022af 100644
+--- a/src/runtime/timestub.go
++++ b/src/runtime/timestub.go
+@@ -5,7 +5,7 @@
+ // Declarations for operating systems implementing time.now
+ // indirectly, in terms of walltime and nanotime assembly.
+ 
+-//go:build !faketime && !windows && !(linux && amd64)
++//go:build !faketime && !windows && !(linux && amd64) && !plan9
+ 
+ package runtime
+ 
+diff --git a/src/runtime/timestub2.go b/src/runtime/timestub2.go
+index 49bfeb60c8..336bac4b98 100644
+--- a/src/runtime/timestub2.go
++++ b/src/runtime/timestub2.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !aix && !darwin && !freebsd && !openbsd && !solaris && !wasip1 && !windows && !(linux && amd64)
++//go:build !aix && !darwin && !freebsd && !openbsd && !solaris && !wasip1 && !windows && !(linux && amd64) && !plan9
+ 
+ package runtime
+ 

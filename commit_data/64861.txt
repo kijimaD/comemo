@@ -1,0 +1,37 @@
+commit b28b263a91e4fd4af6900e045cd35c2ed1d6e3ff
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Sep 17 15:02:04 2024 +0200
+
+    os/signal: use slices.Delete
+    
+    Change-Id: I212a0f4f97e1c938f56981f278464081cfd75e85
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613875
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/os/signal/signal.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/signal/signal.go b/src/os/signal/signal.go
+index 9a4cd64fb7..b9fe16baa5 100644
+--- a/src/os/signal/signal.go
++++ b/src/os/signal/signal.go
+@@ -7,6 +7,7 @@ package signal
+ import (
+ 	"context"
+ 	"os"
++	"slices"
+ 	"sync"
+ )
+ 
+@@ -217,7 +218,7 @@ func Stop(c chan<- os.Signal) {
+ 
+ 	for i, s := range handlers.stopping {
+ 		if s.c == c {
+-			handlers.stopping = append(handlers.stopping[:i], handlers.stopping[i+1:]...)
++			handlers.stopping = slices.Delete(handlers.stopping, i, i+1)
+ 			break
+ 		}
+ 	}

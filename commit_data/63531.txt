@@ -1,0 +1,54 @@
+commit 674657e1304b0ea1815257623150a2e06d8ddac2
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Apr 20 16:27:17 2024 +0800
+
+    net/http: correct error messages for TestParseSetCookie
+    
+    This change fixes typos in error messages, while here, also improves
+    'line' strings to indicate the errEqualNotFoundInCookie error.
+    
+    Change-Id: I0ce6115c605844d2d86f337f208fd3b2d3774674
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579799
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+---
+ src/net/http/cookie_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/net/http/cookie_test.go b/src/net/http/cookie_test.go
+index de476825cf..fdbe2723e3 100644
+--- a/src/net/http/cookie_test.go
++++ b/src/net/http/cookie_test.go
+@@ -709,7 +709,7 @@ func TestParseCookie(t *testing.T) {
+ 			err:  errBlankCookie,
+ 		},
+ 		{
+-			line: "whatever",
++			line: "equal-not-found",
+ 			err:  errEqualNotFoundInCookie,
+ 		},
+ 		{
+@@ -867,7 +867,7 @@ func TestParseSetCookie(t *testing.T) {
+ 			err:  errBlankCookie,
+ 		},
+ 		{
+-			line: "whatever",
++			line: "equal-not-found",
+ 			err:  errEqualNotFoundInCookie,
+ 		},
+ 		{
+@@ -882,10 +882,10 @@ func TestParseSetCookie(t *testing.T) {
+ 	for i, tt := range tests {
+ 		gotCookie, gotErr := ParseSetCookie(tt.line)
+ 		if !errors.Is(gotErr, tt.err) {
+-			t.Errorf("#%d ParseCookie got error %v, want error %v", i, gotErr, tt.err)
++			t.Errorf("#%d ParseSetCookie got error %v, want error %v", i, gotErr, tt.err)
+ 		}
+ 		if !reflect.DeepEqual(gotCookie, tt.cookie) {
+-			t.Errorf("#%d ParseCookie:\ngot cookie: %s\nwant cookie: %s\n", i, toJSON(gotCookie), toJSON(tt.cookie))
++			t.Errorf("#%d ParseSetCookie:\ngot cookie: %s\nwant cookie: %s\n", i, toJSON(gotCookie), toJSON(tt.cookie))
+ 		}
+ 	}
+ }

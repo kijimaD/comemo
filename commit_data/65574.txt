@@ -1,0 +1,68 @@
+commit 1d28fa8c43ab11942d967ea112e2e6a05cd8f919
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Nov 19 14:41:37 2024 -0800
+
+    runtime: avoid deadlock in synctest changegstatus when copying stacks
+    
+    For #67434
+    Fixes #70452
+    
+    Change-Id: Ie655a9e55837aa68b6bfb0bb69b6c8caaf3bbea5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629856
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/synctest.go | 22 +++++++++++++++++++---
+ 1 file changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/synctest.go b/src/runtime/synctest.go
+index b4934de853..0fd5e7873e 100644
+--- a/src/runtime/synctest.go
++++ b/src/runtime/synctest.go
+@@ -36,12 +36,20 @@ type synctestGroup struct {
+ // changegstatus is called when the non-lock status of a g changes.
+ // It is never called with a Gscanstatus.
+ func (sg *synctestGroup) changegstatus(gp *g, oldval, newval uint32) {
+-	lock(&sg.mu)
++	// Determine whether this change in status affects the idleness of the group.
++	// If this isn't a goroutine starting, stopping, durably blocking,
++	// or waking up after durably blocking, then return immediately without
++	// locking sg.mu.
++	//
++	// For example, stack growth (newstack) will changegstatus
++	// from _Grunning to _Gcopystack. This is uninteresting to synctest,
++	// but if stack growth occurs while sg.mu is held, we must not recursively lock.
++	totalDelta := 0
+ 	wasRunning := true
+ 	switch oldval {
+ 	case _Gdead:
+ 		wasRunning = false
+-		sg.total++
++		totalDelta++
+ 	case _Gwaiting:
+ 		if gp.waitreason.isIdleInSynctest() {
+ 			wasRunning = false
+@@ -51,12 +59,20 @@ func (sg *synctestGroup) changegstatus(gp *g, oldval, newval uint32) {
+ 	switch newval {
+ 	case _Gdead:
+ 		isRunning = false
+-		sg.total--
++		totalDelta--
+ 	case _Gwaiting:
+ 		if gp.waitreason.isIdleInSynctest() {
+ 			isRunning = false
+ 		}
+ 	}
++	// It's possible for wasRunning == isRunning while totalDelta != 0;
++	// for example, if a new goroutine is created in a non-running state.
++	if wasRunning == isRunning && totalDelta == 0 {
++		return
++	}
++
++	lock(&sg.mu)
++	sg.total += totalDelta
+ 	if wasRunning != isRunning {
+ 		if isRunning {
+ 			sg.running++

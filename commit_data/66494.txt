@@ -1,0 +1,196 @@
+commit 73fea035bf1e4e68ef14995a389d4fd8df5c6a34
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jan 16 15:44:55 2025 -0500
+
+    cmd/go: allow symlinks of non-directory files in embed
+    
+    We previously disallowed all non-regular files being embedded. This CL
+    relaxes the restriction a little: if the GODEBUG embedfollowsymlinks=1
+    is set, we allow the leaf files being embedded (not the directories
+    containing them) to be symlinks. The files pointed to by the symlinks
+    must still be regular files.
+    
+    This will be used when a Bazel build action executing the Go command is
+    running in a symlink-based sandbox. It's not something we want to enable
+    in general for now, so it's behind a GODEBUG.
+    
+    Fixes #59924
+    
+    Change-Id: I895be14c12de55b7d1b663d81bdda1df37d54804
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ doc/godebug.md                       |  5 +++++
+ src/cmd/go/internal/load/pkg.go      | 21 +++++++++++++++++++
+ src/cmd/go/testdata/script/embed.txt | 40 +++++++++++++++++++++++++++++++++++-
+ src/internal/godebugs/table.go       |  1 +
+ src/runtime/metrics/doc.go           |  5 +++++
+ 5 files changed, 71 insertions(+), 1 deletion(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 650a8e20bf..f3ad820d3c 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -164,6 +164,11 @@ reverts to the pre-Go 1.25 behavior. This setting is fixed at program startup
+ time, and can't be modified by changing the `GODEBUG` environment variable
+ after the program starts.
+ 
++Go 1.25 added a new `embedfollowsymlinks` setting that controls whether the
++Go command will follow symlinks to regular files embedding files.
++The default value `embedfollowsymlinks=0` does not allow following
++symlinks. `embedfollowsymlinks=1` will allow following symlinks.
++
+ ### Go 1.24
+ 
+ Go 1.24 added a new `fips140` setting that controls whether the Go
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 0c4639ce82..8f62abe663 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -14,6 +14,7 @@ import (
+ 	"go/build"
+ 	"go/scanner"
+ 	"go/token"
++	"internal/godebug"
+ 	"internal/platform"
+ 	"io/fs"
+ 	"os"
+@@ -2110,6 +2111,8 @@ func ResolveEmbed(dir string, patterns []string) ([]string, error) {
+ 	return files, err
+ }
+ 
++var embedfollowsymlinks = godebug.New("embedfollowsymlinks")
++
+ // resolveEmbed resolves //go:embed patterns to precise file lists.
+ // It sets files to the list of unique files matched (for go list),
+ // and it sets pmap to the more precise mapping from
+@@ -2194,6 +2197,24 @@ func resolveEmbed(pkgdir string, patterns []string) (files []string, pmap map[st
+ 					list = append(list, rel)
+ 				}
+ 
++			// If the embedfollowsymlinks GODEBUG is set to 1, allow the leaf file to be a
++			// symlink (#59924). We don't allow directories to be symlinks and have already
++			// checked that none of the parent directories of the file are symlinks in the
++			// loop above. The file pointed to by the symlink must be a regular file.
++			case embedfollowsymlinks.Value() == "1" && info.Mode()&fs.ModeType == fs.ModeSymlink:
++				info, err := fsys.Stat(file)
++				if err != nil {
++					return nil, nil, err
++				}
++				if !info.Mode().IsRegular() {
++					return nil, nil, fmt.Errorf("cannot embed irregular file %s", rel)
++				}
++				if have[rel] != pid {
++					embedfollowsymlinks.IncNonDefault()
++					have[rel] = pid
++					list = append(list, rel)
++				}
++
+ 			case info.IsDir():
+ 				// Gather all files in the named directory, stopping at module boundaries
+ 				// and ignoring files that wouldn't be packaged into a module.
+diff --git a/src/cmd/go/testdata/script/embed.txt b/src/cmd/go/testdata/script/embed.txt
+index 5f7f6edd77..0e6bb63737 100644
+--- a/src/cmd/go/testdata/script/embed.txt
++++ b/src/cmd/go/testdata/script/embed.txt
+@@ -31,11 +31,16 @@ cp x.txt .git
+ stderr '^x.go:5:12: pattern [*]t: cannot embed file [.]git: invalid name [.]git$'
+ rm .git
+ 
+-# build rejects symlinks
++# build rejects symlinks by default
+ [symlink] symlink x.tzt -> x.txt
+ [symlink] ! go build -x
+ [symlink] stderr 'pattern [*]t: cannot embed irregular file x.tzt'
++# with GODEBUG embedfollowsymlinks=1, build allows symlinks of leaf files
++[symlink] env 'GODEBUG=embedfollowsymlinks=1'
++[symlink] go build -x
++[symlink] stderr 'x.tzt'
+ [symlink] rm x.tzt
++[symlink] env 'GODEBUG='
+ 
+ # build rejects empty directories
+ mkdir t
+@@ -72,6 +77,24 @@ rm t/.x.txt
+ cp x.txt t/_x.txt
+ go build -x
+ 
++# build disallows symlinks of directories
++[symlink] symlink symdir -> symdirdst
++[symlink] cp x.go4 x.go
++[symlink] ! go build -x
++[symlink] stderr 'x.go:5:12: pattern symdir/[*]: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
++[symlink] cp x.go5 x.go
++[symlink] ! go build -x
++[symlink] stderr 'x.go:5:12: pattern symdir/x.txt: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
++# even with GODEBUG=embedfollowsymlinks=1
++[symlink] env 'GODEBUG=embedfollowsymlinks=1'
++[symlink] cp x.go4 x.go
++[symlink] ! go build -x
++[symlink] stderr 'x.go:5:12: pattern symdir/[*]: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
++[symlink] cp x.go5 x.go
++[symlink] ! go build -x
++[symlink] stderr 'x.go:5:12: pattern symdir/x.txt: cannot embed file symdir[\\/]x.txt: in non-directory symdir'
++[symlink] env 'GODEBUG='
++
+ -- x.go --
+ package p
+ 
+@@ -112,6 +135,20 @@ import "embed"
+ //go:embed all:t
+ var X embed.FS
+ 
++-- x.go4 --
++package p
++
++import "embed"
++
++//go:embed symdir/*
++var X embed.FS
++-- x.go5 --
++package p
++
++import "embed"
++
++//go:embed symdir/x.txt
++var Z string
+ -- x.txt --
+ hello
+ 
+@@ -124,6 +161,7 @@ not hello
+ package use
+ 
+ import _ "m"
++-- symdirdst/x.txt --
+ -- go.mod --
+ module m
+ 
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 214de6bdbe..26d079ca1f 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -28,6 +28,7 @@ var All = []Info{
+ 	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
+ 	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
+ 	{Name: "decoratemappings", Package: "runtime", Opaque: true, Changed: 25, Old: "0"},
++	{Name: "embedfollowsymlinks", Package: "cmd/go"},
+ 	{Name: "execerrdot", Package: "os/exec"},
+ 	{Name: "fips140", Package: "crypto/fips140", Opaque: true},
+ 	{Name: "gocachehash", Package: "cmd/go"},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 563ddf4c95..0d35314e06 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -234,6 +234,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the time package
+ 		due to a non-default GODEBUG=asynctimerchan=... setting.
+ 
++	/godebug/non-default-behavior/embedfollowsymlinks:events
++		The number of non-default behaviors executed by the cmd/go
++		package due to a non-default GODEBUG=embedfollowsymlinks=...
++		setting.
++
+ 	/godebug/non-default-behavior/execerrdot:events
+ 		The number of non-default behaviors executed by the os/exec
+ 		package due to a non-default GODEBUG=execerrdot=... setting.

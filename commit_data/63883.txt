@@ -1,0 +1,1291 @@
+commit d0edd9acc80a16ca1dd9c6f9045fdd34efabcd42
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat May 18 20:15:38 2024 +0200
+
+    crypto/tls: implement X25519Kyber768Draft00
+    
+    Forced the testConfig CurvePreferences to exclude X25519Kyber768Draft00
+    to avoid bloating the transcripts, but I manually tested it and the
+    tests all update and pass successfully, causing 7436 insertions(+), 3251
+    deletions(-).
+    
+    Fixes #67061
+    
+    Change-Id: If6f13bca561835777ab0889a490487b7c2366c3c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586656
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ doc/godebug.md                           |   4 +
+ src/crypto/tls/bogo_config.json          |  12 ++-
+ src/crypto/tls/bogo_shim_test.go         |  60 +++++++++++++-
+ src/crypto/tls/boring_test.go            |   4 +
+ src/crypto/tls/common.go                 |  42 +++++++---
+ src/crypto/tls/common_string.go          |   6 +-
+ src/crypto/tls/conn.go                   |   3 +
+ src/crypto/tls/handshake_client.go       | 104 ++++++++++++++----------
+ src/crypto/tls/handshake_client_tls13.go |  67 +++++++++++-----
+ src/crypto/tls/handshake_server.go       |  10 ++-
+ src/crypto/tls/handshake_server_test.go  |   1 +
+ src/crypto/tls/handshake_server_tls13.go |  66 ++++++++++-----
+ src/crypto/tls/handshake_test.go         |   1 +
+ src/crypto/tls/key_agreement.go          |   8 +-
+ src/crypto/tls/key_schedule.go           |  41 ++++++++++
+ src/crypto/tls/key_schedule_test.go      |  37 +++++++++
+ src/crypto/tls/tls_test.go               | 133 +++++++++++++++++++++++++++++++
+ src/internal/godebugs/table.go           |   1 +
+ 18 files changed, 498 insertions(+), 102 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index dd88720fb1..e03261c6ae 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -179,6 +179,10 @@ Previous versions default to `winreadlinkvolume=0`.
+ Go 1.23 corrected the semantics of contention reports for runtime-internal locks,
+ and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
+ 
++Go 1.23 enabled the experimental post-quantum key exchange mechanism
++X25519Kyber768Draft00 by default. The default can be reverted using the
++[`tlskyber` setting](/pkg/crypto/tls/#Config.CurvePreferences).
++
+ ### Go 1.22
+ 
+ Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index d548a6138f..21ee32cdc9 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -6,6 +6,10 @@
+         "SendEmptyRecords*": "crypto/tls doesn't implement spam protections",
+         "SendWarningAlerts*": "crypto/tls doesn't implement spam protections",
+         "TooManyKeyUpdates": "crypto/tls doesn't implement spam protections (TODO: I think?)",
++        "KyberNotEnabledByDefaultInClients": "crypto/tls intentionally enables it",
++        "JustConfiguringKyberWorks": "we always send a X25519 key share with Kyber",
++        "KyberKeyShareIncludedSecond": "we always send the Kyber key share first",
++        "KyberKeyShareIncludedThird": "we always send the Kyber key share first",
+         "SkipNewSessionTicket": "TODO confusing? maybe bug",
+         "SendUserCanceledAlerts*": "TODO may be a real bug?",
+         "GREASE-Server-TLS13": "TODO ???",
+@@ -14,6 +18,12 @@
+         "EchoTLS13CompatibilitySessionID": "TODO reject compat session ID",
+         "*ECH-Server*": "no ECH server support",
+         "TLS-ECH-Client-UnsolictedHRRExtension": "TODO",
++        "*Client-P-224*": "no P-224 support",
++        "*Server-P-224*": "no P-224 support",
++        "CurveID-Resume*": "unexposed curveID is not stored in the ticket yet",
++        "CheckLeafCurve": "TODO: first pass, this should be fixed",
++        "DisabledCurve-HelloRetryRequest-TLS13": "TODO: first pass, this should be fixed",
++        "UnsupportedCurve": "TODO: first pass, this should be fixed",
+         "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
+         "NoNullCompression-TLS12": "TODO: first pass, this should be fixed",
+         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
+@@ -172,4 +182,4 @@
+         "CheckClientCertificateTypes": "TODO: first pass, this should be fixed",
+         "CheckECDSACurve-TLS12": "TODO: first pass, this should be fixed"
+     }
+-}
+\ No newline at end of file
++}
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index e1a393c8bf..4a95dc1d98 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -15,6 +15,8 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"strconv"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -40,6 +42,9 @@ var (
+ 
+ 	resumeCount = flag.Int("resume-count", 0, "")
+ 
++	curves        = flagStringSlice("curves", "")
++	expectedCurve = flag.String("expect-curve-id", "", "")
++
+ 	shimID = flag.Uint64("shim-id", 0, "")
+ 	_      = flag.Bool("ipv6", false, "")
+ 
+@@ -132,6 +137,23 @@ var (
+ 	// -verify-prefs
+ )
+ 
++type stringSlice []string
++
++func flagStringSlice(name, usage string) *stringSlice {
++	f := &stringSlice{}
++	flag.Var(f, name, usage)
++	return f
++}
++
++func (saf stringSlice) String() string {
++	return strings.Join(saf, ",")
++}
++
++func (saf stringSlice) Set(s string) error {
++	saf = append(saf, s)
++	return nil
++}
++
+ func bogoShim() {
+ 	if *isHandshakerSupported {
+ 		fmt.Println("No")
+@@ -177,6 +199,16 @@ func bogoShim() {
+ 		cfg.ClientAuth = RequireAnyClientCert
+ 	}
+ 
++	if len(*curves) != 0 {
++		for _, curveStr := range *curves {
++			id, err := strconv.Atoi(curveStr)
++			if err != nil {
++				log.Fatalf("failed to parse curve id %q: %s", curveStr, err)
++			}
++			cfg.CurvePreferences = append(cfg.CurvePreferences, CurveID(id))
++		}
++	}
++
+ 	for i := 0; i < *resumeCount+1; i++ {
+ 		conn, err := net.Dial("tcp", net.JoinHostPort("localhost", *port))
+ 		if err != nil {
+@@ -221,6 +253,16 @@ func bogoShim() {
+ 				log.Fatalf("write err: %s", err)
+ 			}
+ 		}
++
++		if *expectedCurve != "" {
++			expectedCurveID, err := strconv.Atoi(*expectedCurve)
++			if err != nil {
++				log.Fatalf("failed to parse -expect-curve-id: %s", err)
++			}
++			if tlsConn.curveID != CurveID(expectedCurveID) {
++				log.Fatalf("unexpected curve id: want %d, got %d", expectedCurveID, tlsConn.curveID)
++			}
++		}
+ 	}
+ }
+ 
+@@ -238,7 +280,7 @@ func TestBogoSuite(t *testing.T) {
+ 		t.Skip("#66913: windows network connections are flakey on builders")
+ 	}
+ 
+-	const boringsslModVer = "v0.0.0-20240412155355-1c6e10495e4f"
++	const boringsslModVer = "v0.0.0-20240517213134-ba62c812f01f"
+ 	output, err := exec.Command("go", "mod", "download", "-json", "github.com/google/boringssl@"+boringsslModVer).CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("failed to download boringssl: %s", err)
+@@ -263,6 +305,8 @@ func TestBogoSuite(t *testing.T) {
+ 		"-shim-extra-flags=-bogo-mode",
+ 		"-allow-unimplemented",
+ 		"-loose-errors", // TODO(roland): this should be removed eventually
++		"-pipe",
++		"-v",
+ 	}
+ 	if *bogoFilter != "" {
+ 		args = append(args, fmt.Sprintf("-test=%s", *bogoFilter))
+@@ -273,10 +317,22 @@ func TestBogoSuite(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	cmd := exec.Command(goCmd, args...)
+-	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
++	out := &strings.Builder{}
++	cmd.Stdout, cmd.Stderr = io.MultiWriter(os.Stdout, out), os.Stderr
+ 	cmd.Dir = filepath.Join(j.Dir, "ssl/test/runner")
+ 	err = cmd.Run()
+ 	if err != nil {
+ 		t.Fatalf("bogo failed: %s", err)
+ 	}
++
++	if *bogoFilter == "" {
++		assertPass := func(t *testing.T, name string) {
++			t.Helper()
++			if !strings.Contains(out.String(), "PASSED ("+name+")\n") {
++				t.Errorf("Expected test %s did not run", name)
++			}
++		}
++		assertPass(t, "CurveTest-Client-Kyber-TLS13")
++		assertPass(t, "CurveTest-Server-Kyber-TLS13")
++	}
+ }
+diff --git a/src/crypto/tls/boring_test.go b/src/crypto/tls/boring_test.go
+index 77374abe34..4a658f04ee 100644
+--- a/src/crypto/tls/boring_test.go
++++ b/src/crypto/tls/boring_test.go
+@@ -165,6 +165,10 @@ func TestBoringServerCurves(t *testing.T) {
+ 		t.Run(fmt.Sprintf("curve=%d", curveid), func(t *testing.T) {
+ 			clientConfig := testConfig.Clone()
+ 			clientConfig.CurvePreferences = []CurveID{curveid}
++			if curveid == x25519Kyber768Draft00 {
++				// x25519Kyber768Draft00 is not supported standalone.
++				clientConfig.CurvePreferences = append(clientConfig.CurvePreferences, X25519)
++			}
+ 			if _, _, err := testHandshake(t, clientConfig, serverConfig); err != nil {
+ 				t.Fatalf("got error: %v, expected success", err)
+ 			}
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 34a301340b..14a8daedad 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -130,11 +130,13 @@ const (
+ 	scsvRenegotiation uint16 = 0x00ff
+ )
+ 
+-// CurveID is the type of a TLS identifier for an elliptic curve. See
++// CurveID is the type of a TLS identifier for a key exchange mechanism. See
+ // https://www.iana.org/assignments/tls-parameters/tls-parameters.xml#tls-parameters-8.
+ //
+-// In TLS 1.3, this type is called NamedGroup, but at this time this library
+-// only supports Elliptic Curve based groups. See RFC 8446, Section 4.2.7.
++// In TLS 1.2, this registry used to support only elliptic curves. In TLS 1.3,
++// it was extended to other groups and renamed NamedGroup. See RFC 8446, Section
++// 4.2.7. It was then also extended to other mechanisms, such as hybrid
++// post-quantum KEMs.
+ type CurveID uint16
+ 
+ const (
+@@ -142,6 +144,11 @@ const (
+ 	CurveP384 CurveID = 24
+ 	CurveP521 CurveID = 25
+ 	X25519    CurveID = 29
++
++	// Experimental codepoint for X25519Kyber768Draft00, specified in
++	// draft-tls-westerbaan-xyber768d00-03. Not exported, as support might be
++	// removed in the future.
++	x25519Kyber768Draft00 CurveID = 0x6399 // X25519Kyber768Draft00
+ )
+ 
+ // TLS 1.3 Key Share. See RFC 8446, Section 4.2.8.
+@@ -302,6 +309,10 @@ type ConnectionState struct {
+ 
+ 	// testingOnlyDidHRR is true if a HelloRetryRequest was sent/received.
+ 	testingOnlyDidHRR bool
++
++	// testingOnlyCurveID is the selected CurveID, or zero if an RSA exchanges
++	// is performed.
++	testingOnlyCurveID CurveID
+ }
+ 
+ // ExportKeyingMaterial returns length bytes of exported key material in a new
+@@ -375,7 +386,7 @@ type ClientSessionCache interface {
+ 	Put(sessionKey string, cs *ClientSessionState)
+ }
+ 
+-//go:generate stringer -type=SignatureScheme,CurveID,ClientAuthType -output=common_string.go
++//go:generate stringer -linecomment -type=SignatureScheme,CurveID,ClientAuthType -output=common_string.go
+ 
+ // SignatureScheme identifies a signature algorithm supported by TLS. See
+ // RFC 8446, Section 4.2.3.
+@@ -757,6 +768,10 @@ type Config struct {
+ 	// an ECDHE handshake, in preference order. If empty, the default will
+ 	// be used. The client will use the first preference as the type for
+ 	// its key share in TLS 1.3. This may change in the future.
++	//
++	// From Go 1.23, the default includes the X25519Kyber768Draft00 hybrid
++	// post-quantum key exchange. To disable it, set CurvePreferences explicitly
++	// or use the GODEBUG=tlskyber=0 environment variable.
+ 	CurvePreferences []CurveID
+ 
+ 	// DynamicRecordSizingDisabled disables adaptive sizing of TLS records.
+@@ -1084,20 +1099,27 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
+ 	return versions
+ }
+ 
+-var defaultCurvePreferences = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
++var tlskyber = godebug.New("tlskyber")
+ 
+-func (c *Config) curvePreferences() []CurveID {
++var defaultCurvePreferences = []CurveID{x25519Kyber768Draft00, X25519, CurveP256, CurveP384, CurveP521}
++
++var defaultCurvePreferencesWithoutKyber = []CurveID{X25519, CurveP256, CurveP384, CurveP521}
++
++func (c *Config) curvePreferences(version uint16) []CurveID {
+ 	if needFIPS() {
+ 		return fipsCurvePreferences(c)
+ 	}
+ 	if c == nil || len(c.CurvePreferences) == 0 {
++		if version < VersionTLS13 || tlskyber.Value() == "0" {
++			return defaultCurvePreferencesWithoutKyber
++		}
+ 		return defaultCurvePreferences
+ 	}
+ 	return c.CurvePreferences
+ }
+ 
+-func (c *Config) supportsCurve(curve CurveID) bool {
+-	for _, cc := range c.curvePreferences() {
++func (c *Config) supportsCurve(version uint16, curve CurveID) bool {
++	for _, cc := range c.curvePreferences(version) {
+ 		if cc == curve {
+ 			return true
+ 		}
+@@ -1256,7 +1278,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
+ 	}
+ 
+ 	// The only signed key exchange we support is ECDHE.
+-	if !supportsECDHE(config, chi.SupportedCurves, chi.SupportedPoints) {
++	if !supportsECDHE(config, vers, chi.SupportedCurves, chi.SupportedPoints) {
+ 		return supportsRSAFallback(errors.New("client doesn't support ECDHE, can only use legacy RSA key exchange"))
+ 	}
+ 
+@@ -1277,7 +1299,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
+ 			}
+ 			var curveOk bool
+ 			for _, c := range chi.SupportedCurves {
+-				if c == curve && config.supportsCurve(c) {
++				if c == curve && config.supportsCurve(vers, c) {
+ 					curveOk = true
+ 					break
+ 				}
+diff --git a/src/crypto/tls/common_string.go b/src/crypto/tls/common_string.go
+index 238108811f..1752f81050 100644
+--- a/src/crypto/tls/common_string.go
++++ b/src/crypto/tls/common_string.go
+@@ -1,4 +1,4 @@
+-// Code generated by "stringer -type=SignatureScheme,CurveID,ClientAuthType -output=common_string.go"; DO NOT EDIT.
++// Code generated by "stringer -linecomment -type=SignatureScheme,CurveID,ClientAuthType -output=common_string.go"; DO NOT EDIT.
+ 
+ package tls
+ 
+@@ -71,11 +71,13 @@ func _() {
+ 	_ = x[CurveP384-24]
+ 	_ = x[CurveP521-25]
+ 	_ = x[X25519-29]
++	_ = x[x25519Kyber768Draft00-25497]
+ }
+ 
+ const (
+ 	_CurveID_name_0 = "CurveP256CurveP384CurveP521"
+ 	_CurveID_name_1 = "X25519"
++	_CurveID_name_2 = "X25519Kyber768Draft00"
+ )
+ 
+ var (
+@@ -89,6 +91,8 @@ func (i CurveID) String() string {
+ 		return _CurveID_name_0[_CurveID_index_0[i]:_CurveID_index_0[i+1]]
+ 	case i == 29:
+ 		return _CurveID_name_1
++	case i == 25497:
++		return _CurveID_name_2
+ 	default:
+ 		return "CurveID(" + strconv.FormatInt(int64(i), 10) + ")"
+ 	}
+diff --git a/src/crypto/tls/conn.go b/src/crypto/tls/conn.go
+index c44f6513f4..3ffd26d8ef 100644
+--- a/src/crypto/tls/conn.go
++++ b/src/crypto/tls/conn.go
+@@ -50,6 +50,7 @@ type Conn struct {
+ 	didResume        bool // whether this connection was a session resumption
+ 	didHRR           bool // whether a HelloRetryRequest was sent/received
+ 	cipherSuite      uint16
++	curveID          CurveID
+ 	ocspResponse     []byte   // stapled OCSP response
+ 	scts             [][]byte // signed certificate timestamps from server
+ 	peerCertificates []*x509.Certificate
+@@ -1610,6 +1611,8 @@ func (c *Conn) connectionStateLocked() ConnectionState {
+ 	state.NegotiatedProtocol = c.clientProtocol
+ 	state.DidResume = c.didResume
+ 	state.testingOnlyDidHRR = c.didHRR
++	// c.curveID is not set on TLS 1.0–1.2 resumptions. Fix that before exposing it.
++	state.testingOnlyCurveID = c.curveID
+ 	state.NegotiatedProtocolIsMutual = true
+ 	state.ServerName = c.serverName
+ 	state.CipherSuite = c.cipherSuite
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index cc3efe1a79..53d4f90503 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -8,15 +8,16 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"crypto"
+-	"crypto/ecdh"
+ 	"crypto/ecdsa"
+ 	"crypto/ed25519"
++	"crypto/internal/mlkem768"
+ 	"crypto/rsa"
+ 	"crypto/subtle"
+ 	"crypto/x509"
+ 	"errors"
+ 	"fmt"
+ 	"hash"
++	"internal/byteorder"
+ 	"internal/godebug"
+ 	"io"
+ 	"net"
+@@ -39,7 +40,7 @@ type clientHandshakeState struct {
+ 
+ var testingOnlyForceClientHelloSignatureAlgorithms []SignatureScheme
+ 
+-func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
++func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, error) {
+ 	config := c.config
+ 	if len(config.ServerName) == 0 && !config.InsecureSkipVerify {
+ 		return nil, nil, errors.New("tls: either ServerName or InsecureSkipVerify must be specified in the tls.Config")
+@@ -61,30 +62,30 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
+ 	if len(supportedVersions) == 0 {
+ 		return nil, nil, errors.New("tls: no supported versions satisfy MinVersion and MaxVersion")
+ 	}
+-
+-	clientHelloVersion := config.maxSupportedVersion(roleClient)
+-	// The version at the beginning of the ClientHello was capped at TLS 1.2
+-	// for compatibility reasons. The supported_versions extension is used
+-	// to negotiate versions now. See RFC 8446, Section 4.2.1.
+-	if clientHelloVersion > VersionTLS12 {
+-		clientHelloVersion = VersionTLS12
+-	}
++	maxVersion := config.maxSupportedVersion(roleClient)
+ 
+ 	hello := &clientHelloMsg{
+-		vers:                         clientHelloVersion,
++		vers:                         maxVersion,
+ 		compressionMethods:           []uint8{compressionNone},
+ 		random:                       make([]byte, 32),
+ 		extendedMasterSecret:         true,
+ 		ocspStapling:                 true,
+ 		scts:                         true,
+ 		serverName:                   hostnameInSNI(config.ServerName),
+-		supportedCurves:              config.curvePreferences(),
++		supportedCurves:              config.curvePreferences(maxVersion),
+ 		supportedPoints:              []uint8{pointFormatUncompressed},
+ 		secureRenegotiationSupported: true,
+ 		alpnProtocols:                config.NextProtos,
+ 		supportedVersions:            supportedVersions,
+ 	}
+ 
++	// The version at the beginning of the ClientHello was capped at TLS 1.2
++	// for compatibility reasons. The supported_versions extension is used
++	// to negotiate versions now. See RFC 8446, Section 4.2.1.
++	if hello.vers > VersionTLS12 {
++		hello.vers = VersionTLS12
++	}
++
+ 	if c.handshakes > 0 {
+ 		hello.secureRenegotiation = c.clientFinished[:]
+ 	}
+@@ -103,7 +104,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
+ 		}
+ 		// Don't advertise TLS 1.2-only cipher suites unless
+ 		// we're attempting TLS 1.2.
+-		if hello.vers < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
++		if maxVersion < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
+ 			continue
+ 		}
+ 		hello.cipherSuites = append(hello.cipherSuites, suiteId)
+@@ -126,14 +127,14 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
+ 		}
+ 	}
+ 
+-	if hello.vers >= VersionTLS12 {
++	if maxVersion >= VersionTLS12 {
+ 		hello.supportedSignatureAlgorithms = supportedSignatureAlgorithms()
+ 	}
+ 	if testingOnlyForceClientHelloSignatureAlgorithms != nil {
+ 		hello.supportedSignatureAlgorithms = testingOnlyForceClientHelloSignatureAlgorithms
+ 	}
+ 
+-	var key *ecdh.PrivateKey
++	var keyShareKeys *keySharePrivateKeys
+ 	if hello.supportedVersions[0] == VersionTLS13 {
+ 		// Reset the list of ciphers when the client only supports TLS 1.3.
+ 		if len(hello.supportedVersions) == 1 {
+@@ -145,15 +146,40 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
+ 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13NoAES...)
+ 		}
+ 
+-		curveID := config.curvePreferences()[0]
+-		if _, ok := curveForCurveID(curveID); !ok {
+-			return nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
+-		}
+-		key, err = generateECDHEKey(config.rand(), curveID)
+-		if err != nil {
+-			return nil, nil, err
++		curveID := config.curvePreferences(maxVersion)[0]
++		keyShareKeys = &keySharePrivateKeys{curveID: curveID}
++		if curveID == x25519Kyber768Draft00 {
++			keyShareKeys.ecdhe, err = generateECDHEKey(config.rand(), X25519)
++			if err != nil {
++				return nil, nil, err
++			}
++			seed := make([]byte, mlkem768.SeedSize)
++			if _, err := io.ReadFull(config.rand(), seed); err != nil {
++				return nil, nil, err
++			}
++			keyShareKeys.kyber, err = mlkem768.NewKeyFromSeed(seed)
++			if err != nil {
++				return nil, nil, err
++			}
++			// For draft-tls-westerbaan-xyber768d00-03, we send both a hybrid
++			// and a standard X25519 key share, since most servers will only
++			// support the latter. We reuse the same X25519 ephemeral key for
++			// both, as allowed by draft-ietf-tls-hybrid-design-09, Section 3.2.
++			hello.keyShares = []keyShare{
++				{group: x25519Kyber768Draft00, data: append(keyShareKeys.ecdhe.PublicKey().Bytes(),
++					keyShareKeys.kyber.EncapsulationKey()...)},
++				{group: X25519, data: keyShareKeys.ecdhe.PublicKey().Bytes()},
++			}
++		} else {
++			if _, ok := curveForCurveID(curveID); !ok {
++				return nil, nil, errors.New("tls: CurvePreferences includes unsupported curve")
++			}
++			keyShareKeys.ecdhe, err = generateECDHEKey(config.rand(), curveID)
++			if err != nil {
++				return nil, nil, err
++			}
++			hello.keyShares = []keyShare{{group: curveID, data: keyShareKeys.ecdhe.PublicKey().Bytes()}}
+ 		}
+-		hello.keyShares = []keyShare{{group: curveID, data: key.PublicKey().Bytes()}}
+ 	}
+ 
+ 	if c.quic != nil {
+@@ -167,7 +193,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *ecdh.PrivateKey, error) {
+ 		hello.quicTransportParameters = p
+ 	}
+ 
+-	return hello, key, nil
++	return hello, keyShareKeys, nil
+ }
+ 
+ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
+@@ -179,7 +205,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
+ 	// need to be reset.
+ 	c.didResume = false
+ 
+-	hello, ecdheKey, err := c.makeClientHello()
++	hello, keyShareKeys, err := c.makeClientHello()
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -249,17 +275,15 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
+ 
+ 	if c.vers == VersionTLS13 {
+ 		hs := &clientHandshakeStateTLS13{
+-			c:           c,
+-			ctx:         ctx,
+-			serverHello: serverHello,
+-			hello:       hello,
+-			ecdheKey:    ecdheKey,
+-			session:     session,
+-			earlySecret: earlySecret,
+-			binderKey:   binderKey,
++			c:            c,
++			ctx:          ctx,
++			serverHello:  serverHello,
++			hello:        hello,
++			keyShareKeys: keyShareKeys,
++			session:      session,
++			earlySecret:  earlySecret,
++			binderKey:    binderKey,
+ 		}
+-
+-		// In TLS 1.3, session tickets are delivered after the handshake.
+ 		return hs.handshake()
+ 	}
+ 
+@@ -270,12 +294,7 @@ func (c *Conn) clientHandshake(ctx context.Context) (err error) {
+ 		hello:       hello,
+ 		session:     session,
+ 	}
+-
+-	if err := hs.handshake(); err != nil {
+-		return err
+-	}
+-
+-	return nil
++	return hs.handshake()
+ }
+ 
+ func (c *Conn) loadSession(hello *clientHelloMsg) (
+@@ -603,6 +622,9 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 			c.sendAlert(alertUnexpectedMessage)
+ 			return err
+ 		}
++		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {
++			c.curveID = CurveID(byteorder.BeUint16(skx.key[1:]))
++		}
+ 
+ 		msg, err = c.readHandshake(&hs.finishedHash)
+ 		if err != nil {
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index 88ec383bf8..06f3f82742 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -8,20 +8,21 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"crypto"
+-	"crypto/ecdh"
+ 	"crypto/hmac"
++	"crypto/internal/mlkem768"
+ 	"crypto/rsa"
+ 	"errors"
+ 	"hash"
++	"slices"
+ 	"time"
+ )
+ 
+ type clientHandshakeStateTLS13 struct {
+-	c           *Conn
+-	ctx         context.Context
+-	serverHello *serverHelloMsg
+-	hello       *clientHelloMsg
+-	ecdheKey    *ecdh.PrivateKey
++	c            *Conn
++	ctx          context.Context
++	serverHello  *serverHelloMsg
++	hello        *clientHelloMsg
++	keyShareKeys *keySharePrivateKeys
+ 
+ 	session     *SessionState
+ 	earlySecret []byte
+@@ -36,7 +37,7 @@ type clientHandshakeStateTLS13 struct {
+ 	trafficSecret []byte // client_application_traffic_secret_0
+ }
+ 
+-// handshake requires hs.c, hs.hello, hs.serverHello, hs.ecdheKey, and,
++// handshake requires hs.c, hs.hello, hs.serverHello, hs.keyShareKeys, and,
+ // optionally, hs.session, hs.earlySecret and hs.binderKey to be set.
+ func (hs *clientHandshakeStateTLS13) handshake() error {
+ 	c := hs.c
+@@ -53,7 +54,7 @@ func (hs *clientHandshakeStateTLS13) handshake() error {
+ 	}
+ 
+ 	// Consistency check on the presence of a keyShare and its parameters.
+-	if hs.ecdheKey == nil || len(hs.hello.keyShares) != 1 {
++	if hs.keyShareKeys == nil || hs.keyShareKeys.ecdhe == nil || len(hs.hello.keyShares) == 0 {
+ 		return c.sendAlert(alertInternalError)
+ 	}
+ 
+@@ -221,21 +222,22 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
+ 	// a group we advertised but did not send a key share for, and send a key
+ 	// share for it this time.
+ 	if curveID := hs.serverHello.selectedGroup; curveID != 0 {
+-		curveOK := false
+-		for _, id := range hs.hello.supportedCurves {
+-			if id == curveID {
+-				curveOK = true
+-				break
+-			}
+-		}
+-		if !curveOK {
++		if !slices.Contains(hs.hello.supportedCurves, curveID) {
+ 			c.sendAlert(alertIllegalParameter)
+ 			return errors.New("tls: server selected unsupported group")
+ 		}
+-		if sentID, _ := curveIDForCurve(hs.ecdheKey.Curve()); sentID == curveID {
++		if slices.ContainsFunc(hs.hello.keyShares, func(ks keyShare) bool {
++			return ks.group == curveID
++		}) {
+ 			c.sendAlert(alertIllegalParameter)
+ 			return errors.New("tls: server sent an unnecessary HelloRetryRequest key_share")
+ 		}
++		// Note: we don't support selecting X25519Kyber768Draft00 in a HRR,
++		// because we currently only support it at all when CurvePreferences is
++		// empty, which will cause us to also send a key share for it.
++		//
++		// This will have to change once we support selecting hybrid KEMs
++		// without sending key shares for them.
+ 		if _, ok := curveForCurveID(curveID); !ok {
+ 			c.sendAlert(alertInternalError)
+ 			return errors.New("tls: CurvePreferences includes unsupported curve")
+@@ -245,7 +247,7 @@ func (hs *clientHandshakeStateTLS13) processHelloRetryRequest() error {
+ 			c.sendAlert(alertInternalError)
+ 			return err
+ 		}
+-		hs.ecdheKey = key
++		hs.keyShareKeys = &keySharePrivateKeys{curveID: curveID, ecdhe: key}
+ 		hs.hello.keyShares = []keyShare{{group: curveID, data: key.PublicKey().Bytes()}}
+ 	}
+ 
+@@ -333,7 +335,9 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
+ 		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: server did not send a key share")
+ 	}
+-	if sentID, _ := curveIDForCurve(hs.ecdheKey.Curve()); hs.serverHello.serverShare.group != sentID {
++	if !slices.ContainsFunc(hs.hello.keyShares, func(ks keyShare) bool {
++		return ks.group == hs.serverHello.serverShare.group
++	}) {
+ 		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: server selected unsupported group")
+ 	}
+@@ -372,16 +376,37 @@ func (hs *clientHandshakeStateTLS13) processServerHello() error {
+ func (hs *clientHandshakeStateTLS13) establishHandshakeKeys() error {
+ 	c := hs.c
+ 
+-	peerKey, err := hs.ecdheKey.Curve().NewPublicKey(hs.serverHello.serverShare.data)
++	ecdhePeerData := hs.serverHello.serverShare.data
++	if hs.serverHello.serverShare.group == x25519Kyber768Draft00 {
++		if len(ecdhePeerData) != x25519PublicKeySize+mlkem768.CiphertextSize {
++			c.sendAlert(alertIllegalParameter)
++			return errors.New("tls: invalid server key share")
++		}
++		ecdhePeerData = hs.serverHello.serverShare.data[:x25519PublicKeySize]
++	}
++	peerKey, err := hs.keyShareKeys.ecdhe.Curve().NewPublicKey(ecdhePeerData)
+ 	if err != nil {
+ 		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: invalid server key share")
+ 	}
+-	sharedKey, err := hs.ecdheKey.ECDH(peerKey)
++	sharedKey, err := hs.keyShareKeys.ecdhe.ECDH(peerKey)
+ 	if err != nil {
+ 		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: invalid server key share")
+ 	}
++	if hs.serverHello.serverShare.group == x25519Kyber768Draft00 {
++		if hs.keyShareKeys.kyber == nil {
++			return c.sendAlert(alertInternalError)
++		}
++		ciphertext := hs.serverHello.serverShare.data[x25519PublicKeySize:]
++		kyberShared, err := kyberDecapsulate(hs.keyShareKeys.kyber, ciphertext)
++		if err != nil {
++			c.sendAlert(alertIllegalParameter)
++			return errors.New("tls: invalid Kyber server key share")
++		}
++		sharedKey = append(sharedKey, kyberShared...)
++	}
++	c.curveID = hs.serverHello.serverShare.group
+ 
+ 	earlySecret := hs.earlySecret
+ 	if !hs.usingPSK {
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index f5d3c5b98a..09ca8a4e54 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -15,6 +15,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"hash"
++	"internal/byteorder"
+ 	"io"
+ 	"time"
+ )
+@@ -247,7 +248,7 @@ func (hs *serverHandshakeState) processClientHello() error {
+ 		hs.hello.scts = hs.cert.SignedCertificateTimestamps
+ 	}
+ 
+-	hs.ecdheOk = supportsECDHE(c.config, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
++	hs.ecdheOk = supportsECDHE(c.config, c.vers, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
+ 
+ 	if hs.ecdheOk && len(hs.clientHello.supportedPoints) > 0 {
+ 		// Although omitting the ec_point_formats extension is permitted, some
+@@ -318,10 +319,10 @@ func negotiateALPN(serverProtos, clientProtos []string, quic bool) (string, erro
+ 
+ // supportsECDHE returns whether ECDHE key exchanges can be used with this
+ // pre-TLS 1.3 client.
+-func supportsECDHE(c *Config, supportedCurves []CurveID, supportedPoints []uint8) bool {
++func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, supportedPoints []uint8) bool {
+ 	supportsCurve := false
+ 	for _, curve := range supportedCurves {
+-		if c.supportsCurve(curve) {
++		if c.supportsCurve(version, curve) {
+ 			supportsCurve = true
+ 			break
+ 		}
+@@ -587,6 +588,9 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 		return err
+ 	}
+ 	if skx != nil {
++		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {
++			c.curveID = CurveID(byteorder.BeUint16(skx.key[1:]))
++		}
+ 		if _, err := hs.c.writeHandshakeRecord(skx, &hs.finishedHash); err != nil {
+ 			return err
+ 		}
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 813495d7b9..bc45a289c1 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -81,6 +81,7 @@ func testClientHelloFailure(t *testing.T, serverConfig *Config, m handshakeMessa
+ 		}
+ 	}
+ 	s.Close()
++	t.Helper()
+ 	if len(expectedSubStr) == 0 {
+ 		if err != nil && err != io.EOF {
+ 			t.Errorf("Got error: %s; expected to succeed", err)
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index a7d3890ba9..3bc3e91f87 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -9,6 +9,7 @@ import (
+ 	"context"
+ 	"crypto"
+ 	"crypto/hmac"
++	"crypto/internal/mlkem768"
+ 	"crypto/rsa"
+ 	"errors"
+ 	"hash"
+@@ -178,11 +179,11 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
+ 	hs.hello.cipherSuite = hs.suite.id
+ 	hs.transcript = hs.suite.hash.New()
+ 
+-	// Pick the ECDHE group in server preference order, but give priority to
+-	// groups with a key share, to avoid a HelloRetryRequest round-trip.
++	// Pick the key exchange method in server preference order, but give
++	// priority to key shares, to avoid a HelloRetryRequest round-trip.
+ 	var selectedGroup CurveID
+ 	var clientKeyShare *keyShare
+-	preferredGroups := c.config.curvePreferences()
++	preferredGroups := c.config.curvePreferences(c.vers)
+ 	for _, preferredGroup := range preferredGroups {
+ 		ki := slices.IndexFunc(hs.clientHello.keyShares, func(ks keyShare) bool {
+ 			return ks.group == preferredGroup
+@@ -210,23 +211,35 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
+ 		return errors.New("tls: no ECDHE curve supported by both client and server")
+ 	}
+ 	if clientKeyShare == nil {
+-		if err := hs.doHelloRetryRequest(selectedGroup); err != nil {
++		ks, err := hs.doHelloRetryRequest(selectedGroup)
++		if err != nil {
+ 			return err
+ 		}
+-		clientKeyShare = &hs.clientHello.keyShares[0]
++		clientKeyShare = ks
+ 	}
++	c.curveID = selectedGroup
+ 
+-	if _, ok := curveForCurveID(selectedGroup); !ok {
++	ecdhGroup := selectedGroup
++	ecdhData := clientKeyShare.data
++	if selectedGroup == x25519Kyber768Draft00 {
++		ecdhGroup = X25519
++		if len(ecdhData) != x25519PublicKeySize+mlkem768.EncapsulationKeySize {
++			c.sendAlert(alertIllegalParameter)
++			return errors.New("tls: invalid Kyber client key share")
++		}
++		ecdhData = ecdhData[:x25519PublicKeySize]
++	}
++	if _, ok := curveForCurveID(ecdhGroup); !ok {
+ 		c.sendAlert(alertInternalError)
+ 		return errors.New("tls: CurvePreferences includes unsupported curve")
+ 	}
+-	key, err := generateECDHEKey(c.config.rand(), selectedGroup)
++	key, err := generateECDHEKey(c.config.rand(), ecdhGroup)
+ 	if err != nil {
+ 		c.sendAlert(alertInternalError)
+ 		return err
+ 	}
+ 	hs.hello.serverShare = keyShare{group: selectedGroup, data: key.PublicKey().Bytes()}
+-	peerKey, err := key.Curve().NewPublicKey(clientKeyShare.data)
++	peerKey, err := key.Curve().NewPublicKey(ecdhData)
+ 	if err != nil {
+ 		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: invalid client key share")
+@@ -236,6 +249,15 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
+ 		c.sendAlert(alertIllegalParameter)
+ 		return errors.New("tls: invalid client key share")
+ 	}
++	if selectedGroup == x25519Kyber768Draft00 {
++		ciphertext, kyberShared, err := kyberEncapsulate(clientKeyShare.data[x25519PublicKeySize:])
++		if err != nil {
++			c.sendAlert(alertIllegalParameter)
++			return errors.New("tls: invalid Kyber client key share")
++		}
++		hs.sharedKey = append(hs.sharedKey, kyberShared...)
++		hs.hello.serverShare.data = append(hs.hello.serverShare.data, ciphertext...)
++	}
+ 
+ 	selectedProto, err := negotiateALPN(c.config.NextProtos, hs.clientHello.alpnProtocols, c.quic != nil)
+ 	if err != nil {
+@@ -479,13 +501,13 @@ func (hs *serverHandshakeStateTLS13) sendDummyChangeCipherSpec() error {
+ 	return hs.c.writeChangeCipherRecord()
+ }
+ 
+-func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) error {
++func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID) (*keyShare, error) {
+ 	c := hs.c
+ 
+ 	// The first ClientHello gets double-hashed into the transcript upon a
+ 	// HelloRetryRequest. See RFC 8446, Section 4.4.1.
+ 	if err := transcriptMsg(hs.clientHello, hs.transcript); err != nil {
+-		return err
++		return nil, err
+ 	}
+ 	chHash := hs.transcript.Sum(nil)
+ 	hs.transcript.Reset()
+@@ -503,43 +525,49 @@ func (hs *serverHandshakeStateTLS13) doHelloRetryRequest(selectedGroup CurveID)
+ 	}
+ 
+ 	if _, err := hs.c.writeHandshakeRecord(helloRetryRequest, hs.transcript); err != nil {
+-		return err
++		return nil, err
+ 	}
+ 
+ 	if err := hs.sendDummyChangeCipherSpec(); err != nil {
+-		return err
++		return nil, err
+ 	}
+ 
+ 	// clientHelloMsg is not included in the transcript.
+ 	msg, err := c.readHandshake(nil)
+ 	if err != nil {
+-		return err
++		return nil, err
+ 	}
+ 
+ 	clientHello, ok := msg.(*clientHelloMsg)
+ 	if !ok {
+ 		c.sendAlert(alertUnexpectedMessage)
+-		return unexpectedMessageError(clientHello, msg)
++		return nil, unexpectedMessageError(clientHello, msg)
+ 	}
+ 
+-	if len(clientHello.keyShares) != 1 || clientHello.keyShares[0].group != selectedGroup {
++	if len(clientHello.keyShares) != 1 {
+ 		c.sendAlert(alertIllegalParameter)
+-		return errors.New("tls: client sent invalid key share in second ClientHello")
++		return nil, errors.New("tls: client didn't send one key share in second ClientHello")
++	}
++	ks := &clientHello.keyShares[0]
++
++	if ks.group != selectedGroup {
++		c.sendAlert(alertIllegalParameter)
++		return nil, errors.New("tls: client sent unexpected key share in second ClientHello")
+ 	}
+ 
+ 	if clientHello.earlyData {
+ 		c.sendAlert(alertIllegalParameter)
+-		return errors.New("tls: client indicated early data in second ClientHello")
++		return nil, errors.New("tls: client indicated early data in second ClientHello")
+ 	}
+ 
+ 	if illegalClientHelloChange(clientHello, hs.clientHello) {
+ 		c.sendAlert(alertIllegalParameter)
+-		return errors.New("tls: client illegally modified second ClientHello")
++		return nil, errors.New("tls: client illegally modified second ClientHello")
+ 	}
+ 
+ 	c.didHRR = true
+ 	hs.clientHello = clientHello
+-	return nil
++	return ks, nil
+ }
+ 
+ // illegalClientHelloChange reports whether the two ClientHello messages are
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index f5e467b8b0..480e050641 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -378,6 +378,7 @@ func runMain(m *testing.M) int {
+ 		Certificates:       make([]Certificate, 2),
+ 		InsecureSkipVerify: true,
+ 		CipherSuites:       allCipherSuites(),
++		CurvePreferences:   []CurveID{X25519, CurveP256, CurveP384, CurveP521},
+ 		MinVersion:         VersionTLS10,
+ 		MaxVersion:         VersionTLS13,
+ 	}
+diff --git a/src/crypto/tls/key_agreement.go b/src/crypto/tls/key_agreement.go
+index 2c8c5b8d77..3e96242b97 100644
+--- a/src/crypto/tls/key_agreement.go
++++ b/src/crypto/tls/key_agreement.go
+@@ -16,8 +16,8 @@ import (
+ 	"io"
+ )
+ 
+-// a keyAgreement implements the client and server side of a TLS key agreement
+-// protocol by generating and processing key exchange messages.
++// A keyAgreement implements the client and server side of a TLS 1.0–1.2 key
++// agreement protocol by generating and processing key exchange messages.
+ type keyAgreement interface {
+ 	// On the server side, the first two methods are called in order.
+ 
+@@ -126,7 +126,7 @@ func md5SHA1Hash(slices [][]byte) []byte {
+ }
+ 
+ // hashForServerKeyExchange hashes the given slices and returns their digest
+-// using the given hash function (for >= TLS 1.2) or using a default based on
++// using the given hash function (for TLS 1.2) or using a default based on
+ // the sigType (for earlier TLS versions). For Ed25519 signatures, which don't
+ // do pre-hashing, it returns the concatenation of the slices.
+ func hashForServerKeyExchange(sigType uint8, hashFunc crypto.Hash, version uint16, slices ...[]byte) []byte {
+@@ -169,7 +169,7 @@ type ecdheKeyAgreement struct {
+ func (ka *ecdheKeyAgreement) generateServerKeyExchange(config *Config, cert *Certificate, clientHello *clientHelloMsg, hello *serverHelloMsg) (*serverKeyExchangeMsg, error) {
+ 	var curveID CurveID
+ 	for _, c := range clientHello.supportedCurves {
+-		if config.supportsCurve(c) {
++		if config.supportsCurve(ka.version, c) {
+ 			curveID = c
+ 			break
+ 		}
+diff --git a/src/crypto/tls/key_schedule.go b/src/crypto/tls/key_schedule.go
+index d7f082c9ee..1636baf79e 100644
+--- a/src/crypto/tls/key_schedule.go
++++ b/src/crypto/tls/key_schedule.go
+@@ -7,6 +7,7 @@ package tls
+ import (
+ 	"crypto/ecdh"
+ 	"crypto/hmac"
++	"crypto/internal/mlkem768"
+ 	"errors"
+ 	"fmt"
+ 	"hash"
+@@ -14,6 +15,7 @@ import (
+ 
+ 	"golang.org/x/crypto/cryptobyte"
+ 	"golang.org/x/crypto/hkdf"
++	"golang.org/x/crypto/sha3"
+ )
+ 
+ // This file contains the functions necessary to compute the TLS 1.3 key
+@@ -117,6 +119,45 @@ func (c *cipherSuiteTLS13) exportKeyingMaterial(masterSecret []byte, transcript
+ 	}
+ }
+ 
++type keySharePrivateKeys struct {
++	curveID CurveID
++	ecdhe   *ecdh.PrivateKey
++	kyber   *mlkem768.DecapsulationKey
++}
++
++// kyberDecapsulate implements decapsulation according to Kyber Round 3.
++func kyberDecapsulate(dk *mlkem768.DecapsulationKey, c []byte) ([]byte, error) {
++	K, err := mlkem768.Decapsulate(dk, c)
++	if err != nil {
++		return nil, err
++	}
++	return kyberSharedSecret(K, c), nil
++}
++
++// kyberEncapsulate implements encapsulation according to Kyber Round 3.
++func kyberEncapsulate(ek []byte) (c, ss []byte, err error) {
++	c, ss, err = mlkem768.Encapsulate(ek)
++	if err != nil {
++		return nil, nil, err
++	}
++	return c, kyberSharedSecret(ss, c), nil
++}
++
++func kyberSharedSecret(K, c []byte) []byte {
++	// Package mlkem768 implements ML-KEM, which compared to Kyber removed a
++	// final hashing step. Compute SHAKE-256(K || SHA3-256(c), 32) to match Kyber.
++	// See https://words.filippo.io/mlkem768/#bonus-track-using-a-ml-kem-implementation-as-kyber-v3.
++	h := sha3.NewShake256()
++	h.Write(K)
++	ch := sha3.Sum256(c)
++	h.Write(ch[:])
++	out := make([]byte, 32)
++	h.Read(out)
++	return out
++}
++
++const x25519PublicKeySize = 32
++
+ // generateECDHEKey returns a PrivateKey that implements Diffie-Hellman
+ // according to RFC 8446, Section 4.2.8.2.
+ func generateECDHEKey(rand io.Reader, curveID CurveID) (*ecdh.PrivateKey, error) {
+diff --git a/src/crypto/tls/key_schedule_test.go b/src/crypto/tls/key_schedule_test.go
+index 79ff6a62b1..3ffdf6c109 100644
+--- a/src/crypto/tls/key_schedule_test.go
++++ b/src/crypto/tls/key_schedule_test.go
+@@ -6,6 +6,7 @@ package tls
+ 
+ import (
+ 	"bytes"
++	"crypto/internal/mlkem768"
+ 	"encoding/hex"
+ 	"hash"
+ 	"strings"
+@@ -173,3 +174,39 @@ func TestExtract(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestKyberDecapsulate(t *testing.T) {
++	// From https://pq-crystals.org/kyber/data/kyber-submission-nist-round3.zip
++	dkBytes, _ := hex.DecodeString("07638FB69868F3D320E5862BD96933FEB311B362093C9B5D50170BCED43F1B536D9A204BB1F22695950BA1F2A9E8EB828B284488760B3FC84FABA04275D5628E39C5B2471374283C503299C0AB49B66B8BBB56A4186624F919A2BA59BB08D8551880C2BEFC4F87F25F59AB587A79C327D792D54C974A69262FF8A78938289E9A87B688B083E0595FE218B6BB1505941CE2E81A5A64C5AAC60417256985349EE47A52420A5F97477B7236AC76BC70E8288729287EE3E34A3DBC3683C0B7B10029FC203418537E7466BA6385A8FF301EE12708F82AAA1E380FC7A88F8F205AB7E88D7E95952A55BA20D09B79A47141D62BF6EB7DD307B08ECA13A5BC5F6B68581C6865B27BBCDDAB142F4B2CBFF488C8A22705FAA98A2B9EEA3530C76662335CC7EA3A00777725EBCCCD2A4636B2D9122FF3AB77123CE0883C1911115E50C9E8A94194E48DD0D09CFFB3ADCD2C1E92430903D07ADBF00532031575AA7F9E7B5A1F3362DEC936D4043C05F2476C07578BC9CBAF2AB4E382727AD41686A96B2548820BB03B32F11B2811AD62F489E951632ABA0D1DF89680CC8A8B53B481D92A68D70B4EA1C3A6A561C0692882B5CA8CC942A8D495AFCB06DE89498FB935B775908FE7A03E324D54CC19D4E1AABD3593B38B19EE1388FE492B43127E5A504253786A0D69AD32601C28E2C88504A5BA599706023A61363E17C6B9BB59BDC697452CD059451983D738CA3FD034E3F5988854CA05031DB09611498988197C6B30D258DFE26265541C89A4B31D6864E9389B03CB74F7EC4323FB9421A4B9790A26D17B0398A26767350909F84D57B6694DF830664CA8B3C3C03ED2AE67B89006868A68527CCD666459AB7F056671000C6164D3A7F266A14D97CBD7004D6C92CACA770B844A4FA9B182E7B18CA885082AC5646FCB4A14E1685FEB0C9CE3372AB95365C04FD83084F80A23FF10A05BF15F7FA5ACC6C0CB462C33CA524FA6B8BB359043BA68609EAA2536E81D08463B19653B5435BA946C9ADDEB202B04B031CC960DCC12E4518D428B32B257A4FC7313D3A7980D80082E934F9D95C32B0A0191A23604384DD9E079BBBAA266D14C3F756B9F2133107433A4E83FA7187282A809203A4FAF841851833D121AC383843A5E55BC2381425E16C7DB4CC9AB5C1B0D91A47E2B8DE0E582C86B6B0D907BB360B97F40AB5D038F6B75C814B27D9B968D419832BC8C2BEE605EF6E5059D33100D90485D378450014221736C07407CAC260408AA64926619788B8601C2A752D1A6CBF820D7C7A04716203225B3895B9342D147A8185CFC1BB65BA06B4142339903C0AC4651385B45D98A8B19D28CD6BAB088787F7EE1B12461766B43CBCCB96434427D93C065550688F6948ED1B5475A425F1B85209D061C08B56C1CC069F6C0A7C6F29358CAB911087732A649D27C9B98F9A48879387D9B00C25959A71654D6F6A946164513E47A75D005986C2363C09F6B537ECA78B9303A5FA457608A586A653A347DB04DFCC19175B3A301172536062A658A95277570C8852CA8973F4AE123A334047DD711C8927A634A03388A527B034BF7A8170FA702C1F7C23EC32D18A2374890BE9C787A9409C82D192C4BB705A2F996CE405DA72C2D9C843EE9F8313ECC7F86D6294D59159D9A879A542E260922ADF999051CC45200C9FFDB60449C49465979272367C083A7D6267A3ED7A7FD47957C219327F7CA73A4007E1627F00B11CC80573C15AEE6640FB8562DFA6B240CA0AD351AC4AC155B96C14C8AB13DD262CDFD51C4BB5572FD616553D17BDD430ACBEA3E95F0B698D66990AB51E5D03783A8B3D278A5720454CF9695CFDCA08485BA099C51CD92A7EA7587C1D15C28E609A81852601B0604010679AA482D51261EC36E36B8719676217FD74C54786488F4B4969C05A8BA27CA3A77CCE73B965923CA554E422B9B61F4754641608AC16C9B8587A32C1C5DD788F88B36B717A46965635DEB67F45B129B99070909C93EB80B42C2B3F3F70343A7CF37E8520E7BCFC416ACA4F18C7981262BA2BFC756AE03278F0EC66DC2057696824BA6769865A601D7148EF6F54E5AF5686AA2906F994CE38A5E0B938F239007003022C03392DF3401B1E4A3A7EBC6161449F73374C8B0140369343D9295FDF511845C4A46EBAAB6CA5492F6800B98C0CC803653A4B1D6E6AAED1932BACC5FEFAA818BA502859BA5494C5F5402C8536A9C4C1888150617F80098F6B2A99C39BC5DC7CF3B5900A21329AB59053ABAA64ED163E859A8B3B3CA3359B750CCC3E710C7AC43C8191CB5D68870C06391C0CB8AEC72B897AC6BE7FBAACC676ED66314C83630E89448C88A1DF04ACEB23ABF2E409EF333C622289C18A2134E650C45257E47475FA33AA537A5A8F7680214716C50D470E3284963CA64F54677AEC54B5272162BF52BC8142E1D4183FC017454A6B5A496831759064024745978CBD51A6CEDC8955DE4CC6D363670A47466E82BE5C23603A17BF22ACDB7CC984AF08C87E14E27753CF587A8EC3447E62C649E887A67C36C9CE98721B697213275646B194F36758673A8ED11284455AFC7A8529F69C97A3C2D7B8C636C0BA55614B768E624E712930F776169B01715725351BC74B47395ED52B25A1313C95164814C34C979CBDFAB85954662CAB485E75087A98CC74BB82CA2D1B5BF2803238480638C40E90B43C7460E7AA917F010151FAB1169987B372ABB59271F7006C24E60236B84B9DDD600623704254617FB498D89E58B0368BCB2103E79353EB587860C1422E476162E425BC2381DB82C6592737E1DD602864B0167A71EC1F223305C02FE25052AF2B3B5A55A0D7A2022D9A798DC0C5874A98702AAF4054C5D80338A5248B5B7BD09C53B5E2A084B047D277A861B1A73BB51488DE04EF573C85230A0470B73175C9FA50594F66A5F50B4150054C93B68186F8B5CBC49316C8548A642B2B36A1D454C7489AC33B2D2CE6668096782A2C1E0866D21A65E16B585E7AF8618BDF3184C1986878508917277B93E10706B1614972B2A94C7310FE9C708C231A1A8AC8D9314A529A97F469BF64962D820648443099A076D55D4CEA824A58304844F99497C10A25148618A315D72CA857D1B04D575B94F85C01D19BEF211BF0AA3362E7041FD16596D808E867B44C4C00D1CDA3418967717F147D0EB21B42AAEE74AC35D0B92414B958531AADF463EC6305AE5ECAF79174002F26DDECC813BF32672E8529D95A4E730A7AB4A3E8F8A8AF979A665EAFD465FC64A0C5F8F3F9003489415899D59A543D8208C54A3166529B53922D4EC143B50F01423B177895EDEE22BB739F647ECF85F50BC25EF7B5A725DEE868626ED79D451140800E03B59B956F8210E556067407D13DC90FA9E8B872BFB8F")
++	dk, err := mlkem768.NewKeyFromExtendedEncoding(dkBytes)
++	if err != nil {
++		t.Fatal(err)
++	}
++	ct, _ := hex.DecodeString("B52C56B92A4B7CE9E4CB7C5B1B163167A8A1675B2FDEF84A5B67CA15DB694C9F11BD027C30AE22EC921A1D911599AF0585E48D20DA70DF9F39E32EF95D4C8F44BFEFDAA5DA64F1054631D04D6D3CFD0A540DD7BA3886E4B5F13E878788604C95C096EAB3919F427521419A946C26CC041475D7124CDC01D0373E5B09C7A70603CFDB4FB3405023F2264DC3F983C4FC02A2D1B268F2208A1F6E2A6209BFF12F6F465F0B069C3A7F84F606D8A94064003D6EC114C8E808D3053884C1D5A142FBF20112EB360FDA3F0F28B172AE50F5E7D83801FB3F0064B687187074BD7FE30EDDAA334CF8FC04FA8CED899CEADE4B4F28B68372BAF98FF482A415B731155B75CEB976BE0EA0285BA01A27F1857A8FB377A3AE0C23B2AA9A079BFABFF0D5B2F1CD9B718BEA03C42F343A39B4F142D01AD8ACBB50E38853CF9A50C8B44C3CF671A4A9043B26DDBB24959AD6715C08521855C79A23B9C3D6471749C40725BDD5C2776D43AED20204BAA141EFB3304917474B7F9F7A4B08B1A93DAED98C67495359D37D67F7438BEE5E43585634B26C6B3810D7CDCBC0F6EB877A6087E68ACB8480D3A8CF6900447E49B417F15A53B607A0E216B855970D37406870B4568722DA77A4084703816784E2F16BED18996532C5D8B7F5D214464E5F3F6E905867B0CE119E252A66713253544685D208E1723908A0CE97834652E08AE7BDC881A131B73C71E84D20D68FDEFF4F5D70CD1AF57B78E3491A9865942321800A203C05ED1FEEB5A28E584E19F6535E7F84E4A24F84A72DCAF5648B4A4235DD664464482F03176E888C28BFC6C1CB238CFFA35A321E71791D9EA8ED0878C61121BF8D2A4AB2C1A5E120BC40ABB1892D1715090A0EE48252CA297A99AA0E510CF26B1ADD06CA543E1C5D6BDCD3B9C585C8538045DB5C252EC3C8C3C954D9BE5907094A894E60EAB43538CFEE82E8FFC0791B0D0F43AC1627830A61D56DAD96C62958B0DE780B78BD47A604550DAB83FFF227C324049471F35248CFB849B25724FF704D5277AA352D550958BE3B237DFF473EC2ADBAEA48CA2658AEFCC77BBD4264AB374D70EAE5B964416CE8226A7E3255A0F8D7E2ADCA062BCD6D78D60D1B32E11405BE54B66EF0FDDD567702A3BCCFEDE3C584701269ED14809F06F8968356BB9267FE86E514252E88BB5C30A7ECB3D0E621021EE0FBF7871B09342BF84F55C97EAF86C48189C7FF4DF389F077E2806E5FA73B3E9458A16C7E275F4F602275580EB7B7135FB537FA0CD95D6EA58C108CD8943D70C1643111F4F01CA8A8276A902666ED81B78D168B006F16AAA3D8E4CE4F4D0FB0997E41AEFFB5B3DAA838732F357349447F387776C793C0479DE9E99498CC356FDB0075A703F23C55D47B550EC89B02ADE89329086A50843456FEDC3788AC8D97233C54560467EE1D0F024B18428F0D73B30E19F5C63B9ABF11415BEA4D0170130BAABD33C05E6524E5FB5581B22B0433342248266D0F1053B245CC2462DC44D34965102482A8ED9E4E964D5683E5D45D0C8269")
++	ss, err := kyberDecapsulate(dk, ct)
++	if err != nil {
++		t.Fatal(err)
++	}
++	exp, _ := hex.DecodeString("914CB67FE5C38E73BF74181C0AC50428DEDF7750A98058F7D536708774535B29")
++	if !bytes.Equal(ss, exp) {
++		t.Fatalf("got %x, want %x", ss, exp)
++	}
++}
++
++func TestKyberEncapsulate(t *testing.T) {
++	dk, err := mlkem768.GenerateKey()
++	if err != nil {
++		t.Fatal(err)
++	}
++	ct, ss, err := kyberEncapsulate(dk.EncapsulationKey())
++	if err != nil {
++		t.Fatal(err)
++	}
++	dkSS, err := kyberDecapsulate(dk, ct)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(ss, dkSS) {
++		t.Fatalf("got %x, want %x", ss, dkSS)
++	}
++}
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 096b4ed227..ce1c967c57 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -18,6 +18,7 @@ import (
+ 	"net"
+ 	"os"
+ 	"reflect"
++	"slices"
+ 	"sort"
+ 	"strings"
+ 	"testing"
+@@ -1805,3 +1806,135 @@ func testVerifyCertificates(t *testing.T, version uint16) {
+ 		})
+ 	}
+ }
++
++func TestHandshakeKyber(t *testing.T) {
++	if x25519Kyber768Draft00.String() != "X25519Kyber768Draft00" {
++		t.Fatalf("unexpected CurveID string: %v", x25519Kyber768Draft00.String())
++	}
++
++	var tests = []struct {
++		name                string
++		clientConfig        func(*Config)
++		serverConfig        func(*Config)
++		preparation         func(*testing.T)
++		expectClientSupport bool
++		expectKyber         bool
++		expectHRR           bool
++	}{
++		{
++			name:                "Default",
++			expectClientSupport: true,
++			expectKyber:         true,
++			expectHRR:           false,
++		},
++		{
++			name: "ClientCurvePreferences",
++			clientConfig: func(config *Config) {
++				config.CurvePreferences = []CurveID{X25519}
++			},
++			expectClientSupport: false,
++		},
++		{
++			name: "ServerCurvePreferencesX25519",
++			serverConfig: func(config *Config) {
++				config.CurvePreferences = []CurveID{X25519}
++			},
++			expectClientSupport: true,
++			expectKyber:         false,
++			expectHRR:           false,
++		},
++		{
++			name: "ServerCurvePreferencesHRR",
++			serverConfig: func(config *Config) {
++				config.CurvePreferences = []CurveID{CurveP256}
++			},
++			expectClientSupport: true,
++			expectKyber:         false,
++			expectHRR:           true,
++		},
++		{
++			name: "ClientTLSv12",
++			clientConfig: func(config *Config) {
++				config.MaxVersion = VersionTLS12
++			},
++			expectClientSupport: false,
++		},
++		{
++			name: "ServerTLSv12",
++			serverConfig: func(config *Config) {
++				config.MaxVersion = VersionTLS12
++			},
++			expectClientSupport: true,
++			expectKyber:         false,
++		},
++		{
++			name: "GODEBUG",
++			preparation: func(t *testing.T) {
++				t.Setenv("GODEBUG", "tlskyber=0")
++			},
++			expectClientSupport: false,
++		},
++	}
++
++	baseConfig := testConfig.Clone()
++	baseConfig.CurvePreferences = nil
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			if test.preparation != nil {
++				test.preparation(t)
++			} else {
++				t.Parallel()
++			}
++			serverConfig := baseConfig.Clone()
++			if test.serverConfig != nil {
++				test.serverConfig(serverConfig)
++			}
++			serverConfig.GetConfigForClient = func(hello *ClientHelloInfo) (*Config, error) {
++				if !test.expectClientSupport && slices.Contains(hello.SupportedCurves, x25519Kyber768Draft00) {
++					return nil, errors.New("client supports Kyber768Draft00")
++				} else if test.expectClientSupport && !slices.Contains(hello.SupportedCurves, x25519Kyber768Draft00) {
++					return nil, errors.New("client does not support Kyber768Draft00")
++				}
++				return nil, nil
++			}
++			clientConfig := baseConfig.Clone()
++			if test.clientConfig != nil {
++				test.clientConfig(clientConfig)
++			}
++			ss, cs, err := testHandshake(t, clientConfig, serverConfig)
++			if err != nil {
++				t.Fatal(err)
++			}
++			if test.expectKyber {
++				if ss.testingOnlyCurveID != x25519Kyber768Draft00 {
++					t.Errorf("got CurveID %v (server), expected %v", ss.testingOnlyCurveID, x25519Kyber768Draft00)
++				}
++				if cs.testingOnlyCurveID != x25519Kyber768Draft00 {
++					t.Errorf("got CurveID %v (client), expected %v", cs.testingOnlyCurveID, x25519Kyber768Draft00)
++				}
++			} else {
++				if ss.testingOnlyCurveID == x25519Kyber768Draft00 {
++					t.Errorf("got CurveID %v (server), expected not Kyber", ss.testingOnlyCurveID)
++				}
++				if cs.testingOnlyCurveID == x25519Kyber768Draft00 {
++					t.Errorf("got CurveID %v (client), expected not Kyber", cs.testingOnlyCurveID)
++				}
++			}
++			if test.expectHRR {
++				if !ss.testingOnlyDidHRR {
++					t.Error("server did not use HRR")
++				}
++				if !cs.testingOnlyDidHRR {
++					t.Error("client did not use HRR")
++				}
++			} else {
++				if ss.testingOnlyDidHRR {
++					t.Error("server used HRR")
++				}
++				if cs.testingOnlyDidHRR {
++					t.Error("client used HRR")
++				}
++			}
++		})
++	}
++}
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index a95c8f2f94..27ac6b300b 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -47,6 +47,7 @@ var All = []Info{
+ 	{Name: "randautoseed", Package: "math/rand"},
+ 	{Name: "tarinsecurepath", Package: "archive/tar"},
+ 	{Name: "tls10server", Package: "crypto/tls", Changed: 22, Old: "1"},
++	{Name: "tlskyber", Package: "crypto/tls", Changed: 23, Old: "0", Opaque: true},
+ 	{Name: "tlsmaxrsasize", Package: "crypto/tls"},
+ 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},

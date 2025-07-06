@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 38049: 756c352963f4decbf898f244876855aab747afdc
+# Index 38049: f7b625e4cb363c23ed5c8c144ee7d06c4136a0eb
 
 echo "🚀 Generating explanation for commit 38049..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 38049..."
 
 ### メタデータ
 - **コミットインデックス**: 38049
-- **コミットハッシュ**: 756c352963f4decbf898f244876855aab747afdc
-- **GitHub URL**: https://github.com/golang/go/commit/756c352963f4decbf898f244876855aab747afdc
+- **コミットハッシュ**: f7b625e4cb363c23ed5c8c144ee7d06c4136a0eb
+- **GitHub URL**: https://github.com/golang/go/commit/f7b625e4cb363c23ed5c8c144ee7d06c4136a0eb
 
 ### 章構成
 

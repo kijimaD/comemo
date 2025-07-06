@@ -1,0 +1,272 @@
+commit ab55465098a0cd33007684091b573717a6ea54cf
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Fri Nov 1 16:09:32 2024 +0800
+
+    cmd/compile: wire up math/bits.TrailingZeros intrinsics for loong64
+    
+    Micro-benchmark results on Loongson 3A5000 and 3A6000:
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                    |  bench.old   |              bench.new               |
+                    |    sec/op    |    sec/op     vs base                |
+    TrailingZeros     1.7240n ± 0%   0.8120n ± 0%  -52.90% (p=0.000 n=20)
+    TrailingZeros8    1.0530n ± 0%   0.8015n ± 0%  -23.88% (p=0.000 n=20)
+    TrailingZeros16    2.072n ± 0%    1.015n ± 0%  -51.01% (p=0.000 n=20)
+    TrailingZeros32   1.7160n ± 0%   0.8122n ± 0%  -52.67% (p=0.000 n=20)
+    TrailingZeros64   2.0060n ± 0%   0.8125n ± 0%  -59.50% (p=0.000 n=20)
+    geomean            1.669n        0.8470n       -49.25%
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                    |  bench.old   |              bench.new               |
+                    |    sec/op    |    sec/op     vs base                |
+    TrailingZeros     2.6275n ± 0%   0.9120n ± 0%  -65.29% (p=0.000 n=20)
+    TrailingZeros8     1.451n ± 0%    1.163n ± 0%  -19.85% (p=0.000 n=20)
+    TrailingZeros16    3.069n ± 0%    1.201n ± 0%  -60.87% (p=0.000 n=20)
+    TrailingZeros32   2.9060n ± 0%   0.9115n ± 0%  -68.63% (p=0.000 n=20)
+    TrailingZeros64   2.6305n ± 0%   0.9115n ± 0%  -65.35% (p=0.000 n=20)
+    geomean            2.456n         1.011n       -58.83%
+    
+    This patch is a copy of CL 479498.
+    Co-authored-by: WANG Xuerui <git@xen0n.name>
+    
+    Change-Id: I1a5b2114a844dc0d02c8e68f41ce2443ac3b5fda
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624356
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/loong64/ssa.go            |  2 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  2 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go              | 28 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 12 ++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics.go      |  8 +++----
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  7 ++++++
+ test/codegen/mathbits.go                           |  5 ++++
+ 8 files changed, 62 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 85bd986990..a52a2c0eca 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -512,6 +512,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpLOONG64NEGD,
+ 		ssa.OpLOONG64CLZW,
+ 		ssa.OpLOONG64CLZV,
++		ssa.OpLOONG64CTZW,
++		ssa.OpLOONG64CTZV,
+ 		ssa.OpLOONG64SQRTD,
+ 		ssa.OpLOONG64SQRTF,
+ 		ssa.OpLOONG64REVB2H,
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 15a612e84d..eba495f21d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -152,6 +152,8 @@
+ (BitRev16 <t> x) => (REVB2H (BITREV4B <t> x))
+ (BitRev32 ...) => (BITREVW ...)
+ (BitRev64 ...) => (BITREVV ...)
++(Ctz(32|64)NonZero ...) => (Ctz(32|64) ...)
++(Ctz(32|64) ...) => (CTZ(W|V) ...)
+ 
+ (PopCount64 <t> x) => (MOVVfpgp <t> (VPCNT64 <typ.Float64> (MOVVgpfp <typ.Float64> x)))
+ (PopCount32 <t> x) => (MOVWfpgp <t> (VPCNT32 <typ.Float32> (MOVWgpfp <typ.Float32> x)))
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 079ef64fd6..270c262e8e 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -174,6 +174,8 @@ func init() {
+ 
+ 		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"}, // Count leading (high order) zeroes (returns 0-32)
+ 		{name: "CLZV", argLength: 1, reg: gp11, asm: "CLZV"}, // Count leading (high order) zeroes (returns 0-64)
++		{name: "CTZW", argLength: 1, reg: gp11, asm: "CTZW"}, // Count trailing (low order) zeroes (returns 0-32)
++		{name: "CTZV", argLength: 1, reg: gp11, asm: "CTZV"}, // Count trailing (low order) zeroes (returns 0-64)
+ 
+ 		{name: "REVB2H", argLength: 1, reg: gp11, asm: "REVB2H"}, // Swap bytes: 0x11223344 -> 0x22114433 (sign extends to 64 bits)
+ 		{name: "REVB2W", argLength: 1, reg: gp11, asm: "REVB2W"}, // Swap bytes: 0x1122334455667788 -> 0x4433221188776655
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index af586e56fc..db4f17317d 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1764,6 +1764,8 @@ const (
+ 	OpLOONG64ABSD
+ 	OpLOONG64CLZW
+ 	OpLOONG64CLZV
++	OpLOONG64CTZW
++	OpLOONG64CTZV
+ 	OpLOONG64REVB2H
+ 	OpLOONG64REVB2W
+ 	OpLOONG64REVBV
+@@ -23663,6 +23665,32 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "CTZW",
++		argLen: 1,
++		asm:    loong64.ACTZW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "CTZV",
++		argLen: 1,
++		asm:    loong64.ACTZV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 	{
+ 		name:   "REVB2H",
+ 		argLen: 1,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 14ab50549b..fd0f938a43 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -177,6 +177,18 @@ func rewriteValueLOONG64(v *Value) bool {
+ 	case OpCopysign:
+ 		v.Op = OpLOONG64FCOPYSGD
+ 		return true
++	case OpCtz32:
++		v.Op = OpLOONG64CTZW
++		return true
++	case OpCtz32NonZero:
++		v.Op = OpCtz32
++		return true
++	case OpCtz64:
++		v.Op = OpLOONG64CTZV
++		return true
++	case OpCtz64NonZero:
++		v.Op = OpCtz64
++		return true
+ 	case OpCvt32Fto32:
+ 		v.Op = OpLOONG64TRUNCFW
+ 		return true
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 841c1dff55..6cf3eb9cfe 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -811,7 +811,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
++		sys.AMD64, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			lo := s.newValue1(ssa.OpInt64Lo, types.Types[types.TUINT32], args[0])
+@@ -823,7 +823,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpCtz32, types.Types[types.TINT], args[0])
+ 		},
+-		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
++		sys.AMD64, sys.I386, sys.ARM64, sys.ARM, sys.Loong64, sys.S390X, sys.MIPS, sys.PPC64, sys.Wasm)
+ 	addF("math/bits", "TrailingZeros16",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt16to32, types.Types[types.TUINT32], args[0])
+@@ -844,7 +844,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			y := s.newValue2(ssa.OpOr64, types.Types[types.TUINT64], x, c)
+ 			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], y)
+ 		},
+-		sys.S390X, sys.PPC64)
++		sys.Loong64, sys.S390X, sys.PPC64)
+ 	addF("math/bits", "TrailingZeros8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			x := s.newValue1(ssa.OpZeroExt8to32, types.Types[types.TUINT32], args[0])
+@@ -865,7 +865,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			y := s.newValue2(ssa.OpOr64, types.Types[types.TUINT64], x, c)
+ 			return s.newValue1(ssa.OpCtz64, types.Types[types.TINT], y)
+ 		},
+-		sys.S390X)
++		sys.Loong64, sys.S390X)
+ 	alias("math/bits", "ReverseBytes64", "internal/runtime/sys", "Bswap64", all...)
+ 	alias("math/bits", "ReverseBytes32", "internal/runtime/sys", "Bswap32", all...)
+ 	addF("math/bits", "ReverseBytes16",
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index bfef60cd9b..7603327b2f 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -408,6 +408,9 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "internal/runtime/sys", "Len64"}:               struct{}{},
+ 	{"loong64", "internal/runtime/sys", "Len8"}:                struct{}{},
+ 	{"loong64", "internal/runtime/sys", "OnesCount64"}:         struct{}{},
++	{"loong64", "internal/runtime/sys", "TrailingZeros32"}:     struct{}{},
++	{"loong64", "internal/runtime/sys", "TrailingZeros64"}:     struct{}{},
++	{"loong64", "internal/runtime/sys", "TrailingZeros8"}:      struct{}{},
+ 	{"loong64", "math", "Abs"}:                                 struct{}{},
+ 	{"loong64", "math", "Copysign"}:                            struct{}{},
+ 	{"loong64", "math", "FMA"}:                                 struct{}{},
+@@ -436,6 +439,10 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "math/bits", "ReverseBytes16"}:                 struct{}{},
+ 	{"loong64", "math/bits", "ReverseBytes32"}:                 struct{}{},
+ 	{"loong64", "math/bits", "ReverseBytes64"}:                 struct{}{},
++	{"loong64", "math/bits", "TrailingZeros16"}:                struct{}{},
++	{"loong64", "math/bits", "TrailingZeros32"}:                struct{}{},
++	{"loong64", "math/bits", "TrailingZeros64"}:                struct{}{},
++	{"loong64", "math/bits", "TrailingZeros8"}:                 struct{}{},
+ 	{"loong64", "math/bits", "Sub"}:                            struct{}{},
+ 	{"loong64", "math/bits", "Sub64"}:                          struct{}{},
+ 	{"loong64", "runtime", "KeepAlive"}:                        struct{}{},
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index f258ab9162..baed4f7c67 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -361,6 +361,7 @@ func TrailingZeros(n uint) int {
+ 	// 386:"BSFL"
+ 	// arm:"CLZ"
+ 	// arm64:"RBIT","CLZ"
++	// loong64:"CTZV"
+ 	// s390x:"FLOGR"
+ 	// ppc64x/power8:"ANDN","POPCNTD"
+ 	// ppc64x/power9: "CNTTZD"
+@@ -373,6 +374,7 @@ func TrailingZeros64(n uint64) int {
+ 	// amd64/v3:"TZCNTQ"
+ 	// 386:"BSFL"
+ 	// arm64:"RBIT","CLZ"
++	// loong64:"CTZV"
+ 	// s390x:"FLOGR"
+ 	// ppc64x/power8:"ANDN","POPCNTD"
+ 	// ppc64x/power9: "CNTTZD"
+@@ -392,6 +394,7 @@ func TrailingZeros32(n uint32) int {
+ 	// 386:"BSFL"
+ 	// arm:"CLZ"
+ 	// arm64:"RBITW","CLZW"
++	// loong64:"CTZW"
+ 	// s390x:"FLOGR","MOVWZ"
+ 	// ppc64x/power8:"ANDN","POPCNTW"
+ 	// ppc64x/power9: "CNTTZW"
+@@ -404,6 +407,7 @@ func TrailingZeros16(n uint16) int {
+ 	// 386:"BSFL\t"
+ 	// arm:"ORR\t\\$65536","CLZ",-"MOVHU\tR"
+ 	// arm64:"ORR\t\\$65536","RBITW","CLZW",-"MOVHU\tR",-"RBIT\t",-"CLZ\t"
++	// loong64:"CTZV"
+ 	// s390x:"FLOGR","OR\t\\$65536"
+ 	// ppc64x/power8:"POPCNTD","ORIS\\t\\$1"
+ 	// ppc64x/power9:"CNTTZD","ORIS\\t\\$1"
+@@ -416,6 +420,7 @@ func TrailingZeros8(n uint8) int {
+ 	// 386:"BSFL"
+ 	// arm:"ORR\t\\$256","CLZ",-"MOVBU\tR"
+ 	// arm64:"ORR\t\\$256","RBITW","CLZW",-"MOVBU\tR",-"RBIT\t",-"CLZ\t"
++	// loong64:"CTZV"
+ 	// s390x:"FLOGR","OR\t\\$256"
+ 	// wasm:"I64Ctz"
+ 	return bits.TrailingZeros8(n)

@@ -1,0 +1,59 @@
+commit a55f9d93e31c885f104896dc7c03fa14ec1a1b29
+Author: Julian Dax <julian.dax@posteo.de>
+Date:   Mon Jul 15 16:36:07 2024 +0200
+
+    cmd/go/internal/test: update documentation for the "go test" command
+    
+    The documentation referred to the package's source root as $GOPATH, which is no longer correct.
+    
+    Fixes #64303
+    
+    Change-Id: I2ea113497975726468d4ee4f85e2cfcbea9a76d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598235
+    Reviewed-by: Julian Dax <julian.dax@posteo.de>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/alldocs.go            | 8 ++++----
+ src/cmd/go/internal/test/test.go | 8 ++++----
+ 2 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 75e6d65d0c..648aa67d05 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1879,10 +1879,10 @@
+ // the result is not cached. To disable test caching, use any test flag
+ // or argument other than the cacheable flags. The idiomatic way to disable
+ // test caching explicitly is to use -count=1. Tests that open files within
+-// the package's source root (usually $GOPATH) or that consult environment
+-// variables only match future runs in which the files and environment
+-// variables are unchanged. A cached test result is treated as executing
+-// in no time at all, so a successful package test result will be cached and
++// the package's module or that consult environment variables only
++// match future runs in which the files and environment variables are
++// unchanged. A cached test result is treated as executing in no time
++// at all, so a successful package test result will be cached and
+ // reused regardless of -timeout setting.
+ //
+ // In addition to the build flags, the flags handled by 'go test' itself are:
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index ff22e4a457..76635adc7e 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -132,10 +132,10 @@ If a run of go test has any test or non-test flags outside this set,
+ the result is not cached. To disable test caching, use any test flag
+ or argument other than the cacheable flags. The idiomatic way to disable
+ test caching explicitly is to use -count=1. Tests that open files within
+-the package's source root (usually $GOPATH) or that consult environment
+-variables only match future runs in which the files and environment
+-variables are unchanged. A cached test result is treated as executing
+-in no time at all, so a successful package test result will be cached and
++the package's module or that consult environment variables only
++match future runs in which the files and environment variables are
++unchanged. A cached test result is treated as executing in no time
++at all, so a successful package test result will be cached and
+ reused regardless of -timeout setting.
+ 
+ In addition to the build flags, the flags handled by 'go test' itself are:

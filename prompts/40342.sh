@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40342: e64241216dd141589144a07f7f68acd64dc108fe
+# Index 40342: ba607240f76fce446e1104d034e444ec42e22c73
 
 echo "🚀 Generating explanation for commit 40342..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40342..."
 
 ### メタデータ
 - **コミットインデックス**: 40342
-- **コミットハッシュ**: e64241216dd141589144a07f7f68acd64dc108fe
-- **GitHub URL**: https://github.com/golang/go/commit/e64241216dd141589144a07f7f68acd64dc108fe
+- **コミットハッシュ**: ba607240f76fce446e1104d034e444ec42e22c73
+- **GitHub URL**: https://github.com/golang/go/commit/ba607240f76fce446e1104d034e444ec42e22c73
 
 ### 章構成
 

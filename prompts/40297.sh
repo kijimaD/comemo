@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40297: cbe2b14d5072dde739e5bfda7e5b4405412464ec
+# Index 40297: d6c12ec0eff53a4b11186eb0bb11cb683afe2779
 
 echo "🚀 Generating explanation for commit 40297..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40297..."
 
 ### メタデータ
 - **コミットインデックス**: 40297
-- **コミットハッシュ**: cbe2b14d5072dde739e5bfda7e5b4405412464ec
-- **GitHub URL**: https://github.com/golang/go/commit/cbe2b14d5072dde739e5bfda7e5b4405412464ec
+- **コミットハッシュ**: d6c12ec0eff53a4b11186eb0bb11cb683afe2779
+- **GitHub URL**: https://github.com/golang/go/commit/d6c12ec0eff53a4b11186eb0bb11cb683afe2779
 
 ### 章構成
 

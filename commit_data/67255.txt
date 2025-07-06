@@ -1,0 +1,48 @@
+commit 11d2b28bffb82e0ad0bc102812bed86ce81a1959
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Wed May 28 17:00:59 2025 +0000
+
+    [dev.simd] cmd/compile: add and fix k register supports
+    
+    This CL marks the "mask" ssa type as a simd type. This will make the
+    last return of `simdMov` reachable and the spilling of K register
+    correct.
+    
+    This CL also makes `simdReg` able to return K registers.
+    
+    Change-Id: Ia66230d3e5425d9e8bdd0081b008e098382d3827
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676876
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/amd64/ssa.go  | 2 ++
+ src/cmd/compile/internal/types/type.go | 2 +-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index cf5f813456..dcc4e30e1e 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1671,6 +1671,8 @@ func simdReg(v *ssa.Value) int16 {
+ 		panic("simdReg: not a simd type")
+ 	}
+ 	switch t.Size() {
++	case 8:
++		return v.Reg() // K registers
+ 	case 16:
+ 		return v.Reg()
+ 	case 32:
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 41217cb2a9..f7b9b0f3f7 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -1633,7 +1633,7 @@ var (
+ 	TypeVec128    = newSIMD("vec128")
+ 	TypeVec256    = newSIMD("vec256")
+ 	TypeVec512    = newSIMD("vec512")
+-	TypeMask      = newSSA("mask") // not a vector, not 100% sure what this should be.
++	TypeMask      = newSIMD("mask") // not a vector, not 100% sure what this should be.
+ 	TypeResultMem = newResults([]*Type{TypeMem})
+ )
+ 

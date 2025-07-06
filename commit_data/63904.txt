@@ -1,0 +1,601 @@
+commit fb5d0cdd491017db1978001b5054cd19569aa8de
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue May 7 17:31:40 2024 +0000
+
+    cmd/go: add go mod tidy -diff
+    
+    The -diff flag causes tidy not to modify the files but instead print the
+    necessary changes as a unified diff. It exits with a non-zero code
+    if updates are needed.
+    
+    Fixes: #27005
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: Ie239367f2fc73ecb55ec2ce76442293635c1b47d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585401
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/alldocs.go                              |  6 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |  9 ++-
+ src/cmd/go/internal/modfetch/fetch.go              | 86 +++++++++++++--------
+ src/cmd/go/internal/modload/init.go                | 78 +++++++++++--------
+ src/cmd/go/internal/modload/load.go                | 40 ++++++++++
+ src/cmd/go/testdata/script/mod_tidy_diff.txt       | 86 +++++++++++++++++++++
+ .../go/testdata/script/mod_tidy_diff_compat.txt    | 88 ++++++++++++++++++++++
+ 7 files changed, 328 insertions(+), 65 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 52fb4c25a8..3804d331cb 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1353,7 +1353,7 @@
+ //
+ // Usage:
+ //
+-//	go mod tidy [-e] [-v] [-x] [-go=version] [-compat=version]
++//	go mod tidy [-e] [-v] [-x] [-diff] [-go=version] [-compat=version]
+ //
+ // Tidy makes sure go.mod matches the source code in the module.
+ // It adds any missing modules necessary to build the current module's
+@@ -1367,6 +1367,10 @@
+ // The -e flag causes tidy to attempt to proceed despite errors
+ // encountered while loading packages.
+ //
++// The -diff flag causes tidy not to modify the files but instead print the
++// necessary changes as a unified diff. It exits with a non-zero code
++// if updates are needed.
++//
+ // The -go flag causes tidy to update the 'go' directive in the go.mod
+ // file to the given version, which may change which module dependencies
+ // are retained as explicit requirements in the go.mod file.
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 36be926057..50992c9bfd 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -20,7 +20,7 @@ import (
+ )
+ 
+ var cmdTidy = &base.Command{
+-	UsageLine: "go mod tidy [-e] [-v] [-x] [-go=version] [-compat=version]",
++	UsageLine: "go mod tidy [-e] [-v] [-x] [-diff] [-go=version] [-compat=version]",
+ 	Short:     "add missing and remove unused modules",
+ 	Long: `
+ Tidy makes sure go.mod matches the source code in the module.
+@@ -35,6 +35,10 @@ to standard error.
+ The -e flag causes tidy to attempt to proceed despite errors
+ encountered while loading packages.
+ 
++The -diff flag causes tidy not to modify the files but instead print the
++necessary changes as a unified diff. It exits with a non-zero code
++if updates are needed.
++
+ The -go flag causes tidy to update the 'go' directive in the go.mod
+ file to the given version, which may change which module dependencies
+ are retained as explicit requirements in the go.mod file.
+@@ -58,6 +62,7 @@ See https://golang.org/ref/mod#go-mod-tidy for more about 'go mod tidy'.
+ 
+ var (
+ 	tidyE      bool          // if true, report errors but proceed anyway.
++	tidyDiff   bool          // if true, do not update go.mod or go.sum and show changes. Return corresponding exit code.
+ 	tidyGo     goVersionFlag // go version to write to the tidied go.mod file (toggles lazy loading)
+ 	tidyCompat goVersionFlag // go version for which the tidied go.mod and go.sum files should be “compatible”
+ )
+@@ -66,6 +71,7 @@ func init() {
+ 	cmdTidy.Flag.BoolVar(&cfg.BuildV, "v", false, "")
+ 	cmdTidy.Flag.BoolVar(&cfg.BuildX, "x", false, "")
+ 	cmdTidy.Flag.BoolVar(&tidyE, "e", false, "")
++	cmdTidy.Flag.BoolVar(&tidyDiff, "diff", false, "")
+ 	cmdTidy.Flag.Var(&tidyGo, "go", "")
+ 	cmdTidy.Flag.Var(&tidyCompat, "compat", "")
+ 	base.AddChdirFlag(&cmdTidy.Flag)
+@@ -128,6 +134,7 @@ func runTidy(ctx context.Context, cmd *base.Command, args []string) {
+ 		TidyGoVersion:            tidyGo.String(),
+ 		Tags:                     imports.AnyTags(),
+ 		Tidy:                     true,
++		TidyDiff:                 tidyDiff,
+ 		TidyCompatibleVersion:    tidyCompat.String(),
+ 		VendorModulesInGOROOTSrc: true,
+ 		ResolveMissingImports:    true,
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index ce801d34f2..455deded54 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -872,39 +872,8 @@ Outer:
+ 	}
+ 
+ 	err := lockedfile.Transform(GoSumFile, func(data []byte) ([]byte, error) {
+-		if !goSum.overwrite {
+-			// Incorporate any sums added by other processes in the meantime.
+-			// Add only the sums that we actually checked: the user may have edited or
+-			// truncated the file to remove erroneous hashes, and we shouldn't restore
+-			// them without good reason.
+-			goSum.m = make(map[module.Version][]string, len(goSum.m))
+-			readGoSum(goSum.m, GoSumFile, data)
+-			for ms, st := range goSum.status {
+-				if st.used && !sumInWorkspaceModulesLocked(ms.mod) {
+-					addModSumLocked(ms.mod, ms.sum)
+-				}
+-			}
+-		}
+-
+-		var mods []module.Version
+-		for m := range goSum.m {
+-			mods = append(mods, m)
+-		}
+-		module.Sort(mods)
+-
+-		var buf bytes.Buffer
+-		for _, m := range mods {
+-			list := goSum.m[m]
+-			sort.Strings(list)
+-			str.Uniq(&list)
+-			for _, h := range list {
+-				st := goSum.status[modSum{m, h}]
+-				if (!st.dirty || (st.used && keep[m])) && !sumInWorkspaceModulesLocked(m) {
+-					fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
+-				}
+-			}
+-		}
+-		return buf.Bytes(), nil
++		tidyGoSum := tidyGoSum(data, keep)
++		return tidyGoSum, nil
+ 	})
+ 
+ 	if err != nil {
+@@ -916,6 +885,57 @@ Outer:
+ 	return nil
+ }
+ 
++// TidyGoSum returns a tidy version of the go.sum file.
++// A missing go.sum file is treated as if empty.
++func TidyGoSum(keep map[module.Version]bool) (before, after []byte) {
++	goSum.mu.Lock()
++	defer goSum.mu.Unlock()
++	before, err := lockedfile.Read(GoSumFile)
++	if err != nil && !errors.Is(err, fs.ErrNotExist) {
++		base.Fatalf("reading go.sum: %v", err)
++	}
++	after = tidyGoSum(before, keep)
++	return before, after
++}
++
++// tidyGoSum will return a tidy version of the go.sum file.
++// The goSum lock must be held.
++func tidyGoSum(data []byte, keep map[module.Version]bool) []byte {
++	if !goSum.overwrite {
++		// Incorporate any sums added by other processes in the meantime.
++		// Add only the sums that we actually checked: the user may have edited or
++		// truncated the file to remove erroneous hashes, and we shouldn't restore
++		// them without good reason.
++		goSum.m = make(map[module.Version][]string, len(goSum.m))
++		readGoSum(goSum.m, GoSumFile, data)
++		for ms, st := range goSum.status {
++			if st.used && !sumInWorkspaceModulesLocked(ms.mod) {
++				addModSumLocked(ms.mod, ms.sum)
++			}
++		}
++	}
++
++	var mods []module.Version
++	for m := range goSum.m {
++		mods = append(mods, m)
++	}
++	module.Sort(mods)
++
++	var buf bytes.Buffer
++	for _, m := range mods {
++		list := goSum.m[m]
++		sort.Strings(list)
++		str.Uniq(&list)
++		for _, h := range list {
++			st := goSum.status[modSum{m, h}]
++			if (!st.dirty || (st.used && keep[m])) && !sumInWorkspaceModulesLocked(m) {
++				fmt.Fprintf(&buf, "%s %s %s\n", m.Path, m.Version, h)
++			}
++		}
++	}
++	return buf.Bytes()
++}
++
+ func sumInWorkspaceModulesLocked(m module.Version) bool {
+ 	for _, goSums := range goSum.w {
+ 		if _, ok := goSums[m]; ok {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 2d82ea4187..89eeb5c71a 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1751,32 +1751,25 @@ func WriteGoMod(ctx context.Context, opts WriteOpts) error {
+ 	return commitRequirements(ctx, opts)
+ }
+ 
+-// commitRequirements ensures go.mod and go.sum are up to date with the current
+-// requirements.
+-//
+-// In "mod" mode, commitRequirements writes changes to go.mod and go.sum.
+-//
+-// In "readonly" and "vendor" modes, commitRequirements returns an error if
+-// go.mod or go.sum are out of date in a semantically significant way.
+-//
+-// In workspace mode, commitRequirements only writes changes to go.work.sum.
+-func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+-	if inWorkspaceMode() {
+-		// go.mod files aren't updated in workspace mode, but we still want to
+-		// update the go.work.sum file.
+-		return modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements())
+-	}
++var errNoChange = errors.New("no update needed")
++
++// UpdateGoModFromReqs returns a modified go.mod file using the current
++// requirements. It does not commit these changes to disk.
++func UpdateGoModFromReqs(ctx context.Context, opts WriteOpts) (before, after []byte, modFile *modfile.File, err error) {
+ 	if MainModules.Len() != 1 || MainModules.ModRoot(MainModules.Versions()[0]) == "" {
+ 		// We aren't in a module, so we don't have anywhere to write a go.mod file.
+-		return nil
++		return nil, nil, nil, errNoChange
+ 	}
+ 	mainModule := MainModules.mustGetSingleMainModule()
+-	modFile := MainModules.ModFile(mainModule)
++	modFile = MainModules.ModFile(mainModule)
+ 	if modFile == nil {
+ 		// command-line-arguments has no .mod file to write.
+-		return nil
++		return nil, nil, nil, errNoChange
++	}
++	before, err = modFile.Format()
++	if err != nil {
++		return nil, nil, nil, err
+ 	}
+-	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
+ 
+ 	var list []*modfile.Require
+ 	toolchain := ""
+@@ -1804,7 +1797,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 	}
+ 	if gover.Compare(goVersion, gover.Local()) > 0 {
+ 		// We cannot assume that we know how to update a go.mod to a newer version.
+-		return &gover.TooNewError{What: "updating go.mod", GoVersion: goVersion}
++		return nil, nil, nil, &gover.TooNewError{What: "updating go.mod", GoVersion: goVersion}
+ 	}
+ 	wroteGo := opts.TidyWroteGo
+ 	if !wroteGo && modFile.Go == nil || modFile.Go.Version != goVersion {
+@@ -1853,6 +1846,35 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 		modFile.SetRequireSeparateIndirect(list)
+ 	}
+ 	modFile.Cleanup()
++	after, err = modFile.Format()
++	if err != nil {
++		return nil, nil, nil, err
++	}
++	return before, after, modFile, nil
++}
++
++// commitRequirements ensures go.mod and go.sum are up to date with the current
++// requirements.
++//
++// In "mod" mode, commitRequirements writes changes to go.mod and go.sum.
++//
++// In "readonly" and "vendor" modes, commitRequirements returns an error if
++// go.mod or go.sum are out of date in a semantically significant way.
++//
++// In workspace mode, commitRequirements only writes changes to go.work.sum.
++func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
++	if inWorkspaceMode() {
++		// go.mod files aren't updated in workspace mode, but we still want to
++		// update the go.work.sum file.
++		return modfetch.WriteGoSum(ctx, keepSums(ctx, loaded, requirements, addBuildListZipSums), mustHaveCompleteRequirements())
++	}
++	_, updatedGoMod, modFile, err := UpdateGoModFromReqs(ctx, opts)
++	if err != nil {
++		if errors.Is(err, errNoChange) {
++			return nil
++		}
++		return err
++	}
+ 
+ 	index := MainModules.GetSingleIndexOrNil()
+ 	dirty := index.modFileIsDirty(modFile)
+@@ -1874,20 +1896,18 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 		}
+ 		return nil
+ 	}
++
++	mainModule := MainModules.mustGetSingleMainModule()
++	modFilePath := modFilePath(MainModules.ModRoot(mainModule))
+ 	if _, ok := fsys.OverlayPath(modFilePath); ok {
+ 		if dirty {
+ 			return errors.New("updates to go.mod needed, but go.mod is part of the overlay specified with -overlay")
+ 		}
+ 		return nil
+ 	}
+-
+-	new, err := modFile.Format()
+-	if err != nil {
+-		return err
+-	}
+ 	defer func() {
+ 		// At this point we have determined to make the go.mod file on disk equal to new.
+-		MainModules.SetIndex(mainModule, indexModFile(new, modFile, mainModule, false))
++		MainModules.SetIndex(mainModule, indexModFile(updatedGoMod, modFile, mainModule, false))
+ 
+ 		// Update go.sum after releasing the side lock and refreshing the index.
+ 		// 'go mod init' shouldn't write go.sum, since it will be incomplete.
+@@ -1904,10 +1924,8 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 		defer unlock()
+ 	}
+ 
+-	errNoChange := errors.New("no update needed")
+-
+ 	err = lockedfile.Transform(modFilePath, func(old []byte) ([]byte, error) {
+-		if bytes.Equal(old, new) {
++		if bytes.Equal(old, updatedGoMod) {
+ 			// The go.mod file is already equal to new, possibly as the result of some
+ 			// other process.
+ 			return nil, errNoChange
+@@ -1923,7 +1941,7 @@ func commitRequirements(ctx context.Context, opts WriteOpts) (err error) {
+ 			return nil, fmt.Errorf("existing contents have changed since last read")
+ 		}
+ 
+-		return new, nil
++		return updatedGoMod, nil
+ 	})
+ 
+ 	if err != nil && err != errNoChange {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 4e2eb63be2..bb232eb04b 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -98,6 +98,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"go/build"
++	"internal/diff"
+ 	"io/fs"
+ 	"maps"
+ 	"os"
+@@ -154,6 +155,11 @@ type PackageOpts struct {
+ 	// packages.
+ 	Tidy bool
+ 
++	// TidyDiff, if true, analyzes the necessary changes to go.mod and go.sum
++	// to make them tidy. It does not modify these files, but exits with
++	// a non-zero code if updates are needed.
++	TidyDiff bool
++
+ 	// TidyCompatibleVersion is the oldest Go version that must be able to
+ 	// reproducibly reload the requested packages.
+ 	//
+@@ -431,6 +437,36 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 			}
+ 		}
+ 
++		if opts.TidyDiff {
++			cfg.BuildMod = "readonly"
++			loaded = ld
++			requirements = loaded.requirements
++			currentGoMod, updatedGoMod, _, err := UpdateGoModFromReqs(ctx, WriteOpts{})
++			if err != nil {
++				base.Fatal(err)
++			}
++			goModDiff := diff.Diff("current go.mod", currentGoMod, "tidy go.mod", updatedGoMod)
++
++			modfetch.TrimGoSum(keep)
++			// Dropping compatibility for 1.16 may result in a strictly smaller go.sum.
++			// Update the keep map with only the loaded.requirements.
++			if gover.Compare(compatVersion, "1.16") > 0 {
++				keep = keepSums(ctx, loaded, requirements, addBuildListZipSums)
++			}
++			currentGoSum, tidyGoSum := modfetch.TidyGoSum(keep)
++			goSumDiff := diff.Diff("current go.sum", currentGoSum, "tidy go.sum", tidyGoSum)
++
++			if len(goModDiff) > 0 {
++				fmt.Println(string(goModDiff))
++				base.SetExitStatus(1)
++			}
++			if len(goSumDiff) > 0 {
++				fmt.Println(string(goSumDiff))
++				base.SetExitStatus(1)
++			}
++			base.Exit()
++		}
++
+ 		if !ExplicitWriteGoMod {
+ 			modfetch.TrimGoSum(keep)
+ 
+@@ -445,6 +481,10 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 		}
+ 	}
+ 
++	if opts.TidyDiff && !opts.Tidy {
++		panic("TidyDiff is set but Tidy is not.")
++	}
++
+ 	// Success! Update go.mod and go.sum (if needed) and return the results.
+ 	// We'll skip updating if ExplicitWriteGoMod is true (the caller has opted
+ 	// to call WriteGoMod itself) or if ResolveMissingImports is false (the
+diff --git a/src/cmd/go/testdata/script/mod_tidy_diff.txt b/src/cmd/go/testdata/script/mod_tidy_diff.txt
+new file mode 100644
+index 0000000000..336dcb41f4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_diff.txt
+@@ -0,0 +1,86 @@
++# Test go mod tidy -diff
++# If set, -diff should not update go.mod or go.sum and instead return a non-zero exit code if updates are needed.
++
++# Missing go.mod and go.sum should fail and not display diff.
++! exists go.mod
++! exists go.sum
++! go mod tidy -diff
++! exists go.mod
++! exists go.sum
++! stdout 'diff current go.mod tidy go.mod'
++! stdout 'diff current go.sum tidy go.sum'
++stderr 'go.mod file not found'
++
++# Missing go.mod and existing go.sum should fail and not display diff.
++cp go.sum.orig go.sum
++! exists go.mod
++exists go.sum
++! go mod tidy -diff
++! exists go.mod
++! stdout 'diff current go.mod tidy go.mod'
++! stdout 'diff current go.sum tidy go.sum'
++stderr 'go.mod file not found'
++
++# Existing go.mod and missing go.sum should display diff.
++go mod init example.com
++go mod tidy
++rm go.sum
++exists go.mod
++! exists go.sum
++! go mod tidy -diff
++! exists go.sum
++! stdout 'diff current go.mod tidy go.mod'
++stdout 'diff current go.sum tidy go.sum'
++
++# Everything is tidy, should return zero exit code.
++go mod tidy
++go mod tidy -diff
++! stdout 'diff current go.mod tidy go.mod'
++! stdout 'diff current go.sum tidy go.sum'
++
++# go.mod requires updates, should return non-zero exit code.
++cp go.mod.orig go.mod
++! go mod tidy -diff
++cmp go.mod.orig go.mod
++stdout 'diff current go.mod tidy go.mod'
++! stdout 'diff current go.sum tidy go.sum'
++
++# go.sum requires updates, should return non-zero exit code.
++go mod tidy
++cp go.sum.orig go.sum
++! go mod tidy -diff
++cmp go.sum.orig go.sum
++! stdout 'diff current go.mod tidy go.mod'
++stdout 'diff current go.sum tidy go.sum'
++
++# go.mod and go.sum require updates, should return non-zero exit code.
++cp go.mod.orig go.mod
++cp go.sum.orig go.sum
++! go mod tidy -diff
++stdout '^\+\s*require rsc.io/quote v1.5.2'
++stdout '^\+\s*golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect'
++stdout '^\+\s*rsc.io/sampler v1.3.0 // indirect'
++stdout '^\+\s*rsc.io/testonly v1.0.0 // indirect'
++stdout '.*\+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw='
++stdout '.*\+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW\+pc6Ldnwhi/IjpwHt7yyuwOQ='
++! stdout '^\+rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0='
++stdout '^\+rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII='
++stdout '^\+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA='
++cmp go.mod.orig go.mod
++cmp go.sum.orig go.sum
++
++-- main.go --
++package main
++
++import "rsc.io/quote"
++
++func main() {
++	println(quote.Hello())
++}
++
++-- go.mod.orig --
++module example.com
++
++go 1.22
++-- go.sum.orig --
++rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0=
+diff --git a/src/cmd/go/testdata/script/mod_tidy_diff_compat.txt b/src/cmd/go/testdata/script/mod_tidy_diff_compat.txt
+new file mode 100644
+index 0000000000..abba139fe0
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_tidy_diff_compat.txt
+@@ -0,0 +1,88 @@
++# https://golang.org/issue/27005 and https://golang.org/issue/46141:
++# This test covers the interaction between -diff and -compat.
++# This test is based on mod_tidy_compat.txt
++# The tidy go.mod produced to be diffed with the current go.mod with -compat
++# should by default preserve enough checksums for the module to be used by Go 1.16.
++#
++# We don't have a copy of Go 1.16 handy, but we can simulate it by editing the
++# 'go' version in the go.mod file to 1.16, without actually updating the
++# requirements to match.
++
++[short] skip
++
++env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
++
++
++# This module has the same module dependency graph in Go 1.16 as in Go 1.17,
++# but in 1.16 requires (checksums for) additional (irrelevant) go.mod files.
++#
++# The module graph under both versions looks like:
++#
++# m ---- example.com/version v1.1.0
++# |
++# + ---- example.net/lazy v0.1.0 ---- example.com/version v1.0.1
++#
++# Go 1.17 avoids loading the go.mod file for example.com/version v1.0.1
++# (because it is lower than the version explicitly required by m,
++# and the module that requires it — m — specifies 'go 1.17').
++#
++# That go.mod file happens not to affect the final 1.16 module graph anyway,
++# so the pruned graph is equivalent to the unpruned one.
++
++cp go.mod go.mod.orig
++! go mod tidy -diff
++stdout 'diff current go.sum tidy go.sum'
++stdout '\+example.com/version v1.0.1/go.mod h1:S7K9BnT4o5wT4PCczXPfWVzpjD4ud4e7AJMQJEgiu2Q='
++stdout '\+example.com/version v1.1.0 h1:VdPnGmIF1NJrntStkxGrF3L/OfhaL567VzCjncGUgtM='
++stdout '\+example.com/version v1.1.0/go.mod h1:S7K9BnT4o5wT4PCczXPfWVzpjD4ud4e7AJMQJEgiu2Q='
++! stdout 'diff current go.mod tidy go.mod'
++go mod tidy
++cmp go.mod go.mod.orig
++
++
++# If we explicitly drop compatibility with 1.16, we retain fewer checksums,
++# which gives a cleaner go.sum file but causes 1.16 to fail in readonly mode.
++
++cp go.mod.orig go.mod
++! go mod tidy -compat=1.17 -diff
++stdout 'diff current go.sum tidy go.sum'
++stdout '\-example.com/version v1.0.1/go.mod h1:S7K9BnT4o5wT4PCczXPfWVzpjD4ud4e7AJMQJEgiu2Q='
++go mod tidy -compat=1.17
++cmp go.mod go.mod.orig
++
++-- go.mod --
++// Module m happens to have the exact same build list as what would be
++// selected under Go 1.16, but computes that build list without looking at
++// as many go.mod files.
++module example.com/m
++
++go 1.17
++
++replace example.net/lazy v0.1.0 => ./lazy
++
++require (
++	example.com/version v1.1.0
++	example.net/lazy v0.1.0
++)
++-- compatible.go --
++package compatible
++
++import (
++	_ "example.com/version"
++	_ "example.net/lazy"
++)
++-- lazy/go.mod --
++// Module lazy requires example.com/version v1.0.1.
++//
++// However, since this module is lazy, its dependents
++// should not need checksums for that version of the module
++// unless they actually import packages from it.
++module example.net/lazy
++
++go 1.17
++
++require example.com/version v1.0.1
++-- lazy/lazy.go --
++package lazy
++
++import _ "example.com/version"

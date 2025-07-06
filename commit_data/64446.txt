@@ -1,0 +1,50 @@
+commit 44ed517c42a52e0c5831383b59eae5b38428656d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Aug 6 12:42:34 2024 -0400
+
+    cmd/go/internal/load: make check for path in import error more robust
+    
+    When producing an ImportPathError from ImportErrorf, we check to see
+    whether the error string contains the path for the error. The issue is
+    that we were checking for the exact path string when sometimes the
+    string is quoted when the error is constructed, and the escaping in the
+    quote may not match the path string. Check for both the path string, and
+    the quoted path string.
+    
+    Fixes #68737
+    
+    Change-Id: I01bf4e495056e929570bc11bc1f2000ce6d2802b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603475
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/internal/load/pkg.go                      | 2 +-
+ src/cmd/go/testdata/script/list_panic_issue68737.txt | 7 +++++++
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 238fb6efd2..33bc3e0c48 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -539,7 +539,7 @@ type importError struct {
+ 
+ func ImportErrorf(path, format string, args ...any) ImportPathError {
+ 	err := &importError{importPath: path, err: fmt.Errorf(format, args...)}
+-	if errStr := err.Error(); !strings.Contains(errStr, path) {
++	if errStr := err.Error(); !strings.Contains(errStr, path) && !strings.Contains(errStr, strconv.Quote(path)) {
+ 		panic(fmt.Sprintf("path %q not in error %q", path, errStr))
+ 	}
+ 	return err
+diff --git a/src/cmd/go/testdata/script/list_panic_issue68737.txt b/src/cmd/go/testdata/script/list_panic_issue68737.txt
+new file mode 100644
+index 0000000000..db059c8fed
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_panic_issue68737.txt
+@@ -0,0 +1,7 @@
++# Issue #68737: Don't panic if the import path string doesn't appear
++# in the import error. The string may not appear because it may be
++# escaped when quoted as part of the error message.
++
++! go run '' # Quote contains 0x01 byte
++! stderr panic
++stderr 'malformed import path "\\x01": invalid char ''\\x01'''

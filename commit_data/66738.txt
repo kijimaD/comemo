@@ -1,0 +1,126 @@
+commit 8969771cc3ceed634844dd6c911f3a5439424a97
+Author: Michael Pratt <mpratt@google.com>
+Date:   Thu Apr 3 15:16:36 2025 +0000
+
+    runtime: add thread exit plus vgetrandom stress test
+    
+    Add a regression test similar to the reproducer from #73141 to try to
+    help catch future issues with vgetrandom and thread exit. Though the
+    test isn't very precise, it just hammers thread exit.
+    
+    When the test reproduces #73141, it simply crashes with a SIGSEGV and no
+    output or stack trace, which would be very unfortunate on a builder.
+    https://go.dev/issue/49165 tracks collecting core dumps from builders,
+    which would make this more tractable to debug.
+    
+    For #73141.
+    
+    Change-Id: I6a6a636c7d7b41e2729ff6ceb30fd7f979aa9978
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662636
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/proc_test.go                           | 11 ++++
+ .../testdata/testprog/lockosthread_linux.go        | 71 ++++++++++++++++++++++
+ 2 files changed, 82 insertions(+)
+
+diff --git a/src/runtime/proc_test.go b/src/runtime/proc_test.go
+index a930ea707f..3b606f62e4 100644
+--- a/src/runtime/proc_test.go
++++ b/src/runtime/proc_test.go
+@@ -1026,6 +1026,17 @@ func TestLockOSThreadTemplateThreadRace(t *testing.T) {
+ 	}
+ }
+ 
++func TestLockOSThreadVgetrandom(t *testing.T) {
++	if runtime.GOOS != "linux" {
++		t.Skipf("vgetrandom only relevant on Linux")
++	}
++	output := runTestProg(t, "testprog", "LockOSThreadVgetrandom")
++	want := "OK\n"
++	if output != want {
++		t.Errorf("want %q, got %q", want, output)
++	}
++}
++
+ // fakeSyscall emulates a system call.
+ //
+ //go:nosplit
+diff --git a/src/runtime/testdata/testprog/lockosthread_linux.go b/src/runtime/testdata/testprog/lockosthread_linux.go
+new file mode 100644
+index 0000000000..5e49b43ca2
+--- /dev/null
++++ b/src/runtime/testdata/testprog/lockosthread_linux.go
+@@ -0,0 +1,71 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"internal/syscall/unix"
++	"runtime"
++)
++
++func init() {
++	register("LockOSThreadVgetrandom", LockOSThreadVgetrandom)
++}
++
++var sinkInt int
++
++func LockOSThreadVgetrandom() {
++	// This is a regression test for https://go.dev/issue/73141. When that
++	// reproduces, this crashes with SIGSEGV with no output or stack trace,
++	// and detail only available in a core file.
++	//
++	// Thread exit via mexit cleans up vgetrandom state. Stress test thread
++	// exit + vgetrandom to look for issues by creating lots of threads
++	// that use GetRandom and then exit.
++
++	// Launch at most 100 threads at a time.
++	const parallelism = 100
++	ch := make(chan struct{}, parallelism)
++	for range 100 {
++		ch <- struct{}{}
++	}
++
++	// Create at most 1000 threads to avoid completely exhausting the
++	// system. This test generally reproduces https://go.dev/issue/73141 in
++	// less than 500 iterations.
++	const iterations = 1000
++	for range iterations {
++		<-ch
++		go func() {
++			defer func() {
++				ch <- struct{}{}
++			}()
++
++			// Exit with LockOSThread held.
++			runtime.LockOSThread()
++
++			// Be sure to use GetRandom to initialize vgetrandom state.
++			b := make([]byte, 1)
++			_, err := unix.GetRandom(b, 0)
++			if err != nil {
++				panic(err)
++			}
++
++			// Do some busy-work. It is unclear why this is
++			// necessary to reproduce. Perhaps to introduce
++			// interesting scheduling where threads get descheduled
++			// in the middle of getting or putting vgetrandom
++			// state.
++			for range 10 * 1000 * 1000 {
++				sinkInt = 1
++			}
++		}()
++	}
++
++	// Wait for all threads to finish.
++	for range parallelism {
++		<-ch
++	}
++	println("OK")
++}

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50705: 755ede0c5b6a9398170e1da0dae94df1b98352aa
+# Index 50705: a71528ad317bdeeac515dcd3d35d7adad5ebc7c3
 
 echo "🚀 Generating explanation for commit 50705..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 50705..."
 
 ### メタデータ
 - **コミットインデックス**: 50705
-- **コミットハッシュ**: 755ede0c5b6a9398170e1da0dae94df1b98352aa
-- **GitHub URL**: https://github.com/golang/go/commit/755ede0c5b6a9398170e1da0dae94df1b98352aa
+- **コミットハッシュ**: a71528ad317bdeeac515dcd3d35d7adad5ebc7c3
+- **GitHub URL**: https://github.com/golang/go/commit/a71528ad317bdeeac515dcd3d35d7adad5ebc7c3
 
 ### 章構成
 

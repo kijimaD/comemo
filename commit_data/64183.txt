@@ -1,0 +1,43 @@
+commit 09aeb6e33ab426eff4676a3baf694d5a3019e9fc
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Jul 1 12:41:56 2024 -0700
+
+    os: add TODO about removing test exception
+    
+    TestChtimesOmit excludes the failure on DragonFly BSD when both
+    atime and mtime are omitted.
+    
+    The relevant Dragonfly BSD bug is now fixed in git (see [1]).
+    
+    Add a TODO comment to remove the exclusion from the test once
+    the fix is generally available. This comment also addresses the
+    question why the exception exists.
+    
+    Amends CL 591535.
+    
+    [1]: https://github.com/DragonFlyBSD/DragonFlyBSD/commit/c7c71870ed0
+    
+    Change-Id: I3b53582301d44feb76b53788aa337c380ba82592
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595958
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+---
+ src/os/os_test.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 9519aa0fc6..878974384d 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1440,6 +1440,9 @@ func testChtimesOmit(t *testing.T, omitAt, omitMt bool) {
+ 	gotAtime := Atime(fs)
+ 	gotMtime := fs.ModTime()
+ 
++	// TODO: remove the dragonfly omitAt && omitMt exceptions below once the
++	// fix (https://github.com/DragonFlyBSD/DragonFlyBSD/commit/c7c71870ed0)
++	// is available generally and on CI runners.
+ 	if !gotAtime.Equal(wantAtime) {
+ 		errormsg := fmt.Sprintf("atime mismatch, got: %q, want: %q", gotAtime, wantAtime)
+ 		switch runtime.GOOS {

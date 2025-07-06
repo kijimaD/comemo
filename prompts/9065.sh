@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9065: dde435587d216b0e010f495cdebf92d27e680ce4
+# Index 9065: 8bd5089513a668ed3d9600d3cd60e200708bed0d
 
 echo "🚀 Generating explanation for commit 9065..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 9065..."
 
 ### メタデータ
 - **コミットインデックス**: 9065
-- **コミットハッシュ**: dde435587d216b0e010f495cdebf92d27e680ce4
-- **GitHub URL**: https://github.com/golang/go/commit/dde435587d216b0e010f495cdebf92d27e680ce4
+- **コミットハッシュ**: 8bd5089513a668ed3d9600d3cd60e200708bed0d
+- **GitHub URL**: https://github.com/golang/go/commit/8bd5089513a668ed3d9600d3cd60e200708bed0d
 
 ### 章構成
 

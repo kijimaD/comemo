@@ -1,0 +1,231 @@
+commit 3d4daa38a763260e07f4745110f2b5fcbec25126
+Author: Aperence <anthony.doeraene@hotmail.com>
+Date:   Wed Aug 28 17:45:58 2024 +0000
+
+    net: enable multipath TCP by default for listeners
+    
+    A previous change [1] was introduced to enable MPTCP by default
+    for both the clients and servers, based on the discussions [2] in
+    golang#56539, where MPTCP would be an opt-in for a release or
+    two, and then would become an opt-out.
+    
+    This change was not accepted at the time because the support for
+    a few socket options was missing [3]. Now that this support has been
+    added [4] and backported to stable versions not to block MPTCP
+    deployment with Go, it sounds like a good time to reconsider the use
+    of MPTCP by default.
+    
+    Instead of enabling MPTCP on both ends by default, as a first step,
+    it seems safer to change the default behaviour only for the server
+    side (Listeners). On the server side, the impact is minimal: when
+    clients don't request to use MPTCP, server applications will create
+    "plain" TCP sockets within the kernel when connections are accepted,
+    making the performance impact minimal. This should also ease
+    experiments where MPTCP is enabled by default on the client side
+    (Dialer).
+    
+    The changes in this patch consist of a duplication of the mptcpStatus
+    enumeration to have both a mptcpStatusDial and a mptcpStatusListen,
+    where MPTCP is enabled by default in mptcpStatusListen, but disabled
+    by default in mptcpStatusDial. It is still possible to turn MPTCP support
+    on and off by using GODEBUG=multipathtcp=1.
+    
+    [1] https://go-review.googlesource.com/c/go/+/563575
+    [2] https://go.dev/issue/56539#issuecomment-1309294637
+    [3] https://github.com/multipath-tcp/mptcp_net-next/issues/383
+    [4] https://github.com/torvalds/linux/commit/bd11dc4fb969ec148e50cd87f88a78246dbc4d0b
+    [5] https://www.mptcp.dev/faq.html#why--when-should-mptcp-be-enabled-by-default
+    
+    Updates #56539
+    
+    Change-Id: I1ca0d6aaf74d3bda5468af135e29cdb405d3fd00
+    GitHub-Last-Rev: 5f9f29bfc13ad4ea6bfd1e0fc95a91bd824f4048
+    GitHub-Pull-Request: golang/go#69016
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Matthieu Baerts <matttbe@kernel.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ doc/godebug.md                          | 11 +++++
+ doc/next/6-stdlib/99-minor/net/56539.md |  2 +
+ src/internal/godebugs/table.go          |  2 +-
+ src/net/dial.go                         | 83 ++++++++++++++++++++++++++-------
+ 4 files changed, 79 insertions(+), 19 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 51ec4cb05a..7b5fd3e48b 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -157,6 +157,17 @@ no-op. This behavior is controlled by the `randseednop` setting.
+ For Go 1.24 it defaults to `randseednop=1`.
+ Using `randseednop=0` reverts to the pre-Go 1.24 behavior.
+ 
++Go 1.24 added new values for the `multipathtcp` setting.
++The possible values for `multipathtcp` are now:
++- "0": disable MPTCP on dialers and listeners by default
++- "1": enable MPTCP on dialers and listeners by default
++- "2": enable MPTCP on listeners only by default
++- "3": enable MPTCP on dialers only by default
++
++For Go 1.24, it now defaults to multipathtcp="2", thus
++enabled by default on listerners. Using multipathtcp="0" reverts to the
++pre-Go 1.24 behavior.
++
+ ### Go 1.23
+ 
+ Go 1.23 changed the channels created by package time to be unbuffered
+diff --git a/doc/next/6-stdlib/99-minor/net/56539.md b/doc/next/6-stdlib/99-minor/net/56539.md
+new file mode 100644
+index 0000000000..6761539d3e
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/56539.md
+@@ -0,0 +1,2 @@
++[ListenConfig] now uses MPTCP by default on systems where it is supported
++(currently on Linux only).
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index f8d30db5a3..59d4fa7d5b 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -42,7 +42,7 @@ var All = []Info{
+ 	//{Name: "multipartfiles", Package: "mime/multipart"},
+ 	{Name: "multipartmaxheaders", Package: "mime/multipart"},
+ 	{Name: "multipartmaxparts", Package: "mime/multipart"},
+-	{Name: "multipathtcp", Package: "net"},
++	{Name: "multipathtcp", Package: "net", Changed: 24, Old: "0"},
+ 	{Name: "netdns", Package: "net", Opaque: true},
+ 	{Name: "netedns0", Package: "net", Changed: 19, Old: "0"},
+ 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 28f346a372..e081fca7b7 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -25,46 +25,93 @@ const (
+ 	// defaultTCPKeepAliveCount is a default constant value for TCP_KEEPCNT.
+ 	defaultTCPKeepAliveCount = 9
+ 
+-	// For the moment, MultiPath TCP is not used by default
++	// For the moment, MultiPath TCP is used by default with listeners, if
++	// available, but not with dialers.
+ 	// See go.dev/issue/56539
+-	defaultMPTCPEnabled = false
++	defaultMPTCPEnabledListen = true
++	defaultMPTCPEnabledDial   = false
+ )
+ 
++// The type of service offered
++//
++//	0 == MPTCP disabled
++//	1 == MPTCP enabled
++//	2 == MPTCP enabled on listeners only
++//	3 == MPTCP enabled on dialers only
+ var multipathtcp = godebug.New("multipathtcp")
+ 
+-// mptcpStatus is a tristate for Multipath TCP, see go.dev/issue/56539
+-type mptcpStatus uint8
++// mptcpStatusDial is a tristate for Multipath TCP on clients,
++// see go.dev/issue/56539
++type mptcpStatusDial uint8
+ 
+ const (
+-	// The value 0 is the system default, linked to defaultMPTCPEnabled
+-	mptcpUseDefault mptcpStatus = iota
+-	mptcpEnabled
+-	mptcpDisabled
++	// The value 0 is the system default, linked to defaultMPTCPEnabledDial
++	mptcpUseDefaultDial mptcpStatusDial = iota
++	mptcpEnabledDial
++	mptcpDisabledDial
+ )
+ 
+-func (m *mptcpStatus) get() bool {
++func (m *mptcpStatusDial) get() bool {
+ 	switch *m {
+-	case mptcpEnabled:
++	case mptcpEnabledDial:
+ 		return true
+-	case mptcpDisabled:
++	case mptcpDisabledDial:
+ 		return false
+ 	}
+ 
+ 	// If MPTCP is forced via GODEBUG=multipathtcp=1
+-	if multipathtcp.Value() == "1" {
++	if multipathtcp.Value() == "1" || multipathtcp.Value() == "3" {
+ 		multipathtcp.IncNonDefault()
+ 
+ 		return true
+ 	}
+ 
+-	return defaultMPTCPEnabled
++	return defaultMPTCPEnabledDial
++}
++
++func (m *mptcpStatusDial) set(use bool) {
++	if use {
++		*m = mptcpEnabledDial
++	} else {
++		*m = mptcpDisabledDial
++	}
++}
++
++// mptcpStatusListen is a tristate for Multipath TCP on servers,
++// see go.dev/issue/56539
++type mptcpStatusListen uint8
++
++const (
++	// The value 0 is the system default, linked to defaultMPTCPEnabledListen
++	mptcpUseDefaultListen mptcpStatusListen = iota
++	mptcpEnabledListen
++	mptcpDisabledListen
++)
++
++func (m *mptcpStatusListen) get() bool {
++	switch *m {
++	case mptcpEnabledListen:
++		return true
++	case mptcpDisabledListen:
++		return false
++	}
++
++	// If MPTCP is disabled via GODEBUG=multipathtcp=0 or only
++	// enabled on dialers, but not on listeners.
++	if multipathtcp.Value() == "0" || multipathtcp.Value() == "3" {
++		multipathtcp.IncNonDefault()
++
++		return false
++	}
++
++	return defaultMPTCPEnabledListen
+ }
+ 
+-func (m *mptcpStatus) set(use bool) {
++func (m *mptcpStatusListen) set(use bool) {
+ 	if use {
+-		*m = mptcpEnabled
++		*m = mptcpEnabledListen
+ 	} else {
+-		*m = mptcpDisabled
++		*m = mptcpDisabledListen
+ 	}
+ }
+ 
+@@ -175,7 +222,7 @@ type Dialer struct {
+ 	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
+ 	// used, any call to Dial with "tcp(4|6)" as network will use MPTCP if
+ 	// supported by the operating system.
+-	mptcpStatus mptcpStatus
++	mptcpStatus mptcpStatusDial
+ }
+ 
+ func (d *Dialer) dualStack() bool { return d.FallbackDelay >= 0 }
+@@ -720,7 +767,7 @@ type ListenConfig struct {
+ 	// If mptcpStatus is set to a value allowing Multipath TCP (MPTCP) to be
+ 	// used, any call to Listen with "tcp(4|6)" as network will use MPTCP if
+ 	// supported by the operating system.
+-	mptcpStatus mptcpStatus
++	mptcpStatus mptcpStatusListen
+ }
+ 
+ // MultipathTCP reports whether MPTCP will be used.

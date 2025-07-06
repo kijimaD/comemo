@@ -1,0 +1,1025 @@
+commit fb9b946adcc8389aafaa43866f3cc26b12411439
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Oct 18 16:31:29 2024 +0800
+
+    cmd/compile: optimize math/bits.OnesCount{16,32,64} implementation on loong64
+    
+    Use Loong64's LSX instruction VPCNT to implement math/bits.OnesCount{16,32,64}
+    and make it intrinsic.
+    
+    Benchmark results on loongson 3A5000 and 3A6000 machines:
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A5000-HV @ 2500.00MHz
+                |   bench.old   |   bench.new                          |
+                |    sec/op     |    sec/op       vs base               |
+    OnesCount      4.413n ± 0%     1.401n ± 0%   -68.25% (p=0.000 n=10)
+    OnesCount8     1.364n ± 0%     1.363n ± 0%         ~ (p=0.130 n=10)
+    OnesCount16    2.112n ± 0%     1.534n ± 0%   -27.37% (p=0.000 n=10)
+    OnesCount32    4.533n ± 0%     1.529n ± 0%   -66.27% (p=0.000 n=10)
+    OnesCount64    4.565n ± 0%     1.531n ± 1%   -66.46% (p=0.000 n=10)
+    geomean        3.048n          1.470n        -51.78%
+    
+    goos: linux
+    goarch: loong64
+    pkg: math/bits
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                |   bench.old   |   bench.new                          |
+                |    sec/op     |    sec/op       vs base              |
+    OnesCount       3.553n ± 0%     1.201n ± 0%  -66.20% (p=0.000 n=10)
+    OnesCount8     0.8021n ± 0%    0.8004n ± 0%   -0.21% (p=0.000 n=10)
+    OnesCount16     1.216n ± 0%     1.000n ± 0%  -17.76% (p=0.000 n=10)
+    OnesCount32     3.006n ± 0%     1.035n ± 0%  -65.57% (p=0.000 n=10)
+    OnesCount64     3.503n ± 0%     1.035n ± 0%  -70.45% (p=0.000 n=10)
+    geomean         2.053n          1.006n       -51.01%
+    
+    Change-Id: I07a5b8da2bb48711b896387ec7625145804affc8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620978
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ir/symtab.go              |   1 +
+ src/cmd/compile/internal/loong64/ssa.go            |  12 +
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |   4 +
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  48 ++-
+ src/cmd/compile/internal/ssa/opGen.go              | 432 +++++++++++----------
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     |  65 ++++
+ src/cmd/compile/internal/ssagen/intrinsics.go      |  40 ++
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |   4 +
+ src/cmd/compile/internal/ssagen/ssa.go             |   1 +
+ .../compile/internal/typecheck/_builtin/runtime.go |   1 +
+ src/cmd/compile/internal/typecheck/builtin.go      |   1 +
+ src/cmd/internal/goobj/builtinlist.go              |   1 +
+ src/internal/cpu/cpu.go                            |   1 +
+ src/internal/cpu/cpu_loong64.go                    |   9 +-
+ src/internal/cpu/cpu_loong64_hwcap.go              |  10 +
+ src/runtime/cpuflags.go                            |   4 +-
+ src/runtime/proc.go                                |   2 +
+ test/codegen/mathbits.go                           |   4 +
+ 18 files changed, 419 insertions(+), 221 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 9a68c9055e..c977a6b94e 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -61,6 +61,7 @@ type symsStruct struct {
+ 	ARM64HasATOMICS  *obj.LSym
+ 	ARMHasVFPv4      *obj.LSym
+ 	Loong64HasLAM_BH *obj.LSym
++	Loong64HasLSX    *obj.LSym
+ 	X86HasFMA        *obj.LSym
+ 	X86HasPOPCNT     *obj.LSym
+ 	X86HasSSE41      *obj.LSym
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 4c9bcfe46e..85bd986990 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -493,6 +493,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 			}
+ 		}
+ 		fallthrough
++
+ 	case ssa.OpLOONG64MOVWF,
+ 		ssa.OpLOONG64MOVWD,
+ 		ssa.OpLOONG64TRUNCFW,
+@@ -525,6 +526,16 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.From.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++
++	case ssa.OpLOONG64VPCNT64,
++		ssa.OpLOONG64VPCNT32,
++		ssa.OpLOONG64VPCNT16:
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = ((v.Args[0].Reg() - loong64.REG_F0) & 31) + loong64.REG_V0
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = ((v.Reg() - loong64.REG_F0) & 31) + loong64.REG_V0
++
+ 	case ssa.OpLOONG64NEGV:
+ 		// SUB from REGZERO
+ 		p := s.Prog(loong64.ASUBVU)
+@@ -533,6 +544,7 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.Reg = loong64.REGZERO
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++
+ 	case ssa.OpLOONG64DUFFZERO:
+ 		// runtime.duffzero expects start address in R20
+ 		p := s.Prog(obj.ADUFFZERO)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 6ff98a46f7..15a612e84d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -153,6 +153,10 @@
+ (BitRev32 ...) => (BITREVW ...)
+ (BitRev64 ...) => (BITREVV ...)
+ 
++(PopCount64 <t> x) => (MOVVfpgp <t> (VPCNT64 <typ.Float64> (MOVVgpfp <typ.Float64> x)))
++(PopCount32 <t> x) => (MOVWfpgp <t> (VPCNT32 <typ.Float32> (MOVWgpfp <typ.Float32> x)))
++(PopCount16 <t> x) => (MOVWfpgp <t> (VPCNT16 <typ.Float32> (MOVWgpfp <typ.Float32> (ZeroExt16to32 x))))
++
+ // math package intrinsics
+ (Sqrt ...) => (SQRTD ...)
+ (Sqrt32 ...) => (SQRTF ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index a8a38ee7b8..079ef64fd6 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -162,6 +162,31 @@ func init() {
+ 		readflags = regInfo{inputs: nil, outputs: []regMask{gp}}
+ 	)
+ 	ops := []opData{
++		// unary ops
++		{name: "NEGV", argLength: 1, reg: gp11},              // -arg0
++		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"}, // -arg0, float32
++		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"}, // -arg0, float64
++
++		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
++		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
++
++		{name: "ABSD", argLength: 1, reg: fp11, asm: "ABSD"}, // abs(arg0), float64
++
++		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"}, // Count leading (high order) zeroes (returns 0-32)
++		{name: "CLZV", argLength: 1, reg: gp11, asm: "CLZV"}, // Count leading (high order) zeroes (returns 0-64)
++
++		{name: "REVB2H", argLength: 1, reg: gp11, asm: "REVB2H"}, // Swap bytes: 0x11223344 -> 0x22114433 (sign extends to 64 bits)
++		{name: "REVB2W", argLength: 1, reg: gp11, asm: "REVB2W"}, // Swap bytes: 0x1122334455667788 -> 0x4433221188776655
++		{name: "REVBV", argLength: 1, reg: gp11, asm: "REVBV"},   // Swap bytes: 0x1122334455667788 -> 0x8877665544332211
++
++		{name: "BITREV4B", argLength: 1, reg: gp11, asm: "BITREV4B"}, // Reverse the bits of each byte inside a 32-bit arg[0]
++		{name: "BITREVW", argLength: 1, reg: gp11, asm: "BITREVW"},   // Reverse the bits in a 32-bit arg[0]
++		{name: "BITREVV", argLength: 1, reg: gp11, asm: "BITREVV"},   // Reverse the bits in a 64-bit arg[0]
++
++		{name: "VPCNT64", argLength: 1, reg: fp11, asm: "VPCNTV"}, // count set bits for each 64-bit unit and store the result in each 64-bit unit
++		{name: "VPCNT32", argLength: 1, reg: fp11, asm: "VPCNTW"}, // count set bits for each 32-bit unit and store the result in each 32-bit unit
++		{name: "VPCNT16", argLength: 1, reg: fp11, asm: "VPCNTH"}, // count set bits for each 16-bit unit and store the result in each 16-bit unit
++
+ 		// binary ops
+ 		{name: "ADDV", argLength: 2, reg: gp21, asm: "ADDVU", commutative: true},   // arg0 + arg1
+ 		{name: "ADDVconst", argLength: 1, reg: gp11sp, asm: "ADDVU", aux: "Int64"}, // arg0 + auxInt. auxInt is 32-bit, also in other *const ops.
+@@ -203,32 +228,13 @@ func init() {
+ 		{name: "FNMSUBF", argLength: 3, reg: fp31, asm: "FNMSUBF", commutative: true, typ: "Float32"}, // -((arg0 * arg1) - arg2)
+ 		{name: "FNMSUBD", argLength: 3, reg: fp31, asm: "FNMSUBD", commutative: true, typ: "Float64"}, // -((arg0 * arg1) - arg2)
+ 
+-		{name: "NEGV", argLength: 1, reg: gp11},                // -arg0
+-		{name: "NEGF", argLength: 1, reg: fp11, asm: "NEGF"},   // -arg0, float32
+-		{name: "NEGD", argLength: 1, reg: fp11, asm: "NEGD"},   // -arg0, float64
+-		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+-		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
+-
+-		{name: "CLZW", argLength: 1, reg: gp11, asm: "CLZW"}, // Count leading (high order) zeroes (returns 0-32)
+-		{name: "CLZV", argLength: 1, reg: gp11, asm: "CLZV"}, // Count leading (high order) zeroes (returns 0-64)
+-
+-		{name: "REVB2H", argLength: 1, reg: gp11, asm: "REVB2H"}, // Swap bytes: 0x11223344 -> 0x22114433 (sign extends to 64 bits)
+-		{name: "REVB2W", argLength: 1, reg: gp11, asm: "REVB2W"}, // Swap bytes: 0x1122334455667788 -> 0x4433221188776655
+-		{name: "REVBV", argLength: 1, reg: gp11, asm: "REVBV"},   // Swap bytes: 0x1122334455667788 -> 0x8877665544332211
+-
+-		{name: "BITREV4B", argLength: 1, reg: gp11, asm: "BITREV4B"}, // Reverse the bits of each byte inside a 32-bit arg[0]
+-		{name: "BITREVW", argLength: 1, reg: gp11, asm: "BITREVW"},   // Reverse the bits in a 32-bit arg[0]
+-		{name: "BITREVV", argLength: 1, reg: gp11, asm: "BITREVV"},   // Reverse the bits in a 64-bit arg[0]
+-
+ 		{name: "FMINF", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMINF", commutative: true, typ: "Float32"}, // min(arg0, arg1), float32
+ 		{name: "FMIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMIND", commutative: true, typ: "Float64"}, // min(arg0, arg1), float64
+ 		{name: "FMAXF", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXF", commutative: true, typ: "Float32"}, // max(arg0, arg1), float32
+ 		{name: "FMAXD", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "FMAXD", commutative: true, typ: "Float64"}, // max(arg0, arg1), float64
+ 
+-		{name: "MASKEQZ", argLength: 2, reg: gp21, asm: "MASKEQZ"}, // returns 0 if arg1 == 0, otherwise returns arg0
+-		{name: "MASKNEZ", argLength: 2, reg: gp21, asm: "MASKNEZ"}, // returns 0 if arg1 != 0, otherwise returns arg0
+-
+-		{name: "ABSD", argLength: 1, reg: fp11, asm: "ABSD"},         // abs(arg0), float64
++		{name: "MASKEQZ", argLength: 2, reg: gp21, asm: "MASKEQZ"},   // returns 0 if arg1 == 0, otherwise returns arg0
++		{name: "MASKNEZ", argLength: 2, reg: gp21, asm: "MASKNEZ"},   // returns 0 if arg1 != 0, otherwise returns arg0
+ 		{name: "FCOPYSGD", argLength: 2, reg: fp21, asm: "FCOPYSGD"}, // float64
+ 
+ 		// shifts
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index ae0e87702a..af586e56fc 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1756,6 +1756,23 @@ const (
+ 	OpARM64PRFM
+ 	OpARM64DMB
+ 
++	OpLOONG64NEGV
++	OpLOONG64NEGF
++	OpLOONG64NEGD
++	OpLOONG64SQRTD
++	OpLOONG64SQRTF
++	OpLOONG64ABSD
++	OpLOONG64CLZW
++	OpLOONG64CLZV
++	OpLOONG64REVB2H
++	OpLOONG64REVB2W
++	OpLOONG64REVBV
++	OpLOONG64BITREV4B
++	OpLOONG64BITREVW
++	OpLOONG64BITREVV
++	OpLOONG64VPCNT64
++	OpLOONG64VPCNT32
++	OpLOONG64VPCNT16
+ 	OpLOONG64ADDV
+ 	OpLOONG64ADDVconst
+ 	OpLOONG64SUBV
+@@ -1791,26 +1808,12 @@ const (
+ 	OpLOONG64FNMADDD
+ 	OpLOONG64FNMSUBF
+ 	OpLOONG64FNMSUBD
+-	OpLOONG64NEGV
+-	OpLOONG64NEGF
+-	OpLOONG64NEGD
+-	OpLOONG64SQRTD
+-	OpLOONG64SQRTF
+-	OpLOONG64CLZW
+-	OpLOONG64CLZV
+-	OpLOONG64REVB2H
+-	OpLOONG64REVB2W
+-	OpLOONG64REVBV
+-	OpLOONG64BITREV4B
+-	OpLOONG64BITREVW
+-	OpLOONG64BITREVV
+ 	OpLOONG64FMINF
+ 	OpLOONG64FMIND
+ 	OpLOONG64FMAXF
+ 	OpLOONG64FMAXD
+ 	OpLOONG64MASKEQZ
+ 	OpLOONG64MASKNEZ
+-	OpLOONG64ABSD
+ 	OpLOONG64FCOPYSGD
+ 	OpLOONG64SLLV
+ 	OpLOONG64SLLVconst
+@@ -23557,6 +23560,226 @@ var opcodeTable = [...]opInfo{
+ 		reg:            regInfo{},
+ 	},
+ 
++	{
++		name:   "NEGV",
++		argLen: 1,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "NEGF",
++		argLen: 1,
++		asm:    loong64.ANEGF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "NEGD",
++		argLen: 1,
++		asm:    loong64.ANEGD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "SQRTD",
++		argLen: 1,
++		asm:    loong64.ASQRTD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "SQRTF",
++		argLen: 1,
++		asm:    loong64.ASQRTF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "ABSD",
++		argLen: 1,
++		asm:    loong64.AABSD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "CLZW",
++		argLen: 1,
++		asm:    loong64.ACLZW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "CLZV",
++		argLen: 1,
++		asm:    loong64.ACLZV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "REVB2H",
++		argLen: 1,
++		asm:    loong64.AREVB2H,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "REVB2W",
++		argLen: 1,
++		asm:    loong64.AREVB2W,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "REVBV",
++		argLen: 1,
++		asm:    loong64.AREVBV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "BITREV4B",
++		argLen: 1,
++		asm:    loong64.ABITREV4B,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "BITREVW",
++		argLen: 1,
++		asm:    loong64.ABITREVW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "BITREVV",
++		argLen: 1,
++		asm:    loong64.ABITREVV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "VPCNT64",
++		argLen: 1,
++		asm:    loong64.AVPCNTV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "VPCNT32",
++		argLen: 1,
++		asm:    loong64.AVPCNTW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:   "VPCNT16",
++		argLen: 1,
++		asm:    loong64.AVPCNTH,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:        "ADDV",
+ 		argLen:      2,
+@@ -24075,174 +24298,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:   "NEGV",
+-		argLen: 1,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+-	{
+-		name:   "NEGF",
+-		argLen: 1,
+-		asm:    loong64.ANEGF,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-			},
+-			outputs: []outputInfo{
+-				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-			},
+-		},
+-	},
+-	{
+-		name:   "NEGD",
+-		argLen: 1,
+-		asm:    loong64.ANEGD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-			},
+-			outputs: []outputInfo{
+-				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-			},
+-		},
+-	},
+-	{
+-		name:   "SQRTD",
+-		argLen: 1,
+-		asm:    loong64.ASQRTD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-			},
+-			outputs: []outputInfo{
+-				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-			},
+-		},
+-	},
+-	{
+-		name:   "SQRTF",
+-		argLen: 1,
+-		asm:    loong64.ASQRTF,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-			},
+-			outputs: []outputInfo{
+-				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-			},
+-		},
+-	},
+-	{
+-		name:   "CLZW",
+-		argLen: 1,
+-		asm:    loong64.ACLZW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+-	{
+-		name:   "CLZV",
+-		argLen: 1,
+-		asm:    loong64.ACLZV,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+-	{
+-		name:   "REVB2H",
+-		argLen: 1,
+-		asm:    loong64.AREVB2H,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+-	{
+-		name:   "REVB2W",
+-		argLen: 1,
+-		asm:    loong64.AREVB2W,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+-	{
+-		name:   "REVBV",
+-		argLen: 1,
+-		asm:    loong64.AREVBV,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+-	{
+-		name:   "BITREV4B",
+-		argLen: 1,
+-		asm:    loong64.ABITREV4B,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+-	{
+-		name:   "BITREVW",
+-		argLen: 1,
+-		asm:    loong64.ABITREVW,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+-	{
+-		name:   "BITREVV",
+-		argLen: 1,
+-		asm:    loong64.ABITREVV,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-			outputs: []outputInfo{
+-				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
+-			},
+-		},
+-	},
+ 	{
+ 		name:            "FMINF",
+ 		argLen:          2,
+@@ -24335,19 +24390,6 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
+-	{
+-		name:   "ABSD",
+-		argLen: 1,
+-		asm:    loong64.AABSD,
+-		reg: regInfo{
+-			inputs: []inputInfo{
+-				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-			},
+-			outputs: []outputInfo{
+-				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
+-			},
+-		},
+-	},
+ 	{
+ 		name:   "FCOPYSGD",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 779ec89134..14ab50549b 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -628,6 +628,12 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return true
+ 	case OpPanicBounds:
+ 		return rewriteValueLOONG64_OpPanicBounds(v)
++	case OpPopCount16:
++		return rewriteValueLOONG64_OpPopCount16(v)
++	case OpPopCount32:
++		return rewriteValueLOONG64_OpPopCount32(v)
++	case OpPopCount64:
++		return rewriteValueLOONG64_OpPopCount64(v)
+ 	case OpPubBarrier:
+ 		v.Op = OpLOONG64LoweredPubBarrier
+ 		return true
+@@ -8239,6 +8245,65 @@ func rewriteValueLOONG64_OpPanicBounds(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueLOONG64_OpPopCount16(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (PopCount16 <t> x)
++	// result: (MOVWfpgp <t> (VPCNT16 <typ.Float32> (MOVWgpfp <typ.Float32> (ZeroExt16to32 x))))
++	for {
++		t := v.Type
++		x := v_0
++		v.reset(OpLOONG64MOVWfpgp)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpLOONG64VPCNT16, typ.Float32)
++		v1 := b.NewValue0(v.Pos, OpLOONG64MOVWgpfp, typ.Float32)
++		v2 := b.NewValue0(v.Pos, OpZeroExt16to32, typ.UInt32)
++		v2.AddArg(x)
++		v1.AddArg(v2)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueLOONG64_OpPopCount32(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (PopCount32 <t> x)
++	// result: (MOVWfpgp <t> (VPCNT32 <typ.Float32> (MOVWgpfp <typ.Float32> x)))
++	for {
++		t := v.Type
++		x := v_0
++		v.reset(OpLOONG64MOVWfpgp)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpLOONG64VPCNT32, typ.Float32)
++		v1 := b.NewValue0(v.Pos, OpLOONG64MOVWgpfp, typ.Float32)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
++func rewriteValueLOONG64_OpPopCount64(v *Value) bool {
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (PopCount64 <t> x)
++	// result: (MOVVfpgp <t> (VPCNT64 <typ.Float64> (MOVVgpfp <typ.Float64> x)))
++	for {
++		t := v.Type
++		x := v_0
++		v.reset(OpLOONG64MOVVfpgp)
++		v.Type = t
++		v0 := b.NewValue0(v.Pos, OpLOONG64VPCNT64, typ.Float64)
++		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVgpfp, typ.Float64)
++		v1.AddArg(x)
++		v0.AddArg(v1)
++		v.AddArg(v0)
++		return true
++	}
++}
+ func rewriteValueLOONG64_OpRotateLeft16(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index db335ee8b3..841c1dff55 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -1021,9 +1021,43 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			return s.variable(n, types.Types[types.TINT])
+ 		}
+ 	}
++
++	makeOnesCountLoong64 := func(op ssa.Op) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLSX, s.sb)
++			v := s.load(types.Types[types.TBOOL], addr)
++			b := s.endBlock()
++			b.Kind = ssa.BlockIf
++			b.SetControl(v)
++			bTrue := s.f.NewBlock(ssa.BlockPlain)
++			bFalse := s.f.NewBlock(ssa.BlockPlain)
++			bEnd := s.f.NewBlock(ssa.BlockPlain)
++			b.AddEdgeTo(bTrue)
++			b.AddEdgeTo(bFalse)
++			b.Likely = ssa.BranchLikely // most loong64 machines support the LSX
++
++			// We have the intrinsic - use it directly.
++			s.startBlock(bTrue)
++			s.vars[n] = s.newValue1(op, types.Types[types.TINT], args[0])
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Call the pure Go version.
++			s.startBlock(bFalse)
++			s.vars[n] = s.callResult(n, callNormal) // types.Types[TINT]
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Merge results.
++			s.startBlock(bEnd)
++			return s.variable(n, types.Types[types.TINT])
++		}
++	}
++
+ 	addF("math/bits", "OnesCount64",
+ 		makeOnesCountAMD64(ssa.OpPopCount64),
+ 		sys.AMD64)
++	addF("math/bits", "OnesCount64",
++		makeOnesCountLoong64(ssa.OpPopCount64),
++		sys.Loong64)
+ 	addF("math/bits", "OnesCount64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount64, types.Types[types.TINT], args[0])
+@@ -1032,6 +1066,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 	addF("math/bits", "OnesCount32",
+ 		makeOnesCountAMD64(ssa.OpPopCount32),
+ 		sys.AMD64)
++	addF("math/bits", "OnesCount32",
++		makeOnesCountLoong64(ssa.OpPopCount32),
++		sys.Loong64)
+ 	addF("math/bits", "OnesCount32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount32, types.Types[types.TINT], args[0])
+@@ -1040,6 +1077,9 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 	addF("math/bits", "OnesCount16",
+ 		makeOnesCountAMD64(ssa.OpPopCount16),
+ 		sys.AMD64)
++	addF("math/bits", "OnesCount16",
++		makeOnesCountLoong64(ssa.OpPopCount16),
++		sys.Loong64)
+ 	addF("math/bits", "OnesCount16",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue1(ssa.OpPopCount16, types.Types[types.TINT], args[0])
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index ca9e1c9e0a..bfef60cd9b 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -407,6 +407,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "internal/runtime/sys", "GetClosurePtr"}:       struct{}{},
+ 	{"loong64", "internal/runtime/sys", "Len64"}:               struct{}{},
+ 	{"loong64", "internal/runtime/sys", "Len8"}:                struct{}{},
++	{"loong64", "internal/runtime/sys", "OnesCount64"}:         struct{}{},
+ 	{"loong64", "math", "Abs"}:                                 struct{}{},
+ 	{"loong64", "math", "Copysign"}:                            struct{}{},
+ 	{"loong64", "math", "FMA"}:                                 struct{}{},
+@@ -421,6 +422,9 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "math/bits", "Len16"}:                          struct{}{},
+ 	{"loong64", "math/bits", "Len32"}:                          struct{}{},
+ 	{"loong64", "math/bits", "Len64"}:                          struct{}{},
++	{"loong64", "math/bits", "OnesCount16"}:                    struct{}{},
++	{"loong64", "math/bits", "OnesCount32"}:                    struct{}{},
++	{"loong64", "math/bits", "OnesCount64"}:                    struct{}{},
+ 	{"loong64", "math/bits", "Reverse"}:                        struct{}{},
+ 	{"loong64", "math/bits", "Reverse8"}:                       struct{}{},
+ 	{"loong64", "math/bits", "Reverse16"}:                      struct{}{},
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 156190614c..0f92ccf1b5 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -151,6 +151,7 @@ func InitConfig() {
+ 	ir.Syms.ARMHasVFPv4 = typecheck.LookupRuntimeVar("armHasVFPv4")           // bool
+ 	ir.Syms.ARM64HasATOMICS = typecheck.LookupRuntimeVar("arm64HasATOMICS")   // bool
+ 	ir.Syms.Loong64HasLAM_BH = typecheck.LookupRuntimeVar("loong64HasLAM_BH") // bool
++	ir.Syms.Loong64HasLSX = typecheck.LookupRuntimeVar("loong64HasLSX")       // bool
+ 	ir.Syms.Staticuint64s = typecheck.LookupRuntimeVar("staticuint64s")
+ 	ir.Syms.Typedmemmove = typecheck.LookupRuntimeFunc("typedmemmove")
+ 	ir.Syms.Udiv = typecheck.LookupRuntimeVar("udiv")                 // asm func with special ABI
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index df1421d457..464fe1becb 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -290,5 +290,6 @@ var x86HasFMA bool
+ var armHasVFPv4 bool
+ var arm64HasATOMICS bool
+ var loong64HasLAM_BH bool
++var loong64HasLSX bool
+ 
+ func asanregisterglobals(unsafe.Pointer, uintptr)
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index 1d7f84903f..c8fc913f9b 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -238,6 +238,7 @@ var runtimeDecls = [...]struct {
+ 	{"armHasVFPv4", varTag, 6},
+ 	{"arm64HasATOMICS", varTag, 6},
+ 	{"loong64HasLAM_BH", varTag, 6},
++	{"loong64HasLSX", varTag, 6},
+ 	{"asanregisterglobals", funcTag, 130},
+ }
+ 
+diff --git a/src/cmd/internal/goobj/builtinlist.go b/src/cmd/internal/goobj/builtinlist.go
+index 4e097b1199..e9b8d6aade 100644
+--- a/src/cmd/internal/goobj/builtinlist.go
++++ b/src/cmd/internal/goobj/builtinlist.go
+@@ -217,6 +217,7 @@ var builtins = [...]struct {
+ 	{"runtime.armHasVFPv4", 0},
+ 	{"runtime.arm64HasATOMICS", 0},
+ 	{"runtime.loong64HasLAM_BH", 0},
++	{"runtime.loong64HasLSX", 0},
+ 	{"runtime.asanregisterglobals", 1},
+ 	{"runtime.deferproc", 1},
+ 	{"runtime.deferprocStack", 1},
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index a3b92db997..cd3db10523 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -82,6 +82,7 @@ var ARM64 struct {
+ // The struct is padded to avoid false sharing.
+ var Loong64 struct {
+ 	_         CacheLinePad
++	HasLSX    bool // support 128-bit vector extension
+ 	HasCRC32  bool // support CRC instruction
+ 	HasLAMCAS bool // support AMCAS[_DB].{B/H/W/D}
+ 	HasLAM_BH bool // support AM{SWAP/ADD}[_DB].{B/H} instruction
+diff --git a/src/internal/cpu/cpu_loong64.go b/src/internal/cpu/cpu_loong64.go
+index 5ade180e0d..92583d0bca 100644
+--- a/src/internal/cpu/cpu_loong64.go
++++ b/src/internal/cpu/cpu_loong64.go
+@@ -26,6 +26,7 @@ func get_cpucfg(reg uint32) uint32
+ 
+ func doinit() {
+ 	options = []option{
++		{Name: "lsx", Feature: &Loong64.HasLSX},
+ 		{Name: "crc32", Feature: &Loong64.HasCRC32},
+ 		{Name: "lamcas", Feature: &Loong64.HasLAMCAS},
+ 		{Name: "lam_bh", Feature: &Loong64.HasLAM_BH},
+@@ -41,13 +42,13 @@ func doinit() {
+ 	cfg1 := get_cpucfg(1)
+ 	cfg2 := get_cpucfg(2)
+ 
+-	Loong64.HasCRC32 = isSet(cfg1, cpucfg1_CRC32)
+-	Loong64.HasLAMCAS = isSet(cfg2, cpucfg2_LAM_BH)
+-	Loong64.HasLAM_BH = isSet(cfg2, cpucfg2_LAMCAS)
++	Loong64.HasCRC32 = cfgIsSet(cfg1, cpucfg1_CRC32)
++	Loong64.HasLAMCAS = cfgIsSet(cfg2, cpucfg2_LAM_BH)
++	Loong64.HasLAM_BH = cfgIsSet(cfg2, cpucfg2_LAMCAS)
+ 
+ 	osInit()
+ }
+ 
+-func isSet(cfg uint32, val uint32) bool {
++func cfgIsSet(cfg uint32, val uint32) bool {
+ 	return cfg&val != 0
+ }
+diff --git a/src/internal/cpu/cpu_loong64_hwcap.go b/src/internal/cpu/cpu_loong64_hwcap.go
+index c6005c4e6e..58397adae8 100644
+--- a/src/internal/cpu/cpu_loong64_hwcap.go
++++ b/src/internal/cpu/cpu_loong64_hwcap.go
+@@ -10,7 +10,17 @@ package cpu
+ // initialized.
+ var HWCap uint
+ 
++// HWCAP bits. These are exposed by the Linux kernel.
++const (
++	hwcap_LOONGARCH_LSX = 1 << 4
++)
++
+ func hwcapInit() {
+ 	// TODO: Features that require kernel support like LSX and LASX can
+ 	// be detected here once needed in std library or by the compiler.
++	Loong64.HasLSX = hwcIsSet(HWCap, hwcap_LOONGARCH_LSX)
++}
++
++func hwcIsSet(hwc uint, val uint) bool {
++	return hwc&val != 0
+ }
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index 6b84d6284e..35095589ec 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -30,6 +30,8 @@ var (
+ 
+ 	armHasVFPv4 bool
+ 
+-	arm64HasATOMICS  bool
++	arm64HasATOMICS bool
++
+ 	loong64HasLAM_BH bool
++	loong64HasLSX    bool
+ )
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 41654ea3c6..068f0de4fb 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -750,8 +750,10 @@ func cpuinit(env string) {
+ 
+ 	case "arm64":
+ 		arm64HasATOMICS = cpu.ARM64.HasATOMICS
++
+ 	case "loong64":
+ 		loong64HasLAM_BH = cpu.Loong64.HasLAM_BH
++		loong64HasLSX = cpu.Loong64.HasLSX
+ 	}
+ }
+ 
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index a3d1143424..f258ab9162 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -156,6 +156,7 @@ func OnesCount(n uint) int {
+ 	// amd64/v2:-".*x86HasPOPCNT" amd64/v3:-".*x86HasPOPCNT"
+ 	// amd64:"POPCNTQ"
+ 	// arm64:"VCNT","VUADDLV"
++	// loong64:"VPCNTV"
+ 	// s390x:"POPCNT"
+ 	// ppc64x:"POPCNTD"
+ 	// wasm:"I64Popcnt"
+@@ -166,6 +167,7 @@ func OnesCount64(n uint64) int {
+ 	// amd64/v2:-".*x86HasPOPCNT" amd64/v3:-".*x86HasPOPCNT"
+ 	// amd64:"POPCNTQ"
+ 	// arm64:"VCNT","VUADDLV"
++	// loong64:"VPCNTV"
+ 	// s390x:"POPCNT"
+ 	// ppc64x:"POPCNTD"
+ 	// wasm:"I64Popcnt"
+@@ -176,6 +178,7 @@ func OnesCount32(n uint32) int {
+ 	// amd64/v2:-".*x86HasPOPCNT" amd64/v3:-".*x86HasPOPCNT"
+ 	// amd64:"POPCNTL"
+ 	// arm64:"VCNT","VUADDLV"
++	// loong64:"VPCNTW"
+ 	// s390x:"POPCNT"
+ 	// ppc64x:"POPCNTW"
+ 	// wasm:"I64Popcnt"
+@@ -186,6 +189,7 @@ func OnesCount16(n uint16) int {
+ 	// amd64/v2:-".*x86HasPOPCNT" amd64/v3:-".*x86HasPOPCNT"
+ 	// amd64:"POPCNTL"
+ 	// arm64:"VCNT","VUADDLV"
++	// loong64:"VPCNTH"
+ 	// s390x:"POPCNT"
+ 	// ppc64x:"POPCNTW"
+ 	// wasm:"I64Popcnt"

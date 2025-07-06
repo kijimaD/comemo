@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 32741: e5a5c03f5bc9cae965d3e6e625fe7ac3726b0ff4
+# Index 32741: 4210930a2861c8938baabaa5b8097e8b28d92934
 
 echo "🚀 Generating explanation for commit 32741..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 32741..."
 
 ### メタデータ
 - **コミットインデックス**: 32741
-- **コミットハッシュ**: e5a5c03f5bc9cae965d3e6e625fe7ac3726b0ff4
-- **GitHub URL**: https://github.com/golang/go/commit/e5a5c03f5bc9cae965d3e6e625fe7ac3726b0ff4
+- **コミットハッシュ**: 4210930a2861c8938baabaa5b8097e8b28d92934
+- **GitHub URL**: https://github.com/golang/go/commit/4210930a2861c8938baabaa5b8097e8b28d92934
 
 ### 章構成
 

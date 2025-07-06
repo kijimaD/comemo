@@ -1,0 +1,3963 @@
+commit 5890b023a549e7ba6b0c563cdf730a91c2de6fae
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Thu May 9 10:45:01 2024 -0400
+
+    internal/trace: move v2 tracer into trace directory
+    
+    This change moves the v2 tracer into the trace directory.
+    
+    Updates #67367
+    
+    Change-Id: I3657b4227002cb00fdf29c797434800ea796715e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584538
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/trace/gen.go                               | 101 ++++++-------
+ src/cmd/trace/goroutinegen.go                      |  56 +++----
+ src/cmd/trace/goroutines.go                        |   5 +-
+ src/cmd/trace/gstate.go                            |  67 ++++-----
+ src/cmd/trace/jsontrace.go                         |  23 ++-
+ src/cmd/trace/jsontrace_test.go                    |   6 +-
+ src/cmd/trace/main.go                              |  21 ++-
+ src/cmd/trace/pprof.go                             |  61 ++++----
+ src/cmd/trace/procgen.go                           |  56 +++----
+ src/cmd/trace/regions.go                           |  13 +-
+ src/cmd/trace/tasks.go                             |  33 ++--
+ src/cmd/trace/testdata/mktests.go                  |   4 +-
+ src/cmd/trace/threadgen.go                         |  56 +++----
+ src/cmd/trace/viewer.go                            |  19 ++-
+ src/go/build/deps_test.go                          |  33 ++--
+ src/internal/trace/{v2 => }/base.go                |   6 +-
+ src/internal/trace/{v2 => }/batch.go               |   4 +-
+ src/internal/trace/{v2 => }/batchcursor.go         |   4 +-
+ src/internal/trace/{v2 => }/batchcursor_test.go    |   0
+ src/internal/trace/{v2 => }/event.go               |   6 +-
+ src/internal/trace/{v2 => }/event/event.go         |   0
+ src/internal/trace/{v2 => }/event/go122/event.go   |   2 +-
+ src/internal/trace/{v2 => }/event/requirements.go  |   0
+ src/internal/trace/{v2 => }/event_test.go          |   0
+ src/internal/trace/export_test.go                  |   7 +
+ src/internal/trace/gc.go                           |  43 +++---
+ src/internal/trace/gc_test.go                      |  38 ++---
+ src/internal/trace/{v2 => }/generation.go          |   4 +-
+ .../trace/{v2 => }/internal/oldtrace/order.go      |   0
+ .../trace/{v2 => }/internal/oldtrace/parser.go     |   4 +-
+ .../{v2 => }/internal/oldtrace/parser_test.go      |   2 +-
+ .../internal/oldtrace/testdata/fmt_1_21_pprof_good | Bin
+ .../internal/oldtrace/testdata/http_1_19_good      | Bin
+ .../internal/oldtrace/testdata/http_1_21_good      | Bin
+ .../internal/oldtrace/testdata/stress_1_11_good    | Bin
+ .../internal/oldtrace/testdata/stress_1_19_good    | Bin
+ .../internal/oldtrace/testdata/stress_1_21_good    | Bin
+ .../oldtrace/testdata/stress_start_stop_1_11_good  | Bin
+ .../oldtrace/testdata/stress_start_stop_1_19_good  | Bin
+ .../oldtrace/testdata/stress_start_stop_1_21_good  | Bin
+ .../oldtrace/testdata/user_task_region_1_11_good   | Bin
+ .../oldtrace/testdata/user_task_region_1_19_good   | Bin
+ .../oldtrace/testdata/user_task_region_1_21_good   | Bin
+ .../trace/{v2 => }/internal/testgen/go122/trace.go |  10 +-
+ src/internal/trace/mud_test.go                     |  13 ++
+ src/internal/trace/{v2 => }/oldtrace.go            |   6 +-
+ src/internal/trace/{v2 => }/oldtrace_test.go       |   4 +-
+ src/internal/trace/{v2 => }/order.go               |   6 +-
+ src/internal/trace/{v2 => }/order_test.go          |   0
+ src/internal/trace/{v2 => }/raw/doc.go             |   0
+ src/internal/trace/{v2 => }/raw/event.go           |   4 +-
+ src/internal/trace/{v2 => }/raw/reader.go          |   4 +-
+ src/internal/trace/{v2 => }/raw/textreader.go      |   4 +-
+ src/internal/trace/{v2 => }/raw/textwriter.go      |   2 +-
+ src/internal/trace/{v2 => }/raw/writer.go          |   4 +-
+ src/internal/trace/{v2 => }/reader.go              |   6 +-
+ src/internal/trace/{v2 => }/reader_test.go         |   8 +-
+ src/internal/trace/{v2 => }/resources.go           |   0
+ src/internal/trace/summary.go                      | 167 ++++++++++-----------
+ src/internal/trace/summary_test.go                 | 148 +++++++++---------
+ src/internal/trace/{v2 => }/testdata/README.md     |   0
+ .../cmd}/cmd/gotraceeventstats/main.go             |   0
+ .../trace/{v2 => }/testdata/cmd/gotraceraw/main.go |   0
+ .../{v2 => }/testdata/cmd/gotracevalidate/main.go  |   0
+ .../testdata/fuzz/FuzzReader/0cb1786dee0f090b      |   0
+ .../testdata/fuzz/FuzzReader/1e45307d5b2ec36d      |   0
+ .../testdata/fuzz/FuzzReader/2b05796f9b2fc48d      |   0
+ .../testdata/fuzz/FuzzReader/2b9be9aebe08d511      |   0
+ .../testdata/fuzz/FuzzReader/344331b314da0b08      |   0
+ .../testdata/fuzz/FuzzReader/365d7b5b633b3f97      |   0
+ .../testdata/fuzz/FuzzReader/4055b17cae1a3443      |   0
+ .../testdata/fuzz/FuzzReader/4d9ddc909984e871      |   0
+ .../testdata/fuzz/FuzzReader/56f073e57903588c      |   0
+ .../testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566      |   0
+ .../testdata/fuzz/FuzzReader/aeb749b6bc317b66      |   0
+ .../fuzz/FuzzReader/closing-unknown-region         |   0
+ .../testdata/fuzz/FuzzReader/d478e18d2d6756b7      |   0
+ .../testdata/fuzz/FuzzReader/d91203cd397aa0bc      |   0
+ .../testdata/fuzz/FuzzReader/invalid-proc-state    |   0
+ .../{v2 => }/testdata/fuzz/FuzzReader/large-id     |   0
+ .../testdata/fuzz/FuzzReader/malformed-timestamp   |   0
+ src/internal/trace/{v2 => }/testdata/generate.go   |   0
+ .../go122-confuse-seq-across-generations.go        |   0
+ .../go122-create-syscall-reuse-thread-id.go        |   0
+ .../generators/go122-create-syscall-with-p.go      |   0
+ .../generators/go122-fail-first-gen-first.go       |   0
+ .../go122-go-create-without-running-g.go           |   0
+ .../go122-syscall-steal-proc-ambiguous.go          |   0
+ ...go122-syscall-steal-proc-gen-boundary-bare-m.go |   0
+ ...-proc-gen-boundary-reacquire-new-proc-bare-m.go |   0
+ ...l-steal-proc-gen-boundary-reacquire-new-proc.go |   0
+ .../go122-syscall-steal-proc-gen-boundary.go       |   0
+ ...syscall-steal-proc-reacquire-new-proc-bare-m.go |   0
+ .../go122-syscall-steal-proc-reacquire-new-proc.go |   0
+ .../generators/go122-syscall-steal-proc-self.go    |   0
+ .../go122-syscall-steal-proc-simple-bare-m.go      |   0
+ .../generators/go122-syscall-steal-proc-simple.go  |   0
+ .../go122-syscall-steal-proc-sitting-in-syscall.go |   0
+ .../generators/go122-task-across-generations.go    |   0
+ src/internal/trace/{v2 => }/testdata/mktests.go    |   4 +-
+ .../testdata/testprog/annotations-stress.go        |   0
+ .../{v2 => }/testdata/testprog/annotations.go      |   0
+ .../{v2 => }/testdata/testprog/cgo-callback.go     |   0
+ .../{v2 => }/testdata/testprog/cpu-profile.go      |   0
+ .../{v2 => }/testdata/testprog/futile-wakeup.go    |   0
+ .../trace/{v2 => }/testdata/testprog/gc-stress.go  |   0
+ .../trace/{v2 => }/testdata/testprog/gomaxprocs.go |   0
+ .../trace/{v2 => }/testdata/testprog/iter-pull.go  |   0
+ .../{v2 => }/testdata/testprog/many-start-stop.go  |   0
+ .../trace/{v2 => }/testdata/testprog/stacks.go     |   0
+ .../testdata/testprog/stress-start-stop.go         |   0
+ .../trace/{v2 => }/testdata/testprog/stress.go     |   0
+ .../{v2 => }/testdata/testprog/wait-on-pipe.go     |   0
+ .../testdata/tests/go122-annotations-stress.test   |   0
+ .../{v2 => }/testdata/tests/go122-annotations.test |   0
+ .../go122-confuse-seq-across-generations.test      |   0
+ .../go122-create-syscall-reuse-thread-id.test      |   0
+ .../tests/go122-create-syscall-with-p.test         |   0
+ .../testdata/tests/go122-fail-first-gen-first.test |   0
+ .../{v2 => }/testdata/tests/go122-gc-stress.test   |   0
+ .../tests/go122-go-create-without-running-g.test   |   0
+ .../tests/go122-syscall-steal-proc-ambiguous.test  |   0
+ ...122-syscall-steal-proc-gen-boundary-bare-m.test |   0
+ ...roc-gen-boundary-reacquire-new-proc-bare-m.test |   0
+ ...steal-proc-gen-boundary-reacquire-new-proc.test |   0
+ .../go122-syscall-steal-proc-gen-boundary.test     |   0
+ ...scall-steal-proc-reacquire-new-proc-bare-m.test |   0
+ ...o122-syscall-steal-proc-reacquire-new-proc.test |   0
+ .../tests/go122-syscall-steal-proc-self.test       |   0
+ .../go122-syscall-steal-proc-simple-bare-m.test    |   0
+ .../tests/go122-syscall-steal-proc-simple.test     |   0
+ ...o122-syscall-steal-proc-sitting-in-syscall.test |   0
+ .../tests/go122-task-across-generations.test       |   0
+ .../trace/{v2 => }/testtrace/expectation.go        |   0
+ src/internal/trace/{v2 => }/testtrace/format.go    |   2 +-
+ .../trace/{v2 => }/testtrace/validation.go         |   2 +-
+ src/internal/trace/{v2 => }/trace_test.go          |   4 +-
+ src/internal/trace/v2/mkexp.bash                   |  50 ------
+ src/internal/trace/{v2 => }/value.go               |   0
+ src/internal/trace/{v2 => }/version/version.go     |   4 +-
+ src/runtime/crash_test.go                          |   8 +-
+ src/runtime/trace_cgo_test.go                      |  16 +-
+ 142 files changed, 553 insertions(+), 597 deletions(-)
+
+diff --git a/src/cmd/trace/gen.go b/src/cmd/trace/gen.go
+index b947489037..67811ca04d 100644
+--- a/src/cmd/trace/gen.go
++++ b/src/cmd/trace/gen.go
+@@ -8,7 +8,6 @@ import (
+ 	"fmt"
+ 	"internal/trace"
+ 	"internal/trace/traceviewer"
+-	tracev2 "internal/trace/v2"
+ 	"strings"
+ )
+ 
+@@ -18,21 +17,21 @@ import (
+ type generator interface {
+ 	// Global parts.
+ 	Sync() // Notifies the generator of an EventSync event.
+-	StackSample(ctx *traceContext, ev *tracev2.Event)
+-	GlobalRange(ctx *traceContext, ev *tracev2.Event)
+-	GlobalMetric(ctx *traceContext, ev *tracev2.Event)
++	StackSample(ctx *traceContext, ev *trace.Event)
++	GlobalRange(ctx *traceContext, ev *trace.Event)
++	GlobalMetric(ctx *traceContext, ev *trace.Event)
+ 
+ 	// Goroutine parts.
+-	GoroutineLabel(ctx *traceContext, ev *tracev2.Event)
+-	GoroutineRange(ctx *traceContext, ev *tracev2.Event)
+-	GoroutineTransition(ctx *traceContext, ev *tracev2.Event)
++	GoroutineLabel(ctx *traceContext, ev *trace.Event)
++	GoroutineRange(ctx *traceContext, ev *trace.Event)
++	GoroutineTransition(ctx *traceContext, ev *trace.Event)
+ 
+ 	// Proc parts.
+-	ProcRange(ctx *traceContext, ev *tracev2.Event)
+-	ProcTransition(ctx *traceContext, ev *tracev2.Event)
++	ProcRange(ctx *traceContext, ev *trace.Event)
++	ProcTransition(ctx *traceContext, ev *trace.Event)
+ 
+ 	// User annotations.
+-	Log(ctx *traceContext, ev *tracev2.Event)
++	Log(ctx *traceContext, ev *trace.Event)
+ 
+ 	// Finish indicates the end of the trace and finalizes generation.
+ 	Finish(ctx *traceContext)
+@@ -44,35 +43,35 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
+ 		ev := &parsed.events[i]
+ 
+ 		switch ev.Kind() {
+-		case tracev2.EventSync:
++		case trace.EventSync:
+ 			g.Sync()
+-		case tracev2.EventStackSample:
++		case trace.EventStackSample:
+ 			g.StackSample(ctx, ev)
+-		case tracev2.EventRangeBegin, tracev2.EventRangeActive, tracev2.EventRangeEnd:
++		case trace.EventRangeBegin, trace.EventRangeActive, trace.EventRangeEnd:
+ 			r := ev.Range()
+ 			switch r.Scope.Kind {
+-			case tracev2.ResourceGoroutine:
++			case trace.ResourceGoroutine:
+ 				g.GoroutineRange(ctx, ev)
+-			case tracev2.ResourceProc:
++			case trace.ResourceProc:
+ 				g.ProcRange(ctx, ev)
+-			case tracev2.ResourceNone:
++			case trace.ResourceNone:
+ 				g.GlobalRange(ctx, ev)
+ 			}
+-		case tracev2.EventMetric:
++		case trace.EventMetric:
+ 			g.GlobalMetric(ctx, ev)
+-		case tracev2.EventLabel:
++		case trace.EventLabel:
+ 			l := ev.Label()
+-			if l.Resource.Kind == tracev2.ResourceGoroutine {
++			if l.Resource.Kind == trace.ResourceGoroutine {
+ 				g.GoroutineLabel(ctx, ev)
+ 			}
+-		case tracev2.EventStateTransition:
++		case trace.EventStateTransition:
+ 			switch ev.StateTransition().Resource.Kind {
+-			case tracev2.ResourceProc:
++			case trace.ResourceProc:
+ 				g.ProcTransition(ctx, ev)
+-			case tracev2.ResourceGoroutine:
++			case trace.ResourceGoroutine:
+ 				g.GoroutineTransition(ctx, ev)
+ 			}
+-		case tracev2.EventLog:
++		case trace.EventLog:
+ 			g.Log(ctx, ev)
+ 		}
+ 	}
+@@ -93,8 +92,8 @@ func runGenerator(ctx *traceContext, g generator, parsed *parsedTrace, opts *gen
+ // lowest first.
+ func emitTask(ctx *traceContext, task *trace.UserTaskSummary, sortIndex int) {
+ 	// Collect information about the task.
+-	var startStack, endStack tracev2.Stack
+-	var startG, endG tracev2.GoID
++	var startStack, endStack trace.Stack
++	var startG, endG trace.GoID
+ 	startTime, endTime := ctx.startTime, ctx.endTime
+ 	if task.Start != nil {
+ 		startStack = task.Start.Stack()
+@@ -128,7 +127,7 @@ func emitTask(ctx *traceContext, task *trace.UserTaskSummary, sortIndex int) {
+ 		Arg:      arg,
+ 	})
+ 	// Emit an arrow from the parent to the child.
+-	if task.Parent != nil && task.Start != nil && task.Start.Kind() == tracev2.EventTaskBegin {
++	if task.Parent != nil && task.Start != nil && task.Start.Kind() == trace.EventTaskBegin {
+ 		ctx.TaskArrow(traceviewer.ArrowEvent{
+ 			Name:         "newTask",
+ 			Start:        ctx.elapsed(task.Start.Time()),
+@@ -151,8 +150,8 @@ func emitRegion(ctx *traceContext, region *trace.UserRegionSummary) {
+ 		return
+ 	}
+ 	// Collect information about the region.
+-	var startStack, endStack tracev2.Stack
+-	goroutine := tracev2.NoGoroutine
++	var startStack, endStack trace.Stack
++	goroutine := trace.NoGoroutine
+ 	startTime, endTime := ctx.startTime, ctx.endTime
+ 	if region.Start != nil {
+ 		startStack = region.Start.Stack()
+@@ -164,7 +163,7 @@ func emitRegion(ctx *traceContext, region *trace.UserRegionSummary) {
+ 		endTime = region.End.Time()
+ 		goroutine = region.End.Goroutine()
+ 	}
+-	if goroutine == tracev2.NoGoroutine {
++	if goroutine == trace.NoGoroutine {
+ 		return
+ 	}
+ 	arg := struct {
+@@ -194,11 +193,11 @@ func emitRegion(ctx *traceContext, region *trace.UserRegionSummary) {
+ // The provided resource is the resource the stack sample should count against.
+ type stackSampleGenerator[R resource] struct {
+ 	// getResource is a function to extract a resource ID from a stack sample event.
+-	getResource func(*tracev2.Event) R
++	getResource func(*trace.Event) R
+ }
+ 
+ // StackSample implements a stack sample event handler. It expects ev to be one such event.
+-func (g *stackSampleGenerator[R]) StackSample(ctx *traceContext, ev *tracev2.Event) {
++func (g *stackSampleGenerator[R]) StackSample(ctx *traceContext, ev *trace.Event) {
+ 	id := g.getResource(ev)
+ 	if id == R(noResource) {
+ 		// We have nowhere to put this in the UI.
+@@ -213,7 +212,7 @@ func (g *stackSampleGenerator[R]) StackSample(ctx *traceContext, ev *tracev2.Eve
+ }
+ 
+ // globalRangeGenerator implements a generic handler for EventRange* events that pertain
+-// to tracev2.ResourceNone (the global scope).
++// to trace.ResourceNone (the global scope).
+ type globalRangeGenerator struct {
+ 	ranges   map[string]activeRange
+ 	seenSync bool
+@@ -226,21 +225,21 @@ func (g *globalRangeGenerator) Sync() {
+ 
+ // GlobalRange implements a handler for EventRange* events whose Scope.Kind is ResourceNone.
+ // It expects ev to be one such event.
+-func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *tracev2.Event) {
++func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *trace.Event) {
+ 	if g.ranges == nil {
+ 		g.ranges = make(map[string]activeRange)
+ 	}
+ 	r := ev.Range()
+ 	switch ev.Kind() {
+-	case tracev2.EventRangeBegin:
++	case trace.EventRangeBegin:
+ 		g.ranges[r.Name] = activeRange{ev.Time(), ev.Stack()}
+-	case tracev2.EventRangeActive:
++	case trace.EventRangeActive:
+ 		// If we've seen a Sync event, then Active events are always redundant.
+ 		if !g.seenSync {
+ 			// Otherwise, they extend back to the start of the trace.
+ 			g.ranges[r.Name] = activeRange{ctx.startTime, ev.Stack()}
+ 		}
+-	case tracev2.EventRangeEnd:
++	case trace.EventRangeEnd:
+ 		// Only emit GC events, because we have nowhere to
+ 		// put other events.
+ 		ar := g.ranges[r.Name]
+@@ -279,7 +278,7 @@ type globalMetricGenerator struct {
+ }
+ 
+ // GlobalMetric implements an event handler for EventMetric events. ev must be one such event.
+-func (g *globalMetricGenerator) GlobalMetric(ctx *traceContext, ev *tracev2.Event) {
++func (g *globalMetricGenerator) GlobalMetric(ctx *traceContext, ev *trace.Event) {
+ 	m := ev.Metric()
+ 	switch m.Name {
+ 	case "/memory/classes/heap/objects:bytes":
+@@ -294,7 +293,7 @@ func (g *globalMetricGenerator) GlobalMetric(ctx *traceContext, ev *tracev2.Even
+ // procRangeGenerator implements a generic handler for EventRange* events whose Scope.Kind is
+ // ResourceProc.
+ type procRangeGenerator struct {
+-	ranges   map[tracev2.Range]activeRange
++	ranges   map[trace.Range]activeRange
+ 	seenSync bool
+ }
+ 
+@@ -305,21 +304,21 @@ func (g *procRangeGenerator) Sync() {
+ 
+ // ProcRange implements a handler for EventRange* events whose Scope.Kind is ResourceProc.
+ // It expects ev to be one such event.
+-func (g *procRangeGenerator) ProcRange(ctx *traceContext, ev *tracev2.Event) {
++func (g *procRangeGenerator) ProcRange(ctx *traceContext, ev *trace.Event) {
+ 	if g.ranges == nil {
+-		g.ranges = make(map[tracev2.Range]activeRange)
++		g.ranges = make(map[trace.Range]activeRange)
+ 	}
+ 	r := ev.Range()
+ 	switch ev.Kind() {
+-	case tracev2.EventRangeBegin:
++	case trace.EventRangeBegin:
+ 		g.ranges[r] = activeRange{ev.Time(), ev.Stack()}
+-	case tracev2.EventRangeActive:
++	case trace.EventRangeActive:
+ 		// If we've seen a Sync event, then Active events are always redundant.
+ 		if !g.seenSync {
+ 			// Otherwise, they extend back to the start of the trace.
+ 			g.ranges[r] = activeRange{ctx.startTime, ev.Stack()}
+ 		}
+-	case tracev2.EventRangeEnd:
++	case trace.EventRangeEnd:
+ 		// Emit proc-based ranges.
+ 		ar := g.ranges[r]
+ 		ctx.Slice(traceviewer.SliceEvent{
+@@ -349,27 +348,27 @@ func (g *procRangeGenerator) Finish(ctx *traceContext) {
+ 
+ // activeRange represents an active EventRange* range.
+ type activeRange struct {
+-	time  tracev2.Time
+-	stack tracev2.Stack
++	time  trace.Time
++	stack trace.Stack
+ }
+ 
+ // completedRange represents a completed EventRange* range.
+ type completedRange struct {
+ 	name       string
+-	startTime  tracev2.Time
+-	endTime    tracev2.Time
+-	startStack tracev2.Stack
+-	endStack   tracev2.Stack
++	startTime  trace.Time
++	endTime    trace.Time
++	startStack trace.Stack
++	endStack   trace.Stack
+ 	arg        any
+ }
+ 
+ type logEventGenerator[R resource] struct {
+ 	// getResource is a function to extract a resource ID from a Log event.
+-	getResource func(*tracev2.Event) R
++	getResource func(*trace.Event) R
+ }
+ 
+ // Log implements a log event handler. It expects ev to be one such event.
+-func (g *logEventGenerator[R]) Log(ctx *traceContext, ev *tracev2.Event) {
++func (g *logEventGenerator[R]) Log(ctx *traceContext, ev *trace.Event) {
+ 	id := g.getResource(ev)
+ 	if id == R(noResource) {
+ 		// We have nowhere to put this in the UI.
+diff --git a/src/cmd/trace/goroutinegen.go b/src/cmd/trace/goroutinegen.go
+index 096aa9972a..385ac37253 100644
+--- a/src/cmd/trace/goroutinegen.go
++++ b/src/cmd/trace/goroutinegen.go
+@@ -5,7 +5,7 @@
+ package main
+ 
+ import (
+-	tracev2 "internal/trace/v2"
++	"internal/trace"
+ )
+ 
+ var _ generator = &goroutineGenerator{}
+@@ -13,29 +13,29 @@ var _ generator = &goroutineGenerator{}
+ type goroutineGenerator struct {
+ 	globalRangeGenerator
+ 	globalMetricGenerator
+-	stackSampleGenerator[tracev2.GoID]
+-	logEventGenerator[tracev2.GoID]
++	stackSampleGenerator[trace.GoID]
++	logEventGenerator[trace.GoID]
+ 
+-	gStates map[tracev2.GoID]*gState[tracev2.GoID]
+-	focus   tracev2.GoID
+-	filter  map[tracev2.GoID]struct{}
++	gStates map[trace.GoID]*gState[trace.GoID]
++	focus   trace.GoID
++	filter  map[trace.GoID]struct{}
+ }
+ 
+-func newGoroutineGenerator(ctx *traceContext, focus tracev2.GoID, filter map[tracev2.GoID]struct{}) *goroutineGenerator {
++func newGoroutineGenerator(ctx *traceContext, focus trace.GoID, filter map[trace.GoID]struct{}) *goroutineGenerator {
+ 	gg := new(goroutineGenerator)
+-	rg := func(ev *tracev2.Event) tracev2.GoID {
++	rg := func(ev *trace.Event) trace.GoID {
+ 		return ev.Goroutine()
+ 	}
+ 	gg.stackSampleGenerator.getResource = rg
+ 	gg.logEventGenerator.getResource = rg
+-	gg.gStates = make(map[tracev2.GoID]*gState[tracev2.GoID])
++	gg.gStates = make(map[trace.GoID]*gState[trace.GoID])
+ 	gg.focus = focus
+ 	gg.filter = filter
+ 
+ 	// Enable a filter on the emitter.
+ 	if filter != nil {
+ 		ctx.SetResourceFilter(func(resource uint64) bool {
+-			_, ok := filter[tracev2.GoID(resource)]
++			_, ok := filter[trace.GoID(resource)]
+ 			return ok
+ 		})
+ 	}
+@@ -46,25 +46,25 @@ func (g *goroutineGenerator) Sync() {
+ 	g.globalRangeGenerator.Sync()
+ }
+ 
+-func (g *goroutineGenerator) GoroutineLabel(ctx *traceContext, ev *tracev2.Event) {
++func (g *goroutineGenerator) GoroutineLabel(ctx *traceContext, ev *trace.Event) {
+ 	l := ev.Label()
+ 	g.gStates[l.Resource.Goroutine()].setLabel(l.Label)
+ }
+ 
+-func (g *goroutineGenerator) GoroutineRange(ctx *traceContext, ev *tracev2.Event) {
++func (g *goroutineGenerator) GoroutineRange(ctx *traceContext, ev *trace.Event) {
+ 	r := ev.Range()
+ 	switch ev.Kind() {
+-	case tracev2.EventRangeBegin:
++	case trace.EventRangeBegin:
+ 		g.gStates[r.Scope.Goroutine()].rangeBegin(ev.Time(), r.Name, ev.Stack())
+-	case tracev2.EventRangeActive:
++	case trace.EventRangeActive:
+ 		g.gStates[r.Scope.Goroutine()].rangeActive(r.Name)
+-	case tracev2.EventRangeEnd:
++	case trace.EventRangeEnd:
+ 		gs := g.gStates[r.Scope.Goroutine()]
+ 		gs.rangeEnd(ev.Time(), r.Name, ev.Stack(), ctx)
+ 	}
+ }
+ 
+-func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event) {
++func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *trace.Event) {
+ 	st := ev.StateTransition()
+ 	goID := st.Resource.Goroutine()
+ 
+@@ -72,7 +72,7 @@ func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.
+ 	// gState for it.
+ 	gs, ok := g.gStates[goID]
+ 	if !ok {
+-		gs = newGState[tracev2.GoID](goID)
++		gs = newGState[trace.GoID](goID)
+ 		g.gStates[goID] = gs
+ 	}
+ 
+@@ -86,7 +86,7 @@ func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.
+ 		return
+ 	}
+ 	if from.Executing() && !to.Executing() {
+-		if to == tracev2.GoWaiting {
++		if to == trace.GoWaiting {
+ 			// Goroutine started blocking.
+ 			gs.block(ev.Time(), ev.Stack(), st.Reason, ctx)
+ 		} else {
+@@ -95,34 +95,34 @@ func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.
+ 	}
+ 	if !from.Executing() && to.Executing() {
+ 		start := ev.Time()
+-		if from == tracev2.GoUndetermined {
++		if from == trace.GoUndetermined {
+ 			// Back-date the event to the start of the trace.
+ 			start = ctx.startTime
+ 		}
+ 		gs.start(start, goID, ctx)
+ 	}
+ 
+-	if from == tracev2.GoWaiting {
++	if from == trace.GoWaiting {
+ 		// Goroutine unblocked.
+ 		gs.unblock(ev.Time(), ev.Stack(), ev.Goroutine(), ctx)
+ 	}
+-	if from == tracev2.GoNotExist && to == tracev2.GoRunnable {
++	if from == trace.GoNotExist && to == trace.GoRunnable {
+ 		// Goroutine was created.
+ 		gs.created(ev.Time(), ev.Goroutine(), ev.Stack())
+ 	}
+-	if from == tracev2.GoSyscall && to != tracev2.GoRunning {
++	if from == trace.GoSyscall && to != trace.GoRunning {
+ 		// Exiting blocked syscall.
+ 		gs.syscallEnd(ev.Time(), true, ctx)
+ 		gs.blockedSyscallEnd(ev.Time(), ev.Stack(), ctx)
+-	} else if from == tracev2.GoSyscall {
++	} else if from == trace.GoSyscall {
+ 		// Check if we're exiting a syscall in a non-blocking way.
+ 		gs.syscallEnd(ev.Time(), false, ctx)
+ 	}
+ 
+ 	// Handle syscalls.
+-	if to == tracev2.GoSyscall {
++	if to == trace.GoSyscall {
+ 		start := ev.Time()
+-		if from == tracev2.GoUndetermined {
++		if from == trace.GoUndetermined {
+ 			// Back-date the event to the start of the trace.
+ 			start = ctx.startTime
+ 		}
+@@ -137,12 +137,12 @@ func (g *goroutineGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.
+ 	ctx.GoroutineTransition(ctx.elapsed(ev.Time()), viewerGState(from, inMarkAssist), viewerGState(to, inMarkAssist))
+ }
+ 
+-func (g *goroutineGenerator) ProcRange(ctx *traceContext, ev *tracev2.Event) {
++func (g *goroutineGenerator) ProcRange(ctx *traceContext, ev *trace.Event) {
+ 	// TODO(mknyszek): Extend procRangeGenerator to support rendering proc ranges
+ 	// that overlap with a goroutine's execution.
+ }
+ 
+-func (g *goroutineGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
++func (g *goroutineGenerator) ProcTransition(ctx *traceContext, ev *trace.Event) {
+ 	// Not needed. All relevant information for goroutines can be derived from goroutine transitions.
+ }
+ 
+@@ -161,7 +161,7 @@ func (g *goroutineGenerator) Finish(ctx *traceContext) {
+ 	}
+ 
+ 	// Set the goroutine to focus on.
+-	if g.focus != tracev2.NoGoroutine {
++	if g.focus != trace.NoGoroutine {
+ 		ctx.Focus(uint64(g.focus))
+ 	}
+ }
+diff --git a/src/cmd/trace/goroutines.go b/src/cmd/trace/goroutines.go
+index be003861a6..7d9d2f3950 100644
+--- a/src/cmd/trace/goroutines.go
++++ b/src/cmd/trace/goroutines.go
+@@ -12,7 +12,6 @@ import (
+ 	"html/template"
+ 	"internal/trace"
+ 	"internal/trace/traceviewer"
+-	tracev2 "internal/trace/v2"
+ 	"log"
+ 	"net/http"
+ 	"slices"
+@@ -22,7 +21,7 @@ import (
+ )
+ 
+ // GoroutinesHandlerFunc returns a HandlerFunc that serves list of goroutine groups.
+-func GoroutinesHandlerFunc(summaries map[tracev2.GoID]*trace.GoroutineSummary) http.HandlerFunc {
++func GoroutinesHandlerFunc(summaries map[trace.GoID]*trace.GoroutineSummary) http.HandlerFunc {
+ 	return func(w http.ResponseWriter, r *http.Request) {
+ 		// goroutineGroup describes a group of goroutines grouped by name.
+ 		type goroutineGroup struct {
+@@ -95,7 +94,7 @@ Click a start location to view more details about that group.<br>
+ 
+ // GoroutineHandler creates a handler that serves information about
+ // goroutines in a particular group.
+-func GoroutineHandler(summaries map[tracev2.GoID]*trace.GoroutineSummary) http.HandlerFunc {
++func GoroutineHandler(summaries map[trace.GoID]*trace.GoroutineSummary) http.HandlerFunc {
+ 	return func(w http.ResponseWriter, r *http.Request) {
+ 		goroutineName := r.FormValue("name")
+ 
+diff --git a/src/cmd/trace/gstate.go b/src/cmd/trace/gstate.go
+index 4535929093..bcbe3b6c7f 100644
+--- a/src/cmd/trace/gstate.go
++++ b/src/cmd/trace/gstate.go
+@@ -9,13 +9,12 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/traceviewer"
+ 	"internal/trace/traceviewer/format"
+-	tracev2 "internal/trace/v2"
+ 	"strings"
+ )
+ 
+ // resource is a generic constraint interface for resource IDs.
+ type resource interface {
+-	tracev2.GoID | tracev2.ProcID | tracev2.ThreadID
++	trace.GoID | trace.ProcID | trace.ThreadID
+ }
+ 
+ // noResource indicates the lack of a resource.
+@@ -38,7 +37,7 @@ type gState[R resource] struct {
+ 	// call to the stop method. This tends to be a more reliable way
+ 	// of picking up stack traces, since the parser doesn't provide
+ 	// a stack for every state transition event.
+-	lastStopStack tracev2.Stack
++	lastStopStack trace.Stack
+ 
+ 	// activeRanges is the set of all active ranges on the goroutine.
+ 	activeRanges map[string]activeRange
+@@ -49,13 +48,13 @@ type gState[R resource] struct {
+ 
+ 	// startRunning is the most recent event that caused a goroutine to
+ 	// transition to GoRunning.
+-	startRunningTime tracev2.Time
++	startRunningTime trace.Time
+ 
+ 	// startSyscall is the most recent event that caused a goroutine to
+ 	// transition to GoSyscall.
+ 	syscall struct {
+-		time   tracev2.Time
+-		stack  tracev2.Stack
++		time   trace.Time
++		stack  trace.Stack
+ 		active bool
+ 	}
+ 
+@@ -71,16 +70,16 @@ type gState[R resource] struct {
+ 	// listed separately because the cause may have happened on a resource that
+ 	// isn't R (or perhaps on some abstract nebulous resource, like trace.NetpollP).
+ 	startCause struct {
+-		time     tracev2.Time
++		time     trace.Time
+ 		name     string
+ 		resource uint64
+-		stack    tracev2.Stack
++		stack    trace.Stack
+ 	}
+ }
+ 
+ // newGState constructs a new goroutine state for the goroutine
+ // identified by the provided ID.
+-func newGState[R resource](goID tracev2.GoID) *gState[R] {
++func newGState[R resource](goID trace.GoID) *gState[R] {
+ 	return &gState[R]{
+ 		baseName:     fmt.Sprintf("G%d", goID),
+ 		executing:    R(noResource),
+@@ -91,11 +90,11 @@ func newGState[R resource](goID tracev2.GoID) *gState[R] {
+ // augmentName attempts to use stk to augment the name of the goroutine
+ // with stack information. This stack must be related to the goroutine
+ // in some way, but it doesn't really matter which stack.
+-func (gs *gState[R]) augmentName(stk tracev2.Stack) {
++func (gs *gState[R]) augmentName(stk trace.Stack) {
+ 	if gs.named {
+ 		return
+ 	}
+-	if stk == tracev2.NoStack {
++	if stk == trace.NoStack {
+ 		return
+ 	}
+ 	name := lastFunc(stk)
+@@ -120,7 +119,7 @@ func (gs *gState[R]) name() string {
+ 
+ // setStartCause sets the reason a goroutine will be allowed to start soon.
+ // For example, via unblocking or exiting a blocked syscall.
+-func (gs *gState[R]) setStartCause(ts tracev2.Time, name string, resource uint64, stack tracev2.Stack) {
++func (gs *gState[R]) setStartCause(ts trace.Time, name string, resource uint64, stack trace.Stack) {
+ 	gs.startCause.time = ts
+ 	gs.startCause.name = name
+ 	gs.startCause.resource = resource
+@@ -128,7 +127,7 @@ func (gs *gState[R]) setStartCause(ts tracev2.Time, name string, resource uint64
+ }
+ 
+ // created indicates that this goroutine was just created by the provided creator.
+-func (gs *gState[R]) created(ts tracev2.Time, creator R, stack tracev2.Stack) {
++func (gs *gState[R]) created(ts trace.Time, creator R, stack trace.Stack) {
+ 	if creator == R(noResource) {
+ 		return
+ 	}
+@@ -136,10 +135,10 @@ func (gs *gState[R]) created(ts tracev2.Time, creator R, stack tracev2.Stack) {
+ }
+ 
+ // start indicates that a goroutine has started running on a proc.
+-func (gs *gState[R]) start(ts tracev2.Time, resource R, ctx *traceContext) {
++func (gs *gState[R]) start(ts trace.Time, resource R, ctx *traceContext) {
+ 	// Set the time for all the active ranges.
+ 	for name := range gs.activeRanges {
+-		gs.activeRanges[name] = activeRange{ts, tracev2.NoStack}
++		gs.activeRanges[name] = activeRange{ts, trace.NoStack}
+ 	}
+ 
+ 	if gs.startCause.name != "" {
+@@ -155,14 +154,14 @@ func (gs *gState[R]) start(ts tracev2.Time, resource R, ctx *traceContext) {
+ 		gs.startCause.time = 0
+ 		gs.startCause.name = ""
+ 		gs.startCause.resource = 0
+-		gs.startCause.stack = tracev2.NoStack
++		gs.startCause.stack = trace.NoStack
+ 	}
+ 	gs.executing = resource
+ 	gs.startRunningTime = ts
+ }
+ 
+ // syscallBegin indicates that the goroutine entered a syscall on a proc.
+-func (gs *gState[R]) syscallBegin(ts tracev2.Time, resource R, stack tracev2.Stack) {
++func (gs *gState[R]) syscallBegin(ts trace.Time, resource R, stack trace.Stack) {
+ 	gs.syscall.time = ts
+ 	gs.syscall.stack = stack
+ 	gs.syscall.active = true
+@@ -178,7 +177,7 @@ func (gs *gState[R]) syscallBegin(ts tracev2.Time, resource R, stack tracev2.Sta
+ // goroutine is no longer executing on the resource (e.g. a proc) whereas blockedSyscallEnd
+ // is the point at which the goroutine actually exited the syscall regardless of which
+ // resource that happened on.
+-func (gs *gState[R]) syscallEnd(ts tracev2.Time, blocked bool, ctx *traceContext) {
++func (gs *gState[R]) syscallEnd(ts trace.Time, blocked bool, ctx *traceContext) {
+ 	if !gs.syscall.active {
+ 		return
+ 	}
+@@ -195,13 +194,13 @@ func (gs *gState[R]) syscallEnd(ts tracev2.Time, blocked bool, ctx *traceContext
+ 	})
+ 	gs.syscall.active = false
+ 	gs.syscall.time = 0
+-	gs.syscall.stack = tracev2.NoStack
++	gs.syscall.stack = trace.NoStack
+ }
+ 
+ // blockedSyscallEnd indicates the point at which the blocked syscall ended. This is distinct
+ // and orthogonal to syscallEnd; both must be called if the syscall blocked. This sets up an instant
+ // to emit a flow event from, indicating explicitly that this goroutine was unblocked by the system.
+-func (gs *gState[R]) blockedSyscallEnd(ts tracev2.Time, stack tracev2.Stack, ctx *traceContext) {
++func (gs *gState[R]) blockedSyscallEnd(ts trace.Time, stack trace.Stack, ctx *traceContext) {
+ 	name := "exit blocked syscall"
+ 	gs.setStartCause(ts, name, trace.SyscallP, stack)
+ 
+@@ -215,7 +214,7 @@ func (gs *gState[R]) blockedSyscallEnd(ts tracev2.Time, stack tracev2.Stack, ctx
+ }
+ 
+ // unblock indicates that the goroutine gs represents has been unblocked.
+-func (gs *gState[R]) unblock(ts tracev2.Time, stack tracev2.Stack, resource R, ctx *traceContext) {
++func (gs *gState[R]) unblock(ts trace.Time, stack trace.Stack, resource R, ctx *traceContext) {
+ 	name := "unblock"
+ 	viewerResource := uint64(resource)
+ 	if gs.startBlockReason != "" {
+@@ -227,7 +226,7 @@ func (gs *gState[R]) unblock(ts tracev2.Time, stack tracev2.Stack, resource R, c
+ 		// resource isn't going to be valid in this case.
+ 		//
+ 		// TODO(mknyszek): Handle this invalidness in a more general way.
+-		if _, ok := any(resource).(tracev2.ThreadID); !ok {
++		if _, ok := any(resource).(trace.ThreadID); !ok {
+ 			// Emit an unblock instant event for the "Network" lane.
+ 			viewerResource = trace.NetpollP
+ 		}
+@@ -246,16 +245,16 @@ func (gs *gState[R]) unblock(ts tracev2.Time, stack tracev2.Stack, resource R, c
+ 
+ // block indicates that the goroutine has stopped executing on a proc -- specifically,
+ // it blocked for some reason.
+-func (gs *gState[R]) block(ts tracev2.Time, stack tracev2.Stack, reason string, ctx *traceContext) {
++func (gs *gState[R]) block(ts trace.Time, stack trace.Stack, reason string, ctx *traceContext) {
+ 	gs.startBlockReason = reason
+ 	gs.stop(ts, stack, ctx)
+ }
+ 
+ // stop indicates that the goroutine has stopped executing on a proc.
+-func (gs *gState[R]) stop(ts tracev2.Time, stack tracev2.Stack, ctx *traceContext) {
++func (gs *gState[R]) stop(ts trace.Time, stack trace.Stack, ctx *traceContext) {
+ 	// Emit the execution time slice.
+ 	var stk int
+-	if gs.lastStopStack != tracev2.NoStack {
++	if gs.lastStopStack != trace.NoStack {
+ 		stk = ctx.Stack(viewerFrames(gs.lastStopStack))
+ 	}
+ 	// Check invariants.
+@@ -304,7 +303,7 @@ func (gs *gState[R]) stop(ts tracev2.Time, stack tracev2.Stack, ctx *traceContex
+ 
+ 	// Clear the range info.
+ 	for name := range gs.activeRanges {
+-		gs.activeRanges[name] = activeRange{0, tracev2.NoStack}
++		gs.activeRanges[name] = activeRange{0, trace.NoStack}
+ 	}
+ 
+ 	gs.startRunningTime = 0
+@@ -319,12 +318,12 @@ func (gs *gState[R]) stop(ts tracev2.Time, stack tracev2.Stack, ctx *traceContex
+ func (gs *gState[R]) finish(ctx *traceContext) {
+ 	if gs.executing != R(noResource) {
+ 		gs.syscallEnd(ctx.endTime, false, ctx)
+-		gs.stop(ctx.endTime, tracev2.NoStack, ctx)
++		gs.stop(ctx.endTime, trace.NoStack, ctx)
+ 	}
+ }
+ 
+ // rangeBegin indicates the start of a special range of time.
+-func (gs *gState[R]) rangeBegin(ts tracev2.Time, name string, stack tracev2.Stack) {
++func (gs *gState[R]) rangeBegin(ts trace.Time, name string, stack trace.Stack) {
+ 	if gs.executing != R(noResource) {
+ 		// If we're executing, start the slice from here.
+ 		gs.activeRanges[name] = activeRange{ts, stack}
+@@ -340,16 +339,16 @@ func (gs *gState[R]) rangeActive(name string) {
+ 	if gs.executing != R(noResource) {
+ 		// If we're executing, and the range is active, then start
+ 		// from wherever the goroutine started running from.
+-		gs.activeRanges[name] = activeRange{gs.startRunningTime, tracev2.NoStack}
++		gs.activeRanges[name] = activeRange{gs.startRunningTime, trace.NoStack}
+ 	} else {
+ 		// If the goroutine isn't executing, there's no place for
+ 		// us to create a slice from. Wait until it starts executing.
+-		gs.activeRanges[name] = activeRange{0, tracev2.NoStack}
++		gs.activeRanges[name] = activeRange{0, trace.NoStack}
+ 	}
+ }
+ 
+ // rangeEnd indicates the end of a special range of time.
+-func (gs *gState[R]) rangeEnd(ts tracev2.Time, name string, stack tracev2.Stack, ctx *traceContext) {
++func (gs *gState[R]) rangeEnd(ts trace.Time, name string, stack trace.Stack, ctx *traceContext) {
+ 	if gs.executing != R(noResource) {
+ 		r := gs.activeRanges[name]
+ 		gs.completedRanges = append(gs.completedRanges, completedRange{
+@@ -363,9 +362,9 @@ func (gs *gState[R]) rangeEnd(ts tracev2.Time, name string, stack tracev2.Stack,
+ 	delete(gs.activeRanges, name)
+ }
+ 
+-func lastFunc(s tracev2.Stack) string {
+-	var last tracev2.StackFrame
+-	s.Frames(func(f tracev2.StackFrame) bool {
++func lastFunc(s trace.Stack) string {
++	var last trace.StackFrame
++	s.Frames(func(f trace.StackFrame) bool {
+ 		last = f
+ 		return true
+ 	})
+diff --git a/src/cmd/trace/jsontrace.go b/src/cmd/trace/jsontrace.go
+index cdb1cd65bb..bd3957ab84 100644
+--- a/src/cmd/trace/jsontrace.go
++++ b/src/cmd/trace/jsontrace.go
+@@ -15,7 +15,6 @@ import (
+ 
+ 	"internal/trace"
+ 	"internal/trace/traceviewer"
+-	tracev2 "internal/trace/v2"
+ )
+ 
+ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+@@ -34,7 +33,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ 				log.Printf("failed to parse goid parameter %q: %v", goids, err)
+ 				return
+ 			}
+-			goid := tracev2.GoID(id)
++			goid := trace.GoID(id)
+ 			g, ok := parsed.summary.Goroutines[goid]
+ 			if !ok {
+ 				log.Printf("failed to find goroutine %d", goid)
+@@ -59,7 +58,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ 				log.Printf("failed to parse focustask parameter %q: %v", taskids, err)
+ 				return
+ 			}
+-			task, ok := parsed.summary.Tasks[tracev2.TaskID(taskid)]
++			task, ok := parsed.summary.Tasks[trace.TaskID(taskid)]
+ 			if !ok || (task.Start == nil && task.End == nil) {
+ 				log.Printf("failed to find task with id %d", taskid)
+ 				return
+@@ -71,7 +70,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ 				log.Printf("failed to parse taskid parameter %q: %v", taskids, err)
+ 				return
+ 			}
+-			task, ok := parsed.summary.Tasks[tracev2.TaskID(taskid)]
++			task, ok := parsed.summary.Tasks[trace.TaskID(taskid)]
+ 			if !ok {
+ 				log.Printf("failed to find task with id %d", taskid)
+ 				return
+@@ -83,7 +82,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ 			// Pick the goroutine to orient ourselves around by just
+ 			// trying to pick the earliest event in the task that makes
+ 			// any sense. Though, we always want the start if that's there.
+-			var firstEv *tracev2.Event
++			var firstEv *trace.Event
+ 			if task.Start != nil {
+ 				firstEv = task.Start
+ 			} else {
+@@ -96,7 +95,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ 					firstEv = task.End
+ 				}
+ 			}
+-			if firstEv == nil || firstEv.Goroutine() == tracev2.NoGoroutine {
++			if firstEv == nil || firstEv.Goroutine() == trace.NoGoroutine {
+ 				log.Printf("failed to find task with id %d", taskid)
+ 				return
+ 			}
+@@ -104,7 +103,7 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ 			// Set the goroutine filtering options.
+ 			goid := firstEv.Goroutine()
+ 			opts.focusGoroutine = goid
+-			goroutines := make(map[tracev2.GoID]struct{})
++			goroutines := make(map[trace.GoID]struct{})
+ 			for _, task := range opts.tasks {
+ 				// Find only directly involved goroutines.
+ 				for id := range task.Goroutines {
+@@ -143,13 +142,13 @@ func JSONTraceHandler(parsed *parsedTrace) http.Handler {
+ // information that's useful to most parts of trace viewer JSON emission.
+ type traceContext struct {
+ 	*traceviewer.Emitter
+-	startTime tracev2.Time
+-	endTime   tracev2.Time
++	startTime trace.Time
++	endTime   trace.Time
+ }
+ 
+ // elapsed returns the elapsed time between the trace time and the start time
+ // of the trace.
+-func (ctx *traceContext) elapsed(now tracev2.Time) time.Duration {
++func (ctx *traceContext) elapsed(now trace.Time) time.Duration {
+ 	return now.Sub(ctx.startTime)
+ }
+ 
+@@ -159,8 +158,8 @@ type genOpts struct {
+ 	endTime   time.Duration
+ 
+ 	// Used if mode != 0.
+-	focusGoroutine tracev2.GoID
+-	goroutines     map[tracev2.GoID]struct{} // Goroutines to be displayed for goroutine-oriented or task-oriented view. goroutines[0] is the main goroutine.
++	focusGoroutine trace.GoID
++	goroutines     map[trace.GoID]struct{} // Goroutines to be displayed for goroutine-oriented or task-oriented view. goroutines[0] is the main goroutine.
+ 	tasks          []*trace.UserTaskSummary
+ }
+ 
+diff --git a/src/cmd/trace/jsontrace_test.go b/src/cmd/trace/jsontrace_test.go
+index 74b37a239f..5f89b275dc 100644
+--- a/src/cmd/trace/jsontrace_test.go
++++ b/src/cmd/trace/jsontrace_test.go
+@@ -7,7 +7,7 @@ package main
+ import (
+ 	"bytes"
+ 	"encoding/json"
+-	tracev1 "internal/trace"
++	"internal/trace"
+ 	"io"
+ 	"net/http/httptest"
+ 	"os"
+@@ -18,8 +18,8 @@ import (
+ 	"testing"
+ 	"time"
+ 
++	"internal/trace/raw"
+ 	"internal/trace/traceviewer/format"
+-	"internal/trace/v2/raw"
+ )
+ 
+ func TestJSONTraceHandler(t *testing.T) {
+@@ -159,7 +159,7 @@ func checkNetworkUnblock(t *testing.T, data format.Data) {
+ 	count := 0
+ 	var netBlockEv *format.Event
+ 	for _, e := range data.Events {
+-		if e.TID == tracev1.NetpollP && e.Name == "unblock (network)" && e.Phase == "I" && e.Scope == "t" {
++		if e.TID == trace.NetpollP && e.Name == "unblock (network)" && e.Phase == "I" && e.Scope == "t" {
+ 			count++
+ 			netBlockEv = e
+ 		}
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 44a6d3c74f..16721ef842 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -10,9 +10,8 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/trace"
++	"internal/trace/raw"
+ 	"internal/trace/traceviewer"
+-	tracev2 "internal/trace/v2"
+-	"internal/trace/v2/raw"
+ 	"io"
+ 	"log"
+ 	"net"
+@@ -252,7 +251,7 @@ progressLoop:
+ }
+ 
+ type parsedTrace struct {
+-	events      []tracev2.Event
++	events      []trace.Event
+ 	summary     *trace.Summary
+ 	size, valid int64
+ 	err         error
+@@ -261,7 +260,7 @@ type parsedTrace struct {
+ func parseTrace(rr io.Reader, size int64) (*parsedTrace, error) {
+ 	// Set up the reader.
+ 	cr := countingReader{r: rr}
+-	r, err := tracev2.NewReader(&cr)
++	r, err := trace.NewReader(&cr)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("failed to create trace reader: %w", err)
+ 	}
+@@ -285,7 +284,7 @@ func parseTrace(rr io.Reader, size int64) (*parsedTrace, error) {
+ 		t.events = append(t.events, ev)
+ 		s.Event(&t.events[len(t.events)-1])
+ 
+-		if ev.Kind() == tracev2.EventSync {
++		if ev.Kind() == trace.EventSync {
+ 			validBytes = cr.bytesRead.Load()
+ 			validEvents = len(t.events)
+ 		}
+@@ -304,11 +303,11 @@ func parseTrace(rr io.Reader, size int64) (*parsedTrace, error) {
+ 	return t, nil
+ }
+ 
+-func (t *parsedTrace) startTime() tracev2.Time {
++func (t *parsedTrace) startTime() trace.Time {
+ 	return t.events[0].Time()
+ }
+ 
+-func (t *parsedTrace) endTime() tracev2.Time {
++func (t *parsedTrace) endTime() trace.Time {
+ 	return t.events[len(t.events)-1].Time()
+ }
+ 
+@@ -324,8 +323,8 @@ func splitTrace(parsed *parsedTrace) ([]traceviewer.Range, error) {
+ 	return s.Ranges, nil
+ }
+ 
+-func debugProcessedEvents(trace io.Reader) error {
+-	tr, err := tracev2.NewReader(trace)
++func debugProcessedEvents(trc io.Reader) error {
++	tr, err := trace.NewReader(trc)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -340,8 +339,8 @@ func debugProcessedEvents(trace io.Reader) error {
+ 	}
+ }
+ 
+-func debugRawEvents(trace io.Reader) error {
+-	rr, err := raw.NewReader(trace)
++func debugRawEvents(trc io.Reader) error {
++	rr, err := raw.NewReader(trc)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/trace/pprof.go b/src/cmd/trace/pprof.go
+index e921b38fca..c3e5a3a045 100644
+--- a/src/cmd/trace/pprof.go
++++ b/src/cmd/trace/pprof.go
+@@ -11,7 +11,6 @@ import (
+ 	"fmt"
+ 	"internal/trace"
+ 	"internal/trace/traceviewer"
+-	tracev2 "internal/trace/v2"
+ 	"net/http"
+ 	"slices"
+ 	"strings"
+@@ -45,8 +44,8 @@ func pprofByRegion(compute computePprofFunc, t *parsedTrace) traceviewer.Profile
+ 
+ // pprofMatchingGoroutines returns the ids of goroutines of the matching name and its interval.
+ // If the id string is empty, returns nil without an error.
+-func pprofMatchingGoroutines(name string, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
+-	res := make(map[tracev2.GoID][]interval)
++func pprofMatchingGoroutines(name string, t *parsedTrace) (map[trace.GoID][]interval, error) {
++	res := make(map[trace.GoID][]interval)
+ 	for _, g := range t.summary.Goroutines {
+ 		if name != "" && g.Name != name {
+ 			continue
+@@ -65,12 +64,12 @@ func pprofMatchingGoroutines(name string, t *parsedTrace) (map[tracev2.GoID][]in
+ 
+ // pprofMatchingRegions returns the time intervals of matching regions
+ // grouped by the goroutine id. If the filter is nil, returns nil without an error.
+-func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
++func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[trace.GoID][]interval, error) {
+ 	if filter == nil {
+ 		return nil, nil
+ 	}
+ 
+-	gToIntervals := make(map[tracev2.GoID][]interval)
++	gToIntervals := make(map[trace.GoID][]interval)
+ 	for _, g := range t.summary.Goroutines {
+ 		for _, r := range g.Regions {
+ 			if !filter.match(t, r) {
+@@ -91,7 +90,7 @@ func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[tracev2.GoI
+ 			}
+ 			return cmp.Compare(a.end, b.end)
+ 		})
+-		var lastTimestamp tracev2.Time
++		var lastTimestamp trace.Time
+ 		var n int
+ 		// Select only the outermost regions.
+ 		for _, i := range intervals {
+@@ -107,12 +106,12 @@ func pprofMatchingRegions(filter *regionFilter, t *parsedTrace) (map[tracev2.GoI
+ 	return gToIntervals, nil
+ }
+ 
+-type computePprofFunc func(gToIntervals map[tracev2.GoID][]interval, events []tracev2.Event) ([]traceviewer.ProfileRecord, error)
++type computePprofFunc func(gToIntervals map[trace.GoID][]interval, events []trace.Event) ([]traceviewer.ProfileRecord, error)
+ 
+ // computePprofIO returns a computePprofFunc that generates IO pprof-like profile (time spent in
+ // IO wait, currently only network blocking event).
+ func computePprofIO() computePprofFunc {
+-	return makeComputePprofFunc(tracev2.GoWaiting, func(reason string) bool {
++	return makeComputePprofFunc(trace.GoWaiting, func(reason string) bool {
+ 		return reason == "network"
+ 	})
+ }
+@@ -120,7 +119,7 @@ func computePprofIO() computePprofFunc {
+ // computePprofBlock returns a computePprofFunc that generates blocking pprof-like profile
+ // (time spent blocked on synchronization primitives).
+ func computePprofBlock() computePprofFunc {
+-	return makeComputePprofFunc(tracev2.GoWaiting, func(reason string) bool {
++	return makeComputePprofFunc(trace.GoWaiting, func(reason string) bool {
+ 		return strings.Contains(reason, "chan") || strings.Contains(reason, "sync") || strings.Contains(reason, "select")
+ 	})
+ }
+@@ -128,7 +127,7 @@ func computePprofBlock() computePprofFunc {
+ // computePprofSyscall returns a computePprofFunc that generates a syscall pprof-like
+ // profile (time spent in syscalls).
+ func computePprofSyscall() computePprofFunc {
+-	return makeComputePprofFunc(tracev2.GoSyscall, func(_ string) bool {
++	return makeComputePprofFunc(trace.GoSyscall, func(_ string) bool {
+ 		return true
+ 	})
+ }
+@@ -136,32 +135,32 @@ func computePprofSyscall() computePprofFunc {
+ // computePprofSched returns a computePprofFunc that generates a scheduler latency pprof-like profile
+ // (time between a goroutine become runnable and actually scheduled for execution).
+ func computePprofSched() computePprofFunc {
+-	return makeComputePprofFunc(tracev2.GoRunnable, func(_ string) bool {
++	return makeComputePprofFunc(trace.GoRunnable, func(_ string) bool {
+ 		return true
+ 	})
+ }
+ 
+ // makeComputePprofFunc returns a computePprofFunc that generates a profile of time goroutines spend
+ // in a particular state for the specified reasons.
+-func makeComputePprofFunc(state tracev2.GoState, trackReason func(string) bool) computePprofFunc {
+-	return func(gToIntervals map[tracev2.GoID][]interval, events []tracev2.Event) ([]traceviewer.ProfileRecord, error) {
++func makeComputePprofFunc(state trace.GoState, trackReason func(string) bool) computePprofFunc {
++	return func(gToIntervals map[trace.GoID][]interval, events []trace.Event) ([]traceviewer.ProfileRecord, error) {
+ 		stacks := newStackMap()
+-		tracking := make(map[tracev2.GoID]*tracev2.Event)
++		tracking := make(map[trace.GoID]*trace.Event)
+ 		for i := range events {
+ 			ev := &events[i]
+ 
+ 			// Filter out any non-state-transitions and events without stacks.
+-			if ev.Kind() != tracev2.EventStateTransition {
++			if ev.Kind() != trace.EventStateTransition {
+ 				continue
+ 			}
+ 			stack := ev.Stack()
+-			if stack == tracev2.NoStack {
++			if stack == trace.NoStack {
+ 				continue
+ 			}
+ 
+ 			// The state transition has to apply to a goroutine.
+ 			st := ev.StateTransition()
+-			if st.Resource.Kind != tracev2.ResourceGoroutine {
++			if st.Resource.Kind != trace.ResourceGoroutine {
+ 				continue
+ 			}
+ 			id := st.Resource.Goroutine()
+@@ -202,7 +201,7 @@ func makeComputePprofFunc(state tracev2.GoState, trackReason func(string) bool)
+ // pprofOverlappingDuration returns the overlapping duration between
+ // the time intervals in gToIntervals and the specified event.
+ // If gToIntervals is nil, this simply returns the event's duration.
+-func pprofOverlappingDuration(gToIntervals map[tracev2.GoID][]interval, id tracev2.GoID, sample interval) time.Duration {
++func pprofOverlappingDuration(gToIntervals map[trace.GoID][]interval, id trace.GoID, sample interval) time.Duration {
+ 	if gToIntervals == nil { // No filtering.
+ 		return sample.duration()
+ 	}
+@@ -222,7 +221,7 @@ func pprofOverlappingDuration(gToIntervals map[tracev2.GoID][]interval, id trace
+ 
+ // interval represents a time interval in the trace.
+ type interval struct {
+-	start, end tracev2.Time
++	start, end trace.Time
+ }
+ 
+ func (i interval) duration() time.Duration {
+@@ -251,28 +250,28 @@ func (i1 interval) overlap(i2 interval) time.Duration {
+ // stacks anyway.
+ const pprofMaxStack = 128
+ 
+-// stackMap is a map of tracev2.Stack to some value V.
++// stackMap is a map of trace.Stack to some value V.
+ type stackMap struct {
+ 	// stacks contains the full list of stacks in the set, however
+-	// it is insufficient for deduplication because tracev2.Stack
+-	// equality is only optimistic. If two tracev2.Stacks are equal,
++	// it is insufficient for deduplication because trace.Stack
++	// equality is only optimistic. If two trace.Stacks are equal,
+ 	// then they are guaranteed to be equal in content. If they are
+ 	// not equal, then they might still be equal in content.
+-	stacks map[tracev2.Stack]*traceviewer.ProfileRecord
++	stacks map[trace.Stack]*traceviewer.ProfileRecord
+ 
+ 	// pcs is the source-of-truth for deduplication. It is a map of
+-	// the actual PCs in the stack to a tracev2.Stack.
+-	pcs map[[pprofMaxStack]uint64]tracev2.Stack
++	// the actual PCs in the stack to a trace.Stack.
++	pcs map[[pprofMaxStack]uint64]trace.Stack
+ }
+ 
+ func newStackMap() *stackMap {
+ 	return &stackMap{
+-		stacks: make(map[tracev2.Stack]*traceviewer.ProfileRecord),
+-		pcs:    make(map[[pprofMaxStack]uint64]tracev2.Stack),
++		stacks: make(map[trace.Stack]*traceviewer.ProfileRecord),
++		pcs:    make(map[[pprofMaxStack]uint64]trace.Stack),
+ 	}
+ }
+ 
+-func (m *stackMap) getOrAdd(stack tracev2.Stack) *traceviewer.ProfileRecord {
++func (m *stackMap) getOrAdd(stack trace.Stack) *traceviewer.ProfileRecord {
+ 	// Fast path: check to see if this exact stack is already in the map.
+ 	if rec, ok := m.stacks[stack]; ok {
+ 		return rec
+@@ -308,7 +307,7 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
+ 	for stack, record := range m.stacks {
+ 		rec := *record
+ 		i := 0
+-		stack.Frames(func(frame tracev2.StackFrame) bool {
++		stack.Frames(func(frame trace.StackFrame) bool {
+ 			rec.Stack = append(rec.Stack, &trace.Frame{
+ 				PC:   frame.PC,
+ 				Fn:   frame.Func,
+@@ -326,9 +325,9 @@ func (m *stackMap) profile() []traceviewer.ProfileRecord {
+ }
+ 
+ // pcsForStack extracts the first pprofMaxStack PCs from stack into pcs.
+-func pcsForStack(stack tracev2.Stack, pcs *[pprofMaxStack]uint64) {
++func pcsForStack(stack trace.Stack, pcs *[pprofMaxStack]uint64) {
+ 	i := 0
+-	stack.Frames(func(frame tracev2.StackFrame) bool {
++	stack.Frames(func(frame trace.StackFrame) bool {
+ 		pcs[i] = frame.PC
+ 		i++
+ 		return i < len(pcs)
+diff --git a/src/cmd/trace/procgen.go b/src/cmd/trace/procgen.go
+index 7dd724bb78..060e62fe04 100644
+--- a/src/cmd/trace/procgen.go
++++ b/src/cmd/trace/procgen.go
+@@ -6,9 +6,9 @@ package main
+ 
+ import (
+ 	"fmt"
++	"internal/trace"
+ 	"internal/trace/traceviewer"
+ 	"internal/trace/traceviewer/format"
+-	tracev2 "internal/trace/v2"
+ )
+ 
+ var _ generator = &procGenerator{}
+@@ -17,23 +17,23 @@ type procGenerator struct {
+ 	globalRangeGenerator
+ 	globalMetricGenerator
+ 	procRangeGenerator
+-	stackSampleGenerator[tracev2.ProcID]
+-	logEventGenerator[tracev2.ProcID]
++	stackSampleGenerator[trace.ProcID]
++	logEventGenerator[trace.ProcID]
+ 
+-	gStates   map[tracev2.GoID]*gState[tracev2.ProcID]
+-	inSyscall map[tracev2.ProcID]*gState[tracev2.ProcID]
+-	maxProc   tracev2.ProcID
++	gStates   map[trace.GoID]*gState[trace.ProcID]
++	inSyscall map[trace.ProcID]*gState[trace.ProcID]
++	maxProc   trace.ProcID
+ }
+ 
+ func newProcGenerator() *procGenerator {
+ 	pg := new(procGenerator)
+-	rg := func(ev *tracev2.Event) tracev2.ProcID {
++	rg := func(ev *trace.Event) trace.ProcID {
+ 		return ev.Proc()
+ 	}
+ 	pg.stackSampleGenerator.getResource = rg
+ 	pg.logEventGenerator.getResource = rg
+-	pg.gStates = make(map[tracev2.GoID]*gState[tracev2.ProcID])
+-	pg.inSyscall = make(map[tracev2.ProcID]*gState[tracev2.ProcID])
++	pg.gStates = make(map[trace.GoID]*gState[trace.ProcID])
++	pg.inSyscall = make(map[trace.ProcID]*gState[trace.ProcID])
+ 	return pg
+ }
+ 
+@@ -42,25 +42,25 @@ func (g *procGenerator) Sync() {
+ 	g.procRangeGenerator.Sync()
+ }
+ 
+-func (g *procGenerator) GoroutineLabel(ctx *traceContext, ev *tracev2.Event) {
++func (g *procGenerator) GoroutineLabel(ctx *traceContext, ev *trace.Event) {
+ 	l := ev.Label()
+ 	g.gStates[l.Resource.Goroutine()].setLabel(l.Label)
+ }
+ 
+-func (g *procGenerator) GoroutineRange(ctx *traceContext, ev *tracev2.Event) {
++func (g *procGenerator) GoroutineRange(ctx *traceContext, ev *trace.Event) {
+ 	r := ev.Range()
+ 	switch ev.Kind() {
+-	case tracev2.EventRangeBegin:
++	case trace.EventRangeBegin:
+ 		g.gStates[r.Scope.Goroutine()].rangeBegin(ev.Time(), r.Name, ev.Stack())
+-	case tracev2.EventRangeActive:
++	case trace.EventRangeActive:
+ 		g.gStates[r.Scope.Goroutine()].rangeActive(r.Name)
+-	case tracev2.EventRangeEnd:
++	case trace.EventRangeEnd:
+ 		gs := g.gStates[r.Scope.Goroutine()]
+ 		gs.rangeEnd(ev.Time(), r.Name, ev.Stack(), ctx)
+ 	}
+ }
+ 
+-func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event) {
++func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *trace.Event) {
+ 	st := ev.StateTransition()
+ 	goID := st.Resource.Goroutine()
+ 
+@@ -68,7 +68,7 @@ func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event
+ 	// gState for it.
+ 	gs, ok := g.gStates[goID]
+ 	if !ok {
+-		gs = newGState[tracev2.ProcID](goID)
++		gs = newGState[trace.ProcID](goID)
+ 		g.gStates[goID] = gs
+ 	}
+ 	// If we haven't already named this goroutine, try to name it.
+@@ -80,40 +80,40 @@ func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event
+ 		// Filter out no-op events.
+ 		return
+ 	}
+-	if from == tracev2.GoRunning && !to.Executing() {
+-		if to == tracev2.GoWaiting {
++	if from == trace.GoRunning && !to.Executing() {
++		if to == trace.GoWaiting {
+ 			// Goroutine started blocking.
+ 			gs.block(ev.Time(), ev.Stack(), st.Reason, ctx)
+ 		} else {
+ 			gs.stop(ev.Time(), ev.Stack(), ctx)
+ 		}
+ 	}
+-	if !from.Executing() && to == tracev2.GoRunning {
++	if !from.Executing() && to == trace.GoRunning {
+ 		start := ev.Time()
+-		if from == tracev2.GoUndetermined {
++		if from == trace.GoUndetermined {
+ 			// Back-date the event to the start of the trace.
+ 			start = ctx.startTime
+ 		}
+ 		gs.start(start, ev.Proc(), ctx)
+ 	}
+ 
+-	if from == tracev2.GoWaiting {
++	if from == trace.GoWaiting {
+ 		// Goroutine was unblocked.
+ 		gs.unblock(ev.Time(), ev.Stack(), ev.Proc(), ctx)
+ 	}
+-	if from == tracev2.GoNotExist && to == tracev2.GoRunnable {
++	if from == trace.GoNotExist && to == trace.GoRunnable {
+ 		// Goroutine was created.
+ 		gs.created(ev.Time(), ev.Proc(), ev.Stack())
+ 	}
+-	if from == tracev2.GoSyscall && to != tracev2.GoRunning {
++	if from == trace.GoSyscall && to != trace.GoRunning {
+ 		// Goroutine exited a blocked syscall.
+ 		gs.blockedSyscallEnd(ev.Time(), ev.Stack(), ctx)
+ 	}
+ 
+ 	// Handle syscalls.
+-	if to == tracev2.GoSyscall && ev.Proc() != tracev2.NoProc {
++	if to == trace.GoSyscall && ev.Proc() != trace.NoProc {
+ 		start := ev.Time()
+-		if from == tracev2.GoUndetermined {
++		if from == trace.GoUndetermined {
+ 			// Back-date the event to the start of the trace.
+ 			start = ctx.startTime
+ 		}
+@@ -125,7 +125,7 @@ func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event
+ 	}
+ 	// Check if we're exiting a non-blocking syscall.
+ 	_, didNotBlock := g.inSyscall[ev.Proc()]
+-	if from == tracev2.GoSyscall && didNotBlock {
++	if from == trace.GoSyscall && didNotBlock {
+ 		gs.syscallEnd(ev.Time(), false, ctx)
+ 		delete(g.inSyscall, ev.Proc())
+ 	}
+@@ -135,7 +135,7 @@ func (g *procGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event
+ 	ctx.GoroutineTransition(ctx.elapsed(ev.Time()), viewerGState(from, inMarkAssist), viewerGState(to, inMarkAssist))
+ }
+ 
+-func (g *procGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
++func (g *procGenerator) ProcTransition(ctx *traceContext, ev *trace.Event) {
+ 	st := ev.StateTransition()
+ 	proc := st.Resource.Proc()
+ 
+@@ -152,7 +152,7 @@ func (g *procGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
+ 	}
+ 	if to.Executing() {
+ 		start := ev.Time()
+-		if from == tracev2.ProcUndetermined {
++		if from == trace.ProcUndetermined {
+ 			start = ctx.startTime
+ 		}
+ 		viewerEv.Name = "proc start"
+diff --git a/src/cmd/trace/regions.go b/src/cmd/trace/regions.go
+index a85ed176f0..cb04190fd8 100644
+--- a/src/cmd/trace/regions.go
++++ b/src/cmd/trace/regions.go
+@@ -10,7 +10,6 @@ import (
+ 	"html/template"
+ 	"internal/trace"
+ 	"internal/trace/traceviewer"
+-	tracev2 "internal/trace/v2"
+ 	"net/http"
+ 	"net/url"
+ 	"slices"
+@@ -59,7 +58,7 @@ func UserRegionsHandlerFunc(t *parsedTrace) http.HandlerFunc {
+ // regionFingerprint is a way to categorize regions that goes just one step beyond the region's Type
+ // by including the top stack frame.
+ type regionFingerprint struct {
+-	Frame tracev2.StackFrame
++	Frame trace.StackFrame
+ 	Type  string
+ }
+ 
+@@ -70,10 +69,10 @@ func fingerprintRegion(r *trace.UserRegionSummary) regionFingerprint {
+ 	}
+ }
+ 
+-func regionTopStackFrame(r *trace.UserRegionSummary) tracev2.StackFrame {
+-	var frame tracev2.StackFrame
+-	if r.Start != nil && r.Start.Stack() != tracev2.NoStack {
+-		r.Start.Stack().Frames(func(f tracev2.StackFrame) bool {
++func regionTopStackFrame(r *trace.UserRegionSummary) trace.StackFrame {
++	var frame trace.StackFrame
++	if r.Start != nil && r.Start.Stack() != trace.NoStack {
++		r.Start.Stack().Frames(func(f trace.StackFrame) bool {
+ 			frame = f
+ 			return false
+ 		})
+@@ -167,7 +166,7 @@ func UserRegionHandlerFunc(t *parsedTrace) http.HandlerFunc {
+ 		// Collect all the regions with their goroutines.
+ 		type region struct {
+ 			*trace.UserRegionSummary
+-			Goroutine           tracev2.GoID
++			Goroutine           trace.GoID
+ 			NonOverlappingStats map[string]time.Duration
+ 			HasRangeTime        bool
+ 		}
+diff --git a/src/cmd/trace/tasks.go b/src/cmd/trace/tasks.go
+index 8c7b6bad88..8cb5a83a08 100644
+--- a/src/cmd/trace/tasks.go
++++ b/src/cmd/trace/tasks.go
+@@ -11,7 +11,6 @@ import (
+ 	"html/template"
+ 	"internal/trace"
+ 	"internal/trace/traceviewer"
+-	tracev2 "internal/trace/v2"
+ 	"log"
+ 	"net/http"
+ 	"slices"
+@@ -126,13 +125,13 @@ func UserTaskHandlerFunc(t *parsedTrace) http.HandlerFunc {
+ 		type event struct {
+ 			WhenString string
+ 			Elapsed    time.Duration
+-			Goroutine  tracev2.GoID
++			Goroutine  trace.GoID
+ 			What       string
+ 			// TODO: include stack trace of creation time
+ 		}
+ 		type task struct {
+ 			WhenString string
+-			ID         tracev2.TaskID
++			ID         trace.TaskID
+ 			Duration   time.Duration
+ 			Complete   bool
+ 			Events     []event
+@@ -146,7 +145,7 @@ func UserTaskHandlerFunc(t *parsedTrace) http.HandlerFunc {
+ 			}
+ 
+ 			// Collect all the events for the task.
+-			var rawEvents []*tracev2.Event
++			var rawEvents []*trace.Event
+ 			if summary.Start != nil {
+ 				rawEvents = append(rawEvents, summary.Start)
+ 			}
+@@ -164,7 +163,7 @@ func UserTaskHandlerFunc(t *parsedTrace) http.HandlerFunc {
+ 			}
+ 
+ 			// Sort them.
+-			slices.SortStableFunc(rawEvents, func(a, b *tracev2.Event) int {
++			slices.SortStableFunc(rawEvents, func(a, b *trace.Event) int {
+ 				return cmp.Compare(a.Time(), b.Time())
+ 			})
+ 
+@@ -412,25 +411,25 @@ func taskMatches(t *trace.UserTaskSummary, text string) bool {
+ 	return false
+ }
+ 
+-func describeEvent(ev *tracev2.Event) string {
++func describeEvent(ev *trace.Event) string {
+ 	switch ev.Kind() {
+-	case tracev2.EventStateTransition:
++	case trace.EventStateTransition:
+ 		st := ev.StateTransition()
+-		if st.Resource.Kind != tracev2.ResourceGoroutine {
++		if st.Resource.Kind != trace.ResourceGoroutine {
+ 			return ""
+ 		}
+ 		old, new := st.Goroutine()
+ 		return fmt.Sprintf("%s -> %s", old, new)
+-	case tracev2.EventRegionBegin:
++	case trace.EventRegionBegin:
+ 		return fmt.Sprintf("region %q begin", ev.Region().Type)
+-	case tracev2.EventRegionEnd:
++	case trace.EventRegionEnd:
+ 		return fmt.Sprintf("region %q end", ev.Region().Type)
+-	case tracev2.EventTaskBegin:
++	case trace.EventTaskBegin:
+ 		t := ev.Task()
+ 		return fmt.Sprintf("task %q (D %d, parent %d) begin", t.Type, t.ID, t.Parent)
+-	case tracev2.EventTaskEnd:
++	case trace.EventTaskEnd:
+ 		return "task end"
+-	case tracev2.EventLog:
++	case trace.EventLog:
+ 		log := ev.Log()
+ 		if log.Category != "" {
+ 			return fmt.Sprintf("log %q", log.Message)
+@@ -440,13 +439,13 @@ func describeEvent(ev *tracev2.Event) string {
+ 	return ""
+ }
+ 
+-func primaryGoroutine(ev *tracev2.Event) tracev2.GoID {
+-	if ev.Kind() != tracev2.EventStateTransition {
++func primaryGoroutine(ev *trace.Event) trace.GoID {
++	if ev.Kind() != trace.EventStateTransition {
+ 		return ev.Goroutine()
+ 	}
+ 	st := ev.StateTransition()
+-	if st.Resource.Kind != tracev2.ResourceGoroutine {
+-		return tracev2.NoGoroutine
++	if st.Resource.Kind != trace.ResourceGoroutine {
++		return trace.NoGoroutine
+ 	}
+ 	return st.Resource.Goroutine()
+ }
+diff --git a/src/cmd/trace/testdata/mktests.go b/src/cmd/trace/testdata/mktests.go
+index b6efa83ece..8eddc7f8af 100644
+--- a/src/cmd/trace/testdata/mktests.go
++++ b/src/cmd/trace/testdata/mktests.go
+@@ -9,8 +9,8 @@ package main
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"internal/trace/v2/raw"
+-	"internal/trace/v2/version"
++	"internal/trace/raw"
++	"internal/trace/version"
+ 	"io"
+ 	"log"
+ 	"os"
+diff --git a/src/cmd/trace/threadgen.go b/src/cmd/trace/threadgen.go
+index 2d2c7eb753..c2e2c86f6c 100644
+--- a/src/cmd/trace/threadgen.go
++++ b/src/cmd/trace/threadgen.go
+@@ -6,9 +6,9 @@ package main
+ 
+ import (
+ 	"fmt"
++	"internal/trace"
+ 	"internal/trace/traceviewer"
+ 	"internal/trace/traceviewer/format"
+-	tracev2 "internal/trace/v2"
+ )
+ 
+ var _ generator = &threadGenerator{}
+@@ -16,22 +16,22 @@ var _ generator = &threadGenerator{}
+ type threadGenerator struct {
+ 	globalRangeGenerator
+ 	globalMetricGenerator
+-	stackSampleGenerator[tracev2.ThreadID]
+-	logEventGenerator[tracev2.ThreadID]
++	stackSampleGenerator[trace.ThreadID]
++	logEventGenerator[trace.ThreadID]
+ 
+-	gStates map[tracev2.GoID]*gState[tracev2.ThreadID]
+-	threads map[tracev2.ThreadID]struct{}
++	gStates map[trace.GoID]*gState[trace.ThreadID]
++	threads map[trace.ThreadID]struct{}
+ }
+ 
+ func newThreadGenerator() *threadGenerator {
+ 	tg := new(threadGenerator)
+-	rg := func(ev *tracev2.Event) tracev2.ThreadID {
++	rg := func(ev *trace.Event) trace.ThreadID {
+ 		return ev.Thread()
+ 	}
+ 	tg.stackSampleGenerator.getResource = rg
+ 	tg.logEventGenerator.getResource = rg
+-	tg.gStates = make(map[tracev2.GoID]*gState[tracev2.ThreadID])
+-	tg.threads = make(map[tracev2.ThreadID]struct{})
++	tg.gStates = make(map[trace.GoID]*gState[trace.ThreadID])
++	tg.threads = make(map[trace.ThreadID]struct{})
+ 	return tg
+ }
+ 
+@@ -39,26 +39,26 @@ func (g *threadGenerator) Sync() {
+ 	g.globalRangeGenerator.Sync()
+ }
+ 
+-func (g *threadGenerator) GoroutineLabel(ctx *traceContext, ev *tracev2.Event) {
++func (g *threadGenerator) GoroutineLabel(ctx *traceContext, ev *trace.Event) {
+ 	l := ev.Label()
+ 	g.gStates[l.Resource.Goroutine()].setLabel(l.Label)
+ }
+ 
+-func (g *threadGenerator) GoroutineRange(ctx *traceContext, ev *tracev2.Event) {
++func (g *threadGenerator) GoroutineRange(ctx *traceContext, ev *trace.Event) {
+ 	r := ev.Range()
+ 	switch ev.Kind() {
+-	case tracev2.EventRangeBegin:
++	case trace.EventRangeBegin:
+ 		g.gStates[r.Scope.Goroutine()].rangeBegin(ev.Time(), r.Name, ev.Stack())
+-	case tracev2.EventRangeActive:
++	case trace.EventRangeActive:
+ 		g.gStates[r.Scope.Goroutine()].rangeActive(r.Name)
+-	case tracev2.EventRangeEnd:
++	case trace.EventRangeEnd:
+ 		gs := g.gStates[r.Scope.Goroutine()]
+ 		gs.rangeEnd(ev.Time(), r.Name, ev.Stack(), ctx)
+ 	}
+ }
+ 
+-func (g *threadGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Event) {
+-	if ev.Thread() != tracev2.NoThread {
++func (g *threadGenerator) GoroutineTransition(ctx *traceContext, ev *trace.Event) {
++	if ev.Thread() != trace.NoThread {
+ 		if _, ok := g.threads[ev.Thread()]; !ok {
+ 			g.threads[ev.Thread()] = struct{}{}
+ 		}
+@@ -71,7 +71,7 @@ func (g *threadGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Eve
+ 	// gState for it.
+ 	gs, ok := g.gStates[goID]
+ 	if !ok {
+-		gs = newGState[tracev2.ThreadID](goID)
++		gs = newGState[trace.ThreadID](goID)
+ 		g.gStates[goID] = gs
+ 	}
+ 	// If we haven't already named this goroutine, try to name it.
+@@ -84,7 +84,7 @@ func (g *threadGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Eve
+ 		return
+ 	}
+ 	if from.Executing() && !to.Executing() {
+-		if to == tracev2.GoWaiting {
++		if to == trace.GoWaiting {
+ 			// Goroutine started blocking.
+ 			gs.block(ev.Time(), ev.Stack(), st.Reason, ctx)
+ 		} else {
+@@ -93,30 +93,30 @@ func (g *threadGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Eve
+ 	}
+ 	if !from.Executing() && to.Executing() {
+ 		start := ev.Time()
+-		if from == tracev2.GoUndetermined {
++		if from == trace.GoUndetermined {
+ 			// Back-date the event to the start of the trace.
+ 			start = ctx.startTime
+ 		}
+ 		gs.start(start, ev.Thread(), ctx)
+ 	}
+ 
+-	if from == tracev2.GoWaiting {
++	if from == trace.GoWaiting {
+ 		// Goroutine was unblocked.
+ 		gs.unblock(ev.Time(), ev.Stack(), ev.Thread(), ctx)
+ 	}
+-	if from == tracev2.GoNotExist && to == tracev2.GoRunnable {
++	if from == trace.GoNotExist && to == trace.GoRunnable {
+ 		// Goroutine was created.
+ 		gs.created(ev.Time(), ev.Thread(), ev.Stack())
+ 	}
+-	if from == tracev2.GoSyscall {
++	if from == trace.GoSyscall {
+ 		// Exiting syscall.
+-		gs.syscallEnd(ev.Time(), to != tracev2.GoRunning, ctx)
++		gs.syscallEnd(ev.Time(), to != trace.GoRunning, ctx)
+ 	}
+ 
+ 	// Handle syscalls.
+-	if to == tracev2.GoSyscall {
++	if to == trace.GoSyscall {
+ 		start := ev.Time()
+-		if from == tracev2.GoUndetermined {
++		if from == trace.GoUndetermined {
+ 			// Back-date the event to the start of the trace.
+ 			start = ctx.startTime
+ 		}
+@@ -131,8 +131,8 @@ func (g *threadGenerator) GoroutineTransition(ctx *traceContext, ev *tracev2.Eve
+ 	ctx.GoroutineTransition(ctx.elapsed(ev.Time()), viewerGState(from, inMarkAssist), viewerGState(to, inMarkAssist))
+ }
+ 
+-func (g *threadGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
+-	if ev.Thread() != tracev2.NoThread {
++func (g *threadGenerator) ProcTransition(ctx *traceContext, ev *trace.Event) {
++	if ev.Thread() != trace.NoThread {
+ 		if _, ok := g.threads[ev.Thread()]; !ok {
+ 			g.threads[ev.Thread()] = struct{}{}
+ 		}
+@@ -155,7 +155,7 @@ func (g *threadGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
+ 	}
+ 	if to.Executing() {
+ 		start := ev.Time()
+-		if from == tracev2.ProcUndetermined {
++		if from == trace.ProcUndetermined {
+ 			start = ctx.startTime
+ 		}
+ 		viewerEv.Name = "proc start"
+@@ -182,7 +182,7 @@ func (g *threadGenerator) ProcTransition(ctx *traceContext, ev *tracev2.Event) {
+ 	}
+ }
+ 
+-func (g *threadGenerator) ProcRange(ctx *traceContext, ev *tracev2.Event) {
++func (g *threadGenerator) ProcRange(ctx *traceContext, ev *trace.Event) {
+ 	// TODO(mknyszek): Extend procRangeGenerator to support rendering proc ranges on threads.
+ }
+ 
+diff --git a/src/cmd/trace/viewer.go b/src/cmd/trace/viewer.go
+index 6d3029ac86..79c9583b0d 100644
+--- a/src/cmd/trace/viewer.go
++++ b/src/cmd/trace/viewer.go
+@@ -8,15 +8,14 @@ import (
+ 	"fmt"
+ 	"internal/trace"
+ 	"internal/trace/traceviewer"
+-	tracev2 "internal/trace/v2"
+ 	"time"
+ )
+ 
+ // viewerFrames returns the frames of the stack of ev. The given frame slice is
+ // used to store the frames to reduce allocations.
+-func viewerFrames(stk tracev2.Stack) []*trace.Frame {
++func viewerFrames(stk trace.Stack) []*trace.Frame {
+ 	var frames []*trace.Frame
+-	stk.Frames(func(f tracev2.StackFrame) bool {
++	stk.Frames(func(f trace.StackFrame) bool {
+ 		frames = append(frames, &trace.Frame{
+ 			PC:   f.PC,
+ 			Fn:   f.Func,
+@@ -28,22 +27,22 @@ func viewerFrames(stk tracev2.Stack) []*trace.Frame {
+ 	return frames
+ }
+ 
+-func viewerGState(state tracev2.GoState, inMarkAssist bool) traceviewer.GState {
++func viewerGState(state trace.GoState, inMarkAssist bool) traceviewer.GState {
+ 	switch state {
+-	case tracev2.GoUndetermined:
++	case trace.GoUndetermined:
+ 		return traceviewer.GDead
+-	case tracev2.GoNotExist:
++	case trace.GoNotExist:
+ 		return traceviewer.GDead
+-	case tracev2.GoRunnable:
++	case trace.GoRunnable:
+ 		return traceviewer.GRunnable
+-	case tracev2.GoRunning:
++	case trace.GoRunning:
+ 		return traceviewer.GRunning
+-	case tracev2.GoWaiting:
++	case trace.GoWaiting:
+ 		if inMarkAssist {
+ 			return traceviewer.GWaitingGC
+ 		}
+ 		return traceviewer.GWaiting
+-	case tracev2.GoSyscall:
++	case trace.GoSyscall:
+ 		// N.B. A goroutine in a syscall is considered "executing" (state.Executing() == true).
+ 		return traceviewer.GRunning
+ 	default:
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index ee53b31140..f8f17799cd 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -627,31 +627,28 @@ var depsRules = `
+ 
+ 	# v2 execution trace parser.
+ 	FMT
+-	< internal/trace/v2/event;
++	< internal/trace/event;
+ 
+-	internal/trace/v2/event
+-	< internal/trace/v2/event/go122;
++	internal/trace/event
++	< internal/trace/event/go122;
+ 
+-	FMT, io, internal/trace/v2/event/go122
+-	< internal/trace/v2/version;
++	FMT, io, internal/trace/event/go122
++	< internal/trace/version;
+ 
+-	FMT, encoding/binary, internal/trace/v2/version
+-	< internal/trace/v2/raw;
++	FMT, encoding/binary, internal/trace/version
++	< internal/trace/raw;
+ 
+-	FMT, internal/trace/v2/event, internal/trace/v2/version, io, sort, encoding/binary
+-	< internal/trace/v2/internal/oldtrace;
++	FMT, internal/trace/event, internal/trace/version, io, sort, encoding/binary
++	< internal/trace/internal/oldtrace;
+ 
+-	FMT, encoding/binary, internal/trace/v2/version, internal/trace/v2/internal/oldtrace
+-	< internal/trace/v2;
+-
+-	regexp, internal/trace/v2, internal/trace/v2/raw, internal/txtar
+-	< internal/trace/v2/testtrace;
++	FMT, encoding/binary, internal/trace/version, internal/trace/internal/oldtrace, container/heap, math/rand
++	< internal/trace;
+ 
+-	regexp, internal/txtar, internal/trace/v2, internal/trace/v2/raw
+-	< internal/trace/v2/internal/testgen/go122;
++	regexp, internal/trace, internal/trace/raw, internal/txtar
++	< internal/trace/testtrace;
+ 
+-	FMT, container/heap, math/rand, internal/trace/v2
+-	< internal/trace;
++	regexp, internal/txtar, internal/trace, internal/trace/raw
++	< internal/trace/internal/testgen/go122;
+ 
+ 	# cmd/trace dependencies.
+ 	FMT,
+diff --git a/src/internal/trace/v2/base.go b/src/internal/trace/base.go
+similarity index 98%
+rename from src/internal/trace/v2/base.go
+rename to src/internal/trace/base.go
+index 31e3c70f66..4cbd3e64f1 100644
+--- a/src/internal/trace/v2/base.go
++++ b/src/internal/trace/base.go
+@@ -12,9 +12,9 @@ import (
+ 	"math"
+ 	"strings"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/event/go122"
+-	"internal/trace/v2/version"
++	"internal/trace/event"
++	"internal/trace/event/go122"
++	"internal/trace/version"
+ )
+ 
+ // maxArgs is the maximum number of arguments for "plain" events,
+diff --git a/src/internal/trace/v2/batch.go b/src/internal/trace/batch.go
+similarity index 97%
+rename from src/internal/trace/v2/batch.go
+rename to src/internal/trace/batch.go
+index 57c230fe02..2b47c9b72c 100644
+--- a/src/internal/trace/v2/batch.go
++++ b/src/internal/trace/batch.go
+@@ -10,8 +10,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/event/go122"
++	"internal/trace/event"
++	"internal/trace/event/go122"
+ )
+ 
+ // timestamp is an unprocessed timestamp.
+diff --git a/src/internal/trace/v2/batchcursor.go b/src/internal/trace/batchcursor.go
+similarity index 98%
+rename from src/internal/trace/v2/batchcursor.go
+rename to src/internal/trace/batchcursor.go
+index 8dc34fd22f..66d297ee33 100644
+--- a/src/internal/trace/v2/batchcursor.go
++++ b/src/internal/trace/batchcursor.go
+@@ -9,8 +9,8 @@ import (
+ 	"encoding/binary"
+ 	"fmt"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/event/go122"
++	"internal/trace/event"
++	"internal/trace/event/go122"
+ )
+ 
+ type batchCursor struct {
+diff --git a/src/internal/trace/v2/batchcursor_test.go b/src/internal/trace/batchcursor_test.go
+similarity index 100%
+rename from src/internal/trace/v2/batchcursor_test.go
+rename to src/internal/trace/batchcursor_test.go
+diff --git a/src/internal/trace/v2/event.go b/src/internal/trace/event.go
+similarity index 99%
+rename from src/internal/trace/v2/event.go
+rename to src/internal/trace/event.go
+index c58d3bcba2..e30e20ecbb 100644
+--- a/src/internal/trace/v2/event.go
++++ b/src/internal/trace/event.go
+@@ -10,9 +10,9 @@ import (
+ 	"strings"
+ 	"time"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/event/go122"
+-	"internal/trace/v2/version"
++	"internal/trace/event"
++	"internal/trace/event/go122"
++	"internal/trace/version"
+ )
+ 
+ // EventKind indicates the kind of event this is.
+diff --git a/src/internal/trace/v2/event/event.go b/src/internal/trace/event/event.go
+similarity index 100%
+rename from src/internal/trace/v2/event/event.go
+rename to src/internal/trace/event/event.go
+diff --git a/src/internal/trace/v2/event/go122/event.go b/src/internal/trace/event/go122/event.go
+similarity index 99%
+rename from src/internal/trace/v2/event/go122/event.go
+rename to src/internal/trace/event/go122/event.go
+index df25bfc318..f6075e3ed5 100644
+--- a/src/internal/trace/v2/event/go122/event.go
++++ b/src/internal/trace/event/go122/event.go
+@@ -6,7 +6,7 @@ package go122
+ 
+ import (
+ 	"fmt"
+-	"internal/trace/v2/event"
++	"internal/trace/event"
+ )
+ 
+ const (
+diff --git a/src/internal/trace/v2/event/requirements.go b/src/internal/trace/event/requirements.go
+similarity index 100%
+rename from src/internal/trace/v2/event/requirements.go
+rename to src/internal/trace/event/requirements.go
+diff --git a/src/internal/trace/v2/event_test.go b/src/internal/trace/event_test.go
+similarity index 100%
+rename from src/internal/trace/v2/event_test.go
+rename to src/internal/trace/event_test.go
+diff --git a/src/internal/trace/export_test.go b/src/internal/trace/export_test.go
+new file mode 100644
+index 0000000000..4f494ee8cb
+--- /dev/null
++++ b/src/internal/trace/export_test.go
+@@ -0,0 +1,7 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package trace
++
++var BandsPerSeries = bandsPerSeries
+diff --git a/src/internal/trace/gc.go b/src/internal/trace/gc.go
+index 60c45f46aa..bf271ed73b 100644
+--- a/src/internal/trace/gc.go
++++ b/src/internal/trace/gc.go
+@@ -6,7 +6,6 @@ package trace
+ 
+ import (
+ 	"container/heap"
+-	tracev2 "internal/trace/v2"
+ 	"math"
+ 	"sort"
+ 	"strings"
+@@ -53,7 +52,7 @@ const (
+ //
+ // If the UtilPerProc flag is not given, this always returns a single
+ // utilization function. Otherwise, it returns one function per P.
+-func MutatorUtilizationV2(events []tracev2.Event, flags UtilFlags) [][]MutatorUtil {
++func MutatorUtilizationV2(events []Event, flags UtilFlags) [][]MutatorUtil {
+ 	// Set up a bunch of analysis state.
+ 	type perP struct {
+ 		// gc > 0 indicates that GC is active on this P.
+@@ -72,34 +71,34 @@ func MutatorUtilizationV2(events []tracev2.Event, flags UtilFlags) [][]MutatorUt
+ 	out := [][]MutatorUtil{}
+ 	stw := 0
+ 	ps := []perP{}
+-	inGC := make(map[tracev2.GoID]bool)
+-	states := make(map[tracev2.GoID]tracev2.GoState)
+-	bgMark := make(map[tracev2.GoID]bool)
++	inGC := make(map[GoID]bool)
++	states := make(map[GoID]GoState)
++	bgMark := make(map[GoID]bool)
+ 	procs := []procsCount{}
+ 	seenSync := false
+ 
+ 	// Helpers.
+-	handleSTW := func(r tracev2.Range) bool {
++	handleSTW := func(r Range) bool {
+ 		return flags&UtilSTW != 0 && isGCSTW(r)
+ 	}
+-	handleMarkAssist := func(r tracev2.Range) bool {
++	handleMarkAssist := func(r Range) bool {
+ 		return flags&UtilAssist != 0 && isGCMarkAssist(r)
+ 	}
+-	handleSweep := func(r tracev2.Range) bool {
++	handleSweep := func(r Range) bool {
+ 		return flags&UtilSweep != 0 && isGCSweep(r)
+ 	}
+ 
+ 	// Iterate through the trace, tracking mutator utilization.
+-	var lastEv *tracev2.Event
++	var lastEv *Event
+ 	for i := range events {
+ 		ev := &events[i]
+ 		lastEv = ev
+ 
+ 		// Process the event.
+ 		switch ev.Kind() {
+-		case tracev2.EventSync:
++		case EventSync:
+ 			seenSync = true
+-		case tracev2.EventMetric:
++		case EventMetric:
+ 			m := ev.Metric()
+ 			if m.Name != "/sched/gomaxprocs:threads" {
+ 				break
+@@ -135,7 +134,7 @@ func MutatorUtilizationV2(events []tracev2.Event, flags UtilFlags) [][]MutatorUt
+ 		}
+ 
+ 		switch ev.Kind() {
+-		case tracev2.EventRangeActive:
++		case EventRangeActive:
+ 			if seenSync {
+ 				// If we've seen a sync, then we can be sure we're not finding out about
+ 				// something late; we have complete information after that point, and these
+@@ -187,7 +186,7 @@ func MutatorUtilizationV2(events []tracev2.Event, flags UtilFlags) [][]MutatorUt
+ 			// After accounting for the portion we missed, this just acts like the
+ 			// beginning of a new range.
+ 			fallthrough
+-		case tracev2.EventRangeBegin:
++		case EventRangeBegin:
+ 			r := ev.Range()
+ 			if handleSTW(r) {
+ 				stw++
+@@ -195,11 +194,11 @@ func MutatorUtilizationV2(events []tracev2.Event, flags UtilFlags) [][]MutatorUt
+ 				ps[ev.Proc()].gc++
+ 			} else if handleMarkAssist(r) {
+ 				ps[ev.Proc()].gc++
+-				if g := r.Scope.Goroutine(); g != tracev2.NoGoroutine {
++				if g := r.Scope.Goroutine(); g != NoGoroutine {
+ 					inGC[g] = true
+ 				}
+ 			}
+-		case tracev2.EventRangeEnd:
++		case EventRangeEnd:
+ 			r := ev.Range()
+ 			if handleSTW(r) {
+ 				stw--
+@@ -207,13 +206,13 @@ func MutatorUtilizationV2(events []tracev2.Event, flags UtilFlags) [][]MutatorUt
+ 				ps[ev.Proc()].gc--
+ 			} else if handleMarkAssist(r) {
+ 				ps[ev.Proc()].gc--
+-				if g := r.Scope.Goroutine(); g != tracev2.NoGoroutine {
++				if g := r.Scope.Goroutine(); g != NoGoroutine {
+ 					delete(inGC, g)
+ 				}
+ 			}
+-		case tracev2.EventStateTransition:
++		case EventStateTransition:
+ 			st := ev.StateTransition()
+-			if st.Resource.Kind != tracev2.ResourceGoroutine {
++			if st.Resource.Kind != ResourceGoroutine {
+ 				break
+ 			}
+ 			old, new := st.Goroutine()
+@@ -228,7 +227,7 @@ func MutatorUtilizationV2(events []tracev2.Event, flags UtilFlags) [][]MutatorUt
+ 				}
+ 			}
+ 			states[g] = new
+-		case tracev2.EventLabel:
++		case EventLabel:
+ 			l := ev.Label()
+ 			if flags&UtilBackground != 0 && strings.HasPrefix(l.Label, "GC ") && l.Label != "GC (idle)" {
+ 				// Background mark worker.
+@@ -917,14 +916,14 @@ func (in *integrator) next(time int64) int64 {
+ 	return 1<<63 - 1
+ }
+ 
+-func isGCSTW(r tracev2.Range) bool {
++func isGCSTW(r Range) bool {
+ 	return strings.HasPrefix(r.Name, "stop-the-world") && strings.Contains(r.Name, "GC")
+ }
+ 
+-func isGCMarkAssist(r tracev2.Range) bool {
++func isGCMarkAssist(r Range) bool {
+ 	return r.Name == "GC mark assist"
+ }
+ 
+-func isGCSweep(r tracev2.Range) bool {
++func isGCSweep(r Range) bool {
+ 	return r.Name == "GC incremental sweep"
+ }
+diff --git a/src/internal/trace/gc_test.go b/src/internal/trace/gc_test.go
+index a74d59d8b7..39f28cc0f6 100644
+--- a/src/internal/trace/gc_test.go
++++ b/src/internal/trace/gc_test.go
+@@ -2,11 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package trace
++package trace_test
+ 
+ import (
+-	tracev2 "internal/trace/v2"
+-	"internal/trace/v2/testtrace"
++	"internal/trace"
++	"internal/trace/testtrace"
+ 	"io"
+ 	"math"
+ 	"testing"
+@@ -32,7 +32,7 @@ func TestMMU(t *testing.T) {
+ 	// 0.5      *   *   *   *
+ 	// 0.0      *****   *****
+ 	//      0   1   2   3   4   5
+-	util := [][]MutatorUtil{{
++	util := [][]trace.MutatorUtil{{
+ 		{0e9, 1},
+ 		{1e9, 0},
+ 		{2e9, 1},
+@@ -40,7 +40,7 @@ func TestMMU(t *testing.T) {
+ 		{4e9, 1},
+ 		{5e9, 0},
+ 	}}
+-	mmuCurve := NewMMUCurve(util)
++	mmuCurve := trace.NewMMUCurve(util)
+ 
+ 	for _, test := range []struct {
+ 		window time.Duration
+@@ -84,8 +84,8 @@ func TestMMUTrace(t *testing.T) {
+ 		// test input too big for all.bash
+ 		t.Skip("skipping in -short mode")
+ 	}
+-	check := func(t *testing.T, mu [][]MutatorUtil) {
+-		mmuCurve := NewMMUCurve(mu)
++	check := func(t *testing.T, mu [][]trace.MutatorUtil) {
++		mmuCurve := trace.NewMMUCurve(mu)
+ 
+ 		// Test the optimized implementation against the "obviously
+ 		// correct" implementation.
+@@ -101,9 +101,9 @@ func TestMMUTrace(t *testing.T) {
+ 		// optimization. We don't have a simple testing implementation
+ 		// of MUDs (the simplest implementation is still quite
+ 		// complex), but this is still a pretty good test.
+-		defer func(old int) { bandsPerSeries = old }(bandsPerSeries)
+-		bandsPerSeries = 1
+-		mmuCurve2 := NewMMUCurve(mu)
++		defer func(old int) { trace.BandsPerSeries = old }(trace.BandsPerSeries)
++		trace.BandsPerSeries = 1
++		mmuCurve2 := trace.NewMMUCurve(mu)
+ 		quantiles := []float64{0, 1 - .999, 1 - .99}
+ 		for window := time.Microsecond; window < time.Second; window *= 10 {
+ 			mud1 := mmuCurve.MUD(window, quantiles)
+@@ -117,13 +117,13 @@ func TestMMUTrace(t *testing.T) {
+ 		}
+ 	}
+ 	t.Run("V2", func(t *testing.T) {
+-		testPath := "v2/testdata/tests/go122-gc-stress.test"
++		testPath := "testdata/tests/go122-gc-stress.test"
+ 		r, _, err := testtrace.ParseFile(testPath)
+ 		if err != nil {
+ 			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
+ 		}
+-		var events []tracev2.Event
+-		tr, err := tracev2.NewReader(r)
++		var events []trace.Event
++		tr, err := trace.NewReader(r)
+ 		if err != nil {
+ 			t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
+ 		}
+@@ -138,11 +138,11 @@ func TestMMUTrace(t *testing.T) {
+ 			events = append(events, ev)
+ 		}
+ 		// Pass the trace through MutatorUtilizationV2 and check it.
+-		check(t, MutatorUtilizationV2(events, UtilSTW|UtilBackground|UtilAssist))
++		check(t, trace.MutatorUtilizationV2(events, trace.UtilSTW|trace.UtilBackground|trace.UtilAssist))
+ 	})
+ }
+ 
+-func mmuSlow(util []MutatorUtil, window time.Duration) (mmu float64) {
++func mmuSlow(util []trace.MutatorUtil, window time.Duration) (mmu float64) {
+ 	if max := time.Duration(util[len(util)-1].Time - util[0].Time); window > max {
+ 		window = max
+ 	}
+@@ -151,9 +151,9 @@ func mmuSlow(util []MutatorUtil, window time.Duration) (mmu float64) {
+ 
+ 	// muInWindow returns the mean mutator utilization between
+ 	// util[0].Time and end.
+-	muInWindow := func(util []MutatorUtil, end int64) float64 {
++	muInWindow := func(util []trace.MutatorUtil, end int64) float64 {
+ 		total := 0.0
+-		var prevU MutatorUtil
++		var prevU trace.MutatorUtil
+ 		for _, u := range util {
+ 			if u.Time > end {
+ 				total += prevU.Util * float64(end-prevU.Time)
+@@ -177,7 +177,7 @@ func mmuSlow(util []MutatorUtil, window time.Duration) (mmu float64) {
+ 	update()
+ 	// Reverse the trace. Slightly subtle because each MutatorUtil
+ 	// is a *change*.
+-	rutil := make([]MutatorUtil, len(util))
++	rutil := make([]trace.MutatorUtil, len(util))
+ 	if util[len(util)-1].Util != 0 {
+ 		panic("irreversible trace")
+ 	}
+@@ -186,7 +186,7 @@ func mmuSlow(util []MutatorUtil, window time.Duration) (mmu float64) {
+ 		if i != 0 {
+ 			util1 = util[i-1].Util
+ 		}
+-		rutil[len(rutil)-i-1] = MutatorUtil{Time: -u.Time, Util: util1}
++		rutil[len(rutil)-i-1] = trace.MutatorUtil{Time: -u.Time, Util: util1}
+ 	}
+ 	util = rutil
+ 	// Consider all right-aligned windows.
+diff --git a/src/internal/trace/v2/generation.go b/src/internal/trace/generation.go
+similarity index 99%
+rename from src/internal/trace/v2/generation.go
+rename to src/internal/trace/generation.go
+index 0fdbfc3b20..c67bfdba16 100644
+--- a/src/internal/trace/v2/generation.go
++++ b/src/internal/trace/generation.go
+@@ -14,8 +14,8 @@ import (
+ 	"slices"
+ 	"strings"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/event/go122"
++	"internal/trace/event"
++	"internal/trace/event/go122"
+ )
+ 
+ // generation contains all the trace data for a single
+diff --git a/src/internal/trace/v2/internal/oldtrace/order.go b/src/internal/trace/internal/oldtrace/order.go
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/order.go
+rename to src/internal/trace/internal/oldtrace/order.go
+diff --git a/src/internal/trace/v2/internal/oldtrace/parser.go b/src/internal/trace/internal/oldtrace/parser.go
+similarity index 99%
+rename from src/internal/trace/v2/internal/oldtrace/parser.go
+rename to src/internal/trace/internal/oldtrace/parser.go
+index da1079b34b..3775c78f1a 100644
+--- a/src/internal/trace/v2/internal/oldtrace/parser.go
++++ b/src/internal/trace/internal/oldtrace/parser.go
+@@ -16,8 +16,8 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/version"
++	"internal/trace/event"
++	"internal/trace/version"
+ 	"io"
+ 	"math"
+ 	"sort"
+diff --git a/src/internal/trace/v2/internal/oldtrace/parser_test.go b/src/internal/trace/internal/oldtrace/parser_test.go
+similarity index 99%
+rename from src/internal/trace/v2/internal/oldtrace/parser_test.go
+rename to src/internal/trace/internal/oldtrace/parser_test.go
+index bc26c36a44..6fe31e2e7e 100644
+--- a/src/internal/trace/v2/internal/oldtrace/parser_test.go
++++ b/src/internal/trace/internal/oldtrace/parser_test.go
+@@ -6,7 +6,7 @@ package oldtrace
+ 
+ import (
+ 	"bytes"
+-	"internal/trace/v2/version"
++	"internal/trace/version"
+ 	"os"
+ 	"path/filepath"
+ 	"strings"
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/fmt_1_21_pprof_good b/src/internal/trace/internal/oldtrace/testdata/fmt_1_21_pprof_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/fmt_1_21_pprof_good
+rename to src/internal/trace/internal/oldtrace/testdata/fmt_1_21_pprof_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/http_1_19_good b/src/internal/trace/internal/oldtrace/testdata/http_1_19_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/http_1_19_good
+rename to src/internal/trace/internal/oldtrace/testdata/http_1_19_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/http_1_21_good b/src/internal/trace/internal/oldtrace/testdata/http_1_21_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/http_1_21_good
+rename to src/internal/trace/internal/oldtrace/testdata/http_1_21_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/stress_1_11_good b/src/internal/trace/internal/oldtrace/testdata/stress_1_11_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/stress_1_11_good
+rename to src/internal/trace/internal/oldtrace/testdata/stress_1_11_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/stress_1_19_good b/src/internal/trace/internal/oldtrace/testdata/stress_1_19_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/stress_1_19_good
+rename to src/internal/trace/internal/oldtrace/testdata/stress_1_19_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/stress_1_21_good b/src/internal/trace/internal/oldtrace/testdata/stress_1_21_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/stress_1_21_good
+rename to src/internal/trace/internal/oldtrace/testdata/stress_1_21_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/stress_start_stop_1_11_good b/src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_11_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/stress_start_stop_1_11_good
+rename to src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_11_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/stress_start_stop_1_19_good b/src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_19_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/stress_start_stop_1_19_good
+rename to src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_19_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/stress_start_stop_1_21_good b/src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_21_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/stress_start_stop_1_21_good
+rename to src/internal/trace/internal/oldtrace/testdata/stress_start_stop_1_21_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/user_task_region_1_11_good b/src/internal/trace/internal/oldtrace/testdata/user_task_region_1_11_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/user_task_region_1_11_good
+rename to src/internal/trace/internal/oldtrace/testdata/user_task_region_1_11_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/user_task_region_1_19_good b/src/internal/trace/internal/oldtrace/testdata/user_task_region_1_19_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/user_task_region_1_19_good
+rename to src/internal/trace/internal/oldtrace/testdata/user_task_region_1_19_good
+diff --git a/src/internal/trace/v2/internal/oldtrace/testdata/user_task_region_1_21_good b/src/internal/trace/internal/oldtrace/testdata/user_task_region_1_21_good
+similarity index 100%
+rename from src/internal/trace/v2/internal/oldtrace/testdata/user_task_region_1_21_good
+rename to src/internal/trace/internal/oldtrace/testdata/user_task_region_1_21_good
+diff --git a/src/internal/trace/v2/internal/testgen/go122/trace.go b/src/internal/trace/internal/testgen/go122/trace.go
+similarity index 98%
+rename from src/internal/trace/v2/internal/testgen/go122/trace.go
+rename to src/internal/trace/internal/testgen/go122/trace.go
+index 42bb403482..5fd995ae9a 100644
+--- a/src/internal/trace/v2/internal/testgen/go122/trace.go
++++ b/src/internal/trace/internal/testgen/go122/trace.go
+@@ -12,11 +12,11 @@ import (
+ 	"regexp"
+ 	"strings"
+ 
+-	"internal/trace/v2"
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/event/go122"
+-	"internal/trace/v2/raw"
+-	"internal/trace/v2/version"
++	"internal/trace"
++	"internal/trace/event"
++	"internal/trace/event/go122"
++	"internal/trace/raw"
++	"internal/trace/version"
+ 	"internal/txtar"
+ )
+ 
+diff --git a/src/internal/trace/mud_test.go b/src/internal/trace/mud_test.go
+index b3d74dcf34..9856442cff 100644
+--- a/src/internal/trace/mud_test.go
++++ b/src/internal/trace/mud_test.go
+@@ -5,6 +5,7 @@
+ package trace
+ 
+ import (
++	"math"
+ 	"math/rand"
+ 	"testing"
+ )
+@@ -85,3 +86,15 @@ func TestMUDTracking(t *testing.T) {
+ 		}
+ 	}
+ }
++
++// aeq returns true if x and y are equal up to 8 digits (1 part in 100
++// million).
++// TODO(amedee) dup of gc_test.go
++func aeq(x, y float64) bool {
++	if x < 0 && y < 0 {
++		x, y = -x, -y
++	}
++	const digits = 8
++	factor := 1 - math.Pow(10, -digits+1)
++	return x*factor <= y && y*factor <= x
++}
+diff --git a/src/internal/trace/v2/oldtrace.go b/src/internal/trace/oldtrace.go
+similarity index 99%
+rename from src/internal/trace/v2/oldtrace.go
+rename to src/internal/trace/oldtrace.go
+index 29b7173a3a..c49f8c7474 100644
+--- a/src/internal/trace/v2/oldtrace.go
++++ b/src/internal/trace/oldtrace.go
+@@ -30,9 +30,9 @@ package trace
+ import (
+ 	"errors"
+ 	"fmt"
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/event/go122"
+-	"internal/trace/v2/internal/oldtrace"
++	"internal/trace/event"
++	"internal/trace/event/go122"
++	"internal/trace/internal/oldtrace"
+ 	"io"
+ )
+ 
+diff --git a/src/internal/trace/v2/oldtrace_test.go b/src/internal/trace/oldtrace_test.go
+similarity index 97%
+rename from src/internal/trace/v2/oldtrace_test.go
+rename to src/internal/trace/oldtrace_test.go
+index e315b48160..f812d5ef84 100644
+--- a/src/internal/trace/v2/oldtrace_test.go
++++ b/src/internal/trace/oldtrace_test.go
+@@ -5,8 +5,8 @@
+ package trace_test
+ 
+ import (
+-	"internal/trace/v2"
+-	"internal/trace/v2/testtrace"
++	"internal/trace"
++	"internal/trace/testtrace"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+diff --git a/src/internal/trace/v2/order.go b/src/internal/trace/order.go
+similarity index 99%
+rename from src/internal/trace/v2/order.go
+rename to src/internal/trace/order.go
+index 3d201513eb..9765df6177 100644
+--- a/src/internal/trace/v2/order.go
++++ b/src/internal/trace/order.go
+@@ -8,9 +8,9 @@ import (
+ 	"fmt"
+ 	"strings"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/event/go122"
+-	"internal/trace/v2/version"
++	"internal/trace/event"
++	"internal/trace/event/go122"
++	"internal/trace/version"
+ )
+ 
+ // ordering emulates Go scheduler state for both validation and
+diff --git a/src/internal/trace/v2/order_test.go b/src/internal/trace/order_test.go
+similarity index 100%
+rename from src/internal/trace/v2/order_test.go
+rename to src/internal/trace/order_test.go
+diff --git a/src/internal/trace/v2/raw/doc.go b/src/internal/trace/raw/doc.go
+similarity index 100%
+rename from src/internal/trace/v2/raw/doc.go
+rename to src/internal/trace/raw/doc.go
+diff --git a/src/internal/trace/v2/raw/event.go b/src/internal/trace/raw/event.go
+similarity index 96%
+rename from src/internal/trace/v2/raw/event.go
+rename to src/internal/trace/raw/event.go
+index 6f09f1f4c2..4766fbe563 100644
+--- a/src/internal/trace/v2/raw/event.go
++++ b/src/internal/trace/raw/event.go
+@@ -8,8 +8,8 @@ import (
+ 	"strconv"
+ 	"strings"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/version"
++	"internal/trace/event"
++	"internal/trace/version"
+ )
+ 
+ // Event is a simple representation of a trace event.
+diff --git a/src/internal/trace/v2/raw/reader.go b/src/internal/trace/raw/reader.go
+similarity index 97%
+rename from src/internal/trace/v2/raw/reader.go
+rename to src/internal/trace/raw/reader.go
+index fdcd47f7c5..37f36a1a24 100644
+--- a/src/internal/trace/v2/raw/reader.go
++++ b/src/internal/trace/raw/reader.go
+@@ -10,8 +10,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/version"
++	"internal/trace/event"
++	"internal/trace/version"
+ )
+ 
+ // Reader parses trace bytes with only very basic validation
+diff --git a/src/internal/trace/v2/raw/textreader.go b/src/internal/trace/raw/textreader.go
+similarity index 98%
+rename from src/internal/trace/v2/raw/textreader.go
+rename to src/internal/trace/raw/textreader.go
+index 07785f35a3..37bfcfefdf 100644
+--- a/src/internal/trace/v2/raw/textreader.go
++++ b/src/internal/trace/raw/textreader.go
+@@ -12,8 +12,8 @@ import (
+ 	"strings"
+ 	"unicode"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/version"
++	"internal/trace/event"
++	"internal/trace/version"
+ )
+ 
+ // TextReader parses a text format trace with only very basic validation
+diff --git a/src/internal/trace/v2/raw/textwriter.go b/src/internal/trace/raw/textwriter.go
+similarity index 96%
+rename from src/internal/trace/v2/raw/textwriter.go
+rename to src/internal/trace/raw/textwriter.go
+index 367a80bbb6..b9f25923cb 100644
+--- a/src/internal/trace/v2/raw/textwriter.go
++++ b/src/internal/trace/raw/textwriter.go
+@@ -8,7 +8,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/v2/version"
++	"internal/trace/version"
+ )
+ 
+ // TextWriter emits the text format of a trace.
+diff --git a/src/internal/trace/v2/raw/writer.go b/src/internal/trace/raw/writer.go
+similarity index 96%
+rename from src/internal/trace/v2/raw/writer.go
+rename to src/internal/trace/raw/writer.go
+index 80596ebe9a..9b87995aa7 100644
+--- a/src/internal/trace/v2/raw/writer.go
++++ b/src/internal/trace/raw/writer.go
+@@ -9,8 +9,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/version"
++	"internal/trace/event"
++	"internal/trace/version"
+ )
+ 
+ // Writer emits the wire format of a trace.
+diff --git a/src/internal/trace/v2/reader.go b/src/internal/trace/reader.go
+similarity index 98%
+rename from src/internal/trace/v2/reader.go
+rename to src/internal/trace/reader.go
+index 8f886772bf..c05d5b58b3 100644
+--- a/src/internal/trace/v2/reader.go
++++ b/src/internal/trace/reader.go
+@@ -11,9 +11,9 @@ import (
+ 	"slices"
+ 	"strings"
+ 
+-	"internal/trace/v2/event/go122"
+-	"internal/trace/v2/internal/oldtrace"
+-	"internal/trace/v2/version"
++	"internal/trace/event/go122"
++	"internal/trace/internal/oldtrace"
++	"internal/trace/version"
+ )
+ 
+ // Reader reads a byte stream, validates it, and produces trace events.
+diff --git a/src/internal/trace/v2/reader_test.go b/src/internal/trace/reader_test.go
+similarity index 97%
+rename from src/internal/trace/v2/reader_test.go
+rename to src/internal/trace/reader_test.go
+index 121f0174ed..37c21da667 100644
+--- a/src/internal/trace/v2/reader_test.go
++++ b/src/internal/trace/reader_test.go
+@@ -14,10 +14,10 @@ import (
+ 	"strings"
+ 	"testing"
+ 
+-	"internal/trace/v2"
+-	"internal/trace/v2/raw"
+-	"internal/trace/v2/testtrace"
+-	"internal/trace/v2/version"
++	"internal/trace"
++	"internal/trace/raw"
++	"internal/trace/testtrace"
++	"internal/trace/version"
+ )
+ 
+ var (
+diff --git a/src/internal/trace/v2/resources.go b/src/internal/trace/resources.go
+similarity index 100%
+rename from src/internal/trace/v2/resources.go
+rename to src/internal/trace/resources.go
+diff --git a/src/internal/trace/summary.go b/src/internal/trace/summary.go
+index 6d889baca3..8dd2317d86 100644
+--- a/src/internal/trace/summary.go
++++ b/src/internal/trace/summary.go
+@@ -5,7 +5,6 @@
+ package trace
+ 
+ import (
+-	tracev2 "internal/trace/v2"
+ 	"sort"
+ 	"strings"
+ 	"time"
+@@ -13,19 +12,19 @@ import (
+ 
+ // Summary is the analysis result produced by the summarizer.
+ type Summary struct {
+-	Goroutines map[tracev2.GoID]*GoroutineSummary
+-	Tasks      map[tracev2.TaskID]*UserTaskSummary
++	Goroutines map[GoID]*GoroutineSummary
++	Tasks      map[TaskID]*UserTaskSummary
+ }
+ 
+ // GoroutineSummary contains statistics and execution details of a single goroutine.
+ // (For v2 traces.)
+ type GoroutineSummary struct {
+-	ID           tracev2.GoID
+-	Name         string       // A non-unique human-friendly identifier for the goroutine.
+-	PC           uint64       // The first PC we saw for the entry function of the goroutine
+-	CreationTime tracev2.Time // Timestamp of the first appearance in the trace.
+-	StartTime    tracev2.Time // Timestamp of the first time it started running. 0 if the goroutine never ran.
+-	EndTime      tracev2.Time // Timestamp of when the goroutine exited. 0 if the goroutine never exited.
++	ID           GoID
++	Name         string // A non-unique human-friendly identifier for the goroutine.
++	PC           uint64 // The first PC we saw for the entry function of the goroutine
++	CreationTime Time   // Timestamp of the first appearance in the trace.
++	StartTime    Time   // Timestamp of the first time it started running. 0 if the goroutine never ran.
++	EndTime      Time   // Timestamp of when the goroutine exited. 0 if the goroutine never exited.
+ 
+ 	// List of regions in the goroutine, sorted based on the start time.
+ 	Regions []*UserRegionSummary
+@@ -43,25 +42,25 @@ type GoroutineSummary struct {
+ 
+ // UserTaskSummary represents a task in the trace.
+ type UserTaskSummary struct {
+-	ID       tracev2.TaskID
++	ID       TaskID
+ 	Name     string
+ 	Parent   *UserTaskSummary // nil if the parent is unknown.
+ 	Children []*UserTaskSummary
+ 
+ 	// Task begin event. An EventTaskBegin event or nil.
+-	Start *tracev2.Event
++	Start *Event
+ 
+ 	// End end event. Normally EventTaskEnd event or nil.
+-	End *tracev2.Event
++	End *Event
+ 
+-	// Logs is a list of tracev2.EventLog events associated with the task.
+-	Logs []*tracev2.Event
++	// Logs is a list of EventLog events associated with the task.
++	Logs []*Event
+ 
+ 	// List of regions in the task, sorted based on the start time.
+ 	Regions []*UserRegionSummary
+ 
+ 	// Goroutines is the set of goroutines associated with this task.
+-	Goroutines map[tracev2.GoID]*GoroutineSummary
++	Goroutines map[GoID]*GoroutineSummary
+ }
+ 
+ // Complete returns true if we have complete information about the task
+@@ -83,19 +82,19 @@ func (s *UserTaskSummary) Descendents() []*UserTaskSummary {
+ // UserRegionSummary represents a region and goroutine execution stats
+ // while the region was active. (For v2 traces.)
+ type UserRegionSummary struct {
+-	TaskID tracev2.TaskID
++	TaskID TaskID
+ 	Name   string
+ 
+ 	// Region start event. Normally EventRegionBegin event or nil,
+ 	// but can be a state transition event from NotExist or Undetermined
+ 	// if the region is a synthetic region representing task inheritance
+ 	// from the parent goroutine.
+-	Start *tracev2.Event
++	Start *Event
+ 
+ 	// Region end event. Normally EventRegionEnd event or nil,
+ 	// but can be a state transition event to NotExist if the goroutine
+ 	// terminated without explicitly ending the region.
+-	End *tracev2.Event
++	End *Event
+ 
+ 	GoroutineExecStats
+ }
+@@ -183,7 +182,7 @@ func (s GoroutineExecStats) clone() (r GoroutineExecStats) {
+ // snapshotStat returns the snapshot of the goroutine execution statistics.
+ // This is called as we process the ordered trace event stream. lastTs is used
+ // to process pending statistics if this is called before any goroutine end event.
+-func (g *GoroutineSummary) snapshotStat(lastTs tracev2.Time) (ret GoroutineExecStats) {
++func (g *GoroutineSummary) snapshotStat(lastTs Time) (ret GoroutineExecStats) {
+ 	ret = g.GoroutineExecStats.clone()
+ 
+ 	if g.goroutineSummary == nil {
+@@ -220,7 +219,7 @@ func (g *GoroutineSummary) snapshotStat(lastTs tracev2.Time) (ret GoroutineExecS
+ // finalize is called when processing a goroutine end event or at
+ // the end of trace processing. This finalizes the execution stat
+ // and any active regions in the goroutine, in which case trigger is nil.
+-func (g *GoroutineSummary) finalize(lastTs tracev2.Time, trigger *tracev2.Event) {
++func (g *GoroutineSummary) finalize(lastTs Time, trigger *Event) {
+ 	if trigger != nil {
+ 		g.EndTime = trigger.Time()
+ 	}
+@@ -244,57 +243,57 @@ func (g *GoroutineSummary) finalize(lastTs tracev2.Time, trigger *tracev2.Event)
+ 
+ // goroutineSummary is a private part of GoroutineSummary that is required only during analysis.
+ type goroutineSummary struct {
+-	lastStartTime        tracev2.Time
+-	lastRunnableTime     tracev2.Time
+-	lastBlockTime        tracev2.Time
++	lastStartTime        Time
++	lastRunnableTime     Time
++	lastBlockTime        Time
+ 	lastBlockReason      string
+-	lastSyscallTime      tracev2.Time
+-	lastSyscallBlockTime tracev2.Time
+-	lastRangeTime        map[string]tracev2.Time
++	lastSyscallTime      Time
++	lastSyscallBlockTime Time
++	lastRangeTime        map[string]Time
+ 	activeRegions        []*UserRegionSummary // stack of active regions
+ }
+ 
+ // Summarizer constructs per-goroutine time statistics for v2 traces.
+ type Summarizer struct {
+ 	// gs contains the map of goroutine summaries we're building up to return to the caller.
+-	gs map[tracev2.GoID]*GoroutineSummary
++	gs map[GoID]*GoroutineSummary
+ 
+ 	// tasks contains the map of task summaries we're building up to return to the caller.
+-	tasks map[tracev2.TaskID]*UserTaskSummary
++	tasks map[TaskID]*UserTaskSummary
+ 
+ 	// syscallingP and syscallingG represent a binding between a P and G in a syscall.
+ 	// Used to correctly identify and clean up after syscalls (blocking or otherwise).
+-	syscallingP map[tracev2.ProcID]tracev2.GoID
+-	syscallingG map[tracev2.GoID]tracev2.ProcID
++	syscallingP map[ProcID]GoID
++	syscallingG map[GoID]ProcID
+ 
+ 	// rangesP is used for optimistic tracking of P-based ranges for goroutines.
+ 	//
+ 	// It's a best-effort mapping of an active range on a P to the goroutine we think
+ 	// is associated with it.
+-	rangesP map[rangeP]tracev2.GoID
++	rangesP map[rangeP]GoID
+ 
+-	lastTs tracev2.Time // timestamp of the last event processed.
+-	syncTs tracev2.Time // timestamp of the last sync event processed (or the first timestamp in the trace).
++	lastTs Time // timestamp of the last event processed.
++	syncTs Time // timestamp of the last sync event processed (or the first timestamp in the trace).
+ }
+ 
+ // NewSummarizer creates a new struct to build goroutine stats from a trace.
+ func NewSummarizer() *Summarizer {
+ 	return &Summarizer{
+-		gs:          make(map[tracev2.GoID]*GoroutineSummary),
+-		tasks:       make(map[tracev2.TaskID]*UserTaskSummary),
+-		syscallingP: make(map[tracev2.ProcID]tracev2.GoID),
+-		syscallingG: make(map[tracev2.GoID]tracev2.ProcID),
+-		rangesP:     make(map[rangeP]tracev2.GoID),
++		gs:          make(map[GoID]*GoroutineSummary),
++		tasks:       make(map[TaskID]*UserTaskSummary),
++		syscallingP: make(map[ProcID]GoID),
++		syscallingG: make(map[GoID]ProcID),
++		rangesP:     make(map[rangeP]GoID),
+ 	}
+ }
+ 
+ type rangeP struct {
+-	id   tracev2.ProcID
++	id   ProcID
+ 	name string
+ }
+ 
+ // Event feeds a single event into the stats summarizer.
+-func (s *Summarizer) Event(ev *tracev2.Event) {
++func (s *Summarizer) Event(ev *Event) {
+ 	if s.syncTs == 0 {
+ 		s.syncTs = ev.Time()
+ 	}
+@@ -302,15 +301,15 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 
+ 	switch ev.Kind() {
+ 	// Record sync time for the RangeActive events.
+-	case tracev2.EventSync:
++	case EventSync:
+ 		s.syncTs = ev.Time()
+ 
+ 	// Handle state transitions.
+-	case tracev2.EventStateTransition:
++	case EventStateTransition:
+ 		st := ev.StateTransition()
+ 		switch st.Resource.Kind {
+ 		// Handle goroutine transitions, which are the meat of this computation.
+-		case tracev2.ResourceGoroutine:
++		case ResourceGoroutine:
+ 			id := st.Resource.Goroutine()
+ 			old, new := st.Goroutine()
+ 			if old == new {
+@@ -321,17 +320,17 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 			// Handle transition out.
+ 			g := s.gs[id]
+ 			switch old {
+-			case tracev2.GoUndetermined, tracev2.GoNotExist:
++			case GoUndetermined, GoNotExist:
+ 				g = &GoroutineSummary{ID: id, goroutineSummary: &goroutineSummary{}}
+ 				// If we're coming out of GoUndetermined, then the creation time is the
+ 				// time of the last sync.
+-				if old == tracev2.GoUndetermined {
++				if old == GoUndetermined {
+ 					g.CreationTime = s.syncTs
+ 				} else {
+ 					g.CreationTime = ev.Time()
+ 				}
+ 				// The goroutine is being created, or it's being named for the first time.
+-				g.lastRangeTime = make(map[string]tracev2.Time)
++				g.lastRangeTime = make(map[string]Time)
+ 				g.BlockTimeByReason = make(map[string]time.Duration)
+ 				g.RangeTime = make(map[string]time.Duration)
+ 
+@@ -351,23 +350,23 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 					g.activeRegions = []*UserRegionSummary{{TaskID: s.TaskID, Start: ev}}
+ 				}
+ 				s.gs[g.ID] = g
+-			case tracev2.GoRunning:
++			case GoRunning:
+ 				// Record execution time as we transition out of running
+ 				g.ExecTime += ev.Time().Sub(g.lastStartTime)
+ 				g.lastStartTime = 0
+-			case tracev2.GoWaiting:
++			case GoWaiting:
+ 				// Record block time as we transition out of waiting.
+ 				if g.lastBlockTime != 0 {
+ 					g.BlockTimeByReason[g.lastBlockReason] += ev.Time().Sub(g.lastBlockTime)
+ 					g.lastBlockTime = 0
+ 				}
+-			case tracev2.GoRunnable:
++			case GoRunnable:
+ 				// Record sched latency time as we transition out of runnable.
+ 				if g.lastRunnableTime != 0 {
+ 					g.SchedWaitTime += ev.Time().Sub(g.lastRunnableTime)
+ 					g.lastRunnableTime = 0
+ 				}
+-			case tracev2.GoSyscall:
++			case GoSyscall:
+ 				// Record syscall execution time and syscall block time as we transition out of syscall.
+ 				if g.lastSyscallTime != 0 {
+ 					if g.lastSyscallBlockTime != 0 {
+@@ -391,10 +390,10 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 			// goroutine, because it represents its immutable start point.
+ 			if g.Name == "" {
+ 				stk := st.Stack
+-				if stk != tracev2.NoStack {
+-					var frame tracev2.StackFrame
++				if stk != NoStack {
++					var frame StackFrame
+ 					var ok bool
+-					stk.Frames(func(f tracev2.StackFrame) bool {
++					stk.Frames(func(f StackFrame) bool {
+ 						frame = f
+ 						ok = true
+ 						return true
+@@ -413,15 +412,15 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 
+ 			// Handle transition in.
+ 			switch new {
+-			case tracev2.GoRunning:
++			case GoRunning:
+ 				// We started running. Record it.
+ 				g.lastStartTime = ev.Time()
+ 				if g.StartTime == 0 {
+ 					g.StartTime = ev.Time()
+ 				}
+-			case tracev2.GoRunnable:
++			case GoRunnable:
+ 				g.lastRunnableTime = ev.Time()
+-			case tracev2.GoWaiting:
++			case GoWaiting:
+ 				if st.Reason != "forever" {
+ 					g.lastBlockTime = ev.Time()
+ 					g.lastBlockReason = st.Reason
+@@ -429,9 +428,9 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 				}
+ 				// "Forever" is like goroutine death.
+ 				fallthrough
+-			case tracev2.GoNotExist:
++			case GoNotExist:
+ 				g.finalize(ev.Time(), ev)
+-			case tracev2.GoSyscall:
++			case GoSyscall:
+ 				s.syscallingP[ev.Proc()] = id
+ 				s.syscallingG[id] = ev.Proc()
+ 				g.lastSyscallTime = ev.Time()
+@@ -439,10 +438,10 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 
+ 		// Handle procs to detect syscall blocking, which si identifiable as a
+ 		// proc going idle while the goroutine it was attached to is in a syscall.
+-		case tracev2.ResourceProc:
++		case ResourceProc:
+ 			id := st.Resource.Proc()
+ 			old, new := st.Proc()
+-			if old != new && new == tracev2.ProcIdle {
++			if old != new && new == ProcIdle {
+ 				if goid, ok := s.syscallingP[id]; ok {
+ 					g := s.gs[goid]
+ 					g.lastSyscallBlockTime = ev.Time()
+@@ -452,18 +451,18 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 		}
+ 
+ 	// Handle ranges of all kinds.
+-	case tracev2.EventRangeBegin, tracev2.EventRangeActive:
++	case EventRangeBegin, EventRangeActive:
+ 		r := ev.Range()
+ 		var g *GoroutineSummary
+ 		switch r.Scope.Kind {
+-		case tracev2.ResourceGoroutine:
++		case ResourceGoroutine:
+ 			// Simple goroutine range. We attribute the entire range regardless of
+ 			// goroutine stats. Lots of situations are still identifiable, e.g. a
+ 			// goroutine blocked often in mark assist will have both high mark assist
+ 			// and high block times. Those interested in a deeper view can look at the
+ 			// trace viewer.
+ 			g = s.gs[r.Scope.Goroutine()]
+-		case tracev2.ResourceProc:
++		case ResourceProc:
+ 			// N.B. These ranges are not actually bound to the goroutine, they're
+ 			// bound to the P. But if we happen to be on the P the whole time, let's
+ 			// try to attribute it to the goroutine. (e.g. GC sweeps are here.)
+@@ -475,7 +474,7 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 		if g == nil {
+ 			break
+ 		}
+-		if ev.Kind() == tracev2.EventRangeActive {
++		if ev.Kind() == EventRangeActive {
+ 			if ts := g.lastRangeTime[r.Name]; ts != 0 {
+ 				g.RangeTime[r.Name] += s.syncTs.Sub(ts)
+ 			}
+@@ -483,13 +482,13 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 		} else {
+ 			g.lastRangeTime[r.Name] = ev.Time()
+ 		}
+-	case tracev2.EventRangeEnd:
++	case EventRangeEnd:
+ 		r := ev.Range()
+ 		var g *GoroutineSummary
+ 		switch r.Scope.Kind {
+-		case tracev2.ResourceGoroutine:
++		case ResourceGoroutine:
+ 			g = s.gs[r.Scope.Goroutine()]
+-		case tracev2.ResourceProc:
++		case ResourceProc:
+ 			rp := rangeP{id: r.Scope.Proc(), name: r.Name}
+ 			if goid, ok := s.rangesP[rp]; ok {
+ 				if goid == ev.Goroutine() {
+@@ -511,7 +510,7 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 		delete(g.lastRangeTime, r.Name)
+ 
+ 	// Handle user-defined regions.
+-	case tracev2.EventRegionBegin:
++	case EventRegionBegin:
+ 		g := s.gs[ev.Goroutine()]
+ 		r := ev.Region()
+ 		region := &UserRegionSummary{
+@@ -525,7 +524,7 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 		task := s.getOrAddTask(r.Task)
+ 		task.Regions = append(task.Regions, region)
+ 		task.Goroutines[g.ID] = g
+-	case tracev2.EventRegionEnd:
++	case EventRegionEnd:
+ 		g := s.gs[ev.Goroutine()]
+ 		r := ev.Region()
+ 		var sd *UserRegionSummary
+@@ -549,13 +548,13 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 		g.Regions = append(g.Regions, sd)
+ 
+ 	// Handle tasks and logs.
+-	case tracev2.EventTaskBegin, tracev2.EventTaskEnd:
++	case EventTaskBegin, EventTaskEnd:
+ 		// Initialize the task.
+ 		t := ev.Task()
+ 		task := s.getOrAddTask(t.ID)
+ 		task.Name = t.Type
+ 		task.Goroutines[ev.Goroutine()] = s.gs[ev.Goroutine()]
+-		if ev.Kind() == tracev2.EventTaskBegin {
++		if ev.Kind() == EventTaskBegin {
+ 			task.Start = ev
+ 		} else {
+ 			task.End = ev
+@@ -563,12 +562,12 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 		// Initialize the parent, if one exists and it hasn't been done yet.
+ 		// We need to avoid doing it twice, otherwise we could appear twice
+ 		// in the parent's Children list.
+-		if t.Parent != tracev2.NoTask && task.Parent == nil {
++		if t.Parent != NoTask && task.Parent == nil {
+ 			parent := s.getOrAddTask(t.Parent)
+ 			task.Parent = parent
+ 			parent.Children = append(parent.Children, task)
+ 		}
+-	case tracev2.EventLog:
++	case EventLog:
+ 		log := ev.Log()
+ 		// Just add the log to the task. We'll create the task if it
+ 		// doesn't exist (it's just been mentioned now).
+@@ -578,10 +577,10 @@ func (s *Summarizer) Event(ev *tracev2.Event) {
+ 	}
+ }
+ 
+-func (s *Summarizer) getOrAddTask(id tracev2.TaskID) *UserTaskSummary {
++func (s *Summarizer) getOrAddTask(id TaskID) *UserTaskSummary {
+ 	task := s.tasks[id]
+ 	if task == nil {
+-		task = &UserTaskSummary{ID: id, Goroutines: make(map[tracev2.GoID]*GoroutineSummary)}
++		task = &UserTaskSummary{ID: id, Goroutines: make(map[GoID]*GoroutineSummary)}
+ 		s.tasks[id] = task
+ 	}
+ 	return task
+@@ -616,30 +615,30 @@ func (s *Summarizer) Finalize() *Summary {
+ // RelatedGoroutinesV2 finds a set of goroutines related to goroutine goid for v2 traces.
+ // The association is based on whether they have synchronized with each other in the Go
+ // scheduler (one has unblocked another).
+-func RelatedGoroutinesV2(events []tracev2.Event, goid tracev2.GoID) map[tracev2.GoID]struct{} {
++func RelatedGoroutinesV2(events []Event, goid GoID) map[GoID]struct{} {
+ 	// Process all the events, looking for transitions of goroutines
+ 	// out of GoWaiting. If there was an active goroutine when this
+ 	// happened, then we know that active goroutine unblocked another.
+ 	// Scribble all these down so we can process them.
+ 	type unblockEdge struct {
+-		operator tracev2.GoID
+-		operand  tracev2.GoID
++		operator GoID
++		operand  GoID
+ 	}
+ 	var unblockEdges []unblockEdge
+ 	for _, ev := range events {
+-		if ev.Goroutine() == tracev2.NoGoroutine {
++		if ev.Goroutine() == NoGoroutine {
+ 			continue
+ 		}
+-		if ev.Kind() != tracev2.EventStateTransition {
++		if ev.Kind() != EventStateTransition {
+ 			continue
+ 		}
+ 		st := ev.StateTransition()
+-		if st.Resource.Kind != tracev2.ResourceGoroutine {
++		if st.Resource.Kind != ResourceGoroutine {
+ 			continue
+ 		}
+ 		id := st.Resource.Goroutine()
+ 		old, new := st.Goroutine()
+-		if old == new || old != tracev2.GoWaiting {
++		if old == new || old != GoWaiting {
+ 			continue
+ 		}
+ 		unblockEdges = append(unblockEdges, unblockEdge{
+@@ -649,11 +648,11 @@ func RelatedGoroutinesV2(events []tracev2.Event, goid tracev2.GoID) map[tracev2.
+ 	}
+ 	// Compute the transitive closure of depth 2 of goroutines that have unblocked each other
+ 	// (starting from goid).
+-	gmap := make(map[tracev2.GoID]struct{})
++	gmap := make(map[GoID]struct{})
+ 	gmap[goid] = struct{}{}
+ 	for i := 0; i < 2; i++ {
+ 		// Copy the map.
+-		gmap1 := make(map[tracev2.GoID]struct{})
++		gmap1 := make(map[GoID]struct{})
+ 		for g := range gmap {
+ 			gmap1[g] = struct{}{}
+ 		}
+diff --git a/src/internal/trace/summary_test.go b/src/internal/trace/summary_test.go
+index 9978b57d98..73865652eb 100644
+--- a/src/internal/trace/summary_test.go
++++ b/src/internal/trace/summary_test.go
+@@ -2,17 +2,17 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package trace
++package trace_test
+ 
+ import (
+-	tracev2 "internal/trace/v2"
+-	"internal/trace/v2/testtrace"
++	"internal/trace"
++	"internal/trace/testtrace"
+ 	"io"
+ 	"testing"
+ )
+ 
+ func TestSummarizeGoroutinesTrace(t *testing.T) {
+-	summaries := summarizeTraceTest(t, "v2/testdata/tests/go122-gc-stress.test").Goroutines
++	summaries := summarizeTraceTest(t, "testdata/tests/go122-gc-stress.test").Goroutines
+ 	var (
+ 		hasSchedWaitTime    bool
+ 		hasSyncBlockTime    bool
+@@ -44,22 +44,22 @@ func TestSummarizeGoroutinesTrace(t *testing.T) {
+ }
+ 
+ func TestSummarizeGoroutinesRegionsTrace(t *testing.T) {
+-	summaries := summarizeTraceTest(t, "v2/testdata/tests/go122-annotations.test").Goroutines
++	summaries := summarizeTraceTest(t, "testdata/tests/go122-annotations.test").Goroutines
+ 	type region struct {
+-		startKind tracev2.EventKind
+-		endKind   tracev2.EventKind
++		startKind trace.EventKind
++		endKind   trace.EventKind
+ 	}
+ 	wantRegions := map[string]region{
+ 		// N.B. "pre-existing region" never even makes it into the trace.
+ 		//
+ 		// TODO(mknyszek): Add test case for end-without-a-start, which can happen at
+ 		// a generation split only.
+-		"":                     {tracev2.EventStateTransition, tracev2.EventStateTransition}, // Task inheritance marker.
+-		"task0 region":         {tracev2.EventRegionBegin, tracev2.EventBad},
+-		"region0":              {tracev2.EventRegionBegin, tracev2.EventRegionEnd},
+-		"region1":              {tracev2.EventRegionBegin, tracev2.EventRegionEnd},
+-		"unended region":       {tracev2.EventRegionBegin, tracev2.EventStateTransition},
+-		"post-existing region": {tracev2.EventRegionBegin, tracev2.EventBad},
++		"":                     {trace.EventStateTransition, trace.EventStateTransition}, // Task inheritance marker.
++		"task0 region":         {trace.EventRegionBegin, trace.EventBad},
++		"region0":              {trace.EventRegionBegin, trace.EventRegionEnd},
++		"region1":              {trace.EventRegionBegin, trace.EventRegionEnd},
++		"unended region":       {trace.EventRegionBegin, trace.EventStateTransition},
++		"post-existing region": {trace.EventRegionBegin, trace.EventBad},
+ 	}
+ 	for _, summary := range summaries {
+ 		basicGoroutineSummaryChecks(t, summary)
+@@ -78,69 +78,69 @@ func TestSummarizeGoroutinesRegionsTrace(t *testing.T) {
+ }
+ 
+ func TestSummarizeTasksTrace(t *testing.T) {
+-	summaries := summarizeTraceTest(t, "v2/testdata/tests/go122-annotations-stress.test").Tasks
++	summaries := summarizeTraceTest(t, "testdata/tests/go122-annotations-stress.test").Tasks
+ 	type task struct {
+ 		name       string
+-		parent     *tracev2.TaskID
+-		children   []tracev2.TaskID
+-		logs       []tracev2.Log
+-		goroutines []tracev2.GoID
++		parent     *trace.TaskID
++		children   []trace.TaskID
++		logs       []trace.Log
++		goroutines []trace.GoID
+ 	}
+-	parent := func(id tracev2.TaskID) *tracev2.TaskID {
+-		p := new(tracev2.TaskID)
++	parent := func(id trace.TaskID) *trace.TaskID {
++		p := new(trace.TaskID)
+ 		*p = id
+ 		return p
+ 	}
+-	wantTasks := map[tracev2.TaskID]task{
+-		tracev2.BackgroundTask: {
++	wantTasks := map[trace.TaskID]task{
++		trace.BackgroundTask: {
+ 			// The background task (0) is never any task's parent.
+-			logs: []tracev2.Log{
+-				{Task: tracev2.BackgroundTask, Category: "log", Message: "before do"},
+-				{Task: tracev2.BackgroundTask, Category: "log", Message: "before do"},
++			logs: []trace.Log{
++				{Task: trace.BackgroundTask, Category: "log", Message: "before do"},
++				{Task: trace.BackgroundTask, Category: "log", Message: "before do"},
+ 			},
+-			goroutines: []tracev2.GoID{1},
++			goroutines: []trace.GoID{1},
+ 		},
+ 		1: {
+ 			// This started before tracing started and has no parents.
+ 			// Task 2 is technically a child, but we lost that information.
+-			children: []tracev2.TaskID{3, 7, 16},
+-			logs: []tracev2.Log{
++			children: []trace.TaskID{3, 7, 16},
++			logs: []trace.Log{
+ 				{Task: 1, Category: "log", Message: "before do"},
+ 				{Task: 1, Category: "log", Message: "before do"},
+ 			},
+-			goroutines: []tracev2.GoID{1},
++			goroutines: []trace.GoID{1},
+ 		},
+ 		2: {
+ 			// This started before tracing started and its parent is technically (1), but that information was lost.
+-			children: []tracev2.TaskID{8, 17},
+-			logs: []tracev2.Log{
++			children: []trace.TaskID{8, 17},
++			logs: []trace.Log{
+ 				{Task: 2, Category: "log", Message: "before do"},
+ 				{Task: 2, Category: "log", Message: "before do"},
+ 			},
+-			goroutines: []tracev2.GoID{1},
++			goroutines: []trace.GoID{1},
+ 		},
+ 		3: {
+ 			parent:   parent(1),
+-			children: []tracev2.TaskID{10, 19},
+-			logs: []tracev2.Log{
++			children: []trace.TaskID{10, 19},
++			logs: []trace.Log{
+ 				{Task: 3, Category: "log", Message: "before do"},
+ 				{Task: 3, Category: "log", Message: "before do"},
+ 			},
+-			goroutines: []tracev2.GoID{1},
++			goroutines: []trace.GoID{1},
+ 		},
+ 		4: {
+ 			// Explicitly, no parent.
+-			children: []tracev2.TaskID{12, 21},
+-			logs: []tracev2.Log{
++			children: []trace.TaskID{12, 21},
++			logs: []trace.Log{
+ 				{Task: 4, Category: "log", Message: "before do"},
+ 				{Task: 4, Category: "log", Message: "before do"},
+ 			},
+-			goroutines: []tracev2.GoID{1},
++			goroutines: []trace.GoID{1},
+ 		},
+ 		12: {
+ 			parent:   parent(4),
+-			children: []tracev2.TaskID{13},
+-			logs: []tracev2.Log{
++			children: []trace.TaskID{13},
++			logs: []trace.Log{
+ 				// TODO(mknyszek): This is computed asynchronously in the trace,
+ 				// which makes regenerating this test very annoying, since it will
+ 				// likely break this test. Resolve this by making the order not matter.
+@@ -152,15 +152,15 @@ func TestSummarizeTasksTrace(t *testing.T) {
+ 				{Task: 12, Category: "log", Message: "before do"},
+ 				{Task: 12, Category: "log", Message: "fanout region3"},
+ 			},
+-			goroutines: []tracev2.GoID{1, 5, 6, 7, 8, 9},
++			goroutines: []trace.GoID{1, 5, 6, 7, 8, 9},
+ 		},
+ 		13: {
+ 			// Explicitly, no children.
+ 			parent: parent(12),
+-			logs: []tracev2.Log{
++			logs: []trace.Log{
+ 				{Task: 13, Category: "log2", Message: "do"},
+ 			},
+-			goroutines: []tracev2.GoID{7},
++			goroutines: []trace.GoID{7},
+ 		},
+ 	}
+ 	for id, summary := range summaries {
+@@ -184,7 +184,7 @@ func TestSummarizeTasksTrace(t *testing.T) {
+ 		}
+ 
+ 		// Check children.
+-		gotChildren := make(map[tracev2.TaskID]struct{})
++		gotChildren := make(map[trace.TaskID]struct{})
+ 		for _, child := range summary.Children {
+ 			gotChildren[child.ID] = struct{}{}
+ 		}
+@@ -236,7 +236,7 @@ func TestSummarizeTasksTrace(t *testing.T) {
+ 	}
+ }
+ 
+-func assertContainsGoroutine(t *testing.T, summaries map[tracev2.GoID]*GoroutineSummary, name string) {
++func assertContainsGoroutine(t *testing.T, summaries map[trace.GoID]*trace.GoroutineSummary, name string) {
+ 	for _, summary := range summaries {
+ 		if summary.Name == name {
+ 			return
+@@ -245,8 +245,8 @@ func assertContainsGoroutine(t *testing.T, summaries map[tracev2.GoID]*Goroutine
+ 	t.Errorf("missing goroutine %s", name)
+ }
+ 
+-func basicGoroutineSummaryChecks(t *testing.T, summary *GoroutineSummary) {
+-	if summary.ID == tracev2.NoGoroutine {
++func basicGoroutineSummaryChecks(t *testing.T, summary *trace.GoroutineSummary) {
++	if summary.ID == trace.NoGoroutine {
+ 		t.Error("summary found for no goroutine")
+ 		return
+ 	}
+@@ -263,16 +263,16 @@ func basicGoroutineSummaryChecks(t *testing.T, summary *GoroutineSummary) {
+ 	}
+ }
+ 
+-func summarizeTraceTest(t *testing.T, testPath string) *Summary {
+-	trace, _, err := testtrace.ParseFile(testPath)
++func summarizeTraceTest(t *testing.T, testPath string) *trace.Summary {
++	trc, _, err := testtrace.ParseFile(testPath)
+ 	if err != nil {
+ 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
+ 	}
+ 	// Create the analysis state.
+-	s := NewSummarizer()
++	s := trace.NewSummarizer()
+ 
+ 	// Create a reader.
+-	r, err := tracev2.NewReader(trace)
++	r, err := trace.NewReader(trc)
+ 	if err != nil {
+ 		t.Fatalf("failed to create trace reader for %s: %v", testPath, err)
+ 	}
+@@ -290,13 +290,13 @@ func summarizeTraceTest(t *testing.T, testPath string) *Summary {
+ 	return s.Finalize()
+ }
+ 
+-func checkRegionEvents(t *testing.T, wantStart, wantEnd tracev2.EventKind, goid tracev2.GoID, region *UserRegionSummary) {
++func checkRegionEvents(t *testing.T, wantStart, wantEnd trace.EventKind, goid trace.GoID, region *trace.UserRegionSummary) {
+ 	switch wantStart {
+-	case tracev2.EventBad:
++	case trace.EventBad:
+ 		if region.Start != nil {
+ 			t.Errorf("expected nil region start event, got\n%s", region.Start.String())
+ 		}
+-	case tracev2.EventStateTransition, tracev2.EventRegionBegin:
++	case trace.EventStateTransition, trace.EventRegionBegin:
+ 		if region.Start == nil {
+ 			t.Error("expected non-nil region start event, got nil")
+ 		}
+@@ -304,19 +304,19 @@ func checkRegionEvents(t *testing.T, wantStart, wantEnd tracev2.EventKind, goid
+ 		if kind != wantStart {
+ 			t.Errorf("wanted region start event %s, got %s", wantStart, kind)
+ 		}
+-		if kind == tracev2.EventRegionBegin {
++		if kind == trace.EventRegionBegin {
+ 			if region.Start.Region().Type != region.Name {
+ 				t.Errorf("region name mismatch: event has %s, summary has %s", region.Start.Region().Type, region.Name)
+ 			}
+ 		} else {
+ 			st := region.Start.StateTransition()
+-			if st.Resource.Kind != tracev2.ResourceGoroutine {
++			if st.Resource.Kind != trace.ResourceGoroutine {
+ 				t.Errorf("found region start event for the wrong resource: %s", st.Resource)
+ 			}
+ 			if st.Resource.Goroutine() != goid {
+ 				t.Errorf("found region start event for the wrong resource: wanted goroutine %d, got %s", goid, st.Resource)
+ 			}
+-			if old, _ := st.Goroutine(); old != tracev2.GoNotExist && old != tracev2.GoUndetermined {
++			if old, _ := st.Goroutine(); old != trace.GoNotExist && old != trace.GoUndetermined {
+ 				t.Errorf("expected transition from GoNotExist or GoUndetermined, got transition from %s instead", old)
+ 			}
+ 		}
+@@ -325,11 +325,11 @@ func checkRegionEvents(t *testing.T, wantStart, wantEnd tracev2.EventKind, goid
+ 	}
+ 
+ 	switch wantEnd {
+-	case tracev2.EventBad:
++	case trace.EventBad:
+ 		if region.End != nil {
+ 			t.Errorf("expected nil region end event, got\n%s", region.End.String())
+ 		}
+-	case tracev2.EventStateTransition, tracev2.EventRegionEnd:
++	case trace.EventStateTransition, trace.EventRegionEnd:
+ 		if region.End == nil {
+ 			t.Error("expected non-nil region end event, got nil")
+ 		}
+@@ -337,19 +337,19 @@ func checkRegionEvents(t *testing.T, wantStart, wantEnd tracev2.EventKind, goid
+ 		if kind != wantEnd {
+ 			t.Errorf("wanted region end event %s, got %s", wantEnd, kind)
+ 		}
+-		if kind == tracev2.EventRegionEnd {
++		if kind == trace.EventRegionEnd {
+ 			if region.End.Region().Type != region.Name {
+ 				t.Errorf("region name mismatch: event has %s, summary has %s", region.End.Region().Type, region.Name)
+ 			}
+ 		} else {
+ 			st := region.End.StateTransition()
+-			if st.Resource.Kind != tracev2.ResourceGoroutine {
++			if st.Resource.Kind != trace.ResourceGoroutine {
+ 				t.Errorf("found region end event for the wrong resource: %s", st.Resource)
+ 			}
+ 			if st.Resource.Goroutine() != goid {
+ 				t.Errorf("found region end event for the wrong resource: wanted goroutine %d, got %s", goid, st.Resource)
+ 			}
+-			if _, new := st.Goroutine(); new != tracev2.GoNotExist {
++			if _, new := st.Goroutine(); new != trace.GoNotExist {
+ 				t.Errorf("expected transition to GoNotExist, got transition to %s instead", new)
+ 			}
+ 		}
+@@ -358,7 +358,7 @@ func checkRegionEvents(t *testing.T, wantStart, wantEnd tracev2.EventKind, goid
+ 	}
+ }
+ 
+-func basicGoroutineExecStatsChecks(t *testing.T, stats *GoroutineExecStats) {
++func basicGoroutineExecStatsChecks(t *testing.T, stats *trace.GoroutineExecStats) {
+ 	if stats.ExecTime < 0 {
+ 		t.Error("found negative ExecTime")
+ 	}
+@@ -387,20 +387,20 @@ func basicGoroutineExecStatsChecks(t *testing.T, stats *GoroutineExecStats) {
+ }
+ 
+ func TestRelatedGoroutinesV2Trace(t *testing.T) {
+-	testPath := "v2/testdata/tests/go122-gc-stress.test"
+-	trace, _, err := testtrace.ParseFile(testPath)
++	testPath := "testdata/tests/go122-gc-stress.test"
++	trc, _, err := testtrace.ParseFile(testPath)
+ 	if err != nil {
+ 		t.Fatalf("malformed test %s: bad trace file: %v", testPath, err)
+ 	}
+ 
+ 	// Create a reader.
+-	r, err := tracev2.NewReader(trace)
++	r, err := trace.NewReader(trc)
+ 	if err != nil {
+ 		t.Fatalf("failed to create trace reader for %s: %v", testPath, err)
+ 	}
+ 
+ 	// Collect all the events.
+-	var events []tracev2.Event
++	var events []trace.Event
+ 	for {
+ 		ev, err := r.ReadEvent()
+ 		if err == io.EOF {
+@@ -413,13 +413,13 @@ func TestRelatedGoroutinesV2Trace(t *testing.T) {
+ 	}
+ 
+ 	// Test the function.
+-	targetg := tracev2.GoID(86)
+-	got := RelatedGoroutinesV2(events, targetg)
+-	want := map[tracev2.GoID]struct{}{
+-		tracev2.GoID(86):  struct{}{}, // N.B. Result includes target.
+-		tracev2.GoID(71):  struct{}{},
+-		tracev2.GoID(25):  struct{}{},
+-		tracev2.GoID(122): struct{}{},
++	targetg := trace.GoID(86)
++	got := trace.RelatedGoroutinesV2(events, targetg)
++	want := map[trace.GoID]struct{}{
++		trace.GoID(86):  struct{}{}, // N.B. Result includes target.
++		trace.GoID(71):  struct{}{},
++		trace.GoID(25):  struct{}{},
++		trace.GoID(122): struct{}{},
+ 	}
+ 	for goid := range got {
+ 		if _, ok := want[goid]; ok {
+diff --git a/src/internal/trace/v2/testdata/README.md b/src/internal/trace/testdata/README.md
+similarity index 100%
+rename from src/internal/trace/v2/testdata/README.md
+rename to src/internal/trace/testdata/README.md
+diff --git a/src/internal/trace/v2/testdata/cmd/gotraceeventstats/main.go b/src/internal/trace/testdata/cmd/cmd/gotraceeventstats/main.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/cmd/gotraceeventstats/main.go
+rename to src/internal/trace/testdata/cmd/cmd/gotraceeventstats/main.go
+diff --git a/src/internal/trace/v2/testdata/cmd/gotraceraw/main.go b/src/internal/trace/testdata/cmd/gotraceraw/main.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/cmd/gotraceraw/main.go
+rename to src/internal/trace/testdata/cmd/gotraceraw/main.go
+diff --git a/src/internal/trace/v2/testdata/cmd/gotracevalidate/main.go b/src/internal/trace/testdata/cmd/gotracevalidate/main.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/cmd/gotracevalidate/main.go
+rename to src/internal/trace/testdata/cmd/gotracevalidate/main.go
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/0cb1786dee0f090b b/src/internal/trace/testdata/fuzz/FuzzReader/0cb1786dee0f090b
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/0cb1786dee0f090b
+rename to src/internal/trace/testdata/fuzz/FuzzReader/0cb1786dee0f090b
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/1e45307d5b2ec36d b/src/internal/trace/testdata/fuzz/FuzzReader/1e45307d5b2ec36d
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/1e45307d5b2ec36d
+rename to src/internal/trace/testdata/fuzz/FuzzReader/1e45307d5b2ec36d
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/2b05796f9b2fc48d b/src/internal/trace/testdata/fuzz/FuzzReader/2b05796f9b2fc48d
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/2b05796f9b2fc48d
+rename to src/internal/trace/testdata/fuzz/FuzzReader/2b05796f9b2fc48d
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/2b9be9aebe08d511 b/src/internal/trace/testdata/fuzz/FuzzReader/2b9be9aebe08d511
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/2b9be9aebe08d511
+rename to src/internal/trace/testdata/fuzz/FuzzReader/2b9be9aebe08d511
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/344331b314da0b08 b/src/internal/trace/testdata/fuzz/FuzzReader/344331b314da0b08
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/344331b314da0b08
+rename to src/internal/trace/testdata/fuzz/FuzzReader/344331b314da0b08
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/365d7b5b633b3f97 b/src/internal/trace/testdata/fuzz/FuzzReader/365d7b5b633b3f97
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/365d7b5b633b3f97
+rename to src/internal/trace/testdata/fuzz/FuzzReader/365d7b5b633b3f97
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/4055b17cae1a3443 b/src/internal/trace/testdata/fuzz/FuzzReader/4055b17cae1a3443
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/4055b17cae1a3443
+rename to src/internal/trace/testdata/fuzz/FuzzReader/4055b17cae1a3443
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/4d9ddc909984e871 b/src/internal/trace/testdata/fuzz/FuzzReader/4d9ddc909984e871
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/4d9ddc909984e871
+rename to src/internal/trace/testdata/fuzz/FuzzReader/4d9ddc909984e871
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/56f073e57903588c b/src/internal/trace/testdata/fuzz/FuzzReader/56f073e57903588c
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/56f073e57903588c
+rename to src/internal/trace/testdata/fuzz/FuzzReader/56f073e57903588c
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566 b/src/internal/trace/testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566
+rename to src/internal/trace/testdata/fuzz/FuzzReader/9d6ee7d3ddf8d566
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/aeb749b6bc317b66 b/src/internal/trace/testdata/fuzz/FuzzReader/aeb749b6bc317b66
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/aeb749b6bc317b66
+rename to src/internal/trace/testdata/fuzz/FuzzReader/aeb749b6bc317b66
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/closing-unknown-region b/src/internal/trace/testdata/fuzz/FuzzReader/closing-unknown-region
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/closing-unknown-region
+rename to src/internal/trace/testdata/fuzz/FuzzReader/closing-unknown-region
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/d478e18d2d6756b7 b/src/internal/trace/testdata/fuzz/FuzzReader/d478e18d2d6756b7
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/d478e18d2d6756b7
+rename to src/internal/trace/testdata/fuzz/FuzzReader/d478e18d2d6756b7
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/d91203cd397aa0bc b/src/internal/trace/testdata/fuzz/FuzzReader/d91203cd397aa0bc
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/d91203cd397aa0bc
+rename to src/internal/trace/testdata/fuzz/FuzzReader/d91203cd397aa0bc
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/invalid-proc-state b/src/internal/trace/testdata/fuzz/FuzzReader/invalid-proc-state
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/invalid-proc-state
+rename to src/internal/trace/testdata/fuzz/FuzzReader/invalid-proc-state
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/large-id b/src/internal/trace/testdata/fuzz/FuzzReader/large-id
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/large-id
+rename to src/internal/trace/testdata/fuzz/FuzzReader/large-id
+diff --git a/src/internal/trace/v2/testdata/fuzz/FuzzReader/malformed-timestamp b/src/internal/trace/testdata/fuzz/FuzzReader/malformed-timestamp
+similarity index 100%
+rename from src/internal/trace/v2/testdata/fuzz/FuzzReader/malformed-timestamp
+rename to src/internal/trace/testdata/fuzz/FuzzReader/malformed-timestamp
+diff --git a/src/internal/trace/v2/testdata/generate.go b/src/internal/trace/testdata/generate.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generate.go
+rename to src/internal/trace/testdata/generate.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-confuse-seq-across-generations.go b/src/internal/trace/testdata/generators/go122-confuse-seq-across-generations.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-confuse-seq-across-generations.go
+rename to src/internal/trace/testdata/generators/go122-confuse-seq-across-generations.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-create-syscall-reuse-thread-id.go b/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-create-syscall-reuse-thread-id.go
+rename to src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-create-syscall-with-p.go b/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-create-syscall-with-p.go
+rename to src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-fail-first-gen-first.go b/src/internal/trace/testdata/generators/go122-fail-first-gen-first.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-fail-first-gen-first.go
+rename to src/internal/trace/testdata/generators/go122-fail-first-gen-first.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-go-create-without-running-g.go b/src/internal/trace/testdata/generators/go122-go-create-without-running-g.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-go-create-without-running-g.go
+rename to src/internal/trace/testdata/generators/go122-go-create-without-running-g.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-ambiguous.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-ambiguous.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-gen-boundary.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-gen-boundary.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-self.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-self.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-self.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-self.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-simple.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-simple.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go
+rename to src/internal/trace/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go
+diff --git a/src/internal/trace/v2/testdata/generators/go122-task-across-generations.go b/src/internal/trace/testdata/generators/go122-task-across-generations.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/generators/go122-task-across-generations.go
+rename to src/internal/trace/testdata/generators/go122-task-across-generations.go
+diff --git a/src/internal/trace/v2/testdata/mktests.go b/src/internal/trace/testdata/mktests.go
+similarity index 98%
+rename from src/internal/trace/v2/testdata/mktests.go
+rename to src/internal/trace/testdata/mktests.go
+index 57901d96a3..d8d2e9065d 100644
+--- a/src/internal/trace/v2/testdata/mktests.go
++++ b/src/internal/trace/testdata/mktests.go
+@@ -9,8 +9,8 @@ package main
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"internal/trace/v2/raw"
+-	"internal/trace/v2/version"
++	"internal/trace/raw"
++	"internal/trace/version"
+ 	"internal/txtar"
+ 	"io"
+ 	"log"
+diff --git a/src/internal/trace/v2/testdata/testprog/annotations-stress.go b/src/internal/trace/testdata/testprog/annotations-stress.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/annotations-stress.go
+rename to src/internal/trace/testdata/testprog/annotations-stress.go
+diff --git a/src/internal/trace/v2/testdata/testprog/annotations.go b/src/internal/trace/testdata/testprog/annotations.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/annotations.go
+rename to src/internal/trace/testdata/testprog/annotations.go
+diff --git a/src/internal/trace/v2/testdata/testprog/cgo-callback.go b/src/internal/trace/testdata/testprog/cgo-callback.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/cgo-callback.go
+rename to src/internal/trace/testdata/testprog/cgo-callback.go
+diff --git a/src/internal/trace/v2/testdata/testprog/cpu-profile.go b/src/internal/trace/testdata/testprog/cpu-profile.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/cpu-profile.go
+rename to src/internal/trace/testdata/testprog/cpu-profile.go
+diff --git a/src/internal/trace/v2/testdata/testprog/futile-wakeup.go b/src/internal/trace/testdata/testprog/futile-wakeup.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/futile-wakeup.go
+rename to src/internal/trace/testdata/testprog/futile-wakeup.go
+diff --git a/src/internal/trace/v2/testdata/testprog/gc-stress.go b/src/internal/trace/testdata/testprog/gc-stress.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/gc-stress.go
+rename to src/internal/trace/testdata/testprog/gc-stress.go
+diff --git a/src/internal/trace/v2/testdata/testprog/gomaxprocs.go b/src/internal/trace/testdata/testprog/gomaxprocs.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/gomaxprocs.go
+rename to src/internal/trace/testdata/testprog/gomaxprocs.go
+diff --git a/src/internal/trace/v2/testdata/testprog/iter-pull.go b/src/internal/trace/testdata/testprog/iter-pull.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/iter-pull.go
+rename to src/internal/trace/testdata/testprog/iter-pull.go
+diff --git a/src/internal/trace/v2/testdata/testprog/many-start-stop.go b/src/internal/trace/testdata/testprog/many-start-stop.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/many-start-stop.go
+rename to src/internal/trace/testdata/testprog/many-start-stop.go
+diff --git a/src/internal/trace/v2/testdata/testprog/stacks.go b/src/internal/trace/testdata/testprog/stacks.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/stacks.go
+rename to src/internal/trace/testdata/testprog/stacks.go
+diff --git a/src/internal/trace/v2/testdata/testprog/stress-start-stop.go b/src/internal/trace/testdata/testprog/stress-start-stop.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/stress-start-stop.go
+rename to src/internal/trace/testdata/testprog/stress-start-stop.go
+diff --git a/src/internal/trace/v2/testdata/testprog/stress.go b/src/internal/trace/testdata/testprog/stress.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/stress.go
+rename to src/internal/trace/testdata/testprog/stress.go
+diff --git a/src/internal/trace/v2/testdata/testprog/wait-on-pipe.go b/src/internal/trace/testdata/testprog/wait-on-pipe.go
+similarity index 100%
+rename from src/internal/trace/v2/testdata/testprog/wait-on-pipe.go
+rename to src/internal/trace/testdata/testprog/wait-on-pipe.go
+diff --git a/src/internal/trace/v2/testdata/tests/go122-annotations-stress.test b/src/internal/trace/testdata/tests/go122-annotations-stress.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-annotations-stress.test
+rename to src/internal/trace/testdata/tests/go122-annotations-stress.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-annotations.test b/src/internal/trace/testdata/tests/go122-annotations.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-annotations.test
+rename to src/internal/trace/testdata/tests/go122-annotations.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-confuse-seq-across-generations.test b/src/internal/trace/testdata/tests/go122-confuse-seq-across-generations.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-confuse-seq-across-generations.test
+rename to src/internal/trace/testdata/tests/go122-confuse-seq-across-generations.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-create-syscall-reuse-thread-id.test b/src/internal/trace/testdata/tests/go122-create-syscall-reuse-thread-id.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-create-syscall-reuse-thread-id.test
+rename to src/internal/trace/testdata/tests/go122-create-syscall-reuse-thread-id.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-create-syscall-with-p.test b/src/internal/trace/testdata/tests/go122-create-syscall-with-p.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-create-syscall-with-p.test
+rename to src/internal/trace/testdata/tests/go122-create-syscall-with-p.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-fail-first-gen-first.test b/src/internal/trace/testdata/tests/go122-fail-first-gen-first.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-fail-first-gen-first.test
+rename to src/internal/trace/testdata/tests/go122-fail-first-gen-first.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-gc-stress.test b/src/internal/trace/testdata/tests/go122-gc-stress.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-gc-stress.test
+rename to src/internal/trace/testdata/tests/go122-gc-stress.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-go-create-without-running-g.test b/src/internal/trace/testdata/tests/go122-go-create-without-running-g.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-go-create-without-running-g.test
+rename to src/internal/trace/testdata/tests/go122-go-create-without-running-g.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-ambiguous.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-ambiguous.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-ambiguous.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-ambiguous.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-gen-boundary-bare-m.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-gen-boundary-bare-m.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-gen-boundary-bare-m.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-gen-boundary-bare-m.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-gen-boundary.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-gen-boundary.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-gen-boundary.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-gen-boundary.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-reacquire-new-proc-bare-m.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-reacquire-new-proc-bare-m.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-reacquire-new-proc-bare-m.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-reacquire-new-proc-bare-m.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-reacquire-new-proc.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-reacquire-new-proc.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-reacquire-new-proc.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-reacquire-new-proc.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-self.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-self.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-self.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-self.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-simple-bare-m.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-simple-bare-m.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-simple-bare-m.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-simple-bare-m.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-simple.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-simple.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-simple.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-simple.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-sitting-in-syscall.test b/src/internal/trace/testdata/tests/go122-syscall-steal-proc-sitting-in-syscall.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-syscall-steal-proc-sitting-in-syscall.test
+rename to src/internal/trace/testdata/tests/go122-syscall-steal-proc-sitting-in-syscall.test
+diff --git a/src/internal/trace/v2/testdata/tests/go122-task-across-generations.test b/src/internal/trace/testdata/tests/go122-task-across-generations.test
+similarity index 100%
+rename from src/internal/trace/v2/testdata/tests/go122-task-across-generations.test
+rename to src/internal/trace/testdata/tests/go122-task-across-generations.test
+diff --git a/src/internal/trace/v2/testtrace/expectation.go b/src/internal/trace/testtrace/expectation.go
+similarity index 100%
+rename from src/internal/trace/v2/testtrace/expectation.go
+rename to src/internal/trace/testtrace/expectation.go
+diff --git a/src/internal/trace/v2/testtrace/format.go b/src/internal/trace/testtrace/format.go
+similarity index 98%
+rename from src/internal/trace/v2/testtrace/format.go
+rename to src/internal/trace/testtrace/format.go
+index 2e2e97530c..82b69340ae 100644
+--- a/src/internal/trace/v2/testtrace/format.go
++++ b/src/internal/trace/testtrace/format.go
+@@ -7,7 +7,7 @@ package testtrace
+ import (
+ 	"bytes"
+ 	"fmt"
+-	"internal/trace/v2/raw"
++	"internal/trace/raw"
+ 	"internal/txtar"
+ 	"io"
+ )
+diff --git a/src/internal/trace/v2/testtrace/validation.go b/src/internal/trace/testtrace/validation.go
+similarity index 99%
+rename from src/internal/trace/v2/testtrace/validation.go
+rename to src/internal/trace/testtrace/validation.go
+index 1dba366f5b..ec492110e2 100644
+--- a/src/internal/trace/v2/testtrace/validation.go
++++ b/src/internal/trace/testtrace/validation.go
+@@ -7,7 +7,7 @@ package testtrace
+ import (
+ 	"errors"
+ 	"fmt"
+-	"internal/trace/v2"
++	"internal/trace"
+ 	"slices"
+ 	"strings"
+ )
+diff --git a/src/internal/trace/v2/trace_test.go b/src/internal/trace/trace_test.go
+similarity index 99%
+rename from src/internal/trace/v2/trace_test.go
+rename to src/internal/trace/trace_test.go
+index 9b74cc0d81..7dc5cbb89d 100644
+--- a/src/internal/trace/v2/trace_test.go
++++ b/src/internal/trace/trace_test.go
+@@ -10,8 +10,8 @@ import (
+ 	"fmt"
+ 	"internal/race"
+ 	"internal/testenv"
+-	"internal/trace/v2"
+-	"internal/trace/v2/testtrace"
++	"internal/trace"
++	"internal/trace/testtrace"
+ 	"io"
+ 	"os"
+ 	"path/filepath"
+diff --git a/src/internal/trace/v2/mkexp.bash b/src/internal/trace/v2/mkexp.bash
+deleted file mode 100755
+index 8a737198c8..0000000000
+--- a/src/internal/trace/v2/mkexp.bash
++++ /dev/null
+@@ -1,50 +0,0 @@
+-#!/usr/bin/env bash
+-# Copyright 2023 The Go Authors. All rights reserved.
+-# Use of this source code is governed by a BSD-style
+-# license that can be found in the LICENSE file.
+-
+-# This script copies this directory to golang.org/x/exp/trace.
+-# Just point it at an golang.org/x/exp checkout.
+-
+-set -e
+-if [ ! -f mkexp.bash ]; then
+-	echo 'mkexp.bash must be run from $GOROOT/src/internal/trace/v2' 1>&2
+-	exit 1
+-fi
+-
+-if [ "$#" -ne 1 ]; then
+-    echo 'mkexp.bash expects one argument: a path to a golang.org/x/exp git checkout'
+-	exit 1
+-fi
+-
+-# Copy.
+-mkdir -p $1/trace
+-cp -r ./* $1/trace
+-
+-# Cleanup.
+-
+-# Delete mkexp.bash.
+-rm $1/trace/mkexp.bash
+-
+-# Move tools to cmd. Can't be cmd here because dist will try to build them.
+-mv $1/trace/tools $1/trace/cmd
+-
+-# Make some packages internal.
+-mv $1/trace/raw $1/trace/internal/raw
+-mv $1/trace/event $1/trace/internal/event
+-mv $1/trace/version $1/trace/internal/version
+-mv $1/trace/testtrace $1/trace/internal/testtrace
+-
+-# Move the debug commands out of testdata.
+-mv $1/trace/testdata/cmd $1/trace/cmd
+-
+-# Fix up import paths.
+-find $1/trace -name '*.go' | xargs -- sed -i 's/internal\/trace\/v2/golang.org\/x\/exp\/trace/'
+-find $1/trace -name '*.go' | xargs -- sed -i 's/golang.org\/x\/exp\/trace\/raw/golang.org\/x\/exp\/trace\/internal\/raw/'
+-find $1/trace -name '*.go' | xargs -- sed -i 's/golang.org\/x\/exp\/trace\/event/golang.org\/x\/exp\/trace\/internal\/event/'
+-find $1/trace -name '*.go' | xargs -- sed -i 's/golang.org\/x\/exp\/trace\/event\/go122/golang.org\/x\/exp\/trace\/internal\/event\/go122/'
+-find $1/trace -name '*.go' | xargs -- sed -i 's/golang.org\/x\/exp\/trace\/version/golang.org\/x\/exp\/trace\/internal\/version/'
+-find $1/trace -name '*.go' | xargs -- sed -i 's/golang.org\/x\/exp\/trace\/testtrace/golang.org\/x\/exp\/trace\/internal\/testtrace/'
+-
+-# Format the files.
+-find $1/trace -name '*.go' | xargs -- gofmt -w -s
+diff --git a/src/internal/trace/v2/value.go b/src/internal/trace/value.go
+similarity index 100%
+rename from src/internal/trace/v2/value.go
+rename to src/internal/trace/value.go
+diff --git a/src/internal/trace/v2/version/version.go b/src/internal/trace/version/version.go
+similarity index 96%
+rename from src/internal/trace/v2/version/version.go
+rename to src/internal/trace/version/version.go
+index e3354eb0c1..4951bd97d7 100644
+--- a/src/internal/trace/v2/version/version.go
++++ b/src/internal/trace/version/version.go
+@@ -8,8 +8,8 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/v2/event"
+-	"internal/trace/v2/event/go122"
++	"internal/trace/event"
++	"internal/trace/event/go122"
+ )
+ 
+ // Version represents the version of a trace file.
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 9a5fa61588..7471977a36 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -11,7 +11,7 @@ import (
+ 	"flag"
+ 	"fmt"
+ 	"internal/testenv"
+-	tracev2 "internal/trace/v2"
++	traceparse "internal/trace"
+ 	"io"
+ 	"log"
+ 	"os"
+@@ -900,7 +900,7 @@ func TestCrashWhileTracing(t *testing.T) {
+ 	if err := cmd.Start(); err != nil {
+ 		t.Fatalf("could not start subprocess: %v", err)
+ 	}
+-	r, err := tracev2.NewReader(stdOut)
++	r, err := traceparse.NewReader(stdOut)
+ 	if err != nil {
+ 		t.Fatalf("could not create trace.NewReader: %v", err)
+ 	}
+@@ -918,9 +918,9 @@ loop:
+ 			break loop
+ 		}
+ 		switch ev.Kind() {
+-		case tracev2.EventSync:
++		case traceparse.EventSync:
+ 			seenSync = true
+-		case tracev2.EventLog:
++		case traceparse.EventLog:
+ 			v := ev.Log()
+ 			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
+ 				// Should we already stop reading here? More events may come, but
+diff --git a/src/runtime/trace_cgo_test.go b/src/runtime/trace_cgo_test.go
+index fb33f756e4..f0db3b7ffb 100644
+--- a/src/runtime/trace_cgo_test.go
++++ b/src/runtime/trace_cgo_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"internal/testenv"
+-	tracev2 "internal/trace/v2"
++	"internal/trace"
+ 	"io"
+ 	"os"
+ 	"runtime"
+@@ -37,7 +37,7 @@ func TestTraceUnwindCGO(t *testing.T) {
+ 		"goCalledFromC",
+ 		"goCalledFromCThread",
+ 	}
+-	logs := make(map[string]*tracev2.Event)
++	logs := make(map[string]*trace.Event)
+ 	for _, category := range wantLogs {
+ 		logs[category] = nil
+ 	}
+@@ -65,12 +65,12 @@ func TestTraceUnwindCGO(t *testing.T) {
+ 	}
+ }
+ 
+-func mustFindLogV2(t *testing.T, trace io.Reader, category string) tracev2.Event {
+-	r, err := tracev2.NewReader(trace)
++func mustFindLogV2(t *testing.T, trc io.Reader, category string) trace.Event {
++	r, err := trace.NewReader(trc)
+ 	if err != nil {
+ 		t.Fatalf("bad trace: %v", err)
+ 	}
+-	var candidates []tracev2.Event
++	var candidates []trace.Event
+ 	for {
+ 		ev, err := r.ReadEvent()
+ 		if err == io.EOF {
+@@ -79,7 +79,7 @@ func mustFindLogV2(t *testing.T, trace io.Reader, category string) tracev2.Event
+ 		if err != nil {
+ 			t.Fatalf("failed to parse trace: %v", err)
+ 		}
+-		if ev.Kind() == tracev2.EventLog && ev.Log().Category == category {
++		if ev.Kind() == trace.EventLog && ev.Log().Category == category {
+ 			candidates = append(candidates, ev)
+ 		}
+ 	}
+@@ -92,9 +92,9 @@ func mustFindLogV2(t *testing.T, trace io.Reader, category string) tracev2.Event
+ }
+ 
+ // dumpStack returns e.Stack() as a string.
+-func dumpStackV2(e *tracev2.Event) string {
++func dumpStackV2(e *trace.Event) string {
+ 	var buf bytes.Buffer
+-	e.Stack().Frames(func(f tracev2.StackFrame) bool {
++	e.Stack().Frames(func(f trace.StackFrame) bool {
+ 		file := strings.TrimPrefix(f.File, runtime.GOROOT())
+ 		fmt.Fprintf(&buf, "%s\n\t%s:%d\n", f.Func, file, f.Line)
+ 		return true

@@ -1,0 +1,50 @@
+commit b4e992b6e1a3eb6985814ac074ad3057ab21c40a
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Apr 23 12:30:52 2025 -0400
+
+    reflect: use runtime.AddCleanup instead of runtime.SetFinalizer
+    
+    Replace a usage of runtime.SetFinalizer with runtime.AddCleanup in
+    the TestCallReturnsEmpty test. There is an additional use of
+    SetFinalizer in the reflect package which depends on object
+    resurrection and needs further refactoring to replace.
+    
+    Updates #70907
+    
+    Change-Id: I4c0e56c35745a225776bd611d026945efdaf96f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667595
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/reflect/all_test.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index 3d1e410dac..16c361e53f 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -2240,18 +2240,18 @@ func TestCallReturnsEmpty(t *testing.T) {
+ 	// Issue 21717: past-the-end pointer write in Call with
+ 	// nonzero-sized frame and zero-sized return value.
+ 	runtime.GC()
+-	var finalized uint32
++	var cleanedUp atomic.Uint32
+ 	f := func() (emptyStruct, *[2]int64) {
+-		i := new([2]int64) // big enough to not be tinyalloc'd, so finalizer always runs when i dies
+-		runtime.SetFinalizer(i, func(*[2]int64) { atomic.StoreUint32(&finalized, 1) })
++		i := new([2]int64) // big enough to not be tinyalloc'd, so cleanup always runs when i dies
++		runtime.AddCleanup(i, func(cu *atomic.Uint32) { cu.Store(uint32(1)) }, &cleanedUp)
+ 		return emptyStruct{}, i
+ 	}
+-	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the finalizer should run.
++	v := ValueOf(f).Call(nil)[0] // out[0] should not alias out[1]'s memory, so the cleanup should run.
+ 	timeout := time.After(5 * time.Second)
+-	for atomic.LoadUint32(&finalized) == 0 {
++	for cleanedUp.Load() == 0 {
+ 		select {
+ 		case <-timeout:
+-			t.Fatal("finalizer did not run")
++			t.Fatal("cleanup did not run")
+ 		default:
+ 		}
+ 		runtime.Gosched()

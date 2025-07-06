@@ -1,0 +1,1546 @@
+commit 7392dfd43e155b8b66d89eb8a3670cf7ff9c9a2f
+Author: David Chase <drchase@google.com>
+Date:   Fri Jun 13 16:12:16 2025 -0400
+
+    [dev.simd] cmd/compile: generated simd*ops files weren't up to date
+    
+    I re-ran the generator in arch/internal/simd to
+    verify a clean move of the intrinsics helpers, and
+    these changes (which look correct) appeared.
+    
+    Change-Id: I28a0e8bd144d47aec216f557f238362f238d0428
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681499
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go  |  44 +-
+ .../compile/internal/ssa/_gen/simdgenericOps.go    |  88 ++--
+ src/cmd/compile/internal/ssa/opGen.go              | 462 +++++++++------------
+ 3 files changed, 264 insertions(+), 330 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go b/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go
+index b9a7bc59a5..651a4365c7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go
+@@ -5,7 +5,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 	return []opData{
+ 		{name: "VADDPS512", argLength: 2, reg: fp21, asm: "VADDPS", commutative: true, typ: "Vec512", resultInArg0: false},
+ 		{name: "VANDPS512", argLength: 2, reg: fp21, asm: "VANDPS", commutative: true, typ: "Vec512", resultInArg0: false},
+-		{name: "VANDNPS512", argLength: 2, reg: fp21, asm: "VANDNPS", commutative: true, typ: "Vec512", resultInArg0: false},
++		{name: "VANDNPS512", argLength: 2, reg: fp21, asm: "VANDNPS", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VRCP14PS512", argLength: 1, reg: fp11, asm: "VRCP14PS", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VRSQRT14PS512", argLength: 1, reg: fp11, asm: "VRSQRT14PS", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VDIVPS512", argLength: 2, reg: fp21, asm: "VDIVPS", commutative: false, typ: "Vec512", resultInArg0: false},
+@@ -29,7 +29,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VFNMSUB231PS512", argLength: 3, reg: fp31, asm: "VFNMSUB231PS", commutative: false, typ: "Vec512", resultInArg0: true},
+ 		{name: "VADDPSMasked512", argLength: 3, reg: fp2k1fp1, asm: "VADDPS", commutative: true, typ: "Vec512", resultInArg0: false},
+ 		{name: "VANDPSMasked512", argLength: 3, reg: fp2k1fp1, asm: "VANDPS", commutative: true, typ: "Vec512", resultInArg0: false},
+-		{name: "VANDNPSMasked512", argLength: 3, reg: fp2k1fp1, asm: "VANDNPS", commutative: true, typ: "Vec512", resultInArg0: false},
++		{name: "VANDNPSMasked512", argLength: 3, reg: fp2k1fp1, asm: "VANDNPS", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VRCP14PSMasked512", argLength: 2, reg: fp1k1fp1, asm: "VRCP14PS", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VRSQRT14PSMasked512", argLength: 2, reg: fp1k1fp1, asm: "VRSQRT14PS", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VDIVPSMasked512", argLength: 3, reg: fp2k1fp1, asm: "VDIVPS", commutative: false, typ: "Vec512", resultInArg0: false},
+@@ -68,7 +68,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VADDPS128", argLength: 2, reg: fp21, asm: "VADDPS", commutative: true, typ: "Vec128", resultInArg0: false},
+ 		{name: "VADDSUBPS128", argLength: 2, reg: fp21, asm: "VADDSUBPS", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VANDPS128", argLength: 2, reg: fp21, asm: "VANDPS", commutative: true, typ: "Vec128", resultInArg0: false},
+-		{name: "VANDNPS128", argLength: 2, reg: fp21, asm: "VANDNPS", commutative: true, typ: "Vec128", resultInArg0: false},
++		{name: "VANDNPS128", argLength: 2, reg: fp21, asm: "VANDNPS", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VRCP14PS128", argLength: 1, reg: fp11, asm: "VRCP14PS", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VRSQRTPS128", argLength: 1, reg: fp11, asm: "VRSQRTPS", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VDIVPS128", argLength: 2, reg: fp21, asm: "VDIVPS", commutative: false, typ: "Vec128", resultInArg0: false},
+@@ -92,7 +92,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VFNMSUB231PS128", argLength: 3, reg: fp31, asm: "VFNMSUB231PS", commutative: false, typ: "Vec128", resultInArg0: true},
+ 		{name: "VADDPSMasked128", argLength: 3, reg: fp2k1fp1, asm: "VADDPS", commutative: true, typ: "Vec128", resultInArg0: false},
+ 		{name: "VANDPSMasked128", argLength: 3, reg: fp2k1fp1, asm: "VANDPS", commutative: true, typ: "Vec128", resultInArg0: false},
+-		{name: "VANDNPSMasked128", argLength: 3, reg: fp2k1fp1, asm: "VANDNPS", commutative: true, typ: "Vec128", resultInArg0: false},
++		{name: "VANDNPSMasked128", argLength: 3, reg: fp2k1fp1, asm: "VANDNPS", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VRCP14PSMasked128", argLength: 2, reg: fp1k1fp1, asm: "VRCP14PS", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VRSQRT14PSMasked128", argLength: 2, reg: fp1k1fp1, asm: "VRSQRT14PS", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VDIVPSMasked128", argLength: 3, reg: fp2k1fp1, asm: "VDIVPS", commutative: false, typ: "Vec128", resultInArg0: false},
+@@ -133,7 +133,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VADDPS256", argLength: 2, reg: fp21, asm: "VADDPS", commutative: true, typ: "Vec256", resultInArg0: false},
+ 		{name: "VADDSUBPS256", argLength: 2, reg: fp21, asm: "VADDSUBPS", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VANDPS256", argLength: 2, reg: fp21, asm: "VANDPS", commutative: true, typ: "Vec256", resultInArg0: false},
+-		{name: "VANDNPS256", argLength: 2, reg: fp21, asm: "VANDNPS", commutative: true, typ: "Vec256", resultInArg0: false},
++		{name: "VANDNPS256", argLength: 2, reg: fp21, asm: "VANDNPS", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VRCP14PS256", argLength: 1, reg: fp11, asm: "VRCP14PS", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VRSQRTPS256", argLength: 1, reg: fp11, asm: "VRSQRTPS", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VDIVPS256", argLength: 2, reg: fp21, asm: "VDIVPS", commutative: false, typ: "Vec256", resultInArg0: false},
+@@ -157,7 +157,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VFNMSUB231PS256", argLength: 3, reg: fp31, asm: "VFNMSUB231PS", commutative: false, typ: "Vec256", resultInArg0: true},
+ 		{name: "VADDPSMasked256", argLength: 3, reg: fp2k1fp1, asm: "VADDPS", commutative: true, typ: "Vec256", resultInArg0: false},
+ 		{name: "VANDPSMasked256", argLength: 3, reg: fp2k1fp1, asm: "VANDPS", commutative: true, typ: "Vec256", resultInArg0: false},
+-		{name: "VANDNPSMasked256", argLength: 3, reg: fp2k1fp1, asm: "VANDNPS", commutative: true, typ: "Vec256", resultInArg0: false},
++		{name: "VANDNPSMasked256", argLength: 3, reg: fp2k1fp1, asm: "VANDNPS", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VRCP14PSMasked256", argLength: 2, reg: fp1k1fp1, asm: "VRCP14PS", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VRSQRT14PSMasked256", argLength: 2, reg: fp1k1fp1, asm: "VRSQRT14PS", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VDIVPSMasked256", argLength: 3, reg: fp2k1fp1, asm: "VDIVPS", commutative: false, typ: "Vec256", resultInArg0: false},
+@@ -198,7 +198,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VADDPD128", argLength: 2, reg: fp21, asm: "VADDPD", commutative: true, typ: "Vec128", resultInArg0: false},
+ 		{name: "VADDSUBPD128", argLength: 2, reg: fp21, asm: "VADDSUBPD", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VANDPD128", argLength: 2, reg: fp21, asm: "VANDPD", commutative: true, typ: "Vec128", resultInArg0: false},
+-		{name: "VANDNPD128", argLength: 2, reg: fp21, asm: "VANDNPD", commutative: true, typ: "Vec128", resultInArg0: false},
++		{name: "VANDNPD128", argLength: 2, reg: fp21, asm: "VANDNPD", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VRCP14PD128", argLength: 1, reg: fp11, asm: "VRCP14PD", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VRSQRT14PD128", argLength: 1, reg: fp11, asm: "VRSQRT14PD", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VDIVPD128", argLength: 2, reg: fp21, asm: "VDIVPD", commutative: false, typ: "Vec128", resultInArg0: false},
+@@ -222,7 +222,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VFNMSUB231PD128", argLength: 3, reg: fp31, asm: "VFNMSUB231PD", commutative: false, typ: "Vec128", resultInArg0: true},
+ 		{name: "VADDPDMasked128", argLength: 3, reg: fp2k1fp1, asm: "VADDPD", commutative: true, typ: "Vec128", resultInArg0: false},
+ 		{name: "VANDPDMasked128", argLength: 3, reg: fp2k1fp1, asm: "VANDPD", commutative: true, typ: "Vec128", resultInArg0: false},
+-		{name: "VANDNPDMasked128", argLength: 3, reg: fp2k1fp1, asm: "VANDNPD", commutative: true, typ: "Vec128", resultInArg0: false},
++		{name: "VANDNPDMasked128", argLength: 3, reg: fp2k1fp1, asm: "VANDNPD", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VRCP14PDMasked128", argLength: 2, reg: fp1k1fp1, asm: "VRCP14PD", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VRSQRT14PDMasked128", argLength: 2, reg: fp1k1fp1, asm: "VRSQRT14PD", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VDIVPDMasked128", argLength: 3, reg: fp2k1fp1, asm: "VDIVPD", commutative: false, typ: "Vec128", resultInArg0: false},
+@@ -263,7 +263,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VADDPD256", argLength: 2, reg: fp21, asm: "VADDPD", commutative: true, typ: "Vec256", resultInArg0: false},
+ 		{name: "VADDSUBPD256", argLength: 2, reg: fp21, asm: "VADDSUBPD", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VANDPD256", argLength: 2, reg: fp21, asm: "VANDPD", commutative: true, typ: "Vec256", resultInArg0: false},
+-		{name: "VANDNPD256", argLength: 2, reg: fp21, asm: "VANDNPD", commutative: true, typ: "Vec256", resultInArg0: false},
++		{name: "VANDNPD256", argLength: 2, reg: fp21, asm: "VANDNPD", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VRCP14PD256", argLength: 1, reg: fp11, asm: "VRCP14PD", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VRSQRT14PD256", argLength: 1, reg: fp11, asm: "VRSQRT14PD", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VDIVPD256", argLength: 2, reg: fp21, asm: "VDIVPD", commutative: false, typ: "Vec256", resultInArg0: false},
+@@ -287,7 +287,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VFNMSUB231PD256", argLength: 3, reg: fp31, asm: "VFNMSUB231PD", commutative: false, typ: "Vec256", resultInArg0: true},
+ 		{name: "VADDPDMasked256", argLength: 3, reg: fp2k1fp1, asm: "VADDPD", commutative: true, typ: "Vec256", resultInArg0: false},
+ 		{name: "VANDPDMasked256", argLength: 3, reg: fp2k1fp1, asm: "VANDPD", commutative: true, typ: "Vec256", resultInArg0: false},
+-		{name: "VANDNPDMasked256", argLength: 3, reg: fp2k1fp1, asm: "VANDNPD", commutative: true, typ: "Vec256", resultInArg0: false},
++		{name: "VANDNPDMasked256", argLength: 3, reg: fp2k1fp1, asm: "VANDNPD", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VRCP14PDMasked256", argLength: 2, reg: fp1k1fp1, asm: "VRCP14PD", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VRSQRT14PDMasked256", argLength: 2, reg: fp1k1fp1, asm: "VRSQRT14PD", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VDIVPDMasked256", argLength: 3, reg: fp2k1fp1, asm: "VDIVPD", commutative: false, typ: "Vec256", resultInArg0: false},
+@@ -327,7 +327,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VXORPD256", argLength: 2, reg: fp21, asm: "VXORPD", commutative: true, typ: "Vec256", resultInArg0: false},
+ 		{name: "VADDPD512", argLength: 2, reg: fp21, asm: "VADDPD", commutative: true, typ: "Vec512", resultInArg0: false},
+ 		{name: "VANDPD512", argLength: 2, reg: fp21, asm: "VANDPD", commutative: true, typ: "Vec512", resultInArg0: false},
+-		{name: "VANDNPD512", argLength: 2, reg: fp21, asm: "VANDNPD", commutative: true, typ: "Vec512", resultInArg0: false},
++		{name: "VANDNPD512", argLength: 2, reg: fp21, asm: "VANDNPD", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VRCP14PD512", argLength: 1, reg: fp11, asm: "VRCP14PD", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VRSQRT14PD512", argLength: 1, reg: fp11, asm: "VRSQRT14PD", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VDIVPD512", argLength: 2, reg: fp21, asm: "VDIVPD", commutative: false, typ: "Vec512", resultInArg0: false},
+@@ -351,7 +351,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VFNMSUB231PD512", argLength: 3, reg: fp31, asm: "VFNMSUB231PD", commutative: false, typ: "Vec512", resultInArg0: true},
+ 		{name: "VADDPDMasked512", argLength: 3, reg: fp2k1fp1, asm: "VADDPD", commutative: true, typ: "Vec512", resultInArg0: false},
+ 		{name: "VANDPDMasked512", argLength: 3, reg: fp2k1fp1, asm: "VANDPD", commutative: true, typ: "Vec512", resultInArg0: false},
+-		{name: "VANDNPDMasked512", argLength: 3, reg: fp2k1fp1, asm: "VANDNPD", commutative: true, typ: "Vec512", resultInArg0: false},
++		{name: "VANDNPDMasked512", argLength: 3, reg: fp2k1fp1, asm: "VANDNPD", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VRCP14PDMasked512", argLength: 2, reg: fp1k1fp1, asm: "VRCP14PD", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VRSQRT14PDMasked512", argLength: 2, reg: fp1k1fp1, asm: "VRSQRT14PD", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VDIVPDMasked512", argLength: 3, reg: fp2k1fp1, asm: "VDIVPD", commutative: false, typ: "Vec512", resultInArg0: false},
+@@ -390,7 +390,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VPABSW256", argLength: 1, reg: fp11, asm: "VPABSW", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPADDW256", argLength: 2, reg: fp21, asm: "VPADDW", commutative: true, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPAND256", argLength: 2, reg: fp21, asm: "VPAND", commutative: true, typ: "Vec256", resultInArg0: false},
+-		{name: "VPANDN256", argLength: 2, reg: fp21, asm: "VPANDN", commutative: true, typ: "Vec256", resultInArg0: false},
++		{name: "VPANDN256", argLength: 2, reg: fp21, asm: "VPANDN", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPCMPEQW256", argLength: 2, reg: fp21, asm: "VPCMPEQW", commutative: true, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPCMPGTW256", argLength: 2, reg: fp21, asm: "VPCMPGTW", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPABSWMasked256", argLength: 2, reg: fp1k1fp1, asm: "VPABSW", commutative: false, typ: "Vec256", resultInArg0: false},
+@@ -451,7 +451,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VPABSW128", argLength: 1, reg: fp11, asm: "VPABSW", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPADDW128", argLength: 2, reg: fp21, asm: "VPADDW", commutative: true, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPAND128", argLength: 2, reg: fp21, asm: "VPAND", commutative: true, typ: "Vec128", resultInArg0: false},
+-		{name: "VPANDN128", argLength: 2, reg: fp21, asm: "VPANDN", commutative: true, typ: "Vec128", resultInArg0: false},
++		{name: "VPANDN128", argLength: 2, reg: fp21, asm: "VPANDN", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPCMPEQW128", argLength: 2, reg: fp21, asm: "VPCMPEQW", commutative: true, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPCMPGTW128", argLength: 2, reg: fp21, asm: "VPCMPGTW", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPABSWMasked128", argLength: 2, reg: fp1k1fp1, asm: "VPABSW", commutative: false, typ: "Vec128", resultInArg0: false},
+@@ -486,13 +486,13 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VPABSD512", argLength: 1, reg: fp11, asm: "VPABSD", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPADDD512", argLength: 2, reg: fp21, asm: "VPADDD", commutative: true, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPANDD512", argLength: 2, reg: fp21, asm: "VPANDD", commutative: true, typ: "Vec512", resultInArg0: false},
+-		{name: "VPANDND512", argLength: 2, reg: fp21, asm: "VPANDND", commutative: true, typ: "Vec512", resultInArg0: false},
++		{name: "VPANDND512", argLength: 2, reg: fp21, asm: "VPANDND", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPCMPEQD512", argLength: 2, reg: fp2k1, asm: "VPCMPEQD", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPGTD512", argLength: 2, reg: fp2k1, asm: "VPCMPGTD", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPABSDMasked512", argLength: 2, reg: fp1k1fp1, asm: "VPABSD", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPADDDMasked512", argLength: 3, reg: fp2k1fp1, asm: "VPADDD", commutative: true, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPANDDMasked512", argLength: 3, reg: fp2k1fp1, asm: "VPANDD", commutative: true, typ: "Vec512", resultInArg0: false},
+-		{name: "VPANDNDMasked512", argLength: 3, reg: fp2k1fp1, asm: "VPANDND", commutative: true, typ: "Vec512", resultInArg0: false},
++		{name: "VPANDNDMasked512", argLength: 3, reg: fp2k1fp1, asm: "VPANDND", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPCMPEQDMasked512", argLength: 3, reg: fp2k1k1, asm: "VPCMPEQD", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPGTDMasked512", argLength: 3, reg: fp2k1k1, asm: "VPCMPGTD", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPMAXSDMasked512", argLength: 3, reg: fp2k1fp1, asm: "VPMAXSD", commutative: true, typ: "Vec512", resultInArg0: false},
+@@ -524,7 +524,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VPABSDMasked128", argLength: 2, reg: fp1k1fp1, asm: "VPABSD", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPADDDMasked128", argLength: 3, reg: fp2k1fp1, asm: "VPADDD", commutative: true, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPANDDMasked128", argLength: 3, reg: fp2k1fp1, asm: "VPANDD", commutative: true, typ: "Vec128", resultInArg0: false},
+-		{name: "VPANDNDMasked128", argLength: 3, reg: fp2k1fp1, asm: "VPANDND", commutative: true, typ: "Vec128", resultInArg0: false},
++		{name: "VPANDNDMasked128", argLength: 3, reg: fp2k1fp1, asm: "VPANDND", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPCMPEQDMasked128", argLength: 3, reg: fp2k1k1, asm: "VPCMPEQD", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPGTDMasked128", argLength: 3, reg: fp2k1k1, asm: "VPCMPGTD", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPMAXSDMasked128", argLength: 3, reg: fp2k1fp1, asm: "VPMAXSD", commutative: true, typ: "Vec128", resultInArg0: false},
+@@ -558,7 +558,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VPABSDMasked256", argLength: 2, reg: fp1k1fp1, asm: "VPABSD", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPADDDMasked256", argLength: 3, reg: fp2k1fp1, asm: "VPADDD", commutative: true, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPANDDMasked256", argLength: 3, reg: fp2k1fp1, asm: "VPANDD", commutative: true, typ: "Vec256", resultInArg0: false},
+-		{name: "VPANDNDMasked256", argLength: 3, reg: fp2k1fp1, asm: "VPANDND", commutative: true, typ: "Vec256", resultInArg0: false},
++		{name: "VPANDNDMasked256", argLength: 3, reg: fp2k1fp1, asm: "VPANDND", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPCMPEQDMasked256", argLength: 3, reg: fp2k1k1, asm: "VPCMPEQD", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPGTDMasked256", argLength: 3, reg: fp2k1k1, asm: "VPCMPGTD", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPMAXSDMasked256", argLength: 3, reg: fp2k1fp1, asm: "VPMAXSD", commutative: true, typ: "Vec256", resultInArg0: false},
+@@ -592,7 +592,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VPABSQMasked128", argLength: 2, reg: fp1k1fp1, asm: "VPABSQ", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPADDQMasked128", argLength: 3, reg: fp2k1fp1, asm: "VPADDQ", commutative: true, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPANDQMasked128", argLength: 3, reg: fp2k1fp1, asm: "VPANDQ", commutative: true, typ: "Vec128", resultInArg0: false},
+-		{name: "VPANDNQMasked128", argLength: 3, reg: fp2k1fp1, asm: "VPANDNQ", commutative: true, typ: "Vec128", resultInArg0: false},
++		{name: "VPANDNQMasked128", argLength: 3, reg: fp2k1fp1, asm: "VPANDNQ", commutative: false, typ: "Vec128", resultInArg0: false},
+ 		{name: "VPCMPEQQMasked128", argLength: 3, reg: fp2k1k1, asm: "VPCMPEQQ", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPGTQMasked128", argLength: 3, reg: fp2k1k1, asm: "VPCMPGTQ", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPMAXSQMasked128", argLength: 3, reg: fp2k1fp1, asm: "VPMAXSQ", commutative: true, typ: "Vec128", resultInArg0: false},
+@@ -615,7 +615,7 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VPABSQMasked256", argLength: 2, reg: fp1k1fp1, asm: "VPABSQ", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPADDQMasked256", argLength: 3, reg: fp2k1fp1, asm: "VPADDQ", commutative: true, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPANDQMasked256", argLength: 3, reg: fp2k1fp1, asm: "VPANDQ", commutative: true, typ: "Vec256", resultInArg0: false},
+-		{name: "VPANDNQMasked256", argLength: 3, reg: fp2k1fp1, asm: "VPANDNQ", commutative: true, typ: "Vec256", resultInArg0: false},
++		{name: "VPANDNQMasked256", argLength: 3, reg: fp2k1fp1, asm: "VPANDNQ", commutative: false, typ: "Vec256", resultInArg0: false},
+ 		{name: "VPCMPEQQMasked256", argLength: 3, reg: fp2k1k1, asm: "VPCMPEQQ", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPGTQMasked256", argLength: 3, reg: fp2k1k1, asm: "VPCMPGTQ", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPMAXSQMasked256", argLength: 3, reg: fp2k1fp1, asm: "VPMAXSQ", commutative: true, typ: "Vec256", resultInArg0: false},
+@@ -634,13 +634,13 @@ func simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp31, fp3k1fp1
+ 		{name: "VPABSQ512", argLength: 1, reg: fp11, asm: "VPABSQ", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPADDQ512", argLength: 2, reg: fp21, asm: "VPADDQ", commutative: true, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPANDQ512", argLength: 2, reg: fp21, asm: "VPANDQ", commutative: true, typ: "Vec512", resultInArg0: false},
+-		{name: "VPANDNQ512", argLength: 2, reg: fp21, asm: "VPANDNQ", commutative: true, typ: "Vec512", resultInArg0: false},
++		{name: "VPANDNQ512", argLength: 2, reg: fp21, asm: "VPANDNQ", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPCMPEQQ512", argLength: 2, reg: fp2k1, asm: "VPCMPEQQ", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPGTQ512", argLength: 2, reg: fp2k1, asm: "VPCMPGTQ", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPABSQMasked512", argLength: 2, reg: fp1k1fp1, asm: "VPABSQ", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPADDQMasked512", argLength: 3, reg: fp2k1fp1, asm: "VPADDQ", commutative: true, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPANDQMasked512", argLength: 3, reg: fp2k1fp1, asm: "VPANDQ", commutative: true, typ: "Vec512", resultInArg0: false},
+-		{name: "VPANDNQMasked512", argLength: 3, reg: fp2k1fp1, asm: "VPANDNQ", commutative: true, typ: "Vec512", resultInArg0: false},
++		{name: "VPANDNQMasked512", argLength: 3, reg: fp2k1fp1, asm: "VPANDNQ", commutative: false, typ: "Vec512", resultInArg0: false},
+ 		{name: "VPCMPEQQMasked512", argLength: 3, reg: fp2k1k1, asm: "VPCMPEQQ", commutative: true, typ: "Mask", resultInArg0: false},
+ 		{name: "VPCMPGTQMasked512", argLength: 3, reg: fp2k1k1, asm: "VPCMPGTQ", commutative: false, typ: "Mask", resultInArg0: false},
+ 		{name: "VPMAXSQMasked512", argLength: 3, reg: fp2k1fp1, asm: "VPMAXSQ", commutative: true, typ: "Vec512", resultInArg0: false},
+diff --git a/src/cmd/compile/internal/ssa/_gen/simdgenericOps.go b/src/cmd/compile/internal/ssa/_gen/simdgenericOps.go
+index 5c86f28091..a29decdf00 100644
+--- a/src/cmd/compile/internal/ssa/_gen/simdgenericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/simdgenericOps.go
+@@ -5,7 +5,7 @@ func simdGenericOps() []opData {
+ 	return []opData{
+ 		{name: "AddFloat32x16", argLength: 2, commutative: true},
+ 		{name: "AndFloat32x16", argLength: 2, commutative: true},
+-		{name: "AndNotFloat32x16", argLength: 2, commutative: true},
++		{name: "AndNotFloat32x16", argLength: 2, commutative: false},
+ 		{name: "ApproximateReciprocalFloat32x16", argLength: 1, commutative: false},
+ 		{name: "ApproximateReciprocalOfSqrtFloat32x16", argLength: 1, commutative: false},
+ 		{name: "DivFloat32x16", argLength: 2, commutative: false},
+@@ -35,7 +35,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualFloat32x16", argLength: 2, commutative: false},
+ 		{name: "MaskedAddFloat32x16", argLength: 3, commutative: true},
+ 		{name: "MaskedAndFloat32x16", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotFloat32x16", argLength: 3, commutative: true},
++		{name: "MaskedAndNotFloat32x16", argLength: 3, commutative: false},
+ 		{name: "MaskedApproximateReciprocalFloat32x16", argLength: 2, commutative: false},
+ 		{name: "MaskedApproximateReciprocalOfSqrtFloat32x16", argLength: 2, commutative: false},
+ 		{name: "MaskedDivFloat32x16", argLength: 3, commutative: false},
+@@ -84,7 +84,7 @@ func simdGenericOps() []opData {
+ 		{name: "AddFloat32x4", argLength: 2, commutative: true},
+ 		{name: "AddSubFloat32x4", argLength: 2, commutative: false},
+ 		{name: "AndFloat32x4", argLength: 2, commutative: true},
+-		{name: "AndNotFloat32x4", argLength: 2, commutative: true},
++		{name: "AndNotFloat32x4", argLength: 2, commutative: false},
+ 		{name: "ApproximateReciprocalFloat32x4", argLength: 1, commutative: false},
+ 		{name: "ApproximateReciprocalOfSqrtFloat32x4", argLength: 1, commutative: false},
+ 		{name: "CeilFloat32x4", argLength: 1, commutative: false},
+@@ -116,7 +116,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualFloat32x4", argLength: 2, commutative: false},
+ 		{name: "MaskedAddFloat32x4", argLength: 3, commutative: true},
+ 		{name: "MaskedAndFloat32x4", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotFloat32x4", argLength: 3, commutative: true},
++		{name: "MaskedAndNotFloat32x4", argLength: 3, commutative: false},
+ 		{name: "MaskedApproximateReciprocalFloat32x4", argLength: 2, commutative: false},
+ 		{name: "MaskedApproximateReciprocalOfSqrtFloat32x4", argLength: 2, commutative: false},
+ 		{name: "MaskedDivFloat32x4", argLength: 3, commutative: false},
+@@ -169,7 +169,7 @@ func simdGenericOps() []opData {
+ 		{name: "AddFloat32x8", argLength: 2, commutative: true},
+ 		{name: "AddSubFloat32x8", argLength: 2, commutative: false},
+ 		{name: "AndFloat32x8", argLength: 2, commutative: true},
+-		{name: "AndNotFloat32x8", argLength: 2, commutative: true},
++		{name: "AndNotFloat32x8", argLength: 2, commutative: false},
+ 		{name: "ApproximateReciprocalFloat32x8", argLength: 1, commutative: false},
+ 		{name: "ApproximateReciprocalOfSqrtFloat32x8", argLength: 1, commutative: false},
+ 		{name: "CeilFloat32x8", argLength: 1, commutative: false},
+@@ -201,7 +201,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualFloat32x8", argLength: 2, commutative: false},
+ 		{name: "MaskedAddFloat32x8", argLength: 3, commutative: true},
+ 		{name: "MaskedAndFloat32x8", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotFloat32x8", argLength: 3, commutative: true},
++		{name: "MaskedAndNotFloat32x8", argLength: 3, commutative: false},
+ 		{name: "MaskedApproximateReciprocalFloat32x8", argLength: 2, commutative: false},
+ 		{name: "MaskedApproximateReciprocalOfSqrtFloat32x8", argLength: 2, commutative: false},
+ 		{name: "MaskedDivFloat32x8", argLength: 3, commutative: false},
+@@ -254,7 +254,7 @@ func simdGenericOps() []opData {
+ 		{name: "AddFloat64x2", argLength: 2, commutative: true},
+ 		{name: "AddSubFloat64x2", argLength: 2, commutative: false},
+ 		{name: "AndFloat64x2", argLength: 2, commutative: true},
+-		{name: "AndNotFloat64x2", argLength: 2, commutative: true},
++		{name: "AndNotFloat64x2", argLength: 2, commutative: false},
+ 		{name: "ApproximateReciprocalFloat64x2", argLength: 1, commutative: false},
+ 		{name: "ApproximateReciprocalOfSqrtFloat64x2", argLength: 1, commutative: false},
+ 		{name: "CeilFloat64x2", argLength: 1, commutative: false},
+@@ -287,7 +287,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualFloat64x2", argLength: 2, commutative: false},
+ 		{name: "MaskedAddFloat64x2", argLength: 3, commutative: true},
+ 		{name: "MaskedAndFloat64x2", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotFloat64x2", argLength: 3, commutative: true},
++		{name: "MaskedAndNotFloat64x2", argLength: 3, commutative: false},
+ 		{name: "MaskedApproximateReciprocalFloat64x2", argLength: 2, commutative: false},
+ 		{name: "MaskedApproximateReciprocalOfSqrtFloat64x2", argLength: 2, commutative: false},
+ 		{name: "MaskedDivFloat64x2", argLength: 3, commutative: false},
+@@ -340,7 +340,7 @@ func simdGenericOps() []opData {
+ 		{name: "AddFloat64x4", argLength: 2, commutative: true},
+ 		{name: "AddSubFloat64x4", argLength: 2, commutative: false},
+ 		{name: "AndFloat64x4", argLength: 2, commutative: true},
+-		{name: "AndNotFloat64x4", argLength: 2, commutative: true},
++		{name: "AndNotFloat64x4", argLength: 2, commutative: false},
+ 		{name: "ApproximateReciprocalFloat64x4", argLength: 1, commutative: false},
+ 		{name: "ApproximateReciprocalOfSqrtFloat64x4", argLength: 1, commutative: false},
+ 		{name: "CeilFloat64x4", argLength: 1, commutative: false},
+@@ -372,7 +372,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualFloat64x4", argLength: 2, commutative: false},
+ 		{name: "MaskedAddFloat64x4", argLength: 3, commutative: true},
+ 		{name: "MaskedAndFloat64x4", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotFloat64x4", argLength: 3, commutative: true},
++		{name: "MaskedAndNotFloat64x4", argLength: 3, commutative: false},
+ 		{name: "MaskedApproximateReciprocalFloat64x4", argLength: 2, commutative: false},
+ 		{name: "MaskedApproximateReciprocalOfSqrtFloat64x4", argLength: 2, commutative: false},
+ 		{name: "MaskedDivFloat64x4", argLength: 3, commutative: false},
+@@ -424,7 +424,7 @@ func simdGenericOps() []opData {
+ 		{name: "XorFloat64x4", argLength: 2, commutative: true},
+ 		{name: "AddFloat64x8", argLength: 2, commutative: true},
+ 		{name: "AndFloat64x8", argLength: 2, commutative: true},
+-		{name: "AndNotFloat64x8", argLength: 2, commutative: true},
++		{name: "AndNotFloat64x8", argLength: 2, commutative: false},
+ 		{name: "ApproximateReciprocalFloat64x8", argLength: 1, commutative: false},
+ 		{name: "ApproximateReciprocalOfSqrtFloat64x8", argLength: 1, commutative: false},
+ 		{name: "DivFloat64x8", argLength: 2, commutative: false},
+@@ -454,7 +454,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualFloat64x8", argLength: 2, commutative: false},
+ 		{name: "MaskedAddFloat64x8", argLength: 3, commutative: true},
+ 		{name: "MaskedAndFloat64x8", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotFloat64x8", argLength: 3, commutative: true},
++		{name: "MaskedAndNotFloat64x8", argLength: 3, commutative: false},
+ 		{name: "MaskedApproximateReciprocalFloat64x8", argLength: 2, commutative: false},
+ 		{name: "MaskedApproximateReciprocalOfSqrtFloat64x8", argLength: 2, commutative: false},
+ 		{name: "MaskedDivFloat64x8", argLength: 3, commutative: false},
+@@ -503,7 +503,7 @@ func simdGenericOps() []opData {
+ 		{name: "AbsoluteInt16x16", argLength: 1, commutative: false},
+ 		{name: "AddInt16x16", argLength: 2, commutative: true},
+ 		{name: "AndInt16x16", argLength: 2, commutative: true},
+-		{name: "AndNotInt16x16", argLength: 2, commutative: true},
++		{name: "AndNotInt16x16", argLength: 2, commutative: false},
+ 		{name: "EqualInt16x16", argLength: 2, commutative: true},
+ 		{name: "GreaterInt16x16", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualInt16x16", argLength: 2, commutative: false},
+@@ -580,7 +580,7 @@ func simdGenericOps() []opData {
+ 		{name: "AbsoluteInt16x8", argLength: 1, commutative: false},
+ 		{name: "AddInt16x8", argLength: 2, commutative: true},
+ 		{name: "AndInt16x8", argLength: 2, commutative: true},
+-		{name: "AndNotInt16x8", argLength: 2, commutative: true},
++		{name: "AndNotInt16x8", argLength: 2, commutative: false},
+ 		{name: "EqualInt16x8", argLength: 2, commutative: true},
+ 		{name: "GreaterInt16x8", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualInt16x8", argLength: 2, commutative: false},
+@@ -623,7 +623,7 @@ func simdGenericOps() []opData {
+ 		{name: "AbsoluteInt32x16", argLength: 1, commutative: false},
+ 		{name: "AddInt32x16", argLength: 2, commutative: true},
+ 		{name: "AndInt32x16", argLength: 2, commutative: true},
+-		{name: "AndNotInt32x16", argLength: 2, commutative: true},
++		{name: "AndNotInt32x16", argLength: 2, commutative: false},
+ 		{name: "EqualInt32x16", argLength: 2, commutative: true},
+ 		{name: "GreaterInt32x16", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualInt32x16", argLength: 2, commutative: false},
+@@ -632,7 +632,7 @@ func simdGenericOps() []opData {
+ 		{name: "MaskedAbsoluteInt32x16", argLength: 2, commutative: false},
+ 		{name: "MaskedAddInt32x16", argLength: 3, commutative: true},
+ 		{name: "MaskedAndInt32x16", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotInt32x16", argLength: 3, commutative: true},
++		{name: "MaskedAndNotInt32x16", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualInt32x16", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterInt32x16", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualInt32x16", argLength: 3, commutative: false},
+@@ -665,7 +665,7 @@ func simdGenericOps() []opData {
+ 		{name: "AbsoluteInt32x4", argLength: 1, commutative: false},
+ 		{name: "AddInt32x4", argLength: 2, commutative: true},
+ 		{name: "AndInt32x4", argLength: 2, commutative: true},
+-		{name: "AndNotInt32x4", argLength: 2, commutative: true},
++		{name: "AndNotInt32x4", argLength: 2, commutative: false},
+ 		{name: "EqualInt32x4", argLength: 2, commutative: true},
+ 		{name: "GreaterInt32x4", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualInt32x4", argLength: 2, commutative: false},
+@@ -674,7 +674,7 @@ func simdGenericOps() []opData {
+ 		{name: "MaskedAbsoluteInt32x4", argLength: 2, commutative: false},
+ 		{name: "MaskedAddInt32x4", argLength: 3, commutative: true},
+ 		{name: "MaskedAndInt32x4", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotInt32x4", argLength: 3, commutative: true},
++		{name: "MaskedAndNotInt32x4", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualInt32x4", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterInt32x4", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualInt32x4", argLength: 3, commutative: false},
+@@ -711,7 +711,7 @@ func simdGenericOps() []opData {
+ 		{name: "AbsoluteInt32x8", argLength: 1, commutative: false},
+ 		{name: "AddInt32x8", argLength: 2, commutative: true},
+ 		{name: "AndInt32x8", argLength: 2, commutative: true},
+-		{name: "AndNotInt32x8", argLength: 2, commutative: true},
++		{name: "AndNotInt32x8", argLength: 2, commutative: false},
+ 		{name: "EqualInt32x8", argLength: 2, commutative: true},
+ 		{name: "GreaterInt32x8", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualInt32x8", argLength: 2, commutative: false},
+@@ -720,7 +720,7 @@ func simdGenericOps() []opData {
+ 		{name: "MaskedAbsoluteInt32x8", argLength: 2, commutative: false},
+ 		{name: "MaskedAddInt32x8", argLength: 3, commutative: true},
+ 		{name: "MaskedAndInt32x8", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotInt32x8", argLength: 3, commutative: true},
++		{name: "MaskedAndNotInt32x8", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualInt32x8", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterInt32x8", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualInt32x8", argLength: 3, commutative: false},
+@@ -757,7 +757,7 @@ func simdGenericOps() []opData {
+ 		{name: "AbsoluteInt64x2", argLength: 1, commutative: false},
+ 		{name: "AddInt64x2", argLength: 2, commutative: true},
+ 		{name: "AndInt64x2", argLength: 2, commutative: true},
+-		{name: "AndNotInt64x2", argLength: 2, commutative: true},
++		{name: "AndNotInt64x2", argLength: 2, commutative: false},
+ 		{name: "EqualInt64x2", argLength: 2, commutative: true},
+ 		{name: "GreaterInt64x2", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualInt64x2", argLength: 2, commutative: false},
+@@ -766,7 +766,7 @@ func simdGenericOps() []opData {
+ 		{name: "MaskedAbsoluteInt64x2", argLength: 2, commutative: false},
+ 		{name: "MaskedAddInt64x2", argLength: 3, commutative: true},
+ 		{name: "MaskedAndInt64x2", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotInt64x2", argLength: 3, commutative: true},
++		{name: "MaskedAndNotInt64x2", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualInt64x2", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterInt64x2", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualInt64x2", argLength: 3, commutative: false},
+@@ -793,7 +793,7 @@ func simdGenericOps() []opData {
+ 		{name: "AbsoluteInt64x4", argLength: 1, commutative: false},
+ 		{name: "AddInt64x4", argLength: 2, commutative: true},
+ 		{name: "AndInt64x4", argLength: 2, commutative: true},
+-		{name: "AndNotInt64x4", argLength: 2, commutative: true},
++		{name: "AndNotInt64x4", argLength: 2, commutative: false},
+ 		{name: "EqualInt64x4", argLength: 2, commutative: true},
+ 		{name: "GreaterInt64x4", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualInt64x4", argLength: 2, commutative: false},
+@@ -802,7 +802,7 @@ func simdGenericOps() []opData {
+ 		{name: "MaskedAbsoluteInt64x4", argLength: 2, commutative: false},
+ 		{name: "MaskedAddInt64x4", argLength: 3, commutative: true},
+ 		{name: "MaskedAndInt64x4", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotInt64x4", argLength: 3, commutative: true},
++		{name: "MaskedAndNotInt64x4", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualInt64x4", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterInt64x4", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualInt64x4", argLength: 3, commutative: false},
+@@ -829,7 +829,7 @@ func simdGenericOps() []opData {
+ 		{name: "AbsoluteInt64x8", argLength: 1, commutative: false},
+ 		{name: "AddInt64x8", argLength: 2, commutative: true},
+ 		{name: "AndInt64x8", argLength: 2, commutative: true},
+-		{name: "AndNotInt64x8", argLength: 2, commutative: true},
++		{name: "AndNotInt64x8", argLength: 2, commutative: false},
+ 		{name: "EqualInt64x8", argLength: 2, commutative: true},
+ 		{name: "GreaterInt64x8", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualInt64x8", argLength: 2, commutative: false},
+@@ -838,7 +838,7 @@ func simdGenericOps() []opData {
+ 		{name: "MaskedAbsoluteInt64x8", argLength: 2, commutative: false},
+ 		{name: "MaskedAddInt64x8", argLength: 3, commutative: true},
+ 		{name: "MaskedAndInt64x8", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotInt64x8", argLength: 3, commutative: true},
++		{name: "MaskedAndNotInt64x8", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualInt64x8", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterInt64x8", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualInt64x8", argLength: 3, commutative: false},
+@@ -865,7 +865,7 @@ func simdGenericOps() []opData {
+ 		{name: "AbsoluteInt8x16", argLength: 1, commutative: false},
+ 		{name: "AddInt8x16", argLength: 2, commutative: true},
+ 		{name: "AndInt8x16", argLength: 2, commutative: true},
+-		{name: "AndNotInt8x16", argLength: 2, commutative: true},
++		{name: "AndNotInt8x16", argLength: 2, commutative: false},
+ 		{name: "EqualInt8x16", argLength: 2, commutative: true},
+ 		{name: "GreaterInt8x16", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualInt8x16", argLength: 2, commutative: false},
+@@ -898,7 +898,7 @@ func simdGenericOps() []opData {
+ 		{name: "AbsoluteInt8x32", argLength: 1, commutative: false},
+ 		{name: "AddInt8x32", argLength: 2, commutative: true},
+ 		{name: "AndInt8x32", argLength: 2, commutative: true},
+-		{name: "AndNotInt8x32", argLength: 2, commutative: true},
++		{name: "AndNotInt8x32", argLength: 2, commutative: false},
+ 		{name: "EqualInt8x32", argLength: 2, commutative: true},
+ 		{name: "GreaterInt8x32", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualInt8x32", argLength: 2, commutative: false},
+@@ -958,7 +958,7 @@ func simdGenericOps() []opData {
+ 		{name: "SubInt8x64", argLength: 2, commutative: false},
+ 		{name: "AddUint16x16", argLength: 2, commutative: true},
+ 		{name: "AndUint16x16", argLength: 2, commutative: true},
+-		{name: "AndNotUint16x16", argLength: 2, commutative: true},
++		{name: "AndNotUint16x16", argLength: 2, commutative: false},
+ 		{name: "AverageUint16x16", argLength: 2, commutative: true},
+ 		{name: "EqualUint16x16", argLength: 2, commutative: true},
+ 		{name: "GreaterUint16x16", argLength: 2, commutative: false},
+@@ -1028,7 +1028,7 @@ func simdGenericOps() []opData {
+ 		{name: "SubUint16x32", argLength: 2, commutative: false},
+ 		{name: "AddUint16x8", argLength: 2, commutative: true},
+ 		{name: "AndUint16x8", argLength: 2, commutative: true},
+-		{name: "AndNotUint16x8", argLength: 2, commutative: true},
++		{name: "AndNotUint16x8", argLength: 2, commutative: false},
+ 		{name: "AverageUint16x8", argLength: 2, commutative: true},
+ 		{name: "EqualUint16x8", argLength: 2, commutative: true},
+ 		{name: "GreaterUint16x8", argLength: 2, commutative: false},
+@@ -1066,7 +1066,7 @@ func simdGenericOps() []opData {
+ 		{name: "XorUint16x8", argLength: 2, commutative: true},
+ 		{name: "AddUint32x16", argLength: 2, commutative: true},
+ 		{name: "AndUint32x16", argLength: 2, commutative: true},
+-		{name: "AndNotUint32x16", argLength: 2, commutative: true},
++		{name: "AndNotUint32x16", argLength: 2, commutative: false},
+ 		{name: "EqualUint32x16", argLength: 2, commutative: true},
+ 		{name: "GreaterUint32x16", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualUint32x16", argLength: 2, commutative: false},
+@@ -1074,7 +1074,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualUint32x16", argLength: 2, commutative: false},
+ 		{name: "MaskedAddUint32x16", argLength: 3, commutative: true},
+ 		{name: "MaskedAndUint32x16", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotUint32x16", argLength: 3, commutative: true},
++		{name: "MaskedAndNotUint32x16", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualUint32x16", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterUint32x16", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualUint32x16", argLength: 3, commutative: false},
+@@ -1100,7 +1100,7 @@ func simdGenericOps() []opData {
+ 		{name: "XorUint32x16", argLength: 2, commutative: true},
+ 		{name: "AddUint32x4", argLength: 2, commutative: true},
+ 		{name: "AndUint32x4", argLength: 2, commutative: true},
+-		{name: "AndNotUint32x4", argLength: 2, commutative: true},
++		{name: "AndNotUint32x4", argLength: 2, commutative: false},
+ 		{name: "EqualUint32x4", argLength: 2, commutative: true},
+ 		{name: "GreaterUint32x4", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualUint32x4", argLength: 2, commutative: false},
+@@ -1108,7 +1108,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualUint32x4", argLength: 2, commutative: false},
+ 		{name: "MaskedAddUint32x4", argLength: 3, commutative: true},
+ 		{name: "MaskedAndUint32x4", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotUint32x4", argLength: 3, commutative: true},
++		{name: "MaskedAndNotUint32x4", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualUint32x4", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterUint32x4", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualUint32x4", argLength: 3, commutative: false},
+@@ -1137,7 +1137,7 @@ func simdGenericOps() []opData {
+ 		{name: "XorUint32x4", argLength: 2, commutative: true},
+ 		{name: "AddUint32x8", argLength: 2, commutative: true},
+ 		{name: "AndUint32x8", argLength: 2, commutative: true},
+-		{name: "AndNotUint32x8", argLength: 2, commutative: true},
++		{name: "AndNotUint32x8", argLength: 2, commutative: false},
+ 		{name: "EqualUint32x8", argLength: 2, commutative: true},
+ 		{name: "GreaterUint32x8", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualUint32x8", argLength: 2, commutative: false},
+@@ -1145,7 +1145,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualUint32x8", argLength: 2, commutative: false},
+ 		{name: "MaskedAddUint32x8", argLength: 3, commutative: true},
+ 		{name: "MaskedAndUint32x8", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotUint32x8", argLength: 3, commutative: true},
++		{name: "MaskedAndNotUint32x8", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualUint32x8", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterUint32x8", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualUint32x8", argLength: 3, commutative: false},
+@@ -1174,7 +1174,7 @@ func simdGenericOps() []opData {
+ 		{name: "XorUint32x8", argLength: 2, commutative: true},
+ 		{name: "AddUint64x2", argLength: 2, commutative: true},
+ 		{name: "AndUint64x2", argLength: 2, commutative: true},
+-		{name: "AndNotUint64x2", argLength: 2, commutative: true},
++		{name: "AndNotUint64x2", argLength: 2, commutative: false},
+ 		{name: "EqualUint64x2", argLength: 2, commutative: true},
+ 		{name: "GreaterUint64x2", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualUint64x2", argLength: 2, commutative: false},
+@@ -1182,7 +1182,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualUint64x2", argLength: 2, commutative: false},
+ 		{name: "MaskedAddUint64x2", argLength: 3, commutative: true},
+ 		{name: "MaskedAndUint64x2", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotUint64x2", argLength: 3, commutative: true},
++		{name: "MaskedAndNotUint64x2", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualUint64x2", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterUint64x2", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualUint64x2", argLength: 3, commutative: false},
+@@ -1206,7 +1206,7 @@ func simdGenericOps() []opData {
+ 		{name: "XorUint64x2", argLength: 2, commutative: true},
+ 		{name: "AddUint64x4", argLength: 2, commutative: true},
+ 		{name: "AndUint64x4", argLength: 2, commutative: true},
+-		{name: "AndNotUint64x4", argLength: 2, commutative: true},
++		{name: "AndNotUint64x4", argLength: 2, commutative: false},
+ 		{name: "EqualUint64x4", argLength: 2, commutative: true},
+ 		{name: "GreaterUint64x4", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualUint64x4", argLength: 2, commutative: false},
+@@ -1214,7 +1214,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualUint64x4", argLength: 2, commutative: false},
+ 		{name: "MaskedAddUint64x4", argLength: 3, commutative: true},
+ 		{name: "MaskedAndUint64x4", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotUint64x4", argLength: 3, commutative: true},
++		{name: "MaskedAndNotUint64x4", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualUint64x4", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterUint64x4", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualUint64x4", argLength: 3, commutative: false},
+@@ -1238,7 +1238,7 @@ func simdGenericOps() []opData {
+ 		{name: "XorUint64x4", argLength: 2, commutative: true},
+ 		{name: "AddUint64x8", argLength: 2, commutative: true},
+ 		{name: "AndUint64x8", argLength: 2, commutative: true},
+-		{name: "AndNotUint64x8", argLength: 2, commutative: true},
++		{name: "AndNotUint64x8", argLength: 2, commutative: false},
+ 		{name: "EqualUint64x8", argLength: 2, commutative: true},
+ 		{name: "GreaterUint64x8", argLength: 2, commutative: false},
+ 		{name: "GreaterEqualUint64x8", argLength: 2, commutative: false},
+@@ -1246,7 +1246,7 @@ func simdGenericOps() []opData {
+ 		{name: "LessEqualUint64x8", argLength: 2, commutative: false},
+ 		{name: "MaskedAddUint64x8", argLength: 3, commutative: true},
+ 		{name: "MaskedAndUint64x8", argLength: 3, commutative: true},
+-		{name: "MaskedAndNotUint64x8", argLength: 3, commutative: true},
++		{name: "MaskedAndNotUint64x8", argLength: 3, commutative: false},
+ 		{name: "MaskedEqualUint64x8", argLength: 3, commutative: true},
+ 		{name: "MaskedGreaterUint64x8", argLength: 3, commutative: false},
+ 		{name: "MaskedGreaterEqualUint64x8", argLength: 3, commutative: false},
+@@ -1270,7 +1270,7 @@ func simdGenericOps() []opData {
+ 		{name: "XorUint64x8", argLength: 2, commutative: true},
+ 		{name: "AddUint8x16", argLength: 2, commutative: true},
+ 		{name: "AndUint8x16", argLength: 2, commutative: true},
+-		{name: "AndNotUint8x16", argLength: 2, commutative: true},
++		{name: "AndNotUint8x16", argLength: 2, commutative: false},
+ 		{name: "AverageUint8x16", argLength: 2, commutative: true},
+ 		{name: "EqualUint8x16", argLength: 2, commutative: true},
+ 		{name: "GreaterUint8x16", argLength: 2, commutative: false},
+@@ -1303,7 +1303,7 @@ func simdGenericOps() []opData {
+ 		{name: "XorUint8x16", argLength: 2, commutative: true},
+ 		{name: "AddUint8x32", argLength: 2, commutative: true},
+ 		{name: "AndUint8x32", argLength: 2, commutative: true},
+-		{name: "AndNotUint8x32", argLength: 2, commutative: true},
++		{name: "AndNotUint8x32", argLength: 2, commutative: false},
+ 		{name: "AverageUint8x32", argLength: 2, commutative: true},
+ 		{name: "EqualUint8x32", argLength: 2, commutative: true},
+ 		{name: "GreaterUint8x32", argLength: 2, commutative: false},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 106f3e1657..d2e86702d8 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -18484,10 +18484,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPS512",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         x86.AVANDNPS,
++		name:   "VANDNPS512",
++		argLen: 2,
++		asm:    x86.AVANDNPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+@@ -18859,10 +18858,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPSMasked512",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVANDNPS,
++		name:   "VANDNPSMasked512",
++		argLen: 3,
++		asm:    x86.AVANDNPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -19479,10 +19477,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPS128",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         x86.AVANDNPS,
++		name:   "VANDNPS128",
++		argLen: 2,
++		asm:    x86.AVANDNPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+@@ -19854,10 +19851,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPSMasked128",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVANDNPS,
++		name:   "VANDNPSMasked128",
++		argLen: 3,
++		asm:    x86.AVANDNPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -20502,10 +20498,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPS256",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         x86.AVANDNPS,
++		name:   "VANDNPS256",
++		argLen: 2,
++		asm:    x86.AVANDNPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+@@ -20877,10 +20872,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPSMasked256",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVANDNPS,
++		name:   "VANDNPSMasked256",
++		argLen: 3,
++		asm:    x86.AVANDNPS,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -21525,10 +21519,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPD128",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         x86.AVANDNPD,
++		name:   "VANDNPD128",
++		argLen: 2,
++		asm:    x86.AVANDNPD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+@@ -21900,10 +21893,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPDMasked128",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVANDNPD,
++		name:   "VANDNPDMasked128",
++		argLen: 3,
++		asm:    x86.AVANDNPD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -22548,10 +22540,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPD256",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         x86.AVANDNPD,
++		name:   "VANDNPD256",
++		argLen: 2,
++		asm:    x86.AVANDNPD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+@@ -22923,10 +22914,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPDMasked256",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVANDNPD,
++		name:   "VANDNPDMasked256",
++		argLen: 3,
++		asm:    x86.AVANDNPD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -23557,10 +23547,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPD512",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         x86.AVANDNPD,
++		name:   "VANDNPD512",
++		argLen: 2,
++		asm:    x86.AVANDNPD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+@@ -23932,10 +23921,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VANDNPDMasked512",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVANDNPD,
++		name:   "VANDNPDMasked512",
++		argLen: 3,
++		asm:    x86.AVANDNPD,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -24551,10 +24539,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VPANDN256",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         x86.AVPANDN,
++		name:   "VPANDN256",
++		argLen: 2,
++		asm:    x86.AVPANDN,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+@@ -25455,10 +25442,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VPANDN128",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         x86.AVPANDN,
++		name:   "VPANDN128",
++		argLen: 2,
++		asm:    x86.AVPANDN,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+@@ -25972,10 +25958,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VPANDND512",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         x86.AVPANDND,
++		name:   "VPANDND512",
++		argLen: 2,
++		asm:    x86.AVPANDND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+@@ -26062,10 +26047,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VPANDNDMasked512",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVPANDND,
++		name:   "VPANDNDMasked512",
++		argLen: 3,
++		asm:    x86.AVPANDND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -26555,10 +26539,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VPANDNDMasked128",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVPANDND,
++		name:   "VPANDNDMasked128",
++		argLen: 3,
++		asm:    x86.AVPANDND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -27075,10 +27058,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VPANDNDMasked256",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVPANDND,
++		name:   "VPANDNDMasked256",
++		argLen: 3,
++		asm:    x86.AVPANDND,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -27595,10 +27577,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VPANDNQMasked128",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVPANDNQ,
++		name:   "VPANDNQMasked128",
++		argLen: 3,
++		asm:    x86.AVPANDNQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -27942,10 +27923,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VPANDNQMasked256",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVPANDNQ,
++		name:   "VPANDNQMasked256",
++		argLen: 3,
++		asm:    x86.AVPANDNQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -28229,10 +28209,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VPANDNQ512",
+-		argLen:      2,
+-		commutative: true,
+-		asm:         x86.AVPANDNQ,
++		name:   "VPANDNQ512",
++		argLen: 2,
++		asm:    x86.AVPANDNQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{0, 2147418112}, // X0 X1 X2 X3 X4 X5 X6 X7 X8 X9 X10 X11 X12 X13 X14
+@@ -28319,10 +28298,9 @@ var opcodeTable = [...]opInfo{
+ 		},
+ 	},
+ 	{
+-		name:        "VPANDNQMasked512",
+-		argLen:      3,
+-		commutative: true,
+-		asm:         x86.AVPANDNQ,
++		name:   "VPANDNQMasked512",
++		argLen: 3,
++		asm:    x86.AVPANDNQ,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{2, 1090921693184}, // K1 K2 K3 K4 K5 K6 K7
+@@ -59277,10 +59255,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotFloat32x16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotFloat32x16",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "ApproximateReciprocalFloat32x16",
+@@ -59432,10 +59409,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotFloat32x16",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotFloat32x16",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "MaskedApproximateReciprocalFloat32x16",
+@@ -59694,10 +59670,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotFloat32x4",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotFloat32x4",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "ApproximateReciprocalFloat32x4",
+@@ -59859,10 +59834,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotFloat32x4",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotFloat32x4",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "MaskedApproximateReciprocalFloat32x4",
+@@ -60141,10 +60115,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotFloat32x8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotFloat32x8",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "ApproximateReciprocalFloat32x8",
+@@ -60306,10 +60279,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotFloat32x8",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotFloat32x8",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "MaskedApproximateReciprocalFloat32x8",
+@@ -60588,10 +60560,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotFloat64x2",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotFloat64x2",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "ApproximateReciprocalFloat64x2",
+@@ -60759,10 +60730,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotFloat64x2",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotFloat64x2",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "MaskedApproximateReciprocalFloat64x2",
+@@ -61041,10 +61011,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotFloat64x4",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotFloat64x4",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "ApproximateReciprocalFloat64x4",
+@@ -61206,10 +61175,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotFloat64x4",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotFloat64x4",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "MaskedApproximateReciprocalFloat64x4",
+@@ -61483,10 +61451,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotFloat64x8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotFloat64x8",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "ApproximateReciprocalFloat64x8",
+@@ -61638,10 +61605,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotFloat64x8",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotFloat64x8",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:    "MaskedApproximateReciprocalFloat64x8",
+@@ -61900,10 +61866,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotInt16x16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotInt16x16",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualInt16x16",
+@@ -62321,10 +62286,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotInt16x8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotInt16x8",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualInt16x8",
+@@ -62556,10 +62520,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotInt32x16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotInt32x16",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualInt32x16",
+@@ -62605,10 +62568,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotInt32x16",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotInt32x16",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualInt32x16",
+@@ -62786,10 +62748,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotInt32x4",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotInt32x4",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualInt32x4",
+@@ -62835,10 +62796,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotInt32x4",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotInt32x4",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualInt32x4",
+@@ -63037,10 +62997,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotInt32x8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotInt32x8",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualInt32x8",
+@@ -63086,10 +63045,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotInt32x8",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotInt32x8",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualInt32x8",
+@@ -63288,10 +63246,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotInt64x2",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotInt64x2",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualInt64x2",
+@@ -63337,10 +63294,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotInt64x2",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotInt64x2",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualInt64x2",
+@@ -63490,10 +63446,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotInt64x4",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotInt64x4",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualInt64x4",
+@@ -63539,10 +63494,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotInt64x4",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotInt64x4",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualInt64x4",
+@@ -63692,10 +63646,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotInt64x8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotInt64x8",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualInt64x8",
+@@ -63741,10 +63694,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotInt64x8",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotInt64x8",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualInt64x8",
+@@ -63894,10 +63846,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotInt8x16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotInt8x16",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualInt8x16",
+@@ -64075,10 +64026,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotInt8x32",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotInt8x32",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualInt8x32",
+@@ -64403,10 +64353,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotUint16x16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotUint16x16",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "AverageUint16x16",
+@@ -64789,10 +64738,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotUint16x8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotUint16x8",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "AverageUint16x8",
+@@ -64999,10 +64947,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotUint32x16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotUint32x16",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualUint32x16",
+@@ -65043,10 +64990,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotUint32x16",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotUint32x16",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualUint32x16",
+@@ -65187,10 +65133,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotUint32x4",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotUint32x4",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualUint32x4",
+@@ -65231,10 +65176,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotUint32x4",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotUint32x4",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualUint32x4",
+@@ -65391,10 +65335,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotUint32x8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotUint32x8",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualUint32x8",
+@@ -65435,10 +65378,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotUint32x8",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotUint32x8",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualUint32x8",
+@@ -65595,10 +65537,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotUint64x2",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotUint64x2",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualUint64x2",
+@@ -65639,10 +65580,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotUint64x2",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotUint64x2",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualUint64x2",
+@@ -65775,10 +65715,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotUint64x4",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotUint64x4",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualUint64x4",
+@@ -65819,10 +65758,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotUint64x4",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotUint64x4",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualUint64x4",
+@@ -65955,10 +65893,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotUint64x8",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotUint64x8",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "EqualUint64x8",
+@@ -65999,10 +65936,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "MaskedAndNotUint64x8",
+-		argLen:      3,
+-		commutative: true,
+-		generic:     true,
++		name:    "MaskedAndNotUint64x8",
++		argLen:  3,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "MaskedEqualUint64x8",
+@@ -66135,10 +66071,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotUint8x16",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotUint8x16",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "AverageUint8x16",
+@@ -66318,10 +66253,9 @@ var opcodeTable = [...]opInfo{
+ 		generic:     true,
+ 	},
+ 	{
+-		name:        "AndNotUint8x32",
+-		argLen:      2,
+-		commutative: true,
+-		generic:     true,
++		name:    "AndNotUint8x32",
++		argLen:  2,
++		generic: true,
+ 	},
+ 	{
+ 		name:        "AverageUint8x32",

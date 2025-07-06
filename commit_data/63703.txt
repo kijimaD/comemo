@@ -1,0 +1,500 @@
+commit 4721f95058878042576ef09562a84e6c93e5c399
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 9 17:07:43 2024 -0400
+
+    cmd/compile, cmd/link: disallow linkname of some newly added internal functions
+    
+    Go API is defined through exported symbols. When a package is
+    imported, the compiler ensures that only exported symbols can be
+    accessed, and the go command ensures that internal packages cannot
+    be imported. This ensures API integrity. But there is a hole:
+    using linkname, one can access internal or non-exported symbols.
+    Linkname is a mechanism to give access of a symbol to a package
+    without adding it to the public API. It is intended for coupled
+    packages to share some implementation details, or to break
+    circular dependencies, and both "push" (definition) and "pull"
+    (reference) sides are controlled, so they can be updated in sync.
+    Nevertheless, it is abused as a mechanism to reach into internal
+    details of other packages uncontrolled by the user, notably the
+    runtime. As the other package evolves, the code often breaks,
+    because the linknamed symbol may no longer exist, or change its
+    signature or semantics.
+    
+    This CL adds a mechanism to enforce the integrity of linknames.
+    Generally, "push" linkname is allowed, as the package defining
+    the symbol explicitly opt in for access outside of the package.
+    "Pull" linkname is checked and only allowed in some circumstances.
+    Given that there are existing code that use "pull"-only linkname
+    to access other package's internals, disallowing it completely is
+    too much a change at this point in the release cycle. For a start,
+    implement a hard-coded blocklist, which contains some newly added
+    internal functions that, if used inappropriately, may break memory
+    safety or runtime integrity. All blocked symbols are newly added
+    in Go 1.23. So existing code that builds with Go 1.22 will
+    continue to build.
+    
+    For the implementation, when compiling a package, we mark
+    linknamed symbols in the current package with an attribute. At
+    link time, marked linknamed symbols are checked against the
+    blocklist. Care is taken so it distinguishes a linkname reference
+    in the current package vs. a reference of a linkname from another
+    package and propagated to the current package (e.g. through
+    inlining or instantiation).
+    
+    Symbol references in assembly code are similar to linknames, and
+    are treated similarly.
+    
+    Change-Id: I8067efe29c122740cd4f1effd2dec2d839147d5d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584598
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ src/cmd/compile/internal/noder/reader.go        | 13 +++++-
+ src/cmd/internal/goobj/objfile.go               |  2 +
+ src/cmd/internal/obj/link.go                    |  5 ++
+ src/cmd/internal/obj/objfile.go                 |  3 ++
+ src/cmd/link/internal/loader/loader.go          | 61 ++++++++++++++++++++++++-
+ src/cmd/link/link_test.go                       | 40 ++++++++++++++++
+ src/cmd/link/testdata/linkname/coro.go          | 27 +++++++++++
+ src/cmd/link/testdata/linkname/coro_asm/asm.s   |  7 +++
+ src/cmd/link/testdata/linkname/coro_asm/main.go | 13 ++++++
+ src/cmd/link/testdata/linkname/coro_var.go      | 21 +++++++++
+ src/cmd/link/testdata/linkname/ok.go            | 27 +++++++++++
+ src/cmd/link/testdata/linkname/p/p.go           | 19 ++++++++
+ src/cmd/link/testdata/linkname/push.go          | 26 +++++++++++
+ src/cmd/link/testdata/linkname/weak.go          | 22 +++++++++
+ 14 files changed, 284 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index c33e5226f3..abd07ebb62 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -1176,7 +1176,18 @@ func (r *reader) linkname(name *ir.Name) {
+ 		lsym.SymIdx = int32(idx)
+ 		lsym.Set(obj.AttrIndexed, true)
+ 	} else {
+-		name.Sym().Linkname = r.String()
++		linkname := r.String()
++		sym := name.Sym()
++		sym.Linkname = linkname
++		if sym.Pkg == types.LocalPkg && linkname != "" {
++			// Mark linkname in the current package. We don't mark the
++			// ones that are imported and propagated (e.g. through
++			// inlining or instantiation, which are marked in their
++			// corresponding packages). So we can tell in which package
++			// the linkname is used (pulled), and the linker can
++			// make a decision for allowing or disallowing it.
++			sym.Linksym().Set(obj.AttrLinkname, true)
++		}
+ 	}
+ }
+ 
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index 6c0f5e6665..fb87b04412 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -303,6 +303,7 @@ const (
+ 	SymFlagItab
+ 	SymFlagDict
+ 	SymFlagPkgInit
++	SymFlagLinkname
+ )
+ 
+ // Returns the length of the name of the symbol.
+@@ -334,6 +335,7 @@ func (s *Sym) UsedInIface() bool   { return s.Flag2()&SymFlagUsedInIface != 0 }
+ func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
+ func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
+ func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
++func (s *Sym) IsLinkname() bool    { return s.Flag2()&SymFlagLinkname != 0 }
+ 
+ func (s *Sym) SetName(x string, w *Writer) {
+ 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 5be493e176..dac6e209f1 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -836,6 +836,9 @@ const (
+ 	// PkgInit indicates this is a compiler-generated package init func.
+ 	AttrPkgInit
+ 
++	// Linkname indicates this is a go:linkname'd symbol.
++	AttrLinkname
++
+ 	// attrABIBase is the value at which the ABI is encoded in
+ 	// Attribute. This must be last; all bits after this are
+ 	// assumed to be an ABI value.
+@@ -865,6 +868,7 @@ func (a *Attribute) ContentAddressable() bool { return a.load()&AttrContentAddre
+ func (a *Attribute) ABIWrapper() bool         { return a.load()&AttrABIWrapper != 0 }
+ func (a *Attribute) IsPcdata() bool           { return a.load()&AttrPcdata != 0 }
+ func (a *Attribute) IsPkgInit() bool          { return a.load()&AttrPkgInit != 0 }
++func (a *Attribute) IsLinkname() bool         { return a.load()&AttrLinkname != 0 }
+ 
+ func (a *Attribute) Set(flag Attribute, value bool) {
+ 	for {
+@@ -914,6 +918,7 @@ var textAttrStrings = [...]struct {
+ 	{bit: AttrContentAddressable, s: ""},
+ 	{bit: AttrABIWrapper, s: "ABIWRAPPER"},
+ 	{bit: AttrPkgInit, s: "PKGINIT"},
++	{bit: AttrLinkname, s: "LINKNAME"},
+ }
+ 
+ // String formats a for printing in as part of a TEXT prog.
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 189c1ae915..ecc583ce4f 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -348,6 +348,9 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.IsPkgInit() {
+ 		flag2 |= goobj.SymFlagPkgInit
+ 	}
++	if s.IsLinkname() || w.ctxt.IsAsm { // assembly reference is treated the same as linkname
++		flag2 |= goobj.SymFlagLinkname
++	}
+ 	name := s.Name
+ 	if strings.HasPrefix(name, "gofile..") {
+ 		name = filepath.ToSlash(name)
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index ea2391672f..53ebb53a75 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -420,7 +420,16 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
+ 		return i
+ 	}
+ 
+-	// Non-package (named) symbol. Check if it already exists.
++	// Non-package (named) symbol.
++	if osym.IsLinkname() && r.DataSize(li) == 0 {
++		// This is a linknamed "var" "reference" (var x T with no data and //go:linkname x).
++		// Check if a linkname reference is allowed.
++		// Only check references (pull), not definitions (push, with non-zero size),
++		// so push is always allowed.
++		// Linkname is always a non-package reference.
++		checkLinkname(r.unit.Lib.Pkg, name)
++	}
++	// Check if it already exists.
+ 	oldi, existed := l.symsByName[ver][name]
+ 	if !existed {
+ 		l.symsByName[ver][name] = i
+@@ -2243,6 +2252,13 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
+ 		osym := r.Sym(ndef + i)
+ 		name := osym.Name(r.Reader)
+ 		v := abiToVer(osym.ABI(), r.version)
++		if osym.IsLinkname() {
++			// Check if a linkname reference is allowed.
++			// Only check references (pull), not definitions (push),
++			// so push is always allowed.
++			// Linkname is always a non-package reference.
++			checkLinkname(r.unit.Lib.Pkg, name)
++		}
+ 		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
+ 		gi := r.syms[ndef+i]
+ 		if osym.Local() {
+@@ -2289,6 +2305,49 @@ func abiToVer(abi uint16, localSymVersion int) int {
+ 	return v
+ }
+ 
++// A list of blocked linknames. Some linknames are allowed only
++// in specific packages. This maps symbol names to allowed packages.
++// If a name is not in this map, and not with a blocked prefix (see
++// blockedLinknamePrefixes), it is allowed everywhere.
++// If a name is in this map, it is allowed only in listed packages.
++var blockedLinknames = map[string][]string{
++	// coroutines
++	"runtime.coroexit":   nil,
++	"runtime.corostart":  nil,
++	"runtime.coroswitch": {"iter"},
++	"runtime.newcoro":    {"iter"},
++	// weak references
++	"internal/weak.runtime_registerWeakPointer": {"internal/weak"},
++	"internal/weak.runtime_makeStrongFromWeak":  {"internal/weak"},
++	"runtime.getOrAddWeakHandle":                nil,
++}
++
++// A list of blocked linkname prefixes (packages).
++var blockedLinknamePrefixes = []string{
++	"internal/weak.",
++	"internal/concurrent.",
++}
++
++func checkLinkname(pkg, name string) {
++	error := func() {
++		log.Fatalf("linkname or assembly reference of %s is not allowed in package %s", name, pkg)
++	}
++	pkgs, ok := blockedLinknames[name]
++	if ok {
++		for _, p := range pkgs {
++			if pkg == p {
++				return // pkg is allowed
++			}
++		}
++		error()
++	}
++	for _, p := range blockedLinknamePrefixes {
++		if strings.HasPrefix(name, p) {
++			error()
++		}
++	}
++}
++
+ // TopLevelSym tests a symbol (by name and kind) to determine whether
+ // the symbol first class sym (participating in the link) or is an
+ // anonymous aux or sub-symbol containing some sub-part or payload of
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index d61440b369..3abec64c5d 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -1415,3 +1415,43 @@ func TestRandLayout(t *testing.T) {
+ 		t.Errorf("randlayout with different seeds produced same layout:\n%s\n===\n\n%s", syms[0], syms[1])
+ 	}
+ }
++
++func TestBlockedLinkname(t *testing.T) {
++	// Test that code containing blocked linknames does not build.
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++
++	tmpdir := t.TempDir()
++
++	tests := []struct {
++		src string
++		ok  bool
++	}{
++		// use (instantiation) of public API is ok
++		{"ok.go", true},
++		// push linkname is ok
++		{"push.go", true},
++		// pull linkname of blocked symbol is not ok
++		{"coro.go", false},
++		{"weak.go", false},
++		{"coro_var.go", false},
++		// assembly reference is not ok
++		{"coro_asm", false},
++	}
++	for _, test := range tests {
++		test := test
++		t.Run(test.src, func(t *testing.T) {
++			t.Parallel()
++			src := filepath.Join("testdata", "linkname", test.src)
++			exe := filepath.Join(tmpdir, test.src+".exe")
++			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src)
++			out, err := cmd.CombinedOutput()
++			if test.ok && err != nil {
++				t.Errorf("build failed unexpectedly: %v:\n%s", err, out)
++			}
++			if !test.ok && err == nil {
++				t.Errorf("build succeeded unexpectedly: %v:\n%s", err, out)
++			}
++		})
++	}
++}
+diff --git a/src/cmd/link/testdata/linkname/coro.go b/src/cmd/link/testdata/linkname/coro.go
+new file mode 100644
+index 0000000000..ab42aa8892
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/coro.go
+@@ -0,0 +1,27 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Linkname coroswitch is not allowed, even if iter.Pull
++// is instantiated in the same package.
++
++package main
++
++import (
++	"iter"
++	"unsafe"
++)
++
++func seq(yield func(int) bool) {
++	yield(123)
++}
++
++func main() {
++	next, stop := iter.Pull(seq)
++	next()
++	stop()
++	coroswitch(nil)
++}
++
++//go:linkname coroswitch runtime.coroswitch
++func coroswitch(unsafe.Pointer)
+diff --git a/src/cmd/link/testdata/linkname/coro_asm/asm.s b/src/cmd/link/testdata/linkname/coro_asm/asm.s
+new file mode 100644
+index 0000000000..f735bcad6a
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/coro_asm/asm.s
+@@ -0,0 +1,7 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++TEXT	·newcoro(SB),0,$0-0
++	CALL	runtime·newcoro(SB)
++	RET
+diff --git a/src/cmd/link/testdata/linkname/coro_asm/main.go b/src/cmd/link/testdata/linkname/coro_asm/main.go
+new file mode 100644
+index 0000000000..eadf503d20
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/coro_asm/main.go
+@@ -0,0 +1,13 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Assembly reference of newcoro is not allowed.
++
++package main
++
++func main() {
++	newcoro()
++}
++
++func newcoro()
+diff --git a/src/cmd/link/testdata/linkname/coro_var.go b/src/cmd/link/testdata/linkname/coro_var.go
+new file mode 100644
+index 0000000000..5e95c2cdf7
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/coro_var.go
+@@ -0,0 +1,21 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Linkname "var" to reference newcoro is not allowed.
++
++package main
++
++import "unsafe"
++
++func main() {
++	call(&newcoro)
++}
++
++//go:linkname newcoro runtime.newcoro
++var newcoro unsafe.Pointer
++
++//go:noinline
++func call(*unsafe.Pointer) {
++	// not implemented
++}
+diff --git a/src/cmd/link/testdata/linkname/ok.go b/src/cmd/link/testdata/linkname/ok.go
+new file mode 100644
+index 0000000000..0b2430fbca
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/ok.go
+@@ -0,0 +1,27 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Use of public API is ok.
++
++package main
++
++import (
++	"iter"
++	"unique"
++)
++
++func seq(yield func(int) bool) {
++	yield(123)
++}
++
++var s = "hello"
++
++func main() {
++	h := unique.Make(s)
++	next, stop := iter.Pull(seq)
++	defer stop()
++	println(h.Value())
++	println(next())
++	println(next())
++}
+diff --git a/src/cmd/link/testdata/linkname/p/p.go b/src/cmd/link/testdata/linkname/p/p.go
+new file mode 100644
+index 0000000000..40e45e2944
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/p/p.go
+@@ -0,0 +1,19 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import _ "unsafe"
++
++// f1 is pushed from main.
++//
++//go:linkname f1
++func f1()
++
++// Push f2 to main.
++//
++//go:linkname f2 main.f2
++func f2() {}
++
++func F() { f1() }
+diff --git a/src/cmd/link/testdata/linkname/push.go b/src/cmd/link/testdata/linkname/push.go
+new file mode 100644
+index 0000000000..b1d9524621
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/push.go
+@@ -0,0 +1,26 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// "Push" linknames are ok.
++
++package main
++
++import (
++	"cmd/link/testdata/linkname/p"
++	_ "unsafe"
++)
++
++// Push f1 to p.
++//
++//go:linkname f1 cmd/link/testdata/linkname/p.f1
++func f1() { f2() }
++
++// f2 is pushed from p.
++//
++//go:linkname f2
++func f2()
++
++func main() {
++	p.F()
++}
+diff --git a/src/cmd/link/testdata/linkname/weak.go b/src/cmd/link/testdata/linkname/weak.go
+new file mode 100644
+index 0000000000..2bf0fbcbab
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/weak.go
+@@ -0,0 +1,22 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Linkname generic functions in internal/weak is not
++// allowed; legitimate instantiation is ok.
++
++package main
++
++import (
++	"unique"
++	"unsafe"
++)
++
++//go:linkname weakMake internal/weak.Make[string]
++func weakMake(string) unsafe.Pointer
++
++func main() {
++	h := unique.Make("xxx")
++	println(h.Value())
++	weakMake("xxx")
++}

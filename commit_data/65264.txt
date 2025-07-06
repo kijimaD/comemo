@@ -1,0 +1,89 @@
+commit 4a0d5d601e6a4a94627f5178deaa76c2bb0ed320
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Oct 24 17:40:32 2024 -0700
+
+    cmd/go: permit linker flag -Wl,--push-state,--as-needed
+    
+    Fixes #70023
+    
+    Change-Id: Ibac9c242f52a605e5fc307bdcaedb359bc2b1de9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622238
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+---
+ src/cmd/go/internal/work/security.go      | 28 +++++++++++++++++++++++++++-
+ src/cmd/go/internal/work/security_test.go |  6 ++++++
+ 2 files changed, 33 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 957fad1b40..e48dffdb7f 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -205,6 +205,8 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`-Wl,--hash-style=(sysv|gnu|both)`),
+ 	re(`-Wl,-headerpad_max_install_names`),
+ 	re(`-Wl,--no-undefined`),
++	re(`-Wl,--pop-state`),
++	re(`-Wl,--push-state`),
+ 	re(`-Wl,-R,?([^@\-,][^,@]*$)`),
+ 	re(`-Wl,--just-symbols[=,]([^,@\-][^,@]+)`),
+ 	re(`-Wl,-rpath(-link)?[=,]([^,@\-][^,]+)`),
+@@ -308,7 +310,31 @@ Args:
+ 			}
+ 		}
+ 		for _, re := range valid {
+-			if re.FindString(arg) == arg { // must be complete match
++			if match := re.FindString(arg); match == arg { // must be complete match
++				continue Args
++			} else if match == "-Wl,--push-state" {
++				// Examples for --push-state are written
++				//     -Wl,--push-state,--as-needed
++				// Support other commands in the same -Wl arg.
++				args := strings.Split(arg, ",")
++				for _, a := range args[1:] {
++					a = "-Wl," + a
++					var found bool
++					for _, re := range valid {
++						if re.FindString(a) == a {
++							found = true
++							break
++						}
++					}
++					if !found {
++						goto Bad
++					}
++					for _, re := range invalid {
++						if re.FindString(a) == a {
++							goto Bad
++						}
++					}
++				}
+ 				continue Args
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 2ce7806c42..1cb0aa8e4a 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -178,6 +178,10 @@ var goodLinkerFlags = [][]string{
+ 	{"-Wl,-z,noexecstack"},
+ 	{"libcgotbdtest.tbd"},
+ 	{"./libcgotbdtest.tbd"},
++	{"-Wl,--push-state"},
++	{"-Wl,--pop-state"},
++	{"-Wl,--push-state,--as-needed"},
++	{"-Wl,--push-state,--no-as-needed,-Bstatic"},
+ }
+ 
+ var badLinkerFlags = [][]string{
+@@ -244,6 +248,8 @@ var badLinkerFlags = [][]string{
+ 	{"-Wl,-e="},
+ 	{"-Wl,-e,"},
+ 	{"-Wl,-R,-flag"},
++	{"-Wl,--push-state,"},
++	{"-Wl,--push-state,@foo"},
+ }
+ 
+ func TestCheckLinkerFlags(t *testing.T) {

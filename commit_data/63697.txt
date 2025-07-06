@@ -1,0 +1,134 @@
+commit b44600f83f5431f9af00cb209c443fe167588b6e
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Fri May 10 08:38:42 2024 +0000
+
+    reflect: let Value.Seq iterate integer conform to the spec
+    
+    See CL 557596, according to the go specification,
+    the iterated variable type should
+    be the same as the iterated integer type.
+    
+    For #66056
+    
+    Change-Id: I96c87440328c2c50c40d76ecf2f222a331be1ce9
+    GitHub-Last-Rev: 8f80e401e5d7e092290d94e2bfcac89f3e04c2c5
+    GitHub-Pull-Request: golang/go#67269
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584516
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/reflect/iter.go      | 49 ++++++++++++++++++++++++++++++++----------------
+ src/reflect/iter_test.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 16 deletions(-)
+
+diff --git a/src/reflect/iter.go b/src/reflect/iter.go
+index 85f8d8c999..7d01a1bdbb 100644
+--- a/src/reflect/iter.go
++++ b/src/reflect/iter.go
+@@ -6,6 +6,17 @@ package reflect
+ 
+ import "iter"
+ 
++func rangeNum[T int8 | int16 | int32 | int64 | int | uint8 | uint16 | uint32 | uint64 | uint | uintptr, N int64 | uint64](v N) iter.Seq[Value] {
++	return func(yield func(v Value) bool) {
++		// cannot use range T(v) because no core type.
++		for i := T(0); i < T(v); i++ {
++			if !yield(ValueOf(i)) {
++				return
++			}
++		}
++	}
++}
++
+ // Seq returns an iter.Seq[Value] that loops over the elements of v.
+ // If v's kind is Func, it must be a function that has no results and
+ // that takes a single argument of type func(T) bool for some type T.
+@@ -22,22 +33,28 @@ func (v Value) Seq() iter.Seq[Value] {
+ 		}
+ 	}
+ 	switch v.Kind() {
+-	case Int, Int8, Int16, Int32, Int64:
+-		return func(yield func(Value) bool) {
+-			for i := range v.Int() {
+-				if !yield(ValueOf(i)) {
+-					return
+-				}
+-			}
+-		}
+-	case Uint, Uint8, Uint16, Uint32, Uint64, Uintptr:
+-		return func(yield func(Value) bool) {
+-			for i := range v.Uint() {
+-				if !yield(ValueOf(i)) {
+-					return
+-				}
+-			}
+-		}
++	case Int:
++		return rangeNum[int](v.Int())
++	case Int8:
++		return rangeNum[int8](v.Int())
++	case Int16:
++		return rangeNum[int16](v.Int())
++	case Int32:
++		return rangeNum[int32](v.Int())
++	case Int64:
++		return rangeNum[int64](v.Int())
++	case Uint:
++		return rangeNum[uint](v.Uint())
++	case Uint8:
++		return rangeNum[uint8](v.Uint())
++	case Uint16:
++		return rangeNum[uint16](v.Uint())
++	case Uint32:
++		return rangeNum[uint32](v.Uint())
++	case Uint64:
++		return rangeNum[uint64](v.Uint())
++	case Uintptr:
++		return rangeNum[uintptr](v.Uint())
+ 	case Pointer:
+ 		if v.Elem().kind() != Array {
+ 			break
+diff --git a/src/reflect/iter_test.go b/src/reflect/iter_test.go
+index c4a14e7024..9b78fcf724 100644
+--- a/src/reflect/iter_test.go
++++ b/src/reflect/iter_test.go
+@@ -40,6 +40,18 @@ func TestValueSeq(t *testing.T) {
+ 				t.Fatalf("should loop four times")
+ 			}
+ 		}},
++		{"int8", ValueOf(int8(4)), func(t *testing.T, s iter.Seq[Value]) {
++			i := int8(0)
++			for v := range s {
++				if v.Interface().(int8) != i {
++					t.Fatalf("got %d, want %d", v.Int(), i)
++				}
++				i++
++			}
++			if i != 4 {
++				t.Fatalf("should loop four times")
++			}
++		}},
+ 		{"uint", ValueOf(uint64(4)), func(t *testing.T, s iter.Seq[Value]) {
+ 			i := uint64(0)
+ 			for v := range s {
+@@ -52,6 +64,18 @@ func TestValueSeq(t *testing.T) {
+ 				t.Fatalf("should loop four times")
+ 			}
+ 		}},
++		{"uint8", ValueOf(uint8(4)), func(t *testing.T, s iter.Seq[Value]) {
++			i := uint8(0)
++			for v := range s {
++				if v.Interface().(uint8) != i {
++					t.Fatalf("got %d, want %d", v.Int(), i)
++				}
++				i++
++			}
++			if i != 4 {
++				t.Fatalf("should loop four times")
++			}
++		}},
+ 		{"*[4]int", ValueOf(&[4]int{1, 2, 3, 4}), func(t *testing.T, s iter.Seq[Value]) {
+ 			i := int64(0)
+ 			for v := range s {

@@ -1,0 +1,245 @@
+commit 2d2bcdd2ad83ba93e61747417d6865cdd88b32fe
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Mar 5 15:17:20 2025 -0500
+
+    cmd/go: upgrade go install pkg@version's go using local mod, work
+    
+    This CL changes the toolchain selection behavior for go install pkg@v
+    and go run pkg@v to also take into account the go and toolchain version
+    lines in the containing go.mod and go.work file.
+    
+    Before this change, the go command would detect that go install
+    pkg@version or go run pkg@version was being run and skip the standard
+    behavior that would select the toolchain based on the go version in the
+    go.mod or go.work file. It would instead check the go line of the module
+    being downloaded and switch to that version if necessary.
+    
+    With this change, the go command does not skip the standard behavior. It
+    proceeds to determine if an upgrade is required based on the containing
+    go.mod or go.work file's go and toolchain lines. Then, it checks the
+    module being installed to see if it would require a higher version than
+    the determined upgrade (or the local version if no upgrade was
+    determined). If it does require a higher version, then a switch happens
+    to that version, and if not the upgrade logic proceeds as usual doing
+    the upgrade if one was determined.
+    
+    Fixes #66518
+    
+    Change-Id: I00d96170e8713c451cc0fd2203be521585418842
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660035
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/toolchain/select.go          | 33 ++++++++++----------
+ src/cmd/go/testdata/script/gotoolchain_local.txt | 38 ++++++++++++++++++++++--
+ src/cmd/go/testdata/script/gotoolchain_path.txt  |  4 +--
+ 3 files changed, 53 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/internal/toolchain/select.go b/src/cmd/go/internal/toolchain/select.go
+index aeab59519c..e871261336 100644
+--- a/src/cmd/go/internal/toolchain/select.go
++++ b/src/cmd/go/internal/toolchain/select.go
+@@ -169,7 +169,7 @@ func Select() {
+ 	}
+ 
+ 	gotoolchain = minToolchain
+-	if (mode == "auto" || mode == "path") && !goInstallVersion(minVers) {
++	if mode == "auto" || mode == "path" {
+ 		// Read go.mod to find new minimum and suggested toolchain.
+ 		file, goVers, toolchain := modGoToolchain()
+ 		gover.Startup.AutoFile = file
+@@ -212,6 +212,7 @@ func Select() {
+ 			}
+ 			if gover.Compare(goVers, minVers) > 0 {
+ 				gotoolchain = "go" + goVers
++				minVers = goVers
+ 				// Starting with Go 1.21, the first released version has a .0 patch version suffix.
+ 				// Don't try to download a language version (sans patch component), such as go1.22.
+ 				// Instead, use the first toolchain of that language version, such as 1.22.0.
+@@ -230,6 +231,7 @@ func Select() {
+ 				}
+ 			}
+ 		}
++		maybeSwitchForGoInstallVersion(minVers)
+ 	}
+ 
+ 	// If we are invoked as a target toolchain, confirm that
+@@ -547,21 +549,21 @@ func modGoToolchain() (file, goVers, toolchain string) {
+ 	return file, gover.GoModLookup(data, "go"), gover.GoModLookup(data, "toolchain")
+ }
+ 
+-// goInstallVersion reports whether the command line is go install m@v or go run m@v.
+-// If so, Select must not read the go.mod or go.work file in "auto" or "path" mode.
+-func goInstallVersion(minVers string) bool {
++// maybeSwitchForGoInstallVersion reports whether the command line is go install m@v or go run m@v.
++// If so, switch to the go version required to build m@v if it's higher than minVers.
++func maybeSwitchForGoInstallVersion(minVers string) {
+ 	// Note: We assume there are no flags between 'go' and 'install' or 'run'.
+ 	// During testing there are some debugging flags that are accepted
+ 	// in that position, but in production go binaries there are not.
+ 	if len(os.Args) < 3 {
+-		return false
++		return
+ 	}
+ 
+ 	var cmdFlags *flag.FlagSet
+ 	switch os.Args[1] {
+ 	default:
+ 		// Command doesn't support a pkg@version as the main module.
+-		return false
++		return
+ 	case "install":
+ 		cmdFlags = &work.CmdInstall.Flag
+ 	case "run":
+@@ -595,7 +597,7 @@ func goInstallVersion(minVers string) bool {
+ 		args = args[1:]
+ 		if a == "--" {
+ 			if len(args) == 0 {
+-				return false
++				return
+ 			}
+ 			pkgArg = args[0]
+ 			break
+@@ -616,7 +618,7 @@ func goInstallVersion(minVers string) bool {
+ 				val = "true"
+ 			}
+ 			if err := modcacherwVal.Set(val); err != nil {
+-				return false
++				return
+ 			}
+ 			modcacherwSeen = true
+ 			continue
+@@ -636,8 +638,8 @@ func goInstallVersion(minVers string) bool {
+ 				// because it is preceded by run flags and followed by arguments to the
+ 				// program being run. Since we don't know whether this flag takes
+ 				// an argument, we can't reliably identify the end of the run flags.
+-				// Just give up and let the user clarify using the "=" form..
+-				return false
++				// Just give up and let the user clarify using the "=" form.
++				return
+ 			}
+ 
+ 			// We would like to let 'go install -newflag pkg@version' work even
+@@ -666,11 +668,11 @@ func goInstallVersion(minVers string) bool {
+ 	}
+ 
+ 	if !strings.Contains(pkgArg, "@") || build.IsLocalImport(pkgArg) || filepath.IsAbs(pkgArg) {
+-		return false
++		return
+ 	}
+ 	path, version, _ := strings.Cut(pkgArg, "@")
+ 	if path == "" || version == "" || gover.IsToolchain(path) {
+-		return false
++		return
+ 	}
+ 
+ 	if !modcacherwSeen && base.InGOFLAGS("-modcacherw") {
+@@ -679,9 +681,8 @@ func goInstallVersion(minVers string) bool {
+ 		base.SetFromGOFLAGS(fs)
+ 	}
+ 
+-	// It would be correct to simply return true here, bypassing use
+-	// of the current go.mod or go.work, and let "go run" or "go install"
+-	// do the rest, including a toolchain switch.
++	// It would be correct to do nothing here, and let "go run" or "go install"
++	// do the toolchain switch.
+ 	// Our goal instead is, since we have gone to the trouble of handling
+ 	// unknown flags to some degree, to run the switch now, so that
+ 	// these commands can switch to a newer toolchain directed by the
+@@ -714,6 +715,4 @@ func goInstallVersion(minVers string) bool {
+ 			SwitchOrFatal(ctx, err)
+ 		}
+ 	}
+-
+-	return true // pkg@version found
+ }
+diff --git a/src/cmd/go/testdata/script/gotoolchain_local.txt b/src/cmd/go/testdata/script/gotoolchain_local.txt
+index 8bece6ebd8..772281438f 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_local.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_local.txt
+@@ -197,6 +197,8 @@ go mod edit -go=1.501 -toolchain=none
+ go version
+ stdout go1.501
+ 
++go mod edit -go=1.21
++
+ # avoid two-step switch, first from install target requirement, then from GOTOOLCHAIN min
+ # instead, just jump directly to GOTOOLCHAIN min
+ env TESTGO_VERSION=go1.2.3
+@@ -205,21 +207,49 @@ env GOTOOLCHAIN=go1.23.0+auto
+ ! go install rsc.io/fortune/nonexist@v0.0.1
+ ! stderr 'switching to go1.22.9'
+ stderr 'using go1.23.0'
+-env GODEBUG=
+ env GOTOOLCHAIN=auto
+ 
+-# go install m@v and go run m@v should ignore go.mod and use m@v
++# go install m@v and go run m@v should use the go directive from m@v,
++# or the go directive in go.mod, whichever is higher.
+ env TESTGO_VERSION=go1.2.3
+-go mod edit -go=1.999 -toolchain=go1.998
++go mod edit -go=1.1.1 -toolchain=go1.1.1
+ 
+ ! go install rsc.io/fortune/nonexist@v0.0.1
+ stderr '^go: rsc.io/fortune@v0.0.1 requires go >= 1.21rc999; switching to go1.22.9$'
++! stderr 'upgrading toolchain'
+ stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
+ 
+ ! go run rsc.io/fortune/nonexist@v0.0.1
+ stderr '^go: rsc.io/fortune@v0.0.1 requires go >= 1.21rc999; switching to go1.22.9$'
++! stderr 'upgrading toolchain'
++stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
++
++go mod edit -go=1.23rc1 -toolchain=go1.1.1
++
++! go install rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: upgrading toolchain to go1.23rc1 \(required by go line in go.mod; upgrade allowed by GOTOOLCHAIN=auto\)'
++! stderr 'switching to'
+ stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
+ 
++! go run rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: upgrading toolchain to go1.23rc1 \(required by go line in go.mod; upgrade allowed by GOTOOLCHAIN=auto\)'
++! stderr 'switching to'
++stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
++
++go mod edit -go=1.23rc1 -toolchain=go1.998
++
++! go install rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: upgrading toolchain to go1.998 \(required by toolchain line in go.mod; upgrade allowed by GOTOOLCHAIN=auto\)'
++! stderr 'switching to'
++stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
++
++! go run rsc.io/fortune/nonexist@v0.0.1
++stderr '^go: upgrading toolchain to go1.998 \(required by toolchain line in go.mod; upgrade allowed by GOTOOLCHAIN=auto\)'
++! stderr 'switching to'
++stderr '^go: rsc.io/fortune/nonexist@v0.0.1: module rsc.io/fortune@v0.0.1 found, but does not contain package rsc.io/fortune/nonexist'
++
++go mod edit -go=1.1.1 -toolchain=go1.1.1
++
+ # go install should handle unknown flags to find m@v
+ ! go install -unknownflag rsc.io/fortune/nonexist@v0.0.1
+ stderr '^go: rsc.io/fortune@v0.0.1 requires go >= 1.21rc999; switching to go1.22.9$'
+@@ -229,6 +259,8 @@ stderr '^flag provided but not defined: -unknownflag'
+ stderr '^go: rsc.io/fortune@v0.0.1 requires go >= 1.21rc999; switching to go1.22.9$'
+ stderr '^flag provided but not defined: -unknownflag'
+ 
++env GODEBUG=
++
+ # go run cannot handle unknown boolean flags
+ ! go run -unknownflag rsc.io/fortune/nonexist@v0.0.1
+ ! stderr switching
+diff --git a/src/cmd/go/testdata/script/gotoolchain_path.txt b/src/cmd/go/testdata/script/gotoolchain_path.txt
+index b7a1c9bd89..0d4b163102 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_path.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_path.txt
+@@ -59,8 +59,8 @@ stderr 'running go1.50.0 from PATH'
+ 
+ # NewerToolchain should find Go 1.50.0.
+ env GOTOOLCHAIN=local
+-go mod edit -toolchain=none -go=1.22
+-grep 'go 1.22$' go.mod
++go mod edit -toolchain=none -go=1.21
++grep 'go 1.21$' go.mod
+ ! grep toolchain go.mod
+ env GOTOOLCHAIN=path
+ ! go run rsc.io/fortune@v0.0.1

@@ -1,0 +1,79 @@
+commit b439f3285962e9a263ea7511f19aac0a875d17cf
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Apr 26 21:17:57 2024 +0800
+
+    all: make use of sync.Map.Clear
+    
+    Since CL 515015 added sync.Map.Clear method, we can use it to make
+    the code simpler and clearer.
+    
+    Change-Id: I29edc969431b4fd95cd5fd864953a71ca1538dd3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/cmd/go/internal/par/work.go |  5 +----
+ src/expvar/expvar.go            |  5 +----
+ src/mime/type.go                | 13 +++----------
+ 3 files changed, 5 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go/internal/par/work.go b/src/cmd/go/internal/par/work.go
+index 5b6de9425a..3f1e69adfe 100644
+--- a/src/cmd/go/internal/par/work.go
++++ b/src/cmd/go/internal/par/work.go
+@@ -189,10 +189,7 @@ func (c *Cache[K, V]) Get(key K) (V, bool) {
+ // TODO(jayconrod): Delete this after the package cache clearing functions
+ // in internal/load have been removed.
+ func (c *Cache[K, V]) Clear() {
+-	c.m.Range(func(key, value any) bool {
+-		c.m.Delete(key)
+-		return true
+-	})
++	c.m.Clear()
+ }
+ 
+ // Delete removes an entry from the map. It is safe to call Delete for an
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index ffe35d62f9..4f66848f1f 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -169,10 +169,7 @@ func (v *Map) Init() *Map {
+ 	v.keysMu.Lock()
+ 	defer v.keysMu.Unlock()
+ 	v.keys = v.keys[:0]
+-	v.m.Range(func(k, _ any) bool {
+-		v.m.Delete(k)
+-		return true
+-	})
++	v.m.Clear()
+ 	return v
+ }
+ 
+diff --git a/src/mime/type.go b/src/mime/type.go
+index 465ecf0d59..6d4266929c 100644
+--- a/src/mime/type.go
++++ b/src/mime/type.go
+@@ -22,18 +22,11 @@ var (
+ 	extensions   sync.Map   // map[string][]string; slice values are append-only.
+ )
+ 
+-func clearSyncMap(m *sync.Map) {
+-	m.Range(func(k, _ any) bool {
+-		m.Delete(k)
+-		return true
+-	})
+-}
+-
+ // setMimeTypes is used by initMime's non-test path, and by tests.
+ func setMimeTypes(lowerExt, mixExt map[string]string) {
+-	clearSyncMap(&mimeTypes)
+-	clearSyncMap(&mimeTypesLower)
+-	clearSyncMap(&extensions)
++	mimeTypes.Clear()
++	mimeTypesLower.Clear()
++	extensions.Clear()
+ 
+ 	for k, v := range lowerExt {
+ 		mimeTypesLower.Store(k, v)

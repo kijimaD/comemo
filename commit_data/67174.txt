@@ -1,0 +1,273 @@
+commit c3bb27bbc77ac02ad709e77a7fcca0a5d3176304
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed Feb 12 18:45:42 2025 -0500
+
+    cmd/compile/internal/walk: use global zeroVal in interface conversions for zero values
+    
+    This is a small-ish adjustment to the change earlier in our
+    stack in CL 649555, which started creating read-only global storage
+    for a composite literal used in an interface conversion and setting
+    the interface data pointer to point to that global storage.
+    
+    In some cases, there are execution-time performance benefits to point
+    to runtime.zeroVal in particular. In reflect, pointer checks against
+    the runtime.zeroVal memory address are used to side-step some work,
+    such as in reflect.Value.Set and reflect.Value.IsZero.
+    
+    In this CL, we therefore dig up the zeroVal symbol, and we use the
+    machinery from earlier in our stack to use a pointer to zeroVal for
+    the interface data pointer if we see examples like:
+    
+        sink = S{}
+    or:
+        s := S{}
+        sink = s
+    
+    CL 649076 (also earlier in our stack) added most of the tests
+    along with debug diagnostics in convert.go to make it easier
+    to test this change.
+    
+    We add a benchmark in reflect to show examples of performance benefit.
+    The left column is our immediately prior CL 649555, and the right is
+    this CL. (The arrays of structs here do not seem to benefit, which
+    we attempt to address in our next CL).
+    
+    goos: linux
+    goarch: amd64
+    pkg: reflect
+    cpu: Intel(R) Xeon(R) CPU @ 2.80GHz
+                                              │  cl-649555   │           new                       │
+                                              │    sec/op    │   sec/op     vs base                │
+    Zero/IsZero/ByteArray/size=16-4              4.176n ± 0%   4.171n ± 0%        ~ (p=0.151 n=20)
+    Zero/IsZero/ByteArray/size=64-4              6.921n ± 0%   3.864n ± 0%  -44.16% (p=0.000 n=20)
+    Zero/IsZero/ByteArray/size=1024-4           21.210n ± 0%   3.878n ± 0%  -81.72% (p=0.000 n=20)
+    Zero/IsZero/BigStruct/size=1024-4           25.505n ± 0%   5.061n ± 0%  -80.15% (p=0.000 n=20)
+    Zero/IsZero/SmallStruct/size=16-4            4.188n ± 0%   4.191n ± 0%        ~ (p=0.106 n=20)
+    Zero/IsZero/SmallStructArray/size=64-4       8.639n ± 0%   8.636n ± 0%        ~ (p=0.973 n=20)
+    Zero/IsZero/SmallStructArray/size=1024-4     79.99n ± 0%   80.06n ± 0%        ~ (p=0.213 n=20)
+    Zero/IsZero/Time/size=24-4                   7.232n ± 0%   3.865n ± 0%  -46.56% (p=0.000 n=20)
+    Zero/SetZero/ByteArray/size=16-4             13.47n ± 0%   13.09n ± 0%   -2.78% (p=0.000 n=20)
+    Zero/SetZero/ByteArray/size=64-4             14.14n ± 0%   13.70n ± 0%   -3.15% (p=0.000 n=20)
+    Zero/SetZero/ByteArray/size=1024-4           24.22n ± 0%   20.18n ± 0%  -16.68% (p=0.000 n=20)
+    Zero/SetZero/BigStruct/size=1024-4           24.24n ± 0%   20.18n ± 0%  -16.73% (p=0.000 n=20)
+    Zero/SetZero/SmallStruct/size=16-4           13.45n ± 0%   13.10n ± 0%   -2.60% (p=0.000 n=20)
+    Zero/SetZero/SmallStructArray/size=64-4      14.12n ± 0%   13.69n ± 0%   -3.05% (p=0.000 n=20)
+    Zero/SetZero/SmallStructArray/size=1024-4    24.62n ± 0%   21.61n ± 0%  -12.26% (p=0.000 n=20)
+    Zero/SetZero/Time/size=24-4                  13.59n ± 0%   13.40n ± 0%   -1.40% (p=0.000 n=20)
+    geomean                                      14.06n        10.19n       -27.54%
+    
+    Finally, here are results from the benchmark example from #71323.
+    Note however that almost all the benefit shown here is from our earlier
+    CL 649555, which is a more general purpose change and eliminates
+    the allocation using a different read-only global than this CL.
+    
+                 │   go1.24       │               new                    │
+                 │     sec/op     │    sec/op     vs base                │
+    InterfaceAny   112.6000n ± 5%   0.8078n ± 3%  -99.28% (p=0.000 n=20)
+    ReflectValue      11.63n ± 2%    11.59n ± 0%        ~ (p=0.330 n=20)
+    
+                 │  go1.24.out  │                 new.out                 │
+                 │     B/op     │    B/op     vs base                     │
+    InterfaceAny   224.0 ± 0%       0.0 ± 0%  -100.00% (p=0.000 n=20)
+    ReflectValue   0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=20) ¹
+    
+                 │  go1.24.out  │                 new.out                 │
+                 │  allocs/op   │ allocs/op   vs base                     │
+    InterfaceAny   1.000 ± 0%     0.000 ± 0%  -100.00% (p=0.000 n=20)
+    ReflectValue   0.000 ± 0%     0.000 ± 0%         ~ (p=1.000 n=20) ¹
+    
+    Updates #71359
+    Updates #71323
+    
+    Change-Id: I64d8cf1a7900f011d2ec59b948388aeda1150676
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649078
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/ir/symtab.go    |  1 +
+ src/cmd/compile/internal/ssagen/ssa.go   |  1 +
+ src/cmd/compile/internal/walk/convert.go |  5 +++
+ src/cmd/compile/internal/walk/order.go   | 26 ++++++++++------
+ src/reflect/benchmark_test.go            | 52 ++++++++++++++++++++++++++++++++
+ test/escape_iface_data.go                |  4 +--
+ 6 files changed, 78 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 00b07cb45c..e2da710f02 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -59,6 +59,7 @@ type symsStruct struct {
+ 	Udiv             *obj.LSym
+ 	WriteBarrier     *obj.LSym
+ 	Zerobase         *obj.LSym
++	ZeroVal          *obj.LSym
+ 	ARM64HasATOMICS  *obj.LSym
+ 	ARMHasVFPv4      *obj.LSym
+ 	Loong64HasLAMCAS *obj.LSym
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 984dd138c3..542ad823ab 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -166,6 +166,7 @@ func InitConfig() {
+ 	ir.Syms.Udiv = typecheck.LookupRuntimeVar("udiv")                 // asm func with special ABI
+ 	ir.Syms.WriteBarrier = typecheck.LookupRuntimeVar("writeBarrier") // struct { bool; ... }
+ 	ir.Syms.Zerobase = typecheck.LookupRuntimeVar("zerobase")
++	ir.Syms.ZeroVal = typecheck.LookupRuntimeVar("zeroVal")
+ 
+ 	if Arch.LinkArch.Family == sys.Wasm {
+ 		BoundsCheckFunc[ssa.BoundsIndex] = typecheck.LookupRuntimeFunc("goPanicIndex")
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 4c443f71b9..beef6634a5 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -175,6 +175,11 @@ func dataWord(conv *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 		xe := ir.NewIndexExpr(base.Pos, staticuint64s, index)
+ 		xe.SetBounded(true)
+ 		value = xe
++	case n.Op() == ir.OLINKSYMOFFSET && n.(*ir.LinksymOffsetExpr).Linksym == ir.Syms.ZeroVal && n.(*ir.LinksymOffsetExpr).Offset_ == 0:
++		// n is using zeroVal, so we can use n directly.
++		// (Note that n does not have a proper pos in this case, so using conv for the diagnostic instead.)
++		diagnose("using global for zero value interface value", conv)
++		value = n
+ 	case n.Op() == ir.ONAME && n.(*ir.Name).Class == ir.PEXTERN && n.(*ir.Name).Readonly():
+ 		// n is a readonly global; use it directly.
+ 		diagnose("using global for interface value", n)
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index af3bfcbac6..77322286c7 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -7,6 +7,7 @@ package walk
+ import (
+ 	"fmt"
+ 	"go/constant"
++	"internal/abi"
+ 	"internal/buildcfg"
+ 
+ 	"cmd/compile/internal/base"
+@@ -240,19 +241,26 @@ func (o *orderState) addrTemp(n ir.Node) ir.Node {
+ 		return vstat
+ 	}
+ 
+-	// Check now for a composite literal to possibly store
+-	// in the read-only data section.
++	// Check now for a composite literal to possibly store in the read-only data section.
+ 	v := staticValue(n)
+ 	if v == nil {
+ 		v = n
+ 	}
+-	if (v.Op() == ir.OSTRUCTLIT || v.Op() == ir.OARRAYLIT) && isStaticCompositeLiteral(v) && !base.Ctxt.IsFIPS() {
+-		// v can be directly represented in the read-only data section.
+-		lit := v.(*ir.CompLitExpr)
+-		vstat := readonlystaticname(lit.Type())
+-		fixedlit(inInitFunction, initKindStatic, lit, vstat, nil) // nil init
+-		vstat = typecheck.Expr(vstat).(*ir.Name)
+-		return vstat
++	if (v.Op() == ir.OSTRUCTLIT || v.Op() == ir.OARRAYLIT) && !base.Ctxt.IsFIPS() {
++		if ir.IsZero(v) && 0 < v.Type().Size() && v.Type().Size() <= abi.ZeroValSize {
++			// This zero value can be represented by the read-only zeroVal.
++			zeroVal := ir.NewLinksymExpr(v.Pos(), ir.Syms.ZeroVal, v.Type())
++			vstat := typecheck.Expr(zeroVal).(*ir.LinksymOffsetExpr)
++			return vstat
++		}
++		if isStaticCompositeLiteral(v) {
++			// v can be directly represented in the read-only data section.
++			lit := v.(*ir.CompLitExpr)
++			vstat := readonlystaticname(lit.Type())
++			fixedlit(inInitFunction, initKindStatic, lit, vstat, nil) // nil init
++			vstat = typecheck.Expr(vstat).(*ir.Name)
++			return vstat
++		}
+ 	}
+ 
+ 	// Prevent taking the address of an SSA-able local variable (#63332).
+diff --git a/src/reflect/benchmark_test.go b/src/reflect/benchmark_test.go
+index 2e701b062e..6b2f9ce7a0 100644
+--- a/src/reflect/benchmark_test.go
++++ b/src/reflect/benchmark_test.go
+@@ -9,6 +9,7 @@ import (
+ 	. "reflect"
+ 	"strconv"
+ 	"testing"
++	"time"
+ )
+ 
+ var sourceAll = struct {
+@@ -196,6 +197,57 @@ func BenchmarkSetZero(b *testing.B) {
+ 	}
+ }
+ 
++// BenchmarkZero overlaps some with BenchmarkSetZero,
++// but the inputs are set up differently to exercise
++// different optimizations.
++func BenchmarkZero(b *testing.B) {
++	type bm struct {
++		name    string
++		zero    Value
++		nonZero Value
++		size    int
++	}
++	type Small struct {
++		A    int64
++		B, C bool
++	}
++	type Big struct {
++		A    int64
++		B, C bool
++		D    [1008]byte
++	}
++	entry := func(name string, zero any, nonZero any) bm {
++		return bm{name, ValueOf(zero), ValueOf(nonZero).Elem(), int(TypeOf(zero).Size())}
++	}
++	nonZeroTime := func() *time.Time { t := time.Now(); return &t }
++
++	bms := []bm{
++		entry("ByteArray", [16]byte{}, &[16]byte{1}),
++		entry("ByteArray", [64]byte{}, &[64]byte{1}),
++		entry("ByteArray", [1024]byte{}, &[1024]byte{1}),
++		entry("BigStruct", Big{}, &Big{A: 1}),
++		entry("SmallStruct", Small{}, &Small{A: 1}),
++		entry("SmallStructArray", [4]Small{}, &[4]Small{0: {A: 1}}),
++		entry("SmallStructArray", [64]Small{}, &[64]Small{0: {A: 1}}),
++		entry("Time", time.Time{}, nonZeroTime()),
++	}
++
++	for _, bm := range bms {
++		b.Run(fmt.Sprintf("IsZero/%s/size=%d", bm.name, bm.size), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				bm.zero.IsZero()
++			}
++		})
++	}
++	for _, bm := range bms {
++		b.Run(fmt.Sprintf("SetZero/%s/size=%d", bm.name, bm.size), func(b *testing.B) {
++			for i := 0; i < b.N; i++ {
++				bm.nonZero.Set(bm.zero)
++			}
++		})
++	}
++}
++
+ func BenchmarkSelect(b *testing.B) {
+ 	channel := make(chan int)
+ 	close(channel)
+diff --git a/test/escape_iface_data.go b/test/escape_iface_data.go
+index fd993fb892..b42974c486 100644
+--- a/test/escape_iface_data.go
++++ b/test/escape_iface_data.go
+@@ -217,12 +217,12 @@ func struct2() {
+ }
+ 
+ func struct3() {
+-	sink = S{} // ERROR "using global for interface value"
++	sink = S{} // ERROR "using global for zero value interface value"
+ }
+ 
+ func struct4() {
+ 	v := S{}
+-	sink = v // ERROR "using global for interface value"
++	sink = v // ERROR "using global for zero value interface value"
+ }
+ 
+ func struct5() {

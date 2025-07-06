@@ -1,0 +1,305 @@
+commit c578670dcbbf088d899dc3e18cd5cbf7146e5697
+Author: Egon Elbre <egonelbre@gmail.com>
+Date:   Tue Feb 18 13:56:35 2025 +0200
+
+    crypto/internal/fips140/edwards25519/field: optimize carryPropagate
+    
+    Using pure Go solution for ARM64 seems to perform better when the
+    operation order is slightly tweaked.
+    
+    goos: linux
+    goarch: arm64
+    pkg: crypto/internal/fips140/edwards25519
+                                  │     OLD      │                 NEW                 │
+                                  │    sec/op    │   sec/op     vs base                │
+    EncodingDecoding-4               158.7µ ± 0%   141.4µ ± 0%  -10.88% (p=0.000 n=10)
+    ScalarBaseMult-4                 281.2µ ± 0%   260.5µ ± 0%   -7.35% (p=0.000 n=10)
+    ScalarMult-4                    1008.9µ ± 0%   916.6µ ± 0%   -9.15% (p=0.000 n=10)
+    VarTimeDoubleScalarBaseMult-4   1003.4µ ± 0%   909.6µ ± 0%   -9.36% (p=0.000 n=10)
+    geomean                          461.0µ        418.6µ        -9.19%
+    
+    pkg: crypto/internal/fips140/edwards25519/field
+               │     OLD     │                 NEW                 │
+               │   sec/op    │   sec/op     vs base                │
+    Add-4        45.22n ± 0%   33.50n ± 0%  -25.91% (p=0.000 n=10)
+    Multiply-4   454.0n ± 0%   406.8n ± 0%  -10.41% (p=0.000 n=10)
+    Square-4     278.2n ± 0%   246.4n ± 0%  -11.43% (p=0.000 n=10)
+    Invert-4     75.83µ ± 0%   67.37µ ± 0%  -11.16% (p=0.000 n=10)
+    Mult32-4     78.66n ± 0%   78.68n ± 0%   +0.02% (p=0.022 n=10)
+    Bytes-4      120.6n ± 0%   110.6n ± 0%   -8.25% (p=0.000 n=10)
+    geomean      400.2n        354.0n       -11.54%
+    
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/internal/fips140/edwards25519
+    cpu: Apple M1 Pro
+                                   │     OLD      │                 NEW                 │
+                                   │    sec/op    │   sec/op     vs base                │
+    EncodingDecoding-10              10.095µ ± 0%   7.610µ ± 2%  -24.62% (p=0.000 n=10)
+    ScalarBaseMult-10                 12.65µ ± 0%   11.54µ ± 0%   -8.80% (p=0.000 n=10)
+    ScalarMult-10                     51.49µ ± 0%   38.59µ ± 2%  -25.06% (p=0.000 n=10)
+    VarTimeDoubleScalarBaseMult-10    49.41µ ± 0%   37.10µ ± 0%  -24.92% (p=0.000 n=10)
+    geomean                           23.88µ        18.83µ       -21.14%
+    
+    pkg: crypto/internal/fips140/edwards25519/field
+                │     OLD     │                 NEW                  │
+                │   sec/op    │    sec/op     vs base                │
+    Add-10        6.009n ± 1%    5.116n ± 5%  -14.85% (p=0.000 n=10)
+    Multiply-10   19.59n ± 0%    18.00n ± 2%   -8.14% (p=0.000 n=10)
+    Square-10     18.14n ± 0%    13.66n ± 0%  -24.70% (p=0.000 n=10)
+    Invert-10     4.854µ ± 0%    3.629µ ± 0%  -25.24% (p=0.000 n=10)
+    Mult32-10     6.151n ± 0%    6.165n ± 2%        ~ (p=0.224 n=10)
+    Bytes-10      7.463n ± 1%   10.330n ± 8%  +38.43% (p=0.000 n=10)
+    geomean       27.94n         25.74n        -7.89%
+    
+    tags: purego
+    goos: windows
+    goarch: amd64
+    pkg: crypto/internal/fips140/edwards25519
+    cpu: AMD Ryzen Threadripper 2950X 16-Core Processor
+                                   │     OLD      │                 NEW                 │
+                                   │    sec/op    │   sec/op     vs base                │
+    EncodingDecoding-32              12.856µ ± 0%   9.557µ ± 1%  -25.66% (p=0.000 n=10)
+    ScalarBaseMult-32                 21.28µ ± 1%   19.14µ ± 2%  -10.04% (p=0.000 n=10)
+    ScalarMult-32                     74.83µ ± 1%   64.61µ ± 1%  -13.65% (p=0.000 n=10)
+    VarTimeDoubleScalarBaseMult-32    73.85µ ± 0%   62.36µ ± 1%  -15.56% (p=0.000 n=10)
+    geomean                           35.06µ        29.30µ       -16.44%
+    
+    pkg: crypto/internal/fips140/edwards25519/field
+                │     OLD     │                 NEW                 │
+                │   sec/op    │   sec/op     vs base                │
+    Add-32        5.700n ± 1%   4.879n ± 1%  -14.40% (p=0.000 n=10)
+    Multiply-32   29.24n ± 2%   22.75n ± 2%  -22.21% (p=0.000 n=10)
+    Square-32     23.06n ± 1%   16.46n ± 2%  -28.60% (p=0.000 n=10)
+    Invert-32     5.952µ ± 2%   4.466µ ± 1%  -24.97% (p=0.000 n=10)
+    Mult32-32     5.240n ± 1%   5.311n ± 1%   +1.35% (p=0.006 n=10)
+    Bytes-32      12.39n ± 1%   11.51n ± 1%   -7.10% (p=0.000 n=10)
+    geomean       33.78n        28.16n       -16.63%
+    
+    Change-Id: I71fa40307e803caec56227607ee666198e4c0b03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650278
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ .../internal/fips140/edwards25519/field/fe.go      |  6 +--
+ .../fips140/edwards25519/field/fe_arm64.go         | 15 --------
+ .../internal/fips140/edwards25519/field/fe_arm64.s | 42 --------------------
+ .../fips140/edwards25519/field/fe_arm64_noasm.go   | 11 ------
+ .../fips140/edwards25519/field/fe_generic.go       | 45 +++++++++-------------
+ .../internal/fips140/edwards25519/field/fe_test.go | 24 ------------
+ 6 files changed, 20 insertions(+), 123 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/edwards25519/field/fe.go b/src/crypto/internal/fips140/edwards25519/field/fe.go
+index 21bedefa0c..e1035456a8 100644
+--- a/src/crypto/internal/fips140/edwards25519/field/fe.go
++++ b/src/crypto/internal/fips140/edwards25519/field/fe.go
+@@ -91,11 +91,7 @@ func (v *Element) Add(a, b *Element) *Element {
+ 	v.l2 = a.l2 + b.l2
+ 	v.l3 = a.l3 + b.l3
+ 	v.l4 = a.l4 + b.l4
+-	// Using the generic implementation here is actually faster than the
+-	// assembly. Probably because the body of this function is so simple that
+-	// the compiler can figure out better optimizations by inlining the carry
+-	// propagation.
+-	return v.carryPropagateGeneric()
++	return v.carryPropagate()
+ }
+ 
+ // Subtract sets v = a - b, and returns v.
+diff --git a/src/crypto/internal/fips140/edwards25519/field/fe_arm64.go b/src/crypto/internal/fips140/edwards25519/field/fe_arm64.go
+deleted file mode 100644
+index 05c7cedd4e..0000000000
+--- a/src/crypto/internal/fips140/edwards25519/field/fe_arm64.go
++++ /dev/null
+@@ -1,15 +0,0 @@
+-// Copyright (c) 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-package field
+-
+-//go:noescape
+-func carryPropagate(v *Element)
+-
+-func (v *Element) carryPropagate() *Element {
+-	carryPropagate(v)
+-	return v
+-}
+diff --git a/src/crypto/internal/fips140/edwards25519/field/fe_arm64.s b/src/crypto/internal/fips140/edwards25519/field/fe_arm64.s
+deleted file mode 100644
+index ae207dae43..0000000000
+--- a/src/crypto/internal/fips140/edwards25519/field/fe_arm64.s
++++ /dev/null
+@@ -1,42 +0,0 @@
+-// Copyright (c) 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-#include "textflag.h"
+-
+-// carryPropagate works exactly like carryPropagateGeneric and uses the
+-// same AND, ADD, and LSR+MADD instructions emitted by the compiler, but
+-// avoids loading R0-R4 twice and uses LDP and STP.
+-//
+-// See https://golang.org/issues/43145 for the main compiler issue.
+-//
+-// func carryPropagate(v *Element)
+-TEXT ·carryPropagate(SB),NOFRAME|NOSPLIT,$0-8
+-	MOVD v+0(FP), R20
+-
+-	LDP 0(R20), (R0, R1)
+-	LDP 16(R20), (R2, R3)
+-	MOVD 32(R20), R4
+-
+-	AND $0x7ffffffffffff, R0, R10
+-	AND $0x7ffffffffffff, R1, R11
+-	AND $0x7ffffffffffff, R2, R12
+-	AND $0x7ffffffffffff, R3, R13
+-	AND $0x7ffffffffffff, R4, R14
+-
+-	ADD R0>>51, R11, R11
+-	ADD R1>>51, R12, R12
+-	ADD R2>>51, R13, R13
+-	ADD R3>>51, R14, R14
+-	// R4>>51 * 19 + R10 -> R10
+-	LSR $51, R4, R21
+-	MOVD $19, R22
+-	MADD R22, R10, R21, R10
+-
+-	STP (R10, R11), 0(R20)
+-	STP (R12, R13), 16(R20)
+-	MOVD R14, 32(R20)
+-
+-	RET
+diff --git a/src/crypto/internal/fips140/edwards25519/field/fe_arm64_noasm.go b/src/crypto/internal/fips140/edwards25519/field/fe_arm64_noasm.go
+deleted file mode 100644
+index 6b9e06a6e8..0000000000
+--- a/src/crypto/internal/fips140/edwards25519/field/fe_arm64_noasm.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright (c) 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !arm64 || purego
+-
+-package field
+-
+-func (v *Element) carryPropagate() *Element {
+-	return v.carryPropagateGeneric()
+-}
+diff --git a/src/crypto/internal/fips140/edwards25519/field/fe_generic.go b/src/crypto/internal/fips140/edwards25519/field/fe_generic.go
+index f1d0ff3715..1d1a3e79a2 100644
+--- a/src/crypto/internal/fips140/edwards25519/field/fe_generic.go
++++ b/src/crypto/internal/fips140/edwards25519/field/fe_generic.go
+@@ -166,16 +166,15 @@ func feMulGeneric(v, a, b *Element) {
+ 	c3 := shiftRightBy51(r3)
+ 	c4 := shiftRightBy51(r4)
+ 
+-	rr0 := r0.lo&maskLow51Bits + mul19(c4)
+-	rr1 := r1.lo&maskLow51Bits + c0
+-	rr2 := r2.lo&maskLow51Bits + c1
+-	rr3 := r3.lo&maskLow51Bits + c2
+-	rr4 := r4.lo&maskLow51Bits + c3
++	v.l0 = r0.lo&maskLow51Bits + mul19(c4)
++	v.l1 = r1.lo&maskLow51Bits + c0
++	v.l2 = r2.lo&maskLow51Bits + c1
++	v.l3 = r3.lo&maskLow51Bits + c2
++	v.l4 = r4.lo&maskLow51Bits + c3
+ 
+ 	// Now all coefficients fit into 64-bit registers but are still too large to
+ 	// be passed around as an Element. We therefore do one last carry chain,
+ 	// where the carries will be small enough to fit in the wiggle room above 2⁵¹.
+-	*v = Element{rr0, rr1, rr2, rr3, rr4}
+ 	v.carryPropagate()
+ }
+ 
+@@ -239,32 +238,26 @@ func feSquareGeneric(v, a *Element) {
+ 	c3 := shiftRightBy51(r3)
+ 	c4 := shiftRightBy51(r4)
+ 
+-	rr0 := r0.lo&maskLow51Bits + mul19(c4)
+-	rr1 := r1.lo&maskLow51Bits + c0
+-	rr2 := r2.lo&maskLow51Bits + c1
+-	rr3 := r3.lo&maskLow51Bits + c2
+-	rr4 := r4.lo&maskLow51Bits + c3
++	v.l0 = r0.lo&maskLow51Bits + mul19(c4)
++	v.l1 = r1.lo&maskLow51Bits + c0
++	v.l2 = r2.lo&maskLow51Bits + c1
++	v.l3 = r3.lo&maskLow51Bits + c2
++	v.l4 = r4.lo&maskLow51Bits + c3
+ 
+-	*v = Element{rr0, rr1, rr2, rr3, rr4}
+ 	v.carryPropagate()
+ }
+ 
+-// carryPropagateGeneric brings the limbs below 52 bits by applying the reduction
++// carryPropagate brings the limbs below 52 bits by applying the reduction
+ // identity (a * 2²⁵⁵ + b = a * 19 + b) to the l4 carry.
+-func (v *Element) carryPropagateGeneric() *Element {
+-	c0 := v.l0 >> 51
+-	c1 := v.l1 >> 51
+-	c2 := v.l2 >> 51
+-	c3 := v.l3 >> 51
+-	c4 := v.l4 >> 51
+-
+-	// c4 is at most 64 - 51 = 13 bits, so c4*19 is at most 18 bits, and
++func (v *Element) carryPropagate() *Element {
++	// (l4>>51) is at most 64 - 51 = 13 bits, so (l4>>51)*19 is at most 18 bits, and
+ 	// the final l0 will be at most 52 bits. Similarly for the rest.
+-	v.l0 = v.l0&maskLow51Bits + mul19(c4)
+-	v.l1 = v.l1&maskLow51Bits + c0
+-	v.l2 = v.l2&maskLow51Bits + c1
+-	v.l3 = v.l3&maskLow51Bits + c2
+-	v.l4 = v.l4&maskLow51Bits + c3
++	l0 := v.l0
++	v.l0 = v.l0&maskLow51Bits + mul19(v.l4>>51)
++	v.l4 = v.l4&maskLow51Bits + v.l3>>51
++	v.l3 = v.l3&maskLow51Bits + v.l2>>51
++	v.l2 = v.l2&maskLow51Bits + v.l1>>51
++	v.l1 = v.l1&maskLow51Bits + l0>>51
+ 
+ 	return v
+ }
+diff --git a/src/crypto/internal/fips140/edwards25519/field/fe_test.go b/src/crypto/internal/fips140/edwards25519/field/fe_test.go
+index eca6d63b74..b268878912 100644
+--- a/src/crypto/internal/fips140/edwards25519/field/fe_test.go
++++ b/src/crypto/internal/fips140/edwards25519/field/fe_test.go
+@@ -489,30 +489,6 @@ func TestSqrtRatio(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCarryPropagate(t *testing.T) {
+-	asmLikeGeneric := func(a [5]uint64) bool {
+-		t1 := &Element{a[0], a[1], a[2], a[3], a[4]}
+-		t2 := &Element{a[0], a[1], a[2], a[3], a[4]}
+-
+-		t1.carryPropagate()
+-		t2.carryPropagateGeneric()
+-
+-		if *t1 != *t2 {
+-			t.Logf("got: %#v,\nexpected: %#v", t1, t2)
+-		}
+-
+-		return *t1 == *t2 && isInBounds(t2)
+-	}
+-
+-	if err := quick.Check(asmLikeGeneric, quickCheckConfig(1024)); err != nil {
+-		t.Error(err)
+-	}
+-
+-	if !asmLikeGeneric([5]uint64{0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}) {
+-		t.Errorf("failed for {0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff}")
+-	}
+-}
+-
+ func TestFeSquare(t *testing.T) {
+ 	asmLikeGeneric := func(a Element) bool {
+ 		t1 := a

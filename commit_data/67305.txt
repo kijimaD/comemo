@@ -1,0 +1,125 @@
+commit 49f63047245a50f4ec38044fc6fa2bc75719726a
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jun 2 16:24:07 2025 -0700
+
+    runtime: additional memmove benchmarks
+    
+    For testing out duffcopy changes.
+    
+    Change-Id: I93b4a52d75418a6e31aae5ad99f95d1870812b69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/678215
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/runtime/memmove_test.go | 99 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 99 insertions(+)
+
+diff --git a/src/runtime/memmove_test.go b/src/runtime/memmove_test.go
+index ba9bc1f6b6..a2c3b72568 100644
+--- a/src/runtime/memmove_test.go
++++ b/src/runtime/memmove_test.go
+@@ -1123,3 +1123,102 @@ func BenchmarkMemclrKnownSize512KiB(b *testing.B) {
+ 
+ 	memclrSink = x[:]
+ }
++
++func BenchmarkMemmoveKnownSize112(b *testing.B) {
++	type T struct {
++		x [112]int8
++	}
++	p := &T{}
++	q := &T{}
++
++	b.SetBytes(int64(unsafe.Sizeof(T{})))
++	for i := 0; i < b.N; i++ {
++		*p = *q
++	}
++
++	memclrSink = p.x[:]
++}
++func BenchmarkMemmoveKnownSize128(b *testing.B) {
++	type T struct {
++		x [128]int8
++	}
++	p := &T{}
++	q := &T{}
++
++	b.SetBytes(int64(unsafe.Sizeof(T{})))
++	for i := 0; i < b.N; i++ {
++		*p = *q
++	}
++
++	memclrSink = p.x[:]
++}
++func BenchmarkMemmoveKnownSize192(b *testing.B) {
++	type T struct {
++		x [192]int8
++	}
++	p := &T{}
++	q := &T{}
++
++	b.SetBytes(int64(unsafe.Sizeof(T{})))
++	for i := 0; i < b.N; i++ {
++		*p = *q
++	}
++
++	memclrSink = p.x[:]
++}
++func BenchmarkMemmoveKnownSize248(b *testing.B) {
++	type T struct {
++		x [248]int8
++	}
++	p := &T{}
++	q := &T{}
++
++	b.SetBytes(int64(unsafe.Sizeof(T{})))
++	for i := 0; i < b.N; i++ {
++		*p = *q
++	}
++
++	memclrSink = p.x[:]
++}
++func BenchmarkMemmoveKnownSize256(b *testing.B) {
++	type T struct {
++		x [256]int8
++	}
++	p := &T{}
++	q := &T{}
++
++	b.SetBytes(int64(unsafe.Sizeof(T{})))
++	for i := 0; i < b.N; i++ {
++		*p = *q
++	}
++
++	memclrSink = p.x[:]
++}
++func BenchmarkMemmoveKnownSize512(b *testing.B) {
++	type T struct {
++		x [512]int8
++	}
++	p := &T{}
++	q := &T{}
++
++	b.SetBytes(int64(unsafe.Sizeof(T{})))
++	for i := 0; i < b.N; i++ {
++		*p = *q
++	}
++
++	memclrSink = p.x[:]
++}
++func BenchmarkMemmoveKnownSize1024(b *testing.B) {
++	type T struct {
++		x [1024]int8
++	}
++	p := &T{}
++	q := &T{}
++
++	b.SetBytes(int64(unsafe.Sizeof(T{})))
++	for i := 0; i < b.N; i++ {
++		*p = *q
++	}
++
++	memclrSink = p.x[:]
++}

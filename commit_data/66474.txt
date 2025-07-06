@@ -1,0 +1,230 @@
+commit c40a3731f45047c3b903cafae287ea8e5762e062
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Mar 7 13:53:34 2025 -0500
+
+    internal/godebugs: add decoratemappings as an opaque godebug setting
+    
+    This adds a new godebug to control whether the runtime applies the
+    anonymous memory mapping annotations added in https://go.dev/cl/646095.
+    It is enabled by default.
+    
+    This has several effects:
+    
+    * The feature is only enabled by default when the main go.mod has go >=
+      1.25.
+    * This feature can be disabled with GODEBUG=decoratemappings=0, or the
+      equivalents in go.mod or package main. See https://go.dev/doc/godebug.
+    * As an opaque setting, this option will not appear in runtime/metrics.
+    * This setting is non-atomic, so it cannot be changed after startup.
+    
+    I am not 100% sure about my decision for the last two points.
+    
+    I've made this an opaque setting because it affects every memory mapping
+    the runtime performs. Thus every mapping would report "non-default
+    behavior", which doesn't seem useful.
+    
+    This setting could trivially be atomic and allow changes at run time,
+    but those changes would only affect future mappings. That seems
+    confusing and not helpful. On the other hand, going back to annotate or
+    unannotate every previous mapping when the setting changes is
+    unwarranted complexity.
+    
+    For #71546.
+    
+    Change-Id: I6a6a636c5ad551d76691cba2a6f668d5cff0e352
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655895
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ doc/godebug.md                                     | 11 +++++++
+ doc/next/4-runtime.md                              |  8 +++++
+ .../testdata/script/godebug_decoratemappings.txt   | 37 ++++++++++++++++++++++
+ src/internal/godebugs/table.go                     |  1 +
+ src/runtime/extern.go                              |  7 ++++
+ src/runtime/runtime1.go                            |  2 ++
+ src/runtime/set_vma_name_linux.go                  |  2 +-
+ test/decoratemappingszero.go                       | 30 ++++++++++++++++++
+ 8 files changed, 97 insertions(+), 1 deletion(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 4325b95820..650a8e20bf 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -153,6 +153,17 @@ for example,
+ see the [runtime documentation](/pkg/runtime#hdr-Environment_Variables)
+ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
+ 
++### Go 1.25
++
++Go 1.25 added a new `decoratemappings` setting that controls whether the Go
++runtime annotates OS anonymous memory mappings with context about their
++purpose. These annotations appear in /proc/self/maps and /proc/self/smaps as
++"[anon: Go: ...]". This setting is only used on Linux. For Go 1.25, it defaults
++to `decoratemappings=1`, enabling annotations. Using `decoratemappings=0`
++reverts to the pre-Go 1.25 behavior. This setting is fixed at program startup
++time, and can't be modified by changing the `GODEBUG` environment variable
++after the program starts.
++
+ ### Go 1.24
+ 
+ Go 1.24 added a new `fips140` setting that controls whether the Go
+diff --git a/doc/next/4-runtime.md b/doc/next/4-runtime.md
+index 28483eb519..b6b50f1c0a 100644
+--- a/doc/next/4-runtime.md
++++ b/doc/next/4-runtime.md
+@@ -16,3 +16,11 @@ value would print:
+ This program will now print:
+ 
+     panic: PANIC [recovered, reraised]
++
++<!-- go.dev/issue/71546 -->
++
++On Linux systems with kernel support for anonymous VMA names
++(`CONFIG_ANON_VMA_NAME`), the Go runtime will annotate anonymous memory
++mappings with context about their purpose. e.g., `[anon: Go: heap]` for heap
++memory. This can be disabled with the [GODEBUG setting](/doc/godebug)
++`decoratemappings=0`.
+diff --git a/src/cmd/go/testdata/script/godebug_decoratemappings.txt b/src/cmd/go/testdata/script/godebug_decoratemappings.txt
+new file mode 100644
+index 0000000000..19b466c5d6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/godebug_decoratemappings.txt
+@@ -0,0 +1,37 @@
++env GO111MODULE=on
++
++# Go 1.24 module should disable decoratemappings.
++go list -f '{{.Module.GoVersion}} {{.DefaultGODEBUG}}'
++stdout decoratemappings=0
++
++[!GOOS:linux] skip
++[short] skip
++
++# Programs in Go 1.24 module should never see annotations. This ensures that
++# the runtime has not overridden the default.
++go run .
++
++-- go.mod --
++go 1.24
++module m
++
++-- main.go --
++package main
++
++import (
++	"log"
++	"os"
++	"strings"
++)
++
++func main() {
++	b, err := os.ReadFile("/proc/self/maps")
++	if err != nil {
++		log.Fatalf("Error reading: %v", err)
++	}
++
++	if strings.Contains(string(b), "[anon: Go:") {
++		log.Printf("/proc/self/maps:\n%s", string(b))
++		log.Fatalf("/proc/self/maps contains Go annotation")
++	}
++}
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index e0fde01f09..214de6bdbe 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -27,6 +27,7 @@ type Info struct {
+ var All = []Info{
+ 	{Name: "asynctimerchan", Package: "time", Changed: 23, Old: "1"},
+ 	{Name: "dataindependenttiming", Package: "crypto/subtle", Opaque: true},
++	{Name: "decoratemappings", Package: "runtime", Opaque: true, Changed: 25, Old: "0"},
+ 	{Name: "execerrdot", Package: "os/exec"},
+ 	{Name: "fips140", Package: "crypto/fips140", Opaque: true},
+ 	{Name: "gocachehash", Package: "cmd/go"},
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index fad19b9449..8ee89ab94f 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -52,6 +52,13 @@ It is a comma-separated list of name=val pairs setting these named variables:
+ 	cgocheck mode can be enabled using GOEXPERIMENT (which
+ 	requires a rebuild), see https://pkg.go.dev/internal/goexperiment for details.
+ 
++	decoratemappings: controls whether the Go runtime annotates OS
++	anonymous memory mappings with context about their purpose. These
++	annotations appear in /proc/self/maps and /proc/self/smaps as
++	"[anon: Go: ...]". This setting is only used on Linux. For Go 1.25, it
++	defaults to `decoratemappings=1`, enabling annotations. Using
++	`decoratemappings=0` reverts to the pre-Go 1.25 behavior.
++
+ 	disablethp: setting disablethp=1 on Linux disables transparent huge pages for the heap.
+ 	It has no effect on other platforms. disablethp is meant for compatibility with versions
+ 	of Go before 1.21, which stopped working around a Linux kernel default that can result
+diff --git a/src/runtime/runtime1.go b/src/runtime/runtime1.go
+index fb16f6daef..ec4f7d0433 100644
+--- a/src/runtime/runtime1.go
++++ b/src/runtime/runtime1.go
+@@ -309,6 +309,7 @@ type dbgVar struct {
+ var debug struct {
+ 	cgocheck                 int32
+ 	clobberfree              int32
++	decoratemappings         int32
+ 	disablethp               int32
+ 	dontfreezetheworld       int32
+ 	efence                   int32
+@@ -369,6 +370,7 @@ var dbgvars = []*dbgVar{
+ 	{name: "cgocheck", value: &debug.cgocheck},
+ 	{name: "clobberfree", value: &debug.clobberfree},
+ 	{name: "dataindependenttiming", value: &debug.dataindependenttiming},
++	{name: "decoratemappings", value: &debug.decoratemappings, def: 1},
+ 	{name: "disablethp", value: &debug.disablethp},
+ 	{name: "dontfreezetheworld", value: &debug.dontfreezetheworld},
+ 	{name: "efence", value: &debug.efence},
+diff --git a/src/runtime/set_vma_name_linux.go b/src/runtime/set_vma_name_linux.go
+index b413b1ce9b..100c2bfeca 100644
+--- a/src/runtime/set_vma_name_linux.go
++++ b/src/runtime/set_vma_name_linux.go
+@@ -16,7 +16,7 @@ var prSetVMAUnsupported atomic.Bool
+ 
+ // setVMAName calls prctl(PR_SET_VMA, PR_SET_VMA_ANON_NAME, start, len, name)
+ func setVMAName(start unsafe.Pointer, length uintptr, name string) {
+-	if unsupported := prSetVMAUnsupported.Load(); unsupported {
++	if debug.decoratemappings == 0 || prSetVMAUnsupported.Load() {
+ 		return
+ 	}
+ 
+diff --git a/test/decoratemappingszero.go b/test/decoratemappingszero.go
+new file mode 100644
+index 0000000000..162e553405
+--- /dev/null
++++ b/test/decoratemappingszero.go
+@@ -0,0 +1,30 @@
++// run
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Disable mapping annotations, which only exists for Linux.
++
++//go:debug decoratemappings=0
++//go:build linux
++
++package main
++
++import (
++	"log"
++	"os"
++	"strings"
++)
++
++func main() {
++	b, err := os.ReadFile("/proc/self/maps")
++	if err != nil {
++		log.Fatalf("Error reading: %v", err)
++	}
++
++	if strings.Contains(string(b), "[anon: Go:") {
++		log.Printf("/proc/self/maps:\n%s", string(b))
++		log.Fatalf("/proc/self/maps contains Go annotation")
++	}
++}

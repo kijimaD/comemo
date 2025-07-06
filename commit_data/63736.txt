@@ -1,0 +1,169 @@
+commit 8623c0ba95f01387c2d705349722b5fcb2b3e77d
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sun May 12 06:32:11 2024 +0000
+
+    internal/chacha8rand: use internal/byteorder
+    
+    Change-Id: Ia5bcaba47da949583a720ca3506d6bd9e3794824
+    GitHub-Last-Rev: 1ed3dad2bf43df5526572f7fdc4c3b02ab977a01
+    GitHub-Pull-Request: golang/go#67320
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584996
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/objabi/pkgspecial.go |  1 +
+ src/go/build/deps_test.go             | 10 +++---
+ src/internal/chacha8rand/chacha8.go   | 60 +++++++----------------------------
+ 3 files changed, 17 insertions(+), 54 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 8ca9c7416d..867d92d357 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -50,6 +50,7 @@ var runtimePkgs = []string{
+ 
+ 	"internal/abi",
+ 	"internal/bytealg",
++	"internal/byteorder",
+ 	"internal/chacha8rand",
+ 	"internal/coverage/rtcov",
+ 	"internal/cpu",
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 537de94a75..4e8f1c9109 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -43,16 +43,17 @@ var depsRules = `
+ 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
+ 	  internal/coverage/uleb128, internal/coverage/calloc,
+ 	  internal/cpu, internal/goarch, internal/godebugs,
+-	  internal/goexperiment, internal/goos,
++	  internal/goexperiment, internal/goos, internal/byteorder,
+ 	  internal/goversion, internal/nettrace, internal/platform,
+ 	  internal/trace/traceviewer/format,
+ 	  log/internal,
+ 	  unicode/utf8, unicode/utf16, unicode,
+ 	  unsafe;
+ 
+-	# These packages depend only on internal/goarch and unsafe.
+-	internal/goarch, unsafe
+-	< internal/abi, internal/chacha8rand;
++	# internal/abi depends only on internal/goarch and unsafe.
++	internal/goarch, unsafe < internal/abi;
++
++	internal/byteorder, internal/goarch, unsafe < internal/chacha8rand;
+ 
+ 	unsafe < maps;
+ 
+@@ -67,7 +68,6 @@ var depsRules = `
+ 	internal/goos
+ 	< internal/bytealg
+ 	< internal/stringslite
+-	< internal/byteorder
+ 	< internal/itoa
+ 	< internal/unsafeheader
+ 	< runtime/internal/sys
+diff --git a/src/internal/chacha8rand/chacha8.go b/src/internal/chacha8rand/chacha8.go
+index 0e601c23ac..8f1b4e5315 100644
+--- a/src/internal/chacha8rand/chacha8.go
++++ b/src/internal/chacha8rand/chacha8.go
+@@ -4,9 +4,11 @@
+ 
+ // Package chacha8rand implements a pseudorandom generator
+ // based on ChaCha8. It is used by both runtime and math/rand/v2
+-// and must have no dependencies.
++// and must have minimal dependencies.
+ package chacha8rand
+ 
++import "internal/byteorder"
++
+ const (
+ 	ctrInc = 4  // increment counter by 4 between block calls
+ 	ctrMax = 16 // reseed when counter reaches 16
+@@ -51,10 +53,10 @@ func (s *State) Next() (uint64, bool) {
+ // Init seeds the State with the given seed value.
+ func (s *State) Init(seed [32]byte) {
+ 	s.Init64([4]uint64{
+-		leUint64(seed[0*8:]),
+-		leUint64(seed[1*8:]),
+-		leUint64(seed[2*8:]),
+-		leUint64(seed[3*8:]),
++		byteorder.LeUint64(seed[0*8:]),
++		byteorder.LeUint64(seed[1*8:]),
++		byteorder.LeUint64(seed[2*8:]),
++		byteorder.LeUint64(seed[3*8:]),
+ 	})
+ }
+ 
+@@ -122,9 +124,9 @@ func Marshal(s *State) []byte {
+ 	data := make([]byte, 6*8)
+ 	copy(data, "chacha8:")
+ 	used := (s.c/ctrInc)*chunk + s.i
+-	bePutUint64(data[1*8:], uint64(used))
++	byteorder.BePutUint64(data[1*8:], uint64(used))
+ 	for i, seed := range s.seed {
+-		lePutUint64(data[(2+i)*8:], seed)
++		byteorder.LePutUint64(data[(2+i)*8:], seed)
+ 	}
+ 	return data
+ }
+@@ -140,12 +142,12 @@ func Unmarshal(s *State, data []byte) error {
+ 	if len(data) != 6*8 || string(data[:8]) != "chacha8:" {
+ 		return new(errUnmarshalChaCha8)
+ 	}
+-	used := beUint64(data[1*8:])
++	used := byteorder.BeUint64(data[1*8:])
+ 	if used > (ctrMax/ctrInc)*chunk-reseed {
+ 		return new(errUnmarshalChaCha8)
+ 	}
+ 	for i := range s.seed {
+-		s.seed[i] = leUint64(data[(2+i)*8:])
++		s.seed[i] = byteorder.LeUint64(data[(2+i)*8:])
+ 	}
+ 	s.c = ctrInc * (uint32(used) / chunk)
+ 	block(&s.seed, &s.buf, s.c)
+@@ -156,43 +158,3 @@ func Unmarshal(s *State, data []byte) error {
+ 	}
+ 	return nil
+ }
+-
+-// binary.bigEndian.Uint64, copied to avoid dependency
+-func beUint64(b []byte) uint64 {
+-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+-}
+-
+-// binary.bigEndian.PutUint64, copied to avoid dependency
+-func bePutUint64(b []byte, v uint64) {
+-	_ = b[7] // early bounds check to guarantee safety of writes below
+-	b[0] = byte(v >> 56)
+-	b[1] = byte(v >> 48)
+-	b[2] = byte(v >> 40)
+-	b[3] = byte(v >> 32)
+-	b[4] = byte(v >> 24)
+-	b[5] = byte(v >> 16)
+-	b[6] = byte(v >> 8)
+-	b[7] = byte(v)
+-}
+-
+-// binary.littleEndian.Uint64, copied to avoid dependency
+-func leUint64(b []byte) uint64 {
+-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+-		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
+-}
+-
+-// binary.littleEndian.PutUint64, copied to avoid dependency
+-func lePutUint64(b []byte, v uint64) {
+-	_ = b[7] // early bounds check to guarantee safety of writes below
+-	b[0] = byte(v)
+-	b[1] = byte(v >> 8)
+-	b[2] = byte(v >> 16)
+-	b[3] = byte(v >> 24)
+-	b[4] = byte(v >> 32)
+-	b[5] = byte(v >> 40)
+-	b[6] = byte(v >> 48)
+-	b[7] = byte(v >> 56)
+-}

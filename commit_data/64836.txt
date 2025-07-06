@@ -1,0 +1,104 @@
+commit d79e6bec6389dfeeec84a64f283055090615bad1
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Sep 13 11:12:36 2024 -0400
+
+    cmd/go: populate build info for test mains
+    
+    Before this change, test binaries didn't have build info populated on them
+    unless they were tests for package main. Now we generate them for all
+    test binaries so that they can be inspected like other binaries.
+    
+    We don't need to add the default GODEBUG in printLinkerConfig because it
+    will now always be present on the build info, and when build info is
+    present we use it to generate the hash.
+    
+    Fixes #33976
+    
+    Change-Id: Ib4f51c04f87df3c7f2f21c400ab446e70d66a101
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613096
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/load/test.go              | 15 +++++++--------
+ src/cmd/go/internal/work/exec.go              |  8 --------
+ src/cmd/go/testdata/script/test_buildinfo.txt | 24 ++++++++++++++++++++++++
+ 3 files changed, 31 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 4e85c17053..0a9ddeede1 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -293,14 +293,13 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
+ 
+ 	pb := p.Internal.Build
+ 	pmain.DefaultGODEBUG = defaultGODEBUG(pmain, pb.Directives, pb.TestDirectives, pb.XTestDirectives)
+-	if pmain.Internal.BuildInfo != nil && pmain.DefaultGODEBUG != p.DefaultGODEBUG {
+-		// The DefaultGODEBUG used to build the test main package is different from the DefaultGODEBUG
+-		// used to build the package under test. That makes the BuildInfo assigned above from the package
+-		// under test incorrect for the test main package. Recompute the build info for the test main
+-		// package to incorporate the test main's DefaultGODEBUG value.
+-		// Most test binaries do not have build info: p.Internal.BuildInfo is only computed for main
+-		// packages, so ptest only inherits a non-nil BuildInfo value if the test is for package main.
+-		// See issue #68053.
++	if pmain.Internal.BuildInfo == nil || pmain.DefaultGODEBUG != p.DefaultGODEBUG {
++		// Either we didn't generate build info for the package under test (because it wasn't package main), or
++		// the DefaultGODEBUG used to build the test main package is different from the DefaultGODEBUG
++		// used to build the package under test. If we didn't set build info for the package under test
++		// pmain won't have buildinfo set (since we copy it from the package under test). If the default GODEBUG
++		// used for the package under test is different from that of the test main, the BuildInfo assigned above from the package
++		// under test incorrect for the test main package. Either set or correct pmain's build info.
+ 		pmain.setBuildInfo(ctx, opts.AutoVCS)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index bacd06f468..5b17ef4811 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1425,14 +1425,6 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
+ 		}
+ 
+-		// The default godebug is embedded in the binary. For main packages it's
+-		// already taken into account for the action id through the build info. But
+-		// to make sure it's included for tests of other packages, where there's no
+-		// build info, use it as part of the action id. See issue #69203.
+-		if p != nil {
+-			fmt.Fprintf(h, "default GODEBUG %q\n", p.DefaultGODEBUG)
+-		}
+-
+ 		// The linker writes source file paths that refer to GOROOT,
+ 		// but only if -trimpath is not specified (see [gctoolchain.ld] in gc.go).
+ 		gorootFinal := cfg.GOROOT
+diff --git a/src/cmd/go/testdata/script/test_buildinfo.txt b/src/cmd/go/testdata/script/test_buildinfo.txt
+new file mode 100644
+index 0000000000..fbf097c0a6
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_buildinfo.txt
+@@ -0,0 +1,24 @@
++# Ensure buildinfo is populated on test binaries even if they
++# are not tests for package main. See issue #33976.
++
++[short] skip 'invokes go test'
++
++go mod init foo
++go test -v
++stdout '(devel)'
++
++-- foo_test.go --
++package foo_test
++
++import (
++        "runtime/debug"
++        "testing"
++)
++
++func TestBuildInfo(t *testing.T) {
++        info, ok := debug.ReadBuildInfo()
++        if !ok {
++                t.Fatal("no debug info")
++        }
++        t.Log(info.Main.Version)
++}
+\ No newline at end of file

@@ -1,0 +1,152 @@
+commit 8336dfde7096ff75c1ff256cb3079863cefac33a
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Wed Jan 8 20:38:32 2025 +0000
+
+    [release-branch.go1.24] cmd/go: restore netrc preferences for GOAUTH and fix domain lookup
+    
+    Store netrc lines into the credential map backward so that earlier lines
+    take priority over later lines. This matches Go 1.23 netrc lookup which
+    stopped at the first match it found.
+    Additionally, this fixes a security issue related to domain parsing
+    which could have allowed servers to read credentials belonging to other
+    servers. The fix was to switch from using path.Dir(currentPrefix) to
+    strings.Cut(currentPrefix, "/")
+    
+    Thanks to Juho Forsén of Mattermost for reporting this issue.
+    
+    Fixes #71249
+    Fixes CVE-2024-45340
+    
+    Change-Id: I175a00d6d7f4d31c9e4d79b7cf1c2a0ad35b2781
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1781
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Commit-Queue: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    (cherry picked from commit 76833d221aa3ccc978b6f41bd24e26babf771375)
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643101
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/go/internal/auth/auth.go            | 17 +++++++++++------
+ src/cmd/go/internal/auth/auth_test.go       | 24 +++++++++++++++++++++++-
+ src/cmd/go/testdata/script/goauth_netrc.txt |  7 ++++---
+ 3 files changed, 38 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go/internal/auth/auth.go b/src/cmd/go/internal/auth/auth.go
+index b008e9c281..bd80222427 100644
+--- a/src/cmd/go/internal/auth/auth.go
++++ b/src/cmd/go/internal/auth/auth.go
+@@ -12,7 +12,6 @@ import (
+ 	"log"
+ 	"net/http"
+ 	"os"
+-	"path"
+ 	"path/filepath"
+ 	"slices"
+ 	"strings"
+@@ -73,7 +72,12 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
+ 			if err != nil {
+ 				base.Fatalf("go: could not parse netrc (GOAUTH=%s): %v", cfg.GOAUTH, err)
+ 			}
+-			for _, l := range lines {
++			// Process lines in reverse so that if the same machine is listed
++			// multiple times, we end up saving the earlier one
++			// (overwriting later ones). This matches the way the go command
++			// worked before GOAUTH.
++			for i := len(lines) - 1; i >= 0; i-- {
++				l := lines[i]
+ 				r := http.Request{Header: make(http.Header)}
+ 				r.SetBasicAuth(l.login, l.password)
+ 				storeCredential(l.machine, r.Header)
+@@ -137,11 +141,13 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
+ func loadCredential(req *http.Request, url string) bool {
+ 	currentPrefix := strings.TrimPrefix(url, "https://")
+ 	// Iteratively try prefixes, moving up the path hierarchy.
+-	for currentPrefix != "/" && currentPrefix != "." && currentPrefix != "" {
++	for {
+ 		headers, ok := credentialCache.Load(currentPrefix)
+ 		if !ok {
+-			// Move to the parent directory.
+-			currentPrefix = path.Dir(currentPrefix)
++			currentPrefix, _, ok = strings.Cut(currentPrefix, "/")
++			if !ok {
++				return false
++			}
+ 			continue
+ 		}
+ 		for key, values := range headers.(http.Header) {
+@@ -151,7 +157,6 @@ func loadCredential(req *http.Request, url string) bool {
+ 		}
+ 		return true
+ 	}
+-	return false
+ }
+ 
+ // storeCredential caches or removes credentials (represented by HTTP headers)
+diff --git a/src/cmd/go/internal/auth/auth_test.go b/src/cmd/go/internal/auth/auth_test.go
+index c7b4851e28..c1bbf4b1a9 100644
+--- a/src/cmd/go/internal/auth/auth_test.go
++++ b/src/cmd/go/internal/auth/auth_test.go
+@@ -25,7 +25,29 @@ func TestCredentialCache(t *testing.T) {
+ 		got := &http.Request{Header: make(http.Header)}
+ 		ok := loadCredential(got, tc.machine)
+ 		if !ok || !reflect.DeepEqual(got.Header, want.Header) {
+-			t.Errorf("loadCredential:\nhave %q\nwant %q", got.Header, want.Header)
++			t.Errorf("loadCredential(%q):\nhave %q\nwant %q", tc.machine, got.Header, want.Header)
++		}
++	}
++
++	// Having stored those credentials, we should be able to look up longer URLs too.
++	extraCases := []netrcLine{
++		{"https://api.github.com/foo", "user", "pwd"},
++		{"https://api.github.com/foo/bar/baz", "user", "pwd"},
++		{"https://example.com/abc", "", ""},
++		{"https://example.com/?/../api.github.com/", "", ""},
++		{"https://example.com/?/../api.github.com", "", ""},
++		{"https://example.com/../api.github.com/", "", ""},
++		{"https://example.com/../api.github.com", "", ""},
++	}
++	for _, tc := range extraCases {
++		want := http.Request{Header: make(http.Header)}
++		if tc.login != "" {
++			want.SetBasicAuth(tc.login, tc.password)
++		}
++		got := &http.Request{Header: make(http.Header)}
++		loadCredential(got, tc.machine)
++		if !reflect.DeepEqual(got.Header, want.Header) {
++			t.Errorf("loadCredential(%q):\nhave %q\nwant %q", tc.machine, got.Header, want.Header)
+ 		}
+ 	}
+ }
+diff --git a/src/cmd/go/testdata/script/goauth_netrc.txt b/src/cmd/go/testdata/script/goauth_netrc.txt
+index 2dda119e82..26e03f8968 100644
+--- a/src/cmd/go/testdata/script/goauth_netrc.txt
++++ b/src/cmd/go/testdata/script/goauth_netrc.txt
+@@ -2,8 +2,6 @@
+ # credentials passed in HTTPS requests to VCS servers.
+ # See golang.org/issue/26232
+ 
+-[short] skip
+-
+ env GOPROXY=direct
+ env GOSUMDB=off
+ 
+@@ -55,7 +53,6 @@ go get vcs-test.golang.org/auth/or401
+ env NETRC=$WORK/missing
+ ! go get vcs-test.golang.org/auth/or401
+ stderr '^\tserver response: ACCESS DENIED, buddy$'
+-
+ -- go.mod --
+ module private.example.com
+ -- $WORK/empty --
+@@ -63,3 +60,7 @@ module private.example.com
+ machine vcs-test.golang.org
+ 	login aladdin
+ 	password opensesame
++# first one should override this one
++machine vcs-test.golang.org
++	login aladdin
++	password ignored

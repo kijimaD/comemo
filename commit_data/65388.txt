@@ -1,0 +1,37 @@
+commit 400433af3660905ecaceaf19ddad3e6c24b141df
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Nov 13 14:45:46 2024 -0500
+
+    doc/next: pre-announce dropping macOS 11 support
+    
+    Go 1.24 is the last release that will run on macOS 11 Big Sur.
+    Go 1.25 will require macOS 12 Monterey or later.
+    
+    For #69839.
+    For #23011.
+    
+    Change-Id: Ic58beff0f7eb69f600add5c17cf6edd960d09980
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627616
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ doc/next/7-ports.md | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/doc/next/7-ports.md b/doc/next/7-ports.md
+index b8631378e8..96cf661772 100644
+--- a/doc/next/7-ports.md
++++ b/doc/next/7-ports.md
+@@ -5,6 +5,12 @@
+ As [announced](go1.23#linux) in the Go 1.23 release notes, Go 1.24 requires Linux
+ kernel version 3.2 or later.
+ 
++### Darwin {#darwin}
++
++<!-- go.dev/issue/69839 -->
++Go 1.24 is the last release that will run on macOS 11 Big Sur.
++Go 1.25 will require macOS 12 Monterey or later.
++
+ ### WebAssembly {#wasm}
+ 
+ The support files for WebAssembly have been moved to `lib/wasm` from `misc/wasm`.

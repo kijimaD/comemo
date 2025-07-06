@@ -1,0 +1,78 @@
+commit 6a05055780e1beef8231ab1e05ffaf5754b1e5b6
+Author: Rob Findley <rfindley@google.com>
+Date:   Thu May 16 14:08:12 2024 +0000
+
+    go/ast: fix bug handling the result of yield in Preorder
+    
+    Once yield returns false, ast.Preorder must not call yield on any more
+    nodes. Even after the function passed to ast.Inspect returns false, it
+    may be invoked again with a non-nil node. Therefore, we must explicitly
+    truncate the inspection.
+    
+    For #66339
+    
+    Change-Id: I2b01e4e96a2d7aca785467c15ab59da13208c161
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585520
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/go/ast/walk.go      |  5 +++--
+ src/go/ast/walk_test.go | 33 +++++++++++++++++++++++++++++++++
+ 2 files changed, 36 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/ast/walk.go b/src/go/ast/walk.go
+index 0cd604ef1f..ec9a8901c4 100644
+--- a/src/go/ast/walk.go
++++ b/src/go/ast/walk.go
+@@ -381,8 +381,9 @@ func Preorder(root Node) iter.Seq[Node] {
+ 	return func(yield func(Node) bool) {
+ 		ok := true
+ 		Inspect(root, func(n Node) bool {
+-			if n != nil && !yield(n) {
+-				ok = false
++			if n != nil {
++				// yield must not be called once ok is false.
++				ok = ok && yield(n)
+ 			}
+ 			return ok
+ 		})
+diff --git a/src/go/ast/walk_test.go b/src/go/ast/walk_test.go
+new file mode 100644
+index 0000000000..b8b4f958ec
+--- /dev/null
++++ b/src/go/ast/walk_test.go
+@@ -0,0 +1,33 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ast_test
++
++import (
++	"go/ast"
++	"go/parser"
++	"go/token"
++	"testing"
++)
++
++func TestPreorderBreak(t *testing.T) {
++	// This test checks that Preorder correctly handles a break statement while
++	// in the middle of walking a node. Previously, incorrect handling of the
++	// boolean returned by the yield function resulted in the iterator calling
++	// yield for sibling nodes even after yield had returned false. With that
++	// bug, this test failed with a runtime panic.
++	src := "package p\ntype T struct {\n\tF int `json:\"f\"` // a field\n}\n"
++
++	fset := token.NewFileSet()
++	f, err := parser.ParseFile(fset, "", src, 0)
++	if err != nil {
++		panic(err)
++	}
++
++	for n := range ast.Preorder(f) {
++		if id, ok := n.(*ast.Ident); ok && id.Name == "F" {
++			break
++		}
++	}
++}

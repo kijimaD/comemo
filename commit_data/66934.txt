@@ -1,0 +1,207 @@
+commit 044ca4e5c878c785e2c69e5ebcb3d44bf97abc9f
+Author: Ernesto Alejandro Santana Hidalgo <ernesto.alejandrosantana@gmail.com>
+Date:   Sun May 4 04:30:25 2025 +0000
+
+    log/slog: export Source method in Record for custom handler support
+    
+    Currently, the `source` method in `slog.Record` is not accessible to
+    custom handlers, requiring developers to re-implement logic for
+    retrieving source location information. This commit exports the `source`
+    method as `Source`, enabling consistent access for custom logging
+    handlers and reducing code redundancy.
+    
+    Fixes #70280
+    
+    Change-Id: I3eb3bc60658abc5de95697a10bddd11ab54c6e13
+    GitHub-Last-Rev: bd81afe5a502bf0e2d03c30d0f5199a532cc4c62
+    GitHub-Pull-Request: golang/go#70281
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626976
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ api/next/70280.txt                           |  1 +
+ doc/next/6-stdlib/99-minor/log/slog/70280.md |  1 +
+ src/log/slog/handler.go                      |  6 ++++-
+ src/log/slog/handler_test.go                 | 40 +++++++++++++++++++++++++++-
+ src/log/slog/logger_test.go                  |  5 +++-
+ src/log/slog/record.go                       | 13 +++++----
+ src/log/slog/record_test.go                  | 23 +++++++++++-----
+ 7 files changed, 75 insertions(+), 14 deletions(-)
+
+diff --git a/api/next/70280.txt b/api/next/70280.txt
+new file mode 100644
+index 0000000000..f2dd74af48
+--- /dev/null
++++ b/api/next/70280.txt
+@@ -0,0 +1 @@
++pkg log/slog, method (Record) Source() *Source #70280
+diff --git a/doc/next/6-stdlib/99-minor/log/slog/70280.md b/doc/next/6-stdlib/99-minor/log/slog/70280.md
+new file mode 100644
+index 0000000000..7f1b734d4f
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/log/slog/70280.md
+@@ -0,0 +1 @@
++[Record] now has a Source() method, returning its source location or nil if unavailable.
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 66eea02aa5..e56be5f494 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -299,7 +299,11 @@ func (h *commonHandler) handle(r Record) error {
+ 	}
+ 	// source
+ 	if h.opts.AddSource {
+-		state.appendAttr(Any(SourceKey, r.source()))
++		src := r.Source()
++		if src == nil {
++			src = &Source{}
++		}
++		state.appendAttr(Any(SourceKey, src))
+ 	}
+ 	key = MessageKey
+ 	msg := r.Message
+diff --git a/src/log/slog/handler_test.go b/src/log/slog/handler_test.go
+index 9f8d518e96..445f43f1f5 100644
+--- a/src/log/slog/handler_test.go
++++ b/src/log/slog/handler_test.go
+@@ -547,7 +547,11 @@ func TestJSONAndTextHandlers(t *testing.T) {
+ 		},
+ 	} {
+ 		r := NewRecord(testTime, LevelInfo, "message", callerPC(2))
+-		line := strconv.Itoa(r.source().Line)
++		source := r.Source()
++		if source == nil {
++			t.Fatal("source is nil")
++		}
++		line := strconv.Itoa(source.Line)
+ 		r.AddAttrs(test.attrs...)
+ 		var buf bytes.Buffer
+ 		opts := HandlerOptions{ReplaceAttr: test.replace, AddSource: test.addSource}
+@@ -634,6 +638,40 @@ func TestHandlerEnabled(t *testing.T) {
+ 	}
+ }
+ 
++func TestJSONAndTextHandlersWithUnavailableSource(t *testing.T) {
++	// Verify that a nil source does not cause a panic.
++	// and that the source is empty.
++	var buf bytes.Buffer
++	opts := &HandlerOptions{
++		ReplaceAttr: removeKeys(LevelKey),
++		AddSource:   true,
++	}
++
++	for _, test := range []struct {
++		name string
++		h    Handler
++		want string
++	}{
++		{"text", NewTextHandler(&buf, opts), "source=:0 msg=message"},
++		{"json", NewJSONHandler(&buf, opts), `{"msg":"message"}`},
++	} {
++		t.Run(test.name, func(t *testing.T) {
++			buf.Reset()
++			r := NewRecord(time.Time{}, LevelInfo, "message", 0)
++			err := test.h.Handle(t.Context(), r)
++			if err != nil {
++				t.Fatal(err)
++			}
++
++			want := strings.TrimSpace(test.want)
++			got := strings.TrimSpace(buf.String())
++			if got != want {
++				t.Errorf("\ngot  %s\nwant %s", got, want)
++			}
++		})
++	}
++}
++
+ func TestSecondWith(t *testing.T) {
+ 	// Verify that a second call to Logger.With does not corrupt
+ 	// the original.
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index 98f919d72e..558aecaf6e 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -190,7 +190,10 @@ func TestCallDepth(t *testing.T) {
+ 		const wantFunc = "log/slog.TestCallDepth"
+ 		const wantFile = "logger_test.go"
+ 		wantLine := startLine + count*2
+-		got := h.r.source()
++		got := h.r.Source()
++		if got == nil {
++			t.Fatal("got nil source")
++		}
+ 		gotFile := filepath.Base(got.File)
+ 		if got.Function != wantFunc || gotFile != wantFile || got.Line != wantLine {
+ 			t.Errorf("got (%s, %s, %d), want (%s, %s, %d)",
+diff --git a/src/log/slog/record.go b/src/log/slog/record.go
+index 97c87019a6..53ecc67cc8 100644
+--- a/src/log/slog/record.go
++++ b/src/log/slog/record.go
+@@ -211,11 +211,14 @@ func (s *Source) group() Value {
+ 	return GroupValue(as...)
+ }
+ 
+-// source returns a Source for the log event.
+-// If the Record was created without the necessary information,
+-// or if the location is unavailable, it returns a non-nil *Source
+-// with zero fields.
+-func (r Record) source() *Source {
++// Source returns a new Source for the log event using r's PC.
++// If the PC field is zero, meaning the Record was created without the necessary information
++// or the location is unavailable, then nil is returned.
++func (r Record) Source() *Source {
++	if r.PC == 0 {
++		return nil
++	}
++
+ 	fs := runtime.CallersFrames([]uintptr{r.PC})
+ 	f, _ := fs.Next()
+ 	return &Source{
+diff --git a/src/log/slog/record_test.go b/src/log/slog/record_test.go
+index 931ab66041..939dc34ac8 100644
+--- a/src/log/slog/record_test.go
++++ b/src/log/slog/record_test.go
+@@ -39,24 +39,35 @@ func TestRecordAttrs(t *testing.T) {
+ }
+ 
+ func TestRecordSource(t *testing.T) {
+-	// Zero call depth => empty *Source.
++	// Zero call depth => nil *Source.
+ 	for _, test := range []struct {
+ 		depth            int
+ 		wantFunction     string
+ 		wantFile         string
+ 		wantLinePositive bool
++		wantNil          bool
+ 	}{
+-		{0, "", "", false},
+-		{-16, "", "", false},
+-		{1, "log/slog.TestRecordSource", "record_test.go", true}, // 1: caller of NewRecord
+-		{2, "testing.tRunner", "testing.go", true},
++		{0, "", "", false, true},
++		{-16, "", "", false, true},
++		{1, "log/slog.TestRecordSource", "record_test.go", true, false}, // 1: caller of NewRecord
++		{2, "testing.tRunner", "testing.go", true, false},
+ 	} {
+ 		var pc uintptr
+ 		if test.depth > 0 {
+ 			pc = callerPC(test.depth + 1)
+ 		}
+ 		r := NewRecord(time.Time{}, 0, "", pc)
+-		got := r.source()
++		got := r.Source()
++		if test.wantNil {
++			if got != nil {
++				t.Errorf("depth %d: got non-nil Source, want nil", test.depth)
++			}
++			continue
++		}
++		if got == nil {
++			t.Errorf("depth %d: got nil Source, want non-nil", test.depth)
++			continue
++		}
+ 		if i := strings.LastIndexByte(got.File, '/'); i >= 0 {
+ 			got.File = got.File[i+1:]
+ 		}

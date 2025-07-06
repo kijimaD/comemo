@@ -1,0 +1,50 @@
+commit 15c558016088d6aaf103b4f0fd2b716a4573e5a2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Oct 22 12:02:02 2024 -0400
+
+    cmd/link: don't pass --build-id if C linker doesn't support it
+    
+    On Solaris the default (non-GNU) C linker doesn't support the
+    --build-id flag (and I'm not aware of any alternative). So check
+    that the linker supports the flag before passing it.
+    
+    Updates #41004, #63934.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-solaris-amd64
+    Change-Id: I4379e5bf6eb495154d663ac4ed802ecb11fcf91c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621639
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/link/elf_test.go        | 4 +++-
+ src/cmd/link/internal/ld/lib.go | 2 +-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/elf_test.go b/src/cmd/link/elf_test.go
+index e68f94e7de..db6ef1bb51 100644
+--- a/src/cmd/link/elf_test.go
++++ b/src/cmd/link/elf_test.go
+@@ -224,7 +224,9 @@ func TestGNUBuildID(t *testing.T) {
+ 		{"specific", "-B=0x0123456789abcdef", "\x01\x23\x45\x67\x89\xab\xcd\xef"},
+ 		{"none", "-B=none", ""},
+ 	}
+-	if testenv.HasCGO() {
++	if testenv.HasCGO() && runtime.GOOS != "solaris" && runtime.GOOS != "illumos" {
++		// Solaris ld doesn't support --build-id. So we don't
++		// add it in external linking mode.
+ 		for _, test := range tests {
+ 			t1 := test
+ 			t1.name += "_external"
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index a9eda54713..0c37a1dc1f 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1701,7 +1701,7 @@ func (ctxt *Link) hostlink() {
+ 		argv = append(argv, "-fuse-ld="+altLinker)
+ 	}
+ 
+-	if ctxt.IsELF {
++	if ctxt.IsELF && linkerFlagSupported(ctxt.Arch, argv[0], "", "-Wl,--build-id=0x1234567890abcdef") { // Solaris ld doesn't support --build-id.
+ 		if len(buildinfo) > 0 {
+ 			argv = append(argv, fmt.Sprintf("-Wl,--build-id=0x%x", buildinfo))
+ 		} else if *flagHostBuildid == "none" {

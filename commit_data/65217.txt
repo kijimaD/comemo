@@ -1,0 +1,735 @@
+commit b5fec2cf54ff9f7b562cb904a2a025266aec2763
+Author: Michael Pratt <mpratt@google.com>
+Date:   Tue Sep 17 18:00:21 2024 -0400
+
+    cmd/compile,runtime: add indirect key/elem to swissmap
+    
+    We use the same heuristics as existing maps.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I44bb51483cae2c1714717f1b501850fb9e55a39a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616461
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/reflectdata/map_swiss.go |  28 ++++-
+ src/internal/abi/map_swiss.go                     |  13 +++
+ src/internal/runtime/maps/export_test.go          |   6 +-
+ src/internal/runtime/maps/map.go                  |  66 +++++++++++-
+ src/internal/runtime/maps/map_test.go             |  71 +++++++++++++
+ src/internal/runtime/maps/runtime.go              |   3 +
+ src/internal/runtime/maps/runtime_swiss.go        |  26 ++++-
+ src/internal/runtime/maps/table.go                | 120 +++++++++++++++++++++-
+ src/internal/runtime/maps/table_debug.go          |   3 +
+ src/reflect/map_swiss.go                          |  16 ++-
+ src/runtime/malloc.go                             |   5 +
+ 11 files changed, 343 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/map_swiss.go b/src/cmd/compile/internal/reflectdata/map_swiss.go
+index b531d785d3..4b1166347b 100644
+--- a/src/cmd/compile/internal/reflectdata/map_swiss.go
++++ b/src/cmd/compile/internal/reflectdata/map_swiss.go
+@@ -34,9 +34,21 @@ func SwissMapGroupType(t *types.Type) *types.Type {
+ 	//         elem elemType
+ 	//     }
+ 	// }
++
++	keytype := t.Key()
++	elemtype := t.Elem()
++	types.CalcSize(keytype)
++	types.CalcSize(elemtype)
++	if keytype.Size() > abi.SwissMapMaxKeyBytes {
++		keytype = types.NewPtr(keytype)
++	}
++	if elemtype.Size() > abi.SwissMapMaxElemBytes {
++		elemtype = types.NewPtr(elemtype)
++	}
++
+ 	slotFields := []*types.Field{
+-		makefield("key", t.Key()),
+-		makefield("elem", t.Elem()),
++		makefield("key", keytype),
++		makefield("elem", elemtype),
+ 	}
+ 	slot := types.NewStruct(slotFields)
+ 	slot.SetNoalg(true)
+@@ -64,6 +76,12 @@ func SwissMapGroupType(t *types.Type) *types.Type {
+ 		// the end to ensure pointers are valid.
+ 		base.Fatalf("bad group size for %v", t)
+ 	}
++	if t.Key().Size() > abi.SwissMapMaxKeyBytes && !keytype.IsPtr() {
++		base.Fatalf("key indirect incorrect for %v", t)
++	}
++	if t.Elem().Size() > abi.SwissMapMaxElemBytes && !elemtype.IsPtr() {
++		base.Fatalf("elem indirect incorrect for %v", t)
++	}
+ 
+ 	t.MapType().SwissGroup = group
+ 	group.StructType().Map = t
+@@ -269,6 +287,12 @@ func writeSwissMapType(t *types.Type, lsym *obj.LSym, c rttype.Cursor) {
+ 	if hashMightPanic(t.Key()) {
+ 		flags |= abi.SwissMapHashMightPanic
+ 	}
++	if t.Key().Size() > abi.SwissMapMaxKeyBytes {
++		flags |= abi.SwissMapIndirectKey
++	}
++	if t.Elem().Size() > abi.SwissMapMaxKeyBytes {
++		flags |= abi.SwissMapIndirectElem
++	}
+ 	c.Field("Flags").WriteUint32(flags)
+ 
+ 	if u := t.Underlying(); u != t {
+diff --git a/src/internal/abi/map_swiss.go b/src/internal/abi/map_swiss.go
+index 3eeb9ffa57..c214571a7d 100644
+--- a/src/internal/abi/map_swiss.go
++++ b/src/internal/abi/map_swiss.go
+@@ -16,6 +16,11 @@ const (
+ 
+ 	// Number of slots in a group.
+ 	SwissMapGroupSlots = 1 << SwissMapGroupSlotsBits // 8
++
++	// Maximum key or elem size to keep inline (instead of mallocing per element).
++	// Must fit in a uint8.
++	SwissMapMaxKeyBytes  = 128
++	SwissMapMaxElemBytes = 128
+ )
+ 
+ type SwissMapType struct {
+@@ -34,6 +39,8 @@ type SwissMapType struct {
+ const (
+ 	SwissMapNeedKeyUpdate = 1 << iota
+ 	SwissMapHashMightPanic
++	SwissMapIndirectKey
++	SwissMapIndirectElem
+ )
+ 
+ func (mt *SwissMapType) NeedKeyUpdate() bool { // true if we need to update key on an overwrite
+@@ -42,3 +49,9 @@ func (mt *SwissMapType) NeedKeyUpdate() bool { // true if we need to update key
+ func (mt *SwissMapType) HashMightPanic() bool { // true if hash function might panic
+ 	return mt.Flags&SwissMapHashMightPanic != 0
+ }
++func (mt *SwissMapType) IndirectKey() bool { // store ptr to key instead of key itself
++	return mt.Flags&SwissMapIndirectKey != 0
++}
++func (mt *SwissMapType) IndirectElem() bool { // store ptr to elem instead of elem itself
++	return mt.Flags&SwissMapIndirectElem != 0
++}
+diff --git a/src/internal/runtime/maps/export_test.go b/src/internal/runtime/maps/export_test.go
+index 151c11fba8..c9c1da6a1c 100644
+--- a/src/internal/runtime/maps/export_test.go
++++ b/src/internal/runtime/maps/export_test.go
+@@ -86,7 +86,11 @@ func (m *Map) KeyFromFullGroup(typ *abi.SwissMapType) unsafe.Pointer {
+ 				if g.ctrls().get(j) == ctrlDeleted {
+ 					continue
+ 				}
+-				return g.key(typ, j)
++				slotKey := g.key(typ, j)
++				if typ.IndirectKey() {
++					slotKey = *((*unsafe.Pointer)(slotKey))
++				}
++				return slotKey
+ 			}
+ 		}
+ 	}
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 543340f10c..c2c7c41805 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -442,8 +442,15 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
+ 		}
+ 
+ 		slotKey := g.key(typ, i)
++		if typ.IndirectKey() {
++			slotKey = *((*unsafe.Pointer)(slotKey))
++		}
+ 		if typ.Key.Equal(key, slotKey) {
+-			return slotKey, g.elem(typ, i), true
++			slotElem := g.elem(typ, i)
++			if typ.IndirectElem() {
++				slotElem = *((*unsafe.Pointer)(slotElem))
++			}
++			return slotKey, slotElem, true
+ 		}
+ 	}
+ 
+@@ -521,12 +528,18 @@ func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Point
+ 		i := match.first()
+ 
+ 		slotKey := g.key(typ, i)
++		if typ.IndirectKey() {
++			slotKey = *((*unsafe.Pointer)(slotKey))
++		}
+ 		if typ.Key.Equal(key, slotKey) {
+ 			if typ.NeedKeyUpdate() {
+ 				typedmemmove(typ.Key, slotKey, key)
+ 			}
+ 
+ 			slotElem := g.elem(typ, i)
++			if typ.IndirectElem() {
++				slotElem = *((*unsafe.Pointer)(slotElem))
++			}
+ 
+ 			return slotElem
+ 		}
+@@ -543,8 +556,19 @@ func (m *Map) putSlotSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Point
+ 	i := match.first()
+ 
+ 	slotKey := g.key(typ, i)
++	if typ.IndirectKey() {
++		kmem := newobject(typ.Key)
++		*(*unsafe.Pointer)(slotKey) = kmem
++		slotKey = kmem
++	}
+ 	typedmemmove(typ.Key, slotKey, key)
++
+ 	slotElem := g.elem(typ, i)
++	if typ.IndirectElem() {
++		emem := newobject(typ.Elem)
++		*(*unsafe.Pointer)(slotElem) = emem
++		slotElem = emem
++	}
+ 
+ 	g.ctrls().set(i, ctrl(h2(hash)))
+ 	m.used++
+@@ -574,9 +598,23 @@ func (m *Map) growToTable(typ *abi.SwissMapType) {
+ 			// Empty
+ 			continue
+ 		}
++
+ 		key := g.key(typ, i)
++		if typ.IndirectKey() {
++			key = *((*unsafe.Pointer)(key))
++		}
++
+ 		elem := g.elem(typ, i)
++		if typ.IndirectElem() {
++			elem = *((*unsafe.Pointer)(elem))
++		}
++
+ 		hash := typ.Hasher(key, m.seed)
++
++		// TODO(prattmic): For indirect key/elem, this is
++		// allocating new objects for key/elem. That is
++		// unnecessary; the new table could simply point to the
++		// existing object.
+ 		slotElem := tab.uncheckedPutSlot(typ, hash, key)
+ 		typedmemmove(typ.Elem, slotElem, elem)
+ 		tab.used++
+@@ -631,11 +669,33 @@ func (m *Map) deleteSmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Pointe
+ 	for match != 0 {
+ 		i := match.first()
+ 		slotKey := g.key(typ, i)
++		origSlotKey := slotKey
++		if typ.IndirectKey() {
++			slotKey = *((*unsafe.Pointer)(slotKey))
++		}
+ 		if typ.Key.Equal(key, slotKey) {
+ 			m.used--
+ 
+-			typedmemclr(typ.Key, slotKey)
+-			typedmemclr(typ.Elem, g.elem(typ, i))
++			if typ.IndirectKey() {
++				// Clearing the pointer is sufficient.
++				*(*unsafe.Pointer)(origSlotKey) = nil
++			} else if typ.Key.Pointers() {
++				// Only bother clearing if there are pointers.
++				typedmemclr(typ.Key, slotKey)
++			}
++
++			slotElem := g.elem(typ, i)
++			if typ.IndirectElem() {
++				// Clearing the pointer is sufficient.
++				*(*unsafe.Pointer)(slotElem) = nil
++			} else {
++				// Unlike keys, always clear the elem (even if
++				// it contains no pointers), as compound
++				// assignment operations depend on cleared
++				// deleted values. See
++				// https://go.dev/issue/25936.
++				typedmemclr(typ.Elem, slotElem)
++			}
+ 
+ 			// We only have 1 group, so it is OK to immediately
+ 			// reuse deleted slots.
+diff --git a/src/internal/runtime/maps/map_test.go b/src/internal/runtime/maps/map_test.go
+index cd40db8712..42db55c6a4 100644
+--- a/src/internal/runtime/maps/map_test.go
++++ b/src/internal/runtime/maps/map_test.go
+@@ -628,3 +628,74 @@ func TestMapZeroSizeSlot(t *testing.T) {
+ 		t.Errorf("elem address outside groups allocation; got %p want [%p, %p]", got, start, end)
+ 	}
+ }
++
++func TestMapIndirect(t *testing.T) {
++	type big [abi.SwissMapMaxKeyBytes + abi.SwissMapMaxElemBytes]byte
++
++	m, typ := maps.NewTestMap[big, big](8)
++
++	key := big{}
++	elem := big{}
++	elem[0] = 128
++
++	for i := 0; i < 31; i++ {
++		key[0] += 1
++		elem[0] += 1
++		m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
++
++		if maps.DebugLog {
++			fmt.Printf("After put %v: %v\n", key, m)
++		}
++	}
++
++	if m.Used() != 31 {
++		t.Errorf("Used() used got %d want 31", m.Used())
++	}
++
++	key = big{}
++	elem = big{}
++	elem[0] = 128
++
++	for i := 0; i < 31; i++ {
++		key[0] += 1
++		elem[0] += 1
++		got, ok := m.Get(typ, unsafe.Pointer(&key))
++		if !ok {
++			t.Errorf("Get(%v) got ok false want true", key)
++		}
++		gotElem := *(*big)(got)
++		if gotElem != elem {
++			t.Errorf("Get(%v) got elem %v want %v", key, gotElem, elem)
++		}
++	}
++}
++
++// Delete should clear element. See https://go.dev/issue/25936.
++func TestMapDeleteClear(t *testing.T) {
++	m, typ := maps.NewTestMap[int64, int64](8)
++
++	key := int64(0)
++	elem := int64(128)
++
++	m.Put(typ, unsafe.Pointer(&key), unsafe.Pointer(&elem))
++
++	if maps.DebugLog {
++		fmt.Printf("After put %d: %v\n", key, m)
++	}
++
++	got, ok := m.Get(typ, unsafe.Pointer(&key))
++	if !ok {
++		t.Errorf("Get(%d) got ok false want true", key)
++	}
++	gotElem := *(*int64)(got)
++	if gotElem != elem {
++		t.Errorf("Get(%d) got elem %d want %d", key, gotElem, elem)
++	}
++
++	m.Delete(typ, unsafe.Pointer(&key))
++
++	gotElem = *(*int64)(got)
++	if gotElem != 0 {
++		t.Errorf("Delete(%d) failed to clear element. got %d want 0", key, gotElem)
++	}
++}
+diff --git a/src/internal/runtime/maps/runtime.go b/src/internal/runtime/maps/runtime.go
+index 0d569de214..3d06f54f4d 100644
+--- a/src/internal/runtime/maps/runtime.go
++++ b/src/internal/runtime/maps/runtime.go
+@@ -25,3 +25,6 @@ func typedmemclr(typ *abi.Type, ptr unsafe.Pointer)
+ 
+ //go:linkname newarray
+ func newarray(typ *abi.Type, n int) unsafe.Pointer
++
++//go:linkname newobject
++func newobject(typ *abi.Type) unsafe.Pointer
+diff --git a/src/internal/runtime/maps/runtime_swiss.go b/src/internal/runtime/maps/runtime_swiss.go
+index 88042500bc..401c69a224 100644
+--- a/src/internal/runtime/maps/runtime_swiss.go
++++ b/src/internal/runtime/maps/runtime_swiss.go
+@@ -90,8 +90,15 @@ func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsaf
+ 			i := match.first()
+ 
+ 			slotKey := g.key(typ, i)
++			if typ.IndirectKey() {
++				slotKey = *((*unsafe.Pointer)(slotKey))
++			}
+ 			if typ.Key.Equal(key, slotKey) {
+-				return g.elem(typ, i)
++				slotElem := g.elem(typ, i)
++				if typ.IndirectElem() {
++					slotElem = *((*unsafe.Pointer)(slotElem))
++				}
++				return slotElem
+ 			}
+ 			match = match.removeFirst()
+ 		}
+@@ -176,12 +183,18 @@ outer:
+ 				i := match.first()
+ 
+ 				slotKey := g.key(typ, i)
++				if typ.IndirectKey() {
++					slotKey = *((*unsafe.Pointer)(slotKey))
++				}
+ 				if typ.Key.Equal(key, slotKey) {
+ 					if typ.NeedKeyUpdate() {
+ 						typedmemmove(typ.Key, slotKey, key)
+ 					}
+ 
+ 					slotElem = g.elem(typ, i)
++					if typ.IndirectElem() {
++						slotElem = *((*unsafe.Pointer)(slotElem))
++					}
+ 
+ 					t.checkInvariants(typ)
+ 					break outer
+@@ -212,8 +225,19 @@ outer:
+ 				// If there is room left to grow, just insert the new entry.
+ 				if t.growthLeft > 0 {
+ 					slotKey := g.key(typ, i)
++					if typ.IndirectKey() {
++						kmem := newobject(typ.Key)
++						*(*unsafe.Pointer)(slotKey) = kmem
++						slotKey = kmem
++					}
+ 					typedmemmove(typ.Key, slotKey, key)
++
+ 					slotElem = g.elem(typ, i)
++					if typ.IndirectElem() {
++						emem := newobject(typ.Elem)
++						*(*unsafe.Pointer)(slotElem) = emem
++						slotElem = emem
++					}
+ 
+ 					g.ctrls().set(i, ctrl(h2(hash)))
+ 					t.growthLeft--
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index ac5271ea06..bb3006bfa2 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -207,8 +207,15 @@ func (t *table) getWithKey(typ *abi.SwissMapType, hash uintptr, key unsafe.Point
+ 			i := match.first()
+ 
+ 			slotKey := g.key(typ, i)
++			if typ.IndirectKey() {
++				slotKey = *((*unsafe.Pointer)(slotKey))
++			}
+ 			if typ.Key.Equal(key, slotKey) {
+-				return slotKey, g.elem(typ, i), true
++				slotElem := g.elem(typ, i)
++				if typ.IndirectElem() {
++					slotElem = *((*unsafe.Pointer)(slotElem))
++				}
++				return slotKey, slotElem, true
+ 			}
+ 			match = match.removeFirst()
+ 		}
+@@ -233,8 +240,15 @@ func (t *table) getWithoutKey(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
+ 			i := match.first()
+ 
+ 			slotKey := g.key(typ, i)
++			if typ.IndirectKey() {
++				slotKey = *((*unsafe.Pointer)(slotKey))
++			}
+ 			if typ.Key.Equal(key, slotKey) {
+-				return g.elem(typ, i), true
++				slotElem := g.elem(typ, i)
++				if typ.IndirectElem() {
++					slotElem = *((*unsafe.Pointer)(slotElem))
++				}
++				return slotElem, true
+ 			}
+ 			match = match.removeFirst()
+ 		}
+@@ -272,12 +286,18 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
+ 			i := match.first()
+ 
+ 			slotKey := g.key(typ, i)
++			if typ.IndirectKey() {
++				slotKey = *((*unsafe.Pointer)(slotKey))
++			}
+ 			if typ.Key.Equal(key, slotKey) {
+ 				if typ.NeedKeyUpdate() {
+ 					typedmemmove(typ.Key, slotKey, key)
+ 				}
+ 
+ 				slotElem := g.elem(typ, i)
++				if typ.IndirectElem() {
++					slotElem = *((*unsafe.Pointer)(slotElem))
++				}
+ 
+ 				t.checkInvariants(typ)
+ 				return slotElem, true
+@@ -308,8 +328,19 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
+ 			// If there is room left to grow, just insert the new entry.
+ 			if t.growthLeft > 0 {
+ 				slotKey := g.key(typ, i)
++				if typ.IndirectKey() {
++					kmem := newobject(typ.Key)
++					*(*unsafe.Pointer)(slotKey) = kmem
++					slotKey = kmem
++				}
+ 				typedmemmove(typ.Key, slotKey, key)
++
+ 				slotElem := g.elem(typ, i)
++				if typ.IndirectElem() {
++					emem := newobject(typ.Elem)
++					*(*unsafe.Pointer)(slotElem) = emem
++					slotElem = emem
++				}
+ 
+ 				g.ctrls().set(i, ctrl(h2(hash)))
+ 				t.growthLeft--
+@@ -370,8 +401,19 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe
+ 			i := match.first()
+ 
+ 			slotKey := g.key(typ, i)
++			if typ.IndirectKey() {
++				kmem := newobject(typ.Key)
++				*(*unsafe.Pointer)(slotKey) = kmem
++				slotKey = kmem
++			}
+ 			typedmemmove(typ.Key, slotKey, key)
++
+ 			slotElem := g.elem(typ, i)
++			if typ.IndirectElem() {
++				emem := newobject(typ.Elem)
++				*(*unsafe.Pointer)(slotElem) = emem
++				slotElem = emem
++			}
+ 
+ 			if g.ctrls().get(i) == ctrlEmpty {
+ 				t.growthLeft--
+@@ -392,13 +434,38 @@ func (t *table) Delete(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) {
+ 
+ 		for match != 0 {
+ 			i := match.first()
++
+ 			slotKey := g.key(typ, i)
++			origSlotKey := slotKey
++			if typ.IndirectKey() {
++				slotKey = *((*unsafe.Pointer)(slotKey))
++			}
++
+ 			if typ.Key.Equal(key, slotKey) {
+ 				t.used--
+ 				m.used--
+ 
+-				typedmemclr(typ.Key, slotKey)
+-				typedmemclr(typ.Elem, g.elem(typ, i))
++				if typ.IndirectKey() {
++					// Clearing the pointer is sufficient.
++					*(*unsafe.Pointer)(origSlotKey) = nil
++				} else if typ.Key.Pointers() {
++					// Only bothing clear the key if there
++					// are pointers in it.
++					typedmemclr(typ.Key, slotKey)
++				}
++
++				slotElem := g.elem(typ, i)
++				if typ.IndirectElem() {
++					// Clearing the pointer is sufficient.
++					*(*unsafe.Pointer)(slotElem) = nil
++				} else {
++					// Unlike keys, always clear the elem (even if
++					// it contains no pointers), as compound
++					// assignment operations depend on cleared
++					// deleted values. See
++					// https://go.dev/issue/25936.
++					typedmemclr(typ.Elem, slotElem)
++				}
+ 
+ 				// Only a full group can appear in the middle
+ 				// of a probe sequence (a group with at least
+@@ -569,6 +636,9 @@ func (it *Iter) Next() {
+ 			}
+ 
+ 			key := g.key(it.typ, k)
++			if it.typ.IndirectKey() {
++				key = *((*unsafe.Pointer)(key))
++			}
+ 
+ 			// As below, if we have grown to a full map since Init,
+ 			// we continue to use the old group to decide the keys
+@@ -583,6 +653,9 @@ func (it *Iter) Next() {
+ 					// See comment below.
+ 					if it.clearSeq == it.m.clearSeq && !it.typ.Key.Equal(key, key) {
+ 						elem = g.elem(it.typ, k)
++						if it.typ.IndirectElem() {
++							elem = *((*unsafe.Pointer)(elem))
++						}
+ 					} else {
+ 						continue
+ 					}
+@@ -592,6 +665,9 @@ func (it *Iter) Next() {
+ 				}
+ 			} else {
+ 				elem = g.elem(it.typ, k)
++				if it.typ.IndirectElem() {
++					elem = *((*unsafe.Pointer)(elem))
++				}
+ 			}
+ 
+ 			it.entryIdx++
+@@ -700,6 +776,9 @@ func (it *Iter) Next() {
+ 			}
+ 
+ 			key := g.key(it.typ, slotIdx)
++			if it.typ.IndirectKey() {
++				key = *((*unsafe.Pointer)(key))
++			}
+ 
+ 			// If the table has changed since the last
+ 			// call, then it has grown or split. In this
+@@ -743,6 +822,9 @@ func (it *Iter) Next() {
+ 					// clear.
+ 					if it.clearSeq == it.m.clearSeq && !it.typ.Key.Equal(key, key) {
+ 						elem = g.elem(it.typ, slotIdx)
++						if it.typ.IndirectElem() {
++							elem = *((*unsafe.Pointer)(elem))
++						}
+ 					} else {
+ 						continue
+ 					}
+@@ -752,6 +834,9 @@ func (it *Iter) Next() {
+ 				}
+ 			} else {
+ 				elem = g.elem(it.typ, slotIdx)
++				if it.typ.IndirectElem() {
++					elem = *((*unsafe.Pointer)(elem))
++				}
+ 			}
+ 
+ 			it.entryIdx++
+@@ -852,8 +937,17 @@ func (t *table) split(typ *abi.SwissMapType, m *Map) {
+ 				// Empty or deleted
+ 				continue
+ 			}
++
+ 			key := g.key(typ, j)
++			if typ.IndirectKey() {
++				key = *((*unsafe.Pointer)(key))
++			}
++
+ 			elem := g.elem(typ, j)
++			if typ.IndirectElem() {
++				elem = *((*unsafe.Pointer)(elem))
++			}
++
+ 			hash := typ.Hasher(key, t.seed)
+ 			var newTable *table
+ 			if hash&mask == 0 {
+@@ -861,6 +955,10 @@ func (t *table) split(typ *abi.SwissMapType, m *Map) {
+ 			} else {
+ 				newTable = right
+ 			}
++			// TODO(prattmic): For indirect key/elem, this is
++			// allocating new objects for key/elem. That is
++			// unnecessary; the new table could simply point to the
++			// existing object.
+ 			slotElem := newTable.uncheckedPutSlot(typ, hash, key)
+ 			typedmemmove(typ.Elem, slotElem, elem)
+ 			newTable.used++
+@@ -885,9 +983,23 @@ func (t *table) grow(typ *abi.SwissMapType, m *Map, newCapacity uint16) {
+ 					// Empty or deleted
+ 					continue
+ 				}
++
+ 				key := g.key(typ, j)
++				if typ.IndirectKey() {
++					key = *((*unsafe.Pointer)(key))
++				}
++
+ 				elem := g.elem(typ, j)
++				if typ.IndirectElem() {
++					elem = *((*unsafe.Pointer)(elem))
++				}
++
+ 				hash := typ.Hasher(key, t.seed)
++
++				// TODO(prattmic): For indirect key/elem, this is
++				// allocating new objects for key/elem. That is
++				// unnecessary; the new table could simply point to the
++				// existing object.
+ 				slotElem := newTable.uncheckedPutSlot(typ, hash, key)
+ 				typedmemmove(typ.Elem, slotElem, elem)
+ 				newTable.used++
+diff --git a/src/internal/runtime/maps/table_debug.go b/src/internal/runtime/maps/table_debug.go
+index 27ae611ec3..345f1feb6e 100644
+--- a/src/internal/runtime/maps/table_debug.go
++++ b/src/internal/runtime/maps/table_debug.go
+@@ -35,6 +35,9 @@ func (t *table) checkInvariants(typ *abi.SwissMapType) {
+ 				used++
+ 
+ 				key := g.key(typ, j)
++				if typ.IndirectKey() {
++					key = *((*unsafe.Pointer)(key))
++				}
+ 
+ 				// Can't lookup keys that don't compare equal
+ 				// to themselves (e.g., NaN).
+diff --git a/src/reflect/map_swiss.go b/src/reflect/map_swiss.go
+index f6a56f7a65..2240f9c0bf 100644
+--- a/src/reflect/map_swiss.go
++++ b/src/reflect/map_swiss.go
+@@ -74,13 +74,18 @@ func MapOf(key, elem Type) Type {
+ 	mt.SlotSize = slot.Size()
+ 	mt.ElemOff = slot.Field(1).Offset
+ 	mt.Flags = 0
+-	// TODO(prattmic): indirect key/elem flags
+ 	if needKeyUpdate(ktyp) {
+ 		mt.Flags |= abi.SwissMapNeedKeyUpdate
+ 	}
+ 	if hashMightPanic(ktyp) {
+ 		mt.Flags |= abi.SwissMapHashMightPanic
+ 	}
++	if ktyp.Size_ > abi.SwissMapMaxKeyBytes {
++		mt.Flags |= abi.SwissMapIndirectKey
++	}
++	if etyp.Size_ > abi.SwissMapMaxKeyBytes {
++		mt.Flags |= abi.SwissMapIndirectElem
++	}
+ 	mt.PtrToThis = 0
+ 
+ 	ti, _ := lookupCache.LoadOrStore(ckey, toRType(&mt.Type))
+@@ -88,8 +93,6 @@ func MapOf(key, elem Type) Type {
+ }
+ 
+ func groupAndSlotOf(ktyp, etyp Type) (Type, Type) {
+-	// TODO(prattmic): indirect key/elem flags
+-
+ 	// type group struct {
+ 	//     ctrl uint64
+ 	//     slots [abi.SwissMapGroupSlots]struct {
+@@ -98,6 +101,13 @@ func groupAndSlotOf(ktyp, etyp Type) (Type, Type) {
+ 	//     }
+ 	// }
+ 
++	if ktyp.Size() > abi.SwissMapMaxKeyBytes {
++		ktyp = PointerTo(ktyp)
++	}
++	if etyp.Size() > abi.SwissMapMaxElemBytes {
++		etyp = PointerTo(etyp)
++	}
++
+ 	fields := []StructField{
+ 		{
+ 			Name: "Key",
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 0605921652..e23d8224d1 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1714,6 +1714,11 @@ func newobject(typ *_type) unsafe.Pointer {
+ 	return mallocgc(typ.Size_, typ, true)
+ }
+ 
++//go:linkname maps_newobject internal/runtime/maps.newobject
++func maps_newobject(typ *_type) unsafe.Pointer {
++	return newobject(typ)
++}
++
+ // reflect_unsafe_New is meant for package reflect,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:

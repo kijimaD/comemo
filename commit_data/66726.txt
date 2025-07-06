@@ -1,0 +1,78 @@
+commit c524db9ca8520d1e0f6fce79a9e937af901dff44
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 20 22:54:34 2025 +1100
+
+    cmd/internal/obj/arm64: simplify conclass
+    
+    Reduce repetition by pulling some common conversions into variables.
+    
+    Change-Id: I8c1cc806236b5ecdadf90f4507923718fa5de9b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650937
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/obj/arm64/asm7.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 0fc7815e41..529d4eda5d 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1904,45 +1904,45 @@ func rclass(r int16) int {
+ 
+ // conclass classifies a constant.
+ func conclass(v int64) int {
++	vbitcon := uint64(v)
++	vnotcon := ^v
++
+ 	if v == 0 {
+ 		return C_ZCON
+ 	}
+ 	if isaddcon(v) {
+ 		if v <= 0xFFF {
+-			if isbitcon(uint64(v)) {
++			if isbitcon(vbitcon) {
+ 				return C_ABCON0
+ 			}
+ 			return C_ADDCON0
+ 		}
+-		if isbitcon(uint64(v)) {
++		if isbitcon(vbitcon) {
+ 			return C_ABCON
+ 		}
+ 		if movcon(v) >= 0 {
+ 			return C_AMCON
+ 		}
+-		if movcon(^v) >= 0 {
++		if movcon(vnotcon) >= 0 {
+ 			return C_AMCON
+ 		}
+ 		return C_ADDCON
+ 	}
+ 
+-	t := movcon(v)
+-	if t >= 0 {
+-		if isbitcon(uint64(v)) {
++	if t := movcon(v); t >= 0 {
++		if isbitcon(vbitcon) {
+ 			return C_MBCON
+ 		}
+ 		return C_MOVCON
+ 	}
+-
+-	t = movcon(^v)
+-	if t >= 0 {
+-		if isbitcon(uint64(v)) {
++	if t := movcon(vnotcon); t >= 0 {
++		if isbitcon(vbitcon) {
+ 			return C_MBCON
+ 		}
+ 		return C_MOVCON
+ 	}
+ 
+-	if isbitcon(uint64(v)) {
++	if isbitcon(vbitcon) {
+ 		return C_BITCON
+ 	}
+ 

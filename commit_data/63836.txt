@@ -1,0 +1,153 @@
+commit d51fc260e46a29edbd918d678554d319dd9ccd6d
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Fri May 17 04:15:53 2024 +0000
+
+    internal/fmtsort: use cmp.Compare for value comparisons
+    
+    Refactor compare function to use cmp.Compare for various types.
+    Remove redundant floatCompare and isNaN functions.
+    
+    Change-Id: I146a7af9158538499d07daee930aad8cf89b7e8f
+    GitHub-Last-Rev: d98365c0444c0467d8b4213674f6cf166906e900
+    GitHub-Pull-Request: golang/go#67454
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586239
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/fmtsort/sort.go      | 76 +++++----------------------------------
+ src/internal/fmtsort/sort_test.go |  4 ---
+ 2 files changed, 9 insertions(+), 71 deletions(-)
+
+diff --git a/src/internal/fmtsort/sort.go b/src/internal/fmtsort/sort.go
+index ea042e1811..f51cdc7083 100644
+--- a/src/internal/fmtsort/sort.go
++++ b/src/internal/fmtsort/sort.go
+@@ -9,6 +9,7 @@
+ package fmtsort
+ 
+ import (
++	"cmp"
+ 	"reflect"
+ 	"slices"
+ )
+@@ -75,43 +76,19 @@ func compare(aVal, bVal reflect.Value) int {
+ 	}
+ 	switch aVal.Kind() {
+ 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+-		a, b := aVal.Int(), bVal.Int()
+-		switch {
+-		case a < b:
+-			return -1
+-		case a > b:
+-			return 1
+-		default:
+-			return 0
+-		}
++		return cmp.Compare(aVal.Int(), bVal.Int())
+ 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+-		a, b := aVal.Uint(), bVal.Uint()
+-		switch {
+-		case a < b:
+-			return -1
+-		case a > b:
+-			return 1
+-		default:
+-			return 0
+-		}
++		return cmp.Compare(aVal.Uint(), bVal.Uint())
+ 	case reflect.String:
+-		a, b := aVal.String(), bVal.String()
+-		switch {
+-		case a < b:
+-			return -1
+-		case a > b:
+-			return 1
+-		default:
+-			return 0
+-		}
++		return cmp.Compare(aVal.String(), bVal.String())
+ 	case reflect.Float32, reflect.Float64:
+-		return floatCompare(aVal.Float(), bVal.Float())
++		return cmp.Compare(aVal.Float(), bVal.Float())
+ 	case reflect.Complex64, reflect.Complex128:
+ 		a, b := aVal.Complex(), bVal.Complex()
+-		if c := floatCompare(real(a), real(b)); c != 0 {
++		if c := cmp.Compare(real(a), real(b)); c != 0 {
+ 			return c
+ 		}
+-		return floatCompare(imag(a), imag(b))
++		return cmp.Compare(imag(a), imag(b))
+ 	case reflect.Bool:
+ 		a, b := aVal.Bool(), bVal.Bool()
+ 		switch {
+@@ -123,28 +100,12 @@ func compare(aVal, bVal reflect.Value) int {
+ 			return -1
+ 		}
+ 	case reflect.Pointer, reflect.UnsafePointer:
+-		a, b := aVal.Pointer(), bVal.Pointer()
+-		switch {
+-		case a < b:
+-			return -1
+-		case a > b:
+-			return 1
+-		default:
+-			return 0
+-		}
++		return cmp.Compare(aVal.Pointer(), bVal.Pointer())
+ 	case reflect.Chan:
+ 		if c, ok := nilCompare(aVal, bVal); ok {
+ 			return c
+ 		}
+-		ap, bp := aVal.Pointer(), bVal.Pointer()
+-		switch {
+-		case ap < bp:
+-			return -1
+-		case ap > bp:
+-			return 1
+-		default:
+-			return 0
+-		}
++		return cmp.Compare(aVal.Pointer(), bVal.Pointer())
+ 	case reflect.Struct:
+ 		for i := 0; i < aVal.NumField(); i++ {
+ 			if c := compare(aVal.Field(i), bVal.Field(i)); c != 0 {
+@@ -191,22 +152,3 @@ func nilCompare(aVal, bVal reflect.Value) (int, bool) {
+ 	}
+ 	return 0, false
+ }
+-
+-// floatCompare compares two floating-point values. NaNs compare low.
+-func floatCompare(a, b float64) int {
+-	switch {
+-	case isNaN(a):
+-		return -1 // No good answer if b is a NaN so don't bother checking.
+-	case isNaN(b):
+-		return 1
+-	case a < b:
+-		return -1
+-	case a > b:
+-		return 1
+-	}
+-	return 0
+-}
+-
+-func isNaN(a float64) bool {
+-	return a != a
+-}
+diff --git a/src/internal/fmtsort/sort_test.go b/src/internal/fmtsort/sort_test.go
+index 29a9c2c43f..d33bb6f7fd 100644
+--- a/src/internal/fmtsort/sort_test.go
++++ b/src/internal/fmtsort/sort_test.go
+@@ -67,10 +67,6 @@ func TestCompare(t *testing.T) {
+ 				switch {
+ 				case i == j:
+ 					expect = 0
+-					// NaNs are tricky.
+-					if typ := v0.Type(); (typ.Kind() == reflect.Float32 || typ.Kind() == reflect.Float64) && math.IsNaN(v0.Float()) {
+-						expect = -1
+-					}
+ 				case i < j:
+ 					expect = -1
+ 				case i > j:

@@ -1,0 +1,72 @@
+commit 0a8dea10cebaef764ceb6384d2e2571ff6609672
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed Sep 25 17:27:24 2024 +0800
+
+    cmd/internal/obj/loong64: mark functions with small stacks NOSPLIT
+    
+    goos: linux
+    goarch: loong64
+    pkg: test/bench/go1
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                          │  bench.old  │             bench.new              │
+                          │   sec/op    │   sec/op     vs base               │
+    BinaryTree17             7.728 ± 1%    7.703 ± 1%       ~ (p=0.345 n=15)
+    Fannkuch11               2.645 ± 0%    2.429 ± 0%  -8.17% (p=0.000 n=15)
+    FmtFprintfEmpty         35.89n ± 0%   35.83n ± 0%  -0.17% (p=0.000 n=15)
+    FmtFprintfString        59.48n ± 0%   59.45n ± 0%       ~ (p=0.280 n=15)
+    FmtFprintfInt           62.04n ± 0%   61.11n ± 0%  -1.50% (p=0.000 n=15)
+    FmtFprintfIntInt        97.74n ± 0%   96.56n ± 0%  -1.21% (p=0.000 n=15)
+    FmtFprintfPrefixedInt   116.7n ± 0%   116.6n ± 0%       ~ (p=0.975 n=15)
+    FmtFprintfFloat         204.5n ± 0%   203.2n ± 0%  -0.64% (p=0.000 n=15)
+    FmtManyArgs             456.2n ± 0%   454.6n ± 0%  -0.35% (p=0.000 n=15)
+    GobDecode               7.142m ± 1%   6.960m ± 1%  -2.55% (p=0.000 n=15)
+    GobEncode               8.172m ± 1%   8.081m ± 0%  -1.11% (p=0.001 n=15)
+    Gzip                    279.9m ± 0%   280.1m ± 0%  +0.05% (p=0.011 n=15)
+    Gunzip                  32.69m ± 0%   32.44m ± 0%  -0.79% (p=0.000 n=15)
+    HTTPClientServer        53.94µ ± 0%   53.68µ ± 0%  -0.48% (p=0.000 n=15)
+    JSONEncode              9.297m ± 0%   9.110m ± 0%  -2.01% (p=0.000 n=15)
+    JSONDecode              47.21m ± 0%   47.99m ± 2%  +1.66% (p=0.000 n=15)
+    Mandelbrot200           4.601m ± 0%   4.606m ± 0%  +0.11% (p=0.000 n=15)
+    GoParse                 4.666m ± 0%   4.664m ± 0%       ~ (p=0.512 n=15)
+    RegexpMatchEasy0_32     59.76n ± 0%   58.92n ± 0%  -1.41% (p=0.000 n=15)
+    RegexpMatchEasy0_1K     458.1n ± 0%   455.3n ± 0%  -0.61% (p=0.000 n=15)
+    RegexpMatchEasy1_32     59.36n ± 0%   60.25n ± 0%  +1.50% (p=0.000 n=15)
+    RegexpMatchEasy1_1K     557.7n ± 0%   566.0n ± 0%  +1.49% (p=0.000 n=15)
+    RegexpMatchMedium_32    803.0n ± 0%   783.7n ± 0%  -2.40% (p=0.000 n=15)
+    RegexpMatchMedium_1K    27.29µ ± 0%   26.54µ ± 0%  -2.76% (p=0.000 n=15)
+    RegexpMatchHard_32      1.388µ ± 2%   1.333µ ± 0%  -3.96% (p=0.000 n=15)
+    RegexpMatchHard_1K      40.91µ ± 0%   40.96µ ± 0%  +0.12% (p=0.001 n=15)
+    Revcomp                 474.7m ± 0%   474.2m ± 0%       ~ (p=0.325 n=15)
+    Template                77.13m ± 1%   75.70m ± 1%  -1.86% (p=0.000 n=15)
+    TimeParse               271.3n ± 0%   271.7n ± 0%  +0.15% (p=0.000 n=15)
+    TimeFormat              289.4n ± 0%   290.8n ± 0%  +0.48% (p=0.000 n=15)
+    geomean                 51.70µ        51.22µ       -0.92%
+    
+    Change-Id: Ib71b60226251722ae828edb1d7d8b5a27f383570
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616098
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/obj/loong64/obj.go | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index 9ade234897..681802a18d 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -320,6 +320,12 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				autosize += int32(c.ctxt.Arch.FixedFrameSize)
+ 			}
+ 
++			if p.Mark&LEAF != 0 && autosize < abi.StackSmall {
++				// A leaf function with a small stack can be marked
++				// NOSPLIT, avoiding a stack check.
++				p.From.Sym.Set(obj.AttrNoSplit, true)
++			}
++
+ 			if autosize&4 != 0 {
+ 				autosize += 4
+ 			}

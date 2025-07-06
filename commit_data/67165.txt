@@ -1,0 +1,41 @@
+commit 919d9858bc77592e161eea9180e0d4a95759124e
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Thu May 8 10:27:34 2025 -0700
+
+    crypto/internal/fips140/sha3: remove usages of WORD for s390x
+    
+    We support KIMD and KLMD now, paves the way for banning usage of BYTE
+    and WORD instructions in crypto assembly.
+    
+    Change-Id: I0f93744663f23866b2269591db70389e0c77fa4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671095
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/crypto/internal/fips140/sha3/sha3_s390x.s | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/sha3/sha3_s390x.s b/src/crypto/internal/fips140/sha3/sha3_s390x.s
+index c3944da628..0ce277160e 100644
+--- a/src/crypto/internal/fips140/sha3/sha3_s390x.s
++++ b/src/crypto/internal/fips140/sha3/sha3_s390x.s
+@@ -13,7 +13,7 @@ TEXT ·kimd(SB), NOFRAME|NOSPLIT, $0-40
+ 	LMG  src+16(FP), R2, R3 // R2=base, R3=len
+ 
+ continue:
+-	WORD $0xB93E0002 // KIMD --, R2
++	KIMD R0, R2
+ 	BVS  continue    // continue if interrupted
+ 	MOVD $0, R0      // reset R0 for pre-go1.8 compilers
+ 	RET
+@@ -26,7 +26,7 @@ TEXT ·klmd(SB), NOFRAME|NOSPLIT, $0-64
+ 	LMG  src+40(FP), R4, R5 // R4=base, R5=len
+ 
+ continue:
+-	WORD $0xB93F0024 // KLMD R2, R4
++	KLMD R2, R4
+ 	BVS  continue    // continue if interrupted
+ 	MOVD $0, R0      // reset R0 for pre-go1.8 compilers
+ 	RET

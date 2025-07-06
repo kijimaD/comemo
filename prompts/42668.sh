@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 42668: cdb7fd6b06937aa38a7a4921f567697144448073
+# Index 42668: d865b5caa6bedfe90ce9335af518d17f8107fb91
 
 echo "🚀 Generating explanation for commit 42668..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 42668..."
 
 ### メタデータ
 - **コミットインデックス**: 42668
-- **コミットハッシュ**: cdb7fd6b06937aa38a7a4921f567697144448073
-- **GitHub URL**: https://github.com/golang/go/commit/cdb7fd6b06937aa38a7a4921f567697144448073
+- **コミットハッシュ**: d865b5caa6bedfe90ce9335af518d17f8107fb91
+- **GitHub URL**: https://github.com/golang/go/commit/d865b5caa6bedfe90ce9335af518d17f8107fb91
 
 ### 章構成
 

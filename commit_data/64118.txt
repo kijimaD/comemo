@@ -1,0 +1,23 @@
+commit 362f22d2d2fd52260338ee48fc3baa573749f8ce
+Author: David Chase <drchase@google.com>
+Date:   Tue Jun 18 17:00:42 2024 -0400
+
+    [release-branch.go1.23] update codereview.cfg for release-branch.go1.23
+    
+    Change-Id: Ib335bc903e2b8d5b7be6a158a6debe5db48e79a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ codereview.cfg | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/codereview.cfg b/codereview.cfg
+index 77a74f108e..3cf4bb2dd3 100644
+--- a/codereview.cfg
++++ b/codereview.cfg
+@@ -1 +1,2 @@
+-branch: master
++branch: release-branch.go1.23
++parent-branch: master

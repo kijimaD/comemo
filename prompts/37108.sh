@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 37108: 0d52c144a2564fbd5b755cd06759ab7d6870c85b
+# Index 37108: 1c24ffbf936b17387ee7f7a7c0adef4d27d1382d
 
 echo "🚀 Generating explanation for commit 37108..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 37108..."
 
 ### メタデータ
 - **コミットインデックス**: 37108
-- **コミットハッシュ**: 0d52c144a2564fbd5b755cd06759ab7d6870c85b
-- **GitHub URL**: https://github.com/golang/go/commit/0d52c144a2564fbd5b755cd06759ab7d6870c85b
+- **コミットハッシュ**: 1c24ffbf936b17387ee7f7a7c0adef4d27d1382d
+- **GitHub URL**: https://github.com/golang/go/commit/1c24ffbf936b17387ee7f7a7c0adef4d27d1382d
 
 ### 章構成
 

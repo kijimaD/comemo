@@ -1,0 +1,133 @@
+commit 5a181c504263b6cc2879d0a4fa19b2c993c59704
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 23 12:01:53 2024 -0500
+
+    iter: expose fundamental types to Go 1.23
+    
+    These were previously only available with GOEXPERIMENT=rangefunc.
+    
+    For #61897.
+    
+    Change-Id: I86aea5ae8be1f7a2975b623325811221ed40d384
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557836
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ api/next/61897.txt                       | 4 ++++
+ doc/next/6-stdlib/3-iter.md              | 4 ++++
+ doc/next/6-stdlib/99-minor/iter/61897.md | 1 +
+ src/go/build/deps_test.go                | 5 +----
+ src/go/doc/comment/std.go                | 1 +
+ src/iter/iter.go                         | 5 -----
+ src/iter/pull_test.go                    | 6 ++----
+ 7 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/api/next/61897.txt b/api/next/61897.txt
+new file mode 100644
+index 0000000000..9f5a2d94df
+--- /dev/null
++++ b/api/next/61897.txt
+@@ -0,0 +1,4 @@
++pkg iter, func Pull2[$0 interface{}, $1 interface{}](Seq2[$0, $1]) (func() ($0, $1, bool), func()) #61897
++pkg iter, func Pull[$0 interface{}](Seq[$0]) (func() ($0, bool), func()) #61897
++pkg iter, type Seq2[$0 interface{}, $1 interface{}] func(func($0, $1) bool) #61897
++pkg iter, type Seq[$0 interface{}] func(func($0) bool) #61897
+diff --git a/doc/next/6-stdlib/3-iter.md b/doc/next/6-stdlib/3-iter.md
+new file mode 100644
+index 0000000000..15ae7d47db
+--- /dev/null
++++ b/doc/next/6-stdlib/3-iter.md
+@@ -0,0 +1,4 @@
++### Iterators
++
++The new [`iter` package](/pkg/iter/) provides the basic definitions for
++working with user-defined iterators.
+diff --git a/doc/next/6-stdlib/99-minor/iter/61897.md b/doc/next/6-stdlib/99-minor/iter/61897.md
+new file mode 100644
+index 0000000000..02d77cd11d
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/iter/61897.md
+@@ -0,0 +1 @@
++<!-- see ../../3-iter.md -->
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 14880d9ef1..3b8434fef4 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -85,11 +85,9 @@ var depsRules = `
+ 	< internal/reflectlite
+ 	< errors
+ 	< internal/oserror, math/bits
++	< iter
+ 	< RUNTIME;
+ 
+-	internal/race
+-	< iter;
+-
+ 	# slices depends on unsafe for overlapping check, cmp for comparison
+ 	# semantics, and math/bits for # calculating bitlength of numbers.
+ 	unsafe, cmp, math/bits
+@@ -389,7 +387,6 @@ var depsRules = `
+ 	internal/nettrace,
+ 	internal/poll,
+ 	internal/singleflight,
+-	internal/race,
+ 	net/netip,
+ 	os
+ 	< net;
+diff --git a/src/go/doc/comment/std.go b/src/go/doc/comment/std.go
+index e19792c825..35caa8b319 100644
+--- a/src/go/doc/comment/std.go
++++ b/src/go/doc/comment/std.go
+@@ -23,6 +23,7 @@ var stdPkgs = []string{
+ 	"html",
+ 	"image",
+ 	"io",
++	"iter",
+ 	"log",
+ 	"maps",
+ 	"math",
+diff --git a/src/iter/iter.go b/src/iter/iter.go
+index 40e4770347..4d9cfad73b 100644
+--- a/src/iter/iter.go
++++ b/src/iter/iter.go
+@@ -2,13 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build goexperiment.rangefunc
+-
+ // Package iter provides basic definitions and operations
+ // related to iteration in Go.
+-//
+-// This package is experimental and can only be imported
+-// when building with GOEXPERIMENT=rangefunc.
+ package iter
+ 
+ import (
+diff --git a/src/iter/pull_test.go b/src/iter/pull_test.go
+index 38e0ee993a..4a9510a804 100644
+--- a/src/iter/pull_test.go
++++ b/src/iter/pull_test.go
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build goexperiment.rangefunc
+-
+-package iter
++package iter_test
+ 
+ import (
+ 	"fmt"
++	. "iter"
+ 	"runtime"
+ 	"testing"
+ )
+@@ -33,7 +32,6 @@ func squares(n int) Seq2[int, int64] {
+ }
+ 
+ func TestPull(t *testing.T) {
+-
+ 	for end := 0; end <= 3; end++ {
+ 		t.Run(fmt.Sprint(end), func(t *testing.T) {
+ 			ng := runtime.NumGoroutine()

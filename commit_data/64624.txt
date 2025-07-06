@@ -1,0 +1,66 @@
+commit 994d1d446663873dd593846a0b94147410e5922a
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Aug 26 13:33:06 2024 +0000
+
+    net/http: simplify http.Request.Clone
+    
+    By using maps.Clone and omitting nil checks when calling
+    http.Header.Clone.
+    
+    I'm not using slices.Clone because the result of slices.Clone
+    may have additional unused capacity.
+    
+    Change-Id: I4aed0fea218404c7270e35324e6bd62d855296c7
+    GitHub-Last-Rev: 9fd5dd59078c69c9a8057f6fc4a90f7c6aac893b
+    GitHub-Pull-Request: golang/go#69070
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608295
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/net/http/request.go | 17 ++++-------------
+ 1 file changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index ad1b5a620b..686d53345a 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -15,6 +15,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"io"
++	"maps"
+ 	"mime"
+ 	"mime/multipart"
+ 	"net/http/httptrace"
+@@ -390,12 +391,8 @@ func (r *Request) Clone(ctx context.Context) *Request {
+ 	*r2 = *r
+ 	r2.ctx = ctx
+ 	r2.URL = cloneURL(r.URL)
+-	if r.Header != nil {
+-		r2.Header = r.Header.Clone()
+-	}
+-	if r.Trailer != nil {
+-		r2.Trailer = r.Trailer.Clone()
+-	}
++	r2.Header = r.Header.Clone()
++	r2.Trailer = r.Trailer.Clone()
+ 	if s := r.TransferEncoding; s != nil {
+ 		s2 := make([]string, len(s))
+ 		copy(s2, s)
+@@ -411,13 +408,7 @@ func (r *Request) Clone(ctx context.Context) *Request {
+ 		copy(s2, s)
+ 		r2.matches = s2
+ 	}
+-	if s := r.otherValues; s != nil {
+-		s2 := make(map[string]string, len(s))
+-		for k, v := range s {
+-			s2[k] = v
+-		}
+-		r2.otherValues = s2
+-	}
++	r2.otherValues = maps.Clone(r.otherValues)
+ 	return r2
+ }
+ 

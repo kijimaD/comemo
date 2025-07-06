@@ -1,0 +1,261 @@
+commit 2c1bbe7e32e9e56905cc2c4b34530d69bb5cbc6e
+Author: Alan Donovan <adonovan@google.com>
+Date:   Sun Mar 31 18:37:12 2024 -0400
+
+    go/types: add go1.23 iterator methods for 10 exported types
+    
+    These methods will not be mirrored in types2 until the
+    bootstrap compiler reaches go1.23; therefore range-over-func
+    statements must not be used in code common to types + types2.
+    
+    Fixes #66626
+    
+    Change-Id: I3c2c15e3652ee95d9aff208d8a188b912ed5bc9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ api/next/66626.txt                           |  11 ++
+ doc/next/6-stdlib/99-minor/go/types/66626.md |  32 ++++++
+ src/go/types/example_test.go                 |   5 +-
+ src/go/types/iter.go                         | 159 +++++++++++++++++++++++++++
+ 4 files changed, 204 insertions(+), 3 deletions(-)
+
+diff --git a/api/next/66626.txt b/api/next/66626.txt
+new file mode 100644
+index 0000000000..7b9f8fabb5
+--- /dev/null
++++ b/api/next/66626.txt
+@@ -0,0 +1,11 @@
++pkg go/types, method (*Interface) EmbeddedTypes() iter.Seq[Type] #66626
++pkg go/types, method (*Interface) ExplicitMethods() iter.Seq[*Func] #66626
++pkg go/types, method (*Interface) Methods() iter.Seq[*Func] #66626
++pkg go/types, method (*MethodSet) Methods() iter.Seq[*Selection] #66626
++pkg go/types, method (*Named) Methods() iter.Seq[*Func] #66626
++pkg go/types, method (*Scope) Children() iter.Seq[*Scope] #66626
++pkg go/types, method (*Struct) Fields() iter.Seq[*Var] #66626
++pkg go/types, method (*Tuple) Variables() iter.Seq[*Var] #66626
++pkg go/types, method (*TypeList) Types() iter.Seq[Type] #66626
++pkg go/types, method (*TypeParamList) TypeParams() iter.Seq[*TypeParam] #66626
++pkg go/types, method (*Union) Terms() iter.Seq[*Term] #66626
+diff --git a/doc/next/6-stdlib/99-minor/go/types/66626.md b/doc/next/6-stdlib/99-minor/go/types/66626.md
+new file mode 100644
+index 0000000000..62e8a48820
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/types/66626.md
+@@ -0,0 +1,32 @@
++
++All `go/types` data structures that expose sequences using a pair of
++methods such as `Len() int` and `At(int) T` now also methods that
++return iterators, allowing you to simplify code such as this:
++
++```go
++params := fn.Type.(*types.Signature).Params()
++for i := 0; i < params.Len(); i++ {
++   use(params.At(i))
++}
++```
++
++to this:
++
++```go
++for param := range fn.Signature().Params().Variables() {
++   use(param)
++}
++```
++
++The methods are:
++[`Interface.EmbeddedTypes`](/pkg/go/types#Interface.EmbeddedTypes),
++[`Interface.ExplicitMethods`](/pkg/go/types#Interface.ExplicitMethods),
++[`Interface.Methods`](/pkg/go/types#Interface.Methods),
++[`MethodSet.Methods`](/pkg/go/types#MethodSet.Methods),
++[`Named.Methods`](/pkg/go/types#Named.Methods),
++[`Scope.Children`](/pkg/go/types#Scope.Children),
++[`Struct.Fields`](/pkg/go/types#Struct.Fields),
++[`Tuple.Variables`](/pkg/go/types#Tuple.Variables),
++[`TypeList.Types`](/pkg/go/types#TypeList.Types),
++[`TypeParamList.TypeParams`](/pkg/go/types#TypeParamList.TypeParams),
++[`Union.Terms`](/pkg/go/types#Union.Terms).
+\ No newline at end of file
+diff --git a/src/go/types/example_test.go b/src/go/types/example_test.go
+index 7dd1c75852..279771121a 100644
+--- a/src/go/types/example_test.go
++++ b/src/go/types/example_test.go
+@@ -136,9 +136,8 @@ type I interface { m() byte }
+ 	celsius := pkg.Scope().Lookup("Celsius").Type()
+ 	for _, t := range []types.Type{celsius, types.NewPointer(celsius)} {
+ 		fmt.Printf("Method set of %s:\n", t)
+-		mset := types.NewMethodSet(t)
+-		for i := 0; i < mset.Len(); i++ {
+-			fmt.Println(mset.At(i))
++		for m := range types.NewMethodSet(t).Methods() {
++			fmt.Println(m)
+ 		}
+ 		fmt.Println()
+ 	}
+diff --git a/src/go/types/iter.go b/src/go/types/iter.go
+new file mode 100644
+index 0000000000..e6dee158fd
+--- /dev/null
++++ b/src/go/types/iter.go
+@@ -0,0 +1,159 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package types
++
++import "iter"
++
++// This file defines go1.23 iterator methods for a variety of data
++// types. They are not mirrored to cmd/compile/internal/types2, as
++// there is no point doing so until the bootstrap compiler it at least
++// go1.23; therefore go1.23-style range statements should not be used
++// in code common to types and types2, though clients of go/types are
++// free to use them.
++
++// Methods returns a go1.23 iterator over all the methods of an
++// interface, ordered by Id.
++//
++// Example: for m := range t.Methods() { ... }
++func (t *Interface) Methods() iter.Seq[*Func] {
++	return func(yield func(m *Func) bool) {
++		for i := range t.NumMethods() {
++			if !yield(t.Method(i)) {
++				break
++			}
++		}
++	}
++}
++
++// ExplicitMethods returns a go1.23 iterator over the explicit methods of
++// an interface, ordered by Id.
++//
++// Example: for m := range t.ExplicitMethods() { ... }
++func (t *Interface) ExplicitMethods() iter.Seq[*Func] {
++	return func(yield func(m *Func) bool) {
++		for i := range t.NumExplicitMethods() {
++			if !yield(t.ExplicitMethod(i)) {
++				break
++			}
++		}
++	}
++}
++
++// EmbeddedTypes returns a go1.23 iterator over the types embedded within an interface.
++//
++// Example: for e := range t.EmbeddedTypes() { ... }
++func (t *Interface) EmbeddedTypes() iter.Seq[Type] {
++	return func(yield func(e Type) bool) {
++		for i := range t.NumEmbeddeds() {
++			if !yield(t.EmbeddedType(i)) {
++				break
++			}
++		}
++	}
++}
++
++// Methods returns a go1.23 iterator over the declared methods of a named type.
++//
++// Example: for m := range t.Methods() { ... }
++func (t *Named) Methods() iter.Seq[*Func] {
++	return func(yield func(m *Func) bool) {
++		for i := range t.NumMethods() {
++			if !yield(t.Method(i)) {
++				break
++			}
++		}
++	}
++}
++
++// Children returns a go1.23 iterator over the child scopes nested within scope s.
++//
++// Example: for child := range scope.Children() { ... }
++func (s *Scope) Children() iter.Seq[*Scope] {
++	return func(yield func(child *Scope) bool) {
++		for i := range s.NumChildren() {
++			if !yield(s.Child(i)) {
++				break
++			}
++		}
++	}
++}
++
++// Fields returns a go1.23 iterator over the fields of a struct type.
++//
++// Example: for field := range s.Fields() { ... }
++func (s *Struct) Fields() iter.Seq[*Var] {
++	return func(yield func(field *Var) bool) {
++		for i := range s.NumFields() {
++			if !yield(s.Field(i)) {
++				break
++			}
++		}
++	}
++}
++
++// Variables returns a go1.23 iterator over the variables of a tuple type.
++//
++// Example: for v := range tuple.Variables() { ... }
++func (t *Tuple) Variables() iter.Seq[*Var] {
++	return func(yield func(v *Var) bool) {
++		for i := range t.Len() {
++			if !yield(t.At(i)) {
++				break
++			}
++		}
++	}
++}
++
++// MethodSet returns a go1.23 iterator over the methods of a method set.
++//
++// Example: for method := range s.Methods() { ... }
++func (s *MethodSet) Methods() iter.Seq[*Selection] {
++	return func(yield func(method *Selection) bool) {
++		for i := range s.Len() {
++			if !yield(s.At(i)) {
++				break
++			}
++		}
++	}
++}
++
++// Terms returns a go1.23 iterator over the terms of a union.
++//
++// Example: for term := range union.Terms() { ... }
++func (u *Union) Terms() iter.Seq[*Term] {
++	return func(yield func(term *Term) bool) {
++		for i := range u.Len() {
++			if !yield(u.Term(i)) {
++				break
++			}
++		}
++	}
++}
++
++// TypeParams returns a go1.23 iterator over a list of type parameters.
++//
++// Example: for tparam := range l.TypeParams() { ... }
++func (l *TypeParamList) TypeParams() iter.Seq[*TypeParam] {
++	return func(yield func(tparam *TypeParam) bool) {
++		for i := range l.Len() {
++			if !yield(l.At(i)) {
++				break
++			}
++		}
++	}
++}
++
++// Types returns a go1.23 iterator over the elements of a list of types.
++//
++// Example: for t := range l.Types() { ... }
++func (l *TypeList) Types() iter.Seq[Type] {
++	return func(yield func(t Type) bool) {
++		for i := range l.Len() {
++			if !yield(l.At(i)) {
++				break
++			}
++		}
++	}
++}

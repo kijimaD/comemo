@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 11880: c2a11576802227df0a5b3a507a430420192bef70
+# Index 11880: 2233942e3c030acffda5952ee3677bedaebf6079
 
 echo "🚀 Generating explanation for commit 11880..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 11880..."
 
 ### メタデータ
 - **コミットインデックス**: 11880
-- **コミットハッシュ**: c2a11576802227df0a5b3a507a430420192bef70
-- **GitHub URL**: https://github.com/golang/go/commit/c2a11576802227df0a5b3a507a430420192bef70
+- **コミットハッシュ**: 2233942e3c030acffda5952ee3677bedaebf6079
+- **GitHub URL**: https://github.com/golang/go/commit/2233942e3c030acffda5952ee3677bedaebf6079
 
 ### 章構成
 

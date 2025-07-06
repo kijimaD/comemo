@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 42198: e762378c42b786233ea13affa1cc2ee132ceefaf
+# Index 42198: 53deb812196d857ce8a7c46c1f7c1559bb167630
 
 echo "🚀 Generating explanation for commit 42198..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 42198..."
 
 ### メタデータ
 - **コミットインデックス**: 42198
-- **コミットハッシュ**: e762378c42b786233ea13affa1cc2ee132ceefaf
-- **GitHub URL**: https://github.com/golang/go/commit/e762378c42b786233ea13affa1cc2ee132ceefaf
+- **コミットハッシュ**: 53deb812196d857ce8a7c46c1f7c1559bb167630
+- **GitHub URL**: https://github.com/golang/go/commit/53deb812196d857ce8a7c46c1f7c1559bb167630
 
 ### 章構成
 

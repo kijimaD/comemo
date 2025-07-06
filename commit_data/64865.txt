@@ -1,0 +1,105 @@
+commit 889178d5b67b0e2687e1c04c5ea9c2774b0d466a
+Author: Srinivas Pokala <Pokala.Srinivas@ibm.com>
+Date:   Wed Sep 11 06:53:00 2024 +0200
+
+    cmd/internal/obj/s390x: fix m6 field encoding for VSTRC instruction on s390x
+    
+    M6 field for all extended mnemonics of VSTRC set to zero
+    This fixes VSTRC codegen to emit correctly  and added testcases for all
+    the extended mnemonics.
+    
+    Fixes #69216
+    
+    Change-Id: I2a1b7fb61d6bd6444286eab56a506225c90b75e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Vishwanatha HD <vishwanatha.hd@ibm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/cmd/asm/internal/asm/testdata/s390x.s | 15 ++++++++++++++-
+ src/cmd/internal/obj/s390x/asmz.go        |  4 ++--
+ src/cmd/internal/obj/s390x/vector.go      | 14 +++++++-------
+ 3 files changed, 23 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/s390x.s b/src/cmd/asm/internal/asm/testdata/s390x.s
+index 977190678f..db2ee199cf 100644
+--- a/src/cmd/asm/internal/asm/testdata/s390x.s
++++ b/src/cmd/asm/internal/asm/testdata/s390x.s
+@@ -520,7 +520,20 @@ TEXT main·foo(SB),DUPOK|NOSPLIT,$16-0 // TEXT main.foo(SB), DUPOK|NOSPLIT, $16-
+ 	VSUMQF	V4, V5, V6              // e76450002067
+ 	VSUMQG	V19, V20, V21           // e75340003e67
+ 	VSUMB	V7, V8, V9              // e79780000064
+-	VSUMH	V22, V23, V24           // e78670001e64
++	VSUMH	V22, V23, V24		// e78670001e64
++	VSTRC	V18, V20, V22, V24	// e78240006f8a
++	VSTRCB	V18, V20, V22, V24	// e78240006f8a
++	VSTRCH	V18, V20, V22, V24	// e78241006f8a
++	VSTRCF	V18, V20, V22, V24	// e78242006f8a
++	VSTRCBS V18, V20, V22, V24	// e78240106f8a
++	VSTRCHS V18, V20, V22, V24	// e78241106f8a
++	VSTRCFS V18, V20, V22, V24	// e78242106f8a
++	VSTRCZB V18, V20, V22, V24	// e78240206f8a
++	VSTRCZH V18, V20, V22, V24	// e78241206f8a
++	VSTRCZF V18, V20, V22, V24	// e78242206f8a
++	VSTRCZBS V18, V20, V22, V24	// e78240306f8a
++	VSTRCZHS V18, V20, V22, V24	// e78241306f8a
++	VSTRCZFS V18, V20, V22, V24	// e78242306f8a
+ 
+ 	RET
+ 	RET	foo(SB)
+diff --git a/src/cmd/internal/obj/s390x/asmz.go b/src/cmd/internal/obj/s390x/asmz.go
+index 4af92a27f8..fdcd1d5fd1 100644
+--- a/src/cmd/internal/obj/s390x/asmz.go
++++ b/src/cmd/internal/obj/s390x/asmz.go
+@@ -1450,6 +1450,7 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVMALOB, r)
+ 			opset(AVMALOH, r)
+ 			opset(AVMALOF, r)
++			opset(AVSTRC, r)
+ 			opset(AVSTRCB, r)
+ 			opset(AVSTRCH, r)
+ 			opset(AVSTRCF, r)
+@@ -4346,8 +4347,7 @@ func (c *ctxtz) asmout(p *obj.Prog, asm *[]byte) {
+ 		zVRRc(op, uint32(p.To.Reg), uint32(v2), uint32(p.From.Reg), m6, m5, m4, asm)
+ 
+ 	case 120: // VRR-d
+-		op, m6, _ := vop(p.As)
+-		m5 := singleElementMask(p.As)
++		op, m6, m5 := vop(p.As)
+ 		v1 := uint32(p.To.Reg)
+ 		v2 := uint32(p.From.Reg)
+ 		v3 := uint32(p.Reg)
+diff --git a/src/cmd/internal/obj/s390x/vector.go b/src/cmd/internal/obj/s390x/vector.go
+index 00f578340f..e7e36eaf15 100644
+--- a/src/cmd/internal/obj/s390x/vector.go
++++ b/src/cmd/internal/obj/s390x/vector.go
+@@ -45,8 +45,14 @@ func vop(as obj.As) (opcode, es, cs uint32) {
+ 		return op_VAC, 0, 0
+ 	case AVACQ:
+ 		return op_VAC, 4, 0
+-	case AVMSLG, AVMSLEG, AVMSLOG, AVMSLEOG:
++	case AVMSLG:
+ 		return op_VMSL, 3, 0
++	case AVMSLEG:
++		return op_VMSL, 3, 8
++	case AVMSLOG:
++		return op_VMSL, 3, 4
++	case AVMSLEOG:
++		return op_VMSL, 3, 12
+ 	case AVACCC:
+ 		return op_VACCC, 0, 0
+ 	case AVACCCQ:
+@@ -1058,12 +1064,6 @@ func singleElementMask(as obj.As) uint32 {
+ 		AWFTCIDB,
+ 		AWFIDB:
+ 		return 8
+-	case AVMSLEG:
+-		return 8
+-	case AVMSLOG:
+-		return 4
+-	case AVMSLEOG:
+-		return 12
+ 	}
+ 	return 0
+ }

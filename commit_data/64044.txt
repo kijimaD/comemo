@@ -1,0 +1,64 @@
+commit 1831437f197d43608c8086dc42530a89d975aba2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 4 15:14:39 2024 -0700
+
+    math/big: better doc string for Float.Copy, add example test
+    
+    Fixes #66358.
+    
+    Change-Id: Ic9bde88eabfb2a446d32e1dc5ac404a51ef49f11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590635
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/math/big/float.go             |  5 ++---
+ src/math/big/floatexample_test.go | 21 +++++++++++++++++++++
+ 2 files changed, 23 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/big/float.go b/src/math/big/float.go
+index 0a2887cb5f..51d5574781 100644
+--- a/src/math/big/float.go
++++ b/src/math/big/float.go
+@@ -672,9 +672,8 @@ func (z *Float) Set(x *Float) *Float {
+ 	return z
+ }
+ 
+-// Copy sets z to x, with the same precision, rounding mode, and
+-// accuracy as x, and returns z. x is not changed even if z and
+-// x are the same.
++// Copy sets z to x, with the same precision, rounding mode, and accuracy as x.
++// Copy returns z. If x and z are identical, Copy is a no-op.
+ func (z *Float) Copy(x *Float) *Float {
+ 	if debugFloat {
+ 		x.validate()
+diff --git a/src/math/big/floatexample_test.go b/src/math/big/floatexample_test.go
+index 0c6668c93b..cdc124802a 100644
+--- a/src/math/big/floatexample_test.go
++++ b/src/math/big/floatexample_test.go
+@@ -139,3 +139,24 @@ func ExampleRoundingMode() {
+ 	// -2.5             -2             -3      -2            -3             -3             -2
+ 	// -2.6             -3             -3      -2            -3             -3             -2
+ }
++
++func ExampleFloat_Copy() {
++	var x, z big.Float
++
++	x.SetFloat64(1.23)
++	r := z.Copy(&x)
++	fmt.Printf("a) r = %g, z = %g, x = %g, r == z = %v\n", r, &z, &x, r == &z)
++
++	// changing z changes r since they are identical
++	z.SetInt64(42)
++	fmt.Printf("b) r = %g, z = %g, r == z = %v\n", r, &z, r == &z)
++
++	x.SetPrec(1)
++	z.Copy(&x)
++	fmt.Printf("c) z = %g, x = %g, z == x = %v\n", &z, &x, &z == &x)
++
++	// Output:
++	// a) r = 1.23, z = 1.23, x = 1.23, r == z = true
++	// b) r = 42, z = 42, r == z = true
++	// c) z = 1, x = 1, z == x = false
++}

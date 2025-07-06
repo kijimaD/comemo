@@ -1,0 +1,147 @@
+commit 2e8973aeea66f01d9770e1d307330a2d188b27cc
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Fri Jan 3 14:30:02 2025 -0500
+
+    crypto/internal/fips140test: add feedback KDF ACVP tests
+    
+    Adds ACVP test coverage for the SP 800-108r1 KDF feedback mode algorithm
+    based on the NIST spec:
+    
+      https://pages.nist.gov/ACVP/draft-celi-acvp-kbkdf.html
+    
+    The HKDF-based implementation in our FIPS module fixes some parameters,
+    requiring tailoring of the advertised capability to match. Notably:
+    
+    * We only support fixedDataOrder "after fixed data"
+    * We only support a counter length of 8 bits
+    * We only support empty IVs
+    
+    No acvp_test.config.json update accompanies this support because the
+    ACVP tests for this algorithm aren't amenable to fixed data testing.
+    
+    Updates #69642
+    
+    Change-Id: I729e899377a64d2b613d6435241aebabeef93bca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640016
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+---
+ .../internal/fips140test/acvp_capabilities.json    |  2 +-
+ src/crypto/internal/fips140test/acvp_test.go       | 60 ++++++++++++++++++++--
+ 2 files changed, 57 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/internal/fips140test/acvp_capabilities.json b/src/crypto/internal/fips140test/acvp_capabilities.json
+index d6c1b02b43..90e77ec8fa 100644
+--- a/src/crypto/internal/fips140test/acvp_capabilities.json
++++ b/src/crypto/internal/fips140test/acvp_capabilities.json
+@@ -69,7 +69,7 @@
+ 
+   {"algorithm":"KAS-ECC-SSC","revision":"Sp800-56Ar3","scheme":{"ephemeralUnified":{"kasRole":["initiator","responder"]},"staticUnified":{"kasRole":["initiator","responder"]}},"domainParameterGenerationMethods":["P-224","P-256","P-384","P-521"]},
+ 
+-  {"algorithm":"KDF","revision":"1.0","capabilities":[{"kdfMode":"counter","macMode":["CMAC-AES128","CMAC-AES192","CMAC-AES256"],"supportedLengths":[256],"fixedDataOrder":["before fixed data"],"counterLength":[16]}]},
++  {"algorithm":"KDF","revision":"1.0","capabilities":[{"kdfMode":"counter","macMode":["CMAC-AES128","CMAC-AES192","CMAC-AES256"],"supportedLengths":[256],"fixedDataOrder":["before fixed data"],"counterLength":[16]},{"kdfMode":"feedback","macMode":["HMAC-SHA2-224","HMAC-SHA2-256","HMAC-SHA2-384","HMAC-SHA2-512","HMAC-SHA2-512/224","HMAC-SHA2-512/256","HMAC-SHA3-224","HMAC-SHA3-256","HMAC-SHA3-384","HMAC-SHA3-512"],"customKeyInLength":0,"supportedLengths":[{"min":8,"max":4096,"increment":8}],"fixedDataOrder":["after fixed data"],"counterLength":[8],"supportsEmptyIv":true,"requiresEmptyIv":true}]},
+ 
+   {"algorithm":"RSA","mode":"keyGen","revision":"FIPS186-5","infoGeneratedByServer":true,"pubExpMode":"fixed","fixedPubExp":"010001","keyFormat":"standard","capabilities":[{"randPQ":"probable","properties":[{"modulo":2048,"primeTest":["2powSecStr"]},{"modulo":3072,"primeTest":["2powSecStr"]},{"modulo":4096,"primeTest":["2powSecStr"]}]}]},
+   {"algorithm":"RSA","mode":"sigGen","revision":"FIPS186-5","capabilities":[{"sigType":"pkcs1v1.5","properties":[{"modulo":2048,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]},{"modulo":3072,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]},{"modulo":4096,"hashPair":[{"hashAlg":"SHA2-224"},{"hashAlg":"SHA2-256"},{"hashAlg":"SHA2-384"},{"hashAlg":"SHA2-512"}]}]},{"sigType":"pss","properties":[{"maskFunction":["mgf1"],"modulo":2048,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]},{"maskFunction":["mgf1"],"modulo":3072,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]},{"maskFunction":["mgf1"],"modulo":4096,"hashPair":[{"hashAlg":"SHA2-224","saltLen":28},{"hashAlg":"SHA2-256","saltLen":32},{"hashAlg":"SHA2-384","saltLen":48},{"hashAlg":"SHA2-512","saltLen":64}]}]}]},
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index 1552a07d61..5d16e521f9 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -131,7 +131,7 @@ var (
+ 	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-ssc-ecc.html#section-7.3
+ 	// HMAC DRBG and CTR DRBG algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
+-	// KDF-Counter algorithm capabilities:
++	// KDF-Counter and KDF-Feedback algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kbkdf.html#section-7.3
+ 	// RSA algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-rsa.html#section-7.3
+@@ -272,8 +272,6 @@ var (
+ 		"ctrDRBG/AES-256":        cmdCtrDrbgAft(),
+ 		"ctrDRBG-reseed/AES-256": cmdCtrDrbgReseedAft(),
+ 
+-		"KDF-counter": cmdKdfCounterAft(),
+-
+ 		"RSA/keyGen": cmdRsaKeyGenAft(),
+ 
+ 		"RSA/sigGen/SHA2-224/pkcs1v1.5": cmdRsaSigGenAft(func() fips140.Hash { return sha256.New224() }, "SHA-224", false),
+@@ -293,6 +291,9 @@ var (
+ 		"RSA/sigVer/SHA2-256/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha256.New() }, "SHA-256", true),
+ 		"RSA/sigVer/SHA2-384/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha512.New384() }, "SHA-384", true),
+ 		"RSA/sigVer/SHA2-512/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha512.New() }, "SHA-512", true),
++
++		"KDF-counter":  cmdKdfCounterAft(),
++		"KDF-feedback": cmdKdfFeedbackAft(),
+ 	}
+ )
+ 
+@@ -1658,6 +1659,57 @@ func cmdKdfCounterAft() command {
+ 	}
+ }
+ 
++func cmdKdfFeedbackAft() command {
++	return command{
++		requiredArgs: 5, // Number output bytes, PRF name, counter location string, key, number of counter bits, IV
++		handler: func(args [][]byte) ([][]byte, error) {
++			// The max supported output len for the KDF algorithm type is 4096 bits, making an int cast
++			// here safe.
++			// See https://pages.nist.gov/ACVP/draft-celi-acvp-kbkdf.html#section-7.3.2
++			outputBytes := int(binary.LittleEndian.Uint32(args[0]))
++			prf := string(args[1])
++			counterLocation := args[2]
++			key := args[3]
++			counterBits := binary.LittleEndian.Uint32(args[4])
++
++			if !strings.HasPrefix(prf, "HMAC-") {
++				return nil, fmt.Errorf("feedback KDF received unsupported PRF %q", prf)
++			}
++			prf = prf[len("HMAC-"):]
++
++			h, err := lookupHash(prf)
++			if err != nil {
++				return nil, fmt.Errorf("feedback KDF received unsupported PRF %q: %w", prf, err)
++			}
++
++			if !bytes.Equal(counterLocation, []byte("after fixed data")) {
++				return nil, fmt.Errorf("feedback KDF received unsupported counter location %q", string(counterLocation))
++			}
++
++			// The spec doesn't describe the "deferred" property for a KDF counterMode test case.
++			// BoringSSL's acvptool sends an empty key when deferred=true, but with the capabilities
++			// we register all test cases have deferred=false and provide a key from the populated
++			// keyIn property.
++			if len(key) == 0 {
++				return nil, errors.New("deferred test cases are not supported")
++			}
++
++			if counterBits != 8 {
++				return nil, fmt.Errorf("feedback KDF received unsupported counter length %d", counterBits)
++			}
++
++			var context [12]byte
++			rand.Reader.Read(context[:])
++			fixedData := make([]byte, 1+1+12) // 1 byte label (we pick null), 1 null byte, 12 bytes context.
++			copy(fixedData[2:], context[:])
++
++			result := hkdf.Expand(h, key, string(fixedData[:]), outputBytes)
++
++			return [][]byte{key, fixedData[:], result[:]}, nil
++		},
++	}
++}
++
+ func cmdRsaKeyGenAft() command {
+ 	return command{
+ 		requiredArgs: 1, // Modulus bit-size
+@@ -1782,7 +1834,7 @@ func TestACVP(t *testing.T) {
+ 
+ 	const (
+ 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
+-		bsslVersion   = "v0.0.0-20250116010235-21f54b2730ee"
++		bsslVersion   = "v0.0.0-20250123161947-ba24bde161f7"
+ 		goAcvpModule  = "github.com/cpu/go-acvp"
+ 		goAcvpVersion = "v0.0.0-20250110181646-e47fea3b5d7d"
+ 	)

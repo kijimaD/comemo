@@ -1,0 +1,36 @@
+commit 4015277b615d8f3e40ef6993b4b98e39fe9a64c4
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon May 13 17:59:12 2024 +0200
+
+    net/netip: combine import groups
+    
+    Change-Id: If79f4452a34281796c4b8e7b0246c978e09a64af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585056
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/net/netip/netip.go | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 1c06efac1e..a6a8fcd423 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -14,13 +14,12 @@ package netip
+ import (
+ 	"cmp"
+ 	"errors"
++	"internal/bytealg"
+ 	"internal/byteorder"
++	"internal/itoa"
+ 	"math"
+ 	"strconv"
+ 	"unique"
+-
+-	"internal/bytealg"
+-	"internal/itoa"
+ )
+ 
+ // Sizes: (64-bit)

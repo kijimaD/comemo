@@ -1,0 +1,56 @@
+commit e50913cefcdb590cdf7d9432455de2847ef93851
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Thu Aug 1 11:15:30 2024 -0700
+
+    runtime: avoid futile mark worker acquisition
+    
+    During the GC mark phase, one of the first behaviors of findRunnable is
+    to check if it should execute a GC mark worker. Mark workers often run
+    for many milliseconds in a row, so programs that invoke the scheduler
+    more frequently will see that condition trigger only a tiny fraction of
+    the time.
+    
+    Obtaining a mark worker from the gcBgMarkWorkerPool involves a CAS on a
+    single memory location that's shared across the process. When GOMAXPROCS
+    is large, the resulting contention can waste a significant amount of CPU
+    time. But a sufficiently large GOMAXPROCS also means there's no need for
+    fractional mark workers, making it easier to check ahead of time if we
+    need to run a worker.
+    
+    Check, without committing to a particular worker, whether we would even
+    want to run one.
+    
+    For #68399
+    
+    Change-Id: I5d8578c2101ee20a8a4156a029584356095ea118
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602477
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mgcpacer.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/src/runtime/mgcpacer.go b/src/runtime/mgcpacer.go
+index cda87fe948..3e80fae4f5 100644
+--- a/src/runtime/mgcpacer.go
++++ b/src/runtime/mgcpacer.go
+@@ -752,6 +752,17 @@ func (c *gcControllerState) findRunnableGCWorker(pp *p, now int64) (*g, int64) {
+ 		return nil, now
+ 	}
+ 
++	if c.dedicatedMarkWorkersNeeded.Load() <= 0 && c.fractionalUtilizationGoal == 0 {
++		// No current need for dedicated workers, and no need at all for
++		// fractional workers. Check before trying to acquire a worker; when
++		// GOMAXPROCS is large, that can be expensive and is often unnecessary.
++		//
++		// When a dedicated worker stops running, the gcBgMarkWorker loop notes
++		// the need for the worker before returning it to the pool. If we don't
++		// see the need now, we wouldn't have found it in the pool anyway.
++		return nil, now
++	}
++
+ 	// Grab a worker before we commit to running below.
+ 	node := (*gcBgMarkWorkerNode)(gcBgMarkWorkerPool.pop())
+ 	if node == nil {

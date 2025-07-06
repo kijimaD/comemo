@@ -1,0 +1,56 @@
+commit 41a30dd19285ad470d651878853fddf238437769
+Author: Than McIntosh <thanm@golang.org>
+Date:   Mon Nov 18 11:23:39 2024 -0500
+
+    cmd/internal/dwarf: add DW_LNCT and DW_UT constant definitions
+    
+    Add a set of constants for the DWARF version 5 line table content
+    description values found in the V5 line table prolog, and for the
+    new DWARF unit type encodings.
+    
+    Updates #26379.
+    
+    Change-Id: I8f4989ea6b6cbb303deda1a6a20ad243d73b46b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633878
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/internal/dwarf/dwarf_defs.go | 24 ++++++++++++++++++++++++
+ 1 file changed, 24 insertions(+)
+
+diff --git a/src/cmd/internal/dwarf/dwarf_defs.go b/src/cmd/internal/dwarf/dwarf_defs.go
+index e2716e5062..d2e4a69615 100644
+--- a/src/cmd/internal/dwarf/dwarf_defs.go
++++ b/src/cmd/internal/dwarf/dwarf_defs.go
+@@ -446,6 +446,30 @@ const (
+ 	DW_LNE_hi_user      = 0xff
+ )
+ 
++// Table 7.27 (DWARF version 5), containing the encodings for the
++// line number header entry formats.
++const (
++	DW_LNCT_path            = 0x01
++	DW_LNCT_directory_index = 0x02
++	DW_LNCT_timestamp       = 0x03
++	DW_LNCT_size            = 0x04
++	DW_LNCT_md5             = 0x05
++	DW_LNCT_lo_user         = 0x2000
++	DW_LNCT_hi_user         = 0x3fff
++)
++
++// Table 7.2 (DWARF version 5), dwarf unit type encodings.
++const (
++	DW_UT_compile       = 0x01
++	DW_UT_type          = 0x02
++	DW_UT_partial       = 0x03
++	DW_UT_skeleton      = 0x04
++	DW_UT_split_compile = 0x05
++	DW_UT_split_type    = 0x06
++	DW_UT_lo_user       = 0x80
++	DW_UT_hi_user       = 0xff
++)
++
+ // Table 39
+ const (
+ 	DW_MACINFO_define     = 0x01

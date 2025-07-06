@@ -1,0 +1,198 @@
+commit dfebef1c0459af0a34eceb4027c9fab5824f2eab
+Author: Julian Zhu <jz531210@gmail.com>
+Date:   Sat May 17 14:30:07 2025 +0800
+
+    cmd/compile: fold negation into addition/subtraction on arm64
+    
+    Fold negation into addition/subtraction and avoid double negation.
+    
+    platform: linux/arm64
+    
+    file      before    after     Δ       %
+    addr2line 3628108   3628116   +8      +0.000%
+    asm       6208353   6207857   -496    -0.008%
+    buildid   3460682   3460418   -264    -0.008%
+    cgo       5572988   5572492   -496    -0.009%
+    compile   26042159  26041039  -1120   -0.004%
+    cover     6304328   6303472   -856    -0.014%
+    dist      4139330   4139098   -232    -0.006%
+    doc       9429305   9428065   -1240   -0.013%
+    fix       3997189   3996733   -456    -0.011%
+    link      8212128   8210280   -1848   -0.023%
+    nm        3620056   3619696   -360    -0.010%
+    objdump   5920289   5919233   -1056   -0.018%
+    pack      2892250   2891778   -472    -0.016%
+    pprof     17094569  17092745  -1824   -0.011%
+    test2json 3335825   3335529   -296    -0.009%
+    trace     15842080  15841456  -624    -0.004%
+    vet       9472194   9471106   -1088   -0.011%
+    go        19081541  19081509  -32     -0.000%
+    total     154253374 154240622 -12752  -0.008%
+    
+    platform: darwin/arm64
+    
+    file    before    after     Δ       %
+    compile 27152002  27135490  -16512  -0.061%
+    link    8372914   8356402   -16512  -0.197%
+    go      19154802  19154778  -24     -0.000%
+    total   157734180 157701132 -33048  -0.021%
+    
+    Change-Id: I15a349bfbaf7333ec3e4a62ae4d06f3f371dfb1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673715
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  2 ++
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 24 ++++++++++++++++++++++++
+ test/codegen/arithmetic.go                    | 10 ++++++++++
+ 3 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index a0069eb5dc..01fe3a74f7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -1198,6 +1198,7 @@
+ 
+ // generic simplifications
+ (ADD x (NEG y)) => (SUB x y)
++(SUB x (NEG y)) => (ADD x y)
+ (SUB x x) => (MOVDconst [0])
+ (AND x x) => x
+ (OR  x x) => x
+@@ -1209,6 +1210,7 @@
+ (XOR x (MVN y)) => (EON x y)
+ (OR  x (MVN y)) => (ORN x y)
+ (MVN (XOR x y)) => (EON x y)
++(NEG (SUB x y)) => (SUB y x)
+ (NEG (NEG x)) => x
+ 
+ (CSEL [cc] (MOVDconst [-1]) (MOVDconst [0]) flag) => (CSETM [cc] flag)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index c3b961dde8..792967c001 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -12699,6 +12699,18 @@ func rewriteValueARM64_OpARM64NEG(v *Value) bool {
+ 		v.AddArg2(x, y)
+ 		return true
+ 	}
++	// match: (NEG (SUB x y))
++	// result: (SUB y x)
++	for {
++		if v_0.Op != OpARM64SUB {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpARM64SUB)
++		v.AddArg2(y, x)
++		return true
++	}
+ 	// match: (NEG (NEG x))
+ 	// result: x
+ 	for {
+@@ -15204,6 +15216,18 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (SUB x (NEG y))
++	// result: (ADD x y)
++	for {
++		x := v_0
++		if v_1.Op != OpARM64NEG {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpARM64ADD)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (SUB x x)
+ 	// result: (MOVDconst [0])
+ 	for {
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 6d8e62c721..bd5540ec4b 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -91,6 +91,7 @@ func SubFromConst(a int) int {
+ }
+ 
+ func SubFromConstNeg(a int) int {
++	// arm64: "ADD\t\\$40"
+ 	// loong64: "ADDV[U]\t\\$40"
+ 	// mips: "ADD[U]\t\\$40"
+ 	// mips64: "ADDV[U]\t\\$40"
+@@ -101,6 +102,7 @@ func SubFromConstNeg(a int) int {
+ }
+ 
+ func SubSubFromConst(a int) int {
++	// arm64: "ADD\t\\$20"
+ 	// loong64: "ADDV[U]\t\\$20"
+ 	// mips: "ADD[U]\t\\$20"
+ 	// mips64: "ADDV[U]\t\\$20"
+@@ -118,6 +120,7 @@ func AddSubFromConst(a int) int {
+ }
+ 
+ func NegSubFromConst(a int) int {
++	// arm64: "SUB\t\\$20"
+ 	// loong64: "ADDV[U]\t\\$-20"
+ 	// mips: "ADD[U]\t\\$-20"
+ 	// mips64: "ADDV[U]\t\\$-20"
+@@ -128,6 +131,7 @@ func NegSubFromConst(a int) int {
+ }
+ 
+ func NegAddFromConstNeg(a int) int {
++	// arm64: "SUB\t\\$40","NEG"
+ 	// loong64: "ADDV[U]\t\\$-40","SUBV"
+ 	// mips: "ADD[U]\t\\$-40","SUB"
+ 	// mips64: "ADDV[U]\t\\$-40","SUBV"
+@@ -139,6 +143,7 @@ func NegAddFromConstNeg(a int) int {
+ 
+ func SubSubNegSimplify(a, b int) int {
+ 	// amd64:"NEGQ"
++	// arm64:"NEG"
+ 	// loong64:"SUBV"
+ 	// mips:"SUB"
+ 	// mips64:"SUBV"
+@@ -150,6 +155,7 @@ func SubSubNegSimplify(a, b int) int {
+ 
+ func SubAddSimplify(a, b int) int {
+ 	// amd64:-"SUBQ",-"ADDQ"
++	// arm64:-"SUB",-"ADD"
+ 	// loong64:-"SUBV",-"ADDV"
+ 	// mips:-"SUB",-"ADD"
+ 	// mips64:-"SUBV",-"ADDV"
+@@ -161,6 +167,7 @@ func SubAddSimplify(a, b int) int {
+ 
+ func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
+ 	// amd64:-"ADDQ"
++	// arm64:-"ADD"
+ 	// mips:"SUB",-"ADD"
+ 	// mips64:"SUBV",-"ADDV"
+ 	// loong64:"SUBV",-"ADDV"
+@@ -172,6 +179,7 @@ func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
+ 	// amd64:-"ADDQ"
+ 	r3 := (b + a) - (c + a)
+ 	// amd64:-"SUBQ"
++	// arm64:-"SUB"
+ 	// mips:"ADD",-"SUB"
+ 	// mips64:"ADDV",-"SUBV"
+ 	// loong64:"ADDV",-"SUBV"
+@@ -183,6 +191,7 @@ func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
+ 
+ func SubAddNegSimplify(a, b int) int {
+ 	// amd64:"NEGQ",-"ADDQ",-"SUBQ"
++	// arm64:"NEG",-"ADD",-"SUB"
+ 	// loong64:"SUBV",-"ADDV"
+ 	// mips:"SUB",-"ADD"
+ 	// mips64:"SUBV",-"ADDV"
+@@ -194,6 +203,7 @@ func SubAddNegSimplify(a, b int) int {
+ 
+ func AddAddSubSimplify(a, b, c int) int {
+ 	// amd64:-"SUBQ"
++	// arm64:"ADD",-"SUB"
+ 	// loong64:"ADDV",-"SUBV"
+ 	// mips:"ADD",-"SUB"
+ 	// mips64:"ADDV",-"SUBV"

@@ -1,0 +1,349 @@
+commit 8194d735cff90871b1ea5c92e83ddd50abdd4185
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Aug 13 16:48:11 2024 +0000
+
+    cmd/go: add GOAUTH mechanism for HTTP authentication
+    
+    This change adds a new environment variable GOAUTH which takes a semicolon-separated list of commands to run for authentication during go-import resolution and HTTPS module mirror protocol interactions.
+    This CL only supports netrc and off. Future CLs to follow will extend support to git and a custom authenticator command.
+    
+    For #26232
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I6cfa4c89fd27a7a4e7d25c8713d191dc82b7e28a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605256
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/cmd/go/alldocs.go                       |   6 ++
+ src/cmd/go/internal/auth/auth.go            | 105 ++++++++++++++++++++++++----
+ src/cmd/go/internal/auth/auth_test.go       |  51 ++++++++++++++
+ src/cmd/go/internal/cfg/cfg.go              |   1 +
+ src/cmd/go/internal/envcmd/env.go           |   1 +
+ src/cmd/go/internal/help/helpdoc.go         |   6 ++
+ src/cmd/go/testdata/script/goauth_netrc.txt |  65 +++++++++++++++++
+ src/internal/cfg/cfg.go                     |   1 +
+ 8 files changed, 221 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index f5af683195..dcb2352bec 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2273,6 +2273,12 @@
+ //	GOARCH
+ //		The architecture, or processor, for which to compile code.
+ //		Examples are amd64, 386, arm, ppc64.
++//	GOAUTH
++//		A semicolon-separated list of authentication commands for go-import and
++//		HTTPS module mirror interactions. Currently supports
++//		"off" (disables authentication) and
++//		"netrc" (uses credentials from NETRC or the .netrc file in your home directory).
++//		The default is netrc.
+ //	GOBIN
+ //		The directory where 'go install' will install a command.
+ //	GOCACHE
+diff --git a/src/cmd/go/internal/auth/auth.go b/src/cmd/go/internal/auth/auth.go
+index b4ada4ef8b..c5c24cf97f 100644
+--- a/src/cmd/go/internal/auth/auth.go
++++ b/src/cmd/go/internal/auth/auth.go
+@@ -5,28 +5,103 @@
+ // Package auth provides access to user-provided authentication credentials.
+ package auth
+ 
+-import "net/http"
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++	"net/http"
++	"path"
++	"slices"
++	"strings"
++	"sync"
++)
+ 
+-// AddCredentials fills in the user's credentials for req, if any.
+-// The return value reports whether any matching credentials were found.
+-func AddCredentials(req *http.Request) (added bool) {
+-	netrc, _ := readNetrc()
+-	if len(netrc) == 0 {
++var (
++	credentialCache sync.Map // prefix → http.Header
++	authOnce        sync.Once
++)
++
++// AddCredentials populates the request header with the user's credentials
++// as specified by the GOAUTH environment variable.
++// It returns whether any matching credentials were found.
++// req must use HTTPS or this function will panic.
++func AddCredentials(req *http.Request) bool {
++	if req.URL.Scheme != "https" {
++		panic("GOAUTH called without https")
++	}
++	if cfg.GOAUTH == "off" {
+ 		return false
+ 	}
++	authOnce.Do(runGoAuth)
++	currentPrefix := strings.TrimPrefix(req.URL.String(), "https://")
++	// Iteratively try prefixes, moving up the path hierarchy.
++	for currentPrefix != "/" && currentPrefix != "." && currentPrefix != "" {
++		if loadCredential(req, currentPrefix) {
++			return true
++		}
+ 
+-	host := req.Host
+-	if host == "" {
+-		host = req.URL.Hostname()
++		// Move to the parent directory.
++		currentPrefix = path.Dir(currentPrefix)
+ 	}
++	return false
++}
+ 
+-	// TODO(golang.org/issue/26232): Support arbitrary user-provided credentials.
+-	for _, l := range netrc {
+-		if l.machine == host {
+-			req.SetBasicAuth(l.login, l.password)
+-			return true
++// runGoAuth executes authentication commands specified by the GOAUTH
++// environment variable handling 'off', 'netrc', and 'git' methods specially,
++// and storing retrieved credentials for future access.
++func runGoAuth() {
++	// The GOAUTH commands are processed in reverse order to prioritize
++	// credentials in the order they were specified.
++	goAuthCmds := strings.Split(cfg.GOAUTH, ";")
++	slices.Reverse(goAuthCmds)
++	for _, cmdStr := range goAuthCmds {
++		cmdStr = strings.TrimSpace(cmdStr)
++		switch {
++		case cmdStr == "off":
++			if len(goAuthCmds) != 1 {
++				base.Fatalf("GOAUTH=off cannot be combined with other authentication commands (GOAUTH=%s)", cfg.GOAUTH)
++			}
++			return
++		case cmdStr == "netrc":
++			lines, err := readNetrc()
++			if err != nil {
++				base.Fatalf("could not parse netrc (GOAUTH=%s): %v", cfg.GOAUTH, err)
++			}
++			for _, l := range lines {
++				r := http.Request{Header: make(http.Header)}
++				r.SetBasicAuth(l.login, l.password)
++				storeCredential([]string{l.machine}, r.Header)
++			}
++		case strings.HasPrefix(cmdStr, "git"):
++			base.Fatalf("unimplemented: %s", cmdStr)
++		default:
++			base.Fatalf("unimplemented: %s", cmdStr)
+ 		}
+ 	}
++}
+ 
+-	return false
++// loadCredential retrieves cached credentials for the given url prefix and adds
++// them to the request headers.
++func loadCredential(req *http.Request, prefix string) bool {
++	headers, ok := credentialCache.Load(prefix)
++	if !ok {
++		return false
++	}
++	for key, values := range headers.(http.Header) {
++		for _, value := range values {
++			req.Header.Add(key, value)
++		}
++	}
++	return true
++}
++
++// storeCredential caches or removes credentials (represented by HTTP headers)
++// associated with given URL prefixes.
++func storeCredential(prefixes []string, header http.Header) {
++	for _, prefix := range prefixes {
++		if len(header) == 0 {
++			credentialCache.Delete(prefix)
++		} else {
++			credentialCache.Store(prefix, header)
++		}
++	}
+ }
+diff --git a/src/cmd/go/internal/auth/auth_test.go b/src/cmd/go/internal/auth/auth_test.go
+new file mode 100644
+index 0000000000..493c72421b
+--- /dev/null
++++ b/src/cmd/go/internal/auth/auth_test.go
+@@ -0,0 +1,51 @@
++// Copyright 2018 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package auth
++
++import (
++	"net/http"
++	"reflect"
++	"testing"
++)
++
++func TestCredentialCache(t *testing.T) {
++	testCases := []netrcLine{
++		{"api.github.com", "user", "pwd"},
++		{"test.host", "user2", "pwd2"},
++		{"oneline", "user3", "pwd3"},
++		{"hasmacro.too", "user4", "pwd4"},
++		{"hasmacro.too", "user5", "pwd5"},
++	}
++	for _, tc := range testCases {
++		want := http.Request{Header: make(http.Header)}
++		want.SetBasicAuth(tc.login, tc.password)
++		storeCredential([]string{tc.machine}, want.Header)
++		got := &http.Request{Header: make(http.Header)}
++		ok := loadCredential(got, tc.machine)
++		if !ok || !reflect.DeepEqual(got.Header, want.Header) {
++			t.Errorf("loadCredential:\nhave %q\nwant %q", got.Header, want.Header)
++		}
++	}
++}
++
++func TestCredentialCacheDelete(t *testing.T) {
++	// Store a credential for api.github.com
++	want := http.Request{Header: make(http.Header)}
++	want.SetBasicAuth("user", "pwd")
++	storeCredential([]string{"api.github.com"}, want.Header)
++	got := &http.Request{Header: make(http.Header)}
++	ok := loadCredential(got, "api.github.com")
++	if !ok || !reflect.DeepEqual(got.Header, want.Header) {
++		t.Errorf("parseNetrc:\nhave %q\nwant %q", got.Header, want.Header)
++	}
++	// Providing an empty header for api.github.com should clear credentials.
++	want = http.Request{Header: make(http.Header)}
++	storeCredential([]string{"api.github.com"}, want.Header)
++	got = &http.Request{Header: make(http.Header)}
++	ok = loadCredential(got, "api.github.com")
++	if ok {
++		t.Errorf("loadCredential:\nhave %q\nwant %q", got.Header, want.Header)
++	}
++}
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index b2545ca4ea..56b3a1677d 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -433,6 +433,7 @@ var (
+ 	GONOSUMDB, GONOSUMDBChanged = EnvOrAndChanged("GONOSUMDB", GOPRIVATE)
+ 	GOINSECURE                  = Getenv("GOINSECURE")
+ 	GOVCS                       = Getenv("GOVCS")
++	GOAUTH, GOAUTHChanged       = EnvOrAndChanged("GOAUTH", "netrc")
+ )
+ 
+ // EnvOrAndChanged returns the environment variable value
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index a99b2ed140..cb5e226e7b 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -80,6 +80,7 @@ func MkEnv() []cfg.EnvVar {
+ 	env := []cfg.EnvVar{
+ 		{Name: "GO111MODULE", Value: cfg.Getenv("GO111MODULE")},
+ 		{Name: "GOARCH", Value: cfg.Goarch, Changed: cfg.Goarch != runtime.GOARCH},
++		{Name: "GOAUTH", Value: cfg.GOAUTH, Changed: cfg.GOAUTHChanged},
+ 		{Name: "GOBIN", Value: cfg.GOBIN},
+ 		{Name: "GOCACHE"},
+ 		{Name: "GOENV", Value: envFile, Changed: envFileChanged},
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index dac52c4b63..9e3ef58e99 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -491,6 +491,12 @@ General-purpose environment variables:
+ 	GOARCH
+ 		The architecture, or processor, for which to compile code.
+ 		Examples are amd64, 386, arm, ppc64.
++	GOAUTH
++		A semicolon-separated list of authentication commands for go-import and
++		HTTPS module mirror interactions. Currently supports
++		"off" (disables authentication) and
++		"netrc" (uses credentials from NETRC or the .netrc file in your home directory).
++		The default is netrc.
+ 	GOBIN
+ 		The directory where 'go install' will install a command.
+ 	GOCACHE
+diff --git a/src/cmd/go/testdata/script/goauth_netrc.txt b/src/cmd/go/testdata/script/goauth_netrc.txt
+new file mode 100644
+index 0000000000..2dda119e82
+--- /dev/null
++++ b/src/cmd/go/testdata/script/goauth_netrc.txt
+@@ -0,0 +1,65 @@
++# This test exercises the GOAUTH mechanism for specifying
++# credentials passed in HTTPS requests to VCS servers.
++# See golang.org/issue/26232
++
++[short] skip
++
++env GOPROXY=direct
++env GOSUMDB=off
++
++# GOAUTH should default to netrc behavior.
++# Without credentials, downloading a module from a path that requires HTTPS
++# basic auth should fail.
++# Override default location of $HOME/.netrc
++env NETRC=$WORK/empty
++! go get vcs-test.golang.org/auth/or401
++stderr '^\tserver response: ACCESS DENIED, buddy$'
++
++# With credentials from a netrc file, it should succeed.
++env NETRC=$WORK/netrc
++go get vcs-test.golang.org/auth/or401
++
++# GOAUTH=off should result in failures.
++env GOAUTH='off'
++# Without credentials, downloading a module from a path that requires HTTPS
++# basic auth should fail.
++env NETRC=$WORK/empty
++! go get vcs-test.golang.org/auth/or401
++stderr '^\tserver response: ACCESS DENIED, buddy$'
++
++# GOAUTH='off' should ignore credentials from a valid netrc file.
++env GOAUTH='off'
++env NETRC=$WORK/netrc
++! go get vcs-test.golang.org/auth/or401
++stderr '^\tserver response: ACCESS DENIED, buddy$'
++
++# GOAUTH=off cannot be combined with other authentication commands
++env GOAUTH='off; netrc'
++env NETRC=$WORK/netrc
++! go get vcs-test.golang.org/auth/or401
++stderr 'GOAUTH=off cannot be combined with other authentication commands \(GOAUTH=off; netrc\)'
++
++# An unset GOAUTH should default to netrc.
++env GOAUTH=
++# Without credentials, downloading a module from a path that requires HTTPS
++# basic auth should fail.
++env NETRC=$WORK/empty
++! go get vcs-test.golang.org/auth/or401
++stderr '^\tserver response: ACCESS DENIED, buddy$'
++
++# With credentials from a netrc file, it should succeed.
++env NETRC=$WORK/netrc
++go get vcs-test.golang.org/auth/or401
++
++# A missing file should be fail as well.
++env NETRC=$WORK/missing
++! go get vcs-test.golang.org/auth/or401
++stderr '^\tserver response: ACCESS DENIED, buddy$'
++
++-- go.mod --
++module private.example.com
++-- $WORK/empty --
++-- $WORK/netrc --
++machine vcs-test.golang.org
++	login aladdin
++	password opensesame
+diff --git a/src/internal/cfg/cfg.go b/src/internal/cfg/cfg.go
+index 08d210b797..ca5ab50efd 100644
+--- a/src/internal/cfg/cfg.go
++++ b/src/internal/cfg/cfg.go
+@@ -37,6 +37,7 @@ const KnownEnv = `
+ 	GOARCH
+ 	GOARM
+ 	GOARM64
++	GOAUTH
+ 	GOBIN
+ 	GOCACHE
+ 	GOCACHEPROG

@@ -1,0 +1,245 @@
+commit 3bcefa5276c4ec5475df62cfd1fde9315b121d1c
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon May 20 14:52:57 2024 +0000
+
+    cmd/link/internal/ld: rewrite LC_UUID for darwin external links
+    
+    When building Go binaries using external linking, rewrite the LC_UUID
+    Macho load command to replace the content placed there by the external
+    linker, so as to ensure that we get reproducible builds.
+    
+    Updates #64947.
+    
+    Change-Id: I263a89d1a067807404febbc801d4dade33bc3288
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586079
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/link/internal/ld/lib.go                 |  55 ++++++++-----
+ src/cmd/link/internal/ld/macho_combine_dwarf.go |  15 +++-
+ src/cmd/link/internal/ld/macho_update_uuid.go   | 103 ++++++++++++++++++++++++
+ 3 files changed, 154 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 11df3a466d..755c889585 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1356,6 +1356,8 @@ INSERT AFTER .debug_types;
+ 	return path
+ }
+ 
++type machoUpdateFunc func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error
++
+ // archive builds a .a archive from the hostobj object files.
+ func (ctxt *Link) archive() {
+ 	if ctxt.BuildMode != BuildModeCArchive {
+@@ -1969,6 +1971,30 @@ func (ctxt *Link) hostlink() {
+ 		ctxt.Logf("%s", out)
+ 	}
+ 
++	// Helper for updating a Macho binary in some way (shared between
++	// dwarf combining and UUID update).
++	updateMachoOutFile := func(op string, updateFunc machoUpdateFunc) {
++		// For os.Rename to work reliably, must be in same directory as outfile.
++		rewrittenOutput := *flagOutfile + "~"
++		exef, err := os.Open(*flagOutfile)
++		if err != nil {
++			Exitf("%s: %s failed: %v", os.Args[0], op, err)
++		}
++		defer exef.Close()
++		exem, err := macho.NewFile(exef)
++		if err != nil {
++			Exitf("%s: parsing Mach-O header failed: %v", os.Args[0], err)
++		}
++		if err := updateFunc(ctxt, exef, exem, rewrittenOutput); err != nil {
++			Exitf("%s: %s failed: %v", os.Args[0], op, err)
++		}
++		os.Remove(*flagOutfile)
++		if err := os.Rename(rewrittenOutput, *flagOutfile); err != nil {
++			Exitf("%s: %v", os.Args[0], err)
++		}
++	}
++
++	uuidUpdated := false
+ 	if combineDwarf {
+ 		// Find "dsymutils" and "strip" tools using CC --print-prog-name.
+ 		var cc []string
+@@ -2028,24 +2054,17 @@ func (ctxt *Link) hostlink() {
+ 		if _, err := os.Stat(dsym); os.IsNotExist(err) {
+ 			return
+ 		}
+-		// For os.Rename to work reliably, must be in same directory as outfile.
+-		combinedOutput := *flagOutfile + "~"
+-		exef, err := os.Open(*flagOutfile)
+-		if err != nil {
+-			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+-		}
+-		defer exef.Close()
+-		exem, err := macho.NewFile(exef)
+-		if err != nil {
+-			Exitf("%s: parsing Mach-O header failed: %v", os.Args[0], err)
+-		}
+-		if err := machoCombineDwarf(ctxt, exef, exem, dsym, combinedOutput); err != nil {
+-			Exitf("%s: combining dwarf failed: %v", os.Args[0], err)
+-		}
+-		os.Remove(*flagOutfile)
+-		if err := os.Rename(combinedOutput, *flagOutfile); err != nil {
+-			Exitf("%s: %v", os.Args[0], err)
+-		}
++		updateMachoOutFile("combining dwarf",
++			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
++				return machoCombineDwarf(ctxt, exef, exem, dsym, outexe)
++			})
++		uuidUpdated = true
++	}
++	if ctxt.IsDarwin() && !uuidUpdated && *flagBuildid != "" {
++		updateMachoOutFile("rewriting uuid",
++			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
++				return machoRewriteUuid(ctxt, exef, exem, outexe)
++			})
+ 	}
+ 	if ctxt.NeedCodeSign() {
+ 		err := machoCodeSign(ctxt, *flagOutfile)
+diff --git a/src/cmd/link/internal/ld/macho_combine_dwarf.go b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+index 2e8bfcdbed..0a41e30eb3 100644
+--- a/src/cmd/link/internal/ld/macho_combine_dwarf.go
++++ b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+@@ -44,6 +44,12 @@ type encryptionInfoCmd struct {
+ 	CryptId            uint32
+ }
+ 
++type uuidCmd struct {
++	Cmd  macho.LoadCmd
++	Len  uint32
++	Uuid [16]byte
++}
++
+ type loadCmdReader struct {
+ 	offset, next int64
+ 	f            *os.File
+@@ -227,8 +233,15 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
+ 			err = machoUpdateLoadCommand(reader, linkseg, linkoffset, &linkEditDataCmd{}, "DataOff")
+ 		case LC_ENCRYPTION_INFO, LC_ENCRYPTION_INFO_64:
+ 			err = machoUpdateLoadCommand(reader, linkseg, linkoffset, &encryptionInfoCmd{}, "CryptOff")
++		case LC_UUID:
++			var u uuidCmd
++			err = reader.ReadAt(0, &u)
++			if err == nil {
++				copy(u.Uuid[:], uuidFromGoBuildId(*flagBuildid))
++				err = reader.WriteAt(0, &u)
++			}
+ 		case macho.LoadCmdDylib, macho.LoadCmdThread, macho.LoadCmdUnixThread,
+-			LC_PREBOUND_DYLIB, LC_UUID, LC_VERSION_MIN_MACOSX, LC_VERSION_MIN_IPHONEOS, LC_SOURCE_VERSION,
++			LC_PREBOUND_DYLIB, LC_VERSION_MIN_MACOSX, LC_VERSION_MIN_IPHONEOS, LC_SOURCE_VERSION,
+ 			LC_MAIN, LC_LOAD_DYLINKER, LC_LOAD_WEAK_DYLIB, LC_REEXPORT_DYLIB, LC_RPATH, LC_ID_DYLIB,
+ 			LC_SYMSEG, LC_LOADFVMLIB, LC_IDFVMLIB, LC_IDENT, LC_FVMFILE, LC_PREPAGE, LC_ID_DYLINKER,
+ 			LC_ROUTINES, LC_SUB_FRAMEWORK, LC_SUB_UMBRELLA, LC_SUB_CLIENT, LC_SUB_LIBRARY, LC_TWOLEVEL_HINTS,
+diff --git a/src/cmd/link/internal/ld/macho_update_uuid.go b/src/cmd/link/internal/ld/macho_update_uuid.go
+new file mode 100644
+index 0000000000..de27e655d5
+--- /dev/null
++++ b/src/cmd/link/internal/ld/macho_update_uuid.go
+@@ -0,0 +1,103 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ld
++
++// This file provides helper functions for updating/rewriting the UUID
++// load command within a Go go binary generated on Darwin using
++// external linking. Why is it necessary to update the UUID load
++// command? See issue #64947 for more detail, but the short answer is
++// that newer versions of the Macos toolchain (the newer linker in
++// particular) appear to compute the UUID based not just on the
++// content of the object files being linked but also on things like
++// the timestamps/paths of the objects; this makes it
++// difficult/impossible to support reproducible builds. Since we try
++// hard to maintain build reproducibility for Go, the APIs here
++// compute a new UUID (based on the Go build ID) and write it to the
++// final executable generated by the external linker.
++
++import (
++	"cmd/internal/notsha256"
++	"debug/macho"
++	"io"
++	"os"
++	"unsafe"
++)
++
++// uuidFromGoBuildId hashes the Go build ID and returns a slice of 16
++// bytes suitable for use as the payload in a Macho LC_UUID load
++// command.
++func uuidFromGoBuildId(buildID string) []byte {
++	if buildID == "" {
++		return make([]byte, 16)
++	}
++	hashedBuildID := notsha256.Sum256([]byte(buildID))
++	rv := hashedBuildID[:16]
++
++	// RFC 4122 conformance (see RFC 4122 Sections 4.2.2, 4.1.3). We
++	// want the "version" of this UUID to appear as 'hashed' as opposed
++	// to random or time-based.  This is something of a fiction since
++	// we're not actually hashing using MD5 or SHA1, but it seems better
++	// to use this UUID flavor than any of the others. This is similar
++	// to how other linkers handle this (for example this code in lld:
++	// https://github.com/llvm/llvm-project/blob/2a3a79ce4c2149d7787d56f9841b66cacc9061d0/lld/MachO/Writer.cpp#L524).
++	rv[6] &= 0xcf
++	rv[6] |= 0x30
++	rv[8] &= 0x3f
++	rv[8] |= 0xc0
++
++	return rv
++}
++
++// machoRewriteUuid copies over the contents of the Macho executable
++// exef into the output file outexe, and in the process updates the
++// LC_UUID command to a new value recomputed from the Go build id.
++func machoRewriteUuid(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
++	outf, err := os.OpenFile(outexe, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
++	if err != nil {
++		return err
++	}
++	defer outf.Close()
++
++	// Copy over the file.
++	if _, err := io.Copy(outf, exef); err != nil {
++		return err
++	}
++
++	// Locate the portion of the binary containing the load commands.
++	cmdOffset := unsafe.Sizeof(exem.FileHeader)
++	if is64bit := exem.Magic == macho.Magic64; is64bit {
++		// mach_header_64 has one extra uint32.
++		cmdOffset += unsafe.Sizeof(exem.Magic)
++	}
++	if _, err := outf.Seek(int64(cmdOffset), 0); err != nil {
++		return err
++	}
++
++	// Read the load commands, looking for the LC_UUID cmd. If/when we
++	// locate it, overwrite it with a new value produced by
++	// uuidFromGoBuildId.
++	reader := loadCmdReader{next: int64(cmdOffset),
++		f: outf, order: exem.ByteOrder}
++	for i := uint32(0); i < exem.Ncmd; i++ {
++		cmd, err := reader.Next()
++		if err != nil {
++			return err
++		}
++		if cmd.Cmd == LC_UUID {
++			var u uuidCmd
++			if err := reader.ReadAt(0, &u); err != nil {
++				return err
++			}
++			copy(u.Uuid[:], uuidFromGoBuildId(*flagBuildid))
++			if err := reader.WriteAt(0, &u); err != nil {
++				return err
++			}
++			break
++		}
++	}
++
++	// We're done
++	return nil
++}

@@ -1,0 +1,73 @@
+commit c586dbb8b7342584c04e014afd2d75fd04f146bc
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 25 21:05:00 2024 +0700
+
+    internal/pkgbits: add DerivedInfoNeeded
+    
+    So next CL can use it to remove unnecessary derivedInfo needed field.
+    
+    Updates #68778
+    
+    Change-Id: Ia4e0f638beaf4a448fbf10a9aa1bc9425349a5e8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608215
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/pkgbits/pkgbits_test.go | 3 +++
+ src/internal/pkgbits/version.go      | 6 ++++++
+ 2 files changed, 9 insertions(+)
+
+diff --git a/src/internal/pkgbits/pkgbits_test.go b/src/internal/pkgbits/pkgbits_test.go
+index a5f93c7e8e..f4c3719446 100644
+--- a/src/internal/pkgbits/pkgbits_test.go
++++ b/src/internal/pkgbits/pkgbits_test.go
+@@ -45,6 +45,8 @@ func TestVersions(t *testing.T) {
+ 		{pkgbits.V1, pkgbits.HasInit},
+ 		{pkgbits.V0, pkgbits.DerivedFuncInstance},
+ 		{pkgbits.V1, pkgbits.DerivedFuncInstance},
++		{pkgbits.V0, pkgbits.DerivedInfoNeeded},
++		{pkgbits.V1, pkgbits.DerivedInfoNeeded},
+ 		{pkgbits.V2, pkgbits.AliasTypeParamNames},
+ 	} {
+ 		if !c.v.Has(c.f) {
+@@ -57,6 +59,7 @@ func TestVersions(t *testing.T) {
+ 		{pkgbits.V0, pkgbits.Flags},
+ 		{pkgbits.V2, pkgbits.HasInit},
+ 		{pkgbits.V2, pkgbits.DerivedFuncInstance},
++		{pkgbits.V2, pkgbits.DerivedInfoNeeded},
+ 		{pkgbits.V0, pkgbits.AliasTypeParamNames},
+ 		{pkgbits.V1, pkgbits.AliasTypeParamNames},
+ 	} {
+diff --git a/src/internal/pkgbits/version.go b/src/internal/pkgbits/version.go
+index fe5901a9ef..ba664f4555 100644
+--- a/src/internal/pkgbits/version.go
++++ b/src/internal/pkgbits/version.go
+@@ -25,6 +25,7 @@ const (
+ 	// - remove the legacy "has init" bool from the public root
+ 	// - remove obj's "derived func instance" bool
+ 	// - add a TypeParamNames field to ObjAlias
++	// - remove derived info "needed" bool
+ 	V2
+ 
+ 	numVersions = iota
+@@ -56,6 +57,10 @@ const (
+ 	// ObjAlias has a list of TypeParamNames.
+ 	AliasTypeParamNames
+ 
++	// Deprecated: DerivedInfoNeeded was a bool indicating
++	// whether a type was a derived type.
++	DerivedInfoNeeded
++
+ 	numFields = iota
+ )
+ 
+@@ -71,6 +76,7 @@ var introduced = [numFields]Version{
+ var removed = [numFields]Version{
+ 	HasInit:             V2,
+ 	DerivedFuncInstance: V2,
++	DerivedInfoNeeded:   V2,
+ }
+ 
+ // Has reports whether field f is present in a bitstream at version v.

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 43375: c46632a2e0c61786900c2c324989aa90e8821aea
+# Index 43375: bd229936cf3873c552ab087232030780dc432067
 
 echo "🚀 Generating explanation for commit 43375..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 43375..."
 
 ### メタデータ
 - **コミットインデックス**: 43375
-- **コミットハッシュ**: c46632a2e0c61786900c2c324989aa90e8821aea
-- **GitHub URL**: https://github.com/golang/go/commit/c46632a2e0c61786900c2c324989aa90e8821aea
+- **コミットハッシュ**: bd229936cf3873c552ab087232030780dc432067
+- **GitHub URL**: https://github.com/golang/go/commit/bd229936cf3873c552ab087232030780dc432067
 
 ### 章構成
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 38070: 36c789b1fd72af5ff6e756794597a3a85e069998
+# Index 38070: db9341a02424a80a93ad50b362b881544b685e19
 
 echo "🚀 Generating explanation for commit 38070..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 38070..."
 
 ### メタデータ
 - **コミットインデックス**: 38070
-- **コミットハッシュ**: 36c789b1fd72af5ff6e756794597a3a85e069998
-- **GitHub URL**: https://github.com/golang/go/commit/36c789b1fd72af5ff6e756794597a3a85e069998
+- **コミットハッシュ**: db9341a02424a80a93ad50b362b881544b685e19
+- **GitHub URL**: https://github.com/golang/go/commit/db9341a02424a80a93ad50b362b881544b685e19
 
 ### 章構成
 

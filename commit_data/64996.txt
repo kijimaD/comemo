@@ -1,0 +1,79 @@
+commit b4712ab055a582186c40afb4ffe8c9854b9e6032
+Author: Vasily Leonenko <vasiliy.leonenko@gmail.com>
+Date:   Wed Sep 25 23:01:21 2024 +0300
+
+    runtime: memclrNoHeapPointers optimization for block alignment
+    
+    goos: linux
+    goarch: arm64
+    pkg: runtime
+                   │  base.log   │               opt.log               │
+                   │   sec/op    │   sec/op     vs base                │
+    Memclr/5-4       3.378n ± 2%   3.376n ± 2%        ~ (p=0.128 n=10)
+    Memclr/16-4      2.749n ± 1%   2.776n ± 2%   +1.00% (p=0.001 n=10)
+    Memclr/64-4      4.588n ± 2%   4.184n ± 2%   -8.78% (p=0.000 n=10)
+    Memclr/256-4     8.758n ± 0%   7.103n ± 0%  -18.90% (p=0.000 n=10)
+    Memclr/4096-4    58.80n ± 0%   57.43n ± 0%   -2.33% (p=0.000 n=10)
+    Memclr/65536-4   868.7n ± 1%   861.7n ± 1%   -0.80% (p=0.004 n=10)
+    Memclr/1M-4      23.08µ ± 6%   23.55µ ± 6%        ~ (p=0.739 n=10)
+    Memclr/4M-4      219.6µ ± 3%   216.1µ ± 2%        ~ (p=0.123 n=10)
+    Memclr/8M-4      586.1µ ± 1%   586.4µ ± 2%        ~ (p=0.853 n=10)
+    Memclr/16M-4     1.312m ± 0%   1.311m ± 1%        ~ (p=0.481 n=10)
+    Memclr/64M-4     5.332m ± 1%   5.681m ± 0%   +6.55% (p=0.000 n=10)
+    geomean          1.723µ        1.683µ        -2.31%
+    
+    Change-Id: Icad625065fb1f30b2a4094f3f1e58b4e9b3d841e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616137
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/memclr_arm64.s | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/memclr_arm64.s b/src/runtime/memclr_arm64.s
+index 1c35dfe0cf..3e49f7fcf6 100644
+--- a/src/runtime/memclr_arm64.s
++++ b/src/runtime/memclr_arm64.s
+@@ -82,6 +82,7 @@ last16:
+ last_end:
+ 	RET
+ 
++	PCALIGN	$16
+ no_zva:
+ 	SUB	$16, R0, R0
+ 	SUB	$64, R1, R1
+@@ -98,6 +99,7 @@ loop_64:
+ 	BNE	tail63
+ 	RET
+ 
++	PCALIGN	$16
+ try_zva:
+ 	// Try using the ZVA feature to zero entire cache lines
+ 	// It is not meaningful to use ZVA if the block size is less than 64,
+@@ -124,6 +126,7 @@ try_zva:
+ 	MOVW	R5, block_size<>(SB)
+ 	B	no_zva
+ 
++	PCALIGN	$16
+ init:
+ 	MOVW	$4, R9
+ 	ANDW	$15, R3, R5
+@@ -134,6 +137,7 @@ init:
+ 	// Block size is less than 64.
+ 	BNE	no_zva
+ 
++	PCALIGN	$16
+ zero_by_line:
+ 	CMP	R5, R1
+ 	// Not enough memory to reach alignment
+@@ -170,6 +174,7 @@ loop_zva_prolog:
+ aligned:
+ 	SUB	R5, R1, R1
+ 
++	PCALIGN	$16
+ loop_zva:
+ 	WORD	$0xd50b7420 // DC ZVA, R0
+ 	ADD	R5, R0, R0

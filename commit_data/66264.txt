@@ -1,0 +1,230 @@
+commit cdc95607940b2acb66cb184dec08d4cc8a469042
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Sep 12 20:15:56 2024 +0800
+
+    all: implement plugin build mode for riscv64
+    
+    Change-Id: I8d7bbeebbf4a46f2fd8d630b1edbaf79b8ffccc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/420114
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    TryBot-Bypass: Joel Sing <joel@sing.id.au>
+---
+ src/cmd/dist/test.go                 |   2 +-
+ src/cmd/internal/obj/riscv/obj.go    | 121 +++++++++++++++++++++++++++++++++++
+ src/cmd/link/internal/riscv64/asm.go |  21 +++++-
+ src/internal/platform/supported.go   |   2 +-
+ src/runtime/asm_riscv64.s            |   9 +++
+ 5 files changed, 152 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index b137c7db79..6199dbbb93 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -1767,7 +1767,7 @@ func buildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 
+ 	case "plugin":
+ 		switch platform {
+-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/s390x", "linux/ppc64le",
++		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/riscv64", "linux/s390x", "linux/ppc64le",
+ 			"android/amd64", "android/386",
+ 			"darwin/amd64", "darwin/arm64",
+ 			"freebsd/amd64":
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 3a4ab556f7..c41d99c0c7 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -157,6 +157,127 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			p.From.Offset = 0
+ 		}
+ 	}
++
++	if ctxt.Flag_dynlink {
++		rewriteToUseGot(ctxt, p, newprog)
++	}
++}
++
++// Rewrite p, if necessary, to access global data via the global offset table.
++func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
++	if p.As == obj.ADUFFCOPY || p.As == obj.ADUFFZERO {
++		//     ADUFFxxx $offset
++		// becomes
++		//     MOV runtime.duffxxx@GOT, REG_TMP
++		//     ADD $offset, REG_TMP
++		//     CALL REG_TMP
++		var sym *obj.LSym
++		if p.As == obj.ADUFFCOPY {
++			sym = ctxt.LookupABI("runtime.duffcopy", obj.ABIInternal)
++		} else {
++			sym = ctxt.LookupABI("runtime.duffzero", obj.ABIInternal)
++		}
++		offset := p.To.Offset
++		p.As = AMOV
++		p.From.Type = obj.TYPE_MEM
++		p.From.Name = obj.NAME_GOTREF
++		p.From.Sym = sym
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = REG_TMP
++		p.To.Name = obj.NAME_NONE
++		p.To.Offset = 0
++		p.To.Sym = nil
++
++		p1 := obj.Appendp(p, newprog)
++		p1.As = AADD
++		p1.From.Type = obj.TYPE_CONST
++		p1.From.Offset = offset
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = REG_TMP
++
++		p2 := obj.Appendp(p1, newprog)
++		p2.As = obj.ACALL
++		p2.To.Type = obj.TYPE_REG
++		p2.To.Reg = REG_TMP
++	}
++
++	// We only care about global data: NAME_EXTERN means a global
++	// symbol in the Go sense and p.Sym.Local is true for a few internally
++	// defined symbols.
++	if p.From.Type == obj.TYPE_ADDR && p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
++		// MOV $sym, Rx becomes MOV sym@GOT, Rx
++		// MOV $sym+<off>, Rx becomes MOV sym@GOT, Rx; ADD <off>, Rx
++		if p.As != AMOV {
++			ctxt.Diag("don't know how to handle TYPE_ADDR in %v with -dynlink", p)
++		}
++		if p.To.Type != obj.TYPE_REG {
++			ctxt.Diag("don't know how to handle LD instruction to non-register in %v with -dynlink", p)
++		}
++		p.From.Type = obj.TYPE_MEM
++		p.From.Name = obj.NAME_GOTREF
++		if p.From.Offset != 0 {
++			q := obj.Appendp(p, newprog)
++			q.As = AADD
++			q.From.Type = obj.TYPE_CONST
++			q.From.Offset = p.From.Offset
++			q.To = p.To
++			p.From.Offset = 0
++		}
++
++	}
++
++	if p.GetFrom3() != nil && p.GetFrom3().Name == obj.NAME_EXTERN {
++		ctxt.Diag("don't know how to handle %v with -dynlink", p)
++	}
++
++	var source *obj.Addr
++	// MOVx sym, Ry becomes MOV sym@GOT, X31; MOVx (X31), Ry
++	// MOVx Ry, sym becomes MOV sym@GOT, X31; MOV Ry, (X31)
++	// An addition may be inserted between the two MOVs if there is an offset.
++	if p.From.Name == obj.NAME_EXTERN && !p.From.Sym.Local() {
++		if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
++			ctxt.Diag("cannot handle NAME_EXTERN on both sides in %v with -dynlink", p)
++		}
++		source = &p.From
++	} else if p.To.Name == obj.NAME_EXTERN && !p.To.Sym.Local() {
++		source = &p.To
++	} else {
++		return
++	}
++	if p.As == obj.ATEXT || p.As == obj.AFUNCDATA || p.As == obj.ACALL || p.As == obj.ARET || p.As == obj.AJMP {
++		return
++	}
++	if source.Sym.Type == objabi.STLSBSS {
++		return
++	}
++	if source.Type != obj.TYPE_MEM {
++		ctxt.Diag("don't know how to handle %v with -dynlink", p)
++	}
++	p1 := obj.Appendp(p, newprog)
++	p1.As = AMOV
++	p1.From.Type = obj.TYPE_MEM
++	p1.From.Sym = source.Sym
++	p1.From.Name = obj.NAME_GOTREF
++	p1.To.Type = obj.TYPE_REG
++	p1.To.Reg = REG_TMP
++
++	p2 := obj.Appendp(p1, newprog)
++	p2.As = p.As
++	p2.From = p.From
++	p2.To = p.To
++	if p.From.Name == obj.NAME_EXTERN {
++		p2.From.Reg = REG_TMP
++		p2.From.Name = obj.NAME_NONE
++		p2.From.Sym = nil
++	} else if p.To.Name == obj.NAME_EXTERN {
++		p2.To.Reg = REG_TMP
++		p2.To.Name = obj.NAME_NONE
++		p2.To.Sym = nil
++	} else {
++		return
++	}
++	obj.Nopout(p)
++
+ }
+ 
+ // addrToReg extracts the register from an Addr, handling special Addr.Names.
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index 8e5d5be41e..527f09e17c 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -20,7 +20,26 @@ import (
+ // fakeLabelName matches the RISCV_FAKE_LABEL_NAME from binutils.
+ const fakeLabelName = ".L0 "
+ 
+-func gentext(ctxt *ld.Link, ldr *loader.Loader) {}
++func gentext(ctxt *ld.Link, ldr *loader.Loader) {
++	initfunc, addmoduledata := ld.PrepareAddmoduledata(ctxt)
++	if initfunc == nil {
++		return
++	}
++
++	// Emit the following function:
++	//
++	// go.link.addmoduledatainit:
++	//      auipc a0, %pcrel_hi(local.moduledata)
++	//      addi  a0, %pcrel_lo(local.moduledata)
++	//      j     runtime.addmoduledata
++
++	sz := initfunc.AddSymRef(ctxt.Arch, ctxt.Moduledata, 0, objabi.R_RISCV_PCREL_ITYPE, 8)
++	initfunc.SetUint32(ctxt.Arch, sz-8, 0x00000517) // auipc a0, %pcrel_hi(local.moduledata)
++	initfunc.SetUint32(ctxt.Arch, sz-4, 0x00050513) // addi  a0, %pcrel_lo(local.moduledata)
++
++	sz = initfunc.AddSymRef(ctxt.Arch, addmoduledata, 0, objabi.R_RISCV_JAL, 4)
++	initfunc.SetUint32(ctxt.Arch, sz-4, 0x0000006f) // j runtime.addmoduledata
++}
+ 
+ func findHI20Reloc(ldr *loader.Loader, s loader.Sym, val int64) *loader.Reloc {
+ 	outer := ldr.OuterSym(s)
+diff --git a/src/internal/platform/supported.go b/src/internal/platform/supported.go
+index e864c37d68..702a255e4c 100644
+--- a/src/internal/platform/supported.go
++++ b/src/internal/platform/supported.go
+@@ -208,7 +208,7 @@ func BuildModeSupported(compiler, buildmode, goos, goarch string) bool {
+ 
+ 	case "plugin":
+ 		switch platform {
+-		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/s390x", "linux/ppc64le",
++		case "linux/amd64", "linux/arm", "linux/arm64", "linux/386", "linux/loong64", "linux/riscv64", "linux/s390x", "linux/ppc64le",
+ 			"android/amd64", "android/386",
+ 			"darwin/amd64", "darwin/arm64",
+ 			"freebsd/amd64":
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index ef654a3a22..71b32304d7 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -541,6 +541,15 @@ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+ 	// traceback from goexit1 must hit code range of goexit
+ 	MOV	ZERO, ZERO	// NOP
+ 
++
++// This is called from .init_array and follows the platform, not the Go ABI.
++TEXT runtime·addmoduledata(SB),NOSPLIT,$0-0
++	// Use X31 as it is a scratch register in both the Go ABI and psABI.
++	MOV	runtime·lastmoduledatap(SB), X31
++	MOV	X10, moduledata_next(X31)
++	MOV	X10, runtime·lastmoduledatap(SB)
++	RET
++
+ // func cgocallback(fn, frame unsafe.Pointer, ctxt uintptr)
+ // See cgocall.go for more details.
+ TEXT ·cgocallback(SB),NOSPLIT,$24-24

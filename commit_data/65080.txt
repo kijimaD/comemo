@@ -1,0 +1,31 @@
+commit e3d372aea86df4b3a848c0c454b364febca825d6
+Author: Sean Liao <sean@liao.dev>
+Date:   Sun Oct 20 10:46:03 2024 +0100
+
+    encoding/xml: document that embedded interfaces look like non-embedded ones
+    
+    Fixes #69941
+    
+    Change-Id: Icc3c88d57c14fa9ca203c693d67f144686fed8cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621076
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/encoding/xml/marshal.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/encoding/xml/marshal.go b/src/encoding/xml/marshal.go
+index 05b5542dfb..133503fa2d 100644
+--- a/src/encoding/xml/marshal.go
++++ b/src/encoding/xml/marshal.go
+@@ -62,6 +62,8 @@ const (
+ //     string of length zero.
+ //   - an anonymous struct field is handled as if the fields of its
+ //     value were part of the outer struct.
++//   - an anonymous struct field of interface type is treated the same as having
++//     that type as its name, rather than being anonymous.
+ //   - a field implementing [Marshaler] is written by calling its MarshalXML
+ //     method.
+ //   - a field implementing [encoding.TextMarshaler] is written by encoding the

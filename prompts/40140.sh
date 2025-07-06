@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40140: 68d4b1265ec7915dccfccf6c0e32f9ab2d9c3a86
+# Index 40140: 4a8ce14af9941e3efbeb88b564bde76cc0b2e121
 
 echo "🚀 Generating explanation for commit 40140..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40140..."
 
 ### メタデータ
 - **コミットインデックス**: 40140
-- **コミットハッシュ**: 68d4b1265ec7915dccfccf6c0e32f9ab2d9c3a86
-- **GitHub URL**: https://github.com/golang/go/commit/68d4b1265ec7915dccfccf6c0e32f9ab2d9c3a86
+- **コミットハッシュ**: 4a8ce14af9941e3efbeb88b564bde76cc0b2e121
+- **GitHub URL**: https://github.com/golang/go/commit/4a8ce14af9941e3efbeb88b564bde76cc0b2e121
 
 ### 章構成
 

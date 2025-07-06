@@ -1,0 +1,56 @@
+commit 99283b81f4753fd7bb2acd70949f324cb7b603ab
+Author: Tim King <taking@google.com>
+Date:   Thu Apr 18 13:48:18 2024 -0700
+
+    cmd/go: add module information to vet actions
+    
+    Update golang/go#66315
+    
+    Change-Id: Ica9b7e010ea9a0a12f80cc83b8ace51f22822ec2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580076
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/work/exec.go | 21 ++++++++++++++-------
+ 1 file changed, 14 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 29cce25132..04459d0990 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1140,13 +1140,15 @@ type vetConfig struct {
+ 	NonGoFiles   []string // absolute paths to package non-Go files
+ 	IgnoredFiles []string // absolute paths to ignored source files
+ 
+-	ImportMap   map[string]string // map import path in source code to package path
+-	PackageFile map[string]string // map package path to .a file with export data
+-	Standard    map[string]bool   // map package path to whether it's in the standard library
+-	PackageVetx map[string]string // map package path to vetx data from earlier vet run
+-	VetxOnly    bool              // only compute vetx data; don't report detected problems
+-	VetxOutput  string            // write vetx data to this output file
+-	GoVersion   string            // Go version for package
++	ModulePath    string            // module path (may be "" on module error)
++	ModuleVersion string            // module version (may be "" on main module or module error)
++	ImportMap     map[string]string // map import path in source code to package path
++	PackageFile   map[string]string // map package path to .a file with export data
++	Standard      map[string]bool   // map package path to whether it's in the standard library
++	PackageVetx   map[string]string // map package path to vetx data from earlier vet run
++	VetxOnly      bool              // only compute vetx data; don't report detected problems
++	VetxOutput    string            // write vetx data to this output file
++	GoVersion     string            // Go version for package
+ 
+ 	SucceedOnTypecheckFailure bool // awful hack; see #18395 and below
+ }
+@@ -1187,6 +1189,11 @@ func buildVetConfig(a *Action, srcfiles []string) {
+ 			v = gover.DefaultGoModVersion
+ 		}
+ 		vcfg.GoVersion = "go" + v
++
++		if a.Package.Module.Error == nil {
++			vcfg.ModulePath = a.Package.Module.Path
++			vcfg.ModuleVersion = a.Package.Module.Version
++		}
+ 	}
+ 	a.vetCfg = vcfg
+ 	for i, raw := range a.Package.Internal.RawImports {

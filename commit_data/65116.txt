@@ -1,0 +1,167 @@
+commit a464ffda3e44c87de946cc29f719794a30e9b3f4
+Author: David Chase <drchase@google.com>
+Date:   Wed Aug 28 10:34:54 2024 -0400
+
+    cmd/compile: tweak inlining to favor PPARAM call sites
+    
+    If a function f being considered for inlining calls
+    one of its parameters, reduce the normal cost of that
+    call (57) to 17 to increase the chance that f will
+    be inlined and (with luck) that parameter will be
+    revealed as a constant function (which unblocks
+    escape analysis) or perhaps even be inlined.
+    
+    The least-change value for that was still effective for
+    iter_test benchmarks was 32; however tests showed no
+    particular harm even when reduced as low as 7, and there
+    have been reports of other performance problems with
+    rangefunc overheads and so I picked a middling number
+    in hopes of warding off such reports.
+    
+    Updates #69015
+    
+    Change-Id: I2a525c1beffb9f88daa14caa8a622864b023675c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609095
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/inline/inl.go                         | 10 +++++++++-
+ .../internal/inline/inlheur/testdata/props/acrosscall.go       | 10 +++++-----
+ .../compile/internal/inline/inlheur/testdata/props/calls.go    | 10 +++++-----
+ 3 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index f343f64952..c38ed8be7f 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -49,6 +49,7 @@ const (
+ 	inlineExtraAppendCost = 0
+ 	// default is to inline if there's at most one call. -l=4 overrides this by using 1 instead.
+ 	inlineExtraCallCost  = 57              // 57 was benchmarked to provided most benefit with no bad surprises; see https://github.com/golang/go/issues/19348#issuecomment-439370742
++	inlineParamCallCost  = 17              // calling a parameter only costs this much extra (inlining might expose a constant function)
+ 	inlineExtraPanicCost = 1               // do not penalize inlining panics.
+ 	inlineExtraThrowCost = inlineMaxBudget // with current (2018-05/1.11) code, inlining runtime.throw does not help.
+ 
+@@ -520,6 +521,10 @@ opSwitch:
+ 			}
+ 		}
+ 
++		// A call to a parameter is optimistically a cheap call, if it's a constant function
++		// perhaps it will inline, it also can simplify escape analysis.
++		extraCost := v.extraCallCost
++
+ 		if n.Fun.Op() == ir.ONAME {
+ 			name := n.Fun.(*ir.Name)
+ 			if name.Class == ir.PFUNC {
+@@ -539,6 +544,9 @@ opSwitch:
+ 					}
+ 				}
+ 			}
++			if name.Class == ir.PPARAM {
++				extraCost = min(extraCost, inlineParamCallCost)
++			}
+ 		}
+ 
+ 		if cheap {
+@@ -572,7 +580,7 @@ opSwitch:
+ 		}
+ 
+ 		// Call cost for non-leaf inlining.
+-		v.budget -= v.extraCallCost
++		v.budget -= extraCost
+ 
+ 	case ir.OCALLMETH:
+ 		base.FatalfAt(n.Pos(), "OCALLMETH missed by typecheck")
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
+index a8166fddb6..b9bb87b416 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/acrosscall.go
+@@ -13,7 +13,7 @@ package params
+ //   0 ParamFeedsIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[8],"ResultFlags":null}
+-// callsite: acrosscall.go:20:12|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
++// callsite: acrosscall.go:20:12|0 flagstr "" flagval 0 score 20 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_indirect_call_via_call_toplevel(f func(int)) {
+@@ -25,7 +25,7 @@ func T_feeds_indirect_call_via_call_toplevel(f func(int)) {
+ //   0 ParamMayFeedIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[16],"ResultFlags":null}
+-// callsite: acrosscall.go:33:13|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
++// callsite: acrosscall.go:33:13|0 flagstr "" flagval 0 score 20 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_indirect_call_via_call_conditional(f func(int)) {
+@@ -39,7 +39,7 @@ func T_feeds_indirect_call_via_call_conditional(f func(int)) {
+ //   0 ParamMayFeedIndirectCall
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[16],"ResultFlags":null}
+-// callsite: acrosscall.go:46:23|0 flagstr "" flagval 0 score 64 mask 0 maskstr ""
++// callsite: acrosscall.go:46:23|0 flagstr "" flagval 0 score 24 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_feeds_conditional_indirect_call_via_call_toplevel(f func(int)) {
+@@ -90,8 +90,8 @@ func T_feeds_conditional_if_via_call(x int) {
+ //   1 ParamNoInfo
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[24,0],"ResultFlags":null}
+-// callsite: acrosscall.go:98:12|0 flagstr "" flagval 0 score 60 mask 0 maskstr ""
+-// callsite: acrosscall.go:99:23|1 flagstr "" flagval 0 score 64 mask 0 maskstr ""
++// callsite: acrosscall.go:98:12|0 flagstr "" flagval 0 score 20 mask 0 maskstr ""
++// callsite: acrosscall.go:99:23|1 flagstr "" flagval 0 score 24 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_multifeeds1(f1, f2 func(int)) {
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+index 5cc217b4ba..23dc573f58 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+@@ -133,7 +133,7 @@ func init() {
+ // calls.go T_pass_inlinable_func_to_param_feeding_indirect_call 140 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+-// callsite: calls.go:141:19|0 flagstr "" flagval 0 score 16 mask 512 maskstr "passInlinableFuncToIndCallAdj"
++// callsite: calls.go:141:19|0 flagstr "" flagval 0 score -24 mask 512 maskstr "passInlinableFuncToIndCallAdj"
+ // callsite: calls.go:141:19|calls.go:232:10|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+@@ -144,7 +144,7 @@ func T_pass_inlinable_func_to_param_feeding_indirect_call(x int) int {
+ // calls.go T_pass_noninlinable_func_to_param_feeding_indirect_call 150 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+-// callsite: calls.go:153:19|0 flagstr "" flagval 0 score 36 mask 128 maskstr "passFuncToIndCallAdj"
++// callsite: calls.go:153:19|0 flagstr "" flagval 0 score -4 mask 128 maskstr "passFuncToIndCallAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_pass_noninlinable_func_to_param_feeding_indirect_call(x int) int {
+@@ -158,7 +158,7 @@ func T_pass_noninlinable_func_to_param_feeding_indirect_call(x int) int {
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[0]}
+-// callsite: calls.go:166:25|0 flagstr "" flagval 0 score 27 mask 1024 maskstr "passInlinableFuncToNestedIndCallAdj"
++// callsite: calls.go:166:25|0 flagstr "" flagval 0 score -13 mask 1024 maskstr "passInlinableFuncToNestedIndCallAdj"
+ // callsite: calls.go:166:25|calls.go:237:11|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+@@ -171,7 +171,7 @@ func T_pass_inlinable_func_to_param_feeding_nested_indirect_call(x int) int {
+ //   0 ParamFeedsIfOrSwitch
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[0]}
+-// callsite: calls.go:178:25|0 flagstr "" flagval 0 score 47 mask 256 maskstr "passFuncToNestedIndCallAdj"
++// callsite: calls.go:178:25|0 flagstr "" flagval 0 score 7 mask 256 maskstr "passFuncToNestedIndCallAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_pass_noninlinable_func_to_param_feeding_nested_indirect_call(x int) int {
+@@ -183,7 +183,7 @@ func T_pass_noninlinable_func_to_param_feeding_nested_indirect_call(x int) int {
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[0]}
+ // callsite: calls.go:209:14|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+ // callsite: calls.go:210:15|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+-// callsite: calls.go:212:19|2 flagstr "" flagval 0 score 16 mask 512 maskstr "passInlinableFuncToIndCallAdj"
++// callsite: calls.go:212:19|2 flagstr "" flagval 0 score -24 mask 512 maskstr "passInlinableFuncToIndCallAdj"
+ // callsite: calls.go:212:19|calls.go:232:10|0 flagstr "" flagval 0 score 4 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>

@@ -1,0 +1,186 @@
+commit 664aebab7da0da5859857c60b401ec85e3a408dd
+Author: Mark Ryan <markdryan@rivosinc.com>
+Date:   Mon Dec 2 15:47:25 2024 +0100
+
+    cmd/go: add rva23u64 as a valid value for GORISCV64
+    
+    The RVA23 profile was ratified on the 21st of October 2024.
+    
+    https://riscv.org/announcements/2024/10/risc-v-announces-ratification-of-the-rva23-profile-standard/
+    
+    Now that it's ratified we can add rva23u64 as a valid value for the
+    GORISCV64 environment variable. This will allow the compiler and
+    assembler to generate instructions made mandatory by the new profile
+    without a runtime check.  Examples of such instructions include those
+    introduced by the Vector and Zicond extensions.
+    
+    Setting GORISCV64=rva23u64 defines the riscv64.rva20u64,
+    riscv64.rva22u64 and riscv64.rva23u64 build tags, sets the internal
+    variable buildcfg.GORISCV64 to 23 and defines the macros
+    GORISCV64_rva23u64, hasV, hasZba, hasZbb, hasZbs, hasZfa, and
+    hasZicond for use in assembly language code.
+    
+    Updates #61476
+    
+    Change-Id: I7641c23084fa52891c9a18df58f4013cb6597d88
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633417
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+---
+ src/cmd/go/alldocs.go                    | 7 ++++---
+ src/cmd/go/internal/help/helpdoc.go      | 7 ++++---
+ src/cmd/go/testdata/script/tooltags.txt  | 7 ++++++-
+ src/cmd/internal/testdir/testdir_test.go | 2 +-
+ src/internal/buildcfg/cfg.go             | 7 ++++++-
+ src/internal/buildcfg/cfg_test.go        | 4 ++++
+ src/runtime/asm_riscv64.h                | 9 +++++++++
+ 7 files changed, 34 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index b9cf7202c2..e28f68df6a 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2100,8 +2100,8 @@
+ //     (or ppc64le.power8, ppc64le.power9, and ppc64le.power10)
+ //     feature build tags.
+ //   - For GOARCH=riscv64,
+-//     GORISCV64=rva20u64 and rva22u64 correspond to the riscv64.rva20u64
+-//     and riscv64.rva22u64 build tags.
++//     GORISCV64=rva20u64, rva22u64 and rva23u64 correspond to the riscv64.rva20u64,
++//     riscv64.rva22u64 and riscv64.rva23u64 build tags.
+ //   - For GOARCH=wasm, GOWASM=satconv and signext
+ //     correspond to the wasm.satconv and wasm.signext feature build tags.
+ //
+@@ -2473,8 +2473,9 @@
+ //		Valid values are power8 (default), power9, power10.
+ //	GORISCV64
+ //		For GOARCH=riscv64, the RISC-V user-mode application profile for which
+-//		to compile. Valid values are rva20u64 (default), rva22u64.
++//		to compile. Valid values are rva20u64 (default), rva22u64, rva23u64.
+ //		See https://github.com/riscv/riscv-profiles/blob/main/src/profiles.adoc
++//		and https://github.com/riscv/riscv-profiles/blob/main/src/rva23-profile.adoc
+ //	GOWASM
+ //		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+ //		Valid values are satconv, signext.
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index d2f0fd173b..e968495215 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -646,8 +646,9 @@ Architecture-specific environment variables:
+ 		Valid values are power8 (default), power9, power10.
+ 	GORISCV64
+ 		For GOARCH=riscv64, the RISC-V user-mode application profile for which
+-		to compile. Valid values are rva20u64 (default), rva22u64.
++		to compile. Valid values are rva20u64 (default), rva22u64, rva23u64.
+ 		See https://github.com/riscv/riscv-profiles/blob/main/src/profiles.adoc
++		and https://github.com/riscv/riscv-profiles/blob/main/src/rva23-profile.adoc
+ 	GOWASM
+ 		For GOARCH=wasm, comma-separated list of experimental WebAssembly features to use.
+ 		Valid values are satconv, signext.
+@@ -951,8 +952,8 @@ The defined architecture feature build tags are:
+ 	  (or ppc64le.power8, ppc64le.power9, and ppc64le.power10)
+ 	  feature build tags.
+ 	- For GOARCH=riscv64,
+-	  GORISCV64=rva20u64 and rva22u64 correspond to the riscv64.rva20u64
+-	  and riscv64.rva22u64 build tags.
++	  GORISCV64=rva20u64, rva22u64 and rva23u64 correspond to the riscv64.rva20u64,
++	  riscv64.rva22u64 and riscv64.rva23u64 build tags.
+ 	- For GOARCH=wasm, GOWASM=satconv and signext
+ 	  correspond to the wasm.satconv and wasm.signext feature build tags.
+ 
+diff --git a/src/cmd/go/testdata/script/tooltags.txt b/src/cmd/go/testdata/script/tooltags.txt
+index 1f6f54563c..a69b7a5c37 100644
+--- a/src/cmd/go/testdata/script/tooltags.txt
++++ b/src/cmd/go/testdata/script/tooltags.txt
+@@ -50,10 +50,15 @@ env GORISCV64=rva22u64
+ go list -f '{{context.ToolTags}}'
+ stdout 'riscv64.rva20u64 riscv64.rva22u64'
+ 
++env GOARCH=riscv64
++env GORISCV64=rva23u64
++go list -f '{{context.ToolTags}}'
++stdout 'riscv64.rva20u64 riscv64.rva22u64 riscv64.rva23u64'
++
+ env GOARCH=riscv64
+ env GORISCV64=rva22
+ ! go list -f '{{context.ToolTags}}'
+-stderr 'go: invalid GORISCV64: must be rva20u64, rva22u64'
++stderr 'go: invalid GORISCV64: must be rva20u64, rva22u64, rva23u64'
+ 
+ env GOARCH=riscv64
+ env GORISCV64=
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 7469a6491a..29bd1f7cf8 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -1489,7 +1489,7 @@ var (
+ 		"ppc64x":  {}, // A pseudo-arch representing both ppc64 and ppc64le
+ 		"s390x":   {},
+ 		"wasm":    {},
+-		"riscv64": {"GORISCV64", "rva20u64", "rva22u64"},
++		"riscv64": {"GORISCV64", "rva20u64", "rva22u64", "rva23u64"},
+ 	}
+ )
+ 
+diff --git a/src/internal/buildcfg/cfg.go b/src/internal/buildcfg/cfg.go
+index fca09bf8d3..5ae4c0c7ad 100644
+--- a/src/internal/buildcfg/cfg.go
++++ b/src/internal/buildcfg/cfg.go
+@@ -307,8 +307,10 @@ func goriscv64() int {
+ 		return 20
+ 	case "rva22u64":
+ 		return 22
++	case "rva23u64":
++		return 23
+ 	}
+-	Error = fmt.Errorf("invalid GORISCV64: must be rva20u64, rva22u64")
++	Error = fmt.Errorf("invalid GORISCV64: must be rva20u64, rva22u64, rva23u64")
+ 	v := DefaultGORISCV64[len("rva"):]
+ 	i := strings.IndexFunc(v, func(r rune) bool {
+ 		return r < '0' || r > '9'
+@@ -441,6 +443,9 @@ func gogoarchTags() []string {
+ 		if GORISCV64 >= 22 {
+ 			list = append(list, GOARCH+"."+"rva22u64")
+ 		}
++		if GORISCV64 >= 23 {
++			list = append(list, GOARCH+"."+"rva23u64")
++		}
+ 		return list
+ 	case "wasm":
+ 		var list []string
+diff --git a/src/internal/buildcfg/cfg_test.go b/src/internal/buildcfg/cfg_test.go
+index 757270b778..2bbd478280 100644
+--- a/src/internal/buildcfg/cfg_test.go
++++ b/src/internal/buildcfg/cfg_test.go
+@@ -32,6 +32,10 @@ func TestConfigFlags(t *testing.T) {
+ 	if goriscv64() != 22 {
+ 		t.Errorf("Wrong parsing of RISCV64=rva22u64")
+ 	}
++	os.Setenv("GORISCV64", "rva23u64")
++	if goriscv64() != 23 {
++		t.Errorf("Wrong parsing of RISCV64=rva23u64")
++	}
+ 	Error = nil
+ 	os.Setenv("GORISCV64", "rva22")
+ 	if _ = goriscv64(); Error == nil {
+diff --git a/src/runtime/asm_riscv64.h b/src/runtime/asm_riscv64.h
+index d4deb093a6..2414b9f067 100644
+--- a/src/runtime/asm_riscv64.h
++++ b/src/runtime/asm_riscv64.h
+@@ -10,3 +10,12 @@
+ #define hasZbb
+ #define hasZbs
+ #endif
++
++#ifdef GORISCV64_rva23u64
++#define hasV
++#define hasZba
++#define hasZbb
++#define hasZbs
++#define hasZfa
++#define hasZicond
++#endif

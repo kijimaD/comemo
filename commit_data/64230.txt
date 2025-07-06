@@ -1,0 +1,68 @@
+commit b4a92f56ffe66bb0ad3fca735b3509b04a04339f
+Author: Clide Stefani <cstefani.sites@gmail.com>
+Date:   Wed Jun 26 16:29:01 2024 -0400
+
+    crypto/tls: add exclude tls flags to bogo_shim_test
+    
+    The existing implementation of bogo_shim_test does not support tests
+    that use the -no-tls1, -no-tls11, or -no-tls12 flags.
+    This change adds support for these flags.
+    
+    Updates #51434
+    
+    Change-Id: I43eaea9f5ec6da6811b150630a7dde24d108017e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595775
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russell Webb <russell.webb@protonmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/tls/bogo_shim_test.go | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index f481a5a40f..ce01852aee 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -37,6 +37,9 @@ var (
+ 	maxVersion    = flag.Int("max-version", VersionTLS13, "")
+ 	expectVersion = flag.Int("expect-version", 0, "")
+ 
++	noTLS1  = flag.Bool("no-tls1", false, "")
++	noTLS11 = flag.Bool("no-tls11", false, "")
++	noTLS12 = flag.Bool("no-tls12", false, "")
+ 	noTLS13 = flag.Bool("no-tls13", false, "")
+ 
+ 	requireAnyClientCertificate = flag.Bool("require-any-client-certificate", false, "")
+@@ -116,8 +119,29 @@ func bogoShim() {
+ 
+ 		ClientSessionCache: NewLRUClientSessionCache(0),
+ 	}
+-	if *noTLS13 && cfg.MaxVersion == VersionTLS13 {
++
++	if *noTLS1 {
++		cfg.MinVersion = VersionTLS11
++		if *noTLS11 {
++			cfg.MinVersion = VersionTLS12
++			if *noTLS12 {
++				cfg.MinVersion = VersionTLS13
++				if *noTLS13 {
++					log.Fatalf("no supported versions enabled")
++				}
++			}
++		}
++	} else if *noTLS13 {
+ 		cfg.MaxVersion = VersionTLS12
++		if *noTLS12 {
++			cfg.MaxVersion = VersionTLS11
++			if *noTLS11 {
++				cfg.MaxVersion = VersionTLS10
++				if *noTLS1 {
++					log.Fatalf("no supported versions enabled")
++				}
++			}
++		}
+ 	}
+ 
+ 	if *advertiseALPN != "" {

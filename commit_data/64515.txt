@@ -1,0 +1,35 @@
+commit 3e3ce20df87b2de86fbcbbad863b07b1a133e879
+Author: Sebastian Nickolls <sebastian.nickolls@arm.com>
+Date:   Tue Aug 13 11:47:40 2024 +0100
+
+    cmd/internal/obj/arm64: Emit UDF instruction for undefined Prog nodes
+    
+    UDF provides a stronger guarantee for generating the Undefined
+    Instruction exception than the current value being emitted.
+    
+    Change-Id: I234cd70ce04f21311959c1061ae24992438105f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605155
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/internal/obj/arm64/asm7.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index 178c83c0bc..bd2bd037ba 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -5338,10 +5338,10 @@ func (c *ctxt7) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 	// This is supposed to be something that stops execution.
+ 	// It's not supposed to be reached, ever, but if it is, we'd
+ 	// like to be able to tell how we got there. Assemble as
+-	// 0xbea71700 which is guaranteed to raise undefined instruction
++	// UDF which is guaranteed to raise the undefined instruction
+ 	// exception.
+ 	case 90:
+-		o1 = 0xbea71700
++		o1 = 0x0
+ 
+ 	case 91: /* prfm imm(Rn), <prfop | $imm5> */
+ 		imm := uint32(p.From.Offset)

@@ -1,0 +1,201 @@
+commit e9f3c9b7cd223c977e10515a03db217ce828530d
+Author: Bryan C. Mills <bcmills@google.com>
+Date:   Thu Dec 7 10:24:55 2023 -0500
+
+    [release-branch.go1.21] cmd/go: set global .gitconfig location more robustly in tests
+    
+    Also confirm that setting the location actually worked before
+    proceeding with the rest of the test.
+    
+    This fixes a test failure with git versions older than 2.32.0.
+    
+    For #53955.
+    For #64603.
+    Fixes #64586
+    
+    Change-Id: I1a954975a3d8300e8b4dca045d3a15438a0407ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/548215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Run-TryBot: Bryan Mills <bcmills@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585816
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/cmd/go/testdata/script/get_issue53955.txt           | 16 ++++++++++++++--
+ .../testdata/script/mod_download_git_bareRepository.txt | 17 +++++++++++++----
+ .../testdata/script/mod_download_git_decorate_full.txt  | 16 +++++++++++-----
+ src/cmd/go/testdata/script/mod_download_issue51114.txt  | 15 ++++++++++++---
+ src/cmd/go/testdata/script/mod_download_private_vcs.txt | 15 ++++++++++++---
+ 5 files changed, 62 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/get_issue53955.txt b/src/cmd/go/testdata/script/get_issue53955.txt
+index c6d45d5c50..685c6facaa 100644
+--- a/src/cmd/go/testdata/script/get_issue53955.txt
++++ b/src/cmd/go/testdata/script/get_issue53955.txt
+@@ -7,7 +7,16 @@
+ [!git] skip
+ [!net:github.com] skip 'does not actually use github.com because of insteadOf, but silence network check just in case'
+ 
+-env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
++# Redirect git to a test-specific .gitconfig.
++# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
++# For older git versions we also set $HOME.
++env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
++env HOME=$WORK${/}home${/}gopher
++exec git config --global --show-origin user.name
++stdout 'Go Gopher'
++
++# Inject a local repo in place of a remote one, so that we can
++# add commits to the repo partway through the test.
+ env GIT_ALLOW_PROTOCOL=file
+ env GOPRIVATE=github.com/golang/issue53955
+ 
+@@ -64,4 +73,7 @@ package issue53955
+ module m
+ 
+ go 1.18
+--- $WORK/.gitconfig --
++-- $WORK/home/gopher/.gitconfig --
++[user]
++	name = Go Gopher
++	email = gopher@golang.org
+diff --git a/src/cmd/go/testdata/script/mod_download_git_bareRepository.txt b/src/cmd/go/testdata/script/mod_download_git_bareRepository.txt
+index 8050461c65..a61283ca49 100644
+--- a/src/cmd/go/testdata/script/mod_download_git_bareRepository.txt
++++ b/src/cmd/go/testdata/script/mod_download_git_bareRepository.txt
+@@ -1,8 +1,14 @@
+ [short] skip
+ [!git] skip
+-[!GOOS:linux] skip  # Uses XDG_CONFIG_HOME
+ 
+-env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
++# Redirect git to a test-specific .gitconfig.
++# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
++# For older git versions we also set $HOME.
++env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
++env HOME=$WORK${/}home${/}gopher
++exec git config --global --show-origin user.name
++stdout 'Go Gopher'
++
+ env GOPRIVATE=vcs-test.golang.org
+ 
+ go mod download -x
+@@ -14,6 +20,9 @@ go 1.18
+ 
+ require vcs-test.golang.org/git/gitrepo1.git v1.2.3
+ 
+--- $WORK/.gitconfig --
++-- $WORK/home/gopher/.gitconfig --
++[user]
++	name = Go Gopher
++	email = gopher@golang.org
+ [safe]
+-bareRepository = explicit
++	bareRepository = explicit
+diff --git a/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt b/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt
+index 080ccf072e..9afd347746 100644
+--- a/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt
++++ b/src/cmd/go/testdata/script/mod_download_git_decorate_full.txt
+@@ -3,12 +3,15 @@ env GO111MODULE=on
+ [short] skip
+ [!git] skip
+ 
+-env GOPROXY=direct
+-env HOME=$WORK/home/gopher
+-
++# Redirect git to a test-specific .gitconfig.
++# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
++# For older git versions we also set $HOME.
++env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
++env HOME=$WORK${/}home${/}gopher
++exec git config --global --show-origin user.name
++stdout 'Go Gopher'
+ 
+-go env GOPROXY
+-stdout 'direct'
++env GOPROXY=direct
+ 
+ exec git config --get log.decorate
+ stdout 'full'
+@@ -24,5 +27,8 @@ go list -m vcs-test.golang.org/git/gitrepo1.git@v1.2.3
+ stdout 'vcs-test.golang.org/git/gitrepo1.git v1.2.3'
+ 
+ -- $WORK/home/gopher/.gitconfig --
++[user]
++	name = Go Gopher
++	email = gopher@golang.org
+ [log]
+ 	decorate = full
+diff --git a/src/cmd/go/testdata/script/mod_download_issue51114.txt b/src/cmd/go/testdata/script/mod_download_issue51114.txt
+index 4d274d61a9..a28d467bb8 100644
+--- a/src/cmd/go/testdata/script/mod_download_issue51114.txt
++++ b/src/cmd/go/testdata/script/mod_download_issue51114.txt
+@@ -1,8 +1,14 @@
+ [!net:github.com] skip
+ [!git] skip
+-[!GOOS:linux] skip  # Uses XDG_CONFIG_HOME
+ 
+-env GIT_CONFIG_GLOBAL=$WORK/.gitconfig
++# Redirect git to a test-specific .gitconfig.
++# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
++# For older git versions we also set $HOME.
++env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
++env HOME=$WORK${/}home${/}gopher
++exec git config --global --show-origin user.name
++stdout 'Go Gopher'
++
+ env GOPROXY=direct
+ 
+ ! go mod download
+@@ -15,6 +21,9 @@ go 1.18
+ 
+ require github.com/golang/notexist/subdir v0.1.0
+ 
+--- $WORK/.gitconfig --
++-- $WORK/home/gopher/.gitconfig --
++[user]
++	name = Go Gopher
++	email = gopher@golang.org
+ [url "git@github.com:"]
+ 	insteadOf = https://github.com/
+diff --git a/src/cmd/go/testdata/script/mod_download_private_vcs.txt b/src/cmd/go/testdata/script/mod_download_private_vcs.txt
+index 2f72a4213a..5c8d93a978 100644
+--- a/src/cmd/go/testdata/script/mod_download_private_vcs.txt
++++ b/src/cmd/go/testdata/script/mod_download_private_vcs.txt
+@@ -5,6 +5,14 @@ env GO111MODULE=on
+ [!git] skip
+ env GOPROXY=direct
+ 
++# Redirect git to a test-specific .gitconfig.
++# GIT_CONFIG_GLOBAL suffices for git 2.32.0 and newer.
++# For older git versions we also set $HOME.
++env GIT_CONFIG_GLOBAL=$WORK${/}home${/}gopher${/}.gitconfig
++env HOME=$WORK${/}home${/}gopher
++exec git config --global --show-origin user.name
++stdout 'Go Gopher'
++
+ ! go mod download github.com/golang/nonexist@latest
+ stderr 'Confirm the import path was entered correctly.'
+ stderr 'If this is a private repository, see https://golang.org/doc/faq#git_https for additional information.'
+@@ -27,7 +35,7 @@ stderr '^If this is a private repository, see https://golang.org/doc/faq#git_htt
+ # Test that Git clone errors will be shown to the user instead of a generic
+ # "unknown revision" error. To do this we want to force git ls-remote to return
+ # an error we don't already have special handling for. See golang/go#42751.
+-env HOME=$WORK${/}home${/}gopher
++exec git config --global url.git@github.com.insteadOf https://github.com/
+ env GIT_SSH_COMMAND=false
+ ! go install github.com/golang/nonexist@master
+ stderr 'fatal: Could not read from remote repository.'
+@@ -35,5 +43,6 @@ stderr 'fatal: Could not read from remote repository.'
+ ! stdout .
+ 
+ -- $WORK/home/gopher/.gitconfig --
+-[url "git@github.com:"]
+-	insteadOf = https://github.com/
++[user]
++	name = Go Gopher
++	email = gopher@golang.org

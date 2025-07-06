@@ -1,0 +1,85 @@
+commit 2b664d586c217b8111bfeeb26c82244199ebc150
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Oct 16 21:00:17 2024 +0000
+
+    time: correct time.AppendText's error message
+    
+    "time.AppendText" returns error messages that start with the prefix
+    "time.MarshalText: " which seems confusion.
+    
+    Now correct the message prefix to "time.AppendText: " and add a test
+    to prevent regression.
+    
+    Change-Id: I5742c9c3ed802eb79c65d459910deae4f3652ffd
+    GitHub-Last-Rev: ce965595c1dafab4a3db3d3f9f9edc9e43c5dea2
+    GitHub-Pull-Request: golang/go#69914
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620597
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/time/time.go      | 16 ++++++++++------
+ src/time/time_test.go | 10 ++++++++++
+ 2 files changed, 20 insertions(+), 6 deletions(-)
+
+diff --git a/src/time/time.go b/src/time/time.go
+index 86fedf9c14..6259eaac4c 100644
+--- a/src/time/time.go
++++ b/src/time/time.go
+@@ -1584,16 +1584,20 @@ func (t *Time) UnmarshalJSON(data []byte) error {
+ 	return err
+ }
+ 
++func (t Time) appendTo(b []byte, errPrefix string) ([]byte, error) {
++	b, err := t.appendStrictRFC3339(b)
++	if err != nil {
++		return nil, errors.New(errPrefix + err.Error())
++	}
++	return b, nil
++}
++
+ // AppendText implements the [encoding.TextAppender] interface.
+ // The time is formatted in RFC 3339 format with sub-second precision.
+ // If the timestamp cannot be represented as valid RFC 3339
+ // (e.g., the year is out of range), then an error is returned.
+ func (t Time) AppendText(b []byte) ([]byte, error) {
+-	b, err := t.appendStrictRFC3339(b)
+-	if err != nil {
+-		return nil, errors.New("Time.MarshalText: " + err.Error())
+-	}
+-	return b, nil
++	return t.appendTo(b, "Time.AppendText: ")
+ }
+ 
+ // MarshalText implements the [encoding.TextMarshaler] interface. The output
+@@ -1601,7 +1605,7 @@ func (t Time) AppendText(b []byte) ([]byte, error) {
+ //
+ // See [Time.AppendText] for more information.
+ func (t Time) MarshalText() ([]byte, error) {
+-	return t.AppendText(make([]byte, 0, len(RFC3339Nano)))
++	return t.appendTo(make([]byte, 0, len(RFC3339Nano)), "Time.MarshalText: ")
+ }
+ 
+ // UnmarshalText implements the [encoding.TextUnmarshaler] interface.
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 18fd21c27c..88b8f7fa0d 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -915,6 +915,16 @@ func TestMarshalInvalidTimes(t *testing.T) {
+ 		case err == nil || err.Error() != want:
+ 			t.Errorf("(%v).MarshalText() error = %v, want %v", tt.time, err, want)
+ 		}
++
++		buf := make([]byte, 0, 64)
++		want = strings.ReplaceAll(tt.want, "MarshalJSON", "AppendText")
++		b, err = tt.time.AppendText(buf)
++		switch {
++		case b != nil:
++			t.Errorf("(%v).AppendText() = %q, want nil", tt.time, b)
++		case err == nil || err.Error() != want:
++			t.Errorf("(%v).AppendText() error = %v, want %v", tt.time, err, want)
++		}
+ 	}
+ }
+ 

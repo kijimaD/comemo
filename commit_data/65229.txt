@@ -1,0 +1,70 @@
+commit 958f3a0309855bc2e362e2951c70849ebec76f30
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Oct 24 13:10:54 2024 +0800
+
+    [release-branch.go1.23] internal/poll: handle the special case of sendfile(2) sending the full chunk
+    
+    CL 622235 would fix #70000 while resulting in one extra sendfile(2) system
+    call when sendfile(2) returns (>0, EAGAIN).
+    That's also why I left sendfile_bsd.go behind, and didn't make it line up
+    with other two implementations: sendfile_linux.go and sendfile_solaris.go.
+    
+    Unlike sendfile(2)'s on Linux and Solaris that always return (0, EAGAIN),
+    sendfile(2)'s on *BSD and macOS may return (>0, EAGAIN) when using a socket
+    marked for non-blocking I/O. In that case, the current code will try to re-call
+    sendfile(2) immediately, which will most likely get us a (0, EAGAIN).
+    After that, it goes to `dstFD.pd.waitWrite(dstFD.isFile)` below,
+    which should have been done in the first place.
+    
+    Thus, the real problem that leads to #70000 is that the old code doesn't handle
+    the special case of sendfile(2) sending the exact number of bytes the caller requested.
+    
+    Fixes #70000
+    Fixes #70020
+    
+    Change-Id: I6073d6b9feb58b3d7e114ec21e4e80d9727bca66
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622255
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622697
+---
+ src/internal/poll/sendfile_bsd.go | 17 ++++++++++++++++-
+ 1 file changed, 16 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/poll/sendfile_bsd.go b/src/internal/poll/sendfile_bsd.go
+index 0b0966815d..341e07ca1f 100644
+--- a/src/internal/poll/sendfile_bsd.go
++++ b/src/internal/poll/sendfile_bsd.go
+@@ -32,13 +32,28 @@ func SendFile(dstFD *FD, src int, pos, remain int64) (written int64, err error,
+ 		if int64(n) > remain {
+ 			n = int(remain)
+ 		}
++		m := n
+ 		pos1 := pos
+ 		n, err = syscall.Sendfile(dst, src, &pos1, n)
+ 		if n > 0 {
+ 			pos += int64(n)
+ 			written += int64(n)
+ 			remain -= int64(n)
+-			continue
++			// (n, nil) indicates that sendfile(2) has transferred
++			// the exact number of bytes we requested, or some unretryable
++			// error have occurred with partial bytes sent. Either way, we
++			// don't need to go through the following logic to check EINTR
++			// or fell into dstFD.pd.waitWrite, just continue to send the
++			// next chunk or break the loop.
++			if n == m {
++				continue
++			} else if err != syscall.EAGAIN &&
++				err != syscall.EINTR &&
++				err != syscall.EBUSY {
++				// Particularly, EPIPE. Errors like that would normally lead
++				// the subsequent sendfile(2) call to (-1, EBADF).
++				break
++			}
+ 		} else if err != syscall.EAGAIN && err != syscall.EINTR {
+ 			// This includes syscall.ENOSYS (no kernel
+ 			// support) and syscall.EINVAL (fd types which

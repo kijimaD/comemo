@@ -1,0 +1,75 @@
+commit 705f9848ef42da0ccb15849d69c5ba6687007a2e
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Fri Jul 26 15:16:24 2024 -0400
+
+    internal/trace: reduce event size by packing goroutine statuses
+    
+    The trace parser was using an otherwise-unused event argument to hold an
+    extra goroutine state argument for the GoStatus & GoStatusStack events.
+    This is needed because the execution tracer just records the "after" for
+    state transitions, but we want to have both the "before" and "after"
+    states available in the StateTransition info for the parsed event. When
+    GoStatusStack was added, the size of the argument array was increased to
+    still have room for the extra status. However, statuses are currently
+    only 1 byte, and the status argument is 8 bytes, so there is plenty of
+    room to pack the "before" and "after" statuses in a single argument. Do
+    that instead to avoid the need for an extra argument.
+    
+    Change-Id: I6886eeb14fb8e5e046b6afcc5b19e04218bcacd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601455
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/trace/base.go  | 6 +-----
+ src/internal/trace/event.go | 5 +++--
+ src/internal/trace/order.go | 2 +-
+ 3 files changed, 5 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/trace/base.go b/src/internal/trace/base.go
+index 4cbd3e64f1..4f4ce48630 100644
+--- a/src/internal/trace/base.go
++++ b/src/internal/trace/base.go
+@@ -19,11 +19,7 @@ import (
+ 
+ // maxArgs is the maximum number of arguments for "plain" events,
+ // i.e. anything that could reasonably be represented as a baseEvent.
+-//
+-// TODO(mknyszek): This is only 6 instead of 5 because GoStatusStack
+-// has 5 arguments and needs to smuggle in a 6th. Figure out a way to
+-// shrink this in the future.
+-const maxArgs = 6
++const maxArgs = 5
+ 
+ // timedEventArgs is an array that is able to hold the arguments for any
+ // timed event.
+diff --git a/src/internal/trace/event.go b/src/internal/trace/event.go
+index a5d5637e60..4c80a7e5ec 100644
+--- a/src/internal/trace/event.go
++++ b/src/internal/trace/event.go
+@@ -647,8 +647,9 @@ func (e Event) StateTransition() StateTransition {
+ 		s = goStateTransition(e.ctx.G, GoSyscall, GoRunnable)
+ 		s.Stack = e.Stack() // This event references the resource the event happened on.
+ 	case go122.EvGoStatus, go122.EvGoStatusStack:
+-		// N.B. ordering.advance populates e.base.extra.
+-		s = goStateTransition(GoID(e.base.args[0]), GoState(e.base.extra(version.Go122)[0]), go122GoStatus2GoState[e.base.args[2]])
++		packedStatus := e.base.args[2]
++		from, to := packedStatus>>32, packedStatus&((1<<32)-1)
++		s = goStateTransition(GoID(e.base.args[0]), GoState(from), go122GoStatus2GoState[to])
+ 	default:
+ 		panic(fmt.Sprintf("internal error: unexpected event type for StateTransition kind: %s", go122.EventString(e.base.typ)))
+ 	}
+diff --git a/src/internal/trace/order.go b/src/internal/trace/order.go
+index 4b3b8029fd..d0818a500c 100644
+--- a/src/internal/trace/order.go
++++ b/src/internal/trace/order.go
+@@ -377,7 +377,7 @@ func (o *ordering) advanceGoStatus(ev *baseEvent, evt *evTable, m ThreadID, gen
+ 	} else {
+ 		return curCtx, false, fmt.Errorf("found goroutine status for new goroutine after the first generation: id=%v status=%v", gid, status)
+ 	}
+-	ev.extra(version.Go122)[0] = uint64(oldState) // Smuggle in the old state for StateTransition.
++	ev.args[2] = uint64(oldState)<<32 | uint64(status) // Smuggle in the old state for StateTransition.
+ 
+ 	newCtx := curCtx
+ 	switch status {

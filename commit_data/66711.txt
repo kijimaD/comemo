@@ -1,0 +1,290 @@
+commit 6d418096b2dfe2a2e47b7aa83b46748fb301e6cb
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Mar 28 16:14:43 2025 -0700
+
+    os: avoid symlink races in RemoveAll on Windows
+    
+    Make the openat-using version of RemoveAll use the appropriate
+    Windows equivalent, via new portable (but internal) functions
+    added for os.Root.
+    
+    We could reimplement everything in terms of os.Root,
+    but this is a bit simpler and keeps the existing code structure.
+    
+    Fixes #52745
+    
+    Change-Id: I0eba0286398b351f2ee9abaa60e1675173988787
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661575
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/syscall/unix/constants.go      |  2 +-
+ src/internal/syscall/unix/nofollow_posix.go |  2 +-
+ src/internal/syscall/windows/at_windows.go  |  4 ++--
+ src/os/path_windows.go                      | 10 +++++++++
+ src/os/removeall_at.go                      | 32 +++++++++--------------------
+ src/os/removeall_noat.go                    |  2 +-
+ src/os/removeall_unix.go                    | 20 ++++++++++++++++++
+ src/os/removeall_windows.go                 | 17 +++++++++++++++
+ src/os/root_unix.go                         | 12 +++++++++++
+ src/os/root_windows.go                      | 10 ++++++++-
+ 10 files changed, 83 insertions(+), 28 deletions(-)
+
+diff --git a/src/internal/syscall/unix/constants.go b/src/internal/syscall/unix/constants.go
+index 28092c2ddf..6a78dda795 100644
+--- a/src/internal/syscall/unix/constants.go
++++ b/src/internal/syscall/unix/constants.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix
++//go:build unix || wasip1
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/unix/nofollow_posix.go b/src/internal/syscall/unix/nofollow_posix.go
+index de2ea14fc8..3a5e0af05d 100644
+--- a/src/internal/syscall/unix/nofollow_posix.go
++++ b/src/internal/syscall/unix/nofollow_posix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix && !dragonfly && !freebsd && !netbsd
++//go:build (unix && !dragonfly && !freebsd && !netbsd) || wasip1
+ 
+ package unix
+ 
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index f04de276b9..919dda1f50 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -188,7 +188,7 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
+ 	return nil
+ }
+ 
+-func Deleteat(dirfd syscall.Handle, name string) error {
++func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
+ 	objAttrs := &OBJECT_ATTRIBUTES{}
+ 	if err := objAttrs.init(dirfd, name); err != nil {
+ 		return err
+@@ -200,7 +200,7 @@ func Deleteat(dirfd syscall.Handle, name string) error {
+ 		objAttrs,
+ 		&IO_STATUS_BLOCK{},
+ 		FILE_SHARE_DELETE|FILE_SHARE_READ|FILE_SHARE_WRITE,
+-		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT,
++		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT|options,
+ 	)
+ 	if err != nil {
+ 		return ntCreateFileError(err, 0)
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index f585aa5ee6..03c5231b54 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -21,6 +21,16 @@ func IsPathSeparator(c uint8) bool {
+ 	return c == '\\' || c == '/'
+ }
+ 
++// splitPath returns the base name and parent directory.
++func splitPath(path string) (string, string) {
++	dirname, basename := filepathlite.Split(path)
++	volnamelen := filepathlite.VolumeNameLen(dirname)
++	for len(dirname) > volnamelen && IsPathSeparator(dirname[len(dirname)-1]) {
++		dirname = dirname[:len(dirname)-1]
++	}
++	return dirname, basename
++}
++
+ func dirname(path string) string {
+ 	vol := filepathlite.VolumeName(path)
+ 	i := len(path) - 1
+diff --git a/src/os/removeall_at.go b/src/os/removeall_at.go
+index f52f6213f5..0d9ebd2e4f 100644
+--- a/src/os/removeall_at.go
++++ b/src/os/removeall_at.go
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix
++//go:build unix || wasip1 || windows
+ 
+ package os
+ 
+ import (
+-	"internal/syscall/unix"
+ 	"io"
+ 	"syscall"
+ )
+@@ -56,11 +55,10 @@ func removeAll(path string) error {
+ }
+ 
+ func removeAllFrom(parent *File, base string) error {
+-	parentFd := int(parent.Fd())
++	parentFd := sysfdType(parent.Fd())
++
+ 	// Simple case: if Unlink (aka remove) works, we're done.
+-	err := ignoringEINTR(func() error {
+-		return unix.Unlinkat(parentFd, base, 0)
+-	})
++	err := removefileat(parentFd, base)
+ 	if err == nil || IsNotExist(err) {
+ 		return nil
+ 	}
+@@ -82,13 +80,13 @@ func removeAllFrom(parent *File, base string) error {
+ 		const reqSize = 1024
+ 		var respSize int
+ 
+-		// Open the directory to recurse into
++		// Open the directory to recurse into.
+ 		file, err := openDirAt(parentFd, base)
+ 		if err != nil {
+ 			if IsNotExist(err) {
+ 				return nil
+ 			}
+-			if err == syscall.ENOTDIR || err == unix.NoFollowErrno {
++			if err == syscall.ENOTDIR || isErrNoFollow(err) {
+ 				// Not a directory; return the error from the unix.Unlinkat.
+ 				return &PathError{Op: "unlinkat", Path: base, Err: uErr}
+ 			}
+@@ -144,9 +142,7 @@ func removeAllFrom(parent *File, base string) error {
+ 	}
+ 
+ 	// Remove the directory itself.
+-	unlinkError := ignoringEINTR(func() error {
+-		return unix.Unlinkat(parentFd, base, unix.AT_REMOVEDIR)
+-	})
++	unlinkError := removedirat(parentFd, base)
+ 	if unlinkError == nil || IsNotExist(unlinkError) {
+ 		return nil
+ 	}
+@@ -165,18 +161,10 @@ func removeAllFrom(parent *File, base string) error {
+ // This acts like openFileNolog rather than OpenFile because
+ // we are going to (try to) remove the file.
+ // The contents of this file are not relevant for test caching.
+-func openDirAt(dirfd int, name string) (*File, error) {
+-	r, err := ignoringEINTR2(func() (int, error) {
+-		return unix.Openat(dirfd, name, O_RDONLY|syscall.O_CLOEXEC|syscall.O_DIRECTORY|syscall.O_NOFOLLOW, 0)
+-	})
++func openDirAt(dirfd sysfdType, name string) (*File, error) {
++	fd, err := rootOpenDir(dirfd, name)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-
+-	if !supportsCloseOnExec {
+-		syscall.CloseOnExec(r)
+-	}
+-
+-	// We use kindNoPoll because we know that this is a directory.
+-	return newFile(r, name, kindNoPoll, false), nil
++	return newDirFile(fd, name)
+ }
+diff --git a/src/os/removeall_noat.go b/src/os/removeall_noat.go
+index 2b8a7727f4..395a1503d4 100644
+--- a/src/os/removeall_noat.go
++++ b/src/os/removeall_noat.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !unix
++//go:build (js && wasm) || plan9
+ 
+ package os
+ 
+diff --git a/src/os/removeall_unix.go b/src/os/removeall_unix.go
+new file mode 100644
+index 0000000000..287fc81fa9
+--- /dev/null
++++ b/src/os/removeall_unix.go
+@@ -0,0 +1,20 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix || wasip1
++
++package os
++
++import (
++	"internal/syscall/unix"
++)
++
++func isErrNoFollow(err error) bool {
++	return err == unix.NoFollowErrno
++}
++
++func newDirFile(fd int, name string) (*File, error) {
++	// We use kindNoPoll because we know that this is a directory.
++	return newFile(fd, name, kindNoPoll, false), nil
++}
+diff --git a/src/os/removeall_windows.go b/src/os/removeall_windows.go
+new file mode 100644
+index 0000000000..a0edb51704
+--- /dev/null
++++ b/src/os/removeall_windows.go
+@@ -0,0 +1,17 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build windows
++
++package os
++
++import "syscall"
++
++func isErrNoFollow(err error) bool {
++	return err == syscall.ELOOP
++}
++
++func newDirFile(fd syscall.Handle, name string) (*File, error) {
++	return newFile(fd, name, "file"), nil
++}
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index ed7a406cc7..19a84c4da0 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -219,6 +219,18 @@ func removeat(fd int, name string) error {
+ 	return e
+ }
+ 
++func removefileat(fd int, name string) error {
++	return ignoringEINTR(func() error {
++		return unix.Unlinkat(fd, name, 0)
++	})
++}
++
++func removedirat(fd int, name string) error {
++	return ignoringEINTR(func() error {
++		return unix.Unlinkat(fd, name, unix.AT_REMOVEDIR)
++	})
++}
++
+ func renameat(oldfd int, oldname string, newfd int, newname string) error {
+ 	return unix.Renameat(oldfd, oldname, newfd, newname)
+ }
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index eb82715046..2eeb53e362 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -336,7 +336,15 @@ func mkdirat(dirfd syscall.Handle, name string, perm FileMode) error {
+ }
+ 
+ func removeat(dirfd syscall.Handle, name string) error {
+-	return windows.Deleteat(dirfd, name)
++	return windows.Deleteat(dirfd, name, 0)
++}
++
++func removefileat(dirfd syscall.Handle, name string) error {
++	return windows.Deleteat(dirfd, name, windows.FILE_NON_DIRECTORY_FILE)
++}
++
++func removedirat(dirfd syscall.Handle, name string) error {
++	return windows.Deleteat(dirfd, name, windows.FILE_DIRECTORY_FILE)
+ }
+ 
+ func chtimesat(dirfd syscall.Handle, name string, atime time.Time, mtime time.Time) error {

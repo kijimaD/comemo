@@ -1,0 +1,32 @@
+commit 5c7f5413866b4b84654705ab49251b48b2b05ed4
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Jul 12 20:51:45 2024 +0100
+
+    archive/zip: document handling of duplicate names in Writer.Create
+    
+    Fixes #66810
+    
+    Change-Id: I6a7848dce245ae14941d61d2f78abaf0dc5c1247
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597978
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/archive/zip/writer.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/archive/zip/writer.go b/src/archive/zip/writer.go
+index 8d868de5e0..1380740a95 100644
+--- a/src/archive/zip/writer.go
++++ b/src/archive/zip/writer.go
+@@ -213,7 +213,8 @@ func (w *Writer) Close() error {
+ // The name must be a relative path: it must not start with a drive
+ // letter (e.g. C:) or leading slash, and only forward slashes are
+ // allowed. To create a directory instead of a file, add a trailing
+-// slash to the name.
++// slash to the name. Duplicate names will not overwrite previous entries
++// and are appended to the zip file.
+ // The file's contents must be written to the [io.Writer] before the next
+ // call to [Writer.Create], [Writer.CreateHeader], or [Writer.Close].
+ func (w *Writer) Create(name string) (io.Writer, error) {

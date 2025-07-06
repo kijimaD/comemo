@@ -1,0 +1,35 @@
+commit 5ab9d9660412be2887ae5adba6198f029bcbb4a9
+Author: Eric Young <eay@pobox.com>
+Date:   Fri Jun 3 02:22:50 2022 +0000
+
+    crypto/tls: fix a testing deadlock that occurs on a TLS protocol error
+    
+    A Go routine was, on an error, returning without sending a message on its
+    signaling channel, so the main program was blocking forever waiting for
+    a message that was never sent. Found while breaking crypto/tls.
+    
+    Change-Id: Id0b3c070a27cabd852f74e86bb9eff5c66b86d28
+    GitHub-Last-Rev: 4d84fb8b556589ec98eba6142a553fbd45683b96
+    GitHub-Pull-Request: golang/go#53216
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/410274
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/tls/handshake_server_test.go | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/crypto/tls/handshake_server_test.go b/src/crypto/tls/handshake_server_test.go
+index 2c75b78eb1..9a2a378dce 100644
+--- a/src/crypto/tls/handshake_server_test.go
++++ b/src/crypto/tls/handshake_server_test.go
+@@ -236,7 +236,6 @@ func TestRenegotiationExtension(t *testing.T) {
+ 		n, err := c.Read(buf)
+ 		if err != nil {
+ 			t.Errorf("Server read returned error: %s", err)
+-			return
+ 		}
+ 		c.Close()
+ 		bufChan <- buf[:n]

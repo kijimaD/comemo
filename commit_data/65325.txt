@@ -1,0 +1,202 @@
+commit 72a92ab5b72680e6e0f8acffcfd62b2c6fd98085
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Sat Apr 1 08:49:58 2023 +0800
+
+    cmd/compiler,internal/runtime/atomic: optimize xchg{32,64} on loong64
+    
+    Use Loong64's atomic operation instruction AMSWAPDB{W,V} (full barrier)
+    to implement atomic.Xchg{32,64}
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A5000 @ 2500.00MHz
+               |  old.bench    |  new.bench                          |
+               |  sec/op       |  sec/op        vs base              |
+    Xchg          26.44n ± 0%     12.01n ± 0%   -54.58% (p=0.000 n=20)
+    Xchg-2        30.10n ± 0%     25.58n ± 0%   -15.02% (p=0.000 n=20)
+    Xchg-4        30.06n ± 0%     24.82n ± 0%   -17.43% (p=0.000 n=20)
+    Xchg64        26.44n ± 0%     12.02n ± 0%   -54.54% (p=0.000 n=20)
+    Xchg64-2      30.10n ± 0%     25.57n ± 0%   -15.05% (p=0.000 n=20)
+    Xchg64-4      30.05n ± 0%     24.80n ± 0%   -17.47% (p=0.000 n=20)
+    geomean       28.81n          19.68n        -31.69%
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A6000 @ 2500.00MHz
+               |  old.bench    |  new.bench                          |
+               |  sec/op       |  sec/op        vs base              |
+    Xchg          25.62n ± 0%     12.41n ± 0%  -51.56% (p=0.000 n=20)
+    Xchg-2        35.01n ± 0%     20.59n ± 0%  -41.19% (p=0.000 n=20)
+    Xchg-4        34.63n ± 0%     19.59n ± 0%  -43.42% (p=0.000 n=20)
+    Xchg64        25.62n ± 0%     12.41n ± 0%  -51.56% (p=0.000 n=20)
+    Xchg64-2      35.01n ± 0%     20.59n ± 0%  -41.19% (p=0.000 n=20)
+    Xchg64-4      34.67n ± 0%     19.59n ± 0%  -43.50% (p=0.000 n=20)
+    geomean       31.44n          17.11n       -45.59%
+    
+    Updates #59120.
+    
+    Change-Id: Ied74fc20338b63799c6d6eeb122c31b42cff0f7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/481578
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: WANG Xuerui <git@xen0n.name>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+---
+ src/cmd/compile/internal/loong64/ssa.go         | 37 +++++--------------------
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go | 10 ++-----
+ src/cmd/compile/internal/ssa/opGen.go           |  2 --
+ src/internal/runtime/atomic/atomic_loong64.s    | 30 ++++++++++----------
+ 4 files changed, 23 insertions(+), 56 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index c49fee6808..515040b648 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -693,40 +693,17 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.RegTo2 = loong64.REGZERO
+ 
+ 	case ssa.OpLOONG64LoweredAtomicExchange32, ssa.OpLOONG64LoweredAtomicExchange64:
+-		// DBAR
+-		// MOVV	Rarg1, Rtmp
+-		// LL	(Rarg0), Rout
+-		// SC	Rtmp, (Rarg0)
+-		// BEQ	Rtmp, -3(PC)
+-		// DBAR
+-		ll := loong64.ALLV
+-		sc := loong64.ASCV
++		// AMSWAPx	Rarg1, (Rarg0), Rout
++		amswapx := loong64.AAMSWAPDBV
+ 		if v.Op == ssa.OpLOONG64LoweredAtomicExchange32 {
+-			ll = loong64.ALL
+-			sc = loong64.ASC
++			amswapx = loong64.AAMSWAPDBW
+ 		}
+-		s.Prog(loong64.ADBAR)
+-		p := s.Prog(loong64.AMOVV)
++		p := s.Prog(amswapx)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = v.Args[1].Reg()
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = loong64.REGTMP
+-		p1 := s.Prog(ll)
+-		p1.From.Type = obj.TYPE_MEM
+-		p1.From.Reg = v.Args[0].Reg()
+-		p1.To.Type = obj.TYPE_REG
+-		p1.To.Reg = v.Reg0()
+-		p2 := s.Prog(sc)
+-		p2.From.Type = obj.TYPE_REG
+-		p2.From.Reg = loong64.REGTMP
+-		p2.To.Type = obj.TYPE_MEM
+-		p2.To.Reg = v.Args[0].Reg()
+-		p3 := s.Prog(loong64.ABEQ)
+-		p3.From.Type = obj.TYPE_REG
+-		p3.From.Reg = loong64.REGTMP
+-		p3.To.Type = obj.TYPE_BRANCH
+-		p3.To.SetTarget(p)
+-		s.Prog(loong64.ADBAR)
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = v.Args[0].Reg()
++		p.RegTo2 = v.Reg0()
+ 
+ 	case ssa.OpLOONG64LoweredAtomicAdd32, ssa.OpLOONG64LoweredAtomicAdd64:
+ 		// AMADDx  Rarg1, (Rarg0), Rout
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 465e724a19..96a80eb4c7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -451,14 +451,8 @@ func init() {
+ 
+ 		// atomic exchange.
+ 		// store arg1 to arg0. arg2=mem. returns <old content of *arg0, memory>.
+-		// DBAR
+-		// LL	(Rarg0), Rout
+-		// MOVV Rarg1, Rtmp
+-		// SC	Rtmp, (Rarg0)
+-		// BEQ	Rtmp, -3(PC)
+-		// DBAR
+-		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+-		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
++		{name: "LoweredAtomicExchange32", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicExchange64", argLength: 3, reg: gpxchg, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+ 
+ 		// atomic add.
+ 		// *arg0 += arg1. arg2=mem. returns <new content of *arg0, memory>.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index bcc358db50..775ca63f14 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -25709,7 +25709,6 @@ var opcodeTable = [...]opInfo{
+ 		resultNotInArgs: true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
+-		unsafePoint:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+@@ -25726,7 +25725,6 @@ var opcodeTable = [...]opInfo{
+ 		resultNotInArgs: true,
+ 		faultOnNilArg0:  true,
+ 		hasSideEffects:  true,
+-		unsafePoint:     true,
+ 		reg: regInfo{
+ 			inputs: []inputInfo{
+ 				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
+diff --git a/src/internal/runtime/atomic/atomic_loong64.s b/src/internal/runtime/atomic/atomic_loong64.s
+index 07d0f584b1..6ea162d9da 100644
+--- a/src/internal/runtime/atomic/atomic_loong64.s
++++ b/src/internal/runtime/atomic/atomic_loong64.s
+@@ -116,35 +116,33 @@ TEXT ·Xadd64(SB), NOSPLIT, $0-24
+ 	MOVV	R4, ret+16(FP)
+ 	RET
+ 
++// func Xchg(ptr *uint32, new uint32) uint32
+ TEXT ·Xchg(SB), NOSPLIT, $0-20
+ 	MOVV	ptr+0(FP), R4
+ 	MOVW	new+8(FP), R5
+-
+-	DBAR
+-	MOVV	R5, R6
+-	LL	(R4), R7
+-	SC	R6, (R4)
+-	BEQ	R6, -3(PC)
+-	MOVW	R7, ret+16(FP)
+-	DBAR
++	AMSWAPDBW	R5, (R4), R6
++	MOVW	R6, ret+16(FP)
+ 	RET
+ 
++// func Xchg64(ptr *uint64, new uint64) uint64
+ TEXT ·Xchg64(SB), NOSPLIT, $0-24
+ 	MOVV	ptr+0(FP), R4
+ 	MOVV	new+8(FP), R5
+-
+-	DBAR
+-	MOVV	R5, R6
+-	LLV	(R4), R7
+-	SCV	R6, (R4)
+-	BEQ	R6, -3(PC)
+-	MOVV	R7, ret+16(FP)
+-	DBAR
++	AMSWAPDBV	R5, (R4), R6
++	MOVV	R6, ret+16(FP)
+ 	RET
+ 
+ TEXT ·Xchguintptr(SB), NOSPLIT, $0-24
+ 	JMP	·Xchg64(SB)
+ 
++// func Xchgint32(ptr *int32, new int32) int32
++TEXT ·Xchgint32(SB), NOSPLIT, $0-20
++	JMP	·Xchg(SB)
++
++// func Xchgint64(ptr *int64, new int64) int64
++TEXT ·Xchgint64(SB), NOSPLIT, $0-24
++	JMP	·Xchg64(SB)
++
+ TEXT ·StorepNoWB(SB), NOSPLIT, $0-16
+ 	JMP	·Store64(SB)
+ 

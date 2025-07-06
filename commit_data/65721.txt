@@ -1,0 +1,316 @@
+commit acd54c99857bd5e8030cd8d1adaef0f324799224
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 29 14:49:29 2024 +0100
+
+    crypto/rsa: move key generation to crypto/internal/fips140/rsa
+    
+    It's about 2x slower, but we'll recover that by implementing trial
+    divisions in a follow-up CL.
+    
+    Updates #69799
+    For #69536
+    
+    Change-Id: Icc02f5a268b658d629bbe7fdaf2a42ad3b259e2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632477
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/fips140/bigmod/nat.go |  25 ++++++-
+ src/crypto/internal/fips140/rsa/keygen.go | 104 ++++++++++++++++++++++++++++++
+ src/crypto/rsa/rsa.go                     |  89 ++++++++++++++++++-------
+ src/crypto/rsa/rsa_test.go                |   2 +-
+ 4 files changed, 192 insertions(+), 28 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/bigmod/nat.go b/src/crypto/internal/fips140/bigmod/nat.go
+index 18e1203c24..3b33d24c42 100644
+--- a/src/crypto/internal/fips140/bigmod/nat.go
++++ b/src/crypto/internal/fips140/bigmod/nat.go
+@@ -102,6 +102,11 @@ func (x *Nat) resetToBytes(b []byte) *Nat {
+ 	if err := x.setBytes(b); err != nil {
+ 		panic("bigmod: internal error: bad arithmetic")
+ 	}
++	return x.trim()
++}
++
++// trim reduces the size of x to match its value.
++func (x *Nat) trim() *Nat {
+ 	// Trim most significant (trailing in little-endian) zero limbs.
+ 	// We assume comparison with zero (but not the branch) is constant time.
+ 	for i := len(x.limbs) - 1; i >= 0; i-- {
+@@ -475,8 +480,24 @@ func minusInverseModW(x uint) uint {
+ // The number of significant bits and whether the modulus is even is leaked
+ // through timing side-channels.
+ func NewModulus(b []byte) (*Modulus, error) {
+-	m := &Modulus{}
+-	m.nat = NewNat().resetToBytes(b)
++	n := NewNat().resetToBytes(b)
++	return newModulus(n)
++}
++
++// NewModulusProduct creates a new Modulus from the product of two numbers
++// represented as big-endian byte slices. The result must be greater than one.
++func NewModulusProduct(a, b []byte) (*Modulus, error) {
++	x := NewNat().resetToBytes(a)
++	y := NewNat().resetToBytes(b)
++	n := NewNat().reset(len(x.limbs) + len(y.limbs))
++	for i := range y.limbs {
++		n.limbs[i+len(x.limbs)] = addMulVVW(n.limbs[i:i+len(x.limbs)], x.limbs, y.limbs[i])
++	}
++	return newModulus(n.trim())
++}
++
++func newModulus(n *Nat) (*Modulus, error) {
++	m := &Modulus{nat: n}
+ 	if m.nat.IsZero() == yes || m.nat.IsOne() == yes {
+ 		return nil, errors.New("modulus must be > 1")
+ 	}
+diff --git a/src/crypto/internal/fips140/rsa/keygen.go b/src/crypto/internal/fips140/rsa/keygen.go
+index e06e4cf771..9b143e83f4 100644
+--- a/src/crypto/internal/fips140/rsa/keygen.go
++++ b/src/crypto/internal/fips140/rsa/keygen.go
+@@ -5,11 +5,115 @@
+ package rsa
+ 
+ import (
++	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/bigmod"
+ 	"crypto/internal/fips140/drbg"
++	"crypto/internal/randutil"
+ 	"errors"
++	"io"
+ )
+ 
++// GenerateKey generates a new RSA key pair of the given bit size.
++// bits must be at least 128.
++//
++// When operating in FIPS mode, rand is ignored.
++func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
++	if bits < 128 {
++		return nil, errors.New("rsa: key too small")
++	}
++	fips140.RecordApproved()
++	if bits < 2048 || bits > 16384 {
++		fips140.RecordNonApproved()
++	}
++
++	for {
++		p, err := randomPrime(rand, (bits+1)/2)
++		if err != nil {
++			return nil, err
++		}
++		q, err := randomPrime(rand, bits/2)
++		if err != nil {
++			return nil, err
++		}
++
++		P, err := bigmod.NewModulus(p)
++		if err != nil {
++			return nil, err
++		}
++		Q, err := bigmod.NewModulus(q)
++		if err != nil {
++			return nil, err
++		}
++
++		N, err := bigmod.NewModulusProduct(p, q)
++		if err != nil {
++			return nil, err
++		}
++		if N.BitLen() != bits {
++			return nil, errors.New("rsa: internal error: modulus size incorrect")
++		}
++
++		φ, err := bigmod.NewModulusProduct(P.Nat().SubOne(N).Bytes(N),
++			Q.Nat().SubOne(N).Bytes(N))
++		if err != nil {
++			return nil, err
++		}
++
++		e := bigmod.NewNat().SetUint(65537)
++		d, ok := bigmod.NewNat().InverseVarTime(e, φ)
++		if !ok {
++			continue
++		}
++
++		if e.ExpandFor(φ).Mul(d, φ).IsOne() == 0 {
++			return nil, errors.New("rsa: internal error: e*d != 1 mod φ(N)")
++		}
++
++		return newPrivateKey(N, 65537, d, P, Q)
++	}
++}
++
++// randomPrime returns a random prime number of the given bit size.
++// rand is ignored in FIPS mode.
++func randomPrime(rand io.Reader, bits int) ([]byte, error) {
++	if bits < 64 {
++		return nil, errors.New("rsa: prime size must be at least 32-bit")
++	}
++
++	b := make([]byte, (bits+7)/8)
++	for {
++		if fips140.Enabled {
++			drbg.Read(b)
++		} else {
++			randutil.MaybeReadByte(rand)
++			if _, err := io.ReadFull(rand, b); err != nil {
++				return nil, err
++			}
++		}
++		if excess := len(b)*8 - bits; excess != 0 {
++			b[0] >>= excess
++		}
++
++		// Don't let the value be too small: set the most significant two bits.
++		// Setting the top two bits, rather than just the top bit, means that
++		// when two of these values are multiplied together, the result isn't
++		// ever one bit short.
++		if excess := len(b)*8 - bits; excess < 7 {
++			b[0] |= 0b1100_0000 >> excess
++		} else {
++			b[0] |= 0b0000_0001
++			b[1] |= 0b1000_0000
++		}
++
++		// Make the value odd since an even number certainly isn't prime.
++		b[len(b)-1] |= 1
++
++		if isPrime(b) {
++			return b, nil
++		}
++	}
++}
++
+ // isPrime runs the Miller-Rabin Probabilistic Primality Test from
+ // FIPS 186-5, Appendix B.3.1.
+ //
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 8cca6a8cdd..38fbfce9a3 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -46,6 +46,7 @@ import (
+ 	"crypto/internal/boring/bbig"
+ 	"crypto/internal/fips140/bigmod"
+ 	"crypto/internal/fips140/rsa"
++	"crypto/internal/fips140only"
+ 	"crypto/internal/randutil"
+ 	"crypto/rand"
+ 	"crypto/subtle"
+@@ -278,32 +279,8 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+ 	if err := checkKeySize(bits); err != nil {
+ 		return nil, err
+ 	}
+-	return GenerateMultiPrimeKey(random, 2, bits)
+-}
+-
+-// GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
+-// size and the given random source.
+-//
+-// Table 1 in "[On the Security of Multi-prime RSA]" suggests maximum numbers of
+-// primes for a given bit size.
+-//
+-// Although the public keys are compatible (actually, indistinguishable) from
+-// the 2-prime case, the private keys are not. Thus it may not be possible to
+-// export multi-prime private keys in certain formats or to subsequently import
+-// them into other code.
+-//
+-// This package does not implement CRT optimizations for multi-prime RSA, so the
+-// keys with more than two primes will have worse performance.
+-//
+-// Deprecated: The use of this function with a number of primes different from
+-// two is not recommended for the above security, compatibility, and performance
+-// reasons. Use [GenerateKey] instead.
+-//
+-// [On the Security of Multi-prime RSA]: http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
+-func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
+-	randutil.MaybeReadByte(random)
+ 
+-	if boring.Enabled && random == boring.RandReader && nprimes == 2 &&
++	if boring.Enabled && random == boring.RandReader &&
+ 		(bits == 2048 || bits == 3072 || bits == 4096) {
+ 		bN, bE, bD, bP, bQ, bDp, bDq, bQinv, err := boring.GenerateKeyRSA(bits)
+ 		if err != nil {
+@@ -339,6 +316,68 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
+ 		return key, nil
+ 	}
+ 
++	if fips140only.Enabled && bits < 2048 {
++		return nil, errors.New("crypto/rsa: use of keys smaller than 2048 bits is not allowed in FIPS 140-only mode")
++	}
++	if fips140only.Enabled && bits > 16384 {
++		return nil, errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
++	}
++
++	k, err := rsa.GenerateKey(random, bits)
++	if err != nil {
++		return nil, err
++	}
++	N, e, d, p, q, dP, dQ, qInv := k.Export()
++	key := &PrivateKey{
++		PublicKey: PublicKey{
++			N: new(big.Int).SetBytes(N),
++			E: e,
++		},
++		D: new(big.Int).SetBytes(d),
++		Primes: []*big.Int{
++			new(big.Int).SetBytes(p),
++			new(big.Int).SetBytes(q),
++		},
++		Precomputed: PrecomputedValues{
++			fips:      k,
++			Dp:        new(big.Int).SetBytes(dP),
++			Dq:        new(big.Int).SetBytes(dQ),
++			Qinv:      new(big.Int).SetBytes(qInv),
++			CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
++		},
++	}
++	return key, nil
++}
++
++// GenerateMultiPrimeKey generates a multi-prime RSA keypair of the given bit
++// size and the given random source.
++//
++// Table 1 in "[On the Security of Multi-prime RSA]" suggests maximum numbers of
++// primes for a given bit size.
++//
++// Although the public keys are compatible (actually, indistinguishable) from
++// the 2-prime case, the private keys are not. Thus it may not be possible to
++// export multi-prime private keys in certain formats or to subsequently import
++// them into other code.
++//
++// This package does not implement CRT optimizations for multi-prime RSA, so the
++// keys with more than two primes will have worse performance.
++//
++// Deprecated: The use of this function with a number of primes different from
++// two is not recommended for the above security, compatibility, and performance
++// reasons. Use [GenerateKey] instead.
++//
++// [On the Security of Multi-prime RSA]: http://www.cacr.math.uwaterloo.ca/techreports/2006/cacr2006-16.pdf
++func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey, error) {
++	if nprimes == 2 {
++		return GenerateKey(random, bits)
++	}
++	if fips140only.Enabled {
++		return nil, errors.New("crypto/rsa: multi-prime RSA is not allowed in FIPS 140-only mode")
++	}
++
++	randutil.MaybeReadByte(random)
++
+ 	priv := new(PrivateKey)
+ 	priv.E = 65537
+ 
+diff --git a/src/crypto/rsa/rsa_test.go b/src/crypto/rsa/rsa_test.go
+index 7a3e02f09c..14543503ed 100644
+--- a/src/crypto/rsa/rsa_test.go
++++ b/src/crypto/rsa/rsa_test.go
+@@ -195,7 +195,7 @@ func TestEverything(t *testing.T) {
+ 			t.Parallel()
+ 			priv, err := GenerateKey(rand.Reader, size)
+ 			if err != nil {
+-				t.Errorf("GenerateKey(%d): %v", size, err)
++				t.Fatalf("GenerateKey(%d): %v", size, err)
+ 			}
+ 			if bits := priv.N.BitLen(); bits != size {
+ 				t.Errorf("key too short (%d vs %d)", bits, size)

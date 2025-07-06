@@ -1,0 +1,209 @@
+commit 56ec5d96bce06b70895ce2816fd59a4e0c4db21c
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed May 15 13:46:38 2024 -0700
+
+    crypto/tls: populate Leaf in X509KeyPair
+    
+    Fixes #67065
+    
+    Change-Id: I189e194de8aa94523eb64e1dd294a70cb81cbdf6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585856
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ doc/godebug.md                 |  7 ++++++
+ src/crypto/tls/tls.go          | 29 +++++++++++++++------
+ src/crypto/tls/tls_test.go     | 57 ++++++++++++++++++++++++++++++++++++++++++
+ src/internal/godebugs/table.go |  1 +
+ src/runtime/metrics/doc.go     |  5 ++++
+ 5 files changed, 92 insertions(+), 7 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index d5455e337c..bc8b32c00e 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -201,6 +201,13 @@ Go 1.23 changed the default TLS cipher suites used by clients and servers when
+ not explicitly configured, removing 3DES cipher suites. The default can be reverted
+ using the [`tls3des` setting](/pkg/crypto/tls/#Config.CipherSuites).
+ 
++Go 1.23 changed the behavior of [`tls.X509KeyPair`](/pkg/crypto/tls#X509KeyPair)
++and [`tls.LoadX509KeyPair`](/pkg/crypto/tls#LoadX509KeyPair) to populate the
++Leaf field of the returned [`tls.Certificate`](/pkg/crypto/tls#Certificate).
++This behavior is controlled by the `x509keypairleaf` setting. For Go 1.23, it
++defaults to `x509keypairleaf=1`. Previous versions default to
++`x509keypairleaf=0`.
++
+ ### Go 1.22
+ 
+ Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
+diff --git a/src/crypto/tls/tls.go b/src/crypto/tls/tls.go
+index 8509b7dc0d..b30f0b8fe4 100644
+--- a/src/crypto/tls/tls.go
++++ b/src/crypto/tls/tls.go
+@@ -22,6 +22,7 @@ import (
+ 	"encoding/pem"
+ 	"errors"
+ 	"fmt"
++	"internal/godebug"
+ 	"net"
+ 	"os"
+ 	"strings"
+@@ -222,11 +223,14 @@ func (d *Dialer) DialContext(ctx context.Context, network, addr string) (net.Con
+ 	return c, nil
+ }
+ 
+-// LoadX509KeyPair reads and parses a public/private key pair from a pair
+-// of files. The files must contain PEM encoded data. The certificate file
+-// may contain intermediate certificates following the leaf certificate to
+-// form a certificate chain. On successful return, Certificate.Leaf will
+-// be nil because the parsed form of the certificate is not retained.
++// LoadX509KeyPair reads and parses a public/private key pair from a pair of
++// files. The files must contain PEM encoded data. The certificate file may
++// contain intermediate certificates following the leaf certificate to form a
++// certificate chain. On successful return, Certificate.Leaf will be populated.
++//
++// Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was
++// discarded. This behavior can be re-enabled by setting "x509keypairleaf=0"
++// in the GODEBUG environment variable.
+ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
+ 	certPEMBlock, err := os.ReadFile(certFile)
+ 	if err != nil {
+@@ -239,9 +243,14 @@ func LoadX509KeyPair(certFile, keyFile string) (Certificate, error) {
+ 	return X509KeyPair(certPEMBlock, keyPEMBlock)
+ }
+ 
++var x509keypairleaf = godebug.New("x509keypairleaf")
++
+ // X509KeyPair parses a public/private key pair from a pair of
+-// PEM encoded data. On successful return, Certificate.Leaf will be nil because
+-// the parsed form of the certificate is not retained.
++// PEM encoded data. On successful return, Certificate.Leaf will be populated.
++//
++// Before Go 1.23 Certificate.Leaf was left nil, and the parsed certificate was
++// discarded. This behavior can be re-enabled by setting "x509keypairleaf=0"
++// in the GODEBUG environment variable.
+ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
+ 	fail := func(err error) (Certificate, error) { return Certificate{}, err }
+ 
+@@ -296,6 +305,12 @@ func X509KeyPair(certPEMBlock, keyPEMBlock []byte) (Certificate, error) {
+ 		return fail(err)
+ 	}
+ 
++	if x509keypairleaf.Value() != "0" {
++		cert.Leaf = x509Cert
++	} else {
++		x509keypairleaf.IncNonDefault()
++	}
++
+ 	cert.PrivateKey, err = parsePrivateKey(keyDERBlock.Bytes)
+ 	if err != nil {
+ 		return fail(err)
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 69b57de1e6..158b459976 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -8,13 +8,19 @@ import (
+ 	"bytes"
+ 	"context"
+ 	"crypto"
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rand"
+ 	"crypto/x509"
++	"crypto/x509/pkix"
+ 	"encoding/json"
++	"encoding/pem"
+ 	"errors"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+ 	"math"
++	"math/big"
+ 	"net"
+ 	"os"
+ 	"reflect"
+@@ -1945,3 +1951,54 @@ func TestHandshakeKyber(t *testing.T) {
+ 		})
+ 	}
+ }
++
++func TestX509KeyPairPopulateCertificate(t *testing.T) {
++	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
++	if err != nil {
++		t.Fatal(err)
++	}
++	keyDER, err := x509.MarshalPKCS8PrivateKey(key)
++	if err != nil {
++		t.Fatal(err)
++	}
++	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: keyDER})
++	tmpl := &x509.Certificate{
++		SerialNumber: big.NewInt(1),
++		Subject:      pkix.Name{CommonName: "test"},
++	}
++	certDER, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, key.Public(), key)
++	if err != nil {
++		t.Fatal(err)
++	}
++	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
++
++	t.Run("x509keypairleaf=0", func(t *testing.T) {
++		t.Setenv("GODEBUG", "x509keypairleaf=0")
++		cert, err := X509KeyPair(certPEM, keyPEM)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if cert.Leaf != nil {
++			t.Fatal("Leaf should not be populated")
++		}
++	})
++	t.Run("x509keypairleaf=1", func(t *testing.T) {
++		t.Setenv("GODEBUG", "x509keypairleaf=1")
++		cert, err := X509KeyPair(certPEM, keyPEM)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if cert.Leaf == nil {
++			t.Fatal("Leaf should be populated")
++		}
++	})
++	t.Run("GODEBUG unset", func(t *testing.T) {
++		cert, err := X509KeyPair(certPEM, keyPEM)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if cert.Leaf == nil {
++			t.Fatal("Leaf should be populated")
++		}
++	})
++}
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index eaa95d5aa9..df99334cb0 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -54,6 +54,7 @@ var All = []Info{
+ 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0"},
+ 	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
++	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
+ 	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
+ 	{Name: "x509seriallength", Package: "crypto/x509", Changed: 23, Old: "1"},
+ 	{Name: "x509sha1", Package: "crypto/x509"},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 2dd8ce261c..c89e176986 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -326,6 +326,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the os package
+ 		due to a non-default GODEBUG=winsymlink=... setting.
+ 
++	/godebug/non-default-behavior/x509keypairleaf:events
++		The number of non-default behaviors executed by the crypto/tls
++		package due to a non-default GODEBUG=x509keypairleaf=...
++		setting.
++
+ 	/godebug/non-default-behavior/x509negativeserial:events
+ 		The number of non-default behaviors executed by the crypto/x509
+ 		package due to a non-default GODEBUG=x509negativeserial=...

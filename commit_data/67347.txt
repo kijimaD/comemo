@@ -1,0 +1,68 @@
+commit 7fa2c736b3dbcc741b4575f4df758532aaee34f7
+Author: Damien Neil <dneil@google.com>
+Date:   Thu Jun 5 14:27:45 2025 -0700
+
+    os: disallow Root.Remove(".") on Plan 9, js, and Windows
+    
+    Windows already forbids this, since removing the root causes a
+    sharing violation (can't delete the directory while the os.Root
+    has a handle open to it), but add a more explicit check for
+    attempts to delete "." and return EINVAL.
+    
+    Note that this change to Windows doesn't affect operations like
+    Root.Remove("dir/."), since the path is cleaned into just "dir"
+    before attempting the deletion.
+    
+    Fixes #73863
+    
+    Change-Id: I0f45ccb6c9f171d3a52831632c134150388d77b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/679377
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/syscall/windows/at_windows.go | 5 +++++
+ src/os/root_noopenat.go                    | 7 +++++++
+ 2 files changed, 12 insertions(+)
+
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index 87e0195d30..d48fce1c99 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -192,6 +192,11 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
+ }
+ 
+ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
++	if name == "." {
++		// NtOpenFile's documentation isn't explicit about what happens when deleting ".".
++		// Make this an error consistent with that of POSIX.
++		return syscall.EINVAL
++	}
+ 	objAttrs := &OBJECT_ATTRIBUTES{}
+ 	if err := objAttrs.init(dirfd, name); err != nil {
+ 		return err
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+index c4929623c4..59f1abe91b 100644
+--- a/src/os/root_noopenat.go
++++ b/src/os/root_noopenat.go
+@@ -8,6 +8,7 @@ package os
+ 
+ import (
+ 	"errors"
++	"internal/filepathlite"
+ 	"internal/stringslite"
+ 	"sync/atomic"
+ 	"syscall"
+@@ -173,6 +174,12 @@ func rootRemove(r *Root, name string) error {
+ 	if err := checkPathEscapesLstat(r, name); err != nil {
+ 		return &PathError{Op: "removeat", Path: name, Err: err}
+ 	}
++	if endsWithDot(name) {
++		// We don't want to permit removing the root itself, so check for that.
++		if filepathlite.Clean(name) == "." {
++			return &PathError{Op: "removeat", Path: name, Err: errPathEscapes}
++		}
++	}
+ 	if err := Remove(joinPath(r.root.name, name)); err != nil {
+ 		return &PathError{Op: "removeat", Path: name, Err: underlyingError(err)}
+ 	}

@@ -1,0 +1,98 @@
+commit 6853d89477e0886c7c96b08e7efaf74abedfcf71
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Oct 16 16:18:45 2024 +0200
+
+    syscall: keep write access when O_TRUNC is used on Windows
+    
+    CL 618836 introduces a regression where O_APPEND and O_TRUNC could
+    not be used together on Windows.
+    
+    This CL fixes the issue by keeping the write access when O_TRUNC is used
+    , which is required when overwriting data (as per the file
+    access rights docs: https://learn.microsoft.com/en-us/windows/win32/fileio/file-access-rights-constants).
+    
+    Fixes #69902.
+    
+    Change-Id: I77ec60ca6929124dd4490bdad6c3280c4db3efcb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620575
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/syscall/syscall_windows.go      |  6 +++++-
+ src/syscall/syscall_windows_test.go | 30 ++++++++++++++++++++----------
+ 2 files changed, 25 insertions(+), 11 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index db1f4f2ba4..67a71dfc76 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -362,8 +362,12 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+ 		access |= GENERIC_WRITE
+ 	}
+ 	if flag&O_APPEND != 0 {
+-		access &^= GENERIC_WRITE
+ 		access |= FILE_APPEND_DATA
++		// Remove GENERIC_WRITE access unless O_TRUNC is set,
++		// in which case we need it to truncate the file.
++		if flag&O_TRUNC == 0 {
++			access &^= GENERIC_WRITE
++		}
+ 	}
+ 	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
+ 	var sa *SecurityAttributes
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index ea1e8c9b3c..8b5af9c501 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -15,29 +15,39 @@ import (
+ 	"testing"
+ )
+ 
+-func TestOpen_Dir(t *testing.T) {
++func TestOpen(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	dir := t.TempDir()
++	file := filepath.Join(dir, "a")
++	f, err := os.Create(file)
++	if err != nil {
++		t.Fatal(err)
++	}
++	f.Close()
++
+ 	tests := []struct {
++		path string
+ 		flag int
+ 		err  error
+ 	}{
+-		{syscall.O_RDONLY, nil},
+-		{syscall.O_CREAT, nil},
+-		{syscall.O_RDONLY | syscall.O_CREAT, nil},
+-		{syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
+-		{syscall.O_WRONLY | syscall.O_RDWR, syscall.EISDIR},
+-		{syscall.O_WRONLY, syscall.EISDIR},
+-		{syscall.O_RDWR, syscall.EISDIR},
++		{dir, syscall.O_RDONLY, nil},
++		{dir, syscall.O_CREAT, nil},
++		{dir, syscall.O_RDONLY | syscall.O_CREAT, nil},
++		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE, nil},
++		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE | os.O_TRUNC, nil},
++		{dir, syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
++		{dir, syscall.O_WRONLY | syscall.O_RDWR, syscall.EISDIR},
++		{dir, syscall.O_WRONLY, syscall.EISDIR},
++		{dir, syscall.O_RDWR, syscall.EISDIR},
+ 	}
+ 	for i, tt := range tests {
+-		h, err := syscall.Open(dir, tt.flag, 0)
++		h, err := syscall.Open(tt.path, tt.flag, 0o660)
+ 		if err == nil {
+ 			syscall.CloseHandle(h)
+ 		}
+ 		if err != tt.err {
+-			t.Errorf("%d: Open got %v, want %v", i, err, tt.err)
++			t.Errorf("%d: Open got %q, want %q", i, err, tt.err)
+ 		}
+ 	}
+ }

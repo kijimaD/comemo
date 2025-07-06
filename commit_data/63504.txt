@@ -1,0 +1,100 @@
+commit 974b2011ca2a74ca1137558771b428bddb2e7df3
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Apr 18 09:39:31 2024 +0200
+
+    internal/syscall/unix: implement Eaccess on darwin
+    
+    Like on other Unix-like platforms, use faccessat(AT_FDCWD, path, mode,
+    AT_EACCESS).
+    
+    Change-Id: I6e04b4244f8e90bd3b35b1b8a9ca38fe845b34ae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579976
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/syscall/unix/asm_darwin.s        |  1 +
+ src/internal/syscall/unix/at_sysnum_darwin.go | 10 ++++++---
+ src/internal/syscall/unix/eaccess_darwin.go   | 31 +++++++++++++++++++++++++++
+ src/internal/syscall/unix/eaccess_other.go    |  2 +-
+ 4 files changed, 40 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+index 0b8efb1506..99f28765fe 100644
+--- a/src/internal/syscall/unix/asm_darwin.s
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -22,3 +22,4 @@ TEXT ·libc_getpwuid_r_trampoline(SB),NOSPLIT,$0-0; JMP libc_getpwuid_r(SB)
+ TEXT ·libc_getgrnam_r_trampoline(SB),NOSPLIT,$0-0; JMP libc_getgrnam_r(SB)
+ TEXT ·libc_getgrgid_r_trampoline(SB),NOSPLIT,$0-0; JMP libc_getgrgid_r(SB)
+ TEXT ·libc_sysconf_trampoline(SB),NOSPLIT,$0-0; JMP libc_sysconf(SB)
++TEXT ·libc_faccessat_trampoline(SB),NOSPLIT,$0-0; JMP libc_faccessat(SB)
+diff --git a/src/internal/syscall/unix/at_sysnum_darwin.go b/src/internal/syscall/unix/at_sysnum_darwin.go
+index 208ff34d03..77b0af80b5 100644
+--- a/src/internal/syscall/unix/at_sysnum_darwin.go
++++ b/src/internal/syscall/unix/at_sysnum_darwin.go
+@@ -4,7 +4,11 @@
+ 
+ package unix
+ 
+-const AT_REMOVEDIR = 0x80
+-const AT_SYMLINK_NOFOLLOW = 0x0020
++const (
++	AT_EACCESS          = 0x10
++	AT_FDCWD            = -0x2
++	AT_REMOVEDIR        = 0x80
++	AT_SYMLINK_NOFOLLOW = 0x0020
+ 
+-const UTIME_OMIT = -0x2
++	UTIME_OMIT = -0x2
++)
+diff --git a/src/internal/syscall/unix/eaccess_darwin.go b/src/internal/syscall/unix/eaccess_darwin.go
+new file mode 100644
+index 0000000000..0fa8d17afe
+--- /dev/null
++++ b/src/internal/syscall/unix/eaccess_darwin.go
+@@ -0,0 +1,31 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"internal/abi"
++	"syscall"
++	"unsafe"
++)
++
++func libc_faccessat_trampoline()
++
++//go:cgo_import_dynamic libc_faccessat faccessat "/usr/lib/libSystem.B.dylib"
++
++func faccessat(dirfd int, path string, mode uint32, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_faccessat_trampoline), uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(flags), 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
++
++func Eaccess(path string, mode uint32) error {
++	return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
++}
+diff --git a/src/internal/syscall/unix/eaccess_other.go b/src/internal/syscall/unix/eaccess_other.go
+index 1a633ae857..3da3a64f0e 100644
+--- a/src/internal/syscall/unix/eaccess_other.go
++++ b/src/internal/syscall/unix/eaccess_other.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build unix && !dragonfly && !freebsd && !linux && !openbsd && !netbsd
++//go:build unix && !darwin && !dragonfly && !freebsd && !linux && !openbsd && !netbsd
+ 
+ package unix
+ 

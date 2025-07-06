@@ -1,0 +1,47 @@
+commit 0a4215c234fedb3c888dd184416fa1ef08dfe9ae
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Jun 26 14:58:12 2024 -0400
+
+    cmd/compile: keep internal/runtime packages sorted
+    
+    This is a minor cleanup from CL 600436.
+    
+    For #65355.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-darwin-amd64-longtest
+    Change-Id: I8e27f0c6ba6bd35f4aa2b9d53c394fb5f1eb433d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595116
+    Reviewed-by: Austin Clements <austin@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/test/inl_test.go | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 58f5df953b..5a8a156f02 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -97,10 +97,6 @@ func TestIntendedInlining(t *testing.T) {
+ 			"traceLocker.ok",
+ 			"traceEnabled",
+ 		},
+-		"internal/runtime/sys": {},
+-		"internal/runtime/math": {
+-			"MulUintptr",
+-		},
+ 		"bytes": {
+ 			"(*Buffer).Bytes",
+ 			"(*Buffer).Cap",
+@@ -117,6 +113,10 @@ func TestIntendedInlining(t *testing.T) {
+ 		"internal/abi": {
+ 			"UseInterfaceSwitchCache",
+ 		},
++		"internal/runtime/math": {
++			"MulUintptr",
++		},
++		"internal/runtime/sys": {},
+ 		"compress/flate": {
+ 			"byLiteral.Len",
+ 			"byLiteral.Less",

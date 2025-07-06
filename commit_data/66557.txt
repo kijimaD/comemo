@@ -1,0 +1,33 @@
+commit 853b514417dab2cf0383e48207caff2ce0305618
+Author: 1911860538 <alxps1911@gmail.com>
+Date:   Thu Mar 13 11:57:51 2025 +0000
+
+    time: optimize quote using byte(c) for ASCII
+    
+    Since c < runeSelf && c >= ' ' (i.e., 32 <= c < 128), using buf = append(buf, byte(c)) instead of buf = append(buf, string(c)...) is a better choice, as it provides better performance.
+    
+    Change-Id: Ic0ab25c71634a1814267f4d85be2ebd8a3d44676
+    GitHub-Last-Rev: 5445b547712bbfc77a5c17d76194291c22eb4a05
+    GitHub-Pull-Request: golang/go#72820
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657055
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/time/format.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index da1bac5ac3..87e990d48a 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -891,7 +891,7 @@ func quote(s string) string {
+ 			if c == '"' || c == '\\' {
+ 				buf = append(buf, '\\')
+ 			}
+-			buf = append(buf, string(c)...)
++			buf = append(buf, byte(c))
+ 		}
+ 	}
+ 	buf = append(buf, '"')

@@ -1,0 +1,32 @@
+commit 456a90aa1618a6c3aa49ecba46969128e2bfa26f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Sun Jun 22 15:01:27 2025 -0400
+
+    runtime: add missing unlock in sysReserveAlignedSbrk
+    
+    sysReserveAlignedSbrk locks memlock at entry, but it is not
+    unlocked at one of the return path. Add the missing unlock.
+    
+    Fixes #74339.
+    
+    Change-Id: Ib641bc348aca41494ec410e2c4eb9857f3362484
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683295
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/mem_sbrk.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/mem_sbrk.go b/src/runtime/mem_sbrk.go
+index 9d6842ae52..05f0fdb5d7 100644
+--- a/src/runtime/mem_sbrk.go
++++ b/src/runtime/mem_sbrk.go
+@@ -231,6 +231,7 @@ func sysReserveAlignedSbrk(size, align uintptr) (unsafe.Pointer, uintptr) {
+ 			memFree(unsafe.Pointer(end), endLen)
+ 		}
+ 		memCheck()
++		unlock(&memlock)
+ 		return unsafe.Pointer(pAligned), size
+ 	}
+ 

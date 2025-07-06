@@ -1,0 +1,74 @@
+commit 7b10c49e0563e43292a72ee1a576fa2345164670
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Apr 3 11:36:12 2024 -0400
+
+    runtime: rename v2 execution tracer files
+    
+    This change renames the v2 execution tracer files created as part of
+    
+    Updates #66703
+    For #60773
+    
+    Change-Id: I91bfdc08fec4ec68ff3a6e8b5c86f6f8bcae6e6d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576257
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/{trace2.go => trace.go}               | 0
+ src/runtime/{trace2buf.go => tracebuf.go}         | 0
+ src/runtime/{trace2cpu.go => tracecpu.go}         | 0
+ src/runtime/{trace2event.go => traceevent.go}     | 0
+ src/runtime/{trace2map.go => tracemap.go}         | 0
+ src/runtime/{trace2region.go => traceregion.go}   | 0
+ src/runtime/{trace2runtime.go => traceruntime.go} | 0
+ src/runtime/{trace2stack.go => tracestack.go}     | 0
+ src/runtime/{trace2status.go => tracestatus.go}   | 0
+ src/runtime/{trace2string.go => tracestring.go}   | 0
+ src/runtime/{trace2time.go => tracetime.go}       | 0
+ 11 files changed, 0 insertions(+), 0 deletions(-)
+
+diff --git a/src/runtime/trace2.go b/src/runtime/trace.go
+similarity index 100%
+rename from src/runtime/trace2.go
+rename to src/runtime/trace.go
+diff --git a/src/runtime/trace2buf.go b/src/runtime/tracebuf.go
+similarity index 100%
+rename from src/runtime/trace2buf.go
+rename to src/runtime/tracebuf.go
+diff --git a/src/runtime/trace2cpu.go b/src/runtime/tracecpu.go
+similarity index 100%
+rename from src/runtime/trace2cpu.go
+rename to src/runtime/tracecpu.go
+diff --git a/src/runtime/trace2event.go b/src/runtime/traceevent.go
+similarity index 100%
+rename from src/runtime/trace2event.go
+rename to src/runtime/traceevent.go
+diff --git a/src/runtime/trace2map.go b/src/runtime/tracemap.go
+similarity index 100%
+rename from src/runtime/trace2map.go
+rename to src/runtime/tracemap.go
+diff --git a/src/runtime/trace2region.go b/src/runtime/traceregion.go
+similarity index 100%
+rename from src/runtime/trace2region.go
+rename to src/runtime/traceregion.go
+diff --git a/src/runtime/trace2runtime.go b/src/runtime/traceruntime.go
+similarity index 100%
+rename from src/runtime/trace2runtime.go
+rename to src/runtime/traceruntime.go
+diff --git a/src/runtime/trace2stack.go b/src/runtime/tracestack.go
+similarity index 100%
+rename from src/runtime/trace2stack.go
+rename to src/runtime/tracestack.go
+diff --git a/src/runtime/trace2status.go b/src/runtime/tracestatus.go
+similarity index 100%
+rename from src/runtime/trace2status.go
+rename to src/runtime/tracestatus.go
+diff --git a/src/runtime/trace2string.go b/src/runtime/tracestring.go
+similarity index 100%
+rename from src/runtime/trace2string.go
+rename to src/runtime/tracestring.go
+diff --git a/src/runtime/trace2time.go b/src/runtime/tracetime.go
+similarity index 100%
+rename from src/runtime/trace2time.go
+rename to src/runtime/tracetime.go

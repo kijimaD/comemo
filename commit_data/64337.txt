@@ -1,0 +1,47 @@
+commit 0fe775e9f3c60db4a8fa6981bbc5cb0812a01dc5
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Thu Jun 27 10:56:22 2024 +0800
+
+    cmd/compile: drop TODO in NilCheck for riscv64
+    
+    Also add log as arm/amd64 do.
+    
+    Change-Id: I3698993e2df0ebf3bfcf8bad5fe389affa0e8eff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595355
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/riscv64/ssa.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index c9e75b2180..3c57bc93bc 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -7,6 +7,7 @@ package riscv64
+ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
++	"cmd/compile/internal/logopt"
+ 	"cmd/compile/internal/objw"
+ 	"cmd/compile/internal/ssa"
+ 	"cmd/compile/internal/ssagen"
+@@ -720,13 +721,15 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 
+ 	case ssa.OpRISCV64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+-		// TODO: optimizations. See arm and amd64 LoweredNilCheck.
+ 		p := s.Prog(riscv.AMOVB)
+ 		p.From.Type = obj.TYPE_MEM
+ 		p.From.Reg = v.Args[0].Reg()
+ 		ssagen.AddAux(&p.From, v)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = riscv.REG_ZERO
++		if logopt.Enabled() {
++			logopt.LogOpt(v.Pos, "nilcheck", "genssa", v.Block.Func.Name)
++		}
+ 		if base.Debug.Nil != 0 && v.Pos.Line() > 1 { // v.Pos == 1 in generated wrappers
+ 			base.WarnfAt(v.Pos, "generated nil check")
+ 		}

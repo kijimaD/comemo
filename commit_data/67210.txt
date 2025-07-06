@@ -1,0 +1,156 @@
+commit 8bf816ae6879fa4537cc6e6e292769df2d7dbb78
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed May 21 16:50:17 2025 -0400
+
+    cmd/compile/internal/escape: make escape analysis -m=2 logs more accessible
+    
+    This was the first CL in a series of CLs aimed at reducing
+    how often interface arguments escape for the print functions in fmt.
+    
+    This CL makes some small improvements to the escape analysis logging.
+    
+    Here is a sample snippet of the current -m=2 logs:
+    
+    ./print.go:587:7: parameter p leaks to {heap} with derefs=0:
+    ./print.go:587:7:   flow: p = p:
+    ./print.go:587:7:     from (*pp).printArg(p, err, 'v') (call parameter) at ./print.go:613:13
+    ./print.go:587:7:   flow: p = p:
+    ./print.go:587:7:     from (*pp).handleMethods(p, verb) (call parameter) at ./print.go:749:22
+    [..]
+    
+    If we attempt to tease apart some reasons why the -m=2 logs can be
+    challenging to understand for the uninitiated:
+    
+    - The "flow" lines are very useful, but contain more-or-less abstracted
+    pseudocode. The "from" lines most often use actual code. When first
+    looking at the logs, that distinction might not be apparent, which can
+    result in looking back to the original code to hunt for pseudocode
+    that doesn't exist there. (The log example shows 'p = p', but there is
+    no 'p = p' in the original source).
+    
+    - Escape analysis can be most interesting with inlining, but that can
+    result in seeing overlapping short variable names (e.g., p, b, v...).
+    
+    - The directionality of the "flow" lines might not be obvious,
+    including whether they build top-to-bottom or bottom-to-top.
+    
+    - The use of '{' and '}' in the -m=2 logs somewhat intersects with Go
+    literals (e.g., if the log says "{temp}", an initial thought might
+    be that represents some temp inside of some Go literal).
+    
+    - And of course, escape analysis itself is subtle.
+    
+    This CL:
+    
+    - Adds the function name to the first -m=2 line to provide more context
+    and reduce how often the reader needs to lookup line numbers.
+    
+    - Uses the Unicode left arrow '←' rather than '=' on the flow lines
+    to make it clearer that these lines are abstracted away from the
+    original Go code and to help the directionality jump out.
+    
+    In the future, we can consider changing "{heap}", "{temp}",
+    "{storage for foo}" to something else, but we leave them as is for now.
+    
+    Two examples with the modifications:
+    
+    ./f1.go:3:9: parameter inptr leaks to outptr for func1 with derefs=0:
+    ./f1.go:3:9:   flow: localptr ← inptr:
+    ./f1.go:3:9:     from localptr := inptr (assign) at ./f1.go:4:11
+    ./f1.go:3:9:   flow: outptr ← localptr:
+    ./f1.go:3:9:     from return localptr (return) at ./f1.go:5:2
+    
+    ./b.go:14:20: []byte{...} escapes to heap in byteOrderExample:
+    ./b.go:14:20:   flow: b ← &{storage for []byte{...}}:
+    ./b.go:14:20:     from []byte{...} (spill) at ./byteorder.go:14:20
+    ./b.go:14:20:     from b := []byte{...} (assign) at ./byteorder.go:14:11
+    ./b.go:14:20:   flow: <heap> ← b:
+    ./b.go:14:20:     from byteOrder.Uint32(b) (call parameter) at ./byteorder.go:15:32
+    
+    These changes only affect the -m=2 output and leave the -m=1 output
+    as is.
+    
+    Updates #8618
+    Updates #62653
+    
+    Change-Id: Ic082a371c3d3fa0d8fd8bfbe4d64ec3e1e53c173
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524937
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/escape/graph.go       | 2 +-
+ src/cmd/compile/internal/escape/solve.go       | 6 +++---
+ src/cmd/compile/internal/logopt/logopt_test.go | 6 +++---
+ 3 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/graph.go b/src/cmd/compile/internal/escape/graph.go
+index d20809d442..0ffb4a0bb5 100644
+--- a/src/cmd/compile/internal/escape/graph.go
++++ b/src/cmd/compile/internal/escape/graph.go
+@@ -212,7 +212,7 @@ func (b *batch) flow(k hole, src *location) {
+ 		if base.Flag.LowerM >= 2 || logopt.Enabled() {
+ 			pos := base.FmtPos(src.n.Pos())
+ 			if base.Flag.LowerM >= 2 {
+-				fmt.Printf("%s: %v escapes to heap:\n", pos, src.n)
++				fmt.Printf("%s: %v escapes to heap in %v:\n", pos, src.n, ir.FuncName(src.curfn))
+ 			}
+ 			explanation := b.explainFlow(pos, dst, src, k.derefs, k.notes, []*logopt.LoggedOpt{})
+ 			if logopt.Enabled() {
+diff --git a/src/cmd/compile/internal/escape/solve.go b/src/cmd/compile/internal/escape/solve.go
+index d2263a7039..e2ca3eabda 100644
+--- a/src/cmd/compile/internal/escape/solve.go
++++ b/src/cmd/compile/internal/escape/solve.go
+@@ -116,7 +116,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
+ 			if b.outlives(root, l) {
+ 				if !l.hasAttr(attrEscapes) && (logopt.Enabled() || base.Flag.LowerM >= 2) {
+ 					if base.Flag.LowerM >= 2 {
+-						fmt.Printf("%s: %v escapes to heap:\n", base.FmtPos(l.n.Pos()), l.n)
++						fmt.Printf("%s: %v escapes to heap in %v:\n", base.FmtPos(l.n.Pos()), l.n, ir.FuncName(l.curfn))
+ 					}
+ 					explanation := b.explainPath(root, l)
+ 					if logopt.Enabled() {
+@@ -146,7 +146,7 @@ func (b *batch) walkOne(root *location, walkgen uint32, enqueue func(*location))
+ 			if b.outlives(root, l) {
+ 				if !l.hasAttr(attrEscapes) && (logopt.Enabled() || base.Flag.LowerM >= 2) {
+ 					if base.Flag.LowerM >= 2 {
+-						fmt.Printf("%s: parameter %v leaks to %s with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(root), derefs)
++						fmt.Printf("%s: parameter %v leaks to %s for %v with derefs=%d:\n", base.FmtPos(l.n.Pos()), l.n, b.explainLoc(root), ir.FuncName(l.curfn), derefs)
+ 					}
+ 					explanation := b.explainPath(root, l)
+ 					if logopt.Enabled() {
+@@ -234,7 +234,7 @@ func (b *batch) explainFlow(pos string, dst, srcloc *location, derefs int, notes
+ 	}
+ 	print := base.Flag.LowerM >= 2
+ 
+-	flow := fmt.Sprintf("   flow: %s = %s%v:", b.explainLoc(dst), ops, b.explainLoc(srcloc))
++	flow := fmt.Sprintf("   flow: %s ← %s%v:", b.explainLoc(dst), ops, b.explainLoc(srcloc))
+ 	if print {
+ 		fmt.Printf("%s:%s\n", pos, flow)
+ 	}
+diff --git a/src/cmd/compile/internal/logopt/logopt_test.go b/src/cmd/compile/internal/logopt/logopt_test.go
+index c7debd9897..1edabf9fb7 100644
+--- a/src/cmd/compile/internal/logopt/logopt_test.go
++++ b/src/cmd/compile/internal/logopt/logopt_test.go
+@@ -203,16 +203,16 @@ func s15a8(x *[15]int64) [15]int64 {
+ 		// escape analysis explanation
+ 		want(t, slogged, `{"range":{"start":{"line":7,"character":13},"end":{"line":7,"character":13}},"severity":3,"code":"leak","source":"go compiler","message":"parameter z leaks to ~r0 with derefs=0",`+
+ 			`"relatedInformation":[`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: y = z:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: y ← z:"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y := z (assign-pair)"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~r0 = y:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:    flow: ~r0 ← y:"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from y.b (dot of pointer)"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":11},"end":{"line":4,"character":11}}},"message":"inlineLoc"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from \u0026y.b (address-of)"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":4,"character":9},"end":{"line":4,"character":9}}},"message":"inlineLoc"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":13},"end":{"line":9,"character":13}}},"message":"escflow:      from ~r0 = \u0026y.b (assign-pair)"},`+
+-			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r0 = ~r0:"},`+
++			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:    flow: ~r0 ← ~r0:"},`+
+ 			`{"location":{"uri":"file://tmpdir/file.go","range":{"start":{"line":9,"character":3},"end":{"line":9,"character":3}}},"message":"escflow:      from return ~r0 (return)"}]}`)
+ 	})
+ }

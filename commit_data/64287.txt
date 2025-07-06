@@ -1,0 +1,86 @@
+commit b73875ff6cae1b9c790e9c8d4e99ecb7185f8cd9
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jul 11 00:14:33 2024 +0700
+
+    test: re-enabled fixedbugs/notinheap.go test
+    
+    By using cgo.Incomplete to represent not-in-heap type.
+    
+    While at it, also removing the type conversions tests, since they could
+    not be present without //go:notinheap pragma.
+    
+    Fixes #54846
+    
+    Change-Id: I5ee2a4b6498d4100c9770ed7bd62f52623e42526
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597536
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ src/cmd/internal/testdir/testdir_test.go |  1 -
+ test/fixedbugs/notinheap.go              | 32 ++++++--------------------------
+ 2 files changed, 6 insertions(+), 27 deletions(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index 8d68591982..e64451b743 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -1859,7 +1859,6 @@ var types2Failures = setOf(
+ 	"fixedbugs/issue20233.go", // types2 reports two instead of one error (preference: 1.17 compiler)
+ 	"fixedbugs/issue20245.go", // types2 reports two instead of one error (preference: 1.17 compiler)
+ 	"fixedbugs/issue31053.go", // types2 reports "unknown field" instead of "cannot refer to unexported field"
+-	"fixedbugs/notinheap.go",  // types2 doesn't report errors about conversions that are invalid due to //go:notinheap
+ )
+ 
+ var types2Failures32Bit = setOf(
+diff --git a/test/fixedbugs/notinheap.go b/test/fixedbugs/notinheap.go
+index 2188a38a14..bb13456211 100644
+--- a/test/fixedbugs/notinheap.go
++++ b/test/fixedbugs/notinheap.go
+@@ -4,12 +4,15 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Test type-checking errors for go:notinheap.
++// Test type-checking errors for not-in-heap types.
++
++//go:build cgo
+ 
+ package p
+ 
+-//go:notinheap
+-type nih struct{}
++import "runtime/cgo"
++
++type nih struct{ _ cgo.Incomplete }
+ 
+ type embed4 map[nih]int // ERROR "incomplete \(or unallocatable\) map key not allowed"
+ 
+@@ -26,26 +29,3 @@ type okay3 func(x nih) nih
+ type okay4 interface {
+ 	f(x nih) nih
+ }
+-
+-// Type conversions don't let you sneak past notinheap.
+-
+-type t1 struct{ x int }
+-
+-//go:notinheap
+-type t2 t1
+-
+-//go:notinheap
+-type t3 byte
+-
+-//go:notinheap
+-type t4 rune
+-
+-var sink interface{}
+-
+-func i() {
+-	sink = new(t1)                     // no error
+-	sink = (*t2)(new(t1))              // ERROR "cannot convert(.|\n)*t2 is incomplete \(or unallocatable\)"
+-	sink = (*t2)(new(struct{ x int })) // ERROR "cannot convert(.|\n)*t2 is incomplete \(or unallocatable\)"
+-	sink = []t3("foo")                 // ERROR "cannot convert(.|\n)*t3 is incomplete \(or unallocatable\)"
+-	sink = []t4("bar")                 // ERROR "cannot convert(.|\n)*t4 is incomplete \(or unallocatable\)"
+-}

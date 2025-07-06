@@ -1,0 +1,78 @@
+commit dd7ab5ec5d6329dd5da052d2438274572ad7113b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 29 16:27:49 2024 +0100
+
+    crypto/internal/fips140/rsa: do trial divisions in key generation
+    
+    This is optimized to be cheap in terms of extra code and complexity,
+    rather than performance, so we reuse the GCD we have for inverting d.
+    
+    Recovers most of the performance loss since CL 630516, although
+    benchmarking key generation is by nature extremely noisy.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/rsa
+    cpu: Apple M2
+                       │ 3b42687c56  │           b3d018a1e8-dirty           │
+                       │   sec/op    │    sec/op     vs base                │
+    GenerateKey/2048-8   104.1m ± 7%   139.7m ± 20%  +34.10% (p=0.000 n=20)
+    
+    Updates #69799
+    For #69536
+    
+    Change-Id: I00347610935db8feb0597529a301ad7ace5b2f22
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632479
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/fips140/rsa/keygen.go | 26 ++++++++++++++++++++++++++
+ 1 file changed, 26 insertions(+)
+
+diff --git a/src/crypto/internal/fips140/rsa/keygen.go b/src/crypto/internal/fips140/rsa/keygen.go
+index 9b143e83f4..91b3260995 100644
+--- a/src/crypto/internal/fips140/rsa/keygen.go
++++ b/src/crypto/internal/fips140/rsa/keygen.go
+@@ -128,6 +128,18 @@ func isPrime(w []byte) bool {
+ 		return false
+ 	}
+ 
++	primes, err := bigmod.NewNat().SetBytes(productOfPrimes, mr.w)
++	// If w is too small for productOfPrimes, key generation is
++	// going to be fast enough anyway.
++	if err == nil {
++		_, hasInverse := primes.InverseVarTime(primes, mr.w)
++		if !hasInverse {
++			// productOfPrimes doesn't have an inverse mod w,
++			// so w is divisible by at least one of the primes.
++			return false
++		}
++	}
++
+ 	// iterations is the number of Miller-Rabin rounds, each with a
+ 	// randomly-selected base.
+ 	//
+@@ -183,6 +195,20 @@ func isPrime(w []byte) bool {
+ 	}
+ }
+ 
++// productOfPrimes is the product of the first 74 primes higher than 2.
++//
++// The number of primes was selected to be the highest such that the product fit
++// in 512 bits, so to be usable for 1024 bit RSA keys.
++//
++// Higher values cause fewer Miller-Rabin tests of composites (nothing can help
++// with the final test on the actual prime) but make InverseVarTime take longer.
++var productOfPrimes = []byte{
++	0x10, 0x6a, 0xa9, 0xfb, 0x76, 0x46, 0xfa, 0x6e, 0xb0, 0x81, 0x3c, 0x28, 0xc5, 0xd5, 0xf0, 0x9f,
++	0x07, 0x7e, 0xc3, 0xba, 0x23, 0x8b, 0xfb, 0x99, 0xc1, 0xb6, 0x31, 0xa2, 0x03, 0xe8, 0x11, 0x87,
++	0x23, 0x3d, 0xb1, 0x17, 0xcb, 0xc3, 0x84, 0x05, 0x6e, 0xf0, 0x46, 0x59, 0xa4, 0xa1, 0x1d, 0xe4,
++	0x9f, 0x7e, 0xcb, 0x29, 0xba, 0xda, 0x8f, 0x98, 0x0d, 0xec, 0xec, 0xe9, 0x2e, 0x30, 0xc4, 0x8f,
++}
++
+ type millerRabin struct {
+ 	w *bigmod.Modulus
+ 	a uint

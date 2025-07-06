@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40370: bef15341e1e0e691cd6699e8ab767c1d67681bff
+# Index 40370: ab02028b5af0b5d8966ac9bb092352a523314b08
 
 echo "🚀 Generating explanation for commit 40370..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40370..."
 
 ### メタデータ
 - **コミットインデックス**: 40370
-- **コミットハッシュ**: bef15341e1e0e691cd6699e8ab767c1d67681bff
-- **GitHub URL**: https://github.com/golang/go/commit/bef15341e1e0e691cd6699e8ab767c1d67681bff
+- **コミットハッシュ**: ab02028b5af0b5d8966ac9bb092352a523314b08
+- **GitHub URL**: https://github.com/golang/go/commit/ab02028b5af0b5d8966ac9bb092352a523314b08
 
 ### 章構成
 

@@ -1,0 +1,87 @@
+commit 08707d66c350927560faa11b0c195d37d281ab89
+Author: Nic Klaassen <nic@nicklaassen.ca>
+Date:   Thu Aug 22 23:37:00 2024 +0000
+
+    database/sql: fix panic with concurrent Conn and Close
+    
+    The current implementation has a panic when the database is closed
+    concurrently with a new connection attempt.
+    
+    connRequestSet.CloseAndRemoveAll sets connRequestSet.s to a nil slice.
+    If this happens between calls to connRequestSet.Add and
+    connRequestSet.Delete, there is a panic when trying to write to the nil
+    slice. This is sequence is likely to occur in DB.conn, where the mutex
+    is released between calls to db.connRequests.Add and
+    db.connRequests.Delete
+    
+    This change updates connRequestSet.CloseAndRemoveAll to set the curIdx
+    to -1 for all pending requests before setting its internal slice to nil.
+    CloseAndRemoveAll already iterates the full slice to close all the request
+    channels. It seems appropriate to set curIdx to -1 before deleting the
+    slice for 3 reasons:
+    1. connRequestSet.deleteIndex also sets curIdx to -1
+    2. curIdx will not be relevant to anything after the slice is set to nil
+    3. connRequestSet.Delete already checks for negative indices
+    
+    Fixes #68949
+    
+    Change-Id: I6b7ebc5a71b67322908271d13865fa12f2469b87
+    GitHub-Last-Rev: 7d2669155b24043dd9d276f915689511572f2e49
+    GitHub-Pull-Request: golang/go#68953
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607238
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Brad Fitzpatrick <bradfitz@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/database/sql/sql.go      |  5 +++--
+ src/database/sql/sql_test.go | 11 +++++++++++
+ 2 files changed, 14 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index de774a0510..c247a9b506 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1368,8 +1368,8 @@ func (db *DB) conn(ctx context.Context, strategy connReuseStrategy) (*driverConn
+ 
+ 			db.waitDuration.Add(int64(time.Since(waitStart)))
+ 
+-			// If we failed to delete it, that means something else
+-			// grabbed it and is about to send on it.
++			// If we failed to delete it, that means either the DB was closed or
++			// something else grabbed it and is about to send on it.
+ 			if !deleted {
+ 				// TODO(bradfitz): rather than this best effort select, we
+ 				// should probably start a goroutine to read from req. This best
+@@ -3594,6 +3594,7 @@ type connRequestAndIndex struct {
+ // and clears the set.
+ func (s *connRequestSet) CloseAndRemoveAll() {
+ 	for _, v := range s.s {
++		*v.curIdx = -1
+ 		close(v.req)
+ 	}
+ 	s.s = nil
+diff --git a/src/database/sql/sql_test.go b/src/database/sql/sql_test.go
+index ff65e877a5..110a2bae5b 100644
+--- a/src/database/sql/sql_test.go
++++ b/src/database/sql/sql_test.go
+@@ -4920,6 +4920,17 @@ func TestConnRequestSet(t *testing.T) {
+ 			t.Error("wasn't random")
+ 		}
+ 	})
++	t.Run("close-delete", func(t *testing.T) {
++		reset()
++		ch := make(chan connRequest)
++		dh := s.Add(ch)
++		wantLen(1)
++		s.CloseAndRemoveAll()
++		wantLen(0)
++		if s.Delete(dh) {
++			t.Error("unexpected delete after CloseAndRemoveAll")
++		}
++	})
+ }
+ 
+ func BenchmarkConnRequestSet(b *testing.B) {

@@ -1,0 +1,48 @@
+commit 7fcf38d715e544da66ff7686e12cce1ab87525c2
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 8 13:23:07 2024 -0400
+
+    cmd/link: add support for telemetry
+    
+    Add counters for invocations and provided flag names.
+    
+    For #58894
+    
+    Change-Id: Ibd4eeca905d277879b601d95bab524fbced6a98b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584276
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/link/internal/ld/main.go | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index c19dd2565b..8a67ccfb32 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -36,6 +36,7 @@ import (
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/quoted"
+ 	"cmd/internal/sys"
++	"cmd/internal/telemetry"
+ 	"cmd/link/internal/benchmark"
+ 	"flag"
+ 	"internal/buildcfg"
+@@ -155,6 +156,8 @@ func (t *ternaryFlag) IsBoolFlag() bool { return true } // parse like a boolean
+ func Main(arch *sys.Arch, theArch Arch) {
+ 	log.SetPrefix("link: ")
+ 	log.SetFlags(0)
++	telemetry.Start()
++	telemetry.Inc("link/invocations")
+ 
+ 	thearch = theArch
+ 	ctxt := linknew(arch)
+@@ -200,6 +203,7 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	objabi.Flagfn1("importcfg", "read import configuration from `file`", ctxt.readImportCfg)
+ 
+ 	objabi.Flagparse(usage)
++	telemetry.CountFlags("link/flag:", *flag.CommandLine)
+ 
+ 	if ctxt.Debugvlog > 0 {
+ 		// dump symbol info on crash

@@ -1,0 +1,112 @@
+commit b7b4c60585f7b341762b70a799e854e991e770ac
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Thu Feb 6 08:07:38 2025 -0500
+
+    [release-branch.go1.24] weak: prevent unsafe conversions using weak pointers
+    
+    Prevent conversions between Pointer types,
+    like we do for sync/atomic.Pointer.
+    
+    Fixes #71583
+    
+    Change-Id: I20e83106d8a27996f221e6cd9d52637b0442cea4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647195
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    (cherry picked from commit 8163ea1458763aa38fa9197e479bd30cb0145429)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647435
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    TryBot-Bypass: Cherry Mui <cherryyz@google.com>
+---
+ src/weak/pointer.go      |  5 ++++-
+ src/weak/pointer_test.go | 10 ++++++++++
+ test/weak.go             | 24 ++++++++++++++++++++++++
+ 3 files changed, 38 insertions(+), 1 deletion(-)
+
+diff --git a/src/weak/pointer.go b/src/weak/pointer.go
+index 39c512e76d..e9d7420880 100644
+--- a/src/weak/pointer.go
++++ b/src/weak/pointer.go
+@@ -56,6 +56,9 @@ import (
+ // referenced object. Typically, this batching only happens for tiny
+ // (on the order of 16 bytes or less) and pointer-free objects.
+ type Pointer[T any] struct {
++	// Mention T in the type definition to prevent conversions
++	// between Pointer types, like we do for sync/atomic.Pointer.
++	_ [0]*T
+ 	u unsafe.Pointer
+ }
+ 
+@@ -69,7 +72,7 @@ func Make[T any](ptr *T) Pointer[T] {
+ 		u = runtime_registerWeakPointer(unsafe.Pointer(ptr))
+ 	}
+ 	runtime.KeepAlive(ptr)
+-	return Pointer[T]{u}
++	return Pointer[T]{u: u}
+ }
+ 
+ // Value returns the original pointer used to create the weak pointer.
+diff --git a/src/weak/pointer_test.go b/src/weak/pointer_test.go
+index e0ef30377e..70c743381c 100644
+--- a/src/weak/pointer_test.go
++++ b/src/weak/pointer_test.go
+@@ -6,10 +6,12 @@ package weak_test
+ 
+ import (
+ 	"context"
++	"internal/goarch"
+ 	"runtime"
+ 	"sync"
+ 	"testing"
+ 	"time"
++	"unsafe"
+ 	"weak"
+ )
+ 
+@@ -155,6 +157,14 @@ func TestPointerFinalizer(t *testing.T) {
+ 	}
+ }
+ 
++func TestPointerSize(t *testing.T) {
++	var p weak.Pointer[T]
++	size := unsafe.Sizeof(p)
++	if size != goarch.PtrSize {
++		t.Errorf("weak.Pointer[T] size = %d, want %d", size, goarch.PtrSize)
++	}
++}
++
+ // Regression test for issue 69210.
+ //
+ // Weak-to-strong conversions must shade the new strong pointer, otherwise
+diff --git a/test/weak.go b/test/weak.go
+new file mode 100644
+index 0000000000..ca3ec797fc
+--- /dev/null
++++ b/test/weak.go
+@@ -0,0 +1,24 @@
++// errorcheck
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test weak pointers.
++
++package p
++
++import (
++	"runtime"
++	"weak"
++)
++
++// Adapted from example in https://github.com/golang/go/issues/67552#issuecomment-2639661220
++func conversion() {
++	p := "hello"
++	a := weak.Make(&p)
++	b := (weak.Pointer[*byte])(a) // ERROR "cannot convert a \(variable of struct type weak\.Pointer\[string\]\) to type weak.Pointer\[\*byte\]"
++	c := b.Value()
++	println(**c)
++	runtime.KeepAlive(p)
++}

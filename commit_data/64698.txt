@@ -1,0 +1,104 @@
+commit 3473d2f8efcb448e5433931a31fb358304bb9b80
+Author: Meng Zhuo <mzh@golangcn.org>
+Date:   Wed Jul 24 14:49:18 2024 +0800
+
+    math: add large exact float rounding tests
+    
+    This CL adds trunc,ceil,floor tests for large exact float.
+    
+    Change-Id: Ib7ffec1d2d50d2ac955398a3dd0fd06d494fcf4f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601095
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/math/all_test.go | 52 +++++++++++++++++++++++++++++++++++++++++++++++-----
+ 1 file changed, 47 insertions(+), 5 deletions(-)
+
+diff --git a/src/math/all_test.go b/src/math/all_test.go
+index af3c38c2a6..c253b7bc02 100644
+--- a/src/math/all_test.go
++++ b/src/math/all_test.go
+@@ -899,8 +899,17 @@ var vfceilSC = []float64{
+ 	0,
+ 	Inf(1),
+ 	NaN(),
++	1<<52 - 1,
++	1<<52 - 0.5, // largest fractional float64
++	1 << 52,
++	-1 << 52,
++	-1<<52 + 0.5, // smallest fractional float64
++	-1<<52 + 1,
++	1 << 53,
++	-1 << 53,
+ }
+-var ceilSC = []float64{
++
++var ceilBaseSC = []float64{
+ 	Inf(-1),
+ 	Copysign(0, -1),
+ 	0,
+@@ -908,6 +917,39 @@ var ceilSC = []float64{
+ 	NaN(),
+ }
+ 
++var ceilSC = append(ceilBaseSC,
++	1<<52-1,
++	1<<52,
++	1<<52,
++	-1<<52,
++	-1<<52+1,
++	-1<<52+1,
++	1<<53,
++	-1<<53,
++)
++
++var floorSC = append(ceilBaseSC,
++	1<<52-1,
++	1<<52-1,
++	1<<52,
++	-1<<52,
++	-1<<52,
++	-1<<52+1,
++	1<<53,
++	-1<<53,
++)
++
++var truncSC = append(ceilBaseSC,
++	1<<52-1,
++	1<<52-1,
++	1<<52,
++	-1<<52,
++	-1<<52+1,
++	-1<<52+1,
++	1<<53,
++	-1<<53,
++)
++
+ var vfcopysignSC = []float64{
+ 	Inf(-1),
+ 	Inf(1),
+@@ -2489,8 +2531,8 @@ func TestFloor(t *testing.T) {
+ 		}
+ 	}
+ 	for i := 0; i < len(vfceilSC); i++ {
+-		if f := Floor(vfceilSC[i]); !alike(ceilSC[i], f) {
+-			t.Errorf("Floor(%g) = %g, want %g", vfceilSC[i], f, ceilSC[i])
++		if f := Floor(vfceilSC[i]); !alike(floorSC[i], f) {
++			t.Errorf("Floor(%g) = %g, want %g", vfceilSC[i], f, floorSC[i])
+ 		}
+ 	}
+ }
+@@ -3034,8 +3076,8 @@ func TestTrunc(t *testing.T) {
+ 		}
+ 	}
+ 	for i := 0; i < len(vfceilSC); i++ {
+-		if f := Trunc(vfceilSC[i]); !alike(ceilSC[i], f) {
+-			t.Errorf("Trunc(%g) = %g, want %g", vfceilSC[i], f, ceilSC[i])
++		if f := Trunc(vfceilSC[i]); !alike(truncSC[i], f) {
++			t.Errorf("Trunc(%g) = %g, want %g", vfceilSC[i], f, truncSC[i])
+ 		}
+ 	}
+ }

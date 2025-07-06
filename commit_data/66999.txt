@@ -1,0 +1,105 @@
+commit 176a2154aa185c6ab15d88f32d9c28dd3b5e5dd8
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri May 9 17:42:48 2025 +0200
+
+    cmd/link: use >4GB base address for 64-bit PE binaries
+    
+    Windows prefers 64-bit binaries to be loaded at an address above 4GB.
+    
+    Having a preferred base address below this boundary triggers a
+    compatibility mode in Address Space Layout Randomization (ASLR) on
+    recent versions of Windows that reduces the number of locations to which
+    ASLR may relocate the binary.
+    
+    The Go internal linker was using a smaller base address due to an issue
+    with how dynamic cgo symbols were relocated, which has been fixed in
+    this CL.
+    
+    Fixes #73561.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest
+    Change-Id: Ia8cb35d57d921d9be706a8975fa085af7996f124
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671515
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/link/internal/ld/data.go |  9 +++++++--
+ src/cmd/link/internal/ld/pe.go   | 15 +++++++--------
+ test/nilptr.go                   |  4 ++--
+ 3 files changed, 16 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index b3e1ac457d..939de11876 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -894,10 +894,15 @@ func windynrelocsym(ctxt *Link, rel *loader.SymbolBuilder, s loader.Sym) error {
+ 				rel.AddUint8(0x90)
+ 				rel.AddUint8(0x90)
+ 			case sys.AMD64:
++				// The relocation symbol might be at an absolute offset
++				// higher than 32 bits, but the jump instruction can't
++				// encode more than 32 bit offsets. We use a jump
++				// relative to the instruction pointer to get around this
++				// limitation.
+ 				rel.AddUint8(0xff)
+-				rel.AddUint8(0x24)
+ 				rel.AddUint8(0x25)
+-				rel.AddAddrPlus4(ctxt.Arch, targ, 0)
++				rel.AddPCRelPlus(ctxt.Arch, targ, 0)
++				rel.AddUint8(0x90)
+ 				rel.AddUint8(0x90)
+ 			}
+ 		} else if tplt >= 0 {
+diff --git a/src/cmd/link/internal/ld/pe.go b/src/cmd/link/internal/ld/pe.go
+index 2808644150..fbfd928e87 100644
+--- a/src/cmd/link/internal/ld/pe.go
++++ b/src/cmd/link/internal/ld/pe.go
+@@ -1097,18 +1097,10 @@ func Peinit(ctxt *Link) {
+ 	if ctxt.Arch.PtrSize == 8 {
+ 		// 64-bit architectures
+ 		pe64 = true
+-		PEBASE = 1 << 32
+-		if ctxt.Arch.Family == sys.AMD64 {
+-			// TODO(rsc): For cgo we currently use 32-bit relocations
+-			// that fail when PEBASE is too large.
+-			// We need to fix this, but for now, use a smaller PEBASE.
+-			PEBASE = 1 << 22
+-		}
+ 		var oh64 pe.OptionalHeader64
+ 		l = binary.Size(&oh64)
+ 	} else {
+ 		// 32-bit architectures
+-		PEBASE = 1 << 22
+ 		var oh pe.OptionalHeader32
+ 		l = binary.Size(&oh)
+ 	}
+@@ -1122,6 +1114,13 @@ func Peinit(ctxt *Link) {
+ 		PEFILEALIGN = 0
+ 		// We are creating an object file. The absolute address is irrelevant.
+ 		PEBASE = 0
++	} else {
++		// Use the same base image address as MSVC and LLVM.
++		if pe64 {
++			PEBASE = 0x140000000
++		} else {
++			PEBASE = 0x400000
++		}
+ 	}
+ 
+ 	var sh [16]pe.SectionHeader32
+diff --git a/test/nilptr.go b/test/nilptr.go
+index 7f42e930bd..6a60b18fc1 100644
+--- a/test/nilptr.go
++++ b/test/nilptr.go
+@@ -7,8 +7,8 @@
+ // Test that the implementation catches nil ptr indirection
+ // in a large address space.
+ 
+-// Address space starts at 1<<32 on AIX and on darwin/arm64 and on windows/arm64, so dummy is too far.
+-//go:build !aix && (!darwin || !arm64) && (!windows || !arm64)
++// Address space starts at 1<<32 on AIX and on darwin/arm64 and on windows/[amd64/arm64], so dummy is too far.
++//go:build !aix && (!darwin || !arm64) && (!windows || (!amd64 && !arm64))
+ 
+ package main
+ 

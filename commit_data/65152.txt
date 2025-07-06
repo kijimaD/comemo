@@ -1,0 +1,41 @@
+commit fb2a7f8ce1b1abf1195ba61e40286985f1189fa8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 24 14:11:39 2024 +0000
+
+    runtime: fix ASAN poison calculation in mallocgc
+    
+    A previous CL broke the ASAN poisoning calculation in mallocgc by not
+    taking into account a possible allocation header, so the beginning of
+    the following allocation could have been poisoned.
+    
+    This mostly isn't a problem, actually, since the following slot would
+    usually just have an allocation header in it that programs shouldn't be
+    touching anyway, but if we're going a word-past-the-end at the end of a
+    span, we could be poisoning a valid heap allocation.
+    
+    Change-Id: I76a4f59bcef01af513a1640c4c212c0eb6be85b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622295
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/runtime/malloc.go | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 02c096a859..74decd54c4 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1064,7 +1064,11 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	if asanenabled {
+ 		// Poison the space between the end of the requested size of x
+ 		// and the end of the slot. Unpoison the requested allocation.
+-		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ+(elemsize-size))
++		frag := elemsize - size
++		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) {
++			frag -= mallocHeaderSize
++		}
++		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ+frag)
+ 		asanunpoison(x, size-asanRZ)
+ 	}
+ 

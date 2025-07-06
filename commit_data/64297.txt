@@ -1,0 +1,222 @@
+commit c0eac35a4cd3ca16d3d1fc153a155b0b18f49633
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:32:22 2024 +0000
+
+    bytes,strings,unicode/utf16: use slices to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal, which is much faster.
+    Remove some redundant helper functions.
+    
+    Change-Id: I51b32a3d0c3fc5ad0d3b6ff0dd03f39c507e5762
+    GitHub-Last-Rev: e21f46d4a026b6bf6e8d912dfb8d361a20a4e779
+    GitHub-Pull-Request: golang/go#67609
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587937
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/bytes/bytes_test.go         | 37 +++++++------------------------------
+ src/strings/search_test.go      |  4 ++--
+ src/strings/strings_test.go     |  6 +++---
+ src/unicode/utf16/utf16_test.go |  8 ++++----
+ 4 files changed, 16 insertions(+), 39 deletions(-)
+
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 200a357bc0..94301358e0 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"math"
+ 	"math/rand"
+ 	"reflect"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	"unicode"
+@@ -18,18 +19,6 @@ import (
+ 	"unsafe"
+ )
+ 
+-func eq(a, b []string) bool {
+-	if len(a) != len(b) {
+-		return false
+-	}
+-	for i := 0; i < len(a); i++ {
+-		if a[i] != b[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ func sliceOfString(s [][]byte) []string {
+ 	result := make([]string, len(s))
+ 	for i, v := range s {
+@@ -808,7 +797,7 @@ func TestSplit(t *testing.T) {
+ 		}
+ 
+ 		result := sliceOfString(a)
+-		if !eq(result, tt.a) {
++		if !slices.Equal(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+ 			continue
+ 		}
+@@ -866,7 +855,7 @@ func TestSplitAfter(t *testing.T) {
+ 		}
+ 
+ 		result := sliceOfString(a)
+-		if !eq(result, tt.a) {
++		if !slices.Equal(result, tt.a) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+ 			continue
+ 		}
+@@ -919,7 +908,7 @@ func TestFields(t *testing.T) {
+ 		}
+ 
+ 		result := sliceOfString(a)
+-		if !eq(result, tt.a) {
++		if !slices.Equal(result, tt.a) {
+ 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
+ 			continue
+ 		}
+@@ -939,7 +928,7 @@ func TestFieldsFunc(t *testing.T) {
+ 	for _, tt := range fieldstests {
+ 		a := FieldsFunc([]byte(tt.s), unicode.IsSpace)
+ 		result := sliceOfString(a)
+-		if !eq(result, tt.a) {
++		if !slices.Equal(result, tt.a) {
+ 			t.Errorf("FieldsFunc(%q, unicode.IsSpace) = %v; want %v", tt.s, a, tt.a)
+ 			continue
+ 		}
+@@ -962,7 +951,7 @@ func TestFieldsFunc(t *testing.T) {
+ 		}
+ 
+ 		result := sliceOfString(a)
+-		if !eq(result, tt.a) {
++		if !slices.Equal(result, tt.a) {
+ 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+ 		}
+ 
+@@ -1286,18 +1275,6 @@ func TestRepeatCatchesOverflow(t *testing.T) {
+ 	})
+ }
+ 
+-func runesEqual(a, b []rune) bool {
+-	if len(a) != len(b) {
+-		return false
+-	}
+-	for i, r := range a {
+-		if r != b[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ type RunesTest struct {
+ 	in    string
+ 	out   []rune
+@@ -1318,7 +1295,7 @@ func TestRunes(t *testing.T) {
+ 	for _, tt := range RunesTests {
+ 		tin := []byte(tt.in)
+ 		a := Runes(tin)
+-		if !runesEqual(a, tt.out) {
++		if !slices.Equal(a, tt.out) {
+ 			t.Errorf("Runes(%q) = %v; want %v", tin, a, tt.out)
+ 			continue
+ 		}
+diff --git a/src/strings/search_test.go b/src/strings/search_test.go
+index c01a393a12..034085043a 100644
+--- a/src/strings/search_test.go
++++ b/src/strings/search_test.go
+@@ -5,7 +5,7 @@
+ package strings_test
+ 
+ import (
+-	"reflect"
++	"slices"
+ 	. "strings"
+ 	"testing"
+ )
+@@ -83,7 +83,7 @@ func TestFinderCreation(t *testing.T) {
+ 			}
+ 		}
+ 
+-		if !reflect.DeepEqual(good, tc.suf) {
++		if !slices.Equal(good, tc.suf) {
+ 			t.Errorf("boyerMoore(%q) got %v want %v", tc.pattern, good, tc.suf)
+ 		}
+ 	}
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 4bd3a3c202..4c8c25ee13 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -10,7 +10,7 @@ import (
+ 	"io"
+ 	"math"
+ 	"math/rand"
+-	"reflect"
++	"slices"
+ 	"strconv"
+ 	. "strings"
+ 	"testing"
+@@ -431,7 +431,7 @@ func TestSplit(t *testing.T) {
+ 		}
+ 		if tt.n < 0 {
+ 			b := Split(tt.s, tt.sep)
+-			if !reflect.DeepEqual(a, b) {
++			if !slices.Equal(a, b) {
+ 				t.Errorf("Split disagrees with SplitN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+ 			}
+ 		}
+@@ -467,7 +467,7 @@ func TestSplitAfter(t *testing.T) {
+ 		}
+ 		if tt.n < 0 {
+ 			b := SplitAfter(tt.s, tt.sep)
+-			if !reflect.DeepEqual(a, b) {
++			if !slices.Equal(a, b) {
+ 				t.Errorf("SplitAfter disagrees with SplitAfterN(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, b, a)
+ 			}
+ 		}
+diff --git a/src/unicode/utf16/utf16_test.go b/src/unicode/utf16/utf16_test.go
+index 74a4a6746b..3d434275af 100644
+--- a/src/unicode/utf16/utf16_test.go
++++ b/src/unicode/utf16/utf16_test.go
+@@ -6,7 +6,7 @@ package utf16_test
+ 
+ import (
+ 	"internal/testenv"
+-	"reflect"
++	"slices"
+ 	"testing"
+ 	"unicode"
+ 	. "unicode/utf16"
+@@ -58,7 +58,7 @@ var encodeTests = []encodeTest{
+ func TestEncode(t *testing.T) {
+ 	for _, tt := range encodeTests {
+ 		out := Encode(tt.in)
+-		if !reflect.DeepEqual(out, tt.out) {
++		if !slices.Equal(out, tt.out) {
+ 			t.Errorf("Encode(%x) = %x; want %x", tt.in, out, tt.out)
+ 		}
+ 	}
+@@ -70,7 +70,7 @@ func TestAppendRune(t *testing.T) {
+ 		for _, u := range tt.in {
+ 			out = AppendRune(out, u)
+ 		}
+-		if !reflect.DeepEqual(out, tt.out) {
++		if !slices.Equal(out, tt.out) {
+ 			t.Errorf("AppendRune(%x) = %x; want %x", tt.in, out, tt.out)
+ 		}
+ 	}
+@@ -143,7 +143,7 @@ func TestAllocationsDecode(t *testing.T) {
+ func TestDecode(t *testing.T) {
+ 	for _, tt := range decodeTests {
+ 		out := Decode(tt.in)
+-		if !reflect.DeepEqual(out, tt.out) {
++		if !slices.Equal(out, tt.out) {
+ 			t.Errorf("Decode(%x) = %x; want %x", tt.in, out, tt.out)
+ 		}
+ 	}

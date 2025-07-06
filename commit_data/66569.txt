@@ -1,0 +1,79 @@
+commit e6ffe764cf1f35e96a116ca144733a5fba02578e
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Mar 14 21:29:08 2025 +0100
+
+    strings: add FuzzReplace test
+    
+    While reviewing CL 657935 I've notied there a
+    couple tricky reslices that depends on multiple
+    things being correct.
+    
+    Might as well fuzz it.
+    
+    Change-Id: Id78921bcb252e73a8a06e6deb4c920445a87d525
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658075
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/strings/strings_test.go | 46 +++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 46 insertions(+)
+
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 8067380664..aa3458c5c9 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1485,6 +1485,52 @@ func TestReplace(t *testing.T) {
+ 	}
+ }
+ 
++func FuzzReplace(f *testing.F) {
++	for _, tt := range ReplaceTests {
++		f.Add(tt.in, tt.old, tt.new, tt.n)
++	}
++	f.Fuzz(func(t *testing.T, in, old, new string, n int) {
++		differentImpl := func(in, old, new string, n int) string {
++			var out Builder
++			if n < 0 {
++				n = math.MaxInt
++			}
++			for i := 0; i < len(in); {
++				if n == 0 {
++					out.WriteString(in[i:])
++					break
++				}
++				if HasPrefix(in[i:], old) {
++					out.WriteString(new)
++					i += len(old)
++					n--
++					if len(old) != 0 {
++						continue
++					}
++					if i == len(in) {
++						break
++					}
++				}
++				if len(old) == 0 {
++					_, length := utf8.DecodeRuneInString(in[i:])
++					out.WriteString(in[i : i+length])
++					i += length
++				} else {
++					out.WriteByte(in[i])
++					i++
++				}
++			}
++			if len(old) == 0 && n != 0 {
++				out.WriteString(new)
++			}
++			return out.String()
++		}
++		if simple, replace := differentImpl(in, old, new, n), Replace(in, old, new, n); simple != replace {
++			t.Errorf("The two implementations do not match %q != %q for Replace(%q, %q, %q, %d)", simple, replace, in, old, new, n)
++		}
++	})
++}
++
+ var TitleTests = []struct {
+ 	in, out string
+ }{

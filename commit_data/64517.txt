@@ -1,0 +1,533 @@
+commit 65a6e05070e56bafc00bbe24f2fa18ed07ed716b
+Author: Charlie Vieth <charlie.vieth@gmail.com>
+Date:   Thu Nov 2 00:18:59 2023 -0400
+
+    byte,strings: improve IndexRune performance by ~45%
+    
+    Change IndexRune to search for the last byte of a multi-byte rune
+    instead of using the first byte. This improves search performance
+    by 45% on average when dealing with Unicode text.
+    
+    The rationale here is that the last byte of a UTF-8 encoded multi-byte
+    rune is significantly more unique (evenly distributed) than the first
+    byte which has a 78% chance of being [240, 243, 244].
+    
+    This approach is typically much faster, but can be slower when there
+    are a large number of false positives (see Han benchmarks) because
+    the more even distribution of bytes can delay/prevent falling back
+    to a brute-force search using bytealg.Index, which is particularly
+    powerful on amd64/x86_64 (particularly Skylake, but less so with
+    newer processors).
+    
+    bytes package benchmarks:
+    
+    goos: darwin
+    goarch: arm64
+    pkg: bytes
+    cpu: Apple M1 Max
+                                     │ base.10.txt  │             new.10.txt              │
+                                     │    sec/op    │   sec/op     vs base                │
+    IndexRune/10-10                     9.784n ± 0%   8.470n ± 0%  -13.43% (p=0.000 n=10)
+    IndexRune/32-10                    11.660n ± 0%   8.473n ± 0%  -27.34% (p=0.000 n=10)
+    IndexRune/4K-10                     83.96n ± 0%   81.08n ± 0%   -3.44% (p=0.000 n=10)
+    IndexRune/4M-10                     63.92µ ± 0%   64.67µ ± 0%   +1.17% (p=0.000 n=10)
+    IndexRune/64M-10                    1.121m ± 1%   1.125m ± 1%        ~ (p=0.218 n=10)
+    IndexRuneUnicode/Latin/10-10       10.125n ± 0%   7.347n ± 0%  -27.43% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/32-10       11.435n ± 0%   7.349n ± 0%  -35.73% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4K-10        882.6n ± 0%   334.9n ± 1%  -62.06% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4M-10        977.2µ ± 0%   370.9µ ± 1%  -62.04% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/64M-10      15.649m ± 1%   6.028m ± 1%  -61.48% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/10-10    10.070n ± 0%   8.701n ± 0%  -13.59% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/32-10    19.045n ± 0%   8.704n ± 1%  -54.30% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4K-10     2.734µ ± 0%   1.046µ ± 1%  -61.75% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4M-10     2.671m ± 0%   1.143m ± 1%  -57.22% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/64M-10    43.12m ± 1%   18.26m ± 1%  -57.64% (p=0.000 n=10)
+    IndexRuneUnicode/Han/10-10          10.10n ± 0%   10.82n ± 1%   +7.08% (p=0.000 n=10)
+    IndexRuneUnicode/Han/32-10          38.29n ± 1%   10.87n ± 1%  -71.62% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4K-10         1409.0n ± 0%   489.1n ± 1%  -65.28% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4M-10         1338.4µ ± 0%   821.1µ ± 2%  -38.65% (p=0.000 n=10)
+    IndexRuneUnicode/Han/64M-10         21.42m ± 1%   13.42m ± 2%  -37.34% (p=0.000 n=10)
+    geomean                             3.983µ        2.305µ       -42.14%
+    
+                                     │ base.10.txt  │               new.10.txt               │
+                                     │     B/s      │      B/s       vs base                 │
+    IndexRune/10-10                    974.8Mi ± 0%   1126.1Mi ± 0%   +15.52% (p=0.000 n=10)
+    IndexRune/32-10                    2.556Gi ± 0%    3.517Gi ± 0%   +37.62% (p=0.000 n=10)
+    IndexRune/4K-10                    45.43Gi ± 0%    47.05Gi ± 0%    +3.56% (p=0.000 n=10)
+    IndexRune/4M-10                    61.12Gi ± 0%    60.41Gi ± 0%    -1.16% (p=0.000 n=10)
+    IndexRune/64M-10                   55.74Gi ± 1%    55.57Gi ± 1%         ~ (p=0.218 n=10)
+    IndexRuneUnicode/Latin/10-10       942.0Mi ± 0%   1297.9Mi ± 0%   +37.78% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/32-10       2.606Gi ± 0%    4.055Gi ± 0%   +55.61% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4K-10       4.322Gi ± 0%   11.392Gi ± 1%  +163.57% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4M-10       3.998Gi ± 0%   10.532Gi ± 1%  +163.47% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/64M-10      3.994Gi ± 1%   10.369Gi ± 1%  +159.61% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/10-10    947.2Mi ± 0%   1096.1Mi ± 0%   +15.72% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/32-10    1.565Gi ± 0%    3.424Gi ± 1%  +118.80% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4K-10    1.396Gi ± 0%    3.649Gi ± 1%  +161.43% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4M-10    1.462Gi ± 0%    3.418Gi ± 1%  +133.76% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/64M-10   1.450Gi ± 1%    3.422Gi ± 1%  +136.08% (p=0.000 n=10)
+    IndexRuneUnicode/Han/10-10         944.6Mi ± 0%    881.7Mi ± 1%    -6.66% (p=0.000 n=10)
+    IndexRuneUnicode/Han/32-10         797.0Mi ± 1%   2809.3Mi ± 1%  +252.47% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4K-10         2.707Gi ± 0%    7.798Gi ± 1%  +188.04% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4M-10         2.919Gi ± 0%    4.757Gi ± 2%   +63.01% (p=0.000 n=10)
+    IndexRuneUnicode/Han/64M-10        2.917Gi ± 1%    4.656Gi ± 2%   +59.60% (p=0.000 n=10)
+    geomean                            3.036Gi         5.246Gi        +72.82%
+    
+    goos: linux
+    goarch: amd64
+    pkg: bytes
+                                    │   old.txt    │                new.txt                │
+                                    │    sec/op    │    sec/op      vs base                │
+    IndexRune/10-4                    10.805n ± 0%    6.999n ±  0%  -35.22% (p=0.000 n=10)
+    IndexRune/32-4                    12.515n ± 0%    7.539n ±  0%  -39.76% (p=0.000 n=10)
+    IndexRune/4K-4                     71.69n ± 0%    68.39n ±  0%   -4.60% (p=0.000 n=10)
+    IndexRune/4M-4                    125.19µ ± 2%    63.05µ ±  0%  -49.63% (p=0.000 n=10)
+    IndexRune/64M-4                    1.050m ± 1%    1.053m ±  0%        ~ (p=0.353 n=10)
+    IndexRuneUnicode/Latin/10-4        9.471n ± 0%    6.144n ±  1%  -35.13% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/32-4       12.540n ± 0%    6.655n ±  0%  -46.93% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4K-4        522.1n ± 0%    207.2n ±  0%  -60.32% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4M-4        626.1µ ± 0%    297.2µ ±  0%  -52.54% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/64M-4      13.866m ± 3%    5.069m ±  4%  -63.44% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/10-4    10.920n ± 0%    7.213n ±  0%  -33.95% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/32-4    12.515n ± 0%    7.780n ±  0%  -37.83% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4K-4    2650.0n ± 0%    621.5n ±  0%  -76.55% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4M-4    2744.7µ ± 0%    723.2µ ±  0%  -73.65% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/64M-4    44.18m ± 0%    14.22m ± 14%  -67.82% (p=0.000 n=10)
+    IndexRuneUnicode/Han/10-4         10.795n ± 0%    9.734n ±  1%   -9.83% (p=0.000 n=10)
+    IndexRuneUnicode/Han/32-4          12.79n ± 0%    10.42n ±  1%  -18.46% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4K-4          519.7n ± 0%    288.4n ±  0%  -44.51% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4M-4          498.2µ ± 0%    443.0µ ±  0%  -11.07% (p=0.000 n=10)
+    IndexRuneUnicode/Han/64M-4         9.654m ± 2%   12.223m ±  1%  +26.61% (p=0.000 n=10)
+    geomean                            3.168µ         1.828µ        -42.30%
+    
+                                    │    old.txt    │                 new.txt                 │
+                                    │      B/s      │      B/s        vs base                 │
+    IndexRune/10-4                     882.5Mi ± 0%   1362.6Mi ±  0%   +54.41% (p=0.000 n=10)
+    IndexRune/32-4                     2.381Gi ± 0%    3.953Gi ±  0%   +66.00% (p=0.000 n=10)
+    IndexRune/4K-4                     53.21Gi ± 0%    55.77Gi ±  0%    +4.82% (p=0.000 n=10)
+    IndexRune/4M-4                     31.20Gi ± 2%    61.95Gi ±  0%   +98.55% (p=0.000 n=10)
+    IndexRune/64M-4                    59.54Gi ± 1%    59.37Gi ±  0%         ~ (p=0.353 n=10)
+    IndexRuneUnicode/Latin/10-4       1006.9Mi ± 0%   1552.3Mi ±  1%   +54.17% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/32-4        2.376Gi ± 0%    4.478Gi ±  0%   +88.45% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4K-4        7.306Gi ± 0%   18.411Gi ±  0%  +152.01% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/4M-4        6.239Gi ± 0%   13.145Gi ±  0%  +110.70% (p=0.000 n=10)
+    IndexRuneUnicode/Latin/64M-4       4.507Gi ± 3%   12.329Gi ±  4%  +173.54% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/10-4     873.0Mi ± 0%   1322.2Mi ±  0%   +51.46% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/32-4     2.382Gi ± 0%    3.831Gi ±  0%   +60.84% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4K-4     1.439Gi ± 0%    6.138Gi ±  0%  +326.43% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/4M-4     1.423Gi ± 0%    5.401Gi ±  0%  +279.52% (p=0.000 n=10)
+    IndexRuneUnicode/Cyrillic/64M-4    1.415Gi ± 0%    4.396Gi ± 17%  +210.79% (p=0.000 n=10)
+    IndexRuneUnicode/Han/10-4          883.4Mi ± 0%    979.7Mi ±  1%   +10.90% (p=0.000 n=10)
+    IndexRuneUnicode/Han/32-4          2.331Gi ± 0%    2.858Gi ±  1%   +22.61% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4K-4          7.340Gi ± 0%   13.226Gi ±  0%   +80.19% (p=0.000 n=10)
+    IndexRuneUnicode/Han/4M-4          7.841Gi ± 0%    8.817Gi ±  0%   +12.44% (p=0.000 n=10)
+    IndexRuneUnicode/Han/64M-4         6.474Gi ± 2%    5.113Gi ±  1%   -21.02% (p=0.000 n=10)
+    geomean                            3.816Gi         6.614Gi         +73.32%
+    
+    strings package benchmarks:
+    
+    goos: darwin
+    goarch: arm64
+    pkg: strings
+                           │ base.index_rune.10.txt │        new.index_rune.10.txt        │
+                           │         sec/op         │   sec/op     vs base                │
+    IndexRune-10                       11.905n ± 5%   6.633n ± 6%  -44.28% (p=0.000 n=10)
+    IndexRuneLongString-10             13.800n ± 1%   7.330n ± 2%  -46.88% (p=0.000 n=10)
+    IndexRuneFastPath-10                3.477n ± 0%   3.481n ± 1%        ~ (p=0.468 n=10)
+    geomean                             8.297n        5.531n       -33.34%
+    
+    Change-Id: I59357fda1c8ac85315b759930f620dbce1ba4721
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539116
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/bytes/bytes.go          |  58 ++++++++++++++++++++++-
+ src/bytes/bytes_test.go     | 112 ++++++++++++++++++++++++++++++++++++++++++++
+ src/strings/strings.go      |  56 +++++++++++++++++++++-
+ src/strings/strings_test.go |  43 +++++++++++++++--
+ 4 files changed, 264 insertions(+), 5 deletions(-)
+
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index 5c03e54d78..ac15ab9b69 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -137,6 +137,7 @@ func LastIndexByte(s []byte, c byte) int {
+ // If r is [utf8.RuneError], it returns the first instance of any
+ // invalid UTF-8 byte sequence.
+ func IndexRune(s []byte, r rune) int {
++	const haveFastIndex = bytealg.MaxBruteForce > 0
+ 	switch {
+ 	case 0 <= r && r < utf8.RuneSelf:
+ 		return IndexByte(s, byte(r))
+@@ -152,9 +153,64 @@ func IndexRune(s []byte, r rune) int {
+ 	case !utf8.ValidRune(r):
+ 		return -1
+ 	default:
++		// Search for rune r using the last byte of its UTF-8 encoded form.
++		// The distribution of the last byte is more uniform compared to the
++		// first byte which has a 78% chance of being [240, 243, 244].
+ 		var b [utf8.UTFMax]byte
+ 		n := utf8.EncodeRune(b[:], r)
+-		return Index(s, b[:n])
++		last := n - 1
++		i := last
++		fails := 0
++		for i < len(s) {
++			if s[i] != b[last] {
++				o := IndexByte(s[i+1:], b[last])
++				if o < 0 {
++					return -1
++				}
++				i += o + 1
++			}
++			// Step backwards comparing bytes.
++			for j := 1; j < n; j++ {
++				if s[i-j] != b[last-j] {
++					goto next
++				}
++			}
++			return i - last
++		next:
++			fails++
++			i++
++			if (haveFastIndex && fails > bytealg.Cutover(i)) && i < len(s) ||
++				(!haveFastIndex && fails >= 4+i>>4 && i < len(s)) {
++				goto fallback
++			}
++		}
++		return -1
++
++	fallback:
++		// Switch to bytealg.Index, if available, or a brute for search when
++		// IndexByte returns too many false positives.
++		if haveFastIndex {
++			if j := bytealg.Index(s[i-last:], b[:n]); j >= 0 {
++				return i + j - last
++			}
++		} else {
++			// If bytealg.Index is not available a brute force search is
++			// ~1.5-3x faster than Rabin-Karp since n is small.
++			c0 := b[last]
++			c1 := b[last-1] // There are at least 2 chars to match
++		loop:
++			for ; i < len(s); i++ {
++				if s[i] == c0 && s[i-1] == c1 {
++					for k := 2; k < n; k++ {
++						if s[i-k] != b[last-k] {
++							continue loop
++						}
++					}
++					return i - last
++				}
++			}
++		}
++		return -1
+ 	}
+ }
+ 
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 637880a4f7..da16882e82 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -197,6 +197,11 @@ var indexTests = []BinOpTest{
+ 	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
+ 	// test fallback to Rabin-Karp.
+ 	{"000000000000000000000000000000000000000000000000000000000000000000000001", "0000000000000000000000000000000000000000000000000000000000000000001", 5},
++	// test fallback to IndexRune
++	{"oxoxoxoxoxoxoxoxoxoxox☺", "☺", 22},
++	// invalid UTF-8 byte sequence (must be longer than bytealg.MaxBruteForce to
++	// test that we don't use IndexRune)
++	{"xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx\xed\x9f\xc0", "\xed\x9f\xc0", 105},
+ }
+ 
+ var lastIndexTests = []BinOpTest{
+@@ -445,6 +450,31 @@ func TestIndexRune(t *testing.T) {
+ 		{"some_text=some_value", '=', 9},
+ 		{"☺a", 'a', 3},
+ 		{"a☻☺b", '☺', 4},
++		{"𠀳𠀗𠀾𠁄𠀧𠁆𠁂𠀫𠀖𠀪𠀲𠀴𠁀𠀨𠀿", '𠀿', 56},
++
++		// 2 bytes
++		{"ӆ", 'ӆ', 0},
++		{"a", 'ӆ', -1},
++		{"  ӆ", 'ӆ', 2},
++		{"  a", 'ӆ', -1},
++		{strings.Repeat("ц", 64) + "ӆ", 'ӆ', 128}, // test cutover
++		{strings.Repeat("ц", 64), 'ӆ', -1},
++
++		// 3 bytes
++		{"Ꚁ", 'Ꚁ', 0},
++		{"a", 'Ꚁ', -1},
++		{"  Ꚁ", 'Ꚁ', 2},
++		{"  a", 'Ꚁ', -1},
++		{strings.Repeat("Ꙁ", 64) + "Ꚁ", 'Ꚁ', 192}, // test cutover
++		{strings.Repeat("Ꙁ", 64) + "Ꚁ", '䚀', -1},  // 'Ꚁ' and '䚀' share the same last two bytes
++
++		// 4 bytes
++		{"𡌀", '𡌀', 0},
++		{"a", '𡌀', -1},
++		{"  𡌀", '𡌀', 2},
++		{"  a", '𡌀', -1},
++		{strings.Repeat("𡋀", 64) + "𡌀", '𡌀', 256}, // test cutover
++		{strings.Repeat("𡋀", 64) + "𡌀", '𣌀', -1},  // '𡌀' and '𣌀' share the same last two bytes
+ 
+ 		// RuneError should match any invalid UTF-8 byte sequence.
+ 		{"�", '�', 0},
+@@ -458,6 +488,13 @@ func TestIndexRune(t *testing.T) {
+ 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", -1, -1},
+ 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", 0xD800, -1}, // Surrogate pair
+ 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", utf8.MaxRune + 1, -1},
++
++		// Test the cutover to to bytealg.Index when it is triggered in
++		// the middle of rune that contains consecutive runs of equal bytes.
++		{"aaaaaKKKK\U000bc104", '\U000bc104', 17}, // cutover: (n + 16) / 8
++		{"aaaaaKKKK鄄", '鄄', 17},
++		{"aaKKKKKa\U000bc104", '\U000bc104', 18}, // cutover: 4 + n>>4
++		{"aaKKKKKa鄄", '鄄', 18},
+ 	}
+ 	for _, tt := range tests {
+ 		if got := IndexRune([]byte(tt.in), tt.rune); got != tt.want {
+@@ -605,6 +642,21 @@ func BenchmarkIndexRuneASCII(b *testing.B) {
+ 	benchBytes(b, indexSizes, bmIndexRuneASCII(IndexRune))
+ }
+ 
++func BenchmarkIndexRuneUnicode(b *testing.B) {
++	b.Run("Latin", func(b *testing.B) {
++		// Latin is mostly 1, 2, 3 byte runes.
++		benchBytes(b, indexSizes, bmIndexRuneUnicode(unicode.Latin, 'é'))
++	})
++	b.Run("Cyrillic", func(b *testing.B) {
++		// Cyrillic is mostly 2 and 3 byte runes.
++		benchBytes(b, indexSizes, bmIndexRuneUnicode(unicode.Cyrillic, 'Ꙁ'))
++	})
++	b.Run("Han", func(b *testing.B) {
++		// Han consists only of 3 and 4 byte runes.
++		benchBytes(b, indexSizes, bmIndexRuneUnicode(unicode.Han, '𠀿'))
++	})
++}
++
+ func bmIndexRuneASCII(index func([]byte, rune) int) func(b *testing.B, n int) {
+ 	return func(b *testing.B, n int) {
+ 		buf := bmbuf[0:n]
+@@ -635,6 +687,61 @@ func bmIndexRune(index func([]byte, rune) int) func(b *testing.B, n int) {
+ 	}
+ }
+ 
++func bmIndexRuneUnicode(rt *unicode.RangeTable, needle rune) func(b *testing.B, n int) {
++	var rs []rune
++	for _, r16 := range rt.R16 {
++		for r := rune(r16.Lo); r <= rune(r16.Hi); r += rune(r16.Stride) {
++			if r != needle {
++				rs = append(rs, rune(r))
++			}
++		}
++	}
++	for _, r32 := range rt.R32 {
++		for r := rune(r32.Lo); r <= rune(r32.Hi); r += rune(r32.Stride) {
++			if r != needle {
++				rs = append(rs, rune(r))
++			}
++		}
++	}
++	// Shuffle the runes so that they are not in descending order.
++	// The sort is deterministic since this is used for benchmarks,
++	// which need to be repeatable.
++	rr := rand.New(rand.NewSource(1))
++	rr.Shuffle(len(rs), func(i, j int) {
++		rs[i], rs[j] = rs[j], rs[i]
++	})
++	uchars := string(rs)
++
++	return func(b *testing.B, n int) {
++		buf := bmbuf[0:n]
++		o := copy(buf, uchars)
++		for o < len(buf) {
++			o += copy(buf[o:], uchars)
++		}
++
++		// Make space for the needle rune at the end of buf.
++		m := utf8.RuneLen(needle)
++		for o := m; o > 0; {
++			_, sz := utf8.DecodeLastRune(buf)
++			copy(buf[len(buf)-sz:], "\x00\x00\x00\x00")
++			buf = buf[:len(buf)-sz]
++			o -= sz
++		}
++		buf = utf8.AppendRune(buf[:n-m], needle)
++
++		n -= m // adjust for rune len
++		for i := 0; i < b.N; i++ {
++			j := IndexRune(buf, needle)
++			if j != n {
++				b.Fatal("bad index", j)
++			}
++		}
++		for i := range buf {
++			buf[i] = '\x00'
++		}
++	}
++}
++
+ func BenchmarkEqual(b *testing.B) {
+ 	b.Run("0", func(b *testing.B) {
+ 		var buf [4]byte
+@@ -2077,6 +2184,11 @@ func makeBenchInputHard() []byte {
+ var benchInputHard = makeBenchInputHard()
+ 
+ func benchmarkIndexHard(b *testing.B, sep []byte) {
++	n := Index(benchInputHard, sep)
++	if n < 0 {
++		n = len(benchInputHard)
++	}
++	b.SetBytes(int64(n))
+ 	for i := 0; i < b.N; i++ {
+ 		Index(benchInputHard, sep)
+ 	}
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 0729c4ad42..7eb2de635c 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -125,6 +125,7 @@ func IndexByte(s string, c byte) int {
+ // If r is [utf8.RuneError], it returns the first instance of any
+ // invalid UTF-8 byte sequence.
+ func IndexRune(s string, r rune) int {
++	const haveFastIndex = bytealg.MaxBruteForce > 0
+ 	switch {
+ 	case 0 <= r && r < utf8.RuneSelf:
+ 		return IndexByte(s, byte(r))
+@@ -138,7 +139,60 @@ func IndexRune(s string, r rune) int {
+ 	case !utf8.ValidRune(r):
+ 		return -1
+ 	default:
+-		return Index(s, string(r))
++		// Search for rune r using the last byte of its UTF-8 encoded form.
++		// The distribution of the last byte is more uniform compared to the
++		// first byte which has a 78% chance of being [240, 243, 244].
++		rs := string(r)
++		last := len(rs) - 1
++		i := last
++		fails := 0
++		for i < len(s) {
++			if s[i] != rs[last] {
++				o := IndexByte(s[i+1:], rs[last])
++				if o < 0 {
++					return -1
++				}
++				i += o + 1
++			}
++			// Step backwards comparing bytes.
++			for j := 1; j < len(rs); j++ {
++				if s[i-j] != rs[last-j] {
++					goto next
++				}
++			}
++			return i - last
++		next:
++			fails++
++			i++
++			if (haveFastIndex && fails > bytealg.Cutover(i)) && i < len(s) ||
++				(!haveFastIndex && fails >= 4+i>>4 && i < len(s)) {
++				goto fallback
++			}
++		}
++		return -1
++
++	fallback:
++		// see comment in ../bytes/bytes.go
++		if haveFastIndex {
++			if j := bytealg.IndexString(s[i-last:], string(r)); j >= 0 {
++				return i + j - last
++			}
++		} else {
++			c0 := rs[last]
++			c1 := rs[last-1]
++		loop:
++			for ; i < len(s); i++ {
++				if s[i] == c0 && s[i-1] == c1 {
++					for k := 2; k < len(rs); k++ {
++						if s[i-k] != rs[last-k] {
++							continue loop
++						}
++					}
++					return i - last
++				}
++			}
++		}
++		return -1
+ 	}
+ }
+ 
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index acbf3ede7b..39f5f4e355 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -155,6 +155,11 @@ var indexTests = []IndexTest{
+ 	// test fallback to Rabin-Karp.
+ 	{"oxoxoxoxoxoxoxoxoxoxoxoy", "oy", 22},
+ 	{"oxoxoxoxoxoxoxoxoxoxoxox", "oy", -1},
++	// test fallback to IndexRune
++	{"oxoxoxoxoxoxoxoxoxoxox☺", "☺", 22},
++	// invalid UTF-8 byte sequence (must be longer than bytealg.MaxBruteForce to
++	// test that we don't use IndexRune)
++	{"xx0123456789012345678901234567890123456789012345678901234567890120123456789012345678901234567890123456xxx\xed\x9f\xc0", "\xed\x9f\xc0", 105},
+ }
+ 
+ var lastIndexTests = []IndexTest{
+@@ -326,6 +331,37 @@ func TestIndexRune(t *testing.T) {
+ 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", -1, -1},
+ 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", 0xD800, -1}, // Surrogate pair
+ 		{"a☺b☻c☹d\xe2\x98�\xff�\xed\xa0\x80", utf8.MaxRune + 1, -1},
++
++		// 2 bytes
++		{"ӆ", 'ӆ', 0},
++		{"a", 'ӆ', -1},
++		{"  ӆ", 'ӆ', 2},
++		{"  a", 'ӆ', -1},
++		{Repeat("ц", 64) + "ӆ", 'ӆ', 128}, // test cutover
++		{Repeat("Ꙁ", 64) + "Ꚁ", '䚀', -1},  // 'Ꚁ' and '䚀' share the same last two bytes
++
++		// 3 bytes
++		{"Ꚁ", 'Ꚁ', 0},
++		{"a", 'Ꚁ', -1},
++		{"  Ꚁ", 'Ꚁ', 2},
++		{"  a", 'Ꚁ', -1},
++		{Repeat("Ꙁ", 64) + "Ꚁ", 'Ꚁ', 192}, // test cutover
++		{Repeat("𡋀", 64) + "𡌀", '𣌀', -1},  // '𡌀' and '𣌀' share the same last two bytes
++
++		// 4 bytes
++		{"𡌀", '𡌀', 0},
++		{"a", '𡌀', -1},
++		{"  𡌀", '𡌀', 2},
++		{"  a", '𡌀', -1},
++		{Repeat("𡋀", 64) + "𡌀", '𡌀', 256}, // test cutover
++		{Repeat("𡋀", 64), '𡌀', -1},
++
++		// Test the cutover to to bytealg.IndexString when it is triggered in
++		// the middle of rune that contains consecutive runs of equal bytes.
++		{"aaaaaKKKK\U000bc104", '\U000bc104', 17}, // cutover: (n + 16) / 8
++		{"aaaaaKKKK鄄", '鄄', 17},
++		{"aaKKKKKa\U000bc104", '\U000bc104', 18}, // cutover: 4 + n>>4
++		{"aaKKKKKa鄄", '鄄', 18},
+ 	}
+ 	for _, tt := range tests {
+ 		if got := IndexRune(tt.in, tt.rune); got != tt.want {
+@@ -333,13 +369,14 @@ func TestIndexRune(t *testing.T) {
+ 		}
+ 	}
+ 
+-	haystack := "test世界"
++	// Make sure we trigger the cutover and string(rune) conversion.
++	haystack := "test" + Repeat("𡋀", 32) + "𡌀"
+ 	allocs := testing.AllocsPerRun(1000, func() {
+ 		if i := IndexRune(haystack, 's'); i != 2 {
+ 			t.Fatalf("'s' at %d; want 2", i)
+ 		}
+-		if i := IndexRune(haystack, '世'); i != 4 {
+-			t.Fatalf("'世' at %d; want 4", i)
++		if i := IndexRune(haystack, '𡌀'); i != 132 {
++			t.Fatalf("'𡌀' at %d; want 4", i)
+ 		}
+ 	})
+ 	if allocs != 0 && testing.CoverMode() == "" {

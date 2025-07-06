@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 20643: a326d1d00c5dcba06dc591f6a5f7b7774f9d7410
+# Index 20643: b5674a2b728d174bbd30be8e655b003528056d9f
 
 echo "🚀 Generating explanation for commit 20643..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 20643..."
 
 ### メタデータ
 - **コミットインデックス**: 20643
-- **コミットハッシュ**: a326d1d00c5dcba06dc591f6a5f7b7774f9d7410
-- **GitHub URL**: https://github.com/golang/go/commit/a326d1d00c5dcba06dc591f6a5f7b7774f9d7410
+- **コミットハッシュ**: b5674a2b728d174bbd30be8e655b003528056d9f
+- **GitHub URL**: https://github.com/golang/go/commit/b5674a2b728d174bbd30be8e655b003528056d9f
 
 ### 章構成
 

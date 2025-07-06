@@ -1,0 +1,82 @@
+commit eed2208f152d1172993a3193374625683e244100
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 19 12:28:02 2025 +0100
+
+    crypto/tls: require EMS in FIPS 140-3 mode
+    
+    See Implementation Guidance D.Q.
+    
+    Change-Id: I6a6a465607da94f2bb249934f0561ae04a55e7b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650575
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ doc/next/6-stdlib/99-minor/crypto/tls/fips.md | 2 ++
+ src/crypto/tls/handshake_client.go            | 9 +++++++++
+ src/crypto/tls/handshake_server.go            | 8 ++++++++
+ 3 files changed, 19 insertions(+)
+
+diff --git a/doc/next/6-stdlib/99-minor/crypto/tls/fips.md b/doc/next/6-stdlib/99-minor/crypto/tls/fips.md
+new file mode 100644
+index 0000000000..8a81688af6
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/tls/fips.md
+@@ -0,0 +1,2 @@
++When [FIPS 140-3 mode](/doc/security/fips140) is enabled, Extended Master Secret
++is now required in TLS 1.2.
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 38bd417a0d..1be0c82c4b 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -462,6 +462,11 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
+ 			return nil, nil, nil, nil
+ 		}
+ 
++		// FIPS 140-3 requires the use of Extended Master Secret.
++		if !session.extMasterSecret && fips140tls.Required() {
++			return nil, nil, nil, nil
++		}
++
+ 		hello.sessionTicket = session.ticket
+ 		return
+ 	}
+@@ -781,6 +786,10 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 		hs.masterSecret = extMasterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
+ 			hs.finishedHash.Sum())
+ 	} else {
++		if fips140tls.Required() {
++			c.sendAlert(alertHandshakeFailure)
++			return errors.New("tls: FIPS 140-3 requires the use of Extended Master Secret")
++		}
+ 		hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
+ 			hs.hello.random, hs.serverHello.random)
+ 	}
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 7c75977ad3..641bbec0c9 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -527,6 +527,10 @@ func (hs *serverHandshakeState) checkForResumption() error {
+ 		// weird downgrade in client capabilities.
+ 		return errors.New("tls: session supported extended_master_secret but client does not")
+ 	}
++	if !sessionState.extMasterSecret && fips140tls.Required() {
++		// FIPS 140-3 requires the use of Extended Master Secret.
++		return nil
++	}
+ 
+ 	c.peerCertificates = sessionState.peerCertificates
+ 	c.ocspResponse = sessionState.ocspResponse
+@@ -713,6 +717,10 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 		hs.masterSecret = extMasterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
+ 			hs.finishedHash.Sum())
+ 	} else {
++		if fips140tls.Required() {
++			c.sendAlert(alertHandshakeFailure)
++			return errors.New("tls: FIPS 140-3 requires the use of Extended Master Secret")
++		}
+ 		hs.masterSecret = masterFromPreMasterSecret(c.vers, hs.suite, preMasterSecret,
+ 			hs.clientHello.random, hs.hello.random)
+ 	}

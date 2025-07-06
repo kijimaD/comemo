@@ -1,0 +1,4091 @@
+commit 851ebc2dca616754fa2bd6c48241e498bf306a50
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Oct 24 23:17:28 2024 +1100
+
+    cmd/internal/objfile,cmd/objdump: add disassembly support for riscv64
+    
+    Add support to `go tool objdump` for disassembling riscv64 binaries.
+    
+    Revendor to bring in cmd/vendor/golang.org/x/arch/riscv64/riscv64asm,
+    which provides the actual disassembly implementation.
+    
+    Fixes #36738
+    
+    Change-Id: I0f29968509041c0c5698fc2d6910a6a0bea9d3c0
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622257
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/internal/objfile/disasm.go                 |   18 +-
+ src/cmd/internal/objfile/elf.go                    |    4 +
+ src/cmd/objdump/objdump_test.go                    |    2 -
+ .../golang.org/x/arch/riscv64/riscv64asm/arg.go    |  116 ++
+ .../x/arch/riscv64/riscv64asm/csr_string.go        |  577 ++++++++
+ .../golang.org/x/arch/riscv64/riscv64asm/decode.go |  550 ++++++++
+ .../golang.org/x/arch/riscv64/riscv64asm/gnu.go    |  328 +++++
+ .../golang.org/x/arch/riscv64/riscv64asm/inst.go   |  495 +++++++
+ .../golang.org/x/arch/riscv64/riscv64asm/plan9x.go |  377 +++++
+ .../golang.org/x/arch/riscv64/riscv64asm/tables.go | 1474 ++++++++++++++++++++
+ src/cmd/vendor/modules.txt                         |    1 +
+ 11 files changed, 3939 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 77bc1221e9..5a7d288e94 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -25,6 +25,7 @@ import (
+ 	"golang.org/x/arch/arm64/arm64asm"
+ 	"golang.org/x/arch/loong64/loong64asm"
+ 	"golang.org/x/arch/ppc64/ppc64asm"
++	"golang.org/x/arch/riscv64/riscv64asm"
+ 	"golang.org/x/arch/s390x/s390xasm"
+ 	"golang.org/x/arch/x86/x86asm"
+ )
+@@ -62,7 +63,7 @@ func (e *Entry) Disasm() (*Disasm, error) {
+ 	disasm := disasms[goarch]
+ 	byteOrder := byteOrders[goarch]
+ 	if disasm == nil || byteOrder == nil {
+-		return nil, fmt.Errorf("unsupported architecture")
++		return nil, fmt.Errorf("unsupported architecture %q", goarch)
+ 	}
+ 
+ 	// Filter out section symbols, overwriting syms in place.
+@@ -398,6 +399,19 @@ func disasm_ppc64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.By
+ 	return text, size
+ }
+ 
++func disasm_riscv64(code []byte, pc uint64, lookup lookupFunc, byteOrder binary.ByteOrder, gnuAsm bool) (string, int) {
++	inst, err := riscv64asm.Decode(code)
++	var text string
++	if err != nil || inst.Op == 0 {
++		text = "?"
++	} else if gnuAsm {
++		text = fmt.Sprintf("%-36s // %s", riscv64asm.GoSyntax(inst, pc, lookup, textReader{code, pc}), riscv64asm.GNUSyntax(inst))
++	} else {
++		text = riscv64asm.GoSyntax(inst, pc, lookup, textReader{code, pc})
++	}
++	return text, 4
++}
++
+ func disasm_s390x(code []byte, pc uint64, lookup lookupFunc, _ binary.ByteOrder, gnuAsm bool) (string, int) {
+ 	inst, err := s390xasm.Decode(code)
+ 	var text string
+@@ -423,6 +437,7 @@ var disasms = map[string]disasmFunc{
+ 	"loong64": disasm_loong64,
+ 	"ppc64":   disasm_ppc64,
+ 	"ppc64le": disasm_ppc64,
++	"riscv64": disasm_riscv64,
+ 	"s390x":   disasm_s390x,
+ }
+ 
+@@ -434,6 +449,7 @@ var byteOrders = map[string]binary.ByteOrder{
+ 	"loong64": binary.LittleEndian,
+ 	"ppc64":   binary.BigEndian,
+ 	"ppc64le": binary.LittleEndian,
++	"riscv64": binary.LittleEndian,
+ 	"s390x":   binary.BigEndian,
+ }
+ 
+diff --git a/src/cmd/internal/objfile/elf.go b/src/cmd/internal/objfile/elf.go
+index 9048be7d73..8923290cff 100644
+--- a/src/cmd/internal/objfile/elf.go
++++ b/src/cmd/internal/objfile/elf.go
+@@ -127,6 +127,10 @@ func (f *elfFile) goarch() string {
+ 			return "ppc64le"
+ 		}
+ 		return "ppc64"
++	case elf.EM_RISCV:
++		if f.elf.Class == elf.ELFCLASS64 {
++			return "riscv64"
++		}
+ 	case elf.EM_S390:
+ 		return "s390x"
+ 	}
+diff --git a/src/cmd/objdump/objdump_test.go b/src/cmd/objdump/objdump_test.go
+index 8f9d228ad2..0f3a183c61 100644
+--- a/src/cmd/objdump/objdump_test.go
++++ b/src/cmd/objdump/objdump_test.go
+@@ -105,8 +105,6 @@ func mustHaveDisasm(t *testing.T) {
+ 	switch runtime.GOARCH {
+ 	case "mips", "mipsle", "mips64", "mips64le":
+ 		t.Skipf("skipping on %s, issue 12559", runtime.GOARCH)
+-	case "riscv64":
+-		t.Skipf("skipping on %s, issue 36738", runtime.GOARCH)
+ 	}
+ }
+ 
+diff --git a/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/arg.go b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/arg.go
+new file mode 100644
+index 0000000000..7898c27366
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/arg.go
+@@ -0,0 +1,116 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv64asm
++
++// Naming for Go decoder arguments:
++//
++// - arg_rd: a general purpose register rd encoded in rd[11:7] field
++//
++// - arg_rs1: a general purpose register rs1 encoded in rs1[19:15] field
++//
++// - arg_rs2: a general purpose register rs2 encoded in rs2[24:20] field
++//
++// - arg_rs3: a general purpose register rs3 encoded in rs3[31:27] field
++//
++// - arg_fd: a floating point register rd encoded in rd[11:7] field
++//
++// - arg_fs1: a floating point register rs1 encoded in rs1[19:15] field
++//
++// - arg_fs2: a floating point register rs2 encoded in rs2[24:20] field
++//
++// - arg_fs3: a floating point register rs3 encoded in rs3[31:27] field
++//
++// - arg_csr: a control status register encoded in csr[31:20] field
++//
++// - arg_rs1_mem: source register with offset in load commands
++//
++// - arg_rs1_store: source register with offset in store commands
++//
++// - arg_rs1_amo: source register with offset in atomic commands
++//
++// - arg_pred: predecessor memory ordering information encoded in pred[27:24] field
++//             For details, please refer to chapter 2.7 of ISA manual volume 1
++//
++// - arg_succ: successor memory ordering information encoded in succ[23:20] field
++//             For details, please refer to chapter 2.7 of ISA manual volume 1
++//
++// - arg_zimm: a unsigned immediate encoded in zimm[19:15] field
++//
++// - arg_imm12: an I-type immediate encoded in imm12[31:20] field
++//
++// - arg_simm12: a S-type immediate encoded in simm12[31:25|11:7] field
++//
++// - arg_bimm12: a B-type immediate encoded in bimm12[31:25|11:7] field
++//
++// - arg_imm20: an U-type immediate encoded in imm20[31:12] field
++//
++// - arg_jimm20: a J-type immediate encoded in jimm20[31:12] field
++//
++// - arg_shamt5: a shift amount encoded in shamt5[24:20] field
++//
++// - arg_shamt6: a shift amount encoded in shamt6[25:20] field
++//
++
++type argType uint16
++
++const (
++	_ argType = iota
++	arg_rd
++	arg_rs1
++	arg_rs2
++	arg_rs3
++	arg_fd
++	arg_fs1
++	arg_fs2
++	arg_fs3
++	arg_csr
++
++	arg_rs1_amo
++	arg_rs1_mem
++	arg_rs1_store
++
++	arg_pred
++	arg_succ
++
++	arg_zimm
++	arg_imm12
++	arg_simm12
++	arg_bimm12
++	arg_imm20
++	arg_jimm20
++	arg_shamt5
++	arg_shamt6
++
++	// RISC-V Compressed Extension Args
++	arg_rd_p
++	arg_fd_p
++	arg_rs1_p
++	arg_rd_rs1_p
++	arg_fs2_p
++	arg_rs2_p
++	arg_rd_n0
++	arg_rs1_n0
++	arg_rd_rs1_n0
++	arg_c_rs1_n0
++	arg_c_rs2_n0
++	arg_c_fs2
++	arg_c_rs2
++	arg_rd_n2
++
++	arg_c_imm6
++	arg_c_nzimm6
++	arg_c_nzuimm6
++	arg_c_uimm7
++	arg_c_uimm8
++	arg_c_uimm8sp_s
++	arg_c_uimm8sp
++	arg_c_uimm9sp_s
++	arg_c_uimm9sp
++	arg_c_bimm9
++	arg_c_nzimm10
++	arg_c_nzuimm10
++	arg_c_imm12
++	arg_c_nzimm18
++)
+diff --git a/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/csr_string.go b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/csr_string.go
+new file mode 100644
+index 0000000000..addf91aa5b
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/csr_string.go
+@@ -0,0 +1,577 @@
++// Code generated by "stringer -type=CSR"; DO NOT EDIT.
++
++package riscv64asm
++
++import "strconv"
++
++func _() {
++	// An "invalid array index" compiler error signifies that the constant values have changed.
++	// Re-run the stringer command to generate them again.
++	var x [1]struct{}
++	_ = x[USTATUS-0]
++	_ = x[FFLAGS-1]
++	_ = x[FRM-2]
++	_ = x[FCSR-3]
++	_ = x[UIE-4]
++	_ = x[UTVEC-5]
++	_ = x[UTVT-7]
++	_ = x[VSTART-8]
++	_ = x[VXSAT-9]
++	_ = x[VXRM-10]
++	_ = x[VCSR-15]
++	_ = x[USCRATCH-64]
++	_ = x[UEPC-65]
++	_ = x[UCAUSE-66]
++	_ = x[UTVAL-67]
++	_ = x[UIP-68]
++	_ = x[UNXTI-69]
++	_ = x[UINTSTATUS-70]
++	_ = x[USCRATCHCSW-72]
++	_ = x[USCRATCHCSWL-73]
++	_ = x[SSTATUS-256]
++	_ = x[SEDELEG-258]
++	_ = x[SIDELEG-259]
++	_ = x[SIE-260]
++	_ = x[STVEC-261]
++	_ = x[SCOUNTEREN-262]
++	_ = x[STVT-263]
++	_ = x[SSCRATCH-320]
++	_ = x[SEPC-321]
++	_ = x[SCAUSE-322]
++	_ = x[STVAL-323]
++	_ = x[SIP-324]
++	_ = x[SNXTI-325]
++	_ = x[SINTSTATUS-326]
++	_ = x[SSCRATCHCSW-328]
++	_ = x[SSCRATCHCSWL-329]
++	_ = x[SATP-384]
++	_ = x[VSSTATUS-512]
++	_ = x[VSIE-516]
++	_ = x[VSTVEC-517]
++	_ = x[VSSCRATCH-576]
++	_ = x[VSEPC-577]
++	_ = x[VSCAUSE-578]
++	_ = x[VSTVAL-579]
++	_ = x[VSIP-580]
++	_ = x[VSATP-640]
++	_ = x[MSTATUS-768]
++	_ = x[MISA-769]
++	_ = x[MEDELEG-770]
++	_ = x[MIDELEG-771]
++	_ = x[MIE-772]
++	_ = x[MTVEC-773]
++	_ = x[MCOUNTEREN-774]
++	_ = x[MTVT-775]
++	_ = x[MSTATUSH-784]
++	_ = x[MCOUNTINHIBIT-800]
++	_ = x[MHPMEVENT3-803]
++	_ = x[MHPMEVENT4-804]
++	_ = x[MHPMEVENT5-805]
++	_ = x[MHPMEVENT6-806]
++	_ = x[MHPMEVENT7-807]
++	_ = x[MHPMEVENT8-808]
++	_ = x[MHPMEVENT9-809]
++	_ = x[MHPMEVENT10-810]
++	_ = x[MHPMEVENT11-811]
++	_ = x[MHPMEVENT12-812]
++	_ = x[MHPMEVENT13-813]
++	_ = x[MHPMEVENT14-814]
++	_ = x[MHPMEVENT15-815]
++	_ = x[MHPMEVENT16-816]
++	_ = x[MHPMEVENT17-817]
++	_ = x[MHPMEVENT18-818]
++	_ = x[MHPMEVENT19-819]
++	_ = x[MHPMEVENT20-820]
++	_ = x[MHPMEVENT21-821]
++	_ = x[MHPMEVENT22-822]
++	_ = x[MHPMEVENT23-823]
++	_ = x[MHPMEVENT24-824]
++	_ = x[MHPMEVENT25-825]
++	_ = x[MHPMEVENT26-826]
++	_ = x[MHPMEVENT27-827]
++	_ = x[MHPMEVENT28-828]
++	_ = x[MHPMEVENT29-829]
++	_ = x[MHPMEVENT30-830]
++	_ = x[MHPMEVENT31-831]
++	_ = x[MSCRATCH-832]
++	_ = x[MEPC-833]
++	_ = x[MCAUSE-834]
++	_ = x[MTVAL-835]
++	_ = x[MIP-836]
++	_ = x[MNXTI-837]
++	_ = x[MINTSTATUS-838]
++	_ = x[MSCRATCHCSW-840]
++	_ = x[MSCRATCHCSWL-841]
++	_ = x[MTINST-842]
++	_ = x[MTVAL2-843]
++	_ = x[PMPCFG0-928]
++	_ = x[PMPCFG1-929]
++	_ = x[PMPCFG2-930]
++	_ = x[PMPCFG3-931]
++	_ = x[PMPADDR0-944]
++	_ = x[PMPADDR1-945]
++	_ = x[PMPADDR2-946]
++	_ = x[PMPADDR3-947]
++	_ = x[PMPADDR4-948]
++	_ = x[PMPADDR5-949]
++	_ = x[PMPADDR6-950]
++	_ = x[PMPADDR7-951]
++	_ = x[PMPADDR8-952]
++	_ = x[PMPADDR9-953]
++	_ = x[PMPADDR10-954]
++	_ = x[PMPADDR11-955]
++	_ = x[PMPADDR12-956]
++	_ = x[PMPADDR13-957]
++	_ = x[PMPADDR14-958]
++	_ = x[PMPADDR15-959]
++	_ = x[HSTATUS-1536]
++	_ = x[HEDELEG-1538]
++	_ = x[HIDELEG-1539]
++	_ = x[HIE-1540]
++	_ = x[HTIMEDELTA-1541]
++	_ = x[HCOUNTEREN-1542]
++	_ = x[HGEIE-1543]
++	_ = x[HTIMEDELTAH-1557]
++	_ = x[HTVAL-1603]
++	_ = x[HIP-1604]
++	_ = x[HVIP-1605]
++	_ = x[HTINST-1610]
++	_ = x[HGATP-1664]
++	_ = x[TSELECT-1952]
++	_ = x[TDATA1-1953]
++	_ = x[TDATA2-1954]
++	_ = x[TDATA3-1955]
++	_ = x[TINFO-1956]
++	_ = x[TCONTROL-1957]
++	_ = x[MCONTEXT-1960]
++	_ = x[MNOISE-1961]
++	_ = x[SCONTEXT-1962]
++	_ = x[DCSR-1968]
++	_ = x[DPC-1969]
++	_ = x[DSCRATCH0-1970]
++	_ = x[DSCRATCH1-1971]
++	_ = x[MCYCLE-2816]
++	_ = x[MINSTRET-2818]
++	_ = x[MHPMCOUNTER3-2819]
++	_ = x[MHPMCOUNTER4-2820]
++	_ = x[MHPMCOUNTER5-2821]
++	_ = x[MHPMCOUNTER6-2822]
++	_ = x[MHPMCOUNTER7-2823]
++	_ = x[MHPMCOUNTER8-2824]
++	_ = x[MHPMCOUNTER9-2825]
++	_ = x[MHPMCOUNTER10-2826]
++	_ = x[MHPMCOUNTER11-2827]
++	_ = x[MHPMCOUNTER12-2828]
++	_ = x[MHPMCOUNTER13-2829]
++	_ = x[MHPMCOUNTER14-2830]
++	_ = x[MHPMCOUNTER15-2831]
++	_ = x[MHPMCOUNTER16-2832]
++	_ = x[MHPMCOUNTER17-2833]
++	_ = x[MHPMCOUNTER18-2834]
++	_ = x[MHPMCOUNTER19-2835]
++	_ = x[MHPMCOUNTER20-2836]
++	_ = x[MHPMCOUNTER21-2837]
++	_ = x[MHPMCOUNTER22-2838]
++	_ = x[MHPMCOUNTER23-2839]
++	_ = x[MHPMCOUNTER24-2840]
++	_ = x[MHPMCOUNTER25-2841]
++	_ = x[MHPMCOUNTER26-2842]
++	_ = x[MHPMCOUNTER27-2843]
++	_ = x[MHPMCOUNTER28-2844]
++	_ = x[MHPMCOUNTER29-2845]
++	_ = x[MHPMCOUNTER30-2846]
++	_ = x[MHPMCOUNTER31-2847]
++	_ = x[MCYCLEH-2944]
++	_ = x[MINSTRETH-2946]
++	_ = x[MHPMCOUNTER3H-2947]
++	_ = x[MHPMCOUNTER4H-2948]
++	_ = x[MHPMCOUNTER5H-2949]
++	_ = x[MHPMCOUNTER6H-2950]
++	_ = x[MHPMCOUNTER7H-2951]
++	_ = x[MHPMCOUNTER8H-2952]
++	_ = x[MHPMCOUNTER9H-2953]
++	_ = x[MHPMCOUNTER10H-2954]
++	_ = x[MHPMCOUNTER11H-2955]
++	_ = x[MHPMCOUNTER12H-2956]
++	_ = x[MHPMCOUNTER13H-2957]
++	_ = x[MHPMCOUNTER14H-2958]
++	_ = x[MHPMCOUNTER15H-2959]
++	_ = x[MHPMCOUNTER16H-2960]
++	_ = x[MHPMCOUNTER17H-2961]
++	_ = x[MHPMCOUNTER18H-2962]
++	_ = x[MHPMCOUNTER19H-2963]
++	_ = x[MHPMCOUNTER20H-2964]
++	_ = x[MHPMCOUNTER21H-2965]
++	_ = x[MHPMCOUNTER22H-2966]
++	_ = x[MHPMCOUNTER23H-2967]
++	_ = x[MHPMCOUNTER24H-2968]
++	_ = x[MHPMCOUNTER25H-2969]
++	_ = x[MHPMCOUNTER26H-2970]
++	_ = x[MHPMCOUNTER27H-2971]
++	_ = x[MHPMCOUNTER28H-2972]
++	_ = x[MHPMCOUNTER29H-2973]
++	_ = x[MHPMCOUNTER30H-2974]
++	_ = x[MHPMCOUNTER31H-2975]
++	_ = x[CYCLE-3072]
++	_ = x[TIME-3073]
++	_ = x[INSTRET-3074]
++	_ = x[HPMCOUNTER3-3075]
++	_ = x[HPMCOUNTER4-3076]
++	_ = x[HPMCOUNTER5-3077]
++	_ = x[HPMCOUNTER6-3078]
++	_ = x[HPMCOUNTER7-3079]
++	_ = x[HPMCOUNTER8-3080]
++	_ = x[HPMCOUNTER9-3081]
++	_ = x[HPMCOUNTER10-3082]
++	_ = x[HPMCOUNTER11-3083]
++	_ = x[HPMCOUNTER12-3084]
++	_ = x[HPMCOUNTER13-3085]
++	_ = x[HPMCOUNTER14-3086]
++	_ = x[HPMCOUNTER15-3087]
++	_ = x[HPMCOUNTER16-3088]
++	_ = x[HPMCOUNTER17-3089]
++	_ = x[HPMCOUNTER18-3090]
++	_ = x[HPMCOUNTER19-3091]
++	_ = x[HPMCOUNTER20-3092]
++	_ = x[HPMCOUNTER21-3093]
++	_ = x[HPMCOUNTER22-3094]
++	_ = x[HPMCOUNTER23-3095]
++	_ = x[HPMCOUNTER24-3096]
++	_ = x[HPMCOUNTER25-3097]
++	_ = x[HPMCOUNTER26-3098]
++	_ = x[HPMCOUNTER27-3099]
++	_ = x[HPMCOUNTER28-3100]
++	_ = x[HPMCOUNTER29-3101]
++	_ = x[HPMCOUNTER30-3102]
++	_ = x[HPMCOUNTER31-3103]
++	_ = x[VL-3104]
++	_ = x[VTYPE-3105]
++	_ = x[VLENB-3106]
++	_ = x[CYCLEH-3200]
++	_ = x[TIMEH-3201]
++	_ = x[INSTRETH-3202]
++	_ = x[HPMCOUNTER3H-3203]
++	_ = x[HPMCOUNTER4H-3204]
++	_ = x[HPMCOUNTER5H-3205]
++	_ = x[HPMCOUNTER6H-3206]
++	_ = x[HPMCOUNTER7H-3207]
++	_ = x[HPMCOUNTER8H-3208]
++	_ = x[HPMCOUNTER9H-3209]
++	_ = x[HPMCOUNTER10H-3210]
++	_ = x[HPMCOUNTER11H-3211]
++	_ = x[HPMCOUNTER12H-3212]
++	_ = x[HPMCOUNTER13H-3213]
++	_ = x[HPMCOUNTER14H-3214]
++	_ = x[HPMCOUNTER15H-3215]
++	_ = x[HPMCOUNTER16H-3216]
++	_ = x[HPMCOUNTER17H-3217]
++	_ = x[HPMCOUNTER18H-3218]
++	_ = x[HPMCOUNTER19H-3219]
++	_ = x[HPMCOUNTER20H-3220]
++	_ = x[HPMCOUNTER21H-3221]
++	_ = x[HPMCOUNTER22H-3222]
++	_ = x[HPMCOUNTER23H-3223]
++	_ = x[HPMCOUNTER24H-3224]
++	_ = x[HPMCOUNTER25H-3225]
++	_ = x[HPMCOUNTER26H-3226]
++	_ = x[HPMCOUNTER27H-3227]
++	_ = x[HPMCOUNTER28H-3228]
++	_ = x[HPMCOUNTER29H-3229]
++	_ = x[HPMCOUNTER30H-3230]
++	_ = x[HPMCOUNTER31H-3231]
++	_ = x[HGEIP-3602]
++	_ = x[MVENDORID-3857]
++	_ = x[MARCHID-3858]
++	_ = x[MIMPID-3859]
++	_ = x[MHARTID-3860]
++	_ = x[MENTROPY-3861]
++}
++
++const _CSR_name = "USTATUSFFLAGSFRMFCSRUIEUTVECUTVTVSTARTVXSATVXRMVCSRUSCRATCHUEPCUCAUSEUTVALUIPUNXTIUINTSTATUSUSCRATCHCSWUSCRATCHCSWLSSTATUSSEDELEGSIDELEGSIESTVECSCOUNTERENSTVTSSCRATCHSEPCSCAUSESTVALSIPSNXTISINTSTATUSSSCRATCHCSWSSCRATCHCSWLSATPVSSTATUSVSIEVSTVECVSSCRATCHVSEPCVSCAUSEVSTVALVSIPVSATPMSTATUSMISAMEDELEGMIDELEGMIEMTVECMCOUNTERENMTVTMSTATUSHMCOUNTINHIBITMHPMEVENT3MHPMEVENT4MHPMEVENT5MHPMEVENT6MHPMEVENT7MHPMEVENT8MHPMEVENT9MHPMEVENT10MHPMEVENT11MHPMEVENT12MHPMEVENT13MHPMEVENT14MHPMEVENT15MHPMEVENT16MHPMEVENT17MHPMEVENT18MHPMEVENT19MHPMEVENT20MHPMEVENT21MHPMEVENT22MHPMEVENT23MHPMEVENT24MHPMEVENT25MHPMEVENT26MHPMEVENT27MHPMEVENT28MHPMEVENT29MHPMEVENT30MHPMEVENT31MSCRATCHMEPCMCAUSEMTVALMIPMNXTIMINTSTATUSMSCRATCHCSWMSCRATCHCSWLMTINSTMTVAL2PMPCFG0PMPCFG1PMPCFG2PMPCFG3PMPADDR0PMPADDR1PMPADDR2PMPADDR3PMPADDR4PMPADDR5PMPADDR6PMPADDR7PMPADDR8PMPADDR9PMPADDR10PMPADDR11PMPADDR12PMPADDR13PMPADDR14PMPADDR15HSTATUSHEDELEGHIDELEGHIEHTIMEDELTAHCOUNTERENHGEIEHTIMEDELTAHHTVALHIPHVIPHTINSTHGATPTSELECTTDATA1TDATA2TDATA3TINFOTCONTROLMCONTEXTMNOISESCONTEXTDCSRDPCDSCRATCH0DSCRATCH1MCYCLEMINSTRETMHPMCOUNTER3MHPMCOUNTER4MHPMCOUNTER5MHPMCOUNTER6MHPMCOUNTER7MHPMCOUNTER8MHPMCOUNTER9MHPMCOUNTER10MHPMCOUNTER11MHPMCOUNTER12MHPMCOUNTER13MHPMCOUNTER14MHPMCOUNTER15MHPMCOUNTER16MHPMCOUNTER17MHPMCOUNTER18MHPMCOUNTER19MHPMCOUNTER20MHPMCOUNTER21MHPMCOUNTER22MHPMCOUNTER23MHPMCOUNTER24MHPMCOUNTER25MHPMCOUNTER26MHPMCOUNTER27MHPMCOUNTER28MHPMCOUNTER29MHPMCOUNTER30MHPMCOUNTER31MCYCLEHMINSTRETHMHPMCOUNTER3HMHPMCOUNTER4HMHPMCOUNTER5HMHPMCOUNTER6HMHPMCOUNTER7HMHPMCOUNTER8HMHPMCOUNTER9HMHPMCOUNTER10HMHPMCOUNTER11HMHPMCOUNTER12HMHPMCOUNTER13HMHPMCOUNTER14HMHPMCOUNTER15HMHPMCOUNTER16HMHPMCOUNTER17HMHPMCOUNTER18HMHPMCOUNTER19HMHPMCOUNTER20HMHPMCOUNTER21HMHPMCOUNTER22HMHPMCOUNTER23HMHPMCOUNTER24HMHPMCOUNTER25HMHPMCOUNTER26HMHPMCOUNTER27HMHPMCOUNTER28HMHPMCOUNTER29HMHPMCOUNTER30HMHPMCOUNTER31HCYCLETIMEINSTRETHPMCOUNTER3HPMCOUNTER4HPMCOUNTER5HPMCOUNTER6HPMCOUNTER7HPMCOUNTER8HPMCOUNTER9HPMCOUNTER10HPMCOUNTER11HPMCOUNTER12HPMCOUNTER13HPMCOUNTER14HPMCOUNTER15HPMCOUNTER16HPMCOUNTER17HPMCOUNTER18HPMCOUNTER19HPMCOUNTER20HPMCOUNTER21HPMCOUNTER22HPMCOUNTER23HPMCOUNTER24HPMCOUNTER25HPMCOUNTER26HPMCOUNTER27HPMCOUNTER28HPMCOUNTER29HPMCOUNTER30HPMCOUNTER31VLVTYPEVLENBCYCLEHTIMEHINSTRETHHPMCOUNTER3HHPMCOUNTER4HHPMCOUNTER5HHPMCOUNTER6HHPMCOUNTER7HHPMCOUNTER8HHPMCOUNTER9HHPMCOUNTER10HHPMCOUNTER11HHPMCOUNTER12HHPMCOUNTER13HHPMCOUNTER14HHPMCOUNTER15HHPMCOUNTER16HHPMCOUNTER17HHPMCOUNTER18HHPMCOUNTER19HHPMCOUNTER20HHPMCOUNTER21HHPMCOUNTER22HHPMCOUNTER23HHPMCOUNTER24HHPMCOUNTER25HHPMCOUNTER26HHPMCOUNTER27HHPMCOUNTER28HHPMCOUNTER29HHPMCOUNTER30HHPMCOUNTER31HHGEIPMVENDORIDMARCHIDMIMPIDMHARTIDMENTROPY"
++
++var _CSR_map = map[CSR]string{
++	0:    _CSR_name[0:7],
++	1:    _CSR_name[7:13],
++	2:    _CSR_name[13:16],
++	3:    _CSR_name[16:20],
++	4:    _CSR_name[20:23],
++	5:    _CSR_name[23:28],
++	7:    _CSR_name[28:32],
++	8:    _CSR_name[32:38],
++	9:    _CSR_name[38:43],
++	10:   _CSR_name[43:47],
++	15:   _CSR_name[47:51],
++	64:   _CSR_name[51:59],
++	65:   _CSR_name[59:63],
++	66:   _CSR_name[63:69],
++	67:   _CSR_name[69:74],
++	68:   _CSR_name[74:77],
++	69:   _CSR_name[77:82],
++	70:   _CSR_name[82:92],
++	72:   _CSR_name[92:103],
++	73:   _CSR_name[103:115],
++	256:  _CSR_name[115:122],
++	258:  _CSR_name[122:129],
++	259:  _CSR_name[129:136],
++	260:  _CSR_name[136:139],
++	261:  _CSR_name[139:144],
++	262:  _CSR_name[144:154],
++	263:  _CSR_name[154:158],
++	320:  _CSR_name[158:166],
++	321:  _CSR_name[166:170],
++	322:  _CSR_name[170:176],
++	323:  _CSR_name[176:181],
++	324:  _CSR_name[181:184],
++	325:  _CSR_name[184:189],
++	326:  _CSR_name[189:199],
++	328:  _CSR_name[199:210],
++	329:  _CSR_name[210:222],
++	384:  _CSR_name[222:226],
++	512:  _CSR_name[226:234],
++	516:  _CSR_name[234:238],
++	517:  _CSR_name[238:244],
++	576:  _CSR_name[244:253],
++	577:  _CSR_name[253:258],
++	578:  _CSR_name[258:265],
++	579:  _CSR_name[265:271],
++	580:  _CSR_name[271:275],
++	640:  _CSR_name[275:280],
++	768:  _CSR_name[280:287],
++	769:  _CSR_name[287:291],
++	770:  _CSR_name[291:298],
++	771:  _CSR_name[298:305],
++	772:  _CSR_name[305:308],
++	773:  _CSR_name[308:313],
++	774:  _CSR_name[313:323],
++	775:  _CSR_name[323:327],
++	784:  _CSR_name[327:335],
++	800:  _CSR_name[335:348],
++	803:  _CSR_name[348:358],
++	804:  _CSR_name[358:368],
++	805:  _CSR_name[368:378],
++	806:  _CSR_name[378:388],
++	807:  _CSR_name[388:398],
++	808:  _CSR_name[398:408],
++	809:  _CSR_name[408:418],
++	810:  _CSR_name[418:429],
++	811:  _CSR_name[429:440],
++	812:  _CSR_name[440:451],
++	813:  _CSR_name[451:462],
++	814:  _CSR_name[462:473],
++	815:  _CSR_name[473:484],
++	816:  _CSR_name[484:495],
++	817:  _CSR_name[495:506],
++	818:  _CSR_name[506:517],
++	819:  _CSR_name[517:528],
++	820:  _CSR_name[528:539],
++	821:  _CSR_name[539:550],
++	822:  _CSR_name[550:561],
++	823:  _CSR_name[561:572],
++	824:  _CSR_name[572:583],
++	825:  _CSR_name[583:594],
++	826:  _CSR_name[594:605],
++	827:  _CSR_name[605:616],
++	828:  _CSR_name[616:627],
++	829:  _CSR_name[627:638],
++	830:  _CSR_name[638:649],
++	831:  _CSR_name[649:660],
++	832:  _CSR_name[660:668],
++	833:  _CSR_name[668:672],
++	834:  _CSR_name[672:678],
++	835:  _CSR_name[678:683],
++	836:  _CSR_name[683:686],
++	837:  _CSR_name[686:691],
++	838:  _CSR_name[691:701],
++	840:  _CSR_name[701:712],
++	841:  _CSR_name[712:724],
++	842:  _CSR_name[724:730],
++	843:  _CSR_name[730:736],
++	928:  _CSR_name[736:743],
++	929:  _CSR_name[743:750],
++	930:  _CSR_name[750:757],
++	931:  _CSR_name[757:764],
++	944:  _CSR_name[764:772],
++	945:  _CSR_name[772:780],
++	946:  _CSR_name[780:788],
++	947:  _CSR_name[788:796],
++	948:  _CSR_name[796:804],
++	949:  _CSR_name[804:812],
++	950:  _CSR_name[812:820],
++	951:  _CSR_name[820:828],
++	952:  _CSR_name[828:836],
++	953:  _CSR_name[836:844],
++	954:  _CSR_name[844:853],
++	955:  _CSR_name[853:862],
++	956:  _CSR_name[862:871],
++	957:  _CSR_name[871:880],
++	958:  _CSR_name[880:889],
++	959:  _CSR_name[889:898],
++	1536: _CSR_name[898:905],
++	1538: _CSR_name[905:912],
++	1539: _CSR_name[912:919],
++	1540: _CSR_name[919:922],
++	1541: _CSR_name[922:932],
++	1542: _CSR_name[932:942],
++	1543: _CSR_name[942:947],
++	1557: _CSR_name[947:958],
++	1603: _CSR_name[958:963],
++	1604: _CSR_name[963:966],
++	1605: _CSR_name[966:970],
++	1610: _CSR_name[970:976],
++	1664: _CSR_name[976:981],
++	1952: _CSR_name[981:988],
++	1953: _CSR_name[988:994],
++	1954: _CSR_name[994:1000],
++	1955: _CSR_name[1000:1006],
++	1956: _CSR_name[1006:1011],
++	1957: _CSR_name[1011:1019],
++	1960: _CSR_name[1019:1027],
++	1961: _CSR_name[1027:1033],
++	1962: _CSR_name[1033:1041],
++	1968: _CSR_name[1041:1045],
++	1969: _CSR_name[1045:1048],
++	1970: _CSR_name[1048:1057],
++	1971: _CSR_name[1057:1066],
++	2816: _CSR_name[1066:1072],
++	2818: _CSR_name[1072:1080],
++	2819: _CSR_name[1080:1092],
++	2820: _CSR_name[1092:1104],
++	2821: _CSR_name[1104:1116],
++	2822: _CSR_name[1116:1128],
++	2823: _CSR_name[1128:1140],
++	2824: _CSR_name[1140:1152],
++	2825: _CSR_name[1152:1164],
++	2826: _CSR_name[1164:1177],
++	2827: _CSR_name[1177:1190],
++	2828: _CSR_name[1190:1203],
++	2829: _CSR_name[1203:1216],
++	2830: _CSR_name[1216:1229],
++	2831: _CSR_name[1229:1242],
++	2832: _CSR_name[1242:1255],
++	2833: _CSR_name[1255:1268],
++	2834: _CSR_name[1268:1281],
++	2835: _CSR_name[1281:1294],
++	2836: _CSR_name[1294:1307],
++	2837: _CSR_name[1307:1320],
++	2838: _CSR_name[1320:1333],
++	2839: _CSR_name[1333:1346],
++	2840: _CSR_name[1346:1359],
++	2841: _CSR_name[1359:1372],
++	2842: _CSR_name[1372:1385],
++	2843: _CSR_name[1385:1398],
++	2844: _CSR_name[1398:1411],
++	2845: _CSR_name[1411:1424],
++	2846: _CSR_name[1424:1437],
++	2847: _CSR_name[1437:1450],
++	2944: _CSR_name[1450:1457],
++	2946: _CSR_name[1457:1466],
++	2947: _CSR_name[1466:1479],
++	2948: _CSR_name[1479:1492],
++	2949: _CSR_name[1492:1505],
++	2950: _CSR_name[1505:1518],
++	2951: _CSR_name[1518:1531],
++	2952: _CSR_name[1531:1544],
++	2953: _CSR_name[1544:1557],
++	2954: _CSR_name[1557:1571],
++	2955: _CSR_name[1571:1585],
++	2956: _CSR_name[1585:1599],
++	2957: _CSR_name[1599:1613],
++	2958: _CSR_name[1613:1627],
++	2959: _CSR_name[1627:1641],
++	2960: _CSR_name[1641:1655],
++	2961: _CSR_name[1655:1669],
++	2962: _CSR_name[1669:1683],
++	2963: _CSR_name[1683:1697],
++	2964: _CSR_name[1697:1711],
++	2965: _CSR_name[1711:1725],
++	2966: _CSR_name[1725:1739],
++	2967: _CSR_name[1739:1753],
++	2968: _CSR_name[1753:1767],
++	2969: _CSR_name[1767:1781],
++	2970: _CSR_name[1781:1795],
++	2971: _CSR_name[1795:1809],
++	2972: _CSR_name[1809:1823],
++	2973: _CSR_name[1823:1837],
++	2974: _CSR_name[1837:1851],
++	2975: _CSR_name[1851:1865],
++	3072: _CSR_name[1865:1870],
++	3073: _CSR_name[1870:1874],
++	3074: _CSR_name[1874:1881],
++	3075: _CSR_name[1881:1892],
++	3076: _CSR_name[1892:1903],
++	3077: _CSR_name[1903:1914],
++	3078: _CSR_name[1914:1925],
++	3079: _CSR_name[1925:1936],
++	3080: _CSR_name[1936:1947],
++	3081: _CSR_name[1947:1958],
++	3082: _CSR_name[1958:1970],
++	3083: _CSR_name[1970:1982],
++	3084: _CSR_name[1982:1994],
++	3085: _CSR_name[1994:2006],
++	3086: _CSR_name[2006:2018],
++	3087: _CSR_name[2018:2030],
++	3088: _CSR_name[2030:2042],
++	3089: _CSR_name[2042:2054],
++	3090: _CSR_name[2054:2066],
++	3091: _CSR_name[2066:2078],
++	3092: _CSR_name[2078:2090],
++	3093: _CSR_name[2090:2102],
++	3094: _CSR_name[2102:2114],
++	3095: _CSR_name[2114:2126],
++	3096: _CSR_name[2126:2138],
++	3097: _CSR_name[2138:2150],
++	3098: _CSR_name[2150:2162],
++	3099: _CSR_name[2162:2174],
++	3100: _CSR_name[2174:2186],
++	3101: _CSR_name[2186:2198],
++	3102: _CSR_name[2198:2210],
++	3103: _CSR_name[2210:2222],
++	3104: _CSR_name[2222:2224],
++	3105: _CSR_name[2224:2229],
++	3106: _CSR_name[2229:2234],
++	3200: _CSR_name[2234:2240],
++	3201: _CSR_name[2240:2245],
++	3202: _CSR_name[2245:2253],
++	3203: _CSR_name[2253:2265],
++	3204: _CSR_name[2265:2277],
++	3205: _CSR_name[2277:2289],
++	3206: _CSR_name[2289:2301],
++	3207: _CSR_name[2301:2313],
++	3208: _CSR_name[2313:2325],
++	3209: _CSR_name[2325:2337],
++	3210: _CSR_name[2337:2350],
++	3211: _CSR_name[2350:2363],
++	3212: _CSR_name[2363:2376],
++	3213: _CSR_name[2376:2389],
++	3214: _CSR_name[2389:2402],
++	3215: _CSR_name[2402:2415],
++	3216: _CSR_name[2415:2428],
++	3217: _CSR_name[2428:2441],
++	3218: _CSR_name[2441:2454],
++	3219: _CSR_name[2454:2467],
++	3220: _CSR_name[2467:2480],
++	3221: _CSR_name[2480:2493],
++	3222: _CSR_name[2493:2506],
++	3223: _CSR_name[2506:2519],
++	3224: _CSR_name[2519:2532],
++	3225: _CSR_name[2532:2545],
++	3226: _CSR_name[2545:2558],
++	3227: _CSR_name[2558:2571],
++	3228: _CSR_name[2571:2584],
++	3229: _CSR_name[2584:2597],
++	3230: _CSR_name[2597:2610],
++	3231: _CSR_name[2610:2623],
++	3602: _CSR_name[2623:2628],
++	3857: _CSR_name[2628:2637],
++	3858: _CSR_name[2637:2644],
++	3859: _CSR_name[2644:2650],
++	3860: _CSR_name[2650:2657],
++	3861: _CSR_name[2657:2665],
++}
++
++func (i CSR) String() string {
++	if str, ok := _CSR_map[i]; ok {
++		return str
++	}
++	return "CSR(" + strconv.FormatInt(int64(i), 10) + ")"
++}
+diff --git a/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/decode.go b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/decode.go
+new file mode 100644
+index 0000000000..d78fef9e39
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/decode.go
+@@ -0,0 +1,550 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv64asm
++
++import (
++	"encoding/binary"
++	"errors"
++)
++
++type argTypeList [6]argType
++
++// An instFormat describes the format of an instruction encoding.
++type instFormat struct {
++	mask  uint32
++	value uint32
++	op    Op
++	// args describe how to decode the instruction arguments.
++	// args is stored as a fixed-size array.
++	// if there are fewer than len(args) arguments, args[i] == 0 marks
++	// the end of the argument list.
++	args argTypeList
++}
++
++var (
++	errShort   = errors.New("truncated instruction")
++	errUnknown = errors.New("unknown instruction")
++)
++
++var decoderCover []bool
++
++func init() {
++	decoderCover = make([]bool, len(instFormats))
++}
++
++// Decode decodes the 4 bytes in src as a single instruction.
++func Decode(src []byte) (Inst, error) {
++	length := len(src)
++	if length < 2 {
++		return Inst{}, errShort
++	}
++
++	var x uint32
++	// Non-RVC instructions always starts with 0x11
++	// So check whether src[0] & 3 == 3
++	if src[0]&3 == 3 {
++		if length < 4 {
++			return Inst{}, errShort
++		}
++		length = 4
++		x = binary.LittleEndian.Uint32(src)
++	} else {
++		length = 2
++		x = uint32(binary.LittleEndian.Uint16(src))
++	}
++
++Search:
++	for i, f := range instFormats {
++		if (x & f.mask) != f.value {
++			continue
++		}
++
++		// Decode args.
++		var args Args
++		for j, aop := range f.args {
++			if aop == 0 {
++				break
++			}
++			arg := decodeArg(aop, x, i)
++			if arg == nil && f.op != C_NOP {
++				// Cannot decode argument.
++				continue Search
++			}
++			args[j] = arg
++		}
++
++		if length == 2 {
++			args = convertCompressedIns(&f, args)
++		}
++
++		decoderCover[i] = true
++		inst := Inst{
++			Op:   f.op,
++			Args: args,
++			Enc:  x,
++			Len:  length,
++		}
++		return inst, nil
++	}
++	return Inst{}, errUnknown
++}
++
++// decodeArg decodes the arg described by aop from the instruction bits x.
++// It returns nil if x cannot be decoded according to aop.
++func decodeArg(aop argType, x uint32, index int) Arg {
++	switch aop {
++	case arg_rd:
++		return X0 + Reg((x>>7)&((1<<5)-1))
++
++	case arg_rs1:
++		return X0 + Reg((x>>15)&((1<<5)-1))
++
++	case arg_rs2:
++		return X0 + Reg((x>>20)&((1<<5)-1))
++
++	case arg_rs3:
++		return X0 + Reg((x>>27)&((1<<5)-1))
++
++	case arg_fd:
++		return F0 + Reg((x>>7)&((1<<5)-1))
++
++	case arg_fs1:
++		return F0 + Reg((x>>15)&((1<<5)-1))
++
++	case arg_fs2:
++		return F0 + Reg((x>>20)&((1<<5)-1))
++
++	case arg_fs3:
++		return F0 + Reg((x>>27)&((1<<5)-1))
++
++	case arg_rs1_amo:
++		return AmoReg{X0 + Reg((x>>15)&((1<<5)-1))}
++
++	case arg_rs1_mem:
++		imm := x >> 20
++		// Sign-extend
++		if imm>>uint32(12-1) == 1 {
++			imm |= 0xfffff << 12
++		}
++		return RegOffset{X0 + Reg((x>>15)&((1<<5)-1)), Simm{int32(imm), true, 12}}
++
++	case arg_rs1_store:
++		imm := (x<<20)>>27 | (x>>25)<<5
++		// Sign-extend
++		if imm>>uint32(12-1) == 1 {
++			imm |= 0xfffff << 12
++		}
++		return RegOffset{X0 + Reg((x>>15)&((1<<5)-1)), Simm{int32(imm), true, 12}}
++
++	case arg_pred:
++		imm := x << 4 >> 28
++		return MemOrder(uint8(imm))
++
++	case arg_succ:
++		imm := x << 8 >> 28
++		return MemOrder(uint8(imm))
++
++	case arg_csr:
++		imm := x >> 20
++		return CSR(imm)
++
++	case arg_zimm:
++		imm := x << 12 >> 27
++		return Uimm{imm, true}
++
++	case arg_shamt5:
++		imm := x << 7 >> 27
++		return Uimm{imm, false}
++
++	case arg_shamt6:
++		imm := x << 6 >> 26
++		return Uimm{imm, false}
++
++	case arg_imm12:
++		imm := x >> 20
++		// Sign-extend
++		if imm>>uint32(12-1) == 1 {
++			imm |= 0xfffff << 12
++		}
++		return Simm{int32(imm), true, 12}
++
++	case arg_imm20:
++		imm := x >> 12
++		return Uimm{imm, false}
++
++	case arg_jimm20:
++		imm := (x>>31)<<20 | (x<<1)>>22<<1 | (x<<11)>>31<<11 | (x<<12)>>24<<12
++		// Sign-extend
++		if imm>>uint32(21-1) == 1 {
++			imm |= 0x7ff << 21
++		}
++		return Simm{int32(imm), true, 21}
++
++	case arg_simm12:
++		imm := (x<<20)>>27 | (x>>25)<<5
++		// Sign-extend
++		if imm>>uint32(12-1) == 1 {
++			imm |= 0xfffff << 12
++		}
++		return Simm{int32(imm), true, 12}
++
++	case arg_bimm12:
++		imm := (x<<20)>>28<<1 | (x<<1)>>26<<5 | (x<<24)>>31<<11 | (x>>31)<<12
++		// Sign-extend
++		if imm>>uint32(13-1) == 1 {
++			imm |= 0x7ffff << 13
++		}
++		return Simm{int32(imm), true, 13}
++
++	case arg_rd_p, arg_rs2_p:
++		return X8 + Reg((x>>2)&((1<<3)-1))
++
++	case arg_fd_p, arg_fs2_p:
++		return F8 + Reg((x>>2)&((1<<3)-1))
++
++	case arg_rs1_p, arg_rd_rs1_p:
++		return X8 + Reg((x>>7)&((1<<3)-1))
++
++	case arg_rd_n0, arg_rs1_n0, arg_rd_rs1_n0, arg_c_rs1_n0:
++		if X0+Reg((x>>7)&((1<<5)-1)) == X0 {
++			return nil
++		}
++		return X0 + Reg((x>>7)&((1<<5)-1))
++
++	case arg_c_rs2_n0:
++		if X0+Reg((x>>2)&((1<<5)-1)) == X0 {
++			return nil
++		}
++		return X0 + Reg((x>>2)&((1<<5)-1))
++
++	case arg_c_fs2:
++		return F0 + Reg((x>>2)&((1<<5)-1))
++
++	case arg_c_rs2:
++		return X0 + Reg((x>>2)&((1<<5)-1))
++
++	case arg_rd_n2:
++		if X0+Reg((x>>7)&((1<<5)-1)) == X0 || X0+Reg((x>>7)&((1<<5)-1)) == X2 {
++			return nil
++		}
++		return X0 + Reg((x>>7)&((1<<5)-1))
++
++	case arg_c_imm6:
++		imm := (x<<25)>>27 | (x<<19)>>31<<5
++		// Sign-extend
++		if imm>>uint32(6-1) == 1 {
++			imm |= 0x3ffffff << 6
++		}
++		return Simm{int32(imm), true, 6}
++
++	case arg_c_nzimm6:
++		imm := (x<<25)>>27 | (x<<19)>>31<<5
++		// Sign-extend
++		if imm>>uint32(6-1) == 1 {
++			imm |= 0x3ffffff << 6
++		}
++		if int32(imm) == 0 {
++			return nil
++		}
++		return Simm{int32(imm), true, 6}
++
++	case arg_c_nzuimm6:
++		imm := (x<<25)>>27 | (x<<19)>>31<<5
++		if int32(imm) == 0 {
++			return nil
++		}
++		return Uimm{imm, false}
++
++	case arg_c_uimm7:
++		imm := (x<<26)>>31<<6 | (x<<25)>>31<<2 | (x<<19)>>29<<3
++		return Uimm{imm, false}
++
++	case arg_c_uimm8:
++		imm := (x<<25)>>30<<6 | (x<<19)>>29<<3
++		return Uimm{imm, false}
++
++	case arg_c_uimm8sp_s:
++		imm := (x<<23)>>30<<6 | (x<<19)>>28<<2
++		return Uimm{imm, false}
++
++	case arg_c_uimm8sp:
++		imm := (x<<25)>>29<<2 | (x<<19)>>31<<5 | (x<<28)>>30<<6
++		return Uimm{imm, false}
++
++	case arg_c_uimm9sp_s:
++		imm := (x<<22)>>29<<6 | (x<<19)>>29<<3
++		return Uimm{imm, false}
++
++	case arg_c_uimm9sp:
++		imm := (x<<25)>>30<<3 | (x<<19)>>31<<5 | (x<<27)>>29<<6
++		return Uimm{imm, false}
++
++	case arg_c_bimm9:
++		imm := (x<<29)>>31<<5 | (x<<27)>>30<<1 | (x<<25)>>30<<6 | (x<<19)>>31<<8 | (x<<20)>>30<<3
++		// Sign-extend
++		if imm>>uint32(9-1) == 1 {
++			imm |= 0x7fffff << 9
++		}
++		return Simm{int32(imm), true, 9}
++
++	case arg_c_nzimm10:
++		imm := (x<<29)>>31<<5 | (x<<27)>>30<<7 | (x<<26)>>31<<6 | (x<<25)>>31<<4 | (x<<19)>>31<<9
++		// Sign-extend
++		if imm>>uint32(10-1) == 1 {
++			imm |= 0x3fffff << 10
++		}
++		if int32(imm) == 0 {
++			return nil
++		}
++		return Simm{int32(imm), true, 10}
++
++	case arg_c_nzuimm10:
++		imm := (x<<26)>>31<<3 | (x<<25)>>31<<2 | (x<<21)>>28<<6 | (x<<19)>>30<<4
++		if int32(imm) == 0 {
++			return nil
++		}
++		return Uimm{imm, false}
++
++	case arg_c_imm12:
++		imm := (x<<29)>>31<<5 | (x<<26)>>28<<1 | (x<<25)>>31<<7 | (x<<24)>>31<<6 | (x<<23)>>31<<10 | (x<<21)>>30<<8 | (x<<20)>>31<<4 | (x<<19)>>31<<11
++		// Sign-extend
++		if imm>>uint32(12-1) == 1 {
++			imm |= 0xfffff << 12
++		}
++		return Simm{int32(imm), true, 12}
++
++	case arg_c_nzimm18:
++		imm := (x<<25)>>27<<12 | (x<<19)>>31<<17
++		// Sign-extend
++		if imm>>uint32(18-1) == 1 {
++			imm |= 0x3fff << 18
++		}
++		if int32(imm) == 0 {
++			return nil
++		}
++		return Simm{int32(imm), true, 18}
++
++	default:
++		return nil
++	}
++}
++
++// convertCompressedIns rewrites the RVC Instruction to regular Instructions
++func convertCompressedIns(f *instFormat, args Args) Args {
++	var newargs Args
++	switch f.op {
++	case C_ADDI4SPN:
++		f.op = ADDI
++		newargs[0] = args[0]
++		newargs[1] = Reg(X2)
++		newargs[2] = Simm{int32(args[1].(Uimm).Imm), true, 12}
++
++	case C_LW:
++		f.op = LW
++		newargs[0] = args[0]
++		newargs[1] = RegOffset{args[1].(Reg), Simm{int32(args[2].(Uimm).Imm), true, 12}}
++
++	case C_SW:
++		f.op = SW
++		newargs[0] = args[1]
++		newargs[1] = RegOffset{args[0].(Reg), Simm{int32(args[2].(Uimm).Imm), true, 12}}
++
++	case C_NOP:
++		f.op = ADDI
++		newargs[0] = X0
++		newargs[1] = X0
++		newargs[2] = Simm{0, true, 12}
++
++	case C_ADDI:
++		f.op = ADDI
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = Simm{args[1].(Simm).Imm, true, 12}
++
++	case C_LI:
++		f.op = ADDI
++		newargs[0] = args[0]
++		newargs[1] = Reg(X0)
++		newargs[2] = Simm{args[1].(Simm).Imm, true, 12}
++
++	case C_ADDI16SP:
++		f.op = ADDI
++		newargs[0] = Reg(X2)
++		newargs[1] = Reg(X2)
++		newargs[2] = Simm{args[0].(Simm).Imm, true, 12}
++
++	case C_LUI:
++		f.op = LUI
++		newargs[0] = args[0]
++		newargs[1] = Uimm{uint32(args[1].(Simm).Imm >> 12), false}
++
++	case C_ANDI:
++		f.op = ANDI
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = Simm{args[1].(Simm).Imm, true, 12}
++
++	case C_SUB:
++		f.op = SUB
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = args[1]
++
++	case C_XOR:
++		f.op = XOR
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = args[1]
++
++	case C_OR:
++		f.op = OR
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = args[1]
++
++	case C_AND:
++		f.op = AND
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = args[1]
++
++	case C_J:
++		f.op = JAL
++		newargs[0] = Reg(X0)
++		newargs[1] = Simm{args[0].(Simm).Imm, true, 21}
++
++	case C_BEQZ:
++		f.op = BEQ
++		newargs[0] = args[0]
++		newargs[1] = Reg(X0)
++		newargs[2] = Simm{args[1].(Simm).Imm, true, 13}
++
++	case C_BNEZ:
++		f.op = BNE
++		newargs[0] = args[0]
++		newargs[1] = Reg(X0)
++		newargs[2] = Simm{args[1].(Simm).Imm, true, 13}
++
++	case C_LWSP:
++		f.op = LW
++		newargs[0] = args[0]
++		newargs[1] = RegOffset{Reg(X2), Simm{int32(args[1].(Uimm).Imm), true, 12}}
++
++	case C_JR:
++		f.op = JALR
++		newargs[0] = Reg(X0)
++		newargs[1] = RegOffset{args[0].(Reg), Simm{0, true, 12}}
++
++	case C_MV:
++		f.op = ADD
++		newargs[0] = args[0]
++		newargs[1] = Reg(X0)
++		newargs[2] = args[1]
++
++	case C_EBREAK:
++		f.op = EBREAK
++
++	case C_JALR:
++		f.op = JALR
++		newargs[0] = Reg(X1)
++		newargs[1] = RegOffset{args[0].(Reg), Simm{0, true, 12}}
++
++	case C_ADD:
++		f.op = ADD
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = args[1]
++
++	case C_SWSP:
++		f.op = SW
++		newargs[0] = args[0]
++		newargs[1] = RegOffset{Reg(X2), Simm{int32(args[1].(Uimm).Imm), true, 12}}
++
++	// riscv64 compressed instructions
++	case C_LD:
++		f.op = LD
++		newargs[0] = args[0]
++		newargs[1] = RegOffset{args[1].(Reg), Simm{int32(args[2].(Uimm).Imm), true, 12}}
++
++	case C_SD:
++		f.op = SD
++		newargs[0] = args[1]
++		newargs[1] = RegOffset{args[0].(Reg), Simm{int32(args[2].(Uimm).Imm), true, 12}}
++
++	case C_ADDIW:
++		f.op = ADDIW
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = Simm{args[1].(Simm).Imm, true, 12}
++
++	case C_SRLI:
++		f.op = SRLI
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = args[1]
++
++	case C_SRAI:
++		f.op = SRAI
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = args[1]
++
++	case C_SUBW:
++		f.op = SUBW
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = args[1]
++
++	case C_ADDW:
++		f.op = ADDW
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = args[1]
++
++	case C_SLLI:
++		f.op = SLLI
++		newargs[0] = args[0]
++		newargs[1] = args[0]
++		newargs[2] = args[1]
++
++	case C_LDSP:
++		f.op = LD
++		newargs[0] = args[0]
++		newargs[1] = RegOffset{Reg(X2), Simm{int32(args[1].(Uimm).Imm), true, 12}}
++
++	case C_SDSP:
++		f.op = SD
++		newargs[0] = args[0]
++		newargs[1] = RegOffset{Reg(X2), Simm{int32(args[1].(Uimm).Imm), true, 12}}
++
++	// riscv double precision floating point compressed instructions
++	case C_FLD:
++		f.op = FLD
++		newargs[0] = args[0]
++		newargs[1] = RegOffset{args[1].(Reg), Simm{int32(args[2].(Uimm).Imm), true, 12}}
++
++	case C_FSD:
++		f.op = FSD
++		newargs[0] = args[1]
++		newargs[1] = RegOffset{args[0].(Reg), Simm{int32(args[2].(Uimm).Imm), true, 12}}
++
++	case C_FLDSP:
++		f.op = FLD
++		newargs[0] = args[0]
++		newargs[1] = RegOffset{Reg(X2), Simm{int32(args[1].(Uimm).Imm), true, 12}}
++
++	case C_FSDSP:
++		f.op = FSD
++		newargs[0] = args[0]
++		newargs[1] = RegOffset{Reg(X2), Simm{int32(args[1].(Uimm).Imm), true, 12}}
++
++	case C_UNIMP:
++		f.op = CSRRW
++		newargs[0] = Reg(X0)
++		newargs[1] = CSR(CYCLE)
++		newargs[2] = Reg(X0)
++	}
++	return newargs
++}
+diff --git a/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/gnu.go b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/gnu.go
+new file mode 100644
+index 0000000000..d6b3dc040e
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/gnu.go
+@@ -0,0 +1,328 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv64asm
++
++import (
++	"strings"
++)
++
++// GNUSyntax returns the GNU assembler syntax for the instruction, as defined by GNU binutils.
++// This form typically matches the syntax defined in the RISC-V Instruction Set Manual. See
++// https://github.com/riscv/riscv-isa-manual/releases/download/Ratified-IMAFDQC/riscv-spec-20191213.pdf
++func GNUSyntax(inst Inst) string {
++	op := strings.ToLower(inst.Op.String())
++	var args []string
++	for _, a := range inst.Args {
++		if a == nil {
++			break
++		}
++		args = append(args, strings.ToLower(a.String()))
++	}
++
++	switch inst.Op {
++	case ADDI, ADDIW, ANDI, ORI, SLLI, SLLIW, SRAI, SRAIW, SRLI, SRLIW, XORI:
++		if inst.Op == ADDI {
++			if inst.Args[1].(Reg) == X0 && inst.Args[0].(Reg) != X0 {
++				op = "li"
++				args[1] = args[2]
++				args = args[:len(args)-1]
++				break
++			}
++
++			if inst.Args[2].(Simm).Imm == 0 {
++				if inst.Args[0].(Reg) == X0 && inst.Args[1].(Reg) == X0 {
++					op = "nop"
++					args = nil
++				} else {
++					op = "mv"
++					args = args[:len(args)-1]
++				}
++			}
++		}
++
++		if inst.Op == ADDIW && inst.Args[2].(Simm).Imm == 0 {
++			op = "sext.w"
++			args = args[:len(args)-1]
++		}
++
++		if inst.Op == XORI && inst.Args[2].(Simm).String() == "-1" {
++			op = "not"
++			args = args[:len(args)-1]
++		}
++
++	case ADD:
++		if inst.Args[1].(Reg) == X0 {
++			op = "mv"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++
++	case BEQ:
++		if inst.Args[1].(Reg) == X0 {
++			op = "beqz"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++
++	case BGE:
++		if inst.Args[1].(Reg) == X0 {
++			op = "bgez"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		} else if inst.Args[0].(Reg) == X0 {
++			op = "blez"
++			args[0], args[1] = args[1], args[2]
++			args = args[:len(args)-1]
++		}
++
++	case BLT:
++		if inst.Args[1].(Reg) == X0 {
++			op = "bltz"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		} else if inst.Args[0].(Reg) == X0 {
++			op = "bgtz"
++			args[0], args[1] = args[1], args[2]
++			args = args[:len(args)-1]
++		}
++
++	case BNE:
++		if inst.Args[1].(Reg) == X0 {
++			op = "bnez"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++
++	case CSRRC:
++		if inst.Args[0].(Reg) == X0 {
++			op = "csrc"
++			args[0], args[1] = args[1], args[2]
++			args = args[:len(args)-1]
++		}
++
++	case CSRRCI:
++		if inst.Args[0].(Reg) == X0 {
++			op = "csrci"
++			args[0], args[1] = args[1], args[2]
++			args = args[:len(args)-1]
++		}
++
++	case CSRRS:
++		if inst.Args[2].(Reg) == X0 {
++			switch inst.Args[1].(CSR) {
++			case FCSR:
++				op = "frcsr"
++				args = args[:len(args)-2]
++
++			case FFLAGS:
++				op = "frflags"
++				args = args[:len(args)-2]
++
++			case FRM:
++				op = "frrm"
++				args = args[:len(args)-2]
++
++			// rdcycleh, rdinstreth and rdtimeh are RV-32 only instructions.
++			// So not included there.
++			case CYCLE:
++				op = "rdcycle"
++				args = args[:len(args)-2]
++
++			case INSTRET:
++				op = "rdinstret"
++				args = args[:len(args)-2]
++
++			case TIME:
++				op = "rdtime"
++				args = args[:len(args)-2]
++
++			default:
++				op = "csrr"
++				args = args[:len(args)-1]
++			}
++		} else if inst.Args[0].(Reg) == X0 {
++			op = "csrs"
++			args[0], args[1] = args[1], args[2]
++			args = args[:len(args)-1]
++		}
++
++	case CSRRSI:
++		if inst.Args[0].(Reg) == X0 {
++			op = "csrsi"
++			args[0], args[1] = args[1], args[2]
++			args = args[:len(args)-1]
++		}
++
++	case CSRRW:
++		switch inst.Args[1].(CSR) {
++		case FCSR:
++			op = "fscsr"
++			if inst.Args[0].(Reg) == X0 {
++				args[0] = args[2]
++				args = args[:len(args)-2]
++			} else {
++				args[1] = args[2]
++				args = args[:len(args)-1]
++			}
++
++		case FFLAGS:
++			op = "fsflags"
++			if inst.Args[0].(Reg) == X0 {
++				args[0] = args[2]
++				args = args[:len(args)-2]
++			} else {
++				args[1] = args[2]
++				args = args[:len(args)-1]
++			}
++
++		case FRM:
++			op = "fsrm"
++			if inst.Args[0].(Reg) == X0 {
++				args[0] = args[2]
++				args = args[:len(args)-2]
++			} else {
++				args[1] = args[2]
++				args = args[:len(args)-1]
++			}
++
++		case CYCLE:
++			if inst.Args[0].(Reg) == X0 && inst.Args[2].(Reg) == X0 {
++				op = "unimp"
++				args = nil
++			}
++
++		default:
++			if inst.Args[0].(Reg) == X0 {
++				op = "csrw"
++				args[0], args[1] = args[1], args[2]
++				args = args[:len(args)-1]
++			}
++		}
++
++	case CSRRWI:
++		if inst.Args[0].(Reg) == X0 {
++			op = "csrwi"
++			args[0], args[1] = args[1], args[2]
++			args = args[:len(args)-1]
++		}
++
++	// When both pred and succ equals to iorw, the GNU objdump will omit them.
++	case FENCE:
++		if inst.Args[0].(MemOrder).String() == "iorw" &&
++			inst.Args[1].(MemOrder).String() == "iorw" {
++			args = nil
++		}
++
++	case FSGNJX_D:
++		if inst.Args[1].(Reg) == inst.Args[2].(Reg) {
++			op = "fabs.d"
++			args = args[:len(args)-1]
++		}
++
++	case FSGNJX_S:
++		if inst.Args[1].(Reg) == inst.Args[2].(Reg) {
++			op = "fabs.s"
++			args = args[:len(args)-1]
++		}
++
++	case FSGNJ_D:
++		if inst.Args[1].(Reg) == inst.Args[2].(Reg) {
++			op = "fmv.d"
++			args = args[:len(args)-1]
++		}
++
++	case FSGNJ_S:
++		if inst.Args[1].(Reg) == inst.Args[2].(Reg) {
++			op = "fmv.s"
++			args = args[:len(args)-1]
++		}
++
++	case FSGNJN_D:
++		if inst.Args[1].(Reg) == inst.Args[2].(Reg) {
++			op = "fneg.d"
++			args = args[:len(args)-1]
++		}
++
++	case FSGNJN_S:
++		if inst.Args[1].(Reg) == inst.Args[2].(Reg) {
++			op = "fneg.s"
++			args = args[:len(args)-1]
++		}
++
++	case JAL:
++		if inst.Args[0].(Reg) == X0 {
++			op = "j"
++			args[0] = args[1]
++			args = args[:len(args)-1]
++		} else if inst.Args[0].(Reg) == X1 {
++			op = "jal"
++			args[0] = args[1]
++			args = args[:len(args)-1]
++		}
++
++	case JALR:
++		if inst.Args[0].(Reg) == X1 && inst.Args[1].(RegOffset).Ofs.Imm == 0 {
++			args[0] = inst.Args[1].(RegOffset).OfsReg.String()
++			args = args[:len(args)-1]
++		}
++
++		if inst.Args[0].(Reg) == X0 {
++			if inst.Args[1].(RegOffset).OfsReg == X1 && inst.Args[1].(RegOffset).Ofs.Imm == 0 {
++				op = "ret"
++				args = nil
++			} else if inst.Args[1].(RegOffset).Ofs.Imm == 0 {
++				op = "jr"
++				args[0] = inst.Args[1].(RegOffset).OfsReg.String()
++				args = args[:len(args)-1]
++			} else {
++				op = "jr"
++				args[0] = inst.Args[1].(RegOffset).String()
++				args = args[:len(args)-1]
++			}
++		}
++
++	case SLTIU:
++		if inst.Args[2].(Simm).String() == "1" {
++			op = "seqz"
++			args = args[:len(args)-1]
++		}
++
++	case SLT:
++		if inst.Args[1].(Reg) == X0 {
++			op = "sgtz"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		} else if inst.Args[2].(Reg) == X0 {
++			op = "sltz"
++			args = args[:len(args)-1]
++		}
++
++	case SLTU:
++		if inst.Args[1].(Reg) == X0 {
++			op = "snez"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++
++	case SUB:
++		if inst.Args[1].(Reg) == X0 {
++			op = "neg"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++
++	case SUBW:
++		if inst.Args[1].(Reg) == X0 {
++			op = "negw"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++	}
++
++	if args != nil {
++		op += " " + strings.Join(args, ",")
++	}
++	return op
++}
+diff --git a/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/inst.go b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/inst.go
+new file mode 100644
+index 0000000000..3c13567cb0
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/inst.go
+@@ -0,0 +1,495 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv64asm
++
++import (
++	"fmt"
++	"strings"
++)
++
++// An Op is a RISC-V opcode.
++type Op uint16
++
++// NOTE: The actual Op values are defined in tables.go.
++func (op Op) String() string {
++	if op >= Op(len(opstr)) || opstr[op] == "" {
++		return fmt.Sprintf("Op(%d)", op)
++	}
++
++	return opstr[op]
++}
++
++// An Arg is a single instruction argument.
++type Arg interface {
++	String() string
++}
++
++// An Args holds the instruction arguments.
++// If an instruction has fewer than 6 arguments,
++// the final elements in the array are nil.
++type Args [6]Arg
++
++// An Inst is a single instruction.
++type Inst struct {
++	Op   Op     // Opcode mnemonic.
++	Enc  uint32 // Raw encoding bits.
++	Args Args   // Instruction arguments, in RISC-V mamual order.
++	Len  int    // Length of encoded instruction in bytes
++}
++
++func (i Inst) String() string {
++	var args []string
++	for _, arg := range i.Args {
++		if arg == nil {
++			break
++		}
++		args = append(args, arg.String())
++	}
++
++	if len(args) == 0 {
++		return i.Op.String()
++	}
++	return i.Op.String() + " " + strings.Join(args, ",")
++}
++
++// A Reg is a single register.
++// The zero value denotes X0, not the absence of a register.
++type Reg uint16
++
++const (
++	// General-purpose register
++	X0 Reg = iota
++	X1
++	X2
++	X3
++	X4
++	X5
++	X6
++	X7
++	X8
++	X9
++	X10
++	X11
++	X12
++	X13
++	X14
++	X15
++	X16
++	X17
++	X18
++	X19
++	X20
++	X21
++	X22
++	X23
++	X24
++	X25
++	X26
++	X27
++	X28
++	X29
++	X30
++	X31
++
++	//Float point register
++	F0
++	F1
++	F2
++	F3
++	F4
++	F5
++	F6
++	F7
++	F8
++	F9
++	F10
++	F11
++	F12
++	F13
++	F14
++	F15
++	F16
++	F17
++	F18
++	F19
++	F20
++	F21
++	F22
++	F23
++	F24
++	F25
++	F26
++	F27
++	F28
++	F29
++	F30
++	F31
++)
++
++func (r Reg) String() string {
++	switch {
++	case r >= X0 && r <= X31:
++		return fmt.Sprintf("x%d", r)
++
++	case r >= F0 && r <= F31:
++		return fmt.Sprintf("f%d", r-F0)
++
++	default:
++		return fmt.Sprintf("Unknown(%d)", r)
++	}
++}
++
++// A CSR is a single control and status register.
++// Use stringer to generate CSR match table.
++//
++//go:generate stringer -type=CSR
++type CSR uint16
++
++const (
++	// Control status register
++	USTATUS        CSR = 0x0000
++	FFLAGS         CSR = 0x0001
++	FRM            CSR = 0x0002
++	FCSR           CSR = 0x0003
++	UIE            CSR = 0x0004
++	UTVEC          CSR = 0x0005
++	UTVT           CSR = 0x0007
++	VSTART         CSR = 0x0008
++	VXSAT          CSR = 0x0009
++	VXRM           CSR = 0x000a
++	VCSR           CSR = 0x000f
++	USCRATCH       CSR = 0x0040
++	UEPC           CSR = 0x0041
++	UCAUSE         CSR = 0x0042
++	UTVAL          CSR = 0x0043
++	UIP            CSR = 0x0044
++	UNXTI          CSR = 0x0045
++	UINTSTATUS     CSR = 0x0046
++	USCRATCHCSW    CSR = 0x0048
++	USCRATCHCSWL   CSR = 0x0049
++	SSTATUS        CSR = 0x0100
++	SEDELEG        CSR = 0x0102
++	SIDELEG        CSR = 0x0103
++	SIE            CSR = 0x0104
++	STVEC          CSR = 0x0105
++	SCOUNTEREN     CSR = 0x0106
++	STVT           CSR = 0x0107
++	SSCRATCH       CSR = 0x0140
++	SEPC           CSR = 0x0141
++	SCAUSE         CSR = 0x0142
++	STVAL          CSR = 0x0143
++	SIP            CSR = 0x0144
++	SNXTI          CSR = 0x0145
++	SINTSTATUS     CSR = 0x0146
++	SSCRATCHCSW    CSR = 0x0148
++	SSCRATCHCSWL   CSR = 0x0149
++	SATP           CSR = 0x0180
++	VSSTATUS       CSR = 0x0200
++	VSIE           CSR = 0x0204
++	VSTVEC         CSR = 0x0205
++	VSSCRATCH      CSR = 0x0240
++	VSEPC          CSR = 0x0241
++	VSCAUSE        CSR = 0x0242
++	VSTVAL         CSR = 0x0243
++	VSIP           CSR = 0x0244
++	VSATP          CSR = 0x0280
++	MSTATUS        CSR = 0x0300
++	MISA           CSR = 0x0301
++	MEDELEG        CSR = 0x0302
++	MIDELEG        CSR = 0x0303
++	MIE            CSR = 0x0304
++	MTVEC          CSR = 0x0305
++	MCOUNTEREN     CSR = 0x0306
++	MTVT           CSR = 0x0307
++	MSTATUSH       CSR = 0x0310
++	MCOUNTINHIBIT  CSR = 0x0320
++	MHPMEVENT3     CSR = 0x0323
++	MHPMEVENT4     CSR = 0x0324
++	MHPMEVENT5     CSR = 0x0325
++	MHPMEVENT6     CSR = 0x0326
++	MHPMEVENT7     CSR = 0x0327
++	MHPMEVENT8     CSR = 0x0328
++	MHPMEVENT9     CSR = 0x0329
++	MHPMEVENT10    CSR = 0x032a
++	MHPMEVENT11    CSR = 0x032b
++	MHPMEVENT12    CSR = 0x032c
++	MHPMEVENT13    CSR = 0x032d
++	MHPMEVENT14    CSR = 0x032e
++	MHPMEVENT15    CSR = 0x032f
++	MHPMEVENT16    CSR = 0x0330
++	MHPMEVENT17    CSR = 0x0331
++	MHPMEVENT18    CSR = 0x0332
++	MHPMEVENT19    CSR = 0x0333
++	MHPMEVENT20    CSR = 0x0334
++	MHPMEVENT21    CSR = 0x0335
++	MHPMEVENT22    CSR = 0x0336
++	MHPMEVENT23    CSR = 0x0337
++	MHPMEVENT24    CSR = 0x0338
++	MHPMEVENT25    CSR = 0x0339
++	MHPMEVENT26    CSR = 0x033a
++	MHPMEVENT27    CSR = 0x033b
++	MHPMEVENT28    CSR = 0x033c
++	MHPMEVENT29    CSR = 0x033d
++	MHPMEVENT30    CSR = 0x033e
++	MHPMEVENT31    CSR = 0x033f
++	MSCRATCH       CSR = 0x0340
++	MEPC           CSR = 0x0341
++	MCAUSE         CSR = 0x0342
++	MTVAL          CSR = 0x0343
++	MIP            CSR = 0x0344
++	MNXTI          CSR = 0x0345
++	MINTSTATUS     CSR = 0x0346
++	MSCRATCHCSW    CSR = 0x0348
++	MSCRATCHCSWL   CSR = 0x0349
++	MTINST         CSR = 0x034a
++	MTVAL2         CSR = 0x034b
++	PMPCFG0        CSR = 0x03a0
++	PMPCFG1        CSR = 0x03a1
++	PMPCFG2        CSR = 0x03a2
++	PMPCFG3        CSR = 0x03a3
++	PMPADDR0       CSR = 0x03b0
++	PMPADDR1       CSR = 0x03b1
++	PMPADDR2       CSR = 0x03b2
++	PMPADDR3       CSR = 0x03b3
++	PMPADDR4       CSR = 0x03b4
++	PMPADDR5       CSR = 0x03b5
++	PMPADDR6       CSR = 0x03b6
++	PMPADDR7       CSR = 0x03b7
++	PMPADDR8       CSR = 0x03b8
++	PMPADDR9       CSR = 0x03b9
++	PMPADDR10      CSR = 0x03ba
++	PMPADDR11      CSR = 0x03bb
++	PMPADDR12      CSR = 0x03bc
++	PMPADDR13      CSR = 0x03bd
++	PMPADDR14      CSR = 0x03be
++	PMPADDR15      CSR = 0x03bf
++	HSTATUS        CSR = 0x0600
++	HEDELEG        CSR = 0x0602
++	HIDELEG        CSR = 0x0603
++	HIE            CSR = 0x0604
++	HTIMEDELTA     CSR = 0x0605
++	HCOUNTEREN     CSR = 0x0606
++	HGEIE          CSR = 0x0607
++	HTIMEDELTAH    CSR = 0x0615
++	HTVAL          CSR = 0x0643
++	HIP            CSR = 0x0644
++	HVIP           CSR = 0x0645
++	HTINST         CSR = 0x064a
++	HGATP          CSR = 0x0680
++	TSELECT        CSR = 0x07a0
++	TDATA1         CSR = 0x07a1
++	TDATA2         CSR = 0x07a2
++	TDATA3         CSR = 0x07a3
++	TINFO          CSR = 0x07a4
++	TCONTROL       CSR = 0x07a5
++	MCONTEXT       CSR = 0x07a8
++	MNOISE         CSR = 0x07a9
++	SCONTEXT       CSR = 0x07aa
++	DCSR           CSR = 0x07b0
++	DPC            CSR = 0x07b1
++	DSCRATCH0      CSR = 0x07b2
++	DSCRATCH1      CSR = 0x07b3
++	MCYCLE         CSR = 0x0b00
++	MINSTRET       CSR = 0x0b02
++	MHPMCOUNTER3   CSR = 0x0b03
++	MHPMCOUNTER4   CSR = 0x0b04
++	MHPMCOUNTER5   CSR = 0x0b05
++	MHPMCOUNTER6   CSR = 0x0b06
++	MHPMCOUNTER7   CSR = 0x0b07
++	MHPMCOUNTER8   CSR = 0x0b08
++	MHPMCOUNTER9   CSR = 0x0b09
++	MHPMCOUNTER10  CSR = 0x0b0a
++	MHPMCOUNTER11  CSR = 0x0b0b
++	MHPMCOUNTER12  CSR = 0x0b0c
++	MHPMCOUNTER13  CSR = 0x0b0d
++	MHPMCOUNTER14  CSR = 0x0b0e
++	MHPMCOUNTER15  CSR = 0x0b0f
++	MHPMCOUNTER16  CSR = 0x0b10
++	MHPMCOUNTER17  CSR = 0x0b11
++	MHPMCOUNTER18  CSR = 0x0b12
++	MHPMCOUNTER19  CSR = 0x0b13
++	MHPMCOUNTER20  CSR = 0x0b14
++	MHPMCOUNTER21  CSR = 0x0b15
++	MHPMCOUNTER22  CSR = 0x0b16
++	MHPMCOUNTER23  CSR = 0x0b17
++	MHPMCOUNTER24  CSR = 0x0b18
++	MHPMCOUNTER25  CSR = 0x0b19
++	MHPMCOUNTER26  CSR = 0x0b1a
++	MHPMCOUNTER27  CSR = 0x0b1b
++	MHPMCOUNTER28  CSR = 0x0b1c
++	MHPMCOUNTER29  CSR = 0x0b1d
++	MHPMCOUNTER30  CSR = 0x0b1e
++	MHPMCOUNTER31  CSR = 0x0b1f
++	MCYCLEH        CSR = 0x0b80
++	MINSTRETH      CSR = 0x0b82
++	MHPMCOUNTER3H  CSR = 0x0b83
++	MHPMCOUNTER4H  CSR = 0x0b84
++	MHPMCOUNTER5H  CSR = 0x0b85
++	MHPMCOUNTER6H  CSR = 0x0b86
++	MHPMCOUNTER7H  CSR = 0x0b87
++	MHPMCOUNTER8H  CSR = 0x0b88
++	MHPMCOUNTER9H  CSR = 0x0b89
++	MHPMCOUNTER10H CSR = 0x0b8a
++	MHPMCOUNTER11H CSR = 0x0b8b
++	MHPMCOUNTER12H CSR = 0x0b8c
++	MHPMCOUNTER13H CSR = 0x0b8d
++	MHPMCOUNTER14H CSR = 0x0b8e
++	MHPMCOUNTER15H CSR = 0x0b8f
++	MHPMCOUNTER16H CSR = 0x0b90
++	MHPMCOUNTER17H CSR = 0x0b91
++	MHPMCOUNTER18H CSR = 0x0b92
++	MHPMCOUNTER19H CSR = 0x0b93
++	MHPMCOUNTER20H CSR = 0x0b94
++	MHPMCOUNTER21H CSR = 0x0b95
++	MHPMCOUNTER22H CSR = 0x0b96
++	MHPMCOUNTER23H CSR = 0x0b97
++	MHPMCOUNTER24H CSR = 0x0b98
++	MHPMCOUNTER25H CSR = 0x0b99
++	MHPMCOUNTER26H CSR = 0x0b9a
++	MHPMCOUNTER27H CSR = 0x0b9b
++	MHPMCOUNTER28H CSR = 0x0b9c
++	MHPMCOUNTER29H CSR = 0x0b9d
++	MHPMCOUNTER30H CSR = 0x0b9e
++	MHPMCOUNTER31H CSR = 0x0b9f
++	CYCLE          CSR = 0x0c00
++	TIME           CSR = 0x0c01
++	INSTRET        CSR = 0x0c02
++	HPMCOUNTER3    CSR = 0x0c03
++	HPMCOUNTER4    CSR = 0x0c04
++	HPMCOUNTER5    CSR = 0x0c05
++	HPMCOUNTER6    CSR = 0x0c06
++	HPMCOUNTER7    CSR = 0x0c07
++	HPMCOUNTER8    CSR = 0x0c08
++	HPMCOUNTER9    CSR = 0x0c09
++	HPMCOUNTER10   CSR = 0x0c0a
++	HPMCOUNTER11   CSR = 0x0c0b
++	HPMCOUNTER12   CSR = 0x0c0c
++	HPMCOUNTER13   CSR = 0x0c0d
++	HPMCOUNTER14   CSR = 0x0c0e
++	HPMCOUNTER15   CSR = 0x0c0f
++	HPMCOUNTER16   CSR = 0x0c10
++	HPMCOUNTER17   CSR = 0x0c11
++	HPMCOUNTER18   CSR = 0x0c12
++	HPMCOUNTER19   CSR = 0x0c13
++	HPMCOUNTER20   CSR = 0x0c14
++	HPMCOUNTER21   CSR = 0x0c15
++	HPMCOUNTER22   CSR = 0x0c16
++	HPMCOUNTER23   CSR = 0x0c17
++	HPMCOUNTER24   CSR = 0x0c18
++	HPMCOUNTER25   CSR = 0x0c19
++	HPMCOUNTER26   CSR = 0x0c1a
++	HPMCOUNTER27   CSR = 0x0c1b
++	HPMCOUNTER28   CSR = 0x0c1c
++	HPMCOUNTER29   CSR = 0x0c1d
++	HPMCOUNTER30   CSR = 0x0c1e
++	HPMCOUNTER31   CSR = 0x0c1f
++	VL             CSR = 0x0c20
++	VTYPE          CSR = 0x0c21
++	VLENB          CSR = 0x0c22
++	CYCLEH         CSR = 0x0c80
++	TIMEH          CSR = 0x0c81
++	INSTRETH       CSR = 0x0c82
++	HPMCOUNTER3H   CSR = 0x0c83
++	HPMCOUNTER4H   CSR = 0x0c84
++	HPMCOUNTER5H   CSR = 0x0c85
++	HPMCOUNTER6H   CSR = 0x0c86
++	HPMCOUNTER7H   CSR = 0x0c87
++	HPMCOUNTER8H   CSR = 0x0c88
++	HPMCOUNTER9H   CSR = 0x0c89
++	HPMCOUNTER10H  CSR = 0x0c8a
++	HPMCOUNTER11H  CSR = 0x0c8b
++	HPMCOUNTER12H  CSR = 0x0c8c
++	HPMCOUNTER13H  CSR = 0x0c8d
++	HPMCOUNTER14H  CSR = 0x0c8e
++	HPMCOUNTER15H  CSR = 0x0c8f
++	HPMCOUNTER16H  CSR = 0x0c90
++	HPMCOUNTER17H  CSR = 0x0c91
++	HPMCOUNTER18H  CSR = 0x0c92
++	HPMCOUNTER19H  CSR = 0x0c93
++	HPMCOUNTER20H  CSR = 0x0c94
++	HPMCOUNTER21H  CSR = 0x0c95
++	HPMCOUNTER22H  CSR = 0x0c96
++	HPMCOUNTER23H  CSR = 0x0c97
++	HPMCOUNTER24H  CSR = 0x0c98
++	HPMCOUNTER25H  CSR = 0x0c99
++	HPMCOUNTER26H  CSR = 0x0c9a
++	HPMCOUNTER27H  CSR = 0x0c9b
++	HPMCOUNTER28H  CSR = 0x0c9c
++	HPMCOUNTER29H  CSR = 0x0c9d
++	HPMCOUNTER30H  CSR = 0x0c9e
++	HPMCOUNTER31H  CSR = 0x0c9f
++	HGEIP          CSR = 0x0e12
++	MVENDORID      CSR = 0x0f11
++	MARCHID        CSR = 0x0f12
++	MIMPID         CSR = 0x0f13
++	MHARTID        CSR = 0x0f14
++	MENTROPY       CSR = 0x0f15
++)
++
++// An Uimm is an unsigned immediate number
++type Uimm struct {
++	Imm     uint32 // 32-bit unsigned integer
++	Decimal bool   // Print format of the immediate, either decimal or hexadecimal
++}
++
++func (ui Uimm) String() string {
++	if ui.Decimal {
++		return fmt.Sprintf("%d", ui.Imm)
++	}
++	return fmt.Sprintf("%#x", ui.Imm)
++}
++
++// A Simm is a signed immediate number
++type Simm struct {
++	Imm     int32 // 32-bit signed integer
++	Decimal bool  // Print format of the immediate, either decimal or hexadecimal
++	Width   uint8 // Actual width of the Simm
++}
++
++func (si Simm) String() string {
++	if si.Decimal {
++		return fmt.Sprintf("%d", si.Imm)
++	}
++	return fmt.Sprintf("%#x", si.Imm)
++}
++
++// An AmoReg is an atomic address register used in AMO instructions
++type AmoReg struct {
++	reg Reg // Avoid promoted String method
++}
++
++func (amoReg AmoReg) String() string {
++	return fmt.Sprintf("(%s)", amoReg.reg)
++}
++
++// A RegOffset is a register with offset value
++type RegOffset struct {
++	OfsReg Reg
++	Ofs    Simm
++}
++
++func (regofs RegOffset) String() string {
++	return fmt.Sprintf("%s(%s)", regofs.Ofs, regofs.OfsReg)
++}
++
++// A MemOrder is a memory order hint in fence instruction
++type MemOrder uint8
++
++func (memOrder MemOrder) String() string {
++	var str string
++	if memOrder<<7>>7 == 1 {
++		str += "i"
++	}
++	if memOrder>>1<<7>>7 == 1 {
++		str += "o"
++	}
++	if memOrder>>2<<7>>7 == 1 {
++		str += "r"
++	}
++	if memOrder>>3<<7>>7 == 1 {
++		str += "w"
++	}
++	return str
++}
+diff --git a/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/plan9x.go b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/plan9x.go
+new file mode 100644
+index 0000000000..367122d940
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/plan9x.go
+@@ -0,0 +1,377 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv64asm
++
++import (
++	"fmt"
++	"io"
++	"strconv"
++	"strings"
++)
++
++// GoSyntax returns the Go assembler syntax for the instruction.
++// The syntax was originally defined by Plan 9.
++// The pc is the program counter of the instruction, used for
++// expanding PC-relative addresses into absolute ones.
++// The symname function queries the symbol table for the program
++// being disassembled. Given a target address it returns the name
++// and base address of the symbol containing the target, if any;
++// otherwise it returns "", 0.
++// The reader text should read from the text segment using text addresses
++// as offsets; it is used to display pc-relative loads as constant loads.
++func GoSyntax(inst Inst, pc uint64, symname func(uint64) (string, uint64), text io.ReaderAt) string {
++	if symname == nil {
++		symname = func(uint64) (string, uint64) { return "", 0 }
++	}
++
++	var args []string
++	for _, a := range inst.Args {
++		if a == nil {
++			break
++		}
++		args = append(args, plan9Arg(&inst, pc, symname, a))
++	}
++
++	op := inst.Op.String()
++
++	switch inst.Op {
++
++	case AMOADD_D, AMOADD_D_AQ, AMOADD_D_RL, AMOADD_D_AQRL, AMOADD_W, AMOADD_W_AQ,
++		AMOADD_W_RL, AMOADD_W_AQRL, AMOAND_D, AMOAND_D_AQ, AMOAND_D_RL, AMOAND_D_AQRL,
++		AMOAND_W, AMOAND_W_AQ, AMOAND_W_RL, AMOAND_W_AQRL, AMOMAXU_D, AMOMAXU_D_AQ,
++		AMOMAXU_D_RL, AMOMAXU_D_AQRL, AMOMAXU_W, AMOMAXU_W_AQ, AMOMAXU_W_RL, AMOMAXU_W_AQRL,
++		AMOMAX_D, AMOMAX_D_AQ, AMOMAX_D_RL, AMOMAX_D_AQRL, AMOMAX_W, AMOMAX_W_AQ, AMOMAX_W_RL,
++		AMOMAX_W_AQRL, AMOMINU_D, AMOMINU_D_AQ, AMOMINU_D_RL, AMOMINU_D_AQRL, AMOMINU_W,
++		AMOMINU_W_AQ, AMOMINU_W_RL, AMOMINU_W_AQRL, AMOMIN_D, AMOMIN_D_AQ, AMOMIN_D_RL,
++		AMOMIN_D_AQRL, AMOMIN_W, AMOMIN_W_AQ, AMOMIN_W_RL, AMOMIN_W_AQRL, AMOOR_D, AMOOR_D_AQ,
++		AMOOR_D_RL, AMOOR_D_AQRL, AMOOR_W, AMOOR_W_AQ, AMOOR_W_RL, AMOOR_W_AQRL, AMOSWAP_D,
++		AMOSWAP_D_AQ, AMOSWAP_D_RL, AMOSWAP_D_AQRL, AMOSWAP_W, AMOSWAP_W_AQ, AMOSWAP_W_RL,
++		AMOSWAP_W_AQRL, AMOXOR_D, AMOXOR_D_AQ, AMOXOR_D_RL, AMOXOR_D_AQRL, AMOXOR_W,
++		AMOXOR_W_AQ, AMOXOR_W_RL, AMOXOR_W_AQRL, SC_D, SC_D_AQ, SC_D_RL, SC_D_AQRL,
++		SC_W, SC_W_AQ, SC_W_RL, SC_W_AQRL:
++		// Atomic instructions have special operand order.
++		args[2], args[1] = args[1], args[2]
++
++	case ADDI:
++		if inst.Args[2].(Simm).Imm == 0 {
++			op = "MOV"
++			args = args[:len(args)-1]
++		}
++
++	case ADDIW:
++		if inst.Args[2].(Simm).Imm == 0 {
++			op = "MOVW"
++			args = args[:len(args)-1]
++		}
++
++	case ANDI:
++		if inst.Args[2].(Simm).Imm == 255 {
++			op = "MOVBU"
++			args = args[:len(args)-1]
++		}
++
++	case BEQ:
++		if inst.Args[1].(Reg) == X0 {
++			op = "BEQZ"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++		for i, j := 0, len(args)-1; i < j; i, j = i+1, j-1 {
++			args[i], args[j] = args[j], args[i]
++		}
++
++	case BGE:
++		if inst.Args[1].(Reg) == X0 {
++			op = "BGEZ"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++		for i, j := 0, len(args)-1; i < j; i, j = i+1, j-1 {
++			args[i], args[j] = args[j], args[i]
++		}
++
++	case BLT:
++		if inst.Args[1].(Reg) == X0 {
++			op = "BLTZ"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++		for i, j := 0, len(args)-1; i < j; i, j = i+1, j-1 {
++			args[i], args[j] = args[j], args[i]
++		}
++
++	case BNE:
++		if inst.Args[1].(Reg) == X0 {
++			op = "BNEZ"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++		for i, j := 0, len(args)-1; i < j; i, j = i+1, j-1 {
++			args[i], args[j] = args[j], args[i]
++		}
++
++	case BLTU, BGEU:
++		for i, j := 0, len(args)-1; i < j; i, j = i+1, j-1 {
++			args[i], args[j] = args[j], args[i]
++		}
++
++	case CSRRW:
++		switch inst.Args[1].(CSR) {
++		case FCSR:
++			op = "FSCSR"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		case FFLAGS:
++			op = "FSFLAGS"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		case FRM:
++			op = "FSRM"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		case CYCLE:
++			if inst.Args[0].(Reg) == X0 && inst.Args[2].(Reg) == X0 {
++				op = "UNIMP"
++				args = nil
++			}
++		}
++
++	case CSRRS:
++		if inst.Args[2].(Reg) == X0 {
++			switch inst.Args[1].(CSR) {
++			case FCSR:
++				op = "FRCSR"
++				args = args[:len(args)-2]
++			case FFLAGS:
++				op = "FRFLAGS"
++				args = args[:len(args)-2]
++			case FRM:
++				op = "FRRM"
++				args = args[:len(args)-2]
++			case CYCLE:
++				op = "RDCYCLE"
++				args = args[:len(args)-2]
++			case CYCLEH:
++				op = "RDCYCLEH"
++				args = args[:len(args)-2]
++			case INSTRET:
++				op = "RDINSTRET"
++				args = args[:len(args)-2]
++			case INSTRETH:
++				op = "RDINSTRETH"
++				args = args[:len(args)-2]
++			case TIME:
++				op = "RDTIME"
++				args = args[:len(args)-2]
++			case TIMEH:
++				op = "RDTIMEH"
++				args = args[:len(args)-2]
++			}
++		}
++
++	// Fence instruction in plan9 doesn't have any operands.
++	case FENCE:
++		args = nil
++
++	case FMADD_D, FMADD_H, FMADD_Q, FMADD_S, FMSUB_D, FMSUB_H,
++		FMSUB_Q, FMSUB_S, FNMADD_D, FNMADD_H, FNMADD_Q, FNMADD_S,
++		FNMSUB_D, FNMSUB_H, FNMSUB_Q, FNMSUB_S:
++		args[1], args[3] = args[3], args[1]
++
++	case FSGNJ_S:
++		if inst.Args[2] == inst.Args[1] {
++			op = "MOVF"
++			args = args[:len(args)-1]
++		}
++
++	case FSGNJ_D:
++		if inst.Args[2] == inst.Args[1] {
++			op = "MOVD"
++			args = args[:len(args)-1]
++		}
++
++	case FSGNJX_S:
++		if inst.Args[2] == inst.Args[1] {
++			op = "FABSS"
++			args = args[:len(args)-1]
++		}
++
++	case FSGNJX_D:
++		if inst.Args[2] == inst.Args[1] {
++			op = "FABSD"
++			args = args[:len(args)-1]
++		}
++
++	case FSGNJN_S:
++		if inst.Args[2] == inst.Args[1] {
++			op = "FNEGS"
++			args = args[:len(args)-1]
++		}
++
++	case FSGNJN_D:
++		if inst.Args[2] == inst.Args[1] {
++			op = "FNESD"
++			args = args[:len(args)-1]
++		}
++
++	case LD, SD:
++		op = "MOV"
++		if inst.Op == SD {
++			args[0], args[1] = args[1], args[0]
++		}
++
++	case LB, SB:
++		op = "MOVB"
++		if inst.Op == SB {
++			args[0], args[1] = args[1], args[0]
++		}
++
++	case LH, SH:
++		op = "MOVH"
++		if inst.Op == SH {
++			args[0], args[1] = args[1], args[0]
++		}
++
++	case LW, SW:
++		op = "MOVW"
++		if inst.Op == SW {
++			args[0], args[1] = args[1], args[0]
++		}
++
++	case LBU:
++		op = "MOVBU"
++
++	case LHU:
++		op = "MOVHU"
++
++	case LWU:
++		op = "MOVWU"
++
++	case FLW, FSW:
++		op = "MOVF"
++		if inst.Op == FLW {
++			args[0], args[1] = args[1], args[0]
++		}
++
++	case FLD, FSD:
++		op = "MOVD"
++		if inst.Op == FLD {
++			args[0], args[1] = args[1], args[0]
++		}
++
++	case SUB:
++		if inst.Args[1].(Reg) == X0 {
++			op = "NEG"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++
++	case XORI:
++		if inst.Args[2].(Simm).String() == "-1" {
++			op = "NOT"
++			args = args[:len(args)-1]
++		}
++
++	case SLTIU:
++		if inst.Args[2].(Simm).Imm == 1 {
++			op = "SEQZ"
++			args = args[:len(args)-1]
++		}
++
++	case SLTU:
++		if inst.Args[1].(Reg) == X0 {
++			op = "SNEZ"
++			args[1] = args[2]
++			args = args[:len(args)-1]
++		}
++
++	case JAL:
++		if inst.Args[0].(Reg) == X0 {
++			op = "JMP"
++			args[0] = args[1]
++			args = args[:len(args)-1]
++		} else if inst.Args[0].(Reg) == X1 {
++			op = "CALL"
++			args[0] = args[1]
++			args = args[:len(args)-1]
++		} else {
++			args[0], args[1] = args[1], args[0]
++		}
++
++	case JALR:
++		if inst.Args[0].(Reg) == X0 {
++			if inst.Args[1].(RegOffset).OfsReg == X1 && inst.Args[1].(RegOffset).Ofs.Imm == 0 {
++				op = "RET"
++				args = nil
++				break
++			}
++			op = "JMP"
++			args[0] = args[1]
++			args = args[:len(args)-1]
++		} else if inst.Args[0].(Reg) == X1 {
++			op = "CALL"
++			args[0] = args[1]
++			args = args[:len(args)-1]
++		} else {
++			args[0], args[1] = args[1], args[0]
++		}
++	}
++
++	// Reverse args, placing dest last.
++	for i, j := 0, len(args)-1; i < j; i, j = i+1, j-1 {
++		args[i], args[j] = args[j], args[i]
++	}
++
++	// Change to plan9 opcode format
++	// Atomic instructions do not have reorder suffix, so remove them
++	op = strings.Replace(op, ".AQRL", "", -1)
++	op = strings.Replace(op, ".AQ", "", -1)
++	op = strings.Replace(op, ".RL", "", -1)
++	op = strings.Replace(op, ".", "", -1)
++
++	if args != nil {
++		op += " " + strings.Join(args, ", ")
++	}
++
++	return op
++}
++
++func plan9Arg(inst *Inst, pc uint64, symname func(uint64) (string, uint64), arg Arg) string {
++	switch a := arg.(type) {
++	case Uimm:
++		return fmt.Sprintf("$%d", uint32(a.Imm))
++
++	case Simm:
++		imm, _ := strconv.Atoi(a.String())
++		if a.Width == 13 || a.Width == 21 {
++			addr := int64(pc) + int64(imm)
++			if s, base := symname(uint64(addr)); s != "" && uint64(addr) == base {
++				return fmt.Sprintf("%s(SB)", s)
++			}
++			return fmt.Sprintf("%d(PC)", imm/4)
++		}
++		return fmt.Sprintf("$%d", int32(imm))
++
++	case Reg:
++		if a <= 31 {
++			return fmt.Sprintf("X%d", a)
++		} else {
++			return fmt.Sprintf("F%d", a-32)
++		}
++
++	case RegOffset:
++		if a.Ofs.Imm == 0 {
++			return fmt.Sprintf("(X%d)", a.OfsReg)
++		} else {
++			return fmt.Sprintf("%s(X%d)", a.Ofs.String(), a.OfsReg)
++		}
++
++	case AmoReg:
++		return fmt.Sprintf("(X%d)", a.reg)
++
++	default:
++		return strings.ToUpper(arg.String())
++	}
++}
+diff --git a/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/tables.go b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/tables.go
+new file mode 100644
+index 0000000000..3e5db415e7
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/arch/riscv64/riscv64asm/tables.go
+@@ -0,0 +1,1474 @@
++// Code generated by riscv64spec riscv-opcodes
++// DO NOT EDIT
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package riscv64asm
++
++const (
++	_ Op = iota
++	ADD
++	ADDI
++	ADDIW
++	ADDW
++	ADD_UW
++	AMOADD_D
++	AMOADD_D_AQ
++	AMOADD_D_AQRL
++	AMOADD_D_RL
++	AMOADD_W
++	AMOADD_W_AQ
++	AMOADD_W_AQRL
++	AMOADD_W_RL
++	AMOAND_D
++	AMOAND_D_AQ
++	AMOAND_D_AQRL
++	AMOAND_D_RL
++	AMOAND_W
++	AMOAND_W_AQ
++	AMOAND_W_AQRL
++	AMOAND_W_RL
++	AMOMAXU_D
++	AMOMAXU_D_AQ
++	AMOMAXU_D_AQRL
++	AMOMAXU_D_RL
++	AMOMAXU_W
++	AMOMAXU_W_AQ
++	AMOMAXU_W_AQRL
++	AMOMAXU_W_RL
++	AMOMAX_D
++	AMOMAX_D_AQ
++	AMOMAX_D_AQRL
++	AMOMAX_D_RL
++	AMOMAX_W
++	AMOMAX_W_AQ
++	AMOMAX_W_AQRL
++	AMOMAX_W_RL
++	AMOMINU_D
++	AMOMINU_D_AQ
++	AMOMINU_D_AQRL
++	AMOMINU_D_RL
++	AMOMINU_W
++	AMOMINU_W_AQ
++	AMOMINU_W_AQRL
++	AMOMINU_W_RL
++	AMOMIN_D
++	AMOMIN_D_AQ
++	AMOMIN_D_AQRL
++	AMOMIN_D_RL
++	AMOMIN_W
++	AMOMIN_W_AQ
++	AMOMIN_W_AQRL
++	AMOMIN_W_RL
++	AMOOR_D
++	AMOOR_D_AQ
++	AMOOR_D_AQRL
++	AMOOR_D_RL
++	AMOOR_W
++	AMOOR_W_AQ
++	AMOOR_W_AQRL
++	AMOOR_W_RL
++	AMOSWAP_D
++	AMOSWAP_D_AQ
++	AMOSWAP_D_AQRL
++	AMOSWAP_D_RL
++	AMOSWAP_W
++	AMOSWAP_W_AQ
++	AMOSWAP_W_AQRL
++	AMOSWAP_W_RL
++	AMOXOR_D
++	AMOXOR_D_AQ
++	AMOXOR_D_AQRL
++	AMOXOR_D_RL
++	AMOXOR_W
++	AMOXOR_W_AQ
++	AMOXOR_W_AQRL
++	AMOXOR_W_RL
++	AND
++	ANDI
++	ANDN
++	AUIPC
++	BCLR
++	BCLRI
++	BEQ
++	BEXT
++	BEXTI
++	BGE
++	BGEU
++	BINV
++	BINVI
++	BLT
++	BLTU
++	BNE
++	BSET
++	BSETI
++	CLZ
++	CLZW
++	CPOP
++	CPOPW
++	CSRRC
++	CSRRCI
++	CSRRS
++	CSRRSI
++	CSRRW
++	CSRRWI
++	CTZ
++	CTZW
++	C_ADD
++	C_ADDI
++	C_ADDI16SP
++	C_ADDI4SPN
++	C_ADDIW
++	C_ADDW
++	C_AND
++	C_ANDI
++	C_BEQZ
++	C_BNEZ
++	C_EBREAK
++	C_FLD
++	C_FLDSP
++	C_FSD
++	C_FSDSP
++	C_J
++	C_JALR
++	C_JR
++	C_LD
++	C_LDSP
++	C_LI
++	C_LUI
++	C_LW
++	C_LWSP
++	C_MV
++	C_NOP
++	C_OR
++	C_SD
++	C_SDSP
++	C_SLLI
++	C_SRAI
++	C_SRLI
++	C_SUB
++	C_SUBW
++	C_SW
++	C_SWSP
++	C_UNIMP
++	C_XOR
++	DIV
++	DIVU
++	DIVUW
++	DIVW
++	EBREAK
++	ECALL
++	FADD_D
++	FADD_H
++	FADD_Q
++	FADD_S
++	FCLASS_D
++	FCLASS_H
++	FCLASS_Q
++	FCLASS_S
++	FCVT_D_L
++	FCVT_D_LU
++	FCVT_D_Q
++	FCVT_D_S
++	FCVT_D_W
++	FCVT_D_WU
++	FCVT_H_L
++	FCVT_H_LU
++	FCVT_H_S
++	FCVT_H_W
++	FCVT_H_WU
++	FCVT_LU_D
++	FCVT_LU_H
++	FCVT_LU_Q
++	FCVT_LU_S
++	FCVT_L_D
++	FCVT_L_H
++	FCVT_L_Q
++	FCVT_L_S
++	FCVT_Q_D
++	FCVT_Q_L
++	FCVT_Q_LU
++	FCVT_Q_S
++	FCVT_Q_W
++	FCVT_Q_WU
++	FCVT_S_D
++	FCVT_S_H
++	FCVT_S_L
++	FCVT_S_LU
++	FCVT_S_Q
++	FCVT_S_W
++	FCVT_S_WU
++	FCVT_WU_D
++	FCVT_WU_H
++	FCVT_WU_Q
++	FCVT_WU_S
++	FCVT_W_D
++	FCVT_W_H
++	FCVT_W_Q
++	FCVT_W_S
++	FDIV_D
++	FDIV_H
++	FDIV_Q
++	FDIV_S
++	FENCE
++	FENCE_I
++	FEQ_D
++	FEQ_H
++	FEQ_Q
++	FEQ_S
++	FLD
++	FLE_D
++	FLE_H
++	FLE_Q
++	FLE_S
++	FLH
++	FLQ
++	FLT_D
++	FLT_H
++	FLT_Q
++	FLT_S
++	FLW
++	FMADD_D
++	FMADD_H
++	FMADD_Q
++	FMADD_S
++	FMAX_D
++	FMAX_H
++	FMAX_Q
++	FMAX_S
++	FMIN_D
++	FMIN_H
++	FMIN_Q
++	FMIN_S
++	FMSUB_D
++	FMSUB_H
++	FMSUB_Q
++	FMSUB_S
++	FMUL_D
++	FMUL_H
++	FMUL_Q
++	FMUL_S
++	FMV_D_X
++	FMV_H_X
++	FMV_W_X
++	FMV_X_D
++	FMV_X_H
++	FMV_X_W
++	FNMADD_D
++	FNMADD_H
++	FNMADD_Q
++	FNMADD_S
++	FNMSUB_D
++	FNMSUB_H
++	FNMSUB_Q
++	FNMSUB_S
++	FSD
++	FSGNJN_D
++	FSGNJN_H
++	FSGNJN_Q
++	FSGNJN_S
++	FSGNJX_D
++	FSGNJX_H
++	FSGNJX_Q
++	FSGNJX_S
++	FSGNJ_D
++	FSGNJ_H
++	FSGNJ_Q
++	FSGNJ_S
++	FSH
++	FSQ
++	FSQRT_D
++	FSQRT_H
++	FSQRT_Q
++	FSQRT_S
++	FSUB_D
++	FSUB_H
++	FSUB_Q
++	FSUB_S
++	FSW
++	JAL
++	JALR
++	LB
++	LBU
++	LD
++	LH
++	LHU
++	LR_D
++	LR_D_AQ
++	LR_D_AQRL
++	LR_D_RL
++	LR_W
++	LR_W_AQ
++	LR_W_AQRL
++	LR_W_RL
++	LUI
++	LW
++	LWU
++	MAX
++	MAXU
++	MIN
++	MINU
++	MUL
++	MULH
++	MULHSU
++	MULHU
++	MULW
++	OR
++	ORC_B
++	ORI
++	ORN
++	REM
++	REMU
++	REMUW
++	REMW
++	REV8
++	ROL
++	ROLW
++	ROR
++	RORI
++	RORIW
++	RORW
++	SB
++	SC_D
++	SC_D_AQ
++	SC_D_AQRL
++	SC_D_RL
++	SC_W
++	SC_W_AQ
++	SC_W_AQRL
++	SC_W_RL
++	SD
++	SEXT_B
++	SEXT_H
++	SH
++	SH1ADD
++	SH1ADD_UW
++	SH2ADD
++	SH2ADD_UW
++	SH3ADD
++	SH3ADD_UW
++	SLL
++	SLLI
++	SLLIW
++	SLLI_UW
++	SLLW
++	SLT
++	SLTI
++	SLTIU
++	SLTU
++	SRA
++	SRAI
++	SRAIW
++	SRAW
++	SRL
++	SRLI
++	SRLIW
++	SRLW
++	SUB
++	SUBW
++	SW
++	XNOR
++	XOR
++	XORI
++	ZEXT_H
++)
++
++var opstr = [...]string{
++	ADD:            "ADD",
++	ADDI:           "ADDI",
++	ADDIW:          "ADDIW",
++	ADDW:           "ADDW",
++	ADD_UW:         "ADD.UW",
++	AMOADD_D:       "AMOADD.D",
++	AMOADD_D_AQ:    "AMOADD.D.AQ",
++	AMOADD_D_AQRL:  "AMOADD.D.AQRL",
++	AMOADD_D_RL:    "AMOADD.D.RL",
++	AMOADD_W:       "AMOADD.W",
++	AMOADD_W_AQ:    "AMOADD.W.AQ",
++	AMOADD_W_AQRL:  "AMOADD.W.AQRL",
++	AMOADD_W_RL:    "AMOADD.W.RL",
++	AMOAND_D:       "AMOAND.D",
++	AMOAND_D_AQ:    "AMOAND.D.AQ",
++	AMOAND_D_AQRL:  "AMOAND.D.AQRL",
++	AMOAND_D_RL:    "AMOAND.D.RL",
++	AMOAND_W:       "AMOAND.W",
++	AMOAND_W_AQ:    "AMOAND.W.AQ",
++	AMOAND_W_AQRL:  "AMOAND.W.AQRL",
++	AMOAND_W_RL:    "AMOAND.W.RL",
++	AMOMAXU_D:      "AMOMAXU.D",
++	AMOMAXU_D_AQ:   "AMOMAXU.D.AQ",
++	AMOMAXU_D_AQRL: "AMOMAXU.D.AQRL",
++	AMOMAXU_D_RL:   "AMOMAXU.D.RL",
++	AMOMAXU_W:      "AMOMAXU.W",
++	AMOMAXU_W_AQ:   "AMOMAXU.W.AQ",
++	AMOMAXU_W_AQRL: "AMOMAXU.W.AQRL",
++	AMOMAXU_W_RL:   "AMOMAXU.W.RL",
++	AMOMAX_D:       "AMOMAX.D",
++	AMOMAX_D_AQ:    "AMOMAX.D.AQ",
++	AMOMAX_D_AQRL:  "AMOMAX.D.AQRL",
++	AMOMAX_D_RL:    "AMOMAX.D.RL",
++	AMOMAX_W:       "AMOMAX.W",
++	AMOMAX_W_AQ:    "AMOMAX.W.AQ",
++	AMOMAX_W_AQRL:  "AMOMAX.W.AQRL",
++	AMOMAX_W_RL:    "AMOMAX.W.RL",
++	AMOMINU_D:      "AMOMINU.D",
++	AMOMINU_D_AQ:   "AMOMINU.D.AQ",
++	AMOMINU_D_AQRL: "AMOMINU.D.AQRL",
++	AMOMINU_D_RL:   "AMOMINU.D.RL",
++	AMOMINU_W:      "AMOMINU.W",
++	AMOMINU_W_AQ:   "AMOMINU.W.AQ",
++	AMOMINU_W_AQRL: "AMOMINU.W.AQRL",
++	AMOMINU_W_RL:   "AMOMINU.W.RL",
++	AMOMIN_D:       "AMOMIN.D",
++	AMOMIN_D_AQ:    "AMOMIN.D.AQ",
++	AMOMIN_D_AQRL:  "AMOMIN.D.AQRL",
++	AMOMIN_D_RL:    "AMOMIN.D.RL",
++	AMOMIN_W:       "AMOMIN.W",
++	AMOMIN_W_AQ:    "AMOMIN.W.AQ",
++	AMOMIN_W_AQRL:  "AMOMIN.W.AQRL",
++	AMOMIN_W_RL:    "AMOMIN.W.RL",
++	AMOOR_D:        "AMOOR.D",
++	AMOOR_D_AQ:     "AMOOR.D.AQ",
++	AMOOR_D_AQRL:   "AMOOR.D.AQRL",
++	AMOOR_D_RL:     "AMOOR.D.RL",
++	AMOOR_W:        "AMOOR.W",
++	AMOOR_W_AQ:     "AMOOR.W.AQ",
++	AMOOR_W_AQRL:   "AMOOR.W.AQRL",
++	AMOOR_W_RL:     "AMOOR.W.RL",
++	AMOSWAP_D:      "AMOSWAP.D",
++	AMOSWAP_D_AQ:   "AMOSWAP.D.AQ",
++	AMOSWAP_D_AQRL: "AMOSWAP.D.AQRL",
++	AMOSWAP_D_RL:   "AMOSWAP.D.RL",
++	AMOSWAP_W:      "AMOSWAP.W",
++	AMOSWAP_W_AQ:   "AMOSWAP.W.AQ",
++	AMOSWAP_W_AQRL: "AMOSWAP.W.AQRL",
++	AMOSWAP_W_RL:   "AMOSWAP.W.RL",
++	AMOXOR_D:       "AMOXOR.D",
++	AMOXOR_D_AQ:    "AMOXOR.D.AQ",
++	AMOXOR_D_AQRL:  "AMOXOR.D.AQRL",
++	AMOXOR_D_RL:    "AMOXOR.D.RL",
++	AMOXOR_W:       "AMOXOR.W",
++	AMOXOR_W_AQ:    "AMOXOR.W.AQ",
++	AMOXOR_W_AQRL:  "AMOXOR.W.AQRL",
++	AMOXOR_W_RL:    "AMOXOR.W.RL",
++	AND:            "AND",
++	ANDI:           "ANDI",
++	ANDN:           "ANDN",
++	AUIPC:          "AUIPC",
++	BCLR:           "BCLR",
++	BCLRI:          "BCLRI",
++	BEQ:            "BEQ",
++	BEXT:           "BEXT",
++	BEXTI:          "BEXTI",
++	BGE:            "BGE",
++	BGEU:           "BGEU",
++	BINV:           "BINV",
++	BINVI:          "BINVI",
++	BLT:            "BLT",
++	BLTU:           "BLTU",
++	BNE:            "BNE",
++	BSET:           "BSET",
++	BSETI:          "BSETI",
++	CLZ:            "CLZ",
++	CLZW:           "CLZW",
++	CPOP:           "CPOP",
++	CPOPW:          "CPOPW",
++	CSRRC:          "CSRRC",
++	CSRRCI:         "CSRRCI",
++	CSRRS:          "CSRRS",
++	CSRRSI:         "CSRRSI",
++	CSRRW:          "CSRRW",
++	CSRRWI:         "CSRRWI",
++	CTZ:            "CTZ",
++	CTZW:           "CTZW",
++	C_ADD:          "C.ADD",
++	C_ADDI:         "C.ADDI",
++	C_ADDI16SP:     "C.ADDI16SP",
++	C_ADDI4SPN:     "C.ADDI4SPN",
++	C_ADDIW:        "C.ADDIW",
++	C_ADDW:         "C.ADDW",
++	C_AND:          "C.AND",
++	C_ANDI:         "C.ANDI",
++	C_BEQZ:         "C.BEQZ",
++	C_BNEZ:         "C.BNEZ",
++	C_EBREAK:       "C.EBREAK",
++	C_FLD:          "C.FLD",
++	C_FLDSP:        "C.FLDSP",
++	C_FSD:          "C.FSD",
++	C_FSDSP:        "C.FSDSP",
++	C_J:            "C.J",
++	C_JALR:         "C.JALR",
++	C_JR:           "C.JR",
++	C_LD:           "C.LD",
++	C_LDSP:         "C.LDSP",
++	C_LI:           "C.LI",
++	C_LUI:          "C.LUI",
++	C_LW:           "C.LW",
++	C_LWSP:         "C.LWSP",
++	C_MV:           "C.MV",
++	C_NOP:          "C.NOP",
++	C_OR:           "C.OR",
++	C_SD:           "C.SD",
++	C_SDSP:         "C.SDSP",
++	C_SLLI:         "C.SLLI",
++	C_SRAI:         "C.SRAI",
++	C_SRLI:         "C.SRLI",
++	C_SUB:          "C.SUB",
++	C_SUBW:         "C.SUBW",
++	C_SW:           "C.SW",
++	C_SWSP:         "C.SWSP",
++	C_UNIMP:        "C.UNIMP",
++	C_XOR:          "C.XOR",
++	DIV:            "DIV",
++	DIVU:           "DIVU",
++	DIVUW:          "DIVUW",
++	DIVW:           "DIVW",
++	EBREAK:         "EBREAK",
++	ECALL:          "ECALL",
++	FADD_D:         "FADD.D",
++	FADD_H:         "FADD.H",
++	FADD_Q:         "FADD.Q",
++	FADD_S:         "FADD.S",
++	FCLASS_D:       "FCLASS.D",
++	FCLASS_H:       "FCLASS.H",
++	FCLASS_Q:       "FCLASS.Q",
++	FCLASS_S:       "FCLASS.S",
++	FCVT_D_L:       "FCVT.D.L",
++	FCVT_D_LU:      "FCVT.D.LU",
++	FCVT_D_Q:       "FCVT.D.Q",
++	FCVT_D_S:       "FCVT.D.S",
++	FCVT_D_W:       "FCVT.D.W",
++	FCVT_D_WU:      "FCVT.D.WU",
++	FCVT_H_L:       "FCVT.H.L",
++	FCVT_H_LU:      "FCVT.H.LU",
++	FCVT_H_S:       "FCVT.H.S",
++	FCVT_H_W:       "FCVT.H.W",
++	FCVT_H_WU:      "FCVT.H.WU",
++	FCVT_LU_D:      "FCVT.LU.D",
++	FCVT_LU_H:      "FCVT.LU.H",
++	FCVT_LU_Q:      "FCVT.LU.Q",
++	FCVT_LU_S:      "FCVT.LU.S",
++	FCVT_L_D:       "FCVT.L.D",
++	FCVT_L_H:       "FCVT.L.H",
++	FCVT_L_Q:       "FCVT.L.Q",
++	FCVT_L_S:       "FCVT.L.S",
++	FCVT_Q_D:       "FCVT.Q.D",
++	FCVT_Q_L:       "FCVT.Q.L",
++	FCVT_Q_LU:      "FCVT.Q.LU",
++	FCVT_Q_S:       "FCVT.Q.S",
++	FCVT_Q_W:       "FCVT.Q.W",
++	FCVT_Q_WU:      "FCVT.Q.WU",
++	FCVT_S_D:       "FCVT.S.D",
++	FCVT_S_H:       "FCVT.S.H",
++	FCVT_S_L:       "FCVT.S.L",
++	FCVT_S_LU:      "FCVT.S.LU",
++	FCVT_S_Q:       "FCVT.S.Q",
++	FCVT_S_W:       "FCVT.S.W",
++	FCVT_S_WU:      "FCVT.S.WU",
++	FCVT_WU_D:      "FCVT.WU.D",
++	FCVT_WU_H:      "FCVT.WU.H",
++	FCVT_WU_Q:      "FCVT.WU.Q",
++	FCVT_WU_S:      "FCVT.WU.S",
++	FCVT_W_D:       "FCVT.W.D",
++	FCVT_W_H:       "FCVT.W.H",
++	FCVT_W_Q:       "FCVT.W.Q",
++	FCVT_W_S:       "FCVT.W.S",
++	FDIV_D:         "FDIV.D",
++	FDIV_H:         "FDIV.H",
++	FDIV_Q:         "FDIV.Q",
++	FDIV_S:         "FDIV.S",
++	FENCE:          "FENCE",
++	FENCE_I:        "FENCE.I",
++	FEQ_D:          "FEQ.D",
++	FEQ_H:          "FEQ.H",
++	FEQ_Q:          "FEQ.Q",
++	FEQ_S:          "FEQ.S",
++	FLD:            "FLD",
++	FLE_D:          "FLE.D",
++	FLE_H:          "FLE.H",
++	FLE_Q:          "FLE.Q",
++	FLE_S:          "FLE.S",
++	FLH:            "FLH",
++	FLQ:            "FLQ",
++	FLT_D:          "FLT.D",
++	FLT_H:          "FLT.H",
++	FLT_Q:          "FLT.Q",
++	FLT_S:          "FLT.S",
++	FLW:            "FLW",
++	FMADD_D:        "FMADD.D",
++	FMADD_H:        "FMADD.H",
++	FMADD_Q:        "FMADD.Q",
++	FMADD_S:        "FMADD.S",
++	FMAX_D:         "FMAX.D",
++	FMAX_H:         "FMAX.H",
++	FMAX_Q:         "FMAX.Q",
++	FMAX_S:         "FMAX.S",
++	FMIN_D:         "FMIN.D",
++	FMIN_H:         "FMIN.H",
++	FMIN_Q:         "FMIN.Q",
++	FMIN_S:         "FMIN.S",
++	FMSUB_D:        "FMSUB.D",
++	FMSUB_H:        "FMSUB.H",
++	FMSUB_Q:        "FMSUB.Q",
++	FMSUB_S:        "FMSUB.S",
++	FMUL_D:         "FMUL.D",
++	FMUL_H:         "FMUL.H",
++	FMUL_Q:         "FMUL.Q",
++	FMUL_S:         "FMUL.S",
++	FMV_D_X:        "FMV.D.X",
++	FMV_H_X:        "FMV.H.X",
++	FMV_W_X:        "FMV.W.X",
++	FMV_X_D:        "FMV.X.D",
++	FMV_X_H:        "FMV.X.H",
++	FMV_X_W:        "FMV.X.W",
++	FNMADD_D:       "FNMADD.D",
++	FNMADD_H:       "FNMADD.H",
++	FNMADD_Q:       "FNMADD.Q",
++	FNMADD_S:       "FNMADD.S",
++	FNMSUB_D:       "FNMSUB.D",
++	FNMSUB_H:       "FNMSUB.H",
++	FNMSUB_Q:       "FNMSUB.Q",
++	FNMSUB_S:       "FNMSUB.S",
++	FSD:            "FSD",
++	FSGNJN_D:       "FSGNJN.D",
++	FSGNJN_H:       "FSGNJN.H",
++	FSGNJN_Q:       "FSGNJN.Q",
++	FSGNJN_S:       "FSGNJN.S",
++	FSGNJX_D:       "FSGNJX.D",
++	FSGNJX_H:       "FSGNJX.H",
++	FSGNJX_Q:       "FSGNJX.Q",
++	FSGNJX_S:       "FSGNJX.S",
++	FSGNJ_D:        "FSGNJ.D",
++	FSGNJ_H:        "FSGNJ.H",
++	FSGNJ_Q:        "FSGNJ.Q",
++	FSGNJ_S:        "FSGNJ.S",
++	FSH:            "FSH",
++	FSQ:            "FSQ",
++	FSQRT_D:        "FSQRT.D",
++	FSQRT_H:        "FSQRT.H",
++	FSQRT_Q:        "FSQRT.Q",
++	FSQRT_S:        "FSQRT.S",
++	FSUB_D:         "FSUB.D",
++	FSUB_H:         "FSUB.H",
++	FSUB_Q:         "FSUB.Q",
++	FSUB_S:         "FSUB.S",
++	FSW:            "FSW",
++	JAL:            "JAL",
++	JALR:           "JALR",
++	LB:             "LB",
++	LBU:            "LBU",
++	LD:             "LD",
++	LH:             "LH",
++	LHU:            "LHU",
++	LR_D:           "LR.D",
++	LR_D_AQ:        "LR.D.AQ",
++	LR_D_AQRL:      "LR.D.AQRL",
++	LR_D_RL:        "LR.D.RL",
++	LR_W:           "LR.W",
++	LR_W_AQ:        "LR.W.AQ",
++	LR_W_AQRL:      "LR.W.AQRL",
++	LR_W_RL:        "LR.W.RL",
++	LUI:            "LUI",
++	LW:             "LW",
++	LWU:            "LWU",
++	MAX:            "MAX",
++	MAXU:           "MAXU",
++	MIN:            "MIN",
++	MINU:           "MINU",
++	MUL:            "MUL",
++	MULH:           "MULH",
++	MULHSU:         "MULHSU",
++	MULHU:          "MULHU",
++	MULW:           "MULW",
++	OR:             "OR",
++	ORC_B:          "ORC.B",
++	ORI:            "ORI",
++	ORN:            "ORN",
++	REM:            "REM",
++	REMU:           "REMU",
++	REMUW:          "REMUW",
++	REMW:           "REMW",
++	REV8:           "REV8",
++	ROL:            "ROL",
++	ROLW:           "ROLW",
++	ROR:            "ROR",
++	RORI:           "RORI",
++	RORIW:          "RORIW",
++	RORW:           "RORW",
++	SB:             "SB",
++	SC_D:           "SC.D",
++	SC_D_AQ:        "SC.D.AQ",
++	SC_D_AQRL:      "SC.D.AQRL",
++	SC_D_RL:        "SC.D.RL",
++	SC_W:           "SC.W",
++	SC_W_AQ:        "SC.W.AQ",
++	SC_W_AQRL:      "SC.W.AQRL",
++	SC_W_RL:        "SC.W.RL",
++	SD:             "SD",
++	SEXT_B:         "SEXT.B",
++	SEXT_H:         "SEXT.H",
++	SH:             "SH",
++	SH1ADD:         "SH1ADD",
++	SH1ADD_UW:      "SH1ADD.UW",
++	SH2ADD:         "SH2ADD",
++	SH2ADD_UW:      "SH2ADD.UW",
++	SH3ADD:         "SH3ADD",
++	SH3ADD_UW:      "SH3ADD.UW",
++	SLL:            "SLL",
++	SLLI:           "SLLI",
++	SLLIW:          "SLLIW",
++	SLLI_UW:        "SLLI.UW",
++	SLLW:           "SLLW",
++	SLT:            "SLT",
++	SLTI:           "SLTI",
++	SLTIU:          "SLTIU",
++	SLTU:           "SLTU",
++	SRA:            "SRA",
++	SRAI:           "SRAI",
++	SRAIW:          "SRAIW",
++	SRAW:           "SRAW",
++	SRL:            "SRL",
++	SRLI:           "SRLI",
++	SRLIW:          "SRLIW",
++	SRLW:           "SRLW",
++	SUB:            "SUB",
++	SUBW:           "SUBW",
++	SW:             "SW",
++	XNOR:           "XNOR",
++	XOR:            "XOR",
++	XORI:           "XORI",
++	ZEXT_H:         "ZEXT.H",
++}
++
++var instFormats = [...]instFormat{
++	// ADD rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x00000033, op: ADD, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// ADDI rd, rs1, imm12
++	{mask: 0x0000707f, value: 0x00000013, op: ADDI, args: argTypeList{arg_rd, arg_rs1, arg_imm12}},
++	// ADDIW rd, rs1, imm12
++	{mask: 0x0000707f, value: 0x0000001b, op: ADDIW, args: argTypeList{arg_rd, arg_rs1, arg_imm12}},
++	// ADDW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0000003b, op: ADDW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// ADD.UW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0800003b, op: ADD_UW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// AMOADD.D rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0000302f, op: AMOADD_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOADD.D.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0400302f, op: AMOADD_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOADD.D.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0600302f, op: AMOADD_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOADD.D.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0200302f, op: AMOADD_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOADD.W rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0000202f, op: AMOADD_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOADD.W.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0400202f, op: AMOADD_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOADD.W.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0600202f, op: AMOADD_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOADD.W.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0200202f, op: AMOADD_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOAND.D rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x6000302f, op: AMOAND_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOAND.D.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x6400302f, op: AMOAND_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOAND.D.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x6600302f, op: AMOAND_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOAND.D.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x6200302f, op: AMOAND_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOAND.W rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x6000202f, op: AMOAND_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOAND.W.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x6400202f, op: AMOAND_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOAND.W.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x6600202f, op: AMOAND_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOAND.W.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x6200202f, op: AMOAND_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAXU.D rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xe000302f, op: AMOMAXU_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAXU.D.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xe400302f, op: AMOMAXU_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAXU.D.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xe600302f, op: AMOMAXU_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAXU.D.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xe200302f, op: AMOMAXU_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAXU.W rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xe000202f, op: AMOMAXU_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAXU.W.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xe400202f, op: AMOMAXU_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAXU.W.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xe600202f, op: AMOMAXU_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAXU.W.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xe200202f, op: AMOMAXU_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAX.D rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xa000302f, op: AMOMAX_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAX.D.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xa400302f, op: AMOMAX_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAX.D.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xa600302f, op: AMOMAX_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAX.D.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xa200302f, op: AMOMAX_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAX.W rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xa000202f, op: AMOMAX_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAX.W.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xa400202f, op: AMOMAX_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAX.W.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xa600202f, op: AMOMAX_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMAX.W.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xa200202f, op: AMOMAX_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMINU.D rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xc000302f, op: AMOMINU_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMINU.D.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xc400302f, op: AMOMINU_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMINU.D.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xc600302f, op: AMOMINU_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMINU.D.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xc200302f, op: AMOMINU_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMINU.W rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xc000202f, op: AMOMINU_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMINU.W.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xc400202f, op: AMOMINU_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMINU.W.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xc600202f, op: AMOMINU_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMINU.W.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0xc200202f, op: AMOMINU_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMIN.D rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x8000302f, op: AMOMIN_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMIN.D.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x8400302f, op: AMOMIN_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMIN.D.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x8600302f, op: AMOMIN_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMIN.D.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x8200302f, op: AMOMIN_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMIN.W rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x8000202f, op: AMOMIN_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMIN.W.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x8400202f, op: AMOMIN_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMIN.W.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x8600202f, op: AMOMIN_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOMIN.W.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x8200202f, op: AMOMIN_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOOR.D rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x4000302f, op: AMOOR_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOOR.D.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x4400302f, op: AMOOR_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOOR.D.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x4600302f, op: AMOOR_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOOR.D.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x4200302f, op: AMOOR_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOOR.W rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x4000202f, op: AMOOR_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOOR.W.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x4400202f, op: AMOOR_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOOR.W.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x4600202f, op: AMOOR_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOOR.W.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x4200202f, op: AMOOR_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOSWAP.D rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0800302f, op: AMOSWAP_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOSWAP.D.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0c00302f, op: AMOSWAP_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOSWAP.D.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0e00302f, op: AMOSWAP_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOSWAP.D.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0a00302f, op: AMOSWAP_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOSWAP.W rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0800202f, op: AMOSWAP_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOSWAP.W.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0c00202f, op: AMOSWAP_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOSWAP.W.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0e00202f, op: AMOSWAP_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOSWAP.W.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x0a00202f, op: AMOSWAP_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOXOR.D rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x2000302f, op: AMOXOR_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOXOR.D.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x2400302f, op: AMOXOR_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOXOR.D.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x2600302f, op: AMOXOR_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOXOR.D.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x2200302f, op: AMOXOR_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOXOR.W rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x2000202f, op: AMOXOR_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOXOR.W.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x2400202f, op: AMOXOR_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOXOR.W.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x2600202f, op: AMOXOR_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AMOXOR.W.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x2200202f, op: AMOXOR_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// AND rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x00007033, op: AND, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// ANDI rd, rs1, imm12
++	{mask: 0x0000707f, value: 0x00007013, op: ANDI, args: argTypeList{arg_rd, arg_rs1, arg_imm12}},
++	// ANDN rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x40007033, op: ANDN, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// AUIPC rd, imm20
++	{mask: 0x0000007f, value: 0x00000017, op: AUIPC, args: argTypeList{arg_rd, arg_imm20}},
++	// BCLR rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x48001033, op: BCLR, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// BCLRI rd, rs1, shamt6
++	{mask: 0xfc00707f, value: 0x48001013, op: BCLRI, args: argTypeList{arg_rd, arg_rs1, arg_shamt6}},
++	// BEQ rs1, rs2, bimm12
++	{mask: 0x0000707f, value: 0x00000063, op: BEQ, args: argTypeList{arg_rs1, arg_rs2, arg_bimm12}},
++	// BEXT rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x48005033, op: BEXT, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// BEXTI rd, rs1, shamt6
++	{mask: 0xfc00707f, value: 0x48005013, op: BEXTI, args: argTypeList{arg_rd, arg_rs1, arg_shamt6}},
++	// BGE rs1, rs2, bimm12
++	{mask: 0x0000707f, value: 0x00005063, op: BGE, args: argTypeList{arg_rs1, arg_rs2, arg_bimm12}},
++	// BGEU rs1, rs2, bimm12
++	{mask: 0x0000707f, value: 0x00007063, op: BGEU, args: argTypeList{arg_rs1, arg_rs2, arg_bimm12}},
++	// BINV rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x68001033, op: BINV, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// BINVI rd, rs1, shamt6
++	{mask: 0xfc00707f, value: 0x68001013, op: BINVI, args: argTypeList{arg_rd, arg_rs1, arg_shamt6}},
++	// BLT rs1, rs2, bimm12
++	{mask: 0x0000707f, value: 0x00004063, op: BLT, args: argTypeList{arg_rs1, arg_rs2, arg_bimm12}},
++	// BLTU rs1, rs2, bimm12
++	{mask: 0x0000707f, value: 0x00006063, op: BLTU, args: argTypeList{arg_rs1, arg_rs2, arg_bimm12}},
++	// BNE rs1, rs2, bimm12
++	{mask: 0x0000707f, value: 0x00001063, op: BNE, args: argTypeList{arg_rs1, arg_rs2, arg_bimm12}},
++	// BSET rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x28001033, op: BSET, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// BSETI rd, rs1, shamt6
++	{mask: 0xfc00707f, value: 0x28001013, op: BSETI, args: argTypeList{arg_rd, arg_rs1, arg_shamt6}},
++	// CLZ rd, rs1
++	{mask: 0xfff0707f, value: 0x60001013, op: CLZ, args: argTypeList{arg_rd, arg_rs1}},
++	// CLZW rd, rs1
++	{mask: 0xfff0707f, value: 0x6000101b, op: CLZW, args: argTypeList{arg_rd, arg_rs1}},
++	// CPOP rd, rs1
++	{mask: 0xfff0707f, value: 0x60201013, op: CPOP, args: argTypeList{arg_rd, arg_rs1}},
++	// CPOPW rd, rs1
++	{mask: 0xfff0707f, value: 0x6020101b, op: CPOPW, args: argTypeList{arg_rd, arg_rs1}},
++	// CSRRC rd, csr, rs1
++	{mask: 0x0000707f, value: 0x00003073, op: CSRRC, args: argTypeList{arg_rd, arg_csr, arg_rs1}},
++	// CSRRCI rd, csr, zimm
++	{mask: 0x0000707f, value: 0x00007073, op: CSRRCI, args: argTypeList{arg_rd, arg_csr, arg_zimm}},
++	// CSRRS rd, csr, rs1
++	{mask: 0x0000707f, value: 0x00002073, op: CSRRS, args: argTypeList{arg_rd, arg_csr, arg_rs1}},
++	// CSRRSI rd, csr, zimm
++	{mask: 0x0000707f, value: 0x00006073, op: CSRRSI, args: argTypeList{arg_rd, arg_csr, arg_zimm}},
++	// CSRRW rd, csr, rs1
++	{mask: 0x0000707f, value: 0x00001073, op: CSRRW, args: argTypeList{arg_rd, arg_csr, arg_rs1}},
++	// CSRRWI rd, csr, zimm
++	{mask: 0x0000707f, value: 0x00005073, op: CSRRWI, args: argTypeList{arg_rd, arg_csr, arg_zimm}},
++	// CTZ rd, rs1
++	{mask: 0xfff0707f, value: 0x60101013, op: CTZ, args: argTypeList{arg_rd, arg_rs1}},
++	// CTZW rd, rs1
++	{mask: 0xfff0707f, value: 0x6010101b, op: CTZW, args: argTypeList{arg_rd, arg_rs1}},
++	// C.ADD rd_rs1_n0, c_rs2_n0
++	{mask: 0x0000f003, value: 0x00009002, op: C_ADD, args: argTypeList{arg_rd_rs1_n0, arg_c_rs2_n0}},
++	// C.ADDI rd_rs1_n0, c_nzimm6
++	{mask: 0x0000e003, value: 0x00000001, op: C_ADDI, args: argTypeList{arg_rd_rs1_n0, arg_c_nzimm6}},
++	// C.ADDI16SP c_nzimm10
++	{mask: 0x0000ef83, value: 0x00006101, op: C_ADDI16SP, args: argTypeList{arg_c_nzimm10}},
++	// C.ADDI4SPN rd_p, c_nzuimm10
++	{mask: 0x0000e003, value: 0x00000000, op: C_ADDI4SPN, args: argTypeList{arg_rd_p, arg_c_nzuimm10}},
++	// C.ADDIW rd_rs1_n0, c_imm6
++	{mask: 0x0000e003, value: 0x00002001, op: C_ADDIW, args: argTypeList{arg_rd_rs1_n0, arg_c_imm6}},
++	// C.ADDW rd_rs1_p, rs2_p
++	{mask: 0x0000fc63, value: 0x00009c21, op: C_ADDW, args: argTypeList{arg_rd_rs1_p, arg_rs2_p}},
++	// C.AND rd_rs1_p, rs2_p
++	{mask: 0x0000fc63, value: 0x00008c61, op: C_AND, args: argTypeList{arg_rd_rs1_p, arg_rs2_p}},
++	// C.ANDI rd_rs1_p, c_imm6
++	{mask: 0x0000ec03, value: 0x00008801, op: C_ANDI, args: argTypeList{arg_rd_rs1_p, arg_c_imm6}},
++	// C.BEQZ rs1_p, c_bimm9
++	{mask: 0x0000e003, value: 0x0000c001, op: C_BEQZ, args: argTypeList{arg_rs1_p, arg_c_bimm9}},
++	// C.BNEZ rs1_p, c_bimm9
++	{mask: 0x0000e003, value: 0x0000e001, op: C_BNEZ, args: argTypeList{arg_rs1_p, arg_c_bimm9}},
++	// C.EBREAK
++	{mask: 0x0000ffff, value: 0x00009002, op: C_EBREAK, args: argTypeList{}},
++	// C.FLD fd_p, rs1_p, c_uimm8
++	{mask: 0x0000e003, value: 0x00002000, op: C_FLD, args: argTypeList{arg_fd_p, arg_rs1_p, arg_c_uimm8}},
++	// C.FLDSP fd, c_uimm9sp
++	{mask: 0x0000e003, value: 0x00002002, op: C_FLDSP, args: argTypeList{arg_fd, arg_c_uimm9sp}},
++	// C.FSD rs1_p, fs2_p, c_uimm8
++	{mask: 0x0000e003, value: 0x0000a000, op: C_FSD, args: argTypeList{arg_rs1_p, arg_fs2_p, arg_c_uimm8}},
++	// C.FSDSP c_fs2, c_uimm9sp_s
++	{mask: 0x0000e003, value: 0x0000a002, op: C_FSDSP, args: argTypeList{arg_c_fs2, arg_c_uimm9sp_s}},
++	// C.J c_imm12
++	{mask: 0x0000e003, value: 0x0000a001, op: C_J, args: argTypeList{arg_c_imm12}},
++	// C.JALR c_rs1_n0
++	{mask: 0x0000f07f, value: 0x00009002, op: C_JALR, args: argTypeList{arg_c_rs1_n0}},
++	// C.JR rs1_n0
++	{mask: 0x0000f07f, value: 0x00008002, op: C_JR, args: argTypeList{arg_rs1_n0}},
++	// C.LD rd_p, rs1_p, c_uimm8
++	{mask: 0x0000e003, value: 0x00006000, op: C_LD, args: argTypeList{arg_rd_p, arg_rs1_p, arg_c_uimm8}},
++	// C.LDSP rd_n0, c_uimm9sp
++	{mask: 0x0000e003, value: 0x00006002, op: C_LDSP, args: argTypeList{arg_rd_n0, arg_c_uimm9sp}},
++	// C.LI rd_n0, c_imm6
++	{mask: 0x0000e003, value: 0x00004001, op: C_LI, args: argTypeList{arg_rd_n0, arg_c_imm6}},
++	// C.LUI rd_n2, c_nzimm18
++	{mask: 0x0000e003, value: 0x00006001, op: C_LUI, args: argTypeList{arg_rd_n2, arg_c_nzimm18}},
++	// C.LW rd_p, rs1_p, c_uimm7
++	{mask: 0x0000e003, value: 0x00004000, op: C_LW, args: argTypeList{arg_rd_p, arg_rs1_p, arg_c_uimm7}},
++	// C.LWSP rd_n0, c_uimm8sp
++	{mask: 0x0000e003, value: 0x00004002, op: C_LWSP, args: argTypeList{arg_rd_n0, arg_c_uimm8sp}},
++	// C.MV rd_n0, c_rs2_n0
++	{mask: 0x0000f003, value: 0x00008002, op: C_MV, args: argTypeList{arg_rd_n0, arg_c_rs2_n0}},
++	// C.NOP c_nzimm6
++	{mask: 0x0000ef83, value: 0x00000001, op: C_NOP, args: argTypeList{arg_c_nzimm6}},
++	// C.OR rd_rs1_p, rs2_p
++	{mask: 0x0000fc63, value: 0x00008c41, op: C_OR, args: argTypeList{arg_rd_rs1_p, arg_rs2_p}},
++	// C.SD rs1_p, rs2_p, c_uimm8
++	{mask: 0x0000e003, value: 0x0000e000, op: C_SD, args: argTypeList{arg_rs1_p, arg_rs2_p, arg_c_uimm8}},
++	// C.SDSP c_rs2, c_uimm9sp_s
++	{mask: 0x0000e003, value: 0x0000e002, op: C_SDSP, args: argTypeList{arg_c_rs2, arg_c_uimm9sp_s}},
++	// C.SLLI rd_rs1_n0, c_nzuimm6
++	{mask: 0x0000e003, value: 0x00000002, op: C_SLLI, args: argTypeList{arg_rd_rs1_n0, arg_c_nzuimm6}},
++	// C.SRAI rd_rs1_p, c_nzuimm6
++	{mask: 0x0000ec03, value: 0x00008401, op: C_SRAI, args: argTypeList{arg_rd_rs1_p, arg_c_nzuimm6}},
++	// C.SRLI rd_rs1_p, c_nzuimm6
++	{mask: 0x0000ec03, value: 0x00008001, op: C_SRLI, args: argTypeList{arg_rd_rs1_p, arg_c_nzuimm6}},
++	// C.SUB rd_rs1_p, rs2_p
++	{mask: 0x0000fc63, value: 0x00008c01, op: C_SUB, args: argTypeList{arg_rd_rs1_p, arg_rs2_p}},
++	// C.SUBW rd_rs1_p, rs2_p
++	{mask: 0x0000fc63, value: 0x00009c01, op: C_SUBW, args: argTypeList{arg_rd_rs1_p, arg_rs2_p}},
++	// C.SW rs1_p, rs2_p, c_uimm7
++	{mask: 0x0000e003, value: 0x0000c000, op: C_SW, args: argTypeList{arg_rs1_p, arg_rs2_p, arg_c_uimm7}},
++	// C.SWSP c_rs2, c_uimm8sp_s
++	{mask: 0x0000e003, value: 0x0000c002, op: C_SWSP, args: argTypeList{arg_c_rs2, arg_c_uimm8sp_s}},
++	// C.UNIMP
++	{mask: 0x0000ffff, value: 0x00000000, op: C_UNIMP, args: argTypeList{}},
++	// C.XOR rd_rs1_p, rs2_p
++	{mask: 0x0000fc63, value: 0x00008c21, op: C_XOR, args: argTypeList{arg_rd_rs1_p, arg_rs2_p}},
++	// DIV rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x02004033, op: DIV, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// DIVU rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x02005033, op: DIVU, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// DIVUW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0200503b, op: DIVUW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// DIVW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0200403b, op: DIVW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// EBREAK
++	{mask: 0xffffffff, value: 0x00100073, op: EBREAK, args: argTypeList{}},
++	// ECALL
++	{mask: 0xffffffff, value: 0x00000073, op: ECALL, args: argTypeList{}},
++	// FADD.D fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x02000053, op: FADD_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FADD.H fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x04000053, op: FADD_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FADD.Q fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x06000053, op: FADD_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FADD.S fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x00000053, op: FADD_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FCLASS.D rd, fs1
++	{mask: 0xfff0707f, value: 0xe2001053, op: FCLASS_D, args: argTypeList{arg_rd, arg_fs1}},
++	// FCLASS.H rd, fs1
++	{mask: 0xfff0707f, value: 0xe4001053, op: FCLASS_H, args: argTypeList{arg_rd, arg_fs1}},
++	// FCLASS.Q rd, fs1
++	{mask: 0xfff0707f, value: 0xe6001053, op: FCLASS_Q, args: argTypeList{arg_rd, arg_fs1}},
++	// FCLASS.S rd, fs1
++	{mask: 0xfff0707f, value: 0xe0001053, op: FCLASS_S, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.D.L fd, rs1
++	{mask: 0xfff0007f, value: 0xd2200053, op: FCVT_D_L, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.D.LU fd, rs1
++	{mask: 0xfff0007f, value: 0xd2300053, op: FCVT_D_LU, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.D.Q fd, fs1
++	{mask: 0xfff0007f, value: 0x42300053, op: FCVT_D_Q, args: argTypeList{arg_fd, arg_fs1}},
++	// FCVT.D.S fd, fs1
++	{mask: 0xfff0007f, value: 0x42000053, op: FCVT_D_S, args: argTypeList{arg_fd, arg_fs1}},
++	// FCVT.D.W fd, rs1
++	{mask: 0xfff0007f, value: 0xd2000053, op: FCVT_D_W, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.D.WU fd, rs1
++	{mask: 0xfff0007f, value: 0xd2100053, op: FCVT_D_WU, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.H.L fd, rs1
++	{mask: 0xfff0007f, value: 0xd4200053, op: FCVT_H_L, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.H.LU fd, rs1
++	{mask: 0xfff0007f, value: 0xd4300053, op: FCVT_H_LU, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.H.S fd, fs1
++	{mask: 0xfff0007f, value: 0x44000053, op: FCVT_H_S, args: argTypeList{arg_fd, arg_fs1}},
++	// FCVT.H.W fd, rs1
++	{mask: 0xfff0007f, value: 0xd4000053, op: FCVT_H_W, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.H.WU fd, rs1
++	{mask: 0xfff0007f, value: 0xd4100053, op: FCVT_H_WU, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.LU.D rd, fs1
++	{mask: 0xfff0007f, value: 0xc2300053, op: FCVT_LU_D, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.LU.H rd, fs1
++	{mask: 0xfff0007f, value: 0xc4300053, op: FCVT_LU_H, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.LU.Q rd, fs1
++	{mask: 0xfff0007f, value: 0xc6300053, op: FCVT_LU_Q, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.LU.S rd, fs1
++	{mask: 0xfff0007f, value: 0xc0300053, op: FCVT_LU_S, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.L.D rd, fs1
++	{mask: 0xfff0007f, value: 0xc2200053, op: FCVT_L_D, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.L.H rd, fs1
++	{mask: 0xfff0007f, value: 0xc4200053, op: FCVT_L_H, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.L.Q rd, fs1
++	{mask: 0xfff0007f, value: 0xc6200053, op: FCVT_L_Q, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.L.S rd, fs1
++	{mask: 0xfff0007f, value: 0xc0200053, op: FCVT_L_S, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.Q.D fd, fs1
++	{mask: 0xfff0007f, value: 0x46100053, op: FCVT_Q_D, args: argTypeList{arg_fd, arg_fs1}},
++	// FCVT.Q.L fd, rs1
++	{mask: 0xfff0007f, value: 0xd6200053, op: FCVT_Q_L, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.Q.LU fd, rs1
++	{mask: 0xfff0007f, value: 0xd6300053, op: FCVT_Q_LU, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.Q.S fd, fs1
++	{mask: 0xfff0007f, value: 0x46000053, op: FCVT_Q_S, args: argTypeList{arg_fd, arg_fs1}},
++	// FCVT.Q.W fd, rs1
++	{mask: 0xfff0007f, value: 0xd6000053, op: FCVT_Q_W, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.Q.WU fd, rs1
++	{mask: 0xfff0007f, value: 0xd6100053, op: FCVT_Q_WU, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.S.D fd, fs1
++	{mask: 0xfff0007f, value: 0x40100053, op: FCVT_S_D, args: argTypeList{arg_fd, arg_fs1}},
++	// FCVT.S.H fd, fs1
++	{mask: 0xfff0007f, value: 0x40200053, op: FCVT_S_H, args: argTypeList{arg_fd, arg_fs1}},
++	// FCVT.S.L fd, rs1
++	{mask: 0xfff0007f, value: 0xd0200053, op: FCVT_S_L, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.S.LU fd, rs1
++	{mask: 0xfff0007f, value: 0xd0300053, op: FCVT_S_LU, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.S.Q fd, fs1
++	{mask: 0xfff0007f, value: 0x40300053, op: FCVT_S_Q, args: argTypeList{arg_fd, arg_fs1}},
++	// FCVT.S.W fd, rs1
++	{mask: 0xfff0007f, value: 0xd0000053, op: FCVT_S_W, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.S.WU fd, rs1
++	{mask: 0xfff0007f, value: 0xd0100053, op: FCVT_S_WU, args: argTypeList{arg_fd, arg_rs1}},
++	// FCVT.WU.D rd, fs1
++	{mask: 0xfff0007f, value: 0xc2100053, op: FCVT_WU_D, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.WU.H rd, fs1
++	{mask: 0xfff0007f, value: 0xc4100053, op: FCVT_WU_H, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.WU.Q rd, fs1
++	{mask: 0xfff0007f, value: 0xc6100053, op: FCVT_WU_Q, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.WU.S rd, fs1
++	{mask: 0xfff0007f, value: 0xc0100053, op: FCVT_WU_S, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.W.D rd, fs1
++	{mask: 0xfff0007f, value: 0xc2000053, op: FCVT_W_D, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.W.H rd, fs1
++	{mask: 0xfff0007f, value: 0xc4000053, op: FCVT_W_H, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.W.Q rd, fs1
++	{mask: 0xfff0007f, value: 0xc6000053, op: FCVT_W_Q, args: argTypeList{arg_rd, arg_fs1}},
++	// FCVT.W.S rd, fs1
++	{mask: 0xfff0007f, value: 0xc0000053, op: FCVT_W_S, args: argTypeList{arg_rd, arg_fs1}},
++	// FDIV.D fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x1a000053, op: FDIV_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FDIV.H fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x1c000053, op: FDIV_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FDIV.Q fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x1e000053, op: FDIV_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FDIV.S fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x18000053, op: FDIV_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FENCE pred, succ
++	{mask: 0x0000707f, value: 0x0000000f, op: FENCE, args: argTypeList{arg_pred, arg_succ}},
++	// FENCE.I
++	{mask: 0x0000707f, value: 0x0000100f, op: FENCE_I, args: argTypeList{}},
++	// FEQ.D rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa2002053, op: FEQ_D, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FEQ.H rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa4002053, op: FEQ_H, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FEQ.Q rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa6002053, op: FEQ_Q, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FEQ.S rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa0002053, op: FEQ_S, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FLD fd, rs1_mem
++	{mask: 0x0000707f, value: 0x00003007, op: FLD, args: argTypeList{arg_fd, arg_rs1_mem}},
++	// FLE.D rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa2000053, op: FLE_D, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FLE.H rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa4000053, op: FLE_H, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FLE.Q rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa6000053, op: FLE_Q, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FLE.S rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa0000053, op: FLE_S, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FLH fd, rs1_mem
++	{mask: 0x0000707f, value: 0x00001007, op: FLH, args: argTypeList{arg_fd, arg_rs1_mem}},
++	// FLQ fd, rs1_mem
++	{mask: 0x0000707f, value: 0x00004007, op: FLQ, args: argTypeList{arg_fd, arg_rs1_mem}},
++	// FLT.D rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa2001053, op: FLT_D, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FLT.H rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa4001053, op: FLT_H, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FLT.Q rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa6001053, op: FLT_Q, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FLT.S rd, fs1, fs2
++	{mask: 0xfe00707f, value: 0xa0001053, op: FLT_S, args: argTypeList{arg_rd, arg_fs1, arg_fs2}},
++	// FLW fd, rs1_mem
++	{mask: 0x0000707f, value: 0x00002007, op: FLW, args: argTypeList{arg_fd, arg_rs1_mem}},
++	// FMADD.D fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x02000043, op: FMADD_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FMADD.H fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x04000043, op: FMADD_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FMADD.Q fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x06000043, op: FMADD_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FMADD.S fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x00000043, op: FMADD_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FMAX.D fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x2a001053, op: FMAX_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMAX.H fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x2c001053, op: FMAX_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMAX.Q fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x2e001053, op: FMAX_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMAX.S fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x28001053, op: FMAX_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMIN.D fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x2a000053, op: FMIN_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMIN.H fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x2c000053, op: FMIN_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMIN.Q fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x2e000053, op: FMIN_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMIN.S fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x28000053, op: FMIN_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMSUB.D fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x02000047, op: FMSUB_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FMSUB.H fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x04000047, op: FMSUB_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FMSUB.Q fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x06000047, op: FMSUB_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FMSUB.S fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x00000047, op: FMSUB_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FMUL.D fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x12000053, op: FMUL_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMUL.H fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x14000053, op: FMUL_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMUL.Q fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x16000053, op: FMUL_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMUL.S fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x10000053, op: FMUL_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FMV.D.X fd, rs1
++	{mask: 0xfff0707f, value: 0xf2000053, op: FMV_D_X, args: argTypeList{arg_fd, arg_rs1}},
++	// FMV.H.X fd, rs1
++	{mask: 0xfff0707f, value: 0xf4000053, op: FMV_H_X, args: argTypeList{arg_fd, arg_rs1}},
++	// FMV.W.X fd, rs1
++	{mask: 0xfff0707f, value: 0xf0000053, op: FMV_W_X, args: argTypeList{arg_fd, arg_rs1}},
++	// FMV.X.D rd, fs1
++	{mask: 0xfff0707f, value: 0xe2000053, op: FMV_X_D, args: argTypeList{arg_rd, arg_fs1}},
++	// FMV.X.H rd, fs1
++	{mask: 0xfff0707f, value: 0xe4000053, op: FMV_X_H, args: argTypeList{arg_rd, arg_fs1}},
++	// FMV.X.W rd, fs1
++	{mask: 0xfff0707f, value: 0xe0000053, op: FMV_X_W, args: argTypeList{arg_rd, arg_fs1}},
++	// FNMADD.D fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x0200004f, op: FNMADD_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FNMADD.H fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x0400004f, op: FNMADD_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FNMADD.Q fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x0600004f, op: FNMADD_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FNMADD.S fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x0000004f, op: FNMADD_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FNMSUB.D fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x0200004b, op: FNMSUB_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FNMSUB.H fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x0400004b, op: FNMSUB_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FNMSUB.Q fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x0600004b, op: FNMSUB_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FNMSUB.S fd, fs1, fs2, fs3
++	{mask: 0x0600007f, value: 0x0000004b, op: FNMSUB_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2, arg_fs3}},
++	// FSD fs2, rs1_store
++	{mask: 0x0000707f, value: 0x00003027, op: FSD, args: argTypeList{arg_fs2, arg_rs1_store}},
++	// FSGNJN.D fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x22001053, op: FSGNJN_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJN.H fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x24001053, op: FSGNJN_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJN.Q fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x26001053, op: FSGNJN_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJN.S fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x20001053, op: FSGNJN_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJX.D fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x22002053, op: FSGNJX_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJX.H fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x24002053, op: FSGNJX_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJX.Q fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x26002053, op: FSGNJX_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJX.S fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x20002053, op: FSGNJX_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJ.D fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x22000053, op: FSGNJ_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJ.H fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x24000053, op: FSGNJ_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJ.Q fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x26000053, op: FSGNJ_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSGNJ.S fd, fs1, fs2
++	{mask: 0xfe00707f, value: 0x20000053, op: FSGNJ_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSH fs2, rs1_store
++	{mask: 0x0000707f, value: 0x00001027, op: FSH, args: argTypeList{arg_fs2, arg_rs1_store}},
++	// FSQ fs2, rs1_store
++	{mask: 0x0000707f, value: 0x00004027, op: FSQ, args: argTypeList{arg_fs2, arg_rs1_store}},
++	// FSQRT.D fd, fs1
++	{mask: 0xfff0007f, value: 0x5a000053, op: FSQRT_D, args: argTypeList{arg_fd, arg_fs1}},
++	// FSQRT.H fd, fs1
++	{mask: 0xfff0007f, value: 0x5c000053, op: FSQRT_H, args: argTypeList{arg_fd, arg_fs1}},
++	// FSQRT.Q fd, fs1
++	{mask: 0xfff0007f, value: 0x5e000053, op: FSQRT_Q, args: argTypeList{arg_fd, arg_fs1}},
++	// FSQRT.S fd, fs1
++	{mask: 0xfff0007f, value: 0x58000053, op: FSQRT_S, args: argTypeList{arg_fd, arg_fs1}},
++	// FSUB.D fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x0a000053, op: FSUB_D, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSUB.H fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x0c000053, op: FSUB_H, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSUB.Q fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x0e000053, op: FSUB_Q, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSUB.S fd, fs1, fs2
++	{mask: 0xfe00007f, value: 0x08000053, op: FSUB_S, args: argTypeList{arg_fd, arg_fs1, arg_fs2}},
++	// FSW fs2, rs1_store
++	{mask: 0x0000707f, value: 0x00002027, op: FSW, args: argTypeList{arg_fs2, arg_rs1_store}},
++	// JAL rd, jimm20
++	{mask: 0x0000007f, value: 0x0000006f, op: JAL, args: argTypeList{arg_rd, arg_jimm20}},
++	// JALR rd, rs1_mem
++	{mask: 0x0000707f, value: 0x00000067, op: JALR, args: argTypeList{arg_rd, arg_rs1_mem}},
++	// LB rd, rs1_mem
++	{mask: 0x0000707f, value: 0x00000003, op: LB, args: argTypeList{arg_rd, arg_rs1_mem}},
++	// LBU rd, rs1_mem
++	{mask: 0x0000707f, value: 0x00004003, op: LBU, args: argTypeList{arg_rd, arg_rs1_mem}},
++	// LD rd, rs1_mem
++	{mask: 0x0000707f, value: 0x00003003, op: LD, args: argTypeList{arg_rd, arg_rs1_mem}},
++	// LH rd, rs1_mem
++	{mask: 0x0000707f, value: 0x00001003, op: LH, args: argTypeList{arg_rd, arg_rs1_mem}},
++	// LHU rd, rs1_mem
++	{mask: 0x0000707f, value: 0x00005003, op: LHU, args: argTypeList{arg_rd, arg_rs1_mem}},
++	// LR.D rd, rs1_amo
++	{mask: 0xfff0707f, value: 0x1000302f, op: LR_D, args: argTypeList{arg_rd, arg_rs1_amo}},
++	// LR.D.AQ rd, rs1_amo
++	{mask: 0xfff0707f, value: 0x1400302f, op: LR_D_AQ, args: argTypeList{arg_rd, arg_rs1_amo}},
++	// LR.D.AQRL rd, rs1_amo
++	{mask: 0xfff0707f, value: 0x1600302f, op: LR_D_AQRL, args: argTypeList{arg_rd, arg_rs1_amo}},
++	// LR.D.RL rd, rs1_amo
++	{mask: 0xfff0707f, value: 0x1200302f, op: LR_D_RL, args: argTypeList{arg_rd, arg_rs1_amo}},
++	// LR.W rd, rs1_amo
++	{mask: 0xfff0707f, value: 0x1000202f, op: LR_W, args: argTypeList{arg_rd, arg_rs1_amo}},
++	// LR.W.AQ rd, rs1_amo
++	{mask: 0xfff0707f, value: 0x1400202f, op: LR_W_AQ, args: argTypeList{arg_rd, arg_rs1_amo}},
++	// LR.W.AQRL rd, rs1_amo
++	{mask: 0xfff0707f, value: 0x1600202f, op: LR_W_AQRL, args: argTypeList{arg_rd, arg_rs1_amo}},
++	// LR.W.RL rd, rs1_amo
++	{mask: 0xfff0707f, value: 0x1200202f, op: LR_W_RL, args: argTypeList{arg_rd, arg_rs1_amo}},
++	// LUI rd, imm20
++	{mask: 0x0000007f, value: 0x00000037, op: LUI, args: argTypeList{arg_rd, arg_imm20}},
++	// LW rd, rs1_mem
++	{mask: 0x0000707f, value: 0x00002003, op: LW, args: argTypeList{arg_rd, arg_rs1_mem}},
++	// LWU rd, rs1_mem
++	{mask: 0x0000707f, value: 0x00006003, op: LWU, args: argTypeList{arg_rd, arg_rs1_mem}},
++	// MAX rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0a006033, op: MAX, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// MAXU rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0a007033, op: MAXU, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// MIN rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0a004033, op: MIN, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// MINU rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0a005033, op: MINU, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// MUL rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x02000033, op: MUL, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// MULH rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x02001033, op: MULH, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// MULHSU rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x02002033, op: MULHSU, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// MULHU rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x02003033, op: MULHU, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// MULW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0200003b, op: MULW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// OR rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x00006033, op: OR, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// ORC.B rd, rs1
++	{mask: 0xfff0707f, value: 0x28705013, op: ORC_B, args: argTypeList{arg_rd, arg_rs1}},
++	// ORI rd, rs1, imm12
++	{mask: 0x0000707f, value: 0x00006013, op: ORI, args: argTypeList{arg_rd, arg_rs1, arg_imm12}},
++	// ORN rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x40006033, op: ORN, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// REM rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x02006033, op: REM, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// REMU rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x02007033, op: REMU, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// REMUW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0200703b, op: REMUW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// REMW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0200603b, op: REMW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// REV8 rd, rs1
++	{mask: 0xfff0707f, value: 0x6b805013, op: REV8, args: argTypeList{arg_rd, arg_rs1}},
++	// ROL rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x60001033, op: ROL, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// ROLW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x6000103b, op: ROLW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// ROR rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x60005033, op: ROR, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// RORI rd, rs1, shamt6
++	{mask: 0xfc00707f, value: 0x60005013, op: RORI, args: argTypeList{arg_rd, arg_rs1, arg_shamt6}},
++	// RORIW rd, rs1, shamt5
++	{mask: 0xfe00707f, value: 0x6000501b, op: RORIW, args: argTypeList{arg_rd, arg_rs1, arg_shamt5}},
++	// RORW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x6000503b, op: RORW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SB rs2, rs1_store
++	{mask: 0x0000707f, value: 0x00000023, op: SB, args: argTypeList{arg_rs2, arg_rs1_store}},
++	// SC.D rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x1800302f, op: SC_D, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// SC.D.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x1c00302f, op: SC_D_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// SC.D.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x1e00302f, op: SC_D_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// SC.D.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x1a00302f, op: SC_D_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// SC.W rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x1800202f, op: SC_W, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// SC.W.AQ rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x1c00202f, op: SC_W_AQ, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// SC.W.AQRL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x1e00202f, op: SC_W_AQRL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// SC.W.RL rd, rs2, rs1_amo
++	{mask: 0xfe00707f, value: 0x1a00202f, op: SC_W_RL, args: argTypeList{arg_rd, arg_rs2, arg_rs1_amo}},
++	// SD rs2, rs1_store
++	{mask: 0x0000707f, value: 0x00003023, op: SD, args: argTypeList{arg_rs2, arg_rs1_store}},
++	// SEXT.B rd, rs1
++	{mask: 0xfff0707f, value: 0x60401013, op: SEXT_B, args: argTypeList{arg_rd, arg_rs1}},
++	// SEXT.H rd, rs1
++	{mask: 0xfff0707f, value: 0x60501013, op: SEXT_H, args: argTypeList{arg_rd, arg_rs1}},
++	// SH rs2, rs1_store
++	{mask: 0x0000707f, value: 0x00001023, op: SH, args: argTypeList{arg_rs2, arg_rs1_store}},
++	// SH1ADD rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x20002033, op: SH1ADD, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SH1ADD.UW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x2000203b, op: SH1ADD_UW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SH2ADD rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x20004033, op: SH2ADD, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SH2ADD.UW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x2000403b, op: SH2ADD_UW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SH3ADD rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x20006033, op: SH3ADD, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SH3ADD.UW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x2000603b, op: SH3ADD_UW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SLL rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x00001033, op: SLL, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SLLI rd, rs1, shamt6
++	{mask: 0xfc00707f, value: 0x00001013, op: SLLI, args: argTypeList{arg_rd, arg_rs1, arg_shamt6}},
++	// SLLIW rd, rs1, shamt5
++	{mask: 0xfe00707f, value: 0x0000101b, op: SLLIW, args: argTypeList{arg_rd, arg_rs1, arg_shamt5}},
++	// SLLI.UW rd, rs1, shamt6
++	{mask: 0xfc00707f, value: 0x0800101b, op: SLLI_UW, args: argTypeList{arg_rd, arg_rs1, arg_shamt6}},
++	// SLLW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0000103b, op: SLLW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SLT rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x00002033, op: SLT, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SLTI rd, rs1, imm12
++	{mask: 0x0000707f, value: 0x00002013, op: SLTI, args: argTypeList{arg_rd, arg_rs1, arg_imm12}},
++	// SLTIU rd, rs1, imm12
++	{mask: 0x0000707f, value: 0x00003013, op: SLTIU, args: argTypeList{arg_rd, arg_rs1, arg_imm12}},
++	// SLTU rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x00003033, op: SLTU, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SRA rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x40005033, op: SRA, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SRAI rd, rs1, shamt6
++	{mask: 0xfc00707f, value: 0x40005013, op: SRAI, args: argTypeList{arg_rd, arg_rs1, arg_shamt6}},
++	// SRAIW rd, rs1, shamt5
++	{mask: 0xfe00707f, value: 0x4000501b, op: SRAIW, args: argTypeList{arg_rd, arg_rs1, arg_shamt5}},
++	// SRAW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x4000503b, op: SRAW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SRL rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x00005033, op: SRL, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SRLI rd, rs1, shamt6
++	{mask: 0xfc00707f, value: 0x00005013, op: SRLI, args: argTypeList{arg_rd, arg_rs1, arg_shamt6}},
++	// SRLIW rd, rs1, shamt5
++	{mask: 0xfe00707f, value: 0x0000501b, op: SRLIW, args: argTypeList{arg_rd, arg_rs1, arg_shamt5}},
++	// SRLW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x0000503b, op: SRLW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SUB rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x40000033, op: SUB, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SUBW rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x4000003b, op: SUBW, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// SW rs2, rs1_store
++	{mask: 0x0000707f, value: 0x00002023, op: SW, args: argTypeList{arg_rs2, arg_rs1_store}},
++	// XNOR rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x40004033, op: XNOR, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// XOR rd, rs1, rs2
++	{mask: 0xfe00707f, value: 0x00004033, op: XOR, args: argTypeList{arg_rd, arg_rs1, arg_rs2}},
++	// XORI rd, rs1, imm12
++	{mask: 0x0000707f, value: 0x00004013, op: XORI, args: argTypeList{arg_rd, arg_rs1, arg_imm12}},
++	// ZEXT.H rd, rs1
++	{mask: 0xfff0707f, value: 0x0800403b, op: ZEXT_H, args: argTypeList{arg_rd, arg_rs1}},
++}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 40e75a6d52..9ef02f144f 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -22,6 +22,7 @@ golang.org/x/arch/arm/armasm
+ golang.org/x/arch/arm64/arm64asm
+ golang.org/x/arch/loong64/loong64asm
+ golang.org/x/arch/ppc64/ppc64asm
++golang.org/x/arch/riscv64/riscv64asm
+ golang.org/x/arch/s390x/s390xasm
+ golang.org/x/arch/x86/x86asm
+ # golang.org/x/build v0.0.0-20240722200705-b9910f320300

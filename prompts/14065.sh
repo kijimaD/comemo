@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 14065: caff4398203582dcdfe400b8b27c9ce218ea4564
+# Index 14065: 074f8ae03069bab1a2b56886603c30aa1a4db947
 
 echo "🚀 Generating explanation for commit 14065..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 14065..."
 
 ### メタデータ
 - **コミットインデックス**: 14065
-- **コミットハッシュ**: caff4398203582dcdfe400b8b27c9ce218ea4564
-- **GitHub URL**: https://github.com/golang/go/commit/caff4398203582dcdfe400b8b27c9ce218ea4564
+- **コミットハッシュ**: 074f8ae03069bab1a2b56886603c30aa1a4db947
+- **GitHub URL**: https://github.com/golang/go/commit/074f8ae03069bab1a2b56886603c30aa1a4db947
 
 ### 章構成
 

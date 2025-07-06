@@ -1,0 +1,29 @@
+commit c53307c3fdf1126eb6cdb1f09f4f9b83759be705
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Fri Jan 10 17:00:24 2025 +0200
+
+    spec: fix grammar issue
+    
+    Change-Id: If4d3b3965762c8979d304a82493c9eb1068ee13c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642037
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index ab90c420fd..db5fba45a5 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -8514,7 +8514,7 @@ var p ptr = nil
+ <p>
+ The functions <code>Alignof</code> and <code>Sizeof</code> take an expression <code>x</code>
+ of any type and return the alignment or size, respectively, of a hypothetical variable <code>v</code>
+-as if <code>v</code> was declared via <code>var v = x</code>.
++as if <code>v</code> were declared via <code>var v = x</code>.
+ </p>
+ <p>
+ The function <code>Offsetof</code> takes a (possibly parenthesized) <a href="#Selectors">selector</a>

@@ -1,0 +1,24 @@
+commit 8ac5714ef2ac4f5a35169f573f30b57144b99cfd
+Author: Gopher Robot <gobot@golang.org>
+Date:   Wed Jun 11 11:52:14 2025 -0700
+
+    [release-branch.go1.25] go1.25rc1
+    
+    Change-Id: I2611db09afd71b4b4811d118ec8c2446de4f8d40
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681056
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    TryBot-Bypass: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ VERSION | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/VERSION b/VERSION
+new file mode 100644
+index 0000000000..f077a2dc51
+--- /dev/null
++++ b/VERSION
+@@ -0,0 +1,2 @@
++go1.25rc1
++time 2025-06-11T15:42:18Z

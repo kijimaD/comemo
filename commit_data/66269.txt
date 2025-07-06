@@ -1,0 +1,157 @@
+commit ad39fd94860661d022c633cd2856a76221adedc8
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Feb 7 21:12:05 2025 +1100
+
+    internal/bytealg: clean up and simplify the riscv64 equal implementation
+    
+    Now that riscv64 is only regabi, remove the entrypoint separation and
+    have runtime.memequal_varlen call runtime.memequal. Add a zero byte
+    length check and replace the equal and not equal exit paths with a
+    single exit path that conditions on length reaching zero.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
+    Change-Id: Ida4e54378daa7fd423f759753eba04ce513a27cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648855
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/internal/bytealg/equal_riscv64.s | 62 +++++++++++++++++-------------------
+ 1 file changed, 29 insertions(+), 33 deletions(-)
+
+diff --git a/src/internal/bytealg/equal_riscv64.s b/src/internal/bytealg/equal_riscv64.s
+index 7f470ce0a0..87b2d79302 100644
+--- a/src/internal/bytealg/equal_riscv64.s
++++ b/src/internal/bytealg/equal_riscv64.s
+@@ -7,25 +7,23 @@
+ 
+ #define	CTXT	S10
+ 
+-// func memequal(a, b unsafe.Pointer, size uintptr) bool
+-TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+-	// X10 = a_base
+-	// X11 = b_base
+-	// X12 = size
+-	JMP	memequal<>(SB)
+-
+ // func memequal_varlen(a, b unsafe.Pointer) bool
+ TEXT runtime·memequal_varlen<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-17
++	// X10 = a_base
++	// X11 = b_base
+ 	MOV	8(CTXT), X12    // compiler stores size at offset 8 in the closure
++	JMP	runtime·memequal<ABIInternal>(SB)
++
++// func memequal(a, b unsafe.Pointer, size uintptr) bool
++TEXT runtime·memequal<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-25
+ 	// X10 = a_base
+ 	// X11 = b_base
+-	JMP	memequal<>(SB)
++	// X12 = size
++	BNE	X10, X11, length_check
++	MOV	$0, X12
+ 
+-// On entry X10 and X11 contain pointers, X12 contains length.
+-// For non-regabi X13 contains address for return value.
+-// For regabi return value in X10.
+-TEXT memequal<>(SB),NOSPLIT|NOFRAME,$0
+-	BEQ	X10, X11, eq
++length_check:
++	BEQZ	X12, done
+ 
+ 	MOV	$32, X23
+ 	BLT	X12, X23, loop4_check
+@@ -44,7 +42,7 @@ align:
+ 	SUB	$1, X9
+ 	MOVBU	0(X10), X19
+ 	MOVBU	0(X11), X20
+-	BNE	X19, X20, not_eq
++	BNE	X19, X20, done
+ 	ADD	$1, X10
+ 	ADD	$1, X11
+ 	BNEZ	X9, align
+@@ -57,19 +55,19 @@ loop32:
+ 	MOV	0(X11), X20
+ 	MOV	8(X10), X21
+ 	MOV	8(X11), X22
+-	BNE	X19, X20, not_eq
+-	BNE	X21, X22, not_eq
++	BNE	X19, X20, done
++	BNE	X21, X22, done
+ 	MOV	16(X10), X14
+ 	MOV	16(X11), X15
+ 	MOV	24(X10), X16
+ 	MOV	24(X11), X17
+-	BNE	X14, X15, not_eq
+-	BNE	X16, X17, not_eq
++	BNE	X14, X15, done
++	BNE	X16, X17, done
+ 	ADD	$32, X10
+ 	ADD	$32, X11
+ 	SUB	$32, X12
+ 	BGE	X12, X9, loop32
+-	BEQZ	X12, eq
++	BEQZ	X12, done
+ 
+ loop16_check:
+ 	MOV	$16, X23
+@@ -79,13 +77,13 @@ loop16:
+ 	MOV	0(X11), X20
+ 	MOV	8(X10), X21
+ 	MOV	8(X11), X22
+-	BNE	X19, X20, not_eq
+-	BNE	X21, X22, not_eq
++	BNE	X19, X20, done
++	BNE	X21, X22, done
+ 	ADD	$16, X10
+ 	ADD	$16, X11
+ 	SUB	$16, X12
+ 	BGE	X12, X23, loop16
+-	BEQZ	X12, eq
++	BEQZ	X12, done
+ 
+ loop4_check:
+ 	MOV	$4, X23
+@@ -95,32 +93,30 @@ loop4:
+ 	MOVBU	0(X11), X20
+ 	MOVBU	1(X10), X21
+ 	MOVBU	1(X11), X22
+-	BNE	X19, X20, not_eq
+-	BNE	X21, X22, not_eq
++	BNE	X19, X20, done
++	BNE	X21, X22, done
+ 	MOVBU	2(X10), X14
+ 	MOVBU	2(X11), X15
+ 	MOVBU	3(X10), X16
+ 	MOVBU	3(X11), X17
+-	BNE	X14, X15, not_eq
+-	BNE	X16, X17, not_eq
++	BNE	X14, X15, done
++	BNE	X16, X17, done
+ 	ADD	$4, X10
+ 	ADD	$4, X11
+ 	SUB	$4, X12
+ 	BGE	X12, X23, loop4
+ 
+ loop1:
+-	BEQZ	X12, eq
++	BEQZ	X12, done
+ 	MOVBU	0(X10), X19
+ 	MOVBU	0(X11), X20
+-	BNE	X19, X20, not_eq
++	BNE	X19, X20, done
+ 	ADD	$1, X10
+ 	ADD	$1, X11
+ 	SUB	$1, X12
+ 	JMP	loop1
+ 
+-not_eq:
+-	MOVB	ZERO, X10
+-	RET
+-eq:
+-	MOV	$1, X10
++done:
++	// If X12 is zero then memory is equivalent.
++	SEQZ	X12, X10
+ 	RET

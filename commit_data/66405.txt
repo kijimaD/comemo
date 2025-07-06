@@ -1,0 +1,109 @@
+commit 2ce1fb4220e1978d8ea7c615f8ae2d9170985640
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon Dec 30 10:08:58 2024 +0800
+
+    cmd/internal/obj/loong64: add F{MAXA/MINA}.{S/D} instructions
+    
+    Go asm syntax:
+            F{MAXA/MINA}{F/D}       FK, FJ, FD
+    
+    Equivalent platform assembler syntax:
+            f{maxa/mina}.{s/d}      fd, fj, fk
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: I6790657d2f36bdf5e6818b6c0aaa48117e782b8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653915
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  9 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           |  6 ++++++
+ src/cmd/internal/obj/loong64/anames.go          |  4 ++++
+ src/cmd/internal/obj/loong64/asm.go             | 12 ++++++++++++
+ 4 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 1d34088096..3a8b8b8e5a 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -346,6 +346,15 @@ lable2:
+ 	FTINTVF		F0, F1		// 01241b01
+ 	FTINTVD		F0, F1		// 01281b01
+ 
++	FMAXAF		F4, F5, F6	// a6900c01
++	FMAXAF		F4, F5		// a5900c01
++	FMAXAD		F4, F5, F6	// a6100d01
++	FMAXAD		F4, F5		// a5100d01
++	FMINAF		F4, F5, F6	// a6900e01
++	FMINAF		F4, F5		// a5900e01
++	FMINAD		F4, F5, F6	// a6100f01
++	FMINAD		F4, F5		// a5100f01
++
+ 	FTINTRMWF	F0, F2		// 02041a01
+ 	FTINTRMWD	F0, F2		// 02081a01
+ 	FTINTRMVF	F0, F2		// 02241a01
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 6660ab3b38..842c800bf5 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -695,6 +695,12 @@ const (
+ 	AFMAXF
+ 	AFMAXD
+ 
++	// 3.2.1.4
++	AFMAXAF
++	AFMAXAD
++	AFMINAF
++	AFMINAD
++
+ 	// 3.2.1.7
+ 	AFCOPYSGF
+ 	AFCOPYSGD
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index bf17058ce6..82c38dde1a 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -223,6 +223,10 @@ var Anames = []string{
+ 	"FMIND",
+ 	"FMAXF",
+ 	"FMAXD",
++	"FMAXAF",
++	"FMAXAD",
++	"FMINAF",
++	"FMINAD",
+ 	"FCOPYSGF",
+ 	"FCOPYSGD",
+ 	"FSCALEBF",
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 5a5b31ab2f..96c0e7b890 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1362,6 +1362,10 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AFCOPYSGD, r0)
+ 			opset(AFSCALEBF, r0)
+ 			opset(AFSCALEBD, r0)
++			opset(AFMAXAF, r0)
++			opset(AFMAXAD, r0)
++			opset(AFMINAF, r0)
++			opset(AFMINAD, r0)
+ 
+ 		case AFMADDF:
+ 			opset(AFMADDD, r0)
+@@ -2641,6 +2645,14 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return 0x211 << 15 // fmax.s
+ 	case AFMAXD:
+ 		return 0x212 << 15 // fmax.d
++	case AFMAXAF:
++		return 0x219 << 15 // fmaxa.s
++	case AFMAXAD:
++		return 0x21a << 15 // fmaxa.d
++	case AFMINAF:
++		return 0x21d << 15 // fmina.s
++	case AFMINAD:
++		return 0x21e << 15 // fmina.d
+ 	case AFSCALEBF:
+ 		return 0x221 << 15 // fscaleb.s
+ 	case AFSCALEBD:

@@ -1,0 +1,50 @@
+commit d69a0883d4c99958d13b14fc02a805e1bc634631
+Author: Chen Su <ghosind@gmail.com>
+Date:   Thu Jul 25 07:30:24 2024 +0000
+
+    encoding/gob: fix package doc typo for wireType
+    
+    Change-Id: Ib93f2b565e5271dfa3c3ca5d040ef24269c47cf8
+    GitHub-Last-Rev: 3f1da518a404f5459e38f34427ae9177fe68f51e
+    GitHub-Pull-Request: golang/go#68584
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601036
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/encoding/gob/doc.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/gob/doc.go b/src/encoding/gob/doc.go
+index 30e7978b7c..0866ba1544 100644
+--- a/src/encoding/gob/doc.go
++++ b/src/encoding/gob/doc.go
+@@ -193,14 +193,13 @@ pair (-type id, encoded-type) where encoded-type is the gob encoding of a wireTy
+ description, constructed from these types:
+ 
+ 	type wireType struct {
+-		ArrayT           *ArrayType
+-		SliceT           *SliceType
+-		StructT          *StructType
+-		MapT             *MapType
++		ArrayT           *arrayType
++		SliceT           *sliceType
++		StructT          *structType
++		MapT             *mapType
+ 		GobEncoderT      *gobEncoderType
+ 		BinaryMarshalerT *gobEncoderType
+ 		TextMarshalerT   *gobEncoderType
+-
+ 	}
+ 	type arrayType struct {
+ 		CommonType
+@@ -217,7 +216,7 @@ description, constructed from these types:
+ 	}
+ 	type structType struct {
+ 		CommonType
+-		Field []*fieldType // the fields of the struct.
++		Field []fieldType // the fields of the struct.
+ 	}
+ 	type fieldType struct {
+ 		Name string // the name of the field.

@@ -1,0 +1,601 @@
+commit cbd8f16adc4cbe0480687e52d40c486b69c8dff4
+Author: Damien Neil <dneil@google.com>
+Date:   Sun Oct 22 16:31:59 2023 -0400
+
+    crypto/tls: improved 0-RTT QUIC API
+    
+    Add synchronous management of stored sessions to QUICConn.
+    
+    This adds QUICStoreSession and QUICResumeSession events,
+    permitting a QUIC implementation to handle session resumption
+    as part of its regular event loop processing.
+    
+    Fixes #63691
+    
+    Change-Id: I9fe16207cc1986eac084869675bc36e227cbf3f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/536935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Marten Seemann <martenseemann@gmail.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ api/next/63691.txt                             |   8 ++
+ doc/next/6-stdlib/99-minor/crypto/tls/63691.md |   3 +
+ src/crypto/tls/handshake_client.go             |  13 ++-
+ src/crypto/tls/handshake_client_test.go        |   6 +-
+ src/crypto/tls/handshake_client_tls13.go       |   8 +-
+ src/crypto/tls/handshake_server_tls13.go       |  11 +-
+ src/crypto/tls/quic.go                         |  91 +++++++++++++++-
+ src/crypto/tls/quic_test.go                    | 145 +++++++++++++++++++++++--
+ src/crypto/tls/ticket.go                       |  10 +-
+ 9 files changed, 265 insertions(+), 30 deletions(-)
+
+diff --git a/api/next/63691.txt b/api/next/63691.txt
+new file mode 100644
+index 0000000000..ba419e2a04
+--- /dev/null
++++ b/api/next/63691.txt
+@@ -0,0 +1,8 @@
++pkg crypto/tls, const QUICResumeSession = 8 #63691
++pkg crypto/tls, const QUICResumeSession QUICEventKind #63691
++pkg crypto/tls, const QUICStoreSession = 9 #63691
++pkg crypto/tls, const QUICStoreSession QUICEventKind #63691
++pkg crypto/tls, method (*QUICConn) StoreSession(*SessionState) error #63691
++pkg crypto/tls, type QUICConfig struct, EnableStoreSessionEvent bool #63691
++pkg crypto/tls, type QUICEvent struct, SessionState *SessionState #63691
++pkg crypto/tls, type QUICSessionTicketOptions struct, Extra [][]uint8 #63691
+diff --git a/doc/next/6-stdlib/99-minor/crypto/tls/63691.md b/doc/next/6-stdlib/99-minor/crypto/tls/63691.md
+new file mode 100644
+index 0000000000..67ed04cf00
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/tls/63691.md
+@@ -0,0 +1,3 @@
++The [QUICConn] type used by QUIC implementations includes new events
++reporting on the state of session resumption, and provides a way for
++the QUIC layer to add data to session tickets and session cache entries.
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 53d4f90503..1a17385911 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -366,7 +366,7 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
+ 			return nil, nil, nil, nil
+ 		}
+ 
+-		hello.sessionTicket = cs.ticket
++		hello.sessionTicket = session.ticket
+ 		return
+ 	}
+ 
+@@ -394,10 +394,12 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
+ 		return nil, nil, nil, nil
+ 	}
+ 
+-	if c.quic != nil && session.EarlyData {
++	if c.quic != nil {
++		c.quicResumeSession(session)
++
+ 		// For 0-RTT, the cipher suite has to match exactly, and we need to be
+ 		// offering the same ALPN.
+-		if mutualCipherSuiteTLS13(hello.cipherSuites, session.cipherSuite) != nil {
++		if session.EarlyData && mutualCipherSuiteTLS13(hello.cipherSuites, session.cipherSuite) != nil {
+ 			for _, alpn := range hello.alpnProtocols {
+ 				if alpn == session.alpnProtocol {
+ 					hello.earlyData = true
+@@ -410,7 +412,7 @@ func (c *Conn) loadSession(hello *clientHelloMsg) (
+ 	// Set the pre_shared_key extension. See RFC 8446, Section 4.2.11.1.
+ 	ticketAge := c.config.time().Sub(time.Unix(int64(session.createdAt), 0))
+ 	identity := pskIdentity{
+-		label:               cs.ticket,
++		label:               session.ticket,
+ 		obfuscatedTicketAge: uint32(ticketAge/time.Millisecond) + session.ageAdd,
+ 	}
+ 	hello.pskIdentities = []pskIdentity{identity}
+@@ -940,8 +942,9 @@ func (hs *clientHandshakeState) saveSessionTicket() error {
+ 
+ 	session := c.sessionState()
+ 	session.secret = hs.masterSecret
++	session.ticket = hs.ticket
+ 
+-	cs := &ClientSessionState{ticket: hs.ticket, session: session}
++	cs := &ClientSessionState{session: session}
+ 	c.config.ClientSessionCache.Put(cacheKey, cs)
+ 	return nil
+ }
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index eb0fe368e0..a32b48aa9e 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -923,7 +923,7 @@ func testResumption(t *testing.T, version uint16) {
+ 	}
+ 
+ 	getTicket := func() []byte {
+-		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.ticket
++		return clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).state.session.ticket
+ 	}
+ 	deleteTicket := func() {
+ 		ticketKey := clientConfig.ClientSessionCache.(*lruSessionCache).q.Front().Value.(*lruSessionCacheEntry).sessionKey
+@@ -1107,6 +1107,10 @@ func (c *serializingClientCache) Get(sessionKey string) (session *ClientSessionS
+ }
+ 
+ func (c *serializingClientCache) Put(sessionKey string, cs *ClientSessionState) {
++	if cs == nil {
++		c.ticket, c.state = nil, nil
++		return
++	}
+ 	ticket, state, err := cs.ResumptionState()
+ 	if err != nil {
+ 		c.t.Error(err)
+diff --git a/src/crypto/tls/handshake_client_tls13.go b/src/crypto/tls/handshake_client_tls13.go
+index 06f3f82742..820532b45b 100644
+--- a/src/crypto/tls/handshake_client_tls13.go
++++ b/src/crypto/tls/handshake_client_tls13.go
+@@ -783,8 +783,12 @@ func (c *Conn) handleNewSessionTicket(msg *newSessionTicketMsgTLS13) error {
+ 	session.useBy = uint64(c.config.time().Add(lifetime).Unix())
+ 	session.ageAdd = msg.ageAdd
+ 	session.EarlyData = c.quic != nil && msg.maxEarlyData == 0xffffffff // RFC 9001, Section 4.6.1
+-	cs := &ClientSessionState{ticket: msg.label, session: session}
+-
++	session.ticket = msg.label
++	if c.quic != nil && c.quic.enableStoreSessionEvent {
++		c.quicStoreSession(session)
++		return nil
++	}
++	cs := &ClientSessionState{session: session}
+ 	if cacheKey := c.clientSessionCacheKey(); cacheKey != "" {
+ 		c.config.ClientSessionCache.Put(cacheKey, cs)
+ 	}
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 3bc3e91f87..f24c2671ac 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -377,6 +377,12 @@ func (hs *serverHandshakeStateTLS13) checkForResumption() error {
+ 			continue
+ 		}
+ 
++		if c.quic != nil {
++			if err := c.quicResumeSession(sessionState); err != nil {
++				return err
++			}
++		}
++
+ 		hs.earlySecret = hs.suite.extract(sessionState.secret, nil)
+ 		binderKey := hs.suite.deriveSecret(hs.earlySecret, resumptionBinderLabel, nil)
+ 		// Clone the transcript in case a HelloRetryRequest was recorded.
+@@ -856,10 +862,10 @@ func (hs *serverHandshakeStateTLS13) sendSessionTickets() error {
+ 	if !hs.shouldSendSessionTickets() {
+ 		return nil
+ 	}
+-	return c.sendSessionTicket(false)
++	return c.sendSessionTicket(false, nil)
+ }
+ 
+-func (c *Conn) sendSessionTicket(earlyData bool) error {
++func (c *Conn) sendSessionTicket(earlyData bool, extra [][]byte) error {
+ 	suite := cipherSuiteTLS13ByID(c.cipherSuite)
+ 	if suite == nil {
+ 		return errors.New("tls: internal error: unknown cipher suite")
+@@ -874,6 +880,7 @@ func (c *Conn) sendSessionTicket(earlyData bool) error {
+ 	state := c.sessionState()
+ 	state.secret = psk
+ 	state.EarlyData = earlyData
++	state.Extra = extra
+ 	if c.config.WrapSession != nil {
+ 		var err error
+ 		m.label, err = c.config.WrapSession(c.connectionStateLocked(), state)
+diff --git a/src/crypto/tls/quic.go b/src/crypto/tls/quic.go
+index 3518169bf7..8e722c6a59 100644
+--- a/src/crypto/tls/quic.go
++++ b/src/crypto/tls/quic.go
+@@ -49,6 +49,13 @@ type QUICConn struct {
+ // A QUICConfig configures a [QUICConn].
+ type QUICConfig struct {
+ 	TLSConfig *Config
++
++	// EnableStoreSessionEvent may be set to true to enable the
++	// [QUICStoreSession] event for client connections.
++	// When this event is enabled, sessions are not automatically
++	// stored in the client session cache.
++	// The application should use [QUICConn.StoreSession] to store sessions.
++	EnableStoreSessionEvent bool
+ }
+ 
+ // A QUICEventKind is a type of operation on a QUIC connection.
+@@ -87,10 +94,29 @@ const (
+ 	// QUICRejectedEarlyData indicates that the server rejected 0-RTT data even
+ 	// if we offered it. It's returned before QUICEncryptionLevelApplication
+ 	// keys are returned.
++	// This event only occurs on client connections.
+ 	QUICRejectedEarlyData
+ 
+ 	// QUICHandshakeDone indicates that the TLS handshake has completed.
+ 	QUICHandshakeDone
++
++	// QUICResumeSession indicates that a client is attempting to resume a previous session.
++	// [QUICEvent.SessionState] is set.
++	//
++	// For client connections, this event occurs when the session ticket is selected.
++	// For server connections, this event occurs when receiving the client's session ticket.
++	//
++	// The application may set [QUICEvent.SessionState.EarlyData] to false before the
++	// next call to [QUICConn.NextEvent] to decline 0-RTT even if the session supports it.
++	QUICResumeSession
++
++	// QUICStoreSession indicates that the server has provided state permitting
++	// the client to resume the session.
++	// [QUICEvent.SessionState] is set.
++	// The application should use [QUICConn.Store] session to store the [SessionState].
++	// The application may modify the [SessionState] before storing it.
++	// This event only occurs on client connections.
++	QUICStoreSession
+ )
+ 
+ // A QUICEvent is an event occurring on a QUIC connection.
+@@ -109,6 +135,9 @@ type QUICEvent struct {
+ 
+ 	// Set for QUICSetReadSecret and QUICSetWriteSecret.
+ 	Suite uint16
++
++	// Set for QUICResumeSession and QUICStoreSession.
++	SessionState *SessionState
+ }
+ 
+ type quicState struct {
+@@ -127,12 +156,16 @@ type quicState struct {
+ 	cancelc  <-chan struct{} // handshake has been canceled
+ 	cancel   context.CancelFunc
+ 
++	waitingForDrain bool
++
+ 	// readbuf is shared between HandleData and the handshake goroutine.
+ 	// HandshakeCryptoData passes ownership to the handshake goroutine by
+ 	// reading from signalc, and reclaims ownership by reading from blockedc.
+ 	readbuf []byte
+ 
+ 	transportParams []byte // to send to the peer
++
++	enableStoreSessionEvent bool
+ }
+ 
+ // QUICClient returns a new TLS client side connection using QUICTransport as the
+@@ -140,7 +173,7 @@ type quicState struct {
+ //
+ // The config's MinVersion must be at least TLS 1.3.
+ func QUICClient(config *QUICConfig) *QUICConn {
+-	return newQUICConn(Client(nil, config.TLSConfig))
++	return newQUICConn(Client(nil, config.TLSConfig), config)
+ }
+ 
+ // QUICServer returns a new TLS server side connection using QUICTransport as the
+@@ -148,13 +181,14 @@ func QUICClient(config *QUICConfig) *QUICConn {
+ //
+ // The config's MinVersion must be at least TLS 1.3.
+ func QUICServer(config *QUICConfig) *QUICConn {
+-	return newQUICConn(Server(nil, config.TLSConfig))
++	return newQUICConn(Server(nil, config.TLSConfig), config)
+ }
+ 
+-func newQUICConn(conn *Conn) *QUICConn {
++func newQUICConn(conn *Conn, config *QUICConfig) *QUICConn {
+ 	conn.quic = &quicState{
+-		signalc:  make(chan struct{}),
+-		blockedc: make(chan struct{}),
++		signalc:                 make(chan struct{}),
++		blockedc:                make(chan struct{}),
++		enableStoreSessionEvent: config.EnableStoreSessionEvent,
+ 	}
+ 	conn.quic.events = conn.quic.eventArr[:0]
+ 	return &QUICConn{
+@@ -190,6 +224,11 @@ func (q *QUICConn) NextEvent() QUICEvent {
+ 		// to catch callers erroniously retaining it.
+ 		qs.events[last].Data[0] = 0
+ 	}
++	if qs.nextEvent >= len(qs.events) && qs.waitingForDrain {
++		qs.waitingForDrain = false
++		<-qs.signalc
++		<-qs.blockedc
++	}
+ 	if qs.nextEvent >= len(qs.events) {
+ 		qs.events = qs.events[:0]
+ 		qs.nextEvent = 0
+@@ -255,6 +294,7 @@ func (q *QUICConn) HandleData(level QUICEncryptionLevel, data []byte) error {
+ type QUICSessionTicketOptions struct {
+ 	// EarlyData specifies whether the ticket may be used for 0-RTT.
+ 	EarlyData bool
++	Extra     [][]byte
+ }
+ 
+ // SendSessionTicket sends a session ticket to the client.
+@@ -272,7 +312,25 @@ func (q *QUICConn) SendSessionTicket(opts QUICSessionTicketOptions) error {
+ 		return quicError(errors.New("tls: SendSessionTicket called multiple times"))
+ 	}
+ 	q.sessionTicketSent = true
+-	return quicError(c.sendSessionTicket(opts.EarlyData))
++	return quicError(c.sendSessionTicket(opts.EarlyData, opts.Extra))
++}
++
++// StoreSession stores a session previously received in a QUICStoreSession event
++// in the ClientSessionCache.
++// The application may process additional events or modify the SessionState
++// before storing the session.
++func (q *QUICConn) StoreSession(session *SessionState) error {
++	c := q.conn
++	if !c.isClient {
++		return quicError(errors.New("tls: StoreSessionTicket called on the server"))
++	}
++	cacheKey := c.clientSessionCacheKey()
++	if cacheKey == "" {
++		return nil
++	}
++	cs := &ClientSessionState{session: session}
++	c.config.ClientSessionCache.Put(cacheKey, cs)
++	return nil
+ }
+ 
+ // ConnectionState returns basic TLS details about the connection.
+@@ -356,6 +414,27 @@ func (c *Conn) quicWriteCryptoData(level QUICEncryptionLevel, data []byte) {
+ 	last.Data = append(last.Data, data...)
+ }
+ 
++func (c *Conn) quicResumeSession(session *SessionState) error {
++	c.quic.events = append(c.quic.events, QUICEvent{
++		Kind:         QUICResumeSession,
++		SessionState: session,
++	})
++	c.quic.waitingForDrain = true
++	for c.quic.waitingForDrain {
++		if err := c.quicWaitForSignal(); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++func (c *Conn) quicStoreSession(session *SessionState) {
++	c.quic.events = append(c.quic.events, QUICEvent{
++		Kind:         QUICStoreSession,
++		SessionState: session,
++	})
++}
++
+ func (c *Conn) quicSetTransportParameters(params []byte) {
+ 	c.quic.events = append(c.quic.events, QUICEvent{
+ 		Kind: QUICTransportParameters,
+diff --git a/src/crypto/tls/quic_test.go b/src/crypto/tls/quic_test.go
+index 323906a2f2..5a6f66e4de 100644
+--- a/src/crypto/tls/quic_test.go
++++ b/src/crypto/tls/quic_test.go
+@@ -5,6 +5,7 @@
+ package tls
+ 
+ import (
++	"bytes"
+ 	"context"
+ 	"errors"
+ 	"reflect"
+@@ -12,12 +13,15 @@ import (
+ )
+ 
+ type testQUICConn struct {
+-	t           *testing.T
+-	conn        *QUICConn
+-	readSecret  map[QUICEncryptionLevel]suiteSecret
+-	writeSecret map[QUICEncryptionLevel]suiteSecret
+-	gotParams   []byte
+-	complete    bool
++	t                 *testing.T
++	conn              *QUICConn
++	readSecret        map[QUICEncryptionLevel]suiteSecret
++	writeSecret       map[QUICEncryptionLevel]suiteSecret
++	ticketOpts        QUICSessionTicketOptions
++	onResumeSession   func(*SessionState)
++	gotParams         []byte
++	earlyDataRejected bool
++	complete          bool
+ }
+ 
+ func newTestQUICClient(t *testing.T, config *Config) *testQUICConn {
+@@ -48,7 +52,7 @@ type suiteSecret struct {
+ }
+ 
+ func (q *testQUICConn) setReadSecret(level QUICEncryptionLevel, suite uint16, secret []byte) {
+-	if _, ok := q.writeSecret[level]; !ok {
++	if _, ok := q.writeSecret[level]; !ok && level != QUICEncryptionLevelEarly {
+ 		q.t.Errorf("SetReadSecret for level %v called before SetWriteSecret", level)
+ 	}
+ 	if level == QUICEncryptionLevelApplication && !q.complete {
+@@ -61,7 +65,9 @@ func (q *testQUICConn) setReadSecret(level QUICEncryptionLevel, suite uint16, se
+ 		q.readSecret = map[QUICEncryptionLevel]suiteSecret{}
+ 	}
+ 	switch level {
+-	case QUICEncryptionLevelHandshake, QUICEncryptionLevelApplication:
++	case QUICEncryptionLevelHandshake,
++		QUICEncryptionLevelEarly,
++		QUICEncryptionLevelApplication:
+ 		q.readSecret[level] = suiteSecret{suite, secret}
+ 	default:
+ 		q.t.Errorf("SetReadSecret for unexpected level %v", level)
+@@ -76,7 +82,9 @@ func (q *testQUICConn) setWriteSecret(level QUICEncryptionLevel, suite uint16, s
+ 		q.writeSecret = map[QUICEncryptionLevel]suiteSecret{}
+ 	}
+ 	switch level {
+-	case QUICEncryptionLevelHandshake, QUICEncryptionLevelApplication:
++	case QUICEncryptionLevelHandshake,
++		QUICEncryptionLevelEarly,
++		QUICEncryptionLevelApplication:
+ 		q.writeSecret[level] = suiteSecret{suite, secret}
+ 	default:
+ 		q.t.Errorf("SetWriteSecret for unexpected level %v", level)
+@@ -128,11 +136,16 @@ func runTestQUICConnection(ctx context.Context, cli, srv *testQUICConn, onEvent
+ 		case QUICHandshakeDone:
+ 			a.complete = true
+ 			if a == srv {
+-				opts := QUICSessionTicketOptions{}
+-				if err := srv.conn.SendSessionTicket(opts); err != nil {
++				if err := srv.conn.SendSessionTicket(srv.ticketOpts); err != nil {
+ 					return err
+ 				}
+ 			}
++		case QUICResumeSession:
++			if a.onResumeSession != nil {
++				a.onResumeSession(e.SessionState)
++			}
++		case QUICRejectedEarlyData:
++			a.earlyDataRejected = true
+ 		}
+ 		if e.Kind != QUICNoEvent {
+ 			idleCount = 0
+@@ -487,3 +500,113 @@ func TestQUICCanceledWaitingForTransportParams(t *testing.T) {
+ 		t.Errorf("conn.Close() = %v, want alertCloseNotify", err)
+ 	}
+ }
++
++func TestQUICEarlyData(t *testing.T) {
++	clientConfig := testConfig.Clone()
++	clientConfig.MinVersion = VersionTLS13
++	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
++	clientConfig.ServerName = "example.go.dev"
++	clientConfig.NextProtos = []string{"h3"}
++
++	serverConfig := testConfig.Clone()
++	serverConfig.MinVersion = VersionTLS13
++	serverConfig.NextProtos = []string{"h3"}
++
++	cli := newTestQUICClient(t, clientConfig)
++	cli.conn.SetTransportParameters(nil)
++	srv := newTestQUICServer(t, serverConfig)
++	srv.conn.SetTransportParameters(nil)
++	srv.ticketOpts.EarlyData = true
++	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
++		t.Fatalf("error during first connection handshake: %v", err)
++	}
++	if cli.conn.ConnectionState().DidResume {
++		t.Errorf("first connection unexpectedly used session resumption")
++	}
++
++	cli2 := newTestQUICClient(t, clientConfig)
++	cli2.conn.SetTransportParameters(nil)
++	srv2 := newTestQUICServer(t, serverConfig)
++	srv2.conn.SetTransportParameters(nil)
++	if err := runTestQUICConnection(context.Background(), cli2, srv2, nil); err != nil {
++		t.Fatalf("error during second connection handshake: %v", err)
++	}
++	if !cli2.conn.ConnectionState().DidResume {
++		t.Errorf("second connection did not use session resumption")
++	}
++	cliSecret := cli2.writeSecret[QUICEncryptionLevelEarly]
++	if cliSecret.secret == nil {
++		t.Errorf("client did not receive early data write secret")
++	}
++	srvSecret := srv2.readSecret[QUICEncryptionLevelEarly]
++	if srvSecret.secret == nil {
++		t.Errorf("server did not receive early data read secret")
++	}
++	if cliSecret.suite != srvSecret.suite || !bytes.Equal(cliSecret.secret, srvSecret.secret) {
++		t.Errorf("client early data secret does not match server")
++	}
++}
++
++func TestQUICEarlyDataDeclined(t *testing.T) {
++	t.Run("server", func(t *testing.T) {
++		testQUICEarlyDataDeclined(t, true)
++	})
++	t.Run("client", func(t *testing.T) {
++		testQUICEarlyDataDeclined(t, false)
++	})
++}
++
++func testQUICEarlyDataDeclined(t *testing.T, server bool) {
++	clientConfig := testConfig.Clone()
++	clientConfig.MinVersion = VersionTLS13
++	clientConfig.ClientSessionCache = NewLRUClientSessionCache(1)
++	clientConfig.ServerName = "example.go.dev"
++	clientConfig.NextProtos = []string{"h3"}
++
++	serverConfig := testConfig.Clone()
++	serverConfig.MinVersion = VersionTLS13
++	serverConfig.NextProtos = []string{"h3"}
++
++	cli := newTestQUICClient(t, clientConfig)
++	cli.conn.SetTransportParameters(nil)
++	srv := newTestQUICServer(t, serverConfig)
++	srv.conn.SetTransportParameters(nil)
++	srv.ticketOpts.EarlyData = true
++	if err := runTestQUICConnection(context.Background(), cli, srv, nil); err != nil {
++		t.Fatalf("error during first connection handshake: %v", err)
++	}
++	if cli.conn.ConnectionState().DidResume {
++		t.Errorf("first connection unexpectedly used session resumption")
++	}
++
++	cli2 := newTestQUICClient(t, clientConfig)
++	cli2.conn.SetTransportParameters(nil)
++	srv2 := newTestQUICServer(t, serverConfig)
++	srv2.conn.SetTransportParameters(nil)
++	declineEarlyData := func(state *SessionState) {
++		state.EarlyData = false
++	}
++	if server {
++		srv2.onResumeSession = declineEarlyData
++	} else {
++		cli2.onResumeSession = declineEarlyData
++	}
++	if err := runTestQUICConnection(context.Background(), cli2, srv2, nil); err != nil {
++		t.Fatalf("error during second connection handshake: %v", err)
++	}
++	if !cli2.conn.ConnectionState().DidResume {
++		t.Errorf("second connection did not use session resumption")
++	}
++	_, cliEarlyData := cli2.writeSecret[QUICEncryptionLevelEarly]
++	if server {
++		if !cliEarlyData {
++			t.Errorf("client did not receive early data write secret")
++		}
++		if !cli2.earlyDataRejected {
++			t.Errorf("client did not receive QUICEarlyDataRejected")
++		}
++	}
++	if _, srvEarlyData := srv2.readSecret[QUICEncryptionLevelEarly]; srvEarlyData {
++		t.Errorf("server received early data read secret")
++	}
++}
+diff --git a/src/crypto/tls/ticket.go b/src/crypto/tls/ticket.go
+index 04e1dd6685..06aec5aa63 100644
+--- a/src/crypto/tls/ticket.go
++++ b/src/crypto/tls/ticket.go
+@@ -96,6 +96,7 @@ type SessionState struct {
+ 	// Client-side TLS 1.3-only fields.
+ 	useBy  uint64 // seconds since UNIX epoch
+ 	ageAdd uint32
++	ticket []byte
+ }
+ 
+ // Bytes encodes the session, including any private fields, so that it can be
+@@ -396,7 +397,6 @@ func (c *Config) decryptTicket(encrypted []byte, ticketKeys []ticketKey) []byte
+ // ClientSessionState contains the state needed by a client to
+ // resume a previous TLS session.
+ type ClientSessionState struct {
+-	ticket  []byte
+ 	session *SessionState
+ }
+ 
+@@ -406,7 +406,10 @@ type ClientSessionState struct {
+ // It can be called by [ClientSessionCache.Put] to serialize (with
+ // [SessionState.Bytes]) and store the session.
+ func (cs *ClientSessionState) ResumptionState() (ticket []byte, state *SessionState, err error) {
+-	return cs.ticket, cs.session, nil
++	if cs == nil || cs.session == nil {
++		return nil, nil, nil
++	}
++	return cs.session.ticket, cs.session, nil
+ }
+ 
+ // NewResumptionState returns a state value that can be returned by
+@@ -415,7 +418,8 @@ func (cs *ClientSessionState) ResumptionState() (ticket []byte, state *SessionSt
+ // state needs to be returned by [ParseSessionState], and the ticket and session
+ // state must have been returned by [ClientSessionState.ResumptionState].
+ func NewResumptionState(ticket []byte, state *SessionState) (*ClientSessionState, error) {
++	state.ticket = ticket
+ 	return &ClientSessionState{
+-		ticket: ticket, session: state,
++		session: state,
+ 	}, nil
+ }

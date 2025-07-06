@@ -1,0 +1,275 @@
+commit 22344e11f27d9667e7bbb6209df59e9a9e976d91
+Author: David Chase <drchase@google.com>
+Date:   Thu Apr 11 17:22:53 2024 -0400
+
+    cmd/compile: add structs.HostLayout
+    
+    This is for the proposal, plus a few bug fixes
+    that would/will be necessary when this is put into
+    actual use.
+    
+    Fixes #66408.
+    Updates #63131.
+    
+    Change-Id: I3a66e09d707dd579c59f155e7f53367f41214c30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578355
+    Reviewed-by: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: David Chase <drchase@google.com>
+---
+ api/next/66408.txt                                 |  1 +
+ doc/next/6-stdlib/3-structs.md                     | 12 +++++++++
+ doc/next/6-stdlib/99-minor/structs/66408.md        |  1 +
+ src/cmd/compile/internal/abi/abiutils.go           | 13 +++++++---
+ src/cmd/compile/internal/compare/compare_test.go   |  2 +-
+ src/cmd/compile/internal/devirtualize/pgo_test.go  |  3 ++-
+ .../internal/inline/inlheur/texpr_classify_test.go |  5 ++++
+ src/cmd/compile/internal/ssa/export_test.go        |  3 +++
+ src/go/doc/comment/std.go                          |  1 +
+ src/structs/doc.go                                 | 10 ++++++++
+ src/structs/hostlayout.go                          | 30 ++++++++++++++++++++++
+ 11 files changed, 75 insertions(+), 6 deletions(-)
+
+diff --git a/api/next/66408.txt b/api/next/66408.txt
+new file mode 100644
+index 0000000000..32147bd813
+--- /dev/null
++++ b/api/next/66408.txt
+@@ -0,0 +1 @@
++pkg structs, type HostLayout struct #66408
+diff --git a/doc/next/6-stdlib/3-structs.md b/doc/next/6-stdlib/3-structs.md
+new file mode 100644
+index 0000000000..1f0de8f63e
+--- /dev/null
++++ b/doc/next/6-stdlib/3-structs.md
+@@ -0,0 +1,12 @@
++### New structs package
++
++
++The new [structs](/pkg/structs) package provides
++types for struct fields that modify properties of
++the containing struct type such as memory layout.
++
++In this release, the only such type is
++[`HostLayout`](/pkg/structs#HostLayout)
++which indicates that a structure with a field of that
++type has a layout that conforms to host platform
++expectations.
+\ No newline at end of file
+diff --git a/doc/next/6-stdlib/99-minor/structs/66408.md b/doc/next/6-stdlib/99-minor/structs/66408.md
+new file mode 100644
+index 0000000000..810a09e3ca
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/structs/66408.md
+@@ -0,0 +1 @@
++<!-- This is a new package; covered in 6-stdlib/3-structs.md. -->
+diff --git a/src/cmd/compile/internal/abi/abiutils.go b/src/cmd/compile/internal/abi/abiutils.go
+index 607d462493..e88a80d564 100644
+--- a/src/cmd/compile/internal/abi/abiutils.go
++++ b/src/cmd/compile/internal/abi/abiutils.go
+@@ -141,7 +141,7 @@ func (pa *ABIParamAssignment) RegisterTypesAndOffsets() ([]*types.Type, []int64)
+ 	}
+ 	typs := make([]*types.Type, 0, l)
+ 	offs := make([]int64, 0, l)
+-	offs, _ = appendParamOffsets(offs, 0, pa.Type)
++	offs, _ = appendParamOffsets(offs, 0, pa.Type) // 0 is aligned for everything.
+ 	return appendParamTypes(typs, pa.Type), offs
+ }
+ 
+@@ -193,8 +193,8 @@ func appendParamTypes(rts []*types.Type, t *types.Type) []*types.Type {
+ 
+ // appendParamOffsets appends the offset(s) of type t, starting from "at",
+ // to input offsets, and returns the longer slice and the next unused offset.
++// at should already be aligned for t.
+ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int64) {
+-	at = align(at, t)
+ 	w := t.Size()
+ 	if w == 0 {
+ 		return offsets, at
+@@ -210,11 +210,15 @@ func appendParamOffsets(offsets []int64, at int64, t *types.Type) ([]int64, int6
+ 		typ := t.Kind()
+ 		switch typ {
+ 		case types.TARRAY:
++			te := t.Elem()
+ 			for i := int64(0); i < t.NumElem(); i++ {
+-				offsets, at = appendParamOffsets(offsets, at, t.Elem())
++				at = align(at, te)
++				offsets, at = appendParamOffsets(offsets, at, te)
+ 			}
+ 		case types.TSTRUCT:
++			at0 := at
+ 			for i, f := range t.Fields() {
++				at = at0 + f.Offset // Fields may be over-aligned, see wasm32.
+ 				offsets, at = appendParamOffsets(offsets, at, f.Type)
+ 				if f.Type.Size() == 0 && i == t.NumFields()-1 {
+ 					at++ // last field has zero width
+@@ -668,12 +672,13 @@ func (pa *ABIParamAssignment) ComputePadding(storage []uint64) []uint64 {
+ 	if len(types) != nr {
+ 		panic("internal error")
+ 	}
++	offsets, _ := appendParamOffsets([]int64{}, 0, pa.Type)
+ 	off := int64(0)
+ 	for idx, t := range types {
+ 		ts := t.Size()
+ 		off += int64(ts)
+ 		if idx < len(types)-1 {
+-			noff := align(off, types[idx+1])
++			noff := offsets[idx+1]
+ 			if noff != off {
+ 				padding[idx] = uint64(noff - off)
+ 			}
+diff --git a/src/cmd/compile/internal/compare/compare_test.go b/src/cmd/compile/internal/compare/compare_test.go
+index 2f76165509..4271effbdb 100644
+--- a/src/cmd/compile/internal/compare/compare_test.go
++++ b/src/cmd/compile/internal/compare/compare_test.go
+@@ -23,8 +23,8 @@ func init() {
+ 	types.PtrSize = 8
+ 	types.RegSize = 8
+ 	types.MaxWidth = 1 << 50
+-	typecheck.InitUniverse()
+ 	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
++	typecheck.InitUniverse()
+ }
+ 
+ func TestEqStructCost(t *testing.T) {
+diff --git a/src/cmd/compile/internal/devirtualize/pgo_test.go b/src/cmd/compile/internal/devirtualize/pgo_test.go
+index cff4d63d51..6153b8c5ec 100644
+--- a/src/cmd/compile/internal/devirtualize/pgo_test.go
++++ b/src/cmd/compile/internal/devirtualize/pgo_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/pgo"
+ 	"cmd/internal/src"
++	"cmd/internal/sys"
+ 	"testing"
+ )
+ 
+@@ -23,8 +24,8 @@ func init() {
+ 	types.PtrSize = 8
+ 	types.RegSize = 8
+ 	types.MaxWidth = 1 << 50
++	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
+ 	typecheck.InitUniverse()
+-	base.Ctxt = &obj.Link{}
+ 	base.Debug.PGODebug = 3
+ }
+ 
+diff --git a/src/cmd/compile/internal/inline/inlheur/texpr_classify_test.go b/src/cmd/compile/internal/inline/inlheur/texpr_classify_test.go
+index 587eab03fc..b1cbb2bc0e 100644
+--- a/src/cmd/compile/internal/inline/inlheur/texpr_classify_test.go
++++ b/src/cmd/compile/internal/inline/inlheur/texpr_classify_test.go
+@@ -5,10 +5,13 @@
+ package inlheur
+ 
+ import (
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
++	"cmd/internal/obj"
+ 	"cmd/internal/src"
++	"cmd/internal/sys"
+ 	"go/constant"
+ 	"testing"
+ )
+@@ -21,6 +24,8 @@ func init() {
+ 	types.PtrSize = 8
+ 	types.RegSize = 8
+ 	types.MaxWidth = 1 << 50
++	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
++
+ 	typecheck.InitUniverse()
+ 	local = types.NewPkg("", "")
+ 	fsym := &types.Sym{
+diff --git a/src/cmd/compile/internal/ssa/export_test.go b/src/cmd/compile/internal/ssa/export_test.go
+index b2c4b1997f..c33c77f891 100644
+--- a/src/cmd/compile/internal/ssa/export_test.go
++++ b/src/cmd/compile/internal/ssa/export_test.go
+@@ -7,6 +7,7 @@ package ssa
+ import (
+ 	"testing"
+ 
++	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+@@ -15,6 +16,7 @@ import (
+ 	"cmd/internal/obj/s390x"
+ 	"cmd/internal/obj/x86"
+ 	"cmd/internal/src"
++	"cmd/internal/sys"
+ )
+ 
+ var CheckFunc = checkFunc
+@@ -115,6 +117,7 @@ func init() {
+ 	types.RegSize = 8
+ 	types.MaxWidth = 1 << 50
+ 
++	base.Ctxt = &obj.Link{Arch: &obj.LinkArch{Arch: &sys.Arch{Alignment: 1, CanMergeLoads: true}}}
+ 	typecheck.InitUniverse()
+ 	testTypes.SetTypPtrs()
+ }
+diff --git a/src/go/doc/comment/std.go b/src/go/doc/comment/std.go
+index 35caa8b319..f6958512c2 100644
+--- a/src/go/doc/comment/std.go
++++ b/src/go/doc/comment/std.go
+@@ -39,6 +39,7 @@ var stdPkgs = []string{
+ 	"sort",
+ 	"strconv",
+ 	"strings",
++	"structs",
+ 	"sync",
+ 	"syscall",
+ 	"testing",
+diff --git a/src/structs/doc.go b/src/structs/doc.go
+new file mode 100644
+index 0000000000..ec7949025f
+--- /dev/null
++++ b/src/structs/doc.go
+@@ -0,0 +1,10 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package structs defines marker types that can be used as struct fields
++// to modify the properties of a struct.
++//
++// By convention, a marker type should be used as the type of a field
++// named "_", placed at the beginning of a struct type definition.
++package structs
+diff --git a/src/structs/hostlayout.go b/src/structs/hostlayout.go
+new file mode 100644
+index 0000000000..d373f24019
+--- /dev/null
++++ b/src/structs/hostlayout.go
+@@ -0,0 +1,30 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package structs
++
++// HostLayout marks a struct as using host memory layout. A struct with a
++// field of type HostLayout will be laid out in memory according to host
++// expectations, generally following the host's C ABI.
++//
++// HostLayout does not affect layout within any other struct-typed fields
++// of the containing struct, nor does it affect layout of structs
++// containing the struct marked as host layout.
++//
++// By convention, HostLayout should be used as the type of a field
++// named "_", placed at the beginning of the struct type definition.
++type HostLayout struct {
++	_ hostLayout // prevent accidental conversion with plain struct{}
++}
++
++// We use an unexported type within the exported type to give the marker
++// type itself, rather than merely its name, a recognizable identity in
++// the type system. The main consequence of this is that a user can give
++// the type a new name and it will still have the same properties, e.g.,
++//
++//	type HL structs.HostLayout
++//
++// It also prevents unintentional conversion of struct{} to a named marker type.
++type hostLayout struct {
++}

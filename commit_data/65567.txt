@@ -1,0 +1,50 @@
+commit a311754d5411c742211a4b56ae3eed00d20898c9
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed Jun 21 14:42:03 2023 -0400
+
+    cmd/internal/testdir: print stderr if go list fails while gathering stdlib import config
+    
+    If cmd/compile is in an unhappy state, the testdir test can
+    fail with an unhelpful 'exit code 1' log message if
+    'go list' fails while gathering stdlib import config
+    When running individual files, such as:
+    
+     go test cmd/internal/testdir -run='Test/escape.*.go'
+    
+    This might also happen in other uses, or it might be
+    that a more expansive set of tests such as run.bash
+    might first trigger a more useful error.
+    
+    This change prints stderr and states that it is 'go list'
+    that is having problems to help someone track down the
+    proper issue.
+    
+    Change-Id: Iba658ea139bb9087ab8adb00c9f65080a1b6ee76
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/524941
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/internal/testdir/testdir_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index f716e1b697..7469a6491a 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -215,8 +215,11 @@ var stdlibImportcfg = sync.OnceValue(func() string {
+ 	cmd := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std")
+ 	cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=")
+ 	output, err := cmd.Output()
++	if err, ok := err.(*exec.ExitError); ok && len(err.Stderr) != 0 {
++		log.Fatalf("'go list' failed: %v: %s", err, err.Stderr)
++	}
+ 	if err != nil {
+-		log.Fatal(err)
++		log.Fatalf("'go list' failed: %v", err)
+ 	}
+ 	return string(output)
+ })

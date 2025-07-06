@@ -1,0 +1,67 @@
+commit f23373985037221899b42cd8f33384f850ff89b4
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Mar 19 16:56:21 2025 -0700
+
+    internal/syscall/unix: fix number of params for unlinkat
+    
+    This reverts the change to Unlinkat done in CL 659415, as it appears
+    to be wrong.
+    
+    While at it, let's unify argument formatting for better readability
+    (and also so those parameters are easier to count).
+    
+    Change-Id: I092105f85de107e0495afed3cd66c039343250f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659357
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/syscall/unix/at_libc.go | 20 +++++++++++++++++---
+ 1 file changed, 17 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at_libc.go b/src/internal/syscall/unix/at_libc.go
+index 70417c0210..d47f69db6f 100644
+--- a/src/internal/syscall/unix/at_libc.go
++++ b/src/internal/syscall/unix/at_libc.go
+@@ -35,7 +35,11 @@ func Unlinkat(dirfd int, path string, flags int) error {
+ 		return err
+ 	}
+ 
+-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procUnlinkat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), 0, 0, 0)
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procUnlinkat)), 3,
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p)),
++		uintptr(flags),
++		0, 0, 0)
+ 	if errno != 0 {
+ 		return errno
+ 	}
+@@ -49,7 +53,12 @@ func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
+ 		return 0, err
+ 	}
+ 
+-	fd, _, errno := syscall6(uintptr(unsafe.Pointer(&procOpenat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), uintptr(perm), 0, 0)
++	fd, _, errno := syscall6(uintptr(unsafe.Pointer(&procOpenat)), 4,
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p)),
++		uintptr(flags),
++		uintptr(perm),
++		0, 0)
+ 	if errno != 0 {
+ 		return 0, errno
+ 	}
+@@ -63,7 +72,12 @@ func Fstatat(dirfd int, path string, stat *syscall.Stat_t, flags int) error {
+ 		return err
+ 	}
+ 
+-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFstatat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(unsafe.Pointer(stat)), uintptr(flags), 0, 0)
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFstatat)), 4,
++		uintptr(dirfd),
++		uintptr(unsafe.Pointer(p)),
++		uintptr(unsafe.Pointer(stat)),
++		uintptr(flags),
++		0, 0)
+ 	if errno != 0 {
+ 		return errno
+ 	}

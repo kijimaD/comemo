@@ -1,0 +1,79 @@
+commit 546761aff45111490b21a045e3d989104182bcd9
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon May 19 15:31:37 2025 -0400
+
+    cmd/doc: use go list to determine import path if it's missing
+    
+    cmd/doc uses go/build to get information about the packages it's
+    documenting. In some cases, go/build can return a build.Package that it
+    couldn't determine an import path for, in which case it sets the import
+    path to ".". This can happen for relative package paths in in a module:
+    for relative package paths we don't use the go command to get
+    information about the module and just open the source files directly
+    instead, and will be missing the import path. This is usually okay
+    because go doc doesn't need to print the import path of the package it's
+    documenting, but for go doc -http, we want to know the import path so we
+    can open the right page in the browser.
+    
+    For #68106
+    
+    Change-Id: Ifba92862ad01d8d63f531c2451f18db2b0d7a3e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674556
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+---
+ src/cmd/doc/main.go | 27 ++++++++++++++++++++++++---
+ 1 file changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index bc6cf2f747..c9b0454ea6 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -184,14 +184,25 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 		}
+ 		if found {
+ 			if serveHTTP {
+-				return doPkgsite(pkg, symbol, method)
++				return doPkgsite(userPath, pkg, symbol, method)
+ 			}
+ 			return nil
+ 		}
+ 	}
+ }
+ 
+-func doPkgsite(pkg *Package, symbol, method string) error {
++func listUserPath(userPath string) (string, error) {
++	var stdout, stderr strings.Builder
++	cmd := exec.Command("go", "list", userPath)
++	cmd.Stdout = &stdout
++	cmd.Stderr = &stderr
++	if err := cmd.Run(); err != nil {
++		return "", fmt.Errorf("go doc: go list %s: %v\n%s\n", userPath, err, stderr.String())
++	}
++	return strings.TrimSpace(stdout.String()), nil
++}
++
++func doPkgsite(userPath string, pkg *Package, symbol, method string) error {
+ 	ctx := context.Background()
+ 
+ 	cmdline := "go run golang.org/x/pkgsite/cmd/pkgsite@latest -gorepo=" + buildCtx.GOROOT
+@@ -222,7 +233,17 @@ func doPkgsite(pkg *Package, symbol, method string) error {
+ 	}
+ 
+ 	// Open web browser.
+-	path := path.Join("http://"+addr, pkg.build.ImportPath)
++	importPath := pkg.build.ImportPath
++	if importPath == "." {
++		// go/build couldn't determine the import path, probably
++		// because this was a relative path into a module. Use
++		// go list to get the import path.
++		importPath, err = listUserPath(userPath)
++		if err != nil {
++			return err
++		}
++	}
++	path := path.Join("http://"+addr, importPath)
+ 	object := symbol
+ 	if symbol != "" && method != "" {
+ 		object = symbol + "." + method

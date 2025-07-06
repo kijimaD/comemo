@@ -1,0 +1,85 @@
+commit 5030146cfd5196281737b522ca91f2c59354c78b
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Tue Nov 12 17:23:36 2024 +0000
+
+    cmd/go: add bzr based version stamping for binaries
+    
+    This CL adds support for tagging binaries in a bzr vcs environment.
+    
+    For: #50603
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I81eb72d9e0e15dbec8778dd06613ca212820a726
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627295
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/modfetch/codehost/vcs.go        |  4 ++++
+ src/cmd/go/testdata/script/version_buildvcs_bzr.txt | 18 ++++++++++++++++++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 58f340c821..8e59479339 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -560,6 +560,7 @@ func hgParseStat(rev, out string) (*RevInfo, error) {
+ func bzrParseStat(rev, out string) (*RevInfo, error) {
+ 	var revno int64
+ 	var tm time.Time
++	var tags []string
+ 	for _, line := range strings.Split(out, "\n") {
+ 		if line == "" || line[0] == ' ' || line[0] == '\t' {
+ 			// End of header, start of commit message.
+@@ -594,6 +595,8 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
+ 				return nil, vcsErrorf("unexpected timestamp from bzr log: %q", line)
+ 			}
+ 			tm = t.UTC()
++		case "tags":
++			tags = strings.Split(val, ", ")
+ 		}
+ 	}
+ 	if revno == 0 || tm.IsZero() {
+@@ -605,6 +608,7 @@ func bzrParseStat(rev, out string) (*RevInfo, error) {
+ 		Short:   fmt.Sprintf("%012d", revno),
+ 		Time:    tm,
+ 		Version: rev,
++		Tags:    tags,
+ 	}
+ 	return info, nil
+ }
+diff --git a/src/cmd/go/testdata/script/version_buildvcs_bzr.txt b/src/cmd/go/testdata/script/version_buildvcs_bzr.txt
+index 85db9bab6d..fc80f45677 100644
+--- a/src/cmd/go/testdata/script/version_buildvcs_bzr.txt
++++ b/src/cmd/go/testdata/script/version_buildvcs_bzr.txt
+@@ -14,6 +14,7 @@ exec bzr whoami 'J.R. Gopher <gopher@golang.org>'
+ go install
+ go version -m $GOBIN/a$GOEXE
+ ! stdout bzrrevision
++stdout '^\tmod\texample.com/a\t\(devel\)'
+ rm $GOBIN/a$GOEXE
+ 
+ # If there is a repository, but it can't be used for some reason,
+@@ -52,6 +53,23 @@ stdout '^\tbuild\tvcs=bzr$'
+ stdout '^\tbuild\tvcs.revision='
+ stdout '^\tbuild\tvcs.time='
+ stdout '^\tbuild\tvcs.modified=false$'
++stdout '^\tmod\texample.com/a\tv0.0.0-\d+-\d+\t+'
++rm $GOBIN/a$GOEXE
++
++# Tag is reflected in the version.
++cd ..
++cp README README2
++exec bzr add a README2
++exec bzr commit -m 'second commit'
++exec bzr tag v1.2.3
++cd a
++go install
++go version -m $GOBIN/a$GOEXE
++stdout '^\tbuild\tvcs=bzr$'
++stdout '^\tbuild\tvcs.revision='
++stdout '^\tbuild\tvcs.time='
++stdout '^\tbuild\tvcs.modified=false$'
++stdout '^\tmod\texample.com/a\tv1.2.3\t+'
+ rm $GOBIN/a$GOEXE
+ 
+ # Building an earlier commit should still build clean.

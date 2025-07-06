@@ -1,0 +1,235 @@
+commit 371ee1469cf30ecdbc8d1b55cf307a310ff3d630
+Author: Meng Zhuo <mengzhuo1203@gmail.com>
+Date:   Thu Sep 12 20:03:59 2024 +0800
+
+    cmd/link,cmd/internal: add R_GOT_PCREL_ITYPE_RELOC for riscv64
+    
+    This CL adds new relocation type for riscv64: R_GOT_PCREL_ITYPE_RELOC
+    which generate an AUIPC + I-type pair with relocation type of GOT_HI20
+    and PCREL_LO12_I.
+    According to RISCV elf psabi doc, medium position independent code
+    model, the GNU as example is:
+    
+    ```
+                    # Calculate address of non-local symbol
+    .Ltmp3: aupipc  a0, %got_pcrel_hi(symbol)
+            ld      a0, %pcrel_lo(.Ltmp3)(a0)
+    ```
+    
+    Change-Id: I719dd05e009ca2d9291f0689b346c059f9c56918
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612635
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/obj/riscv/cpu.go           |  5 +++
+ src/cmd/internal/obj/riscv/obj.go           |  9 ++++-
+ src/cmd/internal/objabi/reloctype.go        |  4 ++
+ src/cmd/internal/objabi/reloctype_string.go | 61 +++++++++++++++--------------
+ src/cmd/link/internal/riscv64/asm.go        | 19 ++++++---
+ 5 files changed, 62 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 69a8516696..2b75ed38a6 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -317,6 +317,11 @@ const (
+ 	// it is the first instruction in an AUIPC + S-type pair that needs a
+ 	// R_RISCV_PCREL_STYPE relocation.
+ 	NEED_PCREL_STYPE_RELOC
++
++	// NEED_GOT_PCREL_ITYPE_RELOC is set on AUIPC instructions to indicate that
++	// it is the first instruction in an AUIPC + I-type pair that needs a
++	// R_RISCV_GOT_PCREL_ITYPE relocation.
++	NEED_GOT_PCREL_ITYPE_RELOC
+ )
+ 
+ // RISC-V mnemonics, as defined in the "opcodes" and "opcodes-pseudo" files
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 381dc08560..54c34af2f4 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -215,11 +215,15 @@ func markRelocs(p *obj.Prog) {
+ 			switch p.From.Name {
+ 			case obj.NAME_EXTERN, obj.NAME_STATIC:
+ 				p.Mark |= NEED_PCREL_ITYPE_RELOC
++			case obj.NAME_GOTREF:
++				p.Mark |= NEED_GOT_PCREL_ITYPE_RELOC
+ 			}
+ 		case p.From.Type == obj.TYPE_MEM && p.To.Type == obj.TYPE_REG:
+ 			switch p.From.Name {
+ 			case obj.NAME_EXTERN, obj.NAME_STATIC:
+ 				p.Mark |= NEED_PCREL_ITYPE_RELOC
++			case obj.NAME_GOTREF:
++				p.Mark |= NEED_GOT_PCREL_ITYPE_RELOC
+ 			}
+ 		case p.From.Type == obj.TYPE_REG && p.To.Type == obj.TYPE_MEM:
+ 			switch p.To.Name {
+@@ -2203,7 +2207,7 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 			// MOV c(Rs), Rd -> L $c, Rs, Rd
+ 			inss = instructionsForLoad(p, movToLoad(p.As), addrToReg(p.From))
+ 
+-		case obj.NAME_EXTERN, obj.NAME_STATIC:
++		case obj.NAME_EXTERN, obj.NAME_STATIC, obj.NAME_GOTREF:
+ 			if p.From.Sym.Type == objabi.STLSBSS {
+ 				return instructionsForTLSLoad(p)
+ 			}
+@@ -2631,6 +2635,9 @@ func assemble(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			} else if p.Mark&NEED_PCREL_STYPE_RELOC == NEED_PCREL_STYPE_RELOC {
+ 				rt = objabi.R_RISCV_PCREL_STYPE
+ 				addr = &p.To
++			} else if p.Mark&NEED_GOT_PCREL_ITYPE_RELOC == NEED_GOT_PCREL_ITYPE_RELOC {
++				rt = objabi.R_RISCV_GOT_PCREL_ITYPE
++				addr = &p.From
+ 			} else {
+ 				break
+ 			}
+diff --git a/src/cmd/internal/objabi/reloctype.go b/src/cmd/internal/objabi/reloctype.go
+index 9106b085ea..8e9bee5082 100644
+--- a/src/cmd/internal/objabi/reloctype.go
++++ b/src/cmd/internal/objabi/reloctype.go
+@@ -291,6 +291,10 @@ const (
+ 	// address.
+ 	R_RISCV_GOT_HI20
+ 
++	// R_RISCV_GOT_PCREL_ITYPE resolves a 32-bit PC-relative GOT entry
++	// address for an AUIPC + I-type instruction pair.
++	R_RISCV_GOT_PCREL_ITYPE
++
+ 	// R_RISCV_PCREL_HI20 resolves the high 20 bits of a 32-bit PC-relative
+ 	// address.
+ 	R_RISCV_PCREL_HI20
+diff --git a/src/cmd/internal/objabi/reloctype_string.go b/src/cmd/internal/objabi/reloctype_string.go
+index fd0e401db1..2d8a9554eb 100644
+--- a/src/cmd/internal/objabi/reloctype_string.go
++++ b/src/cmd/internal/objabi/reloctype_string.go
+@@ -75,39 +75,40 @@ func _() {
+ 	_ = x[R_RISCV_TLS_IE-65]
+ 	_ = x[R_RISCV_TLS_LE-66]
+ 	_ = x[R_RISCV_GOT_HI20-67]
+-	_ = x[R_RISCV_PCREL_HI20-68]
+-	_ = x[R_RISCV_PCREL_LO12_I-69]
+-	_ = x[R_RISCV_PCREL_LO12_S-70]
+-	_ = x[R_RISCV_BRANCH-71]
+-	_ = x[R_RISCV_RVC_BRANCH-72]
+-	_ = x[R_RISCV_RVC_JUMP-73]
+-	_ = x[R_PCRELDBL-74]
+-	_ = x[R_LOONG64_ADDR_HI-75]
+-	_ = x[R_LOONG64_ADDR_LO-76]
+-	_ = x[R_LOONG64_TLS_LE_HI-77]
+-	_ = x[R_LOONG64_TLS_LE_LO-78]
+-	_ = x[R_CALLLOONG64-79]
+-	_ = x[R_LOONG64_TLS_IE_HI-80]
+-	_ = x[R_LOONG64_TLS_IE_LO-81]
+-	_ = x[R_LOONG64_GOT_HI-82]
+-	_ = x[R_LOONG64_GOT_LO-83]
+-	_ = x[R_LOONG64_ADD64-84]
+-	_ = x[R_LOONG64_SUB64-85]
+-	_ = x[R_JMP16LOONG64-86]
+-	_ = x[R_JMP21LOONG64-87]
+-	_ = x[R_JMPLOONG64-88]
+-	_ = x[R_ADDRMIPSU-89]
+-	_ = x[R_ADDRMIPSTLS-90]
+-	_ = x[R_ADDRCUOFF-91]
+-	_ = x[R_WASMIMPORT-92]
+-	_ = x[R_XCOFFREF-93]
+-	_ = x[R_PEIMAGEOFF-94]
+-	_ = x[R_INITORDER-95]
++	_ = x[R_RISCV_GOT_PCREL_ITYPE-68]
++	_ = x[R_RISCV_PCREL_HI20-69]
++	_ = x[R_RISCV_PCREL_LO12_I-70]
++	_ = x[R_RISCV_PCREL_LO12_S-71]
++	_ = x[R_RISCV_BRANCH-72]
++	_ = x[R_RISCV_RVC_BRANCH-73]
++	_ = x[R_RISCV_RVC_JUMP-74]
++	_ = x[R_PCRELDBL-75]
++	_ = x[R_LOONG64_ADDR_HI-76]
++	_ = x[R_LOONG64_ADDR_LO-77]
++	_ = x[R_LOONG64_TLS_LE_HI-78]
++	_ = x[R_LOONG64_TLS_LE_LO-79]
++	_ = x[R_CALLLOONG64-80]
++	_ = x[R_LOONG64_TLS_IE_HI-81]
++	_ = x[R_LOONG64_TLS_IE_LO-82]
++	_ = x[R_LOONG64_GOT_HI-83]
++	_ = x[R_LOONG64_GOT_LO-84]
++	_ = x[R_LOONG64_ADD64-85]
++	_ = x[R_LOONG64_SUB64-86]
++	_ = x[R_JMP16LOONG64-87]
++	_ = x[R_JMP21LOONG64-88]
++	_ = x[R_JMPLOONG64-89]
++	_ = x[R_ADDRMIPSU-90]
++	_ = x[R_ADDRMIPSTLS-91]
++	_ = x[R_ADDRCUOFF-92]
++	_ = x[R_WASMIMPORT-93]
++	_ = x[R_XCOFFREF-94]
++	_ = x[R_PEIMAGEOFF-95]
++	_ = x[R_INITORDER-96]
+ }
+ 
+-const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USENAMEDMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_POWER_TLS_IE_PCREL34R_POWER_TLS_LE_TPREL34R_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_GOT_PCREL34R_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_ADDRPOWER_D34R_ADDRPOWER_PCREL34R_RISCV_JALR_RISCV_JAL_TRAMPR_RISCV_CALLR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IER_RISCV_TLS_LER_RISCV_GOT_HI20R_RISCV_PCREL_HI20R_RISCV_PCREL_LO12_IR_RISCV_PCREL_LO12_SR_RISCV_BRANCHR_RISCV_RVC_BRANCHR_RISCV_RVC_JUMPR_PCRELDBLR_LOONG64_ADDR_HIR_LOONG64_ADDR_LOR_LOONG64_TLS_LE_HIR_LOONG64_TLS_LE_LOR_CALLLOONG64R_LOONG64_TLS_IE_HIR_LOONG64_TLS_IE_LOR_LOONG64_GOT_HIR_LOONG64_GOT_LOR_LOONG64_ADD64R_LOONG64_SUB64R_JMP16LOONG64R_JMP21LOONG64R_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREFR_PEIMAGEOFFR_INITORDER"
++const _RelocType_name = "R_ADDRR_ADDRPOWERR_ADDRARM64R_ADDRMIPSR_ADDROFFR_SIZER_CALLR_CALLARMR_CALLARM64R_CALLINDR_CALLPOWERR_CALLMIPSR_CONSTR_PCRELR_TLS_LER_TLS_IER_GOTOFFR_PLT0R_PLT1R_PLT2R_USEFIELDR_USETYPER_USEIFACER_USEIFACEMETHODR_USENAMEDMETHODR_METHODOFFR_KEEPR_POWER_TOCR_GOTPCRELR_JMPMIPSR_DWARFSECREFR_DWARFFILEREFR_ARM64_TLS_LER_ARM64_TLS_IER_ARM64_GOTPCRELR_ARM64_GOTR_ARM64_PCRELR_ARM64_PCREL_LDST8R_ARM64_PCREL_LDST16R_ARM64_PCREL_LDST32R_ARM64_PCREL_LDST64R_ARM64_LDST8R_ARM64_LDST16R_ARM64_LDST32R_ARM64_LDST64R_ARM64_LDST128R_POWER_TLS_LER_POWER_TLS_IER_POWER_TLSR_POWER_TLS_IE_PCREL34R_POWER_TLS_LE_TPREL34R_ADDRPOWER_DSR_ADDRPOWER_GOTR_ADDRPOWER_GOT_PCREL34R_ADDRPOWER_PCRELR_ADDRPOWER_TOCRELR_ADDRPOWER_TOCREL_DSR_ADDRPOWER_D34R_ADDRPOWER_PCREL34R_RISCV_JALR_RISCV_JAL_TRAMPR_RISCV_CALLR_RISCV_PCREL_ITYPER_RISCV_PCREL_STYPER_RISCV_TLS_IER_RISCV_TLS_LER_RISCV_GOT_HI20R_RISCV_GOT_PCREL_ITYPER_RISCV_PCREL_HI20R_RISCV_PCREL_LO12_IR_RISCV_PCREL_LO12_SR_RISCV_BRANCHR_RISCV_RVC_BRANCHR_RISCV_RVC_JUMPR_PCRELDBLR_LOONG64_ADDR_HIR_LOONG64_ADDR_LOR_LOONG64_TLS_LE_HIR_LOONG64_TLS_LE_LOR_CALLLOONG64R_LOONG64_TLS_IE_HIR_LOONG64_TLS_IE_LOR_LOONG64_GOT_HIR_LOONG64_GOT_LOR_LOONG64_ADD64R_LOONG64_SUB64R_JMP16LOONG64R_JMP21LOONG64R_JMPLOONG64R_ADDRMIPSUR_ADDRMIPSTLSR_ADDRCUOFFR_WASMIMPORTR_XCOFFREFR_PEIMAGEOFFR_INITORDER"
+ 
+-var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 226, 237, 243, 254, 264, 273, 286, 300, 314, 328, 344, 355, 368, 387, 407, 427, 447, 460, 474, 488, 502, 517, 531, 545, 556, 578, 600, 614, 629, 652, 669, 687, 708, 723, 742, 753, 770, 782, 801, 820, 834, 848, 864, 882, 902, 922, 936, 954, 970, 980, 997, 1014, 1033, 1052, 1065, 1084, 1103, 1119, 1135, 1150, 1165, 1179, 1193, 1205, 1216, 1229, 1240, 1252, 1262, 1274, 1285}
++var _RelocType_index = [...]uint16{0, 6, 17, 28, 38, 47, 53, 59, 68, 79, 88, 99, 109, 116, 123, 131, 139, 147, 153, 159, 165, 175, 184, 194, 210, 226, 237, 243, 254, 264, 273, 286, 300, 314, 328, 344, 355, 368, 387, 407, 427, 447, 460, 474, 488, 502, 517, 531, 545, 556, 578, 600, 614, 629, 652, 669, 687, 708, 723, 742, 753, 770, 782, 801, 820, 834, 848, 864, 887, 905, 925, 945, 959, 977, 993, 1003, 1020, 1037, 1056, 1075, 1088, 1107, 1126, 1142, 1158, 1173, 1188, 1202, 1216, 1228, 1239, 1252, 1263, 1275, 1285, 1297, 1308}
+ 
+ func (i RelocType) String() string {
+ 	i -= 1
+diff --git a/src/cmd/link/internal/riscv64/asm.go b/src/cmd/link/internal/riscv64/asm.go
+index a3f50dc54f..8e5d5be41e 100644
+--- a/src/cmd/link/internal/riscv64/asm.go
++++ b/src/cmd/link/internal/riscv64/asm.go
+@@ -170,8 +170,11 @@ func genSymsLate(ctxt *ld.Link, ldr *loader.Loader) {
+ 		relocs := ldr.Relocs(s)
+ 		for ri := 0; ri < relocs.Count(); ri++ {
+ 			r := relocs.At(ri)
+-			if r.Type() != objabi.R_RISCV_CALL && r.Type() != objabi.R_RISCV_PCREL_ITYPE &&
+-				r.Type() != objabi.R_RISCV_PCREL_STYPE && r.Type() != objabi.R_RISCV_TLS_IE {
++			if r.Type() != objabi.R_RISCV_CALL &&
++				r.Type() != objabi.R_RISCV_PCREL_ITYPE &&
++				r.Type() != objabi.R_RISCV_PCREL_STYPE &&
++				r.Type() != objabi.R_RISCV_TLS_IE &&
++				r.Type() != objabi.R_RISCV_GOT_PCREL_ITYPE {
+ 				continue
+ 			}
+ 			if r.Off() == 0 && ldr.SymType(s).IsText() {
+@@ -233,7 +236,11 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 		out.Write64(uint64(elf.R_RISCV_JAL) | uint64(elfsym)<<32)
+ 		out.Write64(uint64(r.Xadd))
+ 
+-	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE:
++	case objabi.R_RISCV_CALL,
++		objabi.R_RISCV_PCREL_ITYPE,
++		objabi.R_RISCV_PCREL_STYPE,
++		objabi.R_RISCV_TLS_IE,
++		objabi.R_RISCV_GOT_PCREL_ITYPE:
+ 		// Find the text symbol for the AUIPC instruction targeted
+ 		// by this relocation.
+ 		relocs := ldr.Relocs(s)
+@@ -262,6 +269,8 @@ func elfreloc1(ctxt *ld.Link, out *ld.OutBuf, ldr *loader.Loader, s loader.Sym,
+ 			hiRel, loRel = elf.R_RISCV_PCREL_HI20, elf.R_RISCV_PCREL_LO12_S
+ 		case objabi.R_RISCV_TLS_IE:
+ 			hiRel, loRel = elf.R_RISCV_TLS_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
++		case objabi.R_RISCV_GOT_PCREL_ITYPE:
++			hiRel, loRel = elf.R_RISCV_GOT_HI20, elf.R_RISCV_PCREL_LO12_I
+ 		}
+ 		out.Write64(uint64(sectoff))
+ 		out.Write64(uint64(hiRel) | uint64(elfsym)<<32)
+@@ -426,7 +435,7 @@ func archreloc(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, r loade
+ 		case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
+ 			return val, 1, true
+ 
+-		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
++		case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
+ 			return val, 2, true
+ 		}
+ 
+@@ -626,7 +635,7 @@ func extreloc(target *ld.Target, ldr *loader.Loader, r loader.Reloc, s loader.Sy
+ 	case objabi.R_RISCV_JAL, objabi.R_RISCV_JAL_TRAMP:
+ 		return ld.ExtrelocSimple(ldr, r), true
+ 
+-	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE:
++	case objabi.R_RISCV_CALL, objabi.R_RISCV_PCREL_ITYPE, objabi.R_RISCV_PCREL_STYPE, objabi.R_RISCV_TLS_IE, objabi.R_RISCV_TLS_LE, objabi.R_RISCV_GOT_PCREL_ITYPE:
+ 		return ld.ExtrelocViaOuterSym(ldr, r, s), true
+ 	}
+ 	return loader.ExtReloc{}, false

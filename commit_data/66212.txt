@@ -1,0 +1,42 @@
+commit 5f65e5cb56f98381970de5485e704f3c7e20ca9a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 11 15:53:20 2025 -0800
+
+    doc/godebug: mention GODEBUG=fips140
+    
+    Fixes #71666
+    
+    Change-Id: Ice816cf2943c5b6660f05934b4c7ca38545714b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648520
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ doc/godebug.md | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 1b5674f2cd..cdc09ddcc4 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -153,6 +153,17 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
+ 
+ ### Go 1.24
+ 
++Go 1.24 added a new `fips140` setting that controls whether the Go
++Cryptographic Module operates in FIPS 140-3 mode.
++The possible values are:
++- "off": no special support for FIPS 140-3 mode. This is the default.
++- "on": the Go Cryptographic Module operates in FIPS 140-3 mode.
++- "only": like "on", but cryptographic algorithms not approved by
++  FIPS 140-3 return an error or panic.
++For more information, see [FIPS 140-3 Compliance](/doc/security/fips140).
++This setting is fixed at program startup time, and can't be modified
++by changing the `GODEBUG` environment variable after the program starts.
++
+ Go 1.24 changed the global [`math/rand.Seed`](/pkg/math/rand/#Seed) to be a
+ no-op. This behavior is controlled by the `randseednop` setting.
+ For Go 1.24 it defaults to `randseednop=1`.

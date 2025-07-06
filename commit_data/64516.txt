@@ -1,0 +1,587 @@
+commit 9becf401de6080cb9edd524def7e77aeaede4126
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Fri Aug 9 07:33:36 2024 +0000
+
+    bytes, strings: add Lines, SplitSeq, SplitAfterSeq, FieldsSeq, FieldsFuncSeq
+    
+    Fixes #61901.
+    
+    Change-Id: I4db21c91fd21079f2aa3bc81fb03dd6f40423a38
+    GitHub-Last-Rev: ed3df560a40ea10cdcb8ad476ba6849463f3c761
+    GitHub-Pull-Request: golang/go#67543
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587095
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ api/next/61901.txt                          |  10 ++
+ doc/next/6-stdlib/99-minor/bytes/61901.md   |  12 +++
+ doc/next/6-stdlib/99-minor/strings/61901.md |  12 +++
+ src/bytes/bytes_test.go                     |  57 +++++++++++
+ src/bytes/iter.go                           | 148 ++++++++++++++++++++++++++++
+ src/strings/iter.go                         | 148 ++++++++++++++++++++++++++++
+ src/strings/strings_test.go                 |  52 ++++++++++
+ 7 files changed, 439 insertions(+)
+
+diff --git a/api/next/61901.txt b/api/next/61901.txt
+new file mode 100644
+index 0000000000..3b80474e0d
+--- /dev/null
++++ b/api/next/61901.txt
+@@ -0,0 +1,10 @@
++pkg bytes, func FieldsFuncSeq([]uint8, func(int32) bool) iter.Seq[[]uint8] #61901
++pkg bytes, func FieldsSeq([]uint8) iter.Seq[[]uint8] #61901
++pkg bytes, func Lines([]uint8) iter.Seq[[]uint8] #61901
++pkg bytes, func SplitAfterSeq([]uint8, []uint8) iter.Seq[[]uint8] #61901
++pkg bytes, func SplitSeq([]uint8, []uint8) iter.Seq[[]uint8] #61901
++pkg strings, func FieldsFuncSeq(string, func(int32) bool) iter.Seq[string] #61901
++pkg strings, func FieldsSeq(string) iter.Seq[string] #61901
++pkg strings, func Lines(string) iter.Seq[string] #61901
++pkg strings, func SplitAfterSeq(string, string) iter.Seq[string] #61901
++pkg strings, func SplitSeq(string, string) iter.Seq[string] #61901
+diff --git a/doc/next/6-stdlib/99-minor/bytes/61901.md b/doc/next/6-stdlib/99-minor/bytes/61901.md
+new file mode 100644
+index 0000000000..30256f714a
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/bytes/61901.md
+@@ -0,0 +1,12 @@
++The [bytes] package adds several functions that work with iterators:
++- [Lines] returns an iterator over the
++  newline-terminated lines in the byte slice s.
++- [SplitSeq] returns an iterator over
++  all substrings of s separated by sep.
++- [SplitAfterSeq] returns an iterator
++  over substrings of s split after each instance of sep.
++- [FieldsSeq] returns an iterator over
++  substrings of s split around runs of whitespace characters,
++  as defined by unicode.IsSpace.
++- [FieldsFuncSeq] returns an iterator
++  over substrings of s split around runs of Unicode code points satisfying f(c).
+diff --git a/doc/next/6-stdlib/99-minor/strings/61901.md b/doc/next/6-stdlib/99-minor/strings/61901.md
+new file mode 100644
+index 0000000000..c3236dc853
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/strings/61901.md
+@@ -0,0 +1,12 @@
++The [strings] package adds several functions that work with iterators:
++- [Lines] returns an iterator over
++  the newline-terminated lines in the string s.
++- [SplitSeq] returns an iterator over
++  all substrings of s separated by sep.
++- [SplitAfterSeq] returns an iterator
++  over substrings of s split after each instance of sep.
++- [FieldsSeq] returns an iterator over
++  substrings of s split around runs of whitespace characters,
++  as defined by unicode.IsSpace.
++- [FieldsFuncSeq] returns an iterator
++  over substrings of s split around runs of Unicode code points satisfying f(c).
+diff --git a/src/bytes/bytes_test.go b/src/bytes/bytes_test.go
+index 6fb6140c18..637880a4f7 100644
+--- a/src/bytes/bytes_test.go
++++ b/src/bytes/bytes_test.go
+@@ -8,6 +8,7 @@ import (
+ 	. "bytes"
+ 	"fmt"
+ 	"internal/testenv"
++	"iter"
+ 	"math"
+ 	"math/rand"
+ 	"slices"
+@@ -26,6 +27,37 @@ func sliceOfString(s [][]byte) []string {
+ 	return result
+ }
+ 
++func collect(t *testing.T, seq iter.Seq[[]byte]) [][]byte {
++	out := slices.Collect(seq)
++	out1 := slices.Collect(seq)
++	if !slices.Equal(sliceOfString(out), sliceOfString(out1)) {
++		t.Fatalf("inconsistent seq:\n%s\n%s", out, out1)
++	}
++	return out
++}
++
++type LinesTest struct {
++	a string
++	b []string
++}
++
++var linesTests = []LinesTest{
++	{a: "abc\nabc\n", b: []string{"abc\n", "abc\n"}},
++	{a: "abc\r\nabc", b: []string{"abc\r\n", "abc"}},
++	{a: "abc\r\n", b: []string{"abc\r\n"}},
++	{a: "\nabc", b: []string{"\n", "abc"}},
++	{a: "\nabc\n\n", b: []string{"\n", "abc\n", "\n"}},
++}
++
++func TestLines(t *testing.T) {
++	for _, s := range linesTests {
++		result := sliceOfString(slices.Collect(Lines([]byte(s.a))))
++		if !slices.Equal(result, s.b) {
++			t.Errorf(`slices.Collect(Lines(%q)) = %q; want %q`, s.a, result, s.b)
++		}
++	}
++}
++
+ // For ease of reading, the test cases use strings that are converted to byte
+ // slices before invoking the functions.
+ 
+@@ -800,6 +832,14 @@ func TestSplit(t *testing.T) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, result, tt.a)
+ 			continue
+ 		}
++
++		if tt.n < 0 {
++			b := sliceOfString(slices.Collect(SplitSeq([]byte(tt.s), []byte(tt.sep))))
++			if !slices.Equal(b, tt.a) {
++				t.Errorf(`collect(SplitSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, b, tt.a)
++			}
++		}
++
+ 		if tt.n == 0 || len(a) == 0 {
+ 			continue
+ 		}
+@@ -859,6 +899,13 @@ func TestSplitAfter(t *testing.T) {
+ 			continue
+ 		}
+ 
++		if tt.n < 0 {
++			b := sliceOfString(slices.Collect(SplitAfterSeq([]byte(tt.s), []byte(tt.sep))))
++			if !slices.Equal(b, tt.a) {
++				t.Errorf(`collect(SplitAfterSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, b, tt.a)
++			}
++		}
++
+ 		if want := tt.a[len(tt.a)-1] + "z"; string(x) != want {
+ 			t.Errorf("last appended result was %s; want %s", x, want)
+ 		}
+@@ -912,6 +959,11 @@ func TestFields(t *testing.T) {
+ 			continue
+ 		}
+ 
++		result2 := sliceOfString(collect(t, FieldsSeq([]byte(tt.s))))
++		if !slices.Equal(result2, tt.a) {
++			t.Errorf(`collect(FieldsSeq(%q)) = %v; want %v`, tt.s, result2, tt.a)
++		}
++
+ 		if string(b) != tt.s {
+ 			t.Errorf("slice changed to %s; want %s", string(b), tt.s)
+ 		}
+@@ -954,6 +1006,11 @@ func TestFieldsFunc(t *testing.T) {
+ 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+ 		}
+ 
++		result2 := sliceOfString(collect(t, FieldsFuncSeq([]byte(tt.s), pred)))
++		if !slices.Equal(result2, tt.a) {
++			t.Errorf(`collect(FieldsFuncSeq(%q)) = %v; want %v`, tt.s, result2, tt.a)
++		}
++
+ 		if string(b) != tt.s {
+ 			t.Errorf("slice changed to %s; want %s", b, tt.s)
+ 		}
+diff --git a/src/bytes/iter.go b/src/bytes/iter.go
+new file mode 100644
+index 0000000000..1cf13a94ec
+--- /dev/null
++++ b/src/bytes/iter.go
+@@ -0,0 +1,148 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bytes
++
++import (
++	"iter"
++	"unicode"
++	"unicode/utf8"
++)
++
++// Lines returns an iterator over the newline-terminated lines in the byte slice s.
++// The lines yielded by the iterator include their terminating newlines.
++// If s is empty, the iterator yields no lines at all.
++// If s does not end in a newline, the final yielded line will not end in a newline.
++// It returns a single-use iterator.
++func Lines(s []byte) iter.Seq[[]byte] {
++	return func(yield func([]byte) bool) {
++		for len(s) > 0 {
++			var line []byte
++			if i := IndexByte(s, '\n'); i >= 0 {
++				line, s = s[:i+1], s[i+1:]
++			} else {
++				line, s = s, nil
++			}
++			if !yield(line[:len(line):len(line)]) {
++				return
++			}
++		}
++		return
++	}
++}
++
++// explodeSeq returns an iterator over the runes in s.
++func explodeSeq(s []byte) iter.Seq[[]byte] {
++	return func(yield func([]byte) bool) {
++		for len(s) > 0 {
++			_, size := utf8.DecodeRune(s)
++			if !yield(s[:size:size]) {
++				return
++			}
++			s = s[size:]
++		}
++	}
++}
++
++// splitSeq is SplitSeq or SplitAfterSeq, configured by how many
++// bytes of sep to include in the results (none or all).
++func splitSeq(s, sep []byte, sepSave int) iter.Seq[[]byte] {
++	if len(sep) == 0 {
++		return explodeSeq(s)
++	}
++	return func(yield func([]byte) bool) {
++		for {
++			i := Index(s, sep)
++			if i < 0 {
++				break
++			}
++			frag := s[:i+sepSave]
++			if !yield(frag[:len(frag):len(frag)]) {
++				return
++			}
++			s = s[i+len(sep):]
++		}
++		yield(s[:len(s):len(s)])
++	}
++}
++
++// SplitSeq returns an iterator over all substrings of s separated by sep.
++// The iterator yields the same strings that would be returned by Split(s, sep),
++// but without constructing the slice.
++// It returns a single-use iterator.
++func SplitSeq(s, sep []byte) iter.Seq[[]byte] {
++	return splitSeq(s, sep, 0)
++}
++
++// SplitAfterSeq returns an iterator over substrings of s split after each instance of sep.
++// The iterator yields the same strings that would be returned by SplitAfter(s, sep),
++// but without constructing the slice.
++// It returns a single-use iterator.
++func SplitAfterSeq(s, sep []byte) iter.Seq[[]byte] {
++	return splitSeq(s, sep, len(sep))
++}
++
++// FieldsSeq returns an iterator over substrings of s split around runs of
++// whitespace characters, as defined by unicode.IsSpace.
++// The iterator yields the same strings that would be returned by Fields(s),
++// but without constructing the slice.
++func FieldsSeq(s []byte) iter.Seq[[]byte] {
++	return func(yield func([]byte) bool) {
++		start := -1
++		for i := 0; i < len(s); {
++			size := 1
++			r := rune(s[i])
++			isSpace := asciiSpace[s[i]] != 0
++			if r >= utf8.RuneSelf {
++				r, size = utf8.DecodeRune(s[i:])
++				isSpace = unicode.IsSpace(r)
++			}
++			if isSpace {
++				if start >= 0 {
++					if !yield(s[start:i:i]) {
++						return
++					}
++					start = -1
++				}
++			} else if start < 0 {
++				start = i
++			}
++			i += size
++		}
++		if start >= 0 {
++			yield(s[start:len(s):len(s)])
++		}
++	}
++}
++
++// FieldsFuncSeq returns an iterator over substrings of s split around runs of
++// Unicode code points satisfying f(c).
++// The iterator yields the same strings that would be returned by FieldsFunc(s),
++// but without constructing the slice.
++func FieldsFuncSeq(s []byte, f func(rune) bool) iter.Seq[[]byte] {
++	return func(yield func([]byte) bool) {
++		start := -1
++		for i := 0; i < len(s); {
++			size := 1
++			r := rune(s[i])
++			if r >= utf8.RuneSelf {
++				r, size = utf8.DecodeRune(s[i:])
++			}
++			if f(r) {
++				if start >= 0 {
++					if !yield(s[start:i:i]) {
++						return
++					}
++					start = -1
++				}
++			} else if start < 0 {
++				start = i
++			}
++			i += size
++		}
++		if start >= 0 {
++			yield(s[start:len(s):len(s)])
++		}
++	}
++}
+diff --git a/src/strings/iter.go b/src/strings/iter.go
+new file mode 100644
+index 0000000000..b9620902bf
+--- /dev/null
++++ b/src/strings/iter.go
+@@ -0,0 +1,148 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package strings
++
++import (
++	"iter"
++	"unicode"
++	"unicode/utf8"
++)
++
++// Lines returns an iterator over the newline-terminated lines in the string s.
++// The lines yielded by the iterator include their terminating newlines.
++// If s is empty, the iterator yields no lines at all.
++// If s does not end in a newline, the final yielded line will not end in a newline.
++// It returns a single-use iterator.
++func Lines(s string) iter.Seq[string] {
++	return func(yield func(string) bool) {
++		for len(s) > 0 {
++			var line string
++			if i := IndexByte(s, '\n'); i >= 0 {
++				line, s = s[:i+1], s[i+1:]
++			} else {
++				line, s = s, ""
++			}
++			if !yield(line) {
++				return
++			}
++		}
++		return
++	}
++}
++
++// explodeSeq returns an iterator over the runes in s.
++func explodeSeq(s string) iter.Seq[string] {
++	return func(yield func(string) bool) {
++		for len(s) > 0 {
++			_, size := utf8.DecodeRuneInString(s)
++			if !yield(s[:size]) {
++				return
++			}
++			s = s[size:]
++		}
++	}
++}
++
++// splitSeq is SplitSeq or SplitAfterSeq, configured by how many
++// bytes of sep to include in the results (none or all).
++func splitSeq(s, sep string, sepSave int) iter.Seq[string] {
++	if len(sep) == 0 {
++		return explodeSeq(s)
++	}
++	return func(yield func(string) bool) {
++		for {
++			i := Index(s, sep)
++			if i < 0 {
++				break
++			}
++			frag := s[:i+sepSave]
++			if !yield(frag) {
++				return
++			}
++			s = s[i+len(sep):]
++		}
++		yield(s)
++	}
++}
++
++// SplitSeq returns an iterator over all substrings of s separated by sep.
++// The iterator yields the same strings that would be returned by Split(s, sep),
++// but without constructing the slice.
++// It returns a single-use iterator.
++func SplitSeq(s, sep string) iter.Seq[string] {
++	return splitSeq(s, sep, 0)
++}
++
++// SplitAfterSeq returns an iterator over substrings of s split after each instance of sep.
++// The iterator yields the same strings that would be returned by SplitAfter(s, sep),
++// but without constructing the slice.
++// It returns a single-use iterator.
++func SplitAfterSeq(s, sep string) iter.Seq[string] {
++	return splitSeq(s, sep, len(sep))
++}
++
++// FieldsSeq returns an iterator over substrings of s split around runs of
++// whitespace characters, as defined by unicode.IsSpace.
++// The iterator yields the same strings that would be returned by Fields(s),
++// but without constructing the slice.
++func FieldsSeq(s string) iter.Seq[string] {
++	return func(yield func(string) bool) {
++		start := -1
++		for i := 0; i < len(s); {
++			size := 1
++			r := rune(s[i])
++			isSpace := asciiSpace[s[i]] != 0
++			if r >= utf8.RuneSelf {
++				r, size = utf8.DecodeRuneInString(s[i:])
++				isSpace = unicode.IsSpace(r)
++			}
++			if isSpace {
++				if start >= 0 {
++					if !yield(s[start:i]) {
++						return
++					}
++					start = -1
++				}
++			} else if start < 0 {
++				start = i
++			}
++			i += size
++		}
++		if start >= 0 {
++			yield(s[start:])
++		}
++	}
++}
++
++// FieldsFuncSeq returns an iterator over substrings of s split around runs of
++// Unicode code points satisfying f(c).
++// The iterator yields the same strings that would be returned by FieldsFunc(s),
++// but without constructing the slice.
++func FieldsFuncSeq(s string, f func(rune) bool) iter.Seq[string] {
++	return func(yield func(string) bool) {
++		start := -1
++		for i := 0; i < len(s); {
++			size := 1
++			r := rune(s[i])
++			if r >= utf8.RuneSelf {
++				r, size = utf8.DecodeRuneInString(s[i:])
++			}
++			if f(r) {
++				if start >= 0 {
++					if !yield(s[start:i]) {
++						return
++					}
++					start = -1
++				}
++			} else if start < 0 {
++				start = i
++			}
++			i += size
++		}
++		if start >= 0 {
++			yield(s[start:])
++		}
++	}
++}
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index c918372280..acbf3ede7b 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"fmt"
+ 	"io"
++	"iter"
+ 	"math"
+ 	"math/rand"
+ 	"slices"
+@@ -19,6 +20,37 @@ import (
+ 	"unsafe"
+ )
+ 
++func collect(t *testing.T, seq iter.Seq[string]) []string {
++	out := slices.Collect(seq)
++	out1 := slices.Collect(seq)
++	if !slices.Equal(out, out1) {
++		t.Fatalf("inconsistent seq:\n%s\n%s", out, out1)
++	}
++	return out
++}
++
++type LinesTest struct {
++	a string
++	b []string
++}
++
++var linesTests = []LinesTest{
++	{a: "abc\nabc\n", b: []string{"abc\n", "abc\n"}},
++	{a: "abc\r\nabc", b: []string{"abc\r\n", "abc"}},
++	{a: "abc\r\n", b: []string{"abc\r\n"}},
++	{a: "\nabc", b: []string{"\n", "abc"}},
++	{a: "\nabc\n\n", b: []string{"\n", "abc\n", "\n"}},
++}
++
++func TestLines(t *testing.T) {
++	for _, s := range linesTests {
++		result := slices.Collect(Lines(s.a))
++		if !slices.Equal(result, s.b) {
++			t.Errorf(`slices.Collect(Lines(%q)) = %q; want %q`, s.a, result, s.b)
++		}
++	}
++}
++
+ var abcd = "abcd"
+ var faces = "☺☻☹"
+ var commas = "1,2,3,4"
+@@ -410,6 +442,12 @@ func TestSplit(t *testing.T) {
+ 			t.Errorf("Split(%q, %q, %d) = %v; want %v", tt.s, tt.sep, tt.n, a, tt.a)
+ 			continue
+ 		}
++		if tt.n < 0 {
++			a2 := slices.Collect(SplitSeq(tt.s, tt.sep))
++			if !slices.Equal(a2, tt.a) {
++				t.Errorf(`collect(SplitSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, a2, tt.a)
++			}
++		}
+ 		if tt.n == 0 {
+ 			continue
+ 		}
+@@ -449,6 +487,12 @@ func TestSplitAfter(t *testing.T) {
+ 			t.Errorf(`Split(%q, %q, %d) = %v; want %v`, tt.s, tt.sep, tt.n, a, tt.a)
+ 			continue
+ 		}
++		if tt.n < 0 {
++			a2 := slices.Collect(SplitAfterSeq(tt.s, tt.sep))
++			if !slices.Equal(a2, tt.a) {
++				t.Errorf(`collect(SplitAfterSeq(%q, %q)) = %v; want %v`, tt.s, tt.sep, a2, tt.a)
++			}
++		}
+ 		s := Join(a, "")
+ 		if s != tt.s {
+ 			t.Errorf(`Join(Split(%q, %q, %d), %q) = %q`, tt.s, tt.sep, tt.n, tt.sep, s)
+@@ -492,6 +536,10 @@ func TestFields(t *testing.T) {
+ 			t.Errorf("Fields(%q) = %v; want %v", tt.s, a, tt.a)
+ 			continue
+ 		}
++		a2 := collect(t, FieldsSeq(tt.s))
++		if !slices.Equal(a2, tt.a) {
++			t.Errorf(`collect(FieldsSeq(%q)) = %v; want %v`, tt.s, a2, tt.a)
++		}
+ 	}
+ }
+ 
+@@ -516,6 +564,10 @@ func TestFieldsFunc(t *testing.T) {
+ 		if !slices.Equal(a, tt.a) {
+ 			t.Errorf("FieldsFunc(%q) = %v, want %v", tt.s, a, tt.a)
+ 		}
++		a2 := collect(t, FieldsFuncSeq(tt.s, pred))
++		if !slices.Equal(a2, tt.a) {
++			t.Errorf(`collect(FieldsFuncSeq(%q)) = %v; want %v`, tt.s, a2, tt.a)
++		}
+ 	}
+ }
+ 

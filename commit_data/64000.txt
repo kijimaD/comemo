@@ -1,0 +1,40 @@
+commit 81d424ee9a7ea39dd42292edceb52ec5ebb71d1b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 29 16:10:27 2024 +0000
+
+    internal/trace: fix off-by-one error in arguments for exp events
+    
+    There's an off-by-one error in computing the Args field for experimental
+    events, resulting in confusing output. This wasn't caught because no
+    test actually checks to make sure the experimental arguments make sense
+    yet.
+    
+    Change-Id: I339677a80bee6319407fced20d5e0f9c2fd235b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/internal/trace/event.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/trace/event.go b/src/internal/trace/event.go
+index e30e20ecbb..a5d5637e60 100644
+--- a/src/internal/trace/event.go
++++ b/src/internal/trace/event.go
+@@ -663,11 +663,11 @@ func (e Event) Experimental() ExperimentalEvent {
+ 		panic("Experimental called on non-Experimental event")
+ 	}
+ 	spec := go122.Specs()[e.base.typ]
+-	argNames := spec.Args[1:]
++	argNames := spec.Args[1:] // Skip timestamp; already handled.
+ 	return ExperimentalEvent{
+ 		Name:     spec.Name,
+-		ArgNames: argNames, // Skip timestamp; already handled.
+-		Args:     e.base.args[1 : 1+len(argNames)],
++		ArgNames: argNames,
++		Args:     e.base.args[:len(argNames)],
+ 		Data:     e.table.expData[spec.Experiment],
+ 	}
+ }

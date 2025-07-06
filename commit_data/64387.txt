@@ -1,0 +1,93 @@
+commit 8c8adffd5301b5e40a8c39e92030c53c856fb1a6
+Author: David Chase <drchase@google.com>
+Date:   Thu Feb 29 15:02:44 2024 -0500
+
+    [release-branch.go1.22] cmd/compile: add 0-sized-value simplification to copyelim
+    
+    The problem was caused by faulty handling of unSSA-able
+    operations on zero-sized data in expand calls, but there
+    is no point to operations on zero-sized data.  This CL adds
+    a simplify step to the first place in SSA where all values
+    are processed and replaces anything producing a 0-sized
+    struct/array with the corresponding Struct/Array Make0
+    operation (of the appropriate type).
+    
+    I attempted not generating them in ssagen, but that was a
+    larger change, and also had bugs. This is simple and obvious.
+    The only question is whether it would be worthwhile to do it
+    earlier (in numberlines or phielem).
+    
+    Fixes #68594.
+    Fixes #68585.
+    
+    Change-Id: I0a596b3d272798015e7bb6b1a20411241759fe0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568258
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    (cherry picked from commit 6f5d77454e31be8af11a7e2bcda36d200fda07c5)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601195
+---
+ src/cmd/compile/internal/ssa/copyelim.go | 11 +++++++++++
+ test/fixedbugs/issue65808.go             | 30 ++++++++++++++++++++++++++++++
+ 2 files changed, 41 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/copyelim.go b/src/cmd/compile/internal/ssa/copyelim.go
+index 17f65127ee..17471e3b5f 100644
+--- a/src/cmd/compile/internal/ssa/copyelim.go
++++ b/src/cmd/compile/internal/ssa/copyelim.go
+@@ -11,6 +11,17 @@ func copyelim(f *Func) {
+ 	// of OpCopy) is a copy.
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
++
++			// This is an early place in SSA where all values are examined.
++			// Rewrite all 0-sized Go values to remove accessors, dereferences, loads, etc.
++			if t := v.Type; (t.IsStruct() || t.IsArray()) && t.Size() == 0 {
++				if t.IsStruct() {
++					v.reset(OpStructMake0)
++				} else {
++					v.reset(OpArrayMake0)
++				}
++			}
++
+ 			copyelimValue(v)
+ 		}
+ 	}
+diff --git a/test/fixedbugs/issue65808.go b/test/fixedbugs/issue65808.go
+new file mode 100644
+index 0000000000..e6c4cf1ed0
+--- /dev/null
++++ b/test/fixedbugs/issue65808.go
+@@ -0,0 +1,30 @@
++// compile
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.package main
++
++package main
++
++type Stringer interface {
++	String() string
++}
++
++type (
++	stringer  struct{}
++	stringers [2]stringer
++	foo       struct {
++		stringers
++	}
++)
++
++func (stringer) String() string  { return "" }
++func toString(s Stringer) string { return s.String() }
++
++func (v stringers) toStrings() []string {
++	return []string{toString(v[0]), toString(v[1])}
++}
++
++func main() {
++	_ = stringers{}
++}

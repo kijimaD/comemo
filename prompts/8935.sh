@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8935: 72efdea20e96cba1b28352c1b0343b510caa8402
+# Index 8935: ff5182390aab44e5650b0bf95333231fe467ec7c
 
 echo "🚀 Generating explanation for commit 8935..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 8935..."
 
 ### メタデータ
 - **コミットインデックス**: 8935
-- **コミットハッシュ**: 72efdea20e96cba1b28352c1b0343b510caa8402
-- **GitHub URL**: https://github.com/golang/go/commit/72efdea20e96cba1b28352c1b0343b510caa8402
+- **コミットハッシュ**: ff5182390aab44e5650b0bf95333231fe467ec7c
+- **GitHub URL**: https://github.com/golang/go/commit/ff5182390aab44e5650b0bf95333231fe467ec7c
 
 ### 章構成
 

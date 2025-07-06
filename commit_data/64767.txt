@@ -1,0 +1,42 @@
+commit 8cb6143fed45d23586a2b66e5767a656138b4cb3
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Sep 5 16:07:13 2024 +0000
+
+    go/printer: mention that input file is formatted in TestFiles error message
+    
+    Currently when one of the tests in TestFiles fail, then the error looks
+    like this:
+    
+    --- testdata/generics.input
+    +++ testdata/generics.golden
+    
+    which is confusing, with this change it will be:
+    
+    --- format(testdata/generics.input)
+    +++ testdata/generics.golden
+    
+    Change-Id: Id5c080c5237acd82303d2f41cace8a3fe9ea08e0
+    GitHub-Last-Rev: aedafc05fd2fa9dd234188fd710ecf0c924f597a
+    GitHub-Pull-Request: golang/go#69292
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610559
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/go/printer/printer_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/printer/printer_test.go b/src/go/printer/printer_test.go
+index 00bb842cc8..d541a54465 100644
+--- a/src/go/printer/printer_test.go
++++ b/src/go/printer/printer_test.go
+@@ -126,7 +126,7 @@ func runcheck(t *testing.T, source, golden string, mode checkMode) {
+ 	}
+ 
+ 	// formatted source and golden must be the same
+-	if err := checkEqual(source, golden, res, gld); err != nil {
++	if err := checkEqual(fmt.Sprintf("format(%v)", source), golden, res, gld); err != nil {
+ 		t.Error(err)
+ 		return
+ 	}

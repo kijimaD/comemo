@@ -1,0 +1,65 @@
+commit a6e74454577c68ea96ce6512e3e92beffbe15c5c
+Author: Dimitri John Ledkov <dimitri.ledkov@surgut.co.uk>
+Date:   Tue Jul 19 11:07:00 2022 -0400
+
+    cmd/go/internal/load: join incompatible and dirty build specifiers with .
+    
+    Change "+incompatible+dirty" version to be "+incompatible.dirty" such
+    that it is SemVer spec compatible.
+    
+    Fixes #71971
+    
+    Change-Id: I714ffb3f1ad88c793656c3652367db34739a2144
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652955
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/internal/load/pkg.go                           |  7 ++++++-
+ src/cmd/go/testdata/script/build_version_stamping_git.txt | 13 +++++++++++++
+ 2 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 5524f86044..4a28a2a2cb 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -2585,7 +2585,12 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 		vers := revInfo.Version
+ 		if vers != "" {
+ 			if st.Uncommitted {
+-				vers += "+dirty"
++				// SemVer build metadata is dot-separated https://semver.org/#spec-item-10
++				if strings.HasSuffix(vers, "+incompatible") {
++					vers += ".dirty"
++				} else {
++					vers += "+dirty"
++				}
+ 			}
+ 			info.Main.Version = vers
+ 		}
+diff --git a/src/cmd/go/testdata/script/build_version_stamping_git.txt b/src/cmd/go/testdata/script/build_version_stamping_git.txt
+index db804b3847..e9aa824474 100644
+--- a/src/cmd/go/testdata/script/build_version_stamping_git.txt
++++ b/src/cmd/go/testdata/script/build_version_stamping_git.txt
+@@ -108,6 +108,19 @@ go version -m example$GOEXE
+ stdout '\s+mod\s+example\s+v1.0.3-0.20220719150703-2e239bf29c13\s+'
+ rm example$GOEXE
+ 
++# Create +incompatible module
++exec git checkout v1.0.4
++exec git rm go.mod
++exec git commit -m 'commit 6'
++exec git tag v2.0.0
++exec git checkout HEAD^ go.mod
++# And make the tree +dirty
++mv README4 README5
++go build
++go version -m example$GOEXE
++stdout '\s+mod\s+example\s+v2.0.0\+incompatible.dirty\s+'
++rm example$GOEXE
++
+ -- $WORK/repo/go.mod --
+ module example
+ 

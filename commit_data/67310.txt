@@ -1,0 +1,124 @@
+commit cfb4e9bc4ae957dba63cb2ee5e020fcd25d553fd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 30 12:53:42 2025 -0400
+
+    cmd/dist: don't install tools that won't be shipped in distribution
+    
+    We shouldn't be installing these tools because we will remove them in
+    distpack. Installing the tools will also prevent us from testing what
+    happens when the tools are missing.
+    
+    The changes below this on the stack, CL 677775 (cmd/doc: build cmd/doc
+    directly into the go command) and CL 677636 (cmd/go/internal/cfg: fix
+    GOROOT setting when forcing host config) are needed for this change to
+    pass tests. The doc change is being done so we preserve the properties
+    in the tests that doc can be invoked without doing a build. It's not
+    strictly necessary (we could just remove the tests) but it's nice to
+    have. The GOROOT setting is a significant bug in switching the
+    configuration to host mode: the value of GOROOT wasn't being reset,
+    which caused issues for go commands built with trimpath, because
+    runtime.GOROOT wouldn't have the correct goroot value.
+    
+    For #71867
+    
+    Change-Id: I4181711ba117066b7d62d7d013ad4b186871cfb7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677558
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+---
+ src/cmd/dist/build.go    | 28 ++++++++++++++++++++--------
+ src/cmd/distpack/pack.go |  2 ++
+ 2 files changed, 22 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 23deece6fb..832aa3c244 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -1516,7 +1516,7 @@ func cmdbootstrap() {
+ 	}
+ 
+ 	// To recap, so far we have built the new toolchain
+-	// (cmd/asm, cmd/cgo, cmd/compile, cmd/link)
++	// (cmd/asm, cmd/cgo, cmd/compile, cmd/link, cmd/preprofile)
+ 	// using the Go bootstrap toolchain and go command.
+ 	// Then we built the new go command (as go_bootstrap)
+ 	// using the new toolchain and our own build logic (above).
+@@ -1589,6 +1589,18 @@ func cmdbootstrap() {
+ 		os.Setenv("GOCACHE", oldgocache)
+ 	}
+ 
++	// Keep in sync with binExes in cmd/distpack/pack.go.
++	binExesIncludedInDistpack := []string{"cmd/go", "cmd/gofmt"}
++
++	// Keep in sync with the filter in cmd/distpack/pack.go.
++	toolsIncludedInDistpack := []string{"cmd/asm", "cmd/cgo", "cmd/compile", "cmd/cover", "cmd/link", "cmd/preprofile", "cmd/vet"}
++
++	// We could install all tools in "cmd", but is unnecessary because we will
++	// remove them in distpack, so instead install the tools that will actually
++	// be included in distpack, which is a superset of toolchain. Not installing
++	// the tools will help us test what happens when the tools aren't present.
++	toolsToInstall := slices.Concat(binExesIncludedInDistpack, toolsIncludedInDistpack)
++
+ 	if goos == oldgoos && goarch == oldgoarch {
+ 		// Common case - not setting up for cross-compilation.
+ 		timelog("build", "toolchain")
+@@ -1605,9 +1617,9 @@ func cmdbootstrap() {
+ 			xprintf("\n")
+ 		}
+ 		xprintf("Building commands for host, %s/%s.\n", goos, goarch)
+-		goInstall(toolenv(), goBootstrap, "cmd")
+-		checkNotStale(toolenv(), goBootstrap, "cmd")
+-		checkNotStale(toolenv(), gorootBinGo, "cmd")
++		goInstall(toolenv(), goBootstrap, toolsToInstall...)
++		checkNotStale(toolenv(), goBootstrap, toolsToInstall...)
++		checkNotStale(toolenv(), gorootBinGo, toolsToInstall...)
+ 
+ 		timelog("build", "target toolchain")
+ 		if vflag > 0 {
+@@ -1621,12 +1633,12 @@ func cmdbootstrap() {
+ 		xprintf("Building packages and commands for target, %s/%s.\n", goos, goarch)
+ 	}
+ 	goInstall(nil, goBootstrap, "std")
+-	goInstall(toolenv(), goBootstrap, "cmd")
++	goInstall(toolenv(), goBootstrap, toolsToInstall...)
+ 	checkNotStale(toolenv(), goBootstrap, toolchain...)
+ 	checkNotStale(nil, goBootstrap, "std")
+-	checkNotStale(toolenv(), goBootstrap, "cmd")
++	checkNotStale(toolenv(), goBootstrap, toolsToInstall...)
+ 	checkNotStale(nil, gorootBinGo, "std")
+-	checkNotStale(toolenv(), gorootBinGo, "cmd")
++	checkNotStale(toolenv(), gorootBinGo, toolsToInstall...)
+ 	if debug {
+ 		run("", ShowOutput|CheckExit, pathf("%s/compile", tooldir), "-V=full")
+ 		checkNotStale(toolenv(), goBootstrap, toolchain...)
+@@ -1677,7 +1689,7 @@ func cmdbootstrap() {
+ 
+ 	if distpack {
+ 		xprintf("Packaging archives for %s/%s.\n", goos, goarch)
+-		run("", ShowOutput|CheckExit, pathf("%s/distpack", tooldir))
++		run("", ShowOutput|CheckExit, gorootBinGo, "tool", "distpack")
+ 	}
+ 
+ 	// Print trailing banner unless instructed otherwise.
+diff --git a/src/cmd/distpack/pack.go b/src/cmd/distpack/pack.go
+index 4f14210e5f..27f73e593c 100644
+--- a/src/cmd/distpack/pack.go
++++ b/src/cmd/distpack/pack.go
+@@ -171,6 +171,7 @@ func main() {
+ 			switch strings.TrimSuffix(path.Base(name), ".exe") {
+ 			default:
+ 				return false
++			// Keep in sync with toolsIncludedInDistpack in cmd/dist/build.go.
+ 			case "asm", "cgo", "compile", "cover", "link", "preprofile", "vet":
+ 			}
+ 		}
+@@ -179,6 +180,7 @@ func main() {
+ 
+ 	// Add go and gofmt to bin, using cross-compiled binaries
+ 	// if this is a cross-compiled distribution.
++	// Keep in sync with binExesIncludedInDistpack in cmd/dist/build.go.
+ 	binExes := []string{
+ 		"go",
+ 		"gofmt",

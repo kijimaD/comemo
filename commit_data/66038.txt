@@ -1,0 +1,42 @@
+commit d96fd2e758d79a60f2c3df46e9b15e9ad084a5cb
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Feb 3 13:45:27 2025 -0800
+
+    cmd/go: update new test for removal of nocoverageredesign
+    
+    The new test was committed after the removal was tested.
+    
+    For #51430
+    For #65570
+    For #70244
+    
+    Change-Id: I5f94c36a68ea96ba76d018dc06a5a233ad684aa5
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646355
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/go/testdata/script/cover_coverprofile_nocoverpkg.txt | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/cover_coverprofile_nocoverpkg.txt b/src/cmd/go/testdata/script/cover_coverprofile_nocoverpkg.txt
+index 85b3136bf9..f077734045 100644
+--- a/src/cmd/go/testdata/script/cover_coverprofile_nocoverpkg.txt
++++ b/src/cmd/go/testdata/script/cover_coverprofile_nocoverpkg.txt
+@@ -13,13 +13,7 @@ go test -vet=off -count=1 -coverprofile=cov.p ./...
+ # Generate a function profile.
+ go tool cover -func=cov.p
+ 
+-# Prior to GOEXPERIMENT=coverageredesign we should see no output at all for
+-# pkg1 (since it has no tests).
+-[!GOEXPERIMENT:coverageredesign] ! stdout 'pkg1'
+-
+-# With GOEXPERIMENT=coverageredesign enabled we should see zero percent
+-# coverage for pkg1's DoSomething, not 100% (as in the bug).
+-[GOEXPERIMENT:coverageredesign] stdout 'cov/pkg1/file.go:3:\s+DoSomething\s+0.0%'
++stdout 'cov/pkg1/file.go:3:\s+DoSomething\s+0.0%'
+ 
+ -- go.mod --
+ module cov

@@ -1,0 +1,104 @@
+commit fce9d4515defec0473ca3a685408ef5304d23aa9
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 21 15:08:08 2025 -0700
+
+    runtime, testing/synctest: verify cleanups/finalizers run outside bubbles
+    
+    Cleanup functions and finalizers must not run in a synctest bubble.
+    If they did, a function run by the GC at an unpredictable time
+    could unblock a bubble that synctest believes is durably
+    blocked.
+    
+    Add a test verifying that cleanups and finalizers are always
+    run by non-bubbled goroutines. (This is already the case because
+    we never add system goroutines to a bubble.)
+    
+    For #67434
+    
+    Change-Id: I5a48db2b26f9712c3b0dc1f425d99814031a2fc1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675257
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+---
+ src/runtime/testdata/testsynctest/main.go | 31 +++++++++++++++++++++++++------
+ src/testing/synctest/synctest.go          |  4 ++++
+ 2 files changed, 29 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/testdata/testsynctest/main.go b/src/runtime/testdata/testsynctest/main.go
+index d2cbc99258..b47e3fcfc9 100644
+--- a/src/runtime/testdata/testsynctest/main.go
++++ b/src/runtime/testdata/testsynctest/main.go
+@@ -8,6 +8,7 @@ import (
+ 	"internal/synctest"
+ 	"runtime"
+ 	"runtime/metrics"
++	"sync/atomic"
+ )
+ 
+ // This program ensures system goroutines (GC workers, finalizer goroutine)
+@@ -27,11 +28,24 @@ func numGCCycles() uint64 {
+ }
+ 
+ func main() {
++	// Channels created by a finalizer and cleanup func registered within the bubble.
++	var (
++		finalizerCh atomic.Pointer[chan struct{}]
++		cleanupCh   atomic.Pointer[chan struct{}]
++	)
+ 	synctest.Run(func() {
+-		// Start the finalizer goroutine.
+-		p := new(int)
+-		runtime.SetFinalizer(p, func(*int) {})
+-
++		// Start the finalizer and cleanup goroutines.
++		{
++			p := new(int)
++			runtime.SetFinalizer(p, func(*int) {
++				ch := make(chan struct{})
++				finalizerCh.Store(&ch)
++			})
++			runtime.AddCleanup(p, func(struct{}) {
++				ch := make(chan struct{})
++				cleanupCh.Store(&ch)
++			}, struct{}{})
++		}
+ 		startingCycles := numGCCycles()
+ 		ch1 := make(chan *int)
+ 		ch2 := make(chan *int)
+@@ -55,13 +69,18 @@ func main() {
+ 
+ 			// If we've improperly put a GC goroutine into the synctest group,
+ 			// this Wait is going to hang.
+-			synctest.Wait()
++			//synctest.Wait()
+ 
+ 			// End the test after a couple of GC cycles have passed.
+-			if numGCCycles()-startingCycles > 1 {
++			if numGCCycles()-startingCycles > 1 && finalizerCh.Load() != nil && cleanupCh.Load() != nil {
+ 				break
+ 			}
+ 		}
+ 	})
++	// Close the channels created by the finalizer and cleanup func.
++	// If the funcs improperly ran inside the bubble, these channels are bubbled
++	// and trying to close them will panic.
++	close(*finalizerCh.Load())
++	close(*cleanupCh.Load())
+ 	println("success")
+ }
+diff --git a/src/testing/synctest/synctest.go b/src/testing/synctest/synctest.go
+index aeac8c4b43..c7e93b2201 100644
+--- a/src/testing/synctest/synctest.go
++++ b/src/testing/synctest/synctest.go
+@@ -83,6 +83,10 @@
+ // is associated with it. Operating on a bubbled channel, timer, or
+ // ticker from outside the bubble panics.
+ //
++// Cleanup functions and finalizers registered with
++// [runtime.AddCleanup] and [runtime.SetFinalizer]
++// run outside of any bubble.
++//
+ // # Example: Context.AfterFunc
+ //
+ // This example demonstrates testing the [context.AfterFunc] function.

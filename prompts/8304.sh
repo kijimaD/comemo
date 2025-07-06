@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8304: 2c92fe0b4f4d4525b845f688070d2ebc6be04c57
+# Index 8304: 29fdaadbef8855f45dc8f551a56f66b42c9082c9
 
 echo "🚀 Generating explanation for commit 8304..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 8304..."
 
 ### メタデータ
 - **コミットインデックス**: 8304
-- **コミットハッシュ**: 2c92fe0b4f4d4525b845f688070d2ebc6be04c57
-- **GitHub URL**: https://github.com/golang/go/commit/2c92fe0b4f4d4525b845f688070d2ebc6be04c57
+- **コミットハッシュ**: 29fdaadbef8855f45dc8f551a56f66b42c9082c9
+- **GitHub URL**: https://github.com/golang/go/commit/29fdaadbef8855f45dc8f551a56f66b42c9082c9
 
 ### 章構成
 

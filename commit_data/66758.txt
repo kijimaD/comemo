@@ -1,0 +1,50 @@
+commit 465097b2b5f9d8178fafac8a85a3cd331758b643
+Author: cuishuang <imcusg@gmail.com>
+Date:   Mon Mar 31 18:10:43 2025 +0800
+
+    all:  use built-in max/min to simplify the code
+    
+    Change-Id: I309d93d6ebf0feb462217a344d5f02c190220752
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661737
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/net/timeout_test.go | 5 +----
+ src/os/timeout_test.go  | 5 +----
+ 2 files changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/net/timeout_test.go b/src/net/timeout_test.go
+index 09adb9bdca..0d009f6999 100644
+--- a/src/net/timeout_test.go
++++ b/src/net/timeout_test.go
+@@ -730,10 +730,7 @@ func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
+ 	// duration by any significant margin. Try the next attempt with an arbitrary
+ 	// factor above that, so that our growth curve is at least exponential.
+ 	next = actual * 5 / 4
+-	if next > maxDynamicTimeout {
+-		return maxDynamicTimeout, true
+-	}
+-	return next, true
++	return min(next, maxDynamicTimeout), true
+ }
+ 
+ // There is a very similar copy of this in os/timeout_test.go.
+diff --git a/src/os/timeout_test.go b/src/os/timeout_test.go
+index e0d2328ba1..5535beece8 100644
+--- a/src/os/timeout_test.go
++++ b/src/os/timeout_test.go
+@@ -282,10 +282,7 @@ func nextTimeout(actual time.Duration) (next time.Duration, ok bool) {
+ 	// duration by any significant margin. Try the next attempt with an arbitrary
+ 	// factor above that, so that our growth curve is at least exponential.
+ 	next = actual * 5 / 4
+-	if next > maxDynamicTimeout {
+-		return maxDynamicTimeout, true
+-	}
+-	return next, true
++	return min(next, maxDynamicTimeout), true
+ }
+ 
+ // There is a very similar copy of this in net/timeout_test.go.

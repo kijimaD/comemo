@@ -1,0 +1,34 @@
+commit 2bbc6a45121e6576554d7f5f1f568c17c4bf67dd
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 12 22:22:11 2024 -0800
+
+    cmd/asm: fix format string so vet doesn't complain
+    
+    Fixes #70309
+    
+    Change-Id: I4a3e27e89bdfda66d64f2efbb4c08a5ddde34a52
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626040
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/asm/internal/arch/loong64.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/asm/internal/arch/loong64.go b/src/cmd/asm/internal/arch/loong64.go
+index 1fef6baf42..d9e428d953 100644
+--- a/src/cmd/asm/internal/arch/loong64.go
++++ b/src/cmd/asm/internal/arch/loong64.go
+@@ -88,7 +88,7 @@ func Loong64RegisterExtension(a *obj.Addr, ext string, reg, num int16, isAmount,
+ 	case reg >= loong64.REG_X0 && reg <= loong64.REG_X31:
+ 		simd_type = loong64.LASX
+ 	default:
+-		return errors.New("Loong64 extension: invalid LSX/LASX register: " + fmt.Sprintf("%p", reg))
++		return errors.New("Loong64 extension: invalid LSX/LASX register: " + fmt.Sprintf("%d", reg))
+ 	}
+ 
+ 	if isIndex {

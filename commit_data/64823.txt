@@ -1,0 +1,80 @@
+commit 301499ff7babb4a5137069510b16bb51b08af2c6
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Sep 4 15:40:55 2024 -0400
+
+    cmd/go: explicitly add default GODEBUG to linker config
+    
+    Previously we expected the default GODEBUG that's embedded in the binary
+    to be taken into account for build actionIDs through the build info. The
+    build info contains the default GODEBUG for a package main, and then
+    that build info is used to generate the action id. But tests of packages
+    other than main do not have buildinfo set on them. So the default
+    GODEBUG isn't taken into account in the action id for those tests.
+    Explicitly include GODEBUG when generating all link actions' action ids
+    to make sure it's always present.
+    
+    Fixes #69203
+    
+    Change-Id: Ifbc58482454ecfb51ba09cfcff02972cac3270c1
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610875
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/internal/work/exec.go                   |  8 +++++++
+ .../script/test_default_godebug_issue69203.txt     | 28 ++++++++++++++++++++++
+ 2 files changed, 36 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 5b17ef4811..bacd06f468 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -1425,6 +1425,14 @@ func (b *Builder) printLinkerConfig(h io.Writer, p *load.Package) {
+ 			fmt.Fprintf(h, "GOEXPERIMENT=%q\n", cfg.CleanGOEXPERIMENT)
+ 		}
+ 
++		// The default godebug is embedded in the binary. For main packages it's
++		// already taken into account for the action id through the build info. But
++		// to make sure it's included for tests of other packages, where there's no
++		// build info, use it as part of the action id. See issue #69203.
++		if p != nil {
++			fmt.Fprintf(h, "default GODEBUG %q\n", p.DefaultGODEBUG)
++		}
++
+ 		// The linker writes source file paths that refer to GOROOT,
+ 		// but only if -trimpath is not specified (see [gctoolchain.ld] in gc.go).
+ 		gorootFinal := cfg.GOROOT
+diff --git a/src/cmd/go/testdata/script/test_default_godebug_issue69203.txt b/src/cmd/go/testdata/script/test_default_godebug_issue69203.txt
+new file mode 100644
+index 0000000000..2e8d32dfc4
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_default_godebug_issue69203.txt
+@@ -0,0 +1,28 @@
++# This is the case reported in issue #69203. Setting GO111MODULE
++# off sets the Go version used to determine default GODEBUG settings
++# to Go 1.20, flipping the httplaxcontentlength godebug's value to "1".
++# Doing so causes net/http.TestReadResponseErrors to fail.
++# Before CL 610875, the default GODEBUG was only sometimes used to generate the actionID
++# for a link: if the binary being linked was package main, the default GODEBUG would be
++# embedded in the build info, which is in turn used for the action id. But for a test
++# of a non-main package, there would be no build info set and the default godebug would not
++# be taken into account in the action id. So if the only difference between a test run was the
++# default GODEBUG setting, the cached test result would be used (even though the
++# binaries were different because they contained different default GODEBUG values).
++# Now we explicitly add the default GODEBUG to the action id, so the test binaries' link actions
++# have different actionIDs. That means that the cached test results (whose action ids
++# are based on the test binaries' action ids) should only be used when the default GODEBUG matches.
++
++[short] skip 'runs go test'
++
++# Baseline: ensure TestReadResponseErrors fails with GODEBUG httplaxcontentlength=1.
++env GO111MODULE=off
++! go test net/http -run=^TestReadResponseErrors$
++
++# Ensure that it passes without httplaxcontentlength=1.
++env GO111MODULE=on
++go test net/http -run=^TestReadResponseErrors$
++
++# Make sure that the previous cached pass isn't reused when setting httplaxcontentlength=1.
++env GO111MODULE=off
++! go test net/http -run=^TestReadResponseErrors$

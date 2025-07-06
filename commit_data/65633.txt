@@ -1,0 +1,238 @@
+commit 7403a6a122a28f715448d4a9b360efe2df15423d
+Author: Jayanth Krishnamurthy jayanth.krishnamurthy@ibm.com <jayanth.krishnamurthy@ibm.com>
+Date:   Tue Oct 29 16:11:37 2024 -0500
+
+    cmd/internal/obj/ppc64: support for decimal floating point instructions
+    
+    1. Support for decimal arithmetic quad instructions of powerpc: DADDQ, DSUBQ, DMULQ
+    and DDIVQ.
+    2. Support for decimal compare ordered, unordered,  quad instructions of powerpc:
+    DCMPU, DCMPO, DCMPUQ, and DCMPOQ.
+    Change-Id: I32a15a7f0a127b022b1f43d376e0ab0f7e9dd108
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9,gotip-linux-ppc64le_power10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623036
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/asm/internal/arch/ppc64.go        |  2 +-
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 26 ++++++++++++++++++-----
+ src/cmd/internal/obj/ppc64/a.out.go       |  8 ++++++++
+ src/cmd/internal/obj/ppc64/anames.go      |  8 ++++++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 34 +++++++++++++++++++++++++++++++
+ 5 files changed, 72 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/ppc64.go b/src/cmd/asm/internal/arch/ppc64.go
+index c13652e960..4f3f83e751 100644
+--- a/src/cmd/asm/internal/arch/ppc64.go
++++ b/src/cmd/asm/internal/arch/ppc64.go
+@@ -25,7 +25,7 @@ func jumpPPC64(word string) bool {
+ // one of the CMP instructions that require special handling.
+ func IsPPC64CMP(op obj.As) bool {
+ 	switch op {
+-	case ppc64.ACMP, ppc64.ACMPU, ppc64.ACMPW, ppc64.ACMPWU, ppc64.AFCMPO, ppc64.AFCMPU:
++	case ppc64.ACMP, ppc64.ACMPU, ppc64.ACMPW, ppc64.ACMPWU, ppc64.AFCMPO, ppc64.AFCMPU, ppc64.ADCMPO, ppc64.ADCMPU, ppc64.ADCMPOQ, ppc64.ADCMPUQ:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index f25072a17e..8e9b8c4745 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -692,11 +692,15 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	FADDS F1, F2, F3                // ec62082a
+ 	DADD F1, F2                     // ec420804
+ 	DADD F1, F2, F3                 // ec620804
++	DADDQ F2, F4                    // fc841004
++	DADDQ F2, F4, F6                // fcc41004
+ 	FADDSCC F1, F2, F3              // ec62082b
+ 	FSUB F1, F2                     // fc420828
+ 	FSUB F1, F2, F3                 // fc620828
+ 	DSUB F1, F2                     // ec420c04
+-        DSUB F1, F2, F3                 // ec620c04
++	DSUB F1, F2, F3                 // ec620c04
++	DSUBQ F2, F4                    // fc841404
++	DSUBQ F2, F4, F6                // fcc41404
+ 	FSUBCC F1, F2, F3               // fc620829
+ 	FSUBS F1, F2                    // ec420828
+ 	FSUBS F1, F2, F3                // ec620828
+@@ -705,7 +709,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	FMUL F1, F2                     // fc420072
+ 	FMUL F1, F2, F3                 // fc620072
+ 	DMUL F1, F2                     // ec420044
+-        DMUL F1, F2, F3                 // ec620044
++	DMUL F1, F2, F3                 // ec620044
++	DMULQ F2, F4                    // fc8400c4
++	DMULQ F2, F4, F6                // fcc400c4
+ 	FMULCC F1, F2, F3               // fc620073
+ 	FMULS F1, F2                    // ec420072
+ 	FMULS F1, F2, F3                // ec620072
+@@ -713,7 +719,9 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	FDIV F1, F2                     // fc420824
+ 	FDIV F1, F2, F3                 // fc620824
+ 	DDIV F1, F2                     // ec420c44
+-        DDIV F1, F2, F3                 // ec620c44
++	DDIV F1, F2, F3                 // ec620c44
++	DDIVQ F2, F4                    // fc841444
++	DDIVQ F2, F4, F6                // fcc41444
+ 	FDIVCC F1, F2, F3               // fc620825
+ 	FDIVS F1, F2                    // ec420824
+ 	FDIVS F1, F2, F3                // ec620824
+@@ -780,9 +788,17 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	FCPSGN F1, F2                   // fc420810
+ 	FCPSGNCC F1, F2                 // fc420811
+ 	FCMPO F1, F2                    // fc011040
+-	FCMPO F1, F2, CR0               // FCMPO F1,CR0,F2 // fc011040
++	FCMPO F1, F2, CR0               // FCMPO F1,CR0,F2  // fc011040
+ 	FCMPU F1, F2                    // fc011000
+-	FCMPU F1, F2, CR0               // FCMPU F1,CR0,F2 // fc011000
++	FCMPU F1, F2, CR0               // FCMPU F1,CR0,F2  // fc011000
++	DCMPO F1, F2                    // ec011104
++	DCMPO F1, F2, CR0               // DCMPO F1,CR0,F2  // ec011104
++	DCMPOQ F2, F4                   // fc022104
++	DCMPOQ F2,F4, CR0               // DCMPOQ F2,CR0,F4 // fc022104
++	DCMPU F1, F2                    // ec011504
++	DCMPU F1, F2, CR0               // DCMPU F1,CR0,F2  // ec011504
++	DCMPUQ F2, F4                   // fc022504
++	DCMPUQ F2,F4, CR0               // DCMPUQ F2,CR0,F4 // fc022504
+ 	LVX (R3)(R4), V1                // 7c2418ce
+ 	LVX (R3)(R0), V1                // 7c2018ce
+ 	LVX (R3), V1                    // 7c2018ce
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 0c980ef476..aa7bcd3068 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -506,7 +506,13 @@ const (
+ 	ACRORN
+ 	ACRXOR
+ 	ADADD
++	ADADDQ
++	ADCMPO
++	ADCMPOQ
++	ADCMPU
++	ADCMPUQ
+ 	ADDIV
++	ADDIVQ
+ 	ADIVW
+ 	ADIVWCC
+ 	ADIVWVCC
+@@ -516,7 +522,9 @@ const (
+ 	ADIVWUVCC
+ 	ADIVWUV
+ 	ADMUL
++	ADMULQ
+ 	ADSUB
++	ADSUBQ
+ 	AMODUD
+ 	AMODUW
+ 	AMODSD
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index f9ec191551..ebcdc95cb5 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -58,7 +58,13 @@ var Anames = []string{
+ 	"CRORN",
+ 	"CRXOR",
+ 	"DADD",
++	"DADDQ",
++	"DCMPO",
++	"DCMPOQ",
++	"DCMPU",
++	"DCMPUQ",
+ 	"DDIV",
++	"DDIVQ",
+ 	"DIVW",
+ 	"DIVWCC",
+ 	"DIVWVCC",
+@@ -68,7 +74,9 @@ var Anames = []string{
+ 	"DIVWUVCC",
+ 	"DIVWUV",
+ 	"DMUL",
++	"DMULQ",
+ 	"DSUB",
++	"DSUBQ",
+ 	"MODUD",
+ 	"MODUW",
+ 	"MODSD",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index a9ef420e3d..b30976c85d 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -199,11 +199,15 @@ var optabBase = []Optab{
+ 	{as: ARLDCL, a1: C_REG, a3: C_32CON, a6: C_REG, type_: 14, size: 4},
+ 	{as: AFADD, a1: C_FREG, a6: C_FREG, type_: 2, size: 4},
+ 	{as: AFADD, a1: C_FREG, a2: C_FREG, a6: C_FREG, type_: 2, size: 4},
++	{as: ADADDQ, a1: C_FREGP, a6: C_FREGP, type_: 2, size: 4},
++	{as: ADADDQ, a1: C_FREGP, a2: C_FREGP, a6: C_FREGP, type_: 2, size: 4},
+ 	{as: AFABS, a1: C_FREG, a6: C_FREG, type_: 33, size: 4},
+ 	{as: AFABS, a6: C_FREG, type_: 33, size: 4},
+ 	{as: AFMADD, a1: C_FREG, a2: C_FREG, a3: C_FREG, a6: C_FREG, type_: 34, size: 4},
+ 	{as: AFMUL, a1: C_FREG, a6: C_FREG, type_: 32, size: 4},
+ 	{as: AFMUL, a1: C_FREG, a2: C_FREG, a6: C_FREG, type_: 32, size: 4},
++	{as: ADMULQ, a1: C_FREGP, a6: C_FREGP, type_: 32, size: 4},
++	{as: ADMULQ, a1: C_FREGP, a2: C_FREGP, a6: C_FREGP, type_: 32, size: 4},
+ 
+ 	{as: AMOVBU, a1: C_REG, a6: C_SOREG, type_: 7, size: 4},
+ 	{as: AMOVBU, a1: C_REG, a6: C_XOREG, type_: 108, size: 4},
+@@ -481,6 +485,8 @@ var optabBase = []Optab{
+ 	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_U16CON, type_: 70, size: 4},
+ 	{as: AFCMPO, a1: C_FREG, a6: C_FREG, type_: 70, size: 4},
+ 	{as: AFCMPO, a1: C_FREG, a2: C_CREG, a6: C_FREG, type_: 70, size: 4},
++	{as: ADCMPOQ, a1: C_FREGP, a6: C_FREGP, type_: 70, size: 4},
++	{as: ADCMPOQ, a1: C_FREGP, a2: C_CREG, a6: C_FREGP, type_: 70, size: 4},
+ 	{as: ATW, a1: C_32CON, a2: C_REG, a6: C_REG, type_: 60, size: 4},
+ 	{as: ATW, a1: C_32CON, a2: C_REG, a6: C_S16CON, type_: 61, size: 4},
+ 	{as: ADCBF, a1: C_SOREG, type_: 43, size: 4},
+@@ -1876,6 +1882,10 @@ func buildop(ctxt *obj.Link) {
+ 			opset(ADDIV, r0)
+ 			opset(ADSUB, r0)
+ 
++		case ADADDQ:
++			opset(ADDIVQ, r0)
++			opset(ADSUBQ, r0)
++
+ 		case AFMADD:
+ 			opset(AFMADDCC, r0)
+ 			opset(AFMADDS, r0)
+@@ -1901,8 +1911,16 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AFMULSCC, r0)
+ 			opset(ADMUL, r0)
+ 
++		case ADMULQ:
++			opset(ADMULQ, r0)
++
+ 		case AFCMPO:
+ 			opset(AFCMPU, r0)
++			opset(ADCMPU, r0)
++			opset(ADCMPO, r0)
++
++		case ADCMPOQ:
++			opset(ADCMPUQ, r0)
+ 
+ 		case AMTFSB0:
+ 			opset(AMTFSB0CC, r0)
+@@ -4008,6 +4026,22 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 		return OPVCC(59, 34, 0, 0)
+ 	case ADSUB:
+ 		return OPVCC(59, 514, 0, 0)
++	case ADADDQ:
++		return OPVCC(63, 2, 0, 0)
++	case ADDIVQ:
++		return OPVCC(63, 546, 0, 0)
++	case ADMULQ:
++		return OPVCC(63, 34, 0, 0)
++	case ADSUBQ:
++		return OPVCC(63, 514, 0, 0)
++	case ADCMPU:
++		return OPVCC(59, 642, 0, 0)
++	case ADCMPUQ:
++		return OPVCC(63, 642, 0, 0)
++	case ADCMPO:
++		return OPVCC(59, 130, 0, 0)
++	case ADCMPOQ:
++		return OPVCC(63, 130, 0, 0)
+ 
+ 	case ADCBF:
+ 		return OPVCC(31, 86, 0, 0)

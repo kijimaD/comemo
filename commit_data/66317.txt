@@ -1,0 +1,48 @@
+commit 1e92ff11f5fa9d495c05414591516402a202539c
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Feb 25 14:10:00 2025 +0000
+
+    unicode/utf8: use builtin max function to simplify code
+    
+    Change-Id: I6a73b645d074baaa4d09480bdf4192816a8c2450
+    GitHub-Last-Rev: 202d498eb019c18b9ba30bccc2cb169c9eb79366
+    GitHub-Pull-Request: golang/go#71945
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652177
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/unicode/utf8/utf8.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/unicode/utf8/utf8.go b/src/unicode/utf8/utf8.go
+index 180c008ed5..82fa7c0d4d 100644
+--- a/src/unicode/utf8/utf8.go
++++ b/src/unicode/utf8/utf8.go
+@@ -263,10 +263,7 @@ func DecodeLastRune(p []byte) (r rune, size int) {
+ 	// guard against O(n^2) behavior when traversing
+ 	// backwards through strings with long sequences of
+ 	// invalid UTF-8.
+-	lim := end - UTFMax
+-	if lim < 0 {
+-		lim = 0
+-	}
++	lim := max(end - UTFMax, 0)
+ 	for start--; start >= lim; start-- {
+ 		if RuneStart(p[start]) {
+ 			break
+@@ -303,10 +300,7 @@ func DecodeLastRuneInString(s string) (r rune, size int) {
+ 	// guard against O(n^2) behavior when traversing
+ 	// backwards through strings with long sequences of
+ 	// invalid UTF-8.
+-	lim := end - UTFMax
+-	if lim < 0 {
+-		lim = 0
+-	}
++	lim := max(end - UTFMax, 0)
+ 	for start--; start >= lim; start-- {
+ 		if RuneStart(s[start]) {
+ 			break

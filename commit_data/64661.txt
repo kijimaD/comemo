@@ -1,0 +1,245 @@
+commit bc7e378b3487aa96d8685db3dd6e244f752f60bf
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Mon Aug 26 23:04:40 2024 -0700
+
+    os: Getwd: fallback to slow method on ENAMETOOLONG
+    
+    As of CL 257637, all currently supported platforms have syscall.Getwd
+    implemented, so the code which deduces wd by traversing up to root
+    directory is never used and thus can be removed.
+    
+    Or, as it was suggested by Ian Lance Taylor in CL 607436 review
+    comments, it can be reused when syscall.Getwd returns ENAMETOOLONG
+    (which usually happens than the current working dir is longer than
+    syscall.PathMax).
+    
+    Let's do that. The only caveat is, such a long path returned from Getwd
+    couldn't be used for any file-related operations (they will probably
+    fail with ENAMETOOLONG).
+    
+    While at it:
+     - make the stat(".") code conditional, slightly improving the
+       performance on Unix when $PWD is not set;
+     - reuse variables dir and err;
+     - use openDirNolog instead of openFileNolog to obtain a dirfd;
+     - ensure the errors returned are wrapped;
+     - document the new functionality;
+     - add test cases (which fail before this change).
+    
+    Change-Id: I60f7a70e6ebb1751699416f587688a1a97305fd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608635
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/os/error_errno.go     |  2 ++
+ src/os/error_plan9.go     |  2 ++
+ src/os/getwd.go           | 49 +++++++++++++++++++---------
+ src/os/getwd_unix_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 119 insertions(+), 15 deletions(-)
+
+diff --git a/src/os/error_errno.go b/src/os/error_errno.go
+index c8140461a4..01204131be 100644
+--- a/src/os/error_errno.go
++++ b/src/os/error_errno.go
+@@ -9,3 +9,5 @@ package os
+ import "syscall"
+ 
+ type syscallErrorType = syscall.Errno
++
++const errENOSYS = syscall.ENOSYS
+diff --git a/src/os/error_plan9.go b/src/os/error_plan9.go
+index af6065db56..39e96607e1 100644
+--- a/src/os/error_plan9.go
++++ b/src/os/error_plan9.go
+@@ -7,3 +7,5 @@ package os
+ import "syscall"
+ 
+ type syscallErrorType = syscall.ErrorString
++
++var errENOSYS = syscall.NewError("function not implemented")
+diff --git a/src/os/getwd.go b/src/os/getwd.go
+index 732ece7b09..833381c2d2 100644
+--- a/src/os/getwd.go
++++ b/src/os/getwd.go
+@@ -25,40 +25,52 @@ var getwdCache struct {
+ // current directory, it is returned.
+ func Getwd() (dir string, err error) {
+ 	if runtime.GOOS == "windows" || runtime.GOOS == "plan9" {
++		// Use syscall.Getwd directly for
++		//   - plan9: see reasons in CL 89575;
++		//   - windows: syscall implementation is sufficient,
++		//     and we should not rely on $PWD.
+ 		dir, err = syscall.Getwd()
+ 		return dir, NewSyscallError("getwd", err)
+ 	}
+ 
+ 	// Clumsy but widespread kludge:
+ 	// if $PWD is set and matches ".", use it.
+-	dot, err := statNolog(".")
+-	if err != nil {
+-		return "", err
+-	}
++	var dot FileInfo
+ 	dir = Getenv("PWD")
+ 	if len(dir) > 0 && dir[0] == '/' {
++		dot, err = statNolog(".")
++		if err != nil {
++			return "", err
++		}
+ 		d, err := statNolog(dir)
+ 		if err == nil && SameFile(dot, d) {
+ 			return dir, nil
+ 		}
++		// If err is ENAMETOOLONG here, the syscall.Getwd below will
++		// fail with the same error, too, but let's give it a try
++		// anyway as the fallback code is much slower.
+ 	}
+ 
+ 	// If the operating system provides a Getwd call, use it.
+-	// Otherwise, we're trying to find our way back to ".".
+ 	if syscall.ImplementsGetwd {
+-		var (
+-			s string
+-			e error
+-		)
+ 		for {
+-			s, e = syscall.Getwd()
+-			if e != syscall.EINTR {
++			dir, err = syscall.Getwd()
++			if err != syscall.EINTR {
+ 				break
+ 			}
+ 		}
+-		return s, NewSyscallError("getwd", e)
++		if err != syscall.ENAMETOOLONG {
++			return dir, NewSyscallError("getwd", err)
++		}
+ 	}
+ 
++	// We're trying to find our way back to ".".
++	if dot == nil {
++		dot, err = statNolog(".")
++		if err != nil {
++			return "", err
++		}
++	}
+ 	// Apply same kludge but to cached dir instead of $PWD.
+ 	getwdCache.Lock()
+ 	dir = getwdCache.dir
+@@ -87,9 +99,9 @@ func Getwd() (dir string, err error) {
+ 	dir = ""
+ 	for parent := ".."; ; parent = "../" + parent {
+ 		if len(parent) >= 1024 { // Sanity check
+-			return "", syscall.ENAMETOOLONG
++			return "", NewSyscallError("getwd", syscall.ENAMETOOLONG)
+ 		}
+-		fd, err := openFileNolog(parent, O_RDONLY, 0)
++		fd, err := openDirNolog(parent)
+ 		if err != nil {
+ 			return "", err
+ 		}
+@@ -98,7 +110,14 @@ func Getwd() (dir string, err error) {
+ 			names, err := fd.Readdirnames(100)
+ 			if err != nil {
+ 				fd.Close()
+-				return "", err
++				// Readdirnames can return io.EOF or other error.
++				// In any case, we're here because syscall.Getwd
++				// is not implemented or failed with ENAMETOOLONG,
++				// so return the most sensible error.
++				if syscall.ImplementsGetwd {
++					return "", NewSyscallError("getwd", syscall.ENAMETOOLONG)
++				}
++				return "", NewSyscallError("getwd", errENOSYS)
+ 			}
+ 			for _, name := range names {
+ 				d, _ := lstatNolog(parent + "/" + name)
+diff --git a/src/os/getwd_unix_test.go b/src/os/getwd_unix_test.go
+new file mode 100644
+index 0000000000..a0c4f5bef1
+--- /dev/null
++++ b/src/os/getwd_unix_test.go
+@@ -0,0 +1,81 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package os_test
++
++import (
++	"errors"
++	. "os"
++	"strings"
++	"syscall"
++	"testing"
++)
++
++func TestGetwdDeep(t *testing.T) {
++	testGetwdDeep(t, false)
++}
++
++func TestGetwdDeepWithPWDSet(t *testing.T) {
++	testGetwdDeep(t, true)
++}
++
++// testGetwdDeep checks that os.Getwd is able to return paths
++// longer than syscall.PathMax (with or without PWD set).
++func testGetwdDeep(t *testing.T, setPWD bool) {
++	dir := t.TempDir()
++	t.Chdir(dir)
++
++	if setPWD {
++		t.Setenv("PWD", dir)
++	} else {
++		// When testing os.Getwd, setting PWD to empty string
++		// is the same as unsetting it, but the latter would
++		// be more complicated since we don't have t.Unsetenv.
++		t.Setenv("PWD", "")
++	}
++
++	name := strings.Repeat("a", 200)
++	for {
++		if err := Mkdir(name, 0o700); err != nil {
++			t.Fatal(err)
++		}
++		if err := Chdir(name); err != nil {
++			t.Fatal(err)
++		}
++		if setPWD {
++			dir += "/" + name
++			if err := Setenv("PWD", dir); err != nil {
++				t.Fatal(err)
++			}
++			t.Logf(" $PWD len: %d", len(dir))
++		}
++
++		wd, err := Getwd()
++		t.Logf("Getwd len: %d", len(wd))
++		if err != nil {
++			t.Fatal(err)
++		}
++		if setPWD && wd != dir {
++			t.Fatalf("Getwd: want same value as $PWD: %q, got %q", dir, wd)
++		}
++		// Ideally the success criterion should be len(wd) > syscall.PathMax,
++		// but the latter is not public for some platforms, so use Stat(wd).
++		// When it fails with ENAMETOOLONG, it means:
++		//  - wd is longer than PathMax;
++		//  - Getwd have used the slow fallback code.
++		//
++		// To avoid an endless loop here in case Stat keeps working,
++		// check if len(wd) is above the largest known PathMax among
++		// all Unix platforms (4096, on Linux).
++		if _, err := Stat(wd); err != nil || len(wd) > 4096 {
++			t.Logf("Done; len(wd)=%d", len(wd))
++			if err != nil && !errors.Is(err, syscall.ENAMETOOLONG) {
++				t.Fatalf("unexpected Stat error: %v", err)
++			}
++			break
++		}
++	}
++}

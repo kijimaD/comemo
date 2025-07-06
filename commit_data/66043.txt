@@ -1,0 +1,647 @@
+commit ef7f09149b4af54839e191841ddbfaff8640a484
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Mon Jan 13 21:35:04 2025 +0100
+
+    cmd/compile: prefer hv2 <= 127 over hv2 < 128
+    
+    This is shorter to encode on AMD64/x86. Shrinks a few functions and doesn't
+    seem to cause any regressions. No size impact on other archs.
+    
+    Covers a bit more than CL 639935.
+    
+    compilecmp linux/amd64:
+    
+    unicode/utf8
+    unicode/utf8.RuneCountInString changed
+    unicode/utf8.RuneCount changed
+    
+    unicode/utf8 [cmd/compile]
+    unicode/utf8.RuneCount changed
+    unicode/utf8.RuneCountInString changed
+    
+    runtime
+    runtime.countrunes changed
+    runtime.stringtoslicerune 413 -> 379  (-8.23%)
+    
+    runtime [cmd/compile]
+    runtime.countrunes changed
+    runtime.stringtoslicerune 413 -> 379  (-8.23%)
+    
+    bytes
+    bytes.containsRune 143 -> 139  (-2.80%)
+    bytes.IndexAny changed
+    bytes.Runes 462 -> 455  (-1.52%)
+    bytes.trimLeftUnicode changed
+    bytes.trimRightUnicode 325 -> 316  (-2.77%)
+    bytes.LastIndexAny 1261 -> 1256  (-0.40%)
+    bytes.Count 524 -> 520  (-0.76%)
+    
+    strings
+    strings.Map 1241 -> 1230  (-0.89%)
+    strings.TrimFunc 261 -> 255  (-2.30%)
+    strings.Count changed
+    strings.IndexRune changed
+    strings.TrimLeftFunc 249 -> 241  (-3.21%)
+    strings.explode 462 -> 441  (-4.55%)
+    strings.IndexAny changed
+    strings.ToValidUTF8 changed
+    strings.FieldsFunc 744 -> 741  (-0.40%)
+    strings.EqualFold 638 -> 625  (-2.04%)
+    strings.IndexFunc 185 -> 179  (-3.24%)
+    strings.ContainsFunc 189 -> 185  (-2.12%)
+    strings.indexFunc 213 -> 209  (-1.88%)
+    
+    go/build/constraint
+    go/build/constraint.(*exprParser).lex changed
+    go/build/constraint.isValidTag changed
+    
+    regexp/syntax
+    regexp/syntax.isValidCaptureName 180 -> 174  (-3.33%)
+    regexp/syntax.literalRegexp changed
+    regexp/syntax.(*parser).parsePerlFlags changed
+    regexp/syntax.parse changed
+    
+    time
+    time.tzsetName 471 -> 455  (-3.40%)
+    time.tzsetRule 2476 -> 2444  (-1.29%)
+    time.tzsetNum 389 -> 365  (-6.17%)
+    time.quote 1239 -> 1221  (-1.45%)
+    time.tzsetOffset 1332 -> 1317  (-1.13%)
+    
+    io/fs
+    io/fs.FileMode.String changed
+    
+    reflect
+    reflect.Value.Seq2.func4 changed
+    reflect.Value.Seq.func4 changed
+    reflect.isValidFieldName 265 -> 261  (-1.51%)
+    
+    bytes [cmd/compile]
+    bytes.Runes 462 -> 455  (-1.52%)
+    bytes.trimLeftUnicode changed
+    bytes.LastIndexAny 1261 -> 1256  (-0.40%)
+    bytes.IndexAny changed
+    bytes.trimRightUnicode 325 -> 316  (-2.77%)
+    bytes.Count 524 -> 520  (-0.76%)
+    bytes.containsRune 143 -> 139  (-2.80%)
+    
+    strings [cmd/compile]
+    strings.indexFunc 213 -> 209  (-1.88%)
+    strings.IndexAny changed
+    strings.FieldsFunc 744 -> 741  (-0.40%)
+    strings.IndexRune changed
+    strings.Count changed
+    strings.IndexFunc 185 -> 179  (-3.24%)
+    strings.Map 1241 -> 1230  (-0.89%)
+    strings.TrimFunc 261 -> 255  (-2.30%)
+    strings.ToValidUTF8 changed
+    strings.explode 462 -> 441  (-4.55%)
+    strings.EqualFold 638 -> 625  (-2.04%)
+    strings.ContainsFunc 189 -> 185  (-2.12%)
+    strings.TrimLeftFunc 249 -> 241  (-3.21%)
+    
+    go/build/constraint [cmd/compile]
+    go/build/constraint.(*exprParser).lex changed
+    go/build/constraint.isValidTag changed
+    
+    regexp/syntax [cmd/compile]
+    regexp/syntax.literalRegexp changed
+    regexp/syntax.parse changed
+    regexp/syntax.(*parser).parsePerlFlags changed
+    regexp/syntax.isValidCaptureName 180 -> 174  (-3.33%)
+    
+    fmt
+    fmt.(*ss).scanOne changed
+    fmt.(*ss).scanUint changed
+    fmt.(*ss).scanInt changed
+    fmt.(*fmt).pad changed
+    fmt.(*ss).getBase 447 -> 435  (-2.68%)
+    fmt.(*fmt).fmtS 217 -> 211  (-2.76%)
+    fmt.(*ss).consume changed
+    fmt.(*fmt).fmtQ 494 -> 485  (-1.82%)
+    fmt.(*fmt).truncateString changed
+    fmt.(*ss).scanComplex changed
+    fmt.(*ss).okVerb 410 -> 409  (-0.24%)
+    fmt.(*ss).convertString 447 -> 436  (-2.46%)
+    fmt.(*ss).peek changed
+    fmt.FormatString 650 -> 625  (-3.85%)
+    fmt.(*fmt).padString changed
+    fmt.(*ss).convertFloat changed
+    fmt.(*ss).scanBool changed
+    fmt.indexRune changed
+    
+    time [cmd/compile]
+    time.tzsetNum 389 -> 365  (-6.17%)
+    time.tzsetOffset 1332 -> 1317  (-1.13%)
+    time.tzsetName 471 -> 455  (-3.40%)
+    time.tzsetRule 2476 -> 2444  (-1.29%)
+    time.quote 1239 -> 1221  (-1.45%)
+    
+    net/url
+    net/url.validOptionalPort 189 -> 186  (-1.59%)
+    net/url.validUserinfo 229 -> 204  (-10.92%)
+    net/url.parseAuthority 972 -> 948  (-2.47%)
+    net/url.parseHost 1372 -> 1371  (-0.07%)
+    net/url.splitHostPort 584 -> 581  (-0.51%)
+    
+    reflect [cmd/compile]
+    reflect.isValidFieldName 265 -> 261  (-1.51%)
+    reflect.Value.Seq2.func4 changed
+    reflect.Value.Seq.func4 changed
+    
+    compress/gzip
+    compress/gzip.(*Writer).writeString changed
+    
+    encoding/json
+    encoding/json.isValidTag 313 -> 308  (-1.60%)
+    
+    testing
+    testing.rewrite changed
+    testing.(*B).ReportMetric changed
+    
+    mime
+    mime.consumeValue 1012 -> 997  (-1.48%)
+    mime.isToken 180 -> 172  (-4.44%)
+    mime.checkMediaTypeDisposition changed
+    mime.FormatMediaType 6375 -> 6343  (-0.50%)
+    mime.consumeToken changed
+    mime.needsEncoding 137 -> 135  (-1.46%)
+    mime.WordEncoder.Encode 216 -> 210  (-2.78%)
+    mime.consumeMediaParam 1620 -> 1605  (-0.93%)
+    mime.hasNonWhitespace 142 -> 139  (-2.11%)
+    mime.(*WordDecoder).DecodeHeader 2643 -> 2630  (-0.49%)
+    mime.ParseMediaType 3037 -> 3035  (-0.07%)
+    
+    go/token
+    go/token.IsIdentifier changed
+    
+    encoding/asn1
+    encoding/asn1.makeField changed
+    
+    text/tabwriter
+    text/tabwriter.(*Writer).Write 3465 -> 3454  (-0.32%)
+    text/tabwriter.(*Writer).updateWidth changed
+    text/tabwriter.(*Writer).endEscape 335 -> 327  (-2.39%)
+    
+    internal/buildcfg
+    internal/buildcfg.goriscv64 changed
+    
+    go/doc/comment
+    go/doc/comment.wrap 5496 -> 5489  (-0.13%)
+    go/doc/comment.(*Printer).Text 1033 -> 1030  (-0.29%)
+    go/doc/comment.validImportPath 661 -> 648  (-1.97%)
+    go/doc/comment.(*Heading).DefaultID changed
+    go/doc/comment.(*textPrinter).text 1070 -> 1069  (-0.09%)
+    
+    archive/tar
+    archive/tar.splitUSTARPath changed
+    archive/tar.(*Writer).writeRawFile changed
+    archive/tar.(*Reader).readHeader 2416 -> 2415  (-0.04%)
+    archive/tar.isASCII 136 -> 133  (-2.21%)
+    archive/tar.Header.allowedFormats.func1 changed
+    archive/tar.toASCII 415 -> 393  (-5.30%)
+    archive/tar.(*Writer).writePAXHeader.func1 645 -> 627  (-2.79%)
+    
+    crypto/x509/pkix
+    crypto/x509/pkix.RDNSequence.String 1502 -> 1486  (-1.07%)
+    
+    go/constant
+    go/constant.(*stringVal).String changed
+    
+    vendor/golang.org/x/net/idna
+    vendor/golang.org/x/net/idna.decode changed
+    vendor/golang.org/x/net/idna.encode 2000 -> 1968  (-1.60%)
+    
+    internal/trace/raw
+    internal/trace/raw.readArgs 783 -> 781  (-0.26%)
+    internal/trace/raw.NewTextReader 1158 -> 1157  (-0.09%)
+    internal/trace/raw.readToken 542 -> 532  (-1.85%)
+    
+    cmd/internal/objabi
+    cmd/internal/objabi.DecodeArg changed
+    
+    cmd/internal/quoted
+    cmd/internal/quoted.Join changed
+    
+    cmd/internal/pkgpath
+    cmd/internal/pkgpath.toSymbolV3 changed
+    cmd/internal/pkgpath.toSymbolV2 changed
+    
+    testing/fstest
+    testing/fstest.(*fsTester).checkGlob changed
+    
+    text/template
+    text/template.JSEscapeString changed
+    text/template.goodName changed
+    
+    io/fs [cmd/compile]
+    io/fs.FileMode.String changed
+    
+    go/printer
+    go/printer.sanitizeImportPath 470 -> 463  (-1.49%)
+    go/printer.(*printer).isOneLineFieldList changed
+    go/printer.identListSize 261 -> 254  (-2.68%)
+    
+    go/doc
+    go/doc.assumedPackageName changed
+    go/doc.firstSentence changed
+    
+    net
+    net.parseCriteria.func1 changed
+    net.hasUpperCase 181 -> 180  (-0.55%)
+    net.parsePort changed
+    net.lookupStaticHost changed
+    
+    html/template
+    html/template.htmlNameFilter 251 -> 249  (-0.80%)
+    
+    vendor/golang.org/x/net/http/httpguts
+    vendor/golang.org/x/net/http/httpguts.tokenEqual changed
+    vendor/golang.org/x/net/http/httpguts.headerValueContainsToken 971 -> 965  (-0.62%)
+    
+    mime/multipart
+    mime/multipart.(*Writer).SetBoundary 510 -> 505  (-0.98%)
+    
+    go/build
+    go/build.splitQuoted 1157 -> 1148  (-0.78%)
+    go/build.parseGoEmbed changed
+    go/build.isValidImport 203 -> 197  (-2.96%)
+    
+    net/mail
+    net/mail.(*addrParser).parseAddress changed
+    net/mail.quoteString changed
+    net/mail.(*Address).String changed
+    
+    crypto/x509
+    crypto/x509.(*Certificate).VerifyHostname 1020 -> 1018  (-0.20%)
+    crypto/x509.toLowerCaseASCII 223 -> 215  (-3.59%)
+    crypto/x509.matchHostnames changed
+    crypto/x509.validHostname 506 -> 505  (-0.20%)
+    crypto/x509.isIA5String 197 -> 186  (-5.58%)
+    crypto/x509.parseNameConstraintsExtension.func1 changed
+    crypto/x509.matchExactly changed
+    crypto/x509.parseSANExtension.func1 1996 -> 1982  (-0.70%)
+    crypto/x509.marshalSANs 3071 -> 3051  (-0.65%)
+    crypto/x509.domainToReverseLabels 820 -> 805  (-1.83%)
+    crypto/x509.buildCertExtensions.func2 changed
+    crypto/x509.(*OID).unmarshalOIDText 1359 -> 1355  (-0.29%)
+    crypto/x509.parseASN1String 1350 -> 1334  (-1.19%)
+    
+    cmd/cgo
+    main.checkImportSymName changed
+    main.splitQuoted 1157 -> 1148  (-0.78%)
+    
+    fmt [cmd/compile]
+    fmt.(*fmt).fmtQ 494 -> 485  (-1.82%)
+    fmt.(*ss).scanComplex changed
+    fmt.(*fmt).truncateString changed
+    fmt.(*fmt).pad changed
+    fmt.(*ss).getBase 447 -> 435  (-2.68%)
+    fmt.(*ss).convertFloat changed
+    fmt.(*fmt).padString changed
+    fmt.(*fmt).fmtS 217 -> 211  (-2.76%)
+    fmt.(*ss).scanInt changed
+    fmt.indexRune changed
+    fmt.(*ss).okVerb 410 -> 409  (-0.24%)
+    fmt.FormatString 650 -> 625  (-3.85%)
+    fmt.(*ss).consume changed
+    fmt.(*ss).scanUint changed
+    fmt.(*ss).scanOne changed
+    fmt.(*ss).peek changed
+    fmt.(*ss).convertString 447 -> 436  (-2.46%)
+    fmt.(*ss).scanBool changed
+    
+    internal/buildcfg [cmd/compile]
+    internal/buildcfg.goriscv64 changed
+    
+    cmd/compile/internal/base
+    cmd/compile/internal/base.lines.write 1451 -> 1450  (-0.07%)
+    cmd/compile/internal/base.isnumber 165 -> 154  (-6.67%)
+    
+    go/token [cmd/compile]
+    go/token.IsIdentifier changed
+    
+    net/url [cmd/compile]
+    net/url.validOptionalPort 189 -> 186  (-1.59%)
+    net/url.splitHostPort 584 -> 581  (-0.51%)
+    net/url.parseAuthority 972 -> 948  (-2.47%)
+    net/url.validUserinfo 229 -> 204  (-10.92%)
+    net/url.parseHost 1372 -> 1371  (-0.07%)
+    
+    cmd/internal/objabi [cmd/compile]
+    cmd/internal/objabi.DecodeArg changed
+    
+    text/tabwriter [cmd/compile]
+    text/tabwriter.(*Writer).endEscape 335 -> 327  (-2.39%)
+    text/tabwriter.(*Writer).updateWidth changed
+    text/tabwriter.(*Writer).Write 3465 -> 3454  (-0.32%)
+    
+    go/doc/comment [cmd/compile]
+    go/doc/comment.validImportPath 661 -> 648  (-1.97%)
+    go/doc/comment.wrap 5496 -> 5489  (-0.13%)
+    go/doc/comment.(*Printer).Text 1033 -> 1030  (-0.29%)
+    go/doc/comment.(*textPrinter).text 1070 -> 1069  (-0.09%)
+    go/doc/comment.(*Heading).DefaultID changed
+    
+    compress/gzip [cmd/compile]
+    compress/gzip.(*Writer).writeString changed
+    
+    encoding/json [cmd/compile]
+    encoding/json.isValidTag 313 -> 308  (-1.60%)
+    
+    cmd/doc
+    main.match 549 -> 542  (-1.28%)
+    
+    go/types
+    go/types.validatedImportPath changed
+    go/types.(*Checker).lookupError 3109 -> 3082  (-0.87%)
+    go/types.stripAnnotations 233 -> 229  (-1.72%)
+    go/types.tail 153 -> 148  (-3.27%)
+    go/types.isValidName 345 -> 330  (-4.35%)
+    
+    cmd/compile/internal/syntax
+    cmd/compile/internal/syntax.(*scanner).lineComment 655 -> 634  (-3.21%)
+    cmd/compile/internal/syntax.(*scanner).fullComment 527 -> 517  (-1.90%)
+    
+    crypto/tls
+    crypto/tls.validDNSName changed
+    
+    go/constant [cmd/compile]
+    go/constant.(*stringVal).String changed
+    
+    cmd/go/internal/str
+    cmd/go/internal/str.ToFold 293 -> 278  (-5.12%)
+    cmd/go/internal/str.QuoteGlob changed
+    
+    go/doc [cmd/compile]
+    go/doc.firstSentence changed
+    go/doc.assumedPackageName changed
+    
+    cmd/compile/internal/base [cmd/compile]
+    cmd/compile/internal/base.lines.write 1451 -> 1450  (-0.07%)
+    cmd/compile/internal/base.isnumber 165 -> 154  (-6.67%)
+    
+    cmd/compile/internal/syntax [cmd/compile]
+    cmd/compile/internal/syntax.(*scanner).fullComment 527 -> 517  (-1.90%)
+    cmd/compile/internal/syntax.(*scanner).lineComment changed
+    
+    cmd/vendor/golang.org/x/mod/module
+    cmd/vendor/golang.org/x/mod/module.unescapeString 500 -> 487  (-2.60%)
+    cmd/vendor/golang.org/x/mod/module.escapeString 538 -> 519  (-3.53%)
+    cmd/vendor/golang.org/x/mod/module.checkPath changed
+    cmd/vendor/golang.org/x/mod/module.checkElem changed
+    cmd/vendor/golang.org/x/mod/module.CheckPath changed
+    
+    cmd/vendor/golang.org/x/mod/sumdb/note
+    cmd/vendor/golang.org/x/mod/sumdb/note.isValidName 246 -> 244  (-0.81%)
+    
+    cmd/go/internal/base
+    cmd/go/internal/base.validToolName 150 -> 142  (-5.33%)
+    cmd/go/internal/base.ToolPath 488 -> 474  (-2.87%)
+    
+    cmd/go/internal/imports
+    cmd/go/internal/imports.matchTag changed
+    
+    go/build [cmd/compile]
+    go/build.isValidImport 203 -> 197  (-2.96%)
+    go/build.splitQuoted 1157 -> 1148  (-0.78%)
+    go/build.parseGoEmbed changed
+    
+    cmd/vendor/golang.org/x/mod/modfile
+    cmd/vendor/golang.org/x/mod/modfile.Position.add 421 -> 412  (-2.14%)
+    cmd/vendor/golang.org/x/mod/modfile.MustQuote 380 -> 372  (-2.11%)
+    
+    cmd/vendor/golang.org/x/mod/zip
+    cmd/vendor/golang.org/x/mod/zip.strToFold changed
+    
+    cmd/link/internal/benchmark
+    cmd/link/internal/benchmark.makeBenchString 476 -> 453  (-4.83%)
+    
+    cmd/internal/script
+    cmd/internal/script.wrapLine 773 -> 766  (-0.91%)
+    
+    cmd/compile/internal/ir
+    cmd/compile/internal/ir.splitPkg changed
+    cmd/compile/internal/ir.splitType changed
+    cmd/compile/internal/ir.LookupMethodSelector changed
+    
+    cmd/go/internal/modindex
+    cmd/go/internal/modindex.parseGoEmbed changed
+    cmd/go/internal/modindex.splitQuoted 1157 -> 1148  (-0.78%)
+    
+    cmd/pack
+    main.setOp 325 -> 308  (-5.23%)
+    
+    cmd/vendor/golang.org/x/term
+    cmd/vendor/golang.org/x/term.(*Terminal).handleKey changed
+    
+    cmd/compile/internal/types2
+    cmd/compile/internal/types2.validatedImportPath changed
+    cmd/compile/internal/types2.tail 153 -> 148  (-3.27%)
+    cmd/compile/internal/types2.(*Checker).lookupError 3717 -> 3690  (-0.73%)
+    cmd/compile/internal/types2.isValidName 345 -> 330  (-4.35%)
+    cmd/compile/internal/types2.stripAnnotations 233 -> 229  (-1.72%)
+    
+    net/http
+    net/http.NewRequestWithContext 2251 -> 2245  (-0.27%)
+    net/http.isValidWildcardName 357 -> 351  (-1.68%)
+    net/http.ParseCookie 1100 -> 1099  (-0.09%)
+    net/http.ParseSetCookie changed
+    net/http.readCookies changed
+    net/http.(*http2Framer).readMetaFrame.func1 changed
+    net/http.isCookieNameValid changed
+    net/http.(*Cookie).String changed
+    net/http.(*Cookie).Valid changed
+    net/http.validMethod changed
+    net/http.parsePattern 4343 -> 4330  (-0.30%)
+    net/http.http2validWireHeaderFieldName changed
+    net/http.http2encodeHeaders changed
+    net/http.(*Transport).roundTrip changed
+    
+    cmd/compile/internal/types2 [cmd/compile]
+    cmd/compile/internal/types2.validatedImportPath changed
+    cmd/compile/internal/types2.stripAnnotations 233 -> 229  (-1.72%)
+    cmd/compile/internal/types2.tail 153 -> 148  (-3.27%)
+    cmd/compile/internal/types2.(*Checker).lookupError 3717 -> 3690  (-0.73%)
+    cmd/compile/internal/types2.isValidName 345 -> 330  (-4.35%)
+    
+    cmd/compile/internal/ir [cmd/compile]
+    cmd/compile/internal/ir.LookupMethodSelector changed
+    cmd/compile/internal/ir.splitType changed
+    cmd/compile/internal/ir.splitPkg changed
+    
+    cmd/compile/internal/typecheck
+    cmd/compile/internal/typecheck.stringtoruneslit changed
+    
+    net/http/cookiejar
+    net/http/cookiejar.encode 1944 -> 1936  (-0.41%)
+    
+    expvar
+    expvar.appendJSONQuote changed
+    
+    cmd/go/internal/web
+    cmd/go/internal/web.(*Response).formatErrorDetail 1552 -> 1529  (-1.48%)
+    
+    cmd/vendor/golang.org/x/text/internal/language
+    cmd/vendor/golang.org/x/text/internal/language.Parse 1102 -> 1099  (-0.27%)
+    
+    cmd/vendor/golang.org/x/tools/go/analysis
+    cmd/vendor/golang.org/x/tools/go/analysis.validIdent 351 -> 346  (-1.42%)
+    
+    cmd/compile/internal/typecheck [cmd/compile]
+    cmd/compile/internal/typecheck.stringtoruneslit changed
+    
+    cmd/vendor/github.com/google/pprof/internal/report
+    cmd/vendor/github.com/google/pprof/internal/report.rightPad 377 -> 365  (-3.18%)
+    cmd/vendor/github.com/google/pprof/internal/report.indentation 169 -> 165  (-2.37%)
+    cmd/vendor/github.com/google/pprof/internal/report.makeWebListLine changed
+    
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag.(*checker).plusBuildLine changed
+    
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/directive
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/directive.(*checker).comment changed
+    
+    cmd/vendor/rsc.io/markdown
+    cmd/vendor/rsc.io/markdown.(*CodeBlock).PrintHTML changed
+    cmd/vendor/rsc.io/markdown.(*Code).printMarkdown changed
+    cmd/vendor/rsc.io/markdown.newATXHeading changed
+    cmd/vendor/rsc.io/markdown.longestSequence 249 -> 237  (-4.82%)
+    cmd/vendor/rsc.io/markdown.newFence changed
+    
+    cmd/link/internal/ld
+    cmd/link/internal/ld.methodref.isExported changed
+    
+    cmd/go/internal/modload
+    cmd/go/internal/modload.ShortMessage changed
+    
+    cmd/go/internal/work
+    cmd/go/internal/work.encodeArg changed
+    
+    cmd/compile/internal/walk
+    cmd/compile/internal/walk.rangeAssign2 changed
+    cmd/compile/internal/walk.arrayRangeClear changed
+    cmd/compile/internal/walk.rangeAssign changed
+    cmd/compile/internal/walk.mapClear changed
+    cmd/compile/internal/walk.arrayClear changed
+    cmd/compile/internal/walk.isMapClear changed
+    cmd/compile/internal/walk.walkRange 15218 -> 15538  (+2.10%)
+    cmd/compile/internal/walk.mapRangeClear changed
+    cmd/compile/internal/walk.mapRangeClear.func1 changed
+    cmd/compile/internal/walk.rangeConvert changed
+    
+    cmd/compile/internal/noder
+    cmd/compile/internal/noder.checkImportPath changed
+    cmd/compile/internal/noder.pragmaFields changed
+    cmd/compile/internal/noder.parseGoEmbed 1309 -> 1300  (-0.69%)
+    
+    cmd/compile/internal/walk [cmd/compile]
+    cmd/compile/internal/walk.mapRangeClear changed
+    cmd/compile/internal/walk.rangeAssign2 changed
+    cmd/compile/internal/walk.arrayClear changed
+    cmd/compile/internal/walk.arrayRangeClear changed
+    cmd/compile/internal/walk.walkRange 14789 -> 15109  (+2.16%)
+    cmd/compile/internal/walk.mapRangeClear.func1 changed
+    cmd/compile/internal/walk.rangeConvert changed
+    cmd/compile/internal/walk.mapClear changed
+    cmd/compile/internal/walk.isMapClear changed
+    cmd/compile/internal/walk.rangeAssign changed
+    
+    cmd/compile/internal/noder [cmd/compile]
+    cmd/compile/internal/noder.pragmaFields changed
+    cmd/compile/internal/noder.parseGoEmbed 1309 -> 1300  (-0.69%)
+    cmd/compile/internal/noder.checkImportPath changed
+    
+    file                                                 before   after    Δ       %
+    runtime.s                                            577251   577217   -34     -0.006%
+    runtime [cmd/compile].s                              642419   642385   -34     -0.005%
+    bytes.s                                              36806    36777    -29     -0.079%
+    strings.s                                            44176    44100    -76     -0.172%
+    regexp/syntax.s                                      81719    81713    -6      -0.007%
+    time.s                                               94341    94236    -105    -0.111%
+    reflect.s                                            180291   180287   -4      -0.002%
+    bytes [cmd/compile].s                                38181    38152    -29     -0.076%
+    strings [cmd/compile].s                              44192    44116    -76     -0.172%
+    regexp/syntax [cmd/compile].s                        81719    81713    -6      -0.007%
+    fmt.s                                                75019    74955    -64     -0.085%
+    time [cmd/compile].s                                 94341    94236    -105    -0.111%
+    net/url.s                                            37111    37055    -56     -0.151%
+    reflect [cmd/compile].s                              180340   180336   -4      -0.002%
+    encoding/json.s                                      110294   110289   -5      -0.005%
+    mime.s                                               47009    46913    -96     -0.204%
+    text/tabwriter.s                                     9538     9519     -19     -0.199%
+    go/doc/comment.s                                     49401    49377    -24     -0.049%
+    archive/tar.s                                        71994    71950    -44     -0.061%
+    crypto/x509/pkix.s                                   8493     8477     -16     -0.188%
+    vendor/golang.org/x/net/idna.s                       21271    21239    -32     -0.150%
+    internal/trace/raw.s                                 15413    15400    -13     -0.084%
+    go/printer.s                                         93669    93655    -14     -0.015%
+    net.s                                                299569   299568   -1      -0.000%
+    html/template.s                                      97069    97067    -2      -0.002%
+    vendor/golang.org/x/net/http/httpguts.s              3187     3181     -6      -0.188%
+    mime/multipart.s                                     31070    31065    -5      -0.016%
+    go/build.s                                           75077    75062    -15     -0.020%
+    crypto/x509.s                                        177195   177104   -91     -0.051%
+    cmd/cgo.s                                            215638   215629   -9      -0.004%
+    fmt [cmd/compile].s                                  86358    86294    -64     -0.074%
+    cmd/compile/internal/base.s                          44380    44368    -12     -0.027%
+    net/url [cmd/compile].s                              37222    37166    -56     -0.150%
+    text/tabwriter [cmd/compile].s                       9649     9630     -19     -0.197%
+    go/doc/comment [cmd/compile].s                       49512    49488    -24     -0.048%
+    encoding/json [cmd/compile].s                        110712   110707   -5      -0.005%
+    cmd/doc.s                                            54581    54574    -7      -0.013%
+    go/types.s                                           558219   558168   -51     -0.009%
+    cmd/compile/internal/syntax.s                        181755   181724   -31     -0.017%
+    cmd/go/internal/str.s                                3166     3151     -15     -0.474%
+    cmd/compile/internal/base [cmd/compile].s            44589    44577    -12     -0.027%
+    cmd/compile/internal/syntax [cmd/compile].s          196105   196095   -10     -0.005%
+    cmd/vendor/golang.org/x/mod/module.s                 19140    19108    -32     -0.167%
+    cmd/vendor/golang.org/x/mod/sumdb/note.s             12831    12829    -2      -0.016%
+    cmd/go/internal/base.s                               20413    20391    -22     -0.108%
+    go/build [cmd/compile].s                             75188    75173    -15     -0.020%
+    cmd/vendor/golang.org/x/mod/modfile.s                116513   116496   -17     -0.015%
+    cmd/link/internal/benchmark.s                        4068     4045     -23     -0.565%
+    cmd/internal/script.s                                83442    83435    -7      -0.008%
+    cmd/go/internal/modindex.s                           83527    83518    -9      -0.011%
+    cmd/pack.s                                           9128     9111     -17     -0.186%
+    cmd/compile/internal/types2.s                        540279   540228   -51     -0.009%
+    net/http.s                                           620639   620613   -26     -0.004%
+    cmd/compile/internal/types2 [cmd/compile].s          577279   577228   -51     -0.009%
+    net/http/cookiejar.s                                 28569    28561    -8      -0.028%
+    cmd/go/internal/web.s                                16316    16293    -23     -0.141%
+    cmd/vendor/golang.org/x/text/internal/language.s     57819    57816    -3      -0.005%
+    cmd/vendor/golang.org/x/tools/go/analysis.s          5528     5523     -5      -0.090%
+    cmd/vendor/github.com/google/pprof/internal/report.s 83881    83865    -16     -0.019%
+    cmd/vendor/rsc.io/markdown.s                         117312   117300   -12     -0.010%
+    cmd/compile/internal/walk.s                          329328   329648   +320    +0.097%
+    cmd/compile/internal/noder.s                         262295   262286   -9      -0.003%
+    cmd/compile/internal/walk [cmd/compile].s            350300   350620   +320    +0.091%
+    cmd/compile/internal/noder [cmd/compile].s           298464   298455   -9      -0.003%
+    total                                                36179015 36177972 -1043   -0.003%
+    
+    Change-Id: I191371db975761c24e53bb83bef0c42fa8ba3485
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641758
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/walk/range.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/walk/range.go b/src/cmd/compile/internal/walk/range.go
+index a51b218ae5..ede9f2182d 100644
+--- a/src/cmd/compile/internal/walk/range.go
++++ b/src/cmd/compile/internal/walk/range.go
+@@ -342,7 +342,10 @@ func walkRange(nrange *ir.RangeStmt) ir.Node {
+ 
+ 		// if hv2 < utf8.RuneSelf
+ 		nif := ir.NewIfStmt(base.Pos, nil, nil, nil)
+-		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLT, hv2, ir.NewInt(base.Pos, utf8.RuneSelf))
++
++		// On x86, hv2 <= 127 is shorter to encode than hv2 < 128
++		// Doesn't hurt other archs.
++		nif.Cond = ir.NewBinaryExpr(base.Pos, ir.OLE, hv2, ir.NewInt(base.Pos, utf8.RuneSelf-1))
+ 
+ 		// hv1++
+ 		nif.Body = []ir.Node{ir.NewAssignStmt(base.Pos, hv1, ir.NewBinaryExpr(base.Pos, ir.OADD, hv1, ir.NewInt(base.Pos, 1)))}

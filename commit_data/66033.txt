@@ -1,0 +1,1834 @@
+commit c1a5889edbd3e499df10db5ed1d8006c73de5792
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 18 14:28:16 2024 -0800
+
+    net, internal/routebsd: move vendored x/net/route to internal
+    
+    This is a simple move of the contents of the vendored x/net/route
+    to internal/routebsd. I've also added some test files that
+    were not previously vendored.
+    
+    This next CL will simplify the new internal/routebsd, removing the
+    code that is not needed by the new package.
+    
+    This is a step toward simplifying the x/net/route package by
+    permitting it to import x/sys/unix.
+    
+    Change-Id: I4d13df11fa9738cd68876b2ea456d03f82d8d64a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637695
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/go/build/deps_test.go                          |   8 +-
+ .../x/net/route => internal/routebsd}/address.go   |   2 +-
+ src/internal/routebsd/address_darwin_test.go       | 170 +++++++++
+ src/internal/routebsd/address_test.go              | 104 ++++++
+ .../x/net/route => internal/routebsd}/binary.go    |   2 +-
+ .../x/net/route => internal/routebsd}/empty.s      |   0
+ .../x/net/route => internal/routebsd}/interface.go |   2 +-
+ .../routebsd}/interface_announce.go                |   2 +-
+ .../routebsd}/interface_classic.go                 |   2 +-
+ .../routebsd}/interface_freebsd.go                 |   2 +-
+ .../routebsd}/interface_multicast.go               |   2 +-
+ .../routebsd}/interface_openbsd.go                 |   2 +-
+ .../x/net/route => internal/routebsd}/message.go   |   2 +-
+ src/internal/routebsd/message_darwin_test.go       |  37 ++
+ src/internal/routebsd/message_freebsd_test.go      |  91 +++++
+ src/internal/routebsd/message_test.go              | 238 +++++++++++++
+ .../x/net/route => internal/routebsd}/route.go     |   2 +-
+ .../route => internal/routebsd}/route_classic.go   |   2 +-
+ .../route => internal/routebsd}/route_openbsd.go   |   2 +-
+ src/internal/routebsd/route_test.go                | 382 +++++++++++++++++++++
+ .../x/net/route => internal/routebsd}/sys.go       |   2 +-
+ .../net/route => internal/routebsd}/sys_darwin.go  |   2 +-
+ .../route => internal/routebsd}/sys_dragonfly.go   |   2 +-
+ .../net/route => internal/routebsd}/sys_freebsd.go |   2 +-
+ .../net/route => internal/routebsd}/sys_netbsd.go  |   2 +-
+ .../net/route => internal/routebsd}/sys_openbsd.go |   2 +-
+ .../x/net/route => internal/routebsd}/syscall.go   |   2 +-
+ .../net/route => internal/routebsd}/zsys_darwin.go |   2 +-
+ .../route => internal/routebsd}/zsys_dragonfly.go  |   2 +-
+ .../routebsd}/zsys_freebsd_386.go                  |   2 +-
+ .../routebsd}/zsys_freebsd_amd64.go                |   2 +-
+ .../routebsd}/zsys_freebsd_arm.go                  |   2 +-
+ .../routebsd}/zsys_freebsd_arm64.go                |   2 +-
+ .../routebsd}/zsys_freebsd_riscv64.go              |   2 +-
+ .../net/route => internal/routebsd}/zsys_netbsd.go |   2 +-
+ .../route => internal/routebsd}/zsys_openbsd.go    |   2 +-
+ src/net/interface_bsd.go                           |  21 +-
+ src/net/interface_bsdvar.go                        |   9 +-
+ src/net/interface_darwin.go                        |  19 +-
+ src/net/interface_freebsd.go                       |  19 +-
+ src/vendor/modules.txt                             |   1 -
+ 41 files changed, 1087 insertions(+), 68 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e3e01077c1..e96578f8d3 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -388,12 +388,14 @@ var depsRules = `
+ 
+ 	os
+ 	< golang.org/x/net/dns/dnsmessage,
+-	  golang.org/x/net/lif,
+-	  golang.org/x/net/route;
++	  golang.org/x/net/lif;
+ 
+ 	internal/bytealg, internal/itoa, math/bits, slices, strconv, unique
+ 	< net/netip;
+ 
++	os, net/netip
++	< internal/routebsd;
++
+ 	# net is unavoidable when doing any networking,
+ 	# so large dependencies must be kept out.
+ 	# This is a long-looking list but most of these
+@@ -401,10 +403,10 @@ var depsRules = `
+ 	CGO,
+ 	golang.org/x/net/dns/dnsmessage,
+ 	golang.org/x/net/lif,
+-	golang.org/x/net/route,
+ 	internal/godebug,
+ 	internal/nettrace,
+ 	internal/poll,
++	internal/routebsd,
+ 	internal/singleflight,
+ 	net/netip,
+ 	os,
+diff --git a/src/vendor/golang.org/x/net/route/address.go b/src/internal/routebsd/address.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/address.go
+rename to src/internal/routebsd/address.go
+index b649f43141..9479bb10e3 100644
+--- a/src/vendor/golang.org/x/net/route/address.go
++++ b/src/internal/routebsd/address.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build darwin || dragonfly || freebsd || netbsd || openbsd
+ 
+-package route
++package routebsd
+ 
+ import (
+ 	"runtime"
+diff --git a/src/internal/routebsd/address_darwin_test.go b/src/internal/routebsd/address_darwin_test.go
+new file mode 100644
+index 0000000000..02a407a0c7
+--- /dev/null
++++ b/src/internal/routebsd/address_darwin_test.go
+@@ -0,0 +1,170 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package routebsd
++
++import (
++	"reflect"
++	"syscall"
++	"testing"
++)
++
++type parseAddrsOnDarwinTest struct {
++	attrs uint
++	fn    func(int, []byte) (int, Addr, error)
++	b     []byte
++	as    []Addr
++}
++
++var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
++	{
++		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
++		parseKernelInetAddr,
++		[]byte{
++			0x10, 0x2, 0x0, 0x0, 0xc0, 0xa8, 0x56, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++
++			0x14, 0x12, 0x4, 0x0, 0x6, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0,
++
++			0x7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
++		},
++		[]Addr{
++			&Inet4Addr{IP: [4]byte{192, 168, 86, 0}},
++			&LinkAddr{Index: 4},
++			&Inet4Addr{IP: [4]byte{255, 255, 255, 255}},
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++		},
++	},
++	{
++		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
++		parseKernelInetAddr,
++		[]byte{
++			0x10, 0x02, 0x00, 0x00, 0x64, 0x71, 0x00, 0x00,
++			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++
++			0x14, 0x12, 0x21, 0x00, 0x01, 0x08, 0x00, 0x00,
++			0x75, 0x74, 0x75, 0x6e, 0x34, 0x33, 0x31, 0x39,
++			0x00, 0x00, 0x00, 0x00,
++
++			0x06, 0x02, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00,
++		},
++		[]Addr{
++			&Inet4Addr{IP: [4]byte{100, 113, 0, 0}},
++			&LinkAddr{Index: 33, Name: "utun4319"},
++			&Inet4Addr{IP: [4]byte{255, 255, 0, 0}},
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++		},
++	},
++	// route -n add -inet6 fd84:1b4e:6281:: -prefixlen 48 fe80::f22f:4bff:fe09:3bff%utun4319
++	// gw fe80:0000:0000:0000:f22f:4bff:fe09:3bff
++	{
++		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
++		parseKernelInetAddr,
++		[]byte{
++			0x1c, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0xfd, 0x84, 0x1b, 0x4e, 0x62, 0x81, 0x00, 0x00,
++			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0x00, 0x00, 0x00, 0x00,
++
++			0x1c, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0xfe, 0x80, 0x00, 0x21, 0x00, 0x00, 0x00, 0x00,
++			0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff,
++			0x00, 0x00, 0x00, 0x00,
++
++			0x0e, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00,
++		},
++		[]Addr{
++			&Inet6Addr{IP: [16]byte{0xfd, 0x84, 0x1b, 0x4e, 0x62, 0x81}},
++			&Inet6Addr{IP: [16]byte{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff}, ZoneID: 33},
++			&Inet6Addr{IP: [16]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++		},
++	},
++	// golang/go#70528, the kernel can produce addresses of length 0
++	{
++		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
++		parseKernelInetAddr,
++		[]byte{
++			0x00, 0x1e, 0x00, 0x00,
++
++			0x1c, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0xfe, 0x80, 0x00, 0x21, 0x00, 0x00, 0x00, 0x00,
++			0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff,
++			0x00, 0x00, 0x00, 0x00,
++
++			0x0e, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00,
++		},
++		[]Addr{
++			nil,
++			&Inet6Addr{IP: [16]byte{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff}, ZoneID: 33},
++			&Inet6Addr{IP: [16]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++		},
++	},
++	// Additional case: golang/go/issues/70528#issuecomment-2498692877
++	{
++		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
++		parseKernelInetAddr,
++		[]byte{
++			0x84, 0x00, 0x05, 0x04, 0x01, 0x00, 0x00, 0x00, 0x03, 0x08, 0x00, 0x01, 0x15, 0x00, 0x00, 0x00,
++			0x1B, 0x01, 0x00, 0x00, 0xF5, 0x5A, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x02, 0x00, 0x00,
++			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00,
++			0x14, 0x12, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
++			0x00, 0x00, 0x00, 0x00,
++		},
++		[]Addr{
++			&Inet4Addr{IP: [4]byte{0x0, 0x0, 0x0, 0x0}},
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++			nil,
++		},
++	},
++}
++
++func TestParseAddrsOnDarwin(t *testing.T) {
++	tests := parseAddrsOnDarwinLittleEndianTests
++	if nativeEndian != littleEndian {
++		t.Skip("no test for non-little endian machine yet")
++	}
++
++	for i, tt := range tests {
++		as, err := parseAddrs(tt.attrs, tt.fn, tt.b)
++		if err != nil {
++			t.Error(i, err)
++			continue
++		}
++		if !reflect.DeepEqual(as, tt.as) {
++			t.Errorf("#%d: got %+v; want %+v", i, as, tt.as)
++			continue
++		}
++	}
++}
+diff --git a/src/internal/routebsd/address_test.go b/src/internal/routebsd/address_test.go
+new file mode 100644
+index 0000000000..c230bb2f1c
+--- /dev/null
++++ b/src/internal/routebsd/address_test.go
+@@ -0,0 +1,104 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || dragonfly || freebsd || netbsd || openbsd
++
++package routebsd
++
++import (
++	"reflect"
++	"syscall"
++	"testing"
++)
++
++type parseAddrsTest struct {
++	attrs uint
++	fn    func(int, []byte) (int, Addr, error)
++	b     []byte
++	as    []Addr
++}
++
++var parseAddrsLittleEndianTests = []parseAddrsTest{
++	{
++		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK | syscall.RTA_BRD,
++		parseKernelInetAddr,
++		[]byte{
++			0x38, 0x12, 0x0, 0x0, 0xff, 0xff, 0xff, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++
++			0x38, 0x12, 0x2, 0x0, 0x6, 0x3, 0x6, 0x0,
++			0x65, 0x6d, 0x31, 0x0, 0xc, 0x29, 0x66, 0x2c,
++			0xdc, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++
++			0x10, 0x2, 0x0, 0x0, 0xac, 0x10, 0xdc, 0xb4,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++
++			0x10, 0x2, 0x0, 0x0, 0xac, 0x10, 0xdc, 0xff,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++		},
++		[]Addr{
++			&LinkAddr{Index: 0},
++			&LinkAddr{Index: 2, Name: "em1", Addr: []byte{0x00, 0x0c, 0x29, 0x66, 0x2c, 0xdc}},
++			&Inet4Addr{IP: [4]byte{172, 16, 220, 180}},
++			nil,
++			nil,
++			nil,
++			nil,
++			&Inet4Addr{IP: [4]byte{172, 16, 220, 255}},
++		},
++	},
++	{
++		syscall.RTA_NETMASK | syscall.RTA_IFP | syscall.RTA_IFA,
++		parseKernelInetAddr,
++		[]byte{
++			0x7, 0x0, 0x0, 0x0, 0xff, 0xff, 0xff, 0x0,
++
++			0x18, 0x12, 0xa, 0x0, 0x87, 0x8, 0x0, 0x0,
++			0x76, 0x6c, 0x61, 0x6e, 0x35, 0x36, 0x38, 0x32,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++
++			0x10, 0x2, 0x0, 0x0, 0xa9, 0xfe, 0x0, 0x1,
++			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
++		},
++		[]Addr{
++			nil,
++			nil,
++			&Inet4Addr{IP: [4]byte{255, 255, 255, 0}},
++			nil,
++			&LinkAddr{Index: 10, Name: "vlan5682"},
++			&Inet4Addr{IP: [4]byte{169, 254, 0, 1}},
++			nil,
++			nil,
++		},
++	},
++}
++
++func TestParseAddrs(t *testing.T) {
++	tests := parseAddrsLittleEndianTests
++	if nativeEndian != littleEndian {
++		t.Skip("no test for non-little endian machine yet")
++	}
++
++	for i, tt := range tests {
++		as, err := parseAddrs(tt.attrs, tt.fn, tt.b)
++		if err != nil {
++			t.Error(i, err)
++			continue
++		}
++		as = as[:8] // the list varies between operating systems
++		if !reflect.DeepEqual(as, tt.as) {
++			t.Errorf("#%d: got %+v; want %+v", i, as, tt.as)
++			continue
++		}
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/binary.go b/src/internal/routebsd/binary.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/binary.go
+rename to src/internal/routebsd/binary.go
+index db3f7e0c2a..66b234c4f2 100644
+--- a/src/vendor/golang.org/x/net/route/binary.go
++++ b/src/internal/routebsd/binary.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build darwin || dragonfly || freebsd || netbsd || openbsd
+ 
+-package route
++package routebsd
+ 
+ // This file contains duplicates of encoding/binary package.
+ //
+diff --git a/src/vendor/golang.org/x/net/route/empty.s b/src/internal/routebsd/empty.s
+similarity index 100%
+rename from src/vendor/golang.org/x/net/route/empty.s
+rename to src/internal/routebsd/empty.s
+diff --git a/src/vendor/golang.org/x/net/route/interface.go b/src/internal/routebsd/interface.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/interface.go
+rename to src/internal/routebsd/interface.go
+index 0aa70555ca..a1523329b1 100644
+--- a/src/vendor/golang.org/x/net/route/interface.go
++++ b/src/internal/routebsd/interface.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build darwin || dragonfly || freebsd || netbsd || openbsd
+ 
+-package route
++package routebsd
+ 
+ // An InterfaceMessage represents an interface message.
+ type InterfaceMessage struct {
+diff --git a/src/vendor/golang.org/x/net/route/interface_announce.go b/src/internal/routebsd/interface_announce.go
+similarity index 97%
+rename from src/vendor/golang.org/x/net/route/interface_announce.go
+rename to src/internal/routebsd/interface_announce.go
+index 70614c1b1a..834f8d3518 100644
+--- a/src/vendor/golang.org/x/net/route/interface_announce.go
++++ b/src/internal/routebsd/interface_announce.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build dragonfly || freebsd || netbsd
+ 
+-package route
++package routebsd
+ 
+ func (w *wireFormat) parseInterfaceAnnounceMessage(_ RIBType, b []byte) (Message, error) {
+ 	if len(b) < w.bodyOff {
+diff --git a/src/vendor/golang.org/x/net/route/interface_classic.go b/src/internal/routebsd/interface_classic.go
+similarity index 98%
+rename from src/vendor/golang.org/x/net/route/interface_classic.go
+rename to src/internal/routebsd/interface_classic.go
+index be1bf2652e..9d706a50dc 100644
+--- a/src/vendor/golang.org/x/net/route/interface_classic.go
++++ b/src/internal/routebsd/interface_classic.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build darwin || dragonfly || netbsd
+ 
+-package route
++package routebsd
+ 
+ import (
+ 	"runtime"
+diff --git a/src/vendor/golang.org/x/net/route/interface_freebsd.go b/src/internal/routebsd/interface_freebsd.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/interface_freebsd.go
+rename to src/internal/routebsd/interface_freebsd.go
+index 14d251c94f..4a3ad8e30b 100644
+--- a/src/vendor/golang.org/x/net/route/interface_freebsd.go
++++ b/src/internal/routebsd/interface_freebsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package route
++package routebsd
+ 
+ import "syscall"
+ 
+diff --git a/src/vendor/golang.org/x/net/route/interface_multicast.go b/src/internal/routebsd/interface_multicast.go
+similarity index 97%
+rename from src/vendor/golang.org/x/net/route/interface_multicast.go
+rename to src/internal/routebsd/interface_multicast.go
+index 2ee37b9c74..c00199cf49 100644
+--- a/src/vendor/golang.org/x/net/route/interface_multicast.go
++++ b/src/internal/routebsd/interface_multicast.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build darwin || dragonfly || freebsd
+ 
+-package route
++package routebsd
+ 
+ func (w *wireFormat) parseInterfaceMulticastAddrMessage(_ RIBType, b []byte) (Message, error) {
+ 	if len(b) < w.bodyOff {
+diff --git a/src/vendor/golang.org/x/net/route/interface_openbsd.go b/src/internal/routebsd/interface_openbsd.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/interface_openbsd.go
+rename to src/internal/routebsd/interface_openbsd.go
+index d369409a72..208ff78425 100644
+--- a/src/vendor/golang.org/x/net/route/interface_openbsd.go
++++ b/src/internal/routebsd/interface_openbsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package route
++package routebsd
+ 
+ import "syscall"
+ 
+diff --git a/src/vendor/golang.org/x/net/route/message.go b/src/internal/routebsd/message.go
+similarity index 98%
+rename from src/vendor/golang.org/x/net/route/message.go
+rename to src/internal/routebsd/message.go
+index dc8bfc5b3a..f8666b6648 100644
+--- a/src/vendor/golang.org/x/net/route/message.go
++++ b/src/internal/routebsd/message.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build darwin || dragonfly || freebsd || netbsd || openbsd
+ 
+-package route
++package routebsd
+ 
+ // A Message represents a routing message.
+ type Message interface {
+diff --git a/src/internal/routebsd/message_darwin_test.go b/src/internal/routebsd/message_darwin_test.go
+new file mode 100644
+index 0000000000..a7fbdecf5d
+--- /dev/null
++++ b/src/internal/routebsd/message_darwin_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package routebsd
++
++import (
++	"syscall"
++	"testing"
++)
++
++func TestFetchAndParseRIBOnDarwin(t *testing.T) {
++	for _, typ := range []RIBType{syscall.NET_RT_FLAGS, syscall.NET_RT_DUMP2, syscall.NET_RT_IFLIST2} {
++		var lastErr error
++		var ms []Message
++		for _, af := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
++			rs, err := fetchAndParseRIB(af, typ)
++			if err != nil {
++				lastErr = err
++				continue
++			}
++			ms = append(ms, rs...)
++		}
++		if len(ms) == 0 && lastErr != nil {
++			t.Error(typ, lastErr)
++			continue
++		}
++		ss, err := msgs(ms).validate()
++		if err != nil {
++			t.Error(typ, err)
++			continue
++		}
++		for _, s := range ss {
++			t.Log(s)
++		}
++	}
++}
+diff --git a/src/internal/routebsd/message_freebsd_test.go b/src/internal/routebsd/message_freebsd_test.go
+new file mode 100644
+index 0000000000..f165e7c0e7
+--- /dev/null
++++ b/src/internal/routebsd/message_freebsd_test.go
+@@ -0,0 +1,91 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package routebsd
++
++import (
++	"syscall"
++	"testing"
++)
++
++func TestFetchAndParseRIBOnFreeBSD(t *testing.T) {
++	for _, typ := range []RIBType{syscall.NET_RT_IFMALIST} {
++		var lastErr error
++		var ms []Message
++		for _, af := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
++			rs, err := fetchAndParseRIB(af, typ)
++			if err != nil {
++				lastErr = err
++				continue
++			}
++			ms = append(ms, rs...)
++		}
++		if len(ms) == 0 && lastErr != nil {
++			t.Error(typ, lastErr)
++			continue
++		}
++		ss, err := msgs(ms).validate()
++		if err != nil {
++			t.Error(typ, err)
++			continue
++		}
++		for _, s := range ss {
++			t.Log(s)
++		}
++	}
++}
++
++func TestFetchAndParseRIBOnFreeBSD10AndAbove(t *testing.T) {
++	if _, err := FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLISTL, 0); err != nil {
++		t.Skip("NET_RT_IFLISTL not supported")
++	}
++	if compatFreeBSD32 {
++		t.Skip("NET_RT_IFLIST vs. NET_RT_IFLISTL doesn't work for 386 emulation on amd64")
++	}
++
++	var tests = [2]struct {
++		typ  RIBType
++		b    []byte
++		msgs []Message
++		ss   []string
++	}{
++		{typ: syscall.NET_RT_IFLIST},
++		{typ: syscall.NET_RT_IFLISTL},
++	}
++	for i := range tests {
++		var lastErr error
++		for _, af := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
++			rs, err := fetchAndParseRIB(af, tests[i].typ)
++			if err != nil {
++				lastErr = err
++				continue
++			}
++			tests[i].msgs = append(tests[i].msgs, rs...)
++		}
++		if len(tests[i].msgs) == 0 && lastErr != nil {
++			t.Error(tests[i].typ, lastErr)
++			continue
++		}
++		tests[i].ss, lastErr = msgs(tests[i].msgs).validate()
++		if lastErr != nil {
++			t.Error(tests[i].typ, lastErr)
++			continue
++		}
++		for _, s := range tests[i].ss {
++			t.Log(s)
++		}
++	}
++	for i := len(tests) - 1; i > 0; i-- {
++		if len(tests[i].ss) != len(tests[i-1].ss) {
++			t.Errorf("got %v; want %v", tests[i].ss, tests[i-1].ss)
++			continue
++		}
++		for j, s1 := range tests[i].ss {
++			s0 := tests[i-1].ss[j]
++			if s1 != s0 {
++				t.Errorf("got %s; want %s", s1, s0)
++			}
++		}
++	}
++}
+diff --git a/src/internal/routebsd/message_test.go b/src/internal/routebsd/message_test.go
+new file mode 100644
+index 0000000000..9d0d7284fc
+--- /dev/null
++++ b/src/internal/routebsd/message_test.go
+@@ -0,0 +1,238 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || dragonfly || freebsd || netbsd || openbsd
++
++package routebsd
++
++import (
++	"os"
++	"syscall"
++	"testing"
++	"time"
++)
++
++func TestFetchAndParseRIB(t *testing.T) {
++	for _, typ := range []RIBType{syscall.NET_RT_DUMP, syscall.NET_RT_IFLIST} {
++		var lastErr error
++		var ms []Message
++		for _, af := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
++			rs, err := fetchAndParseRIB(af, typ)
++			if err != nil {
++				lastErr = err
++				continue
++			}
++			ms = append(ms, rs...)
++		}
++		if len(ms) == 0 && lastErr != nil {
++			t.Error(typ, lastErr)
++			continue
++		}
++		ss, err := msgs(ms).validate()
++		if err != nil {
++			t.Error(typ, err)
++			continue
++		}
++		for _, s := range ss {
++			t.Log(typ, s)
++		}
++	}
++}
++
++var (
++	rtmonSock int
++	rtmonErr  error
++)
++
++func init() {
++	// We need to keep rtmonSock alive to avoid treading on
++	// recycled socket descriptors.
++	rtmonSock, rtmonErr = syscall.Socket(syscall.AF_ROUTE, syscall.SOCK_RAW, syscall.AF_UNSPEC)
++}
++
++// TestMonitorAndParseRIB leaks a worker goroutine and a socket
++// descriptor but that's intentional.
++func TestMonitorAndParseRIB(t *testing.T) {
++	if testing.Short() || os.Getuid() != 0 {
++		t.Skip("must be root")
++	}
++
++	if rtmonErr != nil {
++		t.Fatal(rtmonErr)
++	}
++
++	// We suppose that using an IPv4 link-local address and the
++	// dot1Q ID for Token Ring and FDDI doesn't harm anyone.
++	pv := &propVirtual{addr: "169.254.0.1", mask: "255.255.255.0"}
++	if err := pv.configure(1002); err != nil {
++		t.Skip(err)
++	}
++	if err := pv.setup(); err != nil {
++		t.Skip(err)
++	}
++	pv.teardown()
++
++	go func() {
++		b := make([]byte, os.Getpagesize())
++		for {
++			// There's no easy way to unblock this read
++			// call because the routing message exchange
++			// over routing socket is a connectionless
++			// message-oriented protocol, no control plane
++			// for signaling connectivity, and we cannot
++			// use the net package of standard library due
++			// to the lack of support for routing socket
++			// and circular dependency.
++			n, err := syscall.Read(rtmonSock, b)
++			if err != nil {
++				return
++			}
++			ms, err := ParseRIB(0, b[:n])
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			ss, err := msgs(ms).validate()
++			if err != nil {
++				t.Error(err)
++				return
++			}
++			for _, s := range ss {
++				t.Log(s)
++			}
++		}
++	}()
++
++	for _, vid := range []int{1002, 1003, 1004, 1005} {
++		pv := &propVirtual{addr: "169.254.0.1", mask: "255.255.255.0"}
++		if err := pv.configure(vid); err != nil {
++			t.Fatal(err)
++		}
++		if err := pv.setup(); err != nil {
++			t.Fatal(err)
++		}
++		time.Sleep(200 * time.Millisecond)
++		if err := pv.teardown(); err != nil {
++			t.Fatal(err)
++		}
++		time.Sleep(200 * time.Millisecond)
++	}
++}
++
++func TestParseRIBWithFuzz(t *testing.T) {
++	for _, fuzz := range []string{
++		"0\x00\x05\x050000000000000000" +
++			"00000000000000000000" +
++			"00000000000000000000" +
++			"00000000000000000000" +
++			"0000000000000\x02000000" +
++			"00000000",
++		"\x02\x00\x05\f0000000000000000" +
++			"0\x0200000000000000",
++		"\x02\x00\x05\x100000000000000\x1200" +
++			"0\x00\xff\x00",
++		"\x02\x00\x05\f0000000000000000" +
++			"0\x12000\x00\x02\x0000",
++		"\x00\x00\x00\x01\x00",
++		"00000",
++	} {
++		for typ := RIBType(0); typ < 256; typ++ {
++			ParseRIB(typ, []byte(fuzz))
++		}
++	}
++}
++
++func TestRouteMessage(t *testing.T) {
++	s, err := syscall.Socket(syscall.AF_ROUTE, syscall.SOCK_RAW, syscall.AF_UNSPEC)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer syscall.Close(s)
++
++	var ms []RouteMessage
++	for _, af := range []int{syscall.AF_INET, syscall.AF_INET6} {
++		if _, err := fetchAndParseRIB(af, syscall.NET_RT_DUMP); err != nil {
++			t.Log(err)
++			continue
++		}
++		switch af {
++		case syscall.AF_INET:
++			ms = append(ms, []RouteMessage{
++				{
++					Type: syscall.RTM_GET,
++					Addrs: []Addr{
++						syscall.RTAX_DST:     &Inet4Addr{IP: [4]byte{127, 0, 0, 1}},
++						syscall.RTAX_GATEWAY: nil,
++						syscall.RTAX_NETMASK: nil,
++						syscall.RTAX_GENMASK: nil,
++						syscall.RTAX_IFP:     &LinkAddr{},
++						syscall.RTAX_IFA:     &Inet4Addr{},
++						syscall.RTAX_AUTHOR:  nil,
++						syscall.RTAX_BRD:     &Inet4Addr{},
++					},
++				},
++				{
++					Type: syscall.RTM_GET,
++					Addrs: []Addr{
++						syscall.RTAX_DST: &Inet4Addr{IP: [4]byte{127, 0, 0, 1}},
++					},
++				},
++			}...)
++		case syscall.AF_INET6:
++			ms = append(ms, []RouteMessage{
++				{
++					Type: syscall.RTM_GET,
++					Addrs: []Addr{
++						syscall.RTAX_DST:     &Inet6Addr{IP: [16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
++						syscall.RTAX_GATEWAY: nil,
++						syscall.RTAX_NETMASK: nil,
++						syscall.RTAX_GENMASK: nil,
++						syscall.RTAX_IFP:     &LinkAddr{},
++						syscall.RTAX_IFA:     &Inet6Addr{},
++						syscall.RTAX_AUTHOR:  nil,
++						syscall.RTAX_BRD:     &Inet6Addr{},
++					},
++				},
++				{
++					Type: syscall.RTM_GET,
++					Addrs: []Addr{
++						syscall.RTAX_DST: &Inet6Addr{IP: [16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
++					},
++				},
++			}...)
++		}
++	}
++	for i, m := range ms {
++		m.ID = uintptr(os.Getpid())
++		m.Seq = i + 1
++		wb, err := m.Marshal()
++		if err != nil {
++			t.Fatalf("%v: %v", m, err)
++		}
++		if _, err := syscall.Write(s, wb); err != nil {
++			t.Fatalf("%v: %v", m, err)
++		}
++		rb := make([]byte, os.Getpagesize())
++		n, err := syscall.Read(s, rb)
++		if err != nil {
++			t.Fatalf("%v: %v", m, err)
++		}
++		rms, err := ParseRIB(0, rb[:n])
++		if err != nil {
++			t.Fatalf("%v: %v", m, err)
++		}
++		for _, rm := range rms {
++			if rm, ok := rm.(*RouteMessage); ok && rm.Err != nil {
++				t.Errorf("%v: %v", m, rm.Err)
++			}
++		}
++		ss, err := msgs(rms).validate()
++		if err != nil {
++			t.Fatalf("%v: %v", m, err)
++		}
++		for _, s := range ss {
++			t.Log(s)
++		}
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/route/route.go b/src/internal/routebsd/route.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/route.go
+rename to src/internal/routebsd/route.go
+index ca2ce2b887..d519c295fe 100644
+--- a/src/vendor/golang.org/x/net/route/route.go
++++ b/src/internal/routebsd/route.go
+@@ -10,7 +10,7 @@
+ // The package supports any version of Darwin, any version of
+ // DragonFly BSD, FreeBSD 7 and above, NetBSD 6 and above, and OpenBSD
+ // 5.6 and above.
+-package route
++package routebsd
+ 
+ import (
+ 	"errors"
+diff --git a/src/vendor/golang.org/x/net/route/route_classic.go b/src/internal/routebsd/route_classic.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/route_classic.go
+rename to src/internal/routebsd/route_classic.go
+index e273fe39ab..0d105d7bd4 100644
+--- a/src/vendor/golang.org/x/net/route/route_classic.go
++++ b/src/internal/routebsd/route_classic.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build darwin || dragonfly || freebsd || netbsd
+ 
+-package route
++package routebsd
+ 
+ import (
+ 	"runtime"
+diff --git a/src/vendor/golang.org/x/net/route/route_openbsd.go b/src/internal/routebsd/route_openbsd.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/route_openbsd.go
+rename to src/internal/routebsd/route_openbsd.go
+index f848fb1f24..e125b89006 100644
+--- a/src/vendor/golang.org/x/net/route/route_openbsd.go
++++ b/src/internal/routebsd/route_openbsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package route
++package routebsd
+ 
+ import (
+ 	"syscall"
+diff --git a/src/internal/routebsd/route_test.go b/src/internal/routebsd/route_test.go
+new file mode 100644
+index 0000000000..2ac5fee9bd
+--- /dev/null
++++ b/src/internal/routebsd/route_test.go
+@@ -0,0 +1,382 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || dragonfly || freebsd || netbsd || openbsd
++
++package routebsd
++
++import (
++	"fmt"
++	"os/exec"
++	"runtime"
++	"syscall"
++)
++
++func (m *RouteMessage) String() string {
++	return fmt.Sprintf("%s", addrAttrs(nativeEndian.Uint32(m.raw[12:16])))
++}
++
++func (m *InterfaceMessage) String() string {
++	var attrs addrAttrs
++	if runtime.GOOS == "openbsd" {
++		attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
++	} else {
++		attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
++	}
++	return fmt.Sprintf("%s", attrs)
++}
++
++func (m *InterfaceAddrMessage) String() string {
++	var attrs addrAttrs
++	if runtime.GOOS == "openbsd" {
++		attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
++	} else {
++		attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
++	}
++	return fmt.Sprintf("%s", attrs)
++}
++
++func (m *InterfaceMulticastAddrMessage) String() string {
++	return fmt.Sprintf("%s", addrAttrs(nativeEndian.Uint32(m.raw[4:8])))
++}
++
++func (m *InterfaceAnnounceMessage) String() string {
++	what := "<nil>"
++	switch m.What {
++	case 0:
++		what = "arrival"
++	case 1:
++		what = "departure"
++	}
++	return fmt.Sprintf("(%d %s %s)", m.Index, m.Name, what)
++}
++
++func (m *InterfaceMetrics) String() string {
++	return fmt.Sprintf("(type=%d mtu=%d)", m.Type, m.MTU)
++}
++
++func (m *RouteMetrics) String() string {
++	return fmt.Sprintf("(pmtu=%d)", m.PathMTU)
++}
++
++type addrAttrs uint
++
++var addrAttrNames = [...]string{
++	"dst",
++	"gateway",
++	"netmask",
++	"genmask",
++	"ifp",
++	"ifa",
++	"author",
++	"brd",
++	"df:mpls1-n:tag-o:src", // mpls1 for dragonfly, tag for netbsd, src for openbsd
++	"df:mpls2-o:srcmask",   // mpls2 for dragonfly, srcmask for openbsd
++	"df:mpls3-o:label",     // mpls3 for dragonfly, label for openbsd
++	"o:bfd",                // bfd for openbsd
++	"o:dns",                // dns for openbsd
++	"o:static",             // static for openbsd
++	"o:search",             // search for openbsd
++}
++
++func (attrs addrAttrs) String() string {
++	var s string
++	for i, name := range addrAttrNames {
++		if attrs&(1<<uint(i)) != 0 {
++			if s != "" {
++				s += "|"
++			}
++			s += name
++		}
++	}
++	if s == "" {
++		return "<nil>"
++	}
++	return s
++}
++
++type msgs []Message
++
++func (ms msgs) validate() ([]string, error) {
++	var ss []string
++	for _, m := range ms {
++		switch m := m.(type) {
++		case *RouteMessage:
++			if err := addrs(m.Addrs).match(addrAttrs(nativeEndian.Uint32(m.raw[12:16]))); err != nil {
++				return nil, err
++			}
++			sys := m.Sys()
++			if sys == nil {
++				return nil, fmt.Errorf("no sys for %s", m.String())
++			}
++			ss = append(ss, m.String()+" "+syss(sys).String()+" "+addrs(m.Addrs).String())
++		case *InterfaceMessage:
++			var attrs addrAttrs
++			if runtime.GOOS == "openbsd" {
++				attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
++			} else {
++				attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
++			}
++			if err := addrs(m.Addrs).match(attrs); err != nil {
++				return nil, err
++			}
++			sys := m.Sys()
++			if sys == nil {
++				return nil, fmt.Errorf("no sys for %s", m.String())
++			}
++			ss = append(ss, m.String()+" "+syss(sys).String()+" "+addrs(m.Addrs).String())
++		case *InterfaceAddrMessage:
++			var attrs addrAttrs
++			if runtime.GOOS == "openbsd" {
++				attrs = addrAttrs(nativeEndian.Uint32(m.raw[12:16]))
++			} else {
++				attrs = addrAttrs(nativeEndian.Uint32(m.raw[4:8]))
++			}
++			if err := addrs(m.Addrs).match(attrs); err != nil {
++				return nil, err
++			}
++			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
++		case *InterfaceMulticastAddrMessage:
++			if err := addrs(m.Addrs).match(addrAttrs(nativeEndian.Uint32(m.raw[4:8]))); err != nil {
++				return nil, err
++			}
++			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
++		case *InterfaceAnnounceMessage:
++			ss = append(ss, m.String())
++		default:
++			ss = append(ss, fmt.Sprintf("%+v", m))
++		}
++	}
++	return ss, nil
++}
++
++type syss []Sys
++
++func (sys syss) String() string {
++	var s string
++	for _, sy := range sys {
++		switch sy := sy.(type) {
++		case *InterfaceMetrics:
++			if len(s) > 0 {
++				s += " "
++			}
++			s += sy.String()
++		case *RouteMetrics:
++			if len(s) > 0 {
++				s += " "
++			}
++			s += sy.String()
++		}
++	}
++	return s
++}
++
++type addrFamily int
++
++func (af addrFamily) String() string {
++	switch af {
++	case syscall.AF_UNSPEC:
++		return "unspec"
++	case syscall.AF_LINK:
++		return "link"
++	case syscall.AF_INET:
++		return "inet4"
++	case syscall.AF_INET6:
++		return "inet6"
++	default:
++		return fmt.Sprintf("%d", af)
++	}
++}
++
++const hexDigit = "0123456789abcdef"
++
++type llAddr []byte
++
++func (a llAddr) String() string {
++	if len(a) == 0 {
++		return ""
++	}
++	buf := make([]byte, 0, len(a)*3-1)
++	for i, b := range a {
++		if i > 0 {
++			buf = append(buf, ':')
++		}
++		buf = append(buf, hexDigit[b>>4])
++		buf = append(buf, hexDigit[b&0xF])
++	}
++	return string(buf)
++}
++
++type ipAddr []byte
++
++func (a ipAddr) String() string {
++	if len(a) == 0 {
++		return "<nil>"
++	}
++	if len(a) == 4 {
++		return fmt.Sprintf("%d.%d.%d.%d", a[0], a[1], a[2], a[3])
++	}
++	if len(a) == 16 {
++		return fmt.Sprintf("%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x", a[0], a[1], a[2], a[3], a[4], a[5], a[6], a[7], a[8], a[9], a[10], a[11], a[12], a[13], a[14], a[15])
++	}
++	s := make([]byte, len(a)*2)
++	for i, tn := range a {
++		s[i*2], s[i*2+1] = hexDigit[tn>>4], hexDigit[tn&0xf]
++	}
++	return string(s)
++}
++
++func (a *LinkAddr) String() string {
++	name := a.Name
++	if name == "" {
++		name = "<nil>"
++	}
++	lla := llAddr(a.Addr).String()
++	if lla == "" {
++		lla = "<nil>"
++	}
++	return fmt.Sprintf("(%v %d %s %s)", addrFamily(a.Family()), a.Index, name, lla)
++}
++
++func (a *Inet4Addr) String() string {
++	return fmt.Sprintf("(%v %v)", addrFamily(a.Family()), ipAddr(a.IP[:]))
++}
++
++func (a *Inet6Addr) String() string {
++	return fmt.Sprintf("(%v %v %d)", addrFamily(a.Family()), ipAddr(a.IP[:]), a.ZoneID)
++}
++
++func (a *DefaultAddr) String() string {
++	return fmt.Sprintf("(%v %s)", addrFamily(a.Family()), ipAddr(a.Raw[2:]).String())
++}
++
++type addrs []Addr
++
++func (as addrs) String() string {
++	var s string
++	for _, a := range as {
++		if a == nil {
++			continue
++		}
++		if len(s) > 0 {
++			s += " "
++		}
++		switch a := a.(type) {
++		case *LinkAddr:
++			s += a.String()
++		case *Inet4Addr:
++			s += a.String()
++		case *Inet6Addr:
++			s += a.String()
++		case *DefaultAddr:
++			s += a.String()
++		}
++	}
++	if s == "" {
++		return "<nil>"
++	}
++	return s
++}
++
++func (as addrs) match(attrs addrAttrs) error {
++	var ts addrAttrs
++	af := syscall.AF_UNSPEC
++	for i := range as {
++		if as[i] != nil {
++			ts |= 1 << uint(i)
++		}
++		switch as[i].(type) {
++		case *Inet4Addr:
++			if af == syscall.AF_UNSPEC {
++				af = syscall.AF_INET
++			}
++			if af != syscall.AF_INET {
++				return fmt.Errorf("got %v; want %v", addrs(as), addrFamily(af))
++			}
++		case *Inet6Addr:
++			if af == syscall.AF_UNSPEC {
++				af = syscall.AF_INET6
++			}
++			if af != syscall.AF_INET6 {
++				return fmt.Errorf("got %v; want %v", addrs(as), addrFamily(af))
++			}
++		}
++	}
++	if ts != attrs && ts > attrs {
++		return fmt.Errorf("%v not included in %v", ts, attrs)
++	}
++	return nil
++}
++
++func fetchAndParseRIB(af int, typ RIBType) ([]Message, error) {
++	b, err := FetchRIB(af, typ, 0)
++	if err != nil {
++		return nil, fmt.Errorf("%v %d %v", addrFamily(af), typ, err)
++	}
++	ms, err := ParseRIB(typ, b)
++	if err != nil {
++		return nil, fmt.Errorf("%v %d %v", addrFamily(af), typ, err)
++	}
++	return ms, nil
++}
++
++// propVirtual is a proprietary virtual network interface.
++type propVirtual struct {
++	name         string
++	addr, mask   string
++	setupCmds    []*exec.Cmd
++	teardownCmds []*exec.Cmd
++}
++
++func (pv *propVirtual) setup() error {
++	for _, cmd := range pv.setupCmds {
++		if err := cmd.Run(); err != nil {
++			pv.teardown()
++			return err
++		}
++	}
++	return nil
++}
++
++func (pv *propVirtual) teardown() error {
++	for _, cmd := range pv.teardownCmds {
++		if err := cmd.Run(); err != nil {
++			return err
++		}
++	}
++	return nil
++}
++
++func (pv *propVirtual) configure(suffix int) error {
++	if runtime.GOOS == "openbsd" {
++		pv.name = fmt.Sprintf("vether%d", suffix)
++	} else {
++		pv.name = fmt.Sprintf("vlan%d", suffix)
++	}
++	xname, err := exec.LookPath("ifconfig")
++	if err != nil {
++		return err
++	}
++	pv.setupCmds = append(pv.setupCmds, &exec.Cmd{
++		Path: xname,
++		Args: []string{"ifconfig", pv.name, "create"},
++	})
++	if runtime.GOOS == "netbsd" {
++		// NetBSD requires an underlying dot1Q-capable network
++		// interface.
++		pv.setupCmds = append(pv.setupCmds, &exec.Cmd{
++			Path: xname,
++			Args: []string{"ifconfig", pv.name, "vlan", fmt.Sprintf("%d", suffix&0xfff), "vlanif", "wm0"},
++		})
++	}
++	pv.setupCmds = append(pv.setupCmds, &exec.Cmd{
++		Path: xname,
++		Args: []string{"ifconfig", pv.name, "inet", pv.addr, "netmask", pv.mask},
++	})
++	pv.teardownCmds = append(pv.teardownCmds, &exec.Cmd{
++		Path: xname,
++		Args: []string{"ifconfig", pv.name, "destroy"},
++	})
++	return nil
++}
+diff --git a/src/vendor/golang.org/x/net/route/sys.go b/src/internal/routebsd/sys.go
+similarity index 98%
+rename from src/vendor/golang.org/x/net/route/sys.go
+rename to src/internal/routebsd/sys.go
+index fcebee58ec..69ef7b7871 100644
+--- a/src/vendor/golang.org/x/net/route/sys.go
++++ b/src/internal/routebsd/sys.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build darwin || dragonfly || freebsd || netbsd || openbsd
+ 
+-package route
++package routebsd
+ 
+ import (
+ 	"syscall"
+diff --git a/src/vendor/golang.org/x/net/route/sys_darwin.go b/src/internal/routebsd/sys_darwin.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/sys_darwin.go
+rename to src/internal/routebsd/sys_darwin.go
+index c8c4eecb8e..2d8424a1c9 100644
+--- a/src/vendor/golang.org/x/net/route/sys_darwin.go
++++ b/src/internal/routebsd/sys_darwin.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package route
++package routebsd
+ 
+ import "syscall"
+ 
+diff --git a/src/vendor/golang.org/x/net/route/sys_dragonfly.go b/src/internal/routebsd/sys_dragonfly.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/sys_dragonfly.go
+rename to src/internal/routebsd/sys_dragonfly.go
+index 577fb16eb4..a3ee0ff73f 100644
+--- a/src/vendor/golang.org/x/net/route/sys_dragonfly.go
++++ b/src/internal/routebsd/sys_dragonfly.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package route
++package routebsd
+ 
+ import (
+ 	"syscall"
+diff --git a/src/vendor/golang.org/x/net/route/sys_freebsd.go b/src/internal/routebsd/sys_freebsd.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/sys_freebsd.go
+rename to src/internal/routebsd/sys_freebsd.go
+index 0a66dcedb3..6136e66385 100644
+--- a/src/vendor/golang.org/x/net/route/sys_freebsd.go
++++ b/src/internal/routebsd/sys_freebsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package route
++package routebsd
+ 
+ import (
+ 	"syscall"
+diff --git a/src/vendor/golang.org/x/net/route/sys_netbsd.go b/src/internal/routebsd/sys_netbsd.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/sys_netbsd.go
+rename to src/internal/routebsd/sys_netbsd.go
+index be4460e13f..3a33174454 100644
+--- a/src/vendor/golang.org/x/net/route/sys_netbsd.go
++++ b/src/internal/routebsd/sys_netbsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package route
++package routebsd
+ 
+ import "syscall"
+ 
+diff --git a/src/vendor/golang.org/x/net/route/sys_openbsd.go b/src/internal/routebsd/sys_openbsd.go
+similarity index 99%
+rename from src/vendor/golang.org/x/net/route/sys_openbsd.go
+rename to src/internal/routebsd/sys_openbsd.go
+index 7f4f93cbea..aaeb728475 100644
+--- a/src/vendor/golang.org/x/net/route/sys_openbsd.go
++++ b/src/internal/routebsd/sys_openbsd.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package route
++package routebsd
+ 
+ import (
+ 	"syscall"
+diff --git a/src/vendor/golang.org/x/net/route/syscall.go b/src/internal/routebsd/syscall.go
+similarity index 95%
+rename from src/vendor/golang.org/x/net/route/syscall.go
+rename to src/internal/routebsd/syscall.go
+index 0ed53750a2..559aa7dfdc 100644
+--- a/src/vendor/golang.org/x/net/route/syscall.go
++++ b/src/internal/routebsd/syscall.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build darwin || dragonfly || freebsd || netbsd || openbsd
+ 
+-package route
++package routebsd
+ 
+ import _ "unsafe" // for linkname
+ 
+diff --git a/src/vendor/golang.org/x/net/route/zsys_darwin.go b/src/internal/routebsd/zsys_darwin.go
+similarity index 96%
+rename from src/vendor/golang.org/x/net/route/zsys_darwin.go
+rename to src/internal/routebsd/zsys_darwin.go
+index 56a0c66f44..3e6cbb0b0d 100644
+--- a/src/vendor/golang.org/x/net/route/zsys_darwin.go
++++ b/src/internal/routebsd/zsys_darwin.go
+@@ -1,7 +1,7 @@
+ // Code generated by cmd/cgo -godefs; DO NOT EDIT.
+ // cgo -godefs defs_darwin.go
+ 
+-package route
++package routebsd
+ 
+ const (
+ 	sizeofIfMsghdrDarwin15    = 0x70
+diff --git a/src/vendor/golang.org/x/net/route/zsys_dragonfly.go b/src/internal/routebsd/zsys_dragonfly.go
+similarity index 96%
+rename from src/vendor/golang.org/x/net/route/zsys_dragonfly.go
+rename to src/internal/routebsd/zsys_dragonfly.go
+index f7c7a60cd6..41e74d53ae 100644
+--- a/src/vendor/golang.org/x/net/route/zsys_dragonfly.go
++++ b/src/internal/routebsd/zsys_dragonfly.go
+@@ -1,7 +1,7 @@
+ // Code generated by cmd/cgo -godefs; DO NOT EDIT.
+ // cgo -godefs defs_dragonfly.go
+ 
+-package route
++package routebsd
+ 
+ const (
+ 	sizeofIfMsghdrDragonFlyBSD4         = 0xb0
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_386.go b/src/internal/routebsd/zsys_freebsd_386.go
+similarity index 98%
+rename from src/vendor/golang.org/x/net/route/zsys_freebsd_386.go
+rename to src/internal/routebsd/zsys_freebsd_386.go
+index 3f985c7ee9..2a85855477 100644
+--- a/src/vendor/golang.org/x/net/route/zsys_freebsd_386.go
++++ b/src/internal/routebsd/zsys_freebsd_386.go
+@@ -1,7 +1,7 @@
+ // Code generated by cmd/cgo -godefs; DO NOT EDIT.
+ // cgo -godefs defs_freebsd.go
+ 
+-package route
++package routebsd
+ 
+ const (
+ 	sizeofIfMsghdrlFreeBSD10        = 0x68
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_amd64.go b/src/internal/routebsd/zsys_freebsd_amd64.go
+similarity index 98%
+rename from src/vendor/golang.org/x/net/route/zsys_freebsd_amd64.go
+rename to src/internal/routebsd/zsys_freebsd_amd64.go
+index 9293393698..ea7b959f05 100644
+--- a/src/vendor/golang.org/x/net/route/zsys_freebsd_amd64.go
++++ b/src/internal/routebsd/zsys_freebsd_amd64.go
+@@ -1,7 +1,7 @@
+ // Code generated by cmd/cgo -godefs; DO NOT EDIT.
+ // cgo -godefs defs_freebsd.go
+ 
+-package route
++package routebsd
+ 
+ const (
+ 	sizeofIfMsghdrlFreeBSD10        = 0xb0
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_arm.go b/src/internal/routebsd/zsys_freebsd_arm.go
+similarity index 98%
+rename from src/vendor/golang.org/x/net/route/zsys_freebsd_arm.go
+rename to src/internal/routebsd/zsys_freebsd_arm.go
+index a2bdb4ad3b..1c3d653c86 100644
+--- a/src/vendor/golang.org/x/net/route/zsys_freebsd_arm.go
++++ b/src/internal/routebsd/zsys_freebsd_arm.go
+@@ -1,7 +1,7 @@
+ // Code generated by cmd/cgo -godefs; DO NOT EDIT.
+ // cgo -godefs defs_freebsd.go
+ 
+-package route
++package routebsd
+ 
+ const (
+ 	sizeofIfMsghdrlFreeBSD10        = 0x68
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_arm64.go b/src/internal/routebsd/zsys_freebsd_arm64.go
+similarity index 98%
+rename from src/vendor/golang.org/x/net/route/zsys_freebsd_arm64.go
+rename to src/internal/routebsd/zsys_freebsd_arm64.go
+index 9293393698..ea7b959f05 100644
+--- a/src/vendor/golang.org/x/net/route/zsys_freebsd_arm64.go
++++ b/src/internal/routebsd/zsys_freebsd_arm64.go
+@@ -1,7 +1,7 @@
+ // Code generated by cmd/cgo -godefs; DO NOT EDIT.
+ // cgo -godefs defs_freebsd.go
+ 
+-package route
++package routebsd
+ 
+ const (
+ 	sizeofIfMsghdrlFreeBSD10        = 0xb0
+diff --git a/src/vendor/golang.org/x/net/route/zsys_freebsd_riscv64.go b/src/internal/routebsd/zsys_freebsd_riscv64.go
+similarity index 98%
+rename from src/vendor/golang.org/x/net/route/zsys_freebsd_riscv64.go
+rename to src/internal/routebsd/zsys_freebsd_riscv64.go
+index 9293393698..ea7b959f05 100644
+--- a/src/vendor/golang.org/x/net/route/zsys_freebsd_riscv64.go
++++ b/src/internal/routebsd/zsys_freebsd_riscv64.go
+@@ -1,7 +1,7 @@
+ // Code generated by cmd/cgo -godefs; DO NOT EDIT.
+ // cgo -godefs defs_freebsd.go
+ 
+-package route
++package routebsd
+ 
+ const (
+ 	sizeofIfMsghdrlFreeBSD10        = 0xb0
+diff --git a/src/vendor/golang.org/x/net/route/zsys_netbsd.go b/src/internal/routebsd/zsys_netbsd.go
+similarity index 95%
+rename from src/vendor/golang.org/x/net/route/zsys_netbsd.go
+rename to src/internal/routebsd/zsys_netbsd.go
+index eaffe8c408..f072c311de 100644
+--- a/src/vendor/golang.org/x/net/route/zsys_netbsd.go
++++ b/src/internal/routebsd/zsys_netbsd.go
+@@ -1,7 +1,7 @@
+ // Code generated by cmd/cgo -godefs; DO NOT EDIT.
+ // cgo -godefs defs_netbsd.go
+ 
+-package route
++package routebsd
+ 
+ const (
+ 	sizeofIfMsghdrNetBSD7         = 0x98
+diff --git a/src/vendor/golang.org/x/net/route/zsys_openbsd.go b/src/internal/routebsd/zsys_openbsd.go
+similarity index 92%
+rename from src/vendor/golang.org/x/net/route/zsys_openbsd.go
+rename to src/internal/routebsd/zsys_openbsd.go
+index b11b812680..2bb7641254 100644
+--- a/src/vendor/golang.org/x/net/route/zsys_openbsd.go
++++ b/src/internal/routebsd/zsys_openbsd.go
+@@ -1,7 +1,7 @@
+ // Code generated by cmd/cgo -godefs; DO NOT EDIT.
+ // cgo -godefs defs_openbsd.go
+ 
+-package route
++package routebsd
+ 
+ const (
+ 	sizeofRtMsghdr = 0x60
+diff --git a/src/net/interface_bsd.go b/src/net/interface_bsd.go
+index 9b2b42addb..687af00170 100644
+--- a/src/net/interface_bsd.go
++++ b/src/net/interface_bsd.go
+@@ -7,9 +7,8 @@
+ package net
+ 
+ import (
++	"internal/routebsd"
+ 	"syscall"
+-
+-	"golang.org/x/net/route"
+ )
+ 
+ // If the ifindex is zero, interfaceTable returns mappings of all
+@@ -28,19 +27,19 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 	n = 0
+ 	for _, m := range msgs {
+ 		switch m := m.(type) {
+-		case *route.InterfaceMessage:
++		case *routebsd.InterfaceMessage:
+ 			if ifindex != 0 && ifindex != m.Index {
+ 				continue
+ 			}
+ 			ift[n].Index = m.Index
+ 			ift[n].Name = m.Name
+ 			ift[n].Flags = linkFlags(m.Flags)
+-			if sa, ok := m.Addrs[syscall.RTAX_IFP].(*route.LinkAddr); ok && len(sa.Addr) > 0 {
++			if sa, ok := m.Addrs[syscall.RTAX_IFP].(*routebsd.LinkAddr); ok && len(sa.Addr) > 0 {
+ 				ift[n].HardwareAddr = make([]byte, len(sa.Addr))
+ 				copy(ift[n].HardwareAddr, sa.Addr)
+ 			}
+ 			for _, sys := range m.Sys() {
+-				if imx, ok := sys.(*route.InterfaceMetrics); ok {
++				if imx, ok := sys.(*routebsd.InterfaceMetrics); ok {
+ 					ift[n].MTU = imx.MTU
+ 					break
+ 				}
+@@ -92,27 +91,27 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 	ifat := make([]Addr, 0, len(msgs))
+ 	for _, m := range msgs {
+ 		switch m := m.(type) {
+-		case *route.InterfaceAddrMessage:
++		case *routebsd.InterfaceAddrMessage:
+ 			if index != 0 && index != m.Index {
+ 				continue
+ 			}
+ 			var mask IPMask
+ 			switch sa := m.Addrs[syscall.RTAX_NETMASK].(type) {
+-			case *route.Inet4Addr:
++			case *routebsd.Inet4Addr:
+ 				mask = IPv4Mask(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
+-			case *route.Inet6Addr:
++			case *routebsd.Inet6Addr:
+ 				mask = make(IPMask, IPv6len)
+ 				copy(mask, sa.IP[:])
+ 			}
+ 			var ip IP
+ 			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
+-			case *route.Inet4Addr:
++			case *routebsd.Inet4Addr:
+ 				ip = IPv4(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
+-			case *route.Inet6Addr:
++			case *routebsd.Inet6Addr:
+ 				ip = make(IP, IPv6len)
+ 				copy(ip, sa.IP[:])
+ 			}
+-			if ip != nil && mask != nil { // NetBSD may contain route.LinkAddr
++			if ip != nil && mask != nil { // NetBSD may contain routebsd.LinkAddr
+ 				ifat = append(ifat, &IPNet{IP: ip, Mask: mask})
+ 			}
+ 		}
+diff --git a/src/net/interface_bsdvar.go b/src/net/interface_bsdvar.go
+index e9bea3d379..3946921232 100644
+--- a/src/net/interface_bsdvar.go
++++ b/src/net/interface_bsdvar.go
+@@ -7,17 +7,16 @@
+ package net
+ 
+ import (
++	"internal/routebsd"
+ 	"syscall"
+-
+-	"golang.org/x/net/route"
+ )
+ 
+-func interfaceMessages(ifindex int) ([]route.Message, error) {
+-	rib, err := route.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST, ifindex)
++func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
++	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST, ifindex)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return route.ParseRIB(syscall.NET_RT_IFLIST, rib)
++	return routebsd.ParseRIB(syscall.NET_RT_IFLIST, rib)
+ }
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific
+diff --git a/src/net/interface_darwin.go b/src/net/interface_darwin.go
+index bb4fd73a98..45f1363025 100644
+--- a/src/net/interface_darwin.go
++++ b/src/net/interface_darwin.go
+@@ -5,42 +5,41 @@
+ package net
+ 
+ import (
++	"internal/routebsd"
+ 	"syscall"
+-
+-	"golang.org/x/net/route"
+ )
+ 
+-func interfaceMessages(ifindex int) ([]route.Message, error) {
+-	rib, err := route.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST, ifindex)
++func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
++	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST, ifindex)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return route.ParseRIB(syscall.NET_RT_IFLIST, rib)
++	return routebsd.ParseRIB(syscall.NET_RT_IFLIST, rib)
+ }
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific
+ // interface.
+ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+-	rib, err := route.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST2, ifi.Index)
++	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST2, ifi.Index)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	msgs, err := route.ParseRIB(syscall.NET_RT_IFLIST2, rib)
++	msgs, err := routebsd.ParseRIB(syscall.NET_RT_IFLIST2, rib)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	ifmat := make([]Addr, 0, len(msgs))
+ 	for _, m := range msgs {
+ 		switch m := m.(type) {
+-		case *route.InterfaceMulticastAddrMessage:
++		case *routebsd.InterfaceMulticastAddrMessage:
+ 			if ifi.Index != m.Index {
+ 				continue
+ 			}
+ 			var ip IP
+ 			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
+-			case *route.Inet4Addr:
++			case *routebsd.Inet4Addr:
+ 				ip = IPv4(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
+-			case *route.Inet6Addr:
++			case *routebsd.Inet6Addr:
+ 				ip = make(IP, IPv6len)
+ 				copy(ip, sa.IP[:])
+ 			}
+diff --git a/src/net/interface_freebsd.go b/src/net/interface_freebsd.go
+index 8536bd3cf6..fda7a86a2f 100644
+--- a/src/net/interface_freebsd.go
++++ b/src/net/interface_freebsd.go
+@@ -5,42 +5,41 @@
+ package net
+ 
+ import (
++	"internal/routebsd"
+ 	"syscall"
+-
+-	"golang.org/x/net/route"
+ )
+ 
+-func interfaceMessages(ifindex int) ([]route.Message, error) {
+-	rib, err := route.FetchRIB(syscall.AF_UNSPEC, route.RIBTypeInterface, ifindex)
++func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
++	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, routebsd.RIBTypeInterface, ifindex)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return route.ParseRIB(route.RIBTypeInterface, rib)
++	return routebsd.ParseRIB(routebsd.RIBTypeInterface, rib)
+ }
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific
+ // interface.
+ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+-	rib, err := route.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFMALIST, ifi.Index)
++	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFMALIST, ifi.Index)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	msgs, err := route.ParseRIB(syscall.NET_RT_IFMALIST, rib)
++	msgs, err := routebsd.ParseRIB(syscall.NET_RT_IFMALIST, rib)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	ifmat := make([]Addr, 0, len(msgs))
+ 	for _, m := range msgs {
+ 		switch m := m.(type) {
+-		case *route.InterfaceMulticastAddrMessage:
++		case *routebsd.InterfaceMulticastAddrMessage:
+ 			if ifi.Index != m.Index {
+ 				continue
+ 			}
+ 			var ip IP
+ 			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
+-			case *route.Inet4Addr:
++			case *routebsd.Inet4Addr:
+ 				ip = IPv4(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
+-			case *route.Inet6Addr:
++			case *routebsd.Inet6Addr:
+ 				ip = make(IP, IPv6len)
+ 				copy(ip, sa.IP[:])
+ 			}
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index d42f50b43c..45bf5af236 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -15,7 +15,6 @@ golang.org/x/net/http2/hpack
+ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+-golang.org/x/net/route
+ # golang.org/x/sys v0.28.0
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu

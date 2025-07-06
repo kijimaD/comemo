@@ -1,0 +1,1146 @@
+commit 932a4a4befc804fc5f94c12e1e430442557875fe
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Jan 28 13:44:41 2025 -0500
+
+    go/types: add Var.Kind() VarKind method
+    
+    This CL adds an enum type, VarKind, that discriminates among
+    the various kinds of Var, and adds setter/getter methods
+    for Var's kind field.
+    
+    Beware: NewVar has a weaker postcondition: the Var objects it
+    returns are not completely initialized and require a call to
+    Var.SetKind. This should only affect importers.
+    
+    No changes are needed to the export data, since the kind can
+    always be deduced from the context when decoding.
+    
+    See CL 645656 for the corresponding x/tools changes.
+    
+    + test, relnote, API
+    
+    Updates golang/go#70250
+    
+    Change-Id: Icde86ad22a880cde6f50bc12bf38004a5c6a1025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645115
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+---
+ api/go1.25.txt                                  | 16 ++++++
+ doc/initial/6-stdlib/99-minor/0-heading.md      |  7 +++
+ src/cmd/compile/internal/types2/api_test.go     | 46 +++++++++++++++++
+ src/cmd/compile/internal/types2/assignments.go  |  4 +-
+ src/cmd/compile/internal/types2/builtins.go     |  4 +-
+ src/cmd/compile/internal/types2/call.go         |  4 +-
+ src/cmd/compile/internal/types2/check.go        |  4 +-
+ src/cmd/compile/internal/types2/context_test.go |  2 +-
+ src/cmd/compile/internal/types2/decl.go         |  2 +-
+ src/cmd/compile/internal/types2/interface.go    |  4 +-
+ src/cmd/compile/internal/types2/issues_test.go  |  2 +-
+ src/cmd/compile/internal/types2/object.go       | 65 ++++++++++++++++++++++---
+ src/cmd/compile/internal/types2/recording.go    |  4 +-
+ src/cmd/compile/internal/types2/resolver.go     |  2 +-
+ src/cmd/compile/internal/types2/signature.go    | 23 ++++-----
+ src/cmd/compile/internal/types2/stmt.go         |  6 +--
+ src/cmd/compile/internal/types2/universe.go     |  4 +-
+ src/go/internal/gccgoimporter/parser.go         | 21 ++++----
+ src/go/internal/gcimporter/ureader.go           | 17 ++++---
+ src/go/types/api_test.go                        | 47 ++++++++++++++++++
+ src/go/types/assignments.go                     |  4 +-
+ src/go/types/builtins.go                        |  4 +-
+ src/go/types/call.go                            |  4 +-
+ src/go/types/context_test.go                    |  2 +-
+ src/go/types/decl.go                            |  2 +-
+ src/go/types/interface.go                       |  4 +-
+ src/go/types/issues_test.go                     |  2 +-
+ src/go/types/object.go                          | 65 ++++++++++++++++++++++---
+ src/go/types/recording.go                       |  4 +-
+ src/go/types/resolver.go                        |  2 +-
+ src/go/types/signature.go                       | 23 ++++-----
+ src/go/types/stmt.go                            |  6 +--
+ src/go/types/universe.go                        |  4 +-
+ 33 files changed, 320 insertions(+), 90 deletions(-)
+
+diff --git a/api/go1.25.txt b/api/go1.25.txt
+new file mode 100644
+index 0000000000..8cd7b1d8fc
+--- /dev/null
++++ b/api/go1.25.txt
+@@ -0,0 +1,16 @@
++pkg go/types, const FieldVar = 6 #70250
++pkg go/types, const FieldVar VarKind #70250
++pkg go/types, const LocalVar = 2 #70250
++pkg go/types, const LocalVar VarKind #70250
++pkg go/types, const PackageVar = 1 #70250
++pkg go/types, const PackageVar VarKind #70250
++pkg go/types, const ParamVar = 4 #70250
++pkg go/types, const ParamVar VarKind #70250
++pkg go/types, const RecvVar = 3 #70250
++pkg go/types, const RecvVar VarKind #70250
++pkg go/types, const ResultVar = 5 #70250
++pkg go/types, const ResultVar VarKind #70250
++pkg go/types, method (*Var) Kind() VarKind #70250
++pkg go/types, method (*Var) SetKind(VarKind) #70250
++pkg go/types, method (VarKind) String() string #70250
++pkg go/types, type VarKind uint8 #70250
+diff --git a/doc/initial/6-stdlib/99-minor/0-heading.md b/doc/initial/6-stdlib/99-minor/0-heading.md
+index a98105e8cc..e80ebc64c3 100644
+--- a/doc/initial/6-stdlib/99-minor/0-heading.md
++++ b/doc/initial/6-stdlib/99-minor/0-heading.md
+@@ -1,3 +1,10 @@
+ ### Minor changes to the library {#minor_library_changes}
+ 
++#### go/types
+ 
++The `Var.Kind` method returns an enumeration of type `VarKind` that
++classifies the variable (package-level, local, receiver, parameter,
++result, or struct field). See issue #70250.
++
++Callers of `NewVar` or `NewParam` are encouraged to call `Var.SetKind`
++to ensure that this attribute is set correctly in all cases.
+diff --git a/src/cmd/compile/internal/types2/api_test.go b/src/cmd/compile/internal/types2/api_test.go
+index c43f33bcdd..44fb6afe98 100644
+--- a/src/cmd/compile/internal/types2/api_test.go
++++ b/src/cmd/compile/internal/types2/api_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/goversion"
+ 	"internal/testenv"
+ 	"slices"
++	"sort"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -3061,3 +3062,48 @@ func TestVersionWithoutPos(t *testing.T) {
+ 		t.Errorf("check error was %q, want substring %q", got, want)
+ 	}
+ }
++
++func TestVarKind(t *testing.T) {
++	f := mustParse(`package p
++
++var global int
++
++type T struct { field int }
++
++func (recv T) f(param int) (result int) {
++	var local int
++	local2 := 0
++	switch local3 := any(local).(type) {
++	default:
++		_ = local3
++	}
++	return local2
++}
++`)
++
++	pkg := NewPackage("p", "p")
++	info := &Info{Defs: make(map[*syntax.Name]Object)}
++	check := NewChecker(&Config{}, pkg, info)
++	if err := check.Files([]*syntax.File{f}); err != nil {
++		t.Fatal(err)
++	}
++	var got []string
++	for _, obj := range info.Defs {
++		if v, ok := obj.(*Var); ok {
++			got = append(got, fmt.Sprintf("%s: %v", v.Name(), v.Kind()))
++		}
++	}
++	sort.Strings(got)
++	want := []string{
++		"field: FieldVar",
++		"global: PackageVar",
++		"local2: LocalVar",
++		"local: LocalVar",
++		"param: ParamVar",
++		"recv: RecvVar",
++		"result: ResultVar",
++	}
++	if !slices.Equal(got, want) {
++		t.Errorf("got:\n%s\nwant:\n%s", got, want)
++	}
++}
+diff --git a/src/cmd/compile/internal/types2/assignments.go b/src/cmd/compile/internal/types2/assignments.go
+index ebe9ef11cb..33810643cb 100644
+--- a/src/cmd/compile/internal/types2/assignments.go
++++ b/src/cmd/compile/internal/types2/assignments.go
+@@ -566,7 +566,7 @@ func (check *Checker) shortVarDecl(pos poser, lhs, rhs []syntax.Expr) {
+ 		}
+ 
+ 		// declare new variable
+-		obj := NewVar(ident.Pos(), check.pkg, name, nil)
++		obj := newVar(LocalVar, ident.Pos(), check.pkg, name, nil)
+ 		lhsVars[i] = obj
+ 		if name != "_" {
+ 			newVars = append(newVars, obj)
+@@ -577,7 +577,7 @@ func (check *Checker) shortVarDecl(pos poser, lhs, rhs []syntax.Expr) {
+ 	// create dummy variables where the lhs is invalid
+ 	for i, obj := range lhsVars {
+ 		if obj == nil {
+-			lhsVars[i] = NewVar(lhs[i].Pos(), check.pkg, "_", nil)
++			lhsVars[i] = newVar(LocalVar, lhs[i].Pos(), check.pkg, "_", nil)
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 7160efec89..1e2a9a28f8 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -1032,13 +1032,13 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ func makeSig(res Type, args ...Type) *Signature {
+ 	list := make([]*Var, len(args))
+ 	for i, param := range args {
+-		list[i] = NewVar(nopos, nil, "", Default(param))
++		list[i] = NewParam(nopos, nil, "", Default(param))
+ 	}
+ 	params := NewTuple(list...)
+ 	var result *Tuple
+ 	if res != nil {
+ 		assert(!isUntyped(res))
+-		result = NewTuple(NewVar(nopos, nil, "", res))
++		result = NewTuple(newVar(ResultVar, nopos, nil, "", res))
+ 	}
+ 	return &Signature{params: params, results: result}
+ }
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 17291b2063..9294afcea9 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -94,7 +94,7 @@ func (check *Checker) funcInst(T *target, pos syntax.Pos, x *operand, inst *synt
+ 				}
+ 			}
+ 			gsig := NewSignatureType(nil, nil, nil, sig.params, sig.results, sig.variadic)
+-			params = []*Var{NewVar(x.Pos(), check.pkg, "", gsig)}
++			params = []*Var{NewParam(x.Pos(), check.pkg, "", gsig)}
+ 			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
+ 			// or the result type in a return statement. Create a pseudo-expression for that operand
+ 			// that makes sense when reported in error messages from infer, below.
+@@ -875,7 +875,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 				name = "_"
+ 			}
+ 		}
+-		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
++		params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
+ 		x.mode = value
+ 		x.typ = &Signature{
+ 			tparams:  sig.tparams,
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 52ff2ea032..a158f55585 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -568,8 +568,8 @@ func (check *Checker) recordCommaOkTypesInSyntax(x syntax.Expr, t0, t1 Type) {
+ 			assert(tv.Type != nil) // should have been recorded already
+ 			pos := x.Pos()
+ 			tv.Type = NewTuple(
+-				NewVar(pos, check.pkg, "", t0),
+-				NewVar(pos, check.pkg, "", t1),
++				NewParam(pos, check.pkg, "", t0),
++				NewParam(pos, check.pkg, "", t1),
+ 			)
+ 			x.SetTypeInfo(tv)
+ 			p, _ := x.(*syntax.ParenExpr)
+diff --git a/src/cmd/compile/internal/types2/context_test.go b/src/cmd/compile/internal/types2/context_test.go
+index aa649b1448..2c5c0d8ef3 100644
+--- a/src/cmd/compile/internal/types2/context_test.go
++++ b/src/cmd/compile/internal/types2/context_test.go
+@@ -38,7 +38,7 @@ func TestContextHashCollisions(t *testing.T) {
+ 	{
+ 		// type unaryP = func[P any](_ P)
+ 		tparam := NewTypeParam(NewTypeName(nopos, nil, "P", nil), &emptyInterface)
+-		params := NewTuple(NewVar(nopos, nil, "_", tparam))
++		params := NewTuple(NewParam(nopos, nil, "_", tparam))
+ 		unaryP = NewSignatureType(nil, nil, []*TypeParam{tparam}, params, nil, false)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 517a3d3def..823d940d9b 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -844,7 +844,7 @@ func (check *Checker) declStmt(list []syntax.Decl) {
+ 
+ 			lhs0 := make([]*Var, len(s.NameList))
+ 			for i, name := range s.NameList {
+-				lhs0[i] = NewVar(name.Pos(), pkg, name.Value, nil)
++				lhs0[i] = newVar(LocalVar, name.Pos(), pkg, name.Value, nil)
+ 			}
+ 
+ 			// initialize all variables
+diff --git a/src/cmd/compile/internal/types2/interface.go b/src/cmd/compile/internal/types2/interface.go
+index 67f5b98a83..b32e5c21fe 100644
+--- a/src/cmd/compile/internal/types2/interface.go
++++ b/src/cmd/compile/internal/types2/interface.go
+@@ -42,7 +42,7 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	typ := (*Checker)(nil).newInterface()
+ 	for _, m := range methods {
+ 		if sig := m.typ.(*Signature); sig.recv == nil {
+-			sig.recv = NewVar(m.pos, m.pkg, "", typ)
++			sig.recv = newVar(RecvVar, m.pos, m.pkg, "", typ)
+ 		}
+ 	}
+ 
+@@ -158,7 +158,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *syntax.InterfaceType
+ 				recvTyp = named
+ 			}
+ 		}
+-		sig.recv = NewVar(f.Name.Pos(), check.pkg, "", recvTyp)
++		sig.recv = newVar(RecvVar, f.Name.Pos(), check.pkg, "", recvTyp)
+ 
+ 		m := NewFunc(f.Name.Pos(), check.pkg, name, sig)
+ 		check.recordDef(f.Name, m)
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 60b28c4bf8..51014d8d82 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -628,7 +628,7 @@ func TestIssue50646(t *testing.T) {
+ func TestIssue55030(t *testing.T) {
+ 	// makeSig makes the signature func(typ...)
+ 	makeSig := func(typ Type) {
+-		par := NewVar(nopos, nil, "", typ)
++		par := NewParam(nopos, nil, "", typ)
+ 		params := NewTuple(par)
+ 		NewSignatureType(nil, nil, nil, params, nil, true)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/object.go b/src/cmd/compile/internal/types2/object.go
+index f968f652aa..2eef5b5dae 100644
+--- a/src/cmd/compile/internal/types2/object.go
++++ b/src/cmd/compile/internal/types2/object.go
+@@ -331,28 +331,81 @@ func (obj *TypeName) IsAlias() bool {
+ // A Variable represents a declared variable (including function parameters and results, and struct fields).
+ type Var struct {
+ 	object
++	kind     VarKind
+ 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
+-	isField  bool // var is struct field
+ 	used     bool // set if the variable was used
+ 	origin   *Var // if non-nil, the Var from which this one was instantiated
+ }
+ 
++// A VarKind discriminates the various kinds of variables.
++type VarKind uint8
++
++const (
++	_          VarKind = iota // (not meaningful)
++	PackageVar                // a package-level variable
++	LocalVar                  // a local variable
++	RecvVar                   // a method receiver variable
++	ParamVar                  // a function parameter variable
++	ResultVar                 // a function result variable
++	FieldVar                  // a struct field
++)
++
++var varKindNames = [...]string{
++	0:          "VarKind(0)",
++	PackageVar: "PackageVar",
++	LocalVar:   "LocalVar",
++	RecvVar:    "RecvVar",
++	ParamVar:   "ParamVar",
++	ResultVar:  "ResultVar",
++	FieldVar:   "FieldVar",
++}
++
++func (kind VarKind) String() string {
++	if 0 <= kind && int(kind) < len(varKindNames) {
++		return varKindNames[kind]
++	}
++	return fmt.Sprintf("VarKind(%d)", kind)
++}
++
++// Kind reports what kind of variable v is.
++func (v *Var) Kind() VarKind { return v.kind }
++
++// SetKind sets the kind of the variable.
++// It should be used only immediately after [NewVar] or [NewParam].
++func (v *Var) SetKind(kind VarKind) { v.kind = kind }
++
+ // NewVar returns a new variable.
+ // The arguments set the attributes found with all Objects.
++//
++// The caller must subsequently call [Var.SetKind]
++// if the desired Var is not of kind [PackageVar].
+ func NewVar(pos syntax.Pos, pkg *Package, name string, typ Type) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}}
++	return newVar(PackageVar, pos, pkg, name, typ)
+ }
+ 
+ // NewParam returns a new variable representing a function parameter.
++//
++// The caller must subsequently call [Var.SetKind] if the desired Var
++// is not of kind [ParamVar]: for example, [RecvVar] or [ResultVar].
+ func NewParam(pos syntax.Pos, pkg *Package, name string, typ Type) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, used: true} // parameters are always 'used'
++	return newVar(ParamVar, pos, pkg, name, typ)
+ }
+ 
+ // NewField returns a new variable representing a struct field.
+ // For embedded fields, the name is the unqualified type name
+ // under which the field is accessible.
+ func NewField(pos syntax.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, embedded: embedded, isField: true}
++	v := newVar(FieldVar, pos, pkg, name, typ)
++	v.embedded = embedded
++	return v
++}
++
++// newVar returns a new variable.
++// The arguments set the attributes found with all Objects.
++func newVar(kind VarKind, pos syntax.Pos, pkg *Package, name string, typ Type) *Var {
++	// Function parameters are always 'used'.
++	used := kind == RecvVar || kind == ParamVar || kind == ResultVar
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, kind: kind, used: used}
+ }
+ 
+ // Anonymous reports whether the variable is an embedded field.
+@@ -363,7 +416,7 @@ func (obj *Var) Anonymous() bool { return obj.embedded }
+ func (obj *Var) Embedded() bool { return obj.embedded }
+ 
+ // IsField reports whether the variable is a struct field.
+-func (obj *Var) IsField() bool { return obj.isField }
++func (obj *Var) IsField() bool { return obj.kind == FieldVar }
+ 
+ // Origin returns the canonical Var for its receiver, i.e. the Var object
+ // recorded in Info.Defs.
+@@ -526,7 +579,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		}
+ 
+ 	case *Var:
+-		if obj.isField {
++		if obj.IsField() {
+ 			buf.WriteString("field")
+ 		} else {
+ 			buf.WriteString("var")
+diff --git a/src/cmd/compile/internal/types2/recording.go b/src/cmd/compile/internal/types2/recording.go
+index 7badd022b1..2c83dd2db9 100644
+--- a/src/cmd/compile/internal/types2/recording.go
++++ b/src/cmd/compile/internal/types2/recording.go
+@@ -105,8 +105,8 @@ func (check *Checker) recordCommaOkTypes(x syntax.Expr, a []*operand) {
+ 			assert(tv.Type != nil) // should have been recorded already
+ 			pos := x.Pos()
+ 			tv.Type = NewTuple(
+-				NewVar(pos, check.pkg, "", t0),
+-				NewVar(pos, check.pkg, "", t1),
++				newVar(LocalVar, pos, check.pkg, "", t0),
++				newVar(LocalVar, pos, check.pkg, "", t1),
+ 			)
+ 			m[x] = tv
+ 			// if x is a parenthesized expression (p.X), update p.X
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 694c035ab5..6a8b270849 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -388,7 +388,7 @@ func (check *Checker) collectObjects() {
+ 				// declare all variables
+ 				values := syntax.UnpackListExpr(s.Values)
+ 				for i, name := range s.NameList {
+-					obj := NewVar(name.Pos(), pkg, name.Value, nil)
++					obj := newVar(PackageVar, name.Pos(), pkg, name.Value, nil)
+ 					lhs[i] = obj
+ 
+ 					d := d1
+diff --git a/src/cmd/compile/internal/types2/signature.go b/src/cmd/compile/internal/types2/signature.go
+index 892fa0e460..505997110b 100644
+--- a/src/cmd/compile/internal/types2/signature.go
++++ b/src/cmd/compile/internal/types2/signature.go
+@@ -117,8 +117,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *syntax.Field, tparams []
+ 	}
+ 
+ 	// collect ordinary and result parameters
+-	pnames, params, variadic := check.collectParams(ftyp.ParamList, true)
+-	rnames, results, _ := check.collectParams(ftyp.ResultList, false)
++	pnames, params, variadic := check.collectParams(ParamVar, ftyp.ParamList)
++	rnames, results, _ := check.collectParams(ResultVar, ftyp.ResultList)
+ 
+ 	// declare named receiver, ordinary, and result parameters
+ 	scopePos := syntax.EndPos(ftyp) // all parameter's scopes start after the signature
+@@ -258,13 +258,13 @@ func (check *Checker) collectRecv(rparam *syntax.Field, scopePos syntax.Pos) (*V
+ 	var recv *Var
+ 	if rname := rparam.Name; rname != nil && rname.Value != "" {
+ 		// named receiver
+-		recv = NewParam(rname.Pos(), check.pkg, rname.Value, recvType)
++		recv = newVar(RecvVar, rname.Pos(), check.pkg, rname.Value, recvType)
+ 		// In this case, the receiver is declared by the caller
+ 		// because it must be declared after any type parameters
+ 		// (otherwise it might shadow one of them).
+ 	} else {
+ 		// anonymous receiver
+-		recv = NewParam(rparam.Pos(), check.pkg, "", recvType)
++		recv = newVar(RecvVar, rparam.Pos(), check.pkg, "", recvType)
+ 		check.recordImplicit(rparam, recv)
+ 	}
+ 
+@@ -322,10 +322,11 @@ func (check *Checker) recordParenthesizedRecvTypes(expr syntax.Expr, typ Type) {
+ 	}
+ }
+ 
+-// collectParams collects (but does not declare) all parameters of list and returns
+-// the list of parameter names, corresponding parameter variables, and whether the
+-// parameter list is variadic. Anonymous parameters are recorded with nil names.
+-func (check *Checker) collectParams(list []*syntax.Field, variadicOk bool) (names []*syntax.Name, params []*Var, variadic bool) {
++// collectParams collects (but does not declare) all parameter/result
++// variables of list and returns the list of names and corresponding
++// variables, and whether the (parameter) list is variadic.
++// Anonymous parameters are recorded with nil names.
++func (check *Checker) collectParams(kind VarKind, list []*syntax.Field) (names []*syntax.Name, params []*Var, variadic bool) {
+ 	if list == nil {
+ 		return
+ 	}
+@@ -341,7 +342,7 @@ func (check *Checker) collectParams(list []*syntax.Field, variadicOk bool) (name
+ 			prev = ftype
+ 			if t, _ := ftype.(*syntax.DotsType); t != nil {
+ 				ftype = t.Elem
+-				if variadicOk && i == len(list)-1 {
++				if kind == ParamVar && i == len(list)-1 {
+ 					variadic = true
+ 				} else {
+ 					check.error(t, InvalidSyntaxTree, "invalid use of ...")
+@@ -359,14 +360,14 @@ func (check *Checker) collectParams(list []*syntax.Field, variadicOk bool) (name
+ 				check.error(field.Name, InvalidSyntaxTree, "anonymous parameter")
+ 				// ok to continue
+ 			}
+-			par := NewParam(field.Name.Pos(), check.pkg, name, typ)
++			par := newVar(kind, field.Name.Pos(), check.pkg, name, typ)
+ 			// named parameter is declared by caller
+ 			names = append(names, field.Name)
+ 			params = append(params, par)
+ 			named = true
+ 		} else {
+ 			// anonymous parameter
+-			par := NewParam(field.Pos(), check.pkg, "", typ)
++			par := newVar(kind, field.Pos(), check.pkg, "", typ)
+ 			check.recordImplicit(field, par)
+ 			names = append(names, nil)
+ 			params = append(params, par)
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 8e5beed3f6..586ae75b1c 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -793,7 +793,7 @@ func (check *Checker) typeSwitchStmt(inner stmtContext, s *syntax.SwitchStmt, gu
+ 		check.openScope(clause, "case")
+ 		// If lhs exists, declare a corresponding variable in the case-local scope.
+ 		if lhs != nil {
+-			obj := NewVar(lhs.Pos(), check.pkg, lhs.Value, T)
++			obj := newVar(LocalVar, lhs.Pos(), check.pkg, lhs.Value, T)
+ 			check.declare(check.scope, nil, obj, clause.Colon)
+ 			check.recordImplicit(clause, obj)
+ 			// For the "declared and not used" error, all lhs variables act as
+@@ -904,7 +904,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 			if ident, _ := lhs.(*identType); ident != nil {
+ 				// declare new variable
+ 				name := identName(ident)
+-				obj = NewVar(ident.Pos(), check.pkg, name, nil)
++				obj = newVar(LocalVar, ident.Pos(), check.pkg, name, nil)
+ 				check.recordDef(ident, obj)
+ 				// _ variables don't count as new variables
+ 				if name != "_" {
+@@ -912,7 +912,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *syntax.ForStmt, rclause *s
+ 				}
+ 			} else {
+ 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
+-				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
++				obj = newVar(LocalVar, lhs.Pos(), check.pkg, "_", nil) // dummy variable
+ 			}
+ 			assert(obj.typ == nil)
+ 
+diff --git a/src/cmd/compile/internal/types2/universe.go b/src/cmd/compile/internal/types2/universe.go
+index 7664a53579..c66caebd10 100644
+--- a/src/cmd/compile/internal/types2/universe.go
++++ b/src/cmd/compile/internal/types2/universe.go
+@@ -119,8 +119,8 @@ func defPredeclaredTypes() {
+ 		typ := NewNamed(obj, nil, nil)
+ 
+ 		// error.Error() string
+-		recv := NewVar(nopos, nil, "", typ)
+-		res := NewVar(nopos, nil, "", Typ[String])
++		recv := newVar(RecvVar, nopos, nil, "", typ)
++		res := newVar(ResultVar, nopos, nil, "", Typ[String])
+ 		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
+ 		err := NewFunc(nopos, nil, "Error", sig)
+ 
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index a2c1033991..4f3e2bb446 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -264,7 +264,7 @@ func (p *parser) parseField(pkg *types.Package) (field *types.Var, tag string) {
+ }
+ 
+ // Param = Name ["..."] Type .
+-func (p *parser) parseParam(pkg *types.Package) (param *types.Var, isVariadic bool) {
++func (p *parser) parseParam(kind types.VarKind, pkg *types.Package) (param *types.Var, isVariadic bool) {
+ 	name := p.parseName()
+ 	// Ignore names invented for inlinable functions.
+ 	if strings.HasPrefix(name, "p.") || strings.HasPrefix(name, "r.") || strings.HasPrefix(name, "$ret") {
+@@ -289,13 +289,14 @@ func (p *parser) parseParam(pkg *types.Package) (param *types.Var, isVariadic bo
+ 		typ = types.NewSlice(typ)
+ 	}
+ 	param = types.NewParam(token.NoPos, pkg, name, typ)
++	param.SetKind(kind)
+ 	return
+ }
+ 
+ // Var = Name Type .
+ func (p *parser) parseVar(pkg *types.Package) *types.Var {
+ 	name := p.parseName()
+-	v := types.NewVar(token.NoPos, pkg, name, p.parseType(pkg))
++	v := types.NewVar(token.NoPos, pkg, name, p.parseType(pkg)) // (types.PackageVar)
+ 	if name[0] == '.' || name[0] == '<' {
+ 		// This is an unexported variable,
+ 		// or a variable defined in a different package.
+@@ -589,10 +590,10 @@ func (p *parser) parseNamedType(nlist []any) types.Type {
+ 				p.expect('/')
+ 			}
+ 			p.expect('(')
+-			receiver, _ := p.parseParam(pkg)
++			receiver, _ := p.parseParam(types.RecvVar, pkg)
+ 			p.expect(')')
+ 			name := p.parseName()
+-			params, isVariadic := p.parseParamList(pkg)
++			params, isVariadic := p.parseParamList(types.ParamVar, pkg)
+ 			results := p.parseResultList(pkg)
+ 			p.skipInlineBody()
+ 			p.expectEOL()
+@@ -713,7 +714,7 @@ func (p *parser) parseStructType(pkg *types.Package, nlist []any) types.Type {
+ }
+ 
+ // ParamList = "(" [ { Parameter "," } Parameter ] ")" .
+-func (p *parser) parseParamList(pkg *types.Package) (*types.Tuple, bool) {
++func (p *parser) parseParamList(kind types.VarKind, pkg *types.Package) (*types.Tuple, bool) {
+ 	var list []*types.Var
+ 	isVariadic := false
+ 
+@@ -722,7 +723,7 @@ func (p *parser) parseParamList(pkg *types.Package) (*types.Tuple, bool) {
+ 		if len(list) > 0 {
+ 			p.expect(',')
+ 		}
+-		par, variadic := p.parseParam(pkg)
++		par, variadic := p.parseParam(kind, pkg)
+ 		list = append(list, par)
+ 		if variadic {
+ 			if isVariadic {
+@@ -745,10 +746,12 @@ func (p *parser) parseResultList(pkg *types.Package) *types.Tuple {
+ 			return nil
+ 		}
+ 		taa, _ := p.parseTypeAfterAngle(pkg)
+-		return types.NewTuple(types.NewParam(token.NoPos, pkg, "", taa))
++		param := types.NewParam(token.NoPos, pkg, "", taa)
++		param.SetKind(types.ResultVar)
++		return types.NewTuple(param)
+ 
+ 	case '(':
+-		params, _ := p.parseParamList(pkg)
++		params, _ := p.parseParamList(types.ResultVar, pkg)
+ 		return params
+ 
+ 	default:
+@@ -761,7 +764,7 @@ func (p *parser) parseFunctionType(pkg *types.Package, nlist []any) *types.Signa
+ 	t := new(types.Signature)
+ 	p.update(t, nlist)
+ 
+-	params, isVariadic := p.parseParamList(pkg)
++	params, isVariadic := p.parseParamList(types.ParamVar, pkg)
+ 	results := p.parseResultList(pkg)
+ 
+ 	*t = *types.NewSignatureType(nil, nil, nil, params, results, isVariadic)
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index 3432f08d85..25039a55ad 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -399,32 +399,34 @@ func (r *reader) interfaceType() *types.Interface {
+ func (r *reader) signature(recv *types.Var, rtparams, tparams []*types.TypeParam) *types.Signature {
+ 	r.Sync(pkgbits.SyncSignature)
+ 
+-	params := r.params()
+-	results := r.params()
++	params := r.params(types.ParamVar)
++	results := r.params(types.ResultVar)
+ 	variadic := r.Bool()
+ 
+ 	return types.NewSignatureType(recv, rtparams, tparams, params, results, variadic)
+ }
+ 
+-func (r *reader) params() *types.Tuple {
++func (r *reader) params(kind types.VarKind) *types.Tuple {
+ 	r.Sync(pkgbits.SyncParams)
+ 
+ 	params := make([]*types.Var, r.Len())
+ 	for i := range params {
+-		params[i] = r.param()
++		params[i] = r.param(kind)
+ 	}
+ 
+ 	return types.NewTuple(params...)
+ }
+ 
+-func (r *reader) param() *types.Var {
++func (r *reader) param(kind types.VarKind) *types.Var {
+ 	r.Sync(pkgbits.SyncParam)
+ 
+ 	pos := r.pos()
+ 	pkg, name := r.localIdent()
+ 	typ := r.typ()
+ 
+-	return types.NewParam(pos, pkg, name, typ)
++	param := types.NewParam(pos, pkg, name, typ)
++	param.SetKind(kind) // ∈ {Recv,Param,Result}Var
++	return param
+ }
+ 
+ // @@@ Objects
+@@ -528,6 +530,7 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 					sig := fn.Signature()
+ 
+ 					recv := types.NewVar(fn.Pos(), fn.Pkg(), "", named)
++					recv.SetKind(types.RecvVar)
+ 					methods[i] = types.NewFunc(fn.Pos(), fn.Pkg(), fn.Name(), types.NewSignature(recv, sig.Params(), sig.Results(), sig.Variadic()))
+ 				}
+ 
+@@ -647,7 +650,7 @@ func (r *reader) method() *types.Func {
+ 	pkg, name := r.selector()
+ 
+ 	rparams := r.typeParamNames()
+-	sig := r.signature(r.param(), rparams, nil)
++	sig := r.signature(r.param(types.RecvVar), rparams, nil)
+ 
+ 	_ = r.pos() // TODO(mdempsky): Remove; this is a hacker for linker.go.
+ 	return types.NewFunc(pos, pkg, name, sig)
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 27b4ab8ea0..f5a911306f 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"internal/goversion"
+ 	"internal/testenv"
+ 	"slices"
++	"sort"
+ 	"strings"
+ 	"sync"
+ 	"testing"
+@@ -3124,3 +3125,49 @@ func TestVersionWithoutPos(t *testing.T) {
+ 		t.Errorf("check error was %q, want substring %q", got, want)
+ 	}
+ }
++
++func TestVarKind(t *testing.T) {
++	fset := token.NewFileSet()
++	f, _ := parser.ParseFile(fset, "a.go", `package p
++
++var global int
++
++type T struct { field int }
++
++func (recv T) f(param int) (result int) {
++	var local int
++	local2 := 0
++	switch local3 := any(local).(type) {
++	default:
++		_ = local3
++	}
++	return local2
++}
++`, 0)
++
++	pkg := NewPackage("p", "p")
++	info := &Info{Defs: make(map[*ast.Ident]Object)}
++	check := NewChecker(&Config{}, fset, pkg, info)
++	if err := check.Files([]*ast.File{f}); err != nil {
++		t.Fatal(err)
++	}
++	var got []string
++	for _, obj := range info.Defs {
++		if v, ok := obj.(*Var); ok {
++			got = append(got, fmt.Sprintf("%s: %v", v.Name(), v.Kind()))
++		}
++	}
++	sort.Strings(got)
++	want := []string{
++		"field: FieldVar",
++		"global: PackageVar",
++		"local2: LocalVar",
++		"local: LocalVar",
++		"param: ParamVar",
++		"recv: RecvVar",
++		"result: ResultVar",
++	}
++	if !slices.Equal(got, want) {
++		t.Errorf("got:\n%s\nwant:\n%s", got, want)
++	}
++}
+diff --git a/src/go/types/assignments.go b/src/go/types/assignments.go
+index 20d400bf1e..39dbcf9bb4 100644
+--- a/src/go/types/assignments.go
++++ b/src/go/types/assignments.go
+@@ -569,7 +569,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
+ 		}
+ 
+ 		// declare new variable
+-		obj := NewVar(ident.Pos(), check.pkg, name, nil)
++		obj := newVar(LocalVar, ident.Pos(), check.pkg, name, nil)
+ 		lhsVars[i] = obj
+ 		if name != "_" {
+ 			newVars = append(newVars, obj)
+@@ -580,7 +580,7 @@ func (check *Checker) shortVarDecl(pos positioner, lhs, rhs []ast.Expr) {
+ 	// create dummy variables where the lhs is invalid
+ 	for i, obj := range lhsVars {
+ 		if obj == nil {
+-			lhsVars[i] = NewVar(lhs[i].Pos(), check.pkg, "_", nil)
++			lhsVars[i] = newVar(LocalVar, lhs[i].Pos(), check.pkg, "_", nil)
+ 		}
+ 	}
+ 
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 802afe35de..c714c1f8b0 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -1035,13 +1035,13 @@ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId)
+ func makeSig(res Type, args ...Type) *Signature {
+ 	list := make([]*Var, len(args))
+ 	for i, param := range args {
+-		list[i] = NewVar(nopos, nil, "", Default(param))
++		list[i] = NewParam(nopos, nil, "", Default(param))
+ 	}
+ 	params := NewTuple(list...)
+ 	var result *Tuple
+ 	if res != nil {
+ 		assert(!isUntyped(res))
+-		result = NewTuple(NewVar(nopos, nil, "", res))
++		result = NewTuple(newVar(ResultVar, nopos, nil, "", res))
+ 	}
+ 	return &Signature{params: params, results: result}
+ }
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index b722c3ea26..702fe55cbd 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -95,7 +95,7 @@ func (check *Checker) funcInst(T *target, pos token.Pos, x *operand, ix *indexed
+ 				}
+ 			}
+ 			gsig := NewSignatureType(nil, nil, nil, sig.params, sig.results, sig.variadic)
+-			params = []*Var{NewVar(x.Pos(), check.pkg, "", gsig)}
++			params = []*Var{NewParam(x.Pos(), check.pkg, "", gsig)}
+ 			// The type of the argument operand is tsig, which is the type of the LHS in an assignment
+ 			// or the result type in a return statement. Create a pseudo-expression for that operand
+ 			// that makes sense when reported in error messages from infer, below.
+@@ -878,7 +878,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 				name = "_"
+ 			}
+ 		}
+-		params = append([]*Var{NewVar(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
++		params = append([]*Var{NewParam(sig.recv.pos, sig.recv.pkg, name, x.typ)}, params...)
+ 		x.mode = value
+ 		x.typ = &Signature{
+ 			tparams:  sig.tparams,
+diff --git a/src/go/types/context_test.go b/src/go/types/context_test.go
+index cd0a15e8fe..e1876f2bd6 100644
+--- a/src/go/types/context_test.go
++++ b/src/go/types/context_test.go
+@@ -41,7 +41,7 @@ func TestContextHashCollisions(t *testing.T) {
+ 	{
+ 		// type unaryP = func[P any](_ P)
+ 		tparam := NewTypeParam(NewTypeName(nopos, nil, "P", nil), &emptyInterface)
+-		params := NewTuple(NewVar(nopos, nil, "_", tparam))
++		params := NewTuple(NewParam(nopos, nil, "_", tparam))
+ 		unaryP = NewSignatureType(nil, nil, []*TypeParam{tparam}, params, nil, false)
+ 	}
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 04dfc5af4b..360cb4deb0 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -909,7 +909,7 @@ func (check *Checker) declStmt(d ast.Decl) {
+ 
+ 			lhs0 := make([]*Var, len(d.spec.Names))
+ 			for i, name := range d.spec.Names {
+-				lhs0[i] = NewVar(name.Pos(), pkg, name.Name, nil)
++				lhs0[i] = newVar(LocalVar, name.Pos(), pkg, name.Name, nil)
+ 			}
+ 
+ 			// initialize all variables
+diff --git a/src/go/types/interface.go b/src/go/types/interface.go
+index e5ca042e75..6bcae7aef0 100644
+--- a/src/go/types/interface.go
++++ b/src/go/types/interface.go
+@@ -59,7 +59,7 @@ func NewInterfaceType(methods []*Func, embeddeds []Type) *Interface {
+ 	typ := (*Checker)(nil).newInterface()
+ 	for _, m := range methods {
+ 		if sig := m.typ.(*Signature); sig.recv == nil {
+-			sig.recv = NewVar(m.pos, m.pkg, "", typ)
++			sig.recv = newVar(RecvVar, m.pos, m.pkg, "", typ)
+ 		}
+ 	}
+ 
+@@ -206,7 +206,7 @@ func (check *Checker) interfaceType(ityp *Interface, iface *ast.InterfaceType, d
+ 				recvTyp = named
+ 			}
+ 		}
+-		sig.recv = NewVar(name.Pos(), check.pkg, "", recvTyp)
++		sig.recv = newVar(RecvVar, name.Pos(), check.pkg, "", recvTyp)
+ 
+ 		m := NewFunc(name.Pos(), check.pkg, name.Name, sig)
+ 		check.recordDef(name, m)
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index f2c63f16f9..2c1cfb8bfa 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -638,7 +638,7 @@ func TestIssue50646(t *testing.T) {
+ func TestIssue55030(t *testing.T) {
+ 	// makeSig makes the signature func(typ...)
+ 	makeSig := func(typ Type) {
+-		par := NewVar(nopos, nil, "", typ)
++		par := NewParam(nopos, nil, "", typ)
+ 		params := NewTuple(par)
+ 		NewSignatureType(nil, nil, nil, params, nil, true)
+ 	}
+diff --git a/src/go/types/object.go b/src/go/types/object.go
+index 80cd650ff1..86bd37128f 100644
+--- a/src/go/types/object.go
++++ b/src/go/types/object.go
+@@ -334,28 +334,81 @@ func (obj *TypeName) IsAlias() bool {
+ // A Variable represents a declared variable (including function parameters and results, and struct fields).
+ type Var struct {
+ 	object
++	kind     VarKind
+ 	embedded bool // if set, the variable is an embedded struct field, and name is the type name
+-	isField  bool // var is struct field
+ 	used     bool // set if the variable was used
+ 	origin   *Var // if non-nil, the Var from which this one was instantiated
+ }
+ 
++// A VarKind discriminates the various kinds of variables.
++type VarKind uint8
++
++const (
++	_          VarKind = iota // (not meaningful)
++	PackageVar                // a package-level variable
++	LocalVar                  // a local variable
++	RecvVar                   // a method receiver variable
++	ParamVar                  // a function parameter variable
++	ResultVar                 // a function result variable
++	FieldVar                  // a struct field
++)
++
++var varKindNames = [...]string{
++	0:          "VarKind(0)",
++	PackageVar: "PackageVar",
++	LocalVar:   "LocalVar",
++	RecvVar:    "RecvVar",
++	ParamVar:   "ParamVar",
++	ResultVar:  "ResultVar",
++	FieldVar:   "FieldVar",
++}
++
++func (kind VarKind) String() string {
++	if 0 <= kind && int(kind) < len(varKindNames) {
++		return varKindNames[kind]
++	}
++	return fmt.Sprintf("VarKind(%d)", kind)
++}
++
++// Kind reports what kind of variable v is.
++func (v *Var) Kind() VarKind { return v.kind }
++
++// SetKind sets the kind of the variable.
++// It should be used only immediately after [NewVar] or [NewParam].
++func (v *Var) SetKind(kind VarKind) { v.kind = kind }
++
+ // NewVar returns a new variable.
+ // The arguments set the attributes found with all Objects.
++//
++// The caller must subsequently call [Var.SetKind]
++// if the desired Var is not of kind [PackageVar].
+ func NewVar(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}}
++	return newVar(PackageVar, pos, pkg, name, typ)
+ }
+ 
+ // NewParam returns a new variable representing a function parameter.
++//
++// The caller must subsequently call [Var.SetKind] if the desired Var
++// is not of kind [ParamVar]: for example, [RecvVar] or [ResultVar].
+ func NewParam(pos token.Pos, pkg *Package, name string, typ Type) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, used: true} // parameters are always 'used'
++	return newVar(ParamVar, pos, pkg, name, typ)
+ }
+ 
+ // NewField returns a new variable representing a struct field.
+ // For embedded fields, the name is the unqualified type name
+ // under which the field is accessible.
+ func NewField(pos token.Pos, pkg *Package, name string, typ Type, embedded bool) *Var {
+-	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, embedded: embedded, isField: true}
++	v := newVar(FieldVar, pos, pkg, name, typ)
++	v.embedded = embedded
++	return v
++}
++
++// newVar returns a new variable.
++// The arguments set the attributes found with all Objects.
++func newVar(kind VarKind, pos token.Pos, pkg *Package, name string, typ Type) *Var {
++	// Function parameters are always 'used'.
++	used := kind == RecvVar || kind == ParamVar || kind == ResultVar
++	return &Var{object: object{nil, pos, pkg, name, typ, 0, colorFor(typ), nopos}, kind: kind, used: used}
+ }
+ 
+ // Anonymous reports whether the variable is an embedded field.
+@@ -366,7 +419,7 @@ func (obj *Var) Anonymous() bool { return obj.embedded }
+ func (obj *Var) Embedded() bool { return obj.embedded }
+ 
+ // IsField reports whether the variable is a struct field.
+-func (obj *Var) IsField() bool { return obj.isField }
++func (obj *Var) IsField() bool { return obj.kind == FieldVar }
+ 
+ // Origin returns the canonical Var for its receiver, i.e. the Var object
+ // recorded in Info.Defs.
+@@ -529,7 +582,7 @@ func writeObject(buf *bytes.Buffer, obj Object, qf Qualifier) {
+ 		}
+ 
+ 	case *Var:
+-		if obj.isField {
++		if obj.IsField() {
+ 			buf.WriteString("field")
+ 		} else {
+ 			buf.WriteString("var")
+diff --git a/src/go/types/recording.go b/src/go/types/recording.go
+index 8bdc0dfa0e..c6da3357b5 100644
+--- a/src/go/types/recording.go
++++ b/src/go/types/recording.go
+@@ -108,8 +108,8 @@ func (check *Checker) recordCommaOkTypes(x ast.Expr, a []*operand) {
+ 			assert(tv.Type != nil) // should have been recorded already
+ 			pos := x.Pos()
+ 			tv.Type = NewTuple(
+-				NewVar(pos, check.pkg, "", t0),
+-				NewVar(pos, check.pkg, "", t1),
++				newVar(LocalVar, pos, check.pkg, "", t0),
++				newVar(LocalVar, pos, check.pkg, "", t1),
+ 			)
+ 			m[x] = tv
+ 			// if x is a parenthesized expression (p.X), update p.X
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index ef9ffb5013..9e47b85c7f 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -379,7 +379,7 @@ func (check *Checker) collectObjects() {
+ 
+ 				// declare all variables
+ 				for i, name := range d.spec.Names {
+-					obj := NewVar(name.Pos(), pkg, name.Name, nil)
++					obj := newVar(PackageVar, name.Pos(), pkg, name.Name, nil)
+ 					lhs[i] = obj
+ 
+ 					di := d1
+diff --git a/src/go/types/signature.go b/src/go/types/signature.go
+index babb24b0ca..0bf28f8947 100644
+--- a/src/go/types/signature.go
++++ b/src/go/types/signature.go
+@@ -140,8 +140,8 @@ func (check *Checker) funcType(sig *Signature, recvPar *ast.FieldList, ftyp *ast
+ 	}
+ 
+ 	// collect ordinary and result parameters
+-	pnames, params, variadic := check.collectParams(ftyp.Params, true)
+-	rnames, results, _ := check.collectParams(ftyp.Results, false)
++	pnames, params, variadic := check.collectParams(ParamVar, ftyp.Params)
++	rnames, results, _ := check.collectParams(ResultVar, ftyp.Results)
+ 
+ 	// declare named receiver, ordinary, and result parameters
+ 	scopePos := ftyp.End() // all parameter's scopes start after the signature
+@@ -290,13 +290,13 @@ func (check *Checker) collectRecv(rparam *ast.Field, scopePos token.Pos) (*Var,
+ 	var recv *Var
+ 	if rname != nil && rname.Name != "" {
+ 		// named receiver
+-		recv = NewParam(rname.Pos(), check.pkg, rname.Name, recvType)
++		recv = newVar(RecvVar, rname.Pos(), check.pkg, rname.Name, recvType)
+ 		// In this case, the receiver is declared by the caller
+ 		// because it must be declared after any type parameters
+ 		// (otherwise it might shadow one of them).
+ 	} else {
+ 		// anonymous receiver
+-		recv = NewParam(rparam.Pos(), check.pkg, "", recvType)
++		recv = newVar(RecvVar, rparam.Pos(), check.pkg, "", recvType)
+ 		check.recordImplicit(rparam, recv)
+ 	}
+ 
+@@ -350,10 +350,11 @@ func (check *Checker) recordParenthesizedRecvTypes(expr ast.Expr, typ Type) {
+ 	}
+ }
+ 
+-// collectParams collects (but does not declare) all parameters of list and returns
+-// the list of parameter names, corresponding parameter variables, and whether the
+-// parameter list is variadic. Anonymous parameters are recorded with nil names.
+-func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names []*ast.Ident, params []*Var, variadic bool) {
++// collectParams collects (but does not declare) all parameter/result
++// variables of list and returns the list of names and corresponding
++// variables, and whether the (parameter) list is variadic.
++// Anonymous parameters are recorded with nil names.
++func (check *Checker) collectParams(kind VarKind, list *ast.FieldList) (names []*ast.Ident, params []*Var, variadic bool) {
+ 	if list == nil {
+ 		return
+ 	}
+@@ -363,7 +364,7 @@ func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names
+ 		ftype := field.Type
+ 		if t, _ := ftype.(*ast.Ellipsis); t != nil {
+ 			ftype = t.Elt
+-			if variadicOk && i == len(list.List)-1 && len(field.Names) <= 1 {
++			if kind == ParamVar && i == len(list.List)-1 && len(field.Names) <= 1 {
+ 				variadic = true
+ 			} else {
+ 				check.softErrorf(t, InvalidSyntaxTree, "invalid use of ...")
+@@ -380,7 +381,7 @@ func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names
+ 					check.error(name, InvalidSyntaxTree, "anonymous parameter")
+ 					// ok to continue
+ 				}
+-				par := NewParam(name.Pos(), check.pkg, name.Name, typ)
++				par := newVar(kind, name.Pos(), check.pkg, name.Name, typ)
+ 				// named parameter is declared by caller
+ 				names = append(names, name)
+ 				params = append(params, par)
+@@ -388,7 +389,7 @@ func (check *Checker) collectParams(list *ast.FieldList, variadicOk bool) (names
+ 			named = true
+ 		} else {
+ 			// anonymous parameter
+-			par := NewParam(ftype.Pos(), check.pkg, "", typ)
++			par := newVar(kind, ftype.Pos(), check.pkg, "", typ)
+ 			check.recordImplicit(field, par)
+ 			names = append(names, nil)
+ 			params = append(params, par)
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 297dc3ba06..76ab2063e2 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -752,7 +752,7 @@ func (check *Checker) stmt(ctxt stmtContext, s ast.Stmt) {
+ 			check.openScope(clause, "case")
+ 			// If lhs exists, declare a corresponding variable in the case-local scope.
+ 			if lhs != nil {
+-				obj := NewVar(lhs.Pos(), check.pkg, lhs.Name, T)
++				obj := newVar(LocalVar, lhs.Pos(), check.pkg, lhs.Name, T)
+ 				check.declare(check.scope, nil, obj, clause.Colon)
+ 				check.recordImplicit(clause, obj)
+ 				// For the "declared and not used" error, all lhs variables act as
+@@ -922,7 +922,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 			if ident, _ := lhs.(*identType); ident != nil {
+ 				// declare new variable
+ 				name := identName(ident)
+-				obj = NewVar(ident.Pos(), check.pkg, name, nil)
++				obj = newVar(LocalVar, ident.Pos(), check.pkg, name, nil)
+ 				check.recordDef(ident, obj)
+ 				// _ variables don't count as new variables
+ 				if name != "_" {
+@@ -930,7 +930,7 @@ func (check *Checker) rangeStmt(inner stmtContext, s *ast.RangeStmt) {
+ 				}
+ 			} else {
+ 				check.errorf(lhs, InvalidSyntaxTree, "cannot declare %s", lhs)
+-				obj = NewVar(lhs.Pos(), check.pkg, "_", nil) // dummy variable
++				obj = newVar(LocalVar, lhs.Pos(), check.pkg, "_", nil) // dummy variable
+ 			}
+ 			assert(obj.typ == nil)
+ 
+diff --git a/src/go/types/universe.go b/src/go/types/universe.go
+index 750a368278..4753111c11 100644
+--- a/src/go/types/universe.go
++++ b/src/go/types/universe.go
+@@ -122,8 +122,8 @@ func defPredeclaredTypes() {
+ 		typ := NewNamed(obj, nil, nil)
+ 
+ 		// error.Error() string
+-		recv := NewVar(nopos, nil, "", typ)
+-		res := NewVar(nopos, nil, "", Typ[String])
++		recv := newVar(RecvVar, nopos, nil, "", typ)
++		res := newVar(ResultVar, nopos, nil, "", Typ[String])
+ 		sig := NewSignatureType(recv, nil, nil, nil, NewTuple(res), false)
+ 		err := NewFunc(nopos, nil, "Error", sig)
+ 

@@ -1,0 +1,317 @@
+commit 2c635b68fdc8ddf83208ed2ec65eff09a3af58b8
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed May 15 02:37:41 2024 +0800
+
+    runtime: make use of stringslite.{HasPrefix, HasSuffix}
+    
+    Change-Id: I7461a892e1591e3bad876f0a718a99e6de2c4659
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585435
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/internal/objabi/pkgspecial.go |  1 +
+ src/runtime/export_debug_test.go      |  3 ++-
+ src/runtime/os3_plan9.go              |  3 ++-
+ src/runtime/os_plan9.go               | 13 +++++++------
+ src/runtime/panic.go                  |  3 ++-
+ src/runtime/preempt.go                |  7 ++++---
+ src/runtime/proc.go                   |  5 +++--
+ src/runtime/security_unix.go          |  6 +++++-
+ src/runtime/string.go                 |  8 --------
+ src/runtime/symtabinl_test.go         |  7 ++++---
+ src/runtime/traceback.go              |  5 +++--
+ 11 files changed, 33 insertions(+), 28 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index 867d92d357..6c2425d3ff 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -58,6 +58,7 @@ var runtimePkgs = []string{
+ 	"internal/godebugs",
+ 	"internal/goexperiment",
+ 	"internal/goos",
++	"internal/stringslite",
+ }
+ 
+ // extraNoInstrumentPkgs is the set of packages in addition to runtimePkgs that
+diff --git a/src/runtime/export_debug_test.go b/src/runtime/export_debug_test.go
+index 810a5a6435..4e0a4ef97e 100644
+--- a/src/runtime/export_debug_test.go
++++ b/src/runtime/export_debug_test.go
+@@ -8,6 +8,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/stringslite"
+ 	"unsafe"
+ )
+ 
+@@ -145,7 +146,7 @@ func (h *debugCallHandler) handle(info *siginfo, ctxt *sigctxt, gp2 *g) bool {
+ 		return false
+ 	}
+ 	f := findfunc(ctxt.sigpc())
+-	if !(hasPrefix(funcname(f), "runtime.debugCall") || hasPrefix(funcname(f), "debugCall")) {
++	if !(stringslite.HasPrefix(funcname(f), "runtime.debugCall") || stringslite.HasPrefix(funcname(f), "debugCall")) {
+ 		println("trap in unknown function", funcname(f))
+ 		return false
+ 	}
+diff --git a/src/runtime/os3_plan9.go b/src/runtime/os3_plan9.go
+index 8c9cbe28ec..dd15705618 100644
+--- a/src/runtime/os3_plan9.go
++++ b/src/runtime/os3_plan9.go
+@@ -7,6 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/stringslite"
+ 	"unsafe"
+ )
+ 
+@@ -47,7 +48,7 @@ func sighandler(_ureg *ureg, note *byte, gp *g) int {
+ 	// level by the program but will otherwise be ignored.
+ 	flags = _SigNotify
+ 	for sig, t = range sigtable {
+-		if hasPrefix(notestr, t.name) {
++		if stringslite.HasPrefix(notestr, t.name) {
+ 			flags = t.flags
+ 			break
+ 		}
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 5e355f1664..2dbb42ad03 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -7,6 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/runtime/atomic"
++	"internal/stringslite"
+ 	"unsafe"
+ )
+ 
+@@ -124,7 +125,7 @@ func indexNoFloat(s, t string) int {
+ 		return 0
+ 	}
+ 	for i := 0; i < len(s); i++ {
+-		if s[i] == t[0] && hasPrefix(s[i:], t) {
++		if s[i] == t[0] && stringslite.HasPrefix(s[i:], t) {
+ 			return i
+ 		}
+ 	}
+@@ -132,20 +133,20 @@ func indexNoFloat(s, t string) int {
+ }
+ 
+ func atolwhex(p string) int64 {
+-	for hasPrefix(p, " ") || hasPrefix(p, "\t") {
++	for stringslite.HasPrefix(p, " ") || stringslite.HasPrefix(p, "\t") {
+ 		p = p[1:]
+ 	}
+ 	neg := false
+-	if hasPrefix(p, "-") || hasPrefix(p, "+") {
++	if stringslite.HasPrefix(p, "-") || stringslite.HasPrefix(p, "+") {
+ 		neg = p[0] == '-'
+ 		p = p[1:]
+-		for hasPrefix(p, " ") || hasPrefix(p, "\t") {
++		for stringslite.HasPrefix(p, " ") || stringslite.HasPrefix(p, "\t") {
+ 			p = p[1:]
+ 		}
+ 	}
+ 	var n int64
+ 	switch {
+-	case hasPrefix(p, "0x"), hasPrefix(p, "0X"):
++	case stringslite.HasPrefix(p, "0x"), stringslite.HasPrefix(p, "0X"):
+ 		p = p[2:]
+ 		for ; len(p) > 0; p = p[1:] {
+ 			if '0' <= p[0] && p[0] <= '9' {
+@@ -158,7 +159,7 @@ func atolwhex(p string) int64 {
+ 				break
+ 			}
+ 		}
+-	case hasPrefix(p, "0"):
++	case stringslite.HasPrefix(p, "0"):
+ 		for ; len(p) > 0 && '0' <= p[0] && p[0] <= '7'; p = p[1:] {
+ 			n = n*8 + int64(p[0]-'0')
+ 		}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index ff9c64113f..58d13b6adb 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -8,6 +8,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
++	"internal/stringslite"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -53,7 +54,7 @@ const (
+ // pc should be the program counter of the compiler-generated code that
+ // triggered this panic.
+ func panicCheck1(pc uintptr, msg string) {
+-	if goarch.IsWasm == 0 && hasPrefix(funcname(findfunc(pc)), "runtime.") {
++	if goarch.IsWasm == 0 && stringslite.HasPrefix(funcname(findfunc(pc)), "runtime.") {
+ 		// Note: wasm can't tail call, so we can't get the original caller's pc.
+ 		throw(msg)
+ 	}
+diff --git a/src/runtime/preempt.go b/src/runtime/preempt.go
+index 82d85cd707..45b1b5e9c7 100644
+--- a/src/runtime/preempt.go
++++ b/src/runtime/preempt.go
+@@ -55,6 +55,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
++	"internal/stringslite"
+ )
+ 
+ type suspendGState struct {
+@@ -416,9 +417,9 @@ func isAsyncSafePoint(gp *g, pc, sp, lr uintptr) (bool, uintptr) {
+ 	// Check the inner-most name
+ 	u, uf := newInlineUnwinder(f, pc)
+ 	name := u.srcFunc(uf).name()
+-	if hasPrefix(name, "runtime.") ||
+-		hasPrefix(name, "runtime/internal/") ||
+-		hasPrefix(name, "reflect.") {
++	if stringslite.HasPrefix(name, "runtime.") ||
++		stringslite.HasPrefix(name, "runtime/internal/") ||
++		stringslite.HasPrefix(name, "reflect.") {
+ 		// For now we never async preempt the runtime or
+ 		// anything closely tied to the runtime. Known issues
+ 		// include: various points in the scheduler ("don't
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 140f06d03d..67cd6aea78 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -10,6 +10,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/goos"
+ 	"internal/runtime/atomic"
++	"internal/stringslite"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -729,7 +730,7 @@ func getGodebugEarly() string {
+ 			p := argv_index(argv, argc+1+i)
+ 			s := unsafe.String(p, findnull(p))
+ 
+-			if hasPrefix(s, prefix) {
++			if stringslite.HasPrefix(s, prefix) {
+ 				env = gostring(p)[len(prefix):]
+ 				break
+ 			}
+@@ -5268,7 +5269,7 @@ func sigprof(pc, sp, lr uintptr, gp *g, mp *m) {
+ 	// received from somewhere else (with _LostSIGPROFDuringAtomic64 as pc).
+ 	if GOARCH == "mips" || GOARCH == "mipsle" || GOARCH == "arm" {
+ 		if f := findfunc(pc); f.valid() {
+-			if hasPrefix(funcname(f), "internal/runtime/atomic") {
++			if stringslite.HasPrefix(funcname(f), "internal/runtime/atomic") {
+ 				cpuprof.lostAtomic++
+ 				return
+ 			}
+diff --git a/src/runtime/security_unix.go b/src/runtime/security_unix.go
+index fa54090df2..6ef3b5b328 100644
+--- a/src/runtime/security_unix.go
++++ b/src/runtime/security_unix.go
+@@ -6,6 +6,10 @@
+ 
+ package runtime
+ 
++import (
++	"internal/stringslite"
++)
++
+ func secure() {
+ 	initSecureMode()
+ 
+@@ -25,7 +29,7 @@ func secure() {
+ func secureEnv() {
+ 	var hasTraceback bool
+ 	for i := 0; i < len(envs); i++ {
+-		if hasPrefix(envs[i], "GOTRACEBACK=") {
++		if stringslite.HasPrefix(envs[i], "GOTRACEBACK=") {
+ 			hasTraceback = true
+ 			envs[i] = "GOTRACEBACK=none"
+ 		}
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index 81d1b80e56..d45888b7a8 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -341,14 +341,6 @@ func gostringn(p *byte, l int) string {
+ 	return s
+ }
+ 
+-func hasPrefix(s, prefix string) bool {
+-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+-}
+-
+-func hasSuffix(s, suffix string) bool {
+-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
+-}
+-
+ const (
+ 	maxUint64 = ^uint64(0)
+ 	maxInt64  = int64(maxUint64 >> 1)
+diff --git a/src/runtime/symtabinl_test.go b/src/runtime/symtabinl_test.go
+index df524aec4a..3c7cb2e595 100644
+--- a/src/runtime/symtabinl_test.go
++++ b/src/runtime/symtabinl_test.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/stringslite"
+ 	"runtime/internal/sys"
+ )
+ 
+@@ -50,7 +51,7 @@ func XTestInlineUnwinder(t TestingT) {
+ 		for ; uf.valid(); uf = u.next(uf) {
+ 			file, line := u.fileLine(uf)
+ 			const wantFile = "symtabinl_test.go"
+-			if !hasSuffix(file, wantFile) {
++			if !stringslite.HasSuffix(file, wantFile) {
+ 				t.Errorf("tiuTest+%#x: want file ...%s, got %s", pc-pc1, wantFile, file)
+ 			}
+ 
+@@ -58,10 +59,10 @@ func XTestInlineUnwinder(t TestingT) {
+ 
+ 			name := sf.name()
+ 			const namePrefix = "runtime."
+-			if hasPrefix(name, namePrefix) {
++			if stringslite.HasPrefix(name, namePrefix) {
+ 				name = name[len(namePrefix):]
+ 			}
+-			if !hasPrefix(name, "tiu") {
++			if !stringslite.HasPrefix(name, "tiu") {
+ 				t.Errorf("tiuTest+%#x: unexpected function %s", pc-pc1, name)
+ 			}
+ 
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 100662f274..ebee16c6a7 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -8,6 +8,7 @@ import (
+ 	"internal/abi"
+ 	"internal/bytealg"
+ 	"internal/goarch"
++	"internal/stringslite"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+@@ -1131,7 +1132,7 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
+ 		return true
+ 	}
+ 
+-	return bytealg.IndexByteString(name, '.') >= 0 && (!hasPrefix(name, "runtime.") || isExportedRuntime(name))
++	return bytealg.IndexByteString(name, '.') >= 0 && (!stringslite.HasPrefix(name, "runtime.") || isExportedRuntime(name))
+ }
+ 
+ // isExportedRuntime reports whether name is an exported runtime function.
+@@ -1342,7 +1343,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
+ 		}
+ 		return fingStatus.Load()&fingRunningFinalizer == 0
+ 	}
+-	return hasPrefix(funcname(f), "runtime.")
++	return stringslite.HasPrefix(funcname(f), "runtime.")
+ }
+ 
+ // SetCgoTraceback records three C functions to use to gather

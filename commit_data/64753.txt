@@ -1,0 +1,46 @@
+commit 829d1b346f768f0e87a3c93e571be3de5bc7ab83
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Sep 4 17:19:14 2024 -0700
+
+    go/types, types2: factor out endPos call
+    
+    Preparation for generation of function literal type checking code
+    from types2 source.
+    
+    Change-Id: I6b3029c34c2507d356ac8874154537bc6c38a715
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610995
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/expr.go | 2 +-
+ src/go/types/expr.go                    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 1afdee2d4d..30fa05673c 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -1127,7 +1127,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e syntax.Expr, hint Ty
+ 			// Set the Scope's extent to the complete "func (...) {...}"
+ 			// so that Scope.Innermost works correctly.
+ 			sig.scope.pos = e.Pos()
+-			sig.scope.end = syntax.EndPos(e)
++			sig.scope.end = endPos(e)
+ 			if !check.conf.IgnoreFuncBodies && e.Body != nil {
+ 				// Anonymous functions are considered part of the
+ 				// init expression/func declaration which contains
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 55d3860996..ebc662e966 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -1105,7 +1105,7 @@ func (check *Checker) exprInternal(T *target, x *operand, e ast.Expr, hint Type)
+ 			// Set the Scope's extent to the complete "func (...) {...}"
+ 			// so that Scope.Innermost works correctly.
+ 			sig.scope.pos = e.Pos()
+-			sig.scope.end = e.End()
++			sig.scope.end = endPos(e)
+ 			if !check.conf.IgnoreFuncBodies && e.Body != nil {
+ 				// Anonymous functions are considered part of the
+ 				// init expression/func declaration which contains

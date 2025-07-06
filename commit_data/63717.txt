@@ -1,0 +1,121 @@
+commit f933f78d17dbfecacc2de97ccaef0e5815cfbb37
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Apr 28 04:57:20 2024 +0000
+
+    cmd/go: remove unused code
+    
+    Change-Id: I39e8533a646d171a84c1ef307915286213006543
+    GitHub-Last-Rev: 3c21684ad071ecf6c4e4bf93128131a9cd0e587d
+    GitHub-Pull-Request: golang/go#67090
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581938
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/go/internal/load/pkg.go | 45 -----------------------------------------
+ src/cmd/go/internal/par/work.go | 38 ----------------------------------
+ 2 files changed, 83 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index f241e93ee8..58acd4dc34 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -604,51 +604,6 @@ func (sp *ImportStack) shorterThan(t []string) bool {
+ // we return the same pointer each time.
+ var packageCache = map[string]*Package{}
+ 
+-// ClearPackageCache clears the in-memory package cache and the preload caches.
+-// It is only for use by GOPATH-based "go get".
+-// TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
+-func ClearPackageCache() {
+-	clear(packageCache)
+-	resolvedImportCache.Clear()
+-	packageDataCache.Clear()
+-}
+-
+-// ClearPackageCachePartial clears packages with the given import paths from the
+-// in-memory package cache and the preload caches. It is only for use by
+-// GOPATH-based "go get".
+-// TODO(jayconrod): When GOPATH-based "go get" is removed, delete this function.
+-func ClearPackageCachePartial(args []string) {
+-	shouldDelete := make(map[string]bool)
+-	for _, arg := range args {
+-		shouldDelete[arg] = true
+-		if p := packageCache[arg]; p != nil {
+-			delete(packageCache, arg)
+-		}
+-	}
+-	resolvedImportCache.DeleteIf(func(key importSpec) bool {
+-		return shouldDelete[key.path]
+-	})
+-	packageDataCache.DeleteIf(func(key string) bool {
+-		return shouldDelete[key]
+-	})
+-}
+-
+-// ReloadPackageNoFlags is like LoadImport but makes sure
+-// not to use the package cache.
+-// It is only for use by GOPATH-based "go get".
+-// TODO(rsc): When GOPATH-based "go get" is removed, delete this function.
+-func ReloadPackageNoFlags(arg string, stk *ImportStack) *Package {
+-	p := packageCache[arg]
+-	if p != nil {
+-		delete(packageCache, arg)
+-		resolvedImportCache.DeleteIf(func(key importSpec) bool {
+-			return key.path == p.ImportPath
+-		})
+-		packageDataCache.Delete(p.ImportPath)
+-	}
+-	return LoadPackage(context.TODO(), PackageOpts{}, arg, base.Cwd(), stk, nil, 0)
+-}
+-
+ // dirToImportPath returns the pseudo-import path we use for a package
+ // outside the Go path. It begins with _/ and then contains the full path
+ // to the directory. If the package lives in c:\home\gopher\my\pkg then
+diff --git a/src/cmd/go/internal/par/work.go b/src/cmd/go/internal/par/work.go
+index 3f1e69adfe..881b51be19 100644
+--- a/src/cmd/go/internal/par/work.go
++++ b/src/cmd/go/internal/par/work.go
+@@ -180,41 +180,3 @@ func (c *Cache[K, V]) Get(key K) (V, bool) {
+ 	}
+ 	return e.result, true
+ }
+-
+-// Clear removes all entries in the cache.
+-//
+-// Concurrent calls to Get may return old values. Concurrent calls to Do
+-// may return old values or store results in entries that have been deleted.
+-//
+-// TODO(jayconrod): Delete this after the package cache clearing functions
+-// in internal/load have been removed.
+-func (c *Cache[K, V]) Clear() {
+-	c.m.Clear()
+-}
+-
+-// Delete removes an entry from the map. It is safe to call Delete for an
+-// entry that does not exist. Delete will return quickly, even if the result
+-// for a key is still being computed; the computation will finish, but the
+-// result won't be accessible through the cache.
+-//
+-// TODO(jayconrod): Delete this after the package cache clearing functions
+-// in internal/load have been removed.
+-func (c *Cache[K, V]) Delete(key K) {
+-	c.m.Delete(key)
+-}
+-
+-// DeleteIf calls pred for each key in the map. If pred returns true for a key,
+-// DeleteIf removes the corresponding entry. If the result for a key is
+-// still being computed, DeleteIf will remove the entry without waiting for
+-// the computation to finish. The result won't be accessible through the cache.
+-//
+-// TODO(jayconrod): Delete this after the package cache clearing functions
+-// in internal/load have been removed.
+-func (c *Cache[K, V]) DeleteIf(pred func(key K) bool) {
+-	c.m.Range(func(key, _ any) bool {
+-		if key := key.(K); pred(key) {
+-			c.Delete(key)
+-		}
+-		return true
+-	})
+-}

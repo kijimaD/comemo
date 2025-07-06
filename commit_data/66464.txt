@@ -1,0 +1,59 @@
+commit fe9b292b11355af6b5f6e1d9247b88fa134657ed
+Author: Rob Findley <rfindley@google.com>
+Date:   Fri Mar 7 18:13:51 2025 +0000
+
+    go/types,types2: allocate the used* maps in initFiles
+    
+    As described in the associated comment, we need to reallocate usedVars
+    and usedPkgNames in initFiles, as they are nilled out at the end of
+    Checker.Files, which may be called multiple times.
+    
+    Fixes #72122
+    
+    Change-Id: I9f6eb86e072d9d43a8720f6a5e86d827de6006a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655437
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/cmd/compile/internal/types2/check.go | 7 +++++++
+ src/go/types/check.go                    | 7 +++++++
+ 2 files changed, 14 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 68cfdb5d1e..43ad4ee67f 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -315,6 +315,13 @@ func (check *Checker) initFiles(files []*syntax.File) {
+ 	check.objPath = nil
+ 	check.cleaners = nil
+ 
++	// We must initialize usedVars and usedPkgNames both here and in NewChecker,
++	// because initFiles is not called in the CheckExpr or Eval codepaths, yet we
++	// want to free this memory at the end of Files ('used' predicates are
++	// only needed in the context of a given file).
++	check.usedVars = make(map[*Var]bool)
++	check.usedPkgNames = make(map[*PkgName]bool)
++
+ 	// determine package name and collect valid files
+ 	pkg := check.pkg
+ 	for _, file := range files {
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index eda0a58ad0..a60a1adfd9 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -339,6 +339,13 @@ func (check *Checker) initFiles(files []*ast.File) {
+ 	check.objPath = nil
+ 	check.cleaners = nil
+ 
++	// We must initialize usedVars and usedPkgNames both here and in NewChecker,
++	// because initFiles is not called in the CheckExpr or Eval codepaths, yet we
++	// want to free this memory at the end of Files ('used' predicates are
++	// only needed in the context of a given file).
++	check.usedVars = make(map[*Var]bool)
++	check.usedPkgNames = make(map[*PkgName]bool)
++
+ 	// determine package name and collect valid files
+ 	pkg := check.pkg
+ 	for _, file := range files {

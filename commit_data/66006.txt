@@ -1,0 +1,117 @@
+commit e2f342fc51a70351205af839dff2749bc7a977e2
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Feb 3 10:25:05 2025 -0500
+
+    doc: initialize next directory for Go 1.25
+    
+    Following the "For the release team" steps in README:
+    
+            cd doc
+            cp -R initial/ next
+            $EDITOR next/1-intro.md
+    
+    For #70525
+    
+    Change-Id: I31c271d95ccd72123f531fde4e72929ec7b310d9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646195
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ doc/next/1-intro.md                     | 8 ++++++++
+ doc/next/2-language.md                  | 3 +++
+ doc/next/3-tools.md                     | 6 ++++++
+ doc/next/4-runtime.md                   | 1 +
+ doc/next/5-toolchain.md                 | 7 +++++++
+ doc/next/6-stdlib/0-heading.md          | 2 ++
+ doc/next/6-stdlib/99-minor/0-heading.md | 3 +++
+ doc/next/6-stdlib/99-minor/README       | 1 +
+ doc/next/7-ports.md                     | 2 ++
+ 9 files changed, 33 insertions(+)
+
+diff --git a/doc/next/1-intro.md b/doc/next/1-intro.md
+new file mode 100644
+index 0000000000..77a9aed59f
+--- /dev/null
++++ b/doc/next/1-intro.md
+@@ -0,0 +1,8 @@
++<style>
++  main ul li { margin: 0.5em 0; }
++</style>
++
++## DRAFT RELEASE NOTES — Introduction to Go 1.N {#introduction}
++
++**Go 1.25 is not yet released. These are work-in-progress release notes.
++Go 1.25 is expected to be released in August 2025.**
+diff --git a/doc/next/2-language.md b/doc/next/2-language.md
+new file mode 100644
+index 0000000000..61030bd676
+--- /dev/null
++++ b/doc/next/2-language.md
+@@ -0,0 +1,3 @@
++## Changes to the language {#language}
++
++
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+new file mode 100644
+index 0000000000..5638f240a5
+--- /dev/null
++++ b/doc/next/3-tools.md
+@@ -0,0 +1,6 @@
++## Tools {#tools}
++
++### Go command {#go-command}
++
++### Cgo {#cgo}
++
+diff --git a/doc/next/4-runtime.md b/doc/next/4-runtime.md
+new file mode 100644
+index 0000000000..1f8e445e0b
+--- /dev/null
++++ b/doc/next/4-runtime.md
+@@ -0,0 +1 @@
++## Runtime {#runtime}
+diff --git a/doc/next/5-toolchain.md b/doc/next/5-toolchain.md
+new file mode 100644
+index 0000000000..0f4a816479
+--- /dev/null
++++ b/doc/next/5-toolchain.md
+@@ -0,0 +1,7 @@
++## Compiler {#compiler}
++
++## Assembler {#assembler}
++
++## Linker {#linker}
++
++
+diff --git a/doc/next/6-stdlib/0-heading.md b/doc/next/6-stdlib/0-heading.md
+new file mode 100644
+index 0000000000..a992170d43
+--- /dev/null
++++ b/doc/next/6-stdlib/0-heading.md
+@@ -0,0 +1,2 @@
++## Standard library {#library}
++
+diff --git a/doc/next/6-stdlib/99-minor/0-heading.md b/doc/next/6-stdlib/99-minor/0-heading.md
+new file mode 100644
+index 0000000000..a98105e8cc
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/0-heading.md
+@@ -0,0 +1,3 @@
++### Minor changes to the library {#minor_library_changes}
++
++
+diff --git a/doc/next/6-stdlib/99-minor/README b/doc/next/6-stdlib/99-minor/README
+new file mode 100644
+index 0000000000..fac778de05
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/README
+@@ -0,0 +1 @@
++API changes and other small changes to the standard library go here.
+diff --git a/doc/next/7-ports.md b/doc/next/7-ports.md
+new file mode 100644
+index 0000000000..8bea3f8fbc
+--- /dev/null
++++ b/doc/next/7-ports.md
+@@ -0,0 +1,2 @@
++## Ports {#ports}
++

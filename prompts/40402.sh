@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40402: b4a472b1c3b7ae48cf6128e5f0594439dc20d081
+# Index 40402: 92d975e90670c7bc92834460a45c5f80fac3d182
 
 echo "🚀 Generating explanation for commit 40402..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40402..."
 
 ### メタデータ
 - **コミットインデックス**: 40402
-- **コミットハッシュ**: b4a472b1c3b7ae48cf6128e5f0594439dc20d081
-- **GitHub URL**: https://github.com/golang/go/commit/b4a472b1c3b7ae48cf6128e5f0594439dc20d081
+- **コミットハッシュ**: 92d975e90670c7bc92834460a45c5f80fac3d182
+- **GitHub URL**: https://github.com/golang/go/commit/92d975e90670c7bc92834460a45c5f80fac3d182
 
 ### 章構成
 

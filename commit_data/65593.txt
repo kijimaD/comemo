@@ -1,0 +1,61 @@
+commit be062b7f61486db3c93741e794bd51eda5cc6fce
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 20 19:12:58 2024 +0000
+
+    [release-branch.go1.23] runtime: explicitly keep handle alive during getOrAddWeakHandle
+    
+    getOrAddWeakHandle is very careful about keeping its input alive across
+    the operation, but not very careful about keeping the heap-allocated
+    handle it creates alive. In fact, there's a window in this function
+    where it is *only* visible via the special. Specifically, the window of
+    time between when the handle is stored in the special and when the
+    special actually becomes visible to the GC.
+    
+    (If we fail to add the special because it already exists, that case is
+    fine. We don't even use the same handle value, but the one we obtain
+    from the attached GC-visible special, *and* we return that value, so it
+    remains live.)
+    
+    For #70455.
+    Fixes #70469.
+    
+    Change-Id: Iadaff0cfb93bcaf61ba2b05be7fa0519c481de82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630316
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mheap.go | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index b43f912cea..bfca2d105b 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -2172,8 +2172,14 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
+ 
+ 		// Keep p alive for the duration of the function to ensure
+ 		// that it cannot die while we're trying to do this.
++		//
++		// Same for handle, which is only stored in the special.
++		// There's a window where it might die if we don't keep it
++		// alive explicitly. Returning it here is probably good enough,
++		// but let's be defensive and explicit. See #70455.
+ 		KeepAlive(p)
+-		return s.handle
++		KeepAlive(handle)
++		return handle
+ 	}
+ 
+ 	// There was an existing handle. Free the special
+@@ -2193,7 +2199,10 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
+ 
+ 	// Keep p alive for the duration of the function to ensure
+ 	// that it cannot die while we're trying to do this.
++	//
++	// Same for handle, just to be defensive.
+ 	KeepAlive(p)
++	KeepAlive(handle)
+ 	return handle
+ }
+ 

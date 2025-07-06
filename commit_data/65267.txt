@@ -1,0 +1,53 @@
+commit 989eed28497cde7145958985f50bb3dd6ab698b6
+Author: Meng Zhuo <mengzhuo@iscas.ac.cn>
+Date:   Fri Nov 1 09:51:08 2024 +0800
+
+    slice, sort: correct triple of xorshift RNG
+    
+    The original triple is `[13,17,5]` which don't existed in the Xorshift
+    RNG paper.
+    This CL use the right triple `[13,7,17]` for 64 bits RNG.
+    
+    Fixes #70144
+    
+    Change-Id: I3e3d475835980d9f28451ab73e3ce61eb2f1685e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624295
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: yunhao zhang <zhangyunhao116@gmail.com>
+---
+ src/slices/sort.go | 4 ++--
+ src/sort/sort.go   | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/slices/sort.go b/src/slices/sort.go
+index f713ffe094..4f66e7bb39 100644
+--- a/src/slices/sort.go
++++ b/src/slices/sort.go
+@@ -180,8 +180,8 @@ type xorshift uint64
+ 
+ func (r *xorshift) Next() uint64 {
+ 	*r ^= *r << 13
+-	*r ^= *r >> 17
+-	*r ^= *r << 5
++	*r ^= *r >> 7
++	*r ^= *r << 17
+ 	return uint64(*r)
+ }
+ 
+diff --git a/src/sort/sort.go b/src/sort/sort.go
+index 042ec4a8be..b27ecabdd5 100644
+--- a/src/sort/sort.go
++++ b/src/sort/sort.go
+@@ -67,8 +67,8 @@ type xorshift uint64
+ 
+ func (r *xorshift) Next() uint64 {
+ 	*r ^= *r << 13
+-	*r ^= *r >> 17
+-	*r ^= *r << 5
++	*r ^= *r >> 7
++	*r ^= *r << 17
+ 	return uint64(*r)
+ }
+ 

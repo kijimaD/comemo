@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 43070: ef44bd8413a9174f83af39538c62277ea195405a
+# Index 43070: c729116332ffb66a21dd587e3ee003cb8d0b16fe
 
 echo "🚀 Generating explanation for commit 43070..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 43070..."
 
 ### メタデータ
 - **コミットインデックス**: 43070
-- **コミットハッシュ**: ef44bd8413a9174f83af39538c62277ea195405a
-- **GitHub URL**: https://github.com/golang/go/commit/ef44bd8413a9174f83af39538c62277ea195405a
+- **コミットハッシュ**: c729116332ffb66a21dd587e3ee003cb8d0b16fe
+- **GitHub URL**: https://github.com/golang/go/commit/c729116332ffb66a21dd587e3ee003cb8d0b16fe
 
 ### 章構成
 

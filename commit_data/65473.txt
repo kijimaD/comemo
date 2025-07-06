@@ -1,0 +1,835 @@
+commit 7d7618971eeb244ca062f848941d9d890d21f9f9
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 3 13:10:33 2024 +0100
+
+    crypto/aes,crypto/cipher: test all available implementations
+    
+    TestEmptyPlaintext and TestCryptBlocks were folded into cryptotest.
+    
+    Change-Id: I6131ab8582eb0e6d3a1b24bab1147a145d9766ac
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624738
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/aes/aes_test.go                     | 12 ++++
+ src/crypto/cipher/cbc_aes_test.go              |  9 +++
+ src/crypto/cipher/cbc_test.go                  | 27 ++++----
+ src/crypto/cipher/cipher_test.go               | 90 ------------------------
+ src/crypto/cipher/ctr_aes_test.go              | 46 +++----------
+ src/crypto/cipher/ctr_test.go                  | 30 ++++----
+ src/crypto/cipher/export_test.go               |  9 ---
+ src/crypto/cipher/fuzz_test.go                 |  4 +-
+ src/crypto/cipher/gcm_test.go                  | 94 +++++++++++++++++---------
+ src/crypto/cipher/modes_test.go                |  7 +-
+ src/crypto/internal/cryptotest/blockmode.go    | 13 ++++
+ src/crypto/internal/cryptotest/stream.go       | 13 ++++
+ src/crypto/internal/fips/aes/aes_asm.go        | 21 ++++++
+ src/crypto/internal/fips/aes/aes_s390x.go      | 11 ++-
+ src/crypto/internal/fips/aes/gcm/gcm_asm.go    | 11 +++
+ src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go |  5 ++
+ src/crypto/internal/fips/aes/gcm/gcm_s390x.go  |  6 ++
+ 17 files changed, 207 insertions(+), 201 deletions(-)
+
+diff --git a/src/crypto/aes/aes_test.go b/src/crypto/aes/aes_test.go
+index 6f4156f53f..adae01af84 100644
+--- a/src/crypto/aes/aes_test.go
++++ b/src/crypto/aes/aes_test.go
+@@ -53,6 +53,10 @@ var encryptTests = []CryptTest{
+ 
+ // Test Cipher Encrypt method against FIPS 197 examples.
+ func TestCipherEncrypt(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "aes", testCipherEncrypt)
++}
++
++func testCipherEncrypt(t *testing.T) {
+ 	for i, tt := range encryptTests {
+ 		c, err := NewCipher(tt.key)
+ 		if err != nil {
+@@ -72,6 +76,10 @@ func TestCipherEncrypt(t *testing.T) {
+ 
+ // Test Cipher Decrypt against FIPS 197 examples.
+ func TestCipherDecrypt(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "aes", testCipherDecrypt)
++}
++
++func testCipherDecrypt(t *testing.T) {
+ 	for i, tt := range encryptTests {
+ 		c, err := NewCipher(tt.key)
+ 		if err != nil {
+@@ -91,6 +99,10 @@ func TestCipherDecrypt(t *testing.T) {
+ 
+ // Test AES against the general cipher.Block interface tester
+ func TestAESBlock(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "aes", testAESBlock)
++}
++
++func testAESBlock(t *testing.T) {
+ 	for _, keylen := range []int{128, 192, 256} {
+ 		t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
+ 			cryptotest.TestBlock(t, keylen/8, NewCipher)
+diff --git a/src/crypto/cipher/cbc_aes_test.go b/src/crypto/cipher/cbc_aes_test.go
+index bf9e7ad701..20355e9ec2 100644
+--- a/src/crypto/cipher/cbc_aes_test.go
++++ b/src/crypto/cipher/cbc_aes_test.go
+@@ -14,6 +14,7 @@ import (
+ 	"bytes"
+ 	"crypto/aes"
+ 	"crypto/cipher"
++	"crypto/internal/cryptotest"
+ 	"testing"
+ )
+ 
+@@ -64,6 +65,10 @@ var cbcAESTests = []struct {
+ }
+ 
+ func TestCBCEncrypterAES(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "aes", testCBCEncrypterAES)
++}
++
++func testCBCEncrypterAES(t *testing.T) {
+ 	for _, test := range cbcAESTests {
+ 		c, err := aes.NewCipher(test.key)
+ 		if err != nil {
+@@ -84,6 +89,10 @@ func TestCBCEncrypterAES(t *testing.T) {
+ }
+ 
+ func TestCBCDecrypterAES(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "aes", testCBCDecrypterAES)
++}
++
++func testCBCDecrypterAES(t *testing.T) {
+ 	for _, test := range cbcAESTests {
+ 		c, err := aes.NewCipher(test.key)
+ 		if err != nil {
+diff --git a/src/crypto/cipher/cbc_test.go b/src/crypto/cipher/cbc_test.go
+index e6666d2cff..7c1c12b80b 100644
+--- a/src/crypto/cipher/cbc_test.go
++++ b/src/crypto/cipher/cbc_test.go
+@@ -18,22 +18,23 @@ import (
+ 
+ // Test CBC Blockmode against the general cipher.BlockMode interface tester
+ func TestCBCBlockMode(t *testing.T) {
+-	for _, keylen := range []int{128, 192, 256} {
++	cryptotest.TestAllImplementations(t, "aes", func(t *testing.T) {
++		for _, keylen := range []int{128, 192, 256} {
++			t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
++				rng := newRandReader(t)
+ 
+-		t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
+-			rng := newRandReader(t)
++				key := make([]byte, keylen/8)
++				rng.Read(key)
+ 
+-			key := make([]byte, keylen/8)
+-			rng.Read(key)
++				block, err := aes.NewCipher(key)
++				if err != nil {
++					panic(err)
++				}
+ 
+-			block, err := aes.NewCipher(key)
+-			if err != nil {
+-				panic(err)
+-			}
+-
+-			cryptotest.TestBlockMode(t, block, cipher.NewCBCEncrypter, cipher.NewCBCDecrypter)
+-		})
+-	}
++				cryptotest.TestBlockMode(t, block, cipher.NewCBCEncrypter, cipher.NewCBCDecrypter)
++			})
++		}
++	})
+ 
+ 	t.Run("DES", func(t *testing.T) {
+ 		rng := newRandReader(t)
+diff --git a/src/crypto/cipher/cipher_test.go b/src/crypto/cipher/cipher_test.go
+deleted file mode 100644
+index 4d7cd6b5dd..0000000000
+--- a/src/crypto/cipher/cipher_test.go
++++ /dev/null
+@@ -1,90 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cipher_test
+-
+-import (
+-	"bytes"
+-	"crypto/aes"
+-	"crypto/cipher"
+-	"crypto/des"
+-	"testing"
+-)
+-
+-func TestCryptBlocks(t *testing.T) {
+-	buf := make([]byte, 16)
+-	block, _ := aes.NewCipher(buf)
+-
+-	mode := cipher.NewCBCDecrypter(block, buf)
+-	mustPanic(t, "crypto/cipher: input not full blocks", func() { mode.CryptBlocks(buf, buf[:3]) })
+-	mustPanic(t, "crypto/cipher: output smaller than input", func() { mode.CryptBlocks(buf[:3], buf) })
+-
+-	mode = cipher.NewCBCEncrypter(block, buf)
+-	mustPanic(t, "crypto/cipher: input not full blocks", func() { mode.CryptBlocks(buf, buf[:3]) })
+-	mustPanic(t, "crypto/cipher: output smaller than input", func() { mode.CryptBlocks(buf[:3], buf) })
+-}
+-
+-func mustPanic(t *testing.T, msg string, f func()) {
+-	defer func() {
+-		err := recover()
+-		if err == nil {
+-			t.Errorf("function did not panic, wanted %q", msg)
+-		} else if err != msg {
+-			t.Errorf("got panic %v, wanted %q", err, msg)
+-		}
+-	}()
+-	f()
+-}
+-
+-func TestEmptyPlaintext(t *testing.T) {
+-	var key [16]byte
+-	a, err := aes.NewCipher(key[:16])
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	d, err := des.NewCipher(key[:8])
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	s := 16
+-	pt := make([]byte, s)
+-	ct := make([]byte, s)
+-	for i := 0; i < 16; i++ {
+-		pt[i], ct[i] = byte(i), byte(i)
+-	}
+-
+-	assertEqual := func(name string, got, want []byte) {
+-		if !bytes.Equal(got, want) {
+-			t.Fatalf("%s: got %v, want %v", name, got, want)
+-		}
+-	}
+-
+-	for _, b := range []cipher.Block{a, d} {
+-		iv := make([]byte, b.BlockSize())
+-		cbce := cipher.NewCBCEncrypter(b, iv)
+-		cbce.CryptBlocks(ct, pt[:0])
+-		assertEqual("CBC encrypt", ct, pt)
+-
+-		cbcd := cipher.NewCBCDecrypter(b, iv)
+-		cbcd.CryptBlocks(ct, pt[:0])
+-		assertEqual("CBC decrypt", ct, pt)
+-
+-		cfbe := cipher.NewCFBEncrypter(b, iv)
+-		cfbe.XORKeyStream(ct, pt[:0])
+-		assertEqual("CFB encrypt", ct, pt)
+-
+-		cfbd := cipher.NewCFBDecrypter(b, iv)
+-		cfbd.XORKeyStream(ct, pt[:0])
+-		assertEqual("CFB decrypt", ct, pt)
+-
+-		ctr := cipher.NewCTR(b, iv)
+-		ctr.XORKeyStream(ct, pt[:0])
+-		assertEqual("CTR", ct, pt)
+-
+-		ofb := cipher.NewOFB(b, iv)
+-		ofb.XORKeyStream(ct, pt[:0])
+-		assertEqual("OFB", ct, pt)
+-	}
+-}
+diff --git a/src/crypto/cipher/ctr_aes_test.go b/src/crypto/cipher/ctr_aes_test.go
+index 057a59e821..5260732688 100644
+--- a/src/crypto/cipher/ctr_aes_test.go
++++ b/src/crypto/cipher/ctr_aes_test.go
+@@ -15,6 +15,8 @@ import (
+ 	"crypto/aes"
+ 	"crypto/cipher"
+ 	"crypto/internal/boring"
++	"crypto/internal/cryptotest"
++	fipsaes "crypto/internal/fips/aes"
+ 	"encoding/hex"
+ 	"fmt"
+ 	"math/rand"
+@@ -72,6 +74,10 @@ var ctrAESTests = []struct {
+ }
+ 
+ func TestCTR_AES(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "aes", testCTR_AES)
++}
++
++func testCTR_AES(t *testing.T) {
+ 	for _, tt := range ctrAESTests {
+ 		test := tt.name
+ 
+@@ -107,26 +113,8 @@ func TestCTR_AES(t *testing.T) {
+ 	}
+ }
+ 
+-// This wrapper type disables method NewCTR (interface ctrAble)
+-// to force generic implementation.
+-type nonCtrAble struct {
+-	impl cipher.Block
+-}
+-
+-func (n *nonCtrAble) BlockSize() int {
+-	return n.impl.BlockSize()
+-}
+-
+-func (n *nonCtrAble) Encrypt(dst, src []byte) {
+-	n.impl.Encrypt(dst, src)
+-}
+-
+-func (n *nonCtrAble) Decrypt(dst, src []byte) {
+-	panic("must not be called")
+-}
+-
+ func makeTestingCiphers(aesBlock cipher.Block, iv []byte) (genericCtr, multiblockCtr cipher.Stream) {
+-	return cipher.NewCTR(&nonCtrAble{impl: aesBlock}, iv), cipher.NewCTR(aesBlock, iv)
++	return cipher.NewCTR(wrap(aesBlock), iv), cipher.NewCTR(aesBlock, iv)
+ }
+ 
+ func randBytes(t *testing.T, r *rand.Rand, count int) []byte {
+@@ -164,9 +152,6 @@ func TestCTR_AES_multiblock_random_IV(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			if _, ok := aesBlock.(ctrAble); !ok {
+-				t.Skip("Skipping the test - multiblock implementation is not available")
+-			}
+ 			genericCtr, _ := makeTestingCiphers(aesBlock, iv)
+ 
+ 			plaintext := randBytes(t, r, Size)
+@@ -239,9 +224,6 @@ func TestCTR_AES_multiblock_overflow_IV(t *testing.T) {
+ 				if err != nil {
+ 					t.Fatal(err)
+ 				}
+-				if _, ok := aesBlock.(ctrAble); !ok {
+-					t.Skip("Skipping the test - multiblock implementation is not available")
+-				}
+ 
+ 				t.Run(fmt.Sprintf("iv=%s", hex.EncodeToString(iv)), func(t *testing.T) {
+ 					for _, offset := range []int{0, 1, 16, 1024} {
+@@ -273,10 +255,6 @@ func TestCTR_AES_multiblock_XORKeyStreamAt(t *testing.T) {
+ 		t.Skip("XORKeyStreamAt is not available in boring mode")
+ 	}
+ 
+-	type XORKeyStreamAtable interface {
+-		XORKeyStreamAt(dst, src []byte, offset uint64)
+-	}
+-
+ 	r := rand.New(rand.NewSource(12345))
+ 	const Size = 32 * 1024 * 1024
+ 	plaintext := randBytes(t, r, Size)
+@@ -291,14 +269,8 @@ func TestCTR_AES_multiblock_XORKeyStreamAt(t *testing.T) {
+ 			if err != nil {
+ 				t.Fatal(err)
+ 			}
+-			if _, ok := aesBlock.(ctrAble); !ok {
+-				t.Skip("Skipping the test - multiblock implementation is not available")
+-			}
+-			genericCtr, multiblockCtr := makeTestingCiphers(aesBlock, iv)
+-			ctrAt, ok := multiblockCtr.(XORKeyStreamAtable)
+-			if !ok {
+-				t.Fatal("cipher is expected to have method XORKeyStreamAt")
+-			}
++			genericCtr, _ := makeTestingCiphers(aesBlock, iv)
++			ctrAt := fipsaes.NewCTR(aesBlock.(*fipsaes.Block), iv)
+ 
+ 			// Generate reference ciphertext.
+ 			genericCiphertext := make([]byte, Size)
+diff --git a/src/crypto/cipher/ctr_test.go b/src/crypto/cipher/ctr_test.go
+index 4bb9deab80..825004f594 100644
+--- a/src/crypto/cipher/ctr_test.go
++++ b/src/crypto/cipher/ctr_test.go
+@@ -18,7 +18,7 @@ type noopBlock int
+ 
+ func (b noopBlock) BlockSize() int        { return int(b) }
+ func (noopBlock) Encrypt(dst, src []byte) { copy(dst, src) }
+-func (noopBlock) Decrypt(dst, src []byte) { copy(dst, src) }
++func (noopBlock) Decrypt(dst, src []byte) { panic("unreachable") }
+ 
+ func inc(b []byte) {
+ 	for i := len(b) - 1; i >= 0; i++ {
+@@ -59,23 +59,23 @@ func TestCTR(t *testing.T) {
+ }
+ 
+ func TestCTRStream(t *testing.T) {
++	cryptotest.TestAllImplementations(t, "aes", func(t *testing.T) {
++		for _, keylen := range []int{128, 192, 256} {
++			t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
++				rng := newRandReader(t)
+ 
+-	for _, keylen := range []int{128, 192, 256} {
++				key := make([]byte, keylen/8)
++				rng.Read(key)
+ 
+-		t.Run(fmt.Sprintf("AES-%d", keylen), func(t *testing.T) {
+-			rng := newRandReader(t)
++				block, err := aes.NewCipher(key)
++				if err != nil {
++					panic(err)
++				}
+ 
+-			key := make([]byte, keylen/8)
+-			rng.Read(key)
+-
+-			block, err := aes.NewCipher(key)
+-			if err != nil {
+-				panic(err)
+-			}
+-
+-			cryptotest.TestStreamFromBlock(t, block, cipher.NewCTR)
+-		})
+-	}
++				cryptotest.TestStreamFromBlock(t, block, cipher.NewCTR)
++			})
++		}
++	})
+ 
+ 	t.Run("DES", func(t *testing.T) {
+ 		rng := newRandReader(t)
+diff --git a/src/crypto/cipher/export_test.go b/src/crypto/cipher/export_test.go
+deleted file mode 100644
+index 5ecd67b28b..0000000000
+--- a/src/crypto/cipher/export_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package cipher
+-
+-// Export internal functions for testing.
+-var NewCBCGenericEncrypter = newCBCGenericEncrypter
+-var NewCBCGenericDecrypter = newCBCGenericDecrypter
+diff --git a/src/crypto/cipher/fuzz_test.go b/src/crypto/cipher/fuzz_test.go
+index ffceeef5f5..ed5d80e5ee 100644
+--- a/src/crypto/cipher/fuzz_test.go
++++ b/src/crypto/cipher/fuzz_test.go
+@@ -43,7 +43,7 @@ func TestFuzz(t *testing.T) {
+ 		c, _ := aes.NewCipher(ft.key)
+ 
+ 		cbcAsm := cipher.NewCBCEncrypter(c, commonIV)
+-		cbcGeneric := cipher.NewCBCGenericEncrypter(c, commonIV)
++		cbcGeneric := cipher.NewCBCEncrypter(wrap(c), commonIV)
+ 
+ 		if testing.Short() {
+ 			timeout = time.NewTimer(10 * time.Millisecond)
+@@ -74,7 +74,7 @@ func TestFuzz(t *testing.T) {
+ 		}
+ 
+ 		cbcAsm = cipher.NewCBCDecrypter(c, commonIV)
+-		cbcGeneric = cipher.NewCBCGenericDecrypter(c, commonIV)
++		cbcGeneric = cipher.NewCBCDecrypter(wrap(c), commonIV)
+ 
+ 		if testing.Short() {
+ 			timeout = time.NewTimer(10 * time.Millisecond)
+diff --git a/src/crypto/cipher/gcm_test.go b/src/crypto/cipher/gcm_test.go
+index cdbe02b02f..d48e2a4620 100644
+--- a/src/crypto/cipher/gcm_test.go
++++ b/src/crypto/cipher/gcm_test.go
+@@ -18,6 +18,42 @@ import (
+ 	"testing"
+ )
+ 
++var _ cipher.Block = (*wrapper)(nil)
++
++type wrapper struct {
++	block cipher.Block
++}
++
++func (w *wrapper) BlockSize() int          { return w.block.BlockSize() }
++func (w *wrapper) Encrypt(dst, src []byte) { w.block.Encrypt(dst, src) }
++func (w *wrapper) Decrypt(dst, src []byte) { w.block.Decrypt(dst, src) }
++
++// wrap wraps the Block so that it does not type-asserts to *aes.Block.
++func wrap(b cipher.Block) cipher.Block {
++	return &wrapper{b}
++}
++
++func testAllImplementations(t *testing.T, f func(*testing.T, func([]byte) cipher.Block)) {
++	cryptotest.TestAllImplementations(t, "gcm", func(t *testing.T) {
++		f(t, func(b []byte) cipher.Block {
++			c, err := aes.NewCipher(b)
++			if err != nil {
++				t.Fatal(err)
++			}
++			return c
++		})
++	})
++	t.Run("Fallback", func(t *testing.T) {
++		f(t, func(b []byte) cipher.Block {
++			c, err := aes.NewCipher(b)
++			if err != nil {
++				t.Fatal(err)
++			}
++			return wrap(c)
++		})
++	})
++}
++
+ var aesGCMTests = []struct {
+ 	key, nonce, plaintext, ad, result string
+ }{
+@@ -374,18 +410,20 @@ var aesGCMTests = []struct {
+ }
+ 
+ func TestAESGCM(t *testing.T) {
++	testAllImplementations(t, testAESGCM)
++}
++
++func testAESGCM(t *testing.T, newCipher func(key []byte) cipher.Block) {
+ 	for i, test := range aesGCMTests {
+ 		key, _ := hex.DecodeString(test.key)
+-		aes, err := aes.NewCipher(key)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
++		aes := newCipher(key)
+ 
+ 		nonce, _ := hex.DecodeString(test.nonce)
+ 		plaintext, _ := hex.DecodeString(test.plaintext)
+ 		ad, _ := hex.DecodeString(test.ad)
+ 		tagSize := (len(test.result) - len(test.plaintext)) / 2
+ 
++		var err error
+ 		var aesgcm cipher.AEAD
+ 		switch {
+ 		// Handle non-standard tag sizes
+@@ -457,9 +495,12 @@ func TestAESGCM(t *testing.T) {
+ }
+ 
+ func TestGCMInvalidTagSize(t *testing.T) {
+-	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
++	testAllImplementations(t, testGCMInvalidTagSize)
++}
+ 
+-	aes, _ := aes.NewCipher(key)
++func testGCMInvalidTagSize(t *testing.T, newCipher func(key []byte) cipher.Block) {
++	key, _ := hex.DecodeString("ab72c77b97cb5fe9a382d9fe81ffdbed")
++	aes := newCipher(key)
+ 
+ 	for _, tagSize := range []int{0, 1, aes.BlockSize() + 1} {
+ 		aesgcm, err := cipher.NewGCMWithTagSize(aes, tagSize)
+@@ -470,6 +511,10 @@ func TestGCMInvalidTagSize(t *testing.T) {
+ }
+ 
+ func TestTagFailureOverwrite(t *testing.T) {
++	testAllImplementations(t, testTagFailureOverwrite)
++}
++
++func testTagFailureOverwrite(t *testing.T, newCipher func(key []byte) cipher.Block) {
+ 	// The AESNI GCM code decrypts and authenticates concurrently and so
+ 	// overwrites the output buffer before checking the authentication tag.
+ 	// In order to be consistent across platforms, all implementations
+@@ -479,7 +524,7 @@ func TestTagFailureOverwrite(t *testing.T) {
+ 	nonce, _ := hex.DecodeString("54cc7dc2c37ec006bcc6d1db")
+ 	ciphertext, _ := hex.DecodeString("0e1bde206a07a9c2c1b65300f8c649972b4401346697138c7a4891ee59867d0c")
+ 
+-	aes, _ := aes.NewCipher(key)
++	aes := newCipher(key)
+ 	aesgcm, _ := cipher.NewGCM(aes)
+ 
+ 	dst := make([]byte, len(ciphertext)-16)
+@@ -504,6 +549,10 @@ func TestTagFailureOverwrite(t *testing.T) {
+ }
+ 
+ func TestGCMCounterWrap(t *testing.T) {
++	testAllImplementations(t, testGCMCounterWrap)
++}
++
++func testGCMCounterWrap(t *testing.T, newCipher func(key []byte) cipher.Block) {
+ 	// Test that the last 32-bits of the counter wrap correctly.
+ 	tests := []struct {
+ 		nonce, tag string
+@@ -516,10 +565,7 @@ func TestGCMCounterWrap(t *testing.T) {
+ 		{"010ae3d486", "5405bb490b1f95d01e2ba735687154bc"}, // counter: e36c18e69406c49722808104fffffff8
+ 		{"01b1107a9d", "939a585f342e01e17844627492d44dbf"}, // counter: e6d56eaf9127912b6d62c6dcffffffff
+ 	}
+-	key, err := aes.NewCipher(make([]byte, 16))
+-	if err != nil {
+-		t.Fatal(err)
+-	}
++	key := newCipher(make([]byte, 16))
+ 	plaintext := make([]byte, 16*17+1)
+ 	for i, test := range tests {
+ 		nonce, _ := hex.DecodeString(test.nonce)
+@@ -539,22 +585,6 @@ func TestGCMCounterWrap(t *testing.T) {
+ 	}
+ }
+ 
+-var _ cipher.Block = (*wrapper)(nil)
+-
+-type wrapper struct {
+-	block cipher.Block
+-}
+-
+-func (w *wrapper) BlockSize() int          { return w.block.BlockSize() }
+-func (w *wrapper) Encrypt(dst, src []byte) { w.block.Encrypt(dst, src) }
+-func (w *wrapper) Decrypt(dst, src []byte) { w.block.Decrypt(dst, src) }
+-
+-// wrap wraps the Block interface so that it does not fulfill
+-// any optimizing interfaces such as gcmAble.
+-func wrap(b cipher.Block) cipher.Block {
+-	return &wrapper{b}
+-}
+-
+ func TestGCMAsm(t *testing.T) {
+ 	// Create a new pair of AEADs, one using the assembly implementation
+ 	// and one using the generic Go implementation.
+@@ -659,6 +689,10 @@ func TestGCMAsm(t *testing.T) {
+ 
+ // Test GCM against the general cipher.AEAD interface tester.
+ func TestGCMAEAD(t *testing.T) {
++	testAllImplementations(t, testGCMAEAD)
++}
++
++func testGCMAEAD(t *testing.T, newCipher func(key []byte) cipher.Block) {
+ 	minTagSize := 12
+ 
+ 	for _, keySize := range []int{128, 192, 256} {
+@@ -669,10 +703,7 @@ func TestGCMAEAD(t *testing.T) {
+ 			key := make([]byte, keySize/8)
+ 			rng.Read(key)
+ 
+-			block, err := aes.NewCipher(key)
+-			if err != nil {
+-				panic(err)
+-			}
++			block := newCipher(key)
+ 
+ 			// Test GCM with the current AES block with the standard nonce and tag
+ 			// sizes.
+@@ -686,7 +717,6 @@ func TestGCMAEAD(t *testing.T) {
+ 			// Test non-standard nonce sizes.
+ 			for _, nonceSize := range []int{1, 16, 100} {
+ 				t.Run(fmt.Sprintf("NonceSize-%d", nonceSize), func(t *testing.T) {
+-
+ 					cryptotest.TestAEAD(t, func() (cipher.AEAD, error) { return cipher.NewGCMWithNonceSize(block, nonceSize) })
+ 				})
+ 			}
+diff --git a/src/crypto/cipher/modes_test.go b/src/crypto/cipher/modes_test.go
+index fba371f8c9..3f431b9b13 100644
+--- a/src/crypto/cipher/modes_test.go
++++ b/src/crypto/cipher/modes_test.go
+@@ -5,7 +5,6 @@
+ package cipher_test
+ 
+ import (
+-	"crypto/aes"
+ 	. "crypto/cipher"
+ 	"reflect"
+ 	"testing"
+@@ -86,7 +85,11 @@ func TestGCM(t *testing.T) {
+ // TestNoExtraMethods makes sure we don't accidentally expose methods on the
+ // underlying implementations of modes.
+ func TestNoExtraMethods(t *testing.T) {
+-	b, _ := aes.NewCipher(make([]byte, 16))
++	testAllImplementations(t, testNoExtraMethods)
++}
++
++func testNoExtraMethods(t *testing.T, newBlock func([]byte) Block) {
++	b := newBlock(make([]byte, 16))
+ 
+ 	ctr := NewCTR(b, make([]byte, 16))
+ 	ctrExpected := []string{"XORKeyStream"}
+diff --git a/src/crypto/internal/cryptotest/blockmode.go b/src/crypto/internal/cryptotest/blockmode.go
+index d3271e583f..06403e0995 100644
+--- a/src/crypto/internal/cryptotest/blockmode.go
++++ b/src/crypto/internal/cryptotest/blockmode.go
+@@ -60,6 +60,19 @@ func testBlockMode(t *testing.T, bm MakeBlockMode, b cipher.Block, iv []byte) {
+ 		mustPanic(t, "IV length must equal block size", func() { bm(b, iv) })
+ 	})
+ 
++	t.Run("EmptyInput", func(t *testing.T) {
++		rng := newRandReader(t)
++
++		src, dst := make([]byte, blockSize), make([]byte, blockSize)
++		rng.Read(dst)
++		before := bytes.Clone(dst)
++
++		bm(b, iv).CryptBlocks(dst, src[:0])
++		if !bytes.Equal(dst, before) {
++			t.Errorf("CryptBlocks modified dst on empty input; got %x, want %x", dst, before)
++		}
++	})
++
+ 	t.Run("AlterInput", func(t *testing.T) {
+ 		rng := newRandReader(t)
+ 
+diff --git a/src/crypto/internal/cryptotest/stream.go b/src/crypto/internal/cryptotest/stream.go
+index fb9c553bd1..56a878ce2e 100644
+--- a/src/crypto/internal/cryptotest/stream.go
++++ b/src/crypto/internal/cryptotest/stream.go
+@@ -86,6 +86,19 @@ func TestStream(t *testing.T, ms MakeStream) {
+ 		})
+ 	})
+ 
++	t.Run("EmptyInput", func(t *testing.T) {
++		rng := newRandReader(t)
++
++		src, dst := make([]byte, 100), make([]byte, 100)
++		rng.Read(dst)
++		before := bytes.Clone(dst)
++
++		ms().XORKeyStream(dst, src[:0])
++		if !bytes.Equal(dst, before) {
++			t.Errorf("XORKeyStream modified dst on empty input; got %s, want %s", truncateHex(dst), truncateHex(before))
++		}
++	})
++
+ 	t.Run("AlterInput", func(t *testing.T) {
+ 		rng := newRandReader(t)
+ 		src, dst, before := make([]byte, bufCap), make([]byte, bufCap), make([]byte, bufCap)
+diff --git a/src/crypto/internal/fips/aes/aes_asm.go b/src/crypto/internal/fips/aes/aes_asm.go
+index fb36969105..15bb4ce90a 100644
+--- a/src/crypto/internal/fips/aes/aes_asm.go
++++ b/src/crypto/internal/fips/aes/aes_asm.go
+@@ -7,8 +7,10 @@
+ package aes
+ 
+ import (
++	"crypto/internal/impl"
+ 	"internal/cpu"
+ 	"internal/goarch"
++	"internal/godebug"
+ )
+ 
+ //go:noescape
+@@ -23,6 +25,25 @@ func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
+ var supportsAES = cpu.X86.HasAES && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
+ 	cpu.ARM64.HasAES || goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1
+ 
++func init() {
++	if goarch.IsAmd64 == 1 {
++		impl.Register("aes", "AES-NI", &supportsAES)
++	}
++	if goarch.IsArm64 == 1 {
++		impl.Register("aes", "Armv8.0", &supportsAES)
++	}
++	if goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1 {
++		// The POWER architecture doesn't have a way to turn off AES support
++		// at runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG
++		// knob for that. It's intentionally only checked at init() time, to
++		// avoid the performance overhead of checking it every time.
++		if godebug.New("#ppc64aes").Value() == "off" {
++			supportsAES = false
++		}
++		impl.Register("aes", "POWER8", &supportsAES)
++	}
++}
++
+ // checkGenericIsExpected is called by the variable-time implementation to make
+ // sure it is not used when hardware support is available. It shouldn't happen,
+ // but this way it's more evidently correct.
+diff --git a/src/crypto/internal/fips/aes/aes_s390x.go b/src/crypto/internal/fips/aes/aes_s390x.go
+index 4e27b8c1d2..57064f08c5 100644
+--- a/src/crypto/internal/fips/aes/aes_s390x.go
++++ b/src/crypto/internal/fips/aes/aes_s390x.go
+@@ -6,7 +6,10 @@
+ 
+ package aes
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/impl"
++	"internal/cpu"
++)
+ 
+ type code int
+ 
+@@ -34,6 +37,12 @@ func cryptBlocks(c code, key, dst, src *byte, length int)
+ 
+ var supportsAES = cpu.S390X.HasAES && cpu.S390X.HasAESCBC
+ 
++func init() {
++	// CP Assist for Cryptographic Functions (CPACF)
++	// https://www.ibm.com/docs/en/zos/3.1.0?topic=icsf-cp-assist-cryptographic-functions-cpacf
++	impl.Register("aes", "CPACF", &supportsAES)
++}
++
+ func checkGenericIsExpected() {
+ 	if supportsAES {
+ 		panic("crypto/aes: internal error: using generic implementation despite hardware support")
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_asm.go b/src/crypto/internal/fips/aes/gcm/gcm_asm.go
+index 1f099f4bdf..dac822208f 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm_asm.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm_asm.go
+@@ -9,7 +9,9 @@ package gcm
+ import (
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/subtle"
++	"crypto/internal/impl"
+ 	"internal/cpu"
++	"internal/goarch"
+ )
+ 
+ // The following functions are defined in gcm_*.s.
+@@ -33,6 +35,15 @@ func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint
+ var supportsAESGCM = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
+ 	cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
+ 
++func init() {
++	if goarch.IsAmd64 == 1 {
++		impl.Register("gcm", "AES-NI", &supportsAESGCM)
++	}
++	if goarch.IsArm64 == 1 {
++		impl.Register("gcm", "Armv8.0", &supportsAESGCM)
++	}
++}
++
+ // checkGenericIsExpected is called by the variable-time implementation to make
+ // sure it is not used when hardware support is available. It shouldn't happen,
+ // but this way it's more evidently correct.
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go b/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go
+index df1df2e541..3325f7b217 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go
+@@ -9,6 +9,7 @@ package gcm
+ import (
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/subtle"
++	"crypto/internal/impl"
+ 	"internal/byteorder"
+ 	"internal/godebug"
+ 	"runtime"
+@@ -30,6 +31,10 @@ func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *u
+ // avoid the performance overhead of checking it every time.
+ var supportsAESGCM = godebug.New("#ppc64gcm").Value() == "off"
+ 
++func init() {
++	impl.Register("gcm", "POWER8", &supportsAESGCM)
++}
++
+ func checkGenericIsExpected() {
+ 	if supportsAESGCM {
+ 		panic("gcm: internal error: using generic implementation despite hardware support")
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_s390x.go b/src/crypto/internal/fips/aes/gcm/gcm_s390x.go
+index b456d49517..0d3825148b 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm_s390x.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm_s390x.go
+@@ -9,6 +9,7 @@ package gcm
+ import (
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/subtle"
++	"crypto/internal/impl"
+ 	"internal/byteorder"
+ 	"internal/cpu"
+ )
+@@ -23,6 +24,11 @@ import (
+ var useGHASH = cpu.S390X.HasAES && cpu.S390X.HasAESCTR && cpu.S390X.HasGHASH
+ var useGCM = useGHASH && cpu.S390X.HasAESGCM
+ 
++func init() {
++	impl.Register("gcm", "CPACF/KIMD", &useGHASH)
++	impl.Register("gcm", "CPACF/KMA", &useGCM)
++}
++
+ func checkGenericIsExpected() {
+ 	if useGHASH || useGCM {
+ 		panic("gcm: internal error: using generic implementation despite hardware support")

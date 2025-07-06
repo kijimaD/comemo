@@ -1,0 +1,32 @@
+commit bdd27c4debfb51fe42df0c0532c1c747777b7a32
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 9 15:35:11 2024 -0400
+
+    cmd/api: handle types.Alias
+    
+    This is covered by the existing tests under gotypesalias=1.
+    
+    Change-Id: Ia17f35fe580b745fa4bdaf4689dfe9c2ed6ebc5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+---
+ src/cmd/api/main_test.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/api/main_test.go b/src/cmd/api/main_test.go
+index 0a3d44ddd0..b071ef5f99 100644
+--- a/src/cmd/api/main_test.go
++++ b/src/cmd/api/main_test.go
+@@ -843,6 +843,9 @@ func (w *Walker) writeType(buf *bytes.Buffer, typ types.Type) {
+ 		buf.WriteString(s)
+ 		w.writeType(buf, typ.Elem())
+ 
++	case *types.Alias:
++		w.writeType(buf, types.Unalias(typ))
++
+ 	case *types.Named:
+ 		obj := typ.Obj()
+ 		pkg := obj.Pkg()

@@ -1,0 +1,131 @@
+commit f8f08bfd7c3894b4ea8481065ddd5609aa21d6a6
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Jan 18 10:20:13 2025 -0500
+
+    math/big: improve scan test and benchmark
+    
+    Add a few more test cases for scanning (integer conversion),
+    which were helpful in debugging some upcoming changes.
+    
+    BenchmarkScan currently times converting the value 10**N
+    represented in base B back into []Word form.
+    When B = 10, the text is 1 followed by many zeros, which
+    could hit a "multiply by zero" special case when processing
+    many digit chunks, misrepresenting the actual time required
+    depending on whether that case is optimized.
+    
+    Change the benchmark to use 9**N, which is about as big and
+    will not cause runs of zeros in any of the tested bases.
+    
+    The benchmark comparison below is not showing faster code,
+    since of course the code is not changing at all here. Instead,
+    it is showing that the new benchmark work is roughly the same
+    size as the old benchmark work.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: math/big
+    cpu: Apple M3 Pro
+                          │     old     │                new                 │
+                          │   sec/op    │   sec/op     vs base               │
+    ScanPi-12               43.35µ ± 1%   43.59µ ± 1%       ~ (p=0.069 n=15)
+    Scan/10/Base2-12        202.3n ± 2%   193.7n ± 1%  -4.25% (p=0.000 n=15)
+    Scan/100/Base2-12       1.512µ ± 3%   1.447µ ± 1%  -4.30% (p=0.000 n=15)
+    Scan/1000/Base2-12      15.06µ ± 2%   14.33µ ± 0%  -4.83% (p=0.000 n=15)
+    Scan/10000/Base2-12     188.0µ ± 5%   177.3µ ± 1%  -5.65% (p=0.000 n=15)
+    Scan/100000/Base2-12    5.814m ± 3%   5.382m ± 1%  -7.43% (p=0.000 n=15)
+    Scan/10/Base8-12        78.57n ± 2%   75.02n ± 1%  -4.52% (p=0.000 n=15)
+    Scan/100/Base8-12       548.2n ± 2%   526.8n ± 1%  -3.90% (p=0.000 n=15)
+    Scan/1000/Base8-12      5.674µ ± 2%   5.421µ ± 0%  -4.46% (p=0.000 n=15)
+    Scan/10000/Base8-12     94.42µ ± 1%   88.61µ ± 1%  -6.15% (p=0.000 n=15)
+    Scan/100000/Base8-12    4.906m ± 2%   4.498m ± 3%  -8.31% (p=0.000 n=15)
+    Scan/10/Base10-12       73.42n ± 1%   69.56n ± 0%  -5.26% (p=0.000 n=15)
+    Scan/100/Base10-12      511.9n ± 1%   488.2n ± 0%  -4.63% (p=0.000 n=15)
+    Scan/1000/Base10-12     5.254µ ± 2%   5.009µ ± 0%  -4.66% (p=0.000 n=15)
+    Scan/10000/Base10-12    90.22µ ± 2%   84.52µ ± 0%  -6.32% (p=0.000 n=15)
+    Scan/100000/Base10-12   4.842m ± 3%   4.471m ± 3%  -7.65% (p=0.000 n=15)
+    Scan/10/Base16-12       62.28n ± 1%   58.70n ± 1%  -5.75% (p=0.000 n=15)
+    Scan/100/Base16-12      398.6n ± 0%   377.9n ± 1%  -5.19% (p=0.000 n=15)
+    Scan/1000/Base16-12     4.108µ ± 1%   3.782µ ± 0%  -7.94% (p=0.000 n=15)
+    Scan/10000/Base16-12    83.78µ ± 2%   80.51µ ± 1%  -3.90% (p=0.000 n=15)
+    Scan/100000/Base16-12   5.080m ± 3%   4.698m ± 3%  -7.53% (p=0.000 n=15)
+    geomean                 12.41µ        11.74µ       -5.36%
+    
+    Change-Id: If3ce290ecc7f38672f11b42fd811afb53dee665d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650639
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+---
+ src/math/big/intconv_test.go | 26 ++++++++++++++++++++++++--
+ src/math/big/natconv_test.go |  2 +-
+ 2 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/big/intconv_test.go b/src/math/big/intconv_test.go
+index 5ba29263a6..cf337db63a 100644
+--- a/src/math/big/intconv_test.go
++++ b/src/math/big/intconv_test.go
+@@ -7,6 +7,7 @@ package big
+ import (
+ 	"bytes"
+ 	"fmt"
++	"math/rand/v2"
+ 	"testing"
+ )
+ 
+@@ -389,12 +390,14 @@ func TestFormat(t *testing.T) {
+ 	}
+ }
+ 
+-var scanTests = []struct {
++type scanTest struct {
+ 	input     string
+ 	format    string
+ 	output    string
+ 	remaining int
+-}{
++}
++
++var scanTests = []scanTest{
+ 	{"1010", "%b", "10", 0},
+ 	{"0b1010", "%v", "10", 0},
+ 	{"12", "%o", "10", 0},
+@@ -410,6 +413,25 @@ var scanTests = []struct {
+ 	{"0 ", "%v", "0", 1},
+ 	{"2+3", "%v", "2", 2},
+ 	{"0XABC 12", "%v", "2748", 3},
++
++	{"10000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ffffffffffffffffffffffffffffffff00000000000022222223333333333444444444", "%x", "72999049881955123498258745691204661198291656115976958889267080286388402675338838184094604981077942396458276955120179409196748346461468914795561487752253275293347599221664790586512596660792869956", 0},
++	{"ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff33377fffffffffffffffffffffffffffffffffffffffffffff0000000000022222eee1", "%x", "1167984798111281975972139931059274579172666497855631342228273284582214442805421410945513679697247078343332431249286160621687557589604464869034163736183926240549918956767671325412748661204059352801", 0},
++	{"5c0d52f451aec609b15da8e5e5626c4eaa88723bdeac9d25ca9b961269400410ca208a16af9c2fb07d7a11c7772cba02c22f9711078d51a3797eb18e691295293284d988e349fa6deba46b25a4ecd9f715", "%x", "419981998319789881681348172155240145539175961318447822049735313481433836043208347786919222066492311384432264836938599791362288343314139526391998172436831830624710446410781662672086936222288181013", 0},
++	{"92fcad4b5c0d52f451aec609b15da8e5e5626c4eaa88723bdeac9d25ca9b961269400410ca208a16af9c2fb07d799c32fe2f3cc5422f9711078d51a3797eb18e691295293284d8f5e69caf6decddfe1df6", "%x", "670619546945481998414061201992255225716434798957375727890607516800039934374391281275121813279544891602026798031004764406015624866771554937391445093144221697436880587924204655403711377861305572854", 0},
++	{"10000000000000000000000200000000000000000000003000000000000000000000040000000000000000000000500000000000000000000006", "%d", "10000000000000000000000200000000000000000000003000000000000000000000040000000000000000000000500000000000000000000006", 0},
++}
++
++func init() {
++	for i := range 200 {
++		d := make([]byte, i+1)
++		for j := range d {
++			d[j] = '0' + rand.N(byte(10))
++		}
++		if d[0] == '0' {
++			d[0] = '1'
++		}
++		scanTests = append(scanTests, scanTest{input: string(d), format: "%d", output: string(d)})
++	}
+ }
+ 
+ func TestScan(t *testing.T) {
+diff --git a/src/math/big/natconv_test.go b/src/math/big/natconv_test.go
+index 66300e412b..670dc5fdb7 100644
+--- a/src/math/big/natconv_test.go
++++ b/src/math/big/natconv_test.go
+@@ -353,7 +353,7 @@ func BenchmarkScan(b *testing.B) {
+ 	stk := getStack()
+ 	defer stk.free()
+ 
+-	const x = 10
++	const x = 9 // avoid tested bases, in case runs of 0s are handled specially
+ 	for _, base := range []int{2, 8, 10, 16} {
+ 		for _, y := range []Word{10, 100, 1000, 10000, 100000} {
+ 			if isRaceBuilder && y > 1000 {

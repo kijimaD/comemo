@@ -1,0 +1,314 @@
+commit 09f99c02ddd0c2687550b77cc885ed6b7b5476ed
+Author: HowJmay <yuanyanghau@gmail.com>
+Date:   Wed Apr 23 22:57:52 2025 +0200
+
+    crypto/sha3: add SIMD implementation with ARMv8.2 features
+    
+    On ARMv8 four SIMD instructions, EOR3, RAX1, XAR, BCAX are added
+    to accelerate sha3 operations. Here the SIMD version of sha3
+    on ARMv8 is added.
+    
+    fips140: off
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/sha3
+    cpu: Apple M2
+                    │ 9e72f5fe60  │          ab93158ba0-dirty          │
+                    │   sec/op    │   sec/op     vs base               │
+    Sha3_512_MTU-8    6.497µ ± 1%   2.988µ ± 0%  -54.01% (p=0.002 n=6)
+    Sha3_384_MTU-8    4.639µ ± 5%   2.142µ ± 1%  -53.83% (p=0.002 n=6)
+    Sha3_256_MTU-8    3.631µ ± 1%   1.698µ ± 6%  -53.24% (p=0.002 n=6)
+    Sha3_224_MTU-8    3.443µ ± 1%   1.602µ ± 1%  -53.47% (p=0.002 n=6)
+    Shake128_MTU-8    2.974µ ± 2%   1.392µ ± 1%  -53.19% (p=0.002 n=6)
+    Shake256_MTU-8    3.320µ ± 0%   1.537µ ± 2%  -53.70% (p=0.002 n=6)
+    Shake256_16x-8    47.26µ ± 1%   27.39µ ± 6%  -42.06% (p=0.002 n=6)
+    Shake256_1MiB-8   2.567m ± 1%   1.306m ± 1%  -49.12% (p=0.002 n=6)
+    Sha3_512_1MiB-8   4.785m ± 1%   2.397m ± 8%  -49.90% (p=0.002 n=6)
+    geomean           23.47µ        11.38µ       -51.52%
+    
+                    │  9e72f5fe60  │           ab93158ba0-dirty           │
+                    │     B/s      │     B/s       vs base                │
+    Sha3_512_MTU-8    198.2Mi ± 1%   430.9Mi ± 0%  +117.45% (p=0.002 n=6)
+    Sha3_384_MTU-8    277.5Mi ± 5%   601.1Mi ± 1%  +116.58% (p=0.002 n=6)
+    Sha3_256_MTU-8    354.6Mi ± 1%   758.2Mi ± 6%  +113.85% (p=0.002 n=6)
+    Sha3_224_MTU-8    373.9Mi ± 1%   803.6Mi ± 1%  +114.90% (p=0.002 n=6)
+    Shake128_MTU-8    432.9Mi ± 2%   925.2Mi ± 1%  +113.70% (p=0.002 n=6)
+    Shake256_MTU-8    387.8Mi ± 0%   837.6Mi ± 2%  +115.98% (p=0.002 n=6)
+    Shake256_16x-8    330.6Mi ± 1%   570.7Mi ± 6%   +72.61% (p=0.002 n=6)
+    Shake256_1MiB-8   389.5Mi ± 1%   765.5Mi ± 1%   +96.53% (p=0.002 n=6)
+    Sha3_512_1MiB-8   209.0Mi ± 1%   417.2Mi ± 8%   +99.61% (p=0.002 n=6)
+    geomean           317.7Mi        655.3Mi       +106.29%
+    
+    fips140: off
+    goos: darwin
+    goarch: arm64
+    pkg: crypto/mlkem
+    cpu: Apple M2
+                      │  9e72f5fe60  │          257696ed2d-dirty          │
+                      │    sec/op    │   sec/op     vs base               │
+    KeyGen-8            36.97µ ±  1%   29.82µ ± 3%  -19.34% (p=0.002 n=6)
+    Encaps-8            51.54µ ±  5%   44.75µ ± 5%  -13.17% (p=0.002 n=6)
+    Decaps-8            47.72µ ± 10%   44.73µ ± 1%   -6.27% (p=0.002 n=6)
+    RoundTrip/Alice-8   90.47µ ±  2%   79.74µ ± 1%  -11.86% (p=0.002 n=6)
+    RoundTrip/Bob-8     52.15µ ±  1%   44.45µ ± 0%  -14.76% (p=0.002 n=6)
+    geomean             53.27µ         46.25µ       -13.18%
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-arm64_15
+    Co-authored-by: Filippo Valsorda <filippo@golang.org>
+    Change-Id: I8c1f476a7d59498bb44d09d7a573beaa07b10f53
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667675
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+---
+ src/crypto/internal/fips140/sha3/sha3_arm64.go |  43 +++++++
+ src/crypto/internal/fips140/sha3/sha3_arm64.s  | 164 +++++++++++++++++++++++++
+ src/crypto/internal/fips140/sha3/sha3_noasm.go |   2 +-
+ src/crypto/internal/fips140deps/cpu/cpu.go     |   1 +
+ 4 files changed, 209 insertions(+), 1 deletion(-)
+
+diff --git a/src/crypto/internal/fips140/sha3/sha3_arm64.go b/src/crypto/internal/fips140/sha3/sha3_arm64.go
+new file mode 100644
+index 0000000000..fab91c02bb
+--- /dev/null
++++ b/src/crypto/internal/fips140/sha3/sha3_arm64.go
+@@ -0,0 +1,43 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++package sha3
++
++import (
++	"crypto/internal/fips140deps/cpu"
++	"crypto/internal/impl"
++	"runtime"
++)
++
++// On non-Apple ARM64, the SHA-3 instructions are apparently slower than the
++// pure Go implementation. Checking GOOS is a bit blunt, as it also excludes
++// Asahi Linux; we might consider checking the MIDR model in the future.
++var useSHA3 = cpu.ARM64HasSHA3 && runtime.GOOS == "darwin"
++
++func init() {
++	impl.Register("sha3", "Armv8.2", &useSHA3)
++}
++
++//go:noescape
++func keccakF1600NEON(a *[200]byte)
++
++func keccakF1600(a *[200]byte) {
++	if useSHA3 {
++		keccakF1600NEON(a)
++	} else {
++		keccakF1600Generic(a)
++	}
++}
++
++func (d *Digest) write(p []byte) (n int, err error) {
++	return d.writeGeneric(p)
++}
++func (d *Digest) read(out []byte) (n int, err error) {
++	return d.readGeneric(out)
++}
++func (d *Digest) sum(b []byte) []byte {
++	return d.sumGeneric(b)
++}
+diff --git a/src/crypto/internal/fips140/sha3/sha3_arm64.s b/src/crypto/internal/fips140/sha3/sha3_arm64.s
+new file mode 100644
+index 0000000000..6a2c121e2c
+--- /dev/null
++++ b/src/crypto/internal/fips140/sha3/sha3_arm64.s
+@@ -0,0 +1,164 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++#include "textflag.h"
++
++// func keccakF1600NEON(a *[200]byte)
++TEXT ·keccakF1600NEON(SB), $200-8
++	MOVD	a+0(FP), R0
++	MOVD	$round_consts<>(SB), R1
++	MOVD	$24, R2 // counter for loop
++
++	VLD1.P	16(R0), [V0.D1, V1.D1]
++	VLD1.P	16(R0), [V2.D1, V3.D1]
++	VLD1.P	16(R0), [V4.D1, V5.D1]
++	VLD1.P	16(R0), [V6.D1, V7.D1]
++	VLD1.P	16(R0), [V8.D1, V9.D1]
++	VLD1.P	16(R0), [V10.D1, V11.D1]
++	VLD1.P	16(R0), [V12.D1, V13.D1]
++	VLD1.P	16(R0), [V14.D1, V15.D1]
++	VLD1.P	16(R0), [V16.D1, V17.D1]
++	VLD1.P	16(R0), [V18.D1, V19.D1]
++	VLD1.P	16(R0), [V20.D1, V21.D1]
++	VLD1.P	16(R0), [V22.D1, V23.D1]
++	VLD1	(R0), [V24.D1]
++
++	SUB	$192, R0, R0
++
++loop:
++	// theta
++	VEOR3	 V20.B16, V15.B16, V10.B16, V25.B16
++	VEOR3	 V21.B16, V16.B16, V11.B16, V26.B16
++	VEOR3	 V22.B16, V17.B16, V12.B16, V27.B16
++	VEOR3	 V23.B16, V18.B16, V13.B16, V28.B16
++	VEOR3	 V24.B16, V19.B16, V14.B16, V29.B16
++	VEOR3	 V25.B16, V5.B16, V0.B16, V25.B16
++	VEOR3	 V26.B16, V6.B16, V1.B16, V26.B16
++	VEOR3	 V27.B16, V7.B16, V2.B16, V27.B16
++	VEOR3	 V28.B16, V8.B16, V3.B16, V28.B16
++	VEOR3	 V29.B16, V9.B16, V4.B16, V29.B16
++
++	VRAX1	V27.D2, V25.D2, V30.D2
++	VRAX1	V28.D2, V26.D2, V31.D2
++	VRAX1	V29.D2, V27.D2, V27.D2
++	VRAX1	V25.D2, V28.D2, V28.D2
++	VRAX1	V26.D2, V29.D2, V29.D2
++
++	// theta and rho and Pi
++	VXAR	$63, V30.D2, V1.D2, V25.D2
++
++	VXAR	$20, V30.D2, V6.D2, V1.D2
++	VXAR	$44, V28.D2, V9.D2, V6.D2
++	VXAR	$3, V31.D2, V22.D2, V9.D2
++	VXAR	$25, V28.D2, V14.D2, V22.D2
++	VXAR	$46, V29.D2, V20.D2, V14.D2
++
++	VXAR	$2, V31.D2, V2.D2, V26.D2
++
++	VXAR	$21, V31.D2, V12.D2, V2.D2
++	VXAR	$39, V27.D2, V13.D2, V12.D2
++	VXAR	$56, V28.D2, V19.D2, V13.D2
++	VXAR	$8, V27.D2, V23.D2, V19.D2
++	VXAR	$23, V29.D2, V15.D2, V23.D2
++
++	VXAR	$37, V28.D2, V4.D2, V15.D2
++
++	VXAR	$50, V28.D2, V24.D2, V28.D2
++	VXAR	$62, V30.D2, V21.D2, V24.D2
++	VXAR	$9, V27.D2, V8.D2, V8.D2
++	VXAR	$19, V30.D2, V16.D2, V4.D2
++	VXAR	$28, V29.D2, V5.D2, V16.D2
++
++	VXAR	$36, V27.D2, V3.D2, V5.D2
++
++	VEOR	V29.B16, V0.B16, V0.B16
++
++	VXAR	$43, V27.D2, V18.D2, V27.D2
++	VXAR	$49, V31.D2, V17.D2, V3.D2
++	VXAR	$54, V30.D2, V11.D2, V30.D2
++	VXAR	$58, V31.D2, V7.D2, V31.D2
++	VXAR	$61, V29.D2, V10.D2, V29.D2
++
++	// chi and iota
++	VBCAX	V8.B16, V22.B16, V26.B16, V20.B16
++	VBCAX	V22.B16, V23.B16, V8.B16, V21.B16
++	VBCAX	V23.B16, V24.B16, V22.B16, V22.B16
++	VBCAX	V24.B16, V26.B16, V23.B16, V23.B16
++	VBCAX	V26.B16, V8.B16, V24.B16, V24.B16
++
++	VLD1R.P	8(R1), [V26.D2]
++
++	VBCAX	V3.B16, V19.B16, V30.B16, V17.B16
++	VBCAX	V19.B16, V15.B16, V3.B16, V18.B16
++	VBCAX	V15.B16, V16.B16, V19.B16, V19.B16
++	VBCAX	V16.B16, V30.B16, V15.B16, V15.B16
++	VBCAX	V30.B16, V3.B16, V16.B16, V16.B16
++
++	VBCAX	V31.B16, V12.B16, V25.B16, V10.B16
++	VBCAX	V12.B16, V13.B16, V31.B16, V11.B16
++	VBCAX	V13.B16, V14.B16, V12.B16, V12.B16
++	VBCAX	V14.B16, V25.B16, V13.B16, V13.B16
++	VBCAX	V25.B16, V31.B16, V14.B16, V14.B16
++
++	VBCAX	V4.B16, V9.B16, V29.B16, V7.B16
++	VBCAX	V9.B16, V5.B16, V4.B16, V8.B16
++	VBCAX	V5.B16, V6.B16, V9.B16, V9.B16
++	VBCAX	V6.B16, V29.B16, V5.B16, V5.B16
++	VBCAX	V29.B16, V4.B16, V6.B16, V6.B16
++
++	VBCAX	V28.B16, V0.B16, V27.B16, V3.B16
++	VBCAX	V0.B16, V1.B16, V28.B16, V4.B16
++
++	VBCAX	V1.B16, V2.B16, V0.B16, V0.B16  // iota (chi part)
++	VEOR	V26.B16, V0.B16, V0.B16 // iota
++
++	VBCAX	V2.B16, V27.B16, V1.B16, V1.B16
++	VBCAX	V27.B16, V28.B16, V2.B16, V2.B16
++
++	SUB		$1, R2, R2
++	CBNZ	R2, loop
++
++	VST1.P	[V0.D1, V1.D1], 16(R0)
++	VST1.P	[V2.D1, V3.D1], 16(R0)
++	VST1.P	[V4.D1, V5.D1], 16(R0)
++	VST1.P	[V6.D1, V7.D1], 16(R0)
++	VST1.P	[V8.D1, V9.D1], 16(R0)
++	VST1.P	[V10.D1, V11.D1], 16(R0)
++	VST1.P	[V12.D1, V13.D1], 16(R0)
++	VST1.P	[V14.D1, V15.D1], 16(R0)
++	VST1.P	[V16.D1, V17.D1], 16(R0)
++	VST1.P	[V18.D1, V19.D1], 16(R0)
++	VST1.P	[V20.D1, V21.D1], 16(R0)
++	VST1.P	[V22.D1, V23.D1], 16(R0)
++	VST1	[V24.D1], (R0)
++
++	RET
++
++DATA	round_consts<>+0x00(SB)/8, $0x0000000000000001
++DATA	round_consts<>+0x08(SB)/8, $0x0000000000008082
++DATA	round_consts<>+0x10(SB)/8, $0x800000000000808a
++DATA	round_consts<>+0x18(SB)/8, $0x8000000080008000
++DATA	round_consts<>+0x20(SB)/8, $0x000000000000808b
++DATA	round_consts<>+0x28(SB)/8, $0x0000000080000001
++DATA	round_consts<>+0x30(SB)/8, $0x8000000080008081
++DATA	round_consts<>+0x38(SB)/8, $0x8000000000008009
++DATA	round_consts<>+0x40(SB)/8, $0x000000000000008a
++DATA	round_consts<>+0x48(SB)/8, $0x0000000000000088
++DATA	round_consts<>+0x50(SB)/8, $0x0000000080008009
++DATA	round_consts<>+0x58(SB)/8, $0x000000008000000a
++DATA	round_consts<>+0x60(SB)/8, $0x000000008000808b
++DATA	round_consts<>+0x68(SB)/8, $0x800000000000008b
++DATA	round_consts<>+0x70(SB)/8, $0x8000000000008089
++DATA	round_consts<>+0x78(SB)/8, $0x8000000000008003
++DATA	round_consts<>+0x80(SB)/8, $0x8000000000008002
++DATA	round_consts<>+0x88(SB)/8, $0x8000000000000080
++DATA	round_consts<>+0x90(SB)/8, $0x000000000000800a
++DATA	round_consts<>+0x98(SB)/8, $0x800000008000000a
++DATA	round_consts<>+0xA0(SB)/8, $0x8000000080008081
++DATA	round_consts<>+0xA8(SB)/8, $0x8000000000008080
++DATA	round_consts<>+0xB0(SB)/8, $0x0000000080000001
++DATA	round_consts<>+0xB8(SB)/8, $0x8000000080008008
++GLOBL	round_consts<>(SB), NOPTR|RODATA, $192
+diff --git a/src/crypto/internal/fips140/sha3/sha3_noasm.go b/src/crypto/internal/fips140/sha3/sha3_noasm.go
+index 0bcfc73d02..1ce3edfb6f 100644
+--- a/src/crypto/internal/fips140/sha3/sha3_noasm.go
++++ b/src/crypto/internal/fips140/sha3/sha3_noasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (!amd64 && !s390x) || purego
++//go:build (!amd64 && !arm64 && !s390x) || purego
+ 
+ package sha3
+ 
+diff --git a/src/crypto/internal/fips140deps/cpu/cpu.go b/src/crypto/internal/fips140deps/cpu/cpu.go
+index 311e4f541b..2dfcc1a4d4 100644
+--- a/src/crypto/internal/fips140deps/cpu/cpu.go
++++ b/src/crypto/internal/fips140deps/cpu/cpu.go
+@@ -22,6 +22,7 @@ var (
+ 	ARM64HasPMULL  = cpu.ARM64.HasPMULL
+ 	ARM64HasSHA2   = cpu.ARM64.HasSHA2
+ 	ARM64HasSHA512 = cpu.ARM64.HasSHA512
++	ARM64HasSHA3   = cpu.ARM64.HasSHA3
+ 
+ 	LOONG64HasLSX  = cpu.Loong64.HasLSX
+ 	LOONG64HasLASX = cpu.Loong64.HasLASX

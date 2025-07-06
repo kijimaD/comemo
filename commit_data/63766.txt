@@ -1,0 +1,1041 @@
+commit c4772d30bfbed6cfbfdf92066990b5c6dc4065bb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 14 00:01:49 2024 -0400
+
+    cmd/link: disallow pull-only linknames
+    
+    As mentioned in CL 584598, linkname is a mechanism that, when
+    abused, can break API integrity and even safety of Go programs.
+    CL 584598 is a first step to restrict the use of linknames, by
+    implementing a blocklist. This CL takes a step further, tightening
+    up the restriction by allowing linkname references ("pull") only
+    when the definition side explicitly opts into it, by having a
+    linkname on the definition (possibly to itself). This way, it is at
+    least clear on the definition side that the symbol, despite being
+    unexported, is accessed outside of the package. Unexported symbols
+    without linkname can now be actually private. This is similar to
+    the symbol visibility rule used by gccgo for years (which defines
+    unexported non-linknamed symbols as C static symbols).
+    
+    As there can be pull-only linknames in the wild that may be broken
+    by this change, we currently only enforce this rule for symbols
+    defined in the standard library. Push linknames are added in the
+    standard library to allow things build.
+    
+    Linkname references to external (non-Go) symbols are still allowed,
+    as their visibility is controlled by the C symbol visibility rules
+    and enforced by the C (static or dynamic) linker.
+    
+    Assembly symbols are treated similar to linknamed symbols.
+    
+    This is controlled by -checklinkname linker flag, currently not
+    enabled by default. A follow-up CL will enable it by default.
+    
+    Change-Id: I07344f5c7a02124dbbef0fbc8fec3b666a4b2b0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585358
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+---
+ src/cmd/compile/internal/base/flag.go      |  2 +
+ src/cmd/compile/internal/liveness/plive.go |  1 +
+ src/cmd/compile/internal/ssagen/abi.go     |  5 ++
+ src/cmd/go/go_test.go                      |  2 +-
+ src/cmd/internal/goobj/objfile.go          |  4 ++
+ src/cmd/internal/obj/link.go               |  1 +
+ src/cmd/internal/obj/objfile.go            | 13 ++++-
+ src/cmd/link/internal/ld/lib.go            |  3 ++
+ src/cmd/link/internal/ld/main.go           |  1 +
+ src/cmd/link/internal/loader/loader.go     | 85 ++++++++++++++++++++----------
+ src/cmd/link/link_test.go                  |  9 ++--
+ src/cmd/link/testdata/linkname/coro2.go    | 17 ++++++
+ src/cmd/link/testdata/linkname/fastrand.go | 18 +++++++
+ src/cmd/link/testdata/linkname/weak.go     | 22 --------
+ src/go/build/deps_test.go                  |  4 +-
+ src/go/types/api.go                        |  4 ++
+ src/internal/cpu/cpu.go                    | 10 ++++
+ src/internal/runtime/atomic/atomic_386.go  |  1 +
+ src/internal/runtime/atomic/atomic_arm.go  |  1 +
+ src/internal/runtime/atomic/atomic_wasm.go |  2 +
+ src/net/textproto/reader.go                |  4 ++
+ src/os/executable_darwin.go                |  6 ++-
+ src/os/executable_solaris.go               |  6 ++-
+ src/runtime/coro.go                        |  2 -
+ src/runtime/coverage/emit.go               |  3 ++
+ src/runtime/coverage/testsupport.go        |  6 +++
+ src/runtime/linkname.go                    | 49 +++++++++++++++++
+ src/runtime/linkname_unix.go               | 12 +++++
+ src/runtime/netpoll.go                     |  3 ++
+ src/runtime/string.go                      |  2 +-
+ src/runtime/vdso_linux_amd64.go            |  5 ++
+ src/syscall/fs_wasip1.go                   |  6 +++
+ src/syscall/linkname_bsd.go                | 15 ++++++
+ src/syscall/linkname_darwin.go             | 23 ++++++++
+ src/syscall/linkname_libc.go               | 12 +++++
+ src/syscall/linkname_openbsd.go            | 15 ++++++
+ src/syscall/syscall_linux.go               |  3 ++
+ src/testing/newcover.go                    |  7 +++
+ src/time/zoneinfo_read.go                  |  3 ++
+ 39 files changed, 324 insertions(+), 63 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index f514ce104a..fe515aafbf 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -213,6 +213,8 @@ func ParseFlags() {
+ 		Flag.CompilingRuntime = true
+ 	}
+ 
++	Ctxt.Std = Flag.Std
++
+ 	// Three inputs govern loop iteration variable rewriting, hash, experiment, flag.
+ 	// The loop variable rewriting is:
+ 	// IF non-empty hash, then hash determines behavior (function+line match) (*)
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index dd48d10bc5..1a36035f46 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1551,6 +1551,7 @@ func WriteFuncMap(fn *ir.Func, abiInfo *abi.ABIParamResultInfo) {
+ 		nbitmap = 2
+ 	}
+ 	lsym := base.Ctxt.Lookup(fn.LSym.Name + ".args_stackmap")
++	lsym.Set(obj.AttrLinkname, true) // allow args_stackmap referenced from assembly
+ 	off := objw.Uint32(lsym, 0, uint32(nbitmap))
+ 	off = objw.Uint32(lsym, off, uint32(bv.N))
+ 	off = objw.BitVec(lsym, off, bv)
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 5c4a8aff69..d5ae3b1793 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -148,6 +148,11 @@ func (s *SymABIs) GenABIWrappers() {
+ 			// offsets to dispatch arguments, which currently using ABI0
+ 			// frame layout. Pin it to ABI0.
+ 			fn.ABI = obj.ABI0
++			// Propagate linkname attribute, which was set on the ABIInternal
++			// symbol.
++			if sym.Linksym().IsLinkname() {
++				sym.LinksymABI(fn.ABI).Set(obj.AttrLinkname, true)
++			}
+ 		}
+ 
+ 		// If cgo-exported, add the definition ABI to the cgo
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 5e5d539033..a5ce22c0c3 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -1058,7 +1058,7 @@ func TestGoListDeps(t *testing.T) {
+ 	if runtime.Compiler != "gccgo" {
+ 		// Check the list is in dependency order.
+ 		tg.run("list", "-deps", "math")
+-		want := "internal/cpu\nunsafe\nmath/bits\nmath\n"
++		want := "unsafe\ninternal/cpu\nmath/bits\nmath\n"
+ 		out := tg.stdout.String()
+ 		if !strings.Contains(out, "internal/cpu") {
+ 			// Some systems don't use internal/cpu.
+diff --git a/src/cmd/internal/goobj/objfile.go b/src/cmd/internal/goobj/objfile.go
+index fb87b04412..56ce76ad09 100644
+--- a/src/cmd/internal/goobj/objfile.go
++++ b/src/cmd/internal/goobj/objfile.go
+@@ -284,6 +284,7 @@ const (
+ 	_                               // was ObjFlagNeedNameExpansion
+ 	ObjFlagFromAssembly             // object is from asm src, not go
+ 	ObjFlagUnlinkable               // unlinkable package (linker will emit an error)
++	ObjFlagStd                      // standard library package
+ )
+ 
+ // Sym.Flag
+@@ -304,6 +305,7 @@ const (
+ 	SymFlagDict
+ 	SymFlagPkgInit
+ 	SymFlagLinkname
++	SymFlagABIWrapper
+ )
+ 
+ // Returns the length of the name of the symbol.
+@@ -336,6 +338,7 @@ func (s *Sym) IsItab() bool        { return s.Flag2()&SymFlagItab != 0 }
+ func (s *Sym) IsDict() bool        { return s.Flag2()&SymFlagDict != 0 }
+ func (s *Sym) IsPkgInit() bool     { return s.Flag2()&SymFlagPkgInit != 0 }
+ func (s *Sym) IsLinkname() bool    { return s.Flag2()&SymFlagLinkname != 0 }
++func (s *Sym) ABIWrapper() bool    { return s.Flag2()&SymFlagABIWrapper != 0 }
+ 
+ func (s *Sym) SetName(x string, w *Writer) {
+ 	binary.LittleEndian.PutUint32(s[:], uint32(len(x)))
+@@ -882,3 +885,4 @@ func (r *Reader) Flags() uint32 {
+ func (r *Reader) Shared() bool       { return r.Flags()&ObjFlagShared != 0 }
+ func (r *Reader) FromAssembly() bool { return r.Flags()&ObjFlagFromAssembly != 0 }
+ func (r *Reader) Unlinkable() bool   { return r.Flags()&ObjFlagUnlinkable != 0 }
++func (r *Reader) Std() bool          { return r.Flags()&ObjFlagStd != 0 }
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 38869f0f47..647a459d59 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -1048,6 +1048,7 @@ type Link struct {
+ 	InParallel    bool // parallel backend phase in effect
+ 	UseBASEntries bool // use Base Address Selection Entries in location lists and PC ranges
+ 	IsAsm         bool // is the source assembly language, which may contain surprising idioms (e.g., call tables)
++	Std           bool // is standard library package
+ 
+ 	// state for writing objects
+ 	Text []*LSym
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 648aae4fa2..2ed98cb577 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -57,6 +57,9 @@ func WriteObjFile(ctxt *Link, b *bio.Writer) {
+ 	if ctxt.IsAsm {
+ 		flags |= goobj.ObjFlagFromAssembly
+ 	}
++	if ctxt.Std {
++		flags |= goobj.ObjFlagStd
++	}
+ 	h := goobj.Header{
+ 		Magic:       goobj.Magic,
+ 		Fingerprint: ctxt.Fingerprint,
+@@ -309,6 +312,7 @@ func (w *writer) StringTable() {
+ const cutoff = int64(2e9) // 2 GB (or so; looks better in errors than 2^31)
+ 
+ func (w *writer) Sym(s *LSym) {
++	name := s.Name
+ 	abi := uint16(s.ABI())
+ 	if s.Static() {
+ 		abi = goobj.SymABIstatic
+@@ -348,10 +352,15 @@ func (w *writer) Sym(s *LSym) {
+ 	if s.IsPkgInit() {
+ 		flag2 |= goobj.SymFlagPkgInit
+ 	}
+-	if s.IsLinkname() || w.ctxt.IsAsm { // assembly reference is treated the same as linkname
++	if s.IsLinkname() || (w.ctxt.IsAsm && name != "") || name == "main.main" {
++		// Assembly reference is treated the same as linkname,
++		// but not for unnamed (aux) symbols.
++		// The runtime linknames main.main.
+ 		flag2 |= goobj.SymFlagLinkname
+ 	}
+-	name := s.Name
++	if s.ABIWrapper() {
++		flag2 |= goobj.SymFlagABIWrapper
++	}
+ 	if strings.HasPrefix(name, "gofile..") {
+ 		name = filepath.ToSlash(name)
+ 	}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index cb0961eaef..11df3a466d 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -518,6 +518,9 @@ func (ctxt *Link) findLibPath(libname string) string {
+ 
+ func (ctxt *Link) loadlib() {
+ 	var flags uint32
++	if *flagCheckLinkname {
++		flags |= loader.FlagCheckLinkname
++	}
+ 	switch *FlagStrictDups {
+ 	case 0:
+ 		// nothing to do
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 8a67ccfb32..e6608fd791 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -96,6 +96,7 @@ var (
+ 	FlagS             = flag.Bool("s", false, "disable symbol table")
+ 	flag8             bool // use 64-bit addresses in symbol table
+ 	flagInterpreter   = flag.String("I", "", "use `linker` as ELF dynamic linker")
++	flagCheckLinkname = flag.Bool("checklinkname", false, "check linkname symbol references")
+ 	FlagDebugTramp    = flag.Int("debugtramp", 0, "debug trampolines")
+ 	FlagDebugTextSize = flag.Int("debugtextsize", 0, "debug text section max size")
+ 	flagDebugNosplit  = flag.Bool("debugnosplit", false, "dump nosplit call graph")
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 53ebb53a75..0a76c1fb0c 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -292,6 +292,7 @@ type extSymPayload struct {
+ const (
+ 	// Loader.flags
+ 	FlagStrictDups = 1 << iota
++	FlagCheckLinkname
+ )
+ 
+ func NewLoader(flags uint32, reporter *ErrorReporter) *Loader {
+@@ -421,14 +422,6 @@ func (st *loadState) addSym(name string, ver int, r *oReader, li uint32, kind in
+ 	}
+ 
+ 	// Non-package (named) symbol.
+-	if osym.IsLinkname() && r.DataSize(li) == 0 {
+-		// This is a linknamed "var" "reference" (var x T with no data and //go:linkname x).
+-		// Check if a linkname reference is allowed.
+-		// Only check references (pull), not definitions (push, with non-zero size),
+-		// so push is always allowed.
+-		// Linkname is always a non-package reference.
+-		checkLinkname(r.unit.Lib.Pkg, name)
+-	}
+ 	// Check if it already exists.
+ 	oldi, existed := l.symsByName[ver][name]
+ 	if !existed {
+@@ -2154,6 +2147,14 @@ type loadState struct {
+ 	l            *Loader
+ 	hashed64Syms map[uint64]symAndSize         // short hashed (content-addressable) symbols, keyed by content hash
+ 	hashedSyms   map[goobj.HashType]symAndSize // hashed (content-addressable) symbols, keyed by content hash
++
++	linknameVarRefs []linknameVarRef // linknamed var refererces
++}
++
++type linknameVarRef struct {
++	pkg  string // package of reference (not definition)
++	name string
++	sym  Sym
+ }
+ 
+ // Preload symbols of given kind from an object.
+@@ -2188,6 +2189,19 @@ func (st *loadState) preloadSyms(r *oReader, kind int) {
+ 		}
+ 		gi := st.addSym(name, v, r, i, kind, osym)
+ 		r.syms[i] = gi
++		if kind == nonPkgDef && osym.IsLinkname() && r.DataSize(i) == 0 && strings.Contains(name, ".") {
++			// This is a linknamed "var" "reference" (var x T with no data and //go:linkname x).
++			// We want to check if a linkname reference is allowed. Here we haven't loaded all
++			// symbol definitions, so we don't yet know all the push linknames. So we add to a
++			// list and check later after all symbol defs are loaded. Linknamed vars are rare,
++			// so this list won't be long.
++			// Only check references (pull), not definitions (push, with non-zero size),
++			// so push is always allowed.
++			// This use of linkname is usually for referencing C symbols, so allow symbols
++			// with no "." in its name (not a regular Go symbol).
++			// Linkname is always a non-package reference.
++			st.linknameVarRefs = append(st.linknameVarRefs, linknameVarRef{r.unit.Lib.Pkg, name, gi})
++		}
+ 		if osym.Local() {
+ 			l.SetAttrLocal(gi, true)
+ 		}
+@@ -2237,6 +2251,9 @@ func (l *Loader) LoadSyms(arch *sys.Arch) {
+ 		st.preloadSyms(r, hashedDef)
+ 		st.preloadSyms(r, nonPkgDef)
+ 	}
++	for _, vr := range st.linknameVarRefs {
++		l.checkLinkname(vr.pkg, vr.name, vr.sym)
++	}
+ 	l.nhashedsyms = len(st.hashed64Syms) + len(st.hashedSyms)
+ 	for _, r := range l.objs[goObjStart:] {
+ 		loadObjRefs(l, r, arch)
+@@ -2252,15 +2269,15 @@ func loadObjRefs(l *Loader, r *oReader, arch *sys.Arch) {
+ 		osym := r.Sym(ndef + i)
+ 		name := osym.Name(r.Reader)
+ 		v := abiToVer(osym.ABI(), r.version)
++		gi := l.LookupOrCreateSym(name, v)
++		r.syms[ndef+i] = gi
+ 		if osym.IsLinkname() {
+ 			// Check if a linkname reference is allowed.
+ 			// Only check references (pull), not definitions (push),
+ 			// so push is always allowed.
+ 			// Linkname is always a non-package reference.
+-			checkLinkname(r.unit.Lib.Pkg, name)
++			l.checkLinkname(r.unit.Lib.Pkg, name, gi)
+ 		}
+-		r.syms[ndef+i] = l.LookupOrCreateSym(name, v)
+-		gi := r.syms[ndef+i]
+ 		if osym.Local() {
+ 			l.SetAttrLocal(gi, true)
+ 		}
+@@ -2307,30 +2324,27 @@ func abiToVer(abi uint16, localSymVersion int) int {
+ 
+ // A list of blocked linknames. Some linknames are allowed only
+ // in specific packages. This maps symbol names to allowed packages.
+-// If a name is not in this map, and not with a blocked prefix (see
+-// blockedLinknamePrefixes), it is allowed everywhere.
+-// If a name is in this map, it is allowed only in listed packages.
++// If a name is not in this map, it is allowed iff the definition
++// has a linkname (push).
++// If a name is in this map, it is allowed only in listed packages,
++// even if it has a linknamed definition.
+ var blockedLinknames = map[string][]string{
+ 	// coroutines
+-	"runtime.coroexit":   nil,
+-	"runtime.corostart":  nil,
+ 	"runtime.coroswitch": {"iter"},
+ 	"runtime.newcoro":    {"iter"},
+ 	// weak references
+ 	"internal/weak.runtime_registerWeakPointer": {"internal/weak"},
+ 	"internal/weak.runtime_makeStrongFromWeak":  {"internal/weak"},
+-	"runtime.getOrAddWeakHandle":                nil,
+ }
+ 
+-// A list of blocked linkname prefixes (packages).
+-var blockedLinknamePrefixes = []string{
+-	"internal/weak.",
+-	"internal/concurrent.",
+-}
++// check if a linkname reference to symbol s from pkg is allowed
++func (l *Loader) checkLinkname(pkg, name string, s Sym) {
++	if l.flags&FlagCheckLinkname == 0 {
++		return
++	}
+ 
+-func checkLinkname(pkg, name string) {
+ 	error := func() {
+-		log.Fatalf("linkname or assembly reference of %s is not allowed in package %s", name, pkg)
++		log.Fatalf("%s: invalid reference to %s", pkg, name)
+ 	}
+ 	pkgs, ok := blockedLinknames[name]
+ 	if ok {
+@@ -2341,11 +2355,26 @@ func checkLinkname(pkg, name string) {
+ 		}
+ 		error()
+ 	}
+-	for _, p := range blockedLinknamePrefixes {
+-		if strings.HasPrefix(name, p) {
+-			error()
+-		}
++	r, li := l.toLocal(s)
++	if r == l.extReader { // referencing external symbol is okay
++		return
++	}
++	if !r.Std() { // For now, only check for symbols defined in std
++		return
++	}
++	if r.unit.Lib.Pkg == pkg { // assembly reference from same package
++		return
++	}
++	osym := r.Sym(li)
++	if osym.IsLinkname() || osym.ABIWrapper() {
++		// Allow if the def has a linkname (push).
++		// ABI wrapper usually wraps an assembly symbol, a linknamed symbol,
++		// or an external symbol, or provide access of a Go symbol to assembly.
++		// For now, allow ABI wrappers.
++		// TODO: check the wrapped symbol?
++		return
+ 	}
++	error()
+ }
+ 
+ // TopLevelSym tests a symbol (by name and kind) to determine whether
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 3abec64c5d..1ce484fe61 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -1416,7 +1416,7 @@ func TestRandLayout(t *testing.T) {
+ 	}
+ }
+ 
+-func TestBlockedLinkname(t *testing.T) {
++func TestCheckLinkname(t *testing.T) {
+ 	// Test that code containing blocked linknames does not build.
+ 	testenv.MustHaveGoBuild(t)
+ 	t.Parallel()
+@@ -1433,10 +1433,13 @@ func TestBlockedLinkname(t *testing.T) {
+ 		{"push.go", true},
+ 		// pull linkname of blocked symbol is not ok
+ 		{"coro.go", false},
+-		{"weak.go", false},
+ 		{"coro_var.go", false},
+ 		// assembly reference is not ok
+ 		{"coro_asm", false},
++		// pull-only linkname is not ok
++		{"coro2.go", false},
++		// legacy bad linkname is ok, for now
++		{"fastrand.go", true},
+ 	}
+ 	for _, test := range tests {
+ 		test := test
+@@ -1444,7 +1447,7 @@ func TestBlockedLinkname(t *testing.T) {
+ 			t.Parallel()
+ 			src := filepath.Join("testdata", "linkname", test.src)
+ 			exe := filepath.Join(tmpdir, test.src+".exe")
+-			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-o", exe, src)
++			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags=-checklinkname=1", "-o", exe, src)
+ 			out, err := cmd.CombinedOutput()
+ 			if test.ok && err != nil {
+ 				t.Errorf("build failed unexpectedly: %v:\n%s", err, out)
+diff --git a/src/cmd/link/testdata/linkname/coro2.go b/src/cmd/link/testdata/linkname/coro2.go
+new file mode 100644
+index 0000000000..ae47147670
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/coro2.go
+@@ -0,0 +1,17 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Linkname corostart is not allowed, as it doesn't have
++// a linknamed definition.
++
++package main
++
++import _ "unsafe"
++
++//go:linkname corostart runtime.corostart
++func corostart()
++
++func main() {
++	corostart()
++}
+diff --git a/src/cmd/link/testdata/linkname/fastrand.go b/src/cmd/link/testdata/linkname/fastrand.go
+new file mode 100644
+index 0000000000..ce51e2a7f3
+--- /dev/null
++++ b/src/cmd/link/testdata/linkname/fastrand.go
+@@ -0,0 +1,18 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Linkname fastrand is allowed _for now_, as it has a
++// linknamed definition, for legacy reason.
++// NOTE: this may not be allowed in the future. Don't do this!
++
++package main
++
++import _ "unsafe"
++
++//go:linkname fastrand runtime.fastrand
++func fastrand() uint32
++
++func main() {
++	println(fastrand())
++}
+diff --git a/src/cmd/link/testdata/linkname/weak.go b/src/cmd/link/testdata/linkname/weak.go
+deleted file mode 100644
+index 2bf0fbcbab..0000000000
+--- a/src/cmd/link/testdata/linkname/weak.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Linkname generic functions in internal/weak is not
+-// allowed; legitimate instantiation is ok.
+-
+-package main
+-
+-import (
+-	"unique"
+-	"unsafe"
+-)
+-
+-//go:linkname weakMake internal/weak.Make[string]
+-func weakMake(string) unsafe.Pointer
+-
+-func main() {
+-	h := unique.Make("xxx")
+-	println(h.Value())
+-	weakMake("xxx")
+-}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 4e8f1c9109..ee53b31140 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -42,7 +42,7 @@ var depsRules = `
+ 	< cmp, container/list, container/ring,
+ 	  internal/cfg, internal/coverage, internal/coverage/rtcov,
+ 	  internal/coverage/uleb128, internal/coverage/calloc,
+-	  internal/cpu, internal/goarch, internal/godebugs,
++	  internal/goarch, internal/godebugs,
+ 	  internal/goexperiment, internal/goos, internal/byteorder,
+ 	  internal/goversion, internal/nettrace, internal/platform,
+ 	  internal/trace/traceviewer/format,
+@@ -55,7 +55,7 @@ var depsRules = `
+ 
+ 	internal/byteorder, internal/goarch, unsafe < internal/chacha8rand;
+ 
+-	unsafe < maps;
++	unsafe < internal/cpu, maps;
+ 
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+ 	internal/abi,
+diff --git a/src/go/types/api.go b/src/go/types/api.go
+index 2db67e5329..dea974bec8 100644
+--- a/src/go/types/api.go
++++ b/src/go/types/api.go
+@@ -36,6 +36,7 @@ import (
+ 	"go/constant"
+ 	"go/token"
+ 	. "internal/types/errors"
++	_ "unsafe" // for linkname
+ )
+ 
+ // An Error describes a type-checking error; it implements the error interface.
+@@ -192,6 +193,9 @@ type Config struct {
+ 	_EnableAlias bool
+ }
+ 
++// Linkname for use from srcimporter.
++//go:linkname srcimporter_setUsesCgo
++
+ func srcimporter_setUsesCgo(conf *Config) {
+ 	conf.go115UsesCgo = true
+ }
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index d794e53cee..9be280c6ba 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -6,6 +6,8 @@
+ // used by the Go standard library.
+ package cpu
+ 
++import _ "unsafe" // for linkname
++
+ // DebugOptions is set to true by the runtime if the OS supports reading
+ // GODEBUG early in runtime startup.
+ // This should not be changed after it is initialized.
+@@ -121,6 +123,14 @@ var S390X struct {
+ 	_         CacheLinePad
+ }
+ 
++// CPU feature variables are accessed by assembly code in various packages.
++//go:linkname X86
++//go:linkname ARM
++//go:linkname ARM64
++//go:linkname MIPS64X
++//go:linkname PPC64
++//go:linkname S390X
++
+ // Initialize examines the processor and sets the relevant variables above.
+ // This is called by the runtime package early in program initialization,
+ // before normal init functions are run. env is set by runtime if the OS supports
+diff --git a/src/internal/runtime/atomic/atomic_386.go b/src/internal/runtime/atomic/atomic_386.go
+index e74dcaa92d..a023baddb7 100644
+--- a/src/internal/runtime/atomic/atomic_386.go
++++ b/src/internal/runtime/atomic/atomic_386.go
+@@ -12,6 +12,7 @@ import "unsafe"
+ //
+ //go:linkname Load
+ //go:linkname Loadp
++//go:linkname LoadAcquintptr
+ 
+ //go:nosplit
+ //go:noinline
+diff --git a/src/internal/runtime/atomic/atomic_arm.go b/src/internal/runtime/atomic/atomic_arm.go
+index 567e951244..b58f643ca3 100644
+--- a/src/internal/runtime/atomic/atomic_arm.go
++++ b/src/internal/runtime/atomic/atomic_arm.go
+@@ -19,6 +19,7 @@ const (
+ //
+ //go:linkname Xchg
+ //go:linkname Xchguintptr
++//go:linkname Xadd
+ 
+ type spinlock struct {
+ 	v uint32
+diff --git a/src/internal/runtime/atomic/atomic_wasm.go b/src/internal/runtime/atomic/atomic_wasm.go
+index 835fc43ccf..d1dcfec7ad 100644
+--- a/src/internal/runtime/atomic/atomic_wasm.go
++++ b/src/internal/runtime/atomic/atomic_wasm.go
+@@ -13,6 +13,7 @@
+ //go:linkname Loadint32
+ //go:linkname Loadint64
+ //go:linkname Loaduintptr
++//go:linkname LoadAcquintptr
+ //go:linkname Xadd
+ //go:linkname Xaddint32
+ //go:linkname Xaddint64
+@@ -33,6 +34,7 @@
+ //go:linkname Storeint32
+ //go:linkname Storeint64
+ //go:linkname Storeuintptr
++//go:linkname StoreReluintptr
+ 
+ package atomic
+ 
+diff --git a/src/net/textproto/reader.go b/src/net/textproto/reader.go
+index 1a81453559..f98e05bd1d 100644
+--- a/src/net/textproto/reader.go
++++ b/src/net/textproto/reader.go
+@@ -14,6 +14,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 	"sync"
++	_ "unsafe" // for linkname
+ )
+ 
+ // TODO: This should be a distinguishable error (ErrMessageTooLarge)
+@@ -501,6 +502,9 @@ func (r *Reader) ReadMIMEHeader() (MIMEHeader, error) {
+ 	return readMIMEHeader(r, math.MaxInt64, math.MaxInt64)
+ }
+ 
++// readMIMEHeader is accessed from mime/multipart.
++//go:linkname readMIMEHeader
++
+ // readMIMEHeader is a version of ReadMIMEHeader which takes a limit on the header size.
+ // It is called by the mime/multipart package.
+ func readMIMEHeader(r *Reader, maxMemory, maxHeaders int64) (MIMEHeader, error) {
+diff --git a/src/os/executable_darwin.go b/src/os/executable_darwin.go
+index dae9f4ee18..2bb50ab3fe 100644
+--- a/src/os/executable_darwin.go
++++ b/src/os/executable_darwin.go
+@@ -4,8 +4,12 @@
+ 
+ package os
+ 
+-import "errors"
++import (
++	"errors"
++	_ "unsafe" // for linkname
++)
+ 
++//go:linkname executablePath
+ var executablePath string // set by ../runtime/os_darwin.go
+ 
+ var initCwd, initCwdErr = Getwd()
+diff --git a/src/os/executable_solaris.go b/src/os/executable_solaris.go
+index b145980c56..8ee897f4b0 100644
+--- a/src/os/executable_solaris.go
++++ b/src/os/executable_solaris.go
+@@ -4,8 +4,12 @@
+ 
+ package os
+ 
+-import "syscall"
++import (
++	"syscall"
++	_ "unsafe" // for linkname
++)
+ 
++//go:linkname executablePath
+ var executablePath string // set by sysauxv in ../runtime/os3_solaris.go
+ 
+ var initCwd, initCwdErr = Getwd()
+diff --git a/src/runtime/coro.go b/src/runtime/coro.go
+index 98e789f133..b2bc801940 100644
+--- a/src/runtime/coro.go
++++ b/src/runtime/coro.go
+@@ -46,8 +46,6 @@ func newcoro(f func(*coro)) *coro {
+ 	return c
+ }
+ 
+-//go:linkname corostart
+-
+ // corostart is the entry func for a new coroutine.
+ // It runs the coroutine user function f passed to corostart
+ // and then calls coroexit to remove the extra concurrency.
+diff --git a/src/runtime/coverage/emit.go b/src/runtime/coverage/emit.go
+index 6fe04daea8..6510c889ea 100644
+--- a/src/runtime/coverage/emit.go
++++ b/src/runtime/coverage/emit.go
+@@ -574,6 +574,9 @@ func (s *emitState) emitCounterDataFile(finalHash [16]byte, w io.Writer) error {
+ 	return nil
+ }
+ 
++// markProfileEmitted is injected to testmain via linkname.
++//go:linkname markProfileEmitted
++
+ // markProfileEmitted signals the runtime/coverage machinery that
+ // coverage data output files have already been written out, and there
+ // is no need to take any additional action at exit time. This
+diff --git a/src/runtime/coverage/testsupport.go b/src/runtime/coverage/testsupport.go
+index 4b00f3a0f7..b673d3cd2c 100644
+--- a/src/runtime/coverage/testsupport.go
++++ b/src/runtime/coverage/testsupport.go
+@@ -22,6 +22,9 @@ import (
+ 	"unsafe"
+ )
+ 
++// processCoverTestDir is injected in testmain.
++//go:linkname processCoverTestDir
++
+ // processCoverTestDir is called (via a linknamed reference) from
+ // testmain code when "go test -cover" is in effect. It is not
+ // intended to be used other than internally by the Go command's
+@@ -277,6 +280,9 @@ func (ts *tstate) readAuxMetaFiles(metafiles string, importpaths map[string]stru
+ 	return nil
+ }
+ 
++// snapshot is injected in testmain.
++//go:linkname snapshot
++
+ // snapshot returns a snapshot of coverage percentage at a moment of
+ // time within a running test, so as to support the testing.Coverage()
+ // function. This version doesn't examine coverage meta-data, so the
+diff --git a/src/runtime/linkname.go b/src/runtime/linkname.go
+new file mode 100644
+index 0000000000..0f02c6b4e3
+--- /dev/null
++++ b/src/runtime/linkname.go
+@@ -0,0 +1,49 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import _ "unsafe"
++
++// used in time and internal/poll
++//go:linkname nanotime
++
++// used in internal/godebug and syscall
++//go:linkname write
++
++// used in internal/runtime/atomic
++//go:linkname goarm
++
++// used by cgo
++//go:linkname cgocall
++//go:linkname _cgo_panic_internal
++//go:linkname cgoAlwaysFalse
++//go:linkname cgoUse
++//go:linkname cgoCheckPointer
++//go:linkname cgoCheckResult
++//go:linkname cgoNoCallback
++//go:linkname gobytes
++//go:linkname gostringn
++//go:linkname throw
++
++// used in plugin
++//go:linkname doInit
++
++// used in math/bits
++//go:linkname overflowError
++//go:linkname divideError
++
++// used in runtime/coverage and in tests
++//go:linkname addExitHook
++
++// used in x/sys/cpu
++//go:linkname getAuxv
++
++// used in tests
++//go:linkname extraMInUse
++//go:linkname getm
++//go:linkname blockevent
++//go:linkname haveHighResSleep
++//go:linkname blockUntilEmptyFinalizerQueue
++//go:linkname lockedOSThread
+diff --git a/src/runtime/linkname_unix.go b/src/runtime/linkname_unix.go
+new file mode 100644
+index 0000000000..65f876fa4b
+--- /dev/null
++++ b/src/runtime/linkname_unix.go
+@@ -0,0 +1,12 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package runtime
++
++import _ "unsafe"
++
++// used in internal/syscall/unix
++//go:linkname fcntl
+diff --git a/src/runtime/netpoll.go b/src/runtime/netpoll.go
+index bbfef80aec..7b37d91b24 100644
+--- a/src/runtime/netpoll.go
++++ b/src/runtime/netpoll.go
+@@ -207,6 +207,9 @@ var (
+ 	netpollWaiters atomic.Uint32
+ )
+ 
++// netpollWaiters is accessed in tests
++//go:linkname netpollWaiters
++
+ //go:linkname poll_runtime_pollServerInit internal/poll.runtime_pollServerInit
+ func poll_runtime_pollServerInit() {
+ 	netpollGenericInit()
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index e01b7fc744..81d1b80e56 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -312,7 +312,7 @@ func gobytes(p *byte, n int) (b []byte) {
+ 	return
+ }
+ 
+-// This is exported via linkname to assembly in syscall (for Plan9).
++// This is exported via linkname to assembly in syscall (for Plan9) and cgo.
+ //
+ //go:linkname gostring
+ func gostring(p *byte) string {
+diff --git a/src/runtime/vdso_linux_amd64.go b/src/runtime/vdso_linux_amd64.go
+index 4e9f748f4a..9c56409137 100644
+--- a/src/runtime/vdso_linux_amd64.go
++++ b/src/runtime/vdso_linux_amd64.go
+@@ -4,6 +4,8 @@
+ 
+ package runtime
+ 
++import _ "unsafe" // for linkname
++
+ const (
+ 	// vdsoArrayMax is the byte-size of a maximally sized array on this architecture.
+ 	// See cmd/compile/internal/amd64/galign.go arch.MAXWIDTH initialization.
+@@ -21,3 +23,6 @@ var (
+ 	vdsoGettimeofdaySym uintptr
+ 	vdsoClockgettimeSym uintptr
+ )
++
++// vdsoGettimeofdaySym is accessed from the syscall package.
++//go:linkname vdsoGettimeofdaySym
+diff --git a/src/syscall/fs_wasip1.go b/src/syscall/fs_wasip1.go
+index f19e8f3b3c..fc361ee898 100644
+--- a/src/syscall/fs_wasip1.go
++++ b/src/syscall/fs_wasip1.go
+@@ -288,12 +288,18 @@ func fd_fdstat_get(fd int32, buf unsafe.Pointer) Errno
+ //go:noescape
+ func fd_fdstat_set_flags(fd int32, flags fdflags) Errno
+ 
++// fd_fdstat_get_flags is accessed from internal/syscall/unix
++//go:linkname fd_fdstat_get_flags
++
+ func fd_fdstat_get_flags(fd int) (uint32, error) {
+ 	var stat fdstat
+ 	errno := fd_fdstat_get(int32(fd), unsafe.Pointer(&stat))
+ 	return uint32(stat.fdflags), errnoErr(errno)
+ }
+ 
++// fd_fdstat_get_type is accessed from net
++//go:linkname fd_fdstat_get_type
++
+ func fd_fdstat_get_type(fd int) (uint8, error) {
+ 	var stat fdstat
+ 	errno := fd_fdstat_get(int32(fd), unsafe.Pointer(&stat))
+diff --git a/src/syscall/linkname_bsd.go b/src/syscall/linkname_bsd.go
+new file mode 100644
+index 0000000000..65ef900241
+--- /dev/null
++++ b/src/syscall/linkname_bsd.go
+@@ -0,0 +1,15 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || dragonfly || freebsd || netbsd || openbsd
++
++package syscall
++
++import _ "unsafe"
++
++// used by internal/syscall/unix
++//go:linkname ioctlPtr
++
++// used by x/net/route
++//go:linkname sysctl
+diff --git a/src/syscall/linkname_darwin.go b/src/syscall/linkname_darwin.go
+new file mode 100644
+index 0000000000..2ed83a4fad
+--- /dev/null
++++ b/src/syscall/linkname_darwin.go
+@@ -0,0 +1,23 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package syscall
++
++import _ "unsafe"
++
++// used by os
++//go:linkname closedir
++//go:linkname readdir_r
++
++// used by internal/poll
++//go:linkname fdopendir
++
++// used by internal/syscall/unix
++//go:linkname unlinkat
++//go:linkname openat
++//go:linkname fstatat
++
++// used by cmd/link
++//go:linkname msync
++//go:linkname fcntl
+diff --git a/src/syscall/linkname_libc.go b/src/syscall/linkname_libc.go
+new file mode 100644
+index 0000000000..1e7b4880d6
+--- /dev/null
++++ b/src/syscall/linkname_libc.go
+@@ -0,0 +1,12 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || darwin || (openbsd && !mips64) || solaris
++
++package syscall
++
++import _ "unsafe"
++
++// used by internal/poll
++//go:linkname writev
+diff --git a/src/syscall/linkname_openbsd.go b/src/syscall/linkname_openbsd.go
+new file mode 100644
+index 0000000000..5f5c517ab5
+--- /dev/null
++++ b/src/syscall/linkname_openbsd.go
+@@ -0,0 +1,15 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build openbsd && !mips64
++
++package syscall
++
++import _ "unsafe"
++
++// used by internal/syscall/unix
++//go:linkname unlinkat
++//go:linkname openat
++//go:linkname fstatat
++//go:linkname getentropy
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index f35e78c26a..28727dc98a 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -1284,6 +1284,9 @@ func Munmap(b []byte) (err error) {
+ //sys	Mlockall(flags int) (err error)
+ //sys	Munlockall() (err error)
+ 
++// prlimit is accessed from x/sys/unix.
++//go:linkname prlimit
++
+ // prlimit changes a resource limit. We use a single definition so that
+ // we can tell StartProcess to not restore the original NOFILE limit.
+ // This is unexported but can be called from x/sys/unix.
+diff --git a/src/testing/newcover.go b/src/testing/newcover.go
+index 6199f3bd7b..7a70dcfffa 100644
+--- a/src/testing/newcover.go
++++ b/src/testing/newcover.go
+@@ -10,6 +10,7 @@ import (
+ 	"fmt"
+ 	"internal/goexperiment"
+ 	"os"
++	_ "unsafe" // for linkname
+ )
+ 
+ // cover2 variable stores the current coverage mode and a
+@@ -20,6 +21,9 @@ var cover2 struct {
+ 	snapshotcov func() float64
+ }
+ 
++// registerCover2 is injected in testmain.
++//go:linkname registerCover2
++
+ // registerCover2 is invoked during "go test -cover" runs by the test harness
+ // code in _testmain.go; it is used to record a 'tear down' function
+ // (to be called when the test is complete) and the coverage mode.
+@@ -42,6 +46,9 @@ func coverReport2() {
+ 	}
+ }
+ 
++// testGoCoverDir is used in runtime/coverage tests.
++//go:linkname testGoCoverDir
++
+ // testGoCoverDir returns the value passed to the -test.gocoverdir
+ // flag by the Go command, if goexperiment.CoverageRedesign is
+ // in effect.
+diff --git a/src/time/zoneinfo_read.go b/src/time/zoneinfo_read.go
+index 9ce735d279..5314b6ff9a 100644
+--- a/src/time/zoneinfo_read.go
++++ b/src/time/zoneinfo_read.go
+@@ -14,10 +14,13 @@ import (
+ 	"internal/bytealg"
+ 	"runtime"
+ 	"syscall"
++	_ "unsafe" // for linkname
+ )
+ 
+ // registerLoadFromEmbeddedTZData is called by the time/tzdata package,
+ // if it is imported.
++//
++//go:linkname registerLoadFromEmbeddedTZData
+ func registerLoadFromEmbeddedTZData(f func(string) (string, error)) {
+ 	loadFromEmbeddedTZData = f
+ }

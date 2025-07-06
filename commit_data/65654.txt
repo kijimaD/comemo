@@ -1,0 +1,29 @@
+commit c0bccdd2fd2a26c34b30ec93e64fa1ebe704dc10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Nov 21 15:22:39 2024 -0800
+
+    go/parser: fix typo in tracing output (make trace match function)
+    
+    Change-Id: Ia79c7c8c4245b1ff8221296bc47bcba257e153e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630895
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/go/parser/parser.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 46b2d4e7dc..7260e96304 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -793,7 +793,7 @@ func (p *parser) parseParamDecl(name *ast.Ident, typeSetsOK bool) (f field) {
+ 	// TODO(rFindley) refactor to be more similar to paramDeclOrNil in the syntax
+ 	// package
+ 	if p.trace {
+-		defer un(trace(p, "ParamDeclOrNil"))
++		defer un(trace(p, "ParamDecl"))
+ 	}
+ 
+ 	ptok := p.tok

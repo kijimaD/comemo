@@ -1,0 +1,80 @@
+commit 4777fd3d31bee83d076b3b3d981367103da17e34
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 17:11:40 2024 -0700
+
+    cmd/go/internal/toolchain: use sync.OnceValue
+    
+    Rename initPathExts to pathExts, make it return the slice of extensions,
+    and wrap into sync.OnceValue.
+    
+    While at it, return early if PATHEXT is empty.
+    
+    Change-Id: I33508762e87edd226e0a52df4063473c496c0210
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611017
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/go/internal/toolchain/path_windows.go | 37 +++++++++++----------------
+ 1 file changed, 15 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/go/internal/toolchain/path_windows.go b/src/cmd/go/internal/toolchain/path_windows.go
+index 086c591e05..d88945ddc8 100644
+--- a/src/cmd/go/internal/toolchain/path_windows.go
++++ b/src/cmd/go/internal/toolchain/path_windows.go
+@@ -14,30 +14,24 @@ import (
+ 	"cmd/go/internal/gover"
+ )
+ 
+-// pathExts is a cached PATHEXT list.
+-var pathExts struct {
+-	once sync.Once
+-	list []string
+-}
++var pathExts = sync.OnceValue(func() []string {
++	x := os.Getenv(`PATHEXT`)
++	if x == "" {
++		return []string{".com", ".exe", ".bat", ".cmd"}
++	}
+ 
+-func initPathExts() {
+ 	var exts []string
+-	x := os.Getenv(`PATHEXT`)
+-	if x != "" {
+-		for _, e := range strings.Split(strings.ToLower(x), `;`) {
+-			if e == "" {
+-				continue
+-			}
+-			if e[0] != '.' {
+-				e = "." + e
+-			}
+-			exts = append(exts, e)
++	for _, e := range strings.Split(strings.ToLower(x), `;`) {
++		if e == "" {
++			continue
++		}
++		if e[0] != '.' {
++			e = "." + e
+ 		}
+-	} else {
+-		exts = []string{".com", ".exe", ".bat", ".cmd"}
++		exts = append(exts, e)
+ 	}
+-	pathExts.list = exts
+-}
++	return exts
++})
+ 
+ // pathDirs returns the directories in the system search path.
+ func pathDirs() []string {
+@@ -48,8 +42,7 @@ func pathDirs() []string {
+ // described by de and info in directory dir.
+ // The analysis only uses the name itself; it does not run the program.
+ func pathVersion(dir string, de fs.DirEntry, info fs.FileInfo) (string, bool) {
+-	pathExts.once.Do(initPathExts)
+-	name, _, ok := cutExt(de.Name(), pathExts.list)
++	name, _, ok := cutExt(de.Name(), pathExts())
+ 	if !ok {
+ 		return "", false
+ 	}

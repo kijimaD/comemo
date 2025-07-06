@@ -1,0 +1,471 @@
+commit a925402b62c06d1cfe2b345cba0b11fa06b8401d
+Author: cuishuang <imcusg@gmail.com>
+Date:   Wed Nov 20 21:56:27 2024 +0800
+
+    all: fix some function names and typos in comment
+    
+    Change-Id: I07e7c8eaa5bd4bac0d576b2f2f4cd3f81b0b77a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/PPC64Ops.go    | 2 +-
+ src/cmd/compile/internal/ssa/_gen/genericOps.go  | 2 +-
+ src/cmd/compile/internal/types2/README.md        | 4 ++--
+ src/cmd/compile/internal/walk/order.go           | 4 ++--
+ src/cmd/go/internal/generate/generate_test.go    | 2 +-
+ src/cmd/go/internal/modload/edit.go              | 2 +-
+ src/cmd/go/internal/mvs/mvs.go                   | 2 +-
+ src/cmd/go/main.go                               | 2 +-
+ src/cmd/internal/obj/ppc64/asm9.go               | 2 +-
+ src/cmd/internal/obj/util.go                     | 2 +-
+ src/cmd/internal/objfile/disasm.go               | 2 +-
+ src/cmd/internal/script/scripttest/conditions.go | 2 +-
+ src/cmd/link/link_test.go                        | 2 +-
+ src/crypto/tls/common.go                         | 2 +-
+ src/encoding/binary/binary.go                    | 2 +-
+ src/internal/pkgbits/decoder.go                  | 2 +-
+ src/internal/runtime/maps/table.go               | 4 ++--
+ src/internal/syscall/windows/version_windows.go  | 2 +-
+ src/internal/trace/event/event.go                | 2 +-
+ src/internal/types/testdata/check/go1_20_19.go   | 2 +-
+ src/internal/types/testdata/check/go1_21_19.go   | 2 +-
+ src/maps/maps_test.go                            | 2 +-
+ src/net/http/transport.go                        | 2 +-
+ src/runtime/debug/stack.go                       | 2 +-
+ src/runtime/export_test.go                       | 2 +-
+ src/runtime/mbarrier.go                          | 2 +-
+ src/runtime/panic.go                             | 2 +-
+ src/runtime/pprof/pprof_test.go                  | 2 +-
+ src/slices/slices_test.go                        | 2 +-
+ src/sort/example_keys_test.go                    | 2 +-
+ src/sort/example_multi_test.go                   | 2 +-
+ 31 files changed, 34 insertions(+), 34 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+index f4212c15af..1dae76366b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64Ops.go
+@@ -290,7 +290,7 @@ func init() {
+ 
+ 		// Movement between float and integer registers with no change in bits; accomplished with stores+loads on PPC.
+ 		// Because the 32-bit load-literal-bits instructions have impoverished addressability, always widen the
+-		// data instead and use FMOVDload and FMOVDstore instead (this will also dodge endianess issues).
++		// data instead and use FMOVDload and FMOVDstore instead (this will also dodge endianness issues).
+ 		// There are optimizations that should apply -- (Xi2f64 (MOVWload (not-ADD-ptr+offset) ) ) could use
+ 		// the word-load instructions.  (Xi2f64 (MOVDload ptr )) can be (FMOVDload ptr)
+ 
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 0d136c2a98..4dde6d51c5 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -632,7 +632,7 @@ var genericOps = []opData{
+ 	// These variants have the same semantics as above atomic operations.
+ 	// But they are used for generating more efficient code on certain modern machines, with run-time CPU feature detection.
+ 	// On ARM64, these are used when the LSE hardware feature is available (either known at compile time or detected at runtime). If LSE is not available,
+-	// then the basic atomic oprations are used instead.
++	// then the basic atomic operations are used instead.
+ 	{name: "AtomicStore8Variant", argLength: 3, typ: "Mem", hasSideEffects: true},  // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+ 	{name: "AtomicStore32Variant", argLength: 3, typ: "Mem", hasSideEffects: true}, // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+ 	{name: "AtomicStore64Variant", argLength: 3, typ: "Mem", hasSideEffects: true}, // Store arg1 to *arg0.  arg2=memory.  Returns memory.
+diff --git a/src/cmd/compile/internal/types2/README.md b/src/cmd/compile/internal/types2/README.md
+index 5b913f9174..3d70cdbcf4 100644
+--- a/src/cmd/compile/internal/types2/README.md
++++ b/src/cmd/compile/internal/types2/README.md
+@@ -32,7 +32,7 @@ This is done via a generator (go/types/generate_test.go) which may be invoked vi
+ `go generate` in the go/types directory.
+ Generated files are clearly marked with a comment at the top and should not
+ be modified by hand.
+-For this reason, it is usally best to make changes to the types2 sources first.
++For this reason, it is usually best to make changes to the types2 sources first.
+ The changes only need to be ported by hand for the go/types files that cannot
+ be generated yet.
+ 
+@@ -129,7 +129,7 @@ func (check *Checker) f(x *operand, e syntax.Expr, /* addition arguments, if any
+ ```
+ The result of typechecking expression `e` is returned via the operand `x`
+ (which sometimes also serves as incoming argument).
+-If an error occured the function f will report the error and try to continue
++If an error occurred the function f will report the error and try to continue
+ as best as it can, but it may return an invalid operand (`x.mode == invalid`).
+ Callers may need to explicitly check for invalid operands.
+ 
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 613edf497b..858fc706ab 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -453,7 +453,7 @@ func (o *orderState) edge() {
+ 	// never 0.
+ 	// Another policy presented in the paper is the Saturated Counters policy which
+ 	// freezes the counter when it reaches the value of 255. However, a range
+-	// of experiments showed that that decreases overall performance.
++	// of experiments showed that doing so decreases overall performance.
+ 	o.append(ir.NewIfStmt(base.Pos,
+ 		ir.NewBinaryExpr(base.Pos, ir.OEQ, counter, ir.NewInt(base.Pos, 0xff)),
+ 		[]ir.Node{ir.NewAssignStmt(base.Pos, counter, ir.NewInt(base.Pos, 1))},
+@@ -1219,7 +1219,7 @@ func (o *orderState) expr1(n, lhs ir.Node) ir.Node {
+ 			}
+ 		}
+ 
+-		// key may need to be be addressable
++		// key may need to be addressable
+ 		n.Index = o.mapKeyTemp(n.Pos(), n.X.Type(), n.Index)
+ 		if needCopy {
+ 			return o.copyExpr(n)
+diff --git a/src/cmd/go/internal/generate/generate_test.go b/src/cmd/go/internal/generate/generate_test.go
+index d61ecf104a..90e6a1f552 100644
+--- a/src/cmd/go/internal/generate/generate_test.go
++++ b/src/cmd/go/internal/generate/generate_test.go
+@@ -208,7 +208,7 @@ func TestGenerateCommandShorthand(t *testing.T) {
+ }
+ 
+ // Command-related tests for TestGenerateCommandShortHand2
+-// -- Note line numbers included to check substitutions from "build-in" variable - $GOLINE
++// -- Note line numbers included to check substitutions from "built-in" variable - $GOLINE
+ var splitTestsLines = []splitTestWithLine{
+ 	{"-command TEST1 $GOLINE", []string{"-command", "TEST1", "22"}, 22},
+ 	{"-command TEST2 ${DOLLAR}GOLINE", []string{"-command", "TEST2", "$GOLINE"}, 26},
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index d7fa6d0564..b406193dc5 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -749,7 +749,7 @@ func (t *dqTracker) require(m, r module.Version) (ok bool) {
+ 		}
+ 	}
+ 
+-	// Record that m is a dependant of r, so that if r is later disqualified
++	// Record that m is a dependent of r, so that if r is later disqualified
+ 	// m will be disqualified as well.
+ 	if t.requiring == nil {
+ 		t.requiring = make(map[module.Version][]module.Version)
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index b46c016c78..50f8cb61cc 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -438,7 +438,7 @@ List:
+ 	// requirements of other modules.
+ 	//
+ 	// If one of those requirements pulls the version back up above the version
+-	// identified by reqs.Previous, then the transitive dependencies of that that
++	// identified by reqs.Previous, then the transitive dependencies of that
+ 	// initially-downgraded version should no longer matter — in particular, we
+ 	// should not add new dependencies on module paths that nothing else in the
+ 	// updated module graph even requires.
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 4faeb8a172..e81969ca4a 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -221,7 +221,7 @@ func main() {
+ 	base.Exit()
+ }
+ 
+-// cmdIsGoTelemeteryOff reports whether the command is "go telemetry off". This
++// cmdIsGoTelemetryOff reports whether the command is "go telemetry off". This
+ // is used to decide whether to disable the opening of counter files. See #69269.
+ func cmdIsGoTelemetryOff() bool {
+ 	restArgs := os.Args[1:]
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index b30976c85d..9cba8c33ce 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -2520,7 +2520,7 @@ func decodeMask64(mask int64) (mb, me uint32, valid bool) {
+ func loadl16(r int, d int64) uint32 {
+ 	v := uint16(d)
+ 	if v == 0 {
+-		// Avoid generating "ori r,r,0", r != 0. Instead, generate the architectually preferred nop.
++		// Avoid generating "ori r,r,0", r != 0. Instead, generate the architecturally preferred nop.
+ 		// For example, "ori r31,r31,0" is a special execution serializing nop on Power10 called "exser".
+ 		return NOP
+ 	}
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index dfbb636766..26de22122a 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -717,7 +717,7 @@ func AlignmentPaddingLength(pc int32, p *Prog, ctxt *Link) int {
+ 	// emit as many as s bytes of padding to obtain alignment
+ 	s := p.To.Offset
+ 	if s < 0 || s >= a {
+-		ctxt.Diag("PCALIGNMAX 'amount' %d must be non-negative and smaller than the aligment %d\n", s, a)
++		ctxt.Diag("PCALIGNMAX 'amount' %d must be non-negative and smaller than the alignment %d\n", s, a)
+ 		return 0
+ 	}
+ 	if s >= a-lob {
+diff --git a/src/cmd/internal/objfile/disasm.go b/src/cmd/internal/objfile/disasm.go
+index 4334e88fad..99f54143fa 100644
+--- a/src/cmd/internal/objfile/disasm.go
++++ b/src/cmd/internal/objfile/disasm.go
+@@ -188,7 +188,7 @@ func (fc *FileCache) Line(filename string, line int) ([]byte, error) {
+ 
+ // Print prints a disassembly of the file to w.
+ // If filter is non-nil, the disassembly only includes functions with names matching filter.
+-// If printCode is true, the disassembly includs corresponding source lines.
++// If printCode is true, the disassembly includes corresponding source lines.
+ // The disassembly only includes functions that overlap the range [start, end).
+ func (d *Disasm) Print(w io.Writer, filter *regexp.Regexp, start, end uint64, printCode bool, gnuAsm bool) {
+ 	if start < d.textStart {
+diff --git a/src/cmd/internal/script/scripttest/conditions.go b/src/cmd/internal/script/scripttest/conditions.go
+index 66dbfc2ac6..e35ac2ddb7 100644
+--- a/src/cmd/internal/script/scripttest/conditions.go
++++ b/src/cmd/internal/script/scripttest/conditions.go
+@@ -15,7 +15,7 @@ import (
+ 	"testing"
+ )
+ 
+-// AddToolChainConditions accepts a script.Cond map and adds into it a
++// AddToolChainScriptConditions accepts a [script.Cond] map and adds into it a
+ // set of commonly used conditions for doing toolchains testing,
+ // including whether the platform supports cgo, a buildmode condition,
+ // support for GOEXPERIMENT testing, etc. Callers must also pass in
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 62647e2ca3..f23951416b 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -468,7 +468,7 @@ func TestMachOUUID(t *testing.T) {
+ 			uuid := extractUUID(exe)
+ 			if test.expect == "gobuildid" {
+ 				// Go buildid is not known in source code. Check UUID is present,
+-				// and satisifies UUIDv3.
++				// and satisfies UUIDv3.
+ 				if uuid == "" {
+ 					t.Fatal("expect nonempty UUID, got empty")
+ 				}
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 662f1fc27a..1f73e50d24 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -801,7 +801,7 @@ type Config struct {
+ 	// be VersionTLS13.
+ 	//
+ 	// When EncryptedClientHelloConfigList is set, the handshake will only
+-	// succeed if ECH is sucessfully negotiated. If the server rejects ECH,
++	// succeed if ECH is successfully negotiated. If the server rejects ECH,
+ 	// an ECHRejectionError error will be returned, which may contain a new
+ 	// ECHConfigList that the server suggests using.
+ 	//
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index a150c0bf05..d80aa8e11a 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -448,7 +448,7 @@ func Encode(buf []byte, order ByteOrder, data any) (int, error) {
+ // Append appends the binary representation of data to buf.
+ // buf may be nil, in which case a new buffer will be allocated.
+ // See [Write] on which data are acceptable.
+-// It returns the (possibily extended) buffer containing data or an error.
++// It returns the (possibly extended) buffer containing data or an error.
+ func Append(buf []byte, order ByteOrder, data any) ([]byte, error) {
+ 	// Fast path for basic types and slices.
+ 	if n, _ := intDataSize(data); n != 0 {
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index 09f26a84bd..5a2b3f4a6a 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -372,7 +372,7 @@ func (r *Decoder) Int64() int64 {
+ 	return r.rawVarint()
+ }
+ 
+-// Int64 decodes and returns a uint64 value from the element bitstream.
++// Uint64 decodes and returns a uint64 value from the element bitstream.
+ func (r *Decoder) Uint64() uint64 {
+ 	r.Sync(SyncUint64)
+ 	return r.rawUvarint()
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index a4eb6695bc..cc39c24ab7 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -549,7 +549,7 @@ func (it *Iter) Init(typ *abi.SwissMapType, m *Map) {
+ 	dirIdx := 0
+ 	var groupSmall groupReference
+ 	if m.dirLen <= 0 {
+-		// Use dirIdx == -1 as sentinal for small maps.
++		// Use dirIdx == -1 as sentinel for small maps.
+ 		dirIdx = -1
+ 		groupSmall.data = m.dirPtr
+ 	}
+@@ -598,7 +598,7 @@ func (it *Iter) nextDirIdx() {
+ 	// - 2: *t2a
+ 	// - 3: *t2b
+ 	//
+-	// At some point, the directory grew to accomodate a split of
++	// At some point, the directory grew to accommodate a split of
+ 	// t2. t1 did not split, so entries 0 and 1 both point to t1.
+ 	// t2 did split, so the two halves were installed in entries 2
+ 	// and 3.
+diff --git a/src/internal/syscall/windows/version_windows.go b/src/internal/syscall/windows/version_windows.go
+index 8f21272831..cb5f6ba6cd 100644
+--- a/src/internal/syscall/windows/version_windows.go
++++ b/src/internal/syscall/windows/version_windows.go
+@@ -59,7 +59,7 @@ var initTCPKeepAlive = sync.OnceFunc(func() {
+ 	supportTCPKeepAliveCount = optSupported(TCP_KEEPCNT)
+ })
+ 
+-// SupportTCPKeepAliveInterval indicates whether TCP_KEEPIDLE is supported.
++// SupportTCPKeepAliveIdle indicates whether TCP_KEEPIDLE is supported.
+ // The minimal requirement is Windows 10.0.16299.
+ func SupportTCPKeepAliveIdle() bool {
+ 	initTCPKeepAlive()
+diff --git a/src/internal/trace/event/event.go b/src/internal/trace/event/event.go
+index 9a9bf74c6a..b8b6af0053 100644
+--- a/src/internal/trace/event/event.go
++++ b/src/internal/trace/event/event.go
+@@ -20,7 +20,7 @@ type Spec struct {
+ 	//
+ 	// Argument names follow a certain structure and this structure
+ 	// is relied on by the testing framework to type-check arguments.
+-	// The structure is is:
++	// The structure is:
+ 	//
+ 	//     (?P<name>[A-Za-z]+_)?(?P<type>[A-Za-z]+)
+ 	//
+diff --git a/src/internal/types/testdata/check/go1_20_19.go b/src/internal/types/testdata/check/go1_20_19.go
+index e040d396c7..892179c72f 100644
+--- a/src/internal/types/testdata/check/go1_20_19.go
++++ b/src/internal/types/testdata/check/go1_20_19.go
+@@ -14,4 +14,4 @@ type Slice []byte
+ type Array [8]byte
+ 
+ var s Slice
+-var p = (Array)(s /* ok because file versions below go1.21 set the langage version to go1.21 */)
++var p = (Array)(s /* ok because file versions below go1.21 set the language version to go1.21 */)
+diff --git a/src/internal/types/testdata/check/go1_21_19.go b/src/internal/types/testdata/check/go1_21_19.go
+index 5866033eaf..febf653cb1 100644
+--- a/src/internal/types/testdata/check/go1_21_19.go
++++ b/src/internal/types/testdata/check/go1_21_19.go
+@@ -14,4 +14,4 @@ type Slice []byte
+ type Array [8]byte
+ 
+ var s Slice
+-var p = (Array)(s /* ok because file versions below go1.21 set the langage version to go1.21 */)
++var p = (Array)(s /* ok because file versions below go1.21 set the language version to go1.21 */)
+diff --git a/src/maps/maps_test.go b/src/maps/maps_test.go
+index fa30fe8c2b..c8ee3cd031 100644
+--- a/src/maps/maps_test.go
++++ b/src/maps/maps_test.go
+@@ -48,7 +48,7 @@ func equalNaN[T comparable](v1, v2 T) bool {
+ 	return v1 == v2 || (isNaN(v1) && isNaN(v2))
+ }
+ 
+-// equalStr compares ints and strings.
++// equalIntStr compares ints and strings.
+ func equalIntStr(v1 int, v2 string) bool {
+ 	return strconv.Itoa(v1) == v2
+ }
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index a42533d2d5..c44d81e901 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -454,7 +454,7 @@ func (t *Transport) protocols() Protocols {
+ 	p.SetHTTP1(true) // default always includes HTTP/1
+ 	switch {
+ 	case t.TLSNextProto != nil:
+-		// Setting TLSNextProto to an empty map is is a documented way
++		// Setting TLSNextProto to an empty map is a documented way
+ 		// to disable HTTP/2 on a Transport.
+ 		if t.TLSNextProto["h2"] != nil {
+ 			p.SetHTTP2(true)
+diff --git a/src/runtime/debug/stack.go b/src/runtime/debug/stack.go
+index d7a860b7dc..c4c3be141c 100644
+--- a/src/runtime/debug/stack.go
++++ b/src/runtime/debug/stack.go
+@@ -52,7 +52,7 @@ func SetCrashOutput(f *os.File, opts CrashOptions) error {
+ 		// The runtime will write to this file descriptor from
+ 		// low-level routines during a panic, possibly without
+ 		// a G, so we must call f.Fd() eagerly. This creates a
+-		// danger that that the file descriptor is no longer
++		// danger that the file descriptor is no longer
+ 		// valid at the time of the write, because the caller
+ 		// (incorrectly) called f.Close() and the kernel
+ 		// reissued the fd in a later call to open(2), leading
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 5153ae5f36..79d83b3a3b 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1264,7 +1264,7 @@ const (
+ 
+ type TimeHistogram timeHistogram
+ 
+-// Counts returns the counts for the given bucket, subBucket indices.
++// Count returns the counts for the given bucket, subBucket indices.
+ // Returns true if the bucket was valid, otherwise returns the counts
+ // for the overflow bucket if bucket > 0 or the underflow bucket if
+ // bucket < 0, and false.
+diff --git a/src/runtime/mbarrier.go b/src/runtime/mbarrier.go
+index 19006044ae..a582a204b2 100644
+--- a/src/runtime/mbarrier.go
++++ b/src/runtime/mbarrier.go
+@@ -368,7 +368,7 @@ func typedmemclr(typ *_type, ptr unsafe.Pointer) {
+ 	memclrNoHeapPointers(ptr, typ.Size_)
+ }
+ 
+-// reflect_typedslicecopy is meant for package reflect,
++// reflect_typedmemclr is meant for package reflect,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/ugorji/go/codec
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 58606e1dce..dc7a7fe357 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1155,7 +1155,7 @@ func recovery(gp *g) {
+ 		// frames that we've already processed.
+ 		//
+ 		// There's a similar issue with nested panics, when the inner
+-		// panic supercedes the outer panic. Again, we end up needing to
++		// panic supersedes the outer panic. Again, we end up needing to
+ 		// walk the same stack frames.
+ 		//
+ 		// These are probably pretty rare occurrences in practice, and
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 78138b2f62..bba66ba48f 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1229,7 +1229,7 @@ func blockFrequentShort(rate int) {
+ 	}
+ }
+ 
+-// blockFrequentShort produces 10000 block events with an average duration of
++// blockInfrequentLong produces 10000 block events with an average duration of
+ // rate.
+ func blockInfrequentLong(rate int) {
+ 	for i := 0; i < 10000; i++ {
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index f830bb7fb5..4ced7c0759 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -1012,7 +1012,7 @@ func TestReverse(t *testing.T) {
+ 	singleton := []string{"one"}
+ 	Reverse(singleton)
+ 	if want := []string{"one"}; !Equal(singleton, want) {
+-		t.Errorf("Reverse(singeleton) = %v, want %v", singleton, want)
++		t.Errorf("Reverse(singleton) = %v, want %v", singleton, want)
+ 	}
+ 
+ 	Reverse[[]string](nil)
+diff --git a/src/sort/example_keys_test.go b/src/sort/example_keys_test.go
+index 648f919e68..5e25f0d3ee 100644
+--- a/src/sort/example_keys_test.go
++++ b/src/sort/example_keys_test.go
+@@ -60,7 +60,7 @@ var planets = []Planet{
+ 	{"Mars", 0.107, 1.5},
+ }
+ 
+-// ExampleSortKeys demonstrates a technique for sorting a struct type using programmable sort criteria.
++// Example_sortKeys demonstrates a technique for sorting a struct type using programmable sort criteria.
+ func Example_sortKeys() {
+ 	// Closures that order the Planet structure.
+ 	name := func(p1, p2 *Planet) bool {
+diff --git a/src/sort/example_multi_test.go b/src/sort/example_multi_test.go
+index 93f2d3ec57..c21050b725 100644
+--- a/src/sort/example_multi_test.go
++++ b/src/sort/example_multi_test.go
+@@ -87,7 +87,7 @@ var changes = []Change{
+ 	{"gri", "Smalltalk", 80},
+ }
+ 
+-// ExampleMultiKeys demonstrates a technique for sorting a struct type using different
++// Example_sortMultiKeys demonstrates a technique for sorting a struct type using different
+ // sets of multiple fields in the comparison. We chain together "Less" functions, each of
+ // which compares a single field.
+ func Example_sortMultiKeys() {

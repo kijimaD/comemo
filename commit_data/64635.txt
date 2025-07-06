@@ -1,0 +1,270 @@
+commit 9e8ea567c838574a0f14538c0bbbd83c3215aa55
+Author: Tim King <taking@google.com>
+Date:   Mon Aug 26 15:49:09 2024 -0700
+
+    cmd/compile/internal/noder: write V2 bitstream aliastypeparams=1
+    
+    Enables V2 unified IR bitstreams when GOEXPERIMENT aliastypeparams
+    are enabled.
+    
+    Allows pkgbits.NewPkgEncoder to set the output version.
+    Reenables support for writing V0 streams.
+    
+    Updates #68778
+    Updates #68526
+    
+    Change-Id: I590c494d81ab7db148232ceaba52229068d1e986
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608595
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ src/cmd/compile/internal/noder/unified.go |  8 ++++++-
+ src/cmd/compile/internal/noder/writer.go  | 10 ++++++---
+ src/internal/pkgbits/decoder.go           |  8 ++++---
+ src/internal/pkgbits/encoder.go           | 18 +++++++---------
+ src/internal/pkgbits/pkgbits_test.go      | 26 +++++++++++++---------
+ test/fixedbugs/issue68526.dir/a/a.go      |  3 +--
+ test/fixedbugs/issue68526.dir/main.go     | 36 +++++++++++++++----------------
+ 7 files changed, 62 insertions(+), 47 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index ead348f0c1..c8dbc43e67 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -6,6 +6,7 @@ package noder
+ 
+ import (
+ 	"fmt"
++	"internal/buildcfg"
+ 	"internal/pkgbits"
+ 	"internal/types/errors"
+ 	"io"
+@@ -462,8 +463,13 @@ func readPackage(pr *pkgReader, importpkg *types.Pkg, localStub bool) {
+ // writeUnifiedExport writes to `out` the finalized, self-contained
+ // Unified IR export data file for the current compilation unit.
+ func writeUnifiedExport(out io.Writer) {
++	// Use V2 as the encoded version aliastypeparams GOEXPERIMENT is enabled.
++	version := pkgbits.V1
++	if buildcfg.Experiment.AliasTypeParams {
++		version = pkgbits.V2
++	}
+ 	l := linker{
+-		pw: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
++		pw: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
+ 
+ 		pkgs:   make(map[string]index),
+ 		decls:  make(map[*types.Sym]index),
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 695fdcceea..564087d912 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -96,8 +96,13 @@ type pkgWriter struct {
+ // newPkgWriter returns an initialized pkgWriter for the specified
+ // package.
+ func newPkgWriter(m posMap, pkg *types2.Package, info *types2.Info, otherInfo map[*syntax.FuncLit]bool) *pkgWriter {
++	// Use V2 as the encoded version aliastypeparams GOEXPERIMENT is enabled.
++	version := pkgbits.V1
++	if buildcfg.Experiment.AliasTypeParams {
++		version = pkgbits.V2
++	}
+ 	return &pkgWriter{
+-		PkgEncoder: pkgbits.NewPkgEncoder(base.Debug.SyncFrames),
++		PkgEncoder: pkgbits.NewPkgEncoder(version, base.Debug.SyncFrames),
+ 
+ 		m:                     m,
+ 		curpkg:                pkg,
+@@ -864,8 +869,7 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
+ 			if w.Version().Has(pkgbits.AliasTypeParamNames) {
+ 				w.typeParamNames(tparams)
+ 			}
+-			// TODO(taking): enable this assertion once this is not intended to be a nop.
+-			// assert(w.Version().Has(pkgbits.AliasTypeParamNames) || tparams.Len() == 0)
++			assert(w.Version().Has(pkgbits.AliasTypeParamNames) || tparams.Len() == 0)
+ 			w.typ(rhs)
+ 			return pkgbits.ObjAlias
+ 		}
+diff --git a/src/internal/pkgbits/decoder.go b/src/internal/pkgbits/decoder.go
+index ca66446dba..09f26a84bd 100644
+--- a/src/internal/pkgbits/decoder.go
++++ b/src/internal/pkgbits/decoder.go
+@@ -82,8 +82,8 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
+ 	assert(binary.Read(r, binary.LittleEndian, &ver) == nil)
+ 	pr.version = Version(ver)
+ 
+-	if pr.version >= V2 { // TODO(taking): Switch to numVersions.
+-		panic(fmt.Errorf("cannot decode %q, export data version %d is too new", pkgPath, pr.version))
++	if pr.version >= numVersions {
++		panic(fmt.Errorf("cannot decode %q, export data version %d is greater than maximum supported version %d", pkgPath, pr.version, numVersions-1))
+ 	}
+ 
+ 	if pr.version.Has(Flags) {
+@@ -101,7 +101,9 @@ func NewPkgDecoder(pkgPath, input string) PkgDecoder {
+ 	assert(err == nil)
+ 
+ 	pr.elemData = input[pos:]
+-	assert(len(pr.elemData)-8 == int(pr.elemEnds[len(pr.elemEnds)-1]))
++
++	const fingerprintSize = 8
++	assert(len(pr.elemData)-fingerprintSize == int(pr.elemEnds[len(pr.elemEnds)-1]))
+ 
+ 	return pr
+ }
+diff --git a/src/internal/pkgbits/encoder.go b/src/internal/pkgbits/encoder.go
+index b632b58ca0..c17a12399d 100644
+--- a/src/internal/pkgbits/encoder.go
++++ b/src/internal/pkgbits/encoder.go
+@@ -15,9 +15,6 @@ import (
+ 	"strings"
+ )
+ 
+-// currentVersion is the current version number written.
+-const currentVersion = V1
+-
+ // A PkgEncoder provides methods for encoding a package's Unified IR
+ // export data.
+ type PkgEncoder struct {
+@@ -47,10 +44,9 @@ func (pw *PkgEncoder) SyncMarkers() bool { return pw.syncFrames >= 0 }
+ // export data files, but can help diagnosing desync errors in
+ // higher-level Unified IR reader/writer code. If syncFrames is
+ // negative, then sync markers are omitted entirely.
+-func NewPkgEncoder(syncFrames int) PkgEncoder {
++func NewPkgEncoder(version Version, syncFrames int) PkgEncoder {
+ 	return PkgEncoder{
+-		// TODO(taking): Change NewPkgEncoder to take a version as an argument, and remove currentVersion.
+-		version:    currentVersion,
++		version:    version,
+ 		stringsIdx: make(map[string]Index),
+ 		syncFrames: syncFrames,
+ 	}
+@@ -68,11 +64,13 @@ func (pw *PkgEncoder) DumpTo(out0 io.Writer) (fingerprint [8]byte) {
+ 
+ 	writeUint32(uint32(pw.version))
+ 
+-	var flags uint32
+-	if pw.SyncMarkers() {
+-		flags |= flagSyncMarkers
++	if pw.version.Has(Flags) {
++		var flags uint32
++		if pw.SyncMarkers() {
++			flags |= flagSyncMarkers
++		}
++		writeUint32(flags)
+ 	}
+-	writeUint32(flags)
+ 
+ 	// Write elemEndsEnds.
+ 	var sum uint32
+diff --git a/src/internal/pkgbits/pkgbits_test.go b/src/internal/pkgbits/pkgbits_test.go
+index f4c3719446..6f4004741b 100644
+--- a/src/internal/pkgbits/pkgbits_test.go
++++ b/src/internal/pkgbits/pkgbits_test.go
+@@ -11,19 +11,25 @@ import (
+ )
+ 
+ func TestRoundTrip(t *testing.T) {
+-	pw := pkgbits.NewPkgEncoder(-1)
+-	w := pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
+-	w.Flush()
++	for _, version := range []pkgbits.Version{
++		pkgbits.V0,
++		pkgbits.V1,
++		pkgbits.V2,
++	} {
++		pw := pkgbits.NewPkgEncoder(version, -1)
++		w := pw.NewEncoder(pkgbits.RelocMeta, pkgbits.SyncPublic)
++		w.Flush()
+ 
+-	var b strings.Builder
+-	_ = pw.DumpTo(&b)
+-	input := b.String()
++		var b strings.Builder
++		_ = pw.DumpTo(&b)
++		input := b.String()
+ 
+-	pr := pkgbits.NewPkgDecoder("package_id", input)
+-	r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
++		pr := pkgbits.NewPkgDecoder("package_id", input)
++		r := pr.NewDecoder(pkgbits.RelocMeta, pkgbits.PublicRootIdx, pkgbits.SyncPublic)
+ 
+-	if r.Version() != w.Version() {
+-		t.Errorf("Expected reader version %q to be the writer version %q", r.Version(), w.Version())
++		if r.Version() != w.Version() {
++			t.Errorf("Expected reader version %q to be the writer version %q", r.Version(), w.Version())
++		}
+ 	}
+ }
+ 
+diff --git a/test/fixedbugs/issue68526.dir/a/a.go b/test/fixedbugs/issue68526.dir/a/a.go
+index 7c2961c28f..83462c7fb9 100644
+--- a/test/fixedbugs/issue68526.dir/a/a.go
++++ b/test/fixedbugs/issue68526.dir/a/a.go
+@@ -6,8 +6,7 @@
+ 
+ package a
+ 
+-// TODO(#68778): enable once type parameterized aliases are allowed in exportdata.
+-// type A[T any] = struct{ F T }
++type A[T any] = struct{ F T }
+ 
+ type B = struct{ F int }
+ 
+diff --git a/test/fixedbugs/issue68526.dir/main.go b/test/fixedbugs/issue68526.dir/main.go
+index 0353ca5daa..966efd7190 100644
+--- a/test/fixedbugs/issue68526.dir/main.go
++++ b/test/fixedbugs/issue68526.dir/main.go
+@@ -7,12 +7,14 @@
+ package main
+ 
+ import (
++	"fmt"
++
+ 	"issue68526.dir/a"
+ )
+ 
+ func main() {
+ 	unexported()
+-	// exported()
++	exported()
+ }
+ 
+ func unexported() {
+@@ -23,23 +25,21 @@ func unexported() {
+ 	}
+ }
+ 
+-// TODO(#68778): enable once type parameterized aliases are allowed in exportdata.
+-
+-// func exported() {
+-// 	var (
+-// 		astr a.A[string]
+-// 		aint a.A[int]
+-// 	)
++func exported() {
++	var (
++		astr a.A[string]
++		aint a.A[int]
++	)
+ 
+-// 	if any(astr) != any(struct{ F string }{}) || any(aint) != any(struct{ F int }{}) {
+-// 		panic("zero value of alias and concrete type not identical")
+-// 	}
++	if any(astr) != any(struct{ F string }{}) || any(aint) != any(struct{ F int }{}) {
++		panic("zero value of alias and concrete type not identical")
++	}
+ 
+-// 	if any(astr) == any(aint) {
+-// 		panic("zero value of struct{ F string } and struct{ F int } are not distinct")
+-// 	}
++	if any(astr) == any(aint) {
++		panic("zero value of struct{ F string } and struct{ F int } are not distinct")
++	}
+ 
+-// 	if got := fmt.Sprintf("%T", astr); got != "struct { F string }" {
+-// 		panic(got)
+-// 	}
+-// }
++	if got := fmt.Sprintf("%T", astr); got != "struct { F string }" {
++		panic(got)
++	}
++}

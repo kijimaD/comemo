@@ -1,0 +1,475 @@
+commit 949eae84df4d0294c19378f939012707e4e1bb24
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Feb 24 13:07:29 2025 -0800
+
+    [release-branch.go1.24] cmd/compile: don't pull constant offsets out of pointer arithmetic
+    
+    This could lead to manufacturing a pointer that points outside
+    its original allocation.
+    
+    Bug was introduced in CL 629858.
+    
+    Fixes #71938
+    
+    Change-Id: Ia86ab0b65ce5f80a8e0f4f4c81babd07c5904f8d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652078
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    (cherry picked from commit 8b8bff7bb29210db868306cd07a03fb15e247b2f)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652855
+---
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules |  10 ++-
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 112 +++++++++++++++-----------
+ test/fixedbugs/issue71932.go                  |  50 ++++++++++++
+ 3 files changed, 120 insertions(+), 52 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 6652d2ec01..d14bb6a91d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -1148,10 +1148,12 @@
+ (SUB a l:(MNEGW x y)) && v.Type.Size() <= 4 && l.Uses==1 && clobber(l) => (MADDW a x y)
+ 
+ // madd/msub can't take constant arguments, so do a bit of reordering if a non-constant is available.
+-(ADD a p:(ADDconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (ADDconst [c] (ADD <v.Type> a m))
+-(ADD a p:(SUBconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (SUBconst [c] (ADD <v.Type> a m))
+-(SUB a p:(ADDconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (SUBconst [c] (SUB <v.Type> a m))
+-(SUB a p:(SUBconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 => (ADDconst [c] (SUB <v.Type> a m))
++// Note: don't reorder arithmetic concerning pointers, as we must ensure that
++// no intermediate computations are invalid pointers.
++(ADD <t> a p:(ADDconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 && !t.IsPtrShaped() => (ADDconst [c] (ADD <v.Type> a m))
++(ADD <t> a p:(SUBconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 && !t.IsPtrShaped() => (SUBconst [c] (ADD <v.Type> a m))
++(SUB <t> a p:(ADDconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 && !t.IsPtrShaped() => (SUBconst [c] (SUB <v.Type> a m))
++(SUB <t> a p:(SUBconst [c] m:((MUL|MULW|MNEG|MNEGW) _ _))) && p.Uses==1 && m.Uses==1 && !t.IsPtrShaped() => (ADDconst [c] (SUB <v.Type> a m))
+ 
+ // optimize ADCSflags, SBCSflags and friends
+ (ADCSflags x y (Select1 <types.TypeFlags> (ADDSconstflags [-1] (ADCzerocarry <typ.UInt64> c)))) => (ADCSflags x y c)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index 6fabb77c0d..ed6974c244 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -1331,10 +1331,11 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ADD a p:(ADDconst [c] m:(MUL _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (ADD <t> a p:(ADDconst [c] m:(MUL _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (ADDconst [c] (ADD <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			a := v_0
+ 			p := v_1
+@@ -1343,7 +1344,7 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 			}
+ 			c := auxIntToInt64(p.AuxInt)
+ 			m := p.Args[0]
+-			if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1) {
++			if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 				continue
+ 			}
+ 			v.reset(OpARM64ADDconst)
+@@ -1355,10 +1356,11 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ADD a p:(ADDconst [c] m:(MULW _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (ADD <t> a p:(ADDconst [c] m:(MULW _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (ADDconst [c] (ADD <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			a := v_0
+ 			p := v_1
+@@ -1367,7 +1369,7 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 			}
+ 			c := auxIntToInt64(p.AuxInt)
+ 			m := p.Args[0]
+-			if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1) {
++			if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 				continue
+ 			}
+ 			v.reset(OpARM64ADDconst)
+@@ -1379,10 +1381,11 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ADD a p:(ADDconst [c] m:(MNEG _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (ADD <t> a p:(ADDconst [c] m:(MNEG _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (ADDconst [c] (ADD <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			a := v_0
+ 			p := v_1
+@@ -1391,7 +1394,7 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 			}
+ 			c := auxIntToInt64(p.AuxInt)
+ 			m := p.Args[0]
+-			if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1) {
++			if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 				continue
+ 			}
+ 			v.reset(OpARM64ADDconst)
+@@ -1403,10 +1406,11 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ADD a p:(ADDconst [c] m:(MNEGW _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (ADD <t> a p:(ADDconst [c] m:(MNEGW _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (ADDconst [c] (ADD <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			a := v_0
+ 			p := v_1
+@@ -1415,7 +1419,7 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 			}
+ 			c := auxIntToInt64(p.AuxInt)
+ 			m := p.Args[0]
+-			if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1) {
++			if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 				continue
+ 			}
+ 			v.reset(OpARM64ADDconst)
+@@ -1427,10 +1431,11 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ADD a p:(SUBconst [c] m:(MUL _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (ADD <t> a p:(SUBconst [c] m:(MUL _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (SUBconst [c] (ADD <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			a := v_0
+ 			p := v_1
+@@ -1439,7 +1444,7 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 			}
+ 			c := auxIntToInt64(p.AuxInt)
+ 			m := p.Args[0]
+-			if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1) {
++			if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 				continue
+ 			}
+ 			v.reset(OpARM64SUBconst)
+@@ -1451,10 +1456,11 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ADD a p:(SUBconst [c] m:(MULW _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (ADD <t> a p:(SUBconst [c] m:(MULW _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (SUBconst [c] (ADD <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			a := v_0
+ 			p := v_1
+@@ -1463,7 +1469,7 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 			}
+ 			c := auxIntToInt64(p.AuxInt)
+ 			m := p.Args[0]
+-			if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1) {
++			if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 				continue
+ 			}
+ 			v.reset(OpARM64SUBconst)
+@@ -1475,10 +1481,11 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ADD a p:(SUBconst [c] m:(MNEG _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (ADD <t> a p:(SUBconst [c] m:(MNEG _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (SUBconst [c] (ADD <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			a := v_0
+ 			p := v_1
+@@ -1487,7 +1494,7 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 			}
+ 			c := auxIntToInt64(p.AuxInt)
+ 			m := p.Args[0]
+-			if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1) {
++			if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 				continue
+ 			}
+ 			v.reset(OpARM64SUBconst)
+@@ -1499,10 +1506,11 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 		}
+ 		break
+ 	}
+-	// match: (ADD a p:(SUBconst [c] m:(MNEGW _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (ADD <t> a p:(SUBconst [c] m:(MNEGW _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (SUBconst [c] (ADD <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
+ 			a := v_0
+ 			p := v_1
+@@ -1511,7 +1519,7 @@ func rewriteValueARM64_OpARM64ADD(v *Value) bool {
+ 			}
+ 			c := auxIntToInt64(p.AuxInt)
+ 			m := p.Args[0]
+-			if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1) {
++			if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 				continue
+ 			}
+ 			v.reset(OpARM64SUBconst)
+@@ -16604,10 +16612,11 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		v.AddArg3(a, x, y)
+ 		return true
+ 	}
+-	// match: (SUB a p:(ADDconst [c] m:(MUL _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (SUB <t> a p:(ADDconst [c] m:(MUL _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (SUBconst [c] (SUB <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		a := v_0
+ 		p := v_1
+ 		if p.Op != OpARM64ADDconst {
+@@ -16615,7 +16624,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		}
+ 		c := auxIntToInt64(p.AuxInt)
+ 		m := p.Args[0]
+-		if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1) {
++		if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64SUBconst)
+@@ -16625,10 +16634,11 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (SUB a p:(ADDconst [c] m:(MULW _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (SUB <t> a p:(ADDconst [c] m:(MULW _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (SUBconst [c] (SUB <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		a := v_0
+ 		p := v_1
+ 		if p.Op != OpARM64ADDconst {
+@@ -16636,7 +16646,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		}
+ 		c := auxIntToInt64(p.AuxInt)
+ 		m := p.Args[0]
+-		if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1) {
++		if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64SUBconst)
+@@ -16646,10 +16656,11 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (SUB a p:(ADDconst [c] m:(MNEG _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (SUB <t> a p:(ADDconst [c] m:(MNEG _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (SUBconst [c] (SUB <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		a := v_0
+ 		p := v_1
+ 		if p.Op != OpARM64ADDconst {
+@@ -16657,7 +16668,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		}
+ 		c := auxIntToInt64(p.AuxInt)
+ 		m := p.Args[0]
+-		if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1) {
++		if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64SUBconst)
+@@ -16667,10 +16678,11 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (SUB a p:(ADDconst [c] m:(MNEGW _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (SUB <t> a p:(ADDconst [c] m:(MNEGW _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (SUBconst [c] (SUB <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		a := v_0
+ 		p := v_1
+ 		if p.Op != OpARM64ADDconst {
+@@ -16678,7 +16690,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		}
+ 		c := auxIntToInt64(p.AuxInt)
+ 		m := p.Args[0]
+-		if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1) {
++		if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64SUBconst)
+@@ -16688,10 +16700,11 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (SUB a p:(SUBconst [c] m:(MUL _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (SUB <t> a p:(SUBconst [c] m:(MUL _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (ADDconst [c] (SUB <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		a := v_0
+ 		p := v_1
+ 		if p.Op != OpARM64SUBconst {
+@@ -16699,7 +16712,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		}
+ 		c := auxIntToInt64(p.AuxInt)
+ 		m := p.Args[0]
+-		if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1) {
++		if m.Op != OpARM64MUL || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64ADDconst)
+@@ -16709,10 +16722,11 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (SUB a p:(SUBconst [c] m:(MULW _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (SUB <t> a p:(SUBconst [c] m:(MULW _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (ADDconst [c] (SUB <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		a := v_0
+ 		p := v_1
+ 		if p.Op != OpARM64SUBconst {
+@@ -16720,7 +16734,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		}
+ 		c := auxIntToInt64(p.AuxInt)
+ 		m := p.Args[0]
+-		if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1) {
++		if m.Op != OpARM64MULW || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64ADDconst)
+@@ -16730,10 +16744,11 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (SUB a p:(SUBconst [c] m:(MNEG _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (SUB <t> a p:(SUBconst [c] m:(MNEG _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (ADDconst [c] (SUB <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		a := v_0
+ 		p := v_1
+ 		if p.Op != OpARM64SUBconst {
+@@ -16741,7 +16756,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		}
+ 		c := auxIntToInt64(p.AuxInt)
+ 		m := p.Args[0]
+-		if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1) {
++		if m.Op != OpARM64MNEG || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64ADDconst)
+@@ -16751,10 +16766,11 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
+-	// match: (SUB a p:(SUBconst [c] m:(MNEGW _ _)))
+-	// cond: p.Uses==1 && m.Uses==1
++	// match: (SUB <t> a p:(SUBconst [c] m:(MNEGW _ _)))
++	// cond: p.Uses==1 && m.Uses==1 && !t.IsPtrShaped()
+ 	// result: (ADDconst [c] (SUB <v.Type> a m))
+ 	for {
++		t := v.Type
+ 		a := v_0
+ 		p := v_1
+ 		if p.Op != OpARM64SUBconst {
+@@ -16762,7 +16778,7 @@ func rewriteValueARM64_OpARM64SUB(v *Value) bool {
+ 		}
+ 		c := auxIntToInt64(p.AuxInt)
+ 		m := p.Args[0]
+-		if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1) {
++		if m.Op != OpARM64MNEGW || !(p.Uses == 1 && m.Uses == 1 && !t.IsPtrShaped()) {
+ 			break
+ 		}
+ 		v.reset(OpARM64ADDconst)
+diff --git a/test/fixedbugs/issue71932.go b/test/fixedbugs/issue71932.go
+new file mode 100644
+index 0000000000..d69b2416bb
+--- /dev/null
++++ b/test/fixedbugs/issue71932.go
+@@ -0,0 +1,50 @@
++// run
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "runtime"
++
++const C = 16
++
++type T [C * C]byte
++
++func main() {
++	var ts []*T
++
++	for i := 0; i < 100; i++ {
++		t := new(T)
++		// Save every even object.
++		if i%2 == 0 {
++			ts = append(ts, t)
++		}
++	}
++	// Make sure the odd objects are collected.
++	runtime.GC()
++
++	for _, t := range ts {
++		f(t, C, C)
++	}
++}
++
++//go:noinline
++func f(t *T, i, j uint) {
++	if i == 0 || i > C || j == 0 || j > C {
++		return // gets rid of bounds check below (via prove pass)
++	}
++	p := &t[i*j-1]
++	*p = 0
++	runtime.GC()
++	*p = 0
++
++	// This goes badly if compiled to
++	//   q := &t[i*j]
++	//   *(q-1) = 0
++	//   runtime.GC()
++	//   *(q-1) = 0
++	// as at the GC call, q is an invalid pointer
++	// (it points past the end of t's allocation).
++}

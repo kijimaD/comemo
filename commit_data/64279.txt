@@ -1,0 +1,227 @@
+commit df009eead9c2d213bc9c6057f07d2c319f71b50b
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 29 19:37:43 2024 -0700
+
+    cmd/cgo: error on multiple incompatible function declarations
+    
+    When there are multiple declarations of a function, ensure that
+    those declarations at least agree on the size/alignment of arguments
+    and return values.
+    
+    It's hard to be stricter given existing code and situations where
+    arguments differ only by typedefs. For instance:
+        int usleep(unsigned);
+        int usleep(useconds_t);
+    
+    Fixes #67699.
+    
+    Change-Id: I3b4b17afee92b55f9e712b4590ec608ab1f7ac91
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588977
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ doc/next/3-tools.md                                |  6 +++
+ src/cmd/cgo/internal/testerrors/errors_test.go     | 22 +++++++--
+ .../internal/testerrors/testdata/issue67699a.go    | 16 ++++++
+ .../internal/testerrors/testdata/issue67699b.go    | 16 ++++++
+ src/cmd/cgo/main.go                                | 57 ++++++++++++++++++++--
+ 5 files changed, 110 insertions(+), 7 deletions(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 5638f240a5..5ccade703f 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -4,3 +4,9 @@
+ 
+ ### Cgo {#cgo}
+ 
++Cgo currently refuses to compile calls to a C function which has multiple
++incompatible declarations. For instance, if `f` is declared as both `void f(int)`
++and `void f(double)`, cgo will report an error instead of possibly generating an
++incorrect call sequence for `f(0)`. New in this release is a better detector for
++this error condition when the incompatible declarations appear in different
++files. See [#67699](https://go.dev/issue/67699).
+diff --git a/src/cmd/cgo/internal/testerrors/errors_test.go b/src/cmd/cgo/internal/testerrors/errors_test.go
+index eddfb6583b..0780870fe0 100644
+--- a/src/cmd/cgo/internal/testerrors/errors_test.go
++++ b/src/cmd/cgo/internal/testerrors/errors_test.go
+@@ -60,19 +60,23 @@ func check(t *testing.T, file string) {
+ 		if len(errors) == 0 {
+ 			t.Fatalf("cannot find ERROR HERE")
+ 		}
+-		expect(t, file, errors)
++		expect(t, errors, file)
+ 	})
+ }
+ 
+-func expect(t *testing.T, file string, errors []*regexp.Regexp) {
++func expect(t *testing.T, errors []*regexp.Regexp, files ...string) {
+ 	dir, err := os.MkdirTemp("", filepath.Base(t.Name()))
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+ 	defer os.RemoveAll(dir)
+ 
+-	dst := filepath.Join(dir, strings.TrimSuffix(file, ".go"))
+-	cmd := exec.Command("go", "build", "-gcflags=-L -e", "-o="+dst, path(file)) // TODO(gri) no need for -gcflags=-L if go tool is adjusted
++	dst := filepath.Join(dir, strings.TrimSuffix(files[0], ".go"))
++	args := []string{"build", "-gcflags=-L -e", "-o=" + dst} // TODO(gri) no need for -gcflags=-L if go tool is adjusted
++	for _, file := range files {
++		args = append(args, path(file))
++	}
++	cmd := exec.Command("go", args...)
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+ 		t.Errorf("expected cgo to fail but it succeeded")
+@@ -180,3 +184,13 @@ func TestNotMatchedCFunction(t *testing.T) {
+ 	file := "notmatchedcfunction.go"
+ 	check(t, file)
+ }
++
++func TestIncompatibleDeclarations(t *testing.T) {
++	testenv.MustHaveCGO(t)
++	testenv.MustHaveGoRun(t)
++	t.Parallel()
++	expect(t, []*regexp.Regexp{
++		regexp.MustCompile("inconsistent definitions for C[.]f"),
++		regexp.MustCompile("inconsistent definitions for C[.]g"),
++	}, "issue67699a.go", "issue67699b.go")
++}
+diff --git a/src/cmd/cgo/internal/testerrors/testdata/issue67699a.go b/src/cmd/cgo/internal/testerrors/testdata/issue67699a.go
+new file mode 100644
+index 0000000000..d55f13c79f
+--- /dev/null
++++ b/src/cmd/cgo/internal/testerrors/testdata/issue67699a.go
+@@ -0,0 +1,16 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++int f();
++int g(int x);
++*/
++import "C"
++
++func main() {
++	C.f()
++	C.g(0)
++}
+diff --git a/src/cmd/cgo/internal/testerrors/testdata/issue67699b.go b/src/cmd/cgo/internal/testerrors/testdata/issue67699b.go
+new file mode 100644
+index 0000000000..39c8730ca0
+--- /dev/null
++++ b/src/cmd/cgo/internal/testerrors/testdata/issue67699b.go
+@@ -0,0 +1,16 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++void f(){}
++int g(double x){}
++*/
++import "C"
++
++func init() {
++	C.f()
++	C.g(0)
++}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index 5699cc55be..519d76c644 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -159,6 +159,13 @@ type Type struct {
+ 	BadPointer bool // this pointer type should be represented as a uintptr (deprecated)
+ }
+ 
++func (t *Type) fuzzyMatch(t2 *Type) bool {
++	if t == nil || t2 == nil {
++		return false
++	}
++	return t.Size == t2.Size && t.Align == t2.Align
++}
++
+ // A FuncType collects information about a function type in both the C and Go worlds.
+ type FuncType struct {
+ 	Params []*Type
+@@ -166,6 +173,24 @@ type FuncType struct {
+ 	Go     *ast.FuncType
+ }
+ 
++func (t *FuncType) fuzzyMatch(t2 *FuncType) bool {
++	if t == nil || t2 == nil {
++		return false
++	}
++	if !t.Result.fuzzyMatch(t2.Result) {
++		return false
++	}
++	if len(t.Params) != len(t2.Params) {
++		return false
++	}
++	for i := range t.Params {
++		if !t.Params[i].fuzzyMatch(t2.Params[i]) {
++			return false
++		}
++	}
++	return true
++}
++
+ func usage() {
+ 	fmt.Fprint(os.Stderr, "usage: cgo -- [compiler options] file.go ...\n")
+ 	flag.PrintDefaults()
+@@ -515,19 +540,45 @@ func (p *Package) Record(f *File) {
+ 	if p.Name == nil {
+ 		p.Name = f.Name
+ 	} else {
++		// Merge the new file's names in with the existing names.
+ 		for k, v := range f.Name {
+ 			if p.Name[k] == nil {
++				// Never seen before, just save it.
+ 				p.Name[k] = v
+-			} else if p.incompleteTypedef(p.Name[k].Type) {
++			} else if p.incompleteTypedef(p.Name[k].Type) && p.Name[k].FuncType == nil {
++				// Old one is incomplete, just use new one.
+ 				p.Name[k] = v
+-			} else if p.incompleteTypedef(v.Type) {
++			} else if p.incompleteTypedef(v.Type) && v.FuncType == nil {
++				// New one is incomplete, just use old one.
+ 				// Nothing to do.
+ 			} else if _, ok := nameToC[k]; ok {
+ 				// Names we predefine may appear inconsistent
+ 				// if some files typedef them and some don't.
+ 				// Issue 26743.
+ 			} else if !reflect.DeepEqual(p.Name[k], v) {
+-				error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
++				// We don't require strict func type equality, because some functions
++				// can have things like typedef'd arguments that are equivalent to
++				// the standard arguments. e.g.
++				//     int usleep(unsigned);
++				//     int usleep(useconds_t);
++				// So we just check size/alignment of arguments. At least that
++				// avoids problems like those in #67670 and #67699.
++				ok := false
++				ft1 := p.Name[k].FuncType
++				ft2 := v.FuncType
++				if ft1.fuzzyMatch(ft2) {
++					// Retry DeepEqual with the FuncType field cleared.
++					x1 := *p.Name[k]
++					x2 := *v
++					x1.FuncType = nil
++					x2.FuncType = nil
++					if reflect.DeepEqual(&x1, &x2) {
++						ok = true
++					}
++				}
++				if !ok {
++					error_(token.NoPos, "inconsistent definitions for C.%s", fixGo(k))
++				}
+ 			}
+ 		}
+ 	}

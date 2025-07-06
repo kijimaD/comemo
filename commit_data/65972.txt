@@ -1,0 +1,37 @@
+commit 3f4164f508b8148eb526fc096884dba2609f5835
+Author: Bill Morgan <arthurwilliammorgan@gmail.com>
+Date:   Mon Jan 20 04:11:23 2025 +0000
+
+    runtime: delete out of date comment
+    
+    Fixes #71328
+    
+    Change-Id: I5827255bf1f53b8fc4a84fa1accb4089f73d5e8a
+    GitHub-Last-Rev: 26f4eab182130c709be269491049fade3327ddd3
+    GitHub-Pull-Request: golang/go#71337
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643456
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/runtime/panic.go | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index dc7a7fe357..3ffb3966d0 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1068,9 +1068,6 @@ func internal_sync_fatal(s string) {
+ // throw should be used for runtime-internal fatal errors where Go itself,
+ // rather than user code, may be at fault for the failure.
+ //
+-// NOTE: temporarily marked "go:noinline" pending investigation/fix of
+-// issue #67274, so as to fix longtest builders.
+-//
+ // throw should be an internal detail,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:

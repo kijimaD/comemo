@@ -1,0 +1,52 @@
+commit 9546293d2221c197401dd3556ea29ef27baf2495
+Merge: 4b3a0b9785 7fa2c736b3
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 11 09:16:16 2025 -0400
+
+    [release-branch.go1.25] all: merge master (7fa2c73) into release-branch.go1.25
+    
+    Merge List:
+    
+    + 2025-06-10 7fa2c736b3 os: disallow Root.Remove(".") on Plan 9, js, and Windows
+    + 2025-06-10 281cfcfc1b runtime: handle system goroutines later in goroutine profiling
+    + 2025-06-10 4f86f22671 testing/synctest, runtime: avoid panic when using linker-alloc WG from bubble
+    + 2025-06-10 773701a853 internal/trace: pass GOTRACEBACK=crash to testprogs
+    + 2025-06-10 fb0c27c514 os: do not follow dangling symlinks in Root when O_CREATE|O_EXCL on AIX
+    + 2025-06-10 1cafdfb63b net/http: make the zero value of CrossOriginProtection work
+    + 2025-06-10 a35701b352 cmd/dist: only install necessary tools when doing local test
+    + 2025-06-10 a189516d3a runtime: don't do a direct G handoff in semrelease on systemstack
+    + 2025-06-10 f18d046568 all.{bash,rc}: use "../bin/go tool dist" instead of "%GOTOOLDIR%/dist" print build info
+    + 2025-06-09 ee7bfbdbcc cmd/compile/internal/ssa: fix PPC64 merging of (AND (S[RL]Dconst ...)
+    + 2025-06-09 985d600f3a runtime: use small struct TestSynctest to ensure cleanups run
+    + 2025-06-09 848a768ba7 runtime: clarify stack traces for bubbled goroutines
+    + 2025-06-09 049a5e6036 runtime: return a different bubble deadlock error when main goroutine is done
+    + 2025-06-09 ac1686752b cmd/internal/doc: increase version of pkgsite doc command that's run
+    
+    Change-Id: Iba7b2c2f06e91a39fa039c08170e6054e50de3c6
+
+ src/all.bash                               |  2 +-
+ src/all.rc                                 |  2 +-
+ src/cmd/compile/internal/ssa/rewrite.go    | 19 ++++++++++++--
+ src/cmd/dist/build.go                      | 33 +++++++++++------------
+ src/cmd/dist/test.go                       |  2 +-
+ src/cmd/internal/doc/main.go               |  2 +-
+ src/internal/synctest/synctest.go          | 22 ++++++++++++----
+ src/internal/synctest/synctest_test.go     | 32 +++++++++++++++++++++--
+ src/internal/syscall/windows/at_windows.go |  5 ++++
+ src/internal/trace/trace_test.go           |  4 +++
+ src/net/http/csrf.go                       | 37 +++++++++++++++++++-------
+ src/os/root_noopenat.go                    |  7 +++++
+ src/os/root_unix.go                        | 14 ++++++++--
+ src/runtime/export_test.go                 |  6 +++++
+ src/runtime/mprof.go                       | 15 ++++++++---
+ src/runtime/pprof/pprof_test.go            | 39 +++++++++++++++++++++++++++
+ src/runtime/runtime2.go                    | 28 ++++++++++----------
+ src/runtime/sema.go                        | 11 +++++---
+ src/runtime/synctest.go                    | 42 ++++++++++++++++++++++--------
+ src/runtime/synctest_test.go               | 12 +++++++++
+ src/runtime/testdata/testsynctest/main.go  | 34 ++++++++++++++----------
+ src/runtime/traceback.go                   | 13 +++++----
+ src/sync/waitgroup.go                      | 12 ++++++---
+ src/testing/synctest/synctest.go           |  5 ++++
+ test/codegen/shift.go                      | 10 +++++++
+ 25 files changed, 311 insertions(+), 97 deletions(-)

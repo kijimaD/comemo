@@ -1,0 +1,151 @@
+commit b691da9f788f27eb3d5035f3dbdc15c107d71ef9
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri May 31 15:08:45 2024 +0000
+
+    Revert "crypto/x509: reject serial numbers longer than 20 octets"
+    
+    This reverts commit 8524931a2cdc6a57afdf6f4b3375cb261c2557da.
+    
+    Reason for revert: It turns out, basically no one in private PKIs can
+    get this right. It causes way too much breakage, and every other impl
+    also ignores it, so we'll continue to be in good company.
+    
+    Change-Id: I2da808b411ec12f72112c49079faf9f68ae465c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ doc/godebug.md                 |  5 -----
+ src/crypto/x509/parser.go      | 24 +-----------------------
+ src/crypto/x509/x509_test.go   | 23 -----------------------
+ src/internal/godebugs/table.go |  1 -
+ src/runtime/metrics/doc.go     |  5 -----
+ 5 files changed, 1 insertion(+), 57 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 41f88caa01..86e02e820c 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -185,11 +185,6 @@ Go 1.23 changed the behavior of
+ serial numbers that are negative. This change can be reverted with
+ the [`x509negativeserial` setting](/pkg/crypto/x509/#ParseCertificate).
+ 
+-Go 1.23 changed the behavior of
+-[crypto/x509.ParseCertificate](/pkg/crypto/x509/#ParseCertificate) to reject
+-serial numbers that are longer than 20 octets. This change can be reverted with
+-the [`x509seriallength` setting](/pkg/crypto/x509/#ParseCertificate).
+-
+ Go 1.23 re-enabled support in html/template for ECMAScript 6 template literals by default.
+ The [`jstmpllitinterp` setting](/pkg/html/template#hdr-Security_Model) no longer has
+ any effect.
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index 5cc0c7742e..3ba5f6a4e1 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -825,7 +825,6 @@ func processExtensions(out *Certificate) error {
+ }
+ 
+ var x509negativeserial = godebug.New("x509negativeserial")
+-var x509seriallength = godebug.New("x509seriallength")
+ 
+ func parseCertificate(der []byte) (*Certificate, error) {
+ 	cert := &Certificate{}
+@@ -866,27 +865,10 @@ func parseCertificate(der []byte) (*Certificate, error) {
+ 		return nil, errors.New("x509: invalid version")
+ 	}
+ 
+-	var serialBytes cryptobyte.String
+-	if !tbs.ReadASN1Element(&serialBytes, cryptobyte_asn1.INTEGER) {
+-		return nil, errors.New("x509: malformed serial number")
+-	}
+-	// We add two bytes for the tag and length (if the length was multi-byte,
+-	// which is possible, the length of the serial would be more than 256 bytes,
+-	// so this condition would trigger anyway).
+-	if len(serialBytes) > 20+2 {
+-		if x509seriallength.Value() != "1" {
+-			return nil, errors.New("x509: serial number too long (>20 octets)")
+-		} else {
+-			x509seriallength.IncNonDefault()
+-		}
+-	}
+ 	serial := new(big.Int)
+-	if !serialBytes.ReadASN1Integer(serial) {
++	if !tbs.ReadASN1Integer(serial) {
+ 		return nil, errors.New("x509: malformed serial number")
+ 	}
+-	// We do not reject zero serials, because they are unfortunately common
+-	// in important root certificates which will not expire for a number of
+-	// years.
+ 	if serial.Sign() == -1 {
+ 		if x509negativeserial.Value() != "1" {
+ 			return nil, errors.New("x509: negative serial number")
+@@ -1034,10 +1016,6 @@ func parseCertificate(der []byte) (*Certificate, error) {
+ // Before Go 1.23, ParseCertificate accepted certificates with negative serial
+ // numbers. This behavior can be restored by including "x509negativeserial=1" in
+ // the GODEBUG environment variable.
+-//
+-// Before Go 1.23, ParseCertificate accepted certificates with serial numbers
+-// longer than 20 octets. This behavior can be restored by including
+-// "x509seriallength=1" in the GODEBUG environment variable.
+ func ParseCertificate(der []byte) (*Certificate, error) {
+ 	cert, err := parseCertificate(der)
+ 	if err != nil {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index d40fd836e0..a9483b7091 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -4086,26 +4086,3 @@ func TestRejectCriticalSKI(t *testing.T) {
+ 		t.Fatalf("ParseCertificate() unexpected error: %v, want: %s", err, expectedErr)
+ 	}
+ }
+-
+-func TestSerialTooLong(t *testing.T) {
+-	template := Certificate{
+-		Subject:   pkix.Name{CommonName: "Cert"},
+-		NotBefore: time.Unix(1000, 0),
+-		NotAfter:  time.Unix(100000, 0),
+-	}
+-	for _, serial := range []*big.Int{
+-		big.NewInt(0).SetBytes(bytes.Repeat([]byte{5}, 21)),
+-		big.NewInt(0).SetBytes(bytes.Repeat([]byte{255}, 20)),
+-	} {
+-		template.SerialNumber = serial
+-		certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+-		if err != nil {
+-			t.Fatalf("CreateCertificate() unexpected error: %v", err)
+-		}
+-		expectedErr := "x509: serial number too long (>20 octets)"
+-		_, err = ParseCertificate(certDER)
+-		if err == nil || err.Error() != expectedErr {
+-			t.Fatalf("ParseCertificate() unexpected error: %v, want: %s", err, expectedErr)
+-		}
+-	}
+-}
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index b44fc7874f..eb51255916 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -57,7 +57,6 @@ var All = []Info{
+ 	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
+ 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
+ 	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
+-	{Name: "x509seriallength", Package: "crypto/x509", Changed: 23, Old: "1"},
+ 	{Name: "x509sha1", Package: "crypto/x509"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+ 	{Name: "x509usepolicies", Package: "crypto/x509"},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 85db5742d9..c1d0ca9072 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -340,11 +340,6 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		package due to a non-default GODEBUG=x509negativeserial=...
+ 		setting.
+ 
+-	/godebug/non-default-behavior/x509seriallength:events
+-		The number of non-default behaviors executed by the crypto/x509
+-		package due to a non-default GODEBUG=x509seriallength=...
+-		setting.
+-
+ 	/godebug/non-default-behavior/x509sha1:events
+ 		The number of non-default behaviors executed by the crypto/x509
+ 		package due to a non-default GODEBUG=x509sha1=... setting.

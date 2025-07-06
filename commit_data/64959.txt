@@ -1,0 +1,43 @@
+commit 0206eb9679dd3819c44912e6ebdba3b0fbf959a3
+Author: Davis Goodin <dagood@microsoft.com>
+Date:   Mon Sep 30 10:08:24 2024 -0700
+
+    README.vendor: add note about GOROOT, recommend fresh go
+    
+    Using a different build of Go (specifically, a different GOROOT) to
+    maintain the vendor directory doesn't always reproduce the same results.
+    This can result in unknowingly creating a vendor directory that isn't
+    able to build Go.
+    
+    Add a note to README.vendor to point this out. Specifically, mention
+    that a mismatched GOROOT is an issue, and recommend using a fresh build
+    of Go to maintain the vendor directory.
+    
+    Updates #69235
+    
+    Change-Id: Id80c7607bf28bd76e43e1fdc672811c50f2bffb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616815
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/README.vendor | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/README.vendor b/src/README.vendor
+index 163e84da2c..e6a58d5fb5 100644
+--- a/src/README.vendor
++++ b/src/README.vendor
+@@ -33,6 +33,10 @@ Before updating vendor directories, ensure that module mode is enabled.
+ Make sure that GO111MODULE is not set in the environment, or that it is
+ set to 'on' or 'auto', and if you use a go.work file, set GOWORK=off.
+ 
++Also, ensure that 'go env GOROOT' shows the root of this Go source
++tree. Otherwise, the results are undefined. It's recommended to build
++Go from source and use that 'go' binary to update its source tree.
++
+ Requirements may be added, updated, and removed with 'go get'.
+ The vendor directory may be updated with 'go mod vendor'.
+ A typical sequence might be:

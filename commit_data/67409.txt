@@ -1,0 +1,56 @@
+commit fcb985085925e1d89511ef7523215a2f71cfb891
+Author: Julien Cretel <jub0bsinthecloud@gmail.com>
+Date:   Mon Jun 23 16:19:19 2025 +0000
+
+    net/http: reduce allocs in CrossOriginProtection.Check
+    
+    Rather than repeatedly creating error values on
+    CrossOriginProtection.Check's unhappy paths, return non-exported and
+    effectively constant error variables.
+    
+    For #73626.
+    
+    Change-Id: Ibaa036c29417071b3601b8d200ab0902359d1bb9
+    GitHub-Last-Rev: e704d63cd63665845d544796e802134ea608e217
+    GitHub-Pull-Request: golang/go#74251
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681178
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/net/http/csrf.go | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/csrf.go b/src/net/http/csrf.go
+index 8812a508ae..5e1b686fd1 100644
+--- a/src/net/http/csrf.go
++++ b/src/net/http/csrf.go
+@@ -136,7 +136,7 @@ func (c *CrossOriginProtection) Check(req *Request) error {
+ 		if c.isRequestExempt(req) {
+ 			return nil
+ 		}
+-		return errors.New("cross-origin request detected from Sec-Fetch-Site header")
++		return errCrossOriginRequest
+ 	}
+ 
+ 	origin := req.Header.Get("Origin")
+@@ -159,10 +159,15 @@ func (c *CrossOriginProtection) Check(req *Request) error {
+ 	if c.isRequestExempt(req) {
+ 		return nil
+ 	}
+-	return errors.New("cross-origin request detected, and/or browser is out of date: " +
+-		"Sec-Fetch-Site is missing, and Origin does not match Host")
++	return errCrossOriginRequestFromOldBrowser
+ }
+ 
++var (
++	errCrossOriginRequest               = errors.New("cross-origin request detected from Sec-Fetch-Site header")
++	errCrossOriginRequestFromOldBrowser = errors.New("cross-origin request detected, and/or browser is out of date: " +
++		"Sec-Fetch-Site is missing, and Origin does not match Host")
++)
++
+ // isRequestExempt checks the bypasses which require taking a lock, and should
+ // be deferred until the last moment.
+ func (c *CrossOriginProtection) isRequestExempt(req *Request) bool {

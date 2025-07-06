@@ -1,0 +1,50 @@
+commit c8b589e26643f83cf5469e5bcb06af40c10932e2
+Author: goto1134 <1134togo@gmail.com>
+Date:   Mon May 29 09:23:27 2023 +0000
+
+    cmd/list: fix -retracted flag description
+    
+    Change-Id: Ia1ab220485af2f38c3ddcd4c5d5bca1b195a33ed
+    GitHub-Last-Rev: fb9933427d852518c93efbc4f2c2e4d4ee9b9197
+    GitHub-Pull-Request: golang/go#59847
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/489175
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/cmd/go/alldocs.go            | 4 ++--
+ src/cmd/go/internal/list/list.go | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index e40d981bd4..d7dab82e19 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1071,8 +1071,8 @@
+ //
+ // The -retracted flag causes list to report information about retracted
+ // module versions. When -retracted is used with -f or -json, the Retracted
+-// field will be set to a string explaining why the version was retracted.
+-// The string is taken from comments on the retract directive in the
++// field explains why the version was retracted.
++// The strings are taken from comments on the retract directive in the
+ // module's go.mod file. When -retracted is used with -versions, retracted
+ // versions are listed together with unretracted versions. The -retracted
+ // flag may be used with or without -m.
+diff --git a/src/cmd/go/internal/list/list.go b/src/cmd/go/internal/list/list.go
+index d6cba5a4e0..d7a201a9b7 100644
+--- a/src/cmd/go/internal/list/list.go
++++ b/src/cmd/go/internal/list/list.go
+@@ -300,8 +300,8 @@ space-separated version list.
+ 
+ The -retracted flag causes list to report information about retracted
+ module versions. When -retracted is used with -f or -json, the Retracted
+-field will be set to a string explaining why the version was retracted.
+-The string is taken from comments on the retract directive in the
++field explains why the version was retracted.
++The strings are taken from comments on the retract directive in the
+ module's go.mod file. When -retracted is used with -versions, retracted
+ versions are listed together with unretracted versions. The -retracted
+ flag may be used with or without -m.

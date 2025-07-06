@@ -1,0 +1,40 @@
+commit 8659ad904966dfe809925c980ac11e7f98ac61aa
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Feb 6 11:34:48 2025 +0100
+
+    crypto/internal/fips140test: require FIPS 140 mode for the ACVP wrapper
+    
+    Change-Id: I6a6a46565c14cf1d924a8fcfbf6752e9646ec63d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648818
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/crypto/internal/fips140test/acvp_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index a0ad7b27df..119fdefc64 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -75,6 +75,10 @@ func TestMain(m *testing.M) {
+ }
+ 
+ func wrapperMain() {
++	if !fips140.Enabled {
++		fmt.Fprintln(os.Stderr, "ACVP wrapper must be run with GODEBUG=fips140=on")
++		os.Exit(2)
++	}
+ 	if err := processingLoop(bufio.NewReader(os.Stdin), os.Stdout); err != nil {
+ 		fmt.Fprintf(os.Stderr, "processing error: %v\n", err)
+ 		os.Exit(1)
+@@ -2129,6 +2133,7 @@ func TestACVP(t *testing.T) {
+ 	cmd = testenv.Command(t, goTool, args...)
+ 	cmd.Dir = dataDir
+ 	cmd.Env = append(os.Environ(), "ACVP_WRAPPER=1")
++	cmd.Env = append(os.Environ(), "GODEBUG=fips140=on")
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("failed to run acvp tests: %s\n%s", err, string(output))

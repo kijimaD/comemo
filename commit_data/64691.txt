@@ -1,0 +1,176 @@
+commit debfcb5ad87b276318bd6b725797e6808adeeae0
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed Jun 19 15:09:21 2024 +0800
+
+    crypto/internal/bigmod: provide assembly addMulVVW* for loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/internal/bigmod
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                   │  bench.old   │              bench.new              │
+                   │    sec/op    │   sec/op     vs base                │
+    ModAdd            159.5n ± 0%   159.8n ± 0%   +0.19% (p=0.000 n=20)
+    ModSub            161.5n ± 0%   161.7n ± 0%   +0.12% (p=0.038 n=20)
+    MontgomeryRepr    4.126µ ± 0%   2.932µ ± 0%  -28.94% (p=0.000 n=20)
+    MontgomeryMul     4.144µ ± 0%   2.930µ ± 0%  -29.30% (p=0.000 n=20)
+    ModMul            8.331µ ± 0%   5.956µ ± 0%  -28.51% (p=0.000 n=20)
+    ExpBig            11.65m ± 0%   11.64m ± 0%   -0.04% (p=0.000 n=20)
+    Exp              11.015m ± 0%   7.860m ± 0%  -28.65% (p=0.000 n=20)
+    geomean           17.34µ        14.28µ       -17.64%
+    
+    goos: linux
+    goarch: loong64
+    pkg: crypto/internal/bigmod
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                   │  bench.old   │              bench.new              │
+                   │    sec/op    │   sec/op     vs base                │
+    ModAdd            211.3n ± 0%   213.9n ± 0%   +1.23% (p=0.000 n=20)
+    ModSub            210.6n ± 0%   207.2n ± 0%   -1.61% (p=0.000 n=20)
+    MontgomeryRepr    5.442µ ± 0%   3.825µ ± 0%  -29.71% (p=0.000 n=20)
+    MontgomeryMul     5.379µ ± 0%   4.011µ ± 0%  -25.43% (p=0.000 n=20)
+    ModMul           10.868µ ± 0%   7.859µ ± 0%  -27.69% (p=0.000 n=20)
+    ExpBig            14.64m ± 0%   14.63m ± 0%   -0.06% (p=0.035 n=20)
+    Exp               14.39m ± 0%   10.38m ± 0%  -27.86% (p=0.000 n=20)
+    geomean           22.57µ        18.74µ       -16.96%
+    
+    Change-Id: Id6ddc9552494e2a26e1a123f38e22d18bb78fdad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593595
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/crypto/internal/bigmod/nat_asm.go    |  2 +-
+ src/crypto/internal/bigmod/nat_loong64.s | 93 ++++++++++++++++++++++++++++++++
+ src/crypto/internal/bigmod/nat_noasm.go  |  2 +-
+ 3 files changed, 95 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/bigmod/nat_asm.go b/src/crypto/internal/bigmod/nat_asm.go
+index 0283b07e68..dd5419cb91 100644
+--- a/src/crypto/internal/bigmod/nat_asm.go
++++ b/src/crypto/internal/bigmod/nat_asm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !purego && (386 || amd64 || arm || arm64 || ppc64 || ppc64le || riscv64 || s390x)
++//go:build !purego && (386 || amd64 || arm || arm64 || loong64 || ppc64 || ppc64le || riscv64 || s390x)
+ 
+ package bigmod
+ 
+diff --git a/src/crypto/internal/bigmod/nat_loong64.s b/src/crypto/internal/bigmod/nat_loong64.s
+new file mode 100644
+index 0000000000..3423bd0b17
+--- /dev/null
++++ b/src/crypto/internal/bigmod/nat_loong64.s
+@@ -0,0 +1,93 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// derived from crypto/internal/bigmod/nat_riscv64.s
++
++//go:build !purego
++
++#include "textflag.h"
++
++// func addMulVVW1024(z, x *uint, y uint) (c uint)
++TEXT ·addMulVVW1024(SB),$0-32
++	MOVV	$16, R8
++	JMP	addMulVVWx(SB)
++
++// func addMulVVW1536(z, x *uint, y uint) (c uint)
++TEXT ·addMulVVW1536(SB),$0-32
++	MOVV	$24, R8
++	JMP	addMulVVWx(SB)
++
++// func addMulVVW2048(z, x *uint, y uint) (c uint)
++TEXT ·addMulVVW2048(SB),$0-32
++	MOVV	$32, R8
++	JMP	addMulVVWx(SB)
++
++TEXT addMulVVWx(SB),NOFRAME|NOSPLIT,$0
++	MOVV	z+0(FP), R4
++	MOVV	x+8(FP), R6
++	MOVV	y+16(FP), R5
++	MOVV	$0, R7
++
++	BEQ	R8, R0, done
++loop:
++	MOVV	0*8(R4), R9	// z[0]
++	MOVV	1*8(R4), R10	// z[1]
++	MOVV	2*8(R4), R11	// z[2]
++	MOVV	3*8(R4), R12	// z[3]
++
++	MOVV	0*8(R6), R13	// x[0]
++	MOVV	1*8(R6), R14	// x[1]
++	MOVV	2*8(R6), R15	// x[2]
++	MOVV	3*8(R6), R16	// x[3]
++
++	MULHVU	R13, R5, R17	// z_hi[0] = x[0] * y
++	MULV	R13, R5, R13	// z_lo[0] = x[0] * y
++	ADDV	R13, R9, R18	// z_lo[0] = x[0] * y + z[0]
++	SGTU	R13, R18, R19
++	ADDV	R17, R19, R17	// z_hi[0] = x[0] * y + z[0]
++	ADDV	R18, R7, R9	// z_lo[0] = x[0] * y + z[0] + c
++	SGTU	R18, R9, R19
++	ADDV	R17, R19, R7	// next c
++
++	MULHVU	R14, R5, R24	// z_hi[1] = x[1] * y
++	MULV	R14, R5, R14	// z_lo[1] = x[1] * y
++	ADDV	R14, R10, R18	// z_lo[1] = x[1] * y + z[1]
++	SGTU	R14, R18, R19
++	ADDV	R24, R19, R24	// z_hi[1] = x[1] * y + z[1]
++	ADDV	R18, R7, R10	// z_lo[1] = x[1] * y + z[1] + c
++	SGTU	R18, R10, R19
++	ADDV	R24, R19, R7	// next c
++
++	MULHVU	R15, R5, R25	// z_hi[2] = x[2] * y
++	MULV	R15, R5, R15	// z_lo[2] = x[2] * y
++	ADDV	R15, R11, R18	// z_lo[2] = x[2] * y + z[2]
++	SGTU	R15, R18, R19
++	ADDV	R25, R19, R25	// z_hi[2] = x[2] * y + z[2]
++	ADDV	R18, R7, R11	// z_lo[2] = x[2] * y + z[2] + c
++	SGTU	R18, R11, R19
++	ADDV	R25, R19, R7	// next c
++
++	MULHVU	R16, R5, R26	// z_hi[3] = x[3] * y
++	MULV	R16, R5, R16	// z_lo[3] = x[3] * y
++	ADDV	R16, R12, R18	// z_lo[3] = x[3] * y + z[3]
++	SGTU	R16, R18, R19
++	ADDV	R26, R19, R26	// z_hi[3] = x[3] * y + z[3]
++	ADDV	R18, R7, R12	// z_lo[3] = x[3] * y + z[3] + c
++	SGTU	R18, R12, R19
++	ADDV	R26, R19, R7	// next c
++
++	MOVV	R9, 0*8(R4)	// z[0]
++	MOVV	R10, 1*8(R4)	// z[1]
++	MOVV	R11, 2*8(R4)	// z[2]
++	MOVV	R12, 3*8(R4)	// z[3]
++
++	ADDV	$32, R4
++	ADDV	$32, R6
++
++	SUBV	$4, R8
++	BNE	R8, R0, loop
++
++done:
++	MOVV	R7, c+24(FP)
++	RET
+diff --git a/src/crypto/internal/bigmod/nat_noasm.go b/src/crypto/internal/bigmod/nat_noasm.go
+index 71f38da754..2501a6fb4c 100644
+--- a/src/crypto/internal/bigmod/nat_noasm.go
++++ b/src/crypto/internal/bigmod/nat_noasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build purego || !(386 || amd64 || arm || arm64 || ppc64 || ppc64le || riscv64 || s390x)
++//go:build purego || !(386 || amd64 || arm || arm64 || loong64 || ppc64 || ppc64le || riscv64 || s390x)
+ 
+ package bigmod
+ 

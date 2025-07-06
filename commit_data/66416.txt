@@ -1,0 +1,48 @@
+commit f95941de4908a45287d700697347aa69d714457b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Mar 4 10:07:15 2025 -0800
+
+    net/http/httputil: skip new test on Plan 9
+    
+    TestReverseProxyWebSocketHalfTCP requires half closed connections,
+    which aren't supported on Plan 9.
+    
+    For #35892
+    Fixes #72095
+    
+    Change-Id: I64b458bc15ac3b8eda43dc871bf67ada32a59708
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654636
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/net/http/httputil/reverseproxy_test.go | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy_test.go b/src/net/http/httputil/reverseproxy_test.go
+index f089ce0574..a826dc82fe 100644
+--- a/src/net/http/httputil/reverseproxy_test.go
++++ b/src/net/http/httputil/reverseproxy_test.go
+@@ -23,6 +23,7 @@ import (
+ 	"net/url"
+ 	"os"
+ 	"reflect"
++	"runtime"
+ 	"slices"
+ 	"strconv"
+ 	"strings"
+@@ -1560,6 +1561,11 @@ func TestReverseProxyWebSocketHalfTCP(t *testing.T) {
+ 	// - that closing the write stream is propagated through the proxy and results in reading
+ 	//   EOF at the other end of the connection
+ 
++	switch runtime.GOOS {
++	case "plan9":
++		t.Skipf("not supported on %s", runtime.GOOS)
++	}
++
+ 	mustRead := func(t *testing.T, conn *net.TCPConn, msg string) {
+ 		b := make([]byte, len(msg))
+ 		if _, err := conn.Read(b); err != nil {

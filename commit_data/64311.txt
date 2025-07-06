@@ -1,0 +1,61 @@
+commit 3509415eca0eac695c706eaf63cb4c8d8d69b7f2
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Jul 24 15:01:07 2024 -0700
+
+    [release-branch.go1.23] cmd/compile: more informative panic when importing generic type alias
+    
+    When GOEXPERIMENT=aliastypeparams is set, type aliases may have type
+    parameters. The compiler export data doesn't export that type parameter
+    information yet, which leads to an index-out-of-bounds panic when a
+    client package imports a package with a general type alias and then
+    refers to one of the missing type parameters.
+    
+    This CL detects this specific case and panics with a more informative
+    panic message explaining the shortcoming. The change is only in effect
+    if the respective GOEXPERIMENT is enabled.
+    
+    Manually tested. No test addded since this is just a temporary fix
+    (Go 1.24 will have a complete implementation), and because the existing
+    testing framework doesn't easily support testing that a compilation
+    panics.
+    
+    Together with @taking and input from @rfindley.
+    
+    For #68526.
+    
+    Change-Id: I24737b153a7e2f9b705cd29a5b70b2b9e808dffc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601035
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/importer/ureader.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index d3c7d4516f..7eda375bd5 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/compile/internal/syntax"
+ 	"cmd/compile/internal/types2"
+ 	"cmd/internal/src"
++	"internal/buildcfg"
+ 	"internal/pkgbits"
+ )
+ 
+@@ -411,6 +412,14 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
+ 			panic("weird")
+ 
+ 		case pkgbits.ObjAlias:
++			if buildcfg.Experiment.AliasTypeParams && len(r.dict.bounds) > 0 {
++				// Temporary work-around for issue #68526: rather than panicking
++				// with an non-descriptive index-out-of-bounds panic when trying
++				// to access a missing type parameter, instead panic with a more
++				// descriptive error. Only needed for Go 1.23; Go 1.24 will have
++				// the correct implementation.
++				panic("importing generic type aliases is not supported in Go 1.23 (see issue #68526)")
++			}
+ 			pos := r.pos()
+ 			typ := r.typ()
+ 			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ)

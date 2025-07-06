@@ -1,0 +1,46 @@
+commit 9fa34d9fa25078423cdb484d39cdd62f067098ac
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 14 08:56:12 2024 +0200
+
+    net/netip: fix TestInlining after CL 585057
+    
+    Addr.AsSlice is not inlinable on all architectures.
+    
+    Fixes #67354
+    
+    Change-Id: Ibaf7daa2e1188a05952f8df3c84255436b29478d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585058
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/net/netip/inlining_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/net/netip/inlining_test.go b/src/net/netip/inlining_test.go
+index 6098c9619b..f5eb30df90 100644
+--- a/src/net/netip/inlining_test.go
++++ b/src/net/netip/inlining_test.go
+@@ -31,7 +31,6 @@ func TestInlining(t *testing.T) {
+ 	})
+ 	wantInlinable := []string{
+ 		"(*uint128).halves",
+-		"Addr.AsSlice",
+ 		"Addr.BitLen",
+ 		"Addr.hasZone",
+ 		"Addr.Is4",
+@@ -81,6 +80,7 @@ func TestInlining(t *testing.T) {
+ 	case "amd64", "arm64":
+ 		// These don't inline on 32-bit.
+ 		wantInlinable = append(wantInlinable,
++			"Addr.AsSlice",
+ 			"Addr.Next",
+ 			"Addr.Prev",
+ 		)

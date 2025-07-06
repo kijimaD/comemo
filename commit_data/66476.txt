@@ -1,0 +1,424 @@
+commit e256e640604bff7916ef09451da7f4a6423152a6
+Author: Than McIntosh <thanm@golang.org>
+Date:   Fri Mar 7 14:16:28 2025 -0500
+
+    debug/dwarf: fix problem with DWARF 5 and Seek method
+    
+    When clients use debug/dwarf to examine DWARF 5 binaries, we can run
+    into problems when the Seek() method is used to skip ahead from a DIE
+    in one compilation unit to a DIE in another unit. The problem here is
+    that it is common for DWARF 5 comp units to have attributes (ex:
+    DW_AT_addr_base) whose value must be applied as an offset when reading
+    certain forms (ex: DW_FORM_addrx) within that unit. The existing
+    implementation didn't have a good way to recover these attrs following
+    the Seek call, and had to essentially punt in this case, resulting in
+    incorrect attr values.
+    
+    This patch adds new support for reading and caching the key comp unit
+    DIE attributes (DW_AT_addr_base, DW_AT_loclists_base, etc) prior to
+    visiting any of the DIE entries in a unit, storing the cache values of
+    these attrs the main table of units. This base attribute
+    reading/caching behavior also happens (where needed) after Seek calls.
+    
+    Should resolve delve issue 3861.
+    Supercedes Go pull request 70400.
+    
+    Updates #26379.
+    Fixes #57046.
+    
+    Change-Id: I536a57e2ba4fc55132d91c7f36f67a91ac408dc3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655976
+    Reviewed-by: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/debug/dwarf/entry.go                       |  88 +++++--------------------
+ src/debug/dwarf/entry_test.go                  |  60 +++++++++++++++++
+ src/debug/dwarf/testdata/issue57046-clang.elf5 | Bin 0 -> 19360 bytes
+ src/debug/dwarf/testdata/issue57046_part1.c    |  42 ++++++++++++
+ src/debug/dwarf/testdata/issue57046_part2.c    |  10 +++
+ src/debug/dwarf/unit.go                        |  65 +++++++++++++++++-
+ 6 files changed, 192 insertions(+), 73 deletions(-)
+
+diff --git a/src/debug/dwarf/entry.go b/src/debug/dwarf/entry.go
+index 3e54a1a13a..ed0f213a3c 100644
+--- a/src/debug/dwarf/entry.go
++++ b/src/debug/dwarf/entry.go
+@@ -426,16 +426,6 @@ func (b *buf) entry(cu *Entry, u *unit) *Entry {
+ 		Field:    make([]Field, len(a.field)),
+ 	}
+ 
+-	// If we are currently parsing the compilation unit,
+-	// we can't evaluate Addrx or Strx until we've seen the
+-	// relevant base entry.
+-	type delayed struct {
+-		idx int
+-		off uint64
+-		fmt format
+-	}
+-	var delay []delayed
+-
+ 	resolveStrx := func(strBase, off uint64) string {
+ 		off += strBase
+ 		if uint64(int(off)) != off {
+@@ -532,18 +522,7 @@ func (b *buf) entry(cu *Entry, u *unit) *Entry {
+ 				return nil
+ 			}
+ 
+-			// We have to adjust by the offset of the
+-			// compilation unit. This won't work if the
+-			// program uses Reader.Seek to skip over the
+-			// unit. Not much we can do about that.
+-			var addrBase int64
+-			if cu != nil {
+-				addrBase, _ = cu.Val(AttrAddrBase).(int64)
+-			} else if a.tag == TagCompileUnit {
+-				delay = append(delay, delayed{i, off, formAddrx})
+-				break
+-			}
+-
++			addrBase := int64(u.addrBase())
+ 			var err error
+ 			val, err = b.dwarf.debugAddr(b.format, uint64(addrBase), off)
+ 			if err != nil {
+@@ -683,18 +662,7 @@ func (b *buf) entry(cu *Entry, u *unit) *Entry {
+ 				off *= 4
+ 			}
+ 
+-			// We have to adjust by the offset of the
+-			// compilation unit. This won't work if the
+-			// program uses Reader.Seek to skip over the
+-			// unit. Not much we can do about that.
+-			var strBase int64
+-			if cu != nil {
+-				strBase, _ = cu.Val(AttrStrOffsetsBase).(int64)
+-			} else if a.tag == TagCompileUnit {
+-				delay = append(delay, delayed{i, off, formStrx})
+-				break
+-			}
+-
++			strBase := int64(u.strOffsetsBase())
+ 			val = resolveStrx(uint64(strBase), off)
+ 
+ 		case formStrpSup:
+@@ -743,18 +711,7 @@ func (b *buf) entry(cu *Entry, u *unit) *Entry {
+ 		case formRnglistx:
+ 			off := b.uint()
+ 
+-			// We have to adjust by the rnglists_base of
+-			// the compilation unit. This won't work if
+-			// the program uses Reader.Seek to skip over
+-			// the unit. Not much we can do about that.
+-			var rnglistsBase int64
+-			if cu != nil {
+-				rnglistsBase, _ = cu.Val(AttrRnglistsBase).(int64)
+-			} else if a.tag == TagCompileUnit {
+-				delay = append(delay, delayed{i, off, formRnglistx})
+-				break
+-			}
+-
++			rnglistsBase := int64(u.rngListsBase())
+ 			val = resolveRnglistx(uint64(rnglistsBase), off)
+ 		}
+ 
+@@ -763,32 +720,6 @@ func (b *buf) entry(cu *Entry, u *unit) *Entry {
+ 	if b.err != nil {
+ 		return nil
+ 	}
+-
+-	for _, del := range delay {
+-		switch del.fmt {
+-		case formAddrx:
+-			addrBase, _ := e.Val(AttrAddrBase).(int64)
+-			val, err := b.dwarf.debugAddr(b.format, uint64(addrBase), del.off)
+-			if err != nil {
+-				b.err = err
+-				return nil
+-			}
+-			e.Field[del.idx].Val = val
+-		case formStrx:
+-			strBase, _ := e.Val(AttrStrOffsetsBase).(int64)
+-			e.Field[del.idx].Val = resolveStrx(uint64(strBase), del.off)
+-			if b.err != nil {
+-				return nil
+-			}
+-		case formRnglistx:
+-			rnglistsBase, _ := e.Val(AttrRnglistsBase).(int64)
+-			e.Field[del.idx].Val = resolveRnglistx(uint64(rnglistsBase), del.off)
+-			if b.err != nil {
+-				return nil
+-			}
+-		}
+-	}
+-
+ 	return e
+ }
+ 
+@@ -840,6 +771,7 @@ func (r *Reader) Seek(off Offset) {
+ 		u := &d.unit[0]
+ 		r.unit = 0
+ 		r.b = makeBuf(r.d, u, "info", u.off, u.data)
++		r.collectDwarf5BaseOffsets(u)
+ 		r.cu = nil
+ 		return
+ 	}
+@@ -855,6 +787,7 @@ func (r *Reader) Seek(off Offset) {
+ 	u := &d.unit[i]
+ 	r.unit = i
+ 	r.b = makeBuf(r.d, u, "info", off, u.data[off-u.off:])
++	r.collectDwarf5BaseOffsets(u)
+ }
+ 
+ // maybeNextUnit advances to the next unit if this one is finished.
+@@ -870,6 +803,17 @@ func (r *Reader) nextUnit() {
+ 	u := &r.d.unit[r.unit]
+ 	r.b = makeBuf(r.d, u, "info", u.off, u.data)
+ 	r.cu = nil
++	r.collectDwarf5BaseOffsets(u)
++}
++
++func (r *Reader) collectDwarf5BaseOffsets(u *unit) {
++	if u.vers < 5 || u.unit5 != nil {
++		return
++	}
++	u.unit5 = new(unit5)
++	if err := r.d.collectDwarf5BaseOffsets(u); err != nil {
++		r.err = err
++	}
+ }
+ 
+ // Next reads the next entry from the encoded entry stream.
+diff --git a/src/debug/dwarf/entry_test.go b/src/debug/dwarf/entry_test.go
+index 1ce1c98f60..ee0c80a503 100644
+--- a/src/debug/dwarf/entry_test.go
++++ b/src/debug/dwarf/entry_test.go
+@@ -6,6 +6,7 @@ package dwarf_test
+ 
+ import (
+ 	. "debug/dwarf"
++	"debug/elf"
+ 	"encoding/binary"
+ 	"path/filepath"
+ 	"reflect"
+@@ -457,3 +458,62 @@ func TestIssue52045(t *testing.T) {
+ 		t.Errorf("got non-nil entry0, wanted nil")
+ 	}
+ }
++
++func TestIssue57046(t *testing.T) {
++	f, err := elf.Open("testdata/issue57046-clang.elf5")
++	if err != nil {
++		t.Fatalf("elf.Open returns err: %v", err)
++	}
++	d, err := f.DWARF()
++	if err != nil {
++		t.Fatalf("f.DWARF returns err: %v", err)
++	}
++	// Write down all the subprogram DIEs.
++	spdies := []Offset{}
++	lopcs := []uint64{}
++	r := d.Reader()
++	for {
++		e, err := r.Next()
++		if err != nil {
++			t.Fatalf("r.Next() returns err: %v", err)
++		}
++		if e == nil {
++			break
++		}
++		if e.Tag != TagSubprogram {
++			continue
++		}
++		var name string
++		var lopc uint64
++		if n, ok := e.Val(AttrName).(string); ok {
++			name = n
++		}
++		if lo, ok := e.Val(AttrLowpc).(uint64); ok {
++			lopc = lo
++		}
++		if name == "" || lopc == 0 {
++			continue
++		}
++		spdies = append(spdies, e.Offset)
++		lopcs = append(lopcs, lopc)
++	}
++
++	// Seek to the second entry in spdies (corresponding to mom() in
++	// issue57046_part2.c) and take a look at it.
++	r2 := d.Reader()
++	r2.Seek(spdies[1])
++	e, err := r2.Next()
++	if err != nil {
++		t.Fatalf("r2.Next() returns err: %v", err)
++	}
++	if e == nil {
++		t.Fatalf("r2.Next() returned nil")
++	}
++
++	// Verify that the lopc we see matches what we saw before.
++	got := e.Val(AttrLowpc).(uint64)
++	if got != lopcs[1] {
++		t.Errorf("bad lopc for fn2 following seek: want %x got %x\n",
++			lopcs[1], got)
++	}
++}
+diff --git a/src/debug/dwarf/testdata/issue57046-clang.elf5 b/src/debug/dwarf/testdata/issue57046-clang.elf5
+new file mode 100755
+index 0000000000..009af83135
+Binary files /dev/null and b/src/debug/dwarf/testdata/issue57046-clang.elf5 differ
+diff --git a/src/debug/dwarf/testdata/issue57046_part1.c b/src/debug/dwarf/testdata/issue57046_part1.c
+new file mode 100644
+index 0000000000..8866ca66e1
+--- /dev/null
++++ b/src/debug/dwarf/testdata/issue57046_part1.c
+@@ -0,0 +1,42 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Part 1 of the sources for issue 57046 test case.
++
++// Build instructions:
++//
++// clang-16 -O -g -gdwarf-5 -c issue57046_part1.c
++// clang-16 -O -g -gdwarf-5 -c issue57046_part2.c
++// clang-16 -o issue57046-clang.elf5 issue57046_part1.o issue57046_part2.o
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++
++extern const char *mom();
++
++int gadgety() {
++  const char *ev = getenv("PATH");
++  int n = strlen(ev);
++  int s1 = (int)ev[0];
++  int s2 = (int)ev[1];
++  int s3 = (int)ev[2];
++  for (int i = 0; i < strlen(ev); i++) {
++    if (s1 == 101) {
++	int t = s1;
++	s1 = s3;
++	s3 = t;
++    }
++    if (ev[i] == 99) {
++      printf("%d\n", i);
++    }
++  }
++  s2 *= 2;
++  return n + s1 + s2;
++}
++
++int main(int argc, char **argv) {
++  printf("Hi %s %d\n", mom(), gadgety());
++  return 0;
++}
+diff --git a/src/debug/dwarf/testdata/issue57046_part2.c b/src/debug/dwarf/testdata/issue57046_part2.c
+new file mode 100644
+index 0000000000..2f4e9f0d24
+--- /dev/null
++++ b/src/debug/dwarf/testdata/issue57046_part2.c
+@@ -0,0 +1,10 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Part 2 of the sources for issue 57046 test case.
++// See part 1 for build instructions.
++
++const char *mom() {
++  return "mom";
++}
+diff --git a/src/debug/dwarf/unit.go b/src/debug/dwarf/unit.go
+index 8b810d0a00..7a384f32c3 100644
+--- a/src/debug/dwarf/unit.go
++++ b/src/debug/dwarf/unit.go
+@@ -17,10 +17,18 @@ type unit struct {
+ 	off    Offset // byte offset of data within the aggregate info
+ 	data   []byte
+ 	atable abbrevTable
++	*unit5 // info specific to DWARF 5 units
+ 	asize  int
+ 	vers   int
+-	utype  uint8 // DWARF 5 unit type
+ 	is64   bool  // True for 64-bit DWARF format
++	utype  uint8 // DWARF 5 unit type
++}
++
++type unit5 struct {
++	addrBase       uint64
++	strOffsetsBase uint64
++	rngListsBase   uint64
++	locListsBase   uint64
+ }
+ 
+ // Implement the dataFormat interface.
+@@ -37,6 +45,34 @@ func (u *unit) addrsize() int {
+ 	return u.asize
+ }
+ 
++func (u *unit) addrBase() uint64 {
++	if u.unit5 != nil {
++		return u.unit5.addrBase
++	}
++	return 0
++}
++
++func (u *unit) strOffsetsBase() uint64 {
++	if u.unit5 != nil {
++		return u.unit5.strOffsetsBase
++	}
++	return 0
++}
++
++func (u *unit) rngListsBase() uint64 {
++	if u.unit5 != nil {
++		return u.unit5.rngListsBase
++	}
++	return 0
++}
++
++func (u *unit) locListsBase() uint64 {
++	if u.unit5 != nil {
++		return u.unit5.locListsBase
++	}
++	return 0
++}
++
+ func (d *Data) parseUnits() ([]unit, error) {
+ 	// Count units.
+ 	nunit := 0
+@@ -135,3 +171,30 @@ func (d *Data) offsetToUnit(off Offset) int {
+ 	}
+ 	return -1
+ }
++
++func (d *Data) collectDwarf5BaseOffsets(u *unit) error {
++	if u.unit5 == nil {
++		panic("expected unit5 to be set up already")
++	}
++	b := makeBuf(d, u, "info", u.off, u.data)
++	cu := b.entry(nil, u)
++	if cu == nil {
++		// Unknown abbreviation table entry or some other fatal
++		// problem; bail early on the assumption that this will be
++		// detected at some later point.
++		return b.err
++	}
++	if iAddrBase, ok := cu.Val(AttrAddrBase).(int64); ok {
++		u.unit5.addrBase = uint64(iAddrBase)
++	}
++	if iStrOffsetsBase, ok := cu.Val(AttrStrOffsetsBase).(int64); ok {
++		u.unit5.strOffsetsBase = uint64(iStrOffsetsBase)
++	}
++	if iRngListsBase, ok := cu.Val(AttrRnglistsBase).(int64); ok {
++		u.unit5.rngListsBase = uint64(iRngListsBase)
++	}
++	if iLocListsBase, ok := cu.Val(AttrLoclistsBase).(int64); ok {
++		u.unit5.locListsBase = uint64(iLocListsBase)
++	}
++	return nil
++}

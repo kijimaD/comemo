@@ -1,0 +1,43 @@
+commit 213f1566ee9972a521a8faab0ee9a6f8ef43db5f
+Author: Jordan Liggitt <liggitt@google.com>
+Date:   Tue Mar 18 20:27:07 2025 -0400
+
+    [release-branch.go1.24] internal/godebugs: fix changed version for winsymlink and winreadlinkvolume to 1.23
+    
+    https://go.dev/doc/godebug#go-123 documents changes to winsymlink and
+    winreadlinkvolume in Go 1.23.
+    
+    This fixes the registered "changed" minor version to Go 1.23,
+    so that defaults when building a Go 1.22 module are correct.
+    
+    Fixes #72938
+    
+    Change-Id: I5d5bf31ca04f9e95208fb0fdaad2232f9db653ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659035
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    (cherry picked from commit 2e749a645a6d03c7ac11bb172c4591564061b29e)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659036
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/internal/godebugs/table.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index e0fde01f09..98a734ed11 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -59,8 +59,8 @@ var All = []Info{
+ 	{Name: "tlsmlkem", Package: "crypto/tls", Changed: 24, Old: "0", Opaque: true},
+ 	{Name: "tlsrsakex", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+-	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0"},
+-	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
++	{Name: "winreadlinkvolume", Package: "os", Changed: 23, Old: "0"},
++	{Name: "winsymlink", Package: "os", Changed: 23, Old: "0"},
+ 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
+ 	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
+ 	{Name: "x509rsacrt", Package: "crypto/x509", Changed: 24, Old: "0"},

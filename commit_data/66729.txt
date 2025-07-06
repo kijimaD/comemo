@@ -1,0 +1,35 @@
+commit fd8f6cec213a6eaf862998073ea3c4ee52b182ba
+Author: Alan Donovan <adonovan@google.com>
+Date:   Thu Apr 3 10:04:02 2025 -0400
+
+    api: move go1.25 to next/70250
+    
+    My CL 645115 added the new entries in the wrong place,
+    prematurely creating the go1.25 file.
+    
+    Also, add the missing release note.
+    
+    Change-Id: Ib5b5ccfb42757a9ea9dc93e33b3e3ed8e8bd7d3f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662615
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ api/{go1.25.txt => next/70250.txt}           | 0
+ doc/next/6-stdlib/99-minor/go/types/70250.md | 3 +++
+ 2 files changed, 3 insertions(+)
+
+diff --git a/api/go1.25.txt b/api/next/70250.txt
+similarity index 100%
+rename from api/go1.25.txt
+rename to api/next/70250.txt
+diff --git a/doc/next/6-stdlib/99-minor/go/types/70250.md b/doc/next/6-stdlib/99-minor/go/types/70250.md
+new file mode 100644
+index 0000000000..49fbdadfe9
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/types/70250.md
+@@ -0,0 +1,3 @@
++[Var] now has a [Var.Kind] method that classifies the variable as one
++of: package-level, receiver, parameter, result, or local variable, or
++a struct field.

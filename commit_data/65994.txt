@@ -1,0 +1,35 @@
+commit 62cd7cb6cdba5cd947c97ee5269699dffdbca1b0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Thu Jan 23 15:50:32 2025 -0800
+
+    crypto/hkdf: check error in TestFIPSServiceIndicator
+    
+    I don't know why this code calls panic(err) rather than
+    t.Fatal(err), but I didn't change it.
+    
+    Change-Id: I9aa7503c604bd8d4f27cc295e2ec742446906df9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643995
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/hkdf/hkdf_test.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/crypto/hkdf/hkdf_test.go b/src/crypto/hkdf/hkdf_test.go
+index 201b440289..57d90f88e9 100644
+--- a/src/crypto/hkdf/hkdf_test.go
++++ b/src/crypto/hkdf/hkdf_test.go
+@@ -404,6 +404,9 @@ func TestFIPSServiceIndicator(t *testing.T) {
+ 	// Salt and info are short, which is ok, but translates to a short HMAC key.
+ 	fips140.ResetServiceIndicator()
+ 	_, err = Key(sha256.New, []byte("YELLOW SUBMARINE"), []byte("salt"), "info", 32)
++	if err != nil {
++		panic(err)
++	}
+ 	if !fips140.ServiceIndicator() {
+ 		t.Error("FIPS service indicator should be set")
+ 	}

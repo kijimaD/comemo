@@ -1,0 +1,130 @@
+commit 6d7760cb4292bd156193fb2a3e377f24637f8795
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Aug 13 13:47:47 2024 +0000
+
+    log/slog: implement encoding.TextAppender for Level and LevelVar
+    
+    For #62384
+    
+    Change-Id: I10df580ef966e497ff8da4efde6dd6ce1ccb17b4
+    GitHub-Last-Rev: 5ad8e2e0473ff509b48e525f6c7328f6281766a3
+    GitHub-Pull-Request: golang/go#68855
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605056
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ api/next/62384.txt                           |  2 ++
+ doc/next/6-stdlib/99-minor/log/slog/62384.md |  1 +
+ src/log/slog/level.go                        | 20 +++++++++++++++----
+ src/log/slog/level_test.go                   | 30 ++++++++++++++++++++++++++++
+ 4 files changed, 49 insertions(+), 4 deletions(-)
+
+diff --git a/api/next/62384.txt b/api/next/62384.txt
+index 37e0080a13..ece5d9fd80 100644
+--- a/api/next/62384.txt
++++ b/api/next/62384.txt
+@@ -3,3 +3,5 @@ pkg encoding, type BinaryAppender interface, AppendBinary([]uint8) ([]uint8, err
+ pkg encoding, type TextAppender interface { AppendText } #62384
+ pkg encoding, type TextAppender interface, AppendText([]uint8) ([]uint8, error) #62384
+ pkg net/url, method (*URL) AppendBinary([]uint8) ([]uint8, error) #62384
++pkg log/slog, method (Level) AppendText([]uint8) ([]uint8, error) #62384
++pkg log/slog, method (*LevelVar) AppendText([]uint8) ([]uint8, error) #62384
+diff --git a/doc/next/6-stdlib/99-minor/log/slog/62384.md b/doc/next/6-stdlib/99-minor/log/slog/62384.md
+new file mode 100644
+index 0000000000..5f8cbaa9d4
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/log/slog/62384.md
+@@ -0,0 +1 @@
++[Level] and [LevelVar] now implement the [encoding.TextAppender] interface.
+diff --git a/src/log/slog/level.go b/src/log/slog/level.go
+index 7cddf4cfba..2957585e0e 100644
+--- a/src/log/slog/level.go
++++ b/src/log/slog/level.go
+@@ -98,10 +98,16 @@ func (l *Level) UnmarshalJSON(data []byte) error {
+ 	return l.parse(s)
+ }
+ 
+-// MarshalText implements [encoding.TextMarshaler]
++// AppendText implements [encoding.TextAppender]
+ // by calling [Level.String].
++func (l Level) AppendText(b []byte) ([]byte, error) {
++	return append(b, l.String()...), nil
++}
++
++// MarshalText implements [encoding.TextMarshaler]
++// by calling [Level.AppendText].
+ func (l Level) MarshalText() ([]byte, error) {
+-	return []byte(l.String()), nil
++	return l.AppendText(nil)
+ }
+ 
+ // UnmarshalText implements [encoding.TextUnmarshaler].
+@@ -172,10 +178,16 @@ func (v *LevelVar) String() string {
+ 	return fmt.Sprintf("LevelVar(%s)", v.Level())
+ }
+ 
++// AppendText implements [encoding.TextAppender]
++// by calling [Level.AppendText].
++func (v *LevelVar) AppendText(b []byte) ([]byte, error) {
++	return v.Level().AppendText(b)
++}
++
+ // MarshalText implements [encoding.TextMarshaler]
+-// by calling [Level.MarshalText].
++// by calling [LevelVar.AppendText].
+ func (v *LevelVar) MarshalText() ([]byte, error) {
+-	return v.Level().MarshalText()
++	return v.AppendText(nil)
+ }
+ 
+ // UnmarshalText implements [encoding.TextUnmarshaler]
+diff --git a/src/log/slog/level_test.go b/src/log/slog/level_test.go
+index 217a0d7204..73be1126b2 100644
+--- a/src/log/slog/level_test.go
++++ b/src/log/slog/level_test.go
+@@ -89,6 +89,19 @@ func TestLevelMarshalText(t *testing.T) {
+ 	}
+ }
+ 
++func TestLevelAppendText(t *testing.T) {
++	buf := make([]byte, 4, 16)
++	want := LevelWarn - 3
++	wantData := []byte("\x00\x00\x00\x00INFO+1")
++	data, err := want.AppendText(buf)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if !bytes.Equal(data, wantData) {
++		t.Errorf("got %s, want %s", string(data), string(wantData))
++	}
++}
++
+ func TestLevelParse(t *testing.T) {
+ 	for _, test := range []struct {
+ 		in   string
+@@ -162,6 +175,23 @@ func TestLevelVarMarshalText(t *testing.T) {
+ 	}
+ }
+ 
++func TestLevelVarAppendText(t *testing.T) {
++	var v LevelVar
++	v.Set(LevelWarn)
++	buf := make([]byte, 4, 16)
++	data, err := v.AppendText(buf)
++	if err != nil {
++		t.Fatal(err)
++	}
++	var v2 LevelVar
++	if err := v2.UnmarshalText(data[4:]); err != nil {
++		t.Fatal(err)
++	}
++	if g, w := v2.Level(), LevelWarn; g != w {
++		t.Errorf("got %s, want %s", g, w)
++	}
++}
++
+ func TestLevelVarFlag(t *testing.T) {
+ 	fs := flag.NewFlagSet("test", flag.ContinueOnError)
+ 	v := &LevelVar{}

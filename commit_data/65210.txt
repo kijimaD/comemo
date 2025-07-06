@@ -1,0 +1,393 @@
+commit 0564fa6820097b29c54ac58ea55c2aa0609aa924
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Sep 11 14:02:30 2024 -0400
+
+    runtime: move mapaccess1 and mapassign to internal/runtime/maps
+    
+    This enables manual inlining Map.Get/table.getWithoutKey to create a
+    simple fast path with no calls.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: Ic208dd4c02c7554f312b85b5fadccaf82b23545c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/go/build/deps_test.go                  |   8 +-
+ src/internal/runtime/maps/runtime_swiss.go | 225 +++++++++++++++++++++++++++++
+ src/runtime/alg.go                         |   5 +
+ src/runtime/map_swiss.go                   |  62 ++------
+ 4 files changed, 248 insertions(+), 52 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index c6a2518f62..ac281a267d 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -83,6 +83,8 @@ var depsRules = `
+ 	< internal/stringslite
+ 	< internal/itoa
+ 	< internal/unsafeheader
++	< internal/msan
++	< internal/asan
+ 	< internal/runtime/sys
+ 	< internal/runtime/syscall
+ 	< internal/runtime/atomic
+@@ -90,10 +92,8 @@ var depsRules = `
+ 	< internal/runtime/maps
+ 	< internal/runtime/math
+ 	< runtime
+-	< sync/atomic
+ 	< internal/race
+-	< internal/msan
+-	< internal/asan
++	< sync/atomic
+ 	< internal/weak
+ 	< sync
+ 	< internal/bisect
+@@ -102,7 +102,7 @@ var depsRules = `
+ 	< errors
+ 	< internal/oserror;
+ 
+-	cmp, internal/race, math/bits
++	cmp, internal/race, runtime, math/bits
+ 	< iter
+ 	< maps, slices;
+ 
+diff --git a/src/internal/runtime/maps/runtime_swiss.go b/src/internal/runtime/maps/runtime_swiss.go
+new file mode 100644
+index 0000000000..7a694f4f0e
+--- /dev/null
++++ b/src/internal/runtime/maps/runtime_swiss.go
+@@ -0,0 +1,225 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.swissmap
++
++package maps
++
++import (
++	"internal/abi"
++	"internal/asan"
++	"internal/msan"
++	//"internal/runtime/sys"
++	"unsafe"
++)
++
++// Functions below pushed from runtime.
++
++//go:linkname mapKeyError
++func mapKeyError(typ *abi.SwissMapType, p unsafe.Pointer) error
++
++// Pushed from runtime in order to use runtime.plainError
++//
++//go:linkname errNilAssign
++var errNilAssign error
++
++// Pull from runtime. It is important that is this the exact same copy as the
++// runtime because runtime.mapaccess1_fat compares the returned pointer with
++// &runtime.zeroVal[0].
++// TODO: move zeroVal to internal/abi?
++//
++//go:linkname zeroVal runtime.zeroVal
++var zeroVal [abi.ZeroValSize]byte
++
++// mapaccess1 returns a pointer to h[key].  Never returns nil, instead
++// it will return a reference to the zero object for the elem type if
++// the key is not in the map.
++// NOTE: The returned pointer may keep the whole map live, so don't
++// hold onto it for very long.
++//
++//go:linkname runtime_mapaccess1 runtime.mapaccess1
++func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
++	// TODO: concurrent checks.
++	//if raceenabled && m != nil {
++	//	callerpc := sys.GetCallerPC()
++	//	pc := abi.FuncPCABIInternal(mapaccess1)
++	//	racereadpc(unsafe.Pointer(m), callerpc, pc)
++	//	raceReadObjectPC(t.Key, key, callerpc, pc)
++	//}
++	if msan.Enabled && m != nil {
++		msan.Read(key, typ.Key.Size_)
++	}
++	if asan.Enabled && m != nil {
++		asan.Read(key, typ.Key.Size_)
++	}
++
++	if m == nil || m.Used() == 0 {
++		if err := mapKeyError(typ, key); err != nil {
++			panic(err) // see issue 23734
++		}
++		return unsafe.Pointer(&zeroVal[0])
++	}
++
++	hash := typ.Hasher(key, m.seed)
++
++	if m.dirLen <= 0 {
++		_, elem, ok := m.getWithKeySmall(typ, hash, key)
++		if !ok {
++			return unsafe.Pointer(&zeroVal[0])
++		}
++		return elem
++	}
++
++	// Select table.
++	idx := m.directoryIndex(hash)
++	t := m.directoryAt(idx)
++
++	// Probe table.
++	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++	for ; ; seq = seq.next() {
++		g := t.groups.group(typ, seq.offset)
++
++		match := g.ctrls().matchH2(h2(hash))
++
++		for match != 0 {
++			i := match.first()
++
++			slotKey := g.key(typ, i)
++			if typ.Key.Equal(key, slotKey) {
++				return g.elem(typ, i)
++			}
++			match = match.removeFirst()
++		}
++
++		match = g.ctrls().matchEmpty()
++		if match != 0 {
++			// Finding an empty slot means we've reached the end of
++			// the probe sequence.
++			return unsafe.Pointer(&zeroVal[0])
++		}
++	}
++}
++
++//go:linkname runtime_mapassign runtime.mapassign
++func runtime_mapassign(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsafe.Pointer {
++	// TODO: concurrent checks.
++	if m == nil {
++		panic(errNilAssign)
++	}
++	//if raceenabled {
++	//	callerpc := sys.GetCallerPC()
++	//	pc := abi.FuncPCABIInternal(mapassign)
++	//	racewritepc(unsafe.Pointer(m), callerpc, pc)
++	//	raceReadObjectPC(t.Key, key, callerpc, pc)
++	//}
++	if msan.Enabled {
++		msan.Read(key, typ.Key.Size_)
++	}
++	if asan.Enabled {
++		asan.Read(key, typ.Key.Size_)
++	}
++
++	hash := typ.Hasher(key, m.seed)
++
++	if m.dirLen == 0 {
++		if m.used < abi.SwissMapGroupSlots {
++			return m.putSlotSmall(typ, hash, key)
++		}
++
++		// Can't fit another entry, grow to full size map.
++		m.growToTable(typ)
++	}
++
++outer:
++	for {
++		// Select table.
++		idx := m.directoryIndex(hash)
++		t := m.directoryAt(idx)
++
++		seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
++
++		// As we look for a match, keep track of the first deleted slot
++		// we find, which we'll use to insert the new entry if
++		// necessary.
++		var firstDeletedGroup groupReference
++		var firstDeletedSlot uint32
++
++		for ; ; seq = seq.next() {
++			g := t.groups.group(typ, seq.offset)
++			match := g.ctrls().matchH2(h2(hash))
++
++			// Look for an existing slot containing this key.
++			for match != 0 {
++				i := match.first()
++
++				slotKey := g.key(typ, i)
++				if typ.Key.Equal(key, slotKey) {
++					if typ.NeedKeyUpdate() {
++						typedmemmove(typ.Key, slotKey, key)
++					}
++
++					slotElem := g.elem(typ, i)
++
++					t.checkInvariants(typ)
++					return slotElem
++				}
++				match = match.removeFirst()
++			}
++
++			// No existing slot for this key in this group. Is this the end
++			// of the probe sequence?
++			match = g.ctrls().matchEmpty()
++			if match != 0 {
++				// Finding an empty slot means we've reached the end of
++				// the probe sequence.
++
++				var i uint32
++
++				// If we found a deleted slot along the way, we
++				// can replace it without consuming growthLeft.
++				if firstDeletedGroup.data != nil {
++					g = firstDeletedGroup
++					i = firstDeletedSlot
++					t.growthLeft++ // will be decremented below to become a no-op.
++				} else {
++					// Otherwise, use the empty slot.
++					i = match.first()
++				}
++
++				// If there is room left to grow, just insert the new entry.
++				if t.growthLeft > 0 {
++					slotKey := g.key(typ, i)
++					typedmemmove(typ.Key, slotKey, key)
++					slotElem := g.elem(typ, i)
++
++					g.ctrls().set(i, ctrl(h2(hash)))
++					t.growthLeft--
++					t.used++
++					m.used++
++
++					t.checkInvariants(typ)
++					return slotElem
++				}
++
++				t.rehash(typ, m)
++				continue outer
++			}
++
++			// No empty slots in this group. Check for a deleted
++			// slot, which we'll use if we don't find a match later
++			// in the probe sequence.
++			//
++			// We only need to remember a single deleted slot.
++			if firstDeletedGroup.data == nil {
++				// Since we already checked for empty slots
++				// above, matches here must be deleted slots.
++				match = g.ctrls().matchEmptyOrDeleted()
++				if match != 0 {
++					firstDeletedGroup = g
++					firstDeletedSlot = match.first()
++				}
++			}
++		}
++	}
++}
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 07c115f74d..14ac7e8df3 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -256,6 +256,11 @@ func mapKeyError(t *maptype, p unsafe.Pointer) error {
+ 	return mapKeyError2(t.Key, p)
+ }
+ 
++//go:linkname maps_mapKeyError internal/runtime/maps.mapKeyError
++func maps_mapKeyError(t *maptype, p unsafe.Pointer) error {
++	return mapKeyError(t, p)
++}
++
+ func mapKeyError2(t *_type, p unsafe.Pointer) error {
+ 	if t.TFlag&abi.TFlagRegularMemory != 0 {
+ 		return nil
+diff --git a/src/runtime/map_swiss.go b/src/runtime/map_swiss.go
+index 3ea82b547f..9556690a06 100644
+--- a/src/runtime/map_swiss.go
++++ b/src/runtime/map_swiss.go
+@@ -22,6 +22,9 @@ const (
+ 
+ type maptype = abi.SwissMapType
+ 
++//go:linkname maps_errNilAssign internal/runtime/maps.errNilAssign
++var maps_errNilAssign error = plainError("assignment to entry in nil map")
++
+ func makemap64(t *abi.SwissMapType, hint int64, m *maps.Map) *maps.Map {
+ 	if int64(int(hint)) != hint {
+ 		hint = 0
+@@ -100,34 +103,12 @@ func alignUpPow2(n uint64) (uint64, bool) {
+ // the key is not in the map.
+ // NOTE: The returned pointer may keep the whole map live, so don't
+ // hold onto it for very long.
+-func mapaccess1(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer {
+-	// TODO: concurrent checks.
+-	if raceenabled && m != nil {
+-		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(mapaccess1)
+-		racereadpc(unsafe.Pointer(m), callerpc, pc)
+-		raceReadObjectPC(t.Key, key, callerpc, pc)
+-	}
+-	if msanenabled && m != nil {
+-		msanread(key, t.Key.Size_)
+-	}
+-	if asanenabled && m != nil {
+-		asanread(key, t.Key.Size_)
+-	}
+-
+-	if m == nil || m.Used() == 0 {
+-		if err := mapKeyError(t, key); err != nil {
+-			panic(err) // see issue 23734
+-		}
+-		return unsafe.Pointer(&zeroVal[0])
+-	}
+-
+-	elem, ok := m.Get(t, key)
+-	if !ok {
+-		return unsafe.Pointer(&zeroVal[0])
+-	}
+-	return elem
+-}
++//
++// mapaccess1 is pushed from internal/runtime/maps. We could just call it, but
++// we want to avoid one layer of call.
++//
++//go:linkname mapaccess1
++func mapaccess1(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
+ 
+ func mapaccess2(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) (unsafe.Pointer, bool) {
+ 	// TODO: concurrent checks.
+@@ -174,26 +155,11 @@ func mapaccess2_fat(t *abi.SwissMapType, m *maps.Map, key, zero unsafe.Pointer)
+ 	return e, true
+ }
+ 
+-func mapassign(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer {
+-	// TODO: concurrent checks.
+-	if m == nil {
+-		panic(plainError("assignment to entry in nil map"))
+-	}
+-	if raceenabled {
+-		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(mapassign)
+-		racewritepc(unsafe.Pointer(m), callerpc, pc)
+-		raceReadObjectPC(t.Key, key, callerpc, pc)
+-	}
+-	if msanenabled {
+-		msanread(key, t.Key.Size_)
+-	}
+-	if asanenabled {
+-		asanread(key, t.Key.Size_)
+-	}
+-
+-	return m.PutSlot(t, key)
+-}
++// mapassign is pushed from internal/runtime/maps. We could just call it, but
++// we want to avoid one layer of call.
++//
++//go:linkname mapassign
++func mapassign(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) unsafe.Pointer
+ 
+ func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
+ 	// TODO: concurrent checks.

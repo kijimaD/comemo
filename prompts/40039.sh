@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40039: ab2f83c387fcc00efbdcc0a5c249af26c84ff425
+# Index 40039: 7ebe35093dbac03f86f7471590a18bf4ddd4b29c
 
 echo "🚀 Generating explanation for commit 40039..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40039..."
 
 ### メタデータ
 - **コミットインデックス**: 40039
-- **コミットハッシュ**: ab2f83c387fcc00efbdcc0a5c249af26c84ff425
-- **GitHub URL**: https://github.com/golang/go/commit/ab2f83c387fcc00efbdcc0a5c249af26c84ff425
+- **コミットハッシュ**: 7ebe35093dbac03f86f7471590a18bf4ddd4b29c
+- **GitHub URL**: https://github.com/golang/go/commit/7ebe35093dbac03f86f7471590a18bf4ddd4b29c
 
 ### 章構成
 

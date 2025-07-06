@@ -1,0 +1,39 @@
+commit b17a99d6fca7f33bb821d450ebe67d6d4b3ea289
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Thu Mar 27 20:46:33 2025 +0000
+
+    cmd/compile: update GOSSAFUNC doc for printing CFG
+    
+    Updates #30074
+    
+    Change-Id: I160124afb65849c624a225d384c35313723f9f30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661415
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/ssa/README.md | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/README.md b/src/cmd/compile/internal/ssa/README.md
+index 2c602f160c..8184f9c002 100644
+--- a/src/cmd/compile/internal/ssa/README.md
++++ b/src/cmd/compile/internal/ssa/README.md
+@@ -206,6 +206,16 @@ name, e.g.
+ This will match any function named "Foo" within a package whose final
+ suffix is "blah" (e.g. something/blah.Foo, anotherthing/extra/blah.Foo).
+ 
++The users may also print the Control Flow Graph(CFG) by specifying in
++`GOSSAFUNC` value in the following format:
++
++	GOSSAFUNC="$FunctionName:$PassName1,$PassName2,..." go build
++
++For example, the following command will print SSA with CFGs attached to the
++`sccp` and `generic deadcode` pass columns:
++
++	GOSSAFUNC="blah.Foo:sccp,generic deadcode" go build
++
+ If non-HTML dumps are needed, append a "+" to the GOSSAFUNC value
+ and dumps will be written to stdout:
+ 

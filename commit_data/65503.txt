@@ -1,0 +1,44 @@
+commit eeddabcadb06a2161c379954e31ccfad6a75fc86
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 10 11:07:25 2024 +0100
+
+    crypto/md5,crypto/sha512: fix AppendBinary -> BinaryAppender docs typo
+    
+    Change-Id: Ia2caecd0a54e1100ad523f0dc76f17babcd0ffca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626878
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/md5/md5.go       | 2 +-
+ src/crypto/sha512/sha512.go | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index c984c3f496..313e961666 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -99,7 +99,7 @@ func consumeUint32(b []byte) ([]byte, uint32) {
+ }
+ 
+ // New returns a new [hash.Hash] computing the MD5 checksum. The Hash
+-// also implements [encoding.BinaryMarshaler], [encoding.AppendBinary] and
++// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+ // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+ // state of the hash.
+ func New() hash.Hash {
+diff --git a/src/crypto/sha512/sha512.go b/src/crypto/sha512/sha512.go
+index 0a12fde7bc..ebdde0feb1 100644
+--- a/src/crypto/sha512/sha512.go
++++ b/src/crypto/sha512/sha512.go
+@@ -70,7 +70,7 @@ func New512_256() hash.Hash {
+ }
+ 
+ // New384 returns a new [hash.Hash] computing the SHA-384 checksum. The Hash
+-// also implements [encoding.BinaryMarshaler], [encoding.AppendBinary] and
++// also implements [encoding.BinaryMarshaler], [encoding.BinaryAppender] and
+ // [encoding.BinaryUnmarshaler] to marshal and unmarshal the internal
+ // state of the hash.
+ func New384() hash.Hash {

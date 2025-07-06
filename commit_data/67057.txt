@@ -1,0 +1,113 @@
+commit 6425749695130f2032ac9cfdf5407b6a322534db
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu May 15 15:30:57 2025 -0400
+
+    cmd/distpack: remove more tools from packaged distribution
+    
+    The "doc", "fix", and "covdata" tools invoked by the go command are not
+    needed for builds. Instead of invoking them directly using the installed
+    binary in the tool directory, use "go tool" to run them, building them
+    if needed. We can then stop distributing those tools in the
+    distribution.
+    
+    covdata is used in tests and can form part of a cached test result, but
+    test results don't have the same requirements as build outputs to be
+    completely determined by the action id. We already don't include a
+    toolid for the covdata tool in the action id for a test run. The more
+    principled way to do things would be to load the covdata package,
+    create the actions to build it, and then depend on the output of
+    that action from the the test action and use that as the covdata tool.
+    For now, it's probably not worth the effort, but, in the future, if we
+    wanted to build a tool like cgo as needed, it would be best to build it
+    in the same action graph. That would introduce a whole bunch of complexity
+    because we'd need to build the tool in the host configuration, and all
+    the configuration parameters are global.
+    
+    For #71867
+    
+    Change-Id: Id9bbbb5c169296f66c072949f9da552424ecfa2f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673119
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+---
+ src/cmd/distpack/pack.go          | 3 ++-
+ src/cmd/go/internal/doc/doc.go    | 3 ++-
+ src/cmd/go/internal/fix/fix.go    | 3 ++-
+ src/cmd/go/internal/work/cover.go | 3 +--
+ 4 files changed, 7 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/distpack/pack.go b/src/cmd/distpack/pack.go
+index 5b10198887..fd091c1ebb 100644
+--- a/src/cmd/distpack/pack.go
++++ b/src/cmd/distpack/pack.go
+@@ -169,7 +169,8 @@ func main() {
+ 			}
+ 			// Inside pkg/tool/$GOOS_$GOARCH, discard helper tools, and tools not needed for builds.
+ 			switch strings.TrimSuffix(path.Base(name), ".exe") {
+-			case "addr2line", "api", "buildid", "dist", "distpack", "metadata", "nm", "objdump", "pprof", "test2json", "trace":
++			case "addr2line", "api", "buildid", "covdata", "dist", "distpack", "doc", "fix",
++				"metadata", "nm", "objdump", "pprof", "test2json", "trace":
+ 				return false
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/doc/doc.go b/src/cmd/go/internal/doc/doc.go
+index 3b6cd94799..4156284d1d 100644
+--- a/src/cmd/go/internal/doc/doc.go
++++ b/src/cmd/go/internal/doc/doc.go
+@@ -9,6 +9,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"context"
++	"path/filepath"
+ )
+ 
+ var CmdDoc = &base.Command{
+@@ -130,5 +131,5 @@ Flags:
+ }
+ 
+ func runDoc(ctx context.Context, cmd *base.Command, args []string) {
+-	base.Run(cfg.BuildToolexec, base.Tool("doc"), args)
++	base.Run(cfg.BuildToolexec, filepath.Join(cfg.GOROOTbin, "go"), "tool", "doc", args)
+ }
+diff --git a/src/cmd/go/internal/fix/fix.go b/src/cmd/go/internal/fix/fix.go
+index 28ad58daf5..8947da05c3 100644
+--- a/src/cmd/go/internal/fix/fix.go
++++ b/src/cmd/go/internal/fix/fix.go
+@@ -16,6 +16,7 @@ import (
+ 	"fmt"
+ 	"go/build"
+ 	"os"
++	"path/filepath"
+ )
+ 
+ var CmdFix = &base.Command{
+@@ -80,6 +81,6 @@ func runFix(ctx context.Context, cmd *base.Command, args []string) {
+ 		if *fixes != "" {
+ 			fixArg = []string{"-r=" + *fixes}
+ 		}
+-		base.Run(str.StringList(cfg.BuildToolexec, base.Tool("fix"), "-go="+goVersion, fixArg, files))
++		base.Run(str.StringList(cfg.BuildToolexec, filepath.Join(cfg.GOROOTbin, "go"), "tool", "fix", "-go="+goVersion, fixArg, files))
+ 	}
+ }
+diff --git a/src/cmd/go/internal/work/cover.go b/src/cmd/go/internal/work/cover.go
+index 3b732569a8..62fcdb3fda 100644
+--- a/src/cmd/go/internal/work/cover.go
++++ b/src/cmd/go/internal/work/cover.go
+@@ -7,7 +7,6 @@
+ package work
+ 
+ import (
+-	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/str"
+ 	"cmd/internal/cov/covcmd"
+@@ -25,7 +24,7 @@ import (
+ func (b *Builder) CovData(a *Action, cmdargs ...any) ([]byte, error) {
+ 	cmdline := str.StringList(cmdargs...)
+ 	args := append([]string{}, cfg.BuildToolexec...)
+-	args = append(args, base.Tool("covdata"))
++	args = append(args, "go", "tool", "covdata")
+ 	args = append(args, cmdline...)
+ 	return b.Shell(a).runOut(a.Objdir, nil, args)
+ }

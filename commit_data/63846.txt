@@ -1,0 +1,244 @@
+commit 47187a4f4f226c4b9e0e920c5ad1ec9ce83bdc35
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Sun May 19 15:21:53 2024 +0200
+
+    runtime: fix profile stack trace depth regression
+    
+    Previously it was possible for mutex and block profile stack traces to
+    contain up to 32 frames in Stack0 or the resulting pprof profiles.
+    CL 533258 changed this behavior by using some of the space to
+    record skipped frames that are discarded when performing delayed inline
+    expansion. This has lowered the effective maximum stack size from 32 to
+    27 (the max skip value is 5), which can be seen as a small regression.
+    
+    Add TestProfilerStackDepth to demonstrate the issue and protect all
+    profile types from similar regressions in the future. Fix the issue by
+    increasing the internal maxStack limit to take the maxSkip value into
+    account. Assert that the maxSkip value is never exceeded when recording
+    mutex and block profile stack traces.
+    
+    Three alternative solutions to the problem were considered and
+    discarded:
+    
+    1) Revert CL 533258 and give up on frame pointer unwinding. This seems
+       unappealing as we would lose the performance benefits of frame
+       pointer unwinding.
+    2) Discard skipped frames when recording the initial stack trace. This
+       would require eager inline expansion for up to maxSkip frames and
+       partially negate the performance benefits of frame pointer
+       unwinding.
+    3) Accept and document the new behavior. This would simplify the
+       implementation, but seems more confusing from a user perspective. It
+       also complicates the creation of test cases that make assertions
+       about the maximum profiling stack depth.
+    
+    The execution tracer still has the same issue due to CL 463835. This
+    should be addressed in a follow-up CL.
+    
+    Co-authored-by: Nick Ripley <nick.ripley@datadoghq.com>
+    Change-Id: Ibf4dbf08a5166c9cb32470068c69f58bc5f98d2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586657
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mprof.go            |  28 +++++++-
+ src/runtime/pprof/pprof_test.go | 140 ++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 166 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index b51edcbcab..f0e5533cec 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -43,10 +43,29 @@ const (
+ 	// Note that it's only used internally as a guard against
+ 	// wildly out-of-bounds slicing of the PCs that come after
+ 	// a bucket struct, and it could increase in the future.
+-	// The "+ 1" is to account for the first stack entry being
++	// The term "1" accounts for the first stack entry being
+ 	// taken up by a "skip" sentinel value for profilers which
+ 	// defer inline frame expansion until the profile is reported.
+-	maxStack = 32 + 1
++	// The term "maxSkip" is for frame pointer unwinding, where we
++	// want to end up with maxLogicalStack frames but will discard
++	// some "physical" frames to account for skipping.
++	maxStack = 1 + maxSkip + maxLogicalStack
++
++	// maxLogicalStack is the maximum stack size of a call stack
++	// to encode in a profile. This counts "logical" frames, which
++	// includes inlined frames. We may record more than this many
++	// "physical" frames when using frame pointer unwinding to account
++	// for deferred handling of skipping frames & inline expansion.
++	maxLogicalStack = 32
++	// maxSkip is to account for deferred inline expansion
++	// when using frame pointer unwinding. We record the stack
++	// with "physical" frame pointers but handle skipping "logical"
++	// frames at some point after collecting the stack. So
++	// we need extra space in order to avoid getting fewer than the
++	// desired maximum number of frames after expansion.
++	// This should be at least as large as the largest skip value
++	// used for profiling; otherwise stacks may be truncated inconsistently
++	maxSkip = 5
+ )
+ 
+ type bucketType int
+@@ -513,6 +532,11 @@ func blocksampled(cycles, rate int64) bool {
+ // skip should be positive if this event is recorded from the current stack
+ // (e.g. when this is not called from a system stack)
+ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
++	if skip > maxSkip {
++		print("requested skip=", skip)
++		throw("invalid skip value")
++	}
++
+ 	gp := getg()
+ 	mp := acquirem() // we must not be preempted while accessing profstack
+ 	nstk := 1
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index f57c1fed50..1c92c7e1f4 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -2431,3 +2431,143 @@ func TestTimeVDSO(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestProfilerStackDepth(t *testing.T) {
++	// Disable sampling, otherwise it's difficult to assert anything.
++	oldMemRate := runtime.MemProfileRate
++	runtime.MemProfileRate = 1
++	runtime.SetBlockProfileRate(1)
++	oldMutexRate := runtime.SetMutexProfileFraction(1)
++	t.Cleanup(func() {
++		runtime.MemProfileRate = oldMemRate
++		runtime.SetBlockProfileRate(0)
++		runtime.SetMutexProfileFraction(oldMutexRate)
++	})
++
++	const depth = 32
++	go produceProfileEvents(t, depth)
++	awaitBlockedGoroutine(t, "chan receive", "goroutineDeep", 1)
++
++	tests := []struct {
++		profiler string
++		prefix   []string
++	}{
++		{"heap", []string{"runtime/pprof.allocDeep"}},
++		{"block", []string{"runtime.chanrecv1", "runtime/pprof.blockChanDeep"}},
++		{"mutex", []string{"sync.(*Mutex).Unlock", "runtime/pprof.blockMutexDeep"}},
++		{"goroutine", []string{"runtime.gopark", "runtime.chanrecv", "runtime.chanrecv1", "runtime/pprof.goroutineDeep"}},
++	}
++
++	for _, test := range tests {
++		t.Run(test.profiler, func(t *testing.T) {
++			var buf bytes.Buffer
++			if err := Lookup(test.profiler).WriteTo(&buf, 0); err != nil {
++				t.Fatalf("failed to write heap profile: %v", err)
++			}
++			p, err := profile.Parse(&buf)
++			if err != nil {
++				t.Fatalf("failed to parse heap profile: %v", err)
++			}
++			t.Logf("Profile = %v", p)
++
++			stks := stacks(p)
++			var stk []string
++			for _, s := range stks {
++				if hasPrefix(s, test.prefix) {
++					stk = s
++					break
++				}
++			}
++			if len(stk) != depth {
++				t.Fatalf("want stack depth = %d, got %d", depth, len(stk))
++			}
++
++			if rootFn, wantFn := stk[depth-1], "runtime/pprof.produceProfileEvents"; rootFn != wantFn {
++				t.Fatalf("want stack stack root %s, got %v", wantFn, rootFn)
++			}
++		})
++	}
++}
++
++func hasPrefix(stk []string, prefix []string) bool {
++	if len(prefix) > len(stk) {
++		return false
++	}
++	for i := range prefix {
++		if stk[i] != prefix[i] {
++			return false
++		}
++	}
++	return true
++}
++
++// ensure that stack records are valid map keys (comparable)
++var _ = map[runtime.MemProfileRecord]struct{}{}
++var _ = map[runtime.StackRecord]struct{}{}
++
++// allocDeep calls itself n times before calling fn.
++func allocDeep(n int) {
++	if n > 1 {
++		allocDeep(n - 1)
++		return
++	}
++	memSink = make([]byte, 1<<20)
++}
++
++// blockChanDeep produces a block profile event at stack depth n, including the
++// caller.
++func blockChanDeep(t *testing.T, n int) {
++	if n > 1 {
++		blockChanDeep(t, n-1)
++		return
++	}
++	ch := make(chan struct{})
++	go func() {
++		awaitBlockedGoroutine(t, "chan receive", "blockChanDeep", 1)
++		ch <- struct{}{}
++	}()
++	<-ch
++}
++
++// blockMutexDeep produces a block profile event at stack depth n, including the
++// caller.
++func blockMutexDeep(t *testing.T, n int) {
++	if n > 1 {
++		blockMutexDeep(t, n-1)
++		return
++	}
++	var mu sync.Mutex
++	go func() {
++		mu.Lock()
++		mu.Lock()
++	}()
++	awaitBlockedGoroutine(t, "sync.Mutex.Lock", "blockMutexDeep", 1)
++	mu.Unlock()
++}
++
++// goroutineDeep blocks at stack depth n, including the caller until the test is
++// finished.
++func goroutineDeep(t *testing.T, n int) {
++	if n > 1 {
++		goroutineDeep(t, n-1)
++		return
++	}
++	wait := make(chan struct{}, 1)
++	t.Cleanup(func() {
++		wait <- struct{}{}
++	})
++	<-wait
++}
++
++// produceProfileEvents produces pprof events at the given stack depth and then
++// blocks in goroutineDeep until the test completes. The stack traces are
++// guaranteed to have exactly the desired depth with produceProfileEvents as
++// their root frame which is expected by TestProfilerStackDepth.
++func produceProfileEvents(t *testing.T, depth int) {
++	allocDeep(depth - 1)       // -1 for produceProfileEvents, **
++	blockChanDeep(t, depth-2)  // -2 for produceProfileEvents, **, chanrecv1
++	blockMutexDeep(t, depth-2) // -2 for produceProfileEvents, **, Unlock
++	memSink = nil
++	runtime.GC()
++	goroutineDeep(t, depth-4) // -4 for produceProfileEvents, **, chanrecv1, chanrev, gopark
++}

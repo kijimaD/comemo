@@ -1,0 +1,142 @@
+commit 82c371a307116450e9ab4dbce1853da3e69f4061
+Author: Alessandro Arzilli <alessandro.arzilli@gmail.com>
+Date:   Mon Jun 24 15:53:55 2024 +0200
+
+    cmd/compile: drop internal range-over-func vars from DWARF output
+    
+    Drops internal range-over-func variables from the DWARF output
+    (excluding #yield which is used by Delve).
+    
+    Fixes #68238
+    
+    Change-Id: Ic035e37ca3560347276cdc3b469fd564da33f4f5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594257
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    Auto-Submit: Hyang-Ah Hana Kim <hyangah@gmail.com>
+---
+ src/cmd/compile/internal/dwarfgen/dwarf.go    |  6 ++++++
+ src/cmd/compile/internal/rangefunc/rewrite.go |  2 +-
+ src/cmd/compile/internal/ssa/debug.go         | 30 +++++++++++++++++++++++----
+ 3 files changed, 33 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/dwarfgen/dwarf.go b/src/cmd/compile/internal/dwarfgen/dwarf.go
+index 512d8d22e7..36cc253e82 100644
+--- a/src/cmd/compile/internal/dwarfgen/dwarf.go
++++ b/src/cmd/compile/internal/dwarfgen/dwarf.go
+@@ -91,6 +91,9 @@ func Info(fnsym *obj.LSym, infosym *obj.LSym, curfn obj.Func) (scopes []dwarf.Sc
+ 			default:
+ 				continue
+ 			}
++			if !ssa.IsVarWantedForDebug(n) {
++				continue
++			}
+ 			apdecls = append(apdecls, n)
+ 			if n.Type().Kind() == types.TSSA {
+ 				// Can happen for TypeInt128 types. This only happens for
+@@ -194,6 +197,9 @@ func createDwarfVars(fnsym *obj.LSym, complexOK bool, fn *ir.Func, apDecls []*ir
+ 		// DWARF-gen. See issue 48573 for more details.
+ 		debugInfo := fn.DebugInfo.(*ssa.FuncDebug)
+ 		for _, n := range debugInfo.RegOutputParams {
++			if !ssa.IsVarWantedForDebug(n) {
++				continue
++			}
+ 			if n.Class != ir.PPARAMOUT || !n.IsOutputParamInRegisters() {
+ 				panic("invalid ir.Name on debugInfo.RegOutputParams list")
+ 			}
+diff --git a/src/cmd/compile/internal/rangefunc/rewrite.go b/src/cmd/compile/internal/rangefunc/rewrite.go
+index e5a0b9f8af..ba2eb8d0fd 100644
+--- a/src/cmd/compile/internal/rangefunc/rewrite.go
++++ b/src/cmd/compile/internal/rangefunc/rewrite.go
+@@ -1137,7 +1137,7 @@ func (r *rewriter) setStateAt(index int, stateVal abi.RF_State) *syntax.AssignSt
+ func (r *rewriter) bodyFunc(body []syntax.Stmt, lhs []syntax.Expr, def bool, ftyp *types2.Signature, start, end syntax.Pos) *syntax.FuncLit {
+ 	// Starting X(bodyFunc); build up bodyFunc first.
+ 	var params, results []*types2.Var
+-	results = append(results, types2.NewVar(start, nil, "", r.bool.Type()))
++	results = append(results, types2.NewVar(start, nil, "#r", r.bool.Type()))
+ 	bodyFunc := &syntax.FuncLit{
+ 		// Note: Type is ignored but needs to be non-nil to avoid panic in syntax.Inspect.
+ 		Type: &syntax.FuncType{},
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 4abe5a9892..04025f7882 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -600,7 +600,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
+ 	state.vars = state.vars[:0]
+ 	for i, slot := range f.Names {
+ 		state.slots = append(state.slots, *slot)
+-		if ir.IsSynthetic(slot.N) {
++		if ir.IsSynthetic(slot.N) || !IsVarWantedForDebug(slot.N) {
+ 			continue
+ 		}
+ 
+@@ -620,7 +620,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
+ 		for _, v := range b.Values {
+ 			if v.Op == OpVarDef {
+ 				n := v.Aux.(*ir.Name)
+-				if ir.IsSynthetic(n) {
++				if ir.IsSynthetic(n) || !IsVarWantedForDebug(n) {
+ 					continue
+ 				}
+ 
+@@ -665,7 +665,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
+ 	state.initializeCache(f, len(state.varParts), len(state.slots))
+ 
+ 	for i, slot := range f.Names {
+-		if ir.IsSynthetic(slot.N) {
++		if ir.IsSynthetic(slot.N) || !IsVarWantedForDebug(slot.N) {
+ 			continue
+ 		}
+ 		for _, value := range f.NamedValues[*slot] {
+@@ -1087,7 +1087,7 @@ func (state *debugState) processValue(v *Value, vSlots []SlotID, vReg *Register)
+ 	switch {
+ 	case v.Op == OpVarDef:
+ 		n := v.Aux.(*ir.Name)
+-		if ir.IsSynthetic(n) {
++		if ir.IsSynthetic(n) || !IsVarWantedForDebug(n) {
+ 			break
+ 		}
+ 
+@@ -1835,6 +1835,9 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
+ 			// will be sorted out elsewhere
+ 			continue
+ 		}
++		if !IsVarWantedForDebug(inp.Name) {
++			continue
++		}
+ 		addVarSlot(inp.Name, inp.Type)
+ 		params = append(params, inp)
+ 	}
+@@ -1855,6 +1858,9 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
+ 			// will be sorted out elsewhere
+ 			continue
+ 		}
++		if !IsVarWantedForDebug(inp.Name) {
++			continue
++		}
+ 
+ 		sl := rval.Slots[pidx]
+ 		n := rval.Vars[pidx]
+@@ -1948,3 +1954,19 @@ func BuildFuncDebugNoOptimized(ctxt *obj.Link, f *Func, loggingEnabled bool, sta
+ 		pidx++
+ 	}
+ }
++
++// IsVarWantedForDebug returns true if the debug info for the node should
++// be generated.
++// For example, internal variables for range-over-func loops have little
++// value to users, so we don't generate debug info for them.
++func IsVarWantedForDebug(n ir.Node) bool {
++	name := n.Sym().Name
++	if len(name) > 0 && name[0] == '&' {
++		name = name[1:]
++	}
++	if len(name) > 0 && name[0] == '#' {
++		// #yield is used by delve.
++		return strings.HasPrefix(name, "#yield")
++	}
++	return true
++}

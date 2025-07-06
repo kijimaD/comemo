@@ -1,0 +1,59 @@
+commit e6ae2d83acc088349f7a327a968ffa1f2ae41dec
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Sep 5 11:17:41 2024 +0200
+
+    cmd/asm/internal: use slices.Contains
+    
+    Now that Go 1.22.6 is the minimum bootstrap toolchain (cf. CL 606156),
+    the slices package (introduced in Go 1.21) can be used in packages built
+    using the bootstrap toolchain.
+    
+    For #64751
+    
+    Change-Id: I0115213da4b1f0a1fa0ef7ad34456fbf52e00fae
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611095
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/asm/internal/lex/input.go | 12 ++----------
+ 1 file changed, 2 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/asm/internal/lex/input.go b/src/cmd/asm/internal/lex/input.go
+index da4ebe6d6e..789e229a77 100644
+--- a/src/cmd/asm/internal/lex/input.go
++++ b/src/cmd/asm/internal/lex/input.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"os"
+ 	"path/filepath"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"text/scanner"
+@@ -252,7 +253,7 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
+ 					in.Error("bad syntax in definition for macro:", name)
+ 				}
+ 				arg := in.Stack.Text()
+-				if i := lookup(args, arg); i >= 0 {
++				if slices.Contains(args, arg) {
+ 					in.Error("duplicate argument", arg, "in definition for macro:", name)
+ 				}
+ 				args = append(args, arg)
+@@ -280,15 +281,6 @@ func (in *Input) macroDefinition(name string) ([]string, []Token) {
+ 	return args, tokens
+ }
+ 
+-func lookup(args []string, arg string) int {
+-	for i, a := range args {
+-		if a == arg {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+-
+ // invokeMacro pushes onto the input Stack a Slice that holds the macro definition with the actual
+ // parameters substituted for the formals.
+ // Invoking a macro does not touch the PC/line history.

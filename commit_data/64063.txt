@@ -1,0 +1,29 @@
+commit da65071f36d6d64881df177a9a9d5f3fc2daade7
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Jun 8 09:53:38 2024 +0800
+
+    cmd/compile/internal/types2: fix typo in comment for StoreTypesInSyntax
+    
+    Change-Id: Ia73b15b6df5e6f88741f2b54258d7cbad0239ddd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591396
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/compile/internal/types2/api.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/types2/api.go b/src/cmd/compile/internal/types2/api.go
+index b9ec874d45..74c549076d 100644
+--- a/src/cmd/compile/internal/types2/api.go
++++ b/src/cmd/compile/internal/types2/api.go
+@@ -321,7 +321,7 @@ func (info *Info) recordTypes() bool {
+ }
+ 
+ // TypeOf returns the type of expression e, or nil if not found.
+-// Precondition 1: the Types map is populated or StoreTypesInSynax is set.
++// Precondition 1: the Types map is populated or StoreTypesInSyntax is set.
+ // Precondition 2: Uses and Defs maps are populated.
+ func (info *Info) TypeOf(e syntax.Expr) Type {
+ 	if info.Types != nil {

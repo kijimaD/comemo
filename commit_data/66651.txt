@@ -1,0 +1,154 @@
+commit b7f8c2a11058fe266fa5ddd0bc80dbf69b03b172
+Author: Austin Clements <austin@google.com>
+Date:   Thu Mar 20 10:26:54 2025 -0400
+
+    testing: detect early return from B.Loop
+    
+    Currently, if a benchmark function returns prior to B.Loop() returning
+    false, we'll report a bogus result. While there was no way to detect
+    this with b.N-style benchmarks, one way b.Loop()-style benchmarks are
+    more robust is that we *can* detect it.
+    
+    This CL adds a flag to B that tracks if B.Loop() has finished and
+    checks it after the benchmark completes. If there was an early exit
+    (not caused by another error), it reports a B.Error.
+    
+    Fixes #72933.
+    Updates #72971.
+    
+    Change-Id: I731c1350e6df938c0ffa08fcedc11dc147e78854
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659656
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/testing/benchmark.go |  9 +++++++
+ src/testing/loop_test.go | 62 +++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 70 insertions(+), 1 deletion(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 0e31ef0e66..bc9be9b176 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -124,6 +124,8 @@ type B struct {
+ 		// i is the current Loop iteration. It's strictly monotonically
+ 		// increasing toward n.
+ 		i int
++
++		done bool // set when B.Loop return false
+ 	}
+ }
+ 
+@@ -201,6 +203,7 @@ func (b *B) runN(n int) {
+ 	b.N = n
+ 	b.loop.n = 0
+ 	b.loop.i = 0
++	b.loop.done = false
+ 	b.ctx = ctx
+ 	b.cancelCtx = cancelCtx
+ 
+@@ -211,6 +214,10 @@ func (b *B) runN(n int) {
+ 	b.StopTimer()
+ 	b.previousN = n
+ 	b.previousDuration = b.duration
++
++	if b.loop.n > 0 && !b.loop.done && !b.failed {
++		b.Error("benchmark function returned without B.Loop() == false (break or return in loop?)")
++	}
+ }
+ 
+ // run1 runs the first iteration of benchFunc. It reports whether more
+@@ -382,6 +389,7 @@ func (b *B) stopOrScaleBLoop() bool {
+ 		b.StopTimer()
+ 		// Commit iteration count
+ 		b.N = b.loop.n
++		b.loop.done = true
+ 		return false
+ 	}
+ 	// Loop scaling
+@@ -414,6 +422,7 @@ func (b *B) loopSlowPath() bool {
+ 		b.StopTimer()
+ 		// Commit iteration count
+ 		b.N = b.loop.n
++		b.loop.done = true
+ 		return false
+ 	}
+ 	// Handles fixed time case
+diff --git a/src/testing/loop_test.go b/src/testing/loop_test.go
+index 7a42919643..423094fbbd 100644
+--- a/src/testing/loop_test.go
++++ b/src/testing/loop_test.go
+@@ -4,6 +4,13 @@
+ 
+ package testing
+ 
++import (
++	"bytes"
++	"strings"
++)
++
++// See also TestBenchmarkBLoop* in other files.
++
+ func TestBenchmarkBLoop(t *T) {
+ 	var initialStart highPrecisionTime
+ 	var firstStart highPrecisionTime
+@@ -68,4 +75,57 @@ func TestBenchmarkBLoop(t *T) {
+ 	}
+ }
+ 
+-// See also TestBenchmarkBLoop* in other files.
++func TestBenchmarkBLoopBreak(t *T) {
++	var bState *B
++	var bLog bytes.Buffer
++	bRet := Benchmark(func(b *B) {
++		// The Benchmark function provides no access to the failure state and
++		// discards the log, so capture the B and save its log.
++		bState = b
++		b.common.w = &bLog
++
++		for i := 0; b.Loop(); i++ {
++			if i == 2 {
++				break
++			}
++		}
++	})
++	if !bState.failed {
++		t.Errorf("benchmark should have failed")
++	}
++	const wantLog = "benchmark function returned without B.Loop"
++	if log := bLog.String(); !strings.Contains(log, wantLog) {
++		t.Errorf("missing error %q in output:\n%s", wantLog, log)
++	}
++	// A benchmark that exits early should not report its target iteration count
++	// because it's not meaningful.
++	if bRet.N != 0 {
++		t.Errorf("want N == 0, got %d", bRet.N)
++	}
++}
++
++func TestBenchmarkBLoopError(t *T) {
++	// Test that a benchmark that exits early because of an error doesn't *also*
++	// complain that the benchmark exited early.
++	var bState *B
++	var bLog bytes.Buffer
++	bRet := Benchmark(func(b *B) {
++		bState = b
++		b.common.w = &bLog
++
++		for i := 0; b.Loop(); i++ {
++			b.Error("error")
++			return
++		}
++	})
++	if !bState.failed {
++		t.Errorf("benchmark should have failed")
++	}
++	const noWantLog = "benchmark function returned without B.Loop"
++	if log := bLog.String(); strings.Contains(log, noWantLog) {
++		t.Errorf("unexpected error %q in output:\n%s", noWantLog, log)
++	}
++	if bRet.N != 0 {
++		t.Errorf("want N == 0, got %d", bRet.N)
++	}
++}

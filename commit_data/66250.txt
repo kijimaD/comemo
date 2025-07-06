@@ -1,0 +1,51 @@
+commit abd023911360006fedee9fccc707c73cdfb20b23
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Fri Feb 14 01:07:54 2025 +0800
+
+    go/parser: deprecate parser.ParseDir
+    
+    Fixes #71122
+    
+    Change-Id: Icaf27842f4a42e11eea4bd2203eba5d56610c196
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649275
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+---
+ api/next/71122.txt                            | 1 +
+ doc/next/6-stdlib/99-minor/go/parser/71122.md | 1 +
+ src/go/parser/interface.go                    | 5 +++++
+ 3 files changed, 7 insertions(+)
+
+diff --git a/api/next/71122.txt b/api/next/71122.txt
+new file mode 100644
+index 0000000000..a679899e0c
+--- /dev/null
++++ b/api/next/71122.txt
+@@ -0,0 +1 @@
++pkg go/parser, func ParseDir //deprecated #71122
+diff --git a/doc/next/6-stdlib/99-minor/go/parser/71122.md b/doc/next/6-stdlib/99-minor/go/parser/71122.md
+new file mode 100644
+index 0000000000..2043d30403
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/parser/71122.md
+@@ -0,0 +1 @@
++The [ParseDir] function is deprecated.
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index 71a612f7cf..a9a1cfb736 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -145,6 +145,11 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
+ // If the directory couldn't be read, a nil map and the respective error are
+ // returned. If a parse error occurred, a non-nil but incomplete map and the
+ // first error encountered are returned.
++//
++// Deprecated: ParseDir does not consider build tags when associating
++// files with packages. For precise information about the relationship
++// between packages and files, use golang.org/x/tools/go/packages,
++// which can also optionally parse and type-check the files too.
+ func ParseDir(fset *token.FileSet, path string, filter func(fs.FileInfo) bool, mode Mode) (pkgs map[string]*ast.Package, first error) {
+ 	list, err := os.ReadDir(path)
+ 	if err != nil {

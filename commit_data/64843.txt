@@ -1,0 +1,45 @@
+commit f117d1c9b5951ab2456c1e512ac0423fcf3d7ada
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Sep 13 22:30:30 2024 +0700
+
+    test: add test for issue 24755
+    
+    Fixes #24755
+    
+    Change-Id: I00b276c5c2acb227d42a069d1af6027e4b499d31
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613115
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ test/fixedbugs/issue24755.go | 19 +++++++++++++++++++
+ 1 file changed, 19 insertions(+)
+
+diff --git a/test/fixedbugs/issue24755.go b/test/fixedbugs/issue24755.go
+new file mode 100644
+index 0000000000..705b15fbdc
+--- /dev/null
++++ b/test/fixedbugs/issue24755.go
+@@ -0,0 +1,19 @@
++// errorcheck
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type I interface {
++	F()
++}
++
++type T struct {
++}
++
++const _ = I((*T)(nil)) // ERROR "is not constant"
++
++func (*T) F() {
++}

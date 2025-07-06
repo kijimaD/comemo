@@ -1,0 +1,142 @@
+commit 760f22848de788806cb4ed25383cd92ea9091eef
+Author: John Bampton <jbampton@gmail.com>
+Date:   Wed Apr 9 21:08:06 2025 +0000
+
+    crypto/internal/hpke: rename Receipient to Recipient
+    
+    receipient -> recipient
+    
+    Change-Id: I9ed5937acf0f3808283e35221f8b4f41408eee7c
+    GitHub-Last-Rev: 0ed5ff7a46808d5311af3620b6577734a1e557f4
+    GitHub-Pull-Request: golang/go#73131
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662175
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+---
+ src/crypto/internal/hpke/hpke.go         | 8 ++++----
+ src/crypto/internal/hpke/hpke_test.go    | 8 ++++----
+ src/crypto/tls/ech.go                    | 4 ++--
+ src/crypto/tls/handshake_server_tls13.go | 2 +-
+ 4 files changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/crypto/internal/hpke/hpke.go b/src/crypto/internal/hpke/hpke.go
+index de601c4bfe..599bf97771 100644
+--- a/src/crypto/internal/hpke/hpke.go
++++ b/src/crypto/internal/hpke/hpke.go
+@@ -144,7 +144,7 @@ type Sender struct {
+ 	*context
+ }
+ 
+-type Receipient struct {
++type Recipient struct {
+ 	*context
+ }
+ 
+@@ -259,7 +259,7 @@ func SetupSender(kemID, kdfID, aeadID uint16, pub *ecdh.PublicKey, info []byte)
+ 	return encapsulatedKey, &Sender{context}, nil
+ }
+ 
+-func SetupReceipient(kemID, kdfID, aeadID uint16, priv *ecdh.PrivateKey, info, encPubEph []byte) (*Receipient, error) {
++func SetupRecipient(kemID, kdfID, aeadID uint16, priv *ecdh.PrivateKey, info, encPubEph []byte) (*Recipient, error) {
+ 	kem, err := newDHKem(kemID)
+ 	if err != nil {
+ 		return nil, err
+@@ -274,7 +274,7 @@ func SetupReceipient(kemID, kdfID, aeadID uint16, priv *ecdh.PrivateKey, info, e
+ 		return nil, err
+ 	}
+ 
+-	return &Receipient{context}, nil
++	return &Recipient{context}, nil
+ }
+ 
+ func (ctx *context) nextNonce() []byte {
+@@ -300,7 +300,7 @@ func (s *Sender) Seal(aad, plaintext []byte) ([]byte, error) {
+ 	return ciphertext, nil
+ }
+ 
+-func (r *Receipient) Open(aad, ciphertext []byte) ([]byte, error) {
++func (r *Recipient) Open(aad, ciphertext []byte) ([]byte, error) {
+ 	plaintext, err := r.aead.Open(nil, r.nextNonce(), ciphertext, aad)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/crypto/internal/hpke/hpke_test.go b/src/crypto/internal/hpke/hpke_test.go
+index 51beeed212..395552476f 100644
+--- a/src/crypto/internal/hpke/hpke_test.go
++++ b/src/crypto/internal/hpke/hpke_test.go
+@@ -126,7 +126,7 @@ func TestRFC9180Vectors(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 
+-			receipient, err := SetupReceipient(
++			recipient, err := SetupRecipient(
+ 				uint16(kemID),
+ 				uint16(kdfID),
+ 				uint16(aeadID),
+@@ -138,7 +138,7 @@ func TestRFC9180Vectors(t *testing.T) {
+ 				t.Fatal(err)
+ 			}
+ 
+-			for _, ctx := range []*context{sender.context, receipient.context} {
++			for _, ctx := range []*context{sender.context, recipient.context} {
+ 				expectedSharedSecret := mustDecodeHex(t, setup["shared_secret"])
+ 				if !bytes.Equal(ctx.sharedSecret, expectedSharedSecret) {
+ 					t.Errorf("unexpected shared secret, got: %x, want %x", ctx.sharedSecret, expectedSharedSecret)
+@@ -164,7 +164,7 @@ func TestRFC9180Vectors(t *testing.T) {
+ 						t.Fatal(err)
+ 					}
+ 					sender.seqNum = uint128{lo: uint64(seqNum)}
+-					receipient.seqNum = uint128{lo: uint64(seqNum)}
++					recipient.seqNum = uint128{lo: uint64(seqNum)}
+ 					expectedNonce := mustDecodeHex(t, enc["nonce"])
+ 					computedNonce := sender.nextNonce()
+ 					if !bytes.Equal(computedNonce, expectedNonce) {
+@@ -181,7 +181,7 @@ func TestRFC9180Vectors(t *testing.T) {
+ 					}
+ 
+ 					expectedPlaintext := mustDecodeHex(t, enc["pt"])
+-					plaintext, err := receipient.Open(mustDecodeHex(t, enc["aad"]), mustDecodeHex(t, enc["ct"]))
++					plaintext, err := recipient.Open(mustDecodeHex(t, enc["aad"]), mustDecodeHex(t, enc["ct"]))
+ 					if err != nil {
+ 						t.Fatal(err)
+ 					}
+diff --git a/src/crypto/tls/ech.go b/src/crypto/tls/ech.go
+index 3ca9fd00b1..6d64191b8b 100644
+--- a/src/crypto/tls/ech.go
++++ b/src/crypto/tls/ech.go
+@@ -419,7 +419,7 @@ func decodeInnerClientHello(outer *clientHelloMsg, encoded []byte) (*clientHello
+ 	return inner, nil
+ }
+ 
+-func decryptECHPayload(context *hpke.Receipient, hello, payload []byte) ([]byte, error) {
++func decryptECHPayload(context *hpke.Recipient, hello, payload []byte) ([]byte, error) {
+ 	outerAAD := bytes.Replace(hello[4:], payload, make([]byte, len(payload)), 1)
+ 	return context.Open(outerAAD, payload)
+ }
+@@ -613,7 +613,7 @@ func (c *Conn) processECHClientHello(outer *clientHelloMsg) (*clientHelloMsg, *e
+ 			return nil, nil, fmt.Errorf("tls: invalid EncryptedClientHelloKeys PrivateKey: %s", err)
+ 		}
+ 		info := append([]byte("tls ech\x00"), echKey.Config...)
+-		hpkeContext, err := hpke.SetupReceipient(hpke.DHKEM_X25519_HKDF_SHA256, echCiphersuite.KDFID, echCiphersuite.AEADID, echPriv, info, encap)
++		hpkeContext, err := hpke.SetupRecipient(hpke.DHKEM_X25519_HKDF_SHA256, echCiphersuite.KDFID, echCiphersuite.AEADID, echPriv, info, encap)
+ 		if err != nil {
+ 			// attempt next trial decryption
+ 			continue
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index ab0cff9e28..fbdf55d461 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -31,7 +31,7 @@ import (
+ const maxClientPSKIdentities = 5
+ 
+ type echServerContext struct {
+-	hpkeContext *hpke.Receipient
++	hpkeContext *hpke.Recipient
+ 	configID    uint8
+ 	ciphersuite echCipher
+ 	transcript  hash.Hash

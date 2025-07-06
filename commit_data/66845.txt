@@ -1,0 +1,2146 @@
+commit 8cc98a04efb961ba82bfa0737e086590c98d5c48
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 10 16:58:51 2025 -0400
+
+    math/big: new mini-compiler for arith assembly
+    
+    The arith assembly is big enough, and the details that you have to keep
+    in mind are complex enough and varied enough, that it is worth using
+    a Go program to generate the assembly. That way, all the architectures
+    can use the same algorithms, and porting to new architectures will be
+    easier.
+    
+    This is the first of a sequence of CLs to introduce a new mini-compiler
+    for generating the arith assembly, in math/big/internal/asmgen.
+    This CL has the basics of the compiler as well as a couple simple
+    architectures and the generator for addVV/subVV. It does not check
+    in the generated assembly yet. That will happen in a followup CL after
+    the other architectures and generators have been added.
+    
+    Change-Id: Ib704c60fd972fc5690ac04d8fae3712ee2c1a80a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+---
+ src/go/build/deps_test.go                 |   3 +-
+ src/math/big/internal/asmgen/add.go       |  57 +++
+ src/math/big/internal/asmgen/arch.go      | 238 +++++++++
+ src/math/big/internal/asmgen/arm.go       |  87 ++++
+ src/math/big/internal/asmgen/asm.go       | 781 ++++++++++++++++++++++++++++++
+ src/math/big/internal/asmgen/func.go      | 138 ++++++
+ src/math/big/internal/asmgen/main.go      |  30 ++
+ src/math/big/internal/asmgen/main_test.go |  38 ++
+ src/math/big/internal/asmgen/mips.go      |  48 ++
+ src/math/big/internal/asmgen/mips64.go    |  48 ++
+ src/math/big/internal/asmgen/pipe.go      | 569 ++++++++++++++++++++++
+ 11 files changed, 2035 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 28a39ea145..21bf8b76a5 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -785,8 +785,7 @@ var depsRules = `
+ 	# Test-only packages can have anything they want
+ 	FMT, compress/gzip, embed, encoding/binary < encoding/json/internal/jsontest;
+ 	CGO, internal/syscall/unix < net/internal/cgotest;
+-
+-
++	FMT < math/big/internal/asmgen;
+ `
+ 
+ // listStdPkgs returns the same list of packages as "go list std".
+diff --git a/src/math/big/internal/asmgen/add.go b/src/math/big/internal/asmgen/add.go
+new file mode 100644
+index 0000000000..ee15e3a96f
+--- /dev/null
++++ b/src/math/big/internal/asmgen/add.go
+@@ -0,0 +1,57 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++// addOrSubVV generates addVV or subVV,
++// which do z, c = x ± y.
++// The caller guarantees that len(z) == len(x) == len(y).
++func addOrSubVV(a *Asm, name string) {
++	f := a.Func("func " + name + "(z, x, y []Word) (c Word)")
++
++	add := a.Add
++	which := AddCarry
++	if name == "subVV" {
++		add = a.Sub
++		which = SubCarry
++	}
++
++	n := f.Arg("z_len")
++	p := f.Pipe()
++	p.SetHint("y", HintMemOK) // allow y to be used from memory on x86
++	p.Start(n, 1, 4)
++	var c Reg
++	if !a.Arch.CarrySafeLoop {
++		// Carry smashed by loop tests; allocate and save in register
++		// around unrolled blocks.
++		c = a.Reg()
++		a.Mov(a.Imm(0), c)
++		a.EOL("clear saved carry")
++		p.AtUnrollStart(func() { a.RestoreCarry(c); a.Free(c) })
++		p.AtUnrollEnd(func() { a.Unfree(c); a.SaveCarry(c) })
++	} else {
++		// Carry preserved by loop; clear now, ahead of loop
++		// (but after Start, which may have modified it).
++		a.ClearCarry(which)
++	}
++	p.Loop(func(in, out [][]Reg) {
++		for i, x := range in[0] {
++			y := in[1][i]
++			add(y, x, x, SetCarry|UseCarry)
++		}
++		p.StoreN(in[:1])
++	})
++	p.Done()
++
++	// Copy carry to output.
++	if c.Valid() {
++		a.ConvertCarry(which, c)
++	} else {
++		c = a.RegHint(HintCarry)
++		a.SaveConvertCarry(which, c)
++	}
++	f.StoreArg(c, "c")
++	a.Free(c)
++	a.Ret()
++}
+diff --git a/src/math/big/internal/asmgen/arch.go b/src/math/big/internal/asmgen/arch.go
+new file mode 100644
+index 0000000000..bcba3992a9
+--- /dev/null
++++ b/src/math/big/internal/asmgen/arch.go
+@@ -0,0 +1,238 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++import (
++	"fmt"
++	"strings"
++)
++
++// Note: Exported fields and methods are expected to be used
++// by function generators (like the ones in add.go and so on).
++// Unexported fields and methods should not be.
++
++// An Arch defines how to generate assembly for a specific architecture.
++type Arch struct {
++	Name          string // name of architecture
++	Build         string // build tag
++	WordBits      int    // length of word in bits (32 or 64)
++	WordBytes     int    // length of word in bytes (4 or 8)
++	CarrySafeLoop bool   // whether loops preserve carry flag across iterations
++
++	// Registers.
++	regs        []string // usable general registers, in allocation order
++	reg0        string   // dedicated zero register
++	regCarry    string   // dedicated carry register
++	regAltCarry string   // dedicated secondary carry register
++	regTmp      string   // dedicated temporary register
++
++	// setup is called to emit any per-architecture function prologue,
++	// immediately after the TEXT line has been emitted.
++	// If setup is nil, it is taken to be a no-op.
++	setup func(*Func)
++
++	// hint returns the register to use for a given hint.
++	// Returning an empty string indicates no preference.
++	// If hint is nil, it is considered to return an empty string.
++	hint func(*Asm, Hint) string
++
++	// op3 reports whether the named opcode accepts 3 operands
++	// (true on most instructions on most systems, but not true of x86 instructions).
++	// The assembler unconditionally turns op x,z,z into op x,z.
++	// If op3 returns false, then the assembler will turn op x,y,z into mov y,z; op x,z.
++	// If op3 is nil, then all opcodes are assumed to accept 3 operands.
++	op3 func(name string) bool
++
++	// memOK indicates that arithmetic instructions can use memory references (like on x86)
++	memOK bool
++
++	// maxColumns is the default maximum number of vector columns
++	// to process in a single [Pipe.Loop] block.
++	// 0 means unlimited.
++	// [Pipe.SetMaxColumns] overrides this.
++	maxColumns int
++
++	// Instruction names.
++	mov   string // move (word-sized)
++	add   string // add with no carry involvement
++	adds  string // add, setting but not using carry
++	adc   string // add, using but not setting carry
++	adcs  string // add, setting and using carry
++	sub   string // sub with no carry involvement
++	subs  string // sub, setting but not using carry
++	sbc   string // sub, using but not setting carry
++	sbcs  string // sub, setting and using carry
++	mul   string // multiply
++	mulhi string // multiply producing high bits
++	lsh   string // left shift
++	lshd  string // double-width left shift
++	rsh   string // right shift
++	rshd  string // double-width right shift
++	and   string // bitwise and
++	or    string // bitwise or
++	xor   string // bitwise xor
++	neg   string // negate
++	rsb   string // reverse subtract
++	sltu  string // set less-than unsigned (dst = src2 < src1), for carry-less systems
++	sgtu  string // set greater-than unsigned (dst = src2 > src1), for carry-less systems
++	lea   string // load effective address
++
++	// addF and subF implement a.Add and a.Sub
++	// on systems where the situation is more complicated than
++	// the six basic instructions (add, adds, adcs, sub, subs, sbcs).
++	// They return a boolean indicating whether the operation was handled.
++	addF func(a *Asm, src1, src2, dst Reg, carry Carry) bool
++	subF func(a *Asm, src1, src2, dst Reg, carry Carry) bool
++
++	// lshF and rshF implement a.Lsh and a.Rsh
++	// on systems where the situation is more complicated than
++	// a simple instruction opcode.
++	// They must succeed.
++	lshF func(a *Asm, shift, src, dst Reg)
++	rshF func(a *Asm, shift, src, dst Reg)
++
++	// mulF and mulWideF implement Mul and MulWide.
++	// They call Fatalf if the operation is unsupported.
++	// An architecture can set the mul field instead of mulF.
++	// mulWide is optional, but otherwise mulhi should be set.
++	mulWideF func(a *Asm, src1, src2, dstlo, dsthi Reg)
++
++	// addWords is a printf format taking src1, src2, dst
++	// and sets dst = WordBytes*src1+src2.
++	// It may modify the carry flag.
++	addWords string
++
++	// subCarryIsBorrow is true when the actual processor carry bit used in subtraction
++	// is really a “borrow” bit, meaning 1 means borrow and 0 means no borrow.
++	// In contrast, most systems (except x86) use a carry bit with the opposite
++	// meaning: 0 means a borrow happened, and 1 means it didn't.
++	subCarryIsBorrow bool
++
++	// Jump instruction printf formats.
++	// jmpZero and jmpNonZero are printf formats taking src, label
++	// and jump to label if src is zero / non-zero.
++	jmpZero    string
++	jmpNonZero string
++
++	// loopTop is a printf format taking src, label that should
++	// jump to label if src is zero, or else set up for a loop.
++	// If loopTop is not set, jmpZero is used.
++	loopTop string
++
++	// loopBottom is a printf format taking dst, label that should
++	// decrement dst and then jump to label if src is non-zero.
++	// If loopBottom is not set, a subtraction is used followed by
++	// use of jmpNonZero.
++	loopBottom string
++
++	// loopBottomNeg is like loopBottom but used in negative-index
++	// loops, which only happen memIndex is also set (only on 386).
++	// It increments dst instead of decrementing it.
++	loopBottomNeg string
++
++	// Indexed memory access.
++	// If set, memIndex returns a memory reference for a mov instruction
++	// addressing off(ptr)(ix*WordBytes).
++	// Using memIndex costs an extra register but allows the end-of-loop
++	// to do a single increment/decrement instead of advancing two or three pointers.
++	// This is particularly important on 386.
++	memIndex func(a *Asm, off int, ix Reg, ptr RegPtr) Reg
++
++	// Incrementing/decrementing memory access.
++	// loadIncN loads memory at ptr into regs, incrementing ptr by WordBytes after each reg.
++	// loadDecN loads memory at ptr into regs, decrementing ptr by WordBytes before each reg.
++	// storeIncN and storeDecN are the same, but storing from regs instead of loading into regs.
++	// If missing, the assembler accesses memory and advances pointers using separate instructions.
++	loadIncN  func(a *Asm, ptr RegPtr, regs []Reg)
++	loadDecN  func(a *Asm, ptr RegPtr, regs []Reg)
++	storeIncN func(a *Asm, ptr RegPtr, regs []Reg)
++	storeDecN func(a *Asm, ptr RegPtr, regs []Reg)
++
++	// options is a map from optional CPU features to functions that test for them.
++	// The test function should jump to label if the feature is available.
++	options map[Option]func(a *Asm, label string)
++}
++
++// HasShiftWide reports whether the Arch has working LshWide/RshWide instructions.
++// If not, calling them will panic.
++func (a *Arch) HasShiftWide() bool {
++	return a.lshd != ""
++}
++
++// A Hint is a hint about what a register will be used for,
++// so that an appropriate one can be selected.
++type Hint uint
++
++const (
++	HintNone       Hint = iota
++	HintShiftCount      // shift count (CX on x86)
++	HintMulSrc          // mul source operand (AX on x86)
++	HintMulHi           // wide mul high output (DX on x86)
++	HintMemOK           // a memory reference is okay
++	HintCarry           // carry flag
++	HintAltCarry        // secondary carry flag
++)
++
++// A Reg is an allocated register or other assembly operand.
++// (For example, a constant might have name "$123"
++// and a memory reference might have name "0(R8)".)
++type Reg struct{ name string }
++
++// IsImm reports whether r is an immediate value.
++func (r Reg) IsImm() bool { return strings.HasPrefix(r.name, "$") }
++
++// IsMem reports whether r is a memory value.
++func (r Reg) IsMem() bool { return strings.HasSuffix(r.name, ")") }
++
++// String returns the assembly syntax for r.
++func (r Reg) String() string { return r.name }
++
++// Valid reports whether is valid, meaning r is not the zero value of Reg (a register with no name).
++func (r Reg) Valid() bool { return r.name != "" }
++
++// A RegPtr is like a Reg but expected to hold a pointer.
++// The separate Go type helps keeps pointers and scalars separate and avoid mistakes;
++// it is okay to convert to Reg as needed to use specific routines.
++type RegPtr struct{ name string }
++
++// String returns the assembly syntax for r.
++func (r RegPtr) String() string { return r.name }
++
++// Valid reports whether is valid, meaning r is not the zero value of RegPtr (a register with no name).
++func (r RegPtr) Valid() bool { return r.name != "" }
++
++// mem returns a memory reference to off bytes from the pointer r.
++func (r *RegPtr) mem(off int) Reg { return Reg{fmt.Sprintf("%d(%s)", off, r)} }
++
++// A Carry is a flag field explaining how an instruction sets and uses the carry flags.
++// Different operations expect different sets of bits.
++// Add and Sub expect: UseCarry or 0, SetCarry, KeepCarry, or SmashCarry; and AltCarry or 0.
++// ClearCarry, SaveCarry, and ConvertCarry expect: AddCarry or SubCarry; and AltCarry or 0.
++type Carry uint
++
++const (
++	SetCarry   Carry = 1 << iota // sets carry
++	UseCarry                     // uses carry
++	KeepCarry                    // must preserve carry
++	SmashCarry                   // can modify carry or not, whatever is easiest
++
++	AltCarry // use the secondary carry flag
++	AddCarry // use add carry flag semantics (for ClearCarry, ConvertCarry)
++	SubCarry // use sub carry flag semantics (for ClearCarry, ConvertCarry)
++)
++
++// An Option denotes an optional CPU feature that can be tested at runtime.
++type Option int
++
++const (
++	_ Option = iota
++
++	// OptionAltCarry checks whether there is an add instruction
++	// that uses a secondary carry flag, so that two different sums
++	// can be accumulated in parallel with independent carry flags.
++	// Some architectures (MIPS, Loong64, RISC-V) provide this
++	// functionality natively, indicated by asm.Carry().Valid() being true.
++	OptionAltCarry
++)
+diff --git a/src/math/big/internal/asmgen/arm.go b/src/math/big/internal/asmgen/arm.go
+new file mode 100644
+index 0000000000..eeec320838
+--- /dev/null
++++ b/src/math/big/internal/asmgen/arm.go
+@@ -0,0 +1,87 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++import "strings"
++
++var ArchARM = &Arch{
++	Name:          "arm",
++	WordBits:      32,
++	WordBytes:     4,
++	CarrySafeLoop: true,
++
++	regs: []string{
++		// R10 is g.
++		// R11 is the assembler/linker temporary (but we use it as a regular register).
++		// R13 is SP.
++		// R14 is LR.
++		// R15 is PC.
++		"R0", "R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R11", "R12",
++	},
++
++	mov:  "MOVW",
++	add:  "ADD",
++	adds: "ADD.S",
++	adc:  "ADC",
++	adcs: "ADC.S",
++	sub:  "SUB",
++	subs: "SUB.S",
++	sbc:  "SBC",
++	sbcs: "SBC.S",
++	rsb:  "RSB",
++	and:  "AND",
++	or:   "ORR",
++	xor:  "EOR",
++	lshF: armLsh,
++	rshF: armRsh,
++
++	mulWideF: armMulWide,
++
++	addWords: "ADD %s<<2, %s, %s",
++
++	jmpZero:    "TEQ $0, %s; BEQ %s",
++	jmpNonZero: "TEQ $0, %s; BNE %s",
++
++	loadIncN:  armLoadIncN,
++	loadDecN:  armLoadDecN,
++	storeIncN: armStoreIncN,
++	storeDecN: armStoreDecN,
++}
++
++func armLsh(a *Asm, shift, src, dst Reg) {
++	a.Printf("\tMOVW %s<<%s, %s\n", src, strings.TrimPrefix(shift.String(), "$"), dst)
++}
++
++func armRsh(a *Asm, shift, src, dst Reg) {
++	a.Printf("\tMOVW %s>>%s, %s\n", src, strings.TrimPrefix(shift.String(), "$"), dst)
++}
++
++func armMulWide(a *Asm, src1, src2, dstlo, dsthi Reg) {
++	a.Printf("\tMULLU %s, %s, (%s, %s)\n", src1, src2, dsthi, dstlo)
++}
++
++func armLoadIncN(a *Asm, p RegPtr, regs []Reg) {
++	for _, r := range regs {
++		a.Printf("\tMOVW.P %d(%s), %s\n", a.Arch.WordBytes, p, r)
++	}
++}
++
++func armLoadDecN(a *Asm, p RegPtr, regs []Reg) {
++	for _, r := range regs {
++		a.Printf("\tMOVW.W %d(%s), %s\n", -a.Arch.WordBytes, p, r)
++	}
++}
++
++func armStoreIncN(a *Asm, p RegPtr, regs []Reg) {
++	for _, r := range regs {
++		a.Printf("\tMOVW.P %s, %d(%s)\n", r, a.Arch.WordBytes, p)
++	}
++}
++
++func armStoreDecN(a *Asm, p RegPtr, regs []Reg) {
++	for _, r := range regs {
++		a.Printf("\tMOVW.W %s, %d(%s)\n", r, -a.Arch.WordBytes, p)
++	}
++}
+diff --git a/src/math/big/internal/asmgen/asm.go b/src/math/big/internal/asmgen/asm.go
+new file mode 100644
+index 0000000000..cc2cfc32d1
+--- /dev/null
++++ b/src/math/big/internal/asmgen/asm.go
+@@ -0,0 +1,781 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++import (
++	"bytes"
++	"cmp"
++	"fmt"
++	"math/bits"
++	"slices"
++	"strings"
++)
++
++// Note: Exported fields and methods are expected to be used
++// by function generators (like the ones in add.go and so on).
++// Unexported fields and methods should not be.
++
++// An Asm is an assembly file being written.
++type Asm struct {
++	Arch     *Arch           // architecture
++	out      bytes.Buffer    // output buffer
++	regavail uint64          // bitmap of available registers
++	enabled  map[Option]bool // enabled optional CPU features
++}
++
++// NewAsm returns a new Asm preparing assembly
++// for the given architecture to be written to file.
++func NewAsm(arch *Arch) *Asm {
++	a := &Asm{Arch: arch, enabled: make(map[Option]bool)}
++	buildTag := ""
++	if arch.Build != "" {
++		buildTag = " && (" + arch.Build + ")"
++	}
++	a.Printf(asmHeader, buildTag)
++	return a
++}
++
++// Note: Using Copyright 2025, not the current year, to avoid test failures
++// on January 1 and spurious diffs when regenerating assembly.
++// The generator was written in 2025; that's good enough.
++// (As a matter of policy the Go project does not update copyright
++// notices every year, since copyright terms are so long anyway.)
++
++var asmHeader = `// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
++
++//go:build !math_big_pure_go%s
++
++#include "textflag.h"
++`
++
++// Fatalf reports a fatal error by panicking.
++// Panicking is appropriate because there is a bug in the generator,
++// and panicking will show the exact source lines leading to that bug.
++func (a *Asm) Fatalf(format string, args ...any) {
++	text := a.out.String()
++	i := strings.LastIndex(text, "\nTEXT")
++	text = text[i+1:]
++	panic("[" + a.Arch.Name + "] asmgen internal error: " + fmt.Sprintf(format, args...) + "\n" + text)
++}
++
++// hint returns the register name for the given hint.
++func (a *Asm) hint(h Hint) string {
++	if h == HintCarry && a.Arch.regCarry != "" {
++		return a.Arch.regCarry
++	}
++	if h == HintAltCarry && a.Arch.regAltCarry != "" {
++		return a.Arch.regAltCarry
++	}
++	if h == HintNone || a.Arch.hint == nil {
++		return ""
++	}
++	return a.Arch.hint(a, h)
++}
++
++// ZR returns the zero register (the specific register guaranteed to hold the integer 0),
++// or else the zero Reg (Reg{}, which has r.Valid() == false).
++func (a *Asm) ZR() Reg {
++	return Reg{a.Arch.reg0}
++}
++
++// tmp returns the temporary register, or else the zero Reg.
++// The temporary register is one available for use implementing logical instructions
++// that compile into multiple actual instructions on a given system.
++// The assembler sometimes uses it for that purpose, as do we.
++// Of course, if we are using it, we'd better not emit an instruction that
++// will cause the assembler to smash it while we want it to be holding
++// a live value. In general it is the architecture implementation's responsibility
++// not to suggest the use of any such pseudo-instructions in situations
++// where they would cause problems.
++func (a *Asm) tmp() Reg {
++	return Reg{a.Arch.regTmp}
++}
++
++// Carry returns the carry register, or else the zero Reg.
++func (a *Asm) Carry() Reg {
++	return Reg{a.Arch.regCarry}
++}
++
++// AltCarry returns the secondary carry register, or else the zero Reg.
++func (a *Asm) AltCarry() Reg {
++	return Reg{a.Arch.regAltCarry}
++}
++
++// Imm returns a Reg representing an immediate (constant) value.
++func (a *Asm) Imm(x int) Reg {
++	if x == 0 && a.Arch.reg0 != "" {
++		return Reg{a.Arch.reg0}
++	}
++	return Reg{fmt.Sprintf("$%d", x)}
++}
++
++// IsZero reports whether r is a zero immediate or the zero register.
++func (a *Asm) IsZero(r Reg) bool {
++	return r.name == "$0" || a.Arch.reg0 != "" && r.name == a.Arch.reg0
++}
++
++// Reg allocates a new register.
++func (a *Asm) Reg() Reg {
++	i := bits.TrailingZeros64(a.regavail)
++	if i == 64 {
++		a.Fatalf("out of registers")
++	}
++	a.regavail ^= 1 << i
++	return Reg{a.Arch.regs[i]}
++}
++
++// RegHint allocates a new register, with a hint as to its purpose.
++func (a *Asm) RegHint(hint Hint) Reg {
++	if name := a.hint(hint); name != "" {
++		i := slices.Index(a.Arch.regs, name)
++		if i < 0 {
++			return Reg{name}
++		}
++		if a.regavail&(1<<i) == 0 {
++			a.Fatalf("hint for already allocated register %s", name)
++		}
++		a.regavail &^= 1 << i
++		return Reg{name}
++	}
++	return a.Reg()
++}
++
++// Free frees a previously allocated register.
++// If r is not a register (if it's an immediate or a memory reference), Free is a no-op.
++func (a *Asm) Free(r Reg) {
++	i := slices.Index(a.Arch.regs, r.name)
++	if i < 0 {
++		return
++	}
++	if a.regavail&(1<<i) != 0 {
++		a.Fatalf("register %s already freed", r.name)
++	}
++	a.regavail |= 1 << i
++}
++
++// Unfree reallocates a previously freed register r.
++// If r is not a register (if it's an immediate or a memory reference), Unfree is a no-op.
++// If r is not free for allocation, Unfree panics.
++// A Free paired with Unfree can release a register for use temporarily
++// but then reclaim it, such as at the end of a loop body when it must be restored.
++func (a *Asm) Unfree(r Reg) {
++	i := slices.Index(a.Arch.regs, r.name)
++	if i < 0 {
++		return
++	}
++	if a.regavail&(1<<i) == 0 {
++		a.Fatalf("register %s not free", r.name)
++	}
++	a.regavail &^= 1 << i
++}
++
++// A RegsUsed is a snapshot of which registers are allocated.
++type RegsUsed struct {
++	avail uint64
++}
++
++// RegsUsed returns a snapshot of which registers are currently allocated,
++// which can be passed to a future call to [Asm.SetRegsUsed].
++func (a *Asm) RegsUsed() RegsUsed {
++	return RegsUsed{a.regavail}
++}
++
++// SetRegsUsed sets which registers are currently allocated.
++// The argument should have been returned from a previous
++// call to [Asm.RegsUsed].
++func (a *Asm) SetRegsUsed(used RegsUsed) {
++	a.regavail = used.avail
++}
++
++// FreeAll frees all known registers.
++func (a *Asm) FreeAll() {
++	a.regavail = 1<<len(a.Arch.regs) - 1
++}
++
++// Printf emits to the assembly output.
++func (a *Asm) Printf(format string, args ...any) {
++	text := fmt.Sprintf(format, args...)
++	if strings.Contains(text, "%!") {
++		a.Fatalf("printf error: %s", text)
++	}
++	a.out.WriteString(text)
++}
++
++// Comment emits a line comment to the assembly output.
++func (a *Asm) Comment(format string, args ...any) {
++	fmt.Fprintf(&a.out, "\t// %s\n", fmt.Sprintf(format, args...))
++}
++
++// EOL appends an end-of-line comment to the previous line.
++func (a *Asm) EOL(format string, args ...any) {
++	bytes := a.out.Bytes()
++	if len(bytes) > 0 && bytes[len(bytes)-1] == '\n' {
++		a.out.Truncate(a.out.Len() - 1)
++	}
++	a.Comment(format, args...)
++}
++
++// JmpEnable emits a test for the optional CPU feature that jumps to label if the feature is present.
++// If JmpEnable returns false, the feature is not available on this architecture and no code was emitted.
++func (a *Asm) JmpEnable(option Option, label string) bool {
++	jmpEnable := a.Arch.options[option]
++	if jmpEnable == nil {
++		return false
++	}
++	jmpEnable(a, label)
++	return true
++}
++
++// Enabled reports whether the optional CPU feature is considered
++// to be enabled at this point in the assembly output.
++func (a *Asm) Enabled(option Option) bool {
++	return a.enabled[option]
++}
++
++// SetOption changes whether the optional CPU feature should be
++// considered to be enabled.
++func (a *Asm) SetOption(option Option, on bool) {
++	a.enabled[option] = on
++}
++
++// op3 emits a 3-operand instruction op src1, src2, dst,
++// taking care to handle 2-operand machines and also
++// to simplify the printout when src2==dst.
++func (a *Asm) op3(op string, src1, src2, dst Reg) {
++	if op == "" {
++		a.Fatalf("missing instruction")
++	}
++	if src2 == dst {
++		// src2 and dst are same; print as 2-op form.
++		a.Printf("\t%s %s, %s\n", op, src1, dst)
++	} else if a.Arch.op3 != nil && !a.Arch.op3(op) {
++		// Machine does not have 3-op form for op; convert to 2-op.
++		if src1 == dst {
++			a.Fatalf("implicit mov %s, %s would smash src1", src2, dst)
++		}
++		a.Mov(src2, dst)
++		a.Printf("\t%s %s, %s\n", op, src1, dst)
++	} else {
++		// Full 3-op form.
++		a.Printf("\t%s %s, %s, %s\n", op, src1, src2, dst)
++	}
++}
++
++// Mov emits dst = src.
++func (a *Asm) Mov(src, dst Reg) {
++	if src != dst {
++		a.Printf("\t%s %s, %s\n", a.Arch.mov, src, dst)
++	}
++}
++
++// AddWords emits dst = src1*WordBytes + src2.
++// It does not set or use the carry flag.
++func (a *Asm) AddWords(src1 Reg, src2, dst RegPtr) {
++	if a.Arch.addWords == "" {
++		// Note: Assuming that Lsh does not clobber the carry flag.
++		// Architectures where this is not true (x86) need to provide Arch.addWords.
++		t := a.Reg()
++		a.Lsh(a.Imm(bits.TrailingZeros(uint(a.Arch.WordBytes))), src1, t)
++		a.Add(t, Reg(src2), Reg(dst), KeepCarry)
++		a.Free(t)
++		return
++	}
++	a.Printf("\t"+a.Arch.addWords+"\n", src1, src2, dst)
++}
++
++// And emits dst = src1 & src2
++// It may modify the carry flag.
++func (a *Asm) And(src1, src2, dst Reg) {
++	a.op3(a.Arch.and, src1, src2, dst)
++}
++
++// Or emits dst = src1 | src2
++// It may modify the carry flag.
++func (a *Asm) Or(src1, src2, dst Reg) {
++	a.op3(a.Arch.or, src1, src2, dst)
++}
++
++// Xor emits dst = src1 ^ src2
++// It may modify the carry flag.
++func (a *Asm) Xor(src1, src2, dst Reg) {
++	a.op3(a.Arch.xor, src1, src2, dst)
++}
++
++// Neg emits dst = -src.
++// It may modify the carry flag.
++func (a *Asm) Neg(src, dst Reg) {
++	if a.Arch.neg == "" {
++		if a.Arch.rsb != "" {
++			a.Printf("\t%s $0, %s, %s\n", a.Arch.rsb, src, dst)
++			return
++		}
++		if a.Arch.sub != "" && a.Arch.reg0 != "" {
++			a.Printf("\t%s %s, %s, %s\n", a.Arch.sub, src, a.Arch.reg0, dst)
++			return
++		}
++		a.Fatalf("missing neg")
++	}
++	if src == dst {
++		a.Printf("\t%s %s\n", a.Arch.neg, dst)
++	} else {
++		a.Printf("\t%s %s, %s\n", a.Arch.neg, src, dst)
++	}
++}
++
++// Lsh emits dst = src << shift.
++// It may modify the carry flag.
++func (a *Asm) Lsh(shift, src, dst Reg) {
++	if need := a.hint(HintShiftCount); need != "" && shift.name != need && !shift.IsImm() {
++		a.Fatalf("shift count not in %s", need)
++	}
++	if a.Arch.lshF != nil {
++		a.Arch.lshF(a, shift, src, dst)
++		return
++	}
++	a.op3(a.Arch.lsh, shift, src, dst)
++}
++
++// LshWide emits dst = src << shift with low bits shifted from adj.
++// It may modify the carry flag.
++func (a *Asm) LshWide(shift, adj, src, dst Reg) {
++	if a.Arch.lshd == "" {
++		a.Fatalf("no lshwide on %s", a.Arch.Name)
++	}
++	if need := a.hint(HintShiftCount); need != "" && shift.name != need && !shift.IsImm() {
++		a.Fatalf("shift count not in %s", need)
++	}
++	a.op3(fmt.Sprintf("%s %s,", a.Arch.lshd, shift), adj, src, dst)
++}
++
++// Rsh emits dst = src >> shift.
++// It may modify the carry flag.
++func (a *Asm) Rsh(shift, src, dst Reg) {
++	if need := a.hint(HintShiftCount); need != "" && shift.name != need && !shift.IsImm() {
++		a.Fatalf("shift count not in %s", need)
++	}
++	if a.Arch.rshF != nil {
++		a.Arch.rshF(a, shift, src, dst)
++		return
++	}
++	a.op3(a.Arch.rsh, shift, src, dst)
++}
++
++// RshWide emits dst = src >> shift with high bits shifted from adj.
++// It may modify the carry flag.
++func (a *Asm) RshWide(shift, adj, src, dst Reg) {
++	if a.Arch.lshd == "" {
++		a.Fatalf("no rshwide on %s", a.Arch.Name)
++	}
++	if need := a.hint(HintShiftCount); need != "" && shift.name != need && !shift.IsImm() {
++		a.Fatalf("shift count not in %s", need)
++	}
++	a.op3(fmt.Sprintf("%s %s,", a.Arch.rshd, shift), adj, src, dst)
++}
++
++// SLTU emits dst = src2 < src1 (0 or 1), using an unsigned comparison.
++func (a *Asm) SLTU(src1, src2, dst Reg) {
++	switch {
++	default:
++		a.Fatalf("arch has no sltu/sgtu")
++	case a.Arch.sltu != "":
++		a.Printf("\t%s %s, %s, %s\n", a.Arch.sltu, src1, src2, dst)
++	case a.Arch.sgtu != "":
++		a.Printf("\t%s %s, %s, %s\n", a.Arch.sgtu, src2, src1, dst)
++	}
++}
++
++// Add emits dst = src1+src2, with the specified carry behavior.
++func (a *Asm) Add(src1, src2, dst Reg, carry Carry) {
++	switch {
++	default:
++		a.Fatalf("unsupported carry behavior")
++	case a.Arch.addF != nil && a.Arch.addF(a, src1, src2, dst, carry):
++		// handled
++	case a.Arch.add != "" && (carry == KeepCarry || carry == SmashCarry):
++		a.op3(a.Arch.add, src1, src2, dst)
++	case a.Arch.adds != "" && (carry == SetCarry || carry == SmashCarry):
++		a.op3(a.Arch.adds, src1, src2, dst)
++	case a.Arch.adc != "" && (carry == UseCarry || carry == UseCarry|SmashCarry):
++		a.op3(a.Arch.adc, src1, src2, dst)
++	case a.Arch.adcs != "" && (carry == UseCarry|SetCarry || carry == UseCarry|SmashCarry):
++		a.op3(a.Arch.adcs, src1, src2, dst)
++	case a.Arch.lea != "" && (carry == KeepCarry || carry == SmashCarry):
++		if src1.IsImm() {
++			a.Printf("\t%s %s(%s), %s\n", a.Arch.lea, src1.name[1:], src2, dst) // name[1:] removes $
++		} else {
++			a.Printf("\t%s (%s)(%s), %s\n", a.Arch.lea, src1, src2, dst)
++		}
++		if src2 == dst {
++			a.EOL("ADD %s, %s", src1, dst)
++		} else {
++			a.EOL("ADD %s, %s, %s", src1, src2, dst)
++		}
++
++	case a.Arch.add != "" && a.Arch.regCarry != "":
++		// Machine has no carry flag; instead we've dedicated a register
++		// and use SLTU/SGTU (set less-than/greater-than unsigned)
++		// to compute the carry flags as needed.
++		// For ADD x, y, z, SLTU x/y, z, c computes the carry (borrow) bit.
++		// Either of x or y can be used as the second argument, provided
++		// it is not aliased to z.
++		// To make the output less of a wall of instructions,
++		// we comment the “higher-level” operation, with ... marking
++		// continued instructions implementing the operation.
++		cr := a.Carry()
++		if carry&AltCarry != 0 {
++			cr = a.AltCarry()
++			if !cr.Valid() {
++				a.Fatalf("alt carry not supported")
++			}
++			carry &^= AltCarry
++		}
++		tmp := a.tmp()
++		if !tmp.Valid() {
++			a.Fatalf("cannot simulate sub carry without regTmp")
++		}
++		switch carry {
++		default:
++			a.Fatalf("unsupported carry behavior")
++		case UseCarry, UseCarry | SmashCarry:
++			// Easy case, just add the carry afterward.
++			if a.IsZero(src1) {
++				// Only here to use the carry.
++				a.Add(cr, src2, dst, KeepCarry)
++				a.EOL("ADC $0, %s, %s", src2, dst)
++				break
++			}
++			a.Add(src1, src2, dst, KeepCarry)
++			a.EOL("ADC %s, %s, %s (cr=%s)", src1, src2, dst, cr)
++			a.Add(cr, dst, dst, KeepCarry)
++			a.EOL("...")
++
++		case SetCarry:
++			if a.IsZero(src1) && src2 == dst {
++				// Only here to clear the carry flag. (Caller will comment.)
++				a.Xor(cr, cr, cr)
++				break
++			}
++			var old Reg // old is a src distinct from dst
++			switch {
++			case dst != src1:
++				old = src1
++			case dst != src2:
++				old = src2
++			default:
++				// src1 == src2 == dst.
++				// Overflows if and only if the high bit is set, so copy high bit to carry.
++				a.Rsh(a.Imm(a.Arch.WordBits-1), src1, cr)
++				a.EOL("ADDS %s, %s, %s (cr=%s)", src1, src2, dst, cr)
++				a.Add(src1, src2, dst, KeepCarry)
++				a.EOL("...")
++				return
++			}
++			a.Add(src1, src2, dst, KeepCarry)
++			a.EOL("ADDS %s, %s, %s (cr=%s)", src1, src2, dst, cr)
++			a.SLTU(old, dst, cr) // dst < old (one of the src) implies carry
++			a.EOL("...")
++
++		case UseCarry | SetCarry:
++			if a.IsZero(src1) {
++				// Only here to use and then set the carry.
++				// Easy since carry is not aliased to dst.
++				a.Add(cr, src2, dst, KeepCarry)
++				a.EOL("ADCS $0, %s, %s (cr=%s)", src2, dst, cr)
++				a.SLTU(cr, dst, cr) // dst < cr implies carry
++				a.EOL("...")
++				break
++			}
++			// General case. Need to do two different adds (src1 + src2 + cr),
++			// computing carry bits for both, and add'ing them together.
++			// Start with src1+src2.
++			var old Reg // old is a src distinct from dst
++			switch {
++			case dst != src1:
++				old = src1
++			case dst != src2:
++				old = src2
++			}
++			if old.Valid() {
++				a.Add(src1, src2, dst, KeepCarry)
++				a.EOL("ADCS %s, %s, %s (cr=%s)", src1, src2, dst, cr)
++				a.SLTU(old, dst, tmp) // // dst < old (one of the src) implies carry
++				a.EOL("...")
++			} else {
++				// src1 == src2 == dst, like above. Sign bit is carry bit,
++				// but we copy it into tmp, not cr.
++				a.Rsh(a.Imm(a.Arch.WordBits-1), src1, tmp)
++				a.EOL("ADCS %s, %s, %s (cr=%s)", src1, src2, dst, cr)
++				a.Add(src1, src2, dst, KeepCarry)
++				a.EOL("...")
++			}
++			// Add cr to dst.
++			a.Add(cr, dst, dst, KeepCarry)
++			a.EOL("...")
++			a.SLTU(cr, dst, cr) // sum < cr implies carry
++			a.EOL("...")
++			// Add the two carry bits (at most one can be set, because (2⁶⁴-1)+(2⁶⁴-1)+1 < 2·2⁶⁴).
++			a.Add(tmp, cr, cr, KeepCarry)
++			a.EOL("...")
++		}
++	}
++}
++
++// Sub emits dst = src2-src1, with the specified carry behavior.
++func (a *Asm) Sub(src1, src2, dst Reg, carry Carry) {
++	switch {
++	default:
++		a.Fatalf("unsupported carry behavior")
++	case a.Arch.subF != nil && a.Arch.subF(a, src1, src2, dst, carry):
++		// handled
++	case a.Arch.sub != "" && (carry == KeepCarry || carry == SmashCarry):
++		a.op3(a.Arch.sub, src1, src2, dst)
++	case a.Arch.subs != "" && (carry == SetCarry || carry == SmashCarry):
++		a.op3(a.Arch.subs, src1, src2, dst)
++	case a.Arch.sbc != "" && (carry == UseCarry || carry == UseCarry|SmashCarry):
++		a.op3(a.Arch.sbc, src1, src2, dst)
++	case a.Arch.sbcs != "" && (carry == UseCarry|SetCarry || carry == UseCarry|SmashCarry):
++		a.op3(a.Arch.sbcs, src1, src2, dst)
++	case strings.HasPrefix(src1.name, "$") && (carry == KeepCarry || carry == SmashCarry):
++		// Running out of options; if this is an immediate
++		// and we don't need to worry about carry semantics,
++		// try adding the negation.
++		if strings.HasPrefix(src1.name, "$-") {
++			src1.name = "$" + src1.name[2:]
++		} else {
++			src1.name = "$-" + src1.name[1:]
++		}
++		a.Add(src1, src2, dst, carry)
++
++	case a.Arch.sub != "" && a.Arch.regCarry != "":
++		// Machine has no carry flag; instead we've dedicated a register
++		// and use SLTU/SGTU (set less-than/greater-than unsigned)
++		// to compute the carry bits as needed.
++		// For SUB x, y, z, SLTU x, y, c computes the carry (borrow) bit.
++		// To make the output less of a wall of instructions,
++		// we comment the “higher-level” operation, with ... marking
++		// continued instructions implementing the operation.
++		// Be careful! Subtract and add have different overflow behaviors,
++		// so the details here are NOT the same as in Add above.
++		cr := a.Carry()
++		if carry&AltCarry != 0 {
++			a.Fatalf("alt carry not supported")
++		}
++		tmp := a.tmp()
++		if !tmp.Valid() {
++			a.Fatalf("cannot simulate carry without regTmp")
++		}
++		switch carry {
++		default:
++			a.Fatalf("unsupported carry behavior")
++		case UseCarry, UseCarry | SmashCarry:
++			// Easy case, just subtract the carry afterward.
++			if a.IsZero(src1) {
++				// Only here to use the carry.
++				a.Sub(cr, src2, dst, KeepCarry)
++				a.EOL("SBC $0, %s, %s", src2, dst)
++				break
++			}
++			a.Sub(src1, src2, dst, KeepCarry)
++			a.EOL("SBC %s, %s, %s", src1, src2, dst)
++			a.Sub(cr, dst, dst, KeepCarry)
++			a.EOL("...")
++
++		case SetCarry:
++			if a.IsZero(src1) && src2 == dst {
++				// Only here to clear the carry flag.
++				a.Xor(cr, cr, cr)
++				break
++			}
++			// Compute the new carry first, in case dst is src1 or src2.
++			a.SLTU(src1, src2, cr)
++			a.EOL("SUBS %s, %s, %s", src1, src2, dst)
++			a.Sub(src1, src2, dst, KeepCarry)
++			a.EOL("...")
++
++		case UseCarry | SetCarry:
++			if a.IsZero(src1) {
++				// Only here to use and then set the carry.
++				if src2 == dst {
++					// Unfortunate case. Using src2==dst is common (think x -= y)
++					// and also more efficient on two-operand machines (like x86),
++					// but here subtracting from dst will smash src2, making it
++					// impossible to recover the carry information after the SUB.
++					// But we want to use the carry, so we can't compute it before
++					// the SUB either. Compute into a temporary and MOV.
++					a.SLTU(cr, src2, tmp)
++					a.EOL("SBCS $0, %s, %s", src2, dst)
++					a.Sub(cr, src2, dst, KeepCarry)
++					a.EOL("...")
++					a.Mov(tmp, cr)
++					a.EOL("...")
++					break
++				}
++				a.Sub(cr, src2, dst, KeepCarry) // src2 not dst, so src2 preserved
++				a.SLTU(cr, src2, cr)
++				break
++			}
++			// General case. Need to do two different subtracts (src2 - cr - src1),
++			// computing carry bits for both, and add'ing them together.
++			// Doing src2 - cr first frees up cr to store the carry from the sub of src1.
++			a.SLTU(cr, src2, tmp)
++			a.EOL("SBCS %s, %s, %s", src1, src2, dst)
++			a.Sub(cr, src2, dst, KeepCarry)
++			a.EOL("...")
++			a.SLTU(src1, dst, cr)
++			a.EOL("...")
++			a.Sub(src1, dst, dst, KeepCarry)
++			a.EOL("...")
++			a.Add(tmp, cr, cr, KeepCarry)
++			a.EOL("...")
++		}
++	}
++}
++
++// ClearCarry clears the carry flag.
++// The ‘which’ parameter must be AddCarry or SubCarry to specify how the flag will be used.
++// (On some systems, the sub carry's actual processor bit is inverted from its usual value.)
++func (a *Asm) ClearCarry(which Carry) {
++	dst := Reg{a.Arch.regs[0]} // not actually modified
++	switch which & (AddCarry | SubCarry) {
++	default:
++		a.Fatalf("bad carry")
++	case AddCarry:
++		a.Add(a.Imm(0), dst, dst, SetCarry|which&AltCarry)
++	case SubCarry:
++		a.Sub(a.Imm(0), dst, dst, SetCarry|which&AltCarry)
++	}
++	a.EOL("clear carry")
++}
++
++// SaveCarry saves the carry flag into dst.
++// The meaning of the bits in dst is architecture-dependent.
++// The carry flag is left in an undefined state.
++func (a *Asm) SaveCarry(dst Reg) {
++	// Note: As implemented here, the carry flag is actually left unmodified,
++	// but we say it is in an undefined state in case that changes in the future.
++	// (The SmashCarry could be changed to SetCarry if so.)
++	if cr := a.Carry(); cr.Valid() {
++		if cr == dst {
++			return // avoid EOL
++		}
++		a.Mov(cr, dst)
++	} else {
++		a.Sub(dst, dst, dst, UseCarry|SmashCarry)
++	}
++	a.EOL("save carry")
++}
++
++// RestoreCarry restores the carry flag from src.
++// src is left in an undefined state.
++func (a *Asm) RestoreCarry(src Reg) {
++	if cr := a.Carry(); cr.Valid() {
++		if cr == src {
++			return // avoid EOL
++		}
++		a.Mov(src, cr)
++	} else if a.Arch.subCarryIsBorrow {
++		a.Add(src, src, src, SetCarry)
++	} else {
++		// SaveCarry saved the sub carry flag with an encoding of 0, 1 -> 0, ^0.
++		// Restore it by subtracting from a value less than ^0, which will carry if src != 0.
++		// If there is no zero register, the SP register is guaranteed to be less than ^0.
++		// (This may seem too clever, but on GOARCH=arm we have no other good options.)
++		a.Sub(src, cmp.Or(a.ZR(), Reg{"SP"}), src, SetCarry)
++	}
++	a.EOL("restore carry")
++}
++
++// ConvertCarry converts the carry flag in dst from the internal format to a 0 or 1.
++// The carry flag is left in an undefined state.
++func (a *Asm) ConvertCarry(which Carry, dst Reg) {
++	if a.Carry().Valid() { // already 0 or 1
++		return
++	}
++	switch which {
++	case AddCarry:
++		if a.Arch.subCarryIsBorrow {
++			a.Neg(dst, dst)
++		} else {
++			a.Add(a.Imm(1), dst, dst, SmashCarry)
++		}
++		a.EOL("convert add carry")
++	case SubCarry:
++		a.Neg(dst, dst)
++		a.EOL("convert sub carry")
++	}
++}
++
++// SaveConvertCarry saves and converts the carry flag into dst: 0 unset, 1 set.
++// The carry flag is left in an undefined state.
++func (a *Asm) SaveConvertCarry(which Carry, dst Reg) {
++	switch which {
++	default:
++		a.Fatalf("bad carry")
++	case AddCarry:
++		if (a.Arch.adc != "" || a.Arch.adcs != "") && a.ZR().Valid() {
++			a.Add(a.ZR(), a.ZR(), dst, UseCarry|SmashCarry)
++			a.EOL("save & convert add carry")
++			return
++		}
++	case SubCarry:
++		// no special cases
++	}
++	a.SaveCarry(dst)
++	a.ConvertCarry(which, dst)
++}
++
++// MulWide emits dstlo = src1 * src2 and dsthi = (src1 * src2) >> WordBits.
++// The carry flag is left in an undefined state.
++// If dstlo or dsthi is the zero Reg, then those outputs are discarded.
++func (a *Asm) MulWide(src1, src2, dstlo, dsthi Reg) {
++	switch {
++	default:
++		a.Fatalf("mulwide not available")
++	case a.Arch.mulWideF != nil:
++		a.Arch.mulWideF(a, src1, src2, dstlo, dsthi)
++	case a.Arch.mul != "" && !dsthi.Valid():
++		a.op3(a.Arch.mul, src1, src2, dstlo)
++	case a.Arch.mulhi != "" && !dstlo.Valid():
++		a.op3(a.Arch.mulhi, src1, src2, dsthi)
++	case a.Arch.mul != "" && a.Arch.mulhi != "" && dstlo != src1 && dstlo != src2:
++		a.op3(a.Arch.mul, src1, src2, dstlo)
++		a.op3(a.Arch.mulhi, src1, src2, dsthi)
++	case a.Arch.mul != "" && a.Arch.mulhi != "" && dsthi != src1 && dsthi != src2:
++		a.op3(a.Arch.mulhi, src1, src2, dsthi)
++		a.op3(a.Arch.mul, src1, src2, dstlo)
++	}
++}
++
++// Jmp jumps to the label.
++func (a *Asm) Jmp(label string) {
++	// Note: Some systems prefer the spelling B or BR, but all accept JMP.
++	a.Printf("\tJMP %s\n", label)
++}
++
++// JmpZero jumps to the label if src is zero.
++// It may modify the carry flag unless a.Arch.CarrySafeLoop is true.
++func (a *Asm) JmpZero(src Reg, label string) {
++	a.Printf("\t"+a.Arch.jmpZero+"\n", src, label)
++}
++
++// JmpNonZero jumps to the label if src is non-zero.
++// It may modify the carry flag unless a.Arch,CarrySafeLoop is true.
++func (a *Asm) JmpNonZero(src Reg, label string) {
++	a.Printf("\t"+a.Arch.jmpNonZero+"\n", src, label)
++}
++
++// Label emits a label with the given name.
++func (a *Asm) Label(name string) {
++	a.Printf("%s:\n", name)
++}
++
++// Ret returns.
++func (a *Asm) Ret() {
++	a.Printf("\tRET\n")
++}
+diff --git a/src/math/big/internal/asmgen/func.go b/src/math/big/internal/asmgen/func.go
+new file mode 100644
+index 0000000000..8a762febce
+--- /dev/null
++++ b/src/math/big/internal/asmgen/func.go
+@@ -0,0 +1,138 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++import (
++	"fmt"
++	"slices"
++	"strings"
++)
++
++// Note: Exported fields and methods are expected to be used
++// by function generators (like the ones in add.go and so on).
++// Unexported fields and methods should not be.
++
++// A Func represents a single assembly function.
++type Func struct {
++	Name    string
++	Asm     *Asm
++	inputs  []string       // name of input slices (not beginning with z)
++	outputs []string       // names of output slices (beginning with z)
++	args    map[string]int // offsets of args, results on stack
++}
++
++// Func starts a new function in the assembly output.
++func (a *Asm) Func(decl string) *Func {
++	d, ok := strings.CutPrefix(decl, "func ")
++	if !ok {
++		a.Fatalf("func decl does not begin with 'func '")
++	}
++	name, d, ok := strings.Cut(d, "(")
++	if !ok {
++		a.Fatalf("func decl does not have func arg list")
++	}
++	f := &Func{
++		Name: name,
++		Asm:  a,
++		args: make(map[string]int),
++	}
++	a.FreeAll()
++
++	// Parse argument names and types. Quick and dirty.
++	// Convert (args) (results) into args, results.
++	d = strings.ReplaceAll(d, ") (", ", ")
++	d = strings.TrimSuffix(d, ")")
++	args := strings.Split(d, ",")
++
++	// Assign implicit types to all arguments (x, y int -> x int, y int).
++	typ := ""
++	for i, arg := range slices.Backward(args) {
++		arg = strings.TrimSpace(arg)
++		if !strings.Contains(arg, " ") {
++			if typ == "" {
++				a.Fatalf("missing argument type")
++			}
++			arg += " " + typ
++		} else {
++			_, typ, _ = strings.Cut(arg, " ")
++		}
++		args[i] = arg
++	}
++
++	// Record mapping from names to offsets.
++	off := 0
++	for _, arg := range args {
++		name, typ, _ := strings.Cut(arg, " ")
++		switch typ {
++		default:
++			a.Fatalf("unknown type %s", typ)
++		case "Word", "uint", "int":
++			f.args[name] = off
++			off += a.Arch.WordBytes
++		case "[]Word":
++			if strings.HasPrefix(name, "z") {
++				f.outputs = append(f.outputs, name)
++			} else {
++				f.inputs = append(f.inputs, name)
++			}
++			f.args[name+"_base"] = off
++			f.args[name+"_len"] = off + a.Arch.WordBytes
++			f.args[name+"_cap"] = off + 2*a.Arch.WordBytes
++			off += 3 * a.Arch.WordBytes
++		}
++	}
++
++	a.Printf("\n")
++	a.Printf("// %s\n", decl)
++	a.Printf("TEXT ·%s(SB), NOSPLIT, $0\n", name)
++	if a.Arch.setup != nil {
++		a.Arch.setup(f)
++	}
++	return f
++}
++
++// Arg allocates a new register, copies the named argument (or result) into it,
++// and returns that register.
++func (f *Func) Arg(name string) Reg {
++	return f.ArgHint(name, HintNone)
++}
++
++// ArgHint is like Arg but uses a register allocation hint.
++func (f *Func) ArgHint(name string, hint Hint) Reg {
++	off, ok := f.args[name]
++	if !ok {
++		f.Asm.Fatalf("unknown argument %s", name)
++	}
++	mem := Reg{fmt.Sprintf("%s+%d(FP)", name, off)}
++	if hint == HintMemOK && f.Asm.Arch.memOK {
++		return mem
++	}
++	r := f.Asm.RegHint(hint)
++	f.Asm.Mov(mem, r)
++	return r
++}
++
++// ArgPtr is like Arg but returns a RegPtr.
++func (f *Func) ArgPtr(name string) RegPtr {
++	return RegPtr(f.Arg(name))
++}
++
++// StoreArg stores src into the named argument (or result).
++func (f *Func) StoreArg(src Reg, name string) {
++	off, ok := f.args[name]
++	if !ok {
++		f.Asm.Fatalf("unknown argument %s", name)
++	}
++	a := f.Asm
++	mem := Reg{fmt.Sprintf("%s+%d(FP)", name, off)}
++	if src.IsImm() && !a.Arch.memOK {
++		r := a.Reg()
++		a.Mov(src, r)
++		a.Mov(r, mem)
++		a.Free(r)
++		return
++	}
++	a.Mov(src, mem)
++}
+diff --git a/src/math/big/internal/asmgen/main.go b/src/math/big/internal/asmgen/main.go
+new file mode 100644
+index 0000000000..0214a91b1c
+--- /dev/null
++++ b/src/math/big/internal/asmgen/main.go
+@@ -0,0 +1,30 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Asmgen generates math/big assembly.
++//
++// Usage:
++//
++//	cd go/src/math/big
++//	go test ./internal/asmgen -generate
++//
++// Or:
++//
++//	go generate math/big
++package asmgen
++
++var arches = []*Arch{
++	ArchARM,
++	ArchMIPS,
++	ArchMIPS64x,
++}
++
++// generate returns the file name and content of the generated assembly for the given architecture.
++func generate(arch *Arch) (file string, data []byte) {
++	file = "arith_" + arch.Name + ".s"
++	a := NewAsm(arch)
++	addOrSubVV(a, "addVV")
++	addOrSubVV(a, "subVV")
++	return file, a.out.Bytes()
++}
+diff --git a/src/math/big/internal/asmgen/main_test.go b/src/math/big/internal/asmgen/main_test.go
+new file mode 100644
+index 0000000000..ab203d31b9
+--- /dev/null
++++ b/src/math/big/internal/asmgen/main_test.go
+@@ -0,0 +1,38 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++import (
++	"bytes"
++	"flag"
++	"internal/diff"
++	"os"
++	"testing"
++)
++
++var generateFlag = flag.Bool("generate", false, "generate files")
++
++func Test(t *testing.T) {
++	t.Skip("assembly not yet installed")
++	for _, arch := range arches {
++		t.Run(arch.Name, func(t *testing.T) {
++			file, data := generate(arch)
++			old, err := os.ReadFile("../../" + file)
++			if err == nil && bytes.Equal(old, data) {
++				return
++			}
++			if *generateFlag {
++				if err := os.WriteFile("../../"+file, data, 0o666); err != nil {
++					t.Fatal(err)
++				}
++				return
++			}
++			if err != nil {
++				t.Fatal(err)
++			}
++			t.Fatalf("generated assembly differs:\n%s\n", diff.Diff("../../"+file, old, "regenerated", data))
++		})
++	}
++}
+diff --git a/src/math/big/internal/asmgen/mips.go b/src/math/big/internal/asmgen/mips.go
+new file mode 100644
+index 0000000000..e7079468a6
+--- /dev/null
++++ b/src/math/big/internal/asmgen/mips.go
+@@ -0,0 +1,48 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++var ArchMIPS = &Arch{
++	Name:          "mipsx",
++	Build:         "mips || mipsle",
++	WordBits:      32,
++	WordBytes:     4,
++	CarrySafeLoop: true,
++
++	regs: []string{
++		// R0 is 0
++		// R23 is the assembler/linker temporary (which we use too).
++		// R26 and R27 are our virtual carry flags.
++		// R28 is SB.
++		// R29 is SP.
++		// R30 is g.
++		// R31 is LR.
++		"R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9",
++		"R10", "R11", "R12", "R13", "R14", "R15", "R16", "R17", "R18", "R19",
++		"R20", "R21", "R22", "R24", "R25", "R26", "R27",
++	},
++	reg0:        "R0",
++	regTmp:      "R23",
++	regCarry:    "R26",
++	regAltCarry: "R27",
++
++	mov:      "MOVW",
++	add:      "ADDU",
++	sltu:     "SGTU", // SGTU args are swapped, so it's really SLTU
++	sub:      "SUBU",
++	mulWideF: mipsMulWide,
++	lsh:      "SLL",
++	rsh:      "SRL",
++	and:      "AND",
++	or:       "OR",
++	xor:      "XOR",
++
++	jmpZero:    "BEQ %s, %s",
++	jmpNonZero: "BNE %s, %s",
++}
++
++func mipsMulWide(a *Asm, src1, src2, dstlo, dsthi Reg) {
++	a.Printf("\tMULU %s, %s\n\tMOVW LO, %s\n\tMOVW HI, %s\n", src1, src2, dstlo, dsthi)
++}
+diff --git a/src/math/big/internal/asmgen/mips64.go b/src/math/big/internal/asmgen/mips64.go
+new file mode 100644
+index 0000000000..b70239864a
+--- /dev/null
++++ b/src/math/big/internal/asmgen/mips64.go
+@@ -0,0 +1,48 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++var ArchMIPS64x = &Arch{
++	Name:          "mips64x",
++	Build:         "mips64 || mips64le",
++	WordBits:      64,
++	WordBytes:     8,
++	CarrySafeLoop: true,
++
++	regs: []string{
++		// R0 is 0
++		// R23 is the assembler/linker temporary (which we use too).
++		// R26 and R27 are our virtual carry flags.
++		// R28 is SB.
++		// R29 is SP.
++		// R30 is g.
++		// R31 is LR.
++		"R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9",
++		"R10", "R11", "R12", "R13", "R14", "R15", "R16", "R17", "R18", "R19",
++		"R20", "R21", "R22", "R24", "R25", "R26", "R27",
++	},
++	reg0:        "R0",
++	regTmp:      "R23",
++	regCarry:    "R26",
++	regAltCarry: "R27",
++
++	mov:      "MOVV",
++	add:      "ADDVU",
++	sltu:     "SGTU", // SGTU args are swapped, so it's really SLTU
++	sub:      "SUBVU",
++	mulWideF: mips64MulWide,
++	lsh:      "SLLV",
++	rsh:      "SRLV",
++	and:      "AND",
++	or:       "OR",
++	xor:      "XOR",
++
++	jmpZero:    "BEQ %s, %s",
++	jmpNonZero: "BNE %s, %s",
++}
++
++func mips64MulWide(a *Asm, src1, src2, dstlo, dsthi Reg) {
++	a.Printf("\tMULVU %s, %s\n\tMOVV LO, %s\n\tMOVV HI, %s\n", src1, src2, dstlo, dsthi)
++}
+diff --git a/src/math/big/internal/asmgen/pipe.go b/src/math/big/internal/asmgen/pipe.go
+new file mode 100644
+index 0000000000..743e15f3f8
+--- /dev/null
++++ b/src/math/big/internal/asmgen/pipe.go
+@@ -0,0 +1,569 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package asmgen
++
++import (
++	"fmt"
++	"math/bits"
++	"slices"
++)
++
++// Note: Exported fields and methods are expected to be used
++// by function generators (like the ones in add.go and so on).
++// Unexported fields and methods should not be.
++
++// A Pipe manages the input and output data pipelines for a function's
++// memory operations.
++//
++// The input is one or more equal-length slices of words, so collectively
++// it can be viewed as a matrix, in which each slice is a row and each column
++// is a set of corresponding words from the different slices.
++// The output can be viewed the same way, although it is often just one row.
++type Pipe struct {
++	f               *Func    // function being generated
++	label           string   // prefix for loop labels (default "loop")
++	backward        bool     // processing columns in reverse
++	started         bool     // Start has been called
++	loaded          bool     // LoadPtrs has been called
++	inPtr           []RegPtr // input slice pointers
++	hints           []Hint   // for each inPtr, a register hint to use for its data
++	outPtr          []RegPtr // output slice pointers
++	index           Reg      // index register, if in use
++	useIndexCounter bool     // index counter requested
++	indexCounter    int      // index is also counter (386); 0 no, -1 negative counter, +1 positive counter
++	readOff         int      // read offset not yet added to index
++	writeOff        int      // write offset not yet added to index
++	factors         []int    // unrolling factors
++	counts          []Reg    // iterations for each factor
++	needWrite       bool     // need a write call during Loop1/LoopN
++	maxColumns      int      // maximum columns during unrolled loop
++	unrollStart     func()   // emit code at start of unrolled body
++	unrollEnd       func()   // emit code end of unrolled body
++}
++
++// Pipe creates and returns a new pipe for use in the function f.
++func (f *Func) Pipe() *Pipe {
++	a := f.Asm
++	p := &Pipe{
++		f:          f,
++		label:      "loop",
++		maxColumns: 10000000,
++	}
++	if m := a.Arch.maxColumns; m != 0 {
++		p.maxColumns = m
++	}
++	return p
++}
++
++// SetBackward sets the pipe to process the input and output columns in reverse order.
++// This is needed for left shifts, which might otherwise overwrite data they will read later.
++func (p *Pipe) SetBackward() {
++	if p.loaded {
++		p.f.Asm.Fatalf("SetBackward after Start/LoadPtrs")
++	}
++	p.backward = true
++}
++
++// SetUseIndexCounter sets the pipe to use an index counter if possible,
++// meaning the loop counter is also used as an index for accessing the slice data.
++// This clever trick is slower on modern processors, but it is still necessary on 386.
++// On non-386 systems, SetUseIndexCounter is a no-op.
++func (p *Pipe) SetUseIndexCounter() {
++	if p.f.Asm.Arch.memIndex == nil { // need memIndex (only 386 provides it)
++		return
++	}
++	p.useIndexCounter = true
++}
++
++// SetLabel sets the label prefix for the loops emitted by the pipe.
++// The default prefix is "loop".
++func (p *Pipe) SetLabel(label string) {
++	p.label = label
++}
++
++// SetMaxColumns sets the maximum number of
++// columns processed in a single loop body call.
++func (p *Pipe) SetMaxColumns(m int) {
++	p.maxColumns = m
++}
++
++// SetHint records that the inputs from the named vector
++// should be allocated with the given register hint.
++//
++// If the hint indicates a single register on the target architecture,
++// then SetHint calls SetMaxColumns(1), since the hinted register
++// can only be used for one value at a time.
++func (p *Pipe) SetHint(name string, hint Hint) {
++	if hint == HintMemOK && !p.f.Asm.Arch.memOK {
++		return
++	}
++	i := slices.Index(p.f.inputs, name)
++	if i < 0 {
++		p.f.Asm.Fatalf("unknown input name %s", name)
++	}
++	if p.f.Asm.hint(hint) != "" {
++		p.SetMaxColumns(1)
++	}
++	for len(p.hints) <= i {
++		p.hints = append(p.hints, HintNone)
++	}
++	p.hints[i] = hint
++}
++
++// LoadPtrs loads the slice pointer arguments into registers,
++// assuming that the slice length n has already been loaded
++// into the register n.
++//
++// Start will call LoadPtrs if it has not been called already.
++// LoadPtrs only needs to be called explicitly when code needs
++// to use LoadN before Start, like when the shift.go generators
++// read an initial word before the loop.
++func (p *Pipe) LoadPtrs(n Reg) {
++	a := p.f.Asm
++	if p.loaded {
++		a.Fatalf("pointers already loaded")
++	}
++
++	// Load the actual pointers.
++	p.loaded = true
++	for _, name := range p.f.inputs {
++		p.inPtr = append(p.inPtr, RegPtr(p.f.Arg(name+"_base")))
++	}
++	for _, name := range p.f.outputs {
++		p.outPtr = append(p.outPtr, RegPtr(p.f.Arg(name+"_base")))
++	}
++
++	// Decide the memory access strategy for LoadN and StoreN.
++	switch {
++	case p.backward && p.useIndexCounter:
++		// Generator wants an index counter, meaning when the iteration counter
++		// is AX, we will access the slice with pointer BX using (BX)(AX*WordBytes).
++		// The loop is moving backward through the slice, but the counter
++		// is also moving backward, so not much to do.
++		a.Comment("run loop backward, using counter as positive index")
++		p.indexCounter = +1
++		p.index = n
++
++	case !p.backward && p.useIndexCounter:
++		// Generator wants an index counter, but the loop is moving forward.
++		// To make the counter move in the direction of data access,
++		// we negate the counter, counting up from -len(z) to -1.
++		// To make the index access the right words, we add len(z)*WordBytes
++		// to each of the pointers.
++		// See comment below about the garbage collector (non-)implications
++		// of pointing beyond the slice bounds.
++		a.Comment("use counter as negative index")
++		p.indexCounter = -1
++		p.index = n
++		for _, ptr := range p.inPtr {
++			a.AddWords(n, ptr, ptr)
++		}
++		for _, ptr := range p.outPtr {
++			a.AddWords(n, ptr, ptr)
++		}
++		a.Neg(n, n)
++
++	case p.backward:
++		// Generator wants to run the loop backward.
++		// We'll decrement the pointers before using them,
++		// so position them at the very end of the slices.
++		// If we had precise pointer information for assembly,
++		// these pointers would cause problems with the garbage collector,
++		// since they no longer point into the allocated slice,
++		// but the garbage collector ignores unexpected values in assembly stacks,
++		// and the actual slice pointers are still in the argument stack slots,
++		// so the slices won't be collected early.
++		// If we switched to the register ABI, we might have to rethink this.
++		// (The same thing happens by the end of forward loops,
++		// but it's less important since once the pointers go off the slice
++		// in a forward loop, the loop is over and the slice won't be accessed anymore.)
++		a.Comment("run loop backward")
++		for _, ptr := range p.inPtr {
++			a.AddWords(n, ptr, ptr)
++		}
++		for _, ptr := range p.outPtr {
++			a.AddWords(n, ptr, ptr)
++		}
++
++	case !p.backward:
++		// Nothing to do!
++	}
++}
++
++// LoadN returns the next n columns of input words as a slice of rows.
++// Regs for inputs that have been marked using p.SetMemOK will be direct memory references.
++// Regs for other inputs will be newly allocated registers and must be freed.
++func (p *Pipe) LoadN(n int) [][]Reg {
++	a := p.f.Asm
++	regs := make([][]Reg, len(p.inPtr))
++	for i, ptr := range p.inPtr {
++		regs[i] = make([]Reg, n)
++		switch {
++		case a.Arch.loadIncN != nil:
++			// Load from memory and advance pointers at the same time.
++			for j := range regs[i] {
++				regs[i][j] = p.f.Asm.Reg()
++			}
++			if p.backward {
++				a.Arch.loadDecN(a, ptr, regs[i])
++			} else {
++				a.Arch.loadIncN(a, ptr, regs[i])
++			}
++
++		default:
++			// Load from memory using offsets.
++			// We'll advance the pointers or the index counter later.
++			for j := range n {
++				off := p.readOff + j
++				if p.backward {
++					off = -(off + 1)
++				}
++				var mem Reg
++				if p.indexCounter != 0 {
++					mem = a.Arch.memIndex(a, off*a.Arch.WordBytes, p.index, ptr)
++				} else {
++					mem = ptr.mem(off * a.Arch.WordBytes)
++				}
++				h := HintNone
++				if i < len(p.hints) {
++					h = p.hints[i]
++				}
++				if h == HintMemOK {
++					regs[i][j] = mem
++				} else {
++					r := p.f.Asm.RegHint(h)
++					a.Mov(mem, r)
++					regs[i][j] = r
++				}
++			}
++		}
++	}
++	p.readOff += n
++	return regs
++}
++
++// StoreN writes regs (a slice of rows) to the next n columns of output, where n = len(regs[0]).
++func (p *Pipe) StoreN(regs [][]Reg) {
++	p.needWrite = false
++	a := p.f.Asm
++	if len(regs) != len(p.outPtr) {
++		p.f.Asm.Fatalf("wrong number of output rows")
++	}
++	n := len(regs[0])
++	for i, ptr := range p.outPtr {
++		switch {
++		case a.Arch.storeIncN != nil:
++			// Store to memory and advance pointers at the same time.
++			if p.backward {
++				a.Arch.storeDecN(a, ptr, regs[i])
++			} else {
++				a.Arch.storeIncN(a, ptr, regs[i])
++			}
++
++		default:
++			// Store to memory using offsets.
++			// We'll advance the pointers or the index counter later.
++			for j, r := range regs[i] {
++				off := p.writeOff + j
++				if p.backward {
++					off = -(off + 1)
++				}
++				var mem Reg
++				if p.indexCounter != 0 {
++					mem = a.Arch.memIndex(a, off*a.Arch.WordBytes, p.index, ptr)
++				} else {
++					mem = ptr.mem(off * a.Arch.WordBytes)
++				}
++				a.Mov(r, mem)
++			}
++		}
++	}
++	p.writeOff += n
++}
++
++// advancePtrs advances the pointers by step
++// or handles bookkeeping for an imminent index advance by step
++// that the caller will do.
++func (p *Pipe) advancePtrs(step int) {
++	a := p.f.Asm
++	switch {
++	case a.Arch.loadIncN != nil:
++		// nothing to do
++
++	default:
++		// Adjust read/write offsets for pointer advance (or imminent index advance).
++		p.readOff -= step
++		p.writeOff -= step
++
++		if p.indexCounter == 0 {
++			// Advance pointers.
++			if p.backward {
++				step = -step
++			}
++			for _, ptr := range p.inPtr {
++				a.Add(a.Imm(step*a.Arch.WordBytes), Reg(ptr), Reg(ptr), KeepCarry)
++			}
++			for _, ptr := range p.outPtr {
++				a.Add(a.Imm(step*a.Arch.WordBytes), Reg(ptr), Reg(ptr), KeepCarry)
++			}
++		}
++	}
++}
++
++// DropInput deletes the named input from the pipe,
++// usually because it has been exhausted.
++// (This is not used yet but will be used in a future generator.)
++func (p *Pipe) DropInput(name string) {
++	i := slices.Index(p.f.inputs, name)
++	if i < 0 {
++		p.f.Asm.Fatalf("unknown input %s", name)
++	}
++	ptr := p.inPtr[i]
++	p.f.Asm.Free(Reg(ptr))
++	p.inPtr = slices.Delete(p.inPtr, i, i+1)
++	p.f.inputs = slices.Delete(p.f.inputs, i, i+1)
++	if len(p.hints) > i {
++		p.hints = slices.Delete(p.hints, i, i+1)
++	}
++}
++
++// Start prepares to loop over n columns.
++// The factors give a sequence of unrolling factors to use,
++// which must be either strictly increasing or strictly decreasing
++// and must include 1.
++// For example, 4, 1 means to process 4 elements at a time
++// and then 1 at a time for the final 0-3; specifying 1,4 instead
++// handles 0-3 elements first and then 4 at a time.
++// Similarly, 32, 4, 1 means to process 32 at a time,
++// then 4 at a time, then 1 at a time.
++//
++// One benefit of using 1, 4 instead of 4, 1 is that the body
++// processing 4 at a time needs more registers, and if it is
++// the final body, the register holding the fragment count (0-3)
++// has been freed and is available for use.
++//
++// Start may modify the carry flag.
++//
++// Start must be followed by a call to Loop1 or LoopN,
++// but it is permitted to emit other instructions first,
++// for example to set an initial carry flag.
++func (p *Pipe) Start(n Reg, factors ...int) {
++	a := p.f.Asm
++	if p.started {
++		a.Fatalf("loop already started")
++	}
++	if p.useIndexCounter && len(factors) > 1 {
++		a.Fatalf("cannot call SetUseIndexCounter and then use Start with factors != [1]; have factors = %v", factors)
++	}
++	p.started = true
++	if !p.loaded {
++		if len(factors) == 1 {
++			p.SetUseIndexCounter()
++		}
++		p.LoadPtrs(n)
++	}
++
++	// If there were calls to LoadN between LoadPtrs and Start,
++	// adjust the loop not to scan those columns, assuming that
++	// either the code already called an equivalent StoreN or else
++	// that it will do so after the loop.
++	if off := p.readOff; off != 0 {
++		if p.indexCounter < 0 {
++			// Index is negated, so add off instead of subtracting.
++			a.Add(a.Imm(off), n, n, SmashCarry)
++		} else {
++			a.Sub(a.Imm(off), n, n, SmashCarry)
++		}
++		if p.indexCounter != 0 {
++			// n is also the index we are using, so adjust readOff and writeOff
++			// to continue to point at the same positions as before we changed n.
++			p.readOff -= off
++			p.writeOff -= off
++		}
++	}
++
++	p.Restart(n, factors...)
++}
++
++// Restart prepares to loop over an additional n columns,
++// beyond a previous loop run by p.Start/p.Loop.
++func (p *Pipe) Restart(n Reg, factors ...int) {
++	a := p.f.Asm
++	if !p.started {
++		a.Fatalf("pipe not started")
++	}
++	p.factors = factors
++	p.counts = make([]Reg, len(factors))
++	if len(factors) == 0 {
++		factors = []int{1}
++	}
++
++	// Compute the loop lengths for each unrolled section into separate registers.
++	// We compute them all ahead of time in case the computation would smash
++	// a carry flag that the loop bodies need preserved.
++	if len(factors) > 1 {
++		a.Comment("compute unrolled loop lengths")
++	}
++	switch {
++	default:
++		a.Fatalf("invalid factors %v", factors)
++
++	case factors[0] == 1:
++		// increasing loop factors
++		div := 1
++		for i, f := range factors[1:] {
++			if f <= factors[i] {
++				a.Fatalf("non-increasing factors %v", factors)
++			}
++			if f&(f-1) != 0 {
++				a.Fatalf("non-power-of-two factors %v", factors)
++			}
++			t := p.f.Asm.Reg()
++			f /= div
++			a.And(a.Imm(f-1), n, t)
++			a.Rsh(a.Imm(bits.TrailingZeros(uint(f))), n, n)
++			div *= f
++			p.counts[i] = t
++		}
++		p.counts[len(p.counts)-1] = n
++
++	case factors[len(factors)-1] == 1:
++		// decreasing loop factors
++		for i, f := range factors[:len(factors)-1] {
++			if f <= factors[i+1] {
++				a.Fatalf("non-decreasing factors %v", factors)
++			}
++			if f&(f-1) != 0 {
++				a.Fatalf("non-power-of-two factors %v", factors)
++			}
++			t := p.f.Asm.Reg()
++			a.Rsh(a.Imm(bits.TrailingZeros(uint(f))), n, t)
++			a.And(a.Imm(f-1), n, n)
++			p.counts[i] = t
++		}
++		p.counts[len(p.counts)-1] = n
++	}
++}
++
++// Done frees all the registers allocated by the pipe.
++func (p *Pipe) Done() {
++	for _, ptr := range p.inPtr {
++		p.f.Asm.Free(Reg(ptr))
++	}
++	p.inPtr = nil
++	for _, ptr := range p.outPtr {
++		p.f.Asm.Free(Reg(ptr))
++	}
++	p.outPtr = nil
++	p.index = Reg{}
++}
++
++// Loop emits code for the loop, calling block repeatedly to emit code that
++// handles a block of N input columns (for arbitrary N = len(in[0]) chosen by p).
++// block must call p.StoreN(out) to write N output columns.
++// The out slice is a pre-allocated matrix of uninitialized Reg values.
++// block is expected to set each entry to the Reg that should be written
++// before calling p.StoreN(out).
++//
++// For example, if the loop is to be unrolled 4x in blocks of 2 columns each,
++// the sequence of calls to emit the unrolled loop body is:
++//
++//	start()  // set by pAtUnrollStart
++//	... reads for 2 columns ...
++//	block()
++//	... writes for 2 columns ...
++//	... reads for 2 columns ...
++//	block()
++//	... writes for 2 columns ...
++//	end()  // set by p.AtUnrollEnd
++//
++// Any registers allocated during block are freed automatically when block returns.
++func (p *Pipe) Loop(block func(in, out [][]Reg)) {
++	if p.factors == nil {
++		p.f.Asm.Fatalf("Pipe.Start not called")
++	}
++	for i, factor := range p.factors {
++		n := p.counts[i]
++		p.unroll(n, factor, block)
++		if i < len(p.factors)-1 {
++			p.f.Asm.Free(n)
++		}
++	}
++	p.factors = nil
++}
++
++// AtUnrollStart sets a function to call at the start of an unrolled sequence.
++// See [Pipe.Loop] for details.
++func (p *Pipe) AtUnrollStart(start func()) {
++	p.unrollStart = start
++}
++
++// AtUnrollEnd sets a function to call at the end of an unrolled sequence.
++// See [Pipe.Loop] for details.
++func (p *Pipe) AtUnrollEnd(end func()) {
++	p.unrollEnd = end
++}
++
++// unroll emits a single unrolled loop for the given factor, iterating n times.
++func (p *Pipe) unroll(n Reg, factor int, block func(in, out [][]Reg)) {
++	a := p.f.Asm
++	label := fmt.Sprintf("%s%d", p.label, factor)
++
++	// Top of loop control flow.
++	a.Label(label)
++	if a.Arch.loopTop != "" {
++		a.Printf("\t"+a.Arch.loopTop+"\n", n, label+"done")
++	} else {
++		a.JmpZero(n, label+"done")
++	}
++	a.Label(label + "cont")
++
++	// Unrolled loop body.
++	if factor < p.maxColumns {
++		a.Comment("unroll %dX", factor)
++	} else {
++		a.Comment("unroll %dX in batches of %d", factor, p.maxColumns)
++	}
++	if p.unrollStart != nil {
++		p.unrollStart()
++	}
++	for done := 0; done < factor; {
++		batch := min(factor-done, p.maxColumns)
++		regs := a.RegsUsed()
++		out := make([][]Reg, len(p.outPtr))
++		for i := range out {
++			out[i] = make([]Reg, batch)
++		}
++		in := p.LoadN(batch)
++		p.needWrite = true
++		block(in, out)
++		if p.needWrite && len(p.outPtr) > 0 {
++			a.Fatalf("missing p.Write1 or p.StoreN")
++		}
++		a.SetRegsUsed(regs) // free anything block allocated
++		done += batch
++	}
++	if p.unrollEnd != nil {
++		p.unrollEnd()
++	}
++	p.advancePtrs(factor)
++
++	// Bottom of loop control flow.
++	switch {
++	case p.indexCounter >= 0 && a.Arch.loopBottom != "":
++		a.Printf("\t"+a.Arch.loopBottom+"\n", n, label+"cont")
++
++	case p.indexCounter >= 0:
++		a.Sub(a.Imm(1), n, n, KeepCarry)
++		a.JmpNonZero(n, label+"cont")
++
++	case p.indexCounter < 0 && a.Arch.loopBottomNeg != "":
++		a.Printf("\t"+a.Arch.loopBottomNeg+"\n", n, label+"cont")
++
++	case p.indexCounter < 0:
++		a.Add(a.Imm(1), n, n, KeepCarry)
++	}
++	a.Label(label + "done")
++}

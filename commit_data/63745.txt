@@ -1,0 +1,547 @@
+commit eef288da1e7d2815cfa07e486b101ba21f0e0db1
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon May 13 14:59:02 2024 -0400
+
+    cmd: add telemetry for commands in cmd
+    
+    This change modifies the commands in cmd to open counter files,
+    increment invocations counters and to increment counters for the names
+    of the flags that were passed in.
+    
+    cmd/pprof and cmd/vet are both wrappers around tools defined in other
+    modules which do their own flag processing so we can't directly
+    increment flag counters right after flags are parsed. For those two
+    commands we wait to increment counters until after the programs have
+    returned.
+    
+    cmd/dist is built with the bootstrap go so it can't depend on telemetry
+    yet. We can add telemetry support to it once 1.23 is the minimum
+    bootstrap version.
+    
+    For #58894
+    
+    Change-Id: Ic7f6009992465e55c56ad4dc6451bcb1ca51374a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585235
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/addr2line/main.go  | 4 ++++
+ src/cmd/asm/main.go        | 4 ++++
+ src/cmd/buildid/buildid.go | 4 ++++
+ src/cmd/cgo/main.go        | 4 ++++
+ src/cmd/covdata/covdata.go | 5 +++++
+ src/cmd/cover/cover.go     | 5 +++++
+ src/cmd/distpack/pack.go   | 5 +++++
+ src/cmd/doc/main.go        | 5 +++++
+ src/cmd/fix/main.go        | 5 +++++
+ src/cmd/gofmt/gofmt.go     | 5 +++++
+ src/cmd/nm/nm.go           | 4 ++++
+ src/cmd/objdump/main.go    | 4 ++++
+ src/cmd/pack/pack.go       | 4 ++++
+ src/cmd/pprof/pprof.go     | 8 +++++++-
+ src/cmd/preprofile/main.go | 8 ++++++--
+ src/cmd/test2json/main.go  | 5 +++++
+ src/cmd/trace/main.go      | 4 ++++
+ src/cmd/vet/main.go        | 8 ++++++++
+ 18 files changed, 88 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/addr2line/main.go b/src/cmd/addr2line/main.go
+index 6e005a8fac..e77785f156 100644
+--- a/src/cmd/addr2line/main.go
++++ b/src/cmd/addr2line/main.go
+@@ -28,6 +28,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/internal/objfile"
++	"cmd/internal/telemetry"
+ )
+ 
+ func printUsage(w *os.File) {
+@@ -45,6 +46,7 @@ func usage() {
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("addr2line: ")
++	telemetry.Start()
+ 
+ 	// pprof expects this behavior when checking for addr2line
+ 	if len(os.Args) > 1 && os.Args[1] == "--help" {
+@@ -54,6 +56,8 @@ func main() {
+ 
+ 	flag.Usage = usage
+ 	flag.Parse()
++	telemetry.Inc("addr2line/invocations")
++	telemetry.CountFlags("addr2line/flag:", *flag.CommandLine)
+ 	if flag.NArg() != 1 {
+ 		usage()
+ 	}
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index ba69195056..82a2fa80e0 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -20,16 +20,20 @@ import (
+ 	"cmd/internal/bio"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
++	"cmd/internal/telemetry"
+ )
+ 
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("asm: ")
++	telemetry.Start()
+ 
+ 	buildcfg.Check()
+ 	GOARCH := buildcfg.GOARCH
+ 
+ 	flags.Parse()
++	telemetry.Inc("asm/invocations")
++	telemetry.CountFlags("asm/flag:", *flag.CommandLine)
+ 
+ 	architecture := arch.Set(GOARCH, *flags.Shared || *flags.Dynlink)
+ 	if architecture == nil {
+diff --git a/src/cmd/buildid/buildid.go b/src/cmd/buildid/buildid.go
+index 72ad80dbbb..7abc37283f 100644
+--- a/src/cmd/buildid/buildid.go
++++ b/src/cmd/buildid/buildid.go
+@@ -12,6 +12,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/internal/buildid"
++	"cmd/internal/telemetry"
+ )
+ 
+ func usage() {
+@@ -25,8 +26,11 @@ var wflag = flag.Bool("w", false, "write build ID")
+ func main() {
+ 	log.SetPrefix("buildid: ")
+ 	log.SetFlags(0)
++	telemetry.Start()
+ 	flag.Usage = usage
+ 	flag.Parse()
++	telemetry.Inc("buildid/invocations")
++	telemetry.CountFlags("buildid/flag:", *flag.CommandLine)
+ 	if flag.NArg() != 1 {
+ 		usage()
+ 	}
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index a19743fe61..c258985fee 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -28,6 +28,7 @@ import (
+ 	"cmd/internal/edit"
+ 	"cmd/internal/notsha256"
+ 	"cmd/internal/objabi"
++	"cmd/internal/telemetry"
+ )
+ 
+ // A Package collects information about the package we're going to write.
+@@ -257,8 +258,11 @@ var goarch, goos, gomips, gomips64 string
+ var gccBaseCmd []string
+ 
+ func main() {
++	telemetry.Start()
+ 	objabi.AddVersionFlag() // -V
+ 	objabi.Flagparse(usage)
++	telemetry.Inc("cgo/invocations")
++	telemetry.CountFlags("cgo/flag:", *flag.CommandLine)
+ 
+ 	if *gccgoDefineCgoIncomplete {
+ 		if !*gccgo {
+diff --git a/src/cmd/covdata/covdata.go b/src/cmd/covdata/covdata.go
+index 549efea20a..b280203f0c 100644
+--- a/src/cmd/covdata/covdata.go
++++ b/src/cmd/covdata/covdata.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"cmd/internal/cov"
+ 	"cmd/internal/pkgpattern"
++	"cmd/internal/telemetry"
+ 	"flag"
+ 	"fmt"
+ 	"os"
+@@ -108,6 +109,8 @@ const (
+ )
+ 
+ func main() {
++	telemetry.Start()
++
+ 	// First argument should be mode/subcommand.
+ 	if len(os.Args) < 2 {
+ 		usage("missing command selector")
+@@ -143,6 +146,8 @@ func main() {
+ 		op.Usage("")
+ 	}
+ 	flag.Parse()
++	telemetry.Inc("covdata/invocations")
++	telemetry.CountFlags("covdata/flag:", *flag.CommandLine)
+ 
+ 	// Mode-independent flag setup
+ 	dbgtrace(1, "starting mode-independent setup")
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index d4e529bcde..912f7cafb5 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -26,6 +26,7 @@ import (
+ 
+ 	"cmd/internal/edit"
+ 	"cmd/internal/objabi"
++	"cmd/internal/telemetry"
+ )
+ 
+ const usageMessage = "" +
+@@ -86,9 +87,13 @@ const (
+ )
+ 
+ func main() {
++	telemetry.Start()
++
+ 	objabi.AddVersionFlag()
+ 	flag.Usage = usage
+ 	objabi.Flagparse(usage)
++	telemetry.Inc("cover/invocations")
++	telemetry.CountFlags("cover/flag:", *flag.CommandLine)
+ 
+ 	// Usage information when no arguments.
+ 	if flag.NFlag() == 0 && flag.NArg() == 0 {
+diff --git a/src/cmd/distpack/pack.go b/src/cmd/distpack/pack.go
+index cf507edb4d..0faab5c0b8 100644
+--- a/src/cmd/distpack/pack.go
++++ b/src/cmd/distpack/pack.go
+@@ -44,6 +44,8 @@ import (
+ 	"runtime"
+ 	"strings"
+ 	"time"
++
++	"cmd/internal/telemetry"
+ )
+ 
+ func usage() {
+@@ -67,8 +69,11 @@ var (
+ func main() {
+ 	log.SetPrefix("distpack: ")
+ 	log.SetFlags(0)
++	telemetry.Start()
+ 	flag.Usage = usage
+ 	flag.Parse()
++	telemetry.Inc("distpack/invocations")
++	telemetry.CountFlags("distpack/flag:", *flag.CommandLine)
+ 	if flag.NArg() != 0 {
+ 		usage()
+ 	}
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index 273d7febbc..d02bf65c40 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -54,6 +54,8 @@ import (
+ 	"path"
+ 	"path/filepath"
+ 	"strings"
++
++	"cmd/internal/telemetry"
+ )
+ 
+ var (
+@@ -85,6 +87,7 @@ func usage() {
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("doc: ")
++	telemetry.Start()
+ 	dirsInit()
+ 	err := do(os.Stdout, flag.CommandLine, os.Args[1:])
+ 	if err != nil {
+@@ -105,6 +108,8 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 	flagSet.BoolVar(&showSrc, "src", false, "show source code for symbol")
+ 	flagSet.BoolVar(&short, "short", false, "one-line representation for each symbol")
+ 	flagSet.Parse(args)
++	telemetry.Inc("doc/invocations")
++	telemetry.CountFlags("doc/flag:", *flag.CommandLine)
+ 	if chdir != "" {
+ 		if err := os.Chdir(chdir); err != nil {
+ 			return err
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index db67b4ba07..b0aabae889 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -21,6 +21,8 @@ import (
+ 	"path/filepath"
+ 	"sort"
+ 	"strings"
++
++	"cmd/internal/telemetry"
+ )
+ 
+ var (
+@@ -63,8 +65,11 @@ func usage() {
+ }
+ 
+ func main() {
++	telemetry.Start()
+ 	flag.Usage = usage
+ 	flag.Parse()
++	telemetry.Inc("fix/invocations")
++	telemetry.CountFlags("fix/flag:", *flag.CommandLine)
+ 
+ 	if !version.IsValid(*goVersion) {
+ 		report(fmt.Errorf("invalid -go=%s", *goVersion))
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 341c79ab8e..03f7bef89c 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -25,6 +25,8 @@ import (
+ 	"strconv"
+ 	"strings"
+ 
++	"cmd/internal/telemetry"
++
+ 	"golang.org/x/sync/semaphore"
+ )
+ 
+@@ -372,8 +374,11 @@ func main() {
+ }
+ 
+ func gofmtMain(s *sequencer) {
++	telemetry.Start()
+ 	flag.Usage = usage
+ 	flag.Parse()
++	telemetry.Inc("gofmt/invocations")
++	telemetry.CountFlags("gofmt/flag:", *flag.CommandLine)
+ 
+ 	if *cpuprofile != "" {
+ 		fdSem <- true
+diff --git a/src/cmd/nm/nm.go b/src/cmd/nm/nm.go
+index 78fa60014b..62cf155362 100644
+--- a/src/cmd/nm/nm.go
++++ b/src/cmd/nm/nm.go
+@@ -13,6 +13,7 @@ import (
+ 	"sort"
+ 
+ 	"cmd/internal/objfile"
++	"cmd/internal/telemetry"
+ )
+ 
+ const helpText = `usage: go tool nm [options] file...
+@@ -67,8 +68,11 @@ func (nflag) String() string {
+ 
+ func main() {
+ 	log.SetFlags(0)
++	telemetry.Start()
+ 	flag.Usage = usage
+ 	flag.Parse()
++	telemetry.Inc("nm/invocations")
++	telemetry.CountFlags("nm/flag:", *flag.CommandLine)
+ 
+ 	switch *sortOrder {
+ 	case "address", "name", "none", "size":
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index 6605f8a60c..bd1762636d 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -41,6 +41,7 @@ import (
+ 	"strings"
+ 
+ 	"cmd/internal/objfile"
++	"cmd/internal/telemetry"
+ )
+ 
+ var printCode = flag.Bool("S", false, "print Go code alongside assembly")
+@@ -57,9 +58,12 @@ func usage() {
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("objdump: ")
++	telemetry.Start()
+ 
+ 	flag.Usage = usage
+ 	flag.Parse()
++	telemetry.Inc("objdump/invocations")
++	telemetry.CountFlags("objdump/flag:", *flag.CommandLine)
+ 	if flag.NArg() != 1 && flag.NArg() != 3 {
+ 		usage()
+ 	}
+diff --git a/src/cmd/pack/pack.go b/src/cmd/pack/pack.go
+index 412ea36d60..6d7eaf7e5b 100644
+--- a/src/cmd/pack/pack.go
++++ b/src/cmd/pack/pack.go
+@@ -6,6 +6,7 @@ package main
+ 
+ import (
+ 	"cmd/internal/archive"
++	"cmd/internal/telemetry"
+ 	"fmt"
+ 	"io"
+ 	"io/fs"
+@@ -30,6 +31,7 @@ func usage() {
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("pack: ")
++	telemetry.Start()
+ 	// need "pack op archive" at least.
+ 	if len(os.Args) < 3 {
+ 		log.Print("not enough arguments")
+@@ -37,6 +39,8 @@ func main() {
+ 		usage()
+ 	}
+ 	setOp(os.Args[1])
++	telemetry.Inc("pack/invocations")
++	telemetry.Inc("pack/op:" + string(op))
+ 	var ar *Archive
+ 	switch op {
+ 	case 'p':
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 24d6ee04a0..69d3201cdb 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -12,6 +12,7 @@ package main
+ import (
+ 	"crypto/tls"
+ 	"debug/dwarf"
++	"flag"
+ 	"fmt"
+ 	"io"
+ 	"net/http"
+@@ -24,18 +25,23 @@ import (
+ 	"time"
+ 
+ 	"cmd/internal/objfile"
++	"cmd/internal/telemetry"
+ 
+ 	"github.com/google/pprof/driver"
+ 	"github.com/google/pprof/profile"
+ )
+ 
+ func main() {
++	telemetry.Start()
++	telemetry.Inc("pprof/invocations")
+ 	options := &driver.Options{
+ 		Fetch: new(fetcher),
+ 		Obj:   new(objTool),
+ 		UI:    newUI(),
+ 	}
+-	if err := driver.PProf(options); err != nil {
++	err := driver.PProf(options)
++	telemetry.CountFlags("pprof/flag:", *flag.CommandLine) // pprof will use the flag package as its default
++	if err != nil {
+ 		fmt.Fprintf(os.Stderr, "%v\n", err)
+ 		os.Exit(2)
+ 	}
+diff --git a/src/cmd/preprofile/main.go b/src/cmd/preprofile/main.go
+index f29b5279e2..78063c1463 100644
+--- a/src/cmd/preprofile/main.go
++++ b/src/cmd/preprofile/main.go
+@@ -18,6 +18,7 @@ import (
+ 	"bufio"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/pgo"
++	"cmd/internal/telemetry"
+ 	"flag"
+ 	"fmt"
+ 	"log"
+@@ -31,8 +32,8 @@ func usage() {
+ }
+ 
+ var (
+-	output  = flag.String("o", "", "output file path")
+-	input   = flag.String("i", "", "input pprof file path")
++	output = flag.String("o", "", "output file path")
++	input  = flag.String("i", "", "input pprof file path")
+ )
+ 
+ func preprocess(profileFile string, outputFile string) error {
+@@ -72,9 +73,12 @@ func main() {
+ 
+ 	log.SetFlags(0)
+ 	log.SetPrefix("preprofile: ")
++	telemetry.Start()
+ 
+ 	flag.Usage = usage
+ 	flag.Parse()
++	telemetry.Inc("preprofile/invocations")
++	telemetry.CountFlags("preprofile/flag:", *flag.CommandLine)
+ 	if *input == "" {
+ 		log.Print("Input pprof path required (-i)")
+ 		usage()
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index 09d5fcec79..36e7cf90b5 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -96,6 +96,7 @@ import (
+ 	"os/exec"
+ 	"os/signal"
+ 
++	"cmd/internal/telemetry"
+ 	"cmd/internal/test2json"
+ )
+ 
+@@ -115,8 +116,12 @@ func ignoreSignals() {
+ }
+ 
+ func main() {
++	telemetry.Start()
++
+ 	flag.Usage = usage
+ 	flag.Parse()
++	telemetry.Inc("test2json/invocations")
++	telemetry.CountFlags("test2json/flag:", *flag.CommandLine)
+ 
+ 	var mode test2json.Mode
+ 	if *flagT {
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 5f0d6f612b..2c0b15623d 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -7,6 +7,7 @@ package main
+ import (
+ 	"bufio"
+ 	"cmd/internal/browser"
++	"cmd/internal/telemetry"
+ 	cmdv2 "cmd/trace/v2"
+ 	"flag"
+ 	"fmt"
+@@ -65,11 +66,14 @@ var (
+ )
+ 
+ func main() {
++	telemetry.Start()
+ 	flag.Usage = func() {
+ 		fmt.Fprint(os.Stderr, usageMessage)
+ 		os.Exit(2)
+ 	}
+ 	flag.Parse()
++	telemetry.Inc("trace/invocations")
++	telemetry.CountFlags("trace/flag:", *flag.CommandLine)
+ 
+ 	// Go 1.7 traces embed symbol info and does not require the binary.
+ 	// But we optionally accept binary as first arg for Go 1.5 traces.
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index 7b9a700635..eff82dcc71 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -6,6 +6,8 @@ package main
+ 
+ import (
+ 	"cmd/internal/objabi"
++	"cmd/internal/telemetry"
++	"flag"
+ 
+ 	"golang.org/x/tools/go/analysis/unitchecker"
+ 
+@@ -45,8 +47,10 @@ import (
+ )
+ 
+ func main() {
++	telemetry.Start()
+ 	objabi.AddVersionFlag()
+ 
++	telemetry.Inc("vet/invocations")
+ 	unitchecker.Main(
+ 		appends.Analyzer,
+ 		asmdecl.Analyzer,
+@@ -82,4 +86,8 @@ func main() {
+ 		unsafeptr.Analyzer,
+ 		unusedresult.Analyzer,
+ 	)
++
++	// It's possible that unitchecker will exit early. In
++	// those cases the flags won't be counted.
++	telemetry.CountFlags("vet/flag:", *flag.CommandLine)
+ }

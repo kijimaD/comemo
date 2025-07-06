@@ -1,0 +1,52 @@
+commit 4cdca1342b1d3d9591d72a7e7cf67068aa54c524
+Author: khr@golang.org <khr@golang.org>
+Date:   Tue May 20 15:56:29 2025 -0700
+
+    runtime: disable stack allocation test when instrumentation is on
+    
+    Should fix some asan build failures.
+    
+    Change-Id: Ic0a816b56a1a278aa0ad541aea962f9fea7b10fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674696
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/runtime_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/runtime_test.go b/src/runtime/runtime_test.go
+index 0f2998b35b..6c628f8903 100644
+--- a/src/runtime/runtime_test.go
++++ b/src/runtime/runtime_test.go
+@@ -7,7 +7,10 @@ package runtime_test
+ import (
+ 	"flag"
+ 	"fmt"
++	"internal/asan"
+ 	"internal/cpu"
++	"internal/msan"
++	"internal/race"
+ 	"internal/runtime/atomic"
+ 	"internal/testenv"
+ 	"io"
+@@ -329,6 +332,9 @@ func TestAppendGrowthHeap(t *testing.T) {
+ }
+ 
+ func TestAppendGrowthStack(t *testing.T) {
++	if race.Enabled || asan.Enabled || msan.Enabled {
++		t.Skip("instrumentation breaks this optimization")
++	}
+ 	var x []int64
+ 	check := func(want int) {
+ 		if cap(x) != want {
+@@ -338,7 +344,7 @@ func TestAppendGrowthStack(t *testing.T) {
+ 
+ 	check(0)
+ 	want := 32 / 8 // 32 is the default for cmd/compile/internal/base.DebugFlags.VariableMakeThreshold
+-	if Raceenabled || testenv.OptimizationOff() {
++	if testenv.OptimizationOff() {
+ 		want = 1
+ 	}
+ 	for i := 1; i <= 100; i++ {

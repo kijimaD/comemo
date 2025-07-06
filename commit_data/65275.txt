@@ -1,0 +1,63 @@
+commit 6f59c11155d75024985d4827a7fe155cd6561df9
+Author: Robert Griesemer <gri@google.com>
+Date:   Wed Oct 30 15:57:42 2024 -0700
+
+    go/types, types2: better error message when selecting on a built-in
+    
+    Fixes #43285.
+    
+    Change-Id: Iddadf76e2dc10fcf77f588c865a68125ebeda290
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623756
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+---
+ src/cmd/compile/internal/types2/call.go             | 2 +-
+ src/go/types/call.go                                | 2 +-
+ src/internal/types/testdata/fixedbugs/issue51360.go | 6 +++---
+ 3 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 9095349e1d..8dbf9df33a 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -774,7 +774,7 @@ func (check *Checker) selector(x *operand, e *syntax.SelectorExpr, def *TypeName
+ 			goto Error
+ 		}
+ 	case builtin:
+-		check.errorf(e.Pos(), UncalledBuiltin, "cannot select on %s", x)
++		check.errorf(e.Pos(), UncalledBuiltin, "invalid use of %s in selector expression", x)
+ 		goto Error
+ 	case invalid:
+ 		goto Error
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 459e927f7e..6db746e408 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -777,7 +777,7 @@ func (check *Checker) selector(x *operand, e *ast.SelectorExpr, def *TypeName, w
+ 		}
+ 	case builtin:
+ 		// types2 uses the position of '.' for the error
+-		check.errorf(e.Sel, UncalledBuiltin, "cannot select on %s", x)
++		check.errorf(e.Sel, UncalledBuiltin, "invalid use of %s in selector expression", x)
+ 		goto Error
+ 	case invalid:
+ 		goto Error
+diff --git a/src/internal/types/testdata/fixedbugs/issue51360.go b/src/internal/types/testdata/fixedbugs/issue51360.go
+index 1b9c45a934..1798a4ab2f 100644
+--- a/src/internal/types/testdata/fixedbugs/issue51360.go
++++ b/src/internal/types/testdata/fixedbugs/issue51360.go
+@@ -5,9 +5,9 @@
+ package p
+ 
+ func _() {
+-	len.Println /* ERROR "cannot select on len" */
+-	len.Println /* ERROR "cannot select on len" */ ()
+-	_ = len.Println /* ERROR "cannot select on len" */
++	len.Println /* ERROR "invalid use of len (built-in) in selector expression" */
++	len.Println /* ERROR "invalid use of len (built-in) in selector expression" */ ()
++	_ = len.Println /* ERROR "invalid use of len (built-in) in selector expression" */
+ 	_ = len /* ERROR "cannot index len" */ [0]
+ 	_ = *len /* ERROR "cannot indirect len" */
+ }

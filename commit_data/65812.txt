@@ -1,0 +1,24 @@
+commit 16afa6a740fac7442e94dcd2ec5ea4a4853e45dc
+Author: Gopher Robot <gobot@golang.org>
+Date:   Fri Dec 13 08:12:11 2024 -0800
+
+    [release-branch.go1.24] go1.24rc1
+    
+    Change-Id: Ia3b0a8ec25312b73879d2561a2b4d1cfc648c295
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636036
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    TryBot-Bypass: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ VERSION | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/VERSION b/VERSION
+new file mode 100644
+index 0000000000..2efe8f5f0c
+--- /dev/null
++++ b/VERSION
+@@ -0,0 +1,2 @@
++go1.24rc1
++time 2024-12-12T18:32:31Z

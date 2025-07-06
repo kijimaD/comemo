@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50140: 75773b0e7b4dac6b779e869a13096a7b7f0be5bb
+# Index 50140: d9691ffa37820e2a7e70679164eac29c675874b2
 
 echo "🚀 Generating explanation for commit 50140..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 50140..."
 
 ### メタデータ
 - **コミットインデックス**: 50140
-- **コミットハッシュ**: 75773b0e7b4dac6b779e869a13096a7b7f0be5bb
-- **GitHub URL**: https://github.com/golang/go/commit/75773b0e7b4dac6b779e869a13096a7b7f0be5bb
+- **コミットハッシュ**: d9691ffa37820e2a7e70679164eac29c675874b2
+- **GitHub URL**: https://github.com/golang/go/commit/d9691ffa37820e2a7e70679164eac29c675874b2
 
 ### 章構成
 

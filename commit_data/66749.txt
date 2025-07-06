@@ -1,0 +1,81 @@
+commit 6fd9ee3da9dc5570f66735e835cac2d66a0f6244
+Author: cuishuang <imcusg@gmail.com>
+Date:   Mon Mar 31 18:46:54 2025 +0800
+
+    all: use slices.Equal to simplify code
+    
+    Change-Id: Ib3be7cee6ca6dce899805aac176ca789eb2fd0f1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661738
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/internal/syscall/windows/registry/registry_test.go | 18 ++----------------
+ src/runtime/pprof/pprof_test.go                        | 10 +---------
+ 2 files changed, 3 insertions(+), 25 deletions(-)
+
+diff --git a/src/internal/syscall/windows/registry/registry_test.go b/src/internal/syscall/windows/registry/registry_test.go
+index 12eae54a8f..1e41d7d9f9 100644
+--- a/src/internal/syscall/windows/registry/registry_test.go
++++ b/src/internal/syscall/windows/registry/registry_test.go
+@@ -10,6 +10,7 @@ import (
+ 	"bytes"
+ 	"crypto/rand"
+ 	"os"
++	"slices"
+ 	"syscall"
+ 	"testing"
+ 	"unsafe"
+@@ -100,21 +101,6 @@ func TestCreateOpenDeleteKey(t *testing.T) {
+ 	}
+ }
+ 
+-func equalStringSlice(a, b []string) bool {
+-	if len(a) != len(b) {
+-		return false
+-	}
+-	if a == nil {
+-		return true
+-	}
+-	for i := range a {
+-		if a[i] != b[i] {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ type ValueTest struct {
+ 	Type     uint32
+ 	Name     string
+@@ -304,7 +290,7 @@ func testGetStringsValue(t *testing.T, k registry.Key, test ValueTest) {
+ 		t.Errorf("GetStringsValue(%s) failed: %v", test.Name, err)
+ 		return
+ 	}
+-	if !equalStringSlice(got, test.Value.([]string)) {
++	if !slices.Equal(got, test.Value.([]string)) {
+ 		t.Errorf("want %s value %#v, got %#v", test.Name, test.Value, got)
+ 		return
+ 	}
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 4b8f29c918..5477d9ed26 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -2558,15 +2558,7 @@ func TestProfilerStackDepth(t *testing.T) {
+ }
+ 
+ func hasPrefix(stk []string, prefix []string) bool {
+-	if len(prefix) > len(stk) {
+-		return false
+-	}
+-	for i := range prefix {
+-		if stk[i] != prefix[i] {
+-			return false
+-		}
+-	}
+-	return true
++	return len(prefix) <= len(stk) && slices.Equal(stk[:len(prefix)], prefix)
+ }
+ 
+ // ensure that stack records are valid map keys (comparable)

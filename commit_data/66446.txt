@@ -1,0 +1,292 @@
+commit e7f9e760c7967ff9de8e7850399248da74ade714
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Dec 20 18:06:00 2024 +0100
+
+    crypto: test for unexpected concrete methods in interface value returns
+    
+    Change-Id: I24188ad5f51953b2fbdef7487acc4ab6b1d77575
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638175
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/aes/aes_test.go                | 11 ++++++
+ src/crypto/cipher/cbc_test.go             | 10 +++++
+ src/crypto/cipher/ctr_test.go             |  7 ++++
+ src/crypto/cipher/gcm_test.go             | 25 +++++++++++++
+ src/crypto/internal/cryptotest/methods.go | 62 +++++++++++++++++++++++++++++++
+ src/crypto/md5/md5_test.go                |  5 +++
+ src/crypto/sha1/sha1_test.go              |  6 +++
+ src/crypto/sha256/sha256_test.go          | 15 ++++++++
+ src/crypto/sha512/sha512_test.go          | 27 ++++++++++++++
+ 9 files changed, 168 insertions(+)
+
+diff --git a/src/crypto/aes/aes_test.go b/src/crypto/aes/aes_test.go
+index adae01af84..cfe75f4057 100644
+--- a/src/crypto/aes/aes_test.go
++++ b/src/crypto/aes/aes_test.go
+@@ -5,6 +5,7 @@
+ package aes
+ 
+ import (
++	"crypto/internal/boring"
+ 	"crypto/internal/cryptotest"
+ 	"fmt"
+ 	"testing"
+@@ -110,6 +111,16 @@ func testAESBlock(t *testing.T) {
+ 	}
+ }
+ 
++func TestExtraMethods(t *testing.T) {
++	if boring.Enabled {
++		t.Skip("Go+BoringCrypto still uses the interface upgrades in crypto/cipher")
++	}
++	cryptotest.TestAllImplementations(t, "aes", func(t *testing.T) {
++		b, _ := NewCipher(make([]byte, 16))
++		cryptotest.NoExtraMethods(t, &b)
++	})
++}
++
+ func BenchmarkEncrypt(b *testing.B) {
+ 	b.Run("AES-128", func(b *testing.B) { benchmarkEncrypt(b, encryptTests[1]) })
+ 	b.Run("AES-192", func(b *testing.B) { benchmarkEncrypt(b, encryptTests[2]) })
+diff --git a/src/crypto/cipher/cbc_test.go b/src/crypto/cipher/cbc_test.go
+index 7c1c12b80b..05accd592d 100644
+--- a/src/crypto/cipher/cbc_test.go
++++ b/src/crypto/cipher/cbc_test.go
+@@ -51,6 +51,16 @@ func TestCBCBlockMode(t *testing.T) {
+ 	})
+ }
+ 
++func TestCBCExtraMethods(t *testing.T) {
++	block, _ := aes.NewCipher(make([]byte, 16))
++	iv := make([]byte, block.BlockSize())
++	s := cipher.NewCBCEncrypter(block, iv)
++	cryptotest.NoExtraMethods(t, &s, "SetIV")
++
++	s = cipher.NewCBCDecrypter(block, iv)
++	cryptotest.NoExtraMethods(t, &s, "SetIV")
++}
++
+ func newRandReader(t *testing.T) io.Reader {
+ 	seed := time.Now().UnixNano()
+ 	t.Logf("Deterministic RNG seed: 0x%x", seed)
+diff --git a/src/crypto/cipher/ctr_test.go b/src/crypto/cipher/ctr_test.go
+index 825004f594..cd2438984e 100644
+--- a/src/crypto/cipher/ctr_test.go
++++ b/src/crypto/cipher/ctr_test.go
+@@ -91,3 +91,10 @@ func TestCTRStream(t *testing.T) {
+ 		cryptotest.TestStreamFromBlock(t, block, cipher.NewCTR)
+ 	})
+ }
++
++func TestCTRExtraMethods(t *testing.T) {
++	block, _ := aes.NewCipher(make([]byte, 16))
++	iv := make([]byte, block.BlockSize())
++	s := cipher.NewCTR(block, iv)
++	cryptotest.NoExtraMethods(t, &s)
++}
+diff --git a/src/crypto/cipher/gcm_test.go b/src/crypto/cipher/gcm_test.go
+index ea2b4e29e2..e574822c9a 100644
+--- a/src/crypto/cipher/gcm_test.go
++++ b/src/crypto/cipher/gcm_test.go
+@@ -736,6 +736,31 @@ func testGCMAEAD(t *testing.T, newCipher func(key []byte) cipher.Block) {
+ 	}
+ }
+ 
++func TestGCMExtraMethods(t *testing.T) {
++	testAllImplementations(t, func(t *testing.T, newCipher func([]byte) cipher.Block) {
++		t.Run("NewGCM", func(t *testing.T) {
++			a, _ := cipher.NewGCM(newCipher(make([]byte, 16)))
++			cryptotest.NoExtraMethods(t, &a)
++		})
++		t.Run("NewGCMWithTagSize", func(t *testing.T) {
++			a, _ := cipher.NewGCMWithTagSize(newCipher(make([]byte, 16)), 12)
++			cryptotest.NoExtraMethods(t, &a)
++		})
++		t.Run("NewGCMWithNonceSize", func(t *testing.T) {
++			a, _ := cipher.NewGCMWithNonceSize(newCipher(make([]byte, 16)), 12)
++			cryptotest.NoExtraMethods(t, &a)
++		})
++		t.Run("NewGCMWithRandomNonce", func(t *testing.T) {
++			block := newCipher(make([]byte, 16))
++			if _, ok := block.(*wrapper); ok || boring.Enabled {
++				t.Skip("NewGCMWithRandomNonce requires an AES block cipher")
++			}
++			a, _ := cipher.NewGCMWithRandomNonce(block)
++			cryptotest.NoExtraMethods(t, &a)
++		})
++	})
++}
++
+ func TestFIPSServiceIndicator(t *testing.T) {
+ 	newGCM := func() cipher.AEAD {
+ 		key := make([]byte, 16)
+diff --git a/src/crypto/internal/cryptotest/methods.go b/src/crypto/internal/cryptotest/methods.go
+new file mode 100644
+index 0000000000..9105eb30aa
+--- /dev/null
++++ b/src/crypto/internal/cryptotest/methods.go
+@@ -0,0 +1,62 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cryptotest
++
++import (
++	"fmt"
++	"reflect"
++	"slices"
++	"testing"
++)
++
++// NoExtraMethods checks that the concrete type of *ms has no exported methods
++// beyond the methods of the interface type of *ms, and any others specified in
++// the allowed list.
++//
++// These methods are accessible through interface upgrades, so they end up part
++// of the API even if undocumented per Hyrum's Law.
++//
++// ms must be a pointer to a non-nil interface.
++func NoExtraMethods(t *testing.T, ms interface{}, allowed ...string) {
++	t.Helper()
++	extraMethods, err := extraMethods(ms)
++	if err != nil {
++		t.Fatal(err)
++	}
++	for _, m := range extraMethods {
++		if slices.Contains(allowed, m) {
++			continue
++		}
++		t.Errorf("unexpected method %q", m)
++	}
++}
++
++func extraMethods(ip interface{}) ([]string, error) {
++	v := reflect.ValueOf(ip)
++	if v.Kind() != reflect.Ptr || v.Elem().Kind() != reflect.Interface || v.Elem().IsNil() {
++		return nil, fmt.Errorf("argument must be a pointer to a non-nil interface")
++	}
++
++	interfaceType := v.Elem().Type()
++	concreteType := v.Elem().Elem().Type()
++
++	interfaceMethods := make(map[string]bool)
++	for i := range interfaceType.NumMethod() {
++		interfaceMethods[interfaceType.Method(i).Name] = true
++	}
++
++	var extraMethods []string
++	for i := range concreteType.NumMethod() {
++		m := concreteType.Method(i)
++		if !m.IsExported() {
++			continue
++		}
++		if !interfaceMethods[m.Name] {
++			extraMethods = append(extraMethods, m.Name)
++		}
++	}
++
++	return extraMethods, nil
++}
+diff --git a/src/crypto/md5/md5_test.go b/src/crypto/md5/md5_test.go
+index 437d9b9d4c..2353ea85b5 100644
+--- a/src/crypto/md5/md5_test.go
++++ b/src/crypto/md5/md5_test.go
+@@ -243,6 +243,11 @@ func TestMD5Hash(t *testing.T) {
+ 	cryptotest.TestHash(t, New)
+ }
+ 
++func TestExtraMethods(t *testing.T) {
++	h := New()
++	cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++}
++
+ var bench = New()
+ var buf = make([]byte, 1024*1024*8+1)
+ var sum = make([]byte, bench.Size())
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index 9d707b7cde..f9243dbf50 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -249,6 +249,12 @@ func TestSHA1Hash(t *testing.T) {
+ 	cryptotest.TestHash(t, New)
+ }
+ 
++func TestExtraMethods(t *testing.T) {
++	h := New()
++	cryptotest.NoExtraMethods(t, &h, "ConstantTimeSum",
++		"MarshalBinary", "UnmarshalBinary", "AppendBinary")
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index e1af9640e2..b3b4e77f57 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -350,6 +350,21 @@ func TestHash(t *testing.T) {
+ 	})
+ }
+ 
++func TestExtraMethods(t *testing.T) {
++	t.Run("SHA-224", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
++			h := New224()
++			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++		})
++	})
++	t.Run("SHA-256", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha256", func(t *testing.T) {
++			h := New()
++			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++		})
++	})
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 
+diff --git a/src/crypto/sha512/sha512_test.go b/src/crypto/sha512/sha512_test.go
+index 1fe9d132bb..7e80f49dea 100644
+--- a/src/crypto/sha512/sha512_test.go
++++ b/src/crypto/sha512/sha512_test.go
+@@ -963,6 +963,33 @@ func TestHash(t *testing.T) {
+ 	})
+ }
+ 
++func TestExtraMethods(t *testing.T) {
++	t.Run("SHA-384", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
++			h := New384()
++			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++		})
++	})
++	t.Run("SHA-512/224", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
++			h := New512_224()
++			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++		})
++	})
++	t.Run("SHA-512/256", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
++			h := New512_256()
++			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++		})
++	})
++	t.Run("SHA-512", func(t *testing.T) {
++		cryptotest.TestAllImplementations(t, "sha512", func(t *testing.T) {
++			h := New()
++			cryptotest.NoExtraMethods(t, &h, "MarshalBinary", "UnmarshalBinary", "AppendBinary")
++		})
++	})
++}
++
+ var bench = New()
+ var buf = make([]byte, 8192)
+ 

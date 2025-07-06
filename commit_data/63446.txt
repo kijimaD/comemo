@@ -1,0 +1,640 @@
+commit 519f6a00e4dabb871eadaefc8ac295c09fd9b56f
+Author: Andy Pan <i@andypan.me>
+Date:   Wed Apr 10 16:48:09 2024 +0800
+
+    runtime: utilize EVFILT_USER to wake up kevent for kqueue
+    
+    Fixes #66760
+    
+    Change-Id: I6ba5bc5b00506b66cb8dc3984a61f32a6358d9bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577895
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/defs1_netbsd_386.go     |  5 +++
+ src/runtime/defs1_netbsd_amd64.go   |  5 +++
+ src/runtime/defs1_netbsd_arm.go     |  5 +++
+ src/runtime/defs1_netbsd_arm64.go   |  5 +++
+ src/runtime/defs_darwin.go          |  5 +++
+ src/runtime/defs_darwin_amd64.go    |  5 +++
+ src/runtime/defs_darwin_arm64.go    |  5 +++
+ src/runtime/defs_dragonfly.go       |  5 +++
+ src/runtime/defs_dragonfly_amd64.go |  5 +++
+ src/runtime/defs_freebsd.go         |  5 +++
+ src/runtime/defs_freebsd_386.go     |  5 +++
+ src/runtime/defs_freebsd_amd64.go   |  5 +++
+ src/runtime/defs_freebsd_arm.go     |  5 +++
+ src/runtime/defs_freebsd_arm64.go   |  5 +++
+ src/runtime/defs_freebsd_riscv64.go |  5 +++
+ src/runtime/defs_netbsd.go          |  5 +++
+ src/runtime/netpoll_kqueue.go       | 54 ++++---------------------
+ src/runtime/netpoll_kqueue_event.go | 80 +++++++++++++++++++++++++++++++++++++
+ src/runtime/netpoll_kqueue_pipe.go  | 73 +++++++++++++++++++++++++++++++++
+ 19 files changed, 240 insertions(+), 47 deletions(-)
+
+diff --git a/src/runtime/defs1_netbsd_386.go b/src/runtime/defs1_netbsd_386.go
+index f7fe45b4ab..16c55def92 100644
+--- a/src/runtime/defs1_netbsd_386.go
++++ b/src/runtime/defs1_netbsd_386.go
+@@ -84,12 +84,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = 0x0
+ 	_EVFILT_WRITE = 0x1
++	_EVFILT_USER  = 0x8
++
++	_NOTE_TRIGGER = 0x1000000
+ )
+ 
+ type sigset struct {
+diff --git a/src/runtime/defs1_netbsd_amd64.go b/src/runtime/defs1_netbsd_amd64.go
+index 80908cd931..7a035a99c8 100644
+--- a/src/runtime/defs1_netbsd_amd64.go
++++ b/src/runtime/defs1_netbsd_amd64.go
+@@ -84,12 +84,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = 0x0
+ 	_EVFILT_WRITE = 0x1
++	_EVFILT_USER  = 0x8
++
++	_NOTE_TRIGGER = 0x1000000
+ )
+ 
+ type sigset struct {
+diff --git a/src/runtime/defs1_netbsd_arm.go b/src/runtime/defs1_netbsd_arm.go
+index c63e592ff1..77a59d4a05 100644
+--- a/src/runtime/defs1_netbsd_arm.go
++++ b/src/runtime/defs1_netbsd_arm.go
+@@ -84,12 +84,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = 0x0
+ 	_EVFILT_WRITE = 0x1
++	_EVFILT_USER  = 0x8
++
++	_NOTE_TRIGGER = 0x1000000
+ )
+ 
+ type sigset struct {
+diff --git a/src/runtime/defs1_netbsd_arm64.go b/src/runtime/defs1_netbsd_arm64.go
+index 804b5b0b3f..0720461f26 100644
+--- a/src/runtime/defs1_netbsd_arm64.go
++++ b/src/runtime/defs1_netbsd_arm64.go
+@@ -84,12 +84,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = 0x0
+ 	_EVFILT_WRITE = 0x1
++	_EVFILT_USER  = 0x8
++
++	_NOTE_TRIGGER = 0x1000000
+ )
+ 
+ type sigset struct {
+diff --git a/src/runtime/defs_darwin.go b/src/runtime/defs_darwin.go
+index e37443307f..9de59be20b 100644
+--- a/src/runtime/defs_darwin.go
++++ b/src/runtime/defs_darwin.go
+@@ -106,12 +106,17 @@ const (
+ 
+ 	EV_ADD       = C.EV_ADD
+ 	EV_DELETE    = C.EV_DELETE
++	EV_ENABLE    = C.EV_ENABLE
++	EV_DISABLE   = C.EV_DISABLE
+ 	EV_CLEAR     = C.EV_CLEAR
+ 	EV_RECEIPT   = C.EV_RECEIPT
+ 	EV_ERROR     = C.EV_ERROR
+ 	EV_EOF       = C.EV_EOF
+ 	EVFILT_READ  = C.EVFILT_READ
+ 	EVFILT_WRITE = C.EVFILT_WRITE
++	EVFILT_USER  = C.EVFILT_USER
++
++	NOTE_TRIGGER = C.NOTE_TRIGGER
+ 
+ 	PTHREAD_CREATE_DETACHED = C.PTHREAD_CREATE_DETACHED
+ 
+diff --git a/src/runtime/defs_darwin_amd64.go b/src/runtime/defs_darwin_amd64.go
+index f998b0be91..c0ca16d463 100644
+--- a/src/runtime/defs_darwin_amd64.go
++++ b/src/runtime/defs_darwin_amd64.go
+@@ -85,12 +85,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
++	_EVFILT_USER  = -0xa
++
++	_NOTE_TRIGGER = 0x1000000
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x2
+ 
+diff --git a/src/runtime/defs_darwin_arm64.go b/src/runtime/defs_darwin_arm64.go
+index e07b08e0ee..cb534cacda 100644
+--- a/src/runtime/defs_darwin_arm64.go
++++ b/src/runtime/defs_darwin_arm64.go
+@@ -85,12 +85,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
++	_EVFILT_USER  = -0xa
++
++	_NOTE_TRIGGER = 0x1000000
+ 
+ 	_PTHREAD_CREATE_DETACHED = 0x2
+ 
+diff --git a/src/runtime/defs_dragonfly.go b/src/runtime/defs_dragonfly.go
+index 0463f1f116..d94461fe47 100644
+--- a/src/runtime/defs_dragonfly.go
++++ b/src/runtime/defs_dragonfly.go
+@@ -109,11 +109,16 @@ const (
+ 
+ 	EV_ADD       = C.EV_ADD
+ 	EV_DELETE    = C.EV_DELETE
++	EV_ENABLE    = C.EV_ENABLE
++	EV_DISABLE   = C.EV_DISABLE
+ 	EV_CLEAR     = C.EV_CLEAR
+ 	EV_ERROR     = C.EV_ERROR
+ 	EV_EOF       = C.EV_EOF
+ 	EVFILT_READ  = C.EVFILT_READ
+ 	EVFILT_WRITE = C.EVFILT_WRITE
++	EVFILT_USER  = C.EVFILT_USER
++
++	NOTE_TRIGGER = C.NOTE_TRIGGER
+ )
+ 
+ type Rtprio C.struct_rtprio
+diff --git a/src/runtime/defs_dragonfly_amd64.go b/src/runtime/defs_dragonfly_amd64.go
+index 41bfb085d1..b142ae1d14 100644
+--- a/src/runtime/defs_dragonfly_amd64.go
++++ b/src/runtime/defs_dragonfly_amd64.go
+@@ -88,11 +88,16 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
++	_EVFILT_USER  = -0x9
++
++	_NOTE_TRIGGER = 0x1000000
+ )
+ 
+ type rtprio struct {
+diff --git a/src/runtime/defs_freebsd.go b/src/runtime/defs_freebsd.go
+index d86ae9133a..70d82b90da 100644
+--- a/src/runtime/defs_freebsd.go
++++ b/src/runtime/defs_freebsd.go
+@@ -136,12 +136,17 @@ const (
+ 
+ 	EV_ADD       = C.EV_ADD
+ 	EV_DELETE    = C.EV_DELETE
++	EV_ENABLE    = C.EV_ENABLE
++	EV_DISABLE   = C.EV_DISABLE
+ 	EV_CLEAR     = C.EV_CLEAR
+ 	EV_RECEIPT   = C.EV_RECEIPT
+ 	EV_ERROR     = C.EV_ERROR
+ 	EV_EOF       = C.EV_EOF
+ 	EVFILT_READ  = C.EVFILT_READ
+ 	EVFILT_WRITE = C.EVFILT_WRITE
++	EVFILT_USER  = C.EVFILT_USER
++
++	NOTE_TRIGGER = C.NOTE_TRIGGER
+ )
+ 
+ type Rtprio C.struct_rtprio
+diff --git a/src/runtime/defs_freebsd_386.go b/src/runtime/defs_freebsd_386.go
+index ee8274188a..42a0faf74d 100644
+--- a/src/runtime/defs_freebsd_386.go
++++ b/src/runtime/defs_freebsd_386.go
+@@ -104,12 +104,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
++	_EVFILT_USER  = -0xb
++
++	_NOTE_TRIGGER = 0x1000000
+ )
+ 
+ type rtprio struct {
+diff --git a/src/runtime/defs_freebsd_amd64.go b/src/runtime/defs_freebsd_amd64.go
+index 9003f92015..8f0b08d48a 100644
+--- a/src/runtime/defs_freebsd_amd64.go
++++ b/src/runtime/defs_freebsd_amd64.go
+@@ -104,12 +104,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
++	_EVFILT_USER  = -0xb
++
++	_NOTE_TRIGGER = 0x1000000
+ )
+ 
+ type rtprio struct {
+diff --git a/src/runtime/defs_freebsd_arm.go b/src/runtime/defs_freebsd_arm.go
+index 68cc1b9545..dbb54da51b 100644
+--- a/src/runtime/defs_freebsd_arm.go
++++ b/src/runtime/defs_freebsd_arm.go
+@@ -104,12 +104,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
++	_EVFILT_USER  = -0xb
++
++	_NOTE_TRIGGER = 0x1000000
+ )
+ 
+ type rtprio struct {
+diff --git a/src/runtime/defs_freebsd_arm64.go b/src/runtime/defs_freebsd_arm64.go
+index 1d6723621a..83b639381b 100644
+--- a/src/runtime/defs_freebsd_arm64.go
++++ b/src/runtime/defs_freebsd_arm64.go
+@@ -104,12 +104,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
++	_EVFILT_USER  = -0xb
++
++	_NOTE_TRIGGER = 0x1000000
+ )
+ 
+ type rtprio struct {
+diff --git a/src/runtime/defs_freebsd_riscv64.go b/src/runtime/defs_freebsd_riscv64.go
+index b977bde551..5d9a5ac7fd 100644
+--- a/src/runtime/defs_freebsd_riscv64.go
++++ b/src/runtime/defs_freebsd_riscv64.go
+@@ -103,12 +103,17 @@ const (
+ 
+ 	_EV_ADD       = 0x1
+ 	_EV_DELETE    = 0x2
++	_EV_ENABLE    = 0x4
++	_EV_DISABLE   = 0x8
+ 	_EV_CLEAR     = 0x20
+ 	_EV_RECEIPT   = 0x40
+ 	_EV_ERROR     = 0x4000
+ 	_EV_EOF       = 0x8000
+ 	_EVFILT_READ  = -0x1
+ 	_EVFILT_WRITE = -0x2
++	_EVFILT_USER  = -0xb
++
++	_NOTE_TRIGGER = 0x1000000
+ )
+ 
+ type rtprio struct {
+diff --git a/src/runtime/defs_netbsd.go b/src/runtime/defs_netbsd.go
+index 43923e3075..ec4d796bd3 100644
+--- a/src/runtime/defs_netbsd.go
++++ b/src/runtime/defs_netbsd.go
+@@ -110,12 +110,17 @@ const (
+ 
+ 	EV_ADD       = C.EV_ADD
+ 	EV_DELETE    = C.EV_DELETE
++	EV_ENABLE    = C.EV_ENABLE
++	EV_DISABLE   = C.EV_DISABLE
+ 	EV_CLEAR     = C.EV_CLEAR
+ 	EV_RECEIPT   = 0
+ 	EV_ERROR     = C.EV_ERROR
+ 	EV_EOF       = C.EV_EOF
+ 	EVFILT_READ  = C.EVFILT_READ
+ 	EVFILT_WRITE = C.EVFILT_WRITE
++	EVFILT_USER  = C.EVFILT_USER
++
++	NOTE_TRIGGER = C.NOTE_TRIGGER
+ )
+ 
+ type Sigset C.sigset_t
+diff --git a/src/runtime/netpoll_kqueue.go b/src/runtime/netpoll_kqueue.go
+index 32c21a2b2b..6cd80d5c30 100644
+--- a/src/runtime/netpoll_kqueue.go
++++ b/src/runtime/netpoll_kqueue.go
+@@ -15,10 +15,7 @@ import (
+ )
+ 
+ var (
+-	kq int32 = -1
+-
+-	netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
+-
++	kq             int32         = -1
+ 	netpollWakeSig atomic.Uint32 // used to avoid duplicate calls of netpollBreak
+ )
+ 
+@@ -29,27 +26,7 @@ func netpollinit() {
+ 		throw("runtime: netpollinit failed")
+ 	}
+ 	closeonexec(kq)
+-	r, w, errno := nonblockingPipe()
+-	if errno != 0 {
+-		println("runtime: pipe failed with", -errno)
+-		throw("runtime: pipe failed")
+-	}
+-	ev := keventt{
+-		filter: _EVFILT_READ,
+-		flags:  _EV_ADD,
+-	}
+-	*(*uintptr)(unsafe.Pointer(&ev.ident)) = uintptr(r)
+-	n := kevent(kq, &ev, 1, nil, 0, nil)
+-	if n < 0 {
+-		println("runtime: kevent failed with", -n)
+-		throw("runtime: kevent failed")
+-	}
+-	netpollBreakRd = uintptr(r)
+-	netpollBreakWr = uintptr(w)
+-}
+-
+-func netpollIsPollDescriptor(fd uintptr) bool {
+-	return fd == uintptr(kq) || fd == netpollBreakRd || fd == netpollBreakWr
++	addWakeupEvent(kq)
+ }
+ 
+ func netpollopen(fd uintptr, pd *pollDesc) int32 {
+@@ -99,18 +76,7 @@ func netpollBreak() {
+ 		return
+ 	}
+ 
+-	for {
+-		var b byte
+-		n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
+-		if n == 1 || n == -_EAGAIN {
+-			break
+-		}
+-		if n == -_EINTR {
+-			continue
+-		}
+-		println("runtime: netpollBreak write failed with", -n)
+-		throw("runtime: netpollBreak write failed")
+-	}
++	wakeNetpoll(kq)
+ }
+ 
+ // netpoll checks for ready network connections.
+@@ -159,17 +125,11 @@ retry:
+ 	for i := 0; i < int(n); i++ {
+ 		ev := &events[i]
+ 
+-		if uintptr(ev.ident) == netpollBreakRd {
+-			if ev.filter != _EVFILT_READ {
+-				println("runtime: netpoll: break fd ready for", ev.filter)
+-				throw("runtime: netpoll: break fd ready for something unexpected")
+-			}
++		if isWakeup(ev) {
+ 			if delay != 0 {
+-				// netpollBreak could be picked up by a
+-				// nonblocking poll. Only read the byte
+-				// if blocking.
+-				var tmp [16]byte
+-				read(int32(netpollBreakRd), noescape(unsafe.Pointer(&tmp[0])), int32(len(tmp)))
++				// netpollBreak could be picked up by a nonblocking poll.
++				// Only call drainWakeupEvent and reset the netpollWakeSig if blocking.
++				drainWakeupEvent(kq)
+ 				netpollWakeSig.Store(0)
+ 			}
+ 			continue
+diff --git a/src/runtime/netpoll_kqueue_event.go b/src/runtime/netpoll_kqueue_event.go
+new file mode 100644
+index 0000000000..6419656414
+--- /dev/null
++++ b/src/runtime/netpoll_kqueue_event.go
+@@ -0,0 +1,80 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || dragonfly || freebsd
++
++package runtime
++
++// Magic number of identifier used for EVFILT_USER.
++// This number had zero Google results when it's created.
++// That way, people will be directed here when this number
++// get printed somehow and they search for it.
++const kqIdent = 0xee1eb9f4
++
++func addWakeupEvent(_ int32) {
++	ev := keventt{
++		ident:  kqIdent,
++		filter: _EVFILT_USER,
++		flags:  _EV_ADD,
++	}
++	for {
++		n := kevent(kq, &ev, 1, nil, 0, nil)
++		if n == 0 {
++			break
++		}
++		if n == -_EINTR {
++			// All changes contained in the changelist should have been applied
++			// before returning EINTR. But let's be skeptical and retry it anyway,
++			// to make a 100% commitment.
++			continue
++		}
++		println("runtime: kevent for EVFILT_USER failed with", -n)
++		throw("runtime: kevent failed")
++	}
++}
++
++func wakeNetpoll(kq int32) {
++	ev := keventt{
++		ident:  kqIdent,
++		filter: _EVFILT_USER,
++		flags:  _EV_ENABLE,
++		fflags: _NOTE_TRIGGER,
++	}
++	for {
++		n := kevent(kq, &ev, 1, nil, 0, nil)
++		if n == 0 {
++			break
++		}
++		if n == -_EINTR {
++			// Check out the comment in addWakeupEvent.
++			continue
++		}
++		println("runtime: netpollBreak write failed with", -n)
++		throw("runtime: netpollBreak write failed")
++	}
++}
++
++func isWakeup(ev *keventt) bool {
++	if ev.filter == _EVFILT_USER {
++		if ev.ident == kqIdent {
++			return true
++		}
++		println("runtime: netpoll: break fd ready for", ev.ident)
++		throw("runtime: netpoll: break fd ready for something unexpected")
++	}
++	return false
++}
++
++func drainWakeupEvent(kq int32) {
++	ev := keventt{
++		ident:  kqIdent,
++		filter: _EVFILT_USER,
++		flags:  _EV_DISABLE,
++	}
++	kevent(kq, &ev, 1, nil, 0, nil)
++}
++
++func netpollIsPollDescriptor(fd uintptr) bool {
++	return fd == uintptr(kq)
++}
+diff --git a/src/runtime/netpoll_kqueue_pipe.go b/src/runtime/netpoll_kqueue_pipe.go
+new file mode 100644
+index 0000000000..98f73e84d2
+--- /dev/null
++++ b/src/runtime/netpoll_kqueue_pipe.go
+@@ -0,0 +1,73 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build netbsd || openbsd
++
++package runtime
++
++import "unsafe"
++
++// TODO(panjf2000): NetBSD didn't implement EVFILT_USER for user-established events
++// until NetBSD 10.0, check out https://www.netbsd.org/releases/formal-10/NetBSD-10.0.html
++// Therefore we use the pipe to wake up the kevent on NetBSD at this point. Get back here
++// and switch to EVFILT_USER when we bump up the minimal requirement of NetBSD to 10.0.
++// Alternatively, maybe we can use EVFILT_USER on the NetBSD by checking the kernel version
++// via uname(3) and fall back to the pipe if the kernel version is older than 10.0.
++
++var netpollBreakRd, netpollBreakWr uintptr // for netpollBreak
++
++func addWakeupEvent(kq int32) {
++	r, w, errno := nonblockingPipe()
++	if errno != 0 {
++		println("runtime: pipe failed with", -errno)
++		throw("runtime: pipe failed")
++	}
++	ev := keventt{
++		filter: _EVFILT_READ,
++		flags:  _EV_ADD,
++	}
++	*(*uintptr)(unsafe.Pointer(&ev.ident)) = uintptr(r)
++	n := kevent(kq, &ev, 1, nil, 0, nil)
++	if n < 0 {
++		println("runtime: kevent failed with", -n)
++		throw("runtime: kevent failed")
++	}
++	netpollBreakRd = uintptr(r)
++	netpollBreakWr = uintptr(w)
++}
++
++func wakeNetpoll(_ int32) {
++	for {
++		var b byte
++		n := write(netpollBreakWr, unsafe.Pointer(&b), 1)
++		if n == 1 || n == -_EAGAIN {
++			break
++		}
++		if n == -_EINTR {
++			continue
++		}
++		println("runtime: netpollBreak write failed with", -n)
++		throw("runtime: netpollBreak write failed")
++	}
++}
++
++func isWakeup(ev *keventt) bool {
++	if uintptr(ev.ident) == netpollBreakRd {
++		if ev.filter == _EVFILT_READ {
++			return true
++		}
++		println("runtime: netpoll: break fd ready for", ev.filter)
++		throw("runtime: netpoll: break fd ready for something unexpected")
++	}
++	return false
++}
++
++func drainWakeupEvent(_ int32) {
++	var buf [16]byte
++	read(int32(netpollBreakRd), noescape(unsafe.Pointer(&buf[0])), int32(len(buf)))
++}
++
++func netpollIsPollDescriptor(fd uintptr) bool {
++	return fd == uintptr(kq) || fd == netpollBreakRd || fd == netpollBreakWr
++}

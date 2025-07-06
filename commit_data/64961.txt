@@ -1,0 +1,127 @@
+commit b2a856e82cf889cdba26476b5d55f8dd340604d0
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 1 11:33:50 2024 +0200
+
+    all: use slices.Delete
+    
+    Change-Id: Ifb6aa07b32127907cdc2df44b2dbddd6296775c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616737
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/cgo/internal/testerrors/ptr_test.go | 2 +-
+ src/cmd/compile/internal/ssa/debug.go       | 2 +-
+ src/cmd/compile/internal/ssa/poset.go       | 3 ++-
+ src/cmd/fix/netipv6zone.go                  | 7 +++++--
+ src/cmd/go/go_test.go                       | 3 ++-
+ src/go/token/position.go                    | 2 +-
+ 6 files changed, 12 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testerrors/ptr_test.go b/src/cmd/cgo/internal/testerrors/ptr_test.go
+index 8fff7615d3..4f8a0ee583 100644
+--- a/src/cmd/cgo/internal/testerrors/ptr_test.go
++++ b/src/cmd/cgo/internal/testerrors/ptr_test.go
+@@ -607,7 +607,7 @@ func buildPtrTests(t *testing.T, gopath string, cgocheck2 bool) (exe string) {
+ 		goexperiment = append(goexperiment, "cgocheck2")
+ 		changed = true
+ 	} else if !cgocheck2 && i >= 0 {
+-		goexperiment = append(goexperiment[:i], goexperiment[i+1:]...)
++		goexperiment = slices.Delete(goexperiment, i, i+1)
+ 		changed = true
+ 	}
+ 	if changed {
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index 91620798ff..381777c17d 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -1681,7 +1681,7 @@ func locatePrologEnd(f *Func, needCloCtx bool) (ID, *Value) {
+ 	removeReg := func(r ID) bool {
+ 		for i := 0; i < len(regArgs); i++ {
+ 			if regArgs[i] == r {
+-				regArgs = append(regArgs[:i], regArgs[i+1:]...)
++				regArgs = slices.Delete(regArgs, i, i+1)
+ 				return true
+ 			}
+ 		}
+diff --git a/src/cmd/compile/internal/ssa/poset.go b/src/cmd/compile/internal/ssa/poset.go
+index 50b4d17889..b7859166f4 100644
+--- a/src/cmd/compile/internal/ssa/poset.go
++++ b/src/cmd/compile/internal/ssa/poset.go
+@@ -7,6 +7,7 @@ package ssa
+ import (
+ 	"fmt"
+ 	"os"
++	"slices"
+ )
+ 
+ // If true, check poset integrity after every mutation
+@@ -350,7 +351,7 @@ func (po *poset) changeroot(oldr, newr uint32) {
+ func (po *poset) removeroot(r uint32) {
+ 	for i := range po.roots {
+ 		if po.roots[i] == r {
+-			po.roots = append(po.roots[:i], po.roots[i+1:]...)
++			po.roots = slices.Delete(po.roots, i, i+1)
+ 			return
+ 		}
+ 	}
+diff --git a/src/cmd/fix/netipv6zone.go b/src/cmd/fix/netipv6zone.go
+index 199fcf5bf5..c27b4b4529 100644
+--- a/src/cmd/fix/netipv6zone.go
++++ b/src/cmd/fix/netipv6zone.go
+@@ -4,7 +4,10 @@
+ 
+ package main
+ 
+-import "go/ast"
++import (
++	"go/ast"
++	"slices"
++)
+ 
+ func init() {
+ 	register(netipv6zoneFix)
+@@ -52,7 +55,7 @@ func netipv6zone(f *ast.File) bool {
+ 					}
+ 				case 1:
+ 					if elit, ok := e.(*ast.BasicLit); ok && elit.Value == "0" {
+-						cl.Elts = append(cl.Elts[:i], cl.Elts[i+1:]...)
++						cl.Elts = slices.Delete(cl.Elts, i, i+1)
+ 					} else {
+ 						cl.Elts[i] = &ast.KeyValueExpr{
+ 							Key:   ast.NewIdent("Port"),
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 3370331b85..b99656d3ce 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -25,6 +25,7 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"runtime"
++	"slices"
+ 	"strconv"
+ 	"strings"
+ 	"testing"
+@@ -473,7 +474,7 @@ func (tg *testgoData) unsetenv(name string) {
+ 	}
+ 	for i, v := range tg.env {
+ 		if strings.HasPrefix(v, name+"=") {
+-			tg.env = append(tg.env[:i], tg.env[i+1:]...)
++			tg.env = slices.Delete(tg.env, i, i+1)
+ 			break
+ 		}
+ 	}
+diff --git a/src/go/token/position.go b/src/go/token/position.go
+index 4675e93703..35ef14da87 100644
+--- a/src/go/token/position.go
++++ b/src/go/token/position.go
+@@ -503,7 +503,7 @@ func (s *FileSet) RemoveFile(file *File) {
+ 
+ 	if i := searchFiles(s.files, file.base); i >= 0 && s.files[i] == file {
+ 		last := &s.files[len(s.files)-1]
+-		s.files = append(s.files[:i], s.files[i+1:]...)
++		s.files = slices.Delete(s.files, i, i+1)
+ 		*last = nil // don't prolong lifetime when popping last element
+ 	}
+ }

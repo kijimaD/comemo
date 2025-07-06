@@ -1,0 +1,1182 @@
+commit a3eb55cea95b5894e97f311be981cda0e87bd465
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 30 16:20:07 2024 -0400
+
+    cmd/vendor: update x/tools to v0.20.1-0.20240429173604-74c9cfe4d22f
+    
+    The golang.org/x/tools/go/analysis/passes/stdversion was forcibly
+    added by means of an import in a throwaway file not committed.
+    
+    Change-Id: I194012ae354f6f8d2d0c1fa39612e5554a4ab1cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582555
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/cmd/go.mod                                     |   6 +-
+ src/cmd/go.sum                                     |  12 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/read.go    |   2 +-
+ src/cmd/vendor/golang.org/x/mod/modfile/rule.go    |   2 +
+ src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tile.go |  10 +-
+ .../golang.org/x/sync/semaphore/semaphore.go       |  42 ++++--
+ .../golang.org/x/tools/go/analysis/analysis.go     |  13 ++
+ .../vendor/golang.org/x/tools/go/analysis/doc.go   |  30 ++--
+ .../x/tools/go/analysis/passes/asmdecl/asmdecl.go  |   2 +-
+ .../tools/go/analysis/passes/buildtag/buildtag.go  |   2 +-
+ .../go/analysis/passes/buildtag/buildtag_old.go    |   2 +-
+ .../go/analysis/passes/directive/directive.go      |   2 +-
+ .../analysis/passes/framepointer/framepointer.go   |   2 +-
+ .../analysis/passes/internal/analysisutil/util.go  |  11 +-
+ .../x/tools/go/analysis/passes/printf/doc.go       |  60 ++++++--
+ .../go/analysis/passes/stdversion/stdversion.go    | 159 +++++++++++++++++++++
+ .../x/tools/go/analysis/passes/tests/tests.go      |  19 ++-
+ .../x/tools/go/analysis/unitchecker/unitchecker.go |   2 +
+ .../golang.org/x/tools/go/types/typeutil/map.go    |  26 ++--
+ .../golang.org/x/tools/internal/aliases/aliases.go |  12 +-
+ .../x/tools/internal/aliases/aliases_go121.go      |  15 +-
+ .../x/tools/internal/aliases/aliases_go122.go      |  69 ++++-----
+ .../x/tools/internal/analysisinternal/analysis.go  |  53 +++++--
+ .../golang.org/x/tools/internal/facts/facts.go     |   4 +-
+ .../x/tools/internal/typeparams/common.go          |   2 +-
+ .../x/tools/internal/typesinternal/errorcode.go    |   4 +-
+ src/cmd/vendor/modules.txt                         |   7 +-
+ 27 files changed, 430 insertions(+), 140 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index acd8c9fa46..189d71f713 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,12 +6,12 @@ require (
+ 	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
+ 	golang.org/x/arch v0.7.0
+ 	golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+-	golang.org/x/mod v0.16.0
+-	golang.org/x/sync v0.6.0
++	golang.org/x/mod v0.17.0
++	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.19.0
+ 	golang.org/x/telemetry v0.0.0-20240401194020-3640ba572dd1
+ 	golang.org/x/term v0.18.0
+-	golang.org/x/tools v0.19.1-0.20240329171618-904c6baa6e14
++	golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
+ )
+ 
+ require (
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index bd92d3c83f..3967087b8e 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -26,10 +26,10 @@ golang.org/x/arch v0.7.0 h1:pskyeJh/3AmoQ8CPE95vxHLqp1G1GfGNXTmcl9NEKTc=
+ golang.org/x/arch v0.7.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+ golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f h1:XQ2eu0I26WsNCKQkRehp+5mwjjChw94trD9LT8LLSq0=
+ golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f/go.mod h1:HTqTCkubWT8epEK9hDWWGkoOOB7LGSrU1qvWZCSwO50=
+-golang.org/x/mod v0.16.0 h1:QX4fJ0Rr5cPQCF7O9lh9Se4pmwfwskqZfq5moyldzic=
+-golang.org/x/mod v0.16.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+-golang.org/x/sync v0.6.0 h1:5BMeUDZ7vkXGfEr1x9B4bRcTH4lpkTkpdh0T/J+qjbQ=
+-golang.org/x/sync v0.6.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
++golang.org/x/mod v0.17.0 h1:zY54UmvipHiNd+pm+m0x9KhZ9hl1/7QNMyxXbc6ICqA=
++golang.org/x/mod v0.17.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
++golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.19.0 h1:q5f1RH2jigJ1MoAWp2KTp3gm5zAGFUTarQZ5U386+4o=
+ golang.org/x/sys v0.19.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/telemetry v0.0.0-20240401194020-3640ba572dd1 h1:x0E096pmZoLhjEfcM4q2gJ3eZvnTpZiYDSPDYtm4wME=
+@@ -38,7 +38,7 @@ golang.org/x/term v0.18.0 h1:FcHjZXDMxI8mM3nwhX9HlKop4C0YQvCVCdwYl2wOtE8=
+ golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+ golang.org/x/text v0.14.0/go.mod h1:18ZOQIKpY8NJVqYksKHtTdi31H5itFRjB5/qKTNYzSU=
+-golang.org/x/tools v0.19.1-0.20240329171618-904c6baa6e14 h1:apiqzCtEqbg/NjzevIbwubwnRo7WZDOgdr8s6ZvIKi0=
+-golang.org/x/tools v0.19.1-0.20240329171618-904c6baa6e14/go.mod h1:qoJWxmGSIBmAeriMx19ogtrEPrGtDbPK634QFIcLAhc=
++golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f h1:VNKRNwDFpvmQ9DziicBj7Xs8Xr9zFtHVVCccBLiV+nI=
++golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f/go.mod h1:EUhO3BJA9eB8d9EAsGPjXxkzI1Rl/NRgB9zrdAzyoWI=
+ rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650 h1:fuOABZYWclLVNotDsHVaFixLdtoC7+UQZJ0KSC1ocm0=
+ rsc.io/markdown v0.0.0-20240117044121-669d2fdf1650/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/read.go b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+index 5b5bb5e115..2205682591 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/read.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/read.go
+@@ -225,7 +225,7 @@ func (x *FileSyntax) Cleanup() {
+ 			if ww == 0 {
+ 				continue
+ 			}
+-			if ww == 1 {
++			if ww == 1 && len(stmt.RParen.Comments.Before) == 0 {
+ 				// Collapse block into single line.
+ 				line := &Line{
+ 					Comments: Comments{
+diff --git a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+index 26acaa5f7c..0e7b7e2679 100644
+--- a/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
++++ b/src/cmd/vendor/golang.org/x/mod/modfile/rule.go
+@@ -975,6 +975,8 @@ func (f *File) AddGoStmt(version string) error {
+ 		var hint Expr
+ 		if f.Module != nil && f.Module.Syntax != nil {
+ 			hint = f.Module.Syntax
++		} else if f.Syntax == nil {
++			f.Syntax = new(FileSyntax)
+ 		}
+ 		f.Go = &Go{
+ 			Version: version,
+diff --git a/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tile.go b/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tile.go
+index 857d487551..37771c5310 100644
+--- a/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tile.go
++++ b/src/cmd/vendor/golang.org/x/mod/sumdb/tlog/tile.go
+@@ -115,16 +115,14 @@ func NewTiles(h int, oldTreeSize, newTreeSize int64) []Tile {
+ 	for level := uint(0); newTreeSize>>(H*level) > 0; level++ {
+ 		oldN := oldTreeSize >> (H * level)
+ 		newN := newTreeSize >> (H * level)
++		if oldN == newN {
++			continue
++		}
+ 		for n := oldN >> H; n < newN>>H; n++ {
+ 			tiles = append(tiles, Tile{H: h, L: int(level), N: n, W: 1 << H})
+ 		}
+ 		n := newN >> H
+-		maxW := int(newN - n<<H)
+-		minW := 1
+-		if oldN > n<<H {
+-			minW = int(oldN - n<<H)
+-		}
+-		for w := minW; w <= maxW; w++ {
++		if w := int(newN - n<<H); w > 0 {
+ 			tiles = append(tiles, Tile{H: h, L: int(level), N: n, W: w})
+ 		}
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/sync/semaphore/semaphore.go b/src/cmd/vendor/golang.org/x/sync/semaphore/semaphore.go
+index 30f632c577..b618162aab 100644
+--- a/src/cmd/vendor/golang.org/x/sync/semaphore/semaphore.go
++++ b/src/cmd/vendor/golang.org/x/sync/semaphore/semaphore.go
+@@ -35,11 +35,25 @@ type Weighted struct {
+ // Acquire acquires the semaphore with a weight of n, blocking until resources
+ // are available or ctx is done. On success, returns nil. On failure, returns
+ // ctx.Err() and leaves the semaphore unchanged.
+-//
+-// If ctx is already done, Acquire may still succeed without blocking.
+ func (s *Weighted) Acquire(ctx context.Context, n int64) error {
++	done := ctx.Done()
++
+ 	s.mu.Lock()
++	select {
++	case <-done:
++		// ctx becoming done has "happened before" acquiring the semaphore,
++		// whether it became done before the call began or while we were
++		// waiting for the mutex. We prefer to fail even if we could acquire
++		// the mutex without blocking.
++		s.mu.Unlock()
++		return ctx.Err()
++	default:
++	}
+ 	if s.size-s.cur >= n && s.waiters.Len() == 0 {
++		// Since we hold s.mu and haven't synchronized since checking done, if
++		// ctx becomes done before we return here, it becoming done must have
++		// "happened concurrently" with this call - it cannot "happen before"
++		// we return in this branch. So, we're ok to always acquire here.
+ 		s.cur += n
+ 		s.mu.Unlock()
+ 		return nil
+@@ -48,7 +62,7 @@ func (s *Weighted) Acquire(ctx context.Context, n int64) error {
+ 	if n > s.size {
+ 		// Don't make other Acquire calls block on one that's doomed to fail.
+ 		s.mu.Unlock()
+-		<-ctx.Done()
++		<-done
+ 		return ctx.Err()
+ 	}
+ 
+@@ -58,14 +72,14 @@ func (s *Weighted) Acquire(ctx context.Context, n int64) error {
+ 	s.mu.Unlock()
+ 
+ 	select {
+-	case <-ctx.Done():
+-		err := ctx.Err()
++	case <-done:
+ 		s.mu.Lock()
+ 		select {
+ 		case <-ready:
+-			// Acquired the semaphore after we were canceled.  Rather than trying to
+-			// fix up the queue, just pretend we didn't notice the cancelation.
+-			err = nil
++			// Acquired the semaphore after we were canceled.
++			// Pretend we didn't and put the tokens back.
++			s.cur -= n
++			s.notifyWaiters()
+ 		default:
+ 			isFront := s.waiters.Front() == elem
+ 			s.waiters.Remove(elem)
+@@ -75,9 +89,19 @@ func (s *Weighted) Acquire(ctx context.Context, n int64) error {
+ 			}
+ 		}
+ 		s.mu.Unlock()
+-		return err
++		return ctx.Err()
+ 
+ 	case <-ready:
++		// Acquired the semaphore. Check that ctx isn't already done.
++		// We check the done channel instead of calling ctx.Err because we
++		// already have the channel, and ctx.Err is O(n) with the nesting
++		// depth of ctx.
++		select {
++		case <-done:
++			s.Release(n)
++			return ctx.Err()
++		default:
++		}
+ 		return nil
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+index 5da33c7e6e..5211773657 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/analysis.go
+@@ -112,6 +112,19 @@ type Pass struct {
+ 	// analysis's ResultType.
+ 	ResultOf map[*Analyzer]interface{}
+ 
++	// ReadFile returns the contents of the named file.
++	//
++	// The only valid file names are the elements of OtherFiles
++	// and IgnoredFiles, and names returned by
++	// Fset.File(f.FileStart).Name() for each f in Files.
++	//
++	// Analyzers must use this function (if provided) instead of
++	// accessing the file system directly. This allows a driver to
++	// provide a virtualized file tree (including, for example,
++	// unsaved editor buffers) and to track dependencies precisely
++	// to avoid unnecessary recomputation.
++	ReadFile func(filename string) ([]byte, error)
++
+ 	// -- facts --
+ 
+ 	// ImportObjectFact retrieves a fact associated with obj.
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+index 44867d599e..2a0aa57712 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/doc.go
+@@ -32,7 +32,7 @@ bases, and so on.
+ 
+ # Analyzer
+ 
+-The primary type in the API is Analyzer. An Analyzer statically
++The primary type in the API is [Analyzer]. An Analyzer statically
+ describes an analysis function: its name, documentation, flags,
+ relationship to other analyzers, and of course, its logic.
+ 
+@@ -72,7 +72,7 @@ help that describes the analyses it performs.
+ The doc comment contains a brief one-line summary,
+ optionally followed by paragraphs of explanation.
+ 
+-The Analyzer type has more fields besides those shown above:
++The [Analyzer] type has more fields besides those shown above:
+ 
+ 	type Analyzer struct {
+ 		Name             string
+@@ -114,7 +114,7 @@ instance of the Pass type.
+ 
+ # Pass
+ 
+-A Pass describes a single unit of work: the application of a particular
++A [Pass] describes a single unit of work: the application of a particular
+ Analyzer to a particular package of Go code.
+ The Pass provides information to the Analyzer's Run function about the
+ package being analyzed, and provides operations to the Run function for
+@@ -135,16 +135,14 @@ reporting diagnostics and other information back to the driver.
+ The Fset, Files, Pkg, and TypesInfo fields provide the syntax trees,
+ type information, and source positions for a single package of Go code.
+ 
+-The OtherFiles field provides the names, but not the contents, of non-Go
+-files such as assembly that are part of this package. See the "asmdecl"
+-or "buildtags" analyzers for examples of loading non-Go files and reporting
+-diagnostics against them.
+-
+-The IgnoredFiles field provides the names, but not the contents,
+-of ignored Go and non-Go source files that are not part of this package
+-with the current build configuration but may be part of other build
+-configurations. See the "buildtags" analyzer for an example of loading
+-and checking IgnoredFiles.
++The OtherFiles field provides the names of non-Go
++files such as assembly that are part of this package.
++Similarly, the IgnoredFiles field provides the names of Go and non-Go
++source files that are not part of this package with the current build
++configuration but may be part of other build configurations.
++The contents of these files may be read using Pass.ReadFile;
++see the "asmdecl" or "buildtags" analyzers for examples of loading
++non-Go files and reporting diagnostics against them.
+ 
+ The ResultOf field provides the results computed by the analyzers
+ required by this one, as expressed in its Analyzer.Requires field. The
+@@ -177,7 +175,7 @@ Diagnostic is defined as:
+ The optional Category field is a short identifier that classifies the
+ kind of message when an analysis produces several kinds of diagnostic.
+ 
+-The Diagnostic struct does not have a field to indicate its severity
++The [Diagnostic] struct does not have a field to indicate its severity
+ because opinions about the relative importance of Analyzers and their
+ diagnostics vary widely among users. The design of this framework does
+ not hold each Analyzer responsible for identifying the severity of its
+@@ -191,7 +189,7 @@ and buildtag, inspect the raw text of Go source files or even non-Go
+ files such as assembly. To report a diagnostic against a line of a
+ raw text file, use the following sequence:
+ 
+-	content, err := os.ReadFile(filename)
++	content, err := pass.ReadFile(filename)
+ 	if err != nil { ... }
+ 	tf := fset.AddFile(filename, -1, len(content))
+ 	tf.SetLinesForContent(content)
+@@ -216,7 +214,7 @@ addition, it records which functions are printf wrappers for use by
+ later analysis passes to identify other printf wrappers by induction.
+ A result such as “f is a printf wrapper” that is not interesting by
+ itself but serves as a stepping stone to an interesting result (such as
+-a diagnostic) is called a "fact".
++a diagnostic) is called a [Fact].
+ 
+ The analysis API allows an analysis to define new types of facts, to
+ associate facts of these types with objects (named entities) declared
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+index f2ca95aa9e..3417232ce3 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/asmdecl/asmdecl.go
+@@ -173,7 +173,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 
+ Files:
+ 	for _, fname := range sfiles {
+-		content, tf, err := analysisutil.ReadFile(pass.Fset, fname)
++		content, tf, err := analysisutil.ReadFile(pass, fname)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+index 55bdad78b7..51ba2a91e5 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+@@ -89,7 +89,7 @@ func checkOtherFile(pass *analysis.Pass, filename string) error {
+ 
+ 	// We cannot use the Go parser, since this may not be a Go source file.
+ 	// Read the raw bytes instead.
+-	content, tf, err := analysisutil.ReadFile(pass.Fset, filename)
++	content, tf, err := analysisutil.ReadFile(pass, filename)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag_old.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag_old.go
+index 0001ba5363..19ef6b9bce 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag_old.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag_old.go
+@@ -83,7 +83,7 @@ func checkGoFile(pass *analysis.Pass, f *ast.File) {
+ }
+ 
+ func checkOtherFile(pass *analysis.Pass, filename string) error {
+-	content, tf, err := analysisutil.ReadFile(pass.Fset, filename)
++	content, tf, err := analysisutil.ReadFile(pass, filename)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go
+index 2691f189aa..f6727c5ada 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/directive/directive.go
+@@ -90,7 +90,7 @@ func checkGoFile(pass *analysis.Pass, f *ast.File) {
+ func checkOtherFile(pass *analysis.Pass, filename string) error {
+ 	// We cannot use the Go parser, since is not a Go source file.
+ 	// Read the raw bytes instead.
+-	content, tf, err := analysisutil.ReadFile(pass.Fset, filename)
++	content, tf, err := analysisutil.ReadFile(pass, filename)
+ 	if err != nil {
+ 		return err
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/framepointer/framepointer.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/framepointer/framepointer.go
+index 0b3ded47ea..6eff3a20fe 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/framepointer/framepointer.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/framepointer/framepointer.go
+@@ -48,7 +48,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
+ 	}
+ 
+ 	for _, fname := range sfiles {
+-		content, tf, err := analysisutil.ReadFile(pass.Fset, fname)
++		content, tf, err := analysisutil.ReadFile(pass, fname)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+index 89291602a5..f7f071dc8b 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/internal/analysisutil/util.go
+@@ -14,6 +14,7 @@ import (
+ 	"go/types"
+ 	"os"
+ 
++	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/internal/aliases"
+ 	"golang.org/x/tools/internal/analysisinternal"
+ )
+@@ -60,12 +61,16 @@ func HasSideEffects(info *types.Info, e ast.Expr) bool {
+ 
+ // ReadFile reads a file and adds it to the FileSet
+ // so that we can report errors against it using lineStart.
+-func ReadFile(fset *token.FileSet, filename string) ([]byte, *token.File, error) {
+-	content, err := os.ReadFile(filename)
++func ReadFile(pass *analysis.Pass, filename string) ([]byte, *token.File, error) {
++	readFile := pass.ReadFile
++	if readFile == nil {
++		readFile = os.ReadFile
++	}
++	content, err := readFile(filename)
+ 	if err != nil {
+ 		return nil, nil, err
+ 	}
+-	tf := fset.AddFile(filename, -1, len(content))
++	tf := pass.Fset.AddFile(filename, -1, len(content))
+ 	tf.SetLinesForContent(content)
+ 	return content, tf, nil
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go
+index 1ee16126ad..85da8346f7 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/doc.go
+@@ -11,14 +11,53 @@
+ //
+ // The check applies to calls of the formatting functions such as
+ // [fmt.Printf] and [fmt.Sprintf], as well as any detected wrappers of
+-// those functions.
++// those functions such as [log.Printf]. It reports a variety of
++// mistakes such as syntax errors in the format string and mismatches
++// (of number and type) between the verbs and their arguments.
+ //
+-// In this example, the %d format operator requires an integer operand:
++// See the documentation of the fmt package for the complete set of
++// format operators and their operand types.
++//
++// # Examples
++//
++// The %d format operator requires an integer operand.
++// Here it is incorrectly applied to a string:
+ //
+ //	fmt.Printf("%d", "hello") // fmt.Printf format %d has arg "hello" of wrong type string
+ //
+-// See the documentation of the fmt package for the complete set of
+-// format operators and their operand types.
++// A call to Printf must have as many operands as there are "verbs" in
++// the format string, not too few:
++//
++//	fmt.Printf("%d") // fmt.Printf format reads arg 1, but call has 0 args
++//
++// nor too many:
++//
++//	fmt.Printf("%d", 1, 2) // fmt.Printf call needs 1 arg, but has 2 args
++//
++// Explicit argument indexes must be no greater than the number of
++// arguments:
++//
++//	fmt.Printf("%[3]d", 1, 2) // fmt.Printf call has invalid argument index 3
++//
++// The checker also uses a heuristic to report calls to Print-like
++// functions that appear to have been intended for their Printf-like
++// counterpart:
++//
++//	log.Print("%d", 123) // log.Print call has possible formatting directive %d
++//
++// # Inferred printf wrappers
++//
++// Functions that delegate their arguments to fmt.Printf are
++// considered "printf wrappers"; calls to them are subject to the same
++// checking. In this example, logf is a printf wrapper:
++//
++//	func logf(level int, format string, args ...any) {
++//		if enabled(level) {
++//			log.Printf(format, args...)
++//		}
++//	}
++//
++//	logf(3, "invalid request: %v") // logf format reads arg 1, but call has 0 args
+ //
+ // To enable printf checking on a function that is not found by this
+ // analyzer's heuristics (for example, because control is obscured by
+@@ -26,14 +65,19 @@
+ //
+ //	func MyPrintf(format string, args ...any) {
+ //		if false {
+-//			_ = fmt.Sprintf(format, args...) // enable printf checker
++//			_ = fmt.Sprintf(format, args...) // enable printf checking
+ //		}
+ //		...
+ //	}
+ //
+-// The -funcs flag specifies a comma-separated list of names of additional
+-// known formatting functions or methods. If the name contains a period,
+-// it must denote a specific function using one of the following forms:
++// # Specifying printf wrappers by flag
++//
++// The -funcs flag specifies a comma-separated list of names of
++// additional known formatting functions or methods. (This legacy flag
++// is rarely used due to the automatic inference described above.)
++//
++// If the name contains a period, it must denote a specific function
++// using one of the following forms:
+ //
+ //	dir/pkg.Function
+ //	dir/pkg.Type.Method
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdversion/stdversion.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdversion/stdversion.go
+new file mode 100644
+index 0000000000..75d8697759
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/stdversion/stdversion.go
+@@ -0,0 +1,159 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package stdversion reports uses of standard library symbols that are
++// "too new" for the Go version in force in the referring file.
++package stdversion
++
++import (
++	"go/ast"
++	"go/build"
++	"go/types"
++	"regexp"
++
++	"golang.org/x/tools/go/analysis"
++	"golang.org/x/tools/go/analysis/passes/inspect"
++	"golang.org/x/tools/go/ast/inspector"
++	"golang.org/x/tools/internal/typesinternal"
++	"golang.org/x/tools/internal/versions"
++)
++
++const Doc = `report uses of too-new standard library symbols
++
++The stdversion analyzer reports references to symbols in the standard
++library that were introduced by a Go release higher than the one in
++force in the referring file. (Recall that the file's Go version is
++defined by the 'go' directive its module's go.mod file, or by a
++"//go:build go1.X" build tag at the top of the file.)
++
++The analyzer does not report a diagnostic for a reference to a "too
++new" field or method of a type that is itself "too new", as this may
++have false positives, for example if fields or methods are accessed
++through a type alias that is guarded by a Go version constraint.
++`
++
++var Analyzer = &analysis.Analyzer{
++	Name:             "stdversion",
++	Doc:              Doc,
++	Requires:         []*analysis.Analyzer{inspect.Analyzer},
++	URL:              "https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdversion",
++	RunDespiteErrors: true,
++	Run:              run,
++}
++
++func run(pass *analysis.Pass) (any, error) {
++	// Prior to go1.22, versions.FileVersion returns only the
++	// toolchain version, which is of no use to us, so
++	// disable this analyzer on earlier versions.
++	if !slicesContains(build.Default.ReleaseTags, "go1.22") {
++		return nil, nil
++	}
++
++	// Don't report diagnostics for modules marked before go1.21,
++	// since at that time the go directive wasn't clearly
++	// specified as a toolchain requirement.
++	//
++	// TODO(adonovan): after go1.21, call GoVersion directly.
++	pkgVersion := any(pass.Pkg).(interface{ GoVersion() string }).GoVersion()
++	if !versions.AtLeast(pkgVersion, "go1.21") {
++		return nil, nil
++	}
++
++	// disallowedSymbols returns the set of standard library symbols
++	// in a given package that are disallowed at the specified Go version.
++	type key struct {
++		pkg     *types.Package
++		version string
++	}
++	memo := make(map[key]map[types.Object]string) // records symbol's minimum Go version
++	disallowedSymbols := func(pkg *types.Package, version string) map[types.Object]string {
++		k := key{pkg, version}
++		disallowed, ok := memo[k]
++		if !ok {
++			disallowed = typesinternal.TooNewStdSymbols(pkg, version)
++			memo[k] = disallowed
++		}
++		return disallowed
++	}
++
++	// Scan the syntax looking for references to symbols
++	// that are disallowed by the version of the file.
++	inspect := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
++	nodeFilter := []ast.Node{
++		(*ast.File)(nil),
++		(*ast.Ident)(nil),
++	}
++	var fileVersion string // "" => no check
++	inspect.Preorder(nodeFilter, func(n ast.Node) {
++		switch n := n.(type) {
++		case *ast.File:
++			if isGenerated(n) {
++				// Suppress diagnostics in generated files (such as cgo).
++				fileVersion = ""
++			} else {
++				fileVersion = versions.Lang(versions.FileVersion(pass.TypesInfo, n))
++				// (may be "" if unknown)
++			}
++
++		case *ast.Ident:
++			if fileVersion != "" {
++				if obj, ok := pass.TypesInfo.Uses[n]; ok && obj.Pkg() != nil {
++					disallowed := disallowedSymbols(obj.Pkg(), fileVersion)
++					if minVersion, ok := disallowed[origin(obj)]; ok {
++						noun := "module"
++						if fileVersion != pkgVersion {
++							noun = "file"
++						}
++						pass.ReportRangef(n, "%s.%s requires %v or later (%s is %s)",
++							obj.Pkg().Name(), obj.Name(), minVersion, noun, fileVersion)
++					}
++				}
++			}
++		}
++	})
++	return nil, nil
++}
++
++// Reduced from x/tools/gopls/internal/golang/util.go. Good enough for now.
++// TODO(adonovan): use ast.IsGenerated in go1.21.
++func isGenerated(f *ast.File) bool {
++	for _, group := range f.Comments {
++		for _, comment := range group.List {
++			if matched := generatedRx.MatchString(comment.Text); matched {
++				return true
++			}
++		}
++	}
++	return false
++}
++
++// Matches cgo generated comment as well as the proposed standard:
++//
++//	https://golang.org/s/generatedcode
++var generatedRx = regexp.MustCompile(`// .*DO NOT EDIT\.?`)
++
++// origin returns the original uninstantiated symbol for obj.
++func origin(obj types.Object) types.Object {
++	switch obj := obj.(type) {
++	case *types.Var:
++		return obj.Origin()
++	case *types.Func:
++		return obj.Origin()
++	case *types.TypeName:
++		if named, ok := obj.Type().(*types.Named); ok { // (don't unalias)
++			return named.Origin().Obj()
++		}
++	}
++	return obj
++}
++
++// TODO(adonovan): use go1.21 slices.Contains.
++func slicesContains[S ~[]E, E comparable](slice S, x E) bool {
++	for _, elem := range slice {
++		if elem == x {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+index 39d0d9e429..f5e760ca26 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/tests/tests.go
+@@ -447,6 +447,18 @@ func checkExampleName(pass *analysis.Pass, fn *ast.FuncDecl) {
+ 	}
+ }
+ 
++type tokenRange struct {
++	p, e token.Pos
++}
++
++func (r tokenRange) Pos() token.Pos {
++	return r.p
++}
++
++func (r tokenRange) End() token.Pos {
++	return r.e
++}
++
+ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
+ 	// Want functions with 0 results and 1 parameter.
+ 	if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 ||
+@@ -464,12 +476,11 @@ func checkTest(pass *analysis.Pass, fn *ast.FuncDecl, prefix string) {
+ 	if tparams := fn.Type.TypeParams; tparams != nil && len(tparams.List) > 0 {
+ 		// Note: cmd/go/internal/load also errors about TestXXX and BenchmarkXXX functions with type parameters.
+ 		// We have currently decided to also warn before compilation/package loading. This can help users in IDEs.
+-		// TODO(adonovan): use ReportRangef(tparams).
+-		pass.Reportf(fn.Pos(), "%s has type parameters: it will not be run by go test as a %sXXX function", fn.Name.Name, prefix)
++		at := tokenRange{tparams.Opening, tparams.Closing}
++		pass.ReportRangef(at, "%s has type parameters: it will not be run by go test as a %sXXX function", fn.Name.Name, prefix)
+ 	}
+ 
+ 	if !isTestSuffix(fn.Name.Name[len(prefix):]) {
+-		// TODO(adonovan): use ReportRangef(fn.Name).
+-		pass.Reportf(fn.Pos(), "%s has malformed name: first letter after '%s' must not be lowercase", fn.Name.Name, prefix)
++		pass.ReportRangef(fn.Name, "%s has malformed name: first letter after '%s' must not be lowercase", fn.Name.Name, prefix)
+ 	}
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+index 1fa0d1f68f..d77fb203d8 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/unitchecker/unitchecker.go
+@@ -49,6 +49,7 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/internal/analysisflags"
++	"golang.org/x/tools/internal/analysisinternal"
+ 	"golang.org/x/tools/internal/facts"
+ 	"golang.org/x/tools/internal/versions"
+ )
+@@ -377,6 +378,7 @@ func run(fset *token.FileSet, cfg *Config, analyzers []*analysis.Analyzer) ([]re
+ 				ExportPackageFact: facts.ExportPackageFact,
+ 				AllPackageFacts:   func() []analysis.PackageFact { return facts.AllPackageFacts(factFilter) },
+ 			}
++			pass.ReadFile = analysisinternal.MakeReadFile(pass)
+ 
+ 			t0 := time.Now()
+ 			act.result, act.err = a.Run(pass)
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+index e154be0bd6..a92f80dd2d 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/types/typeutil/map.go
+@@ -3,7 +3,7 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package typeutil defines various utilities for types, such as Map,
+-// a mapping from types.Type to interface{} values.
++// a mapping from types.Type to any values.
+ package typeutil // import "golang.org/x/tools/go/types/typeutil"
+ 
+ import (
+@@ -17,7 +17,7 @@ import (
+ )
+ 
+ // Map is a hash-table-based mapping from types (types.Type) to
+-// arbitrary interface{} values.  The concrete types that implement
++// arbitrary any values.  The concrete types that implement
+ // the Type interface are pointers.  Since they are not canonicalized,
+ // == cannot be used to check for equivalence, and thus we cannot
+ // simply use a Go map.
+@@ -34,7 +34,7 @@ type Map struct {
+ // entry is an entry (key/value association) in a hash bucket.
+ type entry struct {
+ 	key   types.Type
+-	value interface{}
++	value any
+ }
+ 
+ // SetHasher sets the hasher used by Map.
+@@ -82,7 +82,7 @@ func (m *Map) Delete(key types.Type) bool {
+ 
+ // At returns the map entry for the given key.
+ // The result is nil if the entry is not present.
+-func (m *Map) At(key types.Type) interface{} {
++func (m *Map) At(key types.Type) any {
+ 	if m != nil && m.table != nil {
+ 		for _, e := range m.table[m.hasher.Hash(key)] {
+ 			if e.key != nil && types.Identical(key, e.key) {
+@@ -95,7 +95,7 @@ func (m *Map) At(key types.Type) interface{} {
+ 
+ // Set sets the map entry for key to val,
+ // and returns the previous entry, if any.
+-func (m *Map) Set(key types.Type, value interface{}) (prev interface{}) {
++func (m *Map) Set(key types.Type, value any) (prev any) {
+ 	if m.table != nil {
+ 		hash := m.hasher.Hash(key)
+ 		bucket := m.table[hash]
+@@ -142,7 +142,7 @@ func (m *Map) Len() int {
+ // f will not be invoked for it, but if f inserts a map entry that
+ // Iterate has not yet reached, whether or not f will be invoked for
+ // it is unspecified.
+-func (m *Map) Iterate(f func(key types.Type, value interface{})) {
++func (m *Map) Iterate(f func(key types.Type, value any)) {
+ 	if m != nil {
+ 		for _, bucket := range m.table {
+ 			for _, e := range bucket {
+@@ -158,7 +158,7 @@ func (m *Map) Iterate(f func(key types.Type, value interface{})) {
+ // The order is unspecified.
+ func (m *Map) Keys() []types.Type {
+ 	keys := make([]types.Type, 0, m.Len())
+-	m.Iterate(func(key types.Type, _ interface{}) {
++	m.Iterate(func(key types.Type, _ any) {
+ 		keys = append(keys, key)
+ 	})
+ 	return keys
+@@ -171,7 +171,7 @@ func (m *Map) toString(values bool) string {
+ 	var buf bytes.Buffer
+ 	fmt.Fprint(&buf, "{")
+ 	sep := ""
+-	m.Iterate(func(key types.Type, value interface{}) {
++	m.Iterate(func(key types.Type, value any) {
+ 		fmt.Fprint(&buf, sep)
+ 		sep = ", "
+ 		fmt.Fprint(&buf, key)
+@@ -209,7 +209,7 @@ type Hasher struct {
+ 	memo map[types.Type]uint32
+ 
+ 	// ptrMap records pointer identity.
+-	ptrMap map[interface{}]uint32
++	ptrMap map[any]uint32
+ 
+ 	// sigTParams holds type parameters from the signature being hashed.
+ 	// Signatures are considered identical modulo renaming of type parameters, so
+@@ -227,7 +227,7 @@ type Hasher struct {
+ func MakeHasher() Hasher {
+ 	return Hasher{
+ 		memo:       make(map[types.Type]uint32),
+-		ptrMap:     make(map[interface{}]uint32),
++		ptrMap:     make(map[any]uint32),
+ 		sigTParams: nil,
+ 	}
+ }
+@@ -261,7 +261,7 @@ func (h Hasher) hashFor(t types.Type) uint32 {
+ 		return uint32(t.Kind())
+ 
+ 	case *aliases.Alias:
+-		return h.Hash(t.Underlying())
++		return h.Hash(aliases.Unalias(t))
+ 
+ 	case *types.Array:
+ 		return 9043 + 2*uint32(t.Len()) + 3*h.Hash(t.Elem())
+@@ -432,7 +432,7 @@ func (h Hasher) hashTypeParam(t *types.TypeParam) uint32 {
+ 
+ // hashPtr hashes the pointer identity of ptr. It uses h.ptrMap to ensure that
+ // pointers values are not dependent on the GC.
+-func (h Hasher) hashPtr(ptr interface{}) uint32 {
++func (h Hasher) hashPtr(ptr any) uint32 {
+ 	if hash, ok := h.ptrMap[ptr]; ok {
+ 		return hash
+ 	}
+@@ -462,7 +462,7 @@ func (h Hasher) shallowHash(t types.Type) uint32 {
+ 	// so there's no need to optimize anything else.
+ 	switch t := t.(type) {
+ 	case *aliases.Alias:
+-		return h.shallowHash(t.Underlying())
++		return h.shallowHash(aliases.Unalias(t))
+ 
+ 	case *types.Signature:
+ 		var hash uint32 = 604171
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go
+index f89112c8ee..c24c2eee45 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases.go
+@@ -16,10 +16,14 @@ import (
+ // NewAlias creates a new TypeName in Package pkg that
+ // is an alias for the type rhs.
+ //
+-// When GoVersion>=1.22 and GODEBUG=gotypesalias=1,
+-// the Type() of the return value is a *types.Alias.
+-func NewAlias(pos token.Pos, pkg *types.Package, name string, rhs types.Type) *types.TypeName {
+-	if enabled() {
++// The enabled parameter determines whether the resulting [TypeName]'s
++// type is an [types.Alias]. Its value must be the result of a call to
++// [Enabled], which computes the effective value of
++// GODEBUG=gotypesalias=... by invoking the type checker. The Enabled
++// function is expensive and should be called once per task (e.g.
++// package import), not once per call to NewAlias.
++func NewAlias(enabled bool, pos token.Pos, pkg *types.Package, name string, rhs types.Type) *types.TypeName {
++	if enabled {
+ 		tname := types.NewTypeName(pos, pkg, name, nil)
+ 		newAlias(tname, rhs)
+ 		return tname
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go
+index 1872b56ff8..c027b9f315 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go121.go
+@@ -15,16 +15,17 @@ import (
+ // It will never be created by go/types.
+ type Alias struct{}
+ 
+-func (*Alias) String() string { panic("unreachable") }
+-
++func (*Alias) String() string         { panic("unreachable") }
+ func (*Alias) Underlying() types.Type { panic("unreachable") }
+-
+-func (*Alias) Obj() *types.TypeName { panic("unreachable") }
++func (*Alias) Obj() *types.TypeName   { panic("unreachable") }
++func Rhs(alias *Alias) types.Type     { panic("unreachable") }
+ 
+ // Unalias returns the type t for go <=1.21.
+ func Unalias(t types.Type) types.Type { return t }
+ 
+-// Always false for go <=1.21. Ignores GODEBUG.
+-func enabled() bool { return false }
+-
+ func newAlias(name *types.TypeName, rhs types.Type) *Alias { panic("unreachable") }
++
++// Enabled reports whether [NewAlias] should create [types.Alias] types.
++//
++// Before go1.22, this function always returns false.
++func Enabled() bool { return false }
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go
+index 8b92116284..b329954841 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/aliases/aliases_go122.go
+@@ -12,14 +12,22 @@ import (
+ 	"go/parser"
+ 	"go/token"
+ 	"go/types"
+-	"os"
+-	"strings"
+-	"sync"
+ )
+ 
+ // Alias is an alias of types.Alias.
+ type Alias = types.Alias
+ 
++// Rhs returns the type on the right-hand side of the alias declaration.
++func Rhs(alias *Alias) types.Type {
++	if alias, ok := any(alias).(interface{ Rhs() types.Type }); ok {
++		return alias.Rhs() // go1.23+
++	}
++
++	// go1.22's Alias didn't have the Rhs method,
++	// so Unalias is the best we can do.
++	return Unalias(alias)
++}
++
+ // Unalias is a wrapper of types.Unalias.
+ func Unalias(t types.Type) types.Type { return types.Unalias(t) }
+ 
+@@ -33,40 +41,23 @@ func newAlias(tname *types.TypeName, rhs types.Type) *Alias {
+ 	return a
+ }
+ 
+-// enabled returns true when types.Aliases are enabled.
+-func enabled() bool {
+-	// Use the gotypesalias value in GODEBUG if set.
+-	godebug := os.Getenv("GODEBUG")
+-	value := -1 // last set value.
+-	for _, f := range strings.Split(godebug, ",") {
+-		switch f {
+-		case "gotypesalias=1":
+-			value = 1
+-		case "gotypesalias=0":
+-			value = 0
+-		}
+-	}
+-	switch value {
+-	case 0:
+-		return false
+-	case 1:
+-		return true
+-	default:
+-		return aliasesDefault()
+-	}
+-}
+-
+-// aliasesDefault reports if aliases are enabled by default.
+-func aliasesDefault() bool {
+-	// Dynamically check if Aliases will be produced from go/types.
+-	aliasesDefaultOnce.Do(func() {
+-		fset := token.NewFileSet()
+-		f, _ := parser.ParseFile(fset, "a.go", "package p; type A = int", 0)
+-		pkg, _ := new(types.Config).Check("p", fset, []*ast.File{f}, nil)
+-		_, gotypesaliasDefault = pkg.Scope().Lookup("A").Type().(*types.Alias)
+-	})
+-	return gotypesaliasDefault
++// Enabled reports whether [NewAlias] should create [types.Alias] types.
++//
++// This function is expensive! Call it sparingly.
++func Enabled() bool {
++	// The only reliable way to compute the answer is to invoke go/types.
++	// We don't parse the GODEBUG environment variable, because
++	// (a) it's tricky to do so in a manner that is consistent
++	//     with the godebug package; in particular, a simple
++	//     substring check is not good enough. The value is a
++	//     rightmost-wins list of options. But more importantly:
++	// (b) it is impossible to detect changes to the effective
++	//     setting caused by os.Setenv("GODEBUG"), as happens in
++	//     many tests. Therefore any attempt to cache the result
++	//     is just incorrect.
++	fset := token.NewFileSet()
++	f, _ := parser.ParseFile(fset, "a.go", "package p; type A = int", 0)
++	pkg, _ := new(types.Config).Check("p", fset, []*ast.File{f}, nil)
++	_, enabled := pkg.Scope().Lookup("A").Type().(*types.Alias)
++	return enabled
+ }
+-
+-var gotypesaliasDefault bool
+-var aliasesDefaultOnce sync.Once
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index c3022a2862..2c406ded0c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -12,8 +12,10 @@ import (
+ 	"go/ast"
+ 	"go/token"
+ 	"go/types"
++	"os"
+ 	"strconv"
+ 
++	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/internal/aliases"
+ )
+ 
+@@ -32,22 +34,22 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
+ func ZeroValue(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+ 	// TODO(adonovan): think about generics, and also generic aliases.
+ 	under := aliases.Unalias(typ)
+-	// Don't call Underlying unconditionally: although it removed
++	// Don't call Underlying unconditionally: although it removes
+ 	// Named and Alias, it also removes TypeParam.
+-	if n, ok := typ.(*types.Named); ok {
++	if n, ok := under.(*types.Named); ok {
+ 		under = n.Underlying()
+ 	}
+-	switch u := under.(type) {
++	switch under := under.(type) {
+ 	case *types.Basic:
+ 		switch {
+-		case u.Info()&types.IsNumeric != 0:
++		case under.Info()&types.IsNumeric != 0:
+ 			return &ast.BasicLit{Kind: token.INT, Value: "0"}
+-		case u.Info()&types.IsBoolean != 0:
++		case under.Info()&types.IsBoolean != 0:
+ 			return &ast.Ident{Name: "false"}
+-		case u.Info()&types.IsString != 0:
++		case under.Info()&types.IsString != 0:
+ 			return &ast.BasicLit{Kind: token.STRING, Value: `""`}
+ 		default:
+-			panic(fmt.Sprintf("unknown basic type %v", u))
++			panic(fmt.Sprintf("unknown basic type %v", under))
+ 		}
+ 	case *types.Chan, *types.Interface, *types.Map, *types.Pointer, *types.Signature, *types.Slice, *types.Array:
+ 		return ast.NewIdent("nil")
+@@ -178,7 +180,7 @@ func TypeExpr(f *ast.File, pkg *types.Package, typ types.Type) ast.Expr {
+ 				List: returns,
+ 			},
+ 		}
+-	case *types.Named:
++	case interface{ Obj() *types.TypeName }: // *types.{Alias,Named,TypeParam}
+ 		if t.Obj().Pkg() == nil {
+ 			return ast.NewIdent(t.Obj().Name())
+ 		}
+@@ -393,3 +395,38 @@ func equivalentTypes(want, got types.Type) bool {
+ 	}
+ 	return types.AssignableTo(want, got)
+ }
++
++// MakeReadFile returns a simple implementation of the Pass.ReadFile function.
++func MakeReadFile(pass *analysis.Pass) func(filename string) ([]byte, error) {
++	return func(filename string) ([]byte, error) {
++		if err := checkReadable(pass, filename); err != nil {
++			return nil, err
++		}
++		return os.ReadFile(filename)
++	}
++}
++
++// checkReadable enforces the access policy defined by the ReadFile field of [analysis.Pass].
++func checkReadable(pass *analysis.Pass, filename string) error {
++	if slicesContains(pass.OtherFiles, filename) ||
++		slicesContains(pass.IgnoredFiles, filename) {
++		return nil
++	}
++	for _, f := range pass.Files {
++		// TODO(adonovan): use go1.20 f.FileStart
++		if pass.Fset.File(f.Pos()).Name() == filename {
++			return nil
++		}
++	}
++	return fmt.Errorf("Pass.ReadFile: %s is not among OtherFiles, IgnoredFiles, or names of Files", filename)
++}
++
++// TODO(adonovan): use go1.21 slices.Contains.
++func slicesContains[S ~[]E, E comparable](slice S, x E) bool {
++	for _, elem := range slice {
++		if elem == x {
++			return true
++		}
++	}
++	return false
++}
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go b/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+index f0aa97ec1b..e1c18d373c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/facts/facts.go
+@@ -295,10 +295,10 @@ func (s *Set) Encode() []byte {
+ 		// we aren't careful about which structs or methods
+ 		// we rexport: it should be only those referenced
+ 		// from the API of s.pkg.
+-		// TOOD(adonovan): opt: be more precise. e.g.
++		// TODO(adonovan): opt: be more precise. e.g.
+ 		// intersect with the set of objects computed by
+ 		// importMap(s.pkg.Imports()).
+-		// TOOD(adonovan): opt: implement "shallow" facts.
++		// TODO(adonovan): opt: implement "shallow" facts.
+ 		if k.pkg != s.pkg {
+ 			if k.obj == nil {
+ 				continue // imported package fact
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+index 9771b8c3d6..89bd256dc6 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typeparams/common.go
+@@ -73,7 +73,7 @@ func IsTypeParam(t types.Type) bool {
+ // implements the following rule for uninstantiated generic types:
+ //
+ // If V and T are generic named types, then V is considered assignable to T if,
+-// for every possible instantation of V[A_1, ..., A_N], the instantiation
++// for every possible instantiation of V[A_1, ..., A_N], the instantiation
+ // T[A_1, ..., A_N] is valid and V[A_1, ..., A_N] implements T[A_1, ..., A_N].
+ //
+ // If T has structural constraints, they must be satisfied by V.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go
+index e0c27ed251..834e05381c 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/typesinternal/errorcode.go
+@@ -1449,10 +1449,10 @@ const (
+ 	NotAGenericType
+ 
+ 	// WrongTypeArgCount occurs when a type or function is instantiated with an
+-	// incorrent number of type arguments, including when a generic type or
++	// incorrect number of type arguments, including when a generic type or
+ 	// function is used without instantiation.
+ 	//
+-	// Errors inolving failed type inference are assigned other error codes.
++	// Errors involving failed type inference are assigned other error codes.
+ 	//
+ 	// Example:
+ 	//  type T[p any] int
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 293c69c4c2..9ff5cd0f92 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -25,7 +25,7 @@ golang.org/x/arch/x86/x86asm
+ # golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+ ## explicit; go 1.21
+ golang.org/x/build/relnote
+-# golang.org/x/mod v0.16.0
++# golang.org/x/mod v0.17.0
+ ## explicit; go 1.18
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile
+@@ -36,7 +36,7 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.6.0
++# golang.org/x/sync v0.7.0
+ ## explicit; go 1.18
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+@@ -71,7 +71,7 @@ golang.org/x/text/internal/tag
+ golang.org/x/text/language
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/norm
+-# golang.org/x/tools v0.19.1-0.20240329171618-904c6baa6e14
++# golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
+ ## explicit; go 1.19
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+@@ -103,6 +103,7 @@ golang.org/x/tools/go/analysis/passes/shift
+ golang.org/x/tools/go/analysis/passes/sigchanyzer
+ golang.org/x/tools/go/analysis/passes/slog
+ golang.org/x/tools/go/analysis/passes/stdmethods
++golang.org/x/tools/go/analysis/passes/stdversion
+ golang.org/x/tools/go/analysis/passes/stringintconv
+ golang.org/x/tools/go/analysis/passes/structtag
+ golang.org/x/tools/go/analysis/passes/testinggoroutine

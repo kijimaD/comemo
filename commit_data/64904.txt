@@ -1,0 +1,44 @@
+commit 4a1167dfe1e1616abbe1d70dbd3b44d7ca6d2f60
+Author: Tim King <taking@google.com>
+Date:   Thu Sep 5 16:22:50 2024 -0700
+
+    all: enable alias type parameters GOEXPERIMENT by default
+    
+    For #68778
+    
+    Change-Id: I4b39f84665262251ca014d3f5fe74b2fd434d51e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613236
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Commit-Queue: Tim King <taking@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/internal/buildcfg/exp.go       | 1 +
+ src/internal/goexperiment/flags.go | 2 +-
+ 2 files changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index 7c7cefba7b..8c8a16c571 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -71,6 +71,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 		RegabiWrappers:   regabiSupported,
+ 		RegabiArgs:       regabiSupported,
+ 		CoverageRedesign: true,
++		AliasTypeParams:  true,
+ 	}
+ 
+ 	// Start with the statically enabled set of experiments.
+diff --git a/src/internal/goexperiment/flags.go b/src/internal/goexperiment/flags.go
+index 33a24433cb..ae5d4ad81a 100644
+--- a/src/internal/goexperiment/flags.go
++++ b/src/internal/goexperiment/flags.go
+@@ -113,7 +113,7 @@ type Flags struct {
+ 
+ 	// AliasTypeParams enables type parameters for alias types.
+ 	// Requires that gotypesalias=1 is set with GODEBUG.
+-	// This flag will be removed with Go 1.24.
++	// This flag will be removed with Go 1.25.
+ 	AliasTypeParams bool
+ 
+ 	// SwissMap enables the SwissTable-based map implementation.

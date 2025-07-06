@@ -1,0 +1,109 @@
+commit a0029e95e5d6f15cab70e533d447c75aa4211636
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 23 10:58:47 2024 -0800
+
+    cmd/compile: regalloc: handle desired registers of 2-output insns
+    
+    Particularly with 2-word load instructions, this becomes important.
+    Classic example is:
+    
+        func f(p *string) string {
+            return *p
+        }
+    
+    We want the two loads to put the return values directly into
+    the two ABI return registers.
+    
+    At this point in the stack, cmd/go is 1.1% smaller.
+    
+    Change-Id: I51fd1710238e81d15aab2bfb816d73c8e7c207b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631137
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/regalloc.go | 21 ++++++++++++++++++++-
+ test/codegen/memcombine.go               | 10 ++++++++++
+ 2 files changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 08ce0d16a6..1b7bcb2b1d 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -930,6 +930,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 
+ 	// Data structure used for computing desired registers.
+ 	var desired desiredState
++	desiredSecondReg := map[ID][4]register{} // desired register allocation for 2nd part of a tuple
+ 
+ 	// Desired registers for inputs & outputs for each instruction in the block.
+ 	type dentry struct {
+@@ -949,6 +950,7 @@ func (s *regAllocState) regalloc(f *Func) {
+ 		s.curBlock = b
+ 		s.startRegsMask = 0
+ 		s.usedSinceBlockStart = 0
++		clear(desiredSecondReg)
+ 
+ 		// Initialize regValLiveSet and uses fields for this block.
+ 		// Walk backwards through the block doing liveness analysis.
+@@ -1346,6 +1348,11 @@ func (s *regAllocState) regalloc(f *Func) {
+ 				}
+ 				dinfo[i].in[j] = desired.get(a.ID)
+ 			}
++			if v.Op == OpSelect1 && prefs[0] != noRegister {
++				// Save desired registers of select1 for
++				// use by the tuple generating instruction.
++				desiredSecondReg[v.Args[0].ID] = prefs
++			}
+ 		}
+ 
+ 		// Process all the non-phi values.
+@@ -1748,6 +1755,17 @@ func (s *regAllocState) regalloc(f *Func) {
+ 							}
+ 						}
+ 					}
++					if out.idx == 1 {
++						if prefs, ok := desiredSecondReg[v.ID]; ok {
++							for _, r := range prefs {
++								if r != noRegister && (mask&^s.used)>>r&1 != 0 {
++									// Desired register is allowed and unused.
++									mask = regMask(1) << r
++									break
++								}
++							}
++						}
++					}
+ 					// Avoid registers we're saving for other values.
+ 					if mask&^desired.avoid&^s.nospill&^s.used != 0 {
+ 						mask &^= desired.avoid
+@@ -2874,7 +2892,8 @@ type desiredStateEntry struct {
+ 	// Registers it would like to be in, in priority order.
+ 	// Unused slots are filled with noRegister.
+ 	// For opcodes that return tuples, we track desired registers only
+-	// for the first element of the tuple.
++	// for the first element of the tuple (see desiredSecondReg for
++	// tracking the desired register for second part of a tuple).
+ 	regs [4]register
+ }
+ 
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 2a9cc68ab0..9345391b61 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -1004,6 +1004,16 @@ func dwloadArg(a [2]int64) int64 {
+ 	return a[0] + a[1]
+ }
+ 
++func dwloadResult1(p *string) string {
++	// arm64:"LDP\t\\(R0\\), \\(R0, R1\\)"
++	return *p
++}
++
++func dwloadResult2(p *[2]int64) (int64, int64) {
++	// arm64:"LDP\t\\(R0\\), \\(R1, R0\\)"
++	return p[1], p[0]
++}
++
+ // ---------------------------------- //
+ //    Arm64 double-register stores    //
+ // ---------------------------------- //

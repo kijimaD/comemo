@@ -1,0 +1,345 @@
+commit 931700a95e2463c75b62e3c232ef47207921ed5d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 17 12:04:24 2024 +0100
+
+    crypto: centralize external test module fetches
+    
+    This has the important advantage of using the system GOMODCACHE when it
+    exists, avoiding the download on every "go test".
+    
+    While at it, also consistently use testenv.Command.
+    
+    Change-Id: Ic999ffa281f6da73fe601b0feba29e60982cce3d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628755
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/crypto/ed25519/ed25519vectors_test.go     | 36 +++---------------
+ src/crypto/internal/cryptotest/fetchmodule.go | 54 +++++++++++++++++++++++++++
+ src/crypto/internal/fipstest/acvp_test.go     | 51 +++++--------------------
+ src/crypto/tls/bogo_shim_test.go              | 25 ++-----------
+ src/go/build/deps_test.go                     |  2 +-
+ 5 files changed, 73 insertions(+), 95 deletions(-)
+
+diff --git a/src/crypto/ed25519/ed25519vectors_test.go b/src/crypto/ed25519/ed25519vectors_test.go
+index f933f2800a..304257a993 100644
+--- a/src/crypto/ed25519/ed25519vectors_test.go
++++ b/src/crypto/ed25519/ed25519vectors_test.go
+@@ -6,11 +6,10 @@ package ed25519_test
+ 
+ import (
+ 	"crypto/ed25519"
++	"crypto/internal/cryptotest"
+ 	"encoding/hex"
+ 	"encoding/json"
+-	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"testing"
+ )
+@@ -72,38 +71,13 @@ func TestEd25519Vectors(t *testing.T) {
+ }
+ 
+ func downloadEd25519Vectors(t *testing.T) []byte {
+-	testenv.MustHaveExternalNetwork(t)
+-
+-	// Create a temp dir and modcache subdir.
+-	d := t.TempDir()
+-	// Create a spot for the modcache.
+-	modcache := filepath.Join(d, "modcache")
+-	if err := os.Mkdir(modcache, 0777); err != nil {
+-		t.Fatal(err)
+-	}
+-
+-	t.Setenv("GO111MODULE", "on")
+-	t.Setenv("GOMODCACHE", modcache)
+-
+ 	// Download the JSON test file from the GOPROXY with `go mod download`,
+ 	// pinning the version so test and module caching works as expected.
+-	goTool := testenv.GoToolPath(t)
+-	path := "filippo.io/mostly-harmless/ed25519vectors@v0.0.0-20210322192420-30a2d7243a94"
+-	cmd := exec.Command(goTool, "mod", "download", "-modcacherw", "-json", path)
+-	// TODO: enable the sumdb once the TryBots proxy supports it.
+-	cmd.Env = append(os.Environ(), "GONOSUMDB=*")
+-	output, err := cmd.Output()
+-	if err != nil {
+-		t.Fatalf("failed to run `go mod download -json %s`, output: %s", path, output)
+-	}
+-	var dm struct {
+-		Dir string // absolute path to cached source root directory
+-	}
+-	if err := json.Unmarshal(output, &dm); err != nil {
+-		t.Fatal(err)
+-	}
++	path := "filippo.io/mostly-harmless/ed25519vectors"
++	version := "v0.0.0-20210322192420-30a2d7243a94"
++	dir := cryptotest.FetchModule(t, path, version)
+ 
+-	jsonVectors, err := os.ReadFile(filepath.Join(dm.Dir, "ed25519vectors.json"))
++	jsonVectors, err := os.ReadFile(filepath.Join(dir, "ed25519vectors.json"))
+ 	if err != nil {
+ 		t.Fatalf("failed to read ed25519vectors.json: %v", err)
+ 	}
+diff --git a/src/crypto/internal/cryptotest/fetchmodule.go b/src/crypto/internal/cryptotest/fetchmodule.go
+new file mode 100644
+index 0000000000..740b17b001
+--- /dev/null
++++ b/src/crypto/internal/cryptotest/fetchmodule.go
+@@ -0,0 +1,54 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cryptotest
++
++import (
++	"bytes"
++	"encoding/json"
++	"internal/testenv"
++	"os"
++	"testing"
++)
++
++// FetchModule fetches the module at the given version and returns the directory
++// containing its source tree. It skips the test if fetching modules is not
++// possible in this environment.
++func FetchModule(t *testing.T, module, version string) string {
++	testenv.MustHaveExternalNetwork(t)
++	goTool := testenv.GoToolPath(t)
++
++	// If the default GOMODCACHE doesn't exist, use a temporary directory
++	// instead. (For example, run.bash sets GOPATH=/nonexist-gopath.)
++	out, err := testenv.Command(t, goTool, "env", "GOMODCACHE").Output()
++	if err != nil {
++		t.Fatalf("%s env GOMODCACHE: %v\n%s", goTool, err, out)
++	}
++	modcacheOk := false
++	if gomodcache := string(bytes.TrimSpace(out)); gomodcache != "" {
++		if _, err := os.Stat(gomodcache); err == nil {
++			modcacheOk = true
++		}
++	}
++	if !modcacheOk {
++		t.Setenv("GOMODCACHE", t.TempDir())
++		// Allow t.TempDir() to clean up subdirectories.
++		t.Setenv("GOFLAGS", os.Getenv("GOFLAGS")+" -modcacherw")
++	}
++
++	t.Logf("fetching %s@%s\n", module, version)
++
++	output, err := testenv.Command(t, goTool, "mod", "download", "-json", module+"@"+version).CombinedOutput()
++	if err != nil {
++		t.Fatalf("failed to download %s@%s: %s\n%s\n", module, version, err, output)
++	}
++	var j struct {
++		Dir string
++	}
++	if err := json.Unmarshal(output, &j); err != nil {
++		t.Fatalf("failed to parse 'go mod download': %s\n%s\n", err, output)
++	}
++
++	return j.Dir
++}
+diff --git a/src/crypto/internal/fipstest/acvp_test.go b/src/crypto/internal/fipstest/acvp_test.go
+index e0748100c9..48559f6013 100644
+--- a/src/crypto/internal/fipstest/acvp_test.go
++++ b/src/crypto/internal/fipstest/acvp_test.go
+@@ -16,11 +16,12 @@ package fipstest
+ // for a more detailed description of the protocol used between the acvptool
+ // and module wrappers.
+ //
+-// [0]:https://boringssl.googlesource.com/boringssl/+/refs/heads/master/util/fipstools/acvp/ACVP.md#testing-other-fips-modules
++// [0]: https://boringssl.googlesource.com/boringssl/+/refs/heads/master/util/fipstools/acvp/ACVP.md#testing-other-fips-modules
+ 
+ import (
+ 	"bufio"
+ 	"bytes"
++	"crypto/internal/cryptotest"
+ 	"crypto/internal/fips"
+ 	"crypto/internal/fips/hmac"
+ 	"crypto/internal/fips/sha256"
+@@ -28,13 +29,11 @@ import (
+ 	"crypto/internal/fips/sha512"
+ 	_ "embed"
+ 	"encoding/binary"
+-	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"strings"
+ 	"testing"
+@@ -346,9 +345,6 @@ func cmdHmacAft(h func() fips.Hash) command {
+ 
+ func TestACVP(t *testing.T) {
+ 	testenv.SkipIfShortAndSlow(t)
+-	testenv.MustHaveExternalNetwork(t)
+-	testenv.MustHaveGoRun(t)
+-	testenv.MustHaveExec(t)
+ 
+ 	const (
+ 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
+@@ -366,23 +362,14 @@ func TestACVP(t *testing.T) {
+ 		t.Fatalf("failed to stat config file: %s", err)
+ 	}
+ 
+-	// Create a temporary mod cache dir for the test module/tooling.
+-	d := t.TempDir()
+-	modcache := filepath.Join(d, "modcache")
+-	if err := os.Mkdir(modcache, 0777); err != nil {
+-		t.Fatal(err)
+-	}
+-	fmt.Printf("caching dependent modules in %q\n", modcache)
+-	t.Setenv("GOMODCACHE", modcache)
+-
+ 	// Fetch the BSSL module and use the JSON output to find the absolute path to the dir.
+-	bsslDir := fetchModule(t, bsslModule, bsslVersion)
++	bsslDir := cryptotest.FetchModule(t, bsslModule, bsslVersion)
+ 
+-	fmt.Println("building acvptool")
++	t.Log("building acvptool")
+ 
+ 	// Build the acvptool binary.
+ 	goTool := testenv.GoToolPath(t)
+-	cmd := exec.Command(goTool,
++	cmd := testenv.Command(t, goTool,
+ 		"build",
+ 		"./util/fipstools/acvp/acvptool")
+ 	cmd.Dir = bsslDir
+@@ -393,7 +380,7 @@ func TestACVP(t *testing.T) {
+ 	}
+ 
+ 	// Similarly, fetch the ACVP data module that has vectors/expected answers.
+-	dataDir := fetchModule(t, goAcvpModule, goAcvpVersion)
++	dataDir := cryptotest.FetchModule(t, goAcvpModule, goAcvpVersion)
+ 
+ 	cwd, err := os.Getwd()
+ 	if err != nil {
+@@ -401,7 +388,7 @@ func TestACVP(t *testing.T) {
+ 	}
+ 	configPath := filepath.Join(cwd, "acvp_test.config.json")
+ 	toolPath := filepath.Join(bsslDir, "acvptool")
+-	fmt.Printf("running check_expected.go\ncwd: %q\ndata_dir: %q\nconfig: %q\ntool: %q\nmodule-wrapper: %q\n",
++	t.Logf("running check_expected.go\ncwd: %q\ndata_dir: %q\nconfig: %q\ntool: %q\nmodule-wrapper: %q\n",
+ 		cwd, dataDir, configPath, toolPath, os.Args[0])
+ 
+ 	// Run the check_expected test driver using the acvptool we built, and this test binary as the
+@@ -416,32 +403,14 @@ func TestACVP(t *testing.T) {
+ 		"-module-wrappers", "go:" + os.Args[0],
+ 		"-tests", configPath,
+ 	}
+-	cmd = exec.Command(goTool, args...)
++	cmd = testenv.Command(t, goTool, args...)
+ 	cmd.Dir = dataDir
+-	cmd.Env = []string{"ACVP_WRAPPER=1", "GOCACHE=" + modcache}
++	cmd.Env = append(os.Environ(), "ACVP_WRAPPER=1")
+ 	output, err := cmd.CombinedOutput()
+ 	if err != nil {
+ 		t.Fatalf("failed to run acvp tests: %s\n%s", err, string(output))
+ 	}
+-	fmt.Println(string(output))
+-}
+-
+-func fetchModule(t *testing.T, module, version string) string {
+-	goTool := testenv.GoToolPath(t)
+-	fmt.Printf("fetching %s@%s\n", module, version)
+-
+-	output, err := exec.Command(goTool, "mod", "download", "-json", "-modcacherw", module+"@"+version).CombinedOutput()
+-	if err != nil {
+-		t.Fatalf("failed to download %s@%s: %s\n%s\n", module, version, err, output)
+-	}
+-	var j struct {
+-		Dir string
+-	}
+-	if err := json.Unmarshal(output, &j); err != nil {
+-		t.Fatalf("failed to parse 'go mod download': %s\n%s\n", err, output)
+-	}
+-
+-	return j.Dir
++	t.Log(string(output))
+ }
+ 
+ func TestTooFewArgs(t *testing.T) {
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index ff836d93ed..a3bf116623 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -2,6 +2,7 @@ package tls
+ 
+ import (
+ 	"bytes"
++	"crypto/internal/cryptotest"
+ 	"crypto/x509"
+ 	"encoding/base64"
+ 	"encoding/json"
+@@ -14,7 +15,6 @@ import (
+ 	"log"
+ 	"net"
+ 	"os"
+-	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
+ 	"slices"
+@@ -370,11 +370,6 @@ func bogoShim() {
+ }
+ 
+ func TestBogoSuite(t *testing.T) {
+-	testenv.SkipIfShortAndSlow(t)
+-	testenv.MustHaveExternalNetwork(t)
+-	testenv.MustHaveGoRun(t)
+-	testenv.MustHaveExec(t)
+-
+ 	if testing.Short() {
+ 		t.Skip("skipping in short mode")
+ 	}
+@@ -395,17 +390,7 @@ func TestBogoSuite(t *testing.T) {
+ 		bogoDir = *bogoLocalDir
+ 	} else {
+ 		const boringsslModVer = "v0.0.0-20240523173554-273a920f84e8"
+-		output, err := exec.Command("go", "mod", "download", "-json", "boringssl.googlesource.com/boringssl.git@"+boringsslModVer).CombinedOutput()
+-		if err != nil {
+-			t.Fatalf("failed to download boringssl: %s", err)
+-		}
+-		var j struct {
+-			Dir string
+-		}
+-		if err := json.Unmarshal(output, &j); err != nil {
+-			t.Fatalf("failed to parse 'go mod download' output: %s", err)
+-		}
+-		bogoDir = j.Dir
++		bogoDir = cryptotest.FetchModule(t, "boringssl.googlesource.com/boringssl.git", boringsslModVer)
+ 	}
+ 
+ 	cwd, err := os.Getwd()
+@@ -429,11 +414,7 @@ func TestBogoSuite(t *testing.T) {
+ 		args = append(args, fmt.Sprintf("-test=%s", *bogoFilter))
+ 	}
+ 
+-	goCmd, err := testenv.GoTool()
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	cmd := exec.Command(goCmd, args...)
++	cmd := testenv.Command(t, testenv.GoToolPath(t), args...)
+ 	out := &strings.Builder{}
+ 	cmd.Stderr = out
+ 	cmd.Dir = filepath.Join(bogoDir, "ssl/test/runner")
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 17425d46e6..50e1692fa1 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -684,7 +684,7 @@ var depsRules = `
+ 	FMT
+ 	< internal/txtar;
+ 
+-	CRYPTO-MATH, testing, internal/testenv
++	CRYPTO-MATH, testing, internal/testenv, encoding/json
+ 	< crypto/internal/cryptotest;
+ 
+ 	CGO, FMT

@@ -1,0 +1,90 @@
+commit e2375c49ff837a506855ce26ec160f21dc744b88
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 8 13:14:51 2024 -0400
+
+    cmd: vendor golang.org/x/mod@6686f41
+    
+    To pull in CL 583836
+    
+    Commands run
+        go get golang.org/x/mod@6686f416970d4b8e2f54f521955dee89e6763c4b
+        go mod tidy
+        go mod vendor
+    
+    For #67238
+    For #66625
+    
+    Change-Id: I77e49706481e068d27072a38d0d2464aa40d2dd0
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584335
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Hyang-Ah Hana Kim <hyangah@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go.mod                                   | 2 +-
+ src/cmd/go.sum                                   | 4 ++--
+ src/cmd/vendor/golang.org/x/mod/module/module.go | 2 ++
+ src/cmd/vendor/modules.txt                       | 2 +-
+ 4 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index b085e8127e..c8dd755d7f 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -6,7 +6,7 @@ require (
+ 	github.com/google/pprof v0.0.0-20240207164012-fb44976bdcd5
+ 	golang.org/x/arch v0.7.0
+ 	golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+-	golang.org/x/mod v0.17.0
++	golang.org/x/mod v0.17.1-0.20240507203540-6686f416970d
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.20.0
+ 	golang.org/x/telemetry v0.0.0-20240507150523-279072785af5
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 74ea7fe57e..b2e1efface 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -26,8 +26,8 @@ golang.org/x/arch v0.7.0 h1:pskyeJh/3AmoQ8CPE95vxHLqp1G1GfGNXTmcl9NEKTc=
+ golang.org/x/arch v0.7.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+ golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f h1:XQ2eu0I26WsNCKQkRehp+5mwjjChw94trD9LT8LLSq0=
+ golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f/go.mod h1:HTqTCkubWT8epEK9hDWWGkoOOB7LGSrU1qvWZCSwO50=
+-golang.org/x/mod v0.17.0 h1:zY54UmvipHiNd+pm+m0x9KhZ9hl1/7QNMyxXbc6ICqA=
+-golang.org/x/mod v0.17.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/mod v0.17.1-0.20240507203540-6686f416970d h1:QS9b5Jvh12iuDV+eYRspS3+7Fn6wOTYI6EAHdeGEsmY=
++golang.org/x/mod v0.17.1-0.20240507203540-6686f416970d/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
+diff --git a/src/cmd/vendor/golang.org/x/mod/module/module.go b/src/cmd/vendor/golang.org/x/mod/module/module.go
+index 2a364b229b..cac1a899e9 100644
+--- a/src/cmd/vendor/golang.org/x/mod/module/module.go
++++ b/src/cmd/vendor/golang.org/x/mod/module/module.go
+@@ -506,6 +506,7 @@ var badWindowsNames = []string{
+ 	"PRN",
+ 	"AUX",
+ 	"NUL",
++	"COM0",
+ 	"COM1",
+ 	"COM2",
+ 	"COM3",
+@@ -515,6 +516,7 @@ var badWindowsNames = []string{
+ 	"COM7",
+ 	"COM8",
+ 	"COM9",
++	"LPT0",
+ 	"LPT1",
+ 	"LPT2",
+ 	"LPT3",
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 77761e6887..8167330328 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -25,7 +25,7 @@ golang.org/x/arch/x86/x86asm
+ # golang.org/x/build v0.0.0-20240222153247-cf4ed81bb19f
+ ## explicit; go 1.21
+ golang.org/x/build/relnote
+-# golang.org/x/mod v0.17.0
++# golang.org/x/mod v0.17.1-0.20240507203540-6686f416970d
+ ## explicit; go 1.18
+ golang.org/x/mod/internal/lazyregexp
+ golang.org/x/mod/modfile

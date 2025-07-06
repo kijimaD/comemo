@@ -1,0 +1,81 @@
+commit e282cbb11256db717b95f9d8cf8c050cd4c4f7c2
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Thu May 8 17:33:15 2025 -0400
+
+    crypto/tls: handle client hello version too high
+    
+    If the client hello legacy version is >= TLS 1.3, and no
+    supported_versions extension is sent, negotiate TLS 1.2 or lower when
+    supported.
+    
+    On the topic of supported version negotiation RFC 8446 4.2.1 indicates
+    TLS 1.3 implementations MUST send a supported_versions extension with
+    a list of their supported protocol versions. The crypto/tls package
+    enforces this when the client hello legacy version indicates TLS 1.3
+    (0x0304), aborting the handshake with an alertMissingExtension alert if
+    no supported_versions were received.
+    
+    However, section 4.2.1 indicates different behaviour should be used when
+    the extension is not present and TLS 1.2 or prior are supported:
+    
+      If this extension is not present, servers which are compliant with
+      this specification and which also support TLS 1.2 MUST negotiate
+      TLS 1.2 or prior as specified in [RFC5246], even if
+      ClientHello.legacy_version is 0x0304 or later.
+    
+    This commit updates the client hello processing logic to allow this
+    behaviour. If no supported_versions extension was received we ignore the
+    legacy version being >= TLS 1.3 and instead negotiate a lower supported
+    version if the server configuration allows.
+    
+    This fix in turn allows enabling the BoGo ClientHelloVersionTooHigh,
+    MinorVersionTolerance, and MajorVersionTolerance tests.
+    
+    Updates #72006
+    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5c9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671235
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/tls/bogo_config.json    |  3 ---
+ src/crypto/tls/handshake_server.go | 10 +++++++++-
+ 2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index f61f234760..51482feddd 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -66,11 +66,8 @@
+         "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
+         "NoNullCompression-TLS12": "TODO: first pass, this should be fixed",
+         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
+-        "ClientHelloVersionTooHigh": "TODO: first pass, this should be fixed",
+-        "MinorVersionTolerance": "TODO: first pass, this should be fixed",
+         "IgnoreClientVersionOrder": "TODO: first pass, this should be fixed",
+         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
+-        "MajorVersionTolerance": "TODO: first pass, this should be fixed",
+         "DuplicateExtensionServer-TLS-TLS1": "TODO: first pass, this should be fixed",
+         "DuplicateExtensionClient-TLS-TLS1": "TODO: first pass, this should be fixed",
+         "UnsolicitedServerNameAck-TLS-TLS1": "TODO: first pass, this should be fixed",
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 77da9bb294..5be74e2967 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -169,7 +169,15 @@ func (c *Conn) readClientHello(ctx context.Context) (*clientHelloMsg, *echServer
+ 	c.ticketKeys = originalConfig.ticketKeys(configForClient)
+ 
+ 	clientVersions := clientHello.supportedVersions
+-	if len(clientHello.supportedVersions) == 0 {
++	if clientHello.vers >= VersionTLS13 && len(clientVersions) == 0 {
++		// RFC 8446 4.2.1 indicates when the supported_versions extension is not sent,
++		// compatible servers MUST negotiate TLS 1.2 or earlier if supported, even
++		// if the client legacy version is TLS 1.3 or later.
++		//
++		// Since we reject empty extensionSupportedVersions in the client hello unmarshal
++		// finding the supportedVersions empty indicates the extension was not present.
++		clientVersions = supportedVersionsFromMax(VersionTLS12)
++	} else if len(clientVersions) == 0 {
+ 		clientVersions = supportedVersionsFromMax(clientHello.vers)
+ 	}
+ 	c.vers, ok = c.config.mutualVersion(roleServer, clientVersions)

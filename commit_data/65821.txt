@@ -1,0 +1,112 @@
+commit c1f2542c8bef27872a95efd7904afeeee36fe976
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 12 21:17:04 2024 -0500
+
+    testing: improve B.Loop test
+    
+    This moves the B.Loop test from package testing_test to package
+    testing, where it can check on more of the internals of the benchmark
+    state.
+    
+    Updates #61515.
+    
+    Change-Id: Ia32d7104526125c5e8a1e35dab7660008afcbf80
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635897
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/testing/benchmark_test.go | 22 -------------------
+ src/testing/loop_test.go      | 51 +++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+), 22 deletions(-)
+
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index 239e730021..a195e4c576 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -127,28 +127,6 @@ func TestRunParallelSkipNow(t *testing.T) {
+ 	})
+ }
+ 
+-func TestBLoopHasResults(t *testing.T) {
+-	// Verify that b.N and the b.Loop() iteration count match.
+-	var nIterated int
+-	bRet := testing.Benchmark(func(b *testing.B) {
+-		i := 0
+-		for b.Loop() {
+-			i++
+-		}
+-		nIterated = i
+-	})
+-	if nIterated == 0 {
+-		t.Fatalf("Iteration count zero")
+-	}
+-	if bRet.N != nIterated {
+-		t.Fatalf("Benchmark result N incorrect, got %d want %d", bRet.N, nIterated)
+-	}
+-	// We only need to check duration to make sure benchmark result is written.
+-	if bRet.T == 0 {
+-		t.Fatalf("Benchmark result duration unset")
+-	}
+-}
+-
+ func ExampleB_RunParallel() {
+ 	// Parallel benchmark for text/template.Template.Execute on a single object.
+ 	testing.Benchmark(func(b *testing.B) {
+diff --git a/src/testing/loop_test.go b/src/testing/loop_test.go
+new file mode 100644
+index 0000000000..ae1a5e019b
+--- /dev/null
++++ b/src/testing/loop_test.go
+@@ -0,0 +1,51 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testing
++
++func TestBenchmarkBLoop(t *T) {
++	var initialStart highPrecisionTime
++	var firstStart highPrecisionTime
++	var lastStart highPrecisionTime
++	runs := 0
++	iters := 0
++	finalBN := 0
++	bRet := Benchmark(func(b *B) {
++		initialStart = b.start
++		runs++
++		for b.Loop() {
++			if iters == 0 {
++				firstStart = b.start
++			}
++			lastStart = b.start
++			iters++
++		}
++		finalBN = b.N
++	})
++	// Verify that a b.Loop benchmark is invoked just once.
++	if runs != 1 {
++		t.Errorf("want runs == 1, got %d", runs)
++	}
++	// Verify that at least one iteration ran.
++	if iters == 0 {
++		t.Fatalf("no iterations ran")
++	}
++	// Verify that b.N, bRet.N, and the b.Loop() iteration count match.
++	if finalBN != iters || bRet.N != iters {
++		t.Errorf("benchmark iterations mismatch: %d loop iterations, final b.N=%d, bRet.N=%d", iters, finalBN, bRet.N)
++	}
++	// Make sure the benchmark ran for an appropriate amount of time.
++	if bRet.T < benchTime.d {
++		t.Fatalf("benchmark ran for %s, want >= %s", bRet.T, benchTime.d)
++	}
++	// Verify that the timer is reset on the first loop, and then left alone.
++	if firstStart == initialStart {
++		t.Errorf("b.Loop did not reset the timer")
++	}
++	if lastStart != firstStart {
++		t.Errorf("timer was reset during iteration")
++	}
++}
++
++// See also TestBenchmarkBLoop* in other files.

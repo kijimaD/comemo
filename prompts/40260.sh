@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40260: 858064fb01c52e2c8a703854333ea25dff26ee33
+# Index 40260: ffac3d5a88352d4f6e8e47b9a2990352960eb5ca
 
 echo "🚀 Generating explanation for commit 40260..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40260..."
 
 ### メタデータ
 - **コミットインデックス**: 40260
-- **コミットハッシュ**: 858064fb01c52e2c8a703854333ea25dff26ee33
-- **GitHub URL**: https://github.com/golang/go/commit/858064fb01c52e2c8a703854333ea25dff26ee33
+- **コミットハッシュ**: ffac3d5a88352d4f6e8e47b9a2990352960eb5ca
+- **GitHub URL**: https://github.com/golang/go/commit/ffac3d5a88352d4f6e8e47b9a2990352960eb5ca
 
 ### 章構成
 

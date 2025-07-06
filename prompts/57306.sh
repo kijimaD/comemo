@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 57306: 3bc28402fae2a1646e4d2756344b5eb34994d25f
+# Index 57306: 07bdf1dc545c6f6e59f5780a9024e6f230d9b434
 
 echo "🚀 Generating explanation for commit 57306..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 57306..."
 
 ### メタデータ
 - **コミットインデックス**: 57306
-- **コミットハッシュ**: 3bc28402fae2a1646e4d2756344b5eb34994d25f
-- **GitHub URL**: https://github.com/golang/go/commit/3bc28402fae2a1646e4d2756344b5eb34994d25f
+- **コミットハッシュ**: 07bdf1dc545c6f6e59f5780a9024e6f230d9b434
+- **GitHub URL**: https://github.com/golang/go/commit/07bdf1dc545c6f6e59f5780a9024e6f230d9b434
 
 ### 章構成
 

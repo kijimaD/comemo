@@ -1,0 +1,39 @@
+commit f109bdd1278d59fc6c506d1db50c52f0e969348e
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed May 22 23:09:56 2024 -0400
+
+    runtime: update TestExitHooks error strings
+    
+    The error strings were changed in CL 586259 and no longer include
+    "internal error". Update the strings in the test.
+    
+    Should fix the longtest builders.
+    
+    Change-Id: If227d4b79a8bf5e52a32c3b2eceb086241f079aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587757
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+---
+ src/runtime/ehooks_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/ehooks_test.go b/src/runtime/ehooks_test.go
+index ee286ecb9a..2265256a0b 100644
+--- a/src/runtime/ehooks_test.go
++++ b/src/runtime/ehooks_test.go
+@@ -48,12 +48,12 @@ func TestExitHooks(t *testing.T) {
+ 			{
+ 				mode:     "panics",
+ 				expected: "",
+-				musthave: "fatal error: internal error: exit hook invoked panic",
++				musthave: "fatal error: exit hook invoked panic",
+ 			},
+ 			{
+ 				mode:     "callsexit",
+ 				expected: "",
+-				musthave: "fatal error: internal error: exit hook invoked exit",
++				musthave: "fatal error: exit hook invoked exit",
+ 			},
+ 		}
+ 

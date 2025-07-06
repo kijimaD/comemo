@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40726: c11f6c4929efff3ef02aff9a3de9c0f4799bc276
+# Index 40726: 1edd2a34c1bcf2133b659878e8b59e401eb8cc24
 
 echo "🚀 Generating explanation for commit 40726..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40726..."
 
 ### メタデータ
 - **コミットインデックス**: 40726
-- **コミットハッシュ**: c11f6c4929efff3ef02aff9a3de9c0f4799bc276
-- **GitHub URL**: https://github.com/golang/go/commit/c11f6c4929efff3ef02aff9a3de9c0f4799bc276
+- **コミットハッシュ**: 1edd2a34c1bcf2133b659878e8b59e401eb8cc24
+- **GitHub URL**: https://github.com/golang/go/commit/1edd2a34c1bcf2133b659878e8b59e401eb8cc24
 
 ### 章構成
 

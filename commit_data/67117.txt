@@ -1,0 +1,72 @@
+commit 1972493904b41a34e35a1f62b18f5d91d84a26bd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon May 19 15:31:37 2025 -0400
+
+    cmd/doc: show page for the requested object
+    
+    This fixes a bug where we start pkgsite for every requested object,
+    rather than the one that we would have printed the documentation for.
+    To make things simple, we'll run the logic that prints the
+    documentation, but with an io.Discard writer. Then we can tell if the
+    documentation was found based on the return values of those functions.
+    
+    For #68106
+    
+    Change-Id: Ibf2ab1720f381d7214fc9239b9c2e915c91f7f7b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+---
+ src/cmd/doc/main.go | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index a199991c21..bc6cf2f747 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -126,6 +126,11 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 			return err
+ 		}
+ 	}
++	if serveHTTP {
++		// We want to run the logic below to determine a match for a symbol, method,
++		// or field, but not actually print the documentation to the output.
++		writer = io.Discard
++	}
+ 	var paths []string
+ 	var symbol, method string
+ 	// Loop until something is printed.
+@@ -163,21 +168,25 @@ func do(writer io.Writer, flagSet *flag.FlagSet, args []string) (err error) {
+ 			panic(e)
+ 		}()
+ 
+-		if serveHTTP {
+-			return doPkgsite(pkg, symbol, method)
+-		}
++		var found bool
+ 		switch {
+ 		case symbol == "":
+ 			pkg.packageDoc() // The package exists, so we got some output.
+-			return
++			found = true
+ 		case method == "":
+ 			if pkg.symbolDoc(symbol) {
+-				return
++				found = true
+ 			}
+ 		case pkg.printMethodDoc(symbol, method):
+-			return
++			found = true
+ 		case pkg.printFieldDoc(symbol, method):
+-			return
++			found = true
++		}
++		if found {
++			if serveHTTP {
++				return doPkgsite(pkg, symbol, method)
++			}
++			return nil
+ 		}
+ 	}
+ }

@@ -1,0 +1,67 @@
+commit 315b6ae682a2a4e7718924a45b8b311a0fe10043
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Apr 15 10:14:57 2024 -0700
+
+    debug/elf: define non-standard but well-known symbol types
+    
+    Fixes #66836
+    
+    Change-Id: I603faca2acd2bcffabbcaca8b8670d46387d2a5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578995
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ api/next/66836.txt                            | 6 ++++++
+ doc/next/6-stdlib/99-minor/debug/elf/66836.md | 2 ++
+ src/debug/elf/elf.go                          | 7 +++++++
+ 3 files changed, 15 insertions(+)
+
+diff --git a/api/next/66836.txt b/api/next/66836.txt
+new file mode 100644
+index 0000000000..07e87a7039
+--- /dev/null
++++ b/api/next/66836.txt
+@@ -0,0 +1,6 @@
++pkg debug/elf, const STT_GNU_IFUNC = 10 #66836
++pkg debug/elf, const STT_GNU_IFUNC SymType #66836
++pkg debug/elf, const STT_RELC = 8 #66836
++pkg debug/elf, const STT_RELC SymType #66836
++pkg debug/elf, const STT_SRELC = 9 #66836
++pkg debug/elf, const STT_SRELC SymType #66836
+diff --git a/doc/next/6-stdlib/99-minor/debug/elf/66836.md b/doc/next/6-stdlib/99-minor/debug/elf/66836.md
+new file mode 100644
+index 0000000000..4aad5798dd
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/debug/elf/66836.md
+@@ -0,0 +1,2 @@
++Now defines the symbol type constants [STT_RELC], [STT_SRELC], and
++[STT_GNU_IFUNC].
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index b97ddbf7cf..cecda61ed6 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -1287,6 +1287,11 @@ const (
+ 	STT_HIOS    SymType = 12 /*   specific semantics. */
+ 	STT_LOPROC  SymType = 13 /* reserved range for processor */
+ 	STT_HIPROC  SymType = 15 /*   specific semantics. */
++
++	/* Non-standard symbol types. */
++	STT_RELC      SymType = 8  /* Complex relocation expression. */
++	STT_SRELC     SymType = 9  /* Signed complex relocation expression. */
++	STT_GNU_IFUNC SymType = 10 /* Indirect code object. */
+ )
+ 
+ var sttStrings = []intName{
+@@ -1297,6 +1302,8 @@ var sttStrings = []intName{
+ 	{4, "STT_FILE"},
+ 	{5, "STT_COMMON"},
+ 	{6, "STT_TLS"},
++	{8, "STT_RELC"},
++	{9, "STT_SRELC"},
+ 	{10, "STT_LOOS"},
+ 	{12, "STT_HIOS"},
+ 	{13, "STT_LOPROC"},

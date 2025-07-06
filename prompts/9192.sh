@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9192: 480ef72c230f4f42447865716fc9f502ca032795
+# Index 9192: 816c972ff04c3975b29605a6cb9b16382460e47c
 
 echo "🚀 Generating explanation for commit 9192..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 9192..."
 
 ### メタデータ
 - **コミットインデックス**: 9192
-- **コミットハッシュ**: 480ef72c230f4f42447865716fc9f502ca032795
-- **GitHub URL**: https://github.com/golang/go/commit/480ef72c230f4f42447865716fc9f502ca032795
+- **コミットハッシュ**: 816c972ff04c3975b29605a6cb9b16382460e47c
+- **GitHub URL**: https://github.com/golang/go/commit/816c972ff04c3975b29605a6cb9b16382460e47c
 
 ### 章構成
 

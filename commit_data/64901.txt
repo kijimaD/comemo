@@ -1,0 +1,479 @@
+commit 681751a1fed4467e98d54d7f6cc1c5b9feea0833
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Sep 19 15:20:30 2024 -0700
+
+    go/types, types2: implement underIs, coreType, coreString via typeset iterator
+    
+    Remove remaining underIs methods and call underIs function instead.
+    
+    Change-Id: Ic98430d3a56b85f6f4b35c4508c4c67dafbfa3f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614240
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/builtins.go    |  4 +--
+ src/cmd/compile/internal/types2/conversions.go |  2 +-
+ src/cmd/compile/internal/types2/expr.go        |  2 +-
+ src/cmd/compile/internal/types2/index.go       |  2 +-
+ src/cmd/compile/internal/types2/predicates.go  |  2 +-
+ src/cmd/compile/internal/types2/typeparam.go   |  7 ----
+ src/cmd/compile/internal/types2/typeset.go     | 24 -------------
+ src/cmd/compile/internal/types2/under.go       | 48 +++++++++++---------------
+ src/go/types/builtins.go                       |  4 +--
+ src/go/types/conversions.go                    |  2 +-
+ src/go/types/expr.go                           |  2 +-
+ src/go/types/index.go                          |  2 +-
+ src/go/types/predicates.go                     |  2 +-
+ src/go/types/typeparam.go                      |  7 ----
+ src/go/types/typeset.go                        | 24 -------------
+ src/go/types/under.go                          | 48 +++++++++++---------------
+ 16 files changed, 54 insertions(+), 128 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index 59d2e76ec2..c30bc8dc4d 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -184,8 +184,8 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 			if !isTypeParam(x.typ) {
+ 				break
+ 			}
+-			if t.typeSet().underIs(func(t Type) bool {
+-				switch t := arrayPtrDeref(t).(type) {
++			if underIs(x.typ, func(u Type) bool {
++				switch t := arrayPtrDeref(u).(type) {
+ 				case *Basic:
+ 					if isString(t) && id == _Len {
+ 						return true
+diff --git a/src/cmd/compile/internal/types2/conversions.go b/src/cmd/compile/internal/types2/conversions.go
+index 43208c3d9b..1dd3e55c2a 100644
+--- a/src/cmd/compile/internal/types2/conversions.go
++++ b/src/cmd/compile/internal/types2/conversions.go
+@@ -56,7 +56,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		// If T's type set is empty, or if it doesn't
+ 		// have specific types, constant x cannot be
+ 		// converted.
+-		ok = Unalias(T).(*TypeParam).underIs(func(u Type) bool {
++		ok = underIs(T, func(u Type) bool {
+ 			// u is nil if there are no specific type terms
+ 			if u == nil {
+ 				cause = check.sprintf("%s does not contain specific types", T)
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index df2f2e4608..76d7891b73 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -434,7 +434,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 		}
+ 	case *Interface:
+ 		if isTypeParam(target) {
+-			if !u.typeSet().underIs(func(u Type) bool {
++			if !underIs(target, func(u Type) bool {
+ 				if u == nil {
+ 					return false
+ 				}
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 4db2213086..51684340f7 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -108,7 +108,7 @@ func (check *Checker) indexExpr(x *operand, e *syntax.IndexExpr) (isFuncInst boo
+ 		var key, elem Type // key != nil: we must have all maps
+ 		mode := variable   // non-maps result mode
+ 		// TODO(gri) factor out closure and use it for non-typeparam cases as well
+-		if typ.typeSet().underIs(func(u Type) bool {
++		if underIs(x.typ, func(u Type) bool {
+ 			l := int64(-1) // valid if >= 0
+ 			var k, e Type  // k is only set for maps
+ 			switch t := u.(type) {
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index d40939e2b5..ca51706d66 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -211,7 +211,7 @@ func hasNil(t Type) bool {
+ 	case *Slice, *Pointer, *Signature, *Map, *Chan:
+ 		return true
+ 	case *Interface:
+-		return !isTypeParam(t) || u.typeSet().underIs(func(u Type) bool {
++		return !isTypeParam(t) || underIs(t, func(u Type) bool {
+ 			return u != nil && hasNil(u)
+ 		})
+ 	}
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index cedae76c2a..a04f928908 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -155,13 +155,6 @@ func (t *TypeParam) is(f func(*term) bool) bool {
+ 	return t.iface().typeSet().is(f)
+ }
+ 
+-// underIs calls f with the underlying types of the specific type terms
+-// of t's constraint and reports whether all calls to f returned true.
+-// If there are no specific terms, underIs returns the result of f(nil).
+-func (t *TypeParam) underIs(f func(Type) bool) bool {
+-	return t.iface().typeSet().underIs(f)
+-}
+-
+ // typeset is an iterator over the (type/underlying type) pairs of the
+ // specific type terms of t's constraint.
+ // If there are no specific terms, typeset calls yield with (nil, nil).
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 4f53d0d31c..2ab470274d 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -145,30 +145,6 @@ func (s *_TypeSet) is(f func(*term) bool) bool {
+ 	return true
+ }
+ 
+-// underIs calls f with the underlying types of the specific type terms
+-// of s and reports whether all calls to f returned true. If there are
+-// no specific terms, underIs returns the result of f(nil).
+-func (s *_TypeSet) underIs(f func(Type) bool) bool {
+-	if !s.hasTerms() {
+-		return f(nil)
+-	}
+-	for _, t := range s.terms {
+-		assert(t.typ != nil)
+-		// Unalias(x) == under(x) for ~x terms
+-		u := Unalias(t.typ)
+-		if !t.tilde {
+-			u = under(u)
+-		}
+-		if debug {
+-			assert(Identical(u, under(u)))
+-		}
+-		if !f(u) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // topTypeSet may be used as type set for the empty interface.
+ var topTypeSet = _TypeSet{terms: allTermlist}
+ 
+diff --git a/src/cmd/compile/internal/types2/under.go b/src/cmd/compile/internal/types2/under.go
+index b1b6f89b48..6d7a234ef4 100644
+--- a/src/cmd/compile/internal/types2/under.go
++++ b/src/cmd/compile/internal/types2/under.go
+@@ -18,11 +18,12 @@ func under(t Type) Type {
+ // If typ is a type parameter, underIs returns the result of typ.underIs(f).
+ // Otherwise, underIs returns the result of f(under(typ)).
+ func underIs(typ Type, f func(Type) bool) bool {
+-	typ = Unalias(typ)
+-	if tpar, _ := typ.(*TypeParam); tpar != nil {
+-		return tpar.underIs(f)
+-	}
+-	return f(under(typ))
++	var ok bool
++	typeset(typ, func(_, u Type) bool {
++		ok = f(u)
++		return ok
++	})
++	return ok
+ }
+ 
+ // typeset is an iterator over the (type/underlying type) pairs of the
+@@ -46,45 +47,38 @@ func typeset(t Type, yield func(t, u Type) bool) {
+ // identical element types), the single underlying type is the restricted
+ // channel type if the restrictions are always the same, or nil otherwise.
+ func coreType(t Type) Type {
+-	t = Unalias(t)
+-	tpar, _ := t.(*TypeParam)
+-	if tpar == nil {
+-		return under(t)
+-	}
+-
+ 	var su Type
+-	if tpar.underIs(func(u Type) bool {
++	typeset(t, func(_, u Type) bool {
+ 		if u == nil {
+ 			return false
+ 		}
+ 		if su != nil {
+ 			u = match(su, u)
+ 			if u == nil {
++				su = nil
+ 				return false
+ 			}
+ 		}
+ 		// su == nil || match(su, u) != nil
+ 		su = u
+ 		return true
+-	}) {
+-		return su
+-	}
+-	return nil
++	})
++	return su
+ }
+ 
+ // coreString is like coreType but also considers []byte
+ // and strings as identical. In this case, if successful and we saw
+ // a string, the result is of type (possibly untyped) string.
+ func coreString(t Type) Type {
+-	t = Unalias(t)
+-	tpar, _ := t.(*TypeParam)
+-	if tpar == nil {
+-		return under(t) // string or untyped string
++	// This explicit case is needed because otherwise the
++	// result would be string if t is an untyped string.
++	if !isTypeParam(t) {
++		return under(t) // untyped string remains untyped
+ 	}
+ 
+ 	var su Type
+ 	hasString := false
+-	if tpar.underIs(func(u Type) bool {
++	typeset(t, func(_, u Type) bool {
+ 		if u == nil {
+ 			return false
+ 		}
+@@ -95,19 +89,19 @@ func coreString(t Type) Type {
+ 		if su != nil {
+ 			u = match(su, u)
+ 			if u == nil {
++				su = nil
++				hasString = false
+ 				return false
+ 			}
+ 		}
+ 		// su == nil || match(su, u) != nil
+ 		su = u
+ 		return true
+-	}) {
+-		if hasString {
+-			return Typ[String]
+-		}
+-		return su
++	})
++	if hasString {
++		return Typ[String]
+ 	}
+-	return nil
++	return su
+ }
+ 
+ // If x and y are identical, match returns x.
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 2cd6c52b7b..9f4b09c92d 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -187,8 +187,8 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 			if !isTypeParam(x.typ) {
+ 				break
+ 			}
+-			if t.typeSet().underIs(func(t Type) bool {
+-				switch t := arrayPtrDeref(t).(type) {
++			if underIs(x.typ, func(u Type) bool {
++				switch t := arrayPtrDeref(u).(type) {
+ 				case *Basic:
+ 					if isString(t) && id == _Len {
+ 						return true
+diff --git a/src/go/types/conversions.go b/src/go/types/conversions.go
+index d28c2294a7..1c1dd14ba4 100644
+--- a/src/go/types/conversions.go
++++ b/src/go/types/conversions.go
+@@ -59,7 +59,7 @@ func (check *Checker) conversion(x *operand, T Type) {
+ 		// If T's type set is empty, or if it doesn't
+ 		// have specific types, constant x cannot be
+ 		// converted.
+-		ok = Unalias(T).(*TypeParam).underIs(func(u Type) bool {
++		ok = underIs(T, func(u Type) bool {
+ 			// u is nil if there are no specific type terms
+ 			if u == nil {
+ 				cause = check.sprintf("%s does not contain specific types", T)
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 5995e9d87e..658de03739 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -410,7 +410,7 @@ func (check *Checker) implicitTypeAndValue(x *operand, target Type) (Type, const
+ 		}
+ 	case *Interface:
+ 		if isTypeParam(target) {
+-			if !u.typeSet().underIs(func(u Type) bool {
++			if !underIs(target, func(u Type) bool {
+ 				if u == nil {
+ 					return false
+ 				}
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 7a1666b59a..1b1a7b0007 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -109,7 +109,7 @@ func (check *Checker) indexExpr(x *operand, e *typeparams.IndexExpr) (isFuncInst
+ 		var key, elem Type // key != nil: we must have all maps
+ 		mode := variable   // non-maps result mode
+ 		// TODO(gri) factor out closure and use it for non-typeparam cases as well
+-		if typ.typeSet().underIs(func(u Type) bool {
++		if underIs(x.typ, func(u Type) bool {
+ 			l := int64(-1) // valid if >= 0
+ 			var k, e Type  // k is only set for maps
+ 			switch t := u.(type) {
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 5261aaf158..017dc17c6a 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -214,7 +214,7 @@ func hasNil(t Type) bool {
+ 	case *Slice, *Pointer, *Signature, *Map, *Chan:
+ 		return true
+ 	case *Interface:
+-		return !isTypeParam(t) || u.typeSet().underIs(func(u Type) bool {
++		return !isTypeParam(t) || underIs(t, func(u Type) bool {
+ 			return u != nil && hasNil(u)
+ 		})
+ 	}
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 4cff6b7b31..cdcd552739 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -158,13 +158,6 @@ func (t *TypeParam) is(f func(*term) bool) bool {
+ 	return t.iface().typeSet().is(f)
+ }
+ 
+-// underIs calls f with the underlying types of the specific type terms
+-// of t's constraint and reports whether all calls to f returned true.
+-// If there are no specific terms, underIs returns the result of f(nil).
+-func (t *TypeParam) underIs(f func(Type) bool) bool {
+-	return t.iface().typeSet().underIs(f)
+-}
+-
+ // typeset is an iterator over the (type/underlying type) pairs of the
+ // specific type terms of t's constraint.
+ // If there are no specific terms, typeset calls yield with (nil, nil).
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index 5d28226596..e2eb0766b0 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -148,30 +148,6 @@ func (s *_TypeSet) is(f func(*term) bool) bool {
+ 	return true
+ }
+ 
+-// underIs calls f with the underlying types of the specific type terms
+-// of s and reports whether all calls to f returned true. If there are
+-// no specific terms, underIs returns the result of f(nil).
+-func (s *_TypeSet) underIs(f func(Type) bool) bool {
+-	if !s.hasTerms() {
+-		return f(nil)
+-	}
+-	for _, t := range s.terms {
+-		assert(t.typ != nil)
+-		// Unalias(x) == under(x) for ~x terms
+-		u := Unalias(t.typ)
+-		if !t.tilde {
+-			u = under(u)
+-		}
+-		if debug {
+-			assert(Identical(u, under(u)))
+-		}
+-		if !f(u) {
+-			return false
+-		}
+-	}
+-	return true
+-}
+-
+ // topTypeSet may be used as type set for the empty interface.
+ var topTypeSet = _TypeSet{terms: allTermlist}
+ 
+diff --git a/src/go/types/under.go b/src/go/types/under.go
+index 16afcb28a9..b4c2e342a0 100644
+--- a/src/go/types/under.go
++++ b/src/go/types/under.go
+@@ -21,11 +21,12 @@ func under(t Type) Type {
+ // If typ is a type parameter, underIs returns the result of typ.underIs(f).
+ // Otherwise, underIs returns the result of f(under(typ)).
+ func underIs(typ Type, f func(Type) bool) bool {
+-	typ = Unalias(typ)
+-	if tpar, _ := typ.(*TypeParam); tpar != nil {
+-		return tpar.underIs(f)
+-	}
+-	return f(under(typ))
++	var ok bool
++	typeset(typ, func(_, u Type) bool {
++		ok = f(u)
++		return ok
++	})
++	return ok
+ }
+ 
+ // typeset is an iterator over the (type/underlying type) pairs of the
+@@ -49,45 +50,38 @@ func typeset(t Type, yield func(t, u Type) bool) {
+ // identical element types), the single underlying type is the restricted
+ // channel type if the restrictions are always the same, or nil otherwise.
+ func coreType(t Type) Type {
+-	t = Unalias(t)
+-	tpar, _ := t.(*TypeParam)
+-	if tpar == nil {
+-		return under(t)
+-	}
+-
+ 	var su Type
+-	if tpar.underIs(func(u Type) bool {
++	typeset(t, func(_, u Type) bool {
+ 		if u == nil {
+ 			return false
+ 		}
+ 		if su != nil {
+ 			u = match(su, u)
+ 			if u == nil {
++				su = nil
+ 				return false
+ 			}
+ 		}
+ 		// su == nil || match(su, u) != nil
+ 		su = u
+ 		return true
+-	}) {
+-		return su
+-	}
+-	return nil
++	})
++	return su
+ }
+ 
+ // coreString is like coreType but also considers []byte
+ // and strings as identical. In this case, if successful and we saw
+ // a string, the result is of type (possibly untyped) string.
+ func coreString(t Type) Type {
+-	t = Unalias(t)
+-	tpar, _ := t.(*TypeParam)
+-	if tpar == nil {
+-		return under(t) // string or untyped string
++	// This explicit case is needed because otherwise the
++	// result would be string if t is an untyped string.
++	if !isTypeParam(t) {
++		return under(t) // untyped string remains untyped
+ 	}
+ 
+ 	var su Type
+ 	hasString := false
+-	if tpar.underIs(func(u Type) bool {
++	typeset(t, func(_, u Type) bool {
+ 		if u == nil {
+ 			return false
+ 		}
+@@ -98,19 +92,19 @@ func coreString(t Type) Type {
+ 		if su != nil {
+ 			u = match(su, u)
+ 			if u == nil {
++				su = nil
++				hasString = false
+ 				return false
+ 			}
+ 		}
+ 		// su == nil || match(su, u) != nil
+ 		su = u
+ 		return true
+-	}) {
+-		if hasString {
+-			return Typ[String]
+-		}
+-		return su
++	})
++	if hasString {
++		return Typ[String]
+ 	}
+-	return nil
++	return su
+ }
+ 
+ // If x and y are identical, match returns x.

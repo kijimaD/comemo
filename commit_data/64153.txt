@@ -1,0 +1,44 @@
+commit 29d378aa877210a4c6eed3110a0b1744ae71431c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 29 22:04:04 2024 +0000
+
+    [release-branch.go1.21] cmd/cgo/internal/testsanitizers: make the libfuzzer tests all short
+    
+    CL 589295 only made one of the two tests short, because the other one
+    seemed to be passing consistently in short mode. On the builders, it
+    seems to still fail maybe 30% of the time by taking too long. Disable
+    these tests in short mode.
+    
+    This CL was merged with CL 589295 before cherry-picking.
+    
+    For #67698.
+    Fixes #67714.
+    
+    Change-Id: I9fd047f834f7493b608dd1fee5b9b6dfabbea03d
+    Cq-Include-Trybots: luci.golang.try:go1.21-linux-amd64-clang15,go1.21-linux-386-clang15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589495
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Michael Knyszek <mknyszek@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591378
+---
+ src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go b/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
+index f84c9f37ae..2ea44a4bdc 100644
+--- a/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
+@@ -12,6 +12,11 @@ import (
+ )
+ 
+ func TestLibFuzzer(t *testing.T) {
++	// Skip tests in short mode.
++	if testing.Short() {
++		t.Skip("libfuzzer tests can take upwards of minutes to run; skipping in short mode")
++	}
++
+ 	goos, err := goEnv("GOOS")
+ 	if err != nil {
+ 		t.Fatal(err)

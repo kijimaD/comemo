@@ -1,0 +1,45 @@
+commit 7b4a3d93d7783e2c4593e604bedc6ffda64f2225
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Fri May 9 10:29:47 2025 -0400
+
+    crypto/tls: fix bogo IgnoreClientVersionOrder skip reason
+    
+    The BoGo IgnoreClientVersionOrder test checks that a client that sends
+    a supported_versions extension with the list [TLS 1.2, TLS 1.3] ends up
+    negotiating TLS 1.3.
+    
+    However, the crypto/tls module treats this list as being in client
+    preference order, and so negotiates TLS 1.2, failing the test.
+    
+    Our behaviour appears to be the correct handling based on RFC 8446
+    §4.2.1 where it says:
+      The extension contains a list of supported versions in preference
+      order, with the most preferred version first.
+    
+    This commit updates the reason we skip this test to cite the RFC instead
+    of saying it's something to be fixed.
+    
+    Updates #72006
+    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5ca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671415
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
+---
+ src/crypto/tls/bogo_config.json | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 51482feddd..61585938d7 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -66,7 +66,7 @@
+         "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
+         "NoNullCompression-TLS12": "TODO: first pass, this should be fixed",
+         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
+-        "IgnoreClientVersionOrder": "TODO: first pass, this should be fixed",
++        "IgnoreClientVersionOrder": "RFC 8446 4.2.1 says supported_versions is in client pref order",
+         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
+         "DuplicateExtensionServer-TLS-TLS1": "TODO: first pass, this should be fixed",
+         "DuplicateExtensionClient-TLS-TLS1": "TODO: first pass, this should be fixed",

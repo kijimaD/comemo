@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50107: 2dc91a25f619c49b5d64af1b92497705a3325951
+# Index 50107: b95e4b7850a504748655ad4f025379701afc206c
 
 echo "🚀 Generating explanation for commit 50107..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 50107..."
 
 ### メタデータ
 - **コミットインデックス**: 50107
-- **コミットハッシュ**: 2dc91a25f619c49b5d64af1b92497705a3325951
-- **GitHub URL**: https://github.com/golang/go/commit/2dc91a25f619c49b5d64af1b92497705a3325951
+- **コミットハッシュ**: b95e4b7850a504748655ad4f025379701afc206c
+- **GitHub URL**: https://github.com/golang/go/commit/b95e4b7850a504748655ad4f025379701afc206c
 
 ### 章構成
 

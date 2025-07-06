@@ -1,0 +1,32 @@
+commit 4f092a9f34d8313e1e1e44b09878d1a542d68221
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Oct 23 21:33:00 2024 +0800
+
+    cmd/go: fix typo in ExtraEnvVarsCostly
+    
+    For #69994
+    
+    Change-Id: I7db39074f6a055efb29c1cbd0db4c286864a5da6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621996
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: bcd a <letmetellsomediff@gmail.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/internal/envcmd/env.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index 6be3872012..426427cd76 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -250,7 +250,7 @@ func ExtraEnvVarsCostly() []cfg.EnvVar {
+ 			ev.Changed = ev.Value != ""
+ 		case "PKG_CONFIG":
+ 			ev.Changed = ev.Value != cfg.DefaultPkgConfig
+-		case "CGO_CXXFLAGS", "CGO_CFLAGS", "CGO_FFLAGS", "GGO_LDFLAGS":
++		case "CGO_CXXFLAGS", "CGO_CFLAGS", "CGO_FFLAGS", "CGO_LDFLAGS":
+ 			ev.Changed = ev.Value != work.DefaultCFlags
+ 		}
+ 	}

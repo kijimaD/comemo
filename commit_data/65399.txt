@@ -1,0 +1,164 @@
+commit 992f63583a859c5f236059607a4691a36fa08521
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue Nov 12 15:50:03 2024 +0800
+
+    runtime: improve CALLFN macro for loong64
+    
+    The previous CALLFN macro was copying a single byte at a time
+    which is inefficient on loong64. In this CL, according to the
+    argsize, copy 16 bytes or 8 bytes at a time, and copy 1 byte
+    a time for the rest.
+    
+    benchmark in reflect on 3A5000 and 3A6000:
+    
+    goos: linux
+    goarch: loong64
+    pkg: reflect
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                           |  bench.old   |              bench.new              |
+                           |    sec/op    |   sec/op     vs base                |
+    CallArgCopy/size=128      360.2n ± 0%   266.9n ± 0%  -25.90% (p=0.000 n=20)
+    CallArgCopy/size=256      473.2n ± 0%   277.5n ± 0%  -41.35% (p=0.000 n=20)
+    CallArgCopy/size=1024    1128.0n ± 0%   332.9n ± 0%  -70.49% (p=0.000 n=20)
+    CallArgCopy/size=4096    3743.0n ± 0%   672.6n ± 0%  -82.03% (p=0.000 n=20)
+    CallArgCopy/size=65536   58.888µ ± 0%   9.667µ ± 0%  -83.58% (p=0.000 n=20)
+    geomean                   2.116µ        693.4n       -67.22%
+    
+                           |  bench.old   |               bench.new                |
+                           |     B/s      |      B/s       vs base                 |
+    CallArgCopy/size=128     338.9Mi ± 0%    457.3Mi ± 0%   +34.94% (p=0.000 n=20)
+    CallArgCopy/size=256     516.0Mi ± 0%    879.8Mi ± 0%   +70.52% (p=0.000 n=20)
+    CallArgCopy/size=1024    865.5Mi ± 0%   2933.6Mi ± 0%  +238.94% (p=0.000 n=20)
+    CallArgCopy/size=4096    1.019Gi ± 0%    5.672Gi ± 0%  +456.52% (p=0.000 n=20)
+    CallArgCopy/size=65536   1.036Gi ± 0%    6.313Gi ± 0%  +509.13% (p=0.000 n=20)
+    geomean                  699.6Mi         2.085Gi       +205.10%
+    
+    goos: linux
+    goarch: loong64
+    pkg: reflect
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                           |  bench.old   |              bench.new              |
+                           |    sec/op    |   sec/op     vs base                |
+    CallArgCopy/size=128      466.6n ± 0%   368.7n ± 0%  -20.98% (p=0.000 n=20)
+    CallArgCopy/size=256      579.4n ± 0%   384.6n ± 0%  -33.62% (p=0.000 n=20)
+    CallArgCopy/size=1024    1273.0n ± 0%   492.0n ± 0%  -61.35% (p=0.000 n=20)
+    CallArgCopy/size=4096    4049.0n ± 0%   978.1n ± 0%  -75.84% (p=0.000 n=20)
+    CallArgCopy/size=65536    69.01µ ± 0%   14.50µ ± 0%  -78.99% (p=0.000 n=20)
+    geomean                   2.492µ        997.9n       -59.96%
+    
+                           |  bench.old   |               bench.new                |
+                           |     B/s      |      B/s       vs base                 |
+    CallArgCopy/size=128     261.6Mi ± 0%    331.0Mi ± 0%   +26.54% (p=0.000 n=20)
+    CallArgCopy/size=256     421.4Mi ± 0%    634.8Mi ± 0%   +50.66% (p=0.000 n=20)
+    CallArgCopy/size=1024    767.2Mi ± 0%   1985.0Mi ± 0%  +158.75% (p=0.000 n=20)
+    CallArgCopy/size=4096    964.8Mi ± 0%   3993.8Mi ± 0%  +313.95% (p=0.000 n=20)
+    CallArgCopy/size=65536   905.7Mi ± 0%   4310.6Mi ± 0%  +375.97% (p=0.000 n=20)
+    geomean                  593.9Mi         1.449Gi       +149.76%
+    
+    Change-Id: I9570395af80b2e4b760058098a1b5b07d4b37ad7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627175
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/runtime/asm_loong64.s | 57 +++++++++++++++++++++++++++++++++++++----------
+ src/runtime/cpuflags.go   |  2 ++
+ 2 files changed, 47 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index 7391fb1338..1c5ced4512 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -347,32 +347,65 @@ TEXT NAME(SB), WRAPPER, $MAXSIZE-48;		\
+ 	NO_LOCAL_POINTERS;			\
+ 	/* copy arguments to stack */		\
+ 	MOVV	arg+16(FP), R4;			\
+-	MOVWU	argsize+24(FP), R5;			\
+-	MOVV	R3, R12;				\
++	MOVWU	argsize+24(FP), R5;		\
++	MOVV	R3, R12;			\
++	MOVV	$16, R13;			\
+ 	ADDV	$8, R12;			\
+-	ADDV	R12, R5;				\
+-	BEQ	R12, R5, 6(PC);				\
+-	MOVBU	(R4), R6;			\
+-	ADDV	$1, R4;			\
+-	MOVBU	R6, (R12);			\
+-	ADDV	$1, R12;			\
+-	JMP	-5(PC);				\
++	BLT	R5, R13, check8;		\
++	/* copy 16 bytes a time */		\
++	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLSX(SB), R16;	\
++	BEQ	R16, copy16_again;		\
++loop16:;					\
++	VMOVQ	(R4), V0;			\
++	ADDV	$16, R4;			\
++	ADDV	$-16, R5;			\
++	VMOVQ	V0, (R12);			\
++	ADDV	$16, R12;			\
++	BGE	R5, R13, loop16;		\
++	JMP	check8;				\
++copy16_again:;					\
++	MOVV	(R4), R14;			\
++	MOVV	8(R4), R15;			\
++	ADDV	$16, R4;			\
++	ADDV	$-16, R5;			\
++	MOVV	R14, (R12);			\
++	MOVV	R15, 8(R12);			\
++	ADDV	$16, R12;			\
++	BGE	R5, R13, copy16_again;		\
++check8:;					\
++	/* R13 = 8 */;				\
++	SRLV	$1, R13;			\
++	BLT	R5, R13, 6(PC);			\
++	/* copy 8 bytes a time */		\
++	MOVV	(R4), R14;			\
++	ADDV	$8, R4;				\
++	ADDV	$-8, R5;			\
++	MOVV	R14, (R12);			\
++	ADDV	$8, R12;			\
++	BEQ     R5, R0, 7(PC);  		\
++	/* copy 1 byte a time for the rest */	\
++	MOVBU   (R4), R14;      		\
++	ADDV    $1, R4;         		\
++	ADDV    $-1, R5;        		\
++	MOVBU   R14, (R12);     		\
++	ADDV    $1, R12;        		\
++	JMP     -6(PC);         		\
+ 	/* set up argument registers */		\
+ 	MOVV	regArgs+40(FP), R25;		\
+ 	JAL	·unspillArgs(SB);		\
+ 	/* call function */			\
+-	MOVV	f+8(FP), REGCTXT;			\
++	MOVV	f+8(FP), REGCTXT;		\
+ 	MOVV	(REGCTXT), R25;			\
+ 	PCDATA  $PCDATA_StackMapIndex, $0;	\
+ 	JAL	(R25);				\
+ 	/* copy return values back */		\
+ 	MOVV	regArgs+40(FP), R25;		\
+-	JAL	·spillArgs(SB);		\
++	JAL	·spillArgs(SB);			\
+ 	MOVV	argtype+0(FP), R7;		\
+ 	MOVV	arg+16(FP), R4;			\
+ 	MOVWU	n+24(FP), R5;			\
+ 	MOVWU	retoffset+28(FP), R6;		\
+-	ADDV	$8, R3, R12;				\
++	ADDV	$8, R3, R12;			\
+ 	ADDV	R6, R12; 			\
+ 	ADDV	R6, R4;				\
+ 	SUBVU	R6, R5;				\
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index 35095589ec..3f88d20fb3 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -19,6 +19,8 @@ const (
+ 	offsetARMHasIDIVA = unsafe.Offsetof(cpu.ARM.HasIDIVA)
+ 
+ 	offsetMIPS64XHasMSA = unsafe.Offsetof(cpu.MIPS64X.HasMSA)
++
++	offsetLOONG64HasLSX = unsafe.Offsetof(cpu.Loong64.HasLSX)
+ )
+ 
+ var (

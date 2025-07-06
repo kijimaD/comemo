@@ -1,0 +1,51 @@
+commit bc5f4a555e933e6861d12edba4c2d87ef6caf8e6
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Sat Feb 15 10:07:19 2025 -0500
+
+    crypto/tls: small bogo shim test tidying
+    
+    1. onResumeShimWritesFirst is unused, replace the binding with an
+       underscore.
+    2. in the bogoShim() function when looping through resumeCount+1 the
+       tlsConn read for loop only breaks for non-nil err, so there's no need
+       to check that again after the loop body.
+    
+    Updates #72006
+    
+    Change-Id: Ieff45d26df33d71003a2509ea5b2b06c5fa0e1d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650715
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/crypto/tls/bogo_shim_test.go | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index fdacbee25d..569e627373 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -82,10 +82,10 @@ var (
+ 
+ 	expectSessionMiss = flag.Bool("expect-session-miss", false, "")
+ 
+-	_                       = flag.Bool("enable-early-data", false, "")
+-	_                       = flag.Bool("on-resume-expect-accept-early-data", false, "")
+-	_                       = flag.Bool("expect-ticket-supports-early-data", false, "")
+-	onResumeShimWritesFirst = flag.Bool("on-resume-shim-writes-first", false, "")
++	_ = flag.Bool("enable-early-data", false, "")
++	_ = flag.Bool("on-resume-expect-accept-early-data", false, "")
++	_ = flag.Bool("expect-ticket-supports-early-data", false, "")
++	_ = flag.Bool("on-resume-shim-writes-first", false, "")
+ 
+ 	advertiseALPN        = flag.String("advertise-alpn", "", "")
+ 	expectALPN           = flag.String("expect-alpn", "", "")
+@@ -324,7 +324,7 @@ func bogoShim() {
+ 				break
+ 			}
+ 		}
+-		if err != nil && err != io.EOF {
++		if err != io.EOF {
+ 			retryErr, ok := err.(*ECHRejectionError)
+ 			if !ok {
+ 				log.Fatalf("unexpected error type returned: %v", err)

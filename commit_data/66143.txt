@@ -1,0 +1,75 @@
+commit 450f3f608d409e2b3d76af071ec726efacbdd17b
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Jul 19 23:28:54 2024 +0100
+
+    net/http/httptest: match net/http ContentLength behavior for http.NoBody
+    
+    Fixes #68476
+    
+    Change-Id: I05122e5ec5e6b290eec93f3db444fcf1de19c030
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599815
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Daniel Martí <mvdan@mvdan.cc>
+---
+ src/net/http/httptest/httptest.go      |  9 ++++++---
+ src/net/http/httptest/httptest_test.go | 18 ++++++++++++++++++
+ 2 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/httptest/httptest.go b/src/net/http/httptest/httptest.go
+index 0c0dbb40e8..7fe7107a9a 100644
+--- a/src/net/http/httptest/httptest.go
++++ b/src/net/http/httptest/httptest.go
+@@ -34,9 +34,9 @@ func NewRequest(method, target string, body io.Reader) *http.Request {
+ //
+ // An empty method means "GET".
+ //
+-// The provided body may be nil. If the body is of type *bytes.Reader,
+-// *strings.Reader, or *bytes.Buffer, the Request.ContentLength is
+-// set.
++// The provided body may be nil. If the body is of type [bytes.Reader],
++// [strings.Reader], [bytes.Buffer], or the value [http.NoBody],
++// the Request.ContentLength is set.
+ //
+ // NewRequest panics on error for ease of use in testing, where a
+ // panic is acceptable.
+@@ -69,6 +69,9 @@ func NewRequestWithContext(ctx context.Context, method, target string, body io.R
+ 		default:
+ 			req.ContentLength = -1
+ 		}
++		if body == http.NoBody {
++			req.ContentLength = 0
++		}
+ 		if rc, ok := body.(io.ReadCloser); ok {
+ 			req.Body = rc
+ 		} else {
+diff --git a/src/net/http/httptest/httptest_test.go b/src/net/http/httptest/httptest_test.go
+index d5a4c3dc9d..5f2215cfc6 100644
+--- a/src/net/http/httptest/httptest_test.go
++++ b/src/net/http/httptest/httptest_test.go
+@@ -156,6 +156,24 @@ func TestNewRequestWithContext(t *testing.T) {
+ 			wantBody: "foo",
+ 		},
+ 
++		{
++			name:   "Post with NoBody",
++			method: "POST",
++			uri:    "/",
++			body:   http.NoBody,
++			want: &http.Request{
++				Method:     "POST",
++				Host:       "example.com",
++				URL:        &url.URL{Path: "/"},
++				Header:     http.Header{},
++				Proto:      "HTTP/1.1",
++				ProtoMajor: 1,
++				ProtoMinor: 1,
++				RemoteAddr: "192.0.2.1:1234",
++				RequestURI: "/",
++			},
++		},
++
+ 		{
+ 			name:   "OPTIONS *",
+ 			method: "OPTIONS",

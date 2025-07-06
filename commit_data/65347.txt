@@ -1,0 +1,1545 @@
+commit 239dbd7dbac883d6f9b6522774a0dfd519f77fa8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 5 13:51:32 2024 -0500
+
+    cmd/compile, cmd/link: add FIPS verification support
+    
+    For FIPS init-time code+data verification, we need to arrange to
+    put the FIPS symbols into contiguous regions of the executable
+    and then record those sections along with the expected checksum.
+    
+    The cmd/internal/obj changes identify the FIPS symbols and give
+    them distinguished types, which the linker then places in contiguous
+    regions. The linker also writes out information to use at run time
+    to find the FIPS sections, along with the expected hash.
+    
+    See cmd/internal/obj/fips.go and cmd/link/internal/ld/fips.go
+    for more details.
+    
+    The code is disabled in this commit.
+    CL 625998 and 625999 adds tests.
+    CL 626000 enables the code.
+    
+    For #69536.
+    
+    Change-Id: I48da6db94bc0bea7428c43d4abcf999527bccfcd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625997
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/base/debug.go       |   1 +
+ src/cmd/compile/internal/base/flag.go        |   1 +
+ src/cmd/compile/internal/staticinit/sched.go |  44 +-
+ src/cmd/compile/internal/walk/complit.go     |   5 +-
+ src/cmd/compile/internal/walk/order.go       |   7 +-
+ src/cmd/internal/obj/data.go                 |   5 +
+ src/cmd/internal/obj/fips.go                 | 383 +++++++++++++++++
+ src/cmd/internal/obj/plist.go                |   2 +
+ src/cmd/internal/obj/sym.go                  |   4 +-
+ src/cmd/internal/objfile/goobj.go            |   7 +-
+ src/cmd/link/internal/ld/data.go             |  36 +-
+ src/cmd/link/internal/ld/elf.go              |   2 +
+ src/cmd/link/internal/ld/fips.go             | 599 +++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/lib.go              |   3 +
+ src/cmd/link/internal/ld/main.go             |   4 +-
+ src/cmd/link/internal/ld/symtab.go           |  11 +-
+ src/cmd/link/internal/loader/loader.go       |   2 +
+ 17 files changed, 1097 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index 05da3efe48..d42e11b2fa 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -30,6 +30,7 @@ type DebugFlags struct {
+ 	DwarfInl              int    `help:"print information about DWARF inlined function creation"`
+ 	EscapeMutationsCalls  int    `help:"print extra escape analysis diagnostics about mutations and calls" concurrent:"ok"`
+ 	Export                int    `help:"print export data"`
++	FIPSHash              string `help:"hash value for FIPS debugging" concurrent:"ok"`
+ 	Fmahash               string `help:"hash value for use in debugging platform-dependent multiply-add use" concurrent:"ok"`
+ 	GCAdjust              int    `help:"log adjustments to GOGC" concurrent:"ok"`
+ 	GCCheck               int    `help:"check heap/gc use by compiler" concurrent:"ok"`
+diff --git a/src/cmd/compile/internal/base/flag.go b/src/cmd/compile/internal/base/flag.go
+index b296f3666c..31ea8622b9 100644
+--- a/src/cmd/compile/internal/base/flag.go
++++ b/src/cmd/compile/internal/base/flag.go
+@@ -206,6 +206,7 @@ func ParseFlags() {
+ 	if Debug.Gossahash != "" {
+ 		hashDebug = NewHashDebug("gossahash", Debug.Gossahash, nil)
+ 	}
++	obj.SetFIPSDebugHash(Debug.FIPSHash)
+ 
+ 	// Compute whether we're compiling the runtime from the package path. Test
+ 	// code can also use the flag to set this explicitly.
+diff --git a/src/cmd/compile/internal/staticinit/sched.go b/src/cmd/compile/internal/staticinit/sched.go
+index 0e2f7119c6..e013823ee7 100644
+--- a/src/cmd/compile/internal/staticinit/sched.go
++++ b/src/cmd/compile/internal/staticinit/sched.go
+@@ -279,6 +279,14 @@ func (s *Schedule) staticcopy(l *ir.Name, loff int64, rn *ir.Name, typ *types.Ty
+ }
+ 
+ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Type) bool {
++	// If we're building for FIPS, avoid global data relocations
++	// by treating all address-of operations as non-static.
++	// See ../../../internal/obj/fips.go for more context.
++	// We do this even in non-PIE mode to avoid generating
++	// static temporaries that would go into SRODATAFIPS
++	// but need relocations. We can't handle that in the verification.
++	disableGlobalAddrs := base.Ctxt.IsFIPS()
++
+ 	if r == nil {
+ 		// No explicit initialization value. Either zero or supplied
+ 		// externally.
+@@ -304,10 +312,16 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 
+ 	switch r.Op() {
+ 	case ir.ONAME:
++		if disableGlobalAddrs {
++			return false
++		}
+ 		r := r.(*ir.Name)
+ 		return s.staticcopy(l, loff, r, typ)
+ 
+ 	case ir.OMETHEXPR:
++		if disableGlobalAddrs {
++			return false
++		}
+ 		r := r.(*ir.SelectorExpr)
+ 		return s.staticcopy(l, loff, r.FuncName(), typ)
+ 
+@@ -322,6 +336,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		return true
+ 
+ 	case ir.OADDR:
++		if disableGlobalAddrs {
++			return false
++		}
+ 		r := r.(*ir.AddrExpr)
+ 		if name, offset, ok := StaticLoc(r.X); ok && name.Class == ir.PEXTERN {
+ 			staticdata.InitAddrOffset(l, loff, name.Linksym(), offset)
+@@ -330,6 +347,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		fallthrough
+ 
+ 	case ir.OPTRLIT:
++		if disableGlobalAddrs {
++			return false
++		}
+ 		r := r.(*ir.AddrExpr)
+ 		switch r.X.Op() {
+ 		case ir.OARRAYLIT, ir.OSLICELIT, ir.OMAPLIT, ir.OSTRUCTLIT:
+@@ -346,6 +366,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		//dump("not static ptrlit", r);
+ 
+ 	case ir.OSTR2BYTES:
++		if disableGlobalAddrs {
++			return false
++		}
+ 		r := r.(*ir.ConvExpr)
+ 		if l.Class == ir.PEXTERN && r.X.Op() == ir.OLITERAL {
+ 			sval := ir.StringVal(r.X)
+@@ -354,6 +377,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		}
+ 
+ 	case ir.OSLICELIT:
++		if disableGlobalAddrs {
++			return false
++		}
+ 		r := r.(*ir.CompLitExpr)
+ 		s.initplan(r)
+ 		// Init slice.
+@@ -374,7 +400,7 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		p := s.Plans[r]
+ 		for i := range p.E {
+ 			e := &p.E[i]
+-			if e.Expr.Op() == ir.OLITERAL || e.Expr.Op() == ir.ONIL {
++			if e.Expr.Op() == ir.OLITERAL && !disableGlobalAddrs || e.Expr.Op() == ir.ONIL {
+ 				staticdata.InitConst(l, loff+e.Xoffset, e.Expr, int(e.Expr.Type().Size()))
+ 				continue
+ 			}
+@@ -388,6 +414,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		break
+ 
+ 	case ir.OCLOSURE:
++		if disableGlobalAddrs {
++			return false
++		}
+ 		r := r.(*ir.ClosureExpr)
+ 		if !r.Func.IsClosure() {
+ 			if base.Debug.Closure > 0 {
+@@ -405,6 +434,10 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		// This logic is mirrored in isStaticCompositeLiteral.
+ 		// If you change something here, change it there, and vice versa.
+ 
++		if disableGlobalAddrs {
++			return false
++		}
++
+ 		// Determine the underlying concrete type and value we are converting from.
+ 		r := r.(*ir.ConvExpr)
+ 		val := ir.Node(r)
+@@ -460,6 +493,9 @@ func (s *Schedule) StaticAssign(l *ir.Name, loff int64, r ir.Node, typ *types.Ty
+ 		return true
+ 
+ 	case ir.OINLCALL:
++		if disableGlobalAddrs {
++			return false
++		}
+ 		r := r.(*ir.InlinedCallExpr)
+ 		return s.staticAssignInlinedCall(l, loff, r, typ)
+ 	}
+@@ -728,10 +764,12 @@ func (s *Schedule) staticAssignInlinedCall(l *ir.Name, loff int64, call *ir.Inli
+ var statuniqgen int // name generator for static temps
+ 
+ // StaticName returns a name backed by a (writable) static data symbol.
+-// Use readonlystaticname for read-only node.
+ func StaticName(t *types.Type) *ir.Name {
+ 	// Don't use LookupNum; it interns the resulting string, but these are all unique.
+-	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePref, statuniqgen))
++	sym := typecheck.Lookup(fmt.Sprintf("%s%d", obj.StaticNamePrefix, statuniqgen))
++	if sym.Name == ".stmp_0" && sym.Pkg.Path == "crypto/internal/fips/check" {
++		panic("bad")
++	}
+ 	statuniqgen++
+ 
+ 	n := ir.NewNameAt(base.Pos, sym, t)
+diff --git a/src/cmd/compile/internal/walk/complit.go b/src/cmd/compile/internal/walk/complit.go
+index cfdc8becfe..70750ab037 100644
+--- a/src/cmd/compile/internal/walk/complit.go
++++ b/src/cmd/compile/internal/walk/complit.go
+@@ -153,7 +153,10 @@ func isStaticCompositeLiteral(n ir.Node) bool {
+ 	case ir.OLITERAL, ir.ONIL:
+ 		return true
+ 	case ir.OCONVIFACE:
+-		// See staticassign's OCONVIFACE case for comments.
++		// See staticinit.Schedule.StaticAssign's OCONVIFACE case for comments.
++		if base.Ctxt.IsFIPS() && base.Ctxt.Flag_shared {
++			return false
++		}
+ 		n := n.(*ir.ConvExpr)
+ 		val := ir.Node(n)
+ 		for val.Op() == ir.OCONVIFACE {
+diff --git a/src/cmd/compile/internal/walk/order.go b/src/cmd/compile/internal/walk/order.go
+index 896088901e..613edf497b 100644
+--- a/src/cmd/compile/internal/walk/order.go
++++ b/src/cmd/compile/internal/walk/order.go
+@@ -220,7 +220,12 @@ func (o *orderState) safeExpr(n ir.Node) ir.Node {
+ //
+ //	n.Left = o.addrTemp(n.Left)
+ func (o *orderState) addrTemp(n ir.Node) ir.Node {
+-	if n.Op() == ir.OLITERAL || n.Op() == ir.ONIL {
++	// Note: Avoid addrTemp with static assignment for literal strings
++	// when compiling FIPS packages.
++	// The problem is that panic("foo") ends up creating a static RODATA temp
++	// for the implicit conversion of "foo" to any, and we can't handle
++	// the relocations in that temp.
++	if n.Op() == ir.ONIL || (n.Op() == ir.OLITERAL && !base.Ctxt.IsFIPS()) {
+ 		// TODO: expand this to all static composite literal nodes?
+ 		n = typecheck.DefaultLit(n, nil)
+ 		types.CalcSize(n.Type())
+diff --git a/src/cmd/internal/obj/data.go b/src/cmd/internal/obj/data.go
+index 361ea05a0f..fb6edd605f 100644
+--- a/src/cmd/internal/obj/data.go
++++ b/src/cmd/internal/obj/data.go
+@@ -71,8 +71,10 @@ func (s *LSym) prepwrite(ctxt *Link, off int64, siz int) {
+ 	switch s.Type {
+ 	case objabi.Sxxx, objabi.SBSS:
+ 		s.Type = objabi.SDATA
++		s.setFIPSType(ctxt)
+ 	case objabi.SNOPTRBSS:
+ 		s.Type = objabi.SNOPTRDATA
++		s.setFIPSType(ctxt)
+ 	case objabi.STLSBSS:
+ 		ctxt.Diag("cannot supply data for %v var %v", s.Type, s.Name)
+ 	}
+@@ -203,5 +205,8 @@ func (s *LSym) WriteBytes(ctxt *Link, off int64, b []byte) int64 {
+ 
+ // AddRel adds the relocation rel to s.
+ func (s *LSym) AddRel(ctxt *Link, rel Reloc) {
++	if s.Type.IsFIPS() {
++		s.checkFIPSReloc(ctxt, rel)
++	}
+ 	s.R = append(s.R, rel)
+ }
+diff --git a/src/cmd/internal/obj/fips.go b/src/cmd/internal/obj/fips.go
+new file mode 100644
+index 0000000000..11028ce602
+--- /dev/null
++++ b/src/cmd/internal/obj/fips.go
+@@ -0,0 +1,383 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++FIPS-140 Verification Support
++
++# Overview
++
++For FIPS-140 crypto certification, one of the requirements is that the
++“cryptographic module” perform a power-on self-test that includes
++verification of its code+data at startup, ostensibly to guard against
++corruption. (Like most of FIPS, the actual value here is as questionable
++as it is non-negotiable.) Specifically, at startup we need to compute
++an HMAC-SHA256 of the cryptographic code+data and compare it against a
++build-time HMAC-SHA256 that has been stored in the binary as well.
++This obviously guards against accidental corruption only, not attacks.
++
++We could compute an HMAC-SHA256 of the entire binary, but that's more
++startup latency than we'd like. (At 500 MB/s, a large 50MB binary
++would incur a 100ms hit.) Also, as we'll see, there are some
++limitations imposed on the code+data being hashed, and it's nice to
++restrict those to the actual cryptographic packages.
++
++# FIPS Symbol Types
++
++Since we're not hashing the whole binary, we need to record the parts
++of the binary that contain FIPS code, specifically the part of the
++binary corresponding to the crypto/internal/fips package subtree.
++To do that, we create special symbol types STEXTFIPS, SRODATAFIPS,
++SNOPTRDATAFIPS, and SDATAFIPS, which those packages use instead of
++STEXT, SRODATA, SNOPTRDATA, and SDATA. The linker groups symbols by
++their type, so that naturally makes the FIPS parts contiguous within a
++given type. The linker then writes out in a special symbol the start
++and end of each of these FIPS-specific sections, alongside the
++expected HMAC-SHA256 of them. At startup, the crypto/internal/fips/check
++package has an init function that recomputes the hash and checks it
++against the recorded expectation.
++
++The first important functionality in this file, then, is converting
++from the standard symbol types to the FIPS symbol types, in the code
++that needs them. Every time an LSym.Type is set, code must call
++[LSym.setFIPSType] to update the Type to a FIPS type if appropriate.
++
++# Relocation Restrictions
++
++Of course, for the hashes to match, the FIPS code+data written by the
++linker has to match the FIPS code+data in memory at init time.
++This means that there cannot be an load-time relocations that modify
++the FIPS code+data. In a standard -buildmode=exe build, that's vacuously
++true, since those binaries have no load-time relocations at all.
++For a -buildmode=pie build, there's more to be done.
++Specifically, we have to make sure that all the relocations needed are
++position-independent, so that they can be applied a link time with no
++load-time component. For the code segment (the STEXTFIPS symbols),
++that means only using PC-relative relocations. For the data segment,
++that means basically having no relocations at all. In particular,
++there cannot be R_ADDR relocations.
++
++For example, consider the compilation of code like the global variables:
++
++	var array = [...]int{10, 20, 30}
++	var slice = array[:]
++
++The standard implementation of these globals is to fill out the array
++values in an SDATA symbol at link time, and then also to fill out the
++slice header at link time as {nil, 3, 3}, along with a relocation to
++fill in the first word of the slice header with the pointer &array at
++load time, once the address of array is known.
++
++A similar issue happens with:
++
++	var slice = []int{10, 20, 30}
++
++The compiler invents an anonymous array and then treats the code as in
++the first example. In both cases, a load-time relocation applied
++before the crypto/internal/fips/check init function would invalidate
++the hash. Instead, we disable the “link time initialization” optimizations
++in the compiler (package staticinit) for the fips packages.
++That way, the slice initialization is deferred to its own init function.
++As long as the package in question imports crypto/internal/fips/check,
++the hash check will happen before the package's own init function
++runs, and so the hash check will see the slice header written by the
++linker, with a slice base pointer predictably nil instead of the
++unpredictable &array address.
++
++The details of disabling the static initialization appropriately are
++left to the compiler (see ../../compile/internal/staticinit).
++This file is only concerned with making sure that no hash-invalidating
++relocations sneak into the object files. [LSym.checkFIPSReloc] is called
++for every new relocation in a symbol in a FIPS package (as reported by
++[Link.IsFIPS]) and rejects invalid relocations.
++
++# FIPS and Non-FIPS Symbols
++
++The cryptographic code+data must be included in the hash-verified
++data. In general we accomplish that by putting all symbols from
++crypto/internal/fips/... packages into the hash-verified data.
++But not all.
++
++Note that wrapper code that layers a Go API atop the cryptographic
++core is unverified. For example, crypto/internal/fips/sha256 is part of
++the FIPS module and verified but the crypto/sha256 package that wraps
++it is outside the module and unverified. Also, runtime support like
++the implementation of malloc and garbage collection is outside the
++FIPS module. Again, only the core cryptographic code and data is in
++scope for the verification.
++
++By analogy with these cases, we treat function wrappers like foo·f
++(the function pointer form of func foo) and runtime support data like
++runtime type descriptors, generic dictionaries, stack maps, and
++function argument data as being outside the FIPS module. That's
++important because some of them need to be contiguous with other
++non-FIPS data, and all of them include data relocations that would be
++incompatible with the hash verification.
++
++# Debugging
++
++Bugs in the handling of FIPS symbols can be mysterious. It is very
++helpful to narrow the bug down to a specific symbol that causes a
++problem when treated as a FIPS symbol. Rather than work that out
++manually, if “go test strings” is failing, then you can use
++
++	go install golang.org/x/tools/cmd/bisect@latest
++	bisect -compile=fips go test strings
++
++to automatically bisect which symbol triggers the bug.
++
++# Link-Time Hashing
++
++The link-time hash preparation is out of scope for this file;
++see ../../link/internal/ld/fips.go for those details.
++*/
++
++package obj
++
++import (
++	"cmd/internal/objabi"
++	"fmt"
++	"internal/bisect"
++	"internal/buildcfg"
++	"log"
++	"os"
++	"strings"
++)
++
++const enableFIPS = false
++
++// IsFIPS reports whether we are compiling one of the crypto/internal/fips/... packages.
++func (ctxt *Link) IsFIPS() bool {
++	return ctxt.Pkgpath == "crypto/internal/fips" || strings.HasPrefix(ctxt.Pkgpath, "crypto/internal/fips/")
++}
++
++// bisectFIPS controls bisect-based debugging of FIPS symbol assignment.
++var bisectFIPS *bisect.Matcher
++
++// SetFIPSDebugHash sets the bisect pattern for debugging FIPS changes.
++// The compiler calls this with the pattern set by -d=fipshash=pattern,
++// so that if FIPS symbol type conversions are causing problems,
++// you can use 'bisect -compile fips go test strings' to identify exactly
++// which symbol is not being handled correctly.
++func SetFIPSDebugHash(pattern string) {
++	m, err := bisect.New(pattern)
++	if err != nil {
++		log.Fatal(err)
++	}
++	bisectFIPS = m
++}
++
++// EnableFIPS reports whether FIPS should be enabled at all
++// on the current buildcfg GOOS and GOARCH.
++func EnableFIPS() bool {
++	// WASM is out of scope; its binaries are too weird.
++	// I'm not even sure it can read its own code.
++	if buildcfg.GOARCH == "wasm" {
++		return false
++	}
++
++	// CL 214397 added -buildmode=pie to windows-386
++	// and made it the default, but the implementation is
++	// not a true position-independent executable.
++	// Instead, it writes tons of relocations into the executable
++	// and leaves the loader to apply them to update the text
++	// segment for the specific address where the code was loaded.
++	// It should instead pass -shared to the compiler to get true
++	// position-independent code, at which point FIPS verification
++	// would work fine. FIPS verification does work fine on -buildmode=exe,
++	// but -buildmode=pie is the default, so crypto/internal/fips/check
++	// would fail during all.bash if we enabled FIPS here.
++	// Perhaps the default should be changed back to -buildmode=exe,
++	// after which we could remove this case, but until then,
++	// skip FIPS on windows-386.
++	//
++	// We don't know whether arm or arm64 works, because it is
++	// too hard to get builder time to test them. Disable since they
++	// are not important right now.
++	if buildcfg.GOOS == "windows" {
++		switch buildcfg.GOARCH {
++		case "386", "arm", "arm64":
++			return false
++		}
++	}
++
++	return enableFIPS
++}
++
++// setFIPSType should be called every time s.Type is set or changed.
++// It changes the type to one of the FIPS type (for example, STEXT -> STEXTFIPS) if appropriate.
++func (s *LSym) setFIPSType(ctxt *Link) {
++	if !EnableFIPS() {
++		return
++	}
++
++	// Name must begin with crypto/internal/fips, then dot or slash.
++	// The quick check for 'c' before the string compare is probably overkill,
++	// but this function is called a fair amount, and we don't want to
++	// slow down all the non-FIPS compilations.
++	const prefix = "crypto/internal/fips"
++	name := s.Name
++	if len(name) <= len(prefix) || (name[len(prefix)] != '.' && name[len(prefix)] != '/') || name[0] != 'c' || name[:len(prefix)] != prefix {
++		return
++	}
++
++	// Now we're at least handling a FIPS symbol.
++	// It's okay to be slower now, since this code only runs when compiling a few packages.
++
++	// Even in the crypto/internal/fips packages,
++	// we exclude various Go runtime metadata,
++	// so that it can be allowed to contain data relocations.
++	if strings.Contains(name, ".init") ||
++		strings.Contains(name, ".dict") ||
++		strings.Contains(name, ".typeAssert") ||
++		strings.HasSuffix(name, ".arginfo0") ||
++		strings.HasSuffix(name, ".arginfo1") ||
++		strings.HasSuffix(name, ".argliveinfo") ||
++		strings.HasSuffix(name, ".args_stackmap") ||
++		strings.HasSuffix(name, ".opendefer") ||
++		strings.HasSuffix(name, ".stkobj") ||
++		strings.HasSuffix(name, "·f") {
++		return
++	}
++
++	// This symbol is linknamed to go:fipsinfo,
++	// so we shouldn't see it, but skip it just in case.
++	if s.Name == "crypto/internal/fips/check.linkinfo" {
++		return
++	}
++
++	// This is a FIPS symbol! Convert its type to FIPS.
++
++	// Allow hash-based bisect to override our decision.
++	if bisectFIPS != nil {
++		h := bisect.Hash(s.Name)
++		if bisectFIPS.ShouldPrint(h) {
++			fmt.Fprintf(os.Stderr, "%v %s (%v)\n", bisect.Marker(h), s.Name, s.Type)
++		}
++		if !bisectFIPS.ShouldEnable(h) {
++			return
++		}
++	}
++
++	switch s.Type {
++	case objabi.STEXT:
++		s.Type = objabi.STEXTFIPS
++	case objabi.SDATA:
++		s.Type = objabi.SDATAFIPS
++	case objabi.SRODATA:
++		s.Type = objabi.SRODATAFIPS
++	case objabi.SNOPTRDATA:
++		s.Type = objabi.SNOPTRDATAFIPS
++	}
++}
++
++// checkFIPSReloc should be called for every relocation applied to s.
++// It rejects absolute (non-PC-relative) address relocations when building
++// with go build -buildmode=pie (which triggers the compiler's -shared flag),
++// because those relocations will be applied before crypto/internal/fips/check
++// can hash-verify the FIPS code+data, which will make the verification fail.
++func (s *LSym) checkFIPSReloc(ctxt *Link, rel Reloc) {
++	if !ctxt.Flag_shared {
++		// Writing a non-position-independent binary, so all the
++		// relocations will be applied at link time, before we
++		// calculate the expected hash. Anything goes.
++		return
++	}
++
++	// Pseudo-relocations don't show up in code or data and are fine.
++	switch rel.Type {
++	case objabi.R_INITORDER,
++		objabi.R_KEEP,
++		objabi.R_USEIFACE,
++		objabi.R_USEIFACEMETHOD,
++		objabi.R_USENAMEDMETHOD:
++		return
++	}
++
++	// Otherwise, any relocation we emit must be possible to handle
++	// in the linker, meaning it has to be a PC-relative relocation
++	// or a non-symbol relocation like a TLS relocation.
++
++	// There are no PC-relative or TLS relocations in data. All data relocations are bad.
++	if s.Type != objabi.STEXTFIPS {
++		ctxt.Diag("%s: invalid relocation %v in fips data (%v)", s, rel.Type, s.Type)
++		return
++	}
++
++	// In code, check that only PC-relative relocations are being used.
++	// See ../objabi/reloctype.go comments for descriptions.
++	switch rel.Type {
++	case objabi.R_ADDRARM64, // used with ADRP+ADD, so PC-relative
++		objabi.R_ADDRMIPS,  // used by adding to REGSB, so position-independent
++		objabi.R_ADDRMIPSU, // used by adding to REGSB, so position-independent
++		objabi.R_ADDRMIPSTLS,
++		objabi.R_ADDROFF,
++		objabi.R_ADDRPOWER_GOT_PCREL34,
++		objabi.R_ADDRPOWER_PCREL,
++		objabi.R_ADDRPOWER_TOCREL,
++		objabi.R_ADDRPOWER_TOCREL_DS,
++		objabi.R_ADDRPOWER_PCREL34,
++		objabi.R_ARM64_TLS_LE,
++		objabi.R_ARM64_TLS_IE,
++		objabi.R_ARM64_GOTPCREL,
++		objabi.R_ARM64_GOT,
++		objabi.R_ARM64_PCREL,
++		objabi.R_ARM64_PCREL_LDST8,
++		objabi.R_ARM64_PCREL_LDST16,
++		objabi.R_ARM64_PCREL_LDST32,
++		objabi.R_ARM64_PCREL_LDST64,
++		objabi.R_CALL,
++		objabi.R_CALLARM,
++		objabi.R_CALLARM64,
++		objabi.R_CALLIND,
++		objabi.R_CALLLOONG64,
++		objabi.R_CALLPOWER,
++		objabi.R_GOTPCREL,
++		objabi.R_LOONG64_ADDR_LO, // used with PC-relative load
++		objabi.R_LOONG64_ADDR_HI, // used with PC-relative load
++		objabi.R_LOONG64_TLS_LE_HI,
++		objabi.R_LOONG64_TLS_LE_LO,
++		objabi.R_LOONG64_TLS_IE_HI,
++		objabi.R_LOONG64_TLS_IE_LO,
++		objabi.R_LOONG64_GOT_HI,
++		objabi.R_LOONG64_GOT_LO,
++		objabi.R_JMP16LOONG64,
++		objabi.R_JMP21LOONG64,
++		objabi.R_JMPLOONG64,
++		objabi.R_PCREL,
++		objabi.R_PCRELDBL,
++		objabi.R_POWER_TLS_LE,
++		objabi.R_POWER_TLS_IE,
++		objabi.R_POWER_TLS,
++		objabi.R_POWER_TLS_IE_PCREL34,
++		objabi.R_POWER_TLS_LE_TPREL34,
++		objabi.R_RISCV_JAL,
++		objabi.R_RISCV_PCREL_ITYPE,
++		objabi.R_RISCV_PCREL_STYPE,
++		objabi.R_RISCV_TLS_IE,
++		objabi.R_RISCV_TLS_LE,
++		objabi.R_RISCV_GOT_HI20,
++		objabi.R_RISCV_PCREL_HI20,
++		objabi.R_RISCV_PCREL_LO12_I,
++		objabi.R_RISCV_PCREL_LO12_S,
++		objabi.R_RISCV_BRANCH,
++		objabi.R_RISCV_RVC_BRANCH,
++		objabi.R_RISCV_RVC_JUMP,
++		objabi.R_TLS_IE,
++		objabi.R_TLS_LE,
++		objabi.R_WEAKADDROFF:
++		// ok
++		return
++
++	case objabi.R_ADDRPOWER,
++		objabi.R_ADDRPOWER_DS,
++		objabi.R_CALLMIPS,
++		objabi.R_JMPMIPS:
++		// NOT OK!
++		//
++		// These are all non-PC-relative but listed here to record that we
++		// looked at them and decided explicitly that they aren't okay.
++		// Don't add them to the list above.
++	}
++	ctxt.Diag("%s: invalid relocation %v in fips code", s, rel.Type)
++}
+diff --git a/src/cmd/internal/obj/plist.go b/src/cmd/internal/obj/plist.go
+index 4d4e7eb94b..698e5ace9c 100644
+--- a/src/cmd/internal/obj/plist.go
++++ b/src/cmd/internal/obj/plist.go
+@@ -213,6 +213,7 @@ func (ctxt *Link) InitTextSym(s *LSym, flag int, start src.XPos) {
+ 	s.Set(AttrNoFrame, flag&NOFRAME != 0)
+ 	s.Set(AttrPkgInit, flag&PKGINIT != 0)
+ 	s.Type = objabi.STEXT
++	s.setFIPSType(ctxt)
+ 	ctxt.Text = append(ctxt.Text, s)
+ 
+ 	// Set up DWARF entries for s
+@@ -258,6 +259,7 @@ func (ctxt *Link) GloblPos(s *LSym, size int64, flag int, pos src.XPos) {
+ 	} else if flag&TLSBSS != 0 {
+ 		s.Type = objabi.STLSBSS
+ 	}
++	s.setFIPSType(ctxt)
+ }
+ 
+ // EmitEntryLiveness generates PCDATA Progs after p to switch to the
+diff --git a/src/cmd/internal/obj/sym.go b/src/cmd/internal/obj/sym.go
+index 472ca9eee6..4feccf54f6 100644
+--- a/src/cmd/internal/obj/sym.go
++++ b/src/cmd/internal/obj/sym.go
+@@ -378,10 +378,10 @@ func isNonPkgSym(ctxt *Link, s *LSym) bool {
+ 	return false
+ }
+ 
+-// StaticNamePref is the prefix the front end applies to static temporary
++// StaticNamePrefix is the prefix the front end applies to static temporary
+ // variables. When turned into LSyms, these can be tagged as static so
+ // as to avoid inserting them into the linker's name lookup tables.
+-const StaticNamePref = ".stmp_"
++const StaticNamePrefix = ".stmp_"
+ 
+ type traverseFlag uint32
+ 
+diff --git a/src/cmd/internal/objfile/goobj.go b/src/cmd/internal/objfile/goobj.go
+index a0a2a1799b..e8b8b52251 100644
+--- a/src/cmd/internal/objfile/goobj.go
++++ b/src/cmd/internal/objfile/goobj.go
+@@ -164,11 +164,12 @@ func (f *goobjFile) symbols() ([]Sym, error) {
+ 		typ := objabi.SymKind(osym.Type())
+ 		var code rune = '?'
+ 		switch typ {
+-		case objabi.STEXT:
++		case objabi.STEXT, objabi.STEXTFIPS:
+ 			code = 'T'
+-		case objabi.SRODATA:
++		case objabi.SRODATA, objabi.SRODATAFIPS:
+ 			code = 'R'
+-		case objabi.SNOPTRDATA, objabi.SDATA:
++		case objabi.SNOPTRDATA, objabi.SNOPTRDATAFIPS,
++			objabi.SDATA, objabi.SDATAFIPS:
+ 			code = 'D'
+ 		case objabi.SBSS, objabi.SNOPTRBSS, objabi.STLSBSS:
+ 			code = 'B'
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 31a1d4f160..a23e87d326 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1078,6 +1078,7 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym,
+ 	// is the virtual address. DWARF compression changes file sizes,
+ 	// so dwarfcompress will fix this up later if necessary.
+ 	eaddr := addr + size
++	var prev loader.Sym
+ 	for _, s := range syms {
+ 		if ldr.AttrSubSymbol(s) {
+ 			continue
+@@ -1087,9 +1088,11 @@ func writeBlock(ctxt *Link, out *OutBuf, ldr *loader.Loader, syms []loader.Sym,
+ 			break
+ 		}
+ 		if val < addr {
+-			ldr.Errorf(s, "phase error: addr=%#x but val=%#x sym=%s type=%v sect=%v sect.addr=%#x", addr, val, ldr.SymName(s), ldr.SymType(s), ldr.SymSect(s).Name, ldr.SymSect(s).Vaddr)
++			ldr.Errorf(s, "phase error: addr=%#x but val=%#x sym=%s type=%v sect=%v sect.addr=%#x prev=%s", addr, val, ldr.SymName(s), ldr.SymType(s), ldr.SymSect(s).Name, ldr.SymSect(s).Vaddr, ldr.SymName(prev))
++			panic("PHASE")
+ 			errorexit()
+ 		}
++		prev = s
+ 		if addr < val {
+ 			out.WriteStringPad("", int(val-addr), pad)
+ 			addr = val
+@@ -1510,6 +1513,9 @@ func (state *dodataState) makeRelroForSharedLib(target *Link) {
+ 				isRelro = false
+ 			}
+ 			if isRelro {
++				if symnrelro == sym.Sxxx {
++					state.ctxt.Errorf(s, "cannot contain relocations (type %v)", symnro)
++				}
+ 				state.setSymType(s, symnrelro)
+ 				if outer := ldr.OuterSym(s); outer != 0 {
+ 					state.setSymType(outer, symnrelro)
+@@ -1846,6 +1852,7 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	// Writable data sections that do not need any specialized handling.
+ 	writable := []sym.SymKind{
+ 		sym.SBUILDINFO,
++		sym.SFIPSINFO,
+ 		sym.SELFSECT,
+ 		sym.SMACHO,
+ 		sym.SMACHOGOT,
+@@ -1866,6 +1873,11 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.noptrdata", 0), sect)
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.enoptrdata", 0), sect)
+ 
++	state.assignToSection(sect, sym.SNOPTRDATAFIPSSTART, sym.SDATA)
++	state.assignToSection(sect, sym.SNOPTRDATAFIPS, sym.SDATA)
++	state.assignToSection(sect, sym.SNOPTRDATAFIPSEND, sym.SDATA)
++	state.assignToSection(sect, sym.SNOPTRDATAEND, sym.SDATA)
++
+ 	hasinitarr := ctxt.linkShared
+ 
+ 	/* shared library initializer */
+@@ -1888,6 +1900,12 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".data", sym.SDATA, sym.SDATA, 06)
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.data", 0), sect)
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.edata", 0), sect)
++
++	state.assignToSection(sect, sym.SDATAFIPSSTART, sym.SDATA)
++	state.assignToSection(sect, sym.SDATAFIPS, sym.SDATA)
++	state.assignToSection(sect, sym.SDATAFIPSEND, sym.SDATA)
++	state.assignToSection(sect, sym.SDATAEND, sym.SDATA)
++
+ 	dataGcEnd := state.datsize - int64(sect.Vaddr)
+ 
+ 	// On AIX, TOC entries must be the last of .data
+@@ -2093,6 +2111,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 			}
+ 
+ 			symn := sym.RelROMap[symnro]
++			if symn == sym.Sxxx {
++				continue
++			}
+ 			symnStartValue := state.datsize
+ 			if len(state.data[symn]) != 0 {
+ 				symnStartValue = aligndatsize(state, symnStartValue, state.data[symn][0])
+@@ -2433,8 +2454,15 @@ func (ctxt *Link) textaddress() {
+ 		})
+ 	}
+ 
++	// Sort the text symbols by type, so that FIPS symbols are
++	// gathered together, with the FIPS start and end symbols
++	// bracketing them , even if we've randomized the overall order.
++	sort.SliceStable(ctxt.Textp, func(i, j int) bool {
++		return ldr.SymType(ctxt.Textp[i]) < ldr.SymType(ctxt.Textp[j])
++	})
++
+ 	text := ctxt.xdefine("runtime.text", sym.STEXT, 0)
+-	etext := ctxt.xdefine("runtime.etext", sym.STEXT, 0)
++	etext := ctxt.xdefine("runtime.etext", sym.STEXTEND, 0)
+ 	ldr.SetSymSect(text, sect)
+ 	if ctxt.IsAIX() && ctxt.IsExternal() {
+ 		// Setting runtime.text has a real symbol prevents ld to
+@@ -2970,11 +2998,11 @@ func (ctxt *Link) address() []*sym.Segment {
+ 	ctxt.defineInternal("runtime.functab", sym.SRODATA)
+ 	ctxt.xdefine("runtime.epclntab", sym.SRODATA, int64(pclntab.Vaddr+pclntab.Length))
+ 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr))
+-	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, int64(noptr.Vaddr+noptr.Length))
++	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATAEND, int64(noptr.Vaddr+noptr.Length))
+ 	ctxt.xdefine("runtime.bss", sym.SBSS, int64(bss.Vaddr))
+ 	ctxt.xdefine("runtime.ebss", sym.SBSS, int64(bss.Vaddr+bss.Length))
+ 	ctxt.xdefine("runtime.data", sym.SDATA, int64(data.Vaddr))
+-	ctxt.xdefine("runtime.edata", sym.SDATA, int64(data.Vaddr+data.Length))
++	ctxt.xdefine("runtime.edata", sym.SDATAEND, int64(data.Vaddr+data.Length))
+ 	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr))
+ 	ctxt.xdefine("runtime.enoptrbss", sym.SNOPTRBSS, int64(noptrbss.Vaddr+noptrbss.Length))
+ 	ctxt.xdefine("runtime.covctrs", sym.SCOVERAGE_COUNTER, int64(noptrbss.Vaddr+covCounterDataStartOff))
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index 3a418d3b61..e6a525198f 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1437,6 +1437,7 @@ func (ctxt *Link) doelf() {
+ 	shstrtabAddstring(".noptrbss")
+ 	shstrtabAddstring(".go.fuzzcntrs")
+ 	shstrtabAddstring(".go.buildinfo")
++	shstrtabAddstring(".go.fipsinfo")
+ 	if ctxt.IsMIPS() {
+ 		shstrtabAddstring(".MIPS.abiflags")
+ 		shstrtabAddstring(".gnu.attributes")
+@@ -1494,6 +1495,7 @@ func (ctxt *Link) doelf() {
+ 			shstrtabAddstring(elfRelType + ".data.rel.ro")
+ 		}
+ 		shstrtabAddstring(elfRelType + ".go.buildinfo")
++		shstrtabAddstring(elfRelType + ".go.fipsinfo")
+ 		if ctxt.IsMIPS() {
+ 			shstrtabAddstring(elfRelType + ".MIPS.abiflags")
+ 			shstrtabAddstring(elfRelType + ".gnu.attributes")
+diff --git a/src/cmd/link/internal/ld/fips.go b/src/cmd/link/internal/ld/fips.go
+new file mode 100644
+index 0000000000..8223da49d7
+--- /dev/null
++++ b/src/cmd/link/internal/ld/fips.go
+@@ -0,0 +1,599 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++/*
++FIPS-140 Verification Support
++
++See ../../../internal/obj/fips.go for a basic overview.
++This file is concerned with computing the hash of the FIPS code+data.
++Package obj has taken care of marking the FIPS symbols with the
++special types STEXTFIPS, SRODATAFIPS, SNOPTRDATAFIPS, and SDATAFIPS.
++
++# FIPS Symbol Layout
++
++The first order of business is collecting the FIPS symbols into
++contiguous sections of the final binary and identifying the start and
++end of those sections. The linker already tracks the start and end of
++the text section as runtime.text and runtime.etext, and similarly for
++other sections, but the implementation of those symbols is tricky and
++platform-specific. The problem is that they are zero-length
++pseudo-symbols that share addresses with other symbols, which makes
++everything harder. For the FIPS sections, we avoid that subtlety by
++defining actual non-zero-length symbols bracketing each section and
++use those symbols as the boundaries.
++
++Specifically, we define a 1-byte symbol go:textfipsstart of type
++STEXTFIPSSTART and a 1-byte symbol go:textfipsend of type STEXTFIPSEND,
++and we place those two symbols immediately before and after the
++STEXTFIPS symbols. We do the same for SRODATAFIPS, SNOPTRDATAFIPS,
++and SDATAFIPS. Because the symbols are real (but otherwise unused) data,
++they can be treated as normal symbols for symbol table purposes and
++don't need the same kind of special handling that runtime.text and
++friends do.
++
++Note that treating the FIPS text as starting at &go:textfipsstart and
++ending at &go:textfipsend means that go:textfipsstart is included in
++the verified data while go:textfipsend is not. That's fine: they are
++only framing and neither strictly needs to be in the hash.
++
++The new special symbols are created by [loadfips].
++
++# FIPS Info Layout
++
++Having collated the FIPS symbols, we need to compute the hash
++and then leave both the expected hash and the FIPS address ranges
++for the run-time check in crypto/internal/fips/check.
++We do that by creating a special symbol named go:fipsinfo of the form
++
++	struct {
++		sum   [32]byte
++		self  uintptr // points to start of struct
++		sects [4]struct{
++			start uintptr
++			end   uintptr
++		}
++	}
++
++The crypto/internal/fips/check uses linkname to access this symbol,
++which is of course not included in the hash.
++
++# FIPS Info Calculation
++
++When using internal linking, [asmbfips] runs after writing the output
++binary but before code-signing it. It reads the relevant sections
++back from the output file, hashes them, and then writes the go:fipsinfo
++content into the output file.
++
++When using external linking, especially with -buildmode=pie, we cannot
++predict the specific PLT index references that the linker will insert
++into the FIPS code sections, so we must read the final linked executable
++after external linking, compute the hash, and then write it back to the
++executable in the go:fipsinfo sum field. [hostlinkfips] does this.
++It finds go:fipsinfo easily because that symbol is given its own section
++(.go.fipsinfo on ELF, __go_fipsinfo on Mach-O), and then it can use the
++sections field to find the relevant parts of the executable, hash them,
++and fill in sum.
++
++Both [asmbfips] and [hostlinkfips] need the same hash calculation code.
++The [fipsObj] type provides that calculation.
++
++# Debugging
++
++It is of course impossible to debug a mismatched hash directly:
++two random 32-byte strings differ. For debugging, the linker flag
++-fipso can be set to the name of a file (such as /tmp/fips.o)
++where the linker will write the “FIPS object” that is being hashed.
++
++There is also commented-out code in crypto/internal/fips/check that
++will write /tmp/fipscheck.o during the run-time verification.
++
++When the hashes differ, the first step is to uncomment the
++/tmp/fipscheck.o-writing code and then rebuild with
++-ldflags=-fipso=/tmp/fips.o. Then when the hash check fails,
++compare /tmp/fips.o and /tmp/fipscheck.o to find the differences.
++*/
++
++package ld
++
++import (
++	"bufio"
++	"bytes"
++	"cmd/internal/obj"
++	"cmd/internal/objabi"
++	"cmd/link/internal/loader"
++	"cmd/link/internal/sym"
++	"crypto/hmac"
++	"crypto/sha256"
++	"debug/elf"
++	"debug/macho"
++	"debug/pe"
++	"encoding/binary"
++	"fmt"
++	"hash"
++	"io"
++	"os"
++)
++
++const enableFIPS = false
++
++// fipsSyms are the special FIPS section bracketing symbols.
++var fipsSyms = []struct {
++	name string
++	kind sym.SymKind
++	sym  loader.Sym
++	seg  *sym.Segment
++}{
++	{name: "go:textfipsstart", kind: sym.STEXTFIPSSTART, seg: &Segtext},
++	{name: "go:textfipsend", kind: sym.STEXTFIPSEND},
++	{name: "go:rodatafipsstart", kind: sym.SRODATAFIPSSTART, seg: &Segrodata},
++	{name: "go:rodatafipsend", kind: sym.SRODATAFIPSEND},
++	{name: "go:noptrdatafipsstart", kind: sym.SNOPTRDATAFIPSSTART, seg: &Segdata},
++	{name: "go:noptrdatafipsend", kind: sym.SNOPTRDATAFIPSEND},
++	{name: "go:datafipsstart", kind: sym.SDATAFIPSSTART, seg: &Segdata},
++	{name: "go:datafipsend", kind: sym.SDATAFIPSEND},
++}
++
++// fipsinfo is the loader symbol for go:fipsinfo.
++var fipsinfo loader.Sym
++
++const (
++	fipsMagic    = "\xff Go fipsinfo \xff\x00"
++	fipsMagicLen = 16
++	fipsSumLen   = 32
++)
++
++// loadfips creates the special bracketing symbols and go:fipsinfo.
++func loadfips(ctxt *Link) {
++	if !obj.EnableFIPS() {
++		return
++	}
++	if ctxt.BuildMode == BuildModePlugin { // not sure why this doesn't work
++		return
++	}
++	// Write the fipsinfo symbol, which crypto/internal/fips/check uses.
++	ldr := ctxt.loader
++	// TODO lock down linkname
++	info := ldr.CreateSymForUpdate("go:fipsinfo", 0)
++	info.SetType(sym.SFIPSINFO)
++
++	data := make([]byte, fipsMagicLen+fipsSumLen)
++	copy(data, fipsMagic)
++	info.SetData(data)
++	info.SetSize(int64(len(data)))      // magic + checksum, to be filled in
++	info.AddAddr(ctxt.Arch, info.Sym()) // self-reference
++
++	for i := range fipsSyms {
++		s := &fipsSyms[i]
++		sb := ldr.CreateSymForUpdate(s.name, 0)
++		sb.SetType(s.kind)
++		sb.SetLocal(true)
++		sb.SetSize(1)
++		s.sym = sb.Sym()
++		info.AddAddr(ctxt.Arch, s.sym)
++		if s.kind == sym.STEXTFIPSSTART || s.kind == sym.STEXTFIPSEND {
++			ctxt.Textp = append(ctxt.Textp, s.sym)
++		}
++	}
++
++	fipsinfo = info.Sym()
++}
++
++// fipsObj calculates the fips object hash and optionally writes
++// the hashed content to a file for debugging.
++type fipsObj struct {
++	r   io.ReaderAt
++	w   io.Writer
++	wf  *os.File
++	h   hash.Hash
++	tmp [8]byte
++}
++
++// newFipsObj creates a fipsObj reading from r and writing to fipso
++// (unless fipso is the empty string, in which case it writes nowhere
++// and only computes the hash).
++func newFipsObj(r io.ReaderAt, fipso string) (*fipsObj, error) {
++	f := &fipsObj{r: r}
++	f.h = hmac.New(sha256.New, make([]byte, 32))
++	f.w = f.h
++	if fipso != "" {
++		wf, err := os.Create(fipso)
++		if err != nil {
++			return nil, err
++		}
++		f.wf = wf
++		f.w = io.MultiWriter(f.h, wf)
++	}
++
++	if _, err := f.w.Write([]byte("go fips object v1\n")); err != nil {
++		f.Close()
++		return nil, err
++	}
++	return f, nil
++}
++
++// addSection adds the section of r (passed to newFipsObj)
++// starting at byte offset start and ending before byte offset end
++// to the fips object file.
++func (f *fipsObj) addSection(start, end int64) error {
++	n := end - start
++	binary.BigEndian.PutUint64(f.tmp[:], uint64(n))
++	f.w.Write(f.tmp[:])
++	_, err := io.Copy(f.w, io.NewSectionReader(f.r, start, n))
++	return err
++}
++
++// sum returns the hash of the fips object file.
++func (f *fipsObj) sum() []byte {
++	return f.h.Sum(nil)
++}
++
++// Close closes the fipsObj. In particular it closes the output
++// object file specified by fipso in the call to [newFipsObj].
++func (f *fipsObj) Close() error {
++	if f.wf != nil {
++		return f.wf.Close()
++	}
++	return nil
++}
++
++// asmbfips is called from [asmb] to update go:fipsinfo
++// when using internal linking.
++// See [hostlinkfips] for external linking.
++func asmbfips(ctxt *Link, fipso string) {
++	if !obj.EnableFIPS() {
++		return
++	}
++	if ctxt.LinkMode == LinkExternal {
++		return
++	}
++	if ctxt.BuildMode == BuildModePlugin { // not sure why this doesn't work
++		return
++	}
++
++	// Create a new FIPS object with data read from our output file.
++	f, err := newFipsObj(bytes.NewReader(ctxt.Out.Data()), fipso)
++	if err != nil {
++		Errorf("asmbfips: %v", err)
++		return
++	}
++	defer f.Close()
++
++	// Add the FIPS sections to the FIPS object.
++	ldr := ctxt.loader
++	for i := 0; i < len(fipsSyms); i += 2 {
++		start := &fipsSyms[i]
++		end := &fipsSyms[i+1]
++		startAddr := ldr.SymValue(start.sym)
++		endAddr := ldr.SymValue(end.sym)
++		seg := start.seg
++		if seg.Vaddr == 0 && seg == &Segrodata { // some systems use text instead of separate rodata
++			seg = &Segtext
++		}
++		base := int64(seg.Fileoff - seg.Vaddr)
++		if !(seg.Vaddr <= uint64(startAddr) && startAddr <= endAddr && uint64(endAddr) <= seg.Vaddr+seg.Filelen) {
++			Errorf("asmbfips: %s not in expected segment (%#x..%#x not in %#x..%#x)", start.name, startAddr, endAddr, seg.Vaddr, seg.Vaddr+seg.Filelen)
++			return
++		}
++
++		if err := f.addSection(startAddr+base, endAddr+base); err != nil {
++			Errorf("asmbfips: %v", err)
++			return
++		}
++	}
++
++	// Overwrite the go:fipsinfo sum field with the calculated sum.
++	addr := uint64(ldr.SymValue(fipsinfo))
++	seg := &Segdata
++	if !(seg.Vaddr <= addr && addr+32 < seg.Vaddr+seg.Filelen) {
++		Errorf("asmbfips: fipsinfo not in expected segment (%#x..%#x not in %#x..%#x)", addr, addr+32, seg.Vaddr, seg.Vaddr+seg.Filelen)
++		return
++	}
++	ctxt.Out.SeekSet(int64(seg.Fileoff + addr - seg.Vaddr + fipsMagicLen))
++	ctxt.Out.Write(f.sum())
++
++	if err := f.Close(); err != nil {
++		Errorf("asmbfips: %v", err)
++		return
++	}
++}
++
++// hostlinkfips is called from [hostlink] to update go:fipsinfo
++// when using external linking.
++// See [asmbfips] for internal linking.
++func hostlinkfips(ctxt *Link, exe, fipso string) error {
++	if !obj.EnableFIPS() {
++		return nil
++	}
++	if ctxt.BuildMode == BuildModePlugin { // not sure why this doesn't work
++		return nil
++	}
++	switch {
++	case ctxt.IsElf():
++		return elffips(ctxt, exe, fipso)
++	case ctxt.HeadType == objabi.Hdarwin:
++		return machofips(ctxt, exe, fipso)
++	case ctxt.HeadType == objabi.Hwindows:
++		return pefips(ctxt, exe, fipso)
++	}
++
++	// If we can't do FIPS, leave the output binary alone.
++	// If people enable FIPS the init-time check will fail,
++	// but the binaries will work otherwise.
++	return fmt.Errorf("fips unsupported on %s", ctxt.HeadType)
++}
++
++// machofips updates go:fipsinfo after external linking
++// on systems using Mach-O (GOOS=darwin, GOOS=ios).
++func machofips(ctxt *Link, exe, fipso string) error {
++	// Open executable both for reading Mach-O and for the fipsObj.
++	mf, err := macho.Open(exe)
++	if err != nil {
++		return err
++	}
++	defer mf.Close()
++
++	wf, err := os.OpenFile(exe, os.O_RDWR, 0)
++	if err != nil {
++		return err
++	}
++	defer wf.Close()
++
++	f, err := newFipsObj(wf, fipso)
++	if err != nil {
++		return err
++	}
++	defer f.Close()
++
++	// Find the go:fipsinfo symbol.
++	sect := mf.Section("__go_fipsinfo")
++	if sect == nil {
++		return fmt.Errorf("cannot find __go_fipsinfo")
++	}
++	data, err := sect.Data()
++	if err != nil {
++		return err
++	}
++
++	uptr := ctxt.Arch.ByteOrder.Uint64
++	if ctxt.Arch.PtrSize == 4 {
++		uptr = func(x []byte) uint64 {
++			return uint64(ctxt.Arch.ByteOrder.Uint32(x))
++		}
++	}
++
++	// Add the sections listed in go:fipsinfo to the FIPS object.
++	// On Mac, the debug/macho package is not reporting any relocations,
++	// but the addends are all in the data already, all relative to
++	// the same base.
++	// Determine the base used for the self pointer, and then apply
++	// that base to the other uintptrs.
++	// The very high bits of the uint64s seem to be relocation metadata,
++	// so clear them.
++	// For non-pie builds, there are no relocations at all:
++	// the data holds the actual pointers.
++	// This code handles both pie and non-pie binaries.
++	const addendMask = 1<<48 - 1
++	data = data[fipsMagicLen+fipsSumLen:]
++	self := int64(uptr(data)) & addendMask
++	base := int64(sect.Offset) - self
++	data = data[ctxt.Arch.PtrSize:]
++
++	for i := 0; i < 4; i++ {
++		start := int64(uptr(data[0:]))&addendMask + base
++		end := int64(uptr(data[ctxt.Arch.PtrSize:]))&addendMask + base
++		data = data[2*ctxt.Arch.PtrSize:]
++		if err := f.addSection(start, end); err != nil {
++			return err
++		}
++	}
++
++	// Overwrite the go:fipsinfo sum field with the calculated sum.
++	if _, err := wf.WriteAt(f.sum(), int64(sect.Offset)+fipsMagicLen); err != nil {
++		return err
++	}
++	if err := wf.Close(); err != nil {
++		return err
++	}
++	return f.Close()
++}
++
++// machofips updates go:fipsinfo after external linking
++// on systems using ELF (most Unix systems).
++func elffips(ctxt *Link, exe, fipso string) error {
++	// Open executable both for reading ELF and for the fipsObj.
++	ef, err := elf.Open(exe)
++	if err != nil {
++		return err
++	}
++	defer ef.Close()
++
++	wf, err := os.OpenFile(exe, os.O_RDWR, 0)
++	if err != nil {
++		return err
++	}
++	defer wf.Close()
++
++	f, err := newFipsObj(wf, fipso)
++	if err != nil {
++		return err
++	}
++	defer f.Close()
++
++	// Find the go:fipsinfo symbol.
++	sect := ef.Section(".go.fipsinfo")
++	if sect == nil {
++		return fmt.Errorf("cannot find .go.fipsinfo")
++	}
++
++	data, err := sect.Data()
++	if err != nil {
++		return err
++	}
++
++	uptr := ctxt.Arch.ByteOrder.Uint64
++	if ctxt.Arch.PtrSize == 4 {
++		uptr = func(x []byte) uint64 {
++			return uint64(ctxt.Arch.ByteOrder.Uint32(x))
++		}
++	}
++
++	// Add the sections listed in go:fipsinfo to the FIPS object.
++	// We expect R_zzz_RELATIVE relocations where the zero-based
++	// values are already stored in the data. That is, the addend
++	// is in the data itself in addition to being in the relocation tables.
++	// So no need to parse the relocation tables unless we find a
++	// toolchain that doesn't initialize the data this way.
++	// For non-pie builds, there are no relocations at all:
++	// the data holds the actual pointers.
++	// This code handles both pie and non-pie binaries.
++	data = data[fipsMagicLen+fipsSumLen:]
++	data = data[ctxt.Arch.PtrSize:]
++
++Addrs:
++	for i := 0; i < 4; i++ {
++		start := uptr(data[0:])
++		end := uptr(data[ctxt.Arch.PtrSize:])
++		data = data[2*ctxt.Arch.PtrSize:]
++		for _, prog := range ef.Progs {
++			if prog.Type == elf.PT_LOAD && prog.Vaddr <= start && start <= end && end <= prog.Vaddr+prog.Filesz {
++				if err := f.addSection(int64(start+prog.Off-prog.Vaddr), int64(end+prog.Off-prog.Vaddr)); err != nil {
++					return err
++				}
++				continue Addrs
++			}
++		}
++		return fmt.Errorf("invalid pointers found in .go.fipsinfo")
++	}
++
++	// Overwrite the go:fipsinfo sum field with the calculated sum.
++	if _, err := wf.WriteAt(f.sum(), int64(sect.Offset)+fipsMagicLen); err != nil {
++		return err
++	}
++	if err := wf.Close(); err != nil {
++		return err
++	}
++	return f.Close()
++}
++
++// pefips updates go:fipsinfo after external linking
++// on systems using PE (GOOS=windows).
++func pefips(ctxt *Link, exe, fipso string) error {
++	// Open executable both for reading Mach-O and for the fipsObj.
++	pf, err := pe.Open(exe)
++	if err != nil {
++		return err
++	}
++	defer pf.Close()
++
++	wf, err := os.OpenFile(exe, os.O_RDWR, 0)
++	if err != nil {
++		return err
++	}
++	defer wf.Close()
++
++	f, err := newFipsObj(wf, fipso)
++	if err != nil {
++		return err
++	}
++	defer f.Close()
++
++	// Find the go:fipsinfo symbol.
++	// PE does not put it in its own section, so we have to scan for it.
++	// It is near the start of the data segment, right after go:buildinfo,
++	// so we should not have to scan too far.
++	const maxScan = 16 << 20
++	sect := pf.Section(".data")
++	if sect == nil {
++		return fmt.Errorf("cannot find .data")
++	}
++	b := bufio.NewReader(sect.Open())
++	off := int64(0)
++	data := make([]byte, fipsMagicLen+fipsSumLen+9*ctxt.Arch.PtrSize)
++	for ; ; off += 16 {
++		if off >= maxScan {
++			break
++		}
++		if _, err := io.ReadFull(b, data[:fipsMagicLen]); err != nil {
++			return fmt.Errorf("scanning PE for FIPS magic: %v", err)
++		}
++		if string(data[:fipsMagicLen]) == fipsMagic {
++			if _, err := io.ReadFull(b, data[fipsMagicLen:]); err != nil {
++				return fmt.Errorf("scanning PE for FIPS magic: %v", err)
++			}
++			break
++		}
++	}
++
++	uptr := ctxt.Arch.ByteOrder.Uint64
++	if ctxt.Arch.PtrSize == 4 {
++		uptr = func(x []byte) uint64 {
++			return uint64(ctxt.Arch.ByteOrder.Uint32(x))
++		}
++	}
++
++	// Add the sections listed in go:fipsinfo to the FIPS object.
++	// Determine the base used for the self pointer, and then apply
++	// that base to the other uintptrs.
++	// For pie builds, the addends are in the data.
++	// For non-pie builds, there are no relocations at all:
++	// the data holds the actual pointers.
++	// This code handles both pie and non-pie binaries.
++	data = data[fipsMagicLen+fipsSumLen:]
++	self := int64(uptr(data))
++	data = data[ctxt.Arch.PtrSize:]
++
++	// On 64-bit binaries the pointers have extra bits set
++	// that don't appear in the actual section headers.
++	// For example, one generated test binary looks like:
++	//
++	//	.data VirtualAddress = 0x2af000
++	//	.data (file) Offset = 0x2ac400
++	//	.data (file) Size = 0x1fc00
++	//	go:fipsinfo found at offset 0x2ac5e0 (off=0x1e0)
++	//	go:fipsinfo self pointer = 0x01402af1e0
++	//
++	// From the section headers, the address of the go:fipsinfo symbol
++	// should be 0x2af000 + (0x2ac5e0 - 0x2ac400) = 0x2af1e0,
++	// yet in this case its pointer is 0x1402af1e0, meaning the
++	// data section's VirtualAddress is really 0x1402af000.
++	// This is not (only) a 32-bit truncation problem, since the uint32
++	// truncation of that address would be 0x402af000, not 0x2af000.
++	// Perhaps there is some 64-bit extension that debug/pe is not
++	// reading or is misreading. In any event, we can derive the delta
++	// between computed VirtualAddress and listed VirtualAddress
++	// and apply it to the rest of the pointers.
++	// As a sanity check, the low 12 bits (virtual page offset)
++	// must match between our computed address and the actual one.
++	peself := int64(sect.VirtualAddress) + off
++	if self&0xfff != off&0xfff {
++		return fmt.Errorf("corrupt pointer found in go:fipsinfo")
++	}
++	delta := peself - self
++
++Addrs:
++	for i := 0; i < 4; i++ {
++		start := int64(uptr(data[0:])) + delta
++		end := int64(uptr(data[ctxt.Arch.PtrSize:])) + delta
++		data = data[2*ctxt.Arch.PtrSize:]
++		for _, sect := range pf.Sections {
++			if int64(sect.VirtualAddress) <= start && start <= end && end <= int64(sect.VirtualAddress)+int64(sect.Size) {
++				off := int64(sect.Offset) - int64(sect.VirtualAddress)
++				if err := f.addSection(start+off, end+off); err != nil {
++					return err
++				}
++				continue Addrs
++			}
++		}
++		return fmt.Errorf("invalid pointers found in go:fipsinfo")
++	}
++
++	// Overwrite the go:fipsinfo sum field with the calculated sum.
++	if _, err := wf.WriteAt(f.sum(), int64(sect.Offset)+off+fipsMagicLen); err != nil {
++		return err
++	}
++	if err := wf.Close(); err != nil {
++		return err
++	}
++	return f.Close()
++}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index f2cf611b20..46585479da 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -672,6 +672,8 @@ func (ctxt *Link) loadlib() {
+ 		}
+ 	}
+ 
++	loadfips(ctxt)
++
+ 	// We've loaded all the code now.
+ 	ctxt.Loaded = true
+ 
+@@ -2072,6 +2074,7 @@ func (ctxt *Link) hostlink() {
+ 				return machoRewriteUuid(ctxt, exef, exem, outexe)
+ 			})
+ 	}
++	hostlinkfips(ctxt, *flagOutfile, *flagFipso)
+ 	if ctxt.NeedCodeSign() {
+ 		err := machoCodeSign(ctxt, *flagOutfile)
+ 		if err != nil {
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 3aff220a46..7614b6d194 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -68,6 +68,7 @@ var (
+ 
+ 	flagOutfile    = flag.String("o", "", "write output to `file`")
+ 	flagPluginPath = flag.String("pluginpath", "", "full path name for plugin")
++	flagFipso      = flag.String("fipso", "", "write fips module to `file`")
+ 
+ 	flagInstallSuffix = flag.String("installsuffix", "", "set package directory `suffix`")
+ 	flagDumpDep       = flag.Bool("dumpdep", false, "dump symbol dependency graph")
+@@ -454,7 +455,6 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 	// will be applied directly there.
+ 	bench.Start("Asmb")
+ 	asmb(ctxt)
+-
+ 	exitIfErrors()
+ 
+ 	// Generate additional symbols for the native symbol table just prior
+@@ -464,6 +464,8 @@ func Main(arch *sys.Arch, theArch Arch) {
+ 		thearch.GenSymsLate(ctxt, ctxt.loader)
+ 	}
+ 
++	asmbfips(ctxt, *flagFipso)
++
+ 	bench.Start("Asmb2")
+ 	asmb2(ctxt)
+ 
+diff --git a/src/cmd/link/internal/ld/symtab.go b/src/cmd/link/internal/ld/symtab.go
+index 7298af5756..8156f83a7a 100644
+--- a/src/cmd/link/internal/ld/symtab.go
++++ b/src/cmd/link/internal/ld/symtab.go
+@@ -431,13 +431,13 @@ func (ctxt *Link) symtab(pcln *pclntab) []sym.SymKind {
+ 	// Define these so that they'll get put into the symbol table.
+ 	// data.c:/^address will provide the actual values.
+ 	ctxt.xdefine("runtime.rodata", sym.SRODATA, 0)
+-	ctxt.xdefine("runtime.erodata", sym.SRODATA, 0)
++	ctxt.xdefine("runtime.erodata", sym.SRODATAEND, 0)
+ 	ctxt.xdefine("runtime.types", sym.SRODATA, 0)
+ 	ctxt.xdefine("runtime.etypes", sym.SRODATA, 0)
+ 	ctxt.xdefine("runtime.noptrdata", sym.SNOPTRDATA, 0)
+-	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATA, 0)
++	ctxt.xdefine("runtime.enoptrdata", sym.SNOPTRDATAEND, 0)
+ 	ctxt.xdefine("runtime.data", sym.SDATA, 0)
+-	ctxt.xdefine("runtime.edata", sym.SDATA, 0)
++	ctxt.xdefine("runtime.edata", sym.SDATAEND, 0)
+ 	ctxt.xdefine("runtime.bss", sym.SBSS, 0)
+ 	ctxt.xdefine("runtime.ebss", sym.SBSS, 0)
+ 	ctxt.xdefine("runtime.noptrbss", sym.SNOPTRBSS, 0)
+@@ -845,6 +845,9 @@ func setCarrierSym(typ sym.SymKind, s loader.Sym) {
+ }
+ 
+ func setCarrierSize(typ sym.SymKind, sz int64) {
++	if typ == sym.Sxxx {
++		panic("setCarrierSize(Sxxx)")
++	}
+ 	if CarrierSymByType[typ].Size != 0 {
+ 		panic(fmt.Sprintf("carrier symbol size for type %v already set", typ))
+ 	}
+@@ -852,7 +855,7 @@ func setCarrierSize(typ sym.SymKind, sz int64) {
+ }
+ 
+ func isStaticTmp(name string) bool {
+-	return strings.Contains(name, "."+obj.StaticNamePref)
++	return strings.Contains(name, "."+obj.StaticNamePrefix)
+ }
+ 
+ // Mangle function name with ABI information.
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index d99dbbd157..fe11f91526 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2339,6 +2339,8 @@ var blockedLinknames = map[string][]string{
+ 	// weak references
+ 	"internal/weak.runtime_registerWeakPointer": {"internal/weak"},
+ 	"internal/weak.runtime_makeStrongFromWeak":  {"internal/weak"},
++	// fips info
++	"go:fipsinfo": {"crypto/internal/fips/check"},
+ }
+ 
+ // check if a linkname reference to symbol s from pkg is allowed

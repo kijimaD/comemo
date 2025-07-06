@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 28584: 41dd1696ab13755bf7a129e0c73523ffb9fcbe66
+# Index 28584: cabb1402568ae7d05d9d5adf56953a4792085a81
 
 echo "🚀 Generating explanation for commit 28584..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 28584..."
 
 ### メタデータ
 - **コミットインデックス**: 28584
-- **コミットハッシュ**: 41dd1696ab13755bf7a129e0c73523ffb9fcbe66
-- **GitHub URL**: https://github.com/golang/go/commit/41dd1696ab13755bf7a129e0c73523ffb9fcbe66
+- **コミットハッシュ**: cabb1402568ae7d05d9d5adf56953a4792085a81
+- **GitHub URL**: https://github.com/golang/go/commit/cabb1402568ae7d05d9d5adf56953a4792085a81
 
 ### 章構成
 

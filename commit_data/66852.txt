@@ -1,0 +1,62 @@
+commit c893e1cf821b06aa0602f7944ce52f0eb28fd7b5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Apr 19 15:57:37 2025 +1000
+
+    crypto/internal/fips140/aes: actually use the VTBL instruction on arm64
+    
+    Support for the VTBL instruction was added in CL 110015 - use it
+    directly, rather than using WORD encodings. Note that one of the
+    WORD encodings does not actually match the instruction in the
+    comment - use the instruction that matches the existing encoding
+    instead.
+    
+    Change-Id: I1933162f8144a6b86b38e8b550d36907131b1dd4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666795
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/fips140/aes/aes_arm64.s | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/aes/aes_arm64.s b/src/crypto/internal/fips140/aes/aes_arm64.s
+index 192d0df896..1e88559540 100644
+--- a/src/crypto/internal/fips140/aes/aes_arm64.s
++++ b/src/crypto/internal/fips140/aes/aes_arm64.s
+@@ -134,7 +134,7 @@ TEXT ·expandKeyAsm(SB),NOSPLIT,$0
+ 	MOVW	$0x1b, R14
+ ks128Loop:
+ 		VMOV	R7, V2.S[0]
+-		WORD	$0x4E030042       // TBL V3.B16, [V2.B16], V2.B16
++		VTBL	V3.B16, [V2.B16], V2.B16
+ 		AESE	V0.B16, V2.B16    // Use AES to compute the SBOX
+ 		EORW	R13, R4
+ 		LSLW	$1, R13           // Compute next Rcon
+@@ -180,7 +180,7 @@ ks192:
+ ks192Loop:
+ 		STPW.P	(R6, R7), 8(R10)
+ 		VMOV	R7, V2.S[0]
+-		WORD	$0x4E030042 //TBL	V3.B16, [V2.B16], V2.B16
++		VTBL	V3.B16, [V2.B16], V2.B16
+ 		AESE	V0.B16, V2.B16
+ 		EORW	R13, R2
+ 		LSLW	$1, R13
+@@ -233,7 +233,7 @@ ks256Loop:
+ 		STPW.P	(R4, R5), 8(R10)
+ 		STPW.P	(R6, R7), 8(R10)
+ 		VMOV	R7, V2.S[0]
+-		WORD	$0x4E030042 //TBL	V3.B16, [V2.B16], V2.B16
++		VTBL	V3.B16, [V2.B16], V2.B16
+ 		AESE	V0.B16, V2.B16
+ 		EORW	R13, R0
+ 		LSLW	$1, R13
+@@ -244,7 +244,7 @@ ks256Loop:
+ 		EORW	R1, R2
+ 		EORW	R2, R3
+ 		VMOV	R3, V2.S[0]
+-		WORD	$0x4E040042 //TBL	V3.B16, [V2.B16], V2.B16
++		VTBL	V4.B16, [V2.B16], V2.B16
+ 		AESE	V0.B16, V2.B16
+ 		VMOV	V2.S[0], R9
+ 		EORW	R9, R4

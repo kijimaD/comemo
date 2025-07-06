@@ -1,0 +1,57 @@
+commit 998ce1c4262aab0153b5e89f84ef2ddd57507ec7
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Sep 12 17:15:58 2024 +0000
+
+    net/http: make use of maps.Copy
+    
+    Change-Id: If8e02760fe1fb095ecebc306fd98662a51a1f66f
+    GitHub-Last-Rev: 7b8099f1fed04271c121cdde1c3abd8822955368
+    GitHub-Pull-Request: golang/go#69426
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612736
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/net/http/server.go   | 4 +---
+ src/net/http/transfer.go | 5 ++---
+ 2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 371c660145..0b56edf231 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -3683,9 +3683,7 @@ func (h *timeoutHandler) ServeHTTP(w ResponseWriter, r *Request) {
+ 		tw.mu.Lock()
+ 		defer tw.mu.Unlock()
+ 		dst := w.Header()
+-		for k, vv := range tw.h {
+-			dst[k] = vv
+-		}
++		maps.Copy(dst, tw.h)
+ 		if !tw.wroteHeader {
+ 			tw.code = StatusOK
+ 		}
+diff --git a/src/net/http/transfer.go b/src/net/http/transfer.go
+index f7eef6475e..675551287f 100644
+--- a/src/net/http/transfer.go
++++ b/src/net/http/transfer.go
+@@ -11,6 +11,7 @@ import (
+ 	"fmt"
+ 	"internal/godebug"
+ 	"io"
++	"maps"
+ 	"net/http/httptrace"
+ 	"net/http/internal"
+ 	"net/http/internal/ascii"
+@@ -954,9 +955,7 @@ func mergeSetHeader(dst *Header, src Header) {
+ 		*dst = src
+ 		return
+ 	}
+-	for k, vv := range src {
+-		(*dst)[k] = vv
+-	}
++	maps.Copy(*dst, src)
+ }
+ 
+ // unreadDataSizeLocked returns the number of bytes of unread input.

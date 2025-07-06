@@ -1,0 +1,18 @@
+commit 14bb1e11b95e7a8fe0845cbcc43bea9d2e1c31e4
+Merge: 2297c34cdf 0ca521f9c1
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Dec 11 18:55:27 2024 -0500
+
+    [release-branch.go1.24] all: merge master (0ca521f) into release-branch.go1.24
+    
+    Merge List:
+    
+    + 2024-12-11 0ca521f9c1 debug/elf: adjust version API per issue discussion
+    
+    Change-Id: Ibd6f628528dd366837ad0bbacad624474eee0088
+
+ api/go1.24.txt                |  27 +--
+ src/debug/elf/file.go         | 178 +++++++++++++-------
+ src/debug/elf/file_test.go    | 384 +++++++++++++++++++++---------------------
+ src/debug/elf/symbols_test.go | 242 +++++++++++++-------------
+ 4 files changed, 440 insertions(+), 391 deletions(-)

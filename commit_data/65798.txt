@@ -1,0 +1,534 @@
+commit c93477b5e563dd0ed7b45fd519762f24b7cfa7b0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Dec 11 14:50:00 2024 +0100
+
+    crypto: use provided random Reader in FIPS mode
+    
+    This removes the difference in behavior between FIPS mode on and off.
+    
+    Instead of the sentinel type we could have moved the Reader to the
+    drbg package and checked for equality, but then we would have locked the
+    crypto/rand.Reader implementation to the one in the FIPS module (which
+    we might have to support for years).
+    
+    In internal/ed25519.GenerateKey we remove the random parameter entirely,
+    since that function is not actually used by crypto/ed25519.GenerateKey,
+    which instead commits to being deterministic.
+    
+    Fixes #70772
+    
+    Change-Id: Ic1c7ca2c1cd59eb9cd090a8b235c0ce218921ac5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635195
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/ecdh/nist.go                        |  5 ++++
+ src/crypto/ecdsa/ecdsa.go                      |  7 +++++
+ src/crypto/internal/fips140/drbg/rand.go       | 37 ++++++++++++++++++++++++++
+ src/crypto/internal/fips140/ecdh/ecdh.go       | 20 +++++---------
+ src/crypto/internal/fips140/ecdsa/cast.go      |  3 ++-
+ src/crypto/internal/fips140/ecdsa/ecdsa.go     | 23 +++-------------
+ src/crypto/internal/fips140/ed25519/ed25519.go | 19 +++----------
+ src/crypto/internal/fips140/rsa/keygen.go      | 14 +++-------
+ src/crypto/internal/fips140/rsa/pkcs1v22.go    | 21 +++------------
+ src/crypto/internal/fips140only/fips140only.go |  7 +++++
+ src/crypto/internal/fips140test/cast_test.go   |  2 +-
+ src/crypto/rand/rand.go                        |  4 ++-
+ src/crypto/rsa/fips.go                         |  9 +++++++
+ src/crypto/rsa/rsa.go                          |  3 +++
+ src/crypto/rsa/rsa_test.go                     |  4 ---
+ 15 files changed, 94 insertions(+), 84 deletions(-)
+
+diff --git a/src/crypto/ecdh/nist.go b/src/crypto/ecdh/nist.go
+index 0f4a65e5af..acef829894 100644
+--- a/src/crypto/ecdh/nist.go
++++ b/src/crypto/ecdh/nist.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"crypto/internal/boring"
+ 	"crypto/internal/fips140/ecdh"
++	"crypto/internal/fips140only"
+ 	"errors"
+ 	"io"
+ )
+@@ -43,6 +44,10 @@ func (c *nistCurve) GenerateKey(rand io.Reader) (*PrivateKey, error) {
+ 		return k, nil
+ 	}
+ 
++	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
++		return nil, errors.New("crypto/ecdh: only crypto/rand.Reader is allowed in FIPS 140-only mode")
++	}
++
+ 	privateKey, err := c.generate(rand)
+ 	if err != nil {
+ 		return nil, err
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 0ad669795c..77727aaf96 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -21,6 +21,7 @@ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
+ 	"crypto/internal/fips140/ecdsa"
++	"crypto/internal/fips140only"
+ 	"crypto/internal/randutil"
+ 	"crypto/sha512"
+ 	"crypto/subtle"
+@@ -182,6 +183,9 @@ func GenerateKey(c elliptic.Curve, rand io.Reader) (*PrivateKey, error) {
+ }
+ 
+ func generateFIPS[P ecdsa.Point[P]](curve elliptic.Curve, c *ecdsa.Curve[P], rand io.Reader) (*PrivateKey, error) {
++	if fips140only.Enabled && fips140only.ApprovedRandomReader(rand) {
++		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
++	}
+ 	privateKey, err := ecdsa.GenerateKey(c, rand)
+ 	if err != nil {
+ 		return nil, err
+@@ -228,6 +232,9 @@ func SignASN1(rand io.Reader, priv *PrivateKey, hash []byte) ([]byte, error) {
+ }
+ 
+ func signFIPS[P ecdsa.Point[P]](c *ecdsa.Curve[P], priv *PrivateKey, rand io.Reader, hash []byte) ([]byte, error) {
++	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
++		return nil, errors.New("crypto/ecdsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
++	}
+ 	// privateKeyToFIPS is very slow in FIPS mode because it performs a
+ 	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
+ 	// it or attach it to the PrivateKey.
+diff --git a/src/crypto/internal/fips140/drbg/rand.go b/src/crypto/internal/fips140/drbg/rand.go
+index 736a4b0cc0..967fb0673e 100644
+--- a/src/crypto/internal/fips140/drbg/rand.go
++++ b/src/crypto/internal/fips140/drbg/rand.go
+@@ -7,7 +7,9 @@ package drbg
+ import (
+ 	"crypto/internal/entropy"
+ 	"crypto/internal/fips140"
++	"crypto/internal/randutil"
+ 	"crypto/internal/sysrand"
++	"io"
+ 	"sync"
+ )
+ 
+@@ -56,3 +58,38 @@ func Read(b []byte) {
+ 		b = b[size:]
+ 	}
+ }
++
++// DefaultReader is a sentinel type, embedded in the default
++// [crypto/rand.Reader], used to recognize it when passed to
++// APIs that accept a rand io.Reader.
++type DefaultReader interface{ defaultReader() }
++
++// ReadWithReader uses Reader to fill b with cryptographically secure random
++// bytes. It is intended for use in APIs that expose a rand io.Reader.
++//
++// If Reader is not the default Reader from crypto/rand,
++// [randutil.MaybeReadByte] and [fips140.RecordNonApproved] are called.
++func ReadWithReader(r io.Reader, b []byte) error {
++	if _, ok := r.(DefaultReader); ok {
++		Read(b)
++		return nil
++	}
++
++	fips140.RecordNonApproved()
++	randutil.MaybeReadByte(r)
++	_, err := io.ReadFull(r, b)
++	return err
++}
++
++// ReadWithReaderDeterministic is like ReadWithReader, but it doesn't call
++// [randutil.MaybeReadByte] on non-default Readers.
++func ReadWithReaderDeterministic(r io.Reader, b []byte) error {
++	if _, ok := r.(DefaultReader); ok {
++		Read(b)
++		return nil
++	}
++
++	fips140.RecordNonApproved()
++	_, err := io.ReadFull(r, b)
++	return err
++}
+diff --git a/src/crypto/internal/fips140/ecdh/ecdh.go b/src/crypto/internal/fips140/ecdh/ecdh.go
+index 19a45c00db..bf71c75a92 100644
+--- a/src/crypto/internal/fips140/ecdh/ecdh.go
++++ b/src/crypto/internal/fips140/ecdh/ecdh.go
+@@ -10,7 +10,6 @@ import (
+ 	"crypto/internal/fips140/drbg"
+ 	"crypto/internal/fips140/nistec"
+ 	"crypto/internal/fips140deps/byteorder"
+-	"crypto/internal/randutil"
+ 	"errors"
+ 	"io"
+ 	"math/bits"
+@@ -137,8 +136,6 @@ var p521Order = []byte{0x01, 0xff,
+ }
+ 
+ // GenerateKey generates a new ECDSA private key pair for the specified curve.
+-//
+-// In FIPS mode, rand is ignored.
+ func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
+ 	fips140.RecordApproved()
+ 	// This procedure is equivalent to Key Pair Generation by Testing
+@@ -146,18 +143,13 @@ func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
+ 
+ 	for {
+ 		key := make([]byte, len(c.N))
+-		if fips140.Enabled {
+-			drbg.Read(key)
+-		} else {
+-			randutil.MaybeReadByte(rand)
+-			if _, err := io.ReadFull(rand, key); err != nil {
+-				return nil, err
+-			}
+-			// In tests, rand will return all zeros and NewPrivateKey will reject
+-			// the zero key as it generates the identity as a public key. This also
+-			// makes this function consistent with crypto/elliptic.GenerateKey.
+-			key[1] ^= 0x42
++		if err := drbg.ReadWithReader(rand, key); err != nil {
++			return nil, err
+ 		}
++		// In tests, rand will return all zeros and NewPrivateKey will reject
++		// the zero key as it generates the identity as a public key. This also
++		// makes this function consistent with crypto/elliptic.GenerateKey.
++		key[1] ^= 0x42
+ 
+ 		// Mask off any excess bits if the size of the underlying field is not a
+ 		// whole number of bytes, which is only the case for P-521.
+diff --git a/src/crypto/internal/fips140/ecdsa/cast.go b/src/crypto/internal/fips140/ecdsa/cast.go
+index a324cf929d..219b7211e7 100644
+--- a/src/crypto/internal/fips140/ecdsa/cast.go
++++ b/src/crypto/internal/fips140/ecdsa/cast.go
+@@ -54,7 +54,8 @@ func testHash() []byte {
+ func fipsPCT[P Point[P]](c *Curve[P], k *PrivateKey) error {
+ 	return fips140.PCT("ECDSA PCT", func() error {
+ 		hash := testHash()
+-		sig, err := Sign(c, sha512.New, k, nil, hash)
++		drbg := newDRBG(sha512.New, k.d, bits2octets(P256(), hash), nil)
++		sig, err := sign(c, k, drbg, hash)
+ 		if err != nil {
+ 			return err
+ 		}
+diff --git a/src/crypto/internal/fips140/ecdsa/ecdsa.go b/src/crypto/internal/fips140/ecdsa/ecdsa.go
+index 61b40122a0..9459b03de7 100644
+--- a/src/crypto/internal/fips140/ecdsa/ecdsa.go
++++ b/src/crypto/internal/fips140/ecdsa/ecdsa.go
+@@ -10,7 +10,6 @@ import (
+ 	"crypto/internal/fips140/bigmod"
+ 	"crypto/internal/fips140/drbg"
+ 	"crypto/internal/fips140/nistec"
+-	"crypto/internal/randutil"
+ 	"errors"
+ 	"io"
+ 	"sync"
+@@ -187,20 +186,11 @@ func NewPublicKey[P Point[P]](c *Curve[P], Q []byte) (*PublicKey, error) {
+ }
+ 
+ // GenerateKey generates a new ECDSA private key pair for the specified curve.
+-//
+-// In FIPS mode, rand is ignored.
+ func GenerateKey[P Point[P]](c *Curve[P], rand io.Reader) (*PrivateKey, error) {
+ 	fips140.RecordApproved()
+ 
+ 	k, Q, err := randomPoint(c, func(b []byte) error {
+-		if fips140.Enabled {
+-			drbg.Read(b)
+-			return nil
+-		} else {
+-			randutil.MaybeReadByte(rand)
+-			_, err := io.ReadFull(rand, b)
+-			return err
+-		}
++		return drbg.ReadWithReader(rand, b)
+ 	})
+ 	if err != nil {
+ 		return nil, err
+@@ -281,8 +271,6 @@ type Signature struct {
+ // the hash function H) using the private key, priv. If the hash is longer than
+ // the bit-length of the private key's curve order, the hash will be truncated
+ // to that length.
+-//
+-// The signature is randomized. If FIPS mode is enabled, rand is ignored.
+ func Sign[P Point[P], H fips140.Hash](c *Curve[P], h func() H, priv *PrivateKey, rand io.Reader, hash []byte) (*Signature, error) {
+ 	if priv.pub.curve != c.curve {
+ 		return nil, errors.New("ecdsa: private key does not match curve")
+@@ -296,13 +284,8 @@ func Sign[P Point[P], H fips140.Hash](c *Curve[P], h func() H, priv *PrivateKey,
+ 	// advantage of closely resembling Deterministic ECDSA.
+ 
+ 	Z := make([]byte, len(priv.d))
+-	if fips140.Enabled {
+-		drbg.Read(Z)
+-	} else {
+-		randutil.MaybeReadByte(rand)
+-		if _, err := io.ReadFull(rand, Z); err != nil {
+-			return nil, err
+-		}
++	if err := drbg.ReadWithReader(rand, Z); err != nil {
++		return nil, err
+ 	}
+ 
+ 	// See https://github.com/cfrg/draft-irtf-cfrg-det-sigs-with-noise/issues/6
+diff --git a/src/crypto/internal/fips140/ed25519/ed25519.go b/src/crypto/internal/fips140/ed25519/ed25519.go
+index 9824cbdf81..bbdc5b4a8b 100644
+--- a/src/crypto/internal/fips140/ed25519/ed25519.go
++++ b/src/crypto/internal/fips140/ed25519/ed25519.go
+@@ -11,7 +11,6 @@ import (
+ 	"crypto/internal/fips140/edwards25519"
+ 	"crypto/internal/fips140/sha512"
+ 	"errors"
+-	"io"
+ 	"strconv"
+ )
+ 
+@@ -61,24 +60,14 @@ func (pub *PublicKey) Bytes() []byte {
+ }
+ 
+ // GenerateKey generates a new Ed25519 private key pair.
+-//
+-// In FIPS mode, rand is ignored. Otherwise, the output of this function is
+-// deterministic, and equivalent to reading 32 bytes from rand, and passing them
+-// to [NewKeyFromSeed].
+-func GenerateKey(rand io.Reader) (*PrivateKey, error) {
++func GenerateKey() (*PrivateKey, error) {
+ 	priv := &PrivateKey{}
+-	return generateKey(priv, rand)
++	return generateKey(priv)
+ }
+ 
+-func generateKey(priv *PrivateKey, rand io.Reader) (*PrivateKey, error) {
++func generateKey(priv *PrivateKey) (*PrivateKey, error) {
+ 	fips140.RecordApproved()
+-	if fips140.Enabled {
+-		drbg.Read(priv.seed[:])
+-	} else {
+-		if _, err := io.ReadFull(rand, priv.seed[:]); err != nil {
+-			return nil, err
+-		}
+-	}
++	drbg.Read(priv.seed[:])
+ 	precomputePrivateKey(priv)
+ 	if err := fipsPCT(priv); err != nil {
+ 		// This clearly can't happen, but FIPS 140-3 requires that we check.
+diff --git a/src/crypto/internal/fips140/rsa/keygen.go b/src/crypto/internal/fips140/rsa/keygen.go
+index a9e12eb1e8..df76772ef5 100644
+--- a/src/crypto/internal/fips140/rsa/keygen.go
++++ b/src/crypto/internal/fips140/rsa/keygen.go
+@@ -8,15 +8,12 @@ import (
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/bigmod"
+ 	"crypto/internal/fips140/drbg"
+-	"crypto/internal/randutil"
+ 	"errors"
+ 	"io"
+ )
+ 
+ // GenerateKey generates a new RSA key pair of the given bit size.
+ // bits must be at least 128.
+-//
+-// When operating in FIPS mode, rand is ignored.
+ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
+ 	if bits < 128 {
+ 		return nil, errors.New("rsa: key too small")
+@@ -94,7 +91,7 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
+ }
+ 
+ // randomPrime returns a random prime number of the given bit size following
+-// the process in FIPS 186-5, Appendix A.1.3. rand is ignored in FIPS mode.
++// the process in FIPS 186-5, Appendix A.1.3.
+ func randomPrime(rand io.Reader, bits int) ([]byte, error) {
+ 	if bits < 64 {
+ 		return nil, errors.New("rsa: prime size must be at least 32-bit")
+@@ -102,13 +99,8 @@ func randomPrime(rand io.Reader, bits int) ([]byte, error) {
+ 
+ 	b := make([]byte, (bits+7)/8)
+ 	for {
+-		if fips140.Enabled {
+-			drbg.Read(b)
+-		} else {
+-			randutil.MaybeReadByte(rand)
+-			if _, err := io.ReadFull(rand, b); err != nil {
+-				return nil, err
+-			}
++		if err := drbg.ReadWithReader(rand, b); err != nil {
++			return nil, err
+ 		}
+ 		if excess := len(b)*8 - bits; excess != 0 {
+ 			b[0] >>= excess
+diff --git a/src/crypto/internal/fips140/rsa/pkcs1v22.go b/src/crypto/internal/fips140/rsa/pkcs1v22.go
+index a62d7e485f..a5bc56dafc 100644
+--- a/src/crypto/internal/fips140/rsa/pkcs1v22.go
++++ b/src/crypto/internal/fips140/rsa/pkcs1v22.go
+@@ -264,8 +264,6 @@ func PSSMaxSaltLength(pub *PublicKey, hash fips140.Hash) (int, error) {
+ }
+ 
+ // SignPSS calculates the signature of hashed using RSASSA-PSS.
+-//
+-// In FIPS mode, rand is ignored and can be nil.
+ func SignPSS(rand io.Reader, priv *PrivateKey, hash fips140.Hash, hashed []byte, saltLength int) ([]byte, error) {
+ 	fipsSelfTest()
+ 	fips140.RecordApproved()
+@@ -286,12 +284,8 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash fips140.Hash, hashed []byte,
+ 		fips140.RecordNonApproved()
+ 	}
+ 	salt := make([]byte, saltLength)
+-	if fips140.Enabled {
+-		drbg.Read(salt)
+-	} else {
+-		if _, err := io.ReadFull(rand, salt); err != nil {
+-			return nil, err
+-		}
++	if err := drbg.ReadWithReaderDeterministic(rand, salt); err != nil {
++		return nil, err
+ 	}
+ 
+ 	emBits := priv.pub.N.BitLen() - 1
+@@ -374,8 +368,6 @@ func checkApprovedHash(hash fips140.Hash) {
+ }
+ 
+ // EncryptOAEP encrypts the given message with RSAES-OAEP.
+-//
+-// In FIPS mode, random is ignored and can be nil.
+ func EncryptOAEP(hash, mgfHash fips140.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+ 	// Note that while we don't commit to deterministic execution with respect
+ 	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
+@@ -408,13 +400,8 @@ func EncryptOAEP(hash, mgfHash fips140.Hash, random io.Reader, pub *PublicKey, m
+ 	db[len(db)-len(msg)-1] = 1
+ 	copy(db[len(db)-len(msg):], msg)
+ 
+-	if fips140.Enabled {
+-		drbg.Read(seed)
+-	} else {
+-		_, err := io.ReadFull(random, seed)
+-		if err != nil {
+-			return nil, err
+-		}
++	if err := drbg.ReadWithReaderDeterministic(random, seed); err != nil {
++		return nil, err
+ 	}
+ 
+ 	mgf1XOR(db, mgfHash, seed)
+diff --git a/src/crypto/internal/fips140only/fips140only.go b/src/crypto/internal/fips140only/fips140only.go
+index 6ad97befbe..7126781af0 100644
+--- a/src/crypto/internal/fips140only/fips140only.go
++++ b/src/crypto/internal/fips140only/fips140only.go
+@@ -5,11 +5,13 @@
+ package fips140only
+ 
+ import (
++	"crypto/internal/fips140/drbg"
+ 	"crypto/internal/fips140/sha256"
+ 	"crypto/internal/fips140/sha3"
+ 	"crypto/internal/fips140/sha512"
+ 	"hash"
+ 	"internal/godebug"
++	"io"
+ )
+ 
+ // Enabled reports whether FIPS 140-only mode is enabled, in which non-approved
+@@ -24,3 +26,8 @@ func ApprovedHash(h hash.Hash) bool {
+ 		return false
+ 	}
+ }
++
++func ApprovedRandomReader(r io.Reader) bool {
++	_, ok := r.(drbg.DefaultReader)
++	return ok
++}
+diff --git a/src/crypto/internal/fips140test/cast_test.go b/src/crypto/internal/fips140test/cast_test.go
+index c6e3212f3f..b2aee15eab 100644
+--- a/src/crypto/internal/fips140test/cast_test.go
++++ b/src/crypto/internal/fips140test/cast_test.go
+@@ -85,7 +85,7 @@ func TestConditionals(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	ecdsa.SignDeterministic(ecdsa.P256(), sha256.New, kDSA, make([]byte, 32))
+-	k25519, err := ed25519.GenerateKey(rand.Reader)
++	k25519, err := ed25519.GenerateKey()
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index 5dd875e6e7..1ca16caa95 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -38,7 +38,9 @@ func init() {
+ 	Reader = &reader{}
+ }
+ 
+-type reader struct{}
++type reader struct {
++	drbg.DefaultReader
++}
+ 
+ func (r *reader) Read(b []byte) (n int, err error) {
+ 	boring.Unreachable()
+diff --git a/src/crypto/rsa/fips.go b/src/crypto/rsa/fips.go
+index bc23d59709..24dfb38cf6 100644
+--- a/src/crypto/rsa/fips.go
++++ b/src/crypto/rsa/fips.go
+@@ -17,6 +17,9 @@ import (
+ const (
+ 	// PSSSaltLengthAuto causes the salt in a PSS signature to be as large
+ 	// as possible when signing, and to be auto-detected when verifying.
++	//
++	// When signing in FIPS 140-3 mode, the salt length is capped at the length
++	// of the hash function used in the signature.
+ 	PSSSaltLengthAuto = 0
+ 	// PSSSaltLengthEqualsHash causes the salt length to equal the length
+ 	// of the hash used in the signature.
+@@ -67,6 +70,9 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte,
+ 	if fips140only.Enabled && !fips140only.ApprovedHash(hash.New()) {
+ 		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+ 	}
++	if fips140only.Enabled && !fips140only.ApprovedRandomReader(rand) {
++		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
++	}
+ 
+ 	if opts != nil && opts.Hash != 0 {
+ 		hash = opts.Hash
+@@ -188,6 +194,9 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 	if fips140only.Enabled && !fips140only.ApprovedHash(hash) {
+ 		return nil, errors.New("crypto/rsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
+ 	}
++	if fips140only.Enabled && !fips140only.ApprovedRandomReader(random) {
++		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
++	}
+ 
+ 	defer hash.Reset()
+ 
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 0f58f2226f..fb23f003a6 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -322,6 +322,9 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+ 	if fips140only.Enabled && bits%2 == 1 {
+ 		return nil, errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
+ 	}
++	if fips140only.Enabled && !fips140only.ApprovedRandomReader(random) {
++		return nil, errors.New("crypto/rsa: only crypto/rand.Reader is allowed in FIPS 140-only mode")
++	}
+ 
+ 	k, err := rsa.GenerateKey(random, bits)
+ 	if err != nil {
+diff --git a/src/crypto/rsa/rsa_test.go b/src/crypto/rsa/rsa_test.go
+index c395732c8b..2474ab82df 100644
+--- a/src/crypto/rsa/rsa_test.go
++++ b/src/crypto/rsa/rsa_test.go
+@@ -10,7 +10,6 @@ import (
+ 	"crypto"
+ 	"crypto/internal/boring"
+ 	"crypto/internal/cryptotest"
+-	"crypto/internal/fips140"
+ 	"crypto/rand"
+ 	. "crypto/rsa"
+ 	"crypto/sha1"
+@@ -782,9 +781,6 @@ type testEncryptOAEPStruct struct {
+ }
+ 
+ func TestEncryptOAEP(t *testing.T) {
+-	if fips140.Enabled {
+-		t.Skip("FIPS mode overrides the deterministic random source")
+-	}
+ 	sha1 := sha1.New()
+ 	n := new(big.Int)
+ 	for i, test := range testEncryptOAEPData {

@@ -1,0 +1,89 @@
+commit b78e38065efd5f4079564b9e8e3529950ba0dd52
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 21 13:02:59 2025 -0700
+
+    runtime: define lock ranking between weak pointers and synctest
+    
+    Fixes #73817
+    
+    Change-Id: I0101bdc797237b4c7eb58b414c71b009b0b44447
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675176
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+---
+ src/internal/synctest/synctest_test.go | 13 +++++++++++++
+ src/runtime/lockrank.go                |  2 +-
+ src/runtime/mklockrank.go              | 10 +++++++++-
+ 3 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/synctest/synctest_test.go b/src/internal/synctest/synctest_test.go
+index e46040e048..7f71df1710 100644
+--- a/src/internal/synctest/synctest_test.go
++++ b/src/internal/synctest/synctest_test.go
+@@ -9,11 +9,13 @@ import (
+ 	"internal/synctest"
+ 	"iter"
+ 	"reflect"
++	"runtime"
+ 	"slices"
+ 	"strconv"
+ 	"sync"
+ 	"testing"
+ 	"time"
++	"weak"
+ )
+ 
+ func TestNow(t *testing.T) {
+@@ -625,6 +627,17 @@ func TestHappensBefore(t *testing.T) {
+ 	}
+ }
+ 
++// https://go.dev/issue/73817
++func TestWeak(t *testing.T) {
++	synctest.Run(func() {
++		for range 100 {
++			runtime.GC()
++			b := make([]byte, 1024)
++			weak.Make(&b)
++		}
++	})
++}
++
+ func wantPanic(t *testing.T, want string) {
+ 	if e := recover(); e != nil {
+ 		if got := fmt.Sprint(e); got != want {
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index 456f2b75e6..7f32e6397b 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -204,7 +204,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankRoot:                {},
+ 	lockRankItab:                {},
+ 	lockRankReflectOffs:         {lockRankItab},
+-	lockRankSynctest:            {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankRoot, lockRankItab, lockRankReflectOffs},
++	lockRankSynctest:            {lockRankSysmon, lockRankScavenge, lockRankSweepWaiters, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankRoot, lockRankItab, lockRankReflectOffs},
+ 	lockRankUserArenaState:      {},
+ 	lockRankTraceBuf:            {lockRankSysmon, lockRankScavenge},
+ 	lockRankTraceStrings:        {lockRankSysmon, lockRankScavenge, lockRankTraceBuf},
+diff --git a/src/runtime/mklockrank.go b/src/runtime/mklockrank.go
+index 6cccece9b5..2e3375331a 100644
+--- a/src/runtime/mklockrank.go
++++ b/src/runtime/mklockrank.go
+@@ -99,7 +99,15 @@ NONE
+ < reflectOffs;
+ 
+ # Synctest
+-hchan, root, timers, timer, notifyList, reflectOffs < synctest;
++hchan,
++  notifyList,
++  reflectOffs,
++  root,
++  strongFromWeakQueue,
++  sweepWaiters,
++  timer,
++  timers
++< synctest;
+ 
+ # User arena state
+ NONE < userArenaState;

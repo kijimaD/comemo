@@ -1,0 +1,54 @@
+commit 1a193b43a22a67256c7da73c30504d4107e4a64d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Nov 25 20:29:11 2024 -0500
+
+    cmd/go: use AppendPath(OrigEnv) as env for tool executable
+    
+    Before this change, when go tool wass used to start a tool defined in a
+    go.mod tool directive, it used the environment the go command was
+    running in. The issue with doing that is that the go command sets
+    various environment variables from the computed environment when
+    invoking a subcommand. That is used to standardise the environment for
+    the various tools invoked by the go command, but it is not the
+    expectatation of tools invoked by the go command, especially since those
+    environment variables may change the behavior of the tool run. Instead
+    use the same environment we use in go run to start the executable: the
+    original environment (with minor modifications) saved before we start
+    explicitly setting the envornment, with GOROOT/bin added to the path so
+    that sub commands that run the go tool use the proper go tool binary.
+    
+    Fixes #70544
+    
+    Change-Id: Ifbf0040a2543113638eec7232323eb9de1d61529
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631836
+    Reviewed-by: Conrad Irwin <conrad.irwin@gmail.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/tool/tool.go | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index 87c098491f..64c40adab2 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -309,12 +309,18 @@ func runBuiltTool(b *work.Builder, ctx context.Context, a *work.Action) error {
+ 		return nil
+ 	}
+ 
++	// Use same environment go run uses to start the executable:
++	// the original environment with cfg.GOROOTbin added to the path.
++	env := slices.Clip(cfg.OrigEnv)
++	env = base.AppendPATH(env)
++
+ 	toolCmd := &exec.Cmd{
+ 		Path:   cmdline[0],
+ 		Args:   cmdline,
+ 		Stdin:  os.Stdin,
+ 		Stdout: os.Stdout,
+ 		Stderr: os.Stderr,
++		Env:    env,
+ 	}
+ 	err := toolCmd.Start()
+ 	if err == nil {

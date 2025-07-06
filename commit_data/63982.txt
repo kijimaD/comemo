@@ -1,0 +1,32 @@
+commit c26be72d686005167516333bf3dc2a52df3e2961
+Author: RTann <RTann95@gmail.com>
+Date:   Thu May 23 15:55:49 2024 -0700
+
+    archive/zip: fix UncompressedSize godoc
+    
+    Change-Id: I0c142eb18af7b03759041e894bbce0f365ea9d7e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588116
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/archive/zip/struct.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/archive/zip/struct.go b/src/archive/zip/struct.go
+index 867dd5cb7a..3ebf39f5a6 100644
+--- a/src/archive/zip/struct.go
++++ b/src/archive/zip/struct.go
+@@ -143,9 +143,9 @@ type FileHeader struct {
+ 	// Deprecated: Use CompressedSize64 instead.
+ 	CompressedSize uint32
+ 
+-	// UncompressedSize is the compressed size of the file in bytes.
++	// UncompressedSize is the uncompressed size of the file in bytes.
+ 	// If either the uncompressed or compressed size of the file
+-	// does not fit in 32 bits, CompressedSize is set to ^uint32(0).
++	// does not fit in 32 bits, UncompressedSize is set to ^uint32(0).
+ 	//
+ 	// Deprecated: Use UncompressedSize64 instead.
+ 	UncompressedSize uint32

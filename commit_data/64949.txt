@@ -1,0 +1,69 @@
+commit 327074551a2f22f2c0b8e444d1673c86f77ca745
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Mon Apr 15 13:19:48 2024 +0000
+
+    cmd/go: exit non-zero if version -m is used with a non-Go file
+    
+    Fixes #66426
+    
+    Change-Id: I5c65d5ae7863f90d654063d6385ffb6ec1308d7c
+    GitHub-Last-Rev: 114b30eb5531b924befb12fbda28cea4663d3608
+    GitHub-Pull-Request: golang/go#66443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/573295
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/internal/version/version.go | 13 +++++++++----
+ 1 file changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/version/version.go b/src/cmd/go/internal/version/version.go
+index 4a0132a3fe..c5b69c0a7e 100644
+--- a/src/cmd/go/internal/version/version.go
++++ b/src/cmd/go/internal/version/version.go
+@@ -92,7 +92,10 @@ func runVersion(ctx context.Context, cmd *base.Command, args []string) {
+ 		if info.IsDir() {
+ 			scanDir(arg)
+ 		} else {
+-			scanFile(arg, info, true)
++			ok := scanFile(arg, info, true)
++			if !ok && *versionM {
++				base.SetExitStatus(1)
++			}
+ 		}
+ 	}
+ }
+@@ -132,7 +135,8 @@ func isGoBinaryCandidate(file string, info fs.FileInfo) bool {
+ // If mustPrint is true, scanFile will report any error reading file.
+ // Otherwise (mustPrint is false, because scanFile is being called
+ // by scanDir) scanFile prints nothing for non-Go binaries.
+-func scanFile(file string, info fs.FileInfo, mustPrint bool) {
++// scanFile reports whether the file is a Go binary.
++func scanFile(file string, info fs.FileInfo, mustPrint bool) bool {
+ 	if info.Mode()&fs.ModeSymlink != 0 {
+ 		// Accept file symlinks only.
+ 		i, err := os.Stat(file)
+@@ -140,7 +144,7 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) {
+ 			if mustPrint {
+ 				fmt.Fprintf(os.Stderr, "%s: symlink\n", file)
+ 			}
+-			return
++			return false
+ 		}
+ 		info = i
+ 	}
+@@ -161,7 +165,7 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) {
+ 				}
+ 			}
+ 		}
+-		return
++		return false
+ 	}
+ 
+ 	fmt.Printf("%s: %s\n", file, bi.GoVersion)
+@@ -170,4 +174,5 @@ func scanFile(file string, info fs.FileInfo, mustPrint bool) {
+ 	if *versionM && len(mod) > 0 {
+ 		fmt.Printf("\t%s\n", strings.ReplaceAll(mod[:len(mod)-1], "\n", "\n\t"))
+ 	}
++	return true
+ }

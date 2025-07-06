@@ -1,0 +1,219 @@
+commit be0cc937ec9c109da90ec4d7da5af89606f8c0cf
+Author: Shibi J M <shibisjm@gmail.com>
+Date:   Tue May 20 03:59:15 2025 +0000
+
+    net: avoid using Windows' TransmitFile on non-server machines
+    
+    Windows API's TransmitFile function is limited to two concurrent
+    operations on workstation and client versions of Windows. This change
+    modifies the net.sendFile function to perform no work in such cases
+    so that TransmitFile is avoided.
+    
+    Fixes #73746
+    
+    Change-Id: Iba70d5d2758bf986e80c78254c8e9e10b39bb368
+    GitHub-Last-Rev: 315ddc0cd8034f52632dc31baf35057a8bad9bcd
+    GitHub-Pull-Request: golang/go#73758
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673855
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/internal/syscall/windows/types_windows.go    |  4 +++
+ src/internal/syscall/windows/version_windows.go  | 37 ++++++++++++++++++++----
+ src/internal/syscall/windows/zsyscall_windows.go |  2 +-
+ src/net/sendfile.go                              |  5 ++--
+ src/net/sendfile_nonwindows.go                   | 12 ++++++++
+ src/net/sendfile_stub.go                         |  4 ++-
+ src/net/sendfile_test.go                         |  4 +--
+ src/net/sendfile_windows.go                      | 16 ++++++++++
+ 8 files changed, 72 insertions(+), 12 deletions(-)
+
+diff --git a/src/internal/syscall/windows/types_windows.go b/src/internal/syscall/windows/types_windows.go
+index 9f8f61f6d9..93664b4b7d 100644
+--- a/src/internal/syscall/windows/types_windows.go
++++ b/src/internal/syscall/windows/types_windows.go
+@@ -256,3 +256,7 @@ type FILE_COMPLETION_INFORMATION struct {
+ 	Port syscall.Handle
+ 	Key  uintptr
+ }
++
++// https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-osversioninfoexa
++// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfoexw
++const VER_NT_WORKSTATION = 0x0000001
+diff --git a/src/internal/syscall/windows/version_windows.go b/src/internal/syscall/windows/version_windows.go
+index cb5f6ba6cd..5edf7a01e2 100644
+--- a/src/internal/syscall/windows/version_windows.go
++++ b/src/internal/syscall/windows/version_windows.go
+@@ -11,28 +11,53 @@ import (
+ 	"unsafe"
+ )
+ 
+-// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfow
+-type _OSVERSIONINFOW struct {
++// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/wdm/ns-wdm-_osversioninfoexw
++type _OSVERSIONINFOEXW struct {
+ 	osVersionInfoSize uint32
+ 	majorVersion      uint32
+ 	minorVersion      uint32
+ 	buildNumber       uint32
+ 	platformId        uint32
+ 	csdVersion        [128]uint16
++	servicePackMajor  uint16
++	servicePackMinor  uint16
++	suiteMask         uint16
++	productType       byte
++	reserved          byte
+ }
+ 
+ // According to documentation, RtlGetVersion function always succeeds.
+-//sys	rtlGetVersion(info *_OSVERSIONINFOW) = ntdll.RtlGetVersion
++//sys	rtlGetVersion(info *_OSVERSIONINFOEXW) = ntdll.RtlGetVersion
++
++// Retrieves version information of the current Windows OS
++// from the RtlGetVersion API.
++func getVersionInfo() *_OSVERSIONINFOEXW {
++	info := _OSVERSIONINFOEXW{}
++	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
++	rtlGetVersion(&info)
++	return &info
++}
+ 
+ // Version retrieves the major, minor, and build version numbers
+ // of the current Windows OS from the RtlGetVersion API.
+ func Version() (major, minor, build uint32) {
+-	info := _OSVERSIONINFOW{}
+-	info.osVersionInfoSize = uint32(unsafe.Sizeof(info))
+-	rtlGetVersion(&info)
++	info := getVersionInfo()
+ 	return info.majorVersion, info.minorVersion, info.buildNumber
+ }
+ 
++// SupportUnlimitedTransmitFile indicates whether the current
++// Windows version's TransmitFile function imposes any
++// concurrent operation limits.
++// Workstation and client versions of Windows limit the number
++// of concurrent TransmitFile operations allowed on the system
++// to a maximum of two. Please see:
++// https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
++// https://golang.org/issue/73746
++var SupportUnlimitedTransmitFile = sync.OnceValue(func() bool {
++	info := getVersionInfo()
++	return info.productType != VER_NT_WORKSTATION
++})
++
+ var (
+ 	supportTCPKeepAliveIdle     bool
+ 	supportTCPKeepAliveInterval bool
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 8dcb377c3e..90cf0b92a4 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -539,7 +539,7 @@ func NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer
+ 	return
+ }
+ 
+-func rtlGetVersion(info *_OSVERSIONINFOW) {
++func rtlGetVersion(info *_OSVERSIONINFOEXW) {
+ 	syscall.Syscall(procRtlGetVersion.Addr(), 1, uintptr(unsafe.Pointer(info)), 0, 0)
+ 	return
+ }
+diff --git a/src/net/sendfile.go b/src/net/sendfile.go
+index 0a41241561..0e0fcc40ff 100644
+--- a/src/net/sendfile.go
++++ b/src/net/sendfile.go
+@@ -12,8 +12,6 @@ import (
+ 	"syscall"
+ )
+ 
+-const supportsSendfile = true
+-
+ // sendFile copies the contents of r to c using the sendfile
+ // system call to minimize copies.
+ //
+@@ -22,6 +20,9 @@ const supportsSendfile = true
+ //
+ // if handled == false, sendFile performed no work.
+ func sendFile(c *netFD, r io.Reader) (written int64, err error, handled bool) {
++	if !supportsSendfile() {
++		return 0, nil, false
++	}
+ 	var remain int64 = 0 // 0 writes the entire file
+ 	lr, ok := r.(*io.LimitedReader)
+ 	if ok {
+diff --git a/src/net/sendfile_nonwindows.go b/src/net/sendfile_nonwindows.go
+new file mode 100644
+index 0000000000..2106d37895
+--- /dev/null
++++ b/src/net/sendfile_nonwindows.go
+@@ -0,0 +1,12 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux || (darwin && !ios) || dragonfly || freebsd || solaris
++
++package net
++
++// Always true except for workstation and client versions of Windows
++func supportsSendfile() bool {
++	return true
++}
+diff --git a/src/net/sendfile_stub.go b/src/net/sendfile_stub.go
+index 7f31cc63e1..17d8d5448f 100644
+--- a/src/net/sendfile_stub.go
++++ b/src/net/sendfile_stub.go
+@@ -8,7 +8,9 @@ package net
+ 
+ import "io"
+ 
+-const supportsSendfile = false
++func supportsSendfile() bool {
++	return false
++}
+ 
+ func sendFile(c *netFD, r io.Reader) (n int64, err error, handled bool) {
+ 	return 0, nil, false
+diff --git a/src/net/sendfile_test.go b/src/net/sendfile_test.go
+index b5039ff1d1..437d181508 100644
+--- a/src/net/sendfile_test.go
++++ b/src/net/sendfile_test.go
+@@ -31,11 +31,11 @@ const (
+ // expectSendfile runs f, and verifies that internal/poll.SendFile successfully handles
+ // a write to wantConn during f's execution.
+ //
+-// On platforms where supportsSendfile is false, expectSendfile runs f but does not
++// On platforms where supportsSendfile() is false, expectSendfile runs f but does not
+ // expect a call to SendFile.
+ func expectSendfile(t *testing.T, wantConn Conn, f func()) {
+ 	t.Helper()
+-	if !supportsSendfile {
++	if !supportsSendfile() {
+ 		f()
+ 		return
+ 	}
+diff --git a/src/net/sendfile_windows.go b/src/net/sendfile_windows.go
+new file mode 100644
+index 0000000000..44ddb421a1
+--- /dev/null
++++ b/src/net/sendfile_windows.go
+@@ -0,0 +1,16 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package net
++
++import "internal/syscall/windows"
++
++// Workstation and client versions of Windows limit the number
++// of concurrent TransmitFile operations allowed on the system
++// to a maximum of two. Please see:
++// https://learn.microsoft.com/en-us/windows/win32/api/mswsock/nf-mswsock-transmitfile
++// https://golang.org/issue/73746
++func supportsSendfile() bool {
++	return windows.SupportUnlimitedTransmitFile()
++}

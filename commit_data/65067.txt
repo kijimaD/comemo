@@ -1,0 +1,30 @@
+commit a9ad0ff6baa597abcd8bbf5bb6fd5d03026ba984
+Author: David Chase <drchase@google.com>
+Date:   Mon Oct 14 12:51:29 2024 -0400
+
+    cmd/compile: omit saved .closureptr in optimized code
+    
+    This worsens debugging, but improves performance.
+    
+    Change-Id: I7f3c0d174823b3de412478f9537adc61ae4c076e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620219
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssagen/ssa.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6a65bb0235..ba09216f8f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -521,7 +521,7 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
+ 	// Populate closure variables.
+ 	if fn.Needctxt() {
+ 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
+-		if fn.RangeParent != nil {
++		if fn.RangeParent != nil && base.Flag.N != 0 {
+ 			// For a range body closure, keep its closure pointer live on the
+ 			// stack with a special name, so the debugger can look for it and
+ 			// find the parent frame.

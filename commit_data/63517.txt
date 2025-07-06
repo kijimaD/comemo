@@ -1,0 +1,52 @@
+commit 7f76c00fc5678fa782708ba8fece63750cb89d03
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 19 16:14:54 2024 -0400
+
+    internal/reflectlite: remove unused mapType
+    
+    Change-Id: I715186c053bc9911b912e69904735c9498bf9c13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580376
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/internal/reflectlite/reflect_mirror_test.go |  1 -
+ src/internal/reflectlite/type.go                | 14 --------------
+ 2 files changed, 15 deletions(-)
+
+diff --git a/src/internal/reflectlite/reflect_mirror_test.go b/src/internal/reflectlite/reflect_mirror_test.go
+index 0fd004eef5..c875739034 100644
+--- a/src/internal/reflectlite/reflect_mirror_test.go
++++ b/src/internal/reflectlite/reflect_mirror_test.go
+@@ -24,7 +24,6 @@ var typeNames = []string{
+ 	"chanType",
+ 	"funcType",
+ 	"interfaceType",
+-	"mapType",
+ 	"ptrType",
+ 	"sliceType",
+ 	"structType",
+diff --git a/src/internal/reflectlite/type.go b/src/internal/reflectlite/type.go
+index 085863e3d4..af581d3a71 100644
+--- a/src/internal/reflectlite/type.go
++++ b/src/internal/reflectlite/type.go
+@@ -111,20 +111,6 @@ type funcType = abi.FuncType
+ 
+ type interfaceType = abi.InterfaceType
+ 
+-// mapType represents a map type.
+-type mapType struct {
+-	rtype
+-	Key    *abi.Type // map key type
+-	Elem   *abi.Type // map element (value) type
+-	Bucket *abi.Type // internal bucket structure
+-	// function for hashing keys (ptr to key, seed) -> hash
+-	Hasher     func(unsafe.Pointer, uintptr) uintptr
+-	KeySize    uint8  // size of key slot
+-	ValueSize  uint8  // size of value slot
+-	BucketSize uint16 // size of bucket
+-	Flags      uint32
+-}
+-
+ // ptrType represents a pointer type.
+ type ptrType = abi.PtrType
+ 

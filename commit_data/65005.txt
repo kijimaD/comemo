@@ -1,0 +1,144 @@
+commit c050d42e1a7d7b02b2205c116e8c98fc49aab6a9
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Aug 1 19:07:32 2024 +0200
+
+    crypto/rand: crash program if Read would return an error
+    
+    Fixes #66821
+    Fixes #54980
+    
+    Change-Id: Ib081f4e4f75c7936fc3f5b31d3bd07cca1c2a55c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602497
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+---
+ src/crypto/rand/example_test.go | 23 ++++-------------------
+ src/crypto/rand/rand.go         | 23 ++++++++++++++++++++---
+ src/crypto/rand/util.go         |  5 +++--
+ src/runtime/panic.go            |  5 +++++
+ 4 files changed, 32 insertions(+), 24 deletions(-)
+
+diff --git a/src/crypto/rand/example_test.go b/src/crypto/rand/example_test.go
+index ed1864761a..f0127749f0 100644
+--- a/src/crypto/rand/example_test.go
++++ b/src/crypto/rand/example_test.go
+@@ -4,25 +4,10 @@
+ 
+ package rand_test
+ 
+-import (
+-	"bytes"
+-	"crypto/rand"
+-	"fmt"
+-)
++import "crypto/rand"
+ 
+-// This example reads 10 cryptographically secure pseudorandom numbers from
+-// rand.Reader and writes them to a byte slice.
+ func ExampleRead() {
+-	c := 10
+-	b := make([]byte, c)
+-	_, err := rand.Read(b)
+-	if err != nil {
+-		fmt.Println("error:", err)
+-		return
+-	}
+-	// The slice should now contain random bytes instead of only zeroes.
+-	fmt.Println(bytes.Equal(b, make([]byte, c)))
+-
+-	// Output:
+-	// false
++	// Note that no error handling is necessary, as Read always succeeds.
++	key := make([]byte, 32)
++	rand.Read(key)
+ }
+diff --git a/src/crypto/rand/rand.go b/src/crypto/rand/rand.go
+index 130ab60962..73e8a8bc39 100644
+--- a/src/crypto/rand/rand.go
++++ b/src/crypto/rand/rand.go
+@@ -11,6 +11,7 @@ import (
+ 	"io"
+ 	"sync/atomic"
+ 	"time"
++	_ "unsafe"
+ )
+ 
+ // Reader is a global, shared instance of a cryptographically
+@@ -23,6 +24,9 @@ import (
+ //   - On Windows, Reader uses the ProcessPrng API.
+ //   - On js/wasm, Reader uses the Web Crypto API.
+ //   - On wasip1/wasm, Reader uses random_get.
++//
++// All the platform APIs above are documented to never return an error
++// when used as they are in this package.
+ var Reader io.Reader
+ 
+ func init() {
+@@ -55,10 +59,23 @@ func (r *reader) Read(b []byte) (n int, err error) {
+ 	return len(b), nil
+ }
+ 
+-// Read is a helper function that calls Reader.Read using io.ReadFull.
+-// On return, n == len(b) if and only if err == nil.
++// fatal is [runtime.fatal], pushed via linkname.
++//
++//go:linkname fatal
++func fatal(string)
++
++// Read fills b with cryptographically secure random bytes. It never returns an
++// error, and always fills b entirely.
++//
++// If [Reader] is set to a non-default value, Read calls [io.ReadFull] on
++// [Reader] and crashes the program irrecoverably if an error is returned.
+ func Read(b []byte) (n int, err error) {
+-	return io.ReadFull(Reader, b)
++	_, err = io.ReadFull(Reader, b)
++	if err != nil {
++		fatal("crypto/rand: failed to read random data (see https://go.dev/issue/66821): " + err.Error())
++		panic("unreachable") // To be sure.
++	}
++	return len(b), nil
+ }
+ 
+ // batched returns a function that calls f to populate a []byte by chunking it
+diff --git a/src/crypto/rand/util.go b/src/crypto/rand/util.go
+index fd67ba27c8..bb1f6f6fa3 100644
+--- a/src/crypto/rand/util.go
++++ b/src/crypto/rand/util.go
+@@ -12,7 +12,7 @@ import (
+ )
+ 
+ // Prime returns a number of the given bit length that is prime with high probability.
+-// Prime will return error for any error returned by [rand.Read] or if bits < 2.
++// Prime will return error for any error returned by rand.Read or if bits < 2.
+ func Prime(rand io.Reader, bits int) (*big.Int, error) {
+ 	if bits < 2 {
+ 		return nil, errors.New("crypto/rand: prime size must be at least 2-bit")
+@@ -58,7 +58,8 @@ func Prime(rand io.Reader, bits int) (*big.Int, error) {
+ 	}
+ }
+ 
+-// Int returns a uniform random value in [0, max). It panics if max <= 0.
++// Int returns a uniform random value in [0, max). It panics if max <= 0, and
++// returns an error if rand.Read returns one.
+ func Int(rand io.Reader, max *big.Int) (n *big.Int, err error) {
+ 	if max.Sign() <= 0 {
+ 		panic("crypto/rand: argument to Int is <= 0")
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index d70d567912..a10d1dc959 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1033,6 +1033,11 @@ func sync_fatal(s string) {
+ 	fatal(s)
+ }
+ 
++//go:linkname rand_fatal crypto/rand.fatal
++func rand_fatal(s string) {
++	fatal(s)
++}
++
+ // throw triggers a fatal error that dumps a stack trace and exits.
+ //
+ // throw should be used for runtime-internal fatal errors where Go itself,

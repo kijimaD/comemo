@@ -1,0 +1,681 @@
+commit 5432cd96fd951bce01bbce9f9744b62871f79b17
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Sep 20 11:06:18 2024 +0800
+
+    cmd/compiler,internal/runtime/atomic: optimize Cas{64,32} on loong64
+    
+    In Loongson's new microstructure LA664 (Loongson-3A6000) and later, the atomic
+    compare-and-exchange instruction AMCAS[DB]{B,W,H,V} [1] is supported. Therefore,
+    the implementation of the atomic operation compare-and-swap can be selected according
+    to the CPUCFG flag LAMCAS: AMCASDB(full barrier) instruction is used on new
+    microstructures, and traditional LL-SC is used on LA464 (Loongson-3A5000) and older
+    microstructures. This can significantly improve the performance of Go programs on
+    new microstructures.
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A6000 @ 2500.00MHz
+             |  bench.old   |  bench.new                           |
+             |   sec/op     |   sec/op       vs base               |
+    Cas        46.84n ±  0%   22.82n ±  0%  -51.28% (p=0.000 n=20)
+    Cas-2      47.58n ±  0%   29.57n ±  0%  -37.85% (p=0.000 n=20)
+    Cas-4      43.27n ± 20%   25.31n ± 13%  -41.50% (p=0.000 n=20)
+    Cas64      46.85n ±  0%   22.82n ±  0%  -51.29% (p=0.000 n=20)
+    Cas64-2    47.43n ±  0%   29.53n ±  0%  -37.74% (p=0.002 n=20)
+    Cas64-4    43.18n ±  0%   25.28n ±  2%  -41.46% (p=0.000 n=20)
+    geomean    45.82n         25.74n        -43.82%
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A5000 @ 2500.00MHz
+             |  bench.old  |  bench.new                         |
+             |   sec/op    |   sec/op      vs base              |
+    Cas        50.05n ± 0%   51.26n ± 0%  +2.42% (p=0.000 n=20)
+    Cas-2      52.80n ± 0%   53.11n ± 0%  +0.59% (p=0.000 n=20)
+    Cas-4      55.97n ± 0%   57.31n ± 0%  +2.39% (p=0.000 n=20)
+    Cas64      50.05n ± 0%   51.26n ± 0%  +2.42% (p=0.000 n=20)
+    Cas64-2    52.68n ± 0%   53.11n ± 0%  +0.82% (p=0.000 n=20)
+    Cas64-4    55.96n ± 0%   57.26n ± 0%  +2.33% (p=0.000 n=20)
+    geomean    52.86n        53.83n       +1.82%
+    
+    [1]: https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html
+    
+    Change-Id: I9b777c63c124fb492f61c903f77061fa2b4e5322
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613396
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ir/symtab.go              |   1 +
+ src/cmd/compile/internal/loong64/ssa.go            | 111 ++++++++++++++++-----
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |   6 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  21 +++-
+ src/cmd/compile/internal/ssa/opGen.go              |  38 +++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     |  26 +++++
+ src/cmd/compile/internal/ssagen/intrinsics.go      |  67 ++++++++++---
+ src/cmd/compile/internal/ssagen/ssa.go             |   1 +
+ .../compile/internal/typecheck/_builtin/runtime.go |   1 +
+ src/cmd/compile/internal/typecheck/builtin.go      |   1 +
+ src/cmd/internal/goobj/builtinlist.go              |   1 +
+ src/internal/runtime/atomic/atomic_loong64.go      |   1 +
+ src/internal/runtime/atomic/atomic_loong64.s       |  50 ++++++++--
+ src/runtime/cpuflags.go                            |   1 +
+ src/runtime/proc.go                                |   1 +
+ 15 files changed, 277 insertions(+), 50 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index c977a6b94e..1cc8d93f10 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -60,6 +60,7 @@ type symsStruct struct {
+ 	Zerobase         *obj.LSym
+ 	ARM64HasATOMICS  *obj.LSym
+ 	ARMHasVFPv4      *obj.LSym
++	Loong64HasLAMCAS *obj.LSym
+ 	Loong64HasLAM_BH *obj.LSym
+ 	Loong64HasLSX    *obj.LSym
+ 	X86HasFMA        *obj.LSym
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index a52a2c0eca..f46ec74a28 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -746,52 +746,64 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 
+ 	case ssa.OpLOONG64LoweredAtomicCas32, ssa.OpLOONG64LoweredAtomicCas64:
+ 		// MOVV $0, Rout
+-		// DBAR
++		// DBAR 0x14
+ 		// LL	(Rarg0), Rtmp
+ 		// BNE	Rtmp, Rarg1, 4(PC)
+ 		// MOVV Rarg2, Rout
+ 		// SC	Rout, (Rarg0)
+ 		// BEQ	Rout, -4(PC)
+-		// DBAR
++		// DBAR 0x12
+ 		ll := loong64.ALLV
+ 		sc := loong64.ASCV
+ 		if v.Op == ssa.OpLOONG64LoweredAtomicCas32 {
+ 			ll = loong64.ALL
+ 			sc = loong64.ASC
+ 		}
++
+ 		p := s.Prog(loong64.AMOVV)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = loong64.REGZERO
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg0()
+-		s.Prog(loong64.ADBAR)
+-		p1 := s.Prog(ll)
+-		p1.From.Type = obj.TYPE_MEM
+-		p1.From.Reg = v.Args[0].Reg()
+-		p1.To.Type = obj.TYPE_REG
+-		p1.To.Reg = loong64.REGTMP
+-		p2 := s.Prog(loong64.ABNE)
+-		p2.From.Type = obj.TYPE_REG
+-		p2.From.Reg = v.Args[1].Reg()
+-		p2.Reg = loong64.REGTMP
+-		p2.To.Type = obj.TYPE_BRANCH
+-		p3 := s.Prog(loong64.AMOVV)
++
++		p1 := s.Prog(loong64.ADBAR)
++		p1.From.Type = obj.TYPE_CONST
++		p1.From.Offset = 0x14
++
++		p2 := s.Prog(ll)
++		p2.From.Type = obj.TYPE_MEM
++		p2.From.Reg = v.Args[0].Reg()
++		p2.To.Type = obj.TYPE_REG
++		p2.To.Reg = loong64.REGTMP
++
++		p3 := s.Prog(loong64.ABNE)
+ 		p3.From.Type = obj.TYPE_REG
+-		p3.From.Reg = v.Args[2].Reg()
+-		p3.To.Type = obj.TYPE_REG
+-		p3.To.Reg = v.Reg0()
+-		p4 := s.Prog(sc)
++		p3.From.Reg = v.Args[1].Reg()
++		p3.Reg = loong64.REGTMP
++		p3.To.Type = obj.TYPE_BRANCH
++
++		p4 := s.Prog(loong64.AMOVV)
+ 		p4.From.Type = obj.TYPE_REG
+-		p4.From.Reg = v.Reg0()
+-		p4.To.Type = obj.TYPE_MEM
+-		p4.To.Reg = v.Args[0].Reg()
+-		p5 := s.Prog(loong64.ABEQ)
++		p4.From.Reg = v.Args[2].Reg()
++		p4.To.Type = obj.TYPE_REG
++		p4.To.Reg = v.Reg0()
++
++		p5 := s.Prog(sc)
+ 		p5.From.Type = obj.TYPE_REG
+ 		p5.From.Reg = v.Reg0()
+-		p5.To.Type = obj.TYPE_BRANCH
+-		p5.To.SetTarget(p1)
+-		p6 := s.Prog(loong64.ADBAR)
+-		p2.To.SetTarget(p6)
++		p5.To.Type = obj.TYPE_MEM
++		p5.To.Reg = v.Args[0].Reg()
++
++		p6 := s.Prog(loong64.ABEQ)
++		p6.From.Type = obj.TYPE_REG
++		p6.From.Reg = v.Reg0()
++		p6.To.Type = obj.TYPE_BRANCH
++		p6.To.SetTarget(p2)
++
++		p7 := s.Prog(loong64.ADBAR)
++		p7.From.Type = obj.TYPE_CONST
++		p7.From.Offset = 0x12
++		p3.To.SetTarget(p7)
+ 
+ 	case ssa.OpLOONG64LoweredAtomicAnd32,
+ 		ssa.OpLOONG64LoweredAtomicOr32:
+@@ -815,6 +827,53 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Reg = v.Args[0].Reg()
+ 		p.RegTo2 = v.Reg0()
+ 
++	case ssa.OpLOONG64LoweredAtomicCas64Variant, ssa.OpLOONG64LoweredAtomicCas32Variant:
++		// MOVV         $0, Rout
++		// MOVV         Rarg1, Rtmp
++		// AMCASDBx     Rarg2, (Rarg0), Rtmp
++		// BNE          Rarg1, Rtmp, 2(PC)
++		// MOVV         $1, Rout
++		// NOP
++
++		amcasx := loong64.AAMCASDBV
++		if v.Op == ssa.OpLOONG64LoweredAtomicCas32Variant {
++			amcasx = loong64.AAMCASDBW
++		}
++
++		p := s.Prog(loong64.AMOVV)
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = loong64.REGZERO
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = v.Reg0()
++
++		p1 := s.Prog(loong64.AMOVV)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = v.Args[1].Reg()
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = loong64.REGTMP
++
++		p2 := s.Prog(amcasx)
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = v.Args[2].Reg()
++		p2.To.Type = obj.TYPE_MEM
++		p2.To.Reg = v.Args[0].Reg()
++		p2.RegTo2 = loong64.REGTMP
++
++		p3 := s.Prog(loong64.ABNE)
++		p3.From.Type = obj.TYPE_REG
++		p3.From.Reg = v.Args[1].Reg()
++		p3.Reg = loong64.REGTMP
++		p3.To.Type = obj.TYPE_BRANCH
++
++		p4 := s.Prog(loong64.AMOVV)
++		p4.From.Type = obj.TYPE_CONST
++		p4.From.Offset = 0x1
++		p4.To.Type = obj.TYPE_REG
++		p4.To.Reg = v.Reg0()
++
++		p5 := s.Prog(obj.ANOP)
++		p3.To.SetTarget(p5)
++
+ 	case ssa.OpLOONG64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+ 		p := s.Prog(loong64.AMOVB)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index eba495f21d..1f1434c4be 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -453,8 +453,14 @@
+ 
+ (AtomicAdd(32|64) ...) => (LoweredAtomicAdd(32|64) ...)
+ 
++// Loong64's 32-bit atomic operation instructions ll.w and amcasw are both sign-extended,
++// so the input parameters need to be sign-extended to 64 bits, otherwise the subsequent
++// comparison operations may not produce the expected results.
++//
+ (AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
+ (AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
++(AtomicCompareAndSwap32Variant ptr old new mem) => (LoweredAtomicCas32Variant ptr (SignExt32to64 old) new mem)
++(AtomicCompareAndSwap64Variant ...) => (LoweredAtomicCas64Variant ...)
+ 
+ // Atomic memory logical operations (old style).
+ //
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 270c262e8e..360458b96a 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -479,17 +479,34 @@ func init() {
+ 		// } else {
+ 		//   return (false, memory)
+ 		// }
+-		// DBAR
+ 		// MOVV $0, Rout
++		// DBAR 0x14
+ 		// LL	(Rarg0), Rtmp
+ 		// BNE	Rtmp, Rarg1, 4(PC)
+ 		// MOVV Rarg2, Rout
+ 		// SC	Rout, (Rarg0)
+ 		// BEQ	Rout, -4(PC)
+-		// DBAR
++		// DBAR 0x12
+ 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 
++		// atomic compare and swap variant.
++		// arg0 = pointer, arg1 = old value, arg2 = new value, arg3 = memory. auxint must be zero.
++		// if *arg0 == arg1 {
++		//   *arg0 = arg2
++		//   return (true, memory)
++		// } else {
++		//   return (false, memory)
++		// }
++		// MOVV         $0, Rout
++		// MOVV         Rarg1, Rtmp
++		// AMCASDBx     Rarg2, (Rarg0), Rtmp
++		// BNE          Rarg1, Rtmp, 2(PC)
++		// MOVV         $1, Rout
++		// NOP
++		{name: "LoweredAtomicCas64Variant", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
++		{name: "LoweredAtomicCas32Variant", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
++
+ 		// Atomic 32 bit AND/OR.
+ 		// *arg0 &= (|=) arg1. arg2=mem. returns nil.
+ 		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpxchg, asm: "AMANDDBW", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index db4f17317d..f7179d98d5 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1928,6 +1928,8 @@ const (
+ 	OpLOONG64LoweredAtomicAdd64
+ 	OpLOONG64LoweredAtomicCas32
+ 	OpLOONG64LoweredAtomicCas64
++	OpLOONG64LoweredAtomicCas64Variant
++	OpLOONG64LoweredAtomicCas32Variant
+ 	OpLOONG64LoweredAtomicAnd32
+ 	OpLOONG64LoweredAtomicOr32
+ 	OpLOONG64LoweredAtomicAnd32value
+@@ -25921,6 +25923,42 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredAtomicCas64Variant",
++		argLen:          4,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		unsafePoint:     true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{2, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicCas32Variant",
++		argLen:          4,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		unsafePoint:     true,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{2, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 	{
+ 		name:            "LoweredAtomicAnd32",
+ 		argLen:          3,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index fd0f938a43..40265bd124 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -66,9 +66,14 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpAtomicAnd8(v)
+ 	case OpAtomicCompareAndSwap32:
+ 		return rewriteValueLOONG64_OpAtomicCompareAndSwap32(v)
++	case OpAtomicCompareAndSwap32Variant:
++		return rewriteValueLOONG64_OpAtomicCompareAndSwap32Variant(v)
+ 	case OpAtomicCompareAndSwap64:
+ 		v.Op = OpLOONG64LoweredAtomicCas64
+ 		return true
++	case OpAtomicCompareAndSwap64Variant:
++		v.Op = OpLOONG64LoweredAtomicCas64Variant
++		return true
+ 	case OpAtomicExchange32:
+ 		v.Op = OpLOONG64LoweredAtomicExchange32
+ 		return true
+@@ -915,6 +920,27 @@ func rewriteValueLOONG64_OpAtomicCompareAndSwap32(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueLOONG64_OpAtomicCompareAndSwap32Variant(v *Value) bool {
++	v_3 := v.Args[3]
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (AtomicCompareAndSwap32Variant ptr old new mem)
++	// result: (LoweredAtomicCas32Variant ptr (SignExt32to64 old) new mem)
++	for {
++		ptr := v_0
++		old := v_1
++		new := v_2
++		mem := v_3
++		v.reset(OpLOONG64LoweredAtomicCas32Variant)
++		v0 := b.NewValue0(v.Pos, OpSignExt32to64, typ.Int64)
++		v0.AddArg(old)
++		v.AddArg4(ptr, v0, new, mem)
++		return true
++	}
++}
+ func rewriteValueLOONG64_OpAtomicOr8(v *Value) bool {
+ 	v_2 := v.Args[2]
+ 	v_1 := v.Args[1]
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 6cf3eb9cfe..f69d7bdc66 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -298,7 +298,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		},
+ 		sys.PPC64)
+ 
+-	makeAtomicGuardedIntrinsicLoong64common := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter, needReturn bool) intrinsicBuilder {
++	makeAtomicStoreGuardedIntrinsicLoong64 := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter) intrinsicBuilder {
+ 		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			// Target Atomic feature is identified by dynamic detection
+ 			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLAM_BH, s.sb)
+@@ -315,29 +315,21 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 
+ 			// We have atomic instructions - use it directly.
+ 			s.startBlock(bTrue)
+-			emit(s, n, args, op1, typ, needReturn)
++			emit(s, n, args, op1, typ, false)
+ 			s.endBlock().AddEdgeTo(bEnd)
+ 
+ 			// Use original instruction sequence.
+ 			s.startBlock(bFalse)
+-			emit(s, n, args, op0, typ, needReturn)
++			emit(s, n, args, op0, typ, false)
+ 			s.endBlock().AddEdgeTo(bEnd)
+ 
+ 			// Merge results.
+ 			s.startBlock(bEnd)
+ 
+-			if needReturn {
+-				return s.variable(n, types.Types[typ])
+-			} else {
+-				return nil
+-			}
++			return nil
+ 		}
+ 	}
+ 
+-	makeAtomicStoreGuardedIntrinsicLoong64 := func(op0, op1 ssa.Op, typ types.Kind, emit atomicOpEmitter) intrinsicBuilder {
+-		return makeAtomicGuardedIntrinsicLoong64common(op0, op1, typ, emit, false)
+-	}
+-
+ 	atomicStoreEmitterLoong64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind, needReturn bool) {
+ 		v := s.newValue3(op, types.NewTuple(types.Types[typ], types.TypeMem), args[0], args[1], s.mem())
+ 		s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+@@ -475,14 +467,14 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
+ 		},
+-		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
++		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("internal/runtime/atomic", "Cas64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap64, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
+ 			s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
+ 			return s.newValue1(ssa.OpSelect0, types.Types[types.TBOOL], v)
+ 		},
+-		sys.AMD64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
++		sys.AMD64, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("internal/runtime/atomic", "CasRel",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue4(ssa.OpAtomicCompareAndSwap32, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
+@@ -506,6 +498,53 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 		makeAtomicGuardedIntrinsicARM64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, types.TBOOL, atomicCasEmitterARM64),
+ 		sys.ARM64)
+ 
++	atomicCasEmitterLoong64 := func(s *state, n *ir.CallExpr, args []*ssa.Value, op ssa.Op, typ types.Kind, needReturn bool) {
++		v := s.newValue4(op, types.NewTuple(types.Types[types.TBOOL], types.TypeMem), args[0], args[1], args[2], s.mem())
++		s.vars[memVar] = s.newValue1(ssa.OpSelect1, types.TypeMem, v)
++		if needReturn {
++			s.vars[n] = s.newValue1(ssa.OpSelect0, types.Types[typ], v)
++		}
++	}
++
++	makeAtomicCasGuardedIntrinsicLoong64 := func(op0, op1 ssa.Op, emit atomicOpEmitter) intrinsicBuilder {
++		return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++			// Target Atomic feature is identified by dynamic detection
++			addr := s.entryNewValue1A(ssa.OpAddr, types.Types[types.TBOOL].PtrTo(), ir.Syms.Loong64HasLAMCAS, s.sb)
++			v := s.load(types.Types[types.TBOOL], addr)
++			b := s.endBlock()
++			b.Kind = ssa.BlockIf
++			b.SetControl(v)
++			bTrue := s.f.NewBlock(ssa.BlockPlain)
++			bFalse := s.f.NewBlock(ssa.BlockPlain)
++			bEnd := s.f.NewBlock(ssa.BlockPlain)
++			b.AddEdgeTo(bTrue)
++			b.AddEdgeTo(bFalse)
++			b.Likely = ssa.BranchLikely
++
++			// We have atomic instructions - use it directly.
++			s.startBlock(bTrue)
++			emit(s, n, args, op1, types.TBOOL, true)
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Use original instruction sequence.
++			s.startBlock(bFalse)
++			emit(s, n, args, op0, types.TBOOL, true)
++			s.endBlock().AddEdgeTo(bEnd)
++
++			// Merge results.
++			s.startBlock(bEnd)
++
++			return s.variable(n, types.Types[types.TBOOL])
++		}
++	}
++
++	addF("internal/runtime/atomic", "Cas",
++		makeAtomicCasGuardedIntrinsicLoong64(ssa.OpAtomicCompareAndSwap32, ssa.OpAtomicCompareAndSwap32Variant, atomicCasEmitterLoong64),
++		sys.Loong64)
++	addF("internal/runtime/atomic", "Cas64",
++		makeAtomicCasGuardedIntrinsicLoong64(ssa.OpAtomicCompareAndSwap64, ssa.OpAtomicCompareAndSwap64Variant, atomicCasEmitterLoong64),
++		sys.Loong64)
++
+ 	// Old-style atomic logical operation API (all supported archs except arm64).
+ 	addF("internal/runtime/atomic", "And8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 0f92ccf1b5..dc9b508c01 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -150,6 +150,7 @@ func InitConfig() {
+ 	ir.Syms.X86HasFMA = typecheck.LookupRuntimeVar("x86HasFMA")               // bool
+ 	ir.Syms.ARMHasVFPv4 = typecheck.LookupRuntimeVar("armHasVFPv4")           // bool
+ 	ir.Syms.ARM64HasATOMICS = typecheck.LookupRuntimeVar("arm64HasATOMICS")   // bool
++	ir.Syms.Loong64HasLAMCAS = typecheck.LookupRuntimeVar("loong64HasLAMCAS") // bool
+ 	ir.Syms.Loong64HasLAM_BH = typecheck.LookupRuntimeVar("loong64HasLAM_BH") // bool
+ 	ir.Syms.Loong64HasLSX = typecheck.LookupRuntimeVar("loong64HasLSX")       // bool
+ 	ir.Syms.Staticuint64s = typecheck.LookupRuntimeVar("staticuint64s")
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index 464fe1becb..9a83911487 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -289,6 +289,7 @@ var x86HasSSE41 bool
+ var x86HasFMA bool
+ var armHasVFPv4 bool
+ var arm64HasATOMICS bool
++var loong64HasLAMCAS bool
+ var loong64HasLAM_BH bool
+ var loong64HasLSX bool
+ 
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index c8fc913f9b..6860d78b2e 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -237,6 +237,7 @@ var runtimeDecls = [...]struct {
+ 	{"x86HasFMA", varTag, 6},
+ 	{"armHasVFPv4", varTag, 6},
+ 	{"arm64HasATOMICS", varTag, 6},
++	{"loong64HasLAMCAS", varTag, 6},
+ 	{"loong64HasLAM_BH", varTag, 6},
+ 	{"loong64HasLSX", varTag, 6},
+ 	{"asanregisterglobals", funcTag, 130},
+diff --git a/src/cmd/internal/goobj/builtinlist.go b/src/cmd/internal/goobj/builtinlist.go
+index e9b8d6aade..c133c60427 100644
+--- a/src/cmd/internal/goobj/builtinlist.go
++++ b/src/cmd/internal/goobj/builtinlist.go
+@@ -216,6 +216,7 @@ var builtins = [...]struct {
+ 	{"runtime.x86HasFMA", 0},
+ 	{"runtime.armHasVFPv4", 0},
+ 	{"runtime.arm64HasATOMICS", 0},
++	{"runtime.loong64HasLAMCAS", 0},
+ 	{"runtime.loong64HasLAM_BH", 0},
+ 	{"runtime.loong64HasLSX", 0},
+ 	{"runtime.asanregisterglobals", 1},
+diff --git a/src/internal/runtime/atomic/atomic_loong64.go b/src/internal/runtime/atomic/atomic_loong64.go
+index a362628323..6586ad2f6c 100644
+--- a/src/internal/runtime/atomic/atomic_loong64.go
++++ b/src/internal/runtime/atomic/atomic_loong64.go
+@@ -12,6 +12,7 @@ import (
+ )
+ 
+ const (
++	offsetLOONG64HasLAMCAS = unsafe.Offsetof(cpu.Loong64.HasLAMCAS)
+ 	offsetLoong64HasLAM_BH = unsafe.Offsetof(cpu.Loong64.HasLAM_BH)
+ )
+ 
+diff --git a/src/internal/runtime/atomic/atomic_loong64.s b/src/internal/runtime/atomic/atomic_loong64.s
+index 60741a23c2..d67300afc4 100644
+--- a/src/internal/runtime/atomic/atomic_loong64.s
++++ b/src/internal/runtime/atomic/atomic_loong64.s
+@@ -16,18 +16,32 @@ TEXT ·Cas(SB), NOSPLIT, $0-17
+ 	MOVV	ptr+0(FP), R4
+ 	MOVW	old+8(FP), R5
+ 	MOVW	new+12(FP), R6
+-	DBAR
++
++	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLAMCAS(SB), R8
++	BEQ	R8, cas_again
++	MOVV	R5, R7  // backup old value
++	AMCASDBW	R6, (R4), R5
++	BNE	R7, R5, cas_fail0
++	MOVV	$1, R4
++	MOVB	R4, ret+16(FP)
++	RET
++cas_fail0:
++	MOVB	R0, ret+16(FP)
++	RET
++
++	// Implemented using the ll-sc instruction pair
++	DBAR	$0x14	// LoadAcquire barrier
+ cas_again:
+ 	MOVV	R6, R7
+ 	LL	(R4), R8
+-	BNE	R5, R8, cas_fail
++	BNE	R5, R8, cas_fail1
+ 	SC	R7, (R4)
+ 	BEQ	R7, cas_again
+ 	MOVV	$1, R4
+ 	MOVB	R4, ret+16(FP)
+-	DBAR
++	DBAR	$0x12	// StoreRelease barrier
+ 	RET
+-cas_fail:
++cas_fail1:
+ 	MOVV	$0, R4
+ 	JMP	-4(PC)
+ 
+@@ -43,21 +57,41 @@ TEXT ·Cas64(SB), NOSPLIT, $0-25
+ 	MOVV	ptr+0(FP), R4
+ 	MOVV	old+8(FP), R5
+ 	MOVV	new+16(FP), R6
+-	DBAR
++
++	MOVBU	internal∕cpu·Loong64+const_offsetLOONG64HasLAMCAS(SB), R8
++	BEQ	R8, cas64_again
++	MOVV	R5, R7  // backup old value
++	AMCASDBV	R6, (R4), R5
++	BNE	R7, R5, cas64_fail0
++	MOVV	$1, R4
++	MOVB	R4, ret+24(FP)
++	RET
++cas64_fail0:
++	MOVB	R0, ret+24(FP)
++	RET
++
++	// Implemented using the ll-sc instruction pair
++	DBAR	$0x14
+ cas64_again:
+ 	MOVV	R6, R7
+ 	LLV	(R4), R8
+-	BNE	R5, R8, cas64_fail
++	BNE	R5, R8, cas64_fail1
+ 	SCV	R7, (R4)
+ 	BEQ	R7, cas64_again
+ 	MOVV	$1, R4
+ 	MOVB	R4, ret+24(FP)
+-	DBAR
++	DBAR	$0x12
+ 	RET
+-cas64_fail:
++cas64_fail1:
+ 	MOVV	$0, R4
+ 	JMP	-4(PC)
+ 
++TEXT ·Casint32(SB),NOSPLIT,$0-17
++	JMP	·Cas(SB)
++
++TEXT ·Casint64(SB),NOSPLIT,$0-25
++	JMP	·Cas64(SB)
++
+ TEXT ·Casuintptr(SB), NOSPLIT, $0-25
+ 	JMP	·Cas64(SB)
+ 
+diff --git a/src/runtime/cpuflags.go b/src/runtime/cpuflags.go
+index 3f88d20fb3..e81e50f5df 100644
+--- a/src/runtime/cpuflags.go
++++ b/src/runtime/cpuflags.go
+@@ -34,6 +34,7 @@ var (
+ 
+ 	arm64HasATOMICS bool
+ 
++	loong64HasLAMCAS bool
+ 	loong64HasLAM_BH bool
+ 	loong64HasLSX    bool
+ )
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index cbfac3a923..3f360ef129 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -752,6 +752,7 @@ func cpuinit(env string) {
+ 		arm64HasATOMICS = cpu.ARM64.HasATOMICS
+ 
+ 	case "loong64":
++		loong64HasLAMCAS = cpu.Loong64.HasLAMCAS
+ 		loong64HasLAM_BH = cpu.Loong64.HasLAM_BH
+ 		loong64HasLSX = cpu.Loong64.HasLSX
+ 	}

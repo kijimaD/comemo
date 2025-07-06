@@ -1,0 +1,33 @@
+commit 644905891fe02b5426f026297c6aff008fa5c735
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 13 11:39:00 2025 -0400
+
+    runtime: remove unused unique.runtime_blockUntilEmptyFinalizerQueue
+    
+    It was added in CL 650256, and then the use in the unique package
+    was removed in CL 650697.
+    
+    Change-Id: Id95f5dff7e11a2dc3eb544fda2586a305d3d91ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681476
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/mfinal.go | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 44db1fb356..2d4a54c933 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -338,11 +338,6 @@ func blockUntilEmptyFinalizerQueue(timeout int64) bool {
+ 	return false
+ }
+ 
+-//go:linkname unique_runtime_blockUntilEmptyFinalizerQueue unique.runtime_blockUntilEmptyFinalizerQueue
+-func unique_runtime_blockUntilEmptyFinalizerQueue(timeout int64) bool {
+-	return blockUntilEmptyFinalizerQueue(timeout)
+-}
+-
+ // SetFinalizer sets the finalizer associated with obj to the provided
+ // finalizer function. When the garbage collector finds an unreachable block
+ // with an associated finalizer, it clears the association and runs

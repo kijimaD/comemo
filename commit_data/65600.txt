@@ -1,0 +1,1645 @@
+commit a947912d8ad5398a78f14ceaa80369f60a3f85f8
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 12 23:39:27 2024 +0100
+
+    internal/byteorder: use canonical Go casing in names
+    
+    If Be and Le stand for big-endian and little-endian,
+    then they should be BE and LE.
+    
+    Change-Id: I723e3962b8918da84791783d3c547638f1c9e8a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627376
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/inline/inl.go             | 12 +--
+ src/crypto/cipher/gcm.go                           |  8 +-
+ src/crypto/des/block.go                            |  6 +-
+ src/crypto/des/cipher.go                           |  8 +-
+ src/crypto/internal/boring/sha.go                  | 88 +++++++++++-----------
+ .../internal/fips140deps/byteorder/byteorder.go    | 22 +++---
+ src/crypto/internal/hpke/hpke.go                   | 14 ++--
+ src/crypto/internal/sysrand/rand_plan9.go          |  4 +-
+ src/crypto/md5/gen.go                              |  2 +-
+ src/crypto/md5/md5.go                              | 24 +++---
+ src/crypto/md5/md5block.go                         | 32 ++++----
+ src/crypto/sha1/sha1.go                            | 28 +++----
+ src/crypto/tls/bogo_shim_test.go                   |  2 +-
+ src/crypto/tls/handshake_client.go                 |  2 +-
+ src/crypto/tls/handshake_client_test.go            |  2 +-
+ src/crypto/tls/handshake_server.go                 |  2 +-
+ src/crypto/tls/handshake_server_tls13.go           |  2 +-
+ src/hash/adler32/adler32.go                        |  4 +-
+ src/hash/crc32/crc32.go                            | 10 +--
+ src/hash/crc32/crc32_generic.go                    |  2 +-
+ src/hash/crc64/crc64.go                            | 12 +--
+ src/hash/fnv/fnv.go                                | 48 ++++++------
+ src/hash/maphash/maphash.go                        | 14 ++--
+ src/hash/maphash/maphash_purego.go                 |  6 +-
+ src/image/gif/writer.go                            | 16 ++--
+ src/internal/byteorder/byteorder.go                | 36 ++++-----
+ src/internal/chacha8rand/chacha8.go                | 16 ++--
+ src/internal/poll/fd_wasip1.go                     |  6 +-
+ src/math/big/floatmarsh.go                         |  8 +-
+ src/math/big/nat.go                                |  4 +-
+ src/math/big/ratmarsh.go                           |  4 +-
+ src/math/rand/v2/chacha8.go                        |  4 +-
+ src/math/rand/v2/pcg.go                            |  8 +-
+ src/net/netip/netip.go                             | 26 +++----
+ src/os/dir_unix.go                                 | 12 +--
+ src/runtime/rand.go                                |  2 +-
+ src/syscall/dir_plan9.go                           | 12 +--
+ src/syscall/dirent.go                              | 12 +--
+ 38 files changed, 260 insertions(+), 260 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 6835b919b6..9478806842 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -537,12 +537,12 @@ opSwitch:
+ 				// budgeting system does not see that. See issue 42958.
+ 				if base.Ctxt.Arch.CanMergeLoads && name.Sym().Pkg.Path == "internal/byteorder" {
+ 					switch name.Sym().Name {
+-					case "LeUint64", "LeUint32", "LeUint16",
+-						"BeUint64", "BeUint32", "BeUint16",
+-						"LePutUint64", "LePutUint32", "LePutUint16",
+-						"BePutUint64", "BePutUint32", "BePutUint16",
+-						"LeAppendUint64", "LeAppendUint32", "LeAppendUint16",
+-						"BeAppendUint64", "BeAppendUint32", "BeAppendUint16":
++					case "LEUint64", "LEUint32", "LEUint16",
++						"BEUint64", "BEUint32", "BEUint16",
++						"LEPutUint64", "LEPutUint32", "LEPutUint16",
++						"BEPutUint64", "BEPutUint32", "BEPutUint16",
++						"LEAppendUint64", "LEAppendUint32", "LEAppendUint16",
++						"BEAppendUint64", "BEAppendUint32", "BEAppendUint16":
+ 						cheap = true
+ 					}
+ 				}
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 239e3466ca..ca60008111 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -312,7 +312,7 @@ func deriveCounter(H, counter *[gcmBlockSize]byte, nonce []byte) {
+ 		counter[gcmBlockSize-1] = 1
+ 	} else {
+ 		lenBlock := make([]byte, 16)
+-		byteorder.BePutUint64(lenBlock[8:], uint64(len(nonce))*8)
++		byteorder.BEPutUint64(lenBlock[8:], uint64(len(nonce))*8)
+ 		J := gcm.GHASH(H, nonce, lenBlock)
+ 		copy(counter[:], J)
+ 	}
+@@ -337,13 +337,13 @@ func gcmCounterCryptGeneric(b Block, out, src []byte, counter *[gcmBlockSize]byt
+ 
+ func gcmInc32(counterBlock *[gcmBlockSize]byte) {
+ 	ctr := counterBlock[len(counterBlock)-4:]
+-	byteorder.BePutUint32(ctr, byteorder.BeUint32(ctr)+1)
++	byteorder.BEPutUint32(ctr, byteorder.BEUint32(ctr)+1)
+ }
+ 
+ func gcmAuth(out []byte, H, tagMask *[gcmBlockSize]byte, ciphertext, additionalData []byte) {
+ 	lenBlock := make([]byte, 16)
+-	byteorder.BePutUint64(lenBlock[:8], uint64(len(additionalData))*8)
+-	byteorder.BePutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
++	byteorder.BEPutUint64(lenBlock[:8], uint64(len(additionalData))*8)
++	byteorder.BEPutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
+ 	S := gcm.GHASH(H, additionalData, ciphertext, lenBlock)
+ 	subtle.XORBytes(out, S, tagMask[:])
+ }
+diff --git a/src/crypto/des/block.go b/src/crypto/des/block.go
+index 7a68a472b4..1a29eff73b 100644
+--- a/src/crypto/des/block.go
++++ b/src/crypto/des/block.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ func cryptBlock(subkeys []uint64, dst, src []byte, decrypt bool) {
+-	b := byteorder.BeUint64(src)
++	b := byteorder.BEUint64(src)
+ 	b = permuteInitialBlock(b)
+ 	left, right := uint32(b>>32), uint32(b)
+ 
+@@ -32,7 +32,7 @@ func cryptBlock(subkeys []uint64, dst, src []byte, decrypt bool) {
+ 
+ 	// switch left & right and perform final permutation
+ 	preOutput := (uint64(right) << 32) | uint64(left)
+-	byteorder.BePutUint64(dst, permuteFinalBlock(preOutput))
++	byteorder.BEPutUint64(dst, permuteFinalBlock(preOutput))
+ }
+ 
+ // DES Feistel function. feistelBox must be initialized via
+@@ -218,7 +218,7 @@ func (c *desCipher) generateSubkeys(keyBytes []byte) {
+ 	feistelBoxOnce.Do(initFeistelBox)
+ 
+ 	// apply PC1 permutation to key
+-	key := byteorder.BeUint64(keyBytes)
++	key := byteorder.BEUint64(keyBytes)
+ 	permutedKey := permuteBlock(key, permutedChoice1[:])
+ 
+ 	// rotate halves of permuted key according to the rotation schedule
+diff --git a/src/crypto/des/cipher.go b/src/crypto/des/cipher.go
+index a1ed57cdb1..5663d16fb2 100644
+--- a/src/crypto/des/cipher.go
++++ b/src/crypto/des/cipher.go
+@@ -95,7 +95,7 @@ func (c *tripleDESCipher) Encrypt(dst, src []byte) {
+ 		panic("crypto/des: invalid buffer overlap")
+ 	}
+ 
+-	b := byteorder.BeUint64(src)
++	b := byteorder.BEUint64(src)
+ 	b = permuteInitialBlock(b)
+ 	left, right := uint32(b>>32), uint32(b)
+ 
+@@ -116,7 +116,7 @@ func (c *tripleDESCipher) Encrypt(dst, src []byte) {
+ 	right = (right << 31) | (right >> 1)
+ 
+ 	preOutput := (uint64(right) << 32) | uint64(left)
+-	byteorder.BePutUint64(dst, permuteFinalBlock(preOutput))
++	byteorder.BEPutUint64(dst, permuteFinalBlock(preOutput))
+ }
+ 
+ func (c *tripleDESCipher) Decrypt(dst, src []byte) {
+@@ -130,7 +130,7 @@ func (c *tripleDESCipher) Decrypt(dst, src []byte) {
+ 		panic("crypto/des: invalid buffer overlap")
+ 	}
+ 
+-	b := byteorder.BeUint64(src)
++	b := byteorder.BEUint64(src)
+ 	b = permuteInitialBlock(b)
+ 	left, right := uint32(b>>32), uint32(b)
+ 
+@@ -151,5 +151,5 @@ func (c *tripleDESCipher) Decrypt(dst, src []byte) {
+ 	right = (right << 31) | (right >> 1)
+ 
+ 	preOutput := (uint64(right) << 32) | uint64(left)
+-	byteorder.BePutUint64(dst, permuteFinalBlock(preOutput))
++	byteorder.BEPutUint64(dst, permuteFinalBlock(preOutput))
+ }
+diff --git a/src/crypto/internal/boring/sha.go b/src/crypto/internal/boring/sha.go
+index 9e461bcbe0..d58cb3981a 100644
+--- a/src/crypto/internal/boring/sha.go
++++ b/src/crypto/internal/boring/sha.go
+@@ -166,14 +166,14 @@ func (h *sha1Hash) MarshalBinary() ([]byte, error) {
+ func (h *sha1Hash) AppendBinary(b []byte) ([]byte, error) {
+ 	d := (*sha1Ctx)(unsafe.Pointer(&h.ctx))
+ 	b = append(b, sha1Magic...)
+-	b = byteorder.BeAppendUint32(b, d.h[0])
+-	b = byteorder.BeAppendUint32(b, d.h[1])
+-	b = byteorder.BeAppendUint32(b, d.h[2])
+-	b = byteorder.BeAppendUint32(b, d.h[3])
+-	b = byteorder.BeAppendUint32(b, d.h[4])
++	b = byteorder.BEAppendUint32(b, d.h[0])
++	b = byteorder.BEAppendUint32(b, d.h[1])
++	b = byteorder.BEAppendUint32(b, d.h[2])
++	b = byteorder.BEAppendUint32(b, d.h[3])
++	b = byteorder.BEAppendUint32(b, d.h[4])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
+-	b = byteorder.BeAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
++	b = byteorder.BEAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
+ 	return b, nil
+ }
+ 
+@@ -295,17 +295,17 @@ func (h *sha224Hash) MarshalBinary() ([]byte, error) {
+ func (h *sha224Hash) AppendBinary(b []byte) ([]byte, error) {
+ 	d := (*sha256Ctx)(unsafe.Pointer(&h.ctx))
+ 	b = append(b, magic224...)
+-	b = byteorder.BeAppendUint32(b, d.h[0])
+-	b = byteorder.BeAppendUint32(b, d.h[1])
+-	b = byteorder.BeAppendUint32(b, d.h[2])
+-	b = byteorder.BeAppendUint32(b, d.h[3])
+-	b = byteorder.BeAppendUint32(b, d.h[4])
+-	b = byteorder.BeAppendUint32(b, d.h[5])
+-	b = byteorder.BeAppendUint32(b, d.h[6])
+-	b = byteorder.BeAppendUint32(b, d.h[7])
++	b = byteorder.BEAppendUint32(b, d.h[0])
++	b = byteorder.BEAppendUint32(b, d.h[1])
++	b = byteorder.BEAppendUint32(b, d.h[2])
++	b = byteorder.BEAppendUint32(b, d.h[3])
++	b = byteorder.BEAppendUint32(b, d.h[4])
++	b = byteorder.BEAppendUint32(b, d.h[5])
++	b = byteorder.BEAppendUint32(b, d.h[6])
++	b = byteorder.BEAppendUint32(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
+-	b = byteorder.BeAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
++	b = byteorder.BEAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
+ 	return b, nil
+ }
+ 
+@@ -316,17 +316,17 @@ func (h *sha256Hash) MarshalBinary() ([]byte, error) {
+ func (h *sha256Hash) AppendBinary(b []byte) ([]byte, error) {
+ 	d := (*sha256Ctx)(unsafe.Pointer(&h.ctx))
+ 	b = append(b, magic256...)
+-	b = byteorder.BeAppendUint32(b, d.h[0])
+-	b = byteorder.BeAppendUint32(b, d.h[1])
+-	b = byteorder.BeAppendUint32(b, d.h[2])
+-	b = byteorder.BeAppendUint32(b, d.h[3])
+-	b = byteorder.BeAppendUint32(b, d.h[4])
+-	b = byteorder.BeAppendUint32(b, d.h[5])
+-	b = byteorder.BeAppendUint32(b, d.h[6])
+-	b = byteorder.BeAppendUint32(b, d.h[7])
++	b = byteorder.BEAppendUint32(b, d.h[0])
++	b = byteorder.BEAppendUint32(b, d.h[1])
++	b = byteorder.BEAppendUint32(b, d.h[2])
++	b = byteorder.BEAppendUint32(b, d.h[3])
++	b = byteorder.BEAppendUint32(b, d.h[4])
++	b = byteorder.BEAppendUint32(b, d.h[5])
++	b = byteorder.BEAppendUint32(b, d.h[6])
++	b = byteorder.BEAppendUint32(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
+-	b = byteorder.BeAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
++	b = byteorder.BEAppendUint64(b, uint64(d.nl)>>3|uint64(d.nh)<<29)
+ 	return b, nil
+ }
+ 
+@@ -478,17 +478,17 @@ func (h *sha384Hash) MarshalBinary() ([]byte, error) {
+ func (h *sha384Hash) AppendBinary(b []byte) ([]byte, error) {
+ 	d := (*sha512Ctx)(unsafe.Pointer(&h.ctx))
+ 	b = append(b, magic384...)
+-	b = byteorder.BeAppendUint64(b, d.h[0])
+-	b = byteorder.BeAppendUint64(b, d.h[1])
+-	b = byteorder.BeAppendUint64(b, d.h[2])
+-	b = byteorder.BeAppendUint64(b, d.h[3])
+-	b = byteorder.BeAppendUint64(b, d.h[4])
+-	b = byteorder.BeAppendUint64(b, d.h[5])
+-	b = byteorder.BeAppendUint64(b, d.h[6])
+-	b = byteorder.BeAppendUint64(b, d.h[7])
++	b = byteorder.BEAppendUint64(b, d.h[0])
++	b = byteorder.BEAppendUint64(b, d.h[1])
++	b = byteorder.BEAppendUint64(b, d.h[2])
++	b = byteorder.BEAppendUint64(b, d.h[3])
++	b = byteorder.BEAppendUint64(b, d.h[4])
++	b = byteorder.BEAppendUint64(b, d.h[5])
++	b = byteorder.BEAppendUint64(b, d.h[6])
++	b = byteorder.BEAppendUint64(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
+-	b = byteorder.BeAppendUint64(b, d.nl>>3|d.nh<<61)
++	b = byteorder.BEAppendUint64(b, d.nl>>3|d.nh<<61)
+ 	return b, nil
+ }
+ 
+@@ -499,17 +499,17 @@ func (h *sha512Hash) MarshalBinary() ([]byte, error) {
+ func (h *sha512Hash) AppendBinary(b []byte) ([]byte, error) {
+ 	d := (*sha512Ctx)(unsafe.Pointer(&h.ctx))
+ 	b = append(b, magic512...)
+-	b = byteorder.BeAppendUint64(b, d.h[0])
+-	b = byteorder.BeAppendUint64(b, d.h[1])
+-	b = byteorder.BeAppendUint64(b, d.h[2])
+-	b = byteorder.BeAppendUint64(b, d.h[3])
+-	b = byteorder.BeAppendUint64(b, d.h[4])
+-	b = byteorder.BeAppendUint64(b, d.h[5])
+-	b = byteorder.BeAppendUint64(b, d.h[6])
+-	b = byteorder.BeAppendUint64(b, d.h[7])
++	b = byteorder.BEAppendUint64(b, d.h[0])
++	b = byteorder.BEAppendUint64(b, d.h[1])
++	b = byteorder.BEAppendUint64(b, d.h[2])
++	b = byteorder.BEAppendUint64(b, d.h[3])
++	b = byteorder.BEAppendUint64(b, d.h[4])
++	b = byteorder.BEAppendUint64(b, d.h[5])
++	b = byteorder.BEAppendUint64(b, d.h[6])
++	b = byteorder.BEAppendUint64(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = append(b, make([]byte, len(d.x)-int(d.nx))...)
+-	b = byteorder.BeAppendUint64(b, d.nl>>3|d.nh<<61)
++	b = byteorder.BEAppendUint64(b, d.nl>>3|d.nh<<61)
+ 	return b, nil
+ }
+ 
+@@ -570,9 +570,9 @@ func (h *sha512Hash) UnmarshalBinary(b []byte) error {
+ }
+ 
+ func consumeUint64(b []byte) ([]byte, uint64) {
+-	return b[8:], byteorder.BeUint64(b)
++	return b[8:], byteorder.BEUint64(b)
+ }
+ 
+ func consumeUint32(b []byte) ([]byte, uint32) {
+-	return b[4:], byteorder.BeUint32(b)
++	return b[4:], byteorder.BEUint32(b)
+ }
+diff --git a/src/crypto/internal/fips140deps/byteorder/byteorder.go b/src/crypto/internal/fips140deps/byteorder/byteorder.go
+index 9faf12d092..c064fc3176 100644
+--- a/src/crypto/internal/fips140deps/byteorder/byteorder.go
++++ b/src/crypto/internal/fips140deps/byteorder/byteorder.go
+@@ -9,45 +9,45 @@ import (
+ )
+ 
+ func LEUint16(b []byte) uint16 {
+-	return byteorder.LeUint16(b)
++	return byteorder.LEUint16(b)
+ }
+ 
+ func BEUint32(b []byte) uint32 {
+-	return byteorder.BeUint32(b)
++	return byteorder.BEUint32(b)
+ }
+ 
+ func BEUint64(b []byte) uint64 {
+-	return byteorder.BeUint64(b)
++	return byteorder.BEUint64(b)
+ }
+ 
+ func LEUint64(b []byte) uint64 {
+-	return byteorder.LeUint64(b)
++	return byteorder.LEUint64(b)
+ }
+ 
+ func BEPutUint16(b []byte, v uint16) {
+-	byteorder.BePutUint16(b, v)
++	byteorder.BEPutUint16(b, v)
+ }
+ 
+ func BEPutUint32(b []byte, v uint32) {
+-	byteorder.BePutUint32(b, v)
++	byteorder.BEPutUint32(b, v)
+ }
+ 
+ func BEPutUint64(b []byte, v uint64) {
+-	byteorder.BePutUint64(b, v)
++	byteorder.BEPutUint64(b, v)
+ }
+ 
+ func LEPutUint64(b []byte, v uint64) {
+-	byteorder.LePutUint64(b, v)
++	byteorder.LEPutUint64(b, v)
+ }
+ 
+ func BEAppendUint16(b []byte, v uint16) []byte {
+-	return byteorder.BeAppendUint16(b, v)
++	return byteorder.BEAppendUint16(b, v)
+ }
+ 
+ func BEAppendUint32(b []byte, v uint32) []byte {
+-	return byteorder.BeAppendUint32(b, v)
++	return byteorder.BEAppendUint32(b, v)
+ }
+ 
+ func BEAppendUint64(b []byte, v uint64) []byte {
+-	return byteorder.BeAppendUint64(b, v)
++	return byteorder.BEAppendUint64(b, v)
+ }
+diff --git a/src/crypto/internal/hpke/hpke.go b/src/crypto/internal/hpke/hpke.go
+index 0d6340cfc5..229a9a9162 100644
+--- a/src/crypto/internal/hpke/hpke.go
++++ b/src/crypto/internal/hpke/hpke.go
+@@ -37,7 +37,7 @@ func (kdf *hkdfKDF) LabeledExtract(sid []byte, salt []byte, label string, inputK
+ 
+ func (kdf *hkdfKDF) LabeledExpand(suiteID []byte, randomKey []byte, label string, info []byte, length uint16) []byte {
+ 	labeledInfo := make([]byte, 0, 2+7+len(suiteID)+len(label)+len(info))
+-	labeledInfo = byteorder.BeAppendUint16(labeledInfo, length)
++	labeledInfo = byteorder.BEAppendUint16(labeledInfo, length)
+ 	labeledInfo = append(labeledInfo, []byte("HPKE-v1")...)
+ 	labeledInfo = append(labeledInfo, suiteID...)
+ 	labeledInfo = append(labeledInfo, label...)
+@@ -75,7 +75,7 @@ func newDHKem(kemID uint16) (*dhKEM, error) {
+ 	return &dhKEM{
+ 		dh:      suite.curve,
+ 		kdf:     hkdfKDF{suite.hash},
+-		suiteID: byteorder.BeAppendUint16([]byte("KEM"), kemID),
++		suiteID: byteorder.BEAppendUint16([]byte("KEM"), kemID),
+ 		nSecret: suite.nSecret,
+ 	}, nil
+ }
+@@ -290,9 +290,9 @@ func (r *Receipient) Open(aad, ciphertext []byte) ([]byte, error) {
+ func suiteID(kemID, kdfID, aeadID uint16) []byte {
+ 	suiteID := make([]byte, 0, 4+2+2+2)
+ 	suiteID = append(suiteID, []byte("HPKE")...)
+-	suiteID = byteorder.BeAppendUint16(suiteID, kemID)
+-	suiteID = byteorder.BeAppendUint16(suiteID, kdfID)
+-	suiteID = byteorder.BeAppendUint16(suiteID, aeadID)
++	suiteID = byteorder.BEAppendUint16(suiteID, kemID)
++	suiteID = byteorder.BEAppendUint16(suiteID, kdfID)
++	suiteID = byteorder.BEAppendUint16(suiteID, aeadID)
+ 	return suiteID
+ }
+ 
+@@ -327,7 +327,7 @@ func (u uint128) bitLen() int {
+ 
+ func (u uint128) bytes() []byte {
+ 	b := make([]byte, 16)
+-	byteorder.BePutUint64(b[0:], u.hi)
+-	byteorder.BePutUint64(b[8:], u.lo)
++	byteorder.BEPutUint64(b[0:], u.hi)
++	byteorder.BEPutUint64(b[8:], u.lo)
+ 	return b
+ }
+diff --git a/src/crypto/internal/sysrand/rand_plan9.go b/src/crypto/internal/sysrand/rand_plan9.go
+index 3dfd2e966d..b759383eed 100644
+--- a/src/crypto/internal/sysrand/rand_plan9.go
++++ b/src/crypto/internal/sysrand/rand_plan9.go
+@@ -50,7 +50,7 @@ func read(b []byte) error {
+ 
+ 	for len(b) >= 8 {
+ 		if x, ok := state.Next(); ok {
+-			byteorder.BePutUint64(b, x)
++			byteorder.BEPutUint64(b, x)
+ 			b = b[8:]
+ 		} else {
+ 			state.Refill()
+@@ -59,7 +59,7 @@ func read(b []byte) error {
+ 	for len(b) > 0 {
+ 		if x, ok := state.Next(); ok {
+ 			var buf [8]byte
+-			byteorder.BePutUint64(buf[:], x)
++			byteorder.BEPutUint64(buf[:], x)
+ 			n := copy(b, buf[:])
+ 			b = b[n:]
+ 		} else {
+diff --git a/src/crypto/md5/gen.go b/src/crypto/md5/gen.go
+index 5290c3627c..bcbc70367d 100644
+--- a/src/crypto/md5/gen.go
++++ b/src/crypto/md5/gen.go
+@@ -219,7 +219,7 @@ func blockGeneric(dig *digest, p []byte) {
+ 
+ 		// load input block
+ 		{{range $i := seq 16 -}}
+-			{{printf "x%x := byteorder.LeUint32(q[4*%#x:])" $i $i}}
++			{{printf "x%x := byteorder.LEUint32(q[4*%#x:])" $i $i}}
+ 		{{end}}
+ 
+ 		// round 1
+diff --git a/src/crypto/md5/md5.go b/src/crypto/md5/md5.go
+index 313e961666..c49de91314 100644
+--- a/src/crypto/md5/md5.go
++++ b/src/crypto/md5/md5.go
+@@ -62,13 +62,13 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 
+ func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic...)
+-	b = byteorder.BeAppendUint32(b, d.s[0])
+-	b = byteorder.BeAppendUint32(b, d.s[1])
+-	b = byteorder.BeAppendUint32(b, d.s[2])
+-	b = byteorder.BeAppendUint32(b, d.s[3])
++	b = byteorder.BEAppendUint32(b, d.s[0])
++	b = byteorder.BEAppendUint32(b, d.s[1])
++	b = byteorder.BEAppendUint32(b, d.s[2])
++	b = byteorder.BEAppendUint32(b, d.s[3])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = append(b, make([]byte, len(d.x)-d.nx)...)
+-	b = byteorder.BeAppendUint64(b, d.len)
++	b = byteorder.BEAppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -91,11 +91,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ }
+ 
+ func consumeUint64(b []byte) ([]byte, uint64) {
+-	return b[8:], byteorder.BeUint64(b[0:8])
++	return b[8:], byteorder.BEUint64(b[0:8])
+ }
+ 
+ func consumeUint32(b []byte) ([]byte, uint32) {
+-	return b[4:], byteorder.BeUint32(b[0:4])
++	return b[4:], byteorder.BEUint32(b[0:4])
+ }
+ 
+ // New returns a new [hash.Hash] computing the MD5 checksum. The Hash
+@@ -161,7 +161,7 @@ func (d *digest) checkSum() [Size]byte {
+ 	// 1 byte end marker :: 0-63 padding bytes :: 8 byte length
+ 	tmp := [1 + 63 + 8]byte{0x80}
+ 	pad := (55 - d.len) % 64                     // calculate number of padding bytes
+-	byteorder.LePutUint64(tmp[1+pad:], d.len<<3) // append length in bits
++	byteorder.LEPutUint64(tmp[1+pad:], d.len<<3) // append length in bits
+ 	d.Write(tmp[:1+pad+8])
+ 
+ 	// The previous write ensures that a whole number of
+@@ -171,10 +171,10 @@ func (d *digest) checkSum() [Size]byte {
+ 	}
+ 
+ 	var digest [Size]byte
+-	byteorder.LePutUint32(digest[0:], d.s[0])
+-	byteorder.LePutUint32(digest[4:], d.s[1])
+-	byteorder.LePutUint32(digest[8:], d.s[2])
+-	byteorder.LePutUint32(digest[12:], d.s[3])
++	byteorder.LEPutUint32(digest[0:], d.s[0])
++	byteorder.LEPutUint32(digest[4:], d.s[1])
++	byteorder.LEPutUint32(digest[8:], d.s[2])
++	byteorder.LEPutUint32(digest[12:], d.s[3])
+ 	return digest
+ }
+ 
+diff --git a/src/crypto/md5/md5block.go b/src/crypto/md5/md5block.go
+index 473496b8d0..16e833cc50 100644
+--- a/src/crypto/md5/md5block.go
++++ b/src/crypto/md5/md5block.go
+@@ -24,22 +24,22 @@ func blockGeneric(dig *digest, p []byte) {
+ 		aa, bb, cc, dd := a, b, c, d
+ 
+ 		// load input block
+-		x0 := byteorder.LeUint32(q[4*0x0:])
+-		x1 := byteorder.LeUint32(q[4*0x1:])
+-		x2 := byteorder.LeUint32(q[4*0x2:])
+-		x3 := byteorder.LeUint32(q[4*0x3:])
+-		x4 := byteorder.LeUint32(q[4*0x4:])
+-		x5 := byteorder.LeUint32(q[4*0x5:])
+-		x6 := byteorder.LeUint32(q[4*0x6:])
+-		x7 := byteorder.LeUint32(q[4*0x7:])
+-		x8 := byteorder.LeUint32(q[4*0x8:])
+-		x9 := byteorder.LeUint32(q[4*0x9:])
+-		xa := byteorder.LeUint32(q[4*0xa:])
+-		xb := byteorder.LeUint32(q[4*0xb:])
+-		xc := byteorder.LeUint32(q[4*0xc:])
+-		xd := byteorder.LeUint32(q[4*0xd:])
+-		xe := byteorder.LeUint32(q[4*0xe:])
+-		xf := byteorder.LeUint32(q[4*0xf:])
++		x0 := byteorder.LEUint32(q[4*0x0:])
++		x1 := byteorder.LEUint32(q[4*0x1:])
++		x2 := byteorder.LEUint32(q[4*0x2:])
++		x3 := byteorder.LEUint32(q[4*0x3:])
++		x4 := byteorder.LEUint32(q[4*0x4:])
++		x5 := byteorder.LEUint32(q[4*0x5:])
++		x6 := byteorder.LEUint32(q[4*0x6:])
++		x7 := byteorder.LEUint32(q[4*0x7:])
++		x8 := byteorder.LEUint32(q[4*0x8:])
++		x9 := byteorder.LEUint32(q[4*0x9:])
++		xa := byteorder.LEUint32(q[4*0xa:])
++		xb := byteorder.LEUint32(q[4*0xb:])
++		xc := byteorder.LEUint32(q[4*0xc:])
++		xd := byteorder.LEUint32(q[4*0xd:])
++		xe := byteorder.LEUint32(q[4*0xe:])
++		xf := byteorder.LEUint32(q[4*0xf:])
+ 
+ 		// round 1
+ 		a = b + bits.RotateLeft32((((c^d)&b)^d)+a+x0+0xd76aa478, 7)
+diff --git a/src/crypto/sha1/sha1.go b/src/crypto/sha1/sha1.go
+index 8189d1946d..c3972bea63 100644
+--- a/src/crypto/sha1/sha1.go
++++ b/src/crypto/sha1/sha1.go
+@@ -54,14 +54,14 @@ func (d *digest) MarshalBinary() ([]byte, error) {
+ 
+ func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic...)
+-	b = byteorder.BeAppendUint32(b, d.h[0])
+-	b = byteorder.BeAppendUint32(b, d.h[1])
+-	b = byteorder.BeAppendUint32(b, d.h[2])
+-	b = byteorder.BeAppendUint32(b, d.h[3])
+-	b = byteorder.BeAppendUint32(b, d.h[4])
++	b = byteorder.BEAppendUint32(b, d.h[0])
++	b = byteorder.BEAppendUint32(b, d.h[1])
++	b = byteorder.BEAppendUint32(b, d.h[2])
++	b = byteorder.BEAppendUint32(b, d.h[3])
++	b = byteorder.BEAppendUint32(b, d.h[4])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = append(b, make([]byte, len(d.x)-d.nx)...)
+-	b = byteorder.BeAppendUint64(b, d.len)
++	b = byteorder.BEAppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -85,11 +85,11 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ }
+ 
+ func consumeUint64(b []byte) ([]byte, uint64) {
+-	return b[8:], byteorder.BeUint64(b)
++	return b[8:], byteorder.BEUint64(b)
+ }
+ 
+ func consumeUint32(b []byte) ([]byte, uint32) {
+-	return b[4:], byteorder.BeUint32(b)
++	return b[4:], byteorder.BEUint32(b)
+ }
+ 
+ func (d *digest) Reset() {
+@@ -166,7 +166,7 @@ func (d *digest) checkSum() [Size]byte {
+ 	// Length in bits.
+ 	len <<= 3
+ 	padlen := tmp[:t+8]
+-	byteorder.BePutUint64(padlen[t:], len)
++	byteorder.BEPutUint64(padlen[t:], len)
+ 	d.Write(padlen)
+ 
+ 	if d.nx != 0 {
+@@ -175,11 +175,11 @@ func (d *digest) checkSum() [Size]byte {
+ 
+ 	var digest [Size]byte
+ 
+-	byteorder.BePutUint32(digest[0:], d.h[0])
+-	byteorder.BePutUint32(digest[4:], d.h[1])
+-	byteorder.BePutUint32(digest[8:], d.h[2])
+-	byteorder.BePutUint32(digest[12:], d.h[3])
+-	byteorder.BePutUint32(digest[16:], d.h[4])
++	byteorder.BEPutUint32(digest[0:], d.h[0])
++	byteorder.BEPutUint32(digest[4:], d.h[1])
++	byteorder.BEPutUint32(digest[8:], d.h[2])
++	byteorder.BEPutUint32(digest[12:], d.h[3])
++	byteorder.BEPutUint32(digest[16:], d.h[4])
+ 
+ 	return digest
+ }
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index a3bf116623..b29fe2c978 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -261,7 +261,7 @@ func bogoShim() {
+ 
+ 		// Write the shim ID we were passed as a little endian uint64
+ 		shimIDBytes := make([]byte, 8)
+-		byteorder.LePutUint64(shimIDBytes, *shimID)
++		byteorder.LEPutUint64(shimIDBytes, *shimID)
+ 		if _, err := conn.Write(shimIDBytes); err != nil {
+ 			log.Fatalf("failed to write shim id: %s", err)
+ 		}
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 3926ebd4f4..be88278e45 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -714,7 +714,7 @@ func (hs *clientHandshakeState) doFullHandshake() error {
+ 			return err
+ 		}
+ 		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {
+-			c.curveID = CurveID(byteorder.BeUint16(skx.key[1:]))
++			c.curveID = CurveID(byteorder.BEUint16(skx.key[1:]))
+ 		}
+ 
+ 		msg, err = c.readHandshake(&hs.finishedHash)
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index c001822b17..2aded1ad93 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -207,7 +207,7 @@ func (test *clientTest) connFromCommand() (conn *recordingConn, child *exec.Cmd,
+ 		var serverInfo bytes.Buffer
+ 		for _, ext := range test.extensions {
+ 			pem.Encode(&serverInfo, &pem.Block{
+-				Type:  fmt.Sprintf("SERVERINFO FOR EXTENSION %d", byteorder.BeUint16(ext)),
++				Type:  fmt.Sprintf("SERVERINFO FOR EXTENSION %d", byteorder.BEUint16(ext)),
+ 				Bytes: ext,
+ 			})
+ 		}
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index bc4e51ba36..740c149d92 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -593,7 +593,7 @@ func (hs *serverHandshakeState) doFullHandshake() error {
+ 	}
+ 	if skx != nil {
+ 		if len(skx.key) >= 3 && skx.key[0] == 3 /* named curve */ {
+-			c.curveID = CurveID(byteorder.BeUint16(skx.key[1:]))
++			c.curveID = CurveID(byteorder.BEUint16(skx.key[1:]))
+ 		}
+ 		if _, err := hs.c.writeHandshakeRecord(skx, &hs.finishedHash); err != nil {
+ 			return err
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index 90c0320402..c2349ad4a4 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -900,7 +900,7 @@ func (c *Conn) sendSessionTicket(earlyData bool, extra [][]byte) error {
+ 	if _, err := c.config.rand().Read(ageAdd); err != nil {
+ 		return err
+ 	}
+-	m.ageAdd = byteorder.LeUint32(ageAdd)
++	m.ageAdd = byteorder.LEUint32(ageAdd)
+ 
+ 	if earlyData {
+ 		// RFC 9001, Section 4.6.1
+diff --git a/src/hash/adler32/adler32.go b/src/hash/adler32/adler32.go
+index 88b4ccf2fe..e2551e0952 100644
+--- a/src/hash/adler32/adler32.go
++++ b/src/hash/adler32/adler32.go
+@@ -59,7 +59,7 @@ const (
+ 
+ func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic...)
+-	b = byteorder.BeAppendUint32(b, uint32(*d))
++	b = byteorder.BEAppendUint32(b, uint32(*d))
+ 	return b, nil
+ }
+ 
+@@ -74,7 +74,7 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize {
+ 		return errors.New("hash/adler32: invalid hash state size")
+ 	}
+-	*d = digest(byteorder.BeUint32(b[len(magic):]))
++	*d = digest(byteorder.BEUint32(b[len(magic):]))
+ 	return nil
+ }
+ 
+diff --git a/src/hash/crc32/crc32.go b/src/hash/crc32/crc32.go
+index bc1ae310dd..d40bb1b7ac 100644
+--- a/src/hash/crc32/crc32.go
++++ b/src/hash/crc32/crc32.go
+@@ -170,8 +170,8 @@ const (
+ 
+ func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic...)
+-	b = byteorder.BeAppendUint32(b, tableSum(d.tab))
+-	b = byteorder.BeAppendUint32(b, d.crc)
++	b = byteorder.BEAppendUint32(b, tableSum(d.tab))
++	b = byteorder.BEAppendUint32(b, d.crc)
+ 	return b, nil
+ }
+ 
+@@ -187,10 +187,10 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize {
+ 		return errors.New("hash/crc32: invalid hash state size")
+ 	}
+-	if tableSum(d.tab) != byteorder.BeUint32(b[4:]) {
++	if tableSum(d.tab) != byteorder.BEUint32(b[4:]) {
+ 		return errors.New("hash/crc32: tables do not match")
+ 	}
+-	d.crc = byteorder.BeUint32(b[8:])
++	d.crc = byteorder.BEUint32(b[8:])
+ 	return nil
+ }
+ 
+@@ -246,7 +246,7 @@ func tableSum(t *Table) uint32 {
+ 	b := a[:0]
+ 	if t != nil {
+ 		for _, x := range t {
+-			b = byteorder.BeAppendUint32(b, x)
++			b = byteorder.BEAppendUint32(b, x)
+ 		}
+ 	}
+ 	return ChecksumIEEE(b)
+diff --git a/src/hash/crc32/crc32_generic.go b/src/hash/crc32/crc32_generic.go
+index d581710bc8..1a3b647b1b 100644
+--- a/src/hash/crc32/crc32_generic.go
++++ b/src/hash/crc32/crc32_generic.go
+@@ -76,7 +76,7 @@ func slicingUpdate(crc uint32, tab *slicing8Table, p []byte) uint32 {
+ 	if len(p) >= slicing8Cutoff {
+ 		crc = ^crc
+ 		for len(p) > 8 {
+-			crc ^= byteorder.LeUint32(p)
++			crc ^= byteorder.LEUint32(p)
+ 			crc = tab[0][p[7]] ^ tab[1][p[6]] ^ tab[2][p[5]] ^ tab[3][p[4]] ^
+ 				tab[4][crc>>24] ^ tab[5][(crc>>16)&0xFF] ^
+ 				tab[6][(crc>>8)&0xFF] ^ tab[7][crc&0xFF]
+diff --git a/src/hash/crc64/crc64.go b/src/hash/crc64/crc64.go
+index 66e53620b0..c40c7024b6 100644
+--- a/src/hash/crc64/crc64.go
++++ b/src/hash/crc64/crc64.go
+@@ -110,8 +110,8 @@ const (
+ 
+ func (d *digest) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic...)
+-	b = byteorder.BeAppendUint64(b, tableSum(d.tab))
+-	b = byteorder.BeAppendUint64(b, d.crc)
++	b = byteorder.BEAppendUint64(b, tableSum(d.tab))
++	b = byteorder.BEAppendUint64(b, d.crc)
+ 	return b, nil
+ }
+ 
+@@ -126,10 +126,10 @@ func (d *digest) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize {
+ 		return errors.New("hash/crc64: invalid hash state size")
+ 	}
+-	if tableSum(d.tab) != byteorder.BeUint64(b[4:]) {
++	if tableSum(d.tab) != byteorder.BEUint64(b[4:]) {
+ 		return errors.New("hash/crc64: tables do not match")
+ 	}
+-	d.crc = byteorder.BeUint64(b[12:])
++	d.crc = byteorder.BEUint64(b[12:])
+ 	return nil
+ }
+ 
+@@ -153,7 +153,7 @@ func update(crc uint64, tab *Table, p []byte) uint64 {
+ 		}
+ 		// Update using slicing-by-8
+ 		for len(p) > 8 {
+-			crc ^= byteorder.LeUint64(p)
++			crc ^= byteorder.LEUint64(p)
+ 			crc = helperTable[7][crc&0xff] ^
+ 				helperTable[6][(crc>>8)&0xff] ^
+ 				helperTable[5][(crc>>16)&0xff] ^
+@@ -199,7 +199,7 @@ func tableSum(t *Table) uint64 {
+ 	b := a[:0]
+ 	if t != nil {
+ 		for _, x := range t {
+-			b = byteorder.BeAppendUint64(b, x)
++			b = byteorder.BEAppendUint64(b, x)
+ 		}
+ 	}
+ 	return Checksum(b, MakeTable(ISO))
+diff --git a/src/hash/fnv/fnv.go b/src/hash/fnv/fnv.go
+index e7463795cd..5c4b9b5da8 100644
+--- a/src/hash/fnv/fnv.go
++++ b/src/hash/fnv/fnv.go
+@@ -179,32 +179,32 @@ func (s *sum128a) BlockSize() int { return 1 }
+ 
+ func (s *sum32) Sum(in []byte) []byte {
+ 	v := uint32(*s)
+-	return byteorder.BeAppendUint32(in, v)
++	return byteorder.BEAppendUint32(in, v)
+ }
+ 
+ func (s *sum32a) Sum(in []byte) []byte {
+ 	v := uint32(*s)
+-	return byteorder.BeAppendUint32(in, v)
++	return byteorder.BEAppendUint32(in, v)
+ }
+ 
+ func (s *sum64) Sum(in []byte) []byte {
+ 	v := uint64(*s)
+-	return byteorder.BeAppendUint64(in, v)
++	return byteorder.BEAppendUint64(in, v)
+ }
+ 
+ func (s *sum64a) Sum(in []byte) []byte {
+ 	v := uint64(*s)
+-	return byteorder.BeAppendUint64(in, v)
++	return byteorder.BEAppendUint64(in, v)
+ }
+ 
+ func (s *sum128) Sum(in []byte) []byte {
+-	ret := byteorder.BeAppendUint64(in, s[0])
+-	return byteorder.BeAppendUint64(ret, s[1])
++	ret := byteorder.BEAppendUint64(in, s[0])
++	return byteorder.BEAppendUint64(ret, s[1])
+ }
+ 
+ func (s *sum128a) Sum(in []byte) []byte {
+-	ret := byteorder.BeAppendUint64(in, s[0])
+-	return byteorder.BeAppendUint64(ret, s[1])
++	ret := byteorder.BEAppendUint64(in, s[0])
++	return byteorder.BEAppendUint64(ret, s[1])
+ }
+ 
+ const (
+@@ -221,7 +221,7 @@ const (
+ 
+ func (s *sum32) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic32...)
+-	b = byteorder.BeAppendUint32(b, uint32(*s))
++	b = byteorder.BEAppendUint32(b, uint32(*s))
+ 	return b, nil
+ }
+ 
+@@ -231,7 +231,7 @@ func (s *sum32) MarshalBinary() ([]byte, error) {
+ 
+ func (s *sum32a) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic32a...)
+-	b = byteorder.BeAppendUint32(b, uint32(*s))
++	b = byteorder.BEAppendUint32(b, uint32(*s))
+ 	return b, nil
+ }
+ 
+@@ -241,7 +241,7 @@ func (s *sum32a) MarshalBinary() ([]byte, error) {
+ 
+ func (s *sum64) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic64...)
+-	b = byteorder.BeAppendUint64(b, uint64(*s))
++	b = byteorder.BEAppendUint64(b, uint64(*s))
+ 	return b, nil
+ }
+ 
+@@ -251,7 +251,7 @@ func (s *sum64) MarshalBinary() ([]byte, error) {
+ 
+ func (s *sum64a) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic64a...)
+-	b = byteorder.BeAppendUint64(b, uint64(*s))
++	b = byteorder.BEAppendUint64(b, uint64(*s))
+ 	return b, nil
+ }
+ 
+@@ -261,8 +261,8 @@ func (s *sum64a) MarshalBinary() ([]byte, error) {
+ 
+ func (s *sum128) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic128...)
+-	b = byteorder.BeAppendUint64(b, s[0])
+-	b = byteorder.BeAppendUint64(b, s[1])
++	b = byteorder.BEAppendUint64(b, s[0])
++	b = byteorder.BEAppendUint64(b, s[1])
+ 	return b, nil
+ }
+ 
+@@ -272,8 +272,8 @@ func (s *sum128) MarshalBinary() ([]byte, error) {
+ 
+ func (s *sum128a) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, magic128a...)
+-	b = byteorder.BeAppendUint64(b, s[0])
+-	b = byteorder.BeAppendUint64(b, s[1])
++	b = byteorder.BEAppendUint64(b, s[0])
++	b = byteorder.BEAppendUint64(b, s[1])
+ 	return b, nil
+ }
+ 
+@@ -288,7 +288,7 @@ func (s *sum32) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize32 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	*s = sum32(byteorder.BeUint32(b[4:]))
++	*s = sum32(byteorder.BEUint32(b[4:]))
+ 	return nil
+ }
+ 
+@@ -299,7 +299,7 @@ func (s *sum32a) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize32 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	*s = sum32a(byteorder.BeUint32(b[4:]))
++	*s = sum32a(byteorder.BEUint32(b[4:]))
+ 	return nil
+ }
+ 
+@@ -310,7 +310,7 @@ func (s *sum64) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize64 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	*s = sum64(byteorder.BeUint64(b[4:]))
++	*s = sum64(byteorder.BEUint64(b[4:]))
+ 	return nil
+ }
+ 
+@@ -321,7 +321,7 @@ func (s *sum64a) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize64 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	*s = sum64a(byteorder.BeUint64(b[4:]))
++	*s = sum64a(byteorder.BEUint64(b[4:]))
+ 	return nil
+ }
+ 
+@@ -332,8 +332,8 @@ func (s *sum128) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize128 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	s[0] = byteorder.BeUint64(b[4:])
+-	s[1] = byteorder.BeUint64(b[12:])
++	s[0] = byteorder.BEUint64(b[4:])
++	s[1] = byteorder.BEUint64(b[12:])
+ 	return nil
+ }
+ 
+@@ -344,7 +344,7 @@ func (s *sum128a) UnmarshalBinary(b []byte) error {
+ 	if len(b) != marshaledSize128 {
+ 		return errors.New("hash/fnv: invalid hash state size")
+ 	}
+-	s[0] = byteorder.BeUint64(b[4:])
+-	s[1] = byteorder.BeUint64(b[12:])
++	s[0] = byteorder.BEUint64(b[4:])
++	s[1] = byteorder.BEUint64(b[12:])
+ 	return nil
+ }
+diff --git a/src/hash/maphash/maphash.go b/src/hash/maphash/maphash.go
+index 02475d5583..110b4cbfde 100644
+--- a/src/hash/maphash/maphash.go
++++ b/src/hash/maphash/maphash.go
+@@ -316,18 +316,18 @@ func appendT(h *Hash, v reflect.Value) {
+ 	switch v.Kind() {
+ 	case reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Int:
+ 		var buf [8]byte
+-		byteorder.LePutUint64(buf[:], uint64(v.Int()))
++		byteorder.LEPutUint64(buf[:], uint64(v.Int()))
+ 		h.Write(buf[:])
+ 		return
+ 	case reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uint, reflect.Uintptr:
+ 		var buf [8]byte
+-		byteorder.LePutUint64(buf[:], v.Uint())
++		byteorder.LEPutUint64(buf[:], v.Uint())
+ 		h.Write(buf[:])
+ 		return
+ 	case reflect.Array:
+ 		var buf [8]byte
+ 		for i := range uint64(v.Len()) {
+-			byteorder.LePutUint64(buf[:], i)
++			byteorder.LEPutUint64(buf[:], i)
+ 			// do not want to hash to the same value,
+ 			// [2]string{"foo", ""} and [2]string{"", "foo"}.
+ 			h.Write(buf[:])
+@@ -341,7 +341,7 @@ func appendT(h *Hash, v reflect.Value) {
+ 		var buf [8]byte
+ 		for i := range v.NumField() {
+ 			f := v.Field(i)
+-			byteorder.LePutUint64(buf[:], uint64(i))
++			byteorder.LEPutUint64(buf[:], uint64(i))
+ 			// do not want to hash to the same value,
+ 			// struct{a,b string}{"foo",""} and
+ 			// struct{a,b string}{"","foo"}.
+@@ -365,7 +365,7 @@ func appendT(h *Hash, v reflect.Value) {
+ 		// because pointing to the abi.Escape call in comparableReady,
+ 		// So this is ok to hash pointer,
+ 		// this way because we know their target won't be moved.
+-		byteorder.LePutUint64(buf[:], uint64(v.Pointer()))
++		byteorder.LEPutUint64(buf[:], uint64(v.Pointer()))
+ 		h.Write(buf[:])
+ 		return
+ 	case reflect.Interface:
+@@ -382,11 +382,11 @@ func (h *Hash) float64(f float64) {
+ 	}
+ 	var buf [8]byte
+ 	if f != f {
+-		byteorder.LePutUint64(buf[:], randUint64())
++		byteorder.LEPutUint64(buf[:], randUint64())
+ 		h.Write(buf[:])
+ 		return
+ 	}
+-	byteorder.LePutUint64(buf[:], math.Float64bits(f))
++	byteorder.LEPutUint64(buf[:], math.Float64bits(f))
+ 	h.Write(buf[:])
+ }
+ 
+diff --git a/src/hash/maphash/maphash_purego.go b/src/hash/maphash/maphash_purego.go
+index 8c47ac5d5e..c34e1c8a23 100644
+--- a/src/hash/maphash/maphash_purego.go
++++ b/src/hash/maphash/maphash_purego.go
+@@ -35,7 +35,7 @@ func rthashString(s string, state uint64) uint64 {
+ func randUint64() uint64 {
+ 	buf := make([]byte, 8)
+ 	_, _ = rand.Read(buf)
+-	return byteorder.LeUint64(buf)
++	return byteorder.LEUint64(buf)
+ }
+ 
+ // This is a port of wyhash implementation in runtime/hash64.go,
+@@ -84,11 +84,11 @@ func r3(p []byte, k uint64) uint64 {
+ }
+ 
+ func r4(p []byte) uint64 {
+-	return uint64(byteorder.LeUint32(p))
++	return uint64(byteorder.LEUint32(p))
+ }
+ 
+ func r8(p []byte) uint64 {
+-	return byteorder.LeUint64(p)
++	return byteorder.LEUint64(p)
+ }
+ 
+ func mix(a, b uint64) uint64 {
+diff --git a/src/image/gif/writer.go b/src/image/gif/writer.go
+index 0d2a1321c0..129d0ab282 100644
+--- a/src/image/gif/writer.go
++++ b/src/image/gif/writer.go
+@@ -146,8 +146,8 @@ func (e *encoder) writeHeader() {
+ 	}
+ 
+ 	// Logical screen width and height.
+-	byteorder.LePutUint16(e.buf[0:2], uint16(e.g.Config.Width))
+-	byteorder.LePutUint16(e.buf[2:4], uint16(e.g.Config.Height))
++	byteorder.LEPutUint16(e.buf[0:2], uint16(e.g.Config.Width))
++	byteorder.LEPutUint16(e.buf[2:4], uint16(e.g.Config.Height))
+ 	e.write(e.buf[:4])
+ 
+ 	if p, ok := e.g.Config.ColorModel.(color.Palette); ok && len(p) > 0 {
+@@ -185,7 +185,7 @@ func (e *encoder) writeHeader() {
+ 		}
+ 		e.buf[0] = 0x03 // Block Size.
+ 		e.buf[1] = 0x01 // Sub-block Index.
+-		byteorder.LePutUint16(e.buf[2:4], uint16(e.g.LoopCount))
++		byteorder.LEPutUint16(e.buf[2:4], uint16(e.g.LoopCount))
+ 		e.buf[4] = 0x00 // Block Terminator.
+ 		e.write(e.buf[:5])
+ 	}
+@@ -271,7 +271,7 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte)
+ 		} else {
+ 			e.buf[3] = 0x00 | disposal<<2
+ 		}
+-		byteorder.LePutUint16(e.buf[4:6], uint16(delay)) // Delay Time (1/100ths of a second)
++		byteorder.LEPutUint16(e.buf[4:6], uint16(delay)) // Delay Time (1/100ths of a second)
+ 
+ 		// Transparent color index.
+ 		if transparentIndex != -1 {
+@@ -283,10 +283,10 @@ func (e *encoder) writeImageBlock(pm *image.Paletted, delay int, disposal byte)
+ 		e.write(e.buf[:8])
+ 	}
+ 	e.buf[0] = sImageDescriptor
+-	byteorder.LePutUint16(e.buf[1:3], uint16(b.Min.X))
+-	byteorder.LePutUint16(e.buf[3:5], uint16(b.Min.Y))
+-	byteorder.LePutUint16(e.buf[5:7], uint16(b.Dx()))
+-	byteorder.LePutUint16(e.buf[7:9], uint16(b.Dy()))
++	byteorder.LEPutUint16(e.buf[1:3], uint16(b.Min.X))
++	byteorder.LEPutUint16(e.buf[3:5], uint16(b.Min.Y))
++	byteorder.LEPutUint16(e.buf[5:7], uint16(b.Dx()))
++	byteorder.LEPutUint16(e.buf[7:9], uint16(b.Dy()))
+ 	e.write(e.buf[:9])
+ 
+ 	// To determine whether or not this frame's palette is the same as the
+diff --git a/src/internal/byteorder/byteorder.go b/src/internal/byteorder/byteorder.go
+index ba37856ccd..01500a8717 100644
+--- a/src/internal/byteorder/byteorder.go
++++ b/src/internal/byteorder/byteorder.go
+@@ -6,30 +6,30 @@
+ // little and big endian integer types from/to byte slices.
+ package byteorder
+ 
+-func LeUint16(b []byte) uint16 {
++func LEUint16(b []byte) uint16 {
+ 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+ 	return uint16(b[0]) | uint16(b[1])<<8
+ }
+ 
+-func LePutUint16(b []byte, v uint16) {
++func LEPutUint16(b []byte, v uint16) {
+ 	_ = b[1] // early bounds check to guarantee safety of writes below
+ 	b[0] = byte(v)
+ 	b[1] = byte(v >> 8)
+ }
+ 
+-func LeAppendUint16(b []byte, v uint16) []byte {
++func LEAppendUint16(b []byte, v uint16) []byte {
+ 	return append(b,
+ 		byte(v),
+ 		byte(v>>8),
+ 	)
+ }
+ 
+-func LeUint32(b []byte) uint32 {
++func LEUint32(b []byte) uint32 {
+ 	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+ 	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+ }
+ 
+-func LePutUint32(b []byte, v uint32) {
++func LEPutUint32(b []byte, v uint32) {
+ 	_ = b[3] // early bounds check to guarantee safety of writes below
+ 	b[0] = byte(v)
+ 	b[1] = byte(v >> 8)
+@@ -37,7 +37,7 @@ func LePutUint32(b []byte, v uint32) {
+ 	b[3] = byte(v >> 24)
+ }
+ 
+-func LeAppendUint32(b []byte, v uint32) []byte {
++func LEAppendUint32(b []byte, v uint32) []byte {
+ 	return append(b,
+ 		byte(v),
+ 		byte(v>>8),
+@@ -46,13 +46,13 @@ func LeAppendUint32(b []byte, v uint32) []byte {
+ 	)
+ }
+ 
+-func LeUint64(b []byte) uint64 {
++func LEUint64(b []byte) uint64 {
+ 	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+ 	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+ 		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
+ }
+ 
+-func LePutUint64(b []byte, v uint64) {
++func LEPutUint64(b []byte, v uint64) {
+ 	_ = b[7] // early bounds check to guarantee safety of writes below
+ 	b[0] = byte(v)
+ 	b[1] = byte(v >> 8)
+@@ -64,7 +64,7 @@ func LePutUint64(b []byte, v uint64) {
+ 	b[7] = byte(v >> 56)
+ }
+ 
+-func LeAppendUint64(b []byte, v uint64) []byte {
++func LEAppendUint64(b []byte, v uint64) []byte {
+ 	return append(b,
+ 		byte(v),
+ 		byte(v>>8),
+@@ -77,30 +77,30 @@ func LeAppendUint64(b []byte, v uint64) []byte {
+ 	)
+ }
+ 
+-func BeUint16(b []byte) uint16 {
++func BEUint16(b []byte) uint16 {
+ 	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+ 	return uint16(b[1]) | uint16(b[0])<<8
+ }
+ 
+-func BePutUint16(b []byte, v uint16) {
++func BEPutUint16(b []byte, v uint16) {
+ 	_ = b[1] // early bounds check to guarantee safety of writes below
+ 	b[0] = byte(v >> 8)
+ 	b[1] = byte(v)
+ }
+ 
+-func BeAppendUint16(b []byte, v uint16) []byte {
++func BEAppendUint16(b []byte, v uint16) []byte {
+ 	return append(b,
+ 		byte(v>>8),
+ 		byte(v),
+ 	)
+ }
+ 
+-func BeUint32(b []byte) uint32 {
++func BEUint32(b []byte) uint32 {
+ 	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+ 	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+ }
+ 
+-func BePutUint32(b []byte, v uint32) {
++func BEPutUint32(b []byte, v uint32) {
+ 	_ = b[3] // early bounds check to guarantee safety of writes below
+ 	b[0] = byte(v >> 24)
+ 	b[1] = byte(v >> 16)
+@@ -108,7 +108,7 @@ func BePutUint32(b []byte, v uint32) {
+ 	b[3] = byte(v)
+ }
+ 
+-func BeAppendUint32(b []byte, v uint32) []byte {
++func BEAppendUint32(b []byte, v uint32) []byte {
+ 	return append(b,
+ 		byte(v>>24),
+ 		byte(v>>16),
+@@ -117,13 +117,13 @@ func BeAppendUint32(b []byte, v uint32) []byte {
+ 	)
+ }
+ 
+-func BeUint64(b []byte) uint64 {
++func BEUint64(b []byte) uint64 {
+ 	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+ 	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+ 		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
+ }
+ 
+-func BePutUint64(b []byte, v uint64) {
++func BEPutUint64(b []byte, v uint64) {
+ 	_ = b[7] // early bounds check to guarantee safety of writes below
+ 	b[0] = byte(v >> 56)
+ 	b[1] = byte(v >> 48)
+@@ -135,7 +135,7 @@ func BePutUint64(b []byte, v uint64) {
+ 	b[7] = byte(v)
+ }
+ 
+-func BeAppendUint64(b []byte, v uint64) []byte {
++func BEAppendUint64(b []byte, v uint64) []byte {
+ 	return append(b,
+ 		byte(v>>56),
+ 		byte(v>>48),
+diff --git a/src/internal/chacha8rand/chacha8.go b/src/internal/chacha8rand/chacha8.go
+index 8f1b4e5315..96fb8726cb 100644
+--- a/src/internal/chacha8rand/chacha8.go
++++ b/src/internal/chacha8rand/chacha8.go
+@@ -53,10 +53,10 @@ func (s *State) Next() (uint64, bool) {
+ // Init seeds the State with the given seed value.
+ func (s *State) Init(seed [32]byte) {
+ 	s.Init64([4]uint64{
+-		byteorder.LeUint64(seed[0*8:]),
+-		byteorder.LeUint64(seed[1*8:]),
+-		byteorder.LeUint64(seed[2*8:]),
+-		byteorder.LeUint64(seed[3*8:]),
++		byteorder.LEUint64(seed[0*8:]),
++		byteorder.LEUint64(seed[1*8:]),
++		byteorder.LEUint64(seed[2*8:]),
++		byteorder.LEUint64(seed[3*8:]),
+ 	})
+ }
+ 
+@@ -124,9 +124,9 @@ func Marshal(s *State) []byte {
+ 	data := make([]byte, 6*8)
+ 	copy(data, "chacha8:")
+ 	used := (s.c/ctrInc)*chunk + s.i
+-	byteorder.BePutUint64(data[1*8:], uint64(used))
++	byteorder.BEPutUint64(data[1*8:], uint64(used))
+ 	for i, seed := range s.seed {
+-		byteorder.LePutUint64(data[(2+i)*8:], seed)
++		byteorder.LEPutUint64(data[(2+i)*8:], seed)
+ 	}
+ 	return data
+ }
+@@ -142,12 +142,12 @@ func Unmarshal(s *State, data []byte) error {
+ 	if len(data) != 6*8 || string(data[:8]) != "chacha8:" {
+ 		return new(errUnmarshalChaCha8)
+ 	}
+-	used := byteorder.BeUint64(data[1*8:])
++	used := byteorder.BEUint64(data[1*8:])
+ 	if used > (ctrMax/ctrInc)*chunk-reseed {
+ 		return new(errUnmarshalChaCha8)
+ 	}
+ 	for i := range s.seed {
+-		s.seed[i] = byteorder.LeUint64(data[(2+i)*8:])
++		s.seed[i] = byteorder.LEUint64(data[(2+i)*8:])
+ 	}
+ 	s.c = ctrInc * (uint32(used) / chunk)
+ 	block(&s.seed, &s.buf, s.c)
+diff --git a/src/internal/poll/fd_wasip1.go b/src/internal/poll/fd_wasip1.go
+index 195aaa9517..4f83d28737 100644
+--- a/src/internal/poll/fd_wasip1.go
++++ b/src/internal/poll/fd_wasip1.go
+@@ -225,11 +225,11 @@ func readIntLE(b []byte, size uintptr) uint64 {
+ 	case 1:
+ 		return uint64(b[0])
+ 	case 2:
+-		return uint64(byteorder.LeUint16(b))
++		return uint64(byteorder.LEUint16(b))
+ 	case 4:
+-		return uint64(byteorder.LeUint32(b))
++		return uint64(byteorder.LEUint32(b))
+ 	case 8:
+-		return uint64(byteorder.LeUint64(b))
++		return uint64(byteorder.LEUint64(b))
+ 	default:
+ 		panic("internal/poll: readInt with unsupported size")
+ 	}
+diff --git a/src/math/big/floatmarsh.go b/src/math/big/floatmarsh.go
+index 39c22077db..e220cbc91a 100644
+--- a/src/math/big/floatmarsh.go
++++ b/src/math/big/floatmarsh.go
+@@ -48,10 +48,10 @@ func (x *Float) GobEncode() ([]byte, error) {
+ 		b |= 1
+ 	}
+ 	buf[1] = b
+-	byteorder.BePutUint32(buf[2:], x.prec)
++	byteorder.BEPutUint32(buf[2:], x.prec)
+ 
+ 	if x.form == finite {
+-		byteorder.BePutUint32(buf[6:], uint32(x.exp))
++		byteorder.BEPutUint32(buf[6:], uint32(x.exp))
+ 		x.mant[len(x.mant)-n:].bytes(buf[10:]) // cut off unused trailing words
+ 	}
+ 
+@@ -84,13 +84,13 @@ func (z *Float) GobDecode(buf []byte) error {
+ 	z.acc = Accuracy((b>>3)&3) - 1
+ 	z.form = form((b >> 1) & 3)
+ 	z.neg = b&1 != 0
+-	z.prec = byteorder.BeUint32(buf[2:])
++	z.prec = byteorder.BEUint32(buf[2:])
+ 
+ 	if z.form == finite {
+ 		if len(buf) < 10 {
+ 			return errors.New("Float.GobDecode: buffer too small for finite form float")
+ 		}
+-		z.exp = int32(byteorder.BeUint32(buf[6:]))
++		z.exp = int32(byteorder.BEUint32(buf[6:]))
+ 		z.mant = z.mant.setBytes(buf[10:])
+ 	}
+ 
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 23b2a0b8dd..541da229d6 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -1321,9 +1321,9 @@ func (z nat) bytes(buf []byte) (i int) {
+ // bigEndianWord returns the contents of buf interpreted as a big-endian encoded Word value.
+ func bigEndianWord(buf []byte) Word {
+ 	if _W == 64 {
+-		return Word(byteorder.BeUint64(buf))
++		return Word(byteorder.BEUint64(buf))
+ 	}
+-	return Word(byteorder.BeUint32(buf))
++	return Word(byteorder.BEUint32(buf))
+ }
+ 
+ // setBytes interprets buf as the bytes of a big-endian unsigned
+diff --git a/src/math/big/ratmarsh.go b/src/math/big/ratmarsh.go
+index 0457fc9517..26ded1d9d2 100644
+--- a/src/math/big/ratmarsh.go
++++ b/src/math/big/ratmarsh.go
+@@ -29,7 +29,7 @@ func (x *Rat) GobEncode() ([]byte, error) {
+ 		// this should never happen
+ 		return nil, errors.New("Rat.GobEncode: numerator too large")
+ 	}
+-	byteorder.BePutUint32(buf[j-4:j], uint32(n))
++	byteorder.BEPutUint32(buf[j-4:j], uint32(n))
+ 	j -= 1 + 4
+ 	b := ratGobVersion << 1 // make space for sign bit
+ 	if x.a.neg {
+@@ -54,7 +54,7 @@ func (z *Rat) GobDecode(buf []byte) error {
+ 		return fmt.Errorf("Rat.GobDecode: encoding version %d not supported", b>>1)
+ 	}
+ 	const j = 1 + 4
+-	ln := byteorder.BeUint32(buf[j-4 : j])
++	ln := byteorder.BEUint32(buf[j-4 : j])
+ 	if uint64(ln) > math.MaxInt-j {
+ 		return errors.New("Rat.GobDecode: invalid length")
+ 	}
+diff --git a/src/math/rand/v2/chacha8.go b/src/math/rand/v2/chacha8.go
+index b06d66ffa2..eb43e65915 100644
+--- a/src/math/rand/v2/chacha8.go
++++ b/src/math/rand/v2/chacha8.go
+@@ -58,12 +58,12 @@ func (c *ChaCha8) Read(p []byte) (n int, err error) {
+ 		p = p[n:]
+ 	}
+ 	for len(p) >= 8 {
+-		byteorder.LePutUint64(p, c.Uint64())
++		byteorder.LEPutUint64(p, c.Uint64())
+ 		p = p[8:]
+ 		n += 8
+ 	}
+ 	if len(p) > 0 {
+-		byteorder.LePutUint64(c.readBuf[:], c.Uint64())
++		byteorder.LEPutUint64(c.readBuf[:], c.Uint64())
+ 		n += copy(p, c.readBuf[:])
+ 		c.readLen = 8 - len(p)
+ 	}
+diff --git a/src/math/rand/v2/pcg.go b/src/math/rand/v2/pcg.go
+index a70efe8e55..9cd7d11ae3 100644
+--- a/src/math/rand/v2/pcg.go
++++ b/src/math/rand/v2/pcg.go
+@@ -34,8 +34,8 @@ func (p *PCG) Seed(seed1, seed2 uint64) {
+ // AppendBinary implements the [encoding.BinaryAppender] interface.
+ func (p *PCG) AppendBinary(b []byte) ([]byte, error) {
+ 	b = append(b, "pcg:"...)
+-	b = byteorder.BeAppendUint64(b, p.hi)
+-	b = byteorder.BeAppendUint64(b, p.lo)
++	b = byteorder.BEAppendUint64(b, p.hi)
++	b = byteorder.BEAppendUint64(b, p.lo)
+ 	return b, nil
+ }
+ 
+@@ -51,8 +51,8 @@ func (p *PCG) UnmarshalBinary(data []byte) error {
+ 	if len(data) != 20 || string(data[:4]) != "pcg:" {
+ 		return errUnmarshalPCG
+ 	}
+-	p.hi = byteorder.BeUint64(data[4:])
+-	p.lo = byteorder.BeUint64(data[4+8:])
++	p.hi = byteorder.BEUint64(data[4:])
++	p.lo = byteorder.BEUint64(data[4+8:])
+ 	return nil
+ }
+ 
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index 1ff87d2e1e..35abfd3241 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -102,8 +102,8 @@ func AddrFrom4(addr [4]byte) Addr {
+ func AddrFrom16(addr [16]byte) Addr {
+ 	return Addr{
+ 		addr: uint128{
+-			byteorder.BeUint64(addr[:8]),
+-			byteorder.BeUint64(addr[8:]),
++			byteorder.BEUint64(addr[:8]),
++			byteorder.BEUint64(addr[8:]),
+ 		},
+ 		z: z6noz,
+ 	}
+@@ -702,8 +702,8 @@ func (ip Addr) Prefix(b int) (Prefix, error) {
+ // [Addr.Zone] method to get it).
+ // The ip zero value returns all zeroes.
+ func (ip Addr) As16() (a16 [16]byte) {
+-	byteorder.BePutUint64(a16[:8], ip.addr.hi)
+-	byteorder.BePutUint64(a16[8:], ip.addr.lo)
++	byteorder.BEPutUint64(a16[:8], ip.addr.hi)
++	byteorder.BEPutUint64(a16[8:], ip.addr.lo)
+ 	return a16
+ }
+ 
+@@ -712,7 +712,7 @@ func (ip Addr) As16() (a16 [16]byte) {
+ // Note that 0.0.0.0 is not the zero Addr.
+ func (ip Addr) As4() (a4 [4]byte) {
+ 	if ip.z == z4 || ip.Is4In6() {
+-		byteorder.BePutUint32(a4[:], uint32(ip.addr.lo))
++		byteorder.BEPutUint32(a4[:], uint32(ip.addr.lo))
+ 		return a4
+ 	}
+ 	if ip.z == z0 {
+@@ -728,12 +728,12 @@ func (ip Addr) AsSlice() []byte {
+ 		return nil
+ 	case z4:
+ 		var ret [4]byte
+-		byteorder.BePutUint32(ret[:], uint32(ip.addr.lo))
++		byteorder.BEPutUint32(ret[:], uint32(ip.addr.lo))
+ 		return ret[:]
+ 	default:
+ 		var ret [16]byte
+-		byteorder.BePutUint64(ret[:8], ip.addr.hi)
+-		byteorder.BePutUint64(ret[8:], ip.addr.lo)
++		byteorder.BEPutUint64(ret[:8], ip.addr.hi)
++		byteorder.BEPutUint64(ret[8:], ip.addr.lo)
+ 		return ret[:]
+ 	}
+ }
+@@ -1016,10 +1016,10 @@ func (ip Addr) AppendBinary(b []byte) ([]byte, error) {
+ 	switch ip.z {
+ 	case z0:
+ 	case z4:
+-		b = byteorder.BeAppendUint32(b, uint32(ip.addr.lo))
++		b = byteorder.BEAppendUint32(b, uint32(ip.addr.lo))
+ 	default:
+-		b = byteorder.BeAppendUint64(b, ip.addr.hi)
+-		b = byteorder.BeAppendUint64(b, ip.addr.lo)
++		b = byteorder.BEAppendUint64(b, ip.addr.hi)
++		b = byteorder.BEAppendUint64(b, ip.addr.lo)
+ 		b = append(b, ip.Zone()...)
+ 	}
+ 	return b, nil
+@@ -1256,7 +1256,7 @@ func (p AddrPort) AppendBinary(b []byte) ([]byte, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	return byteorder.LeAppendUint16(b, p.Port()), nil
++	return byteorder.LEAppendUint16(b, p.Port()), nil
+ }
+ 
+ // MarshalBinary implements the [encoding.BinaryMarshaler] interface.
+@@ -1277,7 +1277,7 @@ func (p *AddrPort) UnmarshalBinary(b []byte) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	*p = AddrPortFrom(addr, byteorder.LeUint16(b[len(b)-2:]))
++	*p = AddrPortFrom(addr, byteorder.LEUint16(b[len(b)-2:]))
+ 	return nil
+ }
+ 
+diff --git a/src/os/dir_unix.go b/src/os/dir_unix.go
+index d8b4faa057..eadc1660c2 100644
+--- a/src/os/dir_unix.go
++++ b/src/os/dir_unix.go
+@@ -175,11 +175,11 @@ func readIntBE(b []byte, size uintptr) uint64 {
+ 	case 1:
+ 		return uint64(b[0])
+ 	case 2:
+-		return uint64(byteorder.BeUint16(b))
++		return uint64(byteorder.BEUint16(b))
+ 	case 4:
+-		return uint64(byteorder.BeUint32(b))
++		return uint64(byteorder.BEUint32(b))
+ 	case 8:
+-		return uint64(byteorder.BeUint64(b))
++		return uint64(byteorder.BEUint64(b))
+ 	default:
+ 		panic("syscall: readInt with unsupported size")
+ 	}
+@@ -190,11 +190,11 @@ func readIntLE(b []byte, size uintptr) uint64 {
+ 	case 1:
+ 		return uint64(b[0])
+ 	case 2:
+-		return uint64(byteorder.LeUint16(b))
++		return uint64(byteorder.LEUint16(b))
+ 	case 4:
+-		return uint64(byteorder.LeUint32(b))
++		return uint64(byteorder.LEUint32(b))
+ 	case 8:
+-		return uint64(byteorder.LeUint64(b))
++		return uint64(byteorder.LEUint64(b))
+ 	default:
+ 		panic("syscall: readInt with unsupported size")
+ 	}
+diff --git a/src/runtime/rand.go b/src/runtime/rand.go
+index ba343af624..1739e9f8f5 100644
+--- a/src/runtime/rand.go
++++ b/src/runtime/rand.go
+@@ -68,7 +68,7 @@ func randinit() {
+ 			buf := make([]byte, 8)
+ 			for {
+ 				if x, ok := globalRand.state.Next(); ok {
+-					byteorder.BePutUint64(buf, x)
++					byteorder.BEPutUint64(buf, x)
+ 					break
+ 				}
+ 				globalRand.state.Refill()
+diff --git a/src/syscall/dir_plan9.go b/src/syscall/dir_plan9.go
+index 34869b6209..835c43e4b1 100644
+--- a/src/syscall/dir_plan9.go
++++ b/src/syscall/dir_plan9.go
+@@ -146,19 +146,19 @@ func pbit8(b []byte, v uint8) []byte {
+ 
+ // pbit16 copies the 16-bit number v to b in little-endian order and returns the remaining slice of b.
+ func pbit16(b []byte, v uint16) []byte {
+-	byteorder.LePutUint16(b, v)
++	byteorder.LEPutUint16(b, v)
+ 	return b[2:]
+ }
+ 
+ // pbit32 copies the 32-bit number v to b in little-endian order and returns the remaining slice of b.
+ func pbit32(b []byte, v uint32) []byte {
+-	byteorder.LePutUint32(b, v)
++	byteorder.LEPutUint32(b, v)
+ 	return b[4:]
+ }
+ 
+ // pbit64 copies the 64-bit number v to b in little-endian order and returns the remaining slice of b.
+ func pbit64(b []byte, v uint64) []byte {
+-	byteorder.LePutUint64(b, v)
++	byteorder.LEPutUint64(b, v)
+ 	return b[8:]
+ }
+ 
+@@ -179,17 +179,17 @@ func gbit8(b []byte) (uint8, []byte) {
+ //
+ //go:nosplit
+ func gbit16(b []byte) (uint16, []byte) {
+-	return byteorder.LeUint16(b), b[2:]
++	return byteorder.LEUint16(b), b[2:]
+ }
+ 
+ // gbit32 reads a 32-bit number in little-endian order from b and returns it with the remaining slice of b.
+ func gbit32(b []byte) (uint32, []byte) {
+-	return byteorder.LeUint32(b), b[4:]
++	return byteorder.LEUint32(b), b[4:]
+ }
+ 
+ // gbit64 reads a 64-bit number in little-endian order from b and returns it with the remaining slice of b.
+ func gbit64(b []byte) (uint64, []byte) {
+-	return byteorder.LeUint64(b), b[8:]
++	return byteorder.LEUint64(b), b[8:]
+ }
+ 
+ // gstring reads a string from b, prefixed with a 16-bit length in little-endian order.
+diff --git a/src/syscall/dirent.go b/src/syscall/dirent.go
+index e4f36a191b..f6e78d9bb5 100644
+--- a/src/syscall/dirent.go
++++ b/src/syscall/dirent.go
+@@ -29,11 +29,11 @@ func readIntBE(b []byte, size uintptr) uint64 {
+ 	case 1:
+ 		return uint64(b[0])
+ 	case 2:
+-		return uint64(byteorder.BeUint16(b))
++		return uint64(byteorder.BEUint16(b))
+ 	case 4:
+-		return uint64(byteorder.BeUint32(b))
++		return uint64(byteorder.BEUint32(b))
+ 	case 8:
+-		return uint64(byteorder.BeUint64(b))
++		return uint64(byteorder.BEUint64(b))
+ 	default:
+ 		panic("syscall: readInt with unsupported size")
+ 	}
+@@ -44,11 +44,11 @@ func readIntLE(b []byte, size uintptr) uint64 {
+ 	case 1:
+ 		return uint64(b[0])
+ 	case 2:
+-		return uint64(byteorder.LeUint16(b))
++		return uint64(byteorder.LEUint16(b))
+ 	case 4:
+-		return uint64(byteorder.LeUint32(b))
++		return uint64(byteorder.LEUint32(b))
+ 	case 8:
+-		return uint64(byteorder.LeUint64(b))
++		return uint64(byteorder.LEUint64(b))
+ 	default:
+ 		panic("syscall: readInt with unsupported size")
+ 	}

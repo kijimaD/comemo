@@ -1,0 +1,30 @@
+commit 8c05e020d534a407c20a3e672971be3aabe2ee9c
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Feb 14 09:06:21 2025 -0800
+
+    internal/syscall/unix: fix fchownat linkname for AIX & Solaris
+    
+    Typo fix: libc_chownat => libc_fchownat
+    
+    Change-Id: I6721a988c19e3438b967a73559159c948ed51a0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649636
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/syscall/unix/at_libc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/unix/at_libc.go b/src/internal/syscall/unix/at_libc.go
+index 137e0e0936..23db8cf6ac 100644
+--- a/src/internal/syscall/unix/at_libc.go
++++ b/src/internal/syscall/unix/at_libc.go
+@@ -17,7 +17,7 @@ import (
+ //go:linkname procReadlinkat libc_readlinkat
+ //go:linkname procMkdirat libc_mkdirat
+ //go:linkname procFchmodat libc_fchmodat
+-//go:linkname procFchownat libc_chownat
++//go:linkname procFchownat libc_fchownat
+ 
+ var (
+ 	procFstatat,

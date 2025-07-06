@@ -1,0 +1,107 @@
+commit 9b5d27faf93d326bb634946b720900e5c5da515c
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu May 23 13:07:31 2024 +0000
+
+    cmd/go,testdeps: move import of internal/coverage/cfile to testmain
+    
+    Instead of having testing/internal/testdeps import the
+    internal/coverage/cfile package directly, have the code in testmain
+    pass in pointers to cfile functions during setup in the case that
+    we're running a "go test -cover" binary. This reduces the size of
+    regular non-coverage test binaries back to what they were before CL
+    585820.
+    
+    Updates #67401.
+    Fixes #67588.
+    
+    Change-Id: Iaf1a613bc7d3c9df9943189065d0161ca9120d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+---
+ src/cmd/go/internal/load/test.go      | 10 ++++++++++
+ src/testing/internal/testdeps/deps.go | 17 +++++++++++++----
+ 2 files changed, 23 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index a9f0d452fc..73e66ddcc2 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -298,6 +298,9 @@ func TestPackagesAndErrors(ctx context.Context, done func(), opts PackageOpts, p
+ 	// Also the linker introduces implicit dependencies reported by LinkerDeps.
+ 	stk.Push("testmain")
+ 	deps := TestMainDeps // cap==len, so safe for append
++	if cover != nil && cfg.Experiment.CoverageRedesign {
++		deps = append(deps, "internal/coverage/cfile")
++	}
+ 	ldDeps, err := LinkerDeps(p)
+ 	if err != nil && pmain.Error == nil {
+ 		pmain.Error = &PackageError{Err: err}
+@@ -907,6 +910,9 @@ import (
+ {{end}}
+ 	"testing"
+ 	"testing/internal/testdeps"
++{{if .Cover}}
++	"internal/coverage/cfile"
++{{end}}
+ 
+ {{if .ImportTest}}
+ 	{{if .NeedTest}}_test{{else}}_{{end}} {{.Package.ImportPath | printf "%q"}}
+@@ -944,6 +950,10 @@ func init() {
+ {{if .Cover}}
+ 	testdeps.CoverMode = {{printf "%q" .Cover.Mode}}
+ 	testdeps.Covered = {{printf "%q" .Covered}}
++	testdeps.CoverSnapshotFunc = cfile.Snapshot
++	testdeps.CoverProcessTestDirFunc = cfile.ProcessCoverTestDir
++	testdeps.CoverMarkProfileEmittedFunc = cfile.MarkProfileEmitted
++
+ {{end}}
+ 	testdeps.ImportPath = {{.ImportPath | printf "%q"}}
+ }
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 88c1b253ee..3b5dc7198f 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -13,7 +13,6 @@ package testdeps
+ import (
+ 	"bufio"
+ 	"context"
+-	"internal/coverage/cfile"
+ 	"internal/fuzz"
+ 	"internal/testlog"
+ 	"io"
+@@ -205,11 +204,21 @@ func (TestDeps) SnapshotCoverage() {
+ var CoverMode string
+ var Covered string
+ 
++// These variables below are set at runtime (via code in testmain) to point
++// to the equivalent functions in package internal/coverage/cfile; doing
++// things this way allows us to have tests import internal/coverage/cfile
++// only when -cover is in effect (as opposed to importing for all tests).
++var (
++	CoverSnapshotFunc           func() float64
++	CoverProcessTestDirFunc     func(dir string, cfile string, cm string, cpkg string, w io.Writer) error
++	CoverMarkProfileEmittedFunc func(val bool)
++)
++
+ func (TestDeps) InitRuntimeCoverage() (mode string, tearDown func(string, string) (string, error), snapcov func() float64) {
+ 	if CoverMode == "" {
+ 		return
+ 	}
+-	return CoverMode, coverTearDown, cfile.Snapshot
++	return CoverMode, coverTearDown, CoverSnapshotFunc
+ }
+ 
+ func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
+@@ -221,9 +230,9 @@ func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
+ 		}
+ 		defer os.RemoveAll(gocoverdir)
+ 	}
+-	cfile.MarkProfileEmitted(true)
++	CoverMarkProfileEmittedFunc(true)
+ 	cmode := CoverMode
+-	if err := cfile.ProcessCoverTestDir(gocoverdir, coverprofile, cmode, Covered, os.Stdout); err != nil {
++	if err := CoverProcessTestDirFunc(gocoverdir, coverprofile, cmode, Covered, os.Stdout); err != nil {
+ 		return "error generating coverage report", err
+ 	}
+ 	return "", nil

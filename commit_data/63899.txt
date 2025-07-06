@@ -1,0 +1,57 @@
+commit 44079f39eb751ff21cea18d795cc842b51910461
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon May 20 19:24:42 2024 -0400
+
+    cmd/compile: keep closure pointer live for range body closures
+    
+    For range-over-function, the compiler generates a hidden closure
+    for the range body, and call the iterator function with the hidden
+    closure as the yield parameter. For debuggers, if it stops inside
+    the range body (hidden closure), it needs some way to find the
+    outer function (that contains the range statement), to access the
+    variables that are in scope. To do this, we keep the closure
+    pointer live on stack with a special name ".closureptr", so the
+    debugger can look for this name and find the closure pointer. In
+    the usual case, the closure is a struct defined in the outer
+    frame, so following the pointer it will find the frame. We do this
+    in SSA generation, so if the range func is inlined and there is no
+    actual closure, we don't generate any extra code. In the case that
+    there is an actual closure, it's just a single store to the stack,
+    so the overhead is still small.
+    
+    TODO: add some test
+    
+    Change-Id: I0e8219b895733f8943a13c67b03ca776bdc02bc9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/ssagen/ssa.go | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index d8279e7c81..596d2e75dd 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -515,6 +515,21 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
+ 	// Populate closure variables.
+ 	if fn.Needctxt() {
+ 		clo := s.entryNewValue0(ssa.OpGetClosurePtr, s.f.Config.Types.BytePtr)
++		if fn.RangeParent != nil {
++			// For a range body closure, keep its closure pointer live on the
++			// stack with a special name, so the debugger can look for it and
++			// find the parent frame.
++			sym := &types.Sym{Name: ".closureptr", Pkg: types.LocalPkg}
++			cloSlot := s.curfn.NewLocal(src.NoXPos, sym, s.f.Config.Types.BytePtr)
++			cloSlot.SetUsed(true)
++			cloSlot.SetEsc(ir.EscNever)
++			cloSlot.SetAddrtaken(true)
++			s.vars[memVar] = s.newValue1Apos(ssa.OpVarDef, types.TypeMem, cloSlot, s.mem(), false)
++			addr := s.addr(cloSlot)
++			s.store(s.f.Config.Types.BytePtr, addr, clo)
++			// Keep it from being dead-store eliminated.
++			s.vars[memVar] = s.newValue1Apos(ssa.OpVarLive, types.TypeMem, cloSlot, s.mem(), false)
++		}
+ 		csiter := typecheck.NewClosureStructIter(fn.ClosureVars)
+ 		for {
+ 			n, typ, offset := csiter.Next()

@@ -1,0 +1,180 @@
+commit 7a2689b152785010ee2013fb220a048bfe31e49f
+Author: Austin Clements <austin@google.com>
+Date:   Fri Apr 4 12:18:58 2025 -0400
+
+    sync: tidy WaitGroup documentation, add WaitGroup.Go example
+    
+    This reframes the WaitGroup documentation with Go at its center and
+    Add/Done as more "advanced" features.
+    
+    Updates #63796
+    
+    Change-Id: I8101972626fdb00c6f7fb185b685227823d10db1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662975
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/sync/example_test.go | 20 ++++++++++++++
+ src/sync/waitgroup.go    | 71 ++++++++++++++++++++++++++++--------------------
+ 2 files changed, 61 insertions(+), 30 deletions(-)
+
+diff --git a/src/sync/example_test.go b/src/sync/example_test.go
+index ed240e57ae..a019beebc5 100644
+--- a/src/sync/example_test.go
++++ b/src/sync/example_test.go
+@@ -19,6 +19,26 @@ var http httpPkg
+ // This example fetches several URLs concurrently,
+ // using a WaitGroup to block until all the fetches are complete.
+ func ExampleWaitGroup() {
++	var wg sync.WaitGroup
++	var urls = []string{
++		"http://www.golang.org/",
++		"http://www.google.com/",
++		"http://www.example.com/",
++	}
++	for _, url := range urls {
++		// Launch a goroutine to fetch the URL.
++		wg.Go(func() {
++			// Fetch the URL.
++			http.Get(url)
++		})
++	}
++	// Wait for all HTTP fetches to complete.
++	wg.Wait()
++}
++
++// This example is equivalent to the main example, but uses Add/Done
++// instead of Go.
++func ExampleWaitGroup_addAndDone() {
+ 	var wg sync.WaitGroup
+ 	var urls = []string{
+ 		"http://www.golang.org/",
+diff --git a/src/sync/waitgroup.go b/src/sync/waitgroup.go
+index 8511f948ef..811857bb23 100644
+--- a/src/sync/waitgroup.go
++++ b/src/sync/waitgroup.go
+@@ -11,40 +11,39 @@ import (
+ )
+ 
+ // A WaitGroup is a counting semaphore typically used to wait
+-// for a group of goroutines to finish.
++// for a group of goroutines or tasks to finish.
+ //
+-// The main goroutine calls [WaitGroup.Add] to set (or increase) the number of
+-// goroutines to wait for. Then each of the goroutines
+-// runs and calls [WaitGroup.Done] when finished. At the same time,
+-// [WaitGroup.Wait] can be used to block until all goroutines have finished.
+-//
+-// This is a typical pattern of WaitGroup usage to
+-// synchronize 3 goroutines, each calling the function f:
++// Typically, a main goroutine will start tasks, each in a new
++// goroutine, by calling [WaitGroup.Go] and then wait for all tasks to
++// complete by calling [WaitGroup.Wait]. For example:
+ //
+ //	var wg sync.WaitGroup
+-//	for range 3 {
+-//	   wg.Add(1)
+-//	   go func() {
+-//	       defer wg.Done()
+-//	       f()
+-//	   }()
+-//	}
++//	wg.Go(task1)
++//	wg.Go(task2)
+ //	wg.Wait()
+ //
+-// For convenience, the [WaitGroup.Go] method simplifies this pattern to:
++// A WaitGroup may also be used for tracking tasks without using Go to
++// start new goroutines by using [WaitGroup.Add] and [WaitGroup.Done].
++//
++// The previous example can be rewritten using explicitly created
++// goroutines along with Add and Done:
+ //
+ //	var wg sync.WaitGroup
+-//	for range 3 {
+-//	   wg.Go(f)
+-//	}
++//	wg.Add(1)
++//	go func() {
++//		defer wg.Done()
++//		task1()
++//	}()
++//	wg.Add(1)
++//	go func() {
++//		defer wg.Done()
++//		task2()
++//	}()
+ //	wg.Wait()
+ //
+-// A WaitGroup must not be copied after first use.
+-//
+-// In the terminology of [the Go memory model], a call to [WaitGroup.Done]
+-// “synchronizes before” the return of any Wait call that it unblocks.
++// This pattern is common in code that predates [WaitGroup.Go].
+ //
+-// [the Go memory model]: https://go.dev/ref/mem
++// A WaitGroup must not be copied after first use.
+ type WaitGroup struct {
+ 	noCopy noCopy
+ 
+@@ -52,10 +51,12 @@ type WaitGroup struct {
+ 	sema  uint32
+ }
+ 
+-// Add adds delta, which may be negative, to the [WaitGroup] counter.
++// Add adds delta, which may be negative, to the [WaitGroup] task counter.
+ // If the counter becomes zero, all goroutines blocked on [WaitGroup.Wait] are released.
+ // If the counter goes negative, Add panics.
+ //
++// Callers should prefer [WaitGroup.Go].
++//
+ // Note that calls with a positive delta that occur when the counter is zero
+ // must happen before a Wait. Calls with a negative delta, or calls with a
+ // positive delta that start when the counter is greater than zero, may happen
+@@ -107,12 +108,20 @@ func (wg *WaitGroup) Add(delta int) {
+ 	}
+ }
+ 
+-// Done decrements the [WaitGroup] counter by one.
++// Done decrements the [WaitGroup] task counter by one.
++// It is equivalent to Add(-1).
++//
++// Callers should prefer [WaitGroup.Go].
++//
++// In the terminology of [the Go memory model], a call to Done
++// "synchronizes before" the return of any Wait call that it unblocks.
++//
++// [the Go memory model]: https://go.dev/ref/mem
+ func (wg *WaitGroup) Done() {
+ 	wg.Add(-1)
+ }
+ 
+-// Wait blocks until the [WaitGroup] counter is zero.
++// Wait blocks until the [WaitGroup] task counter is zero.
+ func (wg *WaitGroup) Wait() {
+ 	if race.Enabled {
+ 		race.Disable()
+@@ -151,7 +160,7 @@ func (wg *WaitGroup) Wait() {
+ 	}
+ }
+ 
+-// Go calls f in a new goroutine and adds that task to the WaitGroup.
++// Go calls f in a new goroutine and adds that task to the [WaitGroup].
+ // When f returns, the task is removed from the WaitGroup.
+ //
+ // If the WaitGroup is empty, Go must happen before a [WaitGroup.Wait].
+@@ -161,8 +170,10 @@ func (wg *WaitGroup) Wait() {
+ // If a WaitGroup is reused to wait for several independent sets of tasks,
+ // new Go calls must happen after all previous Wait calls have returned.
+ //
+-// In the terminology of [the Go memory model](https://go.dev/ref/mem),
+-// the return from f "synchronizes before" the return of any Wait call that it unblocks.
++// In the terminology of [the Go memory model], the return from f
++// "synchronizes before" the return of any Wait call that it unblocks.
++//
++// [the Go memory model]: https://go.dev/ref/mem
+ func (wg *WaitGroup) Go(f func()) {
+ 	wg.Add(1)
+ 	go func() {

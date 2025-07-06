@@ -1,0 +1,169 @@
+commit 3730814f2f2bf24550920c39a16841583de2dac1
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Nov 11 10:04:17 2024 -0500
+
+    crypto/internal/bigmod: optimize addMulVVW on Wasm
+    
+    The current implementation of addMulVVW makes heavy use of
+    64x64->128 bit multiplications and 64-bit add-with-carry, which
+    are compiler intrinsics and are very efficient on many
+    architectures. However, those are not supported on Wasm. Here we
+    implement it with 32x32->64 bit operations, which is more
+    efficient on Wasm.
+    
+    crypto/rsa benchmarks with Node:
+    
+                         │   old.txt   │              new.txt                │
+                         │   sec/op    │   sec/op     vs base                │
+    DecryptPKCS1v15/2048   7.726m ± 1%   4.895m ± 2%  -36.65% (p=0.000 n=35)
+    DecryptPKCS1v15/3072   23.52m ± 1%   15.33m ± 1%  -34.83% (p=0.000 n=35)
+    DecryptPKCS1v15/4096   52.64m ± 2%   35.40m ± 1%  -32.75% (p=0.000 n=35)
+    EncryptPKCS1v15/2048   264.2µ ± 1%   176.9µ ± 1%  -33.02% (p=0.000 n=35)
+    DecryptOAEP/2048       7.608m ± 1%   4.911m ± 1%  -35.45% (p=0.000 n=35)
+    EncryptOAEP/2048       266.2µ ± 0%   183.3µ ± 2%  -31.15% (p=0.000 n=35)
+    SignPKCS1v15/2048      7.836m ± 1%   5.009m ± 2%  -36.08% (p=0.000 n=35)
+    VerifyPKCS1v15/2048    262.9µ ± 1%   176.3µ ± 1%  -32.94% (p=0.000 n=35)
+    SignPSS/2048           7.814m ± 0%   5.020m ± 1%  -35.76% (p=0.000 n=35)
+    VerifyPSS/2048         267.0µ ± 1%   183.8µ ± 1%  -31.17% (p=0.000 n=35)
+    geomean                2.718m        1.794m       -34.01%
+    
+    With wazero:
+    
+                         │    old.txt   │              new.txt                │
+                         │    sec/op    │   sec/op     vs base                │
+    DecryptPKCS1v15/2048   13.445m ± 0%   6.528m ± 0%  -51.45% (p=0.000 n=25)
+    DecryptPKCS1v15/3072    41.07m ± 0%   18.85m ± 0%  -54.10% (p=0.000 n=25)
+    DecryptPKCS1v15/4096    91.84m ± 1%   39.66m ± 0%  -56.81% (p=0.000 n=25)
+    EncryptPKCS1v15/2048    461.3µ ± 0%   197.2µ ± 0%  -57.25% (p=0.000 n=25)
+    DecryptOAEP/2048       13.438m ± 0%   6.577m ± 0%  -51.06% (p=0.000 n=25)
+    EncryptOAEP/2048        471.5µ ± 0%   207.7µ ± 0%  -55.95% (p=0.000 n=25)
+    SignPKCS1v15/2048      13.739m ± 0%   6.687m ± 0%  -51.33% (p=0.000 n=25)
+    VerifyPKCS1v15/2048     461.3µ ± 1%   196.8µ ± 0%  -57.35% (p=0.000 n=25)
+    SignPSS/2048           13.765m ± 0%   6.686m ± 0%  -51.43% (p=0.000 n=25)
+    VerifyPSS/2048          470.8µ ± 0%   208.9µ ± 1%  -55.64% (p=0.000 n=25)
+    geomean                 4.769m        2.179m       -54.31%
+    
+    Change-Id: I97f37d8cf1e3e9756a4e03ab4e681bf04152925f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626957
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/bigmod/nat.go         | 19 -------------
+ src/crypto/internal/bigmod/nat_generic.go | 28 ++++++++++++++++++++
+ src/crypto/internal/bigmod/nat_wasm.go    | 44 +++++++++++++++++++++++++++++++
+ 3 files changed, 72 insertions(+), 19 deletions(-)
+
+diff --git a/src/crypto/internal/bigmod/nat.go b/src/crypto/internal/bigmod/nat.go
+index 5cbae40efe..71699078e2 100644
+--- a/src/crypto/internal/bigmod/nat.go
++++ b/src/crypto/internal/bigmod/nat.go
+@@ -688,25 +688,6 @@ func (x *Nat) montgomeryMul(a *Nat, b *Nat, m *Modulus) *Nat {
+ 	return x
+ }
+ 
+-// addMulVVW multiplies the multi-word value x by the single-word value y,
+-// adding the result to the multi-word value z and returning the final carry.
+-// It can be thought of as one row of a pen-and-paper column multiplication.
+-func addMulVVW(z, x []uint, y uint) (carry uint) {
+-	_ = x[len(z)-1] // bounds check elimination hint
+-	for i := range z {
+-		hi, lo := bits.Mul(x[i], y)
+-		lo, c := bits.Add(lo, z[i], 0)
+-		// We use bits.Add with zero to get an add-with-carry instruction that
+-		// absorbs the carry from the previous bits.Add.
+-		hi, _ = bits.Add(hi, 0, c)
+-		lo, c = bits.Add(lo, carry, 0)
+-		hi, _ = bits.Add(hi, 0, c)
+-		carry = hi
+-		z[i] = lo
+-	}
+-	return carry
+-}
+-
+ // Mul calculates x = x * y mod m.
+ //
+ // The length of both operands must be the same as the modulus. Both operands
+diff --git a/src/crypto/internal/bigmod/nat_generic.go b/src/crypto/internal/bigmod/nat_generic.go
+new file mode 100644
+index 0000000000..a44d2ec548
+--- /dev/null
++++ b/src/crypto/internal/bigmod/nat_generic.go
+@@ -0,0 +1,28 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !wasm
++
++package bigmod
++
++import "math/bits"
++
++// addMulVVW multiplies the multi-word value x by the single-word value y,
++// adding the result to the multi-word value z and returning the final carry.
++// It can be thought of as one row of a pen-and-paper column multiplication.
++func addMulVVW(z, x []uint, y uint) (carry uint) {
++	_ = x[len(z)-1] // bounds check elimination hint
++	for i := range z {
++		hi, lo := bits.Mul(x[i], y)
++		lo, c := bits.Add(lo, z[i], 0)
++		// We use bits.Add with zero to get an add-with-carry instruction that
++		// absorbs the carry from the previous bits.Add.
++		hi, _ = bits.Add(hi, 0, c)
++		lo, c = bits.Add(lo, carry, 0)
++		hi, _ = bits.Add(hi, 0, c)
++		carry = hi
++		z[i] = lo
++	}
++	return carry
++}
+diff --git a/src/crypto/internal/bigmod/nat_wasm.go b/src/crypto/internal/bigmod/nat_wasm.go
+new file mode 100644
+index 0000000000..81ffdb286f
+--- /dev/null
++++ b/src/crypto/internal/bigmod/nat_wasm.go
+@@ -0,0 +1,44 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package bigmod
++
++// The generic implementation relies on 64x64->128 bit multiplication and
++// 64-bit add-with-carry, which are compiler intrinsics on many architectures.
++// Wasm doesn't support those. Here we implement it with 32x32->64 bit
++// operations, which is more efficient on Wasm.
++
++// addMulVVW multiplies the multi-word value x by the single-word value y,
++// adding the result to the multi-word value z and returning the final carry.
++// It can be thought of as one row of a pen-and-paper column multiplication.
++func addMulVVW(z, x []uint, y uint) (carry uint) {
++	const mask32 = 1<<32 - 1
++	y0 := y & mask32
++	y1 := y >> 32
++	_ = x[len(z)-1] // bounds check elimination hint
++	for i, zi := range z {
++		xi := x[i]
++		x0 := xi & mask32
++		x1 := xi >> 32
++		z0 := zi & mask32
++		z1 := zi >> 32
++		c0 := carry & mask32
++		c1 := carry >> 32
++
++		w00 := x0*y0 + z0 + c0
++		l00 := w00 & mask32
++		h00 := w00 >> 32
++
++		w01 := x0*y1 + z1 + h00
++		l01 := w01 & mask32
++		h01 := w01 >> 32
++
++		w10 := x1*y0 + c1 + l01
++		h10 := w10 >> 32
++
++		carry = x1*y1 + h10 + h01
++		z[i] = w10<<32 + l00
++	}
++	return carry
++}

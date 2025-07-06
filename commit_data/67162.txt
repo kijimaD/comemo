@@ -1,0 +1,140 @@
+commit 94e3caeec18dfb55c0a8ab6067904ae76248ec3f
+Author: Julian Zhu <jz531210@gmail.com>
+Date:   Tue May 20 10:55:33 2025 +0800
+
+    cmd/compile/internal: intrinsify publicationBarrier on mips64x
+    
+    This enables publicationBarrier to be used as an intrinsic on mips64x.
+    
+    Change-Id: I4030ea65086c37ee1dcc1675d0d5d40ef8683851
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674855
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/mips64/ssa.go             | 3 +++
+ src/cmd/compile/internal/ssa/_gen/MIPS64.rules     | 3 +++
+ src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go     | 3 +++
+ src/cmd/compile/internal/ssa/opGen.go              | 8 ++++++++
+ src/cmd/compile/internal/ssa/rewriteMIPS64.go      | 3 +++
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 2 +-
+ src/cmd/compile/internal/ssagen/intrinsics_test.go | 2 ++
+ 7 files changed, 23 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 5b5edf622a..af94c16f6d 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -813,6 +813,9 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p := s.Prog(obj.AGETCALLERPC)
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++	case ssa.OpMIPS64LoweredPubBarrier:
++		// SYNC
++		s.Prog(v.Op.Asm())
+ 	case ssa.OpClobber, ssa.OpClobberReg:
+ 		// TODO: implement for clobberdead experiment. Nop is ok for now.
+ 	default:
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+index cd82655ff3..8e484f4a3d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64.rules
+@@ -476,6 +476,9 @@
+ // Write barrier.
+ (WB ...) => (LoweredWB ...)
+ 
++// Publication barrier as intrinsic
++(PubBarrier ...) => (LoweredPubBarrier ...)
++
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+diff --git a/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+index 3d1abb16b6..6c04a1aea2 100644
+--- a/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/MIPS64Ops.go
+@@ -466,6 +466,9 @@ func init() {
+ 		// Returns a pointer to a write barrier buffer in R25.
+ 		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R31"), outputs: []regMask{buildReg("R25")}}, clobberFlags: true, aux: "Int64"},
+ 
++		// Do data barrier. arg0=memorys
++		{name: "LoweredPubBarrier", argLength: 1, asm: "SYNC", hasSideEffects: true},
++
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 37af79f9a3..b5eb747422 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -2207,6 +2207,7 @@ const (
+ 	OpMIPS64LoweredGetCallerSP
+ 	OpMIPS64LoweredGetCallerPC
+ 	OpMIPS64LoweredWB
++	OpMIPS64LoweredPubBarrier
+ 	OpMIPS64LoweredPanicBoundsA
+ 	OpMIPS64LoweredPanicBoundsB
+ 	OpMIPS64LoweredPanicBoundsC
+@@ -29755,6 +29756,13 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LoweredPubBarrier",
++		argLen:         1,
++		hasSideEffects: true,
++		asm:            mips.ASYNC,
++		reg:            regInfo{},
++	},
+ 	{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteMIPS64.go b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+index 14b273f9aa..c30815cefb 100644
+--- a/src/cmd/compile/internal/ssa/rewriteMIPS64.go
++++ b/src/cmd/compile/internal/ssa/rewriteMIPS64.go
+@@ -502,6 +502,9 @@ func rewriteValueMIPS64(v *Value) bool {
+ 		return true
+ 	case OpPanicBounds:
+ 		return rewriteValueMIPS64_OpPanicBounds(v)
++	case OpPubBarrier:
++		v.Op = OpMIPS64LoweredPubBarrier
++		return true
+ 	case OpRotateLeft16:
+ 		return rewriteValueMIPS64_OpRotateLeft16(v)
+ 	case OpRotateLeft32:
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 97798f5bcc..5ad528cc62 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -163,7 +163,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = s.newValue1(ssa.OpPubBarrier, types.TypeMem, s.mem())
+ 			return nil
+ 		},
+-		sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64)
++		sys.ARM64, sys.Loong64, sys.MIPS64, sys.PPC64, sys.RISCV64)
+ 
+ 	/******** internal/runtime/sys ********/
+ 	add("internal/runtime/sys", "GetCallerPC",
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 6757e1e802..127f26acbf 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -631,6 +631,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips64", "math/bits", "Sub"}:                                     struct{}{},
+ 	{"mips64", "math/bits", "Sub64"}:                                   struct{}{},
+ 	{"mips64", "runtime", "KeepAlive"}:                                 struct{}{},
++	{"mips64", "runtime", "publicationBarrier"}:                        struct{}{},
+ 	{"mips64", "runtime", "slicebytetostringtmp"}:                      struct{}{},
+ 	{"mips64", "sync", "runtime_LoadAcquintptr"}:                       struct{}{},
+ 	{"mips64", "sync", "runtime_StoreReluintptr"}:                      struct{}{},
+@@ -718,6 +719,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"mips64le", "math/bits", "Sub"}:                                   struct{}{},
+ 	{"mips64le", "math/bits", "Sub64"}:                                 struct{}{},
+ 	{"mips64le", "runtime", "KeepAlive"}:                               struct{}{},
++	{"mips64le", "runtime", "publicationBarrier"}:                      struct{}{},
+ 	{"mips64le", "runtime", "slicebytetostringtmp"}:                    struct{}{},
+ 	{"mips64le", "sync", "runtime_LoadAcquintptr"}:                     struct{}{},
+ 	{"mips64le", "sync", "runtime_StoreReluintptr"}:                    struct{}{},

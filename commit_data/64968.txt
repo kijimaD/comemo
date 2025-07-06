@@ -1,0 +1,69 @@
+commit 8e478de4e6c91a0de763cf2e308f7598677f5c58
+Author: favonia <favonia@gmail.com>
+Date:   Tue Oct 1 05:49:19 2024 -0500
+
+    net: document possible networks that can be passed to Control
+    
+    Before this patch, the documentation of Dialer.Control and
+    ListenConfig.Control did not specify what networks would be
+    passed to the Control function other than the "tcp" case.
+    It was thus challenging to use the Control function to filter
+    out certain networks. This patch documents all known networks.
+    
+    Fixes #69693
+    
+    Change-Id: I2ab10d68c4e4fac66d51d2cc232f02cf3b305e89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617055
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/net/dial.go | 20 +++++++++++++-------
+ 1 file changed, 13 insertions(+), 7 deletions(-)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index e081fca7b7..3098d35b42 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -203,8 +203,10 @@ type Dialer struct {
+ 	// connection but before actually dialing.
+ 	//
+ 	// Network and address parameters passed to Control function are not
+-	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
+-	// will cause the Control function to be called with "tcp4" or "tcp6".
++	// necessarily the ones passed to Dial. Calling Dial with TCP networks
++	// will cause the Control function to be called with "tcp4" or "tcp6",
++	// UDP networks become "udp4" or "udp6", IP networks become "ip4" or "ip6",
++	// and other known networks are passed as-is.
+ 	//
+ 	// Control is ignored if ControlContext is not nil.
+ 	Control func(network, address string, c syscall.RawConn) error
+@@ -213,8 +215,10 @@ type Dialer struct {
+ 	// connection but before actually dialing.
+ 	//
+ 	// Network and address parameters passed to ControlContext function are not
+-	// necessarily the ones passed to Dial. For example, passing "tcp" to Dial
+-	// will cause the ControlContext function to be called with "tcp4" or "tcp6".
++	// necessarily the ones passed to Dial. Calling Dial with TCP networks
++	// will cause the ControlContext function to be called with "tcp4" or "tcp6",
++	// UDP networks become "udp4" or "udp6", IP networks become "ip4" or "ip6",
++	// and other known networks are passed as-is.
+ 	//
+ 	// If ControlContext is not nil, Control is ignored.
+ 	ControlContext func(ctx context.Context, network, address string, c syscall.RawConn) error
+@@ -739,9 +743,11 @@ type ListenConfig struct {
+ 	// If Control is not nil, it is called after creating the network
+ 	// connection but before binding it to the operating system.
+ 	//
+-	// Network and address parameters passed to Control method are not
+-	// necessarily the ones passed to Listen. For example, passing "tcp" to
+-	// Listen will cause the Control function to be called with "tcp4" or "tcp6".
++	// Network and address parameters passed to Control function are not
++	// necessarily the ones passed to Listen. Calling Listen with TCP networks
++	// will cause the Control function to be called with "tcp4" or "tcp6",
++	// UDP networks become "udp4" or "udp6", IP networks become "ip4" or "ip6",
++	// and other known networks are passed as-is.
+ 	Control func(network, address string, c syscall.RawConn) error
+ 
+ 	// KeepAlive specifies the keep-alive period for network

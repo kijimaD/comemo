@@ -1,0 +1,91 @@
+commit c62099cfac6b0fd46efbdab7205bb17597096472
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue May 13 10:50:51 2025 +0800
+
+    cmd/intarnal/obj: add new assembly format for VANDV and VANDB on loong64
+    
+    In order to make it easier to write in assembly and to be consistent
+    with the usage of general instructions, a new assembly format is
+    added for the instructions VANDV and VANDB.
+    
+    It also works for instructions XVAND{V,B}, [X]V{OR,XOR,NOR,ANDN,ORN}V
+    and [X]V{OR,XOR,NOR}B.
+    
+    Change-Id: Ia75d607ac918950e58840ec627aaf0be45d837fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671316
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 20 ++++++++++++++++++++
+ src/cmd/internal/obj/loong64/asm.go             |  4 ++++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 083670f512..d5e9b6c899 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -547,12 +547,22 @@ lable2:
+ 	VNORV		V1, V2, V3      // 43842771
+ 	VANDNV		V1, V2, V3      // 43042871
+ 	VORNV		V1, V2, V3      // 43842871
++	VANDV		V1, V2		// 42042671
++	VORV		V1, V2		// 42842671
++	VXORV		V1, V2		// 42042771
++	VNORV		V1, V2		// 42842771
++	VANDNV		V1, V2		// 42042871
++	VORNV		V1, V2		// 42842871
+ 
+ 	// VANDB,VORB,VXORB,VNORB
+ 	VANDB		$0, V2, V3      // 4300d073
+ 	VORB		$64, V2, V3     // 4300d573
+ 	VXORB		$128, V2, V3    // 4300da73
+ 	VNORB		$255, V2, V3    // 43fcdf73
++	VANDB		$0, V2		// 4200d073
++	VORB		$64, V2		// 4200d573
++	VXORB		$128, V2	// 4200da73
++	VNORB		$255, V2	// 42fcdf73
+ 
+ 	// XVANDV,XVORV,XVXORV,XVNORV,XVANDNV,XVORNV
+ 	XVANDV		X1, X2, X3      // 43042675
+@@ -561,12 +571,22 @@ lable2:
+ 	XVNORV		X1, X2, X3      // 43842775
+ 	XVANDNV		X1, X2, X3      // 43042875
+ 	XVORNV		X1, X2, X3      // 43842875
++	XVANDV		X1, X2		// 42042675
++	XVORV		X1, X2		// 42842675
++	XVXORV		X1, X2		// 42042775
++	XVNORV		X1, X2		// 42842775
++	XVANDNV		X1, X2		// 42042875
++	XVORNV		X1, X2		// 42842875
+ 
+ 	// XVANDB,XVORB,XVXORB,XVNORB
+ 	XVANDB		$0, X2, X3      // 4300d077
+ 	XVORB		$1, X2, X3      // 4304d477
+ 	XVXORB		$127, X2, X3    // 43fcd977
+ 	XVNORB		$255, X2, X3    // 43fcdf77
++	XVANDB		$0, X2		// 4200d077
++	XVORB		$1, X2		// 4204d477
++	XVXORB		$127, X2	// 42fcd977
++	XVNORB		$255, X2	// 42fcdf77
+ 
+ 	// MOVV C_DCON12_0, r
+ 	MOVV    $0x7a90000000000000, R4         // MOVV $8831558869273542656, R4        // 04a41e03
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 2f5cf94707..c92c6b01b2 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -92,9 +92,13 @@ var optab = []Optab{
+ 	{AVSEQB, C_S5CON, C_VREG, C_NONE, C_VREG, C_NONE, 22, 4, 0, 0},
+ 	{AXVSEQB, C_S5CON, C_XREG, C_NONE, C_XREG, C_NONE, 22, 4, 0, 0},
+ 	{AVANDV, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
++	{AVANDV, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+ 	{AXVANDV, C_XREG, C_XREG, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
++	{AXVANDV, C_XREG, C_NONE, C_NONE, C_XREG, C_NONE, 2, 4, 0, 0},
+ 	{AVANDB, C_U8CON, C_VREG, C_NONE, C_VREG, C_NONE, 23, 4, 0, 0},
++	{AVANDB, C_U8CON, C_NONE, C_NONE, C_VREG, C_NONE, 23, 4, 0, 0},
+ 	{AXVANDB, C_U8CON, C_XREG, C_NONE, C_XREG, C_NONE, 23, 4, 0, 0},
++	{AXVANDB, C_U8CON, C_NONE, C_NONE, C_XREG, C_NONE, 23, 4, 0, 0},
+ 
+ 	{AVADDB, C_VREG, C_VREG, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},
+ 	{AVADDB, C_VREG, C_NONE, C_NONE, C_VREG, C_NONE, 2, 4, 0, 0},

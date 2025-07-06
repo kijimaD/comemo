@@ -1,0 +1,431 @@
+commit 263bc50c90ff8e0bcd55765819056807acfd20ab
+Author: Gopher Robot <gobot@golang.org>
+Date:   Wed May 28 09:38:20 2025 -0700
+
+    api: promote next to go1.25
+    
+    Change-Id: I96dd383ea0bf0b69d2d9058334b4bbcfbe50c77c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ api/go1.25.txt     | 110 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ api/next/43936.txt |   4 --
+ api/next/46771.txt |   1 -
+ api/next/49580.txt |   8 ----
+ api/next/59928.txt |   3 --
+ api/next/62121.txt |   1 -
+ api/next/63185.txt |   9 -----
+ api/next/63405.txt |   5 ---
+ api/next/63796.txt |   1 -
+ api/next/63963.txt |   4 --
+ api/next/66365.txt |   1 -
+ api/next/67002.txt |  10 -----
+ api/next/67434.txt |   2 -
+ api/next/67516.txt |   1 -
+ api/next/69518.txt |   5 ---
+ api/next/69521.txt |   9 -----
+ api/next/70250.txt |  17 ---------
+ api/next/70280.txt |   1 -
+ api/next/70780.txt |   3 --
+ api/next/71122.txt |   1 -
+ api/next/71920.txt |   1 -
+ api/next/72843.txt |   4 --
+ api/next/73088.txt |   7 ----
+ api/next/73126.txt |   2 -
+ api/next/73193.txt |   1 -
+ api/next/73205.txt |   1 -
+ api/next/73319.txt |   1 -
+ api/next/73626.txt |   7 ----
+ 28 files changed, 110 insertions(+), 110 deletions(-)
+
+diff --git a/api/go1.25.txt b/api/go1.25.txt
+new file mode 100644
+index 0000000000..cb3900bf46
+--- /dev/null
++++ b/api/go1.25.txt
+@@ -0,0 +1,110 @@
++pkg crypto, func SignMessage(Signer, io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
++pkg crypto, type MessageSigner interface { Public, Sign, SignMessage } #63405
++pkg crypto, type MessageSigner interface, Public() PublicKey #63405
++pkg crypto, type MessageSigner interface, Sign(io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
++pkg crypto, type MessageSigner interface, SignMessage(io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
++pkg crypto/ecdsa, func ParseRawPrivateKey(elliptic.Curve, []uint8) (*PrivateKey, error) #63963
++pkg crypto/ecdsa, func ParseUncompressedPublicKey(elliptic.Curve, []uint8) (*PublicKey, error) #63963
++pkg crypto/ecdsa, method (*PrivateKey) Bytes() ([]uint8, error) #63963
++pkg crypto/ecdsa, method (*PublicKey) Bytes() ([]uint8, error) #63963
++pkg crypto/sha3, method (*SHA3) Clone() (hash.Cloner, error) #69521
++pkg crypto/tls, type Config struct, GetEncryptedClientHelloKeys func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error) #71920
++pkg crypto/tls, type ConnectionState struct, CurveID CurveID #67516
++pkg debug/elf, const PT_RISCV_ATTRIBUTES = 1879048195 #72843
++pkg debug/elf, const PT_RISCV_ATTRIBUTES ProgType #72843
++pkg debug/elf, const SHT_RISCV_ATTRIBUTES = 1879048195 #72843
++pkg debug/elf, const SHT_RISCV_ATTRIBUTES SectionType #72843
++pkg go/ast, const FilterFuncDuplicates //deprecated #73088
++pkg go/ast, const FilterImportDuplicates //deprecated #73088
++pkg go/ast, const FilterUnassociatedComments //deprecated #73088
++pkg go/ast, func FilterPackage //deprecated #73088
++pkg go/ast, func MergePackageFiles //deprecated #73088
++pkg go/ast, func PackageExports //deprecated #73088
++pkg go/ast, func PreorderStack(Node, []Node, func(Node, []Node) bool) #73319
++pkg go/ast, type MergeMode //deprecated #73088
++pkg go/parser, func ParseDir //deprecated #71122
++pkg go/token, method (*FileSet) AddExistingFiles(...*File) #73205
++pkg go/types, const FieldVar = 6 #70250
++pkg go/types, const FieldVar VarKind #70250
++pkg go/types, const LocalVar = 2 #70250
++pkg go/types, const LocalVar VarKind #70250
++pkg go/types, const PackageVar = 1 #70250
++pkg go/types, const PackageVar VarKind #70250
++pkg go/types, const ParamVar = 4 #70250
++pkg go/types, const ParamVar VarKind #70250
++pkg go/types, const RecvVar = 3 #70250
++pkg go/types, const RecvVar VarKind #70250
++pkg go/types, const ResultVar = 5 #70250
++pkg go/types, const ResultVar VarKind #70250
++pkg go/types, func LookupSelection(Type, bool, *Package, string) (Selection, bool) #70737
++pkg go/types, method (*Var) Kind() VarKind #70250
++pkg go/types, method (*Var) SetKind(VarKind) #70250
++pkg go/types, method (VarKind) String() string #70250
++pkg go/types, type VarKind uint8 #70250
++pkg hash, type Cloner interface { BlockSize, Clone, Reset, Size, Sum, Write } #69521
++pkg hash, type Cloner interface, BlockSize() int #69521
++pkg hash, type Cloner interface, Clone() (Cloner, error) #69521
++pkg hash, type Cloner interface, Reset() #69521
++pkg hash, type Cloner interface, Size() int #69521
++pkg hash, type Cloner interface, Sum([]uint8) []uint8 #69521
++pkg hash, type Cloner interface, Write([]uint8) (int, error) #69521
++pkg hash, type XOF interface { BlockSize, Read, Reset, Write } #69518
++pkg hash, type XOF interface, BlockSize() int #69518
++pkg hash, type XOF interface, Read([]uint8) (int, error) #69518
++pkg hash, type XOF interface, Reset() #69518
++pkg hash, type XOF interface, Write([]uint8) (int, error) #69518
++pkg hash/maphash, method (*Hash) Clone() (hash.Cloner, error) #69521
++pkg io/fs, func Lstat(FS, string) (FileInfo, error) #49580
++pkg io/fs, func ReadLink(FS, string) (string, error) #49580
++pkg io/fs, type ReadLinkFS interface { Lstat, Open, ReadLink } #49580
++pkg io/fs, type ReadLinkFS interface, Lstat(string) (FileInfo, error) #49580
++pkg io/fs, type ReadLinkFS interface, Open(string) (File, error) #49580
++pkg io/fs, type ReadLinkFS interface, ReadLink(string) (string, error) #49580
++pkg log/slog, func GroupAttrs(string, ...Attr) Attr #66365
++pkg log/slog, method (Record) Source() *Source #70280
++pkg mime/multipart, func FileContentDisposition(string, string) string #46771
++pkg net/http, func NewCrossOriginProtection() *CrossOriginProtection #73626
++pkg net/http, method (*CrossOriginProtection) AddInsecureBypassPattern(string) #73626
++pkg net/http, method (*CrossOriginProtection) AddTrustedOrigin(string) error #73626
++pkg net/http, method (*CrossOriginProtection) Check(*Request) error #73626
++pkg net/http, method (*CrossOriginProtection) Handler(Handler) Handler #73626
++pkg net/http, method (*CrossOriginProtection) SetDenyHandler(Handler) #73626
++pkg net/http, type CrossOriginProtection struct #73626
++pkg os, method (*Root) Chmod(string, fs.FileMode) error #67002
++pkg os, method (*Root) Chown(string, int, int) error #67002
++pkg os, method (*Root) Chtimes(string, time.Time, time.Time) error #67002
++pkg os, method (*Root) Lchown(string, int, int) error #67002
++pkg os, method (*Root) Link(string, string) error #67002
++pkg os, method (*Root) MkdirAll(string, fs.FileMode) error #67002
++pkg os, method (*Root) ReadFile(string) ([]uint8, error) #73126
++pkg os, method (*Root) Readlink(string) (string, error) #67002
++pkg os, method (*Root) RemoveAll(string) error #67002
++pkg os, method (*Root) Rename(string, string) error #67002
++pkg os, method (*Root) Symlink(string, string) error #67002
++pkg os, method (*Root) WriteFile(string, []uint8, fs.FileMode) error #73126
++pkg reflect, func TypeAssert[$0 interface{}](Value) ($0, bool) #62121
++pkg runtime, func SetDefaultGOMAXPROCS() #73193
++pkg runtime/trace, func NewFlightRecorder(FlightRecorderConfig) *FlightRecorder #63185
++pkg runtime/trace, method (*FlightRecorder) Enabled() bool #63185
++pkg runtime/trace, method (*FlightRecorder) Start() error #63185
++pkg runtime/trace, method (*FlightRecorder) Stop() #63185
++pkg runtime/trace, method (*FlightRecorder) WriteTo(io.Writer) (int64, error) #63185
++pkg runtime/trace, type FlightRecorder struct #63185
++pkg runtime/trace, type FlightRecorderConfig struct #63185
++pkg runtime/trace, type FlightRecorderConfig struct, MaxBytes uint64 #63185
++pkg runtime/trace, type FlightRecorderConfig struct, MinAge time.Duration #63185
++pkg sync, method (*WaitGroup) Go(func()) #63796
++pkg testing, method (*B) Attr(string, string) #43936
++pkg testing, method (*B) Output() io.Writer #59928
++pkg testing, method (*F) Attr(string, string) #43936
++pkg testing, method (*F) Output() io.Writer #59928
++pkg testing, method (*T) Attr(string, string) #43936
++pkg testing, method (*T) Output() io.Writer #59928
++pkg testing, type TB interface, Attr(string, string) #43936
++pkg testing/fstest, method (MapFS) Lstat(string) (fs.FileInfo, error) #49580
++pkg testing/fstest, method (MapFS) ReadLink(string) (string, error) #49580
++pkg testing/synctest, func Test(*testing.T, func(*testing.T)) #67434
++pkg testing/synctest, func Wait() #67434
++pkg unicode, var CategoryAliases map[string]string #70780
++pkg unicode, var Cn *RangeTable #70780
++pkg unicode, var LC *RangeTable #70780
+diff --git a/api/next/43936.txt b/api/next/43936.txt
+deleted file mode 100644
+index e32bd75ed9..0000000000
+--- a/api/next/43936.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-pkg testing, method (*B) Attr(string, string) #43936
+-pkg testing, method (*F) Attr(string, string) #43936
+-pkg testing, method (*T) Attr(string, string) #43936
+-pkg testing, type TB interface, Attr(string, string) #43936
+diff --git a/api/next/46771.txt b/api/next/46771.txt
+deleted file mode 100644
+index f7aad4b04a..0000000000
+--- a/api/next/46771.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg mime/multipart, func FileContentDisposition(string, string) string #46771
+diff --git a/api/next/49580.txt b/api/next/49580.txt
+deleted file mode 100644
+index ce213cc9ca..0000000000
+--- a/api/next/49580.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-pkg io/fs, func Lstat(FS, string) (FileInfo, error) #49580
+-pkg io/fs, func ReadLink(FS, string) (string, error) #49580
+-pkg io/fs, type ReadLinkFS interface { Lstat, Open, ReadLink } #49580
+-pkg io/fs, type ReadLinkFS interface, Lstat(string) (FileInfo, error) #49580
+-pkg io/fs, type ReadLinkFS interface, Open(string) (File, error) #49580
+-pkg io/fs, type ReadLinkFS interface, ReadLink(string) (string, error) #49580
+-pkg testing/fstest, method (MapFS) Lstat(string) (fs.FileInfo, error) #49580
+-pkg testing/fstest, method (MapFS) ReadLink(string) (string, error) #49580
+diff --git a/api/next/59928.txt b/api/next/59928.txt
+deleted file mode 100644
+index 375c7c0e90..0000000000
+--- a/api/next/59928.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-pkg testing, method (*B) Output() io.Writer #59928
+-pkg testing, method (*F) Output() io.Writer #59928
+-pkg testing, method (*T) Output() io.Writer #59928
+diff --git a/api/next/62121.txt b/api/next/62121.txt
+deleted file mode 100644
+index bb220a619a..0000000000
+--- a/api/next/62121.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg reflect, func TypeAssert[$0 interface{}](Value) ($0, bool) #62121
+diff --git a/api/next/63185.txt b/api/next/63185.txt
+deleted file mode 100644
+index b5127ff8b2..0000000000
+--- a/api/next/63185.txt
++++ /dev/null
+@@ -1,9 +0,0 @@
+-pkg runtime/trace, func NewFlightRecorder(FlightRecorderConfig) *FlightRecorder #63185
+-pkg runtime/trace, method (*FlightRecorder) Enabled() bool #63185
+-pkg runtime/trace, method (*FlightRecorder) Start() error #63185
+-pkg runtime/trace, method (*FlightRecorder) Stop() #63185
+-pkg runtime/trace, method (*FlightRecorder) WriteTo(io.Writer) (int64, error) #63185
+-pkg runtime/trace, type FlightRecorder struct #63185
+-pkg runtime/trace, type FlightRecorderConfig struct #63185
+-pkg runtime/trace, type FlightRecorderConfig struct, MaxBytes uint64 #63185
+-pkg runtime/trace, type FlightRecorderConfig struct, MinAge time.Duration #63185
+diff --git a/api/next/63405.txt b/api/next/63405.txt
+deleted file mode 100644
+index 5892ef4adc..0000000000
+--- a/api/next/63405.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-pkg crypto, func SignMessage(Signer, io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
+-pkg crypto, type MessageSigner interface { Public, Sign, SignMessage } #63405
+-pkg crypto, type MessageSigner interface, Public() PublicKey #63405
+-pkg crypto, type MessageSigner interface, Sign(io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
+-pkg crypto, type MessageSigner interface, SignMessage(io.Reader, []uint8, SignerOpts) ([]uint8, error) #63405
+diff --git a/api/next/63796.txt b/api/next/63796.txt
+deleted file mode 100644
+index bb1a4b4858..0000000000
+--- a/api/next/63796.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg sync, method (*WaitGroup) Go(func()) #63796
+diff --git a/api/next/63963.txt b/api/next/63963.txt
+deleted file mode 100644
+index f64f214c10..0000000000
+--- a/api/next/63963.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-pkg crypto/ecdsa, func ParseRawPrivateKey(elliptic.Curve, []uint8) (*PrivateKey, error) #63963
+-pkg crypto/ecdsa, func ParseUncompressedPublicKey(elliptic.Curve, []uint8) (*PublicKey, error) #63963
+-pkg crypto/ecdsa, method (*PrivateKey) Bytes() ([]uint8, error) #63963
+-pkg crypto/ecdsa, method (*PublicKey) Bytes() ([]uint8, error) #63963
+diff --git a/api/next/66365.txt b/api/next/66365.txt
+deleted file mode 100644
+index 52f1c7ea8e..0000000000
+--- a/api/next/66365.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg log/slog, func GroupAttrs(string, ...Attr) Attr #66365
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+deleted file mode 100644
+index 2a442fd6a4..0000000000
+--- a/api/next/67002.txt
++++ /dev/null
+@@ -1,10 +0,0 @@
+-pkg os, method (*Root) Chmod(string, fs.FileMode) error #67002
+-pkg os, method (*Root) Chown(string, int, int) error #67002
+-pkg os, method (*Root) Chtimes(string, time.Time, time.Time) error #67002
+-pkg os, method (*Root) Lchown(string, int, int) error #67002
+-pkg os, method (*Root) Link(string, string) error #67002
+-pkg os, method (*Root) MkdirAll(string, fs.FileMode) error #67002
+-pkg os, method (*Root) Readlink(string) (string, error) #67002
+-pkg os, method (*Root) RemoveAll(string) error #67002
+-pkg os, method (*Root) Rename(string, string) error #67002
+-pkg os, method (*Root) Symlink(string, string) error #67002
+diff --git a/api/next/67434.txt b/api/next/67434.txt
+deleted file mode 100644
+index 203c55e2a6..0000000000
+--- a/api/next/67434.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-pkg testing/synctest, func Test(*testing.T, func(*testing.T)) #67434
+-pkg testing/synctest, func Wait() #67434
+diff --git a/api/next/67516.txt b/api/next/67516.txt
+deleted file mode 100644
+index a9b6007d06..0000000000
+--- a/api/next/67516.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg crypto/tls, type ConnectionState struct, CurveID CurveID #67516
+diff --git a/api/next/69518.txt b/api/next/69518.txt
+deleted file mode 100644
+index b70fcc13fb..0000000000
+--- a/api/next/69518.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-pkg hash, type XOF interface { BlockSize, Read, Reset, Write } #69518
+-pkg hash, type XOF interface, BlockSize() int #69518
+-pkg hash, type XOF interface, Read([]uint8) (int, error) #69518
+-pkg hash, type XOF interface, Reset() #69518
+-pkg hash, type XOF interface, Write([]uint8) (int, error) #69518
+diff --git a/api/next/69521.txt b/api/next/69521.txt
+deleted file mode 100644
+index 6974226086..0000000000
+--- a/api/next/69521.txt
++++ /dev/null
+@@ -1,9 +0,0 @@
+-pkg crypto/sha3, method (*SHA3) Clone() (hash.Cloner, error) #69521
+-pkg hash, type Cloner interface { BlockSize, Clone, Reset, Size, Sum, Write } #69521
+-pkg hash, type Cloner interface, BlockSize() int #69521
+-pkg hash, type Cloner interface, Clone() (Cloner, error) #69521
+-pkg hash, type Cloner interface, Reset() #69521
+-pkg hash, type Cloner interface, Size() int #69521
+-pkg hash, type Cloner interface, Sum([]uint8) []uint8 #69521
+-pkg hash, type Cloner interface, Write([]uint8) (int, error) #69521
+-pkg hash/maphash, method (*Hash) Clone() (hash.Cloner, error) #69521
+diff --git a/api/next/70250.txt b/api/next/70250.txt
+deleted file mode 100644
+index faad356cef..0000000000
+--- a/api/next/70250.txt
++++ /dev/null
+@@ -1,17 +0,0 @@
+-pkg go/types, const FieldVar = 6 #70250
+-pkg go/types, const FieldVar VarKind #70250
+-pkg go/types, const LocalVar = 2 #70250
+-pkg go/types, const LocalVar VarKind #70250
+-pkg go/types, const PackageVar = 1 #70250
+-pkg go/types, const PackageVar VarKind #70250
+-pkg go/types, const ParamVar = 4 #70250
+-pkg go/types, const ParamVar VarKind #70250
+-pkg go/types, const RecvVar = 3 #70250
+-pkg go/types, const RecvVar VarKind #70250
+-pkg go/types, const ResultVar = 5 #70250
+-pkg go/types, const ResultVar VarKind #70250
+-pkg go/types, func LookupSelection(Type, bool, *Package, string) (Selection, bool) #70737
+-pkg go/types, method (*Var) Kind() VarKind #70250
+-pkg go/types, method (*Var) SetKind(VarKind) #70250
+-pkg go/types, method (VarKind) String() string #70250
+-pkg go/types, type VarKind uint8 #70250
+diff --git a/api/next/70280.txt b/api/next/70280.txt
+deleted file mode 100644
+index f2dd74af48..0000000000
+--- a/api/next/70280.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg log/slog, method (Record) Source() *Source #70280
+diff --git a/api/next/70780.txt b/api/next/70780.txt
+deleted file mode 100644
+index 2843836ac8..0000000000
+--- a/api/next/70780.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-pkg unicode, var CategoryAliases map[string]string #70780
+-pkg unicode, var Cn *RangeTable #70780
+-pkg unicode, var LC *RangeTable #70780
+diff --git a/api/next/71122.txt b/api/next/71122.txt
+deleted file mode 100644
+index a679899e0c..0000000000
+--- a/api/next/71122.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg go/parser, func ParseDir //deprecated #71122
+diff --git a/api/next/71920.txt b/api/next/71920.txt
+deleted file mode 100644
+index c15759f45f..0000000000
+--- a/api/next/71920.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg crypto/tls, type Config struct, GetEncryptedClientHelloKeys func(*ClientHelloInfo) ([]EncryptedClientHelloKey, error) #71920
+diff --git a/api/next/72843.txt b/api/next/72843.txt
+deleted file mode 100644
+index efd45ccc6f..0000000000
+--- a/api/next/72843.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-pkg debug/elf, const PT_RISCV_ATTRIBUTES = 1879048195 #72843
+-pkg debug/elf, const PT_RISCV_ATTRIBUTES ProgType #72843
+-pkg debug/elf, const SHT_RISCV_ATTRIBUTES = 1879048195 #72843
+-pkg debug/elf, const SHT_RISCV_ATTRIBUTES SectionType #72843
+diff --git a/api/next/73088.txt b/api/next/73088.txt
+deleted file mode 100644
+index 2d15b83816..0000000000
+--- a/api/next/73088.txt
++++ /dev/null
+@@ -1,7 +0,0 @@
+-pkg go/ast, const FilterFuncDuplicates //deprecated #73088
+-pkg go/ast, const FilterImportDuplicates //deprecated #73088
+-pkg go/ast, const FilterUnassociatedComments //deprecated #73088
+-pkg go/ast, func FilterPackage //deprecated #73088
+-pkg go/ast, func MergePackageFiles //deprecated #73088
+-pkg go/ast, func PackageExports //deprecated #73088
+-pkg go/ast, type MergeMode //deprecated #73088
+diff --git a/api/next/73126.txt b/api/next/73126.txt
+deleted file mode 100644
+index 9392448c02..0000000000
+--- a/api/next/73126.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-pkg os, method (*Root) ReadFile(string) ([]uint8, error) #73126
+-pkg os, method (*Root) WriteFile(string, []uint8, fs.FileMode) error #73126
+diff --git a/api/next/73193.txt b/api/next/73193.txt
+deleted file mode 100644
+index f2b6ea748c..0000000000
+--- a/api/next/73193.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg runtime, func SetDefaultGOMAXPROCS() #73193
+diff --git a/api/next/73205.txt b/api/next/73205.txt
+deleted file mode 100644
+index 3cc2c09543..0000000000
+--- a/api/next/73205.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg go/token, method (*FileSet) AddExistingFiles(...*File) #73205
+diff --git a/api/next/73319.txt b/api/next/73319.txt
+deleted file mode 100644
+index 39a3ece5f8..0000000000
+--- a/api/next/73319.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-pkg go/ast, func PreorderStack(Node, []Node, func(Node, []Node) bool) #73319
+diff --git a/api/next/73626.txt b/api/next/73626.txt
+deleted file mode 100644
+index ef4d0683b2..0000000000
+--- a/api/next/73626.txt
++++ /dev/null
+@@ -1,7 +0,0 @@
+-pkg net/http, func NewCrossOriginProtection() *CrossOriginProtection #73626
+-pkg net/http, method (*CrossOriginProtection) AddInsecureBypassPattern(string) #73626
+-pkg net/http, method (*CrossOriginProtection) AddTrustedOrigin(string) error #73626
+-pkg net/http, method (*CrossOriginProtection) Check(*Request) error #73626
+-pkg net/http, method (*CrossOriginProtection) Handler(Handler) Handler #73626
+-pkg net/http, method (*CrossOriginProtection) SetDenyHandler(Handler) #73626
+-pkg net/http, type CrossOriginProtection struct #73626

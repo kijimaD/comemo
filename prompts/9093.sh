@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9093: 331840f50935cb886254ee6b5bc6daad7788979b
+# Index 9093: 86a659cad03b98d1921d72e3cf459bcd189ae0ec
 
 echo "🚀 Generating explanation for commit 9093..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 9093..."
 
 ### メタデータ
 - **コミットインデックス**: 9093
-- **コミットハッシュ**: 331840f50935cb886254ee6b5bc6daad7788979b
-- **GitHub URL**: https://github.com/golang/go/commit/331840f50935cb886254ee6b5bc6daad7788979b
+- **コミットハッシュ**: 86a659cad03b98d1921d72e3cf459bcd189ae0ec
+- **GitHub URL**: https://github.com/golang/go/commit/86a659cad03b98d1921d72e3cf459bcd189ae0ec
 
 ### 章構成
 

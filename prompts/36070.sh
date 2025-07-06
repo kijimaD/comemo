@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 36070: 096d96779aca3baaa14644f64313abf03ff3d49f
+# Index 36070: 7da2f8278f10ed389e0d96cb43e5445d80d21f9b
 
 echo "🚀 Generating explanation for commit 36070..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 36070..."
 
 ### メタデータ
 - **コミットインデックス**: 36070
-- **コミットハッシュ**: 096d96779aca3baaa14644f64313abf03ff3d49f
-- **GitHub URL**: https://github.com/golang/go/commit/096d96779aca3baaa14644f64313abf03ff3d49f
+- **コミットハッシュ**: 7da2f8278f10ed389e0d96cb43e5445d80d21f9b
+- **GitHub URL**: https://github.com/golang/go/commit/7da2f8278f10ed389e0d96cb43e5445d80d21f9b
 
 ### 章構成
 

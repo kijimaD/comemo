@@ -1,0 +1,200 @@
+commit adc9c455873fef97c5759e4811f0d9c8217fe27b
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Mon Nov 18 11:48:28 2024 -0800
+
+    runtime: clean up new lock2 structure
+    
+    Simplify some flow control, as suggested on https://go.dev/cl/620435.
+    
+    The MutexCapture microbenchmark shows a bit of throughput improvement at
+    moderate levels of contention, and little change to capture and
+    starvation. (Note that the capture and starvation figures below are in
+    terms of power-of-two buckets multiplied by throughput, so they either
+    follow similar patterns or move by a factor of two.)
+    
+    For #68578
+    
+    goos: linux
+    goarch: amd64
+    pkg: runtime
+    cpu: 13th Gen Intel(R) Core(TM) i7-13700H
+                    │     old      │                 new                  │
+                    │    sec/op    │    sec/op     vs base                │
+    MutexCapture      18.21n ±  0%   18.35n ±  0%   +0.77% (p=0.000 n=10)
+    MutexCapture-2    21.46n ±  8%   21.05n ± 12%        ~ (p=0.796 n=10)
+    MutexCapture-3    22.56n ±  9%   22.59n ± 18%        ~ (p=0.631 n=10)
+    MutexCapture-4    22.85n ±  5%   22.74n ±  2%        ~ (p=0.565 n=10)
+    MutexCapture-5    22.84n ±  5%   22.50n ± 14%        ~ (p=0.912 n=10)
+    MutexCapture-6    23.33n ± 14%   22.22n ±  3%   -4.78% (p=0.004 n=10)
+    MutexCapture-7    27.04n ± 14%   23.78n ± 15%        ~ (p=0.089 n=10)
+    MutexCapture-8    25.44n ± 10%   23.03n ±  6%   -9.48% (p=0.004 n=10)
+    MutexCapture-9    25.56n ±  7%   24.39n ± 11%        ~ (p=0.218 n=10)
+    MutexCapture-10   26.77n ± 10%   24.00n ±  7%  -10.33% (p=0.023 n=10)
+    MutexCapture-11   27.02n ±  7%   24.55n ± 15%   -9.18% (p=0.035 n=10)
+    MutexCapture-12   26.71n ±  8%   24.96n ±  8%        ~ (p=0.148 n=10)
+    MutexCapture-13   25.58n ±  4%   25.82n ±  5%        ~ (p=0.271 n=10)
+    MutexCapture-14   26.86n ±  6%   25.91n ±  7%        ~ (p=0.529 n=10)
+    MutexCapture-15   25.12n ± 13%   26.16n ±  4%        ~ (p=0.353 n=10)
+    MutexCapture-16   26.18n ±  4%   26.21n ±  9%        ~ (p=0.838 n=10)
+    MutexCapture-17   26.04n ±  4%   25.85n ±  5%        ~ (p=0.363 n=10)
+    MutexCapture-18   26.02n ±  7%   25.93n ±  5%        ~ (p=0.853 n=10)
+    MutexCapture-19   25.67n ±  5%   26.21n ±  4%        ~ (p=0.631 n=10)
+    MutexCapture-20   25.50n ±  6%   25.99n ±  8%        ~ (p=0.404 n=10)
+    geomean           24.73n         24.02n         -2.88%
+    
+                    │      old       │                  new                   │
+                    │ sec/streak-p90 │ sec/streak-p90  vs base                │
+    MutexCapture        76.36m ±  0%    76.96m ±   0%   +0.79% (p=0.000 n=10)
+    MutexCapture-2     10.609µ ± 50%    5.390µ ± 119%        ~ (p=0.579 n=10)
+    MutexCapture-3      5.936µ ± 93%    5.782µ ±  18%        ~ (p=0.684 n=10)
+    MutexCapture-4      5.849µ ±  5%    5.820µ ±   2%        ~ (p=0.579 n=10)
+    MutexCapture-5      5.849µ ±  5%    5.759µ ±  14%        ~ (p=0.912 n=10)
+    MutexCapture-6      5.975µ ± 14%    5.687µ ±   3%   -4.81% (p=0.004 n=10)
+    MutexCapture-7      6.921µ ± 14%    6.086µ ±  18%        ~ (p=0.165 n=10)
+    MutexCapture-8      6.512µ ± 10%    5.894µ ±   6%   -9.50% (p=0.004 n=10)
+    MutexCapture-9      6.544µ ±  7%    6.245µ ±  11%        ~ (p=0.218 n=10)
+    MutexCapture-10     6.962µ ± 11%    6.144µ ±   7%  -11.76% (p=0.023 n=10)
+    MutexCapture-11     6.938µ ±  7%    6.284µ ± 130%        ~ (p=0.190 n=10)
+    MutexCapture-12     6.838µ ±  8%    6.408µ ±  13%        ~ (p=0.404 n=10)
+    MutexCapture-13     6.549µ ±  4%    6.608µ ±   5%        ~ (p=0.271 n=10)
+    MutexCapture-14     6.877µ ±  8%    6.634µ ±   7%        ~ (p=0.436 n=10)
+    MutexCapture-15     6.433µ ± 13%    6.697µ ±   4%        ~ (p=0.247 n=10)
+    MutexCapture-16     6.702µ ± 10%    6.711µ ± 116%        ~ (p=0.796 n=10)
+    MutexCapture-17     6.730µ ±  3%    6.619µ ±   5%        ~ (p=0.225 n=10)
+    MutexCapture-18     6.663µ ±  7%    6.716µ ±  13%        ~ (p=0.853 n=10)
+    MutexCapture-19     6.570µ ±  5%    6.710µ ±   4%        ~ (p=0.529 n=10)
+    MutexCapture-20     6.528µ ±  6%    6.775µ ±  11%        ~ (p=0.247 n=10)
+    geomean             10.66µ          10.00µ          -6.13%
+    
+                    │      old       │                  new                   │
+                    │ sec/starve-p90 │ sec/starve-p90  vs base                │
+    MutexCapture-2    10.609µ ±  50%    5.390µ ± 119%        ~ (p=0.579 n=10)
+    MutexCapture-3     184.8µ ±  91%    183.9µ ±  48%        ~ (p=0.436 n=10)
+    MutexCapture-4     388.8µ ± 270%    375.6µ ± 280%        ~ (p=0.436 n=10)
+    MutexCapture-5     807.2µ ±  83%   2880.9µ ±  85%        ~ (p=0.105 n=10)
+    MutexCapture-6     2.272m ±  61%    2.173m ±  34%        ~ (p=0.280 n=10)
+    MutexCapture-7     1.351m ± 125%    2.990m ±  70%        ~ (p=0.393 n=10)
+    MutexCapture-8     3.328m ±  97%    3.064m ±  96%        ~ (p=0.739 n=10)
+    MutexCapture-9     3.526m ±  91%    3.081m ±  47%  -12.62% (p=0.015 n=10)
+    MutexCapture-10    3.641m ±  86%    3.228m ±  90%  -11.34% (p=0.005 n=10)
+    MutexCapture-11    3.324m ± 109%    3.190m ±  71%        ~ (p=0.481 n=10)
+    MutexCapture-12    3.519m ±  77%    3.200m ± 106%        ~ (p=0.393 n=10)
+    MutexCapture-13    3.353m ±  91%    3.368m ±  99%        ~ (p=0.853 n=10)
+    MutexCapture-14    3.314m ± 101%    3.396m ± 286%        ~ (p=0.353 n=10)
+    MutexCapture-15    3.534m ±  83%    3.397m ±  91%        ~ (p=0.739 n=10)
+    MutexCapture-16    3.485m ±  90%    3.436m ± 116%        ~ (p=0.853 n=10)
+    MutexCapture-17    6.516m ±  48%    3.452m ±  88%        ~ (p=0.190 n=10)
+    MutexCapture-18    6.645m ± 105%    3.439m ± 108%        ~ (p=0.218 n=10)
+    MutexCapture-19    6.521m ±  46%    4.907m ±  42%        ~ (p=0.529 n=10)
+    MutexCapture-20    6.532m ±  47%    3.516m ±  89%        ~ (p=0.089 n=10)
+    geomean            1.919m           1.783m          -7.06%
+    
+    Change-Id: I36106e1baf8afd132f1568748d1b83b797fa260e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629415
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+---
+ src/runtime/lock_spinbit.go | 57 ++++++++++++++++++++++++---------------------
+ 1 file changed, 30 insertions(+), 27 deletions(-)
+
+diff --git a/src/runtime/lock_spinbit.go b/src/runtime/lock_spinbit.go
+index 1f9f289bbf..7e84f3e1c2 100644
+--- a/src/runtime/lock_spinbit.go
++++ b/src/runtime/lock_spinbit.go
+@@ -159,9 +159,8 @@ func lock2(l *mutex) {
+ 
+ 	k8 := key8(&l.key)
+ 
+-	var v8 uint8
+ 	// Speculative grab for lock.
+-	v8 = atomic.Xchg8(k8, mutexLocked)
++	v8 := atomic.Xchg8(k8, mutexLocked)
+ 	if v8&mutexLocked == 0 {
+ 		if v8&mutexSleeping != 0 {
+ 			atomic.Or8(k8, mutexSleeping)
+@@ -183,11 +182,13 @@ func lock2(l *mutex) {
+ 	v := atomic.Loaduintptr(&l.key)
+ tryAcquire:
+ 	for i := 0; ; i++ {
+-		for v&mutexLocked == 0 {
++		if v&mutexLocked == 0 {
+ 			if weSpin {
+-				next := (v &^ mutexMMask) | (v & (mutexMMask &^ mutexSpinning)) | mutexLocked
+-				if next&^mutexMMask != 0 {
+-					next |= mutexSleeping
++				next := (v &^ mutexSpinning) | mutexSleeping | mutexLocked
++				if next&^mutexMMask == 0 {
++					// The fast-path Xchg8 may have cleared mutexSleeping. Fix
++					// the hint so unlock2 knows when to use its slow path.
++					next = next &^ mutexSleeping
+ 				}
+ 				if atomic.Casuintptr(&l.key, v, next) {
+ 					timer.end()
+@@ -201,6 +202,7 @@ tryAcquire:
+ 				}
+ 			}
+ 			v = atomic.Loaduintptr(&l.key)
++			continue tryAcquire
+ 		}
+ 
+ 		if !weSpin && v&mutexSpinning == 0 && atomic.Casuintptr(&l.key, v, v|mutexSpinning) {
+@@ -214,35 +216,36 @@ tryAcquire:
+ 				v = atomic.Loaduintptr(&l.key)
+ 				continue tryAcquire
+ 			} else if i < spin+mutexPassiveSpinCount {
+-				osyield() // TODO: Consider removing this step. See https://go.dev/issue/69268
++				osyield() // TODO: Consider removing this step. See https://go.dev/issue/69268.
+ 				v = atomic.Loaduintptr(&l.key)
+ 				continue tryAcquire
+ 			}
+ 		}
+ 
+ 		// Go to sleep
+-		for v&mutexLocked != 0 {
+-			// Store the current head of the list of sleeping Ms in our gp.m.mWaitList.next field
+-			gp.m.mWaitList.next = mutexWaitListHead(v)
+-
+-			// Pack a (partial) pointer to this M with the current lock state bits
+-			next := (uintptr(unsafe.Pointer(gp.m)) &^ mutexMMask) | v&mutexMMask | mutexSleeping
+-			if weSpin { // If we were spinning, prepare to retire
+-				next = next &^ mutexSpinning
+-			}
++		if v&mutexLocked == 0 {
++			throw("runtime·lock: sleeping while lock is available")
++		}
+ 
+-			if atomic.Casuintptr(&l.key, v, next) {
+-				weSpin = false
+-				// We've pushed ourselves onto the stack of waiters. Wait.
+-				semasleep(-1)
+-				atTail = gp.m.mWaitList.next == 0 // we were at risk of starving
+-				gp.m.mWaitList.next = 0
+-				i = 0
+-				v = atomic.Loaduintptr(&l.key)
+-				continue tryAcquire
+-			}
+-			v = atomic.Loaduintptr(&l.key)
++		// Store the current head of the list of sleeping Ms in our gp.m.mWaitList.next field
++		gp.m.mWaitList.next = mutexWaitListHead(v)
++
++		// Pack a (partial) pointer to this M with the current lock state bits
++		next := (uintptr(unsafe.Pointer(gp.m)) &^ mutexMMask) | v&mutexMMask | mutexSleeping
++		if weSpin { // If we were spinning, prepare to retire
++			next = next &^ mutexSpinning
++		}
++
++		if atomic.Casuintptr(&l.key, v, next) {
++			weSpin = false
++			// We've pushed ourselves onto the stack of waiters. Wait.
++			semasleep(-1)
++			atTail = gp.m.mWaitList.next == 0 // we were at risk of starving
++			i = 0
+ 		}
++
++		gp.m.mWaitList.next = 0
++		v = atomic.Loaduintptr(&l.key)
+ 	}
+ }
+ 

@@ -1,0 +1,136 @@
+commit 659b895067400e1db64c57712729623970149e99
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jan 27 21:47:24 2025 +0000
+
+    internal/trace: move fake P IDs to internal/trace/traceviewer
+    
+    These fake P IDs really only belong to the traceviewer.
+    
+    Change-Id: I7976beb5750f1efca85e28975074a8c570a9c959
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644876
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/trace/gen.go                          | 4 ++--
+ src/cmd/trace/gstate.go                       | 6 +++---
+ src/cmd/trace/jsontrace_test.go               | 4 ++--
+ src/internal/trace/traceviewer/emitter.go     | 8 ++++----
+ src/internal/trace/{ => traceviewer}/fakep.go | 2 +-
+ 5 files changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/trace/gen.go b/src/cmd/trace/gen.go
+index 67811ca04d..03ee5037e9 100644
+--- a/src/cmd/trace/gen.go
++++ b/src/cmd/trace/gen.go
+@@ -248,7 +248,7 @@ func (g *globalRangeGenerator) GlobalRange(ctx *traceContext, ev *trace.Event) {
+ 				Name:     r.Name,
+ 				Ts:       ctx.elapsed(ar.time),
+ 				Dur:      ev.Time().Sub(ar.time),
+-				Resource: trace.GCP,
++				Resource: traceviewer.GCP,
+ 				Stack:    ctx.Stack(viewerFrames(ar.stack)),
+ 				EndStack: ctx.Stack(viewerFrames(ev.Stack())),
+ 			})
+@@ -267,7 +267,7 @@ func (g *globalRangeGenerator) Finish(ctx *traceContext) {
+ 			Name:     name,
+ 			Ts:       ctx.elapsed(ar.time),
+ 			Dur:      ctx.endTime.Sub(ar.time),
+-			Resource: trace.GCP,
++			Resource: traceviewer.GCP,
+ 			Stack:    ctx.Stack(viewerFrames(ar.stack)),
+ 		})
+ 	}
+diff --git a/src/cmd/trace/gstate.go b/src/cmd/trace/gstate.go
+index c883166e06..9c3da66217 100644
+--- a/src/cmd/trace/gstate.go
++++ b/src/cmd/trace/gstate.go
+@@ -202,13 +202,13 @@ func (gs *gState[R]) syscallEnd(ts trace.Time, blocked bool, ctx *traceContext)
+ // to emit a flow event from, indicating explicitly that this goroutine was unblocked by the system.
+ func (gs *gState[R]) blockedSyscallEnd(ts trace.Time, stack trace.Stack, ctx *traceContext) {
+ 	name := "exit blocked syscall"
+-	gs.setStartCause(ts, name, trace.SyscallP, stack)
++	gs.setStartCause(ts, name, traceviewer.SyscallP, stack)
+ 
+ 	// Emit an syscall exit instant event for the "Syscall" lane.
+ 	ctx.Instant(traceviewer.InstantEvent{
+ 		Name:     name,
+ 		Ts:       ctx.elapsed(ts),
+-		Resource: trace.SyscallP,
++		Resource: traceviewer.SyscallP,
+ 		Stack:    ctx.Stack(viewerFrames(stack)),
+ 	})
+ }
+@@ -228,7 +228,7 @@ func (gs *gState[R]) unblock(ts trace.Time, stack trace.Stack, resource R, ctx *
+ 		// TODO(mknyszek): Handle this invalidness in a more general way.
+ 		if _, ok := any(resource).(trace.ThreadID); !ok {
+ 			// Emit an unblock instant event for the "Network" lane.
+-			viewerResource = trace.NetpollP
++			viewerResource = traceviewer.NetpollP
+ 		}
+ 		ctx.Instant(traceviewer.InstantEvent{
+ 			Name:     name,
+diff --git a/src/cmd/trace/jsontrace_test.go b/src/cmd/trace/jsontrace_test.go
+index 5f89b275dc..c9df45040f 100644
+--- a/src/cmd/trace/jsontrace_test.go
++++ b/src/cmd/trace/jsontrace_test.go
+@@ -7,7 +7,6 @@ package main
+ import (
+ 	"bytes"
+ 	"encoding/json"
+-	"internal/trace"
+ 	"io"
+ 	"net/http/httptest"
+ 	"os"
+@@ -19,6 +18,7 @@ import (
+ 	"time"
+ 
+ 	"internal/trace/raw"
++	"internal/trace/traceviewer"
+ 	"internal/trace/traceviewer/format"
+ )
+ 
+@@ -159,7 +159,7 @@ func checkNetworkUnblock(t *testing.T, data format.Data) {
+ 	count := 0
+ 	var netBlockEv *format.Event
+ 	for _, e := range data.Events {
+-		if e.TID == trace.NetpollP && e.Name == "unblock (network)" && e.Phase == "I" && e.Scope == "t" {
++		if e.TID == traceviewer.NetpollP && e.Name == "unblock (network)" && e.Phase == "I" && e.Scope == "t" {
+ 			count++
+ 			netBlockEv = e
+ 		}
+diff --git a/src/internal/trace/traceviewer/emitter.go b/src/internal/trace/traceviewer/emitter.go
+index d2227d681e..9167ff81b4 100644
+--- a/src/internal/trace/traceviewer/emitter.go
++++ b/src/internal/trace/traceviewer/emitter.go
+@@ -632,10 +632,10 @@ func (e *Emitter) Flush() {
+ 
+ 	e.processMeta(format.ProcsSection, e.resourceType, 2)
+ 
+-	e.threadMeta(format.ProcsSection, trace.GCP, "GC", -6)
+-	e.threadMeta(format.ProcsSection, trace.NetpollP, "Network", -5)
+-	e.threadMeta(format.ProcsSection, trace.TimerP, "Timers", -4)
+-	e.threadMeta(format.ProcsSection, trace.SyscallP, "Syscalls", -3)
++	e.threadMeta(format.ProcsSection, GCP, "GC", -6)
++	e.threadMeta(format.ProcsSection, NetpollP, "Network", -5)
++	e.threadMeta(format.ProcsSection, TimerP, "Timers", -4)
++	e.threadMeta(format.ProcsSection, SyscallP, "Syscalls", -3)
+ 
+ 	for id, name := range e.resources {
+ 		priority := int(id)
+diff --git a/src/internal/trace/fakep.go b/src/internal/trace/traceviewer/fakep.go
+similarity index 95%
+rename from src/internal/trace/fakep.go
+rename to src/internal/trace/traceviewer/fakep.go
+index 8d580c3a3a..655938b213 100644
+--- a/src/internal/trace/fakep.go
++++ b/src/internal/trace/traceviewer/fakep.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package trace
++package traceviewer
+ 
+ const (
+ 	// Special P identifiers:

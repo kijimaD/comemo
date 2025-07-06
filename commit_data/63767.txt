@@ -1,0 +1,186 @@
+commit 3d80761531a6eb02934bc6b7236d77723f0b54fe
+Author: Rob Findley <rfindley@google.com>
+Date:   Tue May 14 19:19:48 2024 +0000
+
+    go/types, types2: add additional documentation for Underlying
+    
+    The concept of an underlying type has become more complicated with the
+    addition of TypeParam and Alias types. Update the documentation to
+    clarify that it strips off Named, TypeParam, and Alias types, and to
+    reference the spec.
+    
+    Fixes #65774
+    
+    Change-Id: I40a8efe15b45591b95068acbf4ef9eae17a4cef1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585456
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+---
+ src/cmd/compile/internal/syntax/type.go      |  5 ++++-
+ src/cmd/compile/internal/types2/alias.go     | 10 ++++++++--
+ src/cmd/compile/internal/types2/named.go     | 14 +++++++++++---
+ src/cmd/compile/internal/types2/typeparam.go |  4 ++++
+ src/go/types/alias.go                        | 10 ++++++++--
+ src/go/types/named.go                        | 14 +++++++++++---
+ src/go/types/type.go                         |  3 +++
+ src/go/types/typeparam.go                    |  4 ++++
+ 8 files changed, 53 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/compile/internal/syntax/type.go b/src/cmd/compile/internal/syntax/type.go
+index 53132a442d..0be7e250ee 100644
+--- a/src/cmd/compile/internal/syntax/type.go
++++ b/src/cmd/compile/internal/syntax/type.go
+@@ -10,9 +10,12 @@ import "go/constant"
+ // All types implement the Type interface.
+ // (This type originally lived in types2. We moved it here
+ // so we could depend on it from other packages without
+-// introducing a circularity.)
++// introducing an import cycle.)
+ type Type interface {
+ 	// Underlying returns the underlying type of a type.
++	// Underlying types are never Named, TypeParam, or Alias types.
++	//
++	// See https://go.dev/ref/spec#Underlying_types.
+ 	Underlying() Type
+ 
+ 	// String returns a string representation of a type.
+diff --git a/src/cmd/compile/internal/types2/alias.go b/src/cmd/compile/internal/types2/alias.go
+index 9b7a13f81e..ecd8637814 100644
+--- a/src/cmd/compile/internal/types2/alias.go
++++ b/src/cmd/compile/internal/types2/alias.go
+@@ -28,9 +28,15 @@ func NewAlias(obj *TypeName, rhs Type) *Alias {
+ 	return alias
+ }
+ 
+-func (a *Alias) Obj() *TypeName   { return a.obj }
++func (a *Alias) Obj() *TypeName { return a.obj }
++func (a *Alias) String() string { return TypeString(a, nil) }
++
++// Underlying returns the [underlying type] of the alias type a, which is the
++// underlying type of the aliased type. Underlying types are never Named,
++// TypeParam, or Alias types.
++//
++// [underlying type]: https://go.dev/ref/spec#Underlying_types.
+ func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+-func (a *Alias) String() string   { return TypeString(a, nil) }
+ 
+ // Rhs returns the type R on the right-hand side of an alias
+ // declaration "type A = R", which may be another alias.
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index aa7ab00c33..1859b27aa4 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -485,9 +485,17 @@ func (t *Named) methodIndex(name string, foldCase bool) int {
+ 	return -1
+ }
+ 
+-// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
+-func (t *Named) Underlying() Type { return Unalias(t.resolve().underlying) }
+-func (t *Named) String() string   { return TypeString(t, nil) }
++// Underlying returns the [underlying type] of the named type t, resolving all
++// forwarding declarations. Underlying types are never Named, TypeParam, or
++// Alias types.
++//
++// [underlying type]: https://go.dev/ref/spec#Underlying_types.
++func (t *Named) Underlying() Type {
++	// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
++	return Unalias(t.resolve().underlying)
++}
++
++func (t *Named) String() string { return TypeString(t, nil) }
+ 
+ // ----------------------------------------------------------------------------
+ // Implementation
+diff --git a/src/cmd/compile/internal/types2/typeparam.go b/src/cmd/compile/internal/types2/typeparam.go
+index 5c6030b3fb..9ad064906f 100644
+--- a/src/cmd/compile/internal/types2/typeparam.go
++++ b/src/cmd/compile/internal/types2/typeparam.go
+@@ -86,6 +86,10 @@ func (t *TypeParam) SetConstraint(bound Type) {
+ 	t.iface()
+ }
+ 
++// Underlying returns the [underlying type] of the type parameter t, which is
++// the underlying type of its constraint. This type is always an interface.
++//
++// [underlying type]: https://go.dev/ref/spec#Underlying_types.
+ func (t *TypeParam) Underlying() Type {
+ 	return t.iface()
+ }
+diff --git a/src/go/types/alias.go b/src/go/types/alias.go
+index 56d2ad0c97..48bf9c0feb 100644
+--- a/src/go/types/alias.go
++++ b/src/go/types/alias.go
+@@ -31,9 +31,15 @@ func NewAlias(obj *TypeName, rhs Type) *Alias {
+ 	return alias
+ }
+ 
+-func (a *Alias) Obj() *TypeName   { return a.obj }
++func (a *Alias) Obj() *TypeName { return a.obj }
++func (a *Alias) String() string { return TypeString(a, nil) }
++
++// Underlying returns the [underlying type] of the alias type a, which is the
++// underlying type of the aliased type. Underlying types are never Named,
++// TypeParam, or Alias types.
++//
++// [underlying type]: https://go.dev/ref/spec#Underlying_types.
+ func (a *Alias) Underlying() Type { return unalias(a).Underlying() }
+-func (a *Alias) String() string   { return TypeString(a, nil) }
+ 
+ // Rhs returns the type R on the right-hand side of an alias
+ // declaration "type A = R", which may be another alias.
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index b204b787db..b44fa9d788 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -488,9 +488,17 @@ func (t *Named) methodIndex(name string, foldCase bool) int {
+ 	return -1
+ }
+ 
+-// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
+-func (t *Named) Underlying() Type { return Unalias(t.resolve().underlying) }
+-func (t *Named) String() string   { return TypeString(t, nil) }
++// Underlying returns the [underlying type] of the named type t, resolving all
++// forwarding declarations. Underlying types are never Named, TypeParam, or
++// Alias types.
++//
++// [underlying type]: https://go.dev/ref/spec#Underlying_types.
++func (t *Named) Underlying() Type {
++	// TODO(gri) Investigate if Unalias can be moved to where underlying is set.
++	return Unalias(t.resolve().underlying)
++}
++
++func (t *Named) String() string { return TypeString(t, nil) }
+ 
+ // ----------------------------------------------------------------------------
+ // Implementation
+diff --git a/src/go/types/type.go b/src/go/types/type.go
+index f6bd75908f..8fae93fb58 100644
+--- a/src/go/types/type.go
++++ b/src/go/types/type.go
+@@ -8,6 +8,9 @@ package types
+ // All types implement the Type interface.
+ type Type interface {
+ 	// Underlying returns the underlying type of a type.
++	// Underlying types are never Named, TypeParam, or Alias types.
++	//
++	// See https://go.dev/ref/spec#Underlying_types.
+ 	Underlying() Type
+ 
+ 	// String returns a string representation of a type.
+diff --git a/src/go/types/typeparam.go b/src/go/types/typeparam.go
+index 8c960311cd..58a02de860 100644
+--- a/src/go/types/typeparam.go
++++ b/src/go/types/typeparam.go
+@@ -89,6 +89,10 @@ func (t *TypeParam) SetConstraint(bound Type) {
+ 	t.iface()
+ }
+ 
++// Underlying returns the [underlying type] of the type parameter t, which is
++// the underlying type of its constraint. This type is always an interface.
++//
++// [underlying type]: https://go.dev/ref/spec#Underlying_types.
+ func (t *TypeParam) Underlying() Type {
+ 	return t.iface()
+ }

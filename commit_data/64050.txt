@@ -1,0 +1,52 @@
+commit 98529a8e7cf1cc0b561f26a4bd3ddf8f6dbd2f8a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 24 18:04:11 2024 -0400
+
+    cmd/link: don't include deadcoded function symbols in shared build mode
+    
+    In shared build mode, we include all symbols. This includes
+    function symbols that are deadcoded by the compiler. They don't
+    really get compiled, and their metadata may be missing, causing
+    linker failures. Skip them.
+    
+    Fixes #67635.
+    
+    Change-Id: Ic0e64bd032be499cca26da5e9e3ffbe9998bac05
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588316
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cgo/internal/testshared/testdata/depBase/dep.go | 5 +++++
+ src/cmd/link/internal/ld/deadcode.go                    | 6 ++++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go b/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go
+index a143fe2ff1..6a8bf49c58 100644
+--- a/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go
++++ b/src/cmd/cgo/internal/testshared/testdata/depBase/dep.go
+@@ -51,3 +51,8 @@ func F() int {
+ 	defer func() {}()
+ 	return V
+ }
++
++func H() {
++	// Issue 67635: deadcoded closures causes linker crash.
++	func() { F() }()
++}
+diff --git a/src/cmd/link/internal/ld/deadcode.go b/src/cmd/link/internal/ld/deadcode.go
+index 241cf603db..20609ed7bf 100644
+--- a/src/cmd/link/internal/ld/deadcode.go
++++ b/src/cmd/link/internal/ld/deadcode.go
+@@ -50,6 +50,12 @@ func (d *deadcodePass) init() {
+ 		n := d.ldr.NDef()
+ 		for i := 1; i < n; i++ {
+ 			s := loader.Sym(i)
++			if d.ldr.SymType(s) == sym.STEXT && d.ldr.SymSize(s) == 0 {
++				// Zero-sized text symbol is a function deadcoded by the
++				// compiler. It doesn't really get compiled, and its
++				// metadata may be missing.
++				continue
++			}
+ 			d.mark(s, 0)
+ 		}
+ 		d.mark(d.ctxt.mainInittasks, 0)

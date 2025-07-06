@@ -1,0 +1,42 @@
+commit 5242bfa26afdd3541b9a70a16431ceb616f5510d
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 20 10:25:44 2024 -0500
+
+    cmd/go: remove temporary crypto/internal/fips140 import relaxation
+    
+    Now that crypto/internal/fips140deps has been checked in,
+    we can enforce the full restrictions in the go command:
+    crypto/internal/fips can only import crypto/internal, not internal/...
+    
+    Change-Id: I035470dbd478a5997c37ffabd268117969ed00a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630135
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+---
+ src/cmd/go/internal/load/pkg.go | 11 -----------
+ 1 file changed, 11 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 4daa0df45c..df790e1eaa 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1533,17 +1533,6 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
+ 		if str.HasPathPrefix(p.ImportPath, "crypto/internal") {
+ 			return nil // crypto/internal/fips140 can use crypto/internal
+ 		}
+-		// TODO: Delete this switch once the usages are removed.
+-		switch p.ImportPath {
+-		case "internal/abi",
+-			"internal/testenv",
+-			"internal/cpu",
+-			"internal/goarch",
+-			"internal/asan",
+-			"internal/byteorder",
+-			"internal/godebug":
+-			return nil
+-		}
+ 		goto Error
+ 	}
+ 

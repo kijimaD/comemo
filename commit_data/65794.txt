@@ -1,0 +1,88 @@
+commit 69c8cfe29bb677614c01f8dae3901d6954411af8
+Author: Tim King <taking@google.com>
+Date:   Fri Aug 9 10:50:00 2024 -0700
+
+    [release-branch.go1.23] cmd/compile/internal/importer: enable aliases
+    
+    Flips the pkgReader.enableAlias flag to true when reading unified IR.
+    This was disabled while resolving #66873. This resolves the TODO to
+    flip it back to true.
+    
+    Fixes #70394
+    Fixes #70517
+    Updates #66873
+    
+    Change-Id: Ifd52b0f9510d6bcf151de1c9a18d71ab548c14e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604099
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    (cherry picked from commit 209ed1a9c75d17046285c416b74a14bb89799757)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631855
+    Commit-Queue: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/importer/gcimporter_test.go | 17 +++++++++++++++++
+ src/cmd/compile/internal/importer/testdata/alias.go  |  7 +++++++
+ src/cmd/compile/internal/importer/ureader.go         |  8 +++-----
+ 3 files changed, 27 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 7fe4445dad..ffeddea0c9 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -582,6 +582,23 @@ func TestIssue25596(t *testing.T) {
+ 	compileAndImportPkg(t, "issue25596")
+ }
+ 
++func TestIssue70394(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++
++	// This package only handles gc export data.
++	if runtime.Compiler != "gc" {
++		t.Skipf("gc-built packages not available (compiler = %s)", runtime.Compiler)
++	}
++
++	pkg := compileAndImportPkg(t, "alias")
++	obj := lookupObj(t, pkg.Scope(), "A")
++
++	typ := obj.Type()
++	if _, ok := typ.(*types2.Alias); !ok {
++		t.Fatalf("type of %s is %s, wanted an alias", obj, typ)
++	}
++}
++
+ func importPkg(t *testing.T, path, srcDir string) *types2.Package {
+ 	pkg, err := Import(make(map[string]*types2.Package), path, srcDir, nil)
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/importer/testdata/alias.go b/src/cmd/compile/internal/importer/testdata/alias.go
+new file mode 100644
+index 0000000000..51492fc943
+--- /dev/null
++++ b/src/cmd/compile/internal/importer/testdata/alias.go
+@@ -0,0 +1,7 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package testdata
++
++type A = int32
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index 7eda375bd5..9d267e6db4 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -29,11 +29,9 @@ func ReadPackage(ctxt *types2.Context, imports map[string]*types2.Package, input
+ 	pr := pkgReader{
+ 		PkgDecoder: input,
+ 
+-		ctxt:    ctxt,
+-		imports: imports,
+-		// Currently, the compiler panics when using Alias types.
+-		// TODO(gri) set to true once this is fixed (issue #66873)
+-		enableAlias: false,
++		ctxt:        ctxt,
++		imports:     imports,
++		enableAlias: true,
+ 
+ 		posBases: make([]*syntax.PosBase, input.NumElems(pkgbits.RelocPosBase)),
+ 		pkgs:     make([]*types2.Package, input.NumElems(pkgbits.RelocPkg)),

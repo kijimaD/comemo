@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 39073: debca779719a72929932c589fe7ed3fea5341e53
+# Index 39073: 961eb13b6781907b5bfe4a7b22f68206020c4468
 
 echo "🚀 Generating explanation for commit 39073..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 39073..."
 
 ### メタデータ
 - **コミットインデックス**: 39073
-- **コミットハッシュ**: debca779719a72929932c589fe7ed3fea5341e53
-- **GitHub URL**: https://github.com/golang/go/commit/debca779719a72929932c589fe7ed3fea5341e53
+- **コミットハッシュ**: 961eb13b6781907b5bfe4a7b22f68206020c4468
+- **GitHub URL**: https://github.com/golang/go/commit/961eb13b6781907b5bfe4a7b22f68206020c4468
 
 ### 章構成
 

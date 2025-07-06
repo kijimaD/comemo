@@ -1,0 +1,124 @@
+commit 54fe0fd43fcf8609666c16ae6d15ed92873b1564
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Tue Aug 27 15:34:10 2024 +0000
+
+    runtime: store bp on cgocallback as unsafe.Pointer
+    
+    As of CL 580255, the runtime tracks the frame pointer (or base pointer,
+    bp) when entering syscalls, so that we can use fpTracebackPCs on
+    goroutines that are sitting in syscalls. That CL mostly got things
+    right, but missed one very subtle detail.
+    
+    When calling from Go->C->Go, the goroutine stack performing the calls
+    when returning to Go is free to move around in memory due to growth,
+    shrinking, etc. But upon returning back to C, it needs to restore
+    gp.syscall*, including gp.syscallsp and gp.syscallbp. The way syscallsp
+    currently gets updated is automagically: it's stored as an
+    unsafe.Pointer on the stack so that it shows up in a stack map. If the
+    stack ever moves, it'll get updated correctly. But gp.syscallbp isn't
+    saved to the stack as an unsafe.Pointer, but rather as a uintptr, so it
+    never gets updated! As a result, in rare circumstances, fpTracebackPCs
+    can correctly try to use gp.syscallbp as the starting point for the
+    traceback, but the value is stale.
+    
+    This change fixes the problem by just storing gp.syscallbp to the stack
+    on cgocallback as an unsafe.Pointer, like gp.syscallsp. It also adds a
+    comment documenting this subtlety; the lack of explanation for the
+    unsafe.Pointer type on syscallsp meant this detail was missed -- let's
+    not miss it again in the future.
+    
+    Now, we have a fix, what about a test? Unfortunately, testing this is
+    going to be incredibly annoying because the circumstances under which
+    gp.syscallbp are actually used for traceback are non-deterministic and
+    hard to arrange, especially from within testprogcgo where we don't have
+    export_test.go and can't reach into the runtime.
+    
+    So, instead, add a gp.syscallbp check to reentersyscall and
+    entersyscallblock that mirrors the gp.syscallbp consistency check. This
+    probably causes some miniscule slowdown to the syscall path, but it'll
+    catch the issue without having to actually perform a traceback.
+    
+    Fixes #69085.
+    
+    Change-Id: Iaf771758f1666024b854f5fbe2b2c63cbe35b201
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608775
+    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/runtime/cgocall.go |  9 +++++++--
+ src/runtime/proc.go    | 18 +++++++++++++++---
+ 2 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/cgocall.go b/src/runtime/cgocall.go
+index ae91627972..54ce0e8dfc 100644
+--- a/src/runtime/cgocall.go
++++ b/src/runtime/cgocall.go
+@@ -338,9 +338,14 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	// stack. However, since we're returning to an earlier stack frame and
+ 	// need to pair with the entersyscall() call made by cgocall, we must
+ 	// save syscall* and let reentersyscall restore them.
++	//
++	// Note: savedsp and savedbp MUST be held in locals as an unsafe.Pointer.
++	// When we call into Go, the stack is free to be moved. If these locals
++	// aren't visible in the stack maps, they won't get updated properly,
++	// and will end up being stale when restored by reentersyscall.
+ 	savedsp := unsafe.Pointer(gp.syscallsp)
+ 	savedpc := gp.syscallpc
+-	savedbp := gp.syscallbp
++	savedbp := unsafe.Pointer(gp.syscallbp)
+ 	exitsyscall() // coming out of cgo call
+ 	gp.m.incgo = false
+ 	if gp.m.isextra {
+@@ -372,7 +377,7 @@ func cgocallbackg(fn, frame unsafe.Pointer, ctxt uintptr) {
+ 	osPreemptExtEnter(gp.m)
+ 
+ 	// going back to cgo call
+-	reentersyscall(savedpc, uintptr(savedsp), savedbp)
++	reentersyscall(savedpc, uintptr(savedsp), uintptr(savedbp))
+ 
+ 	gp.m.winsyscall = winsyscall
+ }
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index c086c26237..70e432929e 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4426,7 +4426,13 @@ func reentersyscall(pc, sp, bp uintptr) {
+ 	}
+ 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
+ 		systemstack(func() {
+-			print("entersyscall inconsistent ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
++			print("entersyscall inconsistent sp ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
++			throw("entersyscall")
++		})
++	}
++	if gp.syscallbp != 0 && gp.syscallbp < gp.stack.lo || gp.stack.hi < gp.syscallbp {
++		systemstack(func() {
++			print("entersyscall inconsistent bp ", hex(gp.syscallbp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
+ 			throw("entersyscall")
+ 		})
+ 	}
+@@ -4564,14 +4570,20 @@ func entersyscallblock() {
+ 		sp2 := gp.sched.sp
+ 		sp3 := gp.syscallsp
+ 		systemstack(func() {
+-			print("entersyscallblock inconsistent ", hex(sp1), " ", hex(sp2), " ", hex(sp3), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
++			print("entersyscallblock inconsistent sp ", hex(sp1), " ", hex(sp2), " ", hex(sp3), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
+ 			throw("entersyscallblock")
+ 		})
+ 	}
+ 	casgstatus(gp, _Grunning, _Gsyscall)
+ 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
+ 		systemstack(func() {
+-			print("entersyscallblock inconsistent ", hex(sp), " ", hex(gp.sched.sp), " ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
++			print("entersyscallblock inconsistent sp ", hex(sp), " ", hex(gp.sched.sp), " ", hex(gp.syscallsp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
++			throw("entersyscallblock")
++		})
++	}
++	if gp.syscallbp != 0 && gp.syscallbp < gp.stack.lo || gp.stack.hi < gp.syscallbp {
++		systemstack(func() {
++			print("entersyscallblock inconsistent bp ", hex(bp), " ", hex(gp.sched.bp), " ", hex(gp.syscallbp), " [", hex(gp.stack.lo), ",", hex(gp.stack.hi), "]\n")
+ 			throw("entersyscallblock")
+ 		})
+ 	}

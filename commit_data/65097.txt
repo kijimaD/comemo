@@ -1,0 +1,42 @@
+commit 813d9ea524e4d75ef2e4aaa358e8b45ac8b3547c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Oct 20 17:39:31 2024 -0700
+
+    net: document ctx argument to ListenConfig.Listen/ListenPacket
+    
+    Change-Id: I351b88276307c8d21e43b5b992b30b64996d129c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620777
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+---
+ src/net/dial.go | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/net/dial.go b/src/net/dial.go
+index 3098d35b42..db0404c3f8 100644
+--- a/src/net/dial.go
++++ b/src/net/dial.go
+@@ -798,6 +798,9 @@ func (lc *ListenConfig) SetMultipathTCP(use bool) {
+ //
+ // See func Listen for a description of the network and address
+ // parameters.
++//
++// The ctx argument is used while resolving the address on which to listen;
++// it does not affect the returned Listener.
+ func (lc *ListenConfig) Listen(ctx context.Context, network, address string) (Listener, error) {
+ 	addrs, err := DefaultResolver.resolveAddrList(ctx, "listen", network, address, nil)
+ 	if err != nil {
+@@ -832,6 +835,9 @@ func (lc *ListenConfig) Listen(ctx context.Context, network, address string) (Li
+ //
+ // See func ListenPacket for a description of the network and address
+ // parameters.
++//
++// The ctx argument is used while resolving the address on which to listen;
++// it does not affect the returned Listener.
+ func (lc *ListenConfig) ListenPacket(ctx context.Context, network, address string) (PacketConn, error) {
+ 	addrs, err := DefaultResolver.resolveAddrList(ctx, "listen", network, address, nil)
+ 	if err != nil {

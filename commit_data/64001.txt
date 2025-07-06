@@ -1,0 +1,607 @@
+commit e6504ce671afcf0a165be02f9e04f6a99ca08020
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Thu May 23 20:57:32 2024 +0000
+
+    cmd/go: add compatibility tests for go mod tidy -diff
+    
+    For #27005
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest,gotip-windows-amd64-longtest
+    Change-Id: I90ab8c21222ac2189abb40e8c8e7549e2d940dd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587941
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/alldocs.go                              |  6 +-
+ src/cmd/go/internal/modcmd/tidy.go                 |  6 +-
+ src/cmd/go/internal/modfetch/fetch.go              |  2 +-
+ src/cmd/go/internal/modload/load.go                | 10 +--
+ src/cmd/go/testdata/script/mod_tidy_compat.txt     | 22 ++++++
+ .../go/testdata/script/mod_tidy_compat_added.txt   | 20 +++++
+ .../testdata/script/mod_tidy_compat_ambiguous.txt  | 34 +++++++++
+ .../go/testdata/script/mod_tidy_compat_deleted.txt | 25 ++++++
+ .../testdata/script/mod_tidy_compat_implicit.txt   | 20 +++++
+ .../script/mod_tidy_compat_incompatible.txt        | 19 +++++
+ .../testdata/script/mod_tidy_compat_irrelevant.txt | 18 +++++
+ src/cmd/go/testdata/script/mod_tidy_diff.txt       | 55 ++++++++------
+ .../go/testdata/script/mod_tidy_diff_compat.txt    | 88 ----------------------
+ 13 files changed, 204 insertions(+), 121 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 3804d331cb..ad8e17e358 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1367,9 +1367,9 @@
+ // The -e flag causes tidy to attempt to proceed despite errors
+ // encountered while loading packages.
+ //
+-// The -diff flag causes tidy not to modify the files but instead print the
+-// necessary changes as a unified diff. It exits with a non-zero code
+-// if updates are needed.
++// The -diff flag causes tidy not to modify go.mod or go.sum but
++// instead print the necessary changes as a unified diff. It exits
++// with a non-zero code if the diff is not empty.
+ //
+ // The -go flag causes tidy to update the 'go' directive in the go.mod
+ // file to the given version, which may change which module dependencies
+diff --git a/src/cmd/go/internal/modcmd/tidy.go b/src/cmd/go/internal/modcmd/tidy.go
+index 50992c9bfd..2efa33a7c3 100644
+--- a/src/cmd/go/internal/modcmd/tidy.go
++++ b/src/cmd/go/internal/modcmd/tidy.go
+@@ -35,9 +35,9 @@ to standard error.
+ The -e flag causes tidy to attempt to proceed despite errors
+ encountered while loading packages.
+ 
+-The -diff flag causes tidy not to modify the files but instead print the
+-necessary changes as a unified diff. It exits with a non-zero code
+-if updates are needed.
++The -diff flag causes tidy not to modify go.mod or go.sum but
++instead print the necessary changes as a unified diff. It exits
++with a non-zero code if the diff is not empty.
+ 
+ The -go flag causes tidy to update the 'go' directive in the go.mod
+ file to the given version, which may change which module dependencies
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index 455deded54..ad4eb8ecd2 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -898,7 +898,7 @@ func TidyGoSum(keep map[module.Version]bool) (before, after []byte) {
+ 	return before, after
+ }
+ 
+-// tidyGoSum will return a tidy version of the go.sum file.
++// tidyGoSum returns a tidy version of the go.sum file.
+ // The goSum lock must be held.
+ func tidyGoSum(data []byte, keep map[module.Version]bool) []byte {
+ 	if !goSum.overwrite {
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index bb232eb04b..5b0ecee09a 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -155,9 +155,9 @@ type PackageOpts struct {
+ 	// packages.
+ 	Tidy bool
+ 
+-	// TidyDiff, if true, analyzes the necessary changes to go.mod and go.sum
+-	// to make them tidy. It does not modify these files, but exits with
+-	// a non-zero code if updates are needed.
++	// TidyDiff, if true, causes tidy not to modify go.mod or go.sum but
++	// instead print the necessary changes as a unified diff. It exits
++	// with a non-zero code if the diff is not empty.
+ 	TidyDiff bool
+ 
+ 	// TidyCompatibleVersion is the oldest Go version that must be able to
+@@ -445,7 +445,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 			if err != nil {
+ 				base.Fatal(err)
+ 			}
+-			goModDiff := diff.Diff("current go.mod", currentGoMod, "tidy go.mod", updatedGoMod)
++			goModDiff := diff.Diff("current/go.mod", currentGoMod, "tidy/go.mod", updatedGoMod)
+ 
+ 			modfetch.TrimGoSum(keep)
+ 			// Dropping compatibility for 1.16 may result in a strictly smaller go.sum.
+@@ -454,7 +454,7 @@ func LoadPackages(ctx context.Context, opts PackageOpts, patterns ...string) (ma
+ 				keep = keepSums(ctx, loaded, requirements, addBuildListZipSums)
+ 			}
+ 			currentGoSum, tidyGoSum := modfetch.TidyGoSum(keep)
+-			goSumDiff := diff.Diff("current go.sum", currentGoSum, "tidy go.sum", tidyGoSum)
++			goSumDiff := diff.Diff("current/go.sum", currentGoSum, "tidy/go.sum", tidyGoSum)
+ 
+ 			if len(goModDiff) > 0 {
+ 				fmt.Println(string(goModDiff))
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat.txt b/src/cmd/go/testdata/script/mod_tidy_compat.txt
+index 724c83e14e..0a9d2ff843 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat.txt
+@@ -30,6 +30,17 @@ cp go.mod go.mod.orig
+ go mod tidy
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] mv go.mod go.mod.tidyResult
++[exec:patch] mv go.sum go.sum.tidyResult
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! go mod tidy -diff
++[exec:patch] cp stdout diff.patch
++[exec:patch] exec patch -p1 -i diff.patch
++[exec:patch] go mod tidy -diff
++[exec:patch] cmp go.mod go.mod.tidyResult
++[exec:patch] cmp go.sum go.sum.tidyResult
++
+ go list -m all
+ cmp stdout m_all.txt
+ 
+@@ -45,6 +56,17 @@ cp go.mod.orig go.mod
+ go mod tidy -compat=1.17
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] mv go.mod go.mod.tidyResult
++[exec:patch] mv go.sum go.sum.tidyResult
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! go mod tidy -compat=1.17 -diff
++[exec:patch] cp stdout diff.patch
++[exec:patch] exec patch -p1 -i diff.patch
++[exec:patch] go mod tidy -compat=1.17 -diff
++[exec:patch] cmp go.mod go.mod.tidyResult
++[exec:patch] cmp go.sum go.sum.tidyResult
++
+ go list -m all
+ cmp stdout m_all.txt
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_added.txt b/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
+index b3f75adfe9..0831d0f085 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_added.txt
+@@ -21,6 +21,12 @@ stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/a
+ 
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! exists go.sum
++[exec:patch] ! go mod tidy -diff
++[exec:patch] ! stdout .
++[exec:patch] stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added$'
+ 
+ # When we run 'go mod tidy -e', we should proceed past the first error and follow
+ # it with a second error describing the version discrepancy.
+@@ -37,6 +43,20 @@ stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/a
+ 
+ cmp go.mod go.mod.tidy
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] cp go.mod go.mod.tidyResult
++[exec:patch] ! exists go.sum
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! go mod tidy -e -diff
++[exec:patch] stdout 'diff current/go.mod tidy/go.mod'
++[exec:patch] stderr '^go: example\.com/m imports\n\texample\.net/added: module example\.net/added@latest found \(v0\.3\.0, replaced by \./a1\), but does not contain package example\.net/added\ngo: example\.net/added failed to load from any module,\n\tbut go 1\.16 would load it from example\.net/added@v0\.2\.0$'
++[exec:patch] ! stderr '\n\tgo mod tidy'
++[exec:patch] cp stdout diff.patch
++[exec:patch] exec patch -p1 -i diff.patch
++[exec:patch] go mod tidy -e -diff
++[exec:patch] ! stdout .
++[exec:patch] cmp go.mod go.mod.tidyResult
++[exec:patch] ! exists go.sum
+ 
+ -- go.mod --
+ module example.com/m
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+index 5316220f62..28d9c1f2f6 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_ambiguous.txt
+@@ -27,6 +27,14 @@ stderr '\n\nTo proceed despite packages unresolved in go 1\.16:\n\tgo mod tidy -
+ 
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! exists go.sum
++[exec:patch] ! go mod tidy -diff
++[exec:patch] ! stdout .
++[exec:patch] stderr '^go: example\.com/m imports\n\texample\.net/indirect imports\n\texample\.net/ambiguous/nested/pkg loaded from example\.net/ambiguous/nested@v0\.1\.0,\n\tbut go 1.16 would fail to locate it:\n\tambiguous import: found package example\.net/ambiguous/nested/pkg in multiple modules:\n\texample\.net/ambiguous v0.1.0 \(.*\)\n\texample\.net/ambiguous/nested v0.1.0 \(.*\)\n\n'
++[exec:patch] stderr '\n\nTo proceed despite packages unresolved in go 1\.16:\n\tgo mod tidy -e\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
++
+ 
+ # If we run 'go mod tidy -e', we should still save enough checksums to run
+ # 'go list -m all' reproducibly with go 1.16, even though we can't list
+@@ -36,6 +44,19 @@ go mod tidy -e
+ ! stderr '\n\tgo mod tidy'
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] mv go.mod go.mod.tidyResult
++[exec:patch] mv go.sum go.sum.tidyResult
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! go mod tidy -e -diff
++[exec:patch] ! stderr '\n\tgo mod tidy'
++[exec:patch] cp stdout diff.patch
++[exec:patch] exec patch -p1 -i diff.patch
++[exec:patch] go mod tidy -e -diff
++[exec:patch] ! stdout .
++[exec:patch] cmp go.mod go.mod.tidyResult
++[exec:patch] cmp go.sum go.sum.tidyResult
++
+ go list -m all
+ cmp stdout all-m.txt
+ 
+@@ -60,6 +81,19 @@ go mod tidy -compat=1.17
+ go list -m all
+ cmp stdout all-m.txt
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] mv go.mod go.mod.tidyResult
++[exec:patch] mv go.sum go.sum.tidyResult
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! go mod tidy -compat=1.17 -diff
++[exec:patch] ! stderr .
++[exec:patch] cp stdout diff.patch
++[exec:patch] exec patch -p1 -i diff.patch
++[exec:patch] go mod tidy -compat=1.17 -diff
++[exec:patch] ! stdout .
++[exec:patch] cmp go.mod go.mod.tidyResult
++[exec:patch] cmp go.sum go.sum.tidyResult
++
+ go mod edit -go=1.16
+ ! go list -m all
+ stderr '^go: example\.net/indirect@v0\.1\.0 requires\n\texample\.net/ambiguous@v0\.1\.0: missing go\.sum entry for go\.mod file; to add it:\n\tgo mod download example\.net/ambiguous\n'
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt b/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt
+index b148fc1c01..28342ec269 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_deleted.txt
+@@ -21,12 +21,30 @@ stderr '^go: example\.com/m imports\n\texample\.net/deleted loaded from example\
+ 
+ stderr '\n\nTo upgrade to the versions selected by go 1.16, leaving some packages unresolved:\n\tgo mod tidy -e -go=1\.16 && go mod tidy -e -go=1\.17\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! exists go.sum
++[exec:patch] ! go mod tidy -diff
++[exec:patch] ! stdout .
++[exec:patch] stderr '^go: example\.com/m imports\n\texample\.net/deleted loaded from example\.net/deleted@v0\.1\.0,\n\tbut go 1\.16 would fail to locate it in example\.net/deleted@v0\.2\.0\n\n'
++[exec:patch] stderr '\n\nTo upgrade to the versions selected by go 1.16, leaving some packages unresolved:\n\tgo mod tidy -e -go=1\.16 && go mod tidy -e -go=1\.17\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1\.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
+ 
+ # The suggested 'go mod tidy -e' command should proceed anyway.
+ 
+ go mod tidy -e
+ cmp go.mod go.mod.tidy
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] cp go.mod go.mod.tidyResult
++[exec:patch] ! exists go.sum
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! go mod tidy -e -diff
++[exec:patch] cp stdout diff.patch
++[exec:patch] exec patch -p1 -i diff.patch
++[exec:patch] go mod tidy -e -diff
++[exec:patch] ! stdout .
++[exec:patch] cmp go.mod go.mod.tidyResult
++[exec:patch] ! exists go.sum
+ 
+ # In 'go 1.16' mode we should error out in the way we claimed.
+ 
+@@ -39,9 +57,16 @@ go mod edit -go=1.16
+ ! go list -deps -f $MODFMT example.com/m
+ stderr '^go: updates to go\.mod needed; to update it:\n\tgo mod tidy$'
+ 
++[exec:patch] cp go.mod go.mod.orig
+ ! go mod tidy
+ stderr '^go: example\.com/m imports\n\texample\.net/deleted: module example\.net/deleted@latest found \(v0\.2\.0, replaced by \./d2\), but does not contain package example\.net/deleted$'
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! exists go.sum
++[exec:patch] ! go mod tidy -diff
++[exec:patch] ! stdout .
++[exec:patch] stderr '^go: example\.com/m imports\n\texample\.net/deleted: module example\.net/deleted@latest found \(v0\.2\.0, replaced by \./d2\), but does not contain package example\.net/deleted$'
+ 
+ -- go.mod --
+ module example.com/m
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt b/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
+index 26e4749203..c98e343d6e 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_implicit.txt
+@@ -37,6 +37,14 @@ stderr '\n\nTo upgrade to the versions selected by go 1\.16:\n\tgo mod tidy -go=
+ 
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! exists go.sum
++[exec:patch] ! go mod tidy -diff
++[exec:patch] ! stdout .
++[exec:patch] stderr '^go: example\.com/m imports\n\texample\.net/lazy tested by\n\texample\.net/lazy.test imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
++[exec:patch] stderr '\n\nTo upgrade to the versions selected by go 1\.16:\n\tgo mod tidy -go=1\.16 && go mod tidy -go=1\.17\nIf reproducibility with go 1.16 is not needed:\n\tgo mod tidy -compat=1.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
++
+ # The suggested '-compat' flag to ignore differences should silence the error
+ # and leave go.mod unchanged, resulting in checksum errors when Go 1.16 tries
+ # to load a module pruned out by Go 1.17.
+@@ -45,6 +53,18 @@ go mod tidy -compat=1.17
+ ! stderr .
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] mv go.mod go.mod.tidyResult
++[exec:patch] mv go.sum go.sum.tidyResult
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! go mod tidy -compat=1.17 -diff
++[exec:patch] cp stdout diff.patch
++[exec:patch] exec patch -p1 -i diff.patch
++[exec:patch] go mod tidy -compat=1.17 -diff
++[exec:patch] ! stdout .
++[exec:patch] cmp go.mod go.mod.tidyResult
++[exec:patch] cmp go.sum go.sum.tidyResult
++
+ go list -deps -test -f $MODFMT ./...
+ stdout '^example.net/lazy v0.1.0$'
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+index 9e2a9ee29e..15d50317e8 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_incompatible.txt
+@@ -37,6 +37,13 @@ stderr '\n\nTo upgrade to the versions selected by go 1\.16:\n\tgo mod tidy -go=
+ 
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! exists go.sum
++[exec:patch] ! go mod tidy -diff
++[exec:patch] ! stdout .
++[exec:patch] stderr '^go: example\.com/m imports\n\texample\.net/lazy imports\n\texample\.com/retract/incompatible loaded from example\.com/retract/incompatible@v1\.0\.0,\n\tbut go 1\.16 would select v2\.0\.0\+incompatible\n\n'
++[exec:patch] stderr '\n\nTo upgrade to the versions selected by go 1\.16:\n\tgo mod tidy -go=1\.16 && go mod tidy -go=1\.17\nIf reproducibility with go 1\.16 is not needed:\n\tgo mod tidy -compat=1.17\nFor other options, see:\n\thttps://golang\.org/doc/modules/pruning\n'
+ 
+ # The suggested '-compat' flag to ignore differences should silence the error
+ # and leave go.mod unchanged, resulting in checksum errors when Go 1.16 tries
+@@ -46,6 +53,18 @@ go mod tidy -compat=1.17
+ ! stderr .
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] mv go.mod go.mod.tidyResult
++[exec:patch] mv go.sum go.sum.tidyResult
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! go mod tidy -compat=1.17 -diff
++[exec:patch] cp stdout diff.patch
++[exec:patch] exec patch -p1 -i diff.patch
++[exec:patch] go mod tidy -compat=1.17 -diff
++[exec:patch] ! stdout .
++[exec:patch] cmp go.mod go.mod.tidyResult
++[exec:patch] cmp go.sum go.sum.tidyResult
++
+ go mod edit -go=1.16
+ ! go list -f $MODFMT -deps ./...
+ stderr -count=1 '^go: example\.net/lazy@v0\.1\.0 requires\n\texample\.net/requireincompatible@v0\.1\.0 requires\n\texample\.com/retract/incompatible@v2\.0\.0\+incompatible: missing go.sum entry for go.mod file; to add it:\n\tgo mod download example.com/retract/incompatible$'
+diff --git a/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt b/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
+index e4eaea0dd6..75c16d1918 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_compat_irrelevant.txt
+@@ -27,6 +27,18 @@ cp go.mod go.mod.orig
+ go mod tidy
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] mv go.mod go.mod.tidyResult
++[exec:patch] mv go.sum go.sum.tidyResult
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] ! go mod tidy -diff
++[exec:patch] cp stdout diff.patch
++[exec:patch] exec patch -p1 -i diff.patch
++[exec:patch] go mod tidy -diff
++[exec:patch] ! stdout .
++[exec:patch] cmp go.mod go.mod.tidyResult
++[exec:patch] cmp go.sum go.sum.tidyResult
++
+ go list -deps -test -f $MODFMT all
+ cp stdout out-117.txt
+ 
+@@ -42,6 +54,12 @@ cp go.mod.orig go.mod
+ go mod tidy -compat=1.17
+ cmp go.mod go.mod.orig
+ 
++# Make sure that -diff behaves the same as tidy.
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] rm go.sum
++[exec:patch] go mod tidy -compat=1.17 -diff
++[exec:patch] ! stdout .
++
+ go list -deps -test -f $MODFMT all
+ cmp stdout out-117.txt
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_diff.txt b/src/cmd/go/testdata/script/mod_tidy_diff.txt
+index 336dcb41f4..23138b7032 100644
+--- a/src/cmd/go/testdata/script/mod_tidy_diff.txt
++++ b/src/cmd/go/testdata/script/mod_tidy_diff.txt
+@@ -7,8 +7,8 @@
+ ! go mod tidy -diff
+ ! exists go.mod
+ ! exists go.sum
+-! stdout 'diff current go.mod tidy go.mod'
+-! stdout 'diff current go.sum tidy go.sum'
++! stdout 'diff current/go.mod tidy/go.mod'
++! stdout 'diff current/go.sum tidy/go.sum'
+ stderr 'go.mod file not found'
+ 
+ # Missing go.mod and existing go.sum should fail and not display diff.
+@@ -17,8 +17,8 @@ cp go.sum.orig go.sum
+ exists go.sum
+ ! go mod tidy -diff
+ ! exists go.mod
+-! stdout 'diff current go.mod tidy go.mod'
+-! stdout 'diff current go.sum tidy go.sum'
++! stdout 'diff current/go.mod tidy/go.mod'
++! stdout 'diff current/go.sum tidy/go.sum'
+ stderr 'go.mod file not found'
+ 
+ # Existing go.mod and missing go.sum should display diff.
+@@ -29,46 +29,59 @@ exists go.mod
+ ! exists go.sum
+ ! go mod tidy -diff
+ ! exists go.sum
+-! stdout 'diff current go.mod tidy go.mod'
+-stdout 'diff current go.sum tidy go.sum'
++! stdout 'diff current/go.mod tidy/go.mod'
++stdout 'diff current/go.sum tidy/go.sum'
+ 
+ # Everything is tidy, should return zero exit code.
+ go mod tidy
+ go mod tidy -diff
+-! stdout 'diff current go.mod tidy go.mod'
+-! stdout 'diff current go.sum tidy go.sum'
++! stdout 'diff current/go.mod tidy/go.mod'
++! stdout 'diff current/go.sum tidy/go.sum'
+ 
+ # go.mod requires updates, should return non-zero exit code.
+ cp go.mod.orig go.mod
+ ! go mod tidy -diff
++stdout 'diff current/go.mod tidy/go.mod'
++! stdout 'diff current/go.sum tidy/go.sum'
+ cmp go.mod.orig go.mod
+-stdout 'diff current go.mod tidy go.mod'
+-! stdout 'diff current go.sum tidy go.sum'
+ 
+ # go.sum requires updates, should return non-zero exit code.
+ go mod tidy
+ cp go.sum.orig go.sum
+ ! go mod tidy -diff
++! stdout 'diff current/go.mod tidy/go.mod'
++stdout 'diff current/go.sum tidy/go.sum'
+ cmp go.sum.orig go.sum
+-! stdout 'diff current go.mod tidy go.mod'
+-stdout 'diff current go.sum tidy go.sum'
+ 
+ # go.mod and go.sum require updates, should return non-zero exit code.
+ cp go.mod.orig go.mod
+ cp go.sum.orig go.sum
+ ! go mod tidy -diff
+-stdout '^\+\s*require rsc.io/quote v1.5.2'
+-stdout '^\+\s*golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c // indirect'
+-stdout '^\+\s*rsc.io/sampler v1.3.0 // indirect'
+-stdout '^\+\s*rsc.io/testonly v1.0.0 // indirect'
+-stdout '.*\+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c h1:pvCbr/wm8HzDD3fVywevekufpn6tCGPY3spdHeZJEsw='
+-stdout '.*\+golang.org/x/text v0.0.0-20170915032832-14c0d48ead0c/go.mod h1:NqM8EUOU14njkJ3fqMW\+pc6Ldnwhi/IjpwHt7yyuwOQ='
+-! stdout '^\+rsc.io/quote v1.5.2 h1:3fEykkD9k7lYzXqCYrwGAf7iNhbk4yCjHmKBN9td4L0='
+-stdout '^\+rsc.io/sampler v1.3.0 h1:HLGR/BgEtI3r0uymSP/nl2uPLsUnNJX8toRyhfpBTII='
+-stdout '^\+rsc.io/sampler v1.3.0/go.mod h1:T1hPZKmBbMNahiBKFy5HrXp6adAjACjK9JXDnKaTXpA='
++stdout 'diff current/go.mod tidy/go.mod'
++stdout 'diff current/go.sum tidy/go.sum'
+ cmp go.mod.orig go.mod
+ cmp go.sum.orig go.sum
+ 
++# Save the result from running tidy.
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] cp go.sum.orig go.sum
++[exec:patch] go mod tidy
++[exec:patch] cp go.mod go.mod.tidyResult
++[exec:patch] cp go.sum go.sum.tidyResult
++
++# Compare output of -diff to running tidy.
++# Apply the patch from -diff
++[exec:patch] cp go.mod.orig go.mod
++[exec:patch] cp go.sum.orig go.sum
++[exec:patch] ! go mod tidy -diff
++[exec:patch] cp stdout diff.patch
++[exec:patch] exec patch -p1 -i diff.patch
++[exec:patch] go mod tidy -diff
++[exec:patch] ! stdout .
++[exec:patch] cmp go.mod go.mod.tidyResult
++[exec:patch] cmp go.sum go.sum.tidyResult
++
++
+ -- main.go --
+ package main
+ 
+diff --git a/src/cmd/go/testdata/script/mod_tidy_diff_compat.txt b/src/cmd/go/testdata/script/mod_tidy_diff_compat.txt
+deleted file mode 100644
+index abba139fe0..0000000000
+--- a/src/cmd/go/testdata/script/mod_tidy_diff_compat.txt
++++ /dev/null
+@@ -1,88 +0,0 @@
+-# https://golang.org/issue/27005 and https://golang.org/issue/46141:
+-# This test covers the interaction between -diff and -compat.
+-# This test is based on mod_tidy_compat.txt
+-# The tidy go.mod produced to be diffed with the current go.mod with -compat
+-# should by default preserve enough checksums for the module to be used by Go 1.16.
+-#
+-# We don't have a copy of Go 1.16 handy, but we can simulate it by editing the
+-# 'go' version in the go.mod file to 1.16, without actually updating the
+-# requirements to match.
+-
+-[short] skip
+-
+-env MODFMT='{{with .Module}}{{.Path}} {{.Version}}{{end}}'
+-
+-
+-# This module has the same module dependency graph in Go 1.16 as in Go 1.17,
+-# but in 1.16 requires (checksums for) additional (irrelevant) go.mod files.
+-#
+-# The module graph under both versions looks like:
+-#
+-# m ---- example.com/version v1.1.0
+-# |
+-# + ---- example.net/lazy v0.1.0 ---- example.com/version v1.0.1
+-#
+-# Go 1.17 avoids loading the go.mod file for example.com/version v1.0.1
+-# (because it is lower than the version explicitly required by m,
+-# and the module that requires it — m — specifies 'go 1.17').
+-#
+-# That go.mod file happens not to affect the final 1.16 module graph anyway,
+-# so the pruned graph is equivalent to the unpruned one.
+-
+-cp go.mod go.mod.orig
+-! go mod tidy -diff
+-stdout 'diff current go.sum tidy go.sum'
+-stdout '\+example.com/version v1.0.1/go.mod h1:S7K9BnT4o5wT4PCczXPfWVzpjD4ud4e7AJMQJEgiu2Q='
+-stdout '\+example.com/version v1.1.0 h1:VdPnGmIF1NJrntStkxGrF3L/OfhaL567VzCjncGUgtM='
+-stdout '\+example.com/version v1.1.0/go.mod h1:S7K9BnT4o5wT4PCczXPfWVzpjD4ud4e7AJMQJEgiu2Q='
+-! stdout 'diff current go.mod tidy go.mod'
+-go mod tidy
+-cmp go.mod go.mod.orig
+-
+-
+-# If we explicitly drop compatibility with 1.16, we retain fewer checksums,
+-# which gives a cleaner go.sum file but causes 1.16 to fail in readonly mode.
+-
+-cp go.mod.orig go.mod
+-! go mod tidy -compat=1.17 -diff
+-stdout 'diff current go.sum tidy go.sum'
+-stdout '\-example.com/version v1.0.1/go.mod h1:S7K9BnT4o5wT4PCczXPfWVzpjD4ud4e7AJMQJEgiu2Q='
+-go mod tidy -compat=1.17
+-cmp go.mod go.mod.orig
+-
+--- go.mod --
+-// Module m happens to have the exact same build list as what would be
+-// selected under Go 1.16, but computes that build list without looking at
+-// as many go.mod files.
+-module example.com/m
+-
+-go 1.17
+-
+-replace example.net/lazy v0.1.0 => ./lazy
+-
+-require (
+-	example.com/version v1.1.0
+-	example.net/lazy v0.1.0
+-)
+--- compatible.go --
+-package compatible
+-
+-import (
+-	_ "example.com/version"
+-	_ "example.net/lazy"
+-)
+--- lazy/go.mod --
+-// Module lazy requires example.com/version v1.0.1.
+-//
+-// However, since this module is lazy, its dependents
+-// should not need checksums for that version of the module
+-// unless they actually import packages from it.
+-module example.net/lazy
+-
+-go 1.17
+-
+-require example.com/version v1.0.1
+--- lazy/lazy.go --
+-package lazy
+-
+-import _ "example.com/version"

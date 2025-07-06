@@ -1,0 +1,36 @@
+commit bdc2d856a872f42705b3a7045c3420031efa4af7
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Tue Jan 14 21:29:50 2025 +0100
+
+    cmd/compile: use isGenericIntConst() in prove
+    
+    Use the existing Value method to make it a bit shorter.
+    
+    Change-Id: I47c4328b5241ab48b3490a04a3d93d4428f7b88c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssa/prove.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index c3948dc9b1..8d0bb73d4c 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1362,11 +1362,11 @@ func prove(f *Func) {
+ 			start, end = end, start
+ 		}
+ 
+-		if !(start.Op == OpConst8 || start.Op == OpConst16 || start.Op == OpConst32 || start.Op == OpConst64) {
++		if !start.isGenericIntConst() {
+ 			// if start is not a constant we would be winning nothing from inverting the loop
+ 			continue
+ 		}
+-		if end.Op == OpConst8 || end.Op == OpConst16 || end.Op == OpConst32 || end.Op == OpConst64 {
++		if end.isGenericIntConst() {
+ 			// TODO: if both start and end are constants we should rewrite such that the comparison
+ 			// is against zero and nxt is ++ or -- operation
+ 			// That means:

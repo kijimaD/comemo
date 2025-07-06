@@ -1,0 +1,83 @@
+commit 7d2e3da2432f3030e282ef88793d03c86d3b8d17
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Nov 12 20:14:31 2024 -0800
+
+    cmd/compile: remove redundant nil checks
+    
+    Optimize them away if we can.
+    
+    If not, be more careful about splicing them out after scheduling.
+    
+    Change-Id: I660e54649d753dc456d2e25d389d375a16d76940
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627418
+    Reviewed-by: Shengwei Zhao <wingrez@126.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  4 ++++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 10 ++++++++++
+ src/cmd/compile/internal/ssa/schedule.go        | 10 ++++++----
+ 3 files changed, 20 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 2c79c9dcb0..9a2bb96a1b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2065,6 +2065,10 @@
+ (NilCheck          ptr:(Addr {_} (SB))    _) => ptr
+ (NilCheck ptr:(Convert (Addr {_} (SB)) _) _) => ptr
+ 
++// Nil checks of nil checks are redundant.
++// See comment at the end of https://go-review.googlesource.com/c/go/+/537775.
++(NilCheck ptr:(NilCheck _ _) _ ) => ptr
++
+ // for late-expanded calls, recognize memequal applied to a single constant byte
+ // Support is limited by 1, 2, 4, 8 byte sizes
+ (StaticLECall {callAux} sptr (Addr {scon} (SB)) (Const64 [1]) mem)
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 5919937981..e4d6b45cf2 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -20535,6 +20535,16 @@ func rewriteValuegeneric_OpNilCheck(v *Value) bool {
+ 		v.copyOf(ptr)
+ 		return true
+ 	}
++	// match: (NilCheck ptr:(NilCheck _ _) _ )
++	// result: ptr
++	for {
++		ptr := v_0
++		if ptr.Op != OpNilCheck {
++			break
++		}
++		v.copyOf(ptr)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpNot(v *Value) bool {
+diff --git a/src/cmd/compile/internal/ssa/schedule.go b/src/cmd/compile/internal/ssa/schedule.go
+index ffdcedef08..bce0108dcb 100644
+--- a/src/cmd/compile/internal/ssa/schedule.go
++++ b/src/cmd/compile/internal/ssa/schedule.go
+@@ -314,14 +314,16 @@ func schedule(f *Func) {
+ 	for _, b := range f.Blocks {
+ 		for _, v := range b.Values {
+ 			for i, a := range v.Args {
+-				if a.Op == OpSPanchored || opcodeTable[a.Op].nilCheck {
+-					v.SetArg(i, a.Args[0])
++				for a.Op == OpSPanchored || opcodeTable[a.Op].nilCheck {
++					a = a.Args[0]
++					v.SetArg(i, a)
+ 				}
+ 			}
+ 		}
+ 		for i, c := range b.ControlValues() {
+-			if c.Op == OpSPanchored || opcodeTable[c.Op].nilCheck {
+-				b.ReplaceControl(i, c.Args[0])
++			for c.Op == OpSPanchored || opcodeTable[c.Op].nilCheck {
++				c = c.Args[0]
++				b.ReplaceControl(i, c)
+ 			}
+ 		}
+ 	}

@@ -1,0 +1,90 @@
+commit a1c3e24b5466ede5dd2d817cadc6d91d1ae56f18
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 18:19:44 2024 -0700
+
+    cmd/internal/objabi: use sync.OnceValue
+    
+    Change-Id: I09c134fff728d32c5bc475889b8c673cc18120a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611041
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/internal/objabi/pkgspecial.go | 63 +++++++++++++++++------------------
+ 1 file changed, 30 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index f288096a02..0cf2e64e80 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -91,39 +91,36 @@ var allowAsmABIPkgs = []string{
+ 	"runtime/internal/startlinetest",
+ }
+ 
+-var (
+-	pkgSpecials     map[string]PkgSpecial
+-	pkgSpecialsOnce sync.Once
+-)
+-
+ // LookupPkgSpecial returns special build properties for the given package path.
+ func LookupPkgSpecial(pkgPath string) PkgSpecial {
+-	pkgSpecialsOnce.Do(func() {
+-		// Construct pkgSpecials from various package lists. This lets us use
+-		// more flexible logic, while keeping the final map simple, and avoids
+-		// the init-time cost of a map.
+-		pkgSpecials = make(map[string]PkgSpecial)
+-		set := func(elt string, f func(*PkgSpecial)) {
+-			s := pkgSpecials[elt]
+-			f(&s)
+-			pkgSpecials[elt] = s
+-		}
+-		for _, pkg := range runtimePkgs {
+-			set(pkg, func(ps *PkgSpecial) { ps.Runtime = true; ps.NoInstrument = true })
+-		}
+-		for _, pkg := range extraNoInstrumentPkgs {
+-			if pkg[0] == '-' {
+-				set(pkg[1:], func(ps *PkgSpecial) { ps.NoInstrument = false })
+-			} else {
+-				set(pkg, func(ps *PkgSpecial) { ps.NoInstrument = true })
+-			}
+-		}
+-		for _, pkg := range noRaceFuncPkgs {
+-			set(pkg, func(ps *PkgSpecial) { ps.NoRaceFunc = true })
+-		}
+-		for _, pkg := range allowAsmABIPkgs {
+-			set(pkg, func(ps *PkgSpecial) { ps.AllowAsmABI = true })
+-		}
+-	})
+-	return pkgSpecials[pkgPath]
++	return pkgSpecialsOnce()[pkgPath]
+ }
++
++var pkgSpecialsOnce = sync.OnceValue(func() map[string]PkgSpecial {
++	// Construct pkgSpecials from various package lists. This lets us use
++	// more flexible logic, while keeping the final map simple, and avoids
++	// the init-time cost of a map.
++	pkgSpecials := make(map[string]PkgSpecial)
++	set := func(elt string, f func(*PkgSpecial)) {
++		s := pkgSpecials[elt]
++		f(&s)
++		pkgSpecials[elt] = s
++	}
++	for _, pkg := range runtimePkgs {
++		set(pkg, func(ps *PkgSpecial) { ps.Runtime = true; ps.NoInstrument = true })
++	}
++	for _, pkg := range extraNoInstrumentPkgs {
++		if pkg[0] == '-' {
++			set(pkg[1:], func(ps *PkgSpecial) { ps.NoInstrument = false })
++		} else {
++			set(pkg, func(ps *PkgSpecial) { ps.NoInstrument = true })
++		}
++	}
++	for _, pkg := range noRaceFuncPkgs {
++		set(pkg, func(ps *PkgSpecial) { ps.NoRaceFunc = true })
++	}
++	for _, pkg := range allowAsmABIPkgs {
++		set(pkg, func(ps *PkgSpecial) { ps.AllowAsmABI = true })
++	}
++	return pkgSpecials
++})

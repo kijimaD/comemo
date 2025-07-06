@@ -1,0 +1,31 @@
+commit c71d2a8d8fcb50ed8ab0e1c4af211a0dcea16a75
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sun Apr 14 10:06:49 2024 +0000
+
+    cmd/cover: fix typo in comment
+    
+    Change-Id: I7507e6cff00d027fd7840e0661499efc63353f6e
+    GitHub-Last-Rev: 81348ed39d055e445d943eedfe4b4db3a1fd73d8
+    GitHub-Pull-Request: golang/go#66820
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578441
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cover/cfg_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/cover/cfg_test.go b/src/cmd/cover/cfg_test.go
+index 701de615d0..edae129d3d 100644
+--- a/src/cmd/cover/cfg_test.go
++++ b/src/cmd/cover/cfg_test.go
+@@ -169,7 +169,7 @@ func TestCoverOnPackageWithNoTestFiles(t *testing.T) {
+ 	// For packages with no test files, the new "go test -cover"
+ 	// strategy is to run cmd/cover on the package in a special
+ 	// "EmitMetaFile" mode. When running in this mode, cmd/cover walks
+-	// the package doing instrumention, but when finished, instead of
++	// the package doing instrumentation, but when finished, instead of
+ 	// writing out instrumented source files, it directly emits a
+ 	// meta-data file for the package in question, essentially
+ 	// simulating the effect that you would get if you added a dummy

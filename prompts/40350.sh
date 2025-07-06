@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40350: f4a5ae5594a21ea276d473fe9f804a30adbd8d07
+# Index 40350: da6294a35abfb62825da3e27b8ba998e71a4d81d
 
 echo "🚀 Generating explanation for commit 40350..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40350..."
 
 ### メタデータ
 - **コミットインデックス**: 40350
-- **コミットハッシュ**: f4a5ae5594a21ea276d473fe9f804a30adbd8d07
-- **GitHub URL**: https://github.com/golang/go/commit/f4a5ae5594a21ea276d473fe9f804a30adbd8d07
+- **コミットハッシュ**: da6294a35abfb62825da3e27b8ba998e71a4d81d
+- **GitHub URL**: https://github.com/golang/go/commit/da6294a35abfb62825da3e27b8ba998e71a4d81d
 
 ### 章構成
 

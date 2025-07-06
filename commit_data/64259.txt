@@ -1,0 +1,43 @@
+commit 00cb41e14da0e6ead5b9916e77753b58cbf1be69
+Author: Darren <darren@develer.co.uk>
+Date:   Fri Jul 19 09:19:18 2024 +0000
+
+    flag: handle nil os.Args when setting CommandLine at package level
+    
+    Fixes #68340
+    
+    Change-Id: I65037be6961e9ec720537713cb3f23ab9f5f8459
+    GitHub-Last-Rev: fadcb299c383abdde000daec58b12019a75012c6
+    GitHub-Pull-Request: golang/go#68341
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597075
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+---
+ src/flag/flag.go | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/flag/flag.go b/src/flag/flag.go
+index 4fa502839a..bda1e1a9b8 100644
+--- a/src/flag/flag.go
++++ b/src/flag/flag.go
+@@ -1196,9 +1196,16 @@ func Parsed() bool {
+ // CommandLine is the default set of command-line flags, parsed from [os.Args].
+ // The top-level functions such as [BoolVar], [Arg], and so on are wrappers for the
+ // methods of CommandLine.
+-var CommandLine = NewFlagSet(os.Args[0], ExitOnError)
++var CommandLine *FlagSet
+ 
+ func init() {
++	// It's possible for execl to hand us an empty os.Args.
++	if len(os.Args) == 0 {
++		CommandLine = NewFlagSet("", ExitOnError)
++	} else {
++		CommandLine = NewFlagSet(os.Args[0], ExitOnError)
++	}
++
+ 	// Override generic FlagSet default Usage with call to global Usage.
+ 	// Note: This is not CommandLine.Usage = Usage,
+ 	// because we want any eventual call to use any updated value of Usage,

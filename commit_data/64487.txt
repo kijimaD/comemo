@@ -1,0 +1,193 @@
+commit 83d9afefead685d9da8e993e064cbe695111110c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Aug 6 13:49:42 2024 +0200
+
+    crypto/internal/boring: upgrade module to fips-20220613 / certificate 4735
+    
+    Reapplies CL 549695 now that the certificate was issued.
+    
+    Updates #64717
+    Updates #62372
+    
+    Change-Id: Ie37abed5c5aceac435d92397ed626dfeefabe5ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603375
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/crypto/internal/boring/Dockerfile              |  37 ++++++++++++++++-----
+ src/crypto/internal/boring/LICENSE                 |   2 +-
+ src/crypto/internal/boring/README.md               |   7 ++--
+ src/crypto/internal/boring/build-boring.sh         |   4 +--
+ src/crypto/internal/boring/build-goboring.sh       |   2 +-
+ src/crypto/internal/boring/build.sh                |   6 ++++
+ src/crypto/internal/boring/goboringcrypto.h        |   2 ++
+ .../boring/syso/goboringcrypto_linux_amd64.syso    | Bin 2555664 -> 2429120 bytes
+ .../boring/syso/goboringcrypto_linux_arm64.syso    | Bin 1980296 -> 2107832 bytes
+ 9 files changed, 44 insertions(+), 16 deletions(-)
+
+diff --git a/src/crypto/internal/boring/Dockerfile b/src/crypto/internal/boring/Dockerfile
+index 58eb028e8a..263692b288 100644
+--- a/src/crypto/internal/boring/Dockerfile
++++ b/src/crypto/internal/boring/Dockerfile
+@@ -13,11 +13,18 @@ WORKDIR /boring
+ ENV LANG=C
+ ENV LANGUAGE=
+ 
+-# Following NIST submission draft dated July 3, 2021.
+-# This corresponds to boringssl.googlesource.com/boringssl tag fips-20210429.
+-ENV ClangV=12
++# Following the Security Policy for FIPS 140 certificate #4735.
++# https://csrc.nist.gov/CSRC/media/projects/cryptographic-module-validation-program/documents/security-policies/140sp4735.pdf
++# This corresponds to boringssl.googlesource.com/boringssl tag fips-20220613.
+ RUN apt-get update && \
+-        apt-get install --no-install-recommends -y cmake xz-utils wget unzip ca-certificates clang-$ClangV python
++        apt-get install --no-install-recommends -y xz-utils wget unzip ca-certificates python lsb-release software-properties-common gnupg make libssl-dev faketime
++
++# Install Clang.
++ENV ClangV=14
++RUN \
++	wget https://apt.llvm.org/llvm.sh && \
++	chmod +x llvm.sh && \
++	./llvm.sh $ClangV
+ 
+ # Download, validate, unpack, build, and install Ninja.
+ ENV NinjaV=1.10.2
+@@ -31,11 +38,23 @@ RUN \
+ 	CC=clang-$ClangV CXX=clang++-$ClangV ./configure.py --bootstrap && \
+ 	mv ninja /usr/local/bin/
+ 
++# Download, validate, unpack, build, and install Cmake.
++ENV CmakeV=3.22.1
++ENV CmakeH=0e998229549d7b3f368703d20e248e7ee1f853910d42704aa87918c213ea82c0
++RUN \
++	wget https://github.com/Kitware/CMake/releases/download/v$CmakeV/cmake-$CmakeV.tar.gz && \
++	echo "$CmakeH cmake-$CmakeV.tar.gz" >sha && sha256sum -c sha && \
++	tar -xzf cmake-$CmakeV.tar.gz && \
++	rm cmake-$CmakeV.tar.gz && \
++	cd cmake-$CmakeV && \
++	CC=clang-$ClangV CXX=clang++-$ClangV ./bootstrap && \
++	make && make install
++
+ # Download, validate, unpack, and install Go.
+ ARG GOARCH
+-ENV GoV=1.16.5
+-ENV GoHamd64=b12c23023b68de22f74c0524f10b753e7b08b1504cb7e417eccebdd3fae49061
+-ENV GoHarm64=d5446b46ef6f36fdffa852f73dfbbe78c1ddf010b99fa4964944b9ae8b4d6799
++ENV GoV=1.18.1
++ENV GoHamd64=b3b815f47ababac13810fc6021eb73d65478e0b2db4b09d348eefad9581a2334
++ENV GoHarm64=56a91851c97fb4697077abbca38860f735c32b38993ff79b088dac46e4735633
+ RUN \
+ 	eval GoH=\${GoH$GOARCH} && \
+ 	wget https://golang.org/dl/go$GoV.linux-$GOARCH.tar.gz && \
+@@ -45,8 +64,8 @@ RUN \
+ 	ln -s /usr/local/go/bin/go /usr/local/bin/
+ 
+ # Download, validate, and unpack BoringCrypto.
+-ENV BoringV=853ca1ea1168dff08011e5d42d94609cc0ca2e27
+-ENV BoringH=a4d069ccef6f3c7bc0c68de82b91414f05cb817494cd1ab483dcf3368883c7c2
++ENV BoringV=0c6f40132b828e92ba365c6b7680e32820c63fa7
++ENV BoringH=62f733289f2d677c2723f556aa58034c438f3a7bbca6c12b156538a88e38da8a
+ RUN \
+ 	wget https://commondatastorage.googleapis.com/chromium-boringssl-fips/boringssl-$BoringV.tar.xz && \
+ 	echo "$BoringH boringssl-$BoringV.tar.xz" >sha && sha256sum -c sha && \
+diff --git a/src/crypto/internal/boring/LICENSE b/src/crypto/internal/boring/LICENSE
+index 38990bdb77..05b0963f5e 100644
+--- a/src/crypto/internal/boring/LICENSE
++++ b/src/crypto/internal/boring/LICENSE
+@@ -6,7 +6,7 @@ When building with GOEXPERIMENT=boringcrypto, the following applies.
+ The goboringcrypto_linux_amd64.syso object file is built
+ from BoringSSL source code by build/build.sh and is covered
+ by the BoringSSL license reproduced below and also at
+-https://boringssl.googlesource.com/boringssl/+/fips-20190808/LICENSE.
++https://boringssl.googlesource.com/boringssl/+/fips-20220613/LICENSE.
+ 
+ BoringSSL is a fork of OpenSSL. As such, large parts of it fall under OpenSSL
+ licensing. Files that are completely new have a Google copyright and an ISC
+diff --git a/src/crypto/internal/boring/README.md b/src/crypto/internal/boring/README.md
+index ec02786d96..62106cdc70 100644
+--- a/src/crypto/internal/boring/README.md
++++ b/src/crypto/internal/boring/README.md
+@@ -27,13 +27,14 @@ syso/goboringcrypto_linux_arm64.syso is built with:
+ 
+ 	GOARCH=arm64 ./build.sh
+ 
+-Both run on an x86 Debian Linux system using Docker.
++Both run using Docker.
++
+ For the arm64 build to run on an x86 system, you need
+ 
+ 	apt-get install qemu-user-static qemu-binfmt-support
+ 
+ to allow the x86 kernel to run arm64 binaries via QEMU.
+ 
+-See build.sh for more details about the build.
+-
++For the amd64 build to run on an Apple Silicon macOS, you need Rosetta 2.
+ 
++See build.sh for more details about the build.
+diff --git a/src/crypto/internal/boring/build-boring.sh b/src/crypto/internal/boring/build-boring.sh
+index db49852a63..5e109653a4 100755
+--- a/src/crypto/internal/boring/build-boring.sh
++++ b/src/crypto/internal/boring/build-boring.sh
+@@ -34,8 +34,8 @@ perl -p -i -e 's/defined.*ELF.*defined.*GNUC.*/$0 \&\& !defined(GOBORING)/' bori
+ printf "set(CMAKE_C_COMPILER \"clang\")\nset(CMAKE_CXX_COMPILER \"clang++\")\n" >${HOME}/toolchain
+ cd boringssl
+ mkdir build && cd build && cmake -GNinja -DCMAKE_TOOLCHAIN_FILE=${HOME}/toolchain -DFIPS=1 -DCMAKE_BUILD_TYPE=Release ..
+-ninja
+-./crypto/crypto_test
++# SSLTest.HostMatching fails due to an expired certificate.
++ninja && faketime 2022-06-13 ninja run_tests
+ cd ../..
+ 
+ if [ "$(./boringssl/build/tool/bssl isfips)" != 1 ]; then
+diff --git a/src/crypto/internal/boring/build-goboring.sh b/src/crypto/internal/boring/build-goboring.sh
+index 4938b5eac3..c43fad24e8 100755
+--- a/src/crypto/internal/boring/build-goboring.sh
++++ b/src/crypto/internal/boring/build-goboring.sh
+@@ -122,7 +122,7 @@ awk -f boringx.awk goboringcrypto.h # writes goboringcrypto.x
+ awk -f boringh.awk goboringcrypto.h # writes goboringcrypto[01].h
+ 
+ ls -l ../boringssl/include
+-clang++ -std=c++11 -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
++clang++ -fPIC -I../boringssl/include -O2 -o a.out  goboringcrypto.cc
+ ./a.out || exit 2
+ 
+ # clang implements u128 % u128 -> u128 by calling __umodti3,
+diff --git a/src/crypto/internal/boring/build.sh b/src/crypto/internal/boring/build.sh
+index ec960d729d..e2026018a3 100755
+--- a/src/crypto/internal/boring/build.sh
++++ b/src/crypto/internal/boring/build.sh
+@@ -22,6 +22,12 @@ platform=""
+ buildargs=""
+ case "$GOARCH" in
+ amd64)
++	if ! docker run --rm -t amd64/ubuntu:focal uname -m >/dev/null 2>&1; then
++		echo "# Docker cannot run amd64 binaries."
++		exit 1
++	fi
++	platform="--platform linux/amd64"
++	buildargs="--build-arg ubuntu=amd64/ubuntu"
+ 	;;
+ arm64)
+ 	if ! docker run --rm -t arm64v8/ubuntu:focal uname -m >/dev/null 2>&1; then
+diff --git a/src/crypto/internal/boring/goboringcrypto.h b/src/crypto/internal/boring/goboringcrypto.h
+index 2b11049728..3663a1b1c3 100644
+--- a/src/crypto/internal/boring/goboringcrypto.h
++++ b/src/crypto/internal/boring/goboringcrypto.h
+@@ -125,7 +125,9 @@ void _goboringcrypto_EVP_AEAD_CTX_cleanup(GO_EVP_AEAD_CTX*);
+ int _goboringcrypto_EVP_AEAD_CTX_seal(const GO_EVP_AEAD_CTX*, uint8_t*, size_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t);
+ int _goboringcrypto_EVP_AEAD_CTX_open(const GO_EVP_AEAD_CTX*, uint8_t*, size_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t, const uint8_t*, size_t);
+ const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_128_gcm_tls12(void);
++const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_128_gcm_tls13(void);
+ const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_256_gcm_tls12(void);
++const GO_EVP_AEAD* _goboringcrypto_EVP_aead_aes_256_gcm_tls13(void);
+ enum go_evp_aead_direction_t {
+ 	go_evp_aead_open = 0,
+ 	go_evp_aead_seal = 1
+diff --git a/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso b/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso
+index 6cea789355..5ba8919dc1 100644
+Binary files a/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso and b/src/crypto/internal/boring/syso/goboringcrypto_linux_amd64.syso differ
+diff --git a/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso b/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso
+index 9659aa1a5e..c0f80c17e4 100644
+Binary files a/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso and b/src/crypto/internal/boring/syso/goboringcrypto_linux_arm64.syso differ

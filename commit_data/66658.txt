@@ -1,0 +1,41 @@
+commit dab10bca372165432931a44d9783a82db7d1a33f
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 20 22:53:31 2025 +1100
+
+    cmd/internal/obj/arm64: replace range checks with isaddcon2
+    
+    isaddcon2 tests for the range 0 <= v <= 0xffffff - replace duplicated range
+    checks with calls to isaddcon2.
+    
+    Change-Id: Ia6f331852ed3d77715b265cb4fcc500579eac711
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Fannie Zhang <Fannie.Zhang@arm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/internal/obj/arm64/asm7.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm64/asm7.go b/src/cmd/internal/obj/arm64/asm7.go
+index f8d4c7aa98..680384da3f 100644
+--- a/src/cmd/internal/obj/arm64/asm7.go
++++ b/src/cmd/internal/obj/arm64/asm7.go
+@@ -1953,7 +1953,7 @@ func (c *ctxt7) con32class(a *obj.Addr) int {
+ 		return C_BITCON
+ 	}
+ 
+-	if 0 <= v && v <= 0xffffff {
++	if isaddcon2(int64(v)) {
+ 		return C_ADDCON2
+ 	}
+ 	return C_LCON
+@@ -2205,7 +2205,7 @@ func (c *ctxt7) aclass(a *obj.Addr) int {
+ 				return C_BITCON
+ 			}
+ 
+-			if 0 <= v && v <= 0xffffff {
++			if isaddcon2(v) {
+ 				return C_ADDCON2
+ 			}
+ 

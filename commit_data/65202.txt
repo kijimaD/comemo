@@ -1,0 +1,284 @@
+commit fdfb3067a8a27a7491c3b0f6eddedbd467495329
+Author: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+Date:   Wed Sep 11 09:44:16 2024 -0500
+
+    cmd/internal/obj/ppc64: support for extended  mnemonics of BC
+    
+    BGT, BLT, BLE, BGE, BNE, BVS, BVC, and BEQ support by assembler. This will simplify the usage of BC constructs like
+    BC 12, 30, LR    <=>  BEQ CR7, LR
+    BC 12, 2, LR     <=>  BEQ CR0, LR
+    BC 12, 0, target  <=>  BLT CR0, target
+    BC 12, 2, target  <=>  BEQ CR0, target
+    BC 12, 5, target  <=>  BGT CR1, target
+    BC 12, 30, target <=>  BEQ CR7, target
+    BC 4, 6, target   <=>  BNE CR1, target
+    BC 4, 5, target   <=>  BLE CR1, target
+    code cleanup based on the above additions.
+    
+    Change-Id: I02fdb212b6fe3f85ce447e05f4d42118c9ce63b5
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9,gotip-linux-ppc64le_power10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  9 +++++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 45 +++++++++++++++++++++++++++++++
+ src/internal/bytealg/compare_ppc64x.s     | 10 +++----
+ src/runtime/memclr_ppc64x.s               |  6 ++---
+ src/runtime/memmove_ppc64x.s              | 28 +++++++++----------
+ 5 files changed, 76 insertions(+), 22 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index e7ab944a1d..f25072a17e 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -508,17 +508,26 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 
+ 	BEQ 0(PC)                       // 41820000
+ 	BEQ CR1,0(PC)                   // 41860000
++	BEQ CR0, LR                     // 4d820020
++	BEQ CR7, LR                     // 4d9e0020
+ 	BGE 0(PC)                       // 40800000
+ 	BGE CR2,0(PC)                   // 40880000
++	BGE CR6,LR                      // 4c980020
+ 	BGT 4(PC)                       // 41810010
+ 	BGT CR3,4(PC)                   // 418d0010
++	BGT CR6, LR                     // 4d990020
+ 	BLE 0(PC)                       // 40810000
+ 	BLE CR4,0(PC)                   // 40910000
++	BLE CR6, LR                     // 4c990020
+ 	BLT 0(PC)                       // 41800000
+ 	BLT CR5,0(PC)                   // 41940000
+ 	BNE 0(PC)                       // 40820000
++	BNE CR6, LR                     // 4c9a0020
+ 	BLT CR6,0(PC)                   // 41980000
++	BLT CR6, LR                     // 4d980020
+ 	BVC 0(PC)                       // 40830000
++	BVC CR6, LR                     // 4c9b0020
++	BVS CR6, LR                     // 4d9b0020
+ 	BVS 0(PC)                       // 41830000
+ 	JMP 8(PC)                       // 48000010
+ 
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 1a884dea7b..7399106c74 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -282,6 +282,7 @@ var optabBase = []Optab{
+ 	{as: ASYSCALL, a1: C_U15CON, type_: 77, size: 12},
+ 	{as: ABEQ, a6: C_BRA, type_: 16, size: 4},
+ 	{as: ABEQ, a1: C_CREG, a6: C_BRA, type_: 16, size: 4},
++	{as: ABEQ, a1: C_CREG, a6: C_LR, type_: 17, size: 4},
+ 	{as: ABR, a6: C_BRA, type_: 11, size: 4},                                         // b label
+ 	{as: ABR, a6: C_BRAPIC, type_: 11, size: 8},                                      // b label; nop
+ 	{as: ABR, a6: C_LR, type_: 18, size: 4},                                          // blr
+@@ -2819,6 +2820,50 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 		}
+ 		o1 = OP_BC(c.opirr(p.As), uint32(a), uint32(r), uint32(v), 0)
+ 
++	case 17:
++		var bo int32
++		bi := int(p.Reg)
++
++		if p.From.Reg == REG_CR {
++			c.ctxt.Diag("unrecognized register: expected CR0-CR7\n")
++		}
++		bi = int(p.From.Reg&0x7) * 4
++
++		bo = BO_BCR
++
++		switch p.As {
++		case ABLT:
++			bi += BI_LT
++		case ABGT:
++			bi += BI_GT
++		case ABEQ:
++			bi += BI_EQ
++		case ABNE:
++			bo = BO_NOTBCR
++			bi += BI_EQ
++		case ABLE:
++			bo = BO_NOTBCR
++			bi += BI_GT
++		case ABGE:
++			bo = BO_NOTBCR
++			bi += BI_LT
++		case ABVS:
++			bi += BI_FU
++		case ABVC:
++			bo = BO_NOTBCR
++			bi += BI_FU
++		default:
++			c.ctxt.Diag("unexpected instruction: expecting BGT, BEQ, BNE, BLE, BGE, BVS, BVC \n%v", p)
++
++		}
++		if oclass(&p.To) == C_LR {
++			o1 = OPVCC(19, 16, 0, 0)
++		} else {
++			c.ctxt.Diag("bad optab entry (17): %d\n%v", p.To.Class, p)
++		}
++
++		o1 = OP_BCR(o1, uint32(bo), uint32(bi))
++
+ 	case 18: /* br/bl (lr/ctr); bc/bcl bo,bi,(lr/ctr) */
+ 		var v int32
+ 		var bh uint32 = 0
+diff --git a/src/internal/bytealg/compare_ppc64x.s b/src/internal/bytealg/compare_ppc64x.s
+index 2629251e43..a3d56cfd69 100644
+--- a/src/internal/bytealg/compare_ppc64x.s
++++ b/src/internal/bytealg/compare_ppc64x.s
+@@ -61,7 +61,7 @@ TEXT ·Compare<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-56
+ 	CMP	R3,R6,CR7
+ 	ISEL	CR0LT,R4,R7,R9
+ 	SETB_CR0(R3)
+-	BC	$12,30,LR	// beqlr cr7
++	BEQ	CR7,LR
+ 	BR	cmpbody<>(SB)
+ 
+ TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
+@@ -83,7 +83,7 @@ TEXT runtime·cmpstring<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-40
+ 	MOVD	R5,R6
+ 	MOVD	R3,R5
+ 	SETB_CR0(R3)
+-	BC	$12,30,LR	// beqlr cr7
++	BEQ	CR7,LR
+ 	BR	cmpbody<>(SB)
+ 
+ #ifdef GOARCH_ppc64le
+@@ -143,7 +143,7 @@ cmp64_loop:
+ 	ADD	$64,R5,R5	// increment to next 64 bytes of A
+ 	ADD	$64,R6,R6	// increment to next 64 bytes of B
+ 	BDNZ	cmp64_loop
+-	BC	$12,2,LR	// beqlr
++	BEQ	CR0,LR		// beqlr
+ 
+ 	// Finish out tail with minimal overlapped checking.
+ 	// Note, 0 tail is handled by beqlr above.
+@@ -215,7 +215,7 @@ cmp32:	// 32 - 63B
+ 	VCMPEQUDCC	V3,V4,V1
+ 	BGE	CR6,different
+ 
+-	BC	$12,2,LR	// beqlr
++	BEQ	CR0,LR
+ 	ADD	R9,R10,R10
+ 
+ 	LXVD2X	(R9)(R5),V3
+@@ -236,7 +236,7 @@ cmp16:	// 16 - 31B
+ 	LXVD2X	(R0)(R6),V4
+ 	VCMPEQUDCC	V3,V4,V1
+ 	BGE	CR6,different
+-	BC	$12,2,LR	// beqlr
++	BEQ	CR0,LR
+ 
+ 	LXVD2X	(R9)(R5),V3
+ 	LXVD2X	(R9)(R6),V4
+diff --git a/src/runtime/memclr_ppc64x.s b/src/runtime/memclr_ppc64x.s
+index bc4b3fc283..ffe40e12f6 100644
+--- a/src/runtime/memclr_ppc64x.s
++++ b/src/runtime/memclr_ppc64x.s
+@@ -19,7 +19,7 @@ check:
+ 	SRD   $3, R4, R6  // R6: double words to clear
+ 	CMP   R6, $0, CR1 // CR1[EQ] set if no double words
+ 
+-	BC    12, 6, nozerolarge // only single bytes
++	BEQ   CR1, nozerolarge // only single bytes
+ 	CMP   R4, $512
+ 	BLT   under512           // special case for < 512
+ 	ANDCC $127, R3, R8       // check for 128 alignment of address
+@@ -104,7 +104,7 @@ lt16gt8:
+ #endif
+ nozerolarge:
+ 	ANDCC $7, R4, R5 // any remaining bytes
+-	BC    4, 1, LR   // ble lr
++	BLE    CR0, LR   // ble lr
+ #ifdef GOPPC64_power10
+ 	XXLXOR  VS32, VS32, VS32 // clear VS32 (V0)
+ 	SLD	$56, R5, R7
+@@ -124,7 +124,7 @@ next2:
+ 	ADD   $-2, R5
+ next1:
+ 	CMP   R5, $0
+-	BC    12, 2, LR      // beqlr
++	BEQ   CR0, LR      // beqlr
+ 	MOVB  R0, 0(R3)
+ 	RET
+ #endif
+diff --git a/src/runtime/memmove_ppc64x.s b/src/runtime/memmove_ppc64x.s
+index 18b9c850f2..9892028d50 100644
+--- a/src/runtime/memmove_ppc64x.s
++++ b/src/runtime/memmove_ppc64x.s
+@@ -60,11 +60,11 @@ mcopy:
+ 
+ 	SUB	SRC, TGT, TMP	// dest - src
+ 	CMPU	TMP, LEN, CR2	// < len?
+-	BC	12, 8, backward // BLT CR2 backward
++	BLT	CR2, backward
+ 
+ 	// Copying forward if no overlap.
+ 
+-	BC	12, 6, checkbytes	// BEQ CR1, checkbytes
++	BEQ	CR1, checkbytes
+ 	SRDCC	$3, DWORDS, OCTWORDS	// 64 byte chunks?
+ 	MOVD	$16, IDX16
+ 	BEQ	lt64gt8			// < 64 bytes
+@@ -132,7 +132,7 @@ lt16:	// Move 8 bytes if possible
+ 	MOVD    TMP, 0(TGT)
+ 	ADD     $8, TGT
+ checkbytes:
+-	BC	12, 14, LR		// BEQ lr
++	BEQ	CR3, LR
+ #ifdef GOPPC64_power10
+ 	SLD	$56, BYTES, TMP
+ 	LXVL	SRC, TMP, V0
+@@ -157,7 +157,7 @@ lt4:	// Move halfword if possible
+ 	ADD $2, TGT
+ lt2:	// Move last byte if 1 left
+ 	CMP BYTES, $1
+-	BC 12, 0, LR	// ble lr
++	BLT CR0, LR
+ 	MOVBZ 0(SRC), TMP
+ 	MOVBZ TMP, 0(TGT)
+ 	RET
+@@ -182,7 +182,7 @@ backwardtailloop:
+ 	BDNZ	backwardtailloop
+ 
+ nobackwardtail:
+-	BC	4, 5, LR		// blelr cr1, return if DWORDS == 0
++	BLE	CR1, LR                 // return if DWORDS == 0
+ 	SRDCC	$2,DWORDS,QWORDS	// Compute number of 32B blocks and compare to 0
+ 	BNE	backward32setup		// If QWORDS != 0, start the 32B copy loop.
+ 
+@@ -190,16 +190,16 @@ backward24:
+ 	// DWORDS is a value between 1-3.
+ 	CMP	DWORDS, $2
+ 
+-	MOVD 	-8(SRC), TMP
+-	MOVD 	TMP, -8(TGT)
+-	BC	12, 0, LR		// bltlr, return if DWORDS == 1
++	MOVD	-8(SRC), TMP
++	MOVD	TMP, -8(TGT)
++	BLT	CR0, LR                 // return if DWORDS == 1
+ 
+-	MOVD 	-16(SRC), TMP
+-	MOVD 	TMP, -16(TGT)
+-	BC	12, 2, LR		// beqlr, return if DWORDS == 2
++	MOVD	-16(SRC), TMP
++	MOVD	TMP, -16(TGT)
++	BEQ	CR0, LR                 // return if DWORDS == 2
+ 
+-	MOVD 	-24(SRC), TMP
+-	MOVD 	TMP, -24(TGT)
++	MOVD	-24(SRC), TMP
++	MOVD	TMP, -24(TGT)
+ 	RET
+ 
+ backward32setup:
+@@ -216,5 +216,5 @@ backward32loop:
+ 	STXVD2X	VS32, (R0)(TGT)		// store 16x2 bytes
+ 	STXVD2X	VS33, (IDX16)(TGT)
+ 	BDNZ	backward32loop
+-	BC	12, 2, LR		// beqlr, return if DWORDS == 0
++	BEQ	CR0, LR                 // return if DWORDS == 0
+ 	BR	backward24

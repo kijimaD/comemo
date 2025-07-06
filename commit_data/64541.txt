@@ -1,0 +1,91 @@
+commit 433c1d3b4ab41fa4272bd61f8ad2918ccd1e390d
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Thu Aug 15 18:47:38 2024 -0700
+
+    runtime: store zero-delay mutex contention events
+    
+    Mutex contention events with delay of 0 need more than CL 604355 added:
+    When deciding which event to store in the M's single available slot,
+    always choose to drop the zero-delay event. Store an explicit flag for
+    whether we have an event to store, rather than relying on a non-zero
+    delay.
+    
+    And, fix a test of sync.Mutex contention that expects those events to
+    have non-zero delay. The reporting of non-runtime contention like this
+    has long allowed zero-delay events, which we see when cputicks has low
+    resolution.
+    
+    Fixes #68892
+    Fixes #68906
+    
+    Change-Id: Id412141e4eb09724f3ce195899a20d59c92d7b78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/mprof.go            | 8 +++++++-
+ src/runtime/pprof/pprof_test.go | 2 +-
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index f82f6a6d37..2629c600fd 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -718,6 +718,7 @@ type mLockProfile struct {
+ 	pending    uintptr      // *mutex that experienced contention (to be traceback-ed)
+ 	cycles     int64        // cycles attributable to "pending" (if set), otherwise to "stack"
+ 	cyclesLost int64        // contention for which we weren't able to record a call stack
++	haveStack  bool         // stack and cycles are to be added to the mutex profile
+ 	disabled   bool         // attribute all time to "lost"
+ }
+ 
+@@ -745,6 +746,9 @@ func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
+ 		// We can only store one call stack for runtime-internal lock contention
+ 		// on this M, and we've already got one. Decide which should stay, and
+ 		// add the other to the report for runtime._LostContendedRuntimeLock.
++		if cycles == 0 {
++			return
++		}
+ 		prevScore := uint64(cheaprand64()) % uint64(prev)
+ 		thisScore := uint64(cheaprand64()) % uint64(cycles)
+ 		if prevScore > thisScore {
+@@ -769,7 +773,7 @@ func (prof *mLockProfile) recordUnlock(l *mutex) {
+ 	if uintptr(unsafe.Pointer(l)) == prof.pending {
+ 		prof.captureStack()
+ 	}
+-	if gp := getg(); gp.m.locks == 1 && gp.m.mLockProfile.cycles != 0 {
++	if gp := getg(); gp.m.locks == 1 && gp.m.mLockProfile.haveStack {
+ 		prof.store()
+ 	}
+ }
+@@ -795,6 +799,7 @@ func (prof *mLockProfile) captureStack() {
+ 		skip += 1 // runtime.unlockWithRank.func1
+ 	}
+ 	prof.pending = 0
++	prof.haveStack = true
+ 
+ 	prof.stack[0] = logicalStackSentinel
+ 	if debug.runtimeContentionStacks.Load() == 0 {
+@@ -835,6 +840,7 @@ func (prof *mLockProfile) store() {
+ 
+ 	cycles, lost := prof.cycles, prof.cyclesLost
+ 	prof.cycles, prof.cyclesLost = 0, 0
++	prof.haveStack = false
+ 
+ 	rate := int64(atomic.Load64(&mutexprofilerate))
+ 	saveBlockEventStack(cycles, rate, prof.stack[:nstk], mutexProfile)
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 30ef50b1c0..0b4e353bb1 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1371,7 +1371,7 @@ func TestMutexProfileRateAdjust(t *testing.T) {
+ 
+ 	blockMutex(t)
+ 	contentions, delay := readProfile()
+-	if contentions == 0 || delay == 0 {
++	if contentions == 0 { // low-resolution timers can have delay of 0 in mutex profile
+ 		t.Fatal("did not see expected function in profile")
+ 	}
+ 	runtime.SetMutexProfileFraction(0)

@@ -1,0 +1,31 @@
+commit 0cdf8c7a8ce5913845ab46e49a1befd86c9c565d
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Jan 6 21:12:03 2025 +0100
+
+    crypto/ecdsa: apply fips140=only to deterministic ECDSA hash
+    
+    Change-Id: I6a6a46567b1eaaef080ac0994afa83db2624a75a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641316
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/ecdsa/ecdsa.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index f682e6b1c6..d9ebe56ef0 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -281,6 +281,9 @@ func signFIPSDeterministic[P ecdsa.Point[P]](c *ecdsa.Curve[P], hashFunc crypto.
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	if fips140only.Enabled && !fips140only.ApprovedHash(hashFunc.New()) {
++		return nil, errors.New("crypto/ecdsa: use of hash functions other than SHA-2 or SHA-3 is not allowed in FIPS 140-only mode")
++	}
+ 	sig, err := ecdsa.SignDeterministic(c, hashFunc.New, k, hash)
+ 	if err != nil {
+ 		return nil, err

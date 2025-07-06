@@ -1,0 +1,60 @@
+commit 9f55e7bc2180fefd64723ae6e9524a20a098b19a
+Author: David du Colombier <0intro@gmail.com>
+Date:   Sat Apr 5 20:35:12 2025 +0200
+
+    runtime: don't read /dev/random on Plan 9
+    
+    In CL 656755, the readRandom function was modified
+    to read an integer from /dev/random.
+    
+    However, on Plan 9, /dev/random can only return
+    a few hundred bits a second.
+    
+    The issue is that readRandom is called by randinit,
+    which is called at the creation of Go processes.
+    
+    Consequently, it lead the Go programs to be very
+    slow on Plan 9.
+    
+    This change reverts the change done in CL 656755
+    to make the readRandom function always returning 0
+    on Plan 9.
+    
+    Change-Id: Ibe1bf7e4c8cbc82998e4f5e1331f5e29a047c4fc
+    Cq-Include-Trybots: luci.golang.try:gotip-plan9-arm
+    
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663195
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Richard Miller <millerresearch@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/os_plan9.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 6ff15c2236..a0ad9060c5 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -358,15 +358,13 @@ func crash() {
+ 	*(*int)(nil) = 0
+ }
+ 
++// Don't read from /dev/random, since this device can only
++// return a few hundred bits a second and would slow creation
++// of Go processes down significantly.
++//
+ //go:nosplit
+ func readRandom(r []byte) int {
+-	fd := open(&randomDev[0], _OREAD|_OCEXEC, 0)
+-	if fd < 0 {
+-		fatal("cannot open /dev/random")
+-	}
+-	n := int(read(fd, unsafe.Pointer(&r[0]), int32(len(r))))
+-	closefd(fd)
+-	return n
++	return 0
+ }
+ 
+ func initsig(preinit bool) {

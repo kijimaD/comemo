@@ -1,0 +1,96 @@
+commit b1f259b1b42f055863a67492e7815ec752eae56b
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Apr 25 19:13:52 2025 +0700
+
+    cmd/compile: fix ICE with recursive alias type parameter
+    
+    CL 585399 fixed an initialization loop during IR contruction that
+    involving alias type, by avoiding publishing alias declarations until
+    the RHS type expression has been constructed.
+    
+    There's an assertion to ensure that the alias's type must be the same
+    during the initialization. However, that assertion is too strict, since
+    we may construct different instances of the same type, if the type is an
+    instantination of generic type.
+    
+    To fix this, we could use types.IdenticalStrict to ensure that these
+    types matching exactly.
+    
+    Updates #66873.
+    Updates #73309.
+    
+    Change-Id: I2559bed37e21615854333fb1057d7349406e6a1b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668175
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/noder/reader.go       |  2 +-
+ src/cmd/compile/internal/types2/stdlib_test.go |  1 +
+ src/go/types/stdlib_test.go                    |  1 +
+ test/fixedbugs/issue73309.go                   | 18 ++++++++++++++++++
+ 4 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 05052651c6..95054a4f8b 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -762,7 +762,7 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
+ 		if hack {
+ 			if sym.Def != nil {
+ 				name = sym.Def.(*ir.Name)
+-				assert(name.Type() == typ)
++				assert(types.IdenticalStrict(name.Type(), typ))
+ 				return name, nil
+ 			}
+ 			sym.Def = name
+diff --git a/src/cmd/compile/internal/types2/stdlib_test.go b/src/cmd/compile/internal/types2/stdlib_test.go
+index 6966bb94b0..4de698baaf 100644
+--- a/src/cmd/compile/internal/types2/stdlib_test.go
++++ b/src/cmd/compile/internal/types2/stdlib_test.go
+@@ -332,6 +332,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue49814.go",  // go/types does not have constraints on array size
+ 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+ 		"issue52697.go",  // types2 does not have constraints on stack size
++		"issue73309.go",  // this test requires GODEBUG=gotypesalias=1
+ 
+ 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+ 		// However, types2 does not know about build constraints.
+diff --git a/src/go/types/stdlib_test.go b/src/go/types/stdlib_test.go
+index ec76f8ee17..633d7be84d 100644
+--- a/src/go/types/stdlib_test.go
++++ b/src/go/types/stdlib_test.go
+@@ -334,6 +334,7 @@ func TestStdFixed(t *testing.T) {
+ 		"issue49814.go",  // go/types does not have constraints on array size
+ 		"issue56103.go",  // anonymous interface cycles; will be a type checker error in 1.22
+ 		"issue52697.go",  // go/types does not have constraints on stack size
++		"issue73309.go",  // this test requires GODEBUG=gotypesalias=1
+ 
+ 		// These tests requires runtime/cgo.Incomplete, which is only available on some platforms.
+ 		// However, go/types does not know about build constraints.
+diff --git a/test/fixedbugs/issue73309.go b/test/fixedbugs/issue73309.go
+new file mode 100644
+index 0000000000..5e96e6513b
+--- /dev/null
++++ b/test/fixedbugs/issue73309.go
+@@ -0,0 +1,18 @@
++// compile
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++type B[T any] struct {
++	a A[T]
++}
++
++type A[T any] = func(B[T]) bool
++
++func main() {
++	var s A[int]
++	println(s)
++}

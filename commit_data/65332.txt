@@ -1,0 +1,110 @@
+commit fe2da30cb54aadeab243f3fc7bd3e14dd4da2892
+Author: sunnymilk <shaojunyang@google.com>
+Date:   Tue Sep 10 12:27:55 2024 -0400
+
+    cmd/compile: keep variables alive in testing.B.Loop loops
+    
+    For the loop body guarded by testing.B.Loop, we disable function inlining and devirtualization inside. The only legal form to be matched is `for b.Loop() {...}`.
+    
+    For #61515
+    
+    Change-Id: I2e226f08cb4614667cbded498a7821dffe3f72d8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/612043
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    TryBot-Bypass: Junyang Shao <shaojunyang@google.com>
+    Commit-Queue: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ .../internal/inline/interleaved/interleaved.go     | 34 ++++++++++++++++++++++
+ test/inline_testingbloop.go                        | 31 ++++++++++++++++++++
+ 2 files changed, 65 insertions(+)
+
+diff --git a/src/cmd/compile/internal/inline/interleaved/interleaved.go b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+index dc5c3b8969..a91ab23daa 100644
+--- a/src/cmd/compile/internal/inline/interleaved/interleaved.go
++++ b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+@@ -105,6 +105,32 @@ func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
+ 	})
+ }
+ 
++// isTestingBLoop returns true if it matches the node as a
++// testing.(*B).Loop. See issue #61515.
++func isTestingBLoop(t ir.Node) bool {
++	if t.Op() != ir.OFOR {
++		return false
++	}
++	nFor, ok := t.(*ir.ForStmt)
++	if !ok || nFor.Cond == nil || nFor.Cond.Op() != ir.OCALLFUNC {
++		return false
++	}
++	n, ok := nFor.Cond.(*ir.CallExpr)
++	if !ok || n.Fun == nil || n.Fun.Op() != ir.OMETHEXPR {
++		return false
++	}
++	name := ir.MethodExprName(n.Fun)
++	if name == nil {
++		return false
++	}
++	if fSym := name.Sym(); fSym != nil && name.Class == ir.PFUNC && fSym.Pkg != nil &&
++		fSym.Name == "(*B).Loop" && fSym.Pkg.Path == "testing" {
++		// Attempting to match a function call to testing.(*B).Loop
++		return true
++	}
++	return false
++}
++
+ // fixpoint repeatedly edits a function until it stabilizes.
+ //
+ // First, fixpoint applies match to every node n within fn. Then it
+@@ -133,6 +159,14 @@ func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node)
+ 			return n // already visited n.X before wrapping
+ 		}
+ 
++		if isTestingBLoop(n) {
++			// No inlining nor devirtualization performed on b.Loop body
++			if base.Flag.LowerM > 1 {
++				fmt.Printf("%v: skip inlining within testing.B.loop for %v\n", ir.Line(n), n)
++			}
++			return n
++		}
++
+ 		ok := match(n)
+ 
+ 		// can't wrap TailCall's child into ParenExpr
+diff --git a/test/inline_testingbloop.go b/test/inline_testingbloop.go
+new file mode 100644
+index 0000000000..9d5138e2d8
+--- /dev/null
++++ b/test/inline_testingbloop.go
+@@ -0,0 +1,31 @@
++// errorcheck -0 -m=2
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Test no inlining of function calls in testing.B.Loop.
++// See issue #61515.
++
++package foo
++
++import "testing"
++
++func caninline(x int) int { // ERROR "can inline caninline"
++	return x
++}
++
++func cannotinline(b *testing.B) { // ERROR "b does not escape" "cannot inline cannotinline.*"
++	for i := 0; i < b.N; i++ {
++		caninline(1) // ERROR "inlining call to caninline"
++	}
++	for b.Loop() { // ERROR "skip inlining within testing.B.loop"
++		caninline(1)
++	}
++	for i := 0; i < b.N; i++ {
++		caninline(1) // ERROR "inlining call to caninline"
++	}
++	for b.Loop() { // ERROR "skip inlining within testing.B.loop"
++		caninline(1)
++	}
++}

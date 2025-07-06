@@ -1,0 +1,53 @@
+commit f6653e6b0b420ff60c52fe633968ce45cd63cec1
+Author: Zxilly <zhouxinyu1001@gmail.com>
+Date:   Tue Mar 19 00:12:05 2024 +0000
+
+    cmd/go/internal/modget: warn -d is a no-op
+    
+    Updates #43684
+    
+    Change-Id: I4aa340b1b819374159b5b6b99c14e3f70bfa1bb0
+    GitHub-Last-Rev: c380648b9aeeb6c9fd4f0a42ada7921ba99f45bb
+    GitHub-Pull-Request: golang/go#66362
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/572176
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/internal/modget/get.go | 11 +++++------
+ 1 file changed, 5 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index c77321e778..2d37d24a93 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -208,7 +208,7 @@ variable for future go command invocations.
+ }
+ 
+ var (
+-	getD        = CmdGet.Flag.Bool("d", true, "")
++	getD        = CmdGet.Flag.Bool("d", false, "")
+ 	getF        = CmdGet.Flag.Bool("f", false, "")
+ 	getFix      = CmdGet.Flag.Bool("fix", false, "")
+ 	getM        = CmdGet.Flag.Bool("m", false, "")
+@@ -255,15 +255,14 @@ func runGet(ctx context.Context, cmd *base.Command, args []string) {
+ 	default:
+ 		base.Fatalf("go: unknown upgrade flag -u=%s", getU.rawVersion)
+ 	}
+-	// TODO(#43684): in the future (Go 1.20), warn that -d is a no-op.
+-	if !*getD {
+-		base.Fatalf("go: -d flag may not be disabled")
++	if *getD {
++		fmt.Fprintf(os.Stderr, "go: -d flag is a no-op\n")
+ 	}
+ 	if *getF {
+-		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op when using modules\n")
++		fmt.Fprintf(os.Stderr, "go: -f flag is a no-op\n")
+ 	}
+ 	if *getFix {
+-		fmt.Fprintf(os.Stderr, "go: -fix flag is a no-op when using modules\n")
++		fmt.Fprintf(os.Stderr, "go: -fix flag is a no-op\n")
+ 	}
+ 	if *getM {
+ 		base.Fatalf("go: -m flag is no longer supported")

@@ -1,0 +1,42 @@
+commit 530fbb283c911d97238cc5cacecc6b409ee7df88
+Author: wanggang <wg971211@gmail.com>
+Date:   Sat Sep 21 03:02:47 2024 +0000
+
+    fmt: fix incorrect doc comment
+    
+    I noticed that the comment incorrectly stated 'WriteString implemented WriteString', it should be 'implemented io.StringWriter' instead.
+    
+    Change-Id: I844a8c805e5f0c32b5aea68c4bba6982f6fcc8a7
+    GitHub-Last-Rev: a0d93b6e9d3c2a508d1f3c0ce23e98274ec421fb
+    GitHub-Pull-Request: golang/go#69546
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/fmt/print.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/fmt/print.go b/src/fmt/print.go
+index f9f200499d..155218046f 100644
+--- a/src/fmt/print.go
++++ b/src/fmt/print.go
+@@ -201,14 +201,14 @@ func (p *pp) Flag(b int) bool {
+ 	return false
+ }
+ 
+-// Implement Write so we can call [Fprintf] on a pp (through [State]), for
++// Write implements [io.Writer] so we can call [Fprintf] on a pp (through [State]), for
+ // recursive use in custom verbs.
+ func (p *pp) Write(b []byte) (ret int, err error) {
+ 	p.buf.write(b)
+ 	return len(b), nil
+ }
+ 
+-// Implement WriteString so that we can call [io.WriteString]
++// WriteString implements [io.StringWriter] so that we can call [io.WriteString]
+ // on a pp (through state), for efficiency.
+ func (p *pp) WriteString(s string) (ret int, err error) {
+ 	p.buf.writeString(s)

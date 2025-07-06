@@ -1,0 +1,48 @@
+commit 3da6c94d5ed62bf0c7fe682dcf46a1e53b72c2d9
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Aug 29 13:01:12 2024 +0800
+
+    internal/poll: check return value instead of errno for copy_file_range(2)
+    
+    There is one special case of (0, nil) indicating EOF where the updates
+    of zero to remain and written are redundant.
+    
+    Change-Id: I017471657a9424fab88c72d14d3eb66d14a7e5c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609297
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/poll/copy_file_range_freebsd.go | 2 +-
+ src/internal/poll/copy_file_range_unix.go    | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/poll/copy_file_range_freebsd.go b/src/internal/poll/copy_file_range_freebsd.go
+index 47d0de04ea..63fa013e46 100644
+--- a/src/internal/poll/copy_file_range_freebsd.go
++++ b/src/internal/poll/copy_file_range_freebsd.go
+@@ -22,7 +22,7 @@ func handleCopyFileRangeErr(err error, copied, written int64) (bool, error) {
+ 	switch err {
+ 	case syscall.ENOSYS:
+ 		// The copy_file_range(2) function first appeared in FreeBSD 13.0.
+-		// Go supports FreeBSD>= 12, so the system call
++		// Go supports FreeBSD >= 12, so the system call
+ 		// may not be present. We've detected the FreeBSD version with
+ 		// unix.SupportCopyFileRange() at the beginning of this function,
+ 		// but we still want to check for ENOSYS here to prevent some rare
+diff --git a/src/internal/poll/copy_file_range_unix.go b/src/internal/poll/copy_file_range_unix.go
+index 73193a1991..833d553a27 100644
+--- a/src/internal/poll/copy_file_range_unix.go
++++ b/src/internal/poll/copy_file_range_unix.go
+@@ -24,7 +24,7 @@ func CopyFileRange(dst, src *FD, remain int64) (written int64, handled bool, err
+ 			max = maxCopyFileRangeRound
+ 		}
+ 		n, e := copyFileRange(dst, src, int(max))
+-		if e == nil {
++		if n > 0 {
+ 			remain -= n
+ 			written += n
+ 		}

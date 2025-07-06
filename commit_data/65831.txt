@@ -1,0 +1,33 @@
+commit 0cd833d19823f84a1da7552c63d1be5b7dba332a
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Dec 16 11:07:02 2024 +0100
+
+    go/build: remove nonexistent package from TestDependencies
+    
+    crypto/internal/boring/fips140tls is not a package in the Go standard
+    library, so it should not be listed in TestDependencies.
+    
+    Change-Id: I6476da397b0204fcbd0a11b27a29112fca4b6023
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636415
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/go/build/deps_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index cc7f4df7f3..15e2f1bbbf 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -498,7 +498,7 @@ var depsRules = `
+ 	FIPS, internal/godebug, hash < crypto/fips140, crypto/internal/fips140only;
+ 
+ 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+-	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fips140tls;
++	sync/atomic < crypto/internal/boring/bcache;
+ 	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;
+ 
+ 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.

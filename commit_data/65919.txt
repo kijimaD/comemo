@@ -1,0 +1,103 @@
+commit e966a2773cced08d584e0a462c4b30a84e3a46be
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Jan 7 12:07:07 2025 -0500
+
+    crypto/internal/fips140/drbg: avoid global lock on rand state
+    
+    Having a global lock on the random state (used only in FIPS-140 mode)
+    introduces contention in concurrent programs. Use an approximately
+    per-P random state instead, using sync.Pool to manage per-P state.
+    
+    This code is important to land for the Go 1.24 release because it is
+    part of the FIPS-140 module that will be validated and certified,
+    so it will live for a long time. We otherwise wouldn't be able to
+    correct this contention for at least a year, perhaps more.
+    
+    At the same time, the code is only used in the FIPS-140 mode,
+    so there is no risk to normal programs.
+    
+    Fixes #71155.
+    
+    Change-Id: I6b779f15ddfdf232f608f5cda08f75906e58114f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641097
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/fips140/drbg/rand.go      | 21 +++++++++++----------
+ src/crypto/internal/fips140/drbg/rand_test.go | 27 +++++++++++++++++++++++++++
+ 2 files changed, 38 insertions(+), 10 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/drbg/rand.go b/src/crypto/internal/fips140/drbg/rand.go
+index 967fb0673e..e7ab19a4cf 100644
+--- a/src/crypto/internal/fips140/drbg/rand.go
++++ b/src/crypto/internal/fips140/drbg/rand.go
+@@ -13,8 +13,15 @@ import (
+ 	"sync"
+ )
+ 
+-var mu sync.Mutex
+-var drbg *Counter
++var drbgs = sync.Pool{
++	New: func() any {
++		var c *Counter
++		entropy.Depleted(func(seed *[48]byte) {
++			c = NewCounter(seed)
++		})
++		return c
++	},
++}
+ 
+ // Read fills b with cryptographically secure random bytes. In FIPS mode, it
+ // uses an SP 800-90A Rev. 1 Deterministic Random Bit Generator (DRBG).
+@@ -33,14 +40,8 @@ func Read(b []byte) {
+ 	additionalInput := new([SeedSize]byte)
+ 	sysrand.Read(additionalInput[:16])
+ 
+-	mu.Lock()
+-	defer mu.Unlock()
+-
+-	if drbg == nil {
+-		entropy.Depleted(func(seed *[48]byte) {
+-			drbg = NewCounter(seed)
+-		})
+-	}
++	drbg := drbgs.Get().(*Counter)
++	defer drbgs.Put(drbg)
+ 
+ 	for len(b) > 0 {
+ 		size := min(len(b), maxRequestSize)
+diff --git a/src/crypto/internal/fips140/drbg/rand_test.go b/src/crypto/internal/fips140/drbg/rand_test.go
+new file mode 100644
+index 0000000000..945ebde933
+--- /dev/null
++++ b/src/crypto/internal/fips140/drbg/rand_test.go
+@@ -0,0 +1,27 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package drbg
++
++import (
++	"crypto/internal/fips140"
++	"testing"
++)
++
++func BenchmarkDBRG(b *testing.B) {
++	old := fips140.Enabled
++	defer func() {
++		fips140.Enabled = old
++	}()
++	fips140.Enabled = true
++
++	const N = 64
++	b.SetBytes(N)
++	b.RunParallel(func(pb *testing.PB) {
++		buf := make([]byte, N)
++		for pb.Next() {
++			Read(buf)
++		}
++	})
++}

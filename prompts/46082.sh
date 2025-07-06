@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 46082: 1b5eed89828f41e290ae212c596ff301c5db7204
+# Index 46082: 7260ad6f52d0397000701abf3e71e7aac1456dc5
 
 echo "🚀 Generating explanation for commit 46082..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 46082..."
 
 ### メタデータ
 - **コミットインデックス**: 46082
-- **コミットハッシュ**: 1b5eed89828f41e290ae212c596ff301c5db7204
-- **GitHub URL**: https://github.com/golang/go/commit/1b5eed89828f41e290ae212c596ff301c5db7204
+- **コミットハッシュ**: 7260ad6f52d0397000701abf3e71e7aac1456dc5
+- **GitHub URL**: https://github.com/golang/go/commit/7260ad6f52d0397000701abf3e71e7aac1456dc5
 
 ### 章構成
 

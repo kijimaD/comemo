@@ -1,0 +1,39 @@
+commit 1488bb6c4c6487f9ef3c6d59a84a29fea9ec9266
+Author: Michael Podtserkovskii <michaelpo@meta.com>
+Date:   Fri Apr 5 13:58:35 2024 +0100
+
+    cmd/cgo: create -objdir if not exist
+    
+    Currently the directory is created only if -objdir is omited.
+    Creating the directory here is useful to avoid doing this in each build system.
+    And also this is consistent with similar flags of other tools like `-o`.
+    
+    Change-Id: Ic39d6eb3e003bc4884089f80f790e30df4a54b01
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576815
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/cgo/main.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index fce2671c2c..a9095dee3d 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -385,11 +385,11 @@ func main() {
+ 	cPrefix = fmt.Sprintf("_%x", h.Sum(nil)[0:6])
+ 
+ 	if *objDir == "" {
+-		// make sure that _obj directory exists, so that we can write
+-		// all the output files there.
+-		os.Mkdir("_obj", 0777)
+ 		*objDir = "_obj"
+ 	}
++	// make sure that `objDir` directory exists, so that we can write
++	// all the output files there.
++	os.MkdirAll(*objDir, 0o700)
+ 	*objDir += string(filepath.Separator)
+ 
+ 	for i, input := range goFiles {

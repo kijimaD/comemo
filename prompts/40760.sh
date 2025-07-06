@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40760: 4b41f7f8188ce8f711cacd3097a2cb02af5c333c
+# Index 40760: f8abdd6c8a6bb4882e708f87d1e83ba5f897aeff
 
 echo "🚀 Generating explanation for commit 40760..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40760..."
 
 ### メタデータ
 - **コミットインデックス**: 40760
-- **コミットハッシュ**: 4b41f7f8188ce8f711cacd3097a2cb02af5c333c
-- **GitHub URL**: https://github.com/golang/go/commit/4b41f7f8188ce8f711cacd3097a2cb02af5c333c
+- **コミットハッシュ**: f8abdd6c8a6bb4882e708f87d1e83ba5f897aeff
+- **GitHub URL**: https://github.com/golang/go/commit/f8abdd6c8a6bb4882e708f87d1e83ba5f897aeff
 
 ### 章構成
 

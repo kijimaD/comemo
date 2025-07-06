@@ -1,0 +1,176 @@
+commit 584e631023e1edd49862c20a952608a5518a810e
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Mar 3 18:06:48 2025 -0800
+
+    go/types, types2: better error messages for invalid calls
+    
+    Rather than reporting "non-function" for an invalid type parameter,
+    report which type in the type parameter's type set is not a function.
+    
+    Change-Id: I8beec25cc337bae8e03d23e62d97aa82db46bab4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654475
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/call.go             | 16 ++++++++--------
+ src/go/types/call.go                                | 16 ++++++++--------
+ src/internal/types/testdata/check/lookup1.go        |  8 ++++----
+ src/internal/types/testdata/fixedbugs/issue49482.go |  2 +-
+ test/fixedbugs/issue17038.go                        |  2 +-
+ test/fixedbugs/issue22822.go                        |  4 ++--
+ test/fixedbugs/issue27356.go                        |  4 ++--
+ 7 files changed, 26 insertions(+), 26 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index bfce236555..e64d6b6adf 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -244,19 +244,19 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 
+ 	// If the operand type is a type parameter, all types in its type set
+ 	// must have a common underlying type, which must be a signature.
+-	// TODO(gri) use commonUnder condition for better error message
+-	u, err := commonUnder(x.typ, nil)
+-	sig, _ := u.(*Signature)
+-	if sig == nil {
+-		if err != nil {
+-			check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, err.format(check))
+-		} else {
+-			check.errorf(x, InvalidCall, invalidOp+"cannot call non-function %s", x)
++	u, err := commonUnder(x.typ, func(t, u Type) *errorCause {
++		if _, ok := u.(*Signature); u != nil && !ok {
++			return newErrorCause("%s is not a function", t)
+ 		}
++		return nil
++	})
++	if err != nil {
++		check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, err.format(check))
+ 		x.mode = invalid
+ 		x.expr = call
+ 		return statement
+ 	}
++	sig := u.(*Signature) // u must be a signature per the commonUnder condition
+ 
+ 	// Capture wasGeneric before sig is potentially instantiated below.
+ 	wasGeneric := sig.TypeParams().Len() > 0
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 0d84a8dc67..33cb5fc9db 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -246,19 +246,19 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 
+ 	// If the operand type is a type parameter, all types in its type set
+ 	// must have a common underlying type, which must be a signature.
+-	// TODO(gri) use commonUnder condition for better error message
+-	u, err := commonUnder(x.typ, nil)
+-	sig, _ := u.(*Signature)
+-	if sig == nil {
+-		if err != nil {
+-			check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, err.format(check))
+-		} else {
+-			check.errorf(x, InvalidCall, invalidOp+"cannot call non-function %s", x)
++	u, err := commonUnder(x.typ, func(t, u Type) *errorCause {
++		if _, ok := u.(*Signature); u != nil && !ok {
++			return newErrorCause("%s is not a function", t)
+ 		}
++		return nil
++	})
++	if err != nil {
++		check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, err.format(check))
+ 		x.mode = invalid
+ 		x.expr = call
+ 		return statement
+ 	}
++	sig := u.(*Signature) // u must be a signature per the commonUnder condition
+ 
+ 	// Capture wasGeneric before sig is potentially instantiated below.
+ 	wasGeneric := sig.TypeParams().Len() > 0
+diff --git a/src/internal/types/testdata/check/lookup1.go b/src/internal/types/testdata/check/lookup1.go
+index d9f90ba46a..669767b278 100644
+--- a/src/internal/types/testdata/check/lookup1.go
++++ b/src/internal/types/testdata/check/lookup1.go
+@@ -11,7 +11,7 @@ func _() {
+ 		x, aBc int
+ 	}
+ 	_ = s.x
+-	_ = s /* ERROR "invalid operation: cannot call non-function s.x (variable of type int)" */ .x()
++	_ = s /* ERROR "invalid operation: cannot call s.x (variable of type int): int is not a function" */ .x()
+ 	_ = s.X // ERROR "s.X undefined (type struct{x int; aBc int} has no field or method X, but does have field x)"
+ 	_ = s.X /* ERROR "s.X undefined (type struct{x int; aBc int} has no field or method X, but does have field x)" */ ()
+ 
+@@ -26,7 +26,7 @@ func _() {
+ 	}
+ 	var s S
+ 	_ = s.x
+-	_ = s /* ERROR "invalid operation: cannot call non-function s.x (variable of type int)" */ .x()
++	_ = s /* ERROR "invalid operation: cannot call s.x (variable of type int): int is not a function" */ .x()
+ 	_ = s.X // ERROR "s.X undefined (type S has no field or method X, but does have field x)"
+ 	_ = s.X /* ERROR "s.X undefined (type S has no field or method X, but does have field x)" */ ()
+ }
+@@ -77,9 +77,9 @@ func _[P any](x P) {
+ }
+ 
+ func _[P int](x P) {
+-	x /* ERROR "cannot call non-function x (variable of type P constrained by int)" */ ()
++	x /* ERROR "cannot call x (variable of type P constrained by int): int is not a function" */ ()
+ }
+ 
+ func _[P int | string](x P) {
+-	x /* ERROR "cannot call x (variable of type P constrained by int | string): int and string have different underlying types" */ ()
++	x /* ERROR "cannot call x (variable of type P constrained by int | string): int is not a function" */ ()
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue49482.go b/src/internal/types/testdata/fixedbugs/issue49482.go
+index 7139baebc0..bc6b60099c 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49482.go
++++ b/src/internal/types/testdata/fixedbugs/issue49482.go
+@@ -13,7 +13,7 @@ const P = 2 // declare P to avoid noisy 'undefined' errors below.
+ 
+ // The following parse as invalid array types due to parsing ambiguitiues.
+ type _ [P *int /* ERROR "int (type) is not an expression" */ ]int
+-type _ [P /* ERROR "non-function P" */ (*int)]int
++type _ [P /* ERROR "cannot call P (untyped int constant 2): untyped int is not a function" */ (*int)]int
+ 
+ // Adding a trailing comma or an enclosing interface resolves the ambiguity.
+ type _[P *int,] int
+diff --git a/test/fixedbugs/issue17038.go b/test/fixedbugs/issue17038.go
+index 1b65ffc1f0..32d3c9320b 100644
+--- a/test/fixedbugs/issue17038.go
++++ b/test/fixedbugs/issue17038.go
+@@ -6,4 +6,4 @@
+ 
+ package main
+ 
+-const A = complex(0()) // ERROR "cannot call non-function"
++const A = complex(0()) // ERROR "cannot call .* not a function"
+diff --git a/test/fixedbugs/issue22822.go b/test/fixedbugs/issue22822.go
+index 9483c9cab0..c760a8b9ed 100644
+--- a/test/fixedbugs/issue22822.go
++++ b/test/fixedbugs/issue22822.go
+@@ -13,7 +13,7 @@ func F() {
+ 	slice := []int{1, 2, 3}
+ 	_ = slice
+ 	len := int(2)
+-	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1|expected function|cannot call non-function len"
++	println(len(slice)) // ERROR "cannot call non-function len .type int., declared at LINE-1|expected function|cannot call len"
+ 	const iota = 1
+-	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1|expected function|cannot call non-function iota"
++	println(iota(slice)) // ERROR "cannot call non-function iota .type int., declared at LINE-1|expected function|cannot call iota"
+ }
+diff --git a/test/fixedbugs/issue27356.go b/test/fixedbugs/issue27356.go
+index c3e686df33..8be5d04af7 100644
+--- a/test/fixedbugs/issue27356.go
++++ b/test/fixedbugs/issue27356.go
+@@ -11,9 +11,9 @@ package p
+ var a = []int{1,2,3}
+ 
+ func _(len int) {
+-	_ =  len(a) // ERROR "cannot call non-function|expected function"
++	_ =  len(a) // ERROR "cannot call|expected function"
+ }
+ 
+ var cap = false
+-var _ = cap(a) // ERROR "cannot call non-function|expected function"
++var _ = cap(a) // ERROR "cannot call|expected function"
+ 

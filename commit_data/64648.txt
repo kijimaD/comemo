@@ -1,0 +1,1084 @@
+commit d0baac37e61648c2a9e9299553c863cf7b7eed61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Aug 28 16:20:44 2024 -0700
+
+    syscall: always use prlimit for getrlimit/setrlimit on Linux
+    
+    Linux added the prlimit system call in version 2.6.36.
+    As our minimum Linux kernel version is now 3.2,
+    simplify the various getrlimit/setlrimit implementations
+    to just always use prlimit.
+    
+    For #67001
+    
+    Change-Id: I2512c21c947d0bc83f8f9077c143163fd8d83be3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609178
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/syscall/exec_linux.go              |  2 +-
+ src/syscall/syscall_linux.go           | 11 +++++
+ src/syscall/syscall_linux_386.go       | 90 ----------------------------------
+ src/syscall/syscall_linux_amd64.go     | 12 -----
+ src/syscall/syscall_linux_arm.go       | 90 ----------------------------------
+ src/syscall/syscall_linux_arm64.go     | 30 ------------
+ src/syscall/syscall_linux_loong64.go   | 16 ------
+ src/syscall/syscall_linux_mips64x.go   | 12 -----
+ src/syscall/syscall_linux_mipsx.go     | 90 ----------------------------------
+ src/syscall/syscall_linux_ppc64x.go    | 12 -----
+ src/syscall/syscall_linux_riscv64.go   |  8 ---
+ src/syscall/syscall_linux_s390x.go     |  8 ---
+ src/syscall/zsyscall_linux_386.go      | 20 --------
+ src/syscall/zsyscall_linux_amd64.go    | 20 --------
+ src/syscall/zsyscall_linux_arm.go      | 20 --------
+ src/syscall/zsyscall_linux_arm64.go    | 20 --------
+ src/syscall/zsyscall_linux_mips.go     | 20 --------
+ src/syscall/zsyscall_linux_mips64.go   | 20 --------
+ src/syscall/zsyscall_linux_mips64le.go | 20 --------
+ src/syscall/zsyscall_linux_mipsle.go   | 20 --------
+ src/syscall/zsyscall_linux_ppc64.go    | 20 --------
+ src/syscall/zsyscall_linux_ppc64le.go  | 20 --------
+ src/syscall/zsyscall_linux_riscv64.go  | 20 --------
+ src/syscall/zsyscall_linux_s390x.go    | 20 --------
+ 24 files changed, 12 insertions(+), 609 deletions(-)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index e4b9ce1bf4..5ef62450a8 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -632,7 +632,7 @@ func forkAndExecInChild1(argv0 *byte, argv, envv []*byte, chroot, dir *byte, att
+ 
+ 	// Restore original rlimit.
+ 	if rlim != nil {
+-		rawSetrlimit(RLIMIT_NOFILE, rlim)
++		RawSyscall6(SYS_PRLIMIT64, 0, RLIMIT_NOFILE, uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+ 	}
+ 
+ 	// Enable tracing if requested.
+diff --git a/src/syscall/syscall_linux.go b/src/syscall/syscall_linux.go
+index 032936398b..1fe422d691 100644
+--- a/src/syscall/syscall_linux.go
++++ b/src/syscall/syscall_linux.go
+@@ -1288,6 +1288,17 @@ func Munmap(b []byte) (err error) {
+ //sys	Mlockall(flags int) (err error)
+ //sys	Munlockall() (err error)
+ 
++func Getrlimit(resource int, rlim *Rlimit) (err error) {
++	// prlimit1 is the same as prlimit when newlimit == nil
++	return prlimit1(0, resource, nil, rlim)
++}
++
++// setrlimit sets a resource limit.
++// The Setrlimit function is in rlimit.go, and calls this one.
++func setrlimit(resource int, rlim *Rlimit) (err error) {
++	return prlimit(0, resource, rlim, nil)
++}
++
+ // prlimit changes a resource limit. We use a single definition so that
+ // we can tell StartProcess to not restore the original NOFILE limit.
+ //
+diff --git a/src/syscall/syscall_linux_386.go b/src/syscall/syscall_linux_386.go
+index a559f7e288..a90565a001 100644
+--- a/src/syscall/syscall_linux_386.go
++++ b/src/syscall/syscall_linux_386.go
+@@ -72,96 +72,6 @@ func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int6
+ 	return mmap2(addr, length, prot, flags, fd, page)
+ }
+ 
+-type rlimit32 struct {
+-	Cur uint32
+-	Max uint32
+-}
+-
+-//sysnb getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
+-
+-const rlimInf32 = ^uint32(0)
+-const rlimInf64 = ^uint64(0)
+-
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	err = prlimit(0, resource, nil, rlim)
+-	if err != ENOSYS {
+-		return err
+-	}
+-
+-	rl := rlimit32{}
+-	err = getrlimit(resource, &rl)
+-	if err != nil {
+-		return
+-	}
+-
+-	if rl.Cur == rlimInf32 {
+-		rlim.Cur = rlimInf64
+-	} else {
+-		rlim.Cur = uint64(rl.Cur)
+-	}
+-
+-	if rl.Max == rlimInf32 {
+-		rlim.Max = rlimInf64
+-	} else {
+-		rlim.Max = uint64(rl.Max)
+-	}
+-	return
+-}
+-
+-//sysnb setrlimit1(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
+-
+-func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	err = prlimit(0, resource, rlim, nil)
+-	if err != ENOSYS {
+-		return err
+-	}
+-
+-	rl := rlimit32{}
+-	if rlim.Cur == rlimInf64 {
+-		rl.Cur = rlimInf32
+-	} else if rlim.Cur < uint64(rlimInf32) {
+-		rl.Cur = uint32(rlim.Cur)
+-	} else {
+-		return EINVAL
+-	}
+-	if rlim.Max == rlimInf64 {
+-		rl.Max = rlimInf32
+-	} else if rlim.Max < uint64(rlimInf32) {
+-		rl.Max = uint32(rlim.Max)
+-	} else {
+-		return EINVAL
+-	}
+-
+-	return setrlimit1(resource, &rl)
+-}
+-
+-//go:nosplit
+-func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+-	_, _, errno := RawSyscall6(SYS_PRLIMIT64, 0, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+-	if errno != ENOSYS {
+-		return errno
+-	}
+-
+-	rl := rlimit32{}
+-	if rlim.Cur == rlimInf64 {
+-		rl.Cur = rlimInf32
+-	} else if rlim.Cur < uint64(rlimInf32) {
+-		rl.Cur = uint32(rlim.Cur)
+-	} else {
+-		return EINVAL
+-	}
+-	if rlim.Max == rlimInf64 {
+-		rl.Max = rlimInf32
+-	} else if rlim.Max < uint64(rlimInf32) {
+-		rl.Max = uint32(rlim.Max)
+-	} else {
+-		return EINVAL
+-	}
+-
+-	_, _, errno = RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	return errno
+-}
+-
+ // Underlying system call writes to newoffset via pointer.
+ // Implemented in assembly to avoid allocation.
+ func seek(fd int, offset int64, whence int) (newoffset int64, err Errno)
+diff --git a/src/syscall/syscall_linux_amd64.go b/src/syscall/syscall_linux_amd64.go
+index ec52f8a4bd..725ebdba22 100644
+--- a/src/syscall/syscall_linux_amd64.go
++++ b/src/syscall/syscall_linux_amd64.go
+@@ -4,10 +4,6 @@
+ 
+ package syscall
+ 
+-import (
+-	"unsafe"
+-)
+-
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
+ 	_SYS_clone3     = 435
+@@ -23,7 +19,6 @@ const (
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (euid int)
+ //sysnb	Getgid() (gid int)
+-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
+ //sysnb	Getuid() (uid int)
+ //sysnb	InotifyInit() (fd int, err error)
+ //sys	Ioperm(from int, num int, on int) (err error)
+@@ -38,7 +33,6 @@ const (
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	setrlimit(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+@@ -103,12 +97,6 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ //sys	Utime(path string, buf *Utimbuf) (err error)
+ //sys	utimes(path string, times *[2]Timeval) (err error)
+ 
+-//go:nosplit
+-func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+-	_, _, errno := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	return errno
+-}
+-
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}
+ }
+diff --git a/src/syscall/syscall_linux_arm.go b/src/syscall/syscall_linux_arm.go
+index a6d92cea13..2019b15169 100644
+--- a/src/syscall/syscall_linux_arm.go
++++ b/src/syscall/syscall_linux_arm.go
+@@ -124,96 +124,6 @@ func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int6
+ 	return mmap2(addr, length, prot, flags, fd, page)
+ }
+ 
+-type rlimit32 struct {
+-	Cur uint32
+-	Max uint32
+-}
+-
+-//sysnb getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
+-
+-const rlimInf32 = ^uint32(0)
+-const rlimInf64 = ^uint64(0)
+-
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	err = prlimit(0, resource, nil, rlim)
+-	if err != ENOSYS {
+-		return err
+-	}
+-
+-	rl := rlimit32{}
+-	err = getrlimit(resource, &rl)
+-	if err != nil {
+-		return
+-	}
+-
+-	if rl.Cur == rlimInf32 {
+-		rlim.Cur = rlimInf64
+-	} else {
+-		rlim.Cur = uint64(rl.Cur)
+-	}
+-
+-	if rl.Max == rlimInf32 {
+-		rlim.Max = rlimInf64
+-	} else {
+-		rlim.Max = uint64(rl.Max)
+-	}
+-	return
+-}
+-
+-//sysnb setrlimit1(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
+-
+-func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	err = prlimit(0, resource, rlim, nil)
+-	if err != ENOSYS {
+-		return err
+-	}
+-
+-	rl := rlimit32{}
+-	if rlim.Cur == rlimInf64 {
+-		rl.Cur = rlimInf32
+-	} else if rlim.Cur < uint64(rlimInf32) {
+-		rl.Cur = uint32(rlim.Cur)
+-	} else {
+-		return EINVAL
+-	}
+-	if rlim.Max == rlimInf64 {
+-		rl.Max = rlimInf32
+-	} else if rlim.Max < uint64(rlimInf32) {
+-		rl.Max = uint32(rlim.Max)
+-	} else {
+-		return EINVAL
+-	}
+-
+-	return setrlimit1(resource, &rl)
+-}
+-
+-//go:nosplit
+-func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+-	_, _, errno := RawSyscall6(SYS_PRLIMIT64, 0, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+-	if errno != ENOSYS {
+-		return errno
+-	}
+-
+-	rl := rlimit32{}
+-	if rlim.Cur == rlimInf64 {
+-		rl.Cur = rlimInf32
+-	} else if rlim.Cur < uint64(rlimInf32) {
+-		rl.Cur = uint32(rlim.Cur)
+-	} else {
+-		return EINVAL
+-	}
+-	if rlim.Max == rlimInf64 {
+-		rl.Max = rlimInf32
+-	} else if rlim.Max < uint64(rlimInf32) {
+-		rl.Max = uint32(rlim.Max)
+-	} else {
+-		return EINVAL
+-	}
+-
+-	_, _, errno = RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	return errno
+-}
+-
+ func (r *PtraceRegs) PC() uint64 { return uint64(r.Uregs[15]) }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) { r.Uregs[15] = uint32(pc) }
+diff --git a/src/syscall/syscall_linux_arm64.go b/src/syscall/syscall_linux_arm64.go
+index b87b51c0c0..fb0ecd77b7 100644
+--- a/src/syscall/syscall_linux_arm64.go
++++ b/src/syscall/syscall_linux_arm64.go
+@@ -27,7 +27,6 @@ func Fstatat(fd int, path string, stat *Stat_t, flags int) error {
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (euid int)
+ //sysnb	Getgid() (gid int)
+-//sysnb	getrlimit(resource int, rlim *Rlimit) (err error)
+ //sysnb	Getuid() (uid int)
+ //sys	Listen(s int, n int) (err error)
+ //sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+@@ -37,7 +36,6 @@ func Fstatat(fd int, path string, stat *Stat_t, flags int) error {
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	setrlimit1(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ 
+@@ -140,34 +138,6 @@ func utimes(path string, tv *[2]Timeval) (err error) {
+ 	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+ }
+ 
+-// Getrlimit prefers the prlimit64 system call. See issue 38604.
+-func Getrlimit(resource int, rlim *Rlimit) error {
+-	err := prlimit(0, resource, nil, rlim)
+-	if err != ENOSYS {
+-		return err
+-	}
+-	return getrlimit(resource, rlim)
+-}
+-
+-// setrlimit prefers the prlimit64 system call. See issue 38604.
+-func setrlimit(resource int, rlim *Rlimit) error {
+-	err := prlimit(0, resource, rlim, nil)
+-	if err != ENOSYS {
+-		return err
+-	}
+-	return setrlimit1(resource, rlim)
+-}
+-
+-//go:nosplit
+-func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+-	_, _, errno := RawSyscall6(SYS_PRLIMIT64, 0, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+-	if errno != ENOSYS {
+-		return errno
+-	}
+-	_, _, errno = RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	return errno
+-}
+-
+ func (r *PtraceRegs) PC() uint64 { return r.Pc }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) { r.Pc = pc }
+diff --git a/src/syscall/syscall_linux_loong64.go b/src/syscall/syscall_linux_loong64.go
+index 634cf30cf2..360590d2d7 100644
+--- a/src/syscall/syscall_linux_loong64.go
++++ b/src/syscall/syscall_linux_loong64.go
+@@ -183,22 +183,6 @@ func utimes(path string, tv *[2]Timeval) (err error) {
+ 	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+ }
+ 
+-// Getrlimit prefers the prlimit64 system call.
+-func Getrlimit(resource int, rlim *Rlimit) error {
+-	return prlimit(0, resource, nil, rlim)
+-}
+-
+-// setrlimit prefers the prlimit64 system call.
+-func setrlimit(resource int, rlim *Rlimit) error {
+-	return prlimit(0, resource, rlim, nil)
+-}
+-
+-//go:nosplit
+-func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+-	_, _, errno := RawSyscall6(SYS_PRLIMIT64, 0, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+-	return errno
+-}
+-
+ func (r *PtraceRegs) GetEra() uint64 { return r.Era }
+ 
+ func (r *PtraceRegs) SetEra(era uint64) { r.Era = era }
+diff --git a/src/syscall/syscall_linux_mips64x.go b/src/syscall/syscall_linux_mips64x.go
+index 41106ed81f..51f5ead472 100644
+--- a/src/syscall/syscall_linux_mips64x.go
++++ b/src/syscall/syscall_linux_mips64x.go
+@@ -6,10 +6,6 @@
+ 
+ package syscall
+ 
+-import (
+-	"unsafe"
+-)
+-
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
+ 	_SYS_clone3     = 5435
+@@ -25,7 +21,6 @@ const (
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (euid int)
+ //sysnb	Getgid() (gid int)
+-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
+ //sysnb	Getuid() (uid int)
+ //sysnb	InotifyInit() (fd int, err error)
+ //sys	Lchown(path string, uid int, gid int) (err error)
+@@ -38,7 +33,6 @@ const (
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	setrlimit(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+@@ -94,12 +88,6 @@ func Time(t *Time_t) (tt Time_t, err error) {
+ //sys	Utime(path string, buf *Utimbuf) (err error)
+ //sys	utimes(path string, times *[2]Timeval) (err error)
+ 
+-//go:nosplit
+-func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+-	_, _, errno := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	return errno
+-}
+-
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}
+ }
+diff --git a/src/syscall/syscall_linux_mipsx.go b/src/syscall/syscall_linux_mipsx.go
+index 7d4f8f2264..aa08792606 100644
+--- a/src/syscall/syscall_linux_mipsx.go
++++ b/src/syscall/syscall_linux_mipsx.go
+@@ -117,96 +117,6 @@ func mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int6
+ 	return mmap2(addr, length, prot, flags, fd, page)
+ }
+ 
+-const rlimInf32 = ^uint32(0)
+-const rlimInf64 = ^uint64(0)
+-
+-type rlimit32 struct {
+-	Cur uint32
+-	Max uint32
+-}
+-
+-//sysnb getrlimit(resource int, rlim *rlimit32) (err error) = SYS_GETRLIMIT
+-
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	err = prlimit(0, resource, nil, rlim)
+-	if err != ENOSYS {
+-		return err
+-	}
+-
+-	rl := rlimit32{}
+-	err = getrlimit(resource, &rl)
+-	if err != nil {
+-		return
+-	}
+-
+-	if rl.Cur == rlimInf32 {
+-		rlim.Cur = rlimInf64
+-	} else {
+-		rlim.Cur = uint64(rl.Cur)
+-	}
+-
+-	if rl.Max == rlimInf32 {
+-		rlim.Max = rlimInf64
+-	} else {
+-		rlim.Max = uint64(rl.Max)
+-	}
+-	return
+-}
+-
+-//sysnb setrlimit1(resource int, rlim *rlimit32) (err error) = SYS_SETRLIMIT
+-
+-func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	err = prlimit(0, resource, rlim, nil)
+-	if err != ENOSYS {
+-		return err
+-	}
+-
+-	rl := rlimit32{}
+-	if rlim.Cur == rlimInf64 {
+-		rl.Cur = rlimInf32
+-	} else if rlim.Cur < uint64(rlimInf32) {
+-		rl.Cur = uint32(rlim.Cur)
+-	} else {
+-		return EINVAL
+-	}
+-	if rlim.Max == rlimInf64 {
+-		rl.Max = rlimInf32
+-	} else if rlim.Max < uint64(rlimInf32) {
+-		rl.Max = uint32(rlim.Max)
+-	} else {
+-		return EINVAL
+-	}
+-
+-	return setrlimit1(resource, &rl)
+-}
+-
+-//go:nosplit
+-func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+-	_, _, errno := RawSyscall6(SYS_PRLIMIT64, 0, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0, 0, 0)
+-	if errno != ENOSYS {
+-		return errno
+-	}
+-
+-	rl := rlimit32{}
+-	if rlim.Cur == rlimInf64 {
+-		rl.Cur = rlimInf32
+-	} else if rlim.Cur < uint64(rlimInf32) {
+-		rl.Cur = uint32(rlim.Cur)
+-	} else {
+-		return EINVAL
+-	}
+-	if rlim.Max == rlimInf64 {
+-		rl.Max = rlimInf32
+-	} else if rlim.Max < uint64(rlimInf32) {
+-		rl.Max = uint32(rlim.Max)
+-	} else {
+-		return EINVAL
+-	}
+-
+-	_, _, errno = RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	return errno
+-}
+-
+ func (r *PtraceRegs) PC() uint64 { return uint64(r.Regs[64]) }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) { r.Regs[64] = uint32(pc) }
+diff --git a/src/syscall/syscall_linux_ppc64x.go b/src/syscall/syscall_linux_ppc64x.go
+index 13c184c44f..124240231e 100644
+--- a/src/syscall/syscall_linux_ppc64x.go
++++ b/src/syscall/syscall_linux_ppc64x.go
+@@ -6,10 +6,6 @@
+ 
+ package syscall
+ 
+-import (
+-	"unsafe"
+-)
+-
+ const (
+ 	_SYS_setgroups  = SYS_SETGROUPS
+ 	_SYS_clone3     = 435
+@@ -27,7 +23,6 @@ const (
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (euid int)
+ //sysnb	Getgid() (gid int)
+-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error) = SYS_UGETRLIMIT
+ //sysnb	Getuid() (uid int)
+ //sysnb	InotifyInit() (fd int, err error)
+ //sys	Ioperm(from int, num int, on int) (err error)
+@@ -44,7 +39,6 @@ const (
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	setrlimit(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ //sys	Stat(path string, stat *Stat_t) (err error)
+@@ -73,12 +67,6 @@ const (
+ //sys	Utime(path string, buf *Utimbuf) (err error)
+ //sys	utimes(path string, times *[2]Timeval) (err error)
+ 
+-//go:nosplit
+-func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+-	_, _, errno := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	return errno
+-}
+-
+ func setTimespec(sec, nsec int64) Timespec {
+ 	return Timespec{Sec: sec, Nsec: nsec}
+ }
+diff --git a/src/syscall/syscall_linux_riscv64.go b/src/syscall/syscall_linux_riscv64.go
+index 00872a74fb..c9159762d8 100644
+--- a/src/syscall/syscall_linux_riscv64.go
++++ b/src/syscall/syscall_linux_riscv64.go
+@@ -27,7 +27,6 @@ func Fstatat(fd int, path string, stat *Stat_t, flags int) error {
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (euid int)
+ //sysnb	Getgid() (gid int)
+-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error)
+ //sysnb	Getuid() (uid int)
+ //sys	Listen(s int, n int) (err error)
+ //sys	pread(fd int, p []byte, offset int64) (n int, err error) = SYS_PREAD64
+@@ -37,7 +36,6 @@ func Fstatat(fd int, path string, stat *Stat_t, flags int) error {
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	setrlimit(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
+ //sys	Shutdown(fd int, how int) (err error)
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ 
+@@ -144,12 +142,6 @@ func utimes(path string, tv *[2]Timeval) (err error) {
+ 	return utimensat(_AT_FDCWD, path, (*[2]Timespec)(unsafe.Pointer(&ts[0])), 0)
+ }
+ 
+-//go:nosplit
+-func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+-	_, _, errno := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	return errno
+-}
+-
+ func (r *PtraceRegs) PC() uint64 { return r.Pc }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) { r.Pc = pc }
+diff --git a/src/syscall/syscall_linux_s390x.go b/src/syscall/syscall_linux_s390x.go
+index ea667ec1da..65c86140fc 100644
+--- a/src/syscall/syscall_linux_s390x.go
++++ b/src/syscall/syscall_linux_s390x.go
+@@ -23,7 +23,6 @@ const (
+ //sysnb	Getegid() (egid int)
+ //sysnb	Geteuid() (euid int)
+ //sysnb	Getgid() (gid int)
+-//sysnb	Getrlimit(resource int, rlim *Rlimit) (err error) = SYS_GETRLIMIT
+ //sysnb	Getuid() (uid int)
+ //sysnb	InotifyInit() (fd int, err error)
+ //sys	Lchown(path string, uid int, gid int) (err error)
+@@ -37,7 +36,6 @@ const (
+ //sys	sendfile(outfd int, infd int, offset *int64, count int) (written int, err error)
+ //sys	Setfsgid(gid int) (err error)
+ //sys	Setfsuid(uid int) (err error)
+-//sysnb	setrlimit(resource int, rlim *Rlimit) (err error) = SYS_SETRLIMIT
+ //sys	Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error)
+ //sys	Stat(path string, stat *Stat_t) (err error)
+ //sys	Statfs(path string, buf *Statfs_t) (err error)
+@@ -244,12 +242,6 @@ func Shutdown(s, how int) (err error) {
+ 	return
+ }
+ 
+-//go:nosplit
+-func rawSetrlimit(resource int, rlim *Rlimit) Errno {
+-	_, _, errno := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	return errno
+-}
+-
+ func (r *PtraceRegs) PC() uint64 { return r.Psw.Addr }
+ 
+ func (r *PtraceRegs) SetPC(pc uint64) { r.Psw.Addr = pc }
+diff --git a/src/syscall/zsyscall_linux_386.go b/src/syscall/zsyscall_linux_386.go
+index 661cfe7bed..762fb0078b 100644
+--- a/src/syscall/zsyscall_linux_386.go
++++ b/src/syscall/zsyscall_linux_386.go
+@@ -1395,26 +1395,6 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getrlimit(resource int, rlim *rlimit32) (err error) {
+-	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func setrlimit1(resource int, rlim *rlimit32) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func futimesat(dirfd int, path string, times *[2]Timeval) (err error) {
+ 	var _p0 *byte
+ 	_p0, err = BytePtrFromString(path)
+diff --git a/src/syscall/zsyscall_linux_amd64.go b/src/syscall/zsyscall_linux_amd64.go
+index 9d05781893..1249ff6680 100644
+--- a/src/syscall/zsyscall_linux_amd64.go
++++ b/src/syscall/zsyscall_linux_amd64.go
+@@ -1160,16 +1160,6 @@ func Getgid() (gid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getuid() (uid int) {
+ 	r0, _ := rawSyscallNoError(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+@@ -1336,16 +1326,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_arm.go b/src/syscall/zsyscall_linux_arm.go
+index 2929a3bda5..c359fe531e 100644
+--- a/src/syscall/zsyscall_linux_arm.go
++++ b/src/syscall/zsyscall_linux_arm.go
+@@ -1595,23 +1595,3 @@ func EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error) {
+ 	}
+ 	return
+ }
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func getrlimit(resource int, rlim *rlimit32) (err error) {
+-	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func setrlimit1(resource int, rlim *rlimit32) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+diff --git a/src/syscall/zsyscall_linux_arm64.go b/src/syscall/zsyscall_linux_arm64.go
+index a1c91071f1..6625cddb4b 100644
+--- a/src/syscall/zsyscall_linux_arm64.go
++++ b/src/syscall/zsyscall_linux_arm64.go
+@@ -1182,16 +1182,6 @@ func Getgid() (gid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func getrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getuid() (uid int) {
+ 	r0, _ := rawSyscallNoError(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+@@ -1306,16 +1296,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setrlimit1(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips.go b/src/syscall/zsyscall_linux_mips.go
+index 7e216b04ea..0bd4a806f5 100644
+--- a/src/syscall/zsyscall_linux_mips.go
++++ b/src/syscall/zsyscall_linux_mips.go
+@@ -1670,23 +1670,3 @@ func mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset
+ 	}
+ 	return
+ }
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func getrlimit(resource int, rlim *rlimit32) (err error) {
+-	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func setrlimit1(resource int, rlim *rlimit32) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+diff --git a/src/syscall/zsyscall_linux_mips64.go b/src/syscall/zsyscall_linux_mips64.go
+index 8c894b1088..0352ea5420 100644
+--- a/src/syscall/zsyscall_linux_mips64.go
++++ b/src/syscall/zsyscall_linux_mips64.go
+@@ -1165,16 +1165,6 @@ func Getgid() (gid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getuid() (uid int) {
+ 	r0, _ := rawSyscallNoError(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+@@ -1325,16 +1315,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mips64le.go b/src/syscall/zsyscall_linux_mips64le.go
+index 812a6ba8e6..1338b8c1c3 100644
+--- a/src/syscall/zsyscall_linux_mips64le.go
++++ b/src/syscall/zsyscall_linux_mips64le.go
+@@ -1165,16 +1165,6 @@ func Getgid() (gid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getuid() (uid int) {
+ 	r0, _ := rawSyscallNoError(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+@@ -1325,16 +1315,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_mipsle.go b/src/syscall/zsyscall_linux_mipsle.go
+index d32a8afa4f..7f880e53d5 100644
+--- a/src/syscall/zsyscall_linux_mipsle.go
++++ b/src/syscall/zsyscall_linux_mipsle.go
+@@ -1670,23 +1670,3 @@ func mmap2(addr uintptr, length uintptr, prot int, flags int, fd int, pageOffset
+ 	}
+ 	return
+ }
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func getrlimit(resource int, rlim *rlimit32) (err error) {
+-	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+-func setrlimit1(resource int, rlim *rlimit32) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+diff --git a/src/syscall/zsyscall_linux_ppc64.go b/src/syscall/zsyscall_linux_ppc64.go
+index c321267b9b..c4ca96f2f9 100644
+--- a/src/syscall/zsyscall_linux_ppc64.go
++++ b/src/syscall/zsyscall_linux_ppc64.go
+@@ -1192,16 +1192,6 @@ func Getgid() (gid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_UGETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getuid() (uid int) {
+ 	r0, _ := rawSyscallNoError(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+@@ -1398,16 +1388,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_ppc64le.go b/src/syscall/zsyscall_linux_ppc64le.go
+index 40475d76bf..a08471b4e0 100644
+--- a/src/syscall/zsyscall_linux_ppc64le.go
++++ b/src/syscall/zsyscall_linux_ppc64le.go
+@@ -1192,16 +1192,6 @@ func Getgid() (gid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_UGETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getuid() (uid int) {
+ 	r0, _ := rawSyscallNoError(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+@@ -1398,16 +1388,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_riscv64.go b/src/syscall/zsyscall_linux_riscv64.go
+index dc74acfc88..4098b79004 100644
+--- a/src/syscall/zsyscall_linux_riscv64.go
++++ b/src/syscall/zsyscall_linux_riscv64.go
+@@ -1182,16 +1182,6 @@ func Getgid() (gid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getuid() (uid int) {
+ 	r0, _ := rawSyscallNoError(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+@@ -1306,16 +1296,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Shutdown(fd int, how int) (err error) {
+ 	_, _, e1 := Syscall(SYS_SHUTDOWN, uintptr(fd), uintptr(how), 0)
+ 	if e1 != 0 {
+diff --git a/src/syscall/zsyscall_linux_s390x.go b/src/syscall/zsyscall_linux_s390x.go
+index cc189d9ea7..81979169ff 100644
+--- a/src/syscall/zsyscall_linux_s390x.go
++++ b/src/syscall/zsyscall_linux_s390x.go
+@@ -1192,16 +1192,6 @@ func Getgid() (gid int) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_GETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getuid() (uid int) {
+ 	r0, _ := rawSyscallNoError(SYS_GETUID, 0, 0, 0)
+ 	uid = int(r0)
+@@ -1368,16 +1358,6 @@ func Setfsuid(uid int) (err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func setrlimit(resource int, rlim *Rlimit) (err error) {
+-	_, _, e1 := RawSyscall(SYS_SETRLIMIT, uintptr(resource), uintptr(unsafe.Pointer(rlim)), 0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Splice(rfd int, roff *int64, wfd int, woff *int64, len int, flags int) (n int64, err error) {
+ 	r0, _, e1 := Syscall6(SYS_SPLICE, uintptr(rfd), uintptr(unsafe.Pointer(roff)), uintptr(wfd), uintptr(unsafe.Pointer(woff)), uintptr(len), uintptr(flags))
+ 	n = int64(r0)

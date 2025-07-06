@@ -1,0 +1,249 @@
+commit 8947f3395eb24dce6a5749517c0b40204b585f0a
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Apr 16 11:01:19 2025 -0700
+
+    [release-branch.go1.24] os: avoid escape from Root via paths ending in ../
+    
+    The doInRoot function operates on a path split into components.
+    The final path component retained any trailing path separator
+    characters, to permit operations in a Root to retain the
+    trailing-separator behavior of non-Root operations. However,
+    doInRoot failed to take trailing separators into account
+    when checking for .. path components.
+    
+    This could permit opening the parent directory of the Root
+    with a path ending in "../".
+    
+    Change the split path to never include path separators in
+    components, and handle trailing separators independently
+    of the split path.
+    
+    Thanks to Dan Sebastian Thrane of SDU eScience Center for
+    reporting this issue.
+    
+    Fixes #73556
+    Updates #73555
+    Fixes CVE-2025-22873
+    
+    Change-Id: I9a33a145c22f5eb1dd4e4cafae5fcc61a8d4f0d4
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/2160
+    Reviewed-by: Neal Patel <nealpatel@google.com>
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/2180
+    Commit-Queue: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670357
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/os/root.go        | 15 ++++++++-------
+ src/os/root_js.go     | 23 ++++++++++++++++++-----
+ src/os/root_openat.go | 17 ++++++++++++++---
+ src/os/root_test.go   | 34 ++++++++++++++++++++++++++++++++++
+ 4 files changed, 74 insertions(+), 15 deletions(-)
+
+diff --git a/src/os/root.go b/src/os/root.go
+index f91c0f75f3..739410d96d 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -186,20 +186,20 @@ func (r *Root) logStat(name string) {
+ //
+ // "." components are removed, except in the last component.
+ //
+-// Path separators following the last component are preserved.
+-func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error) {
++// Path separators following the last component are returned in suffixSep.
++func splitPathInRoot(s string, prefix, suffix []string) (_ []string, suffixSep string, err error) {
+ 	if len(s) == 0 {
+-		return nil, errors.New("empty path")
++		return nil, "", errors.New("empty path")
+ 	}
+ 	if IsPathSeparator(s[0]) {
+-		return nil, errPathEscapes
++		return nil, "", errPathEscapes
+ 	}
+ 
+ 	if runtime.GOOS == "windows" {
+ 		// Windows cleans paths before opening them.
+ 		s, err = rootCleanPath(s, prefix, suffix)
+ 		if err != nil {
+-			return nil, err
++			return nil, "", err
+ 		}
+ 		prefix = nil
+ 		suffix = nil
+@@ -215,13 +215,14 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error)
+ 		}
+ 		parts = append(parts, s[i:j])
+ 		// Advance to the next component, or end of the path.
++		partEnd := j
+ 		for j < len(s) && IsPathSeparator(s[j]) {
+ 			j++
+ 		}
+ 		if j == len(s) {
+ 			// If this is the last path component,
+ 			// preserve any trailing path separators.
+-			parts[len(parts)-1] = s[i:]
++			suffixSep = s[partEnd:]
+ 			break
+ 		}
+ 		if parts[len(parts)-1] == "." {
+@@ -235,7 +236,7 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, err error)
+ 		parts = parts[:len(parts)-1]
+ 	}
+ 	parts = append(parts, suffix...)
+-	return parts, nil
++	return parts, suffixSep, nil
+ }
+ 
+ // FS returns a file system (an fs.FS) for the tree of files in the root.
+diff --git a/src/os/root_js.go b/src/os/root_js.go
+index 70aa5f9ccd..56a37dafe1 100644
+--- a/src/os/root_js.go
++++ b/src/os/root_js.go
+@@ -33,7 +33,7 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
+ 	if r.root.closed.Load() {
+ 		return ErrClosed
+ 	}
+-	parts, err := splitPathInRoot(name, nil, nil)
++	parts, suffixSep, err := splitPathInRoot(name, nil, nil)
+ 	if err != nil {
+ 		return err
+ 	}
+@@ -61,11 +61,15 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
+ 			continue
+ 		}
+ 
+-		if lstat && i == len(parts)-1 {
+-			break
++		part := parts[i]
++		if i == len(parts)-1 {
++			if lstat {
++				break
++			}
++			part += suffixSep
+ 		}
+ 
+-		next := joinPath(base, parts[i])
++		next := joinPath(base, part)
+ 		fi, err := Lstat(next)
+ 		if err != nil {
+ 			if IsNotExist(err) {
+@@ -82,10 +86,19 @@ func checkPathEscapesInternal(r *Root, name string, lstat bool) error {
+ 			if symlinks > rootMaxSymlinks {
+ 				return errors.New("too many symlinks")
+ 			}
+-			newparts, err := splitPathInRoot(link, parts[:i], parts[i+1:])
++			newparts, newSuffixSep, err := splitPathInRoot(link, parts[:i], parts[i+1:])
+ 			if err != nil {
+ 				return err
+ 			}
++			if i == len(parts) {
++				// suffixSep contains any trailing path separator characters
++				// in the link target.
++				// If we are replacing the remainder of the path, retain these.
++				// If we're replacing some intermediate component of the path,
++				// ignore them, since intermediate components must always be
++				// directories.
++				suffixSep = newSuffixSep
++			}
+ 			parts = newparts
+ 			continue
+ 		}
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index 6fc02a1a07..c974ce2c61 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -98,7 +98,7 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
+ 	}
+ 	defer r.root.decref()
+ 
+-	parts, err := splitPathInRoot(name, nil, nil)
++	parts, suffixSep, err := splitPathInRoot(name, nil, nil)
+ 	if err != nil {
+ 		return ret, err
+ 	}
+@@ -162,7 +162,9 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
+ 			// Call f to decide what to do with it.
+ 			// If f returns errSymlink, this element is a symlink
+ 			// which should be followed.
+-			ret, err = f(dirfd, parts[i])
++			// suffixSep contains any trailing separator characters
++			// which we rejoin to the final part at this time.
++			ret, err = f(dirfd, parts[i]+suffixSep)
+ 			if _, ok := err.(errSymlink); !ok {
+ 				return ret, err
+ 			}
+@@ -184,10 +186,19 @@ func doInRoot[T any](r *Root, name string, f func(parent sysfdType, name string)
+ 			if symlinks > rootMaxSymlinks {
+ 				return ret, syscall.ELOOP
+ 			}
+-			newparts, err := splitPathInRoot(string(e), parts[:i], parts[i+1:])
++			newparts, newSuffixSep, err := splitPathInRoot(string(e), parts[:i], parts[i+1:])
+ 			if err != nil {
+ 				return ret, err
+ 			}
++			if i == len(parts)-1 {
++				// suffixSep contains any trailing path separator characters
++				// in the link target.
++				// If we are replacing the remainder of the path, retain these.
++				// If we're replacing some intermediate component of the path,
++				// ignore them, since intermediate components must always be
++				// directories.
++				suffixSep = newSuffixSep
++			}
+ 			if len(newparts) < i || !slices.Equal(parts[:i], newparts[:i]) {
+ 				// Some component in the path which we have already traversed
+ 				// has changed. We need to restart parsing from the root.
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 6f6f6cc826..398909f8c6 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -186,6 +186,30 @@ var rootTestCases = []rootTest{{
+ 	open:    "link",
+ 	target:  "target",
+ 	ltarget: "link",
++}, {
++	name: "symlink dotdot slash",
++	fs: []string{
++		"link => ../",
++	},
++	open:      "link",
++	ltarget:   "link",
++	wantError: true,
++}, {
++	name: "symlink ending in slash",
++	fs: []string{
++		"dir/",
++		"link => dir/",
++	},
++	open:   "link/target",
++	target: "dir/target",
++}, {
++	name: "symlink dotdot dotdot slash",
++	fs: []string{
++		"dir/link => ../../",
++	},
++	open:      "dir/link",
++	ltarget:   "dir/link",
++	wantError: true,
+ }, {
+ 	name: "symlink chain",
+ 	fs: []string{
+@@ -213,6 +237,16 @@ var rootTestCases = []rootTest{{
+ 	},
+ 	open:   "a/../a/b/../../a/b/../b/target",
+ 	target: "a/b/target",
++}, {
++	name:      "path with dotdot slash",
++	fs:        []string{},
++	open:      "../",
++	wantError: true,
++}, {
++	name:      "path with dotdot dotdot slash",
++	fs:        []string{},
++	open:      "a/../../",
++	wantError: true,
+ }, {
+ 	name: "dotdot no symlink",
+ 	fs: []string{

@@ -1,0 +1,101 @@
+commit 3b36d92c96436b9fcc2ee3b174edc369a598c163
+Author: Tim King <taking@google.com>
+Date:   Tue Aug 20 12:43:59 2024 -0700
+
+    cmd/compile/internal: write type parameters for aliases
+    
+    Writes the field for type parameter names for aliases when
+    the bitstream is >= V2.
+    
+    This is a no-op at the moment as the writer is hardwired to V1.
+    
+    Updates #68778
+    
+    Change-Id: I5887e3608239b9a6a47e3cc21cacb75b84e1d186
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607235
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ src/cmd/compile/internal/importer/ureader.go |  5 ++++-
+ src/cmd/compile/internal/noder/reader.go     |  4 ++++
+ src/cmd/compile/internal/noder/writer.go     | 16 ++++++++++++----
+ src/go/internal/gcimporter/ureader.go        |  5 ++++-
+ 4 files changed, 24 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index 467b1d418f..5f14eb695e 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -417,7 +417,10 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types2.Package, string) {
+ 
+ 		case pkgbits.ObjAlias:
+ 			pos := r.pos()
+-			var tparams []*types2.TypeParam // TODO(#68778): Read tparams for unified IR.
++			var tparams []*types2.TypeParam
++			if r.Version().Has(pkgbits.AliasTypeParamNames) {
++				tparams = r.typeParamNames()
++			}
+ 			typ := r.typ()
+ 			return newAliasTypeName(pr.enableAlias, pos, objPkg, objName, typ, tparams)
+ 
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index a825d60f7e..33fb7d35e1 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -746,6 +746,10 @@ func (pr *pkgReader) objIdxMayFail(idx index, implicits, explicits []*types.Type
+ 	case pkgbits.ObjAlias:
+ 		name := do(ir.OTYPE, false)
+ 
++		if r.Version().Has(pkgbits.AliasTypeParamNames) {
++			r.typeParamNames()
++		}
++
+ 		// Clumsy dance: the r.typ() call here might recursively find this
+ 		// type alias name, before we've set its type (#66873). So we
+ 		// temporarily clear sym.Def and then restore it later, if still
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index c3ca408790..ecc03cbd83 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -855,11 +855,19 @@ func (w *writer) doObj(wext *writer, obj types2.Object) pkgbits.CodeObj {
+ 	case *types2.TypeName:
+ 		if obj.IsAlias() {
+ 			w.pos(obj)
+-			t := obj.Type()
+-			if alias, ok := t.(*types2.Alias); ok { // materialized alias
+-				t = alias.Rhs()
++			rhs := obj.Type()
++			var tparams *types2.TypeParamList
++			if alias, ok := rhs.(*types2.Alias); ok { // materialized alias
++				assert(alias.TypeArgs() == nil)
++				tparams = alias.TypeParams()
++				rhs = alias.Rhs()
+ 			}
+-			w.typ(t)
++			if w.Version().Has(pkgbits.AliasTypeParamNames) {
++				w.typeParamNames(tparams)
++			}
++			// TODO(taking): enable this assertion once this is not intended to be a nop.
++			// assert(w.Version().Has(pkgbits.AliasTypeParamNames) || tparams.Len() == 0)
++			w.typ(rhs)
+ 			return pkgbits.ObjAlias
+ 		}
+ 
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index e4b4e17749..b763ff5cca 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -488,7 +488,10 @@ func (pr *pkgReader) objIdx(idx pkgbits.Index) (*types.Package, string) {
+ 
+ 		case pkgbits.ObjAlias:
+ 			pos := r.pos()
+-			var tparams []*types.TypeParam // TODO(#68778): Read tparams for unified IR.
++			var tparams []*types.TypeParam
++			if r.Version().Has(pkgbits.AliasTypeParamNames) {
++				tparams = r.typeParamNames()
++			}
+ 			typ := r.typ()
+ 			declare(newAliasTypeName(pos, objPkg, objName, typ, tparams))
+ 

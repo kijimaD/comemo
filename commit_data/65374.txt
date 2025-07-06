@@ -1,0 +1,42 @@
+commit 672a53def7e94b4d26049c5cd44dda5d7f1a46ff
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Oct 9 01:00:36 2024 +0200
+
+    strconv: cleanup old compiler bits.TrailingZeros workaround
+    
+    Since CL 599096 the compiler knows bits.TrailingZeros's maximum value
+    based on the input type size.
+    
+    Since CL 603996 it knows it based on input's maximum value.
+    
+    Change-Id: Ib0d6b15a3ba6894d3e7e12b79b387ddbffabe370
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618715
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Commit-Queue: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/strconv/itoa.go | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
+
+diff --git a/src/strconv/itoa.go b/src/strconv/itoa.go
+index 29fec41fe2..928b37ffa6 100644
+--- a/src/strconv/itoa.go
++++ b/src/strconv/itoa.go
+@@ -152,13 +152,7 @@ func formatBits(dst []byte, u uint64, base int, neg, append_ bool) (d []byte, s
+ 
+ 	} else if isPowerOfTwo(base) {
+ 		// Use shifts and masks instead of / and %.
+-		// Base is a power of 2 and 2 <= base <= len(digits) where len(digits) is 36.
+-		// The largest power of 2 below or equal to 36 is 32, which is 1 << 5;
+-		// i.e., the largest possible shift count is 5. By &-ind that value with
+-		// the constant 7 we tell the compiler that the shift count is always
+-		// less than 8 which is smaller than any register width. This allows
+-		// the compiler to generate better code for the shift operation.
+-		shift := uint(bits.TrailingZeros(uint(base))) & 7
++		shift := uint(bits.TrailingZeros(uint(base)))
+ 		b := uint64(base)
+ 		m := uint(base) - 1 // == 1<<shift - 1
+ 		for u >= b {

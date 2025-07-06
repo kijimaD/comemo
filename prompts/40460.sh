@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40460: 38431f1044880b936e35034ded19a6a8bc9faa21
+# Index 40460: 32b879c674b46249dc3e1db48c0076f5c11aa7a4
 
 echo "🚀 Generating explanation for commit 40460..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40460..."
 
 ### メタデータ
 - **コミットインデックス**: 40460
-- **コミットハッシュ**: 38431f1044880b936e35034ded19a6a8bc9faa21
-- **GitHub URL**: https://github.com/golang/go/commit/38431f1044880b936e35034ded19a6a8bc9faa21
+- **コミットハッシュ**: 32b879c674b46249dc3e1db48c0076f5c11aa7a4
+- **GitHub URL**: https://github.com/golang/go/commit/32b879c674b46249dc3e1db48c0076f5c11aa7a4
 
 ### 章構成
 

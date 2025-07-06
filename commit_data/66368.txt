@@ -1,0 +1,37 @@
+commit 11c847e536bff955eab65cc0a3008557362dda22
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Nov 26 17:10:32 2024 +0800
+
+    runtime: use correct memory barrier in exitThread function on loong64
+    
+    In the runtime.exitThread function, a storeRelease barrier
+    is required instead of a full barrier.
+    
+    Change-Id: I2815ddb03e4984c891d71811ccf650a82325e10d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631915
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/sys_linux_loong64.s | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/sys_linux_loong64.s b/src/runtime/sys_linux_loong64.s
+index 57cee99da7..914da6c043 100644
+--- a/src/runtime/sys_linux_loong64.s
++++ b/src/runtime/sys_linux_loong64.s
+@@ -57,10 +57,8 @@ TEXT runtime·exit(SB),NOSPLIT|NOFRAME,$0-4
+ TEXT runtime·exitThread(SB),NOSPLIT|NOFRAME,$0-8
+ 	MOVV	wait+0(FP), R19
+ 	// We're done using the stack.
+-	MOVW	$0, R11
+-	DBAR
+-	MOVW	R11, (R19)
+-	DBAR
++	DBAR	$0x12	// StoreRelease barrier
++	MOVW	R0, (R19)
+ 	MOVW	$0, R4	// exit code
+ 	MOVV	$SYS_exit, R11
+ 	SYSCALL

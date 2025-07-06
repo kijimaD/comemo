@@ -1,0 +1,34 @@
+commit f17b28de78e7b2debd555f84a0e48be010e4fc88
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Apr 15 19:54:01 2024 -0400
+
+    runtime: remove no-op slice operation in Caller
+    
+    rpc was an array prior to CL 152537, so it was necessary to slice
+    it since callers accepts a slice. Now that rpc is already a slice,
+    slicing it is no longer required.
+    
+    Change-Id: Ie646ef5e494323c9fb58f3a24f942e3b1ff639ea
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579016
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/extern.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/extern.go b/src/runtime/extern.go
+index 9a02e36829..bb2f03b1ce 100644
+--- a/src/runtime/extern.go
++++ b/src/runtime/extern.go
+@@ -297,7 +297,7 @@ import (
+ // call. The boolean ok is false if it was not possible to recover the information.
+ func Caller(skip int) (pc uintptr, file string, line int, ok bool) {
+ 	rpc := make([]uintptr, 1)
+-	n := callers(skip+1, rpc[:])
++	n := callers(skip+1, rpc)
+ 	if n < 1 {
+ 		return
+ 	}

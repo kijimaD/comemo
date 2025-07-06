@@ -1,0 +1,955 @@
+commit c2ae5c7443fc8bda1d2b06390d4b439e81fb4b09
+Author: David Chase <drchase@google.com>
+Date:   Wed Feb 19 16:47:31 2025 -0500
+
+    cmd/compile, runtime: use PC of deferreturn for panic transfer
+    
+    this removes the old conditional-on-register-value
+    handshake from the deferproc/deferprocstack logic.
+    
+    The "line" for the recovery-exit frame itself (not the defers
+    that it runs) is the closing brace of the function.
+    
+    Reduces code size slightly (e.g. go command is 0.2% smaller)
+    
+    Sample output showing effect of this change, also what sort of
+    code it requires to observe the effect:
+    ```
+    package main
+    
+    import "os"
+    
+    func main() {
+            g(len(os.Args) - 1)           // stack[0]
+    }
+    
+    var gi int
+    var pi *int = &gi
+    
+    //go:noinline
+    func g(i int) {
+            switch i {
+            case 0:
+                    defer func() {
+                            println("g0", i)
+                            q()                  // stack[2] if i == 0
+                    }()
+                    for j := *pi; j < 1; j++ {
+                            defer func() {
+                                    println("recover0", recover().(string))
+                            }()
+                    }
+            default:
+                    for j := *pi; j < 1; j++ {
+                            defer func() {
+                                    println("g1", i)
+                                    q()              // stack[2] if i == 1
+                            }()
+                    }
+                    defer func() {
+                            println("recover1", recover().(string))
+                    }()
+            }
+            p()
+    }                                // stack[1] (deferreturn)
+    
+    //go:noinline
+    func p() {
+            panic("p()")
+    }
+    
+    //go:noinline
+    func q() {
+            panic("q()")                 // stack[3]
+    }
+    
+    /* Sample output for "./foo foo":
+    recover1 p()
+    g1 1
+    panic: q()
+    
+    goroutine 1 [running]:
+    main.q()
+            .../main.go:46 +0x2c
+    main.g.func3()
+            .../main.go:29 +0x48
+    main.g(0x1?)
+            .../main.go:37 +0x68
+    main.main()
+            .../main.go:6 +0x28
+    */
+    ```
+    
+    Change-Id: Ie39ea62ecc244213500380ea06d44024cadc2317
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650795
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/amd64/ssa.go           | 19 +---------
+ src/cmd/compile/internal/arm/ssa.go             | 19 +---------
+ src/cmd/compile/internal/arm64/ssa.go           | 19 +---------
+ src/cmd/compile/internal/loong64/ssa.go         | 17 +--------
+ src/cmd/compile/internal/mips/ssa.go            | 17 +--------
+ src/cmd/compile/internal/mips64/ssa.go          | 17 +--------
+ src/cmd/compile/internal/ppc64/ssa.go           | 21 +----------
+ src/cmd/compile/internal/riscv64/ssa.go         | 17 +--------
+ src/cmd/compile/internal/s390x/ssa.go           | 15 +-------
+ src/cmd/compile/internal/ssa/_gen/genericOps.go | 22 ++++++------
+ src/cmd/compile/internal/ssa/func.go            | 12 +++----
+ src/cmd/compile/internal/ssagen/ssa.go          | 41 +++++++++++++++------
+ src/cmd/compile/internal/wasm/ssa.go            | 14 +-------
+ src/cmd/compile/internal/x86/ssa.go             | 19 +---------
+ src/cmd/internal/obj/x86/obj6.go                |  3 ++
+ src/cmd/link/internal/ld/pcln.go                | 16 ++++++++-
+ src/runtime/asm_386.s                           |  4 ---
+ src/runtime/asm_amd64.s                         |  5 ---
+ src/runtime/asm_arm.s                           |  4 ---
+ src/runtime/asm_arm64.s                         |  4 ---
+ src/runtime/asm_loong64.s                       |  4 ---
+ src/runtime/asm_mips64x.s                       |  4 ---
+ src/runtime/asm_mipsx.s                         |  4 ---
+ src/runtime/asm_ppc64x.s                        |  4 ---
+ src/runtime/asm_riscv64.s                       |  5 ---
+ src/runtime/asm_s390x.s                         |  4 ---
+ src/runtime/asm_wasm.s                          |  4 ---
+ src/runtime/panic.go                            | 48 ++++++++-----------------
+ src/runtime/stubs.go                            |  7 ----
+ 29 files changed, 90 insertions(+), 299 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 9eef71f760..332c49af00 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1441,24 +1441,7 @@ var nefJumps = [2][2]ssagen.IndexJump{
+ 
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	switch b.Kind {
+-	case ssa.BlockPlain:
+-		if b.Succs[0].Block() != next {
+-			p := s.Prog(obj.AJMP)
+-			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
+-		}
+-	case ssa.BlockDefer:
+-		// defer returns in rax:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p := s.Prog(x86.ATESTL)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_AX
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_AX
+-		p = s.Prog(x86.AJNE)
+-		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if b.Succs[0].Block() != next {
+ 			p := s.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/arm/ssa.go b/src/cmd/compile/internal/arm/ssa.go
+index 638ed3ed4e..f129ab493d 100644
+--- a/src/cmd/compile/internal/arm/ssa.go
++++ b/src/cmd/compile/internal/arm/ssa.go
+@@ -918,24 +918,7 @@ var gtJumps = [2][2]ssagen.IndexJump{
+ 
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	switch b.Kind {
+-	case ssa.BlockPlain:
+-		if b.Succs[0].Block() != next {
+-			p := s.Prog(obj.AJMP)
+-			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
+-		}
+-
+-	case ssa.BlockDefer:
+-		// defer returns in R0:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p := s.Prog(arm.ACMP)
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = 0
+-		p.Reg = arm.REG_R0
+-		p = s.Prog(arm.ABNE)
+-		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if b.Succs[0].Block() != next {
+ 			p := s.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/arm64/ssa.go b/src/cmd/compile/internal/arm64/ssa.go
+index 0f5c5a17bd..957e943e44 100644
+--- a/src/cmd/compile/internal/arm64/ssa.go
++++ b/src/cmd/compile/internal/arm64/ssa.go
+@@ -1327,24 +1327,7 @@ var gtJumps = [2][2]ssagen.IndexJump{
+ 
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	switch b.Kind {
+-	case ssa.BlockPlain:
+-		if b.Succs[0].Block() != next {
+-			p := s.Prog(obj.AJMP)
+-			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
+-		}
+-
+-	case ssa.BlockDefer:
+-		// defer returns in R0:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p := s.Prog(arm64.ACMP)
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = 0
+-		p.Reg = arm64.REG_R0
+-		p = s.Prog(arm64.ABNE)
+-		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if b.Succs[0].Block() != next {
+ 			p := s.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 0ba9efa1d3..e8b8b27f87 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -970,22 +970,7 @@ var blockJump = map[ssa.BlockKind]struct {
+ 
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	switch b.Kind {
+-	case ssa.BlockPlain:
+-		if b.Succs[0].Block() != next {
+-			p := s.Prog(obj.AJMP)
+-			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
+-		}
+-	case ssa.BlockDefer:
+-		// defer returns in R19:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p := s.Prog(loong64.ABNE)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = loong64.REGZERO
+-		p.Reg = loong64.REG_R19
+-		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if b.Succs[0].Block() != next {
+ 			p := s.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/mips/ssa.go b/src/cmd/compile/internal/mips/ssa.go
+index bfccafd8e5..4c7c8eafcd 100644
+--- a/src/cmd/compile/internal/mips/ssa.go
++++ b/src/cmd/compile/internal/mips/ssa.go
+@@ -826,22 +826,7 @@ var blockJump = map[ssa.BlockKind]struct {
+ 
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	switch b.Kind {
+-	case ssa.BlockPlain:
+-		if b.Succs[0].Block() != next {
+-			p := s.Prog(obj.AJMP)
+-			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
+-		}
+-	case ssa.BlockDefer:
+-		// defer returns in R1:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p := s.Prog(mips.ABNE)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = mips.REGZERO
+-		p.Reg = mips.REG_R1
+-		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if b.Succs[0].Block() != next {
+ 			p := s.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/mips64/ssa.go b/src/cmd/compile/internal/mips64/ssa.go
+index 0c0dc6e495..5b5edf622a 100644
+--- a/src/cmd/compile/internal/mips64/ssa.go
++++ b/src/cmd/compile/internal/mips64/ssa.go
+@@ -835,22 +835,7 @@ var blockJump = map[ssa.BlockKind]struct {
+ 
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	switch b.Kind {
+-	case ssa.BlockPlain:
+-		if b.Succs[0].Block() != next {
+-			p := s.Prog(obj.AJMP)
+-			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
+-		}
+-	case ssa.BlockDefer:
+-		// defer returns in R1:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p := s.Prog(mips.ABNE)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = mips.REGZERO
+-		p.Reg = mips.REG_R1
+-		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if b.Succs[0].Block() != next {
+ 			p := s.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index 53ec4289c7..c1f2484bf4 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -2003,26 +2003,7 @@ var blockJump = [...]struct {
+ 
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	switch b.Kind {
+-	case ssa.BlockDefer:
+-		// defer returns in R3:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p := s.Prog(ppc64.ACMP)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = ppc64.REG_R3
+-		p.To.Type = obj.TYPE_CONST
+-		p.To.Offset = 0
+-
+-		p = s.Prog(ppc64.ABNE)
+-		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
+-		if b.Succs[0].Block() != next {
+-			p := s.Prog(obj.AJMP)
+-			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
+-		}
+-
+-	case ssa.BlockPlain:
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if b.Succs[0].Block() != next {
+ 			p := s.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/riscv64/ssa.go b/src/cmd/compile/internal/riscv64/ssa.go
+index 759d8d7cf4..636ef44d68 100644
+--- a/src/cmd/compile/internal/riscv64/ssa.go
++++ b/src/cmd/compile/internal/riscv64/ssa.go
+@@ -802,22 +802,7 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	s.SetPos(b.Pos)
+ 
+ 	switch b.Kind {
+-	case ssa.BlockDefer:
+-		// defer returns in A0:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p := s.Prog(riscv.ABNE)
+-		p.To.Type = obj.TYPE_BRANCH
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = riscv.REG_ZERO
+-		p.Reg = riscv.REG_A0
+-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
+-		if b.Succs[0].Block() != next {
+-			p := s.Prog(obj.AJMP)
+-			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
+-		}
+-	case ssa.BlockPlain:
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if b.Succs[0].Block() != next {
+ 			p := s.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/compile/internal/s390x/ssa.go b/src/cmd/compile/internal/s390x/ssa.go
+index a97c1569c1..4d24881dba 100644
+--- a/src/cmd/compile/internal/s390x/ssa.go
++++ b/src/cmd/compile/internal/s390x/ssa.go
+@@ -887,26 +887,13 @@ func blockAsm(b *ssa.Block) obj.As {
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	// Handle generic blocks first.
+ 	switch b.Kind {
+-	case ssa.BlockPlain:
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if b.Succs[0].Block() != next {
+ 			p := s.Prog(s390x.ABR)
+ 			p.To.Type = obj.TYPE_BRANCH
+ 			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
+ 		}
+ 		return
+-	case ssa.BlockDefer:
+-		// defer returns in R3:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p := s.Br(s390x.ACIJ, b.Succs[1].Block())
+-		p.From.Type = obj.TYPE_CONST
+-		p.From.Offset = int64(s390x.NotEqual & s390x.NotUnordered) // unordered is not possible
+-		p.Reg = s390x.REG_R3
+-		p.AddRestSourceConst(0)
+-		if b.Succs[0].Block() != next {
+-			s.Br(s390x.ABR, b.Succs[0].Block())
+-		}
+-		return
+ 	case ssa.BlockExit, ssa.BlockRetJmp:
+ 		return
+ 	case ssa.BlockRet:
+diff --git a/src/cmd/compile/internal/ssa/_gen/genericOps.go b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+index 4dde6d51c5..37de6e9919 100644
+--- a/src/cmd/compile/internal/ssa/_gen/genericOps.go
++++ b/src/cmd/compile/internal/ssa/_gen/genericOps.go
+@@ -663,21 +663,21 @@ var genericOps = []opData{
+ 	{name: "PrefetchCacheStreamed", argLength: 2, hasSideEffects: true}, // Do non-temporal or streamed prefetch arg0 to cache. arg0=addr, arg1=memory.
+ }
+ 
+-//     kind          controls        successors   implicit exit
+-//   ----------------------------------------------------------
+-//     Exit      [return mem]                []             yes
+-//      Ret      [return mem]                []             yes
+-//   RetJmp      [return mem]                []             yes
+-//    Plain                []            [next]
+-//       If   [boolean Value]      [then, else]
+-//    First                []   [always, never]
+-//    Defer             [mem]  [nopanic, panic]                  (control opcode should be OpStaticCall to runtime.deferproc)
+-// JumpTable   [integer Value]  [succ1,succ2,..]
++//     kind          controls          successors   implicit exit
++//   ------------------------------------------------------------
++//     Exit      [return mem]                  []             yes
++//      Ret      [return mem]                  []             yes
++//   RetJmp      [return mem]                  []             yes
++//    Plain                []              [next]
++//       If   [boolean Value]        [then, else]
++//    First                []     [always, never]
++//    Defer             [mem] [nopanic, recovery]                  (control opcode should be OpStaticCall to runtime.defer*)
++// JumpTable   [integer Value]   [succ1,succ2,..]
+ 
+ var genericBlocks = []blockData{
+ 	{name: "Plain"},                  // a single successor
+ 	{name: "If", controls: 1},        // if Controls[0] goto Succs[0] else goto Succs[1]
+-	{name: "Defer", controls: 1},     // Succs[0]=defer queued, Succs[1]=defer recovered. Controls[0] is call op (of memory type)
++	{name: "Defer", controls: 1},     // Succs[0]=defer queued, Succs[1]=defer recovery branch (jmp performed by runtime). Controls[0] is call op (of memory type).
+ 	{name: "Ret", controls: 1},       // no successors, Controls[0] value is memory result
+ 	{name: "RetJmp", controls: 1},    // no successors, Controls[0] value is a tail call
+ 	{name: "Exit", controls: 1},      // no successors, Controls[0] value generates a panic
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index 998cc804aa..12e4c268f0 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -41,12 +41,12 @@ type Func struct {
+ 	ABISelf        *abi.ABIConfig // ABI for function being compiled
+ 	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
+ 
+-	scheduled         bool  // Values in Blocks are in final order
+-	laidout           bool  // Blocks are ordered
+-	NoSplit           bool  // true if function is marked as nosplit.  Used by schedule check pass.
+-	dumpFileSeq       uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
+-	IsPgoHot          bool
+-	HasDeferRangeFunc bool // if true, needs a deferreturn so deferrangefunc can use it for recover() return PC
++	scheduled   bool  // Values in Blocks are in final order
++	laidout     bool  // Blocks are ordered
++	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
++	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
++	IsPgoHot    bool
++	DeferReturn *Block // avoid creating more than one deferreturn if there's multiple calls to deferproc-etc.
+ 
+ 	// when register allocation is done, maps value ids to locations
+ 	RegAlloc []Location
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 306244424c..07269e65f2 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -410,6 +410,8 @@ func buildssa(fn *ir.Func, worker int, isPgoHot bool) *ssa.Func {
+ 		// Don't support open-coded defers for 386 ONLY when using shared
+ 		// libraries, because there is extra code (added by rewriteToUseGot())
+ 		// preceding the deferreturn/ret code that we don't track correctly.
++		//
++		// TODO this restriction can be removed given adjusted offset in computeDeferReturn in cmd/link/internal/ld/pcln.go
+ 		s.hasOpenDefers = false
+ 	}
+ 	if s.hasOpenDefers && s.instrumentEnterExit {
+@@ -2166,7 +2168,17 @@ func (s *state) exit() *ssa.Block {
+ 			}
+ 			s.openDeferExit()
+ 		} else {
++			// Shared deferreturn is assigned the "last" position in the function.
++			// The linker picks the first deferreturn call it sees, so this is
++			// the only sensible "shared" place.
++			// To not-share deferreturn, the protocol would need to be changed
++			// so that the call to deferproc-etc would receive the PC offset from
++			// the return PC, and the runtime would need to use that instead of
++			// the deferreturn retrieved from the pcln information.
++			// opendefers would remain a problem, however.
++			s.pushLine(s.curfn.Endlineno)
+ 			s.rtcall(ir.Syms.Deferreturn, true, nil)
++			s.popLine()
+ 		}
+ 	}
+ 
+@@ -4411,6 +4423,8 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
+ 		s.Fatalf("go/defer call with arguments: %v", n)
+ 	}
+ 
++	isCallDeferRangeFunc := false
++
+ 	switch n.Op() {
+ 	case ir.OCALLFUNC:
+ 		if (k == callNormal || k == callTail) && fn.Op() == ir.ONAME && fn.(*ir.Name).Class == ir.PFUNC {
+@@ -4434,7 +4448,7 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
+ 				}
+ 			}
+ 			if fn := n.Fun.Sym().Name; n.Fun.Sym().Pkg == ir.Pkgs.Runtime && fn == "deferrangefunc" {
+-				s.f.HasDeferRangeFunc = true
++				isCallDeferRangeFunc = true
+ 			}
+ 			break
+ 		}
+@@ -4596,17 +4610,20 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
+ 	}
+ 
+ 	// Finish block for defers
+-	if k == callDefer || k == callDeferStack {
++	if k == callDefer || k == callDeferStack || isCallDeferRangeFunc {
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockDefer
+ 		b.SetControl(call)
+ 		bNext := s.f.NewBlock(ssa.BlockPlain)
+ 		b.AddEdgeTo(bNext)
+-		// Add recover edge to exit code.
+-		r := s.f.NewBlock(ssa.BlockPlain)
+-		s.startBlock(r)
+-		s.exit()
+-		b.AddEdgeTo(r)
++		r := s.f.DeferReturn // Share a single deferreturn among all defers
++		if r == nil {
++			r = s.f.NewBlock(ssa.BlockPlain)
++			s.startBlock(r)
++			s.exit()
++			s.f.DeferReturn = r
++		}
++		b.AddEdgeTo(r) // Add recover edge to exit code.  This is a fake edge to keep the block live.
+ 		b.Likely = ssa.BranchLikely
+ 		s.startBlock(bNext)
+ 	}
+@@ -6571,13 +6588,15 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		// nop (which will never execute) after the call.
+ 		Arch.Ginsnop(s.pp)
+ 	}
+-	if openDeferInfo != nil || f.HasDeferRangeFunc {
++	if openDeferInfo != nil {
+ 		// When doing open-coded defers, generate a disconnected call to
+ 		// deferreturn and a return. This will be used to during panic
+ 		// recovery to unwind the stack and return back to the runtime.
+-		//
+-		// deferrangefunc needs to be sure that at least one of these exists;
+-		// if all returns are dead-code eliminated, there might not be.
++
++		// Note that this exit code doesn't work if a return parameter
++		// is heap-allocated, but open defers aren't enabled in that case.
++
++		// TODO either make this handle heap-allocated return parameters or reuse the other-defers general-purpose code path.
+ 		s.pp.NextLive = s.livenessMap.DeferReturn
+ 		p := s.pp.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/wasm/ssa.go b/src/cmd/compile/internal/wasm/ssa.go
+index 85f34a7707..daee82f1fd 100644
+--- a/src/cmd/compile/internal/wasm/ssa.go
++++ b/src/cmd/compile/internal/wasm/ssa.go
+@@ -169,7 +169,7 @@ func ssaMarkMoves(s *ssagen.State, b *ssa.Block) {
+ 
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	switch b.Kind {
+-	case ssa.BlockPlain:
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if next != b.Succs[0].Block() {
+ 			s.Br(obj.AJMP, b.Succs[0].Block())
+ 		}
+@@ -203,18 +203,6 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 
+ 	case ssa.BlockExit, ssa.BlockRetJmp:
+ 
+-	case ssa.BlockDefer:
+-		p := s.Prog(wasm.AGet)
+-		p.From = obj.Addr{Type: obj.TYPE_REG, Reg: wasm.REG_RET0}
+-		s.Prog(wasm.AI64Eqz)
+-		s.Prog(wasm.AI32Eqz)
+-		s.Prog(wasm.AIf)
+-		s.Br(obj.AJMP, b.Succs[1].Block())
+-		s.Prog(wasm.AEnd)
+-		if next != b.Succs[0].Block() {
+-			s.Br(obj.AJMP, b.Succs[0].Block())
+-		}
+-
+ 	default:
+ 		panic("unexpected block")
+ 	}
+diff --git a/src/cmd/compile/internal/x86/ssa.go b/src/cmd/compile/internal/x86/ssa.go
+index 35ad2d90e6..347c5cb560 100644
+--- a/src/cmd/compile/internal/x86/ssa.go
++++ b/src/cmd/compile/internal/x86/ssa.go
+@@ -946,24 +946,7 @@ var nefJumps = [2][2]ssagen.IndexJump{
+ 
+ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 	switch b.Kind {
+-	case ssa.BlockPlain:
+-		if b.Succs[0].Block() != next {
+-			p := s.Prog(obj.AJMP)
+-			p.To.Type = obj.TYPE_BRANCH
+-			s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[0].Block()})
+-		}
+-	case ssa.BlockDefer:
+-		// defer returns in rax:
+-		// 0 if we should continue executing
+-		// 1 if we should jump to deferreturn call
+-		p := s.Prog(x86.ATESTL)
+-		p.From.Type = obj.TYPE_REG
+-		p.From.Reg = x86.REG_AX
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = x86.REG_AX
+-		p = s.Prog(x86.AJNE)
+-		p.To.Type = obj.TYPE_BRANCH
+-		s.Branches = append(s.Branches, ssagen.Branch{P: p, B: b.Succs[1].Block()})
++	case ssa.BlockPlain, ssa.BlockDefer:
+ 		if b.Succs[0].Block() != next {
+ 			p := s.Prog(obj.AJMP)
+ 			p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/internal/obj/x86/obj6.go b/src/cmd/internal/obj/x86/obj6.go
+index e6ea8985e4..53c0918254 100644
+--- a/src/cmd/internal/obj/x86/obj6.go
++++ b/src/cmd/internal/obj/x86/obj6.go
+@@ -448,6 +448,9 @@ func rewriteToUseGot(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 		//
+ 		// We disable open-coded defers in buildssa() on 386 ONLY with shared
+ 		// libraries because of this extra code added before deferreturn calls.
++		//
++		// computeDeferReturn in cmd/link/internal/ld/pcln.go depends
++		// on the size of these instructions.
+ 		if ctxt.Arch.Family == sys.AMD64 || (p.To.Sym != nil && p.To.Sym.Local()) || p.RegTo2 != 0 {
+ 			return
+ 		}
+diff --git a/src/cmd/link/internal/ld/pcln.go b/src/cmd/link/internal/ld/pcln.go
+index ea08fd3d31..a09d3acd5e 100644
+--- a/src/cmd/link/internal/ld/pcln.go
++++ b/src/cmd/link/internal/ld/pcln.go
+@@ -143,8 +143,22 @@ func computeDeferReturn(ctxt *Link, deferReturnSym, s loader.Sym) uint32 {
+ 				// instruction).
+ 				deferreturn = uint32(r.Off())
+ 				switch target.Arch.Family {
+-				case sys.AMD64, sys.I386:
++				case sys.I386:
+ 					deferreturn--
++					if ctxt.BuildMode == BuildModeShared || ctxt.linkShared || ctxt.BuildMode == BuildModePlugin {
++						// In this mode, we need to get the address from GOT,
++						// with two additional instructions like
++						//
++						// CALL    __x86.get_pc_thunk.bx(SB)       // 5 bytes
++						// LEAL    _GLOBAL_OFFSET_TABLE_<>(BX), BX // 6 bytes
++						//
++						// We need to back off to the get_pc_thunk call.
++						// (See progedit in cmd/internal/obj/x86/obj6.go)
++						deferreturn -= 11
++					}
++				case sys.AMD64:
++					deferreturn--
++
+ 				case sys.ARM, sys.ARM64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64:
+ 					// no change
+ 				case sys.S390X:
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index 5aafe14be9..b4818723e5 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -1373,10 +1373,6 @@ TEXT ·checkASM(SB),NOSPLIT,$0-1
+ 	SETEQ	ret+0(FP)
+ 	RET
+ 
+-TEXT runtime·return0(SB), NOSPLIT, $0
+-	MOVL	$0, AX
+-	RET
+-
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index cdf9874a7f..4b630b5ecc 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -1679,11 +1679,6 @@ DATA shifts<>+0xf0(SB)/8, $0x0807060504030201
+ DATA shifts<>+0xf8(SB)/8, $0xff0f0e0d0c0b0a09
+ GLOBL shifts<>(SB),RODATA,$256
+ 
+-TEXT runtime·return0(SB), NOSPLIT, $0
+-	MOVL	$0, AX
+-	RET
+-
+-
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+ TEXT _cgo_topofstack(SB),NOSPLIT,$0
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 4d57ec6062..7c39b4a3e2 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -846,10 +846,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-12
+ TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-12
+ 	JMP	runtime·memhash64Fallback(SB)
+ 
+-TEXT runtime·return0(SB),NOSPLIT,$0
+-	MOVW	$0, R0
+-	RET
+-
+ TEXT runtime·procyield(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	cycles+0(FP), R1
+ 	MOVW	$0, R0
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index bf9ab6bcbc..238eaf2789 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -1263,10 +1263,6 @@ TEXT runtime·abort(SB),NOSPLIT|NOFRAME,$0-0
+ 	MOVD	(R0), R0
+ 	UNDEF
+ 
+-TEXT runtime·return0(SB), NOSPLIT, $0
+-	MOVW	$0, R0
+-	RET
+-
+ // The top-most function running on a goroutine
+ // returns to goexit+PCQuantum.
+ TEXT runtime·goexit(SB),NOSPLIT|NOFRAME|TOPFRAME,$0-0
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index 1c5ced4512..de64f8acbc 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -679,10 +679,6 @@ TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+ TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+ 	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
+ 
+-TEXT runtime·return0(SB), NOSPLIT, $0
+-	MOVW	$0, R19
+-	RET
+-
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+ TEXT _cgo_topofstack(SB),NOSPLIT,$16
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index 80cd87c4af..cfb9950e17 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -644,10 +644,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+ TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+ 	JMP	runtime·memhash64Fallback(SB)
+ 
+-TEXT runtime·return0(SB), NOSPLIT, $0
+-	MOVW	$0, R1
+-	RET
+-
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+ TEXT _cgo_topofstack(SB),NOSPLIT,$16
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index ca95f22bd6..33afa2e5c5 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -634,10 +634,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-12
+ TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-12
+ 	JMP	runtime·memhash64Fallback(SB)
+ 
+-TEXT runtime·return0(SB),NOSPLIT,$0
+-	MOVW	$0, R1
+-	RET
+-
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 2b8c4d42a3..268e0c01c1 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -980,10 +980,6 @@ TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+ TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+ 	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
+ 
+-TEXT runtime·return0(SB), NOSPLIT, $0
+-	MOVW	$0, R3
+-	RET
+-
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+ #ifdef GOOS_aix
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 71b32304d7..20c9fdf7ff 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -247,11 +247,6 @@ TEXT runtime·memhash32<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+ TEXT runtime·memhash64<ABIInternal>(SB),NOSPLIT|NOFRAME,$0-24
+ 	JMP	runtime·memhash64Fallback<ABIInternal>(SB)
+ 
+-// func return0()
+-TEXT runtime·return0(SB), NOSPLIT, $0
+-	MOV	$0, A0
+-	RET
+-
+ // restore state from Gobuf; longjmp
+ 
+ // func gogo(buf *gobuf)
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index f2354a6d53..6758175fc2 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -767,10 +767,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+ TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+ 	JMP	runtime·memhash64Fallback(SB)
+ 
+-TEXT runtime·return0(SB), NOSPLIT, $0
+-	MOVW	$0, R3
+-	RET
+-
+ // Called from cgo wrappers, this function returns g->m->curg.stack.hi.
+ // Must obey the gcc calling convention.
+ TEXT _cgo_topofstack(SB),NOSPLIT|NOFRAME,$0
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 69da583a1d..247368d127 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -195,10 +195,6 @@ TEXT runtime·memhash32(SB),NOSPLIT|NOFRAME,$0-24
+ TEXT runtime·memhash64(SB),NOSPLIT|NOFRAME,$0-24
+ 	JMP	runtime·memhash64Fallback(SB)
+ 
+-TEXT runtime·return0(SB), NOSPLIT, $0-0
+-	MOVD $0, RET0
+-	RET
+-
+ TEXT runtime·asminit(SB), NOSPLIT, $0-0
+ 	// No per-thread init.
+ 	RET
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 1ed2503320..c31cfd6e1a 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -285,16 +285,6 @@ func deferproc(fn func()) {
+ 	// storing it to d.sp because GetCallerSP's result is a
+ 	// uintptr stack pointer.
+ 	d.sp = sys.GetCallerSP()
+-
+-	// deferproc returns 0 normally.
+-	// a deferred func that stops a panic
+-	// makes the deferproc return 1.
+-	// the code the compiler generates always
+-	// checks the return value and jumps to the
+-	// end of the function if deferproc returns != 0.
+-	return0()
+-	// No code can go here - the C return register has
+-	// been set and must not be clobbered.
+ }
+ 
+ var rangeDoneError = error(errorString("range function continued iteration after function for loop body returned false"))
+@@ -391,15 +381,10 @@ func deferrangefunc() any {
+ 		throw("defer on system stack")
+ 	}
+ 
+-	fn := findfunc(sys.GetCallerPC())
+-	if fn.deferreturn == 0 {
+-		throw("no deferreturn")
+-	}
+-
+ 	d := newdefer()
+ 	d.link = gp._defer
+ 	gp._defer = d
+-	d.pc = fn.entry() + uintptr(fn.deferreturn)
++	d.pc = sys.GetCallerPC()
+ 	// We must not be preempted between calling GetCallerSP and
+ 	// storing it to d.sp because GetCallerSP's result is a
+ 	// uintptr stack pointer.
+@@ -434,9 +419,6 @@ func deferprocat(fn func(), frame any) {
+ 			break
+ 		}
+ 	}
+-
+-	// Must be last - see deferproc above.
+-	return0()
+ }
+ 
+ // deferconvert converts the rangefunc defer list of d0 into an ordinary list
+@@ -484,6 +466,7 @@ func deferprocStack(d *_defer) {
+ 		// go code on the system stack can't defer
+ 		throw("defer on system stack")
+ 	}
++
+ 	// fn is already set.
+ 	// The other fields are junk on entry to deferprocStack and
+ 	// are initialized here.
+@@ -506,10 +489,6 @@ func deferprocStack(d *_defer) {
+ 	*(*uintptr)(unsafe.Pointer(&d.link)) = uintptr(unsafe.Pointer(gp._defer))
+ 	*(*uintptr)(unsafe.Pointer(&d.head)) = 0
+ 	*(*uintptr)(unsafe.Pointer(&gp._defer)) = uintptr(unsafe.Pointer(d))
+-
+-	return0()
+-	// No code can go here - the C return register has
+-	// been set and must not be clobbered.
+ }
+ 
+ // Each P holds a pool for defers.
+@@ -927,9 +906,6 @@ func (p *_panic) nextDefer() (func(), bool) {
+ 
+ 			fn := d.fn
+ 
+-			// TODO(mdempsky): Instead of having each deferproc call have
+-			// its own "deferreturn(); return" sequence, we should just make
+-			// them reuse the one we emit for open-coded defers.
+ 			p.retpc = d.pc
+ 
+ 			// Unlink and free.
+@@ -1159,6 +1135,15 @@ func recovery(gp *g) {
+ 	pc, sp, fp := p.retpc, uintptr(p.sp), uintptr(p.fp)
+ 	p0, saveOpenDeferState := p, p.deferBitsPtr != nil && *p.deferBitsPtr != 0
+ 
++	// The linker records the f-relative address of a call to deferreturn in f's funcInfo.
++	// Assuming a "normal" call to recover() inside one of f's deferred functions
++	// invoked for a panic, that is the desired PC for exiting f.
++	f := findfunc(pc)
++	if f.deferreturn == 0 {
++		throw("no deferreturn")
++	}
++	gotoPc := f.entry() + uintptr(f.deferreturn)
++
+ 	// Unwind the panic stack.
+ 	for ; p != nil && uintptr(p.startSP) < sp; p = p.link {
+ 		// Don't allow jumping past a pending Goexit.
+@@ -1181,7 +1166,7 @@ func recovery(gp *g) {
+ 		// With how subtle defer handling is, this might not actually be
+ 		// worthwhile though.
+ 		if p.goexit {
+-			pc, sp = p.startPC, uintptr(p.startSP)
++			gotoPc, sp = p.startPC, uintptr(p.startSP)
+ 			saveOpenDeferState = false // goexit is unwinding the stack anyway
+ 			break
+ 		}
+@@ -1242,11 +1227,9 @@ func recovery(gp *g) {
+ 		throw("bad recovery")
+ 	}
+ 
+-	// Make the deferproc for this d return again,
+-	// this time returning 1. The calling function will
+-	// jump to the standard return epilogue.
++	// branch directly to the deferreturn
+ 	gp.sched.sp = sp
+-	gp.sched.pc = pc
++	gp.sched.pc = gotoPc
+ 	gp.sched.lr = 0
+ 	// Restore the bp on platforms that support frame pointers.
+ 	// N.B. It's fine to not set anything for platforms that don't
+@@ -1263,9 +1246,6 @@ func recovery(gp *g) {
+ 		// only gets us to the caller's fp.
+ 		gp.sched.bp = sp - goarch.PtrSize
+ 	}
+-	// The value in ret is delivered IN A REGISTER, even if there is a
+-	// stack ABI.
+-	gp.sched.ret = 1
+ 	gogo(&gp.sched)
+ }
+ 
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index ecf97666d7..20fc1c59ad 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -326,13 +326,6 @@ func morestack_noctxt()
+ 
+ func rt0_go()
+ 
+-// return0 is a stub used to return 0 from deferproc.
+-// It is called at the very end of deferproc to signal
+-// the calling Go function that it should not jump
+-// to deferreturn.
+-// in asm_*.s
+-func return0()
+-
+ // in asm_*.s
+ // not called directly; definitions here supply type information for traceback.
+ // These must have the same signature (arg pointer map) as reflectcall.

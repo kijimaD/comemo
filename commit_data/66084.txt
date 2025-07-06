@@ -1,0 +1,137 @@
+commit e7c9667defe1aed61818d63ace6ebb7a27b9c13e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Dec 22 21:15:30 2024 -0800
+
+    os: simplify process status
+    
+    Since it no longer holds a reference count, just use values.
+    
+    For #70907
+    
+    Change-Id: I19a42583988d4f8a9133b1c837356ca0179d688c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638578
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/os/exec.go              | 34 ++++++++++++++++------------------
+ src/os/export_linux_test.go |  2 +-
+ 2 files changed, 17 insertions(+), 19 deletions(-)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index f3cede2996..3f83139da5 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -17,21 +17,19 @@ import (
+ // ErrProcessDone indicates a [Process] has finished.
+ var ErrProcessDone = errors.New("os: process already finished")
+ 
+-type processStatus uint64
++type processStatus uint32
+ 
+ const (
+-	// PID/handle OK to use.
+-	statusOK processStatus = 0
++	// statusOK means that the Process is ready to use.
++	statusOK processStatus = iota
+ 
+ 	// statusDone indicates that the PID/handle should not be used because
+ 	// the process is done (has been successfully Wait'd on).
+-	statusDone processStatus = 1 << 62
++	statusDone
+ 
+ 	// statusReleased indicates that the PID/handle should not be used
+ 	// because the process is released.
+-	statusReleased processStatus = 1 << 63
+-
+-	processStatusMask = 0x3 << 62
++	statusReleased
+ )
+ 
+ // Process stores the information about a process created by [StartProcess].
+@@ -42,7 +40,7 @@ type Process struct {
+ 	//
+ 	// This consists of the processStatus fields,
+ 	// which indicate if the process is done/released.
+-	state atomic.Uint64
++	state atomic.Uint32
+ 
+ 	// Used only when handle is nil
+ 	sigMu sync.RWMutex // avoid race between wait and signal
+@@ -138,7 +136,7 @@ func newDoneProcess(pid int) *Process {
+ 	p := &Process{
+ 		Pid: pid,
+ 	}
+-	p.state.Store(uint64(statusDone)) // No persistent reference, as there is no handle.
++	p.state.Store(uint32(statusDone)) // No persistent reference, as there is no handle.
+ 	runtime.SetFinalizer(p, (*Process).Release)
+ 	return p
+ }
+@@ -148,9 +146,9 @@ func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
+ 		panic("handleTransientAcquire called in invalid mode")
+ 	}
+ 
+-	state := p.state.Load()
+-	if state&processStatusMask != 0 {
+-		return 0, processStatus(state & processStatusMask)
++	status := processStatus(p.state.Load())
++	if status != statusOK {
++		return 0, status
+ 	}
+ 	h, ok := p.handle.acquire()
+ 	if ok {
+@@ -161,11 +159,11 @@ func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
+ 	// We always set the status to non-zero before closing the handle.
+ 	// If we get here the status must have been set non-zero after
+ 	// we just checked it above.
+-	state = p.state.Load()
+-	if state&processStatusMask == 0 {
++	status = processStatus(p.state.Load())
++	if status == statusOK {
+ 		panic("inconsistent process status")
+ 	}
+-	return 0, processStatus(state & processStatusMask)
++	return 0, status
+ }
+ 
+ func (p *Process) handleTransientRelease() {
+@@ -187,7 +185,7 @@ func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
+ 
+ 	for {
+ 		state := p.state.Load()
+-		status := processStatus(state & processStatusMask)
++		status := processStatus(state)
+ 		if status != statusOK {
+ 			// Both Release and successful Wait will drop the
+ 			// Process' persistent reference on the handle. We
+@@ -196,7 +194,7 @@ func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
+ 			// reference is dropped exactly once.
+ 			return status
+ 		}
+-		if !p.state.CompareAndSwap(state, uint64(reason)) {
++		if !p.state.CompareAndSwap(state, uint32(reason)) {
+ 			continue
+ 		}
+ 		p.handle.release()
+@@ -225,7 +223,7 @@ func (p *Process) pidDeactivate(reason processStatus) {
+ 	// racing Release and Wait, Wait may successfully wait on the process,
+ 	// returning the wait status, while future calls error with "process
+ 	// released" rather than "process done".
+-	p.state.CompareAndSwap(0, uint64(reason))
++	p.state.CompareAndSwap(0, uint32(reason))
+ }
+ 
+ // ProcAttr holds the attributes that will be applied to a new process
+diff --git a/src/os/export_linux_test.go b/src/os/export_linux_test.go
+index 12434cb426..4ace32bb5b 100644
+--- a/src/os/export_linux_test.go
++++ b/src/os/export_linux_test.go
+@@ -14,5 +14,5 @@ var (
+ const StatusDone = statusDone
+ 
+ func (p *Process) Status() processStatus {
+-	return processStatus(p.state.Load() & processStatusMask)
++	return processStatus(p.state.Load())
+ }

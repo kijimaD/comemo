@@ -1,0 +1,68 @@
+commit f7b15264c8656cdda5db1364f30f813dabd743f4
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 20 08:01:57 2024 -0500
+
+    cmd/dist: vet non-test packages in short mode
+    
+    Pass all packages to go test, even if they don't have test files,
+    so that go test can still run vet.
+    
+    I just got burned by a vet error in a package without a test
+    showing up when I added an (unrelated) test.
+    There are not enough packages without tests to be worth
+    the "savings" of not letting the go command vet those packages.
+    
+    For #60463.
+    
+    Change-Id: Ib9258655151144dce6a51deeae73d651aa46cb2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/dist/test.go | 20 ++++++++++++--------
+ 1 file changed, 12 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 769dd7a479..59a5e42b5b 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -641,19 +641,17 @@ func (t *tester) registerTests() {
+ 		// Use 'go list std cmd' to get a list of all Go packages
+ 		// that running 'go test std cmd' could find problems in.
+ 		// (In race test mode, also set -tags=race.)
+-		//
+-		// In long test mode, this includes vendored packages and other
++		// This includes vendored packages and other
+ 		// packages without tests so that 'dist test' finds if any of
+ 		// them don't build, have a problem reported by high-confidence
+ 		// vet checks that come with 'go test', and anything else it
+ 		// may check in the future. See go.dev/issue/60463.
++		// Most packages have tests, so there is not much saved
++		// by skipping non-test packages.
++		// For the packages without any test files,
++		// 'go test' knows not to actually build a test binary,
++		// so the only cost is the vet, and we still want to run vet.
+ 		cmd := exec.Command(gorootBinGo, "list")
+-		if t.short {
+-			// In short test mode, use a format string to only
+-			// list packages and commands that have tests.
+-			const format = "{{if (or .TestGoFiles .XTestGoFiles)}}{{.ImportPath}}{{end}}"
+-			cmd.Args = append(cmd.Args, "-f", format)
+-		}
+ 		if t.race {
+ 			cmd.Args = append(cmd.Args, "-tags=race")
+ 		}
+@@ -668,6 +666,12 @@ func (t *tester) registerTests() {
+ 			if registerStdTestSpecially[pkg] {
+ 				continue
+ 			}
++			if t.short && (strings.HasPrefix(pkg, "vendor/") || strings.HasPrefix(pkg, "cmd/vendor/")) {
++				// Vendored code has no tests, and we don't care too much about vet errors
++				// since we can't modify the code, so skip the tests in short mode.
++				// We still let the longtest builders vet them.
++				continue
++			}
+ 			t.registerStdTest(pkg)
+ 		}
+ 		if t.race {

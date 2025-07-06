@@ -1,0 +1,45 @@
+commit 5f319b75075a62ab176ab8c25f0e45f2ae4f0704
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 21 11:56:45 2024 -0400
+
+    cmd/link: don't let dsymutil delete our temp directory
+    
+    To work around #59026, where dsymutil may not clean up its temp
+    directory at exit, we set DSYMUTIL_REPRODUCER_PATH to our temp
+    directory so it uses that, and we can delete it at the end.
+    
+    In Xcode 16 beta, dsymutil deletes the DSYMUTIL_REPRODUCER_PATH
+    directory even if it is not empty. We still need our tmpdir at the
+    point, so give a subdirectory to dsymutil instead.
+    
+    For #68088.
+    
+    Change-Id: I18759cc39512819bbd0511793ce917eae72245d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593659
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/link/internal/ld/lib.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index c29a532bfd..fee7888b7c 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -2009,7 +2009,15 @@ func (ctxt *Link) hostlink() {
+ 		cmd := exec.Command(dsymutilCmd, "-f", *flagOutfile, "-o", dsym)
+ 		// dsymutil may not clean up its temp directory at exit.
+ 		// Set DSYMUTIL_REPRODUCER_PATH to work around. see issue 59026.
+-		cmd.Env = append(os.Environ(), "DSYMUTIL_REPRODUCER_PATH="+*flagTmpdir)
++		// dsymutil (Apple LLVM version 16.0.0) deletes the directory
++		// even if it is not empty. We still need our tmpdir, so give a
++		// subdirectory to dsymutil.
++		dsymDir := filepath.Join(*flagTmpdir, "dsymutil")
++		err := os.MkdirAll(dsymDir, 0777)
++		if err != nil {
++			Exitf("fail to create temp dir: %v", err)
++		}
++		cmd.Env = append(os.Environ(), "DSYMUTIL_REPRODUCER_PATH="+dsymDir)
+ 		if ctxt.Debugvlog != 0 {
+ 			ctxt.Logf("host link dsymutil:")
+ 			for _, v := range cmd.Args {

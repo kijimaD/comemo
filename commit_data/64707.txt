@@ -1,0 +1,95 @@
+commit f033bc1819d6f4830216b969d8e88aa5cb3dc82a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 4 18:39:52 2024 +0700
+
+    cmd: use 20 bytes hash when possible
+    
+    CL 402595 changes all usages of 20 bytes hash to 32 bytes hash by using
+    notsha256.
+    
+    However, since CL 454836, notsha256 is not necessary anymore, so this CL
+    reverts those changes to 20 bytes hash using cmd/internal/hash package.
+    
+    Updates #51940
+    Updates #64751
+    
+    Change-Id: Icb08d5a0d8032a3c4d050ff7b2298d31c483b88b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610597
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/liveness/plive.go | 2 +-
+ src/cmd/internal/obj/objfile.go            | 2 +-
+ src/cmd/link/internal/ld/elf.go            | 4 ++--
+ src/cmd/link/internal/ld/lib.go            | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 09af864b69..2ee007f4a6 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -979,7 +979,7 @@ func (lv *liveness) enableClobber() {
+ 		// Clobber only functions where the hash of the function name matches a pattern.
+ 		// Useful for binary searching for a miscompiled function.
+ 		hstr := ""
+-		for _, b := range hash.Sum32([]byte(lv.f.Name)) {
++		for _, b := range hash.Sum20([]byte(lv.f.Name)) {
+ 			hstr += fmt.Sprintf("%08b", b)
+ 		}
+ 		if !strings.HasSuffix(hstr, h) {
+diff --git a/src/cmd/internal/obj/objfile.go b/src/cmd/internal/obj/objfile.go
+index 6aa208a1c0..5ac15b8228 100644
+--- a/src/cmd/internal/obj/objfile.go
++++ b/src/cmd/internal/obj/objfile.go
+@@ -494,7 +494,7 @@ func contentHash64(s *LSym) goobj.Hash64Type {
+ // For now, we assume there is no circular dependencies among
+ // hashed symbols.
+ func (w *writer) contentHash(s *LSym) goobj.HashType {
+-	h := hash.New32()
++	h := hash.New20()
+ 	var tmp [14]byte
+ 
+ 	// Include the size of the symbol in the hash.
+diff --git a/src/cmd/link/internal/ld/elf.go b/src/cmd/link/internal/ld/elf.go
+index f6f957a333..6bdd544a16 100644
+--- a/src/cmd/link/internal/ld/elf.go
++++ b/src/cmd/link/internal/ld/elf.go
+@@ -1677,11 +1677,11 @@ func (ctxt *Link) doelf() {
+ 		sb.SetType(sym.SRODATA)
+ 		ldr.SetAttrSpecial(s, true)
+ 		sb.SetReachable(true)
+-		sb.SetSize(hash.Size32)
++		sb.SetSize(hash.Size20)
+ 		slices.SortFunc(ctxt.Library, func(a, b *sym.Library) int {
+ 			return strings.Compare(a.Pkg, b.Pkg)
+ 		})
+-		h := hash.New32()
++		h := hash.New20()
+ 		for _, l := range ctxt.Library {
+ 			h.Write(l.Fingerprint[:])
+ 		}
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 61bca49176..643356d602 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1012,7 +1012,7 @@ func typeSymbolMangle(name string) string {
+ 		return name
+ 	}
+ 	if isType {
+-		hb := hash.Sum32([]byte(name[5:]))
++		hb := hash.Sum20([]byte(name[5:]))
+ 		prefix := "type:"
+ 		if name[5] == '.' {
+ 			prefix = "type:."
+@@ -1025,7 +1025,7 @@ func typeSymbolMangle(name string) string {
+ 	if j == -1 || j <= i {
+ 		j = len(name)
+ 	}
+-	hb := hash.Sum32([]byte(name[i+1 : j]))
++	hb := hash.Sum20([]byte(name[i+1 : j]))
+ 	return name[:i+1] + base64.StdEncoding.EncodeToString(hb[:6]) + name[j:]
+ }
+ 

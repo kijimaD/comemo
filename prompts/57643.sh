@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 57643: d1593b7a4a8cd60e30bfc41df83fb22ab8393d51
+# Index 57643: 4ac413ae22604de6defd5074dbc2a3df0ac47233
 
 echo "🚀 Generating explanation for commit 57643..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 57643..."
 
 ### メタデータ
 - **コミットインデックス**: 57643
-- **コミットハッシュ**: d1593b7a4a8cd60e30bfc41df83fb22ab8393d51
-- **GitHub URL**: https://github.com/golang/go/commit/d1593b7a4a8cd60e30bfc41df83fb22ab8393d51
+- **コミットハッシュ**: 4ac413ae22604de6defd5074dbc2a3df0ac47233
+- **GitHub URL**: https://github.com/golang/go/commit/4ac413ae22604de6defd5074dbc2a3df0ac47233
 
 ### 章構成
 

@@ -1,0 +1,7160 @@
+commit 7f516a31b021f15c1053c3ebed1fe1aa644d60e3
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Apr 10 17:01:24 2025 -0400
+
+    math/big: replace assembly with mini-compiler output
+    
+    Step 4 of the mini-compiler: switch to the new generated assembly.
+    No systematic performance regressions, and many many improvements.
+    
+    In the benchmarks, the systems are:
+    
+            c3h88     GOARCH=amd64     c3h88 perf gomote (newer Intel, Google Cloud)
+            c2s16     GOARCH=amd64     c2s16 perf gomote (Intel, Google Cloud)
+            s7        GOARCH=amd64     rsc basement server (AMD Ryzen 9 7950X)
+            386       GOARCH=386       gotip-linux-386 gomote (Intel, Google Cloud)
+            s7-386    GOARCH=386       rsc basement server (AMD Ryzen 9 7950X)
+            c4as16    GOARCH=arm64     c4as16 perf gomote (Google Cloud)
+            mac       GOARCH=arm64     Apple M3 Pro in MacBook Pro
+            arm       GOARCH=arm       gotip-linux-arm gomote
+            loong64   GOARCH=loong64   gotip-linux-loong64 gomote
+            ppc64le   GOARCH=ppc64le   gotip-linux-ppc64le gomote
+            riscv64   GOARCH=riscv64   gotip-linux-riscv64 gomote
+            s390x     GOARCH=s390x     linux-s390x-ibm old gomote
+    
+    benchmark \ system           c3h88    c2s16       s7      386   s7-386   c4as16      mac      arm  loong64  ppc64le  riscv64    s390x
+    AddVV/words=1               -4.03%   +5.21%   -4.04%   +4.94%        ~        ~        ~        ~  -19.51%        ~        ~        ~
+    AddVV/words=10             -10.20%   +0.34%   -3.46%  -11.50%   -7.46%   +7.66%   +5.97%        ~  -17.90%        ~        ~        ~
+    AddVV/words=16             -10.91%   -6.45%   -8.45%  -21.86%  -17.90%   +2.73%   -1.61%        ~  -22.47%   -3.54%        ~        ~
+    AddVV/words=100             -3.77%   -4.30%   -3.17%  -47.27%  -45.34%   -0.78%        ~   -8.74%  -27.19%        ~        ~        ~
+    AddVV/words=1000            -0.08%   -0.71%        ~  -49.21%  -48.07%        ~        ~  -16.80%  -24.74%        ~        ~        ~
+    AddVV/words=10000                ~        ~        ~  -48.73%  -48.56%   -0.06%        ~  -17.08%        ~        ~   -4.81%        ~
+    AddVV/words=100000               ~        ~        ~  -47.80%  -48.38%        ~        ~  -15.10%  -25.06%        ~   -5.34%        ~
+    SubVV/words=1               -0.84%   +3.43%   -3.62%   +1.34%        ~   -0.76%        ~        ~  -18.18%   +5.58%        ~        ~
+    SubVV/words=10              -9.99%   +0.34%        ~  -11.23%   -8.24%   +7.53%   +6.15%        ~  -17.55%   +2.77%   -2.08%        ~
+    SubVV/words=16             -11.94%   -6.45%   -6.81%  -21.82%  -18.11%   +1.58%   -1.21%        ~  -20.36%        ~        ~        ~
+    SubVV/words=100             -3.38%   -4.32%   -1.80%  -46.14%  -46.43%   +0.41%        ~   -7.20%  -26.17%        ~   -0.42%        ~
+    SubVV/words=1000            -0.38%   -0.80%        ~  -49.22%  -48.90%        ~        ~  -15.86%  -24.73%        ~        ~        ~
+    SubVV/words=10000                ~        ~        ~  -49.57%  -49.64%   -0.03%        ~  -15.85%  -26.52%        ~   -5.05%        ~
+    SubVV/words=100000               ~        ~        ~  -46.88%  -49.66%        ~        ~  -15.45%  -16.11%        ~   -4.99%        ~
+    LshVU/words=1                    ~   +5.78%        ~        ~   -2.48%   +1.61%   +2.18%   +2.70%  -18.16%  -34.16%  -21.29%        ~
+    LshVU/words=10             -18.34%   -3.78%   +2.21%        ~        ~   -2.81%  -12.54%        ~  -25.02%  -24.78%  -38.11%  -66.98%
+    LshVU/words=16             -23.15%   +1.03%   +7.74%   +0.73%        ~   +8.88%   +1.56%        ~  -25.37%  -28.46%  -41.27%        ~
+    LshVU/words=100            -32.85%   -8.86%   -2.58%        ~   +2.69%   +1.24%        ~  -20.63%  -44.14%  -42.68%  -53.09%        ~
+    LshVU/words=1000           -37.30%   -0.20%   +5.67%        ~        ~   +1.44%        ~  -27.83%  -45.01%  -37.07%  -57.02%  -46.57%
+    LshVU/words=10000          -36.84%   -2.30%   +3.82%        ~   +1.86%   +1.57%  -66.81%  -28.00%  -13.15%  -35.40%  -41.97%        ~
+    LshVU/words=100000         -40.30%        ~   +3.96%        ~        ~        ~        ~  -24.91%  -19.06%  -36.14%  -40.99%  -66.03%
+    RshVU/words=1               -3.17%   +4.76%   -4.06%   +4.31%   +4.55%        ~        ~        ~  -20.61%        ~  -26.20%  -51.33%
+    RshVU/words=10             -22.08%   -4.41%  -17.99%   +3.64%  -11.87%        ~  -16.30%        ~  -30.01%        ~  -40.37%  -63.05%
+    RshVU/words=16             -26.03%   -8.50%  -18.09%        ~  -17.52%   +6.50%        ~   -2.85%  -30.24%        ~  -42.93%  -63.13%
+    RshVU/words=100            -20.87%  -28.83%  -29.45%        ~  -26.25%   +1.46%   -1.14%  -16.20%  -45.65%  -16.20%  -53.66%  -77.27%
+    RshVU/words=1000           -24.03%  -21.37%  -26.71%        ~  -28.95%   +0.98%        ~  -18.82%  -45.21%  -23.55%  -57.09%  -71.18%
+    RshVU/words=10000          -24.56%  -22.44%  -27.01%        ~  -28.88%   +0.78%   -5.35%  -17.47%  -16.87%  -20.67%  -41.97%        ~
+    RshVU/words=100000         -23.36%  -15.65%  -27.54%        ~  -29.26%   +1.73%   -6.67%  -13.68%  -21.40%  -23.02%  -40.37%  -66.31%
+    MulAddVWW/words=1           +2.37%   +8.14%        ~   +4.10%   +3.71%        ~        ~        ~  -21.62%        ~   +1.12%        ~
+    MulAddVWW/words=10               ~   -2.72%  -15.15%   +8.04%        ~        ~        ~   -2.52%  -19.48%        ~   -6.18%        ~
+    MulAddVWW/words=16               ~   +1.49%        ~   +4.49%   +6.58%   -8.70%   -7.16%  -12.08%  -21.43%   -6.59%   -9.05%        ~
+    MulAddVWW/words=100         +0.37%   +1.11%   -4.51%  -13.59%        ~  -11.10%   -3.63%  -21.40%  -22.27%   -2.92%  -14.41%        ~
+    MulAddVWW/words=1000             ~   +0.90%   -7.13%  -18.94%        ~  -14.02%   -9.97%  -28.31%  -18.72%   -2.32%  -15.80%        ~
+    MulAddVWW/words=10000            ~   +1.08%   -6.75%  -19.10%        ~  -14.61%   -9.04%  -28.48%  -14.29%   -2.25%   -9.40%        ~
+    MulAddVWW/words=100000           ~        ~   -6.93%  -18.09%        ~  -14.33%   -9.66%  -28.92%  -16.63%   -2.43%   -8.23%        ~
+    AddMulVVWW/words=1          +2.30%   +4.83%  -11.37%   +4.58%        ~   -3.14%        ~        ~  -10.58%  +30.35%        ~        ~
+    AddMulVVWW/words=10         -3.27%        ~   +8.96%   +5.74%        ~   +2.67%   -1.44%   -7.64%  -13.41%        ~        ~        ~
+    AddMulVVWW/words=16         -6.12%        ~        ~        ~   +1.91%   -7.90%  -16.22%  -14.07%  -14.26%   -4.15%   -7.30%        ~
+    AddMulVVWW/words=100        -5.48%   -2.14%        ~   -9.40%   +9.98%   -1.43%  -12.35%  -18.56%  -21.94%        ~   -9.84%        ~
+    AddMulVVWW/words=1000      -11.35%   -3.40%   -3.64%  -11.04%  +12.82%   -1.33%  -15.63%  -20.50%  -20.95%        ~  -11.06%  -51.97%
+    AddMulVVWW/words=10000     -10.31%   -1.61%   -8.41%  -12.15%  +13.10%   -1.03%  -16.34%  -22.46%   -1.00%        ~  -10.33%  -49.80%
+    AddMulVVWW/words=100000    -13.71%        ~   -8.31%  -12.18%  +12.98%   -1.35%  -15.20%  -21.89%        ~        ~   -9.38%  -48.30%
+    
+    Change-Id: I0a33c33602c0d053c84d9946e662500cfa048e2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664938
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/math/big/arith_386.s                           | 362 ++++----
+ src/math/big/arith_amd64.go                        |   2 +-
+ src/math/big/arith_amd64.s                         | 810 +++++++++--------
+ src/math/big/arith_amd64_test.go                   |  14 +
+ src/math/big/arith_arm.s                           | 500 +++++++----
+ src/math/big/arith_arm64.s                         | 697 ++++++++-------
+ src/math/big/arith_decl.go                         |   2 +
+ src/math/big/arith_loong64.s                       | 509 +++++++++--
+ src/math/big/arith_mips64x.s                       | 472 +++++++++-
+ src/math/big/arith_mipsx.s                         | 472 +++++++++-
+ src/math/big/arith_ppc64x.s                        | 797 ++++++++---------
+ src/math/big/arith_riscv64.s                       | 768 +++++++++-------
+ src/math/big/arith_s390x.s                         | 975 +++++++++------------
+ src/math/big/arith_s390x_test.go                   |  14 +-
+ .../big/{arith_decl_s390x.go => arithvec_s390x.go} |  10 +-
+ src/math/big/arithvec_s390x.s                      | 310 +++++++
+ src/math/big/internal/asmgen/main_test.go          |   1 -
+ 17 files changed, 4196 insertions(+), 2519 deletions(-)
+
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index a989503c1c..242c869af3 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -1,192 +1,240 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
++
+ //go:build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+-// This file provides fast assembly versions for the elementary
+-// arithmetic operations on vectors implemented in arith.go.
+-
+ // func addVV(z, x, y []Word) (c Word)
+-TEXT ·addVV(SB),NOSPLIT,$0
+-	MOVL z+0(FP), DI
+-	MOVL x+12(FP), SI
+-	MOVL y+24(FP), CX
+-	MOVL z_len+4(FP), BP
+-	MOVL $0, BX		// i = 0
+-	MOVL $0, DX		// c = 0
+-	JMP E1
+-
+-L1:	MOVL (SI)(BX*4), AX
+-	ADDL DX, DX		// restore CF
+-	ADCL (CX)(BX*4), AX
+-	SBBL DX, DX		// save CF
+-	MOVL AX, (DI)(BX*4)
+-	ADDL $1, BX		// i++
+-
+-E1:	CMPL BX, BP		// i < n
+-	JL L1
+-
+-	NEGL DX
++TEXT ·addVV(SB), NOSPLIT, $0
++	MOVL z_len+4(FP), BX
++	MOVL x_base+12(FP), SI
++	MOVL y_base+24(FP), DI
++	MOVL z_base+0(FP), BP
++	// compute unrolled loop lengths
++	MOVL BX, CX
++	ANDL $3, CX
++	SHRL $2, BX
++	MOVL $0, DX	// clear saved carry
++loop1:
++	TESTL CX, CX; JZ loop1done
++loop1cont:
++	// unroll 1X in batches of 1
++	ADDL DX, DX	// restore carry
++	MOVL 0(SI), DX
++	ADCL 0(DI), DX
++	MOVL DX, 0(BP)
++	SBBL DX, DX	// save carry
++	LEAL 4(SI), SI	// ADD $4, SI
++	LEAL 4(DI), DI	// ADD $4, DI
++	LEAL 4(BP), BP	// ADD $4, BP
++	SUBL $1, CX; JNZ loop1cont
++loop1done:
++loop4:
++	TESTL BX, BX; JZ loop4done
++loop4cont:
++	// unroll 4X in batches of 1
++	ADDL DX, DX	// restore carry
++	MOVL 0(SI), CX
++	ADCL 0(DI), CX
++	MOVL CX, 0(BP)
++	MOVL 4(SI), CX
++	ADCL 4(DI), CX
++	MOVL CX, 4(BP)
++	MOVL 8(SI), CX
++	ADCL 8(DI), CX
++	MOVL CX, 8(BP)
++	MOVL 12(SI), CX
++	ADCL 12(DI), CX
++	MOVL CX, 12(BP)
++	SBBL DX, DX	// save carry
++	LEAL 16(SI), SI	// ADD $16, SI
++	LEAL 16(DI), DI	// ADD $16, DI
++	LEAL 16(BP), BP	// ADD $16, BP
++	SUBL $1, BX; JNZ loop4cont
++loop4done:
++	NEGL DX	// convert add carry
+ 	MOVL DX, c+36(FP)
+ 	RET
+ 
+-
+ // func subVV(z, x, y []Word) (c Word)
+-// (same as addVV except for SBBL instead of ADCL and label names)
+-TEXT ·subVV(SB),NOSPLIT,$0
+-	MOVL z+0(FP), DI
+-	MOVL x+12(FP), SI
+-	MOVL y+24(FP), CX
+-	MOVL z_len+4(FP), BP
+-	MOVL $0, BX		// i = 0
+-	MOVL $0, DX		// c = 0
+-	JMP E2
+-
+-L2:	MOVL (SI)(BX*4), AX
+-	ADDL DX, DX		// restore CF
+-	SBBL (CX)(BX*4), AX
+-	SBBL DX, DX		// save CF
+-	MOVL AX, (DI)(BX*4)
+-	ADDL $1, BX		// i++
+-
+-E2:	CMPL BX, BP		// i < n
+-	JL L2
+-
+-	NEGL DX
++TEXT ·subVV(SB), NOSPLIT, $0
++	MOVL z_len+4(FP), BX
++	MOVL x_base+12(FP), SI
++	MOVL y_base+24(FP), DI
++	MOVL z_base+0(FP), BP
++	// compute unrolled loop lengths
++	MOVL BX, CX
++	ANDL $3, CX
++	SHRL $2, BX
++	MOVL $0, DX	// clear saved carry
++loop1:
++	TESTL CX, CX; JZ loop1done
++loop1cont:
++	// unroll 1X in batches of 1
++	ADDL DX, DX	// restore carry
++	MOVL 0(SI), DX
++	SBBL 0(DI), DX
++	MOVL DX, 0(BP)
++	SBBL DX, DX	// save carry
++	LEAL 4(SI), SI	// ADD $4, SI
++	LEAL 4(DI), DI	// ADD $4, DI
++	LEAL 4(BP), BP	// ADD $4, BP
++	SUBL $1, CX; JNZ loop1cont
++loop1done:
++loop4:
++	TESTL BX, BX; JZ loop4done
++loop4cont:
++	// unroll 4X in batches of 1
++	ADDL DX, DX	// restore carry
++	MOVL 0(SI), CX
++	SBBL 0(DI), CX
++	MOVL CX, 0(BP)
++	MOVL 4(SI), CX
++	SBBL 4(DI), CX
++	MOVL CX, 4(BP)
++	MOVL 8(SI), CX
++	SBBL 8(DI), CX
++	MOVL CX, 8(BP)
++	MOVL 12(SI), CX
++	SBBL 12(DI), CX
++	MOVL CX, 12(BP)
++	SBBL DX, DX	// save carry
++	LEAL 16(SI), SI	// ADD $16, SI
++	LEAL 16(DI), DI	// ADD $16, DI
++	LEAL 16(BP), BP	// ADD $16, BP
++	SUBL $1, BX; JNZ loop4cont
++loop4done:
++	NEGL DX	// convert sub carry
+ 	MOVL DX, c+36(FP)
+ 	RET
+ 
+-
+ // func lshVU(z, x []Word, s uint) (c Word)
+-TEXT ·lshVU(SB),NOSPLIT,$0
+-	MOVL z_len+4(FP), BX	// i = z
+-	SUBL $1, BX		// i--
+-	JL X8b			// i < 0	(n <= 0)
+-
+-	// n > 0
+-	MOVL z+0(FP), DI
+-	MOVL x+12(FP), SI
++TEXT ·lshVU(SB), NOSPLIT, $0
++	MOVL z_len+4(FP), BX
++	TESTL BX, BX; JZ ret0
+ 	MOVL s+24(FP), CX
+-	MOVL (SI)(BX*4), AX	// w1 = x[n-1]
++	MOVL x_base+12(FP), SI
++	MOVL z_base+0(FP), DI
++	// run loop backward, using counter as positive index
++	// shift first word into carry
++	MOVL -4(SI)(BX*4), BP
+ 	MOVL $0, DX
+-	SHLL CX, AX, DX		// w1>>ŝ
++	SHLL CX, BP, DX
+ 	MOVL DX, c+28(FP)
+-
+-	CMPL BX, $0
+-	JLE X8a			// i <= 0
+-
+-	// i > 0
+-L8:	MOVL AX, DX		// w = w1
+-	MOVL -4(SI)(BX*4), AX	// w1 = x[i-1]
+-	SHLL CX, AX, DX		// w<<s | w1>>ŝ
+-	MOVL DX, (DI)(BX*4)	// z[i] = w<<s | w1>>ŝ
+-	SUBL $1, BX		// i--
+-	JG L8			// i > 0
+-
+-	// i <= 0
+-X8a:	SHLL CX, AX		// w1<<s
+-	MOVL AX, (DI)		// z[0] = w1<<s
++	// shift remaining words
++	SUBL $1, BX
++loop1:
++	TESTL BX, BX; JZ loop1done
++loop1cont:
++	// unroll 1X in batches of 1
++	MOVL -4(SI)(BX*4), DX
++	SHLL CX, DX, BP
++	MOVL BP, 0(DI)(BX*4)
++	MOVL DX, BP
++	SUBL $1, BX; JNZ loop1cont
++loop1done:
++	// store final shifted bits
++	SHLL CX, BP
++	MOVL BP, 0(DI)(BX*4)
+ 	RET
+-
+-X8b:	MOVL $0, c+28(FP)
++ret0:
++	MOVL $0, c+28(FP)
+ 	RET
+ 
+-
+ // func rshVU(z, x []Word, s uint) (c Word)
+-TEXT ·rshVU(SB),NOSPLIT,$0
+-	MOVL z_len+4(FP), BP
+-	SUBL $1, BP		// n--
+-	JL X9b			// n < 0	(n <= 0)
+-
+-	// n > 0
+-	MOVL z+0(FP), DI
+-	MOVL x+12(FP), SI
++TEXT ·rshVU(SB), NOSPLIT, $0
++	MOVL z_len+4(FP), BX
++	TESTL BX, BX; JZ ret0
+ 	MOVL s+24(FP), CX
+-	MOVL (SI), AX		// w1 = x[0]
++	MOVL x_base+12(FP), SI
++	MOVL z_base+0(FP), DI
++	// use counter as negative index
++	LEAL (SI)(BX*4), SI
++	LEAL (DI)(BX*4), DI
++	NEGL BX
++	// shift first word into carry
++	MOVL 0(SI)(BX*4), BP
+ 	MOVL $0, DX
+-	SHRL CX, AX, DX		// w1<<ŝ
++	SHRL CX, BP, DX
+ 	MOVL DX, c+28(FP)
+-
+-	MOVL $0, BX		// i = 0
+-	JMP E9
+-
+-	// i < n-1
+-L9:	MOVL AX, DX		// w = w1
+-	MOVL 4(SI)(BX*4), AX	// w1 = x[i+1]
+-	SHRL CX, AX, DX		// w>>s | w1<<ŝ
+-	MOVL DX, (DI)(BX*4)	// z[i] = w>>s | w1<<ŝ
+-	ADDL $1, BX		// i++
+-
+-E9:	CMPL BX, BP
+-	JL L9			// i < n-1
+-
+-	// i >= n-1
+-X9a:	SHRL CX, AX		// w1>>s
+-	MOVL AX, (DI)(BP*4)	// z[n-1] = w1>>s
++	// shift remaining words
++	ADDL $1, BX
++loop1:
++	TESTL BX, BX; JZ loop1done
++loop1cont:
++	// unroll 1X in batches of 1
++	MOVL 0(SI)(BX*4), DX
++	SHRL CX, DX, BP
++	MOVL BP, -4(DI)(BX*4)
++	MOVL DX, BP
++	ADDL $1, BX; JNZ loop1cont
++loop1done:
++	// store final shifted bits
++	SHRL CX, BP
++	MOVL BP, -4(DI)(BX*4)
+ 	RET
+-
+-X9b:	MOVL $0, c+28(FP)
++ret0:
++	MOVL $0, c+28(FP)
+ 	RET
+ 
+-
+ // func mulAddVWW(z, x []Word, m, a Word) (c Word)
+-TEXT ·mulAddVWW(SB),NOSPLIT,$0
+-	MOVL z+0(FP), DI
+-	MOVL x+12(FP), SI
+-	MOVL m+24(FP), BP
+-	MOVL a+28(FP), CX	// c = a
+-	MOVL z_len+4(FP), BX
+-	LEAL (DI)(BX*4), DI
+-	LEAL (SI)(BX*4), SI
+-	NEGL BX			// i = -n
+-	JMP E5
+-
+-L5:	MOVL (SI)(BX*4), AX
+-	MULL BP
+-	ADDL CX, AX
+-	ADCL $0, DX
+-	MOVL AX, (DI)(BX*4)
+-	MOVL DX, CX
+-	ADDL $1, BX		// i++
+-
+-E5:	CMPL BX, $0		// i < 0
+-	JL L5
+-
+-	MOVL CX, c+32(FP)
++TEXT ·mulAddVWW(SB), NOSPLIT, $0
++	MOVL m+24(FP), BX
++	MOVL a+28(FP), SI
++	MOVL z_len+4(FP), DI
++	MOVL x_base+12(FP), BP
++	MOVL z_base+0(FP), CX
++	// use counter as negative index
++	LEAL (BP)(DI*4), BP
++	LEAL (CX)(DI*4), CX
++	NEGL DI
++loop1:
++	TESTL DI, DI; JZ loop1done
++loop1cont:
++	// unroll 1X in batches of 1
++	MOVL 0(BP)(DI*4), AX
++	// multiply
++	MULL BX
++	ADDL SI, AX
++	MOVL DX, SI
++	ADCL $0, SI
++	MOVL AX, 0(CX)(DI*4)
++	ADDL $1, DI; JNZ loop1cont
++loop1done:
++	MOVL SI, c+32(FP)
+ 	RET
+ 
+-
+ // func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+-TEXT ·addMulVVWW(SB),NOSPLIT,$0
+-	MOVL z+0(FP), BP
+-	MOVL x+12(FP), DI
+-	MOVL y+24(FP), SI
+-	MOVL a+40(FP), CX
+-	MOVL z_len+4(FP), BX
+-	LEAL (DI)(BX*4), DI
+-	LEAL (SI)(BX*4), SI
+-	LEAL (BP)(BX*4), BP
+-	NEGL BX			// i = -n
+-	JMP E6
+-
+-L6:	MOVL (SI)(BX*4), AX
++TEXT ·addMulVVWW(SB), NOSPLIT, $0
++	MOVL a+40(FP), BX
++	MOVL z_len+4(FP), SI
++	MOVL x_base+12(FP), DI
++	MOVL y_base+24(FP), BP
++	MOVL z_base+0(FP), CX
++	// use counter as negative index
++	LEAL (DI)(SI*4), DI
++	LEAL (BP)(SI*4), BP
++	LEAL (CX)(SI*4), CX
++	NEGL SI
++loop1:
++	TESTL SI, SI; JZ loop1done
++loop1cont:
++	// unroll 1X in batches of 1
++	MOVL 0(BP)(SI*4), AX
++	// multiply
+ 	MULL m+36(FP)
+-	ADDL CX, AX
+-	ADCL $0, DX
+-	ADDL (DI)(BX*4), AX
+-	MOVL AX, (BP)(BX*4)
+-	ADCL $0, DX
+-	MOVL DX, CX
+-	ADDL $1, BX		// i++
+-
+-E6:	CMPL BX, $0		// i < 0
+-	JL L6
+-
+-	MOVL CX, c+44(FP)
++	ADDL BX, AX
++	MOVL DX, BX
++	ADCL $0, BX
++	// add
++	ADDL 0(DI)(SI*4), AX
++	ADCL $0, BX
++	MOVL AX, 0(CX)(SI*4)
++	ADDL $1, SI; JNZ loop1cont
++loop1done:
++	MOVL BX, c+44(FP)
+ 	RET
+-
+-
+-
+diff --git a/src/math/big/arith_amd64.go b/src/math/big/arith_amd64.go
+index 3db72582bb..3e3c916c1f 100644
+--- a/src/math/big/arith_amd64.go
++++ b/src/math/big/arith_amd64.go
+@@ -8,4 +8,4 @@ package big
+ 
+ import "internal/cpu"
+ 
+-var support_adx = cpu.X86.HasADX && cpu.X86.HasBMI2
++var hasADX = cpu.X86.HasADX && cpu.X86.HasBMI2
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index 66bc6d41ce..9b79ca96f3 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -1,408 +1,462 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
++
+ //go:build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+-// This file provides fast assembly versions for the elementary
+-// arithmetic operations on vectors implemented in arith.go.
+-
+-// The carry bit is saved with SBBQ Rx, Rx: if the carry was set, Rx is -1, otherwise it is 0.
+-// It is restored with ADDQ Rx, Rx: if Rx was -1 the carry is set, otherwise it is cleared.
+-// This is faster than using rotate instructions.
+-
+ // func addVV(z, x, y []Word) (c Word)
+-TEXT ·addVV(SB),NOSPLIT,$0
+-	MOVQ z_len+8(FP), DI
+-	MOVQ x+24(FP), R8
+-	MOVQ y+48(FP), R9
+-	MOVQ z+0(FP), R10
+-
+-	MOVQ $0, CX		// c = 0
+-	MOVQ $0, SI		// i = 0
+-
+-	// s/JL/JMP/ below to disable the unrolled loop
+-	SUBQ $4, DI		// n -= 4
+-	JL V1			// if n < 0 goto V1
+-
+-U1:	// n >= 0
+-	// regular loop body unrolled 4x
+-	ADDQ CX, CX		// restore CF
+-	MOVQ 0(R8)(SI*8), R11
+-	MOVQ 8(R8)(SI*8), R12
+-	MOVQ 16(R8)(SI*8), R13
+-	MOVQ 24(R8)(SI*8), R14
+-	ADCQ 0(R9)(SI*8), R11
+-	ADCQ 8(R9)(SI*8), R12
+-	ADCQ 16(R9)(SI*8), R13
+-	ADCQ 24(R9)(SI*8), R14
+-	MOVQ R11, 0(R10)(SI*8)
+-	MOVQ R12, 8(R10)(SI*8)
+-	MOVQ R13, 16(R10)(SI*8)
+-	MOVQ R14, 24(R10)(SI*8)
+-	SBBQ CX, CX		// save CF
+-
+-	ADDQ $4, SI		// i += 4
+-	SUBQ $4, DI		// n -= 4
+-	JGE U1			// if n >= 0 goto U1
+-
+-V1:	ADDQ $4, DI		// n += 4
+-	JLE E1			// if n <= 0 goto E1
+-
+-L1:	// n > 0
+-	ADDQ CX, CX		// restore CF
+-	MOVQ 0(R8)(SI*8), R11
+-	ADCQ 0(R9)(SI*8), R11
+-	MOVQ R11, 0(R10)(SI*8)
+-	SBBQ CX, CX		// save CF
+-
+-	ADDQ $1, SI		// i++
+-	SUBQ $1, DI		// n--
+-	JG L1			// if n > 0 goto L1
+-
+-E1:	NEGQ CX
+-	MOVQ CX, c+72(FP)	// return c
++TEXT ·addVV(SB), NOSPLIT, $0
++	MOVQ z_len+8(FP), BX
++	MOVQ x_base+24(FP), SI
++	MOVQ y_base+48(FP), DI
++	MOVQ z_base+0(FP), R8
++	// compute unrolled loop lengths
++	MOVQ BX, R9
++	ANDQ $3, R9
++	SHRQ $2, BX
++	MOVQ $0, R10	// clear saved carry
++loop1:
++	TESTQ R9, R9; JZ loop1done
++loop1cont:
++	// unroll 1X
++	ADDQ R10, R10	// restore carry
++	MOVQ 0(SI), R10
++	ADCQ 0(DI), R10
++	MOVQ R10, 0(R8)
++	SBBQ R10, R10	// save carry
++	LEAQ 8(SI), SI	// ADD $8, SI
++	LEAQ 8(DI), DI	// ADD $8, DI
++	LEAQ 8(R8), R8	// ADD $8, R8
++	SUBQ $1, R9; JNZ loop1cont
++loop1done:
++loop4:
++	TESTQ BX, BX; JZ loop4done
++loop4cont:
++	// unroll 4X
++	ADDQ R10, R10	// restore carry
++	MOVQ 0(SI), R9
++	MOVQ 8(SI), R10
++	MOVQ 16(SI), R11
++	MOVQ 24(SI), R12
++	ADCQ 0(DI), R9
++	ADCQ 8(DI), R10
++	ADCQ 16(DI), R11
++	ADCQ 24(DI), R12
++	MOVQ R9, 0(R8)
++	MOVQ R10, 8(R8)
++	MOVQ R11, 16(R8)
++	MOVQ R12, 24(R8)
++	SBBQ R10, R10	// save carry
++	LEAQ 32(SI), SI	// ADD $32, SI
++	LEAQ 32(DI), DI	// ADD $32, DI
++	LEAQ 32(R8), R8	// ADD $32, R8
++	SUBQ $1, BX; JNZ loop4cont
++loop4done:
++	NEGQ R10	// convert add carry
++	MOVQ R10, c+72(FP)
+ 	RET
+ 
+-
+ // func subVV(z, x, y []Word) (c Word)
+-// (same as addVV except for SBBQ instead of ADCQ and label names)
+-TEXT ·subVV(SB),NOSPLIT,$0
+-	MOVQ z_len+8(FP), DI
+-	MOVQ x+24(FP), R8
+-	MOVQ y+48(FP), R9
+-	MOVQ z+0(FP), R10
+-
+-	MOVQ $0, CX		// c = 0
+-	MOVQ $0, SI		// i = 0
+-
+-	// s/JL/JMP/ below to disable the unrolled loop
+-	SUBQ $4, DI		// n -= 4
+-	JL V2			// if n < 0 goto V2
+-
+-U2:	// n >= 0
+-	// regular loop body unrolled 4x
+-	ADDQ CX, CX		// restore CF
+-	MOVQ 0(R8)(SI*8), R11
+-	MOVQ 8(R8)(SI*8), R12
+-	MOVQ 16(R8)(SI*8), R13
+-	MOVQ 24(R8)(SI*8), R14
+-	SBBQ 0(R9)(SI*8), R11
+-	SBBQ 8(R9)(SI*8), R12
+-	SBBQ 16(R9)(SI*8), R13
+-	SBBQ 24(R9)(SI*8), R14
+-	MOVQ R11, 0(R10)(SI*8)
+-	MOVQ R12, 8(R10)(SI*8)
+-	MOVQ R13, 16(R10)(SI*8)
+-	MOVQ R14, 24(R10)(SI*8)
+-	SBBQ CX, CX		// save CF
+-
+-	ADDQ $4, SI		// i += 4
+-	SUBQ $4, DI		// n -= 4
+-	JGE U2			// if n >= 0 goto U2
+-
+-V2:	ADDQ $4, DI		// n += 4
+-	JLE E2			// if n <= 0 goto E2
+-
+-L2:	// n > 0
+-	ADDQ CX, CX		// restore CF
+-	MOVQ 0(R8)(SI*8), R11
+-	SBBQ 0(R9)(SI*8), R11
+-	MOVQ R11, 0(R10)(SI*8)
+-	SBBQ CX, CX		// save CF
+-
+-	ADDQ $1, SI		// i++
+-	SUBQ $1, DI		// n--
+-	JG L2			// if n > 0 goto L2
+-
+-E2:	NEGQ CX
+-	MOVQ CX, c+72(FP)	// return c
++TEXT ·subVV(SB), NOSPLIT, $0
++	MOVQ z_len+8(FP), BX
++	MOVQ x_base+24(FP), SI
++	MOVQ y_base+48(FP), DI
++	MOVQ z_base+0(FP), R8
++	// compute unrolled loop lengths
++	MOVQ BX, R9
++	ANDQ $3, R9
++	SHRQ $2, BX
++	MOVQ $0, R10	// clear saved carry
++loop1:
++	TESTQ R9, R9; JZ loop1done
++loop1cont:
++	// unroll 1X
++	ADDQ R10, R10	// restore carry
++	MOVQ 0(SI), R10
++	SBBQ 0(DI), R10
++	MOVQ R10, 0(R8)
++	SBBQ R10, R10	// save carry
++	LEAQ 8(SI), SI	// ADD $8, SI
++	LEAQ 8(DI), DI	// ADD $8, DI
++	LEAQ 8(R8), R8	// ADD $8, R8
++	SUBQ $1, R9; JNZ loop1cont
++loop1done:
++loop4:
++	TESTQ BX, BX; JZ loop4done
++loop4cont:
++	// unroll 4X
++	ADDQ R10, R10	// restore carry
++	MOVQ 0(SI), R9
++	MOVQ 8(SI), R10
++	MOVQ 16(SI), R11
++	MOVQ 24(SI), R12
++	SBBQ 0(DI), R9
++	SBBQ 8(DI), R10
++	SBBQ 16(DI), R11
++	SBBQ 24(DI), R12
++	MOVQ R9, 0(R8)
++	MOVQ R10, 8(R8)
++	MOVQ R11, 16(R8)
++	MOVQ R12, 24(R8)
++	SBBQ R10, R10	// save carry
++	LEAQ 32(SI), SI	// ADD $32, SI
++	LEAQ 32(DI), DI	// ADD $32, DI
++	LEAQ 32(R8), R8	// ADD $32, R8
++	SUBQ $1, BX; JNZ loop4cont
++loop4done:
++	NEGQ R10	// convert sub carry
++	MOVQ R10, c+72(FP)
+ 	RET
+ 
+ // func lshVU(z, x []Word, s uint) (c Word)
+-TEXT ·lshVU(SB),NOSPLIT,$0
+-	MOVQ z_len+8(FP), BX	// i = z
+-	SUBQ $1, BX		// i--
+-	JL X8b			// i < 0	(n <= 0)
+-
+-	// n > 0
+-	MOVQ z+0(FP), R10
+-	MOVQ x+24(FP), R8
++TEXT ·lshVU(SB), NOSPLIT, $0
++	MOVQ z_len+8(FP), BX
++	TESTQ BX, BX; JZ ret0
+ 	MOVQ s+48(FP), CX
+-	MOVQ (R8)(BX*8), AX	// w1 = x[n-1]
+-	MOVQ $0, DX
+-	SHLQ CX, AX, DX		// w1>>ŝ
+-	MOVQ DX, c+56(FP)
+-
+-	CMPQ BX, $0
+-	JLE X8a			// i <= 0
+-
+-	// i > 0
+-L8:	MOVQ AX, DX		// w = w1
+-	MOVQ -8(R8)(BX*8), AX	// w1 = x[i-1]
+-	SHLQ CX, AX, DX		// w<<s | w1>>ŝ
+-	MOVQ DX, (R10)(BX*8)	// z[i] = w<<s | w1>>ŝ
+-	SUBQ $1, BX		// i--
+-	JG L8			// i > 0
+-
+-	// i <= 0
+-X8a:	SHLQ CX, AX		// w1<<s
+-	MOVQ AX, (R10)		// z[0] = w1<<s
++	MOVQ x_base+24(FP), SI
++	MOVQ z_base+0(FP), DI
++	// run loop backward
++	LEAQ (SI)(BX*8), SI
++	LEAQ (DI)(BX*8), DI
++	// shift first word into carry
++	MOVQ -8(SI), R8
++	MOVQ $0, R9
++	SHLQ CX, R8, R9
++	MOVQ R9, c+56(FP)
++	// shift remaining words
++	SUBQ $1, BX
++	// compute unrolled loop lengths
++	MOVQ BX, R9
++	ANDQ $3, R9
++	SHRQ $2, BX
++loop1:
++	TESTQ R9, R9; JZ loop1done
++loop1cont:
++	// unroll 1X
++	MOVQ -16(SI), R10
++	SHLQ CX, R10, R8
++	MOVQ R8, -8(DI)
++	MOVQ R10, R8
++	LEAQ -8(SI), SI	// ADD $-8, SI
++	LEAQ -8(DI), DI	// ADD $-8, DI
++	SUBQ $1, R9; JNZ loop1cont
++loop1done:
++loop4:
++	TESTQ BX, BX; JZ loop4done
++loop4cont:
++	// unroll 4X
++	MOVQ -16(SI), R9
++	MOVQ -24(SI), R10
++	MOVQ -32(SI), R11
++	MOVQ -40(SI), R12
++	SHLQ CX, R9, R8
++	SHLQ CX, R10, R9
++	SHLQ CX, R11, R10
++	SHLQ CX, R12, R11
++	MOVQ R8, -8(DI)
++	MOVQ R9, -16(DI)
++	MOVQ R10, -24(DI)
++	MOVQ R11, -32(DI)
++	MOVQ R12, R8
++	LEAQ -32(SI), SI	// ADD $-32, SI
++	LEAQ -32(DI), DI	// ADD $-32, DI
++	SUBQ $1, BX; JNZ loop4cont
++loop4done:
++	// store final shifted bits
++	SHLQ CX, R8
++	MOVQ R8, -8(DI)
+ 	RET
+-
+-X8b:	MOVQ $0, c+56(FP)
++ret0:
++	MOVQ $0, c+56(FP)
+ 	RET
+ 
+-
+ // func rshVU(z, x []Word, s uint) (c Word)
+-TEXT ·rshVU(SB),NOSPLIT,$0
+-	MOVQ z_len+8(FP), R11
+-	SUBQ $1, R11		// n--
+-	JL X9b			// n < 0	(n <= 0)
+-
+-	// n > 0
+-	MOVQ z+0(FP), R10
+-	MOVQ x+24(FP), R8
++TEXT ·rshVU(SB), NOSPLIT, $0
++	MOVQ z_len+8(FP), BX
++	TESTQ BX, BX; JZ ret0
+ 	MOVQ s+48(FP), CX
+-	MOVQ (R8), AX		// w1 = x[0]
+-	MOVQ $0, DX
+-	SHRQ CX, AX, DX		// w1<<ŝ
+-	MOVQ DX, c+56(FP)
+-
+-	MOVQ $0, BX		// i = 0
+-	JMP E9
+-
+-	// i < n-1
+-L9:	MOVQ AX, DX		// w = w1
+-	MOVQ 8(R8)(BX*8), AX	// w1 = x[i+1]
+-	SHRQ CX, AX, DX		// w>>s | w1<<ŝ
+-	MOVQ DX, (R10)(BX*8)	// z[i] = w>>s | w1<<ŝ
+-	ADDQ $1, BX		// i++
+-
+-E9:	CMPQ BX, R11
+-	JL L9			// i < n-1
+-
+-	// i >= n-1
+-X9a:	SHRQ CX, AX		// w1>>s
+-	MOVQ AX, (R10)(R11*8)	// z[n-1] = w1>>s
++	MOVQ x_base+24(FP), SI
++	MOVQ z_base+0(FP), DI
++	// shift first word into carry
++	MOVQ 0(SI), R8
++	MOVQ $0, R9
++	SHRQ CX, R8, R9
++	MOVQ R9, c+56(FP)
++	// shift remaining words
++	SUBQ $1, BX
++	// compute unrolled loop lengths
++	MOVQ BX, R9
++	ANDQ $3, R9
++	SHRQ $2, BX
++loop1:
++	TESTQ R9, R9; JZ loop1done
++loop1cont:
++	// unroll 1X
++	MOVQ 8(SI), R10
++	SHRQ CX, R10, R8
++	MOVQ R8, 0(DI)
++	MOVQ R10, R8
++	LEAQ 8(SI), SI	// ADD $8, SI
++	LEAQ 8(DI), DI	// ADD $8, DI
++	SUBQ $1, R9; JNZ loop1cont
++loop1done:
++loop4:
++	TESTQ BX, BX; JZ loop4done
++loop4cont:
++	// unroll 4X
++	MOVQ 8(SI), R9
++	MOVQ 16(SI), R10
++	MOVQ 24(SI), R11
++	MOVQ 32(SI), R12
++	SHRQ CX, R9, R8
++	SHRQ CX, R10, R9
++	SHRQ CX, R11, R10
++	SHRQ CX, R12, R11
++	MOVQ R8, 0(DI)
++	MOVQ R9, 8(DI)
++	MOVQ R10, 16(DI)
++	MOVQ R11, 24(DI)
++	MOVQ R12, R8
++	LEAQ 32(SI), SI	// ADD $32, SI
++	LEAQ 32(DI), DI	// ADD $32, DI
++	SUBQ $1, BX; JNZ loop4cont
++loop4done:
++	// store final shifted bits
++	SHRQ CX, R8
++	MOVQ R8, 0(DI)
+ 	RET
+-
+-X9b:	MOVQ $0, c+56(FP)
++ret0:
++	MOVQ $0, c+56(FP)
+ 	RET
+ 
+-
+ // func mulAddVWW(z, x []Word, m, a Word) (c Word)
+-TEXT ·mulAddVWW(SB),NOSPLIT,$0
+-	MOVQ z+0(FP), R10
+-	MOVQ x+24(FP), R8
+-	MOVQ m+48(FP), R9
+-	MOVQ a+56(FP), CX	// c = a
+-	MOVQ z_len+8(FP), R11
+-	MOVQ $0, BX		// i = 0
+-
+-	CMPQ R11, $4
+-	JL E5
+-
+-U5:	// i+4 <= n
+-	// regular loop body unrolled 4x
+-	MOVQ (0*8)(R8)(BX*8), AX
+-	MULQ R9
+-	ADDQ CX, AX
+-	ADCQ $0, DX
+-	MOVQ AX, (0*8)(R10)(BX*8)
+-	MOVQ DX, CX
+-	MOVQ (1*8)(R8)(BX*8), AX
+-	MULQ R9
+-	ADDQ CX, AX
+-	ADCQ $0, DX
+-	MOVQ AX, (1*8)(R10)(BX*8)
+-	MOVQ DX, CX
+-	MOVQ (2*8)(R8)(BX*8), AX
+-	MULQ R9
+-	ADDQ CX, AX
+-	ADCQ $0, DX
+-	MOVQ AX, (2*8)(R10)(BX*8)
+-	MOVQ DX, CX
+-	MOVQ (3*8)(R8)(BX*8), AX
+-	MULQ R9
+-	ADDQ CX, AX
+-	ADCQ $0, DX
+-	MOVQ AX, (3*8)(R10)(BX*8)
+-	MOVQ DX, CX
+-	ADDQ $4, BX		// i += 4
+-
+-	LEAQ 4(BX), DX
+-	CMPQ DX, R11
+-	JLE U5
+-	JMP E5
+-
+-L5:	MOVQ (R8)(BX*8), AX
+-	MULQ R9
+-	ADDQ CX, AX
+-	ADCQ $0, DX
+-	MOVQ AX, (R10)(BX*8)
+-	MOVQ DX, CX
+-	ADDQ $1, BX		// i++
+-
+-E5:	CMPQ BX, R11		// i < n
+-	JL L5
+-
+-	MOVQ CX, c+64(FP)
++TEXT ·mulAddVWW(SB), NOSPLIT, $0
++	MOVQ m+48(FP), BX
++	MOVQ a+56(FP), SI
++	MOVQ z_len+8(FP), DI
++	MOVQ x_base+24(FP), R8
++	MOVQ z_base+0(FP), R9
++	// compute unrolled loop lengths
++	MOVQ DI, R10
++	ANDQ $3, R10
++	SHRQ $2, DI
++loop1:
++	TESTQ R10, R10; JZ loop1done
++loop1cont:
++	// unroll 1X in batches of 1
++	MOVQ 0(R8), AX
++	// multiply
++	MULQ BX
++	ADDQ SI, AX
++	MOVQ DX, SI
++	ADCQ $0, SI
++	MOVQ AX, 0(R9)
++	LEAQ 8(R8), R8	// ADD $8, R8
++	LEAQ 8(R9), R9	// ADD $8, R9
++	SUBQ $1, R10; JNZ loop1cont
++loop1done:
++loop4:
++	TESTQ DI, DI; JZ loop4done
++loop4cont:
++	// unroll 4X in batches of 1
++	MOVQ 0(R8), AX
++	// multiply
++	MULQ BX
++	ADDQ SI, AX
++	MOVQ DX, SI
++	ADCQ $0, SI
++	MOVQ AX, 0(R9)
++	MOVQ 8(R8), AX
++	// multiply
++	MULQ BX
++	ADDQ SI, AX
++	MOVQ DX, SI
++	ADCQ $0, SI
++	MOVQ AX, 8(R9)
++	MOVQ 16(R8), AX
++	// multiply
++	MULQ BX
++	ADDQ SI, AX
++	MOVQ DX, SI
++	ADCQ $0, SI
++	MOVQ AX, 16(R9)
++	MOVQ 24(R8), AX
++	// multiply
++	MULQ BX
++	ADDQ SI, AX
++	MOVQ DX, SI
++	ADCQ $0, SI
++	MOVQ AX, 24(R9)
++	LEAQ 32(R8), R8	// ADD $32, R8
++	LEAQ 32(R9), R9	// ADD $32, R9
++	SUBQ $1, DI; JNZ loop4cont
++loop4done:
++	MOVQ SI, c+64(FP)
+ 	RET
+ 
+-
+ // func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+-TEXT ·addMulVVWW(SB),NOSPLIT,$0
+-	CMPB ·support_adx(SB), $1
+-	JEQ adx
+-	MOVQ z+0(FP), R14
+-	MOVQ x+24(FP), R10
+-	MOVQ y+48(FP), R8
+-	MOVQ m+72(FP), R9
+-	MOVQ z_len+8(FP), R11
+-	MOVQ $0, BX		// i = 0
+-	MOVQ a+80(FP), CX		// c = 0
+-	MOVQ R11, R12
+-	ANDQ $-2, R12
+-	CMPQ R11, $2
+-	JAE A6
+-	JMP E6
+-
+-A6:
+-	MOVQ (R8)(BX*8), AX
+-	MULQ R9
+-	ADDQ (R10)(BX*8), AX
+-	ADCQ $0, DX
+-	ADDQ CX, AX
+-	ADCQ $0, DX
+-	MOVQ DX, CX
+-	MOVQ AX, (R14)(BX*8)
+-
+-	MOVQ (8)(R8)(BX*8), AX
+-	MULQ R9
+-	ADDQ (8)(R10)(BX*8), AX
+-	ADCQ $0, DX
+-	ADDQ CX, AX
+-	ADCQ $0, DX
+-	MOVQ DX, CX
+-	MOVQ AX, (8)(R14)(BX*8)
+-
+-	ADDQ $2, BX
+-	CMPQ BX, R12
+-	JL A6
+-	JMP E6
+-
+-L6:	MOVQ (R8)(BX*8), AX
+-	MULQ R9
+-	ADDQ CX, AX
+-	ADCQ $0, DX
+-	ADDQ (R10)(BX*8), AX
+-	MOVQ AX, (R14)(BX*8)
+-	ADCQ $0, DX
+-	MOVQ DX, CX
+-	ADDQ $1, BX		// i++
+-
+-E6:	CMPQ BX, R11		// i < n
+-	JL L6
+-
+-	MOVQ CX, c+88(FP)
++TEXT ·addMulVVWW(SB), NOSPLIT, $0
++	CMPB ·hasADX(SB), $0; JNZ altcarry
++	MOVQ m+72(FP), BX
++	MOVQ a+80(FP), SI
++	MOVQ z_len+8(FP), DI
++	MOVQ x_base+24(FP), R8
++	MOVQ y_base+48(FP), R9
++	MOVQ z_base+0(FP), R10
++	// compute unrolled loop lengths
++	MOVQ DI, R11
++	ANDQ $3, R11
++	SHRQ $2, DI
++loop1:
++	TESTQ R11, R11; JZ loop1done
++loop1cont:
++	// unroll 1X in batches of 1
++	MOVQ 0(R9), AX
++	// multiply
++	MULQ BX
++	ADDQ SI, AX
++	MOVQ DX, SI
++	ADCQ $0, SI
++	// add
++	ADDQ 0(R8), AX
++	ADCQ $0, SI
++	MOVQ AX, 0(R10)
++	LEAQ 8(R8), R8	// ADD $8, R8
++	LEAQ 8(R9), R9	// ADD $8, R9
++	LEAQ 8(R10), R10	// ADD $8, R10
++	SUBQ $1, R11; JNZ loop1cont
++loop1done:
++loop4:
++	TESTQ DI, DI; JZ loop4done
++loop4cont:
++	// unroll 4X in batches of 1
++	MOVQ 0(R9), AX
++	// multiply
++	MULQ BX
++	ADDQ SI, AX
++	MOVQ DX, SI
++	ADCQ $0, SI
++	// add
++	ADDQ 0(R8), AX
++	ADCQ $0, SI
++	MOVQ AX, 0(R10)
++	MOVQ 8(R9), AX
++	// multiply
++	MULQ BX
++	ADDQ SI, AX
++	MOVQ DX, SI
++	ADCQ $0, SI
++	// add
++	ADDQ 8(R8), AX
++	ADCQ $0, SI
++	MOVQ AX, 8(R10)
++	MOVQ 16(R9), AX
++	// multiply
++	MULQ BX
++	ADDQ SI, AX
++	MOVQ DX, SI
++	ADCQ $0, SI
++	// add
++	ADDQ 16(R8), AX
++	ADCQ $0, SI
++	MOVQ AX, 16(R10)
++	MOVQ 24(R9), AX
++	// multiply
++	MULQ BX
++	ADDQ SI, AX
++	MOVQ DX, SI
++	ADCQ $0, SI
++	// add
++	ADDQ 24(R8), AX
++	ADCQ $0, SI
++	MOVQ AX, 24(R10)
++	LEAQ 32(R8), R8	// ADD $32, R8
++	LEAQ 32(R9), R9	// ADD $32, R9
++	LEAQ 32(R10), R10	// ADD $32, R10
++	SUBQ $1, DI; JNZ loop4cont
++loop4done:
++	MOVQ SI, c+88(FP)
+ 	RET
+-
+-adx:
+-	MOVQ z_len+8(FP), R11
+-	MOVQ z+0(FP), R14
+-	MOVQ x+24(FP), R10
+-	MOVQ y+48(FP), R8
++altcarry:
+ 	MOVQ m+72(FP), DX
+-	MOVQ $0, BX   // i = 0
+-	MOVQ a+80(FP), CX   // carry
+-	CMPQ R11, $8
+-	JAE  adx_loop_header
+-	CMPQ BX, R11
+-	JL adx_short
+-	MOVQ CX, c+88(FP)
++	MOVQ a+80(FP), BX
++	MOVQ z_len+8(FP), SI
++	MOVQ $0, DI
++	MOVQ x_base+24(FP), R8
++	MOVQ y_base+48(FP), R9
++	MOVQ z_base+0(FP), R10
++	// compute unrolled loop lengths
++	MOVQ SI, R11
++	ANDQ $7, R11
++	SHRQ $3, SI
++alt1:
++	TESTQ R11, R11; JZ alt1done
++alt1cont:
++	// unroll 1X
++	// multiply and add
++	TESTQ AX, AX	// clear carry
++	TESTQ AX, AX	// clear carry
++	MULXQ 0(R9), R13, R12
++	ADCXQ BX, R13
++	ADOXQ 0(R8), R13
++	MOVQ R13, 0(R10)
++	MOVQ R12, BX
++	ADCXQ DI, BX
++	ADOXQ DI, BX
++	LEAQ 8(R8), R8	// ADD $8, R8
++	LEAQ 8(R9), R9	// ADD $8, R9
++	LEAQ 8(R10), R10	// ADD $8, R10
++	SUBQ $1, R11; JNZ alt1cont
++alt1done:
++alt8:
++	TESTQ SI, SI; JZ alt8done
++alt8cont:
++	// unroll 8X in batches of 2
++	// multiply and add
++	TESTQ AX, AX	// clear carry
++	TESTQ AX, AX	// clear carry
++	MULXQ 0(R9), R13, R11
++	ADCXQ BX, R13
++	ADOXQ 0(R8), R13
++	MULXQ 8(R9), R14, BX
++	ADCXQ R11, R14
++	ADOXQ 8(R8), R14
++	MOVQ R13, 0(R10)
++	MOVQ R14, 8(R10)
++	MULXQ 16(R9), R13, R11
++	ADCXQ BX, R13
++	ADOXQ 16(R8), R13
++	MULXQ 24(R9), R14, BX
++	ADCXQ R11, R14
++	ADOXQ 24(R8), R14
++	MOVQ R13, 16(R10)
++	MOVQ R14, 24(R10)
++	MULXQ 32(R9), R13, R11
++	ADCXQ BX, R13
++	ADOXQ 32(R8), R13
++	MULXQ 40(R9), R14, BX
++	ADCXQ R11, R14
++	ADOXQ 40(R8), R14
++	MOVQ R13, 32(R10)
++	MOVQ R14, 40(R10)
++	MULXQ 48(R9), R13, R11
++	ADCXQ BX, R13
++	ADOXQ 48(R8), R13
++	MULXQ 56(R9), R14, BX
++	ADCXQ R11, R14
++	ADOXQ 56(R8), R14
++	MOVQ R13, 48(R10)
++	MOVQ R14, 56(R10)
++	ADCXQ DI, BX
++	ADOXQ DI, BX
++	LEAQ 64(R8), R8	// ADD $64, R8
++	LEAQ 64(R9), R9	// ADD $64, R9
++	LEAQ 64(R10), R10	// ADD $64, R10
++	SUBQ $1, SI; JNZ alt8cont
++alt8done:
++	MOVQ BX, c+88(FP)
+ 	RET
+-
+-adx_loop_header:
+-	MOVQ  R11, R13
+-	ANDQ  $-8, R13
+-adx_loop:
+-	XORQ  R9, R9  // unset flags
+-	MULXQ (R8), SI, DI
+-	ADCXQ CX,SI
+-	ADOXQ (R10), SI
+-	MOVQ  SI,(R14)
+-
+-	MULXQ 8(R8), AX, CX
+-	ADCXQ DI, AX
+-	ADOXQ 8(R10), AX
+-	MOVQ  AX, 8(R14)
+-
+-	MULXQ 16(R8), SI, DI
+-	ADCXQ CX, SI
+-	ADOXQ 16(R10), SI
+-	MOVQ  SI, 16(R14)
+-
+-	MULXQ 24(R8), AX, CX
+-	ADCXQ DI, AX
+-	ADOXQ 24(R10), AX
+-	MOVQ  AX, 24(R14)
+-
+-	MULXQ 32(R8), SI, DI
+-	ADCXQ CX, SI
+-	ADOXQ 32(R10), SI
+-	MOVQ  SI, 32(R14)
+-
+-	MULXQ 40(R8), AX, CX
+-	ADCXQ DI, AX
+-	ADOXQ 40(R10), AX
+-	MOVQ  AX, 40(R14)
+-
+-	MULXQ 48(R8), SI, DI
+-	ADCXQ CX, SI
+-	ADOXQ 48(R10), SI
+-	MOVQ  SI, 48(R14)
+-
+-	MULXQ 56(R8), AX, CX
+-	ADCXQ DI, AX
+-	ADOXQ 56(R10), AX
+-	MOVQ  AX, 56(R14)
+-
+-	ADCXQ R9, CX
+-	ADOXQ R9, CX
+-
+-	ADDQ $64, R8
+-	ADDQ $64, R10
+-	ADDQ $64, R14
+-	ADDQ $8, BX
+-
+-	CMPQ BX, R13
+-	JL adx_loop
+-	MOVQ z+0(FP), R14
+-	MOVQ x+24(FP), R10
+-	MOVQ y+48(FP), R8
+-	CMPQ BX, R11
+-	JL adx_short
+-	MOVQ CX, c+88(FP)
+-	RET
+-
+-adx_short:
+-	MULXQ (R8)(BX*8), SI, DI
+-	ADDQ CX, SI
+-	ADCQ $0, DI
+-	ADDQ (R10)(BX*8), SI
+-	MOVQ SI, (R14)(BX*8)
+-	ADCQ $0, DI
+-	MOVQ DI, CX
+-	ADDQ $1, BX		// i++
+-
+-	CMPQ BX, R11
+-	JL adx_short
+-
+-	MOVQ CX, c+88(FP)
+-	RET
+-
+-
+-
+diff --git a/src/math/big/arith_amd64_test.go b/src/math/big/arith_amd64_test.go
+new file mode 100644
+index 0000000000..62a6715119
+--- /dev/null
++++ b/src/math/big/arith_amd64_test.go
+@@ -0,0 +1,14 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !math_big_pure_go
++
++package big
++
++import "testing"
++
++func TestAddMulVVWWNoADX(t *testing.T) {
++	setDuringTest(t, &hasADX, false)
++	TestAddMulVVWW(t)
++}
+diff --git a/src/math/big/arith_arm.s b/src/math/big/arith_arm.s
+index ce9fe5f6fb..638b03ed40 100644
+--- a/src/math/big/arith_arm.s
++++ b/src/math/big/arith_arm.s
+@@ -1,197 +1,355 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
++
+ //go:build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+-// This file provides fast assembly versions for the elementary
+-// arithmetic operations on vectors implemented in arith.go.
+-
+ // func addVV(z, x, y []Word) (c Word)
+-TEXT ·addVV(SB),NOSPLIT,$0
+-	ADD.S	$0, R0		// clear carry flag
+-	MOVW	z+0(FP), R1
+-	MOVW	z_len+4(FP), R4
+-	MOVW	x+12(FP), R2
+-	MOVW	y+24(FP), R3
+-	ADD	R4<<2, R1, R4
+-	B E1
+-L1:
+-	MOVW.P	4(R2), R5
+-	MOVW.P	4(R3), R6
+-	ADC.S	R6, R5
+-	MOVW.P	R5, 4(R1)
+-E1:
+-	TEQ	R1, R4
+-	BNE L1
+-
+-	MOVW	$0, R0
+-	MOVW.CS	$1, R0
+-	MOVW	R0, c+36(FP)
++TEXT ·addVV(SB), NOSPLIT, $0
++	MOVW z_len+4(FP), R0
++	MOVW x_base+12(FP), R1
++	MOVW y_base+24(FP), R2
++	MOVW z_base+0(FP), R3
++	// compute unrolled loop lengths
++	AND $3, R0, R4
++	MOVW R0>>2, R0
++	ADD.S $0, R0	// clear carry
++loop1:
++	TEQ $0, R4; BEQ loop1done
++loop1cont:
++	// unroll 1X
++	MOVW.P 4(R1), R5
++	MOVW.P 4(R2), R6
++	ADC.S R6, R5
++	MOVW.P R5, 4(R3)
++	SUB $1, R4
++	TEQ $0, R4; BNE loop1cont
++loop1done:
++loop4:
++	TEQ $0, R0; BEQ loop4done
++loop4cont:
++	// unroll 4X
++	MOVW.P 4(R1), R4
++	MOVW.P 4(R1), R5
++	MOVW.P 4(R1), R6
++	MOVW.P 4(R1), R7
++	MOVW.P 4(R2), R8
++	MOVW.P 4(R2), R9
++	MOVW.P 4(R2), R11
++	MOVW.P 4(R2), R12
++	ADC.S R8, R4
++	ADC.S R9, R5
++	ADC.S R11, R6
++	ADC.S R12, R7
++	MOVW.P R4, 4(R3)
++	MOVW.P R5, 4(R3)
++	MOVW.P R6, 4(R3)
++	MOVW.P R7, 4(R3)
++	SUB $1, R0
++	TEQ $0, R0; BNE loop4cont
++loop4done:
++	SBC R1, R1	// save carry
++	ADD $1, R1	// convert add carry
++	MOVW R1, c+36(FP)
+ 	RET
+ 
+-
+ // func subVV(z, x, y []Word) (c Word)
+-// (same as addVV except for SBC instead of ADC and label names)
+-TEXT ·subVV(SB),NOSPLIT,$0
+-	SUB.S	$0, R0		// clear borrow flag
+-	MOVW	z+0(FP), R1
+-	MOVW	z_len+4(FP), R4
+-	MOVW	x+12(FP), R2
+-	MOVW	y+24(FP), R3
+-	ADD	R4<<2, R1, R4
+-	B E2
+-L2:
+-	MOVW.P	4(R2), R5
+-	MOVW.P	4(R3), R6
+-	SBC.S	R6, R5
+-	MOVW.P	R5, 4(R1)
+-E2:
+-	TEQ	R1, R4
+-	BNE L2
+-
+-	MOVW	$0, R0
+-	MOVW.CC	$1, R0
+-	MOVW	R0, c+36(FP)
++TEXT ·subVV(SB), NOSPLIT, $0
++	MOVW z_len+4(FP), R0
++	MOVW x_base+12(FP), R1
++	MOVW y_base+24(FP), R2
++	MOVW z_base+0(FP), R3
++	// compute unrolled loop lengths
++	AND $3, R0, R4
++	MOVW R0>>2, R0
++	SUB.S $0, R0	// clear carry
++loop1:
++	TEQ $0, R4; BEQ loop1done
++loop1cont:
++	// unroll 1X
++	MOVW.P 4(R1), R5
++	MOVW.P 4(R2), R6
++	SBC.S R6, R5
++	MOVW.P R5, 4(R3)
++	SUB $1, R4
++	TEQ $0, R4; BNE loop1cont
++loop1done:
++loop4:
++	TEQ $0, R0; BEQ loop4done
++loop4cont:
++	// unroll 4X
++	MOVW.P 4(R1), R4
++	MOVW.P 4(R1), R5
++	MOVW.P 4(R1), R6
++	MOVW.P 4(R1), R7
++	MOVW.P 4(R2), R8
++	MOVW.P 4(R2), R9
++	MOVW.P 4(R2), R11
++	MOVW.P 4(R2), R12
++	SBC.S R8, R4
++	SBC.S R9, R5
++	SBC.S R11, R6
++	SBC.S R12, R7
++	MOVW.P R4, 4(R3)
++	MOVW.P R5, 4(R3)
++	MOVW.P R6, 4(R3)
++	MOVW.P R7, 4(R3)
++	SUB $1, R0
++	TEQ $0, R0; BNE loop4cont
++loop4done:
++	SBC R1, R1	// save carry
++	RSB $0, R1, R1	// convert sub carry
++	MOVW R1, c+36(FP)
+ 	RET
+ 
+-
+ // func lshVU(z, x []Word, s uint) (c Word)
+-TEXT ·lshVU(SB),NOSPLIT,$0
+-	MOVW	z_len+4(FP), R5
+-	TEQ	$0, R5
+-	BEQ	X7
+-
+-	MOVW	z+0(FP), R1
+-	MOVW	x+12(FP), R2
+-	ADD	R5<<2, R2, R2
+-	ADD	R5<<2, R1, R5
+-	MOVW	s+24(FP), R3
+-	ADD	$4, R1	// stop one word early
+-	MOVW	$32, R4
+-	SUB	R3, R4
+-	MOVW	$0, R7
+-
+-	MOVW.W	-4(R2), R6
+-	MOVW	R6<<R3, R7
+-	MOVW	R6>>R4, R6
+-	MOVW	R6, c+28(FP)
+-	B E7
+-
+-L7:
+-	MOVW.W	-4(R2), R6
+-	ORR	R6>>R4, R7
+-	MOVW.W	R7, -4(R5)
+-	MOVW	R6<<R3, R7
+-E7:
+-	TEQ	R1, R5
+-	BNE	L7
+-
+-	MOVW	R7, -4(R5)
++TEXT ·lshVU(SB), NOSPLIT, $0
++	MOVW z_len+4(FP), R0
++	TEQ $0, R0; BEQ ret0
++	MOVW s+24(FP), R1
++	MOVW x_base+12(FP), R2
++	MOVW z_base+0(FP), R3
++	// run loop backward
++	ADD R0<<2, R2, R2
++	ADD R0<<2, R3, R3
++	// shift first word into carry
++	MOVW.W -4(R2), R4
++	MOVW $32, R5
++	SUB R1, R5
++	MOVW R4>>R5, R6
++	MOVW R4<<R1, R4
++	MOVW R6, c+28(FP)
++	// shift remaining words
++	SUB $1, R0
++	// compute unrolled loop lengths
++	AND $3, R0, R6
++	MOVW R0>>2, R0
++loop1:
++	TEQ $0, R6; BEQ loop1done
++loop1cont:
++	// unroll 1X
++	MOVW.W -4(R2), R7
++	ORR R7>>R5, R4
++	MOVW.W R4, -4(R3)
++	MOVW R7<<R1, R4
++	SUB $1, R6
++	TEQ $0, R6; BNE loop1cont
++loop1done:
++loop4:
++	TEQ $0, R0; BEQ loop4done
++loop4cont:
++	// unroll 4X
++	MOVW.W -4(R2), R6
++	MOVW.W -4(R2), R7
++	MOVW.W -4(R2), R8
++	MOVW.W -4(R2), R9
++	ORR R6>>R5, R4
++	MOVW.W R4, -4(R3)
++	MOVW R6<<R1, R4
++	ORR R7>>R5, R4
++	MOVW.W R4, -4(R3)
++	MOVW R7<<R1, R4
++	ORR R8>>R5, R4
++	MOVW.W R4, -4(R3)
++	MOVW R8<<R1, R4
++	ORR R9>>R5, R4
++	MOVW.W R4, -4(R3)
++	MOVW R9<<R1, R4
++	SUB $1, R0
++	TEQ $0, R0; BNE loop4cont
++loop4done:
++	// store final shifted bits
++	MOVW.W R4, -4(R3)
+ 	RET
+-
+-X7:
+-	MOVW	$0, R1
+-	MOVW	R1, c+28(FP)
++ret0:
++	MOVW $0, R1
++	MOVW R1, c+28(FP)
+ 	RET
+ 
+-
+-
+ // func rshVU(z, x []Word, s uint) (c Word)
+-TEXT ·rshVU(SB),NOSPLIT,$0
+-	MOVW	z_len+4(FP), R5
+-	TEQ	$0, R5
+-	BEQ	X6
+-
+-	MOVW	z+0(FP), R1
+-	MOVW	x+12(FP), R2
+-	ADD	R5<<2, R1, R5
+-	MOVW	s+24(FP), R3
+-	SUB	$4, R5	// stop one word early
+-	MOVW	$32, R4
+-	SUB	R3, R4
+-	MOVW	$0, R7
+-
+-	// first word
+-	MOVW.P	4(R2), R6
+-	MOVW	R6>>R3, R7
+-	MOVW	R6<<R4, R6
+-	MOVW	R6, c+28(FP)
+-	B E6
+-
+-	// word loop
+-L6:
+-	MOVW.P	4(R2), R6
+-	ORR	R6<<R4, R7
+-	MOVW.P	R7, 4(R1)
+-	MOVW	R6>>R3, R7
+-E6:
+-	TEQ	R1, R5
+-	BNE	L6
+-
+-	MOVW	R7, 0(R1)
++TEXT ·rshVU(SB), NOSPLIT, $0
++	MOVW z_len+4(FP), R0
++	TEQ $0, R0; BEQ ret0
++	MOVW s+24(FP), R1
++	MOVW x_base+12(FP), R2
++	MOVW z_base+0(FP), R3
++	// shift first word into carry
++	MOVW.P 4(R2), R4
++	MOVW $32, R5
++	SUB R1, R5
++	MOVW R4<<R5, R6
++	MOVW R4>>R1, R4
++	MOVW R6, c+28(FP)
++	// shift remaining words
++	SUB $1, R0
++	// compute unrolled loop lengths
++	AND $3, R0, R6
++	MOVW R0>>2, R0
++loop1:
++	TEQ $0, R6; BEQ loop1done
++loop1cont:
++	// unroll 1X
++	MOVW.P 4(R2), R7
++	ORR R7<<R5, R4
++	MOVW.P R4, 4(R3)
++	MOVW R7>>R1, R4
++	SUB $1, R6
++	TEQ $0, R6; BNE loop1cont
++loop1done:
++loop4:
++	TEQ $0, R0; BEQ loop4done
++loop4cont:
++	// unroll 4X
++	MOVW.P 4(R2), R6
++	MOVW.P 4(R2), R7
++	MOVW.P 4(R2), R8
++	MOVW.P 4(R2), R9
++	ORR R6<<R5, R4
++	MOVW.P R4, 4(R3)
++	MOVW R6>>R1, R4
++	ORR R7<<R5, R4
++	MOVW.P R4, 4(R3)
++	MOVW R7>>R1, R4
++	ORR R8<<R5, R4
++	MOVW.P R4, 4(R3)
++	MOVW R8>>R1, R4
++	ORR R9<<R5, R4
++	MOVW.P R4, 4(R3)
++	MOVW R9>>R1, R4
++	SUB $1, R0
++	TEQ $0, R0; BNE loop4cont
++loop4done:
++	// store final shifted bits
++	MOVW.P R4, 4(R3)
+ 	RET
+-
+-X6:
+-	MOVW	$0, R1
+-	MOVW	R1, c+28(FP)
++ret0:
++	MOVW $0, R1
++	MOVW R1, c+28(FP)
+ 	RET
+ 
+ // func mulAddVWW(z, x []Word, m, a Word) (c Word)
+-TEXT ·mulAddVWW(SB),NOSPLIT,$0
+-	MOVW	$0, R0
+-	MOVW	z+0(FP), R1
+-	MOVW	z_len+4(FP), R5
+-	MOVW	x+12(FP), R2
+-	MOVW	m+24(FP), R3
+-	MOVW	a+28(FP), R4
+-	ADD	R5<<2, R1, R5
+-	B E8
+-
+-	// word loop
+-L8:
+-	MOVW.P	4(R2), R6
+-	MULLU	R6, R3, (R7, R6)
+-	ADD.S	R4, R6
+-	ADC	R0, R7
+-	MOVW.P	R6, 4(R1)
+-	MOVW	R7, R4
+-E8:
+-	TEQ	R1, R5
+-	BNE	L8
+-
+-	MOVW	R4, c+32(FP)
++TEXT ·mulAddVWW(SB), NOSPLIT, $0
++	MOVW m+24(FP), R0
++	MOVW a+28(FP), R1
++	MOVW z_len+4(FP), R2
++	MOVW x_base+12(FP), R3
++	MOVW z_base+0(FP), R4
++	// compute unrolled loop lengths
++	AND $3, R2, R5
++	MOVW R2>>2, R2
++loop1:
++	TEQ $0, R5; BEQ loop1done
++loop1cont:
++	// unroll 1X
++	MOVW.P 4(R3), R6
++	// multiply
++	MULLU R0, R6, (R7, R6)
++	ADD.S R1, R6
++	ADC $0, R7, R1
++	MOVW.P R6, 4(R4)
++	SUB $1, R5
++	TEQ $0, R5; BNE loop1cont
++loop1done:
++loop4:
++	TEQ $0, R2; BEQ loop4done
++loop4cont:
++	// unroll 4X in batches of 2
++	MOVW.P 4(R3), R5
++	MOVW.P 4(R3), R6
++	// multiply
++	MULLU R0, R5, (R7, R5)
++	ADD.S R1, R5
++	MULLU R0, R6, (R8, R6)
++	ADC.S R7, R6
++	ADC $0, R8, R1
++	MOVW.P R5, 4(R4)
++	MOVW.P R6, 4(R4)
++	MOVW.P 4(R3), R5
++	MOVW.P 4(R3), R6
++	// multiply
++	MULLU R0, R5, (R7, R5)
++	ADD.S R1, R5
++	MULLU R0, R6, (R8, R6)
++	ADC.S R7, R6
++	ADC $0, R8, R1
++	MOVW.P R5, 4(R4)
++	MOVW.P R6, 4(R4)
++	SUB $1, R2
++	TEQ $0, R2; BNE loop4cont
++loop4done:
++	MOVW R1, c+32(FP)
+ 	RET
+ 
+-
+ // func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+-TEXT ·addMulVVWW(SB),NOSPLIT,$0
+-	MOVW	$0, R0
+-	MOVW	z+0(FP), R9
+-	MOVW	x+12(FP), R1
+-	MOVW	z_len+4(FP), R5
+-	MOVW	y+24(FP), R2
+-	MOVW	m+36(FP), R3
+-	ADD	R5<<2, R1, R5
+-	MOVW	a+40(FP), R4
+-	B E9
+-
+-	// word loop
+-L9:
+-	MOVW.P	4(R2), R6
+-	MULLU	R6, R3, (R7, R6)
+-	ADD.S	R4, R6
+-	ADC	R0, R7
+-	MOVW.P	4(R1), R4
+-	ADD.S	R4, R6
+-	ADC	R0, R7
+-	MOVW.P	R6, 4(R9)
+-	MOVW	R7, R4
+-E9:
+-	TEQ	R1, R5
+-	BNE	L9
+-
+-	MOVW	R4, c+44(FP)
++TEXT ·addMulVVWW(SB), NOSPLIT, $0
++	MOVW m+36(FP), R0
++	MOVW a+40(FP), R1
++	MOVW z_len+4(FP), R2
++	MOVW x_base+12(FP), R3
++	MOVW y_base+24(FP), R4
++	MOVW z_base+0(FP), R5
++	// compute unrolled loop lengths
++	AND $3, R2, R6
++	MOVW R2>>2, R2
++loop1:
++	TEQ $0, R6; BEQ loop1done
++loop1cont:
++	// unroll 1X
++	MOVW.P 4(R3), R7
++	MOVW.P 4(R4), R8
++	// multiply
++	MULLU R0, R8, (R9, R8)
++	ADD.S R1, R8
++	ADC $0, R9, R1
++	// add
++	ADD.S R7, R8
++	ADC $0, R1
++	MOVW.P R8, 4(R5)
++	SUB $1, R6
++	TEQ $0, R6; BNE loop1cont
++loop1done:
++loop4:
++	TEQ $0, R2; BEQ loop4done
++loop4cont:
++	// unroll 4X in batches of 2
++	MOVW.P 4(R3), R6
++	MOVW.P 4(R3), R7
++	MOVW.P 4(R4), R8
++	MOVW.P 4(R4), R9
++	// multiply
++	MULLU R0, R8, (R11, R8)
++	ADD.S R1, R8
++	MULLU R0, R9, (R12, R9)
++	ADC.S R11, R9
++	ADC $0, R12, R1
++	// add
++	ADD.S R6, R8
++	ADC.S R7, R9
++	ADC $0, R1
++	MOVW.P R8, 4(R5)
++	MOVW.P R9, 4(R5)
++	MOVW.P 4(R3), R6
++	MOVW.P 4(R3), R7
++	MOVW.P 4(R4), R8
++	MOVW.P 4(R4), R9
++	// multiply
++	MULLU R0, R8, (R11, R8)
++	ADD.S R1, R8
++	MULLU R0, R9, (R12, R9)
++	ADC.S R11, R9
++	ADC $0, R12, R1
++	// add
++	ADD.S R6, R8
++	ADC.S R7, R9
++	ADC $0, R1
++	MOVW.P R8, 4(R5)
++	MOVW.P R9, 4(R5)
++	SUB $1, R2
++	TEQ $0, R2; BNE loop4cont
++loop4done:
++	MOVW R1, c+44(FP)
+ 	RET
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+index aa7dd6755d..874930352b 100644
+--- a/src/math/big/arith_arm64.s
++++ b/src/math/big/arith_arm64.s
+@@ -1,375 +1,374 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
++
+ //go:build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+-// This file provides fast assembly versions for the elementary
+-// arithmetic operations on vectors implemented in arith.go.
+-
+-// TODO: Consider re-implementing using Advanced SIMD
+-// once the assembler supports those instructions.
+-
+ // func addVV(z, x, y []Word) (c Word)
+-TEXT ·addVV(SB),NOSPLIT,$0
+-	MOVD	z_len+8(FP), R0
+-	MOVD	x+24(FP), R8
+-	MOVD	y+48(FP), R9
+-	MOVD	z+0(FP), R10
+-	ADDS	$0, R0		// clear carry flag
+-	TBZ	$0, R0, two
+-	MOVD.P	8(R8), R11
+-	MOVD.P	8(R9), R15
+-	ADCS	R15, R11
+-	MOVD.P	R11, 8(R10)
+-	SUB	$1, R0
+-two:
+-	TBZ	$1, R0, loop
+-	LDP.P	16(R8), (R11, R12)
+-	LDP.P	16(R9), (R15, R16)
+-	ADCS	R15, R11
+-	ADCS	R16, R12
+-	STP.P	(R11, R12), 16(R10)
+-	SUB	$2, R0
+-loop:
+-	CBZ	R0, done	// careful not to touch the carry flag
+-	LDP.P	32(R8), (R11, R12)
+-	LDP	-16(R8), (R13, R14)
+-	LDP.P	32(R9), (R15, R16)
+-	LDP	-16(R9), (R17, R19)
+-	ADCS	R15, R11
+-	ADCS	R16, R12
+-	ADCS	R17, R13
+-	ADCS	R19, R14
+-	STP.P	(R11, R12), 32(R10)
+-	STP	(R13, R14), -16(R10)
+-	SUB	$4, R0
+-	B	loop
+-done:
+-	CSET	HS, R0		// extract carry flag
+-	MOVD	R0, c+72(FP)
++TEXT ·addVV(SB), NOSPLIT, $0
++	MOVD z_len+8(FP), R0
++	MOVD x_base+24(FP), R1
++	MOVD y_base+48(FP), R2
++	MOVD z_base+0(FP), R3
++	// compute unrolled loop lengths
++	AND $3, R0, R4
++	LSR $2, R0
++	ADDS ZR, R0	// clear carry
++loop1:
++	CBZ R4, loop1done
++loop1cont:
++	// unroll 1X
++	MOVD.P 8(R1), R5
++	MOVD.P 8(R2), R6
++	ADCS R6, R5
++	MOVD.P R5, 8(R3)
++	SUB $1, R4
++	CBNZ R4, loop1cont
++loop1done:
++loop4:
++	CBZ R0, loop4done
++loop4cont:
++	// unroll 4X
++	LDP.P 32(R1), (R4, R5)
++	LDP -16(R1), (R6, R7)
++	LDP.P 32(R2), (R8, R9)
++	LDP -16(R2), (R10, R11)
++	ADCS R8, R4
++	ADCS R9, R5
++	ADCS R10, R6
++	ADCS R11, R7
++	STP.P (R4, R5), 32(R3)
++	STP (R6, R7), -16(R3)
++	SUB $1, R0
++	CBNZ R0, loop4cont
++loop4done:
++	ADC ZR, ZR, R1	// save & convert add carry
++	MOVD R1, c+72(FP)
+ 	RET
+ 
+-
+ // func subVV(z, x, y []Word) (c Word)
+-TEXT ·subVV(SB),NOSPLIT,$0
+-	MOVD	z_len+8(FP), R0
+-	MOVD	x+24(FP), R8
+-	MOVD	y+48(FP), R9
+-	MOVD	z+0(FP), R10
+-	CMP	R0, R0		// set carry flag
+-	TBZ	$0, R0, two
+-	MOVD.P	8(R8), R11
+-	MOVD.P	8(R9), R15
+-	SBCS	R15, R11
+-	MOVD.P	R11, 8(R10)
+-	SUB	$1, R0
+-two:
+-	TBZ	$1, R0, loop
+-	LDP.P	16(R8), (R11, R12)
+-	LDP.P	16(R9), (R15, R16)
+-	SBCS	R15, R11
+-	SBCS	R16, R12
+-	STP.P	(R11, R12), 16(R10)
+-	SUB	$2, R0
+-loop:
+-	CBZ	R0, done	// careful not to touch the carry flag
+-	LDP.P	32(R8), (R11, R12)
+-	LDP	-16(R8), (R13, R14)
+-	LDP.P	32(R9), (R15, R16)
+-	LDP	-16(R9), (R17, R19)
+-	SBCS	R15, R11
+-	SBCS	R16, R12
+-	SBCS	R17, R13
+-	SBCS	R19, R14
+-	STP.P	(R11, R12), 32(R10)
+-	STP	(R13, R14), -16(R10)
+-	SUB	$4, R0
+-	B	loop
+-done:
+-	CSET	LO, R0		// extract carry flag
+-	MOVD	R0, c+72(FP)
++TEXT ·subVV(SB), NOSPLIT, $0
++	MOVD z_len+8(FP), R0
++	MOVD x_base+24(FP), R1
++	MOVD y_base+48(FP), R2
++	MOVD z_base+0(FP), R3
++	// compute unrolled loop lengths
++	AND $3, R0, R4
++	LSR $2, R0
++	SUBS ZR, R0	// clear carry
++loop1:
++	CBZ R4, loop1done
++loop1cont:
++	// unroll 1X
++	MOVD.P 8(R1), R5
++	MOVD.P 8(R2), R6
++	SBCS R6, R5
++	MOVD.P R5, 8(R3)
++	SUB $1, R4
++	CBNZ R4, loop1cont
++loop1done:
++loop4:
++	CBZ R0, loop4done
++loop4cont:
++	// unroll 4X
++	LDP.P 32(R1), (R4, R5)
++	LDP -16(R1), (R6, R7)
++	LDP.P 32(R2), (R8, R9)
++	LDP -16(R2), (R10, R11)
++	SBCS R8, R4
++	SBCS R9, R5
++	SBCS R10, R6
++	SBCS R11, R7
++	STP.P (R4, R5), 32(R3)
++	STP (R6, R7), -16(R3)
++	SUB $1, R0
++	CBNZ R0, loop4cont
++loop4done:
++	SBC R1, R1	// save carry
++	SUB R1, ZR, R1	// convert sub carry
++	MOVD R1, c+72(FP)
+ 	RET
+ 
+ // func lshVU(z, x []Word, s uint) (c Word)
+-// This implementation handles the shift operation from the high word to the low word,
+-// which may be an error for the case where the low word of x overlaps with the high
+-// word of z. When calling this function directly, you need to pay attention to this
+-// situation.
+-TEXT ·lshVU(SB),NOSPLIT,$0
+-	LDP	z+0(FP), (R0, R1)	// R0 = z.ptr, R1 = len(z)
+-	MOVD	x+24(FP), R2
+-	MOVD	s+48(FP), R3
+-	ADD	R1<<3, R0	// R0 = &z[n]
+-	ADD	R1<<3, R2	// R2 = &x[n]
+-	CBZ	R1, len0
+-	MOVD	$64, R4
+-	SUB	R3, R4
+-	// handling the most significant element x[n-1]
+-	MOVD.W	-8(R2), R6
+-	LSR	R4, R6, R5	// return value
+-	LSL	R3, R6, R8	// x[i] << s
+-	SUB	$1, R1
+-one:	TBZ	$0, R1, two
+-	MOVD.W	-8(R2), R6
+-	LSR	R4, R6, R7
+-	ORR	R8, R7
+-	LSL	R3, R6, R8
+-	SUB	$1, R1
+-	MOVD.W	R7, -8(R0)
+-two:
+-	TBZ	$1, R1, loop
+-	LDP.W	-16(R2), (R6, R7)
+-	LSR	R4, R7, R10
+-	ORR	R8, R10
+-	LSL	R3, R7
+-	LSR	R4, R6, R9
+-	ORR	R7, R9
+-	LSL	R3, R6, R8
+-	SUB	$2, R1
+-	STP.W	(R9, R10), -16(R0)
+-loop:
+-	CBZ	R1, done
+-	LDP.W	-32(R2), (R10, R11)
+-	LDP	16(R2), (R12, R13)
+-	LSR	R4, R13, R23
+-	ORR	R8, R23		// z[i] = (x[i] << s) | (x[i-1] >> (64 - s))
+-	LSL	R3, R13
+-	LSR	R4, R12, R22
+-	ORR	R13, R22
+-	LSL	R3, R12
+-	LSR	R4, R11, R21
+-	ORR	R12, R21
+-	LSL	R3, R11
+-	LSR	R4, R10, R20
+-	ORR	R11, R20
+-	LSL	R3, R10, R8
+-	STP.W	(R20, R21), -32(R0)
+-	STP	(R22, R23), 16(R0)
+-	SUB	$4, R1
+-	B	loop
+-done:
+-	MOVD.W	R8, -8(R0)	// the first element x[0]
+-	MOVD	R5, c+56(FP)	// the part moved out from x[n-1]
++TEXT ·lshVU(SB), NOSPLIT, $0
++	MOVD z_len+8(FP), R0
++	CBZ R0, ret0
++	MOVD s+48(FP), R1
++	MOVD x_base+24(FP), R2
++	MOVD z_base+0(FP), R3
++	// run loop backward
++	ADD R0<<3, R2, R2
++	ADD R0<<3, R3, R3
++	// shift first word into carry
++	MOVD.W -8(R2), R4
++	MOVD $64, R5
++	SUB R1, R5
++	LSR R5, R4, R6
++	LSL R1, R4
++	MOVD R6, c+56(FP)
++	// shift remaining words
++	SUB $1, R0
++	// compute unrolled loop lengths
++	AND $3, R0, R6
++	LSR $2, R0
++loop1:
++	CBZ R6, loop1done
++loop1cont:
++	// unroll 1X
++	MOVD.W -8(R2), R7
++	LSR R5, R7, R8
++	ORR R4, R8
++	LSL R1, R7, R4
++	MOVD.W R8, -8(R3)
++	SUB $1, R6
++	CBNZ R6, loop1cont
++loop1done:
++loop4:
++	CBZ R0, loop4done
++loop4cont:
++	// unroll 4X
++	LDP.W -32(R2), (R9, R8)
++	LDP 16(R2), (R7, R6)
++	LSR R5, R6, R10
++	ORR R4, R10
++	LSL R1, R6, R4
++	LSR R5, R7, R6
++	ORR R4, R6
++	LSL R1, R7, R4
++	LSR R5, R8, R7
++	ORR R4, R7
++	LSL R1, R8, R4
++	LSR R5, R9, R8
++	ORR R4, R8
++	LSL R1, R9, R4
++	STP.W (R8, R7), -32(R3)
++	STP (R6, R10), 16(R3)
++	SUB $1, R0
++	CBNZ R0, loop4cont
++loop4done:
++	// store final shifted bits
++	MOVD.W R4, -8(R3)
+ 	RET
+-len0:
+-	MOVD	$0, c+56(FP)
++ret0:
++	MOVD ZR, c+56(FP)
+ 	RET
+ 
+ // func rshVU(z, x []Word, s uint) (c Word)
+-// This implementation handles the shift operation from the low word to the high word,
+-// which may be an error for the case where the high word of x overlaps with the low
+-// word of z. When calling this function directly, you need to pay attention to this
+-// situation.
+-TEXT ·rshVU(SB),NOSPLIT,$0
+-	MOVD	z+0(FP), R0
+-	MOVD	z_len+8(FP), R1
+-	MOVD	x+24(FP), R2
+-	MOVD	s+48(FP), R3
+-	MOVD	$0, R8
+-	MOVD	$64, R4
+-	SUB	R3, R4
+-	CBZ	R1, len0
+-
+-	MOVD.P	8(R2), R20
+-	LSR	R3, R20, R8
+-	LSL	R4, R20
+-	MOVD	R20, c+56(FP)	// deal with the first element
+-	SUB	$1, R1
+-
+-	TBZ	$0, R1, two
+-	MOVD.P	8(R2), R6
+-	LSL	R4, R6, R20
+-	ORR	R8, R20
+-	LSR	R3, R6, R8
+-	MOVD.P	R20, 8(R0)
+-	SUB	$1, R1
+-two:
+-	TBZ	$1, R1, loop
+-	LDP.P	16(R2), (R6, R7)
+-	LSL	R4, R6, R20
+-	LSR	R3, R6
+-	ORR	R8, R20
+-	LSL	R4, R7, R21
+-	LSR	R3, R7, R8
+-	ORR	R6, R21
+-	STP.P	(R20, R21), 16(R0)
+-	SUB	$2, R1
+-loop:
+-	CBZ	R1, done
+-	LDP.P	32(R2), (R10, R11)
+-	LDP	-16(R2), (R12, R13)
+-	LSL	R4, R10, R20
+-	LSR	R3, R10
+-	ORR	R8, R20		// z[i] = (x[i] >> s) | (x[i+1] << (64 - s))
+-	LSL	R4, R11, R21
+-	LSR	R3, R11
+-	ORR	R10, R21
+-	LSL	R4, R12, R22
+-	LSR	R3, R12
+-	ORR	R11, R22
+-	LSL	R4, R13, R23
+-	LSR	R3, R13, R8
+-	ORR	R12, R23
+-	STP.P	(R20, R21), 32(R0)
+-	STP	(R22, R23), -16(R0)
+-	SUB	$4, R1
+-	B	loop
+-done:
+-	MOVD	R8, (R0)	// deal with the last element
++TEXT ·rshVU(SB), NOSPLIT, $0
++	MOVD z_len+8(FP), R0
++	CBZ R0, ret0
++	MOVD s+48(FP), R1
++	MOVD x_base+24(FP), R2
++	MOVD z_base+0(FP), R3
++	// shift first word into carry
++	MOVD.P 8(R2), R4
++	MOVD $64, R5
++	SUB R1, R5
++	LSL R5, R4, R6
++	LSR R1, R4
++	MOVD R6, c+56(FP)
++	// shift remaining words
++	SUB $1, R0
++	// compute unrolled loop lengths
++	AND $3, R0, R6
++	LSR $2, R0
++loop1:
++	CBZ R6, loop1done
++loop1cont:
++	// unroll 1X
++	MOVD.P 8(R2), R7
++	LSL R5, R7, R8
++	ORR R4, R8
++	LSR R1, R7, R4
++	MOVD.P R8, 8(R3)
++	SUB $1, R6
++	CBNZ R6, loop1cont
++loop1done:
++loop4:
++	CBZ R0, loop4done
++loop4cont:
++	// unroll 4X
++	LDP.P 32(R2), (R6, R7)
++	LDP -16(R2), (R8, R9)
++	LSL R5, R6, R10
++	ORR R4, R10
++	LSR R1, R6, R4
++	LSL R5, R7, R6
++	ORR R4, R6
++	LSR R1, R7, R4
++	LSL R5, R8, R7
++	ORR R4, R7
++	LSR R1, R8, R4
++	LSL R5, R9, R8
++	ORR R4, R8
++	LSR R1, R9, R4
++	STP.P (R10, R6), 32(R3)
++	STP (R7, R8), -16(R3)
++	SUB $1, R0
++	CBNZ R0, loop4cont
++loop4done:
++	// store final shifted bits
++	MOVD.P R4, 8(R3)
+ 	RET
+-len0:
+-	MOVD	$0, c+56(FP)
++ret0:
++	MOVD ZR, c+56(FP)
+ 	RET
+ 
+-
+ // func mulAddVWW(z, x []Word, m, a Word) (c Word)
+-TEXT ·mulAddVWW(SB),NOSPLIT,$0
+-	MOVD	z+0(FP), R1
+-	MOVD	z_len+8(FP), R0
+-	MOVD	x+24(FP), R2
+-	MOVD	m+48(FP), R3
+-	MOVD	a+56(FP), R4
+-	// c, z = x * y + r
+-	TBZ	$0, R0, two
+-	MOVD.P	8(R2), R5
+-	MUL	R3, R5, R7
+-	UMULH	R3, R5, R8
+-	ADDS	R4, R7
+-	ADC	$0, R8, R4	// c, z[i] = x[i] * y +  r
+-	MOVD.P	R7, 8(R1)
+-	SUB	$1, R0
+-two:
+-	TBZ	$1, R0, loop
+-	LDP.P	16(R2), (R5, R6)
+-	MUL	R3, R5, R10
+-	UMULH	R3, R5, R11
+-	ADDS	R4, R10
+-	MUL	R3, R6, R12
+-	UMULH	R3, R6, R13
+-	ADCS	R12, R11
+-	ADC	$0, R13, R4
+-
+-	STP.P	(R10, R11), 16(R1)
+-	SUB	$2, R0
+-loop:
+-	CBZ	R0, done
+-	LDP.P	32(R2), (R5, R6)
+-	LDP	-16(R2), (R7, R8)
+-
+-	MUL	R3, R5, R10
+-	UMULH	R3, R5, R11
+-	ADDS	R4, R10
+-	MUL	R3, R6, R12
+-	UMULH	R3, R6, R13
+-	ADCS	R11, R12
+-
+-	MUL	R3, R7, R14
+-	UMULH	R3, R7, R15
+-	ADCS	R13, R14
+-	MUL	R3, R8, R16
+-	UMULH	R3, R8, R17
+-	ADCS	R15, R16
+-	ADC	$0, R17, R4
+-
+-	STP.P	(R10, R12), 32(R1)
+-	STP	(R14, R16), -16(R1)
+-	SUB	$4, R0
+-	B	loop
+-done:
+-	MOVD	R4, c+64(FP)
++TEXT ·mulAddVWW(SB), NOSPLIT, $0
++	MOVD m+48(FP), R0
++	MOVD a+56(FP), R1
++	MOVD z_len+8(FP), R2
++	MOVD x_base+24(FP), R3
++	MOVD z_base+0(FP), R4
++	// compute unrolled loop lengths
++	AND $7, R2, R5
++	LSR $3, R2
++loop1:
++	CBZ R5, loop1done
++loop1cont:
++	// unroll 1X
++	MOVD.P 8(R3), R6
++	// multiply
++	UMULH R0, R6, R7
++	MUL R0, R6
++	ADDS R1, R6
++	ADC ZR, R7, R1
++	MOVD.P R6, 8(R4)
++	SUB $1, R5
++	CBNZ R5, loop1cont
++loop1done:
++loop8:
++	CBZ R2, loop8done
++loop8cont:
++	// unroll 8X
++	LDP.P 64(R3), (R5, R6)
++	LDP -48(R3), (R7, R8)
++	LDP -32(R3), (R9, R10)
++	LDP -16(R3), (R11, R12)
++	// multiply
++	UMULH R0, R5, R13
++	MUL R0, R5
++	ADDS R1, R5
++	UMULH R0, R6, R14
++	MUL R0, R6
++	ADCS R13, R6
++	UMULH R0, R7, R13
++	MUL R0, R7
++	ADCS R14, R7
++	UMULH R0, R8, R14
++	MUL R0, R8
++	ADCS R13, R8
++	UMULH R0, R9, R13
++	MUL R0, R9
++	ADCS R14, R9
++	UMULH R0, R10, R14
++	MUL R0, R10
++	ADCS R13, R10
++	UMULH R0, R11, R13
++	MUL R0, R11
++	ADCS R14, R11
++	UMULH R0, R12, R14
++	MUL R0, R12
++	ADCS R13, R12
++	ADC ZR, R14, R1
++	STP.P (R5, R6), 64(R4)
++	STP (R7, R8), -48(R4)
++	STP (R9, R10), -32(R4)
++	STP (R11, R12), -16(R4)
++	SUB $1, R2
++	CBNZ R2, loop8cont
++loop8done:
++	MOVD R1, c+64(FP)
+ 	RET
+ 
+-
+ // func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+-TEXT ·addMulVVWW(SB),NOSPLIT,$0
+-	MOVD	z+0(FP), R22
+-	MOVD	x+24(FP), R1
+-	MOVD	z_len+8(FP), R0
+-	MOVD	y+48(FP), R2
+-	MOVD	m+72(FP), R3
+-	MOVD	a+80(FP), R4
+-
+-	TBZ	$0, R0, two
+-
+-	MOVD.P	8(R2), R5
+-	MOVD.P	8(R1), R6
+-
+-	MUL	R5, R3, R7
+-	UMULH	R5, R3, R8
+-
+-	ADDS	R4, R7
+-	ADC	$0, R8
+-	ADDS	R7, R6
+-	ADC	$0, R8, R4
+-
+-	MOVD.P	R6, 8(R22)
+-	SUB	$1, R0
+-
+-two:
+-	TBZ	$1, R0, loop
+-
+-	LDP.P	16(R2), (R5, R10)
+-	LDP.P	16(R1), (R6, R11)
+-
+-	MUL	R10, R3, R13
+-	UMULH	R10, R3, R12
+-
+-	MUL	R5, R3, R7
+-	UMULH	R5, R3, R8
+-
+-	ADDS	R4, R6
+-	ADCS	R13, R11
+-	ADC	$0, R12
+-
+-	ADDS	R7, R6
+-	ADCS	R8, R11
+-	ADC	$0, R12, R4
+-
+-	STP.P	(R6, R11), 16(R22)
+-	SUB	$2, R0
+-
+-// The main loop of this code operates on a block of 4 words every iteration
+-// performing [R4:R12:R11:R10:R9] = R4 + R3 * [R8:R7:R6:R5] + [R12:R11:R10:R9]
+-// where R4 is carried from the previous iteration, R8:R7:R6:R5 hold the next
+-// 4 words of x, R3 is y and R12:R11:R10:R9 are part of the result z.
+-loop:
+-	CBZ	R0, done
+-
+-	LDP.P	16(R2), (R5, R6)
+-	LDP.P	16(R2), (R7, R8)
+-
+-	LDP.P	16(R1), (R9, R10)
+-	ADDS	R4, R9
+-	MUL	R6, R3, R14
+-	ADCS	R14, R10
+-	MUL	R7, R3, R15
+-	LDP.P	16(R1), (R11, R12)
+-	ADCS	R15, R11
+-	MUL	R8, R3, R16
+-	ADCS	R16, R12
+-	UMULH	R8, R3, R20
+-	ADC	$0, R20
+-
+-	MUL	R5, R3, R13
+-	ADDS	R13, R9
+-	UMULH	R5, R3, R17
+-	ADCS	R17, R10
+-	UMULH	R6, R3, R21
+-	STP.P	(R9, R10), 16(R22)
+-	ADCS	R21, R11
+-	UMULH	R7, R3, R19
+-	ADCS	R19, R12
+-	STP.P	(R11, R12), 16(R22)
+-	ADC	$0, R20, R4
+-
+-	SUB	$4, R0
+-	B	loop
+-
+-done:
+-	MOVD	R4, c+88(FP)
++TEXT ·addMulVVWW(SB), NOSPLIT, $0
++	MOVD m+72(FP), R0
++	MOVD a+80(FP), R1
++	MOVD z_len+8(FP), R2
++	MOVD x_base+24(FP), R3
++	MOVD y_base+48(FP), R4
++	MOVD z_base+0(FP), R5
++	// compute unrolled loop lengths
++	AND $7, R2, R6
++	LSR $3, R2
++loop1:
++	CBZ R6, loop1done
++loop1cont:
++	// unroll 1X
++	MOVD.P 8(R3), R7
++	MOVD.P 8(R4), R8
++	// multiply
++	UMULH R0, R8, R9
++	MUL R0, R8
++	ADDS R1, R8
++	ADC ZR, R9, R1
++	// add
++	ADDS R7, R8
++	ADC ZR, R1
++	MOVD.P R8, 8(R5)
++	SUB $1, R6
++	CBNZ R6, loop1cont
++loop1done:
++loop8:
++	CBZ R2, loop8done
++loop8cont:
++	// unroll 8X
++	LDP.P 64(R3), (R6, R7)
++	LDP -48(R3), (R8, R9)
++	LDP -32(R3), (R10, R11)
++	LDP -16(R3), (R12, R13)
++	LDP.P 64(R4), (R14, R15)
++	LDP -48(R4), (R16, R17)
++	LDP -32(R4), (R19, R20)
++	LDP -16(R4), (R21, R22)
++	// multiply
++	UMULH R0, R14, R23
++	MUL R0, R14
++	ADDS R1, R14
++	UMULH R0, R15, R24
++	MUL R0, R15
++	ADCS R23, R15
++	UMULH R0, R16, R23
++	MUL R0, R16
++	ADCS R24, R16
++	UMULH R0, R17, R24
++	MUL R0, R17
++	ADCS R23, R17
++	UMULH R0, R19, R23
++	MUL R0, R19
++	ADCS R24, R19
++	UMULH R0, R20, R24
++	MUL R0, R20
++	ADCS R23, R20
++	UMULH R0, R21, R23
++	MUL R0, R21
++	ADCS R24, R21
++	UMULH R0, R22, R24
++	MUL R0, R22
++	ADCS R23, R22
++	ADC ZR, R24, R1
++	// add
++	ADDS R6, R14
++	ADCS R7, R15
++	ADCS R8, R16
++	ADCS R9, R17
++	ADCS R10, R19
++	ADCS R11, R20
++	ADCS R12, R21
++	ADCS R13, R22
++	ADC ZR, R1
++	STP.P (R14, R15), 64(R5)
++	STP (R16, R17), -48(R5)
++	STP (R19, R20), -32(R5)
++	STP (R21, R22), -16(R5)
++	SUB $1, R2
++	CBNZ R2, loop8cont
++loop8done:
++	MOVD R1, c+88(FP)
+ 	RET
+-
+-
+diff --git a/src/math/big/arith_decl.go b/src/math/big/arith_decl.go
+index aa838808b9..7dc94a5090 100644
+--- a/src/math/big/arith_decl.go
++++ b/src/math/big/arith_decl.go
+@@ -4,6 +4,8 @@
+ 
+ //go:build !math_big_pure_go
+ 
++//go:generate go test ./internal/asmgen -generate
++
+ package big
+ 
+ import _ "unsafe" // for linkname
+diff --git a/src/math/big/arith_loong64.s b/src/math/big/arith_loong64.s
+index 8a5140e57a..b2af925124 100644
+--- a/src/math/big/arith_loong64.s
++++ b/src/math/big/arith_loong64.s
+@@ -1,82 +1,457 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !math_big_pure_go && loong64
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
+ 
+-#include "textflag.h"
++//go:build !math_big_pure_go
+ 
+-// This file provides fast assembly versions for the elementary
+-// arithmetic operations on vectors implemented in arith.go.
++#include "textflag.h"
+ 
+-TEXT ·addVV(SB),NOSPLIT,$0
+-	JMP ·addVV_g(SB)
++// func addVV(z, x, y []Word) (c Word)
++TEXT ·addVV(SB), NOSPLIT, $0
++	MOVV z_len+8(FP), R4
++	MOVV x_base+24(FP), R5
++	MOVV y_base+48(FP), R6
++	MOVV z_base+0(FP), R7
++	// compute unrolled loop lengths
++	AND $3, R4, R8
++	SRLV $2, R4
++	XOR R28, R28	// clear carry
++loop1:
++	BEQ R8, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV 0(R5), R9
++	MOVV 0(R6), R10
++	ADDVU R10, R9	// ADCS R10, R9, R9 (cr=R28)
++	SGTU R10, R9, R30	// ...
++	ADDVU R28, R9	// ...
++	SGTU R28, R9, R28	// ...
++	ADDVU R30, R28	// ...
++	MOVV R9, 0(R7)
++	ADDVU $8, R5
++	ADDVU $8, R6
++	ADDVU $8, R7
++	SUBVU $1, R8
++	BNE R8, loop1cont
++loop1done:
++loop4:
++	BEQ R4, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV 0(R5), R8
++	MOVV 8(R5), R9
++	MOVV 16(R5), R10
++	MOVV 24(R5), R11
++	MOVV 0(R6), R12
++	MOVV 8(R6), R13
++	MOVV 16(R6), R14
++	MOVV 24(R6), R15
++	ADDVU R12, R8	// ADCS R12, R8, R8 (cr=R28)
++	SGTU R12, R8, R30	// ...
++	ADDVU R28, R8	// ...
++	SGTU R28, R8, R28	// ...
++	ADDVU R30, R28	// ...
++	ADDVU R13, R9	// ADCS R13, R9, R9 (cr=R28)
++	SGTU R13, R9, R30	// ...
++	ADDVU R28, R9	// ...
++	SGTU R28, R9, R28	// ...
++	ADDVU R30, R28	// ...
++	ADDVU R14, R10	// ADCS R14, R10, R10 (cr=R28)
++	SGTU R14, R10, R30	// ...
++	ADDVU R28, R10	// ...
++	SGTU R28, R10, R28	// ...
++	ADDVU R30, R28	// ...
++	ADDVU R15, R11	// ADCS R15, R11, R11 (cr=R28)
++	SGTU R15, R11, R30	// ...
++	ADDVU R28, R11	// ...
++	SGTU R28, R11, R28	// ...
++	ADDVU R30, R28	// ...
++	MOVV R8, 0(R7)
++	MOVV R9, 8(R7)
++	MOVV R10, 16(R7)
++	MOVV R11, 24(R7)
++	ADDVU $32, R5
++	ADDVU $32, R6
++	ADDVU $32, R7
++	SUBVU $1, R4
++	BNE R4, loop4cont
++loop4done:
++	MOVV R28, c+72(FP)
++	RET
+ 
+ // func subVV(z, x, y []Word) (c Word)
+-TEXT ·subVV(SB),NOSPLIT,$0
+-	// input:
+-	//   R4: z
+-	//   R5: z_len
+-	//   R7: x
+-	//   R10: y
+-	MOVV	z+0(FP), R4
+-	MOVV	z_len+8(FP), R5
+-	MOVV	x+24(FP), R7
+-	MOVV	y+48(FP), R10
+-	MOVV	$0, R6
+-	SLLV	$3, R5
+-	MOVV	$0, R8
+-loop:
+-	BEQ	R5, R6, done
+-	MOVV	(R6)(R7), R9
+-	MOVV	(R6)(R10), R11
+-	SUBV	R11, R9, R11	// x1 - y1 = z1', if z1' > x1 then overflow
+-	SUBV	R8, R11, R12	// z1' - c0 = z1, if z1 > z1' then overflow
+-	SGTU	R11, R9, R9
+-	SGTU	R12, R11, R11
+-	MOVV	R12, (R6)(R4)
+-	OR	R9, R11, R8
+-	ADDV	$8, R6
+-	JMP	loop
+-done:
+-	MOVV	R8, c+72(FP)
++TEXT ·subVV(SB), NOSPLIT, $0
++	MOVV z_len+8(FP), R4
++	MOVV x_base+24(FP), R5
++	MOVV y_base+48(FP), R6
++	MOVV z_base+0(FP), R7
++	// compute unrolled loop lengths
++	AND $3, R4, R8
++	SRLV $2, R4
++	XOR R28, R28	// clear carry
++loop1:
++	BEQ R8, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV 0(R5), R9
++	MOVV 0(R6), R10
++	SGTU R28, R9, R30	// SBCS R10, R9, R9
++	SUBVU R28, R9	// ...
++	SGTU R10, R9, R28	// ...
++	SUBVU R10, R9	// ...
++	ADDVU R30, R28	// ...
++	MOVV R9, 0(R7)
++	ADDVU $8, R5
++	ADDVU $8, R6
++	ADDVU $8, R7
++	SUBVU $1, R8
++	BNE R8, loop1cont
++loop1done:
++loop4:
++	BEQ R4, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV 0(R5), R8
++	MOVV 8(R5), R9
++	MOVV 16(R5), R10
++	MOVV 24(R5), R11
++	MOVV 0(R6), R12
++	MOVV 8(R6), R13
++	MOVV 16(R6), R14
++	MOVV 24(R6), R15
++	SGTU R28, R8, R30	// SBCS R12, R8, R8
++	SUBVU R28, R8	// ...
++	SGTU R12, R8, R28	// ...
++	SUBVU R12, R8	// ...
++	ADDVU R30, R28	// ...
++	SGTU R28, R9, R30	// SBCS R13, R9, R9
++	SUBVU R28, R9	// ...
++	SGTU R13, R9, R28	// ...
++	SUBVU R13, R9	// ...
++	ADDVU R30, R28	// ...
++	SGTU R28, R10, R30	// SBCS R14, R10, R10
++	SUBVU R28, R10	// ...
++	SGTU R14, R10, R28	// ...
++	SUBVU R14, R10	// ...
++	ADDVU R30, R28	// ...
++	SGTU R28, R11, R30	// SBCS R15, R11, R11
++	SUBVU R28, R11	// ...
++	SGTU R15, R11, R28	// ...
++	SUBVU R15, R11	// ...
++	ADDVU R30, R28	// ...
++	MOVV R8, 0(R7)
++	MOVV R9, 8(R7)
++	MOVV R10, 16(R7)
++	MOVV R11, 24(R7)
++	ADDVU $32, R5
++	ADDVU $32, R6
++	ADDVU $32, R7
++	SUBVU $1, R4
++	BNE R4, loop4cont
++loop4done:
++	MOVV R28, c+72(FP)
+ 	RET
+ 
+-TEXT ·lshVU(SB),NOSPLIT,$0
+-	JMP ·lshVU_g(SB)
++// func lshVU(z, x []Word, s uint) (c Word)
++TEXT ·lshVU(SB), NOSPLIT, $0
++	MOVV z_len+8(FP), R4
++	BEQ R4, ret0
++	MOVV s+48(FP), R5
++	MOVV x_base+24(FP), R6
++	MOVV z_base+0(FP), R7
++	// run loop backward
++	SLLV $3, R4, R8
++	ADDVU R8, R6
++	SLLV $3, R4, R8
++	ADDVU R8, R7
++	// shift first word into carry
++	MOVV -8(R6), R8
++	MOVV $64, R9
++	SUBVU R5, R9
++	SRLV R9, R8, R10
++	SLLV R5, R8
++	MOVV R10, c+56(FP)
++	// shift remaining words
++	SUBVU $1, R4
++	// compute unrolled loop lengths
++	AND $3, R4, R10
++	SRLV $2, R4
++loop1:
++	BEQ R10, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV -16(R6), R11
++	SRLV R9, R11, R12
++	OR R8, R12
++	SLLV R5, R11, R8
++	MOVV R12, -8(R7)
++	ADDVU $-8, R6
++	ADDVU $-8, R7
++	SUBVU $1, R10
++	BNE R10, loop1cont
++loop1done:
++loop4:
++	BEQ R4, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV -16(R6), R10
++	MOVV -24(R6), R11
++	MOVV -32(R6), R12
++	MOVV -40(R6), R13
++	SRLV R9, R10, R14
++	OR R8, R14
++	SLLV R5, R10, R8
++	SRLV R9, R11, R10
++	OR R8, R10
++	SLLV R5, R11, R8
++	SRLV R9, R12, R11
++	OR R8, R11
++	SLLV R5, R12, R8
++	SRLV R9, R13, R12
++	OR R8, R12
++	SLLV R5, R13, R8
++	MOVV R14, -8(R7)
++	MOVV R10, -16(R7)
++	MOVV R11, -24(R7)
++	MOVV R12, -32(R7)
++	ADDVU $-32, R6
++	ADDVU $-32, R7
++	SUBVU $1, R4
++	BNE R4, loop4cont
++loop4done:
++	// store final shifted bits
++	MOVV R8, -8(R7)
++	RET
++ret0:
++	MOVV R0, c+56(FP)
++	RET
+ 
+-TEXT ·rshVU(SB),NOSPLIT,$0
+-	JMP ·rshVU_g(SB)
++// func rshVU(z, x []Word, s uint) (c Word)
++TEXT ·rshVU(SB), NOSPLIT, $0
++	MOVV z_len+8(FP), R4
++	BEQ R4, ret0
++	MOVV s+48(FP), R5
++	MOVV x_base+24(FP), R6
++	MOVV z_base+0(FP), R7
++	// shift first word into carry
++	MOVV 0(R6), R8
++	MOVV $64, R9
++	SUBVU R5, R9
++	SLLV R9, R8, R10
++	SRLV R5, R8
++	MOVV R10, c+56(FP)
++	// shift remaining words
++	SUBVU $1, R4
++	// compute unrolled loop lengths
++	AND $3, R4, R10
++	SRLV $2, R4
++loop1:
++	BEQ R10, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV 8(R6), R11
++	SLLV R9, R11, R12
++	OR R8, R12
++	SRLV R5, R11, R8
++	MOVV R12, 0(R7)
++	ADDVU $8, R6
++	ADDVU $8, R7
++	SUBVU $1, R10
++	BNE R10, loop1cont
++loop1done:
++loop4:
++	BEQ R4, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV 8(R6), R10
++	MOVV 16(R6), R11
++	MOVV 24(R6), R12
++	MOVV 32(R6), R13
++	SLLV R9, R10, R14
++	OR R8, R14
++	SRLV R5, R10, R8
++	SLLV R9, R11, R10
++	OR R8, R10
++	SRLV R5, R11, R8
++	SLLV R9, R12, R11
++	OR R8, R11
++	SRLV R5, R12, R8
++	SLLV R9, R13, R12
++	OR R8, R12
++	SRLV R5, R13, R8
++	MOVV R14, 0(R7)
++	MOVV R10, 8(R7)
++	MOVV R11, 16(R7)
++	MOVV R12, 24(R7)
++	ADDVU $32, R6
++	ADDVU $32, R7
++	SUBVU $1, R4
++	BNE R4, loop4cont
++loop4done:
++	// store final shifted bits
++	MOVV R8, 0(R7)
++	RET
++ret0:
++	MOVV R0, c+56(FP)
++	RET
+ 
+ // func mulAddVWW(z, x []Word, m, a Word) (c Word)
+-TEXT ·mulAddVWW(SB),NOSPLIT,$0
+-	// input:
+-	//   R4: z
+-	//   R5: z_len
+-	//   R7: x
+-	//   R10: m
+-	//   R11: a
+-	MOVV	z+0(FP), R4
+-	MOVV	z_len+8(FP), R5
+-	MOVV	x+24(FP), R7
+-	MOVV	m+48(FP), R10
+-	MOVV	a+56(FP), R11
+-	SLLV	$3, R5
+-	MOVV	$0, R6
+-loop:
+-	BEQ	R5, R6, done
+-	MOVV	(R6)(R7), R8
+-	MULV	R8, R10, R9
+-	MULHVU	R8, R10, R12
+-	ADDV	R9, R11, R8
+-	SGTU	R9, R8, R11	// if (c' = lo + c) < lo then overflow
+-	MOVV	R8, (R6)(R4)
+-	ADDV	R12, R11
+-	ADDV	$8, R6
+-	JMP	loop
+-done:
+-	MOVV	R11, c+64(FP)
++TEXT ·mulAddVWW(SB), NOSPLIT, $0
++	MOVV m+48(FP), R4
++	MOVV a+56(FP), R5
++	MOVV z_len+8(FP), R6
++	MOVV x_base+24(FP), R7
++	MOVV z_base+0(FP), R8
++	// compute unrolled loop lengths
++	AND $3, R6, R9
++	SRLV $2, R6
++loop1:
++	BEQ R9, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV 0(R7), R10
++	// synthetic carry, one column at a time
++	MULV R4, R10, R11
++	MULHVU R4, R10, R12
++	ADDVU R5, R11, R10	// ADDS R5, R11, R10 (cr=R28)
++	SGTU R5, R10, R28	// ...
++	ADDVU R28, R12, R5	// ADC $0, R12, R5
++	MOVV R10, 0(R8)
++	ADDVU $8, R7
++	ADDVU $8, R8
++	SUBVU $1, R9
++	BNE R9, loop1cont
++loop1done:
++loop4:
++	BEQ R6, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV 0(R7), R9
++	MOVV 8(R7), R10
++	MOVV 16(R7), R11
++	MOVV 24(R7), R12
++	// synthetic carry, one column at a time
++	MULV R4, R9, R13
++	MULHVU R4, R9, R14
++	ADDVU R5, R13, R9	// ADDS R5, R13, R9 (cr=R28)
++	SGTU R5, R9, R28	// ...
++	ADDVU R28, R14, R5	// ADC $0, R14, R5
++	MULV R4, R10, R13
++	MULHVU R4, R10, R14
++	ADDVU R5, R13, R10	// ADDS R5, R13, R10 (cr=R28)
++	SGTU R5, R10, R28	// ...
++	ADDVU R28, R14, R5	// ADC $0, R14, R5
++	MULV R4, R11, R13
++	MULHVU R4, R11, R14
++	ADDVU R5, R13, R11	// ADDS R5, R13, R11 (cr=R28)
++	SGTU R5, R11, R28	// ...
++	ADDVU R28, R14, R5	// ADC $0, R14, R5
++	MULV R4, R12, R13
++	MULHVU R4, R12, R14
++	ADDVU R5, R13, R12	// ADDS R5, R13, R12 (cr=R28)
++	SGTU R5, R12, R28	// ...
++	ADDVU R28, R14, R5	// ADC $0, R14, R5
++	MOVV R9, 0(R8)
++	MOVV R10, 8(R8)
++	MOVV R11, 16(R8)
++	MOVV R12, 24(R8)
++	ADDVU $32, R7
++	ADDVU $32, R8
++	SUBVU $1, R6
++	BNE R6, loop4cont
++loop4done:
++	MOVV R5, c+64(FP)
+ 	RET
+ 
+-TEXT ·addMulVVWW(SB),NOSPLIT,$0
+-	JMP ·addMulVVWW_g(SB)
++// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
++TEXT ·addMulVVWW(SB), NOSPLIT, $0
++	MOVV m+72(FP), R4
++	MOVV a+80(FP), R5
++	MOVV z_len+8(FP), R6
++	MOVV x_base+24(FP), R7
++	MOVV y_base+48(FP), R8
++	MOVV z_base+0(FP), R9
++	// compute unrolled loop lengths
++	AND $3, R6, R10
++	SRLV $2, R6
++loop1:
++	BEQ R10, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV 0(R7), R11
++	MOVV 0(R8), R12
++	// synthetic carry, one column at a time
++	MULV R4, R12, R13
++	MULHVU R4, R12, R14
++	ADDVU R11, R13	// ADDS R11, R13, R13 (cr=R28)
++	SGTU R11, R13, R28	// ...
++	ADDVU R28, R14	// ADC $0, R14, R14
++	ADDVU R5, R13, R12	// ADDS R5, R13, R12 (cr=R28)
++	SGTU R5, R12, R28	// ...
++	ADDVU R28, R14, R5	// ADC $0, R14, R5
++	MOVV R12, 0(R9)
++	ADDVU $8, R7
++	ADDVU $8, R8
++	ADDVU $8, R9
++	SUBVU $1, R10
++	BNE R10, loop1cont
++loop1done:
++loop4:
++	BEQ R6, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV 0(R7), R10
++	MOVV 8(R7), R11
++	MOVV 16(R7), R12
++	MOVV 24(R7), R13
++	MOVV 0(R8), R14
++	MOVV 8(R8), R15
++	MOVV 16(R8), R16
++	MOVV 24(R8), R17
++	// synthetic carry, one column at a time
++	MULV R4, R14, R18
++	MULHVU R4, R14, R19
++	ADDVU R10, R18	// ADDS R10, R18, R18 (cr=R28)
++	SGTU R10, R18, R28	// ...
++	ADDVU R28, R19	// ADC $0, R19, R19
++	ADDVU R5, R18, R14	// ADDS R5, R18, R14 (cr=R28)
++	SGTU R5, R14, R28	// ...
++	ADDVU R28, R19, R5	// ADC $0, R19, R5
++	MULV R4, R15, R18
++	MULHVU R4, R15, R19
++	ADDVU R11, R18	// ADDS R11, R18, R18 (cr=R28)
++	SGTU R11, R18, R28	// ...
++	ADDVU R28, R19	// ADC $0, R19, R19
++	ADDVU R5, R18, R15	// ADDS R5, R18, R15 (cr=R28)
++	SGTU R5, R15, R28	// ...
++	ADDVU R28, R19, R5	// ADC $0, R19, R5
++	MULV R4, R16, R18
++	MULHVU R4, R16, R19
++	ADDVU R12, R18	// ADDS R12, R18, R18 (cr=R28)
++	SGTU R12, R18, R28	// ...
++	ADDVU R28, R19	// ADC $0, R19, R19
++	ADDVU R5, R18, R16	// ADDS R5, R18, R16 (cr=R28)
++	SGTU R5, R16, R28	// ...
++	ADDVU R28, R19, R5	// ADC $0, R19, R5
++	MULV R4, R17, R18
++	MULHVU R4, R17, R19
++	ADDVU R13, R18	// ADDS R13, R18, R18 (cr=R28)
++	SGTU R13, R18, R28	// ...
++	ADDVU R28, R19	// ADC $0, R19, R19
++	ADDVU R5, R18, R17	// ADDS R5, R18, R17 (cr=R28)
++	SGTU R5, R17, R28	// ...
++	ADDVU R28, R19, R5	// ADC $0, R19, R5
++	MOVV R14, 0(R9)
++	MOVV R15, 8(R9)
++	MOVV R16, 16(R9)
++	MOVV R17, 24(R9)
++	ADDVU $32, R7
++	ADDVU $32, R8
++	ADDVU $32, R9
++	SUBVU $1, R6
++	BNE R6, loop4cont
++loop4done:
++	MOVV R5, c+88(FP)
++	RET
+diff --git a/src/math/big/arith_mips64x.s b/src/math/big/arith_mips64x.s
+index 3b32062b06..5f27449934 100644
+--- a/src/math/big/arith_mips64x.s
++++ b/src/math/big/arith_mips64x.s
+@@ -1,29 +1,467 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
++
+ //go:build !math_big_pure_go && (mips64 || mips64le)
+ 
+ #include "textflag.h"
+ 
+-// This file provides fast assembly versions for the elementary
+-// arithmetic operations on vectors implemented in arith.go.
+-
+-TEXT ·addVV(SB),NOSPLIT,$0
+-	JMP ·addVV_g(SB)
+-
+-TEXT ·subVV(SB),NOSPLIT,$0
+-	JMP ·subVV_g(SB)
++// func addVV(z, x, y []Word) (c Word)
++TEXT ·addVV(SB), NOSPLIT, $0
++	MOVV z_len+8(FP), R1
++	MOVV x_base+24(FP), R2
++	MOVV y_base+48(FP), R3
++	MOVV z_base+0(FP), R4
++	// compute unrolled loop lengths
++	AND $3, R1, R5
++	SRLV $2, R1
++	XOR R26, R26	// clear carry
++loop1:
++	BEQ R5, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV 0(R2), R6
++	MOVV 0(R3), R7
++	ADDVU R7, R6	// ADCS R7, R6, R6 (cr=R26)
++	SGTU R7, R6, R23	// ...
++	ADDVU R26, R6	// ...
++	SGTU R26, R6, R26	// ...
++	ADDVU R23, R26	// ...
++	MOVV R6, 0(R4)
++	ADDVU $8, R2
++	ADDVU $8, R3
++	ADDVU $8, R4
++	SUBVU $1, R5
++	BNE R5, loop1cont
++loop1done:
++loop4:
++	BEQ R1, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV 0(R2), R5
++	MOVV 8(R2), R6
++	MOVV 16(R2), R7
++	MOVV 24(R2), R8
++	MOVV 0(R3), R9
++	MOVV 8(R3), R10
++	MOVV 16(R3), R11
++	MOVV 24(R3), R12
++	ADDVU R9, R5	// ADCS R9, R5, R5 (cr=R26)
++	SGTU R9, R5, R23	// ...
++	ADDVU R26, R5	// ...
++	SGTU R26, R5, R26	// ...
++	ADDVU R23, R26	// ...
++	ADDVU R10, R6	// ADCS R10, R6, R6 (cr=R26)
++	SGTU R10, R6, R23	// ...
++	ADDVU R26, R6	// ...
++	SGTU R26, R6, R26	// ...
++	ADDVU R23, R26	// ...
++	ADDVU R11, R7	// ADCS R11, R7, R7 (cr=R26)
++	SGTU R11, R7, R23	// ...
++	ADDVU R26, R7	// ...
++	SGTU R26, R7, R26	// ...
++	ADDVU R23, R26	// ...
++	ADDVU R12, R8	// ADCS R12, R8, R8 (cr=R26)
++	SGTU R12, R8, R23	// ...
++	ADDVU R26, R8	// ...
++	SGTU R26, R8, R26	// ...
++	ADDVU R23, R26	// ...
++	MOVV R5, 0(R4)
++	MOVV R6, 8(R4)
++	MOVV R7, 16(R4)
++	MOVV R8, 24(R4)
++	ADDVU $32, R2
++	ADDVU $32, R3
++	ADDVU $32, R4
++	SUBVU $1, R1
++	BNE R1, loop4cont
++loop4done:
++	MOVV R26, c+72(FP)
++	RET
+ 
+-TEXT ·lshVU(SB),NOSPLIT,$0
+-	JMP ·lshVU_g(SB)
++// func subVV(z, x, y []Word) (c Word)
++TEXT ·subVV(SB), NOSPLIT, $0
++	MOVV z_len+8(FP), R1
++	MOVV x_base+24(FP), R2
++	MOVV y_base+48(FP), R3
++	MOVV z_base+0(FP), R4
++	// compute unrolled loop lengths
++	AND $3, R1, R5
++	SRLV $2, R1
++	XOR R26, R26	// clear carry
++loop1:
++	BEQ R5, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV 0(R2), R6
++	MOVV 0(R3), R7
++	SGTU R26, R6, R23	// SBCS R7, R6, R6
++	SUBVU R26, R6	// ...
++	SGTU R7, R6, R26	// ...
++	SUBVU R7, R6	// ...
++	ADDVU R23, R26	// ...
++	MOVV R6, 0(R4)
++	ADDVU $8, R2
++	ADDVU $8, R3
++	ADDVU $8, R4
++	SUBVU $1, R5
++	BNE R5, loop1cont
++loop1done:
++loop4:
++	BEQ R1, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV 0(R2), R5
++	MOVV 8(R2), R6
++	MOVV 16(R2), R7
++	MOVV 24(R2), R8
++	MOVV 0(R3), R9
++	MOVV 8(R3), R10
++	MOVV 16(R3), R11
++	MOVV 24(R3), R12
++	SGTU R26, R5, R23	// SBCS R9, R5, R5
++	SUBVU R26, R5	// ...
++	SGTU R9, R5, R26	// ...
++	SUBVU R9, R5	// ...
++	ADDVU R23, R26	// ...
++	SGTU R26, R6, R23	// SBCS R10, R6, R6
++	SUBVU R26, R6	// ...
++	SGTU R10, R6, R26	// ...
++	SUBVU R10, R6	// ...
++	ADDVU R23, R26	// ...
++	SGTU R26, R7, R23	// SBCS R11, R7, R7
++	SUBVU R26, R7	// ...
++	SGTU R11, R7, R26	// ...
++	SUBVU R11, R7	// ...
++	ADDVU R23, R26	// ...
++	SGTU R26, R8, R23	// SBCS R12, R8, R8
++	SUBVU R26, R8	// ...
++	SGTU R12, R8, R26	// ...
++	SUBVU R12, R8	// ...
++	ADDVU R23, R26	// ...
++	MOVV R5, 0(R4)
++	MOVV R6, 8(R4)
++	MOVV R7, 16(R4)
++	MOVV R8, 24(R4)
++	ADDVU $32, R2
++	ADDVU $32, R3
++	ADDVU $32, R4
++	SUBVU $1, R1
++	BNE R1, loop4cont
++loop4done:
++	MOVV R26, c+72(FP)
++	RET
+ 
+-TEXT ·rshVU(SB),NOSPLIT,$0
+-	JMP ·rshVU_g(SB)
++// func lshVU(z, x []Word, s uint) (c Word)
++TEXT ·lshVU(SB), NOSPLIT, $0
++	MOVV z_len+8(FP), R1
++	BEQ R1, ret0
++	MOVV s+48(FP), R2
++	MOVV x_base+24(FP), R3
++	MOVV z_base+0(FP), R4
++	// run loop backward
++	SLLV $3, R1, R5
++	ADDVU R5, R3
++	SLLV $3, R1, R5
++	ADDVU R5, R4
++	// shift first word into carry
++	MOVV -8(R3), R5
++	MOVV $64, R6
++	SUBVU R2, R6
++	SRLV R6, R5, R7
++	SLLV R2, R5
++	MOVV R7, c+56(FP)
++	// shift remaining words
++	SUBVU $1, R1
++	// compute unrolled loop lengths
++	AND $3, R1, R7
++	SRLV $2, R1
++loop1:
++	BEQ R7, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV -16(R3), R8
++	SRLV R6, R8, R9
++	OR R5, R9
++	SLLV R2, R8, R5
++	MOVV R9, -8(R4)
++	ADDVU $-8, R3
++	ADDVU $-8, R4
++	SUBVU $1, R7
++	BNE R7, loop1cont
++loop1done:
++loop4:
++	BEQ R1, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV -16(R3), R7
++	MOVV -24(R3), R8
++	MOVV -32(R3), R9
++	MOVV -40(R3), R10
++	SRLV R6, R7, R11
++	OR R5, R11
++	SLLV R2, R7, R5
++	SRLV R6, R8, R7
++	OR R5, R7
++	SLLV R2, R8, R5
++	SRLV R6, R9, R8
++	OR R5, R8
++	SLLV R2, R9, R5
++	SRLV R6, R10, R9
++	OR R5, R9
++	SLLV R2, R10, R5
++	MOVV R11, -8(R4)
++	MOVV R7, -16(R4)
++	MOVV R8, -24(R4)
++	MOVV R9, -32(R4)
++	ADDVU $-32, R3
++	ADDVU $-32, R4
++	SUBVU $1, R1
++	BNE R1, loop4cont
++loop4done:
++	// store final shifted bits
++	MOVV R5, -8(R4)
++	RET
++ret0:
++	MOVV R0, c+56(FP)
++	RET
+ 
+-TEXT ·mulAddVWW(SB),NOSPLIT,$0
+-	JMP ·mulAddVWW_g(SB)
++// func rshVU(z, x []Word, s uint) (c Word)
++TEXT ·rshVU(SB), NOSPLIT, $0
++	MOVV z_len+8(FP), R1
++	BEQ R1, ret0
++	MOVV s+48(FP), R2
++	MOVV x_base+24(FP), R3
++	MOVV z_base+0(FP), R4
++	// shift first word into carry
++	MOVV 0(R3), R5
++	MOVV $64, R6
++	SUBVU R2, R6
++	SLLV R6, R5, R7
++	SRLV R2, R5
++	MOVV R7, c+56(FP)
++	// shift remaining words
++	SUBVU $1, R1
++	// compute unrolled loop lengths
++	AND $3, R1, R7
++	SRLV $2, R1
++loop1:
++	BEQ R7, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV 8(R3), R8
++	SLLV R6, R8, R9
++	OR R5, R9
++	SRLV R2, R8, R5
++	MOVV R9, 0(R4)
++	ADDVU $8, R3
++	ADDVU $8, R4
++	SUBVU $1, R7
++	BNE R7, loop1cont
++loop1done:
++loop4:
++	BEQ R1, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV 8(R3), R7
++	MOVV 16(R3), R8
++	MOVV 24(R3), R9
++	MOVV 32(R3), R10
++	SLLV R6, R7, R11
++	OR R5, R11
++	SRLV R2, R7, R5
++	SLLV R6, R8, R7
++	OR R5, R7
++	SRLV R2, R8, R5
++	SLLV R6, R9, R8
++	OR R5, R8
++	SRLV R2, R9, R5
++	SLLV R6, R10, R9
++	OR R5, R9
++	SRLV R2, R10, R5
++	MOVV R11, 0(R4)
++	MOVV R7, 8(R4)
++	MOVV R8, 16(R4)
++	MOVV R9, 24(R4)
++	ADDVU $32, R3
++	ADDVU $32, R4
++	SUBVU $1, R1
++	BNE R1, loop4cont
++loop4done:
++	// store final shifted bits
++	MOVV R5, 0(R4)
++	RET
++ret0:
++	MOVV R0, c+56(FP)
++	RET
+ 
+-TEXT ·addMulVVWW(SB),NOSPLIT,$0
+-	JMP ·addMulVVWW_g(SB)
++// func mulAddVWW(z, x []Word, m, a Word) (c Word)
++TEXT ·mulAddVWW(SB), NOSPLIT, $0
++	MOVV m+48(FP), R1
++	MOVV a+56(FP), R2
++	MOVV z_len+8(FP), R3
++	MOVV x_base+24(FP), R4
++	MOVV z_base+0(FP), R5
++	// compute unrolled loop lengths
++	AND $3, R3, R6
++	SRLV $2, R3
++loop1:
++	BEQ R6, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV 0(R4), R7
++	// synthetic carry, one column at a time
++	MULVU R1, R7
++	MOVV LO, R8
++	MOVV HI, R9
++	ADDVU R2, R8, R7	// ADDS R2, R8, R7 (cr=R26)
++	SGTU R2, R7, R26	// ...
++	ADDVU R26, R9, R2	// ADC $0, R9, R2
++	MOVV R7, 0(R5)
++	ADDVU $8, R4
++	ADDVU $8, R5
++	SUBVU $1, R6
++	BNE R6, loop1cont
++loop1done:
++loop4:
++	BEQ R3, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV 0(R4), R6
++	MOVV 8(R4), R7
++	MOVV 16(R4), R8
++	MOVV 24(R4), R9
++	// synthetic carry, one column at a time
++	MULVU R1, R6
++	MOVV LO, R10
++	MOVV HI, R11
++	ADDVU R2, R10, R6	// ADDS R2, R10, R6 (cr=R26)
++	SGTU R2, R6, R26	// ...
++	ADDVU R26, R11, R2	// ADC $0, R11, R2
++	MULVU R1, R7
++	MOVV LO, R10
++	MOVV HI, R11
++	ADDVU R2, R10, R7	// ADDS R2, R10, R7 (cr=R26)
++	SGTU R2, R7, R26	// ...
++	ADDVU R26, R11, R2	// ADC $0, R11, R2
++	MULVU R1, R8
++	MOVV LO, R10
++	MOVV HI, R11
++	ADDVU R2, R10, R8	// ADDS R2, R10, R8 (cr=R26)
++	SGTU R2, R8, R26	// ...
++	ADDVU R26, R11, R2	// ADC $0, R11, R2
++	MULVU R1, R9
++	MOVV LO, R10
++	MOVV HI, R11
++	ADDVU R2, R10, R9	// ADDS R2, R10, R9 (cr=R26)
++	SGTU R2, R9, R26	// ...
++	ADDVU R26, R11, R2	// ADC $0, R11, R2
++	MOVV R6, 0(R5)
++	MOVV R7, 8(R5)
++	MOVV R8, 16(R5)
++	MOVV R9, 24(R5)
++	ADDVU $32, R4
++	ADDVU $32, R5
++	SUBVU $1, R3
++	BNE R3, loop4cont
++loop4done:
++	MOVV R2, c+64(FP)
++	RET
+ 
++// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
++TEXT ·addMulVVWW(SB), NOSPLIT, $0
++	MOVV m+72(FP), R1
++	MOVV a+80(FP), R2
++	MOVV z_len+8(FP), R3
++	MOVV x_base+24(FP), R4
++	MOVV y_base+48(FP), R5
++	MOVV z_base+0(FP), R6
++	// compute unrolled loop lengths
++	AND $3, R3, R7
++	SRLV $2, R3
++loop1:
++	BEQ R7, loop1done
++loop1cont:
++	// unroll 1X
++	MOVV 0(R4), R8
++	MOVV 0(R5), R9
++	// synthetic carry, one column at a time
++	MULVU R1, R9
++	MOVV LO, R10
++	MOVV HI, R11
++	ADDVU R8, R10	// ADDS R8, R10, R10 (cr=R26)
++	SGTU R8, R10, R26	// ...
++	ADDVU R26, R11	// ADC $0, R11, R11
++	ADDVU R2, R10, R9	// ADDS R2, R10, R9 (cr=R26)
++	SGTU R2, R9, R26	// ...
++	ADDVU R26, R11, R2	// ADC $0, R11, R2
++	MOVV R9, 0(R6)
++	ADDVU $8, R4
++	ADDVU $8, R5
++	ADDVU $8, R6
++	SUBVU $1, R7
++	BNE R7, loop1cont
++loop1done:
++loop4:
++	BEQ R3, loop4done
++loop4cont:
++	// unroll 4X
++	MOVV 0(R4), R7
++	MOVV 8(R4), R8
++	MOVV 16(R4), R9
++	MOVV 24(R4), R10
++	MOVV 0(R5), R11
++	MOVV 8(R5), R12
++	MOVV 16(R5), R13
++	MOVV 24(R5), R14
++	// synthetic carry, one column at a time
++	MULVU R1, R11
++	MOVV LO, R15
++	MOVV HI, R16
++	ADDVU R7, R15	// ADDS R7, R15, R15 (cr=R26)
++	SGTU R7, R15, R26	// ...
++	ADDVU R26, R16	// ADC $0, R16, R16
++	ADDVU R2, R15, R11	// ADDS R2, R15, R11 (cr=R26)
++	SGTU R2, R11, R26	// ...
++	ADDVU R26, R16, R2	// ADC $0, R16, R2
++	MULVU R1, R12
++	MOVV LO, R15
++	MOVV HI, R16
++	ADDVU R8, R15	// ADDS R8, R15, R15 (cr=R26)
++	SGTU R8, R15, R26	// ...
++	ADDVU R26, R16	// ADC $0, R16, R16
++	ADDVU R2, R15, R12	// ADDS R2, R15, R12 (cr=R26)
++	SGTU R2, R12, R26	// ...
++	ADDVU R26, R16, R2	// ADC $0, R16, R2
++	MULVU R1, R13
++	MOVV LO, R15
++	MOVV HI, R16
++	ADDVU R9, R15	// ADDS R9, R15, R15 (cr=R26)
++	SGTU R9, R15, R26	// ...
++	ADDVU R26, R16	// ADC $0, R16, R16
++	ADDVU R2, R15, R13	// ADDS R2, R15, R13 (cr=R26)
++	SGTU R2, R13, R26	// ...
++	ADDVU R26, R16, R2	// ADC $0, R16, R2
++	MULVU R1, R14
++	MOVV LO, R15
++	MOVV HI, R16
++	ADDVU R10, R15	// ADDS R10, R15, R15 (cr=R26)
++	SGTU R10, R15, R26	// ...
++	ADDVU R26, R16	// ADC $0, R16, R16
++	ADDVU R2, R15, R14	// ADDS R2, R15, R14 (cr=R26)
++	SGTU R2, R14, R26	// ...
++	ADDVU R26, R16, R2	// ADC $0, R16, R2
++	MOVV R11, 0(R6)
++	MOVV R12, 8(R6)
++	MOVV R13, 16(R6)
++	MOVV R14, 24(R6)
++	ADDVU $32, R4
++	ADDVU $32, R5
++	ADDVU $32, R6
++	SUBVU $1, R3
++	BNE R3, loop4cont
++loop4done:
++	MOVV R2, c+88(FP)
++	RET
+diff --git a/src/math/big/arith_mipsx.s b/src/math/big/arith_mipsx.s
+index edd7456c3e..c4c027049c 100644
+--- a/src/math/big/arith_mipsx.s
++++ b/src/math/big/arith_mipsx.s
+@@ -1,29 +1,467 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
++
+ //go:build !math_big_pure_go && (mips || mipsle)
+ 
+ #include "textflag.h"
+ 
+-// This file provides fast assembly versions for the elementary
+-// arithmetic operations on vectors implemented in arith.go.
+-
+-TEXT ·addVV(SB),NOSPLIT,$0
+-	JMP	·addVV_g(SB)
+-
+-TEXT ·subVV(SB),NOSPLIT,$0
+-	JMP	·subVV_g(SB)
++// func addVV(z, x, y []Word) (c Word)
++TEXT ·addVV(SB), NOSPLIT, $0
++	MOVW z_len+4(FP), R1
++	MOVW x_base+12(FP), R2
++	MOVW y_base+24(FP), R3
++	MOVW z_base+0(FP), R4
++	// compute unrolled loop lengths
++	AND $3, R1, R5
++	SRL $2, R1
++	XOR R26, R26	// clear carry
++loop1:
++	BEQ R5, loop1done
++loop1cont:
++	// unroll 1X
++	MOVW 0(R2), R6
++	MOVW 0(R3), R7
++	ADDU R7, R6	// ADCS R7, R6, R6 (cr=R26)
++	SGTU R7, R6, R23	// ...
++	ADDU R26, R6	// ...
++	SGTU R26, R6, R26	// ...
++	ADDU R23, R26	// ...
++	MOVW R6, 0(R4)
++	ADDU $4, R2
++	ADDU $4, R3
++	ADDU $4, R4
++	SUBU $1, R5
++	BNE R5, loop1cont
++loop1done:
++loop4:
++	BEQ R1, loop4done
++loop4cont:
++	// unroll 4X
++	MOVW 0(R2), R5
++	MOVW 4(R2), R6
++	MOVW 8(R2), R7
++	MOVW 12(R2), R8
++	MOVW 0(R3), R9
++	MOVW 4(R3), R10
++	MOVW 8(R3), R11
++	MOVW 12(R3), R12
++	ADDU R9, R5	// ADCS R9, R5, R5 (cr=R26)
++	SGTU R9, R5, R23	// ...
++	ADDU R26, R5	// ...
++	SGTU R26, R5, R26	// ...
++	ADDU R23, R26	// ...
++	ADDU R10, R6	// ADCS R10, R6, R6 (cr=R26)
++	SGTU R10, R6, R23	// ...
++	ADDU R26, R6	// ...
++	SGTU R26, R6, R26	// ...
++	ADDU R23, R26	// ...
++	ADDU R11, R7	// ADCS R11, R7, R7 (cr=R26)
++	SGTU R11, R7, R23	// ...
++	ADDU R26, R7	// ...
++	SGTU R26, R7, R26	// ...
++	ADDU R23, R26	// ...
++	ADDU R12, R8	// ADCS R12, R8, R8 (cr=R26)
++	SGTU R12, R8, R23	// ...
++	ADDU R26, R8	// ...
++	SGTU R26, R8, R26	// ...
++	ADDU R23, R26	// ...
++	MOVW R5, 0(R4)
++	MOVW R6, 4(R4)
++	MOVW R7, 8(R4)
++	MOVW R8, 12(R4)
++	ADDU $16, R2
++	ADDU $16, R3
++	ADDU $16, R4
++	SUBU $1, R1
++	BNE R1, loop4cont
++loop4done:
++	MOVW R26, c+36(FP)
++	RET
+ 
+-TEXT ·lshVU(SB),NOSPLIT,$0
+-	JMP	·lshVU_g(SB)
++// func subVV(z, x, y []Word) (c Word)
++TEXT ·subVV(SB), NOSPLIT, $0
++	MOVW z_len+4(FP), R1
++	MOVW x_base+12(FP), R2
++	MOVW y_base+24(FP), R3
++	MOVW z_base+0(FP), R4
++	// compute unrolled loop lengths
++	AND $3, R1, R5
++	SRL $2, R1
++	XOR R26, R26	// clear carry
++loop1:
++	BEQ R5, loop1done
++loop1cont:
++	// unroll 1X
++	MOVW 0(R2), R6
++	MOVW 0(R3), R7
++	SGTU R26, R6, R23	// SBCS R7, R6, R6
++	SUBU R26, R6	// ...
++	SGTU R7, R6, R26	// ...
++	SUBU R7, R6	// ...
++	ADDU R23, R26	// ...
++	MOVW R6, 0(R4)
++	ADDU $4, R2
++	ADDU $4, R3
++	ADDU $4, R4
++	SUBU $1, R5
++	BNE R5, loop1cont
++loop1done:
++loop4:
++	BEQ R1, loop4done
++loop4cont:
++	// unroll 4X
++	MOVW 0(R2), R5
++	MOVW 4(R2), R6
++	MOVW 8(R2), R7
++	MOVW 12(R2), R8
++	MOVW 0(R3), R9
++	MOVW 4(R3), R10
++	MOVW 8(R3), R11
++	MOVW 12(R3), R12
++	SGTU R26, R5, R23	// SBCS R9, R5, R5
++	SUBU R26, R5	// ...
++	SGTU R9, R5, R26	// ...
++	SUBU R9, R5	// ...
++	ADDU R23, R26	// ...
++	SGTU R26, R6, R23	// SBCS R10, R6, R6
++	SUBU R26, R6	// ...
++	SGTU R10, R6, R26	// ...
++	SUBU R10, R6	// ...
++	ADDU R23, R26	// ...
++	SGTU R26, R7, R23	// SBCS R11, R7, R7
++	SUBU R26, R7	// ...
++	SGTU R11, R7, R26	// ...
++	SUBU R11, R7	// ...
++	ADDU R23, R26	// ...
++	SGTU R26, R8, R23	// SBCS R12, R8, R8
++	SUBU R26, R8	// ...
++	SGTU R12, R8, R26	// ...
++	SUBU R12, R8	// ...
++	ADDU R23, R26	// ...
++	MOVW R5, 0(R4)
++	MOVW R6, 4(R4)
++	MOVW R7, 8(R4)
++	MOVW R8, 12(R4)
++	ADDU $16, R2
++	ADDU $16, R3
++	ADDU $16, R4
++	SUBU $1, R1
++	BNE R1, loop4cont
++loop4done:
++	MOVW R26, c+36(FP)
++	RET
+ 
+-TEXT ·rshVU(SB),NOSPLIT,$0
+-	JMP	·rshVU_g(SB)
++// func lshVU(z, x []Word, s uint) (c Word)
++TEXT ·lshVU(SB), NOSPLIT, $0
++	MOVW z_len+4(FP), R1
++	BEQ R1, ret0
++	MOVW s+24(FP), R2
++	MOVW x_base+12(FP), R3
++	MOVW z_base+0(FP), R4
++	// run loop backward
++	SLL $2, R1, R5
++	ADDU R5, R3
++	SLL $2, R1, R5
++	ADDU R5, R4
++	// shift first word into carry
++	MOVW -4(R3), R5
++	MOVW $32, R6
++	SUBU R2, R6
++	SRL R6, R5, R7
++	SLL R2, R5
++	MOVW R7, c+28(FP)
++	// shift remaining words
++	SUBU $1, R1
++	// compute unrolled loop lengths
++	AND $3, R1, R7
++	SRL $2, R1
++loop1:
++	BEQ R7, loop1done
++loop1cont:
++	// unroll 1X
++	MOVW -8(R3), R8
++	SRL R6, R8, R9
++	OR R5, R9
++	SLL R2, R8, R5
++	MOVW R9, -4(R4)
++	ADDU $-4, R3
++	ADDU $-4, R4
++	SUBU $1, R7
++	BNE R7, loop1cont
++loop1done:
++loop4:
++	BEQ R1, loop4done
++loop4cont:
++	// unroll 4X
++	MOVW -8(R3), R7
++	MOVW -12(R3), R8
++	MOVW -16(R3), R9
++	MOVW -20(R3), R10
++	SRL R6, R7, R11
++	OR R5, R11
++	SLL R2, R7, R5
++	SRL R6, R8, R7
++	OR R5, R7
++	SLL R2, R8, R5
++	SRL R6, R9, R8
++	OR R5, R8
++	SLL R2, R9, R5
++	SRL R6, R10, R9
++	OR R5, R9
++	SLL R2, R10, R5
++	MOVW R11, -4(R4)
++	MOVW R7, -8(R4)
++	MOVW R8, -12(R4)
++	MOVW R9, -16(R4)
++	ADDU $-16, R3
++	ADDU $-16, R4
++	SUBU $1, R1
++	BNE R1, loop4cont
++loop4done:
++	// store final shifted bits
++	MOVW R5, -4(R4)
++	RET
++ret0:
++	MOVW R0, c+28(FP)
++	RET
+ 
+-TEXT ·mulAddVWW(SB),NOSPLIT,$0
+-	JMP	·mulAddVWW_g(SB)
++// func rshVU(z, x []Word, s uint) (c Word)
++TEXT ·rshVU(SB), NOSPLIT, $0
++	MOVW z_len+4(FP), R1
++	BEQ R1, ret0
++	MOVW s+24(FP), R2
++	MOVW x_base+12(FP), R3
++	MOVW z_base+0(FP), R4
++	// shift first word into carry
++	MOVW 0(R3), R5
++	MOVW $32, R6
++	SUBU R2, R6
++	SLL R6, R5, R7
++	SRL R2, R5
++	MOVW R7, c+28(FP)
++	// shift remaining words
++	SUBU $1, R1
++	// compute unrolled loop lengths
++	AND $3, R1, R7
++	SRL $2, R1
++loop1:
++	BEQ R7, loop1done
++loop1cont:
++	// unroll 1X
++	MOVW 4(R3), R8
++	SLL R6, R8, R9
++	OR R5, R9
++	SRL R2, R8, R5
++	MOVW R9, 0(R4)
++	ADDU $4, R3
++	ADDU $4, R4
++	SUBU $1, R7
++	BNE R7, loop1cont
++loop1done:
++loop4:
++	BEQ R1, loop4done
++loop4cont:
++	// unroll 4X
++	MOVW 4(R3), R7
++	MOVW 8(R3), R8
++	MOVW 12(R3), R9
++	MOVW 16(R3), R10
++	SLL R6, R7, R11
++	OR R5, R11
++	SRL R2, R7, R5
++	SLL R6, R8, R7
++	OR R5, R7
++	SRL R2, R8, R5
++	SLL R6, R9, R8
++	OR R5, R8
++	SRL R2, R9, R5
++	SLL R6, R10, R9
++	OR R5, R9
++	SRL R2, R10, R5
++	MOVW R11, 0(R4)
++	MOVW R7, 4(R4)
++	MOVW R8, 8(R4)
++	MOVW R9, 12(R4)
++	ADDU $16, R3
++	ADDU $16, R4
++	SUBU $1, R1
++	BNE R1, loop4cont
++loop4done:
++	// store final shifted bits
++	MOVW R5, 0(R4)
++	RET
++ret0:
++	MOVW R0, c+28(FP)
++	RET
+ 
+-TEXT ·addMulVVWW(SB),NOSPLIT,$0
+-	JMP	·addMulVVWW_g(SB)
++// func mulAddVWW(z, x []Word, m, a Word) (c Word)
++TEXT ·mulAddVWW(SB), NOSPLIT, $0
++	MOVW m+24(FP), R1
++	MOVW a+28(FP), R2
++	MOVW z_len+4(FP), R3
++	MOVW x_base+12(FP), R4
++	MOVW z_base+0(FP), R5
++	// compute unrolled loop lengths
++	AND $3, R3, R6
++	SRL $2, R3
++loop1:
++	BEQ R6, loop1done
++loop1cont:
++	// unroll 1X
++	MOVW 0(R4), R7
++	// synthetic carry, one column at a time
++	MULU R1, R7
++	MOVW LO, R8
++	MOVW HI, R9
++	ADDU R2, R8, R7	// ADDS R2, R8, R7 (cr=R26)
++	SGTU R2, R7, R26	// ...
++	ADDU R26, R9, R2	// ADC $0, R9, R2
++	MOVW R7, 0(R5)
++	ADDU $4, R4
++	ADDU $4, R5
++	SUBU $1, R6
++	BNE R6, loop1cont
++loop1done:
++loop4:
++	BEQ R3, loop4done
++loop4cont:
++	// unroll 4X
++	MOVW 0(R4), R6
++	MOVW 4(R4), R7
++	MOVW 8(R4), R8
++	MOVW 12(R4), R9
++	// synthetic carry, one column at a time
++	MULU R1, R6
++	MOVW LO, R10
++	MOVW HI, R11
++	ADDU R2, R10, R6	// ADDS R2, R10, R6 (cr=R26)
++	SGTU R2, R6, R26	// ...
++	ADDU R26, R11, R2	// ADC $0, R11, R2
++	MULU R1, R7
++	MOVW LO, R10
++	MOVW HI, R11
++	ADDU R2, R10, R7	// ADDS R2, R10, R7 (cr=R26)
++	SGTU R2, R7, R26	// ...
++	ADDU R26, R11, R2	// ADC $0, R11, R2
++	MULU R1, R8
++	MOVW LO, R10
++	MOVW HI, R11
++	ADDU R2, R10, R8	// ADDS R2, R10, R8 (cr=R26)
++	SGTU R2, R8, R26	// ...
++	ADDU R26, R11, R2	// ADC $0, R11, R2
++	MULU R1, R9
++	MOVW LO, R10
++	MOVW HI, R11
++	ADDU R2, R10, R9	// ADDS R2, R10, R9 (cr=R26)
++	SGTU R2, R9, R26	// ...
++	ADDU R26, R11, R2	// ADC $0, R11, R2
++	MOVW R6, 0(R5)
++	MOVW R7, 4(R5)
++	MOVW R8, 8(R5)
++	MOVW R9, 12(R5)
++	ADDU $16, R4
++	ADDU $16, R5
++	SUBU $1, R3
++	BNE R3, loop4cont
++loop4done:
++	MOVW R2, c+32(FP)
++	RET
+ 
++// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
++TEXT ·addMulVVWW(SB), NOSPLIT, $0
++	MOVW m+36(FP), R1
++	MOVW a+40(FP), R2
++	MOVW z_len+4(FP), R3
++	MOVW x_base+12(FP), R4
++	MOVW y_base+24(FP), R5
++	MOVW z_base+0(FP), R6
++	// compute unrolled loop lengths
++	AND $3, R3, R7
++	SRL $2, R3
++loop1:
++	BEQ R7, loop1done
++loop1cont:
++	// unroll 1X
++	MOVW 0(R4), R8
++	MOVW 0(R5), R9
++	// synthetic carry, one column at a time
++	MULU R1, R9
++	MOVW LO, R10
++	MOVW HI, R11
++	ADDU R8, R10	// ADDS R8, R10, R10 (cr=R26)
++	SGTU R8, R10, R26	// ...
++	ADDU R26, R11	// ADC $0, R11, R11
++	ADDU R2, R10, R9	// ADDS R2, R10, R9 (cr=R26)
++	SGTU R2, R9, R26	// ...
++	ADDU R26, R11, R2	// ADC $0, R11, R2
++	MOVW R9, 0(R6)
++	ADDU $4, R4
++	ADDU $4, R5
++	ADDU $4, R6
++	SUBU $1, R7
++	BNE R7, loop1cont
++loop1done:
++loop4:
++	BEQ R3, loop4done
++loop4cont:
++	// unroll 4X
++	MOVW 0(R4), R7
++	MOVW 4(R4), R8
++	MOVW 8(R4), R9
++	MOVW 12(R4), R10
++	MOVW 0(R5), R11
++	MOVW 4(R5), R12
++	MOVW 8(R5), R13
++	MOVW 12(R5), R14
++	// synthetic carry, one column at a time
++	MULU R1, R11
++	MOVW LO, R15
++	MOVW HI, R16
++	ADDU R7, R15	// ADDS R7, R15, R15 (cr=R26)
++	SGTU R7, R15, R26	// ...
++	ADDU R26, R16	// ADC $0, R16, R16
++	ADDU R2, R15, R11	// ADDS R2, R15, R11 (cr=R26)
++	SGTU R2, R11, R26	// ...
++	ADDU R26, R16, R2	// ADC $0, R16, R2
++	MULU R1, R12
++	MOVW LO, R15
++	MOVW HI, R16
++	ADDU R8, R15	// ADDS R8, R15, R15 (cr=R26)
++	SGTU R8, R15, R26	// ...
++	ADDU R26, R16	// ADC $0, R16, R16
++	ADDU R2, R15, R12	// ADDS R2, R15, R12 (cr=R26)
++	SGTU R2, R12, R26	// ...
++	ADDU R26, R16, R2	// ADC $0, R16, R2
++	MULU R1, R13
++	MOVW LO, R15
++	MOVW HI, R16
++	ADDU R9, R15	// ADDS R9, R15, R15 (cr=R26)
++	SGTU R9, R15, R26	// ...
++	ADDU R26, R16	// ADC $0, R16, R16
++	ADDU R2, R15, R13	// ADDS R2, R15, R13 (cr=R26)
++	SGTU R2, R13, R26	// ...
++	ADDU R26, R16, R2	// ADC $0, R16, R2
++	MULU R1, R14
++	MOVW LO, R15
++	MOVW HI, R16
++	ADDU R10, R15	// ADDS R10, R15, R15 (cr=R26)
++	SGTU R10, R15, R26	// ...
++	ADDU R26, R16	// ADC $0, R16, R16
++	ADDU R2, R15, R14	// ADDS R2, R15, R14 (cr=R26)
++	SGTU R2, R14, R26	// ...
++	ADDU R26, R16, R2	// ADC $0, R16, R2
++	MOVW R11, 0(R6)
++	MOVW R12, 4(R6)
++	MOVW R13, 8(R6)
++	MOVW R14, 12(R6)
++	ADDU $16, R4
++	ADDU $16, R5
++	ADDU $16, R6
++	SUBU $1, R3
++	BNE R3, loop4cont
++loop4done:
++	MOVW R2, c+44(FP)
++	RET
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index 5392c1be26..1bcd30d7e5 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -1,469 +1,386 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
++
+ //go:build !math_big_pure_go && (ppc64 || ppc64le)
+ 
+ #include "textflag.h"
+ 
+-// This file provides fast assembly versions for the elementary
+-// arithmetic operations on vectors implemented in arith.go.
+-
+-// func addVV(z, y, y []Word) (c Word)
+-// z[i] = x[i] + y[i] for all i, carrying
++// func addVV(z, x, y []Word) (c Word)
+ TEXT ·addVV(SB), NOSPLIT, $0
+-	MOVD  z_len+8(FP), R7   // R7 = z_len
+-	MOVD  x+24(FP), R8      // R8 = x[]
+-	MOVD  y+48(FP), R9      // R9 = y[]
+-	MOVD  z+0(FP), R10      // R10 = z[]
+-
+-	// If z_len = 0, we are done
+-	CMP   R7, $0
+-	MOVD  R0, R4
+-	BEQ   done
+-
+-	// Process the first iteration out of the loop so we can
+-	// use MOVDU and avoid 3 index registers updates.
+-	MOVD  0(R8), R11      // R11 = x[i]
+-	MOVD  0(R9), R12      // R12 = y[i]
+-	ADD   $-1, R7         // R7 = z_len - 1
+-	ADDC  R12, R11, R15   // R15 = x[i] + y[i], set CA
+-	CMP   R7, $0
+-	MOVD  R15, 0(R10)     // z[i]
+-	BEQ   final          // If z_len was 1, we are done
+-
+-	SRD   $2, R7, R5      // R5 = z_len/4
+-	CMP   R5, $0
+-	MOVD  R5, CTR         // Set up loop counter
+-	BEQ   tail            // If R5 = 0, we can't use the loop
+-
+-	// Process 4 elements per iteration. Unrolling this loop
+-	// means a performance trade-off: we will lose performance
+-	// for small values of z_len (0.90x in the worst case), but
+-	// gain significant performance as z_len increases (up to
+-	// 1.45x).
+-
+-	PCALIGN $16
+-loop:
+-	MOVD  8(R8), R11      // R11 = x[i]
+-	MOVD  16(R8), R12     // R12 = x[i+1]
+-	MOVD  24(R8), R14     // R14 = x[i+2]
+-	MOVDU 32(R8), R15     // R15 = x[i+3]
+-	MOVD  8(R9), R16      // R16 = y[i]
+-	MOVD  16(R9), R17     // R17 = y[i+1]
+-	MOVD  24(R9), R18     // R18 = y[i+2]
+-	MOVDU 32(R9), R19     // R19 = y[i+3]
+-	ADDE  R11, R16, R20   // R20 = x[i] + y[i] + CA
+-	ADDE  R12, R17, R21   // R21 = x[i+1] + y[i+1] + CA
+-	ADDE  R14, R18, R22   // R22 = x[i+2] + y[i+2] + CA
+-	ADDE  R15, R19, R23   // R23 = x[i+3] + y[i+3] + CA
+-	MOVD  R20, 8(R10)     // z[i]
+-	MOVD  R21, 16(R10)    // z[i+1]
+-	MOVD  R22, 24(R10)    // z[i+2]
+-	MOVDU R23, 32(R10)    // z[i+3]
+-	ADD   $-4, R7         // R7 = z_len - 4
+-	BDNZ  loop
+-
+-	// We may have more elements to read
+-	CMP   R7, $0
+-	BEQ   final
+-
+-	// Process the remaining elements, one at a time
+-tail:
+-	MOVDU 8(R8), R11      // R11 = x[i]
+-	MOVDU 8(R9), R16      // R16 = y[i]
+-	ADD   $-1, R7         // R7 = z_len - 1
+-	ADDE  R11, R16, R20   // R20 = x[i] + y[i] + CA
+-	CMP   R7, $0
+-	MOVDU R20, 8(R10)     // z[i]
+-	BEQ   final           // If R7 = 0, we are done
+-
+-	MOVDU 8(R8), R11
+-	MOVDU 8(R9), R16
+-	ADD   $-1, R7
+-	ADDE  R11, R16, R20
+-	CMP   R7, $0
+-	MOVDU R20, 8(R10)
+-	BEQ   final
+-
+-	MOVD  8(R8), R11
+-	MOVD  8(R9), R16
+-	ADDE  R11, R16, R20
+-	MOVD  R20, 8(R10)
+-
+-final:
+-	ADDZE R4              // Capture CA
+-
+-done:
+-	MOVD  R4, c+72(FP)
++	MOVD z_len+8(FP), R3
++	MOVD x_base+24(FP), R4
++	MOVD y_base+48(FP), R5
++	MOVD z_base+0(FP), R6
++	// compute unrolled loop lengths
++	ANDCC $3, R3, R7
++	SRD $2, R3
++	ADDC R0, R3	// clear carry
++loop1:
++	CMP R7, $0; BEQ loop1done; MOVD R7, CTR
++loop1cont:
++	// unroll 1X
++	MOVD 0(R4), R8
++	MOVD 0(R5), R9
++	ADDE R9, R8
++	MOVD R8, 0(R6)
++	ADD $8, R4
++	ADD $8, R5
++	ADD $8, R6
++	BDNZ loop1cont
++loop1done:
++loop4:
++	CMP R3, $0; BEQ loop4done; MOVD R3, CTR
++loop4cont:
++	// unroll 4X
++	MOVD 0(R4), R7
++	MOVD 8(R4), R8
++	MOVD 16(R4), R9
++	MOVD 24(R4), R10
++	MOVD 0(R5), R11
++	MOVD 8(R5), R12
++	MOVD 16(R5), R14
++	MOVD 24(R5), R15
++	ADDE R11, R7
++	ADDE R12, R8
++	ADDE R14, R9
++	ADDE R15, R10
++	MOVD R7, 0(R6)
++	MOVD R8, 8(R6)
++	MOVD R9, 16(R6)
++	MOVD R10, 24(R6)
++	ADD $32, R4
++	ADD $32, R5
++	ADD $32, R6
++	BDNZ loop4cont
++loop4done:
++	ADDE R0, R0, R4	// save & convert add carry
++	MOVD R4, c+72(FP)
+ 	RET
+ 
+ // func subVV(z, x, y []Word) (c Word)
+-// z[i] = x[i] - y[i] for all i, carrying
+ TEXT ·subVV(SB), NOSPLIT, $0
+-	MOVD  z_len+8(FP), R7 // R7 = z_len
+-	MOVD  x+24(FP), R8    // R8 = x[]
+-	MOVD  y+48(FP), R9    // R9 = y[]
+-	MOVD  z+0(FP), R10    // R10 = z[]
+-
+-	// If z_len = 0, we are done
+-	CMP   R7, $0
+-	MOVD  R0, R4
+-	BEQ   done
+-
+-	// Process the first iteration out of the loop so we can
+-	// use MOVDU and avoid 3 index registers updates.
+-	MOVD  0(R8), R11      // R11 = x[i]
+-	MOVD  0(R9), R12      // R12 = y[i]
+-	ADD   $-1, R7         // R7 = z_len - 1
+-	SUBC  R12, R11, R15   // R15 = x[i] - y[i], set CA
+-	CMP   R7, $0
+-	MOVD  R15, 0(R10)     // z[i]
+-	BEQ   final           // If z_len was 1, we are done
+-
+-	SRD   $2, R7, R5      // R5 = z_len/4
+-	CMP   R5, $0
+-	MOVD  R5, CTR         // Set up loop counter
+-	BEQ   tail            // If R5 = 0, we can't use the loop
+-
+-	// Process 4 elements per iteration. Unrolling this loop
+-	// means a performance trade-off: we will lose performance
+-	// for small values of z_len (0.92x in the worst case), but
+-	// gain significant performance as z_len increases (up to
+-	// 1.45x).
+-
+-	PCALIGN $16
+-loop:
+-	MOVD  8(R8), R11      // R11 = x[i]
+-	MOVD  16(R8), R12     // R12 = x[i+1]
+-	MOVD  24(R8), R14     // R14 = x[i+2]
+-	MOVDU 32(R8), R15     // R15 = x[i+3]
+-	MOVD  8(R9), R16      // R16 = y[i]
+-	MOVD  16(R9), R17     // R17 = y[i+1]
+-	MOVD  24(R9), R18     // R18 = y[i+2]
+-	MOVDU 32(R9), R19     // R19 = y[i+3]
+-	SUBE  R16, R11, R20   // R20 = x[i] - y[i] + CA
+-	SUBE  R17, R12, R21   // R21 = x[i+1] - y[i+1] + CA
+-	SUBE  R18, R14, R22   // R22 = x[i+2] - y[i+2] + CA
+-	SUBE  R19, R15, R23   // R23 = x[i+3] - y[i+3] + CA
+-	MOVD  R20, 8(R10)     // z[i]
+-	MOVD  R21, 16(R10)    // z[i+1]
+-	MOVD  R22, 24(R10)    // z[i+2]
+-	MOVDU R23, 32(R10)    // z[i+3]
+-	ADD   $-4, R7         // R7 = z_len - 4
+-	BDNZ  loop
+-
+-	// We may have more elements to read
+-	CMP   R7, $0
+-	BEQ   final
+-
+-	// Process the remaining elements, one at a time
+-tail:
+-	MOVDU 8(R8), R11      // R11 = x[i]
+-	MOVDU 8(R9), R16      // R16 = y[i]
+-	ADD   $-1, R7         // R7 = z_len - 1
+-	SUBE  R16, R11, R20   // R20 = x[i] - y[i] + CA
+-	CMP   R7, $0
+-	MOVDU R20, 8(R10)     // z[i]
+-	BEQ   final           // If R7 = 0, we are done
+-
+-	MOVDU 8(R8), R11
+-	MOVDU 8(R9), R16
+-	ADD   $-1, R7
+-	SUBE  R16, R11, R20
+-	CMP   R7, $0
+-	MOVDU R20, 8(R10)
+-	BEQ   final
+-
+-	MOVD  8(R8), R11
+-	MOVD  8(R9), R16
+-	SUBE  R16, R11, R20
+-	MOVD  R20, 8(R10)
+-
+-final:
+-	ADDZE R4
+-	XOR   $1, R4
+-
+-done:
+-	MOVD  R4, c+72(FP)
++	MOVD z_len+8(FP), R3
++	MOVD x_base+24(FP), R4
++	MOVD y_base+48(FP), R5
++	MOVD z_base+0(FP), R6
++	// compute unrolled loop lengths
++	ANDCC $3, R3, R7
++	SRD $2, R3
++	SUBC R0, R3	// clear carry
++loop1:
++	CMP R7, $0; BEQ loop1done; MOVD R7, CTR
++loop1cont:
++	// unroll 1X
++	MOVD 0(R4), R8
++	MOVD 0(R5), R9
++	SUBE R9, R8
++	MOVD R8, 0(R6)
++	ADD $8, R4
++	ADD $8, R5
++	ADD $8, R6
++	BDNZ loop1cont
++loop1done:
++loop4:
++	CMP R3, $0; BEQ loop4done; MOVD R3, CTR
++loop4cont:
++	// unroll 4X
++	MOVD 0(R4), R7
++	MOVD 8(R4), R8
++	MOVD 16(R4), R9
++	MOVD 24(R4), R10
++	MOVD 0(R5), R11
++	MOVD 8(R5), R12
++	MOVD 16(R5), R14
++	MOVD 24(R5), R15
++	SUBE R11, R7
++	SUBE R12, R8
++	SUBE R14, R9
++	SUBE R15, R10
++	MOVD R7, 0(R6)
++	MOVD R8, 8(R6)
++	MOVD R9, 16(R6)
++	MOVD R10, 24(R6)
++	ADD $32, R4
++	ADD $32, R5
++	ADD $32, R6
++	BDNZ loop4cont
++loop4done:
++	SUBE R4, R4	// save carry
++	SUB R4, R0, R4	// convert sub carry
++	MOVD R4, c+72(FP)
+ 	RET
+ 
+-//func lshVU(z, x []Word, s uint) (c Word)
++// func lshVU(z, x []Word, s uint) (c Word)
+ TEXT ·lshVU(SB), NOSPLIT, $0
+-	MOVD    z+0(FP), R3
+-	MOVD    x+24(FP), R6
+-	MOVD    s+48(FP), R9
+-	MOVD    z_len+8(FP), R4
+-	MOVD    x_len+32(FP), R7
+-	CMP     R4, $0          // len(z)==0 return
+-	BEQ     done
+-
+-	ADD     $-1, R4, R5     // len(z)-1
+-	SUBC    R9, $64, R4     // ŝ=_W-s, we skip & by _W-1 as the caller ensures s < _W(64)
+-	SLD     $3, R5, R7
+-	ADD     R6, R7, R15     // save starting address &x[len(z)-1]
+-	ADD     R3, R7, R16     // save starting address &z[len(z)-1]
+-	MOVD    (R6)(R7), R14
+-	SRD     R4, R14, R7     // compute x[len(z)-1]>>ŝ into R7
+-	CMP     R5, $0          // iterate from i=len(z)-1 to 0
+-	BEQ     loopexit        // Already at end?
+-	MOVD	0(R15),R10	// x[i]
+-	PCALIGN $16
+-shloop:
+-	SLD     R9, R10, R10    // x[i]<<s
+-	MOVDU   -8(R15), R14
+-	SRD     R4, R14, R11    // x[i-1]>>ŝ
+-	OR      R11, R10, R10
+-	MOVD    R10, 0(R16)     // z[i-1]=x[i]<<s | x[i-1]>>ŝ
+-	MOVD	R14, R10	// reuse x[i-1] for next iteration
+-	ADD     $-8, R16        // i--
+-	CMP     R15, R6         // &x[i-1]>&x[0]?
+-	BGT     shloop
+-loopexit:
+-	MOVD    0(R6), R4
+-	SLD     R9, R4, R4
+-	MOVD    R4, 0(R3)       // z[0]=x[0]<<s
+-	MOVD    R7, c+56(FP)    // store pre-computed x[len(z)-1]>>ŝ into c
++	MOVD z_len+8(FP), R3
++	CMP R3, $0; BEQ ret0
++	MOVD s+48(FP), R4
++	MOVD x_base+24(FP), R5
++	MOVD z_base+0(FP), R6
++	// run loop backward
++	SLD $3, R3, R7
++	ADD R7, R5
++	SLD $3, R3, R7
++	ADD R7, R6
++	// shift first word into carry
++	MOVD -8(R5), R7
++	MOVD $64, R8
++	SUB R4, R8
++	SRD R8, R7, R9
++	SLD R4, R7
++	MOVD R9, c+56(FP)
++	// shift remaining words
++	SUB $1, R3
++	// compute unrolled loop lengths
++	ANDCC $3, R3, R9
++	SRD $2, R3
++loop1:
++	CMP R9, $0; BEQ loop1done; MOVD R9, CTR
++loop1cont:
++	// unroll 1X
++	MOVD -16(R5), R10
++	SRD R8, R10, R11
++	OR R7, R11
++	SLD R4, R10, R7
++	MOVD R11, -8(R6)
++	ADD $-8, R5
++	ADD $-8, R6
++	BDNZ loop1cont
++loop1done:
++loop4:
++	CMP R3, $0; BEQ loop4done; MOVD R3, CTR
++loop4cont:
++	// unroll 4X
++	MOVD -16(R5), R9
++	MOVD -24(R5), R10
++	MOVD -32(R5), R11
++	MOVD -40(R5), R12
++	SRD R8, R9, R14
++	OR R7, R14
++	SLD R4, R9, R7
++	SRD R8, R10, R9
++	OR R7, R9
++	SLD R4, R10, R7
++	SRD R8, R11, R10
++	OR R7, R10
++	SLD R4, R11, R7
++	SRD R8, R12, R11
++	OR R7, R11
++	SLD R4, R12, R7
++	MOVD R14, -8(R6)
++	MOVD R9, -16(R6)
++	MOVD R10, -24(R6)
++	MOVD R11, -32(R6)
++	ADD $-32, R5
++	ADD $-32, R6
++	BDNZ loop4cont
++loop4done:
++	// store final shifted bits
++	MOVD R7, -8(R6)
+ 	RET
+-done:
+-	MOVD    R0, c+56(FP)    // c=0
++ret0:
++	MOVD R0, c+56(FP)
+ 	RET
+ 
+-//func rshVU(z, x []Word, s uint) (c Word)
++// func rshVU(z, x []Word, s uint) (c Word)
+ TEXT ·rshVU(SB), NOSPLIT, $0
+-	MOVD    z+0(FP), R3
+-	MOVD    x+24(FP), R6
+-	MOVD    s+48(FP), R9
+-	MOVD    z_len+8(FP), R4
+-	MOVD    x_len+32(FP), R7
+-
+-	CMP     R4, $0          // len(z)==0 return
+-	BEQ     done
+-	SUBC    R9, $64, R5     // ŝ=_W-s, we skip & by _W-1 as the caller ensures s < _W(64)
+-
+-	MOVD    0(R6), R7
+-	SLD     R5, R7, R7      // compute x[0]<<ŝ
+-	MOVD    $1, R8          // iterate from i=1 to i<len(z)
+-	CMP     R8, R4
+-	BGE     loopexit        // Already at end?
+-
+-	// vectorize if len(z) is >=3, else jump to scalar loop
+-	CMP     R4, $3
+-	BLT     scalar
+-	MTVSRD  R9, VS38        // s
+-	VSPLTB  $7, V6, V4
+-	MTVSRD  R5, VS39        // ŝ
+-	VSPLTB  $7, V7, V2
+-	ADD     $-2, R4, R16
+-	PCALIGN $16
+-loopback:
+-	ADD     $-1, R8, R10
+-	SLD     $3, R10
+-	LXVD2X  (R6)(R10), VS32 // load x[i-1], x[i]
+-	SLD     $3, R8, R12
+-	LXVD2X  (R6)(R12), VS33 // load x[i], x[i+1]
+-
+-	VSRD    V0, V4, V3      // x[i-1]>>s, x[i]>>s
+-	VSLD    V1, V2, V5      // x[i]<<ŝ, x[i+1]<<ŝ
+-	VOR     V3, V5, V5      // Or(|) the two registers together
+-	STXVD2X VS37, (R3)(R10) // store into z[i-1] and z[i]
+-	ADD     $2, R8          // Done processing 2 entries, i and i+1
+-	CMP     R8, R16         // Are there at least a couple of more entries left?
+-	BLE     loopback
+-	CMP     R8, R4          // Are we at the last element?
+-	BEQ     loopexit
+-scalar:
+-	ADD     $-1, R8, R10
+-	SLD     $3, R10
+-	MOVD    (R6)(R10),R11
+-	SRD     R9, R11, R11    // x[len(z)-2] >> s
+-	SLD     $3, R8, R12
+-	MOVD    (R6)(R12), R12
+-	SLD     R5, R12, R12    // x[len(z)-1]<<ŝ
+-	OR      R12, R11, R11   // x[len(z)-2]>>s | x[len(z)-1]<<ŝ
+-	MOVD    R11, (R3)(R10)  // z[len(z)-2]=x[len(z)-2]>>s | x[len(z)-1]<<ŝ
+-loopexit:
+-	ADD     $-1, R4
+-	SLD     $3, R4
+-	MOVD    (R6)(R4), R5
+-	SRD     R9, R5, R5      // x[len(z)-1]>>s
+-	MOVD    R5, (R3)(R4)    // z[len(z)-1]=x[len(z)-1]>>s
+-	MOVD    R7, c+56(FP)    // store pre-computed x[0]<<ŝ into c
++	MOVD z_len+8(FP), R3
++	CMP R3, $0; BEQ ret0
++	MOVD s+48(FP), R4
++	MOVD x_base+24(FP), R5
++	MOVD z_base+0(FP), R6
++	// shift first word into carry
++	MOVD 0(R5), R7
++	MOVD $64, R8
++	SUB R4, R8
++	SLD R8, R7, R9
++	SRD R4, R7
++	MOVD R9, c+56(FP)
++	// shift remaining words
++	SUB $1, R3
++	// compute unrolled loop lengths
++	ANDCC $3, R3, R9
++	SRD $2, R3
++loop1:
++	CMP R9, $0; BEQ loop1done; MOVD R9, CTR
++loop1cont:
++	// unroll 1X
++	MOVD 8(R5), R10
++	SLD R8, R10, R11
++	OR R7, R11
++	SRD R4, R10, R7
++	MOVD R11, 0(R6)
++	ADD $8, R5
++	ADD $8, R6
++	BDNZ loop1cont
++loop1done:
++loop4:
++	CMP R3, $0; BEQ loop4done; MOVD R3, CTR
++loop4cont:
++	// unroll 4X
++	MOVD 8(R5), R9
++	MOVD 16(R5), R10
++	MOVD 24(R5), R11
++	MOVD 32(R5), R12
++	SLD R8, R9, R14
++	OR R7, R14
++	SRD R4, R9, R7
++	SLD R8, R10, R9
++	OR R7, R9
++	SRD R4, R10, R7
++	SLD R8, R11, R10
++	OR R7, R10
++	SRD R4, R11, R7
++	SLD R8, R12, R11
++	OR R7, R11
++	SRD R4, R12, R7
++	MOVD R14, 0(R6)
++	MOVD R9, 8(R6)
++	MOVD R10, 16(R6)
++	MOVD R11, 24(R6)
++	ADD $32, R5
++	ADD $32, R6
++	BDNZ loop4cont
++loop4done:
++	// store final shifted bits
++	MOVD R7, 0(R6)
+ 	RET
+-done:
+-	MOVD    R0, c+56(FP)
++ret0:
++	MOVD R0, c+56(FP)
+ 	RET
+ 
+ // func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ TEXT ·mulAddVWW(SB), NOSPLIT, $0
+-	MOVD    z+0(FP), R10      // R10 = z[]
+-	MOVD    x+24(FP), R8      // R8 = x[]
+-	MOVD    m+48(FP), R9      // R9 = m
+-	MOVD    a+56(FP), R4      // R4 = a = c
+-	MOVD    z_len+8(FP), R11  // R11 = z_len
+-
+-	CMP     R11, $0
+-	BEQ     done
+-
+-	MOVD    0(R8), R20
+-	ADD     $-1, R11
+-	MULLD   R9, R20, R6       // R6 = z0 = Low-order(x[i]*y)
+-	MULHDU  R9, R20, R7       // R7 = z1 = High-order(x[i]*y)
+-	ADDC    R4, R6            // R6 = z0 + r
+-	ADDZE   R7, R4            // R4 = z1 + CA
+-	CMP     R11, $0
+-	MOVD    R6, 0(R10)        // z[i]
+-	BEQ     done
+-
+-	// We will read 4 elements per iteration
+-	SRDCC   $2, R11, R14      // R14 = z_len/4
+-	DCBT    (R8)
+-	MOVD    R14, CTR          // Set up the loop counter
+-	BEQ     tail              // If R9 = 0, we can't use the loop
+-	PCALIGN $16
+-
+-loop:
+-	MOVD    8(R8), R20        // R20 = x[i]
+-	MOVD    16(R8), R21       // R21 = x[i+1]
+-	MOVD    24(R8), R22       // R22 = x[i+2]
+-	MOVDU   32(R8), R23       // R23 = x[i+3]
+-	MULLD   R9, R20, R24      // R24 = z0[i]
+-	MULHDU  R9, R20, R20      // R20 = z1[i]
+-	ADDC    R4, R24           // R24 = z0[i] + c
+-	MULLD   R9, R21, R25
+-	MULHDU  R9, R21, R21
+-	ADDE    R20, R25
+-	MULLD   R9, R22, R26
+-	MULHDU  R9, R22, R22
+-	MULLD   R9, R23, R27
+-	MULHDU  R9, R23, R23
+-	ADDE    R21, R26
+-	MOVD    R24, 8(R10)       // z[i]
+-	MOVD    R25, 16(R10)      // z[i+1]
+-	ADDE    R22, R27
+-	ADDZE   R23,R4		  // update carry
+-	MOVD    R26, 24(R10)      // z[i+2]
+-	MOVDU   R27, 32(R10)      // z[i+3]
+-	ADD     $-4, R11          // R11 = z_len - 4
+-	BDNZ    loop
+-
+-	// We may have some elements to read
+-	CMP   R11, $0
+-	BEQ   done
+-
+-	// Process the remaining elements, one at a time
+-tail:
+-	MOVDU   8(R8), R20        // R20 = x[i]
+-	MULLD   R9, R20, R24      // R24 = z0[i]
+-	MULHDU  R9, R20, R25      // R25 = z1[i]
+-	ADD     $-1, R11          // R11 = z_len - 1
+-	ADDC    R4, R24
+-	ADDZE   R25, R4
+-	MOVDU   R24, 8(R10)       // z[i]
+-	CMP     R11, $0
+-	BEQ     done              // If R11 = 0, we are done
+-
+-	MOVDU   8(R8), R20
+-	MULLD   R9, R20, R24
+-	MULHDU  R9, R20, R25
+-	ADD     $-1, R11
+-	ADDC    R4, R24
+-	ADDZE   R25, R4
+-	MOVDU   R24, 8(R10)
+-	CMP     R11, $0
+-	BEQ     done
+-
+-	MOVD    8(R8), R20
+-	MULLD   R9, R20, R24
+-	MULHDU  R9, R20, R25
+-	ADD     $-1, R11
+-	ADDC    R4, R24
+-	ADDZE   R25,R4
+-	MOVD    R24, 8(R10)
+-
+-done:
+-	MOVD    R4, c+64(FP)
++	MOVD m+48(FP), R3
++	MOVD a+56(FP), R4
++	MOVD z_len+8(FP), R5
++	MOVD x_base+24(FP), R6
++	MOVD z_base+0(FP), R7
++	// compute unrolled loop lengths
++	ANDCC $3, R5, R8
++	SRD $2, R5
++loop1:
++	CMP R8, $0; BEQ loop1done; MOVD R8, CTR
++loop1cont:
++	// unroll 1X
++	MOVD 0(R6), R9
++	// multiply
++	MULHDU R3, R9, R10
++	MULLD R3, R9
++	ADDC R4, R9
++	ADDE R0, R10, R4
++	MOVD R9, 0(R7)
++	ADD $8, R6
++	ADD $8, R7
++	BDNZ loop1cont
++loop1done:
++loop4:
++	CMP R5, $0; BEQ loop4done; MOVD R5, CTR
++loop4cont:
++	// unroll 4X
++	MOVD 0(R6), R8
++	MOVD 8(R6), R9
++	MOVD 16(R6), R10
++	MOVD 24(R6), R11
++	// multiply
++	MULHDU R3, R8, R12
++	MULLD R3, R8
++	ADDC R4, R8
++	MULHDU R3, R9, R14
++	MULLD R3, R9
++	ADDE R12, R9
++	MULHDU R3, R10, R12
++	MULLD R3, R10
++	ADDE R14, R10
++	MULHDU R3, R11, R14
++	MULLD R3, R11
++	ADDE R12, R11
++	ADDE R0, R14, R4
++	MOVD R8, 0(R7)
++	MOVD R9, 8(R7)
++	MOVD R10, 16(R7)
++	MOVD R11, 24(R7)
++	ADD $32, R6
++	ADD $32, R7
++	BDNZ loop4cont
++loop4done:
++	MOVD R4, c+64(FP)
+ 	RET
+ 
+ // func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+ TEXT ·addMulVVWW(SB), NOSPLIT, $0
+-	MOVD	z+0(FP), R22	// R22 = z[]
+-	MOVD	x+24(FP), R3	// R3 = x[]
+-	MOVD	y+48(FP), R4	// R4 = y[]
+-	MOVD	m+72(FP), R5	// R5 = m
+-	MOVD	z_len+8(FP), R6	// R6 = z_len
+-
+-	CMP	R6, $4
+-	MOVD	a+80(FP), R9		// R9 = c = a
+-	BLT	tail
+-	SRD	$2, R6, R7
+-	MOVD	R7, CTR		// Initialize loop counter
+-	PCALIGN	$16
+-
+-loop:
+-	MOVD	0(R4), R14	// y[i]
+-	MOVD	8(R4), R16	// y[i+1]
+-	MOVD	16(R4), R18	// y[i+2]
+-	MOVD	24(R4), R20	// y[i+3]
+-	MOVD	0(R3), R15	// x[i]
+-	MOVD	8(R3), R17	// x[i+1]
+-	MOVD	16(R3), R19	// x[i+2]
+-	MOVD	24(R3), R21	// x[i+3]
+-	MULLD	R5, R14, R10	// low y[i]*m
+-	MULHDU	R5, R14, R11	// high y[i]*m
+-	ADDC	R15, R10
+-	ADDZE	R11
+-	ADDC	R9, R10
+-	ADDZE	R11, R9
+-	MULLD	R5, R16, R14	// low y[i+1]*m
+-	MULHDU	R5, R16, R15	// high y[i+1]*m
+-	ADDC	R17, R14
+-	ADDZE	R15
+-	ADDC	R9, R14
+-	ADDZE	R15, R9
+-	MULLD	R5, R18, R16    // low y[i+2]*m
+-	MULHDU	R5, R18, R17    // high y[i+2]*m
+-	ADDC	R19, R16
+-	ADDZE	R17
+-	ADDC	R9, R16
+-	ADDZE	R17, R9
+-	MULLD	R5, R20, R18    // low y[i+3]*m
+-	MULHDU	R5, R20, R19    // high y[i+3]*m
+-	ADDC	R21, R18
+-	ADDZE	R19
+-	ADDC	R9, R18
+-	ADDZE	R19, R9
+-	MOVD	R10, 0(R22)	// z[i]
+-	MOVD	R14, 8(R22)	// z[i+1]
+-	MOVD	R16, 16(R22)	// z[i+2]
+-	MOVD	R18, 24(R22)	// z[i+3]
+-	ADD	$32, R3
+-	ADD	$32, R4
+-	ADD	$32, R22
+-	BDNZ	loop
+-
+-	ANDCC	$3, R6
+-tail:
+-	CMP	R6, $0
+-	BEQ	done
+-	MOVD	R6, CTR
+-	PCALIGN $16
+-tailloop:
+-	MOVD	0(R4), R14
+-	MOVD	0(R3), R15
+-	MULLD	R5, R14, R10
+-	MULHDU	R5, R14, R11
+-	ADDC	R15, R10
+-	ADDZE	R11
+-	ADDC	R9, R10
+-	ADDZE	R11, R9
+-	MOVD	R10, 0(R22)
+-	ADD	$8, R3
+-	ADD	$8, R4
+-	ADD	$8, R22
+-	BDNZ	tailloop
+-
+-done:
+-	MOVD	R9, c+88(FP)
++	MOVD m+72(FP), R3
++	MOVD a+80(FP), R4
++	MOVD z_len+8(FP), R5
++	MOVD x_base+24(FP), R6
++	MOVD y_base+48(FP), R7
++	MOVD z_base+0(FP), R8
++	// compute unrolled loop lengths
++	ANDCC $3, R5, R9
++	SRD $2, R5
++loop1:
++	CMP R9, $0; BEQ loop1done; MOVD R9, CTR
++loop1cont:
++	// unroll 1X
++	MOVD 0(R6), R10
++	MOVD 0(R7), R11
++	// multiply
++	MULHDU R3, R11, R12
++	MULLD R3, R11
++	ADDC R4, R11
++	ADDE R0, R12, R4
++	// add
++	ADDC R10, R11
++	ADDE R0, R4
++	MOVD R11, 0(R8)
++	ADD $8, R6
++	ADD $8, R7
++	ADD $8, R8
++	BDNZ loop1cont
++loop1done:
++loop4:
++	CMP R5, $0; BEQ loop4done; MOVD R5, CTR
++loop4cont:
++	// unroll 4X
++	MOVD 0(R6), R9
++	MOVD 8(R6), R10
++	MOVD 16(R6), R11
++	MOVD 24(R6), R12
++	MOVD 0(R7), R14
++	MOVD 8(R7), R15
++	MOVD 16(R7), R16
++	MOVD 24(R7), R17
++	// multiply
++	MULHDU R3, R14, R18
++	MULLD R3, R14
++	ADDC R4, R14
++	MULHDU R3, R15, R19
++	MULLD R3, R15
++	ADDE R18, R15
++	MULHDU R3, R16, R18
++	MULLD R3, R16
++	ADDE R19, R16
++	MULHDU R3, R17, R19
++	MULLD R3, R17
++	ADDE R18, R17
++	ADDE R0, R19, R4
++	// add
++	ADDC R9, R14
++	ADDE R10, R15
++	ADDE R11, R16
++	ADDE R12, R17
++	ADDE R0, R4
++	MOVD R14, 0(R8)
++	MOVD R15, 8(R8)
++	MOVD R16, 16(R8)
++	MOVD R17, 24(R8)
++	ADD $32, R6
++	ADD $32, R7
++	ADD $32, R8
++	BDNZ loop4cont
++loop4done:
++	MOVD R4, c+88(FP)
+ 	RET
+-
+diff --git a/src/math/big/arith_riscv64.s b/src/math/big/arith_riscv64.s
+index 406cf38d1f..8817b1c826 100644
+--- a/src/math/big/arith_riscv64.s
++++ b/src/math/big/arith_riscv64.s
+@@ -1,353 +1,457 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !math_big_pure_go && riscv64
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
+ 
+-#include "textflag.h"
+-
+-// This file provides fast assembly versions for the elementary
+-// arithmetic operations on vectors implemented in arith.go.
+-
+-TEXT ·addVV(SB),NOSPLIT,$0
+-	MOV	x+24(FP), X5
+-	MOV	y+48(FP), X6
+-	MOV	z+0(FP), X7
+-	MOV	z_len+8(FP), X30
+-
+-	MOV	$4, X28
+-	MOV	$0, X29		// c = 0
+-
+-	BEQZ	X30, done
+-	BLTU	X30, X28, loop1
+-
+-loop4:
+-	MOV	0(X5), X8	// x[0]
+-	MOV	0(X6), X9	// y[0]
+-	MOV	8(X5), X11	// x[1]
+-	MOV	8(X6), X12	// y[1]
+-	MOV	16(X5), X14	// x[2]
+-	MOV	16(X6), X15	// y[2]
+-	MOV	24(X5), X17	// x[3]
+-	MOV	24(X6), X18	// y[3]
+-
+-	ADD	X8, X9, X21	// z[0] = x[0] + y[0]
+-	SLTU	X8, X21, X22
+-	ADD	X21, X29, X10	// z[0] = x[0] + y[0] + c
+-	SLTU	X21, X10, X23
+-	ADD	X22, X23, X29	// next c
+-
+-	ADD	X11, X12, X24	// z[1] = x[1] + y[1]
+-	SLTU	X11, X24, X25
+-	ADD	X24, X29, X13	// z[1] = x[1] + y[1] + c
+-	SLTU	X24, X13, X26
+-	ADD	X25, X26, X29	// next c
+-
+-	ADD	X14, X15, X21	// z[2] = x[2] + y[2]
+-	SLTU	X14, X21, X22
+-	ADD	X21, X29, X16	// z[2] = x[2] + y[2] + c
+-	SLTU	X21, X16, X23
+-	ADD	X22, X23, X29	// next c
++//go:build !math_big_pure_go
+ 
+-	ADD	X17, X18, X21	// z[3] = x[3] + y[3]
+-	SLTU	X17, X21, X22
+-	ADD	X21, X29, X19	// z[3] = x[3] + y[3] + c
+-	SLTU	X21, X19, X23
+-	ADD	X22, X23, X29	// next c
+-
+-	MOV	X10, 0(X7)	// z[0]
+-	MOV	X13, 8(X7)	// z[1]
+-	MOV	X16, 16(X7)	// z[2]
+-	MOV	X19, 24(X7)	// z[3]
+-
+-	ADD	$32, X5
+-	ADD	$32, X6
+-	ADD	$32, X7
+-	SUB	$4, X30
+-
+-	BGEU	X30, X28, loop4
+-	BEQZ	X30, done
++#include "textflag.h"
+ 
++// func addVV(z, x, y []Word) (c Word)
++TEXT ·addVV(SB), NOSPLIT, $0
++	MOV z_len+8(FP), X5
++	MOV x_base+24(FP), X6
++	MOV y_base+48(FP), X7
++	MOV z_base+0(FP), X8
++	// compute unrolled loop lengths
++	AND $3, X5, X9
++	SRL $2, X5
++	XOR X28, X28	// clear carry
+ loop1:
+-	MOV	0(X5), X10	// x
+-	MOV	0(X6), X11	// y
+-
+-	ADD	X10, X11, X12	// z = x + y
+-	SLTU	X10, X12, X14
+-	ADD	X12, X29, X13	// z = x + y + c
+-	SLTU	X12, X13, X15
+-	ADD	X14, X15, X29	// next c
+-
+-	MOV	X13, 0(X7)	// z
+-
+-	ADD	$8, X5
+-	ADD	$8, X6
+-	ADD	$8, X7
+-	SUB	$1, X30
+-
+-	BNEZ	X30, loop1
+-
+-done:
+-	MOV	X29, c+72(FP)	// return c
+-	RET
+-
+-TEXT ·subVV(SB),NOSPLIT,$0
+-	MOV	x+24(FP), X5
+-	MOV	y+48(FP), X6
+-	MOV	z+0(FP), X7
+-	MOV	z_len+8(FP), X30
+-
+-	MOV	$4, X28
+-	MOV	$0, X29		// b = 0
+-
+-	BEQZ	X30, done
+-	BLTU	X30, X28, loop1
+-
++	BEQZ X9, loop1done
++loop1cont:
++	// unroll 1X
++	MOV 0(X6), X10
++	MOV 0(X7), X11
++	ADD X11, X10	// ADCS X11, X10, X10 (cr=X28)
++	SLTU X11, X10, X31	// ...
++	ADD X28, X10	// ...
++	SLTU X28, X10, X28	// ...
++	ADD X31, X28	// ...
++	MOV X10, 0(X8)
++	ADD $8, X6
++	ADD $8, X7
++	ADD $8, X8
++	SUB $1, X9
++	BNEZ X9, loop1cont
++loop1done:
+ loop4:
+-	MOV	0(X5), X8	// x[0]
+-	MOV	0(X6), X9	// y[0]
+-	MOV	8(X5), X11	// x[1]
+-	MOV	8(X6), X12	// y[1]
+-	MOV	16(X5), X14	// x[2]
+-	MOV	16(X6), X15	// y[2]
+-	MOV	24(X5), X17	// x[3]
+-	MOV	24(X6), X18	// y[3]
+-
+-	SUB	X9, X8, X21	// z[0] = x[0] - y[0]
+-	SLTU	X21, X8, X22
+-	SUB	X29, X21, X10	// z[0] = x[0] - y[0] - b
+-	SLTU	X10, X21, X23
+-	ADD	X22, X23, X29	// next b
+-
+-	SUB	X12, X11, X24	// z[1] = x[1] - y[1]
+-	SLTU	X24, X11, X25
+-	SUB	X29, X24, X13	// z[1] = x[1] - y[1] - b
+-	SLTU	X13, X24, X26
+-	ADD	X25, X26, X29	// next b
+-
+-	SUB	X15, X14, X21	// z[2] = x[2] - y[2]
+-	SLTU	X21, X14, X22
+-	SUB	X29, X21, X16	// z[2] = x[2] - y[2] - b
+-	SLTU	X16, X21, X23
+-	ADD	X22, X23, X29	// next b
+-
+-	SUB	X18, X17, X21	// z[3] = x[3] - y[3]
+-	SLTU	X21, X17, X22
+-	SUB	X29, X21, X19	// z[3] = x[3] - y[3] - b
+-	SLTU	X19, X21, X23
+-	ADD	X22, X23, X29	// next b
+-
+-	MOV	X10, 0(X7)	// z[0]
+-	MOV	X13, 8(X7)	// z[1]
+-	MOV	X16, 16(X7)	// z[2]
+-	MOV	X19, 24(X7)	// z[3]
+-
+-	ADD	$32, X5
+-	ADD	$32, X6
+-	ADD	$32, X7
+-	SUB	$4, X30
+-
+-	BGEU	X30, X28, loop4
+-	BEQZ	X30, done
++	BEQZ X5, loop4done
++loop4cont:
++	// unroll 4X
++	MOV 0(X6), X9
++	MOV 8(X6), X10
++	MOV 16(X6), X11
++	MOV 24(X6), X12
++	MOV 0(X7), X13
++	MOV 8(X7), X14
++	MOV 16(X7), X15
++	MOV 24(X7), X16
++	ADD X13, X9	// ADCS X13, X9, X9 (cr=X28)
++	SLTU X13, X9, X31	// ...
++	ADD X28, X9	// ...
++	SLTU X28, X9, X28	// ...
++	ADD X31, X28	// ...
++	ADD X14, X10	// ADCS X14, X10, X10 (cr=X28)
++	SLTU X14, X10, X31	// ...
++	ADD X28, X10	// ...
++	SLTU X28, X10, X28	// ...
++	ADD X31, X28	// ...
++	ADD X15, X11	// ADCS X15, X11, X11 (cr=X28)
++	SLTU X15, X11, X31	// ...
++	ADD X28, X11	// ...
++	SLTU X28, X11, X28	// ...
++	ADD X31, X28	// ...
++	ADD X16, X12	// ADCS X16, X12, X12 (cr=X28)
++	SLTU X16, X12, X31	// ...
++	ADD X28, X12	// ...
++	SLTU X28, X12, X28	// ...
++	ADD X31, X28	// ...
++	MOV X9, 0(X8)
++	MOV X10, 8(X8)
++	MOV X11, 16(X8)
++	MOV X12, 24(X8)
++	ADD $32, X6
++	ADD $32, X7
++	ADD $32, X8
++	SUB $1, X5
++	BNEZ X5, loop4cont
++loop4done:
++	MOV X28, c+72(FP)
++	RET
+ 
++// func subVV(z, x, y []Word) (c Word)
++TEXT ·subVV(SB), NOSPLIT, $0
++	MOV z_len+8(FP), X5
++	MOV x_base+24(FP), X6
++	MOV y_base+48(FP), X7
++	MOV z_base+0(FP), X8
++	// compute unrolled loop lengths
++	AND $3, X5, X9
++	SRL $2, X5
++	XOR X28, X28	// clear carry
+ loop1:
+-	MOV	0(X5), X10	// x
+-	MOV	0(X6), X11	// y
+-
+-	SUB	X11, X10, X12	// z = x - y
+-	SLTU	X12, X10, X14
+-	SUB	X29, X12, X13	// z = x - y - b
+-	SLTU	X13, X12, X15
+-	ADD	X14, X15, X29	// next b
+-
+-	MOV	X13, 0(X7)	// z
+-
+-	ADD	$8, X5
+-	ADD	$8, X6
+-	ADD	$8, X7
+-	SUB	$1, X30
+-
+-	BNEZ	X30, loop1
+-
+-done:
+-	MOV	X29, c+72(FP)	// return b
++	BEQZ X9, loop1done
++loop1cont:
++	// unroll 1X
++	MOV 0(X6), X10
++	MOV 0(X7), X11
++	SLTU X28, X10, X31	// SBCS X11, X10, X10
++	SUB X28, X10	// ...
++	SLTU X11, X10, X28	// ...
++	SUB X11, X10	// ...
++	ADD X31, X28	// ...
++	MOV X10, 0(X8)
++	ADD $8, X6
++	ADD $8, X7
++	ADD $8, X8
++	SUB $1, X9
++	BNEZ X9, loop1cont
++loop1done:
++loop4:
++	BEQZ X5, loop4done
++loop4cont:
++	// unroll 4X
++	MOV 0(X6), X9
++	MOV 8(X6), X10
++	MOV 16(X6), X11
++	MOV 24(X6), X12
++	MOV 0(X7), X13
++	MOV 8(X7), X14
++	MOV 16(X7), X15
++	MOV 24(X7), X16
++	SLTU X28, X9, X31	// SBCS X13, X9, X9
++	SUB X28, X9	// ...
++	SLTU X13, X9, X28	// ...
++	SUB X13, X9	// ...
++	ADD X31, X28	// ...
++	SLTU X28, X10, X31	// SBCS X14, X10, X10
++	SUB X28, X10	// ...
++	SLTU X14, X10, X28	// ...
++	SUB X14, X10	// ...
++	ADD X31, X28	// ...
++	SLTU X28, X11, X31	// SBCS X15, X11, X11
++	SUB X28, X11	// ...
++	SLTU X15, X11, X28	// ...
++	SUB X15, X11	// ...
++	ADD X31, X28	// ...
++	SLTU X28, X12, X31	// SBCS X16, X12, X12
++	SUB X28, X12	// ...
++	SLTU X16, X12, X28	// ...
++	SUB X16, X12	// ...
++	ADD X31, X28	// ...
++	MOV X9, 0(X8)
++	MOV X10, 8(X8)
++	MOV X11, 16(X8)
++	MOV X12, 24(X8)
++	ADD $32, X6
++	ADD $32, X7
++	ADD $32, X8
++	SUB $1, X5
++	BNEZ X5, loop4cont
++loop4done:
++	MOV X28, c+72(FP)
+ 	RET
+ 
+-TEXT ·lshVU(SB),NOSPLIT,$0
+-	JMP ·lshVU_g(SB)
+-
+-TEXT ·rshVU(SB),NOSPLIT,$0
+-	JMP ·rshVU_g(SB)
+-
+-TEXT ·mulAddVWW(SB),NOSPLIT,$0
+-	MOV	x+24(FP), X5
+-	MOV	m+48(FP), X6
+-	MOV	z+0(FP), X7
+-	MOV	z_len+8(FP), X30
+-	MOV	a+56(FP), X29
+-
+-	MOV	$4, X28
+-
+-	BEQ	ZERO, X30, done
+-	BLTU	X30, X28, loop1
+-
++// func lshVU(z, x []Word, s uint) (c Word)
++TEXT ·lshVU(SB), NOSPLIT, $0
++	MOV z_len+8(FP), X5
++	BEQZ X5, ret0
++	MOV s+48(FP), X6
++	MOV x_base+24(FP), X7
++	MOV z_base+0(FP), X8
++	// run loop backward
++	SLL $3, X5, X9
++	ADD X9, X7
++	SLL $3, X5, X9
++	ADD X9, X8
++	// shift first word into carry
++	MOV -8(X7), X9
++	MOV $64, X10
++	SUB X6, X10
++	SRL X10, X9, X11
++	SLL X6, X9
++	MOV X11, c+56(FP)
++	// shift remaining words
++	SUB $1, X5
++	// compute unrolled loop lengths
++	AND $3, X5, X11
++	SRL $2, X5
++loop1:
++	BEQZ X11, loop1done
++loop1cont:
++	// unroll 1X
++	MOV -16(X7), X12
++	SRL X10, X12, X13
++	OR X9, X13
++	SLL X6, X12, X9
++	MOV X13, -8(X8)
++	ADD $-8, X7
++	ADD $-8, X8
++	SUB $1, X11
++	BNEZ X11, loop1cont
++loop1done:
+ loop4:
+-	MOV	0(X5), X8	// x[0]
+-	MOV	8(X5), X11	// x[1]
+-	MOV	16(X5), X14	// x[2]
+-	MOV	24(X5), X17	// x[3]
+-
+-	MULHU	X8, X6, X9	// z_hi[0] = x[0] * m
+-	MUL	X8, X6, X8	// z_lo[0] = x[0] * m
+-	ADD	X8, X29, X10	// z[0] = z_lo[0] + c
+-	SLTU	X8, X10, X23
+-	ADD	X23, X9, X29	// next c
+-
+-	MULHU	X11, X6, X12	// z_hi[1] = x[1] * m
+-	MUL	X11, X6, X11	// z_lo[1] = x[1] * m
+-	ADD	X11, X29, X13	// z[1] = z_lo[1] + c
+-	SLTU	X11, X13, X23
+-	ADD	X23, X12, X29	// next c
+-
+-	MULHU	X14, X6, X15	// z_hi[2] = x[2] * m
+-	MUL	X14, X6, X14	// z_lo[2] = x[2] * m
+-	ADD	X14, X29, X16	// z[2] = z_lo[2] + c
+-	SLTU	X14, X16, X23
+-	ADD	X23, X15, X29	// next c
+-
+-	MULHU	X17, X6, X18	// z_hi[3] = x[3] * m
+-	MUL	X17, X6, X17	// z_lo[3] = x[3] * m
+-	ADD	X17, X29, X19	// z[3] = z_lo[3] + c
+-	SLTU	X17, X19, X23
+-	ADD	X23, X18, X29	// next c
+-
+-	MOV	X10, 0(X7)	// z[0]
+-	MOV	X13, 8(X7)	// z[1]
+-	MOV	X16, 16(X7)	// z[2]
+-	MOV	X19, 24(X7)	// z[3]
+-
+-	ADD	$32, X5
+-	ADD	$32, X7
+-	SUB	$4, X30
+-
+-	BGEU	X30, X28, loop4
+-	BEQZ	X30, done
++	BEQZ X5, loop4done
++loop4cont:
++	// unroll 4X
++	MOV -16(X7), X11
++	MOV -24(X7), X12
++	MOV -32(X7), X13
++	MOV -40(X7), X14
++	SRL X10, X11, X15
++	OR X9, X15
++	SLL X6, X11, X9
++	SRL X10, X12, X11
++	OR X9, X11
++	SLL X6, X12, X9
++	SRL X10, X13, X12
++	OR X9, X12
++	SLL X6, X13, X9
++	SRL X10, X14, X13
++	OR X9, X13
++	SLL X6, X14, X9
++	MOV X15, -8(X8)
++	MOV X11, -16(X8)
++	MOV X12, -24(X8)
++	MOV X13, -32(X8)
++	ADD $-32, X7
++	ADD $-32, X8
++	SUB $1, X5
++	BNEZ X5, loop4cont
++loop4done:
++	// store final shifted bits
++	MOV X9, -8(X8)
++	RET
++ret0:
++	MOV X0, c+56(FP)
++	RET
+ 
++// func rshVU(z, x []Word, s uint) (c Word)
++TEXT ·rshVU(SB), NOSPLIT, $0
++	MOV z_len+8(FP), X5
++	BEQZ X5, ret0
++	MOV s+48(FP), X6
++	MOV x_base+24(FP), X7
++	MOV z_base+0(FP), X8
++	// shift first word into carry
++	MOV 0(X7), X9
++	MOV $64, X10
++	SUB X6, X10
++	SLL X10, X9, X11
++	SRL X6, X9
++	MOV X11, c+56(FP)
++	// shift remaining words
++	SUB $1, X5
++	// compute unrolled loop lengths
++	AND $3, X5, X11
++	SRL $2, X5
+ loop1:
+-	MOV	0(X5), X10	// x
+-
+-	MULHU	X10, X6, X12	// z_hi = x * m
+-	MUL	X10, X6, X10	// z_lo = x * m
+-	ADD	X10, X29, X13	// z_lo + c
+-	SLTU	X10, X13, X15
+-	ADD	X12, X15, X29	// next c
+-
+-	MOV	X13, 0(X7)	// z
+-
+-	ADD	$8, X5
+-	ADD	$8, X7
+-	SUB	$1, X30
+-
+-	BNEZ	X30, loop1
+-
+-done:
+-	MOV	X29, c+64(FP)	// return c
++	BEQZ X11, loop1done
++loop1cont:
++	// unroll 1X
++	MOV 8(X7), X12
++	SLL X10, X12, X13
++	OR X9, X13
++	SRL X6, X12, X9
++	MOV X13, 0(X8)
++	ADD $8, X7
++	ADD $8, X8
++	SUB $1, X11
++	BNEZ X11, loop1cont
++loop1done:
++loop4:
++	BEQZ X5, loop4done
++loop4cont:
++	// unroll 4X
++	MOV 8(X7), X11
++	MOV 16(X7), X12
++	MOV 24(X7), X13
++	MOV 32(X7), X14
++	SLL X10, X11, X15
++	OR X9, X15
++	SRL X6, X11, X9
++	SLL X10, X12, X11
++	OR X9, X11
++	SRL X6, X12, X9
++	SLL X10, X13, X12
++	OR X9, X12
++	SRL X6, X13, X9
++	SLL X10, X14, X13
++	OR X9, X13
++	SRL X6, X14, X9
++	MOV X15, 0(X8)
++	MOV X11, 8(X8)
++	MOV X12, 16(X8)
++	MOV X13, 24(X8)
++	ADD $32, X7
++	ADD $32, X8
++	SUB $1, X5
++	BNEZ X5, loop4cont
++loop4done:
++	// store final shifted bits
++	MOV X9, 0(X8)
++	RET
++ret0:
++	MOV X0, c+56(FP)
+ 	RET
+ 
+-TEXT ·addMulVVWW(SB),NOSPLIT,$0
+-	MOV	y+48(FP), X5
+-	MOV	m+72(FP), X6
+-	MOV	x+24(FP), X7
+-	MOV z+0(FP), X20
+-	MOV	z_len+8(FP), X30
+-
+-	MOV	$4, X28
+-	MOV	a+80(FP), X29		// c = a
+-
+-	BEQZ	X30, done
+-	BLTU	X30, X28, loop1
+-
++// func mulAddVWW(z, x []Word, m, a Word) (c Word)
++TEXT ·mulAddVWW(SB), NOSPLIT, $0
++	MOV m+48(FP), X5
++	MOV a+56(FP), X6
++	MOV z_len+8(FP), X7
++	MOV x_base+24(FP), X8
++	MOV z_base+0(FP), X9
++	// compute unrolled loop lengths
++	AND $3, X7, X10
++	SRL $2, X7
++loop1:
++	BEQZ X10, loop1done
++loop1cont:
++	// unroll 1X
++	MOV 0(X8), X11
++	// synthetic carry, one column at a time
++	MUL X5, X11, X12
++	MULHU X5, X11, X13
++	ADD X6, X12, X11	// ADDS X6, X12, X11 (cr=X28)
++	SLTU X6, X11, X28	// ...
++	ADD X28, X13, X6	// ADC $0, X13, X6
++	MOV X11, 0(X9)
++	ADD $8, X8
++	ADD $8, X9
++	SUB $1, X10
++	BNEZ X10, loop1cont
++loop1done:
+ loop4:
+-	MOV	0(X5), X8	// y[0]
+-	MOV	0(X7), X10	// x[0]
+-	MOV	8(X5), X11	// y[1]
+-	MOV	8(X7), X13	// x[1]
+-	MOV	16(X5), X14	// y[2]
+-	MOV	16(X7), X16	// x[2]
+-	MOV	24(X5), X17	// y[3]
+-	MOV	24(X7), X19	// x[3]
+-
+-	MULHU	X8, X6, X9	// x_hi[0] = y[0] * m
+-	MUL	X8, X6, X8	// x_lo[0] = y[0] * m
+-	ADD	X8, X10, X21	// x_lo[0] = y[0] * m + x[0]
+-	SLTU	X8, X21, X22
+-	ADD	X9, X22, X9	// x_hi[0] = y[0] * m + x[0]
+-	ADD	X21, X29, X10	// x[0] = y[0] * m + x[0] + c
+-	SLTU	X21, X10, X22
+-	ADD	X9, X22, X29	// next c
+-
+-	MULHU	X11, X6, X12	// x_hi[1] = y[1] * m
+-	MUL	X11, X6, X11	// x_lo[1] = y[1] * m
+-	ADD	X11, X13, X21	// x_lo[1] = y[1] * m + x[1]
+-	SLTU	X11, X21, X22
+-	ADD	X12, X22, X12	// x_hi[1] = y[1] * m + x[1]
+-	ADD	X21, X29, X13	// x[1] = y[1] * m + x[1] + c
+-	SLTU	X21, X13, X22
+-	ADD	X12, X22, X29	// next c
+-
+-	MULHU	X14, X6, X15	// x_hi[2] = y[2] * m
+-	MUL	X14, X6, X14	// x_lo[2] = y[2] * m
+-	ADD	X14, X16, X21	// x_lo[2] = y[2] * m + x[2]
+-	SLTU	X14, X21, X22
+-	ADD	X15, X22, X15	// x_hi[2] = y[2] * m + x[2]
+-	ADD	X21, X29, X16	// x[2] = y[2] * m + x[2] + c
+-	SLTU	X21, X16, X22
+-	ADD	X15, X22, X29	// next c
+-
+-	MULHU	X17, X6, X18	// x_hi[3] = y[3] * m
+-	MUL	X17, X6, X17	// x_lo[3] = y[3] * m
+-	ADD	X17, X19, X21	// x_lo[3] = y[3] * m + x[3]
+-	SLTU	X17, X21, X22
+-	ADD	X18, X22, X18	// x_hi[3] = y[3] * m + x[3]
+-	ADD	X21, X29, X19	// x[3] = y[3] * m + x[3] + c
+-	SLTU	X21, X19, X22
+-	ADD	X18, X22, X29	// next c
+-
+-	MOV	X10, 0(X20)	// z[0]
+-	MOV	X13, 8(X20)	// z[1]
+-	MOV	X16, 16(X20)	// z[2]
+-	MOV	X19, 24(X20)	// z[3]
+-
+-	ADD	$32, X5
+-	ADD	$32, X7
+-	ADD	$32, X20
+-	SUB	$4, X30
+-
+-	BGEU	X30, X28, loop4
+-	BEQZ	X30, done
++	BEQZ X7, loop4done
++loop4cont:
++	// unroll 4X
++	MOV 0(X8), X10
++	MOV 8(X8), X11
++	MOV 16(X8), X12
++	MOV 24(X8), X13
++	// synthetic carry, one column at a time
++	MUL X5, X10, X14
++	MULHU X5, X10, X15
++	ADD X6, X14, X10	// ADDS X6, X14, X10 (cr=X28)
++	SLTU X6, X10, X28	// ...
++	ADD X28, X15, X6	// ADC $0, X15, X6
++	MUL X5, X11, X14
++	MULHU X5, X11, X15
++	ADD X6, X14, X11	// ADDS X6, X14, X11 (cr=X28)
++	SLTU X6, X11, X28	// ...
++	ADD X28, X15, X6	// ADC $0, X15, X6
++	MUL X5, X12, X14
++	MULHU X5, X12, X15
++	ADD X6, X14, X12	// ADDS X6, X14, X12 (cr=X28)
++	SLTU X6, X12, X28	// ...
++	ADD X28, X15, X6	// ADC $0, X15, X6
++	MUL X5, X13, X14
++	MULHU X5, X13, X15
++	ADD X6, X14, X13	// ADDS X6, X14, X13 (cr=X28)
++	SLTU X6, X13, X28	// ...
++	ADD X28, X15, X6	// ADC $0, X15, X6
++	MOV X10, 0(X9)
++	MOV X11, 8(X9)
++	MOV X12, 16(X9)
++	MOV X13, 24(X9)
++	ADD $32, X8
++	ADD $32, X9
++	SUB $1, X7
++	BNEZ X7, loop4cont
++loop4done:
++	MOV X6, c+64(FP)
++	RET
+ 
++// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
++TEXT ·addMulVVWW(SB), NOSPLIT, $0
++	MOV m+72(FP), X5
++	MOV a+80(FP), X6
++	MOV z_len+8(FP), X7
++	MOV x_base+24(FP), X8
++	MOV y_base+48(FP), X9
++	MOV z_base+0(FP), X10
++	// compute unrolled loop lengths
++	AND $3, X7, X11
++	SRL $2, X7
+ loop1:
+-	MOV	0(X5), X10	// y
+-	MOV	0(X7), X11	// x
+-
+-	MULHU	X10, X6, X12	// z_hi = y * m
+-	MUL	X10, X6, X10	// z_lo = y * m
+-	ADD	X10, X11, X13	// z_lo = y * m + x
+-	SLTU	X10, X13, X15
+-	ADD	X12, X15, X12	// z_hi = y * m + x
+-	ADD	X13, X29, X10	// z = y * m + x + c
+-	SLTU	X13, X10, X15
+-	ADD	X12, X15, X29	// next c
+-
+-	MOV	X10, 0(X20)	// z
+-
+-	ADD	$8, X5
+-	ADD	$8, X7
+-	ADD	$8, X20
+-	SUB	$1, X30
+-
+-	BNEZ	X30, loop1
+-
+-done:
+-	MOV	X29, c+88(FP)	// return c
++	BEQZ X11, loop1done
++loop1cont:
++	// unroll 1X
++	MOV 0(X8), X12
++	MOV 0(X9), X13
++	// synthetic carry, one column at a time
++	MUL X5, X13, X14
++	MULHU X5, X13, X15
++	ADD X12, X14	// ADDS X12, X14, X14 (cr=X28)
++	SLTU X12, X14, X28	// ...
++	ADD X28, X15	// ADC $0, X15, X15
++	ADD X6, X14, X13	// ADDS X6, X14, X13 (cr=X28)
++	SLTU X6, X13, X28	// ...
++	ADD X28, X15, X6	// ADC $0, X15, X6
++	MOV X13, 0(X10)
++	ADD $8, X8
++	ADD $8, X9
++	ADD $8, X10
++	SUB $1, X11
++	BNEZ X11, loop1cont
++loop1done:
++loop4:
++	BEQZ X7, loop4done
++loop4cont:
++	// unroll 4X
++	MOV 0(X8), X11
++	MOV 8(X8), X12
++	MOV 16(X8), X13
++	MOV 24(X8), X14
++	MOV 0(X9), X15
++	MOV 8(X9), X16
++	MOV 16(X9), X17
++	MOV 24(X9), X18
++	// synthetic carry, one column at a time
++	MUL X5, X15, X19
++	MULHU X5, X15, X20
++	ADD X11, X19	// ADDS X11, X19, X19 (cr=X28)
++	SLTU X11, X19, X28	// ...
++	ADD X28, X20	// ADC $0, X20, X20
++	ADD X6, X19, X15	// ADDS X6, X19, X15 (cr=X28)
++	SLTU X6, X15, X28	// ...
++	ADD X28, X20, X6	// ADC $0, X20, X6
++	MUL X5, X16, X19
++	MULHU X5, X16, X20
++	ADD X12, X19	// ADDS X12, X19, X19 (cr=X28)
++	SLTU X12, X19, X28	// ...
++	ADD X28, X20	// ADC $0, X20, X20
++	ADD X6, X19, X16	// ADDS X6, X19, X16 (cr=X28)
++	SLTU X6, X16, X28	// ...
++	ADD X28, X20, X6	// ADC $0, X20, X6
++	MUL X5, X17, X19
++	MULHU X5, X17, X20
++	ADD X13, X19	// ADDS X13, X19, X19 (cr=X28)
++	SLTU X13, X19, X28	// ...
++	ADD X28, X20	// ADC $0, X20, X20
++	ADD X6, X19, X17	// ADDS X6, X19, X17 (cr=X28)
++	SLTU X6, X17, X28	// ...
++	ADD X28, X20, X6	// ADC $0, X20, X6
++	MUL X5, X18, X19
++	MULHU X5, X18, X20
++	ADD X14, X19	// ADDS X14, X19, X19 (cr=X28)
++	SLTU X14, X19, X28	// ...
++	ADD X28, X20	// ADC $0, X20, X20
++	ADD X6, X19, X18	// ADDS X6, X19, X18 (cr=X28)
++	SLTU X6, X18, X28	// ...
++	ADD X28, X20, X6	// ADC $0, X20, X6
++	MOV X15, 0(X10)
++	MOV X16, 8(X10)
++	MOV X17, 16(X10)
++	MOV X18, 24(X10)
++	ADD $32, X8
++	ADD $32, X9
++	ADD $32, X10
++	SUB $1, X7
++	BNEZ X7, loop4cont
++loop4done:
++	MOV X6, c+88(FP)
+ 	RET
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index a03660be62..b81ed92480 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -1,605 +1,426 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Code generated by 'go generate' (with ./internal/asmgen). DO NOT EDIT.
++
+ //go:build !math_big_pure_go
+ 
+ #include "textflag.h"
+ 
+-// This file provides fast assembly versions for the elementary
+-// arithmetic operations on vectors implemented in arith.go.
+-
+-// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+ // func addVV(z, x, y []Word) (c Word)
+-
+ TEXT ·addVV(SB), NOSPLIT, $0
+-	MOVD addvectorfacility+0x00(SB), R1
+-	BR   (R1)
+-
+-TEXT ·addVV_check(SB), NOSPLIT, $0
+-	MOVB   ·hasVX(SB), R1
+-	CMPBEQ R1, $1, vectorimpl              // vectorfacility = 1, vector supported
+-	MOVD   $addvectorfacility+0x00(SB), R1
+-	MOVD   $·addVV_novec(SB), R2
+-	MOVD   R2, 0(R1)
+-
+-	// MOVD	$·addVV_novec(SB), 0(R1)
+-	BR ·addVV_novec(SB)
+-
+-vectorimpl:
+-	MOVD $addvectorfacility+0x00(SB), R1
+-	MOVD $·addVV_vec(SB), R2
+-	MOVD R2, 0(R1)
+-
+-	// MOVD	$·addVV_vec(SB), 0(R1)
+-	BR ·addVV_vec(SB)
+-
+-GLOBL addvectorfacility+0x00(SB), NOPTR, $8
+-DATA addvectorfacility+0x00(SB)/8, $·addVV_check(SB)
+-
+-TEXT ·addVV_vec(SB), NOSPLIT, $0
+-	MOVD z_len+8(FP), R3
+-	MOVD x+24(FP), R8
+-	MOVD y+48(FP), R9
+-	MOVD z+0(FP), R2
+-
+-	MOVD $0, R4  // c = 0
+-	MOVD $0, R0  // make sure it's zero
+-	MOVD $0, R10 // i = 0
+-
+-	// s/JL/JMP/ below to disable the unrolled loop
+-	SUB $4, R3
+-	BLT v1
+-	SUB $12, R3 // n -= 16
+-	BLT A1      // if n < 0 goto A1
+-
+-	MOVD R8, R5
+-	MOVD R9, R6
+-	MOVD R2, R7
+-
+-	// n >= 0
+-	// regular loop body unrolled 16x
+-	VZERO V0 // c = 0
+-
+-UU1:
+-	VLM  0(R5), V1, V4    // 64-bytes into V1..V8
+-	ADD  $64, R5
+-	VPDI $0x4, V1, V1, V1 // flip the doublewords to big-endian order
+-	VPDI $0x4, V2, V2, V2 // flip the doublewords to big-endian order
+-
+-	VLM  0(R6), V9, V12      // 64-bytes into V9..V16
+-	ADD  $64, R6
+-	VPDI $0x4, V9, V9, V9    // flip the doublewords to big-endian order
+-	VPDI $0x4, V10, V10, V10 // flip the doublewords to big-endian order
+-
+-	VACCCQ V1, V9, V0, V25
+-	VACQ   V1, V9, V0, V17
+-	VACCCQ V2, V10, V25, V26
+-	VACQ   V2, V10, V25, V18
+-
+-	VLM 0(R5), V5, V6   // 32-bytes into V1..V8
+-	VLM 0(R6), V13, V14 // 32-bytes into V9..V16
+-	ADD $32, R5
+-	ADD $32, R6
+-
+-	VPDI $0x4, V3, V3, V3    // flip the doublewords to big-endian order
+-	VPDI $0x4, V4, V4, V4    // flip the doublewords to big-endian order
+-	VPDI $0x4, V11, V11, V11 // flip the doublewords to big-endian order
+-	VPDI $0x4, V12, V12, V12 // flip the doublewords to big-endian order
+-
+-	VACCCQ V3, V11, V26, V27
+-	VACQ   V3, V11, V26, V19
+-	VACCCQ V4, V12, V27, V28
+-	VACQ   V4, V12, V27, V20
+-
+-	VLM 0(R5), V7, V8   // 32-bytes into V1..V8
+-	VLM 0(R6), V15, V16 // 32-bytes into V9..V16
+-	ADD $32, R5
+-	ADD $32, R6
+-
+-	VPDI $0x4, V5, V5, V5    // flip the doublewords to big-endian order
+-	VPDI $0x4, V6, V6, V6    // flip the doublewords to big-endian order
+-	VPDI $0x4, V13, V13, V13 // flip the doublewords to big-endian order
+-	VPDI $0x4, V14, V14, V14 // flip the doublewords to big-endian order
+-
+-	VACCCQ V5, V13, V28, V29
+-	VACQ   V5, V13, V28, V21
+-	VACCCQ V6, V14, V29, V30
+-	VACQ   V6, V14, V29, V22
+-
+-	VPDI $0x4, V7, V7, V7    // flip the doublewords to big-endian order
+-	VPDI $0x4, V8, V8, V8    // flip the doublewords to big-endian order
+-	VPDI $0x4, V15, V15, V15 // flip the doublewords to big-endian order
+-	VPDI $0x4, V16, V16, V16 // flip the doublewords to big-endian order
+-
+-	VACCCQ V7, V15, V30, V31
+-	VACQ   V7, V15, V30, V23
+-	VACCCQ V8, V16, V31, V0  // V0 has carry-over
+-	VACQ   V8, V16, V31, V24
+-
+-	VPDI  $0x4, V17, V17, V17 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V18, V18, V18 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V19, V19, V19 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V20, V20, V20 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V21, V21, V21 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V22, V22, V22 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V23, V23, V23 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V24, V24, V24 // flip the doublewords to big-endian order
+-	VSTM  V17, V24, 0(R7)     // 128-bytes into z
+-	ADD   $128, R7
+-	ADD   $128, R10           // i += 16
+-	SUB   $16, R3             // n -= 16
+-	BGE   UU1                 // if n >= 0 goto U1
+-	VLGVG $1, V0, R4          // put cf into R4
+-	NEG   R4, R4              // save cf
+-
+-A1:
+-	ADD $12, R3 // n += 16
+-
+-	// s/JL/JMP/ below to disable the unrolled loop
+-	BLT v1 // if n < 0 goto v1
+-
+-U1:  // n >= 0
+-	// regular loop body unrolled 4x
+-	MOVD 0(R8)(R10*1), R5
+-	MOVD 8(R8)(R10*1), R6
+-	MOVD 16(R8)(R10*1), R7
+-	MOVD 24(R8)(R10*1), R1
+-	ADDC R4, R4             // restore CF
+-	MOVD 0(R9)(R10*1), R11
+-	ADDE R11, R5
+-	MOVD 8(R9)(R10*1), R11
+-	ADDE R11, R6
+-	MOVD 16(R9)(R10*1), R11
+-	ADDE R11, R7
+-	MOVD 24(R9)(R10*1), R11
+-	ADDE R11, R1
+-	MOVD R0, R4
+-	ADDE R4, R4             // save CF
+-	NEG  R4, R4
+-	MOVD R5, 0(R2)(R10*1)
+-	MOVD R6, 8(R2)(R10*1)
+-	MOVD R7, 16(R2)(R10*1)
+-	MOVD R1, 24(R2)(R10*1)
+-
+-	ADD $32, R10 // i += 4
+-	SUB $4, R3   // n -= 4
+-	BGE U1       // if n >= 0 goto U1
+-
+-v1:
+-	ADD $4, R3 // n += 4
+-	BLE E1     // if n <= 0 goto E1
+-
+-L1:  // n > 0
+-	ADDC R4, R4            // restore CF
+-	MOVD 0(R8)(R10*1), R5
+-	MOVD 0(R9)(R10*1), R11
+-	ADDE R11, R5
+-	MOVD R5, 0(R2)(R10*1)
+-	MOVD R0, R4
+-	ADDE R4, R4            // save CF
+-	NEG  R4, R4
+-
+-	ADD $8, R10 // i++
+-	SUB $1, R3  // n--
+-	BGT L1      // if n > 0 goto L1
+-
+-E1:
+-	NEG  R4, R4
+-	MOVD R4, c+72(FP) // return c
+-	RET
+-
+-TEXT ·addVV_novec(SB), NOSPLIT, $0
++	MOVB ·hasVX(SB), R1
++	CMPBEQ R1, $0, novec
++	JMP ·addVVvec(SB)
+ novec:
+-	MOVD z_len+8(FP), R3
+-	MOVD x+24(FP), R8
+-	MOVD y+48(FP), R9
+-	MOVD z+0(FP), R2
+-
+-	MOVD $0, R4  // c = 0
+-	MOVD $0, R0  // make sure it's zero
+-	MOVD $0, R10 // i = 0
+-
+-	// s/JL/JMP/ below to disable the unrolled loop
+-	SUB $4, R3 // n -= 4
+-	BLT v1n    // if n < 0 goto v1n
+-
+-U1n:  // n >= 0
+-	// regular loop body unrolled 4x
+-	MOVD 0(R8)(R10*1), R5
+-	MOVD 8(R8)(R10*1), R6
+-	MOVD 16(R8)(R10*1), R7
+-	MOVD 24(R8)(R10*1), R1
+-	ADDC R4, R4             // restore CF
+-	MOVD 0(R9)(R10*1), R11
+-	ADDE R11, R5
+-	MOVD 8(R9)(R10*1), R11
+-	ADDE R11, R6
+-	MOVD 16(R9)(R10*1), R11
+-	ADDE R11, R7
+-	MOVD 24(R9)(R10*1), R11
+-	ADDE R11, R1
+-	MOVD R0, R4
+-	ADDE R4, R4             // save CF
+-	NEG  R4, R4
+-	MOVD R5, 0(R2)(R10*1)
+-	MOVD R6, 8(R2)(R10*1)
+-	MOVD R7, 16(R2)(R10*1)
+-	MOVD R1, 24(R2)(R10*1)
+-
+-	ADD $32, R10 // i += 4
+-	SUB $4, R3   // n -= 4
+-	BGE U1n      // if n >= 0 goto U1n
+-
+-v1n:
+-	ADD $4, R3 // n += 4
+-	BLE E1n    // if n <= 0 goto E1n
+-
+-L1n:  // n > 0
+-	ADDC R4, R4            // restore CF
+-	MOVD 0(R8)(R10*1), R5
+-	MOVD 0(R9)(R10*1), R11
+-	ADDE R11, R5
+-	MOVD R5, 0(R2)(R10*1)
+-	MOVD R0, R4
+-	ADDE R4, R4            // save CF
+-	NEG  R4, R4
+-
+-	ADD $8, R10 // i++
+-	SUB $1, R3  // n--
+-	BGT L1n     // if n > 0 goto L1n
+-
+-E1n:
+-	NEG  R4, R4
+-	MOVD R4, c+72(FP) // return c
++	MOVD $0, R0
++	MOVD z_len+8(FP), R1
++	MOVD x_base+24(FP), R2
++	MOVD y_base+48(FP), R3
++	MOVD z_base+0(FP), R4
++	// compute unrolled loop lengths
++	MOVD R1, R5
++	AND $3, R5
++	SRD $2, R1
++	ADDC R0, R1	// clear carry
++loop1:
++	CMPBEQ R5, $0, loop1done
++loop1cont:
++	// unroll 1X
++	MOVD 0(R2), R6
++	MOVD 0(R3), R7
++	ADDE R7, R6
++	MOVD R6, 0(R4)
++	LAY 8(R2), R2	// ADD $8, R2
++	LAY 8(R3), R3	// ADD $8, R3
++	LAY 8(R4), R4	// ADD $8, R4
++	LAY -1(R5), R5	// ADD $-1, R5
++	CMPBNE R5, $0, loop1cont
++loop1done:
++loop4:
++	CMPBEQ R1, $0, loop4done
++loop4cont:
++	// unroll 4X in batches of 2
++	MOVD 0(R2), R5
++	MOVD 8(R2), R6
++	MOVD 0(R3), R7
++	MOVD 8(R3), R8
++	ADDE R7, R5
++	ADDE R8, R6
++	MOVD R5, 0(R4)
++	MOVD R6, 8(R4)
++	MOVD 16(R2), R5
++	MOVD 24(R2), R6
++	MOVD 16(R3), R7
++	MOVD 24(R3), R8
++	ADDE R7, R5
++	ADDE R8, R6
++	MOVD R5, 16(R4)
++	MOVD R6, 24(R4)
++	LAY 32(R2), R2	// ADD $32, R2
++	LAY 32(R3), R3	// ADD $32, R3
++	LAY 32(R4), R4	// ADD $32, R4
++	LAY -1(R1), R1	// ADD $-1, R1
++	CMPBNE R1, $0, loop4cont
++loop4done:
++	ADDE R0, R0, R2	// save & convert add carry
++	MOVD R2, c+72(FP)
+ 	RET
+ 
+-TEXT ·subVV(SB), NOSPLIT, $0
+-	MOVD subvectorfacility+0x00(SB), R1
+-	BR   (R1)
+-
+-TEXT ·subVV_check(SB), NOSPLIT, $0
+-	MOVB   ·hasVX(SB), R1
+-	CMPBEQ R1, $1, vectorimpl              // vectorfacility = 1, vector supported
+-	MOVD   $subvectorfacility+0x00(SB), R1
+-	MOVD   $·subVV_novec(SB), R2
+-	MOVD   R2, 0(R1)
+-
+-	// MOVD	$·subVV_novec(SB), 0(R1)
+-	BR ·subVV_novec(SB)
+-
+-vectorimpl:
+-	MOVD $subvectorfacility+0x00(SB), R1
+-	MOVD $·subVV_vec(SB), R2
+-	MOVD R2, 0(R1)
+-
+-	// MOVD	$·subVV_vec(SB), 0(R1)
+-	BR ·subVV_vec(SB)
+-
+-GLOBL subvectorfacility+0x00(SB), NOPTR, $8
+-DATA subvectorfacility+0x00(SB)/8, $·subVV_check(SB)
+-
+-// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+ // func subVV(z, x, y []Word) (c Word)
+-// (same as addVV except for SUBC/SUBE instead of ADDC/ADDE and label names)
+-TEXT ·subVV_vec(SB), NOSPLIT, $0
+-	MOVD z_len+8(FP), R3
+-	MOVD x+24(FP), R8
+-	MOVD y+48(FP), R9
+-	MOVD z+0(FP), R2
+-	MOVD $0, R4          // c = 0
+-	MOVD $0, R0          // make sure it's zero
+-	MOVD $0, R10         // i = 0
+-
+-	// s/JL/JMP/ below to disable the unrolled loop
+-	SUB $4, R3  // n -= 4
+-	BLT v1      // if n < 0 goto v1
+-	SUB $12, R3 // n -= 16
+-	BLT A1      // if n < 0 goto A1
+-
+-	MOVD R8, R5
+-	MOVD R9, R6
+-	MOVD R2, R7
+-
+-	// n >= 0
+-	// regular loop body unrolled 16x
+-	VZERO V0         // cf = 0
+-	MOVD  $1, R4     // for 390 subtraction cf starts as 1 (no borrow)
+-	VLVGG $1, R4, V0 // put carry into V0
+-
+-UU1:
+-	VLM  0(R5), V1, V4    // 64-bytes into V1..V8
+-	ADD  $64, R5
+-	VPDI $0x4, V1, V1, V1 // flip the doublewords to big-endian order
+-	VPDI $0x4, V2, V2, V2 // flip the doublewords to big-endian order
+-
+-	VLM  0(R6), V9, V12      // 64-bytes into V9..V16
+-	ADD  $64, R6
+-	VPDI $0x4, V9, V9, V9    // flip the doublewords to big-endian order
+-	VPDI $0x4, V10, V10, V10 // flip the doublewords to big-endian order
+-
+-	VSBCBIQ V1, V9, V0, V25
+-	VSBIQ   V1, V9, V0, V17
+-	VSBCBIQ V2, V10, V25, V26
+-	VSBIQ   V2, V10, V25, V18
+-
+-	VLM 0(R5), V5, V6   // 32-bytes into V1..V8
+-	VLM 0(R6), V13, V14 // 32-bytes into V9..V16
+-	ADD $32, R5
+-	ADD $32, R6
+-
+-	VPDI $0x4, V3, V3, V3    // flip the doublewords to big-endian order
+-	VPDI $0x4, V4, V4, V4    // flip the doublewords to big-endian order
+-	VPDI $0x4, V11, V11, V11 // flip the doublewords to big-endian order
+-	VPDI $0x4, V12, V12, V12 // flip the doublewords to big-endian order
+-
+-	VSBCBIQ V3, V11, V26, V27
+-	VSBIQ   V3, V11, V26, V19
+-	VSBCBIQ V4, V12, V27, V28
+-	VSBIQ   V4, V12, V27, V20
+-
+-	VLM 0(R5), V7, V8   // 32-bytes into V1..V8
+-	VLM 0(R6), V15, V16 // 32-bytes into V9..V16
+-	ADD $32, R5
+-	ADD $32, R6
+-
+-	VPDI $0x4, V5, V5, V5    // flip the doublewords to big-endian order
+-	VPDI $0x4, V6, V6, V6    // flip the doublewords to big-endian order
+-	VPDI $0x4, V13, V13, V13 // flip the doublewords to big-endian order
+-	VPDI $0x4, V14, V14, V14 // flip the doublewords to big-endian order
+-
+-	VSBCBIQ V5, V13, V28, V29
+-	VSBIQ   V5, V13, V28, V21
+-	VSBCBIQ V6, V14, V29, V30
+-	VSBIQ   V6, V14, V29, V22
+-
+-	VPDI $0x4, V7, V7, V7    // flip the doublewords to big-endian order
+-	VPDI $0x4, V8, V8, V8    // flip the doublewords to big-endian order
+-	VPDI $0x4, V15, V15, V15 // flip the doublewords to big-endian order
+-	VPDI $0x4, V16, V16, V16 // flip the doublewords to big-endian order
+-
+-	VSBCBIQ V7, V15, V30, V31
+-	VSBIQ   V7, V15, V30, V23
+-	VSBCBIQ V8, V16, V31, V0  // V0 has carry-over
+-	VSBIQ   V8, V16, V31, V24
+-
+-	VPDI  $0x4, V17, V17, V17 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V18, V18, V18 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V19, V19, V19 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V20, V20, V20 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V21, V21, V21 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V22, V22, V22 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V23, V23, V23 // flip the doublewords to big-endian order
+-	VPDI  $0x4, V24, V24, V24 // flip the doublewords to big-endian order
+-	VSTM  V17, V24, 0(R7)     // 128-bytes into z
+-	ADD   $128, R7
+-	ADD   $128, R10           // i += 16
+-	SUB   $16, R3             // n -= 16
+-	BGE   UU1                 // if n >= 0 goto U1
+-	VLGVG $1, V0, R4          // put cf into R4
+-	SUB   $1, R4              // save cf
+-
+-A1:
+-	ADD $12, R3 // n += 16
+-	BLT v1      // if n < 0 goto v1
+-
+-U1:  // n >= 0
+-	// regular loop body unrolled 4x
+-	MOVD 0(R8)(R10*1), R5
+-	MOVD 8(R8)(R10*1), R6
+-	MOVD 16(R8)(R10*1), R7
+-	MOVD 24(R8)(R10*1), R1
+-	MOVD R0, R11
+-	SUBC R4, R11            // restore CF
+-	MOVD 0(R9)(R10*1), R11
+-	SUBE R11, R5
+-	MOVD 8(R9)(R10*1), R11
+-	SUBE R11, R6
+-	MOVD 16(R9)(R10*1), R11
+-	SUBE R11, R7
+-	MOVD 24(R9)(R10*1), R11
+-	SUBE R11, R1
+-	MOVD R0, R4
+-	SUBE R4, R4             // save CF
+-	MOVD R5, 0(R2)(R10*1)
+-	MOVD R6, 8(R2)(R10*1)
+-	MOVD R7, 16(R2)(R10*1)
+-	MOVD R1, 24(R2)(R10*1)
+-
+-	ADD $32, R10 // i += 4
+-	SUB $4, R3   // n -= 4
+-	BGE U1       // if n >= 0 goto U1n
+-
+-v1:
+-	ADD $4, R3 // n += 4
+-	BLE E1     // if n <= 0 goto E1
+-
+-L1:  // n > 0
+-	MOVD R0, R11
+-	SUBC R4, R11           // restore CF
+-	MOVD 0(R8)(R10*1), R5
+-	MOVD 0(R9)(R10*1), R11
+-	SUBE R11, R5
+-	MOVD R5, 0(R2)(R10*1)
+-	MOVD R0, R4
+-	SUBE R4, R4            // save CF
+-
+-	ADD $8, R10 // i++
+-	SUB $1, R3  // n--
+-	BGT L1      // if n > 0 goto L1n
+-
+-E1:
+-	NEG  R4, R4
+-	MOVD R4, c+72(FP) // return c
+-	RET
+-
+-// DI = R3, CX = R4, SI = r10, r8 = r8, r9=r9, r10 = r2, r11 = r5, r12 = r6, r13 = r7, r14 = r1 (R0 set to 0) + use R11
+-// func subVV(z, x, y []Word) (c Word)
+-// (same as addVV except for SUBC/SUBE instead of ADDC/ADDE and label names)
+-TEXT ·subVV_novec(SB), NOSPLIT, $0
+-	MOVD z_len+8(FP), R3
+-	MOVD x+24(FP), R8
+-	MOVD y+48(FP), R9
+-	MOVD z+0(FP), R2
+-
+-	MOVD $0, R4  // c = 0
+-	MOVD $0, R0  // make sure it's zero
+-	MOVD $0, R10 // i = 0
+-
+-	// s/JL/JMP/ below to disable the unrolled loop
+-	SUB $4, R3 // n -= 4
+-	BLT v1     // if n < 0 goto v1
+-
+-U1:  // n >= 0
+-	// regular loop body unrolled 4x
+-	MOVD 0(R8)(R10*1), R5
+-	MOVD 8(R8)(R10*1), R6
+-	MOVD 16(R8)(R10*1), R7
+-	MOVD 24(R8)(R10*1), R1
+-	MOVD R0, R11
+-	SUBC R4, R11            // restore CF
+-	MOVD 0(R9)(R10*1), R11
+-	SUBE R11, R5
+-	MOVD 8(R9)(R10*1), R11
+-	SUBE R11, R6
+-	MOVD 16(R9)(R10*1), R11
+-	SUBE R11, R7
+-	MOVD 24(R9)(R10*1), R11
+-	SUBE R11, R1
+-	MOVD R0, R4
+-	SUBE R4, R4             // save CF
+-	MOVD R5, 0(R2)(R10*1)
+-	MOVD R6, 8(R2)(R10*1)
+-	MOVD R7, 16(R2)(R10*1)
+-	MOVD R1, 24(R2)(R10*1)
+-
+-	ADD $32, R10 // i += 4
+-	SUB $4, R3   // n -= 4
+-	BGE U1       // if n >= 0 goto U1
+-
+-v1:
+-	ADD $4, R3 // n += 4
+-	BLE E1     // if n <= 0 goto E1
+-
+-L1:  // n > 0
+-	MOVD R0, R11
+-	SUBC R4, R11           // restore CF
+-	MOVD 0(R8)(R10*1), R5
+-	MOVD 0(R9)(R10*1), R11
+-	SUBE R11, R5
+-	MOVD R5, 0(R2)(R10*1)
+-	MOVD R0, R4
+-	SUBE R4, R4            // save CF
+-
+-	ADD $8, R10 // i++
+-	SUB $1, R3  // n--
+-	BGT L1      // if n > 0 goto L1
+-
+-E1:
+-	NEG  R4, R4
+-	MOVD R4, c+72(FP) // return c
++TEXT ·subVV(SB), NOSPLIT, $0
++	MOVB ·hasVX(SB), R1
++	CMPBEQ R1, $0, novec
++	JMP ·subVVvec(SB)
++novec:
++	MOVD $0, R0
++	MOVD z_len+8(FP), R1
++	MOVD x_base+24(FP), R2
++	MOVD y_base+48(FP), R3
++	MOVD z_base+0(FP), R4
++	// compute unrolled loop lengths
++	MOVD R1, R5
++	AND $3, R5
++	SRD $2, R1
++	SUBC R0, R1	// clear carry
++loop1:
++	CMPBEQ R5, $0, loop1done
++loop1cont:
++	// unroll 1X
++	MOVD 0(R2), R6
++	MOVD 0(R3), R7
++	SUBE R7, R6
++	MOVD R6, 0(R4)
++	LAY 8(R2), R2	// ADD $8, R2
++	LAY 8(R3), R3	// ADD $8, R3
++	LAY 8(R4), R4	// ADD $8, R4
++	LAY -1(R5), R5	// ADD $-1, R5
++	CMPBNE R5, $0, loop1cont
++loop1done:
++loop4:
++	CMPBEQ R1, $0, loop4done
++loop4cont:
++	// unroll 4X in batches of 2
++	MOVD 0(R2), R5
++	MOVD 8(R2), R6
++	MOVD 0(R3), R7
++	MOVD 8(R3), R8
++	SUBE R7, R5
++	SUBE R8, R6
++	MOVD R5, 0(R4)
++	MOVD R6, 8(R4)
++	MOVD 16(R2), R5
++	MOVD 24(R2), R6
++	MOVD 16(R3), R7
++	MOVD 24(R3), R8
++	SUBE R7, R5
++	SUBE R8, R6
++	MOVD R5, 16(R4)
++	MOVD R6, 24(R4)
++	LAY 32(R2), R2	// ADD $32, R2
++	LAY 32(R3), R3	// ADD $32, R3
++	LAY 32(R4), R4	// ADD $32, R4
++	LAY -1(R1), R1	// ADD $-1, R1
++	CMPBNE R1, $0, loop4cont
++loop4done:
++	SUBE R2, R2	// save carry
++	NEG R2	// convert sub carry
++	MOVD R2, c+72(FP)
+ 	RET
+ 
+ // func lshVU(z, x []Word, s uint) (c Word)
+ TEXT ·lshVU(SB), NOSPLIT, $0
+-	BR ·lshVU_g(SB)
++	MOVD $0, R0
++	MOVD z_len+8(FP), R1
++	CMPBEQ R1, $0, ret0
++	MOVD s+48(FP), R2
++	MOVD x_base+24(FP), R3
++	MOVD z_base+0(FP), R4
++	// run loop backward
++	SLD $3, R1, R5
++	LAY (R5)(R3), R3	// ADD R5, R3
++	SLD $3, R1, R5
++	LAY (R5)(R4), R4	// ADD R5, R4
++	// shift first word into carry
++	MOVD -8(R3), R5
++	MOVD $64, R6
++	SUBC R2, R6
++	SRD R6, R5, R7
++	SLD R2, R5
++	MOVD R7, c+56(FP)
++	// shift remaining words
++	SUBC $1, R1
++	// compute unrolled loop lengths
++	MOVD R1, R7
++	AND $3, R7
++	SRD $2, R1
++loop1:
++	CMPBEQ R7, $0, loop1done
++loop1cont:
++	// unroll 1X
++	MOVD -16(R3), R8
++	SRD R6, R8, R9
++	OR R5, R9
++	SLD R2, R8, R5
++	MOVD R9, -8(R4)
++	LAY -8(R3), R3	// ADD $-8, R3
++	LAY -8(R4), R4	// ADD $-8, R4
++	LAY -1(R7), R7	// ADD $-1, R7
++	CMPBNE R7, $0, loop1cont
++loop1done:
++loop4:
++	CMPBEQ R1, $0, loop4done
++loop4cont:
++	// unroll 4X in batches of 2
++	MOVD -16(R3), R7
++	MOVD -24(R3), R8
++	SRD R6, R7, R9
++	OR R5, R9
++	SLD R2, R7, R5
++	SRD R6, R8, R7
++	OR R5, R7
++	SLD R2, R8, R5
++	MOVD R9, -8(R4)
++	MOVD R7, -16(R4)
++	MOVD -32(R3), R7
++	MOVD -40(R3), R8
++	SRD R6, R7, R9
++	OR R5, R9
++	SLD R2, R7, R5
++	SRD R6, R8, R7
++	OR R5, R7
++	SLD R2, R8, R5
++	MOVD R9, -24(R4)
++	MOVD R7, -32(R4)
++	LAY -32(R3), R3	// ADD $-32, R3
++	LAY -32(R4), R4	// ADD $-32, R4
++	LAY -1(R1), R1	// ADD $-1, R1
++	CMPBNE R1, $0, loop4cont
++loop4done:
++	// store final shifted bits
++	MOVD R5, -8(R4)
++	RET
++ret0:
++	MOVD R0, c+56(FP)
++	RET
+ 
+ // func rshVU(z, x []Word, s uint) (c Word)
+ TEXT ·rshVU(SB), NOSPLIT, $0
+-	BR ·rshVU_g(SB)
++	MOVD $0, R0
++	MOVD z_len+8(FP), R1
++	CMPBEQ R1, $0, ret0
++	MOVD s+48(FP), R2
++	MOVD x_base+24(FP), R3
++	MOVD z_base+0(FP), R4
++	// shift first word into carry
++	MOVD 0(R3), R5
++	MOVD $64, R6
++	SUBC R2, R6
++	SLD R6, R5, R7
++	SRD R2, R5
++	MOVD R7, c+56(FP)
++	// shift remaining words
++	SUBC $1, R1
++	// compute unrolled loop lengths
++	MOVD R1, R7
++	AND $3, R7
++	SRD $2, R1
++loop1:
++	CMPBEQ R7, $0, loop1done
++loop1cont:
++	// unroll 1X
++	MOVD 8(R3), R8
++	SLD R6, R8, R9
++	OR R5, R9
++	SRD R2, R8, R5
++	MOVD R9, 0(R4)
++	LAY 8(R3), R3	// ADD $8, R3
++	LAY 8(R4), R4	// ADD $8, R4
++	LAY -1(R7), R7	// ADD $-1, R7
++	CMPBNE R7, $0, loop1cont
++loop1done:
++loop4:
++	CMPBEQ R1, $0, loop4done
++loop4cont:
++	// unroll 4X in batches of 2
++	MOVD 8(R3), R7
++	MOVD 16(R3), R8
++	SLD R6, R7, R9
++	OR R5, R9
++	SRD R2, R7, R5
++	SLD R6, R8, R7
++	OR R5, R7
++	SRD R2, R8, R5
++	MOVD R9, 0(R4)
++	MOVD R7, 8(R4)
++	MOVD 24(R3), R7
++	MOVD 32(R3), R8
++	SLD R6, R7, R9
++	OR R5, R9
++	SRD R2, R7, R5
++	SLD R6, R8, R7
++	OR R5, R7
++	SRD R2, R8, R5
++	MOVD R9, 16(R4)
++	MOVD R7, 24(R4)
++	LAY 32(R3), R3	// ADD $32, R3
++	LAY 32(R4), R4	// ADD $32, R4
++	LAY -1(R1), R1	// ADD $-1, R1
++	CMPBNE R1, $0, loop4cont
++loop4done:
++	// store final shifted bits
++	MOVD R5, 0(R4)
++	RET
++ret0:
++	MOVD R0, c+56(FP)
++	RET
+ 
+-// CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, DX = r3, AX = r6, BX = R1, (R0 set to 0) + use R11 + use R7 for i
+ // func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ TEXT ·mulAddVWW(SB), NOSPLIT, $0
+-	MOVD z+0(FP), R2
+-	MOVD x+24(FP), R8
+-	MOVD m+48(FP), R9
+-	MOVD a+56(FP), R4    // c = a
+-	MOVD z_len+8(FP), R5
+-	MOVD $0, R1          // i = 0
+-	MOVD $0, R7          // i*8 = 0
+-	MOVD $0, R0          // make sure it's zero
+-	BR   E5
+-
+-L5:
+-	MOVD   (R8)(R1*1), R6
+-	MULHDU R9, R6
+-	ADDC   R4, R11         // add to low order bits
+-	ADDE   R0, R6
+-	MOVD   R11, (R2)(R1*1)
+-	MOVD   R6, R4
+-	ADD    $8, R1          // i*8 + 8
+-	ADD    $1, R7          // i++
+-
+-E5:
+-	CMPBLT R7, R5, L5 // i < n
+-
+-	MOVD R4, c+64(FP)
++	MOVD $0, R0
++	MOVD m+48(FP), R1
++	MOVD a+56(FP), R2
++	MOVD z_len+8(FP), R3
++	MOVD x_base+24(FP), R4
++	MOVD z_base+0(FP), R5
++	// compute unrolled loop lengths
++	MOVD R3, R6
++	AND $3, R6
++	SRD $2, R3
++loop1:
++	CMPBEQ R6, $0, loop1done
++loop1cont:
++	// unroll 1X in batches of 1
++	MOVD 0(R4), R11
++	// multiply
++	MLGR R1, R10
++	ADDC R2, R11
++	ADDE R0, R10, R2
++	MOVD R11, 0(R5)
++	LAY 8(R4), R4	// ADD $8, R4
++	LAY 8(R5), R5	// ADD $8, R5
++	LAY -1(R6), R6	// ADD $-1, R6
++	CMPBNE R6, $0, loop1cont
++loop1done:
++loop4:
++	CMPBEQ R3, $0, loop4done
++loop4cont:
++	// unroll 4X in batches of 1
++	MOVD 0(R4), R11
++	// multiply
++	MLGR R1, R10
++	ADDC R2, R11
++	ADDE R0, R10, R2
++	MOVD R11, 0(R5)
++	MOVD 8(R4), R11
++	// multiply
++	MLGR R1, R10
++	ADDC R2, R11
++	ADDE R0, R10, R2
++	MOVD R11, 8(R5)
++	MOVD 16(R4), R11
++	// multiply
++	MLGR R1, R10
++	ADDC R2, R11
++	ADDE R0, R10, R2
++	MOVD R11, 16(R5)
++	MOVD 24(R4), R11
++	// multiply
++	MLGR R1, R10
++	ADDC R2, R11
++	ADDE R0, R10, R2
++	MOVD R11, 24(R5)
++	LAY 32(R4), R4	// ADD $32, R4
++	LAY 32(R5), R5	// ADD $32, R5
++	LAY -1(R3), R3	// ADD $-1, R3
++	CMPBNE R3, $0, loop4cont
++loop4done:
++	MOVD R2, c+64(FP)
+ 	RET
+ 
+ // func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+-// CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, AX = r11, DX = R6, r12=r12, BX = R1, (R0 set to 0) + use R11 + use R7 for i
+ TEXT ·addMulVVWW(SB), NOSPLIT, $0
+-	MOVD z+0(FP), R3
+-	MOVD x+24(FP), R2
+-	MOVD y+48(FP), R8
+-	MOVD m+72(FP), R9
+-	MOVD z_len+8(FP), R5
+-
+-	MOVD $0, R1 // i*8 = 0
+-	MOVD $0, R7 // i = 0
+-	MOVD $0, R0 // make sure it's zero
+-	MOVD a+80(FP), R4 // c = 0
+-
+-	MOVD   R5, R12
+-	AND    $-2, R12
+-	CMPBGE R5, $2, A6
+-	BR     E6
+-
+-A6:
+-	MOVD   (R8)(R1*1), R6
+-	MULHDU R9, R6
+-	MOVD   (R2)(R1*1), R10
+-	ADDC   R10, R11        // add to low order bits
+-	ADDE   R0, R6
+-	ADDC   R4, R11
+-	ADDE   R0, R6
+-	MOVD   R6, R4
+-	MOVD   R11, (R3)(R1*1)
+-
+-	MOVD   (8)(R8)(R1*1), R6
+-	MULHDU R9, R6
+-	MOVD   (8)(R2)(R1*1), R10
+-	ADDC   R10, R11           // add to low order bits
+-	ADDE   R0, R6
+-	ADDC   R4, R11
+-	ADDE   R0, R6
+-	MOVD   R6, R4
+-	MOVD   R11, (8)(R3)(R1*1)
+-
+-	ADD $16, R1 // i*8 + 8
+-	ADD $2, R7  // i++
+-
+-	CMPBLT R7, R12, A6
+-	BR     E6
+-
+-L6:
+-	MOVD   (R8)(R1*1), R6
+-	MULHDU R9, R6
+-	MOVD   (R2)(R1*1), R10
+-	ADDC   R10, R11        // add to low order bits
+-	ADDE   R0, R6
+-	ADDC   R4, R11
+-	ADDE   R0, R6
+-	MOVD   R6, R4
+-	MOVD   R11, (R3)(R1*1)
+-
+-	ADD $8, R1 // i*8 + 8
+-	ADD $1, R7 // i++
+-
+-E6:
+-	CMPBLT R7, R5, L6 // i < n
+-
+-	MOVD R4, c+88(FP)
++	MOVD $0, R0
++	MOVD m+72(FP), R1
++	MOVD a+80(FP), R2
++	MOVD z_len+8(FP), R3
++	MOVD x_base+24(FP), R4
++	MOVD y_base+48(FP), R5
++	MOVD z_base+0(FP), R6
++	// compute unrolled loop lengths
++	MOVD R3, R7
++	AND $3, R7
++	SRD $2, R3
++loop1:
++	CMPBEQ R7, $0, loop1done
++loop1cont:
++	// unroll 1X in batches of 1
++	MOVD 0(R4), R8
++	MOVD 0(R5), R11
++	// multiply
++	MLGR R1, R10
++	ADDC R2, R11
++	ADDE R0, R10, R2
++	// add
++	ADDC R8, R11
++	ADDE R0, R2
++	MOVD R11, 0(R6)
++	LAY 8(R4), R4	// ADD $8, R4
++	LAY 8(R5), R5	// ADD $8, R5
++	LAY 8(R6), R6	// ADD $8, R6
++	LAY -1(R7), R7	// ADD $-1, R7
++	CMPBNE R7, $0, loop1cont
++loop1done:
++loop4:
++	CMPBEQ R3, $0, loop4done
++loop4cont:
++	// unroll 4X in batches of 1
++	MOVD 0(R4), R7
++	MOVD 0(R5), R11
++	// multiply
++	MLGR R1, R10
++	ADDC R2, R11
++	ADDE R0, R10, R2
++	// add
++	ADDC R7, R11
++	ADDE R0, R2
++	MOVD R11, 0(R6)
++	MOVD 8(R4), R7
++	MOVD 8(R5), R11
++	// multiply
++	MLGR R1, R10
++	ADDC R2, R11
++	ADDE R0, R10, R2
++	// add
++	ADDC R7, R11
++	ADDE R0, R2
++	MOVD R11, 8(R6)
++	MOVD 16(R4), R7
++	MOVD 16(R5), R11
++	// multiply
++	MLGR R1, R10
++	ADDC R2, R11
++	ADDE R0, R10, R2
++	// add
++	ADDC R7, R11
++	ADDE R0, R2
++	MOVD R11, 16(R6)
++	MOVD 24(R4), R7
++	MOVD 24(R5), R11
++	// multiply
++	MLGR R1, R10
++	ADDC R2, R11
++	ADDE R0, R10, R2
++	// add
++	ADDC R7, R11
++	ADDE R0, R2
++	MOVD R11, 24(R6)
++	LAY 32(R4), R4	// ADD $32, R4
++	LAY 32(R5), R5	// ADD $32, R5
++	LAY 32(R6), R6	// ADD $32, R6
++	LAY -1(R3), R3	// ADD $-1, R3
++	CMPBNE R3, $0, loop4cont
++loop4done:
++	MOVD R2, c+88(FP)
+ 	RET
+-
+diff --git a/src/math/big/arith_s390x_test.go b/src/math/big/arith_s390x_test.go
+index 1ec05c33ea..9db2fd4101 100644
+--- a/src/math/big/arith_s390x_test.go
++++ b/src/math/big/arith_s390x_test.go
+@@ -2,14 +2,18 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build s390x && !math_big_pure_go
++//go:build !math_big_pure_go
+ 
+ package big
+ 
+ import "testing"
+ 
+-func TestNoVec(t *testing.T) {
+-	// Make sure non-vector versions match vector versions.
+-	t.Run("AddVV", func(t *testing.T) { testVV(t, "addVV_novec", addVV_novec, addVV) })
+-	t.Run("SubVV", func(t *testing.T) { testVV(t, "subVV_novec", subVV_novec, subVV) })
++func TestAddVVNoVec(t *testing.T) {
++	setDuringTest(t, &hasVX, false)
++	TestAddVV(t)
++}
++
++func TestSubVVNoVec(t *testing.T) {
++	setDuringTest(t, &hasVX, false)
++	TestSubVV(t)
+ }
+diff --git a/src/math/big/arith_decl_s390x.go b/src/math/big/arithvec_s390x.go
+similarity index 50%
+rename from src/math/big/arith_decl_s390x.go
+rename to src/math/big/arithvec_s390x.go
+index 6539166878..d1703596c2 100644
+--- a/src/math/big/arith_decl_s390x.go
++++ b/src/math/big/arithvec_s390x.go
+@@ -8,11 +8,7 @@ package big
+ 
+ import "internal/cpu"
+ 
+-func addVV_check(z, x, y []Word) (c Word)
+-func addVV_vec(z, x, y []Word) (c Word)
+-func addVV_novec(z, x, y []Word) (c Word)
+-func subVV_check(z, x, y []Word) (c Word)
+-func subVV_vec(z, x, y []Word) (c Word)
+-func subVV_novec(z, x, y []Word) (c Word)
+-
+ var hasVX = cpu.S390X.HasVX
++
++func addVVvec(z, x, y []Word) (c Word)
++func subVVvec(z, x, y []Word) (c Word)
+diff --git a/src/math/big/arithvec_s390x.s b/src/math/big/arithvec_s390x.s
+new file mode 100644
+index 0000000000..3ea51fde1e
+--- /dev/null
++++ b/src/math/big/arithvec_s390x.s
+@@ -0,0 +1,310 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !math_big_pure_go
++
++#include "textflag.h"
++
++TEXT ·addVVvec(SB), NOSPLIT, $0
++	MOVD z_len+8(FP), R3
++	MOVD x+24(FP), R8
++	MOVD y+48(FP), R9
++	MOVD z+0(FP), R2
++
++	MOVD $0, R4  // c = 0
++	MOVD $0, R0  // make sure it's zero
++	MOVD $0, R10 // i = 0
++
++	// s/JL/JMP/ below to disable the unrolled loop
++	SUB $4, R3
++	BLT v1
++	SUB $12, R3 // n -= 16
++	BLT A1      // if n < 0 goto A1
++
++	MOVD R8, R5
++	MOVD R9, R6
++	MOVD R2, R7
++
++	// n >= 0
++	// regular loop body unrolled 16x
++	VZERO V0 // c = 0
++
++UU1:
++	VLM  0(R5), V1, V4    // 64-bytes into V1..V8
++	ADD  $64, R5
++	VPDI $0x4, V1, V1, V1 // flip the doublewords to big-endian order
++	VPDI $0x4, V2, V2, V2 // flip the doublewords to big-endian order
++
++	VLM  0(R6), V9, V12      // 64-bytes into V9..V16
++	ADD  $64, R6
++	VPDI $0x4, V9, V9, V9    // flip the doublewords to big-endian order
++	VPDI $0x4, V10, V10, V10 // flip the doublewords to big-endian order
++
++	VACCCQ V1, V9, V0, V25
++	VACQ   V1, V9, V0, V17
++	VACCCQ V2, V10, V25, V26
++	VACQ   V2, V10, V25, V18
++
++	VLM 0(R5), V5, V6   // 32-bytes into V1..V8
++	VLM 0(R6), V13, V14 // 32-bytes into V9..V16
++	ADD $32, R5
++	ADD $32, R6
++
++	VPDI $0x4, V3, V3, V3    // flip the doublewords to big-endian order
++	VPDI $0x4, V4, V4, V4    // flip the doublewords to big-endian order
++	VPDI $0x4, V11, V11, V11 // flip the doublewords to big-endian order
++	VPDI $0x4, V12, V12, V12 // flip the doublewords to big-endian order
++
++	VACCCQ V3, V11, V26, V27
++	VACQ   V3, V11, V26, V19
++	VACCCQ V4, V12, V27, V28
++	VACQ   V4, V12, V27, V20
++
++	VLM 0(R5), V7, V8   // 32-bytes into V1..V8
++	VLM 0(R6), V15, V16 // 32-bytes into V9..V16
++	ADD $32, R5
++	ADD $32, R6
++
++	VPDI $0x4, V5, V5, V5    // flip the doublewords to big-endian order
++	VPDI $0x4, V6, V6, V6    // flip the doublewords to big-endian order
++	VPDI $0x4, V13, V13, V13 // flip the doublewords to big-endian order
++	VPDI $0x4, V14, V14, V14 // flip the doublewords to big-endian order
++
++	VACCCQ V5, V13, V28, V29
++	VACQ   V5, V13, V28, V21
++	VACCCQ V6, V14, V29, V30
++	VACQ   V6, V14, V29, V22
++
++	VPDI $0x4, V7, V7, V7    // flip the doublewords to big-endian order
++	VPDI $0x4, V8, V8, V8    // flip the doublewords to big-endian order
++	VPDI $0x4, V15, V15, V15 // flip the doublewords to big-endian order
++	VPDI $0x4, V16, V16, V16 // flip the doublewords to big-endian order
++
++	VACCCQ V7, V15, V30, V31
++	VACQ   V7, V15, V30, V23
++	VACCCQ V8, V16, V31, V0  // V0 has carry-over
++	VACQ   V8, V16, V31, V24
++
++	VPDI  $0x4, V17, V17, V17 // flip the doublewords to big-endian order
++	VPDI  $0x4, V18, V18, V18 // flip the doublewords to big-endian order
++	VPDI  $0x4, V19, V19, V19 // flip the doublewords to big-endian order
++	VPDI  $0x4, V20, V20, V20 // flip the doublewords to big-endian order
++	VPDI  $0x4, V21, V21, V21 // flip the doublewords to big-endian order
++	VPDI  $0x4, V22, V22, V22 // flip the doublewords to big-endian order
++	VPDI  $0x4, V23, V23, V23 // flip the doublewords to big-endian order
++	VPDI  $0x4, V24, V24, V24 // flip the doublewords to big-endian order
++	VSTM  V17, V24, 0(R7)     // 128-bytes into z
++	ADD   $128, R7
++	ADD   $128, R10           // i += 16
++	SUB   $16, R3             // n -= 16
++	BGE   UU1                 // if n >= 0 goto U1
++	VLGVG $1, V0, R4          // put cf into R4
++	NEG   R4, R4              // save cf
++
++A1:
++	ADD $12, R3 // n += 16
++
++	// s/JL/JMP/ below to disable the unrolled loop
++	BLT v1 // if n < 0 goto v1
++
++U1:  // n >= 0
++	// regular loop body unrolled 4x
++	MOVD 0(R8)(R10*1), R5
++	MOVD 8(R8)(R10*1), R6
++	MOVD 16(R8)(R10*1), R7
++	MOVD 24(R8)(R10*1), R1
++	ADDC R4, R4             // restore CF
++	MOVD 0(R9)(R10*1), R11
++	ADDE R11, R5
++	MOVD 8(R9)(R10*1), R11
++	ADDE R11, R6
++	MOVD 16(R9)(R10*1), R11
++	ADDE R11, R7
++	MOVD 24(R9)(R10*1), R11
++	ADDE R11, R1
++	MOVD R0, R4
++	ADDE R4, R4             // save CF
++	NEG  R4, R4
++	MOVD R5, 0(R2)(R10*1)
++	MOVD R6, 8(R2)(R10*1)
++	MOVD R7, 16(R2)(R10*1)
++	MOVD R1, 24(R2)(R10*1)
++
++	ADD $32, R10 // i += 4
++	SUB $4, R3   // n -= 4
++	BGE U1       // if n >= 0 goto U1
++
++v1:
++	ADD $4, R3 // n += 4
++	BLE E1     // if n <= 0 goto E1
++
++L1:  // n > 0
++	ADDC R4, R4            // restore CF
++	MOVD 0(R8)(R10*1), R5
++	MOVD 0(R9)(R10*1), R11
++	ADDE R11, R5
++	MOVD R5, 0(R2)(R10*1)
++	MOVD R0, R4
++	ADDE R4, R4            // save CF
++	NEG  R4, R4
++
++	ADD $8, R10 // i++
++	SUB $1, R3  // n--
++	BGT L1      // if n > 0 goto L1
++
++E1:
++	NEG  R4, R4
++	MOVD R4, c+72(FP) // return c
++	RET
++
++TEXT ·subVVvec(SB), NOSPLIT, $0
++	MOVD z_len+8(FP), R3
++	MOVD x+24(FP), R8
++	MOVD y+48(FP), R9
++	MOVD z+0(FP), R2
++	MOVD $0, R4          // c = 0
++	MOVD $0, R0          // make sure it's zero
++	MOVD $0, R10         // i = 0
++
++	// s/JL/JMP/ below to disable the unrolled loop
++	SUB $4, R3  // n -= 4
++	BLT v1      // if n < 0 goto v1
++	SUB $12, R3 // n -= 16
++	BLT A1      // if n < 0 goto A1
++
++	MOVD R8, R5
++	MOVD R9, R6
++	MOVD R2, R7
++
++	// n >= 0
++	// regular loop body unrolled 16x
++	VZERO V0         // cf = 0
++	MOVD  $1, R4     // for 390 subtraction cf starts as 1 (no borrow)
++	VLVGG $1, R4, V0 // put carry into V0
++
++UU1:
++	VLM  0(R5), V1, V4    // 64-bytes into V1..V8
++	ADD  $64, R5
++	VPDI $0x4, V1, V1, V1 // flip the doublewords to big-endian order
++	VPDI $0x4, V2, V2, V2 // flip the doublewords to big-endian order
++
++	VLM  0(R6), V9, V12      // 64-bytes into V9..V16
++	ADD  $64, R6
++	VPDI $0x4, V9, V9, V9    // flip the doublewords to big-endian order
++	VPDI $0x4, V10, V10, V10 // flip the doublewords to big-endian order
++
++	VSBCBIQ V1, V9, V0, V25
++	VSBIQ   V1, V9, V0, V17
++	VSBCBIQ V2, V10, V25, V26
++	VSBIQ   V2, V10, V25, V18
++
++	VLM 0(R5), V5, V6   // 32-bytes into V1..V8
++	VLM 0(R6), V13, V14 // 32-bytes into V9..V16
++	ADD $32, R5
++	ADD $32, R6
++
++	VPDI $0x4, V3, V3, V3    // flip the doublewords to big-endian order
++	VPDI $0x4, V4, V4, V4    // flip the doublewords to big-endian order
++	VPDI $0x4, V11, V11, V11 // flip the doublewords to big-endian order
++	VPDI $0x4, V12, V12, V12 // flip the doublewords to big-endian order
++
++	VSBCBIQ V3, V11, V26, V27
++	VSBIQ   V3, V11, V26, V19
++	VSBCBIQ V4, V12, V27, V28
++	VSBIQ   V4, V12, V27, V20
++
++	VLM 0(R5), V7, V8   // 32-bytes into V1..V8
++	VLM 0(R6), V15, V16 // 32-bytes into V9..V16
++	ADD $32, R5
++	ADD $32, R6
++
++	VPDI $0x4, V5, V5, V5    // flip the doublewords to big-endian order
++	VPDI $0x4, V6, V6, V6    // flip the doublewords to big-endian order
++	VPDI $0x4, V13, V13, V13 // flip the doublewords to big-endian order
++	VPDI $0x4, V14, V14, V14 // flip the doublewords to big-endian order
++
++	VSBCBIQ V5, V13, V28, V29
++	VSBIQ   V5, V13, V28, V21
++	VSBCBIQ V6, V14, V29, V30
++	VSBIQ   V6, V14, V29, V22
++
++	VPDI $0x4, V7, V7, V7    // flip the doublewords to big-endian order
++	VPDI $0x4, V8, V8, V8    // flip the doublewords to big-endian order
++	VPDI $0x4, V15, V15, V15 // flip the doublewords to big-endian order
++	VPDI $0x4, V16, V16, V16 // flip the doublewords to big-endian order
++
++	VSBCBIQ V7, V15, V30, V31
++	VSBIQ   V7, V15, V30, V23
++	VSBCBIQ V8, V16, V31, V0  // V0 has carry-over
++	VSBIQ   V8, V16, V31, V24
++
++	VPDI  $0x4, V17, V17, V17 // flip the doublewords to big-endian order
++	VPDI  $0x4, V18, V18, V18 // flip the doublewords to big-endian order
++	VPDI  $0x4, V19, V19, V19 // flip the doublewords to big-endian order
++	VPDI  $0x4, V20, V20, V20 // flip the doublewords to big-endian order
++	VPDI  $0x4, V21, V21, V21 // flip the doublewords to big-endian order
++	VPDI  $0x4, V22, V22, V22 // flip the doublewords to big-endian order
++	VPDI  $0x4, V23, V23, V23 // flip the doublewords to big-endian order
++	VPDI  $0x4, V24, V24, V24 // flip the doublewords to big-endian order
++	VSTM  V17, V24, 0(R7)     // 128-bytes into z
++	ADD   $128, R7
++	ADD   $128, R10           // i += 16
++	SUB   $16, R3             // n -= 16
++	BGE   UU1                 // if n >= 0 goto U1
++	VLGVG $1, V0, R4          // put cf into R4
++	SUB   $1, R4              // save cf
++
++A1:
++	ADD $12, R3 // n += 16
++	BLT v1      // if n < 0 goto v1
++
++U1:  // n >= 0
++	// regular loop body unrolled 4x
++	MOVD 0(R8)(R10*1), R5
++	MOVD 8(R8)(R10*1), R6
++	MOVD 16(R8)(R10*1), R7
++	MOVD 24(R8)(R10*1), R1
++	MOVD R0, R11
++	SUBC R4, R11            // restore CF
++	MOVD 0(R9)(R10*1), R11
++	SUBE R11, R5
++	MOVD 8(R9)(R10*1), R11
++	SUBE R11, R6
++	MOVD 16(R9)(R10*1), R11
++	SUBE R11, R7
++	MOVD 24(R9)(R10*1), R11
++	SUBE R11, R1
++	MOVD R0, R4
++	SUBE R4, R4             // save CF
++	MOVD R5, 0(R2)(R10*1)
++	MOVD R6, 8(R2)(R10*1)
++	MOVD R7, 16(R2)(R10*1)
++	MOVD R1, 24(R2)(R10*1)
++
++	ADD $32, R10 // i += 4
++	SUB $4, R3   // n -= 4
++	BGE U1       // if n >= 0 goto U1n
++
++v1:
++	ADD $4, R3 // n += 4
++	BLE E1     // if n <= 0 goto E1
++
++L1:  // n > 0
++	MOVD R0, R11
++	SUBC R4, R11           // restore CF
++	MOVD 0(R8)(R10*1), R5
++	MOVD 0(R9)(R10*1), R11
++	SUBE R11, R5
++	MOVD R5, 0(R2)(R10*1)
++	MOVD R0, R4
++	SUBE R4, R4            // save CF
++
++	ADD $8, R10 // i++
++	SUB $1, R3  // n--
++	BGT L1      // if n > 0 goto L1n
++
++E1:
++	NEG  R4, R4
++	MOVD R4, c+72(FP) // return c
++	RET
+diff --git a/src/math/big/internal/asmgen/main_test.go b/src/math/big/internal/asmgen/main_test.go
+index ab203d31b9..adb0e0d4e8 100644
+--- a/src/math/big/internal/asmgen/main_test.go
++++ b/src/math/big/internal/asmgen/main_test.go
+@@ -15,7 +15,6 @@ import (
+ var generateFlag = flag.Bool("generate", false, "generate files")
+ 
+ func Test(t *testing.T) {
+-	t.Skip("assembly not yet installed")
+ 	for _, arch := range arches {
+ 		t.Run(arch.Name, func(t *testing.T) {
+ 			file, data := generate(arch)

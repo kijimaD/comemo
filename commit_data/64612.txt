@@ -1,0 +1,100 @@
+commit 5de9811f37a802028754f7010ff31b98e05009ca
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Aug 25 21:06:49 2024 +0700
+
+    cmd/compile: deprecate derived info needed field
+    
+    This field is unused since shape-based stenciling was added for Unified
+    IR (CL 421821). The derived types information is now explicitly using
+    derived-type dictionaries (CL 331829).
+    
+    This CL follows the pattern used in CL 606035.
+    
+    Updates #68778
+    
+    Change-Id: Ie784b6443c0a651854bfbcebb8a5166b1481408b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/608216
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Tim King <taking@google.com>
+---
+ src/cmd/compile/internal/importer/ureader.go | 5 ++++-
+ src/cmd/compile/internal/noder/reader.go     | 5 ++++-
+ src/cmd/compile/internal/noder/writer.go     | 7 ++++---
+ src/go/internal/gcimporter/ureader.go        | 5 ++++-
+ 4 files changed, 16 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/ureader.go b/src/cmd/compile/internal/importer/ureader.go
+index 5f14eb695e..9a85764fee 100644
+--- a/src/cmd/compile/internal/importer/ureader.go
++++ b/src/cmd/compile/internal/importer/ureader.go
+@@ -483,7 +483,10 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
+ 		dict.derived = make([]derivedInfo, r.Len())
+ 		dict.derivedTypes = make([]types2.Type, len(dict.derived))
+ 		for i := range dict.derived {
+-			dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
++			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.RelocType)}
++			if r.Version().Has(pkgbits.DerivedInfoNeeded) {
++				assert(!r.Bool())
++			}
+ 		}
+ 
+ 		pr.retireReader(r)
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 33fb7d35e1..98ae60d51e 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -984,7 +984,10 @@ func (pr *pkgReader) objDictIdx(sym *types.Sym, idx index, implicits, explicits
+ 	dict.derived = make([]derivedInfo, r.Len())
+ 	dict.derivedTypes = make([]*types.Type, len(dict.derived))
+ 	for i := range dict.derived {
+-		dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
++		dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.RelocType)}
++		if r.Version().Has(pkgbits.DerivedInfoNeeded) {
++			assert(!r.Bool())
++		}
+ 	}
+ 
+ 	// Runtime dictionary information; private to the compiler.
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index ecc03cbd83..695fdcceea 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -236,8 +236,7 @@ func (dict *writerDict) typeParamIndex(typ *types2.TypeParam) int {
+ 
+ // A derivedInfo represents a reference to an encoded generic Go type.
+ type derivedInfo struct {
+-	idx    index
+-	needed bool // TODO(mdempsky): Remove.
++	idx index
+ }
+ 
+ // A typeInfo represents a reference to an encoded Go type.
+@@ -915,7 +914,9 @@ func (w *writer) objDict(obj types2.Object, dict *writerDict) {
+ 	w.Len(nderived)
+ 	for _, typ := range dict.derived {
+ 		w.Reloc(pkgbits.RelocType, typ.idx)
+-		w.Bool(typ.needed)
++		if w.Version().Has(pkgbits.DerivedInfoNeeded) {
++			w.Bool(false)
++		}
+ 	}
+ 
+ 	// Write runtime dictionary information.
+diff --git a/src/go/internal/gcimporter/ureader.go b/src/go/internal/gcimporter/ureader.go
+index b763ff5cca..88f27641c9 100644
+--- a/src/go/internal/gcimporter/ureader.go
++++ b/src/go/internal/gcimporter/ureader.go
+@@ -575,7 +575,10 @@ func (pr *pkgReader) objDictIdx(idx pkgbits.Index) *readerDict {
+ 		dict.derived = make([]derivedInfo, r.Len())
+ 		dict.derivedTypes = make([]types.Type, len(dict.derived))
+ 		for i := range dict.derived {
+-			dict.derived[i] = derivedInfo{r.Reloc(pkgbits.RelocType), r.Bool()}
++			dict.derived[i] = derivedInfo{idx: r.Reloc(pkgbits.RelocType)}
++			if r.Version().Has(pkgbits.DerivedInfoNeeded) {
++				assert(!r.Bool())
++			}
+ 		}
+ 
+ 		pr.retireReader(r)

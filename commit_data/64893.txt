@@ -1,0 +1,99 @@
+commit 03fecda02bf7e2907c608a3a096184a203b967f3
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 24 10:57:49 2024 -0700
+
+    go/types, types2: follow-up on comment in CL 615195
+    
+    Restate deferred call for readability.
+    
+    Change-Id: I3725535b18fa4f1887e6c1976f8784e092b8f965
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615535
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/check_test.go  | 7 +++----
+ src/cmd/compile/internal/types2/object_test.go | 3 ++-
+ src/go/types/check_test.go                     | 7 +++----
+ src/go/types/object_test.go                    | 3 ++-
+ 4 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 8f537f9120..35bbcec5c5 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -182,7 +182,8 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, colDelta uin
+ 	}
+ 
+ 	if goexperiment != "" {
+-		defer setGOEXPERIMENT(goexperiment)()
++		revert := setGOEXPERIMENT(goexperiment)
++		defer revert()
+ 	}
+ 
+ 	// By default, gotypesalias is not set.
+@@ -329,9 +330,7 @@ func setGOEXPERIMENT(goexperiment string) func() {
+ 	}
+ 	old := buildcfg.Experiment
+ 	buildcfg.Experiment = *exp
+-	return func() {
+-		buildcfg.Experiment = old
+-	}
++	return func() { buildcfg.Experiment = old }
+ }
+ 
+ // TestManual is for manual testing of a package - either provided
+diff --git a/src/cmd/compile/internal/types2/object_test.go b/src/cmd/compile/internal/types2/object_test.go
+index 429f463bf7..955fa351a4 100644
+--- a/src/cmd/compile/internal/types2/object_test.go
++++ b/src/cmd/compile/internal/types2/object_test.go
+@@ -115,7 +115,8 @@ func TestObjectString(t *testing.T) {
+ 	for i, test := range testObjects {
+ 		t.Run(fmt.Sprint(i), func(t *testing.T) {
+ 			if test.alias {
+-				defer setGOEXPERIMENT("aliastypeparams")()
++				revert := setGOEXPERIMENT("aliastypeparams")
++				defer revert()
+ 			}
+ 			src := "package p; " + test.src
+ 			conf := Config{Error: func(error) {}, Importer: defaultImporter(), EnableAlias: test.alias}
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index be55616974..a10d0147da 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -197,7 +197,8 @@ func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool,
+ 	}
+ 
+ 	if goexperiment != "" {
+-		defer setGOEXPERIMENT(goexperiment)()
++		revert := setGOEXPERIMENT(goexperiment)
++		defer revert()
+ 	}
+ 
+ 	// By default, gotypesalias is not set.
+@@ -357,9 +358,7 @@ func setGOEXPERIMENT(goexperiment string) func() {
+ 	}
+ 	old := buildcfg.Experiment
+ 	buildcfg.Experiment = *exp
+-	return func() {
+-		buildcfg.Experiment = old
+-	}
++	return func() { buildcfg.Experiment = old }
+ }
+ 
+ // TestManual is for manual testing of a package - either provided
+diff --git a/src/go/types/object_test.go b/src/go/types/object_test.go
+index 1a3f223e09..704d4128ba 100644
+--- a/src/go/types/object_test.go
++++ b/src/go/types/object_test.go
+@@ -115,7 +115,8 @@ func TestObjectString(t *testing.T) {
+ 	for i, test := range testObjects {
+ 		t.Run(fmt.Sprint(i), func(t *testing.T) {
+ 			if test.alias {
+-				defer setGOEXPERIMENT("aliastypeparams")()
++				revert := setGOEXPERIMENT("aliastypeparams")
++				defer revert()
+ 				t.Setenv("GODEBUG", "gotypesalias=1")
+ 			}
+ 

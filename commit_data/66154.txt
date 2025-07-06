@@ -1,0 +1,114 @@
+commit 11c642c2d33ebc5a76c2579d81b24c2d0e10e38f
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Tue Jan 14 14:56:20 2025 -0500
+
+    crypto/internal/fips140test: add OneStepNoCounter ACVP tests
+    
+    Adds ACVP test coverage for the SP 800-56Crev2 IG D.P KDA
+    OneStepNoCounter mode algorithm based on the NIST spec:
+    
+      https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-onestepnocounter.html
+    
+    Coverage is added for all SHA2 and SHA3 HMACs.
+    
+    Updates #69642
+    
+    Change-Id: I337bf824a71fce6c796a1440b7f08c4f5413d92f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648435
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+---
+ .../internal/fips140test/acvp_capabilities.json    |  1 +
+ src/crypto/internal/fips140test/acvp_test.go       | 45 +++++++++++++++++++++-
+ 2 files changed, 44 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/fips140test/acvp_capabilities.json b/src/crypto/internal/fips140test/acvp_capabilities.json
+index 90e77ec8fa..c715779370 100644
+--- a/src/crypto/internal/fips140test/acvp_capabilities.json
++++ b/src/crypto/internal/fips140test/acvp_capabilities.json
+@@ -27,6 +27,7 @@
+   {"algorithm":"HMAC-SHA3-512","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":512,"min":32}],"revision":"1.0"},
+ 
+   {"algorithm":"KDA","mode":"HKDF","revision":"Sp800-56Cr1","fixedInfoPattern":"uPartyInfo||vPartyInfo","encoding":["concatenation"],"hmacAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"],"macSaltMethods":["default","random"],"l":2048,"z":[{"min":224,"max":65336,"increment":8}]},
++  {"algorithm":"KDA","mode":"OneStepNoCounter","revision":"Sp800-56Cr2","auxFunctions":[{"auxFunctionName":"HMAC-SHA2-224","l":224,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA2-256","l":256,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA2-384","l":384,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA2-512","l":512,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA2-512/224","l":224,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA2-512/256","l":256,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA3-224","l":224,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA3-256","l":256,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA3-384","l":384,"macSaltMethods":["default","random"]},{"auxFunctionName":"HMAC-SHA3-512","l":512,"macSaltMethods":["default","random"]}],"fixedInfoPattern":"uPartyInfo||vPartyInfo","encoding":["concatenation"],"z":[{"min":224,"max":65336,"increment":8}]},
+ 
+   {"algorithm":"PBKDF","capabilities":[{"iterationCount":[{"min":1,"max":10000,"increment":1}],"keyLen":[{"min":112,"max":4096,"increment":8}],"passwordLen":[{"min":8,"max":64,"increment":1}],"saltLen":[{"min":128,"max":512,"increment":8}],"hmacAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}],"revision":"1.0"},
+ 
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index 5d16e521f9..697bfd0608 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -121,6 +121,8 @@ var (
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-symmetric.html#section-7.3
+ 	// HKDF KDA algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-hkdf.html#section-7.3
++	// OneStepNoCounter KDA algorithm capabilities:
++	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-onestepnocounter.html#section-7.2
+ 	// TLS 1.2 KDF algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html#section-7.2
+ 	// TLS 1.3 KDF algorithm capabilities:
+@@ -294,6 +296,17 @@ var (
+ 
+ 		"KDF-counter":  cmdKdfCounterAft(),
+ 		"KDF-feedback": cmdKdfFeedbackAft(),
++
++		"OneStepNoCounter/HMAC-SHA2-224":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha256.New224() }),
++		"OneStepNoCounter/HMAC-SHA2-256":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha256.New() }),
++		"OneStepNoCounter/HMAC-SHA2-384":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha512.New384() }),
++		"OneStepNoCounter/HMAC-SHA2-512":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha512.New() }),
++		"OneStepNoCounter/HMAC-SHA2-512/224": cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha512.New512_224() }),
++		"OneStepNoCounter/HMAC-SHA2-512/256": cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha512.New512_256() }),
++		"OneStepNoCounter/HMAC-SHA3-224":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New224() }),
++		"OneStepNoCounter/HMAC-SHA3-256":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New256() }),
++		"OneStepNoCounter/HMAC-SHA3-384":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New384() }),
++		"OneStepNoCounter/HMAC-SHA3-512":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New512() }),
+ 	}
+ )
+ 
+@@ -1829,14 +1842,42 @@ func getRSAKey(bits int) (*rsa.PrivateKey, error) {
+ 	return key, nil
+ }
+ 
++func cmdOneStepNoCounterHmacAft(h func() fips140.Hash) command {
++	return command{
++		requiredArgs: 4, // key, info, salt, outBytes
++		handler: func(args [][]byte) ([][]byte, error) {
++			key := args[0]
++			info := args[1]
++			salt := args[2]
++			outBytes := binary.LittleEndian.Uint32(args[3])
++
++			mac := hmac.New(h, salt)
++			mac.Size()
++
++			if outBytes != uint32(mac.Size()) {
++				return nil, fmt.Errorf("invalid output length: got %d, want %d", outBytes, mac.Size())
++			}
++
++			data := make([]byte, 0, len(key)+len(info))
++			data = append(data, key...)
++			data = append(data, info...)
++
++			mac.Write(data)
++			out := mac.Sum(nil)
++
++			return [][]byte{out}, nil
++		},
++	}
++}
++
+ func TestACVP(t *testing.T) {
+ 	testenv.SkipIfShortAndSlow(t)
+ 
+ 	const (
+ 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
+-		bsslVersion   = "v0.0.0-20250123161947-ba24bde161f7"
++		bsslVersion   = "v0.0.0-20250207174145-0bb19f6126cb"
+ 		goAcvpModule  = "github.com/cpu/go-acvp"
+-		goAcvpVersion = "v0.0.0-20250110181646-e47fea3b5d7d"
++		goAcvpVersion = "v0.0.0-20250117180340-0406d83a4b0d"
+ 	)
+ 
+ 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"

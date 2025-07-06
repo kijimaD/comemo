@@ -1,0 +1,194 @@
+commit 0da7fafac4eabec799df40278f68ba86b574afea
+Author: Jesse Rittner <rittneje@gmail.com>
+Date:   Sat Jan 25 16:21:53 2025 -0500
+
+    net: fix ListenMulitcastUDP to work properly when interface has no IPv4
+    
+    The existing implementation would either fail or bind to the wrong interface
+    when the requested interface had no IPv4 address, such as when the Ethernet cable
+    was unplugged.
+    
+    Now on Linux, it will always bind to the requested interface.
+    On other operating systems, it will consistently fail if the requested interface
+    has no IPv4 address.
+    
+    Fixes #70132
+    
+    Change-Id: I22ec7f9d4adaa4b5afb21fc448050fb4219cacee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644375
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/net/sockopt_posix.go                           | 30 -------------
+ .../{sockoptip_bsdvar.go => sockoptip4_bsdvar.go}  |  0
+ .../{sockoptip_linux.go => sockoptip4_linux.go}    | 10 +++++
+ src/net/sockoptip4_posix_nonlinux.go               | 52 ++++++++++++++++++++++
+ ...{sockoptip_windows.go => sockoptip4_windows.go} |  0
+ .../{sockoptip_posix.go => sockoptip6_posix.go}    | 10 -----
+ 6 files changed, 62 insertions(+), 40 deletions(-)
+
+diff --git a/src/net/sockopt_posix.go b/src/net/sockopt_posix.go
+index a380c7719b..2452f06b0a 100644
+--- a/src/net/sockopt_posix.go
++++ b/src/net/sockopt_posix.go
+@@ -7,7 +7,6 @@
+ package net
+ 
+ import (
+-	"internal/bytealg"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -43,35 +42,6 @@ func interfaceToIPv4Addr(ifi *Interface) (IP, error) {
+ 	return nil, errNoSuchInterface
+ }
+ 
+-func setIPv4MreqToInterface(mreq *syscall.IPMreq, ifi *Interface) error {
+-	if ifi == nil {
+-		return nil
+-	}
+-	ifat, err := ifi.Addrs()
+-	if err != nil {
+-		return err
+-	}
+-	for _, ifa := range ifat {
+-		switch v := ifa.(type) {
+-		case *IPAddr:
+-			if a := v.IP.To4(); a != nil {
+-				copy(mreq.Interface[:], a)
+-				goto done
+-			}
+-		case *IPNet:
+-			if a := v.IP.To4(); a != nil {
+-				copy(mreq.Interface[:], a)
+-				goto done
+-			}
+-		}
+-	}
+-done:
+-	if bytealg.Equal(mreq.Multiaddr[:], IPv4zero.To4()) {
+-		return errNoSuchMulticastInterface
+-	}
+-	return nil
+-}
+-
+ func setReadBuffer(fd *netFD, bytes int) error {
+ 	err := fd.pfd.SetsockoptInt(syscall.SOL_SOCKET, syscall.SO_RCVBUF, bytes)
+ 	runtime.KeepAlive(fd)
+diff --git a/src/net/sockoptip_bsdvar.go b/src/net/sockoptip4_bsdvar.go
+similarity index 100%
+rename from src/net/sockoptip_bsdvar.go
+rename to src/net/sockoptip4_bsdvar.go
+diff --git a/src/net/sockoptip_linux.go b/src/net/sockoptip4_linux.go
+similarity index 68%
+rename from src/net/sockoptip_linux.go
+rename to src/net/sockoptip4_linux.go
+index bd7d834425..8b953ebdc6 100644
+--- a/src/net/sockoptip_linux.go
++++ b/src/net/sockoptip4_linux.go
+@@ -9,6 +9,16 @@ import (
+ 	"syscall"
+ )
+ 
++func joinIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
++	mreq := &syscall.IPMreqn{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
++	if ifi != nil {
++		mreq.Ifindex = int32(ifi.Index)
++	}
++	err := fd.pfd.SetsockoptIPMreqn(syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq)
++	runtime.KeepAlive(fd)
++	return wrapSyscallError("setsockopt", err)
++}
++
+ func setIPv4MulticastInterface(fd *netFD, ifi *Interface) error {
+ 	var v int32
+ 	if ifi != nil {
+diff --git a/src/net/sockoptip4_posix_nonlinux.go b/src/net/sockoptip4_posix_nonlinux.go
+new file mode 100644
+index 0000000000..85e8c6dcfe
+--- /dev/null
++++ b/src/net/sockoptip4_posix_nonlinux.go
+@@ -0,0 +1,52 @@
++// Copyright 2011 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (unix && !linux) || windows
++
++package net
++
++import (
++	"internal/bytealg"
++	"runtime"
++	"syscall"
++)
++
++func joinIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
++	mreq := &syscall.IPMreq{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
++	if err := setIPv4MreqToInterface(mreq, ifi); err != nil {
++		return err
++	}
++	err := fd.pfd.SetsockoptIPMreq(syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq)
++	runtime.KeepAlive(fd)
++	return wrapSyscallError("setsockopt", err)
++}
++
++func setIPv4MreqToInterface(mreq *syscall.IPMreq, ifi *Interface) error {
++	if ifi == nil {
++		return nil
++	}
++	ifat, err := ifi.Addrs()
++	if err != nil {
++		return err
++	}
++	for _, ifa := range ifat {
++		switch v := ifa.(type) {
++		case *IPAddr:
++			if a := v.IP.To4(); a != nil {
++				copy(mreq.Interface[:], a)
++				goto done
++			}
++		case *IPNet:
++			if a := v.IP.To4(); a != nil {
++				copy(mreq.Interface[:], a)
++				goto done
++			}
++		}
++	}
++done:
++	if bytealg.Equal(mreq.Interface[:], IPv4zero.To4()) {
++		return errNoSuchMulticastInterface
++	}
++	return nil
++}
+diff --git a/src/net/sockoptip_windows.go b/src/net/sockoptip4_windows.go
+similarity index 100%
+rename from src/net/sockoptip_windows.go
+rename to src/net/sockoptip4_windows.go
+diff --git a/src/net/sockoptip_posix.go b/src/net/sockoptip6_posix.go
+similarity index 74%
+rename from src/net/sockoptip_posix.go
+rename to src/net/sockoptip6_posix.go
+index 572ea455c0..5bbc609f7b 100644
+--- a/src/net/sockoptip_posix.go
++++ b/src/net/sockoptip6_posix.go
+@@ -11,16 +11,6 @@ import (
+ 	"syscall"
+ )
+ 
+-func joinIPv4Group(fd *netFD, ifi *Interface, ip IP) error {
+-	mreq := &syscall.IPMreq{Multiaddr: [4]byte{ip[0], ip[1], ip[2], ip[3]}}
+-	if err := setIPv4MreqToInterface(mreq, ifi); err != nil {
+-		return err
+-	}
+-	err := fd.pfd.SetsockoptIPMreq(syscall.IPPROTO_IP, syscall.IP_ADD_MEMBERSHIP, mreq)
+-	runtime.KeepAlive(fd)
+-	return wrapSyscallError("setsockopt", err)
+-}
+-
+ func setIPv6MulticastInterface(fd *netFD, ifi *Interface) error {
+ 	var v int
+ 	if ifi != nil {

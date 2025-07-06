@@ -1,0 +1,129 @@
+commit 42f9ee904caf6681ee32e7b048f15ab7cddf3eb3
+Author: Ville Vesilehto <ville@vesilehto.fi>
+Date:   Wed May 14 18:16:54 2025 +0000
+
+    text/template: limit expression parenthesis nesting
+    
+    Deeply nested parenthesized expressions could cause a stack
+    overflow during parsing. This change introduces a depth limit
+    (maxStackDepth) tracked in Tree.stackDepth to prevent this.
+    
+    Additionally, this commit clarifies the security model in
+    the package documentation, noting that template authors
+    are trusted as text/template does not auto-escape.
+    
+    Fixes #71201
+    
+    Change-Id: Iab2c2ea6c193ceb44bb2bc7554f3fccf99a9542f
+    GitHub-Last-Rev: f4ebd1719ff966ae3c6516e3fb935dfea2f5362e
+    GitHub-Pull-Request: golang/go#73670
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671755
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+---
+ src/text/template/doc.go              |  5 +++++
+ src/text/template/parse/parse.go      | 18 ++++++++++++++++++
+ src/text/template/parse/parse_test.go | 14 ++++++++++++++
+ 3 files changed, 37 insertions(+)
+
+diff --git a/src/text/template/doc.go b/src/text/template/doc.go
+index 7b63bb76ae..01b99f0e21 100644
+--- a/src/text/template/doc.go
++++ b/src/text/template/doc.go
+@@ -15,6 +15,11 @@ Execution of the template walks the structure and sets the cursor, represented
+ by a period '.' and called "dot", to the value at the current location in the
+ structure as execution proceeds.
+ 
++The security model used by this package assumes that template authors are
++trusted. The package does not auto-escape output, so injecting code into
++a template can lead to arbitrary code execution if the template is executed
++by an untrusted source.
++
+ The input text for a template is UTF-8-encoded text in any format.
+ "Actions"--data evaluations or control structures--are delimited by
+ "{{" and "}}"; all text outside actions is copied to the output unchanged.
+diff --git a/src/text/template/parse/parse.go b/src/text/template/parse/parse.go
+index 27c84f31eb..84d639d78d 100644
+--- a/src/text/template/parse/parse.go
++++ b/src/text/template/parse/parse.go
+@@ -32,6 +32,7 @@ type Tree struct {
+ 	treeSet    map[string]*Tree
+ 	actionLine int // line of left delim starting action
+ 	rangeDepth int
++	stackDepth int // depth of nested parenthesized expressions
+ }
+ 
+ // A mode value is a set of flags (or 0). Modes control parser behavior.
+@@ -42,6 +43,17 @@ const (
+ 	SkipFuncCheck                  // do not check that functions are defined
+ )
+ 
++// maxStackDepth is the maximum depth permitted for nested
++// parenthesized expressions.
++var maxStackDepth = 10000
++
++// init reduces maxStackDepth for WebAssembly due to its smaller stack size.
++func init() {
++	if runtime.GOARCH == "wasm" {
++		maxStackDepth = 1000
++	}
++}
++
+ // Copy returns a copy of the [Tree]. Any parsing state is discarded.
+ func (t *Tree) Copy() *Tree {
+ 	if t == nil {
+@@ -223,6 +235,7 @@ func (t *Tree) startParse(funcs []map[string]any, lex *lexer, treeSet map[string
+ 	t.vars = []string{"$"}
+ 	t.funcs = funcs
+ 	t.treeSet = treeSet
++	t.stackDepth = 0
+ 	lex.options = lexOptions{
+ 		emitComment: t.Mode&ParseComments != 0,
+ 		breakOK:     !t.hasFunction("break"),
+@@ -787,6 +800,11 @@ func (t *Tree) term() Node {
+ 		}
+ 		return number
+ 	case itemLeftParen:
++		if t.stackDepth >= maxStackDepth {
++			t.errorf("max expression depth exceeded")
++		}
++		t.stackDepth++
++		defer func() { t.stackDepth-- }()
+ 		return t.pipeline("parenthesized pipeline", itemRightParen)
+ 	case itemString, itemRawString:
+ 		s, err := strconv.Unquote(token.val)
+diff --git a/src/text/template/parse/parse_test.go b/src/text/template/parse/parse_test.go
+index 26aff330fe..e8e6fe9759 100644
+--- a/src/text/template/parse/parse_test.go
++++ b/src/text/template/parse/parse_test.go
+@@ -86,6 +86,11 @@ var numberTests = []numberTest{
+ 	{"0xef", true, true, true, false, 0xef, 0xef, 0xef, 0},
+ }
+ 
++func init() {
++	// Use a small stack limit for testing to avoid creating huge expressions.
++	maxStackDepth = 3
++}
++
+ func TestNumberParse(t *testing.T) {
+ 	for _, test := range numberTests {
+ 		// If fmt.Sscan thinks it's complex, it's complex. We can't trust the output
+@@ -327,6 +332,15 @@ var parseTests = []parseTest{
+ 	{"empty pipeline", `{{printf "%d" ( ) }}`, hasError, ""},
+ 	// Missing pipeline in block
+ 	{"block definition", `{{block "foo"}}hello{{end}}`, hasError, ""},
++
++	// Expression nested depth tests.
++	{"paren nesting normal", "{{ (( 1 )) }}", noError, "{{((1))}}"},
++	{"paren nesting at limit", "{{ ((( 1 ))) }}", noError, "{{(((1)))}}"},
++	{"paren nesting exceeds limit", "{{ (((( 1 )))) }}", hasError, "template: test:1: max expression depth exceeded"},
++	{"paren nesting in pipeline", "{{ ((( 1 ))) | printf }}", noError, "{{(((1))) | printf}}"},
++	{"paren nesting in pipeline exceeds limit", "{{ (((( 1 )))) | printf }}", hasError, "template: test:1: max expression depth exceeded"},
++	{"paren nesting with other constructs", "{{ if ((( true ))) }}YES{{ end }}", noError, "{{if (((true)))}}\"YES\"{{end}}"},
++	{"paren nesting with other constructs exceeds limit", "{{ if (((( true )))) }}YES{{ end }}", hasError, "template: test:1: max expression depth exceeded"},
+ }
+ 
+ var builtins = map[string]any{

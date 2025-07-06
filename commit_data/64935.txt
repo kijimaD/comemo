@@ -1,0 +1,181 @@
+commit 80316510d3b97c6dc7b6a380e18e9f41467b3c10
+Author: Robert Griesemer <gri@golang.org>
+Date:   Fri Sep 27 10:24:16 2024 -0700
+
+    go/types, types2: remove non-test uses of Scope.LookupParent
+    
+    This moves the implementation of Scope.LookupParent into
+    environment.lookupScope where it encapsulates the use of
+    the current environment's position. At least in types2,
+    that position can be removed, because it is never set.
+    
+    With this, the type checker doesn't rely on position
+    information anymore for looking up objects during type
+    checking.
+    
+    LookupParent is still called from tests and some go/types
+    code.
+    
+    Updates #69673.
+    
+    Change-Id: I7159ba95b71cf33cc3b16058aa19327e166224b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616337
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/check.go   | 21 +++++++++++++++++++--
+ src/cmd/compile/internal/types2/scope.go   |  7 ++++++-
+ src/cmd/compile/internal/types2/typexpr.go |  4 +---
+ src/go/types/check.go                      | 21 +++++++++++++++++++--
+ src/go/types/scope.go                      |  7 ++++++-
+ src/go/types/typexpr.go                    |  4 +---
+ 6 files changed, 52 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index bd52d45c99..9e77ba51df 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -67,9 +67,26 @@ type environment struct {
+ 	hasCallOrRecv bool                      // set if an expression contains a function call or channel receive operation
+ }
+ 
+-// lookup looks up name in the current environment and returns the matching object, or nil.
++// lookupScope looks up name in the current environment and if an object
++// is found it returns the scope containing the object and the object.
++// Otherwise it returns (nil, nil).
++//
++// Note that obj.Parent() may be different from the returned scope if the
++// object was inserted into the scope and already had a parent at that
++// time (see Scope.Insert). This can only happen for dot-imported objects
++// whose parent is the scope of the package that exported them.
++func (env *environment) lookupScope(name string) (*Scope, Object) {
++	for s := env.scope; s != nil; s = s.parent {
++		if obj := s.Lookup(name); obj != nil && (!env.pos.IsKnown() || cmpPos(obj.scopePos(), env.pos) <= 0) {
++			return s, obj
++		}
++	}
++	return nil, nil
++}
++
++// lookup is like lookupScope but it only returns the object (or nil).
+ func (env *environment) lookup(name string) Object {
+-	_, obj := env.scope.LookupParent(name, env.pos)
++	_, obj := env.lookupScope(name)
+ 	return obj
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/scope.go b/src/cmd/compile/internal/types2/scope.go
+index f7a16252f9..216c6f23b9 100644
+--- a/src/cmd/compile/internal/types2/scope.go
++++ b/src/cmd/compile/internal/types2/scope.go
+@@ -92,7 +92,7 @@ func (s *Scope) Lookup(name string) Object {
+ // Note that obj.Parent() may be different from the returned scope if the
+ // object was inserted into the scope and already had a parent at that
+ // time (see Insert). This can only happen for dot-imported objects
+-// whose scope is the scope of the package that exported them.
++// whose parent is the scope of the package that exported them.
+ func (s *Scope) LookupParent(name string, pos syntax.Pos) (*Scope, Object) {
+ 	for ; s != nil; s = s.parent {
+ 		if obj := s.Lookup(name); obj != nil && (!pos.IsKnown() || cmpPos(obj.scopePos(), pos) <= 0) {
+@@ -113,6 +113,11 @@ func (s *Scope) Insert(obj Object) Object {
+ 		return alt
+ 	}
+ 	s.insert(name, obj)
++	// TODO(gri) Can we always set the parent to s (or is there
++	// a need to keep the original parent or some race condition)?
++	// If we can, than we may not need environment.lookupScope
++	// which is only there so that we get the correct scope for
++	// marking "used" dot-imported packages.
+ 	if obj.Parent() == nil {
+ 		obj.setParent(s)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index 265f5b2512..61ef835c8a 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -22,9 +22,7 @@ func (check *Checker) ident(x *operand, e *syntax.Name, def *TypeName, wantType
+ 	x.mode = invalid
+ 	x.expr = e
+ 
+-	// Note that we cannot use check.lookup here because the returned scope
+-	// may be different from obj.Parent(). See also Scope.LookupParent doc.
+-	scope, obj := check.scope.LookupParent(e.Value, check.pos)
++	scope, obj := check.lookupScope(e.Value)
+ 	switch obj {
+ 	case nil:
+ 		if e.Value == "_" {
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index ceb14c0bc2..5f3c5c6792 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -83,9 +83,26 @@ type environment struct {
+ 	hasCallOrRecv bool                   // set if an expression contains a function call or channel receive operation
+ }
+ 
+-// lookup looks up name in the current environment and returns the matching object, or nil.
++// lookupScope looks up name in the current environment and if an object
++// is found it returns the scope containing the object and the object.
++// Otherwise it returns (nil, nil).
++//
++// Note that obj.Parent() may be different from the returned scope if the
++// object was inserted into the scope and already had a parent at that
++// time (see Scope.Insert). This can only happen for dot-imported objects
++// whose parent is the scope of the package that exported them.
++func (env *environment) lookupScope(name string) (*Scope, Object) {
++	for s := env.scope; s != nil; s = s.parent {
++		if obj := s.Lookup(name); obj != nil && (!env.pos.IsValid() || cmpPos(obj.scopePos(), env.pos) <= 0) {
++			return s, obj
++		}
++	}
++	return nil, nil
++}
++
++// lookup is like lookupScope but it only returns the object (or nil).
+ func (env *environment) lookup(name string) Object {
+-	_, obj := env.scope.LookupParent(name, env.pos)
++	_, obj := env.lookupScope(name)
+ 	return obj
+ }
+ 
+diff --git a/src/go/types/scope.go b/src/go/types/scope.go
+index b19a36bae1..fd2dc6f40f 100644
+--- a/src/go/types/scope.go
++++ b/src/go/types/scope.go
+@@ -95,7 +95,7 @@ func (s *Scope) Lookup(name string) Object {
+ // Note that obj.Parent() may be different from the returned scope if the
+ // object was inserted into the scope and already had a parent at that
+ // time (see Insert). This can only happen for dot-imported objects
+-// whose scope is the scope of the package that exported them.
++// whose parent is the scope of the package that exported them.
+ func (s *Scope) LookupParent(name string, pos token.Pos) (*Scope, Object) {
+ 	for ; s != nil; s = s.parent {
+ 		if obj := s.Lookup(name); obj != nil && (!pos.IsValid() || cmpPos(obj.scopePos(), pos) <= 0) {
+@@ -116,6 +116,11 @@ func (s *Scope) Insert(obj Object) Object {
+ 		return alt
+ 	}
+ 	s.insert(name, obj)
++	// TODO(gri) Can we always set the parent to s (or is there
++	// a need to keep the original parent or some race condition)?
++	// If we can, than we may not need environment.lookupScope
++	// which is only there so that we get the correct scope for
++	// marking "used" dot-imported packages.
+ 	if obj.Parent() == nil {
+ 		obj.setParent(s)
+ 	}
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index aa2d782563..c8514603b4 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -23,9 +23,7 @@ func (check *Checker) ident(x *operand, e *ast.Ident, def *TypeName, wantType bo
+ 	x.mode = invalid
+ 	x.expr = e
+ 
+-	// Note that we cannot use check.lookup here because the returned scope
+-	// may be different from obj.Parent(). See also Scope.LookupParent doc.
+-	scope, obj := check.scope.LookupParent(e.Name, check.pos)
++	scope, obj := check.lookupScope(e.Name)
+ 	switch obj {
+ 	case nil:
+ 		if e.Name == "_" {

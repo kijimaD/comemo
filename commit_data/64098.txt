@@ -1,0 +1,66 @@
+commit d06c9b4ea14c75a01a8a967fff67ca50b0589e75
+Author: Than McIntosh <thanm@google.com>
+Date:   Wed Jun 12 19:58:36 2024 +0000
+
+    cmd/go: fix "go test -n -cover" glitch with no-test packages
+    
+    Invoking "go test -n -cover ./..." on a collection of packages that
+    includes at least one package with code but no tests can result in
+    spurious error of the form
+    
+      my/package: open $WORK/b112/covmeta.b07a5f2dff1231cae3a6bdd70c8cc7c19da16abf8ac59747d8e9859c03594d37: no such file or directory
+    
+    This patch fixes this issue by ensuring that we stub out some of the
+    meta-data file handling for no-test packages if "-n" is in effect.
+    
+    Fixes #67952.
+    
+    Change-Id: Ic6160c275abdec5e5b8beecc6a59accb2b8cfe7d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592201
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/work/cover.go           |  3 +++
+ src/cmd/go/testdata/script/list_n_cover.txt | 20 ++++++++++++++++++++
+ 2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/cover.go b/src/cmd/go/internal/work/cover.go
+index c0acc61987..3b732569a8 100644
+--- a/src/cmd/go/internal/work/cover.go
++++ b/src/cmd/go/internal/work/cover.go
+@@ -44,6 +44,9 @@ func BuildActionCoverMetaFile(runAct *Action) (string, error) {
+ 		}
+ 		if pred.Package.ImportPath == p.ImportPath {
+ 			metaFile := pred.Objdir + covcmd.MetaFileForPackage(p.ImportPath)
++			if cfg.BuildN {
++				return metaFile, nil
++			}
+ 			f, err := os.Open(metaFile)
+ 			if err != nil {
+ 				return "", err
+diff --git a/src/cmd/go/testdata/script/list_n_cover.txt b/src/cmd/go/testdata/script/list_n_cover.txt
+new file mode 100644
+index 0000000000..a85f62f522
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_n_cover.txt
+@@ -0,0 +1,20 @@
++# Adding -cover to "go test -n" should not cause failures,
++# see issue 67952. In the regular (no "-n") case for an
++# empty package test action for the package will look for
++# a static meta-data file produced by the cover tool
++# during the build action; when "-n" is in effect that
++# meta-data file doesn't exist, so the code that reads
++# the meta-data file has to be stubbed out.
++
++go test -vet=off -n -cover ./f
++
++-- go.mod --
++module M
++
++go 1.21
++-- f/f.go --
++package f
++
++func Id() int {
++     return 42
++}

@@ -1,0 +1,63 @@
+commit 99253ea4f49eb96a6448e0af88bcad523efe0c61
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 8 12:51:28 2024 -0800
+
+    cmd/internal/goobj: regenerate builtinlist
+    
+    CL 622042 added rand as a compiler builtin, but did not update builtinlist.
+    
+    Also update the mkbuiltin comment to refer to the current file location,
+    and add a comment for runtime.rand that it is called from the compiler.
+    
+    For #54766
+    
+    Change-Id: I99d2c0bb0658da333775afe2ed0447265c845c82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626755
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+---
+ src/cmd/internal/goobj/builtinlist.go | 1 +
+ src/cmd/internal/goobj/mkbuiltin.go   | 2 +-
+ src/runtime/rand.go                   | 2 ++
+ 3 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/goobj/builtinlist.go b/src/cmd/internal/goobj/builtinlist.go
+index f091d77622..4e097b1199 100644
+--- a/src/cmd/internal/goobj/builtinlist.go
++++ b/src/cmd/internal/goobj/builtinlist.go
+@@ -88,6 +88,7 @@ var builtins = [...]struct {
+ 	{"runtime.efaceeq", 1},
+ 	{"runtime.panicrangestate", 1},
+ 	{"runtime.deferrangefunc", 1},
++	{"runtime.rand", 1},
+ 	{"runtime.rand32", 1},
+ 	{"runtime.makemap64", 1},
+ 	{"runtime.makemap", 1},
+diff --git a/src/cmd/internal/goobj/mkbuiltin.go b/src/cmd/internal/goobj/mkbuiltin.go
+index 5ddf0e7d9a..9a6ad8c8c1 100644
+--- a/src/cmd/internal/goobj/mkbuiltin.go
++++ b/src/cmd/internal/goobj/mkbuiltin.go
+@@ -4,7 +4,7 @@
+ 
+ //go:build ignore
+ 
+-// Generate builtinlist.go from cmd/compile/internal/typecheck/builtin/runtime.go.
++// Generate builtinlist.go from cmd/compile/internal/typecheck/_builtin/runtime.go.
+ 
+ package main
+ 
+diff --git a/src/runtime/rand.go b/src/runtime/rand.go
+index 0d1d2fe5ba..ba343af624 100644
+--- a/src/runtime/rand.go
++++ b/src/runtime/rand.go
+@@ -151,6 +151,8 @@ func rand32() uint32 {
+ }
+ 
+ // rand returns a random uint64 from the per-m chacha8 state.
++// This is called from compiler-generated code.
++//
+ // Do not change signature: used via linkname from other packages.
+ //
+ //go:nosplit

@@ -1,0 +1,91 @@
+commit b59b0580a164478877a684ff3c347a15b03b14fe
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Mar 18 16:33:22 2025 -0700
+
+    os: don't wrap os.Getgroups error in tests
+    
+    The error returned is an os.PathError which already provides enough
+    context.
+    
+    Change-Id: Ib9391c00afc56bca673b8086d5dc19cf9b99b285
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658957
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/os/os_unix_test.go   | 6 +++---
+ src/os/root_unix_test.go | 8 ++++----
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/os_unix_test.go b/src/os/os_unix_test.go
+index 7e7281955b..41feaf77e2 100644
+--- a/src/os/os_unix_test.go
++++ b/src/os/os_unix_test.go
+@@ -64,7 +64,7 @@ func TestChown(t *testing.T) {
+ 	// Then try all the auxiliary groups.
+ 	groups, err := Getgroups()
+ 	if err != nil {
+-		t.Fatalf("getgroups: %s", err)
++		t.Fatal(err)
+ 	}
+ 	t.Log("groups: ", groups)
+ 	for _, g := range groups {
+@@ -112,7 +112,7 @@ func TestFileChown(t *testing.T) {
+ 	// Then try all the auxiliary groups.
+ 	groups, err := Getgroups()
+ 	if err != nil {
+-		t.Fatalf("getgroups: %s", err)
++		t.Fatal(err)
+ 	}
+ 	t.Log("groups: ", groups)
+ 	for _, g := range groups {
+@@ -170,7 +170,7 @@ func TestLchown(t *testing.T) {
+ 	// Then try all the auxiliary groups.
+ 	groups, err := Getgroups()
+ 	if err != nil {
+-		t.Fatalf("getgroups: %s", err)
++		t.Fatal(err)
+ 	}
+ 	t.Log("groups: ", groups)
+ 	for _, g := range groups {
+diff --git a/src/os/root_unix_test.go b/src/os/root_unix_test.go
+index 0562af1f5e..b4b37c2be9 100644
+--- a/src/os/root_unix_test.go
++++ b/src/os/root_unix_test.go
+@@ -30,7 +30,7 @@ func TestRootChown(t *testing.T) {
+ 
+ 	groups, err := os.Getgroups()
+ 	if err != nil {
+-		t.Fatalf("getgroups: %v", err)
++		t.Fatal(err)
+ 	}
+ 	groups = append(groups, os.Getgid())
+ 	for _, test := range rootTestCases {
+@@ -66,7 +66,7 @@ func TestRootLchown(t *testing.T) {
+ 
+ 	groups, err := os.Getgroups()
+ 	if err != nil {
+-		t.Fatalf("getgroups: %v", err)
++		t.Fatal(err)
+ 	}
+ 	groups = append(groups, os.Getgid())
+ 	for _, test := range rootTestCases {
+@@ -97,7 +97,7 @@ func TestRootConsistencyChown(t *testing.T) {
+ 	}
+ 	groups, err := os.Getgroups()
+ 	if err != nil {
+-		t.Fatalf("getgroups: %v", err)
++		t.Fatal(err)
+ 	}
+ 	var gid int
+ 	if len(groups) == 0 {
+@@ -133,7 +133,7 @@ func TestRootConsistencyLchown(t *testing.T) {
+ 	}
+ 	groups, err := os.Getgroups()
+ 	if err != nil {
+-		t.Fatalf("getgroups: %v", err)
++		t.Fatal(err)
+ 	}
+ 	var gid int
+ 	if len(groups) == 0 {

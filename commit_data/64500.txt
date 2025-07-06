@@ -1,0 +1,26 @@
+commit 6885bad7dd86880be6929c02085e5c7a67ff2887
+Author: Gopher Robot <gobot@golang.org>
+Date:   Tue Aug 13 15:39:36 2024 +0000
+
+    [release-branch.go1.23] go1.23.0
+    
+    Change-Id: I2b0514157b85ca61f9f6b8931df6ac874598a045
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605215
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index 93d84a73a6..d184425f0c 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.23rc2
+-time 2024-07-16T00:27:32Z
++go1.23.0
++time 2024-08-07T19:21:44Z

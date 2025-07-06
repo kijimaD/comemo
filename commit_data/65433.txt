@@ -1,0 +1,93 @@
+commit bcdaac63965473ce315681a7af7e169b741a01e1
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Nov 8 15:48:33 2024 -0800
+
+    runtime: fix MapCycle test
+    
+    It wasn't actually testing what it says it was testing.
+    A random permutation isn't cyclic. It only probably hits a few
+    elements before entering a cycle.
+    Use an algorithm that generates a random cyclic permutation instead.
+    
+    Fixing the test makes the previous CL look less good. But it still helps.
+    
+    (Theory: Fixing the test makes it less cache friendly, so there are
+    more misses all around. That makes the benchmark slower, suppressing
+    the differences seen. Also fixing the benchmark makes the loop
+    iteration count less predictable, which hurts the raw loop
+    implementation somewhat.)
+    
+    (baseline = tip, experiment = tip+previous CL, noswiss = GOEXPERIMENT=noswissmap)
+    
+    goos: darwin
+    goarch: arm64
+    pkg: runtime
+    cpu: Apple M2 Ultra
+                │  baseline   │             experiment             │
+                │   sec/op    │   sec/op     vs base               │
+    MapCycle-24   20.59n ± 4%   18.99n ± 3%  -7.77% (p=0.000 n=10)
+    khr@Mac-Studio src % benchstat noswiss experiment
+    goos: darwin
+    goarch: arm64
+    pkg: runtime
+    cpu: Apple M2 Ultra
+                │   noswiss   │             experiment              │
+                │   sec/op    │   sec/op     vs base                │
+    MapCycle-24   16.12n ± 1%   18.99n ± 3%  +17.83% (p=0.000 n=10)
+    
+    Change-Id: I3a4edb814ba97fec020a6698c535ce3a87a9fc67
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625900
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/runtime/map_benchmark_test.go | 31 ++++++++++++++++++++++++++++++-
+ 1 file changed, 30 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index 46720dd279..43c8f0bb61 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -258,12 +258,41 @@ func BenchmarkMapLast(b *testing.B) {
+ 	}
+ }
+ 
++func cyclicPermutation(n int) []int {
++	// From https://crypto.stackexchange.com/questions/51787/creating-single-cycle-permutations
++	p := rand.New(rand.NewSource(1)).Perm(n)
++	inc := make([]int, n)
++	pInv := make([]int, n)
++	for i := 0; i < n; i++ {
++		inc[i] = (i + 1) % n
++		pInv[p[i]] = i
++	}
++	res := make([]int, n)
++	for i := 0; i < n; i++ {
++		res[i] = pInv[inc[p[i]]]
++	}
++
++	// Test result.
++	j := 0
++	for i := 0; i < n-1; i++ {
++		j = res[j]
++		if j == 0 {
++			panic("got back to 0 too early")
++		}
++	}
++	j = res[j]
++	if j != 0 {
++		panic("didn't get back to 0")
++	}
++	return res
++}
++
+ func BenchmarkMapCycle(b *testing.B) {
+ 	// Arrange map entries to be a permutation, so that
+ 	// we hit all entries, and one lookup is data dependent
+ 	// on the previous lookup.
+ 	const N = 3127
+-	p := rand.New(rand.NewSource(1)).Perm(N)
++	p := cyclicPermutation(N)
+ 	m := map[int]int{}
+ 	for i := 0; i < N; i++ {
+ 		m[i] = p[i]

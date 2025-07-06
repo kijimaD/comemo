@@ -1,0 +1,266 @@
+commit 936ecc3e24c5b2e3ea4b0d2ca9eb32c39fdc097e
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Feb 2 23:09:12 2025 +1100
+
+    cmd/internal/obj/riscv: add support for vector mask instructions
+    
+    Add support for vector mask instructions to the RISC-V assembler.
+    These allow manipulation of vector masks and include mask register
+    logical instructions, population count and find-first bit set
+    instructions.
+    
+    Change-Id: I3ab3aa0f918338aee9b37ac5a2b2fdc407875072
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646779
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/cmd/asm/internal/asm/testdata/riscv64.s        | 28 +++++++++
+ src/cmd/asm/internal/asm/testdata/riscv64error.s   |  6 ++
+ .../asm/internal/asm/testdata/riscv64validation.s  | 19 ++++++
+ src/cmd/internal/obj/riscv/anames.go               |  8 ++-
+ src/cmd/internal/obj/riscv/cpu.go                  |  8 ++-
+ src/cmd/internal/obj/riscv/obj.go                  | 70 ++++++++++++++++++++++
+ 6 files changed, 135 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 687f98d072..c5eef10b7c 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -1201,6 +1201,34 @@ start:
+ 	VFWREDUSUMVS	V1, V2, V3			// d79120c6
+ 	VFWREDUSUMVS	V1, V2, V0, V3			// d79120c4
+ 
++	// 31.15: Vector Mask Instructions
++	VMANDMM		V1, V2, V3			// d7a12066
++	VMNANDMM	V1, V2, V3			// d7a12076
++	VMANDNMM	V1, V2, V3			// d7a12062
++	VMXORMM		V1, V2, V3			// d7a1206e
++	VMORMM		V1, V2, V3			// d7a1206a
++	VMNORMM		V1, V2, V3			// d7a1207a
++	VMORNMM		V1, V2, V3			// d7a12072
++	VMXNORMM	V1, V2, V3			// d7a1207e
++	VMMVM		V2, V3				// d7212166
++	VMCLRM		V3				// d7a1316e
++	VMSETM		V3				// d7a1317e
++	VMNOTM		V2, V3				// d7212176
++	VCPOPM		V2, X10				// 57252842
++	VCPOPM		V2, V0, X10			// 57252840
++	VFIRSTM		V2, X10				// 57a52842
++	VFIRSTM		V2, V0, X10			// 57a52840
++	VMSBFM		V2, V3				// d7a12052
++	VMSBFM		V2, V0, V3			// d7a12050
++	VMSIFM		V2, V3				// d7a12152
++	VMSIFM		V2, V0, V3			// d7a12150
++	VMSOFM		V2, V3				// d7212152
++	VMSOFM		V2, V0, V3			// d7212150
++	VIOTAM		V2, V3				// d7212852
++	VIOTAM		V2, V0, V3			// d7212850
++	VIDV		V3				// d7a10852
++	VIDV		V0, V3				// d7a10850
++
+ 	//
+ 	// Privileged ISA
+ 	//
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+index 3a4bb1c761..b076cf50e0 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64error.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -362,5 +362,11 @@ TEXT errors(SB),$0
+ 	VFREDMAXVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VFREDMINVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
+ 	VFWREDOSUMVS	V1, V2, V4, V3			// ERROR "invalid vector mask register"
++	VCPOPM		V2, V4, X10			// ERROR "invalid vector mask register"
++	VFIRSTM		V2, V4, X10			// ERROR "invalid vector mask register"
++	VMSBFM		V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSIFM		V2, V4, V3			// ERROR "invalid vector mask register"
++	VMSOFM		V2, V4, V3			// ERROR "invalid vector mask register"
++	VIOTAM		V2, V4, V3			// ERROR "invalid vector mask register"
+ 
+ 	RET
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64validation.s b/src/cmd/asm/internal/asm/testdata/riscv64validation.s
+index adb10823d7..8b0349584f 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64validation.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64validation.s
+@@ -380,5 +380,24 @@ TEXT validation(SB),$0
+ 	VFREDMINVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
+ 	VFWREDOSUMVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
+ 	VFWREDUSUMVS	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMANDMM		X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMNANDMM	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMANDNMM	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMXORMM		X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMORMM		X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMNORMM		X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMORNMM		X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMXNORMM	X10, V2, V3			// ERROR "expected vector register in vs1 position"
++	VMMVM		V3, X10				// ERROR "expected vector register in vd position"
++	VMNOTM		V3, X10				// ERROR "expected vector register in vd position"
++	VCPOPM		V2, V1				// ERROR "expected integer register in rd position"
++	VCPOPM		X11, X10			// ERROR "expected vector register in vs2 position"
++	VFIRSTM		V2, V1				// ERROR "expected integer register in rd position"
++	VFIRSTM		X11, X10			// ERROR "expected vector register in vs2 position"
++	VMSBFM		X10, V3				// ERROR "expected vector register in vs2 position"
++	VMSIFM		X10, V3				// ERROR "expected vector register in vs2 position"
++	VMSOFM		X10, V3				// ERROR "expected vector register in vs2 position"
++	VIOTAM		X10, V3				// ERROR "expected vector register in vs2 position"
++	VIDV		X10				// ERROR "expected vector register in vd position"
+ 
+ 	RET
+diff --git a/src/cmd/internal/obj/riscv/anames.go b/src/cmd/internal/obj/riscv/anames.go
+index bf1fdb8b88..a689f2de27 100644
+--- a/src/cmd/internal/obj/riscv/anames.go
++++ b/src/cmd/internal/obj/riscv/anames.go
+@@ -652,12 +652,16 @@ var Anames = []string{
+ 	"SNEZ",
+ 	"VFABSV",
+ 	"VFNEGV",
+-	"VMFGEVV",
+-	"VMFGTVV",
+ 	"VL1RV",
+ 	"VL2RV",
+ 	"VL4RV",
+ 	"VL8RV",
++	"VMCLRM",
++	"VMFGEVV",
++	"VMFGTVV",
++	"VMMVM",
++	"VMNOTM",
++	"VMSETM",
+ 	"VMSGEUVI",
+ 	"VMSGEUVV",
+ 	"VMSGEVI",
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 3cad4f9d94..d87b6b1efb 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -1180,12 +1180,16 @@ const (
+ 	ASNEZ
+ 	AVFABSV
+ 	AVFNEGV
+-	AVMFGEVV
+-	AVMFGTVV
+ 	AVL1RV
+ 	AVL2RV
+ 	AVL4RV
+ 	AVL8RV
++	AVMCLRM
++	AVMFGEVV
++	AVMFGTVV
++	AVMMVM
++	AVMNOTM
++	AVMSETM
+ 	AVMSGEUVI
+ 	AVMSGEUVV
+ 	AVMSGEVI
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 83ce7e21df..c911ea01f3 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1328,6 +1328,13 @@ func validateRVFV(ctxt *obj.Link, ins *instruction) {
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
++func validateRVI(ctxt *obj.Link, ins *instruction) {
++	wantIntReg(ctxt, ins, "rd", ins.rd)
++	wantNoneReg(ctxt, ins, "rs1", ins.rs1)
++	wantVectorReg(ctxt, ins, "vs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
+ func validateRVIV(ctxt *obj.Link, ins *instruction) {
+ 	wantVectorReg(ctxt, ins, "vd", ins.rd)
+ 	wantIntReg(ctxt, ins, "rs1", ins.rs1)
+@@ -1577,6 +1584,10 @@ func encodeRVFV(ins *instruction) uint32 {
+ 	return encodeR(ins.as, regF(ins.rs1), regV(ins.rs2), regV(ins.rd), ins.funct3, ins.funct7)
+ }
+ 
++func encodeRVI(ins *instruction) uint32 {
++	return encodeR(ins.as, 0, regV(ins.rs2), regI(ins.rd), ins.funct3, ins.funct7)
++}
++
+ func encodeRVIV(ins *instruction) uint32 {
+ 	return encodeR(ins.as, regI(ins.rs1), regV(ins.rs2), regV(ins.rd), ins.funct3, ins.funct7)
+ }
+@@ -1881,6 +1892,7 @@ var (
+ 	rIFEncoding   = encoding{encode: encodeRIF, validate: validateRIF, length: 4}
+ 	rFFEncoding   = encoding{encode: encodeRFF, validate: validateRFF, length: 4}
+ 	rVFVEncoding  = encoding{encode: encodeRVFV, validate: validateRVFV, length: 4}
++	rVIEncoding   = encoding{encode: encodeRVI, validate: validateRVI, length: 4}
+ 	rVIVEncoding  = encoding{encode: encodeRVIV, validate: validateRVIV, length: 4}
+ 	rVVEncoding   = encoding{encode: encodeRVV, validate: validateRVV, length: 4}
+ 	rVViEncoding  = encoding{encode: encodeRVVi, validate: validateRVVi, length: 4}
+@@ -2609,6 +2621,23 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AVFWREDOSUMVS & obj.AMask: {enc: rVVVEncoding},
+ 	AVFWREDUSUMVS & obj.AMask: {enc: rVVVEncoding},
+ 
++	// 31.15: Vector Mask Instructions
++	AVMANDMM & obj.AMask:  {enc: rVVVEncoding},
++	AVMNANDMM & obj.AMask: {enc: rVVVEncoding},
++	AVMANDNMM & obj.AMask: {enc: rVVVEncoding},
++	AVMXORMM & obj.AMask:  {enc: rVVVEncoding},
++	AVMORMM & obj.AMask:   {enc: rVVVEncoding},
++	AVMNORMM & obj.AMask:  {enc: rVVVEncoding},
++	AVMORNMM & obj.AMask:  {enc: rVVVEncoding},
++	AVMXNORMM & obj.AMask: {enc: rVVVEncoding},
++	AVCPOPM & obj.AMask:   {enc: rVIEncoding},
++	AVFIRSTM & obj.AMask:  {enc: rVIEncoding},
++	AVMSBFM & obj.AMask:   {enc: rVVEncoding},
++	AVMSIFM & obj.AMask:   {enc: rVVEncoding},
++	AVMSOFM & obj.AMask:   {enc: rVVEncoding},
++	AVIOTAM & obj.AMask:   {enc: rVVEncoding},
++	AVIDV & obj.AMask:     {enc: rVVEncoding},
++
+ 	//
+ 	// Privileged ISA
+ 	//
+@@ -3765,6 +3794,47 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 			ins.as = AVFSGNJNVV
+ 		}
+ 		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.From.Reg)
++
++	case AVMANDMM, AVMNANDMM, AVMANDNMM, AVMXORMM, AVMORMM, AVMNORMM, AVMORNMM, AVMXNORMM, AVMMVM, AVMNOTM:
++		ins.rd, ins.rs1, ins.rs2 = uint32(p.To.Reg), uint32(p.From.Reg), uint32(p.Reg)
++		switch ins.as {
++		case AVMMVM:
++			ins.as, ins.rs2 = AVMANDMM, ins.rs1
++		case AVMNOTM:
++			ins.as, ins.rs2 = AVMNANDMM, ins.rs1
++		}
++
++	case AVMCLRM, AVMSETM:
++		ins.rd, ins.rs1, ins.rs2 = uint32(p.From.Reg), uint32(p.From.Reg), uint32(p.From.Reg)
++		switch ins.as {
++		case AVMCLRM:
++			ins.as = AVMXORMM
++		case AVMSETM:
++			ins.as = AVMXNORMM
++		}
++
++	case AVCPOPM, AVFIRSTM, AVMSBFM, AVMSIFM, AVMSOFM, AVIOTAM:
++		// Set mask bit
++		switch {
++		case ins.rs1 == obj.REG_NONE:
++			ins.funct7 |= 1 // unmasked
++		case ins.rs1 != REG_V0:
++			p.Ctxt.Diag("%v: invalid vector mask register", p)
++		}
++		ins.rs1 = obj.REG_NONE
++
++	case AVIDV:
++		// Set mask bit
++		switch {
++		case ins.rd == obj.REG_NONE:
++			ins.funct7 |= 1 // unmasked
++		case ins.rd != obj.REG_NONE && ins.rs2 != REG_V0:
++			p.Ctxt.Diag("%v: invalid vector mask register", p)
++		}
++		if ins.rd == obj.REG_NONE {
++			ins.rd = uint32(p.From.Reg)
++		}
++		ins.rs1, ins.rs2 = obj.REG_NONE, REG_V0
+ 	}
+ 
+ 	for _, ins := range inss {

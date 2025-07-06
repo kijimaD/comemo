@@ -1,0 +1,113 @@
+commit fd8938c799969ad8caec2aaec5a4966e48a17895
+Author: Julien Cretel <jub0bsinthecloud@gmail.com>
+Date:   Mon Feb 17 18:39:58 2025 +0000
+
+    net/http: speed up cookie and method validation
+    
+    Fixes #67031
+    
+    Change-Id: I1d764afdc7e50d61007f5f71a674eb6872ce507a
+    GitHub-Last-Rev: 869535e843d2133fa5279297b002dd96725384e0
+    GitHub-Pull-Request: golang/go#71798
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650195
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/net/http/cookie.go  | 17 +++++------------
+ src/net/http/http.go    |  6 ++++++
+ src/net/http/request.go |  2 +-
+ 3 files changed, 12 insertions(+), 13 deletions(-)
+
+diff --git a/src/net/http/cookie.go b/src/net/http/cookie.go
+index 3483e16381..408fe88452 100644
+--- a/src/net/http/cookie.go
++++ b/src/net/http/cookie.go
+@@ -79,7 +79,7 @@ func ParseCookie(line string) ([]*Cookie, error) {
+ 		if !found {
+ 			return nil, errEqualNotFoundInCookie
+ 		}
+-		if !isCookieNameValid(name) {
++		if !isToken(name) {
+ 			return nil, errInvalidCookieName
+ 		}
+ 		value, quoted, found := parseCookieValue(value, true)
+@@ -104,7 +104,7 @@ func ParseSetCookie(line string) (*Cookie, error) {
+ 		return nil, errEqualNotFoundInCookie
+ 	}
+ 	name = textproto.TrimString(name)
+-	if !isCookieNameValid(name) {
++	if !isToken(name) {
+ 		return nil, errInvalidCookieName
+ 	}
+ 	value, quoted, ok := parseCookieValue(value, true)
+@@ -225,7 +225,7 @@ func SetCookie(w ResponseWriter, cookie *Cookie) {
+ // header (if other fields are set).
+ // If c is nil or c.Name is invalid, the empty string is returned.
+ func (c *Cookie) String() string {
+-	if c == nil || !isCookieNameValid(c.Name) {
++	if c == nil || !isToken(c.Name) {
+ 		return ""
+ 	}
+ 	// extraCookieLength derived from typical length of cookie attributes
+@@ -295,7 +295,7 @@ func (c *Cookie) Valid() error {
+ 	if c == nil {
+ 		return errors.New("http: nil Cookie")
+ 	}
+-	if !isCookieNameValid(c.Name) {
++	if !isToken(c.Name) {
+ 		return errors.New("http: invalid Cookie.Name")
+ 	}
+ 	if !c.Expires.IsZero() && !validCookieExpires(c.Expires) {
+@@ -349,7 +349,7 @@ func readCookies(h Header, filter string) []*Cookie {
+ 			}
+ 			name, val, _ := strings.Cut(part, "=")
+ 			name = textproto.TrimString(name)
+-			if !isCookieNameValid(name) {
++			if !isToken(name) {
+ 				continue
+ 			}
+ 			if filter != "" && filter != name {
+@@ -526,10 +526,3 @@ func parseCookieValue(raw string, allowDoubleQuote bool) (value string, quoted,
+ 	}
+ 	return raw, quoted, true
+ }
+-
+-func isCookieNameValid(raw string) bool {
+-	if raw == "" {
+-		return false
+-	}
+-	return strings.IndexFunc(raw, isNotToken) < 0
+-}
+diff --git a/src/net/http/http.go b/src/net/http/http.go
+index e1e9eea0ce..0f9165bf03 100644
+--- a/src/net/http/http.go
++++ b/src/net/http/http.go
+@@ -123,6 +123,12 @@ func isNotToken(r rune) bool {
+ 	return !httpguts.IsTokenRune(r)
+ }
+ 
++// isToken reports whether v is a valid token (https://www.rfc-editor.org/rfc/rfc2616#section-2.2).
++func isToken(v string) bool {
++	// For historical reasons, this function is called ValidHeaderFieldName (see issue #67031).
++	return httpguts.ValidHeaderFieldName(v)
++}
++
+ // stringContainsCTLByte reports whether s contains any ASCII control character.
+ func stringContainsCTLByte(s string) bool {
+ 	for i := 0; i < len(s); i++ {
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index cd254292e2..8a765c3442 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -855,7 +855,7 @@ func validMethod(method string) bool {
+ 	   extension-method = token
+ 	     token          = 1*<any CHAR except CTLs or separators>
+ 	*/
+-	return len(method) > 0 && strings.IndexFunc(method, isNotToken) == -1
++	return isToken(method)
+ }
+ 
+ // NewRequest wraps [NewRequestWithContext] using [context.Background].

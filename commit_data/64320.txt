@@ -1,0 +1,658 @@
+commit dd005f43f136790c18cbf278863aa531a579040d
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed May 22 21:47:35 2024 -0700
+
+    go/types, types2: factor out list substitution code (cleanup)
+    
+    - Replace the various subst.XList methods with a generic function.
+    - Rename comparable function to comparableType to avoid shadowing
+      predeclared type comparable.
+    - Rename substFunc/Var to cloneFunc/Var which is more accurate.
+    
+    Change-Id: I3243f2093e4c43a537766f47e3348402de517090
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587775
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+---
+ src/cmd/compile/internal/types2/expr.go        |   2 +-
+ src/cmd/compile/internal/types2/instantiate.go |   4 +-
+ src/cmd/compile/internal/types2/named.go       |   4 +-
+ src/cmd/compile/internal/types2/predicates.go  |   8 +-
+ src/cmd/compile/internal/types2/subst.go       | 116 ++++++++-----------------
+ src/cmd/compile/internal/types2/typeset.go     |   4 +-
+ src/go/types/expr.go                           |   2 +-
+ src/go/types/instantiate.go                    |   4 +-
+ src/go/types/named.go                          |   4 +-
+ src/go/types/predicates.go                     |   8 +-
+ src/go/types/subst.go                          | 116 ++++++++-----------------
+ src/go/types/typeset.go                        |   4 +-
+ 12 files changed, 94 insertions(+), 182 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 92949a924d..b25cf89fb4 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -601,7 +601,7 @@ func (check *Checker) incomparableCause(typ Type) string {
+ 	}
+ 	// see if we can extract a more specific error
+ 	var cause string
+-	comparable(typ, true, nil, func(format string, args ...interface{}) {
++	comparableType(typ, true, nil, func(format string, args ...interface{}) {
+ 		cause = check.sprintf(format, args...)
+ 	})
+ 	return cause
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 308d1f550a..732d076ec3 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -288,12 +288,12 @@ func (check *Checker) implements(pos syntax.Pos, V, T Type, constraint bool, cau
+ 		}
+ 		// If T is comparable, V must be comparable.
+ 		// If V is strictly comparable, we're done.
+-		if comparable(V, false /* strict comparability */, nil, nil) {
++		if comparableType(V, false /* strict comparability */, nil, nil) {
+ 			return true
+ 		}
+ 		// For constraint satisfaction, use dynamic (spec) comparability
+ 		// so that ordinary, non-type parameter interfaces implement comparable.
+-		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
++		if constraint && comparableType(V, true /* spec comparability */, nil, nil) {
+ 			// V is comparable if we are at Go 1.20 or higher.
+ 			if check == nil || check.allowVersion(atPos(pos), go1_20) { // atPos needed so that go/types generate passes
+ 				return true
+diff --git a/src/cmd/compile/internal/types2/named.go b/src/cmd/compile/internal/types2/named.go
+index 1859b27aa4..241371b72f 100644
+--- a/src/cmd/compile/internal/types2/named.go
++++ b/src/cmd/compile/internal/types2/named.go
+@@ -430,8 +430,8 @@ func (t *Named) expandMethod(i int) *Func {
+ 		rtyp = t
+ 	}
+ 
+-	sig.recv = substVar(origSig.recv, rtyp)
+-	return substFunc(origm, sig)
++	sig.recv = cloneVar(origSig.recv, rtyp)
++	return cloneFunc(origm, sig)
+ }
+ 
+ // SetUnderlying sets the underlying type and marks t as complete.
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 6403be6bcb..155a70fb19 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -146,12 +146,12 @@ func isGeneric(t Type) bool {
+ 
+ // Comparable reports whether values of type T are comparable.
+ func Comparable(T Type) bool {
+-	return comparable(T, true, nil, nil)
++	return comparableType(T, true, nil, nil)
+ }
+ 
+ // If dynamic is set, non-type parameter interfaces are always comparable.
+ // If reportf != nil, it may be used to report why T is not comparable.
+-func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
++func comparableType(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
+ 	if seen[T] {
+ 		return true
+ 	}
+@@ -169,7 +169,7 @@ func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, .
+ 		return true
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if !comparable(f.typ, dynamic, seen, nil) {
++			if !comparableType(f.typ, dynamic, seen, nil) {
+ 				if reportf != nil {
+ 					reportf("struct containing %s cannot be compared", f.typ)
+ 				}
+@@ -178,7 +178,7 @@ func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, .
+ 		}
+ 		return true
+ 	case *Array:
+-		if !comparable(t.elem, dynamic, seen, nil) {
++		if !comparableType(t.elem, dynamic, seen, nil) {
+ 			if reportf != nil {
+ 				reportf("%s cannot be compared", t)
+ 			}
+diff --git a/src/cmd/compile/internal/types2/subst.go b/src/cmd/compile/internal/types2/subst.go
+index 7c4cd73250..70fb232aa1 100644
+--- a/src/cmd/compile/internal/types2/subst.go
++++ b/src/cmd/compile/internal/types2/subst.go
+@@ -113,8 +113,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		// For each (existing) type argument determine if it needs
+ 		// to be substituted; i.e., if it is or contains a type parameter
+ 		// that has a type argument for it.
+-		targs, updated := subst.typeList(t.TypeArgs().list())
+-		if updated {
++		if targs := substList(t.TypeArgs().list(), subst.typ); targs != nil {
+ 			return subst.check.newAliasInstance(subst.pos, t.orig, targs, subst.expanding, subst.ctxt)
+ 		}
+ 
+@@ -131,7 +130,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 	case *Struct:
+-		if fields, copied := subst.varList(t.fields); copied {
++		if fields := substList(t.fields, subst.var_); fields != nil {
+ 			s := &Struct{fields: fields, tags: t.tags}
+ 			s.markComplete()
+ 			return s
+@@ -178,8 +177,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 	case *Union:
+-		terms, copied := subst.termlist(t.terms)
+-		if copied {
++		if terms := substList(t.terms, subst.term); terms != nil {
+ 			// term list substitution may introduce duplicate terms (unlikely but possible).
+ 			// This is ok; lazy type set computation will determine the actual type set
+ 			// in normal form.
+@@ -187,9 +185,15 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 	case *Interface:
+-		methods, mcopied := subst.funcList(t.methods)
+-		embeddeds, ecopied := subst.typeList(t.embeddeds)
+-		if mcopied || ecopied {
++		methods := substList(t.methods, subst.func_)
++		embeddeds := substList(t.embeddeds, subst.typ)
++		if methods != nil || embeddeds != nil {
++			if methods == nil {
++				methods = t.methods
++			}
++			if embeddeds == nil {
++				embeddeds = t.embeddeds
++			}
+ 			iface := subst.check.newInterface()
+ 			iface.embeddeds = embeddeds
+ 			iface.embedPos = t.embedPos
+@@ -251,8 +255,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		// For each (existing) type argument determine if it needs
+ 		// to be substituted; i.e., if it is or contains a type parameter
+ 		// that has a type argument for it.
+-		targs, updated := subst.typeList(t.TypeArgs().list())
+-		if updated {
++		if targs := substList(t.TypeArgs().list(), subst.typ); targs != nil {
+ 			// Create a new instance and populate the context to avoid endless
+ 			// recursion. The position used here is irrelevant because validation only
+ 			// occurs on t (we don't call validType on named), but we use subst.pos to
+@@ -283,13 +286,13 @@ func (subst *subster) typOrNil(typ Type) Type {
+ func (subst *subster) var_(v *Var) *Var {
+ 	if v != nil {
+ 		if typ := subst.typ(v.typ); typ != v.typ {
+-			return substVar(v, typ)
++			return cloneVar(v, typ)
+ 		}
+ 	}
+ 	return v
+ }
+ 
+-func substVar(v *Var, typ Type) *Var {
++func cloneVar(v *Var, typ Type) *Var {
+ 	copy := *v
+ 	copy.typ = typ
+ 	copy.origin = v.Origin()
+@@ -298,26 +301,26 @@ func substVar(v *Var, typ Type) *Var {
+ 
+ func (subst *subster) tuple(t *Tuple) *Tuple {
+ 	if t != nil {
+-		if vars, copied := subst.varList(t.vars); copied {
++		if vars := substList(t.vars, subst.var_); vars != nil {
+ 			return &Tuple{vars: vars}
+ 		}
+ 	}
+ 	return t
+ }
+ 
+-func (subst *subster) varList(in []*Var) (out []*Var, copied bool) {
+-	out = in
+-	for i, v := range in {
+-		if w := subst.var_(v); w != v {
+-			if !copied {
+-				// first variable that got substituted => allocate new out slice
+-				// and copy all variables
+-				new := make([]*Var, len(in))
+-				copy(new, out)
+-				out = new
+-				copied = true
++// substList applies subst to each element of the incoming slice.
++// If at least one element changes, the result is a new slice with
++// all the (possibly updated) elements of the incoming slice;
++// otherwise the result it nil. The incoming slice is unchanged.
++func substList[T comparable](in []T, subst func(T) T) (out []T) {
++	for i, t := range in {
++		if u := subst(t); u != t {
++			if out == nil {
++				// lazily allocate a new slice on first substitution
++				out = make([]T, len(in))
++				copy(out, in)
+ 			}
+-			out[i] = w
++			out[i] = u
+ 		}
+ 	}
+ 	return
+@@ -326,71 +329,24 @@ func (subst *subster) varList(in []*Var) (out []*Var, copied bool) {
+ func (subst *subster) func_(f *Func) *Func {
+ 	if f != nil {
+ 		if typ := subst.typ(f.typ); typ != f.typ {
+-			return substFunc(f, typ)
++			return cloneFunc(f, typ)
+ 		}
+ 	}
+ 	return f
+ }
+ 
+-func substFunc(f *Func, typ Type) *Func {
++func cloneFunc(f *Func, typ Type) *Func {
+ 	copy := *f
+ 	copy.typ = typ
+ 	copy.origin = f.Origin()
+ 	return &copy
+ }
+ 
+-func (subst *subster) funcList(in []*Func) (out []*Func, copied bool) {
+-	out = in
+-	for i, f := range in {
+-		if g := subst.func_(f); g != f {
+-			if !copied {
+-				// first function that got substituted => allocate new out slice
+-				// and copy all functions
+-				new := make([]*Func, len(in))
+-				copy(new, out)
+-				out = new
+-				copied = true
+-			}
+-			out[i] = g
+-		}
+-	}
+-	return
+-}
+-
+-func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
+-	out = in
+-	for i, t := range in {
+-		if u := subst.typ(t); u != t {
+-			if !copied {
+-				// first function that got substituted => allocate new out slice
+-				// and copy all functions
+-				new := make([]Type, len(in))
+-				copy(new, out)
+-				out = new
+-				copied = true
+-			}
+-			out[i] = u
+-		}
+-	}
+-	return
+-}
+-
+-func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
+-	out = in
+-	for i, t := range in {
+-		if u := subst.typ(t.typ); u != t.typ {
+-			if !copied {
+-				// first function that got substituted => allocate new out slice
+-				// and copy all functions
+-				new := make([]*Term, len(in))
+-				copy(new, out)
+-				out = new
+-				copied = true
+-			}
+-			out[i] = NewTerm(t.tilde, u)
+-		}
++func (subst *subster) term(t *Term) *Term {
++	if typ := subst.typ(t.typ); typ != t.typ {
++		return NewTerm(t.tilde, typ)
+ 	}
+-	return
++	return t
+ }
+ 
+ // replaceRecvType updates any function receivers that have type old to have
+@@ -413,8 +369,8 @@ func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
+ 				copied = true
+ 			}
+ 			newsig := *sig
+-			newsig.recv = substVar(sig.recv, new)
+-			out[i] = substFunc(method, &newsig)
++			newsig.recv = cloneVar(sig.recv, new)
++			out[i] = cloneFunc(method, &newsig)
+ 		}
+ 	}
+ 	return
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index 0457502e39..9ea0a3e8f9 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -44,7 +44,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return t != nil && comparable(t.typ, false, seen, nil)
++		return t != nil && comparableType(t.typ, false, seen, nil)
+ 	})
+ }
+ 
+@@ -332,7 +332,7 @@ func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool
+ 		i := 0
+ 		for _, t := range terms {
+ 			assert(t.typ != nil)
+-			if comparable(t.typ, false /* strictly comparable */, nil, nil) {
++			if comparableType(t.typ, false /* strictly comparable */, nil, nil) {
+ 				terms[i] = t
+ 				i++
+ 			}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index cf8ceddc9a..ac125c666b 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -579,7 +579,7 @@ func (check *Checker) incomparableCause(typ Type) string {
+ 	}
+ 	// see if we can extract a more specific error
+ 	var cause string
+-	comparable(typ, true, nil, func(format string, args ...interface{}) {
++	comparableType(typ, true, nil, func(format string, args ...interface{}) {
+ 		cause = check.sprintf(format, args...)
+ 	})
+ 	return cause
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 0435f2bf26..cef495314e 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -291,12 +291,12 @@ func (check *Checker) implements(pos token.Pos, V, T Type, constraint bool, caus
+ 		}
+ 		// If T is comparable, V must be comparable.
+ 		// If V is strictly comparable, we're done.
+-		if comparable(V, false /* strict comparability */, nil, nil) {
++		if comparableType(V, false /* strict comparability */, nil, nil) {
+ 			return true
+ 		}
+ 		// For constraint satisfaction, use dynamic (spec) comparability
+ 		// so that ordinary, non-type parameter interfaces implement comparable.
+-		if constraint && comparable(V, true /* spec comparability */, nil, nil) {
++		if constraint && comparableType(V, true /* spec comparability */, nil, nil) {
+ 			// V is comparable if we are at Go 1.20 or higher.
+ 			if check == nil || check.allowVersion(atPos(pos), go1_20) { // atPos needed so that go/types generate passes
+ 				return true
+diff --git a/src/go/types/named.go b/src/go/types/named.go
+index b44fa9d788..316cdc9bba 100644
+--- a/src/go/types/named.go
++++ b/src/go/types/named.go
+@@ -433,8 +433,8 @@ func (t *Named) expandMethod(i int) *Func {
+ 		rtyp = t
+ 	}
+ 
+-	sig.recv = substVar(origSig.recv, rtyp)
+-	return substFunc(origm, sig)
++	sig.recv = cloneVar(origSig.recv, rtyp)
++	return cloneFunc(origm, sig)
+ }
+ 
+ // SetUnderlying sets the underlying type and marks t as complete.
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index ba7901b3c3..4bfbdccc6f 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -149,12 +149,12 @@ func isGeneric(t Type) bool {
+ 
+ // Comparable reports whether values of type T are comparable.
+ func Comparable(T Type) bool {
+-	return comparable(T, true, nil, nil)
++	return comparableType(T, true, nil, nil)
+ }
+ 
+ // If dynamic is set, non-type parameter interfaces are always comparable.
+ // If reportf != nil, it may be used to report why T is not comparable.
+-func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
++func comparableType(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
+ 	if seen[T] {
+ 		return true
+ 	}
+@@ -172,7 +172,7 @@ func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, .
+ 		return true
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if !comparable(f.typ, dynamic, seen, nil) {
++			if !comparableType(f.typ, dynamic, seen, nil) {
+ 				if reportf != nil {
+ 					reportf("struct containing %s cannot be compared", f.typ)
+ 				}
+@@ -181,7 +181,7 @@ func comparable(T Type, dynamic bool, seen map[Type]bool, reportf func(string, .
+ 		}
+ 		return true
+ 	case *Array:
+-		if !comparable(t.elem, dynamic, seen, nil) {
++		if !comparableType(t.elem, dynamic, seen, nil) {
+ 			if reportf != nil {
+ 				reportf("%s cannot be compared", t)
+ 			}
+diff --git a/src/go/types/subst.go b/src/go/types/subst.go
+index 6be106d3aa..838ce073f9 100644
+--- a/src/go/types/subst.go
++++ b/src/go/types/subst.go
+@@ -116,8 +116,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		// For each (existing) type argument determine if it needs
+ 		// to be substituted; i.e., if it is or contains a type parameter
+ 		// that has a type argument for it.
+-		targs, updated := subst.typeList(t.TypeArgs().list())
+-		if updated {
++		if targs := substList(t.TypeArgs().list(), subst.typ); targs != nil {
+ 			return subst.check.newAliasInstance(subst.pos, t.orig, targs, subst.expanding, subst.ctxt)
+ 		}
+ 
+@@ -134,7 +133,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 	case *Struct:
+-		if fields, copied := subst.varList(t.fields); copied {
++		if fields := substList(t.fields, subst.var_); fields != nil {
+ 			s := &Struct{fields: fields, tags: t.tags}
+ 			s.markComplete()
+ 			return s
+@@ -181,8 +180,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 	case *Union:
+-		terms, copied := subst.termlist(t.terms)
+-		if copied {
++		if terms := substList(t.terms, subst.term); terms != nil {
+ 			// term list substitution may introduce duplicate terms (unlikely but possible).
+ 			// This is ok; lazy type set computation will determine the actual type set
+ 			// in normal form.
+@@ -190,9 +188,15 @@ func (subst *subster) typ(typ Type) Type {
+ 		}
+ 
+ 	case *Interface:
+-		methods, mcopied := subst.funcList(t.methods)
+-		embeddeds, ecopied := subst.typeList(t.embeddeds)
+-		if mcopied || ecopied {
++		methods := substList(t.methods, subst.func_)
++		embeddeds := substList(t.embeddeds, subst.typ)
++		if methods != nil || embeddeds != nil {
++			if methods == nil {
++				methods = t.methods
++			}
++			if embeddeds == nil {
++				embeddeds = t.embeddeds
++			}
+ 			iface := subst.check.newInterface()
+ 			iface.embeddeds = embeddeds
+ 			iface.embedPos = t.embedPos
+@@ -254,8 +258,7 @@ func (subst *subster) typ(typ Type) Type {
+ 		// For each (existing) type argument determine if it needs
+ 		// to be substituted; i.e., if it is or contains a type parameter
+ 		// that has a type argument for it.
+-		targs, updated := subst.typeList(t.TypeArgs().list())
+-		if updated {
++		if targs := substList(t.TypeArgs().list(), subst.typ); targs != nil {
+ 			// Create a new instance and populate the context to avoid endless
+ 			// recursion. The position used here is irrelevant because validation only
+ 			// occurs on t (we don't call validType on named), but we use subst.pos to
+@@ -286,13 +289,13 @@ func (subst *subster) typOrNil(typ Type) Type {
+ func (subst *subster) var_(v *Var) *Var {
+ 	if v != nil {
+ 		if typ := subst.typ(v.typ); typ != v.typ {
+-			return substVar(v, typ)
++			return cloneVar(v, typ)
+ 		}
+ 	}
+ 	return v
+ }
+ 
+-func substVar(v *Var, typ Type) *Var {
++func cloneVar(v *Var, typ Type) *Var {
+ 	copy := *v
+ 	copy.typ = typ
+ 	copy.origin = v.Origin()
+@@ -301,26 +304,26 @@ func substVar(v *Var, typ Type) *Var {
+ 
+ func (subst *subster) tuple(t *Tuple) *Tuple {
+ 	if t != nil {
+-		if vars, copied := subst.varList(t.vars); copied {
++		if vars := substList(t.vars, subst.var_); vars != nil {
+ 			return &Tuple{vars: vars}
+ 		}
+ 	}
+ 	return t
+ }
+ 
+-func (subst *subster) varList(in []*Var) (out []*Var, copied bool) {
+-	out = in
+-	for i, v := range in {
+-		if w := subst.var_(v); w != v {
+-			if !copied {
+-				// first variable that got substituted => allocate new out slice
+-				// and copy all variables
+-				new := make([]*Var, len(in))
+-				copy(new, out)
+-				out = new
+-				copied = true
++// substList applies subst to each element of the incoming slice.
++// If at least one element changes, the result is a new slice with
++// all the (possibly updated) elements of the incoming slice;
++// otherwise the result it nil. The incoming slice is unchanged.
++func substList[T comparable](in []T, subst func(T) T) (out []T) {
++	for i, t := range in {
++		if u := subst(t); u != t {
++			if out == nil {
++				// lazily allocate a new slice on first substitution
++				out = make([]T, len(in))
++				copy(out, in)
+ 			}
+-			out[i] = w
++			out[i] = u
+ 		}
+ 	}
+ 	return
+@@ -329,71 +332,24 @@ func (subst *subster) varList(in []*Var) (out []*Var, copied bool) {
+ func (subst *subster) func_(f *Func) *Func {
+ 	if f != nil {
+ 		if typ := subst.typ(f.typ); typ != f.typ {
+-			return substFunc(f, typ)
++			return cloneFunc(f, typ)
+ 		}
+ 	}
+ 	return f
+ }
+ 
+-func substFunc(f *Func, typ Type) *Func {
++func cloneFunc(f *Func, typ Type) *Func {
+ 	copy := *f
+ 	copy.typ = typ
+ 	copy.origin = f.Origin()
+ 	return &copy
+ }
+ 
+-func (subst *subster) funcList(in []*Func) (out []*Func, copied bool) {
+-	out = in
+-	for i, f := range in {
+-		if g := subst.func_(f); g != f {
+-			if !copied {
+-				// first function that got substituted => allocate new out slice
+-				// and copy all functions
+-				new := make([]*Func, len(in))
+-				copy(new, out)
+-				out = new
+-				copied = true
+-			}
+-			out[i] = g
+-		}
+-	}
+-	return
+-}
+-
+-func (subst *subster) typeList(in []Type) (out []Type, copied bool) {
+-	out = in
+-	for i, t := range in {
+-		if u := subst.typ(t); u != t {
+-			if !copied {
+-				// first function that got substituted => allocate new out slice
+-				// and copy all functions
+-				new := make([]Type, len(in))
+-				copy(new, out)
+-				out = new
+-				copied = true
+-			}
+-			out[i] = u
+-		}
+-	}
+-	return
+-}
+-
+-func (subst *subster) termlist(in []*Term) (out []*Term, copied bool) {
+-	out = in
+-	for i, t := range in {
+-		if u := subst.typ(t.typ); u != t.typ {
+-			if !copied {
+-				// first function that got substituted => allocate new out slice
+-				// and copy all functions
+-				new := make([]*Term, len(in))
+-				copy(new, out)
+-				out = new
+-				copied = true
+-			}
+-			out[i] = NewTerm(t.tilde, u)
+-		}
++func (subst *subster) term(t *Term) *Term {
++	if typ := subst.typ(t.typ); typ != t.typ {
++		return NewTerm(t.tilde, typ)
+ 	}
+-	return
++	return t
+ }
+ 
+ // replaceRecvType updates any function receivers that have type old to have
+@@ -416,8 +372,8 @@ func replaceRecvType(in []*Func, old, new Type) (out []*Func, copied bool) {
+ 				copied = true
+ 			}
+ 			newsig := *sig
+-			newsig.recv = substVar(sig.recv, new)
+-			out[i] = substFunc(method, &newsig)
++			newsig.recv = cloneVar(sig.recv, new)
++			out[i] = cloneFunc(method, &newsig)
+ 		}
+ 	}
+ 	return
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index d280bf2f5f..28f0a45468 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -47,7 +47,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return t != nil && comparable(t.typ, false, seen, nil)
++		return t != nil && comparableType(t.typ, false, seen, nil)
+ 	})
+ }
+ 
+@@ -335,7 +335,7 @@ func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool
+ 		i := 0
+ 		for _, t := range terms {
+ 			assert(t.typ != nil)
+-			if comparable(t.typ, false /* strictly comparable */, nil, nil) {
++			if comparableType(t.typ, false /* strictly comparable */, nil, nil) {
+ 				terms[i] = t
+ 				i++
+ 			}

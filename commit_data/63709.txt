@@ -1,0 +1,42 @@
+commit 74a49188d300076d6fc6747ea7678d327c5645a1
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 10 18:43:45 2024 -0400
+
+    cmd/go/testdata/script: disable build_plugin_reproducible on darwin
+    
+    It's broken with the latest XCode versions, and is also already disabled
+    on darwin builders. Disable the test to get go test cmd/go working on
+    local builds again.
+    
+    For #64947
+    
+    Change-Id: I5a4b46cf23cbe887df4903f90b54cd2225f51233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584937
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/cmd/go/testdata/script/build_plugin_reproducible.txt | 10 ++++------
+ 1 file changed, 4 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/build_plugin_reproducible.txt b/src/cmd/go/testdata/script/build_plugin_reproducible.txt
+index 2f70a0e2b2..9336bc21a8 100644
+--- a/src/cmd/go/testdata/script/build_plugin_reproducible.txt
++++ b/src/cmd/go/testdata/script/build_plugin_reproducible.txt
+@@ -2,12 +2,10 @@
+ [short] skip
+ [!cgo] skip '-buildmode=plugin requires external linking'
+ 
+-# This test has problems when run on the LUCI darwin longtest builder,
+-# which uses a more contemporary Xcode version that is unfriendly to
+-# reproducible builds (see issue #64947 for the gory details). Note
+-# that individual developers running "go test cmd/go" on Darwin may
+-# still run into failures depending on their Xcode version.
+-[GOOS:darwin] [go-builder] skip
++# This test has problems when run on darwin, when using a more
++# contemporary Xcode version that is unfriendly to reproducible builds
++# (see issue #64947 for the gory details).
++[GOOS:darwin] skip
+ 
+ go build -trimpath -buildvcs=false -buildmode=plugin -o a.so main.go
+ go build -trimpath -buildvcs=false -buildmode=plugin -o b.so main.go

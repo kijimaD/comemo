@@ -1,0 +1,84 @@
+commit 1e9835f5b1806e8e6197f87c1696dc773b68a98a
+Author: Koichi Shiraishi <zchee.io@gmail.com>
+Date:   Sat Dec 28 13:56:04 2024 +0900
+
+    internal/sync: fix typo of panic message
+    
+    Change-Id: I3e7a8498514da1d278acd566d526fdf6278f7d41
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638916
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/internal/sync/hashtriemap.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/sync/hashtriemap.go b/src/internal/sync/hashtriemap.go
+index defcd0b793..6f5e0b437f 100644
+--- a/src/internal/sync/hashtriemap.go
++++ b/src/internal/sync/hashtriemap.go
+@@ -79,7 +79,7 @@ func (ht *HashTrieMap[K, V]) Load(key K) (value V, ok bool) {
+ 		}
+ 		i = n.indirect()
+ 	}
+-	panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
++	panic("internal/sync.HashTrieMap: ran out of hash bits while iterating")
+ }
+ 
+ // LoadOrStore returns the existing value for the key if present.
+@@ -120,7 +120,7 @@ func (ht *HashTrieMap[K, V]) LoadOrStore(key K, value V) (result V, loaded bool)
+ 			i = n.indirect()
+ 		}
+ 		if !haveInsertPoint {
+-			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
++			panic("internal/sync.HashTrieMap: ran out of hash bits while iterating")
+ 		}
+ 
+ 		// Grab the lock and double-check what we saw.
+@@ -178,7 +178,7 @@ func (ht *HashTrieMap[K, V]) expand(oldEntry, newEntry *entry[K, V], newHash uin
+ 	top := newIndirect
+ 	for {
+ 		if hashShift == 0 {
+-			panic("internal/concurrent.HashMapTrie: ran out of hash bits while inserting")
++			panic("internal/sync.HashTrieMap: ran out of hash bits while inserting")
+ 		}
+ 		hashShift -= nChildrenLog2 // hashShift is for the level parent is at. We need to go deeper.
+ 		oi := (oldHash >> hashShift) & nChildrenMask
+@@ -228,7 +228,7 @@ func (ht *HashTrieMap[K, V]) Swap(key K, new V) (previous V, loaded bool) {
+ 			i = n.indirect()
+ 		}
+ 		if !haveInsertPoint {
+-			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
++			panic("internal/sync.HashTrieMap: ran out of hash bits while iterating")
+ 		}
+ 
+ 		// Grab the lock and double-check what we saw.
+@@ -339,7 +339,7 @@ func (ht *HashTrieMap[K, V]) LoadAndDelete(key K) (value V, loaded bool) {
+ 	// Check if the node is now empty (and isn't the root), and delete it if able.
+ 	for i.parent != nil && i.empty() {
+ 		if hashShift == 8*goarch.PtrSize {
+-			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
++			panic("internal/sync.HashTrieMap: ran out of hash bits while iterating")
+ 		}
+ 		hashShift += nChildrenLog2
+ 
+@@ -401,7 +401,7 @@ func (ht *HashTrieMap[K, V]) CompareAndDelete(key K, old V) (deleted bool) {
+ 	// Check if the node is now empty (and isn't the root), and delete it if able.
+ 	for i.parent != nil && i.empty() {
+ 		if hashShift == 8*goarch.PtrSize {
+-			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
++			panic("internal/sync.HashTrieMap: ran out of hash bits while iterating")
+ 		}
+ 		hashShift += nChildrenLog2
+ 
+@@ -454,7 +454,7 @@ func (ht *HashTrieMap[K, V]) find(key K, hash uintptr, valEqual equalFunc, value
+ 			i = n.indirect()
+ 		}
+ 		if !found {
+-			panic("internal/concurrent.HashMapTrie: ran out of hash bits while iterating")
++			panic("internal/sync.HashTrieMap: ran out of hash bits while iterating")
+ 		}
+ 
+ 		// Grab the lock and double-check what we saw.

@@ -1,0 +1,70 @@
+commit a21b71daf57a54a12c2aedff0fba0860fa977590
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Thu May 15 13:41:14 2025 -0400
+
+    crypto/tls: have servers prefer TLS 1.3 when supported
+    
+    Previously the common Config.mutualVersion() code prioritized the
+    selected version based on the provided peerVersions being sent in peer
+    preference order.
+    
+    Instead we would prefer to see TLS 1.3 used whenever it is
+    supported, even if the peer would prefer an older protocol version.
+    This commit updates mutualVersions() to implement this policy change.
+    
+    Our new behaviour matches the behaviour of other TLS stacks, notably
+    BoringSSL, and so also allows enabling the IgnoreClientVersionOrder BoGo
+    test that we otherwise must skip.
+    
+    Updates #72006
+    
+    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673236
+    Auto-Submit: Daniel McCarney <daniel@binaryparadox.net>
+    TryBot-Bypass: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ doc/next/6-stdlib/99-minor/crypto/tls/version_pref.md | 1 +
+ src/crypto/tls/bogo_config.json                       | 1 -
+ src/crypto/tls/common.go                              | 6 +++---
+ 3 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/crypto/tls/version_pref.md b/doc/next/6-stdlib/99-minor/crypto/tls/version_pref.md
+new file mode 100644
+index 0000000000..5686f3ca0a
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/tls/version_pref.md
+@@ -0,0 +1 @@
++TLS servers now prefer the highest supported protocol version, even if it isn't the client's most preferred protocol version.
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 61585938d7..191f48fc02 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -66,7 +66,6 @@
+         "SupportTicketsWithSessionID": "TODO: first pass, this should be fixed",
+         "NoNullCompression-TLS12": "TODO: first pass, this should be fixed",
+         "KeyUpdate-RequestACK": "TODO: first pass, this should be fixed",
+-        "IgnoreClientVersionOrder": "RFC 8446 4.2.1 says supported_versions is in client pref order",
+         "SupportedVersionSelection-TLS12": "TODO: first pass, this should be fixed",
+         "DuplicateExtensionServer-TLS-TLS1": "TODO: first pass, this should be fixed",
+         "DuplicateExtensionClient-TLS-TLS1": "TODO: first pass, this should be fixed",
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 71b9ddb02c..1aaad7aba1 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -1233,11 +1233,11 @@ func (c *Config) supportsCurve(version uint16, curve CurveID) bool {
+ }
+ 
+ // mutualVersion returns the protocol version to use given the advertised
+-// versions of the peer. Priority is given to the peer preference order.
++// versions of the peer. The highest supported version is preferred.
+ func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
+ 	supportedVersions := c.supportedVersions(isClient)
+-	for _, v := range peerVersions {
+-		if slices.Contains(supportedVersions, v) {
++	for _, v := range supportedVersions {
++		if slices.Contains(peerVersions, v) {
+ 			return v, true
+ 		}
+ 	}

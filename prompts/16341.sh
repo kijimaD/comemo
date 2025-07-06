@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 16341: fee1d1cda04e6a936d62be6d06c838150a03d2de
+# Index 16341: b636f192e2f2c9e7114379ed27a43654b86b1b3b
 
 echo "🚀 Generating explanation for commit 16341..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 16341..."
 
 ### メタデータ
 - **コミットインデックス**: 16341
-- **コミットハッシュ**: fee1d1cda04e6a936d62be6d06c838150a03d2de
-- **GitHub URL**: https://github.com/golang/go/commit/fee1d1cda04e6a936d62be6d06c838150a03d2de
+- **コミットハッシュ**: b636f192e2f2c9e7114379ed27a43654b86b1b3b
+- **GitHub URL**: https://github.com/golang/go/commit/b636f192e2f2c9e7114379ed27a43654b86b1b3b
 
 ### 章構成
 

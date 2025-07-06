@@ -1,0 +1,49 @@
+commit 1cf862e66c6e65217c1254a7bfac6f3e77f4ae23
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 29 22:04:04 2024 +0000
+
+    cmd/cgo/internal/testsanitizers: skip some libfuzzer tests in short mode
+    
+    These tests are newly-running now that we have installed a C++ toolchain
+    on the clang builders, but one of them doesn't actually complete in short
+    mode.
+    
+    For #67698.
+    
+    Change-Id: Id1ff4c05e380426d920277c13495f30e23561a4e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589295
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go b/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
+index 3f5b1d91c7..9cb67e7a1d 100644
+--- a/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/libfuzzer_test.go
+@@ -33,8 +33,9 @@ func TestLibFuzzer(t *testing.T) {
+ 		goSrc         string
+ 		cSrc          string
+ 		expectedError string
++		short         bool
+ 	}{
+-		{goSrc: "libfuzzer1.go", expectedError: "panic: found it"},
++		{goSrc: "libfuzzer1.go", expectedError: "panic: found it", short: true},
+ 		{goSrc: "libfuzzer2.go", cSrc: "libfuzzer2.c", expectedError: "panic: found it"},
+ 	}
+ 	for _, tc := range cases {
+@@ -43,6 +44,11 @@ func TestLibFuzzer(t *testing.T) {
+ 		t.Run(name, func(t *testing.T) {
+ 			t.Parallel()
+ 
++			// Skip long-running tests in short mode.
++			if testing.Short() && !tc.short {
++				t.Skipf("%s can take upwards of minutes to run; skipping in short mode", name)
++			}
++
+ 			dir := newTempDir(t)
+ 			defer dir.RemoveAll(t)
+ 

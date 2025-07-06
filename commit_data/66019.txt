@@ -1,0 +1,145 @@
+commit f7dbbf251980763609a65efe15ef9f8ed0cc5a95
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Sat Jan 11 17:56:04 2025 +0100
+
+    cmd/compile: distribute 8 and 16-bit multiplication
+    
+    Expand the existing rule to cover 8 and 16 bit variants.
+    
+    compilecmp linux/amd64:
+    
+    time
+    time.parseStrictRFC3339.func1 80 -> 70  (-12.50%)
+    time.Time.appendStrictRFC3339.func1 80 -> 70  (-12.50%)
+    time.Time.appendStrictRFC3339 439 -> 428  (-2.51%)
+    
+    time [cmd/compile]
+    time.parseStrictRFC3339.func1 80 -> 70  (-12.50%)
+    time.Time.appendStrictRFC3339.func1 80 -> 70  (-12.50%)
+    time.Time.appendStrictRFC3339 439 -> 428  (-2.51%)
+    
+    linux/arm64:
+    
+    time
+    time.parseStrictRFC3339.func1 changed
+    time.Time.appendStrictRFC3339.func1 changed
+    time.Time.appendStrictRFC3339 416 -> 400  (-3.85%)
+    
+    time [cmd/compile]
+    time.Time.appendStrictRFC3339 416 -> 400  (-3.85%)
+    time.parseStrictRFC3339.func1 changed
+    time.Time.appendStrictRFC3339.func1 changed
+    
+    Change-Id: I0ad3b2363a9fe8c322dd05fbc13bf151a146d8cb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641756
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  4 ++
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 68 +++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 9e2e8772c1..8ad246830e 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -353,6 +353,10 @@
+   (Add64 (Const64 <t> [c*d]) (Mul64 <t> (Const64 <t> [c]) x))
+ (Mul32 (Const32 <t> [c]) (Add32 <t> (Const32 <t> [d]) x)) =>
+   (Add32 (Const32 <t> [c*d]) (Mul32 <t> (Const32 <t> [c]) x))
++(Mul16 (Const16 <t> [c]) (Add16 <t> (Const16 <t> [d]) x)) =>
++  (Add16 (Const16 <t> [c*d]) (Mul16 <t> (Const16 <t> [c]) x))
++(Mul8 (Const8 <t> [c]) (Add8 <t> (Const8 <t> [d]) x)) =>
++  (Add8 (Const8 <t> [c*d]) (Mul8 <t> (Const8 <t> [c]) x))
+ 
+ // Rewrite x*y ± x*z  to  x*(y±z)
+ (Add(64|32|16|8) <t> (Mul(64|32|16|8) x y) (Mul(64|32|16|8) x z))
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 4cb287c9b7..fa771bf27d 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -18194,6 +18194,40 @@ func rewriteValuegeneric_OpMul16(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (Mul16 (Const16 <t> [c]) (Add16 <t> (Const16 <t> [d]) x))
++	// result: (Add16 (Const16 <t> [c*d]) (Mul16 <t> (Const16 <t> [c]) x))
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpConst16 {
++				continue
++			}
++			t := v_0.Type
++			c := auxIntToInt16(v_0.AuxInt)
++			if v_1.Op != OpAdd16 || v_1.Type != t {
++				continue
++			}
++			_ = v_1.Args[1]
++			v_1_0 := v_1.Args[0]
++			v_1_1 := v_1.Args[1]
++			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
++				if v_1_0.Op != OpConst16 || v_1_0.Type != t {
++					continue
++				}
++				d := auxIntToInt16(v_1_0.AuxInt)
++				x := v_1_1
++				v.reset(OpAdd16)
++				v0 := b.NewValue0(v.Pos, OpConst16, t)
++				v0.AuxInt = int16ToAuxInt(c * d)
++				v1 := b.NewValue0(v.Pos, OpMul16, t)
++				v2 := b.NewValue0(v.Pos, OpConst16, t)
++				v2.AuxInt = int16ToAuxInt(c)
++				v1.AddArg2(v2, x)
++				v.AddArg2(v0, v1)
++				return true
++			}
++		}
++		break
++	}
+ 	// match: (Mul16 (Const16 [0]) _)
+ 	// result: (Const16 [0])
+ 	for {
+@@ -18917,6 +18951,40 @@ func rewriteValuegeneric_OpMul8(v *Value) bool {
+ 		}
+ 		break
+ 	}
++	// match: (Mul8 (Const8 <t> [c]) (Add8 <t> (Const8 <t> [d]) x))
++	// result: (Add8 (Const8 <t> [c*d]) (Mul8 <t> (Const8 <t> [c]) x))
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			if v_0.Op != OpConst8 {
++				continue
++			}
++			t := v_0.Type
++			c := auxIntToInt8(v_0.AuxInt)
++			if v_1.Op != OpAdd8 || v_1.Type != t {
++				continue
++			}
++			_ = v_1.Args[1]
++			v_1_0 := v_1.Args[0]
++			v_1_1 := v_1.Args[1]
++			for _i1 := 0; _i1 <= 1; _i1, v_1_0, v_1_1 = _i1+1, v_1_1, v_1_0 {
++				if v_1_0.Op != OpConst8 || v_1_0.Type != t {
++					continue
++				}
++				d := auxIntToInt8(v_1_0.AuxInt)
++				x := v_1_1
++				v.reset(OpAdd8)
++				v0 := b.NewValue0(v.Pos, OpConst8, t)
++				v0.AuxInt = int8ToAuxInt(c * d)
++				v1 := b.NewValue0(v.Pos, OpMul8, t)
++				v2 := b.NewValue0(v.Pos, OpConst8, t)
++				v2.AuxInt = int8ToAuxInt(c)
++				v1.AddArg2(v2, x)
++				v.AddArg2(v0, v1)
++				return true
++			}
++		}
++		break
++	}
+ 	// match: (Mul8 (Const8 [0]) _)
+ 	// result: (Const8 [0])
+ 	for {

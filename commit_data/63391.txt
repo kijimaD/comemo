@@ -1,0 +1,34 @@
+commit 7e9894449e8a12157a28a4a14fc9341353a6469c
+Author: Andy Pan <i@andypan.me>
+Date:   Thu Apr 4 16:40:52 2024 +0800
+
+    internal/poll: eliminate the redundant conditional branch for isKernelVersionGE53
+    
+    Follow up CL 573755
+    
+    Change-Id: I27c7571d3ef1274cf2c6892e678f946f9b65de33
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576416
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+---
+ src/internal/poll/copy_file_range_linux.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/internal/poll/copy_file_range_linux.go b/src/internal/poll/copy_file_range_linux.go
+index 1a32236b12..3d51333d73 100644
+--- a/src/internal/poll/copy_file_range_linux.go
++++ b/src/internal/poll/copy_file_range_linux.go
+@@ -15,10 +15,7 @@ var isKernelVersionGE53 = sync.OnceValue(func() bool {
+ 	// copy_file_range(2) is broken in various ways on kernels older than 5.3,
+ 	// see https://go.dev/issue/42400 and
+ 	// https://man7.org/linux/man-pages/man2/copy_file_range.2.html#VERSIONS
+-	if major > 5 || (major == 5 && minor >= 3) {
+-		return true
+-	}
+-	return false
++	return major > 5 || (major == 5 && minor >= 3)
+ })
+ 
+ const maxCopyFileRangeRound = 1 << 30

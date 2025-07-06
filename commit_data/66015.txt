@@ -1,0 +1,67 @@
+commit 6adf54a3ebca857ae529b78c03945750731042ed
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Jan 10 16:35:24 2025 -0800
+
+    cmd/cgo: declare _GoString{Len,Ptr} in _cgo_export.h
+    
+    Fixes #71226
+    
+    Change-Id: I91c46a4310a9c7a9fcd1e3a131ca16e46949edb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642235
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/cgo/out.go           |  2 ++
+ test/fixedbugs/issue71226.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 31 insertions(+)
+
+diff --git a/src/cmd/cgo/out.go b/src/cmd/cgo/out.go
+index b3e4c7ccdf..36a0267713 100644
+--- a/src/cmd/cgo/out.go
++++ b/src/cmd/cgo/out.go
+@@ -1938,6 +1938,8 @@ const builtinExportProlog = `
+ 
+ #ifndef GO_CGO_GOSTRING_TYPEDEF
+ typedef struct { const char *p; ptrdiff_t n; } _GoString_;
++extern size_t _GoStringLen(_GoString_ s);
++extern const char *_GoStringPtr(_GoString_ s);
+ #endif
+ 
+ #endif
+diff --git a/test/fixedbugs/issue71226.go b/test/fixedbugs/issue71226.go
+new file mode 100644
+index 0000000000..704814b601
+--- /dev/null
++++ b/test/fixedbugs/issue71226.go
+@@ -0,0 +1,29 @@
++// build
++
++//go:build cgo
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++/*
++#cgo CFLAGS: -Werror -Wimplicit-function-declaration
++
++#include <stdio.h>
++
++static void CFn(_GoString_ gostr) {
++	printf("%.*s\n", _GoStringLen(gostr), _GoStringPtr(gostr));
++}
++*/
++import "C"
++
++func main() {
++	C.CFn("hello, world")
++}
++
++// The bug only occurs if there is an exported function.
++//export Fn
++func Fn() {
++}

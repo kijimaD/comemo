@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40320: 2c1b5130aa03b850e21a8c0e82943228305a60d9
+# Index 40320: ea6259d5e9d57f247b7d877d4d04602b74ae5155
 
 echo "🚀 Generating explanation for commit 40320..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40320..."
 
 ### メタデータ
 - **コミットインデックス**: 40320
-- **コミットハッシュ**: 2c1b5130aa03b850e21a8c0e82943228305a60d9
-- **GitHub URL**: https://github.com/golang/go/commit/2c1b5130aa03b850e21a8c0e82943228305a60d9
+- **コミットハッシュ**: ea6259d5e9d57f247b7d877d4d04602b74ae5155
+- **GitHub URL**: https://github.com/golang/go/commit/ea6259d5e9d57f247b7d877d4d04602b74ae5155
 
 ### 章構成
 

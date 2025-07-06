@@ -1,0 +1,138 @@
+commit b03b1acfb0bb6c605a70987dfaf5bb922c792e82
+Author: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+Date:   Wed Sep 11 09:58:04 2024 -0500
+
+    cmd/internal/obj/ppc64: add double-decimal arithmetic instructions
+    
+    Assembler support provided for the instructions DADD, DSUB, DMUL, and DDIV.
+    
+    Change-Id: Ic12ba02ce453cb1ca275334ca1924fb2009da767
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620856
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/asm/internal/asm/testdata/ppc64.s |  8 ++++++++
+ src/cmd/internal/obj/ppc64/a.out.go       |  4 ++++
+ src/cmd/internal/obj/ppc64/anames.go      |  4 ++++
+ src/cmd/internal/obj/ppc64/asm9.go        | 13 +++++++++++++
+ 4 files changed, 29 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index e2c1000e0b..e7ab944a1d 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -681,9 +681,13 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	FMOVDCC F1, F2                  // fc400891
+ 	FADDS F1, F2                    // ec42082a
+ 	FADDS F1, F2, F3                // ec62082a
++	DADD F1, F2                     // ec420804
++	DADD F1, F2, F3                 // ec620804
+ 	FADDSCC F1, F2, F3              // ec62082b
+ 	FSUB F1, F2                     // fc420828
+ 	FSUB F1, F2, F3                 // fc620828
++	DSUB F1, F2                     // ec420c04
++        DSUB F1, F2, F3                 // ec620c04
+ 	FSUBCC F1, F2, F3               // fc620829
+ 	FSUBS F1, F2                    // ec420828
+ 	FSUBS F1, F2, F3                // ec620828
+@@ -691,12 +695,16 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	FSUBSCC F1, F2, F3              // ec620829
+ 	FMUL F1, F2                     // fc420072
+ 	FMUL F1, F2, F3                 // fc620072
++	DMUL F1, F2                     // ec420044
++        DMUL F1, F2, F3                 // ec620044
+ 	FMULCC F1, F2, F3               // fc620073
+ 	FMULS F1, F2                    // ec420072
+ 	FMULS F1, F2, F3                // ec620072
+ 	FMULSCC F1, F2, F3              // ec620073
+ 	FDIV F1, F2                     // fc420824
+ 	FDIV F1, F2, F3                 // fc620824
++	DDIV F1, F2                     // ec420c44
++        DDIV F1, F2, F3                 // ec620c44
+ 	FDIVCC F1, F2, F3               // fc620825
+ 	FDIVS F1, F2                    // ec420824
+ 	FDIVS F1, F2, F3                // ec620824
+diff --git a/src/cmd/internal/obj/ppc64/a.out.go b/src/cmd/internal/obj/ppc64/a.out.go
+index 3782af2918..137c6d2ff2 100644
+--- a/src/cmd/internal/obj/ppc64/a.out.go
++++ b/src/cmd/internal/obj/ppc64/a.out.go
+@@ -504,6 +504,8 @@ const (
+ 	ACROR
+ 	ACRORN
+ 	ACRXOR
++	ADADD
++	ADDIV
+ 	ADIVW
+ 	ADIVWCC
+ 	ADIVWVCC
+@@ -512,6 +514,8 @@ const (
+ 	ADIVWUCC
+ 	ADIVWUVCC
+ 	ADIVWUV
++	ADMUL
++	ADSUB
+ 	AMODUD
+ 	AMODUW
+ 	AMODSD
+diff --git a/src/cmd/internal/obj/ppc64/anames.go b/src/cmd/internal/obj/ppc64/anames.go
+index 1cf41b8307..f9ec191551 100644
+--- a/src/cmd/internal/obj/ppc64/anames.go
++++ b/src/cmd/internal/obj/ppc64/anames.go
+@@ -57,6 +57,8 @@ var Anames = []string{
+ 	"CROR",
+ 	"CRORN",
+ 	"CRXOR",
++	"DADD",
++	"DDIV",
+ 	"DIVW",
+ 	"DIVWCC",
+ 	"DIVWVCC",
+@@ -65,6 +67,8 @@ var Anames = []string{
+ 	"DIVWUCC",
+ 	"DIVWUVCC",
+ 	"DIVWUV",
++	"DMUL",
++	"DSUB",
+ 	"MODUD",
+ 	"MODUW",
+ 	"MODSD",
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index 74f1772e3d..1a884dea7b 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -1871,6 +1871,9 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AFSUBS, r0)
+ 			opset(AFSUBCC, r0)
+ 			opset(AFSUBSCC, r0)
++			opset(ADADD, r0)
++			opset(ADDIV, r0)
++			opset(ADSUB, r0)
+ 
+ 		case AFMADD:
+ 			opset(AFMADDCC, r0)
+@@ -1895,6 +1898,7 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AFMULS, r0)
+ 			opset(AFMULCC, r0)
+ 			opset(AFMULSCC, r0)
++			opset(ADMUL, r0)
+ 
+ 		case AFCMPO:
+ 			opset(AFCMPU, r0)
+@@ -3935,6 +3939,15 @@ func (c *ctxt9) oprrr(a obj.As) uint32 {
+ 	case ACRXOR:
+ 		return OPVCC(19, 193, 0, 0)
+ 
++	case ADADD:
++		return OPVCC(59, 2, 0, 0)
++	case ADDIV:
++		return OPVCC(59, 546, 0, 0)
++	case ADMUL:
++		return OPVCC(59, 34, 0, 0)
++	case ADSUB:
++		return OPVCC(59, 514, 0, 0)
++
+ 	case ADCBF:
+ 		return OPVCC(31, 86, 0, 0)
+ 	case ADCBI:

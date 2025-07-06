@@ -1,0 +1,75 @@
+commit a80543a987c4201f05842ea7d46cc8c999a01b09
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sat May 4 01:48:52 2024 +0000
+
+    time: use stringslite.Clone
+    
+    Change-Id: I82f0e7c0c0c80a3cc0e4a732a59ae1debb37d8d9
+    GitHub-Last-Rev: c8a081f5b37e26058dd0278464950e81e045ab95
+    GitHub-Pull-Request: golang/go#67166
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583195
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/time/format.go | 19 ++++++++-----------
+ 1 file changed, 8 insertions(+), 11 deletions(-)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 9115609f60..875fb36df8 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -4,7 +4,10 @@
+ 
+ package time
+ 
+-import "errors"
++import (
++	"errors"
++	"internal/stringslite"
++)
+ 
+ // These are predefined layouts for use in [Time.Format] and [time.Parse].
+ // The reference time used in these layouts is the specific time stamp:
+@@ -827,17 +830,11 @@ type ParseError struct {
+ // newParseError creates a new ParseError.
+ // The provided value and valueElem are cloned to avoid escaping their values.
+ func newParseError(layout, value, layoutElem, valueElem, message string) *ParseError {
+-	valueCopy := cloneString(value)
+-	valueElemCopy := cloneString(valueElem)
++	valueCopy := stringslite.Clone(value)
++	valueElemCopy := stringslite.Clone(valueElem)
+ 	return &ParseError{layout, valueCopy, layoutElem, valueElemCopy, message}
+ }
+ 
+-// cloneString returns a string copy of s.
+-// Do not use strings.Clone to avoid dependency on strings package.
+-func cloneString(s string) string {
+-	return string([]byte(s))
+-}
+-
+ // These are borrowed from unicode/utf8 and strconv and replicate behavior in
+ // that package, since we can't take a dependency on either.
+ const (
+@@ -1368,7 +1365,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 		}
+ 
+ 		// Otherwise create fake zone to record offset.
+-		zoneNameCopy := cloneString(zoneName) // avoid leaking the input value
++		zoneNameCopy := stringslite.Clone(zoneName) // avoid leaking the input value
+ 		t.setLoc(FixedZone(zoneNameCopy, zoneOffset))
+ 		return t, nil
+ 	}
+@@ -1389,7 +1386,7 @@ func parse(layout, value string, defaultLocation, local *Location) (Time, error)
+ 			offset, _ = atoi(zoneName[3:]) // Guaranteed OK by parseGMT.
+ 			offset *= 3600
+ 		}
+-		zoneNameCopy := cloneString(zoneName) // avoid leaking the input value
++		zoneNameCopy := stringslite.Clone(zoneName) // avoid leaking the input value
+ 		t.setLoc(FixedZone(zoneNameCopy, offset))
+ 		return t, nil
+ 	}

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 53118: feada5366134772c4c6462e4a12150410741a00f
+# Index 53118: ed1c8db308029bd82e6de4d547196f7f841236bb
 
 echo "🚀 Generating explanation for commit 53118..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 53118..."
 
 ### メタデータ
 - **コミットインデックス**: 53118
-- **コミットハッシュ**: feada5366134772c4c6462e4a12150410741a00f
-- **GitHub URL**: https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f
+- **コミットハッシュ**: ed1c8db308029bd82e6de4d547196f7f841236bb
+- **GitHub URL**: https://github.com/golang/go/commit/ed1c8db308029bd82e6de4d547196f7f841236bb
 
 ### 章構成
 

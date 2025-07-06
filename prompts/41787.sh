@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41787: dad512f6df83367a46d9135daa13e27f51b8ba04
+# Index 41787: a28a9427688846f971017924bcf6e8cb623ffba4
 
 echo "🚀 Generating explanation for commit 41787..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 41787..."
 
 ### メタデータ
 - **コミットインデックス**: 41787
-- **コミットハッシュ**: dad512f6df83367a46d9135daa13e27f51b8ba04
-- **GitHub URL**: https://github.com/golang/go/commit/dad512f6df83367a46d9135daa13e27f51b8ba04
+- **コミットハッシュ**: a28a9427688846f971017924bcf6e8cb623ffba4
+- **GitHub URL**: https://github.com/golang/go/commit/a28a9427688846f971017924bcf6e8cb623ffba4
 
 ### 章構成
 

@@ -1,0 +1,42 @@
+commit a55edb7b55e2db1744fc939d57a01d0458306e76
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu May 16 17:28:52 2024 -0400
+
+    cmd/go: add telemetry for a predefined set of GOROOT values
+    
+    For #58894
+    
+    Change-Id: Ia30a3a1a9c7b611f55701956c08caa967634cd5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586138
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+---
+ src/cmd/go/main.go | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 03395b87f9..fff817693a 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -124,6 +124,20 @@ func main() {
+ 		fmt.Fprintf(os.Stderr, "go: cannot find GOROOT directory: %v\n", cfg.GOROOT)
+ 		os.Exit(2)
+ 	}
++	switch strings.ToLower(cfg.GOROOT) {
++	case "/usr/local/go": // Location recommended for installation on Linux and Darwin and used by Mac installer.
++		telemetry.Inc("go/goroot:usr-local-go")
++	case "/usr/lib/go": // A typical location used by Linux package managers.
++		telemetry.Inc("go/goroot:usr-lib-go")
++	case "/usr/lib/golang": // Another typical location used by Linux package managers.
++		telemetry.Inc("go/goroot:usr-lib-golang")
++	case `c:\program files\go`: // Location used by Windows installer.
++		telemetry.Inc("go/goroot:program-files-go")
++	case `c:\program files (x86)\go`: // Location used by 386 Windows installer on amd64 platform.
++		telemetry.Inc("go/goroot:program-files-x86-go")
++	default:
++		telemetry.Inc("go/goroot:other")
++	}
+ 
+ 	// Diagnose common mistake: GOPATH==GOROOT.
+ 	// This setting is equivalent to not setting GOPATH at all,

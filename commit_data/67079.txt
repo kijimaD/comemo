@@ -1,0 +1,37 @@
+commit 2cde950049dd46cae3ae91cde3e270825793ba0f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon May 19 16:20:47 2025 -0400
+
+    runtime: disable TestSegv in race mode
+    
+    This was just enabled in CL 643897. It seems to work fine on Linux, but
+    there are traceback issues on Darwin. We could disable just on Darwin,
+    but I'm not sure SIGSEGV inside of TSAN is something we care to support.
+    
+    Fixes #73784.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-arm64-race
+    Change-Id: I6a6a636cb15d7affaeb22c4c13d8f2a5c9bb31fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674276
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/crash_cgo_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/crash_cgo_test.go b/src/runtime/crash_cgo_test.go
+index 3bd523de1a..23726e1fe3 100644
+--- a/src/runtime/crash_cgo_test.go
++++ b/src/runtime/crash_cgo_test.go
+@@ -659,8 +659,8 @@ func TestSegv(t *testing.T) {
+ 	case "plan9", "windows":
+ 		t.Skipf("no signals on %s", runtime.GOOS)
+ 	}
+-	if asan.Enabled || msan.Enabled {
+-		t.Skip("skipping test on ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
++	if race.Enabled || asan.Enabled || msan.Enabled {
++		t.Skip("skipping test on race/ASAN/MSAN: triggers SIGSEGV in sanitizer runtime")
+ 	}
+ 
+ 	for _, test := range []string{"Segv", "SegvInCgo", "TgkillSegv", "TgkillSegvInCgo"} {

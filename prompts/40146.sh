@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40146: d1f43ccef7a8285bf3bcd3518d4f38838ce5da1c
+# Index 40146: 6d5caf38e37bf9aeba3291f1f0b0081f934b1187
 
 echo "🚀 Generating explanation for commit 40146..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40146..."
 
 ### メタデータ
 - **コミットインデックス**: 40146
-- **コミットハッシュ**: d1f43ccef7a8285bf3bcd3518d4f38838ce5da1c
-- **GitHub URL**: https://github.com/golang/go/commit/d1f43ccef7a8285bf3bcd3518d4f38838ce5da1c
+- **コミットハッシュ**: 6d5caf38e37bf9aeba3291f1f0b0081f934b1187
+- **GitHub URL**: https://github.com/golang/go/commit/6d5caf38e37bf9aeba3291f1f0b0081f934b1187
 
 ### 章構成
 

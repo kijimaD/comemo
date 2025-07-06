@@ -1,0 +1,95 @@
+commit fba83cdfc6c4818af5b773afa39e457d16a6db7a
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Sep 5 00:01:52 2024 +1000
+
+    cmd/compile/internal/ssa: correct MOVDnop handling for arm64
+    
+    The extension-removing rules for ARM64 were moved to late lower in
+    CL 568616. This means that the late lower pass can now generate
+    MOVDreg, however the rules that potentially eliminate MOVDreg only
+    exist in the earlier pass. Fix this by duplicating the MOVDreg/NOVDnop
+    rules in late lower, such that we can potentially eliminate conversions.
+    
+    Removes 400+ instructions from the Go binary on openbsd/arm64.
+    
+    Change-Id: I14aad06b994c9179f3ecdda566629793ba167511
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651819
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ .../compile/internal/ssa/_gen/ARM64latelower.rules |  8 +++++
+ .../compile/internal/ssa/rewriteARM64latelower.go  | 35 ++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64latelower.rules b/src/cmd/compile/internal/ssa/_gen/ARM64latelower.rules
+index e50d985aa0..963b38e27b 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64latelower.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64latelower.rules
+@@ -85,3 +85,11 @@
+ (MOVWUreg x:(MOVBUreg _)) => (MOVDreg x)
+ (MOVWUreg x:(MOVHUreg _)) => (MOVDreg x)
+ (MOVWUreg x:(MOVWUreg _)) => (MOVDreg x)
++
++// if a register move has only 1 use, just use the same register without emitting instruction
++// MOVDnop doesn't emit instruction, only for ensuring the type.
++(MOVDreg x) && x.Uses == 1 => (MOVDnop x)
++
++// TODO: we should be able to get rid of MOVDnop all together.
++// But for now, this is enough to get rid of lots of them.
++(MOVDnop (MOVDconst [c])) => (MOVDconst [c])
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64latelower.go b/src/cmd/compile/internal/ssa/rewriteARM64latelower.go
+index 6873fd7996..3bdc1f1619 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64latelower.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64latelower.go
+@@ -22,6 +22,10 @@ func rewriteValueARM64latelower(v *Value) bool {
+ 		return rewriteValueARM64latelower_OpARM64MOVBUreg(v)
+ 	case OpARM64MOVBreg:
+ 		return rewriteValueARM64latelower_OpARM64MOVBreg(v)
++	case OpARM64MOVDnop:
++		return rewriteValueARM64latelower_OpARM64MOVDnop(v)
++	case OpARM64MOVDreg:
++		return rewriteValueARM64latelower_OpARM64MOVDreg(v)
+ 	case OpARM64MOVHUreg:
+ 		return rewriteValueARM64latelower_OpARM64MOVHUreg(v)
+ 	case OpARM64MOVHreg:
+@@ -404,6 +408,37 @@ func rewriteValueARM64latelower_OpARM64MOVBreg(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValueARM64latelower_OpARM64MOVDnop(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVDnop (MOVDconst [c]))
++	// result: (MOVDconst [c])
++	for {
++		if v_0.Op != OpARM64MOVDconst {
++			break
++		}
++		c := auxIntToInt64(v_0.AuxInt)
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64ToAuxInt(c)
++		return true
++	}
++	return false
++}
++func rewriteValueARM64latelower_OpARM64MOVDreg(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (MOVDreg x)
++	// cond: x.Uses == 1
++	// result: (MOVDnop x)
++	for {
++		x := v_0
++		if !(x.Uses == 1) {
++			break
++		}
++		v.reset(OpARM64MOVDnop)
++		v.AddArg(x)
++		return true
++	}
++	return false
++}
+ func rewriteValueARM64latelower_OpARM64MOVHUreg(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	// match: (MOVHUreg x:(MOVBUload _ _))

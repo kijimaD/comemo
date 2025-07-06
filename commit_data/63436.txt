@@ -1,0 +1,60 @@
+commit 890179d949da55aaa09d60c4fe2c25397d2ce906
+Author: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+Date:   Sun Apr 7 09:27:11 2024 -0700
+
+    misc/wasm: drop wasmtime < 14 support
+    
+    For Go 1.23, we decided to no longer support the old CLI interface
+    exposed by wasmtime. This removes the extra logic included to support
+    both the new and the old CLI interface. Now only versions of wasmtime
+    14 and newer are supported.
+    
+    Fixes #63718
+    
+    Change-Id: Iea31388dc41bc8d73caa923c7e4acae2228bf515
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577135
+    Reviewed-by: Randy Reddig <randy.reddig@fastly.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ doc/next/7-ports.md           |  6 ++++++
+ misc/wasm/go_wasip1_wasm_exec | 10 +---------
+ 2 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/doc/next/7-ports.md b/doc/next/7-ports.md
+index 796cc4bf1b..f84cefc59b 100644
+--- a/doc/next/7-ports.md
++++ b/doc/next/7-ports.md
+@@ -6,3 +6,9 @@
+ As [announced](go1.22#darwin) in the Go 1.22 release notes,
+ Go 1.23 requires macOS 11 Big Sur or later;
+ support for previous versions has been discontinued.
++
++### Wasm {#wasm}
++
++<!-- go.dev/issue/63718 -->
++The `go_wasip1_wasm_exec` script in `GOROOT/misc/wasm` has dropped support
++for versions of `wasmtime` < 14.0.0.
+diff --git a/misc/wasm/go_wasip1_wasm_exec b/misc/wasm/go_wasip1_wasm_exec
+index cd16b96ea7..3b2d12ec45 100755
+--- a/misc/wasm/go_wasip1_wasm_exec
++++ b/misc/wasm/go_wasip1_wasm_exec
+@@ -14,15 +14,7 @@ case "$GOWASIRUNTIME" in
+ 		exec wazero run -mount /:/ -env-inherit -cachedir "${TMPDIR:-/tmp}"/wazero ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
+ 		;;
+ 	"wasmtime" | "")
+-		# Match the major version in "wasmtime-cli 14.0.0". For versions before 14
+-		# we need to use the old CLI. This requires Bash v3.0 and above.
+-		# TODO(johanbrandhorst): Remove this condition once 1.22 is released.
+-		# From 1.23 onwards we'll only support the new wasmtime CLI.
+-		if [[ "$(wasmtime --version)" =~ wasmtime-cli[[:space:]]([0-9]+)\.[0-9]+\.[0-9]+ && "${BASH_REMATCH[1]}" -lt 14 ]]; then
+-			exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" --max-wasm-stack 1048576 ${GOWASIRUNTIMEARGS:-} "$1" -- "${@:2}"
+-		else
+-			exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" -W max-wasm-stack=1048576 ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
+-		fi
++		exec wasmtime run --dir=/ --env PWD="$PWD" --env PATH="$PATH" -W max-wasm-stack=1048576 ${GOWASIRUNTIMEARGS:-} "$1" "${@:2}"
+ 		;;
+ 	*)
+ 		echo "Unknown Go WASI runtime specified: $GOWASIRUNTIME"

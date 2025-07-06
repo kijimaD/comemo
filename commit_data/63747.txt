@@ -1,0 +1,66 @@
+commit 7ba8a23b675098128da686b4384526208e51d128
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 14 13:48:21 2024 +0200
+
+    syscall: use internal/byteorder
+    
+    Change-Id: I798729a6095494e9d0bd18d6b7d4372910056218
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585117
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/syscall/dirent.go | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/src/syscall/dirent.go b/src/syscall/dirent.go
+index a9eab15736..e4f36a191b 100644
+--- a/src/syscall/dirent.go
++++ b/src/syscall/dirent.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"internal/byteorder"
+ 	"internal/goarch"
+ 	"runtime"
+ 	"unsafe"
+@@ -28,15 +29,11 @@ func readIntBE(b []byte, size uintptr) uint64 {
+ 	case 1:
+ 		return uint64(b[0])
+ 	case 2:
+-		_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+-		return uint64(b[1]) | uint64(b[0])<<8
++		return uint64(byteorder.BeUint16(b))
+ 	case 4:
+-		_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+-		return uint64(b[3]) | uint64(b[2])<<8 | uint64(b[1])<<16 | uint64(b[0])<<24
++		return uint64(byteorder.BeUint32(b))
+ 	case 8:
+-		_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+-		return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+-			uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
++		return uint64(byteorder.BeUint64(b))
+ 	default:
+ 		panic("syscall: readInt with unsupported size")
+ 	}
+@@ -47,15 +44,11 @@ func readIntLE(b []byte, size uintptr) uint64 {
+ 	case 1:
+ 		return uint64(b[0])
+ 	case 2:
+-		_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+-		return uint64(b[0]) | uint64(b[1])<<8
++		return uint64(byteorder.LeUint16(b))
+ 	case 4:
+-		_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+-		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24
++		return uint64(byteorder.LeUint32(b))
+ 	case 8:
+-		_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+-		return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+-			uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
++		return uint64(byteorder.LeUint64(b))
+ 	default:
+ 		panic("syscall: readInt with unsupported size")
+ 	}

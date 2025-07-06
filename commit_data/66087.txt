@@ -1,0 +1,87 @@
+commit b8fb95becda267e8369a3a2bfd30037c91504fba
+Author: Joel Sing <joel@sing.id.au>
+Date:   Fri Jan 3 19:06:13 2025 +1100
+
+    crypto/internal/fips140/subtle: combine xor_<goarch>.go files
+    
+    There is not much point in having per architecture files that all contain
+    the same content. Instead, merge the various xor_<goarch>.go files into a
+    single xor_asm.go file that has appropriate build tags.
+    
+    Change-Id: I555d44b2fd83f260a4855d83cacb9e101d689bc0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639856
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/internal/fips140/subtle/xor_arm64.go                | 10 ----------
+ .../internal/fips140/subtle/{xor_amd64.go => xor_asm.go}       |  2 +-
+ src/crypto/internal/fips140/subtle/xor_loong64.go              | 10 ----------
+ src/crypto/internal/fips140/subtle/xor_ppc64x.go               | 10 ----------
+ 4 files changed, 1 insertion(+), 31 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/subtle/xor_arm64.go b/src/crypto/internal/fips140/subtle/xor_arm64.go
+deleted file mode 100644
+index 65bab4c657..0000000000
+--- a/src/crypto/internal/fips140/subtle/xor_arm64.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2020 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-package subtle
+-
+-//go:noescape
+-func xorBytes(dst, a, b *byte, n int)
+diff --git a/src/crypto/internal/fips140/subtle/xor_amd64.go b/src/crypto/internal/fips140/subtle/xor_asm.go
+similarity index 76%
+rename from src/crypto/internal/fips140/subtle/xor_amd64.go
+rename to src/crypto/internal/fips140/subtle/xor_asm.go
+index 3bb2f08b7c..16343db658 100644
+--- a/src/crypto/internal/fips140/subtle/xor_amd64.go
++++ b/src/crypto/internal/fips140/subtle/xor_asm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !purego
++//go:build (amd64 || arm64 || loong64 || ppc64 || ppc64le) && !purego
+ 
+ package subtle
+ 
+diff --git a/src/crypto/internal/fips140/subtle/xor_loong64.go b/src/crypto/internal/fips140/subtle/xor_loong64.go
+deleted file mode 100644
+index e49f0fc9e3..0000000000
+--- a/src/crypto/internal/fips140/subtle/xor_loong64.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-package subtle
+-
+-//go:noescape
+-func xorBytes(dst, a, b *byte, n int)
+diff --git a/src/crypto/internal/fips140/subtle/xor_ppc64x.go b/src/crypto/internal/fips140/subtle/xor_ppc64x.go
+deleted file mode 100644
+index 760463c7e5..0000000000
+--- a/src/crypto/internal/fips140/subtle/xor_ppc64x.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (ppc64 || ppc64le) && !purego
+-
+-package subtle
+-
+-//go:noescape
+-func xorBytes(dst, a, b *byte, n int)

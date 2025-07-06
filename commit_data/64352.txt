@@ -1,0 +1,123 @@
+commit aa97a012b4be393c1725c16a78b92dea81632378
+Author: Than McIntosh <thanm@google.com>
+Date:   Fri Jul 26 12:58:29 2024 +0000
+
+    cmd/compile: add script testing facility for compiler use
+    
+    Add support for running script tests as part of the compiler's suite
+    of tests, hooking in the script test engine packages recently moved
+    from cmd/go to cmd/internal. These script tests will use the test
+    binary itself as the compile tool for Go builds, and can also run the
+    C compiler if needed. New script test cases (*.txt files) should be
+    added to the directory cmd/compile/testdata/script.
+    
+    Updates #68606.
+    
+    Change-Id: I9b056a07024b0a72320a89ad734e4b4a51f1c10c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601361
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/script_test.go                     | 62 ++++++++++++++++++++++
+ .../compile/testdata/script/script_test_basics.txt | 24 +++++++++
+ 2 files changed, 86 insertions(+)
+
+diff --git a/src/cmd/compile/script_test.go b/src/cmd/compile/script_test.go
+new file mode 100644
+index 0000000000..962e4bb754
+--- /dev/null
++++ b/src/cmd/compile/script_test.go
+@@ -0,0 +1,62 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"cmd/internal/script/scripttest"
++	"internal/testenv"
++	"os"
++	"runtime"
++	"testing"
++)
++
++var testCompiler string
++
++// TestMain allows this test binary to run as the compiler
++// itself, which is helpful for running script tests.
++// If COMPILE_TEST_EXEC_COMPILE is set, we treat the run
++// as a 'go tool compile' invocation, otherwise behave
++// as a normal test binary.
++func TestMain(m *testing.M) {
++	// Are we being asked to run as the compiler?
++	// If so then kick off main.
++	if os.Getenv("COMPILE_TEST_EXEC_COMPILE") != "" {
++		main()
++		os.Exit(0)
++	}
++
++	if testExe, err := os.Executable(); err == nil {
++		// on wasm, some phones, we expect an error from os.Executable()
++		testCompiler = testExe
++	}
++
++	// Regular run, just execute tests.
++	os.Exit(m.Run())
++}
++
++func TestScript(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	doReplacement := true
++	switch runtime.GOOS {
++	case "wasip1", "js":
++		// wasm doesn't support os.Executable, so we'll skip replacing
++		// the installed linker with our test binary.
++		doReplacement = false
++	}
++	repls := []scripttest.ToolReplacement{}
++	if doReplacement {
++		if testCompiler == "" {
++			t.Fatalf("testCompiler not set, can't replace")
++		}
++		repls = []scripttest.ToolReplacement{
++			scripttest.ToolReplacement{
++				ToolName:        "compile",
++				ReplacementPath: testCompiler,
++				EnvVar:          "COMPILE_TEST_EXEC_COMPILE=1",
++			},
++		}
++	}
++	scripttest.RunToolScriptTest(t, repls, "testdata/script/*.txt")
++}
+diff --git a/src/cmd/compile/testdata/script/script_test_basics.txt b/src/cmd/compile/testdata/script/script_test_basics.txt
+new file mode 100644
+index 0000000000..ecc28951a1
+--- /dev/null
++++ b/src/cmd/compile/testdata/script/script_test_basics.txt
+@@ -0,0 +1,24 @@
++
++# Test of the linker's script test harness.
++
++go build
++[!cgo] skip
++cc -c testdata/mumble.c
++
++-- go.mod --
++module main
++
++go 1.20
++
++-- main.go --
++package main
++
++func main() {
++  println("Hi mom!")
++}
++
++-- testdata/mumble.c --
++
++int x;
++
++

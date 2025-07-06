@@ -1,0 +1,75 @@
+commit fbdd994166007349920592822e659d98b2d94ab6
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Mar 12 16:36:08 2025 +0100
+
+    crypto/tls: allow P-521 in FIPS 140-3 mode and Go+BoringCrypto
+    
+    Partially reverts CL 587296, restoring the Go+BoringCrypto 1.23 behavior
+    in terms of supported curves.
+    
+    Updates #71757
+    
+    Change-Id: I6a6a465651a8407056fd0fae091d10a945b37997
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657095
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/tls/defaults.go  | 6 ++++--
+ src/crypto/tls/fips_test.go | 3 ++-
+ 2 files changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/defaults.go b/src/crypto/tls/defaults.go
+index f25d0d3ce3..ab346e18b3 100644
+--- a/src/crypto/tls/defaults.go
++++ b/src/crypto/tls/defaults.go
+@@ -92,7 +92,8 @@ var defaultCipherSuitesTLS13NoAES = []uint16{
+ }
+ 
+ // The FIPS-only policies below match BoringSSL's
+-// ssl_compliance_policy_fips_202205, which is based on NIST SP 800-52r2.
++// ssl_compliance_policy_fips_202205, which is based on NIST SP 800-52r2, with
++// minor changes per https://go.dev/issue/71757.
+ // https://cs.opensource.google/boringssl/boringssl/+/master:ssl/ssl_lib.cc;l=3289;drc=ea7a88fa
+ 
+ var defaultSupportedVersionsFIPS = []uint16{
+@@ -102,7 +103,7 @@ var defaultSupportedVersionsFIPS = []uint16{
+ 
+ // defaultCurvePreferencesFIPS are the FIPS-allowed curves,
+ // in preference order (most preferable first).
+-var defaultCurvePreferencesFIPS = []CurveID{CurveP256, CurveP384}
++var defaultCurvePreferencesFIPS = []CurveID{CurveP256, CurveP384, CurveP521}
+ 
+ // defaultSupportedSignatureAlgorithmsFIPS currently are a subset of
+ // defaultSupportedSignatureAlgorithms without Ed25519 and SHA-1.
+@@ -115,6 +116,7 @@ var defaultSupportedSignatureAlgorithmsFIPS = []SignatureScheme{
+ 	PKCS1WithSHA384,
+ 	ECDSAWithP384AndSHA384,
+ 	PKCS1WithSHA512,
++	ECDSAWithP521AndSHA512,
+ }
+ 
+ // defaultCipherSuitesFIPS are the FIPS-allowed cipher suites.
+diff --git a/src/crypto/tls/fips_test.go b/src/crypto/tls/fips_test.go
+index e891fcc871..d5ac9b6899 100644
+--- a/src/crypto/tls/fips_test.go
++++ b/src/crypto/tls/fips_test.go
+@@ -106,7 +106,7 @@ func isFIPSCipherSuite(id uint16) bool {
+ 
+ func isFIPSCurve(id CurveID) bool {
+ 	switch id {
+-	case CurveP256, CurveP384:
++	case CurveP256, CurveP384, CurveP521:
+ 		return true
+ 	}
+ 	return false
+@@ -130,6 +130,7 @@ func isFIPSSignatureScheme(alg SignatureScheme) bool {
+ 		PKCS1WithSHA384,
+ 		ECDSAWithP384AndSHA384,
+ 		PKCS1WithSHA512,
++		ECDSAWithP521AndSHA512,
+ 		PSSWithSHA256,
+ 		PSSWithSHA384,
+ 		PSSWithSHA512:

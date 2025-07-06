@@ -1,0 +1,332 @@
+commit 44cdbc2dacd7a40414730d271d54cb197787c669
+Author: Than McIntosh <thanm@google.com>
+Date:   Mon Jul 22 15:02:06 2024 +0000
+
+    cmd: relocate cmd/go/internal/par to cmd/internal/par
+    
+    Relocate cmd/go's internal/par package up a level into
+    cmd/internal/par, so that it can be used by other cmd/internal
+    packages. No change in functionality. This change is intended to be in
+    support of making the cmd/go script test framework available to other
+    commands in addition to just the Go command.
+    
+    Updates #68606.
+    
+    Change-Id: I920a5d5c9b362584fabdbb2305414325b42856a3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/internal/base/tool.go             | 2 +-
+ src/cmd/go/internal/cfg/lookpath.go          | 2 +-
+ src/cmd/go/internal/load/pkg.go              | 2 +-
+ src/cmd/go/internal/modfetch/cache.go        | 2 +-
+ src/cmd/go/internal/modfetch/codehost/git.go | 2 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go | 2 +-
+ src/cmd/go/internal/modfetch/fetch.go        | 2 +-
+ src/cmd/go/internal/modfetch/repo.go         | 2 +-
+ src/cmd/go/internal/modget/get.go            | 2 +-
+ src/cmd/go/internal/modindex/read.go         | 2 +-
+ src/cmd/go/internal/modload/buildlist.go     | 2 +-
+ src/cmd/go/internal/modload/edit.go          | 2 +-
+ src/cmd/go/internal/modload/import.go        | 2 +-
+ src/cmd/go/internal/modload/load.go          | 2 +-
+ src/cmd/go/internal/modload/modfile.go       | 2 +-
+ src/cmd/go/internal/modload/search.go        | 2 +-
+ src/cmd/go/internal/mvs/mvs.go               | 2 +-
+ src/cmd/go/internal/work/shell.go            | 2 +-
+ src/cmd/go/proxy_test.go                     | 2 +-
+ src/cmd/{go => }/internal/par/queue.go       | 0
+ src/cmd/{go => }/internal/par/queue_test.go  | 0
+ src/cmd/{go => }/internal/par/work.go        | 0
+ src/cmd/{go => }/internal/par/work_test.go   | 0
+ 23 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/go/internal/base/tool.go b/src/cmd/go/internal/base/tool.go
+index a60bf9d6d3..4b3202033f 100644
+--- a/src/cmd/go/internal/base/tool.go
++++ b/src/cmd/go/internal/base/tool.go
+@@ -11,7 +11,7 @@ import (
+ 	"path/filepath"
+ 
+ 	"cmd/go/internal/cfg"
+-	"cmd/go/internal/par"
++	"cmd/internal/par"
+ )
+ 
+ // Tool returns the path to the named tool (for example, "vet").
+diff --git a/src/cmd/go/internal/cfg/lookpath.go b/src/cmd/go/internal/cfg/lookpath.go
+index 1b0fdc7426..f095cd6a65 100644
+--- a/src/cmd/go/internal/cfg/lookpath.go
++++ b/src/cmd/go/internal/cfg/lookpath.go
+@@ -5,7 +5,7 @@
+ package cfg
+ 
+ import (
+-	"cmd/go/internal/par"
++	"cmd/internal/par"
+ 	"os/exec"
+ )
+ 
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 7c402b419e..0e871758b3 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -39,11 +39,11 @@ import (
+ 	"cmd/go/internal/modindex"
+ 	"cmd/go/internal/modinfo"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/vcs"
++	"cmd/internal/par"
+ 	"cmd/internal/pkgpattern"
+ 
+ 	"golang.org/x/mod/modfile"
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index 02c4833a1b..18a1ab099b 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -24,8 +24,8 @@ import (
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch/codehost"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/robustio"
++	"cmd/internal/par"
+ 	"cmd/internal/telemetry/counter"
+ 
+ 	"golang.org/x/mod/module"
+diff --git a/src/cmd/go/internal/modfetch/codehost/git.go b/src/cmd/go/internal/modfetch/codehost/git.go
+index bab4c5ebbe..ca764611f8 100644
+--- a/src/cmd/go/internal/modfetch/codehost/git.go
++++ b/src/cmd/go/internal/modfetch/codehost/git.go
+@@ -27,8 +27,8 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/lockedfile"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/web"
++	"cmd/internal/par"
+ 
+ 	"golang.org/x/mod/semver"
+ )
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 651531974e..1878b08408 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -21,8 +21,8 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/lockedfile"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/str"
++	"cmd/internal/par"
+ )
+ 
+ // A VCSError indicates an error using a version control system.
+diff --git a/src/cmd/go/internal/modfetch/fetch.go b/src/cmd/go/internal/modfetch/fetch.go
+index ad4eb8ecd2..c1f500ee00 100644
+--- a/src/cmd/go/internal/modfetch/fetch.go
++++ b/src/cmd/go/internal/modfetch/fetch.go
+@@ -25,10 +25,10 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/robustio"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/par"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/sumdb/dirhash"
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index 25fb02de35..65896b104a 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -15,9 +15,9 @@ import (
+ 
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/modfetch/codehost"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/vcs"
+ 	web "cmd/go/internal/web"
++	"cmd/internal/par"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 73431285b9..96b72adba5 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -42,10 +42,10 @@ import (
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modload"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/toolchain"
+ 	"cmd/go/internal/work"
++	"cmd/internal/par"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 9d8c48f2b0..3a847ab937 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -29,8 +29,8 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/imports"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/str"
++	"cmd/internal/par"
+ )
+ 
+ // enabled is used to flag off the behavior of the module index on tip.
+diff --git a/src/cmd/go/internal/modload/buildlist.go b/src/cmd/go/internal/modload/buildlist.go
+index e7f0da1b69..e05585d7c4 100644
+--- a/src/cmd/go/internal/modload/buildlist.go
++++ b/src/cmd/go/internal/modload/buildlist.go
+@@ -21,7 +21,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/mvs"
+-	"cmd/go/internal/par"
++	"cmd/internal/par"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/modload/edit.go b/src/cmd/go/internal/modload/edit.go
+index 4ecae27372..5a5b8233c3 100644
+--- a/src/cmd/go/internal/modload/edit.go
++++ b/src/cmd/go/internal/modload/edit.go
+@@ -8,7 +8,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/mvs"
+-	"cmd/go/internal/par"
++	"cmd/internal/par"
+ 	"context"
+ 	"errors"
+ 	"fmt"
+diff --git a/src/cmd/go/internal/modload/import.go b/src/cmd/go/internal/modload/import.go
+index a3105b6b6d..97c88f193d 100644
+--- a/src/cmd/go/internal/modload/import.go
++++ b/src/cmd/go/internal/modload/import.go
+@@ -21,9 +21,9 @@ import (
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modindex"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
++	"cmd/internal/par"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/modload/load.go b/src/cmd/go/internal/modload/load.go
+index 5b0ecee09a..d1b49d4cca 100644
+--- a/src/cmd/go/internal/modload/load.go
++++ b/src/cmd/go/internal/modload/load.go
+@@ -120,9 +120,9 @@ import (
+ 	"cmd/go/internal/modfetch"
+ 	"cmd/go/internal/modindex"
+ 	"cmd/go/internal/mvs"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
++	"cmd/internal/par"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 1d6b28db19..257d3323b6 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -20,8 +20,8 @@ import (
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+ 	"cmd/go/internal/modfetch"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/par"
+ 
+ 	"golang.org/x/mod/modfile"
+ 	"golang.org/x/mod/module"
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index d392b5bf3d..1d0583b1fe 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -22,10 +22,10 @@ import (
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+ 	"cmd/go/internal/modindex"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/par"
+ 	"cmd/internal/pkgpattern"
+ 
+ 	"golang.org/x/mod/module"
+diff --git a/src/cmd/go/internal/mvs/mvs.go b/src/cmd/go/internal/mvs/mvs.go
+index 1ac5aeb471..b46c016c78 100644
+--- a/src/cmd/go/internal/mvs/mvs.go
++++ b/src/cmd/go/internal/mvs/mvs.go
+@@ -12,7 +12,7 @@ import (
+ 	"sort"
+ 	"sync"
+ 
+-	"cmd/go/internal/par"
++	"cmd/internal/par"
+ 
+ 	"golang.org/x/mod/module"
+ )
+diff --git a/src/cmd/go/internal/work/shell.go b/src/cmd/go/internal/work/shell.go
+index 1fac8e3a45..869f6777c7 100644
+--- a/src/cmd/go/internal/work/shell.go
++++ b/src/cmd/go/internal/work/shell.go
+@@ -10,8 +10,8 @@ import (
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/load"
+-	"cmd/go/internal/par"
+ 	"cmd/go/internal/str"
++	"cmd/internal/par"
+ 	"errors"
+ 	"fmt"
+ 	"internal/lazyregexp"
+diff --git a/src/cmd/go/proxy_test.go b/src/cmd/go/proxy_test.go
+index cb3d9f92f1..5ff81361c9 100644
+--- a/src/cmd/go/proxy_test.go
++++ b/src/cmd/go/proxy_test.go
+@@ -25,7 +25,7 @@ import (
+ 	"testing"
+ 
+ 	"cmd/go/internal/modfetch/codehost"
+-	"cmd/go/internal/par"
++	"cmd/internal/par"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+diff --git a/src/cmd/go/internal/par/queue.go b/src/cmd/internal/par/queue.go
+similarity index 100%
+rename from src/cmd/go/internal/par/queue.go
+rename to src/cmd/internal/par/queue.go
+diff --git a/src/cmd/go/internal/par/queue_test.go b/src/cmd/internal/par/queue_test.go
+similarity index 100%
+rename from src/cmd/go/internal/par/queue_test.go
+rename to src/cmd/internal/par/queue_test.go
+diff --git a/src/cmd/go/internal/par/work.go b/src/cmd/internal/par/work.go
+similarity index 100%
+rename from src/cmd/go/internal/par/work.go
+rename to src/cmd/internal/par/work.go
+diff --git a/src/cmd/go/internal/par/work_test.go b/src/cmd/internal/par/work_test.go
+similarity index 100%
+rename from src/cmd/go/internal/par/work_test.go
+rename to src/cmd/internal/par/work_test.go

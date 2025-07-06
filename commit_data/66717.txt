@@ -1,0 +1,368 @@
+commit 75bf2a8c493291481af72a07a818c432085919ca
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 1 10:19:36 2025 +0200
+
+    internal/poll: defer IOCP association until first IO operation
+    
+    Defer the association of the IOCP to the handle until the first
+    I/O operation is performed.
+    
+    A handle can only be associated with one IOCP at a time, so this allows
+    external code to associate the handle with their own IOCP and still be
+    able to use a FD (through os.NewFile) to pass the handle around
+    (e.g. to a child process standard input, output, and error) without
+    having to worry about the IOCP association.
+    
+    This CL doesn't change any user-visible behavior, as os.NewFile still
+    initializes the FD as non-pollable.
+    
+    For #19098.
+    
+    Change-Id: Id22a49846d4fda3a66ffcc0bc1b48eb39b395dc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661955
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/poll/fd_plan9.go                    |   4 +
+ src/internal/poll/fd_poll_runtime.go             |   2 +
+ src/internal/poll/fd_unix.go                     |   4 +
+ src/internal/poll/fd_windows.go                  | 117 ++++++++++++++---------
+ src/internal/poll/fd_windows_test.go             |  46 +++++++--
+ src/internal/syscall/windows/syscall_windows.go  |   1 +
+ src/internal/syscall/windows/zsyscall_windows.go |  10 ++
+ 7 files changed, 134 insertions(+), 50 deletions(-)
+
+diff --git a/src/internal/poll/fd_plan9.go b/src/internal/poll/fd_plan9.go
+index b65485200a..6db1a9ebb1 100644
+--- a/src/internal/poll/fd_plan9.go
++++ b/src/internal/poll/fd_plan9.go
+@@ -36,6 +36,10 @@ type FD struct {
+ 	isFile bool
+ }
+ 
++func (fd *FD) initIO() error {
++	return nil
++}
++
+ // We need this to close out a file descriptor when it is unlocked,
+ // but the real implementation has to live in the net package because
+ // it uses os.File's.
+diff --git a/src/internal/poll/fd_poll_runtime.go b/src/internal/poll/fd_poll_runtime.go
+index b78d156476..2dd95a8bba 100644
+--- a/src/internal/poll/fd_poll_runtime.go
++++ b/src/internal/poll/fd_poll_runtime.go
+@@ -155,6 +155,8 @@ func setDeadlineImpl(fd *FD, t time.Time, mode int) error {
+ 		return err
+ 	}
+ 	defer fd.decref()
++
++	fd.initIO()
+ 	if fd.pd.runtimeCtx == 0 {
+ 		return ErrNoDeadline
+ 	}
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 31e6e21120..0888632d80 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -47,6 +47,10 @@ type FD struct {
+ 	isFile bool
+ }
+ 
++func (fd *FD) initIO() error {
++	return nil
++}
++
+ // Init initializes the FD. The Sysfd field should already be set.
+ // This can be called multiple times on a single FD.
+ // The net argument is a network name from the net package (e.g., "tcp"),
+diff --git a/src/internal/poll/fd_windows.go b/src/internal/poll/fd_windows.go
+index f51935cf84..1b085004ea 100644
+--- a/src/internal/poll/fd_windows.go
++++ b/src/internal/poll/fd_windows.go
+@@ -157,6 +157,7 @@ func (o *operation) InitMsg(p []byte, oob []byte) {
+ // It supports both synchronous and asynchronous IO.
+ func execIO(o *operation, submit func(o *operation) error) (int, error) {
+ 	fd := o.fd
++	fd.initIO()
+ 	// Notify runtime netpoll about starting IO.
+ 	err := fd.pd.prepare(int(o.mode), fd.isFile)
+ 	if err != nil {
+@@ -297,8 +298,13 @@ type FD struct {
+ 	// The kind of this file.
+ 	kind fileKind
+ 
+-	// Whether FILE_FLAG_OVERLAPPED was not set when opening the file
++	// Whether FILE_FLAG_OVERLAPPED was not set when opening the file.
+ 	isBlocking bool
++
++	// Initialization parameters.
++	initIOOnce   sync.Once
++	initIOErr    error // only used in the net package
++	initPollable bool  // value passed to [FD.Init]
+ }
+ 
+ // setOffset sets the offset fields of the overlapped object
+@@ -336,7 +342,51 @@ const (
+ )
+ 
+ // logInitFD is set by tests to enable file descriptor initialization logging.
+-var logInitFD func(net string, fd *FD, err error)
++var logInitFD func(net int, fd *FD, err error)
++
++func (fd *FD) initIO() error {
++	fd.initIOOnce.Do(func() {
++		if fd.initPollable {
++			// The runtime poller will ignore I/O completion
++			// notifications not initiated by this package,
++			// so it is safe to add handles owned by the caller.
++			//
++			// If we could not add the handle to the runtime poller,
++			// assume the handle hasn't been opened for overlapped I/O.
++			fd.initIOErr = fd.pd.init(fd)
++			if fd.initIOErr != nil {
++				fd.initPollable = false
++			}
++		}
++		if logInitFD != nil {
++			logInitFD(int(fd.kind), fd, fd.initIOErr)
++		}
++		if !fd.initPollable {
++			// Handle opened for overlapped I/O (aka non-blocking) that are not added
++			// to the runtime poller need special handling when reading and writing.
++			var info windows.FILE_MODE_INFORMATION
++			if err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{}, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)), windows.FileModeInformation); err == nil {
++				fd.isBlocking = info.Mode&(windows.FILE_SYNCHRONOUS_IO_ALERT|windows.FILE_SYNCHRONOUS_IO_NONALERT) != 0
++			} else {
++				// If we fail to get the file mode information, assume the file is blocking.
++				fd.isBlocking = true
++			}
++		} else {
++			fd.rop.runtimeCtx = fd.pd.runtimeCtx
++			fd.wop.runtimeCtx = fd.pd.runtimeCtx
++			if fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes {
++				// Non-socket handles can use SetFileCompletionNotificationModes without problems.
++				err := syscall.SetFileCompletionNotificationModes(fd.Sysfd,
++					syscall.FILE_SKIP_SET_EVENT_ON_HANDLE|syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS,
++				)
++				if err == nil {
++					fd.skipSyncNotif = true
++				}
++			}
++		}
++	})
++	return fd.initIOErr
++}
+ 
+ // Init initializes the FD. The Sysfd field should already be set.
+ // This can be called multiple times on a single FD.
+@@ -349,63 +399,42 @@ func (fd *FD) Init(net string, pollable bool) error {
+ 	}
+ 
+ 	switch net {
+-	case "file", "dir":
++	case "file":
+ 		fd.kind = kindFile
+ 	case "console":
+ 		fd.kind = kindConsole
+ 	case "pipe":
+ 		fd.kind = kindPipe
+-	case "tcp", "tcp4", "tcp6",
+-		"udp", "udp4", "udp6",
+-		"ip", "ip4", "ip6",
+-		"unix", "unixgram", "unixpacket":
+-		fd.kind = kindNet
+ 	default:
+-		return errors.New("internal error: unknown network type " + net)
++		// We don't actually care about the various network types.
++		fd.kind = kindNet
+ 	}
+ 	fd.isFile = fd.kind != kindNet
++	fd.initPollable = pollable
+ 	fd.rop.mode = 'r'
+ 	fd.wop.mode = 'w'
+ 	fd.rop.fd = fd
+ 	fd.wop.fd = fd
+ 
+-	var err error
+-	if pollable {
+-		// Note that the runtime poller will ignore I/O completion
+-		// notifications not initiated by this package,
+-		// so it is safe to add handles owned by the caller.
+-		//
+-		// If we could not add the handle to the runtime poller,
+-		// assume the handle hasn't been opened for overlapped I/O.
+-		err = fd.pd.init(fd)
+-		pollable = err == nil
+-	}
+-	if logInitFD != nil {
+-		logInitFD(net, fd, err)
+-	}
+-	if !pollable {
+-		// Handle opened for overlapped I/O (aka non-blocking) that are not added
+-		// to the runtime poller need special handling when reading and writing.
+-		var info windows.FILE_MODE_INFORMATION
+-		if err := windows.NtQueryInformationFile(fd.Sysfd, &windows.IO_STATUS_BLOCK{}, uintptr(unsafe.Pointer(&info)), uint32(unsafe.Sizeof(info)), windows.FileModeInformation); err == nil {
+-			fd.isBlocking = info.Mode&(windows.FILE_SYNCHRONOUS_IO_ALERT|windows.FILE_SYNCHRONOUS_IO_NONALERT) != 0
+-		} else {
+-			// If we fail to get the file mode information, assume the file is blocking.
+-			fd.isBlocking = true
+-		}
+-		return err
+-	}
+-	if fd.kind != kindNet || socketCanUseSetFileCompletionNotificationModes {
+-		// Non-socket handles can use SetFileCompletionNotificationModes without problems.
+-		err := syscall.SetFileCompletionNotificationModes(fd.Sysfd,
+-			syscall.FILE_SKIP_SET_EVENT_ON_HANDLE|syscall.FILE_SKIP_COMPLETION_PORT_ON_SUCCESS,
+-		)
+-		if err == nil {
+-			fd.skipSyncNotif = true
++	// A file handle (and its duplicated handles) can only be associated
++	// with one IOCP. A new association will fail if the handle is already
++	// associated. Defer the association until the first I/O operation so that
++	// overlapped handles passed in os.NewFile have a chance to be used
++	// with an external IOCP. This is common case, for example, when calling
++	// os.NewFile on a handle just to pass it to a exec.Command standard
++	// input/output/error. If the association fails, the I/O operations
++	// will be performed synchronously.
++	if fd.kind == kindNet {
++		// The net package is the only consumer that requires overlapped
++		// handles and that cares about handle IOCP association errors.
++		// We can should do the IOCP association here.
++		return fd.initIO()
++	} else {
++		if logInitFD != nil {
++			// For testing.
++			logInitFD(int(fd.kind), fd, nil)
+ 		}
+ 	}
+-	fd.rop.runtimeCtx = fd.pd.runtimeCtx
+-	fd.wop.runtimeCtx = fd.pd.runtimeCtx
+ 	return nil
+ }
+ 
+diff --git a/src/internal/poll/fd_windows_test.go b/src/internal/poll/fd_windows_test.go
+index c90c135208..3ba915ed41 100644
+--- a/src/internal/poll/fd_windows_test.go
++++ b/src/internal/poll/fd_windows_test.go
+@@ -23,7 +23,7 @@ import (
+ )
+ 
+ type loggedFD struct {
+-	Net string
++	Net int
+ 	FD  *poll.FD
+ 	Err error
+ }
+@@ -33,7 +33,7 @@ var (
+ 	loggedFDs map[syscall.Handle]*loggedFD
+ )
+ 
+-func logFD(net string, fd *poll.FD, err error) {
++func logFD(net int, fd *poll.FD, err error) {
+ 	logMu.Lock()
+ 	defer logMu.Unlock()
+ 
+@@ -201,10 +201,6 @@ func newFD(t testing.TB, h syscall.Handle, kind string, overlapped, pollable boo
+ 	if overlapped && err != nil {
+ 		// Overlapped file handles should not error.
+ 		t.Fatal(err)
+-	} else if !overlapped && pollable && err == nil {
+-		// Non-overlapped file handles should return an error but still
+-		// be usable as sync handles.
+-		t.Fatal("expected error for non-overlapped file handle")
+ 	}
+ 	return &fd
+ }
+@@ -454,6 +450,24 @@ func TestPipeWriteEOF(t *testing.T) {
+ 	}
+ }
+ 
++func TestPipeReadTimeout(t *testing.T) {
++	t.Parallel()
++	name := pipeName()
++	_ = newBytePipe(t, name, true, true)
++	file := newFile(t, name, true, true)
++
++	err := file.SetReadDeadline(time.Now().Add(time.Millisecond))
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	var buf [10]byte
++	_, err = file.Read(buf[:])
++	if err != poll.ErrDeadlineExceeded {
++		t.Errorf("expected deadline exceeded, got %v", err)
++	}
++}
++
+ func TestPipeCanceled(t *testing.T) {
+ 	t.Parallel()
+ 	name := pipeName()
+@@ -488,6 +502,26 @@ func TestPipeCanceled(t *testing.T) {
+ 	}
+ }
+ 
++func TestPipeExternalIOCP(t *testing.T) {
++	// Test that a caller can associate an overlapped handle to an external IOCP
++	// even when the handle is also associated to a poll.FD. Also test that
++	// the FD can still perform I/O after the association.
++	t.Parallel()
++	name := pipeName()
++	pipe := newMessagePipe(t, name, true, true)
++	_ = newFile(t, name, true, true) // Just open a pipe client
++
++	_, err := windows.CreateIoCompletionPort(syscall.Handle(pipe.Sysfd), 0, 0, 1)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	_, err = pipe.Write([]byte("hello"))
++	if err != nil {
++		t.Fatal(err)
++	}
++}
++
+ func BenchmarkReadOverlapped(b *testing.B) {
+ 	benchmarkRead(b, true)
+ }
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index 283ad5e1a1..67d8f512f6 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -513,6 +513,7 @@ const (
+ 	PIPE_TYPE_MESSAGE = 0x00000004
+ )
+ 
++//sys	CreateIoCompletionPort(filehandle syscall.Handle, cphandle syscall.Handle, key uintptr, threadcnt uint32) (handle syscall.Handle, err error)
+ //sys	GetOverlappedResult(handle syscall.Handle, overlapped *syscall.Overlapped, done *uint32, wait bool) (err error)
+ //sys	CreateNamedPipe(name *uint16, flags uint32, pipeMode uint32, maxInstances uint32, outSize uint32, inSize uint32, defaultTimeout uint32, sa *syscall.SecurityAttributes) (handle syscall.Handle, err error)  [failretval==syscall.InvalidHandle] = CreateNamedPipeW
+ 
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index 0d5f9a16a1..aa336747f1 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -66,6 +66,7 @@ var (
+ 	procProcessPrng                       = modbcryptprimitives.NewProc("ProcessPrng")
+ 	procGetAdaptersAddresses              = modiphlpapi.NewProc("GetAdaptersAddresses")
+ 	procCreateEventW                      = modkernel32.NewProc("CreateEventW")
++	procCreateIoCompletionPort            = modkernel32.NewProc("CreateIoCompletionPort")
+ 	procCreateNamedPipeW                  = modkernel32.NewProc("CreateNamedPipeW")
+ 	procGetACP                            = modkernel32.NewProc("GetACP")
+ 	procGetComputerNameExW                = modkernel32.NewProc("GetComputerNameExW")
+@@ -269,6 +270,15 @@ func CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialStat
+ 	return
+ }
+ 
++func CreateIoCompletionPort(filehandle syscall.Handle, cphandle syscall.Handle, key uintptr, threadcnt uint32) (handle syscall.Handle, err error) {
++	r0, _, e1 := syscall.Syscall6(procCreateIoCompletionPort.Addr(), 4, uintptr(filehandle), uintptr(cphandle), uintptr(key), uintptr(threadcnt), 0, 0)
++	handle = syscall.Handle(r0)
++	if handle == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func CreateNamedPipe(name *uint16, flags uint32, pipeMode uint32, maxInstances uint32, outSize uint32, inSize uint32, defaultTimeout uint32, sa *syscall.SecurityAttributes) (handle syscall.Handle, err error) {
+ 	r0, _, e1 := syscall.Syscall9(procCreateNamedPipeW.Addr(), 8, uintptr(unsafe.Pointer(name)), uintptr(flags), uintptr(pipeMode), uintptr(maxInstances), uintptr(outSize), uintptr(inSize), uintptr(defaultTimeout), uintptr(unsafe.Pointer(sa)), 0)
+ 	handle = syscall.Handle(r0)

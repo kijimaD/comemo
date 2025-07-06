@@ -1,0 +1,311 @@
+commit 1e756dc5f73dc19eb1cbf038807d18ef1cc54ebc
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Sat Apr 19 13:27:31 2025 +0200
+
+    cmd/compile: relax tighten register-pressure heuristic slightly
+    
+    Sometimes a value has multiple args, but they are the same
+    dependency. Relax the regalloc heuristic for those.
+    
+    No measurable compile-time regression according to compilebench,
+    maybe even a small improvement.
+    
+    name    old time/op  new time/op  delta
+    StdCmd   14.4s ± 1%   14.4s ± 1%  -0.39%  (p=0.101 n=11+11)
+    
+    compilecmp:
+    
+    linux/amd64:
+    
+    strconv
+    strconv.formatBits 1199 -> 1189  (-0.83%)
+    strconv.formatDecimal 637 -> 631  (-0.94%)
+    
+    strconv [cmd/compile]
+    strconv.formatBits 1199 -> 1189  (-0.83%)
+    strconv.formatDecimal 637 -> 631  (-0.94%)
+    
+    image
+    image.NewGray16 286 -> 275  (-3.85%)
+    image.NewAlpha16 286 -> 275  (-3.85%)
+    
+    regexp/syntax
+    regexp/syntax.ranges.Less 150 -> 147  (-2.00%)
+    regexp/syntax.(*compiler).rune 774 -> 773  (-0.13%)
+    regexp/syntax.(*ranges).Swap 197 -> 180  (-8.63%)
+    regexp/syntax.ranges.Swap 146 -> 134  (-8.22%)
+    regexp/syntax.(*compiler).cap 440 -> 425  (-3.41%)
+    regexp/syntax.(*compiler).nop 310 -> 297  (-4.19%)
+    regexp/syntax.(*compiler).compile 5815 -> 5733  (-1.41%)
+    regexp/syntax.(*ranges).Less 211 -> 197  (-6.64%)
+    
+    regexp/syntax [cmd/compile]
+    regexp/syntax.(*compiler).compile 5815 -> 5733  (-1.41%)
+    regexp/syntax.(*compiler).rune 774 -> 773  (-0.13%)
+    regexp/syntax.(*compiler).cap 440 -> 425  (-3.41%)
+    regexp/syntax.(*ranges).Less 211 -> 197  (-6.64%)
+    regexp/syntax.ranges.Swap 146 -> 134  (-8.22%)
+    regexp/syntax.(*ranges).Swap 197 -> 180  (-8.63%)
+    regexp/syntax.(*compiler).nop 310 -> 297  (-4.19%)
+    regexp/syntax.ranges.Less 150 -> 147  (-2.00%)
+    
+    crypto/elliptic
+    crypto/elliptic.(*nistCurve[go.shape.*uint8]).pointFromAffine 1272 -> 1240  (-2.52%)
+    
+    image/gif
+    image/gif.(*decoder).readColorTable 652 -> 646  (-0.92%)
+    image/gif.(*encoder).colorTablesMatch 350 -> 349  (-0.29%)
+    
+    crypto/internal/cryptotest
+    crypto/internal/cryptotest.testCipher.func3 1289 -> 1286  (-0.23%)
+    
+    internal/trace/internal/tracev1
+    internal/trace/internal/tracev1.(*parser).collectBatchesAndCPUSamples 1352 -> 1338  (-1.04%)
+    
+    internal/fuzz
+    internal/fuzz.byteSliceDuplicateBytes 741 -> 718  (-3.10%)
+    
+    cmd/compile/internal/types
+    cmd/compile/internal/types.CalcSize 3663 -> 3633  (-0.82%)
+    
+    cmd/compile/internal/rttype
+    cmd/compile/internal/rttype.Init 2149 -> 2124  (-1.16%)
+    
+    cmd/link/internal/loadmacho
+    cmd/link/internal/loadmacho.macholoadsym 1213 -> 1212  (-0.08%)
+    
+    cmd/compile/internal/rangefunc
+    cmd/compile/internal/rangefunc.(*rewriter).checks 5207 -> 5175  (-0.61%)
+    
+    net/http
+    net/http.(*http2SettingsFrame).Setting 155 -> 147  (-5.16%)
+    
+    cmd/compile/internal/rttype [cmd/compile]
+    cmd/compile/internal/rttype.Init 2149 -> 2124  (-1.16%)
+    
+    cmd/compile/internal/rangefunc [cmd/compile]
+    cmd/compile/internal/rangefunc.(*rewriter).checks 5207 -> 5175  (-0.61%)
+    
+    cmd/link/internal/ld
+    cmd/link/internal/ld.pefips 3119 -> 3109  (-0.32%)
+    
+    cmd/vendor/rsc.io/markdown
+    cmd/vendor/rsc.io/markdown.parseDash 593 -> 587  (-1.01%)
+    
+    cmd/compile/internal/ssa
+    cmd/compile/internal/ssa.(*poset).setOrder 3442 -> 3416  (-0.76%)
+    cmd/compile/internal/ssa.rewriteValuegeneric_OpMul16 2054 -> 2022  (-1.56%)
+    cmd/compile/internal/ssa.rewriteValuegeneric_OpMul8 2054 -> 2022  (-1.56%)
+    inserted cmd/compile/internal/ssa.tighten.deferwrap5
+    
+    cmd/compile/internal/ssa [cmd/compile]
+    cmd/compile/internal/ssa.rewriteValuegeneric_OpMul8 2054 -> 2022  (-1.56%)
+    cmd/compile/internal/ssa.rewriteValuegeneric_OpMul16 2054 -> 2022  (-1.56%)
+    cmd/compile/internal/ssa.tighten.deferwrap4 76 -> 67  (-11.84%)
+    cmd/compile/internal/ssa.tighten 6746 -> 5082  (-24.67%)
+    inserted cmd/compile/internal/ssa.tighten.deferwrap5
+    
+    file                                             before   after    Δ       %
+    strconv.s                                        49029    49020    -9      -0.018%
+    strconv [cmd/compile].s                          49029    49020    -9      -0.018%
+    image.s                                          34963    34941    -22     -0.063%
+    regexp/syntax.s                                  83017    82860    -157    -0.189%
+    regexp/syntax [cmd/compile].s                    83017    82860    -157    -0.189%
+    crypto/elliptic.s                                26848    26816    -32     -0.119%
+    image/gif.s                                      22840    22833    -7      -0.031%
+    crypto/internal/cryptotest.s                     63834    63832    -2      -0.003%
+    internal/trace/internal/tracev1.s                52995    52981    -14     -0.026%
+    internal/trace.s                                 181396   181412   +16     +0.009%
+    internal/fuzz.s                                  85526    85503    -23     -0.027%
+    cmd/internal/obj/s390x.s                         121651   121683   +32     +0.026%
+    cmd/internal/obj/ppc64.s                         139867   139871   +4      +0.003%
+    cmd/compile/internal/types.s                     71425    71395    -30     -0.042%
+    cmd/internal/obj/ppc64 [cmd/compile].s           139952   139956   +4      +0.003%
+    cmd/internal/obj/s390x [cmd/compile].s           121753   121785   +32     +0.026%
+    cmd/compile/internal/rttype.s                    10418    10393    -25     -0.240%
+    cmd/link/internal/loadmacho.s                    23270    23272    +2      +0.009%
+    cmd/compile/internal/rangefunc.s                 35050    35018    -32     -0.091%
+    cmd/vendor/github.com/google/pprof/profile.s     148264   148273   +9      +0.006%
+    net/http.s                                       612895   612910   +15     +0.002%
+    cmd/compile/internal/rttype [cmd/compile].s      10397    10372    -25     -0.240%
+    cmd/compile/internal/rangefunc [cmd/compile].s   35681    35649    -32     -0.090%
+    net/http/cookiejar.s                             28758    28761    +3      +0.010%
+    cmd/compile/internal/reflectdata.s               86639    86644    +5      +0.006%
+    cmd/compile/internal/reflectdata [cmd/compile].s 89725    89730    +5      +0.006%
+    cmd/link/internal/ld.s                           649596   649633   +37     +0.006%
+    cmd/vendor/rsc.io/markdown.s                     116731   116757   +26     +0.022%
+    cmd/compile/internal/ssa.s                       3574185  3574642  +457    +0.013%
+    cmd/compile/internal/ssa [cmd/compile].s         3725364  3723715  -1649   -0.044%
+    cmd/compile/internal/ssagen.s                    415135   415155   +20     +0.005%
+    total                                            36475376 36473818 -1558   -0.004%
+    
+    linux/arm64:
+    
+    go/printer
+    go/printer.(*printer).expr1 7152 -> 7168  (+0.22%)
+    
+    fmt [cmd/compile]
+    fmt.(*ss).advance 1712 -> 1696  (-0.93%)
+    
+    crypto/x509
+    crypto/x509.marshalCertificatePolicies.func1.2.(*Builder).AddASN1ObjectIdentifier.1 changed
+    
+    internal/fuzz
+    internal/fuzz.minimizeBytes changed
+    
+    cmd/internal/obj/arm64
+    cmd/internal/obj/arm64.bitconEncode changed
+    
+    math/big [cmd/compile]
+    math/big.(*Float).Int64 512 -> 528  (+3.12%)
+    math/big.NewInt changed
+    math/big.fmtE 720 -> 736  (+2.22%)
+    math/big.basicSqr changed
+    
+    cmd/asm/internal/asm
+    cmd/asm/internal/asm.(*Parser).asmText 1424 -> 1440  (+1.12%)
+    
+    go/constant [cmd/compile]
+    go/constant.UnaryOp changed
+    go/constant.BinaryOp changed
+    
+    crypto/tls
+    crypto/tls.prf10 576 -> 560  (-2.78%)
+    
+    cmd/internal/obj/arm64 [cmd/compile]
+    cmd/internal/obj/arm64.bitconEncode changed
+    
+    cmd/vendor/golang.org/x/term
+    cmd/vendor/golang.org/x/term.(*Terminal).addKeyToLine changed
+    
+    cmd/compile/internal/ir
+    cmd/compile/internal/ir.ConstOverflow changed
+    
+    cmd/vendor/github.com/google/pprof/internal/graph
+    cmd/vendor/github.com/google/pprof/internal/graph.(*builder).addEdge changed
+    
+    cmd/compile/internal/ir [cmd/compile]
+    cmd/compile/internal/ir.ConstOverflow changed
+    
+    cmd/compile/internal/rttype
+    cmd/compile/internal/rttype.Init changed
+    
+    cmd/compile/internal/rttype [cmd/compile]
+    cmd/compile/internal/rttype.Init changed
+    
+    cmd/compile/internal/abi [cmd/compile]
+    cmd/compile/internal/abi.(*ABIParamAssignment).RegisterTypesAndOffsets 1344 -> 1328  (-1.19%)
+    
+    cmd/vendor/golang.org/x/tools/go/types/typeutil
+    cmd/vendor/golang.org/x/tools/go/types/typeutil.hasher.hash changed
+    
+    cmd/vendor/github.com/ianlancetaylor/demangle
+    cmd/vendor/github.com/ianlancetaylor/demangle.(*rustState).expandPunycode changed
+    
+    net/http/cookiejar
+    net/http/cookiejar.adapt changed
+    net/http/cookiejar.encode changed
+    
+    cmd/compile/internal/reflectdata
+    cmd/compile/internal/reflectdata.OldMapType changed
+    
+    cmd/compile/internal/reflectdata [cmd/compile]
+    cmd/compile/internal/reflectdata.OldMapType changed
+    
+    cmd/vendor/github.com/google/pprof/internal/report
+    cmd/vendor/github.com/google/pprof/internal/report.(*Report).newTrimmedGraph 2336 -> 2368  (+1.37%)
+    
+    cmd/link/internal/ld
+    cmd/link/internal/ld.(*relocSymState).relocsym changed
+    
+    cmd/vendor/rsc.io/markdown
+    cmd/vendor/rsc.io/markdown.parseDash changed
+    cmd/vendor/rsc.io/markdown.parseLinkRefDef changed
+    
+    cmd/trace
+    main.(*stackMap).profile 912 -> 880  (-3.51%)
+    
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/tests
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/tests.checkExampleOutput 832 -> 816  (-1.92%)
+    
+    cmd/compile/internal/ssa
+    cmd/compile/internal/ssa.shouldElimIfElse changed
+    cmd/compile/internal/ssa.storeOrder changed
+    cmd/compile/internal/ssa.elimIfElse changed
+    cmd/compile/internal/ssa.tighten 3408 -> 3456  (+1.41%)
+    
+    cmd/compile/internal/ssa [cmd/compile]
+    cmd/compile/internal/ssa.storeOrder changed
+    cmd/compile/internal/ssa.elimIfElse changed
+    cmd/compile/internal/ssa.shouldElimIfElse changed
+    cmd/compile/internal/ssa.tighten 4960 -> 4976  (+0.32%)
+    cmd/compile/internal/ssa.branchelim changed
+    
+    file                                                     before   after    Δ       %
+    runtime.s                                                624064   624032   -32     -0.005%
+    runtime [cmd/compile].s                                  679456   679424   -32     -0.005%
+    strconv.s                                                48528    48560    +32     +0.066%
+    strconv [cmd/compile].s                                  48528    48560    +32     +0.066%
+    index/suffixarray.s                                      41808    41856    +48     +0.115%
+    fmt.s                                                    72272    72256    -16     -0.022%
+    math/big.s                                               152992   153024   +32     +0.021%
+    go/printer.s                                             77680    77696    +16     +0.021%
+    fmt [cmd/compile].s                                      81760    81744    -16     -0.020%
+    math/big [cmd/compile].s                                 153040   153072   +32     +0.021%
+    cmd/asm/internal/asm.s                                   57360    57376    +16     +0.028%
+    crypto/tls.s                                             354304   354288   -16     -0.005%
+    cmd/compile/internal/abi [cmd/compile].s                 22752    22736    -16     -0.070%
+    cmd/vendor/github.com/google/pprof/internal/report.s     67008    67040    +32     +0.048%
+    cmd/trace.s                                              215040   215008   -32     -0.015%
+    cmd/vendor/golang.org/x/tools/go/analysis/passes/tests.s 12544    12528    -16     -0.128%
+    cmd/compile/internal/ssa.s                               3209248  3209296  +48     +0.001%
+    cmd/compile/internal/ssa [cmd/compile].s                 3319152  3319168  +16     +0.000%
+    total                                                    33366288 33366416 +128    +0.000%
+    
+    Change-Id: I8111792c9dd4f927b49a6d5dd90a3fdc3ec26277
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666836
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssa/tighten.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/tighten.go b/src/cmd/compile/internal/ssa/tighten.go
+index 93bb8d048a..eb5007b26e 100644
+--- a/src/cmd/compile/internal/ssa/tighten.go
++++ b/src/cmd/compile/internal/ssa/tighten.go
+@@ -27,6 +27,8 @@ func tighten(f *Func) {
+ 	defer f.Cache.freeValueSlice(startMem)
+ 	endMem := f.Cache.allocValueSlice(f.NumBlocks())
+ 	defer f.Cache.freeValueSlice(endMem)
++	distinctArgs := f.newSparseSet(f.NumValues())
++	defer f.retSparseSet(distinctArgs)
+ 	memState(f, startMem, endMem)
+ 
+ 	for _, b := range f.Blocks {
+@@ -47,16 +49,18 @@ func tighten(f *Func) {
+ 				// Nil checks need to stay in their block. See issue 72860.
+ 				continue
+ 			}
+-			// Count arguments which will need a register.
+-			narg := 0
++			// Count distinct arguments which will need a register.
++			distinctArgs.clear()
++
+ 			for _, a := range v.Args {
+ 				// SP and SB are special registers and have no effect on
+ 				// the allocation of general-purpose registers.
+ 				if a.needRegister() && a.Op != OpSB && a.Op != OpSP {
+-					narg++
++					distinctArgs.add(a.ID)
+ 				}
+ 			}
+-			if narg >= 2 && !v.Type.IsFlags() {
++
++			if distinctArgs.size() >= 2 && !v.Type.IsFlags() {
+ 				// Don't move values with more than one input, as that may
+ 				// increase register pressure.
+ 				// We make an exception for flags, as we want flag generators

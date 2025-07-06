@@ -1,0 +1,33 @@
+commit 959e65c41cf9aebb5af72466023ac66b01baf9e9
+Author: Daniel Martí <mvdan@mvdan.cc>
+Date:   Tue Apr 30 15:25:09 2024 +0100
+
+    bytes: fix up godoc link errors
+    
+    [Reader.Reader] does not exist in this package.
+    These docs most likely meant to refer to [Reader] itself.
+    
+    Change-Id: I4fa117e8541573e0be7c13751fdfc102d5f2d604
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582515
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/bytes/reader.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/bytes/reader.go b/src/bytes/reader.go
+index 9ef49014ed..30c46fa6b3 100644
+--- a/src/bytes/reader.go
++++ b/src/bytes/reader.go
+@@ -152,8 +152,8 @@ func (r *Reader) WriteTo(w io.Writer) (n int64, err error) {
+ 	return
+ }
+ 
+-// Reset resets the [Reader.Reader] to be reading from b.
++// Reset resets the [Reader] to be reading from b.
+ func (r *Reader) Reset(b []byte) { *r = Reader{b, 0, -1} }
+ 
+-// NewReader returns a new [Reader.Reader] reading from b.
++// NewReader returns a new [Reader] reading from b.
+ func NewReader(b []byte) *Reader { return &Reader{b, 0, -1} }

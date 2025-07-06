@@ -1,0 +1,728 @@
+commit 4b0da6b13feefa14e58b7524435afa5c14e7a554
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Mon Sep 23 11:38:36 2024 +0800
+
+    cmd/compiler,internal/runtime/atomic: optimize And{64,32,8} and Or{64,32,8} on loong64
+    
+    Use loong64's atomic operation instruction AMANDDB{V,W,W} (full barrier) to implement
+    And{64,32,8}, AMORDB{V,W,W} (full barrier) to implement Or{64,32,8}.
+    
+    Intrinsify And{64,32,8} and Or{64,32,8}, And this CL alias all of the And/Or operations
+    into sync/atomic package.
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A6000-HV @ 2500.00MHz
+                    |   bench.old    |   bench.new                           |
+                    |   sec/op       |   sec/op        vs base               |
+    And32              27.73n ± 0%      10.81n ± 0%   -61.02% (p=0.000 n=20)
+    And32Parallel      28.96n ± 0%      12.41n ± 0%   -57.15% (p=0.000 n=20)
+    And64              27.73n ± 0%      10.81n ± 0%   -61.02% (p=0.000 n=20)
+    And64Parallel      28.96n ± 0%      12.41n ± 0%   -57.15% (p=0.000 n=20)
+    Or32               27.62n ± 0%      10.81n ± 0%   -60.86% (p=0.000 n=20)
+    Or32Parallel       28.96n ± 0%      12.41n ± 0%   -57.15% (p=0.000 n=20)
+    Or64               27.62n ± 0%      10.81n ± 0%   -60.86% (p=0.000 n=20)
+    Or64Parallel       28.97n ± 0%      12.41n ± 0%   -57.16% (p=0.000 n=20)
+    And8               29.15n ± 0%      13.21n ± 0%   -54.68% (p=0.000 n=20)
+    And                27.71n ± 0%      12.82n ± 0%   -53.74% (p=0.000 n=20)
+    And8Parallel       28.99n ± 0%      14.46n ± 0%   -50.12% (p=0.000 n=20)
+    AndParallel        29.12n ± 0%      14.42n ± 0%   -50.48% (p=0.000 n=20)
+    Or8                28.31n ± 0%      12.81n ± 0%   -54.75% (p=0.000 n=20)
+    Or                 27.72n ± 0%      12.81n ± 0%   -53.79% (p=0.000 n=20)
+    Or8Parallel        29.03n ± 0%      14.62n ± 0%   -49.64% (p=0.000 n=20)
+    OrParallel         29.12n ± 0%      14.42n ± 0%   -50.49% (p=0.000 n=20)
+    geomean            28.47n           12.58n        -55.80%
+    
+    goos: linux
+    goarch: loong64
+    pkg: internal/runtime/atomic
+    cpu: Loongson-3A5000 @ 2500.00MHz
+                    |   bench.old    |   bench.new                          |
+                    |   sec/op       |   sec/op        vs base              |
+    And32              30.02n ± 0%      14.81n ± 0%   -50.67% (p=0.000 n=20)
+    And32Parallel      30.83n ± 0%      15.61n ± 0%   -49.37% (p=0.000 n=20)
+    And64              30.02n ± 0%      14.81n ± 0%   -50.67% (p=0.000 n=20)
+    And64Parallel      30.83n ± 0%      15.61n ± 0%   -49.37% (p=0.000 n=20)
+    And8               30.42n ± 0%      14.41n ± 0%   -52.63% (p=0.000 n=20)
+    And                30.02n ± 0%      13.61n ± 0%   -54.66% (p=0.000 n=20)
+    And8Parallel       31.23n ± 0%      15.21n ± 0%   -51.30% (p=0.000 n=20)
+    AndParallel        30.83n ± 0%      14.41n ± 0%   -53.26% (p=0.000 n=20)
+    Or32               30.02n ± 0%      14.81n ± 0%   -50.67% (p=0.000 n=20)
+    Or32Parallel       30.83n ± 0%      15.61n ± 0%   -49.37% (p=0.000 n=20)
+    Or64               30.02n ± 0%      14.82n ± 0%   -50.63% (p=0.000 n=20)
+    Or64Parallel       30.83n ± 0%      15.61n ± 0%   -49.37% (p=0.000 n=20)
+    Or8                30.02n ± 0%      14.01n ± 0%   -53.33% (p=0.000 n=20)
+    Or                 30.02n ± 0%      13.61n ± 0%   -54.66% (p=0.000 n=20)
+    Or8Parallel        30.83n ± 0%      14.81n ± 0%   -51.96% (p=0.000 n=20)
+    OrParallel         30.83n ± 0%      14.41n ± 0%   -53.26% (p=0.000 n=20)
+    geomean            30.47n           14.75n        -51.61%
+    
+    Change-Id: If008ff6a08b51905076f8ddb6e92f8e214d3f7b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/482756
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/loong64/ssa.go            |  23 +++++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    |  22 +++++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    |  12 +++
+ src/cmd/compile/internal/ssa/opGen.go              | 108 +++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     |  90 +++++++++++++++++
+ src/cmd/compile/internal/ssagen/intrinsics.go      |  40 ++++----
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  25 +++++
+ src/internal/runtime/atomic/atomic_loong64.s       |  82 ++++------------
+ 8 files changed, 319 insertions(+), 83 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 515040b648..e7cb82a280 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -775,6 +775,29 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p5.To.SetTarget(p1)
+ 		p6 := s.Prog(loong64.ADBAR)
+ 		p2.To.SetTarget(p6)
++
++	case ssa.OpLOONG64LoweredAtomicAnd32,
++		ssa.OpLOONG64LoweredAtomicOr32:
++		// AM{AND,OR}DBx  Rarg1, (Rarg0), RegZero
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = v.Args[0].Reg()
++		p.RegTo2 = loong64.REGZERO
++
++	case ssa.OpLOONG64LoweredAtomicAnd32value,
++		ssa.OpLOONG64LoweredAtomicAnd64value,
++		ssa.OpLOONG64LoweredAtomicOr64value,
++		ssa.OpLOONG64LoweredAtomicOr32value:
++		// AM{AND,OR}DBx  Rarg1, (Rarg0), Rout
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_REG
++		p.From.Reg = v.Args[1].Reg()
++		p.To.Type = obj.TYPE_MEM
++		p.To.Reg = v.Args[0].Reg()
++		p.RegTo2 = v.Reg0()
++
+ 	case ssa.OpLOONG64LoweredNilCheck:
+ 		// Issue a load which will fault if arg is nil.
+ 		p := s.Prog(loong64.AMOVB)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index ef7cfdf396..bac1f27b1d 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -446,6 +446,28 @@
+ (AtomicCompareAndSwap32 ptr old new mem) => (LoweredAtomicCas32 ptr (SignExt32to64 old) new mem)
+ (AtomicCompareAndSwap64 ...) => (LoweredAtomicCas64 ...)
+ 
++// Atomic memory logical operations (old style).
++//
++// AtomicAnd8(ptr,val) => LoweredAtomicAnd32(ptr&^3, ^((uint8(val) ^ 0xff) << ((ptr & 3) * 8)))
++// AtomicOr8(ptr,val)  => LoweredAtomicOr32(ptr&^3, uint32(val) << ((ptr & 3) * 8))
++//
++(AtomicAnd8 ptr val mem) =>
++	(LoweredAtomicAnd32 (AND <typ.Uintptr> (MOVVconst [^3]) ptr)
++		(NORconst [0] <typ.UInt32> (SLLV <typ.UInt32> (XORconst <typ.UInt32> [0xff] (ZeroExt8to32 val))
++			(SLLVconst <typ.UInt64> [3] (ANDconst <typ.UInt64> [3] ptr)))) mem)
++
++(AtomicOr8 ptr val mem) =>
++	(LoweredAtomicOr32 (AND <typ.Uintptr> (MOVVconst [^3]) ptr)
++		(SLLV <typ.UInt32> (ZeroExt8to32 val)
++			(SLLVconst <typ.UInt64> [3] (ANDconst <typ.UInt64> [3] ptr))) mem)
++
++(AtomicAnd32 ...) => (LoweredAtomicAnd32 ...)
++(AtomicOr32  ...) => (LoweredAtomicOr32  ...)
++
++// Atomic memory logical operations (new style).
++(AtomicAnd(64|32)value ...) => (LoweredAtomicAnd(64|32)value ...)
++(AtomicOr(64|32)value  ...) => (LoweredAtomicOr(64|32)value  ...)
++
+ // checks
+ (NilCheck ...) => (LoweredNilCheck ...)
+ (IsNonNil ptr) => (SGTU ptr (MOVVconst [0]))
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 96a80eb4c7..0da0bb8227 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -478,6 +478,18 @@ func init() {
+ 		{name: "LoweredAtomicCas32", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 		{name: "LoweredAtomicCas64", argLength: 4, reg: gpcas, resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true, unsafePoint: true},
+ 
++		// Atomic 32 bit AND/OR.
++		// *arg0 &= (|=) arg1. arg2=mem. returns nil.
++		{name: "LoweredAtomicAnd32", argLength: 3, reg: gpxchg, asm: "AMANDDBW", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicOr32", argLength: 3, reg: gpxchg, asm: "AMORDBW", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++
++		// Atomic 32,64 bit AND/OR.
++		// *arg0 &= (|=) arg1. arg2=mem. returns <old content of *arg0, memory>. auxint must be zero.
++		{name: "LoweredAtomicAnd32value", argLength: 3, reg: gpxchg, asm: "AMANDDBW", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicAnd64value", argLength: 3, reg: gpxchg, asm: "AMANDDBV", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicOr32value", argLength: 3, reg: gpxchg, asm: "AMORDBW", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++		{name: "LoweredAtomicOr64value", argLength: 3, reg: gpxchg, asm: "AMORDBV", resultNotInArgs: true, faultOnNilArg0: true, hasSideEffects: true},
++
+ 		// pseudo-ops
+ 		{name: "LoweredNilCheck", argLength: 2, reg: regInfo{inputs: []regMask{gpg}}, nilCheck: true, faultOnNilArg0: true}, // panic if arg0 is nil.  arg1=mem.
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 775ca63f14..f1006a3f3c 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1920,6 +1920,12 @@ const (
+ 	OpLOONG64LoweredAtomicAdd64
+ 	OpLOONG64LoweredAtomicCas32
+ 	OpLOONG64LoweredAtomicCas64
++	OpLOONG64LoweredAtomicAnd32
++	OpLOONG64LoweredAtomicOr32
++	OpLOONG64LoweredAtomicAnd32value
++	OpLOONG64LoweredAtomicAnd64value
++	OpLOONG64LoweredAtomicOr32value
++	OpLOONG64LoweredAtomicOr64value
+ 	OpLOONG64LoweredNilCheck
+ 	OpLOONG64FPFlagTrue
+ 	OpLOONG64FPFlagFalse
+@@ -25803,6 +25809,108 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "LoweredAtomicAnd32",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		asm:             loong64.AAMANDDBW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicOr32",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		asm:             loong64.AAMORDBW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicAnd32value",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		asm:             loong64.AAMANDDBW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicAnd64value",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		asm:             loong64.AAMANDDBV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicOr32value",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		asm:             loong64.AAMORDBW,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:            "LoweredAtomicOr64value",
++		argLen:          3,
++		resultNotInArgs: true,
++		faultOnNilArg0:  true,
++		hasSideEffects:  true,
++		asm:             loong64.AAMORDBV,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{1, 1073741816},          // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{0, 4611686019501129724}, // SP R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31 SB
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 	{
+ 		name:           "LoweredNilCheck",
+ 		argLen:         2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index e8c1d26554..88c5036b54 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -53,6 +53,17 @@ func rewriteValueLOONG64(v *Value) bool {
+ 	case OpAtomicAdd64:
+ 		v.Op = OpLOONG64LoweredAtomicAdd64
+ 		return true
++	case OpAtomicAnd32:
++		v.Op = OpLOONG64LoweredAtomicAnd32
++		return true
++	case OpAtomicAnd32value:
++		v.Op = OpLOONG64LoweredAtomicAnd32value
++		return true
++	case OpAtomicAnd64value:
++		v.Op = OpLOONG64LoweredAtomicAnd64value
++		return true
++	case OpAtomicAnd8:
++		return rewriteValueLOONG64_OpAtomicAnd8(v)
+ 	case OpAtomicCompareAndSwap32:
+ 		return rewriteValueLOONG64_OpAtomicCompareAndSwap32(v)
+ 	case OpAtomicCompareAndSwap64:
+@@ -76,6 +87,17 @@ func rewriteValueLOONG64(v *Value) bool {
+ 	case OpAtomicLoadPtr:
+ 		v.Op = OpLOONG64LoweredAtomicLoad64
+ 		return true
++	case OpAtomicOr32:
++		v.Op = OpLOONG64LoweredAtomicOr32
++		return true
++	case OpAtomicOr32value:
++		v.Op = OpLOONG64LoweredAtomicOr32value
++		return true
++	case OpAtomicOr64value:
++		v.Op = OpLOONG64LoweredAtomicOr64value
++		return true
++	case OpAtomicOr8:
++		return rewriteValueLOONG64_OpAtomicOr8(v)
+ 	case OpAtomicStore32:
+ 		v.Op = OpLOONG64LoweredAtomicStore32
+ 		return true
+@@ -806,6 +828,43 @@ func rewriteValueLOONG64_OpAddr(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueLOONG64_OpAtomicAnd8(v *Value) bool {
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (AtomicAnd8 ptr val mem)
++	// result: (LoweredAtomicAnd32 (AND <typ.Uintptr> (MOVVconst [^3]) ptr) (NORconst [0] <typ.UInt32> (SLLV <typ.UInt32> (XORconst <typ.UInt32> [0xff] (ZeroExt8to32 val)) (SLLVconst <typ.UInt64> [3] (ANDconst <typ.UInt64> [3] ptr)))) mem)
++	for {
++		ptr := v_0
++		val := v_1
++		mem := v_2
++		v.reset(OpLOONG64LoweredAtomicAnd32)
++		v0 := b.NewValue0(v.Pos, OpLOONG64AND, typ.Uintptr)
++		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
++		v1.AuxInt = int64ToAuxInt(^3)
++		v0.AddArg2(v1, ptr)
++		v2 := b.NewValue0(v.Pos, OpLOONG64NORconst, typ.UInt32)
++		v2.AuxInt = int64ToAuxInt(0)
++		v3 := b.NewValue0(v.Pos, OpLOONG64SLLV, typ.UInt32)
++		v4 := b.NewValue0(v.Pos, OpLOONG64XORconst, typ.UInt32)
++		v4.AuxInt = int64ToAuxInt(0xff)
++		v5 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
++		v5.AddArg(val)
++		v4.AddArg(v5)
++		v6 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.UInt64)
++		v6.AuxInt = int64ToAuxInt(3)
++		v7 := b.NewValue0(v.Pos, OpLOONG64ANDconst, typ.UInt64)
++		v7.AuxInt = int64ToAuxInt(3)
++		v7.AddArg(ptr)
++		v6.AddArg(v7)
++		v3.AddArg2(v4, v6)
++		v2.AddArg(v3)
++		v.AddArg3(v0, v2, mem)
++		return true
++	}
++}
+ func rewriteValueLOONG64_OpAtomicCompareAndSwap32(v *Value) bool {
+ 	v_3 := v.Args[3]
+ 	v_2 := v.Args[2]
+@@ -827,6 +886,37 @@ func rewriteValueLOONG64_OpAtomicCompareAndSwap32(v *Value) bool {
+ 		return true
+ 	}
+ }
++func rewriteValueLOONG64_OpAtomicOr8(v *Value) bool {
++	v_2 := v.Args[2]
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	b := v.Block
++	typ := &b.Func.Config.Types
++	// match: (AtomicOr8 ptr val mem)
++	// result: (LoweredAtomicOr32 (AND <typ.Uintptr> (MOVVconst [^3]) ptr) (SLLV <typ.UInt32> (ZeroExt8to32 val) (SLLVconst <typ.UInt64> [3] (ANDconst <typ.UInt64> [3] ptr))) mem)
++	for {
++		ptr := v_0
++		val := v_1
++		mem := v_2
++		v.reset(OpLOONG64LoweredAtomicOr32)
++		v0 := b.NewValue0(v.Pos, OpLOONG64AND, typ.Uintptr)
++		v1 := b.NewValue0(v.Pos, OpLOONG64MOVVconst, typ.UInt64)
++		v1.AuxInt = int64ToAuxInt(^3)
++		v0.AddArg2(v1, ptr)
++		v2 := b.NewValue0(v.Pos, OpLOONG64SLLV, typ.UInt32)
++		v3 := b.NewValue0(v.Pos, OpZeroExt8to32, typ.UInt32)
++		v3.AddArg(val)
++		v4 := b.NewValue0(v.Pos, OpLOONG64SLLVconst, typ.UInt64)
++		v4.AuxInt = int64ToAuxInt(3)
++		v5 := b.NewValue0(v.Pos, OpLOONG64ANDconst, typ.UInt64)
++		v5.AuxInt = int64ToAuxInt(3)
++		v5.AddArg(ptr)
++		v4.AddArg(v5)
++		v2.AddArg2(v3, v4)
++		v.AddArg3(v0, v2, mem)
++		return true
++	}
++}
+ func rewriteValueLOONG64_OpAvg64u(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index a1d962ee3a..33345e9296 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -512,25 +512,25 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
++		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("internal/runtime/atomic", "And",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicAnd32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
++		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("internal/runtime/atomic", "Or8",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr8, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
++		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 	addF("internal/runtime/atomic", "Or",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			s.vars[memVar] = s.newValue3(ssa.OpAtomicOr32, types.TypeMem, args[0], args[1], s.mem())
+ 			return nil
+ 		},
+-		sys.AMD64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
++		sys.AMD64, sys.Loong64, sys.MIPS, sys.MIPS64, sys.PPC64, sys.RISCV64, sys.S390X)
+ 
+ 	// arm64 always uses the new-style atomic logical operations, for both the
+ 	// old and new style API.
+@@ -567,7 +567,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = p1
+ 			return p0
+ 		},
+-		sys.AMD64)
++		sys.AMD64, sys.Loong64)
+ 	addF("internal/runtime/atomic", "And32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicAnd32value, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
+@@ -575,7 +575,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = p1
+ 			return p0
+ 		},
+-		sys.AMD64)
++		sys.AMD64, sys.Loong64)
+ 	addF("internal/runtime/atomic", "Or64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicOr64value, types.NewTuple(types.Types[types.TUINT64], types.TypeMem), args[0], args[1], s.mem())
+@@ -583,7 +583,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = p1
+ 			return p0
+ 		},
+-		sys.AMD64)
++		sys.AMD64, sys.Loong64)
+ 	addF("internal/runtime/atomic", "Or32",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			v := s.newValue3(ssa.OpAtomicOr32value, types.NewTuple(types.Types[types.TUINT32], types.TypeMem), args[0], args[1], s.mem())
+@@ -591,7 +591,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = p1
+ 			return p0
+ 		},
+-		sys.AMD64)
++		sys.AMD64, sys.Loong64)
+ 
+ 	// Aliases for atomic load operations
+ 	alias("internal/runtime/atomic", "Loadint32", "internal/runtime/atomic", "Load", all...)
+@@ -641,8 +641,8 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 	alias("internal/runtime/atomic", "CasRel", "internal/runtime/atomic", "Cas", lwatomics...)
+ 
+ 	// Aliases for atomic And/Or operations
+-	alias("internal/runtime/atomic", "Anduintptr", "internal/runtime/atomic", "And64", sys.ArchARM64)
+-	alias("internal/runtime/atomic", "Oruintptr", "internal/runtime/atomic", "Or64", sys.ArchARM64)
++	alias("internal/runtime/atomic", "Anduintptr", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchLoong64)
++	alias("internal/runtime/atomic", "Oruintptr", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchLoong64)
+ 
+ 	/******** math ********/
+ 	addF("math", "sqrt",
+@@ -1132,16 +1132,16 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd", p4...)
+ 	alias("sync/atomic", "AddUintptr", "internal/runtime/atomic", "Xadd64", p8...)
+ 
+-	alias("sync/atomic", "AndInt32", "internal/runtime/atomic", "And32", sys.ArchARM64, sys.ArchAMD64)
+-	alias("sync/atomic", "AndUint32", "internal/runtime/atomic", "And32", sys.ArchARM64, sys.ArchAMD64)
+-	alias("sync/atomic", "AndInt64", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64)
+-	alias("sync/atomic", "AndUint64", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64)
+-	alias("sync/atomic", "AndUintptr", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64)
+-	alias("sync/atomic", "OrInt32", "internal/runtime/atomic", "Or32", sys.ArchARM64, sys.ArchAMD64)
+-	alias("sync/atomic", "OrUint32", "internal/runtime/atomic", "Or32", sys.ArchARM64, sys.ArchAMD64)
+-	alias("sync/atomic", "OrInt64", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64)
+-	alias("sync/atomic", "OrUint64", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64)
+-	alias("sync/atomic", "OrUintptr", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64)
++	alias("sync/atomic", "AndInt32", "internal/runtime/atomic", "And32", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64)
++	alias("sync/atomic", "AndUint32", "internal/runtime/atomic", "And32", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64)
++	alias("sync/atomic", "AndInt64", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64)
++	alias("sync/atomic", "AndUint64", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64)
++	alias("sync/atomic", "AndUintptr", "internal/runtime/atomic", "And64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64)
++	alias("sync/atomic", "OrInt32", "internal/runtime/atomic", "Or32", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64)
++	alias("sync/atomic", "OrUint32", "internal/runtime/atomic", "Or32", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64)
++	alias("sync/atomic", "OrInt64", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64)
++	alias("sync/atomic", "OrUint64", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64)
++	alias("sync/atomic", "OrUintptr", "internal/runtime/atomic", "Or64", sys.ArchARM64, sys.ArchAMD64, sys.ArchLoong64)
+ 
+ 	/******** math/big ********/
+ 	alias("math/big", "mulWW", "math/bits", "Mul64", p8...)
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 9cf8cbc877..a8656cc3d4 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -349,6 +349,11 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"arm64", "sync/atomic", "SwapUint32"}:                     struct{}{},
+ 	{"arm64", "sync/atomic", "SwapUint64"}:                     struct{}{},
+ 	{"arm64", "sync/atomic", "SwapUintptr"}:                    struct{}{},
++	{"loong64", "internal/runtime/atomic", "And"}:              struct{}{},
++	{"loong64", "internal/runtime/atomic", "And32"}:            struct{}{},
++	{"loong64", "internal/runtime/atomic", "And64"}:            struct{}{},
++	{"loong64", "internal/runtime/atomic", "And8"}:             struct{}{},
++	{"loong64", "internal/runtime/atomic", "Anduintptr"}:       struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Cas"}:              struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Cas64"}:            struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "CasRel"}:           struct{}{},
+@@ -367,6 +372,11 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "internal/runtime/atomic", "Loadp"}:            struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Loaduint"}:         struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Loaduintptr"}:      struct{}{},
++	{"loong64", "internal/runtime/atomic", "Or"}:               struct{}{},
++	{"loong64", "internal/runtime/atomic", "Or32"}:             struct{}{},
++	{"loong64", "internal/runtime/atomic", "Or64"}:             struct{}{},
++	{"loong64", "internal/runtime/atomic", "Or8"}:              struct{}{},
++	{"loong64", "internal/runtime/atomic", "Oruintptr"}:        struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Store"}:            struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Store64"}:          struct{}{},
+ 	{"loong64", "internal/runtime/atomic", "Store8"}:           struct{}{},
+@@ -429,6 +439,16 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "sync/atomic", "AddUint32"}:                    struct{}{},
+ 	{"loong64", "sync/atomic", "AddUint64"}:                    struct{}{},
+ 	{"loong64", "sync/atomic", "AddUintptr"}:                   struct{}{},
++	{"loong64", "sync/atomic", "AddInt32"}:                     struct{}{},
++	{"loong64", "sync/atomic", "AddInt64"}:                     struct{}{},
++	{"loong64", "sync/atomic", "AddUint32"}:                    struct{}{},
++	{"loong64", "sync/atomic", "AddUint64"}:                    struct{}{},
++	{"loong64", "sync/atomic", "AddUintptr"}:                   struct{}{},
++	{"loong64", "sync/atomic", "AndInt32"}:                     struct{}{},
++	{"loong64", "sync/atomic", "AndInt64"}:                     struct{}{},
++	{"loong64", "sync/atomic", "AndUint32"}:                    struct{}{},
++	{"loong64", "sync/atomic", "AndUint64"}:                    struct{}{},
++	{"loong64", "sync/atomic", "AndUintptr"}:                   struct{}{},
+ 	{"loong64", "sync/atomic", "CompareAndSwapInt32"}:          struct{}{},
+ 	{"loong64", "sync/atomic", "CompareAndSwapInt64"}:          struct{}{},
+ 	{"loong64", "sync/atomic", "CompareAndSwapUint32"}:         struct{}{},
+@@ -440,6 +460,11 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "sync/atomic", "LoadUint32"}:                   struct{}{},
+ 	{"loong64", "sync/atomic", "LoadUint64"}:                   struct{}{},
+ 	{"loong64", "sync/atomic", "LoadUintptr"}:                  struct{}{},
++	{"loong64", "sync/atomic", "OrInt32"}:                      struct{}{},
++	{"loong64", "sync/atomic", "OrInt64"}:                      struct{}{},
++	{"loong64", "sync/atomic", "OrUint32"}:                     struct{}{},
++	{"loong64", "sync/atomic", "OrUint64"}:                     struct{}{},
++	{"loong64", "sync/atomic", "OrUintptr"}:                    struct{}{},
+ 	{"loong64", "sync/atomic", "StoreInt32"}:                   struct{}{},
+ 	{"loong64", "sync/atomic", "StoreInt64"}:                   struct{}{},
+ 	{"loong64", "sync/atomic", "StoreUint32"}:                  struct{}{},
+diff --git a/src/internal/runtime/atomic/atomic_loong64.s b/src/internal/runtime/atomic/atomic_loong64.s
+index 6ea162d9da..60741a23c2 100644
+--- a/src/internal/runtime/atomic/atomic_loong64.s
++++ b/src/internal/runtime/atomic/atomic_loong64.s
+@@ -185,122 +185,78 @@ TEXT ·Store64(SB), NOSPLIT, $0-16
+ TEXT ·Or8(SB), NOSPLIT, $0-9
+ 	MOVV	ptr+0(FP), R4
+ 	MOVBU	val+8(FP), R5
+-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
++	// R6 = ptr & (~3)
+ 	MOVV	$~3, R6
+ 	AND	R4, R6
+ 	// R7 = ((ptr & 3) * 8)
+ 	AND	$3, R4, R7
+ 	SLLV	$3, R7
+-	// Shift val for aligned ptr. R5 = val << R4
++	// R5 = val << R7
+ 	SLLV	R7, R5
+-
+-	DBAR
+-	LL	(R6), R7
+-	OR	R5, R7
+-	SC	R7, (R6)
+-	BEQ	R7, -4(PC)
+-	DBAR
++	AMORDBW	R5, (R6), R0
+ 	RET
+ 
+ // void	And8(byte volatile*, byte);
+ TEXT ·And8(SB), NOSPLIT, $0-9
+ 	MOVV	ptr+0(FP), R4
+ 	MOVBU	val+8(FP), R5
+-	// Align ptr down to 4 bytes so we can use 32-bit load/store.
++	// R6 = ptr & (~3)
+ 	MOVV	$~3, R6
+ 	AND	R4, R6
+ 	// R7 = ((ptr & 3) * 8)
+ 	AND	$3, R4, R7
+ 	SLLV	$3, R7
+-	// Shift val for aligned ptr. R5 = val << R7 | ^(0xFF << R7)
+-	MOVV	$0xFF, R8
+-	SLLV	R7, R5
+-	SLLV	R7, R8
+-	NOR	R0, R8
+-	OR	R8, R5
+-
+-	DBAR
+-	LL	(R6), R7
+-	AND	R5, R7
+-	SC	R7, (R6)
+-	BEQ	R7, -4(PC)
+-	DBAR
++	// R5 = ((val ^ 0xFF) << R7) ^ (-1)
++	XOR	$255, R5
++	SLLV	R7,  R5
++	XOR	$-1, R5
++	AMANDDBW	R5, (R6), R0
+ 	RET
+ 
+ // func Or(addr *uint32, v uint32)
+ TEXT ·Or(SB), NOSPLIT, $0-12
+ 	MOVV	ptr+0(FP), R4
+ 	MOVW	val+8(FP), R5
+-	DBAR
+-	LL	(R4), R6
+-	OR	R5, R6
+-	SC	R6, (R4)
+-	BEQ	R6, -4(PC)
+-	DBAR
++	AMORDBW	R5, (R4), R0
+ 	RET
+ 
+ // func And(addr *uint32, v uint32)
+ TEXT ·And(SB), NOSPLIT, $0-12
+ 	MOVV	ptr+0(FP), R4
+ 	MOVW	val+8(FP), R5
+-	DBAR
+-	LL	(R4), R6
+-	AND	R5, R6
+-	SC	R6, (R4)
+-	BEQ	R6, -4(PC)
+-	DBAR
++	AMANDDBW	R5, (R4), R0
+ 	RET
+ 
+ // func Or32(addr *uint32, v uint32) old uint32
+ TEXT ·Or32(SB), NOSPLIT, $0-20
+ 	MOVV	ptr+0(FP), R4
+ 	MOVW	val+8(FP), R5
+-	DBAR
+-	LL	(R4), R6
+-	OR	R5, R6, R7
+-	SC	R7, (R4)
+-	BEQ	R7, -4(PC)
+-	DBAR
+-	MOVW R6, ret+16(FP)
++	AMORDBW R5, (R4), R6
++	MOVW	R6, ret+16(FP)
+ 	RET
+ 
+ // func And32(addr *uint32, v uint32) old uint32
+ TEXT ·And32(SB), NOSPLIT, $0-20
+ 	MOVV	ptr+0(FP), R4
+ 	MOVW	val+8(FP), R5
+-	DBAR
+-	LL	(R4), R6
+-	AND	R5, R6, R7
+-	SC	R7, (R4)
+-	BEQ	R7, -4(PC)
+-	DBAR
+-	MOVW R6, ret+16(FP)
++	AMANDDBW	R5, (R4), R6
++	MOVW	R6, ret+16(FP)
+ 	RET
+ 
+ // func Or64(addr *uint64, v uint64) old uint64
+ TEXT ·Or64(SB), NOSPLIT, $0-24
+ 	MOVV	ptr+0(FP), R4
+ 	MOVV	val+8(FP), R5
+-	DBAR
+-	LLV	(R4), R6
+-	OR	R5, R6, R7
+-	SCV	R7, (R4)
+-	BEQ	R7, -4(PC)
+-	DBAR
+-	MOVV R6, ret+16(FP)
++	AMORDBV	R5, (R4), R6
++	MOVV	R6, ret+16(FP)
+ 	RET
+ 
+ // func And64(addr *uint64, v uint64) old uint64
+ TEXT ·And64(SB), NOSPLIT, $0-24
+ 	MOVV	ptr+0(FP), R4
+ 	MOVV	val+8(FP), R5
+-	DBAR
+-	LLV	(R4), R6
+-	AND	R5, R6, R7
+-	SCV	R7, (R4)
+-	BEQ	R7, -4(PC)
+-	DBAR
+-	MOVV R6, ret+16(FP)
++	AMANDDBV	R5, (R4), R6
++	MOVV	R6, ret+16(FP)
+ 	RET
+ 
+ // func Anduintptr(addr *uintptr, v uintptr) old uintptr

@@ -1,0 +1,69 @@
+commit 95611c0eb4436102ab0dad3a705acff5f5eb7aca
+Author: Prabhav Dogra <prabhavdogra1@gmail.com>
+Date:   Sun Apr 20 07:52:58 2025 +0000
+
+    sync: use atomic.Bool for Once.done
+    
+    Updated the use of atomic.Uint32 to atomic.Bool for sync package.
+    
+    Change-Id: Ib8da66fea86ef06e1427ac5118016b96fbcda6b1
+    GitHub-Last-Rev: d36e0f431fcde988f90badf86bbf04a18a411947
+    GitHub-Pull-Request: golang/go#73447
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666895
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+---
+ src/sync/once.go    | 8 ++++----
+ test/inline_sync.go | 2 +-
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/sync/once.go b/src/sync/once.go
+index 90840b19b5..1573b28b28 100644
+--- a/src/sync/once.go
++++ b/src/sync/once.go
+@@ -25,7 +25,7 @@ type Once struct {
+ 	// The hot path is inlined at every call site.
+ 	// Placing done first allows more compact instructions on some architectures (amd64/386),
+ 	// and fewer instructions (to calculate offset) on other architectures.
+-	done atomic.Uint32
++	done atomic.Bool
+ 	m    Mutex
+ }
+ 
+@@ -64,7 +64,7 @@ func (o *Once) Do(f func()) {
+ 	// This is why the slow path falls back to a mutex, and why
+ 	// the o.done.Store must be delayed until after f returns.
+ 
+-	if o.done.Load() == 0 {
++	if !o.done.Load() {
+ 		// Outlined slow-path to allow inlining of the fast-path.
+ 		o.doSlow(f)
+ 	}
+@@ -73,8 +73,8 @@ func (o *Once) Do(f func()) {
+ func (o *Once) doSlow(f func()) {
+ 	o.m.Lock()
+ 	defer o.m.Unlock()
+-	if o.done.Load() == 0 {
+-		defer o.done.Store(1)
++	if !o.done.Load() {
++		defer o.done.Store(true)
+ 		f()
+ 	}
+ }
+diff --git a/test/inline_sync.go b/test/inline_sync.go
+index eaa2176d5f..8359aa3aa2 100644
+--- a/test/inline_sync.go
++++ b/test/inline_sync.go
+@@ -37,7 +37,7 @@ var once *sync.Once
+ 
+ func small7() { // ERROR "can inline small7"
+ 	// the Do fast path should be inlined
+-	once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do" "inlining call to atomic\.\(\*Uint32\)\.Load"
++	once.Do(small5) // ERROR "inlining call to sync\.\(\*Once\)\.Do" "inlining call to atomic\.\(\*Bool\)\.Load"
+ }
+ 
+ var rwmutex *sync.RWMutex

@@ -1,0 +1,41 @@
+commit c3c97ad1bf3ca5bac682df068f7e0384029839b1
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue May 14 18:09:04 2024 -0700
+
+    run.bash: rm bumping open files soft limit
+    
+    Since CL 393354 this should no longer be necessary.
+    
+    Change-Id: Ie9a7f779515aaf8b40a4f0083ba680f7b0231f04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585576
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+---
+ src/run.bash | 10 +---------
+ 1 file changed, 1 insertion(+), 9 deletions(-)
+
+diff --git a/src/run.bash b/src/run.bash
+index badb8c60e2..cb474325c4 100755
+--- a/src/run.bash
++++ b/src/run.bash
+@@ -41,15 +41,7 @@ export CC
+ ulimit -c 0
+ 
+ # Raise soft limits to hard limits for NetBSD/OpenBSD.
+-# We need at least 256 files and ~300 MB of bss.
+-# On OS X ulimit -S -n rejects 'unlimited'.
+-#
+-# Note that ulimit -S -n may fail if ulimit -H -n is set higher than a
+-# non-root process is allowed to set the high limit.
+-# This is a system misconfiguration and should be fixed on the
+-# broken system, not "fixed" by ignoring the failure here.
+-# See longer discussion on golang.org/issue/7381.
+-[ "$(ulimit -H -n)" = "unlimited" ] || ulimit -S -n $(ulimit -H -n)
++# We need at least ~300 MB of bss.
+ [ "$(ulimit -H -d)" = "unlimited" ] || ulimit -S -d $(ulimit -H -d)
+ 
+ # Thread count limit on NetBSD 7.

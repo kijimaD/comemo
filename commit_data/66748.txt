@@ -1,0 +1,141 @@
+commit 1647896aa227d8546de3dbe70a5049eecee964e3
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Apr 4 13:05:23 2025 -0700
+
+    cmd/compile: on 32-bit, bump up align for values that may contain 64-bit fields
+    
+    On 32-bit systems, these need to be aligned to 8 bytes, even though the
+    typechecker doesn't tell us that.
+    
+    The 64-bit allocations might be the target of atomic operations
+    that require 64-bit alignment.
+    
+    Fixes 386 longtest builder.
+    
+    Fixes #73173
+    
+    Change-Id: I68f6a4f40c7051d29c57ecd560c8d920876a56a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663015
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssagen/ssa.go       | 36 ++++++++++++++++++++++------
+ src/cmd/compile/internal/test/locals_test.go | 19 ++++++++++++++-
+ 2 files changed, 47 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index f04ef84da9..b7a9b7bea4 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -701,20 +701,42 @@ func (s *state) paramsToHeap() {
+ 	do(typ.Results())
+ }
+ 
++// allocSizeAndAlign returns the size and alignment of t.
++// Normally just t.Size() and t.Alignment(), but there
++// is a special case to handle 64-bit atomics on 32-bit systems.
++func allocSizeAndAlign(t *types.Type) (int64, int64) {
++	size, align := t.Size(), t.Alignment()
++	if types.PtrSize == 4 && align == 4 && size >= 8 {
++		// For 64-bit atomics on 32-bit systems.
++		size = types.RoundUp(size, 8)
++		align = 8
++	}
++	return size, align
++}
++func allocSize(t *types.Type) int64 {
++	size, _ := allocSizeAndAlign(t)
++	return size
++}
++func allocAlign(t *types.Type) int64 {
++	_, align := allocSizeAndAlign(t)
++	return align
++}
++
+ // newHeapaddr allocates heap memory for n and sets its heap address.
+ func (s *state) newHeapaddr(n *ir.Name) {
+-	if n.Type().HasPointers() || n.Type().Size() >= maxAggregatedHeapAllocation || n.Type().Size() == 0 {
++	size := allocSize(n.Type())
++	if n.Type().HasPointers() || size >= maxAggregatedHeapAllocation || size == 0 {
+ 		s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
+ 		return
+ 	}
+ 
+ 	// Do we have room together with our pending allocations?
+ 	// If not, flush all the current ones.
+-	var size int64
++	var used int64
+ 	for _, v := range s.pendingHeapAllocations {
+-		size += v.Type.Elem().Size()
++		used += allocSize(v.Type.Elem())
+ 	}
+-	if size+n.Type().Size() > maxAggregatedHeapAllocation {
++	if used+size > maxAggregatedHeapAllocation {
+ 		s.flushPendingHeapAllocations()
+ 	}
+ 
+@@ -757,16 +779,16 @@ func (s *state) flushPendingHeapAllocations() {
+ 	// This way we never have to worry about padding.
+ 	// (Stable not required; just cleaner to keep program order among equal alignments.)
+ 	slices.SortStableFunc(pending, func(x, y *ssa.Value) int {
+-		return cmp.Compare(y.Type.Elem().Alignment(), x.Type.Elem().Alignment())
++		return cmp.Compare(allocAlign(y.Type.Elem()), allocAlign(x.Type.Elem()))
+ 	})
+ 
+ 	// Figure out how much data we need allocate.
+ 	var size int64
+ 	for _, v := range pending {
+ 		v.AuxInt = size // Adjust OffPtr to the right value while we are here.
+-		size += v.Type.Elem().Size()
++		size += allocSize(v.Type.Elem())
+ 	}
+-	align := pending[0].Type.Elem().Alignment()
++	align := allocAlign(pending[0].Type.Elem())
+ 	size = types.RoundUp(size, align)
+ 
+ 	// Convert newObject call to a mallocgc call.
+diff --git a/src/cmd/compile/internal/test/locals_test.go b/src/cmd/compile/internal/test/locals_test.go
+index a5eafc6116..8e8a54950a 100644
+--- a/src/cmd/compile/internal/test/locals_test.go
++++ b/src/cmd/compile/internal/test/locals_test.go
+@@ -4,7 +4,10 @@
+ 
+ package test
+ 
+-import "testing"
++import (
++	"sync/atomic"
++	"testing"
++)
+ 
+ func locals() {
+ 	var x int64
+@@ -51,6 +54,19 @@ func closure() func() {
+ 	}
+ }
+ 
++//go:noinline
++func atomicFn() {
++	var x int32
++	var y int64
++	var z int16
++	var w int8
++	sink32 = &x
++	sink64 = &y
++	sink16 = &z
++	sink8 = &w
++	atomic.StoreInt64(&y, 7)
++}
++
+ var sink64 *int64
+ var sink32 *int32
+ var sink16 *int16
+@@ -67,6 +83,7 @@ func TestLocalAllocations(t *testing.T) {
+ 		{"args", func() { args(1, 2, 3, 4) }, 1},
+ 		{"half", func() { half(1, 2) }, 1},
+ 		{"closure", func() { _ = closure() }, 2},
++		{"atomic", atomicFn, 1},
+ 	} {
+ 		allocs := testing.AllocsPerRun(100, tst.f)
+ 		if allocs != float64(tst.want) {

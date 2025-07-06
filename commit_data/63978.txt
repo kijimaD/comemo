@@ -1,0 +1,45 @@
+commit a2eae66c3010efc507afca9f1f53fb7cf4d5671c
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri May 24 18:46:48 2024 +0000
+
+    doc: add release notes for a couple minor tracing features
+    
+    For #65614.
+    
+    Change-Id: I759bf671b8f84c5224798b0dfaee6b158fdcc95a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587927
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ doc/next/3-tools.md                               | 9 +++++++++
+ doc/next/6-stdlib/99-minor/runtime/trace/65319.md | 4 ++++
+ 2 files changed, 13 insertions(+)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 0526c37687..ae94c9bcf7 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -53,3 +53,12 @@ module whose go.mod file specifies `go 1.21`.
+ [cmd/cgo] supports the new `-ldflags` flag for passing flags to the C linker.
+ The `go` command uses it automatically, avoiding "argument list too long"
+ errors with a very large `CGO_LDFLAGS`.
++
++### Trace {#trace}
++
++<!-- go.dev/issue/65316 -->
++The `trace` tool now better tolerates partially broken traces by attempting to
++recover what trace data it can. This functionality is particularly helpful when
++viewing a trace that was collected during a program crash, since the trace data
++leading up to the crash will now [be recoverable](/issue/65319) under most
++circumstances.
+diff --git a/doc/next/6-stdlib/99-minor/runtime/trace/65319.md b/doc/next/6-stdlib/99-minor/runtime/trace/65319.md
+new file mode 100644
+index 0000000000..b180368e00
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/runtime/trace/65319.md
+@@ -0,0 +1,4 @@
++<!-- go.dev/issue/65319 -->
++The runtime now explicitly flushes trace data when a program crashes due to an
++uncaught panic. This means that more complete trace data will be available in a
++trace if the program crashes while tracing is active.

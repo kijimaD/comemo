@@ -1,0 +1,89 @@
+commit a73c6545d27afaad631ba2f5c593ab3a97d11bdc
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Feb 15 18:09:59 2025 +1100
+
+    crypto/internal/fips140deps/cpu: use const and var blocks
+    
+    Rather than repeating ourselves, use a single const block and a single
+    var block. Also separate architectures for readability.
+    
+    Change-Id: Iab5bda3514eae0c9b5bb16a99277fd4b95f272aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649658
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Joel Sing <joel@sing.id.au>
+---
+ src/crypto/internal/fips140deps/cpu/cpu.go | 60 ++++++++++++++++--------------
+ 1 file changed, 33 insertions(+), 27 deletions(-)
+
+diff --git a/src/crypto/internal/fips140deps/cpu/cpu.go b/src/crypto/internal/fips140deps/cpu/cpu.go
+index 5470cfdb7d..cc9ac0035a 100644
+--- a/src/crypto/internal/fips140deps/cpu/cpu.go
++++ b/src/crypto/internal/fips140deps/cpu/cpu.go
+@@ -9,31 +9,37 @@ import (
+ 	"internal/goarch"
+ )
+ 
+-const BigEndian = goarch.BigEndian
+-const AMD64 = goarch.IsAmd64 == 1
+-const ARM64 = goarch.IsArm64 == 1
+-const PPC64 = goarch.IsPpc64 == 1
+-const PPC64le = goarch.IsPpc64le == 1
++const (
++	BigEndian = goarch.BigEndian
++	AMD64     = goarch.IsAmd64 == 1
++	ARM64     = goarch.IsArm64 == 1
++	PPC64     = goarch.IsPpc64 == 1
++	PPC64le   = goarch.IsPpc64le == 1
++)
++
++var (
++	ARM64HasAES    = cpu.ARM64.HasAES
++	ARM64HasPMULL  = cpu.ARM64.HasPMULL
++	ARM64HasSHA2   = cpu.ARM64.HasSHA2
++	ARM64HasSHA512 = cpu.ARM64.HasSHA512
+ 
+-var ARM64HasAES = cpu.ARM64.HasAES
+-var ARM64HasPMULL = cpu.ARM64.HasPMULL
+-var ARM64HasSHA2 = cpu.ARM64.HasSHA2
+-var ARM64HasSHA512 = cpu.ARM64.HasSHA512
+-var S390XHasAES = cpu.S390X.HasAES
+-var S390XHasAESCBC = cpu.S390X.HasAESCBC
+-var S390XHasAESCTR = cpu.S390X.HasAESCTR
+-var S390XHasAESGCM = cpu.S390X.HasAESGCM
+-var S390XHasECDSA = cpu.S390X.HasECDSA
+-var S390XHasGHASH = cpu.S390X.HasGHASH
+-var S390XHasSHA256 = cpu.S390X.HasSHA256
+-var S390XHasSHA3 = cpu.S390X.HasSHA3
+-var S390XHasSHA512 = cpu.S390X.HasSHA512
+-var X86HasAES = cpu.X86.HasAES
+-var X86HasADX = cpu.X86.HasADX
+-var X86HasAVX = cpu.X86.HasAVX
+-var X86HasAVX2 = cpu.X86.HasAVX2
+-var X86HasBMI2 = cpu.X86.HasBMI2
+-var X86HasPCLMULQDQ = cpu.X86.HasPCLMULQDQ
+-var X86HasSHA = cpu.X86.HasSHA
+-var X86HasSSE41 = cpu.X86.HasSSE41
+-var X86HasSSSE3 = cpu.X86.HasSSSE3
++	S390XHasAES    = cpu.S390X.HasAES
++	S390XHasAESCBC = cpu.S390X.HasAESCBC
++	S390XHasAESCTR = cpu.S390X.HasAESCTR
++	S390XHasAESGCM = cpu.S390X.HasAESGCM
++	S390XHasECDSA  = cpu.S390X.HasECDSA
++	S390XHasGHASH  = cpu.S390X.HasGHASH
++	S390XHasSHA256 = cpu.S390X.HasSHA256
++	S390XHasSHA3   = cpu.S390X.HasSHA3
++	S390XHasSHA512 = cpu.S390X.HasSHA512
++
++	X86HasAES       = cpu.X86.HasAES
++	X86HasADX       = cpu.X86.HasADX
++	X86HasAVX       = cpu.X86.HasAVX
++	X86HasAVX2      = cpu.X86.HasAVX2
++	X86HasBMI2      = cpu.X86.HasBMI2
++	X86HasPCLMULQDQ = cpu.X86.HasPCLMULQDQ
++	X86HasSHA       = cpu.X86.HasSHA
++	X86HasSSE41     = cpu.X86.HasSSE41
++	X86HasSSSE3     = cpu.X86.HasSSSE3
++)

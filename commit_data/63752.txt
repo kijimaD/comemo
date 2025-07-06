@@ -1,0 +1,47 @@
+commit d05af626956af449fb13815cef06b606bc7740c6
+Author: Michael Stapelberg <stapelberg@golang.org>
+Date:   Tue May 14 10:54:40 2024 +0200
+
+    syscall: skip TestAmbientCapsUserns when restricted, document
+    
+    fixes golang/go#67088
+    
+    Change-Id: I42e7a8d02b161187772f147e3e136ab6e0f71d7f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585059
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/syscall/exec_linux.go      | 4 ++++
+ src/syscall/exec_linux_test.go | 4 ++++
+ 2 files changed, 8 insertions(+)
+
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index e6d6343ed8..e4b9ce1bf4 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -53,6 +53,10 @@ const (
+ 
+ // SysProcIDMap holds Container ID to Host ID mappings used for User Namespaces in Linux.
+ // See user_namespaces(7).
++//
++// Note that User Namespaces are not available on a number of popular Linux
++// versions (due to security issues), or are available but subject to AppArmor
++// restrictions like in Ubuntu 24.04.
+ type SysProcIDMap struct {
+ 	ContainerID int // Container ID.
+ 	HostID      int // Host ID.
+diff --git a/src/syscall/exec_linux_test.go b/src/syscall/exec_linux_test.go
+index 5ec1a24ba4..079220eab1 100644
+--- a/src/syscall/exec_linux_test.go
++++ b/src/syscall/exec_linux_test.go
+@@ -642,6 +642,10 @@ func TestAmbientCaps(t *testing.T) {
+ }
+ 
+ func TestAmbientCapsUserns(t *testing.T) {
++	b, err := os.ReadFile("/proc/sys/kernel/apparmor_restrict_unprivileged_userns")
++	if err == nil && strings.TrimSpace(string(b)) == "1" {
++		t.Skip("AppArmor restriction for unprivileged user namespaces is enabled")
++	}
+ 	testAmbientCaps(t, true)
+ }
+ 

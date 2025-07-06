@@ -1,0 +1,54 @@
+commit bdfa604b2e12990784c4eac4186360b56857370b
+Author: Than McIntosh <thanm@golang.org>
+Date:   Wed Mar 12 14:08:21 2025 -0400
+
+    cmd/internal/dwarf: always use AT_ranges for scopes with DWARF 5
+    
+    This patch extends the change in CL 657175 to apply the same abbrev
+    selection strategy to single-range lexical scopes that we're now using
+    for inlined routine bodies, when DWARF 5 is in effect. Ranges are more
+    compact and use fewer relocation than explicit hi/lo PC values, so we
+    might as well always use them.
+    
+    Updates #26379.
+    
+    Change-Id: Ieeaddf50e82acc4866010e29af32bcd1fb3b4f02
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657177
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/internal/dwarf/dwarf.go | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/internal/dwarf/dwarf.go b/src/cmd/internal/dwarf/dwarf.go
+index 7673c3f6ba..6e06f139b0 100644
+--- a/src/cmd/internal/dwarf/dwarf.go
++++ b/src/cmd/internal/dwarf/dwarf.go
+@@ -600,12 +600,8 @@ var abbrevs = []dwAbbrev{
+ 		DW_TAG_lexical_block,
+ 		DW_CHILDREN_yes,
+ 		[]dwAttrForm{
+-			// Note: we can't take advantage of DW_FORM_addrx here,
+-			// since there is no way (at least at the moment) to
+-			// have an encoding for low_pc of the form "addrx + constant"
+-			// in DWARF5. If we wanted to use addrx, we'd need to create
+-			// a whole new entry in .debug_addr for the block start,
+-			// which would kind of defeat the point.
++			// Note: unused if we are generating DWARF 5, we
++			// use the ranges form even if there is a singleton range.
+ 			{DW_AT_low_pc, DW_FORM_addr},
+ 			{DW_AT_high_pc, DW_FORM_addr},
+ 		},
+@@ -1526,7 +1522,10 @@ func putscope(ctxt Context, s *FnState, scopes []Scope, curscope int32, fnabbrev
+ 			continue
+ 		}
+ 
+-		if len(scope.Ranges) == 1 {
++		// For DWARF 5, we always use the ranges form of the abbrev, since
++		// it is more compact than using explicit hi/lo PC attrs.  See
++		// issue #72821 for more on why this makes sense.
++		if len(scope.Ranges) == 1 && !buildcfg.Experiment.Dwarf5 {
+ 			Uleb128put(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE)
+ 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].Start, s.StartPC)
+ 			putattr(ctxt, s.Info, DW_ABRV_LEXICAL_BLOCK_SIMPLE, DW_FORM_addr, DW_CLS_ADDRESS, scope.Ranges[0].End, s.StartPC)

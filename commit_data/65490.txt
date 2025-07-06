@@ -1,0 +1,85 @@
+commit bedde1bee0ce16b46549d182375f4feb3b137f46
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 9 19:16:13 2024 +0100
+
+    crypto: check all cpu.X86 flags for features used in assembly
+    
+    These are most likely redundant, but cmd/compile/internal/amd64's
+    TestGoAMD64v1 turns them off when clobbering those instructions, so we
+    need to know to skip the assembly in those cases.
+    
+    Thankfully we have Avo now that adds a helpful comment with the list of
+    features used by each generated function!
+    
+    Also improve the error output of TestGoAMD64v1. It had broken before in
+    #49402 and had required the exact same patch.
+    
+    Change-Id: I7fab8f36042cdff630f806723aa1d8124c294f60
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626876
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/amd64/versions_test.go      | 2 +-
+ src/crypto/internal/fips/sha256/sha256block_amd64.go | 4 ++--
+ src/crypto/internal/fips/sha512/sha512block_amd64.go | 2 +-
+ src/crypto/sha1/sha1block_amd64.go                   | 2 +-
+ 4 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/versions_test.go b/src/cmd/compile/internal/amd64/versions_test.go
+index fc0046acee..92365fb365 100644
+--- a/src/cmd/compile/internal/amd64/versions_test.go
++++ b/src/cmd/compile/internal/amd64/versions_test.go
+@@ -78,7 +78,7 @@ func TestGoAMD64v1(t *testing.T) {
+ 	cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=%s", strings.Join(features, ",")))
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("couldn't execute test: %s", err)
++		t.Fatalf("couldn't execute test: %s\n%s", err, out)
+ 	}
+ 	// Expect to see output of the form "PASS\n", unless the test binary
+ 	// was compiled for coverage (in which case there will be an extra line).
+diff --git a/src/crypto/internal/fips/sha256/sha256block_amd64.go b/src/crypto/internal/fips/sha256/sha256block_amd64.go
+index a08114a8ba..a3a1cae8e9 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_amd64.go
++++ b/src/crypto/internal/fips/sha256/sha256block_amd64.go
+@@ -11,8 +11,8 @@ import (
+ 	"internal/cpu"
+ )
+ 
+-var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI2
+-var useSHANI = useAVX2 && cpu.X86.HasSHA
++var useAVX2 = cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI2
++var useSHANI = cpu.X86.HasAVX && cpu.X86.HasSHA && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3
+ 
+ func init() {
+ 	impl.Register("sha256", "AVX2", &useAVX2)
+diff --git a/src/crypto/internal/fips/sha512/sha512block_amd64.go b/src/crypto/internal/fips/sha512/sha512block_amd64.go
+index 998b78e1a5..1ffd340153 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_amd64.go
++++ b/src/crypto/internal/fips/sha512/sha512block_amd64.go
+@@ -11,7 +11,7 @@ import (
+ 	"internal/cpu"
+ )
+ 
+-var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
++var useAVX2 = cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI2
+ 
+ func init() {
+ 	impl.Register("sha512", "AVX2", &useAVX2)
+diff --git a/src/crypto/sha1/sha1block_amd64.go b/src/crypto/sha1/sha1block_amd64.go
+index 92fa7a6fbc..10376d1dcc 100644
+--- a/src/crypto/sha1/sha1block_amd64.go
++++ b/src/crypto/sha1/sha1block_amd64.go
+@@ -14,7 +14,7 @@ func blockAVX2(dig *digest, p []byte)
+ //go:noescape
+ func blockAMD64(dig *digest, p []byte)
+ 
+-var useAVX2 = cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
++var useAVX2 = cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI1 && cpu.X86.HasBMI2
+ 
+ func block(dig *digest, p []byte) {
+ 	if useAVX2 && len(p) >= 256 {

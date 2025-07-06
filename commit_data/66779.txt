@@ -1,0 +1,73 @@
+commit 4820816b0d5061568578d0767e4caf603a39baa6
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Thu Apr 3 12:01:16 2025 -0400
+
+    cmd/go/internal/modcmd: remove documentation for auto-converting legacy formats
+    
+    CL 518776 dropped the ability of 'go mod init' to convert
+    legacy pre-module dependency configuration files, such as automatically
+    transforming a Gopkg.lock to a go.mod file with similar requirements,
+    but some of the documentation remained.
+    
+    In this CL, we remove it from the cmd/go documentation.
+    (CL 662675 is a companion change that removes it from the Modules
+    Reference page).
+    
+    Updates #71537
+    
+    Change-Id: Ieccc64c811c4c25a657c00e42f7362a32b5fd661
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662695
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+---
+ src/cmd/go/alldocs.go                | 3 +--
+ src/cmd/go/internal/modcmd/init.go   | 3 +--
+ src/cmd/go/internal/modfetch/repo.go | 4 +---
+ 3 files changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 42076e4502..18ba20127d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1358,8 +1358,7 @@
+ //
+ // Init accepts one optional argument, the module path for the new module. If the
+ // module path argument is omitted, init will attempt to infer the module path
+-// using import comments in .go files, vendoring tool configuration files (like
+-// Gopkg.lock), and the current directory (if in GOPATH).
++// using import comments in .go files and the current directory (if in GOPATH).
+ //
+ // See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+ //
+diff --git a/src/cmd/go/internal/modcmd/init.go b/src/cmd/go/internal/modcmd/init.go
+index facdaa9911..356a056991 100644
+--- a/src/cmd/go/internal/modcmd/init.go
++++ b/src/cmd/go/internal/modcmd/init.go
+@@ -22,8 +22,7 @@ must not already exist.
+ 
+ Init accepts one optional argument, the module path for the new module. If the
+ module path argument is omitted, init will attempt to infer the module path
+-using import comments in .go files, vendoring tool configuration files (like
+-Gopkg.lock), and the current directory (if in GOPATH).
++using import comments in .go files and the current directory (if in GOPATH).
+ 
+ See https://golang.org/ref/mod#go-mod-init for more about 'go mod init'.
+ `,
+diff --git a/src/cmd/go/internal/modfetch/repo.go b/src/cmd/go/internal/modfetch/repo.go
+index b07fda0fb5..c4dbf8342c 100644
+--- a/src/cmd/go/internal/modfetch/repo.go
++++ b/src/cmd/go/internal/modfetch/repo.go
+@@ -110,9 +110,7 @@ type RevInfo struct {
+ // introduced, if a path p resolves using the pre-module "go get" lookup
+ // to the root of a source code repository without a go.mod file,
+ // that repository is treated as if it had a go.mod in its root directory
+-// declaring module path p. (The go.mod is further considered to
+-// contain requirements corresponding to any legacy version
+-// tracking format such as Gopkg.lock, vendor/vendor.conf, and so on.)
++// declaring module path p.
+ //
+ // The presentation so far ignores the fact that a source code repository
+ // has many different versions of a file tree, and those versions may

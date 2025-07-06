@@ -1,0 +1,21 @@
+commit 817d7bdc0aa37e84a159e566f3960dd5bcd7c26a
+Merge: 14bb1e11b9 9118060040
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Thu Dec 12 12:06:37 2024 -0500
+
+    [release-branch.go1.24] all: merge master (9118060) into release-branch.go1.24
+    
+    Merge List:
+    
+    + 2024-12-12 9118060040 builtin: document clear is a no-op if its argument's value is nil
+    + 2024-12-11 077d51909d internal/poll: in SendFile treat ENOTSUP like EOPNOTSUPP
+    + 2024-12-11 fafd4477f3 cmd/cgo: use full prototype for main in C code
+    
+    Change-Id: I4c4941eff4a1e842920eb9be47d28351af0e4c36
+
+ src/builtin/builtin.go             |  2 +-
+ src/cmd/cgo/doc.go                 |  2 +-
+ src/cmd/cgo/out.go                 |  2 +-
+ src/internal/poll/sendfile_unix.go | 10 ++++-
+ src/net/sendfile_unix_test.go      | 86 ++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 98 insertions(+), 4 deletions(-)

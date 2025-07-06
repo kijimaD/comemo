@@ -1,0 +1,133 @@
+commit eba2430c1654c16a12cc2caaa723ca8ab7bde4b5
+Author: David Chase <drchase@google.com>
+Date:   Thu May 29 14:55:01 2025 -0400
+
+    [dev.simd] simd, cmd/compile, go build, go/doc: test tweaks
+    
+    these are for CL 675618
+    simd package exists and imports internal/cpu
+    tweak tests to deal with goexperiment/not
+    
+    Change-Id: I2de99d048f0a228d5f3cd750c39ee5925107556e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677260
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+---
+ src/cmd/compile/internal/ssagen/intrinsics_test.go |  6 ++++--
+ src/go/build/deps_test.go                          |  2 ++
+ src/go/doc/comment/std.go                          |  1 +
+ src/go/doc/comment/std_test.go                     |  5 +++++
+ src/simd/cpu.go                                    | 20 ++++++++++++++++++++
+ 5 files changed, 32 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 0623c5f209..bd9dd616fd 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -7,6 +7,7 @@ package ssagen
+ import (
+ 	"flag"
+ 	"fmt"
++	"internal/buildcfg"
+ 	"slices"
+ 	"strings"
+ 	"testing"
+@@ -15,6 +16,7 @@ import (
+ )
+ 
+ var updateIntrinsics = flag.Bool("update", false, "Print an updated intrinsics table")
++var simd = flag.Bool("simd", buildcfg.Experiment.SIMD, "Also check SIMD intrinsics; defaults to GOEXPERIMENT==simd")
+ 
+ type testIntrinsicKey struct {
+ 	archName string
+@@ -1375,13 +1377,13 @@ func TestIntrinsics(t *testing.T) {
+ 		gotIntrinsics[testIntrinsicKey{ik.arch.Name, ik.pkg, ik.fn}] = struct{}{}
+ 	}
+ 	for ik, _ := range gotIntrinsics {
+-		if _, found := wantIntrinsics[ik]; !found {
++		if _, found := wantIntrinsics[ik]; !found && (ik.pkg != "simd" || *simd) {
+ 			t.Errorf("Got unwanted intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
+ 		}
+ 	}
+ 
+ 	for ik, _ := range wantIntrinsics {
+-		if _, found := gotIntrinsics[ik]; !found {
++		if _, found := gotIntrinsics[ik]; !found && (ik.pkg != "simd" || *simd) {
+ 			t.Errorf("Want missing intrinsic %v %v.%v", ik.archName, ik.pkg, ik.fn)
+ 		}
+ 	}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index b2668a3d7d..cc00000734 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -70,6 +70,8 @@ var depsRules = `
+ 	internal/goarch < internal/abi;
+ 	internal/byteorder, internal/cpu, internal/goarch < internal/chacha8rand;
+ 
++	internal/cpu < simd;
++
+ 	# RUNTIME is the core runtime group of packages, all of them very light-weight.
+ 	internal/abi,
+ 	internal/chacha8rand,
+diff --git a/src/go/doc/comment/std.go b/src/go/doc/comment/std.go
+index 191e1f1291..73cf9627a0 100644
+--- a/src/go/doc/comment/std.go
++++ b/src/go/doc/comment/std.go
+@@ -35,6 +35,7 @@ var stdPkgs = []string{
+ 	"reflect",
+ 	"regexp",
+ 	"runtime",
++	"simd",
+ 	"slices",
+ 	"sort",
+ 	"strconv",
+diff --git a/src/go/doc/comment/std_test.go b/src/go/doc/comment/std_test.go
+index bd0379856a..9a40d1d09a 100644
+--- a/src/go/doc/comment/std_test.go
++++ b/src/go/doc/comment/std_test.go
+@@ -5,6 +5,7 @@
+ package comment
+ 
+ import (
++	"internal/buildcfg"
+ 	"internal/diff"
+ 	"internal/testenv"
+ 	"slices"
+@@ -24,6 +25,10 @@ func TestStd(t *testing.T) {
+ 			list = append(list, pkg)
+ 		}
+ 	}
++	// TODO remove this when simd is the default, for now fake its existence
++	if !buildcfg.Experiment.SIMD {
++		list = append(list, "simd")
++	}
+ 	slices.Sort(list)
+ 
+ 	have := strings.Join(stdPkgs, "\n") + "\n"
+diff --git a/src/simd/cpu.go b/src/simd/cpu.go
+new file mode 100644
+index 0000000000..84bf03cfb0
+--- /dev/null
++++ b/src/simd/cpu.go
+@@ -0,0 +1,20 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.simd
++
++// the build condition == if the experiment is not on, cmd/api TestCheck will see this and complain
++// see also go/doc/comment, where "simd" is inserted to the package list of the experiment is not on.
++
++package simd
++
++import "internal/cpu"
++
++func HasAVX512BW() bool {
++	return cpu.X86.HasAVX512BW
++}
++
++func HasAVX512VL() bool {
++	return cpu.X86.HasAVX512VL
++}

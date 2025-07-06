@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 46069: db514c0caf5effb4396c9746e025c1ba2d717604
+# Index 46069: b68fa57c599720d33a2d735782969ce95eabf794
 
 echo "🚀 Generating explanation for commit 46069..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 46069..."
 
 ### メタデータ
 - **コミットインデックス**: 46069
-- **コミットハッシュ**: db514c0caf5effb4396c9746e025c1ba2d717604
-- **GitHub URL**: https://github.com/golang/go/commit/db514c0caf5effb4396c9746e025c1ba2d717604
+- **コミットハッシュ**: b68fa57c599720d33a2d735782969ce95eabf794
+- **GitHub URL**: https://github.com/golang/go/commit/b68fa57c599720d33a2d735782969ce95eabf794
 
 ### 章構成
 

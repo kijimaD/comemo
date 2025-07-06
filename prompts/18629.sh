@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 18629: fdfbb406d12a36b09425ecdc76f32345c1af8ffd
+# Index 18629: deb554934c0c2a87b24f4eb29cdcbbd4ea68a6d6
 
 echo "🚀 Generating explanation for commit 18629..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 18629..."
 
 ### メタデータ
 - **コミットインデックス**: 18629
-- **コミットハッシュ**: fdfbb406d12a36b09425ecdc76f32345c1af8ffd
-- **GitHub URL**: https://github.com/golang/go/commit/fdfbb406d12a36b09425ecdc76f32345c1af8ffd
+- **コミットハッシュ**: deb554934c0c2a87b24f4eb29cdcbbd4ea68a6d6
+- **GitHub URL**: https://github.com/golang/go/commit/deb554934c0c2a87b24f4eb29cdcbbd4ea68a6d6
 
 ### 章構成
 

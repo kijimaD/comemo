@@ -1,0 +1,43 @@
+commit e79b2e1e3acbce03b04f4ae95a8884183006bd1e
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Dec 2 18:32:36 2024 +0000
+
+    cmd/go: document the build cache as safe for concurrent use
+    
+    Fixes #26677
+    
+    Change-Id: I2ca0408503000ccaddb0bd1fd359381ddd4fb699
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632895
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/alldocs.go               | 1 +
+ src/cmd/go/internal/help/helpdoc.go | 1 +
+ 2 files changed, 2 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index f227d93de7..3a4473902c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2264,6 +2264,7 @@
+ // The go command caches build outputs for reuse in future builds.
+ // The default location for cache data is a subdirectory named go-build
+ // in the standard user cache directory for the current operating system.
++// The cache is safe for concurrent invocations of the go command.
+ // Setting the GOCACHE environment variable overrides this default,
+ // and running 'go env GOCACHE' prints the current cache directory.
+ //
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index d373c675f6..e1240de710 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -809,6 +809,7 @@ var HelpCache = &base.Command{
+ The go command caches build outputs for reuse in future builds.
+ The default location for cache data is a subdirectory named go-build
+ in the standard user cache directory for the current operating system.
++The cache is safe for concurrent invocations of the go command.
+ Setting the GOCACHE environment variable overrides this default,
+ and running 'go env GOCACHE' prints the current cache directory.
+ 

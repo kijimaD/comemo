@@ -1,0 +1,406 @@
+commit dbe03e4831206d7311e4423c3a988fc48beda2bd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Jun 13 12:38:20 2024 -0400
+
+    cmd/go: call telemetry.MaybeChild at start of go command
+    
+    Call the new telemetry.MaybeChild function at the start of the go
+    command so that the child process logic can be run immediately without
+    running toolchain selection if this is the child process.
+    
+    The Start function in the telemetry shim package has been renamed to
+    OpenCounters to make it clear that that's its only function.
+    
+    The StartWithUpload function in the telemetry shim package has been
+    renamed to MaybeParent because that's its actual effective behavior in
+    cmd/go, the only place it's called: it won't run as the child because
+    MaybeChild has already been called and would have run as the child if
+    the program was the telemetry child, and it won't open counters because
+    telemetry.Start has been called. Checks are added that those functions
+    are always called before so that the function name and comment are
+    accurate.
+    
+    It might make sense to add a true telemetry.MaybeParent function that
+    doesn't try to start the child or open counters to make things a little
+    simpler.
+    
+    Change-Id: Ie81e2418af85cef18ec41f75db66365f6597b8b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592535
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/addr2line/main.go                         |  2 +-
+ src/cmd/asm/main.go                               |  2 +-
+ src/cmd/buildid/buildid.go                        |  2 +-
+ src/cmd/cgo/main.go                               |  2 +-
+ src/cmd/compile/internal/gc/main.go               |  2 +-
+ src/cmd/covdata/covdata.go                        |  2 +-
+ src/cmd/cover/cover.go                            |  2 +-
+ src/cmd/distpack/pack.go                          |  2 +-
+ src/cmd/doc/main.go                               |  2 +-
+ src/cmd/fix/main.go                               |  2 +-
+ src/cmd/go/main.go                                |  5 ++--
+ src/cmd/gofmt/gofmt.go                            |  2 +-
+ src/cmd/internal/telemetry/telemetry.go           | 32 ++++++++++++++++++-----
+ src/cmd/internal/telemetry/telemetry_bootstrap.go |  5 ++--
+ src/cmd/link/internal/ld/main.go                  |  2 +-
+ src/cmd/nm/nm.go                                  |  2 +-
+ src/cmd/objdump/main.go                           |  2 +-
+ src/cmd/pack/pack.go                              |  2 +-
+ src/cmd/pprof/pprof.go                            |  2 +-
+ src/cmd/preprofile/main.go                        |  2 +-
+ src/cmd/test2json/main.go                         |  2 +-
+ src/cmd/trace/main.go                             |  2 +-
+ src/cmd/vet/main.go                               |  2 +-
+ 23 files changed, 51 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/addr2line/main.go b/src/cmd/addr2line/main.go
+index e77785f156..b1ec4e0278 100644
+--- a/src/cmd/addr2line/main.go
++++ b/src/cmd/addr2line/main.go
+@@ -46,7 +46,7 @@ func usage() {
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("addr2line: ")
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 
+ 	// pprof expects this behavior when checking for addr2line
+ 	if len(os.Args) > 1 && os.Args[1] == "--help" {
+diff --git a/src/cmd/asm/main.go b/src/cmd/asm/main.go
+index 82a2fa80e0..ca4e25d047 100644
+--- a/src/cmd/asm/main.go
++++ b/src/cmd/asm/main.go
+@@ -26,7 +26,7 @@ import (
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("asm: ")
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 
+ 	buildcfg.Check()
+ 	GOARCH := buildcfg.GOARCH
+diff --git a/src/cmd/buildid/buildid.go b/src/cmd/buildid/buildid.go
+index 7abc37283f..a008122a0a 100644
+--- a/src/cmd/buildid/buildid.go
++++ b/src/cmd/buildid/buildid.go
+@@ -26,7 +26,7 @@ var wflag = flag.Bool("w", false, "write build ID")
+ func main() {
+ 	log.SetPrefix("buildid: ")
+ 	log.SetFlags(0)
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 	telemetry.Inc("buildid/invocations")
+diff --git a/src/cmd/cgo/main.go b/src/cmd/cgo/main.go
+index c258985fee..bf879be814 100644
+--- a/src/cmd/cgo/main.go
++++ b/src/cmd/cgo/main.go
+@@ -258,7 +258,7 @@ var goarch, goos, gomips, gomips64 string
+ var gccBaseCmd []string
+ 
+ func main() {
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	objabi.AddVersionFlag() // -V
+ 	objabi.Flagparse(usage)
+ 	telemetry.Inc("cgo/invocations")
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 41f5e43ec6..3887d4156d 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -59,7 +59,7 @@ func handlePanic() {
+ // code, and finally writes the compiled package definition to disk.
+ func Main(archInit func(*ssagen.ArchInfo)) {
+ 	base.Timer.Start("fe", "init")
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	telemetry.Inc("compile/invocations")
+ 
+ 	defer handlePanic()
+diff --git a/src/cmd/covdata/covdata.go b/src/cmd/covdata/covdata.go
+index b280203f0c..48d7b9ed08 100644
+--- a/src/cmd/covdata/covdata.go
++++ b/src/cmd/covdata/covdata.go
+@@ -109,7 +109,7 @@ const (
+ )
+ 
+ func main() {
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 
+ 	// First argument should be mode/subcommand.
+ 	if len(os.Args) < 2 {
+diff --git a/src/cmd/cover/cover.go b/src/cmd/cover/cover.go
+index 912f7cafb5..47eebaadd3 100644
+--- a/src/cmd/cover/cover.go
++++ b/src/cmd/cover/cover.go
+@@ -87,7 +87,7 @@ const (
+ )
+ 
+ func main() {
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 
+ 	objabi.AddVersionFlag()
+ 	flag.Usage = usage
+diff --git a/src/cmd/distpack/pack.go b/src/cmd/distpack/pack.go
+index 0faab5c0b8..9ad33ee589 100644
+--- a/src/cmd/distpack/pack.go
++++ b/src/cmd/distpack/pack.go
+@@ -69,7 +69,7 @@ var (
+ func main() {
+ 	log.SetPrefix("distpack: ")
+ 	log.SetFlags(0)
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 	telemetry.Inc("distpack/invocations")
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index d02bf65c40..4dbddcb79f 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -87,7 +87,7 @@ func usage() {
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("doc: ")
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	dirsInit()
+ 	err := do(os.Stdout, flag.CommandLine, os.Args[1:])
+ 	if err != nil {
+diff --git a/src/cmd/fix/main.go b/src/cmd/fix/main.go
+index b0aabae889..d915ece4ce 100644
+--- a/src/cmd/fix/main.go
++++ b/src/cmd/fix/main.go
+@@ -65,7 +65,7 @@ func usage() {
+ }
+ 
+ func main() {
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 	telemetry.Inc("fix/invocations")
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 9d140de215..eb33df1ad4 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -95,11 +95,12 @@ var counterErrorsGOPATHEntryRelative = telemetry.NewCounter("go/errors:gopath-en
+ 
+ func main() {
+ 	log.SetFlags(0)
+-	telemetry.Start() // Open the telemetry counter file so counters can be written to it.
++	telemetry.MaybeChild()   // Run in child mode if this is the telemetry sidecar child process.
++	telemetry.OpenCounters() // Open the telemetry counter file so counters can be written to it.
+ 	handleChdirFlag()
+ 	toolchain.Select()
+ 
+-	telemetry.StartWithUpload() // Run the upload process. Opening the counter file is idempotent.
++	telemetry.MaybeParent() // Run the upload process. Opening the counter file is idempotent.
+ 	flag.Usage = base.Usage
+ 	flag.Parse()
+ 	telemetry.Inc("go/invocations")
+diff --git a/src/cmd/gofmt/gofmt.go b/src/cmd/gofmt/gofmt.go
+index 03f7bef89c..d6721f9327 100644
+--- a/src/cmd/gofmt/gofmt.go
++++ b/src/cmd/gofmt/gofmt.go
+@@ -374,7 +374,7 @@ func main() {
+ }
+ 
+ func gofmtMain(s *sequencer) {
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 	telemetry.Inc("gofmt/invocations")
+diff --git a/src/cmd/internal/telemetry/telemetry.go b/src/cmd/internal/telemetry/telemetry.go
+index f11d80d19f..b0c864a1a9 100644
+--- a/src/cmd/internal/telemetry/telemetry.go
++++ b/src/cmd/internal/telemetry/telemetry.go
+@@ -19,25 +19,43 @@ import (
+ 	"golang.org/x/telemetry/counter"
+ )
+ 
+-// Start opens the counter files for writing if telemetry is supported
++var openCountersCalled, maybeChildCalled bool
++
++// OpenCounters opens the counter files for writing if telemetry is supported
+ // on the current platform (and does nothing otherwise).
+-func Start() {
++func OpenCounters() {
++	openCountersCalled = true
+ 	telemetry.Start(telemetry.Config{
+ 		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
+ 	})
+ }
+ 
+-// StartWithUpload opens the counter files for writing if telemetry
+-// is supported on the current platform and also enables a once a day
+-// check to see if the weekly reports are ready to be uploaded.
+-// It should only be called by cmd/go
+-func StartWithUpload() {
++// MaybeParent does a once a day check to see if the weekly reports are
++// ready to be processed or uploaded, and if so, starts the telemetry child to
++// do so. It should only be called by cmd/go, and only after OpenCounters and MaybeChild
++// have already been called.
++func MaybeParent() {
++	if !openCountersCalled || !maybeChildCalled {
++		panic("MaybeParent must be called after OpenCounters and MaybeChild")
++	}
+ 	telemetry.Start(telemetry.Config{
+ 		Upload:       true,
+ 		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
+ 	})
+ }
+ 
++// MaybeChild executes the telemetry child logic if the calling program is
++// the telemetry child process, and does nothing otherwise. It is meant to be
++// called as the first thing in a program that uses telemetry.OpenCounters but cannot
++// call telemetry.OpenCounters immediately when it starts.
++func MaybeChild() {
++	maybeChildCalled = true
++	telemetry.MaybeChild(telemetry.Config{
++		Upload:       true,
++		TelemetryDir: os.Getenv("TEST_TELEMETRY_DIR"),
++	})
++}
++
+ // Inc increments the counter with the given name.
+ func Inc(name string) {
+ 	counter.Inc(name)
+diff --git a/src/cmd/internal/telemetry/telemetry_bootstrap.go b/src/cmd/internal/telemetry/telemetry_bootstrap.go
+index 1740bdb701..05c0ee1c56 100644
+--- a/src/cmd/internal/telemetry/telemetry_bootstrap.go
++++ b/src/cmd/internal/telemetry/telemetry_bootstrap.go
+@@ -12,8 +12,9 @@ type dummyCounter struct{}
+ 
+ func (dc dummyCounter) Inc() {}
+ 
+-func Start()                                                              {}
+-func StartWithUpload()                                                    {}
++func OpenCounters()                                                       {}
++func MaybeParent()                                                        {}
++func MaybeChild()                                                         {}
+ func Inc(name string)                                                     {}
+ func NewCounter(name string) dummyCounter                                 { return dummyCounter{} }
+ func NewStackCounter(name string, depth int) dummyCounter                 { return dummyCounter{} }
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 9f50ad183a..3183e1a13e 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -157,7 +157,7 @@ func (t *ternaryFlag) IsBoolFlag() bool { return true } // parse like a boolean
+ func Main(arch *sys.Arch, theArch Arch) {
+ 	log.SetPrefix("link: ")
+ 	log.SetFlags(0)
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	telemetry.Inc("link/invocations")
+ 
+ 	thearch = theArch
+diff --git a/src/cmd/nm/nm.go b/src/cmd/nm/nm.go
+index 62cf155362..e0d98d5f6c 100644
+--- a/src/cmd/nm/nm.go
++++ b/src/cmd/nm/nm.go
+@@ -68,7 +68,7 @@ func (nflag) String() string {
+ 
+ func main() {
+ 	log.SetFlags(0)
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	flag.Usage = usage
+ 	flag.Parse()
+ 	telemetry.Inc("nm/invocations")
+diff --git a/src/cmd/objdump/main.go b/src/cmd/objdump/main.go
+index bd1762636d..7554b5500c 100644
+--- a/src/cmd/objdump/main.go
++++ b/src/cmd/objdump/main.go
+@@ -58,7 +58,7 @@ func usage() {
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("objdump: ")
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 
+ 	flag.Usage = usage
+ 	flag.Parse()
+diff --git a/src/cmd/pack/pack.go b/src/cmd/pack/pack.go
+index 6d7eaf7e5b..28f217ace1 100644
+--- a/src/cmd/pack/pack.go
++++ b/src/cmd/pack/pack.go
+@@ -31,7 +31,7 @@ func usage() {
+ func main() {
+ 	log.SetFlags(0)
+ 	log.SetPrefix("pack: ")
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	// need "pack op archive" at least.
+ 	if len(os.Args) < 3 {
+ 		log.Print("not enough arguments")
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index 69d3201cdb..722b745287 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -32,7 +32,7 @@ import (
+ )
+ 
+ func main() {
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	telemetry.Inc("pprof/invocations")
+ 	options := &driver.Options{
+ 		Fetch: new(fetcher),
+diff --git a/src/cmd/preprofile/main.go b/src/cmd/preprofile/main.go
+index 78063c1463..1260eed104 100644
+--- a/src/cmd/preprofile/main.go
++++ b/src/cmd/preprofile/main.go
+@@ -73,7 +73,7 @@ func main() {
+ 
+ 	log.SetFlags(0)
+ 	log.SetPrefix("preprofile: ")
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 
+ 	flag.Usage = usage
+ 	flag.Parse()
+diff --git a/src/cmd/test2json/main.go b/src/cmd/test2json/main.go
+index 36e7cf90b5..844ee5aa6c 100644
+--- a/src/cmd/test2json/main.go
++++ b/src/cmd/test2json/main.go
+@@ -116,7 +116,7 @@ func ignoreSignals() {
+ }
+ 
+ func main() {
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 
+ 	flag.Usage = usage
+ 	flag.Parse()
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 16721ef842..e48048b9f2 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -64,7 +64,7 @@ var (
+ )
+ 
+ func main() {
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	flag.Usage = func() {
+ 		fmt.Fprint(os.Stderr, usageMessage)
+ 		os.Exit(2)
+diff --git a/src/cmd/vet/main.go b/src/cmd/vet/main.go
+index eff82dcc71..84821d43fc 100644
+--- a/src/cmd/vet/main.go
++++ b/src/cmd/vet/main.go
+@@ -47,7 +47,7 @@ import (
+ )
+ 
+ func main() {
+-	telemetry.Start()
++	telemetry.OpenCounters()
+ 	objabi.AddVersionFlag()
+ 
+ 	telemetry.Inc("vet/invocations")

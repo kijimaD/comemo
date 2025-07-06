@@ -1,0 +1,38 @@
+commit 950fcf129ecc75e6311d3aaf555e7b8add3248cb
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Jan 18 10:41:09 2024 +0800
+
+    cmd/internal/obj: add stmt prologueEnd to DWARF for loong64
+    
+    Change-Id: Ib477b2402e32ebb3c7623caf4e9d62f3afdee92f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/556615
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/internal/obj/loong64/obj.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/cmd/internal/obj/loong64/obj.go b/src/cmd/internal/obj/loong64/obj.go
+index 5fa67f3acd..b2349a82cf 100644
+--- a/src/cmd/internal/obj/loong64/obj.go
++++ b/src/cmd/internal/obj/loong64/obj.go
+@@ -7,6 +7,7 @@ package loong64
+ import (
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
++	"cmd/internal/src"
+ 	"cmd/internal/sys"
+ 	"internal/abi"
+ 	"log"
+@@ -370,6 +371,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				q = obj.Appendp(q, newprog)
+ 				q.As = add
+ 				q.Pos = p.Pos
++				q.Pos = q.Pos.WithXlogue(src.PosPrologueEnd)
+ 				q.From.Type = obj.TYPE_CONST
+ 				q.From.Offset = int64(-autosize)
+ 				q.To.Type = obj.TYPE_REG

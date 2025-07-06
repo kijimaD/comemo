@@ -1,0 +1,43 @@
+commit 3374abeb50bbf31b7f4d2c7986d08384d673447d
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sun Dec 1 17:22:19 2024 -0500
+
+    testing: consider -N suffix after benchmark name optional
+    
+    A "-N" suffix is left out when GOMAXPROCS is 1.
+    
+    Also match at least 1 space (\s+ instead of \s*), remove trailing '.*'
+    (it's a no-op), and make the test error message style more consistent
+    while here.
+    
+    For #61515.
+    Fixes #70627.
+    
+    Change-Id: Id0a17478ac31e2934a663dd0d3b1b37f24974989
+    Cq-Include-Trybots: luci.golang.try:gotip-plan9-386
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632655
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/testing/testing_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 1e32a1e615..797728c7a8 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -990,9 +990,9 @@ func TestBenchmarkBLoopIterationCorrect(t *testing.T) {
+ 		t.Errorf("got %d loop rampup; want %d", c, want)
+ 	}
+ 
+-	re := regexp.MustCompile(`BenchmarkBLoopPrint-[0-9]+\s*2\s*[0-9]+\s*ns/op.*`)
++	re := regexp.MustCompile(`BenchmarkBLoopPrint(-[0-9]+)?\s+2\s+[0-9]+\s+ns/op`)
+ 	if !re.Match(out) {
+-		t.Errorf("Missing benchmark output")
++		t.Error("missing benchmark output")
+ 	}
+ }
+ 

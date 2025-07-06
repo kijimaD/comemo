@@ -1,0 +1,156 @@
+commit db13584baedce4909915cb4631555f6dbd7b8c38
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Wed Feb 7 12:22:48 2024 -0800
+
+    crypto/x509: reject negative serial numbers
+    
+    There is only one trusted certificate I could find in the web pki which
+    has a negative serial number. Removing this exception seems reasonable.
+    
+    Updates #65085
+    
+    Change-Id: I55435b3d75479dcb41d523383e4ff7894a1496ad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/562343
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ doc/godebug.md                 |  5 +++++
+ src/crypto/x509/parser.go      | 19 ++++++++++++++-----
+ src/crypto/x509/x509_test.go   | 11 +++++------
+ src/internal/godebugs/table.go |  1 +
+ src/runtime/metrics/doc.go     |  5 +++++
+ 5 files changed, 30 insertions(+), 11 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index e03261c6ae..c3b88d3de6 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -183,6 +183,11 @@ Go 1.23 enabled the experimental post-quantum key exchange mechanism
+ X25519Kyber768Draft00 by default. The default can be reverted using the
+ [`tlskyber` setting](/pkg/crypto/tls/#Config.CurvePreferences).
+ 
++Go 1.23 changed the behavior of
++[crypto/x509.ParseCertificate](/pkg/crypto/x509/#ParseCertificate) to reject
++serial numbers that are negative. This change can be reverted with
++the the [`x509negativeserial` setting](/pkg/crypto/x509/#ParseCertificate).
++
+ ### Go 1.22
+ 
+ Go 1.22 adds a configurable limit to control the maximum acceptable RSA key size
+diff --git a/src/crypto/x509/parser.go b/src/crypto/x509/parser.go
+index 4202991f47..bcaa33ec6c 100644
+--- a/src/crypto/x509/parser.go
++++ b/src/crypto/x509/parser.go
+@@ -16,6 +16,7 @@ import (
+ 	"encoding/asn1"
+ 	"errors"
+ 	"fmt"
++	"internal/godebug"
+ 	"math/big"
+ 	"net"
+ 	"net/url"
+@@ -815,6 +816,8 @@ func processExtensions(out *Certificate) error {
+ 	return nil
+ }
+ 
++var x509negativeserial = godebug.New("x509negativeserial")
++
+ func parseCertificate(der []byte) (*Certificate, error) {
+ 	cert := &Certificate{}
+ 
+@@ -858,11 +861,13 @@ func parseCertificate(der []byte) (*Certificate, error) {
+ 	if !tbs.ReadASN1Integer(serial) {
+ 		return nil, errors.New("x509: malformed serial number")
+ 	}
+-	// we ignore the presence of negative serial numbers because
+-	// of their prevalence, despite them being invalid
+-	// TODO(rolandshoemaker): revisit this decision, there are currently
+-	// only 10 trusted certificates with negative serial numbers
+-	// according to censys.io.
++	if serial.Sign() == -1 {
++		if x509negativeserial.Value() != "1" {
++			return nil, errors.New("x509: negative serial number")
++		} else {
++			x509negativeserial.IncNonDefault()
++		}
++	}
+ 	cert.SerialNumber = serial
+ 
+ 	var sigAISeq cryptobyte.String
+@@ -999,6 +1004,10 @@ func parseCertificate(der []byte) (*Certificate, error) {
+ }
+ 
+ // ParseCertificate parses a single certificate from the given ASN.1 DER data.
++//
++// Before Go 1.23, ParseCertificate accepted certificates with negative serial
++// numbers. This behavior can be restored by including "x509negativeserial=1" in
++// the GODEBUG environment variable.
+ func ParseCertificate(der []byte) (*Certificate, error) {
+ 	cert, err := parseCertificate(der)
+ 	if err != nil {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 90c7ce9076..0bf2b04439 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -1930,9 +1930,8 @@ func TestRSAMissingNULLParameters(t *testing.T) {
+ 	}
+ }
+ 
+-const certISOOID = `
+------BEGIN CERTIFICATE-----
+-MIIB5TCCAVKgAwIBAgIQtwyL3RPWV7dJQp34HwZG9DAJBgUrDgMCHQUAMBExDzAN
++const certISOOID = `-----BEGIN CERTIFICATE-----
++MIIB5TCCAVKgAwIBAgIQNwyL3RPWV7dJQp34HwZG9DAJBgUrDgMCHQUAMBExDzAN
+ BgNVBAMTBm15dGVzdDAeFw0xNjA4MDkyMjExMDVaFw0zOTEyMzEyMzU5NTlaMBEx
+ DzANBgNVBAMTBm15dGVzdDCBnzANBgkqhkiG9w0BAQEFAAOBjQAwgYkCgYEArzIH
+ GsyDB3ohIGkkvijF2PTRUX1bvOtY1eUUpjwHyu0twpAKSuaQv2Ha+/63+aHe8O86
+@@ -3564,7 +3563,7 @@ func TestLargeOID(t *testing.T) {
+ }
+ 
+ const uniqueIDPEM = `-----BEGIN CERTIFICATE-----
+-MIIFsDCCBJigAwIBAgIIrOyC1ydafZMwDQYJKoZIhvcNAQEFBQAwgY4xgYswgYgG
++MIIFsDCCBJigAwIBAgIILOyC1ydafZMwDQYJKoZIhvcNAQEFBQAwgY4xgYswgYgG
+ A1UEAx6BgABNAGkAYwByAG8AcwBvAGYAdAAgAEYAbwByAGUAZgByAG8AbgB0ACAA
+ VABNAEcAIABIAFQAVABQAFMAIABJAG4AcwBwAGUAYwB0AGkAbwBuACAAQwBlAHIA
+ dABpAGYAaQBjAGEAdABpAG8AbgAgAEEAdQB0AGgAbwByAGkAdAB5MB4XDTE0MDEx
+@@ -3831,8 +3830,8 @@ RqUAyJKFzqZxOlK2q4j2IYnuj5+LrLGbQA==
+ func TestParseNegativeSerial(t *testing.T) {
+ 	pemBlock, _ := pem.Decode([]byte(negativeSerialCert))
+ 	_, err := ParseCertificate(pemBlock.Bytes)
+-	if err != nil {
+-		t.Fatalf("failed to parse certificate: %s", err)
++	if err == nil {
++		t.Fatal("parsed certificate with negative serial")
+ 	}
+ }
+ 
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 27ac6b300b..c07109e611 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -53,6 +53,7 @@ var All = []Info{
+ 	{Name: "tlsunsafeekm", Package: "crypto/tls", Changed: 22, Old: "1"},
+ 	{Name: "winreadlinkvolume", Package: "os", Changed: 22, Old: "0"},
+ 	{Name: "winsymlink", Package: "os", Changed: 22, Old: "0"},
++	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
+ 	{Name: "x509sha1", Package: "crypto/x509"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+ 	{Name: "x509usepolicies", Package: "crypto/x509"},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index fbbeb1a475..30e8671c0c 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -322,6 +322,11 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the os package
+ 		due to a non-default GODEBUG=winsymlink=... setting.
+ 
++	/godebug/non-default-behavior/x509negativeserial:events
++		The number of non-default behaviors executed by the crypto/x509
++		package due to a non-default GODEBUG=x509negativeserial=...
++		setting.
++
+ 	/godebug/non-default-behavior/x509sha1:events
+ 		The number of non-default behaviors executed by the crypto/x509
+ 		package due to a non-default GODEBUG=x509sha1=... setting.

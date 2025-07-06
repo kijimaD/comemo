@@ -1,0 +1,28 @@
+commit 47b941f445f0a839e826b81a5394d30934821500
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 13 15:07:24 2025 -0400
+
+    cmd/link: add one more linkname to the blocklist
+    
+    I missed one in the previous CL.
+    
+    Change-Id: I448a871523d7fb8f429b4482839d7f101ea003b6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681497
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/link/internal/loader/loader.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index 2bf52d221b..d439092737 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2400,6 +2400,7 @@ var blockedLinknames = map[string][]string{
+ 	"runtime.mapdelete_faststr":  {"runtime"},
+ 	// New internal linknames in Go 1.25
+ 	// Pushed from runtime
++	"internal/cpu.riscvHWProbe":                      {"internal/cpu"},
+ 	"internal/runtime/cgroup.throw":                  {"internal/runtime/cgroup"},
+ 	"internal/runtime/maps.typeString":               {"internal/runtime/maps"},
+ 	"internal/synctest.IsInBubble":                   {"internal/synctest"},

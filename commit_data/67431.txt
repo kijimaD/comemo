@@ -1,0 +1,43 @@
+commit fdc076ce762326fc19ef1b6de01da6ce50f55926
+Author: Andy Nitschke <anitschk@mathworks.com>
+Date:   Tue Jun 10 11:09:35 2025 -0400
+
+    net/http: fix RoundTrip context cancellation for js/wasm
+    
+    The existing js/wasm implementation of RoundTrip calls abort() on the
+    fetch() call when the context is canceled but does not wait for for the
+    resulting promise to be rejected. The result is the failure callback for the
+    promise will be called at some later point in time when the promise
+    rejection is handled. In some case this callback may be called after the Go
+    program has exited resulting in "Go program has already exited" errors.
+    
+    Fixes #57098
+    
+    Change-Id: Ia37fd22cb9f667dbb0805ff5db0ceb8fdba7246b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/680937
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/net/http/roundtrip_js.go | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/src/net/http/roundtrip_js.go b/src/net/http/roundtrip_js.go
+index 04c241eb4c..7ae94617bc 100644
+--- a/src/net/http/roundtrip_js.go
++++ b/src/net/http/roundtrip_js.go
+@@ -236,6 +236,14 @@ func (t *Transport) RoundTrip(req *Request) (*Response, error) {
+ 		if !ac.IsUndefined() {
+ 			// Abort the Fetch request.
+ 			ac.Call("abort")
++
++			// Wait for fetch promise to be rejected prior to exiting. See
++			// https://github.com/golang/go/issues/57098 for more details.
++			select {
++			case resp := <-respCh:
++				resp.Body.Close()
++			case <-errCh:
++			}
+ 		}
+ 		return nil, req.Context().Err()
+ 	case resp := <-respCh:

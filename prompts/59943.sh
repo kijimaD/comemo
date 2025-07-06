@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 59943: f6c3a3e3c8c532e73e9dff7acdf04e2b4d5d9537
+# Index 59943: f2fcea5009d06d14b9869879f897c4ffb11cf953
 
 echo "🚀 Generating explanation for commit 59943..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 59943..."
 
 ### メタデータ
 - **コミットインデックス**: 59943
-- **コミットハッシュ**: f6c3a3e3c8c532e73e9dff7acdf04e2b4d5d9537
-- **GitHub URL**: https://github.com/golang/go/commit/f6c3a3e3c8c532e73e9dff7acdf04e2b4d5d9537
+- **コミットハッシュ**: f2fcea5009d06d14b9869879f897c4ffb11cf953
+- **GitHub URL**: https://github.com/golang/go/commit/f2fcea5009d06d14b9869879f897c4ffb11cf953
 
 ### 章構成
 

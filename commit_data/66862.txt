@@ -1,0 +1,397 @@
+commit 8a85a2e70a97773ac96e899df7411eda4f5da2cb
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Apr 7 15:21:16 2025 +0200
+
+    runtime, internal/runtime/maps: speed-up empty/zero map lookups
+    
+    This lets the inliner do a better job optimizing the mapKeyError call.
+    
+    goos: linux
+    goarch: amd64
+    pkg: runtime
+    cpu: AMD Ryzen 5 4600G with Radeon Graphics
+                                     │ /tmp/before2 │             /tmp/after3             │
+                                     │    sec/op    │   sec/op     vs base                │
+    MapAccessZero/Key=int64-12          1.875n ± 0%   1.875n ± 0%        ~ (p=0.506 n=25)
+    MapAccessZero/Key=int32-12          1.875n ± 0%   1.875n ± 0%        ~ (p=0.082 n=25)
+    MapAccessZero/Key=string-12         1.902n ± 1%   1.902n ± 1%        ~ (p=0.256 n=25)
+    MapAccessZero/Key=mediumType-12     2.816n ± 0%   1.958n ± 0%  -30.47% (p=0.000 n=25)
+    MapAccessZero/Key=bigType-12        2.815n ± 0%   1.935n ± 0%  -31.26% (p=0.000 n=25)
+    MapAccessEmpty/Key=int64-12         1.942n ± 0%   2.109n ± 0%   +8.60% (p=0.000 n=25)
+    MapAccessEmpty/Key=int32-12         2.110n ± 0%   1.940n ± 0%   -8.06% (p=0.000 n=25)
+    MapAccessEmpty/Key=string-12        2.024n ± 0%   2.109n ± 0%   +4.20% (p=0.000 n=25)
+    MapAccessEmpty/Key=mediumType-12    3.157n ± 0%   2.344n ± 0%  -25.75% (p=0.000 n=25)
+    MapAccessEmpty/Key=bigType-12       3.054n ± 0%   2.115n ± 0%  -30.75% (p=0.000 n=25)
+    geomean                             2.305n        2.011n       -12.75%
+    
+    Change-Id: Iee83930884dc4c8a791a711aa189a1c93b68d536
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663495
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/link/internal/loader/loader.go       |  2 +-
+ src/internal/abi/iface.go                    |  6 ++
+ src/internal/runtime/maps/map.go             | 86 ++++++++++++++++++++++++++++
+ src/internal/runtime/maps/runtime_noswiss.go | 17 ------
+ src/internal/runtime/maps/runtime_swiss.go   |  3 -
+ src/runtime/alg.go                           | 68 ----------------------
+ src/runtime/map_benchmark_test.go            | 36 ++++++++++++
+ src/runtime/map_noswiss.go                   |  7 ++-
+ src/runtime/map_swiss.go                     |  5 --
+ src/runtime/type.go                          |  5 ++
+ 10 files changed, 138 insertions(+), 97 deletions(-)
+
+diff --git a/src/cmd/link/internal/loader/loader.go b/src/cmd/link/internal/loader/loader.go
+index d4605ae6f7..6a7057b80e 100644
+--- a/src/cmd/link/internal/loader/loader.go
++++ b/src/cmd/link/internal/loader/loader.go
+@@ -2359,8 +2359,8 @@ var blockedLinknames = map[string][]string{
+ 	"crypto/internal/sysrand.fatal":         {"crypto/internal/sysrand"},
+ 	"crypto/rand.fatal":                     {"crypto/rand"},
+ 	"internal/runtime/maps.errNilAssign":    {"internal/runtime/maps"},
++	"internal/runtime/maps.typeString":      {"internal/runtime/maps"},
+ 	"internal/runtime/maps.fatal":           {"internal/runtime/maps"},
+-	"internal/runtime/maps.mapKeyError":     {"internal/runtime/maps"},
+ 	"internal/runtime/maps.newarray":        {"internal/runtime/maps"},
+ 	"internal/runtime/maps.newobject":       {"internal/runtime/maps"},
+ 	"internal/runtime/maps.typedmemclr":     {"internal/runtime/maps"},
+diff --git a/src/internal/abi/iface.go b/src/internal/abi/iface.go
+index 676a27d204..e1e69367c6 100644
+--- a/src/internal/abi/iface.go
++++ b/src/internal/abi/iface.go
+@@ -25,3 +25,9 @@ type EmptyInterface struct {
+ 	Type *Type
+ 	Data unsafe.Pointer
+ }
++
++// EmptyInterface describes the layout of an interface that contains any methods.
++type NonEmptyInterface struct {
++	ITab *ITab
++	Data unsafe.Pointer
++}
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 94000a942d..c5bd01490d 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -806,3 +806,89 @@ func (m *Map) Clone(typ *abi.SwissMapType) *Map {
+ 
+ 	return m
+ }
++
++func OldMapKeyError(t *abi.OldMapType, p unsafe.Pointer) error {
++	if !t.HashMightPanic() {
++		return nil
++	}
++	return mapKeyError2(t.Key, p)
++}
++
++func mapKeyError(t *abi.SwissMapType, p unsafe.Pointer) error {
++	if !t.HashMightPanic() {
++		return nil
++	}
++	return mapKeyError2(t.Key, p)
++}
++
++func mapKeyError2(t *abi.Type, p unsafe.Pointer) error {
++	if t.TFlag&abi.TFlagRegularMemory != 0 {
++		return nil
++	}
++	switch t.Kind() {
++	case abi.Float32, abi.Float64, abi.Complex64, abi.Complex128, abi.String:
++		return nil
++	case abi.Interface:
++		i := (*abi.InterfaceType)(unsafe.Pointer(t))
++		var t *abi.Type
++		var pdata *unsafe.Pointer
++		if len(i.Methods) == 0 {
++			a := (*abi.EmptyInterface)(p)
++			t = a.Type
++			if t == nil {
++				return nil
++			}
++			pdata = &a.Data
++		} else {
++			a := (*abi.NonEmptyInterface)(p)
++			if a.ITab == nil {
++				return nil
++			}
++			t = a.ITab.Type
++			pdata = &a.Data
++		}
++
++		if t.Equal == nil {
++			return unhashableTypeError{t}
++		}
++
++		if t.Kind_&abi.KindDirectIface != 0 {
++			return mapKeyError2(t, unsafe.Pointer(pdata))
++		} else {
++			return mapKeyError2(t, *pdata)
++		}
++	case abi.Array:
++		a := (*abi.ArrayType)(unsafe.Pointer(t))
++		for i := uintptr(0); i < a.Len; i++ {
++			if err := mapKeyError2(a.Elem, unsafe.Pointer(uintptr(p)+i*a.Elem.Size_)); err != nil {
++				return err
++			}
++		}
++		return nil
++	case abi.Struct:
++		s := (*abi.StructType)(unsafe.Pointer(t))
++		for _, f := range s.Fields {
++			if f.Name.IsBlank() {
++				continue
++			}
++			if err := mapKeyError2(f.Typ, unsafe.Pointer(uintptr(p)+f.Offset)); err != nil {
++				return err
++			}
++		}
++		return nil
++	default:
++		// Should never happen, keep this case for robustness.
++		return unhashableTypeError{t}
++	}
++}
++
++type unhashableTypeError struct{ typ *abi.Type }
++
++func (unhashableTypeError) RuntimeError() {}
++
++func (e unhashableTypeError) Error() string { return "hash of unhashable type: " + typeString(e.typ) }
++
++// Pushed from runtime
++//
++//go:linkname typeString
++func typeString(typ *abi.Type) string
+diff --git a/src/internal/runtime/maps/runtime_noswiss.go b/src/internal/runtime/maps/runtime_noswiss.go
+deleted file mode 100644
+index c9342e08dd..0000000000
+--- a/src/internal/runtime/maps/runtime_noswiss.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !goexperiment.swissmap
+-
+-package maps
+-
+-import (
+-	"internal/abi"
+-	"unsafe"
+-)
+-
+-// For testing, we don't ever need key errors.
+-func mapKeyError(typ *abi.SwissMapType, p unsafe.Pointer) error {
+-	return nil
+-}
+diff --git a/src/internal/runtime/maps/runtime_swiss.go b/src/internal/runtime/maps/runtime_swiss.go
+index 3f4f970fb7..3ea018185b 100644
+--- a/src/internal/runtime/maps/runtime_swiss.go
++++ b/src/internal/runtime/maps/runtime_swiss.go
+@@ -17,9 +17,6 @@ import (
+ 
+ // Functions below pushed from runtime.
+ 
+-//go:linkname mapKeyError
+-func mapKeyError(typ *abi.SwissMapType, p unsafe.Pointer) error
+-
+ // Pushed from runtime in order to use runtime.plainError
+ //
+ //go:linkname errNilAssign
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 4626899aaf..df32bc7941 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -250,74 +250,6 @@ func typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+ 	}
+ }
+ 
+-func mapKeyError(t *maptype, p unsafe.Pointer) error {
+-	if !t.HashMightPanic() {
+-		return nil
+-	}
+-	return mapKeyError2(t.Key, p)
+-}
+-
+-func mapKeyError2(t *_type, p unsafe.Pointer) error {
+-	if t.TFlag&abi.TFlagRegularMemory != 0 {
+-		return nil
+-	}
+-	switch t.Kind_ & abi.KindMask {
+-	case abi.Float32, abi.Float64, abi.Complex64, abi.Complex128, abi.String:
+-		return nil
+-	case abi.Interface:
+-		i := (*interfacetype)(unsafe.Pointer(t))
+-		var t *_type
+-		var pdata *unsafe.Pointer
+-		if len(i.Methods) == 0 {
+-			a := (*eface)(p)
+-			t = a._type
+-			if t == nil {
+-				return nil
+-			}
+-			pdata = &a.data
+-		} else {
+-			a := (*iface)(p)
+-			if a.tab == nil {
+-				return nil
+-			}
+-			t = a.tab.Type
+-			pdata = &a.data
+-		}
+-
+-		if t.Equal == nil {
+-			return errorString("hash of unhashable type " + toRType(t).string())
+-		}
+-
+-		if isDirectIface(t) {
+-			return mapKeyError2(t, unsafe.Pointer(pdata))
+-		} else {
+-			return mapKeyError2(t, *pdata)
+-		}
+-	case abi.Array:
+-		a := (*arraytype)(unsafe.Pointer(t))
+-		for i := uintptr(0); i < a.Len; i++ {
+-			if err := mapKeyError2(a.Elem, add(p, i*a.Elem.Size_)); err != nil {
+-				return err
+-			}
+-		}
+-		return nil
+-	case abi.Struct:
+-		s := (*structtype)(unsafe.Pointer(t))
+-		for _, f := range s.Fields {
+-			if f.Name.IsBlank() {
+-				continue
+-			}
+-			if err := mapKeyError2(f.Typ, add(p, f.Offset)); err != nil {
+-				return err
+-			}
+-		}
+-		return nil
+-	default:
+-		// Should never happen, keep this case for robustness.
+-		return errorString("hash of unhashable type " + toRType(t).string())
+-	}
+-}
+-
+ //go:linkname reflect_typehash reflect.typehash
+ func reflect_typehash(t *_type, p unsafe.Pointer, h uintptr) uintptr {
+ 	return typehash(t, p, h)
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index bf195fa30d..a26b35b44d 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -1191,3 +1191,39 @@ func BenchmarkMapSmallAccessMiss(b *testing.B) {
+ 	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessMiss[string, string]))
+ 	b.Run("Key=smallType/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[smallType, int32]))
+ }
++
++func mapAccessZeroBenchmark[K comparable](b *testing.B) {
++	var m map[K]uint64
++	var key K
++	for i := 0; i < b.N; i++ {
++		sink = m[key]
++	}
++}
++
++func BenchmarkMapAccessZero(b *testing.B) {
++	b.Run("Key=int64", mapAccessZeroBenchmark[int64])
++	b.Run("Key=int32", mapAccessZeroBenchmark[int32])
++	b.Run("Key=string", mapAccessZeroBenchmark[string])
++	b.Run("Key=mediumType", mapAccessZeroBenchmark[mediumType])
++	b.Run("Key=bigType", mapAccessZeroBenchmark[bigType])
++}
++
++func mapAccessEmptyBenchmark[K mapBenchmarkKeyType](b *testing.B) {
++	m := make(map[K]uint64)
++	for i, v := range genValues[K](0, 1000) {
++		m[v] = uint64(i)
++	}
++	clear(m)
++	var key K
++	for i := 0; i < b.N; i++ {
++		sink = m[key]
++	}
++}
++
++func BenchmarkMapAccessEmpty(b *testing.B) {
++	b.Run("Key=int64", mapAccessEmptyBenchmark[int64])
++	b.Run("Key=int32", mapAccessEmptyBenchmark[int32])
++	b.Run("Key=string", mapAccessEmptyBenchmark[string])
++	b.Run("Key=mediumType", mapAccessEmptyBenchmark[mediumType])
++	b.Run("Key=bigType", mapAccessEmptyBenchmark[bigType])
++}
+diff --git a/src/runtime/map_noswiss.go b/src/runtime/map_noswiss.go
+index 327f0c81e8..7b3c98eb88 100644
+--- a/src/runtime/map_noswiss.go
++++ b/src/runtime/map_noswiss.go
+@@ -59,6 +59,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
++	"internal/runtime/maps"
+ 	"internal/runtime/math"
+ 	"internal/runtime/sys"
+ 	"unsafe"
+@@ -426,7 +427,7 @@ func mapaccess1(t *maptype, h *hmap, key unsafe.Pointer) unsafe.Pointer {
+ 		asanread(key, t.Key.Size_)
+ 	}
+ 	if h == nil || h.count == 0 {
+-		if err := mapKeyError(t, key); err != nil {
++		if err := maps.OldMapKeyError(t, key); err != nil {
+ 			panic(err) // see issue 23734
+ 		}
+ 		return unsafe.Pointer(&zeroVal[0])
+@@ -496,7 +497,7 @@ func mapaccess2(t *maptype, h *hmap, key unsafe.Pointer) (unsafe.Pointer, bool)
+ 		asanread(key, t.Key.Size_)
+ 	}
+ 	if h == nil || h.count == 0 {
+-		if err := mapKeyError(t, key); err != nil {
++		if err := maps.OldMapKeyError(t, key); err != nil {
+ 			panic(err) // see issue 23734
+ 		}
+ 		return unsafe.Pointer(&zeroVal[0]), false
+@@ -757,7 +758,7 @@ func mapdelete(t *maptype, h *hmap, key unsafe.Pointer) {
+ 		asanread(key, t.Key.Size_)
+ 	}
+ 	if h == nil || h.count == 0 {
+-		if err := mapKeyError(t, key); err != nil {
++		if err := maps.OldMapKeyError(t, key); err != nil {
+ 			panic(err) // see issue 23734
+ 		}
+ 		return
+diff --git a/src/runtime/map_swiss.go b/src/runtime/map_swiss.go
+index a1e6ab6b9d..c2cf08fcaa 100644
+--- a/src/runtime/map_swiss.go
++++ b/src/runtime/map_swiss.go
+@@ -24,11 +24,6 @@ type maptype = abi.SwissMapType
+ //go:linkname maps_errNilAssign internal/runtime/maps.errNilAssign
+ var maps_errNilAssign error = plainError("assignment to entry in nil map")
+ 
+-//go:linkname maps_mapKeyError internal/runtime/maps.mapKeyError
+-func maps_mapKeyError(t *abi.SwissMapType, p unsafe.Pointer) error {
+-	return mapKeyError(t, p)
+-}
+-
+ func makemap64(t *abi.SwissMapType, hint int64, m *maps.Map) *maps.Map {
+ 	if int64(int(hint)) != hint {
+ 		hint = 0
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index 1edf9c9dd6..c11c866cd8 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -14,6 +14,11 @@ import (
+ 	"unsafe"
+ )
+ 
++//go:linkname maps_typeString internal/runtime/maps.typeString
++func maps_typeString(typ *abi.Type) string {
++	return toRType(typ).string()
++}
++
+ type nameOff = abi.NameOff
+ type typeOff = abi.TypeOff
+ type textOff = abi.TextOff

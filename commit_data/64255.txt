@@ -1,0 +1,142 @@
+commit e8c5bed7ea43e1a533c322e6b928ed06327721db
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jul 22 12:44:49 2024 -0400
+
+    doc: initialize next directory for Go 1.24
+    
+    Following the "For the release team" steps in README:
+    
+            cd doc
+            cp -R initial/ next
+            $EDITOR next/1-intro.md
+    
+    Dropped '*' from the cp -R command to avoid needing to
+    create an empty next directory with a separate command.
+    
+    For #68545.
+    For #67586.
+    
+    Change-Id: I25215bc35a043e0f26d4a86ffe66eb3c26348fef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600177
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ doc/README.md                           |  2 +-
+ doc/next/1-intro.md                     | 14 ++++++++++++++
+ doc/next/2-language.md                  |  3 +++
+ doc/next/3-tools.md                     |  6 ++++++
+ doc/next/4-runtime.md                   |  1 +
+ doc/next/5-toolchain.md                 |  7 +++++++
+ doc/next/6-stdlib/0-heading.md          |  2 ++
+ doc/next/6-stdlib/99-minor/0-heading.md |  3 +++
+ doc/next/6-stdlib/99-minor/README       |  1 +
+ doc/next/7-ports.md                     |  2 ++
+ 10 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/doc/README.md b/doc/README.md
+index b0d99456da..b7aefc8d2c 100644
+--- a/doc/README.md
++++ b/doc/README.md
+@@ -70,6 +70,6 @@ To begin the next release development cycle, populate the contents of `next`
+ with those of `initial`. From the repo root:
+ 
+     > cd doc
+-    > cp -r initial/* next
++    > cp -R initial/ next
+ 
+ Then edit `next/1-intro.md` to refer to the next version.
+diff --git a/doc/next/1-intro.md b/doc/next/1-intro.md
+new file mode 100644
+index 0000000000..3f6dc9f5d8
+--- /dev/null
++++ b/doc/next/1-intro.md
+@@ -0,0 +1,14 @@
++<!--
++NOTE: In this document and others in this directory, the convention is to
++set fixed-width phrases with non-fixed-width spaces, as in
++`hello` `world`.
++-->
++
++<style>
++  main ul li { margin: 0.5em 0; }
++</style>
++
++## DRAFT RELEASE NOTES — Introduction to Go 1.24 {#introduction}
++
++**Go 1.24 is not yet released. These are work-in-progress release notes.
++Go 1.24 is expected to be released in February 2025.**
+diff --git a/doc/next/2-language.md b/doc/next/2-language.md
+new file mode 100644
+index 0000000000..61030bd676
+--- /dev/null
++++ b/doc/next/2-language.md
+@@ -0,0 +1,3 @@
++## Changes to the language {#language}
++
++
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+new file mode 100644
+index 0000000000..5638f240a5
+--- /dev/null
++++ b/doc/next/3-tools.md
+@@ -0,0 +1,6 @@
++## Tools {#tools}
++
++### Go command {#go-command}
++
++### Cgo {#cgo}
++
+diff --git a/doc/next/4-runtime.md b/doc/next/4-runtime.md
+new file mode 100644
+index 0000000000..1f8e445e0b
+--- /dev/null
++++ b/doc/next/4-runtime.md
+@@ -0,0 +1 @@
++## Runtime {#runtime}
+diff --git a/doc/next/5-toolchain.md b/doc/next/5-toolchain.md
+new file mode 100644
+index 0000000000..0f4a816479
+--- /dev/null
++++ b/doc/next/5-toolchain.md
+@@ -0,0 +1,7 @@
++## Compiler {#compiler}
++
++## Assembler {#assembler}
++
++## Linker {#linker}
++
++
+diff --git a/doc/next/6-stdlib/0-heading.md b/doc/next/6-stdlib/0-heading.md
+new file mode 100644
+index 0000000000..a992170d43
+--- /dev/null
++++ b/doc/next/6-stdlib/0-heading.md
+@@ -0,0 +1,2 @@
++## Standard library {#library}
++
+diff --git a/doc/next/6-stdlib/99-minor/0-heading.md b/doc/next/6-stdlib/99-minor/0-heading.md
+new file mode 100644
+index 0000000000..a98105e8cc
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/0-heading.md
+@@ -0,0 +1,3 @@
++### Minor changes to the library {#minor_library_changes}
++
++
+diff --git a/doc/next/6-stdlib/99-minor/README b/doc/next/6-stdlib/99-minor/README
+new file mode 100644
+index 0000000000..fac778de05
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/README
+@@ -0,0 +1 @@
++API changes and other small changes to the standard library go here.
+diff --git a/doc/next/7-ports.md b/doc/next/7-ports.md
+new file mode 100644
+index 0000000000..8bea3f8fbc
+--- /dev/null
++++ b/doc/next/7-ports.md
+@@ -0,0 +1,2 @@
++## Ports {#ports}
++

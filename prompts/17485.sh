@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 17485: 3548ab5ebb9b729f8399693488d537e37688b0ef
+# Index 17485: 64cb2cf5ccff1f7f86a481992d6085eddb2db5ad
 
 echo "🚀 Generating explanation for commit 17485..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 17485..."
 
 ### メタデータ
 - **コミットインデックス**: 17485
-- **コミットハッシュ**: 3548ab5ebb9b729f8399693488d537e37688b0ef
-- **GitHub URL**: https://github.com/golang/go/commit/3548ab5ebb9b729f8399693488d537e37688b0ef
+- **コミットハッシュ**: 64cb2cf5ccff1f7f86a481992d6085eddb2db5ad
+- **GitHub URL**: https://github.com/golang/go/commit/64cb2cf5ccff1f7f86a481992d6085eddb2db5ad
 
 ### 章構成
 

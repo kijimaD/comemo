@@ -1,0 +1,43 @@
+commit 723d34f1713a09b0bce388dc403f3dd764cc608e
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue May 7 11:05:08 2024 +0200
+
+    internal/sysinfo: use strings.Cut in osCpuInfoName
+    
+    Change-Id: I78a6189f0fc5d52b5f88cc0db0d3dbc36f94f826
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583715
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/sysinfo/cpuinfo_linux.go | 12 +++++-------
+ 1 file changed, 5 insertions(+), 7 deletions(-)
+
+diff --git a/src/internal/sysinfo/cpuinfo_linux.go b/src/internal/sysinfo/cpuinfo_linux.go
+index aff63b33b4..24f0a87875 100644
+--- a/src/internal/sysinfo/cpuinfo_linux.go
++++ b/src/internal/sysinfo/cpuinfo_linux.go
+@@ -40,17 +40,15 @@ func osCpuInfoName() string {
+ 
+ 	scanner := bufio.NewScanner(bytes.NewReader(buf))
+ 	for scanner.Scan() {
+-		line := scanner.Text()
+-		if !strings.Contains(line, ":") {
++		key, value, found := strings.Cut(scanner.Text(), ": ")
++		if !found {
+ 			continue
+ 		}
+-
+-		field := strings.SplitN(line, ": ", 2)
+-		switch strings.TrimSpace(field[0]) {
++		switch strings.TrimSpace(key) {
+ 		case "Model Name", "model name":
+-			modelName = field[1]
++			modelName = value
+ 		case "CPU MHz", "cpu MHz":
+-			cpuMHz = field[1]
++			cpuMHz = value
+ 		}
+ 	}
+ 

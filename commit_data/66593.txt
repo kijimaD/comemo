@@ -1,0 +1,30 @@
+commit c8eced8580028328fde7c03cbfcb720ce15b2358
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Mar 17 19:20:32 2025 +0000
+
+    net/http/httputil: document ProxyRequest.SetURL limitations
+    
+    Fixes #50337
+    
+    Change-Id: I898ff6352f46f0f9b540b053049c5116e2165827
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658536
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/net/http/httputil/reverseproxy.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 079d5c86f7..5d27880735 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -42,6 +42,8 @@ type ProxyRequest struct {
+ // SetURL routes the outbound request to the scheme, host, and base path
+ // provided in target. If the target's path is "/base" and the incoming
+ // request was for "/dir", the target request will be for "/base/dir".
++// To route requests without joining the incoming path,
++// set r.Out.URL directly.
+ //
+ // SetURL rewrites the outbound Host header to match the target's host.
+ // To preserve the inbound request's Host header (the default behavior

@@ -1,0 +1,174 @@
+commit cb0d767a1022ac3e1384761facd949ea00f3a761
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Mar 18 15:12:31 2025 -0700
+
+    os: add Root.Readlink
+    
+    For #67002
+    
+    Change-Id: I532a5ffc02c7457796540db54fa2f5ddad86e4b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658995
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ api/next/67002.txt                     |  1 +
+ doc/next/6-stdlib/99-minor/os/67002.md |  1 +
+ src/os/root.go                         |  6 +++++
+ src/os/root_noopenat.go                | 11 +++++++++
+ src/os/root_openat.go                  | 10 +++++++++
+ src/os/root_test.go                    | 41 ++++++++++++++++++++++++++++++++++
+ src/os/root_windows.go                 |  9 ++++++++
+ 7 files changed, 79 insertions(+)
+
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+index f7c3530f59..0e570d4fa0 100644
+--- a/api/next/67002.txt
++++ b/api/next/67002.txt
+@@ -2,3 +2,4 @@ pkg os, method (*Root) Chmod(string, fs.FileMode) error #67002
+ pkg os, method (*Root) Chown(string, int, int) error #67002
+ pkg os, method (*Root) Chtimes(string, time.Time, time.Time) error #67002
+ pkg os, method (*Root) Lchown(string, int, int) error #67002
++pkg os, method (*Root) Readlink(string) (string, error) #67002
+diff --git a/doc/next/6-stdlib/99-minor/os/67002.md b/doc/next/6-stdlib/99-minor/os/67002.md
+index 629ea55ac0..4d9f66c19c 100644
+--- a/doc/next/6-stdlib/99-minor/os/67002.md
++++ b/doc/next/6-stdlib/99-minor/os/67002.md
+@@ -4,3 +4,4 @@ The [os.Root] type supports the following additional methods:
+   * [os.Root.Chown]
+   * [os.Root.Chtimes]
+   * [os.Root.Lchown]
++  * [os.Root.Readlink]
+diff --git a/src/os/root.go b/src/os/root.go
+index 27bd871c17..453ee1a5e5 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -193,6 +193,12 @@ func (r *Root) Lstat(name string) (FileInfo, error) {
+ 	return rootStat(r, name, true)
+ }
+ 
++// Readlink returns the destination of the named symbolic link in the root.
++// See [Readlink] for more details.
++func (r *Root) Readlink(name string) (string, error) {
++	return rootReadlink(r, name)
++}
++
+ func (r *Root) logOpen(name string) {
+ 	if log := testlog.Logger(); log != nil {
+ 		// This won't be right if r's name has changed since it was opened,
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+index 46dd794739..f0e1aa5131 100644
+--- a/src/os/root_noopenat.go
++++ b/src/os/root_noopenat.go
+@@ -155,3 +155,14 @@ func rootRemove(r *Root, name string) error {
+ 	}
+ 	return nil
+ }
++
++func rootReadlink(r *Root, name string) (string, error) {
++	if err := checkPathEscapesLstat(r, name); err != nil {
++		return "", &PathError{Op: "readlinkat", Path: name, Err: err}
++	}
++	name, err := Readlink(joinPath(r.root.name, name))
++	if err != nil {
++		return "", &PathError{Op: "readlinkat", Path: name, Err: underlyingError(err)}
++	}
++	return name, nil
++}
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index e47004e8ea..8c07784b5a 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -118,6 +118,16 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	return nil
+ }
+ 
++func rootReadlink(r *Root, name string) (string, error) {
++	target, err := doInRoot(r, name, func(parent sysfdType, name string) (string, error) {
++		return readlinkat(parent, name)
++	})
++	if err != nil {
++		return "", &PathError{Op: "readlinkat", Path: name, Err: err}
++	}
++	return target, nil
++}
++
+ func rootRemove(r *Root, name string) error {
+ 	_, err := doInRoot(r, name, func(parent sysfdType, name string) (struct{}, error) {
+ 		return struct{}{}, removeat(parent, name)
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 5f0e733fe1..6c8c892429 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -664,6 +664,35 @@ func TestRootLstat(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootReadlink(t *testing.T) {
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			const content = "content"
++			wantError := test.wantError
++			if test.ltarget != "" {
++				// Readlink will read the final link, rather than following it.
++				wantError = false
++			} else {
++				// Readlink fails on non-link targets.
++				wantError = true
++			}
++
++			got, err := root.Readlink(test.open)
++			if errEndsTest(t, err, wantError, "root.Readlink(%q)", test.open) {
++				return
++			}
++
++			want, err := os.Readlink(filepath.Join(root.Name(), test.ltarget))
++			if err != nil {
++				t.Fatalf("os.Readlink(%q) = %v, want success", test.ltarget, err)
++			}
++			if got != want {
++				t.Errorf("root.Readlink(%q) = %q, want %q", test.open, got, want)
++			}
++		})
++	}
++}
++
+ // A rootConsistencyTest is a test case comparing os.Root behavior with
+ // the corresponding non-Root function.
+ //
+@@ -1063,6 +1092,18 @@ func TestRootConsistencyLstat(t *testing.T) {
+ 	}
+ }
+ 
++func TestRootConsistencyReadlink(t *testing.T) {
++	for _, test := range rootConsistencyTestCases {
++		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++			if r == nil {
++				return os.Readlink(path)
++			} else {
++				return r.Readlink(path)
++			}
++		})
++	}
++}
++
+ func TestRootRenameAfterOpen(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "windows":
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index c56946d0d5..81fc5c320c 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -314,3 +314,12 @@ func chtimesat(dirfd syscall.Handle, name string, atime time.Time, mtime time.Ti
+ 	}
+ 	return syscall.SetFileTime(h, nil, &a, &w)
+ }
++
++func readlinkat(dirfd syscall.Handle, name string) (string, error) {
++	fd, err := openat(dirfd, name, windows.O_OPEN_REPARSE, 0)
++	if err != nil {
++		return "", err
++	}
++	defer syscall.CloseHandle(fd)
++	return readReparseLinkHandle(fd)
++}

@@ -1,0 +1,23 @@
+commit 3ac5f2f962fe63c024856b28917589a3a8b3882a
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Thu May 22 12:14:46 2025 -0400
+
+    [dev.simd] codereview.cfg: set up dev.simd branch
+    
+    Change-Id: I3d9c9f706bdb11cc6786f150be17e68ed06892d3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675595
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ codereview.cfg | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/codereview.cfg b/codereview.cfg
+index 77a74f108e..e59a1c8912 100644
+--- a/codereview.cfg
++++ b/codereview.cfg
+@@ -1 +1,2 @@
+-branch: master
++branch: dev.simd
++parent-branch: master

@@ -1,0 +1,140 @@
+commit 60ee99cf5d38801507042df3a00c622027ef5588
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 3 18:33:49 2024 +0000
+
+    runtime: break out the debug.malloc codepaths into functions
+    
+    This change breaks out the debug.malloc codepaths into dedicated
+    functions, both for making mallocgc easier to read, and to reduce the
+    function's size (currently all that code is inlined and really doesn't
+    need to be).
+    
+    This is a microoptimization that on its own changes very little, but
+    together with other optimizations and a breaking up of the various
+    malloc paths will matter all together ("death by a thousand cuts").
+    
+    Change-Id: I30b3ab4a1f349ba85b4a1b5b2c399abcdfe4844f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617879
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/malloc.go | 88 +++++++++++++++++++++++++++++----------------------
+ 1 file changed, 50 insertions(+), 38 deletions(-)
+
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index d160532377..3fa52037ca 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1022,33 +1022,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		size += computeRZlog(size)
+ 	}
+ 
++	// Pre-malloc debug hooks.
+ 	if debug.malloc {
+-		if debug.sbrk != 0 {
+-			align := uintptr(16)
+-			if typ != nil {
+-				// TODO(austin): This should be just
+-				//   align = uintptr(typ.align)
+-				// but that's only 4 on 32-bit platforms,
+-				// even if there's a uint64 field in typ (see #599).
+-				// This causes 64-bit atomic accesses to panic.
+-				// Hence, we use stricter alignment that matches
+-				// the normal allocator better.
+-				if size&7 == 0 {
+-					align = 8
+-				} else if size&3 == 0 {
+-					align = 4
+-				} else if size&1 == 0 {
+-					align = 2
+-				} else {
+-					align = 1
+-				}
+-			}
+-			return persistentalloc(size, align, &memstats.other_sys)
+-		}
+-
+-		if inittrace.active && inittrace.id == getg().goid {
+-			// Init functions are executed sequentially in a single goroutine.
+-			inittrace.allocs += 1
++		if x := preMallocgcDebug(size, typ); x != nil {
++			return x
+ 		}
+ 	}
+ 
+@@ -1296,19 +1273,9 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		}
+ 	}
+ 
++	// Post-malloc debug hooks.
+ 	if debug.malloc {
+-		if inittrace.active && inittrace.id == getg().goid {
+-			// Init functions are executed sequentially in a single goroutine.
+-			inittrace.bytes += uint64(fullSize)
+-		}
+-
+-		if traceAllocFreeEnabled() {
+-			trace := traceAcquire()
+-			if trace.ok() {
+-				trace.HeapObjectAlloc(uintptr(x), typ)
+-				traceRelease(trace)
+-			}
+-		}
++		postMallocgcDebug(x, fullSize, typ)
+ 	}
+ 
+ 	// Adjust our GC assist debt to account for internal fragmentation.
+@@ -1343,6 +1310,51 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	return x
+ }
+ 
++func preMallocgcDebug(size uintptr, typ *_type) unsafe.Pointer {
++	if debug.sbrk != 0 {
++		align := uintptr(16)
++		if typ != nil {
++			// TODO(austin): This should be just
++			//   align = uintptr(typ.align)
++			// but that's only 4 on 32-bit platforms,
++			// even if there's a uint64 field in typ (see #599).
++			// This causes 64-bit atomic accesses to panic.
++			// Hence, we use stricter alignment that matches
++			// the normal allocator better.
++			if size&7 == 0 {
++				align = 8
++			} else if size&3 == 0 {
++				align = 4
++			} else if size&1 == 0 {
++				align = 2
++			} else {
++				align = 1
++			}
++		}
++		return persistentalloc(size, align, &memstats.other_sys)
++	}
++	if inittrace.active && inittrace.id == getg().goid {
++		// Init functions are executed sequentially in a single goroutine.
++		inittrace.allocs += 1
++	}
++	return nil
++}
++
++func postMallocgcDebug(x unsafe.Pointer, elemsize uintptr, typ *_type) {
++	if inittrace.active && inittrace.id == getg().goid {
++		// Init functions are executed sequentially in a single goroutine.
++		inittrace.bytes += uint64(elemsize)
++	}
++
++	if traceAllocFreeEnabled() {
++		trace := traceAcquire()
++		if trace.ok() {
++			trace.HeapObjectAlloc(uintptr(x), typ)
++			traceRelease(trace)
++		}
++	}
++}
++
+ // deductAssistCredit reduces the current G's assist credit
+ // by size bytes, and assists the GC if necessary.
+ //

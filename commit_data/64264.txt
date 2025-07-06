@@ -1,0 +1,120 @@
+commit 1c4acea03d0e5d6bd1d6be74c816313f8ab109c3
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Tue Jul 2 15:26:32 2024 -0700
+
+    internal/trace: make Reader output deterministic
+    
+    Multiple Ms can offer Events with identical timestamps. The Reader
+    edits those so the timestamps are strictly increasing, but it needs a
+    way to break the tie. Use something deterministic (such as the order of
+    the batches), rather than map iteration order.
+    
+    Updates #68277
+    
+    Change-Id: I4a1f70c1669ce1c9b52d09e2bc99acbc831ef9a4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/internal/trace/generation.go |  4 ++++
+ src/internal/trace/reader.go     |  3 ++-
+ src/internal/trace/trace_test.go | 39 ++++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 44 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/trace/generation.go b/src/internal/trace/generation.go
+index 098d1d4f23..98bbf43985 100644
+--- a/src/internal/trace/generation.go
++++ b/src/internal/trace/generation.go
+@@ -25,6 +25,7 @@ import (
+ type generation struct {
+ 	gen        uint64
+ 	batches    map[ThreadID][]batch
++	batchMs    []ThreadID
+ 	cpuSamples []cpuSample
+ 	*evTable
+ }
+@@ -169,6 +170,9 @@ func processBatch(g *generation, b batch) error {
+ 			return err
+ 		}
+ 	default:
++		if _, ok := g.batches[b.m]; !ok {
++			g.batchMs = append(g.batchMs, b.m)
++		}
+ 		g.batches[b.m] = append(g.batches[b.m], b)
+ 	}
+ 	return nil
+diff --git a/src/internal/trace/reader.go b/src/internal/trace/reader.go
+index c05d5b58b3..81157292fb 100644
+--- a/src/internal/trace/reader.go
++++ b/src/internal/trace/reader.go
+@@ -142,7 +142,8 @@ func (r *Reader) ReadEvent() (e Event, err error) {
+ 		r.cpuSamples = r.gen.cpuSamples
+ 
+ 		// Reset frontier.
+-		for m, batches := range r.gen.batches {
++		for _, m := range r.gen.batchMs {
++			batches := r.gen.batches[m]
+ 			bc := &batchCursor{m: m}
+ 			ok, err := bc.nextEvent(batches, r.gen.freq)
+ 			if err != nil {
+diff --git a/src/internal/trace/trace_test.go b/src/internal/trace/trace_test.go
+index 7dc5cbb89d..1929069cc5 100644
+--- a/src/internal/trace/trace_test.go
++++ b/src/internal/trace/trace_test.go
+@@ -507,7 +507,7 @@ func TestTraceStress(t *testing.T) {
+ 	case "js", "wasip1":
+ 		t.Skip("no os.Pipe on " + runtime.GOOS)
+ 	}
+-	testTraceProg(t, "stress.go", nil)
++	testTraceProg(t, "stress.go", checkReaderDeterminism)
+ }
+ 
+ func TestTraceStressStartStop(t *testing.T) {
+@@ -535,6 +535,43 @@ func TestTraceIterPull(t *testing.T) {
+ 	testTraceProg(t, "iter-pull.go", nil)
+ }
+ 
++func checkReaderDeterminism(t *testing.T, tb, _ []byte, _ bool) {
++	events := func() []trace.Event {
++		var evs []trace.Event
++
++		r, err := trace.NewReader(bytes.NewReader(tb))
++		if err != nil {
++			t.Error(err)
++		}
++		for {
++			ev, err := r.ReadEvent()
++			if err == io.EOF {
++				break
++			}
++			if err != nil {
++				t.Fatal(err)
++			}
++			evs = append(evs, ev)
++		}
++
++		return evs
++	}
++
++	evs1 := events()
++	evs2 := events()
++
++	if l1, l2 := len(evs1), len(evs2); l1 != l2 {
++		t.Fatalf("re-reading trace gives different event count (%d != %d)", l1, l2)
++	}
++	for i, ev1 := range evs1 {
++		ev2 := evs2[i]
++		if s1, s2 := ev1.String(), ev2.String(); s1 != s2 {
++			t.Errorf("re-reading trace gives different event %d:\n%s\n%s\n", i, s1, s2)
++			break
++		}
++	}
++}
++
+ func testTraceProg(t *testing.T, progName string, extra func(t *testing.T, trace, stderr []byte, stress bool)) {
+ 	testenv.MustHaveGoRun(t)
+ 

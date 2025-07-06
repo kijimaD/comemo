@@ -1,0 +1,378 @@
+commit 7cd0a4be5cdbb84142ec330daba6087eece48341
+Author: nlwkobe30 <nlwkobe30@gmail.com>
+Date:   Fri Aug 30 19:05:07 2024 +0000
+
+    all: omit unnecessary 0 in slice expression
+    
+    All changes are related to the code, except for the comments in src/regexp/syntax/parse.go and src/slices/slices.go.
+    
+    Change-Id: I73c5d3c54099749b62210aa7f3182c5eb84bb6a6
+    GitHub-Last-Rev: 794aa9b0539811d00e1cd42be1e8d9fe9afe0281
+    GitHub-Pull-Request: golang/go#69170
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609678
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/bufio/bufio_test.go                   | 2 +-
+ src/bytes/buffer_test.go                  | 8 ++++----
+ src/bytes/bytes.go                        | 2 +-
+ src/cmd/internal/notsha256/sha256_test.go | 2 +-
+ src/crypto/cipher/ctr_aes_test.go         | 4 ++--
+ src/crypto/internal/cryptotest/aead.go    | 8 ++++----
+ src/crypto/internal/cryptotest/hash.go    | 4 ++--
+ src/crypto/md5/md5_test.go                | 2 +-
+ src/crypto/sha1/sha1_test.go              | 4 ++--
+ src/crypto/sha256/sha256_test.go          | 4 ++--
+ src/crypto/subtle/constant_time_test.go   | 8 ++++----
+ src/go/internal/gccgoimporter/parser.go   | 2 +-
+ src/internal/stringslite/strings.go       | 2 +-
+ src/math/big/natdiv.go                    | 4 ++--
+ src/net/http/client_test.go               | 2 +-
+ src/regexp/syntax/parse.go                | 2 +-
+ src/slices/slices.go                      | 2 +-
+ src/time/format.go                        | 2 +-
+ src/unicode/utf8/utf8_test.go             | 2 +-
+ 19 files changed, 33 insertions(+), 33 deletions(-)
+
+diff --git a/src/bufio/bufio_test.go b/src/bufio/bufio_test.go
+index a8c1e50397..c681842692 100644
+--- a/src/bufio/bufio_test.go
++++ b/src/bufio/bufio_test.go
+@@ -636,7 +636,7 @@ func TestWriter(t *testing.T) {
+ 			for l := 0; l < len(written); l++ {
+ 				if written[l] != data[l] {
+ 					t.Errorf("wrong bytes written")
+-					t.Errorf("want=%q", data[0:len(written)])
++					t.Errorf("want=%q", data[:len(written)])
+ 					t.Errorf("have=%q", written)
+ 				}
+ 			}
+diff --git a/src/bytes/buffer_test.go b/src/bytes/buffer_test.go
+index 3c964fc6b9..97fca5a9d1 100644
+--- a/src/bytes/buffer_test.go
++++ b/src/bytes/buffer_test.go
+@@ -213,7 +213,7 @@ func TestLargeByteWrites(t *testing.T) {
+ func TestLargeStringReads(t *testing.T) {
+ 	var buf Buffer
+ 	for i := 3; i < 30; i += 3 {
+-		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, testString[0:len(testString)/i])
++		s := fillString(t, "TestLargeReads (1)", &buf, "", 5, testString[:len(testString)/i])
+ 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(testString)))
+ 	}
+ 	check(t, "TestLargeStringReads (3)", &buf, "")
+@@ -222,7 +222,7 @@ func TestLargeStringReads(t *testing.T) {
+ func TestLargeByteReads(t *testing.T) {
+ 	var buf Buffer
+ 	for i := 3; i < 30; i += 3 {
+-		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
++		s := fillBytes(t, "TestLargeReads (1)", &buf, "", 5, testBytes[:len(testBytes)/i])
+ 		empty(t, "TestLargeReads (2)", &buf, s, make([]byte, len(testString)))
+ 	}
+ 	check(t, "TestLargeByteReads (3)", &buf, "")
+@@ -274,7 +274,7 @@ func TestNil(t *testing.T) {
+ func TestReadFrom(t *testing.T) {
+ 	var buf Buffer
+ 	for i := 3; i < 30; i += 3 {
+-		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
++		s := fillBytes(t, "TestReadFrom (1)", &buf, "", 5, testBytes[:len(testBytes)/i])
+ 		var b Buffer
+ 		b.ReadFrom(&buf)
+ 		empty(t, "TestReadFrom (2)", &b, s, make([]byte, len(testString)))
+@@ -337,7 +337,7 @@ func TestReadFromNegativeReader(t *testing.T) {
+ func TestWriteTo(t *testing.T) {
+ 	var buf Buffer
+ 	for i := 3; i < 30; i += 3 {
+-		s := fillBytes(t, "TestWriteTo (1)", &buf, "", 5, testBytes[0:len(testBytes)/i])
++		s := fillBytes(t, "TestWriteTo (1)", &buf, "", 5, testBytes[:len(testBytes)/i])
+ 		var b Buffer
+ 		buf.WriteTo(&b)
+ 		empty(t, "TestWriteTo (2)", &b, s, make([]byte, len(testString)))
+diff --git a/src/bytes/bytes.go b/src/bytes/bytes.go
+index bdb0366897..4a2c9eac57 100644
+--- a/src/bytes/bytes.go
++++ b/src/bytes/bytes.go
+@@ -592,7 +592,7 @@ func Join(s [][]byte, sep []byte) []byte {
+ 
+ // HasPrefix reports whether the byte slice s begins with prefix.
+ func HasPrefix(s, prefix []byte) bool {
+-	return len(s) >= len(prefix) && Equal(s[0:len(prefix)], prefix)
++	return len(s) >= len(prefix) && Equal(s[:len(prefix)], prefix)
+ }
+ 
+ // HasSuffix reports whether the byte slice s ends with suffix.
+diff --git a/src/cmd/internal/notsha256/sha256_test.go b/src/cmd/internal/notsha256/sha256_test.go
+index fa38e56506..771d572efa 100644
+--- a/src/cmd/internal/notsha256/sha256_test.go
++++ b/src/cmd/internal/notsha256/sha256_test.go
+@@ -86,7 +86,7 @@ func TestGolden(t *testing.T) {
+ 			if j < 2 {
+ 				io.WriteString(c, g.in)
+ 			} else {
+-				io.WriteString(c, g.in[0:len(g.in)/2])
++				io.WriteString(c, g.in[:len(g.in)/2])
+ 				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			}
+diff --git a/src/crypto/cipher/ctr_aes_test.go b/src/crypto/cipher/ctr_aes_test.go
+index d019ae0d02..c82a8757ab 100644
+--- a/src/crypto/cipher/ctr_aes_test.go
++++ b/src/crypto/cipher/ctr_aes_test.go
+@@ -80,7 +80,7 @@ func TestCTR_AES(t *testing.T) {
+ 			ctr := cipher.NewCTR(c, tt.iv)
+ 			encrypted := make([]byte, len(in))
+ 			ctr.XORKeyStream(encrypted, in)
+-			if out := tt.out[0:len(in)]; !bytes.Equal(out, encrypted) {
++			if out := tt.out[:len(in)]; !bytes.Equal(out, encrypted) {
+ 				t.Errorf("%s/%d: CTR\ninpt %x\nhave %x\nwant %x", test, len(in), in, encrypted, out)
+ 			}
+ 		}
+@@ -90,7 +90,7 @@ func TestCTR_AES(t *testing.T) {
+ 			ctr := cipher.NewCTR(c, tt.iv)
+ 			plain := make([]byte, len(in))
+ 			ctr.XORKeyStream(plain, in)
+-			if out := tt.in[0:len(in)]; !bytes.Equal(out, plain) {
++			if out := tt.in[:len(in)]; !bytes.Equal(out, plain) {
+ 				t.Errorf("%s/%d: CTRReader\nhave %x\nwant %x", test, len(out), plain, out)
+ 			}
+ 		}
+diff --git a/src/crypto/internal/cryptotest/aead.go b/src/crypto/internal/cryptotest/aead.go
+index e17cdf8cb8..a6107e5419 100644
+--- a/src/crypto/internal/cryptotest/aead.go
++++ b/src/crypto/internal/cryptotest/aead.go
+@@ -204,8 +204,8 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
+ 							out := sealMsg(t, aead, prefix, nonce, plaintext, addData)
+ 
+ 							// Check that Seal didn't alter the prefix
+-							if !bytes.Equal(out[0:len(prefix)], prefix) {
+-								t.Errorf("Seal alters dst instead of appending; got %s, want %s", truncateHex(out[0:len(prefix)]), truncateHex(prefix))
++							if !bytes.Equal(out[:len(prefix)], prefix) {
++								t.Errorf("Seal alters dst instead of appending; got %s, want %s", truncateHex(out[:len(prefix)]), truncateHex(prefix))
+ 							}
+ 
+ 							ciphertext := out[len(prefix):]
+@@ -237,8 +237,8 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
+ 							out := openWithoutError(t, aead, prefix, nonce, ciphertext, addData)
+ 
+ 							// Check that Open didn't alter the prefix
+-							if !bytes.Equal(out[0:len(prefix)], prefix) {
+-								t.Errorf("Open alters dst instead of appending; got %s, want %s", truncateHex(out[0:len(prefix)]), truncateHex(prefix))
++							if !bytes.Equal(out[:len(prefix)], prefix) {
++								t.Errorf("Open alters dst instead of appending; got %s, want %s", truncateHex(out[:len(prefix)]), truncateHex(prefix))
+ 							}
+ 
+ 							after := out[len(prefix):]
+diff --git a/src/crypto/internal/cryptotest/hash.go b/src/crypto/internal/cryptotest/hash.go
+index a950dcb282..f03623dfa2 100644
+--- a/src/crypto/internal/cryptotest/hash.go
++++ b/src/crypto/internal/cryptotest/hash.go
+@@ -39,8 +39,8 @@ func TestHash(t *testing.T, mh MakeHash) {
+ 			sum := getSum(t, h, prefix) // Append new digest to prefix
+ 
+ 			// Check that Sum didn't alter the prefix
+-			if !bytes.Equal(sum[0:len(prefix)], prefix) {
+-				t.Errorf("Sum alters passed buffer instead of appending; got %x, want %x", sum[0:len(prefix)], prefix)
++			if !bytes.Equal(sum[:len(prefix)], prefix) {
++				t.Errorf("Sum alters passed buffer instead of appending; got %x, want %x", sum[:len(prefix)], prefix)
+ 			}
+ 
+ 			// Check that the appended sum wasn't affected by the prefix
+diff --git a/src/crypto/md5/md5_test.go b/src/crypto/md5/md5_test.go
+index c445b10832..6a8258a67e 100644
+--- a/src/crypto/md5/md5_test.go
++++ b/src/crypto/md5/md5_test.go
+@@ -69,7 +69,7 @@ func TestGolden(t *testing.T) {
+ 			if j < 2 {
+ 				io.WriteString(c, g.in)
+ 			} else if j == 2 {
+-				io.WriteString(c, g.in[0:len(g.in)/2])
++				io.WriteString(c, g.in[:len(g.in)/2])
+ 				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			} else if j > 2 {
+diff --git a/src/crypto/sha1/sha1_test.go b/src/crypto/sha1/sha1_test.go
+index 32b01d4dee..d03892c57d 100644
+--- a/src/crypto/sha1/sha1_test.go
++++ b/src/crypto/sha1/sha1_test.go
+@@ -74,7 +74,7 @@ func TestGolden(t *testing.T) {
+ 				io.WriteString(c, g.in)
+ 				sum = c.Sum(nil)
+ 			case 2:
+-				io.WriteString(c, g.in[0:len(g.in)/2])
++				io.WriteString(c, g.in[:len(g.in)/2])
+ 				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 				sum = c.Sum(nil)
+@@ -82,7 +82,7 @@ func TestGolden(t *testing.T) {
+ 				if boring.Enabled {
+ 					continue
+ 				}
+-				io.WriteString(c, g.in[0:len(g.in)/2])
++				io.WriteString(c, g.in[:len(g.in)/2])
+ 				c.(*digest).ConstantTimeSum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 				sum = c.(*digest).ConstantTimeSum(nil)
+diff --git a/src/crypto/sha256/sha256_test.go b/src/crypto/sha256/sha256_test.go
+index 92268f32da..3237c6a73e 100644
+--- a/src/crypto/sha256/sha256_test.go
++++ b/src/crypto/sha256/sha256_test.go
+@@ -104,7 +104,7 @@ func TestGolden(t *testing.T) {
+ 			if j < 2 {
+ 				io.WriteString(c, g.in)
+ 			} else {
+-				io.WriteString(c, g.in[0:len(g.in)/2])
++				io.WriteString(c, g.in[:len(g.in)/2])
+ 				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			}
+@@ -126,7 +126,7 @@ func TestGolden(t *testing.T) {
+ 			if j < 2 {
+ 				io.WriteString(c, g.in)
+ 			} else {
+-				io.WriteString(c, g.in[0:len(g.in)/2])
++				io.WriteString(c, g.in[:len(g.in)/2])
+ 				c.Sum(nil)
+ 				io.WriteString(c, g.in[len(g.in)/2:])
+ 			}
+diff --git a/src/crypto/subtle/constant_time_test.go b/src/crypto/subtle/constant_time_test.go
+index 033301a6e4..c2ccd28ad7 100644
+--- a/src/crypto/subtle/constant_time_test.go
++++ b/src/crypto/subtle/constant_time_test.go
+@@ -78,9 +78,9 @@ func TestConstantTimeEq(t *testing.T) {
+ 
+ func makeCopy(v int, x, y []byte) []byte {
+ 	if len(x) > len(y) {
+-		x = x[0:len(y)]
++		x = x[:len(y)]
+ 	} else {
+-		y = y[0:len(x)]
++		y = y[:len(x)]
+ 	}
+ 	if v == 1 {
+ 		copy(x, y)
+@@ -90,9 +90,9 @@ func makeCopy(v int, x, y []byte) []byte {
+ 
+ func constantTimeCopyWrapper(v int, x, y []byte) []byte {
+ 	if len(x) > len(y) {
+-		x = x[0:len(y)]
++		x = x[:len(y)]
+ 	} else {
+-		y = y[0:len(x)]
++		y = y[:len(x)]
+ 	}
+ 	v &= 1
+ 	ConstantTimeCopy(v, x, y)
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index e8ee74783b..a2c1033991 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -176,7 +176,7 @@ func (p *parser) parseQualifiedNameStr(unquotedName string) (pkgpath, name strin
+ 		name = parts[0]
+ 	default:
+ 		// qualified name, which may contain periods
+-		pkgpath = strings.Join(parts[0:len(parts)-1], ".")
++		pkgpath = strings.Join(parts[:len(parts)-1], ".")
+ 		name = parts[len(parts)-1]
+ 	}
+ 
+diff --git a/src/internal/stringslite/strings.go b/src/internal/stringslite/strings.go
+index 4114b86130..3a09e08cf4 100644
+--- a/src/internal/stringslite/strings.go
++++ b/src/internal/stringslite/strings.go
+@@ -14,7 +14,7 @@ import (
+ )
+ 
+ func HasPrefix(s, prefix string) bool {
+-	return len(s) >= len(prefix) && s[0:len(prefix)] == prefix
++	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
+ }
+ 
+ func HasSuffix(s, suffix string) bool {
+diff --git a/src/math/big/natdiv.go b/src/math/big/natdiv.go
+index b55f9990cd..96a41c0ace 100644
+--- a/src/math/big/natdiv.go
++++ b/src/math/big/natdiv.go
+@@ -602,7 +602,7 @@ func (z nat) divLarge(u, uIn, vIn nat) (q, r nat) {
+ 	v := *vp
+ 	shlVU(v, vIn, shift)
+ 	u = u.make(len(uIn) + 1)
+-	u[len(uIn)] = shlVU(u[0:len(uIn)], uIn, shift)
++	u[len(uIn)] = shlVU(u[:len(uIn)], uIn, shift)
+ 
+ 	// The caller should not pass aliased z and u, since those are
+ 	// the two different outputs, but correct just in case.
+@@ -884,7 +884,7 @@ func (z nat) divRecursiveStep(u, v nat, depth int, tmp *nat, temps []*nat) {
+ 	if qhatv.cmp(u.norm()) > 0 {
+ 		panic("impossible")
+ 	}
+-	c := subVV(u[0:len(qhatv)], u[0:len(qhatv)], qhatv)
++	c := subVV(u[:len(qhatv)], u[:len(qhatv)], qhatv)
+ 	if c > 0 {
+ 		c = subVW(u[len(qhatv):], u[len(qhatv):], c)
+ 	}
+diff --git a/src/net/http/client_test.go b/src/net/http/client_test.go
+index 1faa151647..04e2e32cf0 100644
+--- a/src/net/http/client_test.go
++++ b/src/net/http/client_test.go
+@@ -751,7 +751,7 @@ func testStreamingGet(t *testing.T, mode testMode) {
+ 	var buf [10]byte
+ 	for _, str := range []string{"i", "am", "also", "known", "as", "comet"} {
+ 		say <- str
+-		n, err := io.ReadFull(res.Body, buf[0:len(str)])
++		n, err := io.ReadFull(res.Body, buf[:len(str)])
+ 		if err != nil {
+ 			t.Fatalf("ReadFull on %q: %v", str, err)
+ 		}
+diff --git a/src/regexp/syntax/parse.go b/src/regexp/syntax/parse.go
+index 26242902f1..ed239dafdf 100644
+--- a/src/regexp/syntax/parse.go
++++ b/src/regexp/syntax/parse.go
+@@ -621,7 +621,7 @@ func (p *parser) factor(sub []*Regexp) []*Regexp {
+ 		}
+ 
+ 		// Found end of a run with common leading literal string:
+-		// sub[start:i] all begin with str[0:len(str)], but sub[i]
++		// sub[start:i] all begin with str[:len(str)], but sub[i]
+ 		// does not even begin with str[0].
+ 		//
+ 		// Factor out common string and append factored expression to out.
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index b53419f84b..25c124d291 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -434,7 +434,7 @@ func rotateRight[E any](s []E, r int) {
+ 	rotateLeft(s, len(s)-r)
+ }
+ 
+-// overlaps reports whether the memory ranges a[0:len(a)] and b[0:len(b)] overlap.
++// overlaps reports whether the memory ranges a[:len(a)] and b[:len(b)] overlap.
+ func overlaps[E any](a, b []E) bool {
+ 	if len(a) == 0 || len(b) == 0 {
+ 		return false
+diff --git a/src/time/format.go b/src/time/format.go
+index c8cb9c65bc..cab78f73a0 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -405,7 +405,7 @@ func match(s1, s2 string) bool {
+ 
+ func lookup(tab []string, val string) (int, string, error) {
+ 	for i, v := range tab {
+-		if len(val) >= len(v) && match(val[0:len(v)], v) {
++		if len(val) >= len(v) && match(val[:len(v)], v) {
+ 			return i, val[len(v):], nil
+ 		}
+ 	}
+diff --git a/src/unicode/utf8/utf8_test.go b/src/unicode/utf8/utf8_test.go
+index fa23419b36..2adec97541 100644
+--- a/src/unicode/utf8/utf8_test.go
++++ b/src/unicode/utf8/utf8_test.go
+@@ -170,7 +170,7 @@ func TestDecodeRune(t *testing.T) {
+ 		}
+ 		r, size = DecodeRune(b[0 : len(b)-1])
+ 		if r != RuneError || size != wantsize {
+-			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b[0:len(b)-1], r, size, RuneError, wantsize)
++			t.Errorf("DecodeRune(%q) = %#04x, %d want %#04x, %d", b[:len(b)-1], r, size, RuneError, wantsize)
+ 		}
+ 		s = m.str[0 : len(m.str)-1]
+ 		r, size = DecodeRuneInString(s)

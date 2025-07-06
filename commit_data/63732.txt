@@ -1,0 +1,29 @@
+commit cc1479653db6f4fc9504773a74c139008e1a37f7
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Sun May 12 15:37:41 2024 +0200
+
+    slices: fix punctuation in the documentation of Values
+    
+    Change-Id: Idea4f92d511b5f18531758667cb0cb5ed6f91a0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584359
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/slices/iter.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/slices/iter.go b/src/slices/iter.go
+index a0f642e423..131cece3a0 100644
+--- a/src/slices/iter.go
++++ b/src/slices/iter.go
+@@ -33,7 +33,7 @@ func Backward[Slice ~[]E, E any](s Slice) iter.Seq2[int, E] {
+ 	}
+ }
+ 
+-// Values returns an iterator over the slice elements.
++// Values returns an iterator over the slice elements,
+ // starting with s[0].
+ func Values[Slice ~[]E, E any](s Slice) iter.Seq[E] {
+ 	return func(yield func(E) bool) {

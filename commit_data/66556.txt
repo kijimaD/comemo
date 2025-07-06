@@ -1,0 +1,34 @@
+commit c1c7e5902fda622d5d5870ed045407a9acd5666b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Wed Feb 26 21:03:15 2025 +1100
+
+    test/codegen: tighten the TrailingZeros64 test on 386
+    
+    Make the TrailingZeros64 code generation check more specific for 386.
+    Just checking for BSFL will match both the generic 64 bit decomposition
+    and the custom 386 lowering.
+    
+    Change-Id: I62076f1889af0ef1f29704cba01ab419cae0c6e3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656996
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ test/codegen/mathbits.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/test/codegen/mathbits.go b/test/codegen/mathbits.go
+index 78556c636f..1cee39283d 100644
+--- a/test/codegen/mathbits.go
++++ b/test/codegen/mathbits.go
+@@ -372,7 +372,7 @@ func TrailingZeros(n uint) int {
+ func TrailingZeros64(n uint64) int {
+ 	// amd64/v1,amd64/v2:"BSFQ","MOVL\t\\$64","CMOVQEQ"
+ 	// amd64/v3:"TZCNTQ"
+-	// 386:"BSFL"
++	// 386:"BSFL","JNE"
+ 	// arm64:"RBIT","CLZ"
+ 	// loong64:"CTZV"
+ 	// s390x:"FLOGR"

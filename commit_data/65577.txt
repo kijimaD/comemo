@@ -1,0 +1,2238 @@
+commit 93fcd8fb1882b55b3456aa753d32a2cf3d369b1c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Nov 20 12:27:12 2024 +0100
+
+    crypto/rsa: move implementation to crypto/internal/fips/rsa
+    
+    Key generation is still missing and will come in a follow-up CL.
+    
+    For #69536
+    
+    Change-Id: Ia17754fe31a39a48710673b51e30ca3125b19a20
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629937
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/crypto/internal/boring/rsa.go              |   2 +-
+ src/crypto/internal/fips/rsa/cast.go           | 242 ++++++++++++++++++
+ src/crypto/internal/fips/rsa/pkcs1v15.go       | 129 ++++++++++
+ src/crypto/{ => internal/fips}/rsa/pkcs1v22.go | 327 +++++++++----------------
+ src/crypto/internal/fips/rsa/pkcs1v22_test.go  |  64 +++++
+ src/crypto/internal/fips/rsa/rsa.go            | 218 +++++++++++++++++
+ src/crypto/internal/fipstest/cast_test.go      |   4 +-
+ src/crypto/rsa/fips.go                         | 302 +++++++++++++++++++++++
+ src/crypto/rsa/pkcs1v15.go                     | 159 ++----------
+ src/crypto/rsa/pss_test.go                     |  91 ++-----
+ src/crypto/rsa/rsa.go                          | 189 ++++----------
+ src/crypto/rsa/rsa_export_test.go              |   3 -
+ src/crypto/rsa/rsa_test.go                     |   4 +
+ src/go/build/deps_test.go                      |   1 +
+ 14 files changed, 1162 insertions(+), 573 deletions(-)
+
+diff --git a/src/crypto/internal/boring/rsa.go b/src/crypto/internal/boring/rsa.go
+index 5ca86aa042..a7fb1b5608 100644
+--- a/src/crypto/internal/boring/rsa.go
++++ b/src/crypto/internal/boring/rsa.go
+@@ -252,7 +252,7 @@ func encrypt(ctx *C.GO_EVP_PKEY_CTX, out *C.uint8_t, outLen *C.size_t, in *C.uin
+ 	return C._goboringcrypto_EVP_PKEY_encrypt(ctx, out, outLen, in, inLen)
+ }
+ 
+-var invalidSaltLenErr = errors.New("crypto/rsa: PSSOptions.SaltLength cannot be negative")
++var invalidSaltLenErr = errors.New("crypto/rsa: invalid PSS salt length")
+ 
+ func SignRSAPSS(priv *PrivateKeyRSA, h crypto.Hash, hashed []byte, saltLen int) ([]byte, error) {
+ 	md := cryptoHashToMD(h)
+diff --git a/src/crypto/internal/fips/rsa/cast.go b/src/crypto/internal/fips/rsa/cast.go
+new file mode 100644
+index 0000000000..41666e6a0b
+--- /dev/null
++++ b/src/crypto/internal/fips/rsa/cast.go
+@@ -0,0 +1,242 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rsa
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"crypto/internal/fips/bigmod"
++	_ "crypto/internal/fips/check"
++	"errors"
++	"sync"
++)
++
++func testPrivateKey() *PrivateKey {
++	// https://www.rfc-editor.org/rfc/rfc9500.html#section-2.1
++	N, _ := bigmod.NewModulus([]byte{
++		0xB0, 0xF9, 0xE8, 0x19, 0x43, 0xA7, 0xAE, 0x98,
++		0x92, 0xAA, 0xDE, 0x17, 0xCA, 0x7C, 0x40, 0xF8,
++		0x74, 0x4F, 0xED, 0x2F, 0x81, 0x48, 0xE6, 0xC8,
++		0xEA, 0xA2, 0x7B, 0x7D, 0x00, 0x15, 0x48, 0xFB,
++		0x51, 0x92, 0xAB, 0x28, 0xB5, 0x6C, 0x50, 0x60,
++		0xB1, 0x18, 0xCC, 0xD1, 0x31, 0xE5, 0x94, 0x87,
++		0x4C, 0x6C, 0xA9, 0x89, 0xB5, 0x6C, 0x27, 0x29,
++		0x6F, 0x09, 0xFB, 0x93, 0xA0, 0x34, 0xDF, 0x32,
++		0xE9, 0x7C, 0x6F, 0xF0, 0x99, 0x8C, 0xFD, 0x8E,
++		0x6F, 0x42, 0xDD, 0xA5, 0x8A, 0xCD, 0x1F, 0xA9,
++		0x79, 0x86, 0xF1, 0x44, 0xF3, 0xD1, 0x54, 0xD6,
++		0x76, 0x50, 0x17, 0x5E, 0x68, 0x54, 0xB3, 0xA9,
++		0x52, 0x00, 0x3B, 0xC0, 0x68, 0x87, 0xB8, 0x45,
++		0x5A, 0xC2, 0xB1, 0x9F, 0x7B, 0x2F, 0x76, 0x50,
++		0x4E, 0xBC, 0x98, 0xEC, 0x94, 0x55, 0x71, 0xB0,
++		0x78, 0x92, 0x15, 0x0D, 0xDC, 0x6A, 0x74, 0xCA,
++		0x0F, 0xBC, 0xD3, 0x54, 0x97, 0xCE, 0x81, 0x53,
++		0x4D, 0xAF, 0x94, 0x18, 0x84, 0x4B, 0x13, 0xAE,
++		0xA3, 0x1F, 0x9D, 0x5A, 0x6B, 0x95, 0x57, 0xBB,
++		0xDF, 0x61, 0x9E, 0xFD, 0x4E, 0x88, 0x7F, 0x2D,
++		0x42, 0xB8, 0xDD, 0x8B, 0xC9, 0x87, 0xEA, 0xE1,
++		0xBF, 0x89, 0xCA, 0xB8, 0x5E, 0xE2, 0x1E, 0x35,
++		0x63, 0x05, 0xDF, 0x6C, 0x07, 0xA8, 0x83, 0x8E,
++		0x3E, 0xF4, 0x1C, 0x59, 0x5D, 0xCC, 0xE4, 0x3D,
++		0xAF, 0xC4, 0x91, 0x23, 0xEF, 0x4D, 0x8A, 0xBB,
++		0xA9, 0x3D, 0x39, 0x05, 0xE4, 0x02, 0x8D, 0x7B,
++		0xA9, 0x14, 0x84, 0xA2, 0x75, 0x96, 0xE0, 0x7B,
++		0x4B, 0x6E, 0xD9, 0x92, 0xF0, 0x77, 0xB5, 0x24,
++		0xD3, 0xDC, 0xFE, 0x7D, 0xDD, 0x55, 0x49, 0xBE,
++		0x7C, 0xCE, 0x8D, 0xA0, 0x35, 0xCF, 0xA0, 0xB3,
++		0xFB, 0x8F, 0x9E, 0x46, 0xF7, 0x32, 0xB2, 0xA8,
++		0x6B, 0x46, 0x01, 0x65, 0xC0, 0x8F, 0x53, 0x13})
++	d, _ := bigmod.NewNat().SetBytes([]byte{
++		0x41, 0x18, 0x8B, 0x20, 0xCF, 0xDB, 0xDB, 0xC2,
++		0xCF, 0x1F, 0xFE, 0x75, 0x2D, 0xCB, 0xAA, 0x72,
++		0x39, 0x06, 0x35, 0x2E, 0x26, 0x15, 0xD4, 0x9D,
++		0xCE, 0x80, 0x59, 0x7F, 0xCF, 0x0A, 0x05, 0x40,
++		0x3B, 0xEF, 0x00, 0xFA, 0x06, 0x51, 0x82, 0xF7,
++		0x2D, 0xEC, 0xFB, 0x59, 0x6F, 0x4B, 0x0C, 0xE8,
++		0xFF, 0x59, 0x70, 0xBA, 0xF0, 0x7A, 0x89, 0xA5,
++		0x19, 0xEC, 0xC8, 0x16, 0xB2, 0xF4, 0xFF, 0xAC,
++		0x50, 0x69, 0xAF, 0x1B, 0x06, 0xBF, 0xEF, 0x7B,
++		0xF6, 0xBC, 0xD7, 0x9E, 0x4E, 0x81, 0xC8, 0xC5,
++		0xA3, 0xA7, 0xD9, 0x13, 0x0D, 0xC3, 0xCF, 0xBA,
++		0xDA, 0xE5, 0xF6, 0xD2, 0x88, 0xF9, 0xAE, 0xE3,
++		0xF6, 0xFF, 0x92, 0xFA, 0xE0, 0xF8, 0x1A, 0xF5,
++		0x97, 0xBE, 0xC9, 0x6A, 0xE9, 0xFA, 0xB9, 0x40,
++		0x2C, 0xD5, 0xFE, 0x41, 0xF7, 0x05, 0xBE, 0xBD,
++		0xB4, 0x7B, 0xB7, 0x36, 0xD3, 0xFE, 0x6C, 0x5A,
++		0x51, 0xE0, 0xE2, 0x07, 0x32, 0xA9, 0x7B, 0x5E,
++		0x46, 0xC1, 0xCB, 0xDB, 0x26, 0xD7, 0x48, 0x54,
++		0xC6, 0xB6, 0x60, 0x4A, 0xED, 0x46, 0x37, 0x35,
++		0xFF, 0x90, 0x76, 0x04, 0x65, 0x57, 0xCA, 0xF9,
++		0x49, 0xBF, 0x44, 0x88, 0x95, 0xC2, 0x04, 0x32,
++		0xC1, 0xE0, 0x9C, 0x01, 0x4E, 0xA7, 0x56, 0x60,
++		0x43, 0x4F, 0x1A, 0x0F, 0x3B, 0xE2, 0x94, 0xBA,
++		0xBC, 0x5D, 0x53, 0x0E, 0x6A, 0x10, 0x21, 0x3F,
++		0x53, 0xB6, 0x03, 0x75, 0xFC, 0x84, 0xA7, 0x57,
++		0x3F, 0x2A, 0xF1, 0x21, 0x55, 0x84, 0xF5, 0xB4,
++		0xBD, 0xA6, 0xD4, 0xE8, 0xF9, 0xE1, 0x7A, 0x78,
++		0xD9, 0x7E, 0x77, 0xB8, 0x6D, 0xA4, 0xA1, 0x84,
++		0x64, 0x75, 0x31, 0x8A, 0x7A, 0x10, 0xA5, 0x61,
++		0x01, 0x4E, 0xFF, 0xA2, 0x3A, 0x81, 0xEC, 0x56,
++		0xE9, 0xE4, 0x10, 0x9D, 0xEF, 0x8C, 0xB3, 0xF7,
++		0x97, 0x22, 0x3F, 0x7D, 0x8D, 0x0D, 0x43, 0x51}, N)
++	p, _ := bigmod.NewModulus([]byte{
++		0xDD, 0x10, 0x57, 0x02, 0x38, 0x2F, 0x23, 0x2B,
++		0x36, 0x81, 0xF5, 0x37, 0x91, 0xE2, 0x26, 0x17,
++		0xC7, 0xBF, 0x4E, 0x9A, 0xCB, 0x81, 0xED, 0x48,
++		0xDA, 0xF6, 0xD6, 0x99, 0x5D, 0xA3, 0xEA, 0xB6,
++		0x42, 0x83, 0x9A, 0xFF, 0x01, 0x2D, 0x2E, 0xA6,
++		0x28, 0xB9, 0x0A, 0xF2, 0x79, 0xFD, 0x3E, 0x6F,
++		0x7C, 0x93, 0xCD, 0x80, 0xF0, 0x72, 0xF0, 0x1F,
++		0xF2, 0x44, 0x3B, 0x3E, 0xE8, 0xF2, 0x4E, 0xD4,
++		0x69, 0xA7, 0x96, 0x13, 0xA4, 0x1B, 0xD2, 0x40,
++		0x20, 0xF9, 0x2F, 0xD1, 0x10, 0x59, 0xBD, 0x1D,
++		0x0F, 0x30, 0x1B, 0x5B, 0xA7, 0xA9, 0xD3, 0x63,
++		0x7C, 0xA8, 0xD6, 0x5C, 0x1A, 0x98, 0x15, 0x41,
++		0x7D, 0x8E, 0xAB, 0x73, 0x4B, 0x0B, 0x4F, 0x3A,
++		0x2C, 0x66, 0x1D, 0x9A, 0x1A, 0x82, 0xF3, 0xAC,
++		0x73, 0x4C, 0x40, 0x53, 0x06, 0x69, 0xAB, 0x8E,
++		0x47, 0x30, 0x45, 0xA5, 0x8E, 0x65, 0x53, 0x9D})
++	q, _ := bigmod.NewModulus([]byte{
++		0xCC, 0xF1, 0xE5, 0xBB, 0x90, 0xC8, 0xE9, 0x78,
++		0x1E, 0xA7, 0x5B, 0xEB, 0xF1, 0x0B, 0xC2, 0x52,
++		0xE1, 0x1E, 0xB0, 0x23, 0xA0, 0x26, 0x0F, 0x18,
++		0x87, 0x55, 0x2A, 0x56, 0x86, 0x3F, 0x4A, 0x64,
++		0x21, 0xE8, 0xC6, 0x00, 0xBF, 0x52, 0x3D, 0x6C,
++		0xB1, 0xB0, 0xAD, 0xBD, 0xD6, 0x5B, 0xFE, 0xE4,
++		0xA8, 0x8A, 0x03, 0x7E, 0x3D, 0x1A, 0x41, 0x5E,
++		0x5B, 0xB9, 0x56, 0x48, 0xDA, 0x5A, 0x0C, 0xA2,
++		0x6B, 0x54, 0xF4, 0xA6, 0x39, 0x48, 0x52, 0x2C,
++		0x3D, 0x5F, 0x89, 0xB9, 0x4A, 0x72, 0xEF, 0xFF,
++		0x95, 0x13, 0x4D, 0x59, 0x40, 0xCE, 0x45, 0x75,
++		0x8F, 0x30, 0x89, 0x80, 0x90, 0x89, 0x56, 0x58,
++		0x8E, 0xEF, 0x57, 0x5B, 0x3E, 0x4B, 0xC4, 0xC3,
++		0x68, 0xCF, 0xE8, 0x13, 0xEE, 0x9C, 0x25, 0x2C,
++		0x2B, 0x02, 0xE0, 0xDF, 0x91, 0xF1, 0xAA, 0x01,
++		0x93, 0x8D, 0x38, 0x68, 0x5D, 0x60, 0xBA, 0x6F})
++	qInv, _ := bigmod.NewNat().SetBytes([]byte{
++		0x0A, 0x81, 0xD8, 0xA6, 0x18, 0x31, 0x4A, 0x80,
++		0x3A, 0xF6, 0x1C, 0x06, 0x71, 0x1F, 0x2C, 0x39,
++		0xB2, 0x66, 0xFF, 0x41, 0x4D, 0x53, 0x47, 0x6D,
++		0x1D, 0xA5, 0x2A, 0x43, 0x18, 0xAA, 0xFE, 0x4B,
++		0x96, 0xF0, 0xDA, 0x07, 0x15, 0x5F, 0x8A, 0x51,
++		0x34, 0xDA, 0xB8, 0x8E, 0xE2, 0x9E, 0x81, 0x68,
++		0x07, 0x6F, 0xCD, 0x78, 0xCA, 0x79, 0x1A, 0xC6,
++		0x34, 0x42, 0xA8, 0x1C, 0xD0, 0x69, 0x39, 0x27,
++		0xD8, 0x08, 0xE3, 0x35, 0xE8, 0xD8, 0xCB, 0xF2,
++		0x12, 0x19, 0x07, 0x50, 0x9A, 0x57, 0x75, 0x9B,
++		0x4F, 0x9A, 0x18, 0xFA, 0x3A, 0x7B, 0x33, 0x37,
++		0x79, 0xED, 0xDE, 0x7A, 0x45, 0x93, 0x84, 0xF8,
++		0x44, 0x4A, 0xDA, 0xEC, 0xFF, 0xEC, 0x95, 0xFD,
++		0x55, 0x2B, 0x0C, 0xFC, 0xB6, 0xC7, 0xF6, 0x92,
++		0x62, 0x6D, 0xDE, 0x1E, 0xF2, 0x68, 0xA4, 0x0D,
++		0x2F, 0x67, 0xB5, 0xC8, 0xAA, 0x38, 0x7F, 0xF7}, p)
++	dP := []byte{
++		0x09, 0xED, 0x54, 0xEA, 0xED, 0x98, 0xF8, 0x4C,
++		0x55, 0x7B, 0x4A, 0x86, 0xBF, 0x4F, 0x57, 0x84,
++		0x93, 0xDC, 0xBC, 0x6B, 0xE9, 0x1D, 0xA1, 0x89,
++		0x37, 0x04, 0x04, 0xA9, 0x08, 0x72, 0x76, 0xF4,
++		0xCE, 0x51, 0xD8, 0xA1, 0x00, 0xED, 0x85, 0x7D,
++		0xC2, 0xB0, 0x64, 0x94, 0x74, 0xF3, 0xF1, 0x5C,
++		0xD2, 0x4C, 0x54, 0xDB, 0x28, 0x71, 0x10, 0xE5,
++		0x6E, 0x5C, 0xB0, 0x08, 0x68, 0x2F, 0x91, 0x68,
++		0xAA, 0x81, 0xF3, 0x14, 0x58, 0xB7, 0x43, 0x1E,
++		0xCC, 0x1C, 0x44, 0x90, 0x6F, 0xDA, 0x87, 0xCA,
++		0x89, 0x47, 0x10, 0xC3, 0x71, 0xE9, 0x07, 0x6C,
++		0x1D, 0x49, 0xFB, 0xAE, 0x51, 0x27, 0x69, 0x34,
++		0xF2, 0xAD, 0x78, 0x77, 0x89, 0xF4, 0x2D, 0x0F,
++		0xA0, 0xB4, 0xC9, 0x39, 0x85, 0x5D, 0x42, 0x12,
++		0x09, 0x6F, 0x70, 0x28, 0x0A, 0x4E, 0xAE, 0x7C,
++		0x8A, 0x27, 0xD9, 0xC8, 0xD0, 0x77, 0x2E, 0x65}
++	dQ := []byte{
++		0x8C, 0xB6, 0x85, 0x7A, 0x7B, 0xD5, 0x46, 0x5F,
++		0x80, 0x04, 0x7E, 0x9B, 0x87, 0xBC, 0x00, 0x27,
++		0x31, 0x84, 0x05, 0x81, 0xE0, 0x62, 0x61, 0x39,
++		0x01, 0x2A, 0x5B, 0x50, 0x5F, 0x0A, 0x33, 0x84,
++		0x7E, 0xB7, 0xB8, 0xC3, 0x28, 0x99, 0x49, 0xAD,
++		0x48, 0x6F, 0x3B, 0x4B, 0x3D, 0x53, 0x9A, 0xB5,
++		0xDA, 0x76, 0x30, 0x21, 0xCB, 0xC8, 0x2C, 0x1B,
++		0xA2, 0x34, 0xA5, 0x66, 0x8D, 0xED, 0x08, 0x01,
++		0xB8, 0x59, 0xF3, 0x43, 0xF1, 0xCE, 0x93, 0x04,
++		0xE6, 0xFA, 0xA2, 0xB0, 0x02, 0xCA, 0xD9, 0xB7,
++		0x8C, 0xDE, 0x5C, 0xDC, 0x2C, 0x1F, 0xB4, 0x17,
++		0x1C, 0x42, 0x42, 0x16, 0x70, 0xA6, 0xAB, 0x0F,
++		0x50, 0xCC, 0x4A, 0x19, 0x4E, 0xB3, 0x6D, 0x1C,
++		0x91, 0xE9, 0x35, 0xBA, 0x01, 0xB9, 0x59, 0xD8,
++		0x72, 0x8B, 0x9E, 0x64, 0x42, 0x6B, 0x3F, 0xC3,
++		0xA7, 0x50, 0x6D, 0xEB, 0x52, 0x39, 0xA8, 0xA7}
++	return &PrivateKey{
++		pub: PublicKey{
++			N: N, E: 65537,
++		},
++		d: d, p: p, q: q, qInv: qInv, dP: dP, dQ: dQ,
++	}
++
++}
++
++func testHash() []byte {
++	return []byte{
++		0x17, 0x1b, 0x1f, 0x5e, 0x9f, 0x8f, 0x8c, 0x5c,
++		0x42, 0xe8, 0x06, 0x59, 0x7b, 0x54, 0xc7, 0xb4,
++		0x49, 0x05, 0xa1, 0xdb, 0x3a, 0x3c, 0x31, 0xd3,
++		0xb7, 0x56, 0x45, 0x8c, 0xc2, 0xd6, 0x88, 0x62,
++	}
++}
++
++var fipsSelfTest = sync.OnceFunc(func() {
++	fips.CAST("RSASSA-PKCS-v1.5 2048-bit sign and verify", func() error {
++		k := testPrivateKey()
++		hash := []byte{
++			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
++			0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
++			0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
++			0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
++		}
++		want := []byte{
++			0x16, 0x98, 0x33, 0xc7, 0x30, 0x2c, 0x0a, 0xdc,
++			0x0a, 0x8d, 0x02, 0x58, 0xeb, 0xf9, 0x7d, 0xb6,
++			0x2a, 0xad, 0xee, 0x63, 0x72, 0xaa, 0x37, 0x2c,
++			0xb3, 0x06, 0x04, 0xdf, 0xdb, 0x2b, 0xbc, 0xb1,
++			0x76, 0x3e, 0xeb, 0x87, 0xef, 0x91, 0xef, 0x74,
++			0x69, 0x62, 0x27, 0xf3, 0x24, 0xf8, 0xe7, 0x0e,
++			0xb2, 0x15, 0x3f, 0xa2, 0x4d, 0xe2, 0x0c, 0xd4,
++			0xdc, 0x2d, 0xc1, 0x1a, 0x84, 0x7c, 0x88, 0x80,
++			0xb9, 0xa9, 0x23, 0x67, 0x39, 0x2e, 0x86, 0xc0,
++			0x53, 0x9b, 0xc1, 0x35, 0xb3, 0x17, 0x5e, 0x62,
++			0x95, 0xd6, 0xbc, 0x2a, 0xa6, 0xb1, 0xcf, 0x8f,
++			0x99, 0x43, 0x1f, 0x3d, 0xd2, 0x70, 0x3f, 0x01,
++			0x37, 0x2b, 0xdd, 0x69, 0x1a, 0x5c, 0x2b, 0x04,
++			0x70, 0x92, 0xea, 0x2d, 0x86, 0x00, 0xcb, 0x79,
++			0xca, 0xaf, 0xa4, 0x1c, 0xd9, 0x61, 0x21, 0x3b,
++			0x1e, 0xc5, 0x88, 0xfb, 0xff, 0xbd, 0xc7, 0x3c,
++			0x36, 0xa1, 0xc6, 0x85, 0x03, 0xaf, 0x47, 0x4f,
++			0x42, 0x9e, 0x23, 0x65, 0x24, 0x69, 0x17, 0xdb,
++			0xe7, 0xb7, 0xdc, 0x51, 0xc6, 0x30, 0x40, 0x32,
++			0x4f, 0x71, 0xf1, 0x62, 0x2d, 0xaa, 0x98, 0xdb,
++			0x11, 0x14, 0xf9, 0x9c, 0x35, 0xc3, 0x16, 0xe1,
++			0x1a, 0xd1, 0x8c, 0x4d, 0x8c, 0xad, 0x06, 0x34,
++			0xd2, 0x84, 0x97, 0xa4, 0x0b, 0x6e, 0x6d, 0x19,
++			0x9f, 0xa7, 0x40, 0x1e, 0xb5, 0xfc, 0x4e, 0x12,
++			0x08, 0xec, 0xf4, 0x07, 0x13, 0xdc, 0x5a, 0x8c,
++			0xd5, 0x2a, 0xd6, 0x5a, 0x2c, 0xc9, 0x54, 0x84,
++			0x78, 0x34, 0x8f, 0x11, 0xfb, 0x6e, 0xd4, 0x27,
++			0x45, 0xd9, 0xfa, 0x90, 0x82, 0x83, 0x73, 0x22,
++			0x15, 0xab, 0x96, 0x13, 0x0d, 0x52, 0x1c, 0xdc,
++			0x17, 0xde, 0x12, 0x6f, 0x84, 0x46, 0xbb, 0xec,
++			0xe3, 0xb1, 0xa1, 0x5d, 0x8b, 0xeb, 0xe6, 0xae,
++			0x02, 0xb8, 0x76, 0x47, 0x76, 0x11, 0x61, 0x2b,
++		}
++		sig, err := signPKCS1v15(k, "SHA-256", hash)
++		if err != nil {
++			return err
++		}
++		if err := verifyPKCS1v15(k.PublicKey(), "SHA-256", hash, sig); err != nil {
++			return err
++		}
++		if !bytes.Equal(sig, want) {
++			return errors.New("unexpected result")
++		}
++		return nil
++	})
++})
+diff --git a/src/crypto/internal/fips/rsa/pkcs1v15.go b/src/crypto/internal/fips/rsa/pkcs1v15.go
+new file mode 100644
+index 0000000000..b52471bc01
+--- /dev/null
++++ b/src/crypto/internal/fips/rsa/pkcs1v15.go
+@@ -0,0 +1,129 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rsa
++
++// This file implements signing and verification using PKCS #1 v1.5 signatures.
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"errors"
++)
++
++// These are ASN1 DER structures:
++//
++//	DigestInfo ::= SEQUENCE {
++//	  digestAlgorithm AlgorithmIdentifier,
++//	  digest OCTET STRING
++//	}
++//
++// For performance, we don't use the generic ASN1 encoder. Rather, we
++// precompute a prefix of the digest value that makes a valid ASN1 DER string
++// with the correct contents.
++var hashPrefixes = map[string][]byte{
++	"MD5":        {0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10},
++	"SHA-1":      {0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14},
++	"SHA-224":    {0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04, 0x1c},
++	"SHA-256":    {0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20},
++	"SHA-384":    {0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30},
++	"SHA-512":    {0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40},
++	"MD5+SHA1":   {}, // A special TLS case which doesn't use an ASN1 prefix.
++	"RIPEMD-160": {0x30, 0x20, 0x30, 0x08, 0x06, 0x06, 0x28, 0xcf, 0x06, 0x03, 0x00, 0x31, 0x04, 0x14},
++}
++
++// SignPKCS1v15 calculates an RSASSA-PKCS1-v1.5 signature.
++//
++// hash is the name of the hash function as returned by [crypto.Hash.String]
++// or the empty string to indicate that the message is signed directly.
++func SignPKCS1v15(priv *PrivateKey, hash string, hashed []byte) ([]byte, error) {
++	fipsSelfTest()
++	fips.RecordApproved()
++	checkApprovedHashName(hash)
++
++	return signPKCS1v15(priv, hash, hashed)
++}
++
++func signPKCS1v15(priv *PrivateKey, hash string, hashed []byte) ([]byte, error) {
++	em, err := pkcs1v15ConstructEM(&priv.pub, hash, hashed)
++	if err != nil {
++		return nil, err
++	}
++
++	return decrypt(priv, em, withCheck)
++}
++
++func pkcs1v15ConstructEM(pub *PublicKey, hash string, hashed []byte) ([]byte, error) {
++	// Special case: "" is used to indicate that the data is signed directly.
++	var prefix []byte
++	if hash != "" {
++		var ok bool
++		prefix, ok = hashPrefixes[hash]
++		if !ok {
++			return nil, errors.New("crypto/rsa: unsupported hash function")
++		}
++	}
++
++	// EM = 0x00 || 0x01 || PS || 0x00 || T
++	k := pub.Size()
++	if k < len(prefix)+len(hashed)+2+8+1 {
++		return nil, ErrMessageTooLong
++	}
++	em := make([]byte, k)
++	em[1] = 1
++	for i := 2; i < k-len(prefix)-len(hashed)-1; i++ {
++		em[i] = 0xff
++	}
++	copy(em[k-len(prefix)-len(hashed):], prefix)
++	copy(em[k-len(hashed):], hashed)
++	return em, nil
++}
++
++// VerifyPKCS1v15 verifies an RSASSA-PKCS1-v1.5 signature.
++//
++// hash is the name of the hash function as returned by [crypto.Hash.String]
++// or the empty string to indicate that the message is signed directly.
++func VerifyPKCS1v15(pub *PublicKey, hash string, hashed []byte, sig []byte) error {
++	fipsSelfTest()
++	fips.RecordApproved()
++	checkApprovedHashName(hash)
++
++	return verifyPKCS1v15(pub, hash, hashed, sig)
++}
++
++func verifyPKCS1v15(pub *PublicKey, hash string, hashed []byte, sig []byte) error {
++	if err := checkPublicKey(pub); err != nil {
++		return err
++	}
++
++	// RFC 8017 Section 8.2.2: If the length of the signature S is not k
++	// octets (where k is the length in octets of the RSA modulus n), output
++	// "invalid signature" and stop.
++	if pub.Size() != len(sig) {
++		return ErrVerification
++	}
++
++	em, err := encrypt(pub, sig)
++	if err != nil {
++		return ErrVerification
++	}
++
++	expected, err := pkcs1v15ConstructEM(pub, hash, hashed)
++	if err != nil {
++		return ErrVerification
++	}
++	if !bytes.Equal(em, expected) {
++		return ErrVerification
++	}
++
++	return nil
++}
++
++func checkApprovedHashName(hash string) {
++	switch hash {
++	case "SHA-224", "SHA-256", "SHA-384", "SHA-512":
++	default:
++		fips.RecordNonApproved()
++	}
++}
+diff --git a/src/crypto/rsa/pkcs1v22.go b/src/crypto/internal/fips/rsa/pkcs1v22.go
+similarity index 56%
+rename from src/crypto/rsa/pkcs1v22.go
+rename to src/crypto/internal/fips/rsa/pkcs1v22.go
+index 462ee2277c..753d96e7b1 100644
+--- a/src/crypto/rsa/pkcs1v22.go
++++ b/src/crypto/internal/fips/rsa/pkcs1v22.go
+@@ -9,11 +9,13 @@ package rsa
+ 
+ import (
+ 	"bytes"
+-	"crypto"
+-	"crypto/internal/boring"
+-	"crypto/subtle"
++	"crypto/internal/fips"
++	"crypto/internal/fips/drbg"
++	"crypto/internal/fips/sha256"
++	"crypto/internal/fips/sha3"
++	"crypto/internal/fips/sha512"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+-	"hash"
+ 	"io"
+ )
+ 
+@@ -46,16 +48,16 @@ func incCounter(c *[4]byte) {
+ 
+ // mgf1XOR XORs the bytes in out with a mask generated using the MGF1 function
+ // specified in PKCS #1 v2.1.
+-func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
++func mgf1XOR(out []byte, hash fips.Hash, seed []byte) {
+ 	var counter [4]byte
+ 	var digest []byte
+ 
+ 	done := 0
+ 	for done < len(out) {
++		hash.Reset()
+ 		hash.Write(seed)
+ 		hash.Write(counter[0:4])
+ 		digest = hash.Sum(digest[:0])
+-		hash.Reset()
+ 
+ 		for i := 0; i < len(digest) && done < len(out); i++ {
+ 			out[done] ^= digest[i]
+@@ -65,7 +67,7 @@ func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
+ 	}
+ }
+ 
+-func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byte, error) {
++func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash fips.Hash) ([]byte, error) {
+ 	// See RFC 8017, Section 9.1.1.
+ 
+ 	hLen := hash.Size()
+@@ -106,12 +108,12 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
+ 
+ 	var prefix [8]byte
+ 
++	hash.Reset()
+ 	hash.Write(prefix[:])
+ 	hash.Write(mHash)
+ 	hash.Write(salt)
+ 
+ 	h = hash.Sum(h[:0])
+-	hash.Reset()
+ 
+ 	// 7.  Generate an octet string PS consisting of emLen - sLen - hLen - 2
+ 	//     zero octets. The length of PS may be 0.
+@@ -140,13 +142,12 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byt
+ 	return em, nil
+ }
+ 
+-func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
++const pssSaltLengthAutodetect = -1
++
++func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash fips.Hash) error {
+ 	// See RFC 8017, Section 9.1.2.
+ 
+ 	hLen := hash.Size()
+-	if sLen == PSSSaltLengthEqualsHash {
+-		sLen = hLen
+-	}
+ 	emLen := (emBits + 7) / 8
+ 	if emLen != len(em) {
+ 		return errors.New("rsa: internal error: inconsistent length")
+@@ -195,7 +196,7 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
+ 	db[0] &= bitMask
+ 
+ 	// If we don't know the salt length, look for the 0x01 delimiter.
+-	if sLen == PSSSaltLengthAuto {
++	if sLen == pssSaltLengthAutodetect {
+ 		psLen := bytes.IndexByte(db, 0x01)
+ 		if psLen < 0 {
+ 			return ErrVerification
+@@ -203,6 +204,12 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
+ 		sLen = len(db) - psLen - 1
+ 	}
+ 
++	// FIPS 186-5, Section 5.4(g): "the length (in bytes) of the salt (sLen)
++	// shall satisfy 0 ≤ sLen ≤ hLen".
++	if sLen > hLen {
++		fips.RecordNonApproved()
++	}
++
+ 	// 10. If the emLen - hLen - sLen - 2 leftmost octets of DB are not zero
+ 	//     or if the octet at position emLen - hLen - sLen - 1 (the leftmost
+ 	//     position is "position 1") does not have hexadecimal value 0x01,
+@@ -226,6 +233,7 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
+ 	//     initial zero octets.
+ 	//
+ 	// 13. Let H' = Hash(M'), an octet string of length hLen.
++	hash.Reset()
+ 	var prefix [8]byte
+ 	hash.Write(prefix[:])
+ 	hash.Write(mHash)
+@@ -240,29 +248,56 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
+ 	return nil
+ }
+ 
+-// signPSSWithSalt calculates the signature of hashed using PSS with specified salt.
+-// Note that hashed must be the result of hashing the input message using the
+-// given hash function. salt is a random sequence of bytes whose length will be
+-// later used to verify the signature.
+-func signPSSWithSalt(priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) ([]byte, error) {
+-	emBits := priv.N.BitLen() - 1
+-	em, err := emsaPSSEncode(hashed, emBits, salt, hash.New())
+-	if err != nil {
+-		return nil, err
++// PSSMaxSaltLength returns the maximum salt length for a given public key and
++// hash function.
++func PSSMaxSaltLength(pub *PublicKey, hash fips.Hash) (int, error) {
++	saltLength := (pub.N.BitLen()-1+7)/8 - 2 - hash.Size()
++	if saltLength < 0 {
++		return 0, ErrMessageTooLong
+ 	}
++	// FIPS 186-5, Section 5.4(g): "the length (in bytes) of the salt (sLen)
++	// shall satisfy 0 ≤ sLen ≤ hLen".
++	if fips.Enabled && saltLength > hash.Size() {
++		return hash.Size(), nil
++	}
++	return saltLength, nil
++}
+ 
+-	if boring.Enabled {
+-		bkey, err := boringPrivateKey(priv)
+-		if err != nil {
+-			return nil, err
+-		}
+-		// Note: BoringCrypto always does decrypt "withCheck".
+-		// (It's not just decrypt.)
+-		s, err := boring.DecryptRSANoPadding(bkey, em)
+-		if err != nil {
++// SignPSS calculates the signature of hashed using RSASSA-PSS.
++//
++// In FIPS mode, rand is ignored and can be nil.
++func SignPSS(rand io.Reader, priv *PrivateKey, hash fips.Hash, hashed []byte, saltLength int) ([]byte, error) {
++	fipsSelfTest()
++	fips.RecordApproved()
++	checkApprovedHash(hash)
++
++	// Note that while we don't commit to deterministic execution with respect
++	// to the rand stream, we also don't apply MaybeReadByte, so per Hyrum's Law
++	// it's probably relied upon by some. It's a tolerable promise because a
++	// well-specified number of random bytes is included in the signature, in a
++	// well-specified way.
++
++	if saltLength < 0 {
++		return nil, errors.New("crypto/rsa: salt length cannot be negative")
++	}
++	// FIPS 186-5, Section 5.4(g): "the length (in bytes) of the salt (sLen)
++	// shall satisfy 0 ≤ sLen ≤ hLen".
++	if saltLength > hash.Size() {
++		fips.RecordNonApproved()
++	}
++	salt := make([]byte, saltLength)
++	if fips.Enabled {
++		drbg.Read(salt)
++	} else {
++		if _, err := io.ReadFull(rand, salt); err != nil {
+ 			return nil, err
+ 		}
+-		return s, nil
++	}
++
++	emBits := priv.pub.N.BitLen() - 1
++	em, err := emsaPSSEncode(hashed, emBits, salt, hash)
++	if err != nil {
++		return nil, err
+ 	}
+ 
+ 	// RFC 8017: "Note that the octet length of EM will be one less than k if
+@@ -272,7 +307,7 @@ func signPSSWithSalt(priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) ([
+ 	// This is extremely annoying, as all other encrypt and decrypt inputs are
+ 	// always the exact same size as the modulus. Since it only happens for
+ 	// weird modulus sizes, fix it by padding inefficiently.
+-	if emLen, k := len(em), priv.Size(); emLen < k {
++	if emLen, k := len(em), priv.pub.Size(); emLen < k {
+ 		emNew := make([]byte, k)
+ 		copy(emNew[k-emLen:], em)
+ 		em = emNew
+@@ -281,123 +316,30 @@ func signPSSWithSalt(priv *PrivateKey, hash crypto.Hash, hashed, salt []byte) ([
+ 	return decrypt(priv, em, withCheck)
+ }
+ 
+-const (
+-	// PSSSaltLengthAuto causes the salt in a PSS signature to be as large
+-	// as possible when signing, and to be auto-detected when verifying.
+-	PSSSaltLengthAuto = 0
+-	// PSSSaltLengthEqualsHash causes the salt length to equal the length
+-	// of the hash used in the signature.
+-	PSSSaltLengthEqualsHash = -1
+-)
+-
+-// PSSOptions contains options for creating and verifying PSS signatures.
+-type PSSOptions struct {
+-	// SaltLength controls the length of the salt used in the PSS signature. It
+-	// can either be a positive number of bytes, or one of the special
+-	// PSSSaltLength constants.
+-	SaltLength int
+-
+-	// Hash is the hash function used to generate the message digest. If not
+-	// zero, it overrides the hash function passed to SignPSS. It's required
+-	// when using PrivateKey.Sign.
+-	Hash crypto.Hash
+-}
+-
+-// HashFunc returns opts.Hash so that [PSSOptions] implements [crypto.SignerOpts].
+-func (opts *PSSOptions) HashFunc() crypto.Hash {
+-	return opts.Hash
++// VerifyPSS verifies sig with RSASSA-PSS automatically detecting the salt length.
++func VerifyPSS(pub *PublicKey, hash fips.Hash, digest []byte, sig []byte) error {
++	return verifyPSS(pub, hash, digest, sig, pssSaltLengthAutodetect)
+ }
+ 
+-func (opts *PSSOptions) saltLength() int {
+-	if opts == nil {
+-		return PSSSaltLengthAuto
++// VerifyPSS verifies sig with RSASSA-PSS and an expected salt length.
++func VerifyPSSWithSaltLength(pub *PublicKey, hash fips.Hash, digest []byte, sig []byte, saltLength int) error {
++	if saltLength < 0 {
++		return errors.New("crypto/rsa: salt length cannot be negative")
+ 	}
+-	return opts.SaltLength
++	return verifyPSS(pub, hash, digest, sig, saltLength)
+ }
+ 
+-var invalidSaltLenErr = errors.New("crypto/rsa: PSSOptions.SaltLength cannot be negative")
+-
+-// SignPSS calculates the signature of digest using PSS.
+-//
+-// digest must be the result of hashing the input message using the given hash
+-// function. The opts argument may be nil, in which case sensible defaults are
+-// used. If opts.Hash is set, it overrides hash.
+-//
+-// The signature is randomized depending on the message, key, and salt size,
+-// using bytes from rand. Most applications should use [crypto/rand.Reader] as
+-// rand.
+-func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
+-	// Note that while we don't commit to deterministic execution with respect
+-	// to the rand stream, we also don't apply MaybeReadByte, so per Hyrum's Law
+-	// it's probably relied upon by some. It's a tolerable promise because a
+-	// well-specified number of random bytes is included in the signature, in a
+-	// well-specified way.
+-
+-	if opts != nil && opts.Hash != 0 {
+-		hash = opts.Hash
++func verifyPSS(pub *PublicKey, hash fips.Hash, digest []byte, sig []byte, saltLength int) error {
++	fipsSelfTest()
++	fips.RecordApproved()
++	checkApprovedHash(hash)
++	if err := checkPublicKey(pub); err != nil {
++		return err
+ 	}
+ 
+-	if boring.Enabled && rand == boring.RandReader {
+-		bkey, err := boringPrivateKey(priv)
+-		if err != nil {
+-			return nil, err
+-		}
+-		return boring.SignRSAPSS(bkey, hash, digest, opts.saltLength())
+-	}
+-	boring.UnreachableExceptTests()
+-
+-	saltLength := opts.saltLength()
+-	switch saltLength {
+-	case PSSSaltLengthAuto:
+-		saltLength = (priv.N.BitLen()-1+7)/8 - 2 - hash.Size()
+-		if saltLength < 0 {
+-			return nil, ErrMessageTooLong
+-		}
+-	case PSSSaltLengthEqualsHash:
+-		saltLength = hash.Size()
+-	default:
+-		// If we get here saltLength is either > 0 or < -1, in the
+-		// latter case we fail out.
+-		if saltLength <= 0 {
+-			return nil, invalidSaltLenErr
+-		}
+-	}
+-	salt := make([]byte, saltLength)
+-	if _, err := io.ReadFull(rand, salt); err != nil {
+-		return nil, err
+-	}
+-	return signPSSWithSalt(priv, hash, digest, salt)
+-}
+-
+-// VerifyPSS verifies a PSS signature.
+-//
+-// A valid signature is indicated by returning a nil error. digest must be the
+-// result of hashing the input message using the given hash function. The opts
+-// argument may be nil, in which case sensible defaults are used. opts.Hash is
+-// ignored.
+-//
+-// The inputs are not considered confidential, and may leak through timing side
+-// channels, or if an attacker has control of part of the inputs.
+-func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts *PSSOptions) error {
+-	if boring.Enabled {
+-		bkey, err := boringPublicKey(pub)
+-		if err != nil {
+-			return err
+-		}
+-		if err := boring.VerifyRSAPSS(bkey, hash, digest, sig, opts.saltLength()); err != nil {
+-			return ErrVerification
+-		}
+-		return nil
+-	}
+ 	if len(sig) != pub.Size() {
+ 		return ErrVerification
+ 	}
+-	// Salt length must be either one of the special constants (-1 or 0)
+-	// or otherwise positive. If it is < PSSSaltLengthEqualsHash (-1)
+-	// we return an error.
+-	if opts.saltLength() < PSSSaltLengthEqualsHash {
+-		return invalidSaltLenErr
+-	}
+ 
+ 	emBits := pub.N.BitLen() - 1
+ 	emLen := (emBits + 7) / 8
+@@ -418,55 +360,41 @@ func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts
+ 		em = em[1:]
+ 	}
+ 
+-	return emsaPSSVerify(digest, em, emBits, opts.saltLength(), hash.New())
++	return emsaPSSVerify(digest, em, emBits, saltLength, hash)
+ }
+ 
+-// EncryptOAEP encrypts the given message with RSA-OAEP.
+-//
+-// OAEP is parameterised by a hash function that is used as a random oracle.
+-// Encryption and decryption of a given message must use the same hash function
+-// and sha256.New() is a reasonable choice.
+-//
+-// The random parameter is used as a source of entropy to ensure that
+-// encrypting the same message twice doesn't result in the same ciphertext.
+-// Most applications should use [crypto/rand.Reader] as random.
+-//
+-// The label parameter may contain arbitrary data that will not be encrypted,
+-// but which gives important context to the message. For example, if a given
+-// public key is used to encrypt two types of messages then distinct label
+-// values could be used to ensure that a ciphertext for one purpose cannot be
+-// used for another by an attacker. If not required it can be empty.
++func checkApprovedHash(hash fips.Hash) {
++	switch hash.(type) {
++	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
++	default:
++		fips.RecordNonApproved()
++	}
++}
++
++// EncryptOAEP encrypts the given message with RSAES-OAEP.
+ //
+-// The message must be no longer than the length of the public modulus minus
+-// twice the hash length, minus a further 2.
+-func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
++// In FIPS mode, random is ignored and can be nil.
++func EncryptOAEP(hash fips.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+ 	// Note that while we don't commit to deterministic execution with respect
+ 	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
+ 	// Law it's probably relied upon by some. It's a tolerable promise because a
+ 	// well-specified number of random bytes is included in the ciphertext, in a
+ 	// well-specified way.
+ 
+-	if err := checkPub(pub); err != nil {
++	fipsSelfTest()
++	fips.RecordApproved()
++	checkApprovedHash(hash)
++	if err := checkPublicKey(pub); err != nil {
+ 		return nil, err
+ 	}
+-	hash.Reset()
+ 	k := pub.Size()
+ 	if len(msg) > k-2*hash.Size()-2 {
+ 		return nil, ErrMessageTooLong
+ 	}
+ 
+-	if boring.Enabled && random == boring.RandReader {
+-		bkey, err := boringPublicKey(pub)
+-		if err != nil {
+-			return nil, err
+-		}
+-		return boring.EncryptRSAOAEP(hash, hash, bkey, msg, label)
+-	}
+-	boring.UnreachableExceptTests()
+-
++	hash.Reset()
+ 	hash.Write(label)
+ 	lHash := hash.Sum(nil)
+-	hash.Reset()
+ 
+ 	em := make([]byte, k)
+ 	seed := em[1 : 1+hash.Size()]
+@@ -476,70 +404,41 @@ func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, l
+ 	db[len(db)-len(msg)-1] = 1
+ 	copy(db[len(db)-len(msg):], msg)
+ 
+-	_, err := io.ReadFull(random, seed)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	mgf1XOR(db, hash, seed)
+-	mgf1XOR(seed, hash, db)
+-
+-	if boring.Enabled {
+-		var bkey *boring.PublicKeyRSA
+-		bkey, err = boringPublicKey(pub)
++	if fips.Enabled {
++		drbg.Read(seed)
++	} else {
++		_, err := io.ReadFull(random, seed)
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		return boring.EncryptRSANoPadding(bkey, em)
+ 	}
+ 
++	mgf1XOR(db, hash, seed)
++	mgf1XOR(seed, hash, db)
++
+ 	return encrypt(pub, em)
+ }
+ 
+-// DecryptOAEP decrypts ciphertext using RSA-OAEP.
+-//
+-// OAEP is parameterised by a hash function that is used as a random oracle.
+-// Encryption and decryption of a given message must use the same hash function
+-// and sha256.New() is a reasonable choice.
+-//
+-// The random parameter is legacy and ignored, and it can be nil.
+-//
+-// The label parameter must match the value given when encrypting. See
+-// [EncryptOAEP] for details.
+-func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+-	return decryptOAEP(hash, hash, random, priv, ciphertext, label)
+-}
++// DecryptOAEP decrypts ciphertext using RSAES-OAEP.
++func DecryptOAEP(hash, mgfHash fips.Hash, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
++	fipsSelfTest()
++	fips.RecordApproved()
++	checkApprovedHash(hash)
+ 
+-func decryptOAEP(hash, mgfHash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+-	if err := checkPub(&priv.PublicKey); err != nil {
+-		return nil, err
+-	}
+-	k := priv.Size()
++	k := priv.pub.Size()
+ 	if len(ciphertext) > k ||
+ 		k < hash.Size()*2+2 {
+ 		return nil, ErrDecryption
+ 	}
+ 
+-	if boring.Enabled {
+-		bkey, err := boringPrivateKey(priv)
+-		if err != nil {
+-			return nil, err
+-		}
+-		out, err := boring.DecryptRSAOAEP(hash, mgfHash, bkey, ciphertext, label)
+-		if err != nil {
+-			return nil, ErrDecryption
+-		}
+-		return out, nil
+-	}
+-
+ 	em, err := decrypt(priv, ciphertext, noCheck)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 
++	hash.Reset()
+ 	hash.Write(label)
+ 	lHash := hash.Sum(nil)
+-	hash.Reset()
+ 
+ 	firstByteIsZero := subtle.ConstantTimeByteEq(em[0], 0)
+ 
+diff --git a/src/crypto/internal/fips/rsa/pkcs1v22_test.go b/src/crypto/internal/fips/rsa/pkcs1v22_test.go
+new file mode 100644
+index 0000000000..6705a7ee2c
+--- /dev/null
++++ b/src/crypto/internal/fips/rsa/pkcs1v22_test.go
+@@ -0,0 +1,64 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rsa
++
++import (
++	"bytes"
++	"crypto/sha1"
++	"testing"
++)
++
++func TestEMSAPSS(t *testing.T) {
++	// Test vector in file pss-int.txt from: ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-1/pkcs-1v2-1-vec.zip
++	msg := []byte{
++		0x85, 0x9e, 0xef, 0x2f, 0xd7, 0x8a, 0xca, 0x00, 0x30, 0x8b,
++		0xdc, 0x47, 0x11, 0x93, 0xbf, 0x55, 0xbf, 0x9d, 0x78, 0xdb,
++		0x8f, 0x8a, 0x67, 0x2b, 0x48, 0x46, 0x34, 0xf3, 0xc9, 0xc2,
++		0x6e, 0x64, 0x78, 0xae, 0x10, 0x26, 0x0f, 0xe0, 0xdd, 0x8c,
++		0x08, 0x2e, 0x53, 0xa5, 0x29, 0x3a, 0xf2, 0x17, 0x3c, 0xd5,
++		0x0c, 0x6d, 0x5d, 0x35, 0x4f, 0xeb, 0xf7, 0x8b, 0x26, 0x02,
++		0x1c, 0x25, 0xc0, 0x27, 0x12, 0xe7, 0x8c, 0xd4, 0x69, 0x4c,
++		0x9f, 0x46, 0x97, 0x77, 0xe4, 0x51, 0xe7, 0xf8, 0xe9, 0xe0,
++		0x4c, 0xd3, 0x73, 0x9c, 0x6b, 0xbf, 0xed, 0xae, 0x48, 0x7f,
++		0xb5, 0x56, 0x44, 0xe9, 0xca, 0x74, 0xff, 0x77, 0xa5, 0x3c,
++		0xb7, 0x29, 0x80, 0x2f, 0x6e, 0xd4, 0xa5, 0xff, 0xa8, 0xba,
++		0x15, 0x98, 0x90, 0xfc,
++	}
++	salt := []byte{
++		0xe3, 0xb5, 0xd5, 0xd0, 0x02, 0xc1, 0xbc, 0xe5, 0x0c, 0x2b,
++		0x65, 0xef, 0x88, 0xa1, 0x88, 0xd8, 0x3b, 0xce, 0x7e, 0x61,
++	}
++	expected := []byte{
++		0x66, 0xe4, 0x67, 0x2e, 0x83, 0x6a, 0xd1, 0x21, 0xba, 0x24,
++		0x4b, 0xed, 0x65, 0x76, 0xb8, 0x67, 0xd9, 0xa4, 0x47, 0xc2,
++		0x8a, 0x6e, 0x66, 0xa5, 0xb8, 0x7d, 0xee, 0x7f, 0xbc, 0x7e,
++		0x65, 0xaf, 0x50, 0x57, 0xf8, 0x6f, 0xae, 0x89, 0x84, 0xd9,
++		0xba, 0x7f, 0x96, 0x9a, 0xd6, 0xfe, 0x02, 0xa4, 0xd7, 0x5f,
++		0x74, 0x45, 0xfe, 0xfd, 0xd8, 0x5b, 0x6d, 0x3a, 0x47, 0x7c,
++		0x28, 0xd2, 0x4b, 0xa1, 0xe3, 0x75, 0x6f, 0x79, 0x2d, 0xd1,
++		0xdc, 0xe8, 0xca, 0x94, 0x44, 0x0e, 0xcb, 0x52, 0x79, 0xec,
++		0xd3, 0x18, 0x3a, 0x31, 0x1f, 0xc8, 0x96, 0xda, 0x1c, 0xb3,
++		0x93, 0x11, 0xaf, 0x37, 0xea, 0x4a, 0x75, 0xe2, 0x4b, 0xdb,
++		0xfd, 0x5c, 0x1d, 0xa0, 0xde, 0x7c, 0xec, 0xdf, 0x1a, 0x89,
++		0x6f, 0x9d, 0x8b, 0xc8, 0x16, 0xd9, 0x7c, 0xd7, 0xa2, 0xc4,
++		0x3b, 0xad, 0x54, 0x6f, 0xbe, 0x8c, 0xfe, 0xbc,
++	}
++
++	hash := sha1.New()
++	hash.Write(msg)
++	hashed := hash.Sum(nil)
++
++	encoded, err := emsaPSSEncode(hashed, 1023, salt, sha1.New())
++	if err != nil {
++		t.Errorf("Error from emsaPSSEncode: %s\n", err)
++	}
++	if !bytes.Equal(encoded, expected) {
++		t.Errorf("Bad encoding. got %x, want %x", encoded, expected)
++	}
++
++	if err = emsaPSSVerify(hashed, encoded, 1023, len(salt), sha1.New()); err != nil {
++		t.Errorf("Bad verification: %s", err)
++	}
++}
+diff --git a/src/crypto/internal/fips/rsa/rsa.go b/src/crypto/internal/fips/rsa/rsa.go
+new file mode 100644
+index 0000000000..d7a7b03c6d
+--- /dev/null
++++ b/src/crypto/internal/fips/rsa/rsa.go
+@@ -0,0 +1,218 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rsa
++
++import (
++	"crypto/internal/fips"
++	"crypto/internal/fips/bigmod"
++	"errors"
++)
++
++type PublicKey struct {
++	N *bigmod.Modulus
++	E int
++}
++
++// Size returns the modulus size in bytes. Raw signatures and ciphertexts
++// for or by this public key will have the same size.
++func (pub *PublicKey) Size() int {
++	return (pub.N.BitLen() + 7) / 8
++}
++
++type PrivateKey struct {
++	// pub has already been checked with checkPublicKey.
++	pub PublicKey
++	d   *bigmod.Nat
++	// The following values are not set for deprecated multi-prime keys.
++	//
++	// Since they are always set for keys in FIPS mode, for SP 800-56B Rev. 2
++	// purposes we always use the Chinese Remainder Theorem (CRT) format.
++	p, q *bigmod.Modulus // p × q = n
++	// dP and dQ are used as exponents, so we store them as big-endian byte
++	// slices to be passed to [bigmod.Nat.Exp].
++	dP   []byte      // d mod (p – 1)
++	dQ   []byte      // d mod (q – 1)
++	qInv *bigmod.Nat // qInv = q⁻¹ mod p
++}
++
++func (priv *PrivateKey) PublicKey() *PublicKey {
++	return &priv.pub
++}
++
++// NewPrivateKey creates a new RSA private key from the given parameters.
++//
++// All values are in big-endian byte slice format, and may have leading zeros
++// or be shorter if leading zeroes were trimmed.
++//
++// N, e, d, P, and Q are required. dP, dQ, and qInv can be nil and will be
++// precomputed if missing.
++func NewPrivateKey(N []byte, e int, d, P, Q, dP, dQ, qInv []byte) (*PrivateKey, error) {
++	n, err := bigmod.NewModulus(N)
++	if err != nil {
++		return nil, err
++	}
++	p, err := bigmod.NewModulus(P)
++	if err != nil {
++		return nil, err
++	}
++	q, err := bigmod.NewModulus(Q)
++	if err != nil {
++		return nil, err
++	}
++	dN, err := bigmod.NewNat().SetBytes(d, n)
++	if err != nil {
++		return nil, err
++	}
++	// TODO(filippo): implement CRT computation. For now, NewPrivateKey is
++	// always called with CRT values.
++	if dP == nil || dQ == nil || qInv == nil {
++		panic("crypto/internal/fips/rsa: internal error: missing CRT parameters")
++	}
++	qInvN, err := bigmod.NewNat().SetBytes(qInv, p)
++	if err != nil {
++		return nil, err
++	}
++	pk := &PrivateKey{
++		pub: PublicKey{
++			N: n, E: e,
++		},
++		d: dN, p: p, q: q,
++		dP: dP, dQ: dQ, qInv: qInvN,
++	}
++	if err := checkPublicKey(&pk.pub); err != nil {
++		return nil, err
++	}
++	return pk, nil
++}
++
++// NewPrivateKeyWithoutCRT creates a new RSA private key from the given parameters.
++//
++// This is meant for deprecated multi-prime keys, and is not FIPS 140 compliant.
++func NewPrivateKeyWithoutCRT(N []byte, e int, d []byte) (*PrivateKey, error) {
++	n, err := bigmod.NewModulus(N)
++	if err != nil {
++		return nil, err
++	}
++	dN, err := bigmod.NewNat().SetBytes(d, n)
++	if err != nil {
++		return nil, err
++	}
++	pk := &PrivateKey{
++		pub: PublicKey{
++			N: n, E: e,
++		},
++		d: dN,
++	}
++	if err := checkPublicKey(&pk.pub); err != nil {
++		return nil, err
++	}
++	return pk, nil
++}
++
++func checkPublicKey(pub *PublicKey) error {
++	if pub.N == nil {
++		return errors.New("crypto/rsa: missing public modulus")
++	}
++	if pub.N.BitLen() < 2048 || pub.N.BitLen() > 16384 {
++		fips.RecordNonApproved()
++	}
++	if pub.E < 2 {
++		return errors.New("crypto/rsa: public exponent too small or negative")
++	}
++	// FIPS 186-5, Section 5.5(e): "The exponent e shall be an odd, positive
++	// integer such that 2¹⁶ < e < 2²⁵⁶."
++	if pub.E <= 1<<16 || pub.E&1 == 0 {
++		fips.RecordNonApproved()
++	}
++	// We require pub.E to fit into a 32-bit integer so that we
++	// do not have different behavior depending on whether
++	// int is 32 or 64 bits. See also
++	// https://www.imperialviolet.org/2012/03/16/rsae.html.
++	if pub.E > 1<<31-1 {
++		return errors.New("crypto/rsa: public exponent too large")
++	}
++	return nil
++}
++
++// Encrypt performs the RSA public key operation.
++func Encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
++	fips.RecordNonApproved()
++	if err := checkPublicKey(pub); err != nil {
++		return nil, err
++	}
++	return encrypt(pub, plaintext)
++}
++
++func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
++	m, err := bigmod.NewNat().SetBytes(plaintext, pub.N)
++	if err != nil {
++		return nil, err
++	}
++	return bigmod.NewNat().ExpShortVarTime(m, uint(pub.E), pub.N).Bytes(pub.N), nil
++}
++
++var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key size")
++var ErrDecryption = errors.New("crypto/rsa: decryption error")
++var ErrVerification = errors.New("crypto/rsa: verification error")
++
++const withCheck = true
++const noCheck = false
++
++// DecryptWithoutCheck performs the RSA private key operation.
++func DecryptWithoutCheck(priv *PrivateKey, ciphertext []byte) ([]byte, error) {
++	fips.RecordNonApproved()
++	return decrypt(priv, ciphertext, noCheck)
++}
++
++// DecryptWithCheck performs the RSA private key operation and checks the
++// result to defend against errors in the CRT computation.
++func DecryptWithCheck(priv *PrivateKey, ciphertext []byte) ([]byte, error) {
++	fips.RecordNonApproved()
++	return decrypt(priv, ciphertext, withCheck)
++}
++
++// decrypt performs an RSA decryption of ciphertext into out. If check is true,
++// m^e is calculated and compared with ciphertext, in order to defend against
++// errors in the CRT computation.
++func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
++	var m *bigmod.Nat
++	N, E := priv.pub.N, priv.pub.E
++
++	c, err := bigmod.NewNat().SetBytes(ciphertext, N)
++	if err != nil {
++		return nil, ErrDecryption
++	}
++
++	if priv.dP == nil {
++		// Legacy codepath for deprecated multi-prime keys.
++		fips.RecordNonApproved()
++		m = bigmod.NewNat().Exp(c, priv.d.Bytes(N), N)
++
++	} else {
++		P, Q := priv.p, priv.q
++		t0 := bigmod.NewNat()
++		// m = c ^ Dp mod p
++		m = bigmod.NewNat().Exp(t0.Mod(c, P), priv.dP, P)
++		// m2 = c ^ Dq mod q
++		m2 := bigmod.NewNat().Exp(t0.Mod(c, Q), priv.dQ, Q)
++		// m = m - m2 mod p
++		m.Sub(t0.Mod(m2, P), P)
++		// m = m * Qinv mod p
++		m.Mul(priv.qInv, P)
++		// m = m * q mod N
++		m.ExpandFor(N).Mul(t0.Mod(Q.Nat(), N), N)
++		// m = m + m2 mod N
++		m.Add(m2.ExpandFor(N), N)
++	}
++
++	if check {
++		c1 := bigmod.NewNat().ExpShortVarTime(m, uint(E), N)
++		if c1.Equal(c) != 1 {
++			return nil, ErrDecryption
++		}
++	}
++
++	return m.Bytes(N), nil
++}
+diff --git a/src/crypto/internal/fipstest/cast_test.go b/src/crypto/internal/fipstest/cast_test.go
+index 2d7ce2a109..b1ddd66132 100644
+--- a/src/crypto/internal/fipstest/cast_test.go
++++ b/src/crypto/internal/fipstest/cast_test.go
+@@ -5,6 +5,7 @@
+ package fipstest
+ 
+ import (
++	"crypto/rand"
+ 	"fmt"
+ 	"internal/testenv"
+ 	"io/fs"
+@@ -23,12 +24,12 @@ import (
+ 	_ "crypto/internal/fips/hkdf"
+ 	_ "crypto/internal/fips/hmac"
+ 	"crypto/internal/fips/mlkem"
++	"crypto/internal/fips/rsa"
+ 	"crypto/internal/fips/sha256"
+ 	_ "crypto/internal/fips/sha3"
+ 	_ "crypto/internal/fips/sha512"
+ 	_ "crypto/internal/fips/tls12"
+ 	_ "crypto/internal/fips/tls13"
+-	"crypto/rand"
+ )
+ 
+ func findAllCASTs(t *testing.T) map[string]struct{} {
+@@ -83,6 +84,7 @@ func TestConditionals(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	ed25519.Sign(k25519, make([]byte, 32))
++	rsa.VerifyPKCS1v15(&rsa.PublicKey{}, "", nil, nil)
+ 	t.Log("completed successfully")
+ }
+ 
+diff --git a/src/crypto/rsa/fips.go b/src/crypto/rsa/fips.go
+new file mode 100644
+index 0000000000..ede27258eb
+--- /dev/null
++++ b/src/crypto/rsa/fips.go
+@@ -0,0 +1,302 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package rsa
++
++import (
++	"crypto"
++	"crypto/internal/boring"
++	"crypto/internal/fips/rsa"
++	"errors"
++	"hash"
++	"io"
++)
++
++const (
++	// PSSSaltLengthAuto causes the salt in a PSS signature to be as large
++	// as possible when signing, and to be auto-detected when verifying.
++	PSSSaltLengthAuto = 0
++	// PSSSaltLengthEqualsHash causes the salt length to equal the length
++	// of the hash used in the signature.
++	PSSSaltLengthEqualsHash = -1
++)
++
++// PSSOptions contains options for creating and verifying PSS signatures.
++type PSSOptions struct {
++	// SaltLength controls the length of the salt used in the PSS signature. It
++	// can either be a positive number of bytes, or one of the special
++	// PSSSaltLength constants.
++	SaltLength int
++
++	// Hash is the hash function used to generate the message digest. If not
++	// zero, it overrides the hash function passed to SignPSS. It's required
++	// when using PrivateKey.Sign.
++	Hash crypto.Hash
++}
++
++// HashFunc returns opts.Hash so that [PSSOptions] implements [crypto.SignerOpts].
++func (opts *PSSOptions) HashFunc() crypto.Hash {
++	return opts.Hash
++}
++
++func (opts *PSSOptions) saltLength() int {
++	if opts == nil {
++		return PSSSaltLengthAuto
++	}
++	return opts.SaltLength
++}
++
++// SignPSS calculates the signature of digest using PSS.
++//
++// digest must be the result of hashing the input message using the given hash
++// function. The opts argument may be nil, in which case sensible defaults are
++// used. If opts.Hash is set, it overrides hash.
++//
++// The signature is randomized depending on the message, key, and salt size,
++// using bytes from rand. Most applications should use [crypto/rand.Reader] as
++// rand.
++func SignPSS(rand io.Reader, priv *PrivateKey, hash crypto.Hash, digest []byte, opts *PSSOptions) ([]byte, error) {
++	if opts != nil && opts.Hash != 0 {
++		hash = opts.Hash
++	}
++
++	if boring.Enabled && rand == boring.RandReader {
++		bkey, err := boringPrivateKey(priv)
++		if err != nil {
++			return nil, err
++		}
++		return boring.SignRSAPSS(bkey, hash, digest, opts.saltLength())
++	}
++	boring.UnreachableExceptTests()
++
++	k, err := fipsPrivateKey(priv)
++	if err != nil {
++		return nil, err
++	}
++	h := hash.New()
++
++	saltLength := opts.saltLength()
++	switch saltLength {
++	case PSSSaltLengthAuto:
++		saltLength, err = rsa.PSSMaxSaltLength(k.PublicKey(), h)
++		if err != nil {
++			return nil, fipsError(err)
++		}
++	case PSSSaltLengthEqualsHash:
++		saltLength = hash.Size()
++	default:
++		// If we get here saltLength is either > 0 or < -1, in the
++		// latter case we fail out.
++		if saltLength <= 0 {
++			return nil, errors.New("crypto/rsa: invalid PSS salt length")
++		}
++	}
++
++	return fipsError2(rsa.SignPSS(rand, k, h, digest, saltLength))
++}
++
++// VerifyPSS verifies a PSS signature.
++//
++// A valid signature is indicated by returning a nil error. digest must be the
++// result of hashing the input message using the given hash function. The opts
++// argument may be nil, in which case sensible defaults are used. opts.Hash is
++// ignored.
++//
++// The inputs are not considered confidential, and may leak through timing side
++// channels, or if an attacker has control of part of the inputs.
++func VerifyPSS(pub *PublicKey, hash crypto.Hash, digest []byte, sig []byte, opts *PSSOptions) error {
++	if boring.Enabled {
++		bkey, err := boringPublicKey(pub)
++		if err != nil {
++			return err
++		}
++		if err := boring.VerifyRSAPSS(bkey, hash, digest, sig, opts.saltLength()); err != nil {
++			return ErrVerification
++		}
++		return nil
++	}
++
++	k, err := fipsPublicKey(pub)
++	if err != nil {
++		return err
++	}
++
++	saltLength := opts.saltLength()
++	switch saltLength {
++	case PSSSaltLengthAuto:
++		return fipsError(rsa.VerifyPSS(k, hash.New(), digest, sig))
++	case PSSSaltLengthEqualsHash:
++		return fipsError(rsa.VerifyPSSWithSaltLength(k, hash.New(), digest, sig, hash.Size()))
++	default:
++		return fipsError(rsa.VerifyPSSWithSaltLength(k, hash.New(), digest, sig, saltLength))
++	}
++}
++
++// EncryptOAEP encrypts the given message with RSA-OAEP.
++//
++// OAEP is parameterised by a hash function that is used as a random oracle.
++// Encryption and decryption of a given message must use the same hash function
++// and sha256.New() is a reasonable choice.
++//
++// The random parameter is used as a source of entropy to ensure that
++// encrypting the same message twice doesn't result in the same ciphertext.
++// Most applications should use [crypto/rand.Reader] as random.
++//
++// The label parameter may contain arbitrary data that will not be encrypted,
++// but which gives important context to the message. For example, if a given
++// public key is used to encrypt two types of messages then distinct label
++// values could be used to ensure that a ciphertext for one purpose cannot be
++// used for another by an attacker. If not required it can be empty.
++//
++// The message must be no longer than the length of the public modulus minus
++// twice the hash length, minus a further 2.
++func EncryptOAEP(hash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
++	defer hash.Reset()
++
++	if boring.Enabled && random == boring.RandReader {
++		hash.Reset()
++		k := pub.Size()
++		if len(msg) > k-2*hash.Size()-2 {
++			return nil, ErrMessageTooLong
++		}
++		bkey, err := boringPublicKey(pub)
++		if err != nil {
++			return nil, err
++		}
++		return boring.EncryptRSAOAEP(hash, hash, bkey, msg, label)
++	}
++	boring.UnreachableExceptTests()
++
++	k, err := fipsPublicKey(pub)
++	if err != nil {
++		return nil, err
++	}
++	return fipsError2(rsa.EncryptOAEP(hash, random, k, msg, label))
++}
++
++// DecryptOAEP decrypts ciphertext using RSA-OAEP.
++//
++// OAEP is parameterised by a hash function that is used as a random oracle.
++// Encryption and decryption of a given message must use the same hash function
++// and sha256.New() is a reasonable choice.
++//
++// The random parameter is legacy and ignored, and it can be nil.
++//
++// The label parameter must match the value given when encrypting. See
++// [EncryptOAEP] for details.
++func DecryptOAEP(hash hash.Hash, random io.Reader, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
++	defer hash.Reset()
++	return decryptOAEP(hash, hash, priv, ciphertext, label)
++}
++
++func decryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
++	if boring.Enabled {
++		k := priv.Size()
++		if len(ciphertext) > k ||
++			k < hash.Size()*2+2 {
++			return nil, ErrDecryption
++		}
++		bkey, err := boringPrivateKey(priv)
++		if err != nil {
++			return nil, err
++		}
++		out, err := boring.DecryptRSAOAEP(hash, mgfHash, bkey, ciphertext, label)
++		if err != nil {
++			return nil, ErrDecryption
++		}
++		return out, nil
++	}
++
++	k, err := fipsPrivateKey(priv)
++	if err != nil {
++		return nil, err
++	}
++
++	return fipsError2(rsa.DecryptOAEP(hash, mgfHash, k, ciphertext, label))
++}
++
++// SignPKCS1v15 calculates the signature of hashed using
++// RSASSA-PKCS1-V1_5-SIGN from RSA PKCS #1 v1.5.  Note that hashed must
++// be the result of hashing the input message using the given hash
++// function. If hash is zero, hashed is signed directly. This isn't
++// advisable except for interoperability.
++//
++// The random parameter is legacy and ignored, and it can be nil.
++//
++// This function is deterministic. Thus, if the set of possible
++// messages is small, an attacker may be able to build a map from
++// messages to signatures and identify the signed messages. As ever,
++// signatures provide authenticity, not confidentiality.
++func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
++	if boring.Enabled {
++		bkey, err := boringPrivateKey(priv)
++		if err != nil {
++			return nil, err
++		}
++		return boring.SignRSAPKCS1v15(bkey, hash, hashed)
++	}
++
++	k, err := fipsPrivateKey(priv)
++	if err != nil {
++		return nil, err
++	}
++	var hashName string
++	if hash != crypto.Hash(0) {
++		if len(hashed) != hash.Size() {
++			return nil, errors.New("crypto/rsa: input must be hashed message")
++		}
++		hashName = hash.String()
++	}
++	return fipsError2(rsa.SignPKCS1v15(k, hashName, hashed))
++}
++
++// VerifyPKCS1v15 verifies an RSA PKCS #1 v1.5 signature.
++// hashed is the result of hashing the input message using the given hash
++// function and sig is the signature. A valid signature is indicated by
++// returning a nil error. If hash is zero then hashed is used directly. This
++// isn't advisable except for interoperability.
++//
++// The inputs are not considered confidential, and may leak through timing side
++// channels, or if an attacker has control of part of the inputs.
++func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) error {
++	if boring.Enabled {
++		bkey, err := boringPublicKey(pub)
++		if err != nil {
++			return err
++		}
++		if err := boring.VerifyRSAPKCS1v15(bkey, hash, hashed, sig); err != nil {
++			return ErrVerification
++		}
++		return nil
++	}
++
++	k, err := fipsPublicKey(pub)
++	if err != nil {
++		return err
++	}
++	var hashName string
++	if hash != crypto.Hash(0) {
++		if len(hashed) != hash.Size() {
++			return errors.New("crypto/rsa: input must be hashed message")
++		}
++		hashName = hash.String()
++	}
++	return fipsError(rsa.VerifyPKCS1v15(k, hashName, hashed, sig))
++}
++
++func fipsError(err error) error {
++	switch err {
++	case rsa.ErrDecryption:
++		return ErrDecryption
++	case rsa.ErrVerification:
++		return ErrVerification
++	case rsa.ErrMessageTooLong:
++		return ErrMessageTooLong
++	}
++	return err
++}
++
++func fipsError2[T any](x T, err error) (T, error) {
++	return x, fipsError(err)
++}
+diff --git a/src/crypto/rsa/pkcs1v15.go b/src/crypto/rsa/pkcs1v15.go
+index 2f958022f9..d12313f071 100644
+--- a/src/crypto/rsa/pkcs1v15.go
++++ b/src/crypto/rsa/pkcs1v15.go
+@@ -5,12 +5,10 @@
+ package rsa
+ 
+ import (
+-	"bytes"
+-	"crypto"
+ 	"crypto/internal/boring"
++	"crypto/internal/fips/rsa"
+ 	"crypto/internal/randutil"
+ 	"crypto/subtle"
+-	"errors"
+ 	"io"
+ )
+ 
+@@ -42,9 +40,6 @@ type PKCS1v15DecryptOptions struct {
+ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, error) {
+ 	randutil.MaybeReadByte(random)
+ 
+-	if err := checkPub(pub); err != nil {
+-		return nil, err
+-	}
+ 	k := pub.Size()
+ 	if len(msg) > k-11 {
+ 		return nil, ErrMessageTooLong
+@@ -79,7 +74,11 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
+ 		return boring.EncryptRSANoPadding(bkey, em)
+ 	}
+ 
+-	return encrypt(pub, em)
++	fk, err := fipsPublicKey(pub)
++	if err != nil {
++		return nil, err
++	}
++	return rsa.Encrypt(fk, em)
+ }
+ 
+ // DecryptPKCS1v15 decrypts a plaintext using RSA and the padding scheme from PKCS #1 v1.5.
+@@ -91,10 +90,6 @@ func EncryptPKCS1v15(random io.Reader, pub *PublicKey, msg []byte) ([]byte, erro
+ // forge signatures as if they had the private key. See
+ // DecryptPKCS1v15SessionKey for a way of solving this problem.
+ func DecryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) ([]byte, error) {
+-	if err := checkPub(&priv.PublicKey); err != nil {
+-		return nil, err
+-	}
+-
+ 	if boring.Enabled {
+ 		bkey, err := boringPrivateKey(priv)
+ 		if err != nil {
+@@ -152,9 +147,6 @@ func DecryptPKCS1v15(random io.Reader, priv *PrivateKey, ciphertext []byte) ([]b
+ //   - [1] RFC 3218, Preventing the Million Message Attack on CMS,
+ //     https://www.rfc-editor.org/rfc/rfc3218.html
+ func DecryptPKCS1v15SessionKey(random io.Reader, priv *PrivateKey, ciphertext []byte, key []byte) error {
+-	if err := checkPub(&priv.PublicKey); err != nil {
+-		return err
+-	}
+ 	k := priv.Size()
+ 	if k-(len(key)+3+8) < 0 {
+ 		return ErrDecryption
+@@ -186,23 +178,27 @@ func decryptPKCS1v15(priv *PrivateKey, ciphertext []byte) (valid int, em []byte,
+ 	k := priv.Size()
+ 	if k < 11 {
+ 		err = ErrDecryption
+-		return
++		return 0, nil, 0, err
+ 	}
+ 
+ 	if boring.Enabled {
+ 		var bkey *boring.PrivateKeyRSA
+ 		bkey, err = boringPrivateKey(priv)
+ 		if err != nil {
+-			return
++			return 0, nil, 0, err
+ 		}
+ 		em, err = boring.DecryptRSANoPadding(bkey, ciphertext)
+ 		if err != nil {
+-			return
++			return 0, nil, 0, ErrDecryption
+ 		}
+ 	} else {
+-		em, err = decrypt(priv, ciphertext, noCheck)
++		fk, err := fipsPrivateKey(priv)
++		if err != nil {
++			return 0, nil, 0, err
++		}
++		em, err = rsa.DecryptWithoutCheck(fk, ciphertext)
+ 		if err != nil {
+-			return
++			return 0, nil, 0, ErrDecryption
+ 		}
+ 	}
+ 
+@@ -251,128 +247,3 @@ func nonZeroRandomBytes(s []byte, random io.Reader) (err error) {
+ 
+ 	return
+ }
+-
+-// These are ASN1 DER structures:
+-//
+-//	DigestInfo ::= SEQUENCE {
+-//	  digestAlgorithm AlgorithmIdentifier,
+-//	  digest OCTET STRING
+-//	}
+-//
+-// For performance, we don't use the generic ASN1 encoder. Rather, we
+-// precompute a prefix of the digest value that makes a valid ASN1 DER string
+-// with the correct contents.
+-var hashPrefixes = map[crypto.Hash][]byte{
+-	crypto.MD5:       {0x30, 0x20, 0x30, 0x0c, 0x06, 0x08, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x02, 0x05, 0x05, 0x00, 0x04, 0x10},
+-	crypto.SHA1:      {0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14},
+-	crypto.SHA224:    {0x30, 0x2d, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x04, 0x05, 0x00, 0x04, 0x1c},
+-	crypto.SHA256:    {0x30, 0x31, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01, 0x05, 0x00, 0x04, 0x20},
+-	crypto.SHA384:    {0x30, 0x41, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02, 0x05, 0x00, 0x04, 0x30},
+-	crypto.SHA512:    {0x30, 0x51, 0x30, 0x0d, 0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03, 0x05, 0x00, 0x04, 0x40},
+-	crypto.MD5SHA1:   {}, // A special TLS case which doesn't use an ASN1 prefix.
+-	crypto.RIPEMD160: {0x30, 0x20, 0x30, 0x08, 0x06, 0x06, 0x28, 0xcf, 0x06, 0x03, 0x00, 0x31, 0x04, 0x14},
+-}
+-
+-// SignPKCS1v15 calculates the signature of hashed using
+-// RSASSA-PKCS1-V1_5-SIGN from RSA PKCS #1 v1.5.  Note that hashed must
+-// be the result of hashing the input message using the given hash
+-// function. If hash is zero, hashed is signed directly. This isn't
+-// advisable except for interoperability.
+-//
+-// The random parameter is legacy and ignored, and it can be nil.
+-//
+-// This function is deterministic. Thus, if the set of possible
+-// messages is small, an attacker may be able to build a map from
+-// messages to signatures and identify the signed messages. As ever,
+-// signatures provide authenticity, not confidentiality.
+-func SignPKCS1v15(random io.Reader, priv *PrivateKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
+-	// pkcs1v15ConstructEM is called before boring.SignRSAPKCS1v15 to return
+-	// consistent errors, including ErrMessageTooLong.
+-	em, err := pkcs1v15ConstructEM(&priv.PublicKey, hash, hashed)
+-	if err != nil {
+-		return nil, err
+-	}
+-
+-	if boring.Enabled {
+-		bkey, err := boringPrivateKey(priv)
+-		if err != nil {
+-			return nil, err
+-		}
+-		return boring.SignRSAPKCS1v15(bkey, hash, hashed)
+-	}
+-
+-	return decrypt(priv, em, withCheck)
+-}
+-
+-func pkcs1v15ConstructEM(pub *PublicKey, hash crypto.Hash, hashed []byte) ([]byte, error) {
+-	// Special case: crypto.Hash(0) is used to indicate that the data is
+-	// signed directly.
+-	var prefix []byte
+-	if hash != 0 {
+-		if len(hashed) != hash.Size() {
+-			return nil, errors.New("crypto/rsa: input must be hashed message")
+-		}
+-		var ok bool
+-		prefix, ok = hashPrefixes[hash]
+-		if !ok {
+-			return nil, errors.New("crypto/rsa: unsupported hash function")
+-		}
+-	}
+-
+-	// EM = 0x00 || 0x01 || PS || 0x00 || T
+-	k := pub.Size()
+-	if k < len(prefix)+len(hashed)+2+8+1 {
+-		return nil, ErrMessageTooLong
+-	}
+-	em := make([]byte, k)
+-	em[1] = 1
+-	for i := 2; i < k-len(prefix)-len(hashed)-1; i++ {
+-		em[i] = 0xff
+-	}
+-	copy(em[k-len(prefix)-len(hashed):], prefix)
+-	copy(em[k-len(hashed):], hashed)
+-	return em, nil
+-}
+-
+-// VerifyPKCS1v15 verifies an RSA PKCS #1 v1.5 signature.
+-// hashed is the result of hashing the input message using the given hash
+-// function and sig is the signature. A valid signature is indicated by
+-// returning a nil error. If hash is zero then hashed is used directly. This
+-// isn't advisable except for interoperability.
+-//
+-// The inputs are not considered confidential, and may leak through timing side
+-// channels, or if an attacker has control of part of the inputs.
+-func VerifyPKCS1v15(pub *PublicKey, hash crypto.Hash, hashed []byte, sig []byte) error {
+-	if boring.Enabled {
+-		bkey, err := boringPublicKey(pub)
+-		if err != nil {
+-			return err
+-		}
+-		if err := boring.VerifyRSAPKCS1v15(bkey, hash, hashed, sig); err != nil {
+-			return ErrVerification
+-		}
+-		return nil
+-	}
+-
+-	// RFC 8017 Section 8.2.2: If the length of the signature S is not k
+-	// octets (where k is the length in octets of the RSA modulus n), output
+-	// "invalid signature" and stop.
+-	if pub.Size() != len(sig) {
+-		return ErrVerification
+-	}
+-
+-	em, err := encrypt(pub, sig)
+-	if err != nil {
+-		return ErrVerification
+-	}
+-
+-	expected, err := pkcs1v15ConstructEM(pub, hash, hashed)
+-	if err != nil {
+-		return ErrVerification
+-	}
+-	if !bytes.Equal(em, expected) {
+-		return ErrVerification
+-	}
+-
+-	return nil
+-}
+diff --git a/src/crypto/rsa/pss_test.go b/src/crypto/rsa/pss_test.go
+index 637d07e18c..aeef916cd9 100644
+--- a/src/crypto/rsa/pss_test.go
++++ b/src/crypto/rsa/pss_test.go
+@@ -6,12 +6,11 @@ package rsa_test
+ 
+ import (
+ 	"bufio"
+-	"bytes"
+ 	"compress/bzip2"
+ 	"crypto"
++	"crypto/internal/fips"
+ 	"crypto/rand"
+ 	. "crypto/rsa"
+-	"crypto/sha1"
+ 	"crypto/sha256"
+ 	"crypto/sha512"
+ 	"encoding/hex"
+@@ -22,59 +21,6 @@ import (
+ 	"testing"
+ )
+ 
+-func TestEMSAPSS(t *testing.T) {
+-	// Test vector in file pss-int.txt from: ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-1/pkcs-1v2-1-vec.zip
+-	msg := []byte{
+-		0x85, 0x9e, 0xef, 0x2f, 0xd7, 0x8a, 0xca, 0x00, 0x30, 0x8b,
+-		0xdc, 0x47, 0x11, 0x93, 0xbf, 0x55, 0xbf, 0x9d, 0x78, 0xdb,
+-		0x8f, 0x8a, 0x67, 0x2b, 0x48, 0x46, 0x34, 0xf3, 0xc9, 0xc2,
+-		0x6e, 0x64, 0x78, 0xae, 0x10, 0x26, 0x0f, 0xe0, 0xdd, 0x8c,
+-		0x08, 0x2e, 0x53, 0xa5, 0x29, 0x3a, 0xf2, 0x17, 0x3c, 0xd5,
+-		0x0c, 0x6d, 0x5d, 0x35, 0x4f, 0xeb, 0xf7, 0x8b, 0x26, 0x02,
+-		0x1c, 0x25, 0xc0, 0x27, 0x12, 0xe7, 0x8c, 0xd4, 0x69, 0x4c,
+-		0x9f, 0x46, 0x97, 0x77, 0xe4, 0x51, 0xe7, 0xf8, 0xe9, 0xe0,
+-		0x4c, 0xd3, 0x73, 0x9c, 0x6b, 0xbf, 0xed, 0xae, 0x48, 0x7f,
+-		0xb5, 0x56, 0x44, 0xe9, 0xca, 0x74, 0xff, 0x77, 0xa5, 0x3c,
+-		0xb7, 0x29, 0x80, 0x2f, 0x6e, 0xd4, 0xa5, 0xff, 0xa8, 0xba,
+-		0x15, 0x98, 0x90, 0xfc,
+-	}
+-	salt := []byte{
+-		0xe3, 0xb5, 0xd5, 0xd0, 0x02, 0xc1, 0xbc, 0xe5, 0x0c, 0x2b,
+-		0x65, 0xef, 0x88, 0xa1, 0x88, 0xd8, 0x3b, 0xce, 0x7e, 0x61,
+-	}
+-	expected := []byte{
+-		0x66, 0xe4, 0x67, 0x2e, 0x83, 0x6a, 0xd1, 0x21, 0xba, 0x24,
+-		0x4b, 0xed, 0x65, 0x76, 0xb8, 0x67, 0xd9, 0xa4, 0x47, 0xc2,
+-		0x8a, 0x6e, 0x66, 0xa5, 0xb8, 0x7d, 0xee, 0x7f, 0xbc, 0x7e,
+-		0x65, 0xaf, 0x50, 0x57, 0xf8, 0x6f, 0xae, 0x89, 0x84, 0xd9,
+-		0xba, 0x7f, 0x96, 0x9a, 0xd6, 0xfe, 0x02, 0xa4, 0xd7, 0x5f,
+-		0x74, 0x45, 0xfe, 0xfd, 0xd8, 0x5b, 0x6d, 0x3a, 0x47, 0x7c,
+-		0x28, 0xd2, 0x4b, 0xa1, 0xe3, 0x75, 0x6f, 0x79, 0x2d, 0xd1,
+-		0xdc, 0xe8, 0xca, 0x94, 0x44, 0x0e, 0xcb, 0x52, 0x79, 0xec,
+-		0xd3, 0x18, 0x3a, 0x31, 0x1f, 0xc8, 0x96, 0xda, 0x1c, 0xb3,
+-		0x93, 0x11, 0xaf, 0x37, 0xea, 0x4a, 0x75, 0xe2, 0x4b, 0xdb,
+-		0xfd, 0x5c, 0x1d, 0xa0, 0xde, 0x7c, 0xec, 0xdf, 0x1a, 0x89,
+-		0x6f, 0x9d, 0x8b, 0xc8, 0x16, 0xd9, 0x7c, 0xd7, 0xa2, 0xc4,
+-		0x3b, 0xad, 0x54, 0x6f, 0xbe, 0x8c, 0xfe, 0xbc,
+-	}
+-
+-	hash := sha1.New()
+-	hash.Write(msg)
+-	hashed := hash.Sum(nil)
+-
+-	encoded, err := EMSAPSSEncode(hashed, 1023, salt, sha1.New())
+-	if err != nil {
+-		t.Errorf("Error from emsaPSSEncode: %s\n", err)
+-	}
+-	if !bytes.Equal(encoded, expected) {
+-		t.Errorf("Bad encoding. got %x, want %x", encoded, expected)
+-	}
+-
+-	if err = EMSAPSSVerify(hashed, encoded, 1023, len(salt), sha1.New()); err != nil {
+-		t.Errorf("Bad verification: %s", err)
+-	}
+-}
+-
+ // TestPSSGolden tests all the test vectors in pss-vect.txt from
+ // ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-1/pkcs-1v2-1-vec.zip
+ func TestPSSGolden(t *testing.T) {
+@@ -202,17 +148,20 @@ func TestPSSNilOpts(t *testing.T) {
+ func TestPSSSigning(t *testing.T) {
+ 	var saltLengthCombinations = []struct {
+ 		signSaltLength, verifySaltLength int
+-		good                             bool
++		good, fipsGood                   bool
+ 	}{
+-		{PSSSaltLengthAuto, PSSSaltLengthAuto, true},
+-		{PSSSaltLengthEqualsHash, PSSSaltLengthAuto, true},
+-		{PSSSaltLengthEqualsHash, PSSSaltLengthEqualsHash, true},
+-		{PSSSaltLengthEqualsHash, 8, false},
+-		{PSSSaltLengthAuto, PSSSaltLengthEqualsHash, false},
+-		{8, 8, true},
+-		{PSSSaltLengthAuto, 42, true},
+-		{PSSSaltLengthAuto, 20, false},
+-		{PSSSaltLengthAuto, -2, false},
++		{PSSSaltLengthAuto, PSSSaltLengthAuto, true, true},
++		{PSSSaltLengthEqualsHash, PSSSaltLengthAuto, true, true},
++		{PSSSaltLengthEqualsHash, PSSSaltLengthEqualsHash, true, true},
++		{PSSSaltLengthEqualsHash, 8, false, false},
++		{8, 8, true, true},
++		{8, PSSSaltLengthAuto, true, true},
++		{42, PSSSaltLengthAuto, true, true},
++		// In FIPS mode, PSSSaltLengthAuto is capped at PSSSaltLengthEqualsHash.
++		{PSSSaltLengthAuto, PSSSaltLengthEqualsHash, false, true},
++		{PSSSaltLengthAuto, 42, true, false},
++		{PSSSaltLengthAuto, 20, false, true},
++		{PSSSaltLengthAuto, -2, false, false},
+ 	}
+ 
+ 	hash := crypto.SHA1
+@@ -231,7 +180,11 @@ func TestPSSSigning(t *testing.T) {
+ 
+ 		opts.SaltLength = test.verifySaltLength
+ 		err = VerifyPSS(&rsaPrivateKey.PublicKey, hash, hashed, sig, &opts)
+-		if (err == nil) != test.good {
++		good := test.good
++		if fips.Enabled {
++			good = test.fipsGood
++		}
++		if (err == nil) != good {
+ 			t.Errorf("#%d: bad result, wanted: %t, got: %s", i, test.good, err)
+ 		}
+ 	}
+@@ -290,13 +243,11 @@ func TestInvalidPSSSaltLength(t *testing.T) {
+ 	}
+ 
+ 	digest := sha256.Sum256([]byte("message"))
+-	// We don't check the exact error matches, because crypto/rsa and crypto/internal/boring
+-	// return two different error variables, which have the same content but are not equal.
+ 	if _, err := SignPSS(rand.Reader, key, crypto.SHA256, digest[:], &PSSOptions{
+ 		SaltLength: -2,
+ 		Hash:       crypto.SHA256,
+-	}); err.Error() != InvalidSaltLenErr.Error() {
+-		t.Fatalf("SignPSS unexpected error: got %v, want %v", err, InvalidSaltLenErr)
++	}); err.Error() != "crypto/rsa: invalid PSS salt length" {
++		t.Fatalf("SignPSS unexpected error: got %v, want %v", err, "crypto/rsa: invalid PSS salt length")
+ 	}
+ 
+ 	// We don't check the specific error here, because crypto/rsa and crypto/internal/boring
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 87c527e656..0cf05348e7 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -29,6 +29,7 @@ import (
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
+ 	"crypto/internal/fips/bigmod"
++	"crypto/internal/fips/rsa"
+ 	"crypto/internal/randutil"
+ 	"crypto/rand"
+ 	"crypto/subtle"
+@@ -83,30 +84,6 @@ type OAEPOptions struct {
+ 	Label []byte
+ }
+ 
+-var (
+-	errPublicModulus       = errors.New("crypto/rsa: missing public modulus")
+-	errPublicExponentSmall = errors.New("crypto/rsa: public exponent too small")
+-	errPublicExponentLarge = errors.New("crypto/rsa: public exponent too large")
+-)
+-
+-// checkPub sanity checks the public key before we use it.
+-// We require pub.E to fit into a 32-bit integer so that we
+-// do not have different behavior depending on whether
+-// int is 32 or 64 bits. See also
+-// https://www.imperialviolet.org/2012/03/16/rsae.html.
+-func checkPub(pub *PublicKey) error {
+-	if pub.N == nil {
+-		return errPublicModulus
+-	}
+-	if pub.E < 2 {
+-		return errPublicExponentSmall
+-	}
+-	if pub.E > 1<<31-1 {
+-		return errPublicExponentLarge
+-	}
+-	return nil
+-}
+-
+ // A PrivateKey represents an RSA key
+ type PrivateKey struct {
+ 	PublicKey            // public part.
+@@ -178,9 +155,9 @@ func (priv *PrivateKey) Decrypt(rand io.Reader, ciphertext []byte, opts crypto.D
+ 	switch opts := opts.(type) {
+ 	case *OAEPOptions:
+ 		if opts.MGFHash == 0 {
+-			return decryptOAEP(opts.Hash.New(), opts.Hash.New(), rand, priv, ciphertext, opts.Label)
++			return decryptOAEP(opts.Hash.New(), opts.Hash.New(), priv, ciphertext, opts.Label)
+ 		} else {
+-			return decryptOAEP(opts.Hash.New(), opts.MGFHash.New(), rand, priv, ciphertext, opts.Label)
++			return decryptOAEP(opts.Hash.New(), opts.MGFHash.New(), priv, ciphertext, opts.Label)
+ 		}
+ 
+ 	case *PKCS1v15DecryptOptions:
+@@ -217,7 +194,7 @@ type PrecomputedValues struct {
+ 	// complexity.
+ 	CRTValues []CRTValue
+ 
+-	n, p, q *bigmod.Modulus // moduli for CRT with Montgomery precomputed constants
++	fips *rsa.PrivateKey
+ }
+ 
+ // CRTValue contains the precomputed Chinese remainder theorem values.
+@@ -230,8 +207,15 @@ type CRTValue struct {
+ // Validate performs basic sanity checks on the key.
+ // It returns nil if the key is valid, or else an error describing a problem.
+ func (priv *PrivateKey) Validate() error {
+-	if err := checkPub(&priv.PublicKey); err != nil {
+-		return err
++	pub := &priv.PublicKey
++	if pub.N == nil {
++		return errors.New("crypto/rsa: missing public modulus")
++	}
++	if pub.E < 2 {
++		return errors.New("crypto/rsa: public exponent is less than 2")
++	}
++	if pub.E > 1<<31-1 {
++		return errors.New("crypto/rsa: public exponent too large")
+ 	}
+ 
+ 	// Check that Πprimes == n.
+@@ -315,19 +299,6 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
+ 			return nil, errors.New("crypto/rsa: generated key exponent too large")
+ 		}
+ 
+-		mn, err := bigmod.NewModulus(N.Bytes())
+-		if err != nil {
+-			return nil, err
+-		}
+-		mp, err := bigmod.NewModulus(P.Bytes())
+-		if err != nil {
+-			return nil, err
+-		}
+-		mq, err := bigmod.NewModulus(Q.Bytes())
+-		if err != nil {
+-			return nil, err
+-		}
+-
+ 		key := &PrivateKey{
+ 			PublicKey: PublicKey{
+ 				N: N,
+@@ -340,9 +311,6 @@ func GenerateMultiPrimeKey(random io.Reader, nprimes int, bits int) (*PrivateKey
+ 				Dq:        Dq,
+ 				Qinv:      Qinv,
+ 				CRTValues: make([]CRTValue, 0), // non-nil, to match Precompute
+-				n:         mn,
+-				p:         mp,
+-				q:         mq,
+ 			},
+ 		}
+ 		return key, nil
+@@ -442,22 +410,6 @@ NextSetOfPrimes:
+ // be returned if the size of the salt is too large.
+ var ErrMessageTooLong = errors.New("crypto/rsa: message too long for RSA key size")
+ 
+-func encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
+-	boring.Unreachable()
+-
+-	N, err := bigmod.NewModulus(pub.N.Bytes())
+-	if err != nil {
+-		return nil, err
+-	}
+-	m, err := bigmod.NewNat().SetBytes(plaintext, N)
+-	if err != nil {
+-		return nil, err
+-	}
+-	e := uint(pub.E)
+-
+-	return bigmod.NewNat().ExpShortVarTime(m, e, N).Bytes(N), nil
+-}
+-
+ // ErrDecryption represents a failure to decrypt a message.
+ // It is deliberately vague to avoid adaptive attacks.
+ var ErrDecryption = errors.New("crypto/rsa: decryption error")
+@@ -469,30 +421,13 @@ var ErrVerification = errors.New("crypto/rsa: verification error")
+ // Precompute performs some calculations that speed up private key operations
+ // in the future.
+ func (priv *PrivateKey) Precompute() {
+-	if priv.Precomputed.n == nil && len(priv.Primes) == 2 {
+-		// Precomputed values _should_ always be valid, but if they aren't
+-		// just return. We could also panic.
+-		var err error
+-		priv.Precomputed.n, err = bigmod.NewModulus(priv.N.Bytes())
+-		if err != nil {
+-			return
+-		}
+-		priv.Precomputed.p, err = bigmod.NewModulus(priv.Primes[0].Bytes())
+-		if err != nil {
+-			// Unset previous values, so we either have everything or nothing
+-			priv.Precomputed.n = nil
+-			return
+-		}
+-		priv.Precomputed.q, err = bigmod.NewModulus(priv.Primes[1].Bytes())
+-		if err != nil {
+-			// Unset previous values, so we either have everything or nothing
+-			priv.Precomputed.n, priv.Precomputed.p = nil, nil
+-			return
+-		}
++	if priv.Precomputed.fips != nil {
++		return
+ 	}
+ 
+-	// Fill in the backwards-compatibility *big.Int values.
+-	if priv.Precomputed.Dp != nil {
++	if len(priv.Primes) < 2 {
++		priv.Precomputed.fips, _ = rsa.NewPrivateKeyWithoutCRT(
++			priv.N.Bytes(), priv.E, priv.D.Bytes())
+ 		return
+ 	}
+ 
+@@ -518,67 +453,41 @@ func (priv *PrivateKey) Precompute() {
+ 
+ 		r.Mul(r, prime)
+ 	}
+-}
+-
+-const withCheck = true
+-const noCheck = false
+-
+-// decrypt performs an RSA decryption of ciphertext into out. If check is true,
+-// m^e is calculated and compared with ciphertext, in order to defend against
+-// errors in the CRT computation.
+-func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
+-	if len(priv.Primes) <= 2 {
+-		boring.Unreachable()
+-	}
+ 
+-	var (
+-		err  error
+-		m, c *bigmod.Nat
+-		N    *bigmod.Modulus
+-		t0   = bigmod.NewNat()
+-	)
+-	if priv.Precomputed.n == nil {
+-		N, err = bigmod.NewModulus(priv.N.Bytes())
+-		if err != nil {
+-			return nil, ErrDecryption
+-		}
+-		c, err = bigmod.NewNat().SetBytes(ciphertext, N)
+-		if err != nil {
+-			return nil, ErrDecryption
+-		}
+-		m = bigmod.NewNat().Exp(c, priv.D.Bytes(), N)
++	// Errors are discarded because we don't have a way to report them.
++	// Anything that relies on Precomputed.fips will need to check for nil.
++	if len(priv.Primes) == 2 {
++		priv.Precomputed.fips, _ = rsa.NewPrivateKey(
++			priv.N.Bytes(), priv.E, priv.D.Bytes(),
++			priv.Primes[0].Bytes(), priv.Primes[1].Bytes(),
++			priv.Precomputed.Dp.Bytes(), priv.Precomputed.Dq.Bytes(),
++			priv.Precomputed.Qinv.Bytes())
+ 	} else {
+-		N = priv.Precomputed.n
+-		P, Q := priv.Precomputed.p, priv.Precomputed.q
+-		Qinv, err := bigmod.NewNat().SetBytes(priv.Precomputed.Qinv.Bytes(), P)
+-		if err != nil {
+-			return nil, ErrDecryption
+-		}
+-		c, err = bigmod.NewNat().SetBytes(ciphertext, N)
+-		if err != nil {
+-			return nil, ErrDecryption
+-		}
+-
+-		// m = c ^ Dp mod p
+-		m = bigmod.NewNat().Exp(t0.Mod(c, P), priv.Precomputed.Dp.Bytes(), P)
+-		// m2 = c ^ Dq mod q
+-		m2 := bigmod.NewNat().Exp(t0.Mod(c, Q), priv.Precomputed.Dq.Bytes(), Q)
+-		// m = m - m2 mod p
+-		m.Sub(t0.Mod(m2, P), P)
+-		// m = m * Qinv mod p
+-		m.Mul(Qinv, P)
+-		// m = m * q mod N
+-		m.ExpandFor(N).Mul(t0.Mod(Q.Nat(), N), N)
+-		// m = m + m2 mod N
+-		m.Add(m2.ExpandFor(N), N)
++		priv.Precomputed.fips, _ = rsa.NewPrivateKeyWithoutCRT(
++			priv.N.Bytes(), priv.E, priv.D.Bytes())
+ 	}
++}
+ 
+-	if check {
+-		c1 := bigmod.NewNat().ExpShortVarTime(m, uint(priv.E), N)
+-		if c1.Equal(c) != 1 {
+-			return nil, ErrDecryption
+-		}
++func fipsPublicKey(pub *PublicKey) (*rsa.PublicKey, error) {
++	N, err := bigmod.NewModulus(pub.N.Bytes())
++	if err != nil {
++		return nil, err
+ 	}
++	if pub.E < 0 {
++		return nil, errors.New("crypto/rsa: negative public exponent")
++	}
++	return &rsa.PublicKey{N: N, E: pub.E}, nil
++}
+ 
+-	return m.Bytes(N), nil
++func fipsPrivateKey(priv *PrivateKey) (*rsa.PrivateKey, error) {
++	if priv.Precomputed.fips != nil {
++		return priv.Precomputed.fips, nil
++	}
++	// Make a copy of the private key to avoid modifying the original.
++	k := *priv
++	k.Precompute()
++	if k.Precomputed.fips == nil {
++		return nil, errors.New("crypto/rsa: invalid private key")
++	}
++	return k.Precomputed.fips, nil
+ }
+diff --git a/src/crypto/rsa/rsa_export_test.go b/src/crypto/rsa/rsa_export_test.go
+index 70406decf1..6b6afa822f 100644
+--- a/src/crypto/rsa/rsa_export_test.go
++++ b/src/crypto/rsa/rsa_export_test.go
+@@ -5,6 +5,3 @@
+ package rsa
+ 
+ var NonZeroRandomBytes = nonZeroRandomBytes
+-var EMSAPSSEncode = emsaPSSEncode
+-var EMSAPSSVerify = emsaPSSVerify
+-var InvalidSaltLenErr = invalidSaltLenErr
+diff --git a/src/crypto/rsa/rsa_test.go b/src/crypto/rsa/rsa_test.go
+index a440f86f42..ce0227367c 100644
+--- a/src/crypto/rsa/rsa_test.go
++++ b/src/crypto/rsa/rsa_test.go
+@@ -9,6 +9,7 @@ import (
+ 	"bytes"
+ 	"crypto"
+ 	"crypto/internal/cryptotest"
++	"crypto/internal/fips"
+ 	"crypto/rand"
+ 	. "crypto/rsa"
+ 	"crypto/sha1"
+@@ -631,6 +632,9 @@ type testEncryptOAEPStruct struct {
+ }
+ 
+ func TestEncryptOAEP(t *testing.T) {
++	if fips.Enabled {
++		t.Skip("FIPS mode overrides the deterministic random source")
++	}
+ 	sha1 := sha1.New()
+ 	n := new(big.Int)
+ 	for i, test := range testEncryptOAEPData {
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 58504ed7da..4d18ed0ff2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -483,6 +483,7 @@ var depsRules = `
+ 	< crypto/internal/fips/edwards25519/field
+ 	< crypto/internal/fips/edwards25519
+ 	< crypto/internal/fips/ed25519
++	< crypto/internal/fips/rsa
+ 	< FIPS;
+ 
+ 	FIPS < crypto/internal/fips/check/checktest;

@@ -1,0 +1,485 @@
+commit cd9a300afc0be43f7ad1891a18ed9b690f7f97ab
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed Sep 4 13:14:17 2024 -0400
+
+    all: fix printf(var) mistakes detected by latest printf checker
+    
+    These will cause build failures once we vendor x/tools.
+    
+    In once case I renamed a function err to errf to indicate
+    that it is printf-like.
+    
+    Updates golang/go#68796
+    
+    Change-Id: I04d57b34ee5362f530554b7e8b817f70a9088d12
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610739
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+---
+ src/cmd/api/main_test.go                           |  2 +-
+ src/cmd/asm/internal/asm/parse.go                  |  8 +++----
+ .../cgo/internal/testerrors/argposition_test.go    |  2 +-
+ .../compile/internal/inline/inlheur/callsite.go    |  2 +-
+ .../internal/ir/reassign_consistency_check.go      |  2 +-
+ src/cmd/compile/internal/liveness/mergelocals.go   |  2 +-
+ src/cmd/compile/internal/liveness/plive.go         |  2 +-
+ src/cmd/compile/internal/logopt/log_opts.go        |  2 +-
+ src/cmd/compile/internal/loopvar/loopvar_test.go   | 18 +++++++--------
+ src/cmd/compile/internal/ssa/lca_test.go           |  2 +-
+ src/cmd/compile/internal/syntax/branches.go        | 26 +++++++++++-----------
+ src/cmd/compile/internal/test/mergelocals_test.go  |  4 ++--
+ src/cmd/compile/internal/test/ssa_test.go          |  2 +-
+ .../internal/test/testdata/addressed_test.go       |  2 +-
+ src/cmd/go/internal/load/pkg.go                    |  2 +-
+ src/cmd/go/internal/modload/init.go                |  2 +-
+ src/cmd/internal/goobj/objfile_test.go             |  4 ++--
+ src/cmd/internal/objabi/flag.go                    |  2 +-
+ src/cmd/link/internal/loader/loader_test.go        |  2 +-
+ src/cmd/link/linkbig_test.go                       |  2 +-
+ 20 files changed, 45 insertions(+), 45 deletions(-)
+
+diff --git a/src/cmd/api/main_test.go b/src/cmd/api/main_test.go
+index b071ef5f99..10dbabb9b8 100644
+--- a/src/cmd/api/main_test.go
++++ b/src/cmd/api/main_test.go
+@@ -1019,7 +1019,7 @@ func (w *Walker) emitType(obj *types.TypeName) {
+ 
+ func (w *Walker) emitStructType(name string, typ *types.Struct) {
+ 	typeStruct := fmt.Sprintf("type %s struct", name)
+-	w.emitf(typeStruct)
++	w.emitf("%s", typeStruct)
+ 	defer w.pushScope(typeStruct)()
+ 
+ 	for i := 0; i < typ.NumFields(); i++ {
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 7a52e54090..257311fed9 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -708,7 +708,7 @@ func (p *Parser) registerShift(name string, prefix rune) int64 {
+ 	if p.arch.Family == sys.ARM64 {
+ 		off, err := arch.ARM64RegisterShift(r1, op, count)
+ 		if err != nil {
+-			p.errorf(err.Error())
++			p.errorf("%v", err)
+ 		}
+ 		return off
+ 	} else {
+@@ -770,7 +770,7 @@ func (p *Parser) registerExtension(a *obj.Addr, name string, prefix rune) {
+ 	case sys.ARM64:
+ 		err := arch.ARM64RegisterExtension(a, ext, reg, num, isAmount, isIndex)
+ 		if err != nil {
+-			p.errorf(err.Error())
++			p.errorf("%v", err)
+ 		}
+ 	default:
+ 		p.errorf("register extension not supported on this architecture")
+@@ -1117,7 +1117,7 @@ ListLoop:
+ 			ext := tok.String()
+ 			curArrangement, err := arch.ARM64RegisterArrangement(reg, name, ext)
+ 			if err != nil {
+-				p.errorf(err.Error())
++				p.errorf("%v", err)
+ 			}
+ 			if firstReg == -1 {
+ 				// only record the first register and arrangement
+@@ -1164,7 +1164,7 @@ ListLoop:
+ 	case sys.ARM64:
+ 		offset, err := arch.ARM64RegisterListOffset(firstReg, regCnt, arrangement)
+ 		if err != nil {
+-			p.errorf(err.Error())
++			p.errorf("%v", err)
+ 		}
+ 		a.Offset = offset
+ 	default:
+diff --git a/src/cmd/cgo/internal/testerrors/argposition_test.go b/src/cmd/cgo/internal/testerrors/argposition_test.go
+index b39cc3b3c8..714f9b45f8 100644
+--- a/src/cmd/cgo/internal/testerrors/argposition_test.go
++++ b/src/cmd/cgo/internal/testerrors/argposition_test.go
+@@ -58,7 +58,7 @@ func (v *Visitor) Visit(node ast.Node) ast.Visitor {
+ 			}
+ 
+ 			if !gotMatch {
+-				v.t.Errorf(errorMessage.String())
++				v.t.Error(errorMessage.String())
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/compile/internal/inline/inlheur/callsite.go b/src/cmd/compile/internal/inline/inlheur/callsite.go
+index f457dd439b..abe19cfdd2 100644
+--- a/src/cmd/compile/internal/inline/inlheur/callsite.go
++++ b/src/cmd/compile/internal/inline/inlheur/callsite.go
+@@ -100,7 +100,7 @@ func fmtFullPos(p src.XPos) string {
+ 	var sb strings.Builder
+ 	sep := ""
+ 	base.Ctxt.AllPos(p, func(pos src.Pos) {
+-		fmt.Fprintf(&sb, sep)
++		sb.WriteString(sep)
+ 		sep = "|"
+ 		file := filepath.Base(pos.Filename())
+ 		fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())
+diff --git a/src/cmd/compile/internal/ir/reassign_consistency_check.go b/src/cmd/compile/internal/ir/reassign_consistency_check.go
+index 06a6c88962..24bbfdfd44 100644
+--- a/src/cmd/compile/internal/ir/reassign_consistency_check.go
++++ b/src/cmd/compile/internal/ir/reassign_consistency_check.go
+@@ -37,7 +37,7 @@ func fmtFullPos(p src.XPos) string {
+ 	var sb strings.Builder
+ 	sep := ""
+ 	base.Ctxt.AllPos(p, func(pos src.Pos) {
+-		fmt.Fprintf(&sb, sep)
++		sb.WriteString(sep)
+ 		sep = "|"
+ 		file := filepath.Base(pos.Filename())
+ 		fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())
+diff --git a/src/cmd/compile/internal/liveness/mergelocals.go b/src/cmd/compile/internal/liveness/mergelocals.go
+index 25c2c4b3d6..d0675128b8 100644
+--- a/src/cmd/compile/internal/liveness/mergelocals.go
++++ b/src/cmd/compile/internal/liveness/mergelocals.go
+@@ -1003,7 +1003,7 @@ func fmtFullPos(p src.XPos) string {
+ 	var sb strings.Builder
+ 	sep := ""
+ 	base.Ctxt.AllPos(p, func(pos src.Pos) {
+-		fmt.Fprintf(&sb, sep)
++		sb.WriteString(sep)
+ 		sep = "|"
+ 		file := filepath.Base(pos.Filename())
+ 		fmt.Fprintf(&sb, "%s:%d:%d", file, pos.Line(), pos.Col())
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index 6d6b126e4b..a38ea776f9 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -1148,7 +1148,7 @@ func (lv *liveness) showlive(v *ssa.Value, live bitvec.BitVec) {
+ 		s += " " + v
+ 	}
+ 
+-	base.WarnfAt(pos, s)
++	base.WarnfAt(pos, "%s", s)
+ }
+ 
+ func (lv *liveness) printbvec(printed bool, name string, live bitvec.BitVec) bool {
+diff --git a/src/cmd/compile/internal/logopt/log_opts.go b/src/cmd/compile/internal/logopt/log_opts.go
+index b731e55938..3e7d86aac5 100644
+--- a/src/cmd/compile/internal/logopt/log_opts.go
++++ b/src/cmd/compile/internal/logopt/log_opts.go
+@@ -309,7 +309,7 @@ func parseLogPath(destination string) (string, string) {
+ func checkLogPath(destination string) string {
+ 	path, complaint := parseLogPath(destination)
+ 	if complaint != "" {
+-		log.Fatalf(complaint)
++		log.Fatal(complaint)
+ 	}
+ 	err := os.MkdirAll(path, 0755)
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/loopvar/loopvar_test.go b/src/cmd/compile/internal/loopvar/loopvar_test.go
+index 64cfdb77d9..b19962f0fd 100644
+--- a/src/cmd/compile/internal/loopvar/loopvar_test.go
++++ b/src/cmd/compile/internal/loopvar/loopvar_test.go
+@@ -141,10 +141,10 @@ func TestLoopVarInlinesGo1_21(t *testing.T) {
+ 	c := f(root + "/c")
+ 	m := f(root)
+ 
+-	t.Logf(a)
+-	t.Logf(b)
+-	t.Logf(c)
+-	t.Logf(m)
++	t.Log(a)
++	t.Log(b)
++	t.Log(c)
++	t.Log(m)
+ 
+ 	if !strings.Contains(a, "f, af, bf, abf, cf sums = 100, 45, 100, 100, 100") {
+ 		t.Errorf("Did not see expected value of a")
+@@ -200,7 +200,7 @@ func TestLoopVarHashes(t *testing.T) {
+ 
+ 	for _, arg := range []string{"v001100110110110010100100", "vx336ca4"} {
+ 		m := f(arg)
+-		t.Logf(m)
++		t.Log(m)
+ 
+ 		mCount := countMatches(m, "loopvarhash triggered cmd/compile/internal/loopvar/testdata/inlines/main.go:27:6: .* 001100110110110010100100")
+ 		otherCount := strings.Count(m, "loopvarhash")
+@@ -249,7 +249,7 @@ func TestLoopVarVersionEnableFlag(t *testing.T) {
+ 	b, err := cmd.CombinedOutput()
+ 	m := string(b)
+ 
+-	t.Logf(m)
++	t.Log(m)
+ 
+ 	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:29)")
+ 	nCount := strings.Count(m, "shared")
+@@ -288,7 +288,7 @@ func TestLoopVarVersionEnableGoBuild(t *testing.T) {
+ 	b, err := cmd.CombinedOutput()
+ 	m := string(b)
+ 
+-	t.Logf(m)
++	t.Log(m)
+ 
+ 	yCount := strings.Count(m, "opt-122.go:18:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt-122.go:31)")
+ 	nCount := strings.Count(m, "shared")
+@@ -327,7 +327,7 @@ func TestLoopVarVersionDisableFlag(t *testing.T) {
+ 	b, err := cmd.CombinedOutput()
+ 	m := string(b)
+ 
+-	t.Logf(m) // expect error
++	t.Log(m) // expect error
+ 
+ 	yCount := strings.Count(m, "opt.go:16:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt.go:29)")
+ 	nCount := strings.Count(m, "shared")
+@@ -366,7 +366,7 @@ func TestLoopVarVersionDisableGoBuild(t *testing.T) {
+ 	b, err := cmd.CombinedOutput()
+ 	m := string(b)
+ 
+-	t.Logf(m) // expect error
++	t.Log(m) // expect error
+ 
+ 	yCount := strings.Count(m, "opt-121.go:18:6: loop variable private now per-iteration, heap-allocated (loop inlined into ./opt-121.go:31)")
+ 	nCount := strings.Count(m, "shared")
+diff --git a/src/cmd/compile/internal/ssa/lca_test.go b/src/cmd/compile/internal/ssa/lca_test.go
+index 8c8920c740..423627de18 100644
+--- a/src/cmd/compile/internal/ssa/lca_test.go
++++ b/src/cmd/compile/internal/ssa/lca_test.go
+@@ -11,7 +11,7 @@ func testLCAgen(t *testing.T, bg blockGen, size int) {
+ 	fun := c.Fun("entry", bg(size)...)
+ 	CheckFunc(fun.f)
+ 	if size == 4 {
+-		t.Logf(fun.f.String())
++		t.Log(fun.f.String())
+ 	}
+ 	lca1 := makeLCArange(fun.f)
+ 	lca2 := makeLCAeasy(fun.f)
+diff --git a/src/cmd/compile/internal/syntax/branches.go b/src/cmd/compile/internal/syntax/branches.go
+index 3d7ffed374..8b360176e8 100644
+--- a/src/cmd/compile/internal/syntax/branches.go
++++ b/src/cmd/compile/internal/syntax/branches.go
+@@ -29,9 +29,9 @@ func checkBranches(body *BlockStmt, errh ErrorHandler) {
+ 		name := fwd.Label.Value
+ 		if l := ls.labels[name]; l != nil {
+ 			l.used = true // avoid "defined and not used" error
+-			ls.err(fwd.Label.Pos(), "goto %s jumps into block starting at %s", name, l.parent.start)
++			ls.errf(fwd.Label.Pos(), "goto %s jumps into block starting at %s", name, l.parent.start)
+ 		} else {
+-			ls.err(fwd.Label.Pos(), "label %s not defined", name)
++			ls.errf(fwd.Label.Pos(), "label %s not defined", name)
+ 		}
+ 	}
+ 
+@@ -39,7 +39,7 @@ func checkBranches(body *BlockStmt, errh ErrorHandler) {
+ 	for _, l := range ls.labels {
+ 		if !l.used {
+ 			l := l.lstmt.Label
+-			ls.err(l.Pos(), "label %s defined and not used", l.Value)
++			ls.errf(l.Pos(), "label %s defined and not used", l.Value)
+ 		}
+ 	}
+ }
+@@ -61,7 +61,7 @@ type block struct {
+ 	lstmt  *LabeledStmt // labeled statement associated with this block, or nil
+ }
+ 
+-func (ls *labelScope) err(pos Pos, format string, args ...interface{}) {
++func (ls *labelScope) errf(pos Pos, format string, args ...interface{}) {
+ 	ls.errh(Error{pos, fmt.Sprintf(format, args...)})
+ }
+ 
+@@ -75,7 +75,7 @@ func (ls *labelScope) declare(b *block, s *LabeledStmt) *label {
+ 		labels = make(map[string]*label)
+ 		ls.labels = labels
+ 	} else if alt := labels[name]; alt != nil {
+-		ls.err(s.Label.Pos(), "label %s already defined at %s", name, alt.lstmt.Label.Pos().String())
++		ls.errf(s.Label.Pos(), "label %s already defined at %s", name, alt.lstmt.Label.Pos().String())
+ 		return alt
+ 	}
+ 	l := &label{b, s, false}
+@@ -188,7 +188,7 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
+ 						fwd.Target = s
+ 						l.used = true
+ 						if jumpsOverVarDecl(fwd) {
+-							ls.err(
++							ls.errf(
+ 								fwd.Label.Pos(),
+ 								"goto %s jumps over declaration of %s at %s",
+ 								name, String(varName), varPos,
+@@ -215,13 +215,13 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
+ 					if t := ctxt.breaks; t != nil {
+ 						s.Target = t
+ 					} else {
+-						ls.err(s.Pos(), "break is not in a loop, switch, or select")
++						ls.errf(s.Pos(), "break is not in a loop, switch, or select")
+ 					}
+ 				case _Continue:
+ 					if t := ctxt.continues; t != nil {
+ 						s.Target = t
+ 					} else {
+-						ls.err(s.Pos(), "continue is not in a loop")
++						ls.errf(s.Pos(), "continue is not in a loop")
+ 					}
+ 				case _Fallthrough:
+ 					msg := "fallthrough statement out of place"
+@@ -237,7 +237,7 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
+ 							break // fallthrough ok
+ 						}
+ 					}
+-					ls.err(s.Pos(), msg)
++					ls.errf(s.Pos(), "%s", msg)
+ 				case _Goto:
+ 					fallthrough // should always have a label
+ 				default:
+@@ -258,10 +258,10 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
+ 					case *SwitchStmt, *SelectStmt, *ForStmt:
+ 						s.Target = t
+ 					default:
+-						ls.err(s.Label.Pos(), "invalid break label %s", name)
++						ls.errf(s.Label.Pos(), "invalid break label %s", name)
+ 					}
+ 				} else {
+-					ls.err(s.Label.Pos(), "break label not defined: %s", name)
++					ls.errf(s.Label.Pos(), "break label not defined: %s", name)
+ 				}
+ 
+ 			case _Continue:
+@@ -271,10 +271,10 @@ func (ls *labelScope) blockBranches(parent *block, ctxt targets, lstmt *LabeledS
+ 					if t, ok := t.Stmt.(*ForStmt); ok {
+ 						s.Target = t
+ 					} else {
+-						ls.err(s.Label.Pos(), "invalid continue label %s", name)
++						ls.errf(s.Label.Pos(), "invalid continue label %s", name)
+ 					}
+ 				} else {
+-					ls.err(s.Label.Pos(), "continue label not defined: %s", name)
++					ls.errf(s.Label.Pos(), "continue label not defined: %s", name)
+ 				}
+ 
+ 			case _Goto:
+diff --git a/src/cmd/compile/internal/test/mergelocals_test.go b/src/cmd/compile/internal/test/mergelocals_test.go
+index 843044d084..77389fa7b7 100644
+--- a/src/cmd/compile/internal/test/mergelocals_test.go
++++ b/src/cmd/compile/internal/test/mergelocals_test.go
+@@ -161,7 +161,7 @@ func TestMergeLocalsIntegration(t *testing.T) {
+ 		fields := strings.Fields(line)
+ 		wantFields := 9
+ 		if len(fields) != wantFields {
+-			t.Logf(string(out))
++			t.Log(string(out))
+ 			t.Fatalf("bad trace output line, wanted %d fields got %d: %s",
+ 				wantFields, len(fields), line)
+ 		}
+@@ -173,7 +173,7 @@ func TestMergeLocalsIntegration(t *testing.T) {
+ 	wantvnum := 8
+ 	gotvnum := len(vars)
+ 	if wantvnum != gotvnum {
+-		t.Logf(string(out))
++		t.Log(string(out))
+ 		t.Fatalf("expected trace output on %d vars got %d\n", wantvnum, gotvnum)
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/test/ssa_test.go b/src/cmd/compile/internal/test/ssa_test.go
+index 7f2faa1140..7d213fceca 100644
+--- a/src/cmd/compile/internal/test/ssa_test.go
++++ b/src/cmd/compile/internal/test/ssa_test.go
+@@ -36,7 +36,7 @@ func runGenTest(t *testing.T, filename, tmpname string, ev ...string) {
+ 	rungo := filepath.Join(t.TempDir(), "run.go")
+ 	ok := os.WriteFile(rungo, stdout.Bytes(), 0600)
+ 	if ok != nil {
+-		t.Fatalf("Failed to create temporary file " + rungo)
++		t.Fatalf("Failed to create temporary file %s", rungo)
+ 	}
+ 
+ 	stdout.Reset()
+diff --git a/src/cmd/compile/internal/test/testdata/addressed_test.go b/src/cmd/compile/internal/test/testdata/addressed_test.go
+index 4cc9ac4d5b..3d315c3a55 100644
+--- a/src/cmd/compile/internal/test/testdata/addressed_test.go
++++ b/src/cmd/compile/internal/test/testdata/addressed_test.go
+@@ -12,7 +12,7 @@ import (
+ var output string
+ 
+ func mypanic(t *testing.T, s string) {
+-	t.Fatalf(s + "\n" + output)
++	t.Fatal(s + "\n" + output)
+ 
+ }
+ 
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 433e951388..17bba88f79 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -1507,7 +1507,7 @@ func disallowInternal(ctx context.Context, srcDir string, importer *Package, imp
+ 	perr := &PackageError{
+ 		alwaysPrintStack: true,
+ 		ImportStack:      stk.Copy(),
+-		Err:              ImportErrorf(p.ImportPath, "use of internal package "+p.ImportPath+" not allowed"),
++		Err:              ImportErrorf(p.ImportPath, "use of internal package %s not allowed", p.ImportPath),
+ 	}
+ 	return perr
+ }
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index d1e9feab13..69b47ba27f 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -1504,7 +1504,7 @@ func setDefaultBuildMod() {
+ 					}
+ 				}
+ 			} else {
+-				cfg.BuildModReason = fmt.Sprintf("Go version in " + versionSource + " is unspecified, so vendor directory was not used.")
++				cfg.BuildModReason = fmt.Sprintf("Go version in %s is unspecified, so vendor directory was not used.", versionSource)
+ 			}
+ 		}
+ 	}
+diff --git a/src/cmd/internal/goobj/objfile_test.go b/src/cmd/internal/goobj/objfile_test.go
+index 10e0564a59..f264aefa9c 100644
+--- a/src/cmd/internal/goobj/objfile_test.go
++++ b/src/cmd/internal/goobj/objfile_test.go
+@@ -104,11 +104,11 @@ func TestIssue41621LargeNumberOfRelocations(t *testing.T) {
+ 
+ 	// Emit testcase.
+ 	var w bytes.Buffer
+-	fmt.Fprintf(&w, issue41621prolog)
++	w.WriteString(issue41621prolog)
+ 	for i := 0; i < 1048576+13; i++ {
+ 		fmt.Fprintf(&w, "\t\"%d\",\n", i)
+ 	}
+-	fmt.Fprintf(&w, issue41621epilog)
++	w.WriteString(issue41621epilog)
+ 	err = os.WriteFile(tmpdir+"/large.go", w.Bytes(), 0666)
+ 	if err != nil {
+ 		t.Fatalf("can't write output: %v\n", err)
+diff --git a/src/cmd/internal/objabi/flag.go b/src/cmd/internal/objabi/flag.go
+index ee7d2fed49..b07a426612 100644
+--- a/src/cmd/internal/objabi/flag.go
++++ b/src/cmd/internal/objabi/flag.go
+@@ -354,7 +354,7 @@ func (f *DebugFlag) Set(debugstr string) error {
+ 			}
+ 			err := f.debugSSA(phase, flag, val, valstring)
+ 			if err != "" {
+-				log.Fatalf(err)
++				log.Fatal(err)
+ 			}
+ 			// Setting this false for -d=ssa/... preserves old behavior
+ 			// of turning off concurrency for any debug flags.
+diff --git a/src/cmd/link/internal/loader/loader_test.go b/src/cmd/link/internal/loader/loader_test.go
+index eedcc9876b..541f42b7d1 100644
+--- a/src/cmd/link/internal/loader/loader_test.go
++++ b/src/cmd/link/internal/loader/loader_test.go
+@@ -355,7 +355,7 @@ func TestAddDataMethods(t *testing.T) {
+ 		name := fmt.Sprintf("new%d", k+1)
+ 		mi := ldr.LookupOrCreateSym(name, 0)
+ 		if mi == 0 {
+-			t.Fatalf("LookupOrCreateSym failed for '" + name + "'")
++			t.Fatalf("LookupOrCreateSym failed for %q", name)
+ 		}
+ 		mi = tp.addDataFunc(ldr, mi, pmi)
+ 		if ldr.SymType(mi) != tp.expKind {
+diff --git a/src/cmd/link/linkbig_test.go b/src/cmd/link/linkbig_test.go
+index 45cb1b3ab6..ae9a38fa7b 100644
+--- a/src/cmd/link/linkbig_test.go
++++ b/src/cmd/link/linkbig_test.go
+@@ -46,7 +46,7 @@ func TestLargeText(t *testing.T) {
+ 		testname := fmt.Sprintf("bigfn%d", j)
+ 		fmt.Fprintf(&w, "TEXT ·%s(SB),$0\n", testname)
+ 		for i := 0; i < 2200000; i++ {
+-			fmt.Fprintf(&w, inst)
++			w.WriteString(inst)
+ 		}
+ 		fmt.Fprintf(&w, "\tRET\n")
+ 		err := os.WriteFile(tmpdir+"/"+testname+".s", w.Bytes(), 0666)

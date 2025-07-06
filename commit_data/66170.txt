@@ -1,0 +1,194 @@
+commit f2cadb6b2e589247be6730e8cb13c23d88450fbf
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Tue Feb 11 18:08:32 2025 -0500
+
+    cmd/pprof: update vendored github.com/google/pprof [generated]
+    
+    Pull in the latest published version of github.com/google/pprof
+    as part of the continuous process of keeping Go's dependencies
+    up to date.
+    
+    For #36905.
+    
+    [git-generate]
+    cd src/cmd
+    go get github.com/google/pprof@v0.0.0-20250208200701-d0013a598941
+    go mod tidy
+    go mod vendor
+    
+    Change-Id: I87e5621286d3db85f358fb86875aaf65bd7811a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648916
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../google/pprof/internal/driver/html/stacks.js    |  4 ++-
+ .../google/pprof/internal/report/report.go         | 33 +++++++++++++---------
+ .../google/pprof/internal/symbolizer/symbolizer.go | 14 +++++++++
+ src/cmd/vendor/modules.txt                         |  2 +-
+ 6 files changed, 41 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 5f4e418616..99c4046490 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -3,7 +3,7 @@ module cmd
+ go 1.25
+ 
+ require (
+-	github.com/google/pprof v0.0.0-20241101162523-b92577c0c142
++	github.com/google/pprof v0.0.0-20250208200701-d0013a598941
+ 	golang.org/x/arch v0.14.0
+ 	golang.org/x/build v0.0.0-20250211223606-a5e3f75caa63
+ 	golang.org/x/mod v0.23.0
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 75299131f6..78f797c648 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -1,7 +1,7 @@
+ github.com/google/go-cmp v0.6.0 h1:ofyhxvXcZhMsU5ulbFiLKl/XBFqE1GSq7atu8tAmTRI=
+ github.com/google/go-cmp v0.6.0/go.mod h1:17dUlkBOakJ0+DkrSSNjCkIjxS6bF9zb3elmeNGIjoY=
+-github.com/google/pprof v0.0.0-20241101162523-b92577c0c142 h1:sAGdeJj0bnMgUNVeUpp6AYlVdCt3/GdI3pGRqsNSQLs=
+-github.com/google/pprof v0.0.0-20241101162523-b92577c0c142/go.mod h1:vavhavw2zAxS5dIdcRluK6cSGGPlZynqzFM8NdvU144=
++github.com/google/pprof v0.0.0-20250208200701-d0013a598941 h1:43XjGa6toxLpeksjcxs1jIoIyr+vUfOqY2c6HB4bpoc=
++github.com/google/pprof v0.0.0-20250208200701-d0013a598941/go.mod h1:vavhavw2zAxS5dIdcRluK6cSGGPlZynqzFM8NdvU144=
+ github.com/ianlancetaylor/demangle v0.0.0-20240912202439-0a2b6291aafd h1:EVX1s+XNss9jkRW9K6XGJn2jL2lB1h5H804oKPsxOec=
+ github.com/ianlancetaylor/demangle v0.0.0-20240912202439-0a2b6291aafd/go.mod h1:gx7rwoVhcfuVKG5uya9Hs3Sxj7EIvldVofAWIUtGouw=
+ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+index 484c2d7590..7db06996da 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
++++ b/src/cmd/vendor/github.com/google/pprof/internal/driver/html/stacks.js
+@@ -135,7 +135,9 @@ function stackViewer(stacks, nodes) {
+     }
+ 
+     // Update params to include src.
+-    let v = pprofQuoteMeta(stacks.Sources[src].FullName);
++    // When `pprof` is invoked with `-lines`, FullName will be suffixed with `:<line>`,
++    // which we need to remove.
++    let v = pprofQuoteMeta(stacks.Sources[src].FullName.replace(/:[0-9]+$/, ''));
+     if (param != 'f' && param != 'sf') { // old f,sf values are overwritten
+       // Add new source to current parameter value.
+       const old = params.get(param);
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+index 8e73f179ec..9d52872b7d 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/report/report.go
+@@ -699,13 +699,17 @@ func printTags(w io.Writer, rpt *Report) error {
+ 	p := rpt.prof
+ 
+ 	o := rpt.options
+-	formatTag := func(v int64, key string) string {
+-		return measurement.ScaledLabel(v, key, o.OutputUnit)
++	formatTag := func(v int64, unit string) string {
++		return measurement.ScaledLabel(v, unit, o.OutputUnit)
+ 	}
+ 
+-	// Hashtable to keep accumulate tags as key,value,count.
++	// Accumulate tags as key,value,count.
+ 	tagMap := make(map[string]map[string]int64)
++	// Note that we assume single value per tag per sample. Multiple values are
++	// encodable in the format but are discouraged.
++	tagTotalMap := make(map[string]int64)
+ 	for _, s := range p.Sample {
++		sampleValue := o.SampleValue(s.Value)
+ 		for key, vals := range s.Label {
+ 			for _, val := range vals {
+ 				valueMap, ok := tagMap[key]
+@@ -713,7 +717,8 @@ func printTags(w io.Writer, rpt *Report) error {
+ 					valueMap = make(map[string]int64)
+ 					tagMap[key] = valueMap
+ 				}
+-				valueMap[val] += o.SampleValue(s.Value)
++				valueMap[val] += sampleValue
++				tagTotalMap[key] += sampleValue
+ 			}
+ 		}
+ 		for key, vals := range s.NumLabel {
+@@ -725,7 +730,8 @@ func printTags(w io.Writer, rpt *Report) error {
+ 					valueMap = make(map[string]int64)
+ 					tagMap[key] = valueMap
+ 				}
+-				valueMap[val] += o.SampleValue(s.Value)
++				valueMap[val] += sampleValue
++				tagTotalMap[key] += sampleValue
+ 			}
+ 		}
+ 	}
+@@ -736,22 +742,23 @@ func printTags(w io.Writer, rpt *Report) error {
+ 	}
+ 	tabw := tabwriter.NewWriter(w, 0, 0, 1, ' ', tabwriter.AlignRight)
+ 	for _, tagKey := range graph.SortTags(tagKeys, true) {
+-		var total int64
+ 		key := tagKey.Name
+ 		tags := make([]*graph.Tag, 0, len(tagMap[key]))
+ 		for t, c := range tagMap[key] {
+-			total += c
+ 			tags = append(tags, &graph.Tag{Name: t, Flat: c})
+ 		}
+ 
+-		f, u := measurement.Scale(total, o.SampleUnit, o.OutputUnit)
+-		fmt.Fprintf(tabw, "%s:\t Total %.1f%s\n", key, f, u)
++		tagTotal, profileTotal := tagTotalMap[key], rpt.Total()
++		if profileTotal > 0 {
++			fmt.Fprintf(tabw, "%s:\t Total %s of %s (%s)\n", key, rpt.formatValue(tagTotal), rpt.formatValue(profileTotal), measurement.Percentage(tagTotal, profileTotal))
++		} else {
++			fmt.Fprintf(tabw, "%s:\t Total %s of %s\n", key, rpt.formatValue(tagTotal), rpt.formatValue(profileTotal))
++		}
+ 		for _, t := range graph.SortTags(tags, true) {
+-			f, u := measurement.Scale(t.FlatValue(), o.SampleUnit, o.OutputUnit)
+-			if total > 0 {
+-				fmt.Fprintf(tabw, " \t%.1f%s (%s):\t %s\n", f, u, measurement.Percentage(t.FlatValue(), total), t.Name)
++			if profileTotal > 0 {
++				fmt.Fprintf(tabw, " \t%s (%s):\t %s\n", rpt.formatValue(t.FlatValue()), measurement.Percentage(t.FlatValue(), profileTotal), t.Name)
+ 			} else {
+-				fmt.Fprintf(tabw, " \t%.1f%s:\t %s\n", f, u, t.Name)
++				fmt.Fprintf(tabw, " \t%s:\t %s\n", rpt.formatValue(t.FlatValue()), t.Name)
+ 			}
+ 		}
+ 		fmt.Fprintln(tabw)
+diff --git a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+index 0d45136461..95c15b1366 100644
+--- a/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
++++ b/src/cmd/vendor/github.com/google/pprof/internal/symbolizer/symbolizer.go
+@@ -257,6 +257,10 @@ func Demangle(prof *profile.Profile, force bool, demanglerMode string) {
+ 	}
+ 
+ 	options := demanglerModeToOptions(demanglerMode)
++	// Bail out fast to avoid any parsing, if we really don't want any demangling.
++	if len(options) == 0 {
++		return
++	}
+ 	for _, fn := range prof.Function {
+ 		demangleSingleFunction(fn, options)
+ 	}
+@@ -288,6 +292,16 @@ func demangleSingleFunction(fn *profile.Function, options []demangle.Option) {
+ 		fn.Name = demangled
+ 		return
+ 	}
++
++	// OSX has all the symbols prefixed with extra '_' so lets try
++	// once more without it
++	if strings.HasPrefix(fn.SystemName, "_") {
++		if demangled := demangle.Filter(fn.SystemName[1:], o...); demangled != fn.SystemName {
++			fn.Name = demangled
++			return
++		}
++	}
++
+ 	// Could not demangle. Apply heuristics in case the name is
+ 	// already demangled.
+ 	name := fn.SystemName
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 703d9364ea..24a3c19576 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# github.com/google/pprof v0.0.0-20241101162523-b92577c0c142
++# github.com/google/pprof v0.0.0-20250208200701-d0013a598941
+ ## explicit; go 1.22
+ github.com/google/pprof/driver
+ github.com/google/pprof/internal/binutils

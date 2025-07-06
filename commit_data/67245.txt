@@ -1,0 +1,30 @@
+commit 2ef7106881db51b485f092af93c1a1f01b60ab16
+Author: David Chase <drchase@google.com>
+Date:   Thu May 22 18:14:51 2025 -0400
+
+    [dev.simd] internal/buildcfg: enable SIMD GOEXPERIMENT for amd64
+    
+    Since we are developing and testing this, the default is on.
+    This may still cause us a little headache when developing
+    on other-architecture laptops.
+    
+    Change-Id: I9e9e5ea4ff2312c0c8385386b5012370f00dbfbd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/internal/buildcfg/exp.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/internal/buildcfg/exp.go b/src/internal/buildcfg/exp.go
+index e36ec08a5b..17a02415c4 100644
+--- a/src/internal/buildcfg/exp.go
++++ b/src/internal/buildcfg/exp.go
+@@ -84,6 +84,7 @@ func ParseGOEXPERIMENT(goos, goarch, goexp string) (*ExperimentFlags, error) {
+ 		AliasTypeParams: true,
+ 		SwissMap:        true,
+ 		SyncHashTrieMap: true,
++		SIMD:            goarch == "amd64", // TODO remove this (default to false) when dev.simd is merged
+ 		Dwarf5:          dwarf5Supported,
+ 	}
+ 

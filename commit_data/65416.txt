@@ -1,0 +1,171 @@
+commit a867e5e5a6f0cc31ac9e4de8d9e25fd6be034325
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Nov 14 17:42:26 2024 -0800
+
+    internal/runtime/maps: simplify small group lookup
+    
+    We don't really need the index of the slot we're looking at.
+    Just keep looking until there are no more filled slots.
+    
+    This particularly helps when there are only a few filled entries
+    (packed at the bottom), and we're looking for something that isn't
+    there. We exit earlier than we would otherwise.
+    
+    goos: darwin
+    goarch: arm64
+    pkg: runtime
+    cpu: Apple M2 Ultra
+                                                     │  baseline   │              experiment               │
+                                                     │   sec/op    │   sec/op     vs base                  │
+    MapSmallAccessHit/Key=int64/Elem=int64/len=1-24    2.759n ± 0%   2.779n ± 2%        ~ (p=0.055 n=10)
+    MapSmallAccessHit/Key=int64/Elem=int64/len=2-24    2.862n ± 1%   2.922n ± 1%   +2.08% (p=0.000 n=10)
+    MapSmallAccessHit/Key=int64/Elem=int64/len=3-24    3.003n ± 0%   3.061n ± 1%   +1.91% (p=0.000 n=10)
+    MapSmallAccessHit/Key=int64/Elem=int64/len=4-24    3.170n ± 1%   3.188n ± 1%   +0.57% (p=0.030 n=10)
+    MapSmallAccessHit/Key=int64/Elem=int64/len=5-24    3.387n ± 1%   3.391n ± 1%        ~ (p=0.362 n=10)
+    MapSmallAccessHit/Key=int64/Elem=int64/len=6-24    3.601n ± 1%   3.584n ± 0%   -0.49% (p=0.009 n=10)
+    MapSmallAccessHit/Key=int64/Elem=int64/len=7-24    3.785n ± 1%   3.778n ± 3%        ~ (p=0.987 n=10)
+    MapSmallAccessHit/Key=int64/Elem=int64/len=8-24    3.960n ± 1%   3.946n ± 1%        ~ (p=0.256 n=10)
+    MapSmallAccessMiss/Key=int64/Elem=int64/len=0-24   2.004n ± 1%
+    MapSmallAccessMiss/Key=int64/Elem=int64/len=1-24   5.145n ± 1%   2.411n ± 1%  -53.14% (p=0.000 n=10)
+    MapSmallAccessMiss/Key=int64/Elem=int64/len=2-24   5.128n ± 0%   3.313n ± 1%  -35.40% (p=0.000 n=10)
+    MapSmallAccessMiss/Key=int64/Elem=int64/len=3-24   5.159n ± 1%   3.690n ± 1%  -28.48% (p=0.000 n=10)
+    MapSmallAccessMiss/Key=int64/Elem=int64/len=4-24   5.117n ± 1%   4.466n ± 6%  -12.73% (p=0.000 n=10)
+    MapSmallAccessMiss/Key=int64/Elem=int64/len=5-24   5.115n ± 1%   4.308n ± 1%  -15.79% (p=0.000 n=10)
+    MapSmallAccessMiss/Key=int64/Elem=int64/len=6-24   5.111n ± 1%   4.538n ± 2%  -11.19% (p=0.000 n=10)
+    MapSmallAccessMiss/Key=int64/Elem=int64/len=7-24   4.896n ± 4%   4.831n ± 1%   -1.33% (p=0.001 n=10)
+    MapSmallAccessMiss/Key=int64/Elem=int64/len=8-24   4.905n ± 1%   5.121n ± 1%   +4.40% (p=0.000 n=10)
+    geomean                                            3.917n        3.631n       -11.11%
+    
+    Change-Id: Ife26ac457a513af24fa0921b839ee6cd5fed6fba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627717
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/internal/runtime/maps/runtime_fast32_swiss.go | 18 ++++++++++++------
+ src/internal/runtime/maps/runtime_fast64_swiss.go | 17 ++++++++++++-----
+ src/runtime/map_benchmark_test.go                 | 20 ++++++++++++++++++++
+ 3 files changed, 44 insertions(+), 11 deletions(-)
+
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+index 95c2a5ec1f..2ab30bce6c 100644
+--- a/src/internal/runtime/maps/runtime_fast32_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -34,13 +34,16 @@ func runtime_mapaccess1_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe
+ 		g := groupReference{
+ 			data: m.dirPtr,
+ 		}
+-
++		full := g.ctrls().matchFull()
++		slotKey := g.key(typ, 0)
+ 		slotSize := typ.SlotSize
+-		for i, slotKey := uintptr(0), g.key(typ, 0); i < abi.SwissMapGroupSlots; i, slotKey = i+1, unsafe.Pointer(uintptr(slotKey)+slotSize) {
+-			if key == *(*uint32)(slotKey) && (g.ctrls().get(i)&(1<<7)) == 0 {
++		for full != 0 {
++			if key == *(*uint32)(slotKey) && full&(1<<7) != 0 {
+ 				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 				return slotElem
+ 			}
++			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
++			full >>= 8
+ 		}
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+@@ -99,13 +102,16 @@ func runtime_mapaccess2_fast32(typ *abi.SwissMapType, m *Map, key uint32) (unsaf
+ 		g := groupReference{
+ 			data: m.dirPtr,
+ 		}
+-
++		full := g.ctrls().matchFull()
++		slotKey := g.key(typ, 0)
+ 		slotSize := typ.SlotSize
+-		for i, slotKey := uintptr(0), g.key(typ, 0); i < abi.SwissMapGroupSlots; i, slotKey = i+1, unsafe.Pointer(uintptr(slotKey)+slotSize) {
+-			if key == *(*uint32)(slotKey) && (g.ctrls().get(i)&(1<<7)) == 0 {
++		for full != 0 {
++			if key == *(*uint32)(slotKey) && full&(1<<7) != 0 {
+ 				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 				return slotElem, true
+ 			}
++			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
++			full >>= 8
+ 		}
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index d00e4b6258..396c63c236 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -34,13 +34,16 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
+ 		g := groupReference{
+ 			data: m.dirPtr,
+ 		}
+-
++		full := g.ctrls().matchFull()
++		slotKey := g.key(typ, 0)
+ 		slotSize := typ.SlotSize
+-		for i, slotKey := uintptr(0), g.key(typ, 0); i < abi.SwissMapGroupSlots; i, slotKey = i+1, unsafe.Pointer(uintptr(slotKey)+slotSize) {
+-			if key == *(*uint64)(slotKey) && (g.ctrls().get(i)&(1<<7)) == 0 {
++		for full != 0 {
++			if key == *(*uint64)(slotKey) && full&(1<<7) != 0 {
+ 				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 				return slotElem
+ 			}
++			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
++			full >>= 8
+ 		}
+ 		return unsafe.Pointer(&zeroVal[0])
+ 	}
+@@ -99,12 +102,16 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
+ 		g := groupReference{
+ 			data: m.dirPtr,
+ 		}
++		full := g.ctrls().matchFull()
++		slotKey := g.key(typ, 0)
+ 		slotSize := typ.SlotSize
+-		for i, slotKey := uintptr(0), g.key(typ, 0); i < abi.SwissMapGroupSlots; i, slotKey = i+1, unsafe.Pointer(uintptr(slotKey)+slotSize) {
+-			if key == *(*uint64)(slotKey) && (g.ctrls().get(i)&(1<<7)) == 0 {
++		for full != 0 {
++			if key == *(*uint64)(slotKey) && full&(1<<7) != 0 {
+ 				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 				return slotElem, true
+ 			}
++			slotKey = unsafe.Pointer(uintptr(slotKey) + slotSize)
++			full >>= 8
+ 		}
+ 		return unsafe.Pointer(&zeroVal[0]), false
+ 	}
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index d895b2c640..46720dd279 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -539,6 +539,15 @@ func benchSizes(f func(b *testing.B, n int)) func(*testing.B) {
+ 		}
+ 	}
+ }
++func smallBenchSizes(f func(b *testing.B, n int)) func(*testing.B) {
++	return func(b *testing.B) {
++		for n := 1; n <= 8; n++ {
++			b.Run("len="+strconv.Itoa(n), func(b *testing.B) {
++				f(b, n)
++			})
++		}
++	}
++}
+ 
+ // A 16 byte type.
+ type smallType [16]byte
+@@ -1139,3 +1148,14 @@ func BenchmarkMapDeleteLargeKey(b *testing.B) {
+ 		delete(m, key)
+ 	}
+ }
++
++func BenchmarkMapSmallAccessHit(b *testing.B) {
++	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessHit[int32, int32]))
++	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessHit[int64, int64]))
++	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessHit[string, string]))
++}
++func BenchmarkMapSmallAccessMiss(b *testing.B) {
++	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[int32, int32]))
++	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessMiss[int64, int64]))
++	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessMiss[string, string]))
++}

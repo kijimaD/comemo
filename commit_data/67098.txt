@@ -1,0 +1,65 @@
+commit 3e82316a4357c44c193790bdc02d1f8032f34289
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri May 16 21:07:46 2025 +0200
+
+    cmd/compile: don't instrument counter globals in internal/fuzz
+    
+    Fixes: #72766
+    
+    Change-Id: I45b521e53c2a11e259dc99e2dfc8e40cac39139a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/cgo/internal/testsanitizers/asan_test.go               | 3 +++
+ src/cmd/cgo/internal/testsanitizers/testdata/asan_fuzz_test.go | 2 +-
+ src/cmd/compile/internal/pkginit/initAsanGlobals.go            | 6 ++++++
+ 3 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/asan_test.go b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+index f7f53da334..c2cdf7b6d6 100644
+--- a/src/cmd/cgo/internal/testsanitizers/asan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/asan_test.go
+@@ -135,6 +135,9 @@ func TestASANFuzz(t *testing.T) {
+ 	if bytes.Contains(out, []byte("AddressSanitizer")) {
+ 		t.Error(`output contains "AddressSanitizer", but should not`)
+ 	}
++	if !bytes.Contains(out, []byte("FUZZ FAILED")) {
++		t.Error(`fuzz test did not fail with a "FUZZ FAILED" sentinel error`)
++	}
+ }
+ 
+ func mustHaveASAN(t *testing.T) *config {
+diff --git a/src/cmd/cgo/internal/testsanitizers/testdata/asan_fuzz_test.go b/src/cmd/cgo/internal/testsanitizers/testdata/asan_fuzz_test.go
+index fb7ebd4078..1a51819d7d 100644
+--- a/src/cmd/cgo/internal/testsanitizers/testdata/asan_fuzz_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/testdata/asan_fuzz_test.go
+@@ -24,7 +24,7 @@ func FuzzReverse(f *testing.F) {
+ 		r1 := Reverse(s)
+ 		r2 := Reverse(r1)
+ 		if s != r2 {
+-			t.Errorf("got %q want %q", r2, s)
++			t.Errorf("FUZZ FAILED: got %q want %q", r2, s)
+ 		}
+ 	})
+ }
+diff --git a/src/cmd/compile/internal/pkginit/initAsanGlobals.go b/src/cmd/compile/internal/pkginit/initAsanGlobals.go
+index 42db0eaf1b..96c052204a 100644
+--- a/src/cmd/compile/internal/pkginit/initAsanGlobals.go
++++ b/src/cmd/compile/internal/pkginit/initAsanGlobals.go
+@@ -227,6 +227,12 @@ func canInstrumentGlobal(g ir.Node) bool {
+ 		return false
+ 	}
+ 
++	// Do not instrument counter globals in internal/fuzz. These globals are replaced by the linker.
++	// See go.dev/issue/72766 for more details.
++	if n.Sym().Pkg.Path == "internal/fuzz" && (n.Sym().Name == "_counters" || n.Sym().Name == "_ecounters") {
++		return false
++	}
++
+ 	// Do not instrument globals that are linknamed, because their home package will do the work.
+ 	if n.Sym().Linkname != "" {
+ 		return false

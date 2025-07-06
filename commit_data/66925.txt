@@ -1,0 +1,56 @@
+commit 739fb752e3d546034b96d8cc9f2fded613040c98
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Apr 30 15:14:50 2025 -0400
+
+    runtime: don't restore from g0.sched in systemstack on arm64
+    
+    On arm64, systemstack restores the frame pointer from g0.sched to R29
+    prior to calling the callback. That doesn't really make any sense. The
+    frame pointer value in g0.sched is some arbitrary BP from a prior
+    context save, but that is not the caller of systemstack.
+    
+    amd64 does not do this. In fact, it leaves BP completely unmodified so
+    frame pointer unwinders like gdb can walk through the systemstack frame
+    and continue traceback on the caller's stack. Unlike mcall, systemstack
+    always returns to the original goroutine, so that is safe.
+    
+    We should do the same on arm64.
+    
+    For #63630.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm64-longtest
+    Change-Id: I6a6a636c35d321dd5d7dc1c4d09e29b55b1ab621
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669236
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Nick Ripley <nick.ripley@datadoghq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/asm_arm64.s | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 18d2dc5d57..5ba72d8498 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -276,7 +276,10 @@ TEXT runtime·systemstack(SB), NOSPLIT, $0-8
+ 	B	runtime·abort(SB)
+ 
+ switch:
+-	// save our state in g->sched. Pretend to
++	// Switch stacks.
++	// The original frame pointer is stored in R29,
++	// which is useful for stack unwinding.
++	// Save our state in g->sched. Pretend to
+ 	// be systemstack_switch if the G stack is scanned.
+ 	BL	gosave_systemstack_switch<>(SB)
+ 
+@@ -285,7 +288,6 @@ switch:
+ 	BL	runtime·save_g(SB)
+ 	MOVD	(g_sched+gobuf_sp)(g), R3
+ 	MOVD	R3, RSP
+-	MOVD	(g_sched+gobuf_bp)(g), R29
+ 
+ 	// call target function
+ 	MOVD	0(R26), R3	// code pointer

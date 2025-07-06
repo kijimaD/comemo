@@ -1,0 +1,29 @@
+commit a4eba85fada2a312fc7df20e6f1e215eda8e6a4d
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Sep 4 10:34:40 2024 -0400
+
+    cmd/internal/obj: drop NOFRAME TODO
+    
+    NOFRAME is long since implemented beyond ppc64x.
+    
+    Change-Id: Ia02c732badc3330bf876723bb64eff390f3e6622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/internal/obj/textflag.go | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/internal/obj/textflag.go b/src/cmd/internal/obj/textflag.go
+index bf9c8c99f1..96e6e9377e 100644
+--- a/src/cmd/internal/obj/textflag.go
++++ b/src/cmd/internal/obj/textflag.go
+@@ -43,7 +43,6 @@ const (
+ 
+ 	// Do not insert instructions to allocate a stack frame for this function.
+ 	// Only valid on functions that declare a frame size of 0.
+-	// TODO(mwhudson): only implemented for ppc64x at present.
+ 	NOFRAME = 512
+ 
+ 	// Function can call reflect.Type.Method or reflect.Type.MethodByName.

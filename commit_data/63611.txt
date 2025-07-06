@@ -1,0 +1,31 @@
+commit 7b5206bdf37863aee416358b695f6dd2a9f087fc
+Author: Russ Cox <rsc@golang.org>
+Date:   Fri Apr 26 10:46:24 2024 -0400
+
+    internal/bisect: use f.Function instead of f.Func.Name in stack trace
+    
+    For inlined frames f.Func is nil and f.Func.Name is an empty string.
+    f.Function is correct all the time.
+    
+    Change-Id: I7c30f80e7176128ae5576b130d2891f884ee47c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581996
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/internal/bisect/bisect.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/bisect/bisect.go b/src/internal/bisect/bisect.go
+index fa753e80e7..a79bb8000d 100644
+--- a/src/internal/bisect/bisect.go
++++ b/src/internal/bisect/bisect.go
+@@ -496,7 +496,7 @@ func printStack(w Writer, h uint64, stk []uintptr) error {
+ 	for {
+ 		f, more := frames.Next()
+ 		buf = append(buf, prefix...)
+-		buf = append(buf, f.Func.Name()...)
++		buf = append(buf, f.Function...)
+ 		buf = append(buf, "()\n"...)
+ 		buf = append(buf, prefix...)
+ 		buf = append(buf, '\t')

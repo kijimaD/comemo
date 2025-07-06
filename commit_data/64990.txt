@@ -1,0 +1,90 @@
+commit 722ecf34474a33663f69220838af8c715185b5b7
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 3 09:34:42 2024 +0200
+
+    archive/tar: use hash/crc32 instead of crypto/md5 for test checksums
+    
+    Using MD5 for checksums in tests is an overkill, as MD5 is designed for
+    cryptographic purposes. Use hash/crc32 instead, which is designed for
+    detecting random data corruptions, aka checksums.
+    
+    Change-Id: I03b30ed7f38fba2a2e59d06bd4133b495f64a013
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/archive/tar/reader_test.go | 22 +++++++++++-----------
+ 1 file changed, 11 insertions(+), 11 deletions(-)
+
+diff --git a/src/archive/tar/reader_test.go b/src/archive/tar/reader_test.go
+index cc49fe3641..99340a3047 100644
+--- a/src/archive/tar/reader_test.go
++++ b/src/archive/tar/reader_test.go
+@@ -7,9 +7,9 @@ package tar
+ import (
+ 	"bytes"
+ 	"compress/bzip2"
+-	"crypto/md5"
+ 	"errors"
+ 	"fmt"
++	"hash/crc32"
+ 	"io"
+ 	"maps"
+ 	"math"
+@@ -27,7 +27,7 @@ func TestReader(t *testing.T) {
+ 	vectors := []struct {
+ 		file    string    // Test input file
+ 		headers []*Header // Expected output headers
+-		chksums []string  // MD5 checksum of files, leave as nil if not checked
++		chksums []string  // CRC32 checksum of files, leave as nil if not checked
+ 		err     error     // Expected error to occur
+ 	}{{
+ 		file: "testdata/gnu.tar",
+@@ -55,8 +55,8 @@ func TestReader(t *testing.T) {
+ 			Format:   FormatGNU,
+ 		}},
+ 		chksums: []string{
+-			"e38b27eaccb4391bdec553a7f3ae6b2f",
+-			"c65bd2e50a56a2138bf1716f2fd56fe9",
++			"6cbd88fc",
++			"ddac04b3",
+ 		},
+ 	}, {
+ 		file: "testdata/sparse-formats.tar",
+@@ -149,11 +149,11 @@ func TestReader(t *testing.T) {
+ 			Format:   FormatGNU,
+ 		}},
+ 		chksums: []string{
+-			"6f53234398c2449fe67c1812d993012f",
+-			"6f53234398c2449fe67c1812d993012f",
+-			"6f53234398c2449fe67c1812d993012f",
+-			"6f53234398c2449fe67c1812d993012f",
+-			"b0061974914468de549a2af8ced10316",
++			"5375e1d2",
++			"5375e1d2",
++			"5375e1d2",
++			"5375e1d2",
++			"8eb179ba",
+ 		},
+ 	}, {
+ 		file: "testdata/star.tar",
+@@ -270,7 +270,7 @@ func TestReader(t *testing.T) {
+ 			Format: FormatPAX,
+ 		}},
+ 		chksums: []string{
+-			"0afb597b283fe61b5d4879669a350556",
++			"5fd7e86a",
+ 		},
+ 	}, {
+ 		file: "testdata/pax-records.tar",
+@@ -657,7 +657,7 @@ func TestReader(t *testing.T) {
+ 				if v.chksums == nil {
+ 					continue
+ 				}
+-				h := md5.New()
++				h := crc32.NewIEEE()
+ 				_, err = io.CopyBuffer(h, tr, rdbuf) // Effectively an incremental read
+ 				if err != nil {
+ 					break

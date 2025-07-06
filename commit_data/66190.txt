@@ -1,0 +1,51 @@
+commit eab3c1e697189ddded55a5ac14d8b29d35145419
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Feb 13 16:02:20 2025 +0000
+
+    os: explicitly return nil for {rootChmod,rootMkdir,rootRemove} in root_openat.go
+    
+    It is consistent with same functions in root_noopenat.go.
+    
+    Change-Id: I81415fd3922101499fcbbdec97e315add0671acb
+    GitHub-Last-Rev: 3444e8546ee1877feb644202ad2b05379b4b7e74
+    GitHub-Pull-Request: golang/go#71715
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649235
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/os/root_openat.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/root_openat.go b/src/os/root_openat.go
+index 5038c822f5..d98d2e3675 100644
+--- a/src/os/root_openat.go
++++ b/src/os/root_openat.go
+@@ -74,7 +74,7 @@ func rootChmod(r *Root, name string, mode FileMode) error {
+ 	if err != nil {
+ 		return &PathError{Op: "chmodat", Path: name, Err: err}
+ 	}
+-	return err
++	return nil
+ }
+ 
+ func rootMkdir(r *Root, name string, perm FileMode) error {
+@@ -84,7 +84,7 @@ func rootMkdir(r *Root, name string, perm FileMode) error {
+ 	if err != nil {
+ 		return &PathError{Op: "mkdirat", Path: name, Err: err}
+ 	}
+-	return err
++	return nil
+ }
+ 
+ func rootRemove(r *Root, name string) error {
+@@ -94,7 +94,7 @@ func rootRemove(r *Root, name string) error {
+ 	if err != nil {
+ 		return &PathError{Op: "removeat", Path: name, Err: err}
+ 	}
+-	return err
++	return nil
+ }
+ 
+ // doInRoot performs an operation on a path in a Root.

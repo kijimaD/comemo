@@ -1,0 +1,59 @@
+commit 17789bc8771ad2d36e374df65262c4ffd81c97c5
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Apr 9 16:21:42 2025 -0400
+
+    crypto/tls: use runtime.AddCleanup instead of runtime.SetFinalizer
+    
+    Replace the usage of runtime.SetFinalizer with runtime.AddCleanup in
+    the certificate cache.
+    
+    Updates #70907
+    
+    Change-Id: Ieab6ff88dbc4083f11c1b475f11bd61521dbc638
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664275
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/crypto/tls/cache.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/crypto/tls/cache.go b/src/crypto/tls/cache.go
+index a7677611fd..807f522947 100644
+--- a/src/crypto/tls/cache.go
++++ b/src/crypto/tls/cache.go
+@@ -43,15 +43,15 @@ var globalCertCache = new(certCache)
+ 
+ // activeCert is a handle to a certificate held in the cache. Once there are
+ // no alive activeCerts for a given certificate, the certificate is removed
+-// from the cache by a finalizer.
++// from the cache by a cleanup.
+ type activeCert struct {
+ 	cert *x509.Certificate
+ }
+ 
+ // active increments the number of references to the entry, wraps the
+-// certificate in the entry in an activeCert, and sets the finalizer.
++// certificate in the entry in an activeCert, and sets the cleanup.
+ //
+-// Note that there is a race between active and the finalizer set on the
++// Note that there is a race between active and the cleanup set on the
+ // returned activeCert, triggered if active is called after the ref count is
+ // decremented such that refs may be > 0 when evict is called. We consider this
+ // safe, since the caller holding an activeCert for an entry that is no longer
+@@ -60,11 +60,11 @@ type activeCert struct {
+ func (cc *certCache) active(e *cacheEntry) *activeCert {
+ 	e.refs.Add(1)
+ 	a := &activeCert{e.cert}
+-	runtime.SetFinalizer(a, func(_ *activeCert) {
+-		if e.refs.Add(-1) == 0 {
+-			cc.evict(e)
++	runtime.AddCleanup(a, func(ce *cacheEntry) {
++		if ce.refs.Add(-1) == 0 {
++			cc.evict(ce)
+ 		}
+-	})
++	}, e)
+ 	return a
+ }
+ 

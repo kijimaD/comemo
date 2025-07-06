@@ -1,0 +1,121 @@
+commit 87a89fa45130d4406fa4d9f0882b9c5014240d03
+Author: Shuo Wang <wangshuo@kylinos.cn>
+Date:   Wed Oct 23 01:52:14 2024 +0000
+
+    runtime: add the checkPtraceScope to skip certain tests
+    
+    When the kernel parameter ptrace_scope is set to 2 or 3,
+    certain test cases in runtime-gdb_test.go will fail.
+    We should skip these tests.
+    
+    Fixes #69932
+    
+    Change-Id: I685d1217f1521d7f8801680cf6b71d8e7a265188
+    GitHub-Last-Rev: 063759e04cfc5ea750ed1d381d8586134488a96b
+    GitHub-Pull-Request: golang/go#69933
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620857
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/runtime-gdb_test.go | 44 +++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 44 insertions(+)
+
+diff --git a/src/runtime/runtime-gdb_test.go b/src/runtime/runtime-gdb_test.go
+index d31db52234..ec878bb045 100644
+--- a/src/runtime/runtime-gdb_test.go
++++ b/src/runtime/runtime-gdb_test.go
+@@ -112,6 +112,44 @@ func checkCleanBacktrace(t *testing.T, backtrace string) {
+ 	// TODO(mundaym): check for unknown frames (e.g. "??").
+ }
+ 
++// checkPtraceScope checks the value of the kernel parameter ptrace_scope,
++// skips the test when gdb cannot attach to the target process via ptrace.
++// See issue 69932
++//
++// 0 - Default attach security permissions.
++// 1 - Restricted attach. Only child processes plus normal permissions.
++// 2 - Admin-only attach. Only executables with CAP_SYS_PTRACE.
++// 3 - No attach. No process may call ptrace at all. Irrevocable.
++func checkPtraceScope(t *testing.T) {
++	if runtime.GOOS != "linux" {
++		return
++	}
++
++	// If the Linux kernel does not have the YAMA module enabled,
++	// there will be no ptrace_scope file, which does not affect the tests.
++	path := "/proc/sys/kernel/yama/ptrace_scope"
++	if _, err := os.Stat(path); os.IsNotExist(err) {
++		return
++	}
++
++	data, err := os.ReadFile(path)
++	if err != nil {
++		t.Fatalf("failed to read file: %v", err)
++	}
++	value, err := strconv.Atoi(strings.TrimSpace(string(data)))
++	if err != nil {
++		t.Fatalf("failed converting value to int: %v", err)
++	}
++	switch value {
++	case 3:
++		t.Skip("skipping ptrace: Operation not permitted")
++	case 2:
++		if os.Geteuid() != 0 {
++			t.Skip("skipping ptrace: Operation not permitted with non-root user")
++		}
++	}
++}
++
+ // NOTE: the maps below are allocated larger than abi.MapBucketCount
+ // to ensure that they are not "optimized out".
+ 
+@@ -194,6 +232,7 @@ func testGdbPython(t *testing.T, cgo bool) {
+ 	t.Parallel()
+ 	checkGdbVersion(t)
+ 	checkGdbPython(t)
++	checkPtraceScope(t)
+ 
+ 	dir := t.TempDir()
+ 
+@@ -417,6 +456,7 @@ func TestGdbBacktrace(t *testing.T) {
+ 	checkGdbEnvironment(t)
+ 	t.Parallel()
+ 	checkGdbVersion(t)
++	checkPtraceScope(t)
+ 
+ 	dir := t.TempDir()
+ 
+@@ -531,6 +571,7 @@ func TestGdbAutotmpTypes(t *testing.T) {
+ 	checkGdbEnvironment(t)
+ 	t.Parallel()
+ 	checkGdbVersion(t)
++	checkPtraceScope(t)
+ 
+ 	if runtime.GOOS == "aix" && testing.Short() {
+ 		t.Skip("TestGdbAutotmpTypes is too slow on aix/ppc64")
+@@ -616,6 +657,7 @@ func TestGdbConst(t *testing.T) {
+ 	checkGdbEnvironment(t)
+ 	t.Parallel()
+ 	checkGdbVersion(t)
++	checkPtraceScope(t)
+ 
+ 	dir := t.TempDir()
+ 
+@@ -680,6 +722,7 @@ func TestGdbPanic(t *testing.T) {
+ 	checkGdbEnvironment(t)
+ 	t.Parallel()
+ 	checkGdbVersion(t)
++	checkPtraceScope(t)
+ 
+ 	if runtime.GOOS == "windows" {
+ 		t.Skip("no signals on windows")
+@@ -759,6 +802,7 @@ func TestGdbInfCallstack(t *testing.T) {
+ 
+ 	t.Parallel()
+ 	checkGdbVersion(t)
++	checkPtraceScope(t)
+ 
+ 	dir := t.TempDir()
+ 

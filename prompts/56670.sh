@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 56670: fe786638bb878c726d8500ceb21e81de7f38c554
+# Index 56670: 0a1da095d1cef7c8ac6065da2983565b450566a5
 
 echo "🚀 Generating explanation for commit 56670..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 56670..."
 
 ### メタデータ
 - **コミットインデックス**: 56670
-- **コミットハッシュ**: fe786638bb878c726d8500ceb21e81de7f38c554
-- **GitHub URL**: https://github.com/golang/go/commit/fe786638bb878c726d8500ceb21e81de7f38c554
+- **コミットハッシュ**: 0a1da095d1cef7c8ac6065da2983565b450566a5
+- **GitHub URL**: https://github.com/golang/go/commit/0a1da095d1cef7c8ac6065da2983565b450566a5
 
 ### 章構成
 

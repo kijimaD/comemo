@@ -1,0 +1,49 @@
+commit 80143607f06fd6410700e9764cfea9aaac9c311c
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Tue Sep 24 03:06:38 2024 +0200
+
+    internal/syscall/unix: allow calling getrandom(..., 0, ...)
+    
+    Calling getrandom() with a zero length is actually valid and useful:
+    
+    - Calling getrandom(..., 0, 0) will block until the RNG is initialized.
+    - Calling getrandom(..., 0, GRND_NONBLOCK) will query whether the RNG
+      is initialized.
+    
+    So instead of short circuiting execution for these circumstances, pass
+    this through to the syscall.
+    
+    Change-Id: I15178f087908a2d8be6c020a1ef800cc0a074742
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615315
+    Run-TryBot: Jason Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/syscall/unix/getrandom.go | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
+
+diff --git a/src/internal/syscall/unix/getrandom.go b/src/internal/syscall/unix/getrandom.go
+index e83f0cd6f9..4270898b7e 100644
+--- a/src/internal/syscall/unix/getrandom.go
++++ b/src/internal/syscall/unix/getrandom.go
+@@ -19,14 +19,11 @@ type GetRandomFlag uintptr
+ 
+ // GetRandom calls the getrandom system call.
+ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
+-	if len(p) == 0 {
+-		return 0, nil
+-	}
+ 	if getrandomUnsupported.Load() {
+ 		return 0, syscall.ENOSYS
+ 	}
+ 	r1, _, errno := syscall.Syscall(getrandomTrap,
+-		uintptr(unsafe.Pointer(&p[0])),
++		uintptr(unsafe.Pointer(unsafe.SliceData(p))),
+ 		uintptr(len(p)),
+ 		uintptr(flags))
+ 	if errno != 0 {

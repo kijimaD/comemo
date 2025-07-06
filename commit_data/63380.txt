@@ -1,0 +1,34 @@
+commit 23fc9170604a3df9a0458849ffb16b570eadcc19
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Apr 3 11:24:36 2024 +0700
+
+    reflect: add missing String case in Value.UnsafePointer doc
+    
+    CL 516596 changes Value.UnsafePointer to handle String case. However,
+    the method's doc comment is not updated to reflect this change.
+    
+    Updates #61308
+    
+    Change-Id: I84e02fd969ae0244184e1a2f05cac4651cdf7bff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575956
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/reflect/value.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index d14e01ae0c..3720d63e57 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2773,7 +2773,7 @@ func (v Value) UnsafeAddr() uintptr {
+ }
+ 
+ // UnsafePointer returns v's value as a [unsafe.Pointer].
+-// It panics if v's Kind is not [Chan], [Func], [Map], [Pointer], [Slice], or [UnsafePointer].
++// It panics if v's Kind is not [Chan], [Func], [Map], [Pointer], [Slice], [String] or [UnsafePointer].
+ //
+ // If v's Kind is [Func], the returned pointer is an underlying
+ // code pointer, but not necessarily enough to identify a

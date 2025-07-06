@@ -1,0 +1,1738 @@
+commit ac396b4b910ac491a6ab52065e3d02422630d91f
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Thu Oct 31 11:18:38 2024 +0800
+
+    all: update golang.org/x/sys to v0.26.0
+    
+    Commands run (in both src and src/cmd):
+            go get golang.org/x/sys@v0.26.0
+            go mod tidy
+            go mod vendor
+    
+    This is in preparation for vendoring an updated x/tools it has a
+    requirement on x/sys v0.26.0.
+    
+    Change-Id: I122bb3a3bc97610ba71c52263b99c56e3354b59d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623855
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/vendor/golang.org/x/sys/unix/README.md     |   2 +-
+ src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh   |   5 +-
+ .../vendor/golang.org/x/sys/unix/syscall_aix.go    |   2 +-
+ .../vendor/golang.org/x/sys/unix/syscall_darwin.go |  37 ++++++
+ .../vendor/golang.org/x/sys/unix/syscall_hurd.go   |   1 +
+ .../vendor/golang.org/x/sys/unix/syscall_linux.go  |  63 +++++++++-
+ .../golang.org/x/sys/unix/syscall_linux_arm64.go   |   2 +
+ .../golang.org/x/sys/unix/syscall_linux_loong64.go |   2 +
+ .../golang.org/x/sys/unix/syscall_linux_riscv64.go |   2 +
+ .../golang.org/x/sys/unix/vgetrandom_linux.go      |  13 ++
+ .../x/sys/unix/vgetrandom_unsupported.go           |  11 ++
+ .../golang.org/x/sys/unix/zerrors_darwin_amd64.go  |   7 ++
+ .../golang.org/x/sys/unix/zerrors_darwin_arm64.go  |   7 ++
+ .../vendor/golang.org/x/sys/unix/zerrors_linux.go  |  13 +-
+ .../golang.org/x/sys/unix/zerrors_linux_386.go     |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_amd64.go   |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_arm.go     |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_arm64.go   |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_loong64.go |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_mips.go    |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_mips64.go  |   5 +
+ .../x/sys/unix/zerrors_linux_mips64le.go           |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_mipsle.go  |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc.go     |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64.go   |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_ppc64le.go |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_riscv64.go |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_s390x.go   |   5 +
+ .../golang.org/x/sys/unix/zerrors_linux_sparc64.go |   5 +
+ .../golang.org/x/sys/unix/zerrors_zos_s390x.go     |   2 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.go |  20 +++
+ .../golang.org/x/sys/unix/zsyscall_darwin_amd64.s  |   5 +
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.go |  20 +++
+ .../golang.org/x/sys/unix/zsyscall_darwin_arm64.s  |   5 +
+ .../vendor/golang.org/x/sys/unix/zsyscall_linux.go |  17 ---
+ .../golang.org/x/sys/unix/zsysnum_linux_amd64.go   |   1 +
+ .../golang.org/x/sys/unix/zsysnum_linux_arm64.go   |   2 +-
+ .../golang.org/x/sys/unix/zsysnum_linux_loong64.go |   2 +
+ .../golang.org/x/sys/unix/zsysnum_linux_riscv64.go |   2 +-
+ .../golang.org/x/sys/unix/ztypes_darwin_amd64.go   |  13 ++
+ .../golang.org/x/sys/unix/ztypes_darwin_arm64.go   |  13 ++
+ .../golang.org/x/sys/unix/ztypes_freebsd_386.go    |   1 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_amd64.go  |   1 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_arm.go    |   1 +
+ .../golang.org/x/sys/unix/ztypes_freebsd_arm64.go  |   1 +
+ .../x/sys/unix/ztypes_freebsd_riscv64.go           |   1 +
+ .../vendor/golang.org/x/sys/unix/ztypes_linux.go   |  93 +++++++++-----
+ .../golang.org/x/sys/unix/ztypes_linux_riscv64.go  |  33 +++++
+ .../vendor/golang.org/x/sys/windows/dll_windows.go |   2 +-
+ .../golang.org/x/sys/windows/syscall_windows.go    |   4 +
+ .../golang.org/x/sys/windows/types_windows.go      |  45 +++++++
+ .../golang.org/x/sys/windows/zsyscall_windows.go   |  38 ++++++
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   4 +-
+ src/vendor/golang.org/x/sys/cpu/cpu.go             |  19 +++
+ .../golang.org/x/sys/cpu/cpu_linux_noinit.go       |   2 +-
+ .../golang.org/x/sys/cpu/cpu_linux_riscv64.go      | 137 +++++++++++++++++++++
+ src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go     |  11 +-
+ src/vendor/modules.txt                             |   2 +-
+ 62 files changed, 681 insertions(+), 68 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index f25fc82fd1..4535c16d18 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -8,7 +8,7 @@ require (
+ 	golang.org/x/build v0.0.0-20240722200705-b9910f320300
+ 	golang.org/x/mod v0.20.0
+ 	golang.org/x/sync v0.8.0
+-	golang.org/x/sys v0.23.0
++	golang.org/x/sys v0.26.0
+ 	golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97
+ 	golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292
+ 	golang.org/x/tools v0.24.1-0.20240904143311-70f56264139c
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 3b9efe242f..631657a6b4 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -14,8 +14,8 @@ golang.org/x/mod v0.20.0 h1:utOm6MM3R3dnawAiJgn0y+xvuYRsm1RKM/4giyfDgV0=
+ golang.org/x/mod v0.20.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.8.0 h1:3NFvSEYkUoMifnESzZl15y791HH1qU2xm6eCJU5ZPXQ=
+ golang.org/x/sync v0.8.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.23.0 h1:YfKFowiIMvtgl1UERQoTPPToxltDeZfbj4H7dVUCwmM=
+-golang.org/x/sys v0.23.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/sys v0.26.0 h1:KHjCJyddX0LoSTb3J+vWpupP9p0oznkqVk/IfjymZbo=
++golang.org/x/sys v0.26.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97 h1:5xPN7d0u5VdgF2gFFXUDaeD3NP1pPgFMHocnCQGAh5M=
+ golang.org/x/telemetry v0.0.0-20240828202201-a797f331ea97/go.mod h1:m7R/r+o5h7UvF2JD9n2iLSGY4v8v+zNSyTJ6xynLrqs=
+ golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292 h1:BOrQi08eIX3cDgGcMgFONf27MxXigcYa9x+iW5JuCXw=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/README.md b/src/cmd/vendor/golang.org/x/sys/unix/README.md
+index 7d3c060e12..6e08a76a71 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/README.md
++++ b/src/cmd/vendor/golang.org/x/sys/unix/README.md
+@@ -156,7 +156,7 @@ from the generated architecture-specific files listed below, and merge these
+ into a common file for each OS.
+ 
+ The merge is performed in the following steps:
+-1. Construct the set of common code that is idential in all architecture-specific files.
++1. Construct the set of common code that is identical in all architecture-specific files.
+ 2. Write this common code to the merged file.
+ 3. Remove the common code from all architecture-specific files.
+ 
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+index d07dd09eb5..ac54ecaba0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
++++ b/src/cmd/vendor/golang.org/x/sys/unix/mkerrors.sh
+@@ -552,6 +552,7 @@ ccflags="$@"
+ 		$2 !~ /^RTC_VL_(ACCURACY|BACKUP|DATA)/ &&
+ 		$2 ~ /^(NETLINK|NLM|NLMSG|NLA|IFA|IFAN|RT|RTC|RTCF|RTN|RTPROT|RTNH|ARPHRD|ETH_P|NETNSA)_/ ||
+ 		$2 ~ /^SOCK_|SK_DIAG_|SKNLGRP_$/ ||
++		$2 ~ /^(CONNECT|SAE)_/ ||
+ 		$2 ~ /^FIORDCHK$/ ||
+ 		$2 ~ /^SIOC/ ||
+ 		$2 ~ /^TIOC/ ||
+@@ -655,7 +656,7 @@ errors=$(
+ signals=$(
+ 	echo '#include <signal.h>' | $CC -x c - -E -dM $ccflags |
+ 	awk '$1=="#define" && $2 ~ /^SIG[A-Z0-9]+$/ { print $2 }' |
+-	grep -v 'SIGSTKSIZE\|SIGSTKSZ\|SIGRT\|SIGMAX64' |
++	grep -E -v '(SIGSTKSIZE|SIGSTKSZ|SIGRT|SIGMAX64)' |
+ 	sort
+ )
+ 
+@@ -665,7 +666,7 @@ echo '#include <errno.h>' | $CC -x c - -E -dM $ccflags |
+ 	sort >_error.grep
+ echo '#include <signal.h>' | $CC -x c - -E -dM $ccflags |
+ 	awk '$1=="#define" && $2 ~ /^SIG[A-Z0-9]+$/ { print "^\t" $2 "[ \t]*=" }' |
+-	grep -v 'SIGSTKSIZE\|SIGSTKSZ\|SIGRT\|SIGMAX64' |
++	grep -E -v '(SIGSTKSIZE|SIGSTKSZ|SIGRT|SIGMAX64)' |
+ 	sort >_signal.grep
+ 
+ echo '// mkerrors.sh' "$@"
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+index 67ce6cef2d..6f15ba1eaf 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_aix.go
+@@ -360,7 +360,7 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
+ 	var status _C_int
+ 	var r Pid_t
+ 	err = ERESTART
+-	// AIX wait4 may return with ERESTART errno, while the processus is still
++	// AIX wait4 may return with ERESTART errno, while the process is still
+ 	// active.
+ 	for err == ERESTART {
+ 		r, err = wait4(Pid_t(pid), &status, options, rusage)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+index 2d15200adb..099867deed 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_darwin.go
+@@ -566,6 +566,43 @@ func PthreadFchdir(fd int) (err error) {
+ 	return pthread_fchdir_np(fd)
+ }
+ 
++// Connectx calls connectx(2) to initiate a connection on a socket.
++//
++// srcIf, srcAddr, and dstAddr are filled into a [SaEndpoints] struct and passed as the endpoints argument.
++//
++//   - srcIf is the optional source interface index. 0 means unspecified.
++//   - srcAddr is the optional source address. nil means unspecified.
++//   - dstAddr is the destination address.
++//
++// On success, Connectx returns the number of bytes enqueued for transmission.
++func Connectx(fd int, srcIf uint32, srcAddr, dstAddr Sockaddr, associd SaeAssocID, flags uint32, iov []Iovec, connid *SaeConnID) (n uintptr, err error) {
++	endpoints := SaEndpoints{
++		Srcif: srcIf,
++	}
++
++	if srcAddr != nil {
++		addrp, addrlen, err := srcAddr.sockaddr()
++		if err != nil {
++			return 0, err
++		}
++		endpoints.Srcaddr = (*RawSockaddr)(addrp)
++		endpoints.Srcaddrlen = uint32(addrlen)
++	}
++
++	if dstAddr != nil {
++		addrp, addrlen, err := dstAddr.sockaddr()
++		if err != nil {
++			return 0, err
++		}
++		endpoints.Dstaddr = (*RawSockaddr)(addrp)
++		endpoints.Dstaddrlen = uint32(addrlen)
++	}
++
++	err = connectx(fd, &endpoints, associd, flags, iov, &n, connid)
++	return
++}
++
++//sys	connectx(fd int, endpoints *SaEndpoints, associd SaeAssocID, flags uint32, iov []Iovec, n *uintptr, connid *SaeConnID) (err error)
+ //sys	sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error)
+ 
+ //sys	shmat(id int, addr uintptr, flag int) (ret uintptr, err error)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_hurd.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_hurd.go
+index ba46651f8e..a6a2d2fc2b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_hurd.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_hurd.go
+@@ -11,6 +11,7 @@ package unix
+ int ioctl(int, unsigned long int, uintptr_t);
+ */
+ import "C"
++import "unsafe"
+ 
+ func ioctl(fd int, req uint, arg uintptr) (err error) {
+ 	r0, er := C.ioctl(C.int(fd), C.ulong(req), C.uintptr_t(arg))
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+index 3f1d3d4cb2..f08abd434f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux.go
+@@ -1295,6 +1295,48 @@ func GetsockoptTCPInfo(fd, level, opt int) (*TCPInfo, error) {
+ 	return &value, err
+ }
+ 
++// GetsockoptTCPCCVegasInfo returns algorithm specific congestion control information for a socket using the "vegas"
++// algorithm.
++//
++// The socket's congestion control algorighm can be retrieved via [GetsockoptString] with the [TCP_CONGESTION] option:
++//
++//	algo, err := unix.GetsockoptString(fd, unix.IPPROTO_TCP, unix.TCP_CONGESTION)
++func GetsockoptTCPCCVegasInfo(fd, level, opt int) (*TCPVegasInfo, error) {
++	var value [SizeofTCPCCInfo / 4]uint32 // ensure proper alignment
++	vallen := _Socklen(SizeofTCPCCInfo)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
++	out := (*TCPVegasInfo)(unsafe.Pointer(&value[0]))
++	return out, err
++}
++
++// GetsockoptTCPCCDCTCPInfo returns algorithm specific congestion control information for a socket using the "dctp"
++// algorithm.
++//
++// The socket's congestion control algorighm can be retrieved via [GetsockoptString] with the [TCP_CONGESTION] option:
++//
++//	algo, err := unix.GetsockoptString(fd, unix.IPPROTO_TCP, unix.TCP_CONGESTION)
++func GetsockoptTCPCCDCTCPInfo(fd, level, opt int) (*TCPDCTCPInfo, error) {
++	var value [SizeofTCPCCInfo / 4]uint32 // ensure proper alignment
++	vallen := _Socklen(SizeofTCPCCInfo)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
++	out := (*TCPDCTCPInfo)(unsafe.Pointer(&value[0]))
++	return out, err
++}
++
++// GetsockoptTCPCCBBRInfo returns algorithm specific congestion control information for a socket using the "bbr"
++// algorithm.
++//
++// The socket's congestion control algorighm can be retrieved via [GetsockoptString] with the [TCP_CONGESTION] option:
++//
++//	algo, err := unix.GetsockoptString(fd, unix.IPPROTO_TCP, unix.TCP_CONGESTION)
++func GetsockoptTCPCCBBRInfo(fd, level, opt int) (*TCPBBRInfo, error) {
++	var value [SizeofTCPCCInfo / 4]uint32 // ensure proper alignment
++	vallen := _Socklen(SizeofTCPCCInfo)
++	err := getsockopt(fd, level, opt, unsafe.Pointer(&value[0]), &vallen)
++	out := (*TCPBBRInfo)(unsafe.Pointer(&value[0]))
++	return out, err
++}
++
+ // GetsockoptString returns the string value of the socket option opt for the
+ // socket associated with fd at the given socket level.
+ func GetsockoptString(fd, level, opt int) (string, error) {
+@@ -1959,7 +2001,26 @@ func Getpgrp() (pid int) {
+ //sysnb	Getpid() (pid int)
+ //sysnb	Getppid() (ppid int)
+ //sys	Getpriority(which int, who int) (prio int, err error)
+-//sys	Getrandom(buf []byte, flags int) (n int, err error)
++
++func Getrandom(buf []byte, flags int) (n int, err error) {
++	vdsoRet, supported := vgetrandom(buf, uint32(flags))
++	if supported {
++		if vdsoRet < 0 {
++			return 0, errnoErr(syscall.Errno(-vdsoRet))
++		}
++		return vdsoRet, nil
++	}
++	var p *byte
++	if len(buf) > 0 {
++		p = &buf[0]
++	}
++	r, _, e := Syscall(SYS_GETRANDOM, uintptr(unsafe.Pointer(p)), uintptr(len(buf)), uintptr(flags))
++	if e != 0 {
++		return 0, errnoErr(e)
++	}
++	return int(r), nil
++}
++
+ //sysnb	Getrusage(who int, rusage *Rusage) (err error)
+ //sysnb	Getsid(pid int) (sid int, err error)
+ //sysnb	Gettid() (tid int)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
+index cf2ee6c75e..745e5c7e6c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_arm64.go
+@@ -182,3 +182,5 @@ func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error
+ 	}
+ 	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
+ }
++
++const SYS_FSTATAT = SYS_NEWFSTATAT
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_loong64.go
+index 3d0e98451f..dd2262a407 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_loong64.go
+@@ -214,3 +214,5 @@ func KexecFileLoad(kernelFd int, initrdFd int, cmdline string, flags int) error
+ 	}
+ 	return kexecFileLoad(kernelFd, initrdFd, cmdlineLen, cmdline, flags)
+ }
++
++const SYS_FSTATAT = SYS_NEWFSTATAT
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
+index 6f5a288944..8cf3670bda 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/syscall_linux_riscv64.go
+@@ -187,3 +187,5 @@ func RISCVHWProbe(pairs []RISCVHWProbePairs, set *CPUSet, flags uint) (err error
+ 	}
+ 	return riscvHWProbe(pairs, setSize, set, flags)
+ }
++
++const SYS_FSTATAT = SYS_NEWFSTATAT
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/vgetrandom_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/vgetrandom_linux.go
+new file mode 100644
+index 0000000000..07ac8e09d1
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/sys/unix/vgetrandom_linux.go
+@@ -0,0 +1,13 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux && go1.24
++
++package unix
++
++import _ "unsafe"
++
++//go:linkname vgetrandom runtime.vgetrandom
++//go:noescape
++func vgetrandom(p []byte, flags uint32) (ret int, supported bool)
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/vgetrandom_unsupported.go b/src/cmd/vendor/golang.org/x/sys/unix/vgetrandom_unsupported.go
+new file mode 100644
+index 0000000000..297e97bce9
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/sys/unix/vgetrandom_unsupported.go
+@@ -0,0 +1,11 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !linux || !go1.24
++
++package unix
++
++func vgetrandom(p []byte, flags uint32) (ret int, supported bool) {
++	return -1, false
++}
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go
+index 4308ac1772..d73c4652e6 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_amd64.go
+@@ -237,6 +237,9 @@ const (
+ 	CLOCK_UPTIME_RAW_APPROX                 = 0x9
+ 	CLONE_NOFOLLOW                          = 0x1
+ 	CLONE_NOOWNERCOPY                       = 0x2
++	CONNECT_DATA_AUTHENTICATED              = 0x4
++	CONNECT_DATA_IDEMPOTENT                 = 0x2
++	CONNECT_RESUME_ON_READ_WRITE            = 0x1
+ 	CR0                                     = 0x0
+ 	CR1                                     = 0x1000
+ 	CR2                                     = 0x2000
+@@ -1265,6 +1268,10 @@ const (
+ 	RTV_SSTHRESH                            = 0x20
+ 	RUSAGE_CHILDREN                         = -0x1
+ 	RUSAGE_SELF                             = 0x0
++	SAE_ASSOCID_ALL                         = 0xffffffff
++	SAE_ASSOCID_ANY                         = 0x0
++	SAE_CONNID_ALL                          = 0xffffffff
++	SAE_CONNID_ANY                          = 0x0
+ 	SCM_CREDS                               = 0x3
+ 	SCM_RIGHTS                              = 0x1
+ 	SCM_TIMESTAMP                           = 0x2
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go
+index c8068a7a16..4a55a40058 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_darwin_arm64.go
+@@ -237,6 +237,9 @@ const (
+ 	CLOCK_UPTIME_RAW_APPROX                 = 0x9
+ 	CLONE_NOFOLLOW                          = 0x1
+ 	CLONE_NOOWNERCOPY                       = 0x2
++	CONNECT_DATA_AUTHENTICATED              = 0x4
++	CONNECT_DATA_IDEMPOTENT                 = 0x2
++	CONNECT_RESUME_ON_READ_WRITE            = 0x1
+ 	CR0                                     = 0x0
+ 	CR1                                     = 0x1000
+ 	CR2                                     = 0x2000
+@@ -1265,6 +1268,10 @@ const (
+ 	RTV_SSTHRESH                            = 0x20
+ 	RUSAGE_CHILDREN                         = -0x1
+ 	RUSAGE_SELF                             = 0x0
++	SAE_ASSOCID_ALL                         = 0xffffffff
++	SAE_ASSOCID_ANY                         = 0x0
++	SAE_CONNID_ALL                          = 0xffffffff
++	SAE_CONNID_ANY                          = 0x0
+ 	SCM_CREDS                               = 0x3
+ 	SCM_RIGHTS                              = 0x1
+ 	SCM_TIMESTAMP                           = 0x2
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+index 01a70b2463..de3b462489 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux.go
+@@ -495,6 +495,7 @@ const (
+ 	BPF_F_TEST_REG_INVARIANTS                   = 0x80
+ 	BPF_F_TEST_RND_HI32                         = 0x4
+ 	BPF_F_TEST_RUN_ON_CPU                       = 0x1
++	BPF_F_TEST_SKB_CHECKSUM_COMPLETE            = 0x4
+ 	BPF_F_TEST_STATE_FREQ                       = 0x8
+ 	BPF_F_TEST_XDP_LIVE_FRAMES                  = 0x2
+ 	BPF_F_XDP_DEV_BOUND_ONLY                    = 0x40
+@@ -1922,6 +1923,7 @@ const (
+ 	MNT_EXPIRE                                  = 0x4
+ 	MNT_FORCE                                   = 0x1
+ 	MNT_ID_REQ_SIZE_VER0                        = 0x18
++	MNT_ID_REQ_SIZE_VER1                        = 0x20
+ 	MODULE_INIT_COMPRESSED_FILE                 = 0x4
+ 	MODULE_INIT_IGNORE_MODVERSIONS              = 0x1
+ 	MODULE_INIT_IGNORE_VERMAGIC                 = 0x2
+@@ -2187,7 +2189,7 @@ const (
+ 	NFT_REG_SIZE                                = 0x10
+ 	NFT_REJECT_ICMPX_MAX                        = 0x3
+ 	NFT_RT_MAX                                  = 0x4
+-	NFT_SECMARK_CTX_MAXLEN                      = 0x100
++	NFT_SECMARK_CTX_MAXLEN                      = 0x1000
+ 	NFT_SET_MAXNAMELEN                          = 0x100
+ 	NFT_SOCKET_MAX                              = 0x3
+ 	NFT_TABLE_F_MASK                            = 0x7
+@@ -2356,9 +2358,11 @@ const (
+ 	PERF_MEM_LVLNUM_IO                          = 0xa
+ 	PERF_MEM_LVLNUM_L1                          = 0x1
+ 	PERF_MEM_LVLNUM_L2                          = 0x2
++	PERF_MEM_LVLNUM_L2_MHB                      = 0x5
+ 	PERF_MEM_LVLNUM_L3                          = 0x3
+ 	PERF_MEM_LVLNUM_L4                          = 0x4
+ 	PERF_MEM_LVLNUM_LFB                         = 0xc
++	PERF_MEM_LVLNUM_MSC                         = 0x6
+ 	PERF_MEM_LVLNUM_NA                          = 0xf
+ 	PERF_MEM_LVLNUM_PMEM                        = 0xe
+ 	PERF_MEM_LVLNUM_RAM                         = 0xd
+@@ -2431,6 +2435,7 @@ const (
+ 	PRIO_PGRP                                   = 0x1
+ 	PRIO_PROCESS                                = 0x0
+ 	PRIO_USER                                   = 0x2
++	PROCFS_IOCTL_MAGIC                          = 'f'
+ 	PROC_SUPER_MAGIC                            = 0x9fa0
+ 	PROT_EXEC                                   = 0x4
+ 	PROT_GROWSDOWN                              = 0x1000000
+@@ -2933,11 +2938,12 @@ const (
+ 	RUSAGE_SELF                                 = 0x0
+ 	RUSAGE_THREAD                               = 0x1
+ 	RWF_APPEND                                  = 0x10
++	RWF_ATOMIC                                  = 0x40
+ 	RWF_DSYNC                                   = 0x2
+ 	RWF_HIPRI                                   = 0x1
+ 	RWF_NOAPPEND                                = 0x20
+ 	RWF_NOWAIT                                  = 0x8
+-	RWF_SUPPORTED                               = 0x3f
++	RWF_SUPPORTED                               = 0x7f
+ 	RWF_SYNC                                    = 0x4
+ 	RWF_WRITE_LIFE_NOT_SET                      = 0x0
+ 	SCHED_BATCH                                 = 0x3
+@@ -3210,6 +3216,7 @@ const (
+ 	STATX_ATTR_MOUNT_ROOT                       = 0x2000
+ 	STATX_ATTR_NODUMP                           = 0x40
+ 	STATX_ATTR_VERITY                           = 0x100000
++	STATX_ATTR_WRITE_ATOMIC                     = 0x400000
+ 	STATX_BASIC_STATS                           = 0x7ff
+ 	STATX_BLOCKS                                = 0x400
+ 	STATX_BTIME                                 = 0x800
+@@ -3226,6 +3233,7 @@ const (
+ 	STATX_SUBVOL                                = 0x8000
+ 	STATX_TYPE                                  = 0x1
+ 	STATX_UID                                   = 0x8
++	STATX_WRITE_ATOMIC                          = 0x10000
+ 	STATX__RESERVED                             = 0x80000000
+ 	SYNC_FILE_RANGE_WAIT_AFTER                  = 0x4
+ 	SYNC_FILE_RANGE_WAIT_BEFORE                 = 0x1
+@@ -3624,6 +3632,7 @@ const (
+ 	XDP_UMEM_PGOFF_COMPLETION_RING              = 0x180000000
+ 	XDP_UMEM_PGOFF_FILL_RING                    = 0x100000000
+ 	XDP_UMEM_REG                                = 0x4
++	XDP_UMEM_TX_METADATA_LEN                    = 0x4
+ 	XDP_UMEM_TX_SW_CSUM                         = 0x2
+ 	XDP_UMEM_UNALIGNED_CHUNK_FLAG               = 0x1
+ 	XDP_USE_NEED_WAKEUP                         = 0x8
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+index 684a5168da..8aa6d77c01 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_386.go
+@@ -153,9 +153,14 @@ const (
+ 	NFDBITS                          = 0x20
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x8008b705
+ 	NS_GET_NSTYPE                    = 0xb703
+ 	NS_GET_OWNER_UID                 = 0xb704
+ 	NS_GET_PARENT                    = 0xb702
++	NS_GET_PID_FROM_PIDNS            = 0x8004b706
++	NS_GET_PID_IN_PIDNS              = 0x8004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x8004b707
++	NS_GET_TGID_IN_PIDNS             = 0x8004b709
+ 	NS_GET_USERNS                    = 0xb701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+index 61d74b592d..da428f4253 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_amd64.go
+@@ -153,9 +153,14 @@ const (
+ 	NFDBITS                          = 0x40
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x8008b705
+ 	NS_GET_NSTYPE                    = 0xb703
+ 	NS_GET_OWNER_UID                 = 0xb704
+ 	NS_GET_PARENT                    = 0xb702
++	NS_GET_PID_FROM_PIDNS            = 0x8004b706
++	NS_GET_PID_IN_PIDNS              = 0x8004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x8004b707
++	NS_GET_TGID_IN_PIDNS             = 0x8004b709
+ 	NS_GET_USERNS                    = 0xb701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+index a28c9e3e89..bf45bfec78 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm.go
+@@ -150,9 +150,14 @@ const (
+ 	NFDBITS                          = 0x20
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x8008b705
+ 	NS_GET_NSTYPE                    = 0xb703
+ 	NS_GET_OWNER_UID                 = 0xb704
+ 	NS_GET_PARENT                    = 0xb702
++	NS_GET_PID_FROM_PIDNS            = 0x8004b706
++	NS_GET_PID_IN_PIDNS              = 0x8004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x8004b707
++	NS_GET_TGID_IN_PIDNS             = 0x8004b709
+ 	NS_GET_USERNS                    = 0xb701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+index ab5d1fe8ea..71c67162b7 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_arm64.go
+@@ -154,9 +154,14 @@ const (
+ 	NFDBITS                          = 0x40
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x8008b705
+ 	NS_GET_NSTYPE                    = 0xb703
+ 	NS_GET_OWNER_UID                 = 0xb704
+ 	NS_GET_PARENT                    = 0xb702
++	NS_GET_PID_FROM_PIDNS            = 0x8004b706
++	NS_GET_PID_IN_PIDNS              = 0x8004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x8004b707
++	NS_GET_TGID_IN_PIDNS             = 0x8004b709
+ 	NS_GET_USERNS                    = 0xb701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+index c523090e7c..9476628fa0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_loong64.go
+@@ -154,9 +154,14 @@ const (
+ 	NFDBITS                          = 0x40
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x8008b705
+ 	NS_GET_NSTYPE                    = 0xb703
+ 	NS_GET_OWNER_UID                 = 0xb704
+ 	NS_GET_PARENT                    = 0xb702
++	NS_GET_PID_FROM_PIDNS            = 0x8004b706
++	NS_GET_PID_IN_PIDNS              = 0x8004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x8004b707
++	NS_GET_TGID_IN_PIDNS             = 0x8004b709
+ 	NS_GET_USERNS                    = 0xb701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+index 01e6ea7804..b9e85f3cf0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips.go
+@@ -150,9 +150,14 @@ const (
+ 	NFDBITS                          = 0x20
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x4008b705
+ 	NS_GET_NSTYPE                    = 0x2000b703
+ 	NS_GET_OWNER_UID                 = 0x2000b704
+ 	NS_GET_PARENT                    = 0x2000b702
++	NS_GET_PID_FROM_PIDNS            = 0x4004b706
++	NS_GET_PID_IN_PIDNS              = 0x4004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x4004b707
++	NS_GET_TGID_IN_PIDNS             = 0x4004b709
+ 	NS_GET_USERNS                    = 0x2000b701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+index 7aa610b1e7..a48b68a764 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64.go
+@@ -150,9 +150,14 @@ const (
+ 	NFDBITS                          = 0x40
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x4008b705
+ 	NS_GET_NSTYPE                    = 0x2000b703
+ 	NS_GET_OWNER_UID                 = 0x2000b704
+ 	NS_GET_PARENT                    = 0x2000b702
++	NS_GET_PID_FROM_PIDNS            = 0x4004b706
++	NS_GET_PID_IN_PIDNS              = 0x4004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x4004b707
++	NS_GET_TGID_IN_PIDNS             = 0x4004b709
+ 	NS_GET_USERNS                    = 0x2000b701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+index 92af771b44..ea00e8522a 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mips64le.go
+@@ -150,9 +150,14 @@ const (
+ 	NFDBITS                          = 0x40
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x4008b705
+ 	NS_GET_NSTYPE                    = 0x2000b703
+ 	NS_GET_OWNER_UID                 = 0x2000b704
+ 	NS_GET_PARENT                    = 0x2000b702
++	NS_GET_PID_FROM_PIDNS            = 0x4004b706
++	NS_GET_PID_IN_PIDNS              = 0x4004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x4004b707
++	NS_GET_TGID_IN_PIDNS             = 0x4004b709
+ 	NS_GET_USERNS                    = 0x2000b701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+index b27ef5e6f1..91c6468717 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_mipsle.go
+@@ -150,9 +150,14 @@ const (
+ 	NFDBITS                          = 0x20
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x4008b705
+ 	NS_GET_NSTYPE                    = 0x2000b703
+ 	NS_GET_OWNER_UID                 = 0x2000b704
+ 	NS_GET_PARENT                    = 0x2000b702
++	NS_GET_PID_FROM_PIDNS            = 0x4004b706
++	NS_GET_PID_IN_PIDNS              = 0x4004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x4004b707
++	NS_GET_TGID_IN_PIDNS             = 0x4004b709
+ 	NS_GET_USERNS                    = 0x2000b701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
+index 237a2cefb3..8cbf38d639 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc.go
+@@ -152,9 +152,14 @@ const (
+ 	NL3                              = 0x300
+ 	NLDLY                            = 0x300
+ 	NOFLSH                           = 0x80000000
++	NS_GET_MNTNS_ID                  = 0x4008b705
+ 	NS_GET_NSTYPE                    = 0x2000b703
+ 	NS_GET_OWNER_UID                 = 0x2000b704
+ 	NS_GET_PARENT                    = 0x2000b702
++	NS_GET_PID_FROM_PIDNS            = 0x4004b706
++	NS_GET_PID_IN_PIDNS              = 0x4004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x4004b707
++	NS_GET_TGID_IN_PIDNS             = 0x4004b709
+ 	NS_GET_USERNS                    = 0x2000b701
+ 	OLCUC                            = 0x4
+ 	ONLCR                            = 0x2
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+index 4a5c555a36..a2df734191 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64.go
+@@ -152,9 +152,14 @@ const (
+ 	NL3                              = 0x300
+ 	NLDLY                            = 0x300
+ 	NOFLSH                           = 0x80000000
++	NS_GET_MNTNS_ID                  = 0x4008b705
+ 	NS_GET_NSTYPE                    = 0x2000b703
+ 	NS_GET_OWNER_UID                 = 0x2000b704
+ 	NS_GET_PARENT                    = 0x2000b702
++	NS_GET_PID_FROM_PIDNS            = 0x4004b706
++	NS_GET_PID_IN_PIDNS              = 0x4004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x4004b707
++	NS_GET_TGID_IN_PIDNS             = 0x4004b709
+ 	NS_GET_USERNS                    = 0x2000b701
+ 	OLCUC                            = 0x4
+ 	ONLCR                            = 0x2
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+index a02fb49a5f..2479137923 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_ppc64le.go
+@@ -152,9 +152,14 @@ const (
+ 	NL3                              = 0x300
+ 	NLDLY                            = 0x300
+ 	NOFLSH                           = 0x80000000
++	NS_GET_MNTNS_ID                  = 0x4008b705
+ 	NS_GET_NSTYPE                    = 0x2000b703
+ 	NS_GET_OWNER_UID                 = 0x2000b704
+ 	NS_GET_PARENT                    = 0x2000b702
++	NS_GET_PID_FROM_PIDNS            = 0x4004b706
++	NS_GET_PID_IN_PIDNS              = 0x4004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x4004b707
++	NS_GET_TGID_IN_PIDNS             = 0x4004b709
+ 	NS_GET_USERNS                    = 0x2000b701
+ 	OLCUC                            = 0x4
+ 	ONLCR                            = 0x2
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+index e26a7c61b2..d265f146ee 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_riscv64.go
+@@ -150,9 +150,14 @@ const (
+ 	NFDBITS                          = 0x40
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x8008b705
+ 	NS_GET_NSTYPE                    = 0xb703
+ 	NS_GET_OWNER_UID                 = 0xb704
+ 	NS_GET_PARENT                    = 0xb702
++	NS_GET_PID_FROM_PIDNS            = 0x8004b706
++	NS_GET_PID_IN_PIDNS              = 0x8004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x8004b707
++	NS_GET_TGID_IN_PIDNS             = 0x8004b709
+ 	NS_GET_USERNS                    = 0xb701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+index c48f7c2103..3f2d644396 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_s390x.go
+@@ -150,9 +150,14 @@ const (
+ 	NFDBITS                          = 0x40
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x8008b705
+ 	NS_GET_NSTYPE                    = 0xb703
+ 	NS_GET_OWNER_UID                 = 0xb704
+ 	NS_GET_PARENT                    = 0xb702
++	NS_GET_PID_FROM_PIDNS            = 0x8004b706
++	NS_GET_PID_IN_PIDNS              = 0x8004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x8004b707
++	NS_GET_TGID_IN_PIDNS             = 0x8004b709
+ 	NS_GET_USERNS                    = 0xb701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+index ad4b9aace7..5d8b727a1c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_linux_sparc64.go
+@@ -155,9 +155,14 @@ const (
+ 	NFDBITS                          = 0x40
+ 	NLDLY                            = 0x100
+ 	NOFLSH                           = 0x80
++	NS_GET_MNTNS_ID                  = 0x4008b705
+ 	NS_GET_NSTYPE                    = 0x2000b703
+ 	NS_GET_OWNER_UID                 = 0x2000b704
+ 	NS_GET_PARENT                    = 0x2000b702
++	NS_GET_PID_FROM_PIDNS            = 0x4004b706
++	NS_GET_PID_IN_PIDNS              = 0x4004b708
++	NS_GET_TGID_FROM_PIDNS           = 0x4004b707
++	NS_GET_TGID_IN_PIDNS             = 0x4004b709
+ 	NS_GET_USERNS                    = 0x2000b701
+ 	OLCUC                            = 0x2
+ 	ONLCR                            = 0x4
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_zos_s390x.go b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_zos_s390x.go
+index da08b2ab3d..1ec2b1407b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zerrors_zos_s390x.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zerrors_zos_s390x.go
+@@ -581,6 +581,8 @@ const (
+ 	AT_EMPTY_PATH                   = 0x1000
+ 	AT_REMOVEDIR                    = 0x200
+ 	RENAME_NOREPLACE                = 1 << 0
++	ST_RDONLY                       = 1
++	ST_NOSUID                       = 2
+ )
+ 
+ const (
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
+index b622533ef2..24b346e1a3 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.go
+@@ -841,6 +841,26 @@ var libc_pthread_fchdir_np_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func connectx(fd int, endpoints *SaEndpoints, associd SaeAssocID, flags uint32, iov []Iovec, n *uintptr, connid *SaeConnID) (err error) {
++	var _p0 unsafe.Pointer
++	if len(iov) > 0 {
++		_p0 = unsafe.Pointer(&iov[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	_, _, e1 := syscall_syscall9(libc_connectx_trampoline_addr, uintptr(fd), uintptr(unsafe.Pointer(endpoints)), uintptr(associd), uintptr(flags), uintptr(_p0), uintptr(len(iov)), uintptr(unsafe.Pointer(n)), uintptr(unsafe.Pointer(connid)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_connectx_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_connectx connectx "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error) {
+ 	_, _, e1 := syscall_syscall6(libc_sendfile_trampoline_addr, uintptr(infd), uintptr(outfd), uintptr(offset), uintptr(unsafe.Pointer(len)), uintptr(hdtr), uintptr(flags))
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
+index cfe6646baf..ebd213100b 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_amd64.s
+@@ -248,6 +248,11 @@ TEXT libc_pthread_fchdir_np_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_pthread_fchdir_np_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_pthread_fchdir_np_trampoline_addr(SB)/8, $libc_pthread_fchdir_np_trampoline<>(SB)
+ 
++TEXT libc_connectx_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_connectx(SB)
++GLOBL	·libc_connectx_trampoline_addr(SB), RODATA, $8
++DATA	·libc_connectx_trampoline_addr(SB)/8, $libc_connectx_trampoline<>(SB)
++
+ TEXT libc_sendfile_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendfile(SB)
+ GLOBL	·libc_sendfile_trampoline_addr(SB), RODATA, $8
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
+index 13f624f69f..824b9c2d5e 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.go
+@@ -841,6 +841,26 @@ var libc_pthread_fchdir_np_trampoline_addr uintptr
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
++func connectx(fd int, endpoints *SaEndpoints, associd SaeAssocID, flags uint32, iov []Iovec, n *uintptr, connid *SaeConnID) (err error) {
++	var _p0 unsafe.Pointer
++	if len(iov) > 0 {
++		_p0 = unsafe.Pointer(&iov[0])
++	} else {
++		_p0 = unsafe.Pointer(&_zero)
++	}
++	_, _, e1 := syscall_syscall9(libc_connectx_trampoline_addr, uintptr(fd), uintptr(unsafe.Pointer(endpoints)), uintptr(associd), uintptr(flags), uintptr(_p0), uintptr(len(iov)), uintptr(unsafe.Pointer(n)), uintptr(unsafe.Pointer(connid)), 0)
++	if e1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
++var libc_connectx_trampoline_addr uintptr
++
++//go:cgo_import_dynamic libc_connectx connectx "/usr/lib/libSystem.B.dylib"
++
++// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
++
+ func sendfile(infd int, outfd int, offset int64, len *int64, hdtr unsafe.Pointer, flags int) (err error) {
+ 	_, _, e1 := syscall_syscall6(libc_sendfile_trampoline_addr, uintptr(infd), uintptr(outfd), uintptr(offset), uintptr(unsafe.Pointer(len)), uintptr(hdtr), uintptr(flags))
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
+index fe222b75df..4f178a2293 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_darwin_arm64.s
+@@ -248,6 +248,11 @@ TEXT libc_pthread_fchdir_np_trampoline<>(SB),NOSPLIT,$0-0
+ GLOBL	·libc_pthread_fchdir_np_trampoline_addr(SB), RODATA, $8
+ DATA	·libc_pthread_fchdir_np_trampoline_addr(SB)/8, $libc_pthread_fchdir_np_trampoline<>(SB)
+ 
++TEXT libc_connectx_trampoline<>(SB),NOSPLIT,$0-0
++	JMP	libc_connectx(SB)
++GLOBL	·libc_connectx_trampoline_addr(SB), RODATA, $8
++DATA	·libc_connectx_trampoline_addr(SB)/8, $libc_connectx_trampoline<>(SB)
++
+ TEXT libc_sendfile_trampoline<>(SB),NOSPLIT,$0-0
+ 	JMP	libc_sendfile(SB)
+ GLOBL	·libc_sendfile_trampoline_addr(SB), RODATA, $8
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+index 1bc1a5adb2..af30da5578 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsyscall_linux.go
+@@ -971,23 +971,6 @@ func Getpriority(which int, who int) (prio int, err error) {
+ 
+ // THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+ 
+-func Getrandom(buf []byte, flags int) (n int, err error) {
+-	var _p0 unsafe.Pointer
+-	if len(buf) > 0 {
+-		_p0 = unsafe.Pointer(&buf[0])
+-	} else {
+-		_p0 = unsafe.Pointer(&_zero)
+-	}
+-	r0, _, e1 := Syscall(SYS_GETRANDOM, uintptr(_p0), uintptr(len(buf)), uintptr(flags))
+-	n = int(r0)
+-	if e1 != 0 {
+-		err = errnoErr(e1)
+-	}
+-	return
+-}
+-
+-// THIS FILE IS GENERATED BY THE COMMAND AT THE TOP; DO NOT EDIT
+-
+ func Getrusage(who int, rusage *Rusage) (err error) {
+ 	_, _, e1 := RawSyscall(SYS_GETRUSAGE, uintptr(who), uintptr(unsafe.Pointer(rusage)), 0)
+ 	if e1 != 0 {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
+index d3e38f681a..f485dbf456 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_amd64.go
+@@ -341,6 +341,7 @@ const (
+ 	SYS_STATX                   = 332
+ 	SYS_IO_PGETEVENTS           = 333
+ 	SYS_RSEQ                    = 334
++	SYS_URETPROBE               = 335
+ 	SYS_PIDFD_SEND_SIGNAL       = 424
+ 	SYS_IO_URING_SETUP          = 425
+ 	SYS_IO_URING_ENTER          = 426
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
+index 6c778c2327..1893e2fe88 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_arm64.go
+@@ -85,7 +85,7 @@ const (
+ 	SYS_SPLICE                  = 76
+ 	SYS_TEE                     = 77
+ 	SYS_READLINKAT              = 78
+-	SYS_FSTATAT                 = 79
++	SYS_NEWFSTATAT              = 79
+ 	SYS_FSTAT                   = 80
+ 	SYS_SYNC                    = 81
+ 	SYS_FSYNC                   = 82
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go
+index 37281cf51a..16a4017da0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_loong64.go
+@@ -84,6 +84,8 @@ const (
+ 	SYS_SPLICE                  = 76
+ 	SYS_TEE                     = 77
+ 	SYS_READLINKAT              = 78
++	SYS_NEWFSTATAT              = 79
++	SYS_FSTAT                   = 80
+ 	SYS_SYNC                    = 81
+ 	SYS_FSYNC                   = 82
+ 	SYS_FDATASYNC               = 83
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+index 9889f6a559..a5459e766f 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/zsysnum_linux_riscv64.go
+@@ -84,7 +84,7 @@ const (
+ 	SYS_SPLICE                  = 76
+ 	SYS_TEE                     = 77
+ 	SYS_READLINKAT              = 78
+-	SYS_FSTATAT                 = 79
++	SYS_NEWFSTATAT              = 79
+ 	SYS_FSTAT                   = 80
+ 	SYS_SYNC                    = 81
+ 	SYS_FSYNC                   = 82
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_amd64.go
+index 091d107f3a..d003c3d437 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_amd64.go
+@@ -306,6 +306,19 @@ type XVSockPgen struct {
+ 
+ type _Socklen uint32
+ 
++type SaeAssocID uint32
++
++type SaeConnID uint32
++
++type SaEndpoints struct {
++	Srcif      uint32
++	Srcaddr    *RawSockaddr
++	Srcaddrlen uint32
++	Dstaddr    *RawSockaddr
++	Dstaddrlen uint32
++	_          [4]byte
++}
++
+ type Xucred struct {
+ 	Version uint32
+ 	Uid     uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_arm64.go
+index 28ff4ef74d..0d45a941aa 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_arm64.go
+@@ -306,6 +306,19 @@ type XVSockPgen struct {
+ 
+ type _Socklen uint32
+ 
++type SaeAssocID uint32
++
++type SaeConnID uint32
++
++type SaEndpoints struct {
++	Srcif      uint32
++	Srcaddr    *RawSockaddr
++	Srcaddrlen uint32
++	Dstaddr    *RawSockaddr
++	Dstaddrlen uint32
++	_          [4]byte
++}
++
+ type Xucred struct {
+ 	Version uint32
+ 	Uid     uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_386.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_386.go
+index 6cbd094a3a..51e13eb055 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_386.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_386.go
+@@ -625,6 +625,7 @@ const (
+ 	POLLRDNORM   = 0x40
+ 	POLLWRBAND   = 0x100
+ 	POLLWRNORM   = 0x4
++	POLLRDHUP    = 0x4000
+ )
+ 
+ type CapRights struct {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_amd64.go
+index 7c03b6ee77..d002d8ef3c 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_amd64.go
+@@ -630,6 +630,7 @@ const (
+ 	POLLRDNORM   = 0x40
+ 	POLLWRBAND   = 0x100
+ 	POLLWRNORM   = 0x4
++	POLLRDHUP    = 0x4000
+ )
+ 
+ type CapRights struct {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm.go
+index 422107ee8b..3f863d898d 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm.go
+@@ -616,6 +616,7 @@ const (
+ 	POLLRDNORM   = 0x40
+ 	POLLWRBAND   = 0x100
+ 	POLLWRNORM   = 0x4
++	POLLRDHUP    = 0x4000
+ )
+ 
+ type CapRights struct {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm64.go
+index 505a12acfd..61c7293106 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_arm64.go
+@@ -610,6 +610,7 @@ const (
+ 	POLLRDNORM   = 0x40
+ 	POLLWRBAND   = 0x100
+ 	POLLWRNORM   = 0x4
++	POLLRDHUP    = 0x4000
+ )
+ 
+ type CapRights struct {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_riscv64.go
+index cc986c7900..b5d17414f0 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_freebsd_riscv64.go
+@@ -612,6 +612,7 @@ const (
+ 	POLLRDNORM   = 0x40
+ 	POLLWRBAND   = 0x100
+ 	POLLWRNORM   = 0x4
++	POLLRDHUP    = 0x4000
+ )
+ 
+ type CapRights struct {
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+index b102b95a0a..3a69e45496 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux.go
+@@ -87,31 +87,35 @@ type StatxTimestamp struct {
+ }
+ 
+ type Statx_t struct {
+-	Mask             uint32
+-	Blksize          uint32
+-	Attributes       uint64
+-	Nlink            uint32
+-	Uid              uint32
+-	Gid              uint32
+-	Mode             uint16
+-	_                [1]uint16
+-	Ino              uint64
+-	Size             uint64
+-	Blocks           uint64
+-	Attributes_mask  uint64
+-	Atime            StatxTimestamp
+-	Btime            StatxTimestamp
+-	Ctime            StatxTimestamp
+-	Mtime            StatxTimestamp
+-	Rdev_major       uint32
+-	Rdev_minor       uint32
+-	Dev_major        uint32
+-	Dev_minor        uint32
+-	Mnt_id           uint64
+-	Dio_mem_align    uint32
+-	Dio_offset_align uint32
+-	Subvol           uint64
+-	_                [11]uint64
++	Mask                      uint32
++	Blksize                   uint32
++	Attributes                uint64
++	Nlink                     uint32
++	Uid                       uint32
++	Gid                       uint32
++	Mode                      uint16
++	_                         [1]uint16
++	Ino                       uint64
++	Size                      uint64
++	Blocks                    uint64
++	Attributes_mask           uint64
++	Atime                     StatxTimestamp
++	Btime                     StatxTimestamp
++	Ctime                     StatxTimestamp
++	Mtime                     StatxTimestamp
++	Rdev_major                uint32
++	Rdev_minor                uint32
++	Dev_major                 uint32
++	Dev_minor                 uint32
++	Mnt_id                    uint64
++	Dio_mem_align             uint32
++	Dio_offset_align          uint32
++	Subvol                    uint64
++	Atomic_write_unit_min     uint32
++	Atomic_write_unit_max     uint32
++	Atomic_write_segments_max uint32
++	_                         [1]uint32
++	_                         [9]uint64
+ }
+ 
+ type Fsid struct {
+@@ -516,6 +520,29 @@ type TCPInfo struct {
+ 	Total_rto_time       uint32
+ }
+ 
++type TCPVegasInfo struct {
++	Enabled uint32
++	Rttcnt  uint32
++	Rtt     uint32
++	Minrtt  uint32
++}
++
++type TCPDCTCPInfo struct {
++	Enabled  uint16
++	Ce_state uint16
++	Alpha    uint32
++	Ab_ecn   uint32
++	Ab_tot   uint32
++}
++
++type TCPBBRInfo struct {
++	Bw_lo       uint32
++	Bw_hi       uint32
++	Min_rtt     uint32
++	Pacing_gain uint32
++	Cwnd_gain   uint32
++}
++
+ type CanFilter struct {
+ 	Id   uint32
+ 	Mask uint32
+@@ -557,6 +584,7 @@ const (
+ 	SizeofICMPv6Filter      = 0x20
+ 	SizeofUcred             = 0xc
+ 	SizeofTCPInfo           = 0xf8
++	SizeofTCPCCInfo         = 0x14
+ 	SizeofCanFilter         = 0x8
+ 	SizeofTCPRepairOpt      = 0x8
+ )
+@@ -2486,7 +2514,7 @@ type XDPMmapOffsets struct {
+ type XDPUmemReg struct {
+ 	Addr            uint64
+ 	Len             uint64
+-	Chunk_size      uint32
++	Size            uint32
+ 	Headroom        uint32
+ 	Flags           uint32
+ 	Tx_metadata_len uint32
+@@ -3766,7 +3794,7 @@ const (
+ 	ETHTOOL_MSG_PSE_GET                       = 0x24
+ 	ETHTOOL_MSG_PSE_SET                       = 0x25
+ 	ETHTOOL_MSG_RSS_GET                       = 0x26
+-	ETHTOOL_MSG_USER_MAX                      = 0x2b
++	ETHTOOL_MSG_USER_MAX                      = 0x2c
+ 	ETHTOOL_MSG_KERNEL_NONE                   = 0x0
+ 	ETHTOOL_MSG_STRSET_GET_REPLY              = 0x1
+ 	ETHTOOL_MSG_LINKINFO_GET_REPLY            = 0x2
+@@ -3806,7 +3834,10 @@ const (
+ 	ETHTOOL_MSG_MODULE_NTF                    = 0x24
+ 	ETHTOOL_MSG_PSE_GET_REPLY                 = 0x25
+ 	ETHTOOL_MSG_RSS_GET_REPLY                 = 0x26
+-	ETHTOOL_MSG_KERNEL_MAX                    = 0x2b
++	ETHTOOL_MSG_KERNEL_MAX                    = 0x2c
++	ETHTOOL_FLAG_COMPACT_BITSETS              = 0x1
++	ETHTOOL_FLAG_OMIT_REPLY                   = 0x2
++	ETHTOOL_FLAG_STATS                        = 0x4
+ 	ETHTOOL_A_HEADER_UNSPEC                   = 0x0
+ 	ETHTOOL_A_HEADER_DEV_INDEX                = 0x1
+ 	ETHTOOL_A_HEADER_DEV_NAME                 = 0x2
+@@ -3948,7 +3979,7 @@ const (
+ 	ETHTOOL_A_COALESCE_RATE_SAMPLE_INTERVAL   = 0x17
+ 	ETHTOOL_A_COALESCE_USE_CQE_MODE_TX        = 0x18
+ 	ETHTOOL_A_COALESCE_USE_CQE_MODE_RX        = 0x19
+-	ETHTOOL_A_COALESCE_MAX                    = 0x1c
++	ETHTOOL_A_COALESCE_MAX                    = 0x1e
+ 	ETHTOOL_A_PAUSE_UNSPEC                    = 0x0
+ 	ETHTOOL_A_PAUSE_HEADER                    = 0x1
+ 	ETHTOOL_A_PAUSE_AUTONEG                   = 0x2
+@@ -4606,7 +4637,7 @@ const (
+ 	NL80211_ATTR_MAC_HINT                                   = 0xc8
+ 	NL80211_ATTR_MAC_MASK                                   = 0xd7
+ 	NL80211_ATTR_MAX_AP_ASSOC_STA                           = 0xca
+-	NL80211_ATTR_MAX                                        = 0x14a
++	NL80211_ATTR_MAX                                        = 0x14c
+ 	NL80211_ATTR_MAX_CRIT_PROT_DURATION                     = 0xb4
+ 	NL80211_ATTR_MAX_CSA_COUNTERS                           = 0xce
+ 	NL80211_ATTR_MAX_MATCH_SETS                             = 0x85
+@@ -5210,7 +5241,7 @@ const (
+ 	NL80211_FREQUENCY_ATTR_GO_CONCURRENT                    = 0xf
+ 	NL80211_FREQUENCY_ATTR_INDOOR_ONLY                      = 0xe
+ 	NL80211_FREQUENCY_ATTR_IR_CONCURRENT                    = 0xf
+-	NL80211_FREQUENCY_ATTR_MAX                              = 0x20
++	NL80211_FREQUENCY_ATTR_MAX                              = 0x21
+ 	NL80211_FREQUENCY_ATTR_MAX_TX_POWER                     = 0x6
+ 	NL80211_FREQUENCY_ATTR_NO_10MHZ                         = 0x11
+ 	NL80211_FREQUENCY_ATTR_NO_160MHZ                        = 0xc
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+index 15adc04142..ad05b51a60 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_linux_riscv64.go
+@@ -727,6 +727,37 @@ const (
+ 	RISCV_HWPROBE_EXT_ZBA                = 0x8
+ 	RISCV_HWPROBE_EXT_ZBB                = 0x10
+ 	RISCV_HWPROBE_EXT_ZBS                = 0x20
++	RISCV_HWPROBE_EXT_ZICBOZ             = 0x40
++	RISCV_HWPROBE_EXT_ZBC                = 0x80
++	RISCV_HWPROBE_EXT_ZBKB               = 0x100
++	RISCV_HWPROBE_EXT_ZBKC               = 0x200
++	RISCV_HWPROBE_EXT_ZBKX               = 0x400
++	RISCV_HWPROBE_EXT_ZKND               = 0x800
++	RISCV_HWPROBE_EXT_ZKNE               = 0x1000
++	RISCV_HWPROBE_EXT_ZKNH               = 0x2000
++	RISCV_HWPROBE_EXT_ZKSED              = 0x4000
++	RISCV_HWPROBE_EXT_ZKSH               = 0x8000
++	RISCV_HWPROBE_EXT_ZKT                = 0x10000
++	RISCV_HWPROBE_EXT_ZVBB               = 0x20000
++	RISCV_HWPROBE_EXT_ZVBC               = 0x40000
++	RISCV_HWPROBE_EXT_ZVKB               = 0x80000
++	RISCV_HWPROBE_EXT_ZVKG               = 0x100000
++	RISCV_HWPROBE_EXT_ZVKNED             = 0x200000
++	RISCV_HWPROBE_EXT_ZVKNHA             = 0x400000
++	RISCV_HWPROBE_EXT_ZVKNHB             = 0x800000
++	RISCV_HWPROBE_EXT_ZVKSED             = 0x1000000
++	RISCV_HWPROBE_EXT_ZVKSH              = 0x2000000
++	RISCV_HWPROBE_EXT_ZVKT               = 0x4000000
++	RISCV_HWPROBE_EXT_ZFH                = 0x8000000
++	RISCV_HWPROBE_EXT_ZFHMIN             = 0x10000000
++	RISCV_HWPROBE_EXT_ZIHINTNTL          = 0x20000000
++	RISCV_HWPROBE_EXT_ZVFH               = 0x40000000
++	RISCV_HWPROBE_EXT_ZVFHMIN            = 0x80000000
++	RISCV_HWPROBE_EXT_ZFA                = 0x100000000
++	RISCV_HWPROBE_EXT_ZTSO               = 0x200000000
++	RISCV_HWPROBE_EXT_ZACAS              = 0x400000000
++	RISCV_HWPROBE_EXT_ZICOND             = 0x800000000
++	RISCV_HWPROBE_EXT_ZIHINTPAUSE        = 0x1000000000
+ 	RISCV_HWPROBE_KEY_CPUPERF_0          = 0x5
+ 	RISCV_HWPROBE_MISALIGNED_UNKNOWN     = 0x0
+ 	RISCV_HWPROBE_MISALIGNED_EMULATED    = 0x1
+@@ -734,4 +765,6 @@ const (
+ 	RISCV_HWPROBE_MISALIGNED_FAST        = 0x3
+ 	RISCV_HWPROBE_MISALIGNED_UNSUPPORTED = 0x4
+ 	RISCV_HWPROBE_MISALIGNED_MASK        = 0x7
++	RISCV_HWPROBE_KEY_ZICBOZ_BLOCK_SIZE  = 0x6
++	RISCV_HWPROBE_WHICH_CPUS             = 0x1
+ )
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/dll_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/dll_windows.go
+index 115341fba6..4e613cf633 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/dll_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/dll_windows.go
+@@ -65,7 +65,7 @@ func LoadDLL(name string) (dll *DLL, err error) {
+ 	return d, nil
+ }
+ 
+-// MustLoadDLL is like LoadDLL but panics if load operation failes.
++// MustLoadDLL is like LoadDLL but panics if load operation fails.
+ func MustLoadDLL(name string) *DLL {
+ 	d, e := LoadDLL(name)
+ 	if e != nil {
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+index 1fa34fd17c..5cee9a3143 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/syscall_windows.go
+@@ -313,6 +313,10 @@ func NewCallbackCDecl(fn interface{}) uintptr {
+ //sys	SetConsoleMode(console Handle, mode uint32) (err error) = kernel32.SetConsoleMode
+ //sys	GetConsoleScreenBufferInfo(console Handle, info *ConsoleScreenBufferInfo) (err error) = kernel32.GetConsoleScreenBufferInfo
+ //sys	setConsoleCursorPosition(console Handle, position uint32) (err error) = kernel32.SetConsoleCursorPosition
++//sys	GetConsoleCP() (cp uint32, err error) = kernel32.GetConsoleCP
++//sys	GetConsoleOutputCP() (cp uint32, err error) = kernel32.GetConsoleOutputCP
++//sys	SetConsoleCP(cp uint32) (err error) = kernel32.SetConsoleCP
++//sys	SetConsoleOutputCP(cp uint32) (err error) = kernel32.SetConsoleOutputCP
+ //sys	WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) = kernel32.WriteConsoleW
+ //sys	ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) = kernel32.ReadConsoleW
+ //sys	resizePseudoConsole(pconsole Handle, size uint32) (hr error) = kernel32.ResizePseudoConsole
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+index 4d0c15745f..7b97a154c9 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/types_windows.go
+@@ -1060,6 +1060,7 @@ const (
+ 	SIO_GET_EXTENSION_FUNCTION_POINTER = IOC_INOUT | IOC_WS2 | 6
+ 	SIO_KEEPALIVE_VALS                 = IOC_IN | IOC_VENDOR | 4
+ 	SIO_UDP_CONNRESET                  = IOC_IN | IOC_VENDOR | 12
++	SIO_UDP_NETRESET                   = IOC_IN | IOC_VENDOR | 15
+ 
+ 	// cf. http://support.microsoft.com/default.aspx?scid=kb;en-us;257460
+ 
+@@ -2031,6 +2032,50 @@ const (
+ 	IF_TYPE_IEEE1394           = 144
+ )
+ 
++// Enum NL_PREFIX_ORIGIN for [IpAdapterUnicastAddress], see
++// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_prefix_origin
++const (
++	IpPrefixOriginOther               = 0
++	IpPrefixOriginManual              = 1
++	IpPrefixOriginWellKnown           = 2
++	IpPrefixOriginDhcp                = 3
++	IpPrefixOriginRouterAdvertisement = 4
++	IpPrefixOriginUnchanged           = 1 << 4
++)
++
++// Enum NL_SUFFIX_ORIGIN for [IpAdapterUnicastAddress], see
++// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_suffix_origin
++const (
++	NlsoOther                      = 0
++	NlsoManual                     = 1
++	NlsoWellKnown                  = 2
++	NlsoDhcp                       = 3
++	NlsoLinkLayerAddress           = 4
++	NlsoRandom                     = 5
++	IpSuffixOriginOther            = 0
++	IpSuffixOriginManual           = 1
++	IpSuffixOriginWellKnown        = 2
++	IpSuffixOriginDhcp             = 3
++	IpSuffixOriginLinkLayerAddress = 4
++	IpSuffixOriginRandom           = 5
++	IpSuffixOriginUnchanged        = 1 << 4
++)
++
++// Enum NL_DAD_STATE for [IpAdapterUnicastAddress], see
++// https://learn.microsoft.com/en-us/windows/win32/api/nldef/ne-nldef-nl_dad_state
++const (
++	NldsInvalid          = 0
++	NldsTentative        = 1
++	NldsDuplicate        = 2
++	NldsDeprecated       = 3
++	NldsPreferred        = 4
++	IpDadStateInvalid    = 0
++	IpDadStateTentative  = 1
++	IpDadStateDuplicate  = 2
++	IpDadStateDeprecated = 3
++	IpDadStatePreferred  = 4
++)
++
+ type SocketAddress struct {
+ 	Sockaddr       *syscall.RawSockaddrAny
+ 	SockaddrLength int32
+diff --git a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+index 9bb979a3e4..4c2e1bdc01 100644
+--- a/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
++++ b/src/cmd/vendor/golang.org/x/sys/windows/zsyscall_windows.go
+@@ -247,7 +247,9 @@ var (
+ 	procGetCommandLineW                                      = modkernel32.NewProc("GetCommandLineW")
+ 	procGetComputerNameExW                                   = modkernel32.NewProc("GetComputerNameExW")
+ 	procGetComputerNameW                                     = modkernel32.NewProc("GetComputerNameW")
++	procGetConsoleCP                                         = modkernel32.NewProc("GetConsoleCP")
+ 	procGetConsoleMode                                       = modkernel32.NewProc("GetConsoleMode")
++	procGetConsoleOutputCP                                   = modkernel32.NewProc("GetConsoleOutputCP")
+ 	procGetConsoleScreenBufferInfo                           = modkernel32.NewProc("GetConsoleScreenBufferInfo")
+ 	procGetCurrentDirectoryW                                 = modkernel32.NewProc("GetCurrentDirectoryW")
+ 	procGetCurrentProcessId                                  = modkernel32.NewProc("GetCurrentProcessId")
+@@ -347,8 +349,10 @@ var (
+ 	procSetCommMask                                          = modkernel32.NewProc("SetCommMask")
+ 	procSetCommState                                         = modkernel32.NewProc("SetCommState")
+ 	procSetCommTimeouts                                      = modkernel32.NewProc("SetCommTimeouts")
++	procSetConsoleCP                                         = modkernel32.NewProc("SetConsoleCP")
+ 	procSetConsoleCursorPosition                             = modkernel32.NewProc("SetConsoleCursorPosition")
+ 	procSetConsoleMode                                       = modkernel32.NewProc("SetConsoleMode")
++	procSetConsoleOutputCP                                   = modkernel32.NewProc("SetConsoleOutputCP")
+ 	procSetCurrentDirectoryW                                 = modkernel32.NewProc("SetCurrentDirectoryW")
+ 	procSetDefaultDllDirectories                             = modkernel32.NewProc("SetDefaultDllDirectories")
+ 	procSetDllDirectoryW                                     = modkernel32.NewProc("SetDllDirectoryW")
+@@ -2162,6 +2166,15 @@ func GetComputerName(buf *uint16, n *uint32) (err error) {
+ 	return
+ }
+ 
++func GetConsoleCP() (cp uint32, err error) {
++	r0, _, e1 := syscall.Syscall(procGetConsoleCP.Addr(), 0, 0, 0, 0)
++	cp = uint32(r0)
++	if cp == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func GetConsoleMode(console Handle, mode *uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procGetConsoleMode.Addr(), 2, uintptr(console), uintptr(unsafe.Pointer(mode)), 0)
+ 	if r1 == 0 {
+@@ -2170,6 +2183,15 @@ func GetConsoleMode(console Handle, mode *uint32) (err error) {
+ 	return
+ }
+ 
++func GetConsoleOutputCP() (cp uint32, err error) {
++	r0, _, e1 := syscall.Syscall(procGetConsoleOutputCP.Addr(), 0, 0, 0, 0)
++	cp = uint32(r0)
++	if cp == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func GetConsoleScreenBufferInfo(console Handle, info *ConsoleScreenBufferInfo) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procGetConsoleScreenBufferInfo.Addr(), 2, uintptr(console), uintptr(unsafe.Pointer(info)), 0)
+ 	if r1 == 0 {
+@@ -3038,6 +3060,14 @@ func SetCommTimeouts(handle Handle, timeouts *CommTimeouts) (err error) {
+ 	return
+ }
+ 
++func SetConsoleCP(cp uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(procSetConsoleCP.Addr(), 1, uintptr(cp), 0, 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func setConsoleCursorPosition(console Handle, position uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procSetConsoleCursorPosition.Addr(), 2, uintptr(console), uintptr(position), 0)
+ 	if r1 == 0 {
+@@ -3054,6 +3084,14 @@ func SetConsoleMode(console Handle, mode uint32) (err error) {
+ 	return
+ }
+ 
++func SetConsoleOutputCP(cp uint32) (err error) {
++	r1, _, e1 := syscall.Syscall(procSetConsoleOutputCP.Addr(), 1, uintptr(cp), 0, 0)
++	if r1 == 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func SetCurrentDirectory(path *uint16) (err error) {
+ 	r1, _, e1 := syscall.Syscall(procSetCurrentDirectoryW.Addr(), 1, uintptr(unsafe.Pointer(path)), 0, 0)
+ 	if r1 == 0 {
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 9ef02f144f..76e81b3e53 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -43,7 +43,7 @@ golang.org/x/mod/zip
+ ## explicit; go 1.18
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.23.0
++# golang.org/x/sys v0.26.0
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+diff --git a/src/go.mod b/src/go.mod
+index df27f25e78..b17c58accc 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -8,6 +8,6 @@ require (
+ )
+ 
+ require (
+-	golang.org/x/sys v0.23.0 // indirect
++	golang.org/x/sys v0.26.0 // indirect
+ 	golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index b4efd6d3c5..6d6fc67936 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -2,7 +2,7 @@ golang.org/x/crypto v0.25.1-0.20240722173533-bb80217080b0 h1:wxHbFWyu21uEPJJnYaS
+ golang.org/x/crypto v0.25.1-0.20240722173533-bb80217080b0/go.mod h1:T+wALwcMOSE0kXgUAnPAHqTLW+XHgcELELW8VaDgm/M=
+ golang.org/x/net v0.27.1-0.20240722181819-765c7e89b3bd h1:pHzwejE8Zkb94bG4nA+fUeskKPFp1HPldrhv62dabro=
+ golang.org/x/net v0.27.1-0.20240722181819-765c7e89b3bd/go.mod h1:dDi0PyhWNoiUOrAS8uXv/vnScO4wnHQO4mj9fn/RytE=
+-golang.org/x/sys v0.23.0 h1:YfKFowiIMvtgl1UERQoTPPToxltDeZfbj4H7dVUCwmM=
+-golang.org/x/sys v0.23.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/sys v0.26.0 h1:KHjCJyddX0LoSTb3J+vWpupP9p0oznkqVk/IfjymZbo=
++golang.org/x/sys v0.26.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 h1:MlCLrwVF1WvXT14xTzwuKN3u4LpUve8sG/gJUCuBpe8=
+ golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9/go.mod h1:GhwF1Be+LQoKShO3cGOHzqOgRrGaYc9AvblQOmPVHnI=
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu.go b/src/vendor/golang.org/x/sys/cpu/cpu.go
+index ec07aab057..02609d5b21 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu.go
+@@ -201,6 +201,25 @@ var S390X struct {
+ 	_         CacheLinePad
+ }
+ 
++// RISCV64 contains the supported CPU features and performance characteristics for riscv64
++// platforms. The booleans in RISCV64, with the exception of HasFastMisaligned, indicate
++// the presence of RISC-V extensions.
++//
++// It is safe to assume that all the RV64G extensions are supported and so they are omitted from
++// this structure. As riscv64 Go programs require at least RV64G, the code that populates
++// this structure cannot run successfully if some of the RV64G extensions are missing.
++// The struct is padded to avoid false sharing.
++var RISCV64 struct {
++	_                 CacheLinePad
++	HasFastMisaligned bool // Fast misaligned accesses
++	HasC              bool // Compressed instruction-set extension
++	HasV              bool // Vector extension compatible with RVV 1.0
++	HasZba            bool // Address generation instructions extension
++	HasZbb            bool // Basic bit-manipulation extension
++	HasZbs            bool // Single-bit instructions extension
++	_                 CacheLinePad
++}
++
+ func init() {
+ 	archInit()
+ 	initOptions()
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_linux_noinit.go b/src/vendor/golang.org/x/sys/cpu/cpu_linux_noinit.go
+index cd63e73355..7d902b6847 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_linux_noinit.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_linux_noinit.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build linux && !arm && !arm64 && !mips64 && !mips64le && !ppc64 && !ppc64le && !s390x
++//go:build linux && !arm && !arm64 && !mips64 && !mips64le && !ppc64 && !ppc64le && !s390x && !riscv64
+ 
+ package cpu
+ 
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_linux_riscv64.go b/src/vendor/golang.org/x/sys/cpu/cpu_linux_riscv64.go
+new file mode 100644
+index 0000000000..cb4a0c5728
+--- /dev/null
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_linux_riscv64.go
+@@ -0,0 +1,137 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++// RISC-V extension discovery code for Linux. The approach here is to first try the riscv_hwprobe
++// syscall falling back to HWCAP to check for the C extension if riscv_hwprobe is not available.
++//
++// A note on detection of the Vector extension using HWCAP.
++//
++// Support for the Vector extension version 1.0 was added to the Linux kernel in release 6.5.
++// Support for the riscv_hwprobe syscall was added in 6.4. It follows that if the riscv_hwprobe
++// syscall is not available then neither is the Vector extension (which needs kernel support).
++// The riscv_hwprobe syscall should then be all we need to detect the Vector extension.
++// However, some RISC-V board manufacturers ship boards with an older kernel on top of which
++// they have back-ported various versions of the Vector extension patches but not the riscv_hwprobe
++// patches. These kernels advertise support for the Vector extension using HWCAP. Falling
++// back to HWCAP to detect the Vector extension, if riscv_hwprobe is not available, or simply not
++// bothering with riscv_hwprobe at all and just using HWCAP may then seem like an attractive option.
++//
++// Unfortunately, simply checking the 'V' bit in AT_HWCAP will not work as this bit is used by
++// RISC-V board and cloud instance providers to mean different things. The Lichee Pi 4A board
++// and the Scaleway RV1 cloud instances use the 'V' bit to advertise their support for the unratified
++// 0.7.1 version of the Vector Specification. The Banana Pi BPI-F3 and the CanMV-K230 board use
++// it to advertise support for 1.0 of the Vector extension. Versions 0.7.1 and 1.0 of the Vector
++// extension are binary incompatible. HWCAP can then not be used in isolation to populate the
++// HasV field as this field indicates that the underlying CPU is compatible with RVV 1.0.
++//
++// There is a way at runtime to distinguish between versions 0.7.1 and 1.0 of the Vector
++// specification by issuing a RVV 1.0 vsetvli instruction and checking the vill bit of the vtype
++// register. This check would allow us to safely detect version 1.0 of the Vector extension
++// with HWCAP, if riscv_hwprobe were not available. However, the check cannot
++// be added until the assembler supports the Vector instructions.
++//
++// Note the riscv_hwprobe syscall does not suffer from these ambiguities by design as all of the
++// extensions it advertises support for are explicitly versioned. It's also worth noting that
++// the riscv_hwprobe syscall is the only way to detect multi-letter RISC-V extensions, e.g., Zba.
++// These cannot be detected using HWCAP and so riscv_hwprobe must be used to detect the majority
++// of RISC-V extensions.
++//
++// Please see https://docs.kernel.org/arch/riscv/hwprobe.html for more information.
++
++// golang.org/x/sys/cpu is not allowed to depend on golang.org/x/sys/unix so we must
++// reproduce the constants, types and functions needed to make the riscv_hwprobe syscall
++// here.
++
++const (
++	// Copied from golang.org/x/sys/unix/ztypes_linux_riscv64.go.
++	riscv_HWPROBE_KEY_IMA_EXT_0   = 0x4
++	riscv_HWPROBE_IMA_C           = 0x2
++	riscv_HWPROBE_IMA_V           = 0x4
++	riscv_HWPROBE_EXT_ZBA         = 0x8
++	riscv_HWPROBE_EXT_ZBB         = 0x10
++	riscv_HWPROBE_EXT_ZBS         = 0x20
++	riscv_HWPROBE_KEY_CPUPERF_0   = 0x5
++	riscv_HWPROBE_MISALIGNED_FAST = 0x3
++	riscv_HWPROBE_MISALIGNED_MASK = 0x7
++)
++
++const (
++	// sys_RISCV_HWPROBE is copied from golang.org/x/sys/unix/zsysnum_linux_riscv64.go.
++	sys_RISCV_HWPROBE = 258
++)
++
++// riscvHWProbePairs is copied from golang.org/x/sys/unix/ztypes_linux_riscv64.go.
++type riscvHWProbePairs struct {
++	key   int64
++	value uint64
++}
++
++const (
++	// CPU features
++	hwcap_RISCV_ISA_C = 1 << ('C' - 'A')
++)
++
++func doinit() {
++	// A slice of key/value pair structures is passed to the RISCVHWProbe syscall. The key
++	// field should be initialised with one of the key constants defined above, e.g.,
++	// RISCV_HWPROBE_KEY_IMA_EXT_0. The syscall will set the value field to the appropriate value.
++	// If the kernel does not recognise a key it will set the key field to -1 and the value field to 0.
++
++	pairs := []riscvHWProbePairs{
++		{riscv_HWPROBE_KEY_IMA_EXT_0, 0},
++		{riscv_HWPROBE_KEY_CPUPERF_0, 0},
++	}
++
++	// This call only indicates that extensions are supported if they are implemented on all cores.
++	if riscvHWProbe(pairs, 0) {
++		if pairs[0].key != -1 {
++			v := uint(pairs[0].value)
++			RISCV64.HasC = isSet(v, riscv_HWPROBE_IMA_C)
++			RISCV64.HasV = isSet(v, riscv_HWPROBE_IMA_V)
++			RISCV64.HasZba = isSet(v, riscv_HWPROBE_EXT_ZBA)
++			RISCV64.HasZbb = isSet(v, riscv_HWPROBE_EXT_ZBB)
++			RISCV64.HasZbs = isSet(v, riscv_HWPROBE_EXT_ZBS)
++		}
++		if pairs[1].key != -1 {
++			v := pairs[1].value & riscv_HWPROBE_MISALIGNED_MASK
++			RISCV64.HasFastMisaligned = v == riscv_HWPROBE_MISALIGNED_FAST
++		}
++	}
++
++	// Let's double check with HWCAP if the C extension does not appear to be supported.
++	// This may happen if we're running on a kernel older than 6.4.
++
++	if !RISCV64.HasC {
++		RISCV64.HasC = isSet(hwCap, hwcap_RISCV_ISA_C)
++	}
++}
++
++func isSet(hwc uint, value uint) bool {
++	return hwc&value != 0
++}
++
++// riscvHWProbe is a simplified version of the generated wrapper function found in
++// golang.org/x/sys/unix/zsyscall_linux_riscv64.go. We simplify it by removing the
++// cpuCount and cpus parameters which we do not need. We always want to pass 0 for
++// these parameters here so the kernel only reports the extensions that are present
++// on all cores.
++func riscvHWProbe(pairs []riscvHWProbePairs, flags uint) bool {
++	var _zero uintptr
++	var p0 unsafe.Pointer
++	if len(pairs) > 0 {
++		p0 = unsafe.Pointer(&pairs[0])
++	} else {
++		p0 = unsafe.Pointer(&_zero)
++	}
++
++	_, _, e1 := syscall.Syscall6(sys_RISCV_HWPROBE, uintptr(p0), uintptr(len(pairs)), uintptr(0), uintptr(0), uintptr(flags), 0)
++	return e1 == 0
++}
+diff --git a/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go b/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go
+index 7f0c79c004..aca3199c91 100644
+--- a/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go
++++ b/src/vendor/golang.org/x/sys/cpu/cpu_riscv64.go
+@@ -8,4 +8,13 @@ package cpu
+ 
+ const cacheLineSize = 64
+ 
+-func initOptions() {}
++func initOptions() {
++	options = []option{
++		{Name: "fastmisaligned", Feature: &RISCV64.HasFastMisaligned},
++		{Name: "c", Feature: &RISCV64.HasC},
++		{Name: "v", Feature: &RISCV64.HasV},
++		{Name: "zba", Feature: &RISCV64.HasZba},
++		{Name: "zbb", Feature: &RISCV64.HasZbb},
++		{Name: "zbs", Feature: &RISCV64.HasZbs},
++	}
++}
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index cf5c0b83c9..bb1d1c15c3 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -18,7 +18,7 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.23.0
++# golang.org/x/sys v0.26.0
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+ # golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9

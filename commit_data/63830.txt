@@ -1,0 +1,116 @@
+commit f726c8d0fdd33331d599548b90a7d488ca5324c1
+Author: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+Date:   Tue May 14 02:00:09 2024 -0500
+
+     ppc64x: code cleanup in assembly files
+    
+    Replacing Branch Conditional (BC) with its extended mnemonic form of  BDNZ and BDZ.
+    - BC 16, 0, target can be replaced by BDNZ target
+    - BC 18, 0, target can be replaced by BDZ target
+    
+    Change-Id: I1259e207f2a40d0b72780d5421f7449ddc006dc5
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9,gotip-linux-ppc64le_power10
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585077
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/crypto/aes/asm_ppc64x.s      |  6 +++---
+ src/crypto/md5/md5block_ppc64x.s |  2 +-
+ src/math/big/arith_ppc64x.s      | 10 +++++-----
+ 3 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/src/crypto/aes/asm_ppc64x.s b/src/crypto/aes/asm_ppc64x.s
+index 859cffa3ee..5a2b210920 100644
+--- a/src/crypto/aes/asm_ppc64x.s
++++ b/src/crypto/aes/asm_ppc64x.s
+@@ -151,7 +151,7 @@ loop128:
+ 	VXOR	IN0, TMP, IN0       // vxor 1,1,6
+ 	VADDUWM	RCON, RCON, RCON    // vadduwm 4,4,4
+ 	VXOR	IN0, KEY, IN0       // vxor 1,1,3
+-	BC	0x10, 0, loop128    // bdnz .Loop128
++	BDNZ	loop128
+ 
+ 	LVX	(PTR)(R0), RCON // lvx 4,0,6     Last two round keys
+ 
+@@ -256,7 +256,7 @@ loop192:
+ 	STXVD2X	IN0, (R0+OUTDEC)
+ 	ADD	$16, OUTENC, OUTENC
+ 	ADD	$-16, OUTDEC, OUTDEC
+-	BC	0x10, 0, loop192                 // bdnz .Loop192
++	BDNZ	loop192
+ 
+ 	RET
+ 
+@@ -289,7 +289,7 @@ loop256:
+ 	STXVD2X	IN0, (R0+OUTDEC)
+ 	ADD	$16, OUTENC, OUTENC
+ 	ADD	$-16, OUTDEC, OUTDEC
+-	BC	0x12, 0, done                    // bdz .Ldone
++	BDZ	done
+ 
+ 	VSPLTW	$3, IN0, KEY        // vspltw 3,1,3
+ 	VSLDOI	$12, ZERO, IN1, TMP // vsldoi 6,0,2,12
+diff --git a/src/crypto/md5/md5block_ppc64x.s b/src/crypto/md5/md5block_ppc64x.s
+index f607040d02..49a369548e 100644
+--- a/src/crypto/md5/md5block_ppc64x.s
++++ b/src/crypto/md5/md5block_ppc64x.s
+@@ -200,7 +200,7 @@ loop:
+ 	ADD	R16, R4
+ 	ADD	R17, R5
+ 	ADD	$64, R6
+-	BC	16, 0, loop // bdnz
++	BDNZ	loop
+ 
+ end:
+ 	MOVD	dig+0(FP), R10
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index 330bc7e46c..5e7a2da3a3 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -62,7 +62,7 @@ loop:
+ 	MOVD  R22, 24(R10)    // z[i+2]
+ 	MOVDU R23, 32(R10)    // z[i+3]
+ 	ADD   $-4, R7         // R7 = z_len - 4
+-	BC  16, 0, loop       // bdnz
++	BDNZ  loop
+ 
+ 	// We may have more elements to read
+ 	CMP   R0, R7
+@@ -151,7 +151,7 @@ loop:
+ 	MOVD  R22, 24(R10)    // z[i+2]
+ 	MOVDU R23, 32(R10)    // z[i+3]
+ 	ADD   $-4, R7         // R7 = z_len - 4
+-	BC  16, 0, loop       // bdnz
++	BDNZ  loop
+ 
+ 	// We may have more elements to read
+ 	CMP   R0, R7
+@@ -230,7 +230,7 @@ loop:
+ 	MOVD  R26, 24(R10)	// z[i+2]
+ 	MOVDU R27, 32(R10)	// z[i+3]
+ 	ADD   $-4, R11		// R11 = z_len - 4
+-	BC    16, 0, loop	// bdnz
++	BDNZ  loop
+ 
+ 	// We may have some elements to read
+ 	CMP R0, R11
+@@ -307,7 +307,7 @@ loop:
+ 	MOVD  R22, 24(R10)
+ 	MOVDU R23, 32(R10)
+ 	ADD   $-4, R11
+-	BC    16, 0, loop	// bdnz
++	BDNZ  loop
+ 
+ 	// We may have some elements to read
+ 	CMP   R0, R11
+@@ -550,7 +550,7 @@ loop:
+ 	MOVD    R26, 24(R10)      // z[i+2]
+ 	MOVDU   R27, 32(R10)      // z[i+3]
+ 	ADD     $-4, R11          // R11 = z_len - 4
+-	BC      16, 0, loop       // bdnz
++	BDNZ    loop
+ 
+ 	// We may have some elements to read
+ 	CMP   R0, R11

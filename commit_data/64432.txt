@@ -1,0 +1,131 @@
+commit 40876244739f787fd9a4eb06503cc122b6c5ce52
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Thu Jun 6 16:06:39 2024 +0800
+
+    cmd/internal/obj/loong64: add support for instructions FFINT.{S/D}.{W/L} and FTINT.{W/L}.{S/D}
+    
+    Go asm syntax:
+            FFINT{F/D}{W/V}         FJ, FD
+            FTINT{W/V}{F/D}         FJ, FD
+    
+    Equivalent platform assembler syntax:
+            ffint.{s/d}.{w/l}       fd, fj
+            ftint.{w/l}.{s/d}       fd, fj
+    
+    Ref: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: Ie7646c5d49645c63b274b34b66539f10370f4930
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590996
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  9 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 10 ++++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  8 ++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 24 ++++++++++++++++++++++++
+ 4 files changed, 51 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 7aeb2920bd..57f16839eb 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -283,3 +283,12 @@ lable2:
+ 	FCOPYSGD	F4, F5, F6	// a6101301
+ 	FCLASSF		F4, F5		// 85341401
+ 	FCLASSD		F4, F5		// 85381401
++
++	FFINTFW		F0, F1		// 01101d01
++	FFINTFV		F0, F1		// 01181d01
++	FFINTDW		F0, F1		// 01201d01
++	FFINTDV		F0, F1		// 01281d01
++	FTINTWF		F0, F1		// 01041b01
++	FTINTWD		F0, F1		// 01081b01
++	FTINTVF		F0, F1		// 01241b01
++	FTINTVD		F0, F1		// 01281b01
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 878f148f15..4dc7a84994 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -454,6 +454,16 @@ const (
+ 	AFCLASSF
+ 	AFCLASSD
+ 
++	// 3.2.3.2
++	AFFINTFW
++	AFFINTFV
++	AFFINTDW
++	AFFINTDV
++	AFTINTWF
++	AFTINTWD
++	AFTINTVF
++	AFTINTVD
++
+ 	ALAST
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index aac8ac92b8..2d80a8aa10 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -187,5 +187,13 @@ var Anames = []string{
+ 	"FCOPYSGD",
+ 	"FCLASSF",
+ 	"FCLASSD",
++	"FFINTFW",
++	"FFINTFV",
++	"FFINTDW",
++	"FFINTDV",
++	"FTINTWF",
++	"FTINTWD",
++	"FTINTVF",
++	"FTINTVD",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 6ac02df988..02ecbe71f6 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1037,6 +1037,14 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AMOVDV, r0)
+ 			opset(ATRUNCDV, r0)
+ 			opset(ATRUNCFV, r0)
++			opset(AFFINTFW, r0)
++			opset(AFFINTFV, r0)
++			opset(AFFINTDW, r0)
++			opset(AFFINTDV, r0)
++			opset(AFTINTWF, r0)
++			opset(AFTINTWD, r0)
++			opset(AFTINTVF, r0)
++			opset(AFTINTVD, r0)
+ 
+ 		case AADD:
+ 			opset(ASGT, r0)
+@@ -1964,6 +1972,22 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x450d << 10 // fclass.s
+ 	case AFCLASSD:
+ 		return 0x450e << 10 // fclass.d
++	case AFFINTFW:
++		return 0x4744 << 10 // ffint.s.w
++	case AFFINTFV:
++		return 0x4746 << 10 // ffint.s.l
++	case AFFINTDW:
++		return 0x4748 << 10 // ffint.d.w
++	case AFFINTDV:
++		return 0x474a << 10 // ffint.d.l
++	case AFTINTWF:
++		return 0x46c1 << 10 // ftint.w.s
++	case AFTINTWD:
++		return 0x46c2 << 10 // ftint.w.d
++	case AFTINTVF:
++		return 0x46c9 << 10 // ftint.l.s
++	case AFTINTVD:
++		return 0x46ca << 10 // ftint.l.d
+ 	}
+ 
+ 	c.ctxt.Diag("bad rr opcode %v", a)

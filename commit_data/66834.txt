@@ -1,0 +1,49 @@
+commit 7b263895f7dbe81ddd7c0fc399e6a9ae6fe2f5bf
+Author: Philip Roberts <phil@latentflip.com>
+Date:   Thu Mar 9 11:16:56 2023 +0000
+
+    database/sql: wake cleaner if maxIdleTime set to less than maxLifetime
+    
+    The existing implementation wouldn't wake the connection cleaner if
+    maxIdleTime was set to a value less than maxLifetime while an existing
+    connection was open - resulting in idle connections not being discarded
+    until after the first maxLifetime had passed.
+    
+    Fixes #45993
+    
+    Change-Id: I074ed7ba9803354c8b3a41f2625ae0d8a7d5059b
+    GitHub-Last-Rev: 0d149d8d38bc9c2ad42a2a20dcfc73994d54fe23
+    GitHub-Pull-Request: golang/go#58490
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/467655
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel Theophanes <kardianos@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/database/sql/sql.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/database/sql/sql.go b/src/database/sql/sql.go
+index eddb647ed0..b0abcf7fcd 100644
+--- a/src/database/sql/sql.go
++++ b/src/database/sql/sql.go
+@@ -1050,7 +1050,7 @@ func (db *DB) SetConnMaxLifetime(d time.Duration) {
+ 	}
+ 	db.mu.Lock()
+ 	// Wake cleaner up when lifetime is shortened.
+-	if d > 0 && d < db.maxLifetime && db.cleanerCh != nil {
++	if d > 0 && d < db.shortestIdleTimeLocked() && db.cleanerCh != nil {
+ 		select {
+ 		case db.cleanerCh <- struct{}{}:
+ 		default:
+@@ -1074,7 +1074,7 @@ func (db *DB) SetConnMaxIdleTime(d time.Duration) {
+ 	defer db.mu.Unlock()
+ 
+ 	// Wake cleaner up when idle time is shortened.
+-	if d > 0 && d < db.maxIdleTime && db.cleanerCh != nil {
++	if d > 0 && d < db.shortestIdleTimeLocked() && db.cleanerCh != nil {
+ 		select {
+ 		case db.cleanerCh <- struct{}{}:
+ 		default:

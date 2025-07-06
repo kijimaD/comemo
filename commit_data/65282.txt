@@ -1,0 +1,121 @@
+commit 08d2403576737c5735d0c1d356490e03a774dff6
+Author: cuishuang <imcusg@gmail.com>
+Date:   Thu Oct 31 21:45:00 2024 +0800
+
+    time: add examples for Since, Until, Abs and fix some comments
+    
+    Change-Id: I33b61629dfabffa15065a14fccdb418bab11350d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/time/example_test.go | 38 ++++++++++++++++++++++++++++++++++++--
+ src/time/format.go       |  2 +-
+ src/time/tick_test.go    |  2 +-
+ src/time/time_test.go    |  2 +-
+ 4 files changed, 39 insertions(+), 5 deletions(-)
+
+diff --git a/src/time/example_test.go b/src/time/example_test.go
+index 53c20a0516..2c9601c611 100644
+--- a/src/time/example_test.go
++++ b/src/time/example_test.go
+@@ -6,6 +6,7 @@ package time_test
+ 
+ import (
+ 	"fmt"
++	"math"
+ 	"time"
+ )
+ 
+@@ -108,6 +109,39 @@ func ExampleParseDuration() {
+ 	// There are 1.00e-06 seconds in 1µs.
+ }
+ 
++func ExampleSince() {
++	start := time.Now()
++	expensiveCall()
++	elapsed := time.Since(start)
++	fmt.Printf("The call took %v to run.\n", elapsed)
++}
++
++func ExampleUntil() {
++	futureTime := time.Now().Add(5 * time.Second)
++	durationUntil := time.Until(futureTime)
++	fmt.Printf("Duration until future time: %.0f seconds", math.Ceil(durationUntil.Seconds()))
++	// Output: Duration until future time: 5 seconds
++}
++
++func ExampleDuration_Abs() {
++	positiveDuration := 5 * time.Second
++	negativeDuration := -3 * time.Second
++	minInt64CaseDuration := time.Duration(math.MinInt64)
++
++	absPositive := positiveDuration.Abs()
++	absNegative := negativeDuration.Abs()
++	absSpecial := minInt64CaseDuration.Abs() == time.Duration(math.MaxInt64)
++
++	fmt.Printf("Absolute value of positive duration: %v\n", absPositive)
++	fmt.Printf("Absolute value of negative duration: %v\n", absNegative)
++	fmt.Printf("Absolute value of MinInt64 equal to MaxInt64: %t\n", absSpecial)
++
++	// Output:
++	// Absolute value of positive duration: 5s
++	// Absolute value of negative duration: 3s
++	// Absolute value of MinInt64 equal to MaxInt64: true
++}
++
+ func ExampleDuration_Hours() {
+ 	h, _ := time.ParseDuration("4h30m")
+ 	fmt.Printf("I've got %.1f hours of work left.", h.Hours())
+@@ -295,8 +329,8 @@ func ExampleTime_Format() {
+ 	// default format: 2015-02-25 11:06:39 -0800 PST
+ 	// Unix format: Wed Feb 25 11:06:39 PST 2015
+ 	// Same, in UTC: Wed Feb 25 19:06:39 UTC 2015
+-	//in Shanghai with seconds: 2015-02-26T03:06:39 +080000
+-	//in Shanghai with colon seconds: 2015-02-26T03:06:39 +08:00:00
++	// in Shanghai with seconds: 2015-02-26T03:06:39 +080000
++	// in Shanghai with colon seconds: 2015-02-26T03:06:39 +08:00:00
+ 	//
+ 	// Formats:
+ 	//
+diff --git a/src/time/format.go b/src/time/format.go
+index b9cd702c0d..da1bac5ac3 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -250,7 +250,7 @@ func nextStdChunk(layout string) (prefix string, std int, suffix string) {
+ 
+ 		case '_': // _2, _2006, __2
+ 			if len(layout) >= i+2 && layout[i+1] == '2' {
+-				//_2006 is really a literal _, followed by stdLongYear
++				// _2006 is really a literal _, followed by stdLongYear
+ 				if len(layout) >= i+5 && layout[i+1:i+5] == "2006" {
+ 					return layout[0 : i+1], stdLongYear, layout[i+5:]
+ 				}
+diff --git a/src/time/tick_test.go b/src/time/tick_test.go
+index fce9002cfc..416bef59ee 100644
+--- a/src/time/tick_test.go
++++ b/src/time/tick_test.go
+@@ -462,7 +462,7 @@ func testTimerChan(t *testing.T, tim timer, C <-chan Time, synctimerchan bool) {
+ 		tim.Reset(1)
+ 		Sleep(sched)
+ 		if l, c := len(C), cap(C); l != 0 || c != 0 {
+-			//t.Fatalf("len(C), cap(C) = %d, %d, want 0, 0", l, c)
++			// t.Fatalf("len(C), cap(C) = %d, %d, want 0, 0", l, c)
+ 		}
+ 		assertTick()
+ 	} else {
+diff --git a/src/time/time_test.go b/src/time/time_test.go
+index 2d719acde2..ff253be46b 100644
+--- a/src/time/time_test.go
++++ b/src/time/time_test.go
+@@ -1400,7 +1400,7 @@ var defaultLocTests = []struct {
+ 	{"Add", func(t1, t2 Time) bool { return t1.Add(Hour).Equal(t2.Add(Hour)) }},
+ 	{"Sub", func(t1, t2 Time) bool { return t1.Sub(t2) == t2.Sub(t1) }},
+ 
+-	//Original caus for this test case bug 15852
++	// Original cause for this test case bug 15852
+ 	{"AddDate", func(t1, t2 Time) bool { return t1.AddDate(1991, 9, 3) == t2.AddDate(1991, 9, 3) }},
+ 
+ 	{"UTC", func(t1, t2 Time) bool { return t1.UTC() == t2.UTC() }},

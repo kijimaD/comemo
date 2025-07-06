@@ -1,0 +1,37 @@
+commit 4f78aa9e8bc909395bb891b12586ea0a7c9dfff1
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Nov 26 15:26:25 2024 -0800
+
+    debug/elf: check for multiplication overflow for shnum * shentsize
+    
+    No test case because the problem can only happen for invalid data.
+    Let the fuzzer find cases like this.
+    
+    For #47653
+    Fixes #70584
+    
+    Change-Id: I8a69a27dcb5b258b88f8e01ebaf0ec20cfcd489b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632035
+    Reviewed-by: Veronica Silina <veronicasilina@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/debug/elf/file.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index 05062f1433..aa523c3fae 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -497,6 +497,9 @@ func NewFile(r io.ReaderAt) (*File, error) {
+ 	if c < 0 {
+ 		return nil, &FormatError{0, "too many sections", shnum}
+ 	}
++	if shnum > 0 && ((1<<64)-1)/uint64(shnum) < uint64(shentsize) {
++		return nil, &FormatError{0, "section header overflow", shnum}
++	}
+ 	f.Sections = make([]*Section, 0, c)
+ 	names := make([]uint32, 0, c)
+ 	shdata, err := saferio.ReadDataAt(sr, uint64(shnum)*uint64(shentsize), shoff)

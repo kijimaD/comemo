@@ -1,0 +1,39 @@
+commit e0c76d95abfc1621259864adb3d101cf6f1f90fc
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Tue Dec 10 12:10:13 2024 -0800
+
+    syscall: remove a wrong comment in Clearenv
+    
+    The comment being removed was added by commit ff3173849e
+    (which predates Gerrit and Rietveld, so no CL link), and
+    at the time it made sense.
+    
+    Since CL 148370043 (and up to the current implementation of Clearenv)
+    the env map, which is populated by copyenv, is actually used, so the
+    comment is no longer valid.
+    
+    It is also misleading, so it's best to remove it.
+    
+    Change-Id: I8bd2e8bca6262759538e5bcbd396f0c71cca6a4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635078
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/syscall/env_unix.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/syscall/env_unix.go b/src/syscall/env_unix.go
+index 8e87e018e8..1144ed1416 100644
+--- a/src/syscall/env_unix.go
++++ b/src/syscall/env_unix.go
+@@ -124,7 +124,7 @@ func Setenv(key, value string) error {
+ }
+ 
+ func Clearenv() {
+-	envOnce.Do(copyenv) // prevent copyenv in Getenv/Setenv
++	envOnce.Do(copyenv)
+ 
+ 	envLock.Lock()
+ 	defer envLock.Unlock()

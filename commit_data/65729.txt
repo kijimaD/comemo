@@ -1,0 +1,476 @@
+commit fb41d5eb51909e777cf6c82a8eff607d7c1456b0
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 30 17:50:31 2024 +0100
+
+    crypto/rsa: minor FIPS 186-5 compliance fixes
+    
+    None of these checks actually matter, and indeed we didn't have them
+    before, but they are required by FIPS 186-5.
+    
+    Fixes #69799
+    For #69536
+    
+    Change-Id: I5e866962a1b2a31a753053e5b9ec50a3f4c87394
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632535
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/fips140/bigmod/nat.go   | 59 ++++++++++++-------
+ src/crypto/internal/fips140/rsa/keygen.go   | 42 +++++++++++--
+ src/crypto/internal/fips140/rsa/pkcs1v15.go |  4 +-
+ src/crypto/internal/fips140/rsa/pkcs1v22.go |  8 ++-
+ src/crypto/internal/fips140/rsa/rsa.go      | 91 ++++++++++++++++++++++++-----
+ src/crypto/rsa/fips.go                      |  8 ++-
+ src/crypto/rsa/rsa.go                       |  3 +
+ 7 files changed, 171 insertions(+), 44 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/bigmod/nat.go b/src/crypto/internal/fips140/bigmod/nat.go
+index 3b33d24c42..987065901b 100644
+--- a/src/crypto/internal/fips140/bigmod/nat.go
++++ b/src/crypto/internal/fips140/bigmod/nat.go
+@@ -173,8 +173,10 @@ func (x *Nat) SetOverflowingBytes(b []byte, m *Modulus) (*Nat, error) {
+ 	if err := x.setBytes(b); err != nil {
+ 		return nil, err
+ 	}
+-	leading := _W - bitLen(x.limbs[len(x.limbs)-1])
+-	if leading < m.leading {
++	// setBytes would have returned an error if the input overflowed the limb
++	// size of the modulus, so now we only need to check if the most significant
++	// limb of x has more bits than the most significant limb of the modulus.
++	if bitLen(x.limbs[len(x.limbs)-1]) > bitLen(m.nat.limbs[len(m.nat.limbs)-1]) {
+ 		return nil, errors.New("input overflows the modulus size")
+ 	}
+ 	x.maybeSubtractModulus(no, m)
+@@ -390,6 +392,37 @@ func (x *Nat) ShiftRightVarTime(n uint) *Nat {
+ 	return x
+ }
+ 
++// BitLenVarTime returns the actual size of x in bits.
++//
++// The actual size of x (but nothing more) leaks through timing side-channels.
++// Note that this is ordinarily secret, as opposed to the announced size of x.
++func (x *Nat) BitLenVarTime() int {
++	// Eliminate bounds checks in the loop.
++	size := len(x.limbs)
++	xLimbs := x.limbs[:size]
++
++	for i := size - 1; i >= 0; i-- {
++		if xLimbs[i] != 0 {
++			return i*_W + bitLen(xLimbs[i])
++		}
++	}
++	return 0
++}
++
++// bitLen is a version of bits.Len that only leaks the bit length of n, but not
++// its value. bits.Len and bits.LeadingZeros use a lookup table for the
++// low-order bits on some architectures.
++func bitLen(n uint) int {
++	len := 0
++	// We assume, here and elsewhere, that comparison to zero is constant time
++	// with respect to different non-zero values.
++	for n != 0 {
++		len++
++		n >>= 1
++	}
++	return len
++}
++
+ // Modulus is used for modular arithmetic, precomputing relevant constants.
+ //
+ // A Modulus can leak the exact number of bits needed to store its value
+@@ -399,8 +432,7 @@ type Modulus struct {
+ 	//
+ 	// This will be stored without any padding, and shouldn't alias with any
+ 	// other natural number being used.
+-	nat     *Nat
+-	leading int // number of leading zeros in the modulus
++	nat *Nat
+ 
+ 	// If m is even, the following fields are not set.
+ 	odd   bool
+@@ -501,7 +533,6 @@ func newModulus(n *Nat) (*Modulus, error) {
+ 	if m.nat.IsZero() == yes || m.nat.IsOne() == yes {
+ 		return nil, errors.New("modulus must be > 1")
+ 	}
+-	m.leading = _W - bitLen(m.nat.limbs[len(m.nat.limbs)-1])
+ 	if m.nat.IsOdd() == 1 {
+ 		m.odd = true
+ 		m.m0inv = minusInverseModW(m.nat.limbs[0])
+@@ -510,20 +541,6 @@ func newModulus(n *Nat) (*Modulus, error) {
+ 	return m, nil
+ }
+ 
+-// bitLen is a version of bits.Len that only leaks the bit length of n, but not
+-// its value. bits.Len and bits.LeadingZeros use a lookup table for the
+-// low-order bits on some architectures.
+-func bitLen(n uint) int {
+-	var len int
+-	// We assume, here and elsewhere, that comparison to zero is constant time
+-	// with respect to different non-zero values.
+-	for n != 0 {
+-		len++
+-		n >>= 1
+-	}
+-	return len
+-}
+-
+ // Size returns the size of m in bytes.
+ func (m *Modulus) Size() int {
+ 	return (m.BitLen() + 7) / 8
+@@ -531,7 +548,7 @@ func (m *Modulus) Size() int {
+ 
+ // BitLen returns the size of m in bits.
+ func (m *Modulus) BitLen() int {
+-	return len(m.nat.limbs)*_W - int(m.leading)
++	return m.nat.BitLenVarTime()
+ }
+ 
+ // Nat returns m as a Nat.
+@@ -974,7 +991,7 @@ func (out *Nat) ExpShortVarTime(x *Nat, e uint, m *Modulus) *Nat {
+ 	// chain, skipping the initial run of zeroes.
+ 	xR := NewNat().set(x).montgomeryRepresentation(m)
+ 	out.set(xR)
+-	for i := bits.UintSize - bitLen(e) + 1; i < bits.UintSize; i++ {
++	for i := bits.UintSize - bits.Len(e) + 1; i < bits.UintSize; i++ {
+ 		out.montgomeryMul(out, out, m)
+ 		if k := (e >> (bits.UintSize - i - 1)) & 1; k != 0 {
+ 			out.montgomeryMul(out, xR, m)
+diff --git a/src/crypto/internal/fips140/rsa/keygen.go b/src/crypto/internal/fips140/rsa/keygen.go
+index 91b3260995..df96c1e525 100644
+--- a/src/crypto/internal/fips140/rsa/keygen.go
++++ b/src/crypto/internal/fips140/rsa/keygen.go
+@@ -22,7 +22,7 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
+ 		return nil, errors.New("rsa: key too small")
+ 	}
+ 	fips140.RecordApproved()
+-	if bits < 2048 || bits > 16384 {
++	if bits < 2048 || bits > 16384 || bits%2 == 1 {
+ 		fips140.RecordNonApproved()
+ 	}
+ 
+@@ -53,8 +53,8 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
+ 			return nil, errors.New("rsa: internal error: modulus size incorrect")
+ 		}
+ 
+-		φ, err := bigmod.NewModulusProduct(P.Nat().SubOne(N).Bytes(N),
+-			Q.Nat().SubOne(N).Bytes(N))
++		φ, err := bigmod.NewModulusProduct(P.Nat().SubOne(P).Bytes(P),
++			Q.Nat().SubOne(Q).Bytes(Q))
+ 		if err != nil {
+ 			return nil, err
+ 		}
+@@ -62,6 +62,9 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
+ 		e := bigmod.NewNat().SetUint(65537)
+ 		d, ok := bigmod.NewNat().InverseVarTime(e, φ)
+ 		if !ok {
++			// This checks that GCD(e, (p-1)(q-1)) = 1, which is equivalent
++			// to checking GCD(e, p-1) = 1 and GCD(e, q-1) = 1 separately in
++			// FIPS 186-5, Appendix A.1.3, steps 4.5 and 5.6.
+ 			continue
+ 		}
+ 
+@@ -69,12 +72,25 @@ func GenerateKey(rand io.Reader, bits int) (*PrivateKey, error) {
+ 			return nil, errors.New("rsa: internal error: e*d != 1 mod φ(N)")
+ 		}
+ 
++		// FIPS 186-5, A.1.1(3) requires checking that d > 2^(nlen / 2).
++		//
++		// The probability of this check failing when d is derived from
++		// (e, p, q) is roughly
++		//
++		//   2^(nlen/2) / 2^nlen = 2^(-nlen/2)
++		//
++		// so less than 2⁻¹²⁸ for keys larger than 256 bits.
++		//
++		// We still need to check to comply with FIPS 186-5, but knowing it has
++		// negligible chance of failure we can defer the check to the end of key
++		// generation and return an error if it fails. See [checkPrivateKey].
++
+ 		return newPrivateKey(N, 65537, d, P, Q)
+ 	}
+ }
+ 
+-// randomPrime returns a random prime number of the given bit size.
+-// rand is ignored in FIPS mode.
++// randomPrime returns a random prime number of the given bit size following
++// the process in FIPS 186-5, Appendix A.1.3. rand is ignored in FIPS mode.
+ func randomPrime(rand io.Reader, bits int) ([]byte, error) {
+ 	if bits < 64 {
+ 		return nil, errors.New("rsa: prime size must be at least 32-bit")
+@@ -108,6 +124,22 @@ func randomPrime(rand io.Reader, bits int) ([]byte, error) {
+ 		// Make the value odd since an even number certainly isn't prime.
+ 		b[len(b)-1] |= 1
+ 
++		// We don't need to check for p >= √2 × 2^(bits-1) (steps 4.4 and 5.4)
++		// because we set the top two bits above, so
++		//
++		//   p > 2^(bits-1) + 2^(bits-2) = 3⁄2 × 2^(bits-1) > √2 × 2^(bits-1)
++		//
++
++		// Step 5.5 requires checking that |p - q| > 2^(nlen/2 - 100).
++		//
++		// The probability of |p - q| ≤ k where p and q are uniformly random in
++		// the range (a, b) is 1 - (b-a-k)^2 / (b-a)^2, so the probability of
++		// this check failing during key generation is 2⁻⁹⁷.
++		//
++		// We still need to check to comply with FIPS 186-5, but knowing it has
++		// negligible chance of failure we can defer the check to the end of key
++		// generation and return an error if it fails. See [checkPrivateKey].
++
+ 		if isPrime(b) {
+ 			return b, nil
+ 		}
+diff --git a/src/crypto/internal/fips140/rsa/pkcs1v15.go b/src/crypto/internal/fips140/rsa/pkcs1v15.go
+index b8261bd1e5..d90b640201 100644
+--- a/src/crypto/internal/fips140/rsa/pkcs1v15.go
++++ b/src/crypto/internal/fips140/rsa/pkcs1v15.go
+@@ -99,8 +99,10 @@ func VerifyPKCS1v15(pub *PublicKey, hash string, hashed []byte, sig []byte) erro
+ }
+ 
+ func verifyPKCS1v15(pub *PublicKey, hash string, hashed []byte, sig []byte) error {
+-	if err := checkPublicKey(pub); err != nil {
++	if fipsApproved, err := checkPublicKey(pub); err != nil {
+ 		return err
++	} else if !fipsApproved {
++		fips140.RecordNonApproved()
+ 	}
+ 
+ 	// RFC 8017 Section 8.2.2: If the length of the signature S is not k
+diff --git a/src/crypto/internal/fips140/rsa/pkcs1v22.go b/src/crypto/internal/fips140/rsa/pkcs1v22.go
+index c7aa955bb4..a62d7e485f 100644
+--- a/src/crypto/internal/fips140/rsa/pkcs1v22.go
++++ b/src/crypto/internal/fips140/rsa/pkcs1v22.go
+@@ -333,8 +333,10 @@ func verifyPSS(pub *PublicKey, hash fips140.Hash, digest []byte, sig []byte, sal
+ 	fipsSelfTest()
+ 	fips140.RecordApproved()
+ 	checkApprovedHash(hash)
+-	if err := checkPublicKey(pub); err != nil {
++	if fipsApproved, err := checkPublicKey(pub); err != nil {
+ 		return err
++	} else if !fipsApproved {
++		fips140.RecordNonApproved()
+ 	}
+ 
+ 	if len(sig) != pub.Size() {
+@@ -384,8 +386,10 @@ func EncryptOAEP(hash, mgfHash fips140.Hash, random io.Reader, pub *PublicKey, m
+ 	fipsSelfTest()
+ 	fips140.RecordApproved()
+ 	checkApprovedHash(hash)
+-	if err := checkPublicKey(pub); err != nil {
++	if fipsApproved, err := checkPublicKey(pub); err != nil {
+ 		return nil, err
++	} else if !fipsApproved {
++		fips140.RecordNonApproved()
+ 	}
+ 	k := pub.Size()
+ 	if len(msg) > k-2*hash.Size()-2 {
+diff --git a/src/crypto/internal/fips140/rsa/rsa.go b/src/crypto/internal/fips140/rsa/rsa.go
+index 8803599f02..957c266885 100644
+--- a/src/crypto/internal/fips140/rsa/rsa.go
++++ b/src/crypto/internal/fips140/rsa/rsa.go
+@@ -33,9 +33,12 @@ type PrivateKey struct {
+ 	p, q *bigmod.Modulus // p × q = n
+ 	// dP and dQ are used as exponents, so we store them as big-endian byte
+ 	// slices to be passed to [bigmod.Nat.Exp].
+-	dP   []byte      // d mod (p – 1)
+-	dQ   []byte      // d mod (q – 1)
++	dP   []byte      // d mod (p - 1)
++	dQ   []byte      // d mod (q - 1)
+ 	qInv *bigmod.Nat // qInv = q⁻¹ mod p
++	// fipsApproved is false if this key does not comply with FIPS 186-5 or
++	// SP 800-56B Rev. 2.
++	fipsApproved bool
+ }
+ 
+ func (priv *PrivateKey) PublicKey() *PublicKey {
+@@ -184,12 +187,20 @@ func (priv *PrivateKey) Export() (N []byte, e int, d, P, Q, dP, dQ, qInv []byte)
+ 	return
+ }
+ 
++// checkPrivateKey is called by the NewPrivateKey and GenerateKey functions, and
++// is allowed to modify priv.fipsApproved.
+ func checkPrivateKey(priv *PrivateKey) error {
+-	if err := checkPublicKey(&priv.pub); err != nil {
++	priv.fipsApproved = true
++
++	if fipsApproved, err := checkPublicKey(&priv.pub); err != nil {
+ 		return err
++	} else if !fipsApproved {
++		priv.fipsApproved = false
+ 	}
+ 
+ 	if priv.dP == nil {
++		// Legacy and deprecated multi-prime keys.
++		priv.fipsApproved = false
+ 		return nil
+ 	}
+ 
+@@ -197,7 +208,12 @@ func checkPrivateKey(priv *PrivateKey) error {
+ 	p := priv.p
+ 	q := priv.q
+ 
+-	// Check that pq ≡ 1 mod N (and that pN < N and q < N).
++	// FIPS 186-5, Section 5.1 requires "that p and q be of the same bit length."
++	if p.BitLen() != q.BitLen() {
++		priv.fipsApproved = false
++	}
++
++	// Check that pq ≡ 1 mod N (and that p < N and q < N).
+ 	pN := bigmod.NewNat().ExpandFor(N)
+ 	if _, err := pN.SetBytes(p.Nat().Bytes(p), N); err != nil {
+ 		return errors.New("crypto/rsa: invalid prime")
+@@ -254,46 +270,89 @@ func checkPrivateKey(priv *PrivateKey) error {
+ 		return errors.New("crypto/rsa: invalid CRT coefficient")
+ 	}
+ 
++	// Check that |p - q| > 2^(nlen/2 - 100).
++	//
++	// If p and q are very close to each other, then N=pq can be trivially
++	// factored using Fermat's factorization method. Broken RSA implementations
++	// do generate such keys. See Hanno Böck, Fermat Factorization in the Wild,
++	// https://eprint.iacr.org/2023/026.pdf.
++	diff := bigmod.NewNat()
++	if qP, err := bigmod.NewNat().SetBytes(q.Nat().Bytes(q), p); err != nil {
++		// q > p
++		pQ, err := bigmod.NewNat().SetBytes(p.Nat().Bytes(p), q)
++		if err != nil {
++			return errors.New("crypto/rsa: p == q")
++		}
++		// diff = 0 - p mod q = q - p
++		diff.ExpandFor(q).Sub(pQ, q)
++	} else {
++		// p > q
++		// diff = 0 - q mod p = p - q
++		diff.ExpandFor(p).Sub(qP, p)
++	}
++	// A tiny bit of leakage is acceptable because it's not adaptive, an
++	// attacker only learns the magnitude of p - q.
++	if diff.BitLenVarTime() <= N.BitLen()/2-100 {
++		return errors.New("crypto/rsa: |p - q| too small")
++	}
++
++	// Check that d > 2^(nlen/2).
++	//
++	// See section 3 of https://crypto.stanford.edu/~dabo/papers/RSA-survey.pdf
++	// for more details about attacks on small d values.
++	//
++	// Likewise, the leakage of the magnitude of d is not adaptive.
++	if priv.d.BitLenVarTime() <= N.BitLen()/2 {
++		return errors.New("crypto/rsa: d too small")
++	}
++
+ 	return nil
+ }
+ 
+-func checkPublicKey(pub *PublicKey) error {
++func checkPublicKey(pub *PublicKey) (fipsApproved bool, err error) {
++	fipsApproved = true
+ 	if pub.N == nil {
+-		return errors.New("crypto/rsa: missing public modulus")
++		return false, errors.New("crypto/rsa: missing public modulus")
+ 	}
+ 	if pub.N.Nat().IsOdd() == 0 {
+-		return errors.New("crypto/rsa: public modulus is even")
++		return false, errors.New("crypto/rsa: public modulus is even")
+ 	}
++	// FIPS 186-5, Section 5.1: "This standard specifies the use of a modulus
++	// whose bit length is an even integer and greater than or equal to 2048
++	// bits."
+ 	if pub.N.BitLen() < 2048 || pub.N.BitLen() > 16384 {
+-		fips140.RecordNonApproved()
++		fipsApproved = false
++	}
++	if pub.N.BitLen()%2 == 1 {
++		fipsApproved = false
+ 	}
+ 	if pub.E < 2 {
+-		return errors.New("crypto/rsa: public exponent too small or negative")
++		return false, errors.New("crypto/rsa: public exponent too small or negative")
+ 	}
+ 	// e needs to be coprime with p-1 and q-1, since it must be invertible
+ 	// modulo λ(pq). Since p and q are prime, this means e needs to be odd.
+ 	if pub.E&1 == 0 {
+-		return errors.New("crypto/rsa: public exponent is even")
++		return false, errors.New("crypto/rsa: public exponent is even")
+ 	}
+ 	// FIPS 186-5, Section 5.5(e): "The exponent e shall be an odd, positive
+ 	// integer such that 2¹⁶ < e < 2²⁵⁶."
+ 	if pub.E <= 1<<16 {
+-		fips140.RecordNonApproved()
++		fipsApproved = false
+ 	}
+ 	// We require pub.E to fit into a 32-bit integer so that we
+ 	// do not have different behavior depending on whether
+ 	// int is 32 or 64 bits. See also
+ 	// https://www.imperialviolet.org/2012/03/16/rsae.html.
+ 	if pub.E > 1<<31-1 {
+-		return errors.New("crypto/rsa: public exponent too large")
++		return false, errors.New("crypto/rsa: public exponent too large")
+ 	}
+-	return nil
++	return fipsApproved, nil
+ }
+ 
+ // Encrypt performs the RSA public key operation.
+ func Encrypt(pub *PublicKey, plaintext []byte) ([]byte, error) {
+ 	fips140.RecordNonApproved()
+-	if err := checkPublicKey(pub); err != nil {
++	if _, err := checkPublicKey(pub); err != nil {
+ 		return nil, err
+ 	}
+ 	return encrypt(pub, plaintext)
+@@ -331,6 +390,10 @@ func DecryptWithCheck(priv *PrivateKey, ciphertext []byte) ([]byte, error) {
+ // m^e is calculated and compared with ciphertext, in order to defend against
+ // errors in the CRT computation.
+ func decrypt(priv *PrivateKey, ciphertext []byte, check bool) ([]byte, error) {
++	if !priv.fipsApproved {
++		fips140.RecordNonApproved()
++	}
++
+ 	var m *bigmod.Nat
+ 	N, E := priv.pub.N, priv.pub.E
+ 
+diff --git a/src/crypto/rsa/fips.go b/src/crypto/rsa/fips.go
+index 7bf0e1e14b..0960ef90f2 100644
+--- a/src/crypto/rsa/fips.go
++++ b/src/crypto/rsa/fips.go
+@@ -384,6 +384,9 @@ func checkFIPS140OnlyPublicKey(pub *PublicKey) error {
+ 	if pub.N.BitLen() > 16384 {
+ 		return errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
+ 	}
++	if pub.N.BitLen()%2 == 1 {
++		return errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
++	}
+ 	if pub.E <= 1<<16 {
+ 		return errors.New("crypto/rsa: use of public exponent <= 2¹⁶ is not allowed in FIPS 140-only mode")
+ 	}
+@@ -400,8 +403,11 @@ func checkFIPS140OnlyPrivateKey(priv *PrivateKey) error {
+ 	if err := checkFIPS140OnlyPublicKey(&priv.PublicKey); err != nil {
+ 		return err
+ 	}
+-	if len(priv.Primes) > 2 {
++	if len(priv.Primes) != 2 {
+ 		return errors.New("crypto/rsa: use of multi-prime keys is not allowed in FIPS 140-only mode")
+ 	}
++	if priv.Primes[0] == nil || priv.Primes[1] == nil || priv.Primes[0].BitLen() != priv.Primes[1].BitLen() {
++		return errors.New("crypto/rsa: use of primes of different sizes is not allowed in FIPS 140-only mode")
++	}
+ 	return nil
+ }
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index e4591fd5e2..89b70adb76 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -322,6 +322,9 @@ func GenerateKey(random io.Reader, bits int) (*PrivateKey, error) {
+ 	if fips140only.Enabled && bits > 16384 {
+ 		return nil, errors.New("crypto/rsa: use of keys larger than 16384 bits is not allowed in FIPS 140-only mode")
+ 	}
++	if fips140only.Enabled && bits%2 == 1 {
++		return nil, errors.New("crypto/rsa: use of keys with odd size is not allowed in FIPS 140-only mode")
++	}
+ 
+ 	k, err := rsa.GenerateKey(random, bits)
+ 	if err != nil {

@@ -1,0 +1,49 @@
+commit 75736cc169631dfaaa48ad46a00e1bf31d830ec8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Dec 16 15:38:43 2024 -0800
+
+    fmt, strconv: document that exponent is always two digits
+    
+    Except for %b where it is only one.
+    
+    Fixes #70862
+    
+    Change-Id: Ic423a799b73bfa534f4083f6544bb9cd639fef06
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/fmt/doc.go      | 3 +++
+ src/strconv/ftoa.go | 2 ++
+ 2 files changed, 5 insertions(+)
+
+diff --git a/src/fmt/doc.go b/src/fmt/doc.go
+index b90db7bedc..fa0ffa7f00 100644
+--- a/src/fmt/doc.go
++++ b/src/fmt/doc.go
+@@ -50,6 +50,9 @@ Floating-point and complex constituents:
+ 	%x	hexadecimal notation (with decimal power of two exponent), e.g. -0x1.23abcp+20
+ 	%X	upper-case hexadecimal notation, e.g. -0X1.23ABCP+20
+ 
++	The exponent is always a decimal integer.
++	For formats other than %b the exponent is at least two digits.
++
+ String and slice of bytes (treated equivalently with these verbs):
+ 
+ 	%s	the uninterpreted bytes of the string or slice
+diff --git a/src/strconv/ftoa.go b/src/strconv/ftoa.go
+index 6db0d47e0f..bfe26366e1 100644
+--- a/src/strconv/ftoa.go
++++ b/src/strconv/ftoa.go
+@@ -44,6 +44,8 @@ var float64info = floatInfo{52, 11, -1023}
+ // zeros are removed).
+ // The special precision -1 uses the smallest number of digits
+ // necessary such that ParseFloat will return f exactly.
++// The exponent is written as a decimal integer;
++// for all formats other than 'b', it will be at least two digits.
+ func FormatFloat(f float64, fmt byte, prec, bitSize int) string {
+ 	return string(genericFtoa(make([]byte, 0, max(prec+4, 24)), f, fmt, prec, bitSize))
+ }

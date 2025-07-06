@@ -1,0 +1,71 @@
+commit 2620cc1caae099c5947bfd5ff2c10bd4a3b628fd
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Feb 26 16:31:41 2025 -0500
+
+    cmd/go/internal/mmap: close file after mmap
+    
+    Closing the file after mmap will reduce the number of files associated
+    with the process. This will not likely help with #71698 but it doesn't
+    hurt to close the files and should simplify lsof output.
+    
+    For #71698
+    
+    Change-Id: I06a1bf91914afc7703783fe1a38d8bc5a6fb3d9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653055
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/cmd/go/internal/cache/cache.go |  4 ++++
+ src/cmd/go/internal/mmap/mmap.go   | 19 +++++++++++++++++++
+ 2 files changed, 23 insertions(+)
+
+diff --git a/src/cmd/go/internal/cache/cache.go b/src/cmd/go/internal/cache/cache.go
+index 26913dd959..23cc531e69 100644
+--- a/src/cmd/go/internal/cache/cache.go
++++ b/src/cmd/go/internal/cache/cache.go
+@@ -296,6 +296,10 @@ func GetBytes(c Cache, id ActionID) ([]byte, Entry, error) {
+ // GetMmap looks up the action ID in the cache and returns
+ // the corresponding output bytes.
+ // GetMmap should only be used for data that can be expected to fit in memory.
++// The boolean result indicates whether the file was opened.
++// If it is true, the caller should avoid attempting
++// to write to the file on Windows, because Windows locks
++// the open file, and writes to it will fail.
+ func GetMmap(c Cache, id ActionID) ([]byte, Entry, bool, error) {
+ 	entry, err := c.Get(id)
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/mmap/mmap.go b/src/cmd/go/internal/mmap/mmap.go
+index fd374df82e..cd7ea80f2d 100644
+--- a/src/cmd/go/internal/mmap/mmap.go
++++ b/src/cmd/go/internal/mmap/mmap.go
+@@ -22,11 +22,30 @@ type Data struct {
+ }
+ 
+ // Mmap maps the given file into memory.
++// The boolean result indicates whether the file was opened.
++// If it is true, the caller should avoid attempting
++// to write to the file on Windows, because Windows locks
++// the open file, and writes to it will fail.
+ func Mmap(file string) (Data, bool, error) {
+ 	f, err := os.Open(file)
+ 	if err != nil {
+ 		return Data{}, false, err
+ 	}
+ 	data, err := mmapFile(f)
++
++	// Closing the file causes it not to count against this process's
++	// limit on open files; however, the mapping still counts against
++	// the system-wide limit, which is typically higher. Examples:
++	//
++	//     macOS process (sysctl kern.maxfilesperproc):  61440
++	//     macOS system  (sysctl kern.maxfiles):        122880
++	//     linux process (ulimit -n)                   1048576
++	//     linux system  (/proc/sys/fs/file-max)        100000
++	if cerr := f.Close(); cerr != nil && err == nil {
++		return data, true, cerr
++	}
++
++	// The file is still considered to be in use on Windows after
++	// it's closed because of the mapping.
+ 	return data, true, err
+ }

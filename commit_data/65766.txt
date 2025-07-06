@@ -1,0 +1,57 @@
+commit d3d4e7b0d10d5587093b769ed600bd3b0a3fd9c1
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Dec 6 06:51:04 2024 +0100
+
+    testing: fix divide by zero when benchmark is faster than OS's clock resolution
+    
+    I did not added a test because `benchmark_test.go` is `package testing_test`
+    and I don't care to change that because calling predictN is not testing the
+    thing I would want to test.
+    
+    Ideally we would run benchmark in a VM with a highjacked clocksource that never
+    marches forward, or using faketime but that looks fairly involved for a quickie
+    fix.
+    
+    Fixes #70709
+    
+    Change-Id: I8b4d697aff7cba33da388cb0ae8e2c2b550b9690
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633419
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/testing/benchmark.go | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index dbc0814884..78e1b2de6d 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -275,6 +275,11 @@ func (b *B) doBench() BenchmarkResult {
+ }
+ 
+ func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
++	if prevns == 0 {
++		// Round up to dodge divide by zero. See https://go.dev/issue/70709.
++		prevns = 1
++	}
++
+ 	// Order of operations matters.
+ 	// For very fast benchmarks, prevIters ~= prevns.
+ 	// If you divide first, you get 0 or 1,
+@@ -321,12 +326,7 @@ func (b *B) launch() {
+ 				// Predict required iterations.
+ 				goalns := d.Nanoseconds()
+ 				prevIters := int64(b.N)
+-				prevns := b.duration.Nanoseconds()
+-				if prevns <= 0 {
+-					// Round up, to avoid div by zero.
+-					prevns = 1
+-				}
+-				n = int64(predictN(goalns, prevIters, prevns, last))
++				n = int64(predictN(goalns, prevIters, b.duration.Nanoseconds(), last))
+ 				b.runN(int(n))
+ 			}
+ 		}

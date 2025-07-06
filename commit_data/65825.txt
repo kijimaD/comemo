@@ -1,0 +1,59 @@
+commit 1218566fe5c90e2bd39693566453828e6fbb4c12
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Dec 16 17:06:35 2024 -0500
+
+    cmd/link: update runtime dependency list
+    
+    There have been a number of internal packages that the runtime
+    package depends on. Update the list. We should stop using a hard-
+    coded list.
+    
+    Change-Id: I6f9338d6690d955b8200f3301addd0e133a1bfe2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636478
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/link/internal/ld/data.go | 24 +++++++++++++++++++-----
+ 1 file changed, 19 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index b6eaf69ca4..5c4497cdd7 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -55,17 +55,31 @@ import (
+ )
+ 
+ // isRuntimeDepPkg reports whether pkg is the runtime package or its dependency.
++// TODO: just compute from the runtime package, and remove this hardcoded list.
+ func isRuntimeDepPkg(pkg string) bool {
+ 	switch pkg {
+ 	case "runtime",
+-		"sync/atomic",          // runtime may call to sync/atomic, due to go:linkname
+-		"internal/abi",         // used by reflectcall (and maybe more)
+-		"internal/bytealg",     // for IndexByte
++		"sync/atomic",  // runtime may call to sync/atomic, due to go:linkname // TODO: this is not true?
++		"internal/abi", // used by reflectcall (and maybe more)
++		"internal/asan",
++		"internal/bytealg", // for IndexByte
++		"internal/byteorder",
+ 		"internal/chacha8rand", // for rand
+-		"internal/cpu":         // for cpu features
++		"internal/coverage/rtcov",
++		"internal/cpu", // for cpu features
++		"internal/goarch",
++		"internal/godebugs",
++		"internal/goexperiment",
++		"internal/goos",
++		"internal/msan",
++		"internal/profilerecord",
++		"internal/race",
++		"internal/stringslite",
++		"unsafe":
+ 		return true
+ 	}
+-	return strings.HasPrefix(pkg, "runtime/internal/") && !strings.HasSuffix(pkg, "_test")
++	return (strings.HasPrefix(pkg, "runtime/internal/") || strings.HasPrefix(pkg, "internal/runtime/")) &&
++		!strings.HasSuffix(pkg, "_test")
+ }
+ 
+ // Estimate the max size needed to hold any new trampolines created for this function. This

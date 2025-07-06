@@ -1,0 +1,95 @@
+commit a22cb5cabe2bcc8ed02c43a66a1bd319cb28e89c
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 15 17:41:56 2024 -0400
+
+    runtime/debug: eliminate temporary variadicity from SetCrashOutput
+    
+    Updates #67182
+    
+    Change-Id: I33fc8c515f4a9d120262ba30f61aea80ede5e9f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585420
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+---
+ api/next/42888.txt                        | 2 +-
+ src/runtime/debug/example_monitor_test.go | 2 +-
+ src/runtime/debug/stack.go                | 9 +--------
+ src/runtime/debug/stack_test.go           | 3 ++-
+ src/runtime/traceback_system_test.go      | 2 +-
+ 5 files changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/api/next/42888.txt b/api/next/42888.txt
+index dcba97b9fa..279536f2ab 100644
+--- a/api/next/42888.txt
++++ b/api/next/42888.txt
+@@ -1,2 +1,2 @@
+ pkg runtime/debug, type CrashOptions struct #67182
+-pkg runtime/debug, func SetCrashOutput(*os.File, ...CrashOptions) error #42888
++pkg runtime/debug, func SetCrashOutput(*os.File, CrashOptions) error #42888
+diff --git a/src/runtime/debug/example_monitor_test.go b/src/runtime/debug/example_monitor_test.go
+index 5a1f4e1417..b077e7adb3 100644
+--- a/src/runtime/debug/example_monitor_test.go
++++ b/src/runtime/debug/example_monitor_test.go
+@@ -91,7 +91,7 @@ func monitor() {
+ 	if err != nil {
+ 		log.Fatalf("StdinPipe: %v", err)
+ 	}
+-	debug.SetCrashOutput(pipe.(*os.File)) // (this conversion is safe)
++	debug.SetCrashOutput(pipe.(*os.File), debug.CrashOptions{}) // (this conversion is safe)
+ 	if err := cmd.Start(); err != nil {
+ 		log.Fatalf("can't start monitor: %v", err)
+ 	}
+diff --git a/src/runtime/debug/stack.go b/src/runtime/debug/stack.go
+index dc7dc5d569..d7a860b7dc 100644
+--- a/src/runtime/debug/stack.go
++++ b/src/runtime/debug/stack.go
+@@ -46,14 +46,7 @@ type CrashOptions struct {
+ // To disable this additional crash output, call SetCrashOutput(nil).
+ // If called concurrently with a crash, some in-progress output may be written
+ // to the old file even after an overriding SetCrashOutput returns.
+-//
+-// TODO(adonovan): the variadic ... is a short-term measure to avoid
+-// breaking the call in x/telemetry; it will be removed before the
+-// go1.23 freeze.
+-func SetCrashOutput(f *os.File, opts ...CrashOptions) error {
+-	if len(opts) > 1 {
+-		panic("supply at most 1 CrashOptions")
+-	}
++func SetCrashOutput(f *os.File, opts CrashOptions) error {
+ 	fd := ^uintptr(0)
+ 	if f != nil {
+ 		// The runtime will write to this file descriptor from
+diff --git a/src/runtime/debug/stack_test.go b/src/runtime/debug/stack_test.go
+index 289749ccb4..e1559303f0 100644
+--- a/src/runtime/debug/stack_test.go
++++ b/src/runtime/debug/stack_test.go
+@@ -13,6 +13,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"runtime"
++	"runtime/debug"
+ 	. "runtime/debug"
+ 	"strings"
+ 	"testing"
+@@ -29,7 +30,7 @@ func TestMain(m *testing.M) {
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}
+-		if err := SetCrashOutput(f); err != nil {
++		if err := SetCrashOutput(f, debug.CrashOptions{}); err != nil {
+ 			log.Fatal(err) // e.g. EMFILE
+ 		}
+ 		println("hello")
+diff --git a/src/runtime/traceback_system_test.go b/src/runtime/traceback_system_test.go
+index 5131e44e64..ece58e806d 100644
+--- a/src/runtime/traceback_system_test.go
++++ b/src/runtime/traceback_system_test.go
+@@ -28,7 +28,7 @@ func crash() {
+ 	// Ensure that we get pc=0x%x values in the traceback.
+ 	debug.SetTraceback("system")
+ 	writeSentinel(os.Stdout)
+-	debug.SetCrashOutput(os.Stdout)
++	debug.SetCrashOutput(os.Stdout, debug.CrashOptions{})
+ 
+ 	go func() {
+ 		// This call is typically inlined.

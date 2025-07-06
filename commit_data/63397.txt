@@ -1,0 +1,202 @@
+commit 62791eb48912ef9dcaa26bee44c98891c8f60ddc
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu Mar 14 17:58:45 2024 -0400
+
+    cmd/go: add tool names to go tool subcommand counters
+    
+    When go tool <toolname> is run, increment the
+    go/subcommand:tool-<toolname> counter instead of just
+    go/subcommand:tool. go/subcommand:tool will be incremented
+    if go tool is run without a tool argument to list the
+    available tools.
+    
+    Change-Id: I22b888fada1441389315a79f417c72b3f74070f8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/571802
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/counters_test.go      | 48 ++++++++++++++++++++++++++++++++++++----
+ src/cmd/go/internal/tool/tool.go |  9 ++++++++
+ src/cmd/go/main.go               |  8 ++++++-
+ src/cmd/go/testdata/counters.txt | 21 ++++++++++++++++++
+ 4 files changed, 81 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/go/counters_test.go b/src/cmd/go/counters_test.go
+index 2392b17eb9..7c73889351 100644
+--- a/src/cmd/go/counters_test.go
++++ b/src/cmd/go/counters_test.go
+@@ -6,7 +6,9 @@ package main_test
+ 
+ import (
+ 	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
+ 	"flag"
++	"go/build"
+ 	"internal/diff"
+ 	"os"
+ 	"slices"
+@@ -33,7 +35,11 @@ func TestCounterNamesUpToDate(t *testing.T) {
+ 	// for all subcommands, but it's also valid to invoke go help without any arguments.
+ 	counters = append(counters, "go/subcommand:help")
+ 	for _, cmd := range base.Go.Commands {
+-		counters = append(counters, cmdcounters(nil, cmd)...)
++		cmdcounters, err := cmdcounters(nil, cmd)
++		if err != nil {
++			t.Fatal(err)
++		}
++		counters = append(counters, cmdcounters...)
+ 	}
+ 
+ 	counters = append(counters, base.RegisteredCounterNames()...)
+@@ -76,7 +82,7 @@ func flagscounters(prefix string, flagSet flag.FlagSet) []string {
+ 	return counters
+ }
+ 
+-func cmdcounters(previous []string, cmd *base.Command) []string {
++func cmdcounters(previous []string, cmd *base.Command) ([]string, error) {
+ 	const subcommandPrefix = "go/subcommand:"
+ 	const flagPrefix = "go/flag:"
+ 	var counters []string
+@@ -85,6 +91,19 @@ func cmdcounters(previous []string, cmd *base.Command) []string {
+ 		previousComponent += "-"
+ 	}
+ 	if cmd.Runnable() {
++		if cmd.Name() == "tool" {
++			// TODO(matloob): Do we expect the same tools to be present on all
++			// platforms/configurations? Should we only run this on certain
++			// platforms?
++			tools, err := toolNames()
++			if err != nil {
++				return nil, err
++			}
++			for _, t := range tools {
++				counters = append(counters, subcommandPrefix+previousComponent+cmd.Name()+"-"+t)
++			}
++			counters = append(counters, subcommandPrefix+previousComponent+cmd.Name()+"-unknown")
++		}
+ 		counters = append(counters, subcommandPrefix+previousComponent+cmd.Name())
+ 	}
+ 	counters = append(counters, flagscounters(flagPrefix+previousComponent+cmd.Name()+"-", cmd.Flag)...)
+@@ -94,7 +113,28 @@ func cmdcounters(previous []string, cmd *base.Command) []string {
+ 	counters = append(counters, subcommandPrefix+"help-"+previousComponent+cmd.Name())
+ 
+ 	for _, subcmd := range cmd.Commands {
+-		counters = append(counters, cmdcounters(append(slices.Clone(previous), cmd.Name()), subcmd)...)
++		subcmdcounters, err := cmdcounters(append(slices.Clone(previous), cmd.Name()), subcmd)
++		if err != nil {
++			return nil, err
++		}
++		counters = append(counters, subcmdcounters...)
+ 	}
+-	return counters
++	return counters, nil
++}
++
++// toolNames returns the list of basenames of executables in the tool dir.
++func toolNames() ([]string, error) {
++	entries, err := os.ReadDir(build.ToolDir)
++	if err != nil {
++		return nil, err
++	}
++	var names []string
++	for _, e := range entries {
++		if e.IsDir() {
++			continue
++		}
++		name := strings.TrimSuffix(e.Name(), cfg.ToolExeSuffix())
++		names = append(names, name)
++	}
++	return names, nil
+ }
+diff --git a/src/cmd/go/internal/tool/tool.go b/src/cmd/go/internal/tool/tool.go
+index ebe189bb81..da219f041c 100644
+--- a/src/cmd/go/internal/tool/tool.go
++++ b/src/cmd/go/internal/tool/tool.go
+@@ -6,6 +6,7 @@
+ package tool
+ 
+ import (
++	"cmd/internal/telemetry"
+ 	"context"
+ 	"encoding/json"
+ 	"flag"
+@@ -57,6 +58,7 @@ func init() {
+ 
+ func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ 	if len(args) == 0 {
++		telemetry.Inc("go/subcommand:tool")
+ 		listTools()
+ 		return
+ 	}
+@@ -82,12 +84,19 @@ func runTool(ctx context.Context, cmd *base.Command, args []string) {
+ 			//
+ 			// If the dist tool does not exist, impersonate this command.
+ 			if impersonateDistList(args[2:]) {
++				// If it becomes necessary, we could increment an additional counter to indicate
++				// that we're impersonating dist list if knowing that becomes important?
++				telemetry.Inc("go/subcommand:tool-dist")
+ 				return
+ 			}
+ 		}
+ 
++		telemetry.Inc("go/subcommand:tool-unknown")
+ 		// Emit the usual error for the missing tool.
+ 		_ = base.Tool(toolName)
++	} else {
++		// Increment a counter for the tool subcommand with the tool name.
++		telemetry.Inc("go/subcommand:tool-" + toolName)
+ 	}
+ 
+ 	if toolN {
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 9fa9fbea5a..73fe612e75 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -182,7 +182,13 @@ func main() {
+ 		base.SetExitStatus(2)
+ 		base.Exit()
+ 	}
+-	telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
++	// Increment a subcommand counter for the subcommand we're running.
++	// Don't increment the counter for the tool subcommand here: we'll
++	// increment in the tool subcommand's Run function because we need
++	// to do the flag processing in invoke first.
++	if cfg.CmdName != "tool" {
++		telemetry.Inc("go/subcommand:" + strings.ReplaceAll(cfg.CmdName, " ", "-"))
++	}
+ 	invoke(cmd, args[used-1:])
+ 	base.Exit()
+ }
+diff --git a/src/cmd/go/testdata/counters.txt b/src/cmd/go/testdata/counters.txt
+index 4482c0a915..109be96556 100644
+--- a/src/cmd/go/testdata/counters.txt
++++ b/src/cmd/go/testdata/counters.txt
+@@ -600,6 +600,27 @@ go/flag:test-vet
+ go/flag:test-work
+ go/flag:test-x
+ go/subcommand:help-test
++go/subcommand:tool-addr2line
++go/subcommand:tool-asm
++go/subcommand:tool-buildid
++go/subcommand:tool-cgo
++go/subcommand:tool-compile
++go/subcommand:tool-covdata
++go/subcommand:tool-cover
++go/subcommand:tool-dist
++go/subcommand:tool-distpack
++go/subcommand:tool-doc
++go/subcommand:tool-fix
++go/subcommand:tool-link
++go/subcommand:tool-nm
++go/subcommand:tool-objdump
++go/subcommand:tool-pack
++go/subcommand:tool-pprof
++go/subcommand:tool-preprofile
++go/subcommand:tool-test2json
++go/subcommand:tool-trace
++go/subcommand:tool-vet
++go/subcommand:tool-unknown
+ go/subcommand:tool
+ go/flag:tool-C
+ go/flag:tool-n

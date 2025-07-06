@@ -1,0 +1,90 @@
+commit b2f7a2154a36c6dd7d20c53205aab6348228618f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 22 03:12:52 2024 +0100
+
+    crypto/fips140: new package
+    
+    This package holds only the Enabled() function.
+    
+    Updates #70123
+    
+    Change-Id: If0e731724d9997001fa52002fa6ae72df4eb16ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631017
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+---
+ api/next/70123.txt                                 |  1 +
+ doc/next/6-stdlib/99-minor/crypto/fips140/70123.md |  1 +
+ src/crypto/fips140/fips140.go                      | 33 ++++++++++++++++++++++
+ src/go/build/deps_test.go                          |  2 ++
+ 4 files changed, 37 insertions(+)
+
+diff --git a/api/next/70123.txt b/api/next/70123.txt
+new file mode 100644
+index 0000000000..57698c97c9
+--- /dev/null
++++ b/api/next/70123.txt
+@@ -0,0 +1 @@
++pkg crypto/fips140, func Enabled() bool #70123
+diff --git a/doc/next/6-stdlib/99-minor/crypto/fips140/70123.md b/doc/next/6-stdlib/99-minor/crypto/fips140/70123.md
+new file mode 100644
+index 0000000000..c4204c1bfa
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/fips140/70123.md
+@@ -0,0 +1 @@
++<!-- FIPS 140 will be covered in its own section. -->
+diff --git a/src/crypto/fips140/fips140.go b/src/crypto/fips140/fips140.go
+new file mode 100644
+index 0000000000..9fd8fe76e5
+--- /dev/null
++++ b/src/crypto/fips140/fips140.go
+@@ -0,0 +1,33 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips140
++
++import (
++	"crypto/internal/fips140"
++	"crypto/internal/fips140/check"
++	"internal/godebug"
++)
++
++var fips140GODEBUG = godebug.New("#fips140")
++
++// Enabled reports whether the cryptography libraries are operating in FIPS
++// 140-3 mode.
++//
++// It can be controlled at runtime using the GODEBUG setting "fips140". If set
++// to "on", FIPS 140-3 mode is enabled. If set to "only", non-approved
++// cryptography functions will additionally return errors or panic.
++//
++// This can't be changed after the program has started.
++func Enabled() bool {
++	godebug := fips140GODEBUG.Value()
++	currentlyEnabled := godebug == "on" || godebug == "only" || godebug == "debug"
++	if currentlyEnabled != fips140.Enabled {
++		panic("crypto/fips140: GODEBUG setting changed after program start")
++	}
++	if fips140.Enabled && !check.Enabled() {
++		panic("crypto/fips140: FIPS 140-3 mode enabled, but integrity check didn't pass")
++	}
++	return fips140.Enabled
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index d888017a92..66db9d1bc3 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -491,6 +491,8 @@ var depsRules = `
+ 
+ 	FIPS, sync/atomic < crypto/tls/internal/fips140tls;
+ 
++	FIPS, internal/godebug < crypto/fips140;
++
+ 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+ 	sync/atomic < crypto/internal/boring/bcache, crypto/internal/boring/fips140tls;
+ 	crypto/internal/boring/sig, crypto/tls/internal/fips140tls < crypto/tls/fipsonly;

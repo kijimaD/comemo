@@ -1,0 +1,41 @@
+commit fa861f882205516624ad123346ff3e6f0c44ac9c
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 31 13:16:23 2024 -0700
+
+    cmd/cgo: document workaround for C struct_stat function
+    
+    For #68682
+    
+    Change-Id: I13b61f915925a9ee510e0a42e95da7a83678b3b5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602215
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cgo/doc.go | 12 ++++++++----
+ 1 file changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/cgo/doc.go b/src/cmd/cgo/doc.go
+index 3d4789fafb..8e11a12740 100644
+--- a/src/cmd/cgo/doc.go
++++ b/src/cmd/cgo/doc.go
+@@ -163,10 +163,14 @@ type in Go are instead represented by a uintptr.  See the Special
+ cases section below.
+ 
+ To access a struct, union, or enum type directly, prefix it with
+-struct_, union_, or enum_, as in C.struct_stat.
+-
+-The size of any C type T is available as C.sizeof_T, as in
+-C.sizeof_struct_stat.
++struct_, union_, or enum_, as in C.struct_stat. The size of any C type
++T is available as C.sizeof_T, as in C.sizeof_struct_stat. These
++special prefixes means that there is no way to directly reference a C
++identifier that starts with "struct_", "union_", "enum_", or
++"sizeof_", such as a function named "struct_function".
++A workaround is to use a "#define" in the preamble, as in
++"#define c_struct_function struct_function" and then in the
++Go code refer to "C.c_struct_function".
+ 
+ A C function may be declared in the Go file with a parameter type of
+ the special name _GoString_. This function may be called with an

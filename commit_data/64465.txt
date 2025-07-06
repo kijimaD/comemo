@@ -1,0 +1,120 @@
+commit 5eeba95bada12992b666f2ae33fafb5991b3ca46
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed Aug 7 15:06:20 2024 -0400
+
+    cmd: update golang.org/x/telemetry to 38c23d2
+    
+    Commands run:
+        go get golang.org/x/telemetry@38c23d2
+        go mod tidy
+        go mod vendor
+    
+    This also pulls in golang.org/x/sync@v0.8.0 as a module requirement, but
+    no changes need to be vendored from that module.
+    
+    Change-Id: I2238388b6dc2a4a29a53e7b8ddea29eb677a97b7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603898
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+---
+ src/cmd/go.mod                                                    | 4 ++--
+ src/cmd/go.sum                                                    | 8 ++++----
+ src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go   | 5 ++++-
+ .../vendor/golang.org/x/telemetry/internal/telemetry/proginfo.go  | 4 +++-
+ src/cmd/vendor/modules.txt                                        | 4 ++--
+ 5 files changed, 15 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 22722e4078..4d458ac783 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -7,9 +7,9 @@ require (
+ 	golang.org/x/arch v0.8.1-0.20240716161256-b863392466ea
+ 	golang.org/x/build v0.0.0-20240722200705-b9910f320300
+ 	golang.org/x/mod v0.20.0
+-	golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213
++	golang.org/x/sync v0.8.0
+ 	golang.org/x/sys v0.23.0
+-	golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4
++	golang.org/x/telemetry v0.0.0-20240807181058-38c23d25f755
+ 	golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292
+ 	golang.org/x/tools v0.23.1-0.20240722161640-ec1a81bfec7c
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 4bcb0bac38..d63f9fec18 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -12,12 +12,12 @@ golang.org/x/build v0.0.0-20240722200705-b9910f320300 h1:2Cqg4LnvfD2ZpG8+6KbyYUk
+ golang.org/x/build v0.0.0-20240722200705-b9910f320300/go.mod h1:YsGhg4JUVUWLzdqU2wCrtpRrOveOql6w56FLDHq/CJ4=
+ golang.org/x/mod v0.20.0 h1:utOm6MM3R3dnawAiJgn0y+xvuYRsm1RKM/4giyfDgV0=
+ golang.org/x/mod v0.20.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+-golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213 h1:8CBy3wSM3/YRXx26NPKZjPBNsnvI9dRRrSlB4Ps0HWY=
+-golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
++golang.org/x/sync v0.8.0 h1:3NFvSEYkUoMifnESzZl15y791HH1qU2xm6eCJU5ZPXQ=
++golang.org/x/sync v0.8.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.23.0 h1:YfKFowiIMvtgl1UERQoTPPToxltDeZfbj4H7dVUCwmM=
+ golang.org/x/sys v0.23.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4 h1:ka7TMW0Mo8QYTXm2hXSQ9fFUXS7Zln3S4pe9aq4JC7w=
+-golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4/go.mod h1:amNmu/SBSm2GAF3X+9U2C0epLocdh+r5Z+7oMYO5cLM=
++golang.org/x/telemetry v0.0.0-20240807181058-38c23d25f755 h1:Gv9T6gPIHuUCC/THKUdLbAj1GeBKx7auk9c9w/5CHPk=
++golang.org/x/telemetry v0.0.0-20240807181058-38c23d25f755/go.mod h1:m7R/r+o5h7UvF2JD9n2iLSGY4v8v+zNSyTJ6xynLrqs=
+ golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292 h1:BOrQi08eIX3cDgGcMgFONf27MxXigcYa9x+iW5JuCXw=
+ golang.org/x/term v0.22.1-0.20240716160707-d4346f0be292/go.mod h1:F3qCibpT5AMpCRfhfT53vVJwhLtIVHhB9XDjfFvnMI4=
+ golang.org/x/text v0.16.1-0.20240716160804-ae0cf96bbcd9 h1:MlCLrwVF1WvXT14xTzwuKN3u4LpUve8sG/gJUCuBpe8=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
+index dd7a63c816..bb18bc6936 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/dir.go
+@@ -148,6 +148,8 @@ func (d Dir) Mode() (string, time.Time) {
+ 
+ // DisabledOnPlatform indicates whether telemetry is disabled
+ // due to bugs in the current platform.
++//
++// TODO(rfindley): move to a more appropriate file.
+ const DisabledOnPlatform = false ||
+ 	// The following platforms could potentially be supported in the future:
+ 	runtime.GOOS == "openbsd" || // #60614
+@@ -157,4 +159,5 @@ const DisabledOnPlatform = false ||
+ 	// These platforms fundamentally can't be supported:
+ 	runtime.GOOS == "js" || // #60971
+ 	runtime.GOOS == "wasip1" || // #60971
+-	runtime.GOOS == "plan9" // https://github.com/golang/go/issues/57540#issuecomment-1470766639
++	runtime.GOOS == "plan9" || // https://github.com/golang/go/issues/57540#issuecomment-1470766639
++	runtime.GOARCH == "mips" || runtime.GOARCH == "mipsle" // mips lacks cross-process 64-bit atomics
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/proginfo.go b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/proginfo.go
+index 60cb0edc79..f6b074f1c9 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/proginfo.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/telemetry/proginfo.go
+@@ -26,7 +26,9 @@ func IsToolchainProgram(progPath string) bool {
+ // special characters.
+ func ProgramInfo(info *debug.BuildInfo) (goVers, progPath, progVers string) {
+ 	goVers = info.GoVersion
+-	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") {
++	// TODO(matloob): Use go/version.IsValid instead of checking for X: once the telemetry
++	// module can be upgraded to require Go 1.22.
++	if strings.Contains(goVers, "devel") || strings.Contains(goVers, "-") || strings.Contains(goVers, "X:") {
+ 		goVers = "devel"
+ 	}
+ 
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 7b8d210d15..e30941d68b 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -36,7 +36,7 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.7.1-0.20240716160658-411f99ef1213
++# golang.org/x/sync v0.8.0
+ ## explicit; go 1.18
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240723021908-ccdfb411a0c4
++# golang.org/x/telemetry v0.0.0-20240807181058-38c23d25f755
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

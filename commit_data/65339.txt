@@ -1,0 +1,35 @@
+commit 70f6c139ecdcc42fb1f94e5a0495aae87660ba1f
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Nov 8 16:02:10 2024 -0800
+
+    image/color/palette: add godoc link to generator program
+    
+    CL 535196 accidentally changed a generated file without changing
+    the generator program. This updates the generator program to generate
+    the current file.
+    
+    Change-Id: I06513c9b29c7ca4084ac3768229ef8793efe0218
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625901
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/image/color/palette/gen.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/image/color/palette/gen.go b/src/image/color/palette/gen.go
+index be46c57020..741be16ac1 100644
+--- a/src/image/color/palette/gen.go
++++ b/src/image/color/palette/gen.go
+@@ -80,7 +80,7 @@ func printPlan9(w io.Writer) {
+ 	}
+ 	fmt.Fprintln(w, "// Plan9 is a 256-color palette that partitions the 24-bit RGB space")
+ 	fmt.Fprintln(w, "// into 4×4×4 subdivision, with 4 shades in each subcube. Compared to the")
+-	fmt.Fprintln(w, "// WebSafe, the idea is to reduce the color resolution by dicing the")
++	fmt.Fprintln(w, "// [WebSafe], the idea is to reduce the color resolution by dicing the")
+ 	fmt.Fprintln(w, "// color cube into fewer cells, and to use the extra space to increase the")
+ 	fmt.Fprintln(w, "// intensity resolution. This results in 16 gray shades (4 gray subcubes with")
+ 	fmt.Fprintln(w, "// 4 samples in each), 13 shades of each primary and secondary color (3")

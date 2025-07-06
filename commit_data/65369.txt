@@ -1,0 +1,40 @@
+commit 8b0ac33da8574b74ba50ad727b59fa8679d93e4b
+Author: Flavio Castelli <flavio@castelli.me>
+Date:   Thu Nov 14 09:47:36 2024 +0000
+
+    syscall: define EBADFD for wasip1 target
+    
+    Fixes #60998
+    
+    Change-Id: I7e899708c7e0406bd9927eb411b57fc3240b7f18
+    GitHub-Last-Rev: c1a20aee0e559e8a27a3c59acfd244fdbf885a80
+    GitHub-Pull-Request: golang/go#60999
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/506175
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/syscall/tables_wasip1.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/syscall/tables_wasip1.go b/src/syscall/tables_wasip1.go
+index 973a56e274..be178c1cca 100644
+--- a/src/syscall/tables_wasip1.go
++++ b/src/syscall/tables_wasip1.go
+@@ -86,6 +86,7 @@ const (
+ 	ETXTBSY         Errno = 74
+ 	EXDEV           Errno = 75
+ 	ENOTCAPABLE     Errno = 76
++	EBADFD          Errno = 77
+ 	// needed by src/net/error_unix_test.go
+ 	EOPNOTSUPP = ENOTSUP
+ )
+@@ -100,6 +101,7 @@ var errorstr = [...]string{
+ 	EAGAIN:          "Try again",
+ 	EALREADY:        "Socket already connected",
+ 	EBADF:           "Bad file number",
++	EBADFD:          "file descriptor in bad state",
+ 	EBADMSG:         "Trying to read unreadable message",
+ 	EBUSY:           "Device or resource busy",
+ 	ECANCELED:       "Operation canceled.",

@@ -1,0 +1,138 @@
+commit c4f356dd863c449835248c24f6dc653323010a1c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Dec 13 16:59:20 2024 +0100
+
+    crypto/ecdsa: fix s390x assembly with P-521
+    
+    I had incorrectly assumed that the blocksize was always the same as the
+    curve field size. This is true of P-256 and P-384, but not P-521.
+    
+    Fixes #70660
+    Fixes #70771
+    
+    Change-Id: Idb6b510fcd3dd42d9b1e6cf42c1bb92e0ce8bd07
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636015
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/internal/fips140/ecdsa/ecdsa.go       |  4 +-
+ src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go | 53 +++++++++++++++++++-----
+ 2 files changed, 44 insertions(+), 13 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/ecdsa/ecdsa.go b/src/crypto/internal/fips140/ecdsa/ecdsa.go
+index 9459b03de7..11389e8210 100644
+--- a/src/crypto/internal/fips140/ecdsa/ecdsa.go
++++ b/src/crypto/internal/fips140/ecdsa/ecdsa.go
+@@ -21,7 +21,7 @@ import (
+ 
+ type PrivateKey struct {
+ 	pub PublicKey
+-	d   []byte // bigmod.(*Nat).Bytes output (fixed length)
++	d   []byte // bigmod.(*Nat).Bytes output (same length as the curve order)
+ }
+ 
+ func (priv *PrivateKey) Bytes() []byte {
+@@ -262,7 +262,7 @@ func randomPoint[P Point[P]](c *Curve[P], generate func([]byte) error) (k *bigmo
+ var testingOnlyRejectionSamplingLooped func()
+ 
+ // Signature is an ECDSA signature, where r and s are represented as big-endian
+-// fixed-length byte slices.
++// byte slices of the same length as the curve order.
+ type Signature struct {
+ 	R, S []byte
+ }
+diff --git a/src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go b/src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go
+index 01379f998f..271a35897f 100644
+--- a/src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go
++++ b/src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go
+@@ -47,15 +47,34 @@ func canUseKDSA(c curveID) (functionCode uint64, blockSize int, ok bool) {
+ 	case p384:
+ 		return 2, 48, true
+ 	case p521:
++		// Note that the block size doesn't match the field size for P-521.
+ 		return 3, 80, true
+ 	}
+ 	return 0, 0, false // A mismatch
+ }
+ 
+-func hashToBytes[P Point[P]](c *Curve[P], dst, hash []byte) {
++func hashToBytes[P Point[P]](c *Curve[P], hash []byte) []byte {
+ 	e := bigmod.NewNat()
+ 	hashToNat(c, e, hash)
+-	copy(dst, e.Bytes(c.N))
++	return e.Bytes(c.N)
++}
++
++func appendBlock(p []byte, blocksize int, b []byte) []byte {
++	if len(b) > blocksize {
++		panic("ecdsa: internal error: appendBlock input larger than block")
++	}
++	padding := blocksize - len(b)
++	p = append(p, make([]byte, padding)...)
++	return append(p, b...)
++}
++
++func trimBlock(p []byte, size int) ([]byte, error) {
++	for _, b := range p[:len(p)-size] {
++		if b != 0 {
++			return nil, errors.New("ecdsa: internal error: KDSA produced invalid signature")
++		}
++	}
++	return p[len(p)-size:], nil
+ }
+ 
+ func sign[P Point[P]](c *Curve[P], priv *PrivateKey, drbg *hmacDRBG, hash []byte) (*Signature, error) {
+@@ -95,17 +114,27 @@ func sign[P Point[P]](c *Curve[P], priv *PrivateKey, drbg *hmacDRBG, hash []byte
+ 
+ 		// Copy content into the parameter block. In the sign case,
+ 		// we copy hashed message, private key and random number into
+-		// the parameter block.
+-		hashToBytes(c, params[2*blockSize:3*blockSize], hash)
+-		copy(params[3*blockSize+blockSize-len(priv.d):], priv.d)
+-		copy(params[4*blockSize:5*blockSize], k.Bytes(c.N))
++		// the parameter block. We skip the signature slots.
++		p := params[:2*blockSize]
++		p = appendBlock(p, blockSize, hashToBytes(c, hash))
++		p = appendBlock(p, blockSize, priv.d)
++		p = appendBlock(p, blockSize, k.Bytes(c.N))
+ 		// Convert verify function code into a sign function code by adding 8.
+ 		// We also need to set the 'deterministic' bit in the function code, by
+ 		// adding 128, in order to stop the instruction using its own random number
+ 		// generator in addition to the random number we supply.
+ 		switch kdsa(functionCode+136, &params) {
+ 		case 0: // success
+-			return &Signature{R: params[:blockSize], S: params[blockSize : 2*blockSize]}, nil
++			elementSize := (c.N.BitLen() + 7) / 8
++			r, err := trimBlock(params[:blockSize], elementSize)
++			if err != nil {
++				return nil, err
++			}
++			s, err := trimBlock(params[blockSize:2*blockSize], elementSize)
++			if err != nil {
++				return nil, err
++			}
++			return &Signature{R: r, S: s}, nil
+ 		case 1: // error
+ 			return nil, errors.New("zero parameter")
+ 		case 2: // retry
+@@ -149,10 +178,12 @@ func verify[P Point[P]](c *Curve[P], pub *PublicKey, hash []byte, sig *Signature
+ 	// Copy content into the parameter block. In the verify case,
+ 	// we copy signature (r), signature(s), hashed message, public key x component,
+ 	// and public key y component into the parameter block.
+-	copy(params[0*blockSize+blockSize-len(r):], r)
+-	copy(params[1*blockSize+blockSize-len(s):], s)
+-	hashToBytes(c, params[2*blockSize:3*blockSize], hash)
+-	copy(params[3*blockSize:5*blockSize], pub.q[1:]) // strip 0x04 prefix
++	p := params[:0]
++	p = appendBlock(p, blockSize, r)
++	p = appendBlock(p, blockSize, s)
++	p = appendBlock(p, blockSize, hashToBytes(c, hash))
++	p = appendBlock(p, blockSize, pub.q[1:1+len(pub.q)/2])
++	p = appendBlock(p, blockSize, pub.q[1+len(pub.q)/2:])
+ 	if kdsa(functionCode, &params) != 0 {
+ 		return errors.New("invalid signature")
+ 	}

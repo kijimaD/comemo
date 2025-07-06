@@ -1,0 +1,37 @@
+commit d1f2cd8a4968d618caf6757ac648d80f2733e5cb
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Apr 11 21:27:08 2024 +0000
+
+    cmd/trace/v2: make the -pprof actually useful
+    
+    In both the v1 and v2 cmd/trace, pprofMatchingGoroutines will generate
+    no output at all if the filter name passed to it is the empty string.
+    
+    This is rather pointless because there are at least two places where we
+    don't pass a name to filter. Modify pprofMatchingGoroutines to include
+    *all* goroutines in the trace if the name to filter by is not specified.
+    
+    For #66782.
+    
+    Change-Id: I6b72298d676bc93892b075a7426e6e56bc6656c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578356
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/trace/v2/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/trace/v2/pprof.go b/src/cmd/trace/v2/pprof.go
+index 05895eda3d..43b0257fc0 100644
+--- a/src/cmd/trace/v2/pprof.go
++++ b/src/cmd/trace/v2/pprof.go
+@@ -48,7 +48,7 @@ func pprofByRegion(compute computePprofFunc, t *parsedTrace) traceviewer.Profile
+ func pprofMatchingGoroutines(name string, t *parsedTrace) (map[tracev2.GoID][]interval, error) {
+ 	res := make(map[tracev2.GoID][]interval)
+ 	for _, g := range t.summary.Goroutines {
+-		if g.Name != name {
++		if name != "" && g.Name != name {
+ 			continue
+ 		}
+ 		endTime := g.EndTime

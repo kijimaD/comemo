@@ -1,0 +1,248 @@
+commit 9ddeac30b5c41f223564e1dedef3095a5a909cb9
+Author: David Chase <drchase@google.com>
+Date:   Tue Feb 18 17:34:24 2025 -0500
+
+    cmd/compile, runtime: use deferreturn as target PC for recover from deferrangefunc
+    
+    The existing code for recover from deferrangefunc was broken in
+    several ways.
+    
+    1. the code following a deferrangefunc call did not check the return
+    value for an out-of-band value indicating "return now" (i.e., recover
+    was called)
+    
+    2. the returned value was delivered using a bespoke ABI that happened
+    to match on register-ABI platforms, but not on older stack-based
+    ABI.
+    
+    3. the returned value was the wrong width (1 word versus 2) and
+    type/value(integer 1, not a pointer to anything) for deferrangefunc's
+    any-typed return value (in practice, the OOB value check could catch
+    this, but still, it's sketchy).
+    
+    This -- using the deferreturn lookup method already in place for
+    open-coded defers -- turned out to be a much-less-ugly way of
+    obtaining the desired transfer of control for recover().
+    
+    TODO: we also could do this for regular defer, and delete some code.
+    
+    Fixes #71675
+    
+    Change-Id: If7d7ea789ad4320821aab3b443759a7d71647ff0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650476
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ src/cmd/compile/internal/ssa/func.go   | 11 ++--
+ src/cmd/compile/internal/ssagen/ssa.go |  8 ++-
+ src/runtime/panic.go                   |  9 +++-
+ test/fixedbugs/issue71675.go           | 99 ++++++++++++++++++++++++++++++++++
+ test/fixedbugs/issue71675.out          | 13 +++++
+ 5 files changed, 133 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/func.go b/src/cmd/compile/internal/ssa/func.go
+index cd8900d19a..998cc804aa 100644
+--- a/src/cmd/compile/internal/ssa/func.go
++++ b/src/cmd/compile/internal/ssa/func.go
+@@ -41,11 +41,12 @@ type Func struct {
+ 	ABISelf        *abi.ABIConfig // ABI for function being compiled
+ 	ABIDefault     *abi.ABIConfig // ABI for rtcall and other no-parsed-signature/pragma functions.
+ 
+-	scheduled   bool  // Values in Blocks are in final order
+-	laidout     bool  // Blocks are ordered
+-	NoSplit     bool  // true if function is marked as nosplit.  Used by schedule check pass.
+-	dumpFileSeq uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
+-	IsPgoHot    bool
++	scheduled         bool  // Values in Blocks are in final order
++	laidout           bool  // Blocks are ordered
++	NoSplit           bool  // true if function is marked as nosplit.  Used by schedule check pass.
++	dumpFileSeq       uint8 // the sequence numbers of dump file. (%s_%02d__%s.dump", funcname, dumpFileSeq, phaseName)
++	IsPgoHot          bool
++	HasDeferRangeFunc bool // if true, needs a deferreturn so deferrangefunc can use it for recover() return PC
+ 
+ 	// when register allocation is done, maps value ids to locations
+ 	RegAlloc []Location
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6e8a8b9cc8..7c67bc5579 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4433,6 +4433,9 @@ func (s *state) call(n *ir.CallExpr, k callKind, returnResultAddr bool, deferExt
+ 					callABI = s.f.ABI1
+ 				}
+ 			}
++			if fn := n.Fun.Sym().Name; n.Fun.Sym().Pkg == ir.Pkgs.Runtime && fn == "deferrangefunc" {
++				s.f.HasDeferRangeFunc = true
++			}
+ 			break
+ 		}
+ 		closure = s.expr(fn)
+@@ -6568,10 +6571,13 @@ func genssa(f *ssa.Func, pp *objw.Progs) {
+ 		// nop (which will never execute) after the call.
+ 		Arch.Ginsnop(s.pp)
+ 	}
+-	if openDeferInfo != nil {
++	if openDeferInfo != nil || f.HasDeferRangeFunc {
+ 		// When doing open-coded defers, generate a disconnected call to
+ 		// deferreturn and a return. This will be used to during panic
+ 		// recovery to unwind the stack and return back to the runtime.
++		//
++		// deferrangefunc needs to be sure that at least one of these exists;
++		// if all returns are dead-code eliminated, there might not be.
+ 		s.pp.NextLive = s.livenessMap.DeferReturn
+ 		p := s.pp.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 2dd3c3c2db..1ed2503320 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -391,10 +391,15 @@ func deferrangefunc() any {
+ 		throw("defer on system stack")
+ 	}
+ 
++	fn := findfunc(sys.GetCallerPC())
++	if fn.deferreturn == 0 {
++		throw("no deferreturn")
++	}
++
+ 	d := newdefer()
+ 	d.link = gp._defer
+ 	gp._defer = d
+-	d.pc = sys.GetCallerPC()
++	d.pc = fn.entry() + uintptr(fn.deferreturn)
+ 	// We must not be preempted between calling GetCallerSP and
+ 	// storing it to d.sp because GetCallerSP's result is a
+ 	// uintptr stack pointer.
+@@ -1258,6 +1263,8 @@ func recovery(gp *g) {
+ 		// only gets us to the caller's fp.
+ 		gp.sched.bp = sp - goarch.PtrSize
+ 	}
++	// The value in ret is delivered IN A REGISTER, even if there is a
++	// stack ABI.
+ 	gp.sched.ret = 1
+ 	gogo(&gp.sched)
+ }
+diff --git a/test/fixedbugs/issue71675.go b/test/fixedbugs/issue71675.go
+new file mode 100644
+index 0000000000..c5c65f5b4c
+--- /dev/null
++++ b/test/fixedbugs/issue71675.go
+@@ -0,0 +1,99 @@
++// run
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++package main
++
++//go:noinline
++func i() {
++	for range yieldInts {
++		defer func() {
++			println("I")
++			recover()
++		}()
++	}
++	// This panic causes dead code elimination of the return block.
++	// The compiler should nonetheless emit a deferreturn.
++	panic("i panic")
++}
++
++//go:noinline
++func h() {
++	defer func() {
++		println("H first")
++	}()
++	for range yieldInts {
++		defer func() {
++			println("H second")
++		}()
++	}
++	defer func() {
++		println("H third")
++	}()
++	for range yieldIntsPanic {
++		defer func() {
++			println("h recover:called")
++			recover()
++		}()
++	}
++}
++
++//go:noinline
++func yieldInts(yield func(int) bool) {
++	if !yield(0) {
++		return
++	}
++}
++
++//go:noinline
++func g() {
++	defer func() {
++		println("G first")
++	}()
++	for range yieldIntsPanic {
++		defer func() {
++			println("g recover:called")
++			recover()
++		}()
++	}
++}
++
++//go:noinline
++func yieldIntsPanic(yield func(int) bool) {
++	if !yield(0) {
++		return
++	}
++	panic("yield stop")
++}
++
++//go:noinline
++func next(i int) int {
++	if i == 0 {
++		panic("next stop")
++	}
++	return i + 1
++}
++
++//go:noinline
++func f() {
++	defer func() {
++		println("F first")
++	}()
++	for i := 0; i < 1; i = next(i) {
++		defer func() {
++			println("f recover:called")
++			recover()
++		}()
++	}
++}
++func main() {
++	f()
++	println("f returned")
++	g()
++	println("g returned")
++	h()
++	println("h returned")
++	i()
++	println("i returned")
++
++}
+diff --git a/test/fixedbugs/issue71675.out b/test/fixedbugs/issue71675.out
+new file mode 100644
+index 0000000000..077359ba14
+--- /dev/null
++++ b/test/fixedbugs/issue71675.out
+@@ -0,0 +1,13 @@
++f recover:called
++F first
++f returned
++g recover:called
++G first
++g returned
++h recover:called
++H third
++H second
++H first
++h returned
++I
++i returned

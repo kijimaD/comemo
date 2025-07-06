@@ -1,0 +1,156 @@
+commit 253a9933d181ce5e57de81f56d7e50565c423f0f
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Nov 18 16:12:48 2024 -0800
+
+    internal/runtime/maps: use simpler calculation for slot element
+    
+    This reduces the adds required at the return point from 3 to 1.
+    (The multiply inside g.elem() does get CSE'd with the one inside
+    g.key(), but the rest of the adds don't.)
+    
+    Instead, compute the element as just a fixed offset from the key.
+    
+    Change-Id: Ia4d7664efafcdca5e9daeb77d270651bb186232c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629535
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/internal/runtime/maps/runtime_fast32_swiss.go  |  4 ++--
+ src/internal/runtime/maps/runtime_fast64_swiss.go  |  4 ++--
+ src/internal/runtime/maps/runtime_faststr_swiss.go |  4 ++--
+ src/internal/runtime/maps/runtime_swiss.go         | 12 ++++++++----
+ 4 files changed, 14 insertions(+), 10 deletions(-)
+
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+index 2ab30bce6c..ff5815abdd 100644
+--- a/src/internal/runtime/maps/runtime_fast32_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -66,7 +66,7 @@ func runtime_mapaccess1_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe
+ 
+ 			slotKey := g.key(typ, i)
+ 			if key == *(*uint32)(slotKey) {
+-				slotElem := g.elem(typ, i)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 				return slotElem
+ 			}
+ 			match = match.removeFirst()
+@@ -134,7 +134,7 @@ func runtime_mapaccess2_fast32(typ *abi.SwissMapType, m *Map, key uint32) (unsaf
+ 
+ 			slotKey := g.key(typ, i)
+ 			if key == *(*uint32)(slotKey) {
+-				slotElem := g.elem(typ, i)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 				return slotElem, true
+ 			}
+ 			match = match.removeFirst()
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index 396c63c236..f4716dffda 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -66,7 +66,7 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
+ 
+ 			slotKey := g.key(typ, i)
+ 			if key == *(*uint64)(slotKey) {
+-				slotElem := g.elem(typ, i)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 				return slotElem
+ 			}
+ 			match = match.removeFirst()
+@@ -134,7 +134,7 @@ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsaf
+ 
+ 			slotKey := g.key(typ, i)
+ 			if key == *(*uint64)(slotKey) {
+-				slotElem := g.elem(typ, i)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 				return slotElem, true
+ 			}
+ 			match = match.removeFirst()
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index 38170a1821..eed8d8666d 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -141,7 +141,7 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
+ 
+ 			slotKey := g.key(typ, i)
+ 			if key == *(*string)(slotKey) {
+-				slotElem := g.elem(typ, i)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 				return slotElem
+ 			}
+ 			match = match.removeFirst()
+@@ -199,7 +199,7 @@ func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsa
+ 
+ 			slotKey := g.key(typ, i)
+ 			if key == *(*string)(slotKey) {
+-				slotElem := g.elem(typ, i)
++				slotElem := unsafe.Pointer(uintptr(slotKey) + typ.ElemOff)
+ 				return slotElem, true
+ 			}
+ 			match = match.removeFirst()
+diff --git a/src/internal/runtime/maps/runtime_swiss.go b/src/internal/runtime/maps/runtime_swiss.go
+index 58ac893486..3f4f970fb7 100644
+--- a/src/internal/runtime/maps/runtime_swiss.go
++++ b/src/internal/runtime/maps/runtime_swiss.go
+@@ -90,11 +90,12 @@ func runtime_mapaccess1(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) unsaf
+ 			i := match.first()
+ 
+ 			slotKey := g.key(typ, i)
++			slotKeyOrig := slotKey
+ 			if typ.IndirectKey() {
+ 				slotKey = *((*unsafe.Pointer)(slotKey))
+ 			}
+ 			if typ.Key.Equal(key, slotKey) {
+-				slotElem := g.elem(typ, i)
++				slotElem := unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+ 				if typ.IndirectElem() {
+ 					slotElem = *((*unsafe.Pointer)(slotElem))
+ 				}
+@@ -163,11 +164,12 @@ func runtime_mapaccess2(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) (unsa
+ 			i := match.first()
+ 
+ 			slotKey := g.key(typ, i)
++			slotKeyOrig := slotKey
+ 			if typ.IndirectKey() {
+ 				slotKey = *((*unsafe.Pointer)(slotKey))
+ 			}
+ 			if typ.Key.Equal(key, slotKey) {
+-				slotElem := g.elem(typ, i)
++				slotElem := unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+ 				if typ.IndirectElem() {
+ 					slotElem = *((*unsafe.Pointer)(slotElem))
+ 				}
+@@ -256,6 +258,7 @@ outer:
+ 				i := match.first()
+ 
+ 				slotKey := g.key(typ, i)
++				slotKeyOrig := slotKey
+ 				if typ.IndirectKey() {
+ 					slotKey = *((*unsafe.Pointer)(slotKey))
+ 				}
+@@ -264,7 +267,7 @@ outer:
+ 						typedmemmove(typ.Key, slotKey, key)
+ 					}
+ 
+-					slotElem = g.elem(typ, i)
++					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+ 					if typ.IndirectElem() {
+ 						slotElem = *((*unsafe.Pointer)(slotElem))
+ 					}
+@@ -298,6 +301,7 @@ outer:
+ 				// If there is room left to grow, just insert the new entry.
+ 				if t.growthLeft > 0 {
+ 					slotKey := g.key(typ, i)
++					slotKeyOrig := slotKey
+ 					if typ.IndirectKey() {
+ 						kmem := newobject(typ.Key)
+ 						*(*unsafe.Pointer)(slotKey) = kmem
+@@ -305,7 +309,7 @@ outer:
+ 					}
+ 					typedmemmove(typ.Key, slotKey, key)
+ 
+-					slotElem = g.elem(typ, i)
++					slotElem = unsafe.Pointer(uintptr(slotKeyOrig) + typ.ElemOff)
+ 					if typ.IndirectElem() {
+ 						emem := newobject(typ.Elem)
+ 						*(*unsafe.Pointer)(slotElem) = emem

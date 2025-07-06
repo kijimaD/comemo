@@ -1,0 +1,276 @@
+commit f9eb3e3cd59c1cf38a98f2367c6c8dc180db9a95
+Author: David Chase <drchase@google.com>
+Date:   Tue Jul 23 11:18:08 2024 -0400
+
+    runtime,internal: move runtime/internal/math to internal/runtime/math
+    
+    Cleanup and friction reduction.
+    
+    Updates #65355.
+    
+    Change-Id: I6c4fcd409d044c00d16561fe9ed2257877d73f5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600435
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules                | 2 +-
+ src/cmd/compile/internal/ssagen/ssa.go                       | 6 +++---
+ src/cmd/compile/internal/test/inl_test.go                    | 2 +-
+ src/cmd/compile/internal/walk/builtin.go                     | 2 +-
+ src/cmd/internal/objabi/pkgspecial.go                        | 2 +-
+ src/go/build/deps_test.go                                    | 2 +-
+ src/internal/coverage/pkid.go                                | 4 ++--
+ src/{runtime/internal => internal/runtime}/math/math.go      | 0
+ src/{runtime/internal => internal/runtime}/math/math_test.go | 2 +-
+ src/runtime/arena.go                                         | 2 +-
+ src/runtime/chan.go                                          | 2 +-
+ src/runtime/hash64.go                                        | 2 +-
+ src/runtime/malloc.go                                        | 2 +-
+ src/runtime/map.go                                           | 2 +-
+ src/runtime/rand.go                                          | 2 +-
+ src/runtime/slice.go                                         | 2 +-
+ src/runtime/unsafe.go                                        | 2 +-
+ 17 files changed, 19 insertions(+), 19 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 1b588edb04..721095f653 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -1931,7 +1931,7 @@
+ 
+ ((REV|REVW) ((REV|REVW) p)) => p
+ 
+-// runtime/internal/math.MulUintptr intrinsics
++// internal/runtime/math.MulUintptr intrinsics
+ 
+ (Select0 (Mul64uover x y)) => (MUL x y)
+ (Select1 (Mul64uover x y)) => (NotEqual (CMPconst (UMULH <typ.UInt64> x y) [0]))
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 26d236dcac..d0ca5b7f30 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4241,7 +4241,7 @@ func InitTables() {
+ 			},
+ 			all...)
+ 	}
+-	addF("runtime/internal/math", "MulUintptr",
++	addF("internal/runtime/math", "MulUintptr",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			if s.config.PtrSize == 4 {
+ 				return s.newValue2(ssa.OpMul32uover, types.NewTuple(types.Types[types.TUINT], types.Types[types.TUINT]), args[0], args[1])
+@@ -5025,14 +5025,14 @@ func InitTables() {
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.MIPS64, sys.RISCV64, sys.Loong64)
+ 	alias("math/bits", "Mul", "math/bits", "Mul64", p8...)
+-	alias("runtime/internal/math", "Mul64", "math/bits", "Mul64", p8...)
++	alias("internal/runtime/math", "Mul64", "math/bits", "Mul64", p8...)
+ 	addF("math/bits", "Add64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpAdd64carry, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
+ 		},
+ 		sys.AMD64, sys.ARM64, sys.PPC64, sys.S390X, sys.RISCV64, sys.Loong64, sys.MIPS64)
+ 	alias("math/bits", "Add", "math/bits", "Add64", p8...)
+-	alias("runtime/internal/math", "Add64", "math/bits", "Add64", all...)
++	alias("internal/runtime/math", "Add64", "math/bits", "Add64", all...)
+ 	addF("math/bits", "Sub64",
+ 		func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 			return s.newValue3(ssa.OpSub64borrow, types.NewTuple(types.Types[types.TUINT64], types.Types[types.TUINT64]), args[0], args[1], args[2])
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index f05bb9317d..4626269582 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -98,7 +98,7 @@ func TestIntendedInlining(t *testing.T) {
+ 			"traceEnabled",
+ 		},
+ 		"runtime/internal/sys": {},
+-		"runtime/internal/math": {
++		"internal/runtime/math": {
+ 			"MulUintptr",
+ 		},
+ 		"bytes": {
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 512420e6d5..02e64c12a1 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -799,7 +799,7 @@ func walkUnsafeSlice(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 	return walkExpr(typecheck.Expr(h), init)
+ }
+ 
+-var math_MulUintptr = &types.Sym{Pkg: types.NewPkg("runtime/internal/math", "math"), Name: "MulUintptr"}
++var math_MulUintptr = &types.Sym{Pkg: types.NewPkg("internal/runtime/math", "math"), Name: "MulUintptr"}
+ 
+ func walkUnsafeString(n *ir.BinaryExpr, init *ir.Nodes) ir.Node {
+ 	ptr := safeExpr(n.X, init)
+diff --git a/src/cmd/internal/objabi/pkgspecial.go b/src/cmd/internal/objabi/pkgspecial.go
+index c34ede53fe..2772226c93 100644
+--- a/src/cmd/internal/objabi/pkgspecial.go
++++ b/src/cmd/internal/objabi/pkgspecial.go
+@@ -47,7 +47,7 @@ var runtimePkgs = []string{
+ 
+ 	"internal/runtime/atomic",
+ 	"internal/runtime/exithook",
+-	"runtime/internal/math",
++	"internal/runtime/math",
+ 	"runtime/internal/sys",
+ 	"internal/runtime/syscall",
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 9146cae492..9e22955eda 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -87,7 +87,7 @@ var depsRules = `
+ 	< internal/runtime/syscall
+ 	< internal/runtime/atomic
+ 	< internal/runtime/exithook
+-	< runtime/internal/math
++	< internal/runtime/math
+ 	< runtime
+ 	< sync/atomic
+ 	< internal/race
+diff --git a/src/internal/coverage/pkid.go b/src/internal/coverage/pkid.go
+index 86ff302507..a764cc4205 100644
+--- a/src/internal/coverage/pkid.go
++++ b/src/internal/coverage/pkid.go
+@@ -28,7 +28,7 @@ package coverage
+ //    slot: 3 path='internal/goos'
+ //    slot: 4 path='runtime/internal/sys'  hard-coded id: 5
+ //    slot: 5 path='internal/abi'  hard-coded id: 4
+-//    slot: 6 path='runtime/internal/math'  hard-coded id: 6
++//    slot: 6 path='internal/runtime/math'  hard-coded id: 6
+ //    slot: 7 path='internal/bytealg'  hard-coded id: 7
+ //    slot: 8 path='internal/goexperiment'
+ //    slot: 9 path='internal/runtime/syscall'  hard-coded id: 8
+@@ -52,7 +52,7 @@ var rtPkgs = [...]string{
+ 	"internal/chacha8rand",
+ 	"runtime/internal/sys",
+ 	"internal/abi",
+-	"runtime/internal/math",
++	"internal/runtime/math",
+ 	"internal/bytealg",
+ 	"internal/goexperiment",
+ 	"internal/runtime/syscall",
+diff --git a/src/runtime/internal/math/math.go b/src/internal/runtime/math/math.go
+similarity index 100%
+rename from src/runtime/internal/math/math.go
+rename to src/internal/runtime/math/math.go
+diff --git a/src/runtime/internal/math/math_test.go b/src/internal/runtime/math/math_test.go
+similarity index 98%
+rename from src/runtime/internal/math/math_test.go
+rename to src/internal/runtime/math/math_test.go
+index 303eb63405..8405999dc2 100644
+--- a/src/runtime/internal/math/math_test.go
++++ b/src/internal/runtime/math/math_test.go
+@@ -5,7 +5,7 @@
+ package math_test
+ 
+ import (
+-	. "runtime/internal/math"
++	. "internal/runtime/math"
+ 	"testing"
+ )
+ 
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index cd9a9dfae1..96197099ca 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -86,7 +86,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/math"
++	"internal/runtime/math"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/chan.go b/src/runtime/chan.go
+index f1cd74a3fd..4c854c72bc 100644
+--- a/src/runtime/chan.go
++++ b/src/runtime/chan.go
+@@ -20,7 +20,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/math"
++	"internal/runtime/math"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/hash64.go b/src/runtime/hash64.go
+index 05cdb81113..124bb7d77a 100644
+--- a/src/runtime/hash64.go
++++ b/src/runtime/hash64.go
+@@ -10,7 +10,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/math"
++	"internal/runtime/math"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index b92a213245..cbb4f67ee8 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -104,7 +104,7 @@ import (
+ 	"internal/goarch"
+ 	"internal/goos"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/math"
++	"internal/runtime/math"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/map.go b/src/runtime/map.go
+index 112084f5a7..9169d5733e 100644
+--- a/src/runtime/map.go
++++ b/src/runtime/map.go
+@@ -57,7 +57,7 @@ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+ 	"internal/runtime/atomic"
+-	"runtime/internal/math"
++	"internal/runtime/math"
+ 	"unsafe"
+ )
+ 
+diff --git a/src/runtime/rand.go b/src/runtime/rand.go
+index a66553feeb..11be6552aa 100644
+--- a/src/runtime/rand.go
++++ b/src/runtime/rand.go
+@@ -9,7 +9,7 @@ package runtime
+ import (
+ 	"internal/chacha8rand"
+ 	"internal/goarch"
+-	"runtime/internal/math"
++	"internal/runtime/math"
+ 	"unsafe"
+ 	_ "unsafe" // for go:linkname
+ )
+diff --git a/src/runtime/slice.go b/src/runtime/slice.go
+index 78475735af..65883ea2f3 100644
+--- a/src/runtime/slice.go
++++ b/src/runtime/slice.go
+@@ -7,7 +7,7 @@ package runtime
+ import (
+ 	"internal/abi"
+ 	"internal/goarch"
+-	"runtime/internal/math"
++	"internal/runtime/math"
+ 	"runtime/internal/sys"
+ 	"unsafe"
+ )
+diff --git a/src/runtime/unsafe.go b/src/runtime/unsafe.go
+index ca428b56e0..85fc8b61eb 100644
+--- a/src/runtime/unsafe.go
++++ b/src/runtime/unsafe.go
+@@ -5,7 +5,7 @@
+ package runtime
+ 
+ import (
+-	"runtime/internal/math"
++	"internal/runtime/math"
+ 	"unsafe"
+ )
+ 

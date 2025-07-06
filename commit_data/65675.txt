@@ -1,0 +1,177 @@
+commit 918765b619b87a603c40b331bd5f5e2335d265f0
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Nov 19 14:05:38 2024 -0800
+
+    crypto/x509: switch default policy field to Policies
+    
+    Switch from Certificate.PolicyIdentifiers to Certificate.Policies when
+    marshalling.
+    
+    Fixes #67620
+    
+    Change-Id: Ib627135a569f53d344b4ee2f892ba139506ce0d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629855
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+---
+ doc/godebug.md                                  |  8 ++++++++
+ doc/next/6-stdlib/99-minor/crypto/x509/67620.md |  6 ++++++
+ src/crypto/x509/x509.go                         | 16 ++++++++++------
+ src/crypto/x509/x509_test.go                    | 17 +++++++++++------
+ src/internal/godebugs/table.go                  |  2 +-
+ 5 files changed, 36 insertions(+), 13 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index c088e7bccf..2dddda152f 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -195,6 +195,14 @@ This currently only affects arm64 programs. For all other platforms it is a no-o
+ Go 1.24 removed the `x509sha1` setting.  `crypto/x509` no longer supports verifying
+ signatures on certificates that use SHA-1 based signature algorithms.
+ 
++Go 1.24 changes the default value of the [`x509usepolicies`
++setting.](/pkg/crypto/x509/#CreateCertificate) from `0` to `1`. When marshalling
++certificates, policies are now taken from the
++[`Certificate.Policies`](/pkg/crypto/x509/#Certificate.Policies) field rather
++than the
++[`Certificate.PolicyIdentifiers`](/pkg/crypto/x509/#Certificate.PolicyIdentifiers)
++field by default.
++
+ ### Go 1.23
+ 
+ Go 1.23 changed the channels created by package time to be unbuffered
+diff --git a/doc/next/6-stdlib/99-minor/crypto/x509/67620.md b/doc/next/6-stdlib/99-minor/crypto/x509/67620.md
+new file mode 100644
+index 0000000000..f9db5d47cc
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/x509/67620.md
+@@ -0,0 +1,6 @@
++The default certificate policies field has changed from
++[Certificate.PolicyIdentifiers] to [Certificate.Policies]. When parsing
++certificates, both fields will be populated, but when creating certificates
++policies will now be taken from the [Certificate.Policies] field instead of the
++[Certificate.PolicyIdentifiers field]. This change can be reverted by setting
++`GODEBUG=x509usepolicies=0`.
+\ No newline at end of file
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index a21405f499..3e2d9b4d71 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -786,9 +786,13 @@ type Certificate struct {
+ 	// cannot be represented by asn1.ObjectIdentifier, it will not be included in
+ 	// PolicyIdentifiers, but will be present in Policies, which contains all parsed
+ 	// policy OIDs.
++	// See CreateCertificate for context about how this field and the Policies field
++	// interact.
+ 	PolicyIdentifiers []asn1.ObjectIdentifier
+ 
+ 	// Policies contains all policy identifiers included in the certificate.
++	// See CreateCertificate for context about how this field and the PolicyIdentifiers field
++	// interact.
+ 	// In Go 1.22, encoding/gob cannot handle and ignores this field.
+ 	Policies []OID
+ 
+@@ -1259,7 +1263,7 @@ func buildCertExtensions(template *Certificate, subjectIsEmpty bool, authorityKe
+ 		n++
+ 	}
+ 
+-	usePolicies := x509usepolicies.Value() == "1"
++	usePolicies := x509usepolicies.Value() != "0"
+ 	if ((!usePolicies && len(template.PolicyIdentifiers) > 0) || (usePolicies && len(template.Policies) > 0)) &&
+ 		!oidInExtensions(oidExtensionCertificatePolicies, template.ExtraExtensions) {
+ 		ret[n], err = marshalCertificatePolicies(template.Policies, template.PolicyIdentifiers)
+@@ -1452,7 +1456,7 @@ func marshalCertificatePolicies(policies []OID, policyIdentifiers []asn1.ObjectI
+ 
+ 	b := cryptobyte.NewBuilder(make([]byte, 0, 128))
+ 	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+-		if x509usepolicies.Value() == "1" {
++		if x509usepolicies.Value() != "0" {
+ 			x509usepolicies.IncNonDefault()
+ 			for _, v := range policies {
+ 				child.AddASN1(cryptobyte_asn1.SEQUENCE, func(child *cryptobyte.Builder) {
+@@ -1651,10 +1655,10 @@ var emptyASN1Subject = []byte{0x30, 0}
+ // If SubjectKeyId from template is empty and the template is a CA, SubjectKeyId
+ // will be generated from the hash of the public key.
+ //
+-// The PolicyIdentifier and Policies fields are both used to marshal certificate
+-// policy OIDs. By default, only the PolicyIdentifier is marshaled, but if the
+-// GODEBUG setting "x509usepolicies" has the value "1", the Policies field will
+-// be marshaled instead of the PolicyIdentifier field. The Policies field can
++// The PolicyIdentifier and Policies fields can both be used to marshal certificate
++// policy OIDs. By default, only the Policies is marshaled, but if the
++// GODEBUG setting "x509usepolicies" has the value "0", the PolicyIdentifiers field will
++// be marshaled instead of the Policies field. This changed in Go 1.24. The Policies field can
+ // be used to marshal policy OIDs which have components that are larger than 31
+ // bits.
+ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv any) ([]byte, error) {
+diff --git a/src/crypto/x509/x509_test.go b/src/crypto/x509/x509_test.go
+index 4fdd68a2a9..37dc717fa1 100644
+--- a/src/crypto/x509/x509_test.go
++++ b/src/crypto/x509/x509_test.go
+@@ -673,7 +673,6 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			IPAddresses:    []net.IP{net.IPv4(127, 0, 0, 1).To4(), net.ParseIP("2001:4860:0:2001::68")},
+ 			URIs:           []*url.URL{parseURI("https://foo.com/wibble#foo")},
+ 
+-			PolicyIdentifiers:       []asn1.ObjectIdentifier{[]int{1, 2, 3}},
+ 			Policies:                []OID{mustNewOIDFromInts([]uint64{1, 2, 3, math.MaxUint32, math.MaxUint64})},
+ 			PermittedDNSDomains:     []string{".example.com", "example.com"},
+ 			ExcludedDNSDomains:      []string{"bar.example.com"},
+@@ -712,8 +711,8 @@ func TestCreateSelfSignedCertificate(t *testing.T) {
+ 			continue
+ 		}
+ 
+-		if len(cert.PolicyIdentifiers) != 1 || !cert.PolicyIdentifiers[0].Equal(template.PolicyIdentifiers[0]) {
+-			t.Errorf("%s: failed to parse policy identifiers: got:%#v want:%#v", test.name, cert.PolicyIdentifiers, template.PolicyIdentifiers)
++		if len(cert.Policies) != 1 || !cert.Policies[0].Equal(template.Policies[0]) {
++			t.Errorf("%s: failed to parse policy identifiers: got:%#v want:%#v", test.name, cert.PolicyIdentifiers, template.Policies)
+ 		}
+ 
+ 		if len(cert.PermittedDNSDomains) != 2 || cert.PermittedDNSDomains[0] != ".example.com" || cert.PermittedDNSDomains[1] != "example.com" {
+@@ -3916,7 +3915,9 @@ func TestDuplicateAttributesCSR(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCertificateOIDPolicies(t *testing.T) {
++func TestCertificateOIDPoliciesGODEBUG(t *testing.T) {
++	t.Setenv("GODEBUG", "x509usepolicies=0")
++
+ 	template := Certificate{
+ 		SerialNumber:      big.NewInt(1),
+ 		Subject:           pkix.Name{CommonName: "Cert"},
+@@ -3952,7 +3953,11 @@ func TestCertificateOIDPolicies(t *testing.T) {
+ 	}
+ }
+ 
+-func TestCertificatePoliciesGODEBUG(t *testing.T) {
++func TestCertificatePolicies(t *testing.T) {
++	if x509usepolicies.Value() == "0" {
++		t.Skip("test relies on default x509usepolicies GODEBUG")
++	}
++
+ 	template := Certificate{
+ 		SerialNumber:      big.NewInt(1),
+ 		Subject:           pkix.Name{CommonName: "Cert"},
+@@ -3962,7 +3967,7 @@ func TestCertificatePoliciesGODEBUG(t *testing.T) {
+ 		Policies:          []OID{mustNewOIDFromInts([]uint64{1, 2, math.MaxUint32 + 1})},
+ 	}
+ 
+-	expectPolicies := []OID{mustNewOIDFromInts([]uint64{1, 2, 3})}
++	expectPolicies := []OID{mustNewOIDFromInts([]uint64{1, 2, math.MaxUint32 + 1})}
+ 	certDER, err := CreateCertificate(rand.Reader, &template, &template, rsaPrivateKey.Public(), rsaPrivateKey)
+ 	if err != nil {
+ 		t.Fatalf("CreateCertificate() unexpected error: %v", err)
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 123b839924..1489d6f4db 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -63,7 +63,7 @@ var All = []Info{
+ 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
+ 	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+-	{Name: "x509usepolicies", Package: "crypto/x509"},
++	{Name: "x509usepolicies", Package: "crypto/x509", Changed: 24, Old: "0"},
+ 	{Name: "zipinsecurepath", Package: "archive/zip"},
+ }
+ 

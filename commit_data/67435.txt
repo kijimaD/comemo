@@ -1,0 +1,305 @@
+commit 136ea1ab7ed1509e38b4c61fc302b6cda8edf356
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sat Jun 14 02:45:08 2025 +0000
+
+    [release-branch.go1.23] runtime: prevent mutual deadlock between GC stopTheWorld and suspendG
+    
+    Almost everywhere we stop the world we casGToWaitingForGC to prevent
+    mutual deadlock with the GC trying to scan our stack. This historically
+    was only necessary if we weren't stopping the world to change the GC
+    phase, because what we were worried about was mutual deadlock with mark
+    workers' use of suspendG. And, they were the only users of suspendG.
+    
+    In Go 1.22 this changed. The execution tracer began using suspendG, too.
+    This leads to the possibility of mutual deadlock between the execution
+    tracer and a goroutine trying to start or end the GC mark phase. The fix
+    is simple: make the stop-the-world calls for the GC also call
+    casGToWaitingForGC. This way, suspendG is guaranteed to make progress in
+    this circumstance, and once it completes, the stop-the-world can
+    complete as well.
+    
+    We can take this a step further, though, and move casGToWaitingForGC
+    into stopTheWorldWithSema, since there's no longer really a place we can
+    afford to skip this detail.
+    
+    While we're here, rename casGToWaitingForGC to casGToWaitingForSuspendG,
+    since the GC is now not the only potential source of mutual deadlock.
+    
+    For #72740.
+    Fixes #74293.
+    
+    Change-Id: I5e3739a463ef3e8173ad33c531e696e46260692f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681501
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    (cherry picked from commit c6ac7362888c25dd1251adaa11e1503cf78ec26d)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684095
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/mgc.go         |  7 +++--
+ src/runtime/mgcmark.go     |  4 +--
+ src/runtime/proc.go        | 70 +++++++++++++++++++++++++++++-----------------
+ src/runtime/runtime2.go    | 14 +++++-----
+ src/runtime/stack.go       |  4 +--
+ src/runtime/trace.go       |  2 +-
+ src/runtime/tracestatus.go |  9 +++---
+ 7 files changed, 65 insertions(+), 45 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index f72edc2afe..9cf0c90109 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1019,7 +1019,7 @@ func gcMarkTermination(stw worldStop) {
+ 	// N.B. The execution tracer is not aware of this status
+ 	// transition and handles it specially based on the
+ 	// wait reason.
+-	casGToWaitingForGC(curgp, _Grunning, waitReasonGarbageCollection)
++	casGToWaitingForSuspendG(curgp, _Grunning, waitReasonGarbageCollection)
+ 
+ 	// Run gc on the g0 stack. We do this so that the g stack
+ 	// we're currently running on will no longer change. Cuts
+@@ -1471,7 +1471,8 @@ func gcBgMarkWorker(ready chan struct{}) {
+ 
+ 		systemstack(func() {
+ 			// Mark our goroutine preemptible so its stack
+-			// can be scanned. This lets two mark workers
++			// can be scanned or observed by the execution
++			// tracer. This, for example, lets two mark workers
+ 			// scan each other (otherwise, they would
+ 			// deadlock). We must not modify anything on
+ 			// the G stack. However, stack shrinking is
+@@ -1481,7 +1482,7 @@ func gcBgMarkWorker(ready chan struct{}) {
+ 			// N.B. The execution tracer is not aware of this status
+ 			// transition and handles it specially based on the
+ 			// wait reason.
+-			casGToWaitingForGC(gp, _Grunning, waitReasonGCWorkerActive)
++			casGToWaitingForSuspendG(gp, _Grunning, waitReasonGCWorkerActive)
+ 			switch pp.gcMarkWorkerMode {
+ 			default:
+ 				throw("gcBgMarkWorker: unexpected gcMarkWorkerMode")
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 61e917df41..2563580e30 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -217,7 +217,7 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
+ 			userG := getg().m.curg
+ 			selfScan := gp == userG && readgstatus(userG) == _Grunning
+ 			if selfScan {
+-				casGToWaitingForGC(userG, _Grunning, waitReasonGarbageCollectionScan)
++				casGToWaitingForSuspendG(userG, _Grunning, waitReasonGarbageCollectionScan)
+ 			}
+ 
+ 			// TODO: suspendG blocks (and spins) until gp
+@@ -645,7 +645,7 @@ func gcAssistAlloc1(gp *g, scanWork int64) {
+ 	}
+ 
+ 	// gcDrainN requires the caller to be preemptible.
+-	casGToWaitingForGC(gp, _Grunning, waitReasonGCAssistMarking)
++	casGToWaitingForSuspendG(gp, _Grunning, waitReasonGCAssistMarking)
+ 
+ 	// drain own cached work first in the hopes that it
+ 	// will be more cache friendly.
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index e3cdf71911..d922dd6193 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1282,13 +1282,13 @@ func casGToWaiting(gp *g, old uint32, reason waitReason) {
+ 	casgstatus(gp, old, _Gwaiting)
+ }
+ 
+-// casGToWaitingForGC transitions gp from old to _Gwaiting, and sets the wait reason.
+-// The wait reason must be a valid isWaitingForGC wait reason.
++// casGToWaitingForSuspendG transitions gp from old to _Gwaiting, and sets the wait reason.
++// The wait reason must be a valid isWaitingForSuspendG wait reason.
+ //
+ // Use this over casgstatus when possible to ensure that a waitreason is set.
+-func casGToWaitingForGC(gp *g, old uint32, reason waitReason) {
+-	if !reason.isWaitingForGC() {
+-		throw("casGToWaitingForGC with non-isWaitingForGC wait reason")
++func casGToWaitingForSuspendG(gp *g, old uint32, reason waitReason) {
++	if !reason.isWaitingForSuspendG() {
++		throw("casGToWaitingForSuspendG with non-isWaitingForSuspendG wait reason")
+ 	}
+ 	casGToWaiting(gp, old, reason)
+ }
+@@ -1429,23 +1429,7 @@ func stopTheWorld(reason stwReason) worldStop {
+ 	gp := getg()
+ 	gp.m.preemptoff = reason.String()
+ 	systemstack(func() {
+-		// Mark the goroutine which called stopTheWorld preemptible so its
+-		// stack may be scanned.
+-		// This lets a mark worker scan us while we try to stop the world
+-		// since otherwise we could get in a mutual preemption deadlock.
+-		// We must not modify anything on the G stack because a stack shrink
+-		// may occur. A stack shrink is otherwise OK though because in order
+-		// to return from this function (and to leave the system stack) we
+-		// must have preempted all goroutines, including any attempting
+-		// to scan our stack, in which case, any stack shrinking will
+-		// have already completed by the time we exit.
+-		//
+-		// N.B. The execution tracer is not aware of this status
+-		// transition and handles it specially based on the
+-		// wait reason.
+-		casGToWaitingForGC(gp, _Grunning, waitReasonStoppingTheWorld)
+ 		stopTheWorldContext = stopTheWorldWithSema(reason) // avoid write to stack
+-		casgstatus(gp, _Gwaiting, _Grunning)
+ 	})
+ 	return stopTheWorldContext
+ }
+@@ -1534,7 +1518,30 @@ var gcsema uint32 = 1
+ //
+ // Returns the STW context. When starting the world, this context must be
+ // passed to startTheWorldWithSema.
++//
++//go:systemstack
+ func stopTheWorldWithSema(reason stwReason) worldStop {
++	// Mark the goroutine which called stopTheWorld preemptible so its
++	// stack may be scanned by the GC or observed by the execution tracer.
++	//
++	// This lets a mark worker scan us or the execution tracer take our
++	// stack while we try to stop the world since otherwise we could get
++	// in a mutual preemption deadlock.
++	//
++	// We must not modify anything on the G stack because a stack shrink
++	// may occur, now that we switched to _Gwaiting, specifically if we're
++	// doing this during the mark phase (mark termination excepted, since
++	// we know that stack scanning is done by that point). A stack shrink
++	// is otherwise OK though because in order to return from this function
++	// (and to leave the system stack) we must have preempted all
++	// goroutines, including any attempting to scan our stack, in which
++	// case, any stack shrinking will have already completed by the time we
++	// exit.
++	//
++	// N.B. The execution tracer is not aware of this status transition and
++	// andles it specially based on the wait reason.
++	casGToWaitingForSuspendG(getg().m.curg, _Grunning, waitReasonStoppingTheWorld)
++
+ 	trace := traceAcquire()
+ 	if trace.ok() {
+ 		trace.STWStart(reason)
+@@ -1642,6 +1649,9 @@ func stopTheWorldWithSema(reason stwReason) worldStop {
+ 
+ 	worldStopped()
+ 
++	// Switch back to _Grunning, now that the world is stopped.
++	casgstatus(getg().m.curg, _Gwaiting, _Grunning)
++
+ 	return worldStop{
+ 		reason:           reason,
+ 		startedStopping:  start,
+@@ -1999,15 +2009,23 @@ found:
+ func forEachP(reason waitReason, fn func(*p)) {
+ 	systemstack(func() {
+ 		gp := getg().m.curg
+-		// Mark the user stack as preemptible so that it may be scanned.
+-		// Otherwise, our attempt to force all P's to a safepoint could
+-		// result in a deadlock as we attempt to preempt a worker that's
+-		// trying to preempt us (e.g. for a stack scan).
++		// Mark the user stack as preemptible so that it may be scanned
++		// by the GC or observed by the execution tracer. Otherwise, our
++		// attempt to force all P's to a safepoint could result in a
++		// deadlock as we attempt to preempt a goroutine that's trying
++		// to preempt us (e.g. for a stack scan).
++		//
++		// We must not modify anything on the G stack because a stack shrink
++		// may occur. A stack shrink is otherwise OK though because in order
++		// to return from this function (and to leave the system stack) we
++		// must have preempted all goroutines, including any attempting
++		// to scan our stack, in which case, any stack shrinking will
++		// have already completed by the time we exit.
+ 		//
+ 		// N.B. The execution tracer is not aware of this status
+ 		// transition and handles it specially based on the
+ 		// wait reason.
+-		casGToWaitingForGC(gp, _Grunning, reason)
++		casGToWaitingForSuspendG(gp, _Grunning, reason)
+ 		forEachPInternal(fn)
+ 		casgstatus(gp, _Gwaiting, _Grunning)
+ 	})
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index ca69719db0..c88f2b7058 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1153,17 +1153,17 @@ func (w waitReason) isMutexWait() bool {
+ 		w == waitReasonSyncRWMutexLock
+ }
+ 
+-func (w waitReason) isWaitingForGC() bool {
+-	return isWaitingForGC[w]
++func (w waitReason) isWaitingForSuspendG() bool {
++	return isWaitingForSuspendG[w]
+ }
+ 
+-// isWaitingForGC indicates that a goroutine is only entering _Gwaiting and
+-// setting a waitReason because it needs to be able to let the GC take ownership
+-// of its stack. The G is always actually executing on the system stack, in
+-// these cases.
++// isWaitingForSuspendG indicates that a goroutine is only entering _Gwaiting and
++// setting a waitReason because it needs to be able to let the suspendG
++// (used by the GC and the execution tracer) take ownership of its stack.
++// The G is always actually executing on the system stack in these cases.
+ //
+ // TODO(mknyszek): Consider replacing this with a new dedicated G status.
+-var isWaitingForGC = [len(waitReasonStrings)]bool{
++var isWaitingForSuspendG = [len(waitReasonStrings)]bool{
+ 	waitReasonStoppingTheWorld:      true,
+ 	waitReasonGCMarkTermination:     true,
+ 	waitReasonGarbageCollection:     true,
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index d43c6ace4f..f0efb176b5 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -1173,14 +1173,14 @@ func isShrinkStackSafe(gp *g) bool {
+ 		return false
+ 	}
+ 	// We also can't copy the stack while tracing is enabled, and
+-	// gp is in _Gwaiting solely to make itself available to the GC.
++	// gp is in _Gwaiting solely to make itself available to suspendG.
+ 	// In these cases, the G is actually executing on the system
+ 	// stack, and the execution tracer may want to take a stack trace
+ 	// of the G's stack. Note: it's safe to access gp.waitreason here.
+ 	// We're only checking if this is true if we took ownership of the
+ 	// G with the _Gscan bit. This prevents the goroutine from transitioning,
+ 	// which prevents gp.waitreason from changing.
+-	if traceEnabled() && readgstatus(gp)&^_Gscan == _Gwaiting && gp.waitreason.isWaitingForGC() {
++	if traceEnabled() && readgstatus(gp)&^_Gscan == _Gwaiting && gp.waitreason.isWaitingForSuspendG() {
+ 		return false
+ 	}
+ 	return true
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index adf7b0951d..d59501e80e 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -375,7 +375,7 @@ func traceAdvance(stopTrace bool) {
+ 			me := getg().m.curg
+ 			// We don't have to handle this G status transition because we
+ 			// already eliminated ourselves from consideration above.
+-			casGToWaitingForGC(me, _Grunning, waitReasonTraceGoroutineStatus)
++			casGToWaitingForSuspendG(me, _Grunning, waitReasonTraceGoroutineStatus)
+ 			// We need to suspend and take ownership of the G to safely read its
+ 			// goid. Note that we can't actually emit the event at this point
+ 			// because we might stop the G in a window where it's unsafe to write
+diff --git a/src/runtime/tracestatus.go b/src/runtime/tracestatus.go
+index 77ccdd1398..5e109a9e34 100644
+--- a/src/runtime/tracestatus.go
++++ b/src/runtime/tracestatus.go
+@@ -140,11 +140,12 @@ func goStatusToTraceGoStatus(status uint32, wr waitReason) traceGoStatus {
+ 		// There are a number of cases where a G might end up in
+ 		// _Gwaiting but it's actually running in a non-preemptive
+ 		// state but needs to present itself as preempted to the
+-		// garbage collector. In these cases, we're not going to
+-		// emit an event, and we want these goroutines to appear in
+-		// the final trace as if they're running, not blocked.
++		// garbage collector and traceAdvance (via suspendG). In
++		// these cases, we're not going to emit an event, and we
++		// want these goroutines to appear in the final trace as
++		// if they're running, not blocked.
+ 		tgs = traceGoWaiting
+-		if status == _Gwaiting && wr.isWaitingForGC() {
++		if status == _Gwaiting && wr.isWaitingForSuspendG() {
+ 			tgs = traceGoRunning
+ 		}
+ 	case _Gdead:

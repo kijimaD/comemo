@@ -1,0 +1,131 @@
+commit 9cc737d482582cca5ba44b2320fb4e48edee9cd6
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Oct 10 11:09:13 2024 +0200
+
+    syscall: fix Open param names
+    
+    syscall.Open param names are confusing, mainly because what should be
+    named flag is named mode and what should be named mode is named perm.
+    
+    The name perm is used as synonym for mode in other places, so keep
+    it as is. Rename mode to flag to match the real meaning of the
+    parameter. Also, rename path to name for consistency with other
+    usage of the same parameter.
+    
+    Change-Id: Ideed09839d80c0383584c2268afbb6cc09ffda8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/619276
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/syscall/syscall_windows.go      | 28 ++++++++++++++--------------
+ src/syscall/syscall_windows_test.go |  4 ++--
+ 2 files changed, 16 insertions(+), 16 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 6f6f9e4bde..84d6550c16 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -341,16 +341,16 @@ func makeInheritSa() *SecurityAttributes {
+ 	return &sa
+ }
+ 
+-func Open(path string, mode int, perm uint32) (fd Handle, err error) {
+-	if len(path) == 0 {
++func Open(name string, flag int, perm uint32) (fd Handle, err error) {
++	if len(name) == 0 {
+ 		return InvalidHandle, ERROR_FILE_NOT_FOUND
+ 	}
+-	pathp, err := UTF16PtrFromString(path)
++	namep, err := UTF16PtrFromString(name)
+ 	if err != nil {
+ 		return InvalidHandle, err
+ 	}
+ 	var access uint32
+-	switch mode & (O_RDONLY | O_WRONLY | O_RDWR) {
++	switch flag & (O_RDONLY | O_WRONLY | O_RDWR) {
+ 	case O_RDONLY:
+ 		access = GENERIC_READ
+ 	case O_WRONLY:
+@@ -358,16 +358,16 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
+ 	case O_RDWR:
+ 		access = GENERIC_READ | GENERIC_WRITE
+ 	}
+-	if mode&O_CREAT != 0 {
++	if flag&O_CREAT != 0 {
+ 		access |= GENERIC_WRITE
+ 	}
+-	if mode&O_APPEND != 0 {
++	if flag&O_APPEND != 0 {
+ 		access &^= GENERIC_WRITE
+ 		access |= FILE_APPEND_DATA
+ 	}
+ 	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
+ 	var sa *SecurityAttributes
+-	if mode&O_CLOEXEC == 0 {
++	if flag&O_CLOEXEC == 0 {
+ 		sa = makeInheritSa()
+ 	}
+ 	// We don't use CREATE_ALWAYS, because when opening a file with
+@@ -377,9 +377,9 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
+ 	// Instead, we ftruncate the file after opening when O_TRUNC is set.
+ 	var createmode uint32
+ 	switch {
+-	case mode&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
++	case flag&(O_CREAT|O_EXCL) == (O_CREAT | O_EXCL):
+ 		createmode = CREATE_NEW
+-	case mode&O_CREAT == O_CREAT:
++	case flag&O_CREAT == O_CREAT:
+ 		createmode = OPEN_ALWAYS
+ 	default:
+ 		createmode = OPEN_EXISTING
+@@ -392,22 +392,22 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
+ 		// Necessary for opening directory handles.
+ 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
+ 	}
+-	if mode&O_SYNC != 0 {
++	if flag&O_SYNC != 0 {
+ 		const _FILE_FLAG_WRITE_THROUGH = 0x80000000
+ 		attrs |= _FILE_FLAG_WRITE_THROUGH
+ 	}
+-	h, err := CreateFile(pathp, access, sharemode, sa, createmode, attrs, 0)
++	h, err := CreateFile(namep, access, sharemode, sa, createmode, attrs, 0)
+ 	if err != nil {
+-		if err == ERROR_ACCESS_DENIED && (mode&O_WRONLY != 0 || mode&O_RDWR != 0) {
++		if err == ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
+ 			// We should return EISDIR when we are trying to open a directory with write access.
+-			fa, e1 := GetFileAttributes(pathp)
++			fa, e1 := GetFileAttributes(namep)
+ 			if e1 == nil && fa&FILE_ATTRIBUTE_DIRECTORY != 0 {
+ 				err = EISDIR
+ 			}
+ 		}
+ 		return InvalidHandle, err
+ 	}
+-	if mode&O_TRUNC == O_TRUNC {
++	if flag&O_TRUNC == O_TRUNC {
+ 		err = Ftruncate(h, 0)
+ 		if err != nil {
+ 			CloseHandle(h)
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 9773cfbfa2..03821ea594 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -20,7 +20,7 @@ func TestOpen_Dir(t *testing.T) {
+ 
+ 	dir := t.TempDir()
+ 	tests := []struct {
+-		mode int
++		flag int
+ 		err  error
+ 	}{
+ 		{syscall.O_RDONLY, nil},
+@@ -32,7 +32,7 @@ func TestOpen_Dir(t *testing.T) {
+ 		{syscall.O_RDWR, syscall.EISDIR},
+ 	}
+ 	for i, tt := range tests {
+-		h, err := syscall.Open(dir, tt.mode, 0)
++		h, err := syscall.Open(dir, tt.flag, 0)
+ 		if err == nil {
+ 			syscall.CloseHandle(h)
+ 		}

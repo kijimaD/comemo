@@ -1,0 +1,30 @@
+commit d9cc4944ce3f36fc8fd1c63f35c206b308a3503f
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Feb 11 20:47:55 2025 -0500
+
+    cmd/dist: correct gccheckmark test name
+    
+    The test actually runs with gccheckmark=1, not gcstoptheworld=2.
+    Make the name match.
+    
+    Change-Id: If38822a3f1ef65bc92fe47b375381df49a684c1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648755
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/dist/test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index ba273d7923..005e1da86a 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -762,7 +762,7 @@ func (t *tester) registerTests() {
+ 			})
+ 		t.registerTest("GODEBUG=gccheckmark=1 runtime",
+ 			&goTest{
+-				variant: "runtime:gcstoptheworld2",
++				variant: "runtime:gccheckmark",
+ 				timeout: 300 * time.Second,
+ 				short:   true,
+ 				env:     []string{"GODEBUG=gccheckmark=1"},

@@ -1,0 +1,46 @@
+commit b6778c5230d554c1ba1a69b104513021467d32b2
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Apr 10 09:59:20 2024 -0700
+
+    internal/poll: better panic for invalid write return value
+    
+    For #61060
+    
+    Change-Id: I13cd73b4062cb7bd248d2a4afae06dfa29ac0203
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577955
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/poll/fd_unix.go | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/src/internal/poll/fd_unix.go b/src/internal/poll/fd_unix.go
+index 61c2338305..5797ab65bb 100644
+--- a/src/internal/poll/fd_unix.go
++++ b/src/internal/poll/fd_unix.go
+@@ -7,6 +7,7 @@
+ package poll
+ 
+ import (
++	"internal/itoa"
+ 	"internal/syscall/unix"
+ 	"io"
+ 	"sync/atomic"
+@@ -379,6 +380,14 @@ func (fd *FD) Write(p []byte) (int, error) {
+ 		}
+ 		n, err := ignoringEINTRIO(syscall.Write, fd.Sysfd, p[nn:max])
+ 		if n > 0 {
++			if n > max-nn {
++				// This can reportedly happen when using
++				// some VPN software. Issue #61060.
++				// If we don't check this we will panic
++				// with slice bounds out of range.
++				// Use a more informative panic.
++				panic("invalid return from write: got " + itoa.Itoa(n) + " from a write of " + itoa.Itoa(max-nn))
++			}
+ 			nn += n
+ 		}
+ 		if nn == len(p) {

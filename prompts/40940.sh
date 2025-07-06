@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40940: 989409f5279df7394faa1c3f66ef00a418f6c888
+# Index 40940: a0a60eea1ba8e9200d9c68f98b7a42b2a6d397a6
 
 echo "🚀 Generating explanation for commit 40940..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40940..."
 
 ### メタデータ
 - **コミットインデックス**: 40940
-- **コミットハッシュ**: 989409f5279df7394faa1c3f66ef00a418f6c888
-- **GitHub URL**: https://github.com/golang/go/commit/989409f5279df7394faa1c3f66ef00a418f6c888
+- **コミットハッシュ**: a0a60eea1ba8e9200d9c68f98b7a42b2a6d397a6
+- **GitHub URL**: https://github.com/golang/go/commit/a0a60eea1ba8e9200d9c68f98b7a42b2a6d397a6
 
 ### 章構成
 

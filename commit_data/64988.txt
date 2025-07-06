@@ -1,0 +1,52 @@
+commit ce60f70374b08e3130bd88fd314b46e45a24c6f0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Oct 2 13:38:25 2024 -0700
+
+    runtime: clear isSending bit earlier
+    
+    I've done some more testing of the new isSending field.
+    I'm not able to get more than 2 bits set. That said,
+    with this change it's significantly less likely to have even
+    2 bits set. The idea here is to clear the bit before possibly
+    locking the channel we are sending the value on, thus avoiding
+    some delay and some serialization.
+    
+    For #69312
+    
+    Change-Id: I8b5f167f162bbcbcbf7ea47305967f349b62b0f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617497
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/runtime/time.go | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 6d47ebacb9..3353502fc4 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -1114,6 +1114,11 @@ func (t *timer) unlockAndRun(now int64) {
+ 		// started to send the value. That lets them correctly return
+ 		// true meaning that no value was sent.
+ 		lock(&t.sendLock)
++
++		// We are committed to possibly sending a value based on seq,
++		// so no need to keep telling stop/modify that we are sending.
++		t.isSending.And(^isSendingClear)
++
+ 		if t.seq != seq {
+ 			f = func(any, uintptr, int64) {}
+ 		}
+@@ -1122,9 +1127,6 @@ func (t *timer) unlockAndRun(now int64) {
+ 	f(arg, seq, delay)
+ 
+ 	if !async && t.isChan {
+-		// We are no longer sending a value.
+-		t.isSending.And(^isSendingClear)
+-
+ 		unlock(&t.sendLock)
+ 	}
+ 

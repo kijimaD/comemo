@@ -1,0 +1,47 @@
+commit 95a3779ebc6456c501fa5d888f8fb842dae58460
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu May 9 22:04:57 2024 +0000
+
+    reflect: clarify documentation for Value.Seq/Seq2
+    
+    For #66056
+    
+    Change-Id: Ib47c07b2527d8213584b72e2575a353f2deaed68
+    GitHub-Last-Rev: 525a5c3fa469fcccfb1ab67b61c7d12e024cfb33
+    GitHub-Pull-Request: golang/go#67268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584515
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/reflect/iter.go | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/iter.go b/src/reflect/iter.go
+index 539872ddd7..85f8d8c999 100644
+--- a/src/reflect/iter.go
++++ b/src/reflect/iter.go
+@@ -6,7 +6,7 @@ package reflect
+ 
+ import "iter"
+ 
+-// Seq returns an iter.Seq[reflect.Value] that loops over the elements of v.
++// Seq returns an iter.Seq[Value] that loops over the elements of v.
+ // If v's kind is Func, it must be a function that has no results and
+ // that takes a single argument of type func(T) bool for some type T.
+ // If v's kind is Pointer, the pointer element type must have kind Array.
+@@ -87,7 +87,11 @@ func (v Value) Seq() iter.Seq[Value] {
+ 	panic("reflect: " + v.Type().String() + " cannot produce iter.Seq[Value]")
+ }
+ 
+-// Seq2 is like Seq but for two values.
++// Seq2 returns an iter.Seq2[Value, Value] that loops over the elements of v.
++// If v's kind is Func, it must be a function that has no results and
++// that takes a single argument of type func(K, V) bool for some type K, V.
++// If v's kind is Pointer, the pointer element type must have kind Array.
++// Otherwise v's kind must be Array, Map, Slice, or String.
+ func (v Value) Seq2() iter.Seq2[Value, Value] {
+ 	if canRangeFunc2(v.typ()) {
+ 		return func(yield func(Value, Value) bool) {

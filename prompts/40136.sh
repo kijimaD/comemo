@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40136: 9f9e17a82fd7afa622424f51e458bb383cb952ce
+# Index 40136: aff2f6ece896e0fe76a2c8853abf868f689006f0
 
 echo "🚀 Generating explanation for commit 40136..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40136..."
 
 ### メタデータ
 - **コミットインデックス**: 40136
-- **コミットハッシュ**: 9f9e17a82fd7afa622424f51e458bb383cb952ce
-- **GitHub URL**: https://github.com/golang/go/commit/9f9e17a82fd7afa622424f51e458bb383cb952ce
+- **コミットハッシュ**: aff2f6ece896e0fe76a2c8853abf868f689006f0
+- **GitHub URL**: https://github.com/golang/go/commit/aff2f6ece896e0fe76a2c8853abf868f689006f0
 
 ### 章構成
 

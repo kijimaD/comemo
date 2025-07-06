@@ -1,0 +1,95 @@
+commit 77ce76d761debc4cd9d7d3f029ea27cbce3a2db5
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat Feb 22 12:37:00 2025 +0000
+
+    all: gofmt -w
+    
+    Change-Id: Ie30a780cbd98bab1e80035b3dfddf92eb281759e
+    GitHub-Last-Rev: 369ada24ffc297efb47768e430b1bd0216706998
+    GitHub-Pull-Request: golang/go#71898
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/routebsd/interface.go |  4 ++--
+ src/syscall/exec_linux.go          |  2 +-
+ src/text/template/exec_test.go     | 20 ++++++++++----------
+ 3 files changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/internal/routebsd/interface.go b/src/internal/routebsd/interface.go
+index 1ec415547f..c517a38810 100644
+--- a/src/internal/routebsd/interface.go
++++ b/src/internal/routebsd/interface.go
+@@ -44,6 +44,6 @@ type InterfaceMulticastAddrMessage struct {
+ 
+ // Implement the Message interface.
+ 
+-func (InterfaceMessage) message() {}
+-func (InterfaceAddrMessage) message() {}
++func (InterfaceMessage) message()              {}
++func (InterfaceAddrMessage) message()          {}
+ func (InterfaceMulticastAddrMessage) message() {}
+diff --git a/src/syscall/exec_linux.go b/src/syscall/exec_linux.go
+index 98151d34ac..678bc84796 100644
+--- a/src/syscall/exec_linux.go
++++ b/src/syscall/exec_linux.go
+@@ -802,7 +802,7 @@ func os_checkClonePidfd() error {
+ 
+ 	for {
+ 		const _P_PIDFD = 3
+-		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED | WCLONE, 0, 0)
++		_, _, errno = Syscall6(SYS_WAITID, _P_PIDFD, uintptr(pidfd), 0, WEXITED|WCLONE, 0, 0)
+ 		if errno != EINTR {
+ 			break
+ 		}
+diff --git a/src/text/template/exec_test.go b/src/text/template/exec_test.go
+index 0a0be43baa..65440901a0 100644
+--- a/src/text/template/exec_test.go
++++ b/src/text/template/exec_test.go
+@@ -72,11 +72,11 @@ type T struct {
+ 	Str fmt.Stringer
+ 	Err error
+ 	// Pointers
+-	PI  *int
+-	PS  *string
+-	PSI *[]int
+-	NIL *int
+-	UPI unsafe.Pointer
++	PI       *int
++	PS       *string
++	PSI      *[]int
++	NIL      *int
++	UPI      unsafe.Pointer
+ 	EmptyUPI unsafe.Pointer
+ 	// Function (not method)
+ 	BinaryFunc             func(string, string) string
+@@ -1508,8 +1508,8 @@ func TestBadFuncNames(t *testing.T) {
+ func TestIsTrue(t *testing.T) {
+ 	var nil_ptr *int
+ 	var nil_chan chan int
+-	tests := []struct{
+-		v any
++	tests := []struct {
++		v    any
+ 		want bool
+ 	}{
+ 		{1, true},
+@@ -1522,12 +1522,12 @@ func TestIsTrue(t *testing.T) {
+ 		{complex64(0.0), false},
+ 		{true, true},
+ 		{false, false},
+-		{[2]int{1,2}, true},
++		{[2]int{1, 2}, true},
+ 		{[0]int{}, false},
+ 		{[]byte("abc"), true},
+ 		{[]byte(""), false},
+-		{map[string] int {"a": 1, "b": 2}, true},
+-		{map[string] int {}, false},
++		{map[string]int{"a": 1, "b": 2}, true},
++		{map[string]int{}, false},
+ 		{make(chan int), true},
+ 		{nil_chan, false},
+ 		{new(int), true},

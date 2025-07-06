@@ -1,0 +1,32 @@
+commit 8e987fadb57fa1fc98975ca2fcb3a4751f7f55ff
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Mon Apr 15 02:11:58 2024 +0000
+
+    cmd/pprof: close resp body after the profile.Parse is called
+    
+    Change-Id: I5bccef3c46072e388bfe9985e70745853f673a42
+    GitHub-Last-Rev: adee7b9f7fa21c3ee5561b8233bbfe94168e45ed
+    GitHub-Pull-Request: golang/go#66829
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578875
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/pprof/pprof.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/pprof/pprof.go b/src/cmd/pprof/pprof.go
+index bc1a4cf9f7..d4db9df285 100644
+--- a/src/cmd/pprof/pprof.go
++++ b/src/cmd/pprof/pprof.go
+@@ -84,8 +84,8 @@ func getProfile(source string, timeout time.Duration) (*profile.Profile, error)
+ 	if err != nil {
+ 		return nil, err
+ 	}
++	defer resp.Body.Close()
+ 	if resp.StatusCode != http.StatusOK {
+-		defer resp.Body.Close()
+ 		return nil, statusCodeError(resp)
+ 	}
+ 	return profile.Parse(resp.Body)

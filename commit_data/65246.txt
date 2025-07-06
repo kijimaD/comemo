@@ -1,0 +1,76 @@
+commit c19e5887f4336faf373c0e65be2cbaab919ed771
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jul 17 14:34:00 2024 -0400
+
+    [release-branch.go1.22] cmd/cgo/internal/testcarchive: remove 1-minute timeout
+    
+    The 1-minute test timeout seems a bit arbitrary. Use
+    internal/testenv.Command, which applies t.Deadline to subcommand.
+    
+    For #67566.
+    Fixes #70124.
+    
+    Change-Id: If84c96e353bdfaf02c9b123758198e031305ae32
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599056
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    (cherry picked from commit 8c88f0c7365dc329506073e035f9609c36fe7020)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623595
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/cgo/internal/testcarchive/carchive_test.go | 20 ++------------------
+ 1 file changed, 2 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testcarchive/carchive_test.go b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+index b140a9c613..a8eebead25 100644
+--- a/src/cmd/cgo/internal/testcarchive/carchive_test.go
++++ b/src/cmd/cgo/internal/testcarchive/carchive_test.go
+@@ -1224,7 +1224,7 @@ func TestManyCalls(t *testing.T) {
+ 	}
+ 
+ 	argv := cmdToRun("./testp7")
+-	cmd = exec.Command(argv[0], argv[1:]...)
++	cmd = testenv.Command(t, argv[0], argv[1:]...)
+ 	sb := new(strings.Builder)
+ 	cmd.Stdout = sb
+ 	cmd.Stderr = sb
+@@ -1232,14 +1232,6 @@ func TestManyCalls(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	timer := time.AfterFunc(time.Minute,
+-		func() {
+-			t.Error("test program timed out")
+-			cmd.Process.Kill()
+-		},
+-	)
+-	defer timer.Stop()
+-
+ 	err = cmd.Wait()
+ 	t.Logf("%v\n%s", cmd.Args, sb)
+ 	if err != nil {
+@@ -1284,7 +1276,7 @@ func TestPreemption(t *testing.T) {
+ 	}
+ 
+ 	argv := cmdToRun("./testp8")
+-	cmd = exec.Command(argv[0], argv[1:]...)
++	cmd = testenv.Command(t, argv[0], argv[1:]...)
+ 	sb := new(strings.Builder)
+ 	cmd.Stdout = sb
+ 	cmd.Stderr = sb
+@@ -1292,14 +1284,6 @@ func TestPreemption(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 
+-	timer := time.AfterFunc(time.Minute,
+-		func() {
+-			t.Error("test program timed out")
+-			cmd.Process.Kill()
+-		},
+-	)
+-	defer timer.Stop()
+-
+ 	err = cmd.Wait()
+ 	t.Logf("%v\n%s", cmd.Args, sb)
+ 	if err != nil {

@@ -1,0 +1,61 @@
+commit 0825475599d40c786c19c3449e22d2db66754456
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Mon Nov 18 17:34:20 2024 +0800
+
+    cmd/compile: do not treat OpLocalAddr as load in DSE
+    
+    Fixes #70409
+    Fixes #47107
+    
+    Change-Id: I82a66c46f6b76c68e156b5d937273b0316975d44
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629016
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/ssa/deadstore.go |  3 +--
+ test/codegen/issue70409.go                | 20 ++++++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index 9f61ef29b9..29cf1e91e0 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -52,9 +52,8 @@ func dse(f *Func) {
+ 				if v.Op == OpLocalAddr {
+ 					if _, ok := localAddrs[v.Aux]; !ok {
+ 						localAddrs[v.Aux] = v
+-					} else {
+-						continue
+ 					}
++					continue
+ 				}
+ 				if v.Op == OpInlMark {
+ 					// Not really a use of the memory. See #67957.
+diff --git a/test/codegen/issue70409.go b/test/codegen/issue70409.go
+new file mode 100644
+index 0000000000..bfb4560582
+--- /dev/null
++++ b/test/codegen/issue70409.go
+@@ -0,0 +1,20 @@
++// asmcheck -gcflags=-d=ssa/check/on
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++// amd64:-"MOVQ"
++func foo(v uint64) (b [8]byte) {
++	b[0] = byte(v)
++	b[1] = byte(v >> 8)
++	b[2] = byte(v >> 16)
++	b[3] = byte(v >> 24)
++	b[4] = byte(v >> 32)
++	b[5] = byte(v >> 40)
++	b[6] = byte(v >> 48)
++	b[7] = byte(v >> 56)
++	return b
++}

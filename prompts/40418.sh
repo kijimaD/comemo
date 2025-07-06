@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40418: ce5ae2f4bc606ef1d8fddadf771e9889f481a4a4
+# Index 40418: 25bee965c685e3f35c10076648685e22e59fd656
 
 echo "🚀 Generating explanation for commit 40418..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40418..."
 
 ### メタデータ
 - **コミットインデックス**: 40418
-- **コミットハッシュ**: ce5ae2f4bc606ef1d8fddadf771e9889f481a4a4
-- **GitHub URL**: https://github.com/golang/go/commit/ce5ae2f4bc606ef1d8fddadf771e9889f481a4a4
+- **コミットハッシュ**: 25bee965c685e3f35c10076648685e22e59fd656
+- **GitHub URL**: https://github.com/golang/go/commit/25bee965c685e3f35c10076648685e22e59fd656
 
 ### 章構成
 

@@ -1,0 +1,70 @@
+commit d681270714bc91b28a2cd97c3eae138b3112ff1d
+Author: Keith Randall <khr@golang.org>
+Date:   Wed May 14 16:00:25 2025 -0700
+
+    cmd/compile: allow load-op merging in additional situations
+    
+    x += *p
+    
+    We want to do this with a single load+add operation on amd64.
+    The tricky part is that we don't want to combine if there are
+    other uses of x after this instruction.
+    
+    Implement a simple detector that seems to capture a common situation -
+    x += *p is in a loop, and the other use of x is after loop exit.
+    In that case, it does not hurt to do the load+add combo.
+    
+    Change-Id: I466174cce212e78bde83f908cc1f2752b560c49c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672957
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssa/rewrite.go | 13 ++++++++++++-
+ test/codegen/memcombine.go              |  9 +++++++++
+ 2 files changed, 21 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 7db5c99061..b32823283b 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -286,7 +286,18 @@ func canMergeLoadClobber(target, load, x *Value) bool {
+ 	// approximate x dying with:
+ 	//  1) target is x's only use.
+ 	//  2) target is not in a deeper loop than x.
+-	if x.Uses != 1 {
++	switch {
++	case x.Uses == 2 && x.Op == OpPhi && len(x.Args) == 2 && (x.Args[0] == target || x.Args[1] == target) && target.Uses == 1:
++		// This is a simple detector to determine that x is probably
++		// not live after target. (It does not need to be perfect,
++		// regalloc will issue a reg-reg move to save it if we are wrong.)
++		// We have:
++		//   x = Phi(?, target)
++		//   target = Op(load, x)
++		// Because target has only one use as a Phi argument, we can schedule it
++		// very late. Hopefully, later than the other use of x. (The other use died
++		// between x and target, or exists on another branch entirely).
++	case x.Uses > 1:
+ 		return false
+ 	}
+ 	loopnest := x.Block.Func.loopnest()
+diff --git a/test/codegen/memcombine.go b/test/codegen/memcombine.go
+index 9ede80132c..fa0e902ac2 100644
+--- a/test/codegen/memcombine.go
++++ b/test/codegen/memcombine.go
+@@ -396,6 +396,15 @@ func load_op_no_merge(p, q *int) {
+ 	}
+ }
+ 
++func load_op_in_loop(a []int) int {
++	r := 0
++	for _, x := range a {
++		// amd64:`ADDQ\t\([A-Z]+\)\([A-Z]+\*8\), [A-Z]+`
++		r += x
++	}
++	return r
++}
++
+ // Make sure offsets are folded into loads and stores.
+ func offsets_fold(_, a [20]byte) (b [20]byte) {
+ 	// arm64:`MOVD\tcommand-line-arguments\.a\+[0-9]+\(FP\), R[0-9]+`,`MOVD\tR[0-9]+, command-line-arguments\.b\+[0-9]+\(FP\)`

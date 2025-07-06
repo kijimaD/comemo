@@ -1,0 +1,215 @@
+commit 73981695a2518b6eae7f8ffe74d224691c60d433
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 15 22:15:37 2024 +0000
+
+    runtime: push down systemstack requirement for tracer where possible
+    
+    Currently lots of functions require systemstack because the trace buffer
+    might get flushed, but that will already switch to the systemstack for
+    the most critical bits (grabbing trace.lock). That means a lot of this
+    code is non-preemptible when it doesn't need to be. We've seen this
+    cause problems at scale, when dumping very large numbers of stacks at
+    once, for example.
+    
+    This is a re-land of CL 572095 which was reverted in CL 577376. This
+    re-land includes a fix of the test that broke on the longtest builders.
+    
+    Change-Id: Ia8d7cbe3aaa8398cf4a1818bac66c3415a399348
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577377
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/runtime/crash_test.go   | 11 +++++++++--
+ src/runtime/trace2.go       | 20 ++++++++++----------
+ src/runtime/trace2cpu.go    | 15 ++++++---------
+ src/runtime/trace2stack.go  | 13 +++++--------
+ src/runtime/trace2string.go | 25 ++++++++++++-------------
+ 5 files changed, 42 insertions(+), 42 deletions(-)
+
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 9ba45b8f2a..5faac82c48 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -909,18 +909,22 @@ func TestCrashWhileTracing(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("could not create trace.NewReader: %v", err)
+ 	}
+-	var seen bool
++	var seen, seenSync bool
+ 	i := 1
+ loop:
+ 	for ; ; i++ {
+ 		ev, err := r.ReadEvent()
+ 		if err != nil {
++			// We may have a broken tail to the trace -- that's OK.
++			// We'll make sure we saw at least one complete generation.
+ 			if err != io.EOF {
+-				t.Errorf("error at event %d: %v", i, err)
++				t.Logf("error at event %d: %v", i, err)
+ 			}
+ 			break loop
+ 		}
+ 		switch ev.Kind() {
++		case tracev2.EventSync:
++			seenSync = true
+ 		case tracev2.EventLog:
+ 			v := ev.Log()
+ 			if v.Category == "xyzzy-cat" && v.Message == "xyzzy-msg" {
+@@ -934,6 +938,9 @@ loop:
+ 	if err := cmd.Wait(); err == nil {
+ 		t.Error("the process should have panicked")
+ 	}
++	if !seenSync {
++		t.Errorf("expected at least one full generation to have been emitted before the trace was considered broken")
++	}
+ 	if !seen {
+ 		t.Errorf("expected one matching log event matching, but none of the %d received trace events match", i)
+ 	}
+diff --git a/src/runtime/trace2.go b/src/runtime/trace2.go
+index d516001433..a9be4e1962 100644
+--- a/src/runtime/trace2.go
++++ b/src/runtime/trace2.go
+@@ -551,17 +551,17 @@ func traceAdvance(stopTrace bool) {
+ 	// Read everything out of the last gen's CPU profile buffer.
+ 	traceReadCPU(gen)
+ 
+-	systemstack(func() {
+-		// Flush CPU samples, stacks, and strings for the last generation. This is safe,
+-		// because we're now certain no M is writing to the last generation.
+-		//
+-		// Ordering is important here. traceCPUFlush may generate new stacks and dumping
+-		// stacks may generate new strings.
+-		traceCPUFlush(gen)
+-		trace.stackTab[gen%2].dump(gen)
+-		trace.stringTab[gen%2].reset(gen)
++	// Flush CPU samples, stacks, and strings for the last generation. This is safe,
++	// because we're now certain no M is writing to the last generation.
++	//
++	// Ordering is important here. traceCPUFlush may generate new stacks and dumping
++	// stacks may generate new strings.
++	traceCPUFlush(gen)
++	trace.stackTab[gen%2].dump(gen)
++	trace.stringTab[gen%2].reset(gen)
+ 
+-		// That's it. This generation is done producing buffers.
++	// That's it. This generation is done producing buffers.
++	systemstack(func() {
+ 		lock(&trace.lock)
+ 		trace.flushedGen.Store(gen)
+ 		unlock(&trace.lock)
+diff --git a/src/runtime/trace2cpu.go b/src/runtime/trace2cpu.go
+index b3b0fb046d..2bb6f903f5 100644
+--- a/src/runtime/trace2cpu.go
++++ b/src/runtime/trace2cpu.go
+@@ -195,18 +195,15 @@ func traceReadCPU(gen uintptr) bool {
+ 
+ // traceCPUFlush flushes trace.cpuBuf[gen%2]. The caller must be certain that gen
+ // has completed and that there are no more writers to it.
+-//
+-// Must run on the systemstack because it flushes buffers and acquires trace.lock
+-// to do so.
+-//
+-//go:systemstack
+ func traceCPUFlush(gen uintptr) {
+ 	// Flush any remaining trace buffers containing CPU samples.
+ 	if buf := trace.cpuBuf[gen%2]; buf != nil {
+-		lock(&trace.lock)
+-		traceBufFlush(buf, gen)
+-		unlock(&trace.lock)
+-		trace.cpuBuf[gen%2] = nil
++		systemstack(func() {
++			lock(&trace.lock)
++			traceBufFlush(buf, gen)
++			unlock(&trace.lock)
++			trace.cpuBuf[gen%2] = nil
++		})
+ 	}
+ }
+ 
+diff --git a/src/runtime/trace2stack.go b/src/runtime/trace2stack.go
+index 4ee3b32b05..7d698c89d3 100644
+--- a/src/runtime/trace2stack.go
++++ b/src/runtime/trace2stack.go
+@@ -138,11 +138,6 @@ func (t *traceStackTable) put(pcs []uintptr) uint64 {
+ // dump writes all previously cached stacks to trace buffers,
+ // releases all memory and resets state. It must only be called once the caller
+ // can guarantee that there are no more writers to the table.
+-//
+-// This must run on the system stack because it flushes buffers and thus
+-// may acquire trace.lock.
+-//
+-//go:systemstack
+ func (t *traceStackTable) dump(gen uintptr) {
+ 	w := unsafeTraceWriter(gen, nil)
+ 
+@@ -194,9 +189,11 @@ func (t *traceStackTable) dump(gen uintptr) {
+ 	}
+ 	// Still, hold the lock over reset. The callee expects it, even though it's
+ 	// not strictly necessary.
+-	lock(&t.tab.lock)
+-	t.tab.reset()
+-	unlock(&t.tab.lock)
++	systemstack(func() {
++		lock(&t.tab.lock)
++		t.tab.reset()
++		unlock(&t.tab.lock)
++	})
+ 
+ 	w.flush().end()
+ }
+diff --git a/src/runtime/trace2string.go b/src/runtime/trace2string.go
+index cbb0ecfb37..21ef5eaf98 100644
+--- a/src/runtime/trace2string.go
++++ b/src/runtime/trace2string.go
+@@ -49,7 +49,7 @@ func (t *traceStringTable) emit(gen uintptr, s string) uint64 {
+ 
+ // writeString writes the string to t.buf.
+ //
+-// Must run on the systemstack because it may flush buffers and thus could acquire trace.lock.
++// Must run on the systemstack because it acquires t.lock.
+ //
+ //go:systemstack
+ func (t *traceStringTable) writeString(gen uintptr, id uint64, s string) {
+@@ -75,7 +75,7 @@ func (t *traceStringTable) writeString(gen uintptr, id uint64, s string) {
+ 	w.varint(uint64(len(s)))
+ 	w.stringData(s)
+ 
+-	// Store back buf if it was updated during ensure.
++	// Store back buf in case it was updated during ensure.
+ 	t.buf = w.traceBuf
+ 	unlock(&t.lock)
+ }
+@@ -84,21 +84,20 @@ func (t *traceStringTable) writeString(gen uintptr, id uint64, s string) {
+ //
+ // Must be called only once the caller is certain nothing else will be
+ // added to this table.
+-//
+-// Because it flushes buffers, this may acquire trace.lock and thus
+-// must run on the systemstack.
+-//
+-//go:systemstack
+ func (t *traceStringTable) reset(gen uintptr) {
+ 	if t.buf != nil {
+-		lock(&trace.lock)
+-		traceBufFlush(t.buf, gen)
+-		unlock(&trace.lock)
++		systemstack(func() {
++			lock(&trace.lock)
++			traceBufFlush(t.buf, gen)
++			unlock(&trace.lock)
++		})
+ 		t.buf = nil
+ 	}
+ 
+ 	// Reset the table.
+-	lock(&t.tab.lock)
+-	t.tab.reset()
+-	unlock(&t.tab.lock)
++	systemstack(func() {
++		lock(&t.tab.lock)
++		t.tab.reset()
++		unlock(&t.tab.lock)
++	})
+ }

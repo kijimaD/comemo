@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 44113: daf39d06ee04414fa962aa61fd0e7bc4ee166bfd
+# Index 44113: e751af1abacaf9958fe2e69d6dcb2e93cb1a3e4d
 
 echo "🚀 Generating explanation for commit 44113..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 44113..."
 
 ### メタデータ
 - **コミットインデックス**: 44113
-- **コミットハッシュ**: daf39d06ee04414fa962aa61fd0e7bc4ee166bfd
-- **GitHub URL**: https://github.com/golang/go/commit/daf39d06ee04414fa962aa61fd0e7bc4ee166bfd
+- **コミットハッシュ**: e751af1abacaf9958fe2e69d6dcb2e93cb1a3e4d
+- **GitHub URL**: https://github.com/golang/go/commit/e751af1abacaf9958fe2e69d6dcb2e93cb1a3e4d
 
 ### 章構成
 

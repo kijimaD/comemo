@@ -1,0 +1,33 @@
+commit b138f8e4d2912e1105b69b9aaa24c6e8250652c6
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Wed Mar 26 11:05:29 2025 -0400
+
+    log/slog: Handler doc points to handler guide
+    
+    There's a link in the package doc, but there should be one here too.
+    
+    For #73057.
+    
+    Change-Id: I8f8fe73f20bb6dd49cdf23b5f7634a92d4f7add9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661015
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/log/slog/handler.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 0451ea8fdc..66eea02aa5 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -28,6 +28,8 @@ import (
+ //
+ // Users of the slog package should not invoke Handler methods directly.
+ // They should use the methods of [Logger] instead.
++//
++// Before implementing your own handler, consult https://go.dev/s/slog-handler-guide.
+ type Handler interface {
+ 	// Enabled reports whether the handler handles records at the given level.
+ 	// The handler ignores records whose level is lower.

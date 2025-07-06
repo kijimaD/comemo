@@ -1,0 +1,308 @@
+commit c81cb05e3ef0da39f87f85f4817dea73d587256a
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Wed Jun 11 17:32:00 2025 +0000
+
+    [dev.simd] cmd/compile: add simdGen prog writer
+    
+    This CL is a synergy between simdgen refactor CL 681195.
+    
+    Change-Id: I365becf515a261bd22c46824613c2dce309cac45
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681036
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/amd64/ssa.go         | 143 +++++++++++++++++++++++++-
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go |  64 ++++++------
+ 2 files changed, 171 insertions(+), 36 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index dcc4e30e1e..2962fe1698 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1517,24 +1517,101 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 	}
+ }
+ 
+-func simdGenUnary(s *ssagen.State, v *ssa.Value) {
++// Example instruction: VRSQRTPS X1, X1
++func simdFp11(s *ssagen.State, v *ssa.Value) *obj.Prog {
+ 	p := s.Prog(v.Op.Asm())
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = simdReg(v.Args[0])
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = simdReg(v)
++	return p
++}
++
++// Example instruction: VPSUBD X1, X2, X3
++func simdFp21(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	p := s.Prog(v.Op.Asm())
++	p.From.Type = obj.TYPE_REG
++	// Vector registers operands follows a right-to-left order.
++	// e.g. VPSUBD X1, X2, X3 means X3 = X2 - X1.
++	p.From.Reg = simdReg(v.Args[1])
++	p.AddRestSourceReg(simdReg(v.Args[0]))
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = simdReg(v)
++	return p
++}
++
++// Example instruction: VPCMPEQW Z26, Z30, K4
++func simdFp2k1(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	// simdReg handles mask and vector registers altogether
++	return simdFp21(s, v)
+ }
+ 
+-func simdGenBinary(s *ssagen.State, v *ssa.Value) {
++// Example instruction: VPMINUQ X21, X3, K3, X31
++func simdFp2k1fp1(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	p := s.Prog(v.Op.Asm())
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = simdReg(v.Args[1])
++	p.AddRestSourceReg(simdReg(v.Args[0]))
++	// These "simd*" series of functions assumes:
++	// Any "K" register that serves as the write-mask
++	// or "predicate" for "predicated AVX512 instructions"
++	// sits right at the end of the operand list.
++	// TODO: verify this assumption.
++	p.AddRestSourceReg(simdReg(v.Args[2]))
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = simdReg(v)
++	return p
++}
++
++// Example instruction: VPCMPEQW Z26, Z30, K1, K4
++func simdFp2k1k1(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	return simdFp2k1fp1(s, v)
++}
++
++// Example instruction: VPOPCNTB X14, K4, X16
++func simdFp1k1fp1(s *ssagen.State, v *ssa.Value) *obj.Prog {
+ 	p := s.Prog(v.Op.Asm())
+ 	p.From.Type = obj.TYPE_REG
+ 	p.From.Reg = simdReg(v.Args[0])
+ 	p.AddRestSourceReg(simdReg(v.Args[1]))
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = simdReg(v)
++	return p
++}
++
++// Example instruction: VROUNDPD $7, X2, X2
++func simdFp11Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	p := s.Prog(v.Op.Asm())
++	imm := v.AuxInt
++	if imm < 0 || imm > 255 {
++		v.Fatalf("Invalid source selection immediate")
++	}
++	p.From.Offset = imm
++	p.From.Type = obj.TYPE_CONST
++	p.AddRestSourceReg(simdReg(v.Args[0]))
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = simdReg(v)
++	return p
++}
++
++// Example instruction: VREDUCEPD $126, X1, K3, X31
++func simdFp1k1fp1Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	p := s.Prog(v.Op.Asm())
++	imm := v.AuxInt
++	if imm < 0 || imm > 255 {
++		v.Fatalf("Invalid source selection immediate")
++	}
++	p.From.Offset = imm
++	p.From.Type = obj.TYPE_CONST
++	p.AddRestSourceReg(simdReg(v.Args[0]))
++	p.AddRestSourceReg(simdReg(v.Args[1]))
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = simdReg(v)
++	return p
+ }
+ 
+-func simdGenUnaryImmUint8(s *ssagen.State, v *ssa.Value) {
++// Example instruction: VCMPPS $7, X2, X9, X2
++func simdFp21Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+ 	p := s.Prog(v.Op.Asm())
+ 	imm := v.AuxInt
+ 	if imm < 0 || imm > 255 {
+@@ -1542,12 +1619,20 @@ func simdGenUnaryImmUint8(s *ssagen.State, v *ssa.Value) {
+ 	}
+ 	p.From.Offset = imm
+ 	p.From.Type = obj.TYPE_CONST
++	p.AddRestSourceReg(simdReg(v.Args[1]))
+ 	p.AddRestSourceReg(simdReg(v.Args[0]))
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = simdReg(v)
++	return p
++}
++
++// Example instruction: VPCMPD $1, Z1, Z2, K1
++func simdFp2k1Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	return simdFp21Imm8(s, v)
+ }
+ 
+-func simdGenBinaryImmUint8(s *ssagen.State, v *ssa.Value) {
++// Example instruction: VPCMPD $1, Z1, Z2, K2, K1
++func simdFp2k1k1Imm8(s *ssagen.State, v *ssa.Value) *obj.Prog {
+ 	p := s.Prog(v.Op.Asm())
+ 	imm := v.AuxInt
+ 	if imm < 0 || imm > 255 {
+@@ -1555,10 +1640,60 @@ func simdGenBinaryImmUint8(s *ssagen.State, v *ssa.Value) {
+ 	}
+ 	p.From.Offset = imm
+ 	p.From.Type = obj.TYPE_CONST
++	p.AddRestSourceReg(simdReg(v.Args[1]))
++	p.AddRestSourceReg(simdReg(v.Args[0]))
++	p.AddRestSourceReg(simdReg(v.Args[2]))
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = simdReg(v)
++	return p
++}
++
++// Example instruction: VFMADD213PD Z2, Z1, Z0
++func simdFp31ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	p := s.Prog(v.Op.Asm())
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = simdReg(v.Args[2])
++	p.AddRestSourceReg(simdReg(v.Args[1]))
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = simdReg(v)
++	return p
++}
++
++// Example instruction: VFMADD213PD Z2, Z1, K1, Z0
++func simdFp3k1fp1ResultInArg0(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	p := s.Prog(v.Op.Asm())
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = simdReg(v.Args[2])
++	p.AddRestSourceReg(simdReg(v.Args[1]))
++	p.AddRestSourceReg(simdReg(v.Args[3]))
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = simdReg(v)
++	return p
++}
++
++// Currently unused
++func simdFp31(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	p := s.Prog(v.Op.Asm())
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = simdReg(v.Args[2])
++	p.AddRestSourceReg(simdReg(v.Args[1]))
+ 	p.AddRestSourceReg(simdReg(v.Args[0]))
++	p.To.Type = obj.TYPE_REG
++	p.To.Reg = simdReg(v)
++	return p
++}
++
++// Currently unused
++func simdFp3k1fp1(s *ssagen.State, v *ssa.Value) *obj.Prog {
++	p := s.Prog(v.Op.Asm())
++	p.From.Type = obj.TYPE_REG
++	p.From.Reg = simdReg(v.Args[2])
+ 	p.AddRestSourceReg(simdReg(v.Args[1]))
++	p.AddRestSourceReg(simdReg(v.Args[0]))
++	p.AddRestSourceReg(simdReg(v.Args[3]))
+ 	p.To.Type = obj.TYPE_REG
+ 	p.To.Reg = simdReg(v)
++	return p
+ }
+ 
+ var blockJump = [...]struct {
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index fbc3129de6..99d0d0ec74 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -182,14 +182,14 @@ func init() {
+ 		fpstore    = regInfo{inputs: []regMask{gpspsb, fp, 0}}
+ 		fpstoreidx = regInfo{inputs: []regMask{gpspsb, gpsp, fp, 0}}
+ 
+-		fp1m1    = regInfo{inputs: fponly, outputs: maskonly}
+-		m1fp1    = regInfo{inputs: maskonly, outputs: fponly}
+-		fp2m1    = regInfo{inputs: []regMask{fp, fp}, outputs: maskonly}
+-		fp1m1fp1 = regInfo{inputs: []regMask{fp, mask}, outputs: fponly}
+-		fp2m1fp1 = regInfo{inputs: []regMask{fp, fp, mask}, outputs: fponly}
+-		fp2m1m1  = regInfo{inputs: []regMask{fp, fp, mask}, outputs: maskonly}
++		fp1k1    = regInfo{inputs: fponly, outputs: maskonly}
++		k1fp1    = regInfo{inputs: maskonly, outputs: fponly}
++		fp2k1    = regInfo{inputs: []regMask{fp, fp}, outputs: maskonly}
++		fp1k1fp1 = regInfo{inputs: []regMask{fp, mask}, outputs: fponly}
++		fp2k1fp1 = regInfo{inputs: []regMask{fp, fp, mask}, outputs: fponly}
++		fp2k1k1  = regInfo{inputs: []regMask{fp, fp, mask}, outputs: maskonly}
+ 		fp3fp1   = regInfo{inputs: []regMask{fp, fp, fp}, outputs: fponly}
+-		fp3m1fp1 = regInfo{inputs: []regMask{fp, fp, fp, mask}, outputs: fponly}
++		fp3k1fp1 = regInfo{inputs: []regMask{fp, fp, fp, mask}, outputs: fponly}
+ 
+ 		prefreg = regInfo{inputs: []regMask{gpspsbg}}
+ 	)
+@@ -1233,37 +1233,37 @@ func init() {
+ 		{name: "VMOVDQUload512", argLength: 2, reg: fpload, asm: "VMOVDQU64", aux: "SymOff", faultOnNilArg0: true, symEffect: "Read"},    // load from arg0+auxint+aux, arg1 = mem
+ 		{name: "VMOVDQUstore512", argLength: 3, reg: fpstore, asm: "VMOVDQU64", aux: "SymOff", faultOnNilArg0: true, symEffect: "Write"}, // store, *(arg0+auxint+aux) = arg1, arg2 = mem
+ 
+-		{name: "VPMOVMToVec8x16", argLength: 1, reg: m1fp1, asm: "VPMOVM2B"},
+-		{name: "VPMOVMToVec8x32", argLength: 1, reg: m1fp1, asm: "VPMOVM2B"},
+-		{name: "VPMOVMToVec8x64", argLength: 1, reg: m1fp1, asm: "VPMOVM2B"},
++		{name: "VPMOVMToVec8x16", argLength: 1, reg: k1fp1, asm: "VPMOVM2B"},
++		{name: "VPMOVMToVec8x32", argLength: 1, reg: k1fp1, asm: "VPMOVM2B"},
++		{name: "VPMOVMToVec8x64", argLength: 1, reg: k1fp1, asm: "VPMOVM2B"},
+ 
+-		{name: "VPMOVMToVec16x8", argLength: 1, reg: m1fp1, asm: "VPMOVM2W"},
+-		{name: "VPMOVMToVec16x16", argLength: 1, reg: m1fp1, asm: "VPMOVM2W"},
+-		{name: "VPMOVMToVec16x32", argLength: 1, reg: m1fp1, asm: "VPMOVM2W"},
++		{name: "VPMOVMToVec16x8", argLength: 1, reg: k1fp1, asm: "VPMOVM2W"},
++		{name: "VPMOVMToVec16x16", argLength: 1, reg: k1fp1, asm: "VPMOVM2W"},
++		{name: "VPMOVMToVec16x32", argLength: 1, reg: k1fp1, asm: "VPMOVM2W"},
+ 
+-		{name: "VPMOVMToVec32x4", argLength: 1, reg: m1fp1, asm: "VPMOVM2D"},
+-		{name: "VPMOVMToVec32x8", argLength: 1, reg: m1fp1, asm: "VPMOVM2D"},
+-		{name: "VPMOVMToVec32x16", argLength: 1, reg: m1fp1, asm: "VPMOVM2D"},
++		{name: "VPMOVMToVec32x4", argLength: 1, reg: k1fp1, asm: "VPMOVM2D"},
++		{name: "VPMOVMToVec32x8", argLength: 1, reg: k1fp1, asm: "VPMOVM2D"},
++		{name: "VPMOVMToVec32x16", argLength: 1, reg: k1fp1, asm: "VPMOVM2D"},
+ 
+-		{name: "VPMOVMToVec64x2", argLength: 1, reg: m1fp1, asm: "VPMOVM2Q"},
+-		{name: "VPMOVMToVec64x4", argLength: 1, reg: m1fp1, asm: "VPMOVM2Q"},
+-		{name: "VPMOVMToVec64x8", argLength: 1, reg: m1fp1, asm: "VPMOVM2Q"},
++		{name: "VPMOVMToVec64x2", argLength: 1, reg: k1fp1, asm: "VPMOVM2Q"},
++		{name: "VPMOVMToVec64x4", argLength: 1, reg: k1fp1, asm: "VPMOVM2Q"},
++		{name: "VPMOVMToVec64x8", argLength: 1, reg: k1fp1, asm: "VPMOVM2Q"},
+ 
+-		{name: "VPMOVVec8x16ToM", argLength: 1, reg: fp1m1, asm: "VPMOVB2M"},
+-		{name: "VPMOVVec8x32ToM", argLength: 1, reg: fp1m1, asm: "VPMOVB2M"},
+-		{name: "VPMOVVec8x64ToM", argLength: 1, reg: fp1m1, asm: "VPMOVB2M"},
++		{name: "VPMOVVec8x16ToM", argLength: 1, reg: fp1k1, asm: "VPMOVB2M"},
++		{name: "VPMOVVec8x32ToM", argLength: 1, reg: fp1k1, asm: "VPMOVB2M"},
++		{name: "VPMOVVec8x64ToM", argLength: 1, reg: fp1k1, asm: "VPMOVB2M"},
+ 
+-		{name: "VPMOVVec16x8ToM", argLength: 1, reg: fp1m1, asm: "VPMOVW2M"},
+-		{name: "VPMOVVec16x16ToM", argLength: 1, reg: fp1m1, asm: "VPMOVW2M"},
+-		{name: "VPMOVVec16x32ToM", argLength: 1, reg: fp1m1, asm: "VPMOVW2M"},
++		{name: "VPMOVVec16x8ToM", argLength: 1, reg: fp1k1, asm: "VPMOVW2M"},
++		{name: "VPMOVVec16x16ToM", argLength: 1, reg: fp1k1, asm: "VPMOVW2M"},
++		{name: "VPMOVVec16x32ToM", argLength: 1, reg: fp1k1, asm: "VPMOVW2M"},
+ 
+-		{name: "VPMOVVec32x4ToM", argLength: 1, reg: fp1m1, asm: "VPMOVD2M"},
+-		{name: "VPMOVVec32x8ToM", argLength: 1, reg: fp1m1, asm: "VPMOVD2M"},
+-		{name: "VPMOVVec32x16ToM", argLength: 1, reg: fp1m1, asm: "VPMOVD2M"},
++		{name: "VPMOVVec32x4ToM", argLength: 1, reg: fp1k1, asm: "VPMOVD2M"},
++		{name: "VPMOVVec32x8ToM", argLength: 1, reg: fp1k1, asm: "VPMOVD2M"},
++		{name: "VPMOVVec32x16ToM", argLength: 1, reg: fp1k1, asm: "VPMOVD2M"},
+ 
+-		{name: "VPMOVVec64x2ToM", argLength: 1, reg: fp1m1, asm: "VPMOVQ2M"},
+-		{name: "VPMOVVec64x4ToM", argLength: 1, reg: fp1m1, asm: "VPMOVQ2M"},
+-		{name: "VPMOVVec64x8ToM", argLength: 1, reg: fp1m1, asm: "VPMOVQ2M"},
++		{name: "VPMOVVec64x2ToM", argLength: 1, reg: fp1k1, asm: "VPMOVQ2M"},
++		{name: "VPMOVVec64x4ToM", argLength: 1, reg: fp1k1, asm: "VPMOVQ2M"},
++		{name: "VPMOVVec64x8ToM", argLength: 1, reg: fp1k1, asm: "VPMOVQ2M"},
+ 
+ 		{name: "Zero128", argLength: 0, reg: fp01, asm: "VPXOR"},
+ 		{name: "Zero256", argLength: 0, reg: fp01, asm: "VPXOR"},
+@@ -1300,7 +1300,7 @@ func init() {
+ 		pkg:                "cmd/internal/obj/x86",
+ 		genfile:            "../../amd64/ssa.go",
+ 		genSIMDfile:        "../../amd64/simdssa.go",
+-		ops:                append(AMD64ops, simdAMD64Ops(fp11, fp21, fp2m1, fp1m1fp1, fp2m1fp1, fp2m1m1, fp3fp1, fp3m1fp1)...), // AMD64ops,
++		ops:                append(AMD64ops, simdAMD64Ops(fp11, fp21, fp2k1, fp1k1fp1, fp2k1fp1, fp2k1k1, fp3fp1, fp3k1fp1)...), // AMD64ops,
+ 		blocks:             AMD64blocks,
+ 		regnames:           regNamesAMD64,
+ 		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",

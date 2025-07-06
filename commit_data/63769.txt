@@ -1,0 +1,324 @@
+commit 36b06c3d2f7fc1089e63a9040ad04ef6194b932f
+Author: Alan Donovan <adonovan@google.com>
+Date:   Wed May 15 15:06:14 2024 -0400
+
+    cmd/vendor/golang.org/x/telemetry: update to ac8fed8
+    
+    Updates #67182
+    
+    Change-Id: I14f6a35491e3a58fff2f33285bd13ac706668df6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585818
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+---
+ src/cmd/go.mod                                     |  2 +-
+ src/cmd/go.sum                                     |  4 +--
+ .../telemetry/internal/crashmonitor/crash_go123.go |  7 +++--
+ .../golang.org/x/telemetry/internal/upload/date.go |  6 ++--
+ .../x/telemetry/internal/upload/findwork.go        |  2 +-
+ .../x/telemetry/internal/upload/reports.go         |  6 ++--
+ .../golang.org/x/telemetry/internal/upload/run.go  | 31 ++++++++++++++------
+ .../x/telemetry/internal/upload/upload.go          |  6 ++--
+ src/cmd/vendor/golang.org/x/telemetry/start.go     |  2 +-
+ .../vendor/golang.org/x/telemetry/upload/upload.go | 33 ----------------------
+ src/cmd/vendor/modules.txt                         |  3 +-
+ 11 files changed, 43 insertions(+), 59 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index cb48582676..684191a6e4 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.20.0
+-	golang.org/x/telemetry v0.0.0-20240514182607-7d78a974cc44
++	golang.org/x/telemetry v0.0.0-20240515190011-ac8fed89e775
+ 	golang.org/x/term v0.18.0
+ 	golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 48561550ab..551fcdf4c5 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -32,8 +32,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
+ golang.org/x/sys v0.20.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240514182607-7d78a974cc44 h1:aVJH+bdTb68otvUnahQ3CwIZTrJdYAW/gji9t6wuqcE=
+-golang.org/x/telemetry v0.0.0-20240514182607-7d78a974cc44/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
++golang.org/x/telemetry v0.0.0-20240515190011-ac8fed89e775 h1:rWPDGnFE+SjKc7S5CrkYqx8I7hiwWV9oYcnZhmHAcm0=
++golang.org/x/telemetry v0.0.0-20240515190011-ac8fed89e775/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
+ golang.org/x/term v0.18.0 h1:FcHjZXDMxI8mM3nwhX9HlKop4C0YQvCVCdwYl2wOtE8=
+ golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/crash_go123.go b/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/crash_go123.go
+index 2e0c1b32e3..a2706d3abc 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/crash_go123.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/crashmonitor/crash_go123.go
+@@ -7,8 +7,11 @@
+ 
+ package crashmonitor
+ 
+-import "runtime/debug"
++import (
++	"os"
++	"runtime/debug"
++)
+ 
+ func init() {
+-	setCrashOutput = debug.SetCrashOutput
++	setCrashOutput = func(f *os.File) error { return debug.SetCrashOutput(f) }
+ }
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
+index 26e65bd9bf..22e4e8aa30 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/date.go
+@@ -18,7 +18,7 @@ import (
+ var distantPast = 21 * 24 * time.Hour
+ 
+ // reports that are too old (21 days) are not uploaded
+-func (u *Uploader) tooOld(date string, uploadStartTime time.Time) bool {
++func (u *uploader) tooOld(date string, uploadStartTime time.Time) bool {
+ 	t, err := time.Parse("2006-01-02", date)
+ 	if err != nil {
+ 		u.logger.Printf("tooOld: %v", err)
+@@ -31,7 +31,7 @@ func (u *Uploader) tooOld(date string, uploadStartTime time.Time) bool {
+ // counterDateSpan parses the counter file named fname and returns the (begin,
+ // end) span recorded in its metadata, or an error if this data could not be
+ // extracted.
+-func (u *Uploader) counterDateSpan(fname string) (begin, end time.Time, _ error) {
++func (u *uploader) counterDateSpan(fname string) (begin, end time.Time, _ error) {
+ 	parsed, err := u.parseCountFile(fname)
+ 	if err != nil {
+ 		return time.Time{}, time.Time{}, err
+@@ -61,7 +61,7 @@ type parsedCache struct {
+ 	m  map[string]*counter.File
+ }
+ 
+-func (u *Uploader) parseCountFile(fname string) (*counter.File, error) {
++func (u *uploader) parseCountFile(fname string) (*counter.File, error) {
+ 	u.cache.mu.Lock()
+ 	defer u.cache.mu.Unlock()
+ 	if u.cache.m == nil {
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
+index 6bd559a841..f1490be3a5 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/findwork.go
+@@ -22,7 +22,7 @@ type work struct {
+ // find all the files that look like counter files or reports
+ // that need to be uploaded. (There may be unexpected leftover files
+ // and uploading is supposed to be idempotent.)
+-func (u *Uploader) findWork() work {
++func (u *uploader) findWork() work {
+ 	localdir, uploaddir := u.dir.LocalDir(), u.dir.UploadDir()
+ 	var ans work
+ 	fis, err := os.ReadDir(localdir)
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+index a335132602..41757897ea 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+@@ -21,7 +21,7 @@ import (
+ )
+ 
+ // reports generates reports from inactive count files
+-func (u *Uploader) reports(todo *work) ([]string, error) {
++func (u *uploader) reports(todo *work) ([]string, error) {
+ 	if mode, _ := u.dir.Mode(); mode == "off" {
+ 		return nil, nil // no reports
+ 	}
+@@ -104,7 +104,7 @@ func notNeeded(date string, todo work) bool {
+ 	return false
+ }
+ 
+-func (u *Uploader) deleteFiles(files []string) {
++func (u *uploader) deleteFiles(files []string) {
+ 	for _, f := range files {
+ 		if err := os.Remove(f); err != nil {
+ 			// this could be a race condition.
+@@ -117,7 +117,7 @@ func (u *Uploader) deleteFiles(files []string) {
+ 
+ // createReport for all the count files for the same date.
+ // returns the absolute path name of the file containing the report
+-func (u *Uploader) createReport(start time.Time, expiryDate string, countFiles []string, lastWeek string) (string, error) {
++func (u *uploader) createReport(start time.Time, expiryDate string, countFiles []string, lastWeek string) (string, error) {
+ 	uploadOK := true
+ 	mode, asof := u.dir.Mode()
+ 	if mode != "on" {
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
+index 714617a196..eba13b1a57 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/run.go
+@@ -30,9 +30,24 @@ type RunConfig struct {
+ 	StartTime    time.Time // if set, overrides the upload start time
+ }
+ 
+-// Uploader encapsulates a single upload operation, carrying parameters and
++// Run generates and uploads reports, as allowed by the mode file.
++func Run(config RunConfig) error {
++	defer func() {
++		if err := recover(); err != nil {
++			log.Printf("upload recover: %v", err)
++		}
++	}()
++	uploader, err := newUploader(config)
++	if err != nil {
++		return err
++	}
++	defer uploader.Close()
++	return uploader.Run()
++}
++
++// uploader encapsulates a single upload operation, carrying parameters and
+ // shared state.
+-type Uploader struct {
++type uploader struct {
+ 	// config is used to select counters to upload.
+ 	config        *telemetry.UploadConfig //
+ 	configVersion string                  // version of the config
+@@ -47,11 +62,11 @@ type Uploader struct {
+ 	logger  *log.Logger
+ }
+ 
+-// NewUploader creates a new uploader to use for running the upload for the
++// newUploader creates a new uploader to use for running the upload for the
+ // given config.
+ //
+-// Uploaders should only be used for one call to [Run].
+-func NewUploader(rcfg RunConfig) (*Uploader, error) {
++// Uploaders should only be used for one call to [uploader.Run].
++func newUploader(rcfg RunConfig) (*uploader, error) {
+ 	// Determine the upload directory.
+ 	var dir telemetry.Dir
+ 	if rcfg.TelemetryDir != "" {
+@@ -108,7 +123,7 @@ func NewUploader(rcfg RunConfig) (*Uploader, error) {
+ 		startTime = rcfg.StartTime
+ 	}
+ 
+-	return &Uploader{
++	return &uploader{
+ 		config:          config,
+ 		configVersion:   configVersion,
+ 		dir:             dir,
+@@ -121,7 +136,7 @@ func NewUploader(rcfg RunConfig) (*Uploader, error) {
+ }
+ 
+ // Close cleans up any resources associated with the uploader.
+-func (u *Uploader) Close() error {
++func (u *uploader) Close() error {
+ 	if u.logFile == nil {
+ 		return nil
+ 	}
+@@ -129,7 +144,7 @@ func (u *Uploader) Close() error {
+ }
+ 
+ // Run generates and uploads reports
+-func (u *Uploader) Run() error {
++func (u *uploader) Run() error {
+ 	if telemetry.DisabledOnPlatform {
+ 		return nil
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+index bec2230837..0e75d09c01 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+@@ -22,7 +22,7 @@ var (
+ 
+ // uploadReportDate returns the date component of the upload file name, or "" if the
+ // date was unmatched.
+-func (u *Uploader) uploadReportDate(fname string) time.Time {
++func (u *uploader) uploadReportDate(fname string) time.Time {
+ 	match := dateRE.FindStringSubmatch(fname)
+ 	if match == nil || len(match) < 2 {
+ 		u.logger.Printf("malformed report name: missing date: %q", filepath.Base(fname))
+@@ -36,7 +36,7 @@ func (u *Uploader) uploadReportDate(fname string) time.Time {
+ 	return d
+ }
+ 
+-func (u *Uploader) uploadReport(fname string) {
++func (u *uploader) uploadReport(fname string) {
+ 	thisInstant := u.startTime
+ 	// TODO(rfindley): use uploadReportDate here, once we've done a gopls release.
+ 
+@@ -60,7 +60,7 @@ func (u *Uploader) uploadReport(fname string) {
+ }
+ 
+ // try to upload the report, 'true' if successful
+-func (u *Uploader) uploadReportContents(fname string, buf []byte) bool {
++func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
+ 	b := bytes.NewReader(buf)
+ 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
+ 	fdate = fdate[len(fdate)-len("2006-01-02"):]
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/start.go b/src/cmd/vendor/golang.org/x/telemetry/start.go
+index 2b6b15be5c..414c9fc5c9 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/start.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/start.go
+@@ -17,7 +17,7 @@ import (
+ 	"golang.org/x/telemetry/counter"
+ 	"golang.org/x/telemetry/internal/crashmonitor"
+ 	"golang.org/x/telemetry/internal/telemetry"
+-	"golang.org/x/telemetry/upload"
++	"golang.org/x/telemetry/internal/upload"
+ )
+ 
+ // Config controls the behavior of [Start].
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/upload/upload.go b/src/cmd/vendor/golang.org/x/telemetry/upload/upload.go
+deleted file mode 100644
+index 0e2fb455d8..0000000000
+--- a/src/cmd/vendor/golang.org/x/telemetry/upload/upload.go
++++ /dev/null
+@@ -1,33 +0,0 @@
+-// Copyright 2023 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package upload
+-
+-import (
+-	"log"
+-
+-	"golang.org/x/telemetry/internal/upload"
+-)
+-
+-// TODO(rfindley): remove, in favor of all callers using Start.
+-
+-// A RunConfig controls the behavior of Run.
+-// The zero value RunConfig is the default behavior; fields may be set to
+-// override various reporting and uploading choices.
+-type RunConfig = upload.RunConfig
+-
+-// Run generates and uploads reports, as allowed by the mode file.
+-func Run(config RunConfig) error {
+-	defer func() {
+-		if err := recover(); err != nil {
+-			log.Printf("upload recover: %v", err)
+-		}
+-	}()
+-	uploader, err := upload.NewUploader(config)
+-	if err != nil {
+-		return err
+-	}
+-	defer uploader.Close()
+-	return uploader.Run()
+-}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index 17d0ed0fe1..240a26aab3 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240514182607-7d78a974cc44
++# golang.org/x/telemetry v0.0.0-20240515190011-ac8fed89e775
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter
+@@ -57,7 +57,6 @@ golang.org/x/telemetry/internal/crashmonitor
+ golang.org/x/telemetry/internal/mmap
+ golang.org/x/telemetry/internal/telemetry
+ golang.org/x/telemetry/internal/upload
+-golang.org/x/telemetry/upload
+ # golang.org/x/term v0.18.0
+ ## explicit; go 1.18
+ golang.org/x/term

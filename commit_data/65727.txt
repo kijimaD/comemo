@@ -1,0 +1,66 @@
+commit 7632c6e2bd67b37a943f2714f3e53eebb354e18a
+Author: cuishuang <imcusg@gmail.com>
+Date:   Sun Nov 24 19:34:30 2024 +0800
+
+    cmd/go: add go prefix in base.Fatalf
+    
+    For #70537
+    
+    Change-Id: I20e239611f07aa13915367c3a44994a43b5482d7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Veronica Silina <veronicasilina@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/internal/auth/auth.go | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/auth/auth.go b/src/cmd/go/internal/auth/auth.go
+index dc9c7f58bb..b008e9c281 100644
+--- a/src/cmd/go/internal/auth/auth.go
++++ b/src/cmd/go/internal/auth/auth.go
+@@ -60,18 +60,18 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
+ 		command = strings.TrimSpace(command)
+ 		words := strings.Fields(command)
+ 		if len(words) == 0 {
+-			base.Fatalf("GOAUTH encountered an empty command (GOAUTH=%s)", cfg.GOAUTH)
++			base.Fatalf("go: GOAUTH encountered an empty command (GOAUTH=%s)", cfg.GOAUTH)
+ 		}
+ 		switch words[0] {
+ 		case "off":
+ 			if len(goAuthCmds) != 1 {
+-				base.Fatalf("GOAUTH=off cannot be combined with other authentication commands (GOAUTH=%s)", cfg.GOAUTH)
++				base.Fatalf("go: GOAUTH=off cannot be combined with other authentication commands (GOAUTH=%s)", cfg.GOAUTH)
+ 			}
+ 			return
+ 		case "netrc":
+ 			lines, err := readNetrc()
+ 			if err != nil {
+-				base.Fatalf("could not parse netrc (GOAUTH=%s): %v", cfg.GOAUTH, err)
++				base.Fatalf("go: could not parse netrc (GOAUTH=%s): %v", cfg.GOAUTH, err)
+ 			}
+ 			for _, l := range lines {
+ 				r := http.Request{Header: make(http.Header)}
+@@ -80,18 +80,18 @@ func runGoAuth(client *http.Client, res *http.Response, url string) {
+ 			}
+ 		case "git":
+ 			if len(words) != 2 {
+-				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory")
++				base.Fatalf("go: GOAUTH=git dir method requires an absolute path to the git working directory")
+ 			}
+ 			dir := words[1]
+ 			if !filepath.IsAbs(dir) {
+-				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory, dir is not absolute")
++				base.Fatalf("go: GOAUTH=git dir method requires an absolute path to the git working directory, dir is not absolute")
+ 			}
+ 			fs, err := os.Stat(dir)
+ 			if err != nil {
+-				base.Fatalf("GOAUTH=git encountered an error; cannot stat %s: %v", dir, err)
++				base.Fatalf("go: GOAUTH=git encountered an error; cannot stat %s: %v", dir, err)
+ 			}
+ 			if !fs.IsDir() {
+-				base.Fatalf("GOAUTH=git dir method requires an absolute path to the git working directory, dir is not a directory")
++				base.Fatalf("go: GOAUTH=git dir method requires an absolute path to the git working directory, dir is not a directory")
+ 			}
+ 
+ 			if url == "" {

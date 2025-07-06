@@ -1,0 +1,458 @@
+commit 4aa1c02daee42c37ddd30ae2aa91bd3fd3b72e77
+Author: David Chase <drchase@google.com>
+Date:   Mon Nov 18 14:55:12 2024 -0500
+
+    cmd/compile: refactor inline interleaving
+    
+    This is intended to simplify future experiments/changes.
+    It does slightly change the fixedpoint order (across all
+    functions in a func+closures set or recursive set, but
+    that seems not to affect tests or benchmarks).
+    
+    Change-Id: I80bcaabf277b317523e538f5fd4d2ff6dc08c033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630595
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ .../inline/inlheur/testdata/props/calls.go         |  15 +-
+ .../internal/inline/interleaved/interleaved.go     | 332 +++++++++++++--------
+ 2 files changed, 218 insertions(+), 129 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+index 23dc573f58..3c49a48d37 100644
+--- a/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
++++ b/src/cmd/compile/internal/inline/inlheur/testdata/props/calls.go
+@@ -134,7 +134,7 @@ func init() {
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+ // callsite: calls.go:141:19|0 flagstr "" flagval 0 score -24 mask 512 maskstr "passInlinableFuncToIndCallAdj"
+-// callsite: calls.go:141:19|calls.go:232:10|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: calls.go:141:19|calls.go:231:10|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_pass_inlinable_func_to_param_feeding_indirect_call(x int) int {
+@@ -159,7 +159,7 @@ func T_pass_noninlinable_func_to_param_feeding_indirect_call(x int) int {
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[32],"ResultFlags":[0]}
+ // callsite: calls.go:166:25|0 flagstr "" flagval 0 score -13 mask 1024 maskstr "passInlinableFuncToNestedIndCallAdj"
+-// callsite: calls.go:166:25|calls.go:237:11|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
++// callsite: calls.go:166:25|calls.go:236:11|0 flagstr "" flagval 0 score 2 mask 0 maskstr ""
+ // <endcallsites>
+ // <endfuncpreamble>
+ func T_pass_inlinable_func_to_param_feeding_nested_indirect_call(x int) int {
+@@ -178,16 +178,15 @@ func T_pass_noninlinable_func_to_param_feeding_nested_indirect_call(x int) int {
+ 	return callsParamNested(x, calleeNoInline)
+ }
+ 
+-// calls.go T_call_scoring_in_noninlinable_func 195 0 1
++// calls.go T_call_scoring_in_noninlinable_func 194 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0,0],"ResultFlags":[0]}
+-// callsite: calls.go:209:14|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+-// callsite: calls.go:210:15|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
+-// callsite: calls.go:212:19|2 flagstr "" flagval 0 score -24 mask 512 maskstr "passInlinableFuncToIndCallAdj"
+-// callsite: calls.go:212:19|calls.go:232:10|0 flagstr "" flagval 0 score 4 mask 0 maskstr ""
++// callsite: calls.go:208:14|0 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
++// callsite: calls.go:209:15|1 flagstr "CallSiteOnPanicPath" flagval 2 score 42 mask 1 maskstr "panicPathAdj"
++// callsite: calls.go:211:19|2 flagstr "" flagval 0 score -24 mask 512 maskstr "passInlinableFuncToIndCallAdj"
+ // <endcallsites>
+ // <endfuncpreamble>
+-// calls.go T_call_scoring_in_noninlinable_func.func1 212 0 1
++// calls.go T_call_scoring_in_noninlinable_func.func1 211 0 1
+ // <endpropsdump>
+ // {"Flags":0,"ParamFlags":[0],"ResultFlags":[0]}
+ // <endcallsites>
+diff --git a/src/cmd/compile/internal/inline/interleaved/interleaved.go b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+index a7286b7727..6c493d8984 100644
+--- a/src/cmd/compile/internal/inline/interleaved/interleaved.go
++++ b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+@@ -42,12 +42,66 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
+ 	// First compute inlinability of all functions in the package.
+ 	inline.CanInlineFuncs(pkg.Funcs, inlProfile)
+ 
+-	// Now we make a second pass to do devirtualization and inlining of
+-	// calls. Order here should not matter.
+-	for _, fn := range pkg.Funcs {
+-		DevirtualizeAndInlineFunc(fn, inlProfile)
++	inlState := make(map[*ir.Func]*inlClosureState)
++
++	for _, fn := range typecheck.Target.Funcs {
++		// Pre-process all the functions, adding parentheses around call sites.
++		bigCaller := base.Flag.LowerL != 0 && inline.IsBigFunc(fn)
++		if bigCaller && base.Flag.LowerM > 1 {
++			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
++		}
++
++		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool)}
++		s.parenthesize()
++		inlState[fn] = s
+ 	}
+ 
++	ir.VisitFuncsBottomUp(typecheck.Target.Funcs, func(list []*ir.Func, recursive bool) {
++
++		anyInlineHeuristics := false
++
++		// inline heuristics, placed here because they have static state and that's what seems to work.
++		for _, fn := range list {
++			if base.Flag.LowerL != 0 {
++				if inlheur.Enabled() && !fn.Wrapper() {
++					inlheur.ScoreCalls(fn)
++					anyInlineHeuristics = true
++				}
++				if base.Debug.DumpInlFuncProps != "" && !fn.Wrapper() {
++					inlheur.DumpFuncProps(fn, base.Debug.DumpInlFuncProps)
++				}
++			}
++		}
++
++		if anyInlineHeuristics {
++			defer inlheur.ScoreCallsCleanup()
++		}
++
++		// Iterate to a fixed point over all the functions.
++		done := false
++		for !done {
++			done = true
++			for _, fn := range list {
++				s := inlState[fn]
++
++				ir.WithFunc(fn, func() {
++					for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
++						paren := s.parens[i]
++						if new := s.edit(paren.X); new != nil {
++							// Update AST and recursively mark nodes.
++							paren.X = new
++							ir.EditChildren(new, s.mark) // mark may append to parens
++							done = false
++						}
++					}
++				}) // WithFunc
++
++			}
++		}
++	})
++
++	ir.CurFunc = nil
++
+ 	if base.Flag.LowerL != 0 {
+ 		if base.Debug.DumpInlFuncProps != "" {
+ 			inlheur.DumpFuncProps(nil, base.Debug.DumpInlFuncProps)
+@@ -57,6 +111,12 @@ func DevirtualizeAndInlinePackage(pkg *ir.Package, profile *pgoir.Profile) {
+ 			inlheur.TearDown()
+ 		}
+ 	}
++
++	// remove parentheses
++	for _, fn := range typecheck.Target.Funcs {
++		inlState[fn].unparenthesize()
++	}
++
+ }
+ 
+ // DevirtualizeAndInlineFunc interleaves devirtualization and inlining
+@@ -78,70 +138,38 @@ func DevirtualizeAndInlineFunc(fn *ir.Func, profile *pgoir.Profile) {
+ 			fmt.Printf("%v: function %v considered 'big'; reducing max cost of inlinees\n", ir.Line(fn), fn)
+ 		}
+ 
+-		match := func(n ir.Node) bool {
+-			switch n := n.(type) {
+-			case *ir.CallExpr:
+-				return true
+-			case *ir.TailCallStmt:
+-				n.Call.NoInline = true // can't inline yet
+-			}
+-			return false
+-		}
+-
+-		edit := func(n ir.Node) ir.Node {
+-			call, ok := n.(*ir.CallExpr)
+-			if !ok { // previously inlined
+-				return nil
+-			}
+-
+-			devirtualize.StaticCall(call)
+-			if inlCall := inline.TryInlineCall(fn, call, bigCaller, profile); inlCall != nil {
+-				return inlCall
+-			}
+-			return nil
+-		}
+-
+-		fixpoint(fn, match, edit)
++		s := &inlClosureState{bigCaller: bigCaller, profile: profile, fn: fn, callSites: make(map[*ir.ParenExpr]bool)}
++		s.parenthesize()
++		s.fixpoint()
++		s.unparenthesize()
+ 	})
+ }
+ 
+-// isTestingBLoop returns true if it matches the node as a
+-// testing.(*B).Loop. See issue #61515.
+-func isTestingBLoop(t ir.Node) bool {
+-	if t.Op() != ir.OFOR {
+-		return false
+-	}
+-	nFor, ok := t.(*ir.ForStmt)
+-	if !ok || nFor.Cond == nil || nFor.Cond.Op() != ir.OCALLFUNC {
+-		return false
+-	}
+-	n, ok := nFor.Cond.(*ir.CallExpr)
+-	if !ok || n.Fun == nil || n.Fun.Op() != ir.OMETHEXPR {
+-		return false
+-	}
+-	name := ir.MethodExprName(n.Fun)
+-	if name == nil {
+-		return false
++type inlClosureState struct {
++	fn        *ir.Func
++	profile   *pgoir.Profile
++	callSites map[*ir.ParenExpr]bool // callSites[p] == "p appears in parens" (do not append again)
++	parens    []*ir.ParenExpr
++	bigCaller bool
++}
++
++func (s *inlClosureState) edit(n ir.Node) ir.Node {
++	call, ok := n.(*ir.CallExpr)
++	if !ok { // previously inlined
++		return nil
+ 	}
+-	if fSym := name.Sym(); fSym != nil && name.Class == ir.PFUNC && fSym.Pkg != nil &&
+-		fSym.Name == "(*B).Loop" && fSym.Pkg.Path == "testing" {
+-		// Attempting to match a function call to testing.(*B).Loop
+-		return true
++
++	devirtualize.StaticCall(call)
++	if inlCall := inline.TryInlineCall(s.fn, call, s.bigCaller, s.profile); inlCall != nil {
++		return inlCall
+ 	}
+-	return false
++	return nil
+ }
+ 
+-// fixpoint repeatedly edits a function until it stabilizes.
+-//
+-// First, fixpoint applies match to every node n within fn. Then it
+-// iteratively applies edit to each node satisfying match(n).
+-//
+-// If edit(n) returns nil, no change is made. Otherwise, the result
+-// replaces n in fn's body, and fixpoint iterates at least once more.
+-//
+-// After an iteration where all edit calls return nil, fixpoint
+-// returns.
+-func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node) {
++// Mark inserts parentheses, and is called repeatedly.
++// These inserted parentheses mark the call sites where
++// inlining will be attempted.
++func (s *inlClosureState) mark(n ir.Node) ir.Node {
+ 	// Consider the expression "f(g())". We want to be able to replace
+ 	// "g()" in-place with its inlined representation. But if we first
+ 	// replace "f(...)" with its inlined representation, then "g()" will
+@@ -152,80 +180,76 @@ func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node)
+ 	// It's safe to use ParenExpr here, because typecheck already
+ 	// removed them all.
+ 
+-	var parens []*ir.ParenExpr
+-	var mark func(ir.Node) ir.Node
+-	mark = func(n ir.Node) ir.Node {
+-		if _, ok := n.(*ir.ParenExpr); ok {
+-			return n // already visited n.X before wrapping
+-		}
++	p, _ := n.(*ir.ParenExpr)
++	if p != nil && s.callSites[p] {
++		return n // already visited n.X before wrapping
++	}
+ 
+-		if isTestingBLoop(n) {
+-			// No inlining nor devirtualization performed on b.Loop body
+-			if base.Flag.LowerM > 1 {
+-				fmt.Printf("%v: skip inlining within testing.B.loop for %v\n", ir.Line(n), n)
+-			}
+-			// We still want to explore inlining opportunities in other parts of ForStmt.
+-			nFor, _ := n.(*ir.ForStmt)
+-			nForInit := nFor.Init()
+-			for i, x := range nForInit {
+-				if x != nil {
+-					nForInit[i] = edit(x).(ir.Node)
+-				}
+-			}
+-			if nFor.Cond != nil {
+-				nFor.Cond = mark(nFor.Cond).(ir.Node)
+-			}
+-			if nFor.Post != nil {
+-				nFor.Post = mark(nFor.Post).(ir.Node)
++	if isTestingBLoop(n) {
++		// No inlining nor devirtualization performed on b.Loop body
++		if base.Flag.LowerM > 1 {
++			fmt.Printf("%v: skip inlining within testing.B.loop for %v\n", ir.Line(n), n)
++		}
++		// We still want to explore inlining opportunities in other parts of ForStmt.
++		nFor, _ := n.(*ir.ForStmt)
++		nForInit := nFor.Init()
++		for i, x := range nForInit {
++			if x != nil {
++				nForInit[i] = s.mark(x)
+ 			}
+-			return n
+ 		}
+-
+-		ok := match(n)
+-
+-		// can't wrap TailCall's child into ParenExpr
+-		if t, ok := n.(*ir.TailCallStmt); ok {
+-			ir.EditChildren(t.Call, mark)
+-		} else {
+-			ir.EditChildren(n, mark)
++		if nFor.Cond != nil {
++			nFor.Cond = s.mark(nFor.Cond)
+ 		}
+-
+-		if ok {
+-			paren := ir.NewParenExpr(n.Pos(), n)
+-			paren.SetType(n.Type())
+-			paren.SetTypecheck(n.Typecheck())
+-
+-			parens = append(parens, paren)
+-			n = paren
++		if nFor.Post != nil {
++			nFor.Post = s.mark(nFor.Post)
+ 		}
+-
+ 		return n
+ 	}
+-	ir.EditChildren(fn, mark)
+ 
+-	// Edit until stable.
+-	for {
+-		done := true
++	if p != nil {
++		n = p.X // in this case p was copied in from a (marked) inlined function, this is a new unvisited node.
++	}
++
++	ok := match(n)
+ 
+-		for i := 0; i < len(parens); i++ { // can't use "range parens" here
+-			paren := parens[i]
+-			if new := edit(paren.X); new != nil {
+-				// Update AST and recursively mark nodes.
+-				paren.X = new
+-				ir.EditChildren(new, mark) // mark may append to parens
+-				done = false
+-			}
+-		}
++	// can't wrap TailCall's child into ParenExpr
++	if t, ok := n.(*ir.TailCallStmt); ok {
++		ir.EditChildren(t.Call, s.mark)
++	} else {
++		ir.EditChildren(n, s.mark)
++	}
+ 
+-		if done {
+-			break
++	if ok {
++		if p == nil {
++			p = ir.NewParenExpr(n.Pos(), n)
++			p.SetType(n.Type())
++			p.SetTypecheck(n.Typecheck())
++			s.callSites[p] = true
+ 		}
++
++		s.parens = append(s.parens, p)
++		n = p
++	} else if p != nil {
++		n = p // didn't change anything, restore n
+ 	}
++	return n
++}
++
++// parenthesize applies s.mark to all the nodes within
++// s.fn to mark calls and simplify rewriting them in place.
++func (s *inlClosureState) parenthesize() {
++	ir.EditChildren(s.fn, s.mark)
++}
+ 
+-	// Finally, remove any parens we inserted.
+-	if len(parens) == 0 {
++func (s *inlClosureState) unparenthesize() {
++	if s == nil {
++		return
++	}
++	if len(s.parens) == 0 {
+ 		return // short circuit
+ 	}
++
+ 	var unparen func(ir.Node) ir.Node
+ 	unparen = func(n ir.Node) ir.Node {
+ 		if paren, ok := n.(*ir.ParenExpr); ok {
+@@ -234,5 +258,71 @@ func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node)
+ 		ir.EditChildren(n, unparen)
+ 		return n
+ 	}
+-	ir.EditChildren(fn, unparen)
++	ir.EditChildren(s.fn, unparen)
++}
++
++// fixpoint repeatedly edits a function until it stabilizes, returning
++// whether anything changed in any of the fixpoint iterations.
++//
++// It applies s.edit(n) to each node n within the parentheses in s.parens.
++// If s.edit(n) returns nil, no change is made. Otherwise, the result
++// replaces n in fn's body, and fixpoint iterates at least once more.
++//
++// After an iteration where all edit calls return nil, fixpoint
++// returns.
++func (s *inlClosureState) fixpoint() bool {
++	changed := false
++	ir.WithFunc(s.fn, func() {
++		done := false
++		for !done {
++			done = true
++			for i := 0; i < len(s.parens); i++ { // can't use "range parens" here
++				paren := s.parens[i]
++				if new := s.edit(paren.X); new != nil {
++					// Update AST and recursively mark nodes.
++					paren.X = new
++					ir.EditChildren(new, s.mark) // mark may append to parens
++					done = false
++					changed = true
++				}
++			}
++		}
++	})
++	return changed
++}
++
++func match(n ir.Node) bool {
++	switch n := n.(type) {
++	case *ir.CallExpr:
++		return true
++	case *ir.TailCallStmt:
++		n.Call.NoInline = true // can't inline yet
++	}
++	return false
++}
++
++// isTestingBLoop returns true if it matches the node as a
++// testing.(*B).Loop. See issue #61515.
++func isTestingBLoop(t ir.Node) bool {
++	if t.Op() != ir.OFOR {
++		return false
++	}
++	nFor, ok := t.(*ir.ForStmt)
++	if !ok || nFor.Cond == nil || nFor.Cond.Op() != ir.OCALLFUNC {
++		return false
++	}
++	n, ok := nFor.Cond.(*ir.CallExpr)
++	if !ok || n.Fun == nil || n.Fun.Op() != ir.OMETHEXPR {
++		return false
++	}
++	name := ir.MethodExprName(n.Fun)
++	if name == nil {
++		return false
++	}
++	if fSym := name.Sym(); fSym != nil && name.Class == ir.PFUNC && fSym.Pkg != nil &&
++		fSym.Name == "(*B).Loop" && fSym.Pkg.Path == "testing" {
++		// Attempting to match a function call to testing.(*B).Loop
++		return true
++	}
++	return false
+ }

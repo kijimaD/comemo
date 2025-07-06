@@ -1,0 +1,68 @@
+commit 4c8ab993cd881d7eb1b8264f0b716c7cdd638f71
+Author: Keith Randall <khr@golang.org>
+Date:   Sat Nov 9 09:53:09 2024 -0800
+
+    internal/runtime/maps: don't hash twice when deleting
+    
+                         │  baseline   │             experiment              │
+                         │   sec/op    │   sec/op     vs base                │
+    MapDeleteLargeKey-24   312.0n ± 6%   162.3n ± 5%  -47.97% (p=0.000 n=10)
+    
+    Change-Id: I31f1f8e3c344cf8abf2e9eb4b51b78fcd67b93c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625906
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/internal/runtime/maps/map.go   |  2 +-
+ src/internal/runtime/maps/table.go |  4 +---
+ src/runtime/map_benchmark_test.go  | 11 +++++++++++
+ 3 files changed, 13 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 9ebc72a524..86977bbc2d 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -663,7 +663,7 @@ func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
+ 		m.deleteSmall(typ, hash, key)
+ 	} else {
+ 		idx := m.directoryIndex(hash)
+-		m.directoryAt(idx).Delete(typ, m, key)
++		m.directoryAt(idx).Delete(typ, m, hash, key)
+ 	}
+ 
+ 	if m.used == 0 {
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index 55c9879c3f..eae23d84c9 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -409,9 +409,7 @@ func (t *table) uncheckedPutSlot(typ *abi.SwissMapType, hash uintptr, key unsafe
+ 	}
+ }
+ 
+-func (t *table) Delete(typ *abi.SwissMapType, m *Map, key unsafe.Pointer) {
+-	hash := typ.Hasher(key, m.seed)
+-
++func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.Pointer) {
+ 	seq := makeProbeSeq(h1(hash), t.groups.lengthMask)
+ 	for ; ; seq = seq.next() {
+ 		g := t.groups.group(typ, seq.offset)
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index 3b83de59cd..5f03042649 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -1090,3 +1090,14 @@ func BenchmarkMapPop(b *testing.B) {
+ 	b.Run("Key=*int32/Elem=int32", benchSizes(benchmarkMapPop[*int32, int32]))
+ 	b.Run("Key=int32/Elem=*int32", benchSizes(benchmarkMapPop[int32, *int32]))
+ }
++
++func BenchmarkMapDeleteLargeKey(b *testing.B) {
++	m := map[string]int{}
++	for i := range 9 {
++		m[fmt.Sprintf("%d", i)] = i
++	}
++	key := strings.Repeat("*", 10000)
++	for range b.N {
++		delete(m, key)
++	}
++}

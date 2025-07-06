@@ -1,0 +1,149 @@
+commit 9f9dd2bfd8a09083b21767d13df38ff67d7236d8
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 22 10:04:03 2024 -0700
+
+    cmd/compile: fix cmpstring rewrite rule
+    
+    We need to ensure that the Select0 lives in the same block as
+    its argument. Divide up the rule into 2 so that we can put the
+    parts in the right places.
+    
+    (This would be simpler if we could use @block syntax mid-rule, but
+    that feature currently only works at the top level.)
+    
+    This fixes the ssacheck builder after CL 578835
+    
+    Change-Id: Id26a01d9fac0684e0b732d35d0f7999f6de07825
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580815
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/generic.rules |  8 ++-
+ src/cmd/compile/internal/ssa/rewritegeneric.go  | 80 +++++++++++++++----------
+ 2 files changed, 56 insertions(+), 32 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/generic.rules b/src/cmd/compile/internal/ssa/_gen/generic.rules
+index 398601e81b..70bac217fa 100644
+--- a/src/cmd/compile/internal/ssa/_gen/generic.rules
++++ b/src/cmd/compile/internal/ssa/_gen/generic.rules
+@@ -2799,7 +2799,11 @@
+ // same memory state can reuse the results of the first call.
+ // See issue 61725.
+ // Note that this could pretty easily generalize to any pure function.
+-(StaticLECall {f} x y m:(SelectN [1] c:(StaticLECall {g} x y mem)))
++(SelectN [0] (StaticLECall {f} x y (SelectN [1] c:(StaticLECall {g} x y mem))))
+   && isSameCall(f, "runtime.cmpstring")
+   && isSameCall(g, "runtime.cmpstring")
+-=> (MakeResult (SelectN [0] <typ.Int> c) m)
++=> @c.Block (SelectN [0] <typ.Int> c)
++
++// If we don't use the result of cmpstring, might as well not call it.
++// Note that this could pretty easily generalize to any pure function.
++(SelectN [1] c:(StaticLECall {f} _ _ mem)) && c.Uses == 1 && isSameCall(f, "runtime.cmpstring") && clobber(c) => mem
+diff --git a/src/cmd/compile/internal/ssa/rewritegeneric.go b/src/cmd/compile/internal/ssa/rewritegeneric.go
+index 98c94bc1ba..cfed828a82 100644
+--- a/src/cmd/compile/internal/ssa/rewritegeneric.go
++++ b/src/cmd/compile/internal/ssa/rewritegeneric.go
+@@ -28081,6 +28081,7 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	config := b.Func.Config
++	typ := &b.Func.Config.Types
+ 	// match: (SelectN [0] (MakeResult x ___))
+ 	// result: x
+ 	for {
+@@ -28439,6 +28440,55 @@ func rewriteValuegeneric_OpSelectN(v *Value) bool {
+ 		v.copyOf(newLen)
+ 		return true
+ 	}
++	// match: (SelectN [0] (StaticLECall {f} x y (SelectN [1] c:(StaticLECall {g} x y mem))))
++	// cond: isSameCall(f, "runtime.cmpstring") && isSameCall(g, "runtime.cmpstring")
++	// result: @c.Block (SelectN [0] <typ.Int> c)
++	for {
++		if auxIntToInt64(v.AuxInt) != 0 || v_0.Op != OpStaticLECall || len(v_0.Args) != 3 {
++			break
++		}
++		f := auxToCall(v_0.Aux)
++		_ = v_0.Args[2]
++		x := v_0.Args[0]
++		y := v_0.Args[1]
++		v_0_2 := v_0.Args[2]
++		if v_0_2.Op != OpSelectN || auxIntToInt64(v_0_2.AuxInt) != 1 {
++			break
++		}
++		c := v_0_2.Args[0]
++		if c.Op != OpStaticLECall || len(c.Args) != 3 {
++			break
++		}
++		g := auxToCall(c.Aux)
++		if x != c.Args[0] || y != c.Args[1] || !(isSameCall(f, "runtime.cmpstring") && isSameCall(g, "runtime.cmpstring")) {
++			break
++		}
++		b = c.Block
++		v0 := b.NewValue0(v.Pos, OpSelectN, typ.Int)
++		v.copyOf(v0)
++		v0.AuxInt = int64ToAuxInt(0)
++		v0.AddArg(c)
++		return true
++	}
++	// match: (SelectN [1] c:(StaticLECall {f} _ _ mem))
++	// cond: c.Uses == 1 && isSameCall(f, "runtime.cmpstring") && clobber(c)
++	// result: mem
++	for {
++		if auxIntToInt64(v.AuxInt) != 1 {
++			break
++		}
++		c := v_0
++		if c.Op != OpStaticLECall || len(c.Args) != 3 {
++			break
++		}
++		f := auxToCall(c.Aux)
++		mem := c.Args[2]
++		if !(c.Uses == 1 && isSameCall(f, "runtime.cmpstring") && clobber(c)) {
++			break
++		}
++		v.copyOf(mem)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpSignExt16to32(v *Value) bool {
+@@ -29311,36 +29361,6 @@ func rewriteValuegeneric_OpStaticLECall(v *Value) bool {
+ 		v.AddArg2(v0, mem)
+ 		return true
+ 	}
+-	// match: (StaticLECall {f} x y m:(SelectN [1] c:(StaticLECall {g} x y mem)))
+-	// cond: isSameCall(f, "runtime.cmpstring") && isSameCall(g, "runtime.cmpstring")
+-	// result: (MakeResult (SelectN [0] <typ.Int> c) m)
+-	for {
+-		if len(v.Args) != 3 {
+-			break
+-		}
+-		f := auxToCall(v.Aux)
+-		_ = v.Args[2]
+-		x := v.Args[0]
+-		y := v.Args[1]
+-		m := v.Args[2]
+-		if m.Op != OpSelectN || auxIntToInt64(m.AuxInt) != 1 {
+-			break
+-		}
+-		c := m.Args[0]
+-		if c.Op != OpStaticLECall || len(c.Args) != 3 {
+-			break
+-		}
+-		g := auxToCall(c.Aux)
+-		if x != c.Args[0] || y != c.Args[1] || !(isSameCall(f, "runtime.cmpstring") && isSameCall(g, "runtime.cmpstring")) {
+-			break
+-		}
+-		v.reset(OpMakeResult)
+-		v0 := b.NewValue0(v.Pos, OpSelectN, typ.Int)
+-		v0.AuxInt = int64ToAuxInt(0)
+-		v0.AddArg(c)
+-		v.AddArg2(v0, m)
+-		return true
+-	}
+ 	return false
+ }
+ func rewriteValuegeneric_OpStore(v *Value) bool {

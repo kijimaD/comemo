@@ -1,0 +1,52 @@
+commit 10ed134afe1319403a9a6a8b6bb798f29e5a4d5e
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Aug 21 15:11:38 2024 -0700
+
+    os: improve Windows fixLongPath
+    
+    CL 574695 added caching the os.Chdir argument for Windows, and used the
+    cached value to assess the length of the current working directory in
+    addExtendedPrefix (used by fixLongPath).
+    
+    It did not take into account that Chdir can accept relative paths, and
+    thus the pathLength calculation in addExtendedPrefix can be wrong.
+    
+    Let's only cache the os.Chdir argument if it's absolute, and clean the
+    cache otherwise, thus improving the correctness of fixLongPath.
+    
+    For #41734
+    For #21782
+    For #36375
+    
+    Change-Id: Ie24a5ed763a7aacc310666d2e4cbb8e298768670
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607437
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/os/file.go | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/file.go b/src/os/file.go
+index b8cf89ce76..48bc4101f6 100644
+--- a/src/os/file.go
++++ b/src/os/file.go
+@@ -344,8 +344,13 @@ func Chdir(dir string) error {
+ 		return &PathError{Op: "chdir", Path: dir, Err: e}
+ 	}
+ 	if runtime.GOOS == "windows" {
++		abs := filepathlite.IsAbs(dir)
+ 		getwdCache.Lock()
+-		getwdCache.dir = dir
++		if abs {
++			getwdCache.dir = dir
++		} else {
++			getwdCache.dir = ""
++		}
+ 		getwdCache.Unlock()
+ 	}
+ 	if log := testlog.Logger(); log != nil {

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 11037: 94439492077c16876c1243221923f51cb237627c
+# Index 11037: 90d56e072f8125be85b77f085e3f576d6533c29d
 
 echo "🚀 Generating explanation for commit 11037..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 11037..."
 
 ### メタデータ
 - **コミットインデックス**: 11037
-- **コミットハッシュ**: 94439492077c16876c1243221923f51cb237627c
-- **GitHub URL**: https://github.com/golang/go/commit/94439492077c16876c1243221923f51cb237627c
+- **コミットハッシュ**: 90d56e072f8125be85b77f085e3f576d6533c29d
+- **GitHub URL**: https://github.com/golang/go/commit/90d56e072f8125be85b77f085e3f576d6533c29d
 
 ### 章構成
 

@@ -1,0 +1,154 @@
+commit 252c939445b6b03c5c82b54f7657c5d984ce6348
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Apr 18 06:23:33 2025 -0400
+
+    internal/runtime/maps: move tombstone test to swiss file
+    
+    This test fails on GOEXPERIMENT=noswissmap as it is testing behavior
+    specific to swissmaps. Move it to map_swiss_test.go to skip it on
+    noswissmap.
+    
+    We could also switch the test to use NewTestMap, which provides a
+    swissmap even in GOEXPERIMENT=noswissmap, but that is tedious to use and
+    noswissmap is going away soon anyway.
+    
+    For #70886.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-noswissmap
+    Change-Id: I6a6a636c5ec72217d936cd01e9da36ae127ea2c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/666437
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/runtime/maps/map_swiss_test.go | 55 +++++++++++++++++++++++++++++
+ src/internal/runtime/maps/map_test.go       | 55 -----------------------------
+ 2 files changed, 55 insertions(+), 55 deletions(-)
+
+diff --git a/src/internal/runtime/maps/map_swiss_test.go b/src/internal/runtime/maps/map_swiss_test.go
+index 6da006413a..eef1c5b191 100644
+--- a/src/internal/runtime/maps/map_swiss_test.go
++++ b/src/internal/runtime/maps/map_swiss_test.go
+@@ -210,3 +210,58 @@ func TestTableGroupCount(t *testing.T) {
+ 		}
+ 	})
+ }
++
++func TestTombstoneGrow(t *testing.T) {
++	tableSizes := []int{16, 32, 64, 128, 256}
++	for _, tableSize := range tableSizes {
++		for _, load := range []string{"low", "mid", "high"} {
++			capacity := tableSize * 7 / 8
++			var initialElems int
++			switch load {
++			case "low":
++				initialElems = capacity / 8
++			case "mid":
++				initialElems = capacity / 2
++			case "high":
++				initialElems = capacity
++			}
++			t.Run(fmt.Sprintf("tableSize=%d/elems=%d/load=%0.3f", tableSize, initialElems, float64(initialElems)/float64(tableSize)), func(t *testing.T) {
++				allocs := testing.AllocsPerRun(1, func() {
++					// Fill the map with elements.
++					m := make(map[int]int, capacity)
++					for i := range initialElems {
++						m[i] = i
++					}
++
++					// This is the heart of our test.
++					// Loop over the map repeatedly, deleting a key then adding a not-yet-seen key
++					// while keeping the map at a ~constant number of elements (+/-1).
++					nextKey := initialElems
++					for range 100000 {
++						for k := range m {
++							delete(m, k)
++							break
++						}
++						m[nextKey] = nextKey
++						nextKey++
++						if len(m) != initialElems {
++							t.Fatal("len(m) should remain constant")
++						}
++					}
++				})
++
++				// The make has 4 allocs (map, directory, table, groups).
++				// Each growth has 2 allocs (table, groups).
++				// We allow two growths if we start full, 1 otherwise.
++				// Fail (somewhat arbitrarily) if there are more than that.
++				allowed := float64(4 + 1*2)
++				if initialElems == capacity {
++					allowed += 2
++				}
++				if allocs > allowed {
++					t.Fatalf("got %v allocations, allowed %v", allocs, allowed)
++				}
++			})
++		}
++	}
++}
+diff --git a/src/internal/runtime/maps/map_test.go b/src/internal/runtime/maps/map_test.go
+index 020adfcd78..160450ebb2 100644
+--- a/src/internal/runtime/maps/map_test.go
++++ b/src/internal/runtime/maps/map_test.go
+@@ -699,58 +699,3 @@ func TestMapDeleteClear(t *testing.T) {
+ 		t.Errorf("Delete(%d) failed to clear element. got %d want 0", key, gotElem)
+ 	}
+ }
+-
+-func TestTombstoneGrow(t *testing.T) {
+-	tableSizes := []int{16, 32, 64, 128, 256}
+-	for _, tableSize := range tableSizes {
+-		for _, load := range []string{"low", "mid", "high"} {
+-			capacity := tableSize * 7 / 8
+-			var initialElems int
+-			switch load {
+-			case "low":
+-				initialElems = capacity / 8
+-			case "mid":
+-				initialElems = capacity / 2
+-			case "high":
+-				initialElems = capacity
+-			}
+-			t.Run(fmt.Sprintf("tableSize=%d/elems=%d/load=%0.3f", tableSize, initialElems, float64(initialElems)/float64(tableSize)), func(t *testing.T) {
+-				allocs := testing.AllocsPerRun(1, func() {
+-					// Fill the map with elements.
+-					m := make(map[int]int, capacity)
+-					for i := range initialElems {
+-						m[i] = i
+-					}
+-
+-					// This is the heart of our test.
+-					// Loop over the map repeatedly, deleting a key then adding a not-yet-seen key
+-					// while keeping the map at a ~constant number of elements (+/-1).
+-					nextKey := initialElems
+-					for range 100000 {
+-						for k := range m {
+-							delete(m, k)
+-							break
+-						}
+-						m[nextKey] = nextKey
+-						nextKey++
+-						if len(m) != initialElems {
+-							t.Fatal("len(m) should remain constant")
+-						}
+-					}
+-				})
+-
+-				// The make has 4 allocs (map, directory, table, groups).
+-				// Each growth has 2 allocs (table, groups).
+-				// We allow two growths if we start full, 1 otherwise.
+-				// Fail (somewhat arbitrarily) if there are more than that.
+-				allowed := float64(4 + 1*2)
+-				if initialElems == capacity {
+-					allowed += 2
+-				}
+-				if allocs > allowed {
+-					t.Fatalf("got %v allocations, allowed %v", allocs, allowed)
+-				}
+-			})
+-		}
+-	}
+-}

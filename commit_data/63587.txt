@@ -1,0 +1,61 @@
+commit 476a352522a403537e8d295bced21a0a5df32591
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Mon Apr 29 15:35:54 2024 +0200
+
+    syscall: use stringslite.Has{Prefix,Suffix}
+    
+    Change-Id: I393191b95eeb8e17345ce28cfa1fb54a3ef13951
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582237
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Run-TryBot: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+---
+ src/syscall/fs_wasip1.go | 15 ++++-----------
+ 1 file changed, 4 insertions(+), 11 deletions(-)
+
+diff --git a/src/syscall/fs_wasip1.go b/src/syscall/fs_wasip1.go
+index 4d3d7d72c6..f19e8f3b3c 100644
+--- a/src/syscall/fs_wasip1.go
++++ b/src/syscall/fs_wasip1.go
+@@ -7,6 +7,7 @@
+ package syscall
+ 
+ import (
++	"internal/stringslite"
+ 	"runtime"
+ 	"unsafe"
+ )
+@@ -468,19 +469,11 @@ func joinPath(dir, file string) string {
+ }
+ 
+ func isAbs(path string) bool {
+-	return hasPrefix(path, "/")
++	return stringslite.HasPrefix(path, "/")
+ }
+ 
+ func isDir(path string) bool {
+-	return hasSuffix(path, "/")
+-}
+-
+-func hasPrefix(s, p string) bool {
+-	return len(s) >= len(p) && s[:len(p)] == p
+-}
+-
+-func hasSuffix(s, x string) bool {
+-	return len(s) >= len(x) && s[len(s)-len(x):] == x
++	return stringslite.HasSuffix(path, "/")
+ }
+ 
+ // preparePath returns the preopen file descriptor of the directory to perform
+@@ -500,7 +493,7 @@ func preparePath(path string) (int32, unsafe.Pointer, size) {
+ 	path = joinPath(dir, path)
+ 
+ 	for _, p := range preopens {
+-		if len(p.name) > len(dirName) && hasPrefix(path, p.name) {
++		if len(p.name) > len(dirName) && stringslite.HasPrefix(path, p.name) {
+ 			dirFd, dirName = p.fd, p.name
+ 		}
+ 	}

@@ -1,0 +1,145 @@
+commit af0c40311e2ee33ecd24971257606f42a49cf593
+Author: amusman <alexander.musman@gmail.com>
+Date:   Thu Apr 11 10:57:32 2024 +0300
+
+    cmd/compile: emit tail call wrappers when possible
+    
+    Use OTAILCALL in wrapper if the receiver and method are both pointers and it is
+    not going to be inlined, similar to how it is done in reflectdata.methodWrapper.
+    Currently tail call may be used for functions with identical argument types.
+    This change updates wrappers where both wrapper and the wrapped method's
+    receiver are pointers. In this case, we have the same signature for the
+    wrapper and the wrapped method (modulo the receiver's pointed-to types),
+    and do not need any local variables in the generated wrapper (on stack)
+    because the arguments are immediately passed to the wrapped method in place
+    (without need to move some value passed to other register or to change any
+    argument/return passed through stack). Thus, the wrapper does not need its
+    own stack frame.
+    
+    This applies to promoted methods, e.g. when we have some struct type U with
+    an embedded type *T and construct a wrapper like
+    func (recv *U) M(arg int) bool { return recv.T.M(i) }
+    
+    See also test/abi/method_wrapper.go for a running example.
+    
+    Code size difference measured with this change (tried for x86_64):
+    etcd binary:
+    .text section size: 21472251 -> 21432350 (0.2%)
+    total binary size:  32226640 -> 32191136 (0.1%)
+    
+    compile binary:
+    .text section size: 17419073 -> 17413929 (0.03%)
+    total binary size:  26744743 -> 26737567 (0.03%)
+    
+    Change-Id: I9bbe730568f6def21a8e61118a6b6f503d98049c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578235
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/base/debug.go             |  1 +
+ .../internal/inline/interleaved/interleaved.go     |  7 +++++-
+ src/cmd/compile/internal/noder/reader.go           | 19 ++++++++++----
+ test/tailcall.go                                   | 29 ++++++++++++++++++++++
+ 4 files changed, 50 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/base/debug.go b/src/cmd/compile/internal/base/debug.go
+index f53a32f8fa..05da3efe48 100644
+--- a/src/cmd/compile/internal/base/debug.go
++++ b/src/cmd/compile/internal/base/debug.go
+@@ -59,6 +59,7 @@ type DebugFlags struct {
+ 	SoftFloat             int    `help:"force compiler to emit soft-float code" concurrent:"ok"`
+ 	StaticCopy            int    `help:"print information about missed static copies" concurrent:"ok"`
+ 	SyncFrames            int    `help:"how many writer stack frames to include at sync points in unified export data"`
++	TailCall              int    `help:"print information about tail calls"`
+ 	TypeAssert            int    `help:"print information about type assertion inlining"`
+ 	WB                    int    `help:"print information about write barriers"`
+ 	ABIWrap               int    `help:"print information about ABI wrapper generation"`
+diff --git a/src/cmd/compile/internal/inline/interleaved/interleaved.go b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+index 5b3fbf6be7..dc5c3b8969 100644
+--- a/src/cmd/compile/internal/inline/interleaved/interleaved.go
++++ b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+@@ -135,7 +135,12 @@ func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node)
+ 
+ 		ok := match(n)
+ 
+-		ir.EditChildren(n, mark)
++		// can't wrap TailCall's child into ParenExpr
++		if t, ok := n.(*ir.TailCallStmt); ok {
++			ir.EditChildren(t.Call, mark)
++		} else {
++			ir.EditChildren(n, mark)
++		}
+ 
+ 		if ok {
+ 			paren := ir.NewParenExpr(n.Pos(), n)
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index 1dae4da167..ce4cc1cc4e 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3971,14 +3971,23 @@ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
+ 		args[i] = param.Nname.(*ir.Name)
+ 	}
+ 
+-	// TODO(mdempsky): Support creating OTAILCALL, when possible. See reflectdata.methodWrapper.
+-	// Not urgent though, because tail calls are currently incompatible with regabi anyway.
+-
+-	fn.SetWrapper(true) // TODO(mdempsky): Leave unset for tail calls?
+-
+ 	dot := typecheck.XDotMethod(pos, recv, method.Sym, true)
+ 	call := typecheck.Call(pos, dot, args, method.Type.IsVariadic()).(*ir.CallExpr)
+ 
++	if recv.Type() != nil && recv.Type().IsPtr() && method.Type.Recv().Type.IsPtr() &&
++		method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) &&
++		!unifiedHaveInlineBody(ir.MethodExprName(dot).Func) &&
++		!(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
++		if base.Debug.TailCall != 0 {
++			base.WarnfAt(fn.Nname.Type().Recv().Type.Elem().Pos(), "tail call emitted for the method %v wrapper", method.Nname)
++		}
++		// Prefer OTAILCALL to reduce code size (except the case when the called method can be inlined).
++		fn.Body.Append(ir.NewTailCallStmt(pos, call))
++		return
++	}
++
++	fn.SetWrapper(true)
++
+ 	if method.Type.NumResults() == 0 {
+ 		fn.Body.Append(call)
+ 		return
+diff --git a/test/tailcall.go b/test/tailcall.go
+new file mode 100644
+index 0000000000..6b14a2f1b7
+--- /dev/null
++++ b/test/tailcall.go
+@@ -0,0 +1,29 @@
++// errorcheck -0 -d=tailcall=1
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++// Test that when generating wrappers for methods, we generate a tail call to the pointer version of
++// the method, if that method is not inlineable. We use go:noinline here to force the non-inlineability
++// condition.
++
++//go:noinline
++func (f *Foo) Get2Vals() [2]int { return [2]int{f.Val, f.Val + 1} }
++func (f *Foo) Get3Vals() [3]int { return [3]int{f.Val, f.Val + 1, f.Val + 2} }
++
++type Foo struct{ Val int }
++
++type Bar struct { // ERROR "tail call emitted for the method \(\*Foo\).Get2Vals wrapper"
++	int64
++	*Foo // needs a method wrapper
++	string
++}
++
++var i any
++
++func init() {
++	i = Bar{1, nil, "first"}
++}

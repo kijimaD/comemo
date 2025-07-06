@@ -1,0 +1,82 @@
+commit b589478af7f4b09cc9c4d5f76fbbf5cad2b2b7bb
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Jun 11 18:39:19 2024 -0400
+
+    cmd/link: put runtime.end in the last section of data segment
+    
+    Currently the runtime.end symbol is put into the noptrbss section,
+    which is usually the last section, except that when fuzzing is
+    enabled, the last section is actually .go.fuzzcntrs. The
+    runtime.end symbol has the value pointing to the end of the data
+    segment, so if it is not in the last section, the value will not
+    actually be in the range of the section. This causes an assertion
+    failure in the new Apple linker. This CL fixes this by putting it
+    in the last section.
+    
+    Fixes #65169.
+    
+    Change-Id: I5c991c46a0483a96e5f6e0255a3b444953676026
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592095
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/testdata/script/test_fuzz_cgo.txt | 28 ++++++++++++++++++++++++++++
+ src/cmd/link/internal/ld/data.go             |  4 +++-
+ 2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_cgo.txt b/src/cmd/go/testdata/script/test_fuzz_cgo.txt
+new file mode 100644
+index 0000000000..1a0487700d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_cgo.txt
+@@ -0,0 +1,28 @@
++[!fuzz] skip
++[!cgo] skip
++[short] skip
++env GOCACHE=$WORK/cache
++
++# Test that fuzzing works with cgo (issue 65169)
++
++go test -fuzz=. -fuzztime=1x
++stdout ok
++! stdout FAIL
++
++-- go.mod --
++module example.com/p
++
++go 1.20
++-- c.go --
++package p
++
++import "C"
++-- c_test.go --
++package p
++
++import "testing"
++
++func Fuzz(f *testing.F) {
++	f.Add(0)
++	f.Fuzz(func(t *testing.T, x int) {})
++}
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 1e221d090a..b18dc6993b 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1918,7 +1918,6 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 	sect = state.allocateNamedSectionAndAssignSyms(&Segdata, ".noptrbss", sym.SNOPTRBSS, sym.Sxxx, 06)
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.noptrbss", 0), sect)
+ 	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.enoptrbss", 0), sect)
+-	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.end", 0), sect)
+ 
+ 	// Code coverage counters are assigned to the .noptrbss section.
+ 	// We assign them in a separate pass so that they stay aggregated
+@@ -1938,6 +1937,9 @@ func (state *dodataState) allocateDataSections(ctxt *Link) {
+ 		ldr.SetSymSect(ldr.LookupOrCreateSym("internal/fuzz._ecounters", 0), sect)
+ 	}
+ 
++	// Assign runtime.end to the last section of data segment.
++	ldr.SetSymSect(ldr.LookupOrCreateSym("runtime.end", 0), Segdata.Sections[len(Segdata.Sections)-1])
++
+ 	if len(state.data[sym.STLSBSS]) > 0 {
+ 		var sect *sym.Section
+ 		// FIXME: not clear why it is sometimes necessary to suppress .tbss section creation.

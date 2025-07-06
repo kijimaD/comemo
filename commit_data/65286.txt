@@ -1,0 +1,59 @@
+commit 1e740c766976afc944776c428837dce3e65e3705
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 30 10:18:00 2024 -0400
+
+    cmd/compile: fix an internal crash in embed
+    
+    Observed in the telemetry data. Was causing truncated error outputs.
+    
+    Change-Id: I9f0a86e1e6caa855f97a3d6e51328c4c9685c937
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623535
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+---
+ src/cmd/compile/internal/staticdata/embed.go |  3 +++
+ src/cmd/compile/testdata/script/embedbad.txt | 19 +++++++++++++++++++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/compile/internal/staticdata/embed.go b/src/cmd/compile/internal/staticdata/embed.go
+index be939db877..28468bda03 100644
+--- a/src/cmd/compile/internal/staticdata/embed.go
++++ b/src/cmd/compile/internal/staticdata/embed.go
+@@ -113,6 +113,9 @@ func WriteEmbed(v *ir.Name) {
+ 	}
+ 
+ 	files := embedFileList(v, kind)
++	if base.Errors() > 0 {
++		return
++	}
+ 	switch kind {
+ 	case embedString, embedBytes:
+ 		file := files[0]
+diff --git a/src/cmd/compile/testdata/script/embedbad.txt b/src/cmd/compile/testdata/script/embedbad.txt
+new file mode 100644
+index 0000000000..09e4254561
+--- /dev/null
++++ b/src/cmd/compile/testdata/script/embedbad.txt
+@@ -0,0 +1,19 @@
++# Check that compiler does not silently crash at bad embed error.
++
++! go build
++stderr 'multiple files for type string'
++stderr 'multiple files for type \[\]byte'
++
++-- go.mod --
++module m
++
++-- x.go --
++package p
++
++import _ "embed"
++
++//go:embed x.go go.mod
++var s string
++
++//go:embed x.go go.mod
++var b []byte

@@ -1,0 +1,88 @@
+commit 2927aa10ab1a184f02f7b7eb3c4a490906238e7a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Sep 16 23:58:40 2024 +0700
+
+    unique: handle zero-size types
+    
+    Fixes #69458
+    
+    Change-Id: Ic7fda7f556522780b2819138dfc1277137398692
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613397
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/unique/handle.go      |  7 ++++++-
+ src/unique/handle_test.go | 10 ++++++++--
+ 2 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/unique/handle.go b/src/unique/handle.go
+index abc620f60f..6912e2a2da 100644
+--- a/src/unique/handle.go
++++ b/src/unique/handle.go
+@@ -10,9 +10,11 @@ import (
+ 	"internal/weak"
+ 	"runtime"
+ 	"sync"
+-	_ "unsafe"
++	"unsafe"
+ )
+ 
++var zero uintptr
++
+ // Handle is a globally unique identity for some value of type T.
+ //
+ // Two handles compare equal exactly if the two values used to create the handles
+@@ -32,6 +34,9 @@ func (h Handle[T]) Value() T {
+ func Make[T comparable](value T) Handle[T] {
+ 	// Find the map for type T.
+ 	typ := abi.TypeFor[T]()
++	if typ.Size() == 0 {
++		return Handle[T]{(*T)(unsafe.Pointer(&zero))}
++	}
+ 	ma, ok := uniqueMaps.Load(typ)
+ 	if !ok {
+ 		// This is a good time to initialize cleanup, since we must go through
+diff --git a/src/unique/handle_test.go b/src/unique/handle_test.go
+index 7d12edd467..98a1b731cf 100644
+--- a/src/unique/handle_test.go
++++ b/src/unique/handle_test.go
+@@ -31,6 +31,7 @@ type testStruct struct {
+ 	z float64
+ 	b string
+ }
++type testZeroSize struct{}
+ 
+ func TestHandle(t *testing.T) {
+ 	testHandle(t, testString("foo"))
+@@ -45,6 +46,7 @@ func TestHandle(t *testing.T) {
+ 	})
+ 	testHandle(t, testStruct{0.5, "184"})
+ 	testHandle(t, testEface("hello"))
++	testHandle(t, testZeroSize(struct{}{}))
+ }
+ 
+ func testHandle[T comparable](t *testing.T, value T) {
+@@ -65,15 +67,19 @@ func testHandle[T comparable](t *testing.T, value T) {
+ 			t.Error("v0 != v1")
+ 		}
+ 
+-		drainMaps(t)
++		drainMaps[T](t)
+ 		checkMapsFor(t, value)
+ 	})
+ }
+ 
+ // drainMaps ensures that the internal maps are drained.
+-func drainMaps(t *testing.T) {
++func drainMaps[T comparable](t *testing.T) {
+ 	t.Helper()
+ 
++	if unsafe.Sizeof(*(new(T))) == 0 {
++		return // zero-size types are not inserted.
++	}
++
+ 	wait := make(chan struct{}, 1)
+ 
+ 	// Set up a one-time notification for the next time the cleanup runs.

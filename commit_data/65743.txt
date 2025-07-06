@@ -1,0 +1,60 @@
+commit ccf4ebbb6176d7c35edc1b03d274a8d6fb1630bc
+Author: Alexey Palazhchenko <alexey.palazhchenko@gmail.com>
+Date:   Wed Dec 4 03:19:08 2024 +0000
+
+    runtime: remove "hall of shame" comment from public documentation
+    
+    See https://pkg.go.dev/runtime@go1.23.4#FuncForPC
+    
+    The updated comment uses the same format as bytes.Repeat and math.Float32bits.
+    
+    Change-Id: Idfbc38645e6b0f03fb07f294c4c79b997d9a01a1
+    GitHub-Last-Rev: 00fa155c75fb625be84edeadff49276e6cddc42c
+    GitHub-Pull-Request: golang/go#70671
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633475
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/symtab.go | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/symtab.go b/src/runtime/symtab.go
+index 73e0c70065..ea048832c7 100644
+--- a/src/runtime/symtab.go
++++ b/src/runtime/symtab.go
+@@ -695,22 +695,24 @@ func (md *moduledata) funcName(nameOff int32) string {
+ 	return gostringnocopy(&md.funcnametab[nameOff])
+ }
+ 
+-// FuncForPC returns a *[Func] describing the function that contains the
+-// given program counter address, or else nil.
+-//
+-// If pc represents multiple functions because of inlining, it returns
+-// the *Func describing the innermost function, but with an entry of
+-// the outermost function.
+-//
+-// For completely unclear reasons, even though they can import runtime,
+-// some widely used packages access this using linkname.
++// Despite being an exported symbol,
++// FuncForPC is linknamed by widely used packages.
+ // Notable members of the hall of shame include:
+ //   - gitee.com/quant1x/gox
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.
+ //
++// Note that this comment is not part of the doc comment.
++//
+ //go:linkname FuncForPC
++
++// FuncForPC returns a *[Func] describing the function that contains the
++// given program counter address, or else nil.
++//
++// If pc represents multiple functions because of inlining, it returns
++// the *Func describing the innermost function, but with an entry of
++// the outermost function.
+ func FuncForPC(pc uintptr) *Func {
+ 	f := findfunc(pc)
+ 	if !f.valid() {

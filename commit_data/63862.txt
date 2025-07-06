@@ -1,0 +1,723 @@
+commit 180ea45566d19e60aa2d660f6139b7f6e18ff56b
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed May 15 16:06:23 2024 -0400
+
+    runtime/coverage: remove uses of //go:linkname
+    
+    Move code to internal/coverage/cfile, making it possible to
+    access directly from testing/internal/testdeps, so that we can
+    avoid needing //go:linkname hacks.
+    
+    For #67401.
+    
+    Change-Id: I10b23a9970164afd2165e718ef3b2d9e86783883
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585820
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/go/internal/load/test.go                   | 42 ++------------
+ src/go/build/deps_test.go                          |  7 ++-
+ .../coverage => internal/coverage/cfile}/apis.go   | 37 ++----------
+ .../coverage => internal/coverage/cfile}/emit.go   | 21 ++++---
+ .../coverage/cfile}/emitdata_test.go               |  8 +--
+ .../coverage => internal/coverage/cfile}/hooks.go  | 10 ++--
+ .../coverage/cfile}/testdata/harness.go            |  0
+ .../coverage/cfile}/testdata/issue56006/repro.go   |  0
+ .../cfile}/testdata/issue56006/repro_test.go       |  0
+ .../coverage/cfile}/testdata/issue59563/repro.go   |  0
+ .../cfile}/testdata/issue59563/repro_test.go       |  0
+ .../coverage/cfile}/testsupport.go                 | 22 ++------
+ .../coverage/cfile}/ts_test.go                     | 12 ++--
+ src/runtime/coverage/coverage.go                   | 66 ++++++++++++++++++++++
+ src/runtime/coverage/dummy.s                       |  8 ---
+ src/runtime/covercounter.go                        |  4 +-
+ src/runtime/covermeta.go                           |  8 +--
+ src/testing/internal/testdeps/deps.go              | 31 ++++++++++
+ src/testing/newcover.go                            | 10 ++--
+ src/testing/testing.go                             |  6 ++
+ 20 files changed, 160 insertions(+), 132 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/test.go b/src/cmd/go/internal/load/test.go
+index 3135805905..a9f0d452fc 100644
+--- a/src/cmd/go/internal/load/test.go
++++ b/src/cmd/go/internal/load/test.go
+@@ -902,9 +902,6 @@ package main
+ 
+ import (
+ 	"os"
+-{{if .Cover}}
+-	_ "unsafe"
+-{{end}}
+ {{if .TestMain}}
+ 	"reflect"
+ {{end}}
+@@ -944,45 +941,14 @@ var examples = []testing.InternalExample{
+ }
+ 
+ func init() {
+-	testdeps.ImportPath = {{.ImportPath | printf "%q"}}
+-}
+-
+ {{if .Cover}}
+-
+-//go:linkname runtime_coverage_processCoverTestDir runtime/coverage.processCoverTestDir
+-func runtime_coverage_processCoverTestDir(dir string, cfile string, cmode string, cpkgs string) error
+-
+-//go:linkname testing_registerCover2 testing.registerCover2
+-func testing_registerCover2(mode string, tearDown func(coverprofile string, gocoverdir string) (string, error), snapcov func() float64)
+-
+-//go:linkname runtime_coverage_markProfileEmitted runtime/coverage.markProfileEmitted
+-func runtime_coverage_markProfileEmitted(val bool)
+-
+-//go:linkname runtime_coverage_snapshot runtime/coverage.snapshot
+-func runtime_coverage_snapshot() float64
+-
+-func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
+-	var err error
+-	if gocoverdir == "" {
+-		gocoverdir, err = os.MkdirTemp("", "gocoverdir")
+-		if err != nil {
+-			return "error setting GOCOVERDIR: bad os.MkdirTemp return", err
+-		}
+-		defer os.RemoveAll(gocoverdir)
+-	}
+-	runtime_coverage_markProfileEmitted(true)
+-	cmode := {{printf "%q" .Cover.Mode}}
+-	if err := runtime_coverage_processCoverTestDir(gocoverdir, coverprofile, cmode, {{printf "%q" .Covered}}); err != nil {
+-		return "error generating coverage report", err
+-	}
+-	return "", nil
+-}
++	testdeps.CoverMode = {{printf "%q" .Cover.Mode}}
++	testdeps.Covered = {{printf "%q" .Covered}}
+ {{end}}
++	testdeps.ImportPath = {{.ImportPath | printf "%q"}}
++}
+ 
+ func main() {
+-{{if .Cover}}
+-	testing_registerCover2({{printf "%q" .Cover.Mode}}, coverTearDown, runtime_coverage_snapshot)
+-{{end}}
+ 	m := testing.MainStart(testdeps.TestDeps{}, tests, benchmarks, fuzzTargets, examples)
+ {{with .TestMain}}
+ 	{{.Package}}.{{.Name}}(m)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 067298cf42..4df56ab78a 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -608,9 +608,6 @@ var depsRules = `
+ 	internal/godebug, math/rand, encoding/hex, crypto/sha256
+ 	< internal/fuzz;
+ 
+-	internal/fuzz, internal/testlog, runtime/pprof, regexp
+-	< testing/internal/testdeps;
+-
+ 	OS, flag, testing, internal/cfg, internal/platform, internal/goroot
+ 	< internal/testenv;
+ 
+@@ -691,8 +688,12 @@ var depsRules = `
+ 	internal/coverage/decodecounter, internal/coverage/decodemeta,
+ 	internal/coverage/encodecounter, internal/coverage/encodemeta,
+ 	internal/coverage/pods
++	< internal/coverage/cfile
+ 	< runtime/coverage;
+ 
++	internal/coverage/cfile, internal/fuzz, internal/testlog, runtime/pprof, regexp
++	< testing/internal/testdeps;
++
+ 	# Test-only packages can have anything they want
+ 	CGO, internal/syscall/unix < net/internal/cgotest;
+ 
+diff --git a/src/runtime/coverage/apis.go b/src/internal/coverage/cfile/apis.go
+similarity index 74%
+rename from src/runtime/coverage/apis.go
+rename to src/internal/coverage/cfile/apis.go
+index 15ba04a86f..efae20495b 100644
+--- a/src/runtime/coverage/apis.go
++++ b/src/internal/coverage/cfile/apis.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package coverage
++package cfile
+ 
+ import (
+ 	"fmt"
+@@ -12,11 +12,7 @@ import (
+ 	"unsafe"
+ )
+ 
+-// WriteMetaDir writes a coverage meta-data file for the currently
+-// running program to the directory specified in 'dir'. An error will
+-// be returned if the operation can't be completed successfully (for
+-// example, if the currently running program was not built with
+-// "-cover", or if the directory does not exist).
++// WriteMetaDir implements [runtime/coverage.WriteMetaDir].
+ func WriteMetaDir(dir string) error {
+ 	if !finalHashComputed {
+ 		return fmt.Errorf("error: no meta-data available (binary not built with -cover?)")
+@@ -24,12 +20,7 @@ func WriteMetaDir(dir string) error {
+ 	return emitMetaDataToDirectory(dir, getCovMetaList())
+ }
+ 
+-// WriteMeta writes the meta-data content (the payload that would
+-// normally be emitted to a meta-data file) for the currently running
+-// program to the writer 'w'. An error will be returned if the
+-// operation can't be completed successfully (for example, if the
+-// currently running program was not built with "-cover", or if a
+-// write fails).
++// WriteMeta implements [runtime/coverage.WriteMeta].
+ func WriteMeta(w io.Writer) error {
+ 	if w == nil {
+ 		return fmt.Errorf("error: nil writer in WriteMeta")
+@@ -41,13 +32,7 @@ func WriteMeta(w io.Writer) error {
+ 	return writeMetaData(w, ml, cmode, cgran, finalHash)
+ }
+ 
+-// WriteCountersDir writes a coverage counter-data file for the
+-// currently running program to the directory specified in 'dir'. An
+-// error will be returned if the operation can't be completed
+-// successfully (for example, if the currently running program was not
+-// built with "-cover", or if the directory does not exist). The
+-// counter data written will be a snapshot taken at the point of the
+-// call.
++// WriteCountersDir implements [runtime/coverage.WriteCountersDir].
+ func WriteCountersDir(dir string) error {
+ 	if cmode != coverage.CtrModeAtomic {
+ 		return fmt.Errorf("WriteCountersDir invoked for program built with -covermode=%s (please use -covermode=atomic)", cmode.String())
+@@ -55,12 +40,7 @@ func WriteCountersDir(dir string) error {
+ 	return emitCounterDataToDirectory(dir)
+ }
+ 
+-// WriteCounters writes coverage counter-data content for the
+-// currently running program to the writer 'w'. An error will be
+-// returned if the operation can't be completed successfully (for
+-// example, if the currently running program was not built with
+-// "-cover", or if a write fails). The counter data written will be a
+-// snapshot taken at the point of the invocation.
++// WriteCounters implements [runtime/coverage.WriteCounters].
+ func WriteCounters(w io.Writer) error {
+ 	if w == nil {
+ 		return fmt.Errorf("error: nil writer in WriteCounters")
+@@ -85,12 +65,7 @@ func WriteCounters(w io.Writer) error {
+ 	return s.emitCounterDataToWriter(w)
+ }
+ 
+-// ClearCounters clears/resets all coverage counter variables in the
+-// currently running program. It returns an error if the program in
+-// question was not built with the "-cover" flag. Clearing of coverage
+-// counters is also not supported for programs not using atomic
+-// counter mode (see more detailed comments below for the rationale
+-// here).
++// ClearCounters implements [runtime/coverage.ClearCounters].
+ func ClearCounters() error {
+ 	cl := getCovCounterList()
+ 	if len(cl) == 0 {
+diff --git a/src/runtime/coverage/emit.go b/src/internal/coverage/cfile/emit.go
+similarity index 97%
+rename from src/runtime/coverage/emit.go
+rename to src/internal/coverage/cfile/emit.go
+index 6510c889ea..68d77c5ae8 100644
+--- a/src/runtime/coverage/emit.go
++++ b/src/internal/coverage/cfile/emit.go
+@@ -2,7 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package coverage
++// Package cfile implements management of coverage files.
++// It provides functionality exported in runtime/coverage as well as
++// additional functionality used directly by package testing
++// through testing/internal/testdeps.
++package cfile
+ 
+ import (
+ 	"crypto/md5"
+@@ -28,17 +32,20 @@ import (
+ // getCovMetaList returns a list of meta-data blobs registered
+ // for the currently executing instrumented program. It is defined in the
+ // runtime.
++//go:linkname getCovMetaList
+ func getCovMetaList() []rtcov.CovMetaBlob
+ 
+ // getCovCounterList returns a list of counter-data blobs registered
+ // for the currently executing instrumented program. It is defined in the
+ // runtime.
++//go:linkname getCovCounterList
+ func getCovCounterList() []rtcov.CovCounterBlob
+ 
+ // getCovPkgMap returns a map storing the remapped package IDs for
+ // hard-coded runtime packages (see internal/coverage/pkgid.go for
+ // more on why hard-coded package IDs are needed). This function
+ // is defined in the runtime.
++//go:linkname getCovPkgMap
+ func getCovPkgMap() map[int]int
+ 
+ // emitState holds useful state information during the emit process.
+@@ -574,16 +581,12 @@ func (s *emitState) emitCounterDataFile(finalHash [16]byte, w io.Writer) error {
+ 	return nil
+ }
+ 
+-// markProfileEmitted is injected to testmain via linkname.
+-//go:linkname markProfileEmitted
+-
+-// markProfileEmitted signals the runtime/coverage machinery that
++// MarkProfileEmitted signals the coverage machinery that
+ // coverage data output files have already been written out, and there
+ // is no need to take any additional action at exit time. This
+-// function is called (via linknamed reference) from the
+-// coverage-related boilerplate code in _testmain.go emitted for go
+-// unit tests.
+-func markProfileEmitted(val bool) {
++// function is called from the coverage-related boilerplate code in _testmain.go
++// emitted for go unit tests.
++func MarkProfileEmitted(val bool) {
+ 	covProfileAlreadyEmitted = val
+ }
+ 
+diff --git a/src/runtime/coverage/emitdata_test.go b/src/internal/coverage/cfile/emitdata_test.go
+similarity index 98%
+rename from src/runtime/coverage/emitdata_test.go
+rename to src/internal/coverage/cfile/emitdata_test.go
+index 3558dd2d88..a6f2d99a17 100644
+--- a/src/runtime/coverage/emitdata_test.go
++++ b/src/internal/coverage/cfile/emitdata_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package coverage
++package cfile
+ 
+ import (
+ 	"fmt"
+@@ -484,7 +484,7 @@ func TestIssue56006EmitDataRaceCoverRunningGoroutine(t *testing.T) {
+ 	cmd.Dir = filepath.Join("testdata", "issue56006")
+ 	b, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("go test -cover -race failed: %v", err)
++		t.Fatalf("go test -cover -race failed: %v\n%s", err, b)
+ 	}
+ 
+ 	// Don't want to see any data races in output.
+@@ -510,7 +510,7 @@ func TestIssue59563TruncatedCoverPkgAll(t *testing.T) {
+ 	cmd.Dir = filepath.Join("testdata", "issue59563")
+ 	b, err := cmd.CombinedOutput()
+ 	if err != nil {
+-		t.Fatalf("go test -cover failed: %v", err)
++		t.Fatalf("go test -cover failed: %v\n%s", err, b)
+ 	}
+ 
+ 	cmd = exec.Command(testenv.GoToolPath(t), "tool", "cover", "-func="+ppath)
+@@ -530,7 +530,7 @@ func TestIssue59563TruncatedCoverPkgAll(t *testing.T) {
+ 		// We're only interested in the specific function "large" for
+ 		// the testcase being built. See the #59563 for details on why
+ 		// size matters.
+-		if !(strings.HasPrefix(f[0], "runtime/coverage/testdata/issue59563/repro.go") && strings.Contains(line, "large")) {
++		if !(strings.HasPrefix(f[0], "internal/coverage/cfile/testdata/issue59563/repro.go") && strings.Contains(line, "large")) {
+ 			continue
+ 		}
+ 		nfound++
+diff --git a/src/runtime/coverage/hooks.go b/src/internal/coverage/cfile/hooks.go
+similarity index 86%
+rename from src/runtime/coverage/hooks.go
+rename to src/internal/coverage/cfile/hooks.go
+index a9fbf9d7dd..003d6ca1e5 100644
+--- a/src/runtime/coverage/hooks.go
++++ b/src/internal/coverage/cfile/hooks.go
+@@ -2,13 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package coverage
++package cfile
+ 
+ import _ "unsafe"
+ 
+-// initHook is invoked from the main package "init" routine in
++// InitHook is invoked from the main package "init" routine in
+ // programs built with "-cover". This function is intended to be
+-// called only by the compiler.
++// called only by the compiler (via runtime/coverage.initHook).
+ //
+ // If 'istest' is false, it indicates we're building a regular program
+ // ("go build -cover ..."), in which case we immediately try to write
+@@ -20,12 +20,12 @@ import _ "unsafe"
+ // emitCounterData as exit hooks. In the normal case (e.g. regular "go
+ // test -cover" run) the testmain.go boilerplate will run at the end
+ // of the test, write out the coverage percentage, and then invoke
+-// markProfileEmitted() to indicate that no more work needs to be
++// MarkProfileEmitted to indicate that no more work needs to be
+ // done. If however that call is never made, this is a sign that the
+ // test binary is being used as a replacement binary for the tool
+ // being tested, hence we do want to run exit hooks when the program
+ // terminates.
+-func initHook(istest bool) {
++func InitHook(istest bool) {
+ 	// Note: hooks are run in reverse registration order, so
+ 	// register the counter data hook before the meta-data hook
+ 	// (in the case where two hooks are needed).
+diff --git a/src/runtime/coverage/testdata/harness.go b/src/internal/coverage/cfile/testdata/harness.go
+similarity index 100%
+rename from src/runtime/coverage/testdata/harness.go
+rename to src/internal/coverage/cfile/testdata/harness.go
+diff --git a/src/runtime/coverage/testdata/issue56006/repro.go b/src/internal/coverage/cfile/testdata/issue56006/repro.go
+similarity index 100%
+rename from src/runtime/coverage/testdata/issue56006/repro.go
+rename to src/internal/coverage/cfile/testdata/issue56006/repro.go
+diff --git a/src/runtime/coverage/testdata/issue56006/repro_test.go b/src/internal/coverage/cfile/testdata/issue56006/repro_test.go
+similarity index 100%
+rename from src/runtime/coverage/testdata/issue56006/repro_test.go
+rename to src/internal/coverage/cfile/testdata/issue56006/repro_test.go
+diff --git a/src/runtime/coverage/testdata/issue59563/repro.go b/src/internal/coverage/cfile/testdata/issue59563/repro.go
+similarity index 100%
+rename from src/runtime/coverage/testdata/issue59563/repro.go
+rename to src/internal/coverage/cfile/testdata/issue59563/repro.go
+diff --git a/src/runtime/coverage/testdata/issue59563/repro_test.go b/src/internal/coverage/cfile/testdata/issue59563/repro_test.go
+similarity index 100%
+rename from src/runtime/coverage/testdata/issue59563/repro_test.go
+rename to src/internal/coverage/cfile/testdata/issue59563/repro_test.go
+diff --git a/src/runtime/coverage/testsupport.go b/src/internal/coverage/cfile/testsupport.go
+similarity index 92%
+rename from src/runtime/coverage/testsupport.go
+rename to src/internal/coverage/cfile/testsupport.go
+index b673d3cd2c..2a64899e28 100644
+--- a/src/runtime/coverage/testsupport.go
++++ b/src/internal/coverage/cfile/testsupport.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package coverage
++package cfile
+ 
+ import (
+ 	"encoding/json"
+@@ -22,20 +22,11 @@ import (
+ 	"unsafe"
+ )
+ 
+-// processCoverTestDir is injected in testmain.
+-//go:linkname processCoverTestDir
+-
+-// processCoverTestDir is called (via a linknamed reference) from
++// ProcessCoverTestDir is called from
+ // testmain code when "go test -cover" is in effect. It is not
+ // intended to be used other than internally by the Go command's
+ // generated code.
+-func processCoverTestDir(dir string, cfile string, cm string, cpkg string) error {
+-	return processCoverTestDirInternal(dir, cfile, cm, cpkg, os.Stdout)
+-}
+-
+-// processCoverTestDirInternal is an io.Writer version of processCoverTestDir,
+-// exposed for unit testing.
+-func processCoverTestDirInternal(dir string, cfile string, cm string, cpkg string, w io.Writer) error {
++func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.Writer) error {
+ 	cmode := coverage.ParseCounterMode(cm)
+ 	if cmode == coverage.CtrModeInvalid {
+ 		return fmt.Errorf("invalid counter mode %q", cm)
+@@ -280,16 +271,13 @@ func (ts *tstate) readAuxMetaFiles(metafiles string, importpaths map[string]stru
+ 	return nil
+ }
+ 
+-// snapshot is injected in testmain.
+-//go:linkname snapshot
+-
+-// snapshot returns a snapshot of coverage percentage at a moment of
++// Snapshot returns a snapshot of coverage percentage at a moment of
+ // time within a running test, so as to support the testing.Coverage()
+ // function. This version doesn't examine coverage meta-data, so the
+ // result it returns will be less accurate (more "slop") due to the
+ // fact that we don't look at the meta data to see how many statements
+ // are associated with each counter.
+-func snapshot() float64 {
++func Snapshot() float64 {
+ 	cl := getCovCounterList()
+ 	if len(cl) == 0 {
+ 		// no work to do here.
+diff --git a/src/runtime/coverage/ts_test.go b/src/internal/coverage/cfile/ts_test.go
+similarity index 95%
+rename from src/runtime/coverage/ts_test.go
+rename to src/internal/coverage/cfile/ts_test.go
+index b4c6e9716c..edbc603a1b 100644
+--- a/src/runtime/coverage/ts_test.go
++++ b/src/internal/coverage/cfile/ts_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package coverage
++package cfile
+ 
+ import (
+ 	"encoding/json"
+@@ -29,7 +29,7 @@ func testGoCoverDir(t *testing.T) string {
+ }
+ 
+ // TestTestSupport does a basic verification of the functionality in
+-// runtime/coverage.processCoverTestDir (doing this here as opposed to
++// ProcessCoverTestDir (doing this here as opposed to
+ // relying on other test paths will provide a better signal when
+ // running "go test -cover" for this package).
+ func TestTestSupport(t *testing.T) {
+@@ -45,7 +45,7 @@ func TestTestSupport(t *testing.T) {
+ 
+ 	textfile := filepath.Join(t.TempDir(), "file.txt")
+ 	var sb strings.Builder
+-	err := processCoverTestDirInternal(tgcd, textfile,
++	err := ProcessCoverTestDir(tgcd, textfile,
+ 		testing.CoverMode(), "", &sb)
+ 	if err != nil {
+ 		t.Fatalf("bad: %v", err)
+@@ -91,9 +91,9 @@ func thisFunctionOnlyCalledFromSnapshotTest(n int) int {
+ // coverage is not enabled, the hook is designed to just return
+ // zero.
+ func TestCoverageSnapshot(t *testing.T) {
+-	C1 := snapshot()
++	C1 := Snapshot()
+ 	thisFunctionOnlyCalledFromSnapshotTest(15)
+-	C2 := snapshot()
++	C2 := Snapshot()
+ 	cond := "C1 > C2"
+ 	val := C1 > C2
+ 	if testing.CoverMode() != "" {
+@@ -185,7 +185,7 @@ func TestAuxMetaDataFiles(t *testing.T) {
+ 	// Kick off guts of test.
+ 	var sb strings.Builder
+ 	textfile := filepath.Join(td, "file2.txt")
+-	err = processCoverTestDirInternal(tgcd, textfile,
++	err = ProcessCoverTestDir(tgcd, textfile,
+ 		testing.CoverMode(), "", &sb)
+ 	if err != nil {
+ 		t.Fatalf("bad: %v", err)
+diff --git a/src/runtime/coverage/coverage.go b/src/runtime/coverage/coverage.go
+new file mode 100644
+index 0000000000..6b99a0bce6
+--- /dev/null
++++ b/src/runtime/coverage/coverage.go
+@@ -0,0 +1,66 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package coverage
++
++import (
++	"internal/coverage/cfile"
++	"io"
++)
++
++// initHook is invoked from main.init in programs built with -cover.
++// The call is emitted by the compiler.
++func initHook(istest bool) {
++	cfile.InitHook(istest)
++}
++
++// WriteMetaDir writes a coverage meta-data file for the currently
++// running program to the directory specified in 'dir'. An error will
++// be returned if the operation can't be completed successfully (for
++// example, if the currently running program was not built with
++// "-cover", or if the directory does not exist).
++func WriteMetaDir(dir string) error {
++	return cfile.WriteMetaDir(dir)
++}
++
++// WriteMeta writes the meta-data content (the payload that would
++// normally be emitted to a meta-data file) for the currently running
++// program to the writer 'w'. An error will be returned if the
++// operation can't be completed successfully (for example, if the
++// currently running program was not built with "-cover", or if a
++// write fails).
++func WriteMeta(w io.Writer) error {
++	return cfile.WriteMeta(w)
++}
++
++// WriteCountersDir writes a coverage counter-data file for the
++// currently running program to the directory specified in 'dir'. An
++// error will be returned if the operation can't be completed
++// successfully (for example, if the currently running program was not
++// built with "-cover", or if the directory does not exist). The
++// counter data written will be a snapshot taken at the point of the
++// call.
++func WriteCountersDir(dir string) error {
++	return cfile.WriteCountersDir(dir)
++}
++
++// WriteCounters writes coverage counter-data content for the
++// currently running program to the writer 'w'. An error will be
++// returned if the operation can't be completed successfully (for
++// example, if the currently running program was not built with
++// "-cover", or if a write fails). The counter data written will be a
++// snapshot taken at the point of the invocation.
++func WriteCounters(w io.Writer) error {
++	return cfile.WriteCounters(w)
++}
++
++// ClearCounters clears/resets all coverage counter variables in the
++// currently running program. It returns an error if the program in
++// question was not built with the "-cover" flag. Clearing of coverage
++// counters is also not supported for programs not using atomic
++// counter mode (see more detailed comments below for the rationale
++// here).
++func ClearCounters() error {
++	return cfile.ClearCounters()
++}
+diff --git a/src/runtime/coverage/dummy.s b/src/runtime/coverage/dummy.s
+deleted file mode 100644
+index 75928593a0..0000000000
+--- a/src/runtime/coverage/dummy.s
++++ /dev/null
+@@ -1,8 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// The runtime package uses //go:linkname to push a few functions into this
+-// package but we still need a .s file so the Go tool does not pass -complete
+-// to 'go tool compile' so the latter does not complain about Go functions
+-// with no bodies.
+diff --git a/src/runtime/covercounter.go b/src/runtime/covercounter.go
+index 72842bdd94..6dbc882d16 100644
+--- a/src/runtime/covercounter.go
++++ b/src/runtime/covercounter.go
+@@ -9,8 +9,8 @@ import (
+ 	"unsafe"
+ )
+ 
+-//go:linkname runtime_coverage_getCovCounterList runtime/coverage.getCovCounterList
+-func runtime_coverage_getCovCounterList() []rtcov.CovCounterBlob {
++//go:linkname coverage_getCovCounterList internal/coverage/cfile.getCovCounterList
++func coverage_getCovCounterList() []rtcov.CovCounterBlob {
+ 	res := []rtcov.CovCounterBlob{}
+ 	u32sz := unsafe.Sizeof(uint32(0))
+ 	for datap := &firstmoduledata; datap != nil; datap = datap.next {
+diff --git a/src/runtime/covermeta.go b/src/runtime/covermeta.go
+index 54ef42ae1f..bfe43b84ab 100644
+--- a/src/runtime/covermeta.go
++++ b/src/runtime/covermeta.go
+@@ -61,12 +61,12 @@ func addCovMeta(p unsafe.Pointer, dlen uint32, hash [16]byte, pkpath string, pki
+ 	return uint32(slot + 1)
+ }
+ 
+-//go:linkname runtime_coverage_getCovMetaList runtime/coverage.getCovMetaList
+-func runtime_coverage_getCovMetaList() []rtcov.CovMetaBlob {
++//go:linkname coverage_getCovMetaList internal/coverage/cfile.getCovMetaList
++func coverage_getCovMetaList() []rtcov.CovMetaBlob {
+ 	return covMeta.metaList
+ }
+ 
+-//go:linkname runtime_coverage_getCovPkgMap runtime/coverage.getCovPkgMap
+-func runtime_coverage_getCovPkgMap() map[int]int {
++//go:linkname coverage_getCovPkgMap internal/coverage/cfile.getCovPkgMap
++func coverage_getCovPkgMap() map[int]int {
+ 	return covMeta.pkgMap
+ }
+diff --git a/src/testing/internal/testdeps/deps.go b/src/testing/internal/testdeps/deps.go
+index 868307550e..88c1b253ee 100644
+--- a/src/testing/internal/testdeps/deps.go
++++ b/src/testing/internal/testdeps/deps.go
+@@ -13,6 +13,7 @@ package testdeps
+ import (
+ 	"bufio"
+ 	"context"
++	"internal/coverage/cfile"
+ 	"internal/fuzz"
+ 	"internal/testlog"
+ 	"io"
+@@ -26,6 +27,9 @@ import (
+ 	"time"
+ )
+ 
++// Cover indicates whether coverage is enabled.
++var Cover bool
++
+ // TestDeps is an implementation of the testing.testDeps interface,
+ // suitable for passing to [testing.MainStart].
+ type TestDeps struct{}
+@@ -197,3 +201,30 @@ func (TestDeps) ResetCoverage() {
+ func (TestDeps) SnapshotCoverage() {
+ 	fuzz.SnapshotCoverage()
+ }
++
++var CoverMode string
++var Covered string
++
++func (TestDeps) InitRuntimeCoverage() (mode string, tearDown func(string, string) (string, error), snapcov func() float64) {
++	if CoverMode == "" {
++		return
++	}
++	return CoverMode, coverTearDown, cfile.Snapshot
++}
++
++func coverTearDown(coverprofile string, gocoverdir string) (string, error) {
++	var err error
++	if gocoverdir == "" {
++		gocoverdir, err = os.MkdirTemp("", "gocoverdir")
++		if err != nil {
++			return "error setting GOCOVERDIR: bad os.MkdirTemp return", err
++		}
++		defer os.RemoveAll(gocoverdir)
++	}
++	cfile.MarkProfileEmitted(true)
++	cmode := CoverMode
++	if err := cfile.ProcessCoverTestDir(gocoverdir, coverprofile, cmode, Covered, os.Stdout); err != nil {
++		return "error generating coverage report", err
++	}
++	return "", nil
++}
+diff --git a/src/testing/newcover.go b/src/testing/newcover.go
+index 7a70dcfffa..a7dbcfc65a 100644
+--- a/src/testing/newcover.go
++++ b/src/testing/newcover.go
+@@ -21,13 +21,13 @@ var cover2 struct {
+ 	snapshotcov func() float64
+ }
+ 
+-// registerCover2 is injected in testmain.
+-//go:linkname registerCover2
+-
+-// registerCover2 is invoked during "go test -cover" runs by the test harness
+-// code in _testmain.go; it is used to record a 'tear down' function
++// registerCover2 is invoked during "go test -cover" runs.
++// It is used to record a 'tear down' function
+ // (to be called when the test is complete) and the coverage mode.
+ func registerCover2(mode string, tearDown func(coverprofile string, gocoverdir string) (string, error), snapcov func() float64) {
++	if mode == "" {
++		return
++	}
+ 	cover2.mode = mode
+ 	cover2.tearDown = tearDown
+ 	cover2.snapshotcov = snapcov
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 60f0c23137..78ad8dbaac 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1855,6 +1855,10 @@ func (f matchStringOnly) CheckCorpus([]any, []reflect.Type) error { return nil }
+ func (f matchStringOnly) ResetCoverage()                          {}
+ func (f matchStringOnly) SnapshotCoverage()                       {}
+ 
++func (f matchStringOnly) InitRuntimeCoverage() (mode string, tearDown func(string, string) (string, error), snapcov func() float64) {
++	return
++}
++
+ // Main is an internal function, part of the implementation of the "go test" command.
+ // It was exported because it is cross-package and predates "internal" packages.
+ // It is no longer used by "go test" but preserved, as much as possible, for other
+@@ -1902,12 +1906,14 @@ type testDeps interface {
+ 	CheckCorpus([]any, []reflect.Type) error
+ 	ResetCoverage()
+ 	SnapshotCoverage()
++	InitRuntimeCoverage() (mode string, tearDown func(coverprofile string, gocoverdir string) (string, error), snapcov func() float64)
+ }
+ 
+ // MainStart is meant for use by tests generated by 'go test'.
+ // It is not meant to be called directly and is not subject to the Go 1 compatibility document.
+ // It may change signature from release to release.
+ func MainStart(deps testDeps, tests []InternalTest, benchmarks []InternalBenchmark, fuzzTargets []InternalFuzzTarget, examples []InternalExample) *M {
++	registerCover2(deps.InitRuntimeCoverage())
+ 	Init()
+ 	return &M{
+ 		deps:        deps,

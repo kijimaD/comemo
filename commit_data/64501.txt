@@ -1,0 +1,81 @@
+commit 85d2eadcf2715a1230e393ca4cd65ad328f76966
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Mon Aug 12 16:01:55 2024 -0400
+
+    test: add test case for wasmexport parameter types
+    
+    For #65199.
+    
+    Change-Id: Iecd11281706201a655b51583a08318b5ffd8ab04
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604975
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ test/wasmexport2.go | 58 +++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 58 insertions(+)
+
+diff --git a/test/wasmexport2.go b/test/wasmexport2.go
+new file mode 100644
+index 0000000000..c7c0fa2ec8
+--- /dev/null
++++ b/test/wasmexport2.go
+@@ -0,0 +1,58 @@
++// errorcheck
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Verify that wasmexport supports allowed types and rejects
++// unallowed types.
++
++//go:build wasm
++
++package p
++
++import "unsafe"
++
++//go:wasmexport good1
++func good1(int32, uint32, int64, uint64, float32, float64, unsafe.Pointer) {} // allowed types
++
++type MyInt32 int32
++
++//go:wasmexport good2
++func good2(MyInt32) {} // named type is ok
++
++//go:wasmexport good3
++func good3() int32 { return 0 } // one result is ok
++
++//go:wasmexport bad1
++func bad1(string) {} // ERROR "go:wasmexport: unsupported parameter type"
++
++//go:wasmexport bad2
++func bad2(any) {} // ERROR "go:wasmexport: unsupported parameter type"
++
++//go:wasmexport bad3
++func bad3(func()) {} // ERROR "go:wasmexport: unsupported parameter type"
++
++//go:wasmexport bad4
++func bad4(uint8) {} // ERROR "go:wasmexport: unsupported parameter type"
++
++// Pointer types are not allowed, except unsafe.Pointer.
++// Struct and array types are also not allowed.
++// If proposal 66984 is accepted and implemented, we may allow them.
++
++//go:wasmexport bad5
++func bad5(*int32) {} // ERROR "go:wasmexport: unsupported parameter type"
++
++type S struct { x, y int32 }
++
++//go:wasmexport bad6
++func bad6(S) {} // ERROR "go:wasmexport: unsupported parameter type"
++
++//go:wasmexport bad7
++func bad7(*S) {} // ERROR "go:wasmexport: unsupported parameter type"
++
++//go:wasmexport bad8
++func bad8([4]int32) {} // ERROR "go:wasmexport: unsupported parameter type"
++
++//go:wasmexport toomanyresults
++func toomanyresults() (int32, int32) { return 0, 0 } // ERROR "go:wasmexport: too many return values"

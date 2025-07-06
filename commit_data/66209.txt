@@ -1,0 +1,33 @@
+commit bad791343f50a165e27f9f9bda6ba42af05b1869
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Feb 15 04:45:04 2025 +1100
+
+    internal/syscall/unix: correct fchmodat on openbsd
+    
+    This is incorrectly calling the fchownat trampoline - call fchmodat
+    as intended.
+    
+    Change-Id: I7b1e758d456006303ca95b70df9e6b52d3020158
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649655
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Commit-Queue: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+---
+ src/internal/syscall/unix/at_openbsd.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/unix/at_openbsd.go b/src/internal/syscall/unix/at_openbsd.go
+index 771cb063e0..22c959b0c7 100644
+--- a/src/internal/syscall/unix/at_openbsd.go
++++ b/src/internal/syscall/unix/at_openbsd.go
+@@ -81,7 +81,7 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchmodat_trampoline),
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_fchownat_trampoline),
+ 		uintptr(dirfd),
+ 		uintptr(unsafe.Pointer(p)),
+ 		uintptr(uid),

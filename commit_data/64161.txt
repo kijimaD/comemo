@@ -1,0 +1,118 @@
+commit dfe4dbf8c055f79758ce7ae3d3ab2d0e4a0ea9ee
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Jun 5 19:06:31 2024 +0000
+
+    [release-branch.go1.22] os/exec: on Windows look for extensions in Run if not already done
+    
+    CL 512155 fixed #36768, but introduced #62596.
+    CL 527820 fixed #62596, but meant that the code failed to look up
+    file extensions on Windows for a relative path.
+    This CL fixes that problem by recording whether it has already
+    looked up file extensions.
+    This does mean that if Path is set manually then we do not update
+    it with file extensions, as doing that would be racy.
+    
+    For #66586
+    Fixes #66598
+    
+    Change-Id: I9a0305d1e466c5e07bfbe442566ea12f5255a96e
+    GitHub-Last-Rev: dc3169f2350f61acac5ef7842b7514013abacbe1
+    GitHub-Pull-Request: golang/go#67035
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    (cherry picked from commit 5532427c4b1c5e962ad5484258be0071bd270e53)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594495
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+---
+ src/os/exec/exec.go      | 16 ++++++++++------
+ src/os/exec/exec_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index c88ee7f52c..a52b75f69c 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -332,6 +332,10 @@ type Cmd struct {
+ 	// See https://go.dev/blog/path-security
+ 	// and https://go.dev/issue/43724 for more context.
+ 	lookPathErr error
++
++	// cachedLookExtensions caches the result of calling lookExtensions.
++	// This is only used on Windows.
++	cachedLookExtensions string
+ }
+ 
+ // A ctxResult reports the result of watching the Context associated with a
+@@ -430,16 +434,13 @@ func Command(name string, arg ...string) *Cmd {
+ 		// We may need to add a filename extension from PATHEXT
+ 		// or verify an extension that is already present.
+ 		// Since the path is absolute, its extension should be unambiguous
+-		// and independent of cmd.Dir, and we can go ahead and update cmd.Path to
+-		// reflect it.
++		// and independent of cmd.Dir, and we can go ahead and cache the lookup now.
+ 		//
+ 		// Note that we cannot add an extension here for relative paths, because
+ 		// cmd.Dir may be set after we return from this function and that may cause
+ 		// the command to resolve to a different extension.
+ 		lp, err := lookExtensions(name, "")
+-		if lp != "" {
+-			cmd.Path = lp
+-		}
++		cmd.cachedLookExtensions = lp
+ 		if err != nil {
+ 			cmd.Err = err
+ 		}
+@@ -641,7 +642,10 @@ func (c *Cmd) Start() error {
+ 		return c.Err
+ 	}
+ 	lp := c.Path
+-	if runtime.GOOS == "windows" && !filepath.IsAbs(c.Path) {
++	if c.cachedLookExtensions != "" {
++		lp = c.cachedLookExtensions
++	}
++	if runtime.GOOS == "windows" && c.cachedLookExtensions == "" {
+ 		// If c.Path is relative, we had to wait until now
+ 		// to resolve it in case c.Dir was changed.
+ 		// (If it is absolute, we already resolved its extension in Command
+diff --git a/src/os/exec/exec_test.go b/src/os/exec/exec_test.go
+index 71a00494ad..b08e0c1ccf 100644
+--- a/src/os/exec/exec_test.go
++++ b/src/os/exec/exec_test.go
+@@ -1835,3 +1835,32 @@ func TestPathRace(t *testing.T) {
+ 	t.Logf("running in background: %v", cmd)
+ 	<-done
+ }
++
++func TestAbsPathExec(t *testing.T) {
++	testenv.MustHaveExec(t)
++	testenv.MustHaveGoBuild(t) // must have GOROOT/bin/gofmt, but close enough
++
++	// A simple exec of a full path should work.
++	// Go 1.22 broke this on Windows, requiring ".exe"; see #66586.
++	exe := filepath.Join(testenv.GOROOT(t), "bin/gofmt")
++	cmd := exec.Command(exe)
++	if cmd.Path != exe {
++		t.Errorf("exec.Command(%#q) set Path=%#q", exe, cmd.Path)
++	}
++	err := cmd.Run()
++	if err != nil {
++		t.Errorf("using exec.Command(%#q): %v", exe, err)
++	}
++
++	cmd = &exec.Cmd{Path: exe}
++	err = cmd.Run()
++	if err != nil {
++		t.Errorf("using exec.Cmd{Path: %#q}: %v", cmd.Path, err)
++	}
++
++	cmd = &exec.Cmd{Path: "gofmt", Dir: "/"}
++	err = cmd.Run()
++	if err == nil {
++		t.Errorf("using exec.Cmd{Path: %#q}: unexpected success", cmd.Path)
++	}
++}

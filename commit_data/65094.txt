@@ -1,0 +1,191 @@
+commit c15e589733c7862f58542c9f526bf7bb8881636d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Oct 8 13:17:47 2024 -0400
+
+    cmd/link: apply -B UUID to external linking on Mach-O
+    
+    Currently, on Mach-O, the -B UUID setting is only applied in
+    internal linking mode, whereas in external linking mode the UUID
+    is always rewritten to a hash of Go build ID. This CL makes it
+    apply to external linking as well. This makes the behavior
+    consistent on both linkmodes, and also consistent with the -B
+    flag's behavior for GNU build ID on ELF.
+    
+    Add tests.
+    
+    Updates #68678.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-darwin-amd64_14,gotip-darwin-arm64_13
+    Change-Id: I276a5930e231141440cdba16e8812df28ac4237b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618599
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/link/internal/ld/lib.go                 |  5 +-
+ src/cmd/link/internal/ld/macho_combine_dwarf.go |  5 +-
+ src/cmd/link/internal/ld/macho_update_uuid.go   |  3 +-
+ src/cmd/link/link_test.go                       | 76 ++++++++++++++++++++++++-
+ 4 files changed, 83 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index e43fc11b12..cbae6dda17 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -1468,6 +1468,9 @@ func (ctxt *Link) hostlink() {
+ 				argv = append(argv, "-Wl,-x")
+ 			}
+ 		}
++		if *flagHostBuildid == "none" {
++			argv = append(argv, "-Wl,-no_uuid")
++		}
+ 	case objabi.Hopenbsd:
+ 		argv = append(argv, "-pthread")
+ 		if ctxt.BuildMode != BuildModePIE {
+@@ -2059,7 +2062,7 @@ func (ctxt *Link) hostlink() {
+ 			uuidUpdated = true
+ 		}
+ 	}
+-	if ctxt.IsDarwin() && !uuidUpdated && *flagBuildid != "" {
++	if ctxt.IsDarwin() && !uuidUpdated && len(buildinfo) > 0 {
+ 		updateMachoOutFile("rewriting uuid",
+ 			func(ctxt *Link, exef *os.File, exem *macho.File, outexe string) error {
+ 				return machoRewriteUuid(ctxt, exef, exem, outexe)
+diff --git a/src/cmd/link/internal/ld/macho_combine_dwarf.go b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+index 66c405746b..d60755f147 100644
+--- a/src/cmd/link/internal/ld/macho_combine_dwarf.go
++++ b/src/cmd/link/internal/ld/macho_combine_dwarf.go
+@@ -195,8 +195,9 @@ func machoCombineDwarf(ctxt *Link, exef *os.File, exem *macho.File, dsym, outexe
+ 		case imacho.LC_UUID:
+ 			var u uuidCmd
+ 			err = reader.ReadAt(0, &u)
+-			if err == nil {
+-				copy(u.Uuid[:], uuidFromGoBuildId(*flagBuildid))
++			if err == nil && len(buildinfo) > 0 {
++				clear(u.Uuid[:])
++				copy(u.Uuid[:], buildinfo)
+ 				err = reader.WriteAt(0, &u)
+ 			}
+ 		case macho.LoadCmdDylib, macho.LoadCmdThread, macho.LoadCmdUnixThread,
+diff --git a/src/cmd/link/internal/ld/macho_update_uuid.go b/src/cmd/link/internal/ld/macho_update_uuid.go
+index 607cdad996..968bd7bb25 100644
+--- a/src/cmd/link/internal/ld/macho_update_uuid.go
++++ b/src/cmd/link/internal/ld/macho_update_uuid.go
+@@ -86,7 +86,8 @@ func machoRewriteUuid(ctxt *Link, exef *os.File, exem *macho.File, outexe string
+ 			if err := reader.ReadAt(0, &u); err != nil {
+ 				return err
+ 			}
+-			copy(u.Uuid[:], uuidFromGoBuildId(*flagBuildid))
++			clear(u.Uuid[:])
++			copy(u.Uuid[:], buildinfo)
+ 			if err := reader.WriteAt(0, &u); err != nil {
+ 				return err
+ 			}
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index 5fb73c4554..deadc7955d 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -19,6 +19,7 @@ import (
+ 	"strings"
+ 	"testing"
+ 
++	imacho "cmd/internal/macho"
+ 	"cmd/internal/sys"
+ )
+ 
+@@ -386,7 +387,6 @@ func TestMachOBuildVersion(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	found := false
+-	const LC_BUILD_VERSION = 0x32
+ 	checkMin := func(ver uint32) {
+ 		major, minor, patch := (ver>>16)&0xff, (ver>>8)&0xff, (ver>>0)&0xff
+ 		if major < 11 {
+@@ -396,7 +396,7 @@ func TestMachOBuildVersion(t *testing.T) {
+ 	for _, cmd := range exem.Loads {
+ 		raw := cmd.Raw()
+ 		type_ := exem.ByteOrder.Uint32(raw)
+-		if type_ != LC_BUILD_VERSION {
++		if type_ != imacho.LC_BUILD_VERSION {
+ 			continue
+ 		}
+ 		osVer := exem.ByteOrder.Uint32(raw[12:])
+@@ -411,6 +411,78 @@ func TestMachOBuildVersion(t *testing.T) {
+ 	}
+ }
+ 
++func TestMachOUUID(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	if runtime.GOOS != "darwin" {
++		t.Skip("this is only for darwin")
++	}
++
++	t.Parallel()
++
++	tmpdir := t.TempDir()
++
++	src := filepath.Join(tmpdir, "main.go")
++	err := os.WriteFile(src, []byte(trivialSrc), 0666)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	extractUUID := func(exe string) string {
++		exem, err := macho.Open(exe)
++		if err != nil {
++			t.Fatal(err)
++		}
++		defer exem.Close()
++		for _, cmd := range exem.Loads {
++			raw := cmd.Raw()
++			type_ := exem.ByteOrder.Uint32(raw)
++			if type_ != imacho.LC_UUID {
++				continue
++			}
++			return string(raw[8:24])
++		}
++		return ""
++	}
++
++	tests := []struct{ name, ldflags, expect string }{
++		{"default", "", "gobuildid"},
++		{"gobuildid", "-B=gobuildid", "gobuildid"},
++		{"specific", "-B=0x0123456789ABCDEF0123456789ABCDEF", "\x01\x23\x45\x67\x89\xAB\xCD\xEF\x01\x23\x45\x67\x89\xAB\xCD\xEF"},
++		{"none", "-B=none", ""},
++	}
++	if testenv.HasCGO() {
++		for _, test := range tests {
++			t1 := test
++			t1.name += "_external"
++			t1.ldflags += " -linkmode=external"
++			tests = append(tests, t1)
++		}
++	}
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			exe := filepath.Join(tmpdir, test.name)
++			cmd := testenv.Command(t, testenv.GoToolPath(t), "build", "-ldflags="+test.ldflags, "-o", exe, src)
++			if out, err := cmd.CombinedOutput(); err != nil {
++				t.Fatalf("%v: %v:\n%s", cmd.Args, err, out)
++			}
++			uuid := extractUUID(exe)
++			if test.expect == "gobuildid" {
++				// Go buildid is not known in source code. Check UUID is present,
++				// and satisifies UUIDv3.
++				if uuid == "" {
++					t.Fatal("expect nonempty UUID, got empty")
++				}
++				// The version number is the high 4 bits of byte 6.
++				if uuid[6]>>4 != 3 {
++					t.Errorf("expect v3 UUID, got %X (version %d)", uuid, uuid[6]>>4)
++				}
++			} else if uuid != test.expect {
++				t.Errorf("UUID mismatch: got %X, want %X", uuid, test.expect)
++			}
++		})
++	}
++}
++
+ const Issue34788src = `
+ 
+ package blah

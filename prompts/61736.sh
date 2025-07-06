@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 61736: e1c3b8a4905cecc1c61bdfe8feffe598eaf44933
+# Index 61736: b455e239aeeeb1d33eaa34e62c397f3408245a0c
 
 echo "🚀 Generating explanation for commit 61736..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 61736..."
 
 ### メタデータ
 - **コミットインデックス**: 61736
-- **コミットハッシュ**: e1c3b8a4905cecc1c61bdfe8feffe598eaf44933
-- **GitHub URL**: https://github.com/golang/go/commit/e1c3b8a4905cecc1c61bdfe8feffe598eaf44933
+- **コミットハッシュ**: b455e239aeeeb1d33eaa34e62c397f3408245a0c
+- **GitHub URL**: https://github.com/golang/go/commit/b455e239aeeeb1d33eaa34e62c397f3408245a0c
 
 ### 章構成
 

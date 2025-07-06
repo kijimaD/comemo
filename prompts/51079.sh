@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 51079: fd4b391849dcd3ac0e90d3a86b0ee7df00b9b269
+# Index 51079: 92c189f2117415ff7a4bd9652422ba9af1745cb9
 
 echo "🚀 Generating explanation for commit 51079..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 51079..."
 
 ### メタデータ
 - **コミットインデックス**: 51079
-- **コミットハッシュ**: fd4b391849dcd3ac0e90d3a86b0ee7df00b9b269
-- **GitHub URL**: https://github.com/golang/go/commit/fd4b391849dcd3ac0e90d3a86b0ee7df00b9b269
+- **コミットハッシュ**: 92c189f2117415ff7a4bd9652422ba9af1745cb9
+- **GitHub URL**: https://github.com/golang/go/commit/92c189f2117415ff7a4bd9652422ba9af1745cb9
 
 ### 章構成
 

@@ -1,0 +1,2092 @@
+commit 0ca521f9c1a6357578b501615f073adb2da6b527
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 10 19:48:11 2024 -0800
+
+    debug/elf: adjust version API per issue discussion
+    
+    This updates the new version API for the discussion on #63952.
+    
+    This change reveals that in fact none of the tests set the
+    VERSYM_HIDDEN bit. The code before this CL set the hidden flag
+    for symbols that appear in DynamicVersionNeed, but that is not
+    an accurate representation of the ELF. The readelf program
+    does print undefined symbols that way (with a single '@'),
+    but that doesn't mean that the hidden flag is set.
+    Leaving tests with the hidden bit set for later.
+    
+    For #63952
+    
+    Change-Id: Ida60831e0c9922dfc10f10c7a64bc76a2b197537
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635079
+    Reviewed-by: Austin Clements <austin@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ api/go1.24.txt                |  27 +--
+ src/debug/elf/file.go         | 178 +++++++++++++-------
+ src/debug/elf/file_test.go    | 384 +++++++++++++++++++++---------------------
+ src/debug/elf/symbols_test.go | 242 +++++++++++++-------------
+ 4 files changed, 440 insertions(+), 391 deletions(-)
+
+diff --git a/api/go1.24.txt b/api/go1.24.txt
+index 64ede33af2..795a70e354 100644
+--- a/api/go1.24.txt
++++ b/api/go1.24.txt
+@@ -106,33 +106,34 @@ pkg debug/elf, const VER_FLG_INFO = 4 #63952
+ pkg debug/elf, const VER_FLG_INFO DynamicVersionFlag #63952
+ pkg debug/elf, const VER_FLG_WEAK = 2 #63952
+ pkg debug/elf, const VER_FLG_WEAK DynamicVersionFlag #63952
+-pkg debug/elf, const VerFlagGlobal = 2 #63952
+-pkg debug/elf, const VerFlagGlobal SymbolVersionFlag #63952
+-pkg debug/elf, const VerFlagHidden = 4 #63952
+-pkg debug/elf, const VerFlagHidden SymbolVersionFlag #63952
+-pkg debug/elf, const VerFlagLocal = 1 #63952
+-pkg debug/elf, const VerFlagLocal SymbolVersionFlag #63952
+-pkg debug/elf, const VerFlagNone = 0 #63952
+-pkg debug/elf, const VerFlagNone SymbolVersionFlag #63952
++pkg debug/elf, const VersionScopeGlobal = 2 #63952
++pkg debug/elf, const VersionScopeGlobal SymbolVersionScope #63952
++pkg debug/elf, const VersionScopeHidden = 4 #63952
++pkg debug/elf, const VersionScopeHidden SymbolVersionScope #63952
++pkg debug/elf, const VersionScopeLocal = 1 #63952
++pkg debug/elf, const VersionScopeLocal SymbolVersionScope #63952
++pkg debug/elf, const VersionScopeNone = 0 #63952
++pkg debug/elf, const VersionScopeNone SymbolVersionScope #63952
++pkg debug/elf, const VersionScopeSpecific = 3 #63952
++pkg debug/elf, const VersionScopeSpecific SymbolVersionScope #63952
+ pkg debug/elf, method (*File) DynamicVersionNeeds() ([]DynamicVersionNeed, error) #63952
+ pkg debug/elf, method (*File) DynamicVersions() ([]DynamicVersion, error) #63952
+ pkg debug/elf, type DynamicVersion struct #63952
+ pkg debug/elf, type DynamicVersion struct, Deps []string #63952
+ pkg debug/elf, type DynamicVersion struct, Flags DynamicVersionFlag #63952
++pkg debug/elf, type DynamicVersion struct, Name string #63952
+ pkg debug/elf, type DynamicVersion struct, Index uint16 #63952
+-pkg debug/elf, type DynamicVersion struct, Version uint16 #63952
+ pkg debug/elf, type DynamicVersionDep struct #63952
+ pkg debug/elf, type DynamicVersionDep struct, Dep string #63952
+ pkg debug/elf, type DynamicVersionDep struct, Flags DynamicVersionFlag #63952
+-pkg debug/elf, type DynamicVersionDep struct, Other uint16 #63952
++pkg debug/elf, type DynamicVersionDep struct, Index uint16 #63952
+ pkg debug/elf, type DynamicVersionFlag uint16 #63952
+ pkg debug/elf, type DynamicVersionNeed struct #63952
+ pkg debug/elf, type DynamicVersionNeed struct, Name string #63952
+ pkg debug/elf, type DynamicVersionNeed struct, Needs []DynamicVersionDep #63952
+-pkg debug/elf, type DynamicVersionNeed struct, Version uint16 #63952
+-pkg debug/elf, type Symbol struct, VersionFlags SymbolVersionFlag #63952
++pkg debug/elf, type Symbol struct, VersionScope SymbolVersionScope #63952
+ pkg debug/elf, type Symbol struct, VersionIndex int16 #63952
+-pkg debug/elf, type SymbolVersionFlag uint8 #63952
++pkg debug/elf, type SymbolVersionScope uint8 #63952
+ pkg encoding, type BinaryAppender interface { AppendBinary } #62384
+ pkg encoding, type BinaryAppender interface, AppendBinary([]uint8) ([]uint8, error) #62384
+ pkg encoding, type TextAppender interface { AppendText } #62384
+diff --git a/src/debug/elf/file.go b/src/debug/elf/file.go
+index aa523c3fae..958ed9971d 100644
+--- a/src/debug/elf/file.go
++++ b/src/debug/elf/file.go
+@@ -209,10 +209,22 @@ type Symbol struct {
+ 	Name        string
+ 	Info, Other byte
+ 
+-	// These fields are used for symbol versioning
+-	// and are present only for the dynamic symbol table.
++	// VersionScope describes the version in which the symbol is defined.
++	// This is only set for the dynamic symbol table.
++	// When no symbol versioning information is available,
++	// this is VersionScopeNone.
++	VersionScope SymbolVersionScope
++	// VersionIndex is the version index.
++	// This is only set if VersionScope is VersionScopeSpecific or
++	// VersionScopeHidden. This is only set for the dynamic symbol table.
++	// This index will match either [DynamicVersion.Index]
++	// in the slice returned by [File.DynamicVersions],
++	// or [DynamicVersiondep.Index] in the Needs field
++	// of the elements of the slice returned by [File.DynamicVersionNeeds].
++	// In general, a defined symbol will have an index referring
++	// to DynamicVersions, and an undefined symbol will have an index
++	// referring to some version in DynamicVersionNeeds.
+ 	VersionIndex int16
+-	VersionFlags SymbolVersionFlag
+ 
+ 	Section     SectionIndex
+ 	Value, Size uint64
+@@ -1455,9 +1467,13 @@ func (f *File) DynamicSymbols() ([]Symbol, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	if f.gnuVersionInit(str) {
++	hasVersions, err := f.gnuVersionInit(str)
++	if err != nil {
++		return nil, err
++	}
++	if hasVersions {
+ 		for i := range sym {
+-			sym[i].VersionIndex, sym[i].Version, sym[i].Library, sym[i].VersionFlags = f.gnuVersion(i)
++			sym[i].VersionIndex, sym[i].Version, sym[i].Library, sym[i].VersionScope = f.gnuVersion(i)
+ 		}
+ 	}
+ 	return sym, nil
+@@ -1478,7 +1494,9 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
+ 	if err != nil {
+ 		return nil, err
+ 	}
+-	f.gnuVersionInit(str)
++	if _, err := f.gnuVersionInit(str); err != nil {
++		return nil, err
++	}
+ 	var all []ImportedSymbol
+ 	for i, s := range sym {
+ 		if ST_BIND(s.Info) == STB_GLOBAL && s.Section == SHN_UNDEF {
+@@ -1490,46 +1508,57 @@ func (f *File) ImportedSymbols() ([]ImportedSymbol, error) {
+ 	return all, nil
+ }
+ 
+-type SymbolVersionFlag byte
++// SymbolVersionScope describes the version in which a [Symbol] is defined.
++// This is only used for the dynamic symbol table.
++type SymbolVersionScope byte
+ 
+ const (
+-	VerFlagNone   SymbolVersionFlag = 0x0 // No flags.
+-	VerFlagLocal  SymbolVersionFlag = 0x1 // Symbol has local scope.
+-	VerFlagGlobal SymbolVersionFlag = 0x2 // Symbol has global scope.
+-	VerFlagHidden SymbolVersionFlag = 0x4 // Symbol is hidden.
++	VersionScopeNone     SymbolVersionScope = iota // no symbol version available
++	VersionScopeLocal                              // symbol has local scope
++	VersionScopeGlobal                             // symbol has global scope and is in the base version
++	VersionScopeSpecific                           // symbol has global scope and is in the version given by VersionIndex
++	VersionScopeHidden                             // symbol is in the version given by VersionIndex, and is hidden
+ )
+ 
+ // DynamicVersion is a version defined by a dynamic object.
++// This describes entries in the ELF SHT_GNU_verdef section.
++// We assume that the vd_version field is 1.
++// Note that the name of the version appears here;
++// it is not in the first Deps entry as it is in the ELF file.
+ type DynamicVersion struct {
+-	Version uint16 // Version of data structure.
+-	Flags   DynamicVersionFlag
+-	Index   uint16   // Version index.
+-	Deps    []string // Dependencies.
++	Name  string // Name of version defined by this index.
++	Index uint16 // Version index.
++	Flags DynamicVersionFlag
++	Deps  []string // Names of versions that this version depends upon.
+ }
+ 
++// DynamicVersionNeed describes a shared library needed by a dynamic object,
++// with a list of the versions needed from that shared library.
++// This describes entries in the ELF SHT_GNU_verneed section.
++// We assume that the vn_version field is 1.
+ type DynamicVersionNeed struct {
+-	Version uint16              // Version of data structure.
+-	Name    string              // Shared library name.
+-	Needs   []DynamicVersionDep // Dependencies.
++	Name  string              // Shared library name.
++	Needs []DynamicVersionDep // Dependencies.
+ }
+ 
++// DynamicVersionDep is a version needed from some shared library.
+ type DynamicVersionDep struct {
+ 	Flags DynamicVersionFlag
+-	Other uint16 // Version index.
++	Index uint16 // Version index.
+ 	Dep   string // Name of required version.
+ }
+ 
+ // dynamicVersions returns version information for a dynamic object.
+-func (f *File) dynamicVersions(str []byte) bool {
++func (f *File) dynamicVersions(str []byte) error {
+ 	if f.dynVers != nil {
+ 		// Already initialized.
+-		return true
++		return nil
+ 	}
+ 
+ 	// Accumulate verdef information.
+ 	vd := f.SectionByType(SHT_GNU_VERDEF)
+ 	if vd == nil {
+-		return false
++		return nil
+ 	}
+ 	d, _ := vd.Data()
+ 
+@@ -1540,12 +1569,20 @@ func (f *File) dynamicVersions(str []byte) bool {
+ 			break
+ 		}
+ 		version := f.ByteOrder.Uint16(d[i : i+2])
++		if version != 1 {
++			return &FormatError{int64(vd.Offset + uint64(i)), "unexpected dynamic version", version}
++		}
+ 		flags := DynamicVersionFlag(f.ByteOrder.Uint16(d[i+2 : i+4]))
+ 		ndx := f.ByteOrder.Uint16(d[i+4 : i+6])
+ 		cnt := f.ByteOrder.Uint16(d[i+6 : i+8])
+ 		aux := f.ByteOrder.Uint32(d[i+12 : i+16])
+ 		next := f.ByteOrder.Uint32(d[i+16 : i+20])
+ 
++		if cnt == 0 {
++			return &FormatError{int64(vd.Offset + uint64(i)), "dynamic version has no name", nil}
++		}
++
++		var name string
+ 		var depName string
+ 		var deps []string
+ 		j := i + int(aux)
+@@ -1557,16 +1594,20 @@ func (f *File) dynamicVersions(str []byte) bool {
+ 			vnext := f.ByteOrder.Uint32(d[j+4 : j+8])
+ 			depName, _ = getString(str, int(vname))
+ 
+-			deps = append(deps, depName)
++			if c == 0 {
++				name = depName
++			} else {
++				deps = append(deps, depName)
++			}
+ 
+ 			j += int(vnext)
+ 		}
+ 
+ 		dynVers = append(dynVers, DynamicVersion{
+-			Version: version,
+-			Flags:   flags,
+-			Index:   ndx,
+-			Deps:    deps,
++			Name:  name,
++			Index: ndx,
++			Flags: flags,
++			Deps:  deps,
+ 		})
+ 
+ 		if next == 0 {
+@@ -1577,7 +1618,7 @@ func (f *File) dynamicVersions(str []byte) bool {
+ 
+ 	f.dynVers = dynVers
+ 
+-	return true
++	return nil
+ }
+ 
+ // DynamicVersions returns version information for a dynamic object.
+@@ -1587,7 +1628,11 @@ func (f *File) DynamicVersions() ([]DynamicVersion, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		if !f.gnuVersionInit(str) {
++		hasVersions, err := f.gnuVersionInit(str)
++		if err != nil {
++			return nil, err
++		}
++		if !hasVersions {
+ 			return nil, errors.New("DynamicVersions: missing version table")
+ 		}
+ 	}
+@@ -1596,16 +1641,16 @@ func (f *File) DynamicVersions() ([]DynamicVersion, error) {
+ }
+ 
+ // dynamicVersionNeeds returns version dependencies for a dynamic object.
+-func (f *File) dynamicVersionNeeds(str []byte) bool {
++func (f *File) dynamicVersionNeeds(str []byte) error {
+ 	if f.dynVerNeeds != nil {
+ 		// Already initialized.
+-		return true
++		return nil
+ 	}
+ 
+ 	// Accumulate verneed information.
+ 	vn := f.SectionByType(SHT_GNU_VERNEED)
+ 	if vn == nil {
+-		return false
++		return nil
+ 	}
+ 	d, _ := vn.Data()
+ 
+@@ -1617,7 +1662,7 @@ func (f *File) dynamicVersionNeeds(str []byte) bool {
+ 		}
+ 		vers := f.ByteOrder.Uint16(d[i : i+2])
+ 		if vers != 1 {
+-			break
++			return &FormatError{int64(vn.Offset + uint64(i)), "unexpected dynamic need version", vers}
+ 		}
+ 		cnt := f.ByteOrder.Uint16(d[i+2 : i+4])
+ 		fileoff := f.ByteOrder.Uint32(d[i+4 : i+8])
+@@ -1632,14 +1677,14 @@ func (f *File) dynamicVersionNeeds(str []byte) bool {
+ 				break
+ 			}
+ 			flags := DynamicVersionFlag(f.ByteOrder.Uint16(d[j+4 : j+6]))
+-			other := f.ByteOrder.Uint16(d[j+6 : j+8])
++			index := f.ByteOrder.Uint16(d[j+6 : j+8])
+ 			nameoff := f.ByteOrder.Uint32(d[j+8 : j+12])
+ 			next := f.ByteOrder.Uint32(d[j+12 : j+16])
+ 			depName, _ := getString(str, int(nameoff))
+ 
+ 			deps = append(deps, DynamicVersionDep{
+ 				Flags: flags,
+-				Other: other,
++				Index: index,
+ 				Dep:   depName,
+ 			})
+ 
+@@ -1650,9 +1695,8 @@ func (f *File) dynamicVersionNeeds(str []byte) bool {
+ 		}
+ 
+ 		dynVerNeeds = append(dynVerNeeds, DynamicVersionNeed{
+-			Version: vers,
+-			Name:    file,
+-			Needs:   deps,
++			Name:  file,
++			Needs: deps,
+ 		})
+ 
+ 		if next == 0 {
+@@ -1663,7 +1707,7 @@ func (f *File) dynamicVersionNeeds(str []byte) bool {
+ 
+ 	f.dynVerNeeds = dynVerNeeds
+ 
+-	return true
++	return nil
+ }
+ 
+ // DynamicVersionNeeds returns version dependencies for a dynamic object.
+@@ -1673,7 +1717,11 @@ func (f *File) DynamicVersionNeeds() ([]DynamicVersionNeed, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		if !f.gnuVersionInit(str) {
++		hasVersions, err := f.gnuVersionInit(str)
++		if err != nil {
++			return nil, err
++		}
++		if !hasVersions {
+ 			return nil, errors.New("DynamicVersionNeeds: missing version table")
+ 		}
+ 	}
+@@ -1683,66 +1731,66 @@ func (f *File) DynamicVersionNeeds() ([]DynamicVersionNeed, error) {
+ 
+ // gnuVersionInit parses the GNU version tables
+ // for use by calls to gnuVersion.
+-func (f *File) gnuVersionInit(str []byte) bool {
++// It reports whether any version tables were found.
++func (f *File) gnuVersionInit(str []byte) (bool, error) {
+ 	// Versym parallels symbol table, indexing into verneed.
+ 	vs := f.SectionByType(SHT_GNU_VERSYM)
+ 	if vs == nil {
+-		return false
++		return false, nil
+ 	}
+ 	d, _ := vs.Data()
+ 
+ 	f.gnuVersym = d
+-	f.dynamicVersions(str)
+-	f.dynamicVersionNeeds(str)
+-	return true
++	if err := f.dynamicVersions(str); err != nil {
++		return false, err
++	}
++	if err := f.dynamicVersionNeeds(str); err != nil {
++		return false, err
++	}
++	return true, nil
+ }
+ 
+ // gnuVersion adds Library and Version information to sym,
+ // which came from offset i of the symbol table.
+-func (f *File) gnuVersion(i int) (versionIndex int16, version string, library string, versionFlags SymbolVersionFlag) {
++func (f *File) gnuVersion(i int) (versionIndex int16, version string, library string, versionFlags SymbolVersionScope) {
+ 	// Each entry is two bytes; skip undef entry at beginning.
+ 	i = (i + 1) * 2
+ 	if i >= len(f.gnuVersym) {
+-		return -1, "", "", VerFlagNone
++		return -1, "", "", VersionScopeNone
+ 	}
+ 	s := f.gnuVersym[i:]
+ 	if len(s) < 2 {
+-		return -1, "", "", VerFlagNone
++		return -1, "", "", VersionScopeNone
+ 	}
+ 	j := int32(f.ByteOrder.Uint16(s))
+-	var ndx = int16(j & 0x7fff)
++	ndx := int16(j & 0x7fff)
+ 
+-	if ndx == 0 {
+-		return ndx, "", "", VerFlagLocal
+-	} else if ndx == 1 {
+-		return ndx, "", "", VerFlagGlobal
++	if j == 0 {
++		return ndx, "", "", VersionScopeLocal
++	} else if j == 1 {
++		return ndx, "", "", VersionScopeGlobal
+ 	}
+ 
+-	if ndx < 2 {
+-		return 0, "", "", VerFlagNone
++	scope := VersionScopeSpecific
++	if j&0x8000 != 0 {
++		scope = VersionScopeHidden
+ 	}
+ 
+ 	for _, v := range f.dynVerNeeds {
+ 		for _, n := range v.Needs {
+-			if uint16(ndx) == n.Other {
+-				return ndx, n.Dep, v.Name, VerFlagHidden
++			if uint16(ndx) == n.Index {
++				return ndx, n.Dep, v.Name, scope
+ 			}
+ 		}
+ 	}
+ 
+ 	for _, v := range f.dynVers {
+ 		if uint16(ndx) == v.Index {
+-			if len(v.Deps) > 0 {
+-				flags := VerFlagNone
+-				if j&0x8000 != 0 {
+-					flags = VerFlagHidden
+-				}
+-				return ndx, v.Deps[0], "", flags
+-			}
++			return ndx, v.Name, "", scope
+ 		}
+ 	}
+ 
+-	return -1, "", "", VerFlagNone
++	return -1, "", "", VersionScopeNone
+ }
+ 
+ // ImportedLibraries returns the names of all libraries
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 55d58b3234..72e4558868 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -78,80 +78,80 @@ var fileTests = []fileTest{
+ 		},
+ 		[]string{"libc.so.6"},
+ 		[]Symbol{
+-			{"", 3, 0, -1, VerFlagNone, 1, 134512852, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 2, 134512876, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 3, 134513020, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 4, 134513292, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 5, 134513480, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 6, 134513512, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 7, 134513532, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 8, 134513612, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 9, 134513996, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 10, 134514008, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 11, 134518268, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 12, 134518280, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 13, 134518284, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 14, 134518436, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 15, 134518444, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 16, 134518452, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 17, 134518456, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 18, 134518484, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 19, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 20, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 21, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 22, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 23, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 24, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 25, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 26, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 27, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 28, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 29, 0, 0, "", ""},
+-			{"crt1.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"/usr/src/lib/csu/i386-elf/crti.S", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"<command line>", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"<built-in>", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"/usr/src/lib/csu/i386-elf/crti.S", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"crtstuff.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"__CTOR_LIST__", 1, 0, -1, VerFlagNone, 14, 134518436, 0, "", ""},
+-			{"__DTOR_LIST__", 1, 0, -1, VerFlagNone, 15, 134518444, 0, "", ""},
+-			{"__EH_FRAME_BEGIN__", 1, 0, -1, VerFlagNone, 12, 134518280, 0, "", ""},
+-			{"__JCR_LIST__", 1, 0, -1, VerFlagNone, 16, 134518452, 0, "", ""},
+-			{"p.0", 1, 0, -1, VerFlagNone, 11, 134518276, 0, "", ""},
+-			{"completed.1", 1, 0, -1, VerFlagNone, 18, 134518484, 1, "", ""},
+-			{"__do_global_dtors_aux", 2, 0, -1, VerFlagNone, 8, 134513760, 0, "", ""},
+-			{"object.2", 1, 0, -1, VerFlagNone, 18, 134518488, 24, "", ""},
+-			{"frame_dummy", 2, 0, -1, VerFlagNone, 8, 134513836, 0, "", ""},
+-			{"crtstuff.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"__CTOR_END__", 1, 0, -1, VerFlagNone, 14, 134518440, 0, "", ""},
+-			{"__DTOR_END__", 1, 0, -1, VerFlagNone, 15, 134518448, 0, "", ""},
+-			{"__FRAME_END__", 1, 0, -1, VerFlagNone, 12, 134518280, 0, "", ""},
+-			{"__JCR_END__", 1, 0, -1, VerFlagNone, 16, 134518452, 0, "", ""},
+-			{"__do_global_ctors_aux", 2, 0, -1, VerFlagNone, 8, 134513960, 0, "", ""},
+-			{"/usr/src/lib/csu/i386-elf/crtn.S", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"<command line>", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"<built-in>", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"/usr/src/lib/csu/i386-elf/crtn.S", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"hello.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"printf", 18, 0, -1, VerFlagNone, 0, 0, 44, "", ""},
+-			{"_DYNAMIC", 17, 0, -1, VerFlagNone, 65521, 134518284, 0, "", ""},
+-			{"__dso_handle", 17, 2, -1, VerFlagNone, 11, 134518272, 0, "", ""},
+-			{"_init", 18, 0, -1, VerFlagNone, 6, 134513512, 0, "", ""},
+-			{"environ", 17, 0, -1, VerFlagNone, 18, 134518512, 4, "", ""},
+-			{"__deregister_frame_info", 32, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
+-			{"__progname", 17, 0, -1, VerFlagNone, 11, 134518268, 4, "", ""},
+-			{"_start", 18, 0, -1, VerFlagNone, 8, 134513612, 145, "", ""},
+-			{"__bss_start", 16, 0, -1, VerFlagNone, 65521, 134518484, 0, "", ""},
+-			{"main", 18, 0, -1, VerFlagNone, 8, 134513912, 46, "", ""},
+-			{"_init_tls", 18, 0, -1, VerFlagNone, 0, 0, 5, "", ""},
+-			{"_fini", 18, 0, -1, VerFlagNone, 9, 134513996, 0, "", ""},
+-			{"atexit", 18, 0, -1, VerFlagNone, 0, 0, 43, "", ""},
+-			{"_edata", 16, 0, -1, VerFlagNone, 65521, 134518484, 0, "", ""},
+-			{"_GLOBAL_OFFSET_TABLE_", 17, 0, -1, VerFlagNone, 65521, 134518456, 0, "", ""},
+-			{"_end", 16, 0, -1, VerFlagNone, 65521, 134518516, 0, "", ""},
+-			{"exit", 18, 0, -1, VerFlagNone, 0, 0, 68, "", ""},
+-			{"_Jv_RegisterClasses", 32, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
+-			{"__register_frame_info", 32, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 1, 134512852, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 2, 134512876, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 3, 134513020, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 4, 134513292, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 5, 134513480, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 6, 134513512, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 7, 134513532, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 8, 134513612, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 9, 134513996, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 10, 134514008, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 11, 134518268, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 12, 134518280, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 13, 134518284, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 14, 134518436, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 15, 134518444, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 16, 134518452, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 17, 134518456, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 18, 134518484, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 19, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 20, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 21, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 22, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 23, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 24, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 25, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 26, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 27, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 28, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 29, 0, 0, "", ""},
++			{"crt1.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"/usr/src/lib/csu/i386-elf/crti.S", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"<command line>", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"<built-in>", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"/usr/src/lib/csu/i386-elf/crti.S", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"crtstuff.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"__CTOR_LIST__", 1, 0, VersionScopeNone, -1, 14, 134518436, 0, "", ""},
++			{"__DTOR_LIST__", 1, 0, VersionScopeNone, -1, 15, 134518444, 0, "", ""},
++			{"__EH_FRAME_BEGIN__", 1, 0, VersionScopeNone, -1, 12, 134518280, 0, "", ""},
++			{"__JCR_LIST__", 1, 0, VersionScopeNone, -1, 16, 134518452, 0, "", ""},
++			{"p.0", 1, 0, VersionScopeNone, -1, 11, 134518276, 0, "", ""},
++			{"completed.1", 1, 0, VersionScopeNone, -1, 18, 134518484, 1, "", ""},
++			{"__do_global_dtors_aux", 2, 0, VersionScopeNone, -1, 8, 134513760, 0, "", ""},
++			{"object.2", 1, 0, VersionScopeNone, -1, 18, 134518488, 24, "", ""},
++			{"frame_dummy", 2, 0, VersionScopeNone, -1, 8, 134513836, 0, "", ""},
++			{"crtstuff.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"__CTOR_END__", 1, 0, VersionScopeNone, -1, 14, 134518440, 0, "", ""},
++			{"__DTOR_END__", 1, 0, VersionScopeNone, -1, 15, 134518448, 0, "", ""},
++			{"__FRAME_END__", 1, 0, VersionScopeNone, -1, 12, 134518280, 0, "", ""},
++			{"__JCR_END__", 1, 0, VersionScopeNone, -1, 16, 134518452, 0, "", ""},
++			{"__do_global_ctors_aux", 2, 0, VersionScopeNone, -1, 8, 134513960, 0, "", ""},
++			{"/usr/src/lib/csu/i386-elf/crtn.S", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"<command line>", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"<built-in>", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"/usr/src/lib/csu/i386-elf/crtn.S", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"hello.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"printf", 18, 0, VersionScopeNone, -1, 0, 0, 44, "", ""},
++			{"_DYNAMIC", 17, 0, VersionScopeNone, -1, 65521, 134518284, 0, "", ""},
++			{"__dso_handle", 17, 2, VersionScopeNone, -1, 11, 134518272, 0, "", ""},
++			{"_init", 18, 0, VersionScopeNone, -1, 6, 134513512, 0, "", ""},
++			{"environ", 17, 0, VersionScopeNone, -1, 18, 134518512, 4, "", ""},
++			{"__deregister_frame_info", 32, 0, VersionScopeNone, -1, 0, 0, 0, "", ""},
++			{"__progname", 17, 0, VersionScopeNone, -1, 11, 134518268, 4, "", ""},
++			{"_start", 18, 0, VersionScopeNone, -1, 8, 134513612, 145, "", ""},
++			{"__bss_start", 16, 0, VersionScopeNone, -1, 65521, 134518484, 0, "", ""},
++			{"main", 18, 0, VersionScopeNone, -1, 8, 134513912, 46, "", ""},
++			{"_init_tls", 18, 0, VersionScopeNone, -1, 0, 0, 5, "", ""},
++			{"_fini", 18, 0, VersionScopeNone, -1, 9, 134513996, 0, "", ""},
++			{"atexit", 18, 0, VersionScopeNone, -1, 0, 0, 43, "", ""},
++			{"_edata", 16, 0, VersionScopeNone, -1, 65521, 134518484, 0, "", ""},
++			{"_GLOBAL_OFFSET_TABLE_", 17, 0, VersionScopeNone, -1, 65521, 134518456, 0, "", ""},
++			{"_end", 16, 0, VersionScopeNone, -1, 65521, 134518516, 0, "", ""},
++			{"exit", 18, 0, VersionScopeNone, -1, 0, 0, 68, "", ""},
++			{"_Jv_RegisterClasses", 32, 0, VersionScopeNone, -1, 0, 0, 0, "", ""},
++			{"__register_frame_info", 32, 0, VersionScopeNone, -1, 0, 0, 0, "", ""},
+ 		},
+ 	},
+ 	{
+@@ -208,79 +208,79 @@ var fileTests = []fileTest{
+ 		},
+ 		[]string{"libc.so.6"},
+ 		[]Symbol{
+-			{"", 3, 0, -1, VerFlagNone, 1, 4194816, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 2, 4194844, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 3, 4194880, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 4, 4194920, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 5, 4194952, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 6, 4195048, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 7, 4195110, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 8, 4195120, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 9, 4195152, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 10, 4195176, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 11, 4195224, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 12, 4195248, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 13, 4195296, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 14, 4195732, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 15, 4195748, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 16, 4195768, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 17, 4195808, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 18, 6293128, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 19, 6293144, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 20, 6293160, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 21, 6293168, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 22, 6293584, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 23, 6293592, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 24, 6293632, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 25, 6293656, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 26, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 27, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 28, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 29, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 30, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 31, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 32, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 33, 0, 0, "", ""},
+-			{"init.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"initfini.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"call_gmon_start", 2, 0, -1, VerFlagNone, 13, 4195340, 0, "", ""},
+-			{"crtstuff.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"__CTOR_LIST__", 1, 0, -1, VerFlagNone, 18, 6293128, 0, "", ""},
+-			{"__DTOR_LIST__", 1, 0, -1, VerFlagNone, 19, 6293144, 0, "", ""},
+-			{"__JCR_LIST__", 1, 0, -1, VerFlagNone, 20, 6293160, 0, "", ""},
+-			{"__do_global_dtors_aux", 2, 0, -1, VerFlagNone, 13, 4195376, 0, "", ""},
+-			{"completed.6183", 1, 0, -1, VerFlagNone, 25, 6293656, 1, "", ""},
+-			{"p.6181", 1, 0, -1, VerFlagNone, 24, 6293648, 0, "", ""},
+-			{"frame_dummy", 2, 0, -1, VerFlagNone, 13, 4195440, 0, "", ""},
+-			{"crtstuff.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"__CTOR_END__", 1, 0, -1, VerFlagNone, 18, 6293136, 0, "", ""},
+-			{"__DTOR_END__", 1, 0, -1, VerFlagNone, 19, 6293152, 0, "", ""},
+-			{"__FRAME_END__", 1, 0, -1, VerFlagNone, 17, 4195968, 0, "", ""},
+-			{"__JCR_END__", 1, 0, -1, VerFlagNone, 20, 6293160, 0, "", ""},
+-			{"__do_global_ctors_aux", 2, 0, -1, VerFlagNone, 13, 4195680, 0, "", ""},
+-			{"initfini.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"hello.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"_GLOBAL_OFFSET_TABLE_", 1, 2, -1, VerFlagNone, 23, 6293592, 0, "", ""},
+-			{"__init_array_end", 0, 2, -1, VerFlagNone, 18, 6293124, 0, "", ""},
+-			{"__init_array_start", 0, 2, -1, VerFlagNone, 18, 6293124, 0, "", ""},
+-			{"_DYNAMIC", 1, 2, -1, VerFlagNone, 21, 6293168, 0, "", ""},
+-			{"data_start", 32, 0, -1, VerFlagNone, 24, 6293632, 0, "", ""},
+-			{"__libc_csu_fini", 18, 0, -1, VerFlagNone, 13, 4195520, 2, "", ""},
+-			{"_start", 18, 0, -1, VerFlagNone, 13, 4195296, 0, "", ""},
+-			{"__gmon_start__", 32, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
+-			{"_Jv_RegisterClasses", 32, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
+-			{"puts@@GLIBC_2.2.5", 18, 0, -1, VerFlagNone, 0, 0, 396, "", ""},
+-			{"_fini", 18, 0, -1, VerFlagNone, 14, 4195732, 0, "", ""},
+-			{"__libc_start_main@@GLIBC_2.2.5", 18, 0, -1, VerFlagNone, 0, 0, 450, "", ""},
+-			{"_IO_stdin_used", 17, 0, -1, VerFlagNone, 15, 4195748, 4, "", ""},
+-			{"__data_start", 16, 0, -1, VerFlagNone, 24, 6293632, 0, "", ""},
+-			{"__dso_handle", 17, 2, -1, VerFlagNone, 24, 6293640, 0, "", ""},
+-			{"__libc_csu_init", 18, 0, -1, VerFlagNone, 13, 4195536, 137, "", ""},
+-			{"__bss_start", 16, 0, -1, VerFlagNone, 65521, 6293656, 0, "", ""},
+-			{"_end", 16, 0, -1, VerFlagNone, 65521, 6293664, 0, "", ""},
+-			{"_edata", 16, 0, -1, VerFlagNone, 65521, 6293656, 0, "", ""},
+-			{"main", 18, 0, -1, VerFlagNone, 13, 4195480, 27, "", ""},
+-			{"_init", 18, 0, -1, VerFlagNone, 11, 4195224, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 1, 4194816, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 2, 4194844, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 3, 4194880, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 4, 4194920, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 5, 4194952, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 6, 4195048, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 7, 4195110, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 8, 4195120, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 9, 4195152, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 10, 4195176, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 11, 4195224, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 12, 4195248, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 13, 4195296, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 14, 4195732, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 15, 4195748, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 16, 4195768, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 17, 4195808, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 18, 6293128, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 19, 6293144, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 20, 6293160, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 21, 6293168, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 22, 6293584, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 23, 6293592, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 24, 6293632, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 25, 6293656, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 26, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 27, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 28, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 29, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 30, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 31, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 32, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 33, 0, 0, "", ""},
++			{"init.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"initfini.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"call_gmon_start", 2, 0, VersionScopeNone, -1, 13, 4195340, 0, "", ""},
++			{"crtstuff.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"__CTOR_LIST__", 1, 0, VersionScopeNone, -1, 18, 6293128, 0, "", ""},
++			{"__DTOR_LIST__", 1, 0, VersionScopeNone, -1, 19, 6293144, 0, "", ""},
++			{"__JCR_LIST__", 1, 0, VersionScopeNone, -1, 20, 6293160, 0, "", ""},
++			{"__do_global_dtors_aux", 2, 0, VersionScopeNone, -1, 13, 4195376, 0, "", ""},
++			{"completed.6183", 1, 0, VersionScopeNone, -1, 25, 6293656, 1, "", ""},
++			{"p.6181", 1, 0, VersionScopeNone, -1, 24, 6293648, 0, "", ""},
++			{"frame_dummy", 2, 0, VersionScopeNone, -1, 13, 4195440, 0, "", ""},
++			{"crtstuff.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"__CTOR_END__", 1, 0, VersionScopeNone, -1, 18, 6293136, 0, "", ""},
++			{"__DTOR_END__", 1, 0, VersionScopeNone, -1, 19, 6293152, 0, "", ""},
++			{"__FRAME_END__", 1, 0, VersionScopeNone, -1, 17, 4195968, 0, "", ""},
++			{"__JCR_END__", 1, 0, VersionScopeNone, -1, 20, 6293160, 0, "", ""},
++			{"__do_global_ctors_aux", 2, 0, VersionScopeNone, -1, 13, 4195680, 0, "", ""},
++			{"initfini.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"hello.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"_GLOBAL_OFFSET_TABLE_", 1, 2, VersionScopeNone, -1, 23, 6293592, 0, "", ""},
++			{"__init_array_end", 0, 2, VersionScopeNone, -1, 18, 6293124, 0, "", ""},
++			{"__init_array_start", 0, 2, VersionScopeNone, -1, 18, 6293124, 0, "", ""},
++			{"_DYNAMIC", 1, 2, VersionScopeNone, -1, 21, 6293168, 0, "", ""},
++			{"data_start", 32, 0, VersionScopeNone, -1, 24, 6293632, 0, "", ""},
++			{"__libc_csu_fini", 18, 0, VersionScopeNone, -1, 13, 4195520, 2, "", ""},
++			{"_start", 18, 0, VersionScopeNone, -1, 13, 4195296, 0, "", ""},
++			{"__gmon_start__", 32, 0, VersionScopeNone, -1, 0, 0, 0, "", ""},
++			{"_Jv_RegisterClasses", 32, 0, VersionScopeNone, -1, 0, 0, 0, "", ""},
++			{"puts@@GLIBC_2.2.5", 18, 0, VersionScopeNone, -1, 0, 0, 396, "", ""},
++			{"_fini", 18, 0, VersionScopeNone, -1, 14, 4195732, 0, "", ""},
++			{"__libc_start_main@@GLIBC_2.2.5", 18, 0, VersionScopeNone, -1, 0, 0, 450, "", ""},
++			{"_IO_stdin_used", 17, 0, VersionScopeNone, -1, 15, 4195748, 4, "", ""},
++			{"__data_start", 16, 0, VersionScopeNone, -1, 24, 6293632, 0, "", ""},
++			{"__dso_handle", 17, 2, VersionScopeNone, -1, 24, 6293640, 0, "", ""},
++			{"__libc_csu_init", 18, 0, VersionScopeNone, -1, 13, 4195536, 137, "", ""},
++			{"__bss_start", 16, 0, VersionScopeNone, -1, 65521, 6293656, 0, "", ""},
++			{"_end", 16, 0, VersionScopeNone, -1, 65521, 6293664, 0, "", ""},
++			{"_edata", 16, 0, VersionScopeNone, -1, 65521, 6293656, 0, "", ""},
++			{"main", 18, 0, VersionScopeNone, -1, 13, 4195480, 27, "", ""},
++			{"_init", 18, 0, VersionScopeNone, -1, 11, 4195224, 0, "", ""},
+ 		},
+ 	},
+ 	{
+@@ -338,21 +338,21 @@ var fileTests = []fileTest{
+ 		[]ProgHeader{},
+ 		nil,
+ 		[]Symbol{
+-			{"hello.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 1, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 3, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 4, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 5, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 6, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 8, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 9, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 11, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 13, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 15, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 16, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 14, 0, 0, "", ""},
+-			{"main", 18, 0, -1, VerFlagNone, 1, 0, 23, "", ""},
+-			{"puts", 16, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
++			{"hello.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 1, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 3, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 4, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 5, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 6, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 8, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 9, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 11, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 13, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 15, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 16, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 14, 0, 0, "", ""},
++			{"main", 18, 0, VersionScopeNone, -1, 1, 0, 23, "", ""},
++			{"puts", 16, 0, VersionScopeNone, -1, 0, 0, 0, "", ""},
+ 		},
+ 	},
+ 	{
+@@ -384,21 +384,21 @@ var fileTests = []fileTest{
+ 		[]ProgHeader{},
+ 		nil,
+ 		[]Symbol{
+-			{"hello.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 1, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 3, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 4, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 5, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 6, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 8, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 9, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 11, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 13, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 15, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 16, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 14, 0, 0, "", ""},
+-			{"main", 18, 0, -1, VerFlagNone, 1, 0, 27, "", ""},
+-			{"puts", 16, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
++			{"hello.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 1, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 3, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 4, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 5, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 6, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 8, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 9, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 11, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 13, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 15, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 16, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 14, 0, 0, "", ""},
++			{"main", 18, 0, VersionScopeNone, -1, 1, 0, 27, "", ""},
++			{"puts", 16, 0, VersionScopeNone, -1, 0, 0, 0, "", ""},
+ 		},
+ 	},
+ 	{
+@@ -430,21 +430,21 @@ var fileTests = []fileTest{
+ 		[]ProgHeader{},
+ 		nil,
+ 		[]Symbol{
+-			{"hello.c", 4, 0, -1, VerFlagNone, 65521, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 1, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 3, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 4, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 5, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 6, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 8, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 9, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 11, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 13, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 15, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 16, 0, 0, "", ""},
+-			{"", 3, 0, -1, VerFlagNone, 14, 0, 0, "", ""},
+-			{"main", 18, 0, -1, VerFlagNone, 1, 0, 44, "", ""},
+-			{"puts", 16, 0, -1, VerFlagNone, 0, 0, 0, "", ""},
++			{"hello.c", 4, 0, VersionScopeNone, -1, 65521, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 1, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 3, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 4, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 5, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 6, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 8, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 9, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 11, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 13, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 15, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 16, 0, 0, "", ""},
++			{"", 3, 0, VersionScopeNone, -1, 14, 0, 0, "", ""},
++			{"main", 18, 0, VersionScopeNone, -1, 1, 0, 44, "", ""},
++			{"puts", 16, 0, VersionScopeNone, -1, 0, 0, 0, "", ""},
+ 		},
+ 	},
+ }
+diff --git a/src/debug/elf/symbols_test.go b/src/debug/elf/symbols_test.go
+index ecc897b4a8..8b6dac019b 100644
+--- a/src/debug/elf/symbols_test.go
++++ b/src/debug/elf/symbols_test.go
+@@ -37,7 +37,7 @@ func TestSymbols(t *testing.T) {
+ 			fs = []Symbol{}
+ 		}
+ 		if !reflect.DeepEqual(ts, fs) {
+-			t.Errorf("%s: Symbols = %v, want %v", file, ts, fs)
++			t.Errorf("%s: Symbols = %v, want %v", file, fs, ts)
+ 		}
+ 	}
+ 	for file, ts := range symbolsGolden {
+@@ -56,8 +56,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x1,
+ 			Value:        0x400200,
+ 			Size:         0x0,
+@@ -66,8 +66,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x2,
+ 			Value:        0x40021C,
+ 			Size:         0x0,
+@@ -76,8 +76,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x3,
+ 			Value:        0x400240,
+ 			Size:         0x0,
+@@ -86,8 +86,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x4,
+ 			Value:        0x400268,
+ 			Size:         0x0,
+@@ -96,8 +96,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x5,
+ 			Value:        0x400288,
+ 			Size:         0x0,
+@@ -106,8 +106,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x6,
+ 			Value:        0x4002E8,
+ 			Size:         0x0,
+@@ -116,8 +116,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x7,
+ 			Value:        0x400326,
+ 			Size:         0x0,
+@@ -126,8 +126,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x8,
+ 			Value:        0x400330,
+ 			Size:         0x0,
+@@ -136,8 +136,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x9,
+ 			Value:        0x400350,
+ 			Size:         0x0,
+@@ -146,8 +146,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xA,
+ 			Value:        0x400368,
+ 			Size:         0x0,
+@@ -156,8 +156,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xB,
+ 			Value:        0x400398,
+ 			Size:         0x0,
+@@ -166,8 +166,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xC,
+ 			Value:        0x4003B0,
+ 			Size:         0x0,
+@@ -176,8 +176,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xD,
+ 			Value:        0x4003E0,
+ 			Size:         0x0,
+@@ -186,8 +186,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xE,
+ 			Value:        0x400594,
+ 			Size:         0x0,
+@@ -196,8 +196,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xF,
+ 			Value:        0x4005A4,
+ 			Size:         0x0,
+@@ -206,8 +206,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x10,
+ 			Value:        0x4005B8,
+ 			Size:         0x0,
+@@ -216,8 +216,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x11,
+ 			Value:        0x4005E0,
+ 			Size:         0x0,
+@@ -226,8 +226,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x12,
+ 			Value:        0x600688,
+ 			Size:         0x0,
+@@ -236,8 +236,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x13,
+ 			Value:        0x600698,
+ 			Size:         0x0,
+@@ -246,8 +246,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x14,
+ 			Value:        0x6006A8,
+ 			Size:         0x0,
+@@ -256,8 +256,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x15,
+ 			Value:        0x6006B0,
+ 			Size:         0x0,
+@@ -266,8 +266,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x16,
+ 			Value:        0x600850,
+ 			Size:         0x0,
+@@ -276,8 +276,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x17,
+ 			Value:        0x600858,
+ 			Size:         0x0,
+@@ -286,8 +286,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x18,
+ 			Value:        0x600880,
+ 			Size:         0x0,
+@@ -296,8 +296,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x19,
+ 			Value:        0x600898,
+ 			Size:         0x0,
+@@ -306,8 +306,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x1A,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -316,8 +316,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x1B,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -326,8 +326,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x1C,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -336,8 +336,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x1D,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -346,8 +346,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x1E,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -356,8 +356,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x1F,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -366,8 +366,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x20,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -376,8 +376,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x21,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -386,8 +386,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "init.c",
+ 			Info:         0x4,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -396,8 +396,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "initfini.c",
+ 			Info:         0x4,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -406,8 +406,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "call_gmon_start",
+ 			Info:         0x2,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xD,
+ 			Value:        0x40040C,
+ 			Size:         0x0,
+@@ -416,8 +416,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "crtstuff.c",
+ 			Info:         0x4,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -426,8 +426,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__CTOR_LIST__",
+ 			Info:         0x1,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x12,
+ 			Value:        0x600688,
+ 			Size:         0x0,
+@@ -436,8 +436,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__DTOR_LIST__",
+ 			Info:         0x1,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x13,
+ 			Value:        0x600698,
+ 			Size:         0x0,
+@@ -446,8 +446,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__JCR_LIST__",
+ 			Info:         0x1,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x14,
+ 			Value:        0x6006A8,
+ 			Size:         0x0,
+@@ -456,8 +456,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__do_global_dtors_aux",
+ 			Info:         0x2,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xD,
+ 			Value:        0x400430,
+ 			Size:         0x0,
+@@ -466,8 +466,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "completed.6183",
+ 			Info:         0x1,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x19,
+ 			Value:        0x600898,
+ 			Size:         0x1,
+@@ -476,8 +476,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "p.6181",
+ 			Info:         0x1,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x18,
+ 			Value:        0x600890,
+ 			Size:         0x0,
+@@ -486,8 +486,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "frame_dummy",
+ 			Info:         0x2,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xD,
+ 			Value:        0x400470,
+ 			Size:         0x0,
+@@ -496,8 +496,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "crtstuff.c",
+ 			Info:         0x4,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -506,8 +506,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__CTOR_END__",
+ 			Info:         0x1,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x12,
+ 			Value:        0x600690,
+ 			Size:         0x0,
+@@ -516,8 +516,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__DTOR_END__",
+ 			Info:         0x1,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x13,
+ 			Value:        0x6006A0,
+ 			Size:         0x0,
+@@ -526,8 +526,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__FRAME_END__",
+ 			Info:         0x1,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x11,
+ 			Value:        0x400680,
+ 			Size:         0x0,
+@@ -536,8 +536,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__JCR_END__",
+ 			Info:         0x1,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x14,
+ 			Value:        0x6006A8,
+ 			Size:         0x0,
+@@ -546,8 +546,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__do_global_ctors_aux",
+ 			Info:         0x2,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xD,
+ 			Value:        0x400560,
+ 			Size:         0x0,
+@@ -556,8 +556,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "initfini.c",
+ 			Info:         0x4,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -566,8 +566,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "hello.c",
+ 			Info:         0x4,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -576,8 +576,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "_GLOBAL_OFFSET_TABLE_",
+ 			Info:         0x1,
+ 			Other:        0x2,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x17,
+ 			Value:        0x600858,
+ 			Size:         0x0,
+@@ -586,8 +586,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__init_array_end",
+ 			Info:         0x0,
+ 			Other:        0x2,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x12,
+ 			Value:        0x600684,
+ 			Size:         0x0,
+@@ -596,8 +596,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__init_array_start",
+ 			Info:         0x0,
+ 			Other:        0x2,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x12,
+ 			Value:        0x600684,
+ 			Size:         0x0,
+@@ -606,8 +606,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "_DYNAMIC",
+ 			Info:         0x1,
+ 			Other:        0x2,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x15,
+ 			Value:        0x6006B0,
+ 			Size:         0x0,
+@@ -616,8 +616,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "data_start",
+ 			Info:         0x20,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x18,
+ 			Value:        0x600880,
+ 			Size:         0x0,
+@@ -626,8 +626,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__libc_csu_fini",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xD,
+ 			Value:        0x4004C0,
+ 			Size:         0x2,
+@@ -636,8 +636,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "_start",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xD,
+ 			Value:        0x4003E0,
+ 			Size:         0x0,
+@@ -646,8 +646,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__gmon_start__",
+ 			Info:         0x20,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -656,8 +656,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "_Jv_RegisterClasses",
+ 			Info:         0x20,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -666,8 +666,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "puts@@GLIBC_2.2.5",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x18C,
+@@ -676,8 +676,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "_fini",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xE,
+ 			Value:        0x400594,
+ 			Size:         0x0,
+@@ -686,8 +686,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__libc_start_main@@GLIBC_2.2.5",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x1C2,
+@@ -696,8 +696,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "_IO_stdin_used",
+ 			Info:         0x11,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xF,
+ 			Value:        0x4005A4,
+ 			Size:         0x4,
+@@ -706,8 +706,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__data_start",
+ 			Info:         0x10,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x18,
+ 			Value:        0x600880,
+ 			Size:         0x0,
+@@ -716,8 +716,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__dso_handle",
+ 			Info:         0x11,
+ 			Other:        0x2,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x18,
+ 			Value:        0x600888,
+ 			Size:         0x0,
+@@ -726,8 +726,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__libc_csu_init",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xD,
+ 			Value:        0x4004D0,
+ 			Size:         0x89,
+@@ -736,8 +736,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "__bss_start",
+ 			Info:         0x10,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x600898,
+ 			Size:         0x0,
+@@ -746,8 +746,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "_end",
+ 			Info:         0x10,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x6008A0,
+ 			Size:         0x0,
+@@ -756,8 +756,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "_edata",
+ 			Info:         0x10,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x600898,
+ 			Size:         0x0,
+@@ -766,8 +766,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "main",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xD,
+ 			Value:        0x400498,
+ 			Size:         0x1B,
+@@ -776,8 +776,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "_init",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xB,
+ 			Value:        0x400398,
+ 			Size:         0x0,
+@@ -788,8 +788,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "go-relocation-test-clang.c",
+ 			Info:         0x4,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -798,8 +798,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         ".Linfo_string0",
+ 			Info:         0x0,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xC,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -808,8 +808,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         ".Linfo_string1",
+ 			Info:         0x0,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xC,
+ 			Value:        0x2C,
+ 			Size:         0x0,
+@@ -818,8 +818,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         ".Linfo_string2",
+ 			Info:         0x0,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xC,
+ 			Value:        0x47,
+ 			Size:         0x0,
+@@ -828,8 +828,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         ".Linfo_string3",
+ 			Info:         0x0,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xC,
+ 			Value:        0x4C,
+ 			Size:         0x0,
+@@ -838,8 +838,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         ".Linfo_string4",
+ 			Info:         0x0,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xC,
+ 			Value:        0x4E,
+ 			Size:         0x0,
+@@ -848,8 +848,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x1,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -858,8 +858,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x2,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -868,8 +868,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x3,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -878,8 +878,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x4,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -888,8 +888,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x6,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -898,8 +898,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x7,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -908,8 +908,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x8,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -918,8 +918,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xA,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -928,8 +928,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xC,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -938,8 +938,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xD,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -948,8 +948,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xE,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -958,8 +958,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xF,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -968,8 +968,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "",
+ 			Info:         0x3,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0x10,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -978,8 +978,8 @@ var symbolsGolden = map[string][]Symbol{
+ 			Name:         "v",
+ 			Info:         0x11,
+ 			Other:        0x0,
++			VersionScope: VersionScopeNone,
+ 			VersionIndex: -1,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF2,
+ 			Value:        0x4,
+ 			Size:         0x4,
+@@ -994,8 +994,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "__gmon_start__",
+ 			Info:         0x20,
+ 			Other:        0x0,
++			VersionScope: VersionScopeLocal,
+ 			VersionIndex: 0x0,
+-			VersionFlags: VerFlagLocal,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1004,8 +1004,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "puts",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x2,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x18C,
+@@ -1016,8 +1016,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "__libc_start_main",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x2,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x1C2,
+@@ -1032,8 +1032,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZNSo3putEc",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1044,8 +1044,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "strchr",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x4,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1056,8 +1056,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "__cxa_finalize",
+ 			Info:         0x22,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x4,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1068,8 +1068,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZNSo5tellpEv",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1080,8 +1080,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZNSo5seekpElSt12_Ios_Seekdir",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1092,8 +1092,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_Znwm",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1104,8 +1104,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZdlPvm",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x5,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1116,8 +1116,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "__stack_chk_fail",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x6,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1128,8 +1128,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZSt16__ostream_insertIcSt11char_traitsIcEERSt13basic_ostreamIT_T0_ES6_PKS3_l",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x7,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1140,8 +1140,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZNSo5seekpESt4fposI11__mbstate_tE",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1152,8 +1152,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZNSi4readEPcl",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1164,8 +1164,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZNSi5seekgESt4fposI11__mbstate_tE",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1176,8 +1176,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZNSo5writeEPKcl",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1188,8 +1188,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZNSi5seekgElSt12_Ios_Seekdir",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1200,8 +1200,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZSt21ios_base_library_initv",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x8,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1212,8 +1212,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "TIFFClientOpen",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x9,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1224,8 +1224,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZNSt9basic_iosIcSt11char_traitsIcEE5clearESt12_Ios_Iostate",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1236,8 +1236,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ZNSi5tellgEv",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x3,
+-			VersionFlags: VerFlagHidden,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1248,8 +1248,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ITM_deregisterTMCloneTable",
+ 			Info:         0x20,
+ 			Other:        0x0,
++			VersionScope: VersionScopeGlobal,
+ 			VersionIndex: 0x1,
+-			VersionFlags: VerFlagGlobal,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1258,8 +1258,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "__gmon_start__",
+ 			Info:         0x20,
+ 			Other:        0x0,
++			VersionScope: VersionScopeGlobal,
+ 			VersionIndex: 0x1,
+-			VersionFlags: VerFlagGlobal,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1268,8 +1268,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_ITM_registerTMCloneTable",
+ 			Info:         0x20,
+ 			Other:        0x0,
++			VersionScope: VersionScopeGlobal,
+ 			VersionIndex: 0x1,
+-			VersionFlags: VerFlagGlobal,
+ 			Section:      0x0,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1278,8 +1278,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "LIBTIFFXX_4.0",
+ 			Info:         0x11,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x2,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xFFF1,
+ 			Value:        0x0,
+ 			Size:         0x0,
+@@ -1290,8 +1290,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_Z14TIFFStreamOpenPKcPSo",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x2,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xF,
+ 			Value:        0x1860,
+ 			Size:         0xB8,
+@@ -1302,8 +1302,8 @@ var dynamicSymbolsGolden = map[string][]Symbol{
+ 			Name:         "_Z14TIFFStreamOpenPKcPSi",
+ 			Info:         0x12,
+ 			Other:        0x0,
++			VersionScope: VersionScopeSpecific,
+ 			VersionIndex: 0x2,
+-			VersionFlags: VerFlagNone,
+ 			Section:      0xF,
+ 			Value:        0x1920,
+ 			Size:         0x13,

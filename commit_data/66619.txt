@@ -1,0 +1,127 @@
+commit 2fb5610c3a2f0b61714f167ff8f701518fbc9370
+Author: Julien Cretel <jub0bsinthecloud@gmail.com>
+Date:   Wed Mar 19 20:07:38 2025 +0000
+
+    strings: speed up Replace
+    
+    Add benchmarks for Replace.
+    
+    The length of parameter old does not change. Move the corresponding length
+    check outside the loop. Use range-over-int loops where possible.
+    
+    Some benchmark results (no changes to allocations):
+    
+    goos: darwin
+    goarch: amd64
+    pkg: strings
+    cpu: Intel(R) Core(TM) i7-6700HQ CPU @ 2.60GHz
+                                     │     old      │                new                 │
+                                     │    sec/op    │   sec/op     vs base               │
+    Replace/"hello"_"l"_"L"_0-8         6.102n ± 6%   6.139n ± 5%       ~ (p=0.644 n=20)
+    Replace/"hello"_"l"_"L"_-1-8        62.81n ± 1%   63.30n ± 1%       ~ (p=0.098 n=20)
+    Replace/"hello"_"x"_"X"_-1-8        12.19n ± 0%   12.49n ± 0%  +2.50% (p=0.000 n=20)
+    Replace/""_"x"_"X"_-1-8             12.20n ± 0%   12.51n ± 0%  +2.58% (p=0.000 n=20)
+    Replace/"radar"_"r"_"<r>"_-1-8      69.65n ± 0%   66.57n ± 0%  -4.43% (p=0.000 n=20)
+    Replace/""_""_"<>"_-1-8             39.54n ± 1%   35.84n ± 1%  -9.34% (p=0.000 n=20)
+    Replace/"banana"_"a"_"<>"_-1-8      79.95n ± 0%   79.21n ± 0%  -0.93% (p=0.000 n=20)
+    Replace/"banana"_"a"_"<>"_1-8       48.67n ± 1%   49.45n ± 0%  +1.60% (p=0.000 n=20)
+    Replace/"banana"_"a"_"<>"_1000-8    80.28n ± 1%   79.52n ± 0%  -0.95% (p=0.000 n=20)
+    Replace/"banana"_"an"_"<>"_-1-8     82.89n ± 1%   84.62n ± 1%  +2.09% (p=0.000 n=20)
+    Replace/"banana"_"ana"_"<>"_-1-8    56.45n ± 1%   57.41n ± 1%  +1.69% (p=0.000 n=20)
+    Replace/"banana"_""_"<>"_-1-8       114.5n ± 1%   104.8n ± 0%  -8.52% (p=0.000 n=20)
+    Replace/"banana"_""_"<>"_10-8       114.5n ± 0%   104.8n ± 0%  -8.43% (p=0.000 n=20)
+    Replace/"banana"_""_"<>"_6-8       104.00n ± 0%   95.43n ± 0%  -8.24% (p=0.000 n=20)
+    Replace/"banana"_""_"<>"_5-8        91.85n ± 1%   83.68n ± 1%  -8.89% (p=0.000 n=20)
+    Replace/"banana"_""_"<>"_1-8        43.73n ± 1%   40.17n ± 0%  -8.13% (p=0.000 n=20)
+    Replace/"banana"_"a"_"a"_-1-8       4.410n ± 0%   4.443n ± 0%  +0.76% (p=0.000 n=20)
+    Replace/"banana"_"a"_"a"_1-8        4.395n ± 0%   4.423n ± 1%  +0.64% (p=0.022 n=20)
+    Replace/"☺☻☹"_""_"<>"_-1-8          98.58n ± 0%   91.66n ± 0%  -7.02% (p=0.000 n=20)
+    geomean                             39.72n        38.59n       -2.83%
+    
+    Change-Id: Ia0c7798b24d95d7c98b488a6d4ce7e78de76db9d
+    GitHub-Last-Rev: 644fe36dcbe46b6a22febea5fe2cd566572b879c
+    GitHub-Pull-Request: golang/go#72868
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657935
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/strings/strings.go      | 27 +++++++++++++++------------
+ src/strings/strings_test.go | 16 ++++++++++++++++
+ 2 files changed, 31 insertions(+), 12 deletions(-)
+
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index fb53b59f2c..d07a064228 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -1158,19 +1158,22 @@ func Replace(s, old, new string, n int) string {
+ 	var b Builder
+ 	b.Grow(len(s) + n*(len(new)-len(old)))
+ 	start := 0
+-	for i := 0; i < n; i++ {
+-		j := start
+-		if len(old) == 0 {
+-			if i > 0 {
+-				_, wid := utf8.DecodeRuneInString(s[start:])
+-				j += wid
+-			}
+-		} else {
+-			j += Index(s[start:], old)
+-		}
+-		b.WriteString(s[start:j])
++	if len(old) > 0 {
++		for range n {
++			j := start + Index(s[start:], old)
++			b.WriteString(s[start:j])
++			b.WriteString(new)
++			start = j + len(old)
++		}
++	} else { // len(old) == 0
+ 		b.WriteString(new)
+-		start = j + len(old)
++		for range n - 1 {
++			_, wid := utf8.DecodeRuneInString(s[start:])
++			j := start + wid
++			b.WriteString(s[start:j])
++			b.WriteString(new)
++			start = j
++		}
+ 	}
+ 	b.WriteString(s[start:])
+ 	return b.String()
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index aa3458c5c9..3f228b703f 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -1473,6 +1473,10 @@ var ReplaceTests = []struct {
+ 
+ func TestReplace(t *testing.T) {
+ 	for _, tt := range ReplaceTests {
++		allocs := testing.AllocsPerRun(10, func() { Replace(tt.in, tt.old, tt.new, tt.n) })
++		if allocs > 1 {
++			t.Errorf("Replace(%q, %q, %q, %d) allocates %.2f objects", tt.in, tt.old, tt.new, tt.n, allocs)
++		}
+ 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
+ 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)
+ 		}
+@@ -1531,6 +1535,18 @@ func FuzzReplace(f *testing.F) {
+ 	})
+ }
+ 
++func BenchmarkReplace(b *testing.B) {
++	for _, tt := range ReplaceTests {
++		desc := fmt.Sprintf("%q %q %q %d", tt.in, tt.old, tt.new, tt.n)
++		b.Run(desc, func(b *testing.B) {
++			b.ReportAllocs()
++			for b.Loop() {
++				Replace(tt.in, tt.old, tt.new, tt.n)
++			}
++		})
++	}
++}
++
+ var TitleTests = []struct {
+ 	in, out string
+ }{

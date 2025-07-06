@@ -1,0 +1,56 @@
+commit 45447b4bfff4227a8945951dd7d37f2873992e1b
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Tue Feb 11 15:50:55 2025 -0500
+
+    net/http: use runtime.AddCleanup instead of runtime.SetFinalizer
+    
+    Replace the usage of runtime.SetFinalizer with runtime.AddCleanup in
+    tests.
+    
+    Updates #70907
+    
+    Change-Id: Idd3f1c07f6a7709352ca09948fbcb4a0ad9418bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648655
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/net/http/clientserver_test.go | 2 +-
+ src/net/http/transport_test.go    | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/http/clientserver_test.go b/src/net/http/clientserver_test.go
+index 32d97ea9f0..208c6509fa 100644
+--- a/src/net/http/clientserver_test.go
++++ b/src/net/http/clientserver_test.go
+@@ -1253,7 +1253,7 @@ func testTransportGCRequest(t *testing.T, mode testMode, body bool) {
+ 	(func() {
+ 		body := strings.NewReader("some body")
+ 		req, _ := NewRequest("POST", cst.ts.URL, body)
+-		runtime.SetFinalizer(req, func(*Request) { close(didGC) })
++		runtime.AddCleanup(req, func(ch chan struct{}) { close(ch) }, didGC)
+ 		res, err := cst.c.Do(req)
+ 		if err != nil {
+ 			t.Fatal(err)
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index a454db5e03..7166c11279 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2034,7 +2034,7 @@ func (d *countingDialer) DialContext(ctx context.Context, network, address strin
+ 	d.total++
+ 	d.live++
+ 
+-	runtime.SetFinalizer(counted, d.decrement)
++	runtime.AddCleanup(counted, func(dd *countingDialer) { dd.decrement(nil) }, d)
+ 	return counted, nil
+ }
+ 
+@@ -2106,7 +2106,7 @@ func (cc *contextCounter) Track(ctx context.Context) context.Context {
+ 	cc.mu.Lock()
+ 	defer cc.mu.Unlock()
+ 	cc.live++
+-	runtime.SetFinalizer(counted, cc.decrement)
++	runtime.AddCleanup(counted, func(c *contextCounter) { cc.decrement(nil) }, cc)
+ 	return counted
+ }
+ 

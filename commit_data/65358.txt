@@ -1,0 +1,31 @@
+commit 4310502385ad5baca82071e81fc0490525f10eb1
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Jul 20 00:09:13 2024 +0100
+
+    testing/slogtest: reuse results obtained from previous call
+    
+    Fixes #67605
+    
+    Change-Id: Ib48ddfabb93887c88bfca347ba2e5f3c4b4e90b3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599836
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/testing/slogtest/slogtest.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/testing/slogtest/slogtest.go b/src/testing/slogtest/slogtest.go
+index 5c3aced65b..f9e2d90041 100644
+--- a/src/testing/slogtest/slogtest.go
++++ b/src/testing/slogtest/slogtest.go
+@@ -265,7 +265,7 @@ func TestHandler(h slog.Handler, results func() []map[string]any) error {
+ 	if g, w := len(res), len(cases); g != w {
+ 		return fmt.Errorf("got %d results, want %d", g, w)
+ 	}
+-	for i, got := range results() {
++	for i, got := range res {
+ 		c := cases[i]
+ 		for _, check := range c.checks {
+ 			if problem := check(got); problem != "" {

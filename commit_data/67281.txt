@@ -1,0 +1,131 @@
+commit 555d425d177db7fa7123779d253aee42980cb8a3
+Author: Damien Neil <dneil@google.com>
+Date:   Wed May 28 10:55:26 2025 -0700
+
+    testing, testing/synctest: write bubble errors to parent test log
+    
+    Ensure that log messages written to the testing.T created by
+    synctest.Test appear in the test output when a test fails.
+    
+    Fixes #73902
+    
+    Change-Id: Ie97f5efe54eb003e6c0a5394c2def4cac1520ecb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676995
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/testing/synctest/synctest_test.go | 42 ++++++++++++++++++++++++++---------
+ src/testing/testing.go                |  3 +--
+ 2 files changed, 32 insertions(+), 13 deletions(-)
+
+diff --git a/src/testing/synctest/synctest_test.go b/src/testing/synctest/synctest_test.go
+index 4897df999e..822fd6fe1c 100644
+--- a/src/testing/synctest/synctest_test.go
++++ b/src/testing/synctest/synctest_test.go
+@@ -22,37 +22,56 @@ func TestSuccess(t *testing.T) {
+ }
+ 
+ func TestFatal(t *testing.T) {
+-	runTest(t, func() {
++	runTest(t, nil, func() {
+ 		synctest.Test(t, func(t *testing.T) {
+ 			t.Fatal("fatal")
+ 		})
+-	}, `^=== RUN   TestFatal
++	}, `^--- FAIL: TestFatal.*
+     synctest_test.go:.* fatal
+---- FAIL: TestFatal.*
+ FAIL
+ $`)
+ }
+ 
+ func TestError(t *testing.T) {
+-	runTest(t, func() {
++	runTest(t, nil, func() {
+ 		synctest.Test(t, func(t *testing.T) {
+ 			t.Error("error")
+ 		})
+-	}, `^=== RUN   TestError
++	}, `^--- FAIL: TestError.*
+     synctest_test.go:.* error
+---- FAIL: TestError.*
++FAIL
++$`)
++}
++
++func TestVerboseError(t *testing.T) {
++	runTest(t, []string{"-test.v"}, func() {
++		synctest.Test(t, func(t *testing.T) {
++			t.Error("error")
++		})
++	}, `^=== RUN   TestVerboseError
++    synctest_test.go:.* error
++--- FAIL: TestVerboseError.*
+ FAIL
+ $`)
+ }
+ 
+ func TestSkip(t *testing.T) {
+-	runTest(t, func() {
++	runTest(t, nil, func() {
++		synctest.Test(t, func(t *testing.T) {
++			t.Skip("skip")
++		})
++	}, `^PASS
++$`)
++}
++
++func TestVerboseSkip(t *testing.T) {
++	runTest(t, []string{"-test.v"}, func() {
+ 		synctest.Test(t, func(t *testing.T) {
+ 			t.Skip("skip")
+ 		})
+-	}, `^=== RUN   TestSkip
++	}, `^=== RUN   TestVerboseSkip
+     synctest_test.go:.* skip
+---- PASS: TestSkip.*
++--- PASS: TestVerboseSkip.*
+ PASS
+ $`)
+ }
+@@ -131,7 +150,7 @@ func wantPanic(t *testing.T, want string) {
+ 	}
+ }
+ 
+-func runTest(t *testing.T, f func(), pattern string) {
++func runTest(t *testing.T, args []string, f func(), pattern string) {
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") == "1" {
+ 		f()
+ 		return
+@@ -139,7 +158,8 @@ func runTest(t *testing.T, f func(), pattern string) {
+ 	t.Helper()
+ 	re := regexp.MustCompile(pattern)
+ 	testenv.MustHaveExec(t)
+-	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+t.Name()+"$", "-test.v", "-test.count=1")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^"+regexp.QuoteMeta(t.Name())+"$", "-test.count=1")
++	cmd.Args = append(cmd.Args, args...)
+ 	cmd = testenv.CleanCmdEnv(cmd)
+ 	cmd.Env = append(cmd.Env, "GO_WANT_HELPER_PROCESS=1")
+ 	out, _ := cmd.CombinedOutput()
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 85ac1aeb32..43ef9eef09 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1045,7 +1045,7 @@ func (c *common) destination() *common {
+ 	c.mu.Lock()
+ 	defer c.mu.Unlock()
+ 
+-	if !c.done {
++	if !c.done && !c.isSynctest {
+ 		return c
+ 	}
+ 	for parent := c.parent; parent != nil; parent = parent.parent {
+@@ -2037,7 +2037,6 @@ func testingSynctestTest(t *T, f func(*T)) {
+ 		},
+ 		tstate: t.tstate,
+ 	}
+-	t2.setOutputWriter()
+ 
+ 	go tRunner(t2, f)
+ 	if !<-t2.signal {

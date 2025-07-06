@@ -1,0 +1,60 @@
+commit c0245b31fb157590b69245f7dff27f0605b73138
+Author: Julian Zhu <julian.oerv@isrc.iscas.ac.cn>
+Date:   Tue Apr 15 21:17:20 2025 +0800
+
+    crypto/sha512: remove unnecessary move op, replace with direct add
+    
+    goos: linux
+    goarch: riscv64
+    pkg: crypto/sha512
+                        │      o      │                 n                  │
+                        │   sec/op    │   sec/op     vs base               │
+    Hash8Bytes/New-4      3.499µ ± 0%   3.444µ ± 0%  -1.56% (p=0.000 n=10)
+    Hash8Bytes/Sum384-4   4.012µ ± 0%   3.957µ ± 0%  -1.37% (p=0.000 n=10)
+    Hash8Bytes/Sum512-4   4.218µ ± 0%   4.162µ ± 0%  -1.32% (p=0.000 n=10)
+    Hash1K/New-4          17.07µ ± 0%   16.57µ ± 0%  -2.97% (p=0.000 n=10)
+    Hash1K/Sum384-4       17.59µ ± 0%   17.11µ ± 0%  -2.76% (p=0.000 n=10)
+    Hash1K/Sum512-4       17.78µ ± 0%   17.30µ ± 0%  -2.72% (p=0.000 n=10)
+    Hash8K/New-4          112.2µ ± 0%   108.7µ ± 0%  -3.08% (p=0.000 n=10)
+    Hash8K/Sum384-4       112.7µ ± 0%   109.2µ ± 0%  -3.09% (p=0.000 n=10)
+    Hash8K/Sum512-4       112.9µ ± 0%   109.4µ ± 0%  -3.07% (p=0.000 n=10)
+    geomean               19.72µ        19.24µ       -2.44%
+    
+                        │      o       │                  n                  │
+                        │     B/s      │     B/s       vs base               │
+    Hash8Bytes/New-4      2.184Mi ± 0%   2.213Mi ± 0%  +1.31% (p=0.000 n=10)
+    Hash8Bytes/Sum384-4   1.898Mi ± 1%   1.926Mi ± 0%  +1.51% (p=0.000 n=10)
+    Hash8Bytes/Sum512-4   1.812Mi ± 1%   1.831Mi ± 0%  +1.05% (p=0.000 n=10)
+    Hash1K/New-4          57.20Mi ± 0%   58.95Mi ± 0%  +3.06% (p=0.000 n=10)
+    Hash1K/Sum384-4       55.51Mi ± 0%   57.09Mi ± 0%  +2.84% (p=0.000 n=10)
+    Hash1K/Sum512-4       54.91Mi ± 0%   56.44Mi ± 0%  +2.79% (p=0.000 n=10)
+    Hash8K/New-4          69.63Mi ± 0%   71.84Mi ± 0%  +3.17% (p=0.000 n=10)
+    Hash8K/Sum384-4       69.30Mi ± 0%   71.52Mi ± 0%  +3.20% (p=0.000 n=10)
+    Hash8K/Sum512-4       69.19Mi ± 0%   71.39Mi ± 0%  +3.18% (p=0.000 n=10)
+    geomean               19.65Mi        20.13Mi       +2.45%
+    
+    Change-Id: Ib68b934276ec08246d4ae60ef9870c233f0eac69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665595
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Joel Sing <joel@sing.id.au>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/internal/fips140/sha512/sha512block_riscv64.s | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/sha512/sha512block_riscv64.s b/src/crypto/internal/fips140/sha512/sha512block_riscv64.s
+index 2b156271e6..f25ed62237 100644
+--- a/src/crypto/internal/fips140/sha512/sha512block_riscv64.s
++++ b/src/crypto/internal/fips140/sha512/sha512block_riscv64.s
+@@ -138,9 +138,8 @@
+ #define SHA512ROUND(index, a, b, c, d, e, f, g, h) \
+ 	SHA512T1(index, e, f, g, h); \
+ 	SHA512T2(a, b, c); \
+-	MOV	X6, h; \
+ 	ADD	X5, d; \
+-	ADD	X5, h
++	ADD	X6, X5, h
+ 
+ #define SHA512ROUND0(index, a, b, c, d, e, f, g, h) \
+ 	MSGSCHEDULE0(index); \

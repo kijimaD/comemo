@@ -1,0 +1,380 @@
+commit 0222a028f19d9f497cf407bcf07f3ec56a032bdb
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Wed May 1 15:03:34 2024 -0500
+
+    cmd/compile/internal/ssa: combine more shift and masking on PPC64
+    
+    Investigating binaries, these patterns seem to show up frequently.
+    
+    Change-Id: I987251e4070e35c25e98da321e444ccaa1526912
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583302
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/PPC64.rules |  13 ++
+ src/cmd/compile/internal/ssa/rewrite.go       |  50 ++++++++
+ src/cmd/compile/internal/ssa/rewritePPC64.go  | 176 ++++++++++++++++++++++++++
+ test/codegen/shift.go                         |  23 +++-
+ 4 files changed, 261 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/PPC64.rules b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+index f0cb23ba9f..6e07aa2ec7 100644
+--- a/src/cmd/compile/internal/ssa/_gen/PPC64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/PPC64.rules
+@@ -645,6 +645,19 @@
+ (MOVBreg (MOVBZreg x)) => (MOVBreg x)
+ (MOVBZreg (MOVBreg x)) => (MOVBZreg x)
+ 
++// Catch any remaining rotate+shift cases
++(MOVBZreg (SRWconst x [s])) && mergePPC64AndSrwi(0xFF,s) != 0 => (RLWINM [mergePPC64AndSrwi(0xFF,s)] x)
++(MOVBZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFF,r)] y)
++(MOVHZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFFFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFFFF,r)] y)
++(MOVWZreg (RLWINM [r] y)) && mergePPC64AndRlwinm(0xFFFFFFFF,r) != 0 => (RLWINM [mergePPC64AndRlwinm(0xFFFFFFFF,r)] y)
++(Select0 (ANDCCconst [m] (RLWINM [r] y))) && mergePPC64AndRlwinm(uint32(m),r) != 0 => (RLWINM [mergePPC64AndRlwinm(uint32(m),r)] y)
++(SLDconst [s] (RLWINM [r] y)) && mergePPC64SldiRlwinm(s,r) != 0 => (RLWINM [mergePPC64SldiRlwinm(s,r)] y)
++(RLWINM [r] (MOVHZreg u)) && mergePPC64RlwinmAnd(r,0xFFFF) != 0 => (RLWINM [mergePPC64RlwinmAnd(r,0xFFFF)] u)
++(RLWINM [r] (Select0 (ANDCCconst [a] u))) && mergePPC64RlwinmAnd(r,uint32(a)) != 0 => (RLWINM [mergePPC64RlwinmAnd(r,uint32(a))] u)
++// SLWconst is a special case of RLWNM which always zero-extends the result.
++(SLWconst [s] (MOVWZreg w)) => (SLWconst [s] w)
++(MOVWZreg w:(SLWconst u)) => w
++
+ // H - there are more combinations than these
+ 
+ (MOVHZreg y:(MOV(H|B)Zreg _)) => y // repeat
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 4e4d99af0b..f9566368c0 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1653,6 +1653,56 @@ func mergePPC64ClrlsldiRlwinm(sld int32, rlw int64) int64 {
+ 	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
+ }
+ 
++// Test if RLWINM feeding into an ANDconst can be merged. Return the encoded RLWINM constant,
++// or 0 if they cannot be merged.
++func mergePPC64AndRlwinm(mask uint32, rlw int64) int64 {
++	r, _, _, mask_rlw := DecodePPC64RotateMask(rlw)
++	mask_out := (mask_rlw & uint64(mask))
++
++	// Verify the result is still a valid bitmask of <= 32 bits.
++	if !isPPC64WordRotateMask(int64(mask_out)) {
++		return 0
++	}
++	return encodePPC64RotateMask(r, int64(mask_out), 32)
++}
++
++// Test if AND feeding into an ANDconst can be merged. Return the encoded RLWINM constant,
++// or 0 if they cannot be merged.
++func mergePPC64RlwinmAnd(rlw int64, mask uint32) int64 {
++	r, _, _, mask_rlw := DecodePPC64RotateMask(rlw)
++
++	// Rotate the input mask, combine with the rlwnm mask, and test if it is still a valid rlwinm mask.
++	r_mask := bits.RotateLeft32(mask, int(r))
++
++	mask_out := (mask_rlw & uint64(r_mask))
++
++	// Verify the result is still a valid bitmask of <= 32 bits.
++	if !isPPC64WordRotateMask(int64(mask_out)) {
++		return 0
++	}
++	return encodePPC64RotateMask(r, int64(mask_out), 32)
++}
++
++// Test if RLWINM feeding into SRDconst can be merged. Return the encoded RLIWNM constant,
++// or 0 if they cannot be merged.
++func mergePPC64SldiRlwinm(sldi, rlw int64) int64 {
++	r_1, mb, me, mask_1 := DecodePPC64RotateMask(rlw)
++	if mb > me || mb < sldi {
++		// Wrapping masks cannot be merged as the upper 32 bits are effectively undefined in this case.
++		// Likewise, if mb is less than the shift amount, it cannot be merged.
++		return 0
++	}
++	// combine the masks, and adjust for the final left shift.
++	mask_3 := mask_1 << sldi
++	r_3 := (r_1 + sldi) & 31 // This can wrap.
++
++	// Verify the result is still a valid bitmask of <= 32 bits.
++	if uint64(uint32(mask_3)) != mask_3 {
++		return 0
++	}
++	return encodePPC64RotateMask(r_3, int64(mask_3), 32)
++}
++
+ // Compute the encoded RLWINM constant from combining (SLDconst [sld] (SRWconst [srw] x)),
+ // or return 0 if they cannot be combined.
+ func mergePPC64SldiSrw(sld, srw int64) int64 {
+diff --git a/src/cmd/compile/internal/ssa/rewritePPC64.go b/src/cmd/compile/internal/ssa/rewritePPC64.go
+index 266ac14c38..cef2f21e50 100644
+--- a/src/cmd/compile/internal/ssa/rewritePPC64.go
++++ b/src/cmd/compile/internal/ssa/rewritePPC64.go
+@@ -611,6 +611,8 @@ func rewriteValuePPC64(v *Value) bool {
+ 		return rewriteValuePPC64_OpPPC64ORN(v)
+ 	case OpPPC64ORconst:
+ 		return rewriteValuePPC64_OpPPC64ORconst(v)
++	case OpPPC64RLWINM:
++		return rewriteValuePPC64_OpPPC64RLWINM(v)
+ 	case OpPPC64ROTL:
+ 		return rewriteValuePPC64_OpPPC64ROTL(v)
+ 	case OpPPC64ROTLW:
+@@ -6765,6 +6767,40 @@ func rewriteValuePPC64_OpPPC64MOVBZreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBZreg (SRWconst x [s]))
++	// cond: mergePPC64AndSrwi(0xFF,s) != 0
++	// result: (RLWINM [mergePPC64AndSrwi(0xFF,s)] x)
++	for {
++		if v_0.Op != OpPPC64SRWconst {
++			break
++		}
++		s := auxIntToInt64(v_0.AuxInt)
++		x := v_0.Args[0]
++		if !(mergePPC64AndSrwi(0xFF, s) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64AndSrwi(0xFF, s))
++		v.AddArg(x)
++		return true
++	}
++	// match: (MOVBZreg (RLWINM [r] y))
++	// cond: mergePPC64AndRlwinm(0xFF,r) != 0
++	// result: (RLWINM [mergePPC64AndRlwinm(0xFF,r)] y)
++	for {
++		if v_0.Op != OpPPC64RLWINM {
++			break
++		}
++		r := auxIntToInt64(v_0.AuxInt)
++		y := v_0.Args[0]
++		if !(mergePPC64AndRlwinm(0xFF, r) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64AndRlwinm(0xFF, r))
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (MOVBZreg (OR <t> x (MOVWZreg y)))
+ 	// result: (MOVBZreg (OR <t> x y))
+ 	for {
+@@ -8610,6 +8646,23 @@ func rewriteValuePPC64_OpPPC64MOVHZreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVHZreg (RLWINM [r] y))
++	// cond: mergePPC64AndRlwinm(0xFFFF,r) != 0
++	// result: (RLWINM [mergePPC64AndRlwinm(0xFFFF,r)] y)
++	for {
++		if v_0.Op != OpPPC64RLWINM {
++			break
++		}
++		r := auxIntToInt64(v_0.AuxInt)
++		y := v_0.Args[0]
++		if !(mergePPC64AndRlwinm(0xFFFF, r) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64AndRlwinm(0xFFFF, r))
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (MOVHZreg y:(MOVHZreg _))
+ 	// result: y
+ 	for {
+@@ -9960,6 +10013,33 @@ func rewriteValuePPC64_OpPPC64MOVWZreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVWZreg (RLWINM [r] y))
++	// cond: mergePPC64AndRlwinm(0xFFFFFFFF,r) != 0
++	// result: (RLWINM [mergePPC64AndRlwinm(0xFFFFFFFF,r)] y)
++	for {
++		if v_0.Op != OpPPC64RLWINM {
++			break
++		}
++		r := auxIntToInt64(v_0.AuxInt)
++		y := v_0.Args[0]
++		if !(mergePPC64AndRlwinm(0xFFFFFFFF, r) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64AndRlwinm(0xFFFFFFFF, r))
++		v.AddArg(y)
++		return true
++	}
++	// match: (MOVWZreg w:(SLWconst u))
++	// result: w
++	for {
++		w := v_0
++		if w.Op != OpPPC64SLWconst {
++			break
++		}
++		v.copyOf(w)
++		return true
++	}
+ 	// match: (MOVWZreg y:(MOVWZreg _))
+ 	// result: y
+ 	for {
+@@ -11346,6 +11426,49 @@ func rewriteValuePPC64_OpPPC64ORconst(v *Value) bool {
+ 	}
+ 	return false
+ }
++func rewriteValuePPC64_OpPPC64RLWINM(v *Value) bool {
++	v_0 := v.Args[0]
++	// match: (RLWINM [r] (MOVHZreg u))
++	// cond: mergePPC64RlwinmAnd(r,0xFFFF) != 0
++	// result: (RLWINM [mergePPC64RlwinmAnd(r,0xFFFF)] u)
++	for {
++		r := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64MOVHZreg {
++			break
++		}
++		u := v_0.Args[0]
++		if !(mergePPC64RlwinmAnd(r, 0xFFFF) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64RlwinmAnd(r, 0xFFFF))
++		v.AddArg(u)
++		return true
++	}
++	// match: (RLWINM [r] (Select0 (ANDCCconst [a] u)))
++	// cond: mergePPC64RlwinmAnd(r,uint32(a)) != 0
++	// result: (RLWINM [mergePPC64RlwinmAnd(r,uint32(a))] u)
++	for {
++		r := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpSelect0 {
++			break
++		}
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpPPC64ANDCCconst {
++			break
++		}
++		a := auxIntToInt64(v_0_0.AuxInt)
++		u := v_0_0.Args[0]
++		if !(mergePPC64RlwinmAnd(r, uint32(a)) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64RlwinmAnd(r, uint32(a)))
++		v.AddArg(u)
++		return true
++	}
++	return false
++}
+ func rewriteValuePPC64_OpPPC64ROTL(v *Value) bool {
+ 	v_1 := v.Args[1]
+ 	v_0 := v.Args[0]
+@@ -12061,6 +12184,24 @@ func rewriteValuePPC64_OpPPC64SLDconst(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SLDconst [s] (RLWINM [r] y))
++	// cond: mergePPC64SldiRlwinm(s,r) != 0
++	// result: (RLWINM [mergePPC64SldiRlwinm(s,r)] y)
++	for {
++		s := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64RLWINM {
++			break
++		}
++		r := auxIntToInt64(v_0.AuxInt)
++		y := v_0.Args[0]
++		if !(mergePPC64SldiRlwinm(s, r) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64SldiRlwinm(s, r))
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (SLDconst [c] z:(MOVBZreg x))
+ 	// cond: c < 8 && z.Uses == 1
+ 	// result: (CLRLSLDI [newPPC64ShiftAuxInt(c,56,63,64)] x)
+@@ -12206,6 +12347,19 @@ func rewriteValuePPC64_OpPPC64SLW(v *Value) bool {
+ }
+ func rewriteValuePPC64_OpPPC64SLWconst(v *Value) bool {
+ 	v_0 := v.Args[0]
++	// match: (SLWconst [s] (MOVWZreg w))
++	// result: (SLWconst [s] w)
++	for {
++		s := auxIntToInt64(v.AuxInt)
++		if v_0.Op != OpPPC64MOVWZreg {
++			break
++		}
++		w := v_0.Args[0]
++		v.reset(OpPPC64SLWconst)
++		v.AuxInt = int64ToAuxInt(s)
++		v.AddArg(w)
++		return true
++	}
+ 	// match: (SLWconst [c] z:(MOVBZreg x))
+ 	// cond: z.Uses == 1 && c < 8
+ 	// result: (CLRLSLWI [newPPC64ShiftAuxInt(c,24,31,32)] x)
+@@ -14665,6 +14819,28 @@ func rewriteValuePPC64_OpSelect0(v *Value) bool {
+ 		v.AddArg(v0)
+ 		return true
+ 	}
++	// match: (Select0 (ANDCCconst [m] (RLWINM [r] y)))
++	// cond: mergePPC64AndRlwinm(uint32(m),r) != 0
++	// result: (RLWINM [mergePPC64AndRlwinm(uint32(m),r)] y)
++	for {
++		if v_0.Op != OpPPC64ANDCCconst {
++			break
++		}
++		m := auxIntToInt64(v_0.AuxInt)
++		v_0_0 := v_0.Args[0]
++		if v_0_0.Op != OpPPC64RLWINM {
++			break
++		}
++		r := auxIntToInt64(v_0_0.AuxInt)
++		y := v_0_0.Args[0]
++		if !(mergePPC64AndRlwinm(uint32(m), r) != 0) {
++			break
++		}
++		v.reset(OpPPC64RLWINM)
++		v.AuxInt = int64ToAuxInt(mergePPC64AndRlwinm(uint32(m), r))
++		v.AddArg(y)
++		return true
++	}
+ 	// match: (Select0 (ANDCCconst [1] z:(SRADconst [63] x)))
+ 	// cond: z.Uses == 1
+ 	// result: (SRDconst [63] x)
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 5bd7acc063..dd91a1db98 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -467,11 +467,32 @@ func checkMergedShifts64(a [256]uint32, b [256]uint64, v uint64) {
+ 	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
+ 	a[5] = a[(v>>32)&0x01]
+ 	// ppc64x: "SRD", "CLRLSLDI", -"RLWNM"
+-	a[5] = a[(v>>34)&0x03]
++	a[6] = a[(v>>34)&0x03]
+ 	// ppc64x: -"CLRLSLDI", "RLWNM\t[$]12, R[0-9]+, [$]21, [$]28, R[0-9]+"
+ 	b[0] = b[uint8(v>>23)]
+ 	// ppc64x: -"CLRLSLDI", "RLWNM\t[$]15, R[0-9]+, [$]21, [$]28, R[0-9]+"
+ 	b[1] = b[(v>>20)&0xFF]
++	// ppc64x: "RLWNM", -"SLD"
++	b[2] = b[((uint64((uint32(v) >> 21)) & 0x3f) << 4)]
++}
++
++func checkShiftMask(a uint32, b uint64, z []uint32, y []uint64) {
++	_ = y[128]
++	_ = z[128]
++	// ppc64x: -"MOVBZ", -"SRW", "RLWNM"
++	z[0] = uint32(uint8(a >> 5))
++	// ppc64x: -"MOVBZ", -"SRW", "RLWNM"
++	z[1] = uint32(uint8((a >> 4) & 0x7e))
++	// ppc64x: "RLWNM\t[$]25, R[0-9]+, [$]27, [$]29, R[0-9]+"
++	z[2] = uint32(uint8(a>>7)) & 0x1c
++	// ppc64x: -"MOVWZ"
++	y[0] = uint64((a >> 6) & 0x1c)
++	// ppc64x: -"MOVWZ"
++	y[1] = uint64(uint32(b)<<6) + 1
++	// ppc64x: -"MOVHZ", -"MOVWZ"
++	y[2] = uint64((uint16(a) >> 9) & 0x1F)
++	// ppc64x: -"MOVHZ", -"MOVWZ", -"ANDCC"
++	y[3] = uint64(((uint16(a) & 0xFF0) >> 9) & 0x1F)
+ }
+ 
+ // 128 bit shifts

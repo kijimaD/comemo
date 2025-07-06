@@ -1,0 +1,49 @@
+commit d67839f58af518bfa32e27962059291362186e1c
+Author: Clide Stefani <cstefani.sites@gmail.com>
+Date:   Thu Jun 13 14:57:12 2024 -0400
+
+    crypto/tls: add support for -expect-version to bogo_shim_test
+    
+    The existing implementation of bogo_shim_test does not support tests
+    that use the expect-version flag.
+    This change adds support for this flag.
+    
+    Updates #51434.
+    
+    Change-Id: Ie23fdb06d15ec0593ca58f28144e83f93ef7f200
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592635
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/crypto/tls/bogo_shim_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/bogo_shim_test.go b/src/crypto/tls/bogo_shim_test.go
+index 5dc3b7c13e..2d8100d1bb 100644
+--- a/src/crypto/tls/bogo_shim_test.go
++++ b/src/crypto/tls/bogo_shim_test.go
+@@ -33,8 +33,9 @@ var (
+ 
+ 	trustCert = flag.String("trust-cert", "", "")
+ 
+-	minVersion = flag.Int("min-version", VersionSSL30, "")
+-	maxVersion = flag.Int("max-version", VersionTLS13, "")
++	minVersion    = flag.Int("min-version", VersionSSL30, "")
++	maxVersion    = flag.Int("max-version", VersionTLS13, "")
++	expectVersion = flag.Int("expect-version", 0, "")
+ 
+ 	noTLS13 = flag.Bool("no-tls13", false, "")
+ 
+@@ -252,7 +253,9 @@ func bogoShim() {
+ 			if *expectALPN != "" && cs.NegotiatedProtocol != *expectALPN {
+ 				log.Fatalf("unexpected protocol negotiated: want %q, got %q", *expectALPN, cs.NegotiatedProtocol)
+ 			}
+-
++			if *expectVersion != 0 && cs.Version != uint16(*expectVersion) {
++				log.Fatalf("expected ssl version %q, got %q", uint16(*expectVersion), cs.Version)
++			}
+ 			if *expectECHAccepted && !cs.ECHAccepted {
+ 				log.Fatal("expected ECH to be accepted, but connection state shows it was not")
+ 			} else if i == 0 && *onInitialExpectECHAccepted && !cs.ECHAccepted {

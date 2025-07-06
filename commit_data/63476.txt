@@ -1,0 +1,221 @@
+commit 15cec430d75741960829e7e227c1b7c3e1f79114
+Author: Robert Griesemer <gri@golang.org>
+Date:   Mon Apr 15 14:10:40 2024 -0700
+
+    types2: flip the default value of GODEBUG=gotypesalias=1
+    
+    This CL changes the interpretation of the unset value
+    of gotypesalias to not equal "0".
+    
+    This is a port of CL 577715 from go/types to types2,
+    with adjustments to go/types to keep the source code
+    in sync. Specifically:
+    
+    - Re-introduce testing of both modes (gotypesalias=0,
+      gotypesalias=1) in go/types.
+    - Re-introduce setting of gotypesalias in some of the
+      tests for explicit documentation in go/types.
+    
+    The compiler still uses the (now) non-default setting
+    due to a panic with the default setting that needs to
+    be debugged.
+    
+    Also, the type checkers still don't call IncNonDefault
+    when the non-default setting of gotypesalias is used.
+    
+    Change-Id: I1feed3eb334c202950ac5aadf49a74adcce0d8c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579076
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/noder/irgen.go       |  5 +++++
+ src/cmd/compile/internal/types2/check.go      |  7 +++++--
+ src/cmd/compile/internal/types2/check_test.go |  4 ++--
+ src/cmd/compile/internal/types2/decl.go       |  2 +-
+ src/cmd/compile/internal/types2/named_test.go |  2 +-
+ src/go/types/api_test.go                      |  1 +
+ src/go/types/check.go                         | 13 ++++---------
+ src/go/types/check_test.go                    | 11 +++++++++++
+ src/go/types/issues_test.go                   |  2 +-
+ 9 files changed, 31 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/compile/internal/noder/irgen.go b/src/cmd/compile/internal/noder/irgen.go
+index e0b7bb946d..c159e4823e 100644
+--- a/src/cmd/compile/internal/noder/irgen.go
++++ b/src/cmd/compile/internal/noder/irgen.go
+@@ -8,6 +8,7 @@ import (
+ 	"fmt"
+ 	"internal/buildcfg"
+ 	"internal/types/errors"
++	"os"
+ 	"regexp"
+ 	"sort"
+ 
+@@ -85,6 +86,10 @@ func checkFiles(m posMap, noders []*noder) (*types2.Package, *types2.Info) {
+ 		base.ErrorfAt(m.makeXPos(terr.Pos), terr.Code, "%s", msg)
+ 	}
+ 
++	// Currently, the compiler panics when using Alias types.
++	// Use the non-default setting for now.
++	// TODO(gri) set this to gotypesalias=1 or remove this call.
++	os.Setenv("GODEBUG", "gotypesalias=0")
+ 	pkg, err := conf.Check(base.Ctxt.Pkgpath, files, info)
+ 	base.ExitIfErrors()
+ 	if err != nil {
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index b59e471e15..cc723f2012 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -21,7 +21,10 @@ var nopos syntax.Pos
+ const debug = false // leave on during development
+ 
+ // gotypesalias controls the use of Alias types.
+-var gotypesalias = godebug.New("#gotypesalias")
++// As of Apr 16 2024 they are used by default.
++// To disable their use, set GODEBUG to gotypesalias=0.
++// This GODEBUG flag will be removed in the near future (tentatively Go 1.24).
++var gotypesalias = godebug.New("gotypesalias")
+ 
+ // exprInfo stores information about an untyped expression.
+ type exprInfo struct {
+@@ -255,7 +258,7 @@ func NewChecker(conf *Config, pkg *Package, info *Info) *Checker {
+ 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
+ 
+ 	return &Checker{
+-		enableAlias: gotypesalias.Value() == "1",
++		enableAlias: gotypesalias.Value() != "0",
+ 		conf:        conf,
+ 		ctxt:        conf.Context,
+ 		pkg:         pkg,
+diff --git a/src/cmd/compile/internal/types2/check_test.go b/src/cmd/compile/internal/types2/check_test.go
+index 8b309898d2..066218772e 100644
+--- a/src/cmd/compile/internal/types2/check_test.go
++++ b/src/cmd/compile/internal/types2/check_test.go
+@@ -122,10 +122,10 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
+ //
+ // If provided, opts may be used to mutate the Config before type-checking.
+ func testFiles(t *testing.T, filenames []string, srcs [][]byte, colDelta uint, manual bool, opts ...func(*Config)) {
+-	// Alias types are disabled by default
++	// Alias types are enabled by default
+ 	testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
+ 	if !manual {
+-		t.Setenv("GODEBUG", "gotypesalias=1")
++		t.Setenv("GODEBUG", "gotypesalias=0")
+ 		testFilesImpl(t, filenames, srcs, colDelta, manual, opts...)
+ 	}
+ }
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 8bf9c58307..26ce49d87a 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -533,7 +533,7 @@ func (check *Checker) typeDecl(obj *TypeName, tdecl *syntax.TypeDecl, def *TypeN
+ 			Unalias(alias) // resolve alias.actual
+ 		} else {
+ 			if !versionErr && tparam0 != nil {
+-				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1")
++				check.error(tdecl, UnsupportedFeature, "generic type alias requires GODEBUG=gotypesalias=1 or unset")
+ 				versionErr = true
+ 			}
+ 
+diff --git a/src/cmd/compile/internal/types2/named_test.go b/src/cmd/compile/internal/types2/named_test.go
+index 25aea26792..7609306099 100644
+--- a/src/cmd/compile/internal/types2/named_test.go
++++ b/src/cmd/compile/internal/types2/named_test.go
+@@ -102,7 +102,7 @@ type Inst = *Tree[int]
+ 		return n.Underlying().(*Struct).Field(0).Type().(*Pointer).Elem().(*Named)
+ 	}
+ 
+-	Inst := pkg.Scope().Lookup("Inst").Type().(*Pointer).Elem().(*Named)
++	Inst := Unalias(pkg.Scope().Lookup("Inst").Type()).(*Pointer).Elem().(*Named)
+ 	Node := firstFieldType(Inst)
+ 	Tree := firstFieldType(Node)
+ 	if !Identical(Inst, Tree) {
+diff --git a/src/go/types/api_test.go b/src/go/types/api_test.go
+index 7ab695d365..5bc4e8a61f 100644
+--- a/src/go/types/api_test.go
++++ b/src/go/types/api_test.go
+@@ -2997,6 +2997,7 @@ func TestTooNew(t *testing.T) {
+ 
+ // This is a regression test for #66704.
+ func TestUnaliasTooSoonInCycle(t *testing.T) {
++	t.Setenv("GODEBUG", "gotypesalias=1")
+ 	const src = `package a
+ 
+ var x T[B] // this appears to cause Unalias to be called on B while still Invalid
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index 74849171f2..be990eabfe 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -24,8 +24,9 @@ var noposn = atPos(nopos)
+ const debug = false // leave on during development
+ 
+ // gotypesalias controls the use of Alias types.
+-// As of Apr 12 2024 it is on by default.
+-// It will be removed soon.
++// As of Apr 16 2024 they are used by default.
++// To disable their use, set GODEBUG to gotypesalias=0.
++// This GODEBUG flag will be removed in the near future (tentatively Go 1.24).
+ var gotypesalias = godebug.New("gotypesalias")
+ 
+ // exprInfo stores information about an untyped expression.
+@@ -260,14 +261,8 @@ func NewChecker(conf *Config, fset *token.FileSet, pkg *Package, info *Info) *Ch
+ 	//
+ 	// (previously, pkg.goVersion was mutated here: go.dev/issue/61212)
+ 
+-	enableAlias := false
+-	switch gotypesalias.Value() {
+-	case "", "1":
+-		enableAlias = true
+-	}
+-
+ 	return &Checker{
+-		enableAlias: enableAlias,
++		enableAlias: gotypesalias.Value() != "0",
+ 		conf:        conf,
+ 		ctxt:        conf.Context,
+ 		fset:        fset,
+diff --git a/src/go/types/check_test.go b/src/go/types/check_test.go
+index 63891e9056..6ad7ef3a27 100644
+--- a/src/go/types/check_test.go
++++ b/src/go/types/check_test.go
+@@ -124,6 +124,8 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
+ 
+ // testFiles type-checks the package consisting of the given files, and
+ // compares the resulting errors with the ERROR annotations in the source.
++// Except for manual tests, each package is type-checked twice, once without
++// use of Alias types, and once with Alias types.
+ //
+ // The srcs slice contains the file content for the files named in the
+ // filenames slice. The colDelta parameter specifies the tolerance for position
+@@ -132,6 +134,15 @@ func parseFlags(src []byte, flags *flag.FlagSet) error {
+ //
+ // If provided, opts may be used to mutate the Config before type-checking.
+ func testFiles(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
++	// Alias types are enabled by default
++	testFilesImpl(t, filenames, srcs, manual, opts...)
++	if !manual {
++		t.Setenv("GODEBUG", "gotypesalias=0")
++		testFilesImpl(t, filenames, srcs, manual, opts...)
++	}
++}
++
++func testFilesImpl(t *testing.T, filenames []string, srcs [][]byte, manual bool, opts ...func(*Config)) {
+ 	if len(filenames) == 0 {
+ 		t.Fatal("no source files")
+ 	}
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index eb627eaee7..4f4bf6f077 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -998,7 +998,7 @@ type A = []int
+ type S struct{ A }
+ `
+ 
+-	// t.Setenv("GODEBUG", "gotypesalias=1") // now on by default
++	t.Setenv("GODEBUG", "gotypesalias=1")
+ 	pkg := mustTypecheck(src, nil, nil)
+ 
+ 	S := pkg.Scope().Lookup("S")

@@ -1,0 +1,43 @@
+commit eb55b985a1b75bd796883a7a22dd41e76f0a45ba
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu Apr 24 17:07:04 2025 -0400
+
+    cmd/dist: add "devel" substring check to isRelease computation
+    
+    Non-release versions that are built from source without a VERSION file
+    specifying any particular version end up with a development version like
+    "devel go1.25-67e0681aef Thu Apr 24 12:17:27 2025 -0700". Right now
+    those versions are correctly determined to be non-release because they
+    don't have a "go" prefix, instead they have a "devel " prefix.
+    
+    In preparation of being able to move the "devel" substring, add a check
+    that said substring isn't present anywhere, since it is certain not to
+    be included in any released Go version we publish at https://go.dev/dl/.
+    
+    For #73372.
+    
+    Change-Id: Ia3e0d03b5723d4034d6270c3a2224f8dfae380e9
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667955
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/dist/build.go | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 596036fce9..aa82c851bb 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -274,7 +274,8 @@ func xinit() {
+ 	tooldir = pathf("%s/pkg/tool/%s_%s", goroot, gohostos, gohostarch)
+ 
+ 	goversion := findgoversion()
+-	isRelease = strings.HasPrefix(goversion, "release.") || strings.HasPrefix(goversion, "go")
++	isRelease = (strings.HasPrefix(goversion, "release.") || strings.HasPrefix(goversion, "go")) &&
++		!strings.Contains(goversion, "devel")
+ }
+ 
+ // compilerEnv returns a map from "goos/goarch" to the

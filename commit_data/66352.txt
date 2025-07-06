@@ -1,0 +1,182 @@
+commit 0fa31cb69f693cadb96535b67c166b7bd65d73b0
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Sun Feb 23 11:06:17 2025 +0800
+
+    [release-branch.go1.23] reflect: let Value.Seq return the iteration value correct type
+    
+    Fixes #71915
+    For #71905
+    
+    Change-Id: I50a418f8552e071c6e5011af5b9accc7d41548d0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651855
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    (cherry picked from commit 194696f1d1f6e5609f96d0fb0192595e7e0f5b90)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652875
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/reflect/iter.go      | 41 ++++++++++++++++++++++--------------
+ src/reflect/iter_test.go | 54 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 79 insertions(+), 16 deletions(-)
+
+diff --git a/src/reflect/iter.go b/src/reflect/iter.go
+index 2ee826da7d..03df87b178 100644
+--- a/src/reflect/iter.go
++++ b/src/reflect/iter.go
+@@ -4,15 +4,24 @@
+ 
+ package reflect
+ 
+-import "iter"
++import (
++	"iter"
++)
+ 
+ func rangeNum[T int8 | int16 | int32 | int64 | int |
+ 	uint8 | uint16 | uint32 | uint64 | uint |
+-	uintptr, N int64 | uint64](v N) iter.Seq[Value] {
++	uintptr, N int64 | uint64](num N, t Type) iter.Seq[Value] {
+ 	return func(yield func(v Value) bool) {
++		convert := t.PkgPath() != ""
+ 		// cannot use range T(v) because no core type.
+-		for i := T(0); i < T(v); i++ {
+-			if !yield(ValueOf(i)) {
++		for i := T(0); i < T(num); i++ {
++			tmp := ValueOf(i)
++			// if the iteration value type is define by
++			// type T built-in type.
++			if convert {
++				tmp = tmp.Convert(t)
++			}
++			if !yield(tmp) {
+ 				return
+ 			}
+ 		}
+@@ -35,29 +44,29 @@ func (v Value) Seq() iter.Seq[Value] {
+ 			v.Call([]Value{rf})
+ 		}
+ 	}
+-	switch v.Kind() {
++	switch v.kind() {
+ 	case Int:
+-		return rangeNum[int](v.Int())
++		return rangeNum[int](v.Int(), v.Type())
+ 	case Int8:
+-		return rangeNum[int8](v.Int())
++		return rangeNum[int8](v.Int(), v.Type())
+ 	case Int16:
+-		return rangeNum[int16](v.Int())
++		return rangeNum[int16](v.Int(), v.Type())
+ 	case Int32:
+-		return rangeNum[int32](v.Int())
++		return rangeNum[int32](v.Int(), v.Type())
+ 	case Int64:
+-		return rangeNum[int64](v.Int())
++		return rangeNum[int64](v.Int(), v.Type())
+ 	case Uint:
+-		return rangeNum[uint](v.Uint())
++		return rangeNum[uint](v.Uint(), v.Type())
+ 	case Uint8:
+-		return rangeNum[uint8](v.Uint())
++		return rangeNum[uint8](v.Uint(), v.Type())
+ 	case Uint16:
+-		return rangeNum[uint16](v.Uint())
++		return rangeNum[uint16](v.Uint(), v.Type())
+ 	case Uint32:
+-		return rangeNum[uint32](v.Uint())
++		return rangeNum[uint32](v.Uint(), v.Type())
+ 	case Uint64:
+-		return rangeNum[uint64](v.Uint())
++		return rangeNum[uint64](v.Uint(), v.Type())
+ 	case Uintptr:
+-		return rangeNum[uintptr](v.Uint())
++		return rangeNum[uintptr](v.Uint(), v.Type())
+ 	case Pointer:
+ 		if v.Elem().kind() != Array {
+ 			break
+diff --git a/src/reflect/iter_test.go b/src/reflect/iter_test.go
+index e329d6ecff..1d9869789a 100644
+--- a/src/reflect/iter_test.go
++++ b/src/reflect/iter_test.go
+@@ -7,10 +7,13 @@ package reflect_test
+ import (
+ 	"iter"
+ 	"maps"
++	"reflect"
+ 	. "reflect"
+ 	"testing"
+ )
+ 
++type N int8
++
+ func TestValueSeq(t *testing.T) {
+ 	m := map[string]int{
+ 		"1": 1,
+@@ -187,6 +190,21 @@ func TestValueSeq(t *testing.T) {
+ 				t.Fatalf("should loop four times")
+ 			}
+ 		}},
++		{"type N int8", ValueOf(N(4)), func(t *testing.T, s iter.Seq[Value]) {
++			i := N(0)
++			for v := range s {
++				if v.Int() != int64(i) {
++					t.Fatalf("got %d, want %d", v.Int(), i)
++				}
++				i++
++				if v.Type() != reflect.TypeOf(i) {
++					t.Fatalf("got %s, want %s", v.Type(), reflect.TypeOf(i))
++				}
++			}
++			if i != 4 {
++				t.Fatalf("should loop four times")
++			}
++		}},
+ 	}
+ 	for _, tc := range tests {
+ 		seq := tc.val.Seq()
+@@ -323,6 +341,42 @@ func TestValueSeq2(t *testing.T) {
+ 				t.Fatalf("should loop four times")
+ 			}
+ 		}},
++		{"[4]N", ValueOf([4]N{0, 1, 2, 3}), func(t *testing.T, s iter.Seq2[Value, Value]) {
++			i := N(0)
++			for v1, v2 := range s {
++				if v1.Int() != int64(i) {
++					t.Fatalf("got %d, want %d", v1.Int(), i)
++				}
++				if v2.Int() != int64(i) {
++					t.Fatalf("got %d, want %d", v2.Int(), i)
++				}
++				i++
++				if v2.Type() != reflect.TypeOf(i) {
++					t.Fatalf("got %s, want %s", v2.Type(), reflect.TypeOf(i))
++				}
++			}
++			if i != 4 {
++				t.Fatalf("should loop four times")
++			}
++		}},
++		{"[]N", ValueOf([]N{1, 2, 3, 4}), func(t *testing.T, s iter.Seq2[Value, Value]) {
++			i := N(0)
++			for v1, v2 := range s {
++				if v1.Int() != int64(i) {
++					t.Fatalf("got %d, want %d", v1.Int(), i)
++				}
++				i++
++				if v2.Int() != int64(i) {
++					t.Fatalf("got %d, want %d", v2.Int(), i)
++				}
++				if v2.Type() != reflect.TypeOf(i) {
++					t.Fatalf("got %s, want %s", v2.Type(), reflect.TypeOf(i))
++				}
++			}
++			if i != 4 {
++				t.Fatalf("should loop four times")
++			}
++		}},
+ 	}
+ 	for _, tc := range tests {
+ 		seq := tc.val.Seq2()

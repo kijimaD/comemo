@@ -1,0 +1,223 @@
+commit bdc6dbbc6465bc617b778e6e3a1ae49daa35ea69
+Author: Max Neverov <neverov.max@gmail.com>
+Date:   Wed Oct 9 00:00:28 2024 +0000
+
+    go/types: improve recursive type error message
+    
+    This change improves error message for recursive types.
+    Currently, compilation of the [following program](https://go.dev/play/p/3ef84ObpzfG):
+    
+    package main
+    
+    type T1[T T2] struct{}
+    type T2[T T1] struct{}
+    
+    returns an error:
+    
+    ./prog.go:3:6: invalid recursive type T1
+            ./prog.go:3:6: T1 refers to
+            ./prog.go:4:6: T2 refers to
+            ./prog.go:3:6: T1
+    
+    With the patch applied the error message looks like:
+    
+    ./prog.go:3:6: invalid recursive type T1
+            ./prog.go:3:6: T1 refers to T2
+            ./prog.go:4:6: T2 refers to T1
+    
+    Change-Id: Ic07cdffcffb1483c672b241fede4e694269b5b79
+    GitHub-Last-Rev: cd042fdc384cf5591b3258ca80fdc002bb8c5e0d
+    GitHub-Pull-Request: golang/go#69574
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614084
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/types2/decl.go      | 17 +++++++----------
+ src/cmd/compile/internal/types2/initorder.go | 10 ++++------
+ src/go/types/decl.go                         | 18 ++++++++----------
+ src/go/types/initorder.go                    | 10 ++++------
+ test/fixedbugs/bug195.go                     |  2 +-
+ test/fixedbugs/issue41575.go                 | 10 +++++-----
+ test/fixedbugs/issue50788.dir/b.go           |  2 +-
+ test/initloop.go                             |  2 +-
+ 8 files changed, 31 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 037155a6ca..b8e43231a1 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -334,17 +334,14 @@ func (check *Checker) cycleError(cycle []Object, start int) {
+ 	} else {
+ 		err.addf(obj, "invalid cycle in declaration of %s", objName)
+ 	}
+-	i := start
+-	for range cycle {
+-		err.addf(obj, "%s refers to", objName)
+-		i++
+-		if i >= len(cycle) {
+-			i = 0
+-		}
+-		obj = cycle[i]
+-		objName = name(obj)
++	// "cycle[i] refers to cycle[j]" for (i,j) = (s, s+1), (s+1, s+2), ..., (n, 0), (0,1), ..., (s-1,s) for len(cycle) = n, s = start.
++	n := len(cycle)
++	rotate := func(i int) int { return (i + start) % n }
++	for i := range n {
++		obj := cycle[rotate(i)]
++		next := cycle[rotate(i+1)]
++		err.addf(obj, "%s refers to %s", name(obj), name(next))
+ 	}
+-	err.addf(obj, "%s", objName)
+ 	err.report()
+ }
+ 
+diff --git a/src/cmd/compile/internal/types2/initorder.go b/src/cmd/compile/internal/types2/initorder.go
+index 09a53c98ef..9efbf7f69f 100644
+--- a/src/cmd/compile/internal/types2/initorder.go
++++ b/src/cmd/compile/internal/types2/initorder.go
+@@ -163,13 +163,11 @@ func (check *Checker) reportCycle(cycle []Object) {
+ 
+ 	err := check.newError(InvalidInitCycle)
+ 	err.addf(obj, "initialization cycle for %s", obj.Name())
+-	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
+-	for i := len(cycle) - 1; i >= 0; i-- {
+-		err.addf(obj, "%s refers to", obj.Name())
+-		obj = cycle[i]
++	// "cycle[i] refers to cycle[j]" for (i,j) = (0, n-1), (n-1, n-2), ..., (1,0) for len(cycle) = n.
++	for j := len(cycle) - 1; j >= 0; j-- {
++		err.addf(obj, "%s refers to %s", obj.Name(), cycle[j].Name())
++		obj = cycle[j]
+ 	}
+-	// print cycle[0] again to close the cycle
+-	err.addf(obj, "%s", obj.Name())
+ 	err.report()
+ }
+ 
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 4fd37df786..498eb16f84 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -335,17 +335,15 @@ func (check *Checker) cycleError(cycle []Object, start int) {
+ 	} else {
+ 		err.addf(obj, "invalid cycle in declaration of %s", objName)
+ 	}
+-	i := start
+-	for range cycle {
+-		err.addf(obj, "%s refers to", objName)
+-		i++
+-		if i >= len(cycle) {
+-			i = 0
+-		}
+-		obj = cycle[i]
+-		objName = name(obj)
++
++	// "cycle[i] refers to cycle[j]" for (i,j) = (s, s+1), (s+1, s+2), ..., (n, 0), (0,1), ..., (s-1,s) for len(cycle) = n, s = start.
++	n := len(cycle)
++	rotate := func(i int) int { return (i + start) % n }
++	for i := range n {
++		obj := cycle[rotate(i)]
++		next := cycle[rotate(i+1)]
++		err.addf(obj, "%s refers to %s", name(obj), name(next))
+ 	}
+-	err.addf(obj, "%s", objName)
+ 	err.report()
+ }
+ 
+diff --git a/src/go/types/initorder.go b/src/go/types/initorder.go
+index 077f2eccfe..682a63e2d7 100644
+--- a/src/go/types/initorder.go
++++ b/src/go/types/initorder.go
+@@ -166,13 +166,11 @@ func (check *Checker) reportCycle(cycle []Object) {
+ 
+ 	err := check.newError(InvalidInitCycle)
+ 	err.addf(obj, "initialization cycle for %s", obj.Name())
+-	// subtle loop: print cycle[i] for i = 0, n-1, n-2, ... 1 for len(cycle) = n
+-	for i := len(cycle) - 1; i >= 0; i-- {
+-		err.addf(obj, "%s refers to", obj.Name())
+-		obj = cycle[i]
++	// "cycle[i] refers to cycle[j]" for (i,j) = (0, n-1), (n-1, n-2), ..., (1,0) for len(cycle) = n.
++	for j := len(cycle) - 1; j >= 0; j-- {
++		err.addf(obj, "%s refers to %s", obj.Name(), cycle[j].Name())
++		obj = cycle[j]
+ 	}
+-	// print cycle[0] again to close the cycle
+-	err.addf(obj, "%s", obj.Name())
+ 	err.report()
+ }
+ 
+diff --git a/test/fixedbugs/bug195.go b/test/fixedbugs/bug195.go
+index 769ed050b3..fa9cec75aa 100644
+--- a/test/fixedbugs/bug195.go
++++ b/test/fixedbugs/bug195.go
+@@ -18,7 +18,7 @@ type I4 interface { // GC_ERROR "invalid recursive type: I4 refers to itself"
+ 	I4 // GCCGO_ERROR "interface"
+ }
+ 
+-type I5 interface { // GC_ERROR "invalid recursive type I5\n\tLINE:.* I5 refers to\n\tLINE+4:.* I6 refers to\n\tLINE:.* I5$"
++type I5 interface { // GC_ERROR "invalid recursive type I5\n\tLINE:.* I5 refers to I6\n\tLINE+4:.* I6 refers to I5$"
+ 	I6
+ }
+ 
+diff --git a/test/fixedbugs/issue41575.go b/test/fixedbugs/issue41575.go
+index 456873038f..2eed37a949 100644
+--- a/test/fixedbugs/issue41575.go
++++ b/test/fixedbugs/issue41575.go
+@@ -6,7 +6,7 @@
+ 
+ package p
+ 
+-type T1 struct { // ERROR "invalid recursive type T1\n\tLINE: T1 refers to\n\tLINE+4: T2 refers to\n\tLINE: T1$|invalid recursive type"
++type T1 struct { // ERROR "invalid recursive type T1\n.*T1 refers to T2\n.*T2 refers to T1|invalid recursive type"
+ 	f2 T2
+ }
+ 
+@@ -15,21 +15,21 @@ type T2 struct { // GCCGO_ERROR "invalid recursive type"
+ }
+ 
+ type a b // GCCGO_ERROR "invalid recursive type"
+-type b c // ERROR "invalid recursive type b\n\tLINE: b refers to\n\tLINE+1: c refers to\n\tLINE: b$|invalid recursive type"
++type b c // ERROR "invalid recursive type b\n.*b refers to c\n.*c refers to b|invalid recursive type|invalid recursive type"
+ type c b // GCCGO_ERROR "invalid recursive type"
+ 
+ type d e
+ type e f
+-type f f // ERROR "invalid recursive type f\n\tLINE: f refers to\n\tLINE: f$|invalid recursive type"
++type f f // ERROR "invalid recursive type: f refers to itself|invalid recursive type|invalid recursive type"
+ 
+-type g struct { // ERROR "invalid recursive type g\n\tLINE: g refers to\n\tLINE: g$|invalid recursive type"
++type g struct { // ERROR "invalid recursive type: g refers to itself|invalid recursive type"
+ 	h struct {
+ 		g
+ 	}
+ }
+ 
+ type w x
+-type x y           // ERROR "invalid recursive type x\n\tLINE: x refers to\n\tLINE+1: y refers to\n\tLINE+2: z refers to\n\tLINE: x$|invalid recursive type"
++type x y           // ERROR "invalid recursive type x\n.*x refers to y\n.*y refers to z\n.*z refers to x|invalid recursive type"
+ type y struct{ z } // GCCGO_ERROR "invalid recursive type"
+ type z [10]x
+ 
+diff --git a/test/fixedbugs/issue50788.dir/b.go b/test/fixedbugs/issue50788.dir/b.go
+index e17afc7b43..97ae208019 100644
+--- a/test/fixedbugs/issue50788.dir/b.go
++++ b/test/fixedbugs/issue50788.dir/b.go
+@@ -6,4 +6,4 @@ package b
+ 
+ import "./a"
+ 
+-type T a.T[T] // ERROR "invalid recursive type T\n.*T refers to\n.*a\.T refers to\n.*T"
++type T a.T[T] // ERROR "invalid recursive type T\n.*T refers to a\.T\n.*a\.T refers to T"
+diff --git a/test/initloop.go b/test/initloop.go
+index b1a8470b3a..c4530f36d6 100644
+--- a/test/initloop.go
++++ b/test/initloop.go
+@@ -11,7 +11,7 @@ package main
+ 
+ var (
+ 	x int = a
+-	a int = b // ERROR "a refers to\n.*b refers to\n.*c refers to\n.*a|initialization loop"
++	a int = b // ERROR "a refers to b\n.*b refers to c\n.*c refers to a|initialization loop"
+ 	b int = c
+ 	c int = a
+ )

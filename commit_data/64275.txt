@@ -1,0 +1,51 @@
+commit d567ea652a6da310c5ede4ab68012cddc3baa45a
+Author: Martin Garton <garton@gmail.com>
+Date:   Mon Jun 17 12:44:36 2024 +0000
+
+    encoding/binary: add missing test helper calls
+    
+    Various functions in binary_test.go were missing some t.Helper() calls,
+    so this adds them in.
+    
+    Change-Id: I0e5894e3c3cf72627203694a32adca51fe1563f5
+    GitHub-Last-Rev: b28c9255b3b5db3cf18b5406a4e13613d10b8da5
+    GitHub-Pull-Request: golang/go#63897
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/539135
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+---
+ src/encoding/binary/binary_test.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index 9eb536c990..9e5fed53b7 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -115,6 +115,7 @@ var res = []int32{0x01020304, 0x05060708}
+ var putbuf = []byte{0, 0, 0, 0, 0, 0, 0, 0}
+ 
+ func checkResult(t *testing.T, dir string, order ByteOrder, err error, have, want any) {
++	t.Helper()
+ 	if err != nil {
+ 		t.Errorf("%v %v: %v", dir, order, err)
+ 		return
+@@ -183,6 +184,7 @@ var decoders = []struct {
+ }
+ 
+ func testRead(t *testing.T, order ByteOrder, b []byte, s1 any) {
++	t.Helper()
+ 	for _, dec := range decoders {
+ 		t.Run(dec.name, func(t *testing.T) {
+ 			var s2 Struct
+@@ -193,6 +195,7 @@ func testRead(t *testing.T, order ByteOrder, b []byte, s1 any) {
+ }
+ 
+ func testWrite(t *testing.T, order ByteOrder, b []byte, s1 any) {
++	t.Helper()
+ 	for _, enc := range encoders {
+ 		t.Run(enc.name, func(t *testing.T) {
+ 			buf, err := enc.fn(order, s1)

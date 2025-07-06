@@ -1,0 +1,354 @@
+commit 548158c4a57580e8c8bd0e9b2f91d03b31efa879
+Author: Austin Clements <austin@google.com>
+Date:   Tue Jul 23 15:39:51 2024 -0400
+
+    runtime: switch debuglog from const-toggled to type-toggled
+    
+    Currently, the debuglog build tag controls the dlogEnabled const, and
+    all methods of dlogger first check this const and immediately return
+    if dlog is not enabled. With constant folding and inlining, this makes
+    the whole dlog implementation compile away if it's not enabled.
+    
+    However, we want to be able to test debuglog even when the build tag
+    isn't set. For that to work, we need a different mechanism.
+    
+    This CL changes this mechanism so the debuglog build tag instead
+    controls the type alias for dlogger to be either dloggerImpl or
+    dloggerFake. These two types have the same method set, but one is just
+    stubs. This way, the methods of dloggerImpl don't need to be
+    conditional dlogEnabled, which sets us up to use the now
+    fully-functional dloggerImpl type in the test.
+    
+    I confirmed that this change has no effect on the final size of the
+    cmd/go binary. It does increase the size of the runtime.a file by 0.9%
+    and make the runtime take ever so slightly longer to compile because
+    the compiler can no longer simply eliminate the bodies of the all of
+    dlogger during early deadcode. However, this all gets eliminated by
+    the linker. I consider this worth it to always get build and test
+    coverage of debuglog.
+    
+    Change-Id: I81759e9e1411b7d369a23383a18b022ab7451421
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600696
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/debuglog.go             | 115 +++++++++++++++++++++++++-----------
+ src/runtime/debuglog_off.go         |   6 ++
+ src/runtime/debuglog_on.go          |  11 ++++
+ src/runtime/export_debuglog_test.go |   6 +-
+ 4 files changed, 102 insertions(+), 36 deletions(-)
+
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index ee649fb007..a278dfabe7 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -12,6 +12,16 @@
+ //
+ // This facility can be enabled by passing -tags debuglog when
+ // building. Without this tag, dlog calls compile to nothing.
++//
++// Implementation notes
++//
++// There are two implementations of the dlog interface: dloggerImpl and
++// dloggerFake. dloggerFake is a no-op implementation. dlogger is type-aliased
++// to one or the other depending on the debuglog build tag. However, both types
++// always exist and are always built. This helps ensure we compile as much of
++// the implementation as possible in the default build configuration, while also
++// enabling us to achieve good test coverage of the real debuglog implementation
++// even when the debuglog build tag is not set.
+ 
+ package runtime
+ 
+@@ -31,8 +41,6 @@ const debugLogBytes = 16 << 10
+ // Above this, the string will be truncated with "..(n more bytes).."
+ const debugLogStringLimit = debugLogBytes / 8
+ 
+-type dlogger = dloggerImpl
+-
+ // dlog returns a debug logger. The caller can use methods on the
+ // returned logger to add values, which will be space-separated in the
+ // final output, much like println. The caller must call end() to
+@@ -50,11 +58,20 @@ type dlogger = dloggerImpl
+ //
+ //go:nosplit
+ //go:nowritebarrierrec
+-func dlog() *dloggerImpl {
+-	if !dlogEnabled {
+-		return nil
+-	}
++func dlog() dlogger {
++	// dlog1 is defined to either dlogImpl or dlogFake.
++	return dlog1()
++}
++
++//go:nosplit
++//go:nowritebarrierrec
++func dlogFake() dloggerFake {
++	return dloggerFake{}
++}
+ 
++//go:nosplit
++//go:nowritebarrierrec
++func dlogImpl() *dloggerImpl {
+ 	// Get the time.
+ 	tick, nano := uint64(cputicks()), uint64(nanotime())
+ 
+@@ -142,12 +159,14 @@ type dloggerImpl struct {
+ // so it doesn't need to protect against ABA races.
+ var allDloggers *dloggerImpl
+ 
++// A dloggerFake is a no-op implementation of dlogger.
++type dloggerFake struct{}
++
+ //go:nosplit
+-func (l *dloggerImpl) end() {
+-	if !dlogEnabled {
+-		return
+-	}
++func (l dloggerFake) end() {}
+ 
++//go:nosplit
++func (l *dloggerImpl) end() {
+ 	// Fill in framing header.
+ 	size := l.w.write - l.w.r.end
+ 	if !l.w.writeFrameAt(l.w.r.end, size) {
+@@ -182,11 +201,11 @@ const (
+ 	debugLogTraceback
+ )
+ 
++//go:nosplit
++func (l dloggerFake) b(x bool) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) b(x bool) *dloggerImpl {
+-	if !dlogEnabled {
+-		return l
+-	}
+ 	if x {
+ 		l.w.byte(debugLogBoolTrue)
+ 	} else {
+@@ -195,86 +214,113 @@ func (l *dloggerImpl) b(x bool) *dloggerImpl {
+ 	return l
+ }
+ 
++//go:nosplit
++func (l dloggerFake) i(x int) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) i(x int) *dloggerImpl {
+ 	return l.i64(int64(x))
+ }
+ 
++//go:nosplit
++func (l dloggerFake) i8(x int8) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) i8(x int8) *dloggerImpl {
+ 	return l.i64(int64(x))
+ }
+ 
++//go:nosplit
++func (l dloggerFake) i16(x int16) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) i16(x int16) *dloggerImpl {
+ 	return l.i64(int64(x))
+ }
+ 
++//go:nosplit
++func (l dloggerFake) i32(x int32) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) i32(x int32) *dloggerImpl {
+ 	return l.i64(int64(x))
+ }
+ 
++//go:nosplit
++func (l dloggerFake) i64(x int64) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) i64(x int64) *dloggerImpl {
+-	if !dlogEnabled {
+-		return l
+-	}
+ 	l.w.byte(debugLogInt)
+ 	l.w.varint(x)
+ 	return l
+ }
+ 
++//go:nosplit
++func (l dloggerFake) u(x uint) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) u(x uint) *dloggerImpl {
+ 	return l.u64(uint64(x))
+ }
+ 
++//go:nosplit
++func (l dloggerFake) uptr(x uintptr) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) uptr(x uintptr) *dloggerImpl {
+ 	return l.u64(uint64(x))
+ }
+ 
++//go:nosplit
++func (l dloggerFake) u8(x uint8) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) u8(x uint8) *dloggerImpl {
+ 	return l.u64(uint64(x))
+ }
+ 
++//go:nosplit
++func (l dloggerFake) u16(x uint16) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) u16(x uint16) *dloggerImpl {
+ 	return l.u64(uint64(x))
+ }
+ 
++//go:nosplit
++func (l dloggerFake) u32(x uint32) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) u32(x uint32) *dloggerImpl {
+ 	return l.u64(uint64(x))
+ }
+ 
++//go:nosplit
++func (l dloggerFake) u64(x uint64) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) u64(x uint64) *dloggerImpl {
+-	if !dlogEnabled {
+-		return l
+-	}
+ 	l.w.byte(debugLogUint)
+ 	l.w.uvarint(x)
+ 	return l
+ }
+ 
++//go:nosplit
++func (l dloggerFake) hex(x uint64) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) hex(x uint64) *dloggerImpl {
+-	if !dlogEnabled {
+-		return l
+-	}
+ 	l.w.byte(debugLogHex)
+ 	l.w.uvarint(x)
+ 	return l
+ }
+ 
++//go:nosplit
++func (l dloggerFake) p(x any) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) p(x any) *dloggerImpl {
+-	if !dlogEnabled {
+-		return l
+-	}
+ 	l.w.byte(debugLogPtr)
+ 	if x == nil {
+ 		l.w.uvarint(0)
+@@ -291,11 +337,10 @@ func (l *dloggerImpl) p(x any) *dloggerImpl {
+ }
+ 
+ //go:nosplit
+-func (l *dloggerImpl) s(x string) *dloggerImpl {
+-	if !dlogEnabled {
+-		return l
+-	}
++func (l dloggerFake) s(x string) dloggerFake { return l }
+ 
++//go:nosplit
++func (l *dloggerImpl) s(x string) *dloggerImpl {
+ 	strData := unsafe.StringData(x)
+ 	datap := &firstmoduledata
+ 	if len(x) > 4 && datap.etext <= uintptr(unsafe.Pointer(strData)) && uintptr(unsafe.Pointer(strData)) < datap.end {
+@@ -326,21 +371,21 @@ func (l *dloggerImpl) s(x string) *dloggerImpl {
+ 	return l
+ }
+ 
++//go:nosplit
++func (l dloggerFake) pc(x uintptr) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) pc(x uintptr) *dloggerImpl {
+-	if !dlogEnabled {
+-		return l
+-	}
+ 	l.w.byte(debugLogPC)
+ 	l.w.uvarint(uint64(x))
+ 	return l
+ }
+ 
++//go:nosplit
++func (l dloggerFake) traceback(x []uintptr) dloggerFake { return l }
++
+ //go:nosplit
+ func (l *dloggerImpl) traceback(x []uintptr) *dloggerImpl {
+-	if !dlogEnabled {
+-		return l
+-	}
+ 	l.w.byte(debugLogTraceback)
+ 	l.w.uvarint(uint64(len(x)))
+ 	for _, pc := range x {
+diff --git a/src/runtime/debuglog_off.go b/src/runtime/debuglog_off.go
+index 7ebec31bf6..4eb59fa683 100644
+--- a/src/runtime/debuglog_off.go
++++ b/src/runtime/debuglog_off.go
+@@ -8,6 +8,12 @@ package runtime
+ 
+ const dlogEnabled = false
+ 
++type dlogger = dloggerFake
++
++func dlog1() dloggerFake {
++	return dlogFake()
++}
++
+ type dlogPerM struct{}
+ 
+ func getCachedDlogger() *dloggerImpl {
+diff --git a/src/runtime/debuglog_on.go b/src/runtime/debuglog_on.go
+index b81d66498c..99773129ab 100644
+--- a/src/runtime/debuglog_on.go
++++ b/src/runtime/debuglog_on.go
+@@ -8,6 +8,17 @@ package runtime
+ 
+ const dlogEnabled = true
+ 
++// dlogger is the underlying implementation of the dlogger interface, selected
++// at build time.
++//
++// We use a type alias instead of struct embedding so that the dlogger type is
++// identical to the type returned by method chaining on the methods of this type.
++type dlogger = *dloggerImpl
++
++func dlog1() *dloggerImpl {
++	return dlogImpl()
++}
++
+ // dlogPerM is the per-M debug log data. This is embedded in the m
+ // struct.
+ type dlogPerM struct {
+diff --git a/src/runtime/export_debuglog_test.go b/src/runtime/export_debuglog_test.go
+index e4b4ab9914..a361c02299 100644
+--- a/src/runtime/export_debuglog_test.go
++++ b/src/runtime/export_debuglog_test.go
+@@ -12,7 +12,11 @@ const DebugLogBytes = debugLogBytes
+ 
+ const DebugLogStringLimit = debugLogStringLimit
+ 
+-var Dlog = dlog
++type Dlogger = dloggerImpl
++
++func Dlog() *Dlogger {
++	return dlogImpl()
++}
+ 
+ func (l *dloggerImpl) End()                      { l.end() }
+ func (l *dloggerImpl) B(x bool) *dloggerImpl     { return l.b(x) }

@@ -1,0 +1,76 @@
+commit 816b6031febc51692eb667df7498f3b2332987fa
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue May 21 14:35:14 2024 -0700
+
+    go/types, types2: add missing Unalias calls (clarification)
+    
+    This change adds an Unalias call in applyTypeFunc and arrayPtrDeref.
+    At the moment this doesn't change anything or fix any bugs because
+    of the way these two functions are invoked, but that could change
+    in the future.
+    
+    Also, manually reviewed all type assertions to Type types.
+    
+    Excluding assertions to type parameters, no obvious issues
+    were found except for #67540 for which a separate fix is pending.
+    
+    There are potential issues with assertions type parameters
+    which will be addressed in a follow-up CL.
+    
+    For #67547.
+    
+    Change-Id: I312268dc5e104f95b68f115f00aec3ec4c82e41f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587156
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/builtins.go | 4 ++--
+ src/go/types/builtins.go                    | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index b897a55212..8b08e498f3 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -960,7 +960,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
+ // applyTypeFunc returns nil.
+ // If x is not a type parameter, the result is f(x).
+ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId) Type {
+-	if tp, _ := x.typ.(*TypeParam); tp != nil {
++	if tp, _ := Unalias(x.typ).(*TypeParam); tp != nil {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
+ 		var terms []*Term
+@@ -1026,7 +1026,7 @@ func makeSig(res Type, args ...Type) *Signature {
+ // arrayPtrDeref returns A if typ is of the form *A and A is an array;
+ // otherwise it returns typ.
+ func arrayPtrDeref(typ Type) Type {
+-	if p, ok := typ.(*Pointer); ok {
++	if p, ok := Unalias(typ).(*Pointer); ok {
+ 		if a, _ := under(p.base).(*Array); a != nil {
+ 			return a
+ 		}
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 43a87498ae..b8963f3248 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -963,7 +963,7 @@ func hasVarSize(t Type, seen map[*Named]bool) (varSized bool) {
+ // applyTypeFunc returns nil.
+ // If x is not a type parameter, the result is f(x).
+ func (check *Checker) applyTypeFunc(f func(Type) Type, x *operand, id builtinId) Type {
+-	if tp, _ := x.typ.(*TypeParam); tp != nil {
++	if tp, _ := Unalias(x.typ).(*TypeParam); tp != nil {
+ 		// Test if t satisfies the requirements for the argument
+ 		// type and collect possible result types at the same time.
+ 		var terms []*Term
+@@ -1029,7 +1029,7 @@ func makeSig(res Type, args ...Type) *Signature {
+ // arrayPtrDeref returns A if typ is of the form *A and A is an array;
+ // otherwise it returns typ.
+ func arrayPtrDeref(typ Type) Type {
+-	if p, ok := typ.(*Pointer); ok {
++	if p, ok := Unalias(typ).(*Pointer); ok {
+ 		if a, _ := under(p.base).(*Array); a != nil {
+ 			return a
+ 		}

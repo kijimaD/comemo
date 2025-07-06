@@ -1,0 +1,64 @@
+commit 420037b16de64f1117bd47a4f3448990fb137fd0
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jul 17 09:23:09 2024 -0700
+
+    os: don't try to signal PID -1 on Unix
+    
+    This restores behavior that we lost in CL 588675.
+    
+    Fixes #68496
+    
+    Change-Id: I1740986bed647835986d54109071b7a6b37413d5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599015
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+---
+ src/os/exec_unix.go      |  3 +++
+ src/os/exec_unix_test.go | 13 ++++++++++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 8d99b55342..ba6146ada1 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -103,6 +103,9 @@ func (p *Process) signal(sig Signal) error {
+ }
+ 
+ func (p *Process) pidSignal(s syscall.Signal) error {
++	if p.Pid == pidReleased {
++		return errors.New("os: process already released")
++	}
+ 	if p.Pid == pidUnset {
+ 		return errors.New("os: process not initialized")
+ 	}
+diff --git a/src/os/exec_unix_test.go b/src/os/exec_unix_test.go
+index 81d8e1cfee..960f5d8218 100644
+--- a/src/os/exec_unix_test.go
++++ b/src/os/exec_unix_test.go
+@@ -40,7 +40,7 @@ func TestProcessAlreadyDone(t *testing.T) {
+ 		// EINVAL (see waitid in usr/src/uts/common/os/exit.c in
+ 		// illumos). This is configurable via sysconf(_SC_MAXPID), but
+ 		// we'll just take the default.
+-		pid = 30000-1
++		pid = 30000 - 1
+ 	}
+ 
+ 	p, err := FindProcess(pid)
+@@ -76,3 +76,14 @@ func TestUNIXProcessAlive(t *testing.T) {
+ 		t.Errorf("OS reported error for running process: %v", err)
+ 	}
+ }
++
++func TestProcessBadPID(t *testing.T) {
++	p, err := FindProcess(-1)
++	if err != nil {
++		t.Fatalf("unexpected FindProcess error: %v", err)
++	}
++	err = p.Signal(syscall.Signal(0))
++	if err == nil {
++		t.Error("p.Signal succeeded unexpectedly")
++	}
++}

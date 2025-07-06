@@ -1,0 +1,51 @@
+commit 1416cebdd54b4d96f6095db18002ae3f90f1f4c0
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Thu Aug 8 15:24:15 2024 -0700
+
+    runtime: record all sampled mutex profile events
+    
+    The block and mutex profiles have slightly different behaviors when a
+    sampled event has a negative (or zero) duration. The block profile
+    enforces a minimum duration for each event of "1" in the cputicks unit.
+    It does so by clamping the duration to 1 if it was originally reported
+    as being smaller. The mutex profile for app-level contention enforces a
+    minimum duration of 0 in a similar way: by reporting any negative values
+    as 0 instead.
+    
+    The mutex profile for runtime-internal contention had a different
+    behavior: to enforce a minimum event duration of "1" by dropping any
+    non-conforming samples.
+    
+    Stop dropping samples, and use the same minimum (0) that's in place for
+    the other mutex profile events.
+    
+    Fixes #64253
+    Fixes #68453
+    Fixes #68781
+    
+    Change-Id: I4c5d23a2675501226eef5b9bc1ada2efc1a55b9e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+---
+ src/runtime/mprof.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index a9adc7b6f7..f82f6a6d37 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -722,8 +722,8 @@ type mLockProfile struct {
+ }
+ 
+ func (prof *mLockProfile) recordLock(cycles int64, l *mutex) {
+-	if cycles <= 0 {
+-		return
++	if cycles < 0 {
++		cycles = 0
+ 	}
+ 
+ 	if prof.disabled {

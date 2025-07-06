@@ -1,0 +1,35 @@
+commit 3902e9ef4e4543c6ac7371174a122ca090af971a
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Feb 12 15:24:10 2025 -0800
+
+    internal/abi: remove go122 flag
+    
+    We no longer need this flag in case we need to rollback.
+    
+    Change-Id: Id8b8f76380237f2d80a14037e88df4917c843f03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649095
+    Reviewed-by: Michael Stapelberg <stapelberg@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+---
+ src/internal/abi/switch.go | 5 -----
+ 1 file changed, 5 deletions(-)
+
+diff --git a/src/internal/abi/switch.go b/src/internal/abi/switch.go
+index 9669fe51d5..df6f99c945 100644
+--- a/src/internal/abi/switch.go
++++ b/src/internal/abi/switch.go
+@@ -27,12 +27,7 @@ type InterfaceSwitchCacheEntry struct {
+ 	Itab uintptr
+ }
+ 
+-const go122InterfaceSwitchCache = true
+-
+ func UseInterfaceSwitchCache(goarch string) bool {
+-	if !go122InterfaceSwitchCache {
+-		return false
+-	}
+ 	// We need an atomic load instruction to make the cache multithreaded-safe.
+ 	// (AtomicLoadPtr needs to be implemented in cmd/compile/internal/ssa/_gen/ARCH.rules.)
+ 	switch goarch {

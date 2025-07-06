@@ -1,0 +1,91 @@
+commit a7c7ec5995b3901145f847c01f3e100b2b7e3421
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Mon Aug 5 03:14:45 2024 +0000
+
+    maps: add examples for All, Keys, Values, Insert, and Collect functions
+    
+    Change-Id: I4ee61bea9997b822aa1ec2cc3d01b4db5f101e4c
+    GitHub-Last-Rev: d88282a92ec86721356696108898e06924ec89c9
+    GitHub-Pull-Request: golang/go#68696
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602315
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/maps/example_test.go | 58 ++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 58 insertions(+)
+
+diff --git a/src/maps/example_test.go b/src/maps/example_test.go
+index 3d6b7d1ba0..c1000d4d9d 100644
+--- a/src/maps/example_test.go
++++ b/src/maps/example_test.go
+@@ -7,6 +7,7 @@ package maps_test
+ import (
+ 	"fmt"
+ 	"maps"
++	"slices"
+ 	"strings"
+ )
+ 
+@@ -133,3 +134,60 @@ func ExampleEqualFunc() {
+ 	// Output:
+ 	// true
+ }
++
++func ExampleAll() {
++	m1 := map[string]int{
++		"one": 1,
++		"two": 2,
++	}
++	m2 := map[string]int{
++		"one": 10,
++	}
++	maps.Insert(m2, maps.All(m1))
++	fmt.Println("m2 is:", m2)
++	// Output:
++	// m2 is: map[one:1 two:2]
++}
++
++func ExampleKeys() {
++	m1 := map[int]string{
++		1:    "one",
++		10:   "Ten",
++		1000: "THOUSAND",
++	}
++	keys := slices.Sorted(maps.Keys(m1))
++	fmt.Println(keys)
++	// Output:
++	// [1 10 1000]
++}
++
++func ExampleValues() {
++	m1 := map[int]string{
++		1:    "one",
++		10:   "Ten",
++		1000: "THOUSAND",
++	}
++	keys := slices.Sorted(maps.Values(m1))
++	fmt.Println(keys)
++	// Output:
++	// [THOUSAND Ten one]
++}
++
++func ExampleInsert() {
++	m1 := map[int]string{
++		1000: "THOUSAND",
++	}
++	s1 := []string{"zero", "one", "two", "three"}
++	maps.Insert(m1, slices.All(s1))
++	fmt.Println("m1 is:", m1)
++	// Output:
++	// m1 is: map[0:zero 1:one 2:two 3:three 1000:THOUSAND]
++}
++
++func ExampleCollect() {
++	s1 := []string{"zero", "one", "two", "three"}
++	m1 := maps.Collect(slices.All(s1))
++	fmt.Println("m1 is:", m1)
++	// Output:
++	// m1 is: map[0:zero 1:one 2:two 3:three]
++}

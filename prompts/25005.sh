@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 25005: 64ad58768ead0bfe92ee4cad15f3d2630c72a979
+# Index 25005: 1b5eaa4382e1d7cd1b6d8aaa63fc4eeb10a70e4a
 
 echo "🚀 Generating explanation for commit 25005..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 25005..."
 
 ### メタデータ
 - **コミットインデックス**: 25005
-- **コミットハッシュ**: 64ad58768ead0bfe92ee4cad15f3d2630c72a979
-- **GitHub URL**: https://github.com/golang/go/commit/64ad58768ead0bfe92ee4cad15f3d2630c72a979
+- **コミットハッシュ**: 1b5eaa4382e1d7cd1b6d8aaa63fc4eeb10a70e4a
+- **GitHub URL**: https://github.com/golang/go/commit/1b5eaa4382e1d7cd1b6d8aaa63fc4eeb10a70e4a
 
 ### 章構成
 

@@ -1,0 +1,79 @@
+commit ad8b33002bb5cb0c910694339e1cc6c75f781c5a
+Author: Zxilly <zxilly@outlook.com>
+Date:   Tue Feb 18 15:21:23 2025 +0000
+
+    syscall: disable O_DIRECTORY on Windows for js/wasm
+    
+    O_DIRECTORY is not available on all platforms, as described at
+    
+    https://nodejs.org/docs/latest/api/fs.html#file-open-constants .
+    
+    On Windows, only O_APPEND, O_CREAT, O_EXCL, O_RDONLY, O_RDWR,
+    O_TRUNC, O_WRONLY, and UV_FS_O_FILEMAP are available.
+    
+    Fixes #71758
+    
+    Change-Id: Iacc890ba9a30dcd75eb746ec324fa0c3e368048e
+    GitHub-Last-Rev: a0160e8fc82583c4f903ae165fe9f204896cf56d
+    GitHub-Pull-Request: golang/go#71770
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650015
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/syscall/fs_js.go | 31 +++++++++++++++++++++++--------
+ 1 file changed, 23 insertions(+), 8 deletions(-)
+
+diff --git a/src/syscall/fs_js.go b/src/syscall/fs_js.go
+index 111ce4f5c1..7ef3cdee14 100644
+--- a/src/syscall/fs_js.go
++++ b/src/syscall/fs_js.go
+@@ -23,15 +23,26 @@ var constants = jsFS.Get("constants")
+ var uint8Array = js.Global().Get("Uint8Array")
+ 
+ var (
+-	nodeWRONLY    = constants.Get("O_WRONLY").Int()
+-	nodeRDWR      = constants.Get("O_RDWR").Int()
+-	nodeCREATE    = constants.Get("O_CREAT").Int()
+-	nodeTRUNC     = constants.Get("O_TRUNC").Int()
+-	nodeAPPEND    = constants.Get("O_APPEND").Int()
+-	nodeEXCL      = constants.Get("O_EXCL").Int()
+-	nodeDIRECTORY = constants.Get("O_DIRECTORY").Int()
++	nodeWRONLY = constants.Get("O_WRONLY").Int()
++	nodeRDWR   = constants.Get("O_RDWR").Int()
++	nodeCREATE = constants.Get("O_CREAT").Int()
++	nodeTRUNC  = constants.Get("O_TRUNC").Int()
++	nodeAPPEND = constants.Get("O_APPEND").Int()
++	nodeEXCL   = constants.Get("O_EXCL").Int()
++
++	// NodeJS on Windows does not support O_DIRECTORY, so we default
++	// to -1 and assign it in init if available.
++	// See https://nodejs.org/docs/latest/api/fs.html#file-open-constants.
++	nodeDIRECTORY = -1
+ )
+ 
++func init() {
++	oDir := constants.Get("O_DIRECTORY")
++	if !oDir.IsUndefined() {
++		nodeDIRECTORY = oDir.Int()
++	}
++}
++
+ type jsFile struct {
+ 	path    string
+ 	entries []string
+@@ -85,7 +96,11 @@ func Open(path string, openmode int, perm uint32) (int, error) {
+ 		return 0, errors.New("syscall.Open: O_SYNC is not supported by js/wasm")
+ 	}
+ 	if openmode&O_DIRECTORY != 0 {
+-		flags |= nodeDIRECTORY
++		if nodeDIRECTORY != -1 {
++			flags |= nodeDIRECTORY
++		} else {
++			return 0, errors.New("syscall.Open: O_DIRECTORY is not supported on Windows")
++		}
+ 	}
+ 
+ 	jsFD, err := fsCall("open", path, flags, perm)

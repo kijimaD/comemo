@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 47406: d206ca5cac60ddff222a25e1dc96d6b0e96c21b5
+# Index 47406: 1ee30d25c517cfa5674a35754602f1a9ba3562f4
 
 echo "🚀 Generating explanation for commit 47406..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 47406..."
 
 ### メタデータ
 - **コミットインデックス**: 47406
-- **コミットハッシュ**: d206ca5cac60ddff222a25e1dc96d6b0e96c21b5
-- **GitHub URL**: https://github.com/golang/go/commit/d206ca5cac60ddff222a25e1dc96d6b0e96c21b5
+- **コミットハッシュ**: 1ee30d25c517cfa5674a35754602f1a9ba3562f4
+- **GitHub URL**: https://github.com/golang/go/commit/1ee30d25c517cfa5674a35754602f1a9ba3562f4
 
 ### 章構成
 

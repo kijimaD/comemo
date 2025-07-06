@@ -1,0 +1,34 @@
+commit 0bc684a994c47a079cd7ead2016cc77db0a3d36c
+Author: Austin Clements <austin@google.com>
+Date:   Tue May 21 10:24:59 2024 -0400
+
+    runtime: push vdsoClockgettimeSym linkname on linux/arm64
+    
+    Updates #67401.
+    
+    Change-Id: I491ad443673193db4f921346539ca5e41afad2ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586896
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Florian Zenker <floriank@google.com>
+---
+ src/runtime/{badlinkname_linux_amd64.go => badlinkname_linux.go} | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/runtime/badlinkname_linux_amd64.go b/src/runtime/badlinkname_linux.go
+similarity index 94%
+rename from src/runtime/badlinkname_linux_amd64.go
+rename to src/runtime/badlinkname_linux.go
+index 8a2dae93ca..ad74528da2 100644
+--- a/src/runtime/badlinkname_linux_amd64.go
++++ b/src/runtime/badlinkname_linux.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++//go:build amd64 || arm64
++
+ package runtime
+ 
+ import _ "unsafe"

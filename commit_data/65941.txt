@@ -1,0 +1,57 @@
+commit 6da16013ba4444e0d71540f68279f0283a92d05d
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Dec 28 11:19:23 2024 -0500
+
+    cmd/go: check go version when parsing go.mod fails
+    
+    Fixes #70979
+    
+    Change-Id: I6597fe178eed34702eea6cba4eec5174c9203458
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/go/internal/modload/modfile.go           | 11 +++++++++++
+ src/cmd/go/testdata/script/mod_unknown_block.txt | 11 +++++++++++
+ 2 files changed, 22 insertions(+)
+
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 94d2f5bd66..4687deae68 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -44,6 +44,17 @@ func ReadModFile(gomod string, fix modfile.VersionFixer) (data []byte, f *modfil
+ 
+ 	f, err = modfile.Parse(gomod, data, fix)
+ 	if err != nil {
++		f, laxErr := modfile.ParseLax(gomod, data, fix)
++		if laxErr == nil {
++			if f.Go != nil && gover.Compare(f.Go.Version, gover.Local()) > 0 {
++				toolchain := ""
++				if f.Toolchain != nil {
++					toolchain = f.Toolchain.Name
++				}
++				return nil, nil, &gover.TooNewError{What: base.ShortPath(gomod), GoVersion: f.Go.Version, Toolchain: toolchain}
++			}
++		}
++
+ 		// Errors returned by modfile.Parse begin with file:line.
+ 		return nil, nil, fmt.Errorf("errors parsing %s:\n%w", base.ShortPath(gomod), shortPathErrorList(err))
+ 	}
+diff --git a/src/cmd/go/testdata/script/mod_unknown_block.txt b/src/cmd/go/testdata/script/mod_unknown_block.txt
+new file mode 100644
+index 0000000000..071269bb8d
+--- /dev/null
++++ b/src/cmd/go/testdata/script/mod_unknown_block.txt
+@@ -0,0 +1,11 @@
++env GOTOOLCHAIN=local
++! go list .
++stderr 'go: go.mod requires go >= 1.999'
++
++
++-- go.mod --
++module example.com
++
++go 1.999
++
++anewblock foo

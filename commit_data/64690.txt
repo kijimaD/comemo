@@ -1,0 +1,169 @@
+commit 0c1627812406a76ac256a08bee985a9817372446
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Sep 3 13:53:37 2024 -0700
+
+    cmd: use built-in clear for maps instead of range+delete
+    
+    Now that we're bootstrapping from a toolchain that has the clear builtin.
+    
+    Update #64751
+    
+    Change-Id: Ia86d96c253c9f7c66131cd02048a493047569641
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610237
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/compile/internal/inline/inlheur/scoring.go |  4 +---
+ src/cmd/compile/internal/liveness/mergelocals.go   | 14 +++-----------
+ src/cmd/compile/internal/liveness/plive.go         | 12 +++---------
+ src/cmd/compile/internal/ssa/deadstore.go          |  5 +----
+ src/cmd/compile/internal/ssa/debug.go              |  4 +---
+ src/cmd/compile/internal/ssa/regalloc.go           |  8 ++------
+ src/cmd/compile/internal/ssagen/ssa.go             |  4 +---
+ 7 files changed, 12 insertions(+), 39 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inlheur/scoring.go b/src/cmd/compile/internal/inline/inlheur/scoring.go
+index 3ef7c9b79a..c49c087a62 100644
+--- a/src/cmd/compile/internal/inline/inlheur/scoring.go
++++ b/src/cmd/compile/internal/inline/inlheur/scoring.go
+@@ -569,9 +569,7 @@ func ScoreCallsCleanup() {
+ 			allCallSites[call] = cs
+ 		}
+ 	}
+-	for k := range scoreCallsCache.tab {
+-		delete(scoreCallsCache.tab, k)
+-	}
++	clear(scoreCallsCache.tab)
+ }
+ 
+ // GetCallSiteScore returns the previously calculated score for call
+diff --git a/src/cmd/compile/internal/liveness/mergelocals.go b/src/cmd/compile/internal/liveness/mergelocals.go
+index 86f1e6ddaa..25c2c4b3d6 100644
+--- a/src/cmd/compile/internal/liveness/mergelocals.go
++++ b/src/cmd/compile/internal/liveness/mergelocals.go
+@@ -489,8 +489,8 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
+ 		rawcands[n] = struct{}{}
+ 	}
+ 	for k := 0; k < len(cs.f.Blocks); k++ {
+-		genmapclear(pendingUses)
+-		genmapclear(blockIndirectUE)
++		clear(pendingUses)
++		clear(blockIndirectUE)
+ 		b := cs.f.Blocks[k]
+ 		for _, v := range b.Values {
+ 			if n, e := affectedVar(v); n != nil {
+@@ -546,7 +546,7 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
+ 		// that value is flowing out of the block off somewhere else,
+ 		// we're going to treat that local as truly address-taken and
+ 		// not have it be a merge candidate.
+-		genmapclear(evicted)
++		clear(evicted)
+ 		if len(pendingUses) != 0 {
+ 			for id, nc := range pendingUses {
+ 				if cs.trace > 2 {
+@@ -605,14 +605,6 @@ func (cs *cstate) populateIndirectUseTable(cands []*ir.Name) ([]*ir.Name, []cand
+ 	return pruned, regions
+ }
+ 
+-// FIXME: bootstrap tool compiler is build with a "go 1.20" go.mod, so
+-// we are not allowed to use map clear yet. Use this helper instead.
+-func genmapclear[KT comparable, VT any](m map[KT]VT) {
+-	for k := range m {
+-		delete(m, k)
+-	}
+-}
+-
+ type nameCount struct {
+ 	n     *ir.Name
+ 	count int32
+diff --git a/src/cmd/compile/internal/liveness/plive.go b/src/cmd/compile/internal/liveness/plive.go
+index c5003ddca6..6d6b126e4b 100644
+--- a/src/cmd/compile/internal/liveness/plive.go
++++ b/src/cmd/compile/internal/liveness/plive.go
+@@ -168,15 +168,9 @@ func (m *Map) reset() {
+ 		m.UnsafeVals = make(map[ssa.ID]bool)
+ 		m.UnsafeBlocks = make(map[ssa.ID]bool)
+ 	} else {
+-		for k := range m.Vals {
+-			delete(m.Vals, k)
+-		}
+-		for k := range m.UnsafeVals {
+-			delete(m.UnsafeVals, k)
+-		}
+-		for k := range m.UnsafeBlocks {
+-			delete(m.UnsafeBlocks, k)
+-		}
++		clear(m.Vals)
++		clear(m.UnsafeVals)
++		clear(m.UnsafeBlocks)
+ 	}
+ 	m.DeferReturn = objw.StackMapDontCare
+ }
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index a0d61bad03..9f61ef29b9 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -29,10 +29,7 @@ func dse(f *Func) {
+ 		//  storeUse contains stores which are used by a subsequent store.
+ 		loadUse.clear()
+ 		storeUse.clear()
+-		// TODO(deparker): use the 'clear' builtin once compiler bootstrap minimum version is raised to 1.21.
+-		for k := range localAddrs {
+-			delete(localAddrs, k)
+-		}
++		clear(localAddrs)
+ 		stores = stores[:0]
+ 		for _, v := range b.Values {
+ 			if v.Op == OpPhi {
+diff --git a/src/cmd/compile/internal/ssa/debug.go b/src/cmd/compile/internal/ssa/debug.go
+index ccd403386e..91620798ff 100644
+--- a/src/cmd/compile/internal/ssa/debug.go
++++ b/src/cmd/compile/internal/ssa/debug.go
+@@ -588,9 +588,7 @@ func BuildFuncDebug(ctxt *obj.Link, f *Func, loggingLevel int, stackOffset func(
+ 	if state.varParts == nil {
+ 		state.varParts = make(map[*ir.Name][]SlotID)
+ 	} else {
+-		for n := range state.varParts {
+-			delete(state.varParts, n)
+-		}
++		clear(state.varParts)
+ 	}
+ 
+ 	// Recompose any decomposed variables, and establish the canonical
+diff --git a/src/cmd/compile/internal/ssa/regalloc.go b/src/cmd/compile/internal/ssa/regalloc.go
+index 1fe95fe978..08ce0d16a6 100644
+--- a/src/cmd/compile/internal/ssa/regalloc.go
++++ b/src/cmd/compile/internal/ssa/regalloc.go
+@@ -2228,13 +2228,9 @@ func (e *edgeState) setup(idx int, srcReg []endReg, dstReg []startReg, stacklive
+ 	}
+ 
+ 	// Clear state.
+-	for _, vid := range e.cachedVals {
+-		delete(e.cache, vid)
+-	}
++	clear(e.cache)
+ 	e.cachedVals = e.cachedVals[:0]
+-	for k := range e.contents {
+-		delete(e.contents, k)
+-	}
++	clear(e.contents)
+ 	e.usedRegs = 0
+ 	e.uniqueRegs = 0
+ 	e.finalRegs = 0
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index da755f5a76..9a566732d2 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -991,9 +991,7 @@ func (s *state) startBlock(b *ssa.Block) {
+ 	}
+ 	s.curBlock = b
+ 	s.vars = map[ir.Node]*ssa.Value{}
+-	for n := range s.fwdVars {
+-		delete(s.fwdVars, n)
+-	}
++	clear(s.fwdVars)
+ }
+ 
+ // endBlock marks the end of generating code for the current block.

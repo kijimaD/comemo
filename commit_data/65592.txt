@@ -1,0 +1,37 @@
+commit d69e6f63c349741a450e9de9585ad555babefad4
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Nov 20 19:24:56 2024 +0000
+
+    runtime: keep cleanup closure alive across adding the cleanup special
+    
+    This is similar to the weak handle bug in #70455. In short, there's a
+    window where a heap-allocated value is only visible through a special
+    that has not been made visible to the GC yet.
+    
+    For #70455.
+    
+    Change-Id: Ic2bb2c60d422a5bc5dab8d971cfc26ff6d7622bc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630277
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/runtime/mheap.go | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 0c3d6e669e..4b9734da5f 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -2057,6 +2057,11 @@ func addCleanup(p unsafe.Pointer, f *funcval) uint64 {
+ 		// special isn't part of the GC'd heap.
+ 		scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+ 	}
++	// Keep f alive. There's a window in this function where it's
++	// only reachable via the special while the special hasn't been
++	// added to the specials list yet. This is similar to a bug
++	// discovered for weak handles, see #70455.
++	KeepAlive(f)
+ 	return id
+ }
+ 

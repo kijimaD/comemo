@@ -1,0 +1,615 @@
+commit c8545439b596ffc88d09b9f6970fefdf69fcfc5d
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 24 12:39:20 2024 +1100
+
+    cmd/asm,cmd/internal/obj/riscv: implement vector configuration setting instructions
+    
+    Implement vector configuration setting instructions (VSETVLI,
+    VSETIVLI, VSETL).  These allow the vector length (vl) and vector
+    type (vtype) CSRs to be configured via a single instruction.
+    Unfortunately each instruction has its own dedicated encoding.
+    
+    In the case of VSETVLI/VSETIVLI, the vector type is specified via
+    a series of special operands, which specify the selected element
+    width (E8, E16, E32, E64), the vector register group multiplier
+    (M1, M2, M4, M8, MF2, MF4, MF8), the vector tail policy (TU, TA)
+    and vector mask policy (MU, MA). Note that the order of these
+    special operands matches non-Go assemblers.
+    
+    Partially based on work by Pengcheng Wang <wangpengcheng.pp@bytedance.com>.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-riscv64
+    Change-Id: I431f59c1e048a3e84754f0643a963da473a741fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631936
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/asm/internal/arch/arm64.go               |   6 +-
+ src/cmd/asm/internal/arch/riscv64.go             |  35 +++++-
+ src/cmd/asm/internal/asm/asm.go                  |  21 ++++
+ src/cmd/asm/internal/asm/parse.go                |  16 ++-
+ src/cmd/asm/internal/asm/testdata/riscv64.s      |  24 ++++
+ src/cmd/asm/internal/asm/testdata/riscv64error.s |   4 +
+ src/cmd/internal/obj/arm64/a.out.go              |   4 +-
+ src/cmd/internal/obj/link.go                     |   3 +-
+ src/cmd/internal/obj/riscv/cpu.go                |  71 +++++++++++
+ src/cmd/internal/obj/riscv/list.go               |   9 ++
+ src/cmd/internal/obj/riscv/obj.go                | 149 +++++++++++++++++++++--
+ src/cmd/internal/obj/util.go                     |   7 ++
+ 12 files changed, 325 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm64.go b/src/cmd/asm/internal/arch/arm64.go
+index e63601de64..87ccb8c040 100644
+--- a/src/cmd/asm/internal/arch/arm64.go
++++ b/src/cmd/asm/internal/arch/arm64.go
+@@ -59,10 +59,10 @@ func jumpArm64(word string) bool {
+ 
+ var arm64SpecialOperand map[string]arm64.SpecialOperand
+ 
+-// GetARM64SpecialOperand returns the internal representation of a special operand.
+-func GetARM64SpecialOperand(name string) arm64.SpecialOperand {
++// ARM64SpecialOperand returns the internal representation of a special operand.
++func ARM64SpecialOperand(name string) arm64.SpecialOperand {
+ 	if arm64SpecialOperand == nil {
+-		// Generate the mapping automatically when the first time the function is called.
++		// Generate mapping when function is first called.
+ 		arm64SpecialOperand = map[string]arm64.SpecialOperand{}
+ 		for opd := arm64.SPOP_BEGIN; opd < arm64.SPOP_END; opd++ {
+ 			arm64SpecialOperand[opd.String()] = opd
+diff --git a/src/cmd/asm/internal/arch/riscv64.go b/src/cmd/asm/internal/arch/riscv64.go
+index 27a66c5e63..69e060a865 100644
+--- a/src/cmd/asm/internal/arch/riscv64.go
++++ b/src/cmd/asm/internal/arch/riscv64.go
+@@ -13,9 +13,8 @@ import (
+ 	"cmd/internal/obj/riscv"
+ )
+ 
+-// IsRISCV64AMO reports whether the op (as defined by a riscv.A*
+-// constant) is one of the AMO instructions that requires special
+-// handling.
++// IsRISCV64AMO reports whether op is an AMO instruction that requires
++// special handling.
+ func IsRISCV64AMO(op obj.As) bool {
+ 	switch op {
+ 	case riscv.ASCW, riscv.ASCD, riscv.AAMOSWAPW, riscv.AAMOSWAPD, riscv.AAMOADDW, riscv.AAMOADDD,
+@@ -26,3 +25,33 @@ func IsRISCV64AMO(op obj.As) bool {
+ 	}
+ 	return false
+ }
++
++// IsRISCV64VTypeI reports whether op is a vtype immediate instruction that
++// requires special handling.
++func IsRISCV64VTypeI(op obj.As) bool {
++	return op == riscv.AVSETVLI || op == riscv.AVSETIVLI
++}
++
++var riscv64SpecialOperand map[string]riscv.SpecialOperand
++
++// RISCV64SpecialOperand returns the internal representation of a special operand.
++func RISCV64SpecialOperand(name string) riscv.SpecialOperand {
++	if riscv64SpecialOperand == nil {
++		// Generate mapping when function is first called.
++		riscv64SpecialOperand = map[string]riscv.SpecialOperand{}
++		for opd := riscv.SPOP_BEGIN; opd < riscv.SPOP_END; opd++ {
++			riscv64SpecialOperand[opd.String()] = opd
++		}
++	}
++	if opd, ok := riscv64SpecialOperand[name]; ok {
++		return opd
++	}
++	return riscv.SPOP_END
++}
++
++// RISCV64ValidateVectorType reports whether the given configuration is a
++// valid vector type.
++func RISCV64ValidateVectorType(vsew, vlmul, vtail, vmask int64) error {
++	_, err := riscv.EncodeVectorType(vsew, vlmul, vtail, vmask)
++	return err
++}
+diff --git a/src/cmd/asm/internal/asm/asm.go b/src/cmd/asm/internal/asm/asm.go
+index 9fc7fa5598..a1f6a73d70 100644
+--- a/src/cmd/asm/internal/asm/asm.go
++++ b/src/cmd/asm/internal/asm/asm.go
+@@ -915,6 +915,19 @@ func (p *Parser) asmInstruction(op obj.As, cond string, a []obj.Addr) {
+ 			prog.To = a[5]
+ 			break
+ 		}
++		if p.arch.Family == sys.RISCV64 && arch.IsRISCV64VTypeI(op) {
++			prog.From = a[0]
++			vsew := p.getSpecial(prog, op, &a[1])
++			vlmul := p.getSpecial(prog, op, &a[2])
++			vtail := p.getSpecial(prog, op, &a[3])
++			vmask := p.getSpecial(prog, op, &a[4])
++			if err := arch.RISCV64ValidateVectorType(vsew, vlmul, vtail, vmask); err != nil {
++				p.errorf("invalid vtype: %v", err)
++			}
++			prog.AddRestSourceArgs([]obj.Addr{a[1], a[2], a[3], a[4]})
++			prog.To = a[5]
++			break
++		}
+ 		fallthrough
+ 	default:
+ 		p.errorf("can't handle %s instruction with %d operands", op, len(a))
+@@ -965,3 +978,11 @@ func (p *Parser) getRegister(prog *obj.Prog, op obj.As, addr *obj.Addr) int16 {
+ 	}
+ 	return addr.Reg
+ }
++
++// getSpecial checks that addr represents a special operand and returns its value.
++func (p *Parser) getSpecial(prog *obj.Prog, op obj.As, addr *obj.Addr) int64 {
++	if addr.Type != obj.TYPE_SPECIAL || addr.Name != 0 || addr.Reg != 0 || addr.Index != 0 {
++		p.errorf("%s: expected special operand; found %s", op, obj.Dconv(prog, addr))
++	}
++	return addr.Offset
++}
+diff --git a/src/cmd/asm/internal/asm/parse.go b/src/cmd/asm/internal/asm/parse.go
+index 638f4e2fc4..8f8f6dcc34 100644
+--- a/src/cmd/asm/internal/asm/parse.go
++++ b/src/cmd/asm/internal/asm/parse.go
+@@ -21,6 +21,7 @@ import (
+ 	"cmd/asm/internal/lex"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/obj/arm64"
++	"cmd/internal/obj/riscv"
+ 	"cmd/internal/obj/x86"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+@@ -398,16 +399,21 @@ func (p *Parser) operand(a *obj.Addr) {
+ 	tok := p.next()
+ 	name := tok.String()
+ 	if tok.ScanToken == scanner.Ident && !p.atStartOfRegister(name) {
++		// See if this is an architecture specific special operand.
+ 		switch p.arch.Family {
+ 		case sys.ARM64:
+-			// arm64 special operands.
+-			if opd := arch.GetARM64SpecialOperand(name); opd != arm64.SPOP_END {
++			if opd := arch.ARM64SpecialOperand(name); opd != arm64.SPOP_END {
+ 				a.Type = obj.TYPE_SPECIAL
+ 				a.Offset = int64(opd)
+-				break
+ 			}
+-			fallthrough
+-		default:
++		case sys.RISCV64:
++			if opd := arch.RISCV64SpecialOperand(name); opd != riscv.SPOP_END {
++				a.Type = obj.TYPE_SPECIAL
++				a.Offset = int64(opd)
++			}
++		}
++
++		if a.Type != obj.TYPE_SPECIAL {
+ 			// We have a symbol. Parse $sym±offset(symkind)
+ 			p.symbolReference(a, p.qualifySymbol(name), prefix)
+ 		}
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 9ab4e066be..cbe99ba348 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -424,6 +424,30 @@ start:
+ 	BSET	$63, X9					// 9394f42b
+ 	BSETI	$1, X10, X11				// 93151528
+ 
++	//
++	// "V" Standard Extension for Vector Operations, Version 1.0
++	//
++
++	// 31.6: Configuration Setting Instructions
++	VSETVLI	X10, E8, M1, TU, MU, X12		// 57760500
++	VSETVLI	X10, E16, M1, TU, MU, X12		// 57768500
++	VSETVLI	X10, E32, M1, TU, MU, X12		// 57760501
++	VSETVLI	X10, E64, M1, TU, MU, X12		// 57768501
++	VSETVLI	X10, E32, M1, TU, MA, X12		// 57760509
++	VSETVLI	X10, E32, M1, TA, MA, X12		// 5776050d
++	VSETVLI	X10, E32, M2, TA, MA, X12		// 5776150d
++	VSETVLI	X10, E32, M4, TA, MA, X12		// 5776250d
++	VSETVLI	X10, E32, M8, TA, MA, X12		// 5776350d
++	VSETVLI	X10, E32, MF2, TA, MA, X12		// 5776550d
++	VSETVLI	X10, E32, MF4, TA, MA, X12		// 5776650d
++	VSETVLI	X10, E32, MF8, TA, MA, X12		// 5776750d
++	VSETVLI	X10, E32, M1, TA, MA, X12		// 5776050d
++	VSETVLI	$15, E32, M1, TA, MA, X12		// 57f607cd
++	VSETIVLI $0, E32, M1, TA, MA, X12		// 577600cd
++	VSETIVLI $15, E32, M1, TA, MA, X12		// 57f607cd
++	VSETIVLI $31, E32, M1, TA, MA, X12		// 57f60fcd
++	VSETVL	X10, X11, X12				// 57f6a580
++
+ 	//
+ 	// Privileged ISA
+ 	//
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64error.s b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+index 0b0184aaa7..a90f22af9f 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64error.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64error.s
+@@ -46,4 +46,8 @@ TEXT errors(SB),$0
+ 	SRLI	$1, X5, F1			// ERROR "expected integer register in rd position but got non-integer register F1"
+ 	SRLI	$1, F1, X5			// ERROR "expected integer register in rs1 position but got non-integer register F1"
+ 	FNES	F1, (X5)			// ERROR "needs an integer register output"
++	VSETVLI	$32, E16, M1, TU, MU, X12	// ERROR "must be in range [0, 31] (5 bits)"
++	VSETVLI	$-1, E32, M2, TA, MA, X12	// ERROR "must be in range [0, 31] (5 bits)"
++	VSETIVLI X10, E32, M2, TA, MA, X12	// ERROR "expected immediate value"
++	VSETVL	X10, X11			// ERROR "expected integer register in rs1 position"
+ 	RET
+diff --git a/src/cmd/internal/obj/arm64/a.out.go b/src/cmd/internal/obj/arm64/a.out.go
+index ad00e4842c..de04a24280 100644
+--- a/src/cmd/internal/obj/arm64/a.out.go
++++ b/src/cmd/internal/obj/arm64/a.out.go
+@@ -1055,8 +1055,8 @@ type SpecialOperand int
+ 
+ const (
+ 	// PRFM
+-	SPOP_PLDL1KEEP SpecialOperand = iota     // must be the first one
+-	SPOP_BEGIN     SpecialOperand = iota - 1 // set as the lower bound
++	SPOP_PLDL1KEEP SpecialOperand = obj.SpecialOperandARM64Base + iota     // must be the first one
++	SPOP_BEGIN     SpecialOperand = obj.SpecialOperandARM64Base + iota - 1 // set as the lower bound
+ 	SPOP_PLDL1STRM
+ 	SPOP_PLDL2KEEP
+ 	SPOP_PLDL2STRM
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index 6d6a5fd44d..dbd66714d2 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -98,7 +98,8 @@ import (
+ //			val = string
+ //
+ //	<symbolic constant name>
+-//		Special symbolic constants for ARM64, such as conditional flags, tlbi_op and so on.
++//		Special symbolic constants for ARM64 (such as conditional flags, tlbi_op and so on)
++//		and RISCV64 (such as names for vector configuration instruction arguments).
+ //		Encoding:
+ //			type = TYPE_SPECIAL
+ //			offset = The constant value corresponding to this symbol
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 2b75ed38a6..143164ac41 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -1227,6 +1227,77 @@ const (
+ 	RM_RMM              // Round to Nearest, ties to Max Magnitude
+ )
+ 
++type SpecialOperand int
++
++const (
++	SPOP_BEGIN SpecialOperand = obj.SpecialOperandRISCVBase
++
++	// Vector mask policy.
++	SPOP_MA SpecialOperand = obj.SpecialOperandRISCVBase + iota - 1
++	SPOP_MU
++
++	// Vector tail policy.
++	SPOP_TA
++	SPOP_TU
++
++	// Vector register group multiplier (VLMUL).
++	SPOP_M1
++	SPOP_M2
++	SPOP_M4
++	SPOP_M8
++	SPOP_MF2
++	SPOP_MF4
++	SPOP_MF8
++
++	// Vector selected element width (VSEW).
++	SPOP_E8
++	SPOP_E16
++	SPOP_E32
++	SPOP_E64
++
++	SPOP_END
++)
++
++var specialOperands = map[SpecialOperand]struct {
++	encoding uint32
++	name     string
++}{
++	SPOP_MA: {encoding: 1, name: "MA"},
++	SPOP_MU: {encoding: 0, name: "MU"},
++
++	SPOP_TA: {encoding: 1, name: "TA"},
++	SPOP_TU: {encoding: 0, name: "TU"},
++
++	SPOP_M1:  {encoding: 0, name: "M1"},
++	SPOP_M2:  {encoding: 1, name: "M2"},
++	SPOP_M4:  {encoding: 2, name: "M4"},
++	SPOP_M8:  {encoding: 3, name: "M8"},
++	SPOP_MF2: {encoding: 5, name: "MF2"},
++	SPOP_MF4: {encoding: 6, name: "MF4"},
++	SPOP_MF8: {encoding: 7, name: "MF8"},
++
++	SPOP_E8:  {encoding: 0, name: "E8"},
++	SPOP_E16: {encoding: 1, name: "E16"},
++	SPOP_E32: {encoding: 2, name: "E32"},
++	SPOP_E64: {encoding: 3, name: "E64"},
++}
++
++func (so SpecialOperand) encode() uint32 {
++	op, ok := specialOperands[so]
++	if ok {
++		return op.encoding
++	}
++	return 0
++}
++
++func (so SpecialOperand) String() string {
++	op, ok := specialOperands[so]
++	if ok {
++		return op.name
++	}
++	return ""
++}
++
+ // All unary instructions which write to their arguments (as opposed to reading
+ // from them) go here. The assembly parser uses this information to populate
+ // its AST in a semantically reasonable way.
+diff --git a/src/cmd/internal/obj/riscv/list.go b/src/cmd/internal/obj/riscv/list.go
+index c5b7e80719..8eb97a476d 100644
+--- a/src/cmd/internal/obj/riscv/list.go
++++ b/src/cmd/internal/obj/riscv/list.go
+@@ -14,6 +14,7 @@ func init() {
+ 	obj.RegisterRegister(obj.RBaseRISCV, REG_END, RegName)
+ 	obj.RegisterOpcode(obj.ABaseRISCV, Anames)
+ 	obj.RegisterOpSuffix("riscv64", opSuffixString)
++	obj.RegisterSpecialOperands(int64(SPOP_BEGIN), int64(SPOP_END), specialOperandConv)
+ }
+ 
+ func RegName(r int) string {
+@@ -49,3 +50,11 @@ func opSuffixString(s uint8) string {
+ 	}
+ 	return fmt.Sprintf(".%s", ss)
+ }
++
++func specialOperandConv(a int64) string {
++	spc := SpecialOperand(a)
++	if spc >= SPOP_BEGIN && spc < SPOP_END {
++		return spc.String()
++	}
++	return "SPC_??"
++}
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 54c34af2f4..c6f66d0195 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1042,27 +1042,35 @@ func immEven(x int64) error {
+ 	return nil
+ }
+ 
+-// immIFits checks whether the immediate value x fits in nbits bits
+-// as a signed integer. If it does not, an error is returned.
+-func immIFits(x int64, nbits uint) error {
+-	nbits--
+-	min := int64(-1) << nbits
+-	max := int64(1)<<nbits - 1
++func immFits(x int64, nbits uint, signed bool) error {
++	label := "unsigned"
++	min, max := int64(0), int64(1)<<nbits-1
++	if signed {
++		label = "signed"
++		sbits := nbits - 1
++		min, max = int64(-1)<<sbits, int64(1)<<sbits-1
++	}
+ 	if x < min || x > max {
+ 		if nbits <= 16 {
+-			return fmt.Errorf("signed immediate %d must be in range [%d, %d] (%d bits)", x, min, max, nbits)
++			return fmt.Errorf("%s immediate %d must be in range [%d, %d] (%d bits)", label, x, min, max, nbits)
+ 		}
+-		return fmt.Errorf("signed immediate %#x must be in range [%#x, %#x] (%d bits)", x, min, max, nbits)
++		return fmt.Errorf("%s immediate %#x must be in range [%#x, %#x] (%d bits)", label, x, min, max, nbits)
+ 	}
+ 	return nil
+ }
+ 
++// immIFits checks whether the immediate value x fits in nbits bits
++// as a signed integer. If it does not, an error is returned.
++func immIFits(x int64, nbits uint) error {
++	return immFits(x, nbits, true)
++}
++
+ // immI extracts the signed integer of the specified size from an immediate.
+ func immI(as obj.As, imm int64, nbits uint) uint32 {
+ 	if err := immIFits(imm, nbits); err != nil {
+ 		panic(fmt.Sprintf("%v: %v", as, err))
+ 	}
+-	return uint32(imm)
++	return uint32(imm) & ((1 << nbits) - 1)
+ }
+ 
+ func wantImmI(ctxt *obj.Link, ins *instruction, imm int64, nbits uint) {
+@@ -1071,6 +1079,26 @@ func wantImmI(ctxt *obj.Link, ins *instruction, imm int64, nbits uint) {
+ 	}
+ }
+ 
++// immUFits checks whether the immediate value x fits in nbits bits
++// as an unsigned integer. If it does not, an error is returned.
++func immUFits(x int64, nbits uint) error {
++	return immFits(x, nbits, false)
++}
++
++// immU extracts the unsigned integer of the specified size from an immediate.
++func immU(as obj.As, imm int64, nbits uint) uint32 {
++	if err := immUFits(imm, nbits); err != nil {
++		panic(fmt.Sprintf("%v: %v", as, err))
++	}
++	return uint32(imm) & ((1 << nbits) - 1)
++}
++
++func wantImmU(ctxt *obj.Link, ins *instruction, imm int64, nbits uint) {
++	if err := immUFits(imm, nbits); err != nil {
++		ctxt.Diag("%v: %v", ins, err)
++	}
++}
++
+ func wantReg(ctxt *obj.Link, ins *instruction, pos string, descr string, r, min, max uint32) {
+ 	if r < min || r > max {
+ 		var suffix string
+@@ -1227,6 +1255,29 @@ func validateJ(ctxt *obj.Link, ins *instruction) {
+ 	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
+ }
+ 
++func validateVsetvli(ctxt *obj.Link, ins *instruction) {
++	wantImmU(ctxt, ins, ins.imm, 11)
++	wantIntReg(ctxt, ins, "rd", ins.rd)
++	wantIntReg(ctxt, ins, "rs1", ins.rs1)
++	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
++func validateVsetivli(ctxt *obj.Link, ins *instruction) {
++	wantImmU(ctxt, ins, ins.imm, 10)
++	wantIntReg(ctxt, ins, "rd", ins.rd)
++	wantImmU(ctxt, ins, int64(ins.rs1), 5)
++	wantNoneReg(ctxt, ins, "rs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
++func validateVsetvl(ctxt *obj.Link, ins *instruction) {
++	wantIntReg(ctxt, ins, "rd", ins.rd)
++	wantIntReg(ctxt, ins, "rs1", ins.rs1)
++	wantIntReg(ctxt, ins, "rs2", ins.rs2)
++	wantNoneReg(ctxt, ins, "rs3", ins.rs3)
++}
++
+ func validateRaw(ctxt *obj.Link, ins *instruction) {
+ 	// Treat the raw value specially as a 32-bit unsigned integer.
+ 	// Nobody wants to enter negative machine code.
+@@ -1415,6 +1466,29 @@ func encodeCJImmediate(imm uint32) uint32 {
+ 	return bits << 2
+ }
+ 
++func encodeVset(as obj.As, rs1, rs2, rd uint32) uint32 {
++	enc := encode(as)
++	if enc == nil {
++		panic("encodeVset: could not encode instruction")
++	}
++	return enc.funct7<<25 | rs2<<20 | rs1<<15 | enc.funct3<<12 | rd<<7 | enc.opcode
++}
++
++func encodeVsetvli(ins *instruction) uint32 {
++	vtype := immU(ins.as, ins.imm, 11)
++	return encodeVset(ins.as, regI(ins.rs1), vtype, regI(ins.rd))
++}
++
++func encodeVsetivli(ins *instruction) uint32 {
++	vtype := immU(ins.as, ins.imm, 10)
++	avl := immU(ins.as, int64(ins.rs1), 5)
++	return encodeVset(ins.as, avl, vtype, regI(ins.rd))
++}
++
++func encodeVsetvl(ins *instruction) uint32 {
++	return encodeVset(ins.as, regI(ins.rs1), regI(ins.rs2), regI(ins.rd))
++}
++
+ func encodeRawIns(ins *instruction) uint32 {
+ 	// Treat the raw value specially as a 32-bit unsigned integer.
+ 	// Nobody wants to enter negative machine code.
+@@ -1485,6 +1559,27 @@ func EncodeUImmediate(imm int64) (int64, error) {
+ 	return imm << 12, nil
+ }
+ 
++func EncodeVectorType(vsew, vlmul, vtail, vmask int64) (int64, error) {
++	vsewSO := SpecialOperand(vsew)
++	if vsewSO < SPOP_E8 || vsewSO > SPOP_E64 {
++		return -1, fmt.Errorf("invalid vector selected element width %q", vsewSO)
++	}
++	vlmulSO := SpecialOperand(vlmul)
++	if vlmulSO < SPOP_M1 || vlmulSO > SPOP_MF8 {
++		return -1, fmt.Errorf("invalid vector register group multiplier %q", vlmulSO)
++	}
++	vtailSO := SpecialOperand(vtail)
++	if vtailSO != SPOP_TA && vtailSO != SPOP_TU {
++		return -1, fmt.Errorf("invalid vector tail policy %q", vtailSO)
++	}
++	vmaskSO := SpecialOperand(vmask)
++	if vmaskSO != SPOP_MA && vmaskSO != SPOP_MU {
++		return -1, fmt.Errorf("invalid vector mask policy %q", vmaskSO)
++	}
++	vtype := vmaskSO.encode()<<7 | vtailSO.encode()<<6 | vsewSO.encode()<<3 | vlmulSO.encode()
++	return int64(vtype), nil
++}
++
+ type encoding struct {
+ 	encode   func(*instruction) uint32     // encode returns the machine code for an instruction
+ 	validate func(*obj.Link, *instruction) // validate validates an instruction
+@@ -1522,6 +1617,11 @@ var (
+ 	uEncoding = encoding{encode: encodeU, validate: validateU, length: 4}
+ 	jEncoding = encoding{encode: encodeJ, validate: validateJ, length: 4}
+ 
++	// Encodings for vector configuration setting instruction.
++	vsetvliEncoding  = encoding{encode: encodeVsetvli, validate: validateVsetvli, length: 4}
++	vsetivliEncoding = encoding{encode: encodeVsetivli, validate: validateVsetivli, length: 4}
++	vsetvlEncoding   = encoding{encode: encodeVsetvl, validate: validateVsetvl, length: 4}
++
+ 	// rawEncoding encodes a raw instruction byte sequence.
+ 	rawEncoding = encoding{encode: encodeRawIns, validate: validateRaw, length: 4}
+ 
+@@ -1788,6 +1888,15 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	ABSET & obj.AMask:  {enc: rIIIEncoding, immForm: ABSETI, ternary: true},
+ 	ABSETI & obj.AMask: {enc: iIIEncoding, ternary: true},
+ 
++	//
++	// "V" Standard Extension for Vector Operations, Version 1.0
++	//
++
++	// 31.6. Vector Configuration-Setting Instructions
++	AVSETVLI & obj.AMask:  {enc: vsetvliEncoding, immForm: AVSETIVLI},
++	AVSETIVLI & obj.AMask: {enc: vsetivliEncoding},
++	AVSETVL & obj.AMask:   {enc: vsetvlEncoding},
++
+ 	//
+ 	// Privileged ISA
+ 	//
+@@ -2345,7 +2454,12 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 	ins := instructionForProg(p)
+ 	inss := []*instruction{ins}
+ 
+-	if len(p.RestArgs) > 1 {
++	if ins.as == AVSETVLI || ins.as == AVSETIVLI {
++		if len(p.RestArgs) != 4 {
++			p.Ctxt.Diag("incorrect number of arguments for instruction")
++			return nil
++		}
++	} else if len(p.RestArgs) > 1 {
+ 		p.Ctxt.Diag("too many source registers")
+ 		return nil
+ 	}
+@@ -2583,6 +2697,21 @@ func instructionsForProg(p *obj.Prog) []*instruction {
+ 		// XNOR -> (NOT (XOR x y))
+ 		ins.as = AXOR
+ 		inss = append(inss, &instruction{as: AXORI, rs1: ins.rd, rs2: obj.REG_NONE, rd: ins.rd, imm: -1})
++
++	case AVSETVLI, AVSETIVLI:
++		ins.rs1, ins.rs2 = ins.rs2, obj.REG_NONE
++		vtype, err := EncodeVectorType(p.RestArgs[0].Offset, p.RestArgs[1].Offset, p.RestArgs[2].Offset, p.RestArgs[3].Offset)
++		if err != nil {
++			p.Ctxt.Diag("%v: %v", p, err)
++		}
++		ins.imm = int64(vtype)
++		if ins.as == AVSETIVLI {
++			if p.From.Type != obj.TYPE_CONST {
++				p.Ctxt.Diag("%v: expected immediate value", p)
++			}
++			ins.rs1 = uint32(p.From.Offset)
++		}
++
+ 	}
+ 
+ 	for _, ins := range inss {
+diff --git a/src/cmd/internal/obj/util.go b/src/cmd/internal/obj/util.go
+index 26de22122a..7d87bff949 100644
+--- a/src/cmd/internal/obj/util.go
++++ b/src/cmd/internal/obj/util.go
+@@ -591,6 +591,13 @@ type spcSet struct {
+ 
+ var spcSpace []spcSet
+ 
++// Each architecture is allotted a distinct subspace: [Lo, Hi) for declaring its
++// arch-specific special operands.
++const (
++	SpecialOperandARM64Base = 0 << 16
++	SpecialOperandRISCVBase = 1 << 16
++)
++
+ // RegisterSpecialOperands binds a pretty-printer (SPCconv) for special
+ // operand numbers to a given special operand number range. Lo is inclusive,
+ // hi is exclusive (valid special operands are lo through hi-1).

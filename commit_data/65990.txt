@@ -1,0 +1,376 @@
+commit 8071f2a1697c2a8d7e93fb1f45285f18303ddc76
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jan 24 16:29:13 2025 -0500
+
+    runtime: mapiter linkname compatibility layer
+    
+    This CL reintroduces the various mapiter* linkname functions with a
+    compatibility layer that is careful to maintain compatibility with users
+    of the linkname.
+    
+    The wrappers are straightforward. Callers of these APIs get an extra
+    layer of indirection, with their hiter containing a pointer to the real
+    maps.Iter. These users will take a minor performance hit from the extra
+    allocation, but this approach should have good long-term
+    maintainability.
+    
+    Fixes #71408.
+    
+    Change-Id: I6a6a636c7574bbd670ff5243dfeb63dfba6dc611
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643899
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/linkname_swiss.go | 211 ++++++++++++++++++++++++++++++++++++++++++
+ src/runtime/map_swiss.go      | 105 ---------------------
+ 2 files changed, 211 insertions(+), 105 deletions(-)
+
+diff --git a/src/runtime/linkname_swiss.go b/src/runtime/linkname_swiss.go
+new file mode 100644
+index 0000000000..1be724477e
+--- /dev/null
++++ b/src/runtime/linkname_swiss.go
+@@ -0,0 +1,211 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build goexperiment.swissmap
++
++package runtime
++
++import (
++	"internal/abi"
++	"internal/runtime/maps"
++	"internal/runtime/sys"
++	"unsafe"
++)
++
++// Legacy //go:linkname compatibility shims
++//
++// The functions below are unused by the toolchain, and exist only for
++// compatibility with existing //go:linkname use in the ecosystem (and in
++// map_noswiss.go for normal use via GOEXPERIMENT=noswissmap).
++
++// linknameIter is the it argument to mapiterinit and mapiternext.
++//
++// Callers of mapiterinit allocate their own iter structure, which has the
++// layout of the pre-Go 1.24 hiter structure, shown here for posterity:
++//
++//	type hiter struct {
++//		key         unsafe.Pointer
++//		elem        unsafe.Pointer
++//		t           *maptype
++//		h           *hmap
++//		buckets     unsafe.Pointer
++//		bptr        *bmap
++//		overflow    *[]*bmap
++//		oldoverflow *[]*bmap
++//		startBucket uintptr
++//		offset      uint8
++//		wrapped     bool
++//		B           uint8
++//		i           uint8
++//		bucket      uintptr
++//		checkBucket uintptr
++//	}
++//
++// Our structure must maintain compatibility with the old structure. This
++// means:
++//
++//   - Our structure must be the same size or smaller than hiter. Otherwise we
++//     may write outside the caller's hiter allocation.
++//   - Our structure must have the same pointer layout as hiter, so that the GC
++//     tracks pointers properly.
++//
++// Based on analysis of the "hall of shame" users of these linknames:
++//
++//   - The key and elem fields must be kept up to date with the current key/elem.
++//     Some users directly access the key and elem fields rather than calling
++//     reflect.mapiterkey/reflect.mapiterelem.
++//   - The t field must be non-nil after mapiterinit. gonum.org/v1/gonum uses
++//     this to verify the iterator is initialized.
++//   - github.com/segmentio/encoding and github.com/RomiChan/protobuf check if h
++//     is non-nil, but the code has no effect. Thus the value of h does not
++//     matter. See internal/runtime_reflect/map.go.
++type linknameIter struct {
++	// Fields from hiter.
++	key  unsafe.Pointer
++	elem unsafe.Pointer
++	typ  *abi.SwissMapType
++
++	// The real iterator.
++	it *maps.Iter
++}
++
++// mapiterinit is a compatibility wrapper for map iterator for users of
++// //go:linkname from before Go 1.24. It is not used by Go itself. New users
++// should use reflect or the maps package.
++//
++// mapiterinit should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//   - github.com/goccy/go-json
++//   - github.com/RomiChan/protobuf
++//   - github.com/segmentio/encoding
++//   - github.com/ugorji/go/codec
++//   - github.com/wI2L/jettison
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mapiterinit
++func mapiterinit(t *abi.SwissMapType, m *maps.Map, it *linknameIter) {
++	if raceenabled && m != nil {
++		callerpc := sys.GetCallerPC()
++		racereadpc(unsafe.Pointer(m), callerpc, abi.FuncPCABIInternal(mapiterinit))
++	}
++
++	it.typ = t
++
++	it.it = new(maps.Iter)
++	it.it.Init(t, m)
++	it.it.Next()
++
++	it.key = it.it.Key()
++	it.elem = it.it.Elem()
++}
++
++// reflect_mapiterinit is a compatibility wrapper for map iterator for users of
++// //go:linkname from before Go 1.24. It is not used by Go itself. New users
++// should use reflect or the maps package.
++//
++// reflect_mapiterinit should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/modern-go/reflect2
++//   - gitee.com/quant1x/gox
++//   - github.com/v2pro/plz
++//   - github.com/wI2L/jettison
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname reflect_mapiterinit reflect.mapiterinit
++func reflect_mapiterinit(t *abi.SwissMapType, m *maps.Map, it *linknameIter) {
++	mapiterinit(t, m, it)
++}
++
++// mapiternext is a compatibility wrapper for map iterator for users of
++// //go:linkname from before Go 1.24. It is not used by Go itself. New users
++// should use reflect or the maps package.
++//
++// mapiternext should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/bytedance/sonic
++//   - github.com/RomiChan/protobuf
++//   - github.com/segmentio/encoding
++//   - github.com/ugorji/go/codec
++//   - gonum.org/v1/gonum
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname mapiternext
++func mapiternext(it *linknameIter) {
++	if raceenabled {
++		callerpc := sys.GetCallerPC()
++		racereadpc(unsafe.Pointer(it.it.Map()), callerpc, abi.FuncPCABIInternal(mapiternext))
++	}
++
++	it.it.Next()
++
++	it.key = it.it.Key()
++	it.elem = it.it.Elem()
++}
++
++// reflect_mapiternext is a compatibility wrapper for map iterator for users of
++// //go:linkname from before Go 1.24. It is not used by Go itself. New users
++// should use reflect or the maps package.
++//
++// reflect_mapiternext is for package reflect,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - gitee.com/quant1x/gox
++//   - github.com/modern-go/reflect2
++//   - github.com/goccy/go-json
++//   - github.com/v2pro/plz
++//   - github.com/wI2L/jettison
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname reflect_mapiternext reflect.mapiternext
++func reflect_mapiternext(it *linknameIter) {
++	mapiternext(it)
++}
++
++// reflect_mapiterkey is a compatibility wrapper for map iterator for users of
++// //go:linkname from before Go 1.24. It is not used by Go itself. New users
++// should use reflect or the maps package.
++//
++// reflect_mapiterkey should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/goccy/go-json
++//   - gonum.org/v1/gonum
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname reflect_mapiterkey reflect.mapiterkey
++func reflect_mapiterkey(it *linknameIter) unsafe.Pointer {
++	return it.it.Key()
++}
++
++// reflect_mapiterelem is a compatibility wrapper for map iterator for users of
++// //go:linkname from before Go 1.24. It is not used by Go itself. New users
++// should use reflect or the maps package.
++//
++// reflect_mapiterelem should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/goccy/go-json
++//   - gonum.org/v1/gonum
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname reflect_mapiterelem reflect.mapiterelem
++func reflect_mapiterelem(it *linknameIter) unsafe.Pointer {
++	return it.it.Elem()
++}
+diff --git a/src/runtime/map_swiss.go b/src/runtime/map_swiss.go
+index f4b4062dd9..a8fe87257a 100644
+--- a/src/runtime/map_swiss.go
++++ b/src/runtime/map_swiss.go
+@@ -158,31 +158,6 @@ func mapdelete(t *abi.SwissMapType, m *maps.Map, key unsafe.Pointer) {
+ 	m.Delete(t, key)
+ }
+ 
+-// mapiterinit initializes the Iter struct used for ranging over maps.
+-// The Iter struct pointed to by 'it' is allocated on the stack
+-// by the compilers order pass or on the heap by reflect_mapiterinit.
+-// Both need to have zeroed hiter since the struct contains pointers.
+-//
+-// mapiterinit should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/bytedance/sonic
+-//   - github.com/goccy/go-json
+-//   - github.com/RomiChan/protobuf
+-//   - github.com/segmentio/encoding
+-//   - github.com/ugorji/go/codec
+-//   - github.com/wI2L/jettison
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-// TODO go:linkname mapiterinit
+-func mapiterinit(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
+-	// N.B. This is required by the builtin list in internal/goobj because
+-	// it is a builtin for old maps.
+-	throw("unreachable")
+-}
+-
+ // mapIterStart initializes the Iter struct used for ranging over maps and
+ // performs the first step of iteration. The Iter struct pointed to by 'it' is
+ // allocated on the stack by the compilers order pass or on the heap by
+@@ -197,25 +172,6 @@ func mapIterStart(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
+ 	it.Next()
+ }
+ 
+-// mapiternext should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/bytedance/sonic
+-//   - github.com/RomiChan/protobuf
+-//   - github.com/segmentio/encoding
+-//   - github.com/ugorji/go/codec
+-//   - gonum.org/v1/gonum
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-// TODO go:linkname mapiternext
+-func mapiternext(it *maps.Iter) {
+-	// N.B. This is required by the builtin list in internal/goobj because
+-	// it is a builtin for old maps.
+-	throw("unreachable")
+-}
+-
+ // mapIterNext performs the next step of iteration. Afterwards, the next
+ // key/elem are in it.Key()/it.Elem().
+ func mapIterNext(it *maps.Iter) {
+@@ -324,67 +280,6 @@ func reflect_mapdelete_faststr(t *abi.SwissMapType, m *maps.Map, key string) {
+ 	mapdelete_faststr(t, m, key)
+ }
+ 
+-// reflect_mapiterinit is for package reflect,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/modern-go/reflect2
+-//   - gitee.com/quant1x/gox
+-//   - github.com/v2pro/plz
+-//   - github.com/wI2L/jettison
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-// TODO go:linkname reflect_mapiterinit reflect.mapiterinit
+-//func reflect_mapiterinit(t *abi.SwissMapType, m *maps.Map, it *maps.Iter) {
+-//	mapiterinit(t, m, it)
+-//}
+-
+-// reflect_mapiternext is for package reflect,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - gitee.com/quant1x/gox
+-//   - github.com/modern-go/reflect2
+-//   - github.com/goccy/go-json
+-//   - github.com/v2pro/plz
+-//   - github.com/wI2L/jettison
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-// TODO go:linkname reflect_mapiternext reflect.mapiternext
+-//func reflect_mapiternext(it *maps.Iter) {
+-//	mapiternext(it)
+-//}
+-
+-// reflect_mapiterkey was for package reflect,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/goccy/go-json
+-//   - gonum.org/v1/gonum
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-// TODO go:linkname reflect_mapiterkey reflect.mapiterkey
+-//func reflect_mapiterkey(it *maps.Iter) unsafe.Pointer {
+-//	return it.Key()
+-//}
+-
+-// reflect_mapiterelem was for package reflect,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/goccy/go-json
+-//   - gonum.org/v1/gonum
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-// TODO go:linkname reflect_mapiterelem reflect.mapiterelem
+-//func reflect_mapiterelem(it *maps.Iter) unsafe.Pointer {
+-//	return it.Elem()
+-//}
+-
+ // reflect_maplen is for package reflect,
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:

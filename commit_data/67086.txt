@@ -1,0 +1,99 @@
+commit 312ceba3185b158a89d022bdaf64f3cf7670c891
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed Apr 9 17:43:14 2025 -0400
+
+    cmd/go/internal/modload: remove likely vestigial ability to infer module path from Godeps.json and vendor.json
+    
+    CL 518776 deleted the cmd/go/internal/modconv package and dropped the
+    ability to import dependency requirements from ~nine or so legacy
+    pre-module dependency configuration files. Part of the rationale from
+    Russ in 2023 for dropping that support was that "by now no one is
+    running into those configs anymore during 'go mod init'".
+    
+    For two of those legacy file formats, Godeps.json and vendor.json, the
+    ability to import their listed dependencies was dropped in CL 518776,
+    but what remained for those two formats was the ability to guess the
+    resulting module name in the absence of a name being supplied to 'go mod
+    init'.
+    
+    This could be explained by the fact that this smaller functionality for
+    guessing a module name was separate, did not rely on the deleted modconv
+    package, and instead only relied on simple JSON parsing.
+    
+    The name guessing was helpful as part of the transition when module
+    support was initially released, but it was never perfect, including the
+    various third-party dependency managers did not all have the same naming
+    rules that were enforced by modules.
+    
+    In short, it is very unlikely anyone is relying on this now, so we
+    delete it.
+    
+    This CL was spawned from discussion in two related documentation CLs
+    (CL 662675 and CL 662695).
+    
+    Updates #71537
+    
+    Change-Id: I9e087aa296580239562a0ecee58913c5edc533ee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664315
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/internal/modload/init.go     | 17 -----------------
+ src/cmd/go/testdata/script/mod_find.txt |  6 ------
+ 2 files changed, 23 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 20daf61350..3cf447e648 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -7,7 +7,6 @@ package modload
+ import (
+ 	"bytes"
+ 	"context"
+-	"encoding/json"
+ 	"errors"
+ 	"fmt"
+ 	"internal/godebugs"
+@@ -1747,22 +1746,6 @@ func findModulePath(dir string) (string, error) {
+ 		}
+ 	}
+ 
+-	// Look for Godeps.json declaring import path.
+-	data, _ := os.ReadFile(filepath.Join(dir, "Godeps/Godeps.json"))
+-	var cfg1 struct{ ImportPath string }
+-	json.Unmarshal(data, &cfg1)
+-	if cfg1.ImportPath != "" {
+-		return cfg1.ImportPath, nil
+-	}
+-
+-	// Look for vendor.json declaring import path.
+-	data, _ = os.ReadFile(filepath.Join(dir, "vendor/vendor.json"))
+-	var cfg2 struct{ RootPath string }
+-	json.Unmarshal(data, &cfg2)
+-	if cfg2.RootPath != "" {
+-		return cfg2.RootPath, nil
+-	}
+-
+ 	// Look for path in GOPATH.
+ 	var badPathErr error
+ 	for _, gpdir := range filepath.SplitList(cfg.BuildContext.GOPATH) {
+diff --git a/src/cmd/go/testdata/script/mod_find.txt b/src/cmd/go/testdata/script/mod_find.txt
+index 9c2037b6e0..748713cdf3 100644
+--- a/src/cmd/go/testdata/script/mod_find.txt
++++ b/src/cmd/go/testdata/script/mod_find.txt
+@@ -24,12 +24,6 @@ cp $devnull go.mod # can't use touch to create it because Windows
+ ! go mod init
+ stderr 'go.mod already exists'
+ 
+-# Module path from Godeps/Godeps.json overrides GOPATH.
+-cd $GOPATH/src/example.com/x/y/z
+-go mod init
+-stderr 'unexpected.com/z'
+-rm go.mod
+-
+ # Empty directory outside GOPATH fails.
+ mkdir $WORK/empty
+ cd $WORK/empty

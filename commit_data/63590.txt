@@ -1,0 +1,104 @@
+commit d95fa7aca75f498c0e7e3d65bb5ab8363e46e179
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 30 14:35:18 2024 +0200
+
+    os: use filepathlite.IsAbs
+    
+    It is better to have a single implementation of IsAbs, which is quite
+    tricky to get right on Windows.
+    
+    Change-Id: I45933b0ceff2920d9eddb61e62aacb2602c3dc8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582498
+    Run-TryBot: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/os/file_windows.go  |  3 ++-
+ src/os/path_windows.go  | 15 ++-------------
+ src/os/types_windows.go |  3 ++-
+ 3 files changed, 6 insertions(+), 15 deletions(-)
+
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index d883eb5cb2..d40f335d83 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -6,6 +6,7 @@ package os
+ 
+ import (
+ 	"errors"
++	"internal/filepathlite"
+ 	"internal/godebug"
+ 	"internal/poll"
+ 	"internal/syscall/windows"
+@@ -313,7 +314,7 @@ func Symlink(oldname, newname string) error {
+ 		return &LinkError{"symlink", oldname, newname, err}
+ 	}
+ 	var o *uint16
+-	if isAbs(oldname) {
++	if filepathlite.IsAbs(oldname) {
+ 		o, err = syscall.UTF16PtrFromString(fixLongPath(oldname))
+ 	} else {
+ 		// Do not use fixLongPath on oldname for relative symlinks,
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index 48b4c153ad..47d5b443b3 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"internal/syscall/windows"
+ 	"syscall"
+ )
+@@ -44,18 +45,6 @@ func basename(name string) string {
+ 	return name
+ }
+ 
+-func isAbs(path string) (b bool) {
+-	v := volumeName(path)
+-	if v == "" {
+-		return false
+-	}
+-	path = path[len(v):]
+-	if path == "" {
+-		return false
+-	}
+-	return IsPathSeparator(path[0])
+-}
+-
+ func volumeName(path string) (v string) {
+ 	if len(path) < 2 {
+ 		return ""
+@@ -174,7 +163,7 @@ func addExtendedPrefix(path string) string {
+ 	// The MSDN docs appear to say that a normal path that is 248 bytes long
+ 	// will work; empirically the path must be less then 248 bytes long.
+ 	pathLength := len(path)
+-	if !isAbs(path) {
++	if !filepathlite.IsAbs(path) {
+ 		// If the path is relative, we need to prepend the working directory
+ 		// plus a separator to the path before we can determine if it's too long.
+ 		// We don't want to call syscall.Getwd here, as that call is expensive to do
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index 16042fea51..c83fa4c353 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"internal/godebug"
+ 	"internal/syscall/windows"
+ 	"sync"
+@@ -338,7 +339,7 @@ func (fs *fileStat) loadFileId() error {
+ // and set name from path.
+ func (fs *fileStat) saveInfoFromPath(path string) error {
+ 	fs.path = path
+-	if !isAbs(fs.path) {
++	if !filepathlite.IsAbs(fs.path) {
+ 		var err error
+ 		fs.path, err = syscall.FullPath(fs.path)
+ 		if err != nil {

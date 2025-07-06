@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 43124: 0e3ace42f5a06a2472662da08105d6c956f4eef1
+# Index 43124: 2c484c0356c5e13a480b3842de0d345224a7bbf8
 
 echo "🚀 Generating explanation for commit 43124..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 43124..."
 
 ### メタデータ
 - **コミットインデックス**: 43124
-- **コミットハッシュ**: 0e3ace42f5a06a2472662da08105d6c956f4eef1
-- **GitHub URL**: https://github.com/golang/go/commit/0e3ace42f5a06a2472662da08105d6c956f4eef1
+- **コミットハッシュ**: 2c484c0356c5e13a480b3842de0d345224a7bbf8
+- **GitHub URL**: https://github.com/golang/go/commit/2c484c0356c5e13a480b3842de0d345224a7bbf8
 
 ### 章構成
 

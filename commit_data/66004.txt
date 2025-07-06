@@ -1,0 +1,227 @@
+commit 4241f582fc325e65b1badc6423a83a3973bcdc08
+Merge: 8a4c24f9bb 37f27fbecd
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Fri Jan 31 12:45:08 2025 -0500
+
+    [release-branch.go1.24] all: merge master (37f27fb) into release-branch.go1.24
+    
+    Conflicts:
+    
+    - src/cmd/go/testdata/script/goauth_netrc.txt
+    
+    Merge List:
+    
+    + 2025-01-31 37f27fbecd cmd/go: enable fips test and fix caching bug
+    + 2025-01-31 77d20838e9 cmd: update golang.org/x/tools to CL 645697, and revendor
+    + 2025-01-30 ce7ea0a6a5 cmd/go: refine GOAUTH user parsing to be more strict
+    + 2025-01-29 e81f715515 lib/fips140: freeze v1.0.0 FIPS 140 module zip file
+    + 2025-01-29 4f48ad5c6b cmd/link/internal/loader: fix linknames from FIPS 140 frozen tree
+    + 2025-01-29 1f58ad5d6d Revert "os: employ sendfile(2) for file-to-file copying on Linux when needed"
+    + 2025-01-28 90ec9996cb crypto/pbkdf2: add keyLength limit
+    + 2025-01-28 62cd7cb6cd crypto/hkdf: check error in TestFIPSServiceIndicator
+    + 2025-01-28 7764c502e2 crypto/internal/sysrand: skip TestNoGetrandom without cgo
+    + 2025-01-28 50455385b0 internal/coverage: fix bug in text-format coverage output with multiple packages
+    + 2025-01-28 28d389ef30 internal/godebug: check error from os.ReadFile in test
+    + 2025-01-28 8071f2a169 runtime: mapiter linkname compatibility layer
+    + 2025-01-28 78e6f2a1c8 runtime: rename mapiterinit and mapiternext
+    + 2025-01-28 4ebd5bf855 internal/goexperiment: update location of baseline experiment in comment
+    + 2025-01-27 f8937cb625 archive/zip, archive/tar: writer appends slash to directory names
+    + 2025-01-27 11e08d9d96 strconv: adjust comment so that gofmt doesn't mung it
+    + 2025-01-27 b9872221cd crypto/internal/fips140/rsa: avoid CAST unsetting the service indicator
+    + 2025-01-27 3f791c8dfb crypto/internal/fips140/aes: set FIPS 140 service indicator for CTR and CBC
+    + 2025-01-27 e0aeee82f3 crypto/ecdsa: avoid needless ScalarBaseMult in s390x
+    + 2025-01-27 f70aa3824b cmd/go: do not call base.fatal for an unset HOME for GOAUTH=netrc
+    + 2025-01-27 475e08349d Revert "runtime: Check LSE support on ARM64 at runtime init"
+    + 2025-01-27 e2e700f8b1 crypto/internal/boring: keep ECDH public key alive during cgo calls
+    + 2025-01-22 608acff847 go/types: avoid importer.Default
+    + 2025-01-22 9d21ef3bd4 runtime: fix the equality check in AddCleanup
+    + 2025-01-22 5a46b17b5f os: force a goroutine to be scheduled on WASM
+    + 2025-01-22 6fc23a3cff crypto/internal/fips140/nistec: make p256NegCond constant time on ppc64le
+    + 2025-01-22 70b603f4d2 go/importer: document limitations of this API
+    + 2025-01-21 f6d17c5400 net/http: update bundled golang.org/x/net/http2 [generated]
+    + 2025-01-21 3aa7c5ef01 testing: fix reference to B.N in docstring
+    + 2025-01-20 3f4164f508 runtime: delete out of date comment
+    + 2025-01-17 40b3c0e58a internal/coverage: refactor EmitTextual in preparation for bugfix
+    + 2025-01-17 87023bb27f go/types, types2: ensure deterministic output when reporting an init cycle
+    + 2025-01-17 80bf7d83ed go/types, types2: remove superfluous assertion (fix build)
+    + 2025-01-16 1a93e4a2cf lib/time: update to 2025a/2025a
+    + 2025-01-16 0b632d26b9 cmd/internal/obj/wasm, runtime: detect wasmexport call before runtime initialization
+    + 2025-01-16 6a4effa08b crypto/x509: avoid panic when parsing partial PKCS#1 private keys
+    + 2025-01-16 139d6eedae cmd/go: restore netrc preferences for GOAUTH and fix domain lookup
+    + 2025-01-16 2b2314e9f6 crypto/x509: properly check for IPv6 hosts in URIs
+    + 2025-01-16 6783377295 net/http: persist header stripping across repeated redirects
+    + 2025-01-14 368a9ec998 encoding/json: cleanup tests
+    + 2025-01-14 bd80d8956f cmd/go/internal/modfetch: do not trust server to send all tags in shallow fetch
+    + 2025-01-14 4fa61d6f9c cmd/api: report error in test instead of crashing
+    + 2025-01-14 c5e205e928 internal/runtime/maps: re-enable some tests
+    + 2025-01-14 befc43655b testing/fstest: fix function name and comment
+    + 2025-01-14 c83f2ca4b3 cmd/dist: ignore packages with no Go files in BenchmarkAll
+    + 2025-01-13 6da16013ba cmd/go: check go version when parsing go.mod fails
+    + 2025-01-13 de9fdc7b71 syscall/js: adjust comments to that gofmt does not change them
+    + 2025-01-13 17ed215958 go/types, types2: don't panic when instantiating generic alias with wrong number of type arguments
+    + 2025-01-13 c53307c3fd spec: fix grammar issue
+    + 2025-01-13 47a56b2b6d encoding/json: add cases to TestUnmarshal for fatal syntactic errors
+    + 2025-01-13 7bb192a1c5 encoding/json: always check resulting Go value for unmarshaling
+    + 2025-01-12 44a6f817ea cmd/compile: fix write barrier coalescing
+    + 2025-01-10 19e923182e crypto/internal/fips140test: add hmac DRBG ACVP tests
+    + 2025-01-10 7255b94920 crypto/internal/fips140test: add ML-KEM ACVP tests
+    + 2025-01-09 932ec2be8d crypto/rsa: fix GenerateKey flakes for toy-sized keys
+    + 2025-01-09 d0c9142ce3 runtime/pprof: hide map runtime frames from heap profiles
+    + 2025-01-09 c7c4420ae4 cmd/go: clarify GODEBUG in go help environment
+    + 2025-01-09 c6ab13fc43 cmd/go/internal/mmap: reslice to file size on Windows
+    + 2025-01-09 f5a89dff67 crypto: fix fips140=only detection of SHA-3
+    + 2025-01-08 4225c6cb37 encoding/json: improve fidelity of TestUnmarshal for Numbers
+    + 2025-01-08 c87a6f932e crypto/mlkem: merge mlkem768.go and mlkem1024.go to improve godoc
+    + 2025-01-08 f57a3a7c04 crypto/mlkem: add example and improve docs
+    + 2025-01-08 c9afcbade7 go/types, types2: require iterator yield to return bool (work-around)
+    + 2025-01-08 54693a81fd crypto/md5,crypto/sha1: apply fips140=only to Write and Sum, not New
+    + 2025-01-08 0cdf8c7a8c crypto/ecdsa: apply fips140=only to deterministic ECDSA hash
+    + 2025-01-08 4640e92af7 crypto/rsa: apply fips140=only to opts.Hash in SignPSS
+    
+    Change-Id: I443d8d9433e7f504905b60652d3fcd975e5f674b
+
+ doc/go_spec.html                                   |   2 +-
+ lib/fips140/Makefile                               |   2 +-
+ lib/fips140/fips140.sum                            |   1 +
+ lib/fips140/v1.0.0.zip                             | Bin 0 -> 650281 bytes
+ lib/time/update.bash                               |   4 +-
+ lib/time/zoneinfo.zip                              | Bin 406172 -> 406409 bytes
+ src/archive/tar/writer.go                          |   3 +
+ src/archive/tar/writer_test.go                     |   6 +-
+ src/archive/zip/writer.go                          |   3 +
+ src/archive/zip/writer_test.go                     |   5 +-
+ src/cmd/api/api_test.go                            |  16 +-
+ src/cmd/compile/internal/ssa/writebarrier.go       |  15 ++
+ .../compile/internal/typecheck/_builtin/runtime.go |   6 +-
+ src/cmd/compile/internal/typecheck/builtin.go      |   2 +
+ src/cmd/compile/internal/types2/call.go            |   3 +
+ src/cmd/compile/internal/types2/initorder.go       |  10 +
+ src/cmd/compile/internal/types2/instantiate.go     |  11 +-
+ src/cmd/compile/internal/types2/stmt.go            |   9 +-
+ .../internal/types2/testdata/local/issue71254.go   |  14 ++
+ src/cmd/compile/internal/types2/testdata/manual.go |   2 +-
+ src/cmd/compile/internal/types2/typexpr.go         |  16 +-
+ src/cmd/compile/internal/types2/universe.go        |   2 +
+ src/cmd/compile/internal/walk/range.go             |   9 +-
+ src/cmd/covdata/dump.go                            |   2 +-
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/go/alldocs.go                              |   8 +-
+ src/cmd/go/internal/auth/auth.go                   |   3 +-
+ src/cmd/go/internal/auth/httputils.go              | 173 +++++++++++++++++
+ src/cmd/go/internal/auth/userauth.go               |  91 ++++-----
+ src/cmd/go/internal/auth/userauth_test.go          |  56 +++++-
+ src/cmd/go/internal/help/helpdoc.go                |   8 +-
+ src/cmd/go/internal/mmap/mmap_test.go              |  32 ++++
+ src/cmd/go/internal/mmap/mmap_windows.go           |   8 +-
+ src/cmd/go/internal/mmap/testdata/small_file.txt   |   1 +
+ src/cmd/go/internal/modfetch/cache.go              |   7 +
+ src/cmd/go/internal/modfetch/codehost/git.go       |  16 +-
+ src/cmd/go/internal/modindex/read.go               |  11 +-
+ src/cmd/go/internal/modload/modfile.go             |  11 ++
+ .../script/cover_coverprofile_nocoverpkg.txt       |  50 +++++
+ src/cmd/go/testdata/script/fipssnap.txt            |   9 +-
+ src/cmd/go/testdata/script/goauth_netrc.txt        |  13 ++
+ src/cmd/go/testdata/script/mod_unknown_block.txt   |  11 ++
+ src/cmd/internal/goobj/builtinlist.go              |   2 +
+ src/cmd/internal/obj/wasm/wasmobj.go               |  25 ++-
+ src/cmd/link/internal/loader/loader.go             |  10 +
+ src/cmd/link/internal/wasm/asm.go                  |   1 +
+ .../x/tools/go/analysis/passes/printf/printf.go    |  48 +++--
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/crypto/ecdsa/ecdsa.go                          |   7 +-
+ src/crypto/hkdf/hkdf.go                            |  22 ++-
+ src/crypto/hkdf/hkdf_test.go                       |   3 +
+ src/crypto/hmac/hmac.go                            |   2 +
+ src/crypto/internal/boring/ecdh.go                 |   9 +
+ src/crypto/internal/fips140/aes/cbc.go             |   3 +
+ src/crypto/internal/fips140/aes/ctr.go             |   2 +
+ src/crypto/internal/fips140/ecdsa/ecdsa_s390x.go   |  21 +-
+ src/crypto/internal/fips140/ecdsa/hmacdrbg.go      |   9 +
+ src/crypto/internal/fips140/mlkem/generate1024.go  |   9 +-
+ src/crypto/internal/fips140/mlkem/mlkem1024.go     |  74 ++++++++
+ src/crypto/internal/fips140/mlkem/mlkem768.go      |  76 ++++++++
+ .../internal/fips140/nistec/p256_asm_ppc64le.s     |  20 +-
+ src/crypto/internal/fips140/pbkdf2/pbkdf2.go       |  20 +-
+ src/crypto/internal/fips140/rsa/cast.go            |   1 +
+ src/crypto/internal/fips140hash/hash.go            |  34 ++++
+ .../internal/fips140test/acvp_capabilities.json    |  18 +-
+ .../internal/fips140test/acvp_test.config.json     |   6 +-
+ src/crypto/internal/fips140test/acvp_test.go       | 185 +++++++++++++++++-
+ src/crypto/internal/sysrand/rand_linux_test.go     |   2 +
+ src/crypto/md5/md5.go                              |  13 +-
+ src/crypto/mlkem/example_test.go                   |  47 +++++
+ src/crypto/mlkem/mlkem.go                          | 192 +++++++++++++++++++
+ src/crypto/mlkem/mlkem1024.go                      |  96 ----------
+ src/crypto/mlkem/mlkem768.go                       | 106 -----------
+ src/crypto/pbkdf2/pbkdf2.go                        |   9 +-
+ src/crypto/pbkdf2/pbkdf2_test.go                   |  30 +++
+ src/crypto/rsa/fips.go                             | 132 +++++++------
+ src/crypto/rsa/rsa.go                              |  15 ++
+ src/crypto/rsa/rsa_test.go                         |  17 ++
+ src/crypto/sha1/sha1.go                            |  16 +-
+ src/crypto/sha3/sha3.go                            |   6 +
+ src/encoding/json/decode_test.go                   | 139 +++++++++++++-
+ src/encoding/json/stream_test.go                   |  10 +-
+ src/encoding/json/tags_test.go                     |   4 +-
+ src/go.mod                                         |   2 +-
+ src/go.sum                                         |   4 +-
+ src/go/build/deps_test.go                          |   3 +-
+ src/go/importer/importer.go                        |  13 ++
+ src/go/types/api_test.go                           |  10 +-
+ src/go/types/call.go                               |   3 +
+ src/go/types/check_test.go                         |   3 +-
+ src/go/types/eval_test.go                          |   5 +-
+ src/go/types/example_test.go                       |   5 +-
+ src/go/types/initorder.go                          |  10 +
+ src/go/types/instantiate.go                        |  11 +-
+ src/go/types/issues_test.go                        |   9 +-
+ src/go/types/lookup_test.go                        |   3 +-
+ src/go/types/mono_test.go                          |   3 +-
+ src/go/types/resolver_test.go                      |   6 +-
+ src/go/types/self_test.go                          |   5 +-
+ src/go/types/sizes_test.go                         |  14 +-
+ src/go/types/stmt.go                               |   9 +-
+ src/go/types/testdata/manual.go                    |   2 +-
+ src/go/types/typexpr.go                            |  16 +-
+ src/go/types/universe.go                           |   2 +
+ src/internal/coverage/cfile/testsupport.go         |   2 +-
+ src/internal/coverage/cformat/fmt_test.go          |  16 +-
+ src/internal/coverage/cformat/format.go            |  22 ++-
+ src/internal/godebug/godebug_test.go               |   3 +
+ src/internal/goexperiment/flags.go                 |   2 +-
+ src/internal/runtime/maps/map_swiss_test.go        |   1 -
+ .../types/testdata/fixedbugs/issue71131.go         |  15 ++
+ .../types/testdata/fixedbugs/issue71198.go         |  16 ++
+ .../types/testdata/fixedbugs/issue71284.go         |  10 +
+ src/internal/types/testdata/spec/range.go          |   2 +-
+ src/net/http/h2_bundle.go                          |  45 +++--
+ src/os/readfrom_linux_test.go                      |  52 +----
+ src/os/readfrom_sendfile_test.go                   |   2 +-
+ src/os/root_test.go                                |   4 +
+ src/os/zero_copy_linux.go                          |  46 +----
+ src/reflect/map_noswiss.go                         |   8 +
+ src/reflect/map_swiss.go                           |  51 ++++-
+ src/reflect/value.go                               |   6 -
+ src/runtime/asm_arm64.s                            |  37 ----
+ src/runtime/asm_wasm.s                             |  10 +
+ src/runtime/linkname_swiss.go                      | 211 +++++++++++++++++++++
+ src/runtime/map_swiss.go                           | 107 +----------
+ src/runtime/map_test.go                            |   4 -
+ src/runtime/mcleanup.go                            |  14 +-
+ src/runtime/mcleanup_test.go                       |  27 +++
+ src/runtime/panic.go                               |   3 -
+ src/runtime/pprof/pprof.go                         |   2 +-
+ src/runtime/pprof/protomem.go                      |   2 +-
+ src/runtime/pprof/protomem_test.go                 |  60 +++++-
+ src/runtime/sys_wasm.go                            |  14 ++
+ src/strconv/quote.go                               |   3 +-
+ src/syscall/js/js.go                               |  48 ++---
+ src/testing/fstest/testfs.go                       |   2 +-
+ src/testing/testing.go                             |   2 +-
+ src/vendor/modules.txt                             |   2 +-
+ test/codegen/maps.go                               |  17 +-
+ test/codegen/writebarrier.go                       |  25 +++
+ test/live.go                                       |   6 +-
+ test/live_regabi.go                                |   6 +-
+ 144 files changed, 2332 insertions(+), 811 deletions(-)

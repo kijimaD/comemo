@@ -1,0 +1,60 @@
+commit f0a9b6df4551cb9559e2012d154972981df9fd4b
+Author: Jakub Ciolek <jakub@ciolek.dev>
+Date:   Fri Jan 3 17:23:05 2025 +0100
+
+    internal/fuzz: remove the exp2 method
+    
+    It's not being used anywhere, remove it.
+    
+    Change-Id: I9c3eecacd4e5d44b18243bdec24ad88bc38c82bf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639957
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+---
+ src/internal/fuzz/mutators_byteslice_test.go | 6 ------
+ src/internal/fuzz/pcg.go                     | 6 ------
+ 2 files changed, 12 deletions(-)
+
+diff --git a/src/internal/fuzz/mutators_byteslice_test.go b/src/internal/fuzz/mutators_byteslice_test.go
+index 56adca2537..b12ef6cbcd 100644
+--- a/src/internal/fuzz/mutators_byteslice_test.go
++++ b/src/internal/fuzz/mutators_byteslice_test.go
+@@ -34,12 +34,6 @@ func (mr *mockRand) uint32n(n uint32) uint32 {
+ 	return uint32(c) % n
+ }
+ 
+-func (mr *mockRand) exp2() int {
+-	c := mr.values[mr.counter]
+-	mr.counter++
+-	return c
+-}
+-
+ func (mr *mockRand) bool() bool {
+ 	b := mr.b
+ 	mr.b = !mr.b
+diff --git a/src/internal/fuzz/pcg.go b/src/internal/fuzz/pcg.go
+index dc07b9f5bd..b8251043f1 100644
+--- a/src/internal/fuzz/pcg.go
++++ b/src/internal/fuzz/pcg.go
+@@ -17,7 +17,6 @@ type mutatorRand interface {
+ 	uint32() uint32
+ 	intn(int) int
+ 	uint32n(uint32) uint32
+-	exp2() int
+ 	bool() bool
+ 
+ 	save(randState, randInc *uint64)
+@@ -123,11 +122,6 @@ func (r *pcgRand) uint32n(n uint32) uint32 {
+ 	return uint32(prod >> 32)
+ }
+ 
+-// exp2 generates n with probability 1/2^(n+1).
+-func (r *pcgRand) exp2() int {
+-	return bits.TrailingZeros32(r.uint32())
+-}
+-
+ // bool generates a random bool.
+ func (r *pcgRand) bool() bool {
+ 	return r.uint32()&1 == 0

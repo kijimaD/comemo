@@ -1,0 +1,82 @@
+commit df4f40b9e07ed9b4d50dc10a445d4b50c37e4daa
+Author: zzkcode <zzk819166453@gmail.com>
+Date:   Fri May 10 14:51:01 2024 +0000
+
+    runtime: crash asap and extend total sleep time for slow machine in test
+    
+    Running with few threads usually does not need 500ms to crash, so let it
+    crash as soon as possible. While the test may caused more time on slow
+    machine, try to expand the sleep time in test.
+    
+    Updates #64752
+    
+    Change-Id: I635fab846bd5e1735808d4d47bb9032d5a04cc2b
+    GitHub-Last-Rev: 84f3844ac0054a6a4b0e8ae13479a670e24ba8ce
+    GitHub-Pull-Request: golang/go#65018
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/554615
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/runtime/signal_unix.go | 33 ++++++++++++++++++++++++++-------
+ 1 file changed, 26 insertions(+), 7 deletions(-)
+
+diff --git a/src/runtime/signal_unix.go b/src/runtime/signal_unix.go
+index f115980c34..8ba498bdb2 100644
+--- a/src/runtime/signal_unix.go
++++ b/src/runtime/signal_unix.go
+@@ -752,6 +752,9 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 	}
+ 
+ 	if docrash {
++		var crashSleepMicros uint32 = 5000
++		var watchdogTimeoutMicros uint32 = 2000 * crashSleepMicros
++
+ 		isCrashThread := false
+ 		if crashing.CompareAndSwap(0, 1) {
+ 			isCrashThread = true
+@@ -769,19 +772,35 @@ func sighandler(sig uint32, info *siginfo, ctxt unsafe.Pointer, gp *g) {
+ 			// The faulting m is crashing first so it is the faulting thread in the core dump (see issue #63277):
+ 			// in expected operation, the first m will wait until the last m has received the SIGQUIT,
+ 			// and then run crash/exit and the process is gone.
+-			// However, if it spends more than 5 seconds to send SIGQUIT to all ms,
+-			// any of ms may crash/exit the process after waiting for 5 seconds.
++			// However, if it spends more than 10 seconds to send SIGQUIT to all ms,
++			// any of ms may crash/exit the process after waiting for 10 seconds.
+ 			print("\n-----\n\n")
+ 			raiseproc(_SIGQUIT)
+ 		}
+ 		if isCrashThread {
+-			i := 0
+-			for (crashing.Load() < mcount()-int32(extraMLength.Load())) && i < 10 {
+-				i++
+-				usleep(500 * 1000)
++			// Sleep for short intervals so that we can crash quickly after all ms have received SIGQUIT.
++			// Reset the timer whenever we see more ms received SIGQUIT
++			// to make it have enough time to crash (see issue #64752).
++			timeout := watchdogTimeoutMicros
++			maxCrashing := crashing.Load()
++			for timeout > 0 && (crashing.Load() < mcount()-int32(extraMLength.Load())) {
++				usleep(crashSleepMicros)
++				timeout -= crashSleepMicros
++
++				if c := crashing.Load(); c > maxCrashing {
++					// We make progress, so reset the watchdog timeout
++					maxCrashing = c
++					timeout = watchdogTimeoutMicros
++				}
+ 			}
+ 		} else {
+-			usleep(5 * 1000 * 1000)
++			maxCrashing := int32(0)
++			c := crashing.Load()
++			for c > maxCrashing {
++				maxCrashing = c
++				usleep(watchdogTimeoutMicros)
++				c = crashing.Load()
++			}
+ 		}
+ 		printDebugLog()
+ 		crash()

@@ -1,0 +1,36 @@
+commit d1180dbd5e5728d268e0dda01fd2daa261911ec8
+Author: Russ Cox <rsc@golang.org>
+Date:   Sun Nov 17 10:20:18 2024 -0500
+
+    runtime: relax TestWindowsStackMemory from 100kB to 128kB
+    
+    We've been getting intermittent flakes in this test since 2023,
+    all reporting values just barely over 100kB on windows-386.
+    
+    If we were happy with 100kB, we should be happy with 128kB,
+    and it should fix the flakes.
+    
+    Fixes #58570.
+    
+    Change-Id: Iabe734cfbba6fe28a83f62e7811ee03fed424f0b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628795
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/runtime/syscall_windows_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index edbc453ec8..01a9ca3b8c 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -673,7 +673,7 @@ func TestWindowsStackMemory(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatalf("Failed to read stack usage: %v", err)
+ 	}
+-	if expected, got := 100<<10, stackUsage; got > expected {
++	if expected, got := 128<<10, stackUsage; got > expected {
+ 		t.Fatalf("expected < %d bytes of memory per thread, got %d", expected, got)
+ 	}
+ }

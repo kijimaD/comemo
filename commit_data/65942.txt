@@ -1,0 +1,38 @@
+commit c83f2ca4b3964917adc3b06f661785cc6b53792d
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jan 14 06:58:32 2025 -0800
+
+    cmd/dist: ignore packages with no Go files in BenchmarkAll
+    
+    This case recently started happening on the builders.
+    The synctest experiment was recently enabled for some targets (CL 642422).
+    This caused the list of standard packages to include testing/synctest.
+    However, BenchmarkAll tests for all configurations;
+    some did not include testing/synctest. That caused the test to crash.
+    
+    Change-Id: Icade10af147c2e2bcbac25bf744919083db3e70f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642397
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+---
+ src/cmd/api/api_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/api/api_test.go b/src/cmd/api/api_test.go
+index 7848233333..cac624af8a 100644
+--- a/src/cmd/api/api_test.go
++++ b/src/cmd/api/api_test.go
+@@ -201,7 +201,10 @@ func BenchmarkAll(b *testing.B) {
+ 		for _, context := range contexts {
+ 			w := NewWalker(context, filepath.Join(testenv.GOROOT(b), "src"))
+ 			for _, name := range w.stdPackages {
+-				pkg, _ := w.import_(name)
++				pkg, err := w.import_(name)
++				if _, nogo := err.(*build.NoGoError); nogo {
++					continue
++				}
+ 				w.export(pkg)
+ 			}
+ 			w.Features()

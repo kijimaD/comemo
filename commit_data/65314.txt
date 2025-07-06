@@ -1,0 +1,34 @@
+commit acad0c2e9a78ebe266269a80e23bd0aeade9e99b
+Author: changwang ma <machangwang.cn@gmail.com>
+Date:   Fri Oct 25 23:16:12 2024 +0800
+
+    cmd/go/internal/lockedfile: fix function name in error message for test
+    
+    Change-Id: I1477c6249196dba58908ff8cc881914bf602ddd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622615
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+index d32bf06160..035840db7e 100644
+--- a/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
++++ b/src/cmd/go/internal/lockedfile/internal/filelock/filelock_test.go
+@@ -66,10 +66,10 @@ func mustOpen(t *testing.T, name string) *os.File {
+ 
+ 	f, err := os.OpenFile(name, os.O_RDWR, 0)
+ 	if err != nil {
+-		t.Fatalf("os.Open(%q) = %v", name, err)
++		t.Fatalf("os.OpenFile(%q) = %v", name, err)
+ 	}
+ 
+-	t.Logf("fd %d = os.Open(%q)", f.Fd(), name)
++	t.Logf("fd %d = os.OpenFile(%q)", f.Fd(), name)
+ 	return f
+ }
+ 

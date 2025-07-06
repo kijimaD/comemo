@@ -1,0 +1,176 @@
+commit 31437f25f2a65171b25ba1418509fd019c68a6b9
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 25 16:51:52 2024 +0000
+
+    runtime: simplify mem profile checking in mallocgc
+    
+    Checking whether the current allocation needs to be profiled is
+    currently branch-y and weirdly a lot of code. The branches are
+    generally predictable, but it's a surprising number of instructions.
+    Part of the problem is that MemProfileRate is just a global that can be
+    set at any time, so we need to load it and check certain settings
+    explicitly. In an ideal world, we would just always subtract from
+    nextSample and have a single branch to take the slow path if we
+    subtract below zero.
+    
+    If MemProfileRate were a function, we could trash all the nextSample
+    values intentionally in each mcache. This would be slow, but
+    MemProfileRate changes rarely while the malloc hot path is well, hot.
+    Unfortunate...
+    
+    Although this ideal world is, AFAICT, impossible, we can still get
+    close. If we cache the value of MemProfileRate in each mcache, then we
+    can force malloc to take the slow path whenever MemProfileRate changes.
+    This does require two additional loads, but crucially, these loads are
+    independent of everything else in mallocgc. Furthermore, the branch
+    dependent on those loads is incredibly predictable in practice.
+    
+    This CL on its own has little-to-no impact on mallocgc. But this
+    codepath is going to be duplicated in several places in the next CL, so
+    it'll pay to simplify it. Also, we're very much trying to remedy a
+    death-by-a-thousand-cuts situation, and malloc is currently still kind
+    of a monster -- it will not help if mallocgc isn't really streamlined
+    itself.
+    
+    Lastly, there's a nice property now that all nextSample values get
+    immediately re-sampled when MemProfileRate changes.
+    
+    Change-Id: I6443d0cf9bd7861595584442b675ac1be8ea3455
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615815
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/runtime/arena.go  |  4 ++--
+ src/runtime/malloc.go | 40 ++++++++++++++++++++++------------------
+ src/runtime/mcache.go |  5 +++--
+ 3 files changed, 27 insertions(+), 22 deletions(-)
+
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index 9ba6c68f80..3ad28533b5 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -813,8 +813,8 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
+ 			throw("newUserArenaChunk called without a P or outside bootstrapping")
+ 		}
+ 		// Note cache c only valid while m acquired; see #47302
+-		if rate != 1 && userArenaChunkBytes < c.nextSample {
+-			c.nextSample -= userArenaChunkBytes
++		if rate != 1 && int64(userArenaChunkBytes) < c.nextSample {
++			c.nextSample -= int64(userArenaChunkBytes)
+ 		} else {
+ 			profilealloc(mp, unsafe.Pointer(span.base()), userArenaChunkBytes)
+ 		}
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 71dda120d4..4fda8a3c23 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1247,21 +1247,19 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		asanunpoison(x, userSize)
+ 	}
+ 
++	// Note cache c only valid while m acquired; see #47302
++	//
++	// N.B. Use the full size because that matches how the GC
++	// will update the mem profile on the "free" side.
++	//
+ 	// TODO(mknyszek): We should really count the header as part
+ 	// of gc_sys or something. The code below just pretends it is
+ 	// internal fragmentation and matches the GC's accounting by
+ 	// using the whole allocation slot.
+ 	fullSize := span.elemsize
+-	if rate := MemProfileRate; rate > 0 {
+-		// Note cache c only valid while m acquired; see #47302
+-		//
+-		// N.B. Use the full size because that matches how the GC
+-		// will update the mem profile on the "free" side.
+-		if rate != 1 && fullSize < c.nextSample {
+-			c.nextSample -= fullSize
+-		} else {
+-			profilealloc(mp, x, fullSize)
+-		}
++	c.nextSample -= int64(fullSize)
++	if c.nextSample < 0 || MemProfileRate != c.memProfRate {
++		profilealloc(mp, x, fullSize)
+ 	}
+ 	mp.mallocing = 0
+ 	releasem(mp)
+@@ -1465,11 +1463,16 @@ func maps_newarray(typ *_type, n int) unsafe.Pointer {
+ 	return newarray(typ, n)
+ }
+ 
++// profilealloc resets the current mcache's nextSample counter and
++// records a memory profile sample.
++//
++// The caller must be non-preemptible and have a P.
+ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+ 	c := getMCache(mp)
+ 	if c == nil {
+ 		throw("profilealloc called without a P or outside bootstrapping")
+ 	}
++	c.memProfRate = MemProfileRate
+ 	c.nextSample = nextSample()
+ 	mProf_Malloc(mp, x, size)
+ }
+@@ -1481,12 +1484,13 @@ func profilealloc(mp *m, x unsafe.Pointer, size uintptr) {
+ // processes, the distance between two samples follows the exponential
+ // distribution (exp(MemProfileRate)), so the best return value is a random
+ // number taken from an exponential distribution whose mean is MemProfileRate.
+-func nextSample() uintptr {
++func nextSample() int64 {
++	if MemProfileRate == 0 {
++		// Basically never sample.
++		return maxInt64
++	}
+ 	if MemProfileRate == 1 {
+-		// Callers assign our return value to
+-		// mcache.next_sample, but next_sample is not used
+-		// when the rate is 1. So avoid the math below and
+-		// just return something.
++		// Sample immediately.
+ 		return 0
+ 	}
+ 	if GOOS == "plan9" {
+@@ -1496,7 +1500,7 @@ func nextSample() uintptr {
+ 		}
+ 	}
+ 
+-	return uintptr(fastexprand(MemProfileRate))
++	return int64(fastexprand(MemProfileRate))
+ }
+ 
+ // fastexprand returns a random number from an exponential distribution with
+@@ -1531,14 +1535,14 @@ func fastexprand(mean int) int32 {
+ 
+ // nextSampleNoFP is similar to nextSample, but uses older,
+ // simpler code to avoid floating point.
+-func nextSampleNoFP() uintptr {
++func nextSampleNoFP() int64 {
+ 	// Set first allocation sample size.
+ 	rate := MemProfileRate
+ 	if rate > 0x3fffffff { // make 2*rate not overflow
+ 		rate = 0x3fffffff
+ 	}
+ 	if rate != 0 {
+-		return uintptr(cheaprandn(uint32(2 * rate)))
++		return int64(cheaprandn(uint32(2 * rate)))
+ 	}
+ 	return 0
+ }
+diff --git a/src/runtime/mcache.go b/src/runtime/mcache.go
+index 51c496fed3..44d737b19c 100644
+--- a/src/runtime/mcache.go
++++ b/src/runtime/mcache.go
+@@ -21,8 +21,9 @@ type mcache struct {
+ 
+ 	// The following members are accessed on every malloc,
+ 	// so they are grouped here for better caching.
+-	nextSample uintptr // trigger heap sample after allocating this many bytes
+-	scanAlloc  uintptr // bytes of scannable heap allocated
++	nextSample  int64   // trigger heap sample after allocating this many bytes
++	memProfRate int     // cached mem profile rate, used to detect changes
++	scanAlloc   uintptr // bytes of scannable heap allocated
+ 
+ 	// Allocator cache for tiny objects w/o pointers.
+ 	// See "Tiny allocator" comment in malloc.go.

@@ -1,0 +1,62 @@
+commit 29782bd347a1c707b6804ea6ee7da3a70ba9fd4a
+Author: Roxy Light <roxy@zombiezen.com>
+Date:   Sat May 24 16:07:58 2025 -0700
+
+    os: add implementation of fs.ReadLinkFS to *rootFS
+    
+    Fixes #73887
+    
+    Change-Id: I43f3f4324d740b5381615bce864b7ec31415a635
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676135
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/os/root.go | 20 ++++++++++++++++++--
+ 1 file changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/root.go b/src/os/root.go
+index 953cd6b9b9..d759727ce7 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -352,8 +352,8 @@ func splitPathInRoot(s string, prefix, suffix []string) (_ []string, suffixSep s
+ 
+ // FS returns a file system (an fs.FS) for the tree of files in the root.
+ //
+-// The result implements [io/fs.StatFS], [io/fs.ReadFileFS] and
+-// [io/fs.ReadDirFS].
++// The result implements [io/fs.StatFS], [io/fs.ReadFileFS],
++// [io/fs.ReadDirFS], and [io/fs.ReadLinkFS].
+ func (r *Root) FS() fs.FS {
+ 	return (*rootFS)(r)
+ }
+@@ -409,6 +409,14 @@ func (rfs *rootFS) ReadFile(name string) ([]byte, error) {
+ 	return readFileContents(statOrZero(f), f.Read)
+ }
+ 
++func (rfs *rootFS) ReadLink(name string) (string, error) {
++	r := (*Root)(rfs)
++	if !isValidRootFSPath(name) {
++		return "", &PathError{Op: "readlink", Path: name, Err: ErrInvalid}
++	}
++	return r.Readlink(name)
++}
++
+ func (rfs *rootFS) Stat(name string) (FileInfo, error) {
+ 	r := (*Root)(rfs)
+ 	if !isValidRootFSPath(name) {
+@@ -417,6 +425,14 @@ func (rfs *rootFS) Stat(name string) (FileInfo, error) {
+ 	return r.Stat(name)
+ }
+ 
++func (rfs *rootFS) Lstat(name string) (FileInfo, error) {
++	r := (*Root)(rfs)
++	if !isValidRootFSPath(name) {
++		return nil, &PathError{Op: "lstat", Path: name, Err: ErrInvalid}
++	}
++	return r.Lstat(name)
++}
++
+ // isValidRootFSPath reports whether name is a valid filename to pass a Root.FS method.
+ func isValidRootFSPath(name string) bool {
+ 	if !fs.ValidPath(name) {

@@ -1,0 +1,216 @@
+commit a0d7bfa28683c2f7cf7868330295c9942a2fcdfd
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Sep 5 11:48:00 2024 -0700
+
+    internal/syscall/unix: implement Eaccess on all unix platforms
+    
+    Eaccess, initially added by CL 414824 for linux only, was later
+    implemented for freebsd (CL 531155), netbsd (CL 531876), dragonfly
+    (CL 532675), openbsd (CL 538836), and darwin (CL 579976).
+    
+    The only unix platforms which lack Eaccess are Solaris/Illumos and AIX.
+    
+    For AIX, syscall.Faccessat is already available, the only missing piece
+    was AT_EACCESS constant. Let's take it from [1], which, judging by a few
+    other known AT_ constants, appears to be accurate.
+    
+    For Solaris, wire the faccessat using the same logic as in the syscall
+    package.
+    
+    Now, when we have faccessat for every unix, we can drop eaccess_other.go
+    and consolidate Eaccess implementations to use faccessat.
+    
+    [1]: https://github.com/rust-lang/libc/blob/main/src/unix/aix/mod.rs
+    
+    Change-Id: I7e1b90dedc5d8174235d3a79d5c662f3dcb909c3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611295
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+---
+ src/internal/syscall/unix/at_aix.go                |  2 ++
+ src/internal/syscall/unix/at_solaris.go            |  3 +++
+ .../syscall/unix/{eaccess_linux.go => eaccess.go}  |  8 +++----
+ src/internal/syscall/unix/eaccess_other.go         | 13 ----------
+ .../unix/{eaccess_bsd.go => faccessat_bsd.go}      |  4 ----
+ .../{eaccess_darwin.go => faccessat_darwin.go}     |  4 ----
+ .../{eaccess_openbsd.go => faccessat_openbsd.go}   |  4 ----
+ src/internal/syscall/unix/faccessat_solaris.go     | 28 ++++++++++++++++++++++
+ src/internal/syscall/unix/faccessat_syscall.go     | 11 +++++++++
+ 9 files changed, 48 insertions(+), 29 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at_aix.go b/src/internal/syscall/unix/at_aix.go
+index 3fe3285ce2..04cacf7f30 100644
+--- a/src/internal/syscall/unix/at_aix.go
++++ b/src/internal/syscall/unix/at_aix.go
+@@ -9,6 +9,8 @@ package unix
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.a/shr_64.o"
+ 
+ const (
++	AT_EACCESS          = 0x1
++	AT_FDCWD            = -0x02
+ 	AT_REMOVEDIR        = 0x1
+ 	AT_SYMLINK_NOFOLLOW = 0x1
+ 	UTIME_OMIT          = -0x3
+diff --git a/src/internal/syscall/unix/at_solaris.go b/src/internal/syscall/unix/at_solaris.go
+index ae1c1d64ca..7a29eb309c 100644
+--- a/src/internal/syscall/unix/at_solaris.go
++++ b/src/internal/syscall/unix/at_solaris.go
+@@ -12,12 +12,15 @@ func syscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err
+ // Implemented as rawsysvicall6 in runtime/syscall_solaris.go.
+ func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, err syscall.Errno)
+ 
++//go:cgo_import_dynamic libc_faccessat faccessat "libc.so"
+ //go:cgo_import_dynamic libc_fstatat fstatat "libc.so"
+ //go:cgo_import_dynamic libc_openat openat "libc.so"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.so"
+ //go:cgo_import_dynamic libc_uname uname "libc.so"
+ 
+ const (
++	AT_EACCESS          = 0x4
++	AT_FDCWD            = 0xffd19553
+ 	AT_REMOVEDIR        = 0x1
+ 	AT_SYMLINK_NOFOLLOW = 0x1000
+ 
+diff --git a/src/internal/syscall/unix/eaccess_linux.go b/src/internal/syscall/unix/eaccess.go
+similarity index 56%
+rename from src/internal/syscall/unix/eaccess_linux.go
+rename to src/internal/syscall/unix/eaccess.go
+index 5695a5e4ce..531fd2f106 100644
+--- a/src/internal/syscall/unix/eaccess_linux.go
++++ b/src/internal/syscall/unix/eaccess.go
+@@ -1,11 +1,11 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
++// Copyright 2024 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package unix
++//go:build unix
+ 
+-import "syscall"
++package unix
+ 
+ func Eaccess(path string, mode uint32) error {
+-	return syscall.Faccessat(AT_FDCWD, path, mode, AT_EACCESS)
++	return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+ }
+diff --git a/src/internal/syscall/unix/eaccess_other.go b/src/internal/syscall/unix/eaccess_other.go
+deleted file mode 100644
+index 3da3a64f0e..0000000000
+--- a/src/internal/syscall/unix/eaccess_other.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build unix && !darwin && !dragonfly && !freebsd && !linux && !openbsd && !netbsd
+-
+-package unix
+-
+-import "syscall"
+-
+-func Eaccess(path string, mode uint32) error {
+-	return syscall.ENOSYS
+-}
+diff --git a/src/internal/syscall/unix/eaccess_bsd.go b/src/internal/syscall/unix/faccessat_bsd.go
+similarity index 85%
+rename from src/internal/syscall/unix/eaccess_bsd.go
+rename to src/internal/syscall/unix/faccessat_bsd.go
+index 7077af17b6..78fca18e27 100644
+--- a/src/internal/syscall/unix/eaccess_bsd.go
++++ b/src/internal/syscall/unix/faccessat_bsd.go
+@@ -22,7 +22,3 @@ func faccessat(dirfd int, path string, mode uint32, flags int) error {
+ 	}
+ 	return err
+ }
+-
+-func Eaccess(path string, mode uint32) error {
+-	return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+-}
+diff --git a/src/internal/syscall/unix/eaccess_darwin.go b/src/internal/syscall/unix/faccessat_darwin.go
+similarity index 87%
+rename from src/internal/syscall/unix/eaccess_darwin.go
+rename to src/internal/syscall/unix/faccessat_darwin.go
+index 0fa8d17afe..ef790aa949 100644
+--- a/src/internal/syscall/unix/eaccess_darwin.go
++++ b/src/internal/syscall/unix/faccessat_darwin.go
+@@ -25,7 +25,3 @@ func faccessat(dirfd int, path string, mode uint32, flags int) error {
+ 	}
+ 	return nil
+ }
+-
+-func Eaccess(path string, mode uint32) error {
+-	return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+-}
+diff --git a/src/internal/syscall/unix/eaccess_openbsd.go b/src/internal/syscall/unix/faccessat_openbsd.go
+similarity index 89%
+rename from src/internal/syscall/unix/eaccess_openbsd.go
+rename to src/internal/syscall/unix/faccessat_openbsd.go
+index 5e91f11f66..9d4ed97291 100644
+--- a/src/internal/syscall/unix/eaccess_openbsd.go
++++ b/src/internal/syscall/unix/faccessat_openbsd.go
+@@ -30,7 +30,3 @@ func faccessat(dirfd int, path string, mode uint32, flags int) error {
+ 	}
+ 	return err
+ }
+-
+-func Eaccess(path string, mode uint32) error {
+-	return faccessat(AT_FDCWD, path, mode, AT_EACCESS)
+-}
+diff --git a/src/internal/syscall/unix/faccessat_solaris.go b/src/internal/syscall/unix/faccessat_solaris.go
+new file mode 100644
+index 0000000000..47e05fb2c0
+--- /dev/null
++++ b/src/internal/syscall/unix/faccessat_solaris.go
+@@ -0,0 +1,28 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package unix
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++//go:linkname procFaccessat libc_faccessat
++
++var procFaccessat uintptr
++
++func faccessat(dirfd int, path string, mode uint32, flags int) error {
++	p, err := syscall.BytePtrFromString(path)
++	if err != nil {
++		return err
++	}
++
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFaccessat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(mode), uintptr(flags), 0, 0)
++	if errno != 0 {
++		return errno
++	}
++
++	return nil
++}
+diff --git a/src/internal/syscall/unix/faccessat_syscall.go b/src/internal/syscall/unix/faccessat_syscall.go
+new file mode 100644
+index 0000000000..865e40b2c6
+--- /dev/null
++++ b/src/internal/syscall/unix/faccessat_syscall.go
+@@ -0,0 +1,11 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || linux
++
++package unix
++
++import "syscall"
++
++var faccessat = syscall.Faccessat

@@ -1,0 +1,755 @@
+commit 18bbcffc46ce9d681190562f9430cd6727978254
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Dec 5 21:52:49 2024 +0000
+
+    all: update vendored dependencies [generated]
+    
+    The Go 1.24 RC is due for next week. This is a time to once again update
+    all golang.org/x/... module versions that contribute packages to the
+    std and cmd modules in the standard library to latest master versions.
+    
+    For #36905.
+    
+    [git-generate]
+    go install golang.org/x/build/cmd/updatestd@latest
+    go install golang.org/x/tools/cmd/bundle@latest
+    updatestd -goroot=$(pwd) -branch=master
+    
+    Change-Id: If4fd03a18590ff3b6e701a9698370c57c69979c2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634041
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/go.mod                                     | 14 ++---
+ src/cmd/go.sum                                     | 28 +++++-----
+ .../golang.org/x/sys/unix/ztypes_darwin_amd64.go   | 60 ++++++++++++++++++++++
+ .../golang.org/x/sys/unix/ztypes_darwin_arm64.go   | 60 ++++++++++++++++++++++
+ .../tools/go/analysis/passes/buildtag/buildtag.go  | 25 +++------
+ .../x/tools/go/analysis/passes/printf/printf.go    |  3 ++
+ .../x/tools/internal/analysisinternal/analysis.go  | 22 +++++---
+ .../x/tools/internal/versions/constraint.go        | 13 -----
+ .../x/tools/internal/versions/constraint_go121.go  | 14 -----
+ src/cmd/vendor/modules.txt                         | 14 ++---
+ src/go.mod                                         |  8 +--
+ src/go.sum                                         | 16 +++---
+ src/net/http/h2_bundle.go                          | 46 +++++++++++++----
+ src/vendor/golang.org/x/net/route/address.go       | 18 ++++---
+ src/vendor/modules.txt                             |  8 +--
+ 15 files changed, 236 insertions(+), 113 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index 1e653dcf1c..b29321de7b 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -5,17 +5,17 @@ go 1.24
+ require (
+ 	github.com/google/pprof v0.0.0-20241101162523-b92577c0c142
+ 	golang.org/x/arch v0.12.0
+-	golang.org/x/build v0.0.0-20241119201203-2f2bd003cf4c
++	golang.org/x/build v0.0.0-20241205234318-b850320af2a4
+ 	golang.org/x/mod v0.22.0
+-	golang.org/x/sync v0.9.1-0.20241113011828-913fb63af28f
+-	golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2
+-	golang.org/x/telemetry v0.0.0-20241108154256-525ce2e96f55
+-	golang.org/x/term v0.26.0
+-	golang.org/x/tools v0.27.1-0.20241122193402-68caf84fca7f
++	golang.org/x/sync v0.10.0
++	golang.org/x/sys v0.28.0
++	golang.org/x/telemetry v0.0.0-20241204182053-c0ac0e154df3
++	golang.org/x/term v0.27.0
++	golang.org/x/tools v0.28.0
+ )
+ 
+ require (
+ 	github.com/ianlancetaylor/demangle v0.0.0-20240912202439-0a2b6291aafd // indirect
+-	golang.org/x/text v0.20.0 // indirect
++	golang.org/x/text v0.21.0 // indirect
+ 	rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef // indirect
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 0d69a90f26..5c262454d5 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -8,21 +8,21 @@ github.com/yuin/goldmark v1.6.0 h1:boZcn2GTjpsynOsC0iJHnBWa4Bi0qzfJjthwauItG68=
+ github.com/yuin/goldmark v1.6.0/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
+ golang.org/x/arch v0.12.0 h1:UsYJhbzPYGsT0HbEdmYcqtCv8UNGvnaL561NnIUvaKg=
+ golang.org/x/arch v0.12.0/go.mod h1:FEVrYAQjsQXMVJ1nsMoVVXPZg6p2JE2mx8psSWTDQys=
+-golang.org/x/build v0.0.0-20241119201203-2f2bd003cf4c h1:Qdt+PJKjmvZJFMASEapWuGvS6EERdWoCrfzcZdKQibs=
+-golang.org/x/build v0.0.0-20241119201203-2f2bd003cf4c/go.mod h1:tilxlBi+3BddTuUjJRT4/G+OYaXXVjgUbedg9SDHOfg=
++golang.org/x/build v0.0.0-20241205234318-b850320af2a4 h1:ri5CIHQTJCd3jd0Jez97HiPE+VMT0hFNKqLHn2EjrXk=
++golang.org/x/build v0.0.0-20241205234318-b850320af2a4/go.mod h1:9O1P9bdbWH7KXtcbo+6amI/59H5mNq7+CTE1eKqNsjg=
+ golang.org/x/mod v0.22.0 h1:D4nJWe9zXqHOmWqj4VMOJhvzj7bEZg4wEYa759z1pH4=
+ golang.org/x/mod v0.22.0/go.mod h1:6SkKJ3Xj0I0BrPOZoBy3bdMptDDU9oJrpohJ3eWZ1fY=
+-golang.org/x/sync v0.9.1-0.20241113011828-913fb63af28f h1:2b+sHuEI7qBhH6TW9u35S9E0MutyUXZJzQnr4E/u128=
+-golang.org/x/sync v0.9.1-0.20241113011828-913fb63af28f/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2 h1:nLmXYlwPHXAmVnvJmjvVpEFRhVgC0aCgTR7KW324G0c=
+-golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20241108154256-525ce2e96f55 h1:ZZOVC4W26kVZSAW314SD81pWtiRgWNMbZsgLqKXx9lE=
+-golang.org/x/telemetry v0.0.0-20241108154256-525ce2e96f55/go.mod h1:7Vh679jcBo81KQrd4wo0gKov7BE6IHwu1tEhHxHNM30=
+-golang.org/x/term v0.26.0 h1:WEQa6V3Gja/BhNxg540hBip/kkaYtRg3cxg4oXSw4AU=
+-golang.org/x/term v0.26.0/go.mod h1:Si5m1o57C5nBNQo5z1iq+XDijt21BDBDp2bK0QI8e3E=
+-golang.org/x/text v0.20.0 h1:gK/Kv2otX8gz+wn7Rmb3vT96ZwuoxnQlY+HlJVj7Qug=
+-golang.org/x/text v0.20.0/go.mod h1:D4IsuqiFMhST5bX19pQ9ikHC2GsaKyk/oF+pn3ducp4=
+-golang.org/x/tools v0.27.1-0.20241122193402-68caf84fca7f h1:oWXtmuFywNTA1gJVV5bJ9Y+JnVbAqyAyVpPnQfdNZIE=
+-golang.org/x/tools v0.27.1-0.20241122193402-68caf84fca7f/go.mod h1:sUi0ZgbwW9ZPAq26Ekut+weQPR5eIM6GQLQ1Yjm1H0Q=
++golang.org/x/sync v0.10.0 h1:3NQrjDixjgGwUOCaF8w2+VYHv0Ve/vGYSbdkTa98gmQ=
++golang.org/x/sync v0.10.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
++golang.org/x/sys v0.28.0 h1:Fksou7UEQUWlKvIdsqzJmUmCX3cZuD2+P3XyyzwMhlA=
++golang.org/x/sys v0.28.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/telemetry v0.0.0-20241204182053-c0ac0e154df3 h1:rCLsPBq7l0E9Z451UgkWFkaWYhgt7dGmAlpD6hLjK5I=
++golang.org/x/telemetry v0.0.0-20241204182053-c0ac0e154df3/go.mod h1:8h4Hgq+jcTvCDv2+i7NrfWwpYHcESleo2nGHxLbFLJ4=
++golang.org/x/term v0.27.0 h1:WP60Sv1nlK1T6SupCHbXzSaN0b9wUmsPoRS9b61A23Q=
++golang.org/x/term v0.27.0/go.mod h1:iMsnZpn0cago0GOrHO2+Y7u7JPn5AylBrcoWkElMTSM=
++golang.org/x/text v0.21.0 h1:zyQAAkrwaneQ066sspRyJaG9VNi/YJ1NfzcGB3hZ/qo=
++golang.org/x/text v0.21.0/go.mod h1:4IBbMaMmOPCJ8SecivzSH54+73PCFmPWxNTLm+vZkEQ=
++golang.org/x/tools v0.28.0 h1:WuB6qZ4RPCQo5aP3WdKZS7i595EdWqWR8vqJTlwTVK8=
++golang.org/x/tools v0.28.0/go.mod h1:dcIOrVd3mfQKTgrDVQHqCPMWy6lnhfhtX3hLXYVLfRw=
+ rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef h1:mqLYrXCXYEZOop9/Dbo6RPX11539nwiCNBb1icVPmw8=
+ rsc.io/markdown v0.0.0-20240306144322-0bf8f97ee8ef/go.mod h1:8xcPgWmwlZONN1D9bjxtHEjrUtSEa3fakVF8iaewYKQ=
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_amd64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_amd64.go
+index d003c3d437..17c53bd9b3 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_amd64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_amd64.go
+@@ -462,11 +462,14 @@ type FdSet struct {
+ 
+ const (
+ 	SizeofIfMsghdr    = 0x70
++	SizeofIfMsghdr2   = 0xa0
+ 	SizeofIfData      = 0x60
++	SizeofIfData64    = 0x80
+ 	SizeofIfaMsghdr   = 0x14
+ 	SizeofIfmaMsghdr  = 0x10
+ 	SizeofIfmaMsghdr2 = 0x14
+ 	SizeofRtMsghdr    = 0x5c
++	SizeofRtMsghdr2   = 0x5c
+ 	SizeofRtMetrics   = 0x38
+ )
+ 
+@@ -480,6 +483,20 @@ type IfMsghdr struct {
+ 	Data    IfData
+ }
+ 
++type IfMsghdr2 struct {
++	Msglen     uint16
++	Version    uint8
++	Type       uint8
++	Addrs      int32
++	Flags      int32
++	Index      uint16
++	Snd_len    int32
++	Snd_maxlen int32
++	Snd_drops  int32
++	Timer      int32
++	Data       IfData64
++}
++
+ type IfData struct {
+ 	Type       uint8
+ 	Typelen    uint8
+@@ -512,6 +529,34 @@ type IfData struct {
+ 	Reserved2  uint32
+ }
+ 
++type IfData64 struct {
++	Type       uint8
++	Typelen    uint8
++	Physical   uint8
++	Addrlen    uint8
++	Hdrlen     uint8
++	Recvquota  uint8
++	Xmitquota  uint8
++	Unused1    uint8
++	Mtu        uint32
++	Metric     uint32
++	Baudrate   uint64
++	Ipackets   uint64
++	Ierrors    uint64
++	Opackets   uint64
++	Oerrors    uint64
++	Collisions uint64
++	Ibytes     uint64
++	Obytes     uint64
++	Imcasts    uint64
++	Omcasts    uint64
++	Iqdrops    uint64
++	Noproto    uint64
++	Recvtiming uint32
++	Xmittiming uint32
++	Lastchange Timeval32
++}
++
+ type IfaMsghdr struct {
+ 	Msglen  uint16
+ 	Version uint8
+@@ -557,6 +602,21 @@ type RtMsghdr struct {
+ 	Rmx     RtMetrics
+ }
+ 
++type RtMsghdr2 struct {
++	Msglen      uint16
++	Version     uint8
++	Type        uint8
++	Index       uint16
++	Flags       int32
++	Addrs       int32
++	Refcnt      int32
++	Parentflags int32
++	Reserved    int32
++	Use         int32
++	Inits       uint32
++	Rmx         RtMetrics
++}
++
+ type RtMetrics struct {
+ 	Locks    uint32
+ 	Mtu      uint32
+diff --git a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_arm64.go b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_arm64.go
+index 0d45a941aa..2392226a74 100644
+--- a/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_arm64.go
++++ b/src/cmd/vendor/golang.org/x/sys/unix/ztypes_darwin_arm64.go
+@@ -462,11 +462,14 @@ type FdSet struct {
+ 
+ const (
+ 	SizeofIfMsghdr    = 0x70
++	SizeofIfMsghdr2   = 0xa0
+ 	SizeofIfData      = 0x60
++	SizeofIfData64    = 0x80
+ 	SizeofIfaMsghdr   = 0x14
+ 	SizeofIfmaMsghdr  = 0x10
+ 	SizeofIfmaMsghdr2 = 0x14
+ 	SizeofRtMsghdr    = 0x5c
++	SizeofRtMsghdr2   = 0x5c
+ 	SizeofRtMetrics   = 0x38
+ )
+ 
+@@ -480,6 +483,20 @@ type IfMsghdr struct {
+ 	Data    IfData
+ }
+ 
++type IfMsghdr2 struct {
++	Msglen     uint16
++	Version    uint8
++	Type       uint8
++	Addrs      int32
++	Flags      int32
++	Index      uint16
++	Snd_len    int32
++	Snd_maxlen int32
++	Snd_drops  int32
++	Timer      int32
++	Data       IfData64
++}
++
+ type IfData struct {
+ 	Type       uint8
+ 	Typelen    uint8
+@@ -512,6 +529,34 @@ type IfData struct {
+ 	Reserved2  uint32
+ }
+ 
++type IfData64 struct {
++	Type       uint8
++	Typelen    uint8
++	Physical   uint8
++	Addrlen    uint8
++	Hdrlen     uint8
++	Recvquota  uint8
++	Xmitquota  uint8
++	Unused1    uint8
++	Mtu        uint32
++	Metric     uint32
++	Baudrate   uint64
++	Ipackets   uint64
++	Ierrors    uint64
++	Opackets   uint64
++	Oerrors    uint64
++	Collisions uint64
++	Ibytes     uint64
++	Obytes     uint64
++	Imcasts    uint64
++	Omcasts    uint64
++	Iqdrops    uint64
++	Noproto    uint64
++	Recvtiming uint32
++	Xmittiming uint32
++	Lastchange Timeval32
++}
++
+ type IfaMsghdr struct {
+ 	Msglen  uint16
+ 	Version uint8
+@@ -557,6 +602,21 @@ type RtMsghdr struct {
+ 	Rmx     RtMetrics
+ }
+ 
++type RtMsghdr2 struct {
++	Msglen      uint16
++	Version     uint8
++	Type        uint8
++	Index       uint16
++	Flags       int32
++	Addrs       int32
++	Refcnt      int32
++	Parentflags int32
++	Reserved    int32
++	Use         int32
++	Inits       uint32
++	Rmx         RtMetrics
++}
++
+ type RtMetrics struct {
+ 	Locks    uint32
+ 	Mtu      uint32
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+index b5a2d2775f..e7434e8fed 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/buildtag/buildtag.go
+@@ -15,7 +15,6 @@ import (
+ 
+ 	"golang.org/x/tools/go/analysis"
+ 	"golang.org/x/tools/go/analysis/passes/internal/analysisutil"
+-	"golang.org/x/tools/internal/versions"
+ )
+ 
+ const Doc = "check //go:build and // +build directives"
+@@ -371,11 +370,6 @@ func (check *checker) finish() {
+ 
+ // tags reports issues in go versions in tags within the expression e.
+ func (check *checker) tags(pos token.Pos, e constraint.Expr) {
+-	// Check that constraint.GoVersion is meaningful (>= go1.21).
+-	if versions.ConstraintGoVersion == nil {
+-		return
+-	}
+-
+ 	// Use Eval to visit each tag.
+ 	_ = e.Eval(func(tag string) bool {
+ 		if malformedGoTag(tag) {
+@@ -393,10 +387,8 @@ func malformedGoTag(tag string) bool {
+ 		// Check for close misspellings of the "go1." prefix.
+ 		for _, pre := range []string{"go.", "g1.", "go"} {
+ 			suffix := strings.TrimPrefix(tag, pre)
+-			if suffix != tag {
+-				if valid, ok := validTag("go1." + suffix); ok && valid {
+-					return true
+-				}
++			if suffix != tag && validGoVersion("go1."+suffix) {
++				return true
+ 			}
+ 		}
+ 		return false
+@@ -404,15 +396,10 @@ func malformedGoTag(tag string) bool {
+ 
+ 	// The tag starts with "go1" so it is almost certainly a GoVersion.
+ 	// Report it if it is not a valid build constraint.
+-	valid, ok := validTag(tag)
+-	return ok && !valid
++	return !validGoVersion(tag)
+ }
+ 
+-// validTag returns (valid, ok) where valid reports when a tag is valid,
+-// and ok reports determining if the tag is valid succeeded.
+-func validTag(tag string) (valid bool, ok bool) {
+-	if versions.ConstraintGoVersion != nil {
+-		return versions.ConstraintGoVersion(&constraint.TagExpr{Tag: tag}) != "", true
+-	}
+-	return false, false
++// validGoVersion reports when a tag is a valid go version.
++func validGoVersion(tag string) bool {
++	return constraint.GoVersion(&constraint.TagExpr{Tag: tag}) != ""
+ }
+diff --git a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+index 2d79d0b033..171ad20137 100644
+--- a/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
++++ b/src/cmd/vendor/golang.org/x/tools/go/analysis/passes/printf/printf.go
+@@ -433,6 +433,9 @@ func printfNameAndKind(pass *analysis.Pass, call *ast.CallExpr) (fn *types.Func,
+ 		return nil, 0
+ 	}
+ 
++	// Facts are associated with generic declarations, not instantiations.
++	fn = fn.Origin()
++
+ 	_, ok := isPrint[fn.FullName()]
+ 	if !ok {
+ 		// Next look up just "printf", for use with -printf.funcs.
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+index 042b42e2c4..fe67b0fa27 100644
+--- a/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
++++ b/src/cmd/vendor/golang.org/x/tools/internal/analysisinternal/analysis.go
+@@ -65,18 +65,23 @@ func TypeErrorEndPos(fset *token.FileSet, src []byte, start token.Pos) token.Pos
+ 	return end
+ }
+ 
+-// StmtToInsertVarBefore returns the ast.Stmt before which we can safely insert a new variable.
+-// Some examples:
++// StmtToInsertVarBefore returns the ast.Stmt before which we can
++// safely insert a new var declaration, or nil if the path denotes a
++// node outside any statement.
+ //
+ // Basic Example:
+-// z := 1
+-// y := z + x
++//
++//	z := 1
++//	y := z + x
++//
+ // If x is undeclared, then this function would return `y := z + x`, so that we
+ // can insert `x := ` on the line before `y := z + x`.
+ //
+ // If stmt example:
+-// if z == 1 {
+-// } else if z == y {}
++//
++//	if z == 1 {
++//	} else if z == y {}
++//
+ // If y is undeclared, then this function would return `if z == 1 {`, because we cannot
+ // insert a statement between an if and an else if statement. As a result, we need to find
+ // the top of the if chain to insert `y := ` before.
+@@ -89,7 +94,7 @@ func StmtToInsertVarBefore(path []ast.Node) ast.Stmt {
+ 		}
+ 	}
+ 	if enclosingIndex == -1 {
+-		return nil
++		return nil // no enclosing statement: outside function
+ 	}
+ 	enclosingStmt := path[enclosingIndex]
+ 	switch enclosingStmt.(type) {
+@@ -97,6 +102,9 @@ func StmtToInsertVarBefore(path []ast.Node) ast.Stmt {
+ 		// The enclosingStmt is inside of the if declaration,
+ 		// We need to check if we are in an else-if stmt and
+ 		// get the base if statement.
++		// TODO(adonovan): for non-constants, it may be preferable
++		// to add the decl as the Init field of the innermost
++		// enclosing ast.IfStmt.
+ 		return baseIfStmt(path, enclosingIndex)
+ 	case *ast.CaseClause:
+ 		// Get the enclosing switch stmt if the enclosingStmt is
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint.go
+deleted file mode 100644
+index 179063d484..0000000000
+--- a/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package versions
+-
+-import "go/build/constraint"
+-
+-// ConstraintGoVersion is constraint.GoVersion (if built with go1.21+).
+-// Otherwise nil.
+-//
+-// Deprecate once x/tools is after go1.21.
+-var ConstraintGoVersion func(x constraint.Expr) string
+diff --git a/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint_go121.go b/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint_go121.go
+deleted file mode 100644
+index 38011407d5..0000000000
+--- a/src/cmd/vendor/golang.org/x/tools/internal/versions/constraint_go121.go
++++ /dev/null
+@@ -1,14 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build go1.21
+-// +build go1.21
+-
+-package versions
+-
+-import "go/build/constraint"
+-
+-func init() {
+-	ConstraintGoVersion = constraint.GoVersion
+-}
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index cc8f69e7ca..281989b1e2 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -25,7 +25,7 @@ golang.org/x/arch/ppc64/ppc64asm
+ golang.org/x/arch/riscv64/riscv64asm
+ golang.org/x/arch/s390x/s390xasm
+ golang.org/x/arch/x86/x86asm
+-# golang.org/x/build v0.0.0-20241119201203-2f2bd003cf4c
++# golang.org/x/build v0.0.0-20241205234318-b850320af2a4
+ ## explicit; go 1.22.0
+ golang.org/x/build/relnote
+ # golang.org/x/mod v0.22.0
+@@ -39,16 +39,16 @@ golang.org/x/mod/sumdb/dirhash
+ golang.org/x/mod/sumdb/note
+ golang.org/x/mod/sumdb/tlog
+ golang.org/x/mod/zip
+-# golang.org/x/sync v0.9.1-0.20241113011828-913fb63af28f
++# golang.org/x/sync v0.10.0
+ ## explicit; go 1.18
+ golang.org/x/sync/errgroup
+ golang.org/x/sync/semaphore
+-# golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2
++# golang.org/x/sys v0.28.0
+ ## explicit; go 1.18
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20241108154256-525ce2e96f55
++# golang.org/x/telemetry v0.0.0-20241204182053-c0ac0e154df3
+ ## explicit; go 1.22.0
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter
+@@ -60,10 +60,10 @@ golang.org/x/telemetry/internal/crashmonitor
+ golang.org/x/telemetry/internal/mmap
+ golang.org/x/telemetry/internal/telemetry
+ golang.org/x/telemetry/internal/upload
+-# golang.org/x/term v0.26.0
++# golang.org/x/term v0.27.0
+ ## explicit; go 1.18
+ golang.org/x/term
+-# golang.org/x/text v0.20.0
++# golang.org/x/text v0.21.0
+ ## explicit; go 1.18
+ golang.org/x/text/cases
+ golang.org/x/text/internal
+@@ -73,7 +73,7 @@ golang.org/x/text/internal/tag
+ golang.org/x/text/language
+ golang.org/x/text/transform
+ golang.org/x/text/unicode/norm
+-# golang.org/x/tools v0.27.1-0.20241122193402-68caf84fca7f
++# golang.org/x/tools v0.28.0
+ ## explicit; go 1.22.0
+ golang.org/x/tools/cmd/bisect
+ golang.org/x/tools/cover
+diff --git a/src/go.mod b/src/go.mod
+index 9ea1b3d868..7a1318dcac 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,11 +3,11 @@ module std
+ go 1.24
+ 
+ require (
+-	golang.org/x/crypto v0.29.0
+-	golang.org/x/net v0.31.1-0.20241122011411-9a518991035b
++	golang.org/x/crypto v0.30.0
++	golang.org/x/net v0.32.1-0.20241206180132-552d8ac903a1
+ )
+ 
+ require (
+-	golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2 // indirect
+-	golang.org/x/text v0.20.0 // indirect
++	golang.org/x/sys v0.28.0 // indirect
++	golang.org/x/text v0.21.0 // indirect
+ )
+diff --git a/src/go.sum b/src/go.sum
+index 9cd2c6fd1a..9e661352f1 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,8 +1,8 @@
+-golang.org/x/crypto v0.29.0 h1:L5SG1JTTXupVV3n6sUqMTeWbjAyfPwoda2DLX8J8FrQ=
+-golang.org/x/crypto v0.29.0/go.mod h1:+F4F4N5hv6v38hfeYwTdx20oUvLLc+QfrE9Ax9HtgRg=
+-golang.org/x/net v0.31.1-0.20241122011411-9a518991035b h1:ABZ3UI3hzgr55QyqwjHw7AEqaeK2YGuXaf4nxEWTkHE=
+-golang.org/x/net v0.31.1-0.20241122011411-9a518991035b/go.mod h1:P4fl1q7dY2hnZFxEk4pPSkDHF+QqjitcnDjUQyMM+pM=
+-golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2 h1:nLmXYlwPHXAmVnvJmjvVpEFRhVgC0aCgTR7KW324G0c=
+-golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/text v0.20.0 h1:gK/Kv2otX8gz+wn7Rmb3vT96ZwuoxnQlY+HlJVj7Qug=
+-golang.org/x/text v0.20.0/go.mod h1:D4IsuqiFMhST5bX19pQ9ikHC2GsaKyk/oF+pn3ducp4=
++golang.org/x/crypto v0.30.0 h1:RwoQn3GkWiMkzlX562cLB7OxWvjH1L8xutO2WoJcRoY=
++golang.org/x/crypto v0.30.0/go.mod h1:kDsLvtWBEx7MV9tJOj9bnXsPbxwJQ6csT/x4KIN4Ssk=
++golang.org/x/net v0.32.1-0.20241206180132-552d8ac903a1 h1:+Yk1FZ5E+/ewA0nOO/HRYs9E4yeqpGOShuSAdzCNNoQ=
++golang.org/x/net v0.32.1-0.20241206180132-552d8ac903a1/go.mod h1:CwU0IoeOlnQQWJ6ioyFrfRuomB8GKF6KbYXZVyeXNfs=
++golang.org/x/sys v0.28.0 h1:Fksou7UEQUWlKvIdsqzJmUmCX3cZuD2+P3XyyzwMhlA=
++golang.org/x/sys v0.28.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/text v0.21.0 h1:zyQAAkrwaneQ066sspRyJaG9VNi/YJ1NfzcGB3hZ/qo=
++golang.org/x/text v0.21.0/go.mod h1:4IBbMaMmOPCJ8SecivzSH54+73PCFmPWxNTLm+vZkEQ=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 6186d609c2..46a2b79231 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -7813,6 +7813,16 @@ type http2ClientConn struct {
+ 	pingTimeout                 time.Duration
+ 	extendedConnectAllowed      bool
+ 
++	// rstStreamPingsBlocked works around an unfortunate gRPC behavior.
++	// gRPC strictly limits the number of PING frames that it will receive.
++	// The default is two pings per two hours, but the limit resets every time
++	// the gRPC endpoint sends a HEADERS or DATA frame. See golang/go#70575.
++	//
++	// rstStreamPingsBlocked is set after receiving a response to a PING frame
++	// bundled with an RST_STREAM (see pendingResets below), and cleared after
++	// receiving a HEADERS or DATA frame.
++	rstStreamPingsBlocked bool
++
+ 	// pendingResets is the number of RST_STREAM frames we have sent to the peer,
+ 	// without confirming that the peer has received them. When we send a RST_STREAM,
+ 	// we bundle it with a PING frame, unless a PING is already in flight. We count
+@@ -9153,10 +9163,14 @@ func (cs *http2clientStream) cleanupWriteRequest(err error) {
+ 				ping := false
+ 				if !closeOnIdle {
+ 					cc.mu.Lock()
+-					if cc.pendingResets == 0 {
+-						ping = true
++					// rstStreamPingsBlocked works around a gRPC behavior:
++					// see comment on the field for details.
++					if !cc.rstStreamPingsBlocked {
++						if cc.pendingResets == 0 {
++							ping = true
++						}
++						cc.pendingResets++
+ 					}
+-					cc.pendingResets++
+ 					cc.mu.Unlock()
+ 				}
+ 				cc.writeStreamReset(cs.ID, http2ErrCodeCancel, ping, err)
+@@ -9905,7 +9919,7 @@ func (rl *http2clientConnReadLoop) run() error {
+ 			cc.vlogf("http2: Transport readFrame error on conn %p: (%T) %v", cc, err, err)
+ 		}
+ 		if se, ok := err.(http2StreamError); ok {
+-			if cs := rl.streamByID(se.StreamID); cs != nil {
++			if cs := rl.streamByID(se.StreamID, http2notHeaderOrDataFrame); cs != nil {
+ 				if se.Cause == nil {
+ 					se.Cause = cc.fr.errDetail
+ 				}
+@@ -9960,7 +9974,7 @@ func (rl *http2clientConnReadLoop) run() error {
+ }
+ 
+ func (rl *http2clientConnReadLoop) processHeaders(f *http2MetaHeadersFrame) error {
+-	cs := rl.streamByID(f.StreamID)
++	cs := rl.streamByID(f.StreamID, http2headerOrDataFrame)
+ 	if cs == nil {
+ 		// We'd get here if we canceled a request while the
+ 		// server had its response still in flight. So if this
+@@ -10289,7 +10303,7 @@ func (b http2transportResponseBody) Close() error {
+ 
+ func (rl *http2clientConnReadLoop) processData(f *http2DataFrame) error {
+ 	cc := rl.cc
+-	cs := rl.streamByID(f.StreamID)
++	cs := rl.streamByID(f.StreamID, http2headerOrDataFrame)
+ 	data := f.Data()
+ 	if cs == nil {
+ 		cc.mu.Lock()
+@@ -10424,9 +10438,22 @@ func (rl *http2clientConnReadLoop) endStreamError(cs *http2clientStream, err err
+ 	cs.abortStream(err)
+ }
+ 
+-func (rl *http2clientConnReadLoop) streamByID(id uint32) *http2clientStream {
++// Constants passed to streamByID for documentation purposes.
++const (
++	http2headerOrDataFrame    = true
++	http2notHeaderOrDataFrame = false
++)
++
++// streamByID returns the stream with the given id, or nil if no stream has that id.
++// If headerOrData is true, it clears rst.StreamPingsBlocked.
++func (rl *http2clientConnReadLoop) streamByID(id uint32, headerOrData bool) *http2clientStream {
+ 	rl.cc.mu.Lock()
+ 	defer rl.cc.mu.Unlock()
++	if headerOrData {
++		// Work around an unfortunate gRPC behavior.
++		// See comment on ClientConn.rstStreamPingsBlocked for details.
++		rl.cc.rstStreamPingsBlocked = false
++	}
+ 	cs := rl.cc.streams[id]
+ 	if cs != nil && !cs.readAborted {
+ 		return cs
+@@ -10561,7 +10588,7 @@ func (rl *http2clientConnReadLoop) processSettingsNoWrite(f *http2SettingsFrame)
+ 
+ func (rl *http2clientConnReadLoop) processWindowUpdate(f *http2WindowUpdateFrame) error {
+ 	cc := rl.cc
+-	cs := rl.streamByID(f.StreamID)
++	cs := rl.streamByID(f.StreamID, http2notHeaderOrDataFrame)
+ 	if f.StreamID != 0 && cs == nil {
+ 		return nil
+ 	}
+@@ -10590,7 +10617,7 @@ func (rl *http2clientConnReadLoop) processWindowUpdate(f *http2WindowUpdateFrame
+ }
+ 
+ func (rl *http2clientConnReadLoop) processResetStream(f *http2RSTStreamFrame) error {
+-	cs := rl.streamByID(f.StreamID)
++	cs := rl.streamByID(f.StreamID, http2notHeaderOrDataFrame)
+ 	if cs == nil {
+ 		// TODO: return error if server tries to RST_STREAM an idle stream
+ 		return nil
+@@ -10668,6 +10695,7 @@ func (rl *http2clientConnReadLoop) processPing(f *http2PingFrame) error {
+ 		if cc.pendingResets > 0 {
+ 			// See clientStream.cleanupWriteRequest.
+ 			cc.pendingResets = 0
++			cc.rstStreamPingsBlocked = true
+ 			cc.cond.Broadcast()
+ 		}
+ 		return nil
+diff --git a/src/vendor/golang.org/x/net/route/address.go b/src/vendor/golang.org/x/net/route/address.go
+index bae63003f0..b649f43141 100644
+--- a/src/vendor/golang.org/x/net/route/address.go
++++ b/src/vendor/golang.org/x/net/route/address.go
+@@ -176,7 +176,7 @@ func parseInetAddr(af int, b []byte) (Addr, error) {
+ 	)
+ 	switch af {
+ 	case syscall.AF_INET:
+-		if len(b) < (off4+1) || len(b) < int(b[0]) {
++		if len(b) < (off4+1) || len(b) < int(b[0]) || b[0] == 0 {
+ 			return nil, errInvalidAddr
+ 		}
+ 		sockAddrLen := int(b[0])
+@@ -188,7 +188,7 @@ func parseInetAddr(af int, b []byte) (Addr, error) {
+ 		copy(a.IP[:], b[off4:n])
+ 		return a, nil
+ 	case syscall.AF_INET6:
+-		if len(b) < (off6+1) || len(b) < int(b[0]) {
++		if len(b) < (off6+1) || len(b) < int(b[0]) || b[0] == 0 {
+ 			return nil, errInvalidAddr
+ 		}
+ 		sockAddrLen := int(b[0])
+@@ -404,12 +404,16 @@ func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) (
+ 				}
+ 				b = b[l:]
+ 			case syscall.AF_INET, syscall.AF_INET6:
+-				af = int(b[1])
+-				a, err := parseInetAddr(af, b)
+-				if err != nil {
+-					return nil, err
++				// #70528: if the sockaddrlen is 0, no address to parse inside,
++				// skip over the record.
++				if b[0] > 0 {
++					af = int(b[1])
++					a, err := parseInetAddr(af, b)
++					if err != nil {
++						return nil, err
++					}
++					as[i] = a
+ 				}
+-				as[i] = a
+ 				l := roundup(int(b[0]))
+ 				if len(b) < l {
+ 					return nil, errMessageTooShort
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index deb2727d39..1c8de570cc 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,4 +1,4 @@
+-# golang.org/x/crypto v0.29.0
++# golang.org/x/crypto v0.30.0
+ ## explicit; go 1.20
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+@@ -6,7 +6,7 @@ golang.org/x/crypto/cryptobyte
+ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.31.1-0.20241122011411-9a518991035b
++# golang.org/x/net v0.32.1-0.20241206180132-552d8ac903a1
+ ## explicit; go 1.18
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+@@ -16,10 +16,10 @@ golang.org/x/net/idna
+ golang.org/x/net/lif
+ golang.org/x/net/nettest
+ golang.org/x/net/route
+-# golang.org/x/sys v0.27.1-0.20241118193836-0a57dbcf35b2
++# golang.org/x/sys v0.28.0
+ ## explicit; go 1.18
+ golang.org/x/sys/cpu
+-# golang.org/x/text v0.20.0
++# golang.org/x/text v0.21.0
+ ## explicit; go 1.18
+ golang.org/x/text/secure/bidirule
+ golang.org/x/text/transform

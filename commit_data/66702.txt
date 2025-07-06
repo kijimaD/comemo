@@ -1,0 +1,60 @@
+commit 5ec76ae5aa965208d820a0bde8f0abd685c17ecc
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Jan 23 15:51:35 2025 +0000
+
+    weak: clarify Pointer equality semantics
+    
+    The docs currently are imprecise about comparisons. This could lead
+    users to believe that objects of the same type, allocated at the same
+    address, could produce weak pointers that are equal to
+    previously-created weak pointers. This is not the case. Weak pointers
+    map to objects, not addresses.
+    
+    Update the documentation to state precisely that if two pointers do not
+    compare equal, then two weak pointers created from those two pointers
+    are guaranteed not to compare equal. Since a future pointer pointing to
+    the same address is not comparable with a pointer produced *before* an
+    object at that address has been reclaimed, this is sufficient to explain
+    that weak pointers map 1:1 with object offsets, not addresses.
+    
+    (An object slot cannot be reused unless that slot is unreachable, so
+    by construction, there's never an opportunity to compare an "old" and
+    "new" pointer unless one uses unsafe tricks that violate the
+    unsafe.Pointer rules.)
+    
+    Fixes #71381.
+    
+    Change-Id: I5509fd433cde013926d725694d480c697a8bc911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643935
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+---
+ src/weak/pointer.go | 10 ++++++----
+ 1 file changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/src/weak/pointer.go b/src/weak/pointer.go
+index e9d7420880..42d83afdb6 100644
+--- a/src/weak/pointer.go
++++ b/src/weak/pointer.go
+@@ -23,13 +23,15 @@ import (
+ // the lifetimes of separate values (for example, through a map with weak
+ // keys).
+ //
+-// Two Pointer values always compare equal if the pointers from which they were
+-// created compare equal. This property is retained even after the
+-// object referenced by the pointer used to create a weak reference is
+-// reclaimed.
++// Two Pointer values compare equal if and only if the pointers from which they
++// were created compare equal.
++// This property is maintained even after the object referenced by the pointer
++// used to create a weak reference is reclaimed.
+ // If multiple weak pointers are made to different offsets within the same object
+ // (for example, pointers to different fields of the same struct), those pointers
+ // will not compare equal.
++// In other words, weak pointers map to objects and offsets within those
++// objects, not plain addresses.
+ // If a weak pointer is created from an object that becomes unreachable, but is
+ // then resurrected due to a finalizer, that weak pointer will not compare equal
+ // with weak pointers created after the resurrection.

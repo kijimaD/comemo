@@ -1,0 +1,40 @@
+commit 0eaf8d97b6d7a8b53497b2a3db897de42d048869
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Wed Apr 24 12:03:56 2024 +0000
+
+    runtime: remove unused code
+    
+    Change-Id: Ifb9864704f55e27adfa5c21452fed5a243468d13
+    GitHub-Last-Rev: 6b000e7314ea47eea6fead60988d6d432bc381f7
+    GitHub-Pull-Request: golang/go#67013
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581376
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/proc.go | 12 ------------
+ 1 file changed, 12 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index ebc07bb1ab..13a8d70186 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -6954,18 +6954,6 @@ func sync_atomic_runtime_procUnpin() {
+ 	procUnpin()
+ }
+ 
+-//go:linkname internal_weak_runtime_procPin internal/weak.runtime_procPin
+-//go:nosplit
+-func internal_weak_runtime_procPin() int {
+-	return procPin()
+-}
+-
+-//go:linkname internal_weak_runtime_procUnpin internal/weak.runtime_procUnpin
+-//go:nosplit
+-func internal_weak_runtime_procUnpin() {
+-	procUnpin()
+-}
+-
+ // Active spinning for sync.Mutex.
+ //
+ //go:linkname sync_runtime_canSpin sync.runtime_canSpin

@@ -1,0 +1,1481 @@
+commit a11643df8ff8a575abe4abc7f25d09631424ea49
+Author: Russ Cox <rsc@golang.org>
+Date:   Mon Apr 7 17:13:20 2025 -0400
+
+    math/big: replace addVW/subVW assembly with fast pure Go
+    
+    The vast majority of the time, carry propagation is limited and
+    addVW/subVW only need to consider a single word for carry propagation.
+    As Josh Bleecher-Snyder pointed out in 2019 (CL 164968), once carrying
+    is done, the remaining words can be handled faster with copy (memmove).
+    In the benchmarks below, this is the data=random case.
+    
+    Even more important, if the source and destination are the same,
+    the copy can be optimized away entirely, making a small in-place
+    addition to a big.Int O(1) instead of O(N). To date, only a few
+    systems (amd64, arm64, and pure Go, meaning wasm) make use of this
+    asymptotic improvement. This is the data=shortcut case.
+    
+    This CL deletes the addVW/subVW assembly and replaces it with
+    an optimized pure Go version. Using Go makes it easy to call
+    the real copy builtin, which will use optimized memmove code,
+    instead of recreating a worse memmove in assembly (as arm64 does)
+    or omitting the copy optimization entirely (as most others do).
+    
+    The worst case for the Go version versus assembly is the case
+    of incrementing 2^N-1 by 1, which has to propagate a carry
+    the entire length of the array. This is the data=carry case.
+    On balance, we believe this case is rare enough to be worth
+    taking a hit in that case, in exchange for significant wins
+    in the other cases and the deletion of significant amounts of
+    assembly of varying quality. (Remember that half the assembly has
+    the copy optimization and shortcut, while half does not.)
+    
+    In the benchmarks, the systems are:
+    
+            c2s16     GOARCH=amd64     c2s16 perf gomote (Intel, Google Cloud)
+            c3h88     GOARCH=amd64     c3h88 perf gomote (newer Intel, Google Cloud)
+            s7        GOARCH=amd64     rsc basement server (AMD Ryzen 9 7950X)
+            c4as16    GOARCH=arm64     c4as16 perf gomote (Google Cloud)
+            mac       GOARCH=arm64     Apple M3 Pro in MacBook Pro
+            386       GOARCH=386       gotip-linux-386 gomote
+            arm       GOARCH=arm       gotip-linux-arm gomote
+            loong64   GOARCH=loong64   gotip-linux-loong64 gomote
+            ppc64le   GOARCH=ppc64le   gotip-linux-ppc64le gomote
+            riscv64   GOARCH=riscv64   gotip-linux-riscv64 gomote
+    
+    benchmark \ system                    c2s16     c3h88       s7    c4as16       mac       386      arm  loong64   ppc64le  riscv64
+    
+    AddVW/words=1/data=random            -1.15%    -1.74%   -5.89%    -9.80%   -11.54%   +23.71%  -12.74%  -14.25%   +14.67%  +10.27%
+    AddVW/words=2/data=random            -2.59%         ~   -4.38%   -19.31%   -15.41%   +24.80%        ~  -19.99%   +13.73%  +19.71%
+    AddVW/words=3/data=random            -3.75%   -19.10%   -3.79%   -23.15%   -17.04%   +20.04%  -10.07%  -23.20%         ~  +15.39%
+    AddVW/words=4/data=random            -2.84%    +7.05%   -8.77%   -22.64%   -15.77%   +16.01%   -7.36%  -28.22%         ~  +23.00%
+    AddVW/words=5/data=random           -10.97%    +2.16%  -12.09%   -20.89%   -17.14%    +9.42%   -4.69%  -32.60%         ~  +10.07%
+    AddVW/words=6/data=random            -9.87%         ~   -7.54%   -19.08%    -6.46%         ~   -3.44%  -34.61%         ~  +12.19%
+    AddVW/words=7/data=random           -14.36%         ~  -10.09%   -19.10%   -10.47%    -6.20%   -5.06%  -38.14%   -11.54%   +6.79%
+    AddVW/words=8/data=random           -17.50%         ~  -11.06%   -25.14%   -12.88%    -8.35%   -5.11%  -41.39%   -14.04%  +11.87%
+    AddVW/words=9/data=random           -19.76%    -4.05%  -15.47%   -24.08%   -16.50%   -12.34%  -21.56%  -44.25%   -14.82%        ~
+    AddVW/words=10/data=random          -13.89%         ~   -9.69%   -23.06%    -8.04%   -12.58%  -19.25%  -32.80%   -11.68%        ~
+    AddVW/words=16/data=random          -29.36%   -15.35%  -21.86%   -25.04%   -19.89%   -32.26%  -16.29%  -42.66%   -25.92%   -3.01%
+    AddVW/words=32/data=random          -39.02%   -28.76%  -39.87%   -11.22%    -2.85%   -55.40%  -31.17%  -55.37%   -37.92%  -16.28%
+    AddVW/words=64/data=random          -25.94%   -19.09%  -20.60%    -6.90%    +8.91%   -51.00%  -43.72%  -62.27%   -44.11%  -28.74%
+    AddVW/words=100/data=random         -22.79%   -18.13%  -18.25%         ~   +33.89%   -67.40%  -51.77%  -63.54%   -53.75%  -30.97%
+    AddVW/words=1000/data=random         -8.98%    -3.84%        ~    -3.15%         ~   -93.35%  -63.92%  -65.66%   -68.67%  -42.30%
+    AddVW/words=10000/data=random        -1.38%    -0.38%        ~         ~         ~   -89.16%  -65.18%  -44.65%   -70.35%  -20.08%
+    AddVW/words=100000/data=random            ~         ~        ~         ~         ~   -87.03%  -64.51%  -36.08%   -61.40%  -16.53%
+    
+    SubVW/words=1/data=random            -3.67%         ~   -8.38%   -10.26%    -3.07%   +45.78%   -6.06%  -11.17%         ~        ~
+    SubVW/words=2/data=random            -3.48%   -10.07%   -5.76%   -20.14%    -8.45%   +44.28%        ~  -19.09%         ~  +16.98%
+    SubVW/words=3/data=random            -7.11%   -26.64%   -4.48%   -22.07%    -9.21%   +35.61%        ~  -23.93%   -18.20%        ~
+    SubVW/words=4/data=random            -4.23%    +7.19%   -8.95%   -22.62%   -13.89%   +33.20%   -8.96%  -29.96%         ~  +22.23%
+    SubVW/words=5/data=random           -11.49%    +1.92%  -10.86%   -22.27%   -17.53%   +24.48%   -2.88%  -35.19%   -19.55%        ~
+    SubVW/words=6/data=random            -7.67%         ~   -7.72%   -18.44%    -6.24%   +12.03%   -2.00%  -39.68%   -10.73%        ~
+    SubVW/words=7/data=random           -13.69%   -18.32%  -11.82%   -18.92%   -11.57%    +6.63%        ~  -43.54%   -30.81%        ~
+    SubVW/words=8/data=random           -16.02%         ~  -11.07%   -24.50%   -11.92%    +4.32%   -3.01%  -46.95%   -24.14%        ~
+    SubVW/words=9/data=random           -18.76%    -3.34%  -14.84%   -23.79%   -17.50%         ~  -21.80%  -49.98%   -29.62%        ~
+    SubVW/words=10/data=random          -13.23%         ~   -9.25%   -21.26%   -11.63%         ~  -18.58%  -39.19%   -20.09%        ~
+    SubVW/words=16/data=random          -28.25%   -13.24%  -22.66%   -27.18%   -19.13%   -23.38%  -20.24%  -51.01%   -28.06%   -3.05%
+    SubVW/words=32/data=random          -38.41%   -28.88%  -40.12%   -11.20%    -2.80%   -49.17%  -34.67%  -63.29%   -39.25%  -15.20%
+    SubVW/words=64/data=random          -25.51%   -19.24%  -22.20%    -6.57%    +9.98%   -48.52%  -48.14%  -69.50%   -49.44%  -27.92%
+    SubVW/words=100/data=random         -21.69%   -18.51%        ~    +1.92%   +34.42%   -65.88%  -54.67%  -71.24%   -58.88%  -30.71%
+    SubVW/words=1000/data=random         -9.81%    -4.05%   -2.14%    -3.06%         ~   -93.37%  -67.33%  -74.12%   -68.36%  -42.17%
+    SubVW/words=10000/data=random             ~    -0.52%        ~         ~         ~   -88.87%  -68.54%  -44.94%   -70.63%  -19.95%
+    SubVW/words=100000/data=random            ~         ~        ~         ~         ~   -86.69%  -68.09%  -48.36%   -62.42%  -19.32%
+    
+    AddVW/words=1/data=shortcut         -29.38%   -25.38%  -27.37%   -23.15%   -25.41%    +3.01%  -33.60%  -36.12%   -15.76%        ~
+    AddVW/words=2/data=shortcut         -32.79%   -34.72%  -31.47%   -24.47%   -28.21%    -3.75%  -34.66%  -43.89%   -23.65%  -21.56%
+    AddVW/words=3/data=shortcut         -38.50%   -46.83%  -35.67%   -26.38%   -30.29%   -10.41%  -44.89%  -47.68%   -30.93%  -26.85%
+    AddVW/words=4/data=shortcut         -40.40%   -28.85%  -34.19%   -29.83%   -32.95%   -16.09%  -42.86%  -51.02%   -34.19%  -26.69%
+    AddVW/words=5/data=shortcut         -43.87%   -35.42%  -36.46%   -32.59%   -37.72%   -20.82%  -45.14%  -54.01%   -35.49%  -30.48%
+    AddVW/words=6/data=shortcut         -46.98%   -39.34%  -42.22%   -35.43%   -38.18%   -27.46%  -46.72%  -56.61%   -40.21%  -34.07%
+    AddVW/words=7/data=shortcut         -49.63%   -47.97%  -46.61%   -35.28%   -41.93%   -31.14%  -49.29%  -58.89%   -41.10%  -37.01%
+    AddVW/words=8/data=shortcut         -50.48%   -42.33%  -45.40%   -40.24%   -41.74%   -32.92%  -50.62%  -60.98%   -44.85%  -38.10%
+    AddVW/words=9/data=shortcut         -54.27%   -43.52%  -49.06%   -42.16%   -45.22%   -37.57%  -51.84%  -62.91%   -46.04%  -40.82%
+    AddVW/words=10/data=shortcut        -56.01%   -45.40%  -51.42%   -43.29%   -46.14%   -38.65%  -53.65%  -64.62%   -47.05%  -43.21%
+    AddVW/words=16/data=shortcut        -62.73%   -55.66%  -59.31%   -56.38%   -54.31%   -53.16%  -61.03%  -72.29%   -58.24%  -52.57%
+    AddVW/words=32/data=shortcut        -74.00%   -69.42%  -71.75%   -33.65%   -37.35%   -71.73%  -72.59%  -82.44%   -70.87%  -67.69%
+    AddVW/words=64/data=shortcut        -56.69%   -52.72%  -52.09%   -35.48%   -36.87%   -84.24%  -83.10%  -90.37%   -82.56%  -80.81%
+    AddVW/words=100/data=shortcut       -56.68%   -53.18%  -51.49%   -33.49%   -37.72%   -89.95%  -88.21%  -93.37%   -88.47%  -86.52%
+    AddVW/words=1000/data=shortcut      -56.68%   -52.45%  -51.66%   -35.31%   -36.65%   -98.88%  -98.62%  -99.24%   -98.78%  -98.41%
+    AddVW/words=10000/data=shortcut     -56.70%   -52.40%  -51.92%   -33.49%   -36.98%   -99.89%  -99.86%  -99.92%   -99.87%  -99.91%
+    AddVW/words=100000/data=shortcut    -56.67%   -52.46%  -52.38%   -35.31%   -37.20%   -99.99%  -99.99%  -99.99%   -99.99%  -99.99%
+    
+    SubVW/words=1/data=shortcut         -29.80%   -20.71%  -26.94%   -23.24%   -25.33%   +26.97%  -32.02%  -37.85%   -40.20%  -12.67%
+    SubVW/words=2/data=shortcut         -35.47%   -36.38%  -31.93%   -25.43%   -30.18%   +18.96%  -33.48%  -46.48%   -39.38%  -18.65%
+    SubVW/words=3/data=shortcut         -39.22%   -49.96%  -36.90%   -25.82%   -30.96%   +12.53%  -40.67%  -51.07%   -43.71%  -23.78%
+    SubVW/words=4/data=shortcut         -40.46%   -24.90%  -34.66%   -29.87%   -33.97%    +4.60%  -42.32%  -54.92%   -42.83%  -22.45%
+    SubVW/words=5/data=shortcut         -43.84%   -34.17%  -38.00%   -32.55%   -37.27%    -2.46%  -43.09%  -58.18%   -45.70%  -26.45%
+    SubVW/words=6/data=shortcut         -47.69%   -37.49%  -42.73%   -35.90%   -37.73%    -8.52%  -46.55%  -61.01%   -44.00%  -30.14%
+    SubVW/words=7/data=shortcut         -49.45%   -50.66%  -46.88%   -34.77%   -41.64%   -14.46%  -48.92%  -63.46%   -50.47%  -33.39%
+    SubVW/words=8/data=shortcut         -50.45%   -39.31%  -47.14%   -40.47%   -41.70%   -15.77%  -50.21%  -65.64%   -47.71%  -34.01%
+    SubVW/words=9/data=shortcut         -54.28%   -43.07%  -49.42%   -41.34%   -44.99%   -19.39%  -51.55%  -67.61%   -56.92%  -36.82%
+    SubVW/words=10/data=shortcut        -56.85%   -47.88%  -50.92%   -42.76%   -45.67%   -23.60%  -53.04%  -69.34%   -60.18%  -39.43%
+    SubVW/words=16/data=shortcut        -62.36%   -54.83%  -58.80%   -55.83%   -53.74%   -41.04%  -60.16%  -76.75%   -60.56%  -48.63%
+    SubVW/words=32/data=shortcut        -73.68%   -68.64%  -71.57%   -33.52%   -37.34%   -64.73%  -72.67%  -85.89%   -71.87%  -64.56%
+    SubVW/words=64/data=shortcut        -56.68%   -51.66%  -52.56%   -34.75%   -37.54%   -80.30%  -83.58%  -92.39%   -83.41%  -78.70%
+    SubVW/words=100/data=shortcut       -56.68%   -50.97%  -51.57%   -33.68%   -36.78%   -87.42%  -88.53%  -94.84%   -88.87%  -84.96%
+    SubVW/words=1000/data=shortcut      -56.68%   -50.89%  -52.10%   -34.94%   -37.77%   -98.59%  -98.71%  -99.43%   -98.80%  -98.20%
+    SubVW/words=10000/data=shortcut     -56.68%   -51.00%  -52.44%   -33.65%   -37.27%   -99.86%  -99.87%  -99.94%   -99.88%  -99.90%
+    SubVW/words=100000/data=shortcut    -56.68%   -50.80%  -52.20%   -34.79%   -37.46%   -99.99%  -99.99%  -99.99%   -99.99%  -99.99%
+    
+    AddVW/words=1/data=carry             -0.51%    -5.29%  -24.03%   -26.48%         ~         ~  -33.14%  -30.23%         ~  -20.74%
+    AddVW/words=2/data=carry             -6.36%         ~  -21.05%   -39.40%         ~   +10.72%  -29.12%  -31.34%         ~  -17.29%
+    AddVW/words=3/data=carry                  ~         ~  -17.46%   -19.53%   +17.58%         ~  -26.23%  -23.61%    +7.80%  -14.34%
+    AddVW/words=4/data=carry            +19.02%   +16.80%        ~         ~   +28.25%         ~  -27.90%  -20.31%   +19.16%        ~
+    AddVW/words=5/data=carry             +3.97%   +53.02%        ~         ~   +11.31%         ~  -19.05%  -17.47%   +16.81%        ~
+    AddVW/words=6/data=carry             +2.98%   +19.83%        ~         ~   +14.84%         ~  -18.48%  -14.92%   +18.25%        ~
+    AddVW/words=7/data=carry                  ~         ~        ~         ~   +27.17%         ~  -15.50%  -12.74%   +13.00%        ~
+    AddVW/words=8/data=carry             +0.58%   +22.32%        ~    +6.10%   +29.63%         ~  -13.04%        ~   +28.46%   +2.95%
+    AddVW/words=9/data=carry                  ~   +31.53%        ~         ~   +14.42%         ~  -11.32%        ~   +18.37%   +3.28%
+    AddVW/words=10/data=carry            +3.94%   +22.36%        ~    +6.29%   +19.22%         ~  -11.27%        ~   +20.10%   +3.91%
+    AddVW/words=16/data=carry            +2.82%   +14.23%        ~   +10.06%   +25.91%   -16.12%        ~        ~   +52.28%  +10.40%
+    AddVW/words=32/data=carry                 ~   +25.35%  +13.66%         ~   +34.89%   -34.39%   +6.51%  -18.71%   +41.06%  +19.42%
+    AddVW/words=64/data=carry           -42.03%         ~  -39.70%    +6.65%   +32.29%   -39.94%  +14.34%        ~   +19.68%  +20.86%
+    AddVW/words=100/data=carry          -33.95%   -34.28%  -39.65%         ~   +27.72%   -26.80%  +17.40%        ~   +26.39%  +23.32%
+    AddVW/words=1000/data=carry         -42.49%   -47.87%  -47.44%    +1.25%    +4.25%   -41.76%  +23.40%        ~   +25.48%  +27.99%
+    AddVW/words=10000/data=carry        -41.85%   -48.49%  -49.43%         ~         ~   -42.09%  +24.61%  -10.32%   +40.55%  +18.35%
+    AddVW/words=100000/data=carry       -28.18%   -48.13%  -48.24%    +1.35%         ~   -42.90%  +24.73%   -9.79%   +22.55%  +17.16%
+    
+    SubVW/words=1/data=carry            -10.32%   -17.16%  -24.14%   -26.24%         ~   +18.43%  -34.10%  -29.54%    -9.57%        ~
+    SubVW/words=2/data=carry            -19.45%   -23.31%  -20.74%   -39.73%         ~   +15.74%  -28.13%  -30.21%         ~  -18.74%
+    SubVW/words=3/data=carry                  ~   -16.18%  -15.34%   -19.54%   +17.62%   +12.39%  -27.64%  -27.09%         ~  -14.97%
+    SubVW/words=4/data=carry            +11.67%   +24.42%        ~         ~   +25.11%   +14.07%  -28.08%  -26.18%         ~        ~
+    SubVW/words=5/data=carry             +8.08%   +25.64%        ~         ~   +10.35%    +8.12%  -21.75%  -25.50%         ~   -4.86%
+    SubVW/words=6/data=carry                  ~   +13.82%        ~         ~   +12.92%    +6.79%  -20.25%  -24.70%         ~   -2.74%
+    SubVW/words=7/data=carry                  ~         ~   +8.29%    +4.51%   +26.59%    +4.62%  -18.01%  -24.09%         ~   -1.26%
+    SubVW/words=8/data=carry                  ~   +23.16%  +16.19%    +6.16%   +25.46%    +6.74%  -15.57%  -22.74%         ~   +1.44%
+    SubVW/words=9/data=carry                  ~   +30.71%  +20.81%         ~   +12.36%         ~  -12.99%        ~         ~   +3.13%
+    SubVW/words=10/data=carry            +5.03%   +19.53%  +14.84%   +14.16%   +16.12%         ~  -11.64%  -16.00%   +15.45%   +3.29%
+    SubVW/words=16/data=carry           +14.42%   +15.58%  +33.07%   +11.43%   +24.65%         ~        ~  -21.90%   +25.59%   +9.40%
+    SubVW/words=32/data=carry                 ~   +27.57%  +46.58%         ~   +35.35%    -8.49%        ~  -24.04%   +11.86%  +18.40%
+    SubVW/words=64/data=carry           -24.34%   -27.83%  -20.90%   +13.34%   +37.17%   -14.90%        ~   -8.81%   +12.88%  +18.92%
+    SubVW/words=100/data=carry          -25.19%   -34.70%  -27.45%   +12.86%   +28.42%   -14.48%        ~        ~   +25.71%  +21.93%
+    SubVW/words=1000/data=carry         -24.93%   -47.86%  -47.26%    +2.66%         ~   -23.88%        ~        ~   +25.99%  +27.81%
+    SubVW/words=10000/data=carry        -24.17%   -36.48%  -49.41%    +1.06%         ~   -25.06%        ~  -26.50%   +27.94%  +18.36%
+    SubVW/words=100000/data=carry       -22.51%   -35.86%  -49.46%    +3.96%         ~   -25.18%        ~  -22.15%   +26.86%  +15.44%
+    
+    Change-Id: I8f252073040e674780ac6ec9912082fb205329dd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664898
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/test/inl_test.go |   3 -
+ src/math/big/arith.go                     | 126 ++++++++++++++-------
+ src/math/big/arith_386.s                  |  45 --------
+ src/math/big/arith_amd64.s                | 113 -------------------
+ src/math/big/arith_arm.s                  |  60 ----------
+ src/math/big/arith_arm64.s                | 158 --------------------------
+ src/math/big/arith_decl.go                |  24 ----
+ src/math/big/arith_decl_pure.go           |  18 ---
+ src/math/big/arith_loong64.s              |  50 --------
+ src/math/big/arith_mips64x.s              |   6 -
+ src/math/big/arith_mipsx.s                |   6 -
+ src/math/big/arith_ppc64x.s               | 151 -------------------------
+ src/math/big/arith_riscv64.s              | 120 --------------------
+ src/math/big/arith_s390x.s                | 182 ------------------------------
+ src/math/big/arith_test.go                |  22 ++--
+ src/math/big/arith_wasm.s                 |   6 -
+ 16 files changed, 93 insertions(+), 997 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/inl_test.go b/src/cmd/compile/internal/test/inl_test.go
+index 1dbd68cd67..760bb7a999 100644
+--- a/src/cmd/compile/internal/test/inl_test.go
++++ b/src/cmd/compile/internal/test/inl_test.go
+@@ -175,9 +175,6 @@ func TestIntendedInlining(t *testing.T) {
+ 		},
+ 		"math/big": {
+ 			"bigEndianWord",
+-			// The following functions require the math_big_pure_go build tag.
+-			"addVW",
+-			"subVW",
+ 		},
+ 		"math/rand": {
+ 			"(*rngSource).Int63",
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index cd2b8a4228..e2cd99f602 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -10,7 +10,10 @@
+ 
+ package big
+ 
+-import "math/bits"
++import (
++	"math/bits"
++	_ "unsafe" // for go:linkname
++)
+ 
+ // A Word represents a single digit of a multi-precision unsigned integer.
+ type Word uint
+@@ -82,33 +85,50 @@ func subVV_g(z, x, y []Word) (c Word) {
+ 	return
+ }
+ 
+-// The resulting carry c is either 0 or 1.
+-func addVW_g(z, x []Word, y Word) (c Word) {
+-	c = y
+-	// The comment near the top of this file discusses this for loop condition.
+-	for i := 0; i < len(z) && i < len(x); i++ {
+-		zi, cc := bits.Add(uint(x[i]), uint(c), 0)
+-		z[i] = Word(zi)
+-		c = Word(cc)
++// addVW sets z = x + y, returning the final carry c.
++// The behavior is undefined if len(x) != len(z).
++// If len(z) == 0, c = y; otherwise, c is 0 or 1.
++//
++// addVW should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/remyoudompheng/bigfft
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname addVW
++func addVW(z, x []Word, y Word) (c Word) {
++	x = x[:len(z)]
++	if len(z) == 0 {
++		return y
+ 	}
+-	return
++	zi, cc := bits.Add(uint(x[0]), uint(y), 0)
++	z[0] = Word(zi)
++	if cc == 0 {
++		if &z[0] != &x[0] {
++			copy(z[1:], x[1:])
++		}
++		return 0
++	}
++	for i := 1; i < len(z); i++ {
++		xi := x[i]
++		if xi != ^Word(0) {
++			z[i] = xi + 1
++			if &z[0] != &x[0] {
++				copy(z[i+1:], x[i+1:])
++			}
++			return 0
++		}
++		z[i] = 0
++	}
++	return 1
+ }
+ 
+-// addVWlarge is addVW, but intended for large z.
+-// The only difference is that we check on every iteration
+-// whether we are done with carries,
+-// and if so, switch to a much faster copy instead.
+-// This is only a good idea for large z,
+-// because the overhead of the check and the function call
+-// outweigh the benefits when z is small.
+-func addVWlarge(z, x []Word, y Word) (c Word) {
++// addVW_ref is the reference implementation for addVW, used only for testing.
++func addVW_ref(z, x []Word, y Word) (c Word) {
+ 	c = y
+-	// The comment near the top of this file discusses this for loop condition.
+-	for i := 0; i < len(z) && i < len(x); i++ {
+-		if c == 0 {
+-			copy(z[i:], x[i:])
+-			return
+-		}
++	for i := range z {
+ 		zi, cc := bits.Add(uint(x[i]), uint(c), 0)
+ 		z[i] = Word(zi)
+ 		c = Word(cc)
+@@ -116,31 +136,55 @@ func addVWlarge(z, x []Word, y Word) (c Word) {
+ 	return
+ }
+ 
+-func subVW_g(z, x []Word, y Word) (c Word) {
+-	c = y
+-	// The comment near the top of this file discusses this for loop condition.
+-	for i := 0; i < len(z) && i < len(x); i++ {
+-		zi, cc := bits.Sub(uint(x[i]), uint(c), 0)
+-		z[i] = Word(zi)
+-		c = Word(cc)
++// subVW sets z = x - y, returning the final carry c.
++// The behavior is undefined if len(x) != len(z).
++// If len(z) == 0, c = y; otherwise, c is 0 or 1.
++//
++// subVW should be an internal detail,
++// but widely used packages access it using linkname.
++// Notable members of the hall of shame include:
++//   - github.com/remyoudompheng/bigfft
++//
++// Do not remove or change the type signature.
++// See go.dev/issue/67401.
++//
++//go:linkname subVW
++func subVW(z, x []Word, y Word) (c Word) {
++	x = x[:len(z)]
++	if len(z) == 0 {
++		return y
+ 	}
+-	return
++	zi, cc := bits.Sub(uint(x[0]), uint(y), 0)
++	z[0] = Word(zi)
++	if cc == 0 {
++		if &z[0] != &x[0] {
++			copy(z[1:], x[1:])
++		}
++		return 0
++	}
++	for i := 1; i < len(z); i++ {
++		xi := x[i]
++		if xi != 0 {
++			z[i] = xi - 1
++			if &z[0] != &x[0] {
++				copy(z[i+1:], x[i+1:])
++			}
++			return 0
++		}
++		z[i] = ^Word(0)
++	}
++	return 1
+ }
+ 
+-// subVWlarge is to subVW as addVWlarge is to addVW.
+-func subVWlarge(z, x []Word, y Word) (c Word) {
++// subVW_ref is the reference implementation for subVW, used only for testing.
++func subVW_ref(z, x []Word, y Word) (c Word) {
+ 	c = y
+-	// The comment near the top of this file discusses this for loop condition.
+-	for i := 0; i < len(z) && i < len(x); i++ {
+-		if c == 0 {
+-			copy(z[i:], x[i:])
+-			return
+-		}
++	for i := range z {
+ 		zi, cc := bits.Sub(uint(x[i]), uint(c), 0)
+ 		z[i] = Word(zi)
+ 		c = Word(cc)
+ 	}
+-	return
++	return c
+ }
+ 
+ func lshVU_g(z, x []Word, s uint) (c Word) {
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index c3567c632d..a989503c1c 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -60,51 +60,6 @@ E2:	CMPL BX, BP		// i < n
+ 	RET
+ 
+ 
+-// func addVW(z, x []Word, y Word) (c Word)
+-TEXT ·addVW(SB),NOSPLIT,$0
+-	MOVL z+0(FP), DI
+-	MOVL x+12(FP), SI
+-	MOVL y+24(FP), AX	// c = y
+-	MOVL z_len+4(FP), BP
+-	MOVL $0, BX		// i = 0
+-	JMP E3
+-
+-L3:	ADDL (SI)(BX*4), AX
+-	MOVL AX, (DI)(BX*4)
+-	SBBL AX, AX		// save CF
+-	NEGL AX
+-	ADDL $1, BX		// i++
+-
+-E3:	CMPL BX, BP		// i < n
+-	JL L3
+-
+-	MOVL AX, c+28(FP)
+-	RET
+-
+-
+-// func subVW(z, x []Word, y Word) (c Word)
+-TEXT ·subVW(SB),NOSPLIT,$0
+-	MOVL z+0(FP), DI
+-	MOVL x+12(FP), SI
+-	MOVL y+24(FP), AX	// c = y
+-	MOVL z_len+4(FP), BP
+-	MOVL $0, BX		// i = 0
+-	JMP E4
+-
+-L4:	MOVL (SI)(BX*4), DX
+-	SUBL AX, DX
+-	MOVL DX, (DI)(BX*4)
+-	SBBL AX, AX		// save CF
+-	NEGL AX
+-	ADDL $1, BX		// i++
+-
+-E4:	CMPL BX, BP		// i < n
+-	JL L4
+-
+-	MOVL AX, c+28(FP)
+-	RET
+-
+-
+ // func lshVU(z, x []Word, s uint) (c Word)
+ TEXT ·lshVU(SB),NOSPLIT,$0
+ 	MOVL z_len+4(FP), BX	// i = z
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index 2e1d68f935..66bc6d41ce 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -121,119 +121,6 @@ E2:	NEGQ CX
+ 	MOVQ CX, c+72(FP)	// return c
+ 	RET
+ 
+-
+-// func addVW(z, x []Word, y Word) (c Word)
+-TEXT ·addVW(SB),NOSPLIT,$0
+-	MOVQ z_len+8(FP), DI
+-	CMPQ DI, $32
+-	JG large
+-	MOVQ x+24(FP), R8
+-	MOVQ y+48(FP), CX	// c = y
+-	MOVQ z+0(FP), R10
+-
+-	MOVQ $0, SI		// i = 0
+-
+-	// s/JL/JMP/ below to disable the unrolled loop
+-	SUBQ $4, DI		// n -= 4
+-	JL V3			// if n < 4 goto V3
+-
+-U3:	// n >= 0
+-	// regular loop body unrolled 4x
+-	MOVQ 0(R8)(SI*8), R11
+-	MOVQ 8(R8)(SI*8), R12
+-	MOVQ 16(R8)(SI*8), R13
+-	MOVQ 24(R8)(SI*8), R14
+-	ADDQ CX, R11
+-	ADCQ $0, R12
+-	ADCQ $0, R13
+-	ADCQ $0, R14
+-	SBBQ CX, CX		// save CF
+-	NEGQ CX
+-	MOVQ R11, 0(R10)(SI*8)
+-	MOVQ R12, 8(R10)(SI*8)
+-	MOVQ R13, 16(R10)(SI*8)
+-	MOVQ R14, 24(R10)(SI*8)
+-
+-	ADDQ $4, SI		// i += 4
+-	SUBQ $4, DI		// n -= 4
+-	JGE U3			// if n >= 0 goto U3
+-
+-V3:	ADDQ $4, DI		// n += 4
+-	JLE E3			// if n <= 0 goto E3
+-
+-L3:	// n > 0
+-	ADDQ 0(R8)(SI*8), CX
+-	MOVQ CX, 0(R10)(SI*8)
+-	SBBQ CX, CX		// save CF
+-	NEGQ CX
+-
+-	ADDQ $1, SI		// i++
+-	SUBQ $1, DI		// n--
+-	JG L3			// if n > 0 goto L3
+-
+-E3:	MOVQ CX, c+56(FP)	// return c
+-	RET
+-large:
+-	JMP ·addVWlarge(SB)
+-
+-
+-// func subVW(z, x []Word, y Word) (c Word)
+-// (same as addVW except for SUBQ/SBBQ instead of ADDQ/ADCQ and label names)
+-TEXT ·subVW(SB),NOSPLIT,$0
+-	MOVQ z_len+8(FP), DI
+-	CMPQ DI, $32
+-	JG large
+-	MOVQ x+24(FP), R8
+-	MOVQ y+48(FP), CX	// c = y
+-	MOVQ z+0(FP), R10
+-
+-	MOVQ $0, SI		// i = 0
+-
+-	// s/JL/JMP/ below to disable the unrolled loop
+-	SUBQ $4, DI		// n -= 4
+-	JL V4			// if n < 4 goto V4
+-
+-U4:	// n >= 0
+-	// regular loop body unrolled 4x
+-	MOVQ 0(R8)(SI*8), R11
+-	MOVQ 8(R8)(SI*8), R12
+-	MOVQ 16(R8)(SI*8), R13
+-	MOVQ 24(R8)(SI*8), R14
+-	SUBQ CX, R11
+-	SBBQ $0, R12
+-	SBBQ $0, R13
+-	SBBQ $0, R14
+-	SBBQ CX, CX		// save CF
+-	NEGQ CX
+-	MOVQ R11, 0(R10)(SI*8)
+-	MOVQ R12, 8(R10)(SI*8)
+-	MOVQ R13, 16(R10)(SI*8)
+-	MOVQ R14, 24(R10)(SI*8)
+-
+-	ADDQ $4, SI		// i += 4
+-	SUBQ $4, DI		// n -= 4
+-	JGE U4			// if n >= 0 goto U4
+-
+-V4:	ADDQ $4, DI		// n += 4
+-	JLE E4			// if n <= 0 goto E4
+-
+-L4:	// n > 0
+-	MOVQ 0(R8)(SI*8), R11
+-	SUBQ CX, R11
+-	MOVQ R11, 0(R10)(SI*8)
+-	SBBQ CX, CX		// save CF
+-	NEGQ CX
+-
+-	ADDQ $1, SI		// i++
+-	SUBQ $1, DI		// n--
+-	JG L4			// if n > 0 goto L4
+-
+-E4:	MOVQ CX, c+56(FP)	// return c
+-	RET
+-large:
+-	JMP ·subVWlarge(SB)
+-
+-
+ // func lshVU(z, x []Word, s uint) (c Word)
+ TEXT ·lshVU(SB),NOSPLIT,$0
+ 	MOVQ z_len+8(FP), BX	// i = z
+diff --git a/src/math/big/arith_arm.s b/src/math/big/arith_arm.s
+index 5b04e07bd0..ce9fe5f6fb 100644
+--- a/src/math/big/arith_arm.s
++++ b/src/math/big/arith_arm.s
+@@ -58,66 +58,6 @@ E2:
+ 	RET
+ 
+ 
+-// func addVW(z, x []Word, y Word) (c Word)
+-TEXT ·addVW(SB),NOSPLIT,$0
+-	MOVW	z+0(FP), R1
+-	MOVW	z_len+4(FP), R4
+-	MOVW	x+12(FP), R2
+-	MOVW	y+24(FP), R3
+-	ADD	R4<<2, R1, R4
+-	TEQ	R1, R4
+-	BNE L3a
+-	MOVW	R3, c+28(FP)
+-	RET
+-L3a:
+-	MOVW.P	4(R2), R5
+-	ADD.S	R3, R5
+-	MOVW.P	R5, 4(R1)
+-	B	E3
+-L3:
+-	MOVW.P	4(R2), R5
+-	ADC.S	$0, R5
+-	MOVW.P	R5, 4(R1)
+-E3:
+-	TEQ	R1, R4
+-	BNE	L3
+-
+-	MOVW	$0, R0
+-	MOVW.CS	$1, R0
+-	MOVW	R0, c+28(FP)
+-	RET
+-
+-
+-// func subVW(z, x []Word, y Word) (c Word)
+-TEXT ·subVW(SB),NOSPLIT,$0
+-	MOVW	z+0(FP), R1
+-	MOVW	z_len+4(FP), R4
+-	MOVW	x+12(FP), R2
+-	MOVW	y+24(FP), R3
+-	ADD	R4<<2, R1, R4
+-	TEQ	R1, R4
+-	BNE L4a
+-	MOVW	R3, c+28(FP)
+-	RET
+-L4a:
+-	MOVW.P	4(R2), R5
+-	SUB.S	R3, R5
+-	MOVW.P	R5, 4(R1)
+-	B	E4
+-L4:
+-	MOVW.P	4(R2), R5
+-	SBC.S	$0, R5
+-	MOVW.P	R5, 4(R1)
+-E4:
+-	TEQ	R1, R4
+-	BNE	L4
+-
+-	MOVW	$0, R0
+-	MOVW.CC	$1, R0
+-	MOVW	R0, c+28(FP)
+-	RET
+-
+-
+ // func lshVU(z, x []Word, s uint) (c Word)
+ TEXT ·lshVU(SB),NOSPLIT,$0
+ 	MOVW	z_len+4(FP), R5
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+index e0a8b39e78..aa7dd6755d 100644
+--- a/src/math/big/arith_arm64.s
++++ b/src/math/big/arith_arm64.s
+@@ -93,164 +93,6 @@ done:
+ 	MOVD	R0, c+72(FP)
+ 	RET
+ 
+-#define vwOneOp(instr, op1)				\
+-	MOVD.P	8(R1), R4;				\
+-	instr	op1, R4;				\
+-	MOVD.P	R4, 8(R3);
+-
+-// handle the first 1~4 elements before starting iteration in addVW/subVW
+-#define vwPreIter(instr1, instr2, counter, target)	\
+-	vwOneOp(instr1, R2);				\
+-	SUB	$1, counter;				\
+-	CBZ	counter, target;			\
+-	vwOneOp(instr2, $0);				\
+-	SUB	$1, counter;				\
+-	CBZ	counter, target;			\
+-	vwOneOp(instr2, $0);				\
+-	SUB	$1, counter;				\
+-	CBZ	counter, target;			\
+-	vwOneOp(instr2, $0);
+-
+-// do one iteration of add or sub in addVW/subVW
+-#define vwOneIter(instr, counter, exit)	\
+-	CBZ	counter, exit;		\	// careful not to touch the carry flag
+-	LDP.P	32(R1), (R4, R5);	\
+-	LDP	-16(R1), (R6, R7);	\
+-	instr	$0, R4, R8;		\
+-	instr	$0, R5, R9;		\
+-	instr	$0, R6, R10;		\
+-	instr	$0, R7, R11;		\
+-	STP.P	(R8, R9), 32(R3);	\
+-	STP	(R10, R11), -16(R3);	\
+-	SUB	$4, counter;
+-
+-// do one iteration of copy in addVW/subVW
+-#define vwOneIterCopy(counter, exit)			\
+-	CBZ	counter, exit;				\
+-	LDP.P	32(R1), (R4, R5);			\
+-	LDP	-16(R1), (R6, R7);			\
+-	STP.P	(R4, R5), 32(R3);			\
+-	STP	(R6, R7), -16(R3);			\
+-	SUB	$4, counter;
+-
+-// func addVW(z, x []Word, y Word) (c Word)
+-// The 'large' branch handles large 'z'. It checks the carry flag on every iteration
+-// and switches to copy if we are done with carries. The copying is skipped as well
+-// if 'x' and 'z' happen to share the same underlying storage.
+-// The overhead of the checking and branching is visible when 'z' are small (~5%),
+-// so set a threshold of 32, and remain the small-sized part entirely untouched.
+-TEXT ·addVW(SB),NOSPLIT,$0
+-	MOVD	z+0(FP), R3
+-	MOVD	z_len+8(FP), R0
+-	MOVD	x+24(FP), R1
+-	MOVD	y+48(FP), R2
+-	CMP	$32, R0
+-	BGE	large		// large-sized 'z' and 'x'
+-	CBZ	R0, len0	// the length of z is 0
+-	MOVD.P	8(R1), R4
+-	ADDS	R2, R4		// z[0] = x[0] + y, set carry
+-	MOVD.P	R4, 8(R3)
+-	SUB	$1, R0
+-	CBZ	R0, len1	// the length of z is 1
+-	TBZ	$0, R0, two
+-	MOVD.P	8(R1), R4	// do it once
+-	ADCS	$0, R4
+-	MOVD.P	R4, 8(R3)
+-	SUB	$1, R0
+-two:				// do it twice
+-	TBZ	$1, R0, loop
+-	LDP.P	16(R1), (R4, R5)
+-	ADCS	$0, R4, R8	// c, z[i] = x[i] + c
+-	ADCS	$0, R5, R9
+-	STP.P	(R8, R9), 16(R3)
+-	SUB	$2, R0
+-loop:				// do four times per round
+-	vwOneIter(ADCS, R0, len1)
+-	B	loop
+-len1:
+-	CSET	HS, R2		// extract carry flag
+-len0:
+-	MOVD	R2, c+56(FP)
+-done:
+-	RET
+-large:
+-	AND	$0x3, R0, R10
+-	AND	$~0x3, R0
+-	// unrolling for the first 1~4 elements to avoid saving the carry
+-	// flag in each step, adjust $R0 if we unrolled 4 elements
+-	vwPreIter(ADDS, ADCS, R10, add4)
+-	SUB	$4, R0
+-add4:
+-	BCC	copy
+-	vwOneIter(ADCS, R0, len1)
+-	B	add4
+-copy:
+-	MOVD	ZR, c+56(FP)
+-	CMP	R1, R3
+-	BEQ	done
+-copy_4:				// no carry flag, copy the rest
+-	vwOneIterCopy(R0, done)
+-	B	copy_4
+-
+-// func subVW(z, x []Word, y Word) (c Word)
+-// The 'large' branch handles large 'z'. It checks the carry flag on every iteration
+-// and switches to copy if we are done with carries. The copying is skipped as well
+-// if 'x' and 'z' happen to share the same underlying storage.
+-// The overhead of the checking and branching is visible when 'z' are small (~5%),
+-// so set a threshold of 32, and remain the small-sized part entirely untouched.
+-TEXT ·subVW(SB),NOSPLIT,$0
+-	MOVD	z+0(FP), R3
+-	MOVD	z_len+8(FP), R0
+-	MOVD	x+24(FP), R1
+-	MOVD	y+48(FP), R2
+-	CMP	$32, R0
+-	BGE	large		// large-sized 'z' and 'x'
+-	CBZ	R0, len0	// the length of z is 0
+-	MOVD.P	8(R1), R4
+-	SUBS	R2, R4		// z[0] = x[0] - y, set carry
+-	MOVD.P	R4, 8(R3)
+-	SUB	$1, R0
+-	CBZ	R0, len1	// the length of z is 1
+-	TBZ	$0, R0, two	// do it once
+-	MOVD.P	8(R1), R4
+-	SBCS	$0, R4
+-	MOVD.P	R4, 8(R3)
+-	SUB	$1, R0
+-two:				// do it twice
+-	TBZ	$1, R0, loop
+-	LDP.P	16(R1), (R4, R5)
+-	SBCS	$0, R4, R8	// c, z[i] = x[i] + c
+-	SBCS	$0, R5, R9
+-	STP.P	(R8, R9), 16(R3)
+-	SUB	$2, R0
+-loop:				// do four times per round
+-	vwOneIter(SBCS, R0, len1)
+-	B	loop
+-len1:
+-	CSET	LO, R2		// extract carry flag
+-len0:
+-	MOVD	R2, c+56(FP)
+-done:
+-	RET
+-large:
+-	AND	$0x3, R0, R10
+-	AND	$~0x3, R0
+-	// unrolling for the first 1~4 elements to avoid saving the carry
+-	// flag in each step, adjust $R0 if we unrolled 4 elements
+-	vwPreIter(SUBS, SBCS, R10, sub4)
+-	SUB	$4, R0
+-sub4:
+-	BCS	copy
+-	vwOneIter(SBCS, R0, len1)
+-	B	sub4
+-copy:
+-	MOVD	ZR, c+56(FP)
+-	CMP	R1, R3
+-	BEQ	done
+-copy_4:				// no carry flag, copy the rest
+-	vwOneIterCopy(R0, done)
+-	B	copy_4
+-
+ // func lshVU(z, x []Word, s uint) (c Word)
+ // This implementation handles the shift operation from the high word to the low word,
+ // which may be an error for the case where the low word of x overlaps with the high
+diff --git a/src/math/big/arith_decl.go b/src/math/big/arith_decl.go
+index ca73485df0..aa838808b9 100644
+--- a/src/math/big/arith_decl.go
++++ b/src/math/big/arith_decl.go
+@@ -34,30 +34,6 @@ func addVV(z, x, y []Word) (c Word)
+ //go:noescape
+ func subVV(z, x, y []Word) (c Word)
+ 
+-// addVW should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/remyoudompheng/bigfft
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname addVW
+-//go:noescape
+-func addVW(z, x []Word, y Word) (c Word)
+-
+-// subVW should be an internal detail,
+-// but widely used packages access it using linkname.
+-// Notable members of the hall of shame include:
+-//   - github.com/remyoudompheng/bigfft
+-//
+-// Do not remove or change the type signature.
+-// See go.dev/issue/67401.
+-//
+-//go:linkname subVW
+-//go:noescape
+-func subVW(z, x []Word, y Word) (c Word)
+-
+ // shlVU should be an internal detail (and a stale one at that),
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+diff --git a/src/math/big/arith_decl_pure.go b/src/math/big/arith_decl_pure.go
+index 60672d3e6c..3b051356fb 100644
+--- a/src/math/big/arith_decl_pure.go
++++ b/src/math/big/arith_decl_pure.go
+@@ -14,24 +14,6 @@ func subVV(z, x, y []Word) (c Word) {
+ 	return subVV_g(z, x, y)
+ }
+ 
+-func addVW(z, x []Word, y Word) (c Word) {
+-	// TODO: remove indirect function call when golang.org/issue/30548 is fixed
+-	fn := addVW_g
+-	if len(z) > 32 {
+-		fn = addVWlarge
+-	}
+-	return fn(z, x, y)
+-}
+-
+-func subVW(z, x []Word, y Word) (c Word) {
+-	// TODO: remove indirect function call when golang.org/issue/30548 is fixed
+-	fn := subVW_g
+-	if len(z) > 32 {
+-		fn = subVWlarge
+-	}
+-	return fn(z, x, y)
+-}
+-
+ func lshVU(z, x []Word, s uint) (c Word) {
+ 	return lshVU_g(z, x, s)
+ }
+diff --git a/src/math/big/arith_loong64.s b/src/math/big/arith_loong64.s
+index 3480e0e676..8a5140e57a 100644
+--- a/src/math/big/arith_loong64.s
++++ b/src/math/big/arith_loong64.s
+@@ -42,56 +42,6 @@ done:
+ 	MOVV	R8, c+72(FP)
+ 	RET
+ 
+-// func addVW(z, x []Word, y Word) (c Word)
+-TEXT ·addVW(SB),NOSPLIT,$0
+-	// input:
+-	//   R4: z
+-	//   R5: z_len
+-	//   R7: x
+-	//   R10: y
+-	MOVV	z+0(FP), R4
+-	MOVV	z_len+8(FP), R5
+-	MOVV	x+24(FP), R7
+-	MOVV	y+48(FP), R10
+-	MOVV	$0, R6
+-	SLLV	$3, R5
+-loop:
+-	BEQ	R5, R6, done
+-	MOVV	(R6)(R7), R8
+-	ADDV	R8, R10, R9	// x1 + c = z1, if z1 < x1 then z1 overflow
+-	SGTU	R8, R9, R10
+-	MOVV	R9, (R6)(R4)
+-	ADDV	$8, R6
+-	JMP	loop
+-done:
+-	MOVV	R10, c+56(FP)
+-	RET
+-
+-// func subVW(z, x []Word, y Word) (c Word)
+-TEXT ·subVW(SB),NOSPLIT,$0
+-	// input:
+-	//   R4: z
+-	//   R5: z_len
+-	//   R7: x
+-	//   R10: y
+-	MOVV	z+0(FP), R4
+-	MOVV	z_len+8(FP), R5
+-	MOVV	x+24(FP), R7
+-	MOVV	y+48(FP), R10
+-	MOVV	$0, R6
+-	SLLV	$3, R5
+-loop:
+-	BEQ	R5, R6, done
+-	MOVV	(R6)(R7), R8
+-	SUBV	R10, R8, R11	// x1 - c = z1, if z1 > x1 then overflow
+-	SGTU	R11, R8, R10
+-	MOVV	R11, (R6)(R4)
+-	ADDV	$8, R6
+-	JMP	loop
+-done:
+-	MOVV	R10, c+56(FP)
+-	RET
+-
+ TEXT ·lshVU(SB),NOSPLIT,$0
+ 	JMP ·lshVU_g(SB)
+ 
+diff --git a/src/math/big/arith_mips64x.s b/src/math/big/arith_mips64x.s
+index 6c6da48c32..3b32062b06 100644
+--- a/src/math/big/arith_mips64x.s
++++ b/src/math/big/arith_mips64x.s
+@@ -15,12 +15,6 @@ TEXT ·addVV(SB),NOSPLIT,$0
+ TEXT ·subVV(SB),NOSPLIT,$0
+ 	JMP ·subVV_g(SB)
+ 
+-TEXT ·addVW(SB),NOSPLIT,$0
+-	JMP ·addVW_g(SB)
+-
+-TEXT ·subVW(SB),NOSPLIT,$0
+-	JMP ·subVW_g(SB)
+-
+ TEXT ·lshVU(SB),NOSPLIT,$0
+ 	JMP ·lshVU_g(SB)
+ 
+diff --git a/src/math/big/arith_mipsx.s b/src/math/big/arith_mipsx.s
+index 0e2a0a4b8b..edd7456c3e 100644
+--- a/src/math/big/arith_mipsx.s
++++ b/src/math/big/arith_mipsx.s
+@@ -15,12 +15,6 @@ TEXT ·addVV(SB),NOSPLIT,$0
+ TEXT ·subVV(SB),NOSPLIT,$0
+ 	JMP	·subVV_g(SB)
+ 
+-TEXT ·addVW(SB),NOSPLIT,$0
+-	JMP	·addVW_g(SB)
+-
+-TEXT ·subVW(SB),NOSPLIT,$0
+-	JMP	·subVW_g(SB)
+-
+ TEXT ·lshVU(SB),NOSPLIT,$0
+ 	JMP	·lshVU_g(SB)
+ 
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index a47ea83aa3..5392c1be26 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -188,157 +188,6 @@ done:
+ 	MOVD  R4, c+72(FP)
+ 	RET
+ 
+-// func addVW(z, x []Word, y Word) (c Word)
+-TEXT ·addVW(SB), NOSPLIT, $0
+-	MOVD z+0(FP), R10	// R10 = z[]
+-	MOVD x+24(FP), R8	// R8 = x[]
+-	MOVD y+48(FP), R4	// R4 = y = c
+-	MOVD z_len+8(FP), R11	// R11 = z_len
+-
+-	CMP   R11, $0		// If z_len is zero, return
+-	BEQ   done
+-
+-	// We will process the first iteration out of the loop so we capture
+-	// the value of c. In the subsequent iterations, we will rely on the
+-	// value of CA set here.
+-	MOVD  0(R8), R20	// R20 = x[i]
+-	ADD   $-1, R11		// R11 = z_len - 1
+-	ADDC  R20, R4, R6	// R6 = x[i] + c
+-	CMP   R11, $0		// If z_len was 1, we are done
+-	MOVD  R6, 0(R10)	// z[i]
+-	BEQ   final
+-
+-	// We will read 4 elements per iteration
+-	SRDCC $2, R11, R9	// R9 = z_len/4
+-	DCBT  (R8)
+-	MOVD  R9, CTR		// Set up the loop counter
+-	BEQ   tail		// If R9 = 0, we can't use the loop
+-	PCALIGN $16
+-
+-loop:
+-	MOVD  8(R8), R20	// R20 = x[i]
+-	MOVD  16(R8), R21	// R21 = x[i+1]
+-	MOVD  24(R8), R22	// R22 = x[i+2]
+-	MOVDU 32(R8), R23	// R23 = x[i+3]
+-	ADDZE R20, R24		// R24 = x[i] + CA
+-	ADDZE R21, R25		// R25 = x[i+1] + CA
+-	ADDZE R22, R26		// R26 = x[i+2] + CA
+-	ADDZE R23, R27		// R27 = x[i+3] + CA
+-	MOVD  R24, 8(R10)	// z[i]
+-	MOVD  R25, 16(R10)	// z[i+1]
+-	MOVD  R26, 24(R10)	// z[i+2]
+-	MOVDU R27, 32(R10)	// z[i+3]
+-	ADD   $-4, R11		// R11 = z_len - 4
+-	BDNZ  loop
+-
+-	// We may have some elements to read
+-	CMP R11, $0
+-	BEQ final
+-
+-tail:
+-	MOVDU 8(R8), R20
+-	ADDZE R20, R24
+-	ADD $-1, R11
+-	MOVDU R24, 8(R10)
+-	CMP R11, $0
+-	BEQ final
+-
+-	MOVDU 8(R8), R20
+-	ADDZE R20, R24
+-	ADD $-1, R11
+-	MOVDU R24, 8(R10)
+-	CMP R11, $0
+-	BEQ final
+-
+-	MOVD 8(R8), R20
+-	ADDZE R20, R24
+-	MOVD R24, 8(R10)
+-
+-final:
+-	ADDZE R0, R4		// c = CA
+-done:
+-	MOVD  R4, c+56(FP)
+-	RET
+-
+-// func subVW(z, x []Word, y Word) (c Word)
+-TEXT ·subVW(SB), NOSPLIT, $0
+-	MOVD  z+0(FP), R10	// R10 = z[]
+-	MOVD  x+24(FP), R8	// R8 = x[]
+-	MOVD  y+48(FP), R4	// R4 = y = c
+-	MOVD  z_len+8(FP), R11	// R11 = z_len
+-
+-	CMP   R11, $0		// If z_len is zero, return
+-	BEQ   done
+-
+-	// We will process the first iteration out of the loop so we capture
+-	// the value of c. In the subsequent iterations, we will rely on the
+-	// value of CA set here.
+-	MOVD  0(R8), R20	// R20 = x[i]
+-	ADD   $-1, R11		// R11 = z_len - 1
+-	SUBC  R4, R20, R6	// R6 = x[i] - c
+-	CMP   R11, $0		// If z_len was 1, we are done
+-	MOVD  R6, 0(R10)	// z[i]
+-	BEQ   final
+-
+-	// We will read 4 elements per iteration
+-	SRDCC $2, R11, R9	// R9 = z_len/4
+-	DCBT  (R8)
+-	MOVD  R9, CTR		// Set up the loop counter
+-	BEQ   tail		// If R9 = 0, we can't use the loop
+-
+-	// The loop here is almost the same as the one used in s390x, but
+-	// we don't need to capture CA every iteration because we've already
+-	// done that above.
+-
+-	PCALIGN $16
+-loop:
+-	MOVD  8(R8), R20
+-	MOVD  16(R8), R21
+-	MOVD  24(R8), R22
+-	MOVDU 32(R8), R23
+-	SUBE  R0, R20
+-	SUBE  R0, R21
+-	SUBE  R0, R22
+-	SUBE  R0, R23
+-	MOVD  R20, 8(R10)
+-	MOVD  R21, 16(R10)
+-	MOVD  R22, 24(R10)
+-	MOVDU R23, 32(R10)
+-	ADD   $-4, R11
+-	BDNZ  loop
+-
+-	// We may have some elements to read
+-	CMP   R11, $0
+-	BEQ   final
+-
+-tail:
+-	MOVDU 8(R8), R20
+-	SUBE  R0, R20
+-	ADD   $-1, R11
+-	MOVDU R20, 8(R10)
+-	CMP   R11, $0
+-	BEQ   final
+-
+-	MOVDU 8(R8), R20
+-	SUBE  R0, R20
+-	ADD   $-1, R11
+-	MOVDU R20, 8(R10)
+-	CMP   R11, $0
+-	BEQ   final
+-
+-	MOVD  8(R8), R20
+-	SUBE  R0, R20
+-	MOVD  R20, 8(R10)
+-
+-final:
+-	// Capture CA
+-	SUBE  R4, R4
+-	NEG   R4, R4
+-
+-done:
+-	MOVD  R4, c+56(FP)
+-	RET
+-
+ //func lshVU(z, x []Word, s uint) (c Word)
+ TEXT ·lshVU(SB), NOSPLIT, $0
+ 	MOVD    z+0(FP), R3
+diff --git a/src/math/big/arith_riscv64.s b/src/math/big/arith_riscv64.s
+index 1ba25ce387..406cf38d1f 100644
+--- a/src/math/big/arith_riscv64.s
++++ b/src/math/big/arith_riscv64.s
+@@ -173,126 +173,6 @@ done:
+ 	MOV	X29, c+72(FP)	// return b
+ 	RET
+ 
+-TEXT ·addVW(SB),NOSPLIT,$0
+-	MOV	x+24(FP), X5
+-	MOV	y+48(FP), X6
+-	MOV	z+0(FP), X7
+-	MOV	z_len+8(FP), X30
+-
+-	MOV	$4, X28
+-	MOV	X6, X29		// c = y
+-
+-	BEQZ	X30, done
+-	BLTU	X30, X28, loop1
+-
+-loop4:
+-	MOV	0(X5), X8	// x[0]
+-	MOV	8(X5), X11	// x[1]
+-	MOV	16(X5), X14	// x[2]
+-	MOV	24(X5), X17	// x[3]
+-
+-	ADD	X8, X29, X10	// z[0] = x[0] + c
+-	SLTU	X8, X10, X29	// next c
+-
+-	ADD	X11, X29, X13	// z[1] = x[1] + c
+-	SLTU	X11, X13, X29	// next c
+-
+-	ADD	X14, X29, X16	// z[2] = x[2] + c
+-	SLTU	X14, X16, X29	// next c
+-
+-	ADD	X17, X29, X19	// z[3] = x[3] + c
+-	SLTU	X17, X19, X29	// next c
+-
+-	MOV	X10, 0(X7)	// z[0]
+-	MOV	X13, 8(X7)	// z[1]
+-	MOV	X16, 16(X7)	// z[2]
+-	MOV	X19, 24(X7)	// z[3]
+-
+-	ADD	$32, X5
+-	ADD	$32, X7
+-	SUB	$4, X30
+-
+-	BGEU	X30, X28, loop4
+-	BEQZ	X30, done
+-
+-loop1:
+-	MOV	0(X5), X10	// x
+-
+-	ADD	X10, X29, X12	// z = x + c
+-	SLTU	X10, X12, X29	// next c
+-
+-	MOV	X12, 0(X7)	// z
+-
+-	ADD	$8, X5
+-	ADD	$8, X7
+-	SUB	$1, X30
+-
+-	BNEZ	X30, loop1
+-
+-done:
+-	MOV	X29, c+56(FP)	// return c
+-	RET
+-
+-TEXT ·subVW(SB),NOSPLIT,$0
+-	MOV	x+24(FP), X5
+-	MOV	y+48(FP), X6
+-	MOV	z+0(FP), X7
+-	MOV	z_len+8(FP), X30
+-
+-	MOV	$4, X28
+-	MOV	X6, X29		// b = y
+-
+-	BEQZ	X30, done
+-	BLTU	X30, X28, loop1
+-
+-loop4:
+-	MOV	0(X5), X8	// x[0]
+-	MOV	8(X5), X11	// x[1]
+-	MOV	16(X5), X14	// x[2]
+-	MOV	24(X5), X17	// x[3]
+-
+-	SUB	X29, X8, X10	// z[0] = x[0] - b
+-	SLTU	X10, X8, X29	// next b
+-
+-	SUB	X29, X11, X13	// z[1] = x[1] - b
+-	SLTU	X13, X11, X29	// next b
+-
+-	SUB	X29, X14, X16	// z[2] = x[2] - b
+-	SLTU	X16, X14, X29	// next b
+-
+-	SUB	X29, X17, X19	// z[3] = x[3] - b
+-	SLTU	X19, X17, X29	// next b
+-
+-	MOV	X10, 0(X7)	// z[0]
+-	MOV	X13, 8(X7)	// z[1]
+-	MOV	X16, 16(X7)	// z[2]
+-	MOV	X19, 24(X7)	// z[3]
+-
+-	ADD	$32, X5
+-	ADD	$32, X7
+-	SUB	$4, X30
+-
+-	BGEU	X30, X28, loop4
+-	BEQZ	X30, done
+-
+-loop1:
+-	MOV	0(X5), X10	// x
+-
+-	SUB	X29, X10, X12	// z = x - b
+-	SLTU	X12, X10, X29	// next b
+-
+-	MOV	X12, 0(X7)	// z
+-
+-	ADD	$8, X5
+-	ADD	$8, X7
+-	SUB	$1, X30
+-
+-	BNEZ	X30, loop1
+-
+-done:
+-	MOV	X29, c+56(FP)	// return b
+-	RET
+-
+ TEXT ·lshVU(SB),NOSPLIT,$0
+ 	JMP ·lshVU_g(SB)
+ 
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index 57b263a4c3..a03660be62 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -500,188 +500,6 @@ E1:
+ 	MOVD R4, c+72(FP) // return c
+ 	RET
+ 
+-TEXT ·addVW(SB), NOSPLIT, $0
+-	MOVD z_len+8(FP), R5 // length of z
+-	MOVD x+24(FP), R6
+-	MOVD y+48(FP), R7    // c = y
+-	MOVD z+0(FP), R8
+-
+-	CMPBEQ R5, $0, returnC // if len(z) == 0, we can have an early return
+-
+-	// Add the first two words, and determine which path (copy path or loop path) to take based on the carry flag.
+-	ADDC   0(R6), R7
+-	MOVD   R7, 0(R8)
+-	CMPBEQ R5, $1, returnResult // len(z) == 1
+-	MOVD   $0, R9
+-	ADDE   8(R6), R9
+-	MOVD   R9, 8(R8)
+-	CMPBEQ R5, $2, returnResult // len(z) == 2
+-
+-	// Update the counters
+-	MOVD $16, R12    // i = 2
+-	MOVD $-2(R5), R5 // n = n - 2
+-
+-loopOverEachWord:
+-	BRC  $12, copySetup // carry = 0, copy the rest
+-	MOVD $1, R9
+-
+-	// Originally we used the carry flag generated in the previous iteration
+-	// (i.e: ADDE could be used here to do the addition).  However, since we
+-	// already know carry is 1 (otherwise we will go to copy section), we can use
+-	// ADDC here so the current iteration does not depend on the carry flag
+-	// generated in the previous iteration. This could be useful when branch prediction happens.
+-	ADDC 0(R6)(R12*1), R9
+-	MOVD R9, 0(R8)(R12*1) // z[i] = x[i] + c
+-
+-	MOVD  $8(R12), R12         // i++
+-	BRCTG R5, loopOverEachWord // n--
+-
+-// Return the current carry value
+-returnResult:
+-	MOVD $0, R0
+-	ADDE R0, R0
+-	MOVD R0, c+56(FP)
+-	RET
+-
+-// Update position of x(R6) and z(R8) based on the current counter value and perform copying.
+-// With the assumption that x and z will not overlap with each other or x and z will
+-// point to same memory region, we can use a faster version of copy using only MVC here.
+-// In the following implementation, we have three copy loops, each copying a word, 4 words, and
+-// 32 words at a time.  Via benchmarking, this implementation is faster than calling runtime·memmove.
+-copySetup:
+-	ADD R12, R6
+-	ADD R12, R8
+-
+-	CMPBGE R5, $4, mediumLoop
+-
+-smallLoop:  // does a loop unrolling to copy word when n < 4
+-	CMPBEQ R5, $0, returnZero
+-	MVC    $8, 0(R6), 0(R8)
+-	CMPBEQ R5, $1, returnZero
+-	MVC    $8, 8(R6), 8(R8)
+-	CMPBEQ R5, $2, returnZero
+-	MVC    $8, 16(R6), 16(R8)
+-
+-returnZero:
+-	MOVD $0, c+56(FP) // return 0 as carry
+-	RET
+-
+-mediumLoop:
+-	CMPBLT R5, $4, smallLoop
+-	CMPBLT R5, $32, mediumLoopBody
+-
+-largeLoop:  // Copying 256 bytes at a time.
+-	MVC    $256, 0(R6), 0(R8)
+-	MOVD   $256(R6), R6
+-	MOVD   $256(R8), R8
+-	MOVD   $-32(R5), R5
+-	CMPBGE R5, $32, largeLoop
+-	BR     mediumLoop
+-
+-mediumLoopBody:  // Copying 32 bytes at a time
+-	MVC    $32, 0(R6), 0(R8)
+-	MOVD   $32(R6), R6
+-	MOVD   $32(R8), R8
+-	MOVD   $-4(R5), R5
+-	CMPBGE R5, $4, mediumLoopBody
+-	BR     smallLoop
+-
+-returnC:
+-	MOVD R7, c+56(FP)
+-	RET
+-
+-TEXT ·subVW(SB), NOSPLIT, $0
+-	MOVD z_len+8(FP), R5
+-	MOVD x+24(FP), R6
+-	MOVD y+48(FP), R7    // The borrow bit passed in
+-	MOVD z+0(FP), R8
+-	MOVD $0, R0          // R0 is a temporary variable used during computation. Ensure it has zero in it.
+-
+-	CMPBEQ R5, $0, returnC // len(z) == 0, have an early return
+-
+-	// Subtract the first two words, and determine which path (copy path or loop path) to take based on the borrow flag
+-	MOVD   0(R6), R9
+-	SUBC   R7, R9
+-	MOVD   R9, 0(R8)
+-	CMPBEQ R5, $1, returnResult
+-	MOVD   8(R6), R9
+-	SUBE   R0, R9
+-	MOVD   R9, 8(R8)
+-	CMPBEQ R5, $2, returnResult
+-
+-	// Update the counters
+-	MOVD $16, R12    // i = 2
+-	MOVD $-2(R5), R5 // n = n - 2
+-
+-loopOverEachWord:
+-	BRC  $3, copySetup    // no borrow, copy the rest
+-	MOVD 0(R6)(R12*1), R9
+-
+-	// Originally we used the borrow flag generated in the previous iteration
+-	// (i.e: SUBE could be used here to do the subtraction). However, since we
+-	// already know borrow is 1 (otherwise we will go to copy section), we can
+-	// use SUBC here so the current iteration does not depend on the borrow flag
+-	// generated in the previous iteration. This could be useful when branch prediction happens.
+-	SUBC $1, R9
+-	MOVD R9, 0(R8)(R12*1) // z[i] = x[i] - 1
+-
+-	MOVD  $8(R12), R12         // i++
+-	BRCTG R5, loopOverEachWord // n--
+-
+-// return the current borrow value
+-returnResult:
+-	SUBE R0, R0
+-	NEG  R0, R0
+-	MOVD R0, c+56(FP)
+-	RET
+-
+-// Update position of x(R6) and z(R8) based on the current counter value and perform copying.
+-// With the assumption that x and z will not overlap with each other or x and z will
+-// point to same memory region, we can use a faster version of copy using only MVC here.
+-// In the following implementation, we have three copy loops, each copying a word, 4 words, and
+-// 32 words at a time. Via benchmarking, this implementation is faster than calling runtime·memmove.
+-copySetup:
+-	ADD R12, R6
+-	ADD R12, R8
+-
+-	CMPBGE R5, $4, mediumLoop
+-
+-smallLoop:  // does a loop unrolling to copy word when n < 4
+-	CMPBEQ R5, $0, returnZero
+-	MVC    $8, 0(R6), 0(R8)
+-	CMPBEQ R5, $1, returnZero
+-	MVC    $8, 8(R6), 8(R8)
+-	CMPBEQ R5, $2, returnZero
+-	MVC    $8, 16(R6), 16(R8)
+-
+-returnZero:
+-	MOVD $0, c+56(FP) // return 0 as borrow
+-	RET
+-
+-mediumLoop:
+-	CMPBLT R5, $4, smallLoop
+-	CMPBLT R5, $32, mediumLoopBody
+-
+-largeLoop:  // Copying 256 bytes at a time
+-	MVC    $256, 0(R6), 0(R8)
+-	MOVD   $256(R6), R6
+-	MOVD   $256(R8), R8
+-	MOVD   $-32(R5), R5
+-	CMPBGE R5, $32, largeLoop
+-	BR     mediumLoop
+-
+-mediumLoopBody:  // Copying 32 bytes at a time
+-	MVC    $32, 0(R6), 0(R8)
+-	MOVD   $32(R6), R6
+-	MOVD   $32(R8), R8
+-	MOVD   $-4(R5), R5
+-	CMPBGE R5, $4, mediumLoopBody
+-	BR     smallLoop
+-
+-returnC:
+-	MOVD R7, c+56(FP)
+-	RET
+-
+ // func lshVU(z, x []Word, s uint) (c Word)
+ TEXT ·lshVU(SB), NOSPLIT, $0
+ 	BR ·lshVU_g(SB)
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index b6e7304a13..bd9f96870b 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -28,8 +28,8 @@ var shifts = []uint{1, 2, 3, _W/4 - 1, _W / 4, _W/4 + 1, _W/2 - 1, _W / 2, _W/2
+ 
+ func TestAddVV(t *testing.T)      { testVV(t, "addVV", addVV, addVV_g) }
+ func TestSubVV(t *testing.T)      { testVV(t, "subVV", subVV, subVV_g) }
+-func TestAddVW(t *testing.T)      { testVW(t, "addVW", addVW, addVW_g, words4) }
+-func TestSubVW(t *testing.T)      { testVW(t, "subVW", subVW, subVW_g, words4) }
++func TestAddVW(t *testing.T)      { testVW(t, "addVW", addVW, addVW_ref, words4) }
++func TestSubVW(t *testing.T)      { testVW(t, "subVW", subVW, subVW_ref, words4) }
+ func TestLshVU(t *testing.T)      { testVU(t, "lshVU", lshVU, lshVU_g, shifts) }
+ func TestRshVU(t *testing.T)      { testVU(t, "rshVU", rshVU, rshVU_g, shifts) }
+ func TestMulAddVWW(t *testing.T)  { testVWW(t, "mulAddVWW", mulAddVWW, mulAddVWW_g, muls) }
+@@ -865,21 +865,15 @@ func benchVV(fn func(z, x, y []Word) Word) benchFunc {
+ }
+ 
+ func BenchmarkAddVW(b *testing.B) {
+-	bench(b, "/impl=asm/data=random", benchVW(addVW, 123))
+-	bench(b, "/impl=asm/data=carry", benchCarryVW(addVW, ^Word(0), 1))
+-	bench(b, "/impl=asm/data=shortcut", benchShortVW(addVW, 123))
+-	bench(b, "/impl=go/data=random", benchVW(addVW_g, 123))
+-	bench(b, "/impl=go/data=carry", benchCarryVW(addVW_g, ^Word(0), 1))
+-	bench(b, "/impl=go/data=shortcut", benchShortVW(addVW_g, 123))
++	bench(b, "/data=random", benchVW(addVW, 123))
++	bench(b, "/data=carry", benchCarryVW(addVW, ^Word(0), 1))
++	bench(b, "/data=shortcut", benchShortVW(addVW, 123))
+ }
+ 
+ func BenchmarkSubVW(b *testing.B) {
+-	bench(b, "/impl=asm/data=random", benchVW(subVW, 123))
+-	bench(b, "/impl=asm/data=carry", benchCarryVW(subVW, 0, 1))
+-	bench(b, "/impl=asm/data=shortcut", benchShortVW(subVW, 123))
+-	bench(b, "/impl=go/data=random", benchVW(subVW_g, 123))
+-	bench(b, "/impl=go/data=carry", benchCarryVW(subVW_g, 0, 1))
+-	bench(b, "/impl=go/data=shortcut", benchShortVW(subVW_g, 123))
++	bench(b, "/data=random", benchVW(subVW, 123))
++	bench(b, "/data=carry", benchCarryVW(subVW, 0, 1))
++	bench(b, "/data=shortcut", benchShortVW(subVW, 123))
+ }
+ 
+ func benchVW(fn func(z, x []Word, w Word) Word, w Word) benchFunc {
+diff --git a/src/math/big/arith_wasm.s b/src/math/big/arith_wasm.s
+index 8aadeaa28d..3a9aa4ddcb 100644
+--- a/src/math/big/arith_wasm.s
++++ b/src/math/big/arith_wasm.s
+@@ -12,12 +12,6 @@ TEXT ·addVV(SB),NOSPLIT,$0
+ TEXT ·subVV(SB),NOSPLIT,$0
+ 	JMP ·subVV_g(SB)
+ 
+-TEXT ·addVW(SB),NOSPLIT,$0
+-	JMP ·addVW_g(SB)
+-
+-TEXT ·subVW(SB),NOSPLIT,$0
+-	JMP ·subVW_g(SB)
+-
+ TEXT ·lshVU(SB),NOSPLIT,$0
+ 	JMP ·lshVU_g(SB)
+ 

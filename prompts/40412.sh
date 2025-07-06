@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40412: ef4666eccedd457b33baa5b7d4bff95680e60741
+# Index 40412: 47fb1fbd554a76dc961bfdedaa85efcb68646ed1
 
 echo "🚀 Generating explanation for commit 40412..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40412..."
 
 ### メタデータ
 - **コミットインデックス**: 40412
-- **コミットハッシュ**: ef4666eccedd457b33baa5b7d4bff95680e60741
-- **GitHub URL**: https://github.com/golang/go/commit/ef4666eccedd457b33baa5b7d4bff95680e60741
+- **コミットハッシュ**: 47fb1fbd554a76dc961bfdedaa85efcb68646ed1
+- **GitHub URL**: https://github.com/golang/go/commit/47fb1fbd554a76dc961bfdedaa85efcb68646ed1
 
 ### 章構成
 

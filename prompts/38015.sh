@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 38015: 36a3d4f3fea7bbb22be061fbe830420990cd3ecf
+# Index 38015: 77c51c6c627e1f4f99305d0ffdf88daa18f43391
 
 echo "🚀 Generating explanation for commit 38015..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 38015..."
 
 ### メタデータ
 - **コミットインデックス**: 38015
-- **コミットハッシュ**: 36a3d4f3fea7bbb22be061fbe830420990cd3ecf
-- **GitHub URL**: https://github.com/golang/go/commit/36a3d4f3fea7bbb22be061fbe830420990cd3ecf
+- **コミットハッシュ**: 77c51c6c627e1f4f99305d0ffdf88daa18f43391
+- **GitHub URL**: https://github.com/golang/go/commit/77c51c6c627e1f4f99305d0ffdf88daa18f43391
 
 ### 章構成
 

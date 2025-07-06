@@ -1,0 +1,77 @@
+commit d37a1bdd48458e48de13cdc320c8ddf9b021e356
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Mon May 19 17:02:48 2025 +0800
+
+    cmd/compile: fix the implementation of NORconst on loong64
+    
+    In the loong64 instruction set, there is no NORI instruction,
+    so the immediate value in NORconst need to be stored in register
+    and then use the three-register NOR instruction.
+    
+    Change-Id: I5ef697450619317218cb3ef47fc07e238bdc2139
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673836
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/loong64/ssa.go | 18 +++++++++++++++++-
+ test/codegen/bits.go                    |  9 +++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index d60aef165c..03d7a1082a 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -276,7 +276,6 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpLOONG64ANDconst,
+ 		ssa.OpLOONG64ORconst,
+ 		ssa.OpLOONG64XORconst,
+-		ssa.OpLOONG64NORconst,
+ 		ssa.OpLOONG64SLLconst,
+ 		ssa.OpLOONG64SLLVconst,
+ 		ssa.OpLOONG64SRLconst,
+@@ -293,6 +292,23 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++
++	case ssa.OpLOONG64NORconst:
++		// MOVV $const, Rtmp
++		// NOR  Rtmp, Rarg0, Rout
++		p := s.Prog(loong64.AMOVV)
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = v.AuxInt
++		p.To.Type = obj.TYPE_REG
++		p.To.Reg = loong64.REGTMP
++
++		p2 := s.Prog(v.Op.Asm())
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = loong64.REGTMP
++		p2.Reg = v.Args[0].Reg()
++		p2.To.Type = obj.TYPE_REG
++		p2.To.Reg = v.Reg()
++
+ 	case ssa.OpLOONG64MOVVconst:
+ 		r := v.Reg()
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index c20e4d6733..95e0ed85e4 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -335,6 +335,15 @@ func op_orn(x, y uint32) uint32 {
+ 	return x | ^y
+ }
+ 
++func op_nor(x int64, a []int64) {
++	// loong64: "MOVV\t[$]0","NOR\tR"
++	a[0] = ^(0x1234 | x)
++	// loong64:"NOR",-"XOR"
++	a[1] = (-1) ^ x
++	// loong64: "MOVV\t[$]-55",-"OR",-"NOR"
++	a[2] = ^(0x12 | 0x34)
++}
++
+ // check bitsets
+ func bitSetPowerOf2Test(x int) bool {
+ 	// amd64:"BTL\t[$]3"

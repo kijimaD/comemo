@@ -1,0 +1,82 @@
+commit 8f1ec59bdb2d095b9caf31f6f3fd3e167b14ef0a
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Mon Jul 15 23:20:52 2024 +0700
+
+    strings: re-introduce noescape wrapper
+    
+    CL 573955 added internal/abi:NoEscape function, and use it in strings
+    builder copyCheck code.
+    
+    However, internal/abi is a runtime package, which can not be built with
+    -d=checkptr flag yet. This causes incorrect inlining decision, since
+    NoEscape must not be inlined when -d=checkptr is used.
+    
+    Fixing this by re-introducing noescape wrapper.
+    
+    Fixes #68415
+    
+    Change-Id: I776cab4c9e9e4b3e58162dcce6ec025cb366bdee
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598295
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ src/strings/builder.go       | 14 +++++++++++++-
+ test/fixedbugs/issue68415.go | 15 +++++++++++++++
+ 2 files changed, 28 insertions(+), 1 deletion(-)
+
+diff --git a/src/strings/builder.go b/src/strings/builder.go
+index e6df08c6f4..3b37888cbf 100644
+--- a/src/strings/builder.go
++++ b/src/strings/builder.go
+@@ -23,6 +23,18 @@ type Builder struct {
+ 	buf []byte
+ }
+ 
++// This is just a wrapper around abi.NoEscape.
++//
++// This wrapper is necessary because internal/abi is a runtime package,
++// so it can not be built with -d=checkptr, causing incorrect inlining
++// decision when building with checkptr enabled, see issue #68415.
++//
++//go:nosplit
++//go:nocheckptr
++func noescape(p unsafe.Pointer) unsafe.Pointer {
++	return abi.NoEscape(p)
++}
++
+ func (b *Builder) copyCheck() {
+ 	if b.addr == nil {
+ 		// This hack works around a failing of Go's escape analysis
+@@ -30,7 +42,7 @@ func (b *Builder) copyCheck() {
+ 		// See issue 23382.
+ 		// TODO: once issue 7921 is fixed, this should be reverted to
+ 		// just "b.addr = b".
+-		b.addr = (*Builder)(abi.NoEscape(unsafe.Pointer(b)))
++		b.addr = (*Builder)(noescape(unsafe.Pointer(b)))
+ 	} else if b.addr != b {
+ 		panic("strings: illegal use of non-zero Builder copied by value")
+ 	}
+diff --git a/test/fixedbugs/issue68415.go b/test/fixedbugs/issue68415.go
+new file mode 100644
+index 0000000000..cf278ac603
+--- /dev/null
++++ b/test/fixedbugs/issue68415.go
+@@ -0,0 +1,15 @@
++// run -gcflags=all=-d=checkptr
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import "regexp"
++
++var dataFileRegexp = regexp.MustCompile(`^data\.\d+\.bin$`)
++
++func main() {
++	_ = dataFileRegexp
++}

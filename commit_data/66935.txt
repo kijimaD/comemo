@@ -1,0 +1,168 @@
+commit 5e7f0b947c3907bd23a13864c3fea2b204f11567
+Author: Mark Freeman <mark@golang.org>
+Date:   Thu Apr 10 11:27:29 2025 -0400
+
+    go/types, types2: set up recording of positions for declarations
+    
+    This creates the infrastructure needed to record compiler panics
+    induced somewhere beneath a declaration. For now, this is turned
+    off via a flag.
+    
+    This does not yet use the position information for better error
+    messages. That is moved off to a separate CL.
+    
+    Change-Id: I6b44135a84ebd2f4c0141408ba9228d72c497d55
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664475
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/check.go | 17 ++++++++++++++++-
+ src/cmd/compile/internal/types2/decl.go  | 11 +++++++++++
+ src/go/types/check.go                    | 17 ++++++++++++++++-
+ src/go/types/decl.go                     | 11 +++++++++++
+ 4 files changed, 54 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/check.go b/src/cmd/compile/internal/types2/check.go
+index 43ad4ee67f..d262ab9f85 100644
+--- a/src/cmd/compile/internal/types2/check.go
++++ b/src/cmd/compile/internal/types2/check.go
+@@ -20,6 +20,9 @@ var nopos syntax.Pos
+ // debugging/development support
+ const debug = false // leave on during development
+ 
++// position tracing for panics during type checking
++const tracePos = false // TODO(markfreeman): check performance implications
++
+ // _aliasAny changes the behavior of [Scope.Lookup] for "any" in the
+ // [Universe] scope.
+ //
+@@ -178,7 +181,8 @@ type Checker struct {
+ 	environment
+ 
+ 	// debugging
+-	indent int // indentation for tracing
++	posStack []syntax.Pos // stack of source positions seen; used for panic tracing
++	indent   int          // indentation for tracing
+ }
+ 
+ // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
+@@ -396,6 +400,16 @@ func versionMax(a, b goVersion) goVersion {
+ 	return b
+ }
+ 
++// pushPos pushes pos onto the pos stack.
++func (check *Checker) pushPos(pos syntax.Pos) {
++	check.posStack = append(check.posStack, pos)
++}
++
++// popPos pops from the pos stack.
++func (check *Checker) popPos() {
++	check.posStack = check.posStack[:len(check.posStack)-1]
++}
++
+ // A bailout panic is used for early termination.
+ type bailout struct{}
+ 
+@@ -405,6 +419,7 @@ func (check *Checker) handleBailout(err *error) {
+ 		// normal return or early exit
+ 		*err = check.firstErr
+ 	default:
++		// TODO(markfreeman): dump posStack if available
+ 		// re-panic
+ 		panic(p)
+ 	}
+diff --git a/src/cmd/compile/internal/types2/decl.go b/src/cmd/compile/internal/types2/decl.go
+index 823d940d9b..bedcc4c015 100644
+--- a/src/cmd/compile/internal/types2/decl.go
++++ b/src/cmd/compile/internal/types2/decl.go
+@@ -48,6 +48,17 @@ func pathString(path []Object) string {
+ // objDecl type-checks the declaration of obj in its respective (file) environment.
+ // For the meaning of def, see Checker.definedType, in typexpr.go.
+ func (check *Checker) objDecl(obj Object, def *TypeName) {
++	if tracePos {
++		check.pushPos(obj.Pos())
++		defer func() {
++			// If we're panicking, keep stack of source positions.
++			if p := recover(); p != nil {
++				panic(p)
++			}
++			check.popPos()
++		}()
++	}
++
+ 	if check.conf.Trace && obj.Type() == nil {
+ 		if check.indent == 0 {
+ 			fmt.Println() // empty line between top-level objects for readability
+diff --git a/src/go/types/check.go b/src/go/types/check.go
+index a60a1adfd9..77bff811b9 100644
+--- a/src/go/types/check.go
++++ b/src/go/types/check.go
+@@ -23,6 +23,9 @@ var noposn = atPos(nopos)
+ // debugging/development support
+ const debug = false // leave on during development
+ 
++// position tracing for panics during type checking
++const tracePos = false // TODO(markfreeman): check performance implications
++
+ // gotypesalias controls the use of Alias types.
+ // As of Apr 16 2024 they are used by default.
+ // To disable their use, set GODEBUG to gotypesalias=0.
+@@ -198,7 +201,8 @@ type Checker struct {
+ 	environment
+ 
+ 	// debugging
+-	indent int // indentation for tracing
++	posStack []positioner // stack of source positions seen; used for panic tracing
++	indent   int          // indentation for tracing
+ }
+ 
+ // addDeclDep adds the dependency edge (check.decl -> to) if check.decl exists
+@@ -421,6 +425,16 @@ func versionMax(a, b goVersion) goVersion {
+ 	return a
+ }
+ 
++// pushPos pushes pos onto the pos stack.
++func (check *Checker) pushPos(pos positioner) {
++	check.posStack = append(check.posStack, pos)
++}
++
++// popPos pops from the pos stack.
++func (check *Checker) popPos() {
++	check.posStack = check.posStack[:len(check.posStack)-1]
++}
++
+ // A bailout panic is used for early termination.
+ type bailout struct{}
+ 
+@@ -430,6 +444,7 @@ func (check *Checker) handleBailout(err *error) {
+ 		// normal return or early exit
+ 		*err = check.firstErr
+ 	default:
++		// TODO(markfreeman): dump posStack if available
+ 		// re-panic
+ 		panic(p)
+ 	}
+diff --git a/src/go/types/decl.go b/src/go/types/decl.go
+index 360cb4deb0..742191cc1c 100644
+--- a/src/go/types/decl.go
++++ b/src/go/types/decl.go
+@@ -49,6 +49,17 @@ func pathString(path []Object) string {
+ // objDecl type-checks the declaration of obj in its respective (file) environment.
+ // For the meaning of def, see Checker.definedType, in typexpr.go.
+ func (check *Checker) objDecl(obj Object, def *TypeName) {
++	if tracePos {
++		check.pushPos(atPos(obj.Pos()))
++		defer func() {
++			// If we're panicking, keep stack of source positions.
++			if p := recover(); p != nil {
++				panic(p)
++			}
++			check.popPos()
++		}()
++	}
++
+ 	if check.conf._Trace && obj.Type() == nil {
+ 		if check.indent == 0 {
+ 			fmt.Println() // empty line between top-level objects for readability

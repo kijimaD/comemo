@@ -1,0 +1,66 @@
+commit 0c0d2572414d4d32feca74d902a761ff25457af9
+Author: James Tucker <jftucker@gmail.com>
+Date:   Fri Apr 11 21:41:00 2025 +0000
+
+    internal/poll: disable SIO_UDP_NETRESET on Windows
+    
+    Disable the reception of NET_UNREACHABLE (TTL expired) message reporting
+    on UDP sockets to match the default behavior of sockets on other
+    plaforms.
+    
+    See https://learn.microsoft.com/en-us/windows/win32/winsock/winsock-ioctls#sio_udp_netreset
+    
+    This is similar to, but a different case from the prior change 3114bd6 /
+    https://golang.org/issue/5834 that disabled one of the two flags
+    influencing behavior in response to the reception of related ICMP.
+    
+    Updates #5834
+    Updates #68614
+    
+    Change-Id: I39bc77ab68f5edfc14514d78870ff4a24c0f645e
+    GitHub-Last-Rev: 78f073bac226aeca438b64acc2c66f76c25f29f8
+    GitHub-Pull-Request: golang/go#68615
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601397
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+---
+ src/internal/syscall/windows/types_windows.go | 2 ++
+ src/net/fd_windows.go                         | 9 +++++++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/src/internal/syscall/windows/types_windows.go b/src/internal/syscall/windows/types_windows.go
+index adc8b00bd8..6c81754e1a 100644
+--- a/src/internal/syscall/windows/types_windows.go
++++ b/src/internal/syscall/windows/types_windows.go
+@@ -14,6 +14,8 @@ const (
+ 	TCP_KEEPIDLE  = 0x03
+ 	TCP_KEEPCNT   = 0x10
+ 	TCP_KEEPINTVL = 0x11
++
++	SIO_UDP_NETRESET = syscall.IOC_IN | syscall.IOC_VENDOR | 15
+ )
+ 
+ const (
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index f7609a7cfe..4ad8e0204f 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -67,6 +67,15 @@ func (fd *netFD) init() error {
+ 		if err != nil {
+ 			return wrapSyscallError("wsaioctl", err)
+ 		}
++		// Disable reporting of NET_UNREACHABLE errors.
++		// See https://go.dev/issue/68614.
++		ret = 0
++		flag = 0
++		size = uint32(unsafe.Sizeof(flag))
++		err = syscall.WSAIoctl(fd.pfd.Sysfd, windows.SIO_UDP_NETRESET, (*byte)(unsafe.Pointer(&flag)), size, nil, 0, &ret, nil, 0)
++		if err != nil {
++			return wrapSyscallError("wsaioctl", err)
++		}
+ 	}
+ 	return nil
+ }

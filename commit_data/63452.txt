@@ -1,0 +1,59 @@
+commit c0a0ba254c48fc855f9501b0bd3b78e6847ca923
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Sun Apr 14 08:44:53 2024 +0000
+
+    cmd/go/internal/modfetch: fix typos in comment
+    
+    Change-Id: I3eb41562bf6478b288d9f41915fd7d027399a6ba
+    GitHub-Last-Rev: 218b9cb0672f0be18834733c0907a244a8cfcfd9
+    GitHub-Pull-Request: golang/go#66551
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/574575
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/modfetch/codehost/codehost.go | 2 +-
+ src/cmd/go/internal/modfetch/codehost/vcs.go      | 2 +-
+ src/cmd/go/internal/modfetch/coderepo.go          | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/modfetch/codehost/codehost.go b/src/cmd/go/internal/modfetch/codehost/codehost.go
+index 69a3c57e26..173ef65b1e 100644
+--- a/src/cmd/go/internal/modfetch/codehost/codehost.go
++++ b/src/cmd/go/internal/modfetch/codehost/codehost.go
+@@ -49,7 +49,7 @@ type Repo interface {
+ 	// "" for the root or "sub/dir" for a subdirectory (no trailing slash).
+ 	CheckReuse(ctx context.Context, old *Origin, subdir string) error
+ 
+-	// List lists all tags with the given prefix.
++	// Tags lists all tags with the given prefix.
+ 	Tags(ctx context.Context, prefix string) (*Tags, error)
+ 
+ 	// Stat returns information about the revision rev.
+diff --git a/src/cmd/go/internal/modfetch/codehost/vcs.go b/src/cmd/go/internal/modfetch/codehost/vcs.go
+index 5bd100556b..651531974e 100644
+--- a/src/cmd/go/internal/modfetch/codehost/vcs.go
++++ b/src/cmd/go/internal/modfetch/codehost/vcs.go
+@@ -419,7 +419,7 @@ func (r *vcsRepo) ReadFile(ctx context.Context, rev, file string, maxSize int64)
+ 
+ func (r *vcsRepo) RecentTag(ctx context.Context, rev, prefix string, allowed func(string) bool) (tag string, err error) {
+ 	// We don't technically need to lock here since we're returning an error
+-	// uncondititonally, but doing so anyway will help to avoid baking in
++	// unconditionally, but doing so anyway will help to avoid baking in
+ 	// lock-inversion bugs.
+ 	unlock, err := r.mu.Lock()
+ 	if err != nil {
+diff --git a/src/cmd/go/internal/modfetch/coderepo.go b/src/cmd/go/internal/modfetch/coderepo.go
+index 75c34e9fcb..1d0c98f365 100644
+--- a/src/cmd/go/internal/modfetch/coderepo.go
++++ b/src/cmd/go/internal/modfetch/coderepo.go
+@@ -515,7 +515,7 @@ func (r *codeRepo) convert(ctx context.Context, info *codehost.RevInfo, statVers
+ 
+ 	if module.IsPseudoVersion(statVers) {
+ 		// Validate the go.mod location and major version before
+-		// we check for an ancestor tagged with the pseude-version base.
++		// we check for an ancestor tagged with the pseudo-version base.
+ 		//
+ 		// We can rule out an invalid subdirectory or major version with only
+ 		// shallow commit information, but checking the pseudo-version base may

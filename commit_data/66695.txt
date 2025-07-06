@@ -1,0 +1,165 @@
+commit a645bc5eb9b9fabc024c076140013a8ad87dded5
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 21 16:07:20 2025 -0700
+
+    maps: implement faster clone
+    
+                │     base     │             experiment              │
+                │    sec/op    │   sec/op     vs base                │
+    MapClone-24   66.802m ± 7%   3.348m ± 2%  -94.99% (p=0.000 n=10)
+    
+    Fixes #70836
+    
+    Change-Id: I9e192b1ee82e18f5580ff18918307042a337fdcc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660175
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/internal/runtime/maps/group.go | 29 +++++++++++++++++++++++++++++
+ src/internal/runtime/maps/map.go   | 37 +++++++++++++++++++++++++++++++++++++
+ src/internal/runtime/maps/table.go | 19 +++++++++++++++++++
+ src/runtime/map_swiss.go           | 17 ++++-------------
+ 4 files changed, 89 insertions(+), 13 deletions(-)
+
+diff --git a/src/internal/runtime/maps/group.go b/src/internal/runtime/maps/group.go
+index 6414ee5b9b..00a8b7735a 100644
+--- a/src/internal/runtime/maps/group.go
++++ b/src/internal/runtime/maps/group.go
+@@ -322,3 +322,32 @@ func (g *groupsReference) group(typ *abi.SwissMapType, i uint64) groupReference
+ 		data: unsafe.Pointer(uintptr(g.data) + offset),
+ 	}
+ }
++
++func cloneGroup(typ *abi.SwissMapType, newGroup, oldGroup groupReference) {
++	typedmemmove(typ.Group, newGroup.data, oldGroup.data)
++	if typ.IndirectKey() {
++		// Deep copy keys if indirect.
++		for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
++			oldKey := *(*unsafe.Pointer)(oldGroup.key(typ, i))
++			if oldKey == nil {
++				continue
++			}
++			newKey := newobject(typ.Key)
++			typedmemmove(typ.Key, newKey, oldKey)
++			*(*unsafe.Pointer)(newGroup.key(typ, i)) = newKey
++		}
++	}
++	if typ.IndirectElem() {
++		// Deep copy elems if indirect.
++		for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
++			oldElem := *(*unsafe.Pointer)(oldGroup.elem(typ, i))
++			if oldElem == nil {
++				continue
++			}
++			newElem := newobject(typ.Elem)
++			typedmemmove(typ.Elem, newElem, oldElem)
++			*(*unsafe.Pointer)(newGroup.elem(typ, i)) = newElem
++		}
++	}
++
++}
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 62463351c7..b4db522978 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -770,3 +770,40 @@ func (m *Map) clearSmall(typ *abi.SwissMapType) {
+ 	m.used = 0
+ 	m.clearSeq++
+ }
++
++func (m *Map) Clone(typ *abi.SwissMapType) *Map {
++	// Note: this should never be called with a nil map.
++	if m.writing != 0 {
++		fatal("concurrent map clone and map write")
++	}
++
++	// Shallow copy the Map structure.
++	m2 := new(Map)
++	*m2 = *m
++	m = m2
++
++	// We need to just deep copy the dirPtr field.
++	if m.dirPtr == nil {
++		// delayed group allocation, nothing to do.
++	} else if m.dirLen == 0 {
++		// Clone one group.
++		oldGroup := groupReference{data: m.dirPtr}
++		newGroup := groupReference{data: newGroups(typ, 1).data}
++		cloneGroup(typ, newGroup, oldGroup)
++		m.dirPtr = newGroup.data
++	} else {
++		// Clone each (different) table.
++		oldDir := unsafe.Slice((**table)(m.dirPtr), m.dirLen)
++		newDir := make([]*table, m.dirLen)
++		for i, t := range oldDir {
++			if i > 0 && t == oldDir[i-1] {
++				newDir[i] = newDir[i-1]
++				continue
++			}
++			newDir[i] = t.clone(typ)
++		}
++		m.dirPtr = unsafe.Pointer(&newDir[0])
++	}
++
++	return m
++}
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index cc39c24ab7..de3bc2d381 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -1152,3 +1152,22 @@ func (s probeSeq) next() probeSeq {
+ 	s.offset = (s.offset + s.index) & s.mask
+ 	return s
+ }
++
++func (t *table) clone(typ *abi.SwissMapType) *table {
++	// Shallow copy the table structure.
++	t2 := new(table)
++	*t2 = *t
++	t = t2
++
++	// We need to just deep copy the groups.data field.
++	oldGroups := t.groups
++	newGroups := newGroups(typ, oldGroups.lengthMask+1)
++	for i := uint64(0); i <= oldGroups.lengthMask; i++ {
++		oldGroup := oldGroups.group(typ, i)
++		newGroup := newGroups.group(typ, i)
++		cloneGroup(typ, newGroup, oldGroup)
++	}
++	t.groups = newGroups
++
++	return t
++}
+diff --git a/src/runtime/map_swiss.go b/src/runtime/map_swiss.go
+index a8fe87257a..a1e6ab6b9d 100644
+--- a/src/runtime/map_swiss.go
++++ b/src/runtime/map_swiss.go
+@@ -330,22 +330,13 @@ func mapinitnoop()
+ //go:linkname mapclone maps.clone
+ func mapclone(m any) any {
+ 	e := efaceOf(&m)
+-	e.data = unsafe.Pointer(mapclone2((*abi.SwissMapType)(unsafe.Pointer(e._type)), (*maps.Map)(e.data)))
++	typ := (*abi.SwissMapType)(unsafe.Pointer(e._type))
++	map_ := (*maps.Map)(e.data)
++	map_ = map_.Clone(typ)
++	e.data = (unsafe.Pointer)(map_)
+ 	return m
+ }
+ 
+-func mapclone2(t *abi.SwissMapType, src *maps.Map) *maps.Map {
+-	dst := makemap(t, int(src.Used()), nil)
+-
+-	var iter maps.Iter
+-	iter.Init(t, src)
+-	for iter.Next(); iter.Key() != nil; iter.Next() {
+-		dst.Put(t, iter.Key(), iter.Elem())
+-	}
+-
+-	return dst
+-}
+-
+ // keys for implementing maps.keys
+ //
+ //go:linkname keys maps.keys

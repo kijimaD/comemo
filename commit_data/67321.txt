@@ -1,0 +1,24 @@
+commit 6796ebb2cb66b316a07998cdcd69b1c486b8579e
+Author: Gopher Robot <gobot@golang.org>
+Date:   Thu Jun 5 11:16:22 2025 -0700
+
+    [release-branch.go1.24] go1.24.4
+    
+    Change-Id: Iec14150cd12e445c3bd927c26f2a54387ba18577
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/679218
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    TryBot-Bypass: Carlos Amedee <carlos@golang.org>
+---
+ VERSION | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/VERSION b/VERSION
+index 65e93060ba..d17bb788fb 100644
+--- a/VERSION
++++ b/VERSION
+@@ -1,2 +1,2 @@
+-go1.24.3
+-time 2025-04-30T18:13:34Z
++go1.24.4
++time 2025-05-29T19:37:36Z

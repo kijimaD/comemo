@@ -1,0 +1,143 @@
+commit 9abd11440c5fa027304d6cda051fc0a30b6b430b
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Jun 27 19:52:30 2024 +1000
+
+    math/big: implement addVV in riscv64 assembly
+    
+    This provides an assembly implementation of addVV for riscv64,
+    processing up to four words per loop, resulting in a significant
+    performance gain.
+    
+    On a StarFive VisionFive 2:
+    
+                   │   addvv.1    │               addvv.2               │
+                   │    sec/op    │   sec/op     vs base                │
+    AddVV/1-4         73.45n ± 0%   48.08n ± 0%  -34.54% (p=0.000 n=10)
+    AddVV/2-4         88.14n ± 0%   58.76n ± 0%  -33.33% (p=0.000 n=10)
+    AddVV/3-4        102.80n ± 0%   69.44n ± 0%  -32.45% (p=0.000 n=10)
+    AddVV/4-4        117.50n ± 0%   72.18n ± 0%  -38.57% (p=0.000 n=10)
+    AddVV/5-4        132.20n ± 0%   82.79n ± 0%  -37.38% (p=0.000 n=10)
+    AddVV/10-4        216.3n ± 0%   126.8n ± 0%  -41.35% (p=0.000 n=10)
+    AddVV/100-4      1659.0n ± 0%   885.2n ± 0%  -46.64% (p=0.000 n=10)
+    AddVV/1000-4     16.089µ ± 0%   8.400µ ± 0%  -47.79% (p=0.000 n=10)
+    AddVV/10000-4     245.3µ ± 0%   176.9µ ± 0%  -27.88% (p=0.000 n=10)
+    AddVV/100000-4    2.537m ± 0%   1.873m ± 0%  -26.17% (p=0.000 n=10)
+    geomean           1.435µ        904.5n       -36.99%
+    
+                   │   addvv.1    │                addvv.2                │
+                   │     B/s      │      B/s       vs base                │
+    AddVV/1-4        830.9Mi ± 0%   1269.5Mi ± 0%  +52.78% (p=0.000 n=10)
+    AddVV/2-4        1.353Gi ± 0%    2.029Gi ± 0%  +50.00% (p=0.000 n=10)
+    AddVV/3-4        1.739Gi ± 0%    2.575Gi ± 0%  +48.09% (p=0.000 n=10)
+    AddVV/4-4        2.029Gi ± 0%    3.303Gi ± 0%  +62.82% (p=0.000 n=10)
+    AddVV/5-4        2.254Gi ± 0%    3.600Gi ± 0%  +59.69% (p=0.000 n=10)
+    AddVV/10-4       2.755Gi ± 0%    4.699Gi ± 0%  +70.54% (p=0.000 n=10)
+    AddVV/100-4      3.594Gi ± 0%    6.734Gi ± 0%  +87.37% (p=0.000 n=10)
+    AddVV/1000-4     3.705Gi ± 0%    7.096Gi ± 0%  +91.54% (p=0.000 n=10)
+    AddVV/10000-4    2.430Gi ± 0%    3.369Gi ± 0%  +38.65% (p=0.000 n=10)
+    AddVV/100000-4   2.350Gi ± 0%    3.183Gi ± 0%  +35.44% (p=0.000 n=10)
+    geomean          2.119Gi         3.364Gi       +58.71%
+    
+    Change-Id: I727b3d9f8ab01eada7270046480b1430d56d0a96
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595395
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: M Zhuo <mengzhuo1203@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+---
+ src/math/big/arith_riscv64.s | 81 +++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 80 insertions(+), 1 deletion(-)
+
+diff --git a/src/math/big/arith_riscv64.s b/src/math/big/arith_riscv64.s
+index bad32497b7..67812dd646 100644
+--- a/src/math/big/arith_riscv64.s
++++ b/src/math/big/arith_riscv64.s
+@@ -10,7 +10,86 @@
+ // arithmetic operations on vectors implemented in arith.go.
+ 
+ TEXT ·addVV(SB),NOSPLIT,$0
+-	JMP ·addVV_g(SB)
++	MOV	x+24(FP), X5
++	MOV	y+48(FP), X6
++	MOV	z+0(FP), X7
++	MOV	z_len+8(FP), X30
++
++	MOV	$4, X28
++	MOV	$0, X29		// c = 0
++
++	BEQZ	X30, done
++	BLTU	X30, X28, loop1
++
++loop4:
++	MOV	0(X5), X8	// x[0]
++	MOV	0(X6), X9	// y[0]
++	MOV	8(X5), X11	// x[1]
++	MOV	8(X6), X12	// y[1]
++	MOV	16(X5), X14	// x[2]
++	MOV	16(X6), X15	// y[2]
++	MOV	24(X5), X17	// x[3]
++	MOV	24(X6), X18	// y[3]
++
++	ADD	X8, X9, X21	// z[0] = x[0] + y[0]
++	SLTU	X8, X21, X22
++	ADD	X21, X29, X10	// z[0] = x[0] + y[0] + c
++	SLTU	X21, X10, X23
++	ADD	X22, X23, X29	// next c
++
++	ADD	X11, X12, X24	// z[1] = x[1] + y[1]
++	SLTU	X11, X24, X25
++	ADD	X24, X29, X13	// z[1] = x[1] + y[1] + c
++	SLTU	X24, X13, X26
++	ADD	X25, X26, X29	// next c
++
++	ADD	X14, X15, X21	// z[2] = x[2] + y[2]
++	SLTU	X14, X21, X22
++	ADD	X21, X29, X16	// z[2] = x[2] + y[2] + c
++	SLTU	X21, X16, X23
++	ADD	X22, X23, X29	// next c
++
++	ADD	X17, X18, X21	// z[3] = x[3] + y[3]
++	SLTU	X17, X21, X22
++	ADD	X21, X29, X19	// z[3] = x[3] + y[3] + c
++	SLTU	X21, X19, X23
++	ADD	X22, X23, X29	// next c
++
++	MOV	X10, 0(X7)	// z[0]
++	MOV	X13, 8(X7)	// z[1]
++	MOV	X16, 16(X7)	// z[2]
++	MOV	X19, 24(X7)	// z[3]
++
++	ADD	$32, X5
++	ADD	$32, X6
++	ADD	$32, X7
++	SUB	$4, X30
++
++	BGEU	X30, X28, loop4
++	BEQZ	X30, done
++
++loop1:
++	MOV	0(X5), X10	// x
++	MOV	0(X6), X11	// y
++
++	ADD	X10, X11, X12	// z = x + y
++	SLTU	X10, X12, X14
++	ADD	X12, X29, X13	// z = x + y + c
++	SLTU	X12, X13, X15
++	ADD	X14, X15, X29	// next c
++
++	MOV	X13, 0(X7)	// z
++
++	ADD	$8, X5
++	ADD	$8, X6
++	ADD	$8, X7
++	SUB	$1, X30
++
++	BNEZ	X30, loop1
++
++done:
++	MOV	X29, c+72(FP)	// return c
++	RET
+ 
+ TEXT ·subVV(SB),NOSPLIT,$0
+ 	JMP ·subVV_g(SB)

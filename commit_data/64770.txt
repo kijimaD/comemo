@@ -1,0 +1,33 @@
+commit 2be9309983f3b8419d83581853657b377d368def
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 17:34:29 2024 -0700
+
+    cmd/addr2line: use t.TempDir
+    
+    Change-Id: I62f1c51be89e9c2f22cc7b0b2e554ffa3da907ba
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611038
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/addr2line/addr2line_test.go | 6 +-----
+ 1 file changed, 1 insertion(+), 5 deletions(-)
+
+diff --git a/src/cmd/addr2line/addr2line_test.go b/src/cmd/addr2line/addr2line_test.go
+index 5393eb7fe0..22a30b3de0 100644
+--- a/src/cmd/addr2line/addr2line_test.go
++++ b/src/cmd/addr2line/addr2line_test.go
+@@ -102,11 +102,7 @@ func testAddr2Line(t *testing.T, dbgExePath, addr string) {
+ func TestAddr2Line(t *testing.T) {
+ 	testenv.MustHaveGoBuild(t)
+ 
+-	tmpDir, err := os.MkdirTemp("", "TestAddr2Line")
+-	if err != nil {
+-		t.Fatal("TempDir failed: ", err)
+-	}
+-	defer os.RemoveAll(tmpDir)
++	tmpDir := t.TempDir()
+ 
+ 	// Build copy of test binary with debug symbols,
+ 	// since the one running now may not have them.

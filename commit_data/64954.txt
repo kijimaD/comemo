@@ -1,0 +1,35 @@
+commit 846fc6345d7121911376ab336e6b46fef2dd240f
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Mon Sep 30 18:47:34 2024 +0200
+
+    runtime: use canonical wireguard-go repo for procyield() linkname usage
+    
+    The source code quoted tailscale's development fork, which is only a
+    development fork. The canonical github url is actually
+    github.com/wireguard/wireguard-go, but that's really just a mirror of
+    git.zx2c4.com/wireguard-go, and in any case, the proper go package name
+    is golang.zx2c4.com/wireguard, so just use that.
+    
+    Change-Id: Ifa63c1c538989b3fcebcf06d1c238469bc73724d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616736
+    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/runtime/stubs.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index d334190976..2a2b484a1b 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -268,7 +268,7 @@ func reflectcall(stackArgsType *_type, fn, stackArgs unsafe.Pointer, stackArgsSi
+ // Notable members of the hall of shame include:
+ //   - github.com/sagernet/sing-tun
+ //   - github.com/slackhq/nebula
+-//   - github.com/tailscale/wireguard-go
++//   - golang.zx2c4.com/wireguard
+ //
+ // Do not remove or change the type signature.
+ // See go.dev/issue/67401.

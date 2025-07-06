@@ -1,0 +1,210 @@
+commit b062eb46e8e76ad39029d0c1b13e4eb81c692c20
+Merge: 8ac5714ef2 2f653a5a9e
+Author: David Chase <drchase@google.com>
+Date:   Tue Jul 1 14:01:40 2025 -0400
+
+    [release-branch.go1.25] all: merge master (2f653a5) into release-branch.go1.25
+    
+    Merge List:
+    
+    + 2025-07-01 2f653a5a9e crypto/tls: ensure the ECDSA curve matches the signature algorithm
+    + 2025-07-01 6e95fd96cc crypto/ecdsa: fix crypto/x509 godoc links
+    + 2025-07-01 7755a05209 Revert "crypto/internal/fips140/subtle: add assembly implementation of xorBytes for arm"
+    + 2025-07-01 d168ad18e1 slices: update TestIssue68488 to avoid false positives
+    + 2025-07-01 27ad1f5013 internal/abi: fix comment on NonEmptyInterface
+    + 2025-06-30 86fca3dcb6 encoding/json/jsontext: use bytes.Buffer.AvailableBuffer
+    + 2025-06-30 6bd9944c9a encoding/json/v2: avoid escaping jsonopts.Struct
+    + 2025-06-30 e46d586edd cmd/compile/internal/escape: add debug hash for literal allocation optimizations
+    + 2025-06-30 479b51ee1f cmd/compile/internal/escape: stop disabling literal allocation optimizations when coverage is enabled
+    + 2025-06-30 8002d283e8 crypto/tls: update bogo version
+    + 2025-06-30 fdd7713fe5 internal/goexperiment: fix godoc formatting
+    + 2025-06-30 740857f529 runtime: stash allpSnapshot on the M
+    + 2025-06-30 9ae38be302 sync: disassociate WaitGroups from bubbles on Wait
+    + 2025-06-30 4731832342 crypto/hmac: wrap ErrUnsupported returned by Clone
+    + 2025-06-30 03ad694dcb runtime: update skips for TestGdbBacktrace
+    + 2025-06-30 9d1cd0b881 iter: add missing type parameter in doc
+    + 2025-06-29 acb914f2c2 cmd/doc: fix -http on Windows
+    + 2025-06-27 b51f1cdb87 runtime: remove arbitrary 5-second timeout in TestNeedmDeadlock
+    + 2025-06-27 f1e6ae2f6f reflect: fix TypeAssert on nil interface values
+    + 2025-06-27 e81c624656 os: use minimal file permissions when opening parent directory in RemoveAll
+    + 2025-06-27 2a22aefa1f encoding/json: add security section to doc
+    + 2025-06-27 742fda9524 runtime: account for missing frame pointer in preamble
+    + 2025-06-27 fdc076ce76 net/http: fix RoundTrip context cancellation for js/wasm
+    + 2025-06-27 d9d2cadd63 encoding/json: fix typo in hotlink for jsontext.PreserveRawStrings
+    + 2025-06-26 0f8ab2db17 cmd/link: permit a larger size BSS reference to a smaller DATA symbol
+    + 2025-06-26 988a20c8c5 cmd/compile/internal/escape: evaluate any side effects when rewriting with literals
+    + 2025-06-25 b5d555991a encoding/json/jsontext: remove Encoder.UnusedBuffer
+    + 2025-06-25 0b4d2eab2f encoding/json/jsontext: rename Encoder.UnusedBuffer as Encoder.AvailableBuffer
+    + 2025-06-25 f8ccda2e05 runtime: make explicit nil check in (*spanInlineMarkBits).init
+    + 2025-06-25 f069a82998 runtime: note custom GOMAXPROCS even if value doesn't change
+    + 2025-06-24 e515ef8bc2 context: fix typo in context_test.go
+    + 2025-06-24 47b941f445 cmd/link: add one more linkname to the blocklist
+    + 2025-06-24 34cf5f6205 go/types: add test for interface method field type
+    + 2025-06-24 6e618cd42a encoding/json: use zstd compressed testdata
+    + 2025-06-24 fcb9850859 net/http: reduce allocs in CrossOriginProtection.Check
+    + 2025-06-24 11f11f2a00 encoding/json/v2: support ISO 8601 durations
+    + 2025-06-24 62deaf4fb8 doc: fix links to runtime Environment Variables
+    + 2025-06-24 2e9bb62bfe encoding/json/v2: reject unquoted dash as a JSON field name
+    + 2025-06-23 ed7815726d encoding/json/v2: report error on time.Duration without explicit format
+    + 2025-06-23 f866958246 cmd/dist: test encoding/json/... with GOEXPERIMENT=jsonv2
+    + 2025-06-23 f77a0aa6b6 internal/trace: improve gc-stress test
+    + 2025-06-23 4506796a6e encoding/json/jsontext: consistently use JSON terminology
+    + 2025-06-23 456a90aa16 runtime: add missing unlock in sysReserveAlignedSbrk
+    + 2025-06-23 1cf6386b5e Revert "go/types, types2: don't register interface methods in Info.Types map"
+    + 2025-06-20 49cdf0c42e testing, testing/synctest: handle T.Helper in synctest bubbles
+    + 2025-06-20 3bf1eecbd3 runtime: fix struct comment
+    + 2025-06-20 8ed23a2936 crypto/cipher: fix link to crypto/aes
+    + 2025-06-20 ef60769b46 go/doc: add a golden test that reproduces #62640
+    + 2025-06-18 8552bcf7c2 cmd/go/internal/fips140: ignore GOEXPERIMENT on error
+    + 2025-06-18 4c7567290c runtime: set mspan limit field early and eagerly
+    + 2025-06-18 c6ac736288 runtime: prevent mutual deadlock between GC stopTheWorld and suspendG
+    + 2025-06-17 53af292aed encoding/json/jsontext: fix spelling error
+    + 2025-06-16 d058254689 cmd/dist: always include variant in package names
+    + 2025-06-16 3254c2bb83 internal/reflectlite: fix comment about meaning of flag field
+    + 2025-06-16 816199e421 runtime: don't let readTrace spin on trace.shutdown
+    + 2025-06-16 ea00461b17 internal/trace: make Value follow reflect conventions
+    + 2025-06-13 96a6e147b2 runtime: comment that some linknames are used by runtime/trace
+    + 2025-06-13 644905891f runtime: remove unused unique.runtime_blockUntilEmptyFinalizerQueue
+    + 2025-06-13 683810a368 cmd/link: block new standard library linknames
+    + 2025-06-12 9149876112 all: replace a few user-visible mentions of golang.org and godoc.org
+    + 2025-06-12 934d5f2cf7 internal/trace: end test programs with SIGQUIT
+    + 2025-06-12 5a08865de3 net: remove some BUG entries
+    + 2025-06-11 d166a0b03e encoding/json/jsontext, encoding/json/v2: document experimental nature
+    + 2025-06-11 d4c6effaa7 cmd/compile: add up-to-date test for generated files
+    
+    Change-Id: I555d5d1bf8c8607fa0660146019657f4c04084e3
+
+ doc/godebug.md                                     |   6 +-
+ lib/wasm/go_wasip1_wasm_exec                       |   2 +-
+ src/cmd/cgo/internal/testsanitizers/asan_test.go   |   2 +
+ src/cmd/cgo/internal/testsanitizers/cc_test.go     |   2 +-
+ .../testsanitizers/testdata/asan_global_asm/asm.s  |   8 +
+ .../testdata/asan_global_asm/main.go               |  11 +
+ .../testdata/asan_global_asm2_fail/asm.s           |   8 +
+ .../testdata/asan_global_asm2_fail/main.go         |  20 +
+ src/cmd/compile/internal/base/debug.go             |   1 +
+ src/cmd/compile/internal/base/flag.go              |   4 +
+ src/cmd/compile/internal/base/hashdebug.go         |   1 +
+ src/cmd/compile/internal/escape/escape.go          |  40 +-
+ src/cmd/compile/internal/ssa/_gen/README           |   5 +
+ src/cmd/compile/internal/ssa/_gen/allocators.go    |   2 +-
+ src/cmd/compile/internal/ssa/_gen/main.go          |  14 +-
+ src/cmd/compile/internal/ssa/_gen/rulegen.go       |   2 +-
+ .../ssa/_gen/vendor/golang.org/x/tools/LICENSE     |  27 +
+ .../ssa/_gen/vendor/golang.org/x/tools/PATENTS     |  22 +
+ .../golang.org/x/tools/go/ast/astutil/enclosing.go | 654 +++++++++++++++++++++
+ .../golang.org/x/tools/go/ast/astutil/imports.go   | 490 +++++++++++++++
+ .../golang.org/x/tools/go/ast/astutil/rewrite.go   | 486 +++++++++++++++
+ .../golang.org/x/tools/go/ast/astutil/util.go      |  11 +
+ .../compile/internal/ssa/_gen/vendor/modules.txt   |   3 +
+ src/cmd/compile/internal/ssa/generate_test.go      | 135 +++++
+ src/cmd/compile/internal/types2/api_test.go        |   5 +
+ src/cmd/compile/internal/types2/interface.go       |  18 +-
+ src/cmd/compile/internal/walk/order.go             |   8 +-
+ src/cmd/dist/test.go                               |  27 +-
+ src/cmd/go/alldocs.go                              |  44 +-
+ src/cmd/go/internal/bug/bug.go                     |   2 +-
+ src/cmd/go/internal/cache/default.go               |   2 +-
+ src/cmd/go/internal/doc/doc.go                     |   4 +
+ src/cmd/go/internal/fips140/fips140.go             |   6 +-
+ src/cmd/internal/doc/main.go                       |  12 +-
+ src/cmd/link/internal/loader/loader.go             |  59 +-
+ src/cmd/trace/gen.go                               |   6 +-
+ src/context/context_test.go                        |   2 +-
+ src/crypto/cipher/gcm.go                           |   2 +-
+ src/crypto/ecdsa/ecdsa.go                          |  22 +-
+ src/crypto/hmac/hmac_test.go                       |  13 +
+ src/crypto/internal/fips140/hmac/hmac.go           |  20 +-
+ src/crypto/internal/fips140/subtle/xor_arm.s       | 149 -----
+ src/crypto/internal/fips140/subtle/xor_asm.go      |   2 +-
+ src/crypto/internal/fips140/subtle/xor_generic.go  |   2 +-
+ src/crypto/tls/auth.go                             |  59 +-
+ src/crypto/tls/bogo_config.json                    |  16 +-
+ src/crypto/tls/bogo_shim_test.go                   |  33 +-
+ src/crypto/tls/handshake_client_tls13.go           |   3 +-
+ src/crypto/tls/handshake_server_tls13.go           |   3 +-
+ src/encoding/json/bench_test.go                    |   9 +-
+ src/encoding/json/decode.go                        |  13 +-
+ src/encoding/json/decode_test.go                   |  21 +
+ src/encoding/json/encode.go                        |  38 +-
+ src/encoding/json/internal/jsonopts/options.go     |   8 +-
+ src/encoding/json/jsontext/doc.go                  |   9 +-
+ src/encoding/json/jsontext/encode.go               |  26 +-
+ src/encoding/json/jsontext/state.go                |   4 +-
+ src/encoding/json/jsontext/token.go                |   8 +-
+ src/encoding/json/testdata/code.json.gz            | Bin 120432 -> 0 bytes
+ src/encoding/json/v2/arshal.go                     |  42 +-
+ src/encoding/json/v2/arshal_inlined.go             |   2 +-
+ src/encoding/json/v2/arshal_test.go                |  90 ++-
+ src/encoding/json/v2/arshal_time.go                | 191 +++++-
+ src/encoding/json/v2/arshal_time_test.go           | 302 ++++++----
+ src/encoding/json/v2/bench_test.go                 |   3 +-
+ src/encoding/json/v2/doc.go                        |   5 +
+ src/encoding/json/v2/example_test.go               |  45 +-
+ src/encoding/json/v2/fields.go                     |   8 +
+ src/encoding/json/v2/fields_test.go                |  13 +
+ src/encoding/json/v2/options.go                    |   5 +-
+ src/encoding/json/v2_decode.go                     |   2 +-
+ src/encoding/json/v2_decode_test.go                |  21 +
+ src/encoding/json/v2_diff_test.go                  |   1 +
+ src/encoding/json/v2_encode.go                     |   7 +-
+ src/encoding/json/v2_options.go                    |   2 +-
+ src/go/doc/testdata/issue62640.0.golden            |  22 +
+ src/go/doc/testdata/issue62640.1.golden            |  22 +
+ src/go/doc/testdata/issue62640.2.golden            |  25 +
+ src/go/doc/testdata/issue62640.go                  |  15 +
+ src/go/types/api_test.go                           |   5 +
+ src/go/types/interface.go                          |  18 +-
+ src/hash/hash.go                                   |   7 +-
+ src/internal/abi/iface.go                          |   2 +-
+ src/internal/buildcfg/exp.go                       |   4 +-
+ src/internal/goexperiment/flags.go                 |  20 +-
+ src/internal/reflectlite/value.go                  |  16 +-
+ src/internal/synctest/synctest_test.go             |  33 +-
+ src/internal/trace/event.go                        |   5 +
+ src/internal/trace/gc.go                           |   2 +-
+ src/internal/trace/testdata/testprog/gc-stress.go  |  25 +-
+ src/internal/trace/testdata/testprog/stacks.go     |  14 +
+ src/internal/trace/testtrace/validation.go         |   2 +-
+ src/internal/trace/trace_test.go                   |  42 +-
+ src/internal/trace/value.go                        |  34 +-
+ src/iter/iter.go                                   |   2 +-
+ src/net/http/csrf.go                               |  11 +-
+ src/net/http/roundtrip_js.go                       |   8 +
+ src/net/iprawsock.go                               |   3 -
+ src/net/tcpsock.go                                 |   2 +-
+ src/net/udpsock.go                                 |   3 -
+ src/os/exec/exec.go                                |   2 +-
+ src/os/removeall_at.go                             |  11 +-
+ src/reflect/all_test.go                            |   5 +
+ src/reflect/value.go                               |  72 +--
+ src/runtime/arena.go                               |  10 +-
+ src/runtime/debug.go                               |   8 +-
+ src/runtime/mcache.go                              |   8 +
+ src/runtime/mcentral.go                            |   3 -
+ src/runtime/mem_sbrk.go                            |   1 +
+ src/runtime/mfinal.go                              |   5 -
+ src/runtime/mgc.go                                 |   7 +-
+ src/runtime/mgcmark.go                             |   4 +-
+ src/runtime/mgcmark_greenteagc.go                  |  20 +
+ src/runtime/mheap.go                               |  11 +-
+ src/runtime/proc.go                                | 115 +++-
+ src/runtime/runtime-gdb_test.go                    |   3 +-
+ src/runtime/runtime2.go                            |  16 +-
+ src/runtime/stack.go                               |   7 +-
+ src/runtime/testdata/testprog/gomaxprocs.go        |  14 +
+ src/runtime/testdata/testprogcgo/needmdeadlock.go  |  10 +-
+ src/runtime/trace.go                               |  10 +-
+ src/runtime/traceruntime.go                        |   2 +-
+ src/runtime/tracestack.go                          |  17 +-
+ src/runtime/tracestatus.go                         |   9 +-
+ src/runtime/tracetime.go                           |   2 +-
+ src/slices/slices_test.go                          |   3 +
+ src/sync/waitgroup.go                              |  21 +-
+ src/testing/synctest/helper_test.go                |  15 +
+ src/testing/synctest/synctest_test.go              |  12 +
+ src/testing/testing.go                             |   3 +
+ test/fixedbugs/issue74379.go                       |  30 +
+ test/fixedbugs/issue74379b.go                      |  32 +
+ test/fixedbugs/issue74379c.go                      |  54 ++
+ 133 files changed, 3514 insertions(+), 720 deletions(-)

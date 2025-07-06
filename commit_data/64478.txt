@@ -1,0 +1,38 @@
+commit 1443a3ea1e5800f6d09c5051406e37349838c151
+Author: Ezra Newman <33768950+ExtraE113@users.noreply.github.com>
+Date:   Fri Aug 9 16:17:49 2024 +0000
+
+    plugin: include a warning about race detector compatability in docs
+    
+    As described in #24245, the race detector isn't able to find some race conditions in plugins.
+    This commit adds a warning about this to the plugins documentation.
+    
+    Updates #24245
+    
+    Change-Id: I1a5ab9b5e22b6a254efc639c3c03f75b79214d49
+    GitHub-Last-Rev: a5b4ff4ca0fe3b7e31d176ffc57d99c17bd84aea
+    GitHub-Pull-Request: golang/go#68792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604275
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/plugin/plugin.go | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/plugin/plugin.go b/src/plugin/plugin.go
+index b4b1697b52..a4ff694eb5 100644
+--- a/src/plugin/plugin.go
++++ b/src/plugin/plugin.go
+@@ -29,6 +29,10 @@
+ //     macOS, making them unsuitable for applications intended to be
+ //     portable.
+ //
++//   - Plugins are poorly supported by the Go race detector. Even simple
++//     race conditions may not be automatically detected. See
++//     https://go.dev/issue/24245 for more information.
++//
+ //   - Applications that use plugins may require careful configuration
+ //     to ensure that the various parts of the program be made available
+ //     in the correct location in the file system (or container image).

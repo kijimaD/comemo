@@ -1,0 +1,39 @@
+commit 7800f3813c26fea1895ab0bda3f89cdc5c169beb
+Author: David Chase <drchase@google.com>
+Date:   Fri May 30 11:39:02 2025 -0400
+
+    [dev.simd] cmd/compile: flip sense of intrinsics test for SIMD
+    
+    ENABLE when simd experiment is off, to be sure intrinsics
+    do not leak past the experiment.
+    
+    DISABLE when simd is on, because all this does is cause tests to
+    fail, then whoever failed the test regenerates the simd, doesn't look
+    at the mountain of new intrinsics, and just rubber-stamps the change.
+    All friction, no benefit.
+    
+    Change-Id: I2ef7e0c246aaddd4a52c1d6108cb587adc1b8366
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677555
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssagen/intrinsics_test.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index bd9dd616fd..6c7e65abfd 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -16,7 +16,10 @@ import (
+ )
+ 
+ var updateIntrinsics = flag.Bool("update", false, "Print an updated intrinsics table")
+-var simd = flag.Bool("simd", buildcfg.Experiment.SIMD, "Also check SIMD intrinsics; defaults to GOEXPERIMENT==simd")
++
++// TODO turn on always.  Current setting insures that simd intrinsics do not leak past experiment,
++// but also avoids fail+rubber-stamp-update friction while SIMD is under active development.
++var simd = flag.Bool("simd", !buildcfg.Experiment.SIMD, "Also check SIMD intrinsics; default to GOEXPERIMENT = NO simd")
+ 
+ type testIntrinsicKey struct {
+ 	archName string

@@ -1,0 +1,43 @@
+commit a5339da341b8f37c87b77c2fc1318d6ecd2331ff
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Wed May 22 17:44:04 2024 -0400
+
+    doc/next: document go mod tidy -diff flag
+    
+    Add a release note for the flag that CL 585401 added.
+    
+    For #27005.
+    For #65614.
+    
+    Change-Id: Ib26eb1b85c511d3cb41a29a8d9354577dd9a0e14
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587695
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ doc/next/3-tools.md | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 434a6273fb..93a332eac1 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -8,10 +8,16 @@ Distributions that install the `go` command to a location other than
+ `$GOROOT/bin/go` should install a symlink instead of relocating
+ or copying the `go` binary.
+ 
+-The new go env `-changed` flag causes the command to print only
++<!-- go.dev/issue/34208, CL 563137, CL 586095 -->
++The new `go` `env` `-changed` flag causes the command to print only
+ those settings whose effective value differs from the default value
+ that would be obtained in an empty environment with no prior uses of the `-w` flag.
+ 
++<!-- go.dev/issue/27005, CL 585401 -->
++The new `go` `mod` `tidy` `-diff` flag causes the command not to modify
++the files but instead print the necessary changes as a unified diff.
++It exits with a non-zero code if updates are needed.
++
+ ### Vet {#vet}
+ 
+ The `go vet` subcommand now includes the

@@ -1,0 +1,85 @@
+commit b1fd047508aad9f5038dc04d78146cc582328bf5
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sat Jun 15 01:28:46 2024 +1000
+
+    cmd/internal/obj/arm64: fix return with register
+    
+    ARM64 allows for a register to be specified with a return
+    instruction. While the assembler parsing and encoding currently
+    supports this, the preprocess function uses LR unconditionally.
+    Correct this such that if a register is specified, the register
+    is used.
+    
+    Change-Id: I708f6c7e910d141559b60d2d5ee76ae2e1dc3a0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592796
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/asm/internal/asm/testdata/arm64.s |  6 +++++-
+ src/cmd/internal/obj/arm64/obj7.go        | 12 +++++++-----
+ 2 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/arm64.s b/src/cmd/asm/internal/asm/testdata/arm64.s
+index ecad08b37a..f12cdaf921 100644
+--- a/src/cmd/asm/internal/asm/testdata/arm64.s
++++ b/src/cmd/asm/internal/asm/testdata/arm64.s
+@@ -961,7 +961,11 @@ again:
+ 	CASPD	(R2, R3), (R2), (R8, R9)             // 487c2248
+ 
+ // RET
+-	RET
++	RET                                        // c0035fd6
++	RET R0					   // 00005fd6
++	RET R6					   // c0005fd6
++	RET R27					   // 60035fd6
++	RET R30					   // c0035fd6
+ 	RET	foo(SB)
+ 
+ // B/BL/B.cond cases, and canonical names JMP, CALL.
+diff --git a/src/cmd/internal/obj/arm64/obj7.go b/src/cmd/internal/obj/arm64/obj7.go
+index 0ab5939b84..20498bc2c6 100644
+--- a/src/cmd/internal/obj/arm64/obj7.go
++++ b/src/cmd/internal/obj/arm64/obj7.go
+@@ -552,7 +552,6 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 
+ 	var q *obj.Prog
+ 	var q1 *obj.Prog
+-	var retjmp *obj.LSym
+ 	for p := c.cursym.Func().Text; p != nil; p = p.Link {
+ 		o := p.As
+ 		switch o {
+@@ -846,7 +845,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				break
+ 			}
+ 
+-			retjmp = p.To.Sym
++			retJMP, retReg := p.To.Sym, p.To.Reg
++			if retReg == 0 {
++				retReg = REGLINK
++			}
+ 			p.To = obj.Addr{}
+ 			if c.cursym.Func().Text.Mark&LEAF != 0 {
+ 				if c.autosize != 0 {
+@@ -924,10 +926,10 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 				p = q
+ 			}
+ 
+-			if retjmp != nil { // retjmp
++			if retJMP != nil {
+ 				p.As = AB
+ 				p.To.Type = obj.TYPE_BRANCH
+-				p.To.Sym = retjmp
++				p.To.Sym = retJMP
+ 				p.Spadj = +c.autosize
+ 				break
+ 			}
+@@ -935,7 +937,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			p.As = obj.ARET
+ 			p.To.Type = obj.TYPE_MEM
+ 			p.To.Offset = 0
+-			p.To.Reg = REGLINK
++			p.To.Reg = retReg
+ 			p.Spadj = +c.autosize
+ 
+ 		case AADD, ASUB:

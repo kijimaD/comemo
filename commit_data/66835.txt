@@ -1,0 +1,274 @@
+commit 05ed8a00e07e93fd40cf8269bdf16d6d2b34740d
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 6 21:53:22 2025 -0800
+
+    internal/runtime/maps: prune tombstones in maps before growing
+    
+    Before growing, if there are lots of tombstones try to remove them.
+    If we can remove enough, we can continue at the given size for a
+    while longer.
+    
+    Fixes #70886
+    
+    Change-Id: I71e0d873ae118bb35798314ec25e78eaa5340d73
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/640955
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/runtime/maps/group.go                 |   6 ++
+ src/internal/runtime/maps/map_test.go              |  55 +++++++++++
+ src/internal/runtime/maps/runtime_fast32_swiss.go  |   5 +
+ src/internal/runtime/maps/runtime_fast64_swiss.go  |   5 +
+ src/internal/runtime/maps/runtime_faststr_swiss.go |   5 +
+ src/internal/runtime/maps/table.go                 | 101 +++++++++++++++++++++
+ 6 files changed, 177 insertions(+)
+
+diff --git a/src/internal/runtime/maps/group.go b/src/internal/runtime/maps/group.go
+index 00a8b7735a..5fd87218d1 100644
+--- a/src/internal/runtime/maps/group.go
++++ b/src/internal/runtime/maps/group.go
+@@ -106,6 +106,12 @@ func bitsetShiftOutLowest(b bitset) bitset {
+ 	return b >> 8
+ }
+ 
++// count returns the number of bits set in b.
++func (b bitset) count() int {
++	// Note: works for both bitset representations (AMD64 and generic)
++	return sys.OnesCount64(uint64(b))
++}
++
+ // Each slot in the hash table has a control byte which can have one of three
+ // states: empty, deleted, and full. They have the following bit patterns:
+ //
+diff --git a/src/internal/runtime/maps/map_test.go b/src/internal/runtime/maps/map_test.go
+index 160450ebb2..020adfcd78 100644
+--- a/src/internal/runtime/maps/map_test.go
++++ b/src/internal/runtime/maps/map_test.go
+@@ -699,3 +699,58 @@ func TestMapDeleteClear(t *testing.T) {
+ 		t.Errorf("Delete(%d) failed to clear element. got %d want 0", key, gotElem)
+ 	}
+ }
++
++func TestTombstoneGrow(t *testing.T) {
++	tableSizes := []int{16, 32, 64, 128, 256}
++	for _, tableSize := range tableSizes {
++		for _, load := range []string{"low", "mid", "high"} {
++			capacity := tableSize * 7 / 8
++			var initialElems int
++			switch load {
++			case "low":
++				initialElems = capacity / 8
++			case "mid":
++				initialElems = capacity / 2
++			case "high":
++				initialElems = capacity
++			}
++			t.Run(fmt.Sprintf("tableSize=%d/elems=%d/load=%0.3f", tableSize, initialElems, float64(initialElems)/float64(tableSize)), func(t *testing.T) {
++				allocs := testing.AllocsPerRun(1, func() {
++					// Fill the map with elements.
++					m := make(map[int]int, capacity)
++					for i := range initialElems {
++						m[i] = i
++					}
++
++					// This is the heart of our test.
++					// Loop over the map repeatedly, deleting a key then adding a not-yet-seen key
++					// while keeping the map at a ~constant number of elements (+/-1).
++					nextKey := initialElems
++					for range 100000 {
++						for k := range m {
++							delete(m, k)
++							break
++						}
++						m[nextKey] = nextKey
++						nextKey++
++						if len(m) != initialElems {
++							t.Fatal("len(m) should remain constant")
++						}
++					}
++				})
++
++				// The make has 4 allocs (map, directory, table, groups).
++				// Each growth has 2 allocs (table, groups).
++				// We allow two growths if we start full, 1 otherwise.
++				// Fail (somewhat arbitrarily) if there are more than that.
++				allowed := float64(4 + 1*2)
++				if initialElems == capacity {
++					allowed += 2
++				}
++				if allocs > allowed {
++					t.Fatalf("got %v allocations, allowed %v", allocs, allowed)
++				}
++			})
++		}
++	}
++}
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+index bd2100ea8b..d57d042527 100644
+--- a/src/internal/runtime/maps/runtime_fast32_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -292,6 +292,11 @@ outer:
+ 				t.growthLeft++ // will be decremented below to become a no-op.
+ 			}
+ 
++			// If we have no space left, first try to remove some tombstones.
++			if t.growthLeft == 0 {
++				t.pruneTombstones(typ, m)
++			}
++
+ 			// If there is room left to grow, just insert the new entry.
+ 			if t.growthLeft > 0 {
+ 				slotKey := g.key(typ, i)
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index e18277101c..461cb1d318 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -292,6 +292,11 @@ outer:
+ 				t.growthLeft++ // will be decremented below to become a no-op.
+ 			}
+ 
++			// If we have no space left, first try to remove some tombstones.
++			if t.growthLeft == 0 {
++				t.pruneTombstones(typ, m)
++			}
++
+ 			// If there is room left to grow, just insert the new entry.
+ 			if t.growthLeft > 0 {
+ 				slotKey := g.key(typ, i)
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index 669e771013..0d7b02e20c 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -363,6 +363,11 @@ outer:
+ 				t.growthLeft++ // will be decremented below to become a no-op.
+ 			}
+ 
++			// If we have no space left, first try to remove some tombstones.
++			if t.growthLeft == 0 {
++				t.pruneTombstones(typ, m)
++			}
++
+ 			// If there is room left to grow, just insert the new entry.
+ 			if t.growthLeft > 0 {
+ 				slotKey := g.key(typ, i)
+diff --git a/src/internal/runtime/maps/table.go b/src/internal/runtime/maps/table.go
+index de3bc2d381..bf5089be5c 100644
+--- a/src/internal/runtime/maps/table.go
++++ b/src/internal/runtime/maps/table.go
+@@ -326,6 +326,11 @@ func (t *table) PutSlot(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.
+ 			t.growthLeft++ // will be decremented below to become a no-op.
+ 		}
+ 
++		// If we have no space left, first try to remove some tombstones.
++		if t.growthLeft == 0 {
++			t.pruneTombstones(typ, m)
++		}
++
+ 		// If there is room left to grow, just insert the new entry.
+ 		if t.growthLeft > 0 {
+ 			slotKey := g.key(typ, i)
+@@ -483,6 +488,102 @@ func (t *table) Delete(typ *abi.SwissMapType, m *Map, hash uintptr, key unsafe.P
+ 	}
+ }
+ 
++// pruneTombstones goes through the table and tries to remove
++// tombstones that are no longer needed. Best effort.
++// Note that it only removes tombstones, it does not move elements.
++// Moving elements would do a better job but is infeasbile due to
++// iterator semantics.
++//
++// Pruning should only succeed if it can remove O(n) tombstones.
++// It would be bad if we did O(n) work to find 1 tombstone to remove.
++// Then the next insert would spend another O(n) work to find 1 more
++// tombstone to remove, etc.
++//
++// We really need to remove O(n) tombstones so we can pay for the cost
++// of finding them. If we can't, then we need to grow (which is also O(n),
++// but guarantees O(n) subsequent inserts can happen in constant time).
++func (t *table) pruneTombstones(typ *abi.SwissMapType, m *Map) {
++	if t.tombstones()*10 < t.capacity { // 10% of capacity
++		// Not enough tombstones to be worth the effort.
++		return
++	}
++
++	// Bit set marking all the groups whose tombstones are needed.
++	var needed [(maxTableCapacity/abi.SwissMapGroupSlots + 31) / 32]uint32
++
++	// Trace the probe sequence of every full entry.
++	for i := uint64(0); i <= t.groups.lengthMask; i++ {
++		g := t.groups.group(typ, i)
++		match := g.ctrls().matchFull()
++		for match != 0 {
++			j := match.first()
++			match = match.removeFirst()
++			key := g.key(typ, j)
++			if typ.IndirectKey() {
++				key = *((*unsafe.Pointer)(key))
++			}
++			if !typ.Key.Equal(key, key) {
++				// Key not equal to itself. We never have to find these
++				// keys on lookup (only on iteration), so we can break
++				// their probe sequences at will.
++				continue
++			}
++			// Walk probe sequence for this key.
++			// Each tombstone group we need to walk past is marked required.
++			hash := typ.Hasher(key, m.seed)
++			for seq := makeProbeSeq(h1(hash), t.groups.lengthMask); ; seq = seq.next() {
++				if seq.offset == i {
++					break // reached group of element in probe sequence
++				}
++				g := t.groups.group(typ, seq.offset)
++				m := g.ctrls().matchEmptyOrDeleted()
++				if m != 0 { // must be deleted, not empty, as we haven't found our key yet
++					// Mark this group's tombstone as required.
++					needed[seq.offset/32] |= 1 << (seq.offset % 32)
++				}
++			}
++		}
++		if g.ctrls().matchEmpty() != 0 {
++			// Also mark non-tombstone-containing groups, so we don't try
++			// to remove tombstones from them below.
++			needed[i/32] |= 1 << (i % 32)
++		}
++	}
++
++	// First, see if we can remove enough tombstones to restore capacity.
++	// This function is O(n), so only remove tombstones if we can remove
++	// enough of them to justify the O(n) cost.
++	cnt := 0
++	for i := uint64(0); i <= t.groups.lengthMask; i++ {
++		if needed[i/32]>>(i%32)&1 != 0 {
++			continue
++		}
++		g := t.groups.group(typ, i)
++		m := g.ctrls().matchEmptyOrDeleted() // must be deleted
++		cnt += m.count()
++	}
++	if cnt*10 < int(t.capacity) { // Can we restore 10% of capacity?
++		return // don't bother removing tombstones. Caller will grow instead.
++	}
++
++	// Prune unneeded tombstones.
++	for i := uint64(0); i <= t.groups.lengthMask; i++ {
++		if needed[i/32]>>(i%32)&1 != 0 {
++			continue
++		}
++		g := t.groups.group(typ, i)
++		m := g.ctrls().matchEmptyOrDeleted() // must be deleted
++		for m != 0 {
++			k := m.first()
++			m = m.removeFirst()
++			g.ctrls().set(k, ctrlEmpty)
++			t.growthLeft++
++		}
++		// TODO: maybe we could convert all slots at once
++		// using some bitvector trickery.
++	}
++}
++
+ // tombstones returns the number of deleted (tombstone) entries in the table. A
+ // tombstone is a slot that has been deleted but is still considered occupied
+ // so as not to violate the probing invariant.

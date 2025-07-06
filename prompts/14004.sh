@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 14004: 10ea3254a87f1bed2f9519c3349ddaa2fef86d7f
+# Index 14004: c9e6f1c06959b743995ecb17f8831f09a1ef7543
 
 echo "🚀 Generating explanation for commit 14004..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 14004..."
 
 ### メタデータ
 - **コミットインデックス**: 14004
-- **コミットハッシュ**: 10ea3254a87f1bed2f9519c3349ddaa2fef86d7f
-- **GitHub URL**: https://github.com/golang/go/commit/10ea3254a87f1bed2f9519c3349ddaa2fef86d7f
+- **コミットハッシュ**: c9e6f1c06959b743995ecb17f8831f09a1ef7543
+- **GitHub URL**: https://github.com/golang/go/commit/c9e6f1c06959b743995ecb17f8831f09a1ef7543
 
 ### 章構成
 

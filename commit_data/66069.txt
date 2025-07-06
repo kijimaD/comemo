@@ -1,0 +1,42 @@
+commit a8e532b0f234b3bbf7a1cdcd4213d154e82ba08e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Feb 5 17:22:43 2025 -0800
+
+    runtime/cgo: clarify that C code must not retain pointer
+    
+    For #71566
+    
+    Change-Id: I6dc365dd799d7b506b4a55895f1736d3dfd4684b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647095
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+---
+ src/runtime/cgo/handle.go | 10 ++++++++--
+ 1 file changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/cgo/handle.go b/src/runtime/cgo/handle.go
+index 59b65da2b6..7d6dd9146c 100644
+--- a/src/runtime/cgo/handle.go
++++ b/src/runtime/cgo/handle.go
+@@ -61,10 +61,16 @@ import (
+ //	}
+ //
+ // Some C functions accept a void* argument that points to an arbitrary
+-// data value supplied by the caller. It is not safe to coerce a [cgo.Handle]
++// data value supplied by the caller. It is not safe to coerce a Handle
+ // (an integer) to a Go [unsafe.Pointer], but instead we can pass the address
+ // of the cgo.Handle to the void* parameter, as in this variant of the
+-// previous example:
++// previous example.
++//
++// Note that, as described in the [cmd/cgo] documentation,
++// the C code must not keep a copy of the Go pointer that it receives,
++// unless the memory is explicitly pinned using [runtime.Pinner].
++// This example is OK because the C function myprint does not keep
++// a copy of the pointer.
+ //
+ //	package main
+ //

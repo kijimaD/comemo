@@ -1,0 +1,179 @@
+commit 1ee72a15a3e893c82cc7108c49f141e824f941c2
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Tue Jul 1 18:00:33 2025 +0000
+
+    [dev.simd] internal/cpu: add GFNI feature check
+    
+    This CL amends HasAVX512 flag with GFNI check.
+    
+    This is needed because our SIMD API supports Galois Field operations.
+    
+    Change-Id: I3e957b7b2215d2b7b6b8a7a0ca3e2e60d453b2e5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/685295
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/cpu/cpu.go     | 54 +++++++++++++++++++++++----------------------
+ src/internal/cpu/cpu_x86.go |  5 ++++-
+ src/simd/cpu.go             |  5 +++++
+ src/simd/simd_test.go       |  8 +++----
+ 4 files changed, 41 insertions(+), 31 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index a93eb54ddf..1eeb580711 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -26,32 +26,34 @@ var CacheLineSize uintptr = CacheLinePadSize
+ // in addition to the cpuid feature bit being set.
+ // The struct is padded to avoid false sharing.
+ var X86 struct {
+-	_            CacheLinePad
+-	HasAES       bool
+-	HasADX       bool
+-	HasAVX       bool
+-	HasAVX2      bool
+-	HasAVX512    bool // Virtual feature: F+CD+BW+DQ+VL
+-	HasAVX512F   bool
+-	HasAVX512CD  bool
+-	HasAVX512BW  bool
+-	HasAVX512DQ  bool
+-	HasAVX512VL  bool
+-	HasBMI1      bool
+-	HasBMI2      bool
+-	HasERMS      bool
+-	HasFSRM      bool
+-	HasFMA       bool
+-	HasOSXSAVE   bool
+-	HasPCLMULQDQ bool
+-	HasPOPCNT    bool
+-	HasRDTSCP    bool
+-	HasSHA       bool
+-	HasSSE3      bool
+-	HasSSSE3     bool
+-	HasSSE41     bool
+-	HasSSE42     bool
+-	_            CacheLinePad
++	_             CacheLinePad
++	HasAES        bool
++	HasADX        bool
++	HasAVX        bool
++	HasAVX2       bool
++	HasAVX512GFNI bool // Virtual feature: F+CD+BW+DQ+VL+GFNI
++	HasAVX512     bool // Virtual feature: F+CD+BW+DQ+VL
++	HasAVX512F    bool
++	HasAVX512CD   bool
++	HasAVX512BW   bool
++	HasAVX512DQ   bool
++	HasAVX512VL   bool
++	HasBMI1       bool
++	HasBMI2       bool
++	HasERMS       bool
++	HasFSRM       bool
++	HasFMA        bool
++	HasGFNI       bool
++	HasOSXSAVE    bool
++	HasPCLMULQDQ  bool
++	HasPOPCNT     bool
++	HasRDTSCP     bool
++	HasSHA        bool
++	HasSSE3       bool
++	HasSSSE3      bool
++	HasSSE41      bool
++	HasSSE42      bool
++	_             CacheLinePad
+ }
+ 
+ // The booleans in ARM contain the correspondingly named cpu feature bit.
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index 7d6f40c132..152a08cdbf 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -22,6 +22,7 @@ const (
+ 	cpuid_SSE3      = 1 << 0
+ 	cpuid_PCLMULQDQ = 1 << 1
+ 	cpuid_SSSE3     = 1 << 9
++	cpuid_GFNI      = 1 << 8
+ 	cpuid_FMA       = 1 << 12
+ 	cpuid_SSE41     = 1 << 19
+ 	cpuid_SSE42     = 1 << 20
+@@ -143,7 +144,7 @@ func doinit() {
+ 		return
+ 	}
+ 
+-	_, ebx7, _, edx7 := cpuid(7, 0)
++	_, ebx7, ecx7, edx7 := cpuid(7, 0)
+ 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
+ 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
+ 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
+@@ -160,6 +161,7 @@ func doinit() {
+ 	}
+ 
+ 	X86.HasFSRM = isSet(edx7, cpuid_FSRM)
++	X86.HasGFNI = isSet(ecx7, cpuid_GFNI)
+ 
+ 	var maxExtendedInformation uint32
+ 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
+@@ -180,6 +182,7 @@ func doinit() {
+ 		// it. GOAMD64=v4 also implies exactly this set, and these are all
+ 		// included in AVX10.1.
+ 		X86.HasAVX512 = X86.HasAVX512F && X86.HasAVX512CD && X86.HasAVX512BW && X86.HasAVX512DQ && X86.HasAVX512VL
++		X86.HasAVX512GFNI = X86.HasAVX512 && X86.HasGFNI
+ 	}
+ }
+ 
+diff --git a/src/simd/cpu.go b/src/simd/cpu.go
+index b07b5288f2..5ff47b8873 100644
+--- a/src/simd/cpu.go
++++ b/src/simd/cpu.go
+@@ -11,6 +11,11 @@ package simd
+ 
+ import "internal/cpu"
+ 
++// HasAVX512GFNI checks AVX512 CPU feature F+CD+BW+DQ+VL+GFNI.
++func HasAVX512GFNI() bool {
++	return cpu.X86.HasAVX512GFNI
++}
++
+ // HasAVX512 checks AVX512 CPU feature F+CD+BW+DQ+VL.
+ func HasAVX512() bool {
+ 	return cpu.X86.HasAVX512
+diff --git a/src/simd/simd_test.go b/src/simd/simd_test.go
+index 084b0af539..59908d60c5 100644
+--- a/src/simd/simd_test.go
++++ b/src/simd/simd_test.go
+@@ -38,7 +38,7 @@ func TestType(t *testing.T) {
+ 	v.y = &y
+ 	sink = y
+ 
+-	if !simd.HasAVX512() {
++	if !simd.HasAVX512GFNI() {
+ 		t.Skip("Test requires HasAVX512, not available on this hardware")
+ 		return
+ 	}
+@@ -97,7 +97,7 @@ func TestReflectMethod(t *testing.T) {
+ }
+ 
+ func TestVectorConversion(t *testing.T) {
+-	if !simd.HasAVX512() {
++	if !simd.HasAVX512GFNI() {
+ 		t.Skip("Test requires HasAVX512, not available on this hardware")
+ 		return
+ 	}
+@@ -115,7 +115,7 @@ func TestVectorConversion(t *testing.T) {
+ }
+ 
+ func TestMaskConversion(t *testing.T) {
+-	if !simd.HasAVX512() {
++	if !simd.HasAVX512GFNI() {
+ 		t.Skip("Test requires HasAVX512, not available on this hardware")
+ 		return
+ 	}
+@@ -144,7 +144,7 @@ func TestSub(t *testing.T) {
+ }
+ 
+ func TestMaskedAdd(t *testing.T) {
+-	if !simd.HasAVX512() {
++	if !simd.HasAVX512GFNI() {
+ 		t.Skip("Test requires HasAVX512, not available on this hardware")
+ 		return
+ 	}

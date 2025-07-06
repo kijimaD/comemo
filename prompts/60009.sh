@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 60009: fba90c90964703e84bcb43a3567884960043b756
+# Index 60009: 8c822ac7e8e136f079359be1772c1ba3f06399e6
 
 echo "🚀 Generating explanation for commit 60009..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 60009..."
 
 ### メタデータ
 - **コミットインデックス**: 60009
-- **コミットハッシュ**: fba90c90964703e84bcb43a3567884960043b756
-- **GitHub URL**: https://github.com/golang/go/commit/fba90c90964703e84bcb43a3567884960043b756
+- **コミットハッシュ**: 8c822ac7e8e136f079359be1772c1ba3f06399e6
+- **GitHub URL**: https://github.com/golang/go/commit/8c822ac7e8e136f079359be1772c1ba3f06399e6
 
 ### 章構成
 

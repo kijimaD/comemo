@@ -1,0 +1,31 @@
+commit c7ea20195a3415668047eebdc488a4af1f629f04
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Wed Jul 24 06:55:35 2024 +0000
+
+    cmd/compile: fix typo in comment
+    
+    Change-Id: Ied098312399d2d6557ebf0ee294ca0e71dfa677b
+    GitHub-Last-Rev: 82f914e85756728976646b490223352059c1953a
+    GitHub-Pull-Request: golang/go#68565
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600655
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/compile/internal/rangefunc/rewrite.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/rangefunc/rewrite.go b/src/cmd/compile/internal/rangefunc/rewrite.go
+index ba2eb8d0fd..3752eb9ecd 100644
+--- a/src/cmd/compile/internal/rangefunc/rewrite.go
++++ b/src/cmd/compile/internal/rangefunc/rewrite.go
+@@ -598,7 +598,7 @@ type State int
+ 
+ // Rewrite rewrites all the range-over-funcs in the files.
+ // It returns the set of function literals generated from rangefunc loop bodies.
+-// This allows for rangefunc loop bodies to be distingushed by debuggers.
++// This allows for rangefunc loop bodies to be distinguished by debuggers.
+ func Rewrite(pkg *types2.Package, info *types2.Info, files []*syntax.File) map[*syntax.FuncLit]bool {
+ 	ri := make(map[*syntax.FuncLit]bool)
+ 	for _, file := range files {

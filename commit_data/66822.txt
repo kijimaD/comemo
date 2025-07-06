@@ -1,0 +1,52 @@
+commit f4803ddc2c8d082e07227c72944ffd9d7c45ab64
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 15 09:36:06 2025 -0700
+
+    math/big: fix loong64 assembly for vet
+    
+    Vet is failing on this code because some arguments of mulAddVWW
+    got renamed in the go decl (CL 664895) but not the assembly accessors.
+    
+    Looks like the assembly got written before that CL but checked in
+    after that CL.
+    
+    Change-Id: I270e8db5f8327aa2029c21a126fab1231a3506a1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665717
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/math/big/arith_loong64.s | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/math/big/arith_loong64.s b/src/math/big/arith_loong64.s
+index 2a2ffafeef..3480e0e676 100644
+--- a/src/math/big/arith_loong64.s
++++ b/src/math/big/arith_loong64.s
+@@ -98,19 +98,19 @@ TEXT ·lshVU(SB),NOSPLIT,$0
+ TEXT ·rshVU(SB),NOSPLIT,$0
+ 	JMP ·rshVU_g(SB)
+ 
+-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
++// func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	// input:
+ 	//   R4: z
+ 	//   R5: z_len
+ 	//   R7: x
+-	//   R10: y
+-	//   R11: r
++	//   R10: m
++	//   R11: a
+ 	MOVV	z+0(FP), R4
+ 	MOVV	z_len+8(FP), R5
+ 	MOVV	x+24(FP), R7
+-	MOVV	y+48(FP), R10
+-	MOVV	r+56(FP), R11
++	MOVV	m+48(FP), R10
++	MOVV	a+56(FP), R11
+ 	SLLV	$3, R5
+ 	MOVV	$0, R6
+ loop:

@@ -1,0 +1,115 @@
+commit 54c4745d7ca6650c4fe31be980277c85f97004ce
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Sun May 5 21:17:27 2024 +0000
+
+    [release-branch.go1.21] runtime: update large object stats before freeSpan in sweep
+    
+    Currently freeSpan is called before large object stats are updated when
+    sweeping large objects. This means heapStats.inHeap might get subtracted
+    before the large object is added to the largeFree field. The end result
+    is that the /memory/classes/heap/unused:bytes metric, which subtracts
+    live objects (alloc-free) from inHeap may overflow.
+    
+    Fix this by always updating the large object stats before calling
+    freeSpan.
+    
+    For #67019.
+    Fixes #67187.
+    
+    Change-Id: Ib02bd8dcd1cf8cd1bc0110b6141e74f678c10445
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583380
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    (cherry picked from commit 36d32f68f41561fb64677297e3733f5d5b866c2a)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584337
+---
+ src/runtime/metrics_test.go | 35 +++++++++++++++++++++++++++++++++++
+ src/runtime/mgcsweep.go     | 23 +++++++++++++----------
+ 2 files changed, 48 insertions(+), 10 deletions(-)
+
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index cfb09a3929..55d7dc4e32 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -761,3 +761,38 @@ func TestCPUMetricsSleep(t *testing.T) {
+ 	}
+ 	t.Errorf(`time.Sleep did not contribute enough to "idle" class: minimum idle time = %.5fs`, minIdleCPUSeconds)
+ }
++
++func TestMetricHeapUnusedLargeObjectOverflow(t *testing.T) {
++	// This test makes sure /memory/classes/heap/unused:bytes
++	// doesn't overflow when allocating and deallocating large
++	// objects. It is a regression test for #67019.
++	done := make(chan struct{})
++	var wg sync.WaitGroup
++	wg.Add(1)
++	go func() {
++		defer wg.Done()
++		for {
++			for i := 0; i < 10; i++ {
++				runtime.Escape(make([]byte, 1<<20))
++			}
++			runtime.GC()
++			select {
++			case <-done:
++				return
++			default:
++			}
++		}
++	}()
++	s := []metrics.Sample{
++		{Name: "/memory/classes/heap/unused:bytes"},
++	}
++	for i := 0; i < 1000; i++ {
++		metrics.Read(s)
++		if s[0].Value.Uint64() > 1<<40 {
++			t.Errorf("overflow")
++			break
++		}
++	}
++	done <- struct{}{}
++	wg.Wait()
++}
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 68f1aae600..ce0e8df344 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -771,6 +771,19 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 		if nfreed != 0 {
+ 			// Free large object span to heap.
+ 
++			// Count the free in the consistent, external stats.
++			//
++			// Do this before freeSpan, which might update heapStats' inHeap
++			// value. If it does so, then metrics that subtract object footprint
++			// from inHeap might overflow. See #67019.
++			stats := memstats.heapStats.acquire()
++			atomic.Xadd64(&stats.largeFreeCount, 1)
++			atomic.Xadd64(&stats.largeFree, int64(size))
++			memstats.heapStats.release()
++
++			// Count the free in the inconsistent, internal stats.
++			gcController.totalFree.Add(int64(size))
++
+ 			// NOTE(rsc,dvyukov): The original implementation of efence
+ 			// in CL 22060046 used sysFree instead of sysFault, so that
+ 			// the operating system would eventually give the memory
+@@ -791,16 +804,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 			} else {
+ 				mheap_.freeSpan(s)
+ 			}
+-
+-			// Count the free in the consistent, external stats.
+-			stats := memstats.heapStats.acquire()
+-			atomic.Xadd64(&stats.largeFreeCount, 1)
+-			atomic.Xadd64(&stats.largeFree, int64(size))
+-			memstats.heapStats.release()
+-
+-			// Count the free in the inconsistent, internal stats.
+-			gcController.totalFree.Add(int64(size))
+-
+ 			return true
+ 		}
+ 

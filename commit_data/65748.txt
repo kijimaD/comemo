@@ -1,0 +1,34 @@
+commit 32ff485c7cd0d8e31a89723b56f6324ff77ac448
+Author: Sean Liao <sean@liao.dev>
+Date:   Wed Dec 4 21:50:30 2024 +0000
+
+    math/bits: update reference to debruijn paper
+    
+    The old link no longer works.
+    
+    Fixes #70684
+    
+    Change-Id: I8711ef7d5721bf20ef83f5192dd0d1f73dda6ce1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633775
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/math/bits/bits.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/math/bits/bits.go b/src/math/bits/bits.go
+index 235d63e85b..76ed1d03fc 100644
+--- a/src/math/bits/bits.go
++++ b/src/math/bits/bits.go
+@@ -38,7 +38,7 @@ func LeadingZeros64(x uint64) int { return 64 - Len64(x) }
+ 
+ // --- TrailingZeros ---
+ 
+-// See http://supertech.csail.mit.edu/papers/debruijn.pdf
++// See http://keithandkatie.com/keith/papers/debruijn.html
+ const deBruijn32 = 0x077CB531
+ 
+ var deBruijn32tab = [32]byte{

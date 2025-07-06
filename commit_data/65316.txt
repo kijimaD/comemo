@@ -1,0 +1,175 @@
+commit e534989d18dce2c3b80b883f27f652b746c9f3a3
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Sep 19 19:50:23 2024 +0800
+
+    cmd/compile/internal: intrinsify publicationBarrier on loong64
+    
+    The publication barrier is a StoreStore barrier, which is implemented
+    by "DBAR 0x1A" [1] on loong64.
+    
+    goos: linux
+    goarch: loong64
+    pkg: runtime
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                         |   bench.old   |  bench.new                            |
+                         |    sec/op     |   sec/op        vs base               |
+    Malloc8                 31.76n ± 0%     22.79n ± 0%   -28.24% (p=0.000 n=20)
+    Malloc8-2               25.46n ± 0%     18.33n ± 0%   -28.00% (p=0.000 n=20)
+    Malloc8-4               25.75n ± 0%     18.43n ± 0%   -28.41% (p=0.000 n=20)
+    Malloc16                62.97n ± 0%     42.41n ± 0%   -32.65% (p=0.000 n=20)
+    Malloc16-2              49.11n ± 0%     31.68n ± 0%   -35.50% (p=0.000 n=20)
+    Malloc16-4              49.64n ± 1%     31.95n ± 0%   -35.62% (p=0.000 n=20)
+    MallocTypeInfo8         58.57n ± 0%     46.51n ± 0%   -20.61% (p=0.000 n=20)
+    MallocTypeInfo8-2       51.43n ± 0%     38.01n ± 0%   -26.09% (p=0.000 n=20)
+    MallocTypeInfo8-4       51.65n ± 0%     38.15n ± 0%   -26.13% (p=0.000 n=20)
+    MallocTypeInfo16        68.07n ± 0%     51.62n ± 0%   -24.17% (p=0.000 n=20)
+    MallocTypeInfo16-2      54.73n ± 0%     41.13n ± 0%   -24.85% (p=0.000 n=20)
+    MallocTypeInfo16-4      55.05n ± 0%     41.28n ± 0%   -25.02% (p=0.000 n=20)
+    MallocLargeStruct       491.5n ± 0%     454.8n ± 0%    -7.47% (p=0.000 n=20)
+    MallocLargeStruct-2     351.8n ± 1%     323.8n ± 0%    -7.94% (p=0.000 n=20)
+    MallocLargeStruct-4     333.6n ± 0%     316.7n ± 0%    -5.10% (p=0.000 n=20)
+    geomean                 71.01n          53.78n        -24.26%
+    
+    [1]: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: Ica0c89db6f2bebd55d9b3207a1c462a9454e9268
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577515
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/cmd/compile/internal/loong64/ssa.go            | 7 +++++++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules    | 3 +++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go    | 3 +++
+ src/cmd/compile/internal/ssa/opGen.go              | 8 ++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go     | 3 +++
+ src/cmd/compile/internal/ssagen/intrinsics.go      | 2 +-
+ src/cmd/compile/internal/ssagen/intrinsics_test.go | 1 +
+ src/runtime/atomic_loong64.s                       | 2 +-
+ 8 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index bec7684378..02286b8de8 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -589,6 +589,13 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.To.Name = obj.NAME_EXTERN
+ 		// AuxInt encodes how many buffer entries we need.
+ 		p.To.Sym = ir.Syms.GCWriteBarrier[v.AuxInt-1]
++
++	case ssa.OpLOONG64LoweredPubBarrier:
++		// DBAR 0x1A
++		p := s.Prog(v.Op.Asm())
++		p.From.Type = obj.TYPE_CONST
++		p.From.Offset = 0x1A
++
+ 	case ssa.OpLOONG64LoweredPanicBoundsA, ssa.OpLOONG64LoweredPanicBoundsB, ssa.OpLOONG64LoweredPanicBoundsC:
+ 		p := s.Prog(obj.ACALL)
+ 		p.To.Type = obj.TYPE_MEM
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 383cac40ab..69119f1d96 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -464,6 +464,9 @@
+ // Write barrier.
+ (WB ...) => (LoweredWB ...)
+ 
++// Publication barrier as intrinsic
++(PubBarrier ...) => (LoweredPubBarrier ...)
++
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 0 => (LoweredPanicBoundsA [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 1 => (LoweredPanicBoundsB [kind] x y mem)
+ (PanicBounds [kind] x y mem) && boundsABI(kind) == 2 => (LoweredPanicBoundsC [kind] x y mem)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 2d8d87fa4a..5789760683 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -497,6 +497,9 @@ func init() {
+ 		// Returns a pointer to a write barrier buffer in R29.
+ 		{name: "LoweredWB", argLength: 1, reg: regInfo{clobbers: (callerSave &^ gpg) | buildReg("R1"), outputs: []regMask{buildReg("R29")}}, clobberFlags: true, aux: "Int64"},
+ 
++		// Do data barrier. arg0=memorys
++		{name: "LoweredPubBarrier", argLength: 1, asm: "DBAR", hasSideEffects: true},
++
+ 		// There are three of these functions so that they can have three different register inputs.
+ 		// When we check 0 <= c <= cap (A), then 0 <= b <= c (B), then 0 <= a <= b (C), we want the
+ 		// default registers to match so we don't need to copy registers around unnecessarily.
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 61d3b0462f..b18a4385d2 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1917,6 +1917,7 @@ const (
+ 	OpLOONG64LoweredGetCallerSP
+ 	OpLOONG64LoweredGetCallerPC
+ 	OpLOONG64LoweredWB
++	OpLOONG64LoweredPubBarrier
+ 	OpLOONG64LoweredPanicBoundsA
+ 	OpLOONG64LoweredPanicBoundsB
+ 	OpLOONG64LoweredPanicBoundsC
+@@ -25711,6 +25712,13 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:           "LoweredPubBarrier",
++		argLen:         1,
++		hasSideEffects: true,
++		asm:            loong64.ADBAR,
++		reg:            regInfo{},
++	},
+ 	{
+ 		name:    "LoweredPanicBoundsA",
+ 		auxType: auxInt64,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index 14cbd25ee2..fedcd196d4 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -584,6 +584,9 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return true
+ 	case OpPanicBounds:
+ 		return rewriteValueLOONG64_OpPanicBounds(v)
++	case OpPubBarrier:
++		v.Op = OpLOONG64LoweredPubBarrier
++		return true
+ 	case OpRotateLeft16:
+ 		return rewriteValueLOONG64_OpRotateLeft16(v)
+ 	case OpRotateLeft32:
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 9084c2f690..fda273b3e5 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -162,7 +162,7 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 			s.vars[memVar] = s.newValue1(ssa.OpPubBarrier, types.TypeMem, s.mem())
+ 			return nil
+ 		},
+-		sys.ARM64, sys.PPC64, sys.RISCV64)
++		sys.ARM64, sys.Loong64, sys.PPC64, sys.RISCV64)
+ 
+ 	/******** internal/runtime/sys ********/
+ 	add("internal/runtime/sys", "GetCallerPC",
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics_test.go b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+index 5e71639a29..4e59714ce7 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics_test.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics_test.go
+@@ -419,6 +419,7 @@ var wantIntrinsics = map[testIntrinsicKey]struct{}{
+ 	{"loong64", "math/bits", "Sub"}:                            struct{}{},
+ 	{"loong64", "math/bits", "Sub64"}:                          struct{}{},
+ 	{"loong64", "runtime", "KeepAlive"}:                        struct{}{},
++	{"loong64", "runtime", "publicationBarrier"}:               struct{}{},
+ 	{"loong64", "runtime", "slicebytetostringtmp"}:             struct{}{},
+ 	{"loong64", "sync", "runtime_LoadAcquintptr"}:              struct{}{},
+ 	{"loong64", "sync", "runtime_StoreReluintptr"}:             struct{}{},
+diff --git a/src/runtime/atomic_loong64.s b/src/runtime/atomic_loong64.s
+index 4818a827de..5332d36fad 100644
+--- a/src/runtime/atomic_loong64.s
++++ b/src/runtime/atomic_loong64.s
+@@ -5,5 +5,5 @@
+ #include "textflag.h"
+ 
+ TEXT ·publicationBarrier(SB),NOSPLIT|NOFRAME,$0-0
+-	DBAR
++	DBAR	$0x1A // StoreStore barrier
+ 	RET

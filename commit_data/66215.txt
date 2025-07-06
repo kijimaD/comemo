@@ -1,0 +1,145 @@
+commit 1ce87bea470c3eae9be75f6e2848271588cc6ca2
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Feb 10 11:30:52 2025 +0100
+
+    crypto/internal/fips140/edwards25519: make Scalar.SetCanonicalBytes constant time
+    
+    Internally we only use SetCanonicalBytes as part of Ed25519
+    verification, where all inputs are public, so it doesn't need to be
+    constant time.
+    
+    However, this code is replicated outside of the standard library. Even
+    there, an attack is not practical, so this should not be considered a
+    security vulnerability:
+    
+      - For specific scalars, this only leaks at most four bits of
+        information, and always the same four bits (so it's not an adaptive
+        attack).
+    
+      - For derived scalars, assuming they are valid and uniformly
+        distributed, the loop would return true on the first iteration with
+        probability (1 - 2⁻¹²⁷) due to the shape of the scalar field order.
+    
+    Still, making it constant time is easy enough and saves the next person
+    from having to think about it.
+    
+    This was previously reported by Yawning Angel, and then as part of a
+    security audit.
+    
+    Change-Id: I6a6a46563c8abecb0b4a6f12033a71c4c4da6fa7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648035
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/internal/fips140/edwards25519/scalar.go | 27 +++++++++++------
+ .../internal/fips140/edwards25519/scalar_test.go   | 35 +++++++++++++++-------
+ 2 files changed, 42 insertions(+), 20 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/edwards25519/scalar.go b/src/crypto/internal/fips140/edwards25519/scalar.go
+index 9d60146d79..22bbebfbb4 100644
+--- a/src/crypto/internal/fips140/edwards25519/scalar.go
++++ b/src/crypto/internal/fips140/edwards25519/scalar.go
+@@ -7,6 +7,7 @@ package edwards25519
+ import (
+ 	"crypto/internal/fips140deps/byteorder"
+ 	"errors"
++	"math/bits"
+ )
+ 
+ // A Scalar is an integer modulo
+@@ -179,15 +180,23 @@ func isReduced(s []byte) bool {
+ 		return false
+ 	}
+ 
+-	for i := len(s) - 1; i >= 0; i-- {
+-		switch {
+-		case s[i] > scalarMinusOneBytes[i]:
+-			return false
+-		case s[i] < scalarMinusOneBytes[i]:
+-			return true
+-		}
+-	}
+-	return true
++	s0 := byteorder.LEUint64(s[:8])
++	s1 := byteorder.LEUint64(s[8:16])
++	s2 := byteorder.LEUint64(s[16:24])
++	s3 := byteorder.LEUint64(s[24:])
++
++	l0 := byteorder.LEUint64(scalarMinusOneBytes[:8])
++	l1 := byteorder.LEUint64(scalarMinusOneBytes[8:16])
++	l2 := byteorder.LEUint64(scalarMinusOneBytes[16:24])
++	l3 := byteorder.LEUint64(scalarMinusOneBytes[24:])
++
++	// Do a constant time subtraction chain scalarMinusOneBytes - s. If there is
++	// a borrow at the end, then s > scalarMinusOneBytes.
++	_, b := bits.Sub64(l0, s0, 0)
++	_, b = bits.Sub64(l1, s1, b)
++	_, b = bits.Sub64(l2, s2, b)
++	_, b = bits.Sub64(l3, s3, b)
++	return b == 0
+ }
+ 
+ // SetBytesWithClamping applies the buffer pruning described in RFC 8032,
+diff --git a/src/crypto/internal/fips140/edwards25519/scalar_test.go b/src/crypto/internal/fips140/edwards25519/scalar_test.go
+index 05551ef771..76e920a2fe 100644
+--- a/src/crypto/internal/fips140/edwards25519/scalar_test.go
++++ b/src/crypto/internal/fips140/edwards25519/scalar_test.go
+@@ -26,7 +26,7 @@ func quickCheckConfig(slowScale int) *quick.Config {
+ 
+ var scOneBytes = [32]byte{1}
+ var scOne, _ = new(Scalar).SetCanonicalBytes(scOneBytes[:])
+-var scMinusOne, _ = new(Scalar).SetCanonicalBytes(scalarMinusOneBytes[:])
++var scMinusOne = new(Scalar).Subtract(new(Scalar), scOne)
+ 
+ // Generate returns a valid (reduced modulo l) Scalar with a distribution
+ // weighted towards high, low, and edge values.
+@@ -38,7 +38,7 @@ func (Scalar) Generate(rand *mathrand.Rand, size int) reflect.Value {
+ 	case diceRoll == 1:
+ 		s = scOneBytes
+ 	case diceRoll == 2:
+-		s = scalarMinusOneBytes
++		s = [32]byte(scMinusOne.Bytes())
+ 	case diceRoll < 5:
+ 		// Generate a low scalar in [0, 2^125).
+ 		rand.Read(s[:16])
+@@ -96,16 +96,29 @@ func TestScalarSetCanonicalBytes(t *testing.T) {
+ 		t.Errorf("failed scalar->bytes->scalar round-trip: %v", err)
+ 	}
+ 
+-	b := scalarMinusOneBytes
+-	b[31] += 1
+-	s := scOne
+-	if out, err := s.SetCanonicalBytes(b[:]); err == nil {
+-		t.Errorf("SetCanonicalBytes worked on a non-canonical value")
+-	} else if s != scOne {
+-		t.Errorf("SetCanonicalBytes modified its receiver")
+-	} else if out != nil {
+-		t.Errorf("SetCanonicalBytes did not return nil with an error")
++	expectReject := func(b []byte) {
++		t.Helper()
++		s := scOne
++		if out, err := s.SetCanonicalBytes(b[:]); err == nil {
++			t.Errorf("SetCanonicalBytes worked on a non-canonical value")
++		} else if s != scOne {
++			t.Errorf("SetCanonicalBytes modified its receiver")
++		} else if out != nil {
++			t.Errorf("SetCanonicalBytes did not return nil with an error")
++		}
+ 	}
++
++	b := scMinusOne.Bytes()
++	b[0] += 1
++	expectReject(b)
++
++	b = scMinusOne.Bytes()
++	b[31] += 1
++	expectReject(b)
++
++	b = scMinusOne.Bytes()
++	b[31] |= 0b1000_0000
++	expectReject(b)
+ }
+ 
+ func TestScalarSetUniformBytes(t *testing.T) {

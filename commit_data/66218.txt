@@ -1,0 +1,80 @@
+commit d7c242a19ae0fd9adae1c6d6222df2f1d93646da
+Author: Joel Sing <joel@sing.id.au>
+Date:   Tue Jul 2 00:31:53 2024 +1000
+
+    cmd/internal/obj/riscv: support MOVD with floating point constants
+    
+    Currently, we only support loading of values from memory (or other
+    registers). Add floating point constant support to MOVD. This is
+    implemented by storing the floating point constant to a symbol,
+    which is then loaded into the floating point register.
+    
+    Change-Id: I6db242d27f606f0d5d084a3ab93538698d3a4f8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631876
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/asm/internal/asm/testdata/riscv64.s |  3 +++
+ src/cmd/internal/obj/riscv/obj.go           | 22 +++++++++++++++++++---
+ 2 files changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index cbe99ba348..fc44f561f2 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -510,6 +510,9 @@ start:
+ 	MOVD	F0, 4(X5)				// 27b20200
+ 	MOVD	F0, F1					// d3000022
+ 
++	// Convert to load of symbol (AUIPC + FLD)
++	MOVD	$(709.78271289338397), F3		// 970f000087b10f00
++
+ 	// TLS load with local-exec (LUI + ADDIW + ADD of TP + load)
+ 	MOV	tls(SB), X5				// b70f00009b8f0f00b38f4f0083b20f00
+ 	MOVB	tls(SB), X5				// b70f00009b8f0f00b38f4f0083820f00
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index c6f66d0195..3a4ab556f7 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -147,6 +147,15 @@ func progedit(ctxt *obj.Link, p *obj.Prog, newprog obj.ProgAlloc) {
+ 			p.From.Name = obj.NAME_EXTERN
+ 			p.From.Offset = 0
+ 		}
++
++	case AMOVD:
++		if p.From.Type == obj.TYPE_FCONST && p.From.Name == obj.NAME_NONE && p.From.Reg == obj.REG_NONE {
++			f64 := p.From.Val.(float64)
++			p.From.Type = obj.TYPE_MEM
++			p.From.Sym = ctxt.Float64Sym(f64)
++			p.From.Name = obj.NAME_EXTERN
++			p.From.Offset = 0
++		}
+ 	}
+ }
+ 
+@@ -2322,12 +2331,19 @@ func instructionsForMOV(p *obj.Prog) []*instruction {
+ 			}
+ 
+ 			// Note that the values for $off_hi and $off_lo are currently
+-			// zero and will be assigned during relocation.
++			// zero and will be assigned during relocation. If the destination
++			// is an integer register then we can use the same register for the
++			// address computation, otherwise we need to use the temporary register.
+ 			//
+ 			// AUIPC $off_hi, Rd
+ 			// L $off_lo, Rd, Rd
+-			insAUIPC := &instruction{as: AAUIPC, rd: ins.rd}
+-			ins.as, ins.rs1, ins.rs2, ins.imm = movToLoad(p.As), ins.rd, obj.REG_NONE, 0
++			//
++			addrReg := ins.rd
++			if addrReg < REG_X0 || addrReg > REG_X31 {
++				addrReg = REG_TMP
++			}
++			insAUIPC := &instruction{as: AAUIPC, rd: addrReg}
++			ins.as, ins.rs1, ins.rs2, ins.imm = movToLoad(p.As), addrReg, obj.REG_NONE, 0
+ 			inss = []*instruction{insAUIPC, ins}
+ 
+ 		default:

@@ -1,0 +1,98 @@
+commit 4efd5191653293d98ba2a89ea9a5667bbf9abd15
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Oct 29 11:46:25 2024 -0700
+
+    internal/poll: avoid overflow in sendfile limit, simplify Solaris
+    
+    Avoid integer overflow when passing a number of bytes to sendfile.
+    
+    Also, Solaris might not support passing a 0 length to read to
+    the end of a file, but it does support passing a very large length.
+    So just do that instead of looking up the source file size.
+    
+    Change-Id: Ibf750892938d9e2bafb1256c6e380c88899495f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623315
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/poll/sendfile_unix.go | 34 +++++++++-------------------------
+ src/os/copy_test.go                |  2 +-
+ 2 files changed, 10 insertions(+), 26 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_unix.go b/src/internal/poll/sendfile_unix.go
+index eaa48f39db..dc81c4ad89 100644
+--- a/src/internal/poll/sendfile_unix.go
++++ b/src/internal/poll/sendfile_unix.go
+@@ -30,9 +30,8 @@ import (
+ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool) {
+ 	if runtime.GOOS == "linux" {
+ 		// Linux's sendfile doesn't require any setup:
+-		// It sends from the current position of the source file,
+-		// updates the position of the source after sending,
+-		// and sends everything when the size is 0.
++		// It sends from the current position of the source file and
++		// updates the position of the source after sending.
+ 		return sendFile(dstFD, src, nil, size)
+ 	}
+ 
+@@ -46,28 +45,9 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
+ 		return 0, err, false
+ 	}
+ 
+-	mustReposition := false
+-	switch runtime.GOOS {
+-	case "solaris", "illumos":
+-		// Solaris/illumos requires us to pass a length to send,
+-		// rather than accepting 0 as "send everything".
+-		//
+-		// Seek to the end of the source file to find its length.
+-		if size == 0 {
+-			end, err := ignoringEINTR2(func() (int64, error) {
+-				return syscall.Seek(src, 0, io.SeekEnd)
+-			})
+-			if err != nil {
+-				return 0, err, false
+-			}
+-			size = end - start
+-			mustReposition = true
+-		}
+-	}
+-
+ 	pos := start
+ 	n, err, handled = sendFile(dstFD, src, &pos, size)
+-	if n > 0 || mustReposition {
++	if n > 0 {
+ 		ignoringEINTR2(func() (int64, error) {
+ 			return syscall.Seek(src, start+n, io.SeekStart)
+ 		})
+@@ -91,9 +71,13 @@ func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err
+ 
+ 	dst := dstFD.Sysfd
+ 	for {
+-		chunk := 0
++		// Some platforms support passing 0 to read to the end of the source,
++		// but all platforms support just writing a large value.
++		//
++		// Limit the maximum size to fit in an int32, to avoid any possible overflow.
++		chunk := 1<<31 - 1
+ 		if size > 0 {
+-			chunk = int(size - written)
++			chunk = int(min(size-written, int64(chunk)))
+ 		}
+ 		var n int
+ 		n, err = sendFileChunk(dst, src, offset, chunk)
+diff --git a/src/os/copy_test.go b/src/os/copy_test.go
+index 407a59af42..6fe7f6e53b 100644
+--- a/src/os/copy_test.go
++++ b/src/os/copy_test.go
+@@ -98,7 +98,7 @@ func TestCopyFileToFile(t *testing.T) {
+ 	for _, srcStart := range []int64{0, 100, size} {
+ 		remaining := size - srcStart
+ 		for _, dstStart := range []int64{0, 200} {
+-			for _, limit := range []int64{remaining, remaining - 100, size * 2} {
++			for _, limit := range []int64{remaining, remaining - 100, size * 2, 0} {
+ 				if limit < 0 {
+ 					continue
+ 				}

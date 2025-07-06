@@ -1,0 +1,111 @@
+commit 3310f324ad33571f68d3f0534dd4ebe9872ab2bd
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Sat Dec 14 12:53:29 2024 -0500
+
+    crypto/internal/fips140test: add TLS-v1.2 ACVP tests
+    
+    Adds ACVP test coverage for the SP 800-135rev1 RFC 7627 TLS v1.2 KDF
+    based on the NIST spec:
+    
+      https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html
+    
+    Only SHA2-256, SHA2-384 and SHA2-512 are valid hash algorithms for the
+    TLSKDF algorithm.
+    
+    Updates #69642
+    
+    Change-Id: I553d4f6a1d6652ed486af0e2c94730c8063fb47f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636116
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ .../internal/fips140test/acvp_capabilities.json    |  4 +++-
+ .../internal/fips140test/acvp_test.config.json     |  4 +++-
+ src/crypto/internal/fips140test/acvp_test.go       | 24 ++++++++++++++++++++++
+ 3 files changed, 30 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/fips140test/acvp_capabilities.json b/src/crypto/internal/fips140test/acvp_capabilities.json
+index 7577e76c92..74317deb41 100644
+--- a/src/crypto/internal/fips140test/acvp_capabilities.json
++++ b/src/crypto/internal/fips140test/acvp_capabilities.json
+@@ -59,5 +59,7 @@
+   {"algorithm":"ACVP-AES-CTR","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":8,"max":128,"increment":8}],"incrementalCounter":true,"overflowCounter":true,"performCounterTests":true,"revision":"1.0"},
+   {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[96,104,112,120,128],"ivLen":[96],"ivGen":"external","revision":"1.0"},
+   {"algorithm":"ACVP-AES-GCM","direction":["encrypt","decrypt"],"keyLen":[128,192,256],"payloadLen":[{"min":0,"max":65536,"increment":8}],"aadLen":[{"min":0,"max":65536,"increment":8}],"tagLen":[128],"ivLen":[96],"ivGen":"internal","ivGenMode":"8.2.2","revision":"1.0"},
+-  {"algorithm":"CMAC-AES","capabilities":[{"direction":["gen","ver"],"msgLen":[{"min":0,"max":524288,"increment":8}],"keyLen":[128,256],"macLen":[{"min":8,"max":128,"increment":8}]}],"revision":"1.0"}
++  {"algorithm":"CMAC-AES","capabilities":[{"direction":["gen","ver"],"msgLen":[{"min":0,"max":524288,"increment":8}],"keyLen":[128,256],"macLen":[{"min":8,"max":128,"increment":8}]}],"revision":"1.0"},
++
++  {"algorithm":"TLS-v1.2","mode":"KDF","revision":"RFC7627","hashAlg":["SHA2-256","SHA2-384","SHA2-512"]}
+ ]
+diff --git a/src/crypto/internal/fips140test/acvp_test.config.json b/src/crypto/internal/fips140test/acvp_test.config.json
+index 2be909f1a4..a25d38fd68 100644
+--- a/src/crypto/internal/fips140test/acvp_test.config.json
++++ b/src/crypto/internal/fips140test/acvp_test.config.json
+@@ -42,5 +42,7 @@
+   {"Wrapper": "go", "In": "vectors/ACVP-AES-CTR.bz2", "Out": "expected/ACVP-AES-CTR.bz2"},
+   {"Wrapper": "go", "In": "vectors/ACVP-AES-GCM.bz2", "Out": "expected/ACVP-AES-GCM.bz2"},
+ 
+-  {"Wrapper": "go", "In": "vectors/CMAC-AES.bz2", "Out": "expected/CMAC-AES.bz2"}
++  {"Wrapper": "go", "In": "vectors/CMAC-AES.bz2", "Out": "expected/CMAC-AES.bz2"},
++
++  {"Wrapper": "go", "In": "vectors/TLS-v1.2.bz2", "Out": "expected/TLS-v1.2.bz2"}
+ ]
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index 7e3ab4031e..97c0c26aed 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -37,6 +37,7 @@ import (
+ 	"crypto/internal/fips140/sha3"
+ 	"crypto/internal/fips140/sha512"
+ 	"crypto/internal/fips140/subtle"
++	"crypto/internal/fips140/tls12"
+ 	"crypto/rand"
+ 	_ "embed"
+ 	"encoding/binary"
+@@ -114,6 +115,8 @@ var (
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-symmetric.html#section-7.3
+ 	// HKDF KDA algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-hammett-acvp-kas-kdf-hkdf.html#section-7.3
++	// TLS 1.2 KDF algorithm capabilities:
++	//   https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html#section-7.2
+ 	//go:embed acvp_capabilities.json
+ 	capabilitiesJson []byte
+ 
+@@ -220,6 +223,12 @@ var (
+ 
+ 		"CMAC-AES":        cmdCmacAesAft(),
+ 		"CMAC-AES/verify": cmdCmacAesVerifyAft(),
++
++		// Note: Only SHA2-256, SHA2-384 and SHA2-512 are valid hash functions for TLSKDF.
++		// 		 See https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html#section-7.2.1
++		"TLSKDF/1.2/SHA2-256": cmdTlsKdf12Aft(func() fips140.Hash { return sha256.New() }),
++		"TLSKDF/1.2/SHA2-384": cmdTlsKdf12Aft(func() fips140.Hash { return sha512.New384() }),
++		"TLSKDF/1.2/SHA2-512": cmdTlsKdf12Aft(func() fips140.Hash { return sha512.New() }),
+ 	}
+ )
+ 
+@@ -1314,6 +1323,21 @@ func cmdCmacAesVerifyAft() command {
+ 	}
+ }
+ 
++func cmdTlsKdf12Aft(h func() fips140.Hash) command {
++	return command{
++		requiredArgs: 5, // Number output bytes, secret, label, seed1, seed2
++		handler: func(args [][]byte) ([][]byte, error) {
++			outputLen := binary.LittleEndian.Uint32(args[0])
++			secret := args[1]
++			label := string(args[2])
++			seed1 := args[3]
++			seed2 := args[4]
++
++			return [][]byte{tls12.PRF(h, secret, label, append(seed1, seed2...), int(outputLen))}, nil
++		},
++	}
++}
++
+ func TestACVP(t *testing.T) {
+ 	testenv.SkipIfShortAndSlow(t)
+ 

@@ -1,0 +1,577 @@
+commit 0531768b30273ec8c4fe8e234ca96c471bcf5dc3
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Nov 13 15:25:41 2024 -0500
+
+    runtime: implement AddCleanup
+    
+    This change introduces AddCleanup to the runtime package. AddCleanup attaches
+    a cleanup function to an pointer to an object.
+    
+    The Stop method on Cleanups will be implemented in a followup CL.
+    
+    AddCleanup is intended to be an incremental improvement over
+    SetFinalizer and will result in SetFinalizer being deprecated.
+    
+    For #67535
+    
+    Change-Id: I99645152e3fdcee85fcf42a4f312c6917e8aecb1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627695
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ api/next/67535.txt                          |   3 +
+ doc/next/6-stdlib/99-minor/runtime/67535.md |   6 ++
+ src/runtime/mcleanup.go                     | 103 ++++++++++++++++++
+ src/runtime/mcleanup_test.go                | 159 ++++++++++++++++++++++++++++
+ src/runtime/mfinal.go                       |  34 ++++--
+ src/runtime/mgc.go                          |   2 +-
+ src/runtime/mgcmark.go                      |   6 ++
+ src/runtime/mheap.go                        |  63 +++++++++--
+ 8 files changed, 360 insertions(+), 16 deletions(-)
+
+diff --git a/api/next/67535.txt b/api/next/67535.txt
+new file mode 100644
+index 0000000000..9443a1dca7
+--- /dev/null
++++ b/api/next/67535.txt
+@@ -0,0 +1,3 @@
++pkg runtime, func AddCleanup[$0 interface{}, $1 interface{}](*$0, func($1), $1) Cleanup #67535
++pkg runtime, method (Cleanup) Stop() #67535
++pkg runtime, type Cleanup struct #67535
+diff --git a/doc/next/6-stdlib/99-minor/runtime/67535.md b/doc/next/6-stdlib/99-minor/runtime/67535.md
+new file mode 100644
+index 0000000000..e5729f3838
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/runtime/67535.md
+@@ -0,0 +1,6 @@
++The [AddCleanup] function attaches a function to a pointer. Once the object that
++the pointer points to is no longer reachable, the runtime will call the function.
++[AddCleanup] is a finalization mechanism similar to [SetFinalizer]. Unlike
++[SetFinalizer], it does not resurrect objects while running the cleanup. Multiple
++cleanups can be attached to a single object. [AddCleanup] is an improvement over
++[SetFinalizer].
+diff --git a/src/runtime/mcleanup.go b/src/runtime/mcleanup.go
+new file mode 100644
+index 0000000000..70df5755ce
+--- /dev/null
++++ b/src/runtime/mcleanup.go
+@@ -0,0 +1,103 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime
++
++import (
++	"internal/abi"
++	"unsafe"
++)
++
++// AddCleanup attaches a cleanup function to ptr. Some time after ptr is no longer
++// reachable, the runtime will call cleanup(arg) in a separate goroutine.
++//
++// If ptr is reachable from cleanup or arg, ptr will never be collected
++// and the cleanup will never run. AddCleanup panics if arg is equal to ptr.
++//
++// The cleanup(arg) call is not always guaranteed to run; in particular it is not
++// guaranteed to run before program exit.
++//
++// Cleanups are not guaranteed to run if the size of T is zero bytes, because
++// it may share same address with other zero-size objects in memory. See
++// https://go.dev/ref/spec#Size_and_alignment_guarantees.
++//
++// There is no specified order in which cleanups will run.
++//
++// A single goroutine runs all cleanup calls for a program, sequentially. If a
++// cleanup function must run for a long time, it should create a new goroutine.
++//
++// If ptr has both a cleanup and a finalizer, the cleanup will only run once
++// it has been finalized and becomes unreachable without an associated finalizer.
++//
++// It is not guaranteed that a cleanup will run for objects allocated
++// in initializers for package-level variables. Such objects may be
++// linker-allocated, not heap-allocated.
++//
++// Note that because cleanups may execute arbitrarily far into the future
++// after an object is no longer referenced, the runtime is allowed to perform
++// a space-saving optimization that batches objects together in a single
++// allocation slot. The cleanup for an unreferenced object in such an
++// allocation may never run if it always exists in the same batch as a
++// referenced object. Typically, this batching only happens for tiny
++// (on the order of 16 bytes or less) and pointer-free objects.
++func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
++	// Explicitly force ptr to escape to the heap.
++	ptr = abi.Escape(ptr)
++
++	// The pointer to the object must be valid.
++	if ptr == nil {
++		throw("runtime.AddCleanup: ptr is nil")
++	}
++	usptr := uintptr(unsafe.Pointer(ptr))
++
++	// Check that arg is not equal to ptr.
++	// TODO(67535) this does not cover the case where T and *S are the same
++	// type and ptr and arg are equal.
++	if unsafe.Pointer(&arg) == unsafe.Pointer(ptr) {
++		throw("runtime.AddCleanup: ptr is equal to arg, cleanup will never run")
++	}
++	if inUserArenaChunk(usptr) {
++		// Arena-allocated objects are not eligible for cleanup.
++		throw("runtime.AddCleanup: ptr is arena-allocated")
++	}
++	if debug.sbrk != 0 {
++		// debug.sbrk never frees memory, so no cleanup will ever run
++		// (and we don't have the data structures to record them).
++		// return a noop cleanup.
++		return Cleanup{}
++	}
++
++	fn := func() {
++		cleanup(arg)
++	}
++	// closure must escape
++	fv := *(**funcval)(unsafe.Pointer(&fn))
++	fv = abi.Escape(fv)
++
++	// find the containing object
++	base, _, _ := findObject(usptr, 0, 0)
++	if base == 0 {
++		if isGoPointerWithoutSpan(unsafe.Pointer(ptr)) {
++			return Cleanup{}
++		}
++		throw("runtime.AddCleanup: ptr not in allocated block")
++	}
++
++	// ensure we have a finalizer processing goroutine running.
++	createfing()
++
++	addCleanup(unsafe.Pointer(ptr), fv)
++	return Cleanup{}
++}
++
++// Cleanup is a handle to a cleanup call for a specific object.
++type Cleanup struct{}
++
++// Stop cancels the cleanup call. Stop will have no effect if the cleanup call
++// has already been queued for execution (because ptr became unreachable).
++// To guarantee that Stop removes the cleanup function, the caller must ensure
++// that the pointer that was passed to AddCleanup is reachable across the call to Stop.
++//
++// TODO(amedee) needs implementation.
++func (c Cleanup) Stop() {}
+diff --git a/src/runtime/mcleanup_test.go b/src/runtime/mcleanup_test.go
+new file mode 100644
+index 0000000000..66d58ef8a2
+--- /dev/null
++++ b/src/runtime/mcleanup_test.go
+@@ -0,0 +1,159 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	"runtime"
++	"testing"
++	"unsafe"
++)
++
++func TestCleanup(t *testing.T) {
++	ch := make(chan bool, 1)
++	done := make(chan bool, 1)
++	want := 97531
++	go func() {
++		// allocate struct with pointer to avoid hitting tinyalloc.
++		// Otherwise we can't be sure when the allocation will
++		// be freed.
++		type T struct {
++			v int
++			p unsafe.Pointer
++		}
++		v := &new(T).v
++		*v = 97531
++		cleanup := func(x int) {
++			if x != want {
++				t.Errorf("cleanup %d, want %d", x, want)
++			}
++			ch <- true
++		}
++		runtime.AddCleanup(v, cleanup, 97531)
++		v = nil
++		done <- true
++	}()
++	<-done
++	runtime.GC()
++	<-ch
++}
++
++func TestCleanupMultiple(t *testing.T) {
++	ch := make(chan bool, 3)
++	done := make(chan bool, 1)
++	want := 97531
++	go func() {
++		// allocate struct with pointer to avoid hitting tinyalloc.
++		// Otherwise we can't be sure when the allocation will
++		// be freed.
++		type T struct {
++			v int
++			p unsafe.Pointer
++		}
++		v := &new(T).v
++		*v = 97531
++		cleanup := func(x int) {
++			if x != want {
++				t.Errorf("cleanup %d, want %d", x, want)
++			}
++			ch <- true
++		}
++		runtime.AddCleanup(v, cleanup, 97531)
++		runtime.AddCleanup(v, cleanup, 97531)
++		runtime.AddCleanup(v, cleanup, 97531)
++		v = nil
++		done <- true
++	}()
++	<-done
++	runtime.GC()
++	<-ch
++	<-ch
++	<-ch
++}
++
++func TestCleanupZeroSizedStruct(t *testing.T) {
++	type Z struct{}
++	z := new(Z)
++	runtime.AddCleanup(z, func(s string) {}, "foo")
++}
++
++func TestCleanupAfterFinalizer(t *testing.T) {
++	ch := make(chan int, 2)
++	done := make(chan bool, 1)
++	want := 97531
++	go func() {
++		// allocate struct with pointer to avoid hitting tinyalloc.
++		// Otherwise we can't be sure when the allocation will
++		// be freed.
++		type T struct {
++			v int
++			p unsafe.Pointer
++		}
++		v := &new(T).v
++		*v = 97531
++		finalizer := func(x *int) {
++			ch <- 1
++		}
++		cleanup := func(x int) {
++			if x != want {
++				t.Errorf("cleanup %d, want %d", x, want)
++			}
++			ch <- 2
++		}
++		runtime.AddCleanup(v, cleanup, 97531)
++		runtime.SetFinalizer(v, finalizer)
++		v = nil
++		done <- true
++	}()
++	<-done
++	runtime.GC()
++	var result int
++	result = <-ch
++	if result != 1 {
++		t.Errorf("result %d, want 1", result)
++	}
++	runtime.GC()
++	result = <-ch
++	if result != 2 {
++		t.Errorf("result %d, want 2", result)
++	}
++}
++
++func TestCleanupInteriorPointer(t *testing.T) {
++	ch := make(chan bool, 3)
++	done := make(chan bool, 1)
++	want := 97531
++	go func() {
++		// Allocate struct with pointer to avoid hitting tinyalloc.
++		// Otherwise we can't be sure when the allocation will
++		// be freed.
++		type T struct {
++			p unsafe.Pointer
++			i int
++			a int
++			b int
++			c int
++		}
++		ts := new(T)
++		ts.a = 97531
++		ts.b = 97531
++		ts.c = 97531
++		cleanup := func(x int) {
++			if x != want {
++				t.Errorf("cleanup %d, want %d", x, want)
++			}
++			ch <- true
++		}
++		runtime.AddCleanup(&ts.a, cleanup, 97531)
++		runtime.AddCleanup(&ts.b, cleanup, 97531)
++		runtime.AddCleanup(&ts.c, cleanup, 97531)
++		ts = nil
++		done <- true
++	}()
++	<-done
++	runtime.GC()
++	<-ch
++	<-ch
++	<-ch
++}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 238820fc06..89a9c84170 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -40,11 +40,14 @@ const (
+ 	fingWake
+ )
+ 
+-var finlock mutex  // protects the following variables
+-var fing *g        // goroutine that runs finalizers
+-var finq *finblock // list of finalizers that are to be executed
+-var finc *finblock // cache of free blocks
+-var finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
++// This runs durring the GC sweep phase. Heap memory can't be allocated while sweep is running.
++var (
++	finlock    mutex     // protects the following variables
++	fing       *g        // goroutine that runs finalizers
++	finq       *finblock // list of finalizers that are to be executed
++	finc       *finblock // cache of free blocks
++	finptrmask [_FinBlockSize / goarch.PtrSize / 8]byte
++)
+ 
+ var allfin *finblock // list of all blocks
+ 
+@@ -172,7 +175,7 @@ func finalizercommit(gp *g, lock unsafe.Pointer) bool {
+ 	return true
+ }
+ 
+-// This is the goroutine that runs all of the finalizers.
++// This is the goroutine that runs all of the finalizers and cleanups.
+ func runfinq() {
+ 	var (
+ 		frame    unsafe.Pointer
+@@ -202,6 +205,22 @@ func runfinq() {
+ 			for i := fb.cnt; i > 0; i-- {
+ 				f := &fb.fin[i-1]
+ 
++				// arg will only be nil when a cleanup has been queued.
++				if f.arg == nil {
++					var cleanup func()
++					fn := unsafe.Pointer(f.fn)
++					cleanup = *(*func())(unsafe.Pointer(&fn))
++					fingStatus.Or(fingRunningFinalizer)
++					cleanup()
++					fingStatus.And(^fingRunningFinalizer)
++
++					f.fn = nil
++					f.arg = nil
++					f.ot = nil
++					atomic.Store(&fb.cnt, i-1)
++					continue
++				}
++
+ 				var regs abi.RegArgs
+ 				// The args may be passed in registers or on stack. Even for
+ 				// the register case, we still need the spill slots.
+@@ -220,7 +239,8 @@ func runfinq() {
+ 					frame = mallocgc(framesz, nil, true)
+ 					framecap = framesz
+ 				}
+-
++				// cleanups also have a nil fint. Cleanups should have been processed before
++				// reaching this point.
+ 				if f.fint == nil {
+ 					throw("missing type in runfinq")
+ 				}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index fe5138e581..b3741a2e59 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -1908,7 +1908,7 @@ func gcTestIsReachable(ptrs ...unsafe.Pointer) (mask uint64) {
+ 		s := (*specialReachable)(mheap_.specialReachableAlloc.alloc())
+ 		unlock(&mheap_.speciallock)
+ 		s.special.kind = _KindSpecialReachable
+-		if !addspecial(p, &s.special) {
++		if !addspecial(p, &s.special, false) {
+ 			throw("already have a reachable special (duplicate pointer?)")
+ 		}
+ 		specials[i] = s
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 1c7df4d949..3a437ac8f8 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -178,6 +178,8 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
+ 	case i == fixedRootFinalizers:
+ 		for fb := allfin; fb != nil; fb = fb.alllink {
+ 			cnt := uintptr(atomic.Load(&fb.cnt))
++			// Finalizers that contain cleanups only have fn set. None of the other
++			// fields are necessary.
+ 			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw, nil)
+ 		}
+ 
+@@ -401,6 +403,10 @@ func markrootSpans(gcw *gcWork, shard int) {
+ 					// The special itself is a root.
+ 					spw := (*specialWeakHandle)(unsafe.Pointer(sp))
+ 					scanblock(uintptr(unsafe.Pointer(&spw.handle)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
++				case _KindSpecialCleanup:
++					spc := (*specialCleanup)(unsafe.Pointer(sp))
++					// The special itself is a root.
++					scanblock(uintptr(unsafe.Pointer(&spc.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
+ 				}
+ 			}
+ 			unlock(&s.speciallock)
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 99ced25a6f..72e7819b66 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -204,6 +204,7 @@ type mheap struct {
+ 	spanalloc              fixalloc // allocator for span*
+ 	cachealloc             fixalloc // allocator for mcache*
+ 	specialfinalizeralloc  fixalloc // allocator for specialfinalizer*
++	specialCleanupAlloc    fixalloc // allocator for specialcleanup*
+ 	specialprofilealloc    fixalloc // allocator for specialprofile*
+ 	specialReachableAlloc  fixalloc // allocator for specialReachable
+ 	specialPinCounterAlloc fixalloc // allocator for specialPinCounter
+@@ -743,6 +744,7 @@ func (h *mheap) init() {
+ 	h.spanalloc.init(unsafe.Sizeof(mspan{}), recordspan, unsafe.Pointer(h), &memstats.mspan_sys)
+ 	h.cachealloc.init(unsafe.Sizeof(mcache{}), nil, nil, &memstats.mcache_sys)
+ 	h.specialfinalizeralloc.init(unsafe.Sizeof(specialfinalizer{}), nil, nil, &memstats.other_sys)
++	h.specialCleanupAlloc.init(unsafe.Sizeof(specialCleanup{}), nil, nil, &memstats.other_sys)
+ 	h.specialprofilealloc.init(unsafe.Sizeof(specialprofile{}), nil, nil, &memstats.other_sys)
+ 	h.specialReachableAlloc.init(unsafe.Sizeof(specialReachable{}), nil, nil, &memstats.other_sys)
+ 	h.specialPinCounterAlloc.init(unsafe.Sizeof(specialPinCounter{}), nil, nil, &memstats.other_sys)
+@@ -1824,6 +1826,8 @@ const (
+ 	// _KindSpecialPinCounter is a special used for objects that are pinned
+ 	// multiple times
+ 	_KindSpecialPinCounter = 5
++	// _KindSpecialCleanup is for tracking cleanups.
++	_KindSpecialCleanup = 6
+ )
+ 
+ type special struct {
+@@ -1849,13 +1853,13 @@ func spanHasNoSpecials(s *mspan) {
+ 	atomic.And8(&ha.pageSpecials[arenaPage/8], ^(uint8(1) << (arenaPage % 8)))
+ }
+ 
+-// Adds the special record s to the list of special records for
++// addspecial adds the special record s to the list of special records for
+ // the object p. All fields of s should be filled in except for
+ // offset & next, which this routine will fill in.
+ // Returns true if the special was successfully added, false otherwise.
+ // (The add will fail only if a record with the same p and s->kind
+-// already exists.)
+-func addspecial(p unsafe.Pointer, s *special) bool {
++// already exists unless force is set to true.)
++func addspecial(p unsafe.Pointer, s *special, force bool) bool {
+ 	span := spanOfHeap(uintptr(p))
+ 	if span == nil {
+ 		throw("addspecial on invalid pointer")
+@@ -1874,7 +1878,7 @@ func addspecial(p unsafe.Pointer, s *special) bool {
+ 
+ 	// Find splice point, check for existing record.
+ 	iter, exists := span.specialFindSplicePoint(offset, kind)
+-	if !exists {
++	if !exists || force {
+ 		// Splice in record, fill in offset.
+ 		s.offset = uint16(offset)
+ 		s.next = *iter
+@@ -1884,7 +1888,10 @@ func addspecial(p unsafe.Pointer, s *special) bool {
+ 
+ 	unlock(&span.speciallock)
+ 	releasem(mp)
+-	return !exists // already exists
++	// We're converting p to a uintptr and looking it up, and we
++	// don't want it to die and get swept while we're doing so.
++	KeepAlive(p)
++	return !exists || force // already exists or addition was forced
+ }
+ 
+ // Removes the Special record of the given kind for the object p.
+@@ -1968,7 +1975,7 @@ func addfinalizer(p unsafe.Pointer, f *funcval, nret uintptr, fint *_type, ot *p
+ 	s.nret = nret
+ 	s.fint = fint
+ 	s.ot = ot
+-	if addspecial(p, &s.special) {
++	if addspecial(p, &s.special, false) {
+ 		// This is responsible for maintaining the same
+ 		// GC-related invariants as markrootSpans in any
+ 		// situation where it's possible that markrootSpans
+@@ -2008,6 +2015,37 @@ func removefinalizer(p unsafe.Pointer) {
+ 	unlock(&mheap_.speciallock)
+ }
+ 
++// The described object has a cleanup set for it.
++type specialCleanup struct {
++	_       sys.NotInHeap
++	special special
++	fn      *funcval
++}
++
++// addCleanup attaches a cleanup function to the object. Multiple
++// cleanups are allowed on an object, and even the same pointer.
++func addCleanup(p unsafe.Pointer, f *funcval) {
++	lock(&mheap_.speciallock)
++	s := (*specialCleanup)(mheap_.specialCleanupAlloc.alloc())
++	unlock(&mheap_.speciallock)
++	s.special.kind = _KindSpecialCleanup
++	s.fn = f
++
++	mp := acquirem()
++	addspecial(p, &s.special, true)
++	releasem(mp)
++	// This is responsible for maintaining the same
++	// GC-related invariants as markrootSpans in any
++	// situation where it's possible that markrootSpans
++	// has already run but mark termination hasn't yet.
++	if gcphase != _GCoff {
++		gcw := &mp.p.ptr().gcw
++		// Mark the cleanup itself, since the
++		// special isn't part of the GC'd heap.
++		scanblock(uintptr(unsafe.Pointer(&s.fn)), goarch.PtrSize, &oneptrmask[0], gcw, nil)
++	}
++}
++
+ // The described object has a weak pointer.
+ //
+ // Weak pointers in the GC have the following invariants:
+@@ -2156,7 +2194,7 @@ func getOrAddWeakHandle(p unsafe.Pointer) *atomic.Uintptr {
+ 	s.special.kind = _KindSpecialWeakHandle
+ 	s.handle = handle
+ 	handle.Store(uintptr(p))
+-	if addspecial(p, &s.special) {
++	if addspecial(p, &s.special, false) {
+ 		// This is responsible for maintaining the same
+ 		// GC-related invariants as markrootSpans in any
+ 		// situation where it's possible that markrootSpans
+@@ -2242,7 +2280,7 @@ func setprofilebucket(p unsafe.Pointer, b *bucket) {
+ 	unlock(&mheap_.speciallock)
+ 	s.special.kind = _KindSpecialProfile
+ 	s.b = b
+-	if !addspecial(p, &s.special) {
++	if !addspecial(p, &s.special, false) {
+ 		throw("setprofilebucket: profile already set")
+ 	}
+ }
+@@ -2319,6 +2357,15 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
+ 		lock(&mheap_.speciallock)
+ 		mheap_.specialPinCounterAlloc.free(unsafe.Pointer(s))
+ 		unlock(&mheap_.speciallock)
++	case _KindSpecialCleanup:
++		sc := (*specialCleanup)(unsafe.Pointer(s))
++		// Cleanups, unlike finalizers, do not resurrect the objects
++		// they're attached to, so we only need to pass the cleanup
++		// function, not the object.
++		queuefinalizer(nil, sc.fn, 0, nil, nil)
++		lock(&mheap_.speciallock)
++		mheap_.specialCleanupAlloc.free(unsafe.Pointer(sc))
++		unlock(&mheap_.speciallock)
+ 	default:
+ 		throw("bad special kind")
+ 		panic("not reached")

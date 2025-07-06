@@ -1,0 +1,72 @@
+commit 76f3e0ac8d094b2bc5f8a3fb8a19d1d17a07fe2c
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Fri Nov 1 11:17:49 2024 +0800
+
+    go/types, types2: print variadic argument in dotdotdot form in error message
+    
+    If a variadic call to a variadic function has not enough/too many
+    arguments, then print the variadic argument in dotdotdot form
+    instead of as a slice type in the error message.
+    
+    Fixes #70150
+    
+    Change-Id: I81a802619b3b66195b303e2df2bafeb1433ad310
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624335
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/call.go             |  2 +-
+ src/go/types/call.go                                |  2 +-
+ src/internal/types/testdata/fixedbugs/issue70150.go | 15 +++++++++++++++
+ 3 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 4ff5fe49e7..9095349e1d 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -530,7 +530,7 @@ func (check *Checker) arguments(call *syntax.CallExpr, sig *Signature, targs []T
+ 		}
+ 		err := check.newError(WrongArgCount)
+ 		err.addf(at, "%s arguments in call to %s", qualifier, call.Fun)
+-		err.addf(nopos, "have %s", check.typesSummary(operandTypes(args), false))
++		err.addf(nopos, "have %s", check.typesSummary(operandTypes(args), ddd))
+ 		err.addf(nopos, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+ 		err.report()
+ 		return
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index bb7d0bd0d3..459e927f7e 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -530,7 +530,7 @@ func (check *Checker) arguments(call *ast.CallExpr, sig *Signature, targs []Type
+ 		}
+ 		err := check.newError(WrongArgCount)
+ 		err.addf(at, "%s arguments in call to %s", qualifier, call.Fun)
+-		err.addf(noposn, "have %s", check.typesSummary(operandTypes(args), false))
++		err.addf(noposn, "have %s", check.typesSummary(operandTypes(args), ddd))
+ 		err.addf(noposn, "want %s", check.typesSummary(varTypes(params), sig.variadic))
+ 		err.report()
+ 		return
+diff --git a/src/internal/types/testdata/fixedbugs/issue70150.go b/src/internal/types/testdata/fixedbugs/issue70150.go
+new file mode 100644
+index 0000000000..ea308cfddb
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue70150.go
+@@ -0,0 +1,15 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++func _() {
++	var values []int
++	vf(values /* ERROR "(variable of type []int) as string value" */)
++	vf(values...) /* ERROR "have (...int)" */
++	vf("ab", "cd", values /* ERROR "have (string, string, ...int)" */ ...)
++}
++
++func vf(method string, values ...int) {
++}

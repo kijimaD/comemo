@@ -1,0 +1,67 @@
+commit ef58ec2b5a35f7b11a5bc0632cb156c5bcf56632
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat May 10 12:18:32 2025 +0100
+
+    text/template: clone options when cloning templates
+    
+    Fixes #43022
+    
+    Change-Id: I727b86ea0ebfff06f82c909457479c2afb9106dc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/671615
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/text/template/multi_test.go | 11 +++++++++++
+ src/text/template/template.go   |  1 +
+ 2 files changed, 12 insertions(+)
+
+diff --git a/src/text/template/multi_test.go b/src/text/template/multi_test.go
+index 63cd3f74b2..1e4f61b3f1 100644
+--- a/src/text/template/multi_test.go
++++ b/src/text/template/multi_test.go
+@@ -210,6 +210,7 @@ const (
+ 	cloneText2 = `{{define "b"}}b{{end}}`
+ 	cloneText3 = `{{define "c"}}root{{end}}`
+ 	cloneText4 = `{{define "c"}}clone{{end}}`
++	cloneText5 = `{{define "e"}}{{.Foo}}{{end}}`
+ )
+ 
+ func TestClone(t *testing.T) {
+@@ -222,6 +223,8 @@ func TestClone(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
++	root.Parse(cloneText5)
++	root.Option("missingkey=error")
+ 	clone := Must(root.Clone())
+ 	// Add variants to both.
+ 	_, err = root.Parse(cloneText3)
+@@ -259,6 +262,14 @@ func TestClone(t *testing.T) {
+ 	if b.String() != "bclone" {
+ 		t.Errorf("expected %q got %q", "bclone", b.String())
+ 	}
++	b.Reset()
++	rootErr := root.ExecuteTemplate(&b, "e", map[string]any{})
++	cloneErr := clone.ExecuteTemplate(&b, "e", map[string]any{})
++	if cloneErr == nil {
++		t.Errorf("expected error from missing key in cloned template")
++	} else if got, want := cloneErr.Error(), rootErr.Error(); got != want {
++		t.Errorf("got %q, wan t %q", got, want)
++	}
+ }
+ 
+ func TestAddParseTree(t *testing.T) {
+diff --git a/src/text/template/template.go b/src/text/template/template.go
+index 78067af2ad..9ae5a6ca5b 100644
+--- a/src/text/template/template.go
++++ b/src/text/template/template.go
+@@ -90,6 +90,7 @@ func (t *Template) Clone() (*Template, error) {
+ 	if t.common == nil {
+ 		return nt, nil
+ 	}
++	nt.option = t.option
+ 	t.muTmpl.RLock()
+ 	defer t.muTmpl.RUnlock()
+ 	for k, v := range t.tmpl {

@@ -1,0 +1,30 @@
+commit a7043ec95ba77be6110f89e5112d5cad61c577b0
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Nov 20 10:53:16 2024 -0500
+
+    syscall: do not run TestSyscallAllocations in parallel with other tests
+    
+    Fixes #70327.
+    
+    Change-Id: I27ee0d1fbae73fb5c22aa699f4e3110c67bc9ea2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630136
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/syscall/syscall_windows_test.go | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 63409daf04..882a279692 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -230,8 +230,6 @@ func TestGetStartupInfo(t *testing.T) {
+ func TestSyscallAllocations(t *testing.T) {
+ 	testenv.SkipIfOptimizationOff(t)
+ 
+-	t.Parallel()
+-
+ 	// Test that syscall.SyscallN arguments do not escape.
+ 	// The function used (in this case GetVersion) doesn't matter
+ 	// as long as it is always available and doesn't panic.

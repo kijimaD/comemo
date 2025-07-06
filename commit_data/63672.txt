@@ -1,0 +1,285 @@
+commit 69e75c8581e15328454bb6e2f1dc347f73616b37
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Apr 23 12:44:54 2024 -0400
+
+    runtime: properly frame panic values in tracebacks
+    
+    This CL causes the printing of panic values to ensure that all
+    newlines in the output are immediately followed by a tab, so
+    that there is no way for a maliciously crafted panic value to
+    fool a program attempting to parse the traceback into thinking
+    that the panic value is in fact a goroutine stack.
+    
+    See https://github.com/golang/go/issues/64590#issuecomment-1932675696
+    
+    + release note
+    
+    Updates #64590
+    Updates #63455
+    
+    Change-Id: I5142acb777383c0c122779d984e73879567dc627
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581215
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ doc/next/4-runtime.md                       |  6 +++++
+ src/runtime/crash_test.go                   |  6 ++---
+ src/runtime/error.go                        | 35 ++++++++++++++++++++++++-----
+ src/runtime/panic.go                        | 18 +++++++++------
+ src/runtime/panic_test.go                   |  2 +-
+ src/runtime/testdata/testprog/crash.go      |  6 ++---
+ src/runtime/testdata/testprog/panicprint.go |  2 +-
+ src/testing/testing_test.go                 |  3 ++-
+ 8 files changed, 56 insertions(+), 22 deletions(-)
+
+diff --git a/doc/next/4-runtime.md b/doc/next/4-runtime.md
+index 1f8e445e0b..7553154a16 100644
+--- a/doc/next/4-runtime.md
++++ b/doc/next/4-runtime.md
+@@ -1 +1,7 @@
+ ## Runtime {#runtime}
++
++The traceback printed by the runtime after an unhandled panic or other
++fatal error now indents the second and subsequent lines of the error
++message (for example, the argument to panic) by a single tab, so that
++it can be unambiguously distinguished from the stack trace of the
++first goroutine. See [#64590](/issue/64590) for discussion.
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 19c9cddf36..9a5fa61588 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -966,11 +966,11 @@ func TestPanicWhilePanicking(t *testing.T) {
+ 		Func string
+ 	}{
+ 		{
+-			"panic while printing panic value: important error message",
++			"panic while printing panic value: important multi-line\n\terror message",
+ 			"ErrorPanic",
+ 		},
+ 		{
+-			"panic while printing panic value: important stringer message",
++			"panic while printing panic value: important multi-line\n\tstringer message",
+ 			"StringerPanic",
+ 		},
+ 		{
+@@ -986,7 +986,7 @@ func TestPanicWhilePanicking(t *testing.T) {
+ 			"CircularPanic",
+ 		},
+ 		{
+-			"important string message",
++			"important multi-line\n\tstring message",
+ 			"StringPanic",
+ 		},
+ 		{
+diff --git a/src/runtime/error.go b/src/runtime/error.go
+index fe95f31005..406f36ca5f 100644
+--- a/src/runtime/error.go
++++ b/src/runtime/error.go
+@@ -211,11 +211,16 @@ type stringer interface {
+ 	String() string
+ }
+ 
+-// printany prints an argument passed to panic.
++// printpanicval prints an argument passed to panic.
+ // If panic is called with a value that has a String or Error method,
+ // it has already been converted into a string by preprintpanics.
+-func printany(i any) {
+-	switch v := i.(type) {
++//
++// To ensure that the traceback can be unambiguously parsed even when
++// the panic value contains "\ngoroutine" and other stack-like
++// strings, newlines in the string representation of v are replaced by
++// "\n\t".
++func printpanicval(v any) {
++	switch v := v.(type) {
+ 	case nil:
+ 		print("nil")
+ 	case bool:
+@@ -251,19 +256,22 @@ func printany(i any) {
+ 	case complex128:
+ 		print(v)
+ 	case string:
+-		print(v)
++		printindented(v)
+ 	default:
+-		printanycustomtype(i)
++		printanycustomtype(v)
+ 	}
+ }
+ 
++// Invariant: each newline in the string representation is followed by a tab.
+ func printanycustomtype(i any) {
+ 	eface := efaceOf(&i)
+ 	typestring := toRType(eface._type).string()
+ 
+ 	switch eface._type.Kind_ {
+ 	case abi.String:
+-		print(typestring, `("`, *(*string)(eface.data), `")`)
++		print(typestring, `("`)
++		printindented(*(*string)(eface.data))
++		print(`")`)
+ 	case abi.Bool:
+ 		print(typestring, "(", *(*bool)(eface.data), ")")
+ 	case abi.Int:
+@@ -301,6 +309,21 @@ func printanycustomtype(i any) {
+ 	}
+ }
+ 
++// printindented prints s, replacing "\n" with "\n\t".
++func printindented(s string) {
++	for {
++		i := bytealg.IndexByteString(s, '\n')
++		if i < 0 {
++			break
++		}
++		i += len("\n")
++		print(s[:i])
++		print("\t")
++		s = s[i:]
++	}
++	print(s)
++}
++
+ // panicwrap generates a panic for a call to a wrapped value method
+ // with a nil pointer receiver.
+ //
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 51b57520c1..27fcf73ff4 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -656,7 +656,7 @@ func printpanics(p *_panic) {
+ 		return
+ 	}
+ 	print("panic: ")
+-	printany(p.arg)
++	printpanicval(p.arg)
+ 	if p.recovered {
+ 		print(" [recovered]")
+ 	}
+@@ -718,20 +718,20 @@ func gopanic(e any) {
+ 	gp := getg()
+ 	if gp.m.curg != gp {
+ 		print("panic: ")
+-		printany(e)
++		printpanicval(e)
+ 		print("\n")
+ 		throw("panic on system stack")
+ 	}
+ 
+ 	if gp.m.mallocing != 0 {
+ 		print("panic: ")
+-		printany(e)
++		printpanicval(e)
+ 		print("\n")
+ 		throw("panic during malloc")
+ 	}
+ 	if gp.m.preemptoff != "" {
+ 		print("panic: ")
+-		printany(e)
++		printpanicval(e)
+ 		print("\n")
+ 		print("preempt off reason: ")
+ 		print(gp.m.preemptoff)
+@@ -740,7 +740,7 @@ func gopanic(e any) {
+ 	}
+ 	if gp.m.locks != 0 {
+ 		print("panic: ")
+-		printany(e)
++		printpanicval(e)
+ 		print("\n")
+ 		throw("panic holding locks")
+ 	}
+@@ -1015,7 +1015,9 @@ func throw(s string) {
+ 	// Everything throw does should be recursively nosplit so it
+ 	// can be called even when it's unsafe to grow the stack.
+ 	systemstack(func() {
+-		print("fatal error: ", s, "\n")
++		print("fatal error: ")
++		printpanicval(s)
++		print("\n")
+ 	})
+ 
+ 	fatalthrow(throwTypeRuntime)
+@@ -1034,7 +1036,9 @@ func fatal(s string) {
+ 	// Everything fatal does should be recursively nosplit so it
+ 	// can be called even when it's unsafe to grow the stack.
+ 	systemstack(func() {
+-		print("fatal error: ", s, "\n")
++		print("fatal error: ")
++		printpanicval(s)
++		print("\n")
+ 	})
+ 
+ 	fatalthrow(throwTypeUser)
+diff --git a/src/runtime/panic_test.go b/src/runtime/panic_test.go
+index b8a300f6b1..994abfdd45 100644
+--- a/src/runtime/panic_test.go
++++ b/src/runtime/panic_test.go
+@@ -27,7 +27,7 @@ func TestPanicWithDirectlyPrintableCustomTypes(t *testing.T) {
+ 		{"panicCustomInt16", `panic: main.MyInt16(93)`},
+ 		{"panicCustomInt32", `panic: main.MyInt32(93)`},
+ 		{"panicCustomInt64", `panic: main.MyInt64(93)`},
+-		{"panicCustomString", `panic: main.MyString("Panic")`},
++		{"panicCustomString", `panic: main.MyString("Panic` + "\n\t" + `line two")`},
+ 		{"panicCustomUint", `panic: main.MyUint(93)`},
+ 		{"panicCustomUint8", `panic: main.MyUint8(93)`},
+ 		{"panicCustomUint16", `panic: main.MyUint16(93)`},
+diff --git a/src/runtime/testdata/testprog/crash.go b/src/runtime/testdata/testprog/crash.go
+index 38c8f6a2fa..bdc395f652 100644
+--- a/src/runtime/testdata/testprog/crash.go
++++ b/src/runtime/testdata/testprog/crash.go
+@@ -77,7 +77,7 @@ func DoublePanic() {
+ type exampleError struct{}
+ 
+ func (e exampleError) Error() string {
+-	panic("important error message")
++	panic("important multi-line\nerror message")
+ }
+ 
+ func ErrorPanic() {
+@@ -97,7 +97,7 @@ func DoubleErrorPanic() {
+ type exampleStringer struct{}
+ 
+ func (s exampleStringer) String() string {
+-	panic("important stringer message")
++	panic("important multi-line\nstringer message")
+ }
+ 
+ func StringerPanic() {
+@@ -115,7 +115,7 @@ func DoubleStringerPanic() {
+ }
+ 
+ func StringPanic() {
+-	panic("important string message")
++	panic("important multi-line\nstring message")
+ }
+ 
+ func NilPanic() {
+diff --git a/src/runtime/testdata/testprog/panicprint.go b/src/runtime/testdata/testprog/panicprint.go
+index c8deabe2ab..4ce958ba3d 100644
+--- a/src/runtime/testdata/testprog/panicprint.go
++++ b/src/runtime/testdata/testprog/panicprint.go
+@@ -31,7 +31,7 @@ func panicCustomComplex128() {
+ }
+ 
+ func panicCustomString() {
+-	panic(MyString("Panic"))
++	panic(MyString("Panic\nline two"))
+ }
+ 
+ func panicCustomBool() {
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index d3822dfd57..4a9303952e 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -762,7 +762,8 @@ func parseRunningTests(out []byte) (runningTests []string, ok bool) {
+ 	inRunningTests := false
+ 	for _, line := range strings.Split(string(out), "\n") {
+ 		if inRunningTests {
+-			if trimmed, ok := strings.CutPrefix(line, "\t"); ok {
++			// Package testing adds one tab, the panic printer adds another.
++			if trimmed, ok := strings.CutPrefix(line, "\t\t"); ok {
+ 				if name, _, ok := strings.Cut(trimmed, " "); ok {
+ 					runningTests = append(runningTests, name)
+ 					continue

@@ -1,0 +1,60 @@
+commit 6fc1e341001e10430251ca90e80a022d95b0a5cf
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Feb 27 23:04:15 2025 +1100
+
+    internal/bytealg: deduplicate code between Count/CountString for riscv64
+    
+    Change-Id: I22eb4e7444e5fe5f6767cc960895f3c6e2fa13cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661615
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/internal/bytealg/count_riscv64.s | 28 +++++++---------------------
+ 1 file changed, 7 insertions(+), 21 deletions(-)
+
+diff --git a/src/internal/bytealg/count_riscv64.s b/src/internal/bytealg/count_riscv64.s
+index 3f255cd263..6cc49d1388 100644
+--- a/src/internal/bytealg/count_riscv64.s
++++ b/src/internal/bytealg/count_riscv64.s
+@@ -5,6 +5,13 @@
+ #include "go_asm.h"
+ #include "textflag.h"
+ 
++TEXT ·CountString<ABIInternal>(SB),NOSPLIT,$0-32
++	// X10 = s_base
++	// X11 = s_len
++	// X12 = byte to count
++	MOV	X12, X13
++	JMP	·Count<ABIInternal>(SB)
++
+ TEXT ·Count<ABIInternal>(SB),NOSPLIT,$0-40
+ 	// X10 = b_base
+ 	// X11 = b_len
+@@ -26,24 +33,3 @@ loop:
+ done:
+ 	MOV	X14, X10
+ 	RET
+-
+-TEXT ·CountString<ABIInternal>(SB),NOSPLIT,$0-32
+-	// X10 = s_base
+-	// X11 = s_len
+-	// X12 = byte to count
+-	AND	$0xff, X12
+-	MOV	ZERO, X14	// count
+-	ADD	X10, X11	// end
+-
+-	PCALIGN	$16
+-loop:
+-	BEQ	X10, X11, done
+-	MOVBU	(X10), X15
+-	ADD	$1, X10
+-	BNE	X12, X15, loop
+-	ADD	$1, X14
+-	JMP	loop
+-
+-done:
+-	MOV	X14, X10
+-	RET

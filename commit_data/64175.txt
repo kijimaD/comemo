@@ -1,0 +1,133 @@
+commit 7f90b960a9711b51bf36f49be4274ac5f7e86a95
+Author: Keith Randall <khr@golang.org>
+Date:   Thu Jun 27 20:45:22 2024 -0700
+
+    cmd/compile: don't elide zero extension on top of signed values
+    
+    v = ... compute some value, which zeros top 32 bits ...
+    w = zero-extend v
+    
+    We want to remove the zero-extension operation, as it doesn't do anything.
+    But if v is typed as a signed value, and it gets spilled/restored, it
+    might be re-sign-extended upon restore. So the zero-extend isn't actually
+    a NOP when there might be calls or other reasons to spill in between v and w.
+    
+    Fixes #68227
+    
+    Change-Id: I3b30b8e56c7d70deac1fb09d2becc7395acbadf8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/ssa/rewrite.go | 17 ++++++++++---
+ test/fixedbugs/issue68227.go            | 43 +++++++++++++++++++++++++++++++++
+ 2 files changed, 57 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index aeec2b3768..5bc0308362 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1287,6 +1287,11 @@ func areAdjacentOffsets(off1, off2, size int64) bool {
+ // depth limits recursion depth. In AMD64.rules 3 is used as limit,
+ // because it catches same amount of cases as 4.
+ func zeroUpper32Bits(x *Value, depth int) bool {
++	if x.Type.IsSigned() && x.Type.Size() < 8 {
++		// If the value is signed, it might get re-sign-extended
++		// during spill and restore. See issue 68227.
++		return false
++	}
+ 	switch x.Op {
+ 	case OpAMD64MOVLconst, OpAMD64MOVLload, OpAMD64MOVLQZX, OpAMD64MOVLloadidx1,
+ 		OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVBload, OpAMD64MOVBloadidx1,
+@@ -1305,7 +1310,7 @@ func zeroUpper32Bits(x *Value, depth int) bool {
+ 	case OpArg: // note: but not ArgIntReg
+ 		// amd64 always loads args from the stack unsigned.
+ 		// most other architectures load them sign/zero extended based on the type.
+-		return x.Type.Size() == 4 && (x.Type.IsUnsigned() || x.Block.Func.Config.arch == "amd64")
++		return x.Type.Size() == 4 && x.Block.Func.Config.arch == "amd64"
+ 	case OpPhi, OpSelect0, OpSelect1:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+ 		// just limit recursion depth.
+@@ -1325,11 +1330,14 @@ func zeroUpper32Bits(x *Value, depth int) bool {
+ 
+ // zeroUpper48Bits is similar to zeroUpper32Bits, but for upper 48 bits.
+ func zeroUpper48Bits(x *Value, depth int) bool {
++	if x.Type.IsSigned() && x.Type.Size() < 8 {
++		return false
++	}
+ 	switch x.Op {
+ 	case OpAMD64MOVWQZX, OpAMD64MOVWload, OpAMD64MOVWloadidx1, OpAMD64MOVWloadidx2:
+ 		return true
+ 	case OpArg: // note: but not ArgIntReg
+-		return x.Type.Size() == 2 && (x.Type.IsUnsigned() || x.Block.Func.Config.arch == "amd64")
++		return x.Type.Size() == 2 && x.Block.Func.Config.arch == "amd64"
+ 	case OpPhi, OpSelect0, OpSelect1:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+ 		// just limit recursion depth.
+@@ -1349,11 +1357,14 @@ func zeroUpper48Bits(x *Value, depth int) bool {
+ 
+ // zeroUpper56Bits is similar to zeroUpper32Bits, but for upper 56 bits.
+ func zeroUpper56Bits(x *Value, depth int) bool {
++	if x.Type.IsSigned() && x.Type.Size() < 8 {
++		return false
++	}
+ 	switch x.Op {
+ 	case OpAMD64MOVBQZX, OpAMD64MOVBload, OpAMD64MOVBloadidx1:
+ 		return true
+ 	case OpArg: // note: but not ArgIntReg
+-		return x.Type.Size() == 1 && (x.Type.IsUnsigned() || x.Block.Func.Config.arch == "amd64")
++		return x.Type.Size() == 1 && x.Block.Func.Config.arch == "amd64"
+ 	case OpPhi, OpSelect0, OpSelect1:
+ 		// Phis can use each-other as an arguments, instead of tracking visited values,
+ 		// just limit recursion depth.
+diff --git a/test/fixedbugs/issue68227.go b/test/fixedbugs/issue68227.go
+new file mode 100644
+index 0000000000..615d2824e4
+--- /dev/null
++++ b/test/fixedbugs/issue68227.go
+@@ -0,0 +1,43 @@
++// run
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"fmt"
++)
++
++type someType []uint64
++
++func (s *someType) push(v uint64) {
++	*s = append(*s, v)
++}
++
++func (s *someType) problematicFn(x1Lo, x1Hi, x2Lo, x2Hi uint64) {
++	r1 := int32(int16(x1Lo>>0)) * int32(int16(x2Lo>>0))
++	g()
++	r3 := int32(int16(x1Lo>>32)) * int32(int16(x2Lo>>32))
++	r4 := int32(int16(x1Lo>>48)) * int32(int16(x2Lo>>48))
++	r5 := int32(int16(x1Hi>>0)) * int32(int16(x2Hi>>0))
++	r7 := int32(int16(x1Hi>>32)) * int32(int16(x2Hi>>32))
++	r8 := int32(int16(x1Hi>>48)) * int32(int16(x2Hi>>48))
++	s.push(uint64(uint32(r1)) | (uint64(uint32(r3+r4)) << 32))
++	s.push(uint64(uint32(r5)) | (uint64(uint32(r7+r8)) << 32))
++}
++
++//go:noinline
++func g() {
++}
++
++func main() {
++	s := &someType{}
++	s.problematicFn(0x1000100010001, 0x1000100010001, 0xffffffffffffffff, 0xffffffffffffffff)
++	for i := 0; i < 2; i++ {
++		if got, want := (*s)[i], uint64(0xfffffffeffffffff); got != want {
++			fmt.Printf("s[%d]=%x, want %x\n", i, got, want)
++		}
++	}
++}

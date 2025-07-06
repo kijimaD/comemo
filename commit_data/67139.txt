@@ -1,0 +1,31 @@
+commit 0810fd2d9282dda12532e249c931b36a2d2526ed
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Nov 16 17:28:46 2023 +0800
+
+    cmd/internal/obj/loong64: remove unused register alias definitions
+    
+    Change-Id: Ie788747372cd47cb3780e75b35750bb08bd166fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/542835
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/internal/obj/loong64/a.out.go | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index d46d6ce962..193993ec4d 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -225,8 +225,6 @@ const (
+ 	REGZERO = REG_R0 // set to zero
+ 	REGLINK = REG_R1
+ 	REGSP   = REG_R3
+-	REGRET  = REG_R20 // not use
+-	REGARG  = -1      // -1 disables passing the first argument in register
+ 	REGRT1  = REG_R20 // reserved for runtime, duffzero and duffcopy
+ 	REGRT2  = REG_R21 // reserved for runtime, duffcopy
+ 	REGCTXT = REG_R29 // context for closures

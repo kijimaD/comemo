@@ -1,0 +1,226 @@
+commit f021221a584ede27c18f0e7deb90c438649d5128
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Jul 25 18:42:21 2024 +0000
+
+    cmd/link: add script testing facility for linker use
+    
+    Add support for running script tests as part of the linker's suite of
+    tests, hooking in the script test engine packages recently moved from
+    cmd/go to cmd/internal. Linker script tests will use the test binary
+    itself as the linker for Go builds, and can also run the C compiler if
+    needed. New script test cases (*.txt files) should be added to the
+    directory cmd/link/testdata/script.
+    
+    For demo purposes, this patch also adds a new "randlayout_option.txt"
+    script test that replicates the existing linker's TestRandLayout
+    testpoint in script form.
+    
+    Updates #68606.
+    
+    Change-Id: Icf26bf657850e39548d6ea819f2542fc68a3899b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601360
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/link/dwarf_test.go                         | 54 +++++++++++++++-------
+ src/cmd/link/script_test.go                        | 37 +++++++++++++++
+ src/cmd/link/testdata/script/randlayout_option.txt | 38 +++++++++++++++
+ .../link/testdata/script/script_test_basics.txt    | 24 ++++++++++
+ 4 files changed, 136 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/link/dwarf_test.go b/src/cmd/link/dwarf_test.go
+index 124c91538c..25d906bc82 100644
+--- a/src/cmd/link/dwarf_test.go
++++ b/src/cmd/link/dwarf_test.go
+@@ -21,36 +21,56 @@ import (
+ 	"testing"
+ )
+ 
+-// TestMain allows this test binary to run as a -toolexec wrapper for the 'go'
+-// command. If LINK_TEST_TOOLEXEC is set, TestMain runs the binary as if it were
+-// cmd/link, and otherwise runs the requested tool as a subprocess.
++// TestMain allows this test binary to run as a -toolexec wrapper for
++// the 'go' command. If LINK_TEST_TOOLEXEC is set, TestMain runs the
++// binary as if it were cmd/link, and otherwise runs the requested
++// tool as a subprocess.
+ //
+ // This allows the test to verify the behavior of the current contents of the
+ // cmd/link package even if the installed cmd/link binary is stale.
+ func TestMain(m *testing.M) {
+-	if os.Getenv("LINK_TEST_TOOLEXEC") == "" {
+-		// Not running as a -toolexec wrapper. Just run the tests.
+-		os.Exit(m.Run())
++	// Are we running as a toolexec wrapper? If so then run either
++	// the correct tool or this executable itself (for the linker).
++	// Running as toolexec wrapper.
++	if os.Getenv("LINK_TEST_TOOLEXEC") != "" {
++		if strings.TrimSuffix(filepath.Base(os.Args[1]), ".exe") == "link" {
++			// Running as a -toolexec linker, and the tool is cmd/link.
++			// Substitute this test binary for the linker.
++			os.Args = os.Args[1:]
++			main()
++			os.Exit(0)
++		}
++		// Running some other tool.
++		cmd := exec.Command(os.Args[1], os.Args[2:]...)
++		cmd.Stdin = os.Stdin
++		cmd.Stdout = os.Stdout
++		cmd.Stderr = os.Stderr
++		if err := cmd.Run(); err != nil {
++			os.Exit(1)
++		}
++		os.Exit(0)
+ 	}
+ 
+-	if strings.TrimSuffix(filepath.Base(os.Args[1]), ".exe") == "link" {
+-		// Running as a -toolexec linker, and the tool is cmd/link.
+-		// Substitute this test binary for the linker.
+-		os.Args = os.Args[1:]
++	// Are we being asked to run as the linker (without toolexec)?
++	// If so then kick off main.
++	if os.Getenv("LINK_TEST_EXEC_LINKER") != "" {
+ 		main()
+ 		os.Exit(0)
+ 	}
+ 
+-	cmd := exec.Command(os.Args[1], os.Args[2:]...)
+-	cmd.Stdin = os.Stdin
+-	cmd.Stdout = os.Stdout
+-	cmd.Stderr = os.Stderr
+-	if err := cmd.Run(); err != nil {
+-		os.Exit(1)
++	if testExe, err := os.Executable(); err == nil {
++		// on wasm, some phones, we expect an error from os.Executable()
++		testLinker = testExe
+ 	}
+-	os.Exit(0)
++
++	// Not running as a -toolexec wrapper or as a linker executable.
++	// Just run the tests.
++	os.Exit(m.Run())
+ }
+ 
++// Path of the test executable being run.
++var testLinker string
++
+ func testDWARF(t *testing.T, buildmode string, expectDWARF bool, env ...string) {
+ 	testenv.MustHaveCGO(t)
+ 	testenv.MustHaveGoBuild(t)
+diff --git a/src/cmd/link/script_test.go b/src/cmd/link/script_test.go
+new file mode 100644
+index 0000000000..379d47593e
+--- /dev/null
++++ b/src/cmd/link/script_test.go
+@@ -0,0 +1,37 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"cmd/internal/script/scripttest"
++	"internal/testenv"
++	"runtime"
++	"testing"
++)
++
++func TestScript(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	doReplacement := true
++	switch runtime.GOOS {
++	case "wasip1", "js":
++		// wasm doesn't support os.Executable, so we'll skip replacing
++		// the installed linker with our test binary.
++		doReplacement = false
++	}
++	repls := []scripttest.ToolReplacement{}
++	if doReplacement {
++		if testLinker == "" {
++			t.Fatalf("testLinker not set, can't replace")
++		}
++		repls = []scripttest.ToolReplacement{
++			scripttest.ToolReplacement{
++				ToolName:        "link",
++				ReplacementPath: testLinker,
++				EnvVar:          "LINK_TEST_EXEC_LINKER=1",
++			},
++		}
++	}
++	scripttest.RunToolScriptTest(t, repls, "testdata/script/*.txt")
++}
+diff --git a/src/cmd/link/testdata/script/randlayout_option.txt b/src/cmd/link/testdata/script/randlayout_option.txt
+new file mode 100644
+index 0000000000..8377717aa7
+--- /dev/null
++++ b/src/cmd/link/testdata/script/randlayout_option.txt
+@@ -0,0 +1,38 @@
++
++# Test that the -randlayout flag randomizes function order and
++# generates a working binary.
++
++[short] skip
++
++# Build with random layout using one seed, then run ...
++go build -o prog123.exe -ldflags=-randlayout=123
++exec ./prog123.exe
++
++# ... now build with a different seed and run.
++go build -x -o prog456.exe -ldflags=-randlayout=456
++exec ./prog456.exe
++
++# Capture symbols (sorted by address)
++go tool nm prog123.exe
++cp stdout syms123.txt
++
++# Capture symbols (sorted by address)
++go tool nm prog456.exe
++cp stdout syms456.txt
++
++# Output should be different.
++! cmp syms123.txt syms456.txt
++
++-- go.mod --
++module main
++
++go 1.20
++
++-- mymain.go --
++package main
++
++func main() {
++  println("Hi mom!")
++}
++
++
+diff --git a/src/cmd/link/testdata/script/script_test_basics.txt b/src/cmd/link/testdata/script/script_test_basics.txt
+new file mode 100644
+index 0000000000..ecc28951a1
+--- /dev/null
++++ b/src/cmd/link/testdata/script/script_test_basics.txt
+@@ -0,0 +1,24 @@
++
++# Test of the linker's script test harness.
++
++go build
++[!cgo] skip
++cc -c testdata/mumble.c
++
++-- go.mod --
++module main
++
++go 1.20
++
++-- main.go --
++package main
++
++func main() {
++  println("Hi mom!")
++}
++
++-- testdata/mumble.c --
++
++int x;
++
++

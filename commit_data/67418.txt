@@ -1,0 +1,133 @@
+commit f4a7c124ccd96667948539bd1132bca3ea6ba843
+Merge: 4fda27c0cc f8ccda2e05
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jun 25 15:00:04 2025 -0400
+
+    [dev.simd] all: merge master (f8ccda2) into dev.simd
+    
+    Merge List:
+    
+    + 2025-06-25 f8ccda2e05 runtime: make explicit nil check in (*spanInlineMarkBits).init
+    + 2025-06-25 f069a82998 runtime: note custom GOMAXPROCS even if value doesn't change
+    + 2025-06-24 e515ef8bc2 context: fix typo in context_test.go
+    + 2025-06-24 47b941f445 cmd/link: add one more linkname to the blocklist
+    + 2025-06-24 34cf5f6205 go/types: add test for interface method field type
+    + 2025-06-24 6e618cd42a encoding/json: use zstd compressed testdata
+    + 2025-06-24 fcb9850859 net/http: reduce allocs in CrossOriginProtection.Check
+    + 2025-06-24 11f11f2a00 encoding/json/v2: support ISO 8601 durations
+    + 2025-06-24 62deaf4fb8 doc: fix links to runtime Environment Variables
+    + 2025-06-24 2e9bb62bfe encoding/json/v2: reject unquoted dash as a JSON field name
+    + 2025-06-23 ed7815726d encoding/json/v2: report error on time.Duration without explicit format
+    + 2025-06-23 f866958246 cmd/dist: test encoding/json/... with GOEXPERIMENT=jsonv2
+    + 2025-06-23 f77a0aa6b6 internal/trace: improve gc-stress test
+    + 2025-06-23 4506796a6e encoding/json/jsontext: consistently use JSON terminology
+    + 2025-06-23 456a90aa16 runtime: add missing unlock in sysReserveAlignedSbrk
+    + 2025-06-23 1cf6386b5e Revert "go/types, types2: don't register interface methods in Info.Types map"
+    + 2025-06-20 49cdf0c42e testing, testing/synctest: handle T.Helper in synctest bubbles
+    + 2025-06-20 3bf1eecbd3 runtime: fix struct comment
+    + 2025-06-20 8ed23a2936 crypto/cipher: fix link to crypto/aes
+    + 2025-06-20 ef60769b46 go/doc: add a golden test that reproduces #62640
+    + 2025-06-18 8552bcf7c2 cmd/go/internal/fips140: ignore GOEXPERIMENT on error
+    + 2025-06-18 4c7567290c runtime: set mspan limit field early and eagerly
+    + 2025-06-18 c6ac736288 runtime: prevent mutual deadlock between GC stopTheWorld and suspendG
+    + 2025-06-17 53af292aed encoding/json/jsontext: fix spelling error
+    + 2025-06-16 d058254689 cmd/dist: always include variant in package names
+    + 2025-06-16 3254c2bb83 internal/reflectlite: fix comment about meaning of flag field
+    + 2025-06-16 816199e421 runtime: don't let readTrace spin on trace.shutdown
+    + 2025-06-16 ea00461b17 internal/trace: make Value follow reflect conventions
+    + 2025-06-13 96a6e147b2 runtime: comment that some linknames are used by runtime/trace
+    + 2025-06-13 644905891f runtime: remove unused unique.runtime_blockUntilEmptyFinalizerQueue
+    + 2025-06-13 683810a368 cmd/link: block new standard library linknames
+    + 2025-06-12 9149876112 all: replace a few user-visible mentions of golang.org and godoc.org
+    + 2025-06-12 934d5f2cf7 internal/trace: end test programs with SIGQUIT
+    + 2025-06-12 5a08865de3 net: remove some BUG entries
+    + 2025-06-11 d166a0b03e encoding/json/jsontext, encoding/json/v2: document experimental nature
+    + 2025-06-11 d4c6effaa7 cmd/compile: add up-to-date test for generated files
+    + 2025-06-10 7fa2c736b3 os: disallow Root.Remove(".") on Plan 9, js, and Windows
+    + 2025-06-10 281cfcfc1b runtime: handle system goroutines later in goroutine profiling
+    + 2025-06-10 4f86f22671 testing/synctest, runtime: avoid panic when using linker-alloc WG from bubble
+    
+    Change-Id: I8bbbf40ce053a80395b08977e21b1f34c67de117
+
+ doc/godebug.md                                    |   6 +-
+ lib/wasm/go_wasip1_wasm_exec                      |   2 +-
+ src/cmd/compile/internal/types2/api_test.go       |   5 +
+ src/cmd/compile/internal/types2/interface.go      |  18 +-
+ src/cmd/dist/test.go                              |  27 +-
+ src/cmd/go/internal/bug/bug.go                    |   2 +-
+ src/cmd/go/internal/cache/default.go              |   2 +-
+ src/cmd/go/internal/fips140/fips140.go            |   6 +-
+ src/cmd/link/internal/loader/loader.go            |  18 +-
+ src/cmd/trace/gen.go                              |   6 +-
+ src/context/context_test.go                       |   2 +-
+ src/crypto/cipher/gcm.go                          |   2 +-
+ src/encoding/json/bench_test.go                   |   9 +-
+ src/encoding/json/decode_test.go                  |  21 ++
+ src/encoding/json/jsontext/doc.go                 |   9 +-
+ src/encoding/json/jsontext/encode.go              |   4 +-
+ src/encoding/json/jsontext/state.go               |   4 +-
+ src/encoding/json/jsontext/token.go               |   8 +-
+ src/encoding/json/testdata/code.json.gz           | Bin 120432 -> 0 bytes
+ src/encoding/json/v2/arshal.go                    |  42 +--
+ src/encoding/json/v2/arshal_test.go               |  90 +++++--
+ src/encoding/json/v2/arshal_time.go               | 191 +++++++++++++-
+ src/encoding/json/v2/arshal_time_test.go          | 302 ++++++++++++++--------
+ src/encoding/json/v2/bench_test.go                |   3 +-
+ src/encoding/json/v2/doc.go                       |   5 +
+ src/encoding/json/v2/example_test.go              |  45 ++--
+ src/encoding/json/v2/fields.go                    |   8 +
+ src/encoding/json/v2/fields_test.go               |  13 +
+ src/encoding/json/v2_decode_test.go               |  21 ++
+ src/encoding/json/v2_diff_test.go                 |   1 +
+ src/encoding/json/v2_encode.go                    |   7 +-
+ src/go/doc/testdata/issue62640.0.golden           |  22 ++
+ src/go/doc/testdata/issue62640.1.golden           |  22 ++
+ src/go/doc/testdata/issue62640.2.golden           |  25 ++
+ src/go/doc/testdata/issue62640.go                 |  15 ++
+ src/go/types/api_test.go                          |   5 +
+ src/go/types/interface.go                         |  18 +-
+ src/internal/reflectlite/value.go                 |  16 +-
+ src/internal/synctest/synctest.go                 |  22 +-
+ src/internal/synctest/synctest_test.go            |  28 ++
+ src/internal/syscall/windows/at_windows.go        |   5 +
+ src/internal/trace/event.go                       |   5 +
+ src/internal/trace/gc.go                          |   2 +-
+ src/internal/trace/testdata/testprog/gc-stress.go |  25 +-
+ src/internal/trace/testtrace/validation.go        |   2 +-
+ src/internal/trace/trace_test.go                  |  27 +-
+ src/internal/trace/value.go                       |  34 +--
+ src/net/http/csrf.go                              |  11 +-
+ src/net/iprawsock.go                              |   3 -
+ src/net/tcpsock.go                                |   2 +-
+ src/net/udpsock.go                                |   3 -
+ src/os/exec/exec.go                               |   2 +-
+ src/os/root_noopenat.go                           |   7 +
+ src/runtime/arena.go                              |  10 +-
+ src/runtime/debug.go                              |   8 +-
+ src/runtime/export_test.go                        |   6 +
+ src/runtime/mcache.go                             |   8 +
+ src/runtime/mcentral.go                           |   3 -
+ src/runtime/mem_sbrk.go                           |   1 +
+ src/runtime/mfinal.go                             |   5 -
+ src/runtime/mgc.go                                |   7 +-
+ src/runtime/mgcmark.go                            |   4 +-
+ src/runtime/mgcmark_greenteagc.go                 |  20 ++
+ src/runtime/mheap.go                              |  11 +-
+ src/runtime/mprof.go                              |  15 +-
+ src/runtime/pprof/pprof_test.go                   |  39 +++
+ src/runtime/proc.go                               |  70 +++--
+ src/runtime/runtime2.go                           |  14 +-
+ src/runtime/stack.go                              |   4 +-
+ src/runtime/synctest.go                           |  29 ++-
+ src/runtime/synctest_test.go                      |  12 +
+ src/runtime/testdata/testprog/gomaxprocs.go       |  14 +
+ src/runtime/trace.go                              |  10 +-
+ src/runtime/tracestatus.go                        |   9 +-
+ src/runtime/tracetime.go                          |   2 +-
+ src/sync/waitgroup.go                             |  12 +-
+ src/testing/synctest/helper_test.go               |  15 ++
+ src/testing/synctest/synctest.go                  |   5 +
+ src/testing/synctest/synctest_test.go             |  12 +
+ src/testing/testing.go                            |   3 +
+ 80 files changed, 1158 insertions(+), 370 deletions(-)
+

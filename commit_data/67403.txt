@@ -1,0 +1,103 @@
+commit f77a0aa6b6d90742932f0bf29d2f94459597331a
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Jun 23 20:14:18 2025 +0000
+
+    internal/trace: improve gc-stress test
+    
+    The gc-stress test is useful for trying to exercise GC-related trace
+    events by producing a lot of them in many different situations.
+    Unfortunately this test is flaky, because allocating in a loop can
+    easily out-run the GC when it's trying to preempt the allocating
+    goroutine.
+    
+    It's been a long standing problem that a program that allocates in a
+    loop can outrun a GC. The problem isn't the GC persay, it's consistently
+    correlated with a high STW time (likely a high 'stopping' time, not a
+    'stopped' time), suggesting that in the window of time when the garbage
+    collector is trying to stop all goroutines, they continue to allocate.
+    
+    This should probably be fixed in general, but for now, let's focus on
+    this flaky test.
+    
+    This CL changes the gc-stress test to (1) set a memory limit and (2) do
+    more work in between allocations. (2) is really what makes things less
+    flaky, but (2) unfortunately also means the GC is less exercised. That's
+    where (1) comes in. By setting a low memory limit, we increase GC
+    activity (in particular, assist activity). The memory limit also helps
+    prevent the heap from totally blowing up due to the heap goal inflating
+    from floating garbage, but it's not perfect.
+    
+    After this change, under stress2, this test exceeds a heap size of 500
+    MiB only 1 in 5000 runs on my 64-vCPU VM. Before this change, it got
+    that big about 1/4th of the time.
+    
+    Fixes #74052.
+    
+    Change-Id: I49233c914c8b65b1d593d3953891fddda6685aec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683515
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/trace/testdata/testprog/gc-stress.go | 25 ++++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/trace/testdata/testprog/gc-stress.go b/src/internal/trace/testdata/testprog/gc-stress.go
+index 7979234c40..74b63606d5 100644
+--- a/src/internal/trace/testdata/testprog/gc-stress.go
++++ b/src/internal/trace/testdata/testprog/gc-stress.go
+@@ -13,6 +13,7 @@ import (
+ 	"log"
+ 	"os"
+ 	"runtime"
++	"runtime/debug"
+ 	"runtime/trace"
+ 	"time"
+ )
+@@ -36,11 +37,25 @@ func makeTree(depth int) *node {
+ 	}
+ }
+ 
++func initTree(n *node) {
++	if n == nil {
++		return
++	}
++	for i := range n.data {
++		n.data[i] = 'a'
++	}
++	for i := range n.children {
++		initTree(n.children[i])
++	}
++}
++
+ var trees [16]*node
+ var ballast *[16]*[1024]*node
+-var sink [][]byte
++var sink []*node
+ 
+ func main() {
++	debug.SetMemoryLimit(50 << 20)
++
+ 	for i := range trees {
+ 		trees[i] = makeTree(6)
+ 	}
+@@ -55,13 +70,17 @@ func main() {
+ 	}
+ 
+ 	procs := runtime.GOMAXPROCS(-1)
+-	sink = make([][]byte, procs)
++	sink = make([]*node, procs)
+ 
+ 	for i := 0; i < procs; i++ {
+ 		i := i
+ 		go func() {
+ 			for {
+-				sink[i] = make([]byte, 4<<10)
++				sink[i] = makeTree(3)
++				for range 5 {
++					initTree(sink[i])
++					runtime.Gosched()
++				}
+ 			}
+ 		}()
+ 	}

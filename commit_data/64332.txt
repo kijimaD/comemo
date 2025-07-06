@@ -1,0 +1,33 @@
+commit 456785ceed9e209bf3cbdc6a46e752b766722550
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Fri Jul 26 12:12:39 2024 -0700
+
+    os: rm unused code
+    
+    CL 588675 removes pidfdRelease, but misses this one.
+    
+    Change-Id: Id1d93d10baa5b26a42a2289e29624409c4e351f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601461
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Run-TryBot: Kirill Kolyshkin <kolyshkin@gmail.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/os/pidfd_other.go | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/src/os/pidfd_other.go b/src/os/pidfd_other.go
+index dda4bd0fec..5780432779 100644
+--- a/src/os/pidfd_other.go
++++ b/src/os/pidfd_other.go
+@@ -20,8 +20,6 @@ func pidfdFind(_ int) (uintptr, error) {
+ 	return 0, syscall.ENOSYS
+ }
+ 
+-func (p *Process) pidfdRelease() {}
+-
+ func (_ *Process) pidfdWait() (*ProcessState, error) {
+ 	panic("unreachable")
+ }

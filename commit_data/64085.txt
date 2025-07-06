@@ -1,0 +1,47 @@
+commit 7e563a0a32be074f4bf48ddb27bf1185fa2133d9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Mon Oct 23 14:32:44 2023 -0700
+
+    [release-branch.go1.21] go/internal/gccgoimporter: recognize "any" as a builtin type
+    
+    In CL 536715 we're changing the gofrontend export data to report
+    "any" as a builtin type. This permits us to distinguish the builtin
+    type from some other package-level type "any". That requires an update
+    to this code.
+    
+    Fixes #67849
+    
+    Change-Id: I91d75a056a155fa9892c4b25ab396cb4d39cc8e4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/537195
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    (cherry picked from commit b8ac61e6e64c92f23d8cf868a92a70d13e20a124)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592216
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/go/internal/gccgoimporter/parser.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/go/internal/gccgoimporter/parser.go b/src/go/internal/gccgoimporter/parser.go
+index de9df0bbfb..7d993e94bd 100644
+--- a/src/go/internal/gccgoimporter/parser.go
++++ b/src/go/internal/gccgoimporter/parser.go
+@@ -902,6 +902,7 @@ const (
+ 	gccgoBuiltinERROR      = 19
+ 	gccgoBuiltinBYTE       = 20
+ 	gccgoBuiltinRUNE       = 21
++	gccgoBuiltinANY        = 22
+ )
+ 
+ func lookupBuiltinType(typ int) types.Type {
+@@ -926,6 +927,7 @@ func lookupBuiltinType(typ int) types.Type {
+ 		gccgoBuiltinERROR:      types.Universe.Lookup("error").Type(),
+ 		gccgoBuiltinBYTE:       types.Universe.Lookup("byte").Type(),
+ 		gccgoBuiltinRUNE:       types.Universe.Lookup("rune").Type(),
++		gccgoBuiltinANY:        types.Universe.Lookup("any").Type(),
+ 	}[typ]
+ }
+ 

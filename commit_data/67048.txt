@@ -1,0 +1,102 @@
+commit 4b5a64f467f20b70373979d85c1358ac8af64411
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu May 15 08:05:52 2025 +0200
+
+    os: set FILE_FLAG_BACKUP_SEMANTICS when opening without I/O access
+    
+    FILE_FLAG_BACKUP_SEMANTICS is necessary to open directories on Windows,
+    and to enable backup applications do extended operations on files if
+    they hold the SE_BACKUP_NAME and SE_RESTORE_NAME privileges.
+    
+    os.OpenFile currently sets FILE_FLAG_BACKUP_SEMANTICS for all supported
+    cases except when the file is opened with O_WRONLY | O_RDWR (that is,
+    access mode 3). This access mode doesn't correspond to any of the
+    standard POSIX access modes, but some OSes special case it to mean
+    different things. For example, on Linux, O_WRONLY | O_RDWR means check
+    for read and write permission on the file and return a file descriptor
+    that can't be used for reading or writing.
+    
+    On Windows, os.OpenFile has historically mapped O_WRONLY | O_RDWR to a
+    0 access mode, which Windows internally interprets as
+    FILE_READ_ATTRIBUTES. Additionally, it doesn't prepare the file for I/O,
+    given that the read attributes permission doesn't allow reading or
+    writing (not that this is similar to what happens on Linux). This
+    makes opening the file around 50% faster, and one can still use the
+    handle to stat it, so some projects have been using this behavior
+    to open files without I/O access.
+    
+    This CL updates os.OpenFile so that directories can also be opened
+    without I/O access. This effectively closes #23312, as all the remaining
+    cases where we don't set FILE_FLAG_BACKUP_SEMANTICS imply opening
+    with O_WRONLY or O_RDWR, and that's not allowed by Unix's open.
+    
+    Closes #23312.
+    
+    Change-Id: I77c4f55e1ca377789aef75bd8a9bce2b7499f91d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673035
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/syscall/syscall_windows.go      | 17 ++++++++++++-----
+ src/syscall/syscall_windows_test.go |  3 ++-
+ 2 files changed, 14 insertions(+), 6 deletions(-)
+
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 2b0482db27..653e20f496 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -370,8 +370,9 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+ 	if err != nil {
+ 		return InvalidHandle, err
+ 	}
++	accessFlags := flag & (O_RDONLY | O_WRONLY | O_RDWR)
+ 	var access uint32
+-	switch flag & (O_RDONLY | O_WRONLY | O_RDWR) {
++	switch accessFlags {
+ 	case O_RDONLY:
+ 		access = GENERIC_READ
+ 	case O_WRONLY:
+@@ -416,9 +417,15 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+ 	if perm&S_IWRITE == 0 {
+ 		attrs = FILE_ATTRIBUTE_READONLY
+ 	}
+-	if flag&O_WRONLY == 0 && flag&O_RDWR == 0 {
+-		// We might be opening or creating a directory.
+-		// CreateFile requires FILE_FLAG_BACKUP_SEMANTICS
++	switch accessFlags {
++	case O_WRONLY, O_RDWR:
++		// Unix doesn't allow opening a directory with O_WRONLY
++		// or O_RDWR, so we don't set the flag in that case,
++		// which will make CreateFile fail with ERROR_ACCESS_DENIED.
++		// We will map that to EISDIR if the file is a directory.
++	default:
++		// We might be opening a directory for reading,
++		// and CreateFile requires FILE_FLAG_BACKUP_SEMANTICS
+ 		// to work with directories.
+ 		attrs |= FILE_FLAG_BACKUP_SEMANTICS
+ 	}
+@@ -428,7 +435,7 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+ 	}
+ 	h, err := createFile(namep, access, sharemode, sa, createmode, attrs, 0)
+ 	if h == InvalidHandle {
+-		if err == ERROR_ACCESS_DENIED && (flag&O_WRONLY != 0 || flag&O_RDWR != 0) {
++		if err == ERROR_ACCESS_DENIED && (attrs&FILE_FLAG_BACKUP_SEMANTICS == 0) {
+ 			// We should return EISDIR when we are trying to open a directory with write access.
+ 			fa, e1 := GetFileAttributes(namep)
+ 			if e1 == nil && fa&FILE_ATTRIBUTE_DIRECTORY != 0 {
+diff --git a/src/syscall/syscall_windows_test.go b/src/syscall/syscall_windows_test.go
+index 5e6ba9dbed..30dcddfd28 100644
+--- a/src/syscall/syscall_windows_test.go
++++ b/src/syscall/syscall_windows_test.go
+@@ -36,8 +36,9 @@ func TestOpen(t *testing.T) {
+ 		{dir, syscall.O_RDONLY | syscall.O_CREAT, nil},
+ 		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE, nil},
+ 		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE | os.O_TRUNC, nil},
++		{file, syscall.O_WRONLY | syscall.O_RDWR, nil},
++		{dir, syscall.O_WRONLY | syscall.O_RDWR, nil},
+ 		{dir, syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
+-		{dir, syscall.O_WRONLY | syscall.O_RDWR, syscall.EISDIR},
+ 		{dir, syscall.O_WRONLY, syscall.EISDIR},
+ 		{dir, syscall.O_RDWR, syscall.EISDIR},
+ 	}

@@ -1,0 +1,108 @@
+commit 5fb9e5dc19c48c8de09720bd4cb64eccd933153d
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue Mar 25 15:09:31 2025 -0400
+
+    cmd/link: handle Mach-O X86_64_RELOC_SUBTRACTOR in internal linking
+    
+    With recent LLVM toolchain, on macOS/AMD64, the race detector syso
+    file built from it contains X86_64_RELOC_SUBTRACTOR relocations,
+    which the Go linker currently doesn't handle in internal linking
+    mode. To ensure internal linking mode continue to work with the
+    race detector syso, this CL adds support of X86_64_RELOC_SUBTRACTOR
+    relocations.
+    
+    X86_64_RELOC_SUBTRACTOR is actually a pair of relocations that
+    resolves to the difference between two symbol addresses (each
+    relocation specifies a symbol). For the cases we care (the race
+    syso), the symbol being subtracted out is always in the current
+    section, so we can just convert it to a PC-relative relocation,
+    with the addend adjusted. If later we need the more general form,
+    we can introduce a new mechanism (say, objabi.R_DIFF) that works
+    as a pair of relocations like the Mach-O one.
+    
+    As we expect the pair of relocations be consecutive, don't reorder
+    (sort) relocation records when loading Mach-O objects.
+    
+    Change-Id: I757456b07270fb4b2a41fd0fef67a2b39dd6b238
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/link/internal/amd64/asm.go            | 32 +++++++++++++++++++++++++++
+ src/cmd/link/internal/loader/symbolbuilder.go |  5 +++++
+ src/cmd/link/internal/loadmacho/ldmacho.go    |  2 --
+ 3 files changed, 37 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/internal/amd64/asm.go b/src/cmd/link/internal/amd64/asm.go
+index 9a3af983a3..7754cf9bfa 100644
+--- a/src/cmd/link/internal/amd64/asm.go
++++ b/src/cmd/link/internal/amd64/asm.go
+@@ -185,6 +185,38 @@ func adddynrel(target *ld.Target, ldr *loader.Loader, syms *ld.ArchSyms, s loade
+ 		}
+ 		return true
+ 
++	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_SUBTRACTOR*2 + 0:
++		// X86_64_RELOC_SUBTRACTOR must be followed by X86_64_RELOC_UNSIGNED.
++		// The pair of relocations resolves to the difference between two
++		// symbol addresses (each relocation specifies a symbol).
++		// See Darwin's header file include/mach-o/x86_64/reloc.h.
++		// ".quad _foo - _bar" is expressed as
++		// r_type=X86_64_RELOC_SUBTRACTOR, r_length=3, r_extern=1, r_pcrel=0, r_symbolnum=_bar
++		// r_type=X86_64_RELOC_UNSIGNED, r_length=3, r_extern=1, r_pcrel=0, r_symbolnum=_foo
++		//
++		// For the cases we care (the race syso), the symbol being subtracted
++		// out is always in the current section, so we can just convert it to
++		// a PC-relative relocation, with the addend adjusted.
++		// If later we need the more general form, we can introduce objabi.R_DIFF
++		// that works like this Mach-O relocation.
++		su := ldr.MakeSymbolUpdater(s)
++		outer, off := ld.FoldSubSymbolOffset(ldr, targ)
++		if outer != s {
++			ldr.Errorf(s, "unsupported X86_64_RELOC_SUBTRACTOR reloc: target %s, outer %s",
++				ldr.SymName(targ), ldr.SymName(outer))
++			break
++		}
++		relocs := su.Relocs()
++		if rIdx+1 >= relocs.Count() || relocs.At(rIdx+1).Type() != objabi.MachoRelocOffset+ld.MACHO_X86_64_RELOC_UNSIGNED*2+0 || relocs.At(rIdx+1).Off() != r.Off() {
++			ldr.Errorf(s, "unexpected X86_64_RELOC_SUBTRACTOR reloc, must be followed by X86_64_RELOC_UNSIGNED at the same offset: %d %v %d", rIdx, relocs.At(rIdx+1).Type(), relocs.At(rIdx+1).Off())
++		}
++		// The second relocation has the target symbol we want
++		su.SetRelocType(rIdx+1, objabi.R_PCREL)
++		su.SetRelocAdd(rIdx+1, r.Add()+int64(r.Off())-off)
++		// Remove the other relocation
++		su.SetRelocSiz(rIdx, 0)
++		return true
++
+ 	case objabi.MachoRelocOffset + ld.MACHO_X86_64_RELOC_BRANCH*2 + 1:
+ 		if targType == sym.SDYNIMPORT {
+ 			addpltsym(target, ldr, syms, targ)
+diff --git a/src/cmd/link/internal/loader/symbolbuilder.go b/src/cmd/link/internal/loader/symbolbuilder.go
+index 8abbb931e5..35749f9ea9 100644
+--- a/src/cmd/link/internal/loader/symbolbuilder.go
++++ b/src/cmd/link/internal/loader/symbolbuilder.go
+@@ -139,6 +139,11 @@ func (sb *SymbolBuilder) SetRelocAdd(i int, a int64) {
+ 	sb.relocs[i].SetAdd(a)
+ }
+ 
++// SetRelocAdd sets the size of the 'i'-th relocation on this sym to 'sz'
++func (sb *SymbolBuilder) SetRelocSiz(i int, sz uint8) {
++	sb.relocs[i].SetSiz(sz)
++}
++
+ // Add n relocations, return a handle to the relocations.
+ func (sb *SymbolBuilder) AddRelocs(n int) Relocs {
+ 	sb.relocs = append(sb.relocs, make([]goobj.Reloc, n)...)
+diff --git a/src/cmd/link/internal/loadmacho/ldmacho.go b/src/cmd/link/internal/loadmacho/ldmacho.go
+index 0d2bca28e9..5e8022ce69 100644
+--- a/src/cmd/link/internal/loadmacho/ldmacho.go
++++ b/src/cmd/link/internal/loadmacho/ldmacho.go
+@@ -790,8 +790,6 @@ func Load(l *loader.Loader, arch *sys.Arch, localSymVersion int, f *bio.Reader,
+ 
+ 			rAdd = 0 // clear rAdd for next iteration
+ 		}
+-
+-		sb.SortRelocs()
+ 	}
+ 
+ 	return textp, nil

@@ -1,0 +1,42 @@
+commit e1f02e9ae5efc45a8428e97e0c05fd85a5cbcec4
+Author: Thomas Vaillant <thomvaill@bluebricks.dev>
+Date:   Thu Feb 20 22:33:45 2025 +0000
+
+    doc: add a disclamer for the TLS handshake timeouts TL;DR bug in godebug.md
+    
+    Relates to #71257. Since post-quantum TLS algorithms are enabled by default, we should warn about the possible bugs with legacy servers (see https://tldr.fail/)
+    
+    Change-Id: I06a5d8a927497ea2141007b14a90af27e0891720
+    GitHub-Last-Rev: 476e6462dfc7db8c2a47a25dcb7eb342264aabad
+    GitHub-Pull-Request: golang/go#71865
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651036
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ doc/godebug.md | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index cdc09ddcc4..c1ef9115a0 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -217,6 +217,8 @@ field by default.
+ Go 1.24 enabled the post-quantum key exchange mechanism
+ X25519MLKEM768 by default. The default can be reverted using the
+ [`tlsmlkem` setting](/pkg/crypto/tls/#Config.CurvePreferences).
++This can be useful when dealing with buggy TLS servers that do not handle large records correctly,
++causing a timeout during the handshake (see [TLS post-quantum TL;DR fail](https://tldr.fail/)).
+ Go 1.24 also removed X25519Kyber768Draft00 and the Go 1.23 `tlskyber` setting.
+ 
+ Go 1.24 made [`ParsePKCS1PrivateKey`](/pkg/crypto/x509/#ParsePKCS1PrivateKey)
+@@ -253,6 +255,8 @@ Previous versions default to `winreadlinkvolume=0`.
+ Go 1.23 enabled the experimental post-quantum key exchange mechanism
+ X25519Kyber768Draft00 by default. The default can be reverted using the
+ [`tlskyber` setting](/pkg/crypto/tls/#Config.CurvePreferences).
++This can be useful when dealing with buggy TLS servers that do not handle large records correctly,
++causing a timeout during the handshake (see [TLS post-quantum TL;DR fail](https://tldr.fail/)).
+ 
+ Go 1.23 changed the behavior of
+ [crypto/x509.ParseCertificate](/pkg/crypto/x509/#ParseCertificate) to reject

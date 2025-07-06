@@ -1,0 +1,89 @@
+commit f5e4e45ef720765600413c941c01b424f1486438
+Merge: 30b6fd60a6 5e8a731665
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Mon Jul 22 14:12:36 2024 -0400
+
+    [release-branch.go1.23] all: merge master (5e8a731) into release-branch.go1.23
+    
+    Merge List:
+    
+    + 2024-07-22 5e8a731665 README: fix CC BY license name
+    + 2024-07-22 a799fa5189 slices: explicitly document nil and empty slice equality
+    + 2024-07-22 f0de94ff12 cmd/compile: don't inline runtime functions in -d=checkptr build
+    + 2024-07-19 3959d54c0b runtime: mark lockWithRankMayAcquire as nosplit
+    + 2024-07-17 70491a8111 maps: document handling of non-reflexive keys
+    + 2024-07-17 7321aa91c6 cmd: vendor golang.org/x/telemetry@0b706e1
+    + 2024-07-17 420037b16d os: don't try to signal PID -1 on Unix
+    + 2024-07-17 87abb4afb6 runtime: avoid multiple records with identical stacks from MutexProfile
+    + 2024-07-17 8c88f0c736 cmd/cgo/internal/testcarchive: remove 1-minute timeout
+    + 2024-07-17 fc51e5023e math/big: fix comment typo in natdiv.go
+    + 2024-07-17 90c6558b6a internal/bytealg: extend memchr result correctly on wasm
+    + 2024-07-16 355711821e cmd/internal/cov: close counter data files eagerly
+    + 2024-07-16 f2bcab5fb3 regexp: more cross-references in docstrings
+    + 2024-07-16 9915b87059 bytes: more cross-references in docstrings
+    + 2024-07-16 97ccc224f1 math/big: use lists in docstrings
+    + 2024-07-16 66e940b6f8 math/big: more cross-references in docstrings
+    + 2024-07-16 0dae393a26 encoding/binary: use list format in docstrings
+    + 2024-07-16 451a284d80 strings,bytes,regexp: use lists in Split* docstrings
+    + 2024-07-16 b4a92f56ff crypto/tls: add exclude tls flags to bogo_shim_test
+    + 2024-07-16 3bfbfa821f encoding/json: document compact json output in Encoder.Encode
+    + 2024-07-16 d5479e197d net: document ParseIP always returns IPv6 addresses
+    + 2024-07-16 5c7f541386 archive/zip: document handling of duplicate names in Writer.Create
+    + 2024-07-16 6b97448132 sort: add example for Find
+    + 2024-07-16 8b48290895 cmd/compile: fix recursive generic interface instantiation
+    + 2024-07-15 959b3fd426 flag: add FlagSet example
+    
+    Change-Id: I0e7cac2f1cef42ccf3d392c57dad793ca3b08b11
+
+ README.md                                          |   2 +-
+ src/archive/zip/writer.go                          |   3 +-
+ src/bytes/buffer.go                                |  16 +-
+ src/bytes/bytes.go                                 |  22 ++-
+ src/bytes/bytes_js_wasm_test.go                    |  21 +++
+ src/bytes/reader.go                                |   4 +-
+ src/cmd/cgo/internal/testcarchive/carchive_test.go |  20 +--
+ src/cmd/compile/internal/inline/inl.go             |   9 ++
+ src/cmd/compile/internal/noder/reader.go           |   5 +
+ src/cmd/compile/internal/types/type.go             |   5 +
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ src/cmd/internal/cov/readcovdata.go                |  15 +-
+ src/cmd/internal/objabi/pkgspecial.go              |   2 +
+ src/cmd/vendor/golang.org/x/telemetry/LICENSE      |   4 +-
+ .../golang.org/x/telemetry/counter/counter.go      |  17 ++-
+ .../x/telemetry/counter/countertest/countertest.go |   3 +
+ .../x/telemetry/internal/counter/file.go           |  28 +++-
+ .../x/telemetry/internal/telemetry/dir.go          |   6 +-
+ .../x/telemetry/internal/telemetry/types.go        |   6 +-
+ .../golang.org/x/telemetry/internal/upload/date.go |   2 +-
+ .../x/telemetry/internal/upload/reports.go         |   2 +-
+ .../x/telemetry/internal/upload/upload.go          |   6 +-
+ src/cmd/vendor/modules.txt                         |   2 +-
+ src/crypto/tls/bogo_shim_test.go                   |  26 +++-
+ src/encoding/binary/varint.go                      |  14 +-
+ src/encoding/json/stream.go                        |   1 +
+ src/flag/example_flagset_test.go                   |  57 +++++++
+ src/internal/bytealg/indexbyte_wasm.s              |   4 +-
+ src/maps/maps.go                                   |   3 +
+ src/math/big/float.go                              |  18 +--
+ src/math/big/int.go                                |  30 ++--
+ src/math/big/natdiv.go                             |   2 +-
+ src/math/big/rat.go                                |  14 +-
+ src/net/ip.go                                      |   3 +-
+ src/os/exec_unix.go                                |   3 +
+ src/os/exec_unix_test.go                           |  13 +-
+ src/regexp/regexp.go                               |  23 ++-
+ src/runtime/lockrank_off.go                        |   3 +
+ src/runtime/mprof.go                               | 113 ++++++++++++--
+ src/runtime/pprof/pprof.go                         |  23 ++-
+ src/runtime/pprof/pprof_test.go                    | 164 +++++++++++++++++++++
+ src/slices/slices.go                               |   1 +
+ src/sort/example_search_test.go                    |  21 +++
+ src/sort/sort_test.go                              |  18 +--
+ src/strings/builder.go                             |  14 +-
+ src/strings/strings.go                             |  16 +-
+ test/fixedbugs/issue65362.go                       |  31 ++++
+ test/fixedbugs/issue66663.go                       |  34 +++++
+ test/fixedbugs/issue68415.go                       |   6 +-
+ test/fixedbugs/issue68525.go                       |  13 ++
+ 51 files changed, 691 insertions(+), 183 deletions(-)

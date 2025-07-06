@@ -1,0 +1,382 @@
+commit 5af3658eaa4b6bb9e66fcb4ac426207359628477
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Mar 4 08:47:25 2025 -0800
+
+    go/types, types2: use errorCause instead of reportf in comparableType
+    
+    If the error cause is not further specified (empty string),
+    avoid allocating a new errorCause. This makes using errorCauses
+    as boolean signals efficient.
+    
+    While at it, fix an error message for incomparable arrays:
+    report the array type rather than its underlying type.
+    
+    Change-Id: I844b18a76695330ca726932ee760aa89635f6a38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/expr.go         |  6 +--
+ src/cmd/compile/internal/types2/instantiate.go  |  4 +-
+ src/cmd/compile/internal/types2/predicates.go   | 59 +++++++++++++------------
+ src/cmd/compile/internal/types2/typeset.go      |  4 +-
+ src/cmd/compile/internal/types2/under.go        |  5 +++
+ src/go/types/expr.go                            |  6 +--
+ src/go/types/instantiate.go                     |  4 +-
+ src/go/types/predicates.go                      | 59 +++++++++++++------------
+ src/go/types/typeset.go                         |  4 +-
+ src/go/types/under.go                           |  5 +++
+ src/internal/types/testdata/spec/comparisons.go |  2 +-
+ 11 files changed, 81 insertions(+), 77 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index f4938a2d8e..2442e39ae5 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -621,11 +621,7 @@ func (check *Checker) incomparableCause(typ Type) string {
+ 		return compositeKind(typ) + " can only be compared to nil"
+ 	}
+ 	// see if we can extract a more specific error
+-	var cause string
+-	comparableType(typ, true, nil, func(format string, args ...interface{}) {
+-		cause = check.sprintf(format, args...)
+-	})
+-	return cause
++	return comparableType(typ, true, nil).format(check)
+ }
+ 
+ // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index 03c490a386..f7346cab46 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -296,12 +296,12 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		}
+ 		// If T is comparable, V must be comparable.
+ 		// If V is strictly comparable, we're done.
+-		if comparableType(V, false /* strict comparability */, nil, nil) {
++		if comparableType(V, false /* strict comparability */, nil) == nil {
+ 			return true
+ 		}
+ 		// For constraint satisfaction, use dynamic (spec) comparability
+ 		// so that ordinary, non-type parameter interfaces implement comparable.
+-		if constraint && comparableType(V, true /* spec comparability */, nil, nil) {
++		if constraint && comparableType(V, true /* spec comparability */, nil) == nil {
+ 			// V is comparable if we are at Go 1.20 or higher.
+ 			if check == nil || check.allowVersion(go1_20) {
+ 				return true
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index c293f30b61..4f3557fca1 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -148,14 +148,15 @@ func isGeneric(t Type) bool {
+ 
+ // Comparable reports whether values of type T are comparable.
+ func Comparable(T Type) bool {
+-	return comparableType(T, true, nil, nil)
++	return comparableType(T, true, nil) == nil
+ }
+ 
++// If T is comparable, comparableType returns nil.
++// Otherwise it returns an error cause explaining why T is not comparable.
+ // If dynamic is set, non-type parameter interfaces are always comparable.
+-// If reportf != nil, it may be used to report why T is not comparable.
+-func comparableType(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
++func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
+ 	if seen[T] {
+-		return true
++		return nil
+ 	}
+ 	if seen == nil {
+ 		seen = make(map[Type]bool)
+@@ -164,43 +165,43 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool, reportf func(strin
+ 
+ 	switch t := under(T).(type) {
+ 	case *Basic:
+-		// assume invalid types to be comparable
+-		// to avoid follow-up errors
+-		return t.kind != UntypedNil
++		// assume invalid types to be comparable to avoid follow-up errors
++		if t.kind == UntypedNil {
++			return newErrorCause("")
++		}
++
+ 	case *Pointer, *Chan:
+-		return true
++		// always comparable
++
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if !comparableType(f.typ, dynamic, seen, nil) {
+-				if reportf != nil {
+-					reportf("struct containing %s cannot be compared", f.typ)
+-				}
+-				return false
++			if comparableType(f.typ, dynamic, seen) != nil {
++				return newErrorCause("struct containing %s cannot be compared", f.typ)
+ 			}
+ 		}
+-		return true
++
+ 	case *Array:
+-		if !comparableType(t.elem, dynamic, seen, nil) {
+-			if reportf != nil {
+-				reportf("%s cannot be compared", t)
+-			}
+-			return false
++		if comparableType(t.elem, dynamic, seen) != nil {
++			return newErrorCause("%s cannot be compared", T)
+ 		}
+-		return true
++
+ 	case *Interface:
+ 		if dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen) {
+-			return true
++			return nil
+ 		}
+-		if reportf != nil {
+-			if t.typeSet().IsEmpty() {
+-				reportf("empty type set")
+-			} else {
+-				reportf("incomparable types in type set")
+-			}
++		var cause string
++		if t.typeSet().IsEmpty() {
++			cause = "empty type set"
++		} else {
++			cause = "incomparable types in type set"
+ 		}
+-		// fallthrough
++		return newErrorCause(cause)
++
++	default:
++		return newErrorCause("")
+ 	}
+-	return false
++
++	return nil
+ }
+ 
+ // hasNil reports whether type t includes the nil value.
+diff --git a/src/cmd/compile/internal/types2/typeset.go b/src/cmd/compile/internal/types2/typeset.go
+index e62c263b7d..74436952f2 100644
+--- a/src/cmd/compile/internal/types2/typeset.go
++++ b/src/cmd/compile/internal/types2/typeset.go
+@@ -44,7 +44,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return t != nil && comparableType(t.typ, false, seen, nil)
++		return t != nil && comparableType(t.typ, false, seen) == nil
+ 	})
+ }
+ 
+@@ -331,7 +331,7 @@ func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool
+ 		i := 0
+ 		for _, t := range terms {
+ 			assert(t.typ != nil)
+-			if comparableType(t.typ, false /* strictly comparable */, nil, nil) {
++			if comparableType(t.typ, false /* strictly comparable */, nil) == nil {
+ 				terms[i] = t
+ 				i++
+ 			}
+diff --git a/src/cmd/compile/internal/types2/under.go b/src/cmd/compile/internal/types2/under.go
+index c0c0658c77..d6e159b1cd 100644
+--- a/src/cmd/compile/internal/types2/under.go
++++ b/src/cmd/compile/internal/types2/under.go
+@@ -46,7 +46,12 @@ type errorCause struct {
+ 	args    []any
+ }
+ 
++var emptyErrorCause errorCause
++
+ func newErrorCause(format string, args ...any) *errorCause {
++	if format == "" {
++		return &emptyErrorCause
++	}
+ 	return &errorCause{format, args}
+ }
+ 
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index bd81679a2e..4d94ba4edd 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -610,11 +610,7 @@ func (check *Checker) incomparableCause(typ Type) string {
+ 		return compositeKind(typ) + " can only be compared to nil"
+ 	}
+ 	// see if we can extract a more specific error
+-	var cause string
+-	comparableType(typ, true, nil, func(format string, args ...interface{}) {
+-		cause = check.sprintf(format, args...)
+-	})
+-	return cause
++	return comparableType(typ, true, nil).format(check)
+ }
+ 
+ // If e != nil, it must be the shift expression; it may be nil for non-constant shifts.
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 4b36312f96..db270eb556 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -299,12 +299,12 @@ func (check *Checker) implements(V, T Type, constraint bool, cause *string) bool
+ 		}
+ 		// If T is comparable, V must be comparable.
+ 		// If V is strictly comparable, we're done.
+-		if comparableType(V, false /* strict comparability */, nil, nil) {
++		if comparableType(V, false /* strict comparability */, nil) == nil {
+ 			return true
+ 		}
+ 		// For constraint satisfaction, use dynamic (spec) comparability
+ 		// so that ordinary, non-type parameter interfaces implement comparable.
+-		if constraint && comparableType(V, true /* spec comparability */, nil, nil) {
++		if constraint && comparableType(V, true /* spec comparability */, nil) == nil {
+ 			// V is comparable if we are at Go 1.20 or higher.
+ 			if check == nil || check.allowVersion(go1_20) {
+ 				return true
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index f5a960898e..4314b46d8f 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -151,14 +151,15 @@ func isGeneric(t Type) bool {
+ 
+ // Comparable reports whether values of type T are comparable.
+ func Comparable(T Type) bool {
+-	return comparableType(T, true, nil, nil)
++	return comparableType(T, true, nil) == nil
+ }
+ 
++// If T is comparable, comparableType returns nil.
++// Otherwise it returns an error cause explaining why T is not comparable.
+ // If dynamic is set, non-type parameter interfaces are always comparable.
+-// If reportf != nil, it may be used to report why T is not comparable.
+-func comparableType(T Type, dynamic bool, seen map[Type]bool, reportf func(string, ...interface{})) bool {
++func comparableType(T Type, dynamic bool, seen map[Type]bool) *errorCause {
+ 	if seen[T] {
+-		return true
++		return nil
+ 	}
+ 	if seen == nil {
+ 		seen = make(map[Type]bool)
+@@ -167,43 +168,43 @@ func comparableType(T Type, dynamic bool, seen map[Type]bool, reportf func(strin
+ 
+ 	switch t := under(T).(type) {
+ 	case *Basic:
+-		// assume invalid types to be comparable
+-		// to avoid follow-up errors
+-		return t.kind != UntypedNil
++		// assume invalid types to be comparable to avoid follow-up errors
++		if t.kind == UntypedNil {
++			return newErrorCause("")
++		}
++
+ 	case *Pointer, *Chan:
+-		return true
++		// always comparable
++
+ 	case *Struct:
+ 		for _, f := range t.fields {
+-			if !comparableType(f.typ, dynamic, seen, nil) {
+-				if reportf != nil {
+-					reportf("struct containing %s cannot be compared", f.typ)
+-				}
+-				return false
++			if comparableType(f.typ, dynamic, seen) != nil {
++				return newErrorCause("struct containing %s cannot be compared", f.typ)
+ 			}
+ 		}
+-		return true
++
+ 	case *Array:
+-		if !comparableType(t.elem, dynamic, seen, nil) {
+-			if reportf != nil {
+-				reportf("%s cannot be compared", t)
+-			}
+-			return false
++		if comparableType(t.elem, dynamic, seen) != nil {
++			return newErrorCause("%s cannot be compared", T)
+ 		}
+-		return true
++
+ 	case *Interface:
+ 		if dynamic && !isTypeParam(T) || t.typeSet().IsComparable(seen) {
+-			return true
++			return nil
+ 		}
+-		if reportf != nil {
+-			if t.typeSet().IsEmpty() {
+-				reportf("empty type set")
+-			} else {
+-				reportf("incomparable types in type set")
+-			}
++		var cause string
++		if t.typeSet().IsEmpty() {
++			cause = "empty type set"
++		} else {
++			cause = "incomparable types in type set"
+ 		}
+-		// fallthrough
++		return newErrorCause(cause)
++
++	default:
++		return newErrorCause("")
+ 	}
+-	return false
++
++	return nil
+ }
+ 
+ // hasNil reports whether type t includes the nil value.
+diff --git a/src/go/types/typeset.go b/src/go/types/typeset.go
+index d04833863d..dd384e8504 100644
+--- a/src/go/types/typeset.go
++++ b/src/go/types/typeset.go
+@@ -47,7 +47,7 @@ func (s *_TypeSet) IsComparable(seen map[Type]bool) bool {
+ 		return s.comparable
+ 	}
+ 	return s.is(func(t *term) bool {
+-		return t != nil && comparableType(t.typ, false, seen, nil)
++		return t != nil && comparableType(t.typ, false, seen) == nil
+ 	})
+ }
+ 
+@@ -334,7 +334,7 @@ func intersectTermLists(xterms termlist, xcomp bool, yterms termlist, ycomp bool
+ 		i := 0
+ 		for _, t := range terms {
+ 			assert(t.typ != nil)
+-			if comparableType(t.typ, false /* strictly comparable */, nil, nil) {
++			if comparableType(t.typ, false /* strictly comparable */, nil) == nil {
+ 				terms[i] = t
+ 				i++
+ 			}
+diff --git a/src/go/types/under.go b/src/go/types/under.go
+index e6d3754e30..8d45363a0f 100644
+--- a/src/go/types/under.go
++++ b/src/go/types/under.go
+@@ -49,7 +49,12 @@ type errorCause struct {
+ 	args    []any
+ }
+ 
++var emptyErrorCause errorCause
++
+ func newErrorCause(format string, args ...any) *errorCause {
++	if format == "" {
++		return &emptyErrorCause
++	}
+ 	return &errorCause{format, args}
+ }
+ 
+diff --git a/src/internal/types/testdata/spec/comparisons.go b/src/internal/types/testdata/spec/comparisons.go
+index dd92d99b1b..9f2b247b80 100644
+--- a/src/internal/types/testdata/spec/comparisons.go
++++ b/src/internal/types/testdata/spec/comparisons.go
+@@ -31,7 +31,7 @@ var (
+ func _() {
+ 	_ = nil == nil // ERROR "operator == not defined on untyped nil"
+ 	_ = b == b
+-	_ = a /* ERROR "[10]func() cannot be compared" */ == a
++	_ = a /* ERROR "A cannot be compared" */ == a
+ 	_ = l /* ERROR "slice can only be compared to nil" */ == l
+ 	_ = s /* ERROR "struct containing []byte cannot be compared" */ == s
+ 	_ = p == p

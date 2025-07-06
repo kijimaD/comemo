@@ -1,0 +1,69 @@
+commit fd54936ea523f44835adc39f0a2cebccbcb742c3
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Sat May 18 08:05:08 2024 +0800
+
+    doc: simplify links for release notes
+    
+    Change-Id: If9e3c5a58726ae3628d2e835d71f1a4708594c11
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586575
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+---
+ doc/next/6-stdlib/2-unique.md                   |  2 +-
+ doc/next/6-stdlib/3-iter.md                     | 10 ++++------
+ doc/next/6-stdlib/99-minor/sync/atomic/61395.md |  4 ++--
+ 3 files changed, 7 insertions(+), 9 deletions(-)
+
+diff --git a/doc/next/6-stdlib/2-unique.md b/doc/next/6-stdlib/2-unique.md
+index 45f3a9bad3..42737a52fa 100644
+--- a/doc/next/6-stdlib/2-unique.md
++++ b/doc/next/6-stdlib/2-unique.md
+@@ -1,6 +1,6 @@
+ ### New unique package
+ 
+-The new [unique](/pkg/unique) package provides facilities for
++The new [unique] package provides facilities for
+ canonicalizing values (like "interning" or "hash-consing").
+ 
+ Any value of comparable type may be canonicalized with the new
+diff --git a/doc/next/6-stdlib/3-iter.md b/doc/next/6-stdlib/3-iter.md
+index a965efabb5..50179d949e 100644
+--- a/doc/next/6-stdlib/3-iter.md
++++ b/doc/next/6-stdlib/3-iter.md
+@@ -1,10 +1,9 @@
+ ### Iterators
+ 
+-The new [`iter` package](/pkg/iter/) provides the basic definitions for
+-working with user-defined iterators.
++The new [iter] package provides the basic definitions for working with
++user-defined iterators.
+ 
+-The [`slices` package](/pkg/slices/) adds several functions that work
+-with iterators:
++The [slices] package adds several functions that work with iterators:
+ - [All](/pkg/slices#All) returns an iterator over slice indexes and values.
+ - [Values](/pkg/slices#Values) returns an iterator over slice elements.
+ - [Backward](/pkg/slices#Backward) returns an iterator that loops over
+@@ -22,8 +21,7 @@ with iterators:
+ - [Chunk](/pkg/slices#Chunk) returns an iterator over consecutive
+   sub-slices of up to n elements of a slice.
+ 
+-The [`maps` package](/pkg/maps/) adds several functions that work
+-with iterators:
++The [maps] package adds several functions that work with iterators:
+ - [All](/pkg/maps#All) returns an iterator over key-value pairs from m.
+ - [Keys](/pkg/maps#Keys) returns an iterator over keys in m.
+ - [Values](/pkg/maps#Values) returns an iterator over values in m.
+diff --git a/doc/next/6-stdlib/99-minor/sync/atomic/61395.md b/doc/next/6-stdlib/99-minor/sync/atomic/61395.md
+index 05359347f4..8aea9d6bf3 100644
+--- a/doc/next/6-stdlib/99-minor/sync/atomic/61395.md
++++ b/doc/next/6-stdlib/99-minor/sync/atomic/61395.md
+@@ -1,3 +1,3 @@
+ <!-- Issue #61395 -->
+-The new [`atomic.And`](/pkg/sync/atomic#And) and [`atomic.Or`](/pkg/sync/atomic#Or)
+-operators apply a bitwise `AND` or `OR` to the given input, returning the old value.
++The new [And] and [Or] operators apply a bitwise `AND` or `OR` to
++the given input, returning the old value.

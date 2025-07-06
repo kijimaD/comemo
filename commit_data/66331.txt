@@ -1,0 +1,262 @@
+commit 8203265d5eef37bf41d7d2df126f77ebd5abc999
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Tue Feb 25 23:59:14 2025 +0700
+
+    cmd/compile, runtime: optimize concatbytes
+    
+    CL 527935 optimized []byte(string1 + string2) to use runtime.concatbytes
+    to prevent concatenating of strings before converting to slices.
+    However, the optimization is implemented without allowing temporary
+    buffer for slice on stack, causing un-necessary allocations.
+    
+    To fix this, optimize concatbytes to use temporary buffer if the result
+    string length fit to the buffer size.
+    
+    Fixes #71943
+    
+    Change-Id: I1d3c374cd46aad8f83a271b8a5ca79094f9fd8db
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652395
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/compile/internal/test/issue71943_test.go   | 23 +++++++++++++++
+ .../compile/internal/typecheck/_builtin/runtime.go | 10 +++----
+ src/cmd/compile/internal/typecheck/builtin.go      | 10 +++----
+ src/cmd/compile/internal/walk/convert.go           |  2 +-
+ src/cmd/compile/internal/walk/expr.go              | 34 ++++++++++++++--------
+ src/runtime/string.go                              | 26 ++++++++++-------
+ 6 files changed, 72 insertions(+), 33 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/issue71943_test.go b/src/cmd/compile/internal/test/issue71943_test.go
+new file mode 100644
+index 0000000000..23312b4ee1
+--- /dev/null
++++ b/src/cmd/compile/internal/test/issue71943_test.go
+@@ -0,0 +1,23 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test
++
++import (
++	"crypto/sha256"
++	"runtime"
++	"testing"
++)
++
++func Verify(token, salt string) [32]byte {
++	return sha256.Sum256([]byte(token + salt))
++}
++
++func TestIssue71943(t *testing.T) {
++	if n := testing.AllocsPerRun(10, func() {
++		runtime.KeepAlive(Verify("teststring", "test"))
++	}); n > 0 {
++		t.Fatalf("unexpected allocation: %f", n)
++	}
++}
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index cf07f31e31..8a92c49061 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -71,11 +71,11 @@ func concatstring4(*[32]byte, string, string, string, string) string
+ func concatstring5(*[32]byte, string, string, string, string, string) string
+ func concatstrings(*[32]byte, []string) string
+ 
+-func concatbyte2(string, string) []byte
+-func concatbyte3(string, string, string) []byte
+-func concatbyte4(string, string, string, string) []byte
+-func concatbyte5(string, string, string, string, string) []byte
+-func concatbytes([]string) []byte
++func concatbyte2(*[32]byte, string, string) []byte
++func concatbyte3(*[32]byte, string, string, string) []byte
++func concatbyte4(*[32]byte, string, string, string, string) []byte
++func concatbyte5(*[32]byte, string, string, string, string, string) []byte
++func concatbytes(*[32]byte, []string) []byte
+ 
+ func cmpstring(string, string) int
+ func intstring(*[4]byte, int64) string
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index be08d0b403..4c12ce6220 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -288,11 +288,11 @@ func runtimeTypes() []*types.Type {
+ 	typs[38] = types.NewSlice(typs[28])
+ 	typs[39] = newSig(params(typs[33], typs[38]), params(typs[28]))
+ 	typs[40] = types.NewSlice(typs[0])
+-	typs[41] = newSig(params(typs[28], typs[28]), params(typs[40]))
+-	typs[42] = newSig(params(typs[28], typs[28], typs[28]), params(typs[40]))
+-	typs[43] = newSig(params(typs[28], typs[28], typs[28], typs[28]), params(typs[40]))
+-	typs[44] = newSig(params(typs[28], typs[28], typs[28], typs[28], typs[28]), params(typs[40]))
+-	typs[45] = newSig(params(typs[38]), params(typs[40]))
++	typs[41] = newSig(params(typs[33], typs[28], typs[28]), params(typs[40]))
++	typs[42] = newSig(params(typs[33], typs[28], typs[28], typs[28]), params(typs[40]))
++	typs[43] = newSig(params(typs[33], typs[28], typs[28], typs[28], typs[28]), params(typs[40]))
++	typs[44] = newSig(params(typs[33], typs[28], typs[28], typs[28], typs[28], typs[28]), params(typs[40]))
++	typs[45] = newSig(params(typs[33], typs[38]), params(typs[40]))
+ 	typs[46] = newSig(params(typs[28], typs[28]), params(typs[15]))
+ 	typs[47] = types.NewArray(typs[0], 4)
+ 	typs[48] = types.NewPtr(typs[47])
+diff --git a/src/cmd/compile/internal/walk/convert.go b/src/cmd/compile/internal/walk/convert.go
+index 3118233697..fc1e4c84e7 100644
+--- a/src/cmd/compile/internal/walk/convert.go
++++ b/src/cmd/compile/internal/walk/convert.go
+@@ -272,7 +272,7 @@ func walkStringToBytes(n *ir.ConvExpr, init *ir.Nodes) ir.Node {
+ 	s := n.X
+ 
+ 	if expr, ok := s.(*ir.AddStringExpr); ok {
+-		return walkAddString(n.Type(), expr, init)
++		return walkAddString(expr, init, n)
+ 	}
+ 
+ 	if ir.IsConst(s, constant.String) {
+diff --git a/src/cmd/compile/internal/walk/expr.go b/src/cmd/compile/internal/walk/expr.go
+index 8cb3803190..96087e16b7 100644
+--- a/src/cmd/compile/internal/walk/expr.go
++++ b/src/cmd/compile/internal/walk/expr.go
+@@ -273,7 +273,7 @@ func walkExpr1(n ir.Node, init *ir.Nodes) ir.Node {
+ 		return walkNew(n, init)
+ 
+ 	case ir.OADDSTR:
+-		return walkAddString(n.Type(), n.(*ir.AddStringExpr), init)
++		return walkAddString(n.(*ir.AddStringExpr), init, nil)
+ 
+ 	case ir.OAPPEND:
+ 		// order should make sure we only see OAS(node, OAPPEND), which we handle above.
+@@ -464,26 +464,32 @@ func copyExpr(n ir.Node, t *types.Type, init *ir.Nodes) ir.Node {
+ 	return l
+ }
+ 
+-func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node {
+-	c := len(n.List)
+-
++// walkAddString walks a string concatenation expression x.
++// If conv is non nil, x is the conv.X field.
++func walkAddString(x *ir.AddStringExpr, init *ir.Nodes, conv *ir.ConvExpr) ir.Node {
++	c := len(x.List)
+ 	if c < 2 {
+ 		base.Fatalf("walkAddString count %d too small", c)
+ 	}
+ 
++	typ := x.Type()
++	if conv != nil {
++		typ = conv.Type()
++	}
++
+ 	// list of string arguments
+ 	var args []ir.Node
+ 
+ 	var fn, fnsmall, fnbig string
+ 
++	buf := typecheck.NodNil()
+ 	switch {
+ 	default:
+-		base.FatalfAt(n.Pos(), "unexpected type: %v", typ)
++		base.FatalfAt(x.Pos(), "unexpected type: %v", typ)
+ 	case typ.IsString():
+-		buf := typecheck.NodNil()
+-		if n.Esc() == ir.EscNone {
++		if x.Esc() == ir.EscNone {
+ 			sz := int64(0)
+-			for _, n1 := range n.List {
++			for _, n1 := range x.List {
+ 				if n1.Op() == ir.OLITERAL {
+ 					sz += int64(len(ir.StringVal(n1)))
+ 				}
+@@ -499,6 +505,10 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
+ 		args = []ir.Node{buf}
+ 		fnsmall, fnbig = "concatstring%d", "concatstrings"
+ 	case typ.IsSlice() && typ.Elem().IsKind(types.TUINT8): // Optimize []byte(str1+str2+...)
++		if conv != nil && conv.Esc() == ir.EscNone {
++			buf = stackBufAddr(tmpstringbufsize, types.Types[types.TUINT8])
++		}
++		args = []ir.Node{buf}
+ 		fnsmall, fnbig = "concatbyte%d", "concatbytes"
+ 	}
+ 
+@@ -507,7 +517,7 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
+ 		// note: order.expr knows this cutoff too.
+ 		fn = fmt.Sprintf(fnsmall, c)
+ 
+-		for _, n2 := range n.List {
++		for _, n2 := range x.List {
+ 			args = append(args, typecheck.Conv(n2, types.Types[types.TSTRING]))
+ 		}
+ 	} else {
+@@ -515,12 +525,12 @@ func walkAddString(typ *types.Type, n *ir.AddStringExpr, init *ir.Nodes) ir.Node
+ 		fn = fnbig
+ 		t := types.NewSlice(types.Types[types.TSTRING])
+ 
+-		slargs := make([]ir.Node, len(n.List))
+-		for i, n2 := range n.List {
++		slargs := make([]ir.Node, len(x.List))
++		for i, n2 := range x.List {
+ 			slargs[i] = typecheck.Conv(n2, types.Types[types.TSTRING])
+ 		}
+ 		slice := ir.NewCompLitExpr(base.Pos, ir.OCOMPLIT, t, slargs)
+-		slice.Prealloc = n.Prealloc
++		slice.Prealloc = x.Prealloc
+ 		args = append(args, slice)
+ 		slice.SetEsc(ir.EscNone)
+ 	}
+diff --git a/src/runtime/string.go b/src/runtime/string.go
+index e43f4cca51..7bb9d58de0 100644
+--- a/src/runtime/string.go
++++ b/src/runtime/string.go
+@@ -76,7 +76,7 @@ func concatstring5(buf *tmpBuf, a0, a1, a2, a3, a4 string) string {
+ // concatbytes implements a Go string concatenation x+y+z+... returning a slice
+ // of bytes.
+ // The operands are passed in the slice a.
+-func concatbytes(a []string) []byte {
++func concatbytes(buf *tmpBuf, a []string) []byte {
+ 	l := 0
+ 	for _, x := range a {
+ 		n := len(x)
+@@ -90,7 +90,13 @@ func concatbytes(a []string) []byte {
+ 		return []byte{}
+ 	}
+ 
+-	b := rawbyteslice(l)
++	var b []byte
++	if buf != nil && l <= len(buf) {
++		*buf = tmpBuf{}
++		b = buf[:l]
++	} else {
++		b = rawbyteslice(l)
++	}
+ 	offset := 0
+ 	for _, x := range a {
+ 		copy(b[offset:], x)
+@@ -100,20 +106,20 @@ func concatbytes(a []string) []byte {
+ 	return b
+ }
+ 
+-func concatbyte2(a0, a1 string) []byte {
+-	return concatbytes([]string{a0, a1})
++func concatbyte2(buf *tmpBuf, a0, a1 string) []byte {
++	return concatbytes(buf, []string{a0, a1})
+ }
+ 
+-func concatbyte3(a0, a1, a2 string) []byte {
+-	return concatbytes([]string{a0, a1, a2})
++func concatbyte3(buf *tmpBuf, a0, a1, a2 string) []byte {
++	return concatbytes(buf, []string{a0, a1, a2})
+ }
+ 
+-func concatbyte4(a0, a1, a2, a3 string) []byte {
+-	return concatbytes([]string{a0, a1, a2, a3})
++func concatbyte4(buf *tmpBuf, a0, a1, a2, a3 string) []byte {
++	return concatbytes(buf, []string{a0, a1, a2, a3})
+ }
+ 
+-func concatbyte5(a0, a1, a2, a3, a4 string) []byte {
+-	return concatbytes([]string{a0, a1, a2, a3, a4})
++func concatbyte5(buf *tmpBuf, a0, a1, a2, a3, a4 string) []byte {
++	return concatbytes(buf, []string{a0, a1, a2, a3, a4})
+ }
+ 
+ // slicebytetostring converts a byte slice to a string.

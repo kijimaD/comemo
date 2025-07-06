@@ -1,0 +1,51 @@
+commit 4f95ad8ca2864268fe086e23ec5d0ee8b6d5e1c1
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Sep 14 07:48:31 2024 -0400
+
+    cmd/preprofile, runtime/coverage: add package comment
+    
+    As https://go.dev/doc/comment#package says, every package
+    should have a package comment. Command cmd/preprofile had
+    one, it was just not being recognized due to a blank line.
+    
+    For #51430.
+    For #58102.
+    
+    Change-Id: I73e31158e0f244f6453728ab68c5c8da4cfb38b1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613375
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/preprofile/main.go       | 3 ---
+ src/runtime/coverage/coverage.go | 2 ++
+ 2 files changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/preprofile/main.go b/src/cmd/preprofile/main.go
+index 60aa1f7cc6..68e8dc716e 100644
+--- a/src/cmd/preprofile/main.go
++++ b/src/cmd/preprofile/main.go
+@@ -9,9 +9,6 @@
+ // Usage:
+ //
+ //	go tool preprofile [-v] [-o output] -i input
+-//
+-//
+-
+ package main
+ 
+ import (
+diff --git a/src/runtime/coverage/coverage.go b/src/runtime/coverage/coverage.go
+index 6b99a0bce6..c9f725e3ef 100644
+--- a/src/runtime/coverage/coverage.go
++++ b/src/runtime/coverage/coverage.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++// Package coverage contains APIs for writing coverage profile data at runtime
++// from long-running and/or server programs that do not terminate via [os.Exit].
+ package coverage
+ 
+ import (

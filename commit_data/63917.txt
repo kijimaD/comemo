@@ -1,0 +1,149 @@
+commit ca1d2ead5d3fb2dccbc93f5c29a17da4bdf30ea3
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 22 20:00:02 2024 +0000
+
+    runtime: skip tracing events that would cause reentrancy
+    
+    Some of the new experimental events added have a problem in that they
+    might be emitted during stack growth. This is, to my knowledge, the only
+    restriction on the tracer, because the tracer otherwise prevents
+    preemption, avoids allocation, and avoids write barriers. However, the
+    stack can grow from within the tracer. This leads to
+    tracing-during-tracing which can result in lost buffers and broken event
+    streams. (There's a debug mode to get a nice error message, but it's
+    disabled by default.)
+    
+    This change resolves the problem by skipping writing out these new
+    events. This results in the new events sometimes being broken (alloc
+    without a free, free without an alloc) but for now that's OK. Before the
+    freeze begins we just want to fix broken tests; tools interpreting these
+    events will be totally in-house to begin with, and if they have to be a
+    little bit smarter about missing information, that's OK. In the future
+    we'll have a more robust fix for this, but it appears that it's going to
+    require making the tracer fully reentrant. (This is not too hard; either
+    we force flushing all buffers when going reentrant (which is actually
+    somewhat subtle with respect to event ordering) or we isolate down just
+    the actual event writing to be atomic with respect to stack growth. Both
+    are just bigger changes on shared codepaths that are scary to land this
+    late in the release cycle.)
+    
+    Fixes #67379.
+    
+    Change-Id: I46bb7e470e61c64ff54ac5aec5554b828c1ca4be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587597
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mheap.go        |  6 +++---
+ src/runtime/stack.go        |  4 ++--
+ src/runtime/traceruntime.go | 36 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index 4e7e606db9..35fd08af50 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -1368,7 +1368,7 @@ HaveSpan:
+ 
+ 	// Trace the span alloc.
+ 	if traceAllocFreeEnabled() {
+-		trace := traceAcquire()
++		trace := traceTryAcquire()
+ 		if trace.ok() {
+ 			trace.SpanAlloc(s)
+ 			traceRelease(trace)
+@@ -1556,7 +1556,7 @@ func (h *mheap) freeSpan(s *mspan) {
+ 	systemstack(func() {
+ 		// Trace the span free.
+ 		if traceAllocFreeEnabled() {
+-			trace := traceAcquire()
++			trace := traceTryAcquire()
+ 			if trace.ok() {
+ 				trace.SpanFree(s)
+ 				traceRelease(trace)
+@@ -1595,7 +1595,7 @@ func (h *mheap) freeSpan(s *mspan) {
+ func (h *mheap) freeManual(s *mspan, typ spanAllocType) {
+ 	// Trace the span free.
+ 	if traceAllocFreeEnabled() {
+-		trace := traceAcquire()
++		trace := traceTryAcquire()
+ 		if trace.ok() {
+ 			trace.SpanFree(s)
+ 			traceRelease(trace)
+diff --git a/src/runtime/stack.go b/src/runtime/stack.go
+index 6d24814271..cdf859a7ff 100644
+--- a/src/runtime/stack.go
++++ b/src/runtime/stack.go
+@@ -416,7 +416,7 @@ func stackalloc(n uint32) stack {
+ 	}
+ 
+ 	if traceAllocFreeEnabled() {
+-		trace := traceAcquire()
++		trace := traceTryAcquire()
+ 		if trace.ok() {
+ 			trace.GoroutineStackAlloc(uintptr(v), uintptr(n))
+ 			traceRelease(trace)
+@@ -466,7 +466,7 @@ func stackfree(stk stack) {
+ 		return
+ 	}
+ 	if traceAllocFreeEnabled() {
+-		trace := traceAcquire()
++		trace := traceTryAcquire()
+ 		if trace.ok() {
+ 			trace.GoroutineStackFree(uintptr(v))
+ 			traceRelease(trace)
+diff --git a/src/runtime/traceruntime.go b/src/runtime/traceruntime.go
+index 5497913066..195b3e1c37 100644
+--- a/src/runtime/traceruntime.go
++++ b/src/runtime/traceruntime.go
+@@ -184,6 +184,22 @@ func traceAcquire() traceLocker {
+ 	return traceAcquireEnabled()
+ }
+ 
++// traceTryAcquire is like traceAcquire, but may return an invalid traceLocker even
++// if tracing is enabled. For example, it will return !ok if traceAcquire is being
++// called with an active traceAcquire on the M (reentrant locking). This exists for
++// optimistically emitting events in the few contexts where tracing is now allowed.
++//
++// nosplit for alignment with traceTryAcquire, so it can be used in the
++// same contexts.
++//
++//go:nosplit
++func traceTryAcquire() traceLocker {
++	if !traceEnabled() {
++		return traceLocker{}
++	}
++	return traceTryAcquireEnabled()
++}
++
+ // traceAcquireEnabled is the traceEnabled path for traceAcquire. It's explicitly
+ // broken out to make traceAcquire inlineable to keep the overhead of the tracer
+ // when it's disabled low.
+@@ -228,6 +244,26 @@ func traceAcquireEnabled() traceLocker {
+ 	return traceLocker{mp, gen}
+ }
+ 
++// traceTryAcquireEnabled is like traceAcquireEnabled but may return an invalid
++// traceLocker under some conditions. See traceTryAcquire for more details.
++//
++// nosplit for alignment with traceAcquireEnabled, so it can be used in the
++// same contexts.
++//
++//go:nosplit
++func traceTryAcquireEnabled() traceLocker {
++	// Any time we acquire a traceLocker, we may flush a trace buffer. But
++	// buffer flushes are rare. Record the lock edge even if it doesn't happen
++	// this time.
++	lockRankMayTraceFlush()
++
++	// Check if we're already locked. If so, return an invalid traceLocker.
++	if getg().m.trace.seqlock.Load()%2 == 1 {
++		return traceLocker{}
++	}
++	return traceAcquireEnabled()
++}
++
+ // ok returns true if the traceLocker is valid (i.e. tracing is enabled).
+ //
+ // nosplit because it's called on the syscall path when stack movement is forbidden.

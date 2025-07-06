@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 13485: c0efcac6a97588f7013b7ec09dd56cb780bdce64
+# Index 13485: e983ddae2ff489abd00334d45a67581eb7ec9dd1
 
 echo "🚀 Generating explanation for commit 13485..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 13485..."
 
 ### メタデータ
 - **コミットインデックス**: 13485
-- **コミットハッシュ**: c0efcac6a97588f7013b7ec09dd56cb780bdce64
-- **GitHub URL**: https://github.com/golang/go/commit/c0efcac6a97588f7013b7ec09dd56cb780bdce64
+- **コミットハッシュ**: e983ddae2ff489abd00334d45a67581eb7ec9dd1
+- **GitHub URL**: https://github.com/golang/go/commit/e983ddae2ff489abd00334d45a67581eb7ec9dd1
 
 ### 章構成
 

@@ -1,0 +1,33 @@
+commit d31d77a26333a3af1ae346875bec4784121a8213
+Author: Austin Clements <austin@google.com>
+Date:   Fri Jan 26 15:06:14 2024 -0500
+
+    cmd/go: remove confusing TrimPrefix(str, "\n")
+    
+    It's not clear why strings here would have a *prefix* \n. This trim
+    was introduced back in March 2012 without explanation in omnibus
+    commit b03a5f66e8f8a6b36c9d67e82d2edc9b3d4076ba (as a HasPrefix, since
+    we didn't have TrimPrefix at the time).
+    
+    Change-Id: Ib0a7af36900e437fdc52ec5c1c921f92833f6cef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/558638
+    Reviewed-by: Bryan Mills <bcmills@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/test/test.go | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index 58c54c99e0..3f4f3accaa 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -993,7 +993,6 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 		buildTest, runTest, printTest, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
+ 		if err != nil {
+ 			str := err.Error()
+-			str = strings.TrimPrefix(str, "\n")
+ 			if p.ImportPath != "" {
+ 				base.Errorf("# %s\n%s", p.ImportPath, str)
+ 			} else {

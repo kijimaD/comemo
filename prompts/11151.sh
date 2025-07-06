@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 11151: 1627b46eaa6403775611017e91cceae2e45662b2
+# Index 11151: 8cad9251b37606282e5ce8738afd0a5fa1838316
 
 echo "🚀 Generating explanation for commit 11151..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 11151..."
 
 ### メタデータ
 - **コミットインデックス**: 11151
-- **コミットハッシュ**: 1627b46eaa6403775611017e91cceae2e45662b2
-- **GitHub URL**: https://github.com/golang/go/commit/1627b46eaa6403775611017e91cceae2e45662b2
+- **コミットハッシュ**: 8cad9251b37606282e5ce8738afd0a5fa1838316
+- **GitHub URL**: https://github.com/golang/go/commit/8cad9251b37606282e5ce8738afd0a5fa1838316
 
 ### 章構成
 

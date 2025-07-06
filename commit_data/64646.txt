@@ -1,0 +1,616 @@
+commit 6781ff226d8d2f9b49a61eaa8de40be68fea7037
+Author: Zxilly <zxilly@outlook.com>
+Date:   Sat Aug 24 08:39:47 2024 +0000
+
+    misc/wasm: move wasm runtime files to lib/wasm
+    
+    Fixes #68024
+    
+    Change-Id: I730c3ecfb14472f3eea3895c2a4d5e1d4ac146f5
+    GitHub-Last-Rev: 4242f360103ba1fd1f4085b8257ccce0f07a68e5
+    GitHub-Pull-Request: golang/go#68840
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604696
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Johan Brandhorst-Satzkorn <johan.brandhorst@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ doc/next/7-ports.md                                  |  3 +++
+ {misc => lib}/wasm/go_js_wasm_exec                   |  0
+ {misc => lib}/wasm/go_wasip1_wasm_exec               |  0
+ {misc => lib}/wasm/wasm_exec.js                      |  0
+ {misc => lib}/wasm/wasm_exec_node.js                 |  0
+ misc/wasm/wasm_exec.html                             |  2 +-
+ src/cmd/distpack/test.go                             |  5 +++++
+ src/cmd/go/internal/toolchain/select.go              | 20 ++++++++++++++------
+ ...org_toolchain_v0.0.1-go1.999testmod.aix-ppc64.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.android-386.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.android-amd64.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.android-arm.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.android-arm64.txt |  1 +
+ ..._toolchain_v0.0.1-go1.999testmod.darwin-amd64.txt |  1 +
+ ..._toolchain_v0.0.1-go1.999testmod.darwin-arm64.txt |  1 +
+ ...olchain_v0.0.1-go1.999testmod.dragonfly-amd64.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.freebsd-386.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.freebsd-amd64.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.freebsd-arm.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.freebsd-arm64.txt |  1 +
+ ...olchain_v0.0.1-go1.999testmod.freebsd-riscv64.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.illumos-amd64.txt |  1 +
+ ...org_toolchain_v0.0.1-go1.999testmod.ios-amd64.txt |  1 +
+ ...org_toolchain_v0.0.1-go1.999testmod.ios-arm64.txt |  1 +
+ ...g.org_toolchain_v0.0.1-go1.999testmod.js-wasm.txt |  1 +
+ ...org_toolchain_v0.0.1-go1.999testmod.linux-386.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.linux-amd64.txt |  1 +
+ ...org_toolchain_v0.0.1-go1.999testmod.linux-arm.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.linux-arm64.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.linux-loong64.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.linux-mips64x.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.linux-mipsx.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.linux-ppc64.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.linux-ppc64le.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.linux-riscv64.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.linux-s390x.txt |  1 +
+ ...rg_toolchain_v0.0.1-go1.999testmod.netbsd-386.txt |  1 +
+ ..._toolchain_v0.0.1-go1.999testmod.netbsd-amd64.txt |  1 +
+ ...rg_toolchain_v0.0.1-go1.999testmod.netbsd-arm.txt |  1 +
+ ..._toolchain_v0.0.1-go1.999testmod.netbsd-arm64.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.openbsd-386.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.openbsd-amd64.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.openbsd-arm.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.openbsd-arm64.txt |  1 +
+ ...oolchain_v0.0.1-go1.999testmod.openbsd-mips64.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt |  1 +
+ ...olchain_v0.0.1-go1.999testmod.openbsd-riscv64.txt |  1 +
+ ...org_toolchain_v0.0.1-go1.999testmod.plan9-386.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.plan9-amd64.txt |  1 +
+ ...org_toolchain_v0.0.1-go1.999testmod.plan9-arm.txt |  1 +
+ ...toolchain_v0.0.1-go1.999testmod.solaris-amd64.txt |  1 +
+ ...g_toolchain_v0.0.1-go1.999testmod.windows-386.txt |  2 ++
+ ...toolchain_v0.0.1-go1.999testmod.windows-amd64.txt |  2 ++
+ ...g_toolchain_v0.0.1-go1.999testmod.windows-arm.txt |  2 ++
+ ...toolchain_v0.0.1-go1.999testmod.windows-arm64.txt |  1 +
+ src/syscall/js/js_test.go                            |  2 +-
+ 56 files changed, 74 insertions(+), 8 deletions(-)
+
+diff --git a/doc/next/7-ports.md b/doc/next/7-ports.md
+index 8bea3f8fbc..2b564bf889 100644
+--- a/doc/next/7-ports.md
++++ b/doc/next/7-ports.md
+@@ -1,2 +1,5 @@
+ ## Ports {#ports}
+ 
++### WebAssembly {#wasm}
++
++The support files for WebAssembly have been moved to `lib/wasm` from `misc/wasm`.
+diff --git a/misc/wasm/go_js_wasm_exec b/lib/wasm/go_js_wasm_exec
+similarity index 100%
+rename from misc/wasm/go_js_wasm_exec
+rename to lib/wasm/go_js_wasm_exec
+diff --git a/misc/wasm/go_wasip1_wasm_exec b/lib/wasm/go_wasip1_wasm_exec
+similarity index 100%
+rename from misc/wasm/go_wasip1_wasm_exec
+rename to lib/wasm/go_wasip1_wasm_exec
+diff --git a/misc/wasm/wasm_exec.js b/lib/wasm/wasm_exec.js
+similarity index 100%
+rename from misc/wasm/wasm_exec.js
+rename to lib/wasm/wasm_exec.js
+diff --git a/misc/wasm/wasm_exec_node.js b/lib/wasm/wasm_exec_node.js
+similarity index 100%
+rename from misc/wasm/wasm_exec_node.js
+rename to lib/wasm/wasm_exec_node.js
+diff --git a/misc/wasm/wasm_exec.html b/misc/wasm/wasm_exec.html
+index 72e64473eb..694b526df1 100644
+--- a/misc/wasm/wasm_exec.html
++++ b/misc/wasm/wasm_exec.html
+@@ -17,7 +17,7 @@ license that can be found in the LICENSE file.
+ 	<script src="https://cdn.jsdelivr.net/npm/text-encoding@0.7.0/lib/encoding.min.js"></script>
+ 	(see https://caniuse.com/#feat=textencoder)
+ 	-->
+-	<script src="wasm_exec.js"></script>
++	<script src="../../lib/wasm/wasm_exec.js"></script>
+ 	<script>
+ 		if (!WebAssembly.instantiateStreaming) { // polyfill
+ 			WebAssembly.instantiateStreaming = async (resp, importObject) => {
+diff --git a/src/cmd/distpack/test.go b/src/cmd/distpack/test.go
+index 108907d0e6..4f260cb0df 100644
+--- a/src/cmd/distpack/test.go
++++ b/src/cmd/distpack/test.go
+@@ -73,6 +73,11 @@ var modRules = []testRule{
+ 	{name: "golang.org/toolchain@*/src/cmd/go/main.go"},
+ 	{name: "golang.org/toolchain@*/src/bytes/bytes.go"},
+ 
++	{name: "golang.org/toolchain@*/lib/wasm/go_js_wasm_exec"},
++	{name: "golang.org/toolchain@*/lib/wasm/go_wasip1_wasm_exec"},
++	{name: "golang.org/toolchain@*/lib/wasm/wasm_exec.js"},
++	{name: "golang.org/toolchain@*/lib/wasm/wasm_exec_node.js"},
++
+ 	{name: "**/.DS_Store", exclude: true},
+ 	{name: "golang.org/toolchain@*/.git", exclude: true},
+ 	{name: "golang.org/toolchain@*/.gitattributes", exclude: true},
+diff --git a/src/cmd/go/internal/toolchain/select.go b/src/cmd/go/internal/toolchain/select.go
+index b20a2332a4..8925c6bd51 100644
+--- a/src/cmd/go/internal/toolchain/select.go
++++ b/src/cmd/go/internal/toolchain/select.go
+@@ -353,13 +353,20 @@ func Exec(gotoolchain string) {
+ 			base.Fatalf("download %s: %v", gotoolchain, err)
+ 		}
+ 		if info.Mode()&0111 == 0 {
+-			// allowExec sets the exec permission bits on all files found in dir.
+-			allowExec := func(dir string) {
++			// allowExec sets the exec permission bits on all files found in dir if pattern is the empty string,
++			// or only those files that match the pattern if it's non-empty.
++			allowExec := func(dir, pattern string) {
+ 				err := filepath.WalkDir(dir, func(path string, d fs.DirEntry, err error) error {
+ 					if err != nil {
+ 						return err
+ 					}
+ 					if !d.IsDir() {
++						if pattern != "" {
++							if matched, _ := filepath.Match(pattern, d.Name()); !matched {
++								// Skip file.
++								return nil
++							}
++						}
+ 						info, err := os.Stat(path)
+ 						if err != nil {
+ 							return err
+@@ -380,12 +387,13 @@ func Exec(gotoolchain string) {
+ 			// then the check of bin/go above might succeed, the other go command
+ 			// would skip its own mode-setting, and then the go command might
+ 			// try to run a tool before we get to setting the bits on pkg/tool.
+-			// Setting pkg/tool before bin/go avoids that ordering problem.
++			// Setting pkg/tool and lib before bin/go avoids that ordering problem.
+ 			// The only other tool the go command invokes is gofmt,
+ 			// so we set that one explicitly before handling bin (which will include bin/go).
+-			allowExec(filepath.Join(dir, "pkg/tool"))
+-			allowExec(filepath.Join(dir, "bin/gofmt"))
+-			allowExec(filepath.Join(dir, "bin"))
++			allowExec(filepath.Join(dir, "pkg/tool"), "")
++			allowExec(filepath.Join(dir, "lib"), "go_?*_?*_exec")
++			allowExec(filepath.Join(dir, "bin/gofmt"), "")
++			allowExec(filepath.Join(dir, "bin"), "")
+ 		}
+ 	}
+ 
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.aix-ppc64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.aix-ppc64.txt
+index e70c4d7185..ba40ef33d6 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.aix-ppc64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.aix-ppc64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-386.txt
+index 981334eae9..abed143614 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-386.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-386.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-amd64.txt
+index a01fce844a..34ed03825c 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm.txt
+index 0de1cecbab..f399f99897 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm64.txt
+index 1ebeadcb9f..947af20b0f 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.android-arm64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-amd64.txt
+index 509185322e..19e8c4ab99 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-arm64.txt
+index 6b2b132d2d..8da52c69a5 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-arm64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.darwin-arm64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.dragonfly-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.dragonfly-amd64.txt
+index 814180addd..06441291f3 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.dragonfly-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.dragonfly-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-386.txt
+index 12e0df493e..82cd5a7a30 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-386.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-386.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-amd64.txt
+index bf470a5a05..b0b0d2894d 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm.txt
+index dc32e0edf4..1d4c492b57 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm64.txt
+index 4335ba6fc7..b9ec6725b6 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-arm64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-riscv64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-riscv64.txt
+index 6161fe2f81..80a87862c8 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-riscv64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.freebsd-riscv64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.illumos-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.illumos-amd64.txt
+index b677457f6e..71ef4ed569 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.illumos-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.illumos-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-amd64.txt
+index e8363bcb7f..39e3ce1c24 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-arm64.txt
+index 9585966f2a..789cbde7a9 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-arm64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.ios-arm64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.js-wasm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.js-wasm.txt
+index 37fa6c06b7..34af7aa9d4 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.js-wasm.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.js-wasm.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-386.txt
+index ee966385f6..62b88000c4 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-386.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-386.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-amd64.txt
+index 6277341561..d35dd7d7b4 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm.txt
+index 678711b1a1..de644691a7 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm64.txt
+index bb305ab250..2cd0d9ad46 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-arm64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-loong64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-loong64.txt
+index 52a23d4b4a..fe1b08976f 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-loong64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-loong64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mips64x.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mips64x.txt
+index 79fff1322e..40c93aee59 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mips64x.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mips64x.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mipsx.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mipsx.txt
+index a725626563..bb5865dc7d 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mipsx.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-mipsx.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64.txt
+index f25ae8eddc..c8927f6af9 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64le.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64le.txt
+index e22b8ee205..f0f012b9df 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64le.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-ppc64le.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-riscv64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-riscv64.txt
+index 2e15fe3cf6..2c6038b053 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-riscv64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-riscv64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-s390x.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-s390x.txt
+index 1022ee4935..54f5d9ff1b 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-s390x.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.linux-s390x.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-386.txt
+index 8b7b156e44..cf6738ec65 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-386.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-386.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-amd64.txt
+index ebdb407c4c..d4e6b93cd1 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm.txt
+index fcacf0800f..0d776d23c7 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm64.txt
+index c2bd257cc5..3c22682d07 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.netbsd-arm64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-386.txt
+index 965a054f6d..af280c34bd 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-386.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-386.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-amd64.txt
+index 1acb7a3b34..a6807639f4 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm.txt
+index 0e47d9cda7..9b1986b406 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm64.txt
+index 8c99161865..9adffc2de7 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-arm64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-mips64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-mips64.txt
+index 6c7cdfbfe4..f9bfb7cd40 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-mips64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-mips64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt
+index 60c73b7c1a..0bd75a6550 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-ppc64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-riscv64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-riscv64.txt
+index 978be3bf78..3b01244538 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-riscv64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.openbsd-riscv64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-386.txt
+index 26f720984c..cf3725216d 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-386.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-386.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-amd64.txt
+index 7cf1ddecb0..2f1e6b9ade 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-arm.txt
+index 3c3b6a74b6..f76a36de84 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-arm.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.plan9-arm.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.solaris-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.solaris-amd64.txt
+index a750aaf114..330a904d49 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.solaris-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.solaris-amd64.txt
+@@ -12,3 +12,4 @@ echo go1.999testmod here!
+ -- bin/gofmt --
+ echo i am unused
+ -- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-386.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-386.txt
+index ca0f7aabb0..65fff4cd42 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-386.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-386.txt
+@@ -8,3 +8,5 @@ module golang.org/toolchain
+ module golang.org/toolchain
+ -- bin/go.bat --
+ @echo go1.999testmod here!
++-- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-amd64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-amd64.txt
+index 44e16c7a04..a78e7c8879 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-amd64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-amd64.txt
+@@ -8,3 +8,5 @@ module golang.org/toolchain
+ module golang.org/toolchain
+ -- bin/go.bat --
+ @echo go1.999testmod here!
++-- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm.txt
+index ee4e016943..b734bf98c5 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm.txt
+@@ -8,3 +8,5 @@ module golang.org/toolchain
+ module golang.org/toolchain
+ -- bin/go.bat --
+ @echo go1.999testmod here!
++-- pkg/tool/fake --
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm64.txt b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm64.txt
+index be3ff80186..b60ffbe903 100644
+--- a/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm64.txt
++++ b/src/cmd/go/testdata/mod/golang.org_toolchain_v0.0.1-go1.999testmod.windows-arm64.txt
+@@ -8,3 +8,4 @@ module golang.org/toolchain
+ module golang.org/toolchain
+ -- bin/go.bat --
+ @echo go1.999testmod here!
++-- lib/wasm/go_js_wasm_exec --
+diff --git a/src/syscall/js/js_test.go b/src/syscall/js/js_test.go
+index d6bcc6370d..76fa442442 100644
+--- a/src/syscall/js/js_test.go
++++ b/src/syscall/js/js_test.go
+@@ -7,7 +7,7 @@
+ // To run these tests:
+ //
+ // - Install Node
+-// - Add /path/to/go/misc/wasm to your $PATH (so that "go test" can find
++// - Add /path/to/go/lib/wasm to your $PATH (so that "go test" can find
+ //   "go_js_wasm_exec").
+ // - GOOS=js GOARCH=wasm go test
+ //

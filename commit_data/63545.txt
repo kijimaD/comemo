@@ -1,0 +1,41 @@
+commit 508e76197842792f87504d9f031ce4f7bf453c4f
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Apr 24 11:19:17 2024 -0400
+
+    cmd/compile: bail PGO method lookup on interface types
+    
+    Interface types don't have concrete method implementations, so it does
+    not make sense to attempt a lookup.
+    
+    An interface method would not normally appear in a PGO profile as it has
+    no symbol in the final binary. However it can appear if the method was
+    concrete when the profile was collected and it has since been refactored
+    to an interface method in the code being compiled.
+    
+    The guards here (OTYPE, !Alias, !IsInterface) now match
+    noder.linker.relocObj, which does a similar iteration of all methods.
+    
+    Fixes #67016.
+    
+    Change-Id: I858c58929c890ac0b2019fbd7c99f683ab63f8bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581436
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/noder/unified.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/cmd/compile/internal/noder/unified.go b/src/cmd/compile/internal/noder/unified.go
+index bbc58ee340..2391b2f34d 100644
+--- a/src/cmd/compile/internal/noder/unified.go
++++ b/src/cmd/compile/internal/noder/unified.go
+@@ -120,6 +120,9 @@ func lookupMethod(pkg *types.Pkg, symName string) (*ir.Func, error) {
+ 	if name.Alias() {
+ 		return nil, fmt.Errorf("type sym %v refers to alias", typ)
+ 	}
++	if name.Type().IsInterface() {
++		return nil, fmt.Errorf("type sym %v refers to interface type", typ)
++	}
+ 
+ 	for _, m := range name.Type().Methods() {
+ 		if m.Sym == meth {

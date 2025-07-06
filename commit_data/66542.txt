@@ -1,0 +1,77 @@
+commit f3c69c2e784cfa8a38a83de6ee253fe4b09e5dff
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Wed Mar 12 15:46:37 2025 +0000
+
+    cmd/go/internal/load,cmd/link/internal/ld: use objabi.LookupPkgSpecial(pkg).Runtime
+    
+    As suggested by Michael in CL 655515.
+    
+    Change-Id: Idf0b879287bd777d03443aebc7351fcb0d724885
+    GitHub-Last-Rev: 58eda020f5310f873674f56903facec4f212d6c0
+    GitHub-Pull-Request: golang/go#72806
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656856
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/load/pkg.go  |  3 ++-
+ src/cmd/link/internal/ld/data.go | 24 +-----------------------
+ 2 files changed, 3 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 9d8523725a..5524f86044 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -7,6 +7,7 @@ package load
+ 
+ import (
+ 	"bytes"
++	"cmd/internal/objabi"
+ 	"context"
+ 	"encoding/json"
+ 	"errors"
+@@ -3561,7 +3562,7 @@ func SelectCoverPackages(roots []*Package, match []func(*Package) bool, op strin
+ 		// $GOROOT/src/internal/coverage/pkid.go dealing with
+ 		// hard-coding of runtime package IDs.
+ 		cmode := cfg.BuildCoverMode
+-		if cfg.BuildRace && p.Standard && p.ImportPath == "runtime" {
++		if cfg.BuildRace && p.Standard && objabi.LookupPkgSpecial(p.ImportPath).Runtime {
+ 			cmode = "regonly"
+ 		}
+ 
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 67ee71bab3..ca394700cf 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -55,30 +55,8 @@ import (
+ )
+ 
+ // isRuntimeDepPkg reports whether pkg is the runtime package or its dependency.
+-// TODO: just compute from the runtime package, and remove this hardcoded list.
+ func isRuntimeDepPkg(pkg string) bool {
+-	switch pkg {
+-	case "runtime",
+-		"sync/atomic",  // runtime may call to sync/atomic, due to go:linkname // TODO: this is not true?
+-		"internal/abi", // used by reflectcall (and maybe more)
+-		"internal/asan",
+-		"internal/bytealg", // for IndexByte
+-		"internal/byteorder",
+-		"internal/chacha8rand", // for rand
+-		"internal/coverage/rtcov",
+-		"internal/cpu", // for cpu features
+-		"internal/goarch",
+-		"internal/godebugs",
+-		"internal/goexperiment",
+-		"internal/goos",
+-		"internal/msan",
+-		"internal/profilerecord",
+-		"internal/race",
+-		"internal/stringslite",
+-		"unsafe":
+-		return true
+-	}
+-	return strings.HasPrefix(pkg, "internal/runtime/") && !strings.HasSuffix(pkg, "_test")
++	return objabi.LookupPkgSpecial(pkg).Runtime
+ }
+ 
+ // Estimate the max size needed to hold any new trampolines created for this function. This

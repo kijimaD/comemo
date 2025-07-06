@@ -1,0 +1,44 @@
+commit ab5c22e7ed6bda79f07410c0041e020e52dc9b35
+Author: 封幼林 <fengyoulin@live.com>
+Date:   Mon Sep 23 22:55:13 2024 +0800
+
+    cmd/compile: remove obj.LSym(s) for assertI2I and assertI2I2
+    
+    Change-Id: I85993a34b115a700ccdfea29df4e78c360e68b03
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615075
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ir/symtab.go  | 2 --
+ src/cmd/compile/internal/ssagen/ssa.go | 2 --
+ 2 files changed, 4 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 202c4942de..a2a263d3ce 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -15,8 +15,6 @@ var Syms symsStruct
+ type symsStruct struct {
+ 	AssertE2I         *obj.LSym
+ 	AssertE2I2        *obj.LSym
+-	AssertI2I         *obj.LSym
+-	AssertI2I2        *obj.LSym
+ 	Asanread          *obj.LSym
+ 	Asanwrite         *obj.LSym
+ 	CgoCheckMemmove   *obj.LSym
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 89a8ce0073..97681214e7 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -102,8 +102,6 @@ func InitConfig() {
+ 	// Set up some runtime functions we'll need to call.
+ 	ir.Syms.AssertE2I = typecheck.LookupRuntimeFunc("assertE2I")
+ 	ir.Syms.AssertE2I2 = typecheck.LookupRuntimeFunc("assertE2I2")
+-	ir.Syms.AssertI2I = typecheck.LookupRuntimeFunc("assertI2I")
+-	ir.Syms.AssertI2I2 = typecheck.LookupRuntimeFunc("assertI2I2")
+ 	ir.Syms.CgoCheckMemmove = typecheck.LookupRuntimeFunc("cgoCheckMemmove")
+ 	ir.Syms.CgoCheckPtrWrite = typecheck.LookupRuntimeFunc("cgoCheckPtrWrite")
+ 	ir.Syms.CheckPtrAlignment = typecheck.LookupRuntimeFunc("checkptrAlignment")

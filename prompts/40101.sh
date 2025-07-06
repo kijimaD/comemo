@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40101: 9dce58d30d1005e0cbac40789429cd3543d80836
+# Index 40101: 94f7795d05937fdf6187c7f850f8902c0f7a6d81
 
 echo "🚀 Generating explanation for commit 40101..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40101..."
 
 ### メタデータ
 - **コミットインデックス**: 40101
-- **コミットハッシュ**: 9dce58d30d1005e0cbac40789429cd3543d80836
-- **GitHub URL**: https://github.com/golang/go/commit/9dce58d30d1005e0cbac40789429cd3543d80836
+- **コミットハッシュ**: 94f7795d05937fdf6187c7f850f8902c0f7a6d81
+- **GitHub URL**: https://github.com/golang/go/commit/94f7795d05937fdf6187c7f850f8902c0f7a6d81
 
 ### 章構成
 

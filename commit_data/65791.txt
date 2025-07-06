@@ -1,0 +1,33 @@
+commit e424d78c3da1732b72f9170e7c01f400926143ce
+Author: zfdx123 <2915441170@qq.com>
+Date:   Wed Dec 11 04:17:11 2024 +0000
+
+    internal/goos: fix bug in gengoos.go
+    
+    CL 601357 mistakenly added an extra period.
+    
+    Change-Id: I54db621663797f094059a4eb86bf5d9626fa59d6
+    GitHub-Last-Rev: c756e0a82427c44b00bd88547dc40bf88c85fc1f
+    GitHub-Pull-Request: golang/go#70733
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634517
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/goos/gengoos.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/goos/gengoos.go b/src/internal/goos/gengoos.go
+index aba0d3c335..e0d4d38e89 100644
+--- a/src/internal/goos/gengoos.go
++++ b/src/internal/goos/gengoos.go
+@@ -17,7 +17,7 @@ import (
+ var gooses []string
+ 
+ func main() {
+-	data, err := os.ReadFile("../../internal/syslist/syslist..go")
++	data, err := os.ReadFile("../../internal/syslist/syslist.go")
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}

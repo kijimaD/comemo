@@ -1,0 +1,27 @@
+commit cff2503b5ac32d3889eec8f131c43e98e4cc3485
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Tue Nov 26 10:18:50 2024 -0800
+
+    doc: add note about x509sha1 removal
+    
+    Fixes #41682
+    
+    Change-Id: I73aa4991a6df8dfb90720bd66f2a8a53c3ca3504
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631677
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ doc/next/6-stdlib/99-minor/crypto/x509/41682.md | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/doc/next/6-stdlib/99-minor/crypto/x509/41682.md b/doc/next/6-stdlib/99-minor/crypto/x509/41682.md
+new file mode 100644
+index 0000000000..5125886f82
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/x509/41682.md
+@@ -0,0 +1,2 @@
++The `x509sha1` GODEBUG setting has been removed. [`Certificate.Verify`] will no
++longer consider SHA-1 based signatures valid when this GODEBUG setting is set.
+\ No newline at end of file

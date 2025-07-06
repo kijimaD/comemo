@@ -1,0 +1,29 @@
+commit 29b1a6765fb5f124171d94f157b6d6c3b2687468
+Author: Damien Neil <dneil@google.com>
+Date:   Mon Jun 17 14:54:22 2024 -0700
+
+    net/http: document that Request.Clone does not deep copy Body
+    
+    Fixes #36095
+    
+    Change-Id: I94ae014b0ee45b4aeb38cb247e42cfc13f663ded
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+---
+ src/net/http/request.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/net/http/request.go b/src/net/http/request.go
+index 456615a79a..ad1b5a620b 100644
+--- a/src/net/http/request.go
++++ b/src/net/http/request.go
+@@ -377,6 +377,8 @@ func (r *Request) WithContext(ctx context.Context) *Request {
+ // Clone returns a deep copy of r with its context changed to ctx.
+ // The provided ctx must be non-nil.
+ //
++// Clone only makes a shallow copy of the Body field.
++//
+ // For an outgoing client request, the context controls the entire
+ // lifetime of a request and its response: obtaining a connection,
+ // sending the request, and reading the response headers and body.

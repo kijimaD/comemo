@@ -1,0 +1,1117 @@
+commit 349d7d92bb02e1132f0920acefd70db670ba9a24
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 14 12:41:47 2024 +0100
+
+    crypto/internal/fips: move most tests to crypto/internal/fipstest
+    
+    As explained in fips_test.go, we generally want to minimize tests inside
+    the FIPS module. When there is a relevant calling package, the tests
+    should go there, otherwise in fipstest.
+    
+    This required redoing a bit the CAST failure tests, but the new version
+    is actually more robust because it will fail if a _ import is missing.
+    
+    Since TestCAST doesn't print a line for each passed CAST anymore, made
+    GODEBUG=fips140=debug do that, in case we need to show it to the lab.
+    
+    For #69536
+    
+    Change-Id: I0c1b82a4e9ee39e8df9bbe95bebb0527753f51c8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627955
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/fips/cast.go                   |  15 ++--
+ src/crypto/internal/fips/cast_external_test.go     |  63 -------------
+ src/crypto/internal/fips/cast_test.go              |  13 ---
+ src/crypto/internal/fips/check/check.go            |  22 ++---
+ src/crypto/internal/fips/check/export_test.go      |   9 --
+ src/crypto/internal/fips/drbg/ctrdrbg_test.go      |  49 ----------
+ src/crypto/internal/fips/fips.go                   |   7 +-
+ src/crypto/internal/fips/mlkem/cast.go             |   2 +-
+ src/crypto/internal/fips/mlkem/generate1024.go     |   5 +-
+ src/crypto/internal/fips/mlkem/mlkem1024.go        |  25 ++++--
+ src/crypto/internal/fips/mlkem/mlkem768.go         |  25 ++++--
+ .../{fips => fipstest}/acvp_capabilities.json      |   0
+ .../{fips => fipstest}/acvp_test.config.json       |   0
+ .../internal/{fips => fipstest}/acvp_test.go       |   3 +-
+ .../{fips/alias => fipstest}/alias_test.go         |  11 ++-
+ src/crypto/internal/fipstest/cast_test.go          | 100 +++++++++++++++++++++
+ .../{fips/check => fipstest}/check_test.go         |  12 +--
+ .../{fips/aes/gcm => fipstest}/cmac_test.go        |  14 +--
+ src/crypto/internal/fipstest/ctrdrbg_test.go       |  40 +++++++++
+ src/crypto/internal/fipstest/fips_test.go          |  28 ++++++
+ .../internal/{fips/hkdf => fipstest}/hkdf_test.go  |   5 +-
+ .../internal/{fips => fipstest}/indicator_test.go  |   2 +-
+ .../{fips/mlkem => fipstest}/mlkem_test.go         |  19 ++--
+ .../internal/{fips/sha3 => fipstest}/sha3_test.go  |  16 ++--
+ .../ssh/kdf_test.go => fipstest/sshkdf_test.go}    |   4 +-
+ .../gcm/ctrkdf_test.go => fipstest/xaes_test.go}   |   8 +-
+ 26 files changed, 276 insertions(+), 221 deletions(-)
+
+diff --git a/src/crypto/internal/fips/cast.go b/src/crypto/internal/fips/cast.go
+index 1afbfcd245..d63d39b4b6 100644
+--- a/src/crypto/internal/fips/cast.go
++++ b/src/crypto/internal/fips/cast.go
+@@ -21,15 +21,12 @@ func fatal(string)
+ // The value is a substring of the target CAST name.
+ var failfipscast = godebug.New("#failfipscast")
+ 
+-// testingOnlyCASTHook is called during tests with each CAST name.
+-var testingOnlyCASTHook func(string)
+-
+ // CAST runs the named Cryptographic Algorithm Self-Test or Pairwise Consistency
+ // Test (if operated in FIPS mode) and aborts the program (stopping the module
+ // input/output and entering the "error state") if the self-test fails.
+ //
+ // CASTs are mandatory self-checks that must be performed by FIPS 140-3 modules
+-// before the algorithm is used. See Implementation Guidance 10.3.A. PCTs  are
++// before the algorithm is used. See Implementation Guidance 10.3.A. PCTs are
+ // mandatory for every key pair that is generated/imported, including ephemeral
+ // keys (which effectively doubles the cost of key establishment). See
+ // Implementation Guidance 10.3.A Additional Comment 1.
+@@ -37,15 +34,12 @@ var testingOnlyCASTHook func(string)
+ // The name must not contain commas, colons, hashes, or equal signs.
+ //
+ // When calling this function from init(), also import the calling package from
+-// cast_external_test.go, while if calling it from key generation/importing, add
+-// an invocation to TestCAST.
++// crypto/internal/fipstest, while if calling it from key generation/importing, add
++// an invocation to fipstest.TestPCTs.
+ func CAST(name string, f func() error) {
+ 	if strings.ContainsAny(name, ",#=:") {
+ 		panic("fips: invalid self-test name: " + name)
+ 	}
+-	if testingOnlyCASTHook != nil {
+-		testingOnlyCASTHook(name)
+-	}
+ 	if !Enabled {
+ 		return
+ 	}
+@@ -58,4 +52,7 @@ func CAST(name string, f func() error) {
+ 		fatal("FIPS 140-3 self-test failed: " + name + ": " + err.Error())
+ 		panic("unreachable")
+ 	}
++	if debug {
++		println("FIPS 140-3 self-test passed:", name)
++	}
+ }
+diff --git a/src/crypto/internal/fips/cast_external_test.go b/src/crypto/internal/fips/cast_external_test.go
+deleted file mode 100644
+index 0b895659f0..0000000000
+--- a/src/crypto/internal/fips/cast_external_test.go
++++ /dev/null
+@@ -1,63 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package fips_test
+-
+-import (
+-	"crypto/internal/fips"
+-	"fmt"
+-	"internal/testenv"
+-	"strings"
+-	"testing"
+-
+-	// Import packages that define CASTs to test them.
+-	_ "crypto/internal/fips/aes"
+-	_ "crypto/internal/fips/aes/gcm"
+-	_ "crypto/internal/fips/drbg"
+-	_ "crypto/internal/fips/hkdf"
+-	_ "crypto/internal/fips/hmac"
+-	"crypto/internal/fips/mlkem"
+-	_ "crypto/internal/fips/sha256"
+-	_ "crypto/internal/fips/sha3"
+-	_ "crypto/internal/fips/sha512"
+-	_ "crypto/internal/fips/tls12"
+-	_ "crypto/internal/fips/tls13"
+-)
+-
+-func TestCAST(t *testing.T) {
+-	if len(fips.AllCASTs) == 0 {
+-		t.Errorf("no CASTs to test")
+-	}
+-
+-	// Cause PCTs to be invoked.
+-	mlkem.GenerateKey768()
+-
+-	if fips.Enabled {
+-		for _, name := range fips.AllCASTs {
+-			t.Logf("CAST %s completed successfully", name)
+-		}
+-	}
+-
+-	t.Run("SimulateFailures", func(t *testing.T) {
+-		testenv.MustHaveExec(t)
+-		for _, name := range fips.AllCASTs {
+-			t.Run(name, func(t *testing.T) {
+-				t.Parallel()
+-				cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestCAST", "-test.v")
+-				cmd = testenv.CleanCmdEnv(cmd)
+-				cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name))
+-				out, err := cmd.CombinedOutput()
+-				if err == nil {
+-					t.Error(err)
+-				} else {
+-					t.Logf("CAST %s failed and caused the program to exit", name)
+-					t.Logf("%s", out)
+-				}
+-				if strings.Contains(string(out), "completed successfully") {
+-					t.Errorf("CAST %s failure did not stop the program", name)
+-				}
+-			})
+-		}
+-	})
+-}
+diff --git a/src/crypto/internal/fips/cast_test.go b/src/crypto/internal/fips/cast_test.go
+deleted file mode 100644
+index 9a2063805a..0000000000
+--- a/src/crypto/internal/fips/cast_test.go
++++ /dev/null
+@@ -1,13 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package fips
+-
+-var AllCASTs []string
+-
+-func init() {
+-	testingOnlyCASTHook = func(name string) {
+-		AllCASTs = append(AllCASTs, name)
+-	}
+-}
+diff --git a/src/crypto/internal/fips/check/check.go b/src/crypto/internal/fips/check/check.go
+index 86801c4332..5303650d2c 100644
+--- a/src/crypto/internal/fips/check/check.go
++++ b/src/crypto/internal/fips/check/check.go
+@@ -31,10 +31,10 @@ func Enabled() bool {
+ }
+ 
+ var enabled bool  // set when verification is enabled
+-var verified bool // set when verification succeeds, for testing
++var Verified bool // set when verification succeeds, for testing
+ 
+-// supported reports whether the current GOOS/GOARCH is supported at all.
+-func supported() bool {
++// Supported reports whether the current GOOS/GOARCH is Supported at all.
++func Supported() bool {
+ 	// See cmd/internal/obj/fips.go's EnableFIPS for commentary.
+ 	switch {
+ 	case runtime.GOARCH == "wasm",
+@@ -46,11 +46,11 @@ func supported() bool {
+ 	return true
+ }
+ 
+-// linkinfo holds the go:fipsinfo symbol prepared by the linker.
++// Linkinfo holds the go:fipsinfo symbol prepared by the linker.
+ // See cmd/link/internal/ld/fips.go for details.
+ //
+-//go:linkname linkinfo go:fipsinfo
+-var linkinfo struct {
++//go:linkname Linkinfo go:fipsinfo
++var Linkinfo struct {
+ 	Magic [16]byte
+ 	Sum   [32]byte
+ 	Self  uintptr
+@@ -95,11 +95,11 @@ func init() {
+ 		panic("fips140: unknown GODEBUG setting fips140=" + v)
+ 	}
+ 
+-	if !supported() {
++	if !Supported() {
+ 		panic("fips140: unavailable on " + runtime.GOOS + "-" + runtime.GOARCH)
+ 	}
+ 
+-	if linkinfo.Magic[0] != 0xff || string(linkinfo.Magic[1:]) != fipsMagic || linkinfo.Sum == zeroSum {
++	if Linkinfo.Magic[0] != 0xff || string(Linkinfo.Magic[1:]) != fipsMagic || Linkinfo.Sum == zeroSum {
+ 		panic("fips140: no verification checksum found")
+ 	}
+ 
+@@ -120,7 +120,7 @@ func init() {
+ 	w.Write([]byte("go fips object v1\n"))
+ 
+ 	var nbuf [8]byte
+-	for _, sect := range linkinfo.Sects {
++	for _, sect := range Linkinfo.Sects {
+ 		n := uintptr(sect.End) - uintptr(sect.Start)
+ 		byteorder.BePutUint64(nbuf[:], uint64(n))
+ 		w.Write(nbuf[:])
+@@ -128,7 +128,7 @@ func init() {
+ 	}
+ 	sum := h.Sum(nil)
+ 
+-	if [32]byte(sum) != linkinfo.Sum {
++	if [32]byte(sum) != Linkinfo.Sum {
+ 		panic("fips140: verification mismatch")
+ 	}
+ 
+@@ -136,5 +136,5 @@ func init() {
+ 		println("fips140: verified code+data")
+ 	}
+ 
+-	verified = true
++	Verified = true
+ }
+diff --git a/src/crypto/internal/fips/check/export_test.go b/src/crypto/internal/fips/check/export_test.go
+deleted file mode 100644
+index e713970e74..0000000000
+--- a/src/crypto/internal/fips/check/export_test.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package check
+-
+-var Verified = &verified
+-var Linkinfo = &linkinfo
+-var Supported = supported
+diff --git a/src/crypto/internal/fips/drbg/ctrdrbg_test.go b/src/crypto/internal/fips/drbg/ctrdrbg_test.go
+deleted file mode 100644
+index ca124cc325..0000000000
+--- a/src/crypto/internal/fips/drbg/ctrdrbg_test.go
++++ /dev/null
+@@ -1,49 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package drbg_test
+-
+-import (
+-	"bytes"
+-	"crypto/internal/fips/drbg"
+-	"crypto/internal/fips/subtle"
+-	"encoding/hex"
+-	"testing"
+-)
+-
+-func TestCounter(t *testing.T) {
+-	// https://github.com/usnistgov/ACVP-Server/blob/fb44dce/gen-val/json-files/ctrDRBG-1.0/prompt.json#L4447-L4482
+-
+-	entropyInput := decodeHex("9FCBB4CCC0135C484BDED061DA9FD70748682FE84166B97FF53F9AA1909B2E95D3D529C0F453B3AC575D12AA441CC5CD")
+-	persoString := decodeHex("2C9FED0B39556CDBE699EBCA2A0EC7EECB287E8744475050C572FA8AE9ED0A4A7D6F1CABF1C4278532FB20AF7D64BD32")
+-	reseedEntropy := decodeHex("913C0DA19B010EDDD55A7A4F3F713EEF5B1534D34360A7EC376AE71A6B340043CC7726F762CB853453F399B3A645062A")
+-	reseedAdditional := decodeHex("2D9D4EC141A22E6CD2F6EE4F6719CF6BDF95CFE50B8D5EA6C87D38B4B872706FFF80B0380BB90E9C42D11D6526E56C29")
+-	additional1 := decodeHex("A642F06D327828F3E84564A3E37D60C157073B95864CA07981B0189668A0D978CD5DC68F06801CEFF0DC839A312B028E")
+-	additional2 := decodeHex("9DB14BABFA9107C88BA92073C0B4A65E89147EA06D74B894142979482F452915B35B5636F9B8A951759735ADE7C8D5D1")
+-	returnedBits := decodeHex("F10C645683FF0131254052ED4C698122B46B563654C29D728AC191CA4AAEFE649EEFE4C6FC33B25BB739294DD5CF578099F856C98D98000CBF971F1E6EA900822FF8C110118F6520471744D3F8A3F5C7D568494240E57F5488AF9C9F9F4E7322F56CCD843C0DBFCE9170C02E205389420527F23EDB3369D9FCC5E34901B5BA4EB71B973FC7982FFE0899FF7FE53EE0C4F51A3EF93EF9C6D4D279DD7536F8776BE94AAA05E89EF6E6AEE8832B4B42FFCA5FB91EC0273F9EF945865512889B0C5EE141D1B38DF827D2A694835561628C6F9B093A01A835F07ADBB9E03FEBF93389E8F3B86E1E0ABF1F9958FA286AD995289C2F606D1A9043A166C1AFE8D00769C712650819C9068A4BD22717C98338395A7BA6E95B5178BFBF4EFB0F05A91713BA8BF2127A6BA1EDFA6D1CAB05C03EE0D2AFE1DA4EB8F2C579EC872FF4B602027EF4BDCF2F4B01423F8E600A13D7CACB6AB83263BA58F907694AF614A6724FD0E4C627A0D91DDC6716C697FACE6F4808A4F37B731DE4E0CD4766CEADAAAF47992505299C72AC1A6E9A8335B8D7E501B3841188D0DA4DE5267674444DC2B0CF9F010756FA865A25CA3F1B24C34E845B2259926B6A867A7684DE68A6137C4FB0F47A2E54AE9E6455BEBA0B0A9629644FE9E378EE95386443BA977124FFD1192E9F460684C7B09FA99F5F93F04F56FD7955E042187887CE696F1934017E458B16B5C9")
+-
+-	// We don't support personalization strings, but the pre-generated JSON
+-	// vectors always use them, so just pre-mix them.
+-	var seed [drbg.SeedSize]byte
+-	subtle.XORBytes(seed[:], entropyInput, persoString)
+-	c := drbg.NewCounter(&seed)
+-
+-	c.Reseed((*[48]byte)(reseedEntropy), (*[48]byte)(reseedAdditional))
+-
+-	buf := make([]byte, len(returnedBits))
+-	c.Generate(buf, (*[48]byte)(additional1))
+-
+-	c.Generate(buf, (*[48]byte)(additional2))
+-	if !bytes.Equal(buf, returnedBits) {
+-		t.Errorf("unexpected output:\n%x\n%x", buf, returnedBits)
+-	}
+-}
+-
+-func decodeHex(s string) []byte {
+-	b, err := hex.DecodeString(s)
+-	if err != nil {
+-		panic(err)
+-	}
+-	return b
+-}
+diff --git a/src/crypto/internal/fips/fips.go b/src/crypto/internal/fips/fips.go
+index e7628beac2..a6418a4eb1 100644
+--- a/src/crypto/internal/fips/fips.go
++++ b/src/crypto/internal/fips/fips.go
+@@ -8,9 +8,14 @@ import "internal/godebug"
+ 
+ var Enabled bool
+ 
++var debug bool
++
+ func init() {
+ 	switch godebug.New("#fips140").Value() {
+-	case "on", "debug", "only":
++	case "on", "only":
++		Enabled = true
++	case "debug":
+ 		Enabled = true
++		debug = true
+ 	}
+ }
+diff --git a/src/crypto/internal/fips/mlkem/cast.go b/src/crypto/internal/fips/mlkem/cast.go
+index f712fbb110..de4988527e 100644
+--- a/src/crypto/internal/fips/mlkem/cast.go
++++ b/src/crypto/internal/fips/mlkem/cast.go
+@@ -39,7 +39,7 @@ func init() {
+ 		dk := &DecapsulationKey768{}
+ 		kemKeyGen(dk, d, z)
+ 		ek := dk.EncapsulationKey()
+-		c, Ke := kemEncaps(nil, ek, m)
++		c, Ke := ek.EncapsulateInternal(m)
+ 		Kd, err := dk.Decapsulate(c)
+ 		if err != nil {
+ 			return err
+diff --git a/src/crypto/internal/fips/mlkem/generate1024.go b/src/crypto/internal/fips/mlkem/generate1024.go
+index 94f22d54f9..e002bf1414 100644
+--- a/src/crypto/internal/fips/mlkem/generate1024.go
++++ b/src/crypto/internal/fips/mlkem/generate1024.go
+@@ -40,8 +40,9 @@ var replacements = map[string]string{
+ 	"kemDecaps":  "kemDecaps1024",
+ 	"pkeDecrypt": "pkeDecrypt1024",
+ 
+-	"GenerateKey768": "GenerateKey1024",
+-	"generateKey":    "generateKey1024",
++	"GenerateKey768":         "GenerateKey1024",
++	"GenerateKeyInternal768": "GenerateKeyInternal1024",
++	"generateKey":            "generateKey1024",
+ 
+ 	"kemKeyGen": "kemKeyGen1024",
+ 	"kemPCT":    "kemPCT1024",
+diff --git a/src/crypto/internal/fips/mlkem/mlkem1024.go b/src/crypto/internal/fips/mlkem/mlkem1024.go
+index 6167c8bb8f..5ab94f99e5 100644
+--- a/src/crypto/internal/fips/mlkem/mlkem1024.go
++++ b/src/crypto/internal/fips/mlkem/mlkem1024.go
+@@ -92,9 +92,18 @@ func generateKey1024(dk *DecapsulationKey1024) (*DecapsulationKey1024, error) {
+ 	drbg.Read(z[:])
+ 	kemKeyGen1024(dk, &d, &z)
+ 	fips.CAST("ML-KEM PCT", func() error { return kemPCT1024(dk) })
++	fips.RecordApproved()
+ 	return dk, nil
+ }
+ 
++// GenerateKeyInternal1024 is a derandomized version of GenerateKey1024,
++// exclusively for use in tests.
++func GenerateKeyInternal1024(d, z *[32]byte) *DecapsulationKey1024 {
++	dk := &DecapsulationKey1024{}
++	kemKeyGen1024(dk, d, z)
++	return dk
++}
++
+ // NewDecapsulationKey1024 parses a decapsulation key from a 64-byte
+ // seed in the "d || z" form. The seed must be uniformly random.
+ func NewDecapsulationKey1024(seed []byte) (*DecapsulationKey1024, error) {
+@@ -111,6 +120,7 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
+ 	z := (*[32]byte)(seed[32:])
+ 	kemKeyGen1024(dk, d, z)
+ 	fips.CAST("ML-KEM PCT", func() error { return kemPCT1024(dk) })
++	fips.RecordApproved()
+ 	return dk, nil
+ }
+ 
+@@ -120,8 +130,6 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
+ // K-PKE.KeyGen according to FIPS 203, Algorithm 13. The two are merged to save
+ // copies and allocations.
+ func kemKeyGen1024(dk *DecapsulationKey1024, d, z *[32]byte) {
+-	fips.RecordApproved()
+-
+ 	dk.d = *d
+ 	dk.z = *z
+ 
+@@ -201,18 +209,21 @@ func (ek *EncapsulationKey1024) encapsulate(cc *[CiphertextSize1024]byte) (ciphe
+ 	drbg.Read(m[:])
+ 	// Note that the modulus check (step 2 of the encapsulation key check from
+ 	// FIPS 203, Section 7.2) is performed by polyByteDecode in parseEK1024.
++	fips.RecordApproved()
+ 	return kemEncaps1024(cc, ek, &m)
+ }
+ 
++// EncapsulateInternal is a derandomized version of Encapsulate, exclusively for
++// use in tests.
++func (ek *EncapsulationKey1024) EncapsulateInternal(m *[32]byte) (ciphertext, sharedKey []byte) {
++	cc := &[CiphertextSize1024]byte{}
++	return kemEncaps1024(cc, ek, m)
++}
++
+ // kemEncaps1024 generates a shared key and an associated ciphertext.
+ //
+ // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
+ func kemEncaps1024(cc *[CiphertextSize1024]byte, ek *EncapsulationKey1024, m *[messageSize]byte) (c, K []byte) {
+-	fips.RecordApproved()
+-	if cc == nil {
+-		cc = &[CiphertextSize1024]byte{}
+-	}
+-
+ 	g := sha3.New512()
+ 	g.Write(m[:])
+ 	g.Write(ek.h[:])
+diff --git a/src/crypto/internal/fips/mlkem/mlkem768.go b/src/crypto/internal/fips/mlkem/mlkem768.go
+index 6c5cb85535..df49f51b8f 100644
+--- a/src/crypto/internal/fips/mlkem/mlkem768.go
++++ b/src/crypto/internal/fips/mlkem/mlkem768.go
+@@ -149,9 +149,18 @@ func generateKey(dk *DecapsulationKey768) (*DecapsulationKey768, error) {
+ 	drbg.Read(z[:])
+ 	kemKeyGen(dk, &d, &z)
+ 	fips.CAST("ML-KEM PCT", func() error { return kemPCT(dk) })
++	fips.RecordApproved()
+ 	return dk, nil
+ }
+ 
++// GenerateKeyInternal768 is a derandomized version of GenerateKey768,
++// exclusively for use in tests.
++func GenerateKeyInternal768(d, z *[32]byte) *DecapsulationKey768 {
++	dk := &DecapsulationKey768{}
++	kemKeyGen(dk, d, z)
++	return dk
++}
++
+ // NewDecapsulationKey768 parses a decapsulation key from a 64-byte
+ // seed in the "d || z" form. The seed must be uniformly random.
+ func NewDecapsulationKey768(seed []byte) (*DecapsulationKey768, error) {
+@@ -168,6 +177,7 @@ func newKeyFromSeed(dk *DecapsulationKey768, seed []byte) (*DecapsulationKey768,
+ 	z := (*[32]byte)(seed[32:])
+ 	kemKeyGen(dk, d, z)
+ 	fips.CAST("ML-KEM PCT", func() error { return kemPCT(dk) })
++	fips.RecordApproved()
+ 	return dk, nil
+ }
+ 
+@@ -177,8 +187,6 @@ func newKeyFromSeed(dk *DecapsulationKey768, seed []byte) (*DecapsulationKey768,
+ // K-PKE.KeyGen according to FIPS 203, Algorithm 13. The two are merged to save
+ // copies and allocations.
+ func kemKeyGen(dk *DecapsulationKey768, d, z *[32]byte) {
+-	fips.RecordApproved()
+-
+ 	dk.d = *d
+ 	dk.z = *z
+ 
+@@ -258,18 +266,21 @@ func (ek *EncapsulationKey768) encapsulate(cc *[CiphertextSize768]byte) (ciphert
+ 	drbg.Read(m[:])
+ 	// Note that the modulus check (step 2 of the encapsulation key check from
+ 	// FIPS 203, Section 7.2) is performed by polyByteDecode in parseEK.
++	fips.RecordApproved()
+ 	return kemEncaps(cc, ek, &m)
+ }
+ 
++// EncapsulateInternal is a derandomized version of Encapsulate, exclusively for
++// use in tests.
++func (ek *EncapsulationKey768) EncapsulateInternal(m *[32]byte) (ciphertext, sharedKey []byte) {
++	cc := &[CiphertextSize768]byte{}
++	return kemEncaps(cc, ek, m)
++}
++
+ // kemEncaps generates a shared key and an associated ciphertext.
+ //
+ // It implements ML-KEM.Encaps_internal according to FIPS 203, Algorithm 17.
+ func kemEncaps(cc *[CiphertextSize768]byte, ek *EncapsulationKey768, m *[messageSize]byte) (c, K []byte) {
+-	fips.RecordApproved()
+-	if cc == nil {
+-		cc = &[CiphertextSize768]byte{}
+-	}
+-
+ 	g := sha3.New512()
+ 	g.Write(m[:])
+ 	g.Write(ek.h[:])
+diff --git a/src/crypto/internal/fips/acvp_capabilities.json b/src/crypto/internal/fipstest/acvp_capabilities.json
+similarity index 100%
+rename from src/crypto/internal/fips/acvp_capabilities.json
+rename to src/crypto/internal/fipstest/acvp_capabilities.json
+diff --git a/src/crypto/internal/fips/acvp_test.config.json b/src/crypto/internal/fipstest/acvp_test.config.json
+similarity index 100%
+rename from src/crypto/internal/fips/acvp_test.config.json
+rename to src/crypto/internal/fipstest/acvp_test.config.json
+diff --git a/src/crypto/internal/fips/acvp_test.go b/src/crypto/internal/fipstest/acvp_test.go
+similarity index 99%
+rename from src/crypto/internal/fips/acvp_test.go
+rename to src/crypto/internal/fipstest/acvp_test.go
+index 667685baef..e0748100c9 100644
+--- a/src/crypto/internal/fips/acvp_test.go
++++ b/src/crypto/internal/fipstest/acvp_test.go
+@@ -2,6 +2,8 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
++package fipstest
++
+ // A module wrapper adapting the Go FIPS module to the protocol used by the
+ // BoringSSL project's `acvptool`.
+ //
+@@ -15,7 +17,6 @@
+ // and module wrappers.
+ //
+ // [0]:https://boringssl.googlesource.com/boringssl/+/refs/heads/master/util/fipstools/acvp/ACVP.md#testing-other-fips-modules
+-package fips_test
+ 
+ import (
+ 	"bufio"
+diff --git a/src/crypto/internal/fips/alias/alias_test.go b/src/crypto/internal/fipstest/alias_test.go
+similarity index 89%
+rename from src/crypto/internal/fips/alias/alias_test.go
+rename to src/crypto/internal/fipstest/alias_test.go
+index a68fb33667..e3cadaa20a 100644
+--- a/src/crypto/internal/fips/alias/alias_test.go
++++ b/src/crypto/internal/fipstest/alias_test.go
+@@ -2,9 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package alias
++package fipstest
+ 
+-import "testing"
++import (
++	"crypto/internal/fips/alias"
++	"testing"
++)
+ 
+ var a, b [100]byte
+ 
+@@ -28,11 +31,11 @@ var aliasingTests = []struct {
+ }
+ 
+ func testAliasing(t *testing.T, i int, x, y []byte, anyOverlap, inexactOverlap bool) {
+-	any := AnyOverlap(x, y)
++	any := alias.AnyOverlap(x, y)
+ 	if any != anyOverlap {
+ 		t.Errorf("%d: wrong AnyOverlap result, expected %v, got %v", i, anyOverlap, any)
+ 	}
+-	inexact := InexactOverlap(x, y)
++	inexact := alias.InexactOverlap(x, y)
+ 	if inexact != inexactOverlap {
+ 		t.Errorf("%d: wrong InexactOverlap result, expected %v, got %v", i, inexactOverlap, any)
+ 	}
+diff --git a/src/crypto/internal/fipstest/cast_test.go b/src/crypto/internal/fipstest/cast_test.go
+new file mode 100644
+index 0000000000..9d6483b371
+--- /dev/null
++++ b/src/crypto/internal/fipstest/cast_test.go
+@@ -0,0 +1,100 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fipstest
++
++import (
++	"fmt"
++	"internal/testenv"
++	"io/fs"
++	"os"
++	"regexp"
++	"strings"
++	"testing"
++
++	// Import packages that define CASTs to test them.
++	_ "crypto/internal/fips/aes"
++	_ "crypto/internal/fips/aes/gcm"
++	_ "crypto/internal/fips/drbg"
++	_ "crypto/internal/fips/hkdf"
++	_ "crypto/internal/fips/hmac"
++	"crypto/internal/fips/mlkem"
++	_ "crypto/internal/fips/sha256"
++	_ "crypto/internal/fips/sha3"
++	_ "crypto/internal/fips/sha512"
++	_ "crypto/internal/fips/tls12"
++	_ "crypto/internal/fips/tls13"
++)
++
++func findAllCASTs(t *testing.T) map[string]struct{} {
++	testenv.MustHaveSource(t)
++
++	// Ask "go list" for the location of the crypto/internal/fips tree, as it
++	// might be the unpacked frozen tree selected with GOFIPS140.
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "list", "-f", `{{.Dir}}`, "crypto/internal/fips")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("go list: %v\n%s", err, out)
++	}
++	fipsDir := strings.TrimSpace(string(out))
++	t.Logf("FIPS module directory: %s", fipsDir)
++
++	// Find all invocations of fips.CAST.
++	allCASTs := make(map[string]struct{})
++	castRe := regexp.MustCompile(`fips\.CAST\("([^"]+)"`)
++	if err := fs.WalkDir(os.DirFS(fipsDir), ".", func(path string, d fs.DirEntry, err error) error {
++		if err != nil {
++			return err
++		}
++		if d.IsDir() || !strings.HasSuffix(path, ".go") {
++			return nil
++		}
++		data, err := os.ReadFile(fipsDir + "/" + path)
++		if err != nil {
++			return err
++		}
++		for _, m := range castRe.FindAllSubmatch(data, -1) {
++			allCASTs[string(m[1])] = struct{}{}
++		}
++		return nil
++	}); err != nil {
++		t.Fatalf("WalkDir: %v", err)
++	}
++
++	return allCASTs
++}
++
++// TestPCTs causes the conditional PCTs to be invoked.
++func TestPCTs(t *testing.T) {
++	mlkem.GenerateKey768()
++	t.Log("completed successfully")
++}
++
++func TestCASTFailures(t *testing.T) {
++	testenv.MustHaveExec(t)
++
++	allCASTs := findAllCASTs(t)
++	if len(allCASTs) == 0 {
++		t.Fatal("no CASTs found")
++	}
++
++	for name := range allCASTs {
++		t.Run(name, func(t *testing.T) {
++			t.Parallel()
++			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestPCTs", "-test.v")
++			cmd = testenv.CleanCmdEnv(cmd)
++			cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name))
++			out, err := cmd.CombinedOutput()
++			if err == nil {
++				t.Error(err)
++			} else {
++				t.Logf("CAST %s failed and caused the program to exit", name)
++				t.Logf("%s", out)
++			}
++			if strings.Contains(string(out), "completed successfully") {
++				t.Errorf("CAST %s failure did not stop the program", name)
++			}
++		})
++	}
++}
+diff --git a/src/crypto/internal/fips/check/check_test.go b/src/crypto/internal/fipstest/check_test.go
+similarity index 94%
+rename from src/crypto/internal/fips/check/check_test.go
+rename to src/crypto/internal/fipstest/check_test.go
+index f0ca7f4251..c24eee629c 100644
+--- a/src/crypto/internal/fips/check/check_test.go
++++ b/src/crypto/internal/fipstest/check_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package check_test
++package fipstest
+ 
+ import (
+ 	. "crypto/internal/fips/check"
+@@ -11,8 +11,8 @@ import (
+ 	"internal/abi"
+ 	"internal/asan"
+ 	"internal/godebug"
++	"internal/testenv"
+ 	"os"
+-	"os/exec"
+ 	"runtime"
+ 	"testing"
+ 	"unicode"
+@@ -21,8 +21,8 @@ import (
+ 
+ const enableFIPSTest = true
+ 
+-func TestVerify(t *testing.T) {
+-	if *Verified {
++func TestFIPSCheckVerify(t *testing.T) {
++	if Verified {
+ 		t.Logf("verified")
+ 		return
+ 	}
+@@ -44,7 +44,7 @@ func TestVerify(t *testing.T) {
+ 		return
+ 	}
+ 
+-	cmd := exec.Command(os.Args[0], "-test.v")
++	cmd := testenv.Command(t, os.Args[0], "-test.v", "-test.run=TestFIPSCheck")
+ 	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -53,7 +53,7 @@ func TestVerify(t *testing.T) {
+ 	t.Logf("exec'ed GODEBUG=fips140=on and succeeded:\n%s", out)
+ }
+ 
+-func TestInfo(t *testing.T) {
++func TestFIPSCheckInfo(t *testing.T) {
+ 	if !enableFIPSTest {
+ 		return
+ 	}
+diff --git a/src/crypto/internal/fips/aes/gcm/cmac_test.go b/src/crypto/internal/fipstest/cmac_test.go
+similarity index 82%
+rename from src/crypto/internal/fips/aes/gcm/cmac_test.go
+rename to src/crypto/internal/fipstest/cmac_test.go
+index d2418fd8d3..05e421ffe9 100644
+--- a/src/crypto/internal/fips/aes/gcm/cmac_test.go
++++ b/src/crypto/internal/fipstest/cmac_test.go
+@@ -2,14 +2,12 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gcm_test
++package fipstest
+ 
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/aes/gcm"
+-	"encoding/hex"
+-	"strings"
+ 	"testing"
+ )
+ 
+@@ -47,13 +45,3 @@ func TestCMAC(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func decodeHex(t *testing.T, s string) []byte {
+-	t.Helper()
+-	s = strings.ReplaceAll(s, " ", "")
+-	b, err := hex.DecodeString(s)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	return b
+-}
+diff --git a/src/crypto/internal/fipstest/ctrdrbg_test.go b/src/crypto/internal/fipstest/ctrdrbg_test.go
+new file mode 100644
+index 0000000000..79efb39b7d
+--- /dev/null
++++ b/src/crypto/internal/fipstest/ctrdrbg_test.go
+@@ -0,0 +1,40 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fipstest
++
++import (
++	"bytes"
++	"crypto/internal/fips/drbg"
++	"crypto/internal/fips/subtle"
++	"testing"
++)
++
++func TestCounterDRBG(t *testing.T) {
++	// https://github.com/usnistgov/ACVP-Server/blob/fb44dce/gen-val/json-files/ctrDRBG-1.0/prompt.json#L4447-L4482
++
++	entropyInput := decodeHex(t, "9FCBB4CCC0135C484BDED061DA9FD70748682FE84166B97FF53F9AA1909B2E95D3D529C0F453B3AC575D12AA441CC5CD")
++	persoString := decodeHex(t, "2C9FED0B39556CDBE699EBCA2A0EC7EECB287E8744475050C572FA8AE9ED0A4A7D6F1CABF1C4278532FB20AF7D64BD32")
++	reseedEntropy := decodeHex(t, "913C0DA19B010EDDD55A7A4F3F713EEF5B1534D34360A7EC376AE71A6B340043CC7726F762CB853453F399B3A645062A")
++	reseedAdditional := decodeHex(t, "2D9D4EC141A22E6CD2F6EE4F6719CF6BDF95CFE50B8D5EA6C87D38B4B872706FFF80B0380BB90E9C42D11D6526E56C29")
++	additional1 := decodeHex(t, "A642F06D327828F3E84564A3E37D60C157073B95864CA07981B0189668A0D978CD5DC68F06801CEFF0DC839A312B028E")
++	additional2 := decodeHex(t, "9DB14BABFA9107C88BA92073C0B4A65E89147EA06D74B894142979482F452915B35B5636F9B8A951759735ADE7C8D5D1")
++	returnedBits := decodeHex(t, "F10C645683FF0131254052ED4C698122B46B563654C29D728AC191CA4AAEFE649EEFE4C6FC33B25BB739294DD5CF578099F856C98D98000CBF971F1E6EA900822FF8C110118F6520471744D3F8A3F5C7D568494240E57F5488AF9C9F9F4E7322F56CCD843C0DBFCE9170C02E205389420527F23EDB3369D9FCC5E34901B5BA4EB71B973FC7982FFE0899FF7FE53EE0C4F51A3EF93EF9C6D4D279DD7536F8776BE94AAA05E89EF6E6AEE8832B4B42FFCA5FB91EC0273F9EF945865512889B0C5EE141D1B38DF827D2A694835561628C6F9B093A01A835F07ADBB9E03FEBF93389E8F3B86E1E0ABF1F9958FA286AD995289C2F606D1A9043A166C1AFE8D00769C712650819C9068A4BD22717C98338395A7BA6E95B5178BFBF4EFB0F05A91713BA8BF2127A6BA1EDFA6D1CAB05C03EE0D2AFE1DA4EB8F2C579EC872FF4B602027EF4BDCF2F4B01423F8E600A13D7CACB6AB83263BA58F907694AF614A6724FD0E4C627A0D91DDC6716C697FACE6F4808A4F37B731DE4E0CD4766CEADAAAF47992505299C72AC1A6E9A8335B8D7E501B3841188D0DA4DE5267674444DC2B0CF9F010756FA865A25CA3F1B24C34E845B2259926B6A867A7684DE68A6137C4FB0F47A2E54AE9E6455BEBA0B0A9629644FE9E378EE95386443BA977124FFD1192E9F460684C7B09FA99F5F93F04F56FD7955E042187887CE696F1934017E458B16B5C9")
++
++	// We don't support personalization strings, but the pre-generated JSON
++	// vectors always use them, so just pre-mix them.
++	var seed [drbg.SeedSize]byte
++	subtle.XORBytes(seed[:], entropyInput, persoString)
++	c := drbg.NewCounter(&seed)
++
++	c.Reseed((*[48]byte)(reseedEntropy), (*[48]byte)(reseedAdditional))
++
++	buf := make([]byte, len(returnedBits))
++	c.Generate(buf, (*[48]byte)(additional1))
++
++	c.Generate(buf, (*[48]byte)(additional2))
++	if !bytes.Equal(buf, returnedBits) {
++		t.Errorf("unexpected output:\n%x\n%x", buf, returnedBits)
++	}
++}
+diff --git a/src/crypto/internal/fipstest/fips_test.go b/src/crypto/internal/fipstest/fips_test.go
+new file mode 100644
+index 0000000000..7390ac6969
+--- /dev/null
++++ b/src/crypto/internal/fipstest/fips_test.go
+@@ -0,0 +1,28 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package fipstest collects external tests that would ordinarily live in
++// crypto/internal/fips/... packages. That tree gets snapshot at each
++// validation, while we want tests to evolve and still apply to all versions of
++// the module. Also, we can't fix failing tests in a module snapshot, so we need
++// to either minimize, skip, or remove them. Finally, the module needs to avoid
++// importing internal packages like testenv and cryptotest to avoid locking in
++// their APIs.
++package fipstest
++
++import (
++	"encoding/hex"
++	"strings"
++	"testing"
++)
++
++func decodeHex(t *testing.T, s string) []byte {
++	t.Helper()
++	s = strings.ReplaceAll(s, " ", "")
++	b, err := hex.DecodeString(s)
++	if err != nil {
++		t.Fatal(err)
++	}
++	return b
++}
+diff --git a/src/crypto/internal/fips/hkdf/hkdf_test.go b/src/crypto/internal/fipstest/hkdf_test.go
+similarity index 99%
+rename from src/crypto/internal/fips/hkdf/hkdf_test.go
+rename to src/crypto/internal/fipstest/hkdf_test.go
+index 6bb2c6bc4a..a624af33ab 100644
+--- a/src/crypto/internal/fips/hkdf/hkdf_test.go
++++ b/src/crypto/internal/fipstest/hkdf_test.go
+@@ -1,7 +1,10 @@
+ // Copyright 2014 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+-package hkdf_test
++
++package fipstest_test
++
++// TODO(fips, #61477): move this to crypto/hkdf once it exists.
+ 
+ import (
+ 	"bytes"
+diff --git a/src/crypto/internal/fips/indicator_test.go b/src/crypto/internal/fipstest/indicator_test.go
+similarity index 99%
+rename from src/crypto/internal/fips/indicator_test.go
+rename to src/crypto/internal/fipstest/indicator_test.go
+index 8134b609c9..a193959edf 100644
+--- a/src/crypto/internal/fips/indicator_test.go
++++ b/src/crypto/internal/fipstest/indicator_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package fips_test
++package fipstest
+ 
+ import (
+ 	"crypto/internal/fips"
+diff --git a/src/crypto/internal/fips/mlkem/mlkem_test.go b/src/crypto/internal/fipstest/mlkem_test.go
+similarity index 95%
+rename from src/crypto/internal/fips/mlkem/mlkem_test.go
+rename to src/crypto/internal/fipstest/mlkem_test.go
+index f852fb6eb2..d9a43034f3 100644
+--- a/src/crypto/internal/fips/mlkem/mlkem_test.go
++++ b/src/crypto/internal/fipstest/mlkem_test.go
+@@ -2,10 +2,13 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package mlkem
++package fipstest_test
++
++// TODO(fips, #70122): move this to crypto/mlkem once it exists.
+ 
+ import (
+ 	"bytes"
++	. "crypto/internal/fips/mlkem"
+ 	"crypto/internal/fips/sha3"
+ 	"crypto/rand"
+ 	_ "embed"
+@@ -176,7 +179,7 @@ func TestAccumulated(t *testing.T) {
+ 	s := sha3.NewShake128()
+ 	o := sha3.NewShake128()
+ 	seed := make([]byte, SeedSize)
+-	var msg [messageSize]byte
++	var msg [32]byte
+ 	ct1 := make([]byte, CiphertextSize768)
+ 
+ 	for i := 0; i < n; i++ {
+@@ -189,7 +192,7 @@ func TestAccumulated(t *testing.T) {
+ 		o.Write(ek.Bytes())
+ 
+ 		s.Read(msg[:])
+-		ct, k := kemEncaps(nil, ek, &msg)
++		ct, k := ek.EncapsulateInternal(&msg)
+ 		o.Write(ct)
+ 		o.Write(k)
+ 
+@@ -218,13 +221,12 @@ func TestAccumulated(t *testing.T) {
+ var sink byte
+ 
+ func BenchmarkKeyGen(b *testing.B) {
+-	var dk DecapsulationKey768
+ 	var d, z [32]byte
+ 	rand.Read(d[:])
+ 	rand.Read(z[:])
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		kemKeyGen(&dk, &d, &z)
++		dk := GenerateKeyInternal768(&d, &z)
+ 		sink ^= dk.EncapsulationKey().Bytes()[0]
+ 	}
+ }
+@@ -232,21 +234,20 @@ func BenchmarkKeyGen(b *testing.B) {
+ func BenchmarkEncaps(b *testing.B) {
+ 	seed := make([]byte, SeedSize)
+ 	rand.Read(seed)
+-	var m [messageSize]byte
++	var m [32]byte
+ 	rand.Read(m[:])
+ 	dk, err := NewDecapsulationKey768(seed)
+ 	if err != nil {
+ 		b.Fatal(err)
+ 	}
+ 	ekBytes := dk.EncapsulationKey().Bytes()
+-	var c [CiphertextSize768]byte
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+ 		ek, err := NewEncapsulationKey768(ekBytes)
+ 		if err != nil {
+ 			b.Fatal(err)
+ 		}
+-		c, K := kemEncaps(&c, ek, &m)
++		c, K := ek.EncapsulateInternal(&m)
+ 		sink ^= c[0] ^ K[0]
+ 	}
+ }
+@@ -260,7 +261,7 @@ func BenchmarkDecaps(b *testing.B) {
+ 	c, _ := ek.Encapsulate()
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		K := kemDecaps(dk, (*[CiphertextSize768]byte)(c))
++		K, _ := dk.Decapsulate(c)
+ 		sink ^= K[0]
+ 	}
+ }
+diff --git a/src/crypto/internal/fips/sha3/sha3_test.go b/src/crypto/internal/fipstest/sha3_test.go
+similarity index 98%
+rename from src/crypto/internal/fips/sha3/sha3_test.go
+rename to src/crypto/internal/fipstest/sha3_test.go
+index 42b5d8ea98..c9b0e2729d 100644
+--- a/src/crypto/internal/fips/sha3/sha3_test.go
++++ b/src/crypto/internal/fipstest/sha3_test.go
+@@ -2,7 +2,9 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package sha3_test
++package fipstest_test
++
++// TODO(fips, #69982): move to the crypto/sha3 package once it exists.
+ 
+ import (
+ 	"bytes"
+@@ -18,8 +20,6 @@ import (
+ 	"testing"
+ )
+ 
+-// TODO(fips): move tests to the stdlib crypto/sha3 package.
+-
+ // Sum224 returns the SHA3-224 digest of the data.
+ func Sum224(data []byte) (digest [28]byte) {
+ 	h := New224()
+@@ -366,7 +366,7 @@ func testClone(t *testing.T) {
+ 	}
+ }
+ 
+-var sink byte
++var sinkSHA3 byte
+ 
+ func TestAllocations(t *testing.T) {
+ 	cryptotest.SkipTestAllocations(t)
+@@ -377,7 +377,7 @@ func TestAllocations(t *testing.T) {
+ 			h.Write(b)
+ 			out := make([]byte, 0, 32)
+ 			out = h.Sum(out)
+-			sink ^= out[0]
++			sinkSHA3 ^= out[0]
+ 		}); allocs > 0 {
+ 			t.Errorf("expected zero allocations, got %0.1f", allocs)
+ 		}
+@@ -389,9 +389,9 @@ func TestAllocations(t *testing.T) {
+ 			h.Write(b)
+ 			out := make([]byte, 0, 32)
+ 			out = h.Sum(out)
+-			sink ^= out[0]
++			sinkSHA3 ^= out[0]
+ 			h.Read(out)
+-			sink ^= out[0]
++			sinkSHA3 ^= out[0]
+ 		}); allocs > 0 {
+ 			t.Errorf("expected zero allocations, got %0.1f", allocs)
+ 		}
+@@ -400,7 +400,7 @@ func TestAllocations(t *testing.T) {
+ 		if allocs := testing.AllocsPerRun(10, func() {
+ 			b := []byte("ABC")
+ 			out := Sum256(b)
+-			sink ^= out[0]
++			sinkSHA3 ^= out[0]
+ 		}); allocs > 0 {
+ 			t.Errorf("expected zero allocations, got %0.1f", allocs)
+ 		}
+diff --git a/src/crypto/internal/fips/ssh/kdf_test.go b/src/crypto/internal/fipstest/sshkdf_test.go
+similarity index 98%
+rename from src/crypto/internal/fips/ssh/kdf_test.go
+rename to src/crypto/internal/fipstest/sshkdf_test.go
+index e42cd3ae19..b942ca86a2 100644
+--- a/src/crypto/internal/fips/ssh/kdf_test.go
++++ b/src/crypto/internal/fipstest/sshkdf_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package ssh_test
++package fipstest
+ 
+ import (
+ 	"bytes"
+@@ -12,7 +12,7 @@ import (
+ 	"testing"
+ )
+ 
+-func TestACVPVector(t *testing.T) {
++func TestSSHACVPVector(t *testing.T) {
+ 	// https://github.com/usnistgov/ACVP-Server/blob/3a7333f638/gen-val/json-files/kdf-components-ssh-1.0/prompt.json#L910-L915
+ 	K := fromHex("0000010100E534CD9780786AF19994DD68C3FD7FE1E1F77C3938B2005C49B080CF88A63A44079774A36F23BA4D73470CB318C30524854D2F36BAB9A45AD73DBB3BC5DD39A547F62BC921052E102E37F3DD0CD79A04EB46ACC14B823B326096A89E33E8846624188BB3C8F16B320E7BB8F5EB05F080DCEE244A445DBED3A9F3BA8C373D8BE62CDFE2FC5876F30F90F01F0A55E5251B23E0DBBFCFB1450715E329BB00FB222E850DDB11201460B8AEF3FC8965D3B6D3AFBB885A6C11F308F10211B82EA2028C7A84DD0BB8D5D6AC3A48D0C2B93609269C585E03889DB3621993E7F7C09A007FB6B5C06FFA532B0DBF11F71F740D9CD8FAD2532E21B9423BF3D85EE4E396BE32")
+ 	H := fromHex("8FB22F0864960DA5679FD377248E41C2D0390E5AB3BB7955A3B6C588FB75B20D")
+diff --git a/src/crypto/internal/fips/aes/gcm/ctrkdf_test.go b/src/crypto/internal/fipstest/xaes_test.go
+similarity index 97%
+rename from src/crypto/internal/fips/aes/gcm/ctrkdf_test.go
+rename to src/crypto/internal/fipstest/xaes_test.go
+index ec8cddbd98..9e21428c97 100644
+--- a/src/crypto/internal/fips/aes/gcm/ctrkdf_test.go
++++ b/src/crypto/internal/fipstest/xaes_test.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package gcm_test
++package fipstest
+ 
+ import (
+ 	"bytes"
+@@ -16,7 +16,7 @@ import (
+ 	"testing"
+ )
+ 
+-func TestAllocations(t *testing.T) {
++func TestXAESAllocations(t *testing.T) {
+ 	if runtime.GOARCH == "ppc64" || runtime.GOARCH == "ppc64le" {
+ 		t.Skip("Test reports non-zero allocation count. See issue #70448")
+ 	}
+@@ -85,7 +85,7 @@ func xaesOpen(dst, key, nonce, ciphertext, additionalData []byte) ([]byte, error
+ 	return g.Open(dst, n, ciphertext, additionalData)
+ }
+ 
+-func TestVectors(t *testing.T) {
++func TestXAESVectors(t *testing.T) {
+ 	key := bytes.Repeat([]byte{0x01}, 32)
+ 	nonce := []byte("ABCDEFGHIJKLMNOPQRSTUVWX")
+ 	plaintext := []byte("XAES-256-GCM")
+@@ -114,7 +114,7 @@ func TestVectors(t *testing.T) {
+ 	}
+ }
+ 
+-func TestAccumulated(t *testing.T) {
++func TestXAESAccumulated(t *testing.T) {
+ 	iterations := 10_000
+ 	expected := "e6b9edf2df6cec60c8cbd864e2211b597fb69a529160cd040d56c0c210081939"
+ 

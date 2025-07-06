@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 46054: edf60be15175ff2eb20fb66344d7487875546778
+# Index 46054: aeab40317415468323ef45095f2090ff90c3ecd2
 
 echo "🚀 Generating explanation for commit 46054..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 46054..."
 
 ### メタデータ
 - **コミットインデックス**: 46054
-- **コミットハッシュ**: edf60be15175ff2eb20fb66344d7487875546778
-- **GitHub URL**: https://github.com/golang/go/commit/edf60be15175ff2eb20fb66344d7487875546778
+- **コミットハッシュ**: aeab40317415468323ef45095f2090ff90c3ecd2
+- **GitHub URL**: https://github.com/golang/go/commit/aeab40317415468323ef45095f2090ff90c3ecd2
 
 ### 章構成
 

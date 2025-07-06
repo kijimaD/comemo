@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 31010: aa1f0681bc34da2088fec08773eacebc3aee7391
+# Index 31010: 3cbfcaa4ba898faba516fbb9f3debf4ceac1a557
 
 echo "🚀 Generating explanation for commit 31010..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 31010..."
 
 ### メタデータ
 - **コミットインデックス**: 31010
-- **コミットハッシュ**: aa1f0681bc34da2088fec08773eacebc3aee7391
-- **GitHub URL**: https://github.com/golang/go/commit/aa1f0681bc34da2088fec08773eacebc3aee7391
+- **コミットハッシュ**: 3cbfcaa4ba898faba516fbb9f3debf4ceac1a557
+- **GitHub URL**: https://github.com/golang/go/commit/3cbfcaa4ba898faba516fbb9f3debf4ceac1a557
 
 ### 章構成
 

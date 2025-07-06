@@ -1,0 +1,64 @@
+commit 7ffa8d0a5b286add7b618b8177c8ce39414cb60a
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sat May 18 15:33:57 2024 -0700
+
+    cmd/go: accept -mcmodel and -mlarge-data-threshold compiler flags
+    
+    For #67475
+    
+    Change-Id: Ia90952eb7c19764306205928ead50bff22857378
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+---
+ src/cmd/go/internal/work/security.go      | 2 ++
+ src/cmd/go/internal/work/security_test.go | 4 ++++
+ 2 files changed, 6 insertions(+)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 8e788b0425..543ab225ab 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -99,6 +99,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
+ 	re(`-m(no-)?v?aes`),
+ 	re(`-marm`),
+ 	re(`-m(no-)?avx[0-9a-z]*`),
++	re(`-mcmodel=[0-9a-z-]+`),
+ 	re(`-mfloat-abi=([^@\-].*)`),
+ 	re(`-mfpmath=[0-9a-z,+]*`),
+ 	re(`-m(no-)?avx[0-9a-z.]*`),
+@@ -107,6 +108,7 @@ var validCompilerFlags = []*lazyregexp.Regexp{
+ 	re(`-mmacosx-(.+)`),
+ 	re(`-mios-simulator-version-min=(.+)`),
+ 	re(`-miphoneos-version-min=(.+)`),
++	re(`-mlarge-data-threshold=[0-9]+`),
+ 	re(`-mtvos-simulator-version-min=(.+)`),
+ 	re(`-mtvos-version-min=(.+)`),
+ 	re(`-mwatchos-simulator-version-min=(.+)`),
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index a4c055670a..68d287ec2b 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -50,8 +50,10 @@ var goodCompilerFlags = [][]string{
+ 	{"-g"},
+ 	{"-ggdb"},
+ 	{"-march=souza"},
++	{"-mcmodel=medium"},
+ 	{"-mcpu=123"},
+ 	{"-mfpu=123"},
++	{"-mlarge-data-threshold=16"},
+ 	{"-mtune=happybirthday"},
+ 	{"-mstack-overflow"},
+ 	{"-mno-stack-overflow"},
+@@ -92,6 +94,8 @@ var badCompilerFlags = [][]string{
+ 	{"-g-gdb"},
+ 	{"-march=@dawn"},
+ 	{"-march=-dawn"},
++	{"-mcmodel=@model"},
++	{"-mlarge-data-threshold=@12"},
+ 	{"-std=@c99"},
+ 	{"-std=-c99"},
+ 	{"-x@c"},

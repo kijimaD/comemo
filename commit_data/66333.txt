@@ -1,0 +1,100 @@
+commit 767c0fb9fd1e7d7210276be45b0abb5d14d34484
+Author: Alan Donovan <adonovan@google.com>
+Date:   Tue Feb 25 15:25:56 2025 -0500
+
+    go/scanner: report specific error for UCS-2 encoded files
+    
+    Windows text files may be encoded as UCS-2 (i.e. 2-byte UTF-16).
+    This CL causes the scanner to emit a better error when it reads
+    a file in this encoding.
+    
+    + test
+    
+    Fixes #71950
+    
+    Change-Id: Ia65bbf9a60e36984b0f3e4865591aa6978d2bde2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652515
+    Reviewed-by: Rob Pike <r@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Commit-Queue: Alan Donovan <adonovan@google.com>
+---
+ src/go/scanner/scanner.go      | 12 +++++++++++-
+ src/go/scanner/scanner_test.go | 29 +++++++++++++++++++++++++++++
+ 2 files changed, 40 insertions(+), 1 deletion(-)
+
+diff --git a/src/go/scanner/scanner.go b/src/go/scanner/scanner.go
+index 8ca74667fc..153252b5cc 100644
+--- a/src/go/scanner/scanner.go
++++ b/src/go/scanner/scanner.go
+@@ -71,7 +71,17 @@ func (s *Scanner) next() {
+ 			// not ASCII
+ 			r, w = utf8.DecodeRune(s.src[s.rdOffset:])
+ 			if r == utf8.RuneError && w == 1 {
+-				s.error(s.offset, "illegal UTF-8 encoding")
++				in := s.src[s.rdOffset:]
++				if s.offset == 0 &&
++					len(in) >= 2 &&
++					(in[0] == 0xFF && in[1] == 0xFE || in[0] == 0xFE && in[1] == 0xFF) {
++					// U+FEFF BOM at start of file, encoded as big- or little-endian
++					// UCS-2 (i.e. 2-byte UTF-16). Give specific error (go.dev/issue/71950).
++					s.error(s.offset, "illegal UTF-8 encoding (got UTF-16)")
++					s.rdOffset += len(in) // consume all input to avoid error cascade
++				} else {
++					s.error(s.offset, "illegal UTF-8 encoding")
++				}
+ 			} else if r == bom && s.offset > 0 {
+ 				s.error(s.offset, "illegal byte order mark")
+ 			}
+diff --git a/src/go/scanner/scanner_test.go b/src/go/scanner/scanner_test.go
+index 916a40a874..98036bea4e 100644
+--- a/src/go/scanner/scanner_test.go
++++ b/src/go/scanner/scanner_test.go
+@@ -5,10 +5,12 @@
+ package scanner
+ 
+ import (
++	"fmt"
+ 	"go/token"
+ 	"os"
+ 	"path/filepath"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -822,6 +824,33 @@ func TestScanErrors(t *testing.T) {
+ 	}
+ }
+ 
++func TestUTF16(t *testing.T) {
++	// This test doesn't fit within TestScanErrors because
++	// the latter assumes that there was only one error.
++	for _, src := range []string{
++		"\xfe\xff\x00p\x00a\x00c\x00k\x00a\x00g\x00e\x00 \x00p", // BOM + "package p" encoded as UTF-16 BE
++		"\xff\xfep\x00a\x00c\x00k\x00a\x00g\x00e\x00 \x00p\x00", // BOM + "package p" encoded as UTF-16 LE
++	} {
++		var got []string
++		eh := func(posn token.Position, msg string) {
++			got = append(got, fmt.Sprintf("#%d: %s", posn.Offset, msg))
++		}
++		var sc Scanner
++		sc.Init(fset.AddFile("", fset.Base(), len(src)), []byte(src), eh, 0)
++		sc.Scan()
++
++		// We expect two errors:
++		// one from the decoder, one from the scanner.
++		want := []string{
++			"#0: illegal UTF-8 encoding (got UTF-16)",
++			"#0: illegal character U+FFFD '�'",
++		}
++		if !slices.Equal(got, want) {
++			t.Errorf("Scan(%q) returned errors %q, want %q", src, got, want)
++		}
++	}
++}
++
+ // Verify that no comments show up as literal values when skipping comments.
+ func TestIssue10213(t *testing.T) {
+ 	const src = `

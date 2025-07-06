@@ -1,0 +1,66 @@
+commit cf967172097948a57d2e7cd037db87eaf261ec44
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Tue Oct 29 16:27:58 2024 +0100
+
+    internal/poll: use io.Seek* constants
+    
+    internal/poll already imports io so use the io.Seek* constants instead
+    of defining them locally.
+    
+    Change-Id: I91218c021e882e044503cae64b699e5a236ecc38
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623236
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/poll/sendfile_unix.go | 12 ++++--------
+ 1 file changed, 4 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_unix.go b/src/internal/poll/sendfile_unix.go
+index 881625ce58..3f193e40a6 100644
+--- a/src/internal/poll/sendfile_unix.go
++++ b/src/internal/poll/sendfile_unix.go
+@@ -7,6 +7,7 @@
+ package poll
+ 
+ import (
++	"io"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -40,13 +41,8 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
+ 	// if you pass it offset 0, it starts from offset 0.
+ 	// There's no way to tell it "start from current position",
+ 	// so we have to manage that explicitly.
+-	const (
+-		seekStart   = 0
+-		seekCurrent = 1
+-		seekEnd     = 2
+-	)
+ 	start, err := ignoringEINTR2(func() (int64, error) {
+-		return syscall.Seek(src, 0, seekCurrent)
++		return syscall.Seek(src, 0, io.SeekCurrent)
+ 	})
+ 	if err != nil {
+ 		return 0, err, false
+@@ -75,7 +71,7 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
+ 	mustReposition := false
+ 	if runtime.GOOS == "solaris" && size == 0 {
+ 		end, err := ignoringEINTR2(func() (int64, error) {
+-			return syscall.Seek(src, 0, seekEnd)
++			return syscall.Seek(src, 0, io.SeekEnd)
+ 		})
+ 		if err != nil {
+ 			return 0, err, false
+@@ -88,7 +84,7 @@ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool)
+ 	n, err, handled = sendFile(dstFD, src, &pos, size)
+ 	if n > 0 || mustReposition {
+ 		ignoringEINTR2(func() (int64, error) {
+-			return syscall.Seek(src, start+n, seekStart)
++			return syscall.Seek(src, start+n, io.SeekStart)
+ 		})
+ 	}
+ 	return n, err, handled

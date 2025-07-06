@@ -1,0 +1,1093 @@
+commit 4dffdd797b69d9423b4a492e2d832e1023326b1b
+Author: Russ Cox <rsc@golang.org>
+Date:   Sat Apr 5 14:29:00 2025 -0400
+
+    math/big: replace addMulVVW with addMulVVWW
+    
+    addMulVVW is an unnecessarily special case.
+    All other assembly routines taking []Word (V as in vector) arguments
+    take separate source and destination. For example:
+    
+            addVV: z = x+y
+            mulAddVWW: z = x*m+a
+    
+    addMulVVW uses the z parameter as both destination and source:
+    
+            addMulVVW: z = z+x*m
+    
+    Even looking at the signatures is confusing: all the VV routines take
+    two input vectors x and y, but addMulVVW takes only x: where is y?
+    (The answer is that the two inputs are z and x.)
+    
+    It would be nice to fix this, both for understandability and regularity,
+    and to simplify a future assembly generator.
+    
+    We cannot remove or redefine addMulVVW, because it has been used
+    in linknames. Instead, the CL adds a new final addend argument ‘a’
+    like in mulAddVWW, making the natural name addMulVVWW
+    (two input vectors, two input words):
+    
+            addMulVVWW: z = x+y*m+a
+    
+    This CL updates all the assembly implementations to rename the
+    inputs z, x, y -> x, y, m, and then introduces a separate destination z.
+    
+    Change-Id: Ib76c80b53f6d1f4a901f663566e9c4764bb20488
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/664895
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/math/big/arith.go           |   7 ++-
+ src/math/big/arith_386.s        |  26 +++++----
+ src/math/big/arith_amd64.s      |  61 ++++++++++----------
+ src/math/big/arith_arm.s        |  25 +++++----
+ src/math/big/arith_arm64.s      |  39 +++++++------
+ src/math/big/arith_decl.go      |  12 +++-
+ src/math/big/arith_decl_pure.go |   4 +-
+ src/math/big/arith_loong64.s    |   4 +-
+ src/math/big/arith_mips64x.s    |   4 +-
+ src/math/big/arith_mipsx.s      |   4 +-
+ src/math/big/arith_ppc64x.s     |  69 ++++++++++++-----------
+ src/math/big/arith_riscv64.s    | 121 ++++++++++++++++++++--------------------
+ src/math/big/arith_s390x.s      |  27 ++++-----
+ src/math/big/arith_test.go      |  12 ++--
+ src/math/big/arith_wasm.s       |   4 +-
+ src/math/big/nat.go             |   4 +-
+ src/math/big/natmul.go          |   4 +-
+ 17 files changed, 227 insertions(+), 200 deletions(-)
+
+diff --git a/src/math/big/arith.go b/src/math/big/arith.go
+index 06e63e2574..f857ab8867 100644
+--- a/src/math/big/arith.go
++++ b/src/math/big/arith.go
+@@ -194,10 +194,11 @@ func mulAddVWW_g(z, x []Word, y, r Word) (c Word) {
+ 	return
+ }
+ 
+-func addMulVVW_g(z, x []Word, y Word) (c Word) {
++func addMulVVWW_g(z, x, y []Word, m, a Word) (c Word) {
++	c = a
+ 	// The comment near the top of this file discusses this for loop condition.
+-	for i := 0; i < len(z) && i < len(x); i++ {
+-		z1, z0 := mulAddWWW_g(x[i], y, z[i])
++	for i := 0; i < len(z) && i < len(x) && i < len(y); i++ {
++		z1, z0 := mulAddWWW_g(y[i], m, x[i])
+ 		lo, cc := bits.Add(uint(z0), uint(c), 0)
+ 		c, z[i] = Word(cc), Word(lo)
+ 		c += z1
+diff --git a/src/math/big/arith_386.s b/src/math/big/arith_386.s
+index 90f6a8c70e..04d4eae926 100644
+--- a/src/math/big/arith_386.s
++++ b/src/math/big/arith_386.s
+@@ -177,12 +177,12 @@ X9b:	MOVL $0, c+28(FP)
+ 	RET
+ 
+ 
+-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
++// func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOVL z+0(FP), DI
+ 	MOVL x+12(FP), SI
+-	MOVL y+24(FP), BP
+-	MOVL r+28(FP), CX	// c = r
++	MOVL m+24(FP), BP
++	MOVL a+28(FP), CX	// c = a
+ 	MOVL z_len+4(FP), BX
+ 	LEAL (DI)(BX*4), DI
+ 	LEAL (SI)(BX*4), SI
+@@ -204,23 +204,25 @@ E5:	CMPL BX, $0		// i < 0
+ 	RET
+ 
+ 
+-// func addMulVVW(z, x []Word, y Word) (c Word)
+-TEXT ·addMulVVW(SB),NOSPLIT,$0
+-	MOVL z+0(FP), DI
+-	MOVL x+12(FP), SI
+-	MOVL y+24(FP), BP
++// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
++TEXT ·addMulVVWW(SB),NOSPLIT,$0
++	MOVL z+0(FP), BP
++	MOVL x+12(FP), DI
++	MOVL y+24(FP), SI
++	MOVL a+40(FP), CX
+ 	MOVL z_len+4(FP), BX
+ 	LEAL (DI)(BX*4), DI
+ 	LEAL (SI)(BX*4), SI
++	LEAL (BP)(BX*4), BP
+ 	NEGL BX			// i = -n
+-	MOVL $0, CX		// c = 0
+ 	JMP E6
+ 
+ L6:	MOVL (SI)(BX*4), AX
+-	MULL BP
++	MULL m+36(FP)
+ 	ADDL CX, AX
+ 	ADCL $0, DX
+-	ADDL AX, (DI)(BX*4)
++	ADDL (DI)(BX*4), AX
++	MOVL AX, (BP)(BX*4)
+ 	ADCL $0, DX
+ 	MOVL DX, CX
+ 	ADDL $1, BX		// i++
+@@ -228,7 +230,7 @@ L6:	MOVL (SI)(BX*4), AX
+ E6:	CMPL BX, $0		// i < 0
+ 	JL L6
+ 
+-	MOVL CX, c+28(FP)
++	MOVL CX, c+44(FP)
+ 	RET
+ 
+ 
+diff --git a/src/math/big/arith_amd64.s b/src/math/big/arith_amd64.s
+index a5b65b1d3c..3bc78a1c45 100644
+--- a/src/math/big/arith_amd64.s
++++ b/src/math/big/arith_amd64.s
+@@ -306,12 +306,12 @@ X9b:	MOVQ $0, c+56(FP)
+ 	RET
+ 
+ 
+-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
++// func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOVQ z+0(FP), R10
+ 	MOVQ x+24(FP), R8
+-	MOVQ y+48(FP), R9
+-	MOVQ r+56(FP), CX	// c = r
++	MOVQ m+48(FP), R9
++	MOVQ a+56(FP), CX	// c = a
+ 	MOVQ z_len+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+ 
+@@ -366,16 +366,17 @@ E5:	CMPQ BX, R11		// i < n
+ 	RET
+ 
+ 
+-// func addMulVVW(z, x []Word, y Word) (c Word)
+-TEXT ·addMulVVW(SB),NOSPLIT,$0
++// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
++TEXT ·addMulVVWW(SB),NOSPLIT,$0
+ 	CMPB ·support_adx(SB), $1
+ 	JEQ adx
+-	MOVQ z+0(FP), R10
+-	MOVQ x+24(FP), R8
+-	MOVQ y+48(FP), R9
++	MOVQ z+0(FP), R14
++	MOVQ x+24(FP), R10
++	MOVQ y+48(FP), R8
++	MOVQ m+72(FP), R9
+ 	MOVQ z_len+8(FP), R11
+ 	MOVQ $0, BX		// i = 0
+-	MOVQ $0, CX		// c = 0
++	MOVQ a+80(FP), CX		// c = 0
+ 	MOVQ R11, R12
+ 	ANDQ $-2, R12
+ 	CMPQ R11, $2
+@@ -390,7 +391,7 @@ A6:
+ 	ADDQ CX, AX
+ 	ADCQ $0, DX
+ 	MOVQ DX, CX
+-	MOVQ AX, (R10)(BX*8)
++	MOVQ AX, (R14)(BX*8)
+ 
+ 	MOVQ (8)(R8)(BX*8), AX
+ 	MULQ R9
+@@ -399,7 +400,7 @@ A6:
+ 	ADDQ CX, AX
+ 	ADCQ $0, DX
+ 	MOVQ DX, CX
+-	MOVQ AX, (8)(R10)(BX*8)
++	MOVQ AX, (8)(R14)(BX*8)
+ 
+ 	ADDQ $2, BX
+ 	CMPQ BX, R12
+@@ -410,7 +411,8 @@ L6:	MOVQ (R8)(BX*8), AX
+ 	MULQ R9
+ 	ADDQ CX, AX
+ 	ADCQ $0, DX
+-	ADDQ AX, (R10)(BX*8)
++	ADDQ (R10)(BX*8), AX
++	MOVQ AX, (R14)(BX*8)
+ 	ADCQ $0, DX
+ 	MOVQ DX, CX
+ 	ADDQ $1, BX		// i++
+@@ -418,21 +420,22 @@ L6:	MOVQ (R8)(BX*8), AX
+ E6:	CMPQ BX, R11		// i < n
+ 	JL L6
+ 
+-	MOVQ CX, c+56(FP)
++	MOVQ CX, c+88(FP)
+ 	RET
+ 
+ adx:
+ 	MOVQ z_len+8(FP), R11
+-	MOVQ z+0(FP), R10
+-	MOVQ x+24(FP), R8
+-	MOVQ y+48(FP), DX
++	MOVQ z+0(FP), R14
++	MOVQ x+24(FP), R10
++	MOVQ y+48(FP), R8
++	MOVQ m+72(FP), DX
+ 	MOVQ $0, BX   // i = 0
+ 	MOVQ $0, CX   // carry
+ 	CMPQ R11, $8
+ 	JAE  adx_loop_header
+ 	CMPQ BX, R11
+ 	JL adx_short
+-	MOVQ CX, c+56(FP)
++	MOVQ CX, c+88(FP)
+ 	RET
+ 
+ adx_loop_header:
+@@ -448,52 +451,54 @@ adx_loop:
+ 	MULXQ 8(R8), AX, CX
+ 	ADCXQ DI, AX
+ 	ADOXQ 8(R10), AX
+-	MOVQ  AX, 8(R10)
++	MOVQ  AX, 8(R14)
+ 
+ 	MULXQ 16(R8), SI, DI
+ 	ADCXQ CX, SI
+ 	ADOXQ 16(R10), SI
+-	MOVQ  SI, 16(R10)
++	MOVQ  SI, 16(R14)
+ 
+ 	MULXQ 24(R8), AX, CX
+ 	ADCXQ DI, AX
+ 	ADOXQ 24(R10), AX
+-	MOVQ  AX, 24(R10)
++	MOVQ  AX, 24(R14)
+ 
+ 	MULXQ 32(R8), SI, DI
+ 	ADCXQ CX, SI
+ 	ADOXQ 32(R10), SI
+-	MOVQ  SI, 32(R10)
++	MOVQ  SI, 32(R14)
+ 
+ 	MULXQ 40(R8), AX, CX
+ 	ADCXQ DI, AX
+ 	ADOXQ 40(R10), AX
+-	MOVQ  AX, 40(R10)
++	MOVQ  AX, 40(R14)
+ 
+ 	MULXQ 48(R8), SI, DI
+ 	ADCXQ CX, SI
+ 	ADOXQ 48(R10), SI
+-	MOVQ  SI, 48(R10)
++	MOVQ  SI, 48(R14)
+ 
+ 	MULXQ 56(R8), AX, CX
+ 	ADCXQ DI, AX
+ 	ADOXQ 56(R10), AX
+-	MOVQ  AX, 56(R10)
++	MOVQ  AX, 56(R14)
+ 
+ 	ADCXQ R9, CX
+ 	ADOXQ R9, CX
+ 
+ 	ADDQ $64, R8
+ 	ADDQ $64, R10
++	ADDQ $64, R14
+ 	ADDQ $8, BX
+ 
+ 	CMPQ BX, R13
+ 	JL adx_loop
+-	MOVQ z+0(FP), R10
+-	MOVQ x+24(FP), R8
++	MOVQ z+0(FP), R14
++	MOVQ x+24(FP), R10
++	MOVQ y+48(FP), R8
+ 	CMPQ BX, R11
+ 	JL adx_short
+-	MOVQ CX, c+56(FP)
++	MOVQ CX, c+88(FP)
+ 	RET
+ 
+ adx_short:
+@@ -508,7 +513,7 @@ adx_short:
+ 	CMPQ BX, R11
+ 	JL adx_short
+ 
+-	MOVQ CX, c+56(FP)
++	MOVQ CX, c+88(FP)
+ 	RET
+ 
+ 
+diff --git a/src/math/big/arith_arm.s b/src/math/big/arith_arm.s
+index ece3a96f51..4d0ec68320 100644
+--- a/src/math/big/arith_arm.s
++++ b/src/math/big/arith_arm.s
+@@ -215,14 +215,14 @@ X6:
+ 	RET
+ 
+ 
+-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
++// func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+ 	MOVW	z+0(FP), R1
+ 	MOVW	z_len+4(FP), R5
+ 	MOVW	x+12(FP), R2
+-	MOVW	y+24(FP), R3
+-	MOVW	r+28(FP), R4
++	MOVW	m+24(FP), R3
++	MOVW	a+28(FP), R4
+ 	ADD	R5<<2, R1, R5
+ 	B E8
+ 
+@@ -242,15 +242,16 @@ E8:
+ 	RET
+ 
+ 
+-// func addMulVVW(z, x []Word, y Word) (c Word)
+-TEXT ·addMulVVW(SB),NOSPLIT,$0
++// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
++TEXT ·addMulVVWW(SB),NOSPLIT,$0
+ 	MOVW	$0, R0
+-	MOVW	z+0(FP), R1
++	MOVW	z+0(FP), R9
++	MOVW	x+12(FP), R1
+ 	MOVW	z_len+4(FP), R5
+-	MOVW	x+12(FP), R2
+-	MOVW	y+24(FP), R3
++	MOVW	y+24(FP), R2
++	MOVW	m+36(FP), R3
+ 	ADD	R5<<2, R1, R5
+-	MOVW	$0, R4
++	MOVW	a+40(FP), R4
+ 	B E9
+ 
+ 	// word loop
+@@ -259,14 +260,14 @@ L9:
+ 	MULLU	R6, R3, (R7, R6)
+ 	ADD.S	R4, R6
+ 	ADC	R0, R7
+-	MOVW	0(R1), R4
++	MOVW.P	4(R1), R4
+ 	ADD.S	R4, R6
+ 	ADC	R0, R7
+-	MOVW.P	R6, 4(R1)
++	MOVW.P	R6, 4(R9)
+ 	MOVW	R7, R4
+ E9:
+ 	TEQ	R1, R5
+ 	BNE	L9
+ 
+-	MOVW	R4, c+28(FP)
++	MOVW	R4, c+44(FP)
+ 	RET
+diff --git a/src/math/big/arith_arm64.s b/src/math/big/arith_arm64.s
+index 204006e01d..3fa714e607 100644
+--- a/src/math/big/arith_arm64.s
++++ b/src/math/big/arith_arm64.s
+@@ -425,13 +425,13 @@ len0:
+ 	RET
+ 
+ 
+-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
++// func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOVD	z+0(FP), R1
+ 	MOVD	z_len+8(FP), R0
+ 	MOVD	x+24(FP), R2
+-	MOVD	y+48(FP), R3
+-	MOVD	r+56(FP), R4
++	MOVD	m+48(FP), R3
++	MOVD	a+56(FP), R4
+ 	// c, z = x * y + r
+ 	TBZ	$0, R0, two
+ 	MOVD.P	8(R2), R5
+@@ -483,33 +483,36 @@ done:
+ 	RET
+ 
+ 
+-// func addMulVVW(z, x []Word, y Word) (c Word)
+-TEXT ·addMulVVW(SB),NOSPLIT,$0
+-	MOVD	z+0(FP), R1
++// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
++TEXT ·addMulVVWW(SB),NOSPLIT,$0
++	MOVD	z+0(FP), R22
++	MOVD	x+24(FP), R1
+ 	MOVD	z_len+8(FP), R0
+-	MOVD	x+24(FP), R2
+-	MOVD	y+48(FP), R3
+-	MOVD	$0, R4
++	MOVD	y+48(FP), R2
++	MOVD	m+72(FP), R3
++	MOVD	a+80(FP), R4
+ 
+ 	TBZ	$0, R0, two
+ 
+ 	MOVD.P	8(R2), R5
+-	MOVD	(R1), R6
++	MOVD.P	8(R1), R6
+ 
+ 	MUL	R5, R3, R7
+ 	UMULH	R5, R3, R8
+ 
++	ADDS	R4, R7
++	ADC	$0, R8
+ 	ADDS	R7, R6
+ 	ADC	$0, R8, R4
+ 
+-	MOVD.P	R6, 8(R1)
++	MOVD.P	R6, 8(R22)
+ 	SUB	$1, R0
+ 
+ two:
+ 	TBZ	$1, R0, loop
+ 
+ 	LDP.P	16(R2), (R5, R10)
+-	LDP	(R1), (R6, R11)
++	LDP.P	16(R1), (R6, R11)
+ 
+ 	MUL	R10, R3, R13
+ 	UMULH	R10, R3, R12
+@@ -525,7 +528,7 @@ two:
+ 	ADCS	R8, R11
+ 	ADC	$0, R12, R4
+ 
+-	STP.P	(R6, R11), 16(R1)
++	STP.P	(R6, R11), 16(R22)
+ 	SUB	$2, R0
+ 
+ // The main loop of this code operates on a block of 4 words every iteration
+@@ -538,12 +541,12 @@ loop:
+ 	LDP.P	16(R2), (R5, R6)
+ 	LDP.P	16(R2), (R7, R8)
+ 
+-	LDP	(R1), (R9, R10)
++	LDP.P	16(R1), (R9, R10)
+ 	ADDS	R4, R9
+ 	MUL	R6, R3, R14
+ 	ADCS	R14, R10
+ 	MUL	R7, R3, R15
+-	LDP	16(R1), (R11, R12)
++	LDP.P	16(R1), (R11, R12)
+ 	ADCS	R15, R11
+ 	MUL	R8, R3, R16
+ 	ADCS	R16, R12
+@@ -555,18 +558,18 @@ loop:
+ 	UMULH	R5, R3, R17
+ 	ADCS	R17, R10
+ 	UMULH	R6, R3, R21
+-	STP.P	(R9, R10), 16(R1)
++	STP.P	(R9, R10), 16(R22)
+ 	ADCS	R21, R11
+ 	UMULH	R7, R3, R19
+ 	ADCS	R19, R12
+-	STP.P	(R11, R12), 16(R1)
++	STP.P	(R11, R12), 16(R22)
+ 	ADC	$0, R20, R4
+ 
+ 	SUB	$4, R0
+ 	B	loop
+ 
+ done:
+-	MOVD	R4, c+56(FP)
++	MOVD	R4, c+88(FP)
+ 	RET
+ 
+ 
+diff --git a/src/math/big/arith_decl.go b/src/math/big/arith_decl.go
+index 3230a781a9..26734c6ca2 100644
+--- a/src/math/big/arith_decl.go
++++ b/src/math/big/arith_decl.go
+@@ -83,9 +83,9 @@ func shrVU(z, x []Word, s uint) (c Word)
+ //
+ //go:linkname mulAddVWW
+ //go:noescape
+-func mulAddVWW(z, x []Word, y, r Word) (c Word)
++func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ 
+-// addMulVVW should be an internal detail,
++// addMulVVW should be an internal detail (and a stale one at that),
+ // but widely used packages access it using linkname.
+ // Notable members of the hall of shame include:
+ //   - github.com/remyoudompheng/bigfft
+@@ -94,5 +94,11 @@ func mulAddVWW(z, x []Word, y, r Word) (c Word)
+ // See go.dev/issue/67401.
+ //
+ //go:linkname addMulVVW
++func addMulVVW(z, x []Word, y Word) (c Word) {
++	return addMulVVWW(z, z, x, y, 0)
++}
++
++// addMulVVWW sets z = x+y*m+a.
++//
+ //go:noescape
+-func addMulVVW(z, x []Word, y Word) (c Word)
++func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+diff --git a/src/math/big/arith_decl_pure.go b/src/math/big/arith_decl_pure.go
+index 4d7bbc8771..9442c8e5a4 100644
+--- a/src/math/big/arith_decl_pure.go
++++ b/src/math/big/arith_decl_pure.go
+@@ -44,6 +44,6 @@ func mulAddVWW(z, x []Word, y, r Word) (c Word) {
+ 	return mulAddVWW_g(z, x, y, r)
+ }
+ 
+-func addMulVVW(z, x []Word, y Word) (c Word) {
+-	return addMulVVW_g(z, x, y)
++func addMulVVWW(z, x, y []Word, m, a Word) (c Word) {
++	return addMulVVWW_g(z, x, y, m, a)
+ }
+diff --git a/src/math/big/arith_loong64.s b/src/math/big/arith_loong64.s
+index 847e3127fb..ef6833e9eb 100644
+--- a/src/math/big/arith_loong64.s
++++ b/src/math/big/arith_loong64.s
+@@ -30,5 +30,5 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	JMP ·mulAddVWW_g(SB)
+ 
+-TEXT ·addMulVVW(SB),NOSPLIT,$0
+-	JMP ·addMulVVW_g(SB)
++TEXT ·addMulVVWW(SB),NOSPLIT,$0
++	JMP ·addMulVVWW_g(SB)
+diff --git a/src/math/big/arith_mips64x.s b/src/math/big/arith_mips64x.s
+index 393a3efb9b..846c4a6330 100644
+--- a/src/math/big/arith_mips64x.s
++++ b/src/math/big/arith_mips64x.s
+@@ -30,6 +30,6 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	JMP ·mulAddVWW_g(SB)
+ 
+-TEXT ·addMulVVW(SB),NOSPLIT,$0
+-	JMP ·addMulVVW_g(SB)
++TEXT ·addMulVVWW(SB),NOSPLIT,$0
++	JMP ·addMulVVWW_g(SB)
+ 
+diff --git a/src/math/big/arith_mipsx.s b/src/math/big/arith_mipsx.s
+index cdb4bbcab6..929da24468 100644
+--- a/src/math/big/arith_mipsx.s
++++ b/src/math/big/arith_mipsx.s
+@@ -30,6 +30,6 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	JMP	·mulAddVWW_g(SB)
+ 
+-TEXT ·addMulVVW(SB),NOSPLIT,$0
+-	JMP	·addMulVVW_g(SB)
++TEXT ·addMulVVWW(SB),NOSPLIT,$0
++	JMP	·addMulVVWW_g(SB)
+ 
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index 82aa7fb51e..404d2d9d23 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -391,7 +391,7 @@ zeroshift:
+ 	CMPU    R11, R7, CR2    // < len?
+ 	BLT     CR2, backward   // there is overlap, copy backwards
+ 	MOVD    $0, R14
+-	// shlVU processes backwards, but added a forward copy option 
++	// shlVU processes backwards, but added a forward copy option
+ 	// since its faster on POWER
+ repeat:
+ 	MOVD    (R6)(R14), R15  // Copy 8 bytes at a time
+@@ -458,7 +458,7 @@ loopback:
+ 	BLE     loopback
+ 	CMP     R8, R4          // Are we at the last element?
+ 	BEQ     loopexit
+-scalar:	
++scalar:
+ 	ADD     $-1, R8, R10
+ 	SLD     $3, R10
+ 	MOVD    (R6)(R10),R11
+@@ -496,12 +496,12 @@ done:
+ 	MOVD    R0, c+56(FP)
+ 	RET
+ 
+-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
++// func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ TEXT ·mulAddVWW(SB), NOSPLIT, $0
+ 	MOVD    z+0(FP), R10      // R10 = z[]
+ 	MOVD    x+24(FP), R8      // R8 = x[]
+-	MOVD    y+48(FP), R9      // R9 = y
+-	MOVD    r+56(FP), R4      // R4 = r = c
++	MOVD    m+48(FP), R9      // R9 = m
++	MOVD    a+56(FP), R4      // R4 = a = c
+ 	MOVD    z_len+8(FP), R11  // R11 = z_len
+ 
+ 	CMP     R11, $0
+@@ -587,59 +587,61 @@ done:
+ 	MOVD    R4, c+64(FP)
+ 	RET
+ 
+-// func addMulVVW(z, x []Word, y Word) (c Word)
+-TEXT ·addMulVVW(SB), NOSPLIT, $0
+-	MOVD	z+0(FP), R3	// R3 = z[]
+-	MOVD	x+24(FP), R4	// R4 = x[]
+-	MOVD	y+48(FP), R5	// R5 = y
++// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
++TEXT ·addMulVVWW(SB), NOSPLIT, $0
++	MOVD	z+0(FP), R22	// R22 = z[]
++	MOVD	x+24(FP), R3	// R3 = x[]
++	MOVD	y+48(FP), R4	// R4 = y[]
++	MOVD	m+72(FP), R5	// R5 = m
+ 	MOVD	z_len+8(FP), R6	// R6 = z_len
+ 
+ 	CMP	R6, $4
+-	MOVD	R0, R9		// R9 = c = 0
++	MOVD	a+80(FP), R9		// R9 = c = a
+ 	BLT	tail
+ 	SRD	$2, R6, R7
+ 	MOVD	R7, CTR		// Initialize loop counter
+ 	PCALIGN	$16
+ 
+ loop:
+-	MOVD	0(R4), R14	// x[i]
+-	MOVD	8(R4), R16	// x[i+1]
+-	MOVD	16(R4), R18	// x[i+2]
+-	MOVD	24(R4), R20	// x[i+3]
+-	MOVD	0(R3), R15	// z[i]
+-	MOVD	8(R3), R17	// z[i+1]
+-	MOVD	16(R3), R19	// z[i+2]
+-	MOVD	24(R3), R21	// z[i+3]
+-	MULLD	R5, R14, R10	// low x[i]*y
+-	MULHDU	R5, R14, R11	// high x[i]*y
++	MOVD	0(R4), R14	// y[i]
++	MOVD	8(R4), R16	// y[i+1]
++	MOVD	16(R4), R18	// y[i+2]
++	MOVD	24(R4), R20	// y[i+3]
++	MOVD	0(R3), R15	// x[i]
++	MOVD	8(R3), R17	// x[i+1]
++	MOVD	16(R3), R19	// x[i+2]
++	MOVD	24(R3), R21	// x[i+3]
++	MULLD	R5, R14, R10	// low y[i]*m
++	MULHDU	R5, R14, R11	// high y[i]*m
+ 	ADDC	R15, R10
+ 	ADDZE	R11
+ 	ADDC	R9, R10
+ 	ADDZE	R11, R9
+-	MULLD	R5, R16, R14	// low x[i+1]*y
+-	MULHDU	R5, R16, R15	// high x[i+1]*y
++	MULLD	R5, R16, R14	// low y[i+1]*m
++	MULHDU	R5, R16, R15	// high y[i+1]*m
+ 	ADDC	R17, R14
+ 	ADDZE	R15
+ 	ADDC	R9, R14
+ 	ADDZE	R15, R9
+-	MULLD	R5, R18, R16    // low x[i+2]*y
+-	MULHDU	R5, R18, R17    // high x[i+2]*y
++	MULLD	R5, R18, R16    // low y[i+2]*m
++	MULHDU	R5, R18, R17    // high y[i+2]*m
+ 	ADDC	R19, R16
+ 	ADDZE	R17
+ 	ADDC	R9, R16
+ 	ADDZE	R17, R9
+-	MULLD	R5, R20, R18    // low x[i+3]*y
+-	MULHDU	R5, R20, R19    // high x[i+3]*y
++	MULLD	R5, R20, R18    // low y[i+3]*m
++	MULHDU	R5, R20, R19    // high y[i+3]*m
+ 	ADDC	R21, R18
+ 	ADDZE	R19
+ 	ADDC	R9, R18
+ 	ADDZE	R19, R9
+-	MOVD	R10, 0(R3)	// z[i]
+-	MOVD	R14, 8(R3)	// z[i+1]
+-	MOVD	R16, 16(R3)	// z[i+2]
+-	MOVD	R18, 24(R3)	// z[i+3]
++	MOVD	R10, 0(R22)	// z[i]
++	MOVD	R14, 8(R22)	// z[i+1]
++	MOVD	R16, 16(R22)	// z[i+2]
++	MOVD	R18, 24(R22)	// z[i+3]
+ 	ADD	$32, R3
+ 	ADD	$32, R4
++	ADD	$32, R22
+ 	BDNZ	loop
+ 
+ 	ANDCC	$3, R6
+@@ -657,12 +659,13 @@ tailloop:
+ 	ADDZE	R11
+ 	ADDC	R9, R10
+ 	ADDZE	R11, R9
+-	MOVD	R10, 0(R3)
++	MOVD	R10, 0(R22)
+ 	ADD	$8, R3
+ 	ADD	$8, R4
++	ADD	$8, R22
+ 	BDNZ	tailloop
+ 
+ done:
+-	MOVD	R9, c+56(FP)
++	MOVD	R9, c+88(FP)
+ 	RET
+ 
+diff --git a/src/math/big/arith_riscv64.s b/src/math/big/arith_riscv64.s
+index 069a4080f4..f91d50f5fe 100644
+--- a/src/math/big/arith_riscv64.s
++++ b/src/math/big/arith_riscv64.s
+@@ -301,10 +301,10 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ 
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	MOV	x+24(FP), X5
+-	MOV	y+48(FP), X6
++	MOV	m+48(FP), X6
+ 	MOV	z+0(FP), X7
+ 	MOV	z_len+8(FP), X30
+-	MOV	r+56(FP), X29
++	MOV	a+56(FP), X29
+ 
+ 	MOV	$4, X28
+ 
+@@ -317,26 +317,26 @@ loop4:
+ 	MOV	16(X5), X14	// x[2]
+ 	MOV	24(X5), X17	// x[3]
+ 
+-	MULHU	X8, X6, X9	// z_hi[0] = x[0] * y
+-	MUL	X8, X6, X8	// z_lo[0] = x[0] * y
++	MULHU	X8, X6, X9	// z_hi[0] = x[0] * m
++	MUL	X8, X6, X8	// z_lo[0] = x[0] * m
+ 	ADD	X8, X29, X10	// z[0] = z_lo[0] + c
+ 	SLTU	X8, X10, X23
+ 	ADD	X23, X9, X29	// next c
+ 
+-	MULHU	X11, X6, X12	// z_hi[1] = x[1] * y
+-	MUL	X11, X6, X11	// z_lo[1] = x[1] * y
++	MULHU	X11, X6, X12	// z_hi[1] = x[1] * m
++	MUL	X11, X6, X11	// z_lo[1] = x[1] * m
+ 	ADD	X11, X29, X13	// z[1] = z_lo[1] + c
+ 	SLTU	X11, X13, X23
+ 	ADD	X23, X12, X29	// next c
+ 
+-	MULHU	X14, X6, X15	// z_hi[2] = x[2] * y
+-	MUL	X14, X6, X14	// z_lo[2] = x[2] * y
++	MULHU	X14, X6, X15	// z_hi[2] = x[2] * m
++	MUL	X14, X6, X14	// z_lo[2] = x[2] * m
+ 	ADD	X14, X29, X16	// z[2] = z_lo[2] + c
+ 	SLTU	X14, X16, X23
+ 	ADD	X23, X15, X29	// next c
+ 
+-	MULHU	X17, X6, X18	// z_hi[3] = x[3] * y
+-	MUL	X17, X6, X17	// z_lo[3] = x[3] * y
++	MULHU	X17, X6, X18	// z_hi[3] = x[3] * m
++	MUL	X17, X6, X17	// z_lo[3] = x[3] * m
+ 	ADD	X17, X29, X19	// z[3] = z_lo[3] + c
+ 	SLTU	X17, X19, X23
+ 	ADD	X23, X18, X29	// next c
+@@ -356,8 +356,8 @@ loop4:
+ loop1:
+ 	MOV	0(X5), X10	// x
+ 
+-	MULHU	X10, X6, X12	// z_hi = x * y
+-	MUL	X10, X6, X10	// z_lo = x * y
++	MULHU	X10, X6, X12	// z_hi = x * m
++	MUL	X10, X6, X10	// z_lo = x * m
+ 	ADD	X10, X29, X13	// z_lo + c
+ 	SLTU	X10, X13, X15
+ 	ADD	X12, X15, X29	// next c
+@@ -374,97 +374,100 @@ done:
+ 	MOV	X29, c+64(FP)	// return c
+ 	RET
+ 
+-TEXT ·addMulVVW(SB),NOSPLIT,$0
+-	MOV	x+24(FP), X5
+-	MOV	y+48(FP), X6
+-	MOV	z+0(FP), X7
++TEXT ·addMulVVWW(SB),NOSPLIT,$0
++	MOV	y+48(FP), X5
++	MOV	m+72(FP), X6
++	MOV	x+24(FP), X7
++	MOV z+0(FP), X20
+ 	MOV	z_len+8(FP), X30
+ 
+ 	MOV	$4, X28
+-	MOV	$0, X29		// c = 0
++	MOV	a+80(FP), X29		// c = a
+ 
+ 	BEQZ	X30, done
+ 	BLTU	X30, X28, loop1
+ 
+ loop4:
+-	MOV	0(X5), X8	// x[0]
+-	MOV	0(X7), X10	// z[0]
+-	MOV	8(X5), X11	// x[1]
+-	MOV	8(X7), X13	// z[1]
+-	MOV	16(X5), X14	// x[2]
+-	MOV	16(X7), X16	// z[2]
+-	MOV	24(X5), X17	// x[3]
+-	MOV	24(X7), X19	// z[3]
+-
+-	MULHU	X8, X6, X9	// z_hi[0] = x[0] * y
+-	MUL	X8, X6, X8	// z_lo[0] = x[0] * y
+-	ADD	X8, X10, X21	// z_lo[0] = x[0] * y + z[0]
++	MOV	0(X5), X8	// y[0]
++	MOV	0(X7), X10	// x[0]
++	MOV	8(X5), X11	// y[1]
++	MOV	8(X7), X13	// x[1]
++	MOV	16(X5), X14	// y[2]
++	MOV	16(X7), X16	// x[2]
++	MOV	24(X5), X17	// y[3]
++	MOV	24(X7), X19	// x[3]
++
++	MULHU	X8, X6, X9	// x_hi[0] = y[0] * m
++	MUL	X8, X6, X8	// x_lo[0] = y[0] * m
++	ADD	X8, X10, X21	// x_lo[0] = y[0] * m + x[0]
+ 	SLTU	X8, X21, X22
+-	ADD	X9, X22, X9	// z_hi[0] = x[0] * y + z[0]
+-	ADD	X21, X29, X10	// z[0] = x[0] * y + z[0] + c
++	ADD	X9, X22, X9	// x_hi[0] = y[0] * m + x[0]
++	ADD	X21, X29, X10	// x[0] = y[0] * m + x[0] + c
+ 	SLTU	X21, X10, X22
+ 	ADD	X9, X22, X29	// next c
+ 
+-	MULHU	X11, X6, X12	// z_hi[1] = x[1] * y
+-	MUL	X11, X6, X11	// z_lo[1] = x[1] * y
+-	ADD	X11, X13, X21	// z_lo[1] = x[1] * y + z[1]
++	MULHU	X11, X6, X12	// x_hi[1] = y[1] * m
++	MUL	X11, X6, X11	// x_lo[1] = y[1] * m
++	ADD	X11, X13, X21	// x_lo[1] = y[1] * m + x[1]
+ 	SLTU	X11, X21, X22
+-	ADD	X12, X22, X12	// z_hi[1] = x[1] * y + z[1]
+-	ADD	X21, X29, X13	// z[1] = x[1] * y + z[1] + c
++	ADD	X12, X22, X12	// x_hi[1] = y[1] * m + x[1]
++	ADD	X21, X29, X13	// x[1] = y[1] * m + x[1] + c
+ 	SLTU	X21, X13, X22
+ 	ADD	X12, X22, X29	// next c
+ 
+-	MULHU	X14, X6, X15	// z_hi[2] = x[2] * y
+-	MUL	X14, X6, X14	// z_lo[2] = x[2] * y
+-	ADD	X14, X16, X21	// z_lo[2] = x[2] * y + z[2]
++	MULHU	X14, X6, X15	// x_hi[2] = y[2] * m
++	MUL	X14, X6, X14	// x_lo[2] = y[2] * m
++	ADD	X14, X16, X21	// x_lo[2] = y[2] * m + x[2]
+ 	SLTU	X14, X21, X22
+-	ADD	X15, X22, X15	// z_hi[2] = x[2] * y + z[2]
+-	ADD	X21, X29, X16	// z[2] = x[2] * y + z[2] + c
++	ADD	X15, X22, X15	// x_hi[2] = y[2] * m + x[2]
++	ADD	X21, X29, X16	// x[2] = y[2] * m + x[2] + c
+ 	SLTU	X21, X16, X22
+ 	ADD	X15, X22, X29	// next c
+ 
+-	MULHU	X17, X6, X18	// z_hi[3] = x[3] * y
+-	MUL	X17, X6, X17	// z_lo[3] = x[3] * y
+-	ADD	X17, X19, X21	// z_lo[3] = x[3] * y + z[3]
++	MULHU	X17, X6, X18	// x_hi[3] = y[3] * m
++	MUL	X17, X6, X17	// x_lo[3] = y[3] * m
++	ADD	X17, X19, X21	// x_lo[3] = y[3] * m + x[3]
+ 	SLTU	X17, X21, X22
+-	ADD	X18, X22, X18	// z_hi[3] = x[3] * y + z[3]
+-	ADD	X21, X29, X19	// z[3] = x[3] * y + z[3] + c
++	ADD	X18, X22, X18	// x_hi[3] = y[3] * m + x[3]
++	ADD	X21, X29, X19	// x[3] = y[3] * m + x[3] + c
+ 	SLTU	X21, X19, X22
+ 	ADD	X18, X22, X29	// next c
+ 
+-	MOV	X10, 0(X7)	// z[0]
+-	MOV	X13, 8(X7)	// z[1]
+-	MOV	X16, 16(X7)	// z[2]
+-	MOV	X19, 24(X7)	// z[3]
++	MOV	X10, 0(X20)	// z[0]
++	MOV	X13, 8(X20)	// z[1]
++	MOV	X16, 16(X20)	// z[2]
++	MOV	X19, 24(X20)	// z[3]
+ 
+ 	ADD	$32, X5
+ 	ADD	$32, X7
++	ADD	$32, X20
+ 	SUB	$4, X30
+ 
+ 	BGEU	X30, X28, loop4
+ 	BEQZ	X30, done
+ 
+ loop1:
+-	MOV	0(X5), X10	// x
+-	MOV	0(X7), X11	// z
++	MOV	0(X5), X10	// y
++	MOV	0(X7), X11	// x
+ 
+-	MULHU	X10, X6, X12	// z_hi = x * y
+-	MUL	X10, X6, X10	// z_lo = x * y
+-	ADD	X10, X11, X13	// z_lo = x * y + z
++	MULHU	X10, X6, X12	// z_hi = y * m
++	MUL	X10, X6, X10	// z_lo = y * m
++	ADD	X10, X11, X13	// z_lo = y * m + x
+ 	SLTU	X10, X13, X15
+-	ADD	X12, X15, X12	// z_hi = x * y + z
+-	ADD	X13, X29, X10	// z = x * y + z + c
++	ADD	X12, X15, X12	// z_hi = y * m + x
++	ADD	X13, X29, X10	// z = y * m + x + c
+ 	SLTU	X13, X10, X15
+ 	ADD	X12, X15, X29	// next c
+ 
+-	MOV	X10, 0(X7)	// z
++	MOV	X10, 0(X20)	// z
+ 
+ 	ADD	$8, X5
+ 	ADD	$8, X7
++	ADD	$8, X20
+ 	SUB	$1, X30
+ 
+ 	BNEZ	X30, loop1
+ 
+ done:
+-	MOV	X29, c+56(FP)	// return c
++	MOV	X29, c+88(FP)	// return c
+ 	RET
+diff --git a/src/math/big/arith_s390x.s b/src/math/big/arith_s390x.s
+index 01a7bb2d51..b579fc6ebc 100644
+--- a/src/math/big/arith_s390x.s
++++ b/src/math/big/arith_s390x.s
+@@ -691,12 +691,12 @@ TEXT ·shrVU(SB), NOSPLIT, $0
+ 	BR ·shrVU_g(SB)
+ 
+ // CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, DX = r3, AX = r6, BX = R1, (R0 set to 0) + use R11 + use R7 for i
+-// func mulAddVWW(z, x []Word, y, r Word) (c Word)
++// func mulAddVWW(z, x []Word, m, a Word) (c Word)
+ TEXT ·mulAddVWW(SB), NOSPLIT, $0
+ 	MOVD z+0(FP), R2
+ 	MOVD x+24(FP), R8
+-	MOVD y+48(FP), R9
+-	MOVD r+56(FP), R4    // c = r
++	MOVD m+48(FP), R9
++	MOVD a+56(FP), R4    // c = a
+ 	MOVD z_len+8(FP), R5
+ 	MOVD $0, R1          // i = 0
+ 	MOVD $0, R7          // i*8 = 0
+@@ -719,18 +719,19 @@ E5:
+ 	MOVD R4, c+64(FP)
+ 	RET
+ 
+-// func addMulVVW(z, x []Word, y Word) (c Word)
++// func addMulVVWW(z, x, y []Word, m, a Word) (c Word)
+ // CX = R4, r8 = r8, r9=r9, r10 = r2, r11 = r5, AX = r11, DX = R6, r12=r12, BX = R1, (R0 set to 0) + use R11 + use R7 for i
+-TEXT ·addMulVVW(SB), NOSPLIT, $0
+-	MOVD z+0(FP), R2
+-	MOVD x+24(FP), R8
+-	MOVD y+48(FP), R9
++TEXT ·addMulVVWW(SB), NOSPLIT, $0
++	MOVD z+0(FP), R3
++	MOVD x+24(FP), R2
++	MOVD y+48(FP), R8
++	MOVD m+72(FP), R9
+ 	MOVD z_len+8(FP), R5
+ 
+ 	MOVD $0, R1 // i*8 = 0
+ 	MOVD $0, R7 // i = 0
+ 	MOVD $0, R0 // make sure it's zero
+-	MOVD $0, R4 // c = 0
++	MOVD a+80(FP), R4 // c = 0
+ 
+ 	MOVD   R5, R12
+ 	AND    $-2, R12
+@@ -746,7 +747,7 @@ A6:
+ 	ADDC   R4, R11
+ 	ADDE   R0, R6
+ 	MOVD   R6, R4
+-	MOVD   R11, (R2)(R1*1)
++	MOVD   R11, (R3)(R1*1)
+ 
+ 	MOVD   (8)(R8)(R1*1), R6
+ 	MULHDU R9, R6
+@@ -756,7 +757,7 @@ A6:
+ 	ADDC   R4, R11
+ 	ADDE   R0, R6
+ 	MOVD   R6, R4
+-	MOVD   R11, (8)(R2)(R1*1)
++	MOVD   R11, (8)(R3)(R1*1)
+ 
+ 	ADD $16, R1 // i*8 + 8
+ 	ADD $2, R7  // i++
+@@ -773,7 +774,7 @@ L6:
+ 	ADDC   R4, R11
+ 	ADDE   R0, R6
+ 	MOVD   R6, R4
+-	MOVD   R11, (R2)(R1*1)
++	MOVD   R11, (R3)(R1*1)
+ 
+ 	ADD $8, R1 // i*8 + 8
+ 	ADD $1, R7 // i++
+@@ -781,6 +782,6 @@ L6:
+ E6:
+ 	CMPBLT R7, R5, L6 // i < n
+ 
+-	MOVD R4, c+56(FP)
++	MOVD R4, c+88(FP)
+ 	RET
+ 
+diff --git a/src/math/big/arith_test.go b/src/math/big/arith_test.go
+index feffa1bc95..8a7d3e6384 100644
+--- a/src/math/big/arith_test.go
++++ b/src/math/big/arith_test.go
+@@ -629,7 +629,7 @@ func BenchmarkMulAddVWW(b *testing.B) {
+ 		if isRaceBuilder && n > 1e3 {
+ 			continue
+ 		}
+-		z := make([]Word, n+1)
++		z := make([]Word, n)
+ 		x := rndV(n)
+ 		y := rndW()
+ 		r := rndW()
+@@ -642,18 +642,20 @@ func BenchmarkMulAddVWW(b *testing.B) {
+ 	}
+ }
+ 
+-func BenchmarkAddMulVVW(b *testing.B) {
++func BenchmarkAddMulVVWW(b *testing.B) {
+ 	for _, n := range benchSizes {
+ 		if isRaceBuilder && n > 1e3 {
+ 			continue
+ 		}
+-		x := rndV(n)
+-		y := rndW()
+ 		z := make([]Word, n)
++		x := rndV(n)
++		y := rndV(n)
++		m := rndW()
++		a := rndW()
+ 		b.Run(fmt.Sprint(n), func(b *testing.B) {
+ 			b.SetBytes(int64(n * _W))
+ 			for i := 0; i < b.N; i++ {
+-				addMulVVW(z, x, y)
++				addMulVVWW(z, x, y, m, a)
+ 			}
+ 		})
+ 	}
+diff --git a/src/math/big/arith_wasm.s b/src/math/big/arith_wasm.s
+index fd51031d8a..bbe743c84b 100644
+--- a/src/math/big/arith_wasm.s
++++ b/src/math/big/arith_wasm.s
+@@ -27,6 +27,6 @@ TEXT ·shrVU(SB),NOSPLIT,$0
+ TEXT ·mulAddVWW(SB),NOSPLIT,$0
+ 	JMP ·mulAddVWW_g(SB)
+ 
+-TEXT ·addMulVVW(SB),NOSPLIT,$0
+-	JMP ·addMulVVW_g(SB)
++TEXT ·addMulVVWW(SB),NOSPLIT,$0
++	JMP ·addMulVVWW_g(SB)
+ 
+diff --git a/src/math/big/nat.go b/src/math/big/nat.go
+index 922cdb4306..1fa0ff79c7 100644
+--- a/src/math/big/nat.go
++++ b/src/math/big/nat.go
+@@ -197,9 +197,9 @@ func (z nat) montgomery(x, y, m nat, k Word, n int) nat {
+ 	var c Word
+ 	for i := 0; i < n; i++ {
+ 		d := y[i]
+-		c2 := addMulVVW(z[i:n+i], x, d)
++		c2 := addMulVVWW(z[i:n+i], z[i:n+i], x, d, 0)
+ 		t := z[i] * k
+-		c3 := addMulVVW(z[i:n+i], m, t)
++		c3 := addMulVVWW(z[i:n+i], z[i:n+i], m, t, 0)
+ 		cx := c + c2
+ 		cy := cx + c3
+ 		z[n+i] = cy
+diff --git a/src/math/big/natmul.go b/src/math/big/natmul.go
+index bd6ab3851c..77c82137dd 100644
+--- a/src/math/big/natmul.go
++++ b/src/math/big/natmul.go
+@@ -126,7 +126,7 @@ func basicSqr(stk *stack, z, x nat) {
+ 		// z collects the squares x[i] * x[i]
+ 		z[2*i+1], z[2*i] = mulWW(d, d)
+ 		// t collects the products x[i] * x[j] where j < i
+-		t[2*i] = addMulVVW(t[i:2*i], x[0:i], d)
++		t[2*i] = addMulVVWW(t[i:2*i], t[i:2*i], x[0:i], d, 0)
+ 	}
+ 	t[2*n-1] = shlVU(t[1:2*n-1], t[1:2*n-1], 1) // double the j < i products
+ 	addVV(z, z, t)                              // combine the result
+@@ -152,7 +152,7 @@ func basicMul(z, x, y nat) {
+ 	clear(z[0 : len(x)+len(y)]) // initialize z
+ 	for i, d := range y {
+ 		if d != 0 {
+-			z[len(x)+i] = addMulVVW(z[i:i+len(x)], x, d)
++			z[len(x)+i] = addMulVVWW(z[i:i+len(x)], z[i:i+len(x)], x, d, 0)
+ 		}
+ 	}
+ }

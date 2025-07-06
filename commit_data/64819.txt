@@ -1,0 +1,66 @@
+commit e6138185db7f0c3390109b3324fc7478f7e20f97
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Sun Sep 8 22:00:13 2024 +0700
+
+    cmd/compile/internal/typecheck: simplify checkmake/checkunsafesliceorstring
+    
+    types2 handles all constant-related bounds checks in user Go code now,
+    so it's safe to remove the constants check from these functions.
+    
+    Change-Id: I4e3fb5d22f9bbc95878c7df2ee3b0eb1819f8dd7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611677
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/typecheck/typecheck.go | 28 -------------------------
+ 1 file changed, 28 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/typecheck.go b/src/cmd/compile/internal/typecheck/typecheck.go
+index cb48bfd7e3..0ebc13cac3 100644
+--- a/src/cmd/compile/internal/typecheck/typecheck.go
++++ b/src/cmd/compile/internal/typecheck/typecheck.go
+@@ -1209,20 +1209,6 @@ func checkmake(t *types.Type, arg string, np *ir.Node) bool {
+ 		return false
+ 	}
+ 
+-	// Do range checks for constants before DefaultLit
+-	// to avoid redundant "constant NNN overflows int" errors.
+-	if n.Op() == ir.OLITERAL {
+-		v := toint(n.Val())
+-		if constant.Sign(v) < 0 {
+-			base.Errorf("negative %s argument in make(%v)", arg, t)
+-			return false
+-		}
+-		if ir.ConstOverflow(v, types.Types[types.TINT]) {
+-			base.Errorf("%s argument too large in make(%v)", arg, t)
+-			return false
+-		}
+-	}
+-
+ 	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.
+ 	// TODO(gri) The length argument requirements for (array/slice) make
+ 	// are the same as for index expressions. Factor the code better;
+@@ -1242,20 +1228,6 @@ func checkunsafesliceorstring(op ir.Op, np *ir.Node) bool {
+ 		return false
+ 	}
+ 
+-	// Do range checks for constants before DefaultLit
+-	// to avoid redundant "constant NNN overflows int" errors.
+-	if n.Op() == ir.OLITERAL {
+-		v := toint(n.Val())
+-		if constant.Sign(v) < 0 {
+-			base.Errorf("negative len argument in %v", op)
+-			return false
+-		}
+-		if ir.ConstOverflow(v, types.Types[types.TINT]) {
+-			base.Errorf("len argument too large in %v", op)
+-			return false
+-		}
+-	}
+-
+ 	// DefaultLit is necessary for non-constants too: n might be 1.1<<k.
+ 	n = DefaultLit(n, types.Types[types.TINT])
+ 	*np = n

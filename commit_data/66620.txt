@@ -1,0 +1,46 @@
+commit 84e0061460d7c9a624a74e13f0212f443b079531
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Mar 17 18:39:31 2025 +0000
+
+    net/http/httputil: document ReverseProxy removal of response headers
+    
+    Fixes #30359
+    
+    Change-Id: I5dfb2cd63c737959fd2f6a0dbf50ff8de18bb15d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658535
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/net/http/httputil/reverseproxy.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/src/net/http/httputil/reverseproxy.go b/src/net/http/httputil/reverseproxy.go
+index 8d3e20c302..6ed4930727 100644
+--- a/src/net/http/httputil/reverseproxy.go
++++ b/src/net/http/httputil/reverseproxy.go
+@@ -102,6 +102,13 @@ func (r *ProxyRequest) SetXForwarded() {
+ //
+ // 1xx responses are forwarded to the client if the underlying
+ // transport supports ClientTrace.Got1xxResponse.
++//
++// Hop-by-hop headers (see RFC 9110, section 7.6.1), including
++// Connection, Proxy-Connection, Keep-Alive, Proxy-Authenticate,
++// Proxy-Authorization, TE, Trailer, Transfer-Encoding, and Upgrade,
++// are removed from client requests and backend responses.
++// The Rewrite function may be used to add hop-by-hop headers to the request,
++// and the ModifyResponse function may be used to remove them from the response.
+ type ReverseProxy struct {
+ 	// Rewrite must be a function which modifies
+ 	// the request into a new request to be sent
+@@ -188,6 +195,10 @@ type ReverseProxy struct {
+ 	// If the backend is unreachable, the optional ErrorHandler is
+ 	// called without any call to ModifyResponse.
+ 	//
++	// Hop-by-hop headers are removed from the response before
++	// calling ModifyResponse. ModifyResponse may need to remove
++	// additional headers to fit its deployment model, such as Alt-Svc.
++	//
+ 	// If ModifyResponse returns an error, ErrorHandler is called
+ 	// with its error value. If ErrorHandler is nil, its default
+ 	// implementation is used.

@@ -1,0 +1,1087 @@
+commit 23f760fd58a0609b9e03da944e7949f7e26a7e29
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 1 13:51:20 2024 -0400
+
+    cmd/go: remove checks that all counters incremented are in counters.txt
+    
+    This change removes cmd/go/testdata/counters.txt. It also removes the
+    code that prepares it and checks that it contains all registered
+    counters as well as counters for all flags and subcommands. It removes
+    the counter registration mechanism, and uses telemetry.NewCounter to
+    create new counters instead. It keeps the tests that check that at least
+    one counter is incremented if the go command is invoked in a script test.
+    
+    Change-Id: Ic6bda5c64e90f0dd7e221968fce0e375e84d6e17
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/counters_test.go             | 140 -------
+ src/cmd/go/internal/base/base.go        |  27 --
+ src/cmd/go/internal/help/help.go        |   3 +-
+ src/cmd/go/internal/modfetch/cache.go   |   3 +-
+ src/cmd/go/internal/toolchain/select.go |   5 +-
+ src/cmd/go/internal/toolchain/switch.go |   3 +-
+ src/cmd/go/main.go                      |   5 +-
+ src/cmd/go/script_test.go               |  20 -
+ src/cmd/go/testdata/counters.txt        | 689 --------------------------------
+ 9 files changed, 11 insertions(+), 884 deletions(-)
+
+diff --git a/src/cmd/go/counters_test.go b/src/cmd/go/counters_test.go
+deleted file mode 100644
+index 7c73889351..0000000000
+--- a/src/cmd/go/counters_test.go
++++ /dev/null
+@@ -1,140 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package main_test
+-
+-import (
+-	"cmd/go/internal/base"
+-	"cmd/go/internal/cfg"
+-	"flag"
+-	"go/build"
+-	"internal/diff"
+-	"os"
+-	"slices"
+-	"strings"
+-	"testing"
+-)
+-
+-var update = flag.Bool("update", false, "if true update testdata/counternames.txt")
+-
+-func TestCounterNamesUpToDate(t *testing.T) {
+-	if !*update {
+-		t.Parallel()
+-	}
+-
+-	var counters []string
+-	// -C is a special case because it's handled by handleChdirFlag rather than
+-	// standard flag processing with FlagSets.
+-	// go/subcommand:unknown is also a special case: it's used when the subcommand
+-	// doesn't match any of the known commands.
+-	counters = append(counters, "go/flag:C", "go/subcommand:unknown")
+-	counters = append(counters, flagscounters("go/flag:", *flag.CommandLine)...)
+-
+-	// Add help (without any arguments) as a special case. cmdcounters adds go help <cmd>
+-	// for all subcommands, but it's also valid to invoke go help without any arguments.
+-	counters = append(counters, "go/subcommand:help")
+-	for _, cmd := range base.Go.Commands {
+-		cmdcounters, err := cmdcounters(nil, cmd)
+-		if err != nil {
+-			t.Fatal(err)
+-		}
+-		counters = append(counters, cmdcounters...)
+-	}
+-
+-	counters = append(counters, base.RegisteredCounterNames()...)
+-	for _, c := range counters {
+-		const counterPrefix = "go/"
+-		if !strings.HasPrefix(c, counterPrefix) {
+-			t.Fatalf("registered counter %q does not start with %q", c, counterPrefix)
+-		}
+-	}
+-
+-	cstr := []byte(strings.Join(counters, "\n") + "\n")
+-	const counterNamesFile = "testdata/counters.txt"
+-	old, err := os.ReadFile(counterNamesFile)
+-	if err != nil {
+-		t.Fatalf("error reading %s: %v", counterNamesFile, err)
+-	}
+-	diff := diff.Diff(counterNamesFile, old, "generated counter names", cstr)
+-	if diff == nil {
+-		t.Logf("%s is up to date.", counterNamesFile)
+-		return
+-	}
+-
+-	if *update {
+-		if err := os.WriteFile(counterNamesFile, cstr, 0666); err != nil {
+-			t.Fatal(err)
+-		}
+-		t.Logf("wrote %d bytes to %s", len(cstr), counterNamesFile)
+-		t.Logf("don't forget to file a proposal to update the list of collected counters")
+-	} else {
+-		t.Logf("\n%s", diff)
+-		t.Errorf("%s is stale. To update, run 'go generate cmd/go'.", counterNamesFile)
+-	}
+-}
+-
+-func flagscounters(prefix string, flagSet flag.FlagSet) []string {
+-	var counters []string
+-	flagSet.VisitAll(func(f *flag.Flag) {
+-		counters = append(counters, prefix+f.Name)
+-	})
+-	return counters
+-}
+-
+-func cmdcounters(previous []string, cmd *base.Command) ([]string, error) {
+-	const subcommandPrefix = "go/subcommand:"
+-	const flagPrefix = "go/flag:"
+-	var counters []string
+-	previousComponent := strings.Join(previous, "-")
+-	if len(previousComponent) > 0 {
+-		previousComponent += "-"
+-	}
+-	if cmd.Runnable() {
+-		if cmd.Name() == "tool" {
+-			// TODO(matloob): Do we expect the same tools to be present on all
+-			// platforms/configurations? Should we only run this on certain
+-			// platforms?
+-			tools, err := toolNames()
+-			if err != nil {
+-				return nil, err
+-			}
+-			for _, t := range tools {
+-				counters = append(counters, subcommandPrefix+previousComponent+cmd.Name()+"-"+t)
+-			}
+-			counters = append(counters, subcommandPrefix+previousComponent+cmd.Name()+"-unknown")
+-		}
+-		counters = append(counters, subcommandPrefix+previousComponent+cmd.Name())
+-	}
+-	counters = append(counters, flagscounters(flagPrefix+previousComponent+cmd.Name()+"-", cmd.Flag)...)
+-	if len(previous) != 0 {
+-		counters = append(counters, subcommandPrefix+previousComponent+"help-"+cmd.Name())
+-	}
+-	counters = append(counters, subcommandPrefix+"help-"+previousComponent+cmd.Name())
+-
+-	for _, subcmd := range cmd.Commands {
+-		subcmdcounters, err := cmdcounters(append(slices.Clone(previous), cmd.Name()), subcmd)
+-		if err != nil {
+-			return nil, err
+-		}
+-		counters = append(counters, subcmdcounters...)
+-	}
+-	return counters, nil
+-}
+-
+-// toolNames returns the list of basenames of executables in the tool dir.
+-func toolNames() ([]string, error) {
+-	entries, err := os.ReadDir(build.ToolDir)
+-	if err != nil {
+-		return nil, err
+-	}
+-	var names []string
+-	for _, e := range entries {
+-		if e.IsDir() {
+-			continue
+-		}
+-		name := strings.TrimSuffix(e.Name(), cfg.ToolExeSuffix())
+-		names = append(names, name)
+-	}
+-	return names, nil
+-}
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index cc3f94e56c..2171d13909 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -7,7 +7,6 @@
+ package base
+ 
+ import (
+-	"cmd/internal/telemetry"
+ 	"context"
+ 	"flag"
+ 	"fmt"
+@@ -15,7 +14,6 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"reflect"
+-	"sort"
+ 	"strings"
+ 	"sync"
+ 
+@@ -223,28 +221,3 @@ func RunStdin(cmdline []string) {
+ // Usage is the usage-reporting function, filled in by package main
+ // but here for reference by other packages.
+ var Usage func()
+-
+-var counterNames = map[string]bool{}
+-
+-type Counter interface {
+-	Inc()
+-}
+-
+-// NewCounter registers a new counter. It must be called from an init function
+-// or global variable initializer.
+-func NewCounter(name string) Counter {
+-	if counterNames[name] {
+-		panic(fmt.Errorf("counter %q initialized twice", name))
+-	}
+-	counterNames[name] = true
+-	return telemetry.NewCounter(name)
+-}
+-
+-func RegisteredCounterNames() []string {
+-	var names []string
+-	for name := range counterNames {
+-		names = append(names, name)
+-	}
+-	sort.Strings(names)
+-	return names
+-}
+diff --git a/src/cmd/go/internal/help/help.go b/src/cmd/go/internal/help/help.go
+index a2ecd6cf41..98382f2423 100644
+--- a/src/cmd/go/internal/help/help.go
++++ b/src/cmd/go/internal/help/help.go
+@@ -16,9 +16,10 @@ import (
+ 	"unicode/utf8"
+ 
+ 	"cmd/go/internal/base"
++	"cmd/internal/telemetry"
+ )
+ 
+-var counterErrorsHelpUnknownTopic = base.NewCounter("go/errors:help-unknown-topic")
++var counterErrorsHelpUnknownTopic = telemetry.NewCounter("go/errors:help-unknown-topic")
+ 
+ // Help implements the 'help' command.
+ func Help(w io.Writer, args []string) {
+diff --git a/src/cmd/go/internal/modfetch/cache.go b/src/cmd/go/internal/modfetch/cache.go
+index da76511d06..75b28b9bbc 100644
+--- a/src/cmd/go/internal/modfetch/cache.go
++++ b/src/cmd/go/internal/modfetch/cache.go
+@@ -26,6 +26,7 @@ import (
+ 	"cmd/go/internal/modfetch/codehost"
+ 	"cmd/go/internal/par"
+ 	"cmd/go/internal/robustio"
++	"cmd/internal/telemetry"
+ 
+ 	"golang.org/x/mod/module"
+ 	"golang.org/x/mod/semver"
+@@ -778,7 +779,7 @@ var (
+ 	statCacheOnce sync.Once
+ 	statCacheErr  error
+ 
+-	counterErrorsGOMODCACHEEntryRelative = base.NewCounter("go/errors:gomodcache-entry-relative")
++	counterErrorsGOMODCACHEEntryRelative = telemetry.NewCounter("go/errors:gomodcache-entry-relative")
+ )
+ 
+ // checkCacheDir checks if the directory specified by GOMODCACHE exists. An
+diff --git a/src/cmd/go/internal/toolchain/select.go b/src/cmd/go/internal/toolchain/select.go
+index 79f12f34bd..5115b59711 100644
+--- a/src/cmd/go/internal/toolchain/select.go
++++ b/src/cmd/go/internal/toolchain/select.go
+@@ -26,6 +26,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/run"
+ 	"cmd/go/internal/work"
++	"cmd/internal/telemetry"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -81,7 +82,7 @@ func FilterEnv(env []string) []string {
+ 	return out
+ }
+ 
+-var counterErrorsInvalidToolchainInFile = base.NewCounter("go/errors:invalid-toolchain-in-file")
++var counterErrorsInvalidToolchainInFile = telemetry.NewCounter("go/errors:invalid-toolchain-in-file")
+ 
+ // Select invokes a different Go toolchain if directed by
+ // the GOTOOLCHAIN environment variable or the user's configuration
+@@ -245,7 +246,7 @@ func Select() {
+ 	Exec(gotoolchain)
+ }
+ 
+-var counterSelectExec = base.NewCounter("go/toolchain/select-exec")
++var counterSelectExec = telemetry.NewCounter("go/toolchain/select-exec")
+ 
+ // TestVersionSwitch is set in the test go binary to the value in $TESTGO_VERSION_SWITCH.
+ // Valid settings are:
+diff --git a/src/cmd/go/internal/toolchain/switch.go b/src/cmd/go/internal/toolchain/switch.go
+index 1b1ce30c02..ba1e6973cf 100644
+--- a/src/cmd/go/internal/toolchain/switch.go
++++ b/src/cmd/go/internal/toolchain/switch.go
+@@ -16,6 +16,7 @@ import (
+ 	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modfetch"
++	"cmd/internal/telemetry"
+ )
+ 
+ // A Switcher collects errors to be reported and then decides
+@@ -103,7 +104,7 @@ func (s *Switcher) Switch(ctx context.Context) {
+ 	panic("unreachable")
+ }
+ 
+-var counterSwitchExec = base.NewCounter("go/toolchain/switch-exec")
++var counterSwitchExec = telemetry.NewCounter("go/toolchain/switch-exec")
+ 
+ // SwitchOrFatal attempts a toolchain switch based on the information in err
+ // and otherwise falls back to base.Fatal(err).
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 73fe612e75..dc2a8fd49c 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -3,12 +3,10 @@
+ // license that can be found in the LICENSE file.
+ 
+ //go:generate go test cmd/go -v -run=^TestDocsUpToDate$ -fixdocs
+-//go:generate go test cmd/go -v -run=^TestCounterNamesUpToDate$ -update
+ 
+ package main
+ 
+ import (
+-	"cmd/internal/telemetry"
+ 	"context"
+ 	"flag"
+ 	"fmt"
+@@ -44,6 +42,7 @@ import (
+ 	"cmd/go/internal/vet"
+ 	"cmd/go/internal/work"
+ 	"cmd/go/internal/workcmd"
++	"cmd/internal/telemetry"
+ )
+ 
+ func init() {
+@@ -89,7 +88,7 @@ func init() {
+ 
+ var _ = go11tag
+ 
+-var counterErrorsGOPATHEntryRelative = base.NewCounter("go/errors:gopath-entry-relative")
++var counterErrorsGOPATHEntryRelative = telemetry.NewCounter("go/errors:gopath-entry-relative")
+ 
+ func main() {
+ 	log.SetFlags(0)
+diff --git a/src/cmd/go/script_test.go b/src/cmd/go/script_test.go
+index fa660bafc8..a38dec3610 100644
+--- a/src/cmd/go/script_test.go
++++ b/src/cmd/go/script_test.go
+@@ -22,7 +22,6 @@ import (
+ 	"path/filepath"
+ 	"runtime"
+ 	"strings"
+-	"sync"
+ 	"testing"
+ 	"time"
+ 
+@@ -395,32 +394,13 @@ func readCounters(t *testing.T, telemetryDir string) map[string]uint64 {
+ 	return totals
+ }
+ 
+-//go:embed testdata/counters.txt
+-var countersTxt string
+-
+-var (
+-	allowedCountersOnce sync.Once
+-	allowedCounters     = map[string]bool{} // Set of allowed counters.
+-)
+-
+ func checkCounters(t *testing.T, telemetryDir string) {
+-	allowedCountersOnce.Do(func() {
+-		for _, counter := range strings.Fields(countersTxt) {
+-			allowedCounters[counter] = true
+-		}
+-	})
+ 	counters := readCounters(t, telemetryDir)
+ 	if _, ok := scriptGoInvoked.Load(testing.TB(t)); ok {
+ 		if !disabledOnPlatform && len(counters) == 0 {
+ 			t.Fatal("go was invoked but no counters were incremented")
+ 		}
+ 	}
+-	for name := range counters {
+-		if !allowedCounters[name] {
+-			t.Fatalf("incremented counter %q is not in testdata/counters.txt. "+
+-				"Please update counters_test.go to produce an entry for it.", name)
+-		}
+-	}
+ }
+ 
+ // Copied from https://go.googlesource.com/telemetry/+/5f08a0cbff3f/internal/telemetry/mode.go#122
+diff --git a/src/cmd/go/testdata/counters.txt b/src/cmd/go/testdata/counters.txt
+deleted file mode 100644
+index 109be96556..0000000000
+--- a/src/cmd/go/testdata/counters.txt
++++ /dev/null
+@@ -1,689 +0,0 @@
+-go/flag:C
+-go/subcommand:unknown
+-go/flag:fixdocs
+-go/flag:fixreadme
+-go/flag:flaky
+-go/flag:proxy
+-go/flag:test.bench
+-go/flag:test.benchmem
+-go/flag:test.benchtime
+-go/flag:test.blockprofile
+-go/flag:test.blockprofilerate
+-go/flag:test.count
+-go/flag:test.coverprofile
+-go/flag:test.cpu
+-go/flag:test.cpuprofile
+-go/flag:test.failfast
+-go/flag:test.fullpath
+-go/flag:test.fuzz
+-go/flag:test.fuzzcachedir
+-go/flag:test.fuzzminimizetime
+-go/flag:test.fuzztime
+-go/flag:test.fuzzworker
+-go/flag:test.gocoverdir
+-go/flag:test.list
+-go/flag:test.memprofile
+-go/flag:test.memprofilerate
+-go/flag:test.mutexprofile
+-go/flag:test.mutexprofilefraction
+-go/flag:test.outputdir
+-go/flag:test.paniconexit0
+-go/flag:test.parallel
+-go/flag:test.run
+-go/flag:test.short
+-go/flag:test.shuffle
+-go/flag:test.skip
+-go/flag:test.testlogfile
+-go/flag:test.timeout
+-go/flag:test.trace
+-go/flag:test.v
+-go/flag:testsum
+-go/flag:testwork
+-go/flag:update
+-go/subcommand:help
+-go/subcommand:bug
+-go/flag:bug-C
+-go/flag:bug-v
+-go/subcommand:help-bug
+-go/subcommand:build
+-go/flag:build-C
+-go/flag:build-a
+-go/flag:build-asan
+-go/flag:build-asmflags
+-go/flag:build-buildmode
+-go/flag:build-buildvcs
+-go/flag:build-compiler
+-go/flag:build-cover
+-go/flag:build-covermode
+-go/flag:build-coverpkg
+-go/flag:build-debug-actiongraph
+-go/flag:build-debug-runtime-trace
+-go/flag:build-debug-trace
+-go/flag:build-gccgoflags
+-go/flag:build-gcflags
+-go/flag:build-installsuffix
+-go/flag:build-ldflags
+-go/flag:build-linkshared
+-go/flag:build-mod
+-go/flag:build-modcacherw
+-go/flag:build-modfile
+-go/flag:build-msan
+-go/flag:build-n
+-go/flag:build-o
+-go/flag:build-overlay
+-go/flag:build-p
+-go/flag:build-pgo
+-go/flag:build-pkgdir
+-go/flag:build-race
+-go/flag:build-tags
+-go/flag:build-toolexec
+-go/flag:build-trimpath
+-go/flag:build-v
+-go/flag:build-work
+-go/flag:build-x
+-go/subcommand:help-build
+-go/subcommand:clean
+-go/flag:clean-C
+-go/flag:clean-a
+-go/flag:clean-asan
+-go/flag:clean-asmflags
+-go/flag:clean-buildmode
+-go/flag:clean-buildvcs
+-go/flag:clean-cache
+-go/flag:clean-compiler
+-go/flag:clean-debug-actiongraph
+-go/flag:clean-debug-runtime-trace
+-go/flag:clean-debug-trace
+-go/flag:clean-fuzzcache
+-go/flag:clean-gccgoflags
+-go/flag:clean-gcflags
+-go/flag:clean-i
+-go/flag:clean-installsuffix
+-go/flag:clean-ldflags
+-go/flag:clean-linkshared
+-go/flag:clean-mod
+-go/flag:clean-modcache
+-go/flag:clean-modcacherw
+-go/flag:clean-modfile
+-go/flag:clean-msan
+-go/flag:clean-n
+-go/flag:clean-overlay
+-go/flag:clean-p
+-go/flag:clean-pgo
+-go/flag:clean-pkgdir
+-go/flag:clean-r
+-go/flag:clean-race
+-go/flag:clean-tags
+-go/flag:clean-testcache
+-go/flag:clean-toolexec
+-go/flag:clean-trimpath
+-go/flag:clean-v
+-go/flag:clean-work
+-go/flag:clean-x
+-go/subcommand:help-clean
+-go/subcommand:doc
+-go/subcommand:help-doc
+-go/subcommand:env
+-go/flag:env-C
+-go/flag:env-json
+-go/flag:env-n
+-go/flag:env-u
+-go/flag:env-w
+-go/flag:env-x
+-go/subcommand:help-env
+-go/subcommand:fix
+-go/flag:fix-C
+-go/flag:fix-a
+-go/flag:fix-asan
+-go/flag:fix-asmflags
+-go/flag:fix-buildmode
+-go/flag:fix-buildvcs
+-go/flag:fix-compiler
+-go/flag:fix-debug-actiongraph
+-go/flag:fix-debug-runtime-trace
+-go/flag:fix-debug-trace
+-go/flag:fix-fix
+-go/flag:fix-gccgoflags
+-go/flag:fix-gcflags
+-go/flag:fix-installsuffix
+-go/flag:fix-ldflags
+-go/flag:fix-linkshared
+-go/flag:fix-mod
+-go/flag:fix-modcacherw
+-go/flag:fix-modfile
+-go/flag:fix-msan
+-go/flag:fix-n
+-go/flag:fix-overlay
+-go/flag:fix-p
+-go/flag:fix-pgo
+-go/flag:fix-pkgdir
+-go/flag:fix-race
+-go/flag:fix-tags
+-go/flag:fix-toolexec
+-go/flag:fix-trimpath
+-go/flag:fix-v
+-go/flag:fix-work
+-go/flag:fix-x
+-go/subcommand:help-fix
+-go/subcommand:fmt
+-go/flag:fmt-C
+-go/flag:fmt-mod
+-go/flag:fmt-modcacherw
+-go/flag:fmt-modfile
+-go/flag:fmt-n
+-go/flag:fmt-overlay
+-go/flag:fmt-x
+-go/subcommand:help-fmt
+-go/subcommand:generate
+-go/flag:generate-C
+-go/flag:generate-a
+-go/flag:generate-asan
+-go/flag:generate-asmflags
+-go/flag:generate-buildmode
+-go/flag:generate-buildvcs
+-go/flag:generate-compiler
+-go/flag:generate-debug-actiongraph
+-go/flag:generate-debug-runtime-trace
+-go/flag:generate-debug-trace
+-go/flag:generate-gccgoflags
+-go/flag:generate-gcflags
+-go/flag:generate-installsuffix
+-go/flag:generate-ldflags
+-go/flag:generate-linkshared
+-go/flag:generate-mod
+-go/flag:generate-modcacherw
+-go/flag:generate-modfile
+-go/flag:generate-msan
+-go/flag:generate-n
+-go/flag:generate-overlay
+-go/flag:generate-p
+-go/flag:generate-pgo
+-go/flag:generate-pkgdir
+-go/flag:generate-race
+-go/flag:generate-run
+-go/flag:generate-skip
+-go/flag:generate-tags
+-go/flag:generate-toolexec
+-go/flag:generate-trimpath
+-go/flag:generate-v
+-go/flag:generate-work
+-go/flag:generate-x
+-go/subcommand:help-generate
+-go/subcommand:get
+-go/flag:get-C
+-go/flag:get-a
+-go/flag:get-asan
+-go/flag:get-asmflags
+-go/flag:get-buildmode
+-go/flag:get-buildvcs
+-go/flag:get-compiler
+-go/flag:get-d
+-go/flag:get-debug-actiongraph
+-go/flag:get-debug-runtime-trace
+-go/flag:get-debug-trace
+-go/flag:get-f
+-go/flag:get-fix
+-go/flag:get-gccgoflags
+-go/flag:get-gcflags
+-go/flag:get-insecure
+-go/flag:get-installsuffix
+-go/flag:get-ldflags
+-go/flag:get-linkshared
+-go/flag:get-m
+-go/flag:get-modcacherw
+-go/flag:get-modfile
+-go/flag:get-msan
+-go/flag:get-n
+-go/flag:get-overlay
+-go/flag:get-p
+-go/flag:get-pgo
+-go/flag:get-pkgdir
+-go/flag:get-race
+-go/flag:get-t
+-go/flag:get-tags
+-go/flag:get-toolexec
+-go/flag:get-trimpath
+-go/flag:get-u
+-go/flag:get-v
+-go/flag:get-work
+-go/flag:get-x
+-go/subcommand:help-get
+-go/subcommand:install
+-go/flag:install-C
+-go/flag:install-a
+-go/flag:install-asan
+-go/flag:install-asmflags
+-go/flag:install-buildmode
+-go/flag:install-buildvcs
+-go/flag:install-compiler
+-go/flag:install-cover
+-go/flag:install-covermode
+-go/flag:install-coverpkg
+-go/flag:install-debug-actiongraph
+-go/flag:install-debug-runtime-trace
+-go/flag:install-debug-trace
+-go/flag:install-gccgoflags
+-go/flag:install-gcflags
+-go/flag:install-installsuffix
+-go/flag:install-ldflags
+-go/flag:install-linkshared
+-go/flag:install-mod
+-go/flag:install-modcacherw
+-go/flag:install-modfile
+-go/flag:install-msan
+-go/flag:install-n
+-go/flag:install-overlay
+-go/flag:install-p
+-go/flag:install-pgo
+-go/flag:install-pkgdir
+-go/flag:install-race
+-go/flag:install-tags
+-go/flag:install-toolexec
+-go/flag:install-trimpath
+-go/flag:install-v
+-go/flag:install-work
+-go/flag:install-x
+-go/subcommand:help-install
+-go/subcommand:list
+-go/flag:list-C
+-go/flag:list-a
+-go/flag:list-asan
+-go/flag:list-asmflags
+-go/flag:list-buildmode
+-go/flag:list-buildvcs
+-go/flag:list-compiled
+-go/flag:list-compiler
+-go/flag:list-cover
+-go/flag:list-covermode
+-go/flag:list-coverpkg
+-go/flag:list-debug-actiongraph
+-go/flag:list-debug-runtime-trace
+-go/flag:list-debug-trace
+-go/flag:list-deps
+-go/flag:list-e
+-go/flag:list-export
+-go/flag:list-f
+-go/flag:list-find
+-go/flag:list-gccgoflags
+-go/flag:list-gcflags
+-go/flag:list-installsuffix
+-go/flag:list-json
+-go/flag:list-ldflags
+-go/flag:list-linkshared
+-go/flag:list-m
+-go/flag:list-mod
+-go/flag:list-modcacherw
+-go/flag:list-modfile
+-go/flag:list-msan
+-go/flag:list-n
+-go/flag:list-overlay
+-go/flag:list-p
+-go/flag:list-pgo
+-go/flag:list-pkgdir
+-go/flag:list-race
+-go/flag:list-retracted
+-go/flag:list-reuse
+-go/flag:list-tags
+-go/flag:list-test
+-go/flag:list-toolexec
+-go/flag:list-trimpath
+-go/flag:list-u
+-go/flag:list-v
+-go/flag:list-versions
+-go/flag:list-work
+-go/flag:list-x
+-go/subcommand:help-list
+-go/subcommand:help-mod
+-go/subcommand:mod-download
+-go/flag:mod-download-C
+-go/flag:mod-download-json
+-go/flag:mod-download-modcacherw
+-go/flag:mod-download-modfile
+-go/flag:mod-download-overlay
+-go/flag:mod-download-reuse
+-go/flag:mod-download-x
+-go/subcommand:mod-help-download
+-go/subcommand:help-mod-download
+-go/subcommand:mod-edit
+-go/flag:mod-edit-C
+-go/flag:mod-edit-dropexclude
+-go/flag:mod-edit-dropreplace
+-go/flag:mod-edit-droprequire
+-go/flag:mod-edit-dropretract
+-go/flag:mod-edit-exclude
+-go/flag:mod-edit-fmt
+-go/flag:mod-edit-go
+-go/flag:mod-edit-json
+-go/flag:mod-edit-modcacherw
+-go/flag:mod-edit-modfile
+-go/flag:mod-edit-module
+-go/flag:mod-edit-n
+-go/flag:mod-edit-overlay
+-go/flag:mod-edit-print
+-go/flag:mod-edit-replace
+-go/flag:mod-edit-require
+-go/flag:mod-edit-retract
+-go/flag:mod-edit-toolchain
+-go/flag:mod-edit-x
+-go/subcommand:mod-help-edit
+-go/subcommand:help-mod-edit
+-go/subcommand:mod-graph
+-go/flag:mod-graph-C
+-go/flag:mod-graph-go
+-go/flag:mod-graph-modcacherw
+-go/flag:mod-graph-modfile
+-go/flag:mod-graph-overlay
+-go/flag:mod-graph-x
+-go/subcommand:mod-help-graph
+-go/subcommand:help-mod-graph
+-go/subcommand:mod-init
+-go/flag:mod-init-C
+-go/flag:mod-init-modcacherw
+-go/flag:mod-init-modfile
+-go/flag:mod-init-overlay
+-go/subcommand:mod-help-init
+-go/subcommand:help-mod-init
+-go/subcommand:mod-tidy
+-go/flag:mod-tidy-C
+-go/flag:mod-tidy-compat
+-go/flag:mod-tidy-e
+-go/flag:mod-tidy-go
+-go/flag:mod-tidy-modcacherw
+-go/flag:mod-tidy-modfile
+-go/flag:mod-tidy-overlay
+-go/flag:mod-tidy-v
+-go/flag:mod-tidy-x
+-go/subcommand:mod-help-tidy
+-go/subcommand:help-mod-tidy
+-go/subcommand:mod-vendor
+-go/flag:mod-vendor-C
+-go/flag:mod-vendor-e
+-go/flag:mod-vendor-modcacherw
+-go/flag:mod-vendor-modfile
+-go/flag:mod-vendor-o
+-go/flag:mod-vendor-overlay
+-go/flag:mod-vendor-v
+-go/subcommand:mod-help-vendor
+-go/subcommand:help-mod-vendor
+-go/subcommand:mod-verify
+-go/flag:mod-verify-C
+-go/flag:mod-verify-modcacherw
+-go/flag:mod-verify-modfile
+-go/flag:mod-verify-overlay
+-go/subcommand:mod-help-verify
+-go/subcommand:help-mod-verify
+-go/subcommand:mod-why
+-go/flag:mod-why-C
+-go/flag:mod-why-m
+-go/flag:mod-why-modcacherw
+-go/flag:mod-why-modfile
+-go/flag:mod-why-overlay
+-go/flag:mod-why-vendor
+-go/subcommand:mod-help-why
+-go/subcommand:help-mod-why
+-go/subcommand:help-work
+-go/subcommand:work-edit
+-go/flag:work-edit-C
+-go/flag:work-edit-dropreplace
+-go/flag:work-edit-dropuse
+-go/flag:work-edit-fmt
+-go/flag:work-edit-go
+-go/flag:work-edit-json
+-go/flag:work-edit-print
+-go/flag:work-edit-replace
+-go/flag:work-edit-toolchain
+-go/flag:work-edit-use
+-go/subcommand:work-help-edit
+-go/subcommand:help-work-edit
+-go/subcommand:work-init
+-go/flag:work-init-C
+-go/flag:work-init-modcacherw
+-go/flag:work-init-modfile
+-go/flag:work-init-overlay
+-go/subcommand:work-help-init
+-go/subcommand:help-work-init
+-go/subcommand:work-sync
+-go/flag:work-sync-C
+-go/flag:work-sync-modcacherw
+-go/flag:work-sync-modfile
+-go/flag:work-sync-overlay
+-go/subcommand:work-help-sync
+-go/subcommand:help-work-sync
+-go/subcommand:work-use
+-go/flag:work-use-C
+-go/flag:work-use-modcacherw
+-go/flag:work-use-modfile
+-go/flag:work-use-overlay
+-go/flag:work-use-r
+-go/subcommand:work-help-use
+-go/subcommand:help-work-use
+-go/subcommand:work-vendor
+-go/flag:work-vendor-C
+-go/flag:work-vendor-e
+-go/flag:work-vendor-modcacherw
+-go/flag:work-vendor-modfile
+-go/flag:work-vendor-o
+-go/flag:work-vendor-overlay
+-go/flag:work-vendor-v
+-go/subcommand:work-help-vendor
+-go/subcommand:help-work-vendor
+-go/subcommand:run
+-go/flag:run-C
+-go/flag:run-a
+-go/flag:run-asan
+-go/flag:run-asmflags
+-go/flag:run-buildmode
+-go/flag:run-buildvcs
+-go/flag:run-compiler
+-go/flag:run-cover
+-go/flag:run-covermode
+-go/flag:run-coverpkg
+-go/flag:run-debug-actiongraph
+-go/flag:run-debug-runtime-trace
+-go/flag:run-debug-trace
+-go/flag:run-exec
+-go/flag:run-gccgoflags
+-go/flag:run-gcflags
+-go/flag:run-installsuffix
+-go/flag:run-ldflags
+-go/flag:run-linkshared
+-go/flag:run-mod
+-go/flag:run-modcacherw
+-go/flag:run-modfile
+-go/flag:run-msan
+-go/flag:run-n
+-go/flag:run-overlay
+-go/flag:run-p
+-go/flag:run-pgo
+-go/flag:run-pkgdir
+-go/flag:run-race
+-go/flag:run-tags
+-go/flag:run-toolexec
+-go/flag:run-trimpath
+-go/flag:run-v
+-go/flag:run-work
+-go/flag:run-x
+-go/subcommand:help-run
+-go/subcommand:test
+-go/flag:test-C
+-go/flag:test-a
+-go/flag:test-asan
+-go/flag:test-asmflags
+-go/flag:test-bench
+-go/flag:test-benchmem
+-go/flag:test-benchtime
+-go/flag:test-blockprofile
+-go/flag:test-blockprofilerate
+-go/flag:test-buildmode
+-go/flag:test-buildvcs
+-go/flag:test-c
+-go/flag:test-compiler
+-go/flag:test-count
+-go/flag:test-cover
+-go/flag:test-covermode
+-go/flag:test-coverpkg
+-go/flag:test-coverprofile
+-go/flag:test-cpu
+-go/flag:test-cpuprofile
+-go/flag:test-debug-actiongraph
+-go/flag:test-debug-runtime-trace
+-go/flag:test-debug-trace
+-go/flag:test-exec
+-go/flag:test-failfast
+-go/flag:test-fullpath
+-go/flag:test-fuzz
+-go/flag:test-fuzzminimizetime
+-go/flag:test-fuzztime
+-go/flag:test-gccgoflags
+-go/flag:test-gcflags
+-go/flag:test-installsuffix
+-go/flag:test-json
+-go/flag:test-ldflags
+-go/flag:test-linkshared
+-go/flag:test-list
+-go/flag:test-memprofile
+-go/flag:test-memprofilerate
+-go/flag:test-mod
+-go/flag:test-modcacherw
+-go/flag:test-modfile
+-go/flag:test-msan
+-go/flag:test-mutexprofile
+-go/flag:test-mutexprofilefraction
+-go/flag:test-n
+-go/flag:test-o
+-go/flag:test-outputdir
+-go/flag:test-overlay
+-go/flag:test-p
+-go/flag:test-parallel
+-go/flag:test-pgo
+-go/flag:test-pkgdir
+-go/flag:test-race
+-go/flag:test-run
+-go/flag:test-short
+-go/flag:test-shuffle
+-go/flag:test-skip
+-go/flag:test-tags
+-go/flag:test-test.bench
+-go/flag:test-test.benchmem
+-go/flag:test-test.benchtime
+-go/flag:test-test.blockprofile
+-go/flag:test-test.blockprofilerate
+-go/flag:test-test.count
+-go/flag:test-test.coverprofile
+-go/flag:test-test.cpu
+-go/flag:test-test.cpuprofile
+-go/flag:test-test.failfast
+-go/flag:test-test.fullpath
+-go/flag:test-test.fuzz
+-go/flag:test-test.fuzzminimizetime
+-go/flag:test-test.fuzztime
+-go/flag:test-test.list
+-go/flag:test-test.memprofile
+-go/flag:test-test.memprofilerate
+-go/flag:test-test.mutexprofile
+-go/flag:test-test.mutexprofilefraction
+-go/flag:test-test.outputdir
+-go/flag:test-test.parallel
+-go/flag:test-test.run
+-go/flag:test-test.short
+-go/flag:test-test.shuffle
+-go/flag:test-test.skip
+-go/flag:test-test.timeout
+-go/flag:test-test.trace
+-go/flag:test-test.v
+-go/flag:test-timeout
+-go/flag:test-toolexec
+-go/flag:test-trace
+-go/flag:test-trimpath
+-go/flag:test-v
+-go/flag:test-vet
+-go/flag:test-work
+-go/flag:test-x
+-go/subcommand:help-test
+-go/subcommand:tool-addr2line
+-go/subcommand:tool-asm
+-go/subcommand:tool-buildid
+-go/subcommand:tool-cgo
+-go/subcommand:tool-compile
+-go/subcommand:tool-covdata
+-go/subcommand:tool-cover
+-go/subcommand:tool-dist
+-go/subcommand:tool-distpack
+-go/subcommand:tool-doc
+-go/subcommand:tool-fix
+-go/subcommand:tool-link
+-go/subcommand:tool-nm
+-go/subcommand:tool-objdump
+-go/subcommand:tool-pack
+-go/subcommand:tool-pprof
+-go/subcommand:tool-preprofile
+-go/subcommand:tool-test2json
+-go/subcommand:tool-trace
+-go/subcommand:tool-vet
+-go/subcommand:tool-unknown
+-go/subcommand:tool
+-go/flag:tool-C
+-go/flag:tool-n
+-go/subcommand:help-tool
+-go/subcommand:version
+-go/flag:version-C
+-go/flag:version-m
+-go/flag:version-v
+-go/subcommand:help-version
+-go/subcommand:vet
+-go/flag:vet-C
+-go/flag:vet-a
+-go/flag:vet-asan
+-go/flag:vet-asmflags
+-go/flag:vet-buildmode
+-go/flag:vet-buildvcs
+-go/flag:vet-compiler
+-go/flag:vet-debug-actiongraph
+-go/flag:vet-debug-runtime-trace
+-go/flag:vet-debug-trace
+-go/flag:vet-gccgoflags
+-go/flag:vet-gcflags
+-go/flag:vet-installsuffix
+-go/flag:vet-ldflags
+-go/flag:vet-linkshared
+-go/flag:vet-mod
+-go/flag:vet-modcacherw
+-go/flag:vet-modfile
+-go/flag:vet-msan
+-go/flag:vet-n
+-go/flag:vet-overlay
+-go/flag:vet-p
+-go/flag:vet-pgo
+-go/flag:vet-pkgdir
+-go/flag:vet-race
+-go/flag:vet-tags
+-go/flag:vet-toolexec
+-go/flag:vet-trimpath
+-go/flag:vet-v
+-go/flag:vet-vettool
+-go/flag:vet-work
+-go/flag:vet-x
+-go/subcommand:help-vet
+-go/subcommand:help-buildconstraint
+-go/subcommand:help-buildmode
+-go/subcommand:help-c
+-go/subcommand:help-cache
+-go/subcommand:help-environment
+-go/subcommand:help-filetype
+-go/subcommand:help-go.mod
+-go/subcommand:help-gopath
+-go/subcommand:help-goproxy
+-go/subcommand:help-importpath
+-go/subcommand:help-modules
+-go/subcommand:help-module-auth
+-go/subcommand:help-packages
+-go/subcommand:help-private
+-go/subcommand:help-testflag
+-go/subcommand:help-testfunc
+-go/subcommand:help-vcs
+-go/errors:gomodcache-entry-relative
+-go/errors:gopath-entry-relative
+-go/errors:help-unknown-topic
+-go/errors:invalid-toolchain-in-file
+-go/toolchain/select-exec
+-go/toolchain/switch-exec

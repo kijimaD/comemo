@@ -1,0 +1,34 @@
+commit ff86b8b62f1fc00920bb49023c91be3b24ea71bc
+Author: Charlie Vieth <charlie.vieth@gmail.com>
+Date:   Sat Oct 26 18:59:47 2024 -0400
+
+    database/sql: allocate once when assigning a time.Time to a byte slice
+    
+    Change convertAssignRows to use time.AppendFormat and a pre-allocated
+    buffer when assigning a time.Time to a byte slice. Previously, the
+    result of time.Format was converted to a byte slice which required
+    two allocations.
+    
+    Change-Id: I19db5e4d295e882070f947eca318a4e33520cda1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622597
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/database/sql/convert.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/convert.go b/src/database/sql/convert.go
+index c261046b18..65fdfe6fa8 100644
+--- a/src/database/sql/convert.go
++++ b/src/database/sql/convert.go
+@@ -290,7 +290,7 @@ func convertAssignRows(dest, src any, rows *Rows) error {
+ 			if d == nil {
+ 				return errNilPtr
+ 			}
+-			*d = []byte(s.Format(time.RFC3339Nano))
++			*d = s.AppendFormat(make([]byte, 0, len(time.RFC3339Nano)), time.RFC3339Nano)
+ 			return nil
+ 		case *RawBytes:
+ 			if d == nil {

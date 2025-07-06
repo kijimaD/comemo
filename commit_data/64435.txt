@@ -1,0 +1,43 @@
+commit d465aee0b80b8eb0b63929deb8de0b21187c59a7
+Author: khr@golang.org <khr@golang.org>
+Date:   Mon Jul 22 13:27:09 2024 -0700
+
+    cmd/internal/testdir: fix failure when GOAMD64=v3 is specified in goenv file
+    
+    Fixes #68548
+    
+    Add GOENV=off, GOFLAGS= to the build of the stdlib, so that it matches
+    what runcmd does. This ensures that the runtime and the test are built
+    with the same flags. As opposed to before this CL, where flags were used
+    in the stdlib build but not the runcmd build.
+    
+    (Part of the problem here is that cmd/internal/testdir/testdir_test.go
+    plays fast and loose with the build cache to make the tests run faster.
+    Maybe some of that fast-and-loose mechanism can be removed now that we
+    have a better build cache? I'm not sure.)
+    
+    Change-Id: I449d4ff517c69311d0aa4411e7fb96c0cca49269
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/600276
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/testdir/testdir_test.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/internal/testdir/testdir_test.go b/src/cmd/internal/testdir/testdir_test.go
+index e64451b743..c494f2c4c0 100644
+--- a/src/cmd/internal/testdir/testdir_test.go
++++ b/src/cmd/internal/testdir/testdir_test.go
+@@ -219,7 +219,9 @@ var stdlibImportcfgString string
+ 
+ func stdlibImportcfg() string {
+ 	stdlibImportcfgStringOnce.Do(func() {
+-		output, err := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std").Output()
++		cmd := exec.Command(goTool, "list", "-export", "-f", "{{if .Export}}packagefile {{.ImportPath}}={{.Export}}{{end}}", "std")
++		cmd.Env = append(os.Environ(), "GOENV=off", "GOFLAGS=")
++		output, err := cmd.Output()
+ 		if err != nil {
+ 			log.Fatal(err)
+ 		}

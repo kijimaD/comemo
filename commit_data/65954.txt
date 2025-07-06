@@ -1,0 +1,85 @@
+commit 19d21034157ba69d0f54318a9867d9b08730efcb
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Mon Dec 9 11:31:22 2024 -0800
+
+    [release-branch.go1.22] crypto/x509: properly check for IPv6 hosts in URIs
+    
+    When checking URI constraints, use netip.ParseAddr, which understands
+    zones, unlike net.ParseIP which chokes on them. This prevents zone IDs
+    from mistakenly satisfying URI constraints.
+    
+    Thanks to Juho Forsén of Mattermost for reporting this issue.
+    
+    For #71156
+    Fixes #71207
+    Fixes CVE-2024-45341
+    
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1700
+    Reviewed-by: Tatiana Bradley <tatianabradley@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Change-Id: I1d97723e0f29fcf1404fb868ba0495282da70f6e
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1780
+    Reviewed-by: Roland Shoemaker <bracewell@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/643105
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ src/crypto/x509/name_constraints_test.go | 18 ++++++++++++++++++
+ src/crypto/x509/verify.go                |  7 +++++--
+ 2 files changed, 23 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/x509/name_constraints_test.go b/src/crypto/x509/name_constraints_test.go
+index 4c22c4cd8e..78263fc0b2 100644
+--- a/src/crypto/x509/name_constraints_test.go
++++ b/src/crypto/x509/name_constraints_test.go
+@@ -1599,6 +1599,24 @@ var nameConstraintsTests = []nameConstraintsTest{
+ 			cn:   "foo.bar",
+ 		},
+ 	},
++
++	// #86: URIs with IPv6 addresses with zones and ports are rejected
++	{
++		roots: []constraintsSpec{
++			{
++				ok: []string{"uri:example.com"},
++			},
++		},
++		intermediates: [][]constraintsSpec{
++			{
++				{},
++			},
++		},
++		leaf: leafSpec{
++			sans: []string{"uri:http://[2006:abcd::1%25.example.com]:16/"},
++		},
++		expectedError: "URI with IP",
++	},
+ }
+ 
+ func makeConstraintsCACert(constraints constraintsSpec, name string, key *ecdsa.PrivateKey, parent *Certificate, parentKey *ecdsa.PrivateKey) (*Certificate, error) {
+diff --git a/src/crypto/x509/verify.go b/src/crypto/x509/verify.go
+index 6efbff28bf..2d2a271d53 100644
+--- a/src/crypto/x509/verify.go
++++ b/src/crypto/x509/verify.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"net"
++	"net/netip"
+ 	"net/url"
+ 	"reflect"
+ 	"runtime"
+@@ -429,8 +430,10 @@ func matchURIConstraint(uri *url.URL, constraint string) (bool, error) {
+ 		}
+ 	}
+ 
+-	if strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]") ||
+-		net.ParseIP(host) != nil {
++	// netip.ParseAddr will reject the URI IPv6 literal form "[...]", so we
++	// check if _either_ the string parses as an IP, or if it is enclosed in
++	// square brackets.
++	if _, err := netip.ParseAddr(host); err == nil || (strings.HasPrefix(host, "[") && strings.HasSuffix(host, "]")) {
+ 		return false, fmt.Errorf("URI with IP (%q) cannot be matched against constraints", uri.String())
+ 	}
+ 

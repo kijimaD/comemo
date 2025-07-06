@@ -1,0 +1,40 @@
+commit 2ee775fd9b58247618cf8bc06935f33875bdc872
+Author: Harald Nordgren <haraldnordgren@gmail.com>
+Date:   Sun Feb 23 10:43:23 2025 +0000
+
+    net/http: remove unused err parameter from cancel
+    
+    Change-Id: I91f1b93298671bcb2aa5f86a59f5794bd3e3b2a9
+    GitHub-Last-Rev: f2e7ffb45f7b201381e1f1a3018b523dea4249f8
+    GitHub-Pull-Request: golang/go#71911
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651220
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/net/http/transport.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/transport.go b/src/net/http/transport.go
+index 41e674188f..4a6c928827 100644
+--- a/src/net/http/transport.go
++++ b/src/net/http/transport.go
+@@ -1358,7 +1358,7 @@ func (w *wantConn) tryDeliver(pc *persistConn, err error, idleAt time.Time) bool
+ 
+ // cancel marks w as no longer wanting a result (for example, due to cancellation).
+ // If a connection has been delivered already, cancel returns it with t.putOrCloseIdleConn.
+-func (w *wantConn) cancel(t *Transport, err error) {
++func (w *wantConn) cancel(t *Transport) {
+ 	w.mu.Lock()
+ 	var pc *persistConn
+ 	if w.done {
+@@ -1507,7 +1507,7 @@ func (t *Transport) getConn(treq *transportRequest, cm connectMethod) (_ *persis
+ 	}
+ 	defer func() {
+ 		if err != nil {
+-			w.cancel(t, err)
++			w.cancel(t)
+ 		}
+ 	}()
+ 

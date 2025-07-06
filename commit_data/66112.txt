@@ -1,0 +1,69 @@
+commit 74c3b3784ea09e75f8c94ef5bf306c55c2e463a7
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Feb 8 13:51:31 2025 +0000
+
+    cmd/internal/bio: remove unused MustWriter
+    
+    Change-Id: I70435781fbaeca2b6927a74afd79a3ff123b527b
+    GitHub-Last-Rev: cae569f4c4bf73a9a6cd8d26fb080962f94bf1b1
+    GitHub-Pull-Request: golang/go#71622
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647916
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+---
+ src/cmd/internal/bio/must.go | 43 -------------------------------------------
+ 1 file changed, 43 deletions(-)
+
+diff --git a/src/cmd/internal/bio/must.go b/src/cmd/internal/bio/must.go
+deleted file mode 100644
+index 3604b29175..0000000000
+--- a/src/cmd/internal/bio/must.go
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package bio
+-
+-import (
+-	"io"
+-	"log"
+-)
+-
+-// MustClose closes Closer c and calls log.Fatal if it returns a non-nil error.
+-func MustClose(c io.Closer) {
+-	if err := c.Close(); err != nil {
+-		log.Fatal(err)
+-	}
+-}
+-
+-// MustWriter returns a Writer that wraps the provided Writer,
+-// except that it calls log.Fatal instead of returning a non-nil error.
+-func MustWriter(w io.Writer) io.Writer {
+-	return mustWriter{w}
+-}
+-
+-type mustWriter struct {
+-	w io.Writer
+-}
+-
+-func (w mustWriter) Write(b []byte) (int, error) {
+-	n, err := w.w.Write(b)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	return n, nil
+-}
+-
+-func (w mustWriter) WriteString(s string) (int, error) {
+-	n, err := io.WriteString(w.w, s)
+-	if err != nil {
+-		log.Fatal(err)
+-	}
+-	return n, nil
+-}

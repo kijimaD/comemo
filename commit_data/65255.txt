@@ -1,0 +1,85 @@
+commit b813e6fd73e0925ca57f5b3ff6b0d991bb2e5aea
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu Oct 31 20:41:51 2024 +0000
+
+    cmd/cgo/internal/testsanitizers: disable ASLR for TSAN tests
+    
+    Ever since we had to upgrade from our COS image, we've been experiencing
+    TSAN test failures. My best guess is that the ASLR randomization entropy
+    increased, causing TSAN to fail. TSAN already re-execs itself in Clang
+    18+ with ASLR disabled, so just execute the tests with ASLR disabled on
+    Linux.
+    
+    Fixes #59418.
+    
+    Change-Id: Icb4536ddf0f2f5e7850734564d40f5a208ab8d01
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-386,gotip-linux-386-clang15,gotip-linux-amd64-clang15,gotip-linux-amd64-boringcrypto,gotip-linux-amd64-aliastypeparams,gotip-linux-amd64-asan-clang15,gotip-linux-amd64-msan-clang15,gotip-linux-amd64-goamd64v3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623956
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cgo/internal/testsanitizers/cshared_test.go | 12 +++++++++++-
+ src/cmd/cgo/internal/testsanitizers/tsan_test.go    | 12 +++++++++++-
+ 2 files changed, 22 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testsanitizers/cshared_test.go b/src/cmd/cgo/internal/testsanitizers/cshared_test.go
+index f26c50a621..15409d0fca 100644
+--- a/src/cmd/cgo/internal/testsanitizers/cshared_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/cshared_test.go
+@@ -11,6 +11,7 @@ import (
+ 	"internal/platform"
+ 	"internal/testenv"
+ 	"os"
++	"os/exec"
+ 	"strings"
+ 	"testing"
+ )
+@@ -90,7 +91,16 @@ func TestShared(t *testing.T) {
+ 			cmd.Args = append(cmd.Args, "-o", dstBin, cSrc, lib)
+ 			mustRun(t, cmd)
+ 
+-			cmd = hangProneCmd(dstBin)
++			cmdArgs := []string{dstBin}
++			if tc.sanitizer == "thread" && GOOS == "linux" {
++				// Disable ASLR for TSAN. See #59418.
++				arch, err := exec.Command("uname", "-m").Output()
++				if err != nil {
++					t.Fatalf("failed to run `uname -m`: %v", err)
++				}
++				cmdArgs = []string{"setarch", strings.TrimSpace(string(arch)), "-R", dstBin}
++			}
++			cmd = hangProneCmd(cmdArgs[0], cmdArgs[1:]...)
+ 			replaceEnv(cmd, "LD_LIBRARY_PATH", ".")
+ 			mustRun(t, cmd)
+ 		})
+diff --git a/src/cmd/cgo/internal/testsanitizers/tsan_test.go b/src/cmd/cgo/internal/testsanitizers/tsan_test.go
+index 49b9b3877a..9a1924968c 100644
+--- a/src/cmd/cgo/internal/testsanitizers/tsan_test.go
++++ b/src/cmd/cgo/internal/testsanitizers/tsan_test.go
+@@ -8,6 +8,7 @@ package sanitizers_test
+ 
+ import (
+ 	"internal/testenv"
++	"os/exec"
+ 	"strings"
+ 	"testing"
+ )
+@@ -68,7 +69,16 @@ func TestTSAN(t *testing.T) {
+ 			outPath := dir.Join(name)
+ 			mustRun(t, config.goCmd("build", "-o", outPath, srcPath(tc.src)))
+ 
+-			cmd := hangProneCmd(outPath)
++			cmdArgs := []string{outPath}
++			if goos == "linux" {
++				// Disable ASLR. See #59418.
++				arch, err := exec.Command("uname", "-m").Output()
++				if err != nil {
++					t.Fatalf("failed to run `uname -m`: %v", err)
++				}
++				cmdArgs = []string{"setarch", strings.TrimSpace(string(arch)), "-R", outPath}
++			}
++			cmd := hangProneCmd(cmdArgs[0], cmdArgs[1:]...)
+ 			if tc.needsRuntime {
+ 				config.skipIfRuntimeIncompatible(t)
+ 			}

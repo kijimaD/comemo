@@ -1,0 +1,41 @@
+commit 1a349fc92b0d1ea652a164243f850eb542d0924c
+Author: Nayef Ghattas <nayef.ghattas@datadoghq.com>
+Date:   Thu May 16 23:04:29 2024 +0200
+
+    unsafe: document the behavior of Sizeof on an interface
+    
+    unsafe.Sizeof() can return a different value than
+    reflect.TypeOf(x).Size() for a variable of an interface static type.
+    This change points out the difference in behavior, by emphasizing that
+    unsafe.Sizeof() only returns the size of the interface value itself,
+    rather than the size of the value stored in the interface.
+    
+    Fixes #67465.
+    
+    Change-Id: Ia6a809debb7970be171b0fc186209e5d161784e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586275
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+---
+ src/unsafe/unsafe.go | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/unsafe/unsafe.go b/src/unsafe/unsafe.go
+index 884ef6a855..8d6cacb8b5 100644
+--- a/src/unsafe/unsafe.go
++++ b/src/unsafe/unsafe.go
+@@ -187,7 +187,9 @@ type Pointer *ArbitraryType
+ // of a hypothetical variable v as if v was declared via var v = x.
+ // The size does not include any memory possibly referenced by x.
+ // For instance, if x is a slice, Sizeof returns the size of the slice
+-// descriptor, not the size of the memory referenced by the slice.
++// descriptor, not the size of the memory referenced by the slice;
++// if x is an interface, Sizeof returns the size of the interface value itself,
++// not the size of the value stored in the interface.
+ // For a struct, the size includes any padding introduced by field alignment.
+ // The return value of Sizeof is a Go constant if the type of the argument x
+ // does not have variable size.

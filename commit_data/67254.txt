@@ -1,0 +1,25 @@
+commit 04a94738475e3fa1ff3c71666b1a35b67481172b
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 21 14:41:28 2025 +0200
+
+    [release-branch.go1.24] lib/fips140: set inprocess.txt to v1.0.0
+    
+    Updates #70200
+    Fixes #73809
+    
+    Change-Id: I6a6a46567ce0834fb4b7f28bf06646326f8e5105
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674935
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ lib/fips140/inprocess.txt | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/lib/fips140/inprocess.txt b/lib/fips140/inprocess.txt
+new file mode 100644
+index 0000000000..0ec25f7505
+--- /dev/null
++++ b/lib/fips140/inprocess.txt
+@@ -0,0 +1 @@
++v1.0.0

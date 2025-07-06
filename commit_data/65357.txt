@@ -1,0 +1,34 @@
+commit d7ea9ff50b6c0386c7784b27f66083396fa404af
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Jul 12 21:13:20 2024 +0100
+
+    runtime/pprof: note different between go test -memprofile and WriteHeapProfile
+    
+    Fixes #65328
+    
+    Change-Id: I11242be93a95e117a6758ac037e143c3b38aa71c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597980
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/pprof/pprof.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index 4b7a9f63c6..b8458367f8 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -44,7 +44,10 @@
+ //	        }
+ //	        defer f.Close() // error handling omitted for example
+ //	        runtime.GC() // get up-to-date statistics
+-//	        if err := pprof.WriteHeapProfile(f); err != nil {
++//	        // Lookup("allocs") creates a profile similar to go test -memprofile.
++//	        // Alternatively, use Lookup("heap") for a profile
++//	        // that has inuse_space as the default index.
++//	        if err := pprof.Lookup("allocs").WriteTo(f, 0); err != nil {
+ //	            log.Fatal("could not write memory profile: ", err)
+ //	        }
+ //	    }

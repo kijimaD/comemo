@@ -1,0 +1,94 @@
+commit 847c357bbb819f8f042b715d6ccdaa8fd89c305d
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Dec 28 14:25:08 2024 -0500
+
+    cmd/go: remove references to gopath-get
+    
+    Fixes #70912
+    
+    Change-Id: Id87a13f7c9bf972502d14c9674a27f743b849715
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/639155
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go/alldocs.go                   | 11 +----------
+ src/cmd/go/internal/help/helpdoc.go     |  6 +-----
+ src/cmd/go/internal/modget/get.go       |  5 -----
+ src/cmd/go/testdata/script/mod_help.txt |  2 +-
+ 4 files changed, 3 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 548cf171ca..910699cace 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -739,11 +739,6 @@
+ //
+ // For more about specifying packages, see 'go help packages'.
+ //
+-// This text describes the behavior of get using modules to manage source
+-// code and dependencies. If instead the go command is running in GOPATH
+-// mode, the details of get's flags and effects change, as does 'go help get'.
+-// See 'go help gopath-get'.
+-//
+ // See also: go build, go install, go clean, go mod.
+ //
+ // # Compile and install packages and dependencies
+@@ -2974,11 +2969,7 @@
+ // same meta tag and then git clone https://code.org/r/p/exproj into
+ // GOPATH/src/example.org.
+ //
+-// When using GOPATH, downloaded packages are written to the first directory
+-// listed in the GOPATH environment variable.
+-// (See 'go help gopath-get' and 'go help gopath'.)
+-//
+-// When using modules, downloaded packages are stored in the module cache.
++// Downloaded packages are stored in the module cache.
+ // See https://golang.org/ref/mod#module-cache.
+ //
+ // When using modules, an additional variant of the go-import meta tag is
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 3e7a1cbc75..7e19ba93d2 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -270,11 +270,7 @@ the go tool will verify that https://example.org/?go-get=1 contains the
+ same meta tag and then git clone https://code.org/r/p/exproj into
+ GOPATH/src/example.org.
+ 
+-When using GOPATH, downloaded packages are written to the first directory
+-listed in the GOPATH environment variable.
+-(See 'go help gopath-get' and 'go help gopath'.)
+-
+-When using modules, downloaded packages are stored in the module cache.
++Downloaded packages are stored in the module cache.
+ See https://golang.org/ref/mod#module-cache.
+ 
+ When using modules, an additional variant of the go-import meta tag is
+diff --git a/src/cmd/go/internal/modget/get.go b/src/cmd/go/internal/modget/get.go
+index 159a856911..48ae12fe53 100644
+--- a/src/cmd/go/internal/modget/get.go
++++ b/src/cmd/go/internal/modget/get.go
+@@ -125,11 +125,6 @@ suggested Go toolchain, see https://go.dev/doc/toolchain.
+ 
+ For more about specifying packages, see 'go help packages'.
+ 
+-This text describes the behavior of get using modules to manage source
+-code and dependencies. If instead the go command is running in GOPATH
+-mode, the details of get's flags and effects change, as does 'go help get'.
+-See 'go help gopath-get'.
+-
+ See also: go build, go install, go clean, go mod.
+ 	`,
+ }
+diff --git a/src/cmd/go/testdata/script/mod_help.txt b/src/cmd/go/testdata/script/mod_help.txt
+index b5cd30c521..7cb808ff23 100644
+--- a/src/cmd/go/testdata/script/mod_help.txt
++++ b/src/cmd/go/testdata/script/mod_help.txt
+@@ -3,4 +3,4 @@ env GO111MODULE=on
+ # go help get shows usage for get
+ go help get
+ stdout 'usage: go get'
+-stdout 'get using modules to manage source'
+\ No newline at end of file
++stdout 'updates go.mod to require those versions'

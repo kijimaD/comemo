@@ -1,0 +1,87 @@
+commit 959b3fd4265d7e4efb18af454cd18799ed70b8fe
+Author: Miki Tebeka <miki@353solutions.com>
+Date:   Wed Dec 6 13:33:02 2023 +0000
+
+    flag: add FlagSet example
+    
+    Add an example for using FlagSet.
+    
+    Fixes #36307
+    
+    Change-Id: I0bf5805bd836a4f2e9632aafe22dc3eeb1164dcd
+    GitHub-Last-Rev: 79e53040cbc2658a71385b644107f8ea54132c99
+    GitHub-Pull-Request: golang/go#64443
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/545736
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Christopher Taylor <ccmtaylor@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Rob Pike <r@golang.org>
+---
+ src/flag/example_flagset_test.go | 57 ++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 57 insertions(+)
+
+diff --git a/src/flag/example_flagset_test.go b/src/flag/example_flagset_test.go
+new file mode 100644
+index 0000000000..cb177e2171
+--- /dev/null
++++ b/src/flag/example_flagset_test.go
+@@ -0,0 +1,57 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package flag_test
++
++import (
++	"flag"
++	"fmt"
++	"time"
++)
++
++func ExampleFlagSet() {
++
++	start := func(args []string) {
++		// A real program (not an example) would use flag.ExitOnError.
++		fs := flag.NewFlagSet("start", flag.ContinueOnError)
++		addr := fs.String("addr", ":8080", "`address` to listen on")
++		if err := fs.Parse(args); err != nil {
++			fmt.Printf("error: %s", err)
++			return
++		}
++		fmt.Printf("starting server on %s\n", *addr)
++	}
++
++	stop := func(args []string) {
++		fs := flag.NewFlagSet("stop", flag.ContinueOnError)
++		timeout := fs.Duration("timeout", time.Second, "stop timeout duration")
++		if err := fs.Parse(args); err != nil {
++			fmt.Printf("error: %s", err)
++			return
++		}
++		fmt.Printf("stopping server (timeout=%v)\n", *timeout)
++	}
++
++	main := func(args []string) {
++		subArgs := args[2:] // Drop program name and command.
++		switch args[1] {
++		case "start":
++			start(subArgs)
++		case "stop":
++			stop(subArgs)
++		default:
++			fmt.Printf("error: unknown command - %q\n", args[1])
++			// In a real program (not an example) print to os.Stderr and exit the program with non-zero value.
++		}
++	}
++
++	main([]string{"httpd", "start", "-addr", ":9999"})
++	main([]string{"httpd", "stop"})
++	main([]string{"http", "start", "-log-level", "verbose"})
++
++	// Output:
++	// starting server on :9999
++	// stopping server (timeout=1s)
++	// error: flag provided but not defined: -log-level
++}

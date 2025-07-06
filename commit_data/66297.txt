@@ -1,0 +1,51 @@
+commit a65078204c3c170514af58d325b3197c91be281c
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Feb 23 00:22:23 2025 +1100
+
+    cmd/compile: remove carriage returns from AMD64latelower.rules
+    
+    AMD64latelower.rules currently has Windows style line endings,
+    rather than Unix style line endings. Correct this.
+    
+    Change-Id: Ie068dc6c64bd51cf2aa5bd192839fca4f28f40b8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651818
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ .../compile/internal/ssa/_gen/AMD64latelower.rules | 26 +++++++++++-----------
+ 1 file changed, 13 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules b/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules
+index 1dd804577a..ead4ec45f1 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64latelower.rules
+@@ -1,13 +1,13 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Prefer SARX/SHLX/SHRX instruction because it has less register restriction on the shift input.
+-(SAR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SARX(Q|L) x y)
+-(SHL(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHLX(Q|L) x y)
+-(SHR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHRX(Q|L) x y)
+-
+-// See comments in ARM64latelower.rules for why these are here.
+-(MOVLQZX x) && zeroUpper32Bits(x,3) => x
+-(MOVWQZX x) && zeroUpper48Bits(x,3) => x
+-(MOVBQZX x) && zeroUpper56Bits(x,3) => x
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Prefer SARX/SHLX/SHRX instruction because it has less register restriction on the shift input.
++(SAR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SARX(Q|L) x y)
++(SHL(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHLX(Q|L) x y)
++(SHR(Q|L) x y) && buildcfg.GOAMD64 >= 3 => (SHRX(Q|L) x y)
++
++// See comments in ARM64latelower.rules for why these are here.
++(MOVLQZX x) && zeroUpper32Bits(x,3) => x
++(MOVWQZX x) && zeroUpper48Bits(x,3) => x
++(MOVBQZX x) && zeroUpper56Bits(x,3) => x

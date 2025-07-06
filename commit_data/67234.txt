@@ -1,0 +1,111 @@
+commit 787362327fbc2ec010659cd9067cc899cc15203c
+Author: cuishuang <imcusg@gmail.com>
+Date:   Sun May 18 16:28:13 2025 +0800
+
+    io/fs: add examples for Glob,ReadFile and ValidPath
+    
+    Change-Id: I8451179bc0fa88b7e60afbc6fd9e06a22a94f3aa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673835
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/io/fs/example_test.go | 81 +++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 81 insertions(+)
+
+diff --git a/src/io/fs/example_test.go b/src/io/fs/example_test.go
+index c9027034c4..e9ad2a3d83 100644
+--- a/src/io/fs/example_test.go
++++ b/src/io/fs/example_test.go
+@@ -9,8 +9,89 @@ import (
+ 	"io/fs"
+ 	"log"
+ 	"os"
++	"testing/fstest"
+ )
+ 
++func ExampleGlob() {
++	fsys := fstest.MapFS{
++		"file.txt":        {},
++		"file.go":         {},
++		"dir/file.txt":    {},
++		"dir/file.go":     {},
++		"dir/subdir/x.go": {},
++	}
++
++	patterns := []string{
++		"*.txt",
++		"*.go",
++		"dir/*.go",
++		"dir/*/x.go",
++	}
++
++	for _, pattern := range patterns {
++		matches, err := fs.Glob(fsys, pattern)
++		if err != nil {
++			log.Fatal(err)
++		}
++		fmt.Printf("%q matches: %v\n", pattern, matches)
++	}
++
++	// Output:
++	// "*.txt" matches: [file.txt]
++	// "*.go" matches: [file.go]
++	// "dir/*.go" matches: [dir/file.go]
++	// "dir/*/x.go" matches: [dir/subdir/x.go]
++}
++
++func ExampleReadFile() {
++	fsys := fstest.MapFS{
++		"hello.txt": {
++			Data: []byte("Hello, World!\n"),
++		},
++	}
++
++	data, err := fs.ReadFile(fsys, "hello.txt")
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Print(string(data))
++
++	// Output:
++	// Hello, World!
++}
++
++func ExampleValidPath() {
++	paths := []string{
++		".",
++		"x",
++		"x/y/z",
++		"",
++		"..",
++		"/x",
++		"x/",
++		"x//y",
++		"x/./y",
++		"x/../y",
++	}
++
++	for _, path := range paths {
++		fmt.Printf("ValidPath(%q) = %t\n", path, fs.ValidPath(path))
++	}
++
++	// Output:
++	// ValidPath(".") = true
++	// ValidPath("x") = true
++	// ValidPath("x/y/z") = true
++	// ValidPath("") = false
++	// ValidPath("..") = false
++	// ValidPath("/x") = false
++	// ValidPath("x/") = false
++	// ValidPath("x//y") = false
++	// ValidPath("x/./y") = false
++	// ValidPath("x/../y") = false
++}
++
+ func ExampleWalkDir() {
+ 	root := "/usr/local/go/bin"
+ 	fileSystem := os.DirFS(root)

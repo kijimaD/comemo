@@ -1,0 +1,36 @@
+commit b1ec5ad00ae6ddf2e022a90432547a96292098f0
+Author: Edoardo Spadolini <edoardo.spadolini@gmail.com>
+Date:   Fri Jul 26 14:06:55 2024 +0000
+
+    crypto/tls: add missing RUnlock in ticketKeys
+    
+    If GetConfigForClient returns a tls.Config that has
+    SessionTicketsDisabled set, the TLS server handshake currently leaves
+    the Config's internal RWMutex read locked after calculating the
+    ticketKeys to use for the handshake.
+    
+    Change-Id: I07e450a0d2edda9e80f51fc2c20af633aa271684
+    GitHub-Last-Rev: 693d7acf952e9478708fe4cd69788f3115e6fe23
+    GitHub-Pull-Request: golang/go#68607
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601335
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sean Liao <sean@liao.dev>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Sean Liao <sean@liao.dev>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/tls/common.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index faa14319c3..26f795f13a 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -1013,6 +1013,7 @@ func (c *Config) ticketKeys(configForClient *Config) []ticketKey {
+ 	if configForClient != nil {
+ 		configForClient.mutex.RLock()
+ 		if configForClient.SessionTicketsDisabled {
++			configForClient.mutex.RUnlock()
+ 			return nil
+ 		}
+ 		configForClient.initLegacySessionTicketKeyRLocked()

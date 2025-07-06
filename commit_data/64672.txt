@@ -1,0 +1,60 @@
+commit b4d4744059c0c9632c034af145deb161995f2f32
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 29 18:51:10 2024 -0700
+
+    internal/testenv: add Executable
+    
+    Tests commonly use code to get os.Executable value, and some cache the
+    resulting value.
+    
+    To reduce code duplication, add a helper that does just that.
+    
+    Change-Id: I9dd7eb24e24a3abd92be2b87227e823f0fca5cb3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609301
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/testenv/exec.go | 20 +++++++++++++++++++-
+ 1 file changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/testenv/exec.go b/src/internal/testenv/exec.go
+index ebb70a1375..0e6a5f9a1a 100644
+--- a/src/internal/testenv/exec.go
++++ b/src/internal/testenv/exec.go
+@@ -62,7 +62,7 @@ var tryExec = sync.OnceValue(func() error {
+ 
+ 	// We know that this is a test executable. We should be able to run it with a
+ 	// no-op flag to check for overall exec support.
+-	exe, err := os.Executable()
++	exe, err := exePath()
+ 	if err != nil {
+ 		return fmt.Errorf("can't probe for exec support: %w", err)
+ 	}
+@@ -71,6 +71,24 @@ var tryExec = sync.OnceValue(func() error {
+ 	return cmd.Run()
+ })
+ 
++// Executable is a wrapper around [MustHaveExec] and [os.Executable].
++// It returns the path name for the executable that started the current process,
++// or skips the test if the current system can't start new processes,
++// or fails the test if the path can not be obtained.
++func Executable(t testing.TB) string {
++	MustHaveExec(t)
++
++	exe, err := exePath()
++	if err != nil {
++		t.Fatalf("os.Executable error: %v", err)
++	}
++	return exe
++}
++
++var exePath = sync.OnceValues(func() (string, error) {
++	return os.Executable()
++})
++
+ var execPaths sync.Map // path -> error
+ 
+ // MustHaveExecPath checks that the current system can start the named executable

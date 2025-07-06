@@ -1,0 +1,102 @@
+commit 693d8d920c57489f427c22162986bd6cef2550ae
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Mon May 19 16:49:57 2025 +0000
+
+    cmd/go: extend the ignore directive for indexed modules
+    
+    For modules that have already been indexed, we can skip ignored paths.
+    We already skip 'testdata' and '_' for this case so we can extend the
+    ignore directive for this case as well.
+    
+    Updates: #42965
+    Change-Id: I076a242ba65c7b905b9dc65dcfb0a0247cbd68d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674076
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/modload/search.go                 | 12 ++++++++++--
+ src/cmd/go/testdata/mod/example.com_ignore_v1.0.0.txt | 11 +++++++++++
+ src/cmd/go/testdata/script/list_ignore_modcache.txt   | 17 +++++++++++++++++
+ 3 files changed, 38 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/search.go b/src/cmd/go/internal/modload/search.go
+index c3e54d62b6..9ff9738e28 100644
+--- a/src/cmd/go/internal/modload/search.go
++++ b/src/cmd/go/internal/modload/search.go
+@@ -208,7 +208,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ 			modPrefix = mod.Path
+ 		}
+ 		if mi, err := modindex.GetModule(root); err == nil {
+-			walkFromIndex(mi, modPrefix, isMatch, treeCanMatch, tags, have, addPkg)
++			walkFromIndex(mi, modPrefix, isMatch, treeCanMatch, tags, have, addPkg, ignorePatternsMap[root], root)
+ 			continue
+ 		} else if !errors.Is(err, modindex.ErrNotIndexed) {
+ 			m.AddError(err)
+@@ -225,7 +225,7 @@ func matchPackages(ctx context.Context, m *search.Match, tags map[string]bool, f
+ // walkFromIndex matches packages in a module using the module index. modroot
+ // is the module's root directory on disk, index is the modindex.Module for the
+ // module, and importPathRoot is the module's path prefix.
+-func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeCanMatch func(string) bool, tags, have map[string]bool, addPkg func(string)) {
++func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeCanMatch func(string) bool, tags, have map[string]bool, addPkg func(string), ignorePatterns *search.IgnorePatterns, modRoot string) {
+ 	index.Walk(func(reldir string) {
+ 		// Avoid .foo, _foo, and testdata subdirectory trees.
+ 		p := reldir
+@@ -248,6 +248,14 @@ func walkFromIndex(index *modindex.Module, importPathRoot string, isMatch, treeC
+ 			p = rest
+ 		}
+ 
++		if ignorePatterns != nil && ignorePatterns.ShouldIgnore(reldir) {
++			if cfg.BuildX {
++				absPath := filepath.Join(modRoot, reldir)
++				fmt.Fprintf(os.Stderr, "# ignoring directory %s\n", absPath)
++			}
++			return
++		}
++
+ 		// Don't use GOROOT/src.
+ 		if reldir == "" && importPathRoot == "" {
+ 			return
+diff --git a/src/cmd/go/testdata/mod/example.com_ignore_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_ignore_v1.0.0.txt
+new file mode 100644
+index 0000000000..ed20584422
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_ignore_v1.0.0.txt
+@@ -0,0 +1,11 @@
++-- .mod --
++module example.com/ignore
++
++ignore ./foo
++-- .info --
++{"Version":"v1.0.0"}
++
++-- foo/foo.go --
++package foo
++
++const Bar = "Hello from foo!"
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/script/list_ignore_modcache.txt b/src/cmd/go/testdata/script/list_ignore_modcache.txt
+new file mode 100644
+index 0000000000..2cb8ed6ee2
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_ignore_modcache.txt
+@@ -0,0 +1,17 @@
++# go list should skip 'ignore' directives for indexed modules in the module cache
++# See golang.org/issue/42965
++
++env GOMODCACHE=$WORK${/}modcache
++go get example.com/ignore/...@v1.0.0
++go list -x example.com/ignore/...
++stderr 'ignoring directory '$GOMODCACHE''${/}'example.com'${/}'ignore@v1.0.0'${/}'foo'
++
++-- go.mod --
++module example
++
++go 1.24
++
++-- main.go --
++package main
++
++func main() {}
+\ No newline at end of file

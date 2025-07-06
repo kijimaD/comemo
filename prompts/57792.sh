@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 57792: cab416f3394ee0211f221f5df0a145ddbfd16e5f
+# Index 57792: 581a822a9ed8fcae4afbc93daa6a74db7d9ea9a2
 
 echo "🚀 Generating explanation for commit 57792..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 57792..."
 
 ### メタデータ
 - **コミットインデックス**: 57792
-- **コミットハッシュ**: cab416f3394ee0211f221f5df0a145ddbfd16e5f
-- **GitHub URL**: https://github.com/golang/go/commit/cab416f3394ee0211f221f5df0a145ddbfd16e5f
+- **コミットハッシュ**: 581a822a9ed8fcae4afbc93daa6a74db7d9ea9a2
+- **GitHub URL**: https://github.com/golang/go/commit/581a822a9ed8fcae4afbc93daa6a74db7d9ea9a2
 
 ### 章構成
 

@@ -1,0 +1,57 @@
+commit 5d36bc18d56fa5d7ad10b675dd82892ed3100332
+Author: Sean Liao <sean@liao.dev>
+Date:   Fri Jul 12 20:42:50 2024 +0100
+
+    net/http: document io.Seeker requirement for fs.FS arguments
+    
+    Using the same wording as http.FS, even though it's not strictly
+    required if a content type can be determined by file extension.
+    
+    Fixes #66877
+    Updates #44553
+    
+    Change-Id: I7b70c10909bdd289a57d1998a565262b8aaf2dd2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597977
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/net/http/filetransport.go | 2 +-
+ src/net/http/fs.go            | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/net/http/filetransport.go b/src/net/http/filetransport.go
+index 7384b22fbe..b08bae6348 100644
+--- a/src/net/http/filetransport.go
++++ b/src/net/http/filetransport.go
+@@ -35,7 +35,7 @@ func NewFileTransport(fs FileSystem) RoundTripper {
+ // NewFileTransportFS returns a new [RoundTripper], serving the provided
+ // file system fsys. The returned RoundTripper ignores the URL host in its
+ // incoming requests, as well as most other properties of the
+-// request.
++// request. The files provided by fsys must implement [io.Seeker].
+ //
+ // The typical use case for NewFileTransportFS is to register the "file"
+ // protocol with a [Transport], as in:
+diff --git a/src/net/http/fs.go b/src/net/http/fs.go
+index 70653550f0..3a716fbd2c 100644
+--- a/src/net/http/fs.go
++++ b/src/net/http/fs.go
+@@ -819,6 +819,7 @@ func ServeFile(w ResponseWriter, r *Request, name string) {
+ 
+ // ServeFileFS replies to the request with the contents
+ // of the named file or directory from the file system fsys.
++// The files provided by fsys must implement [io.Seeker].
+ //
+ // If the provided name is constructed from user input, it should be
+ // sanitized before calling [ServeFileFS].
+@@ -965,6 +966,7 @@ func FileServer(root FileSystem) Handler {
+ 
+ // FileServerFS returns a handler that serves HTTP requests
+ // with the contents of the file system fsys.
++// The files provided by fsys must implement [io.Seeker].
+ //
+ // As a special case, the returned file server redirects any request
+ // ending in "/index.html" to the same path, without the final

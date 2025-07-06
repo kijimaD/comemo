@@ -1,0 +1,784 @@
+commit 1e1c0a7ea879284725de56b88c3b4f84c4db5c7f
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sun Nov 17 19:16:52 2024 +0100
+
+    crypto/ed25519: move implementation to crypto/internal/fips/ed25519
+    
+    For #69536
+    
+    Change-Id: Ifba3e2bcb03966f2ed576d3f88e2e09193215b4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628856
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/ed25519/ed25519.go               | 208 ++++------------
+ src/crypto/internal/fips/ed25519/cast.go    |  69 ++++++
+ src/crypto/internal/fips/ed25519/ed25519.go | 352 ++++++++++++++++++++++++++++
+ src/crypto/internal/fipstest/cast_test.go   |   6 +
+ src/go/build/deps_test.go                   |   1 +
+ 5 files changed, 469 insertions(+), 167 deletions(-)
+
+diff --git a/src/crypto/ed25519/ed25519.go b/src/crypto/ed25519/ed25519.go
+index 5cfd5b0acc..dccb8a2c2c 100644
+--- a/src/crypto/ed25519/ed25519.go
++++ b/src/crypto/ed25519/ed25519.go
+@@ -16,11 +16,8 @@
+ package ed25519
+ 
+ import (
+-	"bytes"
+ 	"crypto"
+-	"crypto/internal/fips/edwards25519"
+-	cryptorand "crypto/rand"
+-	"crypto/sha512"
++	"crypto/internal/fips/ed25519"
+ 	"crypto/subtle"
+ 	"errors"
+ 	"io"
+@@ -76,7 +73,7 @@ func (priv PrivateKey) Equal(x crypto.PrivateKey) bool {
+ // interoperability with RFC 8032. RFC 8032's private keys correspond to seeds
+ // in this package.
+ func (priv PrivateKey) Seed() []byte {
+-	return bytes.Clone(priv[:SeedSize])
++	return append(make([]byte, 0, SeedSize), priv[:SeedSize]...)
+ }
+ 
+ // Sign signs the given message with priv. rand is ignored and can be nil.
+@@ -89,6 +86,13 @@ func (priv PrivateKey) Seed() []byte {
+ // A value of type [Options] can be used as opts, or crypto.Hash(0) or
+ // crypto.SHA512 directly to select plain Ed25519 or Ed25519ph, respectively.
+ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOpts) (signature []byte, err error) {
++	// NewPrivateKey is very slow in FIPS mode because it performs a
++	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
++	// it or attach it to the PrivateKey.
++	k, err := ed25519.NewPrivateKey(priv)
++	if err != nil {
++		return nil, err
++	}
+ 	hash := opts.HashFunc()
+ 	context := ""
+ 	if opts, ok := opts.(*Options); ok {
+@@ -96,24 +100,11 @@ func (priv PrivateKey) Sign(rand io.Reader, message []byte, opts crypto.SignerOp
+ 	}
+ 	switch {
+ 	case hash == crypto.SHA512: // Ed25519ph
+-		if l := len(message); l != sha512.Size {
+-			return nil, errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
+-		}
+-		if l := len(context); l > 255 {
+-			return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
+-		}
+-		signature := make([]byte, SignatureSize)
+-		sign(signature, priv, message, domPrefixPh, context)
+-		return signature, nil
++		return ed25519.SignPH(k, message, context)
+ 	case hash == crypto.Hash(0) && context != "": // Ed25519ctx
+-		if l := len(context); l > 255 {
+-			return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
+-		}
+-		signature := make([]byte, SignatureSize)
+-		sign(signature, priv, message, domPrefixCtx, context)
+-		return signature, nil
++		return ed25519.SignCtx(k, message, context)
+ 	case hash == crypto.Hash(0): // Ed25519
+-		return Sign(priv, message), nil
++		return ed25519.Sign(k, message), nil
+ 	default:
+ 		return nil, errors.New("ed25519: expected opts.HashFunc() zero (unhashed message, for standard Ed25519) or SHA-512 (for Ed25519ph)")
+ 	}
+@@ -139,16 +130,14 @@ func (o *Options) HashFunc() crypto.Hash { return o.Hash }
+ // The output of this function is deterministic, and equivalent to reading
+ // [SeedSize] bytes from rand, and passing them to [NewKeyFromSeed].
+ func GenerateKey(rand io.Reader) (PublicKey, PrivateKey, error) {
+-	if rand == nil {
+-		rand = cryptorand.Reader
+-	}
+-
+-	seed := make([]byte, SeedSize)
+-	if _, err := io.ReadFull(rand, seed); err != nil {
++	k, err := ed25519.GenerateKey(rand)
++	if err != nil {
+ 		return nil, nil, err
+ 	}
+ 
+-	privateKey := NewKeyFromSeed(seed)
++	privateKey := make([]byte, PrivateKeySize)
++	copy(privateKey, k.Bytes())
++
+ 	publicKey := make([]byte, PublicKeySize)
+ 	copy(publicKey, privateKey[32:])
+ 
+@@ -167,21 +156,12 @@ func NewKeyFromSeed(seed []byte) PrivateKey {
+ }
+ 
+ func newKeyFromSeed(privateKey, seed []byte) {
+-	if l := len(seed); l != SeedSize {
+-		panic("ed25519: bad seed length: " + strconv.Itoa(l))
+-	}
+-
+-	h := sha512.Sum512(seed)
+-	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
++	k, err := ed25519.NewPrivateKeyFromSeed(seed)
+ 	if err != nil {
+-		panic("ed25519: internal error: setting scalar failed")
++		// NewPrivateKeyFromSeed only returns an error if the seed length is incorrect.
++		panic("ed25519: bad seed length: " + strconv.Itoa(len(seed)))
+ 	}
+-	A := (&edwards25519.Point{}).ScalarBaseMult(s)
+-
+-	publicKey := A.Bytes()
+-
+-	copy(privateKey, seed)
+-	copy(privateKey[32:], publicKey)
++	copy(privateKey, k.Bytes())
+ }
+ 
+ // Sign signs the message with privateKey and returns a signature. It will
+@@ -190,73 +170,20 @@ func Sign(privateKey PrivateKey, message []byte) []byte {
+ 	// Outline the function body so that the returned signature can be
+ 	// stack-allocated.
+ 	signature := make([]byte, SignatureSize)
+-	sign(signature, privateKey, message, domPrefixPure, "")
++	sign(signature, privateKey, message)
+ 	return signature
+ }
+ 
+-// Domain separation prefixes used to disambiguate Ed25519/Ed25519ph/Ed25519ctx.
+-// See RFC 8032, Section 2 and Section 5.1.
+-const (
+-	// domPrefixPure is empty for pure Ed25519.
+-	domPrefixPure = ""
+-	// domPrefixPh is dom2(phflag=1) for Ed25519ph. It must be followed by the
+-	// uint8-length prefixed context.
+-	domPrefixPh = "SigEd25519 no Ed25519 collisions\x01"
+-	// domPrefixCtx is dom2(phflag=0) for Ed25519ctx. It must be followed by the
+-	// uint8-length prefixed context.
+-	domPrefixCtx = "SigEd25519 no Ed25519 collisions\x00"
+-)
+-
+-func sign(signature, privateKey, message []byte, domPrefix, context string) {
+-	if l := len(privateKey); l != PrivateKeySize {
+-		panic("ed25519: bad private key length: " + strconv.Itoa(l))
+-	}
+-	seed, publicKey := privateKey[:SeedSize], privateKey[SeedSize:]
+-
+-	h := sha512.Sum512(seed)
+-	s, err := edwards25519.NewScalar().SetBytesWithClamping(h[:32])
++func sign(signature []byte, privateKey PrivateKey, message []byte) {
++	// NewPrivateKey is very slow in FIPS mode because it performs a
++	// Sign+Verify cycle per FIPS 140-3 IG 10.3.A. We should find a way to cache
++	// it or attach it to the PrivateKey.
++	k, err := ed25519.NewPrivateKey(privateKey)
+ 	if err != nil {
+-		panic("ed25519: internal error: setting scalar failed")
+-	}
+-	prefix := h[32:]
+-
+-	mh := sha512.New()
+-	if domPrefix != domPrefixPure {
+-		mh.Write([]byte(domPrefix))
+-		mh.Write([]byte{byte(len(context))})
+-		mh.Write([]byte(context))
++		panic("ed25519: bad private key: " + err.Error())
+ 	}
+-	mh.Write(prefix)
+-	mh.Write(message)
+-	messageDigest := make([]byte, 0, sha512.Size)
+-	messageDigest = mh.Sum(messageDigest)
+-	r, err := edwards25519.NewScalar().SetUniformBytes(messageDigest)
+-	if err != nil {
+-		panic("ed25519: internal error: setting scalar failed")
+-	}
+-
+-	R := (&edwards25519.Point{}).ScalarBaseMult(r)
+-
+-	kh := sha512.New()
+-	if domPrefix != domPrefixPure {
+-		kh.Write([]byte(domPrefix))
+-		kh.Write([]byte{byte(len(context))})
+-		kh.Write([]byte(context))
+-	}
+-	kh.Write(R.Bytes())
+-	kh.Write(publicKey)
+-	kh.Write(message)
+-	hramDigest := make([]byte, 0, sha512.Size)
+-	hramDigest = kh.Sum(hramDigest)
+-	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
+-	if err != nil {
+-		panic("ed25519: internal error: setting scalar failed")
+-	}
+-
+-	S := edwards25519.NewScalar().MultiplyAdd(k, s, r)
+-
+-	copy(signature[:32], R.Bytes())
+-	copy(signature[32:], S.Bytes())
++	sig := ed25519.Sign(k, message)
++	copy(signature, sig)
+ }
+ 
+ // Verify reports whether sig is a valid signature of message by publicKey. It
+@@ -265,7 +192,7 @@ func sign(signature, privateKey, message []byte, domPrefix, context string) {
+ // The inputs are not considered confidential, and may leak through timing side
+ // channels, or if an attacker has control of part of the inputs.
+ func Verify(publicKey PublicKey, message, sig []byte) bool {
+-	return verify(publicKey, message, sig, domPrefixPure, "")
++	return VerifyWithOptions(publicKey, message, sig, &Options{Hash: crypto.Hash(0)}) == nil
+ }
+ 
+ // VerifyWithOptions reports whether sig is a valid signature of message by
+@@ -280,74 +207,21 @@ func Verify(publicKey PublicKey, message, sig []byte) bool {
+ // The inputs are not considered confidential, and may leak through timing side
+ // channels, or if an attacker has control of part of the inputs.
+ func VerifyWithOptions(publicKey PublicKey, message, sig []byte, opts *Options) error {
++	if l := len(publicKey); l != PublicKeySize {
++		panic("ed25519: bad public key length: " + strconv.Itoa(l))
++	}
++	k, err := ed25519.NewPublicKey(publicKey)
++	if err != nil {
++		return err
++	}
+ 	switch {
+ 	case opts.Hash == crypto.SHA512: // Ed25519ph
+-		if l := len(message); l != sha512.Size {
+-			return errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
+-		}
+-		if l := len(opts.Context); l > 255 {
+-			return errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
+-		}
+-		if !verify(publicKey, message, sig, domPrefixPh, opts.Context) {
+-			return errors.New("ed25519: invalid signature")
+-		}
+-		return nil
++		return ed25519.VerifyPH(k, message, sig, opts.Context)
+ 	case opts.Hash == crypto.Hash(0) && opts.Context != "": // Ed25519ctx
+-		if l := len(opts.Context); l > 255 {
+-			return errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
+-		}
+-		if !verify(publicKey, message, sig, domPrefixCtx, opts.Context) {
+-			return errors.New("ed25519: invalid signature")
+-		}
+-		return nil
++		return ed25519.VerifyCtx(k, message, sig, opts.Context)
+ 	case opts.Hash == crypto.Hash(0): // Ed25519
+-		if !verify(publicKey, message, sig, domPrefixPure, "") {
+-			return errors.New("ed25519: invalid signature")
+-		}
+-		return nil
++		return ed25519.Verify(k, message, sig)
+ 	default:
+ 		return errors.New("ed25519: expected opts.Hash zero (unhashed message, for standard Ed25519) or SHA-512 (for Ed25519ph)")
+ 	}
+ }
+-
+-func verify(publicKey PublicKey, message, sig []byte, domPrefix, context string) bool {
+-	if l := len(publicKey); l != PublicKeySize {
+-		panic("ed25519: bad public key length: " + strconv.Itoa(l))
+-	}
+-
+-	if len(sig) != SignatureSize || sig[63]&224 != 0 {
+-		return false
+-	}
+-
+-	A, err := (&edwards25519.Point{}).SetBytes(publicKey)
+-	if err != nil {
+-		return false
+-	}
+-
+-	kh := sha512.New()
+-	if domPrefix != domPrefixPure {
+-		kh.Write([]byte(domPrefix))
+-		kh.Write([]byte{byte(len(context))})
+-		kh.Write([]byte(context))
+-	}
+-	kh.Write(sig[:32])
+-	kh.Write(publicKey)
+-	kh.Write(message)
+-	hramDigest := make([]byte, 0, sha512.Size)
+-	hramDigest = kh.Sum(hramDigest)
+-	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
+-	if err != nil {
+-		panic("ed25519: internal error: setting scalar failed")
+-	}
+-
+-	S, err := edwards25519.NewScalar().SetCanonicalBytes(sig[32:])
+-	if err != nil {
+-		return false
+-	}
+-
+-	// [S]B = R + [k]A --> [k](-A) + [S]B = R
+-	minusA := (&edwards25519.Point{}).Negate(A)
+-	R := (&edwards25519.Point{}).VarTimeDoubleScalarBaseMult(k, minusA, S)
+-
+-	return bytes.Equal(sig[:32], R.Bytes())
+-}
+diff --git a/src/crypto/internal/fips/ed25519/cast.go b/src/crypto/internal/fips/ed25519/cast.go
+new file mode 100644
+index 0000000000..54b6371a9e
+--- /dev/null
++++ b/src/crypto/internal/fips/ed25519/cast.go
+@@ -0,0 +1,69 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ed25519
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"errors"
++	"sync"
++)
++
++func fipsPCT(k *PrivateKey) error {
++	return fips.PCT("Ed25519 sign and verify PCT", func() error {
++		msg := []byte("PCT")
++		sig := Sign(k, msg)
++		// Note that this runs pub.a.SetBytes. If we wanted to make key generation
++		// in FIPS mode faster, we could reuse A from GenerateKey. But another thing
++		// that could make it faster is just _not doing a useless self-test_.
++		pub, err := NewPublicKey(k.PublicKey())
++		if err != nil {
++			return err
++		}
++		return Verify(pub, msg, sig)
++	})
++}
++
++func signWithoutSelfTest(priv *PrivateKey, message []byte) []byte {
++	signature := make([]byte, signatureSize)
++	return signWithDom(signature, priv, message, domPrefixPure, "")
++}
++
++func verifyWithoutSelfTest(pub *PublicKey, message, sig []byte) error {
++	return verifyWithDom(pub, message, sig, domPrefixPure, "")
++}
++
++var fipsSelfTest = sync.OnceFunc(func() {
++	fips.CAST("Ed25519 sign and verify", func() error {
++		seed := [32]byte{
++			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
++			0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
++			0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18,
++			0x19, 0x1a, 0x1b, 0x1c, 0x1d, 0x1e, 0x1f, 0x20,
++		}
++		msg := []byte("CAST")
++		want := []byte{
++			0xbd, 0xe7, 0xa5, 0xf3, 0x40, 0x73, 0xb9, 0x5a,
++			0x2e, 0x6d, 0x63, 0x20, 0x0a, 0xd5, 0x92, 0x9b,
++			0xa2, 0x3d, 0x00, 0x44, 0xb4, 0xc5, 0xfd, 0x62,
++			0x1d, 0x5e, 0x33, 0x2f, 0xe4, 0x61, 0x42, 0x31,
++			0x5b, 0x10, 0x53, 0x13, 0x4d, 0xcb, 0xd1, 0x1b,
++			0x2a, 0xf6, 0xcd, 0x0e, 0xdb, 0x9a, 0xd3, 0x1e,
++			0x35, 0xdb, 0x0b, 0xcf, 0x58, 0x90, 0x4f, 0xd7,
++			0x69, 0x38, 0xed, 0x30, 0x51, 0x0f, 0xaa, 0x03,
++		}
++		k := &PrivateKey{seed: seed}
++		precomputePrivateKey(k)
++		pub, err := NewPublicKey(k.PublicKey())
++		if err != nil {
++			return err
++		}
++		sig := signWithoutSelfTest(k, msg)
++		if !bytes.Equal(sig, want) {
++			return errors.New("unexpected result")
++		}
++		return verifyWithoutSelfTest(pub, msg, sig)
++	})
++})
+diff --git a/src/crypto/internal/fips/ed25519/ed25519.go b/src/crypto/internal/fips/ed25519/ed25519.go
+new file mode 100644
+index 0000000000..2746933622
+--- /dev/null
++++ b/src/crypto/internal/fips/ed25519/ed25519.go
+@@ -0,0 +1,352 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ed25519
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"crypto/internal/fips/drbg"
++	"crypto/internal/fips/edwards25519"
++	"crypto/internal/fips/sha512"
++	"errors"
++	"io"
++	"strconv"
++)
++
++// See https://blog.mozilla.org/warner/2011/11/29/ed25519-keys/ for the
++// components of the keys and the moving parts of the algorithm.
++
++const (
++	seedSize       = 32
++	publicKeySize  = 32
++	privateKeySize = seedSize + publicKeySize
++	signatureSize  = 64
++	sha512Size     = 64
++)
++
++type PrivateKey struct {
++	seed   [seedSize]byte
++	pub    [publicKeySize]byte
++	s      edwards25519.Scalar
++	prefix [sha512Size / 2]byte
++}
++
++func (priv *PrivateKey) Bytes() []byte {
++	k := make([]byte, 0, privateKeySize)
++	k = append(k, priv.seed[:]...)
++	k = append(k, priv.pub[:]...)
++	return k
++}
++
++func (priv *PrivateKey) Seed() []byte {
++	seed := priv.seed
++	return seed[:]
++}
++
++func (priv *PrivateKey) PublicKey() []byte {
++	pub := priv.pub
++	return pub[:]
++}
++
++type PublicKey struct {
++	a      edwards25519.Point
++	aBytes [32]byte
++}
++
++func (pub *PublicKey) Bytes() []byte {
++	a := pub.aBytes
++	return a[:]
++}
++
++// GenerateKey generates a new Ed25519 private key pair.
++//
++// In FIPS mode, rand is ignored. Otherwise, the output of this function is
++// deterministic, and equivalent to reading 32 bytes from rand, and passing them
++// to [NewKeyFromSeed].
++func GenerateKey(rand io.Reader) (*PrivateKey, error) {
++	priv := &PrivateKey{}
++	return generateKey(priv, rand)
++}
++
++func generateKey(priv *PrivateKey, rand io.Reader) (*PrivateKey, error) {
++	fips.RecordApproved()
++	if fips.Enabled {
++		drbg.Read(priv.seed[:])
++	} else {
++		if _, err := io.ReadFull(rand, priv.seed[:]); err != nil {
++			return nil, err
++		}
++	}
++	precomputePrivateKey(priv)
++	if err := fipsPCT(priv); err != nil {
++		// This clearly can't happen, but FIPS 140-3 requires that we check.
++		panic(err)
++	}
++	return priv, nil
++}
++
++func NewPrivateKeyFromSeed(seed []byte) (*PrivateKey, error) {
++	priv := &PrivateKey{}
++	return newPrivateKeyFromSeed(priv, seed)
++}
++
++func newPrivateKeyFromSeed(priv *PrivateKey, seed []byte) (*PrivateKey, error) {
++	fips.RecordApproved()
++	if l := len(seed); l != seedSize {
++		return nil, errors.New("ed25519: bad seed length: " + strconv.Itoa(l))
++	}
++	copy(priv.seed[:], seed)
++	precomputePrivateKey(priv)
++	if err := fipsPCT(priv); err != nil {
++		// This clearly can't happen, but FIPS 140-3 requires that we check.
++		panic(err)
++	}
++	return priv, nil
++}
++
++func precomputePrivateKey(priv *PrivateKey) {
++	hs := sha512.New()
++	hs.Write(priv.seed[:])
++	h := hs.Sum(make([]byte, 0, sha512Size))
++
++	s, err := priv.s.SetBytesWithClamping(h[:32])
++	if err != nil {
++		panic("ed25519: internal error: setting scalar failed")
++	}
++	A := (&edwards25519.Point{}).ScalarBaseMult(s)
++	copy(priv.pub[:], A.Bytes())
++
++	copy(priv.prefix[:], h[32:])
++}
++
++func NewPrivateKey(priv []byte) (*PrivateKey, error) {
++	p := &PrivateKey{}
++	return newPrivateKey(p, priv)
++}
++
++func newPrivateKey(priv *PrivateKey, privBytes []byte) (*PrivateKey, error) {
++	fips.RecordApproved()
++	if l := len(privBytes); l != privateKeySize {
++		return nil, errors.New("ed25519: bad private key length: " + strconv.Itoa(l))
++	}
++
++	copy(priv.seed[:], privBytes[:32])
++
++	hs := sha512.New()
++	hs.Write(priv.seed[:])
++	h := hs.Sum(make([]byte, 0, sha512Size))
++
++	if _, err := priv.s.SetBytesWithClamping(h[:32]); err != nil {
++		panic("ed25519: internal error: setting scalar failed")
++	}
++	// Note that we are not decompressing the public key point here,
++	// because it takes > 20% of the time of a signature generation.
++	// Signing doesn't use it as a point anyway.
++	copy(priv.pub[:], privBytes[32:])
++
++	copy(priv.prefix[:], h[32:])
++
++	if err := fipsPCT(priv); err != nil {
++		// This can happen if the application messed with the private key
++		// encoding, and the public key doesn't match the seed anymore.
++		return nil, err
++	}
++
++	return priv, nil
++}
++
++func NewPublicKey(pub []byte) (*PublicKey, error) {
++	p := &PublicKey{}
++	return newPublicKey(p, pub)
++}
++
++func newPublicKey(pub *PublicKey, pubBytes []byte) (*PublicKey, error) {
++	if l := len(pubBytes); l != publicKeySize {
++		return nil, errors.New("ed25519: bad public key length: " + strconv.Itoa(l))
++	}
++	// SetBytes checks that the point is on the curve.
++	if _, err := pub.a.SetBytes(pubBytes); err != nil {
++		return nil, errors.New("ed25519: bad public key")
++	}
++	copy(pub.aBytes[:], pubBytes)
++	return pub, nil
++}
++
++// Domain separation prefixes used to disambiguate Ed25519/Ed25519ph/Ed25519ctx.
++// See RFC 8032, Section 2 and Section 5.1.
++const (
++	// domPrefixPure is empty for pure Ed25519.
++	domPrefixPure = ""
++	// domPrefixPh is dom2(phflag=1) for Ed25519ph. It must be followed by the
++	// uint8-length prefixed context.
++	domPrefixPh = "SigEd25519 no Ed25519 collisions\x01"
++	// domPrefixCtx is dom2(phflag=0) for Ed25519ctx. It must be followed by the
++	// uint8-length prefixed context.
++	domPrefixCtx = "SigEd25519 no Ed25519 collisions\x00"
++)
++
++func Sign(priv *PrivateKey, message []byte) []byte {
++	// Outline the function body so that the returned signature can be
++	// stack-allocated.
++	signature := make([]byte, signatureSize)
++	return sign(signature, priv, message)
++}
++
++func sign(signature []byte, priv *PrivateKey, message []byte) []byte {
++	fipsSelfTest()
++	fips.RecordApproved()
++	return signWithDom(signature, priv, message, domPrefixPure, "")
++}
++
++func SignPH(priv *PrivateKey, message []byte, context string) ([]byte, error) {
++	// Outline the function body so that the returned signature can be
++	// stack-allocated.
++	signature := make([]byte, signatureSize)
++	return signPH(signature, priv, message, context)
++}
++
++func signPH(signature []byte, priv *PrivateKey, message []byte, context string) ([]byte, error) {
++	fipsSelfTest()
++	fips.RecordApproved()
++	if l := len(message); l != sha512Size {
++		return nil, errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
++	}
++	if l := len(context); l > 255 {
++		return nil, errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
++	}
++	return signWithDom(signature, priv, message, domPrefixPh, context), nil
++}
++
++func SignCtx(priv *PrivateKey, message []byte, context string) ([]byte, error) {
++	// Outline the function body so that the returned signature can be
++	// stack-allocated.
++	signature := make([]byte, signatureSize)
++	return signCtx(signature, priv, message, context)
++}
++
++func signCtx(signature []byte, priv *PrivateKey, message []byte, context string) ([]byte, error) {
++	fipsSelfTest()
++	// FIPS 186-5 specifies Ed25519 and Ed25519ph (with context), but not Ed25519ctx.
++	fips.RecordNonApproved()
++	// Note that per RFC 8032, Section 5.1, the context SHOULD NOT be empty.
++	if l := len(context); l > 255 {
++		return nil, errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
++	}
++	return signWithDom(signature, priv, message, domPrefixCtx, context), nil
++}
++
++func signWithDom(signature []byte, priv *PrivateKey, message []byte, domPrefix, context string) []byte {
++	mh := sha512.New()
++	if domPrefix != domPrefixPure {
++		mh.Write([]byte(domPrefix))
++		mh.Write([]byte{byte(len(context))})
++		mh.Write([]byte(context))
++	}
++	mh.Write(priv.prefix[:])
++	mh.Write(message)
++	messageDigest := make([]byte, 0, sha512Size)
++	messageDigest = mh.Sum(messageDigest)
++	r, err := edwards25519.NewScalar().SetUniformBytes(messageDigest)
++	if err != nil {
++		panic("ed25519: internal error: setting scalar failed")
++	}
++
++	R := (&edwards25519.Point{}).ScalarBaseMult(r)
++
++	kh := sha512.New()
++	if domPrefix != domPrefixPure {
++		kh.Write([]byte(domPrefix))
++		kh.Write([]byte{byte(len(context))})
++		kh.Write([]byte(context))
++	}
++	kh.Write(R.Bytes())
++	kh.Write(priv.pub[:])
++	kh.Write(message)
++	hramDigest := make([]byte, 0, sha512Size)
++	hramDigest = kh.Sum(hramDigest)
++	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
++	if err != nil {
++		panic("ed25519: internal error: setting scalar failed")
++	}
++
++	S := edwards25519.NewScalar().MultiplyAdd(k, &priv.s, r)
++
++	copy(signature[:32], R.Bytes())
++	copy(signature[32:], S.Bytes())
++
++	return signature
++}
++
++func Verify(pub *PublicKey, message, sig []byte) error {
++	return verify(pub, message, sig)
++}
++
++func verify(pub *PublicKey, message, sig []byte) error {
++	fipsSelfTest()
++	fips.RecordApproved()
++	return verifyWithDom(pub, message, sig, domPrefixPure, "")
++}
++
++func VerifyPH(pub *PublicKey, message []byte, sig []byte, context string) error {
++	fipsSelfTest()
++	fips.RecordApproved()
++	if l := len(message); l != sha512Size {
++		return errors.New("ed25519: bad Ed25519ph message hash length: " + strconv.Itoa(l))
++	}
++	if l := len(context); l > 255 {
++		return errors.New("ed25519: bad Ed25519ph context length: " + strconv.Itoa(l))
++	}
++	return verifyWithDom(pub, message, sig, domPrefixPh, context)
++}
++
++func VerifyCtx(pub *PublicKey, message []byte, sig []byte, context string) error {
++	fipsSelfTest()
++	// FIPS 186-5 specifies Ed25519 and Ed25519ph (with context), but not Ed25519ctx.
++	fips.RecordNonApproved()
++	if l := len(context); l > 255 {
++		return errors.New("ed25519: bad Ed25519ctx context length: " + strconv.Itoa(l))
++	}
++	return verifyWithDom(pub, message, sig, domPrefixCtx, context)
++}
++
++func verifyWithDom(pub *PublicKey, message, sig []byte, domPrefix, context string) error {
++	if l := len(sig); l != signatureSize {
++		return errors.New("ed25519: bad signature length: " + strconv.Itoa(l))
++	}
++
++	if sig[63]&224 != 0 {
++		return errors.New("ed25519: invalid signature")
++	}
++
++	kh := sha512.New()
++	if domPrefix != domPrefixPure {
++		kh.Write([]byte(domPrefix))
++		kh.Write([]byte{byte(len(context))})
++		kh.Write([]byte(context))
++	}
++	kh.Write(sig[:32])
++	kh.Write(pub.aBytes[:])
++	kh.Write(message)
++	hramDigest := make([]byte, 0, sha512Size)
++	hramDigest = kh.Sum(hramDigest)
++	k, err := edwards25519.NewScalar().SetUniformBytes(hramDigest)
++	if err != nil {
++		panic("ed25519: internal error: setting scalar failed")
++	}
++
++	S, err := edwards25519.NewScalar().SetCanonicalBytes(sig[32:])
++	if err != nil {
++		return errors.New("ed25519: invalid signature")
++	}
++
++	// [S]B = R + [k]A --> [k](-A) + [S]B = R
++	minusA := (&edwards25519.Point{}).Negate(&pub.a)
++	R := (&edwards25519.Point{}).VarTimeDoubleScalarBaseMult(k, minusA, S)
++
++	if !bytes.Equal(sig[:32], R.Bytes()) {
++		return errors.New("ed25519: invalid signature")
++	}
++	return nil
++}
+diff --git a/src/crypto/internal/fipstest/cast_test.go b/src/crypto/internal/fipstest/cast_test.go
+index 2b1523b3a3..2d7ce2a109 100644
+--- a/src/crypto/internal/fipstest/cast_test.go
++++ b/src/crypto/internal/fipstest/cast_test.go
+@@ -19,6 +19,7 @@ import (
+ 	_ "crypto/internal/fips/drbg"
+ 	"crypto/internal/fips/ecdh"
+ 	"crypto/internal/fips/ecdsa"
++	"crypto/internal/fips/ed25519"
+ 	_ "crypto/internal/fips/hkdf"
+ 	_ "crypto/internal/fips/hmac"
+ 	"crypto/internal/fips/mlkem"
+@@ -77,6 +78,11 @@ func TestConditionals(t *testing.T) {
+ 		t.Fatal(err)
+ 	}
+ 	ecdsa.SignDeterministic(ecdsa.P256(), sha256.New, k, make([]byte, 32))
++	k25519, err := ed25519.GenerateKey(rand.Reader)
++	if err != nil {
++		t.Fatal(err)
++	}
++	ed25519.Sign(k25519, make([]byte, 32))
+ 	t.Log("completed successfully")
+ }
+ 
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 0071fc5989..29e26fffbf 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -482,6 +482,7 @@ var depsRules = `
+ 	< crypto/internal/fips/ecdsa
+ 	< crypto/internal/fips/edwards25519/field
+ 	< crypto/internal/fips/edwards25519
++	< crypto/internal/fips/ed25519
+ 	< FIPS;
+ 
+ 	FIPS < crypto/internal/fips/check/checktest;

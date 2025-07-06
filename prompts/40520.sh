@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40520: 6105e8b4193401cf3344471924025c8a293c8e40
+# Index 40520: 69c2c56453cdea1ad32d50fc82193f06b1b33f93
 
 echo "🚀 Generating explanation for commit 40520..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40520..."
 
 ### メタデータ
 - **コミットインデックス**: 40520
-- **コミットハッシュ**: 6105e8b4193401cf3344471924025c8a293c8e40
-- **GitHub URL**: https://github.com/golang/go/commit/6105e8b4193401cf3344471924025c8a293c8e40
+- **コミットハッシュ**: 69c2c56453cdea1ad32d50fc82193f06b1b33f93
+- **GitHub URL**: https://github.com/golang/go/commit/69c2c56453cdea1ad32d50fc82193f06b1b33f93
 
 ### 章構成
 

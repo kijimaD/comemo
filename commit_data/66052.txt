@@ -1,0 +1,41 @@
+commit 0e35fb2f99ce4c249c0a42ad93a597835ae742b5
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 4 14:23:14 2025 -0800
+
+    net: ignore unnamed interfaces on DragonFly
+    
+    On DragonFly it seems that we can see an unnamed interface,
+    but be unable to retrieve it. Skip unnamed interface cases.
+    
+    For #71064
+    
+    Change-Id: Ie9af74bd656d403ddc19cc5f14062cd8e0fa2571
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Run-TryBot: Ian Lance Taylor <iant@golang.org>
+---
+ src/internal/routebsd/interface_classic.go | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/internal/routebsd/interface_classic.go b/src/internal/routebsd/interface_classic.go
+index af9531c0df..2599e5dd59 100644
+--- a/src/internal/routebsd/interface_classic.go
++++ b/src/internal/routebsd/interface_classic.go
+@@ -41,6 +41,12 @@ func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
+ 		}
+ 		m.Addrs[syscall.RTAX_IFP] = a
+ 		m.Name = a.(*LinkAddr).Name
++	} else {
++		// DragonFly seems to have unnamed interfaces
++		// that we can't look up again. Just skip them.
++		if runtime.GOOS == "dragonfly" {
++			return nil, nil
++		}
+ 	}
+ 
+ 	return m, nil

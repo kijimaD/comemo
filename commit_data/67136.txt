@@ -1,0 +1,61 @@
+commit b22da3f544418aa4d962848cab9e3458a1fe075b
+Author: Felix Geisendörfer <felix.geisendoerfer@datadoghq.com>
+Date:   Fri Feb 28 17:28:43 2025 +0100
+
+    internal/trace/internal/testgen: make generated trace version configurable
+    
+    Replace hard coded references to version.Go122 with the trace version
+    passed to NewTrace. This allows writing testgen tests for newer trace
+    versions.
+    
+    For #69869
+    
+    Change-Id: Id25350cea1c397a09ca23465526ff259e34a4752
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653875
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/trace/internal/testgen/trace.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/trace/internal/testgen/trace.go b/src/internal/trace/internal/testgen/trace.go
+index 0ae7e9924e..af469f525c 100644
+--- a/src/internal/trace/internal/testgen/trace.go
++++ b/src/internal/trace/internal/testgen/trace.go
+@@ -66,6 +66,7 @@ func NewTrace(ver version.Version) *Trace {
+ 	return &Trace{
+ 		names:           tracev2.EventNames(ver.Specs()),
+ 		specs:           ver.Specs(),
++		ver:             ver,
+ 		validTimestamps: true,
+ 	}
+ }
+@@ -115,7 +116,7 @@ func (t *Trace) Generation(gen uint64) *Generation {
+ func (t *Trace) Generate() []byte {
+ 	// Trace file contents.
+ 	var buf bytes.Buffer
+-	tw, err := raw.NewTextWriter(&buf, version.Go122)
++	tw, err := raw.NewTextWriter(&buf, t.ver)
+ 	if err != nil {
+ 		panic(err.Error())
+ 	}
+@@ -153,7 +154,7 @@ func (t *Trace) createEvent(ev tracev2.EventType, data []byte, args ...uint64) r
+ 		}
+ 	}
+ 	return raw.Event{
+-		Version: version.Go122,
++		Version: t.ver,
+ 		Ev:      ev,
+ 		Args:    args,
+ 		Data:    data,
+@@ -382,7 +383,7 @@ func (b *Batch) RawEvent(typ tracev2.EventType, data []byte, args ...uint64) {
+ // writeEventsTo emits events in the batch, including the batch header, to tw.
+ func (b *Batch) writeEventsTo(tw *raw.TextWriter) {
+ 	tw.WriteEvent(raw.Event{
+-		Version: version.Go122,
++		Version: b.gen.trace.ver,
+ 		Ev:      tracev2.EvEventBatch,
+ 		Args:    []uint64{b.gen.gen, uint64(b.thread), uint64(b.timestamp), b.size},
+ 	})

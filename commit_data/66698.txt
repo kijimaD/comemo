@@ -1,0 +1,122 @@
+commit e6c2e12c63db5b24724db873009373af413cd1ea
+Author: Joel Sing <joel@sing.id.au>
+Date:   Mon Aug 19 23:57:56 2024 +1000
+
+    cmd/compile/internal/ssa: optimise more branches with zero on riscv64
+    
+    Optimise more branches with zero on riscv64. In particular, BLTU with
+    zero occurs with IsInBounds checks for index zero. This currently results
+    in two instructions and requires an additional register:
+    
+       li      t2, 0
+       bltu    t2, t1, 0x174b4
+    
+    This is equivalent to checking if the bounds is not equal to zero. With
+    this change:
+    
+       bnez    t1, 0x174c0
+    
+    This removes more than 500 instructions from the Go binary on riscv64.
+    
+    Change-Id: I6cd861d853e3ef270bd46dacecdfaa205b1c4644
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606715
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/RISCV64.rules | 18 ++++++++++--------
+ src/cmd/compile/internal/ssa/rewriteRISCV64.go  | 24 ++++++++++++++++++++++++
+ test/codegen/compare_and_branch.go              | 10 ++++++++++
+ 3 files changed, 44 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+index 96b9b11cf9..a5d4fb72ec 100644
+--- a/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/RISCV64.rules
+@@ -558,14 +558,16 @@
+ (BNEZ (SLTIU [x] y) yes no) => (BLTU y (MOVDconst [x]) yes no)
+ 
+ // Convert branch with zero to more optimal branch zero.
+-(BEQ (MOVDconst [0]) cond yes no) => (BEQZ cond yes no)
+-(BEQ cond (MOVDconst [0]) yes no) => (BEQZ cond yes no)
+-(BNE (MOVDconst [0]) cond yes no) => (BNEZ cond yes no)
+-(BNE cond (MOVDconst [0]) yes no) => (BNEZ cond yes no)
+-(BLT (MOVDconst [0]) cond yes no) => (BGTZ cond yes no)
+-(BLT cond (MOVDconst [0]) yes no) => (BLTZ cond yes no)
+-(BGE (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
+-(BGE cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
++(BEQ  (MOVDconst [0]) cond yes no) => (BEQZ cond yes no)
++(BEQ  cond (MOVDconst [0]) yes no) => (BEQZ cond yes no)
++(BNE  (MOVDconst [0]) cond yes no) => (BNEZ cond yes no)
++(BNE  cond (MOVDconst [0]) yes no) => (BNEZ cond yes no)
++(BLT  (MOVDconst [0]) cond yes no) => (BGTZ cond yes no)
++(BLT  cond (MOVDconst [0]) yes no) => (BLTZ cond yes no)
++(BLTU (MOVDconst [0]) cond yes no) => (BNEZ cond yes no)
++(BGE  (MOVDconst [0]) cond yes no) => (BLEZ cond yes no)
++(BGE  cond (MOVDconst [0]) yes no) => (BGEZ cond yes no)
++(BGEU (MOVDconst [0]) cond yes no) => (BEQZ cond yes no)
+ 
+ // Remove redundant NEG from SEQZ/SNEZ.
+ (SEQZ (NEG x)) => (SEQZ x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteRISCV64.go b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+index b2318e711b..182ca2d3fd 100644
+--- a/src/cmd/compile/internal/ssa/rewriteRISCV64.go
++++ b/src/cmd/compile/internal/ssa/rewriteRISCV64.go
+@@ -9403,6 +9403,18 @@ func rewriteBlockRISCV64(b *Block) bool {
+ 			b.resetWithControl(BlockRISCV64BGEZ, cond)
+ 			return true
+ 		}
++	case BlockRISCV64BGEU:
++		// match: (BGEU (MOVDconst [0]) cond yes no)
++		// result: (BEQZ cond yes no)
++		for b.Controls[0].Op == OpRISCV64MOVDconst {
++			v_0 := b.Controls[0]
++			if auxIntToInt64(v_0.AuxInt) != 0 {
++				break
++			}
++			cond := b.Controls[1]
++			b.resetWithControl(BlockRISCV64BEQZ, cond)
++			return true
++		}
+ 	case BlockRISCV64BLT:
+ 		// match: (BLT (MOVDconst [0]) cond yes no)
+ 		// result: (BGTZ cond yes no)
+@@ -9426,6 +9438,18 @@ func rewriteBlockRISCV64(b *Block) bool {
+ 			b.resetWithControl(BlockRISCV64BLTZ, cond)
+ 			return true
+ 		}
++	case BlockRISCV64BLTU:
++		// match: (BLTU (MOVDconst [0]) cond yes no)
++		// result: (BNEZ cond yes no)
++		for b.Controls[0].Op == OpRISCV64MOVDconst {
++			v_0 := b.Controls[0]
++			if auxIntToInt64(v_0.AuxInt) != 0 {
++				break
++			}
++			cond := b.Controls[1]
++			b.resetWithControl(BlockRISCV64BNEZ, cond)
++			return true
++		}
+ 	case BlockRISCV64BNE:
+ 		// match: (BNE (MOVDconst [0]) cond yes no)
+ 		// result: (BNEZ cond yes no)
+diff --git a/test/codegen/compare_and_branch.go b/test/codegen/compare_and_branch.go
+index c121f1d2cc..759dd26358 100644
+--- a/test/codegen/compare_and_branch.go
++++ b/test/codegen/compare_and_branch.go
+@@ -241,4 +241,14 @@ func ui64x0(x chan uint64) {
+ 	for <-x < 1 {
+ 		dummy()
+ 	}
++
++	// riscv64:"BNEZ"
++	for 0 < <-x {
++		dummy()
++	}
++
++	// riscv64:"BEQZ"
++	for 0 >= <-x {
++		dummy()
++	}
+ }

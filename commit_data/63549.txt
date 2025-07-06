@@ -1,0 +1,119 @@
+commit 799968dfc3b9121019b752a9110489baa71a4355
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 23 10:12:55 2024 -0700
+
+    go.types, types2: factor out isUntypedNumeric predicate
+    
+    No need for Unalias or under calls for this predicate.
+    
+    Change-Id: Idcdcda3e153d829ee5b26ad112ccfda3f4efedde
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581255
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/predicates.go | 22 +++++++++++++++-------
+ src/go/types/predicates.go                    | 22 +++++++++++++++-------
+ 2 files changed, 30 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/predicates.go b/src/cmd/compile/internal/types2/predicates.go
+index 938f8dcf8b..6d9e6ec760 100644
+--- a/src/cmd/compile/internal/types2/predicates.go
++++ b/src/cmd/compile/internal/types2/predicates.go
+@@ -79,22 +79,30 @@ func isTypeLit(t Type) bool {
+ }
+ 
+ // isTyped reports whether t is typed; i.e., not an untyped
+-// constant or boolean. isTyped may be called with types that
+-// are not fully set up.
++// constant or boolean.
++// Safe to call from types that are not fully set up.
+ func isTyped(t Type) bool {
+-	// Alias or Named types cannot denote untyped types,
+-	// thus we don't need to call Unalias or under
+-	// (which would be unsafe to do for types that are
+-	// not fully set up).
++	// Alias and named types cannot denote untyped types
++	// so there's no need to call Unalias or under, below.
+ 	b, _ := t.(*Basic)
+ 	return b == nil || b.info&IsUntyped == 0
+ }
+ 
+ // isUntyped(t) is the same as !isTyped(t).
++// Safe to call from types that are not fully set up.
+ func isUntyped(t Type) bool {
+ 	return !isTyped(t)
+ }
+ 
++// isUntypedNumeric reports whether t is an untyped numeric type.
++// Safe to call from types that are not fully set up.
++func isUntypedNumeric(t Type) bool {
++	// Alias and named types cannot denote untyped types
++	// so there's no need to call Unalias or under, below.
++	b, _ := t.(*Basic)
++	return b != nil && b.info&IsUntyped != 0 && b.info&IsNumeric != 0
++}
++
+ // IsInterface reports whether t is an interface type.
+ func IsInterface(t Type) bool {
+ 	_, ok := under(t).(*Interface)
+@@ -539,7 +547,7 @@ func maxType(x, y Type) Type {
+ 	if x == y {
+ 		return x
+ 	}
+-	if isUntyped(x) && isUntyped(y) && isNumeric(x) && isNumeric(y) {
++	if isUntypedNumeric(x) && isUntypedNumeric(y) {
+ 		// untyped types are basic types
+ 		if x.(*Basic).kind > y.(*Basic).kind {
+ 			return x
+diff --git a/src/go/types/predicates.go b/src/go/types/predicates.go
+index 07d07f9f12..1889694342 100644
+--- a/src/go/types/predicates.go
++++ b/src/go/types/predicates.go
+@@ -82,22 +82,30 @@ func isTypeLit(t Type) bool {
+ }
+ 
+ // isTyped reports whether t is typed; i.e., not an untyped
+-// constant or boolean. isTyped may be called with types that
+-// are not fully set up.
++// constant or boolean.
++// Safe to call from types that are not fully set up.
+ func isTyped(t Type) bool {
+-	// Alias or Named types cannot denote untyped types,
+-	// thus we don't need to call Unalias or under
+-	// (which would be unsafe to do for types that are
+-	// not fully set up).
++	// Alias and named types cannot denote untyped types
++	// so there's no need to call Unalias or under, below.
+ 	b, _ := t.(*Basic)
+ 	return b == nil || b.info&IsUntyped == 0
+ }
+ 
+ // isUntyped(t) is the same as !isTyped(t).
++// Safe to call from types that are not fully set up.
+ func isUntyped(t Type) bool {
+ 	return !isTyped(t)
+ }
+ 
++// isUntypedNumeric reports whether t is an untyped numeric type.
++// Safe to call from types that are not fully set up.
++func isUntypedNumeric(t Type) bool {
++	// Alias and named types cannot denote untyped types
++	// so there's no need to call Unalias or under, below.
++	b, _ := t.(*Basic)
++	return b != nil && b.info&IsUntyped != 0 && b.info&IsNumeric != 0
++}
++
+ // IsInterface reports whether t is an interface type.
+ func IsInterface(t Type) bool {
+ 	_, ok := under(t).(*Interface)
+@@ -542,7 +550,7 @@ func maxType(x, y Type) Type {
+ 	if x == y {
+ 		return x
+ 	}
+-	if isUntyped(x) && isUntyped(y) && isNumeric(x) && isNumeric(y) {
++	if isUntypedNumeric(x) && isUntypedNumeric(y) {
+ 		// untyped types are basic types
+ 		if x.(*Basic).kind > y.(*Basic).kind {
+ 			return x

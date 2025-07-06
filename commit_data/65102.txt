@@ -1,0 +1,35 @@
+commit 11a03bbbd7a7582804eab35a195f012304c4119a
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon Oct 21 09:40:44 2024 -0500
+
+    cmd/link: fix TestTrampoline symbol name check on PPC64
+    
+    CL 603736 added a check looking for a specific trampoline symbol
+    name. PPC64 uses a slightly different name for the trampoline,
+    update the test to accept both.
+    
+    Change-Id: I177dadb25d82bc3ffeb7530d7ab865482d907d34
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621455
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Paul Murphy <murp@ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/link/link_test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/link/link_test.go b/src/cmd/link/link_test.go
+index deadc7955d..62647e2ca3 100644
+--- a/src/cmd/link/link_test.go
++++ b/src/cmd/link/link_test.go
+@@ -783,8 +783,8 @@ func TestTrampoline(t *testing.T) {
+ 		if err != nil {
+ 			t.Errorf("nm failure: %s\n%s\n", err, string(out))
+ 		}
+-		if !bytes.Contains(out, []byte("T runtime.deferreturn+0-tramp0")) {
+-			t.Errorf("Trampoline T runtime.deferreturn+0-tramp0 is missing")
++		if ok, _ := regexp.Match("T runtime.deferreturn(\\+0)?-tramp0", out); !ok {
++			t.Errorf("Trampoline T runtime.deferreturn(+0)?-tramp0 is missing")
+ 		}
+ 	}
+ }

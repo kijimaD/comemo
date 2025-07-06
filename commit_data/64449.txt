@@ -1,0 +1,437 @@
+commit ff14e08cd3c4423ae6c243ef20a3b9b4c04335ed
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed Apr 10 11:48:11 2024 +0800
+
+    cmd/compile, math: improve implementation of math.{Max,Min} on loong64
+    
+    Make math.{Min,Max} intrinsics and implement math.{archMax,archMin}
+    in hardware.
+    
+    goos: linux
+    goarch: loong64
+    pkg: math
+    cpu: Loongson-3A6000 @ 2500.00MHz
+             │  old.bench   │              new.bench              │
+             │    sec/op    │   sec/op     vs base                │
+    Max         7.606n ± 0%   3.087n ± 0%  -59.41% (p=0.000 n=20)
+    Min         7.205n ± 0%   2.904n ± 0%  -59.69% (p=0.000 n=20)
+    MinFloat   37.220n ± 0%   4.802n ± 0%  -87.10% (p=0.000 n=20)
+    MaxFloat   33.620n ± 0%   4.802n ± 0%  -85.72% (p=0.000 n=20)
+    geomean     16.18n        3.792n       -76.57%
+    
+    goos: linux
+    goarch: loong64
+    pkg: runtime
+    cpu: Loongson-3A5000 @ 2500.00MHz
+             │  old.bench   │              new.bench              │
+             │    sec/op    │   sec/op     vs base                │
+    Max        10.010n ± 0%   7.196n ± 0%  -28.11% (p=0.000 n=20)
+    Min         8.806n ± 0%   7.155n ± 0%  -18.75% (p=0.000 n=20)
+    MinFloat   60.010n ± 0%   7.976n ± 0%  -86.71% (p=0.000 n=20)
+    MaxFloat   56.410n ± 0%   7.980n ± 0%  -85.85% (p=0.000 n=20)
+    geomean     23.37n        7.566n       -67.63%
+    
+    Updates #59120.
+    
+    Change-Id: I6815d20bc304af3cbf5d6ca8fe0ca1c2ddebea2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580283
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/loong64/ssa.go         | 58 +++++++++++++++++++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 +
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  5 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 68 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 12 ++++
+ src/cmd/compile/internal/ssagen/ssa.go          |  8 +--
+ src/math/dim_asm.go                             |  2 +-
+ src/math/dim_loong64.s                          | 77 +++++++++++++++++++++++++
+ src/math/dim_noasm.go                           |  2 +-
+ test/codegen/floats.go                          |  4 ++
+ 10 files changed, 233 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 7cdf5637f2..10190654d7 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -184,6 +184,64 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		p.Reg = v.Args[0].Reg()
+ 		p.To.Type = obj.TYPE_REG
+ 		p.To.Reg = v.Reg()
++
++	case ssa.OpLOONG64FMINF,
++		ssa.OpLOONG64FMIND,
++		ssa.OpLOONG64FMAXF,
++		ssa.OpLOONG64FMAXD:
++		// ADDD Rarg0, Rarg1, Rout
++		// CMPEQD Rarg0, Rarg0, FCC0
++		// bceqz FCC0, end
++		// CMPEQD Rarg1, Rarg1, FCC0
++		// bceqz FCC0, end
++		// F(MIN|MAX)(F|D)
++
++		r0 := v.Args[0].Reg()
++		r1 := v.Args[1].Reg()
++		out := v.Reg()
++		add, fcmp := loong64.AADDD, loong64.ACMPEQD
++		if v.Op == ssa.OpLOONG64FMINF || v.Op == ssa.OpLOONG64FMAXF {
++			add = loong64.AADDF
++			fcmp = loong64.ACMPEQF
++		}
++		p1 := s.Prog(add)
++		p1.From.Type = obj.TYPE_REG
++		p1.From.Reg = r0
++		p1.Reg = r1
++		p1.To.Type = obj.TYPE_REG
++		p1.To.Reg = out
++
++		p2 := s.Prog(fcmp)
++		p2.From.Type = obj.TYPE_REG
++		p2.From.Reg = r0
++		p2.Reg = r0
++		p2.To.Type = obj.TYPE_REG
++		p2.To.Reg = loong64.REG_FCC0
++
++		p3 := s.Prog(loong64.ABFPF)
++		p3.To.Type = obj.TYPE_BRANCH
++
++		p4 := s.Prog(fcmp)
++		p4.From.Type = obj.TYPE_REG
++		p4.From.Reg = r1
++		p4.Reg = r1
++		p4.To.Type = obj.TYPE_REG
++		p4.To.Reg = loong64.REG_FCC0
++
++		p5 := s.Prog(loong64.ABFPF)
++		p5.To.Type = obj.TYPE_BRANCH
++
++		p6 := s.Prog(v.Op.Asm())
++		p6.From.Type = obj.TYPE_REG
++		p6.From.Reg = r1
++		p6.Reg = r0
++		p6.To.Type = obj.TYPE_REG
++		p6.To.Reg = out
++
++		nop := s.Prog(obj.ANOP)
++		p3.To.SetTarget(nop)
++		p5.To.SetTarget(nop)
++
+ 	case ssa.OpLOONG64SGT,
+ 		ssa.OpLOONG64SGTU:
+ 		p := s.Prog(v.Op.Asm())
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 2af9519113..6beeb4e0cc 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -132,6 +132,9 @@
+ (Sqrt ...) => (SQRTD ...)
+ (Sqrt32 ...) => (SQRTF ...)
+ 
++(Min(64|32)F ...) => (FMIN(D|F) ...)
++(Max(64|32)F ...) => (FMAX(D|F) ...)
++
+ // boolean ops -- booleans are represented with 0=false, 1=true
+ (AndB ...) => (AND ...)
+ (OrB ...) => (OR ...)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index 3fbf5be499..aa030f4fa0 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -193,6 +193,11 @@ func init() {
+ 		{name: "SQRTD", argLength: 1, reg: fp11, asm: "SQRTD"}, // sqrt(arg0), float64
+ 		{name: "SQRTF", argLength: 1, reg: fp11, asm: "SQRTF"}, // sqrt(arg0), float32
+ 
++		{name: "MINF", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "MINF", commutative: true, typ: "Float32"}, // min(arg0, arg1), float32
++		{name: "MIND", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "MIND", commutative: true, typ: "Float64"}, // min(arg0, arg1), float64
++		{name: "MAXF", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "MAXF", commutative: true, typ: "Float32"}, // max(arg0, arg1), float32
++		{name: "MAXD", argLength: 2, reg: fp21, resultNotInArgs: true, asm: "MAXD", commutative: true, typ: "Float64"}, // max(arg0, arg1), float64
++
+ 		{name: "MASKEQZ", argLength: 2, reg: gp21, asm: "MASKEQZ"}, // returns 0 if arg1 == 0, otherwise returns arg0
+ 		{name: "MASKNEZ", argLength: 2, reg: gp21, asm: "MASKNEZ"}, // returns 0 if arg1 != 0, otherwise returns arg0
+ 
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 91728da80d..7216f2df01 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1773,6 +1773,10 @@ const (
+ 	OpLOONG64NEGD
+ 	OpLOONG64SQRTD
+ 	OpLOONG64SQRTF
++	OpLOONG64FMINF
++	OpLOONG64FMIND
++	OpLOONG64FMAXF
++	OpLOONG64FMAXD
+ 	OpLOONG64MASKEQZ
+ 	OpLOONG64MASKNEZ
+ 	OpLOONG64SLLV
+@@ -23874,6 +23878,70 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:            "FMINF",
++		argLen:          2,
++		commutative:     true,
++		resultNotInArgs: true,
++		asm:             loong64.AFMINF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:            "FMIND",
++		argLen:          2,
++		commutative:     true,
++		resultNotInArgs: true,
++		asm:             loong64.AFMIND,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:            "FMAXF",
++		argLen:          2,
++		commutative:     true,
++		resultNotInArgs: true,
++		asm:             loong64.AFMAXF,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
++	{
++		name:            "FMAXD",
++		argLen:          2,
++		commutative:     true,
++		resultNotInArgs: true,
++		asm:             loong64.AFMAXD,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++				{1, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++			outputs: []outputInfo{
++				{0, 4611686017353646080}, // F0 F1 F2 F3 F4 F5 F6 F7 F8 F9 F10 F11 F12 F13 F14 F15 F16 F17 F18 F19 F20 F21 F22 F23 F24 F25 F26 F27 F28 F29 F30 F31
++			},
++		},
++	},
+ 	{
+ 		name:   "MASKEQZ",
+ 		argLen: 2,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index edd3ffe6b9..8fa31d73f6 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -416,6 +416,18 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpLsh8x64(v)
+ 	case OpLsh8x8:
+ 		return rewriteValueLOONG64_OpLsh8x8(v)
++	case OpMax32F:
++		v.Op = OpLOONG64FMAXF
++		return true
++	case OpMax64F:
++		v.Op = OpLOONG64FMAXD
++		return true
++	case OpMin32F:
++		v.Op = OpLOONG64FMINF
++		return true
++	case OpMin64F:
++		v.Op = OpLOONG64FMIND
++		return true
+ 	case OpMod16:
+ 		return rewriteValueLOONG64_OpMod16(v)
+ 	case OpMod16u:
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 6919901f05..c1c9910127 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -89,11 +89,11 @@ func InitConfig() {
+ 	_ = types.NewPtr(types.Types[types.TINT64])                             // *int64
+ 	_ = types.NewPtr(types.ErrorType)                                       // *error
+ 	if buildcfg.Experiment.SwissMap {
+-		_ = types.NewPtr(reflectdata.SwissMapType())                    // *runtime.hmap
++		_ = types.NewPtr(reflectdata.SwissMapType()) // *runtime.hmap
+ 	} else {
+-		_ = types.NewPtr(reflectdata.OldMapType())                      // *runtime.hmap
++		_ = types.NewPtr(reflectdata.OldMapType()) // *runtime.hmap
+ 	}
+-	_ = types.NewPtr(deferstruct())                                         // *runtime._defer
++	_ = types.NewPtr(deferstruct()) // *runtime._defer
+ 	types.NewPtrCacheEnabled = false
+ 	ssaConfig = ssa.NewConfig(base.Ctxt.Arch.Name, *types_, base.Ctxt, base.Flag.N == 0, Arch.SoftFloat)
+ 	ssaConfig.Race = base.Flag.Race
+@@ -3731,7 +3731,7 @@ func (s *state) minMax(n *ir.CallExpr) *ssa.Value {
+ 		if typ.IsFloat() {
+ 			hasIntrinsic := false
+ 			switch Arch.LinkArch.Family {
+-			case sys.AMD64, sys.ARM64, sys.RISCV64:
++			case sys.AMD64, sys.ARM64, sys.Loong64, sys.RISCV64:
+ 				hasIntrinsic = true
+ 			case sys.PPC64:
+ 				hasIntrinsic = buildcfg.GOPPC64 >= 9
+diff --git a/src/math/dim_asm.go b/src/math/dim_asm.go
+index f4adbd0ae5..a1d23dd096 100644
+--- a/src/math/dim_asm.go
++++ b/src/math/dim_asm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build amd64 || arm64 || riscv64 || s390x
++//go:build amd64 || arm64 || loong64 || riscv64 || s390x
+ 
+ package math
+ 
+diff --git a/src/math/dim_loong64.s b/src/math/dim_loong64.s
+new file mode 100644
+index 0000000000..1484bf7638
+--- /dev/null
++++ b/src/math/dim_loong64.s
+@@ -0,0 +1,77 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++#include "textflag.h"
++
++#define PosInf 0x7FF0000000000000
++#define NaN    0x7FF8000000000001
++#define NegInf 0xFFF0000000000000
++
++TEXT ·archMax(SB),NOSPLIT,$0
++	MOVD	x+0(FP), F0
++	MOVD	y+8(FP), F1
++	FCLASSD	F0, F2
++	FCLASSD	F1, F3
++
++	// combine x and y categories together to judge
++	MOVV	F2, R4
++	MOVV	F3, R5
++	OR	R5, R4
++
++	// +Inf special cases
++	AND	$64, R4, R5
++	BNE	R5, isPosInf
++
++	// NaN special cases
++	AND	$2, R4, R5
++	BNE	R5, isMaxNaN
++
++	// normal case
++	FMAXD	F0, F1, F0
++	MOVD	F0, ret+16(FP)
++	RET
++
++isMaxNaN:
++	MOVV	$NaN, R6
++	MOVV	R6, ret+16(FP)
++	RET
++
++isPosInf:
++	MOVV	$PosInf, R6
++	MOVV	R6, ret+16(FP)
++	RET
++
++TEXT ·archMin(SB),NOSPLIT,$0
++	MOVD	x+0(FP), F0
++	MOVD	y+8(FP), F1
++	FCLASSD	F0, F2
++	FCLASSD	F1, F3
++
++	// combine x and y categories together to judge
++	MOVV	F2, R4
++	MOVV	F3, R5
++	OR	R5, R4
++
++	// -Inf special cases
++	AND	$4, R4, R5
++	BNE	R5, isNegInf
++
++	// NaN special cases
++	AND	$2, R4, R5
++	BNE	R5, isMinNaN
++
++	// normal case
++	FMIND	F0, F1, F0
++	MOVD	F0, ret+16(FP)
++	RET
++
++isMinNaN:
++	MOVV	$NaN, R6
++	MOVV	R6, ret+16(FP)
++	RET
++
++isNegInf:
++	MOVV	$NegInf, R6
++	MOVV	R6, ret+16(FP)
++	RET
+diff --git a/src/math/dim_noasm.go b/src/math/dim_noasm.go
+index 5b9e06fed3..6f4917b8e8 100644
+--- a/src/math/dim_noasm.go
++++ b/src/math/dim_noasm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !amd64 && !arm64 && !riscv64 && !s390x
++//go:build !amd64 && !arm64 && !loong64 && !riscv64 && !s390x
+ 
+ package math
+ 
+diff --git a/test/codegen/floats.go b/test/codegen/floats.go
+index d38df1cacb..d2cf6f2b00 100644
+--- a/test/codegen/floats.go
++++ b/test/codegen/floats.go
+@@ -164,6 +164,7 @@ func ArrayCopy(a [16]byte) (b [16]byte) {
+ func Float64Min(a, b float64) float64 {
+ 	// amd64:"MINSD"
+ 	// arm64:"FMIND"
++	// loong64:"FMIND"
+ 	// riscv64:"FMIN"
+ 	// ppc64/power9:"XSMINJDP"
+ 	// ppc64/power10:"XSMINJDP"
+@@ -173,6 +174,7 @@ func Float64Min(a, b float64) float64 {
+ func Float64Max(a, b float64) float64 {
+ 	// amd64:"MINSD"
+ 	// arm64:"FMAXD"
++	// loong64:"FMAXD"
+ 	// riscv64:"FMAX"
+ 	// ppc64/power9:"XSMAXJDP"
+ 	// ppc64/power10:"XSMAXJDP"
+@@ -182,6 +184,7 @@ func Float64Max(a, b float64) float64 {
+ func Float32Min(a, b float32) float32 {
+ 	// amd64:"MINSS"
+ 	// arm64:"FMINS"
++	// loong64:"FMINF"
+ 	// riscv64:"FMINS"
+ 	// ppc64/power9:"XSMINJDP"
+ 	// ppc64/power10:"XSMINJDP"
+@@ -191,6 +194,7 @@ func Float32Min(a, b float32) float32 {
+ func Float32Max(a, b float32) float32 {
+ 	// amd64:"MINSS"
+ 	// arm64:"FMAXS"
++	// loong64:"FMAXF"
+ 	// riscv64:"FMAXS"
+ 	// ppc64/power9:"XSMAXJDP"
+ 	// ppc64/power10:"XSMAXJDP"

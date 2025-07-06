@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 20023: 5f691cfaf1a6a4e2365fad423c1fe1f9b7975efb
+# Index 20023: ca6be91cbc39574a3f422a07dc4f0f4922c6668f
 
 echo "🚀 Generating explanation for commit 20023..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 20023..."
 
 ### メタデータ
 - **コミットインデックス**: 20023
-- **コミットハッシュ**: 5f691cfaf1a6a4e2365fad423c1fe1f9b7975efb
-- **GitHub URL**: https://github.com/golang/go/commit/5f691cfaf1a6a4e2365fad423c1fe1f9b7975efb
+- **コミットハッシュ**: ca6be91cbc39574a3f422a07dc4f0f4922c6668f
+- **GitHub URL**: https://github.com/golang/go/commit/ca6be91cbc39574a3f422a07dc4f0f4922c6668f
 
 ### 章構成
 

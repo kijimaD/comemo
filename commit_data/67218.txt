@@ -1,0 +1,49 @@
+commit 155ba387a93fddbd6ced288fe539a55c31b2597e
+Author: Michael Matloob <matloob@golang.org>
+Date:   Thu May 22 12:40:51 2025 -0400
+
+    cmd/doc: properly set GOPROXY to avoid deprecation checks
+    
+    This change fixes a bug that was introduced in CL 675155. Instead of
+    doing the two step download and run with GOPROXY=off, do the run with
+    GOPROXY=<download cache>:$GOPROXY, so that we use the previously
+    downloaded version of pkgsite as the latest.
+    
+    Fixes #73833
+    
+    Change-Id: I8803426498ab026602805d6448a130eb11458c99
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675576
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/doc/main.go | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/src/cmd/doc/main.go b/src/cmd/doc/main.go
+index ccd8512006..490337a0b4 100644
+--- a/src/cmd/doc/main.go
++++ b/src/cmd/doc/main.go
+@@ -258,11 +258,22 @@ func doPkgsite(urlPath string) error {
+ 	// exit before exiting ourselves.
+ 	signal.Ignore(signalsToIgnore...)
+ 
++	// Prepend the local download cache to GOPROXY to get around deprecation checks.
++	env := os.Environ()
++	vars, err := runCmd(nil, "go", "env", "GOPROXY", "GOMODCACHE")
++	fields := strings.Fields(vars)
++	if err == nil && len(fields) == 2 {
++		goproxy, gomodcache := fields[0], fields[1]
++		goproxy = "file://" + filepath.Join(gomodcache, "cache", "download") + "," + goproxy
++		env = append(env, "GOPROXY="+goproxy)
++	}
++
+ 	const version = "v0.0.0-20250520201116-40659211760d"
+ 	cmd := exec.Command("go", "run", "golang.org/x/pkgsite/cmd/internal/doc@"+version,
+ 		"-gorepo", buildCtx.GOROOT,
+ 		"-http", addr,
+ 		"-open", path)
++	cmd.Env = env
+ 	cmd.Stdout = os.Stderr
+ 	cmd.Stderr = os.Stderr
+ 

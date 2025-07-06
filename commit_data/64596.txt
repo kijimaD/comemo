@@ -1,0 +1,137 @@
+commit 422f4705ca5487184c232cc5709e543ce5f37cd6
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Aug 13 13:53:50 2024 -0400
+
+    cmd/dist: set go version in bootstrap go.mod file
+    
+    The commands to build the bootstrap toolchains and go commands are run
+    from modules created by two bootstrap go.mod files: one is used when
+    building toolchain1 and go_bootstrap, and the other is used for
+    toolchain2 and toolchain3, and the final build. Currently the first has
+    a go directive specifying go 1.20, and the second one does not have a go
+    directive at all. This affects the default GODEBUG setting when building
+    the final toolchain: the default GODEBUG value is based on the go
+    version of the go.mod file, and when the go.mod file does not have a
+    version it defaults to go1.16. We should set the go directive on the
+    bootstrap used for the second half of the builds to use the current go
+    verison from the std's go.mod file (which is the same as the version on
+    cmd's go.mod file).
+    
+    The go.mod file used for the initial bootstrap should have a go
+    directive with the minimum version of the toolchain required for
+    bootstrapping. That version is the current version - 2 rounded down to
+    an even number.
+    
+    For #64751
+    Fixes #68797
+    
+    Change-Id: Ibdddf4bc36dc963291979d603c4f3fc55264f65b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604799
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/dist/build.go      | 34 +++++++++++++++++++++++++++++++++-
+ src/cmd/dist/build_test.go | 17 +++++++++++++++++
+ src/cmd/dist/buildtool.go  |  3 ++-
+ 3 files changed, 52 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 79edf8053a..cd76446881 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -17,6 +17,7 @@ import (
+ 	"path/filepath"
+ 	"regexp"
+ 	"sort"
++	"strconv"
+ 	"strings"
+ 	"sync"
+ 	"time"
+@@ -261,8 +262,12 @@ func xinit() {
+ 	os.Unsetenv("GOFLAGS")
+ 	os.Setenv("GOWORK", "off")
+ 
++	// Create the go.mod for building toolchain2 and toolchain3. Toolchain1 and go_bootstrap are built with
++	// a separate go.mod (with a lower required go version to allow all allowed bootstrap toolchain versions)
++	// in bootstrapBuildTools.
++	modVer := goModVersion()
+ 	workdir = xworkdir()
+-	if err := os.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap"), 0666); err != nil {
++	if err := os.WriteFile(pathf("%s/go.mod", workdir), []byte("module bootstrap\n\ngo "+modVer+"\n"), 0666); err != nil {
+ 		fatalf("cannot write stub go.mod: %s", err)
+ 	}
+ 	xatexit(rmworkdir)
+@@ -441,6 +446,33 @@ func findgoversion() string {
+ 	return version
+ }
+ 
++// goModVersion returns the go version declared in src/go.mod. This is the
++// go version to use in the go.mod building go_bootstrap, toolchain2, and toolchain3.
++// (toolchain1 must be built with requiredBootstrapVersion(goModVersion))
++func goModVersion() string {
++	goMod := readfile(pathf("%s/src/go.mod", goroot))
++	m := regexp.MustCompile(`(?m)^go (1.\d+)$`).FindStringSubmatch(goMod)
++	if m == nil {
++		fatalf("std go.mod does not contain go 1.X")
++	}
++	return m[1]
++}
++
++func requiredBootstrapVersion(v string) string {
++	minorstr, ok := strings.CutPrefix(v, "1.")
++	if !ok {
++		fatalf("go version %q in go.mod does not start with %q", v, "1.")
++	}
++	minor, err := strconv.Atoi(minorstr)
++	if err != nil {
++		fatalf("invalid go version minor component %q: %v", minorstr, err)
++	}
++	// Per go.dev/doc/install/source, for N >= 22, Go version 1.N will require a Go 1.M compiler,
++	// where M is N-2 rounded down to an even number. Example: Go 1.24 and 1.25 require Go 1.22.
++	requiredMinor := minor - 2 - minor%2
++	return "1." + strconv.Itoa(requiredMinor)
++}
++
+ // isGitRepo reports whether the working directory is inside a Git repository.
+ func isGitRepo() bool {
+ 	// NB: simply checking the exit code of `git rev-parse --git-dir` would
+diff --git a/src/cmd/dist/build_test.go b/src/cmd/dist/build_test.go
+index 158ac2678d..36bf54c305 100644
+--- a/src/cmd/dist/build_test.go
++++ b/src/cmd/dist/build_test.go
+@@ -24,3 +24,20 @@ func TestMustLinkExternal(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestRequiredBootstrapVersion(t *testing.T) {
++	testCases := map[string]string{
++		"1.22": "1.20",
++		"1.23": "1.20",
++		"1.24": "1.22",
++		"1.25": "1.22",
++		"1.26": "1.24",
++		"1.27": "1.24",
++	}
++
++	for v, want := range testCases {
++		if got := requiredBootstrapVersion(v); got != want {
++			t.Errorf("requiredBootstrapVersion(%v): got %v, want %v", v, got, want)
++		}
++	}
++}
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index 9ca8fc539c..0b9e489200 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -151,7 +151,8 @@ func bootstrapBuildTools() {
+ 	xmkdirall(base)
+ 
+ 	// Copy source code into $GOROOT/pkg/bootstrap and rewrite import paths.
+-	writefile("module bootstrap\ngo 1.20\n", pathf("%s/%s", base, "go.mod"), 0)
++	minBootstrapVers := requiredBootstrapVersion(goModVersion()) // require the minimum required go version to build this go version in the go.mod file
++	writefile("module bootstrap\ngo "+minBootstrapVers+"\n", pathf("%s/%s", base, "go.mod"), 0)
+ 	for _, dir := range bootstrapDirs {
+ 		recurse := strings.HasSuffix(dir, "/...")
+ 		dir = strings.TrimSuffix(dir, "/...")

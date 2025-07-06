@@ -1,0 +1,252 @@
+commit 555ef554602a7d09ec302df7f2e3397815a804ee
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Oct 29 17:46:40 2024 -0700
+
+    cmd/internal/osinfo: stop importing golang.org/x/sys/unix
+    
+    This is the only non-vendored file that imports x/sys/unix.
+    Switch to fetching the information in this package.
+    
+    Change-Id: I4e54c2cd8b4953066e2bee42922f35c387fb43e9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623435
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/osinfo/os_solaris.go        | 36 +++++++++++++++++++++
+ src/cmd/internal/osinfo/os_syscall.go        | 17 ++++++++++
+ src/cmd/internal/osinfo/os_sysctl.go         | 41 ++++++++++++++++++++++++
+ src/cmd/internal/osinfo/os_uname.go          | 47 ++++++++++++++++++++++++++++
+ src/cmd/internal/osinfo/os_unix.go           | 24 --------------
+ src/cmd/internal/osinfo/version_unix_test.go | 26 +++++++++++++++
+ 6 files changed, 167 insertions(+), 24 deletions(-)
+
+diff --git a/src/cmd/internal/osinfo/os_solaris.go b/src/cmd/internal/osinfo/os_solaris.go
+new file mode 100644
+index 0000000000..951d4cea34
+--- /dev/null
++++ b/src/cmd/internal/osinfo/os_solaris.go
+@@ -0,0 +1,36 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Supporting definitions for os_uname.go on Solaris.
++
++package osinfo
++
++import (
++	"syscall"
++	"unsafe"
++)
++
++type utsname struct {
++	Sysname  [257]byte
++	Nodename [257]byte
++	Release  [257]byte
++	Version  [257]byte
++	Machine  [257]byte
++}
++
++//go:cgo_import_dynamic libc_uname uname "libc.so"
++//go:linkname procUname libc_uname
++
++var procUname uintptr
++
++//go:linkname rawsysvicall6 runtime.syscall_rawsysvicall6
++func rawsysvicall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err syscall.Errno)
++
++func uname(buf *utsname) error {
++	_, _, errno := rawsysvicall6(uintptr(unsafe.Pointer(&procUname)), 1, uintptr(unsafe.Pointer(buf)), 0, 0, 0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/cmd/internal/osinfo/os_syscall.go b/src/cmd/internal/osinfo/os_syscall.go
+new file mode 100644
+index 0000000000..43c3e5efd9
+--- /dev/null
++++ b/src/cmd/internal/osinfo/os_syscall.go
+@@ -0,0 +1,17 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || linux
++
++// Supporting definitions for os_uname.go on AIX and Linux.
++
++package osinfo
++
++import "syscall"
++
++type utsname = syscall.Utsname
++
++func uname(buf *utsname) error {
++	return syscall.Uname(buf)
++}
+diff --git a/src/cmd/internal/osinfo/os_sysctl.go b/src/cmd/internal/osinfo/os_sysctl.go
+new file mode 100644
+index 0000000000..d4e0e6e4ac
+--- /dev/null
++++ b/src/cmd/internal/osinfo/os_sysctl.go
+@@ -0,0 +1,41 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build darwin || dragonfly || freebsd || netbsd || openbsd
++
++package osinfo
++
++import (
++	"strings"
++	"syscall"
++)
++
++// Version returns the OS version name/number.
++func Version() (string, error) {
++	sysname, err := syscall.Sysctl("kern.ostype")
++	if err != nil {
++		return "", err
++	}
++	release, err := syscall.Sysctl("kern.osrelease")
++	if err != nil {
++		return "", err
++	}
++	version, err := syscall.Sysctl("kern.version")
++	if err != nil {
++		return "", err
++	}
++
++	// The version might have newlines or tabs; convert to spaces.
++	version = strings.ReplaceAll(version, "\n", " ")
++	version = strings.ReplaceAll(version, "\t", " ")
++	version = strings.TrimSpace(version)
++
++	machine, err := syscall.Sysctl("hw.machine")
++	if err != nil {
++		return "", err
++	}
++
++	ret := sysname + " " + release + " " + version + " " + machine
++	return ret, nil
++}
+diff --git a/src/cmd/internal/osinfo/os_uname.go b/src/cmd/internal/osinfo/os_uname.go
+new file mode 100644
+index 0000000000..8066bd2569
+--- /dev/null
++++ b/src/cmd/internal/osinfo/os_uname.go
+@@ -0,0 +1,47 @@
++// Copyright 2022 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build aix || linux || solaris
++
++package osinfo
++
++import (
++	"bytes"
++	"strings"
++	"unsafe"
++)
++
++// Version returns the OS version name/number.
++func Version() (string, error) {
++	var uts utsname
++	if err := uname(&uts); err != nil {
++		return "", err
++	}
++
++	var sb strings.Builder
++
++	writeCStr := func(b []byte) {
++		if i := bytes.IndexByte(b, '\000'); i >= 0 {
++			b = b[:i]
++		}
++		sb.Write(b)
++	}
++
++	// We need some absurd conversions because syscall.Utsname
++	// sometimes uses []uint8 and sometimes []int8.
++
++	s := uts.Sysname[:]
++	writeCStr(*(*[]byte)(unsafe.Pointer(&s)))
++	sb.WriteByte(' ')
++	s = uts.Release[:]
++	writeCStr(*(*[]byte)(unsafe.Pointer(&s)))
++	sb.WriteByte(' ')
++	s = uts.Version[:]
++	writeCStr(*(*[]byte)(unsafe.Pointer(&s)))
++	sb.WriteByte(' ')
++	s = uts.Machine[:]
++	writeCStr(*(*[]byte)(unsafe.Pointer(&s)))
++
++	return sb.String(), nil
++}
+diff --git a/src/cmd/internal/osinfo/os_unix.go b/src/cmd/internal/osinfo/os_unix.go
+deleted file mode 100644
+index e1488323ae..0000000000
+--- a/src/cmd/internal/osinfo/os_unix.go
++++ /dev/null
+@@ -1,24 +0,0 @@
+-// Copyright 2022 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build unix
+-
+-package osinfo
+-
+-import "golang.org/x/sys/unix"
+-
+-// Version returns the OS version name/number.
+-func Version() (string, error) {
+-	var uts unix.Utsname
+-	if err := unix.Uname(&uts); err != nil {
+-		return "", err
+-	}
+-
+-	sysname := unix.ByteSliceToString(uts.Sysname[:])
+-	release := unix.ByteSliceToString(uts.Release[:])
+-	version := unix.ByteSliceToString(uts.Version[:])
+-	machine := unix.ByteSliceToString(uts.Machine[:])
+-
+-	return sysname + " " + release + " " + version + " " + machine, nil
+-}
+diff --git a/src/cmd/internal/osinfo/version_unix_test.go b/src/cmd/internal/osinfo/version_unix_test.go
+new file mode 100644
+index 0000000000..c64f60d861
+--- /dev/null
++++ b/src/cmd/internal/osinfo/version_unix_test.go
+@@ -0,0 +1,26 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix
++
++package osinfo
++
++import (
++	"strings"
++	"testing"
++)
++
++func TestVersion(t *testing.T) {
++	v, err := Version()
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	t.Logf("%q", v)
++
++	fields := strings.Fields(v)
++	if len(fields) < 4 {
++		t.Errorf("wanted at least 4 fields in %q, got %d", v, len(fields))
++	}
++}

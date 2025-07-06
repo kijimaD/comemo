@@ -1,0 +1,91 @@
+commit eba9e08766e694183c043f743278a86f16dc2ab3
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jun 20 22:58:24 2024 +0700
+
+    [release-branch.go1.23] cmd/compile: support generic alias type
+    
+    Type parameters on aliases are now allowed after #46477 accepted.
+    
+    Updates #46477
+    Fixes #68054
+    
+    Change-Id: Ic2e3b6f960a898163f47666e3a6bfe43b8cc22e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593715
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593797
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/compile/internal/noder/writer.go | 13 ++++++++++++-
+ test/fixedbugs/issue68054.go             | 23 +++++++++++++++++++++++
+ 2 files changed, 35 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index 9b33fb7c6d..fe8f8f2a35 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -543,7 +543,7 @@ func (pw *pkgWriter) typIdx(typ types2.Type, dict *writerDict) typeInfo {
+ 
+ 	case *types2.Alias:
+ 		w.Code(pkgbits.TypeNamed)
+-		w.namedType(typ.Obj(), nil)
++		w.namedType(splitAlias(typ))
+ 
+ 	case *types2.TypeParam:
+ 		w.derived = true
+@@ -2958,6 +2958,9 @@ func objTypeParams(obj types2.Object) *types2.TypeParamList {
+ 		if !obj.IsAlias() {
+ 			return obj.Type().(*types2.Named).TypeParams()
+ 		}
++		if alias, ok := obj.Type().(*types2.Alias); ok {
++			return alias.TypeParams()
++		}
+ 	}
+ 	return nil
+ }
+@@ -2974,6 +2977,14 @@ func splitNamed(typ *types2.Named) (*types2.TypeName, *types2.TypeList) {
+ 	return typ.Obj(), typ.TypeArgs()
+ }
+ 
++// splitAlias is like splitNamed, but for an alias type.
++func splitAlias(typ *types2.Alias) (*types2.TypeName, *types2.TypeList) {
++	orig := typ.Origin()
++	base.Assertf(typ.Obj() == orig.Obj(), "alias type %v has object %v, but %v has object %v", typ, typ.Obj(), orig, orig.Obj())
++
++	return typ.Obj(), typ.TypeArgs()
++}
++
+ func asPragmaFlag(p syntax.Pragma) ir.PragmaFlag {
+ 	if p == nil {
+ 		return 0
+diff --git a/test/fixedbugs/issue68054.go b/test/fixedbugs/issue68054.go
+new file mode 100644
+index 0000000000..5409fc9081
+--- /dev/null
++++ b/test/fixedbugs/issue68054.go
+@@ -0,0 +1,23 @@
++// compile -goexperiment aliastypeparams
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type Seq[V any] = func(yield func(V) bool)
++
++func f[E any](seq Seq[E]) {
++	return
++}
++
++func g() {
++	f(Seq[int](nil))
++}
++
++type T[P any] struct{}
++
++type A[P any] = T[P]
++
++var _ A[int]

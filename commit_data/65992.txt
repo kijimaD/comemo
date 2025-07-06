@@ -1,0 +1,102 @@
+commit 50455385b0e668656cac03d3012e48e071df6aa4
+Author: Than McIntosh <thanm@golang.org>
+Date:   Tue Nov 12 12:32:39 2024 -0500
+
+    internal/coverage: fix bug in text-format coverage output with multiple packages
+    
+    In ProcessCoverTestDir pass the selected set of packages to
+    EmitTextual in addition to EmitPercent, so that when we have runs with
+    multiple packages selected but without -coverpkg, text format output
+    for package P was incorrectly including output for P's covered
+    dependencies. This is in effect an extension of the fix for issue
+    65570.
+    
+    Includes a cmd/go script test to verify correct behavior; ideally it
+    would be nice to locate this test in .../internal/coverage somewhere
+    but at the moment script tests are only supported for
+    cmd/{go,compile,link}.
+    
+    Updates #65570.
+    Fixes #70244.
+    
+    Change-Id: Ia0bb10155353aa0f2ead46e81a2aaa71bde4ef82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627316
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Than McIntosh <thanm@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ .../script/cover_coverprofile_nocoverpkg.txt       | 50 ++++++++++++++++++++++
+ src/internal/coverage/cfile/testsupport.go         |  2 +-
+ 2 files changed, 51 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/testdata/script/cover_coverprofile_nocoverpkg.txt b/src/cmd/go/testdata/script/cover_coverprofile_nocoverpkg.txt
+new file mode 100644
+index 0000000000..85b3136bf9
+--- /dev/null
++++ b/src/cmd/go/testdata/script/cover_coverprofile_nocoverpkg.txt
+@@ -0,0 +1,50 @@
++# Testcase for #70244. In this bug we're doing a "go test -coverprofile"
++# run for a pair of packages, the first one without tests and the second
++# one with tests. When writing the profile for the second test, profile
++# data from the first package was leaking into the output (we should
++# only see lines in the output profile for the package whose test is
++# being run).
++
++[short] skip
++
++# Kick off test.
++go test -vet=off -count=1 -coverprofile=cov.p ./...
++
++# Generate a function profile.
++go tool cover -func=cov.p
++
++# Prior to GOEXPERIMENT=coverageredesign we should see no output at all for
++# pkg1 (since it has no tests).
++[!GOEXPERIMENT:coverageredesign] ! stdout 'pkg1'
++
++# With GOEXPERIMENT=coverageredesign enabled we should see zero percent
++# coverage for pkg1's DoSomething, not 100% (as in the bug).
++[GOEXPERIMENT:coverageredesign] stdout 'cov/pkg1/file.go:3:\s+DoSomething\s+0.0%'
++
++-- go.mod --
++module cov
++
++-- pkg1/file.go --
++package pkg1
++
++func DoSomething() bool {
++	return true
++}
++-- pkg2/file.go --
++package pkg2
++
++func DoSomething() bool {
++	return true
++}
++-- pkg2/file_test.go --
++package pkg2
++
++import (
++	"cov/pkg1"
++	"testing"
++)
++
++func TestSmth(t *testing.T) {
++	pkg1.DoSomething()
++	DoSomething()
++}
+diff --git a/src/internal/coverage/cfile/testsupport.go b/src/internal/coverage/cfile/testsupport.go
+index 56b39c5859..adab47fd21 100644
+--- a/src/internal/coverage/cfile/testsupport.go
++++ b/src/internal/coverage/cfile/testsupport.go
+@@ -109,7 +109,7 @@ func ProcessCoverTestDir(dir string, cfile string, cm string, cpkg string, w io.
+ 
+ 	// Emit text output.
+ 	if tf != nil {
+-		if err := ts.cf.EmitTextual(nil, tf); err != nil {
++		if err := ts.cf.EmitTextual(selpkgs, tf); err != nil {
+ 			return err
+ 		}
+ 		tfClosed = true

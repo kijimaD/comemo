@@ -1,0 +1,25 @@
+commit 7dff7439dcee8ff6cd83869d356accac1039c017
+Author: Gopher Robot <gobot@golang.org>
+Date:   Fri Jun 21 15:42:56 2024 +0000
+
+    [release-branch.go1.23] go1.23rc1
+    
+    Change-Id: Ied4bb63f49d13bd7d421cf9cb269220974641b89
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593897
+    Auto-Submit: David Chase <drchase@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Gopher Robot <gobot@golang.org>
+---
+ VERSION | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/VERSION b/VERSION
+new file mode 100644
+index 0000000000..e338ef70bd
+--- /dev/null
++++ b/VERSION
+@@ -0,0 +1,2 @@
++go1.23rc1
++time 2024-06-20T19:20:56Z

@@ -1,0 +1,204 @@
+commit 5bb73e650496c229c9baf5b9a4fe3861c07c9302
+Author: Meng Zhuo <mengzhuo@iscas.ac.cn>
+Date:   Thu Mar 13 16:29:16 2025 +0800
+
+    debug/elf: add riscv attributes definitions
+    
+    This CL adds `riscv.attributes` related ELF section header
+    type and program header type according to
+    [RISC-V ELF Specification](https://github.com/riscv-non-isa/riscv-elf-psabi-doc/releases/download/v1.0/riscv-abi.pdf)
+    
+    Also an riscv64/linux testcase binary built from:
+    
+    ```
+    gcc -march=rv64g -no-pie -o gcc-riscv64-linux-exec hello.c
+    strip gcc-riscv64-linux-exec
+    ```
+    
+    Fixes #72843
+    
+    Change-Id: I7710a0516f69141c0efaba71dd997f05b4c88421
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657515
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ api/next/72843.txt                            |   4 ++
+ doc/next/6-stdlib/99-minor/debug/elf/72843.md |   4 ++
+ src/debug/elf/elf.go                          |  65 ++++++++++++++------------
+ src/debug/elf/file_test.go                    |  46 ++++++++++++++++++
+ src/debug/elf/testdata/gcc-riscv64-linux-exec | Bin 0 -> 6184 bytes
+ 5 files changed, 89 insertions(+), 30 deletions(-)
+
+diff --git a/api/next/72843.txt b/api/next/72843.txt
+new file mode 100644
+index 0000000000..efd45ccc6f
+--- /dev/null
++++ b/api/next/72843.txt
+@@ -0,0 +1,4 @@
++pkg debug/elf, const PT_RISCV_ATTRIBUTES = 1879048195 #72843
++pkg debug/elf, const PT_RISCV_ATTRIBUTES ProgType #72843
++pkg debug/elf, const SHT_RISCV_ATTRIBUTES = 1879048195 #72843
++pkg debug/elf, const SHT_RISCV_ATTRIBUTES SectionType #72843
+diff --git a/doc/next/6-stdlib/99-minor/debug/elf/72843.md b/doc/next/6-stdlib/99-minor/debug/elf/72843.md
+new file mode 100644
+index 0000000000..491c2dc1a1
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/debug/elf/72843.md
+@@ -0,0 +1,4 @@
++The [debug/elf] package adds two new constants:
++- [PT_RISCV_ATTRIBUTES]
++- [SHT_RISCV_ATTRIBUTES]
++for RISC-V ELF parsing.
+diff --git a/src/debug/elf/elf.go b/src/debug/elf/elf.go
+index e902f84665..58e37daed2 100644
+--- a/src/debug/elf/elf.go
++++ b/src/debug/elf/elf.go
+@@ -620,36 +620,37 @@ func (i SectionIndex) GoString() string { return stringName(uint32(i), shnString
+ type SectionType uint32
+ 
+ const (
+-	SHT_NULL           SectionType = 0          /* inactive */
+-	SHT_PROGBITS       SectionType = 1          /* program defined information */
+-	SHT_SYMTAB         SectionType = 2          /* symbol table section */
+-	SHT_STRTAB         SectionType = 3          /* string table section */
+-	SHT_RELA           SectionType = 4          /* relocation section with addends */
+-	SHT_HASH           SectionType = 5          /* symbol hash table section */
+-	SHT_DYNAMIC        SectionType = 6          /* dynamic section */
+-	SHT_NOTE           SectionType = 7          /* note section */
+-	SHT_NOBITS         SectionType = 8          /* no space section */
+-	SHT_REL            SectionType = 9          /* relocation section - no addends */
+-	SHT_SHLIB          SectionType = 10         /* reserved - purpose unknown */
+-	SHT_DYNSYM         SectionType = 11         /* dynamic symbol table section */
+-	SHT_INIT_ARRAY     SectionType = 14         /* Initialization function pointers. */
+-	SHT_FINI_ARRAY     SectionType = 15         /* Termination function pointers. */
+-	SHT_PREINIT_ARRAY  SectionType = 16         /* Pre-initialization function ptrs. */
+-	SHT_GROUP          SectionType = 17         /* Section group. */
+-	SHT_SYMTAB_SHNDX   SectionType = 18         /* Section indexes (see SHN_XINDEX). */
+-	SHT_LOOS           SectionType = 0x60000000 /* First of OS specific semantics */
+-	SHT_GNU_ATTRIBUTES SectionType = 0x6ffffff5 /* GNU object attributes */
+-	SHT_GNU_HASH       SectionType = 0x6ffffff6 /* GNU hash table */
+-	SHT_GNU_LIBLIST    SectionType = 0x6ffffff7 /* GNU prelink library list */
+-	SHT_GNU_VERDEF     SectionType = 0x6ffffffd /* GNU version definition section */
+-	SHT_GNU_VERNEED    SectionType = 0x6ffffffe /* GNU version needs section */
+-	SHT_GNU_VERSYM     SectionType = 0x6fffffff /* GNU version symbol table */
+-	SHT_HIOS           SectionType = 0x6fffffff /* Last of OS specific semantics */
+-	SHT_LOPROC         SectionType = 0x70000000 /* reserved range for processor */
+-	SHT_MIPS_ABIFLAGS  SectionType = 0x7000002a /* .MIPS.abiflags */
+-	SHT_HIPROC         SectionType = 0x7fffffff /* specific section header types */
+-	SHT_LOUSER         SectionType = 0x80000000 /* reserved range for application */
+-	SHT_HIUSER         SectionType = 0xffffffff /* specific indexes */
++	SHT_NULL             SectionType = 0          /* inactive */
++	SHT_PROGBITS         SectionType = 1          /* program defined information */
++	SHT_SYMTAB           SectionType = 2          /* symbol table section */
++	SHT_STRTAB           SectionType = 3          /* string table section */
++	SHT_RELA             SectionType = 4          /* relocation section with addends */
++	SHT_HASH             SectionType = 5          /* symbol hash table section */
++	SHT_DYNAMIC          SectionType = 6          /* dynamic section */
++	SHT_NOTE             SectionType = 7          /* note section */
++	SHT_NOBITS           SectionType = 8          /* no space section */
++	SHT_REL              SectionType = 9          /* relocation section - no addends */
++	SHT_SHLIB            SectionType = 10         /* reserved - purpose unknown */
++	SHT_DYNSYM           SectionType = 11         /* dynamic symbol table section */
++	SHT_INIT_ARRAY       SectionType = 14         /* Initialization function pointers. */
++	SHT_FINI_ARRAY       SectionType = 15         /* Termination function pointers. */
++	SHT_PREINIT_ARRAY    SectionType = 16         /* Pre-initialization function ptrs. */
++	SHT_GROUP            SectionType = 17         /* Section group. */
++	SHT_SYMTAB_SHNDX     SectionType = 18         /* Section indexes (see SHN_XINDEX). */
++	SHT_LOOS             SectionType = 0x60000000 /* First of OS specific semantics */
++	SHT_GNU_ATTRIBUTES   SectionType = 0x6ffffff5 /* GNU object attributes */
++	SHT_GNU_HASH         SectionType = 0x6ffffff6 /* GNU hash table */
++	SHT_GNU_LIBLIST      SectionType = 0x6ffffff7 /* GNU prelink library list */
++	SHT_GNU_VERDEF       SectionType = 0x6ffffffd /* GNU version definition section */
++	SHT_GNU_VERNEED      SectionType = 0x6ffffffe /* GNU version needs section */
++	SHT_GNU_VERSYM       SectionType = 0x6fffffff /* GNU version symbol table */
++	SHT_HIOS             SectionType = 0x6fffffff /* Last of OS specific semantics */
++	SHT_LOPROC           SectionType = 0x70000000 /* reserved range for processor */
++	SHT_RISCV_ATTRIBUTES SectionType = 0x70000003 /* RISCV object attributes */
++	SHT_MIPS_ABIFLAGS    SectionType = 0x7000002a /* .MIPS.abiflags */
++	SHT_HIPROC           SectionType = 0x7fffffff /* specific section header types */
++	SHT_LOUSER           SectionType = 0x80000000 /* reserved range for application */
++	SHT_HIUSER           SectionType = 0xffffffff /* specific indexes */
+ )
+ 
+ var shtStrings = []intName{
+@@ -678,6 +679,8 @@ var shtStrings = []intName{
+ 	{0x6ffffffe, "SHT_GNU_VERNEED"},
+ 	{0x6fffffff, "SHT_GNU_VERSYM"},
+ 	{0x70000000, "SHT_LOPROC"},
++	// We don't list the processor-dependent SectionType,
++	// as the values overlap.
+ 	{0x7000002a, "SHT_MIPS_ABIFLAGS"},
+ 	{0x7fffffff, "SHT_HIPROC"},
+ 	{0x80000000, "SHT_LOUSER"},
+@@ -794,6 +797,8 @@ const (
+ 	PT_MIPS_OPTIONS  ProgType = 0x70000002 /* Options */
+ 	PT_MIPS_ABIFLAGS ProgType = 0x70000003 /* ABI flags */
+ 
++	PT_RISCV_ATTRIBUTES ProgType = 0x70000003 /* RISC-V ELF attribute section. */
++
+ 	PT_S390_PGSTE ProgType = 0x70000000 /* 4k page table size */
+ 
+ 	PT_HIPROC ProgType = 0x7fffffff /* Last processor-specific type. */
+diff --git a/src/debug/elf/file_test.go b/src/debug/elf/file_test.go
+index 1fdbbad04d..0c1a7cf18a 100644
+--- a/src/debug/elf/file_test.go
++++ b/src/debug/elf/file_test.go
+@@ -447,6 +447,52 @@ var fileTests = []fileTest{
+ 			{"puts", 16, 0, false, 0, 0, 0, 0, "", ""},
+ 		},
+ 	},
++	{
++		"testdata/gcc-riscv64-linux-exec",
++		FileHeader{ELFCLASS64, ELFDATA2LSB, EV_CURRENT, ELFOSABI_NONE, 0, binary.LittleEndian, ET_EXEC, EM_RISCV, 0x10460},
++		[]SectionHeader{
++			{"", SHT_NULL, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
++			{".interp", SHT_PROGBITS, SHF_ALLOC, 0x10270, 0x270, 0x21, 0x0, 0x0, 0x1, 0x0, 0x21},
++			{".note.gnu.build-id", SHT_NOTE, SHF_ALLOC, 0x10294, 0x294, 0x24, 0x0, 0x0, 0x4, 0x0, 0x24},
++			{".note.ABI-tag", SHT_NOTE, SHF_ALLOC, 0x102b8, 0x2b8, 0x20, 0x0, 0x0, 0x4, 0x0, 0x20},
++			{".gnu.hash", SHT_GNU_HASH, SHF_ALLOC, 0x102d8, 0x2d8, 0x30, 0x5, 0x0, 0x8, 0x0, 0x30},
++			{".dynsym", SHT_DYNSYM, SHF_ALLOC, 0x10308, 0x308, 0x60, 0x6, 0x1, 0x8, 0x18, 0x60},
++			{".dynstr", SHT_STRTAB, SHF_ALLOC, 0x10368, 0x368, 0x4a, 0x0, 0x0, 0x1, 0x0, 0x4a},
++			{".gnu.version", SHT_GNU_VERSYM, SHF_ALLOC, 0x103b2, 0x3b2, 0x8, 0x5, 0x0, 0x2, 0x2, 0x8},
++			{".gnu.version_r", SHT_GNU_VERNEED, SHF_ALLOC, 0x103c0, 0x3c0, 0x30, 0x6, 0x1, 0x8, 0x0, 0x30},
++			{".rela.plt", SHT_RELA, SHF_ALLOC + SHF_INFO_LINK, 0x103f0, 0x3f0, 0x30, 0x5, 0x14, 0x8, 0x18, 0x30},
++			{".plt", SHT_PROGBITS, SHF_ALLOC + SHF_EXECINSTR, 0x10420, 0x420, 0x40, 0x0, 0x0, 0x10, 0x10, 0x40},
++			{".text", SHT_PROGBITS, SHF_ALLOC + SHF_EXECINSTR, 0x10460, 0x460, 0xd8, 0x0, 0x0, 0x4, 0x0, 0xd8},
++			{".rodata", SHT_PROGBITS, SHF_ALLOC, 0x10538, 0x538, 0x15, 0x0, 0x0, 0x8, 0x0, 0x15},
++			{".eh_frame_hdr", SHT_PROGBITS, SHF_ALLOC, 0x10550, 0x550, 0x24, 0x0, 0x0, 0x4, 0x0, 0x24},
++			{".eh_frame", SHT_PROGBITS, SHF_ALLOC, 0x10578, 0x578, 0x6c, 0x0, 0x0, 0x8, 0x0, 0x6c},
++			{".preinit_array", SHT_PREINIT_ARRAY, SHF_WRITE + SHF_ALLOC, 0x11e00, 0xe00, 0x8, 0x0, 0x0, 0x1, 0x8, 0x8},
++			{".init_array", SHT_INIT_ARRAY, SHF_WRITE + SHF_ALLOC, 0x11e08, 0xe08, 0x8, 0x0, 0x0, 0x8, 0x8, 0x8},
++			{".fini_array", SHT_FINI_ARRAY, SHF_WRITE + SHF_ALLOC, 0x11e10, 0xe10, 0x8, 0x0, 0x0, 0x8, 0x8, 0x8},
++			{".dynamic", SHT_DYNAMIC, SHF_WRITE + SHF_ALLOC, 0x11e18, 0xe18, 0x1d0, 0x6, 0x0, 0x8, 0x10, 0x1d0},
++			{".got", SHT_PROGBITS, SHF_WRITE + SHF_ALLOC, 0x11fe8, 0xfe8, 0x8, 0x0, 0x0, 0x8, 0x8, 0x8},
++			{".got.plt", SHT_PROGBITS, SHF_WRITE + SHF_ALLOC, 0x11ff0, 0xff0, 0x20, 0x0, 0x0, 0x8, 0x8, 0x20},
++			{".sdata", SHT_PROGBITS, SHF_WRITE + SHF_ALLOC, 0x12010, 0x1010, 0x8, 0x0, 0x0, 0x8, 0x0, 0x8},
++			{".bss", SHT_NOBITS, SHF_WRITE + SHF_ALLOC, 0x12018, 0x1018, 0x8, 0x0, 0x0, 0x1, 0x0, 0x8},
++			{".comment", SHT_PROGBITS, SHF_MERGE + SHF_STRINGS, 0x0, 0x1018, 0x26, 0x0, 0x0, 0x1, 0x1, 0x26},
++			{".riscv.attributes", SHT_RISCV_ATTRIBUTES, 0x0, 0x0, 0x103e, 0x66, 0x0, 0x0, 0x1, 0x0, 0x66},
++			{".shstrtab", SHT_STRTAB, 0x0, 0x0, 0x10a4, 0xff, 0x0, 0x0, 0x1, 0x0, 0xff},
++		},
++		[]ProgHeader{
++			{PT_PHDR, PF_R, 0x40, 0x10040, 0x10040, 0x230, 0x230, 0x8},
++			{PT_INTERP, PF_R, 0x270, 0x10270, 0x10270, 0x21, 0x21, 0x1},
++			{PT_RISCV_ATTRIBUTES, PF_R, 0x103e, 0x0, 0x0, 0x66, 0x0, 0x1},
++			{PT_LOAD, PF_X + PF_R, 0x0, 0x10000, 0x10000, 0x5e4, 0x5e4, 0x1000},
++			{PT_LOAD, PF_W + PF_R, 0xe00, 0x11e00, 0x11e00, 0x218, 0x220, 0x1000},
++			{PT_DYNAMIC, PF_W + PF_R, 0xe18, 0x11e18, 0x11e18, 0x1d0, 0x1d0, 0x8},
++			{PT_NOTE, PF_R, 0x294, 0x10294, 0x10294, 0x44, 0x44, 0x4},
++			{PT_GNU_EH_FRAME, PF_R, 0x550, 0x10550, 0x10550, 0x24, 0x24, 0x4},
++			{PT_GNU_STACK, PF_W + PF_R, 0x0, 0x0, 0x0, 0x0, 0x0, 0x10},
++			{PT_GNU_RELRO, PF_R, 0xe00, 0x11e00, 0x11e00, 0x200, 0x200, 0x1},
++		},
++		[]string{"libc.so.6"},
++		nil,
++	},
+ }
+ 
+ func TestOpen(t *testing.T) {
+diff --git a/src/debug/elf/testdata/gcc-riscv64-linux-exec b/src/debug/elf/testdata/gcc-riscv64-linux-exec
+new file mode 100644
+index 0000000000..e01f6f292c
+Binary files /dev/null and b/src/debug/elf/testdata/gcc-riscv64-linux-exec differ

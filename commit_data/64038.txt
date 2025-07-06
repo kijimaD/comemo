@@ -1,0 +1,29 @@
+commit 93bbf719a6d2c911674bbea3535ca1f0684aadc8
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 5 09:19:19 2024 -0700
+
+    doc/next: mention new error on time.Parse timezone overflow
+    
+    For #65614
+    For #67470
+    
+    Change-Id: Iba2f263f8ca1fb10c383e12ff3455aa86b26421d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590795
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ doc/next/6-stdlib/99-minor/time/67470.md | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/doc/next/6-stdlib/99-minor/time/67470.md b/doc/next/6-stdlib/99-minor/time/67470.md
+new file mode 100644
+index 0000000000..8cfcc0aa9d
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/time/67470.md
+@@ -0,0 +1,2 @@
++[Parse] and [ParseInLocation] now return an error if the time zone
++offset is out of range.

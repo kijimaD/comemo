@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50310: 680caf15355057ca84857a2a291b6f5c44e73329
+# Index 50310: 2d88f8f21e71f73dc3aa846cdc8c413f1bb584b8
 
 echo "🚀 Generating explanation for commit 50310..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 50310..."
 
 ### メタデータ
 - **コミットインデックス**: 50310
-- **コミットハッシュ**: 680caf15355057ca84857a2a291b6f5c44e73329
-- **GitHub URL**: https://github.com/golang/go/commit/680caf15355057ca84857a2a291b6f5c44e73329
+- **コミットハッシュ**: 2d88f8f21e71f73dc3aa846cdc8c413f1bb584b8
+- **GitHub URL**: https://github.com/golang/go/commit/2d88f8f21e71f73dc3aa846cdc8c413f1bb584b8
 
 ### 章構成
 

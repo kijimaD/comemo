@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 37027: 75d15a2082b9a9fcf30344062a6bfb8f4f51d79e
+# Index 37027: cde34780b7a0bbd162321a34c41fc8a6268e2c09
 
 echo "🚀 Generating explanation for commit 37027..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 37027..."
 
 ### メタデータ
 - **コミットインデックス**: 37027
-- **コミットハッシュ**: 75d15a2082b9a9fcf30344062a6bfb8f4f51d79e
-- **GitHub URL**: https://github.com/golang/go/commit/75d15a2082b9a9fcf30344062a6bfb8f4f51d79e
+- **コミットハッシュ**: cde34780b7a0bbd162321a34c41fc8a6268e2c09
+- **GitHub URL**: https://github.com/golang/go/commit/cde34780b7a0bbd162321a34c41fc8a6268e2c09
 
 ### 章構成
 

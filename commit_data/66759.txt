@@ -1,0 +1,36 @@
+commit ffe47d978990c5bfc0089b94a5bea0f61c6219b7
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Mon Apr 7 20:38:54 2025 +0200
+
+    go/ast: move sortimports test directly to go/ast
+    
+    For some reason i have created a separate package instead
+    of using _test package. Let's move this test where it belongs.
+    
+    Change-Id: Ib569ca433de1ef4e161b9d334125648e00b7d3c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663555
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/go/ast/{internal/tests/sortimports_test.go => import_test.go} | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/go/ast/internal/tests/sortimports_test.go b/src/go/ast/import_test.go
+similarity index 94%
+rename from src/go/ast/internal/tests/sortimports_test.go
+rename to src/go/ast/import_test.go
+index 99f153cb10..02fde4efb9 100644
+--- a/src/go/ast/internal/tests/sortimports_test.go
++++ b/src/go/ast/import_test.go
+@@ -2,8 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Tests is a helper package to avoid cyclic dependency between go/ast and go/parser.
+-package tests
++package ast_test
+ 
+ import (
+ 	"go/ast"

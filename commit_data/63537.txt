@@ -1,0 +1,65 @@
+commit 8d880da1c42d0bc81e9e350df4f3fc4238c79873
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Fri Feb 9 14:14:58 2024 -0800
+
+    cmd/cgo/internal/test: don't skip some tests on musl
+    
+    They reportedly work at least as of Alpine 3.18.
+    
+    Fixes #39857
+    
+    Change-Id: I6a249d61d33e467bf32e8c250f870fc261b90941
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/563096
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Austin Clements <austin@google.com>
+---
+ src/cmd/cgo/internal/test/cgo_linux_test.go | 15 +--------------
+ 1 file changed, 1 insertion(+), 14 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/test/cgo_linux_test.go b/src/cmd/cgo/internal/test/cgo_linux_test.go
+index 3defc32ffd..f908895855 100644
+--- a/src/cmd/cgo/internal/test/cgo_linux_test.go
++++ b/src/cmd/cgo/internal/test/cgo_linux_test.go
+@@ -7,7 +7,6 @@
+ package cgotest
+ 
+ import (
+-	"os"
+ 	"runtime"
+ 	"testing"
+ )
+@@ -16,9 +15,6 @@ func TestSetgid(t *testing.T) {
+ 	if runtime.GOOS == "android" {
+ 		t.Skip("unsupported on Android")
+ 	}
+-	if _, err := os.Stat("/etc/alpine-release"); err == nil {
+-		t.Skip("setgid is broken with musl libc - go.dev/issue/39857")
+-	}
+ 	testSetgid(t)
+ }
+ 
+@@ -26,20 +22,11 @@ func TestSetgidStress(t *testing.T) {
+ 	if runtime.GOOS == "android" {
+ 		t.Skip("unsupported on Android")
+ 	}
+-	if _, err := os.Stat("/etc/alpine-release"); err == nil {
+-		t.Skip("setgid is broken with musl libc - go.dev/issue/39857")
+-	}
+ 	testSetgidStress(t)
+ }
+ 
+ func Test1435(t *testing.T) { test1435(t) }
+ func Test6997(t *testing.T) { test6997(t) }
+-
+-func Test9400(t *testing.T) {
+-	if _, err := os.Stat("/etc/alpine-release"); err == nil {
+-		t.Skip("setgid is broken with musl libc - go.dev/issue/39857")
+-	}
+-	test9400(t)
+-}
++func Test9400(t *testing.T) { test9400(t) }
+ 
+ func TestBuildID(t *testing.T) { testBuildID(t) }

@@ -1,0 +1,38 @@
+commit bb07aa644be4805e799c076f054c0fc132bc4d27
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Tue Oct 22 12:57:13 2024 +0800
+
+    cmd/compile: add shift optimization test
+    
+    For #69635
+    
+    Change-Id: Id5696dc9724c3b3afcd7b60a6994f98c5309eb0e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621755
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ test/codegen/issue69635.go | 13 +++++++++++++
+ 1 file changed, 13 insertions(+)
+
+diff --git a/test/codegen/issue69635.go b/test/codegen/issue69635.go
+new file mode 100644
+index 0000000000..de68bf1287
+--- /dev/null
++++ b/test/codegen/issue69635.go
+@@ -0,0 +1,13 @@
++// asmcheck
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package codegen
++
++func calc(a uint64) uint64 {
++	v := a >> 20 & 0x7f
++	// amd64: `SHRQ\s\$17, AX$`, `ANDL\s\$1016, AX$`
++	return v << 3
++}

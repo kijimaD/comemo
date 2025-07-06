@@ -1,0 +1,70 @@
+commit 6e618cd42a1adb58fa04f7a9f6e89a563ccb07f1
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Mon Sep 4 12:14:13 2023 -0700
+
+    encoding/json: use zstd compressed testdata
+    
+    There is a non-public zstd decoder in the stdlib (CL 473356) and
+    also zstd compressed testdata already present.
+    
+    Delete testdata/code.json.gz and
+    instead use internal/jsontest/testdata/golang_source.json.zst,
+    which has exactly the same content:
+            $ cat internal/jsontest/testdata/golang_source.json.zst | zstd -d | sha1sum
+            3f70b6fd429f4aba3e8e1c3e5a294c8f2e219a6e  -
+            $ cat testdata/code.json.gz | zstd -d | sha1sum
+            3f70b6fd429f4aba3e8e1c3e5a294c8f2e219a6e  -
+    
+    This will reduce the size of the final Go release by 118KB.
+    
+    Updates #71845
+    
+    Change-Id: I6da2df27bd260befc0a44c6bc0255365be0a5b0f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/525516
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    TryBot-Bypass: Damien Neil <dneil@google.com>
+---
+ src/encoding/json/bench_test.go         |   9 +++------
+ src/encoding/json/testdata/code.json.gz | Bin 120432 -> 0 bytes
+ 2 files changed, 3 insertions(+), 6 deletions(-)
+
+diff --git a/src/encoding/json/bench_test.go b/src/encoding/json/bench_test.go
+index cd55ceed90..047188131c 100644
+--- a/src/encoding/json/bench_test.go
++++ b/src/encoding/json/bench_test.go
+@@ -14,9 +14,9 @@ package json
+ 
+ import (
+ 	"bytes"
+-	"compress/gzip"
+ 	"fmt"
+ 	"internal/testenv"
++	"internal/zstd"
+ 	"io"
+ 	"os"
+ 	"reflect"
+@@ -46,15 +46,12 @@ var codeJSON []byte
+ var codeStruct codeResponse
+ 
+ func codeInit() {
+-	f, err := os.Open("testdata/code.json.gz")
++	f, err := os.Open("internal/jsontest/testdata/golang_source.json.zst")
+ 	if err != nil {
+ 		panic(err)
+ 	}
+ 	defer f.Close()
+-	gz, err := gzip.NewReader(f)
+-	if err != nil {
+-		panic(err)
+-	}
++	gz := zstd.NewReader(f)
+ 	data, err := io.ReadAll(gz)
+ 	if err != nil {
+ 		panic(err)
+diff --git a/src/encoding/json/testdata/code.json.gz b/src/encoding/json/testdata/code.json.gz
+deleted file mode 100644
+index 1572a92bfb..0000000000
+Binary files a/src/encoding/json/testdata/code.json.gz and /dev/null differ

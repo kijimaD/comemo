@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 49033: 5059aed9dd33e35d3d0d88be945b2aed8265e1c3
+# Index 49033: 67ad695416fbcdf9d61e5bfc0f9cd9aac313caa4
 
 echo "🚀 Generating explanation for commit 49033..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 49033..."
 
 ### メタデータ
 - **コミットインデックス**: 49033
-- **コミットハッシュ**: 5059aed9dd33e35d3d0d88be945b2aed8265e1c3
-- **GitHub URL**: https://github.com/golang/go/commit/5059aed9dd33e35d3d0d88be945b2aed8265e1c3
+- **コミットハッシュ**: 67ad695416fbcdf9d61e5bfc0f9cd9aac313caa4
+- **GitHub URL**: https://github.com/golang/go/commit/67ad695416fbcdf9d61e5bfc0f9cd9aac313caa4
 
 ### 章構成
 

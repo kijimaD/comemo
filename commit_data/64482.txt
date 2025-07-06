@@ -1,0 +1,95 @@
+commit 3de175f38348f82f6cc7bfb49c3609e72a5f8f41
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Aug 9 13:11:03 2024 -0700
+
+    cmd/compile: in prove pass, check for unsat before adding local facts
+    
+    Local facts can get us to unsatisfiable because there is an
+    unconditional panic in the block. That shouldn't declare the whole
+    block as unreachable, because we do still need to enter it to get
+    that panic.
+    
+    Fixes #68816
+    
+    Change-Id: I9220edb46089690702d2eb61d112815c7ac91f16
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604118
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/ssa/prove.go |  6 ++---
+ test/fixedbugs/issue68816.go          | 41 +++++++++++++++++++++++++++++++++++
+ 2 files changed, 44 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index d563204565..7c95922f4d 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1501,9 +1501,6 @@ func prove(f *Func) {
+ 				addBranchRestrictions(ft, parent, branch)
+ 			}
+ 
+-			// Add facts about the values in the current block.
+-			addLocalFacts(ft, node.block)
+-
+ 			if ft.unsat {
+ 				// node.block is unreachable.
+ 				// Remove it and don't visit
+@@ -1516,6 +1513,9 @@ func prove(f *Func) {
+ 			// taking this branch. We'll restore
+ 			// ft when we unwind.
+ 
++			// Add facts about the values in the current block.
++			addLocalFacts(ft, node.block)
++
+ 			work = append(work, bp{
+ 				block: node.block,
+ 				state: simplify,
+diff --git a/test/fixedbugs/issue68816.go b/test/fixedbugs/issue68816.go
+new file mode 100644
+index 0000000000..8622c9aa98
+--- /dev/null
++++ b/test/fixedbugs/issue68816.go
+@@ -0,0 +1,41 @@
++// run
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++func main() {
++	mustPanic(func() {
++		f1(1)
++	})
++	f2(1, 0) // must not panic
++	mustPanic(func() {
++		f2(1, 2)
++	})
++}
++
++var v []func()
++
++//go:noinline
++func f1(i int) {
++	v = make([]func(), -2|i)
++}
++
++//go:noinline
++func f2(i, j int) {
++	if j > 0 {
++		v = make([]func(), -2|i)
++	}
++}
++
++func mustPanic(f func()) {
++	defer func() {
++		r := recover()
++		if r == nil {
++			panic("didn't panic")
++		}
++	}()
++	f()
++}

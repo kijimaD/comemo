@@ -1,0 +1,90 @@
+commit df97215a34935b92080858a33a1043e41c3c5ef0
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Oct 4 14:30:31 2024 -0700
+
+    syscall, internal/syscall/unix: add Openat support for wasip1
+    
+    The syscall package is mostly frozen, but wasip1 file syscall
+    support was added to syscall and the Open and Openat
+    implementations overlap. Implement Openat in syscall for
+    overall simplicity.
+    
+    We already have syscall.Openat for some platforms, so this
+    doesn't add any new functions to syscall.
+    
+    For #67002
+    
+    Change-Id: Ia34b12ef11fc7a3b7832e07b3546a760c23efe5b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617378
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/internal/syscall/unix/at_wasip1.go |  4 ++++
+ src/syscall/fs_wasip1.go               | 14 +++++++++++++-
+ src/syscall/syscall_wasip1.go          |  1 +
+ 3 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/unix/at_wasip1.go b/src/internal/syscall/unix/at_wasip1.go
+index 5cce1030f1..888b156741 100644
+--- a/src/internal/syscall/unix/at_wasip1.go
++++ b/src/internal/syscall/unix/at_wasip1.go
+@@ -19,6 +19,10 @@ const (
+ 	UTIME_OMIT = -0x2
+ )
+ 
++func Openat(dirfd int, path string, flags int, perm uint32) (int, error) {
++	return syscall.Openat(dirfd, path, flags, perm)
++}
++
+ func Readlinkat(dirfd int, path string, buf []byte) (int, error) {
+ 	var nwritten size
+ 	errno := path_readlink(
+diff --git a/src/syscall/fs_wasip1.go b/src/syscall/fs_wasip1.go
+index c249891dd2..da36d8f5b8 100644
+--- a/src/syscall/fs_wasip1.go
++++ b/src/syscall/fs_wasip1.go
+@@ -520,7 +520,14 @@ func Open(path string, openmode int, perm uint32) (int, error) {
+ 		return -1, EINVAL
+ 	}
+ 	dirFd, pathPtr, pathLen := preparePath(path)
++	return openat(dirFd, pathPtr, pathLen, openmode, perm)
++}
++
++func Openat(dirFd int, path string, openmode int, perm uint32) (int, error) {
++	return openat(int32(dirFd), stringPointer(path), size(len(path)), openmode, perm)
++}
+ 
++func openat(dirFd int32, pathPtr unsafe.Pointer, pathLen size, openmode int, perm uint32) (int, error) {
+ 	var oflags oflags
+ 	if (openmode & O_CREATE) != 0 {
+ 		oflags |= OFLAG_CREATE
+@@ -558,10 +565,15 @@ func Open(path string, openmode int, perm uint32) (int, error) {
+ 		fdflags |= FDFLAG_SYNC
+ 	}
+ 
++	var lflags lookupflags
++	if openmode&O_NOFOLLOW == 0 {
++		lflags = LOOKUP_SYMLINK_FOLLOW
++	}
++
+ 	var fd int32
+ 	errno := path_open(
+ 		dirFd,
+-		LOOKUP_SYMLINK_FOLLOW,
++		lflags,
+ 		pathPtr,
+ 		pathLen,
+ 		oflags,
+diff --git a/src/syscall/syscall_wasip1.go b/src/syscall/syscall_wasip1.go
+index b98f99745f..a125777933 100644
+--- a/src/syscall/syscall_wasip1.go
++++ b/src/syscall/syscall_wasip1.go
+@@ -223,6 +223,7 @@ const (
+ 	O_EXCL      = 0200
+ 	O_SYNC      = 010000
+ 	O_DIRECTORY = 020000
++	O_NOFOLLOW  = 0400
+ 
+ 	O_CLOEXEC = 0
+ )

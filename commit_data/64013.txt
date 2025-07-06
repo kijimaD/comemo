@@ -1,0 +1,40 @@
+commit 1ed81661926c026b122f3a355a811a40ecd2f8f6
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed May 29 04:35:53 2024 +0000
+
+    internal/trace: actually add experimental data to map
+    
+    addExperimentalData was missing actually placing the data into the map,
+    leaving ExperimentalEvent.Data always nil.
+    
+    Change-Id: I1715ab11eb7cfcdb982b56be28378521a357ca2d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588955
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/trace/generation.go | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/internal/trace/generation.go b/src/internal/trace/generation.go
+index c67bfdba16..098d1d4f23 100644
+--- a/src/internal/trace/generation.go
++++ b/src/internal/trace/generation.go
+@@ -162,6 +162,9 @@ func processBatch(g *generation, b batch) error {
+ 		}
+ 		g.freq = freq
+ 	case b.exp != event.NoExperiment:
++		if g.expData == nil {
++			g.expData = make(map[event.Experiment]*ExperimentalData)
++		}
+ 		if err := addExperimentalData(g.expData, b); err != nil {
+ 			return err
+ 		}
+@@ -437,6 +440,7 @@ func addExperimentalData(expData map[event.Experiment]*ExperimentalData, b batch
+ 	ed, ok := expData[b.exp]
+ 	if !ok {
+ 		ed = new(ExperimentalData)
++		expData[b.exp] = ed
+ 	}
+ 	ed.Batches = append(ed.Batches, ExperimentalBatch{
+ 		Thread: b.m,

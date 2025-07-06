@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 60061: fd54936ea523f44835adc39f0a2cebccbcb742c3
+# Index 60061: 3b9f99ebaa1eb9209f3bab07f09cf27f06ccce0d
 
 echo "🚀 Generating explanation for commit 60061..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 60061..."
 
 ### メタデータ
 - **コミットインデックス**: 60061
-- **コミットハッシュ**: fd54936ea523f44835adc39f0a2cebccbcb742c3
-- **GitHub URL**: https://github.com/golang/go/commit/fd54936ea523f44835adc39f0a2cebccbcb742c3
+- **コミットハッシュ**: 3b9f99ebaa1eb9209f3bab07f09cf27f06ccce0d
+- **GitHub URL**: https://github.com/golang/go/commit/3b9f99ebaa1eb9209f3bab07f09cf27f06ccce0d
 
 ### 章構成
 

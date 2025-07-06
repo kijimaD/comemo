@@ -1,0 +1,29 @@
+commit 6737f4cee52a19984a4d138a820326c8443a084d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Apr 22 18:45:39 2024 +0000
+
+    runtime: set gp.syscallbp from entersyscallblock_handoff
+    
+    This was an oversight and is causing a few failures, most notably on
+    Solaris and Illumos, but also occasionally on the Linux builders.
+    
+    Change-Id: I38bd28537ad01d955675f61f9b1d42b9ecdd1ef0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580875
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/proc.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 54408dbab7..1468c7c599 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4428,6 +4428,7 @@ func entersyscallblock() {
+ 	save(pc, sp, bp)
+ 	gp.syscallsp = gp.sched.sp
+ 	gp.syscallpc = gp.sched.pc
++	gp.syscallbp = gp.sched.bp
+ 	if gp.syscallsp < gp.stack.lo || gp.stack.hi < gp.syscallsp {
+ 		sp1 := sp
+ 		sp2 := gp.sched.sp

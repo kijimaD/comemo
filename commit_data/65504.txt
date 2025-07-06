@@ -1,0 +1,124 @@
+commit 3726f07c4650d266b58b828432b3f8dab6d553d7
+Author: David Chase <drchase@google.com>
+Date:   Fri Oct 25 14:04:22 2024 -0400
+
+    [release-branch.go1.23] cmd/compile: use a non-fragile test for "does f contain closure c?"
+    
+    The old test relied on naming conventions.  The new test
+    uses an explicit parent pointer chain initialized when the
+    closures are created (in the same place that the names
+    used in the older fragile test were assigned).
+    
+    Fixes #70198.
+    
+    Change-Id: Ie834103c7096e4505faaff3bed1fc6e918a21211
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622656
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625535
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/compile/internal/escape/solve.go           | 11 +++++-----
+ src/cmd/compile/internal/ir/func.go                |  6 ++++++
+ src/cmd/compile/internal/ir/sizeof_test.go         |  2 +-
+ .../compile/internal/rangefunc/rangefunc_test.go   | 24 ++++++++++++++++++++++
+ 4 files changed, 37 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/solve.go b/src/cmd/compile/internal/escape/solve.go
+index ef17bc48ef..32f5a771a3 100644
+--- a/src/cmd/compile/internal/escape/solve.go
++++ b/src/cmd/compile/internal/escape/solve.go
+@@ -318,9 +318,10 @@ func containsClosure(f, c *ir.Func) bool {
+ 		return false
+ 	}
+ 
+-	// Closures within function Foo are named like "Foo.funcN..." or "Foo-rangeN".
+-	// TODO(mdempsky): Better way to recognize this.
+-	fn := f.Sym().Name
+-	cn := c.Sym().Name
+-	return len(cn) > len(fn) && cn[:len(fn)] == fn && (cn[len(fn)] == '.' || cn[len(fn)] == '-')
++	for p := c.ClosureParent; p != nil; p = p.ClosureParent {
++		if p == f {
++			return true
++		}
++	}
++	return false
+ }
+diff --git a/src/cmd/compile/internal/ir/func.go b/src/cmd/compile/internal/ir/func.go
+index d0c8ee359b..4fa9055b4b 100644
+--- a/src/cmd/compile/internal/ir/func.go
++++ b/src/cmd/compile/internal/ir/func.go
+@@ -51,6 +51,8 @@ import (
+ // the generated ODCLFUNC, but there is no
+ // pointer from the Func back to the OMETHVALUE.
+ type Func struct {
++	// if you add or remove a field, don't forget to update sizeof_test.go
++
+ 	miniNode
+ 	Body Nodes
+ 
+@@ -76,6 +78,9 @@ type Func struct {
+ 	// Populated during walk.
+ 	Closures []*Func
+ 
++	// Parent of a closure
++	ClosureParent *Func
++
+ 	// Parents records the parent scope of each scope within a
+ 	// function. The root scope (0) has no parent, so the i'th
+ 	// scope's parent is stored at Parents[i-1].
+@@ -512,6 +517,7 @@ func NewClosureFunc(fpos, cpos src.XPos, why Op, typ *types.Type, outerfn *Func,
+ 
+ 	fn.Nname.Defn = fn
+ 	pkg.Funcs = append(pkg.Funcs, fn)
++	fn.ClosureParent = outerfn
+ 
+ 	return fn
+ }
+diff --git a/src/cmd/compile/internal/ir/sizeof_test.go b/src/cmd/compile/internal/ir/sizeof_test.go
+index 68d2865595..6331cceb4a 100644
+--- a/src/cmd/compile/internal/ir/sizeof_test.go
++++ b/src/cmd/compile/internal/ir/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr     // size on 32bit platforms
+ 		_64bit uintptr     // size on 64bit platforms
+ 	}{
+-		{Func{}, 176, 296},
++		{Func{}, 180, 304},
+ 		{Name{}, 96, 168},
+ 	}
+ 
+diff --git a/src/cmd/compile/internal/rangefunc/rangefunc_test.go b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+index 97ab254395..e488c3cf37 100644
+--- a/src/cmd/compile/internal/rangefunc/rangefunc_test.go
++++ b/src/cmd/compile/internal/rangefunc/rangefunc_test.go
+@@ -2099,3 +2099,27 @@ func TestTwoLevelReturnCheck(t *testing.T) {
+ 		t.Errorf("Expected y=3, got y=%d\n", y)
+ 	}
+ }
++
++func Bug70035(s1, s2, s3 []string) string {
++	var c1 string
++	for v1 := range slices.Values(s1) {
++		var c2 string
++		for v2 := range slices.Values(s2) {
++			var c3 string
++			for v3 := range slices.Values(s3) {
++				c3 = c3 + v3
++			}
++			c2 = c2 + v2 + c3
++		}
++		c1 = c1 + v1 + c2
++	}
++	return c1
++}
++
++func Test70035(t *testing.T) {
++	got := Bug70035([]string{"1", "2", "3"}, []string{"a", "b", "c"}, []string{"A", "B", "C"})
++	want := "1aABCbABCcABC2aABCbABCcABC3aABCbABCcABC"
++	if got != want {
++		t.Errorf("got %v, want %v", got, want)
++	}
++}

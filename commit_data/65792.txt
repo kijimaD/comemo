@@ -1,0 +1,82 @@
+commit 979c1cfbe8880e302d5a73df47f4efc3d34ee416
+Author: Antonio Ojea <aojea@google.com>
+Date:   Wed Dec 11 15:03:59 2024 +0000
+
+    net: avoid unnecessary interface lookup fetching all interface addresses
+    
+    InterfaceAddrs returns a list of the system's unicast interface addresses.
+    
+    In order to do so, the function reuses the existing helpers and
+    list first all addresses with the netlink call RTM_GETADDR, then
+    all interfaces with RTM_GETLINK, and later it merge both lists
+    (each address references an interface).
+    
+    However, the list of interfaces and addresses are obtained at
+    different times and there can be inconsistencies and, if an
+    address references an interface that is not present in the list
+    of interfaces, the function fails with an error.
+    
+    Since the function InterfaceAddress is only about the system
+    addresses, there is no need to list all the interfaces, and we can
+    obtain the list of addresses directly from the netlink call RTM_GETADDR.
+    There is no need to correlate this list with the list of interfaces, as
+    the OS is the source of truth and should be the one providing the
+    consistency between addresses and interfaces.
+    
+    Fixes #51934
+    
+    Change-Id: I3b816e8146b1c07fdfe1bf6af338f001ef75734f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635196
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/net/interface_linux.go | 21 +++------------------
+ 1 file changed, 3 insertions(+), 18 deletions(-)
+
+diff --git a/src/net/interface_linux.go b/src/net/interface_linux.go
+index 9112ecc854..7856dae8fc 100644
+--- a/src/net/interface_linux.go
++++ b/src/net/interface_linux.go
+@@ -129,22 +129,14 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 	if err != nil {
+ 		return nil, os.NewSyscallError("parsenetlinkmessage", err)
+ 	}
+-	var ift []Interface
+-	if ifi == nil {
+-		var err error
+-		ift, err = interfaceTable(0)
+-		if err != nil {
+-			return nil, err
+-		}
+-	}
+-	ifat, err := addrTable(ift, ifi, msgs)
++	ifat, err := addrTable(ifi, msgs)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	return ifat, nil
+ }
+ 
+-func addrTable(ift []Interface, ifi *Interface, msgs []syscall.NetlinkMessage) ([]Addr, error) {
++func addrTable(ifi *Interface, msgs []syscall.NetlinkMessage) ([]Addr, error) {
+ 	var ifat []Addr
+ loop:
+ 	for _, m := range msgs {
+@@ -153,14 +145,7 @@ loop:
+ 			break loop
+ 		case syscall.RTM_NEWADDR:
+ 			ifam := (*syscall.IfAddrmsg)(unsafe.Pointer(&m.Data[0]))
+-			if len(ift) != 0 || ifi.Index == int(ifam.Index) {
+-				if len(ift) != 0 {
+-					var err error
+-					ifi, err = interfaceByIndex(ift, int(ifam.Index))
+-					if err != nil {
+-						return nil, err
+-					}
+-				}
++			if ifi == nil || ifi.Index == int(ifam.Index) {
+ 				attrs, err := syscall.ParseNetlinkRouteAttr(&m)
+ 				if err != nil {
+ 					return nil, os.NewSyscallError("parsenetlinkrouteattr", err)

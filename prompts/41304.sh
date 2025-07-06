@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41304: 211932b98790df0ae112d7f680f6912514ae7d94
+# Index 41304: fd270d8b579cc9dd4ced34fa7605a444794a787d
 
 echo "🚀 Generating explanation for commit 41304..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 41304..."
 
 ### メタデータ
 - **コミットインデックス**: 41304
-- **コミットハッシュ**: 211932b98790df0ae112d7f680f6912514ae7d94
-- **GitHub URL**: https://github.com/golang/go/commit/211932b98790df0ae112d7f680f6912514ae7d94
+- **コミットハッシュ**: fd270d8b579cc9dd4ced34fa7605a444794a787d
+- **GitHub URL**: https://github.com/golang/go/commit/fd270d8b579cc9dd4ced34fa7605a444794a787d
 
 ### 章構成
 

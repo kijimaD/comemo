@@ -1,0 +1,31 @@
+commit c7ea87132f4e6f3c81e525c396a64471c9af0091
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Mar 17 18:18:48 2025 +0000
+
+    log/slog: document Logger ignores Handler.Handle errors
+    
+    Fixes #66579
+    
+    Change-Id: Ie75378b087763c3e88303df3b3f8d7565003a92f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658515
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/log/slog/handler.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/log/slog/handler.go b/src/log/slog/handler.go
+index 39b987b812..0451ea8fdc 100644
+--- a/src/log/slog/handler.go
++++ b/src/log/slog/handler.go
+@@ -57,6 +57,9 @@ type Handler interface {
+ 	//   - If a group's key is empty, inline the group's Attrs.
+ 	//   - If a group has no Attrs (even if it has a non-empty key),
+ 	//     ignore it.
++	//
++	// [Logger] discards any errors from Handle. Wrap the Handle method to
++	// process any errors from Handlers.
+ 	Handle(context.Context, Record) error
+ 
+ 	// WithAttrs returns a new Handler whose attributes consist of

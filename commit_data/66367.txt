@@ -1,0 +1,340 @@
+commit c594762ad5289c0ea5e1cb63675acf7350c2503e
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 25 14:21:42 2025 -0800
+
+    runtime: remove ret field from gobuf
+    
+    It's not used for anything.
+    
+    Change-Id: I031b3cdfe52b6b1cff4b3cb6713ffe588084542f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652276
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/internal/obj/arm/obj5.go | 2 +-
+ src/runtime/asm_386.s            | 3 ---
+ src/runtime/asm_amd64.s          | 3 ---
+ src/runtime/asm_arm.s            | 3 ---
+ src/runtime/asm_arm64.s          | 3 ---
+ src/runtime/asm_loong64.s        | 3 ---
+ src/runtime/asm_mips64x.s        | 3 ---
+ src/runtime/asm_mipsx.s          | 3 ---
+ src/runtime/asm_ppc64x.s         | 3 ---
+ src/runtime/asm_riscv64.s        | 3 ---
+ src/runtime/asm_s390x.s          | 3 ---
+ src/runtime/asm_wasm.s           | 2 --
+ src/runtime/proc.go              | 1 -
+ src/runtime/runtime2.go          | 4 +---
+ src/runtime/sizeof_test.go       | 2 +-
+ 15 files changed, 3 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/internal/obj/arm/obj5.go b/src/cmd/internal/obj/arm/obj5.go
+index def4f526ad..2f04fd7316 100644
+--- a/src/cmd/internal/obj/arm/obj5.go
++++ b/src/cmd/internal/obj/arm/obj5.go
+@@ -551,7 +551,7 @@ func preprocess(ctxt *obj.Link, cursym *obj.LSym, newprog obj.ProgAlloc) {
+ 			p.From.Reg = q1.From.Reg
+ 			p.To.Type = obj.TYPE_MEM
+ 			p.To.Reg = REGTMP
+-			p.To.Offset = 8 * 4 // offset of m.divmod
++			p.To.Offset = 7 * 4 // offset of m.divmod
+ 
+ 			/* MOV b, R8 */
+ 			p = obj.Appendp(p, newprog)
+diff --git a/src/runtime/asm_386.s b/src/runtime/asm_386.s
+index b4818723e5..62ab83985f 100644
+--- a/src/runtime/asm_386.s
++++ b/src/runtime/asm_386.s
+@@ -291,10 +291,8 @@ TEXT gogo<>(SB), NOSPLIT, $0
+ 	get_tls(CX)
+ 	MOVL	DX, g(CX)
+ 	MOVL	gobuf_sp(BX), SP	// restore SP
+-	MOVL	gobuf_ret(BX), AX
+ 	MOVL	gobuf_ctxt(BX), DX
+ 	MOVL	$0, gobuf_sp(BX)	// clear to help garbage collector
+-	MOVL	$0, gobuf_ret(BX)
+ 	MOVL	$0, gobuf_ctxt(BX)
+ 	MOVL	gobuf_pc(BX), BX
+ 	JMP	BX
+@@ -625,7 +623,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT,$0
+ 	MOVL	AX, (g_sched+gobuf_sp)(BX)
+ 	MOVL	$runtime·systemstack_switch(SB), AX
+ 	MOVL	AX, (g_sched+gobuf_pc)(BX)
+-	MOVL	$0, (g_sched+gobuf_ret)(BX)
+ 	// Assert ctxt is zero. See func save.
+ 	MOVL	(g_sched+gobuf_ctxt)(BX), AX
+ 	TESTL	AX, AX
+diff --git a/src/runtime/asm_amd64.s b/src/runtime/asm_amd64.s
+index 4b630b5ecc..2fa953f39f 100644
+--- a/src/runtime/asm_amd64.s
++++ b/src/runtime/asm_amd64.s
+@@ -412,11 +412,9 @@ TEXT gogo<>(SB), NOSPLIT, $0
+ 	MOVQ	DX, g(CX)
+ 	MOVQ	DX, R14		// set the g register
+ 	MOVQ	gobuf_sp(BX), SP	// restore SP
+-	MOVQ	gobuf_ret(BX), AX
+ 	MOVQ	gobuf_ctxt(BX), DX
+ 	MOVQ	gobuf_bp(BX), BP
+ 	MOVQ	$0, gobuf_sp(BX)	// clear to help garbage collector
+-	MOVQ	$0, gobuf_ret(BX)
+ 	MOVQ	$0, gobuf_ctxt(BX)
+ 	MOVQ	$0, gobuf_bp(BX)
+ 	MOVQ	gobuf_pc(BX), BX
+@@ -828,7 +826,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVQ	R9, (g_sched+gobuf_pc)(R14)
+ 	LEAQ	8(SP), R9
+ 	MOVQ	R9, (g_sched+gobuf_sp)(R14)
+-	MOVQ	$0, (g_sched+gobuf_ret)(R14)
+ 	MOVQ	BP, (g_sched+gobuf_bp)(R14)
+ 	// Assert ctxt is zero. See func save.
+ 	MOVQ	(g_sched+gobuf_ctxt)(R14), R9
+diff --git a/src/runtime/asm_arm.s b/src/runtime/asm_arm.s
+index 7c39b4a3e2..ca9f0ced03 100644
+--- a/src/runtime/asm_arm.s
++++ b/src/runtime/asm_arm.s
+@@ -226,11 +226,9 @@ TEXT gogo<>(SB),NOSPLIT|NOFRAME,$0
+ 	BL	setg<>(SB)
+ 	MOVW	gobuf_sp(R1), R13	// restore SP==R13
+ 	MOVW	gobuf_lr(R1), LR
+-	MOVW	gobuf_ret(R1), R0
+ 	MOVW	gobuf_ctxt(R1), R7
+ 	MOVW	$0, R11
+ 	MOVW	R11, gobuf_sp(R1)	// clear to help garbage collector
+-	MOVW	R11, gobuf_ret(R1)
+ 	MOVW	R11, gobuf_lr(R1)
+ 	MOVW	R11, gobuf_ctxt(R1)
+ 	MOVW	gobuf_pc(R1), R11
+@@ -550,7 +548,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R13, (g_sched+gobuf_sp)(g)
+ 	MOVW	$0, R11
+ 	MOVW	R11, (g_sched+gobuf_lr)(g)
+-	MOVW	R11, (g_sched+gobuf_ret)(g)
+ 	// Assert ctxt is zero. See func save.
+ 	MOVW	(g_sched+gobuf_ctxt)(g), R11
+ 	TST	R11, R11
+diff --git a/src/runtime/asm_arm64.s b/src/runtime/asm_arm64.s
+index 238eaf2789..6c447ac23c 100644
+--- a/src/runtime/asm_arm64.s
++++ b/src/runtime/asm_arm64.s
+@@ -199,11 +199,9 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+ 	MOVD	R0, RSP
+ 	MOVD	gobuf_bp(R5), R29
+ 	MOVD	gobuf_lr(R5), LR
+-	MOVD	gobuf_ret(R5), R0
+ 	MOVD	gobuf_ctxt(R5), R26
+ 	MOVD	$0, gobuf_sp(R5)
+ 	MOVD	$0, gobuf_bp(R5)
+-	MOVD	$0, gobuf_ret(R5)
+ 	MOVD	$0, gobuf_lr(R5)
+ 	MOVD	$0, gobuf_ctxt(R5)
+ 	CMP	ZR, ZR // set condition codes for == test, needed by stack split
+@@ -985,7 +983,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	R0, (g_sched+gobuf_sp)(g)
+ 	MOVD	R29, (g_sched+gobuf_bp)(g)
+ 	MOVD	$0, (g_sched+gobuf_lr)(g)
+-	MOVD	$0, (g_sched+gobuf_ret)(g)
+ 	// Assert ctxt is zero. See func save.
+ 	MOVD	(g_sched+gobuf_ctxt)(g), R0
+ 	CBZ	R0, 2(PC)
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index de64f8acbc..d5dc61ff68 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -113,10 +113,8 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+ 
+ 	MOVV	gobuf_sp(R4), R3
+ 	MOVV	gobuf_lr(R4), R1
+-	MOVV	gobuf_ret(R4), R19
+ 	MOVV	gobuf_ctxt(R4), REGCTXT
+ 	MOVV	R0, gobuf_sp(R4)
+-	MOVV	R0, gobuf_ret(R4)
+ 	MOVV	R0, gobuf_lr(R4)
+ 	MOVV	R0, gobuf_ctxt(R4)
+ 	MOVV	gobuf_pc(R4), R6
+@@ -468,7 +466,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	R19, (g_sched+gobuf_pc)(g)
+ 	MOVV	R3, (g_sched+gobuf_sp)(g)
+ 	MOVV	R0, (g_sched+gobuf_lr)(g)
+-	MOVV	R0, (g_sched+gobuf_ret)(g)
+ 	// Assert ctxt is zero. See func save.
+ 	MOVV	(g_sched+gobuf_ctxt)(g), R19
+ 	BEQ	R19, 2(PC)
+diff --git a/src/runtime/asm_mips64x.s b/src/runtime/asm_mips64x.s
+index cfb9950e17..9509d5ba77 100644
+--- a/src/runtime/asm_mips64x.s
++++ b/src/runtime/asm_mips64x.s
+@@ -107,10 +107,8 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+ 	MOVV	0(g), R2
+ 	MOVV	gobuf_sp(R3), R29
+ 	MOVV	gobuf_lr(R3), R31
+-	MOVV	gobuf_ret(R3), R1
+ 	MOVV	gobuf_ctxt(R3), REGCTXT
+ 	MOVV	R0, gobuf_sp(R3)
+-	MOVV	R0, gobuf_ret(R3)
+ 	MOVV	R0, gobuf_lr(R3)
+ 	MOVV	R0, gobuf_ctxt(R3)
+ 	MOVV	gobuf_pc(R3), R4
+@@ -424,7 +422,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVV	R1, (g_sched+gobuf_pc)(g)
+ 	MOVV	R29, (g_sched+gobuf_sp)(g)
+ 	MOVV	R0, (g_sched+gobuf_lr)(g)
+-	MOVV	R0, (g_sched+gobuf_ret)(g)
+ 	// Assert ctxt is zero. See func save.
+ 	MOVV	(g_sched+gobuf_ctxt)(g), R1
+ 	BEQ	R1, 2(PC)
+diff --git a/src/runtime/asm_mipsx.s b/src/runtime/asm_mipsx.s
+index 33afa2e5c5..7245e8ac49 100644
+--- a/src/runtime/asm_mipsx.s
++++ b/src/runtime/asm_mipsx.s
+@@ -106,10 +106,8 @@ TEXT gogo<>(SB),NOSPLIT|NOFRAME,$0
+ 	JAL	runtime·save_g(SB)
+ 	MOVW	gobuf_sp(R3), R29
+ 	MOVW	gobuf_lr(R3), R31
+-	MOVW	gobuf_ret(R3), R1
+ 	MOVW	gobuf_ctxt(R3), REGCTXT
+ 	MOVW	R0, gobuf_sp(R3)
+-	MOVW	R0, gobuf_ret(R3)
+ 	MOVW	R0, gobuf_lr(R3)
+ 	MOVW	R0, gobuf_ctxt(R3)
+ 	MOVW	gobuf_pc(R3), R4
+@@ -422,7 +420,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVW	R1, (g_sched+gobuf_pc)(g)
+ 	MOVW	R29, (g_sched+gobuf_sp)(g)
+ 	MOVW	R0, (g_sched+gobuf_lr)(g)
+-	MOVW	R0, (g_sched+gobuf_ret)(g)
+ 	// Assert ctxt is zero. See func save.
+ 	MOVW	(g_sched+gobuf_ctxt)(g), R1
+ 	BEQ	R1, 2(PC)
+diff --git a/src/runtime/asm_ppc64x.s b/src/runtime/asm_ppc64x.s
+index 268e0c01c1..96c87afac8 100644
+--- a/src/runtime/asm_ppc64x.s
++++ b/src/runtime/asm_ppc64x.s
+@@ -154,10 +154,8 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+ 	MOVD	24(R1), R2	// restore R2
+ #endif
+ 	MOVD	R31, LR
+-	MOVD	gobuf_ret(R5), R3
+ 	MOVD	gobuf_ctxt(R5), R11
+ 	MOVD	R0, gobuf_sp(R5)
+-	MOVD	R0, gobuf_ret(R5)
+ 	MOVD	R0, gobuf_lr(R5)
+ 	MOVD	R0, gobuf_ctxt(R5)
+ 	CMP	R0, R0 // set condition codes for == test, needed by stack split
+@@ -561,7 +559,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	R31, (g_sched+gobuf_pc)(g)
+ 	MOVD	R1, (g_sched+gobuf_sp)(g)
+ 	MOVD	R0, (g_sched+gobuf_lr)(g)
+-	MOVD	R0, (g_sched+gobuf_ret)(g)
+ 	// Assert ctxt is zero. See func save.
+ 	MOVD	(g_sched+gobuf_ctxt)(g), R31
+ 	CMP	R31, $0
+diff --git a/src/runtime/asm_riscv64.s b/src/runtime/asm_riscv64.s
+index 20c9fdf7ff..4031cdde9e 100644
+--- a/src/runtime/asm_riscv64.s
++++ b/src/runtime/asm_riscv64.s
+@@ -262,10 +262,8 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+ 
+ 	MOV	gobuf_sp(T0), X2
+ 	MOV	gobuf_lr(T0), RA
+-	MOV	gobuf_ret(T0), A0
+ 	MOV	gobuf_ctxt(T0), CTXT
+ 	MOV	ZERO, gobuf_sp(T0)
+-	MOV	ZERO, gobuf_ret(T0)
+ 	MOV	ZERO, gobuf_lr(T0)
+ 	MOV	ZERO, gobuf_ctxt(T0)
+ 	MOV	gobuf_pc(T0), T0
+@@ -315,7 +313,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOV	X31, (g_sched+gobuf_pc)(g)
+ 	MOV	X2, (g_sched+gobuf_sp)(g)
+ 	MOV	ZERO, (g_sched+gobuf_lr)(g)
+-	MOV	ZERO, (g_sched+gobuf_ret)(g)
+ 	// Assert ctxt is zero. See func save.
+ 	MOV	(g_sched+gobuf_ctxt)(g), X31
+ 	BEQ	ZERO, X31, 2(PC)
+diff --git a/src/runtime/asm_s390x.s b/src/runtime/asm_s390x.s
+index 6758175fc2..7fc88009e8 100644
+--- a/src/runtime/asm_s390x.s
++++ b/src/runtime/asm_s390x.s
+@@ -193,10 +193,8 @@ TEXT gogo<>(SB), NOSPLIT|NOFRAME, $0
+ 	MOVD	0(g), R4
+ 	MOVD	gobuf_sp(R5), R15
+ 	MOVD	gobuf_lr(R5), LR
+-	MOVD	gobuf_ret(R5), R3
+ 	MOVD	gobuf_ctxt(R5), R12
+ 	MOVD	$0, gobuf_sp(R5)
+-	MOVD	$0, gobuf_ret(R5)
+ 	MOVD	$0, gobuf_lr(R5)
+ 	MOVD	$0, gobuf_ctxt(R5)
+ 	CMP	R0, R0 // set condition codes for == test, needed by stack split
+@@ -522,7 +520,6 @@ TEXT gosave_systemstack_switch<>(SB),NOSPLIT|NOFRAME,$0
+ 	MOVD	R1, (g_sched+gobuf_pc)(g)
+ 	MOVD	R15, (g_sched+gobuf_sp)(g)
+ 	MOVD	$0, (g_sched+gobuf_lr)(g)
+-	MOVD	$0, (g_sched+gobuf_ret)(g)
+ 	// Assert ctxt is zero. See func save.
+ 	MOVD	(g_sched+gobuf_ctxt)(g), R1
+ 	CMPBEQ	R1, $0, 2(PC)
+diff --git a/src/runtime/asm_wasm.s b/src/runtime/asm_wasm.s
+index 247368d127..751bf0aec7 100644
+--- a/src/runtime/asm_wasm.s
++++ b/src/runtime/asm_wasm.s
+@@ -51,11 +51,9 @@ TEXT runtime·gogo(SB), NOSPLIT, $0-8
+ 	I64Load gobuf_pc(R0)
+ 	I64Store $0
+ 
+-	MOVD gobuf_ret(R0), RET0
+ 	MOVD gobuf_ctxt(R0), CTXT
+ 	// clear to help garbage collector
+ 	MOVD $0, gobuf_sp(R0)
+-	MOVD $0, gobuf_ret(R0)
+ 	MOVD $0, gobuf_ctxt(R0)
+ 
+ 	I32Const $1
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 98e135ff2a..c467f4c49d 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -4399,7 +4399,6 @@ func save(pc, sp, bp uintptr) {
+ 	gp.sched.pc = pc
+ 	gp.sched.sp = sp
+ 	gp.sched.lr = 0
+-	gp.sched.ret = 0
+ 	gp.sched.bp = bp
+ 	// We need to ensure ctxt is zero, but can't have a write
+ 	// barrier here. However, it should always already be zero.
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 7280643f48..b8579d9599 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -312,7 +312,6 @@ type gobuf struct {
+ 	pc   uintptr
+ 	g    guintptr
+ 	ctxt unsafe.Pointer
+-	ret  uintptr
+ 	lr   uintptr
+ 	bp   uintptr // for framepointer-enabled architectures
+ }
+@@ -528,8 +527,7 @@ const (
+ type m struct {
+ 	g0      *g     // goroutine with scheduling stack
+ 	morebuf gobuf  // gobuf arg to morestack
+-	divmod  uint32 // div/mod denominator for arm - known to liblink
+-	_       uint32 // align next field to 8 bytes
++	divmod  uint32 // div/mod denominator for arm - known to liblink (cmd/internal/obj/arm/obj5.go)
+ 
+ 	// Fields not known to debuggers.
+ 	procid          uint64            // for debuggers, but offset not hard-coded
+diff --git a/src/runtime/sizeof_test.go b/src/runtime/sizeof_test.go
+index a5dc8aed34..c1b201caf1 100644
+--- a/src/runtime/sizeof_test.go
++++ b/src/runtime/sizeof_test.go
+@@ -20,7 +20,7 @@ func TestSizeof(t *testing.T) {
+ 		_32bit uintptr // size on 32bit platforms
+ 		_64bit uintptr // size on 64bit platforms
+ 	}{
+-		{runtime.G{}, 280, 440},   // g, but exported for testing
++		{runtime.G{}, 276, 432},   // g, but exported for testing
+ 		{runtime.Sudog{}, 56, 88}, // sudog, but exported for testing
+ 	}
+ 

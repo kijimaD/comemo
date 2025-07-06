@@ -1,0 +1,363 @@
+commit 558f5372fc524e69ade3ab3fe36b1913a4095398
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Thu Nov 14 07:34:51 2024 +0800
+
+    cmd/compile,testing: implement one-time rampup logic for testing.B.Loop
+    
+    testing.B.Loop now does its own loop scheduling without interaction with b.N.
+    b.N will be updated to the actual iterations b.Loop controls when b.Loop returns false.
+    
+    This CL also added tests for fixed iteration count (benchtime=100x case).
+    
+    This CL also ensured that b.Loop() is inlined.
+    
+    For #61515
+    
+    Change-Id: Ia15f4462f4830ef4ec51327520ff59910eb4bb58
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627755
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Commit-Queue: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ .../internal/inline/interleaved/interleaved.go     | 14 ++++
+ src/testing/benchmark.go                           | 90 ++++++++++++++++------
+ src/testing/benchmark_test.go                      |  3 +
+ src/testing/testing_test.go                        | 87 ++++++++++++++++++++-
+ test/inline_testingbloop.go                        | 10 ++-
+ 5 files changed, 175 insertions(+), 29 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/interleaved/interleaved.go b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+index a91ab23daa..a7286b7727 100644
+--- a/src/cmd/compile/internal/inline/interleaved/interleaved.go
++++ b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+@@ -164,6 +164,20 @@ func fixpoint(fn *ir.Func, match func(ir.Node) bool, edit func(ir.Node) ir.Node)
+ 			if base.Flag.LowerM > 1 {
+ 				fmt.Printf("%v: skip inlining within testing.B.loop for %v\n", ir.Line(n), n)
+ 			}
++			// We still want to explore inlining opportunities in other parts of ForStmt.
++			nFor, _ := n.(*ir.ForStmt)
++			nForInit := nFor.Init()
++			for i, x := range nForInit {
++				if x != nil {
++					nForInit[i] = edit(x).(ir.Node)
++				}
++			}
++			if nFor.Cond != nil {
++				nFor.Cond = mark(nFor.Cond).(ir.Node)
++			}
++			if nFor.Post != nil {
++				nFor.Post = mark(nFor.Post).(ir.Node)
++			}
+ 			return n
+ 		}
+ 
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 2c7083db02..db0aec5100 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -113,7 +113,8 @@ type B struct {
+ 	netBytes  uint64
+ 	// Extra metrics collected by ReportMetric.
+ 	extra map[string]float64
+-	// Remaining iterations of Loop() to be executed in benchFunc.
++	// For Loop() to be executed in benchFunc.
++	// Loop() has its own control logic that skips the loop scaling.
+ 	// See issue #61515.
+ 	loopN int
+ }
+@@ -190,7 +191,8 @@ func (b *B) runN(n int) {
+ 	runtime.GC()
+ 	b.resetRaces()
+ 	b.N = n
+-	b.loopN = n
++	b.loopN = 0
++
+ 	b.parallelism = 1
+ 	b.ResetTimer()
+ 	b.StartTimer()
+@@ -228,12 +230,13 @@ func (b *B) run1() bool {
+ 	b.mu.RLock()
+ 	finished := b.finished
+ 	b.mu.RUnlock()
+-	if b.hasSub.Load() || finished {
++	// b.Loop() does its own ramp-up so we just need to run it once.
++	if b.hasSub.Load() || finished || b.loopN != 0 {
+ 		tag := "BENCH"
+ 		if b.skipped {
+ 			tag = "SKIP"
+ 		}
+-		if b.chatty != nil && (len(b.output) > 0 || finished) {
++		if b.chatty != nil && (len(b.output) > 0 || finished || b.loopN != 0) {
+ 			b.trimOutput()
+ 			fmt.Fprintf(b.w, "%s--- %s: %s\n%s", b.chatty.prefix(), tag, b.name, b.output)
+ 		}
+@@ -272,6 +275,24 @@ func (b *B) doBench() BenchmarkResult {
+ 	return b.result
+ }
+ 
++func predictN(goalns int64, prevIters int64, prevns int64, last int64) int {
++	// Order of operations matters.
++	// For very fast benchmarks, prevIters ~= prevns.
++	// If you divide first, you get 0 or 1,
++	// which can hide an order of magnitude in execution time.
++	// So multiply first, then divide.
++	n := goalns * prevIters / prevns
++	// Run more iterations than we think we'll need (1.2x).
++	n += n / 5
++	// Don't grow too fast in case we had timing errors previously.
++	n = min(n, 100*last)
++	// Be sure to run at least one more than last time.
++	n = max(n, last+1)
++	// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
++	n = min(n, 1e9)
++	return int(n)
++}
++
+ // launch launches the benchmark function. It gradually increases the number
+ // of benchmark iterations until the benchmark runs for the requested benchtime.
+ // launch is run by the doBench function as a separate goroutine.
+@@ -303,20 +324,7 @@ func (b *B) launch() {
+ 				// Round up, to avoid div by zero.
+ 				prevns = 1
+ 			}
+-			// Order of operations matters.
+-			// For very fast benchmarks, prevIters ~= prevns.
+-			// If you divide first, you get 0 or 1,
+-			// which can hide an order of magnitude in execution time.
+-			// So multiply first, then divide.
+-			n = goalns * prevIters / prevns
+-			// Run more iterations than we think we'll need (1.2x).
+-			n += n / 5
+-			// Don't grow too fast in case we had timing errors previously.
+-			n = min(n, 100*last)
+-			// Be sure to run at least one more than last time.
+-			n = max(n, last+1)
+-			// Don't run more than 1e9 times. (This also keeps n in int range on 32 bit platforms.)
+-			n = min(n, 1e9)
++			n = int64(predictN(goalns, prevIters, prevns, last))
+ 			b.runN(int(n))
+ 		}
+ 	}
+@@ -353,19 +361,53 @@ func (b *B) ReportMetric(n float64, unit string) {
+ 	b.extra[unit] = n
+ }
+ 
++func (b *B) stopOrScaleBLoop() bool {
++	timeElapsed := highPrecisionTimeSince(b.start)
++	if timeElapsed >= b.benchTime.d {
++		return false
++	}
++	// Loop scaling
++	goalns := b.benchTime.d.Nanoseconds()
++	prevIters := int64(b.N)
++	b.N = predictN(goalns, prevIters, timeElapsed.Nanoseconds(), prevIters)
++	b.loopN++
++	return true
++}
++
++func (b *B) loopSlowPath() bool {
++	if b.loopN == 0 {
++		// If it's the first call to b.Loop() in the benchmark function.
++		// Allows more precise measurement of benchmark loop cost counts.
++		// Also initialize b.N to 1 to kick start loop scaling.
++		b.N = 1
++		b.loopN = 1
++		b.ResetTimer()
++		return true
++	}
++	// Handles fixed time case
++	if b.benchTime.n > 0 {
++		if b.N < b.benchTime.n {
++			b.N = b.benchTime.n
++			b.loopN++
++			return true
++		}
++		return false
++	}
++	// Handles fixed iteration count case
++	return b.stopOrScaleBLoop()
++}
++
+ // Loop returns true until b.N calls has been made to it.
+ //
+ // A benchmark should either use Loop or contain an explicit loop from 0 to b.N, but not both.
+ // After the benchmark finishes, b.N will contain the total number of calls to op, so the benchmark
+ // may use b.N to compute other average metrics.
+ func (b *B) Loop() bool {
+-	if b.loopN == b.N {
+-		// If it's the first call to b.Loop() in the benchmark function.
+-		// Allows more precise measurement of benchmark loop cost counts.
+-		b.ResetTimer()
++	if b.loopN != 0 && b.loopN < b.N {
++		b.loopN++
++		return true
+ 	}
+-	b.loopN--
+-	return b.loopN >= 0
++	return b.loopSlowPath()
+ }
+ 
+ // BenchmarkResult contains the results of a benchmark run.
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index b5ad213fb3..01bb695726 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -141,6 +141,9 @@ func TestLoopEqualsRangeOverBN(t *testing.T) {
+ 	if nIterated != nInfered {
+ 		t.Fatalf("Iteration of the two different benchmark loop flavor differs, got %d iterations want %d", nIterated, nInfered)
+ 	}
++	if nIterated == 0 {
++		t.Fatalf("Iteration count zero")
++	}
+ }
+ 
+ func ExampleB_RunParallel() {
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index d62455baa8..4bf6378782 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -700,6 +700,20 @@ func TestBenchmarkRace(t *testing.T) {
+ 	}
+ }
+ 
++func TestBenchmarkRaceBLoop(t *testing.T) {
++	out := runTest(t, "BenchmarkBLoopRacy")
++	c := bytes.Count(out, []byte("race detected during execution of test"))
++
++	want := 0
++	// We should see one race detector report.
++	if race.Enabled {
++		want = 1
++	}
++	if c != want {
++		t.Errorf("got %d race reports; want %d", c, want)
++	}
++}
++
+ func BenchmarkRacy(b *testing.B) {
+ 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
+ 		b.Skipf("skipping intentionally-racy benchmark")
+@@ -709,15 +723,25 @@ func BenchmarkRacy(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkBLoopRacy(b *testing.B) {
++	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
++		b.Skipf("skipping intentionally-racy benchmark")
++	}
++	for b.Loop() {
++		doRace()
++	}
++}
++
+ func TestBenchmarkSubRace(t *testing.T) {
+ 	out := runTest(t, "BenchmarkSubRacy")
+ 	c := bytes.Count(out, []byte("race detected during execution of test"))
+ 
+ 	want := 0
+-	// We should see two race detector reports:
+-	// one in the sub-bencmark, and one in the parent afterward.
++	// We should see 3 race detector reports:
++	// one in the sub-bencmark, one in the parent afterward,
++	// and one in b.Loop.
+ 	if race.Enabled {
+-		want = 2
++		want = 3
+ 	}
+ 	if c != want {
+ 		t.Errorf("got %d race reports; want %d", c, want)
+@@ -743,6 +767,12 @@ func BenchmarkSubRacy(b *testing.B) {
+ 		}
+ 	})
+ 
++	b.Run("racy-bLoop", func(b *testing.B) {
++		for b.Loop() {
++			doRace()
++		}
++	})
++
+ 	doRace() // should be reported separately
+ }
+ 
+@@ -943,3 +973,54 @@ func TestContext(t *testing.T) {
+ 		}
+ 	})
+ }
++
++func TestBenchmarkBLoopIterationCorrect(t *testing.T) {
++	out := runTest(t, "BenchmarkBLoopPrint")
++	c := bytes.Count(out, []byte("Printing from BenchmarkBLoopPrint"))
++
++	want := 2
++	if c != want {
++		t.Errorf("got %d loop iterations; want %d", c, want)
++	}
++
++	// b.Loop() will only rampup once.
++	c = bytes.Count(out, []byte("Ramping up from BenchmarkBLoopPrint"))
++	want = 1
++	if c != want {
++		t.Errorf("got %d loop rampup; want %d", c, want)
++	}
++}
++
++func TestBenchmarkBNIterationCorrect(t *testing.T) {
++	out := runTest(t, "BenchmarkBNPrint")
++	c := bytes.Count(out, []byte("Printing from BenchmarkBNPrint"))
++
++	// runTest sets benchtime=2x, with semantics specified in #32051 it should
++	// run 3 times.
++	want := 3
++	if c != want {
++		t.Errorf("got %d loop iterations; want %d", c, want)
++	}
++
++	// b.N style fixed iteration loop will rampup twice:
++	// One in run1(), the other in launch
++	c = bytes.Count(out, []byte("Ramping up from BenchmarkBNPrint"))
++	want = 2
++	if c != want {
++		t.Errorf("got %d loop rampup; want %d", c, want)
++	}
++}
++
++func BenchmarkBLoopPrint(b *testing.B) {
++	b.Logf("Ramping up from BenchmarkBLoopPrint")
++	for b.Loop() {
++		b.Logf("Printing from BenchmarkBLoopPrint")
++	}
++}
++
++func BenchmarkBNPrint(b *testing.B) {
++	b.Logf("Ramping up from BenchmarkBNPrint")
++	for i := 0; i < b.N; i++ {
++		b.Logf("Printing from BenchmarkBNPrint")
++	}
++}
+diff --git a/test/inline_testingbloop.go b/test/inline_testingbloop.go
+index 9d5138e2d8..cbdf905993 100644
+--- a/test/inline_testingbloop.go
++++ b/test/inline_testingbloop.go
+@@ -19,13 +19,19 @@ func cannotinline(b *testing.B) { // ERROR "b does not escape" "cannot inline ca
+ 	for i := 0; i < b.N; i++ {
+ 		caninline(1) // ERROR "inlining call to caninline"
+ 	}
+-	for b.Loop() { // ERROR "skip inlining within testing.B.loop"
++	for b.Loop() { // ERROR "skip inlining within testing.B.loop" "inlining call to testing\.\(\*B\)\.Loop"
+ 		caninline(1)
+ 	}
+ 	for i := 0; i < b.N; i++ {
+ 		caninline(1) // ERROR "inlining call to caninline"
+ 	}
+-	for b.Loop() { // ERROR "skip inlining within testing.B.loop"
++	for b.Loop() { // ERROR "skip inlining within testing.B.loop" "inlining call to testing\.\(\*B\)\.Loop"
++		caninline(1)
++	}
++	for i := 0; i < b.N; i++ {
++		caninline(1) // ERROR "inlining call to caninline"
++	}
++	for b.Loop() { // ERROR "skip inlining within testing.B.loop" "inlining call to testing\.\(\*B\)\.Loop"
+ 		caninline(1)
+ 	}
+ }

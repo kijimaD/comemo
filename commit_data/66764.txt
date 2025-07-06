@@ -1,0 +1,158 @@
+commit 14b15a2beaed423ba6b6c97fa5983bd57999038e
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Apr 5 19:29:49 2025 +0200
+
+    internal/runtime/maps: pass proper func PC to race.WritePC/race.ReadPC
+    
+    Fixes #73191
+    
+    Change-Id: I0f8a5a19faa745943a98476c7caf4c97ccdce184
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663175
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/internal/runtime/maps/runtime_fast32_swiss.go  | 10 +++++-----
+ src/internal/runtime/maps/runtime_fast64_swiss.go  | 10 +++++-----
+ src/internal/runtime/maps/runtime_faststr_swiss.go |  8 ++++----
+ 3 files changed, 14 insertions(+), 14 deletions(-)
+
+diff --git a/src/internal/runtime/maps/runtime_fast32_swiss.go b/src/internal/runtime/maps/runtime_fast32_swiss.go
+index 46023cc9b7..bd2100ea8b 100644
+--- a/src/internal/runtime/maps/runtime_fast32_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast32_swiss.go
+@@ -17,7 +17,7 @@ import (
+ func runtime_mapaccess1_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe.Pointer {
+ 	if race.Enabled && m != nil {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1_fast32)
+ 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 
+@@ -86,7 +86,7 @@ func runtime_mapaccess1_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe
+ func runtime_mapaccess2_fast32(typ *abi.SwissMapType, m *Map, key uint32) (unsafe.Pointer, bool) {
+ 	if race.Enabled && m != nil {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		pc := abi.FuncPCABIInternal(runtime_mapaccess2_fast32)
+ 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 
+@@ -198,7 +198,7 @@ func runtime_mapassign_fast32(typ *abi.SwissMapType, m *Map, key uint32) unsafe.
+ 	}
+ 	if race.Enabled {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		pc := abi.FuncPCABIInternal(runtime_mapassign_fast32)
+ 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 	if m.writing != 0 {
+@@ -332,7 +332,7 @@ func runtime_mapassign_fast32ptr(typ *abi.SwissMapType, m *Map, key unsafe.Point
+ 	}
+ 	if race.Enabled {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		pc := abi.FuncPCABIInternal(runtime_mapassign_fast32ptr)
+ 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 	if m.writing != 0 {
+@@ -458,7 +458,7 @@ outer:
+ func runtime_mapdelete_fast32(typ *abi.SwissMapType, m *Map, key uint32) {
+ 	if race.Enabled {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		pc := abi.FuncPCABIInternal(runtime_mapdelete_fast32)
+ 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 
+diff --git a/src/internal/runtime/maps/runtime_fast64_swiss.go b/src/internal/runtime/maps/runtime_fast64_swiss.go
+index 6bc6b2f0b1..e18277101c 100644
+--- a/src/internal/runtime/maps/runtime_fast64_swiss.go
++++ b/src/internal/runtime/maps/runtime_fast64_swiss.go
+@@ -17,7 +17,7 @@ import (
+ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe.Pointer {
+ 	if race.Enabled && m != nil {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1_fast64)
+ 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 
+@@ -86,7 +86,7 @@ func runtime_mapaccess1_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe
+ func runtime_mapaccess2_fast64(typ *abi.SwissMapType, m *Map, key uint64) (unsafe.Pointer, bool) {
+ 	if race.Enabled && m != nil {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		pc := abi.FuncPCABIInternal(runtime_mapaccess2_fast64)
+ 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 
+@@ -198,7 +198,7 @@ func runtime_mapassign_fast64(typ *abi.SwissMapType, m *Map, key uint64) unsafe.
+ 	}
+ 	if race.Enabled {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		pc := abi.FuncPCABIInternal(runtime_mapassign_fast64)
+ 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 	if m.writing != 0 {
+@@ -370,7 +370,7 @@ func runtime_mapassign_fast64ptr(typ *abi.SwissMapType, m *Map, key unsafe.Point
+ 	}
+ 	if race.Enabled {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		pc := abi.FuncPCABIInternal(runtime_mapassign_fast64ptr)
+ 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 	if m.writing != 0 {
+@@ -497,7 +497,7 @@ outer:
+ func runtime_mapdelete_fast64(typ *abi.SwissMapType, m *Map, key uint64) {
+ 	if race.Enabled {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		pc := abi.FuncPCABIInternal(runtime_mapdelete_fast64)
+ 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 
+diff --git a/src/internal/runtime/maps/runtime_faststr_swiss.go b/src/internal/runtime/maps/runtime_faststr_swiss.go
+index 077c05ae8b..669e771013 100644
+--- a/src/internal/runtime/maps/runtime_faststr_swiss.go
++++ b/src/internal/runtime/maps/runtime_faststr_swiss.go
+@@ -103,7 +103,7 @@ func stringPtr(s string) unsafe.Pointer {
+ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe.Pointer {
+ 	if race.Enabled && m != nil {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		pc := abi.FuncPCABIInternal(runtime_mapaccess1_faststr)
+ 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 
+@@ -162,7 +162,7 @@ func runtime_mapaccess1_faststr(typ *abi.SwissMapType, m *Map, key string) unsaf
+ func runtime_mapaccess2_faststr(typ *abi.SwissMapType, m *Map, key string) (unsafe.Pointer, bool) {
+ 	if race.Enabled && m != nil {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapaccess1)
++		pc := abi.FuncPCABIInternal(runtime_mapaccess2_faststr)
+ 		race.ReadPC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 
+@@ -266,7 +266,7 @@ func runtime_mapassign_faststr(typ *abi.SwissMapType, m *Map, key string) unsafe
+ 	}
+ 	if race.Enabled {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		pc := abi.FuncPCABIInternal(runtime_mapassign_faststr)
+ 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 	if m.writing != 0 {
+@@ -396,7 +396,7 @@ outer:
+ func runtime_mapdelete_faststr(typ *abi.SwissMapType, m *Map, key string) {
+ 	if race.Enabled {
+ 		callerpc := sys.GetCallerPC()
+-		pc := abi.FuncPCABIInternal(runtime_mapassign)
++		pc := abi.FuncPCABIInternal(runtime_mapdelete_faststr)
+ 		race.WritePC(unsafe.Pointer(m), callerpc, pc)
+ 	}
+ 

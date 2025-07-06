@@ -1,0 +1,39 @@
+commit 76650b60eb05e8b8215f2b1bb667b4a797ccdacc
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Thu Aug 22 12:29:18 2024 +0000
+
+    go/ast: note that in BasicLit CHARs and STRINGs are quoted
+    
+    This reapplies CL 244960, for some reason CL 264181 removed this comment.
+    
+    Updates #39590
+    
+    Change-Id: Ia37268812c6929020b0cd583d2c7fa48a098377c
+    GitHub-Last-Rev: 2acee37fedc7f2edfffec4f2e4c465708f210a97
+    GitHub-Pull-Request: golang/go#69019
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607517
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/go/ast/ast.go | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 73aa3da89e..5291c0a93a 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -299,6 +299,12 @@ type (
+ 	}
+ 
+ 	// A BasicLit node represents a literal of basic type.
++	//
++	// Note that for the CHAR and STRING kinds, the literal is stored
++	// with its quotes. For example, for a double-quoted STRING, the
++	// first and the last rune in the Value field will be ". The
++	// [strconv.Unquote] and [strconv.UnquoteChar] functions can be
++	// used to unquote STRING and CHAR values, respectively.
+ 	BasicLit struct {
+ 		ValuePos token.Pos   // literal position
+ 		Kind     token.Token // token.INT, token.FLOAT, token.IMAG, token.CHAR, or token.STRING

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41318: ee3dded36d69264998c39af0ec851371850d842b
+# Index 41318: 804a4024ec9b149410df6aeaa8b443e65e70ff28
 
 echo "🚀 Generating explanation for commit 41318..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 41318..."
 
 ### メタデータ
 - **コミットインデックス**: 41318
-- **コミットハッシュ**: ee3dded36d69264998c39af0ec851371850d842b
-- **GitHub URL**: https://github.com/golang/go/commit/ee3dded36d69264998c39af0ec851371850d842b
+- **コミットハッシュ**: 804a4024ec9b149410df6aeaa8b443e65e70ff28
+- **GitHub URL**: https://github.com/golang/go/commit/804a4024ec9b149410df6aeaa8b443e65e70ff28
 
 ### 章構成
 

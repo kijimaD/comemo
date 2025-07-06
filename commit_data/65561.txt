@@ -1,0 +1,125 @@
+commit a3c068c57ae3f71a7720fe68da379143bb579362
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue Nov 19 21:19:04 2024 +0100
+
+    crypto: trim module name of Avo generators
+    
+    Change-Id: I29df173c2ba3bb37aff67e9872f0a5aa4c01ed87
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629835
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/internal/fips/aes/_asm/ctr/go.mod            | 2 +-
+ src/crypto/internal/fips/aes/_asm/standard/go.mod       | 2 +-
+ src/crypto/internal/fips/aes/gcm/_asm/gcm/go.mod        | 2 +-
+ src/crypto/internal/fips/bigmod/_asm/go.mod             | 2 +-
+ src/crypto/internal/fips/edwards25519/field/_asm/go.mod | 2 +-
+ src/crypto/internal/fips/nistec/_asm/go.mod             | 2 +-
+ src/crypto/internal/fips/sha256/_asm/go.mod             | 2 +-
+ src/crypto/internal/fips/sha512/_asm/go.mod             | 2 +-
+ src/crypto/md5/_asm/go.mod                              | 2 +-
+ src/crypto/sha1/_asm/go.mod                             | 2 +-
+ 10 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/crypto/internal/fips/aes/_asm/ctr/go.mod b/src/crypto/internal/fips/aes/_asm/ctr/go.mod
+index 7db2198970..5d97cd7f4e 100644
+--- a/src/crypto/internal/fips/aes/_asm/ctr/go.mod
++++ b/src/crypto/internal/fips/aes/_asm/ctr/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/aes/_asm/ctr
++module crypto/aes/_asm/ctr
+ 
+ go 1.24
+ 
+diff --git a/src/crypto/internal/fips/aes/_asm/standard/go.mod b/src/crypto/internal/fips/aes/_asm/standard/go.mod
+index f9382a9780..f1329b7290 100644
+--- a/src/crypto/internal/fips/aes/_asm/standard/go.mod
++++ b/src/crypto/internal/fips/aes/_asm/standard/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/aes/_asm/standard
++module crypto/aes/_asm/standard
+ 
+ go 1.24
+ 
+diff --git a/src/crypto/internal/fips/aes/gcm/_asm/gcm/go.mod b/src/crypto/internal/fips/aes/gcm/_asm/gcm/go.mod
+index ba78b210fb..3fd2094068 100644
+--- a/src/crypto/internal/fips/aes/gcm/_asm/gcm/go.mod
++++ b/src/crypto/internal/fips/aes/gcm/_asm/gcm/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/aes/_asm/gcm
++module crypto/aes/_asm/gcm
+ 
+ go 1.24
+ 
+diff --git a/src/crypto/internal/fips/bigmod/_asm/go.mod b/src/crypto/internal/fips/bigmod/_asm/go.mod
+index 2193dc80d9..e51aa3cb2b 100644
+--- a/src/crypto/internal/fips/bigmod/_asm/go.mod
++++ b/src/crypto/internal/fips/bigmod/_asm/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/internal/fips/bigmod/_asm
++module crypto/internal/fips/bigmod/_asm
+ 
+ go 1.19
+ 
+diff --git a/src/crypto/internal/fips/edwards25519/field/_asm/go.mod b/src/crypto/internal/fips/edwards25519/field/_asm/go.mod
+index ad95a61f8a..273b1f5473 100644
+--- a/src/crypto/internal/fips/edwards25519/field/_asm/go.mod
++++ b/src/crypto/internal/fips/edwards25519/field/_asm/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/internal/fips/edwards25519/field/_asm
++module crypto/internal/fips/edwards25519/field/_asm
+ 
+ go 1.19
+ 
+diff --git a/src/crypto/internal/fips/nistec/_asm/go.mod b/src/crypto/internal/fips/nistec/_asm/go.mod
+index d631322e10..eb361dbaf5 100644
+--- a/src/crypto/internal/fips/nistec/_asm/go.mod
++++ b/src/crypto/internal/fips/nistec/_asm/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/internal/fips/nistec/_asm
++module crypto/internal/fips/nistec/_asm
+ 
+ go 1.24
+ 
+diff --git a/src/crypto/internal/fips/sha256/_asm/go.mod b/src/crypto/internal/fips/sha256/_asm/go.mod
+index cd247e3510..eb93418b8a 100644
+--- a/src/crypto/internal/fips/sha256/_asm/go.mod
++++ b/src/crypto/internal/fips/sha256/_asm/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/sha256/_asm
++module crypto/sha256/_asm
+ 
+ go 1.24
+ 
+diff --git a/src/crypto/internal/fips/sha512/_asm/go.mod b/src/crypto/internal/fips/sha512/_asm/go.mod
+index 63f129f7c6..78b953258b 100644
+--- a/src/crypto/internal/fips/sha512/_asm/go.mod
++++ b/src/crypto/internal/fips/sha512/_asm/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/sha512/_asm
++module crypto/sha512/_asm
+ 
+ go 1.24
+ 
+diff --git a/src/crypto/md5/_asm/go.mod b/src/crypto/md5/_asm/go.mod
+index 04e6e30a84..db1e46d8ee 100644
+--- a/src/crypto/md5/_asm/go.mod
++++ b/src/crypto/md5/_asm/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/md5/_asm
++module crypto/md5/_asm
+ 
+ go 1.24
+ 
+diff --git a/src/crypto/sha1/_asm/go.mod b/src/crypto/sha1/_asm/go.mod
+index d141682320..ebd41369ba 100644
+--- a/src/crypto/sha1/_asm/go.mod
++++ b/src/crypto/sha1/_asm/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/sha1/_asm
++module crypto/sha1/_asm
+ 
+ go 1.24
+ 

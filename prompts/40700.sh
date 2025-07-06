@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40700: 1962dc88eb89cd37d3f9f85e8e4b7ad4915db089
+# Index 40700: 10faf001077ea6b3907864f16a9f9099a7ba939b
 
 echo "🚀 Generating explanation for commit 40700..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40700..."
 
 ### メタデータ
 - **コミットインデックス**: 40700
-- **コミットハッシュ**: 1962dc88eb89cd37d3f9f85e8e4b7ad4915db089
-- **GitHub URL**: https://github.com/golang/go/commit/1962dc88eb89cd37d3f9f85e8e4b7ad4915db089
+- **コミットハッシュ**: 10faf001077ea6b3907864f16a9f9099a7ba939b
+- **GitHub URL**: https://github.com/golang/go/commit/10faf001077ea6b3907864f16a9f9099a7ba939b
 
 ### 章構成
 

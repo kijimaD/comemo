@@ -1,0 +1,213 @@
+commit 38a2a3c7ce156e01f8980cb97912b7067709aaa3
+Author: apocelipes <seve3r@outlook.com>
+Date:   Tue Apr 8 10:00:13 2025 +0000
+
+    runtime: use internal/byteorder
+    
+    To simplify the code.
+    
+    Change-Id: Ib1af5009cc25bb29fd26fdb7b29ff4579f0150aa
+    GitHub-Last-Rev: f698a8a771ac8c6ecb745ea4c27a7c677c1789d1
+    GitHub-Pull-Request: golang/go#73255
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663735
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/alg.go                 | 10 +++++-----
+ src/runtime/debuglog.go            | 15 +++------------
+ src/runtime/hash_test.go           |  6 ++----
+ src/runtime/os_plan9.go            |  4 ++--
+ src/runtime/pprof/vminfo_darwin.go |  8 ++------
+ src/runtime/write_err_android.go   | 17 ++++++-----------
+ 6 files changed, 20 insertions(+), 40 deletions(-)
+
+diff --git a/src/runtime/alg.go b/src/runtime/alg.go
+index 07c115f74d..4626899aaf 100644
+--- a/src/runtime/alg.go
++++ b/src/runtime/alg.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/byteorder"
+ 	"internal/cpu"
+ 	"internal/goarch"
+ 	"internal/runtime/sys"
+@@ -474,16 +475,15 @@ func initAlgAES() {
+ func readUnaligned32(p unsafe.Pointer) uint32 {
+ 	q := (*[4]byte)(p)
+ 	if goarch.BigEndian {
+-		return uint32(q[3]) | uint32(q[2])<<8 | uint32(q[1])<<16 | uint32(q[0])<<24
++		return byteorder.BEUint32(q[:])
+ 	}
+-	return uint32(q[0]) | uint32(q[1])<<8 | uint32(q[2])<<16 | uint32(q[3])<<24
++	return byteorder.LEUint32(q[:])
+ }
+ 
+ func readUnaligned64(p unsafe.Pointer) uint64 {
+ 	q := (*[8]byte)(p)
+ 	if goarch.BigEndian {
+-		return uint64(q[7]) | uint64(q[6])<<8 | uint64(q[5])<<16 | uint64(q[4])<<24 |
+-			uint64(q[3])<<32 | uint64(q[2])<<40 | uint64(q[1])<<48 | uint64(q[0])<<56
++		return byteorder.BEUint64(q[:])
+ 	}
+-	return uint64(q[0]) | uint64(q[1])<<8 | uint64(q[2])<<16 | uint64(q[3])<<24 | uint64(q[4])<<32 | uint64(q[5])<<40 | uint64(q[6])<<48 | uint64(q[7])<<56
++	return byteorder.LEUint64(q[:])
+ }
+diff --git a/src/runtime/debuglog.go b/src/runtime/debuglog.go
+index b11e5e3fab..50fba3568d 100644
+--- a/src/runtime/debuglog.go
++++ b/src/runtime/debuglog.go
+@@ -27,6 +27,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/byteorder"
+ 	"internal/runtime/atomic"
+ 	"internal/runtime/sys"
+ 	"unsafe"
+@@ -477,14 +478,7 @@ func (l *debugLogWriter) writeSync(tick, nano uint64) {
+ //go:nosplit
+ func (l *debugLogWriter) writeUint64LE(x uint64) {
+ 	var b [8]byte
+-	b[0] = byte(x)
+-	b[1] = byte(x >> 8)
+-	b[2] = byte(x >> 16)
+-	b[3] = byte(x >> 24)
+-	b[4] = byte(x >> 32)
+-	b[5] = byte(x >> 40)
+-	b[6] = byte(x >> 48)
+-	b[7] = byte(x >> 56)
++	byteorder.LEPutUint64(b[:], x)
+ 	l.bytes(b[:])
+ }
+ 
+@@ -576,10 +570,7 @@ func (r *debugLogReader) readUint64LEAt(pos uint64) uint64 {
+ 		b[i] = r.data.b[pos%uint64(len(r.data.b))]
+ 		pos++
+ 	}
+-	return uint64(b[0]) | uint64(b[1])<<8 |
+-		uint64(b[2])<<16 | uint64(b[3])<<24 |
+-		uint64(b[4])<<32 | uint64(b[5])<<40 |
+-		uint64(b[6])<<48 | uint64(b[7])<<56
++	return byteorder.LEUint64(b[:])
+ }
+ 
+ func (r *debugLogReader) peek() (tick uint64) {
+diff --git a/src/runtime/hash_test.go b/src/runtime/hash_test.go
+index 3ef9f9addb..c4e9f5ab89 100644
+--- a/src/runtime/hash_test.go
++++ b/src/runtime/hash_test.go
+@@ -7,6 +7,7 @@ package runtime_test
+ import (
+ 	"encoding/binary"
+ 	"fmt"
++	"internal/byteorder"
+ 	"internal/race"
+ 	"internal/testenv"
+ 	"math"
+@@ -326,10 +327,7 @@ func genPerm(h *HashSet, b []byte, s []uint32, n int) {
+ 		return
+ 	}
+ 	for _, v := range s {
+-		b[n] = byte(v)
+-		b[n+1] = byte(v >> 8)
+-		b[n+2] = byte(v >> 16)
+-		b[n+3] = byte(v >> 24)
++		byteorder.LEPutUint32(b[n:], v)
+ 		genPerm(h, b, s, n+4)
+ 	}
+ }
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 59224bcfa8..6ff15c2236 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -6,6 +6,7 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/byteorder"
+ 	"internal/runtime/atomic"
+ 	"internal/stringslite"
+ 	"unsafe"
+@@ -574,8 +575,7 @@ func timesplit(u uint64) (sec int64, nsec int32)
+ 
+ func frombe(u uint64) uint64 {
+ 	b := (*[8]byte)(unsafe.Pointer(&u))
+-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
++	return byteorder.BEUint64(b[:])
+ }
+ 
+ //go:nosplit
+diff --git a/src/runtime/pprof/vminfo_darwin.go b/src/runtime/pprof/vminfo_darwin.go
+index 35b9e6d487..610de0a2f0 100644
+--- a/src/runtime/pprof/vminfo_darwin.go
++++ b/src/runtime/pprof/vminfo_darwin.go
+@@ -5,6 +5,7 @@
+ package pprof
+ 
+ import (
++	"internal/byteorder"
+ 	"os"
+ 	"unsafe"
+ )
+@@ -39,7 +40,7 @@ func machVMInfo(addMapping func(lo, hi, offset uint64, file, buildID string)) bo
+ 			// offset is usually 0.
+ 			addMapping(addr,
+ 				addr+memRegionSize,
+-				read64(&info.Offset),
++				byteorder.LEUint64(info.Offset[:]),
+ 				regionFilename(addr),
+ 				"")
+ 			added = true
+@@ -48,11 +49,6 @@ func machVMInfo(addMapping func(lo, hi, offset uint64, file, buildID string)) bo
+ 	}
+ }
+ 
+-func read64(p *[8]byte) uint64 {
+-	// all supported darwin platforms are little endian
+-	return uint64(p[0]) | uint64(p[1])<<8 | uint64(p[2])<<16 | uint64(p[3])<<24 | uint64(p[4])<<32 | uint64(p[5])<<40 | uint64(p[6])<<48 | uint64(p[7])<<56
+-}
+-
+ func regionFilename(address uint64) string {
+ 	buf := make([]byte, _MAXPATHLEN)
+ 	r := proc_regionfilename(
+diff --git a/src/runtime/write_err_android.go b/src/runtime/write_err_android.go
+index 34de106b50..bcc934e54c 100644
+--- a/src/runtime/write_err_android.go
++++ b/src/runtime/write_err_android.go
+@@ -4,7 +4,10 @@
+ 
+ package runtime
+ 
+-import "unsafe"
++import (
++	"internal/byteorder"
++	"unsafe"
++)
+ 
+ var (
+ 	writeHeader = []byte{6 /* ANDROID_LOG_ERROR */, 'G', 'o', 0}
+@@ -148,18 +151,10 @@ func writeLogdHeader() int {
+ 	//      hdr[7:11] nsec unsigned uint32, little endian.
+ 	hdr[0] = 0 // LOG_ID_MAIN
+ 	sec, nsec, _ := time_now()
+-	packUint32(hdr[3:7], uint32(sec))
+-	packUint32(hdr[7:11], uint32(nsec))
++	byteorder.LEPutUint32(hdr[3:7], uint32(sec))
++	byteorder.LEPutUint32(hdr[7:11], uint32(nsec))
+ 
+ 	// TODO(hakim):  hdr[1:2] = gettid?
+ 
+ 	return 11 + len(writeHeader)
+ }
+-
+-func packUint32(b []byte, v uint32) {
+-	// little-endian.
+-	b[0] = byte(v)
+-	b[1] = byte(v >> 8)
+-	b[2] = byte(v >> 16)
+-	b[3] = byte(v >> 24)
+-}

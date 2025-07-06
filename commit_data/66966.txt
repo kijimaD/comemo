@@ -1,0 +1,67 @@
+commit 9c170f70e1c27f3f89f6175af0d9fa800931dbb8
+Author: Constantin Konstantinidis <constantinkonstantinidis@gmail.com>
+Date:   Fri May 2 09:10:40 2025 +0200
+
+    cmd/go: replace backslash systematically in path of command
+    
+    Using the same method CleanPatterns harmonizes further accepted format of patterns in go command.
+    
+    Fixes #24233
+    
+    Change-Id: Idb8176df3a7949b16764cd6ea51d7a8966799e42
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/go/internal/load/pkg.go                  |  1 +
+ src/cmd/go/internal/search/search.go             |  4 +---
+ src/cmd/go/testdata/script/install_backslash.txt | 12 ++++++++++++
+ 3 files changed, 14 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index f11c2d9bed..2b0eb7ca0d 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -3381,6 +3381,7 @@ func PackagesAndErrorsOutsideModule(ctx context.Context, opts PackageOpts, args
+ 			patterns[i] = p
+ 		}
+ 	}
++	patterns = search.CleanPatterns(patterns)
+ 
+ 	// Query the module providing the first argument, load its go.mod file, and
+ 	// check that it doesn't contain directives that would cause it to be
+diff --git a/src/cmd/go/internal/search/search.go b/src/cmd/go/internal/search/search.go
+index 0d83cbd47d..0954b82a02 100644
+--- a/src/cmd/go/internal/search/search.go
++++ b/src/cmd/go/internal/search/search.go
+@@ -419,9 +419,7 @@ func CleanPatterns(patterns []string) []string {
+ 		if filepath.IsAbs(p) {
+ 			p = filepath.Clean(p)
+ 		} else {
+-			if filepath.Separator == '\\' {
+-				p = strings.ReplaceAll(p, `\`, `/`)
+-			}
++			p = strings.ReplaceAll(p, `\`, `/`)
+ 
+ 			// Put argument in canonical form, but preserve leading ./.
+ 			if strings.HasPrefix(p, "./") {
+diff --git a/src/cmd/go/testdata/script/install_backslash.txt b/src/cmd/go/testdata/script/install_backslash.txt
+new file mode 100644
+index 0000000000..adb359c858
+--- /dev/null
++++ b/src/cmd/go/testdata/script/install_backslash.txt
+@@ -0,0 +1,12 @@
++# Issue #24233: allow backslash in path of command
++go install -n rsc.io\fortune@v1.0.0
++! stderr 'malformed'
++
++mkdir m
++cd m
++go mod init example.com/m
++go get rsc.io\fortune
++! stderr 'malformed'
++
++go install -n rsc.io\fortune@v1.0.0
++! stderr 'malformed'

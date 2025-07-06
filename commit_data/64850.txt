@@ -1,0 +1,47 @@
+commit a02516a3797571b5c88b0fc44a225daf401ab457
+Author: Michael Pratt <mpratt@google.com>
+Date:   Mon Sep 16 14:14:27 2024 -0400
+
+    runtime: remove go:noescape from getcallerpc/sp
+    
+    getcallerpc and getcallerps dropped their arguments in CL 65474 and CL
+    109596, respectively.
+    
+    Without an argument there is nothing to escape.
+    
+    Change-Id: I24f300d039a2a0615ca0c3ea247125676a6237d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613497
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/stubs.go | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 2c3c5e3541..0cc404f030 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -309,8 +309,7 @@ func publicationBarrier()
+ 
+ // getcallerpc returns the program counter (PC) of its caller's caller.
+ // getcallersp returns the stack pointer (SP) of its caller's caller.
+-// The implementation may be a compiler intrinsic; there is not
+-// necessarily code implementing this on every platform.
++// Both are implemented as intrinsics on every platform.
+ //
+ // For example:
+ //
+@@ -331,11 +330,9 @@ func publicationBarrier()
+ // A general rule is that the result of getcallersp should be used
+ // immediately and can only be passed to nosplit functions.
+ 
+-//go:noescape
+ func getcallerpc() uintptr
+ 
+-//go:noescape
+-func getcallersp() uintptr // implemented as an intrinsic on all platforms
++func getcallersp() uintptr
+ 
+ // getclosureptr returns the pointer to the current closure.
+ // getclosureptr can only be used in an assignment statement

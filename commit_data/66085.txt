@@ -1,0 +1,59 @@
+commit 76c18e2ed2e62f34a9afed5e6fa681837cc16b77
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Feb 4 11:16:40 2025 +0100
+
+    cmd/link: add -e (no limit on errors) flag
+    
+    The compiler and assembler have a -e flag that disables the limit
+    on the number of errors before the build fails. This flag is useful
+    for debugging, the linker should have it too.
+    
+    Change-Id: I892cfd6ee1519e9e86261af7d05e1af2ded21684
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646435
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/link/doc.go              | 2 ++
+ src/cmd/link/internal/ld/main.go | 1 +
+ src/cmd/link/internal/ld/util.go | 2 +-
+ 3 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/link/doc.go b/src/cmd/link/doc.go
+index 7b548f960f..840f4b04ed 100644
+--- a/src/cmd/link/doc.go
++++ b/src/cmd/link/doc.go
+@@ -72,6 +72,8 @@ Flags:
+ 		system tools now assume the presence of the header.
+ 	-dumpdep
+ 		Dump symbol dependency graph.
++	-e
++		No limit on number of errors reported.
+ 	-extar ar
+ 		Set the external archive program (default "ar").
+ 		Used only for -buildmode=c-archive.
+diff --git a/src/cmd/link/internal/ld/main.go b/src/cmd/link/internal/ld/main.go
+index 7614b6d194..377dcd6c85 100644
+--- a/src/cmd/link/internal/ld/main.go
++++ b/src/cmd/link/internal/ld/main.go
+@@ -108,6 +108,7 @@ var (
+ 	flagEntrySymbol   = flag.String("E", "", "set `entry` symbol name")
+ 	flagPruneWeakMap  = flag.Bool("pruneweakmap", true, "prune weak mapinit refs")
+ 	flagRandLayout    = flag.Int64("randlayout", 0, "randomize function layout")
++	flagAllErrors     = flag.Bool("e", false, "no limit on number of errors reported")
+ 	cpuprofile        = flag.String("cpuprofile", "", "write cpu profile to `file`")
+ 	memprofile        = flag.String("memprofile", "", "write memory profile to `file`")
+ 	memprofilerate    = flag.Int64("memprofilerate", 0, "set runtime.MemProfileRate to `rate`")
+diff --git a/src/cmd/link/internal/ld/util.go b/src/cmd/link/internal/ld/util.go
+index 948bfa020e..556c77d732 100644
+--- a/src/cmd/link/internal/ld/util.go
++++ b/src/cmd/link/internal/ld/util.go
+@@ -48,7 +48,7 @@ func afterErrorAction() {
+ 	if *flagH {
+ 		panic("error")
+ 	}
+-	if nerrors > 20 {
++	if nerrors > 20 && !*flagAllErrors {
+ 		Exitf("too many errors")
+ 	}
+ }

@@ -1,0 +1,106 @@
+commit 67f662b29165a0fb27dd15e9370b6e411a653c95
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Oct 16 16:33:03 2024 +0200
+
+    internal/syscall/windows: set write access when O_TRUNC is used
+    
+    Whenn O_TRUNC is set, Opentat ends up calling syscall.Ftruncate, which
+    needs write access. Make sure write access is not removed when O_TRUNC
+    and O_APPEND are both set.
+    
+    Updates #67002.
+    
+    Change-Id: Iccc470b7be3c62144318d6a707057504f3b74c97
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620576
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/internal/syscall/windows/at_windows.go      |  6 ++-
+ src/internal/syscall/windows/at_windows_test.go | 58 +++++++++++++++++++++++++
+ 2 files changed, 63 insertions(+), 1 deletion(-)
+
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index 064564c5e0..ad4a0ab25b 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -41,8 +41,12 @@ func Openat(dirfd syscall.Handle, name string, flag int, perm uint32) (_ syscall
+ 		access |= FILE_GENERIC_WRITE
+ 	}
+ 	if flag&syscall.O_APPEND != 0 {
+-		access &^= FILE_WRITE_DATA
+ 		access |= FILE_APPEND_DATA
++		// Remove GENERIC_WRITE access unless O_TRUNC is set,
++		// in which case we need it to truncate the file.
++		if flag&syscall.O_TRUNC == 0 {
++			access &^= FILE_WRITE_DATA
++		}
+ 	}
+ 	if flag&O_DIRECTORY != 0 {
+ 		options |= FILE_DIRECTORY_FILE
+diff --git a/src/internal/syscall/windows/at_windows_test.go b/src/internal/syscall/windows/at_windows_test.go
+new file mode 100644
+index 0000000000..7da9ecf07a
+--- /dev/null
++++ b/src/internal/syscall/windows/at_windows_test.go
+@@ -0,0 +1,58 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package windows_test
++
++import (
++	"internal/syscall/windows"
++	"os"
++	"path/filepath"
++	"syscall"
++	"testing"
++)
++
++func TestOpen(t *testing.T) {
++	t.Parallel()
++
++	dir := t.TempDir()
++	file := filepath.Join(dir, "a")
++	f, err := os.Create(file)
++	if err != nil {
++		t.Fatal(err)
++	}
++	f.Close()
++
++	tests := []struct {
++		path string
++		flag int
++		err  error
++	}{
++		{dir, syscall.O_RDONLY, nil},
++		{dir, syscall.O_CREAT, nil},
++		{dir, syscall.O_RDONLY | syscall.O_CREAT, nil},
++		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE, nil},
++		{file, syscall.O_APPEND | syscall.O_WRONLY | os.O_CREATE | os.O_TRUNC, nil},
++		{dir, syscall.O_RDONLY | syscall.O_TRUNC, syscall.ERROR_ACCESS_DENIED},
++		{dir, syscall.O_WRONLY | syscall.O_RDWR, nil}, // TODO: syscall.Open returns EISDIR here, we should reconcile this
++		{dir, syscall.O_WRONLY, syscall.EISDIR},
++		{dir, syscall.O_RDWR, syscall.EISDIR},
++	}
++	for i, tt := range tests {
++		dir := filepath.Dir(tt.path)
++		dirfd, err := syscall.Open(dir, syscall.O_RDONLY, 0)
++		if err != nil {
++			t.Error(err)
++			continue
++		}
++		base := filepath.Base(tt.path)
++		h, err := windows.Openat(dirfd, base, tt.flag, 0o660)
++		syscall.CloseHandle(dirfd)
++		if err == nil {
++			syscall.CloseHandle(h)
++		}
++		if err != tt.err {
++			t.Errorf("%d: Open got %q, want %q", i, err, tt.err)
++		}
++	}
++}

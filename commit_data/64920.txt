@@ -1,0 +1,62 @@
+commit ca1123f9c51e95d4b2383fbfe1652d70b373aac6
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Wed Sep 25 14:25:58 2024 +0000
+
+    internal/zstd: optimize skipFrame by using io.CopyN
+    
+    Replaced the manual byte skipping logic with io.CopyN
+    to improve performance and reduce memory allocation.
+    This change simplifies the code by directly discarding
+    the bytes read, enhancing readability and efficiency.
+    
+    Change-Id: Id11496d072fb554c394947d08e63616ca48ecab4
+    GitHub-Last-Rev: dc5f836cc76ea1355effa49a665b9091a888541b
+    GitHub-Pull-Request: golang/go#69619
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615716
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/internal/zstd/zstd.go | 26 ++++----------------------
+ 1 file changed, 4 insertions(+), 22 deletions(-)
+
+diff --git a/src/internal/zstd/zstd.go b/src/internal/zstd/zstd.go
+index 0370f601cb..d4eac399af 100644
+--- a/src/internal/zstd/zstd.go
++++ b/src/internal/zstd/zstd.go
+@@ -358,30 +358,12 @@ func (r *Reader) skipFrame() error {
+ 		return nil
+ 	}
+ 
+-	var skip []byte
+-	const chunk = 1 << 20 // 1M
+-	for size >= chunk {
+-		if len(skip) == 0 {
+-			skip = make([]byte, chunk)
+-		}
+-		if _, err := io.ReadFull(r.r, skip); err != nil {
+-			return r.wrapNonEOFError(relativeOffset, err)
+-		}
+-		relativeOffset += chunk
+-		size -= chunk
+-	}
+-	if size > 0 {
+-		if len(skip) == 0 {
+-			skip = make([]byte, size)
+-		}
+-		if _, err := io.ReadFull(r.r, skip); err != nil {
+-			return r.wrapNonEOFError(relativeOffset, err)
+-		}
+-		relativeOffset += int(size)
++	n, err := io.CopyN(io.Discard, r.r, int64(size))
++	relativeOffset += int(n)
++	if err != nil {
++		return r.wrapNonEOFError(relativeOffset, err)
+ 	}
+-
+ 	r.blockOffset += int64(relativeOffset)
+-
+ 	return nil
+ }
+ 

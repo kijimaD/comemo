@@ -1,0 +1,53 @@
+commit b51f1cdb8752c2fdd6a2bf06224aab0b5c07caac
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 27 19:45:22 2025 -0400
+
+    runtime: remove arbitrary 5-second timeout in TestNeedmDeadlock
+    
+    The NeedmDeadlock test program currently has a 5-second timeout,
+    which is sort of arbitrary. It is long enough in regular mode
+    (which usually takes 0.0X seconds), but not quite so for
+    configurations like ASAN. Instead of using an arbitrary timeout,
+    just use the test's deadline. The test program is invoked with
+    testenv.Command, which will send it a SIGQUIT before the deadline
+    expires.
+    
+    Fixes #56420 (at least for the asan builder).
+    
+    Change-Id: I0b13651cb07241401837ca2e60eaa1b83275b093
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684697
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/testdata/testprogcgo/needmdeadlock.go | 10 ++--------
+ 1 file changed, 2 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/testdata/testprogcgo/needmdeadlock.go b/src/runtime/testdata/testprogcgo/needmdeadlock.go
+index b95ec77468..f4710488c9 100644
+--- a/src/runtime/testdata/testprogcgo/needmdeadlock.go
++++ b/src/runtime/testdata/testprogcgo/needmdeadlock.go
+@@ -70,8 +70,6 @@ import "C"
+ 
+ import (
+ 	"fmt"
+-	"os"
+-	"time"
+ )
+ 
+ func init() {
+@@ -84,12 +82,8 @@ func GoNeedM() {
+ 
+ func NeedmDeadlock() {
+ 	// The failure symptom is that the program hangs because of a
+-	// deadlock in needm, so set an alarm.
+-	go func() {
+-		time.Sleep(5 * time.Second)
+-		fmt.Println("Hung for 5 seconds")
+-		os.Exit(1)
+-	}()
++	// deadlock in needm. Instead of using an arbitrary timeout,
++	// we let the test deadline expire if it deadlocks.
+ 
+ 	C.runNeedmSignalThread()
+ 	fmt.Println("OK")

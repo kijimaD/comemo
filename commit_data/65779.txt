@@ -1,0 +1,36 @@
+commit c8fb6ae617d65b42089202040d8fbd309d1a0fe4
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Sat Dec 7 17:48:27 2024 -0500
+
+    lib/wasm: provide fs.constants.O_DIRECTORY definition
+    
+    CL 606658 added a constants.Get("O_DIRECTORY").Int() call at init time,
+    which panics in browsers because O_DIRECTORY is undefined. It needs to
+    be a JavaScript number to avoid that.
+    
+    Fixes #70723.
+    
+    Change-Id: I727240bd25b47401d14a5e1a364d460708803f1f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634455
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Zxilly Chou <zhouxinyu1001@gmail.com>
+---
+ lib/wasm/wasm_exec.js | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/lib/wasm/wasm_exec.js b/lib/wasm/wasm_exec.js
+index ec96d42db5..d71af9e97e 100644
+--- a/lib/wasm/wasm_exec.js
++++ b/lib/wasm/wasm_exec.js
+@@ -14,7 +14,7 @@
+ 	if (!globalThis.fs) {
+ 		let outputBuf = "";
+ 		globalThis.fs = {
+-			constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1 }, // unused
++			constants: { O_WRONLY: -1, O_RDWR: -1, O_CREAT: -1, O_TRUNC: -1, O_APPEND: -1, O_EXCL: -1, O_DIRECTORY: -1 }, // unused
+ 			writeSync(fd, buf) {
+ 				outputBuf += decoder.decode(buf);
+ 				const nl = outputBuf.lastIndexOf("\n");

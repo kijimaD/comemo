@@ -1,0 +1,149 @@
+commit 4bf98186b5e012d56ec2944a41d55178c3dea905
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Oct 25 18:38:57 2024 +0000
+
+    runtime: fix mallocgc for asan
+    
+    This change finally fully fixes mallocgc for asan after the recent
+    refactoring. Here is everything that changed:
+    
+    Fix the accounting for the alloc header; large objects don't have them.
+    
+    Mask out extra bits set from unrolling the bitmap for slice backing
+    stores in writeHeapBitsSmall. The redzone in asan mode makes it so that
+    dataSize is no longer an exact multiple of typ.Size_ in this case (a
+    new assumption I have recently discovered) but we didn't mask out any
+    extra bits, so we'd accidentally set bits in other allocations. Oops.
+    
+    Move the initHeapBits optimization for the 8-byte scan sizeclass on
+    64-bit platforms up to mallocgc, out from writeHeapBitsSmall. So, this
+    actually caused a problem with asan when the optimization first landed,
+    but we missed it. The issue was then masked once we started passing the
+    redzone down into writeHeapBitsSmall, since the optimization would no
+    longer erroneously fire on asan. What happened was that dataSize would
+    be 8 (because that was the user-provided alloc size) so we'd skip
+    writing heap bits, but it would turn out the redzone bumped the size
+    class, so we'd actually *have* to write the heap bits for that size
+    class. This is not really a problem now *but* it caused problems for me
+    when debugging, since I would try to remove the red zone from dataSize
+    and this would trigger this bug again. Ultimately, this whole situation
+    is confusing because the check in writeHeapBitsSmall is *not* the same
+    as the check in initHeapBits. By moving this check up to mallocgc, we
+    can make the checks align better by matching on the sizeclass, so this
+    should be less error-prone in the future.
+    
+    Change-Id: I1e9819223be23f722f3bf21e63e812f5fb557194
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622041
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/arena.go   |  2 +-
+ src/runtime/malloc.go  | 18 ++++++++++++------
+ src/runtime/mbitmap.go | 16 +++++++++++-----
+ 3 files changed, 24 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index 3ad28533b5..ff59014a8a 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -798,7 +798,7 @@ func newUserArenaChunk() (unsafe.Pointer, *mspan) {
+ 
+ 	if asanenabled {
+ 		// TODO(mknyszek): Track individual objects.
+-		rzSize := computeRZlog(span.elemsize)
++		rzSize := redZoneSize(span.elemsize)
+ 		span.elemsize -= rzSize
+ 		span.largeType.Size_ = span.elemsize
+ 		rzStart := span.base() + span.elemsize
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index 0700d0d1cd..0605921652 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1035,7 +1035,7 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 	// These "redzones" are marked as unaddressable.
+ 	var asanRZ uintptr
+ 	if asanenabled {
+-		asanRZ = computeRZlog(size)
++		asanRZ = redZoneSize(size)
+ 		size += asanRZ
+ 	}
+ 
+@@ -1074,10 +1074,10 @@ func mallocgc(size uintptr, typ *_type, needzero bool) unsafe.Pointer {
+ 		// Poison the space between the end of the requested size of x
+ 		// and the end of the slot. Unpoison the requested allocation.
+ 		frag := elemsize - size
+-		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) {
++		if typ != nil && typ.Pointers() && !heapBitsInSpan(elemsize) && size <= maxSmallSize-mallocHeaderSize {
+ 			frag -= mallocHeaderSize
+ 		}
+-		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ+frag)
++		asanpoison(unsafe.Add(x, size-asanRZ), asanRZ)
+ 		asanunpoison(x, size-asanRZ)
+ 	}
+ 
+@@ -1369,7 +1369,13 @@ func mallocgcSmallScanNoHeader(size uintptr, typ *_type, needzero bool) (unsafe.
+ 	if needzero && span.needzero != 0 {
+ 		memclrNoHeapPointers(x, size)
+ 	}
+-	c.scanAlloc += heapSetTypeNoHeader(uintptr(x), size, typ, span)
++	if goarch.PtrSize == 8 && sizeclass == 1 {
++		// initHeapBits already set the pointer bits for the 8-byte sizeclass
++		// on 64-bit platforms.
++		c.scanAlloc += 8
++	} else {
++		c.scanAlloc += heapSetTypeNoHeader(uintptr(x), size, typ, span)
++	}
+ 	size = uintptr(class_to_size[sizeclass])
+ 
+ 	// Ensure that the stores above that initialize x to
+@@ -2040,9 +2046,9 @@ func (p *notInHeap) add(bytes uintptr) *notInHeap {
+ 	return (*notInHeap)(unsafe.Pointer(uintptr(unsafe.Pointer(p)) + bytes))
+ }
+ 
+-// computeRZlog computes the size of the redzone.
++// redZoneSize computes the size of the redzone for a given allocation.
+ // Refer to the implementation of the compiler-rt.
+-func computeRZlog(userSize uintptr) uintptr {
++func redZoneSize(userSize uintptr) uintptr {
+ 	switch {
+ 	case userSize <= (64 - 16):
+ 		return 16 << 0
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index 855acbdaa3..ed5b3e977c 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -640,11 +640,6 @@ func (span *mspan) heapBitsSmallForAddr(addr uintptr) uintptr {
+ //
+ //go:nosplit
+ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize uintptr) {
+-	if goarch.PtrSize == 8 && dataSize == goarch.PtrSize {
+-		// Already set by initHeapBits.
+-		return
+-	}
+-
+ 	// The objects here are always really small, so a single load is sufficient.
+ 	src0 := readUintptr(typ.GCData)
+ 
+@@ -654,10 +649,21 @@ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize
+ 	if typ.Size_ == goarch.PtrSize {
+ 		src = (1 << (dataSize / goarch.PtrSize)) - 1
+ 	} else {
++		// N.B. We rely on dataSize being an exact multiple of the type size.
++		// The alternative is to be defensive and mask out src to the length
++		// of dataSize. The purpose is to save on one additional masking operation.
++		if doubleCheckHeapSetType && !asanenabled && dataSize%typ.Size_ != 0 {
++			throw("runtime: (*mspan).writeHeapBitsSmall: dataSize is not a multiple of typ.Size_")
++		}
+ 		for i := typ.Size_; i < dataSize; i += typ.Size_ {
+ 			src |= src0 << (i / goarch.PtrSize)
+ 			scanSize += typ.Size_
+ 		}
++		if asanenabled {
++			// Mask src down to dataSize. dataSize is going to be a strange size because of
++			// the redzone required for allocations when asan is enabled.
++			src &= (1 << (dataSize / goarch.PtrSize)) - 1
++		}
+ 	}
+ 
+ 	// Since we're never writing more than one uintptr's worth of bits, we're either going

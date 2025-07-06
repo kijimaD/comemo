@@ -1,0 +1,137 @@
+commit 273db12ceeef8ec74f437ec097474eeda587485d
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Wed Dec 11 16:31:22 2024 -0500
+
+    crypto/internal/fips140test: add DetECDSA ACVP tests
+    
+    Adds ACVP test coverage for deterministic ECDSA based on the NIST spec:
+      https://pages.nist.gov/ACVP/draft-fussell-acvp-ecdsa.html
+    
+    Notably there is no corresponding acvp_test.config.json update in this
+    commit because ACVP DetECDSA only specifies sigGen mode.
+    
+    The ACVP ECDSA sigGen tests are not amenable to testing against
+    static data because the test vectors don't provide a key pair to use for
+    the signature, just the message. The module wrapper has to generate its
+    own keypair and return the public key components with the signature.
+    DetECDSA produces deterministic signatures only when signing the same
+    message with the same key.
+    
+    Change-Id: I9921f52e943c96b32e02e79cb5556ba0fabeae17
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635341
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+---
+ .../internal/fips140test/acvp_capabilities.json    |  3 +-
+ src/crypto/internal/fips140test/acvp_test.go       | 40 +++++++++++++++-------
+ 2 files changed, 30 insertions(+), 13 deletions(-)
+
+diff --git a/src/crypto/internal/fips140test/acvp_capabilities.json b/src/crypto/internal/fips140test/acvp_capabilities.json
+index 47ae58e9e0..ff94d3b6ba 100644
+--- a/src/crypto/internal/fips140test/acvp_capabilities.json
++++ b/src/crypto/internal/fips140test/acvp_capabilities.json
+@@ -47,5 +47,6 @@
+   {"algorithm":"ECDSA","mode":"keyGen","revision":"FIPS186-5","curve":["P-224","P-256","P-384","P-521"],"secretGenerationMode":["testing candidates"]},
+   {"algorithm":"ECDSA","mode":"keyVer","revision":"FIPS186-5","curve":["P-224","P-256","P-384","P-521"]},
+   {"algorithm":"ECDSA","mode":"sigGen","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]},
+-  {"algorithm":"ECDSA","mode":"sigVer","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]}
++  {"algorithm":"ECDSA","mode":"sigVer","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]},
++  {"algorithm":"DetECDSA","mode":"sigGen","revision":"FIPS186-5","capabilities":[{"curve":["P-224","P-256","P-384","P-521"],"hashAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}]}
+ ]
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index ae0009c938..1ee13c3f1d 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -75,6 +75,13 @@ type command struct {
+ 	handler      commandHandler
+ }
+ 
++type ecdsaSigType int
++
++const (
++	ecdsaSigTypeNormal ecdsaSigType = iota
++	ecdsaSigTypeDeterministic
++)
++
+ var (
+ 	// SHA2 algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html#section-7.2
+@@ -88,7 +95,7 @@ var (
+ 	//   https://pages.nist.gov/ACVP/draft-vassilev-acvp-drbg.html#section-7.2
+ 	// EDDSA algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-eddsa.html#section-7
+-	// ECDSA algorithm capabilities:
++	// ECDSA and DetECDSA algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-ecdsa.html#section-7
+ 	//go:embed acvp_capabilities.json
+ 	capabilitiesJson []byte
+@@ -157,10 +164,11 @@ var (
+ 		"EDDSA/sigGen": cmdEddsaSigGenAftBft(),
+ 		"EDDSA/sigVer": cmdEddsaSigVerAft(),
+ 
+-		"ECDSA/keyGen": cmdEcdsaKeyGenAft(),
+-		"ECDSA/keyVer": cmdEcdsaKeyVerAft(),
+-		"ECDSA/sigGen": cmdEcdsaSigGenAft(),
+-		"ECDSA/sigVer": cmdEcdsaSigVerAft(),
++		"ECDSA/keyGen":    cmdEcdsaKeyGenAft(),
++		"ECDSA/keyVer":    cmdEcdsaKeyVerAft(),
++		"ECDSA/sigGen":    cmdEcdsaSigGenAft(ecdsaSigTypeNormal),
++		"ECDSA/sigVer":    cmdEcdsaSigVerAft(),
++		"DetECDSA/sigGen": cmdEcdsaSigGenAft(ecdsaSigTypeDeterministic),
+ 	}
+ )
+ 
+@@ -616,13 +624,21 @@ func pointFromAffine(curve elliptic.Curve, x, y *big.Int) ([]byte, error) {
+ 	return buf, nil
+ }
+ 
+-func signEcdsa[P ecdsa.Point[P], H fips140.Hash](c *ecdsa.Curve[P], h func() H, q []byte, sk []byte, digest []byte) (*ecdsa.Signature, error) {
++func signEcdsa[P ecdsa.Point[P], H fips140.Hash](c *ecdsa.Curve[P], h func() H, sigType ecdsaSigType, q []byte, sk []byte, digest []byte) (*ecdsa.Signature, error) {
+ 	priv, err := ecdsa.NewPrivateKey(c, sk, q)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("invalid private key: %w", err)
+ 	}
+ 
+-	sig, err := ecdsa.Sign(c, h, priv, rand.Reader, digest)
++	var sig *ecdsa.Signature
++	switch sigType {
++	case ecdsaSigTypeNormal:
++		sig, err = ecdsa.Sign(c, h, priv, rand.Reader, digest)
++	case ecdsaSigTypeDeterministic:
++		sig, err = ecdsa.SignDeterministic(c, h, priv, digest)
++	default:
++		return nil, fmt.Errorf("unsupported signature type: %v", sigType)
++	}
+ 	if err != nil {
+ 		return nil, fmt.Errorf("signing failed: %w", err)
+ 	}
+@@ -630,7 +646,7 @@ func signEcdsa[P ecdsa.Point[P], H fips140.Hash](c *ecdsa.Curve[P], h func() H,
+ 	return sig, nil
+ }
+ 
+-func cmdEcdsaSigGenAft() command {
++func cmdEcdsaSigGenAft(sigType ecdsaSigType) command {
+ 	return command{
+ 		requiredArgs: 4, // Curve name, private key, hash name, message
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -661,13 +677,13 @@ func cmdEcdsaSigGenAft() command {
+ 			var sig *ecdsa.Signature
+ 			switch curve.Params() {
+ 			case elliptic.P224().Params():
+-				sig, err = signEcdsa(ecdsa.P224(), newH, q, sk, digest)
++				sig, err = signEcdsa(ecdsa.P224(), newH, sigType, q, sk, digest)
+ 			case elliptic.P256().Params():
+-				sig, err = signEcdsa(ecdsa.P256(), newH, q, sk, digest)
++				sig, err = signEcdsa(ecdsa.P256(), newH, sigType, q, sk, digest)
+ 			case elliptic.P384().Params():
+-				sig, err = signEcdsa(ecdsa.P384(), newH, q, sk, digest)
++				sig, err = signEcdsa(ecdsa.P384(), newH, sigType, q, sk, digest)
+ 			case elliptic.P521().Params():
+-				sig, err = signEcdsa(ecdsa.P521(), newH, q, sk, digest)
++				sig, err = signEcdsa(ecdsa.P521(), newH, sigType, q, sk, digest)
+ 			default:
+ 				return nil, fmt.Errorf("unsupported curve: %v", curve)
+ 			}

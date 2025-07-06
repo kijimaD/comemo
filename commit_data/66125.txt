@@ -1,0 +1,357 @@
+commit 9faa00af74206dfc26c3d38cd56590abc4b2b960
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Jan 24 21:04:01 2025 +0000
+
+    internal/trace/internal/testgen: force trace version selection
+    
+    Currently testgen only generates Go 1.22 tests. Allow generating tests
+    for different versions, especially now that we've tightened up which
+    events can be emitted by different versions.
+    
+    Change-Id: Ia64309c6934f34eace03b3229d05fca5acfc7366
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/644220
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/trace/internal/testgen/trace.go                       | 7 +++----
+ .../testdata/generators/go122-confuse-seq-across-generations.go    | 3 ++-
+ .../testdata/generators/go122-create-syscall-reuse-thread-id.go    | 3 ++-
+ .../trace/testdata/generators/go122-create-syscall-with-p.go       | 3 ++-
+ .../trace/testdata/generators/go122-fail-first-gen-first.go        | 3 ++-
+ .../trace/testdata/generators/go122-go-create-without-running-g.go | 3 ++-
+ .../testdata/generators/go122-syscall-steal-proc-ambiguous.go      | 3 ++-
+ .../generators/go122-syscall-steal-proc-gen-boundary-bare-m.go     | 3 ++-
+ ...22-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go | 3 ++-
+ .../go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go    | 3 ++-
+ .../testdata/generators/go122-syscall-steal-proc-gen-boundary.go   | 3 ++-
+ .../go122-syscall-steal-proc-reacquire-new-proc-bare-m.go          | 3 ++-
+ .../generators/go122-syscall-steal-proc-reacquire-new-proc.go      | 3 ++-
+ .../trace/testdata/generators/go122-syscall-steal-proc-self.go     | 3 ++-
+ .../testdata/generators/go122-syscall-steal-proc-simple-bare-m.go  | 3 ++-
+ .../trace/testdata/generators/go122-syscall-steal-proc-simple.go   | 3 ++-
+ .../generators/go122-syscall-steal-proc-sitting-in-syscall.go      | 3 ++-
+ .../trace/testdata/generators/go122-task-across-generations.go     | 3 ++-
+ 18 files changed, 37 insertions(+), 21 deletions(-)
+
+diff --git a/src/internal/trace/internal/testgen/trace.go b/src/internal/trace/internal/testgen/trace.go
+index 9e797da509..19d76d1367 100644
+--- a/src/internal/trace/internal/testgen/trace.go
++++ b/src/internal/trace/internal/testgen/trace.go
+@@ -20,7 +20,7 @@ import (
+ 	"internal/txtar"
+ )
+ 
+-func Main(f func(*Trace)) {
++func Main(ver version.Version, f func(*Trace)) {
+ 	// Create an output file.
+ 	out, err := os.Create(os.Args[1])
+ 	if err != nil {
+@@ -29,7 +29,7 @@ func Main(f func(*Trace)) {
+ 	defer out.Close()
+ 
+ 	// Create a new trace.
+-	trace := NewTrace()
++	trace := NewTrace(ver)
+ 
+ 	// Call the generator.
+ 	f(trace)
+@@ -63,8 +63,7 @@ type Trace struct {
+ }
+ 
+ // NewTrace creates a new trace.
+-func NewTrace() *Trace {
+-	ver := version.Go122
++func NewTrace(ver version.Version) *Trace {
+ 	return &Trace{
+ 		names:           event.Names(ver.Specs()),
+ 		specs:           ver.Specs(),
+diff --git a/src/internal/trace/testdata/generators/go122-confuse-seq-across-generations.go b/src/internal/trace/testdata/generators/go122-confuse-seq-across-generations.go
+index 30f8597790..9b98723c4d 100644
+--- a/src/internal/trace/testdata/generators/go122-confuse-seq-across-generations.go
++++ b/src/internal/trace/testdata/generators/go122-confuse-seq-across-generations.go
+@@ -25,10 +25,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go b/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
+index cdb53785b0..dc5c4a5257 100644
+--- a/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
++++ b/src/internal/trace/testdata/generators/go122-create-syscall-reuse-thread-id.go
+@@ -27,10 +27,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go b/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
+index ba74144e92..90729d7c52 100644
+--- a/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
++++ b/src/internal/trace/testdata/generators/go122-create-syscall-with-p.go
+@@ -18,10 +18,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-fail-first-gen-first.go b/src/internal/trace/testdata/generators/go122-fail-first-gen-first.go
+index ab396fcd4a..c8ead6772c 100644
+--- a/src/internal/trace/testdata/generators/go122-fail-first-gen-first.go
++++ b/src/internal/trace/testdata/generators/go122-fail-first-gen-first.go
+@@ -21,10 +21,11 @@ package main
+ import (
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-go-create-without-running-g.go b/src/internal/trace/testdata/generators/go122-go-create-without-running-g.go
+index 3ce4f0243d..2e9b571d46 100644
+--- a/src/internal/trace/testdata/generators/go122-go-create-without-running-g.go
++++ b/src/internal/trace/testdata/generators/go122-go-create-without-running-g.go
+@@ -15,10 +15,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
+index 57d2a1a126..28d187c37e 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-ambiguous.go
+@@ -17,10 +17,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go
+index e4f97ba530..5350b19740 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-bare-m.go
+@@ -10,10 +10,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go
+index fc8549814f..f7611c5c08 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc-bare-m.go
+@@ -10,10 +10,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go
+index 6a4f8bd1e3..521363b094 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary-reacquire-new-proc.go
+@@ -10,10 +10,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary.go
+index 0660996f3f..6c171c9cd1 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-gen-boundary.go
+@@ -10,10 +10,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go
+index 4a286b5eea..18493dd5c3 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc-bare-m.go
+@@ -10,10 +10,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go
+index 98ab35bad6..d4e6ed3e2a 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-reacquire-new-proc.go
+@@ -10,10 +10,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-self.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-self.go
+index 2c5aac39d6..6dfb465b0a 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-self.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-self.go
+@@ -14,10 +14,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go
+index 91dfa37740..ac314a6647 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple-bare-m.go
+@@ -10,10 +10,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple.go
+index e09a70c7c9..010272e552 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-simple.go
+@@ -10,10 +10,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go
+index d3600e43e8..410f9b7a08 100644
+--- a/src/internal/trace/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go
++++ b/src/internal/trace/testdata/generators/go122-syscall-steal-proc-sitting-in-syscall.go
+@@ -11,10 +11,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {
+diff --git a/src/internal/trace/testdata/generators/go122-task-across-generations.go b/src/internal/trace/testdata/generators/go122-task-across-generations.go
+index 644176a1e3..e8def318b4 100644
+--- a/src/internal/trace/testdata/generators/go122-task-across-generations.go
++++ b/src/internal/trace/testdata/generators/go122-task-across-generations.go
+@@ -16,10 +16,11 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/internal/testgen"
+ 	"internal/trace/tracev2"
++	"internal/trace/version"
+ )
+ 
+ func main() {
+-	testgen.Main(gen)
++	testgen.Main(version.Go122, gen)
+ }
+ 
+ func gen(t *testgen.Trace) {

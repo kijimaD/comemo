@@ -1,0 +1,146 @@
+commit 51bf2cf7cfa999777697a9548d59d22c3716fbde
+Author: Roland Shoemaker <bracewell@google.com>
+Date:   Wed Jan 29 08:03:59 2025 -0800
+
+    Revert "cmd/go/internal/work: allow @ character in some -Wl, linker flags on darwin"
+    
+    This reverts CL 638075 (commit e3cd55e9d293d519e622e788e902f372dc30338a).
+    
+    This change introduced a security issue as @ flags are first resolved as
+    files by the darwin linker, before their meaning as flags, allowing the
+    flag filtering logic to be entirely bypassed.
+    
+    Thanks to Juho Forsén for reporting this issue.
+    
+    Fixes #71476
+    Fixes CVE-2025-22867
+    
+    Change-Id: I3a4b4a6fc534de105d930b8ed5b9900bc94b0c4e
+    Reviewed-on: https://go-internal-review.googlesource.com/c/go/+/1900
+    Reviewed-by: Russ Cox <rsc@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/646996
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/work/security.go      | 22 +---------------
+ src/cmd/go/internal/work/security_test.go | 44 -------------------------------
+ 2 files changed, 1 insertion(+), 65 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index 33341a4f4d..50bfd0ab70 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -227,21 +227,6 @@ var validLinkerFlags = []*lazyregexp.Regexp{
+ 	re(`\./.*\.(a|o|obj|dll|dylib|so|tbd)`),
+ }
+ 
+-var validLinkerFlagsOnDarwin = []*lazyregexp.Regexp{
+-	// The GNU linker interprets `@file` as "read command-line options from
+-	// file". Thus, we forbid values starting with `@` on linker flags.
+-	// However, this causes a problem when targeting Darwin.
+-	// `@executable_path`, `@loader_path`, and `@rpath` are special values
+-	// used in Mach-O to change the library search path and can be used in
+-	// conjunction with the `-install_name` and `-rpath` linker flags.
+-	// Since the GNU linker does not support Mach-O, targeting Darwin
+-	// implies not using the GNU linker. Therefore, we allow @ in the linker
+-	// flags if and only if cfg.Goos == "darwin" || cfg.Goos == "ios".
+-	re(`-Wl,-dylib_install_name,@rpath(/[^,]*)?`),
+-	re(`-Wl,-install_name,@rpath(/[^,]*)?`),
+-	re(`-Wl,-rpath,@(executable_path|loader_path)(/[^,]*)?`),
+-}
+-
+ var validLinkerFlagsWithNextArg = []string{
+ 	"-arch",
+ 	"-F",
+@@ -264,13 +249,8 @@ func checkCompilerFlags(name, source string, list []string) error {
+ }
+ 
+ func checkLinkerFlags(name, source string, list []string) error {
+-	validLinkerFlagsForPlatform := validLinkerFlags
+-	if cfg.Goos == "darwin" || cfg.Goos == "ios" {
+-		validLinkerFlagsForPlatform = append(validLinkerFlags, validLinkerFlagsOnDarwin...)
+-	}
+-
+ 	checkOverrides := true
+-	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlagsForPlatform, validLinkerFlagsWithNextArg, checkOverrides)
++	return checkFlags(name, source, list, invalidLinkerFlags, validLinkerFlags, validLinkerFlagsWithNextArg, checkOverrides)
+ }
+ 
+ // checkCompilerFlagsForInternalLink returns an error if 'list'
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 52e54e25e4..35af621764 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -8,8 +8,6 @@ import (
+ 	"os"
+ 	"strings"
+ 	"testing"
+-
+-	"cmd/go/internal/cfg"
+ )
+ 
+ var goodCompilerFlags = [][]string{
+@@ -247,8 +245,6 @@ var badLinkerFlags = [][]string{
+ 	{"-Wl,--hash-style=foo"},
+ 	{"-x", "--c"},
+ 	{"-x", "@obj"},
+-	{"-Wl,-dylib_install_name,@foo"},
+-	{"-Wl,-install_name,@foo"},
+ 	{"-Wl,-rpath,@foo"},
+ 	{"-Wl,-R,foo,bar"},
+ 	{"-Wl,-R,@foo"},
+@@ -265,21 +261,6 @@ var badLinkerFlags = [][]string{
+ 	{"./-Wl,--push-state,-R.c"},
+ }
+ 
+-var goodLinkerFlagsOnDarwin = [][]string{
+-	{"-Wl,-dylib_install_name,@rpath"},
+-	{"-Wl,-dylib_install_name,@rpath/"},
+-	{"-Wl,-dylib_install_name,@rpath/foo"},
+-	{"-Wl,-install_name,@rpath"},
+-	{"-Wl,-install_name,@rpath/"},
+-	{"-Wl,-install_name,@rpath/foo"},
+-	{"-Wl,-rpath,@executable_path"},
+-	{"-Wl,-rpath,@executable_path/"},
+-	{"-Wl,-rpath,@executable_path/foo"},
+-	{"-Wl,-rpath,@loader_path"},
+-	{"-Wl,-rpath,@loader_path/"},
+-	{"-Wl,-rpath,@loader_path/foo"},
+-}
+-
+ func TestCheckLinkerFlags(t *testing.T) {
+ 	for _, f := range goodLinkerFlags {
+ 		if err := checkLinkerFlags("test", "test", f); err != nil {
+@@ -291,31 +272,6 @@ func TestCheckLinkerFlags(t *testing.T) {
+ 			t.Errorf("missing error for %q", f)
+ 		}
+ 	}
+-
+-	goos := cfg.Goos
+-
+-	cfg.Goos = "darwin"
+-	for _, f := range goodLinkerFlagsOnDarwin {
+-		if err := checkLinkerFlags("test", "test", f); err != nil {
+-			t.Errorf("unexpected error for %q: %v", f, err)
+-		}
+-	}
+-
+-	cfg.Goos = "ios"
+-	for _, f := range goodLinkerFlagsOnDarwin {
+-		if err := checkLinkerFlags("test", "test", f); err != nil {
+-			t.Errorf("unexpected error for %q: %v", f, err)
+-		}
+-	}
+-
+-	cfg.Goos = "linux"
+-	for _, f := range goodLinkerFlagsOnDarwin {
+-		if err := checkLinkerFlags("test", "test", f); err == nil {
+-			t.Errorf("missing error for %q", f)
+-		}
+-	}
+-
+-	cfg.Goos = goos
+ }
+ 
+ func TestCheckFlagAllowDisallow(t *testing.T) {

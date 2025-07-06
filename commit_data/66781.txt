@@ -1,0 +1,200 @@
+commit a42e337edee375a91f304bb890e7ec24594058b9
+Author: Dmitrii Martynov <fkr011288@gmail.com>
+Date:   Wed Apr 2 13:58:18 2025 +0300
+
+    runtime: explicitly exclude a potential deadlock in the scheduler
+    
+    The following sequence in the scheduler may potentially lead to
+    deadlock:
+    - globrunqget() -> runqput() -> runqputslow() -> globrunqputbatch()
+    However, according to the current logic of the scheduler it is not
+    possible to face the deadlock.
+    
+    The patch explicitly excludes the deadlock, even though it is impossible
+    situation at the moment.
+    
+    Additionally, the "runq" and "globrunq" APIs were partially refactored,
+    which allowed to minimize the usage of these APIs by each other.
+    This will prevent situations described in the CL.
+    
+    Change-Id: I7318f935d285b95522998e0903eaa6193af2ba48
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662216
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/runtime/proc.go | 77 ++++++++++++++++++++++++++++++++++++-----------------
+ 1 file changed, 53 insertions(+), 24 deletions(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index cee91b6ce8..16339decbd 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3345,7 +3345,7 @@ top:
+ 	// by constantly respawning each other.
+ 	if pp.schedtick%61 == 0 && sched.runqsize > 0 {
+ 		lock(&sched.lock)
+-		gp := globrunqget(pp, 1)
++		gp := globrunqget()
+ 		unlock(&sched.lock)
+ 		if gp != nil {
+ 			return gp, false, false
+@@ -3370,9 +3370,12 @@ top:
+ 	// global runq
+ 	if sched.runqsize != 0 {
+ 		lock(&sched.lock)
+-		gp := globrunqget(pp, 0)
++		gp, q, qsize := globrunqgetbatch(int32(len(pp.runq)) / 2)
+ 		unlock(&sched.lock)
+ 		if gp != nil {
++			if runqputbatch(pp, &q, qsize); !q.empty() {
++				throw("Couldn't put Gs into empty local runq")
++			}
+ 			return gp, false, false
+ 		}
+ 	}
+@@ -3483,8 +3486,14 @@ top:
+ 		goto top
+ 	}
+ 	if sched.runqsize != 0 {
+-		gp := globrunqget(pp, 0)
++		gp, q, qsize := globrunqgetbatch(int32(len(pp.runq)) / 2)
+ 		unlock(&sched.lock)
++		if gp == nil {
++			throw("global runq empty with non-zero runqsize")
++		}
++		if runqputbatch(pp, &q, qsize); !q.empty() {
++			throw("Couldn't put Gs into empty local runq")
++		}
+ 		return gp, false, false
+ 	}
+ 	if !mp.spinning && sched.needspinning.Load() == 1 {
+@@ -3557,11 +3566,14 @@ top:
+ 		if sched.runqsize != 0 {
+ 			pp, _ := pidlegetSpinning(0)
+ 			if pp != nil {
+-				gp := globrunqget(pp, 0)
++				gp, q, qsize := globrunqgetbatch(int32(len(pp.runq)) / 2)
++				unlock(&sched.lock)
+ 				if gp == nil {
+ 					throw("global runq empty with non-zero runqsize")
+ 				}
+-				unlock(&sched.lock)
++				if runqputbatch(pp, &q, qsize); !q.empty() {
++					throw("Couldn't put Gs into empty local runq")
++				}
+ 				acquirep(pp)
+ 				mp.becomeSpinning()
+ 				return gp, false, false
+@@ -3990,7 +4002,12 @@ func injectglist(glist *gList) {
+ 	}
+ 
+ 	if !q.empty() {
+-		runqputbatch(pp, &q, qsize)
++		qsize = int(runqputbatch(pp, &q, int32(qsize)))
++		if !q.empty() {
++			lock(&sched.lock)
++			globrunqputbatch(&q, int32(qsize))
++			unlock(&sched.lock)
++		}
+ 	}
+ 
+ 	// Some P's might have become idle after we loaded `sched.npidle`
+@@ -6603,35 +6620,48 @@ func globrunqputbatch(batch *gQueue, n int32) {
+ 	*batch = gQueue{}
+ }
+ 
+-// Try get a batch of G's from the global runnable queue.
++// Try get a single G from the global runnable queue.
+ // sched.lock must be held.
+-func globrunqget(pp *p, max int32) *g {
++func globrunqget() *g {
+ 	assertLockHeld(&sched.lock)
+ 
+ 	if sched.runqsize == 0 {
+ 		return nil
+ 	}
+ 
++	sched.runqsize--
++
++	return sched.runq.pop()
++}
++
++// Try get a batch of G's from the global runnable queue.
++// sched.lock must be held.
++func globrunqgetbatch(max int32) (gp *g, q gQueue, qsize int32) {
++	assertLockHeld(&sched.lock)
++
++	if sched.runqsize == 0 {
++		return
++	}
++
+ 	n := sched.runqsize/gomaxprocs + 1
+ 	if n > sched.runqsize {
+ 		n = sched.runqsize
+ 	}
+-	if max > 0 && n > max {
++	if n > max {
+ 		n = max
+ 	}
+-	if n > int32(len(pp.runq))/2 {
+-		n = int32(len(pp.runq)) / 2
+-	}
+ 
+ 	sched.runqsize -= n
+ 
+-	gp := sched.runq.pop()
++	gp = sched.runq.pop()
+ 	n--
++
++	qsize = n
+ 	for ; n > 0; n-- {
+ 		gp1 := sched.runq.pop()
+-		runqput(pp, gp1, false)
++		q.pushBack(gp1)
+ 	}
+-	return gp
++	return
+ }
+ 
+ // pMask is an atomic bitstring with one bit per P.
+@@ -6860,10 +6890,12 @@ func runqputslow(pp *p, gp *g, h, t uint32) bool {
+ }
+ 
+ // runqputbatch tries to put all the G's on q on the local runnable queue.
+-// If the queue is full, they are put on the global queue; in that case
+-// this will temporarily acquire the scheduler lock.
++// If the local runq is full the updated size of the input queue will be returned.
+ // Executed only by the owner P.
+-func runqputbatch(pp *p, q *gQueue, qsize int) {
++func runqputbatch(pp *p, q *gQueue, qsize int32) int32 {
++	if qsize == 0 {
++		return 0
++	}
+ 	h := atomic.LoadAcq(&pp.runqhead)
+ 	t := pp.runqtail
+ 	n := uint32(0)
+@@ -6873,7 +6905,7 @@ func runqputbatch(pp *p, q *gQueue, qsize int) {
+ 		t++
+ 		n++
+ 	}
+-	qsize -= int(n)
++	qsize -= int32(n)
+ 
+ 	if randomizeScheduler {
+ 		off := func(o uint32) uint32 {
+@@ -6886,11 +6918,8 @@ func runqputbatch(pp *p, q *gQueue, qsize int) {
+ 	}
+ 
+ 	atomic.StoreRel(&pp.runqtail, t)
+-	if !q.empty() {
+-		lock(&sched.lock)
+-		globrunqputbatch(q, int32(qsize))
+-		unlock(&sched.lock)
+-	}
++
++	return qsize
+ }
+ 
+ // Get g from local runnable queue.

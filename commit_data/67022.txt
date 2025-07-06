@@ -1,0 +1,42 @@
+commit 5bbac667c5c7bd1bde1750586c92f5932134c871
+Author: khr@golang.org <khr@golang.org>
+Date:   Wed May 7 14:34:30 2025 -0700
+
+    runtime: increase freebsd/amd64 pointer size from 48 to 57 bits
+    
+    Because freebsd is now enabling la57 by default.
+    
+    Fixes #49405
+    
+    Change-Id: I30f7bac8b8a9baa85e0c097e06072c19ad474e5a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670715
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/tagptr_64bit.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/tagptr_64bit.go b/src/runtime/tagptr_64bit.go
+index 586d155dc5..3d79332e2d 100644
+--- a/src/runtime/tagptr_64bit.go
++++ b/src/runtime/tagptr_64bit.go
+@@ -34,13 +34,16 @@ const (
+ 	// We use one bit to distinguish between the two ranges.
+ 	aixAddrBits = 57
+ 
++	// Later versions of FreeBSD enable amd64's la57 by default.
++	freebsdAmd64AddrBits = 57
++
+ 	// riscv64 SV57 mode gives 56 bits of userspace VA.
+ 	// tagged pointer code supports it,
+ 	// but broader support for SV57 mode is incomplete,
+ 	// and there may be other issues (see #54104).
+ 	riscv64AddrBits = 56
+ 
+-	addrBits = goos.IsAix*aixAddrBits + goarch.IsRiscv64*riscv64AddrBits + (1-goos.IsAix)*(1-goarch.IsRiscv64)*defaultAddrBits
++	addrBits = goos.IsAix*aixAddrBits + goarch.IsRiscv64*riscv64AddrBits + goos.IsFreebsd*goarch.IsAmd64*freebsdAmd64AddrBits + (1-goos.IsAix)*(1-goarch.IsRiscv64)*(1-goos.IsFreebsd*goarch.IsAmd64)*defaultAddrBits
+ 
+ 	// In addition to the 16 bits (or other, depending on arch/os) taken from the top,
+ 	// we can take 9 from the bottom, because we require pointers to be well-aligned

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9086: e1b2e202179ae380616f81e2355b55dc33169d23
+# Index 9086: 7aa1a1a64d8f43a33b41f67a5c9366b3d8b67328
 
 echo "🚀 Generating explanation for commit 9086..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 9086..."
 
 ### メタデータ
 - **コミットインデックス**: 9086
-- **コミットハッシュ**: e1b2e202179ae380616f81e2355b55dc33169d23
-- **GitHub URL**: https://github.com/golang/go/commit/e1b2e202179ae380616f81e2355b55dc33169d23
+- **コミットハッシュ**: 7aa1a1a64d8f43a33b41f67a5c9366b3d8b67328
+- **GitHub URL**: https://github.com/golang/go/commit/7aa1a1a64d8f43a33b41f67a5c9366b3d8b67328
 
 ### 章構成
 

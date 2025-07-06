@@ -1,0 +1,76 @@
+commit 8efb5ebfd02a8e5cb6c79c5cd0e093fe896e6347
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Tue Sep 3 10:04:02 2024 +0800
+
+    runtime: switch cputicks and switchToCrashStack0 on loong64 to regabi
+    
+    goos: linux
+    goarch: loong64
+    pkg: runtime
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                         |   old.bench   |   new.bench                        |
+                         |   sec/op      |   sec/op      vs base              |
+    SelectUncontended       246.6n ± 0%     247.4n ± 0%  +0.32% (p=0.000 n=10)
+    SelectSyncContended     1.458µ ± 0%     1.461µ ± 0%  +0.17% (p=0.000 n=10)
+    SelectAsyncContended    246.6n ± 0%     247.5n ± 0%  +0.36% (p=0.000 n=10)
+    SelectNonblock          32.81n ± 0%     32.81n ± 0%       ~ (p=1.000 n=10)
+    SelectProdCons          653.8n ± 0%     652.2n ± 0%  -0.24% (p=0.010 n=10)
+    GoroutineSelect         2.204m ± 0%     2.172m ± 0%  -1.46% (p=0.000 n=10)
+    GoroutineForRange       1.775m ± 0%     1.748m ± 0%  -1.54% (p=0.000 n=10)
+    geomean                 3.573µ          3.561µ       -0.34%
+    
+    Change-Id: I6337cad72369e77e378b6e9bec6521d71b3f4fc5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610175
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Tim King <taking@google.com>
+---
+ src/runtime/asm_loong64.s | 17 ++++++++---------
+ 1 file changed, 8 insertions(+), 9 deletions(-)
+
+diff --git a/src/runtime/asm_loong64.s b/src/runtime/asm_loong64.s
+index c6e46f5f69..7391fb1338 100644
+--- a/src/runtime/asm_loong64.s
++++ b/src/runtime/asm_loong64.s
+@@ -91,9 +91,8 @@ TEXT runtime·mstart(SB),NOSPLIT|TOPFRAME,$0
+ 	RET // not reached
+ 
+ // func cputicks() int64
+-TEXT runtime·cputicks(SB),NOSPLIT,$0-8
++TEXT runtime·cputicks<ABIInternal>(SB),NOSPLIT,$0-8
+ 	RDTIMED	R0, R4
+-	MOVV	R4, ret+0(FP)
+ 	RET
+ 
+ /*
+@@ -213,19 +212,19 @@ noswitch:
+ 	JMP	(R4)
+ 
+ // func switchToCrashStack0(fn func())
+-TEXT runtime·switchToCrashStack0(SB), NOSPLIT, $0-8
+-	MOVV	fn+0(FP), REGCTXT	// context register
+-	MOVV	g_m(g), R4	// curm
++TEXT runtime·switchToCrashStack0<ABIInternal>(SB),NOSPLIT,$0-8
++	MOVV	R4, REGCTXT	// context register
++	MOVV	g_m(g), R5	// curm
+ 
+ 	// set g to gcrash
+ 	MOVV	$runtime·gcrash(SB), g	// g = &gcrash
+ 	JAL	runtime·save_g(SB)
+-	MOVV	R4, g_m(g)	// g.m = curm
+-	MOVV	g, m_g0(R4)	// curm.g0 = g
++	MOVV	R5, g_m(g)	// g.m = curm
++	MOVV	g, m_g0(R5)	// curm.g0 = g
+ 
+ 	// switch to crashstack
+-	MOVV	(g_stack+stack_hi)(g), R4
+-	ADDV	$(-4*8), R4, R3
++	MOVV	(g_stack+stack_hi)(g), R5
++	ADDV	$(-4*8), R5, R3
+ 
+ 	// call target function
+ 	MOVV	0(REGCTXT), R6

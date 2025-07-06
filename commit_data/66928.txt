@@ -1,0 +1,821 @@
+commit 6953ef86cd72a835d398319c4da560c8b78ba28e
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Apr 25 14:11:31 2025 +0200
+
+    net,os: support converting between *os.File and net.Conn on Windows
+    
+    The runtime poller and os.NewFile recently gained support for
+    disassociating the handle from the runtime poller IOCP (see CL 664455).
+    This was the main blocker for allowing the conversion between *os.File
+    and net.Conn.
+    
+    Implementing the conversion is now trivial. The only remaining work,
+    implemented in this CL, is improving os.NewFile to also support
+    socket handles and updating some build tags so that Windows can share
+    almost the same net's File implementation as Unix.
+    
+    There is one important limitation, though: the duplicated socket handle
+    returned by the various File methods in the net package is not
+    usable on other process. If someone needs to pass a socket handle to
+    another process, they should manually call the WSADuplicateSocket
+    Windows API passing the process ID of the target process.
+    
+    Fixes #9503.
+    Fixes #10350.
+    Updates #19098.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-race,gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: Ic43cadaac2662b925d57a9d362ddc7ae21d1b56e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/668195
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ doc/next/6-stdlib/99-minor/net/10350.md          |   3 +
+ doc/next/6-stdlib/99-minor/net/9503.md           |   2 +
+ src/internal/syscall/windows/net_windows.go      |   1 +
+ src/internal/syscall/windows/syscall_windows.go  |   1 +
+ src/internal/syscall/windows/zsyscall_windows.go |   9 ++
+ src/net/error_test.go                            |   5 --
+ src/net/fd_posix.go                              |  11 +++
+ src/net/fd_unix.go                               |  11 ---
+ src/net/fd_windows.go                            |  22 ++++-
+ src/net/file.go                                  |   2 +-
+ src/net/file_posix.go                            | 104 +++++++++++++++++++++++
+ src/net/file_test.go                             |   8 +-
+ src/net/file_unix.go                             |  95 +--------------------
+ src/net/file_windows.go                          |  27 +++---
+ src/net/main_plan9_test.go                       |   4 +
+ src/net/main_unix_test.go                        |   7 +-
+ src/net/main_wasm_test.go                        |   4 +
+ src/net/main_windows_test.go                     |  17 +++-
+ src/net/mockserver_test.go                       |  32 +++++--
+ src/net/net.go                                   |   3 +
+ src/net/tcpsock.go                               |   3 +
+ src/net/unixsock.go                              |   3 +
+ src/net/unixsock_test.go                         |   9 --
+ src/os/file_windows.go                           |  37 +++++++-
+ 24 files changed, 272 insertions(+), 148 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/net/10350.md b/doc/next/6-stdlib/99-minor/net/10350.md
+new file mode 100644
+index 0000000000..7290112f41
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/10350.md
+@@ -0,0 +1,3 @@
++On Windows, the [TCPConn.File], [UDPConn.File], [UnixConn.File],
++[IPConn.File], [TCPListener.File], and [UnixListener.File]
++methods are now supported.
+\ No newline at end of file
+diff --git a/doc/next/6-stdlib/99-minor/net/9503.md b/doc/next/6-stdlib/99-minor/net/9503.md
+new file mode 100644
+index 0000000000..d2aef10132
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/9503.md
+@@ -0,0 +1,2 @@
++On Windows, the [FileConn], [FilePacketConn], [FileListener]
++functions are now supported.
+diff --git a/src/internal/syscall/windows/net_windows.go b/src/internal/syscall/windows/net_windows.go
+index 9fa5ecf840..023ddaaa8c 100644
+--- a/src/internal/syscall/windows/net_windows.go
++++ b/src/internal/syscall/windows/net_windows.go
+@@ -18,6 +18,7 @@ func WSASendtoInet4(s syscall.Handle, bufs *syscall.WSABuf, bufcnt uint32, sent
+ func WSASendtoInet6(s syscall.Handle, bufs *syscall.WSABuf, bufcnt uint32, sent *uint32, flags uint32, to *syscall.SockaddrInet6, overlapped *syscall.Overlapped, croutine *byte) (err error)
+ 
+ const (
++	SO_TYPE                                = 0x1008
+ 	SIO_TCP_INITIAL_RTO                    = syscall.IOC_IN | syscall.IOC_VENDOR | 17
+ 	TCP_INITIAL_RTO_UNSPECIFIED_RTT        = ^uint16(0)
+ 	TCP_INITIAL_RTO_NO_SYN_RETRANSMISSIONS = ^uint8(1)
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index b6692166cc..20e6ae57a8 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -268,6 +268,7 @@ type WSAMsg struct {
+ }
+ 
+ //sys	WSASocket(af int32, typ int32, protocol int32, protinfo *syscall.WSAProtocolInfo, group uint32, flags uint32) (handle syscall.Handle, err error) [failretval==syscall.InvalidHandle] = ws2_32.WSASocketW
++//sys	WSADuplicateSocket(s syscall.Handle, processID uint32, info *syscall.WSAProtocolInfo) (err error) [failretval!=0] = ws2_32.WSADuplicateSocketW
+ //sys	WSAGetOverlappedResult(h syscall.Handle, o *syscall.Overlapped, bytes *uint32, wait bool, flags *uint32) (err error) = ws2_32.WSAGetOverlappedResult
+ 
+ func loadWSASendRecvMsg() error {
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index c53c517198..8dcb377c3e 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -106,6 +106,7 @@ var (
+ 	procCreateEnvironmentBlock            = moduserenv.NewProc("CreateEnvironmentBlock")
+ 	procDestroyEnvironmentBlock           = moduserenv.NewProc("DestroyEnvironmentBlock")
+ 	procGetProfilesDirectoryW             = moduserenv.NewProc("GetProfilesDirectoryW")
++	procWSADuplicateSocketW               = modws2_32.NewProc("WSADuplicateSocketW")
+ 	procWSAGetOverlappedResult            = modws2_32.NewProc("WSAGetOverlappedResult")
+ 	procWSASocketW                        = modws2_32.NewProc("WSASocketW")
+ )
+@@ -591,6 +592,14 @@ func GetProfilesDirectory(dir *uint16, dirLen *uint32) (err error) {
+ 	return
+ }
+ 
++func WSADuplicateSocket(s syscall.Handle, processID uint32, info *syscall.WSAProtocolInfo) (err error) {
++	r1, _, e1 := syscall.Syscall(procWSADuplicateSocketW.Addr(), 3, uintptr(s), uintptr(processID), uintptr(unsafe.Pointer(info)))
++	if r1 != 0 {
++		err = errnoErr(e1)
++	}
++	return
++}
++
+ func WSAGetOverlappedResult(h syscall.Handle, o *syscall.Overlapped, bytes *uint32, wait bool, flags *uint32) (err error) {
+ 	var _p0 uint32
+ 	if wait {
+diff --git a/src/net/error_test.go b/src/net/error_test.go
+index f82e863346..ff25433621 100644
+--- a/src/net/error_test.go
++++ b/src/net/error_test.go
+@@ -736,11 +736,6 @@ third:
+ }
+ 
+ func TestFileError(t *testing.T) {
+-	switch runtime.GOOS {
+-	case "windows":
+-		t.Skipf("not supported on %s", runtime.GOOS)
+-	}
+-
+ 	f, err := os.CreateTemp("", "go-nettest")
+ 	if err != nil {
+ 		t.Fatal(err)
+diff --git a/src/net/fd_posix.go b/src/net/fd_posix.go
+index ffb9bcf8b9..93e6b5378e 100644
+--- a/src/net/fd_posix.go
++++ b/src/net/fd_posix.go
+@@ -26,6 +26,17 @@ type netFD struct {
+ 	raddr       Addr
+ }
+ 
++func (fd *netFD) name() string {
++	var ls, rs string
++	if fd.laddr != nil {
++		ls = fd.laddr.String()
++	}
++	if fd.raddr != nil {
++		rs = fd.raddr.String()
++	}
++	return fd.net + ":" + ls + "->" + rs
++}
++
+ func (fd *netFD) setAddr(laddr, raddr Addr) {
+ 	fd.laddr = laddr
+ 	fd.raddr = raddr
+diff --git a/src/net/fd_unix.go b/src/net/fd_unix.go
+index a8d3a253a9..8d3858d8be 100644
+--- a/src/net/fd_unix.go
++++ b/src/net/fd_unix.go
+@@ -41,17 +41,6 @@ func (fd *netFD) init() error {
+ 	return fd.pfd.Init(fd.net, true)
+ }
+ 
+-func (fd *netFD) name() string {
+-	var ls, rs string
+-	if fd.laddr != nil {
+-		ls = fd.laddr.String()
+-	}
+-	if fd.raddr != nil {
+-		rs = fd.raddr.String()
+-	}
+-	return fd.net + ":" + ls + "->" + rs
+-}
+-
+ func (fd *netFD) connect(ctx context.Context, la, ra syscall.Sockaddr) (rsa syscall.Sockaddr, ret error) {
+ 	// Do not need to call fd.writeLock here,
+ 	// because fd is not yet accessible to user,
+diff --git a/src/net/fd_windows.go b/src/net/fd_windows.go
+index 4ad8e0204f..a23be0501f 100644
+--- a/src/net/fd_windows.go
++++ b/src/net/fd_windows.go
+@@ -233,9 +233,23 @@ func (fd *netFD) accept() (*netFD, error) {
+ 	return netfd, nil
+ }
+ 
+-// Unimplemented functions.
+-
+ func (fd *netFD) dup() (*os.File, error) {
+-	// TODO: Implement this, perhaps using internal/poll.DupCloseOnExec.
+-	return nil, syscall.EWINDOWS
++	// Disassociate the IOCP from the socket,
++	// it is not safe to share a duplicated handle
++	// that is associated with IOCP.
++	if err := fd.pfd.DisassociateIOCP(); err != nil {
++		return nil, err
++	}
++	var h syscall.Handle
++	var syserr error
++	err := fd.pfd.RawControl(func(fd uintptr) {
++		h, syserr = dupSocket(syscall.Handle(fd))
++	})
++	if err != nil {
++		err = syserr
++	}
++	if err != nil {
++		return nil, err
++	}
++	return os.NewFile(uintptr(h), fd.name()), nil
+ }
+diff --git a/src/net/file.go b/src/net/file.go
+index c13332c188..3e33c9afad 100644
+--- a/src/net/file.go
++++ b/src/net/file.go
+@@ -6,7 +6,7 @@ package net
+ 
+ import "os"
+ 
+-// BUG(mikio): On JS and Windows, the FileConn, FileListener and
++// BUG(mikio): On JS, the FileConn, FileListener and
+ // FilePacketConn functions are not implemented.
+ 
+ type fileAddr string
+diff --git a/src/net/file_posix.go b/src/net/file_posix.go
+new file mode 100644
+index 0000000000..132d03e9e3
+--- /dev/null
++++ b/src/net/file_posix.go
+@@ -0,0 +1,104 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build unix || windows
++
++package net
++
++import (
++	"internal/poll"
++	"os"
++	"syscall"
++)
++
++func newFileFD(f *os.File) (*netFD, error) {
++	s, err := dupFileSocket(f)
++	if err != nil {
++		return nil, err
++	}
++	family := syscall.AF_UNSPEC
++	sotype, err := syscall.GetsockoptInt(s, syscall.SOL_SOCKET, _SO_TYPE)
++	if err != nil {
++		poll.CloseFunc(s)
++		return nil, os.NewSyscallError("getsockopt", err)
++	}
++	lsa, _ := syscall.Getsockname(s)
++	rsa, _ := syscall.Getpeername(s)
++	switch lsa.(type) {
++	case *syscall.SockaddrInet4:
++		family = syscall.AF_INET
++	case *syscall.SockaddrInet6:
++		family = syscall.AF_INET6
++	case *syscall.SockaddrUnix:
++		family = syscall.AF_UNIX
++	default:
++		poll.CloseFunc(s)
++		return nil, syscall.EPROTONOSUPPORT
++	}
++	fd, err := newFD(s, family, sotype, "")
++	if err != nil {
++		poll.CloseFunc(s)
++		return nil, err
++	}
++	laddr := fd.addrFunc()(lsa)
++	raddr := fd.addrFunc()(rsa)
++	fd.net = laddr.Network()
++	if err := fd.init(); err != nil {
++		fd.Close()
++		return nil, err
++	}
++	fd.setAddr(laddr, raddr)
++	return fd, nil
++}
++
++func fileConn(f *os.File) (Conn, error) {
++	fd, err := newFileFD(f)
++	if err != nil {
++		return nil, err
++	}
++	switch fd.laddr.(type) {
++	case *TCPAddr:
++		return newTCPConn(fd, defaultTCPKeepAliveIdle, KeepAliveConfig{}, testPreHookSetKeepAlive, testHookSetKeepAlive), nil
++	case *UDPAddr:
++		return newUDPConn(fd), nil
++	case *IPAddr:
++		return newIPConn(fd), nil
++	case *UnixAddr:
++		return newUnixConn(fd), nil
++	}
++	fd.Close()
++	return nil, syscall.EINVAL
++}
++
++func fileListener(f *os.File) (Listener, error) {
++	fd, err := newFileFD(f)
++	if err != nil {
++		return nil, err
++	}
++	switch laddr := fd.laddr.(type) {
++	case *TCPAddr:
++		return &TCPListener{fd: fd}, nil
++	case *UnixAddr:
++		return &UnixListener{fd: fd, path: laddr.Name, unlink: false}, nil
++	}
++	fd.Close()
++	return nil, syscall.EINVAL
++}
++
++func filePacketConn(f *os.File) (PacketConn, error) {
++	fd, err := newFileFD(f)
++	if err != nil {
++		return nil, err
++	}
++	switch fd.laddr.(type) {
++	case *UDPAddr:
++		return newUDPConn(fd), nil
++	case *IPAddr:
++		return newIPConn(fd), nil
++	case *UnixAddr:
++		return newUnixConn(fd), nil
++	}
++	fd.Close()
++	return nil, syscall.EINVAL
++}
+diff --git a/src/net/file_test.go b/src/net/file_test.go
+index c517af50c5..b5d007d6cf 100644
+--- a/src/net/file_test.go
++++ b/src/net/file_test.go
+@@ -29,7 +29,7 @@ var fileConnTests = []struct {
+ 
+ func TestFileConn(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows", "js", "wasip1":
++	case "plan9", "js", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+@@ -130,7 +130,7 @@ var fileListenerTests = []struct {
+ 
+ func TestFileListener(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows", "js", "wasip1":
++	case "plan9", "js", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+@@ -222,7 +222,7 @@ var filePacketConnTests = []struct {
+ 
+ func TestFilePacketConn(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows", "js", "wasip1":
++	case "plan9", "js", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 
+@@ -289,7 +289,7 @@ func TestFilePacketConn(t *testing.T) {
+ // Issue 24483.
+ func TestFileCloseRace(t *testing.T) {
+ 	switch runtime.GOOS {
+-	case "plan9", "windows", "js", "wasip1":
++	case "plan9", "js", "wasip1":
+ 		t.Skipf("not supported on %s", runtime.GOOS)
+ 	}
+ 	if !testableNetwork("tcp") {
+diff --git a/src/net/file_unix.go b/src/net/file_unix.go
+index c0212cef65..d56da90037 100644
+--- a/src/net/file_unix.go
++++ b/src/net/file_unix.go
+@@ -12,7 +12,9 @@ import (
+ 	"syscall"
+ )
+ 
+-func dupSocket(f *os.File) (int, error) {
++const _SO_TYPE = syscall.SO_TYPE
++
++func dupFileSocket(f *os.File) (int, error) {
+ 	s, call, err := poll.DupCloseOnExec(int(f.Fd()))
+ 	if err != nil {
+ 		if call != "" {
+@@ -26,94 +28,3 @@ func dupSocket(f *os.File) (int, error) {
+ 	}
+ 	return s, nil
+ }
+-
+-func newFileFD(f *os.File) (*netFD, error) {
+-	s, err := dupSocket(f)
+-	if err != nil {
+-		return nil, err
+-	}
+-	family := syscall.AF_UNSPEC
+-	sotype, err := syscall.GetsockoptInt(s, syscall.SOL_SOCKET, syscall.SO_TYPE)
+-	if err != nil {
+-		poll.CloseFunc(s)
+-		return nil, os.NewSyscallError("getsockopt", err)
+-	}
+-	lsa, _ := syscall.Getsockname(s)
+-	rsa, _ := syscall.Getpeername(s)
+-	switch lsa.(type) {
+-	case *syscall.SockaddrInet4:
+-		family = syscall.AF_INET
+-	case *syscall.SockaddrInet6:
+-		family = syscall.AF_INET6
+-	case *syscall.SockaddrUnix:
+-		family = syscall.AF_UNIX
+-	default:
+-		poll.CloseFunc(s)
+-		return nil, syscall.EPROTONOSUPPORT
+-	}
+-	fd, err := newFD(s, family, sotype, "")
+-	if err != nil {
+-		poll.CloseFunc(s)
+-		return nil, err
+-	}
+-	laddr := fd.addrFunc()(lsa)
+-	raddr := fd.addrFunc()(rsa)
+-	fd.net = laddr.Network()
+-	if err := fd.init(); err != nil {
+-		fd.Close()
+-		return nil, err
+-	}
+-	fd.setAddr(laddr, raddr)
+-	return fd, nil
+-}
+-
+-func fileConn(f *os.File) (Conn, error) {
+-	fd, err := newFileFD(f)
+-	if err != nil {
+-		return nil, err
+-	}
+-	switch fd.laddr.(type) {
+-	case *TCPAddr:
+-		return newTCPConn(fd, defaultTCPKeepAliveIdle, KeepAliveConfig{}, testPreHookSetKeepAlive, testHookSetKeepAlive), nil
+-	case *UDPAddr:
+-		return newUDPConn(fd), nil
+-	case *IPAddr:
+-		return newIPConn(fd), nil
+-	case *UnixAddr:
+-		return newUnixConn(fd), nil
+-	}
+-	fd.Close()
+-	return nil, syscall.EINVAL
+-}
+-
+-func fileListener(f *os.File) (Listener, error) {
+-	fd, err := newFileFD(f)
+-	if err != nil {
+-		return nil, err
+-	}
+-	switch laddr := fd.laddr.(type) {
+-	case *TCPAddr:
+-		return &TCPListener{fd: fd}, nil
+-	case *UnixAddr:
+-		return &UnixListener{fd: fd, path: laddr.Name, unlink: false}, nil
+-	}
+-	fd.Close()
+-	return nil, syscall.EINVAL
+-}
+-
+-func filePacketConn(f *os.File) (PacketConn, error) {
+-	fd, err := newFileFD(f)
+-	if err != nil {
+-		return nil, err
+-	}
+-	switch fd.laddr.(type) {
+-	case *UDPAddr:
+-		return newUDPConn(fd), nil
+-	case *IPAddr:
+-		return newIPConn(fd), nil
+-	case *UnixAddr:
+-		return newUnixConn(fd), nil
+-	}
+-	fd.Close()
+-	return nil, syscall.EINVAL
+-}
+diff --git a/src/net/file_windows.go b/src/net/file_windows.go
+index 241fa17617..bd7e2bf480 100644
+--- a/src/net/file_windows.go
++++ b/src/net/file_windows.go
+@@ -5,21 +5,28 @@
+ package net
+ 
+ import (
++	"internal/syscall/windows"
+ 	"os"
+ 	"syscall"
+ )
+ 
+-func fileConn(f *os.File) (Conn, error) {
+-	// TODO: Implement this
+-	return nil, syscall.EWINDOWS
+-}
++const _SO_TYPE = windows.SO_TYPE
+ 
+-func fileListener(f *os.File) (Listener, error) {
+-	// TODO: Implement this
+-	return nil, syscall.EWINDOWS
++func dupSocket(h syscall.Handle) (syscall.Handle, error) {
++	var info syscall.WSAProtocolInfo
++	err := windows.WSADuplicateSocket(h, uint32(syscall.Getpid()), &info)
++	if err != nil {
++		return 0, err
++	}
++	return windows.WSASocket(-1, -1, -1, &info, 0, windows.WSA_FLAG_OVERLAPPED|windows.WSA_FLAG_NO_HANDLE_INHERIT)
+ }
+ 
+-func filePacketConn(f *os.File) (PacketConn, error) {
+-	// TODO: Implement this
+-	return nil, syscall.EWINDOWS
++func dupFileSocket(f *os.File) (syscall.Handle, error) {
++	// The resulting handle should not be associated to an IOCP, else the IO operations
++	// will block an OS thread, and that's not what net package users expect.
++	h, err := dupSocket(syscall.Handle(f.Fd()))
++	if err != nil {
++		return 0, err
++	}
++	return h, nil
+ }
+diff --git a/src/net/main_plan9_test.go b/src/net/main_plan9_test.go
+index 2bc5be88be..ca5f19adc1 100644
+--- a/src/net/main_plan9_test.go
++++ b/src/net/main_plan9_test.go
+@@ -4,6 +4,8 @@
+ 
+ package net
+ 
++import "os/exec"
++
+ func installTestHooks() {}
+ 
+ func uninstallTestHooks() {}
+@@ -14,3 +16,5 @@ func forceCloseSockets() {}
+ func enableSocketConnect() {}
+ 
+ func disableSocketConnect(network string) {}
++
++func addCmdInheritedHandle(cmd *exec.Cmd, fd uintptr) {}
+diff --git a/src/net/main_unix_test.go b/src/net/main_unix_test.go
+index e7a5b4fe9a..49d15b963e 100644
+--- a/src/net/main_unix_test.go
++++ b/src/net/main_unix_test.go
+@@ -6,7 +6,10 @@
+ 
+ package net
+ 
+-import "internal/poll"
++import (
++	"internal/poll"
++	"os/exec"
++)
+ 
+ var (
+ 	// Placeholders for saving original socket system calls.
+@@ -53,3 +56,5 @@ func forceCloseSockets() {
+ 		poll.CloseFunc(s)
+ 	}
+ }
++
++func addCmdInheritedHandle(cmd *exec.Cmd, fd uintptr) {}
+diff --git a/src/net/main_wasm_test.go b/src/net/main_wasm_test.go
+index b8196bb283..2dcfdabb3b 100644
+--- a/src/net/main_wasm_test.go
++++ b/src/net/main_wasm_test.go
+@@ -6,8 +6,12 @@
+ 
+ package net
+ 
++import "os/exec"
++
+ func installTestHooks() {}
+ 
+ func uninstallTestHooks() {}
+ 
+ func forceCloseSockets() {}
++
++func addCmdInheritedHandle(cmd *exec.Cmd, fd uintptr) {}
+diff --git a/src/net/main_windows_test.go b/src/net/main_windows_test.go
+index bc024c0bbd..4250301335 100644
+--- a/src/net/main_windows_test.go
++++ b/src/net/main_windows_test.go
+@@ -4,7 +4,11 @@
+ 
+ package net
+ 
+-import "internal/poll"
++import (
++	"internal/poll"
++	"os/exec"
++	"syscall"
++)
+ 
+ var (
+ 	// Placeholders for saving original socket system calls.
+@@ -40,3 +44,14 @@ func forceCloseSockets() {
+ 		poll.CloseFunc(s)
+ 	}
+ }
++
++func addCmdInheritedHandle(cmd *exec.Cmd, fd uintptr) {
++	// Inherited handles are not inherited by default in Windows.
++	// We need to set the handle inheritance flag explicitly.
++	// See https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-createprocessa#parameters
++	// for more details.
++	if cmd.SysProcAttr == nil {
++		cmd.SysProcAttr = &syscall.SysProcAttr{}
++	}
++	cmd.SysProcAttr.AdditionalInheritedHandles = append(cmd.SysProcAttr.AdditionalInheritedHandles, syscall.Handle(fd))
++}
+diff --git a/src/net/mockserver_test.go b/src/net/mockserver_test.go
+index 63802c575e..66b8cbe40d 100644
+--- a/src/net/mockserver_test.go
++++ b/src/net/mockserver_test.go
+@@ -509,6 +509,10 @@ func packetTransceiver(c PacketConn, wb []byte, dst Addr, ch chan<- error) {
+ func spawnTestSocketPair(t testing.TB, net string) (client, server Conn) {
+ 	t.Helper()
+ 
++	if !testableNetwork(net) {
++		t.Skipf("network %q not supported", net)
++	}
++
+ 	ln := newLocalListener(t, net)
+ 	defer ln.Close()
+ 	var cerr, serr error
+@@ -536,13 +540,6 @@ func spawnTestSocketPair(t testing.TB, net string) (client, server Conn) {
+ 
+ func startTestSocketPeer(t testing.TB, conn Conn, op string, chunkSize, totalSize int) (func(t testing.TB), error) {
+ 	t.Helper()
+-
+-	if runtime.GOOS == "windows" {
+-		// TODO(panjf2000): Windows has not yet implemented FileConn,
+-		//		remove this when it's implemented in https://go.dev/issues/9503.
+-		t.Fatalf("startTestSocketPeer is not supported on %s", runtime.GOOS)
+-	}
+-
+ 	f, err := conn.(interface{ File() (*os.File, error) }).File()
+ 	if err != nil {
+ 		return nil, err
+@@ -556,7 +553,14 @@ func startTestSocketPeer(t testing.TB, conn Conn, op string, chunkSize, totalSiz
+ 		"GO_NET_TEST_TRANSFER_TOTAL_SIZE=" + strconv.Itoa(totalSize),
+ 		"TMPDIR=" + os.Getenv("TMPDIR"),
+ 	}
+-	cmd.ExtraFiles = append(cmd.ExtraFiles, f)
++	if runtime.GOOS == "windows" {
++		// Windows doesn't support ExtraFiles
++		fd := f.Fd()
++		cmd.Env = append(cmd.Env, "GO_NET_TEST_TRANSFER_FD="+strconv.FormatUint(uint64(fd), 10))
++		addCmdInheritedHandle(cmd, fd)
++	} else {
++		cmd.ExtraFiles = append(cmd.ExtraFiles, f)
++	}
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
+ 
+@@ -586,7 +590,17 @@ func init() {
+ 	}
+ 	defer os.Exit(0)
+ 
+-	f := os.NewFile(uintptr(3), "splice-test-conn")
++	var fd uintptr
++	if runtime.GOOS == "windows" {
++		v, err := strconv.ParseUint(os.Getenv("GO_NET_TEST_TRANSFER_FD"), 10, 0)
++		if err != nil {
++			log.Fatal(err)
++		}
++		fd = uintptr(v)
++	} else {
++		fd = uintptr(3)
++	}
++	f := os.NewFile(fd, "splice-test-conn")
+ 	defer f.Close()
+ 
+ 	conn, err := FileConn(f)
+diff --git a/src/net/net.go b/src/net/net.go
+index 917bef4d54..72f5772155 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -308,6 +308,9 @@ func (c *conn) SetWriteBuffer(bytes int) error {
+ // The returned os.File's file descriptor is different from the connection's.
+ // Attempting to change properties of the original using this duplicate
+ // may or may not have the desired effect.
++//
++// On Windows, the returned os.File's file descriptor is not usable
++// on other processes.
+ func (c *conn) File() (f *os.File, err error) {
+ 	f, err = c.fd.dup()
+ 	if err != nil {
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 92966b705b..1b11a03f65 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -417,6 +417,9 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
+ // The returned os.File's file descriptor is different from the
+ // connection's. Attempting to change properties of the original
+ // using this duplicate may or may not have the desired effect.
++//
++// On Windows, the returned os.File's file descriptor is not
++// usable on other processes.
+ func (l *TCPListener) File() (f *os.File, err error) {
+ 	if !l.ok() {
+ 		return nil, syscall.EINVAL
+diff --git a/src/net/unixsock.go b/src/net/unixsock.go
+index 13d499b208..c93ef91d57 100644
+--- a/src/net/unixsock.go
++++ b/src/net/unixsock.go
+@@ -297,6 +297,9 @@ func (l *UnixListener) SetDeadline(t time.Time) error {
+ // The returned [os.File]'s file descriptor is different from the
+ // connection's. Attempting to change properties of the original
+ // using this duplicate may or may not have the desired effect.
++//
++// On Windows, the returned os.File's file descriptor is not
++// usable on other processes.
+ func (l *UnixListener) File() (f *os.File, err error) {
+ 	if !l.ok() {
+ 		return nil, syscall.EINVAL
+diff --git a/src/net/unixsock_test.go b/src/net/unixsock_test.go
+index 1bbe53db10..6758afddca 100644
+--- a/src/net/unixsock_test.go
++++ b/src/net/unixsock_test.go
+@@ -398,9 +398,6 @@ func TestUnixUnlink(t *testing.T) {
+ 
+ 	// FileListener should not.
+ 	t.Run("FileListener", func(t *testing.T) {
+-		if runtime.GOOS == "windows" {
+-			t.Skip("skipping: FileListener not implemented on windows")
+-		}
+ 		l := listen(t)
+ 		f, _ := l.File()
+ 		l1, _ := FileListener(f)
+@@ -448,9 +445,6 @@ func TestUnixUnlink(t *testing.T) {
+ 	})
+ 
+ 	t.Run("FileListener/SetUnlinkOnClose(true)", func(t *testing.T) {
+-		if runtime.GOOS == "windows" {
+-			t.Skip("skipping: FileListener not implemented on windows")
+-		}
+ 		l := listen(t)
+ 		f, _ := l.File()
+ 		l1, _ := FileListener(f)
+@@ -464,9 +458,6 @@ func TestUnixUnlink(t *testing.T) {
+ 	})
+ 
+ 	t.Run("FileListener/SetUnlinkOnClose(false)", func(t *testing.T) {
+-		if runtime.GOOS == "windows" {
+-			t.Skip("skipping: FileListener not implemented on windows")
+-		}
+ 		l := listen(t)
+ 		f, _ := l.File()
+ 		l1, _ := FileListener(f)
+diff --git a/src/os/file_windows.go b/src/os/file_windows.go
+index c97307371c..d1d3124eed 100644
+--- a/src/os/file_windows.go
++++ b/src/os/file_windows.go
+@@ -82,14 +82,49 @@ func newConsoleFile(h syscall.Handle, name string) *File {
+ 	return newFile(h, name, "console", false)
+ }
+ 
++var wsaLoaded atomic.Bool
++
++// isWSALoaded returns true if the ws2_32.dll module is loaded.
++func isWSALoaded() bool {
++	// ws2_32.dll may be delay loaded, we can only short-circuit
++	// if we know it is loaded.
++	if wsaLoaded.Load() {
++		return true
++	}
++	var ws2_32_dll = [...]uint16{'w', 's', '2', '_', '3', '2', '.', 'd', 'l', 'l', 0}
++	_, err := windows.GetModuleHandle(unsafe.SliceData(ws2_32_dll[:]))
++	wsaLoaded.Store(err == nil)
++	return err == nil
++}
++
+ // newFileFromNewFile is called by [NewFile].
+ func newFileFromNewFile(fd uintptr, name string) *File {
+ 	h := syscall.Handle(fd)
+ 	if h == syscall.InvalidHandle {
+ 		return nil
+ 	}
++	kind := "file"
++	var sotype int
++	if t, err := syscall.GetFileType(h); err == nil && t == syscall.FILE_TYPE_PIPE {
++		kind = "pipe"
++		// Windows reports sockets as FILE_TYPE_PIPE.
++		// We need to call getsockopt and check the socket type to distinguish between sockets and pipes.
++		// If the call fails, we assume it's a pipe.
++		// Avoid calling getsockopt if the WSA module is not loaded, it is a heavy dependency
++		// and sockets can only be created using that module.
++		if isWSALoaded() {
++			if sotype, err = syscall.GetsockoptInt(h, syscall.SOL_SOCKET, windows.SO_TYPE); err == nil {
++				kind = "net"
++			}
++		}
++	}
+ 	nonBlocking, _ := windows.IsNonblock(syscall.Handle(fd))
+-	return newFile(h, name, "file", nonBlocking)
++	f := newFile(h, name, kind, nonBlocking)
++	if kind == "net" {
++		f.pfd.IsStream = sotype == syscall.SOCK_STREAM
++		f.pfd.ZeroReadIsEOF = sotype != syscall.SOCK_DGRAM && sotype != syscall.SOCK_RAW
++	}
++	return f
+ }
+ 
+ func epipecheck(file *File, e error) {

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 47823: 3e5bba0a44b880541fb72220a883e259d0f34a83
+# Index 47823: 627959eb04ee0edc4a985a7526ed7fe838ad2573
 
 echo "🚀 Generating explanation for commit 47823..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 47823..."
 
 ### メタデータ
 - **コミットインデックス**: 47823
-- **コミットハッシュ**: 3e5bba0a44b880541fb72220a883e259d0f34a83
-- **GitHub URL**: https://github.com/golang/go/commit/3e5bba0a44b880541fb72220a883e259d0f34a83
+- **コミットハッシュ**: 627959eb04ee0edc4a985a7526ed7fe838ad2573
+- **GitHub URL**: https://github.com/golang/go/commit/627959eb04ee0edc4a985a7526ed7fe838ad2573
 
 ### 章構成
 

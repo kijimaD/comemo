@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 51051: 0e1d553b4d98b71799b86b0ba9bc338de29b7dfe
+# Index 51051: 73d5aef4d19486d5eb03730791bd21f47c6c7d2b
 
 echo "🚀 Generating explanation for commit 51051..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 51051..."
 
 ### メタデータ
 - **コミットインデックス**: 51051
-- **コミットハッシュ**: 0e1d553b4d98b71799b86b0ba9bc338de29b7dfe
-- **GitHub URL**: https://github.com/golang/go/commit/0e1d553b4d98b71799b86b0ba9bc338de29b7dfe
+- **コミットハッシュ**: 73d5aef4d19486d5eb03730791bd21f47c6c7d2b
+- **GitHub URL**: https://github.com/golang/go/commit/73d5aef4d19486d5eb03730791bd21f47c6c7d2b
 
 ### 章構成
 

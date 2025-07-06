@@ -1,0 +1,140 @@
+commit 6051da46d01e967b55d088530fcbe84e8deb0e7a
+Author: Russ Cox <rsc@golang.org>
+Date:   Tue Nov 5 13:50:00 2024 -0500
+
+    crypto/internal/fips: avoid some non-relocatable global initializers
+    
+    In normal code,
+    
+            var x = []int{...}
+    
+    will be laid out by the linker, but in FIPS packages, the slice
+    assignment has to be deferred to init time to avoid a global
+    data relocation. We can avoid the init time work by writing
+    
+            var x = [...]int{...}
+    
+    instead. Do that.
+    
+    For #69536.
+    
+    Change-Id: Ie3c1d25af3f79182ee254014e49d3711038aa327
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625815
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/crypto/internal/fips/sha256/sha256block.go                | 2 +-
+ src/crypto/internal/fips/sha256/sha256block_arm64.s           | 2 +-
+ src/crypto/internal/fips/sha256/sha256block_riscv64.s         | 2 +-
+ src/crypto/internal/fips/sha512/_asm/sha512block_amd64_asm.go | 2 +-
+ src/crypto/internal/fips/sha512/sha512block.go                | 2 +-
+ src/crypto/internal/fips/sha512/sha512block_amd64.s           | 2 +-
+ src/crypto/internal/fips/sha512/sha512block_arm64.s           | 2 +-
+ src/crypto/internal/fips/sha512/sha512block_riscv64.s         | 2 +-
+ 8 files changed, 8 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/internal/fips/sha256/sha256block.go b/src/crypto/internal/fips/sha256/sha256block.go
+index 3fbad71864..55a400e250 100644
+--- a/src/crypto/internal/fips/sha256/sha256block.go
++++ b/src/crypto/internal/fips/sha256/sha256block.go
+@@ -10,7 +10,7 @@ package sha256
+ 
+ import "math/bits"
+ 
+-var _K = []uint32{
++var _K = [...]uint32{
+ 	0x428a2f98,
+ 	0x71374491,
+ 	0xb5c0fbcf,
+diff --git a/src/crypto/internal/fips/sha256/sha256block_arm64.s b/src/crypto/internal/fips/sha256/sha256block_arm64.s
+index 0e63cda99c..b408260799 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_arm64.s
++++ b/src/crypto/internal/fips/sha256/sha256block_arm64.s
+@@ -16,7 +16,7 @@ TEXT ·blockSHA2(SB),NOSPLIT,$0
+ 	MOVD	dig+0(FP), R0                              // Hash value first address
+ 	MOVD	p_base+8(FP), R1                           // message first address
+ 	MOVD	p_len+16(FP), R3                           // message length
+-	MOVD	·_K+0(SB), R2                              // k constants first address
++	MOVD	$·_K+0(SB), R2                             // k constants first address
+ 	VLD1	(R0), [V0.S4, V1.S4]                       // load h(a,b,c,d,e,f,g,h)
+ 	VLD1.P	64(R2), [V16.S4, V17.S4, V18.S4, V19.S4]
+ 	VLD1.P	64(R2), [V20.S4, V21.S4, V22.S4, V23.S4]
+diff --git a/src/crypto/internal/fips/sha256/sha256block_riscv64.s b/src/crypto/internal/fips/sha256/sha256block_riscv64.s
+index 730ba64abe..847b9699a6 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_riscv64.s
++++ b/src/crypto/internal/fips/sha256/sha256block_riscv64.s
+@@ -151,7 +151,7 @@ TEXT ·block(SB),0,$64-32
+ 	ADD	X29, X30, X28
+ 	BEQ	X28, X29, end
+ 
+-	MOV	·_K(SB), X18		// const table
++	MOV	$·_K(SB), X18		// const table
+ 	ADD	$8, X2, X19		// message schedule
+ 
+ 	MOV	dig+0(FP), X20
+diff --git a/src/crypto/internal/fips/sha512/_asm/sha512block_amd64_asm.go b/src/crypto/internal/fips/sha512/_asm/sha512block_amd64_asm.go
+index fa540d0f2d..642f4a2fb2 100644
+--- a/src/crypto/internal/fips/sha512/_asm/sha512block_amd64_asm.go
++++ b/src/crypto/internal/fips/sha512/_asm/sha512block_amd64_asm.go
+@@ -438,7 +438,7 @@ func blockAVX2() {
+ func loop0() {
+ 	Label("loop0")
+ 
+-	_K := NewDataAddr(Symbol{Name: ThatPeskyUnicodeDot + "_K"}, 0)
++	_K := NewDataAddr(Symbol{Name: "$" + ThatPeskyUnicodeDot + "_K"}, 0)
+ 	MOVQ(_K, RBP)
+ 
+ 	// byte swap first 16 dwords
+diff --git a/src/crypto/internal/fips/sha512/sha512block.go b/src/crypto/internal/fips/sha512/sha512block.go
+index 3c96cc343a..517e8389f7 100644
+--- a/src/crypto/internal/fips/sha512/sha512block.go
++++ b/src/crypto/internal/fips/sha512/sha512block.go
+@@ -10,7 +10,7 @@ package sha512
+ 
+ import "math/bits"
+ 
+-var _K = []uint64{
++var _K = [...]uint64{
+ 	0x428a2f98d728ae22,
+ 	0x7137449123ef65cd,
+ 	0xb5c0fbcfec4d3b2f,
+diff --git a/src/crypto/internal/fips/sha512/sha512block_amd64.s b/src/crypto/internal/fips/sha512/sha512block_amd64.s
+index 534563ee14..ce77d20c04 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_amd64.s
++++ b/src/crypto/internal/fips/sha512/sha512block_amd64.s
+@@ -4526,7 +4526,7 @@ TEXT ·blockAVX2(SB), NOSPLIT, $56-32
+ 	VMOVDQU PSHUFFLE_BYTE_FLIP_MASK<>+0(SB), Y9
+ 
+ loop0:
+-	MOVQ    ·_K+0(SB), BP
++	MOVQ    $·_K+0(SB), BP
+ 	VMOVDQU (DI), Y4
+ 	VPSHUFB Y9, Y4, Y4
+ 	VMOVDQU 32(DI), Y5
+diff --git a/src/crypto/internal/fips/sha512/sha512block_arm64.s b/src/crypto/internal/fips/sha512/sha512block_arm64.s
+index 1b192ae079..cabe262548 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_arm64.s
++++ b/src/crypto/internal/fips/sha512/sha512block_arm64.s
+@@ -45,7 +45,7 @@ TEXT ·blockSHA512(SB),NOSPLIT,$0
+ 	MOVD	dig+0(FP), R0
+ 	MOVD	p_base+8(FP), R1
+ 	MOVD	p_len+16(FP), R2
+-	MOVD	·_K+0(SB), R3
++	MOVD	$·_K+0(SB), R3
+ 
+ 	// long enough to prefetch
+ 	PRFM	(R3), PLDL3KEEP
+diff --git a/src/crypto/internal/fips/sha512/sha512block_riscv64.s b/src/crypto/internal/fips/sha512/sha512block_riscv64.s
+index 0839cf0350..9614f52009 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_riscv64.s
++++ b/src/crypto/internal/fips/sha512/sha512block_riscv64.s
+@@ -160,7 +160,7 @@ TEXT ·block(SB),0,$128-32
+ 	ADD	X29, X30, X28
+ 	BEQ	X28, X29, end
+ 
+-	MOV	·_K(SB), X18		// const table
++	MOV	$·_K(SB), X18		// const table
+ 	ADD	$8, X2, X19		// message schedule
+ 
+ 	MOV	dig+0(FP), X20

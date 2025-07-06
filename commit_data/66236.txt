@@ -1,0 +1,32 @@
+commit fcdf444924dcd5dc2fb9e3044e32072460e7c374
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Feb 18 09:36:14 2025 -0800
+
+    os: document that OpenRoot follows symlinks
+    
+    OpenRoot is expected to be called with a trusted path,
+    and does not attempt to defend against symlinks in that path.
+    
+    Fixes #71806
+    
+    Change-Id: Ib8b2e123e323d22d5c23ed9f711d21995139a7ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650355
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/os/root.go | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/src/os/root.go b/src/os/root.go
+index fd3b603ed8..a7e667b3c8 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -76,6 +76,7 @@ const (
+ )
+ 
+ // OpenRoot opens the named directory.
++// It follows symbolic links in the directory name.
+ // If there is an error, it will be of type *PathError.
+ func OpenRoot(name string) (*Root, error) {
+ 	testlog.Open(name)

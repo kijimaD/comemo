@@ -1,0 +1,104 @@
+commit 493edb29735fd2adf2087b32c60617dad11dc6e1
+Author: Joel Sing <joel@sing.id.au>
+Date:   Thu Aug 15 00:39:59 2024 +1000
+
+    crypto/sha512: improve performance of riscv64 assembly
+    
+    Implement optimised versions of Maj and Ch, which reduce the number of
+    instructions required per round. Reorder instructions for better
+    interleaving.
+    
+    This gives around a 10% gain on a StarFive VisionFive 2:
+    
+                        │  sha512.1   │              sha512.2               │
+                        │   sec/op    │   sec/op     vs base                │
+    Hash8Bytes/New-4      9.310µ ± 0%   8.564µ ± 0%   -8.01% (p=0.000 n=10)
+    Hash8Bytes/Sum384-4   8.833µ ± 0%   7.980µ ± 0%   -9.66% (p=0.000 n=10)
+    Hash8Bytes/Sum512-4   9.293µ ± 0%   8.162µ ± 0%  -12.17% (p=0.000 n=10)
+    Hash1K/New-4          49.60µ ± 0%   44.33µ ± 0%  -10.63% (p=0.000 n=10)
+    Hash1K/Sum384-4       48.93µ ± 0%   43.78µ ± 0%  -10.53% (p=0.000 n=10)
+    Hash1K/Sum512-4       49.48µ ± 0%   43.96µ ± 0%  -11.15% (p=0.000 n=10)
+    Hash8K/New-4          327.9µ ± 0%   292.6µ ± 0%  -10.78% (p=0.000 n=10)
+    Hash8K/Sum384-4       327.3µ ± 0%   292.0µ ± 0%  -10.77% (p=0.000 n=10)
+    Hash8K/Sum512-4       327.8µ ± 0%   292.2µ ± 0%  -10.85% (p=0.000 n=10)
+    geomean               52.87µ        47.31µ       -10.51%
+    
+                        │   sha512.1   │               sha512.2               │
+                        │     B/s      │     B/s       vs base                │
+    Hash8Bytes/New-4      839.8Ki ± 0%   908.2Ki ± 0%   +8.14% (p=0.000 n=10)
+    Hash8Bytes/Sum384-4   888.7Ki ± 1%   976.6Ki ± 0%   +9.89% (p=0.000 n=10)
+    Hash8Bytes/Sum512-4   839.8Ki ± 0%   957.0Ki ± 0%  +13.95% (p=0.000 n=10)
+    Hash1K/New-4          19.69Mi ± 0%   22.03Mi ± 0%  +11.86% (p=0.000 n=10)
+    Hash1K/Sum384-4       19.96Mi ± 0%   22.31Mi ± 0%  +11.75% (p=0.000 n=10)
+    Hash1K/Sum512-4       19.74Mi ± 0%   22.21Mi ± 0%  +12.51% (p=0.000 n=10)
+    Hash8K/New-4          23.82Mi ± 0%   26.70Mi ± 0%  +12.09% (p=0.000 n=10)
+    Hash8K/Sum384-4       23.87Mi ± 0%   26.75Mi ± 0%  +12.07% (p=0.000 n=10)
+    Hash8K/Sum512-4       23.83Mi ± 0%   26.73Mi ± 0%  +12.16% (p=0.000 n=10)
+    geomean               7.334Mi        8.184Mi       +11.59%
+    
+    Change-Id: I66e359e96b25b38efbc4d840e6b2d6a1e5d417ec
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605495
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Mark Ryan <markdryan@rivosinc.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+---
+ .../internal/fips/sha512/sha512block_riscv64.s     | 24 +++++++++++-----------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/internal/fips/sha512/sha512block_riscv64.s b/src/crypto/internal/fips/sha512/sha512block_riscv64.s
+index 9614f52009..2b156271e6 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_riscv64.s
++++ b/src/crypto/internal/fips/sha512/sha512block_riscv64.s
+@@ -100,38 +100,38 @@
+ //   T1 = h + BIGSIGMA1(e) + Ch(e, f, g) + Kt + Wt
+ //     BIGSIGMA1(x) = ROTR(14,x) XOR ROTR(18,x) XOR ROTR(41,x)
+ //     Ch(x, y, z) = (x AND y) XOR (NOT x AND z)
++//                 = ((y XOR z) AND x) XOR z
+ #define SHA512T1(index, e, f, g, h) \
+ 	MOV	(index*8)(X18), X8; \
+ 	ADD	X5, h; \
+ 	ROR	$14, e, X6; \
+ 	ADD	X8, h; \
+ 	ROR	$18, e, X7; \
+-	XOR	X7, X6; \
+ 	ROR	$41, e, X8; \
++	XOR	X7, X6; \
++	XOR	f, g, X5; \
+ 	XOR	X8, X6; \
++	AND	e, X5; \
+ 	ADD	X6, h; \
+-	AND	e, f, X5; \
+-	NOT	e, X7; \
+-	AND	g, X7; \
+-	XOR	X7, X5; \
++	XOR	g, X5; \
+ 	ADD	h, X5
+ 
+ // Calculate T2 in X6.
+ //   T2 = BIGSIGMA0(a) + Maj(a, b, c)
+ //     BIGSIGMA0(x) = ROTR(28,x) XOR ROTR(34,x) XOR ROTR(39,x)
+ //     Maj(x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
++//                  = ((y XOR z) AND x) XOR (y AND z)
+ #define SHA512T2(a, b, c) \
+ 	ROR	$28, a, X6; \
+ 	ROR	$34, a, X7; \
+-	XOR	X7, X6; \
+ 	ROR	$39, a, X8; \
++	XOR	X7, X6; \
++	XOR	b, c, X9; \
++	AND	b, c, X7; \
++	AND	a, X9; \
+ 	XOR	X8, X6; \
+-	AND	a, b, X7; \
+-	AND	a, c, X8; \
+-	XOR	X8, X7; \
+-	AND	b, c, X9; \
+-	XOR	X9, X7; \
+-	ADD	X7, X6
++	XOR	X7, X9; \
++	ADD	X9, X6
+ 
+ // Calculate T1 and T2, then e = d + T1 and a = T1 + T2.
+ // The values for e and a are stored in d and h, ready for rotation.

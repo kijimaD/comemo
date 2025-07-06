@@ -1,0 +1,97 @@
+commit ceaf26ecce663e75c4f4b476dc3c64fa58a2f0dd
+Author: zuojunwei.1024 <zuojunwei.1024@bytedance.com>
+Date:   Tue Feb 27 19:14:00 2024 +0800
+
+    [release-branch.go1.22] cmd/compile: mark pointer to noalg type as noalg
+    
+    When the compiler writes PtrToThis field of noalg type, it generates
+    its pointer type. Mark them as noalg to prevent put them in typelinks.
+    
+    Fixes #65983
+    
+    Change-Id: Icbc3b18bc866f9138c7648e42dd500a80326f72b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/567335
+    Reviewed-by: Matthew Dempsky <mdempsky@google.com>
+    Auto-Submit: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    (cherry picked from commit b8c76effd9a3a30d66e44ed7acea789e4e95b926)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593876
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/types/type.go |  3 +++
+ test/fixedbugs/issue65957.dir/a.go     | 12 ++++++++++++
+ test/fixedbugs/issue65957.dir/main.go  | 19 +++++++++++++++++++
+ test/fixedbugs/issue65957.go           |  7 +++++++
+ 4 files changed, 41 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types/type.go b/src/cmd/compile/internal/types/type.go
+index 2777b4f007..c2b0ca3a44 100644
+--- a/src/cmd/compile/internal/types/type.go
++++ b/src/cmd/compile/internal/types/type.go
+@@ -657,6 +657,9 @@ func NewPtr(elem *Type) *Type {
+ 	if elem.HasShape() {
+ 		t.SetHasShape(true)
+ 	}
++	if elem.Noalg() {
++		t.SetNoalg(true)
++	}
+ 	return t
+ }
+ 
+diff --git a/test/fixedbugs/issue65957.dir/a.go b/test/fixedbugs/issue65957.dir/a.go
+new file mode 100644
+index 0000000000..284ec4af9f
+--- /dev/null
++++ b/test/fixedbugs/issue65957.dir/a.go
+@@ -0,0 +1,12 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package a
++
++var s any
++
++//go:noinline
++func F() {
++	s = new([4]int32)
++}
+diff --git a/test/fixedbugs/issue65957.dir/main.go b/test/fixedbugs/issue65957.dir/main.go
+new file mode 100644
+index 0000000000..89b8a28234
+--- /dev/null
++++ b/test/fixedbugs/issue65957.dir/main.go
+@@ -0,0 +1,19 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"./a"
++	"reflect"
++)
++
++var s = []rune{0, 1, 2, 3}
++
++func main() {
++	m := map[any]int{}
++	k := reflect.New(reflect.ArrayOf(4, reflect.TypeOf(int32(0)))).Elem().Interface()
++	m[k] = 1
++	a.F()
++}
+diff --git a/test/fixedbugs/issue65957.go b/test/fixedbugs/issue65957.go
+new file mode 100644
+index 0000000000..48e4d34c93
+--- /dev/null
++++ b/test/fixedbugs/issue65957.go
+@@ -0,0 +1,7 @@
++// rundir
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package ignored

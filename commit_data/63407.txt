@@ -1,0 +1,73 @@
+commit ae0a08dee964772fbb36008f03a5f082a405e219
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Mar 8 23:02:34 2024 +0000
+
+    runtime: use maxprocs instead of stwprocs for GC CPU pause time metrics
+    
+    Currently we use stwprocs as the multiplier for the STW CPU time
+    computation, but this isn't the same as GOMAXPROCS, which is used for
+    the total time in the CPU metrics. The two numbers need to be
+    comparable, so this change switches to using maxprocs to make it so.
+    
+    Change-Id: I423e3c441d05b1bd656353368cb323289661e302
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/570256
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Nicolas Hillegeer <aktau@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/mgc.go    | 15 ++++++++++++---
+ src/runtime/mstats.go |  6 +++---
+ 2 files changed, 15 insertions(+), 6 deletions(-)
+
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 74a96768a7..1da6114ab8 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -748,7 +748,11 @@ func gcStart(trigger gcTrigger) {
+ 		work.tMark = now
+ 
+ 		// Update the CPU stats pause time.
+-		work.cpuStats.accumulateGCPauseTime(now-work.tSweepTerm, work.stwprocs)
++		//
++		// Use maxprocs instead of stwprocs here because the total time
++		// computed in the CPU stats is based on maxprocs, and we want them
++		// to be comparable.
++		work.cpuStats.accumulateGCPauseTime(now-work.tSweepTerm, work.maxprocs)
+ 
+ 		// Release the CPU limiter.
+ 		gcCPULimiter.finishGCTransition(now)
+@@ -1018,8 +1022,13 @@ func gcMarkTermination(stw worldStop) {
+ 
+ 	// Accumulate CPU stats.
+ 	//
+-	// Pass gcMarkPhase=true so we can get all the latest GC CPU stats in there too.
+-	work.cpuStats.accumulateGCPauseTime(work.tEnd-work.tMarkTerm, work.stwprocs)
++	// Use maxprocs instead of stwprocs for GC pause time because the total time
++	// computed in the CPU stats is based on maxprocs, and we want them to be
++	// comparable.
++	//
++	// Pass gcMarkPhase=true to accumulate so we can get all the latest GC CPU stats
++	// in there too.
++	work.cpuStats.accumulateGCPauseTime(work.tEnd-work.tMarkTerm, work.maxprocs)
+ 	work.cpuStats.accumulate(now, true)
+ 
+ 	// Compute overall GC CPU utilization.
+diff --git a/src/runtime/mstats.go b/src/runtime/mstats.go
+index f838d139b5..3d1471c576 100644
+--- a/src/runtime/mstats.go
++++ b/src/runtime/mstats.go
+@@ -922,11 +922,11 @@ type cpuStats struct {
+ }
+ 
+ // accumulateGCPauseTime add dt*stwProcs to the GC CPU pause time stats. dt should be
+-// the actual time spent paused, for orthogonality. stwProcs should be GOMAXPROCS,
++// the actual time spent paused, for orthogonality. maxProcs should be GOMAXPROCS,
+ // not work.stwprocs, since this number must be comparable to a total time computed
+ // from GOMAXPROCS.
+-func (s *cpuStats) accumulateGCPauseTime(dt int64, stwProcs int32) {
+-	cpu := dt * int64(stwProcs)
++func (s *cpuStats) accumulateGCPauseTime(dt int64, maxProcs int32) {
++	cpu := dt * int64(maxProcs)
+ 	s.gcPauseTime += cpu
+ 	s.gcTotalTime += cpu
+ }

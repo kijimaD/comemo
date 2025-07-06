@@ -1,0 +1,34 @@
+commit 0e7f5cf30ba43f4d388803642b4173e5af20e761
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Fri Apr 26 14:47:37 2024 -0400
+
+    doc/README.md: discourage RELNOTE in CLs
+    
+    Release notes should always be files under doc/next. Make it clear that
+    this is the only way to add them: RELNOTE markers in CLs are no longer
+    supported.
+    
+    Change-Id: I34d77eb876f57b84ecdc7e5ecbf3eb5c91e6fed8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582075
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    TryBot-Bypass: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ doc/README.md | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/doc/README.md b/doc/README.md
+index 666e0966c9..c2b320711f 100644
+--- a/doc/README.md
++++ b/doc/README.md
+@@ -4,7 +4,9 @@ The `initial` and `next` subdirectories of this directory are for release notes.
+ 
+ ## For developers
+ 
+-Release notes should be added to `next` by editing existing files or creating new files.
++Release notes should be added to `next` by editing existing files or creating
++new files. **Do not add RELNOTE=yes comments in CLs.** Instead, add a file to
++the CL (or ask the author to do so).
+ 
+ At the end of the development cycle, the files will be merged by being
+ concatenated in sorted order by pathname. Files in the directory matching the

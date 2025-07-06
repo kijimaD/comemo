@@ -1,0 +1,233 @@
+commit 4ce1c8e9e1aab695bb0da506f2de336a5caa81f6
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Tue May 20 10:28:17 2025 +0800
+
+    cmd/compile: add rules about ORN and ANDN
+    
+    Reduce the number of go toolchain instructions on loong64 as follows.
+    
+        file      before    after     Δ       %
+        addr2line 279880    279776  -104   -0.0372%
+        asm       556638    556410  -228   -0.0410%
+        buildid   272272    272072  -200   -0.0735%
+        cgo       481522    481318  -204   -0.0424%
+        compile   2457788   2457580 -208   -0.0085%
+        covdata   323384    323280  -104   -0.0322%
+        cover     518450    518234  -216   -0.0417%
+        dist      340790    340686  -104   -0.0305%
+        distpack  282456    282252  -204   -0.0722%
+        doc       789932    789688  -244   -0.0309%
+        fix       324332    324228  -104   -0.0321%
+        link      704622    704390  -232   -0.0329%
+        nm        277132    277028  -104   -0.0375%
+        objdump   507862    507758  -104   -0.0205%
+        pack      221774    221674  -100   -0.0451%
+        pprof     1469816   1469552 -264   -0.0180%
+        test2json 254836    254732  -104   -0.0408%
+        trace     1100002   1099738 -264   -0.0240%
+        vet       781078    780874  -204   -0.0261%
+        go        1529116   1528848 -268   -0.0175%
+        gofmt     318556    318448  -108   -0.0339%
+        total     13792238 13788566 -3672  -0.0266%
+    
+    Change-Id: I23fb3ebd41309252c7075e57ea7094e79f8c4fef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674335
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+---
+ src/cmd/compile/internal/loong64/ssa.go         |  2 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  3 ++
+ src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go |  2 ++
+ src/cmd/compile/internal/ssa/opGen.go           | 30 ++++++++++++++++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 47 +++++++++++++++++++++++++
+ test/codegen/bits.go                            |  6 ++++
+ 6 files changed, 90 insertions(+)
+
+diff --git a/src/cmd/compile/internal/loong64/ssa.go b/src/cmd/compile/internal/loong64/ssa.go
+index 03d7a1082a..a71a5c3e43 100644
+--- a/src/cmd/compile/internal/loong64/ssa.go
++++ b/src/cmd/compile/internal/loong64/ssa.go
+@@ -165,6 +165,8 @@ func ssaGenValue(s *ssagen.State, v *ssa.Value) {
+ 		ssa.OpLOONG64OR,
+ 		ssa.OpLOONG64XOR,
+ 		ssa.OpLOONG64NOR,
++		ssa.OpLOONG64ANDN,
++		ssa.OpLOONG64ORN,
+ 		ssa.OpLOONG64SLL,
+ 		ssa.OpLOONG64SLLV,
+ 		ssa.OpLOONG64SRL,
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index bec8493b99..cab63a503f 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -782,6 +782,9 @@
+ (AND x x) => x
+ (OR  x x) => x
+ (XOR x x) => (MOVVconst [0])
++(ORN x (MOVVconst [-1])) => x
++(AND x (NORconst [0] y)) => (ANDN x y)
++(OR x (NORconst [0] y)) => (ORN x y)
+ 
+ // Fold negation into subtraction.
+ (NEGV (SUBV x y)) => (SUBV y x)
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+index dbfbcf1fd0..5ef304b4f9 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64Ops.go
+@@ -221,6 +221,8 @@ func init() {
+ 		{name: "XORconst", argLength: 1, reg: gp11, asm: "XOR", aux: "Int64", typ: "UInt64"}, // arg0 ^ auxInt
+ 		{name: "NOR", argLength: 2, reg: gp21, asm: "NOR", commutative: true},                // ^(arg0 | arg1)
+ 		{name: "NORconst", argLength: 1, reg: gp11, asm: "NOR", aux: "Int64"},                // ^(arg0 | auxInt)
++		{name: "ANDN", argLength: 2, reg: gp21, asm: "ANDN"},                                 // arg0 & ^arg1
++		{name: "ORN", argLength: 2, reg: gp21, asm: "ORN"},                                   // arg0 | ^arg1
+ 
+ 		{name: "FMADDF", argLength: 3, reg: fp31, asm: "FMADDF", commutative: true, typ: "Float32"},   // (arg0 * arg1) + arg2
+ 		{name: "FMADDD", argLength: 3, reg: fp31, asm: "FMADDD", commutative: true, typ: "Float64"},   // (arg0 * arg1) + arg2
+diff --git a/src/cmd/compile/internal/ssa/opGen.go b/src/cmd/compile/internal/ssa/opGen.go
+index 615aca3ba6..37af79f9a3 100644
+--- a/src/cmd/compile/internal/ssa/opGen.go
++++ b/src/cmd/compile/internal/ssa/opGen.go
+@@ -1810,6 +1810,8 @@ const (
+ 	OpLOONG64XORconst
+ 	OpLOONG64NOR
+ 	OpLOONG64NORconst
++	OpLOONG64ANDN
++	OpLOONG64ORN
+ 	OpLOONG64FMADDF
+ 	OpLOONG64FMADDD
+ 	OpLOONG64FMSUBF
+@@ -24379,6 +24381,34 @@ var opcodeTable = [...]opInfo{
+ 			},
+ 		},
+ 	},
++	{
++		name:   "ANDN",
++		argLen: 2,
++		asm:    loong64.AANDN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{1, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
++	{
++		name:   "ORN",
++		argLen: 2,
++		asm:    loong64.AORN,
++		reg: regInfo{
++			inputs: []inputInfo{
++				{0, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++				{1, 1073741816}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 g R23 R24 R25 R26 R27 R28 R29 R31
++			},
++			outputs: []outputInfo{
++				{0, 1071644664}, // R4 R5 R6 R7 R8 R9 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R23 R24 R25 R26 R27 R28 R29 R31
++			},
++		},
++	},
+ 	{
+ 		name:        "FMADDF",
+ 		argLen:      3,
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index f6575a8181..7c46ed7727 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -436,6 +436,8 @@ func rewriteValueLOONG64(v *Value) bool {
+ 		return rewriteValueLOONG64_OpLOONG64NORconst(v)
+ 	case OpLOONG64OR:
+ 		return rewriteValueLOONG64_OpLOONG64OR(v)
++	case OpLOONG64ORN:
++		return rewriteValueLOONG64_OpLOONG64ORN(v)
+ 	case OpLOONG64ORconst:
+ 		return rewriteValueLOONG64_OpLOONG64ORconst(v)
+ 	case OpLOONG64REMV:
+@@ -1926,6 +1928,21 @@ func rewriteValueLOONG64_OpLOONG64AND(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (AND x (NORconst [0] y))
++	// result: (ANDN x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpLOONG64NORconst || auxIntToInt64(v_1.AuxInt) != 0 {
++				continue
++			}
++			y := v_1.Args[0]
++			v.reset(OpLOONG64ANDN)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
+ 	return false
+ }
+ func rewriteValueLOONG64_OpLOONG64ANDconst(v *Value) bool {
+@@ -5583,6 +5600,36 @@ func rewriteValueLOONG64_OpLOONG64OR(v *Value) bool {
+ 		v.copyOf(x)
+ 		return true
+ 	}
++	// match: (OR x (NORconst [0] y))
++	// result: (ORN x y)
++	for {
++		for _i0 := 0; _i0 <= 1; _i0, v_0, v_1 = _i0+1, v_1, v_0 {
++			x := v_0
++			if v_1.Op != OpLOONG64NORconst || auxIntToInt64(v_1.AuxInt) != 0 {
++				continue
++			}
++			y := v_1.Args[0]
++			v.reset(OpLOONG64ORN)
++			v.AddArg2(x, y)
++			return true
++		}
++		break
++	}
++	return false
++}
++func rewriteValueLOONG64_OpLOONG64ORN(v *Value) bool {
++	v_1 := v.Args[1]
++	v_0 := v.Args[0]
++	// match: (ORN x (MOVVconst [-1]))
++	// result: x
++	for {
++		x := v_0
++		if v_1.Op != OpLOONG64MOVVconst || auxIntToInt64(v_1.AuxInt) != -1 {
++			break
++		}
++		v.copyOf(x)
++		return true
++	}
+ 	return false
+ }
+ func rewriteValueLOONG64_OpLOONG64ORconst(v *Value) bool {
+diff --git a/test/codegen/bits.go b/test/codegen/bits.go
+index 95e0ed85e4..7974f471fc 100644
+--- a/test/codegen/bits.go
++++ b/test/codegen/bits.go
+@@ -332,6 +332,7 @@ func op_eon(x, y, z uint32, a []uint32, n, m uint64) uint64 {
+ 
+ func op_orn(x, y uint32) uint32 {
+ 	// arm64:`ORN\t`,-`ORR`
++	// loong64:"ORN"\t,-"OR\t"
+ 	return x | ^y
+ }
+ 
+@@ -344,6 +345,11 @@ func op_nor(x int64, a []int64) {
+ 	a[2] = ^(0x12 | 0x34)
+ }
+ 
++func op_andn(x, y uint32) uint32 {
++	// loong64:"ANDN\t",-"AND\t"
++	return x &^ y
++}
++
+ // check bitsets
+ func bitSetPowerOf2Test(x int) bool {
+ 	// amd64:"BTL\t[$]3"

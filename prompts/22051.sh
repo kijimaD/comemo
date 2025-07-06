@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 22051: 6e70fddec0e1d4a43ffb450f555dde82ff313397
+# Index 22051: 326ceeabc46db98cccfbde80fde562c0fb3325c3
 
 echo "🚀 Generating explanation for commit 22051..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 22051..."
 
 ### メタデータ
 - **コミットインデックス**: 22051
-- **コミットハッシュ**: 6e70fddec0e1d4a43ffb450f555dde82ff313397
-- **GitHub URL**: https://github.com/golang/go/commit/6e70fddec0e1d4a43ffb450f555dde82ff313397
+- **コミットハッシュ**: 326ceeabc46db98cccfbde80fde562c0fb3325c3
+- **GitHub URL**: https://github.com/golang/go/commit/326ceeabc46db98cccfbde80fde562c0fb3325c3
 
 ### 章構成
 

@@ -1,0 +1,175 @@
+commit 3cb0c039e9bdc4bf8ca7cc31dc7432f9f37d4079
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Mon Oct 21 21:47:40 2024 +0000
+
+    cmd/asm: add support for LDREXB/STREXB
+    
+    These are 8-bit ARM Load/Store atomics and are available starting from armv6k.
+    
+    See https://developer.arm.com/documentation/dui0379/e/arm-and-thumb-instructions/strex
+    
+    For #69735
+    
+    Change-Id: I12623433c89070495c178208ee4758b3cdefd368
+    GitHub-Last-Rev: d6a797836af1dccdcc6e6554725546b386d01615
+    GitHub-Pull-Request: golang/go#69959
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-arm
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621395
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/asm/internal/arch/arm.go             |  2 +-
+ src/cmd/asm/internal/asm/testdata/armerror.s |  2 ++
+ src/cmd/asm/internal/asm/testdata/armv6.s    |  2 ++
+ src/cmd/internal/obj/arm/a.out.go            |  2 ++
+ src/cmd/internal/obj/arm/anames.go           |  2 ++
+ src/cmd/internal/obj/arm/asm5.go             | 34 +++++++++++++++++++++-------
+ 6 files changed, 35 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arm.go b/src/cmd/asm/internal/arch/arm.go
+index 22ac483b92..3968449842 100644
+--- a/src/cmd/asm/internal/arch/arm.go
++++ b/src/cmd/asm/internal/arch/arm.go
+@@ -101,7 +101,7 @@ func IsARMCMP(op obj.As) bool {
+ // one of the STREX-like instructions that require special handling.
+ func IsARMSTREX(op obj.As) bool {
+ 	switch op {
+-	case arm.ASTREX, arm.ASTREXD, arm.ASWPW, arm.ASWPBU:
++	case arm.ASTREX, arm.ASTREXD, arm.ASTREXB, arm.ASWPW, arm.ASWPBU:
+ 		return true
+ 	}
+ 	return false
+diff --git a/src/cmd/asm/internal/asm/testdata/armerror.s b/src/cmd/asm/internal/asm/testdata/armerror.s
+index f2bed8d1c3..8aa16aa9cf 100644
+--- a/src/cmd/asm/internal/asm/testdata/armerror.s
++++ b/src/cmd/asm/internal/asm/testdata/armerror.s
+@@ -260,5 +260,7 @@ TEXT errors(SB),$0
+ 	STREXD	R0, (R2), R1       // ERROR "cannot use same register as both source and destination"
+ 	STREXD	R0, (R2), R2       // ERROR "cannot use same register as both source and destination"
+ 	STREXD	R1, (R4), R7       // ERROR "must be even"
++	STREXB	R0, (R2), R0       // ERROR "cannot use same register as both source and destination"
++	STREXB	R0, (R2), R2       // ERROR "cannot use same register as both source and destination"
+ 
+ 	END
+diff --git a/src/cmd/asm/internal/asm/testdata/armv6.s b/src/cmd/asm/internal/asm/testdata/armv6.s
+index 361867fdc2..faca772345 100644
+--- a/src/cmd/asm/internal/asm/testdata/armv6.s
++++ b/src/cmd/asm/internal/asm/testdata/armv6.s
+@@ -52,8 +52,10 @@ TEXT	foo(SB), DUPOK|NOSPLIT, $0
+ 	MOVDF	F4, F5        // c45bb7ee
+ 
+ 	LDREX	(R8), R9      // 9f9f98e1
++	LDREXB	(R11), R12    // 9fcfdbe1
+ 	LDREXD	(R11), R12    // 9fcfbbe1
+ 	STREX	R3, (R4), R5  // STREX  (R4), R3, R5 // 935f84e1
++	STREXB	R8, (R9), g   // STREXB (R9), R8, g  // 98afc9e1
+ 	STREXD	R8, (R9), g   // STREXD (R9), R8, g  // 98afa9e1
+ 
+ 	CMPF    F8, F9        // c89ab4ee10faf1ee
+diff --git a/src/cmd/internal/obj/arm/a.out.go b/src/cmd/internal/obj/arm/a.out.go
+index fd695ad0c9..fabd0cb50f 100644
+--- a/src/cmd/internal/obj/arm/a.out.go
++++ b/src/cmd/internal/obj/arm/a.out.go
+@@ -333,7 +333,9 @@ const (
+ 	ALDREX
+ 	ASTREX
+ 	ALDREXD
++	ALDREXB
+ 	ASTREXD
++	ASTREXB
+ 
+ 	ADMB
+ 
+diff --git a/src/cmd/internal/obj/arm/anames.go b/src/cmd/internal/obj/arm/anames.go
+index f5e92defc9..04537759c1 100644
+--- a/src/cmd/internal/obj/arm/anames.go
++++ b/src/cmd/internal/obj/arm/anames.go
+@@ -117,7 +117,9 @@ var Anames = []string{
+ 	"LDREX",
+ 	"STREX",
+ 	"LDREXD",
++	"LDREXB",
+ 	"STREXD",
++	"STREXB",
+ 	"DMB",
+ 	"PLD",
+ 	"CLZ",
+diff --git a/src/cmd/internal/obj/arm/asm5.go b/src/cmd/internal/obj/arm/asm5.go
+index a02519c147..bf9623c206 100644
+--- a/src/cmd/internal/obj/arm/asm5.go
++++ b/src/cmd/internal/obj/arm/asm5.go
+@@ -318,7 +318,9 @@ var optab = []Optab{
+ 	{AMOVW, C_REG, C_NONE, C_FREG, 88, 4, 0, 0, 0, 0},
+ 	{AMOVW, C_FREG, C_NONE, C_REG, 89, 4, 0, 0, 0, 0},
+ 	{ALDREXD, C_SOREG, C_NONE, C_REG, 91, 4, 0, 0, 0, 0},
++	{ALDREXB, C_SOREG, C_NONE, C_REG, 91, 4, 0, 0, 0, 0},
+ 	{ASTREXD, C_SOREG, C_REG, C_REG, 92, 4, 0, 0, 0, 0},
++	{ASTREXB, C_SOREG, C_REG, C_REG, 92, 4, 0, 0, 0, 0},
+ 	{APLD, C_SOREG, C_NONE, C_NONE, 95, 4, 0, 0, 0, 0},
+ 	{obj.AUNDEF, C_NONE, C_NONE, C_NONE, 96, 4, 0, 0, 0, 0},
+ 	{ACLZ, C_REG, C_NONE, C_REG, 97, 4, 0, 0, 0, 0},
+@@ -1432,7 +1434,9 @@ func buildop(ctxt *obj.Link) {
+ 		case ALDREX,
+ 			ASTREX,
+ 			ALDREXD,
++			ALDREXB,
+ 			ASTREXD,
++			ASTREXB,
+ 			ADMB,
+ 			APLD,
+ 			AAND,
+@@ -2397,30 +2401,44 @@ func (c *ctxt5) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 |= (uint32(p.From.Reg) & 15) << 16
+ 		o1 |= (uint32(p.To.Reg) & 15) << 12
+ 
+-	case 91: /* ldrexd oreg,reg */
++	case 91: /* ldrexd/ldrexb oreg,reg */
+ 		c.aclass(&p.From)
+ 
+ 		if c.instoffset != 0 {
+ 			c.ctxt.Diag("offset must be zero in LDREX")
+ 		}
+-		o1 = 0x1b<<20 | 0xf9f
++
++		switch p.As {
++		case ALDREXD:
++			o1 = 0x1b << 20
++		case ALDREXB:
++			o1 = 0x1d << 20
++		}
++		o1 |= 0xf9f
+ 		o1 |= (uint32(p.From.Reg) & 15) << 16
+ 		o1 |= (uint32(p.To.Reg) & 15) << 12
+ 		o1 |= ((uint32(p.Scond) & C_SCOND) ^ C_SCOND_XOR) << 28
+ 
+-	case 92: /* strexd reg,oreg,reg */
++	case 92: /* strexd/strexb reg,oreg,reg */
+ 		c.aclass(&p.From)
+ 
+ 		if c.instoffset != 0 {
+ 			c.ctxt.Diag("offset must be zero in STREX")
+ 		}
+-		if p.Reg&1 != 0 {
+-			c.ctxt.Diag("source register must be even in STREXD: %v", p)
+-		}
+-		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg || p.To.Reg == p.Reg+1 {
++		if p.To.Reg == p.From.Reg || p.To.Reg == p.Reg || (p.As == ASTREXD && p.To.Reg == p.Reg+1) {
+ 			c.ctxt.Diag("cannot use same register as both source and destination: %v", p)
+ 		}
+-		o1 = 0x1a<<20 | 0xf90
++
++		switch p.As {
++		case ASTREXD:
++			if p.Reg&1 != 0 {
++				c.ctxt.Diag("source register must be even in STREXD: %v", p)
++			}
++			o1 = 0x1a << 20
++		case ASTREXB:
++			o1 = 0x1c << 20
++		}
++		o1 |= 0xf90
+ 		o1 |= (uint32(p.From.Reg) & 15) << 16
+ 		o1 |= (uint32(p.Reg) & 15) << 0
+ 		o1 |= (uint32(p.To.Reg) & 15) << 12

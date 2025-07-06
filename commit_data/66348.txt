@@ -1,0 +1,185 @@
+commit 5ffdb9c88bd0c79ed2d339548d9c7e09bb3fbf30
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Fri Feb 21 15:53:51 2025 +0000
+
+    [release-branch.go1.24] reflect: correctly handle method values in Seq
+    
+    Currently method values aren't correctly handled in Seq because we call
+    canRangeFunc on the reciever type, not the method value type, when we're
+    handling a method value. reflect.Value.Type has the logic to obtain the
+    method value type from the Value.
+    
+    This change slightly refactors reflect.Value.Type into a separate
+    function so we can obtain the correct type as an abi.Type and pass it
+    off to canRangeFunc (and canRangeFunc2).
+    
+    For #71874.
+    Fixes #71876.
+    
+    Change-Id: Ie62dfca2a84b8f2f816bb87ff1ed1a58a7bb8122
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651416
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    (cherry picked from commit d93f6df0cc4f33127ef76fa994edd54d7726d0a9)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651515
+---
+ src/reflect/iter.go      |  4 ++--
+ src/reflect/iter_test.go | 51 ++++++++++++++++++++++++++++++++++++++++++++++++
+ src/reflect/value.go     | 21 +++++++++++++++++---
+ 3 files changed, 71 insertions(+), 5 deletions(-)
+
+diff --git a/src/reflect/iter.go b/src/reflect/iter.go
+index 36472013cb..2ee826da7d 100644
+--- a/src/reflect/iter.go
++++ b/src/reflect/iter.go
+@@ -27,7 +27,7 @@ func rangeNum[T int8 | int16 | int32 | int64 | int |
+ // Uint, Uint8, Uint16, Uint32, Uint64, Uintptr,
+ // Array, Chan, Map, Slice, or String.
+ func (v Value) Seq() iter.Seq[Value] {
+-	if canRangeFunc(v.typ()) {
++	if canRangeFunc(v.abiType()) {
+ 		return func(yield func(Value) bool) {
+ 			rf := MakeFunc(v.Type().In(0), func(in []Value) []Value {
+ 				return []Value{ValueOf(yield(in[0]))}
+@@ -113,7 +113,7 @@ func (v Value) Seq() iter.Seq[Value] {
+ // If v's kind is Pointer, the pointer element type must have kind Array.
+ // Otherwise v's kind must be Array, Map, Slice, or String.
+ func (v Value) Seq2() iter.Seq2[Value, Value] {
+-	if canRangeFunc2(v.typ()) {
++	if canRangeFunc2(v.abiType()) {
+ 		return func(yield func(Value, Value) bool) {
+ 			rf := MakeFunc(v.Type().In(0), func(in []Value) []Value {
+ 				return []Value{ValueOf(yield(in[0], in[1]))}
+diff --git a/src/reflect/iter_test.go b/src/reflect/iter_test.go
+index 00ae521af9..b8e8e32ee7 100644
+--- a/src/reflect/iter_test.go
++++ b/src/reflect/iter_test.go
+@@ -173,6 +173,18 @@ func TestValueSeq(t *testing.T) {
+ 				t.Fatalf("should loop four times")
+ 			}
+ 		}},
++		{"method", ValueOf(methodIter{}).Method(0), func(t *testing.T, s iter.Seq[Value]) {
++			i := int64(0)
++			for v := range s {
++				if v.Int() != i {
++					t.Fatalf("got %d, want %d", v.Int(), i)
++				}
++				i++
++			}
++			if i != 4 {
++				t.Fatalf("should loop four times")
++			}
++		}},
+ 	}
+ 	for _, tc := range tests {
+ 		seq := tc.val.Seq()
+@@ -293,9 +305,48 @@ func TestValueSeq2(t *testing.T) {
+ 				t.Fatalf("should loop four times")
+ 			}
+ 		}},
++		{"method", ValueOf(methodIter2{}).Method(0), func(t *testing.T, s iter.Seq2[Value, Value]) {
++			i := int64(0)
++			for v1, v2 := range s {
++				if v1.Int() != i {
++					t.Fatalf("got %d, want %d", v1.Int(), i)
++				}
++				i++
++				if v2.Int() != i {
++					t.Fatalf("got %d, want %d", v2.Int(), i)
++				}
++			}
++			if i != 4 {
++				t.Fatalf("should loop four times")
++			}
++		}},
+ 	}
+ 	for _, tc := range tests {
+ 		seq := tc.val.Seq2()
+ 		tc.check(t, seq)
+ 	}
+ }
++
++// methodIter is a type from which we can derive a method
++// value that is an iter.Seq.
++type methodIter struct{}
++
++func (methodIter) Seq(yield func(int) bool) {
++	for i := range 4 {
++		if !yield(i) {
++			return
++		}
++	}
++}
++
++// methodIter2 is a type from which we can derive a method
++// value that is an iter.Seq2.
++type methodIter2 struct{}
++
++func (methodIter2) Seq2(yield func(int, int) bool) {
++	for i := range 4 {
++		if !yield(i, i+1) {
++			return
++		}
++	}
++}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index ba5b106c18..881664d21a 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -93,6 +93,9 @@ func (f flag) ro() flag {
+ 	return 0
+ }
+ 
++// typ returns the *abi.Type stored in the Value. This method is fast,
++// but it doesn't always return the correct type for the Value.
++// See abiType and Type, which do return the correct type.
+ func (v Value) typ() *abi.Type {
+ 	// Types are either static (for compiler-created types) or
+ 	// heap-allocated but always reachable (for reflection-created
+@@ -2380,14 +2383,26 @@ func (v Value) Type() Type {
+ 	return v.typeSlow()
+ }
+ 
++//go:noinline
+ func (v Value) typeSlow() Type {
++	return toRType(v.abiTypeSlow())
++}
++
++func (v Value) abiType() *abi.Type {
++	if v.flag != 0 && v.flag&flagMethod == 0 {
++		return v.typ()
++	}
++	return v.abiTypeSlow()
++}
++
++func (v Value) abiTypeSlow() *abi.Type {
+ 	if v.flag == 0 {
+ 		panic(&ValueError{"reflect.Value.Type", Invalid})
+ 	}
+ 
+ 	typ := v.typ()
+ 	if v.flag&flagMethod == 0 {
+-		return toRType(v.typ())
++		return v.typ()
+ 	}
+ 
+ 	// Method value.
+@@ -2400,7 +2415,7 @@ func (v Value) typeSlow() Type {
+ 			panic("reflect: internal error: invalid method index")
+ 		}
+ 		m := &tt.Methods[i]
+-		return toRType(typeOffFor(typ, m.Typ))
++		return typeOffFor(typ, m.Typ)
+ 	}
+ 	// Method on concrete type.
+ 	ms := typ.ExportedMethods()
+@@ -2408,7 +2423,7 @@ func (v Value) typeSlow() Type {
+ 		panic("reflect: internal error: invalid method index")
+ 	}
+ 	m := ms[i]
+-	return toRType(typeOffFor(typ, m.Mtyp))
++	return typeOffFor(typ, m.Mtyp)
+ }
+ 
+ // CanUint reports whether [Value.Uint] can be used without panicking.

@@ -1,0 +1,89 @@
+commit 72801623cbe4cedcb3334d31fa44ff31914a26d5
+Author: Russ Cox <rsc@golang.org>
+Date:   Wed Oct 30 19:23:47 2024 -0400
+
+    cmd/link/internal/ld: fix sort comparison
+    
+    Strictly speaking, the sort comparison was inconsistent
+    (and therefore invalid) for the sort-by-name case, if you had
+    
+            a size 0
+            b size 1
+            c size 0
+            zerobase
+    
+    That would result in the inconsistent comparison ordering:
+    
+            a < b (by name)
+            b < c (by name)
+            c < zerobase (by zerobase rule)
+            zerobase < b (by zerobase rule)
+    
+    This can't happen today because we only disable size-based
+    sort in a segment that has no zerobase symbol, but it's
+    confusing to reason through that, so clean up the code anyway.
+    
+    Passes golang.org/x/tools/cmd/toolstash/buildall.
+    
+    Change-Id: I21e4159cdedd2053952ba960530d1b0f28c6fb24
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/625615
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/link/internal/ld/data.go | 25 +++++++++++++------------
+ 1 file changed, 13 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 421293e1f9..f07ace1447 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -2240,12 +2240,12 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
+ 	// from input files. Both are type sym.SELFGOT, so in that case
+ 	// we skip size comparison and do the name comparison instead
+ 	// (conveniently, .got sorts before .toc).
+-	checkSize := symn != sym.SELFGOT
++	sortBySize := symn != sym.SELFGOT
+ 
+ 	for k, s := range syms {
+ 		ss := ldr.SymSize(s)
+ 		sl[k] = symNameSize{sz: ss, sym: s}
+-		if !checkSize {
++		if !sortBySize {
+ 			sl[k].name = ldr.SymName(s)
+ 		}
+ 		ds := int64(len(ldr.Data(s)))
+@@ -2286,15 +2286,16 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
+ 				return true
+ 			case sj == head, si == tail:
+ 				return false
+-			// put zerobase right after all the zero-sized symbols,
+-			// so zero-sized symbols have the same address as zerobase.
+-			case si == zerobase:
+-				return jsz != 0 // zerobase < nonzero-sized
+-			case sj == zerobase:
+-				return isz == 0 // 0-sized < zerobase
+-			}
+-			if checkSize {
+-				if isz != jsz {
++			}
++			if sortBySize {
++				switch {
++				// put zerobase right after all the zero-sized symbols,
++				// so zero-sized symbols have the same address as zerobase.
++				case si == zerobase:
++					return jsz != 0 // zerobase < nonzero-sized, zerobase > zero-sized
++				case sj == zerobase:
++					return isz == 0 // 0-sized < zerobase, nonzero-sized > zerobase
++				case isz != jsz:
+ 					return isz < jsz
+ 				}
+ 			} else {
+@@ -2304,7 +2305,7 @@ func (state *dodataState) dodataSect(ctxt *Link, symn sym.SymKind, syms []loader
+ 					return iname < jname
+ 				}
+ 			}
+-			return si < sj
++			return si < sj // break ties by symbol number
+ 		})
+ 	} else {
+ 		// PCLNTAB was built internally, and already has the proper order.

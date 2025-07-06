@@ -1,0 +1,40 @@
+commit 48240ad3f927b593de69d9aa6b22f96db982c578
+Author: Damien Neil <dneil@google.com>
+Date:   Wed Mar 19 13:13:51 2025 -0700
+
+    internal/syscall/unix: use correct number of params in unlinkat, fchownat
+    
+    We were calling syscall6 with an incorrect parameter count, omitting
+    the flags parameter.
+    
+    Change-Id: Ife606bd57c1e4b899c0340767e9197bbe0aa81a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659415
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/syscall/unix/at_libc.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/syscall/unix/at_libc.go b/src/internal/syscall/unix/at_libc.go
+index 23db8cf6ac..70417c0210 100644
+--- a/src/internal/syscall/unix/at_libc.go
++++ b/src/internal/syscall/unix/at_libc.go
+@@ -35,7 +35,7 @@ func Unlinkat(dirfd int, path string, flags int) error {
+ 		return err
+ 	}
+ 
+-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procUnlinkat)), 3, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), 0, 0, 0)
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procUnlinkat)), 4, uintptr(dirfd), uintptr(unsafe.Pointer(p)), uintptr(flags), 0, 0, 0)
+ 	if errno != 0 {
+ 		return errno
+ 	}
+@@ -134,7 +134,7 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+ 	if err != nil {
+ 		return err
+ 	}
+-	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFchownat)), 4,
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procFchownat)), 5,
+ 		uintptr(dirfd),
+ 		uintptr(unsafe.Pointer(p)),
+ 		uintptr(uid),

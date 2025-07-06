@@ -1,0 +1,101 @@
+commit ee7bfbdbcc75c17c9f6f357f7950cfae0d63811c
+Author: Paul Murphy <paumurph@redhat.com>
+Date:   Wed Jun 4 08:51:11 2025 -0500
+
+    cmd/compile/internal/ssa: fix PPC64 merging of (AND (S[RL]Dconst ...)
+    
+    CL 622236 forgot to check the mask was also a 32 bit rotate mask. Add
+    a modified version of isPPC64WordRotateMask which valids the mask is
+    contiguous and fits inside a uint32.
+    
+    I don't this is possible when merging SRDconst, the first check should
+    always reject such combines. But, be extra careful and do it there
+    too.
+    
+    Fixes #73153
+    
+    Change-Id: Ie95f74ec5e7d89dc761511126db814f886a7a435
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/679775
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Jayanth Krishnamurthy <jayanth.krishnamurthy@ibm.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/ssa/rewrite.go | 19 +++++++++++++++++--
+ test/codegen/shift.go                   | 10 ++++++++++
+ 2 files changed, 27 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index b32823283b..eb2c3b31b8 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -1583,6 +1583,11 @@ func GetPPC64Shiftme(auxint int64) int64 {
+ // operation.  Masks can also extend from the msb and wrap to
+ // the lsb too.  That is, the valid masks are 32 bit strings
+ // of the form: 0..01..10..0 or 1..10..01..1 or 1...1
++//
++// Note: This ignores the upper 32 bits of the input. When a
++// zero extended result is desired (e.g a 64 bit result), the
++// user must verify the upper 32 bits are 0 and the mask is
++// contiguous (that is, non-wrapping).
+ func isPPC64WordRotateMask(v64 int64) bool {
+ 	// Isolate rightmost 1 (if none 0) and add.
+ 	v := uint32(v64)
+@@ -1593,6 +1598,16 @@ func isPPC64WordRotateMask(v64 int64) bool {
+ 	return (v&vp == 0 || vn&vpn == 0) && v != 0
+ }
+ 
++// Test if this mask is a valid, contiguous bitmask which can be
++// represented by a RLWNM mask and also clears the upper 32 bits
++// of the register.
++func isPPC64WordRotateMaskNonWrapping(v64 int64) bool {
++	// Isolate rightmost 1 (if none 0) and add.
++	v := uint32(v64)
++	vp := (v & -v) + v
++	return (v&vp == 0) && v != 0 && uint64(uint32(v64)) == uint64(v64)
++}
++
+ // Compress mask and shift into single value of the form
+ // me | mb<<8 | rotate<<16 | nbits<<24 where me and mb can
+ // be used to regenerate the input mask.
+@@ -1702,7 +1717,7 @@ func mergePPC64AndSrdi(m, s int64) int64 {
+ 	if rv&uint64(mask) != 0 {
+ 		return 0
+ 	}
+-	if !isPPC64WordRotateMask(mask) {
++	if !isPPC64WordRotateMaskNonWrapping(mask) {
+ 		return 0
+ 	}
+ 	return encodePPC64RotateMask((32-s)&31, mask, 32)
+@@ -1717,7 +1732,7 @@ func mergePPC64AndSldi(m, s int64) int64 {
+ 	if rv&uint64(mask) != 0 {
+ 		return 0
+ 	}
+-	if !isPPC64WordRotateMask(mask) {
++	if !isPPC64WordRotateMaskNonWrapping(mask) {
+ 		return 0
+ 	}
+ 	return encodePPC64RotateMask(s&31, mask, 32)
+diff --git a/test/codegen/shift.go b/test/codegen/shift.go
+index 56e8d354e6..0e4cf1ed8d 100644
+--- a/test/codegen/shift.go
++++ b/test/codegen/shift.go
+@@ -529,6 +529,16 @@ func checkMergedShifts64(a [256]uint32, b [256]uint64, c [256]byte, v uint64) {
+ 	b[1] = b[(v>>20)&0xFF]
+ 	// ppc64x: "RLWNM", -"SLD"
+ 	b[2] = b[((uint64((uint32(v) >> 21)) & 0x3f) << 4)]
++	// ppc64x: -"RLWNM"
++	b[3] = (b[3] << 24) & 0xFFFFFF000000
++	// ppc64x: "RLWNM\t[$]24, R[0-9]+, [$]0, [$]7,"
++	b[4] = (b[4] << 24) & 0xFF000000
++	// ppc64x: "RLWNM\t[$]24, R[0-9]+, [$]0, [$]7,"
++	b[5] = (b[5] << 24) & 0xFF00000F
++	// ppc64x: -"RLWNM"
++	b[6] = (b[6] << 0) & 0xFF00000F
++	// ppc64x: "RLWNM\t[$]4, R[0-9]+, [$]28, [$]31,"
++	b[7] = (b[7] >> 28) & 0xF
+ 	// ppc64x: "RLWNM\t[$]11, R[0-9]+, [$]10, [$]15"
+ 	c[0] = c[((v>>5)&0x3F)<<16]
+ 	// ppc64x: "ANDCC\t[$]8064,"

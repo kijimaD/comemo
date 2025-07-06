@@ -1,0 +1,65 @@
+commit e8f5c04c1bcbc1fe33ddb7ab898ec393d3b2ad77
+Author: Alan Donovan <adonovan@google.com>
+Date:   Fri Apr 5 17:34:16 2024 -0400
+
+    go/types: Identical: document the need for consistent symbols
+    
+    Fixes golang/go#66690
+    Updates golang/go#57497
+    
+    Change-Id: I3d8f48d6b9baae8d5518eefeff59c83b12728cf5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577015
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/api_predicates.go | 12 ++++++++++++
+ src/go/types/api_predicates.go                    | 12 ++++++++++++
+ 2 files changed, 24 insertions(+)
+
+diff --git a/src/cmd/compile/internal/types2/api_predicates.go b/src/cmd/compile/internal/types2/api_predicates.go
+index 480f71144e..458c65d445 100644
+--- a/src/cmd/compile/internal/types2/api_predicates.go
++++ b/src/cmd/compile/internal/types2/api_predicates.go
+@@ -70,6 +70,18 @@ func Satisfies(V Type, T *Interface) bool {
+ 
+ // Identical reports whether x and y are identical types.
+ // Receivers of [Signature] types are ignored.
++//
++// Predicates such as [Identical], [Implements], and
++// [Satisfies] assume that both operands belong to a
++// consistent collection of symbols ([Object] values).
++// For example, two [Named] types can be identical only if their
++// [Named.Obj] methods return the same [TypeName] symbol.
++// A collection of symbols is consistent if, for each logical
++// package whose path is P, the creation of those symbols
++// involved at most one call to [NewPackage](P, ...).
++// To ensure consistency, use a single [Importer] for
++// all loaded packages and their dependencies.
++// For more information, see https://github.com/golang/go/issues/57497.
+ func Identical(x, y Type) bool {
+ 	var c comparer
+ 	return c.identical(x, y, nil)
+diff --git a/src/go/types/api_predicates.go b/src/go/types/api_predicates.go
+index 8462baae45..4a6b3fe9ca 100644
+--- a/src/go/types/api_predicates.go
++++ b/src/go/types/api_predicates.go
+@@ -73,6 +73,18 @@ func Satisfies(V Type, T *Interface) bool {
+ 
+ // Identical reports whether x and y are identical types.
+ // Receivers of [Signature] types are ignored.
++//
++// Predicates such as [Identical], [Implements], and
++// [Satisfies] assume that both operands belong to a
++// consistent collection of symbols ([Object] values).
++// For example, two [Named] types can be identical only if their
++// [Named.Obj] methods return the same [TypeName] symbol.
++// A collection of symbols is consistent if, for each logical
++// package whose path is P, the creation of those symbols
++// involved at most one call to [NewPackage](P, ...).
++// To ensure consistency, use a single [Importer] for
++// all loaded packages and their dependencies.
++// For more information, see https://github.com/golang/go/issues/57497.
+ func Identical(x, y Type) bool {
+ 	var c comparer
+ 	return c.identical(x, y, nil)

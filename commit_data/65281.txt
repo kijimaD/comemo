@@ -1,0 +1,88 @@
+commit cb163ff60b07ce157ebe3571f92d442a137f6757
+Author: Youlin Feng <fengyoulin@live.com>
+Date:   Sun Nov 3 12:10:26 2024 +0800
+
+    cmd/compile: init limit for newly created value in prove pass
+    
+    Fixes: #70156
+    
+    Change-Id: I2e5dc2a39a8e54ec5f18c5f9d1644208cffb2e9a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624695
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssa/prove.go | 20 ++++++++++++++++++++
+ test/fixedbugs/issue70156.go          | 23 +++++++++++++++++++++++
+ 2 files changed, 43 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index c0ab38139d..db91e70499 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -462,6 +462,25 @@ func newFactsTable(f *Func) *factsTable {
+ 	return ft
+ }
+ 
++// initLimitForNewValue initializes the limits for newly created values,
++// possibly needing to expand the limits slice. Currently used by
++// simplifyBlock when certain provably constant results are folded.
++func (ft *factsTable) initLimitForNewValue(v *Value) {
++	if int(v.ID) >= len(ft.limits) {
++		f := v.Block.Func
++		n := f.NumValues()
++		if cap(ft.limits) >= n {
++			ft.limits = ft.limits[:n]
++		} else {
++			old := ft.limits
++			ft.limits = f.Cache.allocLimitSlice(n)
++			copy(ft.limits, old)
++			f.Cache.freeLimitSlice(old)
++		}
++	}
++	ft.limits[v.ID] = initLimit(v)
++}
++
+ // signedMin records the fact that we know v is at least
+ // min in the signed domain.
+ func (ft *factsTable) signedMin(v *Value, min int64) bool {
+@@ -2269,6 +2288,7 @@ func simplifyBlock(sdom SparseTree, ft *factsTable, b *Block) {
+ 				continue
+ 			}
+ 			v.SetArg(i, c)
++			ft.initLimitForNewValue(c)
+ 			if b.Func.pass.debug > 1 {
+ 				b.Func.Warnl(v.Pos, "Proved %v's arg %d (%v) is constant %d", v, i, arg, constValue)
+ 			}
+diff --git a/test/fixedbugs/issue70156.go b/test/fixedbugs/issue70156.go
+new file mode 100644
+index 0000000000..30a732a266
+--- /dev/null
++++ b/test/fixedbugs/issue70156.go
+@@ -0,0 +1,23 @@
++// run
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++import (
++	"reflect"
++)
++
++func main() {
++	pi := new(interface{})
++	v := reflect.ValueOf(pi).Elem()
++	if v.Kind() != reflect.Interface {
++		panic(0)
++	}
++	if (v.Kind() == reflect.Ptr || v.Kind() == reflect.Interface) && v.IsNil() {
++		return
++	}
++	panic(1)
++}

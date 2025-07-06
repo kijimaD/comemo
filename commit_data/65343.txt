@@ -1,0 +1,92 @@
+commit 0ff1d425075ce830a1f1c5ef3bf54ae812312bc3
+Author: Tim King <taking@google.com>
+Date:   Fri Nov 8 14:00:49 2024 -0800
+
+    cmd/compile/internal/importer: exportdata section ends with the last index of "\n$$\n"
+    
+    This fixes a bug in the test only function Import where it looked for
+    the first instance of the string "\n$$\n" as the end of the exportdata
+    section. This should look for the last instance of "\n$$\n" within
+    the ar file.
+    
+    Adds unit tests that demonstrate the error.
+    
+    Added comments to tests that can correctly use the first instance.
+    
+    Change-Id: I7a85afa41cf1c2902119516b757b7c6625d46d13
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626775
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/importer/gcimporter.go       | 4 ++--
+ src/cmd/compile/internal/importer/gcimporter_test.go  | 2 ++
+ src/cmd/compile/internal/importer/testdata/exports.go | 1 +
+ src/go/internal/gcimporter/gcimporter_test.go         | 2 ++
+ src/go/internal/gcimporter/testdata/exports.go        | 1 +
+ 5 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/importer/gcimporter.go b/src/cmd/compile/internal/importer/gcimporter.go
+index b89d7477c7..47a0d7c0bf 100644
+--- a/src/cmd/compile/internal/importer/gcimporter.go
++++ b/src/cmd/compile/internal/importer/gcimporter.go
+@@ -240,8 +240,8 @@ func Import(packages map[string]*types2.Package, path, srcDir string, lookup fun
+ 		// appropriate importer.
+ 		switch exportFormat {
+ 		case 'u':
+-			// TODO(taking): Look into whether this should be LastIndex instead of Index.
+-			s = s[:strings.Index(s, "\n$$\n")]
++			// exported strings may contain "\n$$\n" - search backwards
++			s = s[:strings.LastIndex(s, "\n$$\n")]
+ 			input := pkgbits.NewPkgDecoder(id, s)
+ 			pkg = ReadPackage(nil, packages, input)
+ 		default:
+diff --git a/src/cmd/compile/internal/importer/gcimporter_test.go b/src/cmd/compile/internal/importer/gcimporter_test.go
+index 383d2c9e27..4cf3bee061 100644
+--- a/src/cmd/compile/internal/importer/gcimporter_test.go
++++ b/src/cmd/compile/internal/importer/gcimporter_test.go
+@@ -204,6 +204,8 @@ func TestVersionHandling(t *testing.T) {
+ 		}
+ 		// 2) find export data
+ 		i := bytes.Index(data, []byte("\n$$B\n")) + 5
++		// Export data can contain "\n$$\n" in string constants, however,
++		// searching for the next end of section marker "\n$$\n" is good enough for testzs.
+ 		j := bytes.Index(data[i:], []byte("\n$$\n")) + i
+ 		if i < 0 || j < 0 || i > j {
+ 			t.Fatalf("export data section not found (i = %d, j = %d)", i, j)
+diff --git a/src/cmd/compile/internal/importer/testdata/exports.go b/src/cmd/compile/internal/importer/testdata/exports.go
+index 91598c03e3..84ba3dfba6 100644
+--- a/src/cmd/compile/internal/importer/testdata/exports.go
++++ b/src/cmd/compile/internal/importer/testdata/exports.go
+@@ -26,6 +26,7 @@ const (
+ 	C8          = 42
+ 	C9  int     = 42
+ 	C10 float64 = 42
++	C11         = "\n$$\n" // an object file export data marker - export data extraction must not be led astray
+ )
+ 
+ type (
+diff --git a/src/go/internal/gcimporter/gcimporter_test.go b/src/go/internal/gcimporter/gcimporter_test.go
+index 81094fa246..bfbedf1a7d 100644
+--- a/src/go/internal/gcimporter/gcimporter_test.go
++++ b/src/go/internal/gcimporter/gcimporter_test.go
+@@ -329,6 +329,8 @@ func TestVersionHandling(t *testing.T) {
+ 		}
+ 		// 2) find export data
+ 		i := bytes.Index(data, []byte("\n$$B\n")) + 5
++		// Export data can contain "\n$$\n" in string constants, however,
++		// searching for the next end of section marker "\n$$\n" is good enough for tests.
+ 		j := bytes.Index(data[i:], []byte("\n$$\n")) + i
+ 		if i < 0 || j < 0 || i > j {
+ 			t.Fatalf("export data section not found (i = %d, j = %d)", i, j)
+diff --git a/src/go/internal/gcimporter/testdata/exports.go b/src/go/internal/gcimporter/testdata/exports.go
+index 3d5a8c9e39..55fb86001f 100644
+--- a/src/go/internal/gcimporter/testdata/exports.go
++++ b/src/go/internal/gcimporter/testdata/exports.go
+@@ -26,6 +26,7 @@ const (
+ 	C8          = 42
+ 	C9  int     = 42
+ 	C10 float64 = 42
++	C11         = "\n$$\n" // an object file export data marker - export data extraction must not be led astray
+ )
+ 
+ type (

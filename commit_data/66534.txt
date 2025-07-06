@@ -1,0 +1,105 @@
+commit d729053edffdfb17ee947cee8af0d7edc45f6111
+Author: Luca Maltagliati <lmalta95@gmail.com>
+Date:   Wed Mar 12 21:40:12 2025 +0000
+
+    mime/multipart: add helper to build content-disposition header contents
+    
+    This PR adds an helper FileContentDisposition that builds multipart
+    Content-Disposition header contents with field name and file name,
+    escaping quotes and escape characters.
+    
+    The  function is then called in the related helper CreateFormFile.
+    
+    The new function allows users to add other custom MIMEHeaders,
+    without having to rewrite the char escaping logic of field name and
+    file name, which is provided by the new helper.
+    
+    Fixes #46771
+    
+    Change-Id: Ifc82a79583feb6dd609ca1e6024e612fb58c05ce
+    GitHub-Last-Rev: 969f846fa967d2b3eca7a21ee096b299b8a94546
+    GitHub-Pull-Request: golang/go#63324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/531995
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ api/next/46771.txt                                 |  1 +
+ doc/next/6-stdlib/99-minor/mime/multipart/46771.md |  2 ++
+ src/mime/multipart/writer.go                       | 11 ++++++++---
+ src/mime/multipart/writer_test.go                  | 19 +++++++++++++++++++
+ 4 files changed, 30 insertions(+), 3 deletions(-)
+
+diff --git a/api/next/46771.txt b/api/next/46771.txt
+new file mode 100644
+index 0000000000..f7aad4b04a
+--- /dev/null
++++ b/api/next/46771.txt
+@@ -0,0 +1 @@
++pkg mime/multipart, func FileContentDisposition(string, string) string #46771
+diff --git a/doc/next/6-stdlib/99-minor/mime/multipart/46771.md b/doc/next/6-stdlib/99-minor/mime/multipart/46771.md
+new file mode 100644
+index 0000000000..b8b8641b78
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/mime/multipart/46771.md
+@@ -0,0 +1,2 @@
++The new helper function [FieldContentDisposition] builds multipart
++Content-Disposition header fields.
+\ No newline at end of file
+diff --git a/src/mime/multipart/writer.go b/src/mime/multipart/writer.go
+index 818970d7a7..8806ab960b 100644
+--- a/src/mime/multipart/writer.go
++++ b/src/mime/multipart/writer.go
+@@ -135,9 +135,7 @@ func escapeQuotes(s string) string {
+ // a new form-data header with the provided field name and file name.
+ func (w *Writer) CreateFormFile(fieldname, filename string) (io.Writer, error) {
+ 	h := make(textproto.MIMEHeader)
+-	h.Set("Content-Disposition",
+-		fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
+-			escapeQuotes(fieldname), escapeQuotes(filename)))
++	h.Set("Content-Disposition", FileContentDisposition(fieldname, filename))
+ 	h.Set("Content-Type", "application/octet-stream")
+ 	return w.CreatePart(h)
+ }
+@@ -151,6 +149,13 @@ func (w *Writer) CreateFormField(fieldname string) (io.Writer, error) {
+ 	return w.CreatePart(h)
+ }
+ 
++// FileContentDisposition returns the value of a Content-Disposition header
++// with the provided field name and file name.
++func FileContentDisposition(fieldname, filename string) string {
++	return fmt.Sprintf(`form-data; name="%s"; filename="%s"`,
++		escapeQuotes(fieldname), escapeQuotes(filename))
++}
++
+ // WriteField calls [Writer.CreateFormField] and then writes the given value.
+ func (w *Writer) WriteField(fieldname, value string) error {
+ 	p, err := w.CreateFormField(fieldname)
+diff --git a/src/mime/multipart/writer_test.go b/src/mime/multipart/writer_test.go
+index 9e0f1314c9..4af6d8c597 100644
+--- a/src/mime/multipart/writer_test.go
++++ b/src/mime/multipart/writer_test.go
+@@ -172,3 +172,22 @@ func TestSortedHeader(t *testing.T) {
+ 		t.Fatalf("\n got: %q\nwant: %q\n", buf.String(), want)
+ 	}
+ }
++
++func TestFileContentDisposition(t *testing.T) {
++	tests := []struct {
++		fieldname string
++		filename  string
++		want      string
++	}{
++		{"somefield", "somefile.txt", `form-data; name="somefield"; filename="somefile.txt"`},
++		{`field"withquotes"`, "somefile.txt", `form-data; name="field\"withquotes\""; filename="somefile.txt"`},
++		{`somefield`, `somefile"withquotes".txt`, `form-data; name="somefield"; filename="somefile\"withquotes\".txt"`},
++		{`somefield\withbackslash`, "somefile.txt", `form-data; name="somefield\\withbackslash"; filename="somefile.txt"`},
++		{"somefield", `somefile\withbackslash.txt`, `form-data; name="somefield"; filename="somefile\\withbackslash.txt"`},
++	}
++	for i, tt := range tests {
++		if found := FileContentDisposition(tt.fieldname, tt.filename); found != tt.want {
++			t.Errorf(`%d. found: "%s"; want: "%s"`, i, found, tt.want)
++		}
++	}
++}

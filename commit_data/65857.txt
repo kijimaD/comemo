@@ -1,0 +1,47 @@
+commit 05d8984781f7cf2f0f39b53699a558b6a1965c6c
+Author: Simon Ser <contact@emersion.fr>
+Date:   Sun Dec 22 23:51:26 2024 +0000
+
+    net: document LookupTXT behavior with multiple strings per record
+    
+    CL 8966 ("net: allow a dns TXT record to contain more than
+    one <character-string>") concatenates strings in a TXT record. Document
+    that behavior, since it's not obvious whether the strings will be
+    concatenated or accumulated in the returned slice.
+    
+    Change-Id: I6acb27b296290361a95a6058a056f8e7c2df9a2b
+    GitHub-Last-Rev: ec0726c7b83a56773d0ac4a86cbfc89c6f4884c9
+    GitHub-Pull-Request: golang/go#65233
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/557695
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/net/lookup.go | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/src/net/lookup.go b/src/net/lookup.go
+index b04dfa23b9..f94fd8cefa 100644
+--- a/src/net/lookup.go
++++ b/src/net/lookup.go
+@@ -614,6 +614,9 @@ func (r *Resolver) LookupNS(ctx context.Context, name string) ([]*NS, error) {
+ 
+ // LookupTXT returns the DNS TXT records for the given domain name.
+ //
++// If a DNS TXT record holds multiple strings, they are concatenated as a
++// single string.
++//
+ // LookupTXT uses [context.Background] internally; to specify the context, use
+ // [Resolver.LookupTXT].
+ func LookupTXT(name string) ([]string, error) {
+@@ -621,6 +624,9 @@ func LookupTXT(name string) ([]string, error) {
+ }
+ 
+ // LookupTXT returns the DNS TXT records for the given domain name.
++//
++// If a DNS TXT record holds multiple strings, they are concatenated as a
++// single string.
+ func (r *Resolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+ 	return r.lookupTXT(ctx, name)
+ }

@@ -1,0 +1,71 @@
+commit c684dfcb8a8fe38a8414bfd07b94e9995e5cd308
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Thu May 22 00:29:14 2025 +0000
+
+    runtime: don't spin looking for a tiny alloc address with asan or race
+    
+    CL 674655 modified the checkfinalizers test to spin looking for an
+    appropriate address to trip the detector, but this doesn't work with
+    ASAN or in race mode, which both disable the tiny allocator.
+    
+    Fixes #73834.
+    
+    Change-Id: I27416da1f29cd953271698551e9ce9724484c683
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/675395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/testdata/testprog/checkfinalizers.go | 31 +++++++++++++++---------
+ 1 file changed, 19 insertions(+), 12 deletions(-)
+
+diff --git a/src/runtime/testdata/testprog/checkfinalizers.go b/src/runtime/testdata/testprog/checkfinalizers.go
+index a2fe104462..ea352a4e3e 100644
+--- a/src/runtime/testdata/testprog/checkfinalizers.go
++++ b/src/runtime/testdata/testprog/checkfinalizers.go
+@@ -5,6 +5,8 @@
+ package main
+ 
+ import (
++	"internal/asan"
++	"internal/race"
+ 	"runtime"
+ 	"runtime/debug"
+ 	"unsafe"
+@@ -39,20 +41,25 @@ func DetectFinalizerAndCleanupLeaks() {
+ 		**cNoLeak = x
+ 	}, int(0)).Stop()
+ 
+-	// Ensure we create an allocation into a tiny block that shares space among several values.
+-	var ctLeak *tiny
+-	for {
+-		tinySink = ctLeak
+-		ctLeak = new(tiny)
+-		*ctLeak = tiny(55)
+-		// Make sure the address is an odd value. This is sufficient to
+-		// be certain that we're sharing a block with another value and
+-		// trip the detector.
+-		if uintptr(unsafe.Pointer(ctLeak))%2 != 0 {
+-			break
++	if !asan.Enabled && !race.Enabled {
++		// Ensure we create an allocation into a tiny block that shares space among several values.
++		//
++		// Don't do this with ASAN and in race mode, where the tiny allocator is disabled.
++		// We might just loop forever here in that case.
++		var ctLeak *tiny
++		for {
++			tinySink = ctLeak
++			ctLeak = new(tiny)
++			*ctLeak = tiny(55)
++			// Make sure the address is an odd value. This is sufficient to
++			// be certain that we're sharing a block with another value and
++			// trip the detector.
++			if uintptr(unsafe.Pointer(ctLeak))%2 != 0 {
++				break
++			}
+ 		}
++		runtime.AddCleanup(ctLeak, func(_ struct{}) {}, struct{}{})
+ 	}
+-	runtime.AddCleanup(ctLeak, func(_ struct{}) {}, struct{}{})
+ 
+ 	// Leak a finalizer.
+ 	fLeak := new(T)

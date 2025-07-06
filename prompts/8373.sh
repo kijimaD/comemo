@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8373: 71630337f229723d153cc47779eb491355686751
+# Index 8373: 51e6aa1e885fc159343f980a0a709f660e27c2fa
 
 echo "🚀 Generating explanation for commit 8373..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 8373..."
 
 ### メタデータ
 - **コミットインデックス**: 8373
-- **コミットハッシュ**: 71630337f229723d153cc47779eb491355686751
-- **GitHub URL**: https://github.com/golang/go/commit/71630337f229723d153cc47779eb491355686751
+- **コミットハッシュ**: 51e6aa1e885fc159343f980a0a709f660e27c2fa
+- **GitHub URL**: https://github.com/golang/go/commit/51e6aa1e885fc159343f980a0a709f660e27c2fa
 
 ### 章構成
 

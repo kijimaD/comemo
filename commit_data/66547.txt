@@ -1,0 +1,703 @@
+commit 59afdd3ed0ace5c5dc34f8b4cf22edc329e186f7
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 19 12:29:31 2025 +0100
+
+    crypto/tls: clean up supported/default/allowed parameters
+    
+    Cleaned up a lot of the plumbing to make it consistently follow this
+    logic: clone the preference order; filter by user preference; filter by
+    FIPS policy. There should be no behavior changes.
+    
+    Updates #71757
+    
+    Change-Id: I6a6a4656eb02e56d079f0a22f98212275a400000
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/657096
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/crypto/tls/auth.go                           | 26 ++++----
+ src/crypto/tls/cipher_suites.go                  | 14 ++--
+ src/crypto/tls/common.go                         | 84 ++++++++++--------------
+ src/crypto/tls/defaults.go                       | 56 ++++------------
+ src/crypto/tls/defaults_boring.go                | 67 +++++++++++++++++++
+ src/crypto/tls/{fips_test.go => fips140_test.go} | 48 +++++++++-----
+ src/crypto/tls/handshake_client.go               | 26 ++------
+ src/crypto/tls/handshake_client_test.go          |  2 +-
+ src/crypto/tls/handshake_server.go               | 18 +----
+ src/crypto/tls/handshake_server_tls13.go         |  4 +-
+ src/crypto/tls/tls_test.go                       |  4 +-
+ 11 files changed, 177 insertions(+), 172 deletions(-)
+
+diff --git a/src/crypto/tls/auth.go b/src/crypto/tls/auth.go
+index 9e3ce22f71..81a85851ee 100644
+--- a/src/crypto/tls/auth.go
++++ b/src/crypto/tls/auth.go
+@@ -11,11 +11,11 @@ import (
+ 	"crypto/ed25519"
+ 	"crypto/elliptic"
+ 	"crypto/rsa"
+-	"crypto/tls/internal/fips140tls"
+ 	"errors"
+ 	"fmt"
+ 	"hash"
+ 	"io"
++	"slices"
+ )
+ 
+ // verifyHandshakeSignature verifies a signature against pre-hashed
+@@ -168,9 +168,6 @@ var rsaSignatureSchemes = []struct {
+ // signatureSchemesForCertificate returns the list of supported SignatureSchemes
+ // for a given certificate, based on the public key and the protocol version,
+ // and optionally filtered by its explicit SupportedSignatureAlgorithms.
+-//
+-// This function must be kept in sync with supportedSignatureAlgorithms.
+-// FIPS filtering is applied in the caller, selectSignatureScheme.
+ func signatureSchemesForCertificate(version uint16, cert *Certificate) []SignatureScheme {
+ 	priv, ok := cert.PrivateKey.(crypto.Signer)
+ 	if !ok {
+@@ -216,14 +213,18 @@ func signatureSchemesForCertificate(version uint16, cert *Certificate) []Signatu
+ 	}
+ 
+ 	if cert.SupportedSignatureAlgorithms != nil {
+-		var filteredSigAlgs []SignatureScheme
+-		for _, sigAlg := range sigAlgs {
+-			if isSupportedSignatureAlgorithm(sigAlg, cert.SupportedSignatureAlgorithms) {
+-				filteredSigAlgs = append(filteredSigAlgs, sigAlg)
+-			}
+-		}
+-		return filteredSigAlgs
++		sigAlgs = slices.DeleteFunc(sigAlgs, func(sigAlg SignatureScheme) bool {
++			return !isSupportedSignatureAlgorithm(sigAlg, cert.SupportedSignatureAlgorithms)
++		})
+ 	}
++
++	// Filter out any unsupported signature algorithms, for example due to
++	// FIPS 140-3 policy, or any downstream changes to defaults.go.
++	supportedAlgs := supportedSignatureAlgorithms()
++	sigAlgs = slices.DeleteFunc(sigAlgs, func(sigAlg SignatureScheme) bool {
++		return !isSupportedSignatureAlgorithm(sigAlg, supportedAlgs)
++	})
++
+ 	return sigAlgs
+ }
+ 
+@@ -243,9 +244,6 @@ func selectSignatureScheme(vers uint16, c *Certificate, peerAlgs []SignatureSche
+ 	// Pick signature scheme in the peer's preference order, as our
+ 	// preference order is not configurable.
+ 	for _, preferredAlg := range peerAlgs {
+-		if fips140tls.Required() && !isSupportedSignatureAlgorithm(preferredAlg, defaultSupportedSignatureAlgorithmsFIPS) {
+-			continue
+-		}
+ 		if isSupportedSignatureAlgorithm(preferredAlg, supportedAlgs) {
+ 			return preferredAlg, nil
+ 		}
+diff --git a/src/crypto/tls/cipher_suites.go b/src/crypto/tls/cipher_suites.go
+index 01d6568828..2a96fa6903 100644
+--- a/src/crypto/tls/cipher_suites.go
++++ b/src/crypto/tls/cipher_suites.go
+@@ -78,8 +78,8 @@ func CipherSuites() []*CipherSuite {
+ // Most applications should not use the cipher suites in this list, and should
+ // only use those returned by [CipherSuites].
+ func InsecureCipherSuites() []*CipherSuite {
+-	// This list includes RC4, CBC_SHA256, and 3DES cipher suites. See
+-	// cipherSuitesPreferenceOrder for details.
++	// This list includes legacy RSA kex, RC4, CBC_SHA256, and 3DES cipher
++	// suites. See cipherSuitesPreferenceOrder for details.
+ 	return []*CipherSuite{
+ 		{TLS_RSA_WITH_RC4_128_SHA, "TLS_RSA_WITH_RC4_128_SHA", supportedUpToTLS12, true},
+ 		{TLS_RSA_WITH_3DES_EDE_CBC_SHA, "TLS_RSA_WITH_3DES_EDE_CBC_SHA", supportedUpToTLS12, true},
+@@ -387,9 +387,13 @@ var aesgcmCiphers = map[uint16]bool{
+ 	TLS_AES_256_GCM_SHA384: true,
+ }
+ 
+-// aesgcmPreferred returns whether the first known cipher in the preference list
+-// is an AES-GCM cipher, implying the peer has hardware support for it.
+-func aesgcmPreferred(ciphers []uint16) bool {
++// isAESGCMPreferred returns whether we have hardware support for AES-GCM, and the
++// first known cipher in the peer's preference list is an AES-GCM cipher,
++// implying the peer also has hardware support for it.
++func isAESGCMPreferred(ciphers []uint16) bool {
++	if !hasAESGCMHardwareSupport {
++		return false
++	}
+ 	for _, cID := range ciphers {
+ 		if c := cipherSuiteByID(cID); c != nil {
+ 			return aesgcmCiphers[cID]
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index dd6f1dac73..faa14319c3 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -1106,20 +1106,28 @@ func (c *Config) time() time.Time {
+ 	return t()
+ }
+ 
+-func (c *Config) cipherSuites() []uint16 {
++func (c *Config) cipherSuites(aesGCMPreferred bool) []uint16 {
++	var cipherSuites []uint16
+ 	if c.CipherSuites == nil {
+-		if fips140tls.Required() {
+-			return defaultCipherSuitesFIPS
+-		}
+-		return defaultCipherSuites()
++		cipherSuites = defaultCipherSuites(aesGCMPreferred)
++	} else {
++		cipherSuites = supportedCipherSuites(aesGCMPreferred)
++		cipherSuites = slices.DeleteFunc(cipherSuites, func(id uint16) bool {
++			return !slices.Contains(c.CipherSuites, id)
++		})
+ 	}
+ 	if fips140tls.Required() {
+-		cipherSuites := slices.Clone(c.CipherSuites)
+-		return slices.DeleteFunc(cipherSuites, func(id uint16) bool {
+-			return !slices.Contains(defaultCipherSuitesFIPS, id)
++		cipherSuites = slices.DeleteFunc(cipherSuites, func(id uint16) bool {
++			return !slices.Contains(allowedCipherSuitesFIPS, id)
+ 		})
+ 	}
+-	return c.CipherSuites
++	return cipherSuites
++}
++
++// supportedCipherSuites returns the supported TLS 1.0–1.2 cipher suites in an
++// undefined order. For preference ordering, use [Config.cipherSuites].
++func (c *Config) supportedCipherSuites() []uint16 {
++	return c.cipherSuites(false)
+ }
+ 
+ var supportedVersions = []uint16{
+@@ -1139,7 +1147,7 @@ var tls10server = godebug.New("tls10server")
+ func (c *Config) supportedVersions(isClient bool) []uint16 {
+ 	versions := make([]uint16, 0, len(supportedVersions))
+ 	for _, v := range supportedVersions {
+-		if fips140tls.Required() && !slices.Contains(defaultSupportedVersionsFIPS, v) {
++		if fips140tls.Required() && !slices.Contains(allowedSupportedVersionsFIPS, v) {
+ 			continue
+ 		}
+ 		if (c == nil || c.MinVersion == 0) && v < VersionTLS12 {
+@@ -1184,11 +1192,11 @@ func supportedVersionsFromMax(maxVersion uint16) []uint16 {
+ }
+ 
+ func (c *Config) curvePreferences(version uint16) []CurveID {
+-	var curvePreferences []CurveID
++	curvePreferences := defaultCurvePreferences()
+ 	if fips140tls.Required() {
+-		curvePreferences = slices.Clone(defaultCurvePreferencesFIPS)
+-	} else {
+-		curvePreferences = defaultCurvePreferences()
++		curvePreferences = slices.DeleteFunc(curvePreferences, func(x CurveID) bool {
++			return !slices.Contains(allowedCurvePreferencesFIPS, x)
++		})
+ 	}
+ 	if c != nil && len(c.CurvePreferences) != 0 {
+ 		curvePreferences = slices.DeleteFunc(curvePreferences, func(x CurveID) bool {
+@@ -1202,23 +1210,16 @@ func (c *Config) curvePreferences(version uint16) []CurveID {
+ }
+ 
+ func (c *Config) supportsCurve(version uint16, curve CurveID) bool {
+-	for _, cc := range c.curvePreferences(version) {
+-		if cc == curve {
+-			return true
+-		}
+-	}
+-	return false
++	return slices.Contains(c.curvePreferences(version), curve)
+ }
+ 
+ // mutualVersion returns the protocol version to use given the advertised
+ // versions of the peer. Priority is given to the peer preference order.
+ func (c *Config) mutualVersion(isClient bool, peerVersions []uint16) (uint16, bool) {
+ 	supportedVersions := c.supportedVersions(isClient)
+-	for _, peerVersion := range peerVersions {
+-		for _, v := range supportedVersions {
+-			if v == peerVersion {
+-				return v, true
+-			}
++	for _, v := range peerVersions {
++		if slices.Contains(supportedVersions, v) {
++			return v, true
+ 		}
+ 	}
+ 	return 0, false
+@@ -1339,7 +1340,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
+ 		}
+ 		// Finally, there needs to be a mutual cipher suite that uses the static
+ 		// RSA key exchange instead of ECDHE.
+-		rsaCipherSuite := selectCipherSuite(chi.CipherSuites, config.cipherSuites(), func(c *cipherSuite) bool {
++		rsaCipherSuite := selectCipherSuite(chi.CipherSuites, config.supportedCipherSuites(), func(c *cipherSuite) bool {
+ 			if c.flags&suiteECDHE != 0 {
+ 				return false
+ 			}
+@@ -1416,7 +1417,7 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
+ 	// Make sure that there is a mutually supported cipher suite that works with
+ 	// this certificate. Cipher suite selection will then apply the logic in
+ 	// reverse to pick it. See also serverHandshakeState.cipherSuiteOk.
+-	cipherSuite := selectCipherSuite(chi.CipherSuites, config.cipherSuites(), func(c *cipherSuite) bool {
++	cipherSuite := selectCipherSuite(chi.CipherSuites, config.supportedCipherSuites(), func(c *cipherSuite) bool {
+ 		if c.flags&suiteECDHE == 0 {
+ 			return false
+ 		}
+@@ -1660,19 +1661,14 @@ func unexpectedMessageError(wanted, got any) error {
+ 
+ // supportedSignatureAlgorithms returns the supported signature algorithms.
+ func supportedSignatureAlgorithms() []SignatureScheme {
+-	if !fips140tls.Required() {
+-		return defaultSupportedSignatureAlgorithms
++	if fips140tls.Required() {
++		return allowedSupportedSignatureAlgorithmsFIPS
+ 	}
+-	return defaultSupportedSignatureAlgorithmsFIPS
++	return defaultSupportedSignatureAlgorithms
+ }
+ 
+ func isSupportedSignatureAlgorithm(sigAlg SignatureScheme, supportedSignatureAlgorithms []SignatureScheme) bool {
+-	for _, s := range supportedSignatureAlgorithms {
+-		if s == sigAlg {
+-			return true
+-		}
+-	}
+-	return false
++	return slices.Contains(supportedSignatureAlgorithms, sigAlg)
+ }
+ 
+ // CertificateVerificationError is returned when certificate verification fails during the handshake.
+@@ -1721,24 +1717,10 @@ func fipsAllowChain(chain []*x509.Certificate) bool {
+ 	}
+ 
+ 	for _, cert := range chain {
+-		if !fipsAllowCert(cert) {
++		if !isCertificateAllowedFIPS(cert) {
+ 			return false
+ 		}
+ 	}
+ 
+ 	return true
+ }
+-
+-func fipsAllowCert(c *x509.Certificate) bool {
+-	// The key must be RSA 2048, RSA 3072, RSA 4096,
+-	// or ECDSA P-256, P-384, P-521.
+-	switch k := c.PublicKey.(type) {
+-	case *rsa.PublicKey:
+-		size := k.N.BitLen()
+-		return size == 2048 || size == 3072 || size == 4096
+-	case *ecdsa.PublicKey:
+-		return k.Curve == elliptic.P256() || k.Curve == elliptic.P384() || k.Curve == elliptic.P521()
+-	}
+-
+-	return false
+-}
+diff --git a/src/crypto/tls/defaults.go b/src/crypto/tls/defaults.go
+index ab346e18b3..a3f43eb87e 100644
+--- a/src/crypto/tls/defaults.go
++++ b/src/crypto/tls/defaults.go
+@@ -46,9 +46,17 @@ var defaultSupportedSignatureAlgorithms = []SignatureScheme{
+ var tlsrsakex = godebug.New("tlsrsakex")
+ var tls3des = godebug.New("tls3des")
+ 
+-func defaultCipherSuites() []uint16 {
+-	suites := slices.Clone(cipherSuitesPreferenceOrder)
+-	return slices.DeleteFunc(suites, func(c uint16) bool {
++func supportedCipherSuites(aesGCMPreferred bool) []uint16 {
++	if aesGCMPreferred {
++		return slices.Clone(cipherSuitesPreferenceOrder)
++	} else {
++		return slices.Clone(cipherSuitesPreferenceOrderNoAES)
++	}
++}
++
++func defaultCipherSuites(aesGCMPreferred bool) []uint16 {
++	cipherSuites := supportedCipherSuites(aesGCMPreferred)
++	return slices.DeleteFunc(cipherSuites, func(c uint16) bool {
+ 		return disabledCipherSuites[c] ||
+ 			tlsrsakex.Value() != "1" && rsaKexCiphers[c] ||
+ 			tls3des.Value() != "1" && tdesCiphers[c]
+@@ -90,45 +98,3 @@ var defaultCipherSuitesTLS13NoAES = []uint16{
+ 	TLS_AES_128_GCM_SHA256,
+ 	TLS_AES_256_GCM_SHA384,
+ }
+-
+-// The FIPS-only policies below match BoringSSL's
+-// ssl_compliance_policy_fips_202205, which is based on NIST SP 800-52r2, with
+-// minor changes per https://go.dev/issue/71757.
+-// https://cs.opensource.google/boringssl/boringssl/+/master:ssl/ssl_lib.cc;l=3289;drc=ea7a88fa
+-
+-var defaultSupportedVersionsFIPS = []uint16{
+-	VersionTLS12,
+-	VersionTLS13,
+-}
+-
+-// defaultCurvePreferencesFIPS are the FIPS-allowed curves,
+-// in preference order (most preferable first).
+-var defaultCurvePreferencesFIPS = []CurveID{CurveP256, CurveP384, CurveP521}
+-
+-// defaultSupportedSignatureAlgorithmsFIPS currently are a subset of
+-// defaultSupportedSignatureAlgorithms without Ed25519 and SHA-1.
+-var defaultSupportedSignatureAlgorithmsFIPS = []SignatureScheme{
+-	PSSWithSHA256,
+-	PSSWithSHA384,
+-	PSSWithSHA512,
+-	PKCS1WithSHA256,
+-	ECDSAWithP256AndSHA256,
+-	PKCS1WithSHA384,
+-	ECDSAWithP384AndSHA384,
+-	PKCS1WithSHA512,
+-	ECDSAWithP521AndSHA512,
+-}
+-
+-// defaultCipherSuitesFIPS are the FIPS-allowed cipher suites.
+-var defaultCipherSuitesFIPS = []uint16{
+-	TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+-	TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+-	TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+-	TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
+-}
+-
+-// defaultCipherSuitesTLS13FIPS are the FIPS-allowed cipher suites for TLS 1.3.
+-var defaultCipherSuitesTLS13FIPS = []uint16{
+-	TLS_AES_128_GCM_SHA256,
+-	TLS_AES_256_GCM_SHA384,
+-}
+diff --git a/src/crypto/tls/defaults_boring.go b/src/crypto/tls/defaults_boring.go
+new file mode 100644
+index 0000000000..8356ee6932
+--- /dev/null
++++ b/src/crypto/tls/defaults_boring.go
+@@ -0,0 +1,67 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package tls
++
++import (
++	"crypto/ecdsa"
++	"crypto/elliptic"
++	"crypto/rsa"
++	"crypto/x509"
++)
++
++// These Go+BoringCrypto policies mostly match BoringSSL's
++// ssl_compliance_policy_fips_202205, which is based on NIST SP 800-52r2.
++// https://cs.opensource.google/boringssl/boringssl/+/master:ssl/ssl_lib.cc;l=3289;drc=ea7a88fa
++//
++// P-521 is allowed per https://go.dev/issue/71757.
++//
++// They are applied when crypto/tls/fipsonly is imported with GOEXPERIMENT=boringcrypto.
++
++var (
++	allowedSupportedVersionsFIPS = []uint16{
++		VersionTLS12,
++		VersionTLS13,
++	}
++	allowedCurvePreferencesFIPS = []CurveID{
++		CurveP256,
++		CurveP384,
++		CurveP521,
++	}
++	allowedSupportedSignatureAlgorithmsFIPS = []SignatureScheme{
++		PSSWithSHA256,
++		PSSWithSHA384,
++		PSSWithSHA512,
++		PKCS1WithSHA256,
++		ECDSAWithP256AndSHA256,
++		PKCS1WithSHA384,
++		ECDSAWithP384AndSHA384,
++		PKCS1WithSHA512,
++		ECDSAWithP521AndSHA512,
++	}
++	allowedCipherSuitesFIPS = []uint16{
++		TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
++		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
++		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
++	}
++	allowedCipherSuitesTLS13FIPS = []uint16{
++		TLS_AES_128_GCM_SHA256,
++		TLS_AES_256_GCM_SHA384,
++	}
++)
++
++func isCertificateAllowedFIPS(c *x509.Certificate) bool {
++	// The key must be RSA 2048, RSA 3072, RSA 4096,
++	// or ECDSA P-256, P-384, P-521.
++	switch k := c.PublicKey.(type) {
++	case *rsa.PublicKey:
++		size := k.N.BitLen()
++		return size == 2048 || size == 3072 || size == 4096
++	case *ecdsa.PublicKey:
++		return k.Curve == elliptic.P256() || k.Curve == elliptic.P384() || k.Curve == elliptic.P521()
++	}
++
++	return false
++}
+diff --git a/src/crypto/tls/fips_test.go b/src/crypto/tls/fips140_test.go
+similarity index 94%
+rename from src/crypto/tls/fips_test.go
+rename to src/crypto/tls/fips140_test.go
+index d5ac9b6899..9ea32a6d9a 100644
+--- a/src/crypto/tls/fips_test.go
++++ b/src/crypto/tls/fips140_test.go
+@@ -92,24 +92,37 @@ func isFIPSVersion(v uint16) bool {
+ }
+ 
+ func isFIPSCipherSuite(id uint16) bool {
++	name := CipherSuiteName(id)
++	if isTLS13CipherSuite(id) {
++		switch id {
++		case TLS_AES_128_GCM_SHA256, TLS_AES_256_GCM_SHA384:
++			return true
++		case TLS_CHACHA20_POLY1305_SHA256:
++			return false
++		default:
++			panic("unknown TLS 1.3 cipher suite: " + name)
++		}
++	}
+ 	switch id {
+-	case TLS_AES_128_GCM_SHA256,
+-		TLS_AES_256_GCM_SHA384,
+-		TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
++	case TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256,
+ 		TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
+ 		TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
+ 		TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384:
+ 		return true
++	default:
++		return false
+ 	}
+-	return false
+ }
+ 
+ func isFIPSCurve(id CurveID) bool {
+ 	switch id {
+ 	case CurveP256, CurveP384, CurveP521:
+ 		return true
++	case X25519, X25519MLKEM768:
++		return false
++	default:
++		panic("unknown curve: " + id.String())
+ 	}
+-	return false
+ }
+ 
+ func isECDSA(id uint16) bool {
+@@ -123,8 +136,6 @@ func isECDSA(id uint16) bool {
+ 
+ func isFIPSSignatureScheme(alg SignatureScheme) bool {
+ 	switch alg {
+-	default:
+-		return false
+ 	case PKCS1WithSHA256,
+ 		ECDSAWithP256AndSHA256,
+ 		PKCS1WithSHA384,
+@@ -134,9 +145,12 @@ func isFIPSSignatureScheme(alg SignatureScheme) bool {
+ 		PSSWithSHA256,
+ 		PSSWithSHA384,
+ 		PSSWithSHA512:
+-		// ok
++		return true
++	case Ed25519, PKCS1WithSHA1, ECDSAWithSHA1:
++		return false
++	default:
++		panic("unknown signature scheme: " + alg.String())
+ 	}
+-	return true
+ }
+ 
+ func TestFIPSServerCipherSuites(t *testing.T) {
+@@ -162,7 +176,7 @@ func TestFIPSServerCipherSuites(t *testing.T) {
+ 				keyShares:                    []keyShare{generateKeyShare(CurveP256)},
+ 				supportedPoints:              []uint8{pointFormatUncompressed},
+ 				supportedVersions:            []uint16{VersionTLS12},
+-				supportedSignatureAlgorithms: defaultSupportedSignatureAlgorithmsFIPS,
++				supportedSignatureAlgorithms: allowedSupportedSignatureAlgorithmsFIPS,
+ 			}
+ 			if isTLS13CipherSuite(id) {
+ 				clientHello.supportedVersions = []uint16{VersionTLS13}
+@@ -189,7 +203,7 @@ func TestFIPSServerCurves(t *testing.T) {
+ 	serverConfig.BuildNameToCertificate()
+ 
+ 	for _, curveid := range defaultCurvePreferences() {
+-		t.Run(fmt.Sprintf("curve=%d", curveid), func(t *testing.T) {
++		t.Run(fmt.Sprintf("curve=%v", curveid), func(t *testing.T) {
+ 			clientConfig := testConfig.Clone()
+ 			clientConfig.CurvePreferences = []CurveID{curveid}
+ 
+@@ -262,7 +276,7 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
+ 			runWithFIPSDisabled(t, func(t *testing.T) {
+ 				clientErr, serverErr := fipsHandshake(t, testConfig, serverConfig)
+ 				if clientErr != nil {
+-					t.Fatalf("expected handshake with %#x to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
++					t.Fatalf("expected handshake with %v to succeed; client error: %v; server error: %v", sigHash, clientErr, serverErr)
+ 				}
+ 			})
+ 
+@@ -271,11 +285,11 @@ func TestFIPSServerSignatureAndHash(t *testing.T) {
+ 				clientErr, _ := fipsHandshake(t, testConfig, serverConfig)
+ 				if isFIPSSignatureScheme(sigHash) {
+ 					if clientErr != nil {
+-						t.Fatalf("expected handshake with %#x to succeed; err=%v", sigHash, clientErr)
++						t.Fatalf("expected handshake with %v to succeed; err=%v", sigHash, clientErr)
+ 					}
+ 				} else {
+ 					if clientErr == nil {
+-						t.Fatalf("expected handshake with %#x to fail, but it succeeded", sigHash)
++						t.Fatalf("expected handshake with %v to fail, but it succeeded", sigHash)
+ 					}
+ 				}
+ 			})
+@@ -323,12 +337,12 @@ func testFIPSClientHello(t *testing.T) {
+ 	}
+ 	for _, id := range hello.cipherSuites {
+ 		if !isFIPSCipherSuite(id) {
+-			t.Errorf("client offered disallowed suite %#x", id)
++			t.Errorf("client offered disallowed suite %v", CipherSuiteName(id))
+ 		}
+ 	}
+ 	for _, id := range hello.supportedCurves {
+ 		if !isFIPSCurve(id) {
+-			t.Errorf("client offered disallowed curve %d", id)
++			t.Errorf("client offered disallowed curve %v", id)
+ 		}
+ 	}
+ 	for _, sigHash := range hello.supportedSignatureAlgorithms {
+@@ -600,7 +614,7 @@ func fipsCert(t *testing.T, name string, key interface{}, parent *fipsCertificat
+ 
+ 	fipsOK := mode&fipsCertFIPSOK != 0
+ 	runWithFIPSEnabled(t, func(t *testing.T) {
+-		if fipsAllowCert(cert) != fipsOK {
++		if isCertificateAllowedFIPS(cert) != fipsOK {
+ 			t.Errorf("fipsAllowCert(cert with %s key) = %v, want %v", desc, !fipsOK, fipsOK)
+ 		}
+ 	})
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index ce48ec4fe6..30f2e2a2a2 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -94,24 +94,12 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
+ 		hello.secureRenegotiation = c.clientFinished[:]
+ 	}
+ 
+-	preferenceOrder := cipherSuitesPreferenceOrder
+-	if !hasAESGCMHardwareSupport {
+-		preferenceOrder = cipherSuitesPreferenceOrderNoAES
+-	}
+-	configCipherSuites := config.cipherSuites()
+-	hello.cipherSuites = make([]uint16, 0, len(configCipherSuites))
+-
+-	for _, suiteId := range preferenceOrder {
+-		suite := mutualCipherSuite(configCipherSuites, suiteId)
+-		if suite == nil {
+-			continue
+-		}
+-		// Don't advertise TLS 1.2-only cipher suites unless
+-		// we're attempting TLS 1.2.
+-		if maxVersion < VersionTLS12 && suite.flags&suiteTLS12 != 0 {
+-			continue
+-		}
+-		hello.cipherSuites = append(hello.cipherSuites, suiteId)
++	hello.cipherSuites = config.cipherSuites(hasAESGCMHardwareSupport)
++	// Don't advertise TLS 1.2-only cipher suites unless we're attempting TLS 1.2.
++	if maxVersion < VersionTLS12 {
++		hello.cipherSuites = slices.DeleteFunc(hello.cipherSuites, func(id uint16) bool {
++			return cipherSuiteByID(id).flags&suiteTLS12 != 0
++		})
+ 	}
+ 
+ 	_, err := io.ReadFull(config.rand(), hello.random)
+@@ -145,7 +133,7 @@ func (c *Conn) makeClientHello() (*clientHelloMsg, *keySharePrivateKeys, *echCli
+ 			hello.cipherSuites = nil
+ 		}
+ 		if fips140tls.Required() {
+-			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13FIPS...)
++			hello.cipherSuites = append(hello.cipherSuites, allowedCipherSuitesTLS13FIPS...)
+ 		} else if hasAESGCMHardwareSupport {
+ 			hello.cipherSuites = append(hello.cipherSuites, defaultCipherSuitesTLS13...)
+ 		} else {
+diff --git a/src/crypto/tls/handshake_client_test.go b/src/crypto/tls/handshake_client_test.go
+index bc54475fa4..5e636e9109 100644
+--- a/src/crypto/tls/handshake_client_test.go
++++ b/src/crypto/tls/handshake_client_test.go
+@@ -2707,7 +2707,7 @@ func testTLS13OnlyClientHelloCipherSuite(t *testing.T, ciphers []uint16) {
+ 		GetConfigForClient: func(chi *ClientHelloInfo) (*Config, error) {
+ 			expectedCiphersuites := defaultCipherSuitesTLS13NoAES
+ 			if fips140tls.Required() {
+-				expectedCiphersuites = defaultCipherSuitesTLS13FIPS
++				expectedCiphersuites = allowedCipherSuitesTLS13FIPS
+ 			}
+ 			if len(chi.CipherSuites) != len(expectedCiphersuites) {
+ 				t.Errorf("only TLS 1.3 suites should be advertised, got=%x", chi.CipherSuites)
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 6321606e6d..68c14b8a5a 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -373,21 +373,7 @@ func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, support
+ func (hs *serverHandshakeState) pickCipherSuite() error {
+ 	c := hs.c
+ 
+-	preferenceOrder := cipherSuitesPreferenceOrder
+-	if !hasAESGCMHardwareSupport || !aesgcmPreferred(hs.clientHello.cipherSuites) {
+-		preferenceOrder = cipherSuitesPreferenceOrderNoAES
+-	}
+-
+-	configCipherSuites := c.config.cipherSuites()
+-	preferenceList := make([]uint16, 0, len(configCipherSuites))
+-	for _, suiteID := range preferenceOrder {
+-		for _, id := range configCipherSuites {
+-			if id == suiteID {
+-				preferenceList = append(preferenceList, id)
+-				break
+-			}
+-		}
+-	}
++	preferenceList := c.config.cipherSuites(isAESGCMPreferred(hs.clientHello.cipherSuites))
+ 
+ 	hs.suite = selectCipherSuite(preferenceList, hs.clientHello.cipherSuites, hs.cipherSuiteOk)
+ 	if hs.suite == nil {
+@@ -497,7 +483,7 @@ func (hs *serverHandshakeState) checkForResumption() error {
+ 
+ 	// Check that we also support the ciphersuite from the session.
+ 	suite := selectCipherSuite([]uint16{sessionState.cipherSuite},
+-		c.config.cipherSuites(), hs.cipherSuiteOk)
++		c.config.supportedCipherSuites(), hs.cipherSuiteOk)
+ 	if suite == nil {
+ 		return nil
+ 	}
+diff --git a/src/crypto/tls/handshake_server_tls13.go b/src/crypto/tls/handshake_server_tls13.go
+index b6d455cd39..1796052a3f 100644
+--- a/src/crypto/tls/handshake_server_tls13.go
++++ b/src/crypto/tls/handshake_server_tls13.go
+@@ -176,11 +176,11 @@ func (hs *serverHandshakeStateTLS13) processClientHello() error {
+ 	hs.hello.compressionMethod = compressionNone
+ 
+ 	preferenceList := defaultCipherSuitesTLS13
+-	if !hasAESGCMHardwareSupport || !aesgcmPreferred(hs.clientHello.cipherSuites) {
++	if !hasAESGCMHardwareSupport || !isAESGCMPreferred(hs.clientHello.cipherSuites) {
+ 		preferenceList = defaultCipherSuitesTLS13NoAES
+ 	}
+ 	if fips140tls.Required() {
+-		preferenceList = defaultCipherSuitesTLS13FIPS
++		preferenceList = allowedCipherSuitesTLS13FIPS
+ 	}
+ 	for _, suiteID := range preferenceList {
+ 		hs.suite = mutualCipherSuiteTLS13(hs.clientHello.cipherSuites, suiteID)
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 37bc358c06..9c08600f8f 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -1593,11 +1593,11 @@ func TestCipherSuites(t *testing.T) {
+ 		}
+ 
+ 		if cc.Insecure {
+-			if slices.Contains(defaultCipherSuites(), c.id) {
++			if slices.Contains(defaultCipherSuites(false), c.id) {
+ 				t.Errorf("%#04x: insecure suite in default list", c.id)
+ 			}
+ 		} else {
+-			if !slices.Contains(defaultCipherSuites(), c.id) {
++			if !slices.Contains(defaultCipherSuites(false), c.id) {
+ 				t.Errorf("%#04x: secure suite not in default list", c.id)
+ 			}
+ 		}

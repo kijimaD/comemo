@@ -1,0 +1,487 @@
+commit 751a817ccc3cb515b723c84278f96c57e3705576
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Thu Sep 26 17:39:04 2024 +0800
+
+    cmd/internal/obj/loong64: add {V,XV}LD/{V,XV}LDX/{V,XV}ST/{V,XV}STX instructions support
+    
+    This CL adding primitive asm support of Loong64 LSX [1] and LASX [2], by introducing new
+    sets of register V0-V31 (C_VREG), X0-X31 (C_XREG) and 8 new instructions.
+    
+    On Loong64, VLD,XVLD,VST,XVST implement vector memory access operations using immediate
+    values offset. VLDX, XVLDX, VSTX, XVSTX implement vector memory access operations using
+    register offset.
+    
+    Go asm syntax:
+            VMOVQ           n(RJ), RV      (128bit vector load)
+            XVMOVQ          n(RJ), RX      (256bit vector load)
+            VMOVQ           RV, n(RJ)      (128bit vector store)
+            XVMOVQ          RX, n(RJ)      (256bit vector store)
+    
+            VMOVQ           (RJ)(RK), RV   (128bit vector load)
+            XVMOVQ          (RJ)(RK), RX   (256bit vector load)
+            VMOVQ           RV, (RJ)(RK)   (128bit vector store)
+            XVMOVQ          RX, (RJ)(RK)   (256bit vector store)
+    
+    Equivalent platform assembler syntax:
+             vld            vd, rj, si12
+            xvld            xd, rj, si12
+             vst            vd, rj, si12
+            xvst            xd, rj, si12
+             vldx           vd, rj, rk
+            xvldx           xd, rj, rk
+             vstx           vd, rj, rk
+            xvstx           xd, rj, rk
+    
+    [1]: LSX: Loongson SIMD Extension, 128bit
+    [2]: LASX: Loongson Advanced SIMD Extension, 256bit
+    
+    Change-Id: Ibaf5ddfd29b77670c3c44cc32bead36b2c8b8003
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616075
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/asm/internal/arch/arch.go               | 14 ++++
+ src/cmd/asm/internal/arch/loong64.go            |  8 +++
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 32 +++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 87 ++++++++++++++++++++++++-
+ src/cmd/internal/obj/loong64/anames.go          |  2 +
+ src/cmd/internal/obj/loong64/asm.go             | 35 +++++++++-
+ src/cmd/internal/obj/loong64/cnames.go          |  2 +
+ src/cmd/internal/obj/loong64/doc.go             | 18 ++++-
+ src/cmd/internal/obj/loong64/list.go            | 13 ++++
+ 9 files changed, 208 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/arch/arch.go b/src/cmd/asm/internal/arch/arch.go
+index 429dff7be5..8481a8f378 100644
+--- a/src/cmd/asm/internal/arch/arch.go
++++ b/src/cmd/asm/internal/arch/arch.go
+@@ -520,15 +520,27 @@ func archLoong64(linkArch *obj.LinkArch) *Arch {
+ 	for i := loong64.REG_R0; i <= loong64.REG_R31; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+ 	}
++
+ 	for i := loong64.REG_F0; i <= loong64.REG_F31; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+ 	}
++
+ 	for i := loong64.REG_FCSR0; i <= loong64.REG_FCSR31; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+ 	}
++
+ 	for i := loong64.REG_FCC0; i <= loong64.REG_FCC31; i++ {
+ 		register[obj.Rconv(i)] = int16(i)
+ 	}
++
++	for i := loong64.REG_V0; i <= loong64.REG_V31; i++ {
++		register[obj.Rconv(i)] = int16(i)
++	}
++
++	for i := loong64.REG_X0; i <= loong64.REG_X31; i++ {
++		register[obj.Rconv(i)] = int16(i)
++	}
++
+ 	// Pseudo-registers.
+ 	register["SB"] = RSB
+ 	register["FP"] = RFP
+@@ -541,6 +553,8 @@ func archLoong64(linkArch *obj.LinkArch) *Arch {
+ 		"FCSR": true,
+ 		"FCC":  true,
+ 		"R":    true,
++		"V":    true,
++		"X":    true,
+ 	}
+ 
+ 	instructions := make(map[string]obj.As)
+diff --git a/src/cmd/asm/internal/arch/loong64.go b/src/cmd/asm/internal/arch/loong64.go
+index 48a62c4952..e68a2e9ef8 100644
+--- a/src/cmd/asm/internal/arch/loong64.go
++++ b/src/cmd/asm/internal/arch/loong64.go
+@@ -66,6 +66,14 @@ func loong64RegisterNumber(name string, n int16) (int16, bool) {
+ 		if 0 <= n && n <= 31 {
+ 			return loong64.REG_R0 + n, true
+ 		}
++	case "V":
++		if 0 <= n && n <= 31 {
++			return loong64.REG_V0 + n, true
++		}
++	case "X":
++		if 0 <= n && n <= 31 {
++			return loong64.REG_X0 + n, true
++		}
+ 	}
+ 	return 0, false
+ }
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 8d5d58fcd4..7638ab1be5 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -401,3 +401,35 @@ lable2:
+ 	FSCALEBD	F4, F5, F6	// a6101101
+ 	FLOGBF		F4, F5		// 85241401
+ 	FLOGBD		F4, F5		// 85281401
++
++	// VSTX/VLDX/XVSTX/XVLDX instructions
++	VMOVQ		V2, (R5)(R5)    // a2144438
++	VMOVQ		(R4)(R5), V2    // 82144038
++	XVMOVQ		X2, (R4)(R5)    // 82144c38
++	XVMOVQ		(R4)(R5), X2    // 82144838
++
++	// VST/VLD/XVST/XVLD instructions
++	VMOVQ		V2, (R4)        // 8200402c
++	VMOVQ		V2, 3(R4)       // 820c402c
++	VMOVQ		V2, 2040(R4)    // 82e05f2c
++	VMOVQ		V2, -2040(R4)   // 8220602c
++	VMOVQ		V2, y+16(FP)    // 0260402c
++	VMOVQ		V2, x+2030(FP)  // 02d85f2c
++	VMOVQ		(R4), V2        // 8200002c
++	VMOVQ		3(R4), V2       // 820c002c
++	VMOVQ		2044(R4), V2    // 82f01f2c
++	VMOVQ		-2044(R4), V2   // 8210202c
++	VMOVQ		y+16(FP), V2    // 0260002c
++	VMOVQ		x+2030(FP), V2  // 02d81f2c
++	XVMOVQ		X2, (R4)        // 8200c02c
++	XVMOVQ		X3, 3(R4)       // 830cc02c
++	XVMOVQ		X4, 2040(R4)    // 84e0df2c
++	XVMOVQ		X5, -2040(R4)   // 8520e02c
++	XVMOVQ		X6, y+16(FP)    // 0660c02c
++	XVMOVQ		X7, x+2030(FP)  // 07d8df2c
++	XVMOVQ		(R4), X2        // 8200802c
++	XVMOVQ		3(R4), X3       // 830c802c
++	XVMOVQ		2044(R4), X4    // 84f09f2c
++	XVMOVQ		-2044(R4), X5   // 8510a02c
++	XVMOVQ		y+16(FP), X6    // 0660802c
++	XVMOVQ		x+2030(FP), X7  // 07d89f2c
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index ed60b28fb8..e7736a918d 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -15,6 +15,8 @@ const (
+ 	NSYM   = 50
+ 	NREG   = 32 // number of general registers
+ 	NFREG  = 32 // number of floating point registers
++	NVREG  = 32 // number of LSX registers
++	NXREG  = 32 // number of LASX registers
+ )
+ 
+ const (
+@@ -150,7 +152,75 @@ const (
+ 	REG_FCC30
+ 	REG_FCC31
+ 
+-	REG_LAST = REG_FCC31 // the last defined register
++	// LSX: 128-bit vector register
++	REG_V0
++	REG_V1
++	REG_V2
++	REG_V3
++	REG_V4
++	REG_V5
++	REG_V6
++	REG_V7
++	REG_V8
++	REG_V9
++	REG_V10
++	REG_V11
++	REG_V12
++	REG_V13
++	REG_V14
++	REG_V15
++	REG_V16
++	REG_V17
++	REG_V18
++	REG_V19
++	REG_V20
++	REG_V21
++	REG_V22
++	REG_V23
++	REG_V24
++	REG_V25
++	REG_V26
++	REG_V27
++	REG_V28
++	REG_V29
++	REG_V30
++	REG_V31
++
++	// LASX: 256-bit vector register
++	REG_X0
++	REG_X1
++	REG_X2
++	REG_X3
++	REG_X4
++	REG_X5
++	REG_X6
++	REG_X7
++	REG_X8
++	REG_X9
++	REG_X10
++	REG_X11
++	REG_X12
++	REG_X13
++	REG_X14
++	REG_X15
++	REG_X16
++	REG_X17
++	REG_X18
++	REG_X19
++	REG_X20
++	REG_X21
++	REG_X22
++	REG_X23
++	REG_X24
++	REG_X25
++	REG_X26
++	REG_X27
++	REG_X28
++	REG_X29
++	REG_X30
++	REG_X31
++
++	REG_LAST = REG_X31 // the last defined register
+ 
+ 	REG_SPECIAL = REG_FCSR0
+ 
+@@ -179,6 +249,9 @@ func init() {
+ 	f(REG_R0, REG_R31, 0)
+ 	f(REG_F0, REG_F31, 32)
+ 
++	// The lower bits of V and X registers are alias to F registers
++	f(REG_V0, REG_V31, 32)
++	f(REG_X0, REG_X31, 32)
+ }
+ 
+ const (
+@@ -199,6 +272,8 @@ const (
+ 	C_FREG
+ 	C_FCSRREG
+ 	C_FCCREG
++	C_VREG
++	C_XREG
+ 	C_ZCON
+ 	C_SCON // 12 bit signed
+ 	C_UCON // 32 bit signed, low 12 bits 0
+@@ -549,6 +624,10 @@ const (
+ 	AFTINTRNEVF
+ 	AFTINTRNEVD
+ 
++	// LSX and LASX memory access instructions
++	AVMOVQ
++	AXVMOVQ
++
+ 	ALAST
+ 
+ 	// aliases
+@@ -574,4 +653,10 @@ func init() {
+ 	if REG_FCC0%32 != 0 {
+ 		panic("REG_FCC0 is not a multiple of 32")
+ 	}
++	if REG_V0%32 != 0 {
++		panic("REG_V0 is not a multiple of 32")
++	}
++	if REG_X0%32 != 0 {
++		panic("REG_X0 is not a multiple of 32")
++	}
+ }
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index 9893650c9a..fc5100d595 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -255,5 +255,7 @@ var Anames = []string{
+ 	"FTINTRNEWD",
+ 	"FTINTRNEVF",
+ 	"FTINTRNEVD",
++	"VMOVQ",
++	"XVMOVQ",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 8dc787b46b..c59c3576c1 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -105,6 +105,10 @@ var optab = []Optab{
+ 	{AMOVV, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+ 	{AMOVB, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+ 	{AMOVBU, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
++	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
++	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
++	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGZERO, 0},
++	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_SAUTO, C_NONE, 7, 4, REGZERO, 0},
+ 	{ASC, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+ 	{ASCV, C_REG, C_NONE, C_NONE, C_SOREG, C_NONE, 7, 4, REGZERO, 0},
+ 
+@@ -118,6 +122,10 @@ var optab = []Optab{
+ 	{AMOVV, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+ 	{AMOVB, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+ 	{AMOVBU, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
++	{AVMOVQ, C_SOREG, C_NONE, C_NONE, C_VREG, C_NONE, 8, 4, REGZERO, 0},
++	{AXVMOVQ, C_SOREG, C_NONE, C_NONE, C_XREG, C_NONE, 8, 4, REGZERO, 0},
++	{AVMOVQ, C_SAUTO, C_NONE, C_NONE, C_VREG, C_NONE, 8, 4, REGZERO, 0},
++	{AXVMOVQ, C_SAUTO, C_NONE, C_NONE, C_XREG, C_NONE, 8, 4, REGZERO, 0},
+ 	{ALL, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+ 	{ALLV, C_SOREG, C_NONE, C_NONE, C_REG, C_NONE, 8, 4, REGZERO, 0},
+ 
+@@ -306,6 +314,8 @@ var optab = []Optab{
+ 	{AMOVV, C_REG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
+ 	{AMOVF, C_FREG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
+ 	{AMOVD, C_FREG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
++	{AVMOVQ, C_VREG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
++	{AXVMOVQ, C_XREG, C_NONE, C_NONE, C_ROFF, C_NONE, 20, 4, 0, 0},
+ 
+ 	/* load with extended register offset */
+ 	{AMOVB, C_ROFF, C_NONE, C_NONE, C_REG, C_NONE, 21, 4, 0, 0},
+@@ -315,6 +325,8 @@ var optab = []Optab{
+ 	{AMOVV, C_ROFF, C_NONE, C_NONE, C_REG, C_NONE, 21, 4, 0, 0},
+ 	{AMOVF, C_ROFF, C_NONE, C_NONE, C_FREG, C_NONE, 21, 4, 0, 0},
+ 	{AMOVD, C_ROFF, C_NONE, C_NONE, C_FREG, C_NONE, 21, 4, 0, 0},
++	{AVMOVQ, C_ROFF, C_NONE, C_NONE, C_VREG, C_NONE, 21, 4, 0, 0},
++	{AXVMOVQ, C_ROFF, C_NONE, C_NONE, C_XREG, C_NONE, 21, 4, 0, 0},
+ 
+ 	{obj.APCALIGN, C_SCON, C_NONE, C_NONE, C_NONE, C_NONE, 0, 0, 0, 0},
+ 	{obj.APCDATA, C_LCON, C_NONE, C_NONE, C_LCON, C_NONE, 0, 0, 0, 0},
+@@ -812,6 +824,10 @@ func (c *ctxt0) rclass(r int16) int {
+ 		return C_FCCREG
+ 	case REG_FCSR0 <= r && r <= REG_FCSR3:
+ 		return C_FCSRREG
++	case REG_V0 <= r && r <= REG_V31:
++		return C_VREG
++	case REG_X0 <= r && r <= REG_X31:
++		return C_XREG
+ 	}
+ 
+ 	return C_GOK
+@@ -1199,6 +1215,8 @@ func buildop(ctxt *obj.Link) {
+ 			AJAL,
+ 			AJMP,
+ 			AMOVWU,
++			AVMOVQ,
++			AXVMOVQ,
+ 			ALL,
+ 			ALLV,
+ 			ASC,
+@@ -2099,6 +2117,14 @@ func (c *ctxt0) oprrr(a obj.As) uint32 {
+ 		return 0x07070 << 15 // fstx.s
+ 	case AMOVD:
+ 		return 0x07078 << 15 // fstx.d
++	case -AVMOVQ:
++		return 0x07080 << 15 // vldx
++	case -AXVMOVQ:
++		return 0x07090 << 15 // xvldx
++	case AVMOVQ:
++		return 0x07088 << 15 // vstx
++	case AXVMOVQ:
++		return 0x07098 << 15 // xvstx
+ 	}
+ 
+ 	if a < 0 {
+@@ -2386,7 +2412,14 @@ func (c *ctxt0) opirr(a obj.As) uint32 {
+ 		return 0x0ac << 22
+ 	case -AMOVD:
+ 		return 0x0ae << 22
+-
++	case -AVMOVQ:
++		return 0x0b0 << 22 // vld
++	case -AXVMOVQ:
++		return 0x0b2 << 22 // xvld
++	case AVMOVQ:
++		return 0x0b1 << 22 // vst
++	case AXVMOVQ:
++		return 0x0b3 << 22 // xvst
+ 	case ASLLV:
+ 		return 0x0041 << 16
+ 	case ASRLV:
+diff --git a/src/cmd/internal/obj/loong64/cnames.go b/src/cmd/internal/obj/loong64/cnames.go
+index 41721aae2d..90a50d2d81 100644
+--- a/src/cmd/internal/obj/loong64/cnames.go
++++ b/src/cmd/internal/obj/loong64/cnames.go
+@@ -11,6 +11,8 @@ var cnames0 = []string{
+ 	"FREG",
+ 	"FCSRREG",
+ 	"FCCREG",
++	"VREG",
++	"XREG",
+ 	"ZCON",
+ 	"SCON",
+ 	"UCON",
+diff --git a/src/cmd/internal/obj/loong64/doc.go b/src/cmd/internal/obj/loong64/doc.go
+index e4c33f6525..e657f63d03 100644
+--- a/src/cmd/internal/obj/loong64/doc.go
++++ b/src/cmd/internal/obj/loong64/doc.go
+@@ -8,7 +8,7 @@ GNU LoongArch64 syntax, but we can still follow the general rules to map between
+ 
+ # Instructions mnemonics mapping rules
+ 
+-1. Bit widths represented by various instruction suffixes
++1. Bit widths represented by various instruction suffixes and prefixes
+ V (vlong)     = 64 bit
+ WU (word)     = 32 bit unsigned
+ W (word)      = 32 bit
+@@ -19,6 +19,18 @@ BU            = 8 bit unsigned
+ F (float)     = 32 bit float
+ D (double)    = 64 bit float
+ 
++V  (LSX)      = 128 bit
++XV (LASX)     = 256 bit
++
++Examples:
++
++	MOVB  (R2), R3  // Load 8 bit memory data into R3 register
++	MOVH  (R2), R3  // Load 16 bit memory data into R3 register
++	MOVW  (R2), R3  // Load 32 bit memory data into R3 register
++	MOVV  (R2), R3  // Load 64 bit memory data into R3 register
++	VMOVQ  (R2), V1 // Load 128 bit memory data into V1 register
++	XVMOVQ (R2), X1 // Load 256 bit memory data into X1 register
++
+ 2. Align directive
+ Go asm supports the PCALIGN directive, which indicates that the next instruction should
+ be aligned to a specified boundary by padding with NOOP instruction. The alignment value
+@@ -50,6 +62,10 @@ start:
+ 
+ 2. All floating-point register names are written as Fn.
+ 
++3. All LSX register names are written as Vn.
++
++4. All LASX register names are written as Xn.
++
+ # Argument mapping rules
+ 
+ 1. The operands appear in left-to-right assignment order.
+diff --git a/src/cmd/internal/obj/loong64/list.go b/src/cmd/internal/obj/loong64/list.go
+index 48904302ff..73b9c1d4d2 100644
+--- a/src/cmd/internal/obj/loong64/list.go
++++ b/src/cmd/internal/obj/loong64/list.go
+@@ -22,18 +22,31 @@ func rconv(r int) string {
+ 		// Special case.
+ 		return "g"
+ 	}
++
+ 	if REG_R0 <= r && r <= REG_R31 {
+ 		return fmt.Sprintf("R%d", r-REG_R0)
+ 	}
++
+ 	if REG_F0 <= r && r <= REG_F31 {
+ 		return fmt.Sprintf("F%d", r-REG_F0)
+ 	}
++
+ 	if REG_FCSR0 <= r && r <= REG_FCSR31 {
+ 		return fmt.Sprintf("FCSR%d", r-REG_FCSR0)
+ 	}
++
+ 	if REG_FCC0 <= r && r <= REG_FCC31 {
+ 		return fmt.Sprintf("FCC%d", r-REG_FCC0)
+ 	}
++
++	if REG_V0 <= r && r <= REG_V31 {
++		return fmt.Sprintf("V%d", r-REG_V0)
++	}
++
++	if REG_X0 <= r && r <= REG_X31 {
++		return fmt.Sprintf("X%d", r-REG_X0)
++	}
++
+ 	return fmt.Sprintf("Rgok(%d)", r-obj.RBaseLOONG64)
+ }
+ 

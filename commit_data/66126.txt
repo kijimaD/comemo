@@ -1,0 +1,996 @@
+commit 8b8ab2584d52c96ed84207208f13a37272cab217
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Jan 29 17:16:02 2025 +0000
+
+    internal/trace: merge event and tracev2 packages
+    
+    These two packages were historically separate in an attempt to provide a
+    unified description of trace v1 and trace v2 formats. In practice this
+    turned out to be pointless, since it made more sense to keep the trace
+    v1 parser in a self-contained bubble with a converter to v2. Future
+    trace wire format migrations should probably just follow the same
+    general strategy, if there's a substantial change. (Minor changes can be
+    handled more organically.)
+    
+    Change-Id: Ic765df62065fe53cfae59b505297527c3fa42dfb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645395
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/cmd/trace/main.go                              |   6 +-
+ src/go/build/deps_test.go                          |   8 +-
+ src/internal/trace/base.go                         |   5 +-
+ src/internal/trace/batch.go                        |  19 ++--
+ src/internal/trace/batchcursor.go                  |   3 +-
+ src/internal/trace/event.go                        |   3 +-
+ src/internal/trace/generation.go                   |  25 ++---
+ src/internal/trace/internal/testgen/trace.go       |  13 +--
+ src/internal/trace/internal/tracev1/parser.go      | 121 +++++++++++----------
+ src/internal/trace/order.go                        |  13 +--
+ src/internal/trace/raw/event.go                    |   4 +-
+ src/internal/trace/raw/reader.go                   |   6 +-
+ src/internal/trace/raw/textreader.go               |   8 +-
+ src/internal/trace/raw/writer.go                   |   4 +-
+ src/internal/trace/tracev1.go                      |   3 +-
+ src/internal/trace/tracev2/{event.go => events.go} |  72 +++++++++---
+ .../trace/tracev2/{event/event.go => spec.go}      |  24 ++--
+ src/internal/trace/version/version.go              |   7 +-
+ 18 files changed, 190 insertions(+), 154 deletions(-)
+
+diff --git a/src/cmd/trace/main.go b/src/cmd/trace/main.go
+index 625adb1c0c..7786e02d00 100644
+--- a/src/cmd/trace/main.go
++++ b/src/cmd/trace/main.go
+@@ -12,7 +12,7 @@ import (
+ 	"fmt"
+ 	"internal/trace"
+ 	"internal/trace/raw"
+-	"internal/trace/tracev2/event"
++	"internal/trace/tracev2"
+ 	"internal/trace/traceviewer"
+ 	"io"
+ 	"log"
+@@ -372,13 +372,13 @@ func debugEventsFootprint(trc io.Reader) error {
+ 		return err
+ 	}
+ 	type eventStats struct {
+-		typ   event.Type
++		typ   tracev2.EventType
+ 		count int
+ 		bytes int
+ 	}
+ 	var stats [256]eventStats
+ 	for i := range stats {
+-		stats[i].typ = event.Type(i)
++		stats[i].typ = tracev2.EventType(i)
+ 	}
+ 	eventsRead := 0
+ 	for {
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index f2de39a082..29773486dd 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -58,7 +58,7 @@ var depsRules = `
+ 	  internal/platform,
+ 	  internal/profilerecord,
+ 	  internal/syslist,
+-	  internal/trace/tracev2/event,
++	  internal/trace/tracev2,
+ 	  internal/trace/traceviewer/format,
+ 	  log/internal,
+ 	  math/bits,
+@@ -80,6 +80,7 @@ var depsRules = `
+ 	internal/goexperiment,
+ 	internal/goos,
+ 	internal/profilerecord,
++	internal/trace/tracev2,
+ 	math/bits,
+ 	structs
+ 	< internal/bytealg
+@@ -699,16 +700,13 @@ var depsRules = `
+ 	< crypto/internal/fips140/check/checktest;
+ 
+ 	# v2 execution trace parser.
+-	internal/trace/tracev2/event
+-	< internal/trace/tracev2;
+-
+ 	FMT, io, internal/trace/tracev2
+ 	< internal/trace/version;
+ 
+ 	FMT, encoding/binary, internal/trace/version
+ 	< internal/trace/raw;
+ 
+-	FMT, internal/trace/tracev2/event, internal/trace/version, io, sort, encoding/binary
++	FMT, internal/trace/version, io, sort, encoding/binary
+ 	< internal/trace/internal/tracev1;
+ 
+ 	FMT, encoding/binary, internal/trace/version, internal/trace/internal/tracev1, container/heap, math/rand
+diff --git a/src/internal/trace/base.go b/src/internal/trace/base.go
+index c6cc08ff69..5e11c6f049 100644
+--- a/src/internal/trace/base.go
++++ b/src/internal/trace/base.go
+@@ -13,7 +13,6 @@ import (
+ 	"strings"
+ 
+ 	"internal/trace/tracev2"
+-	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ )
+ 
+@@ -28,7 +27,7 @@ type timedEventArgs [maxArgs - 1]uint64
+ // baseEvent is the basic unprocessed event. This serves as a common
+ // fundamental data structure across.
+ type baseEvent struct {
+-	typ  event.Type
++	typ  tracev2.EventType
+ 	time Time
+ 	args timedEventArgs
+ }
+@@ -59,7 +58,7 @@ type evTable struct {
+ 	nextExtra      extraStringID
+ 
+ 	// expBatches contains extra unparsed data relevant to a specific experiment.
+-	expBatches map[event.Experiment][]ExperimentalBatch
++	expBatches map[tracev2.Experiment][]ExperimentalBatch
+ }
+ 
+ // addExtraString adds an extra string to the evTable and returns
+diff --git a/src/internal/trace/batch.go b/src/internal/trace/batch.go
+index 0dc87321a6..58f18d6381 100644
+--- a/src/internal/trace/batch.go
++++ b/src/internal/trace/batch.go
+@@ -11,7 +11,6 @@ import (
+ 	"io"
+ 
+ 	"internal/trace/tracev2"
+-	"internal/trace/tracev2/event"
+ )
+ 
+ // timestamp is an unprocessed timestamp.
+@@ -23,23 +22,23 @@ type batch struct {
+ 	m    ThreadID
+ 	time timestamp
+ 	data []byte
+-	exp  event.Experiment
++	exp  tracev2.Experiment
+ }
+ 
+ func (b *batch) isStringsBatch() bool {
+-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvStrings
++	return b.exp == tracev2.NoExperiment && len(b.data) > 0 && tracev2.EventType(b.data[0]) == tracev2.EvStrings
+ }
+ 
+ func (b *batch) isStacksBatch() bool {
+-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvStacks
++	return b.exp == tracev2.NoExperiment && len(b.data) > 0 && tracev2.EventType(b.data[0]) == tracev2.EvStacks
+ }
+ 
+ func (b *batch) isCPUSamplesBatch() bool {
+-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvCPUSamples
++	return b.exp == tracev2.NoExperiment && len(b.data) > 0 && tracev2.EventType(b.data[0]) == tracev2.EvCPUSamples
+ }
+ 
+ func (b *batch) isFreqBatch() bool {
+-	return b.exp == event.NoExperiment && len(b.data) > 0 && event.Type(b.data[0]) == tracev2.EvFrequency
++	return b.exp == tracev2.NoExperiment && len(b.data) > 0 && tracev2.EventType(b.data[0]) == tracev2.EvFrequency
+ }
+ 
+ // readBatch reads the next full batch from r.
+@@ -52,18 +51,18 @@ func readBatch(r interface {
+ 	if err != nil {
+ 		return batch{}, 0, err
+ 	}
+-	if typ := event.Type(b); typ != tracev2.EvEventBatch && typ != tracev2.EvExperimentalBatch {
++	if typ := tracev2.EventType(b); typ != tracev2.EvEventBatch && typ != tracev2.EvExperimentalBatch {
+ 		return batch{}, 0, fmt.Errorf("expected batch event, got event %d", typ)
+ 	}
+ 
+ 	// Read the experiment of we have one.
+-	exp := event.NoExperiment
+-	if event.Type(b) == tracev2.EvExperimentalBatch {
++	exp := tracev2.NoExperiment
++	if tracev2.EventType(b) == tracev2.EvExperimentalBatch {
+ 		e, err := r.ReadByte()
+ 		if err != nil {
+ 			return batch{}, 0, err
+ 		}
+-		exp = event.Experiment(e)
++		exp = tracev2.Experiment(e)
+ 	}
+ 
+ 	// Read the batch header: gen (generation), thread (M) ID, base timestamp
+diff --git a/src/internal/trace/batchcursor.go b/src/internal/trace/batchcursor.go
+index 026f24f8b1..8582f30bb0 100644
+--- a/src/internal/trace/batchcursor.go
++++ b/src/internal/trace/batchcursor.go
+@@ -10,7 +10,6 @@ import (
+ 	"fmt"
+ 
+ 	"internal/trace/tracev2"
+-	"internal/trace/tracev2/event"
+ )
+ 
+ type batchCursor struct {
+@@ -66,7 +65,7 @@ func (b *batchCursor) compare(a *batchCursor) int {
+ // be the case for every event in a plain EventBatch.
+ func readTimedBaseEvent(b []byte, e *baseEvent) (int, timestamp, error) {
+ 	// Get the event type.
+-	typ := event.Type(b[0])
++	typ := tracev2.EventType(b[0])
+ 	specs := tracev2.Specs()
+ 	if int(typ) >= len(specs) {
+ 		return 0, 0, fmt.Errorf("found invalid event type: %v", typ)
+diff --git a/src/internal/trace/event.go b/src/internal/trace/event.go
+index fa1daf3698..ebf8aaa977 100644
+--- a/src/internal/trace/event.go
++++ b/src/internal/trace/event.go
+@@ -12,7 +12,6 @@ import (
+ 	"time"
+ 
+ 	"internal/trace/tracev2"
+-	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ )
+ 
+@@ -693,7 +692,7 @@ func (e Event) Experimental() ExperimentalEvent {
+ 	}
+ }
+ 
+-const evSync = ^event.Type(0)
++const evSync = ^tracev2.EventType(0)
+ 
+ var tracev2Type2Kind = [...]EventKind{
+ 	tracev2.EvCPUSample:           EventStackSample,
+diff --git a/src/internal/trace/generation.go b/src/internal/trace/generation.go
+index 89d0f6509b..90a7f3b6c6 100644
+--- a/src/internal/trace/generation.go
++++ b/src/internal/trace/generation.go
+@@ -15,7 +15,6 @@ import (
+ 	"strings"
+ 
+ 	"internal/trace/tracev2"
+-	"internal/trace/tracev2/event"
+ )
+ 
+ // generation contains all the trace data for a single
+@@ -166,9 +165,9 @@ func processBatch(g *generation, b batch) error {
+ 			return fmt.Errorf("found multiple frequency events")
+ 		}
+ 		g.freq = freq
+-	case b.exp != event.NoExperiment:
++	case b.exp != tracev2.NoExperiment:
+ 		if g.expBatches == nil {
+-			g.expBatches = make(map[event.Experiment][]ExperimentalBatch)
++			g.expBatches = make(map[tracev2.Experiment][]ExperimentalBatch)
+ 		}
+ 		if err := addExperimentalBatch(g.expBatches, b); err != nil {
+ 			return err
+@@ -222,7 +221,7 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
+ 	}
+ 	r := bytes.NewReader(b.data)
+ 	hdr, err := r.ReadByte() // Consume the EvStrings byte.
+-	if err != nil || event.Type(hdr) != tracev2.EvStrings {
++	if err != nil || tracev2.EventType(hdr) != tracev2.EvStrings {
+ 		return fmt.Errorf("missing strings batch header")
+ 	}
+ 
+@@ -233,7 +232,7 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		if event.Type(ev) != tracev2.EvString {
++		if tracev2.EventType(ev) != tracev2.EvString {
+ 			return fmt.Errorf("expected string event, got %d", ev)
+ 		}
+ 
+@@ -248,8 +247,8 @@ func addStrings(stringTable *dataTable[stringID, string], b batch) error {
+ 		if err != nil {
+ 			return err
+ 		}
+-		if len > tracev2.MaxStringSize {
+-			return fmt.Errorf("invalid string size %d, maximum is %d", len, tracev2.MaxStringSize)
++		if len > tracev2.MaxEventTrailerDataSize {
++			return fmt.Errorf("invalid string size %d, maximum is %d", len, tracev2.MaxEventTrailerDataSize)
+ 		}
+ 
+ 		// Copy out the string.
+@@ -280,7 +279,7 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
+ 	}
+ 	r := bytes.NewReader(b.data)
+ 	hdr, err := r.ReadByte() // Consume the EvStacks byte.
+-	if err != nil || event.Type(hdr) != tracev2.EvStacks {
++	if err != nil || tracev2.EventType(hdr) != tracev2.EvStacks {
+ 		return fmt.Errorf("missing stacks batch header")
+ 	}
+ 
+@@ -290,7 +289,7 @@ func addStacks(stackTable *dataTable[stackID, stack], pcs map[uint64]frame, b ba
+ 		if err != nil {
+ 			return err
+ 		}
+-		if event.Type(ev) != tracev2.EvStack {
++		if tracev2.EventType(ev) != tracev2.EvStack {
+ 			return fmt.Errorf("expected stack event, got %d", ev)
+ 		}
+ 
+@@ -358,7 +357,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
+ 	}
+ 	r := bytes.NewReader(b.data)
+ 	hdr, err := r.ReadByte() // Consume the EvCPUSamples byte.
+-	if err != nil || event.Type(hdr) != tracev2.EvCPUSamples {
++	if err != nil || tracev2.EventType(hdr) != tracev2.EvCPUSamples {
+ 		return nil, fmt.Errorf("missing CPU samples batch header")
+ 	}
+ 
+@@ -368,7 +367,7 @@ func addCPUSamples(samples []cpuSample, b batch) ([]cpuSample, error) {
+ 		if err != nil {
+ 			return nil, err
+ 		}
+-		if event.Type(ev) != tracev2.EvCPUSample {
++		if tracev2.EventType(ev) != tracev2.EvCPUSample {
+ 			return nil, fmt.Errorf("expected CPU sample event, got %d", ev)
+ 		}
+ 
+@@ -441,8 +440,8 @@ func parseFreq(b batch) (frequency, error) {
+ 
+ // addExperimentalBatch takes an experimental batch and adds it to the list of experimental
+ // batches for the experiment its a part of.
+-func addExperimentalBatch(expBatches map[event.Experiment][]ExperimentalBatch, b batch) error {
+-	if b.exp == event.NoExperiment {
++func addExperimentalBatch(expBatches map[tracev2.Experiment][]ExperimentalBatch, b batch) error {
++	if b.exp == tracev2.NoExperiment {
+ 		return fmt.Errorf("internal error: addExperimentalBatch called on non-experimental batch")
+ 	}
+ 	expBatches[b.exp] = append(expBatches[b.exp], ExperimentalBatch{
+diff --git a/src/internal/trace/internal/testgen/trace.go b/src/internal/trace/internal/testgen/trace.go
+index 19d76d1367..0ae7e9924e 100644
+--- a/src/internal/trace/internal/testgen/trace.go
++++ b/src/internal/trace/internal/testgen/trace.go
+@@ -15,7 +15,6 @@ import (
+ 	"internal/trace"
+ 	"internal/trace/raw"
+ 	"internal/trace/tracev2"
+-	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ 	"internal/txtar"
+ )
+@@ -51,8 +50,8 @@ func Main(ver version.Version, f func(*Trace)) {
+ type Trace struct {
+ 	// Trace data state.
+ 	ver             version.Version
+-	names           map[string]event.Type
+-	specs           []event.Spec
++	names           map[string]tracev2.EventType
++	specs           []tracev2.EventSpec
+ 	events          []raw.Event
+ 	gens            []*Generation
+ 	validTimestamps bool
+@@ -65,7 +64,7 @@ type Trace struct {
+ // NewTrace creates a new trace.
+ func NewTrace(ver version.Version) *Trace {
+ 	return &Trace{
+-		names:           event.Names(ver.Specs()),
++		names:           tracev2.EventNames(ver.Specs()),
+ 		specs:           ver.Specs(),
+ 		validTimestamps: true,
+ 	}
+@@ -86,7 +85,7 @@ func (t *Trace) ExpectSuccess() {
+ // RawEvent emits an event into the trace. name must correspond to one
+ // of the names in Specs() result for the version that was passed to
+ // this trace.
+-func (t *Trace) RawEvent(typ event.Type, data []byte, args ...uint64) {
++func (t *Trace) RawEvent(typ tracev2.EventType, data []byte, args ...uint64) {
+ 	t.events = append(t.events, t.createEvent(typ, data, args...))
+ }
+ 
+@@ -146,7 +145,7 @@ func (t *Trace) Generate() []byte {
+ 	})
+ }
+ 
+-func (t *Trace) createEvent(ev event.Type, data []byte, args ...uint64) raw.Event {
++func (t *Trace) createEvent(ev tracev2.EventType, data []byte, args ...uint64) raw.Event {
+ 	spec := t.specs[ev]
+ 	if ev != tracev2.EvStack {
+ 		if arity := len(spec.Args); len(args) != arity {
+@@ -362,7 +361,7 @@ func (b *Batch) uintArgFor(arg any, argSpec string) uint64 {
+ // RawEvent emits an event into a batch. name must correspond to one
+ // of the names in Specs() result for the version that was passed to
+ // this trace.
+-func (b *Batch) RawEvent(typ event.Type, data []byte, args ...uint64) {
++func (b *Batch) RawEvent(typ tracev2.EventType, data []byte, args ...uint64) {
+ 	ev := b.gen.trace.createEvent(typ, data, args...)
+ 
+ 	// Compute the size of the event and add it to the batch.
+diff --git a/src/internal/trace/internal/tracev1/parser.go b/src/internal/trace/internal/tracev1/parser.go
+index b4ec7a342c..d47de9088a 100644
+--- a/src/internal/trace/internal/tracev1/parser.go
++++ b/src/internal/trace/internal/tracev1/parser.go
+@@ -17,7 +17,6 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
+-	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ 	"io"
+ 	"math"
+@@ -36,12 +35,12 @@ type Event struct {
+ 	// pointers, the latter so that the garbage collector won't have to scan any
+ 	// memory of our millions of events.
+ 
+-	Ts    Timestamp  // timestamp in nanoseconds
+-	G     uint64     // G on which the event happened
+-	Args  [4]uint64  // event-type-specific arguments
+-	StkID uint32     // unique stack ID
+-	P     int32      // P on which the event happened (can be a real P or one of TimerP, NetpollP, SyscallP)
+-	Type  event.Type // one of Ev*
++	Ts    Timestamp // timestamp in nanoseconds
++	G     uint64    // G on which the event happened
++	Args  [4]uint64 // event-type-specific arguments
++	StkID uint32    // unique stack ID
++	P     int32     // P on which the event happened (can be a real P or one of TimerP, NetpollP, SyscallP)
++	Type  EventType // one of Ev*
+ }
+ 
+ // Frame is a frame in stack traces.
+@@ -253,7 +252,7 @@ func (p *parser) parse() (Trace, error) {
+ 
+ // rawEvent is a helper type used during parsing.
+ type rawEvent struct {
+-	typ   event.Type
++	typ   EventType
+ 	args  []uint64
+ 	sargs []string
+ 
+@@ -643,7 +642,7 @@ func (p *parser) readRawEvent(flags uint, ev *rawEvent) error {
+ 	if !ok {
+ 		return io.EOF
+ 	}
+-	typ := event.Type(b << 2 >> 2)
++	typ := EventType(b << 2 >> 2)
+ 	// Most events have a timestamp before the actual arguments, so we add 1 and
+ 	// parse it like it's the first argument. EvString has a special format and
+ 	// the number of arguments doesn't matter. EvBatch writes '1' as the number
+@@ -1376,60 +1375,62 @@ func (raw *rawEvent) argNum() int {
+ 	return narg
+ }
+ 
++type EventType uint8
++
+ // Event types in the trace.
+ // Verbatim copy from src/runtime/trace.go with the "trace" prefix removed.
+ const (
+-	EvNone              event.Type = 0  // unused
+-	EvBatch             event.Type = 1  // start of per-P batch of events [pid, timestamp]
+-	EvFrequency         event.Type = 2  // contains tracer timer frequency [frequency (ticks per second)]
+-	EvStack             event.Type = 3  // stack [stack id, number of PCs, array of {PC, func string ID, file string ID, line}]
+-	EvGomaxprocs        event.Type = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
+-	EvProcStart         event.Type = 5  // start of P [timestamp, thread id]
+-	EvProcStop          event.Type = 6  // stop of P [timestamp]
+-	EvGCStart           event.Type = 7  // GC start [timestamp, seq, stack id]
+-	EvGCDone            event.Type = 8  // GC done [timestamp]
+-	EvSTWStart          event.Type = 9  // GC mark termination start [timestamp, kind]
+-	EvSTWDone           event.Type = 10 // GC mark termination done [timestamp]
+-	EvGCSweepStart      event.Type = 11 // GC sweep start [timestamp, stack id]
+-	EvGCSweepDone       event.Type = 12 // GC sweep done [timestamp, swept, reclaimed]
+-	EvGoCreate          event.Type = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
+-	EvGoStart           event.Type = 14 // goroutine starts running [timestamp, goroutine id, seq]
+-	EvGoEnd             event.Type = 15 // goroutine ends [timestamp]
+-	EvGoStop            event.Type = 16 // goroutine stops (like in select{}) [timestamp, stack]
+-	EvGoSched           event.Type = 17 // goroutine calls Gosched [timestamp, stack]
+-	EvGoPreempt         event.Type = 18 // goroutine is preempted [timestamp, stack]
+-	EvGoSleep           event.Type = 19 // goroutine calls Sleep [timestamp, stack]
+-	EvGoBlock           event.Type = 20 // goroutine blocks [timestamp, stack]
+-	EvGoUnblock         event.Type = 21 // goroutine is unblocked [timestamp, goroutine id, seq, stack]
+-	EvGoBlockSend       event.Type = 22 // goroutine blocks on chan send [timestamp, stack]
+-	EvGoBlockRecv       event.Type = 23 // goroutine blocks on chan recv [timestamp, stack]
+-	EvGoBlockSelect     event.Type = 24 // goroutine blocks on select [timestamp, stack]
+-	EvGoBlockSync       event.Type = 25 // goroutine blocks on Mutex/RWMutex [timestamp, stack]
+-	EvGoBlockCond       event.Type = 26 // goroutine blocks on Cond [timestamp, stack]
+-	EvGoBlockNet        event.Type = 27 // goroutine blocks on network [timestamp, stack]
+-	EvGoSysCall         event.Type = 28 // syscall enter [timestamp, stack]
+-	EvGoSysExit         event.Type = 29 // syscall exit [timestamp, goroutine id, seq, real timestamp]
+-	EvGoSysBlock        event.Type = 30 // syscall blocks [timestamp]
+-	EvGoWaiting         event.Type = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
+-	EvGoInSyscall       event.Type = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
+-	EvHeapAlloc         event.Type = 33 // gcController.heapLive change [timestamp, heap live bytes]
+-	EvHeapGoal          event.Type = 34 // gcController.heapGoal change [timestamp, heap goal bytes]
+-	EvTimerGoroutine    event.Type = 35 // denotes timer goroutine [timer goroutine id]
+-	EvFutileWakeup      event.Type = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
+-	EvString            event.Type = 37 // string dictionary entry [ID, length, string]
+-	EvGoStartLocal      event.Type = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
+-	EvGoUnblockLocal    event.Type = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
+-	EvGoSysExitLocal    event.Type = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
+-	EvGoStartLabel      event.Type = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
+-	EvGoBlockGC         event.Type = 42 // goroutine blocks on GC assist [timestamp, stack]
+-	EvGCMarkAssistStart event.Type = 43 // GC mark assist start [timestamp, stack]
+-	EvGCMarkAssistDone  event.Type = 44 // GC mark assist done [timestamp]
+-	EvUserTaskCreate    event.Type = 45 // trace.NewTask [timestamp, internal task id, internal parent id, stack, name string]
+-	EvUserTaskEnd       event.Type = 46 // end of task [timestamp, internal task id, stack]
+-	EvUserRegion        event.Type = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), name string]
+-	EvUserLog           event.Type = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
+-	EvCPUSample         event.Type = 49 // CPU profiling sample [timestamp, stack, real timestamp, real P id (-1 when absent), goroutine id]
+-	EvCount             event.Type = 50
++	EvNone              EventType = 0  // unused
++	EvBatch             EventType = 1  // start of per-P batch of events [pid, timestamp]
++	EvFrequency         EventType = 2  // contains tracer timer frequency [frequency (ticks per second)]
++	EvStack             EventType = 3  // stack [stack id, number of PCs, array of {PC, func string ID, file string ID, line}]
++	EvGomaxprocs        EventType = 4  // current value of GOMAXPROCS [timestamp, GOMAXPROCS, stack id]
++	EvProcStart         EventType = 5  // start of P [timestamp, thread id]
++	EvProcStop          EventType = 6  // stop of P [timestamp]
++	EvGCStart           EventType = 7  // GC start [timestamp, seq, stack id]
++	EvGCDone            EventType = 8  // GC done [timestamp]
++	EvSTWStart          EventType = 9  // GC mark termination start [timestamp, kind]
++	EvSTWDone           EventType = 10 // GC mark termination done [timestamp]
++	EvGCSweepStart      EventType = 11 // GC sweep start [timestamp, stack id]
++	EvGCSweepDone       EventType = 12 // GC sweep done [timestamp, swept, reclaimed]
++	EvGoCreate          EventType = 13 // goroutine creation [timestamp, new goroutine id, new stack id, stack id]
++	EvGoStart           EventType = 14 // goroutine starts running [timestamp, goroutine id, seq]
++	EvGoEnd             EventType = 15 // goroutine ends [timestamp]
++	EvGoStop            EventType = 16 // goroutine stops (like in select{}) [timestamp, stack]
++	EvGoSched           EventType = 17 // goroutine calls Gosched [timestamp, stack]
++	EvGoPreempt         EventType = 18 // goroutine is preempted [timestamp, stack]
++	EvGoSleep           EventType = 19 // goroutine calls Sleep [timestamp, stack]
++	EvGoBlock           EventType = 20 // goroutine blocks [timestamp, stack]
++	EvGoUnblock         EventType = 21 // goroutine is unblocked [timestamp, goroutine id, seq, stack]
++	EvGoBlockSend       EventType = 22 // goroutine blocks on chan send [timestamp, stack]
++	EvGoBlockRecv       EventType = 23 // goroutine blocks on chan recv [timestamp, stack]
++	EvGoBlockSelect     EventType = 24 // goroutine blocks on select [timestamp, stack]
++	EvGoBlockSync       EventType = 25 // goroutine blocks on Mutex/RWMutex [timestamp, stack]
++	EvGoBlockCond       EventType = 26 // goroutine blocks on Cond [timestamp, stack]
++	EvGoBlockNet        EventType = 27 // goroutine blocks on network [timestamp, stack]
++	EvGoSysCall         EventType = 28 // syscall enter [timestamp, stack]
++	EvGoSysExit         EventType = 29 // syscall exit [timestamp, goroutine id, seq, real timestamp]
++	EvGoSysBlock        EventType = 30 // syscall blocks [timestamp]
++	EvGoWaiting         EventType = 31 // denotes that goroutine is blocked when tracing starts [timestamp, goroutine id]
++	EvGoInSyscall       EventType = 32 // denotes that goroutine is in syscall when tracing starts [timestamp, goroutine id]
++	EvHeapAlloc         EventType = 33 // gcController.heapLive change [timestamp, heap live bytes]
++	EvHeapGoal          EventType = 34 // gcController.heapGoal change [timestamp, heap goal bytes]
++	EvTimerGoroutine    EventType = 35 // denotes timer goroutine [timer goroutine id]
++	EvFutileWakeup      EventType = 36 // denotes that the previous wakeup of this goroutine was futile [timestamp]
++	EvString            EventType = 37 // string dictionary entry [ID, length, string]
++	EvGoStartLocal      EventType = 38 // goroutine starts running on the same P as the last event [timestamp, goroutine id]
++	EvGoUnblockLocal    EventType = 39 // goroutine is unblocked on the same P as the last event [timestamp, goroutine id, stack]
++	EvGoSysExitLocal    EventType = 40 // syscall exit on the same P as the last event [timestamp, goroutine id, real timestamp]
++	EvGoStartLabel      EventType = 41 // goroutine starts running with label [timestamp, goroutine id, seq, label string id]
++	EvGoBlockGC         EventType = 42 // goroutine blocks on GC assist [timestamp, stack]
++	EvGCMarkAssistStart EventType = 43 // GC mark assist start [timestamp, stack]
++	EvGCMarkAssistDone  EventType = 44 // GC mark assist done [timestamp]
++	EvUserTaskCreate    EventType = 45 // trace.NewTask [timestamp, internal task id, internal parent id, stack, name string]
++	EvUserTaskEnd       EventType = 46 // end of task [timestamp, internal task id, stack]
++	EvUserRegion        EventType = 47 // trace.WithRegion [timestamp, internal task id, mode(0:start, 1:end), name string]
++	EvUserLog           EventType = 48 // trace.Log [timestamp, internal id, key string id, stack, value string]
++	EvCPUSample         EventType = 49 // CPU profiling sample [timestamp, stack, real timestamp, real P id (-1 when absent), goroutine id]
++	EvCount             EventType = 50
+ )
+ 
+ var EventDescriptions = [256]struct {
+diff --git a/src/internal/trace/order.go b/src/internal/trace/order.go
+index 3e7ed8941b..7b6075d563 100644
+--- a/src/internal/trace/order.go
++++ b/src/internal/trace/order.go
+@@ -10,7 +10,6 @@ import (
+ 	"strings"
+ 
+ 	"internal/trace/tracev2"
+-	"internal/trace/tracev2/event"
+ 	"internal/trace/version"
+ )
+ 
+@@ -89,7 +88,7 @@ func (o *ordering) Advance(ev *baseEvent, evt *evTable, m ThreadID, gen uint64)
+ 	return ok, err
+ }
+ 
+-func (o *ordering) evName(typ event.Type) string {
++func (o *ordering) evName(typ tracev2.EventType) string {
+ 	return o.traceVer.EventName(typ)
+ }
+ 
+@@ -1167,12 +1166,12 @@ type userRegion struct {
+ // they may have an optional subtype that describes the range
+ // in more detail.
+ type rangeType struct {
+-	typ  event.Type // "Begin" event.
+-	desc stringID   // Optional subtype.
++	typ  tracev2.EventType // "Begin" event.
++	desc stringID          // Optional subtype.
+ }
+ 
+ // makeRangeType constructs a new rangeType.
+-func makeRangeType(typ event.Type, desc stringID) rangeType {
++func makeRangeType(typ tracev2.EventType, desc stringID) rangeType {
+ 	if styp := tracev2.Specs()[typ].StartEv; styp != tracev2.EvNone {
+ 		typ = styp
+ 	}
+@@ -1266,7 +1265,7 @@ func (s *rangeState) hasRange(typ rangeType) bool {
+ // endRange ends a special range in time on the goroutine.
+ //
+ // This must line up with the start event type  of the range the goroutine is currently in.
+-func (s *rangeState) endRange(typ event.Type) (stringID, error) {
++func (s *rangeState) endRange(typ tracev2.EventType) (stringID, error) {
+ 	st := tracev2.Specs()[typ].StartEv
+ 	idx := -1
+ 	for i, r := range s.inFlight {
+@@ -1386,7 +1385,7 @@ func (q *queue[T]) pop() (T, bool) {
+ // It's just a convenience function; it's always OK to construct
+ // an Event manually if this isn't quite the right way to express
+ // the contents of the event.
+-func makeEvent(table *evTable, ctx schedCtx, typ event.Type, time Time, args ...uint64) Event {
++func makeEvent(table *evTable, ctx schedCtx, typ tracev2.EventType, time Time, args ...uint64) Event {
+ 	ev := Event{
+ 		table: table,
+ 		ctx:   ctx,
+diff --git a/src/internal/trace/raw/event.go b/src/internal/trace/raw/event.go
+index e3b6b5cd45..9042d3f215 100644
+--- a/src/internal/trace/raw/event.go
++++ b/src/internal/trace/raw/event.go
+@@ -9,7 +9,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 
+-	"internal/trace/tracev2/event"
++	"internal/trace/tracev2"
+ 	"internal/trace/version"
+ )
+ 
+@@ -20,7 +20,7 @@ import (
+ // trace format's framing. (But not interpreted.)
+ type Event struct {
+ 	Version version.Version
+-	Ev      event.Type
++	Ev      tracev2.EventType
+ 	Args    []uint64
+ 	Data    []byte
+ }
+diff --git a/src/internal/trace/raw/reader.go b/src/internal/trace/raw/reader.go
+index 3f90e2d454..af5dfac0e7 100644
+--- a/src/internal/trace/raw/reader.go
++++ b/src/internal/trace/raw/reader.go
+@@ -10,7 +10,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/tracev2/event"
++	"internal/trace/tracev2"
+ 	"internal/trace/version"
+ )
+ 
+@@ -19,7 +19,7 @@ import (
+ type Reader struct {
+ 	r     *bufio.Reader
+ 	v     version.Version
+-	specs []event.Spec
++	specs []tracev2.EventSpec
+ }
+ 
+ // NewReader creates a new reader for the trace wire format.
+@@ -49,7 +49,7 @@ func (r *Reader) ReadEvent() (Event, error) {
+ 	if int(evb) >= len(r.specs) || evb == 0 {
+ 		return Event{}, fmt.Errorf("invalid event type: %d", evb)
+ 	}
+-	ev := event.Type(evb)
++	ev := tracev2.EventType(evb)
+ 	spec := r.specs[ev]
+ 	args, err := r.readArgs(len(spec.Args))
+ 	if err != nil {
+diff --git a/src/internal/trace/raw/textreader.go b/src/internal/trace/raw/textreader.go
+index 666db134f1..adb111550d 100644
+--- a/src/internal/trace/raw/textreader.go
++++ b/src/internal/trace/raw/textreader.go
+@@ -12,7 +12,7 @@ import (
+ 	"strings"
+ 	"unicode"
+ 
+-	"internal/trace/tracev2/event"
++	"internal/trace/tracev2"
+ 	"internal/trace/version"
+ )
+ 
+@@ -20,8 +20,8 @@ import (
+ // into an event stream.
+ type TextReader struct {
+ 	v     version.Version
+-	specs []event.Spec
+-	names map[string]event.Type
++	specs []tracev2.EventSpec
++	names map[string]tracev2.EventType
+ 	s     *bufio.Scanner
+ }
+ 
+@@ -50,7 +50,7 @@ func NewTextReader(r io.Reader) (*TextReader, error) {
+ 	}
+ 	tr.v = v
+ 	tr.specs = v.Specs()
+-	tr.names = event.Names(tr.specs)
++	tr.names = tracev2.EventNames(tr.specs)
+ 	for _, r := range line {
+ 		if !unicode.IsSpace(r) {
+ 			return nil, fmt.Errorf("encountered unexpected non-space at the end of the header: %q", line)
+diff --git a/src/internal/trace/raw/writer.go b/src/internal/trace/raw/writer.go
+index 971839b8d7..6b7042cf2a 100644
+--- a/src/internal/trace/raw/writer.go
++++ b/src/internal/trace/raw/writer.go
+@@ -9,7 +9,7 @@ import (
+ 	"fmt"
+ 	"io"
+ 
+-	"internal/trace/tracev2/event"
++	"internal/trace/tracev2"
+ 	"internal/trace/version"
+ )
+ 
+@@ -23,7 +23,7 @@ type Writer struct {
+ 	w     io.Writer
+ 	buf   []byte
+ 	v     version.Version
+-	specs []event.Spec
++	specs []tracev2.EventSpec
+ }
+ 
+ // NewWriter creates a new byte format writer.
+diff --git a/src/internal/trace/tracev1.go b/src/internal/trace/tracev1.go
+index 9c2a1ebc14..667d7be1cd 100644
+--- a/src/internal/trace/tracev1.go
++++ b/src/internal/trace/tracev1.go
+@@ -32,7 +32,6 @@ import (
+ 	"fmt"
+ 	"internal/trace/internal/tracev1"
+ 	"internal/trace/tracev2"
+-	"internal/trace/tracev2/event"
+ 	"io"
+ )
+ 
+@@ -253,7 +252,7 @@ var errSkip = errors.New("skip event")
+ // encountering events that tracev1 shouldn't be able to emit, ocnvertEvent
+ // returns a descriptive error.
+ func (it *traceV1Converter) convertEvent(ev *tracev1.Event) (OUT Event, ERR error) {
+-	var mappedType event.Type
++	var mappedType tracev2.EventType
+ 	var mappedArgs timedEventArgs
+ 	copy(mappedArgs[:], ev.Args[:])
+ 
+diff --git a/src/internal/trace/tracev2/event.go b/src/internal/trace/tracev2/events.go
+similarity index 86%
+rename from src/internal/trace/tracev2/event.go
+rename to src/internal/trace/tracev2/events.go
+index 308ae679e9..778ef8d005 100644
+--- a/src/internal/trace/tracev2/event.go
++++ b/src/internal/trace/tracev2/events.go
+@@ -4,12 +4,17 @@
+ 
+ package tracev2
+ 
+-import (
+-	"internal/trace/tracev2/event"
+-)
+-
++// Event types in the trace, args are given in square brackets.
++//
++// Naming scheme:
++//   - Time range event pairs have suffixes "Begin" and "End".
++//   - "Start", "Stop", "Create", "Destroy", "Block", "Unblock"
++//     are suffixes reserved for scheduling resources.
++//
++// NOTE: If you add an event type, make sure you also update all
++// tables in this file!
+ const (
+-	EvNone event.Type = iota // unused
++	EvNone EventType = iota // unused
+ 
+ 	// Structural events.
+ 	EvEventBatch // start of per-M batch of events [generation, M ID, timestamp, batch length]
+@@ -82,7 +87,9 @@ const (
+ // Experiments.
+ const (
+ 	// AllocFree is the alloc-free events experiment.
+-	AllocFree event.Experiment = 1 + iota
++	AllocFree Experiment = 1 + iota
++
++	NumExperiments
+ )
+ 
+ func Experiments() []string {
+@@ -90,12 +97,13 @@ func Experiments() []string {
+ }
+ 
+ var experiments = [...]string{
+-	AllocFree: "AllocFree",
++	NoExperiment: "None",
++	AllocFree:    "AllocFree",
+ }
+ 
+ // Experimental events.
+ const (
+-	_ event.Type = 127 + iota
++	_ EventType = 127 + iota
+ 
+ 	// Experimental events for AllocFree.
+ 
+@@ -115,11 +123,11 @@ const (
+ 	EvGoroutineStackFree  // stack free [timestamp, id]
+ )
+ 
+-func Specs() []event.Spec {
++func Specs() []EventSpec {
+ 	return specs[:]
+ }
+ 
+-var specs = [...]event.Spec{
++var specs = [...]EventSpec{
+ 	// "Structural" Events.
+ 	EvEventBatch: {
+ 		Name: "EventBatch",
+@@ -456,6 +464,9 @@ var specs = [...]event.Spec{
+ 	},
+ }
+ 
++// GoStatus is the status of a goroutine.
++//
++// They correspond directly to the various goroutine states.
+ type GoStatus uint8
+ 
+ const (
+@@ -480,6 +491,9 @@ func (s GoStatus) String() string {
+ 	return "Bad"
+ }
+ 
++// ProcStatus is the status of a P.
++//
++// They mostly correspond to the various P states.
+ type ProcStatus uint8
+ 
+ const (
+@@ -487,6 +501,16 @@ const (
+ 	ProcRunning
+ 	ProcIdle
+ 	ProcSyscall
++
++	// ProcSyscallAbandoned is a special case of
++	// ProcSyscall. It's used in the very specific case
++	// where the first a P is mentioned in a generation is
++	// part of a ProcSteal event. If that's the first time
++	// it's mentioned, then there's no GoSyscallBegin to
++	// connect the P stealing back to at that point. This
++	// special state indicates this to the parser, so it
++	// doesn't try to find a GoSyscallEndBlocked that
++	// corresponds with the ProcSteal.
+ 	ProcSyscallAbandoned
+ )
+ 
+@@ -503,8 +527,30 @@ func (s ProcStatus) String() string {
+ }
+ 
+ const (
+-	// Various format-specific constants.
+-	MaxBatchSize      = 64 << 10
++	// MaxBatchSize sets the maximum size that a batch can be.
++	//
++	// Directly controls the trace batch size in the runtime.
++	//
++	// NOTE: If this number decreases, the trace format version must change.
++	MaxBatchSize = 64 << 10
++
++	// Maximum number of PCs in a single stack trace.
++	//
++	// Since events contain only stack ID rather than whole stack trace,
++	// we can allow quite large values here.
++	//
++	// Directly controls the maximum number of frames per stack
++	// in the runtime.
++	//
++	// NOTE: If this number decreases, the trace format version must change.
+ 	MaxFramesPerStack = 128
+-	MaxStringSize     = 1 << 10
++
++	// MaxEventTrailerDataSize controls the amount of trailer data that
++	// an event can have in bytes. Must be smaller than MaxBatchSize.
++	// Controls the maximum string size in the trace.
++	//
++	// Directly controls the maximum such value in the runtime.
++	//
++	// NOTE: If this number decreases, the trace format version must change.
++	MaxEventTrailerDataSize = 1 << 10
+ )
+diff --git a/src/internal/trace/tracev2/event/event.go b/src/internal/trace/tracev2/spec.go
+similarity index 84%
+rename from src/internal/trace/tracev2/event/event.go
+rename to src/internal/trace/tracev2/spec.go
+index b8b6af0053..3ea3c59889 100644
+--- a/src/internal/trace/tracev2/event/event.go
++++ b/src/internal/trace/tracev2/spec.go
+@@ -2,16 +2,16 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package event
++package tracev2
+ 
+-// Type indicates an event's type from which its arguments and semantics can be
++// EventType indicates an event's type from which its arguments and semantics can be
+ // derived. Its representation matches the wire format's representation of the event
+ // types that precede all event data.
+-type Type uint8
++type EventType uint8
+ 
+-// Spec is a specification for a trace event. It contains sufficient information
++// EventSpec is a specification for a trace event. It contains sufficient information
+ // to perform basic parsing of any trace event for any version of Go.
+-type Spec struct {
++type EventSpec struct {
+ 	// Name is the human-readable name of the trace event.
+ 	Name string
+ 
+@@ -42,7 +42,7 @@ type Spec struct {
+ 	// StartEv indicates the event type of the corresponding "start"
+ 	// event, if this event is an "end," for a pair of events that
+ 	// represent a time range.
+-	StartEv Type
++	StartEv EventType
+ 
+ 	// IsTimedEvent indicates whether this is an event that both
+ 	// appears in the main event stream and is surfaced to the
+@@ -72,10 +72,10 @@ type Spec struct {
+ 	Experiment Experiment
+ }
+ 
+-// ArgTypes is a list of valid argument types for use in Args.
++// EventArgTypes is a list of valid argument types for use in Args.
+ //
+ // See the documentation of Args for more details.
+-var ArgTypes = [...]string{
++var EventArgTypes = [...]string{
+ 	"seq",     // sequence number
+ 	"pstatus", // P status
+ 	"gstatus", // G status
+@@ -88,11 +88,11 @@ var ArgTypes = [...]string{
+ 	"task",    // trace.TaskID
+ }
+ 
+-// Names is a helper that produces a mapping of event names to event types.
+-func Names(specs []Spec) map[string]Type {
+-	nameToType := make(map[string]Type)
++// EventNames is a helper that produces a mapping of event names to event types.
++func EventNames(specs []EventSpec) map[string]EventType {
++	nameToType := make(map[string]EventType)
+ 	for i, spec := range specs {
+-		nameToType[spec.Name] = Type(byte(i))
++		nameToType[spec.Name] = EventType(byte(i))
+ 	}
+ 	return nameToType
+ }
+diff --git a/src/internal/trace/version/version.go b/src/internal/trace/version/version.go
+index 50a674bd23..8c460734ce 100644
+--- a/src/internal/trace/version/version.go
++++ b/src/internal/trace/version/version.go
+@@ -9,7 +9,6 @@ import (
+ 	"io"
+ 
+ 	"internal/trace/tracev2"
+-	"internal/trace/tracev2/event"
+ )
+ 
+ // Version represents the version of a trace file.
+@@ -24,7 +23,7 @@ const (
+ 	Current         = Go123
+ )
+ 
+-var versions = map[Version][]event.Spec{
++var versions = map[Version][]tracev2.EventSpec{
+ 	// Go 1.11–1.21 use a different parser and are only set here for the sake of
+ 	// Version.Valid.
+ 	Go111: nil,
+@@ -36,13 +35,13 @@ var versions = map[Version][]event.Spec{
+ }
+ 
+ // Specs returns the set of event.Specs for this version.
+-func (v Version) Specs() []event.Spec {
++func (v Version) Specs() []tracev2.EventSpec {
+ 	return versions[v]
+ }
+ 
+ // EventName returns a string name of a wire format event
+ // for a particular trace version.
+-func (v Version) EventName(typ event.Type) string {
++func (v Version) EventName(typ tracev2.EventType) string {
+ 	if !v.Valid() {
+ 		return "<invalid trace version>"
+ 	}

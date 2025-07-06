@@ -1,0 +1,34 @@
+commit 72cc7699f856f4ff64420c91a54cb9eac2542384
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Thu Jul 11 13:32:27 2024 +0700
+
+    test: add test cases for local not-in-heap types
+    
+    Follow up review in CL 597535.
+    
+    Updates #54846
+    
+    Change-Id: Idf586552a22bbc6710c0888f046df0a5d1f0ce4a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597537
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ test/fixedbugs/notinheap.go | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/test/fixedbugs/notinheap.go b/test/fixedbugs/notinheap.go
+index bb13456211..c94f2d6b10 100644
+--- a/test/fixedbugs/notinheap.go
++++ b/test/fixedbugs/notinheap.go
+@@ -29,3 +29,9 @@ type okay3 func(x nih) nih
+ type okay4 interface {
+ 	f(x nih) nih
+ }
++
++func f() {
++	type embed7 map[nih]int // ERROR "incomplete \(or unallocatable\) map key not allowed"
++	type embed8 map[int]nih // ERROR "incomplete \(or unallocatable\) map value not allowed"
++	type emebd9 chan nih    // ERROR "chan of incomplete \(or unallocatable\) type not allowed"
++}

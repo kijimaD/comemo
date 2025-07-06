@@ -1,0 +1,31 @@
+commit 894ead51c5fe1c2a0c6b0bca473177c2b5f0f137
+Author: Paschalis T <paschalis.tsilias@gmail.com>
+Date:   Fri Aug 30 23:24:40 2024 +0300
+
+    doc: fix wording of GODEBUG history item from CL 606055
+    
+    Change-Id: Ia53d4a58810948d83a3e87e08239602da1bad815
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609935
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Cherry Mui <cherryyz@google.com>
+---
+ doc/godebug.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index d19de2374a..51ec4cb05a 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -153,7 +153,7 @@ and the [go command documentation](/cmd/go#hdr-Build_and_test_caching).
+ ### Go 1.24
+ 
+ Go 1.24 changed the global [`math/rand.Seed`](/pkg/math/rand/#Seed) to be a
+-no-op. This setting is controlled by the `randseednop` setting.
++no-op. This behavior is controlled by the `randseednop` setting.
+ For Go 1.24 it defaults to `randseednop=1`.
+ Using `randseednop=0` reverts to the pre-Go 1.24 behavior.
+ 

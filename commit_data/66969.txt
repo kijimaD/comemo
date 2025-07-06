@@ -1,0 +1,61 @@
+commit b877f04eea44820481e3a33f93eb55e90ff1754d
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed May 7 23:17:48 2025 +0000
+
+    crypto/tls: add scheduler call to TestCertCache refcount timeout loop
+    
+    Currently TestCertCache will busy loop waiting for a cleanup (in the
+    runtime.AddCleanup sense) to execute. If we ever get into this busy
+    loop, then on single-threaded platforms like js/wasm, we'll end up
+    _always_ timing out.
+    
+    This doesn't happen right now because we're getting lucky. The finalizer
+    goroutine is scheduled into the runnext slot with 'ready' and is thus
+    scheduled immediately after the GC call. In a follow-up CL, scheduling
+    cleanup goroutines becomes less aggressive, and thus this test fails.
+    
+    Although perhaps that CL should schedule cleanup goroutines more
+    aggressively, the test is still technically buggy, because it expects
+    busy loops like this to call into the scheduler, but that won't happen
+    on certain platforms.
+    
+    Change-Id: I8efe5975be97f4314aec1c8c6e9e22f396be9c94
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670755
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/tls/cache_test.go | 16 +++++++++++++---
+ 1 file changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/cache_test.go b/src/crypto/tls/cache_test.go
+index 2846734195..66854299df 100644
+--- a/src/crypto/tls/cache_test.go
++++ b/src/crypto/tls/cache_test.go
+@@ -41,12 +41,22 @@ func TestCertCache(t *testing.T) {
+ 
+ 	timeoutRefCheck := func(t *testing.T, key string, count int64) {
+ 		t.Helper()
+-		c := time.After(4 * time.Second)
++
++		// Explicitly check every 1 ms up to the timeout instead of busy-looping.
++		//
++		// On single-threaded platforms like js/wasm a busy-loop might
++		// never call into the scheduler for the full timeout, meaning
++		// that if we arrive here and the cleanup hasn't already run,
++		// we'll simply loop until the timeout. Busy-loops put us at the
++		// mercy of the Go scheduler, making this test fragile on some
++		// platforms.
++		timeout := time.After(4 * time.Second)
++		check := time.After(1 * time.Millisecond)
+ 		for {
+ 			select {
+-			case <-c:
++			case <-timeout:
+ 				t.Fatal("timed out waiting for expected ref count")
+-			default:
++			case <-check:
+ 				e, ok := cc.Load(key)
+ 				if !ok && count != 0 {
+ 					t.Fatal("cache does not contain expected key")

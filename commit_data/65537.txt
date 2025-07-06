@@ -1,0 +1,1382 @@
+commit a794fa5f69dd80f5553a9fc3df4c08f9fdbb883c
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Nov 14 14:47:55 2024 +0100
+
+    crypto/internal/fips: wrap and lock internal dependencies
+    
+    The changes below src/crypto/internal/fips/ are mechanical.
+    
+    See fipsdeps.go and fipsdeps_test.go for the rationale.
+    
+    For #69536
+    
+    Change-Id: I292ce65237cd8d2fd87fab99814514dd0e69c4a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/627956
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+---
+ src/crypto/internal/fips/aes/aes_asm.go            | 17 +++---
+ src/crypto/internal/fips/aes/aes_generic.go        | 36 ++++++------
+ src/crypto/internal/fips/aes/aes_s390x.go          |  4 +-
+ src/crypto/internal/fips/aes/ctr.go                | 10 ++--
+ src/crypto/internal/fips/aes/ctr_s390x.go          |  6 +-
+ src/crypto/internal/fips/aes/gcm/gcm_asm.go        | 11 ++--
+ src/crypto/internal/fips/aes/gcm/gcm_generic.go    | 10 ++--
+ src/crypto/internal/fips/aes/gcm/gcm_nonces.go     | 14 ++---
+ src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go     | 18 +++---
+ src/crypto/internal/fips/aes/gcm/gcm_s390x.go      | 12 ++--
+ src/crypto/internal/fips/aes/gcm/ghash.go          | 14 ++---
+ src/crypto/internal/fips/cast.go                   |  6 +-
+ src/crypto/internal/fips/check/asan.go             |  9 +++
+ src/crypto/internal/fips/check/check.go            | 11 ++--
+ src/crypto/internal/fips/check/noasan.go           |  9 +++
+ src/crypto/internal/fips/drbg/ctrdrbg.go           | 10 ++--
+ src/crypto/internal/fips/fips.go                   |  4 +-
+ src/crypto/internal/fips/mlkem/field.go            |  6 +-
+ src/crypto/internal/fips/sha256/sha256.go          | 42 +++++++-------
+ .../internal/fips/sha256/sha256block_amd64.go      |  6 +-
+ .../internal/fips/sha256/sha256block_arm64.go      |  4 +-
+ .../internal/fips/sha256/sha256block_ppc64x.go     |  4 +-
+ .../internal/fips/sha256/sha256block_s390x.go      |  4 +-
+ src/crypto/internal/fips/sha3/keccakf.go           | 10 ++--
+ src/crypto/internal/fips/sha3/sha3_s390x.go        |  4 +-
+ src/crypto/internal/fips/sha3/shake.go             |  4 +-
+ src/crypto/internal/fips/sha512/sha512.go          | 42 +++++++-------
+ .../internal/fips/sha512/sha512block_amd64.go      |  4 +-
+ .../internal/fips/sha512/sha512block_arm64.go      |  4 +-
+ .../internal/fips/sha512/sha512block_ppc64x.go     |  4 +-
+ .../internal/fips/sha512/sha512block_s390x.go      |  4 +-
+ src/crypto/internal/fips/tls13/tls13.go            |  4 +-
+ .../internal/fipsdeps/byteorder/byteorder.go       | 53 ++++++++++++++++++
+ src/crypto/internal/fipsdeps/cpu/cpu.go            | 37 ++++++++++++
+ src/crypto/internal/fipsdeps/fipsdeps.go           |  9 +++
+ src/crypto/internal/fipsdeps/fipsdeps_test.go      | 65 ++++++++++++++++++++++
+ src/crypto/internal/fipsdeps/godebug/godebug.go    | 23 ++++++++
+ src/go/build/deps_test.go                          | 11 +++-
+ 38 files changed, 376 insertions(+), 169 deletions(-)
+
+diff --git a/src/crypto/internal/fips/aes/aes_asm.go b/src/crypto/internal/fips/aes/aes_asm.go
+index 15bb4ce90a..47aca96543 100644
+--- a/src/crypto/internal/fips/aes/aes_asm.go
++++ b/src/crypto/internal/fips/aes/aes_asm.go
+@@ -7,10 +7,9 @@
+ package aes
+ 
+ import (
++	"crypto/internal/fipsdeps/cpu"
++	"crypto/internal/fipsdeps/godebug"
+ 	"crypto/internal/impl"
+-	"internal/cpu"
+-	"internal/goarch"
+-	"internal/godebug"
+ )
+ 
+ //go:noescape
+@@ -22,22 +21,22 @@ func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+ //go:noescape
+ func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
+ 
+-var supportsAES = cpu.X86.HasAES && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
+-	cpu.ARM64.HasAES || goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1
++var supportsAES = cpu.X86HasAES && cpu.X86HasSSE41 && cpu.X86HasSSSE3 ||
++	cpu.ARM64HasAES || cpu.PPC64 || cpu.PPC64le
+ 
+ func init() {
+-	if goarch.IsAmd64 == 1 {
++	if cpu.AMD64 {
+ 		impl.Register("aes", "AES-NI", &supportsAES)
+ 	}
+-	if goarch.IsArm64 == 1 {
++	if cpu.ARM64 {
+ 		impl.Register("aes", "Armv8.0", &supportsAES)
+ 	}
+-	if goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1 {
++	if cpu.PPC64 || cpu.PPC64le {
+ 		// The POWER architecture doesn't have a way to turn off AES support
+ 		// at runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG
+ 		// knob for that. It's intentionally only checked at init() time, to
+ 		// avoid the performance overhead of checking it every time.
+-		if godebug.New("#ppc64aes").Value() == "off" {
++		if godebug.Value("#ppc64aes") == "off" {
+ 			supportsAES = false
+ 		}
+ 		impl.Register("aes", "POWER8", &supportsAES)
+diff --git a/src/crypto/internal/fips/aes/aes_generic.go b/src/crypto/internal/fips/aes/aes_generic.go
+index 936fb48153..de7ecb13c2 100644
+--- a/src/crypto/internal/fips/aes/aes_generic.go
++++ b/src/crypto/internal/fips/aes/aes_generic.go
+@@ -36,7 +36,7 @@
+ 
+ package aes
+ 
+-import "internal/byteorder"
++import "crypto/internal/fipsdeps/byteorder"
+ 
+ // Encrypt one block from src into dst, using the expanded key xk.
+ func encryptBlockGeneric(c *blockExpanded, dst, src []byte) {
+@@ -44,10 +44,10 @@ func encryptBlockGeneric(c *blockExpanded, dst, src []byte) {
+ 	xk := c.enc[:]
+ 
+ 	_ = src[15] // early bounds check
+-	s0 := byteorder.BeUint32(src[0:4])
+-	s1 := byteorder.BeUint32(src[4:8])
+-	s2 := byteorder.BeUint32(src[8:12])
+-	s3 := byteorder.BeUint32(src[12:16])
++	s0 := byteorder.BEUint32(src[0:4])
++	s1 := byteorder.BEUint32(src[4:8])
++	s2 := byteorder.BEUint32(src[8:12])
++	s3 := byteorder.BEUint32(src[12:16])
+ 
+ 	// First round just XORs input with key.
+ 	s0 ^= xk[0]
+@@ -79,10 +79,10 @@ func encryptBlockGeneric(c *blockExpanded, dst, src []byte) {
+ 	s3 ^= xk[k+3]
+ 
+ 	_ = dst[15] // early bounds check
+-	byteorder.BePutUint32(dst[0:4], s0)
+-	byteorder.BePutUint32(dst[4:8], s1)
+-	byteorder.BePutUint32(dst[8:12], s2)
+-	byteorder.BePutUint32(dst[12:16], s3)
++	byteorder.BEPutUint32(dst[0:4], s0)
++	byteorder.BEPutUint32(dst[4:8], s1)
++	byteorder.BEPutUint32(dst[8:12], s2)
++	byteorder.BEPutUint32(dst[12:16], s3)
+ }
+ 
+ // Decrypt one block from src into dst, using the expanded key xk.
+@@ -91,10 +91,10 @@ func decryptBlockGeneric(c *blockExpanded, dst, src []byte) {
+ 	xk := c.dec[:]
+ 
+ 	_ = src[15] // early bounds check
+-	s0 := byteorder.BeUint32(src[0:4])
+-	s1 := byteorder.BeUint32(src[4:8])
+-	s2 := byteorder.BeUint32(src[8:12])
+-	s3 := byteorder.BeUint32(src[12:16])
++	s0 := byteorder.BEUint32(src[0:4])
++	s1 := byteorder.BEUint32(src[4:8])
++	s2 := byteorder.BEUint32(src[8:12])
++	s3 := byteorder.BEUint32(src[12:16])
+ 
+ 	// First round just XORs input with key.
+ 	s0 ^= xk[0]
+@@ -126,10 +126,10 @@ func decryptBlockGeneric(c *blockExpanded, dst, src []byte) {
+ 	s3 ^= xk[k+3]
+ 
+ 	_ = dst[15] // early bounds check
+-	byteorder.BePutUint32(dst[0:4], s0)
+-	byteorder.BePutUint32(dst[4:8], s1)
+-	byteorder.BePutUint32(dst[8:12], s2)
+-	byteorder.BePutUint32(dst[12:16], s3)
++	byteorder.BEPutUint32(dst[0:4], s0)
++	byteorder.BEPutUint32(dst[4:8], s1)
++	byteorder.BEPutUint32(dst[8:12], s2)
++	byteorder.BEPutUint32(dst[12:16], s3)
+ }
+ 
+ // Apply sbox0 to each byte in w.
+@@ -152,7 +152,7 @@ func expandKeyGeneric(c *blockExpanded, key []byte) {
+ 	var i int
+ 	nk := len(key) / 4
+ 	for i = 0; i < nk; i++ {
+-		c.enc[i] = byteorder.BeUint32(key[4*i:])
++		c.enc[i] = byteorder.BEUint32(key[4*i:])
+ 	}
+ 	for ; i < c.roundKeysSize(); i++ {
+ 		t := c.enc[i-1]
+diff --git a/src/crypto/internal/fips/aes/aes_s390x.go b/src/crypto/internal/fips/aes/aes_s390x.go
+index 57064f08c5..005aacb300 100644
+--- a/src/crypto/internal/fips/aes/aes_s390x.go
++++ b/src/crypto/internal/fips/aes/aes_s390x.go
+@@ -7,8 +7,8 @@
+ package aes
+ 
+ import (
++	"crypto/internal/fipsdeps/cpu"
+ 	"crypto/internal/impl"
+-	"internal/cpu"
+ )
+ 
+ type code int
+@@ -35,7 +35,7 @@ type block struct {
+ //go:noescape
+ func cryptBlocks(c code, key, dst, src *byte, length int)
+ 
+-var supportsAES = cpu.S390X.HasAES && cpu.S390X.HasAESCBC
++var supportsAES = cpu.S390XHasAES && cpu.S390XHasAESCBC
+ 
+ func init() {
+ 	// CP Assist for Cryptographic Functions (CPACF)
+diff --git a/src/crypto/internal/fips/aes/ctr.go b/src/crypto/internal/fips/aes/ctr.go
+index c492b900ea..722ec4bc87 100644
+--- a/src/crypto/internal/fips/aes/ctr.go
++++ b/src/crypto/internal/fips/aes/ctr.go
+@@ -7,7 +7,7 @@ package aes
+ import (
+ 	"crypto/internal/fips/alias"
+ 	"crypto/internal/fips/subtle"
+-	"internal/byteorder"
++	"crypto/internal/fipsdeps/byteorder"
+ 	"math/bits"
+ )
+ 
+@@ -24,8 +24,8 @@ func NewCTR(b *Block, iv []byte) *CTR {
+ 
+ 	return &CTR{
+ 		b:      *b,
+-		ivlo:   byteorder.BeUint64(iv[8:16]),
+-		ivhi:   byteorder.BeUint64(iv[0:8]),
++		ivlo:   byteorder.BEUint64(iv[8:16]),
++		ivhi:   byteorder.BEUint64(iv[0:8]),
+ 		offset: 0,
+ 	}
+ }
+@@ -122,8 +122,8 @@ func (c *CTR) XORKeyStreamAt(dst, src []byte, offset uint64) {
+ func ctrBlocks(b *Block, dst, src []byte, ivlo, ivhi uint64) {
+ 	buf := make([]byte, len(src), 8*BlockSize)
+ 	for i := 0; i < len(buf); i += BlockSize {
+-		byteorder.BePutUint64(buf[i:], ivhi)
+-		byteorder.BePutUint64(buf[i+8:], ivlo)
++		byteorder.BEPutUint64(buf[i:], ivhi)
++		byteorder.BEPutUint64(buf[i+8:], ivlo)
+ 		ivlo, ivhi = add128(ivlo, ivhi, 1)
+ 		b.Encrypt(buf[i:], buf[i:])
+ 	}
+diff --git a/src/crypto/internal/fips/aes/ctr_s390x.go b/src/crypto/internal/fips/aes/ctr_s390x.go
+index af8b4b1e97..aca3fe7ff9 100644
+--- a/src/crypto/internal/fips/aes/ctr_s390x.go
++++ b/src/crypto/internal/fips/aes/ctr_s390x.go
+@@ -8,7 +8,7 @@ package aes
+ 
+ import (
+ 	"crypto/internal/fips/subtle"
+-	"internal/byteorder"
++	"crypto/internal/fipsdeps/byteorder"
+ )
+ 
+ func ctrBlocks1(b *Block, dst, src *[BlockSize]byte, ivlo, ivhi uint64) {
+@@ -34,8 +34,8 @@ func ctrBlocksS390x(b *Block, dst, src []byte, ivlo, ivhi uint64) {
+ 
+ 	buf := make([]byte, len(src), 8*BlockSize)
+ 	for i := 0; i < len(buf); i += BlockSize {
+-		byteorder.BePutUint64(buf[i:], ivhi)
+-		byteorder.BePutUint64(buf[i+8:], ivlo)
++		byteorder.BEPutUint64(buf[i:], ivhi)
++		byteorder.BEPutUint64(buf[i+8:], ivlo)
+ 		ivlo, ivhi = add128(ivlo, ivhi, 1)
+ 	}
+ 
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_asm.go b/src/crypto/internal/fips/aes/gcm/gcm_asm.go
+index dac822208f..f62b7e3f81 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm_asm.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm_asm.go
+@@ -9,9 +9,8 @@ package gcm
+ import (
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/subtle"
++	"crypto/internal/fipsdeps/cpu"
+ 	"crypto/internal/impl"
+-	"internal/cpu"
+-	"internal/goarch"
+ )
+ 
+ // The following functions are defined in gcm_*.s.
+@@ -32,14 +31,14 @@ func gcmAesDec(productTable *[256]byte, dst, src []byte, ctr, T *[16]byte, ks []
+ func gcmAesFinish(productTable *[256]byte, tagMask, T *[16]byte, pLen, dLen uint64)
+ 
+ // Keep in sync with crypto/tls.hasAESGCMHardwareSupport.
+-var supportsAESGCM = cpu.X86.HasAES && cpu.X86.HasPCLMULQDQ && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
+-	cpu.ARM64.HasAES && cpu.ARM64.HasPMULL
++var supportsAESGCM = cpu.X86HasAES && cpu.X86HasPCLMULQDQ && cpu.X86HasSSE41 && cpu.X86HasSSSE3 ||
++	cpu.ARM64HasAES && cpu.ARM64HasPMULL
+ 
+ func init() {
+-	if goarch.IsAmd64 == 1 {
++	if cpu.AMD64 {
+ 		impl.Register("gcm", "AES-NI", &supportsAESGCM)
+ 	}
+-	if goarch.IsArm64 == 1 {
++	if cpu.ARM64 {
+ 		impl.Register("gcm", "Armv8.0", &supportsAESGCM)
+ 	}
+ }
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_generic.go b/src/crypto/internal/fips/aes/gcm/gcm_generic.go
+index 7f9e0b37f6..2e5f8b5c1a 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm_generic.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm_generic.go
+@@ -7,7 +7,7 @@ package gcm
+ import (
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/subtle"
+-	"internal/byteorder"
++	"crypto/internal/fipsdeps/byteorder"
+ )
+ 
+ func sealGeneric(out []byte, g *GCM, nonce, plaintext, additionalData []byte) {
+@@ -58,7 +58,7 @@ func deriveCounterGeneric(H, counter *[gcmBlockSize]byte, nonce []byte) {
+ 		counter[gcmBlockSize-1] = 1
+ 	} else {
+ 		lenBlock := make([]byte, 16)
+-		byteorder.BePutUint64(lenBlock[8:], uint64(len(nonce))*8)
++		byteorder.BEPutUint64(lenBlock[8:], uint64(len(nonce))*8)
+ 		ghash(counter, H, nonce, lenBlock)
+ 	}
+ }
+@@ -89,7 +89,7 @@ func gcmCounterCryptGeneric(b *aes.Block, out, src []byte, counter *[gcmBlockSiz
+ // and increments it.
+ func gcmInc32(counterBlock *[gcmBlockSize]byte) {
+ 	ctr := counterBlock[len(counterBlock)-4:]
+-	byteorder.BePutUint32(ctr, byteorder.BeUint32(ctr)+1)
++	byteorder.BEPutUint32(ctr, byteorder.BEUint32(ctr)+1)
+ }
+ 
+ // gcmAuthGeneric calculates GHASH(additionalData, ciphertext), masks the result
+@@ -97,8 +97,8 @@ func gcmInc32(counterBlock *[gcmBlockSize]byte) {
+ func gcmAuthGeneric(out []byte, H, tagMask *[gcmBlockSize]byte, ciphertext, additionalData []byte) {
+ 	checkGenericIsExpected()
+ 	lenBlock := make([]byte, 16)
+-	byteorder.BePutUint64(lenBlock[:8], uint64(len(additionalData))*8)
+-	byteorder.BePutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
++	byteorder.BEPutUint64(lenBlock[:8], uint64(len(additionalData))*8)
++	byteorder.BEPutUint64(lenBlock[8:], uint64(len(ciphertext))*8)
+ 	var S [gcmBlockSize]byte
+ 	ghash(&S, H, additionalData, ciphertext, lenBlock)
+ 	subtle.XORBytes(out, S[:], tagMask[:])
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_nonces.go b/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
+index f38814c8db..db992d14de 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm_nonces.go
+@@ -9,7 +9,7 @@ import (
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/alias"
+ 	"crypto/internal/fips/drbg"
+-	"internal/byteorder"
++	"crypto/internal/fipsdeps/byteorder"
+ 	"math"
+ )
+ 
+@@ -73,14 +73,14 @@ func (g *GCMWithCounterNonce) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+ 
+-	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
++	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
+ 	if !g.ready {
+ 		// The first invocation sets the fixed name encoding and start counter.
+ 		g.ready = true
+ 		g.start = counter
+-		g.fixedName = byteorder.BeUint32(nonce[:4])
++		g.fixedName = byteorder.BEUint32(nonce[:4])
+ 	}
+-	if g.fixedName != byteorder.BeUint32(nonce[:4]) {
++	if g.fixedName != byteorder.BEUint32(nonce[:4]) {
+ 		panic("crypto/cipher: incorrect module name given to GCMWithCounterNonce")
+ 	}
+ 	counter -= g.start
+@@ -130,7 +130,7 @@ func (g *GCMForTLS12) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+ 
+-	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
++	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
+ 
+ 	// Ensure the counter is monotonically increasing.
+ 	if counter == math.MaxUint64 {
+@@ -176,7 +176,7 @@ func (g *GCMForTLS13) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+ 
+-	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
++	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
+ 	if !g.ready {
+ 		// In the first call, the counter is zero, so we learn the XOR mask.
+ 		g.ready = true
+@@ -230,7 +230,7 @@ func (g *GCMForSSH) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+ 
+-	counter := byteorder.BeUint64(nonce[len(nonce)-8:])
++	counter := byteorder.BEUint64(nonce[len(nonce)-8:])
+ 	if !g.ready {
+ 		// In the first call we learn the start value.
+ 		g.ready = true
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go b/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go
+index c0b90d742f..b8c798e442 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm_ppc64x.go
+@@ -9,9 +9,9 @@ package gcm
+ import (
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/subtle"
++	"crypto/internal/fipsdeps/byteorder"
++	"crypto/internal/fipsdeps/godebug"
+ 	"crypto/internal/impl"
+-	"internal/byteorder"
+-	"internal/godebug"
+ 	"runtime"
+ )
+ 
+@@ -29,7 +29,7 @@ func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *u
+ // at runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG
+ // knob for that. It's intentionally only checked at init() time, to
+ // avoid the performance overhead of checking it every time.
+-var supportsAESGCM = godebug.New("#ppc64gcm").Value() != "off"
++var supportsAESGCM = godebug.Value("#ppc64gcm") != "off"
+ 
+ func init() {
+ 	impl.Register("gcm", "POWER8", &supportsAESGCM)
+@@ -57,14 +57,14 @@ func initGCM(g *GCM) {
+ 	// Load little endian, store big endian
+ 	var h1, h2 uint64
+ 	if runtime.GOARCH == "ppc64le" {
+-		h1 = byteorder.LeUint64(hle[:8])
+-		h2 = byteorder.LeUint64(hle[8:])
++		h1 = byteorder.LEUint64(hle[:8])
++		h2 = byteorder.LEUint64(hle[8:])
+ 	} else {
+-		h1 = byteorder.BeUint64(hle[:8])
+-		h2 = byteorder.BeUint64(hle[8:])
++		h1 = byteorder.BEUint64(hle[:8])
++		h2 = byteorder.BEUint64(hle[8:])
+ 	}
+-	byteorder.BePutUint64(hle[:8], h1)
+-	byteorder.BePutUint64(hle[8:], h2)
++	byteorder.BEPutUint64(hle[:8], h1)
++	byteorder.BEPutUint64(hle[8:], h2)
+ 	gcmInit(&g.productTable, hle)
+ }
+ 
+diff --git a/src/crypto/internal/fips/aes/gcm/gcm_s390x.go b/src/crypto/internal/fips/aes/gcm/gcm_s390x.go
+index 0d3825148b..2946d0b84b 100644
+--- a/src/crypto/internal/fips/aes/gcm/gcm_s390x.go
++++ b/src/crypto/internal/fips/aes/gcm/gcm_s390x.go
+@@ -9,9 +9,9 @@ package gcm
+ import (
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/subtle"
++	"crypto/internal/fipsdeps/byteorder"
++	"crypto/internal/fipsdeps/cpu"
+ 	"crypto/internal/impl"
+-	"internal/byteorder"
+-	"internal/cpu"
+ )
+ 
+ // This file contains two implementations of AES-GCM. The first implementation
+@@ -21,8 +21,8 @@ import (
+ // KIMD to hash large nonces).
+ 
+ // Keep in sync with crypto/tls.hasAESGCMHardwareSupport.
+-var useGHASH = cpu.S390X.HasAES && cpu.S390X.HasAESCTR && cpu.S390X.HasGHASH
+-var useGCM = useGHASH && cpu.S390X.HasAESGCM
++var useGHASH = cpu.S390XHasAES && cpu.S390XHasAESCTR && cpu.S390XHasGHASH
++var useGCM = useGHASH && cpu.S390XHasAESGCM
+ 
+ func init() {
+ 	impl.Register("gcm", "CPACF/KIMD", &useGHASH)
+@@ -38,8 +38,8 @@ func checkGenericIsExpected() {
+ // gcmLengths writes len0 || len1 as big-endian values to a 16-byte array.
+ func gcmLengths(len0, len1 uint64) [16]byte {
+ 	v := [16]byte{}
+-	byteorder.BePutUint64(v[0:], len0)
+-	byteorder.BePutUint64(v[8:], len1)
++	byteorder.BEPutUint64(v[0:], len0)
++	byteorder.BEPutUint64(v[8:], len1)
+ 	return v
+ }
+ 
+diff --git a/src/crypto/internal/fips/aes/gcm/ghash.go b/src/crypto/internal/fips/aes/gcm/ghash.go
+index 1d7db5828e..d06e995c49 100644
+--- a/src/crypto/internal/fips/aes/gcm/ghash.go
++++ b/src/crypto/internal/fips/aes/gcm/ghash.go
+@@ -6,7 +6,7 @@ package gcm
+ 
+ import (
+ 	"crypto/internal/fips"
+-	"internal/byteorder"
++	"crypto/internal/fipsdeps/byteorder"
+ )
+ 
+ // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
+@@ -46,8 +46,8 @@ func ghash(out, H *[gcmBlockSize]byte, inputs ...[]byte) {
+ 	// would expect, say, 4*H to be in index 4 of the table but due to
+ 	// this bit ordering it will actually be in index 0010 (base 2) = 2.
+ 	x := gcmFieldElement{
+-		byteorder.BeUint64(H[:8]),
+-		byteorder.BeUint64(H[8:]),
++		byteorder.BEUint64(H[:8]),
++		byteorder.BEUint64(H[8:]),
+ 	}
+ 	productTable[reverseBits(1)] = x
+ 
+@@ -61,8 +61,8 @@ func ghash(out, H *[gcmBlockSize]byte, inputs ...[]byte) {
+ 		ghashUpdate(&productTable, &y, input)
+ 	}
+ 
+-	byteorder.BePutUint64(out[:], y.low)
+-	byteorder.BePutUint64(out[8:], y.high)
++	byteorder.BEPutUint64(out[:], y.low)
++	byteorder.BEPutUint64(out[8:], y.high)
+ }
+ 
+ // reverseBits reverses the order of the bits of 4-bit number in i.
+@@ -142,8 +142,8 @@ func ghashMul(productTable *[16]gcmFieldElement, y *gcmFieldElement) {
+ // Horner's rule. There must be a multiple of gcmBlockSize bytes in blocks.
+ func updateBlocks(productTable *[16]gcmFieldElement, y *gcmFieldElement, blocks []byte) {
+ 	for len(blocks) > 0 {
+-		y.low ^= byteorder.BeUint64(blocks)
+-		y.high ^= byteorder.BeUint64(blocks[8:])
++		y.low ^= byteorder.BEUint64(blocks)
++		y.high ^= byteorder.BEUint64(blocks[8:])
+ 		ghashMul(productTable, y)
+ 		blocks = blocks[gcmBlockSize:]
+ 	}
+diff --git a/src/crypto/internal/fips/cast.go b/src/crypto/internal/fips/cast.go
+index d63d39b4b6..6be104a99e 100644
+--- a/src/crypto/internal/fips/cast.go
++++ b/src/crypto/internal/fips/cast.go
+@@ -5,8 +5,8 @@
+ package fips
+ 
+ import (
++	"crypto/internal/fipsdeps/godebug"
+ 	"errors"
+-	"internal/godebug"
+ 	"strings"
+ 	_ "unsafe" // for go:linkname
+ )
+@@ -19,7 +19,7 @@ func fatal(string)
+ // failfipscast is a GODEBUG key allowing simulation of a Cryptographic Algorithm
+ // Self-Test (CAST) failure, as required during FIPS 140-3 functional testing.
+ // The value is a substring of the target CAST name.
+-var failfipscast = godebug.New("#failfipscast")
++var failfipscast = godebug.Value("#failfipscast")
+ 
+ // CAST runs the named Cryptographic Algorithm Self-Test or Pairwise Consistency
+ // Test (if operated in FIPS mode) and aborts the program (stopping the module
+@@ -45,7 +45,7 @@ func CAST(name string, f func() error) {
+ 	}
+ 
+ 	err := f()
+-	if failfipscast.Value() != "" && strings.Contains(name, failfipscast.Value()) {
++	if failfipscast != "" && strings.Contains(name, failfipscast) {
+ 		err = errors.New("simulated CAST/PCT failure")
+ 	}
+ 	if err != nil {
+diff --git a/src/crypto/internal/fips/check/asan.go b/src/crypto/internal/fips/check/asan.go
+new file mode 100644
+index 0000000000..2c78348354
+--- /dev/null
++++ b/src/crypto/internal/fips/check/asan.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build asan
++
++package check
++
++const asanEnabled = true
+diff --git a/src/crypto/internal/fips/check/check.go b/src/crypto/internal/fips/check/check.go
+index 5303650d2c..7938df8142 100644
+--- a/src/crypto/internal/fips/check/check.go
++++ b/src/crypto/internal/fips/check/check.go
+@@ -15,9 +15,8 @@ package check
+ import (
+ 	"crypto/internal/fips/hmac"
+ 	"crypto/internal/fips/sha256"
+-	"internal/asan"
+-	"internal/byteorder"
+-	"internal/godebug"
++	"crypto/internal/fipsdeps/byteorder"
++	"crypto/internal/fipsdeps/godebug"
+ 	"io"
+ 	"runtime"
+ 	"unsafe"
+@@ -72,13 +71,13 @@ const fipsMagic = " Go fipsinfo \xff\x00"
+ var zeroSum [32]byte
+ 
+ func init() {
+-	v := godebug.New("#fips140").Value()
++	v := godebug.Value("#fips140")
+ 	enabled = v != "" && v != "off"
+ 	if !enabled {
+ 		return
+ 	}
+ 
+-	if asan.Enabled {
++	if asanEnabled {
+ 		// ASAN disapproves of reading swaths of global memory below.
+ 		// One option would be to expose runtime.asanunpoison through
+ 		// crypto/internal/fipsdeps and then call it to unpoison the range
+@@ -122,7 +121,7 @@ func init() {
+ 	var nbuf [8]byte
+ 	for _, sect := range Linkinfo.Sects {
+ 		n := uintptr(sect.End) - uintptr(sect.Start)
+-		byteorder.BePutUint64(nbuf[:], uint64(n))
++		byteorder.BEPutUint64(nbuf[:], uint64(n))
+ 		w.Write(nbuf[:])
+ 		w.Write(unsafe.Slice((*byte)(sect.Start), n))
+ 	}
+diff --git a/src/crypto/internal/fips/check/noasan.go b/src/crypto/internal/fips/check/noasan.go
+new file mode 100644
+index 0000000000..876d726f98
+--- /dev/null
++++ b/src/crypto/internal/fips/check/noasan.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !asan
++
++package check
++
++const asanEnabled = false
+diff --git a/src/crypto/internal/fips/drbg/ctrdrbg.go b/src/crypto/internal/fips/drbg/ctrdrbg.go
+index 8bda46e656..fb05bf9ca8 100644
+--- a/src/crypto/internal/fips/drbg/ctrdrbg.go
++++ b/src/crypto/internal/fips/drbg/ctrdrbg.go
+@@ -8,7 +8,7 @@ import (
+ 	"crypto/internal/fips"
+ 	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/subtle"
+-	"internal/byteorder"
++	"crypto/internal/fipsdeps/byteorder"
+ 	"math/bits"
+ )
+ 
+@@ -77,12 +77,12 @@ func (c *Counter) update(seed *[SeedSize]byte) {
+ }
+ 
+ func increment(v *[aes.BlockSize]byte) {
+-	hi := byteorder.BeUint64(v[:8])
+-	lo := byteorder.BeUint64(v[8:])
++	hi := byteorder.BEUint64(v[:8])
++	lo := byteorder.BEUint64(v[8:])
+ 	lo, c := bits.Add64(lo, 1, 0)
+ 	hi, _ = bits.Add64(hi, 0, c)
+-	byteorder.BePutUint64(v[:8], hi)
+-	byteorder.BePutUint64(v[8:], lo)
++	byteorder.BEPutUint64(v[:8], hi)
++	byteorder.BEPutUint64(v[8:], lo)
+ }
+ 
+ func (c *Counter) Reseed(entropy, additionalInput *[SeedSize]byte) {
+diff --git a/src/crypto/internal/fips/fips.go b/src/crypto/internal/fips/fips.go
+index a6418a4eb1..30c8ba8673 100644
+--- a/src/crypto/internal/fips/fips.go
++++ b/src/crypto/internal/fips/fips.go
+@@ -4,14 +4,14 @@
+ 
+ package fips
+ 
+-import "internal/godebug"
++import "crypto/internal/fipsdeps/godebug"
+ 
+ var Enabled bool
+ 
+ var debug bool
+ 
+ func init() {
+-	switch godebug.New("#fips140").Value() {
++	switch godebug.Value("#fips140") {
+ 	case "on", "only":
+ 		Enabled = true
+ 	case "debug":
+diff --git a/src/crypto/internal/fips/mlkem/field.go b/src/crypto/internal/fips/mlkem/field.go
+index 1532f031f2..720e07528e 100644
+--- a/src/crypto/internal/fips/mlkem/field.go
++++ b/src/crypto/internal/fips/mlkem/field.go
+@@ -6,8 +6,8 @@ package mlkem
+ 
+ import (
+ 	"crypto/internal/fips/sha3"
++	"crypto/internal/fipsdeps/byteorder"
+ 	"errors"
+-	"internal/byteorder"
+ )
+ 
+ // fieldElement is an integer modulo q, an element of ℤ_q. It is always reduced.
+@@ -528,8 +528,8 @@ func sampleNTT(rho []byte, ii, jj byte) nttElement {
+ 			B.Read(buf[:])
+ 			off = 0
+ 		}
+-		d1 := byteorder.LeUint16(buf[off:]) & 0b1111_1111_1111
+-		d2 := byteorder.LeUint16(buf[off+1:]) >> 4
++		d1 := byteorder.LEUint16(buf[off:]) & 0b1111_1111_1111
++		d2 := byteorder.LEUint16(buf[off+1:]) >> 4
+ 		off += 3
+ 		if d1 < q {
+ 			a[j] = fieldElement(d1)
+diff --git a/src/crypto/internal/fips/sha256/sha256.go b/src/crypto/internal/fips/sha256/sha256.go
+index ccef116a80..16b9aae316 100644
+--- a/src/crypto/internal/fips/sha256/sha256.go
++++ b/src/crypto/internal/fips/sha256/sha256.go
+@@ -8,8 +8,8 @@ package sha256
+ 
+ import (
+ 	"crypto/internal/fips"
++	"crypto/internal/fipsdeps/byteorder"
+ 	"errors"
+-	"internal/byteorder"
+ )
+ 
+ // The size of a SHA-256 checksum in bytes.
+@@ -66,17 +66,17 @@ func (d *Digest) AppendBinary(b []byte) ([]byte, error) {
+ 	} else {
+ 		b = append(b, magic256...)
+ 	}
+-	b = byteorder.BeAppendUint32(b, d.h[0])
+-	b = byteorder.BeAppendUint32(b, d.h[1])
+-	b = byteorder.BeAppendUint32(b, d.h[2])
+-	b = byteorder.BeAppendUint32(b, d.h[3])
+-	b = byteorder.BeAppendUint32(b, d.h[4])
+-	b = byteorder.BeAppendUint32(b, d.h[5])
+-	b = byteorder.BeAppendUint32(b, d.h[6])
+-	b = byteorder.BeAppendUint32(b, d.h[7])
++	b = byteorder.BEAppendUint32(b, d.h[0])
++	b = byteorder.BEAppendUint32(b, d.h[1])
++	b = byteorder.BEAppendUint32(b, d.h[2])
++	b = byteorder.BEAppendUint32(b, d.h[3])
++	b = byteorder.BEAppendUint32(b, d.h[4])
++	b = byteorder.BEAppendUint32(b, d.h[5])
++	b = byteorder.BEAppendUint32(b, d.h[6])
++	b = byteorder.BEAppendUint32(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = append(b, make([]byte, len(d.x)-d.nx)...)
+-	b = byteorder.BeAppendUint64(b, d.len)
++	b = byteorder.BEAppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -103,11 +103,11 @@ func (d *Digest) UnmarshalBinary(b []byte) error {
+ }
+ 
+ func consumeUint64(b []byte) ([]byte, uint64) {
+-	return b[8:], byteorder.BeUint64(b)
++	return b[8:], byteorder.BEUint64(b)
+ }
+ 
+ func consumeUint32(b []byte) ([]byte, uint32) {
+-	return b[4:], byteorder.BeUint32(b)
++	return b[4:], byteorder.BEUint32(b)
+ }
+ 
+ func (d *Digest) Reset() {
+@@ -207,7 +207,7 @@ func (d *Digest) checkSum() [size]byte {
+ 	// Length in bits.
+ 	len <<= 3
+ 	padlen := tmp[:t+8]
+-	byteorder.BePutUint64(padlen[t+0:], len)
++	byteorder.BEPutUint64(padlen[t+0:], len)
+ 	d.Write(padlen)
+ 
+ 	if d.nx != 0 {
+@@ -216,15 +216,15 @@ func (d *Digest) checkSum() [size]byte {
+ 
+ 	var digest [size]byte
+ 
+-	byteorder.BePutUint32(digest[0:], d.h[0])
+-	byteorder.BePutUint32(digest[4:], d.h[1])
+-	byteorder.BePutUint32(digest[8:], d.h[2])
+-	byteorder.BePutUint32(digest[12:], d.h[3])
+-	byteorder.BePutUint32(digest[16:], d.h[4])
+-	byteorder.BePutUint32(digest[20:], d.h[5])
+-	byteorder.BePutUint32(digest[24:], d.h[6])
++	byteorder.BEPutUint32(digest[0:], d.h[0])
++	byteorder.BEPutUint32(digest[4:], d.h[1])
++	byteorder.BEPutUint32(digest[8:], d.h[2])
++	byteorder.BEPutUint32(digest[12:], d.h[3])
++	byteorder.BEPutUint32(digest[16:], d.h[4])
++	byteorder.BEPutUint32(digest[20:], d.h[5])
++	byteorder.BEPutUint32(digest[24:], d.h[6])
+ 	if !d.is224 {
+-		byteorder.BePutUint32(digest[28:], d.h[7])
++		byteorder.BEPutUint32(digest[28:], d.h[7])
+ 	}
+ 
+ 	return digest
+diff --git a/src/crypto/internal/fips/sha256/sha256block_amd64.go b/src/crypto/internal/fips/sha256/sha256block_amd64.go
+index a3a1cae8e9..05455ce779 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_amd64.go
++++ b/src/crypto/internal/fips/sha256/sha256block_amd64.go
+@@ -7,12 +7,12 @@
+ package sha256
+ 
+ import (
++	"crypto/internal/fipsdeps/cpu"
+ 	"crypto/internal/impl"
+-	"internal/cpu"
+ )
+ 
+-var useAVX2 = cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI2
+-var useSHANI = cpu.X86.HasAVX && cpu.X86.HasSHA && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3
++var useAVX2 = cpu.X86HasAVX && cpu.X86HasAVX2 && cpu.X86HasBMI2
++var useSHANI = cpu.X86HasAVX && cpu.X86HasSHA && cpu.X86HasSSE41 && cpu.X86HasSSSE3
+ 
+ func init() {
+ 	impl.Register("sha256", "AVX2", &useAVX2)
+diff --git a/src/crypto/internal/fips/sha256/sha256block_arm64.go b/src/crypto/internal/fips/sha256/sha256block_arm64.go
+index ae53d9e546..3e96db0fb7 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_arm64.go
++++ b/src/crypto/internal/fips/sha256/sha256block_arm64.go
+@@ -7,11 +7,11 @@
+ package sha256
+ 
+ import (
++	"crypto/internal/fipsdeps/cpu"
+ 	"crypto/internal/impl"
+-	"internal/cpu"
+ )
+ 
+-var useSHA2 = cpu.ARM64.HasSHA2
++var useSHA2 = cpu.ARM64HasSHA2
+ 
+ func init() {
+ 	impl.Register("sha256", "Armv8.0", &useSHA2)
+diff --git a/src/crypto/internal/fips/sha256/sha256block_ppc64x.go b/src/crypto/internal/fips/sha256/sha256block_ppc64x.go
+index 6d4d255631..102dc6b713 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_ppc64x.go
++++ b/src/crypto/internal/fips/sha256/sha256block_ppc64x.go
+@@ -7,15 +7,15 @@
+ package sha256
+ 
+ import (
++	"crypto/internal/fipsdeps/godebug"
+ 	"crypto/internal/impl"
+-	"internal/godebug"
+ )
+ 
+ // The POWER architecture doesn't have a way to turn off SHA-2 support at
+ // runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG knob for
+ // that. It's intentionally only checked at init() time, to avoid the
+ // performance overhead of checking it on every block.
+-var ppc64sha2 = godebug.New("#ppc64sha2").Value() != "off"
++var ppc64sha2 = godebug.Value("#ppc64sha2") != "off"
+ 
+ func init() {
+ 	impl.Register("sha256", "POWER8", &ppc64sha2)
+diff --git a/src/crypto/internal/fips/sha256/sha256block_s390x.go b/src/crypto/internal/fips/sha256/sha256block_s390x.go
+index 55bea69e05..f99f4ccb75 100644
+--- a/src/crypto/internal/fips/sha256/sha256block_s390x.go
++++ b/src/crypto/internal/fips/sha256/sha256block_s390x.go
+@@ -7,11 +7,11 @@
+ package sha256
+ 
+ import (
++	"crypto/internal/fipsdeps/cpu"
+ 	"crypto/internal/impl"
+-	"internal/cpu"
+ )
+ 
+-var useSHA256 = cpu.S390X.HasSHA256
++var useSHA256 = cpu.S390XHasSHA256
+ 
+ func init() {
+ 	// CP Assist for Cryptographic Functions (CPACF)
+diff --git a/src/crypto/internal/fips/sha3/keccakf.go b/src/crypto/internal/fips/sha3/keccakf.go
+index ce3bffd6f0..19d697bd0f 100644
+--- a/src/crypto/internal/fips/sha3/keccakf.go
++++ b/src/crypto/internal/fips/sha3/keccakf.go
+@@ -5,8 +5,8 @@
+ package sha3
+ 
+ import (
+-	"internal/byteorder"
+-	"internal/goarch"
++	"crypto/internal/fipsdeps/byteorder"
++	"crypto/internal/fipsdeps/cpu"
+ 	"math/bits"
+ 	"unsafe"
+ )
+@@ -42,14 +42,14 @@ var rc = [24]uint64{
+ // keccakF1600Generic applies the Keccak permutation.
+ func keccakF1600Generic(da *[200]byte) {
+ 	var a *[25]uint64
+-	if goarch.BigEndian {
++	if cpu.BigEndian {
+ 		a = new([25]uint64)
+ 		for i := range a {
+-			a[i] = byteorder.LeUint64(da[i*8:])
++			a[i] = byteorder.LEUint64(da[i*8:])
+ 		}
+ 		defer func() {
+ 			for i := range a {
+-				byteorder.LePutUint64(da[i*8:], a[i])
++				byteorder.LEPutUint64(da[i*8:], a[i])
+ 			}
+ 		}()
+ 	} else {
+diff --git a/src/crypto/internal/fips/sha3/sha3_s390x.go b/src/crypto/internal/fips/sha3/sha3_s390x.go
+index 472b20d07d..5e749e3d24 100644
+--- a/src/crypto/internal/fips/sha3/sha3_s390x.go
++++ b/src/crypto/internal/fips/sha3/sha3_s390x.go
+@@ -8,8 +8,8 @@ package sha3
+ 
+ import (
+ 	"crypto/internal/fips/subtle"
++	"crypto/internal/fipsdeps/cpu"
+ 	"crypto/internal/impl"
+-	"internal/cpu"
+ )
+ 
+ // This file contains code for using the 'compute intermediate
+@@ -19,7 +19,7 @@ import (
+ //
+ // [z/Architecture Principles of Operation, Fourteen Edition]: https://www.ibm.com/docs/en/module_1678991624569/pdf/SA22-7832-13.pdf
+ 
+-var useSHA3 = cpu.S390X.HasSHA3
++var useSHA3 = cpu.S390XHasSHA3
+ 
+ func init() {
+ 	// CP Assist for Cryptographic Functions (CPACF)
+diff --git a/src/crypto/internal/fips/sha3/shake.go b/src/crypto/internal/fips/sha3/shake.go
+index 1f2e2542de..6bda24e42f 100644
+--- a/src/crypto/internal/fips/sha3/shake.go
++++ b/src/crypto/internal/fips/sha3/shake.go
+@@ -7,8 +7,8 @@ package sha3
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	"crypto/internal/fipsdeps/byteorder"
+ 	"errors"
+-	"internal/byteorder"
+ 	"math/bits"
+ )
+ 
+@@ -41,7 +41,7 @@ func leftEncode(x uint64) []byte {
+ 	}
+ 	// Return n || x with n as a byte and x an n bytes in big-endian order.
+ 	b := make([]byte, 9)
+-	byteorder.BePutUint64(b[1:], x)
++	byteorder.BEPutUint64(b[1:], x)
+ 	b = b[9-n-1:]
+ 	b[0] = byte(n)
+ 	return b
+diff --git a/src/crypto/internal/fips/sha512/sha512.go b/src/crypto/internal/fips/sha512/sha512.go
+index 19e799560f..ee0bdea92a 100644
+--- a/src/crypto/internal/fips/sha512/sha512.go
++++ b/src/crypto/internal/fips/sha512/sha512.go
+@@ -8,8 +8,8 @@ package sha512
+ 
+ import (
+ 	"crypto/internal/fips"
++	"crypto/internal/fipsdeps/byteorder"
+ 	"errors"
+-	"internal/byteorder"
+ )
+ 
+ const (
+@@ -146,17 +146,17 @@ func (d *Digest) AppendBinary(b []byte) ([]byte, error) {
+ 	default:
+ 		panic("unknown size")
+ 	}
+-	b = byteorder.BeAppendUint64(b, d.h[0])
+-	b = byteorder.BeAppendUint64(b, d.h[1])
+-	b = byteorder.BeAppendUint64(b, d.h[2])
+-	b = byteorder.BeAppendUint64(b, d.h[3])
+-	b = byteorder.BeAppendUint64(b, d.h[4])
+-	b = byteorder.BeAppendUint64(b, d.h[5])
+-	b = byteorder.BeAppendUint64(b, d.h[6])
+-	b = byteorder.BeAppendUint64(b, d.h[7])
++	b = byteorder.BEAppendUint64(b, d.h[0])
++	b = byteorder.BEAppendUint64(b, d.h[1])
++	b = byteorder.BEAppendUint64(b, d.h[2])
++	b = byteorder.BEAppendUint64(b, d.h[3])
++	b = byteorder.BEAppendUint64(b, d.h[4])
++	b = byteorder.BEAppendUint64(b, d.h[5])
++	b = byteorder.BEAppendUint64(b, d.h[6])
++	b = byteorder.BEAppendUint64(b, d.h[7])
+ 	b = append(b, d.x[:d.nx]...)
+ 	b = append(b, make([]byte, len(d.x)-d.nx)...)
+-	b = byteorder.BeAppendUint64(b, d.len)
++	b = byteorder.BEAppendUint64(b, d.len)
+ 	return b, nil
+ }
+ 
+@@ -191,7 +191,7 @@ func (d *Digest) UnmarshalBinary(b []byte) error {
+ }
+ 
+ func consumeUint64(b []byte) ([]byte, uint64) {
+-	return b[8:], byteorder.BeUint64(b)
++	return b[8:], byteorder.BEUint64(b)
+ }
+ 
+ // New returns a new Digest computing the SHA-512 hash.
+@@ -277,8 +277,8 @@ func (d *Digest) checkSum() [size512]byte {
+ 	padlen := tmp[:t+16]
+ 	// Upper 64 bits are always zero, because len variable has type uint64,
+ 	// and tmp is already zeroed at that index, so we can skip updating it.
+-	// byteorder.BePutUint64(padlen[t+0:], 0)
+-	byteorder.BePutUint64(padlen[t+8:], len)
++	// byteorder.BEPutUint64(padlen[t+0:], 0)
++	byteorder.BEPutUint64(padlen[t+8:], len)
+ 	d.Write(padlen)
+ 
+ 	if d.nx != 0 {
+@@ -286,15 +286,15 @@ func (d *Digest) checkSum() [size512]byte {
+ 	}
+ 
+ 	var digest [size512]byte
+-	byteorder.BePutUint64(digest[0:], d.h[0])
+-	byteorder.BePutUint64(digest[8:], d.h[1])
+-	byteorder.BePutUint64(digest[16:], d.h[2])
+-	byteorder.BePutUint64(digest[24:], d.h[3])
+-	byteorder.BePutUint64(digest[32:], d.h[4])
+-	byteorder.BePutUint64(digest[40:], d.h[5])
++	byteorder.BEPutUint64(digest[0:], d.h[0])
++	byteorder.BEPutUint64(digest[8:], d.h[1])
++	byteorder.BEPutUint64(digest[16:], d.h[2])
++	byteorder.BEPutUint64(digest[24:], d.h[3])
++	byteorder.BEPutUint64(digest[32:], d.h[4])
++	byteorder.BEPutUint64(digest[40:], d.h[5])
+ 	if d.size != size384 {
+-		byteorder.BePutUint64(digest[48:], d.h[6])
+-		byteorder.BePutUint64(digest[56:], d.h[7])
++		byteorder.BEPutUint64(digest[48:], d.h[6])
++		byteorder.BEPutUint64(digest[56:], d.h[7])
+ 	}
+ 
+ 	return digest
+diff --git a/src/crypto/internal/fips/sha512/sha512block_amd64.go b/src/crypto/internal/fips/sha512/sha512block_amd64.go
+index 1ffd340153..a633f8f604 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_amd64.go
++++ b/src/crypto/internal/fips/sha512/sha512block_amd64.go
+@@ -7,11 +7,11 @@
+ package sha512
+ 
+ import (
++	"crypto/internal/fipsdeps/cpu"
+ 	"crypto/internal/impl"
+-	"internal/cpu"
+ )
+ 
+-var useAVX2 = cpu.X86.HasAVX && cpu.X86.HasAVX2 && cpu.X86.HasBMI2
++var useAVX2 = cpu.X86HasAVX && cpu.X86HasAVX2 && cpu.X86HasBMI2
+ 
+ func init() {
+ 	impl.Register("sha512", "AVX2", &useAVX2)
+diff --git a/src/crypto/internal/fips/sha512/sha512block_arm64.go b/src/crypto/internal/fips/sha512/sha512block_arm64.go
+index 20b5d6aadc..cf6733b862 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_arm64.go
++++ b/src/crypto/internal/fips/sha512/sha512block_arm64.go
+@@ -7,11 +7,11 @@
+ package sha512
+ 
+ import (
++	"crypto/internal/fipsdeps/cpu"
+ 	"crypto/internal/impl"
+-	"internal/cpu"
+ )
+ 
+-var useSHA512 = cpu.ARM64.HasSHA512
++var useSHA512 = cpu.ARM64HasSHA512
+ 
+ func init() {
+ 	impl.Register("sha512", "Armv8.2", &useSHA512)
+diff --git a/src/crypto/internal/fips/sha512/sha512block_ppc64x.go b/src/crypto/internal/fips/sha512/sha512block_ppc64x.go
+index 23061d4aa6..c0040e3b7d 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_ppc64x.go
++++ b/src/crypto/internal/fips/sha512/sha512block_ppc64x.go
+@@ -7,15 +7,15 @@
+ package sha512
+ 
+ import (
++	"crypto/internal/fipsdeps/godebug"
+ 	"crypto/internal/impl"
+-	"internal/godebug"
+ )
+ 
+ // The POWER architecture doesn't have a way to turn off SHA-512 support at
+ // runtime with GODEBUG=cpu.something=off, so introduce a new GODEBUG knob for
+ // that. It's intentionally only checked at init() time, to avoid the
+ // performance overhead of checking it on every block.
+-var ppc64sha512 = godebug.New("#ppc64sha512").Value() != "off"
++var ppc64sha512 = godebug.Value("#ppc64sha512") != "off"
+ 
+ func init() {
+ 	impl.Register("sha512", "POWER8", &ppc64sha512)
+diff --git a/src/crypto/internal/fips/sha512/sha512block_s390x.go b/src/crypto/internal/fips/sha512/sha512block_s390x.go
+index fe710fe4c6..f665c57a03 100644
+--- a/src/crypto/internal/fips/sha512/sha512block_s390x.go
++++ b/src/crypto/internal/fips/sha512/sha512block_s390x.go
+@@ -7,11 +7,11 @@
+ package sha512
+ 
+ import (
++	"crypto/internal/fipsdeps/cpu"
+ 	"crypto/internal/impl"
+-	"internal/cpu"
+ )
+ 
+-var useSHA512 = cpu.S390X.HasSHA512
++var useSHA512 = cpu.S390XHasSHA512
+ 
+ func init() {
+ 	// CP Assist for Cryptographic Functions (CPACF)
+diff --git a/src/crypto/internal/fips/tls13/tls13.go b/src/crypto/internal/fips/tls13/tls13.go
+index 2c77b8818d..b712af3670 100644
+--- a/src/crypto/internal/fips/tls13/tls13.go
++++ b/src/crypto/internal/fips/tls13/tls13.go
+@@ -9,7 +9,7 @@ package tls13
+ import (
+ 	"crypto/internal/fips"
+ 	"crypto/internal/fips/hkdf"
+-	"internal/byteorder"
++	"crypto/internal/fipsdeps/byteorder"
+ )
+ 
+ // We don't set the service indicator in this package but we delegate that to
+@@ -30,7 +30,7 @@ func ExpandLabel[H fips.Hash](hash func() H, secret []byte, label string, contex
+ 		panic("tls13: label or context too long")
+ 	}
+ 	hkdfLabel := make([]byte, 0, 2+1+len("tls13 ")+len(label)+1+len(context))
+-	hkdfLabel = byteorder.BeAppendUint16(hkdfLabel, uint16(length))
++	hkdfLabel = byteorder.BEAppendUint16(hkdfLabel, uint16(length))
+ 	hkdfLabel = append(hkdfLabel, byte(len("tls13 ")+len(label)))
+ 	hkdfLabel = append(hkdfLabel, "tls13 "...)
+ 	hkdfLabel = append(hkdfLabel, label...)
+diff --git a/src/crypto/internal/fipsdeps/byteorder/byteorder.go b/src/crypto/internal/fipsdeps/byteorder/byteorder.go
+new file mode 100644
+index 0000000000..9faf12d092
+--- /dev/null
++++ b/src/crypto/internal/fipsdeps/byteorder/byteorder.go
+@@ -0,0 +1,53 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package byteorder
++
++import (
++	"internal/byteorder"
++)
++
++func LEUint16(b []byte) uint16 {
++	return byteorder.LeUint16(b)
++}
++
++func BEUint32(b []byte) uint32 {
++	return byteorder.BeUint32(b)
++}
++
++func BEUint64(b []byte) uint64 {
++	return byteorder.BeUint64(b)
++}
++
++func LEUint64(b []byte) uint64 {
++	return byteorder.LeUint64(b)
++}
++
++func BEPutUint16(b []byte, v uint16) {
++	byteorder.BePutUint16(b, v)
++}
++
++func BEPutUint32(b []byte, v uint32) {
++	byteorder.BePutUint32(b, v)
++}
++
++func BEPutUint64(b []byte, v uint64) {
++	byteorder.BePutUint64(b, v)
++}
++
++func LEPutUint64(b []byte, v uint64) {
++	byteorder.LePutUint64(b, v)
++}
++
++func BEAppendUint16(b []byte, v uint16) []byte {
++	return byteorder.BeAppendUint16(b, v)
++}
++
++func BEAppendUint32(b []byte, v uint32) []byte {
++	return byteorder.BeAppendUint32(b, v)
++}
++
++func BEAppendUint64(b []byte, v uint64) []byte {
++	return byteorder.BeAppendUint64(b, v)
++}
+diff --git a/src/crypto/internal/fipsdeps/cpu/cpu.go b/src/crypto/internal/fipsdeps/cpu/cpu.go
+new file mode 100644
+index 0000000000..a2b200b782
+--- /dev/null
++++ b/src/crypto/internal/fipsdeps/cpu/cpu.go
+@@ -0,0 +1,37 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cpu
++
++import (
++	"internal/cpu"
++	"internal/goarch"
++)
++
++const BigEndian = goarch.BigEndian
++const AMD64 = goarch.IsAmd64 == 1
++const ARM64 = goarch.IsArm64 == 1
++const PPC64 = goarch.IsPpc64 == 1
++const PPC64le = goarch.IsPpc64le == 1
++
++var ARM64HasAES = cpu.ARM64.HasAES
++var ARM64HasPMULL = cpu.ARM64.HasPMULL
++var ARM64HasSHA2 = cpu.ARM64.HasSHA2
++var ARM64HasSHA512 = cpu.ARM64.HasSHA512
++var S390XHasAES = cpu.S390X.HasAES
++var S390XHasAESCBC = cpu.S390X.HasAESCBC
++var S390XHasAESCTR = cpu.S390X.HasAESCTR
++var S390XHasAESGCM = cpu.S390X.HasAESGCM
++var S390XHasGHASH = cpu.S390X.HasGHASH
++var S390XHasSHA256 = cpu.S390X.HasSHA256
++var S390XHasSHA3 = cpu.S390X.HasSHA3
++var S390XHasSHA512 = cpu.S390X.HasSHA512
++var X86HasAES = cpu.X86.HasAES
++var X86HasAVX = cpu.X86.HasAVX
++var X86HasAVX2 = cpu.X86.HasAVX2
++var X86HasBMI2 = cpu.X86.HasBMI2
++var X86HasPCLMULQDQ = cpu.X86.HasPCLMULQDQ
++var X86HasSHA = cpu.X86.HasSHA
++var X86HasSSE41 = cpu.X86.HasSSE41
++var X86HasSSSE3 = cpu.X86.HasSSSE3
+diff --git a/src/crypto/internal/fipsdeps/fipsdeps.go b/src/crypto/internal/fipsdeps/fipsdeps.go
+new file mode 100644
+index 0000000000..b89e095255
+--- /dev/null
++++ b/src/crypto/internal/fipsdeps/fipsdeps.go
+@@ -0,0 +1,9 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package fipsdeps contains wrapper packages for internal APIs that are exposed
++// to the FIPS module. Since modules are frozen upon validation and supported
++// for a number of future versions, APIs exposed by crypto/internal/fipsdeps/...
++// must not be changed until the modules that use them are no longer supported.
++package fipsdeps
+diff --git a/src/crypto/internal/fipsdeps/fipsdeps_test.go b/src/crypto/internal/fipsdeps/fipsdeps_test.go
+new file mode 100644
+index 0000000000..69c804ca5d
+--- /dev/null
++++ b/src/crypto/internal/fipsdeps/fipsdeps_test.go
+@@ -0,0 +1,65 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fipsdeps
++
++import (
++	"internal/testenv"
++	"strings"
++	"testing"
++)
++
++// AllowedInternalPackages are internal packages that can be imported from the
++// FIPS module. The API of these packages ends up locked for the lifetime of the
++// validated module, which can be years.
++//
++// DO NOT add new packages here just to make the tests pass.
++var AllowedInternalPackages = map[string]bool{
++	// entropy.Depleted is the external passive entropy source, and sysrand.Read
++	// is the actual (but uncredited!) random bytes source.
++	"crypto/internal/entropy": true,
++	"crypto/internal/sysrand": true,
++
++	// impl.Register is how the packages expose their alternative
++	// implementations to tests outside the module.
++	"crypto/internal/impl": true,
++}
++
++func TestImports(t *testing.T) {
++	cmd := testenv.Command(t, testenv.GoToolPath(t), "list", "-f", `{{$path := .ImportPath -}}
++{{range .Imports -}}
++{{$path}} {{.}}
++{{end -}}
++{{range .TestImports -}}
++{{$path}} {{.}}
++{{end -}}
++{{range .XTestImports -}}
++{{$path}} {{.}}
++{{end -}}`, "crypto/internal/fips/...")
++	out, err := cmd.CombinedOutput()
++	if err != nil {
++		t.Fatalf("go list: %v\n%s", err, out)
++	}
++
++	// Ensure we don't import any unexpected internal package from the FIPS
++	// module, since we can't change the module source after it starts
++	// validation. This locks in the API of otherwise internal packages.
++	for _, line := range strings.Split(string(out), "\n") {
++		if line == "" {
++			continue
++		}
++		parts := strings.Fields(line)
++		if parts[1] == "crypto/internal/fips" ||
++			strings.HasPrefix(parts[1], "crypto/internal/fips/") ||
++			strings.HasPrefix(parts[1], "crypto/internal/fipsdeps/") {
++			continue
++		}
++		if AllowedInternalPackages[parts[1]] {
++			continue
++		}
++		if strings.Contains(parts[1], "internal") {
++			t.Errorf("unexpected import of internal package: %s -> %s", parts[0], parts[1])
++		}
++	}
++}
+diff --git a/src/crypto/internal/fipsdeps/godebug/godebug.go b/src/crypto/internal/fipsdeps/godebug/godebug.go
+new file mode 100644
+index 0000000000..de50d61208
+--- /dev/null
++++ b/src/crypto/internal/fipsdeps/godebug/godebug.go
+@@ -0,0 +1,23 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package godebug
++
++import (
++	"internal/godebug"
++)
++
++type Setting godebug.Setting
++
++func New(name string) *Setting {
++	return (*Setting)(godebug.New(name))
++}
++
++func (s *Setting) Value() string {
++	return (*godebug.Setting)(s).Value()
++}
++
++func Value(name string) string {
++	return godebug.New(name).Value()
++}
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 5ab7ea8d0d..8649f247a2 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -445,11 +445,16 @@ var depsRules = `
+ 	OS < crypto/internal/sysrand
+ 	< crypto/internal/entropy;
+ 
++	internal/byteorder < crypto/internal/fipsdeps/byteorder;
++	internal/cpu, internal/goarch < crypto/internal/fipsdeps/cpu;
++	internal/godebug < crypto/internal/fipsdeps/godebug;
++
+ 	# FIPS is the FIPS 140 module.
+ 	# It must not depend on external crypto packages.
+-	# Internal packages imported by FIPS might need to retain
+-	# backwards compatibility with older versions of the module.
+-	STR, crypto/internal/impl, crypto/internal/entropy
++	STR, crypto/internal/impl, crypto/internal/entropy,
++	crypto/internal/fipsdeps/byteorder,
++	crypto/internal/fipsdeps/cpu,
++	crypto/internal/fipsdeps/godebug
+ 	< crypto/internal/fips
+ 	< crypto/internal/fips/alias
+ 	< crypto/internal/fips/subtle

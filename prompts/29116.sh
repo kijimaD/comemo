@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 29116: a656390b6986c3d559873b64683aa3454a151115
+# Index 29116: 1ff57143af65014c80e39cc0f19cd97a455f5b49
 
 echo "🚀 Generating explanation for commit 29116..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 29116..."
 
 ### メタデータ
 - **コミットインデックス**: 29116
-- **コミットハッシュ**: a656390b6986c3d559873b64683aa3454a151115
-- **GitHub URL**: https://github.com/golang/go/commit/a656390b6986c3d559873b64683aa3454a151115
+- **コミットハッシュ**: 1ff57143af65014c80e39cc0f19cd97a455f5b49
+- **GitHub URL**: https://github.com/golang/go/commit/1ff57143af65014c80e39cc0f19cd97a455f5b49
 
 ### 章構成
 

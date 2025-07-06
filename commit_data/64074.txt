@@ -1,0 +1,48 @@
+commit b3a57e43c7517491c6220b637f70918fa7ca6e20
+Author: Dana Burkart <dana@zenful.ai>
+Date:   Sat Jun 8 03:30:30 2024 +0000
+
+    time: add to format documentation about dangers of using RFC1123{,Z} for parsing
+    
+    When using time.RFC1123Z to parse the date header value out of an email,
+    an error is returned for dates that occur in the first 9 days of a
+    month. This is because the format strings for RFC 1123 defined in the
+    time package indicate that the day should be prefixed with a leading 0.
+    
+    Reading the spec, the line that talks about it seems to indicate that
+    days can be either 1 or 2 digits:
+    
+      `date = 1*2DIGIT month 2*4DIGIT`
+    
+    So a date header with a day like `7` with no leading zero should be
+    accepted.
+    
+    Fixes #67887
+    
+    Change-Id: Ie7ee40d94da2c8c0417957e8b89f9987314949c8
+    GitHub-Last-Rev: 22a5a52fcb7ee25e5005bb9a014ef8a94d52fb32
+    GitHub-Pull-Request: golang/go#67888
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591335
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/time/format.go | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/time/format.go b/src/time/format.go
+index 07f1f804c1..6488ec8aba 100644
+--- a/src/time/format.go
++++ b/src/time/format.go
+@@ -32,6 +32,10 @@ import (
+ // only to local times. Applying them to UTC times will use "UTC" as the
+ // time zone abbreviation, while strictly speaking those RFCs require the
+ // use of "GMT" in that case.
++// When using the [RFC1123] or [RFC1123Z] formats for parsing, note that these
++// formats define a leading zero for the day-in-month portion, which is not
++// strictly allowed by RFC 1123. This will result in an error when parsing
++// date strings that occur in the first 9 days of a given month.
+ // In general [RFC1123Z] should be used instead of [RFC1123] for servers
+ // that insist on that format, and [RFC3339] should be preferred for new protocols.
+ // [RFC3339], [RFC822], [RFC822Z], [RFC1123], and [RFC1123Z] are useful for formatting;

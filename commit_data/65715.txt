@@ -1,0 +1,35 @@
+commit 797141e94c4b6905dce90238cbc6b8748dfe1026
+Author: Tim King <taking@google.com>
+Date:   Wed Nov 27 13:57:06 2024 -0800
+
+    doc/next: document buildtag changes
+    
+    Fixes #64127
+    
+    Change-Id: I1562953caa3b1b2bc5dd3b7692671e0f3d5d2b9b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/632355
+    Commit-Queue: Tim King <taking@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ doc/next/3-tools.md | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 33a4e682dc..d319299c63 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -49,6 +49,13 @@ with no other arguments. Such calls are nearly always a mistake
+ as the value of `s` may contain the `%` symbol; use `fmt.Print` instead.
+ See [#60529](/issue/60529).
+ 
++<!-- go.dev/issue/64127 -->
++The existing `buildtag` analyzer now reports a diagnostic when
++there is an invalid Go [major version build constraint](/pkg/cmd/go#hdr-Build_constraints)
++within a `//go:build` directive. For example, `//go:build go1.23.1` refers to
++a point release; use `//go:build go1.23` instead.
++See [#64127](/issue/64127).
++
+ <!-- go.dev/issue/66387 -->
+ The existing `copylock` analyzer now reports a diagnostic when a
+ variable declared in a 3-clause "for" loop such as

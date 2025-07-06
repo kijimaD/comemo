@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 19741: cddad8affe38c60bcec44d183eb6f8d6b43c18de
+# Index 19741: 3f32a51242c2567d79681b2d4e002684f21d4a5c
 
 echo "🚀 Generating explanation for commit 19741..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 19741..."
 
 ### メタデータ
 - **コミットインデックス**: 19741
-- **コミットハッシュ**: cddad8affe38c60bcec44d183eb6f8d6b43c18de
-- **GitHub URL**: https://github.com/golang/go/commit/cddad8affe38c60bcec44d183eb6f8d6b43c18de
+- **コミットハッシュ**: 3f32a51242c2567d79681b2d4e002684f21d4a5c
+- **GitHub URL**: https://github.com/golang/go/commit/3f32a51242c2567d79681b2d4e002684f21d4a5c
 
 ### 章構成
 

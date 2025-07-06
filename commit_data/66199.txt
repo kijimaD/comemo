@@ -1,0 +1,72 @@
+commit b16c04f43993436f24b1e4155a4652193eb1b90c
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Thu Feb 13 00:41:13 2025 +0800
+
+    cmd/dist: use slices.Index
+    
+    Change-Id: Ifcab176faa2ac55e60576cf6acd96a18d0e860ab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648859
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/dist/build.go | 17 ++++-------------
+ 1 file changed, 4 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/dist/build.go b/src/cmd/dist/build.go
+index 1f467647f5..4fcc508f8e 100644
+--- a/src/cmd/dist/build.go
++++ b/src/cmd/dist/build.go
+@@ -16,6 +16,7 @@ import (
+ 	"os/exec"
+ 	"path/filepath"
+ 	"regexp"
++	"slices"
+ 	"sort"
+ 	"strconv"
+ 	"strings"
+@@ -104,16 +105,6 @@ var okgoos = []string{
+ 	"aix",
+ }
+ 
+-// find reports the first index of p in l[0:n], or else -1.
+-func find(p string, l []string) int {
+-	for i, s := range l {
+-		if p == s {
+-			return i
+-		}
+-	}
+-	return -1
+-}
+-
+ // xinit handles initialization of the various global state, like goroot and goarch.
+ func xinit() {
+ 	b := os.Getenv("GOROOT")
+@@ -134,7 +125,7 @@ func xinit() {
+ 		b = gohostos
+ 	}
+ 	goos = b
+-	if find(goos, okgoos) < 0 {
++	if slices.Index(okgoos, goos) < 0 {
+ 		fatalf("unknown $GOOS %s", goos)
+ 	}
+ 
+@@ -202,7 +193,7 @@ func xinit() {
+ 	if b != "" {
+ 		gohostarch = b
+ 	}
+-	if find(gohostarch, okgoarch) < 0 {
++	if slices.Index(okgoarch, gohostarch) < 0 {
+ 		fatalf("unknown $GOHOSTARCH %s", gohostarch)
+ 	}
+ 
+@@ -211,7 +202,7 @@ func xinit() {
+ 		b = gohostarch
+ 	}
+ 	goarch = b
+-	if find(goarch, okgoarch) < 0 {
++	if slices.Index(okgoarch, goarch) < 0 {
+ 		fatalf("unknown $GOARCH %s", goarch)
+ 	}
+ 

@@ -1,0 +1,39 @@
+commit a9abbac4c86eb685661f2909d3f5ae59ab507773
+Author: cuishuang <imcusg@gmail.com>
+Date:   Wed Oct 9 11:56:25 2024 +0800
+
+    net/url: add example for JoinPath
+    
+    Change-Id: Ibbd2bda7ff2ea3c782ad41f6f00ad62849a4f066
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618756
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/net/url/example_test.go | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/src/net/url/example_test.go b/src/net/url/example_test.go
+index a1913508f7..311ba5c329 100644
+--- a/src/net/url/example_test.go
++++ b/src/net/url/example_test.go
+@@ -253,6 +253,18 @@ func ExampleURL_IsAbs() {
+ 	// true
+ }
+ 
++func ExampleURL_JoinPath() {
++	u, err := url.Parse("https://example.com/foo/bar")
++	if err != nil {
++		log.Fatal(err)
++	}
++
++	fmt.Println(u.JoinPath("baz", "qux"))
++
++	// Output:
++	// https://example.com/foo/bar/baz/qux
++}
++
+ func ExampleURL_MarshalBinary() {
+ 	u, _ := url.Parse("https://example.org")
+ 	b, err := u.MarshalBinary()

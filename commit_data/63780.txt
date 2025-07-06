@@ -1,0 +1,46 @@
+commit 8ce2fedaeb1b4e5c61a811223dd07fc1dff6b81f
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Mar 1 23:54:39 2024 +0700
+
+    cmd/compile: add test case for using Alias types
+    
+    CL 579935 disabled usage of Alias types in the compiler, and tracks
+    the problem with issue #66873. The test case in #65893 passes now
+    with the current tip. This CL adds a test case to ensure there is no
+    regression once Alias types are enabled for the compiler.
+    
+    Updates #66873
+    Fixes #65893
+    
+    Change-Id: I51b51bb13ca59549bc5925dd95f73da40465556d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/568455
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ test/fixedbugs/issue65893.go | 16 ++++++++++++++++
+ 1 file changed, 16 insertions(+)
+
+diff --git a/test/fixedbugs/issue65893.go b/test/fixedbugs/issue65893.go
+new file mode 100644
+index 0000000000..6f015feaed
+--- /dev/null
++++ b/test/fixedbugs/issue65893.go
+@@ -0,0 +1,16 @@
++// compile
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type (
++	s  = struct{ f func(s1) }
++	s1 = struct{ i I }
++)
++
++type I interface {
++	S() *s
++}

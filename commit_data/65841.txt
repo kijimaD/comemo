@@ -1,0 +1,273 @@
+commit 971448ddf8c55a5f4a829735a5a96cacf982f230
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Dec 17 15:31:10 2024 -0800
+
+    testing: support B.Context and F.Context
+    
+    CL 603959 added T.Context for #36532.
+    
+    The discussion on the proposal only mentions t.Context.
+    However, the implementation of CL 603959 also added B.Context and F.Context.
+    They were added to the API listing, and B.Context was mentioned in
+    the release notes.
+    
+    Unfortunately, the new B.Context and F.Context methods always
+    returned nil, rather than a context.Context value.
+    
+    This change adds a working implementation of B.Context and F.Context.
+    
+    For #36532
+    Fixes #70866
+    
+    Change-Id: I8a44e6649fb658e4f641ffb7efd08b4374f578ef
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637236
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/cmd/go/testdata/script/test_fuzz_context.txt | 47 +++++++++++++++++++++++
+ src/testing/benchmark.go                         |  4 ++
+ src/testing/benchmark_test.go                    | 30 +++++++++++++++
+ src/testing/fuzz.go                              | 49 +++++++++++++++---------
+ src/testing/testing.go                           |  4 +-
+ 5 files changed, 113 insertions(+), 21 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_context.txt b/src/cmd/go/testdata/script/test_fuzz_context.txt
+new file mode 100644
+index 0000000000..a830684708
+--- /dev/null
++++ b/src/cmd/go/testdata/script/test_fuzz_context.txt
+@@ -0,0 +1,47 @@
++[!fuzz] skip
++[short] skip
++env GOCACHE=$WORK/cache
++
++# Test fuzz.Context.
++go test -vet=off context_fuzz_test.go
++stdout ^ok
++! stdout FAIL
++
++go test -vet=off -fuzz=Fuzz -fuzztime=1x context_fuzz_test.go
++stdout ok
++! stdout FAIL
++
++-- context_fuzz_test.go --
++package context_fuzz
++
++import (
++	"context"
++	"errors"
++	"testing"
++)
++
++func Fuzz(f *testing.F) {
++	ctx := f.Context()
++	if err := ctx.Err(); err != nil {
++		f.Fatalf("expected non-canceled context, got %v", err)
++	}
++
++	f.Fuzz(func(t *testing.T, data []byte) {
++		innerCtx := t.Context()
++		if err := innerCtx.Err(); err != nil {
++			t.Fatalf("expected inner test to not inherit canceled context, got %v", err)
++		}
++
++		t.Cleanup(func() {
++			if !errors.Is(innerCtx.Err(), context.Canceled) {
++				t.Fatal("expected context of inner test to be canceled after its fuzz function finished")
++			}
++		})
++	})
++
++	f.Cleanup(func() {
++		if !errors.Is(ctx.Err(), context.Canceled) {
++			f.Fatal("expected context canceled before cleanup")
++		}
++	})
++}
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 2660c9bba0..3a7da9e540 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -5,6 +5,7 @@
+ package testing
+ 
+ import (
++	"context"
+ 	"flag"
+ 	"fmt"
+ 	"internal/sysinfo"
+@@ -181,6 +182,7 @@ func (b *B) ReportAllocs() {
+ func (b *B) runN(n int) {
+ 	benchmarkLock.Lock()
+ 	defer benchmarkLock.Unlock()
++	ctx, cancelCtx := context.WithCancel(context.Background())
+ 	defer func() {
+ 		b.runCleanup(normalPanic)
+ 		b.checkRaces()
+@@ -191,6 +193,8 @@ func (b *B) runN(n int) {
+ 	b.resetRaces()
+ 	b.N = n
+ 	b.loopN = 0
++	b.ctx = ctx
++	b.cancelCtx = cancelCtx
+ 
+ 	b.parallelism = 1
+ 	b.ResetTimer()
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index a195e4c576..e2dd24c839 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -7,6 +7,8 @@ package testing_test
+ import (
+ 	"bytes"
+ 	"cmp"
++	"context"
++	"errors"
+ 	"runtime"
+ 	"slices"
+ 	"strings"
+@@ -127,6 +129,34 @@ func TestRunParallelSkipNow(t *testing.T) {
+ 	})
+ }
+ 
++func TestBenchmarkContext(t *testing.T) {
++	testing.Benchmark(func(b *testing.B) {
++		ctx := b.Context()
++		if err := ctx.Err(); err != nil {
++			b.Fatalf("expected non-canceled context, got %v", err)
++		}
++
++		var innerCtx context.Context
++		b.Run("inner", func(b *testing.B) {
++			innerCtx = b.Context()
++			if err := innerCtx.Err(); err != nil {
++				b.Fatalf("expected inner benchmark to not inherit canceled context, got %v", err)
++			}
++		})
++		b.Run("inner2", func(b *testing.B) {
++			if !errors.Is(innerCtx.Err(), context.Canceled) {
++				t.Fatal("expected context of sibling benchmark to be canceled after its test function finished")
++			}
++		})
++
++		t.Cleanup(func() {
++			if !errors.Is(ctx.Err(), context.Canceled) {
++				t.Fatal("expected context canceled before cleanup")
++			}
++		})
++	})
++}
++
+ func ExampleB_RunParallel() {
+ 	// Parallel benchmark for text/template.Template.Execute on a single object.
+ 	testing.Benchmark(func(b *testing.B) {
+diff --git a/src/testing/fuzz.go b/src/testing/fuzz.go
+index b41a07f88e..dceb786ae2 100644
+--- a/src/testing/fuzz.go
++++ b/src/testing/fuzz.go
+@@ -5,6 +5,7 @@
+ package testing
+ 
+ import (
++	"context"
+ 	"errors"
+ 	"flag"
+ 	"fmt"
+@@ -293,6 +294,8 @@ func (f *F) Fuzz(ff any) {
+ 			f.tstate.match.clearSubNames()
+ 		}
+ 
++		ctx, cancelCtx := context.WithCancel(f.ctx)
++
+ 		// Record the stack trace at the point of this call so that if the subtest
+ 		// function - which runs in a separate stack - is marked as a helper, we can
+ 		// continue walking the stack into the parent test.
+@@ -300,13 +303,15 @@ func (f *F) Fuzz(ff any) {
+ 		n := runtime.Callers(2, pc[:])
+ 		t := &T{
+ 			common: common{
+-				barrier: make(chan bool),
+-				signal:  make(chan bool),
+-				name:    testName,
+-				parent:  &f.common,
+-				level:   f.level + 1,
+-				creator: pc[:n],
+-				chatty:  f.chatty,
++				barrier:   make(chan bool),
++				signal:    make(chan bool),
++				name:      testName,
++				parent:    &f.common,
++				level:     f.level + 1,
++				creator:   pc[:n],
++				chatty:    f.chatty,
++				ctx:       ctx,
++				cancelCtx: cancelCtx,
+ 			},
+ 			tstate: f.tstate,
+ 		}
+@@ -508,14 +513,17 @@ func runFuzzTests(deps testDeps, fuzzTests []InternalFuzzTarget, deadline time.T
+ 						continue
+ 					}
+ 				}
++				ctx, cancelCtx := context.WithCancel(context.Background())
+ 				f := &F{
+ 					common: common{
+-						signal:  make(chan bool),
+-						barrier: make(chan bool),
+-						name:    testName,
+-						parent:  &root,
+-						level:   root.level + 1,
+-						chatty:  root.chatty,
++						signal:    make(chan bool),
++						barrier:   make(chan bool),
++						name:      testName,
++						parent:    &root,
++						level:     root.level + 1,
++						chatty:    root.chatty,
++						ctx:       ctx,
++						cancelCtx: cancelCtx,
+ 					},
+ 					tstate: tstate,
+ 					fstate: fstate,
+@@ -590,14 +598,17 @@ func runFuzzing(deps testDeps, fuzzTests []InternalFuzzTarget) (ok bool) {
+ 		return false
+ 	}
+ 
++	ctx, cancelCtx := context.WithCancel(context.Background())
+ 	f := &F{
+ 		common: common{
+-			signal:  make(chan bool),
+-			barrier: nil, // T.Parallel has no effect when fuzzing.
+-			name:    testName,
+-			parent:  &root,
+-			level:   root.level + 1,
+-			chatty:  root.chatty,
++			signal:    make(chan bool),
++			barrier:   nil, // T.Parallel has no effect when fuzzing.
++			name:      testName,
++			parent:    &root,
++			level:     root.level + 1,
++			chatty:    root.chatty,
++			ctx:       ctx,
++			cancelCtx: cancelCtx,
+ 		},
+ 		fstate: fstate,
+ 		tstate: tstate,
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index 8b4bdfbc39..be6391b0ab 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -1385,10 +1385,10 @@ func (c *common) Chdir(dir string) {
+ }
+ 
+ // Context returns a context that is canceled just before
+-// [T.Cleanup]-registered functions are called.
++// Cleanup-registered functions are called.
+ //
+ // Cleanup functions can wait for any resources
+-// that shut down on Context.Done before the test completes.
++// that shut down on Context.Done before the test or benchmark completes.
+ func (c *common) Context() context.Context {
+ 	c.checkFuzzFn("Context")
+ 	return c.ctx

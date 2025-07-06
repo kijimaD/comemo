@@ -1,0 +1,82 @@
+commit 74ba2164a04bcc6600782d0d200103ecaa621ef3
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Feb 28 00:52:53 2025 +0000
+
+    reflect: add more tests for Type.{CanSeq,CanSeq2}
+    
+    For #71874.
+    
+    Change-Id: I3850edfb3104305f3bf4847a73cdd826cc99837f
+    GitHub-Last-Rev: 574c1edb7a6152c71891fab011ac0aaeca955fc8
+    GitHub-Pull-Request: golang/go#71890
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651775
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/reflect/iter_test.go | 10 ++++++++--
+ src/reflect/type_test.go |  4 ++++
+ 2 files changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/reflect/iter_test.go b/src/reflect/iter_test.go
+index 3a10af22f2..668d665280 100644
+--- a/src/reflect/iter_test.go
++++ b/src/reflect/iter_test.go
+@@ -176,7 +176,7 @@ func TestValueSeq(t *testing.T) {
+ 				t.Fatalf("should loop four times")
+ 			}
+ 		}},
+-		{"method", ValueOf(methodIter{}).Method(0), func(t *testing.T, s iter.Seq[Value]) {
++		{"method", ValueOf(methodIter{}).MethodByName("Seq"), func(t *testing.T, s iter.Seq[Value]) {
+ 			i := int64(0)
+ 			for v := range s {
+ 				if v.Int() != i {
+@@ -323,7 +323,7 @@ func TestValueSeq2(t *testing.T) {
+ 				t.Fatalf("should loop four times")
+ 			}
+ 		}},
+-		{"method", ValueOf(methodIter2{}).Method(0), func(t *testing.T, s iter.Seq2[Value, Value]) {
++		{"method", ValueOf(methodIter2{}).MethodByName("Seq2"), func(t *testing.T, s iter.Seq2[Value, Value]) {
+ 			i := int64(0)
+ 			for v1, v2 := range s {
+ 				if v1.Int() != i {
+@@ -393,6 +393,9 @@ func (methodIter) Seq(yield func(int) bool) {
+ 	}
+ }
+ 
++// For Type.CanSeq test.
++func (methodIter) NonSeq(yield func(int)) {}
++
+ // methodIter2 is a type from which we can derive a method
+ // value that is an iter.Seq2.
+ type methodIter2 struct{}
+@@ -404,3 +407,6 @@ func (methodIter2) Seq2(yield func(int, int) bool) {
+ 		}
+ 	}
+ }
++
++// For Type.CanSeq2 test.
++func (methodIter2) NonSeq2(yield func(int, int)) {}
+diff --git a/src/reflect/type_test.go b/src/reflect/type_test.go
+index 51abc0776c..fc76a4fb98 100644
+--- a/src/reflect/type_test.go
++++ b/src/reflect/type_test.go
+@@ -126,6 +126,8 @@ func TestType_CanSeq(t *testing.T) {
+ 	}{
+ 		{"func(func(int) bool)", reflect.TypeOf(func(func(int) bool) {}), true},
+ 		{"func(func(int))", reflect.TypeOf(func(func(int)) {}), false},
++		{"methodIter.Seq", reflect.ValueOf(methodIter{}).MethodByName("Seq").Type(), true},
++		{"methodIter.NonSeq", reflect.ValueOf(methodIter{}).MethodByName("NonSeq").Type(), false},
+ 		{"int64", reflect.TypeOf(int64(1)), true},
+ 		{"uint64", reflect.TypeOf(uint64(1)), true},
+ 		{"*[4]int", reflect.TypeOf(&[4]int{}), true},
+@@ -151,6 +153,8 @@ func TestType_CanSeq2(t *testing.T) {
+ 	}{
+ 		{"func(func(int, int) bool)", reflect.TypeOf(func(func(int, int) bool) {}), true},
+ 		{"func(func(int, int))", reflect.TypeOf(func(func(int, int)) {}), false},
++		{"methodIter2.Seq2", reflect.ValueOf(methodIter2{}).MethodByName("Seq2").Type(), true},
++		{"methodIter2.NonSeq2", reflect.ValueOf(methodIter2{}).MethodByName("NonSeq2").Type(), false},
+ 		{"int64", reflect.TypeOf(int64(1)), false},
+ 		{"uint64", reflect.TypeOf(uint64(1)), false},
+ 		{"*[4]int", reflect.TypeOf(&[4]int{}), true},

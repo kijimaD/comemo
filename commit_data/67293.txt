@@ -1,0 +1,40 @@
+commit 68b51e99f9ed6d15d1ea53c671f60c55979c4a40
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 30 15:23:36 2025 -0400
+
+    cmd/distpack: add test case for pack tool being excluded
+    
+    For #71867
+    
+    Change-Id: Ic4c6304b9a6b35c45bf35342523930924c68545a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ src/cmd/distpack/test.go | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/cmd/distpack/test.go b/src/cmd/distpack/test.go
+index 4f260cb0df..7479bd77f5 100644
+--- a/src/cmd/distpack/test.go
++++ b/src/cmd/distpack/test.go
+@@ -66,6 +66,8 @@ var zipRules = []testRule{
+ 	{name: "go/pkg/tool/*/compile", goos: "darwin"},
+ 	{name: "go/pkg/tool/*/compile", goos: "windows", exclude: true},
+ 	{name: "go/pkg/tool/*/compile.exe", goos: "windows"},
++	{name: "go/pkg/tool/*/pack", exclude: true},
++	{name: "go/pkg/tool/*/pack.exe", exclude: true},
+ }
+ 
+ var modRules = []testRule{
+@@ -100,6 +102,8 @@ var modRules = []testRule{
+ 	{name: "golang.org/toolchain@*/pkg/tool/*/compile", goos: "darwin"},
+ 	{name: "golang.org/toolchain@*/pkg/tool/*/compile", goos: "windows", exclude: true},
+ 	{name: "golang.org/toolchain@*/pkg/tool/*/compile.exe", goos: "windows"},
++	{name: "golang.org/toolchain@*/pkg/tool/*/pack", exclude: true},
++	{name: "golang.org/toolchain@*/pkg/tool/*/pack.exe", exclude: true},
+ 
+ 	// go.mod are renamed to _go.mod.
+ 	{name: "**/go.mod", exclude: true},

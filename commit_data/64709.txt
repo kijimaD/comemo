@@ -1,0 +1,1751 @@
+commit c541aabfc3d104c71a139e4d3599c220a5c6d019
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Wed Sep 4 18:32:07 2024 +0700
+
+    cmd: remove notsha256 package
+    
+    All of its usages were removed in CL 610596.
+    
+    Updates #51940
+    Updates #64751
+    
+    Change-Id: I72a0ea4bd44a2f671e032bffa1facf84822a90f2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610599
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/dist/buildtool.go                         |   4 +-
+ src/cmd/internal/notsha256/sha256.go              | 141 -------
+ src/cmd/internal/notsha256/sha256_test.go         | 175 ---------
+ src/cmd/internal/notsha256/sha256block.go         | 128 ------
+ src/cmd/internal/notsha256/sha256block_386.s      | 285 --------------
+ src/cmd/internal/notsha256/sha256block_amd64.go   |   9 -
+ src/cmd/internal/notsha256/sha256block_amd64.s    | 426 --------------------
+ src/cmd/internal/notsha256/sha256block_decl.go    |  10 -
+ src/cmd/internal/notsha256/sha256block_generic.go |  11 -
+ src/cmd/internal/notsha256/sha256block_ppc64x.s   | 459 ----------------------
+ 10 files changed, 1 insertion(+), 1647 deletions(-)
+
+diff --git a/src/cmd/dist/buildtool.go b/src/cmd/dist/buildtool.go
+index ddb003e118..045f136c22 100644
+--- a/src/cmd/dist/buildtool.go
++++ b/src/cmd/dist/buildtool.go
+@@ -45,7 +45,6 @@ var bootstrapDirs = []string{
+ 	"cmd/internal/gcprog",
+ 	"cmd/internal/goobj",
+ 	"cmd/internal/hash",
+-	"cmd/internal/notsha256",
+ 	"cmd/internal/obj/...",
+ 	"cmd/internal/objabi",
+ 	"cmd/internal/pgo",
+@@ -225,8 +224,7 @@ func bootstrapBuildTools() {
+ 	// Run Go bootstrap to build binaries.
+ 	// Use the math_big_pure_go build tag to disable the assembly in math/big
+ 	// which may contain unsupported instructions.
+-	// Use the purego build tag to disable other assembly code,
+-	// such as in cmd/internal/notsha256.
++	// Use the purego build tag to disable other assembly code.
+ 	cmd := []string{
+ 		pathf("%s/bin/go", goroot_bootstrap),
+ 		"install",
+diff --git a/src/cmd/internal/notsha256/sha256.go b/src/cmd/internal/notsha256/sha256.go
+deleted file mode 100644
+index 080b344979..0000000000
+--- a/src/cmd/internal/notsha256/sha256.go
++++ /dev/null
+@@ -1,141 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// Package notsha256 implements the NOTSHA256 algorithm,
+-// a hash defined as bitwise NOT of SHA256.
+-// It is used in situations where exact fidelity to SHA256 is unnecessary.
+-// In particular, it is used in the compiler toolchain,
+-// which cannot depend directly on cgo when GOEXPERIMENT=boringcrypto
+-// (and in that mode the real sha256 uses cgo).
+-package notsha256
+-
+-import (
+-	"encoding/binary"
+-	"hash"
+-)
+-
+-// The size of a checksum in bytes.
+-const Size = 32
+-
+-// The blocksize in bytes.
+-const BlockSize = 64
+-
+-const (
+-	chunk = 64
+-	init0 = 0x6A09E667
+-	init1 = 0xBB67AE85
+-	init2 = 0x3C6EF372
+-	init3 = 0xA54FF53A
+-	init4 = 0x510E527F
+-	init5 = 0x9B05688C
+-	init6 = 0x1F83D9AB
+-	init7 = 0x5BE0CD19
+-)
+-
+-// digest represents the partial evaluation of a checksum.
+-type digest struct {
+-	h   [8]uint32
+-	x   [chunk]byte
+-	nx  int
+-	len uint64
+-}
+-
+-func (d *digest) Reset() {
+-	d.h[0] = init0
+-	d.h[1] = init1
+-	d.h[2] = init2
+-	d.h[3] = init3
+-	d.h[4] = init4
+-	d.h[5] = init5
+-	d.h[6] = init6
+-	d.h[7] = init7
+-	d.nx = 0
+-	d.len = 0
+-}
+-
+-// New returns a new hash.Hash computing the NOTSHA256 checksum.
+-// state of the hash.
+-func New() hash.Hash {
+-	d := new(digest)
+-	d.Reset()
+-	return d
+-}
+-
+-func (d *digest) Size() int {
+-	return Size
+-}
+-
+-func (d *digest) BlockSize() int { return BlockSize }
+-
+-func (d *digest) Write(p []byte) (nn int, err error) {
+-	nn = len(p)
+-	d.len += uint64(nn)
+-	if d.nx > 0 {
+-		n := copy(d.x[d.nx:], p)
+-		d.nx += n
+-		if d.nx == chunk {
+-			block(d, d.x[:])
+-			d.nx = 0
+-		}
+-		p = p[n:]
+-	}
+-	if len(p) >= chunk {
+-		n := len(p) &^ (chunk - 1)
+-		block(d, p[:n])
+-		p = p[n:]
+-	}
+-	if len(p) > 0 {
+-		d.nx = copy(d.x[:], p)
+-	}
+-	return
+-}
+-
+-func (d *digest) Sum(in []byte) []byte {
+-	// Make a copy of d so that caller can keep writing and summing.
+-	d0 := *d
+-	hash := d0.checkSum()
+-	return append(in, hash[:]...)
+-}
+-
+-func (d *digest) checkSum() [Size]byte {
+-	len := d.len
+-	// Padding. Add a 1 bit and 0 bits until 56 bytes mod 64.
+-	var tmp [64]byte
+-	tmp[0] = 0x80
+-	if len%64 < 56 {
+-		d.Write(tmp[0 : 56-len%64])
+-	} else {
+-		d.Write(tmp[0 : 64+56-len%64])
+-	}
+-
+-	// Length in bits.
+-	len <<= 3
+-	binary.BigEndian.PutUint64(tmp[:], len)
+-	d.Write(tmp[0:8])
+-
+-	if d.nx != 0 {
+-		panic("d.nx != 0")
+-	}
+-
+-	var digest [Size]byte
+-
+-	binary.BigEndian.PutUint32(digest[0:], d.h[0]^0xFFFFFFFF)
+-	binary.BigEndian.PutUint32(digest[4:], d.h[1]^0xFFFFFFFF)
+-	binary.BigEndian.PutUint32(digest[8:], d.h[2]^0xFFFFFFFF)
+-	binary.BigEndian.PutUint32(digest[12:], d.h[3]^0xFFFFFFFF)
+-	binary.BigEndian.PutUint32(digest[16:], d.h[4]^0xFFFFFFFF)
+-	binary.BigEndian.PutUint32(digest[20:], d.h[5]^0xFFFFFFFF)
+-	binary.BigEndian.PutUint32(digest[24:], d.h[6]^0xFFFFFFFF)
+-	binary.BigEndian.PutUint32(digest[28:], d.h[7]^0xFFFFFFFF)
+-
+-	return digest
+-}
+-
+-// Sum256 returns the SHA256 checksum of the data.
+-func Sum256(data []byte) [Size]byte {
+-	var d digest
+-	d.Reset()
+-	d.Write(data)
+-	return d.checkSum()
+-}
+diff --git a/src/cmd/internal/notsha256/sha256_test.go b/src/cmd/internal/notsha256/sha256_test.go
+deleted file mode 100644
+index 771d572efa..0000000000
+--- a/src/cmd/internal/notsha256/sha256_test.go
++++ /dev/null
+@@ -1,175 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// SHA256 hash algorithm. See FIPS 180-2.
+-
+-package notsha256
+-
+-import (
+-	"crypto/rand"
+-	"fmt"
+-	"io"
+-	"strings"
+-	"testing"
+-)
+-
+-type sha256Test struct {
+-	out    string
+-	in     string
+-	unused string // marshal state, to keep table in sync with crypto/sha256
+-}
+-
+-var golden = []sha256Test{
+-	{"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"},
+-	{"ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb", "a", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00"},
+-	{"fb8e20fc2e4c3f248c60c39bd652f3c1347298bb977b8b4d5903b85055620603", "ab", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19a\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01"},
+-	{"ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "abc", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19a\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x01"},
+-	{"88d4266fd4e6338d13b845fcf289579d209c897823b9217da3e161936f031589", "abcd", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19ab\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02"},
+-	{"36bbe50ed96841d10443bcb670d6554f0a34b761be67ec9c4a8ad2c0c44ca42c", "abcde", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19ab\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02"},
+-	{"bef57ec7f53a6d40beb640a780a639c83bc29ac8a9816f1fc6c5c6dcd93c4721", "abcdef", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19abc\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x03"},
+-	{"7d1a54127b222502f5b79b5fb0803061152a44f92b37e23c6527baf665d4da9a", "abcdefg", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19abc\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x03"},
+-	{"9c56cc51b374c3ba189210d5b6d4bf57790d351c96c47c02190ecf1e430635ab", "abcdefgh", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19abcd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04"},
+-	{"19cc02f26df43cc571bc9ed7b0c4d29224a3ec229529221725ef76d021c8326f", "abcdefghi", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19abcd\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x04"},
+-	{"72399361da6a7754fec986dca5b7cbaf1c810a28ded4abaf56b2106d06cb78b0", "abcdefghij", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19abcde\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x05"},
+-	{"a144061c271f152da4d151034508fed1c138b8c976339de229c3bb6d4bbb4fce", "Discard medicine more than two years old.", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19Discard medicine mor\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x14"},
+-	{"6dae5caa713a10ad04b46028bf6dad68837c581616a1589a265a11288d4bb5c4", "He who has a shady past knows that nice guys finish last.", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19He who has a shady past know\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1c"},
+-	{"ae7a702a9509039ddbf29f0765e70d0001177914b86459284dab8b348c2dce3f", "I wouldn't marry him with a ten foot pole.", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19I wouldn't marry him \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x15"},
+-	{"6748450b01c568586715291dfa3ee018da07d36bb7ea6f180c1af6270215c64f", "Free! Free!/A trip/to Mars/for 900/empty jars/Burma Shave", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19Free! Free!/A trip/to Mars/f\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1c"},
+-	{"14b82014ad2b11f661b5ae6a99b75105c2ffac278cd071cd6c05832793635774", "The days of the digital watch are numbered.  -Tom Stoppard", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19The days of the digital watch\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1d"},
+-	{"7102cfd76e2e324889eece5d6c41921b1e142a4ac5a2692be78803097f6a48d8", "Nepal premier won't resign.", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19Nepal premier\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\r"},
+-	{"23b1018cd81db1d67983c5f7417c44da9deb582459e378d7a068552ea649dc9f", "For every action there is an equal and opposite government program.", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19For every action there is an equa\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00!"},
+-	{"8001f190dfb527261c4cfcab70c98e8097a7a1922129bc4096950e57c7999a5a", "His money is twice tainted: 'taint yours and 'taint mine.", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19His money is twice tainted: \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1c"},
+-	{"8c87deb65505c3993eb24b7a150c4155e82eee6960cf0c3a8114ff736d69cad5", "There is no reason for any individual to have a computer in their home. -Ken Olsen, 1977", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19There is no reason for any individual to hav\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,"},
+-	{"bfb0a67a19cdec3646498b2e0f751bddc41bba4b7f30081b0b932aad214d16d7", "It's a tiny change to the code and not completely disgusting. - Bob Manchek", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19It's a tiny change to the code and no\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00%"},
+-	{"7f9a0b9bf56332e19f5a0ec1ad9c1425a153da1c624868fda44561d6b74daf36", "size:  a.out:  bad magic", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19size:  a.out\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\f"},
+-	{"b13f81b8aad9e3666879af19886140904f7f429ef083286195982a7588858cfc", "The major problem is with sendmail.  -Mark Horton", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19The major problem is wit\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x18"},
+-	{"b26c38d61519e894480c70c8374ea35aa0ad05b2ae3d6674eec5f52a69305ed4", "Give me a rock, paper and scissors and I will move the world.  CCFestoon", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19Give me a rock, paper and scissors a\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00$"},
+-	{"049d5e26d4f10222cd841a119e38bd8d2e0d1129728688449575d4ff42b842c1", "If the enemy is within range, then so are you.", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19If the enemy is within \x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x17"},
+-	{"0e116838e3cc1c1a14cd045397e29b4d087aa11b0853fc69ec82e90330d60949", "It's well we cannot hear the screams/That we create in others' dreams.", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19It's well we cannot hear the scream\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00#"},
+-	{"4f7d8eb5bcf11de2a56b971021a444aa4eafd6ecd0f307b5109e4e776cd0fe46", "You remind me of a TV show, but that's all right: I watch it anyway.", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19You remind me of a TV show, but th\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\""},
+-	{"61c0cc4c4bd8406d5120b3fb4ebc31ce87667c162f29468b3c779675a85aebce", "C is as portable as Stonehedge!!", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19C is as portable\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x10"},
+-	{"1fb2eb3688093c4a3f80cd87a5547e2ce940a4f923243a79a2a1e242220693ac", "Even if I could be Shakespeare, I think I should still choose to be Faraday. - A. Huxley", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19Even if I could be Shakespeare, I think I sh\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00,"},
+-	{"395585ce30617b62c80b93e8208ce866d4edc811a177fdb4b82d3911d8696423", "The fugacity of a constituent in a mixture of gases at a given temperature is proportional to its mole fraction.  Lewis-Randall Rule", "sha\x03\x93\x14\xc8z\x87\x0e\vo\xf1E\x0f\xa4V\xb2a\x00\x87\xb5ǔ\xfc\xeaV\u009eg\xbc\x17\xb1\x85њem\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00B"},
+-	{"4f9b189a13d030838269dce846b16a1ce9ce81fe63e65de2f636863336a98fe6", "How can you write a big system without C++?  -Paul Glick", "sha\x03j\t\xe6g\xbbg\xae\x85<n\xf3r\xa5O\xf5:Q\x0eR\u007f\x9b\x05h\x8c\x1f\x83٫[\xe0\xcd\x19How can you write a big syst\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x1c"},
+-}
+-
+-var not = strings.NewReplacer(
+-	"0", "f",
+-	"1", "e",
+-	"2", "d",
+-	"3", "c",
+-	"4", "b",
+-	"5", "a",
+-	"6", "9",
+-	"7", "8",
+-	"8", "7",
+-	"9", "6",
+-	"a", "5",
+-	"b", "4",
+-	"c", "3",
+-	"d", "2",
+-	"e", "1",
+-	"f", "0",
+-)
+-
+-func TestGolden(t *testing.T) {
+-	for i := 0; i < len(golden); i++ {
+-		g := golden[i]
+-		gout := not.Replace(g.out)
+-		s := fmt.Sprintf("%x", Sum256([]byte(g.in)))
+-		if s != gout {
+-			t.Fatalf("Sum256 function: sha256(%s) = %s want %s", g.in, s, gout)
+-		}
+-		c := New()
+-		for j := 0; j < 3; j++ {
+-			if j < 2 {
+-				io.WriteString(c, g.in)
+-			} else {
+-				io.WriteString(c, g.in[:len(g.in)/2])
+-				c.Sum(nil)
+-				io.WriteString(c, g.in[len(g.in)/2:])
+-			}
+-			s := fmt.Sprintf("%x", c.Sum(nil))
+-			if s != gout {
+-				t.Fatalf("sha256[%d](%s) = %s want %s", j, g.in, s, gout)
+-			}
+-			c.Reset()
+-		}
+-	}
+-}
+-
+-func TestSize(t *testing.T) {
+-	c := New()
+-	if got := c.Size(); got != Size {
+-		t.Errorf("Size = %d; want %d", got, Size)
+-	}
+-}
+-
+-func TestBlockSize(t *testing.T) {
+-	c := New()
+-	if got := c.BlockSize(); got != BlockSize {
+-		t.Errorf("BlockSize = %d want %d", got, BlockSize)
+-	}
+-}
+-
+-// Tests that blockGeneric (pure Go) and block (in assembly for some architectures) match.
+-func TestBlockGeneric(t *testing.T) {
+-	gen, asm := New().(*digest), New().(*digest)
+-	buf := make([]byte, BlockSize*20) // arbitrary factor
+-	rand.Read(buf)
+-	blockGeneric(gen, buf)
+-	block(asm, buf)
+-	if *gen != *asm {
+-		t.Error("block and blockGeneric resulted in different states")
+-	}
+-}
+-
+-func TestAllocations(t *testing.T) {
+-	in := []byte("hello, world!")
+-	out := make([]byte, 0, Size)
+-	h := New()
+-	n := int(testing.AllocsPerRun(10, func() {
+-		h.Reset()
+-		h.Write(in)
+-		out = h.Sum(out[:0])
+-	}))
+-	if n > 0 {
+-		t.Errorf("allocs = %d, want 0", n)
+-	}
+-}
+-
+-var bench = New()
+-var buf = make([]byte, 8192)
+-
+-func benchmarkSize(b *testing.B, size int) {
+-	sum := make([]byte, bench.Size())
+-	b.Run("New", func(b *testing.B) {
+-		b.ReportAllocs()
+-		b.SetBytes(int64(size))
+-		for i := 0; i < b.N; i++ {
+-			bench.Reset()
+-			bench.Write(buf[:size])
+-			bench.Sum(sum[:0])
+-		}
+-	})
+-	b.Run("Sum256", func(b *testing.B) {
+-		b.ReportAllocs()
+-		b.SetBytes(int64(size))
+-		for i := 0; i < b.N; i++ {
+-			Sum256(buf[:size])
+-		}
+-	})
+-}
+-
+-func BenchmarkHash8Bytes(b *testing.B) {
+-	benchmarkSize(b, 8)
+-}
+-
+-func BenchmarkHash1K(b *testing.B) {
+-	benchmarkSize(b, 1024)
+-}
+-
+-func BenchmarkHash8K(b *testing.B) {
+-	benchmarkSize(b, 8192)
+-}
+diff --git a/src/cmd/internal/notsha256/sha256block.go b/src/cmd/internal/notsha256/sha256block.go
+deleted file mode 100644
+index 57cdf2efd5..0000000000
+--- a/src/cmd/internal/notsha256/sha256block.go
++++ /dev/null
+@@ -1,128 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// SHA256 block step.
+-// In its own file so that a faster assembly or C version
+-// can be substituted easily.
+-
+-package notsha256
+-
+-import "math/bits"
+-
+-var _K = []uint32{
+-	0x428a2f98,
+-	0x71374491,
+-	0xb5c0fbcf,
+-	0xe9b5dba5,
+-	0x3956c25b,
+-	0x59f111f1,
+-	0x923f82a4,
+-	0xab1c5ed5,
+-	0xd807aa98,
+-	0x12835b01,
+-	0x243185be,
+-	0x550c7dc3,
+-	0x72be5d74,
+-	0x80deb1fe,
+-	0x9bdc06a7,
+-	0xc19bf174,
+-	0xe49b69c1,
+-	0xefbe4786,
+-	0x0fc19dc6,
+-	0x240ca1cc,
+-	0x2de92c6f,
+-	0x4a7484aa,
+-	0x5cb0a9dc,
+-	0x76f988da,
+-	0x983e5152,
+-	0xa831c66d,
+-	0xb00327c8,
+-	0xbf597fc7,
+-	0xc6e00bf3,
+-	0xd5a79147,
+-	0x06ca6351,
+-	0x14292967,
+-	0x27b70a85,
+-	0x2e1b2138,
+-	0x4d2c6dfc,
+-	0x53380d13,
+-	0x650a7354,
+-	0x766a0abb,
+-	0x81c2c92e,
+-	0x92722c85,
+-	0xa2bfe8a1,
+-	0xa81a664b,
+-	0xc24b8b70,
+-	0xc76c51a3,
+-	0xd192e819,
+-	0xd6990624,
+-	0xf40e3585,
+-	0x106aa070,
+-	0x19a4c116,
+-	0x1e376c08,
+-	0x2748774c,
+-	0x34b0bcb5,
+-	0x391c0cb3,
+-	0x4ed8aa4a,
+-	0x5b9cca4f,
+-	0x682e6ff3,
+-	0x748f82ee,
+-	0x78a5636f,
+-	0x84c87814,
+-	0x8cc70208,
+-	0x90befffa,
+-	0xa4506ceb,
+-	0xbef9a3f7,
+-	0xc67178f2,
+-}
+-
+-func blockGeneric(dig *digest, p []byte) {
+-	var w [64]uint32
+-	h0, h1, h2, h3, h4, h5, h6, h7 := dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7]
+-	for len(p) >= chunk {
+-		// Can interlace the computation of w with the
+-		// rounds below if needed for speed.
+-		for i := 0; i < 16; i++ {
+-			j := i * 4
+-			w[i] = uint32(p[j])<<24 | uint32(p[j+1])<<16 | uint32(p[j+2])<<8 | uint32(p[j+3])
+-		}
+-		for i := 16; i < 64; i++ {
+-			v1 := w[i-2]
+-			t1 := (bits.RotateLeft32(v1, -17)) ^ (bits.RotateLeft32(v1, -19)) ^ (v1 >> 10)
+-			v2 := w[i-15]
+-			t2 := (bits.RotateLeft32(v2, -7)) ^ (bits.RotateLeft32(v2, -18)) ^ (v2 >> 3)
+-			w[i] = t1 + w[i-7] + t2 + w[i-16]
+-		}
+-
+-		a, b, c, d, e, f, g, h := h0, h1, h2, h3, h4, h5, h6, h7
+-
+-		for i := 0; i < 64; i++ {
+-			t1 := h + ((bits.RotateLeft32(e, -6)) ^ (bits.RotateLeft32(e, -11)) ^ (bits.RotateLeft32(e, -25))) + ((e & f) ^ (^e & g)) + _K[i] + w[i]
+-
+-			t2 := ((bits.RotateLeft32(a, -2)) ^ (bits.RotateLeft32(a, -13)) ^ (bits.RotateLeft32(a, -22))) + ((a & b) ^ (a & c) ^ (b & c))
+-
+-			h = g
+-			g = f
+-			f = e
+-			e = d + t1
+-			d = c
+-			c = b
+-			b = a
+-			a = t1 + t2
+-		}
+-
+-		h0 += a
+-		h1 += b
+-		h2 += c
+-		h3 += d
+-		h4 += e
+-		h5 += f
+-		h6 += g
+-		h7 += h
+-
+-		p = p[chunk:]
+-	}
+-
+-	dig.h[0], dig.h[1], dig.h[2], dig.h[3], dig.h[4], dig.h[5], dig.h[6], dig.h[7] = h0, h1, h2, h3, h4, h5, h6, h7
+-}
+diff --git a/src/cmd/internal/notsha256/sha256block_386.s b/src/cmd/internal/notsha256/sha256block_386.s
+deleted file mode 100644
+index 0e27fa02d7..0000000000
+--- a/src/cmd/internal/notsha256/sha256block_386.s
++++ /dev/null
+@@ -1,285 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-// SHA256 block routine. See sha256block.go for Go equivalent.
+-//
+-// The algorithm is detailed in FIPS 180-4:
+-//
+-//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+-//
+-// Wt = Mt; for 0 <= t <= 15
+-// Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 63
+-//
+-// a = H0
+-// b = H1
+-// c = H2
+-// d = H3
+-// e = H4
+-// f = H5
+-// g = H6
+-// h = H7
+-//
+-// for t = 0 to 63 {
+-//    T1 = h + BIGSIGMA1(e) + Ch(e,f,g) + Kt + Wt
+-//    T2 = BIGSIGMA0(a) + Maj(a,b,c)
+-//    h = g
+-//    g = f
+-//    f = e
+-//    e = d + T1
+-//    d = c
+-//    c = b
+-//    b = a
+-//    a = T1 + T2
+-// }
+-//
+-// H0 = a + H0
+-// H1 = b + H1
+-// H2 = c + H2
+-// H3 = d + H3
+-// H4 = e + H4
+-// H5 = f + H5
+-// H6 = g + H6
+-// H7 = h + H7
+-
+-// Wt = Mt; for 0 <= t <= 15
+-#define MSGSCHEDULE0(index) \
+-	MOVL	(index*4)(SI), AX; \
+-	BSWAPL	AX; \
+-	MOVL	AX, (index*4)(BP)
+-
+-// Wt = SIGMA1(Wt-2) + Wt-7 + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 63
+-//   SIGMA0(x) = ROTR(7,x) XOR ROTR(18,x) XOR SHR(3,x)
+-//   SIGMA1(x) = ROTR(17,x) XOR ROTR(19,x) XOR SHR(10,x)
+-#define MSGSCHEDULE1(index) \
+-	MOVL	((index-2)*4)(BP), AX; \
+-	MOVL	AX, CX; \
+-	RORL	$17, AX; \
+-	MOVL	CX, DX; \
+-	RORL	$19, CX; \
+-	SHRL	$10, DX; \
+-	MOVL	((index-15)*4)(BP), BX; \
+-	XORL	CX, AX; \
+-	MOVL	BX, CX; \
+-	XORL	DX, AX; \
+-	RORL	$7, BX; \
+-	MOVL	CX, DX; \
+-	SHRL	$3, DX; \
+-	RORL	$18, CX; \
+-	ADDL	((index-7)*4)(BP), AX; \
+-	XORL	CX, BX; \
+-	XORL	DX, BX; \
+-	ADDL	((index-16)*4)(BP), BX; \
+-	ADDL	BX, AX; \
+-	MOVL	AX, ((index)*4)(BP)
+-
+-// Calculate T1 in AX - uses AX, BX, CX and DX registers.
+-// Wt is passed in AX.
+-//   T1 = h + BIGSIGMA1(e) + Ch(e, f, g) + Kt + Wt
+-//     BIGSIGMA1(x) = ROTR(6,x) XOR ROTR(11,x) XOR ROTR(25,x)
+-//     Ch(x, y, z) = (x AND y) XOR (NOT x AND z)
+-#define SHA256T1(const, e, f, g, h) \
+-	MOVL	(h*4)(DI), BX; \
+-	ADDL	AX, BX; \
+-	MOVL	(e*4)(DI), AX; \
+-	ADDL	$const, BX; \
+-	MOVL	(e*4)(DI), CX; \
+-	RORL	$6, AX; \
+-	MOVL	(e*4)(DI), DX; \
+-	RORL	$11, CX; \
+-	XORL	CX, AX; \
+-	MOVL	(e*4)(DI), CX; \
+-	RORL	$25, DX; \
+-	ANDL	(f*4)(DI), CX; \
+-	XORL	AX, DX; \
+-	MOVL	(e*4)(DI), AX; \
+-	NOTL	AX; \
+-	ADDL	DX, BX; \
+-	ANDL	(g*4)(DI), AX; \
+-	XORL	CX, AX; \
+-	ADDL	BX, AX
+-
+-// Calculate T2 in BX - uses AX, BX, CX and DX registers.
+-//   T2 = BIGSIGMA0(a) + Maj(a, b, c)
+-//     BIGSIGMA0(x) = ROTR(2,x) XOR ROTR(13,x) XOR ROTR(22,x)
+-//     Maj(x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
+-#define SHA256T2(a, b, c) \
+-	MOVL	(a*4)(DI), AX; \
+-	MOVL	(c*4)(DI), BX; \
+-	RORL	$2, AX; \
+-	MOVL	(a*4)(DI), DX; \
+-	ANDL	(b*4)(DI), BX; \
+-	RORL	$13, DX; \
+-	MOVL	(a*4)(DI), CX; \
+-	ANDL	(c*4)(DI), CX; \
+-	XORL	DX, AX; \
+-	XORL	CX, BX; \
+-	MOVL	(a*4)(DI), DX; \
+-	MOVL	(b*4)(DI), CX; \
+-	RORL	$22, DX; \
+-	ANDL	(a*4)(DI), CX; \
+-	XORL	CX, BX; \
+-	XORL	DX, AX; \
+-	ADDL	AX, BX
+-
+-// Calculate T1 and T2, then e = d + T1 and a = T1 + T2.
+-// The values for e and a are stored in d and h, ready for rotation.
+-#define SHA256ROUND(index, const, a, b, c, d, e, f, g, h) \
+-	SHA256T1(const, e, f, g, h); \
+-	MOVL	AX, 292(SP); \
+-	SHA256T2(a, b, c); \
+-	MOVL	292(SP), AX; \
+-	ADDL	AX, BX; \
+-	ADDL	AX, (d*4)(DI); \
+-	MOVL	BX, (h*4)(DI)
+-
+-#define SHA256ROUND0(index, const, a, b, c, d, e, f, g, h) \
+-	MSGSCHEDULE0(index); \
+-	SHA256ROUND(index, const, a, b, c, d, e, f, g, h)
+-
+-#define SHA256ROUND1(index, const, a, b, c, d, e, f, g, h) \
+-	MSGSCHEDULE1(index); \
+-	SHA256ROUND(index, const, a, b, c, d, e, f, g, h)
+-
+-TEXT ·block(SB),0,$296-16
+-	MOVL	p_base+4(FP), SI
+-	MOVL	p_len+8(FP), DX
+-	SHRL	$6, DX
+-	SHLL	$6, DX
+-
+-	LEAL	(SI)(DX*1), DI
+-	MOVL	DI, 288(SP)
+-	CMPL	SI, DI
+-	JEQ	end
+-
+-	LEAL	256(SP), DI		// variables
+-
+-	MOVL	dig+0(FP), BP
+-	MOVL	(0*4)(BP), AX		// a = H0
+-	MOVL	AX, (0*4)(DI)
+-	MOVL	(1*4)(BP), BX		// b = H1
+-	MOVL	BX, (1*4)(DI)
+-	MOVL	(2*4)(BP), CX		// c = H2
+-	MOVL	CX, (2*4)(DI)
+-	MOVL	(3*4)(BP), DX		// d = H3
+-	MOVL	DX, (3*4)(DI)
+-	MOVL	(4*4)(BP), AX		// e = H4
+-	MOVL	AX, (4*4)(DI)
+-	MOVL	(5*4)(BP), BX		// f = H5
+-	MOVL	BX, (5*4)(DI)
+-	MOVL	(6*4)(BP), CX		// g = H6
+-	MOVL	CX, (6*4)(DI)
+-	MOVL	(7*4)(BP), DX		// h = H7
+-	MOVL	DX, (7*4)(DI)
+-
+-loop:
+-	MOVL	SP, BP			// message schedule
+-
+-	SHA256ROUND0(0, 0x428a2f98, 0, 1, 2, 3, 4, 5, 6, 7)
+-	SHA256ROUND0(1, 0x71374491, 7, 0, 1, 2, 3, 4, 5, 6)
+-	SHA256ROUND0(2, 0xb5c0fbcf, 6, 7, 0, 1, 2, 3, 4, 5)
+-	SHA256ROUND0(3, 0xe9b5dba5, 5, 6, 7, 0, 1, 2, 3, 4)
+-	SHA256ROUND0(4, 0x3956c25b, 4, 5, 6, 7, 0, 1, 2, 3)
+-	SHA256ROUND0(5, 0x59f111f1, 3, 4, 5, 6, 7, 0, 1, 2)
+-	SHA256ROUND0(6, 0x923f82a4, 2, 3, 4, 5, 6, 7, 0, 1)
+-	SHA256ROUND0(7, 0xab1c5ed5, 1, 2, 3, 4, 5, 6, 7, 0)
+-	SHA256ROUND0(8, 0xd807aa98, 0, 1, 2, 3, 4, 5, 6, 7)
+-	SHA256ROUND0(9, 0x12835b01, 7, 0, 1, 2, 3, 4, 5, 6)
+-	SHA256ROUND0(10, 0x243185be, 6, 7, 0, 1, 2, 3, 4, 5)
+-	SHA256ROUND0(11, 0x550c7dc3, 5, 6, 7, 0, 1, 2, 3, 4)
+-	SHA256ROUND0(12, 0x72be5d74, 4, 5, 6, 7, 0, 1, 2, 3)
+-	SHA256ROUND0(13, 0x80deb1fe, 3, 4, 5, 6, 7, 0, 1, 2)
+-	SHA256ROUND0(14, 0x9bdc06a7, 2, 3, 4, 5, 6, 7, 0, 1)
+-	SHA256ROUND0(15, 0xc19bf174, 1, 2, 3, 4, 5, 6, 7, 0)
+-
+-	SHA256ROUND1(16, 0xe49b69c1, 0, 1, 2, 3, 4, 5, 6, 7)
+-	SHA256ROUND1(17, 0xefbe4786, 7, 0, 1, 2, 3, 4, 5, 6)
+-	SHA256ROUND1(18, 0x0fc19dc6, 6, 7, 0, 1, 2, 3, 4, 5)
+-	SHA256ROUND1(19, 0x240ca1cc, 5, 6, 7, 0, 1, 2, 3, 4)
+-	SHA256ROUND1(20, 0x2de92c6f, 4, 5, 6, 7, 0, 1, 2, 3)
+-	SHA256ROUND1(21, 0x4a7484aa, 3, 4, 5, 6, 7, 0, 1, 2)
+-	SHA256ROUND1(22, 0x5cb0a9dc, 2, 3, 4, 5, 6, 7, 0, 1)
+-	SHA256ROUND1(23, 0x76f988da, 1, 2, 3, 4, 5, 6, 7, 0)
+-	SHA256ROUND1(24, 0x983e5152, 0, 1, 2, 3, 4, 5, 6, 7)
+-	SHA256ROUND1(25, 0xa831c66d, 7, 0, 1, 2, 3, 4, 5, 6)
+-	SHA256ROUND1(26, 0xb00327c8, 6, 7, 0, 1, 2, 3, 4, 5)
+-	SHA256ROUND1(27, 0xbf597fc7, 5, 6, 7, 0, 1, 2, 3, 4)
+-	SHA256ROUND1(28, 0xc6e00bf3, 4, 5, 6, 7, 0, 1, 2, 3)
+-	SHA256ROUND1(29, 0xd5a79147, 3, 4, 5, 6, 7, 0, 1, 2)
+-	SHA256ROUND1(30, 0x06ca6351, 2, 3, 4, 5, 6, 7, 0, 1)
+-	SHA256ROUND1(31, 0x14292967, 1, 2, 3, 4, 5, 6, 7, 0)
+-	SHA256ROUND1(32, 0x27b70a85, 0, 1, 2, 3, 4, 5, 6, 7)
+-	SHA256ROUND1(33, 0x2e1b2138, 7, 0, 1, 2, 3, 4, 5, 6)
+-	SHA256ROUND1(34, 0x4d2c6dfc, 6, 7, 0, 1, 2, 3, 4, 5)
+-	SHA256ROUND1(35, 0x53380d13, 5, 6, 7, 0, 1, 2, 3, 4)
+-	SHA256ROUND1(36, 0x650a7354, 4, 5, 6, 7, 0, 1, 2, 3)
+-	SHA256ROUND1(37, 0x766a0abb, 3, 4, 5, 6, 7, 0, 1, 2)
+-	SHA256ROUND1(38, 0x81c2c92e, 2, 3, 4, 5, 6, 7, 0, 1)
+-	SHA256ROUND1(39, 0x92722c85, 1, 2, 3, 4, 5, 6, 7, 0)
+-	SHA256ROUND1(40, 0xa2bfe8a1, 0, 1, 2, 3, 4, 5, 6, 7)
+-	SHA256ROUND1(41, 0xa81a664b, 7, 0, 1, 2, 3, 4, 5, 6)
+-	SHA256ROUND1(42, 0xc24b8b70, 6, 7, 0, 1, 2, 3, 4, 5)
+-	SHA256ROUND1(43, 0xc76c51a3, 5, 6, 7, 0, 1, 2, 3, 4)
+-	SHA256ROUND1(44, 0xd192e819, 4, 5, 6, 7, 0, 1, 2, 3)
+-	SHA256ROUND1(45, 0xd6990624, 3, 4, 5, 6, 7, 0, 1, 2)
+-	SHA256ROUND1(46, 0xf40e3585, 2, 3, 4, 5, 6, 7, 0, 1)
+-	SHA256ROUND1(47, 0x106aa070, 1, 2, 3, 4, 5, 6, 7, 0)
+-	SHA256ROUND1(48, 0x19a4c116, 0, 1, 2, 3, 4, 5, 6, 7)
+-	SHA256ROUND1(49, 0x1e376c08, 7, 0, 1, 2, 3, 4, 5, 6)
+-	SHA256ROUND1(50, 0x2748774c, 6, 7, 0, 1, 2, 3, 4, 5)
+-	SHA256ROUND1(51, 0x34b0bcb5, 5, 6, 7, 0, 1, 2, 3, 4)
+-	SHA256ROUND1(52, 0x391c0cb3, 4, 5, 6, 7, 0, 1, 2, 3)
+-	SHA256ROUND1(53, 0x4ed8aa4a, 3, 4, 5, 6, 7, 0, 1, 2)
+-	SHA256ROUND1(54, 0x5b9cca4f, 2, 3, 4, 5, 6, 7, 0, 1)
+-	SHA256ROUND1(55, 0x682e6ff3, 1, 2, 3, 4, 5, 6, 7, 0)
+-	SHA256ROUND1(56, 0x748f82ee, 0, 1, 2, 3, 4, 5, 6, 7)
+-	SHA256ROUND1(57, 0x78a5636f, 7, 0, 1, 2, 3, 4, 5, 6)
+-	SHA256ROUND1(58, 0x84c87814, 6, 7, 0, 1, 2, 3, 4, 5)
+-	SHA256ROUND1(59, 0x8cc70208, 5, 6, 7, 0, 1, 2, 3, 4)
+-	SHA256ROUND1(60, 0x90befffa, 4, 5, 6, 7, 0, 1, 2, 3)
+-	SHA256ROUND1(61, 0xa4506ceb, 3, 4, 5, 6, 7, 0, 1, 2)
+-	SHA256ROUND1(62, 0xbef9a3f7, 2, 3, 4, 5, 6, 7, 0, 1)
+-	SHA256ROUND1(63, 0xc67178f2, 1, 2, 3, 4, 5, 6, 7, 0)
+-
+-	MOVL	dig+0(FP), BP
+-	MOVL	(0*4)(BP), AX		// H0 = a + H0
+-	ADDL	(0*4)(DI), AX
+-	MOVL	AX, (0*4)(DI)
+-	MOVL	AX, (0*4)(BP)
+-	MOVL	(1*4)(BP), BX		// H1 = b + H1
+-	ADDL	(1*4)(DI), BX
+-	MOVL	BX, (1*4)(DI)
+-	MOVL	BX, (1*4)(BP)
+-	MOVL	(2*4)(BP), CX		// H2 = c + H2
+-	ADDL	(2*4)(DI), CX
+-	MOVL	CX, (2*4)(DI)
+-	MOVL	CX, (2*4)(BP)
+-	MOVL	(3*4)(BP), DX		// H3 = d + H3
+-	ADDL	(3*4)(DI), DX
+-	MOVL	DX, (3*4)(DI)
+-	MOVL	DX, (3*4)(BP)
+-	MOVL	(4*4)(BP), AX		// H4 = e + H4
+-	ADDL	(4*4)(DI), AX
+-	MOVL	AX, (4*4)(DI)
+-	MOVL	AX, (4*4)(BP)
+-	MOVL	(5*4)(BP), BX		// H5 = f + H5
+-	ADDL	(5*4)(DI), BX
+-	MOVL	BX, (5*4)(DI)
+-	MOVL	BX, (5*4)(BP)
+-	MOVL	(6*4)(BP), CX		// H6 = g + H6
+-	ADDL	(6*4)(DI), CX
+-	MOVL	CX, (6*4)(DI)
+-	MOVL	CX, (6*4)(BP)
+-	MOVL	(7*4)(BP), DX		// H7 = h + H7
+-	ADDL	(7*4)(DI), DX
+-	MOVL	DX, (7*4)(DI)
+-	MOVL	DX, (7*4)(BP)
+-
+-	ADDL	$64, SI
+-	CMPL	SI, 288(SP)
+-	JB	loop
+-
+-end:
+-	RET
+diff --git a/src/cmd/internal/notsha256/sha256block_amd64.go b/src/cmd/internal/notsha256/sha256block_amd64.go
+deleted file mode 100644
+index 6a615e096f..0000000000
+--- a/src/cmd/internal/notsha256/sha256block_amd64.go
++++ /dev/null
+@@ -1,9 +0,0 @@
+-// Copyright 2017 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-package notsha256
+-
+-var useAVX2 = false
+diff --git a/src/cmd/internal/notsha256/sha256block_amd64.s b/src/cmd/internal/notsha256/sha256block_amd64.s
+deleted file mode 100644
+index b25c979e9b..0000000000
+--- a/src/cmd/internal/notsha256/sha256block_amd64.s
++++ /dev/null
+@@ -1,426 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-#include "textflag.h"
+-
+-// SHA256 block routine. See sha256block.go for Go equivalent.
+-//
+-// The algorithm is detailed in FIPS 180-4:
+-//
+-//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+-
+-// Wt = Mt; for 0 <= t <= 15
+-// Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 63
+-//
+-// a = H0
+-// b = H1
+-// c = H2
+-// d = H3
+-// e = H4
+-// f = H5
+-// g = H6
+-// h = H7
+-//
+-// for t = 0 to 63 {
+-//    T1 = h + BIGSIGMA1(e) + Ch(e,f,g) + Kt + Wt
+-//    T2 = BIGSIGMA0(a) + Maj(a,b,c)
+-//    h = g
+-//    g = f
+-//    f = e
+-//    e = d + T1
+-//    d = c
+-//    c = b
+-//    b = a
+-//    a = T1 + T2
+-// }
+-//
+-// H0 = a + H0
+-// H1 = b + H1
+-// H2 = c + H2
+-// H3 = d + H3
+-// H4 = e + H4
+-// H5 = f + H5
+-// H6 = g + H6
+-// H7 = h + H7
+-
+-// Wt = Mt; for 0 <= t <= 15
+-#define MSGSCHEDULE0(index) \
+-	MOVL	(index*4)(SI), AX; \
+-	BSWAPL	AX; \
+-	MOVL	AX, (index*4)(BP)
+-
+-// Wt = SIGMA1(Wt-2) + Wt-7 + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 63
+-//   SIGMA0(x) = ROTR(7,x) XOR ROTR(18,x) XOR SHR(3,x)
+-//   SIGMA1(x) = ROTR(17,x) XOR ROTR(19,x) XOR SHR(10,x)
+-#define MSGSCHEDULE1(index) \
+-	MOVL	((index-2)*4)(BP), AX; \
+-	MOVL	AX, CX; \
+-	RORL	$17, AX; \
+-	MOVL	CX, DX; \
+-	RORL	$19, CX; \
+-	SHRL	$10, DX; \
+-	MOVL	((index-15)*4)(BP), BX; \
+-	XORL	CX, AX; \
+-	MOVL	BX, CX; \
+-	XORL	DX, AX; \
+-	RORL	$7, BX; \
+-	MOVL	CX, DX; \
+-	SHRL	$3, DX; \
+-	RORL	$18, CX; \
+-	ADDL	((index-7)*4)(BP), AX; \
+-	XORL	CX, BX; \
+-	XORL	DX, BX; \
+-	ADDL	((index-16)*4)(BP), BX; \
+-	ADDL	BX, AX; \
+-	MOVL	AX, ((index)*4)(BP)
+-
+-// Calculate T1 in AX - uses AX, CX and DX registers.
+-// h is also used as an accumulator. Wt is passed in AX.
+-//   T1 = h + BIGSIGMA1(e) + Ch(e, f, g) + Kt + Wt
+-//     BIGSIGMA1(x) = ROTR(6,x) XOR ROTR(11,x) XOR ROTR(25,x)
+-//     Ch(x, y, z) = (x AND y) XOR (NOT x AND z)
+-#define SHA256T1(const, e, f, g, h) \
+-	ADDL	AX, h; \
+-	MOVL	e, AX; \
+-	ADDL	$const, h; \
+-	MOVL	e, CX; \
+-	RORL	$6, AX; \
+-	MOVL	e, DX; \
+-	RORL	$11, CX; \
+-	XORL	CX, AX; \
+-	MOVL	e, CX; \
+-	RORL	$25, DX; \
+-	ANDL	f, CX; \
+-	XORL	AX, DX; \
+-	MOVL	e, AX; \
+-	NOTL	AX; \
+-	ADDL	DX, h; \
+-	ANDL	g, AX; \
+-	XORL	CX, AX; \
+-	ADDL	h, AX
+-
+-// Calculate T2 in BX - uses BX, CX, DX and DI registers.
+-//   T2 = BIGSIGMA0(a) + Maj(a, b, c)
+-//     BIGSIGMA0(x) = ROTR(2,x) XOR ROTR(13,x) XOR ROTR(22,x)
+-//     Maj(x, y, z) = (x AND y) XOR (x AND z) XOR (y AND z)
+-#define SHA256T2(a, b, c) \
+-	MOVL	a, DI; \
+-	MOVL	c, BX; \
+-	RORL	$2, DI; \
+-	MOVL	a, DX; \
+-	ANDL	b, BX; \
+-	RORL	$13, DX; \
+-	MOVL	a, CX; \
+-	ANDL	c, CX; \
+-	XORL	DX, DI; \
+-	XORL	CX, BX; \
+-	MOVL	a, DX; \
+-	MOVL	b, CX; \
+-	RORL	$22, DX; \
+-	ANDL	a, CX; \
+-	XORL	CX, BX; \
+-	XORL	DX, DI; \
+-	ADDL	DI, BX
+-
+-// Calculate T1 and T2, then e = d + T1 and a = T1 + T2.
+-// The values for e and a are stored in d and h, ready for rotation.
+-#define SHA256ROUND(index, const, a, b, c, d, e, f, g, h) \
+-	SHA256T1(const, e, f, g, h); \
+-	SHA256T2(a, b, c); \
+-	MOVL	BX, h; \
+-	ADDL	AX, d; \
+-	ADDL	AX, h
+-
+-#define SHA256ROUND0(index, const, a, b, c, d, e, f, g, h) \
+-	MSGSCHEDULE0(index); \
+-	SHA256ROUND(index, const, a, b, c, d, e, f, g, h)
+-
+-#define SHA256ROUND1(index, const, a, b, c, d, e, f, g, h) \
+-	MSGSCHEDULE1(index); \
+-	SHA256ROUND(index, const, a, b, c, d, e, f, g, h)
+-
+-TEXT ·block(SB), 0, $536-32
+-	MOVQ p_base+8(FP), SI
+-	MOVQ p_len+16(FP), DX
+-	SHRQ $6, DX
+-	SHLQ $6, DX
+-
+-	LEAQ (SI)(DX*1), DI
+-	MOVQ DI, 256(SP)
+-	CMPQ SI, DI
+-	JEQ  end
+-
+-	MOVQ dig+0(FP), BP
+-	MOVL (0*4)(BP), R8  // a = H0
+-	MOVL (1*4)(BP), R9  // b = H1
+-	MOVL (2*4)(BP), R10 // c = H2
+-	MOVL (3*4)(BP), R11 // d = H3
+-	MOVL (4*4)(BP), R12 // e = H4
+-	MOVL (5*4)(BP), R13 // f = H5
+-	MOVL (6*4)(BP), R14 // g = H6
+-	MOVL (7*4)(BP), R15 // h = H7
+-
+-loop:
+-	MOVQ SP, BP
+-
+-	SHA256ROUND0(0, 0x428a2f98, R8, R9, R10, R11, R12, R13, R14, R15)
+-	SHA256ROUND0(1, 0x71374491, R15, R8, R9, R10, R11, R12, R13, R14)
+-	SHA256ROUND0(2, 0xb5c0fbcf, R14, R15, R8, R9, R10, R11, R12, R13)
+-	SHA256ROUND0(3, 0xe9b5dba5, R13, R14, R15, R8, R9, R10, R11, R12)
+-	SHA256ROUND0(4, 0x3956c25b, R12, R13, R14, R15, R8, R9, R10, R11)
+-	SHA256ROUND0(5, 0x59f111f1, R11, R12, R13, R14, R15, R8, R9, R10)
+-	SHA256ROUND0(6, 0x923f82a4, R10, R11, R12, R13, R14, R15, R8, R9)
+-	SHA256ROUND0(7, 0xab1c5ed5, R9, R10, R11, R12, R13, R14, R15, R8)
+-	SHA256ROUND0(8, 0xd807aa98, R8, R9, R10, R11, R12, R13, R14, R15)
+-	SHA256ROUND0(9, 0x12835b01, R15, R8, R9, R10, R11, R12, R13, R14)
+-	SHA256ROUND0(10, 0x243185be, R14, R15, R8, R9, R10, R11, R12, R13)
+-	SHA256ROUND0(11, 0x550c7dc3, R13, R14, R15, R8, R9, R10, R11, R12)
+-	SHA256ROUND0(12, 0x72be5d74, R12, R13, R14, R15, R8, R9, R10, R11)
+-	SHA256ROUND0(13, 0x80deb1fe, R11, R12, R13, R14, R15, R8, R9, R10)
+-	SHA256ROUND0(14, 0x9bdc06a7, R10, R11, R12, R13, R14, R15, R8, R9)
+-	SHA256ROUND0(15, 0xc19bf174, R9, R10, R11, R12, R13, R14, R15, R8)
+-
+-	SHA256ROUND1(16, 0xe49b69c1, R8, R9, R10, R11, R12, R13, R14, R15)
+-	SHA256ROUND1(17, 0xefbe4786, R15, R8, R9, R10, R11, R12, R13, R14)
+-	SHA256ROUND1(18, 0x0fc19dc6, R14, R15, R8, R9, R10, R11, R12, R13)
+-	SHA256ROUND1(19, 0x240ca1cc, R13, R14, R15, R8, R9, R10, R11, R12)
+-	SHA256ROUND1(20, 0x2de92c6f, R12, R13, R14, R15, R8, R9, R10, R11)
+-	SHA256ROUND1(21, 0x4a7484aa, R11, R12, R13, R14, R15, R8, R9, R10)
+-	SHA256ROUND1(22, 0x5cb0a9dc, R10, R11, R12, R13, R14, R15, R8, R9)
+-	SHA256ROUND1(23, 0x76f988da, R9, R10, R11, R12, R13, R14, R15, R8)
+-	SHA256ROUND1(24, 0x983e5152, R8, R9, R10, R11, R12, R13, R14, R15)
+-	SHA256ROUND1(25, 0xa831c66d, R15, R8, R9, R10, R11, R12, R13, R14)
+-	SHA256ROUND1(26, 0xb00327c8, R14, R15, R8, R9, R10, R11, R12, R13)
+-	SHA256ROUND1(27, 0xbf597fc7, R13, R14, R15, R8, R9, R10, R11, R12)
+-	SHA256ROUND1(28, 0xc6e00bf3, R12, R13, R14, R15, R8, R9, R10, R11)
+-	SHA256ROUND1(29, 0xd5a79147, R11, R12, R13, R14, R15, R8, R9, R10)
+-	SHA256ROUND1(30, 0x06ca6351, R10, R11, R12, R13, R14, R15, R8, R9)
+-	SHA256ROUND1(31, 0x14292967, R9, R10, R11, R12, R13, R14, R15, R8)
+-	SHA256ROUND1(32, 0x27b70a85, R8, R9, R10, R11, R12, R13, R14, R15)
+-	SHA256ROUND1(33, 0x2e1b2138, R15, R8, R9, R10, R11, R12, R13, R14)
+-	SHA256ROUND1(34, 0x4d2c6dfc, R14, R15, R8, R9, R10, R11, R12, R13)
+-	SHA256ROUND1(35, 0x53380d13, R13, R14, R15, R8, R9, R10, R11, R12)
+-	SHA256ROUND1(36, 0x650a7354, R12, R13, R14, R15, R8, R9, R10, R11)
+-	SHA256ROUND1(37, 0x766a0abb, R11, R12, R13, R14, R15, R8, R9, R10)
+-	SHA256ROUND1(38, 0x81c2c92e, R10, R11, R12, R13, R14, R15, R8, R9)
+-	SHA256ROUND1(39, 0x92722c85, R9, R10, R11, R12, R13, R14, R15, R8)
+-	SHA256ROUND1(40, 0xa2bfe8a1, R8, R9, R10, R11, R12, R13, R14, R15)
+-	SHA256ROUND1(41, 0xa81a664b, R15, R8, R9, R10, R11, R12, R13, R14)
+-	SHA256ROUND1(42, 0xc24b8b70, R14, R15, R8, R9, R10, R11, R12, R13)
+-	SHA256ROUND1(43, 0xc76c51a3, R13, R14, R15, R8, R9, R10, R11, R12)
+-	SHA256ROUND1(44, 0xd192e819, R12, R13, R14, R15, R8, R9, R10, R11)
+-	SHA256ROUND1(45, 0xd6990624, R11, R12, R13, R14, R15, R8, R9, R10)
+-	SHA256ROUND1(46, 0xf40e3585, R10, R11, R12, R13, R14, R15, R8, R9)
+-	SHA256ROUND1(47, 0x106aa070, R9, R10, R11, R12, R13, R14, R15, R8)
+-	SHA256ROUND1(48, 0x19a4c116, R8, R9, R10, R11, R12, R13, R14, R15)
+-	SHA256ROUND1(49, 0x1e376c08, R15, R8, R9, R10, R11, R12, R13, R14)
+-	SHA256ROUND1(50, 0x2748774c, R14, R15, R8, R9, R10, R11, R12, R13)
+-	SHA256ROUND1(51, 0x34b0bcb5, R13, R14, R15, R8, R9, R10, R11, R12)
+-	SHA256ROUND1(52, 0x391c0cb3, R12, R13, R14, R15, R8, R9, R10, R11)
+-	SHA256ROUND1(53, 0x4ed8aa4a, R11, R12, R13, R14, R15, R8, R9, R10)
+-	SHA256ROUND1(54, 0x5b9cca4f, R10, R11, R12, R13, R14, R15, R8, R9)
+-	SHA256ROUND1(55, 0x682e6ff3, R9, R10, R11, R12, R13, R14, R15, R8)
+-	SHA256ROUND1(56, 0x748f82ee, R8, R9, R10, R11, R12, R13, R14, R15)
+-	SHA256ROUND1(57, 0x78a5636f, R15, R8, R9, R10, R11, R12, R13, R14)
+-	SHA256ROUND1(58, 0x84c87814, R14, R15, R8, R9, R10, R11, R12, R13)
+-	SHA256ROUND1(59, 0x8cc70208, R13, R14, R15, R8, R9, R10, R11, R12)
+-	SHA256ROUND1(60, 0x90befffa, R12, R13, R14, R15, R8, R9, R10, R11)
+-	SHA256ROUND1(61, 0xa4506ceb, R11, R12, R13, R14, R15, R8, R9, R10)
+-	SHA256ROUND1(62, 0xbef9a3f7, R10, R11, R12, R13, R14, R15, R8, R9)
+-	SHA256ROUND1(63, 0xc67178f2, R9, R10, R11, R12, R13, R14, R15, R8)
+-
+-	MOVQ dig+0(FP), BP
+-	ADDL (0*4)(BP), R8  // H0 = a + H0
+-	MOVL R8, (0*4)(BP)
+-	ADDL (1*4)(BP), R9  // H1 = b + H1
+-	MOVL R9, (1*4)(BP)
+-	ADDL (2*4)(BP), R10 // H2 = c + H2
+-	MOVL R10, (2*4)(BP)
+-	ADDL (3*4)(BP), R11 // H3 = d + H3
+-	MOVL R11, (3*4)(BP)
+-	ADDL (4*4)(BP), R12 // H4 = e + H4
+-	MOVL R12, (4*4)(BP)
+-	ADDL (5*4)(BP), R13 // H5 = f + H5
+-	MOVL R13, (5*4)(BP)
+-	ADDL (6*4)(BP), R14 // H6 = g + H6
+-	MOVL R14, (6*4)(BP)
+-	ADDL (7*4)(BP), R15 // H7 = h + H7
+-	MOVL R15, (7*4)(BP)
+-
+-	ADDQ $64, SI
+-	CMPQ SI, 256(SP)
+-	JB   loop
+-
+-end:
+-	RET
+-
+-// shuffle byte order from LE to BE
+-DATA flip_mask<>+0x00(SB)/8, $0x0405060700010203
+-DATA flip_mask<>+0x08(SB)/8, $0x0c0d0e0f08090a0b
+-DATA flip_mask<>+0x10(SB)/8, $0x0405060700010203
+-DATA flip_mask<>+0x18(SB)/8, $0x0c0d0e0f08090a0b
+-GLOBL flip_mask<>(SB), 8, $32
+-
+-// shuffle xBxA -> 00BA
+-DATA shuff_00BA<>+0x00(SB)/8, $0x0b0a090803020100
+-DATA shuff_00BA<>+0x08(SB)/8, $0xFFFFFFFFFFFFFFFF
+-DATA shuff_00BA<>+0x10(SB)/8, $0x0b0a090803020100
+-DATA shuff_00BA<>+0x18(SB)/8, $0xFFFFFFFFFFFFFFFF
+-GLOBL shuff_00BA<>(SB), 8, $32
+-
+-// shuffle xDxC -> DC00
+-DATA shuff_DC00<>+0x00(SB)/8, $0xFFFFFFFFFFFFFFFF
+-DATA shuff_DC00<>+0x08(SB)/8, $0x0b0a090803020100
+-DATA shuff_DC00<>+0x10(SB)/8, $0xFFFFFFFFFFFFFFFF
+-DATA shuff_DC00<>+0x18(SB)/8, $0x0b0a090803020100
+-GLOBL shuff_DC00<>(SB), 8, $32
+-
+-// Round specific constants
+-DATA K256<>+0x00(SB)/4, $0x428a2f98 // k1
+-DATA K256<>+0x04(SB)/4, $0x71374491 // k2
+-DATA K256<>+0x08(SB)/4, $0xb5c0fbcf // k3
+-DATA K256<>+0x0c(SB)/4, $0xe9b5dba5 // k4
+-DATA K256<>+0x10(SB)/4, $0x428a2f98 // k1
+-DATA K256<>+0x14(SB)/4, $0x71374491 // k2
+-DATA K256<>+0x18(SB)/4, $0xb5c0fbcf // k3
+-DATA K256<>+0x1c(SB)/4, $0xe9b5dba5 // k4
+-
+-DATA K256<>+0x20(SB)/4, $0x3956c25b // k5 - k8
+-DATA K256<>+0x24(SB)/4, $0x59f111f1
+-DATA K256<>+0x28(SB)/4, $0x923f82a4
+-DATA K256<>+0x2c(SB)/4, $0xab1c5ed5
+-DATA K256<>+0x30(SB)/4, $0x3956c25b
+-DATA K256<>+0x34(SB)/4, $0x59f111f1
+-DATA K256<>+0x38(SB)/4, $0x923f82a4
+-DATA K256<>+0x3c(SB)/4, $0xab1c5ed5
+-
+-DATA K256<>+0x40(SB)/4, $0xd807aa98 // k9 - k12
+-DATA K256<>+0x44(SB)/4, $0x12835b01
+-DATA K256<>+0x48(SB)/4, $0x243185be
+-DATA K256<>+0x4c(SB)/4, $0x550c7dc3
+-DATA K256<>+0x50(SB)/4, $0xd807aa98
+-DATA K256<>+0x54(SB)/4, $0x12835b01
+-DATA K256<>+0x58(SB)/4, $0x243185be
+-DATA K256<>+0x5c(SB)/4, $0x550c7dc3
+-
+-DATA K256<>+0x60(SB)/4, $0x72be5d74 // k13 - k16
+-DATA K256<>+0x64(SB)/4, $0x80deb1fe
+-DATA K256<>+0x68(SB)/4, $0x9bdc06a7
+-DATA K256<>+0x6c(SB)/4, $0xc19bf174
+-DATA K256<>+0x70(SB)/4, $0x72be5d74
+-DATA K256<>+0x74(SB)/4, $0x80deb1fe
+-DATA K256<>+0x78(SB)/4, $0x9bdc06a7
+-DATA K256<>+0x7c(SB)/4, $0xc19bf174
+-
+-DATA K256<>+0x80(SB)/4, $0xe49b69c1 // k17 - k20
+-DATA K256<>+0x84(SB)/4, $0xefbe4786
+-DATA K256<>+0x88(SB)/4, $0x0fc19dc6
+-DATA K256<>+0x8c(SB)/4, $0x240ca1cc
+-DATA K256<>+0x90(SB)/4, $0xe49b69c1
+-DATA K256<>+0x94(SB)/4, $0xefbe4786
+-DATA K256<>+0x98(SB)/4, $0x0fc19dc6
+-DATA K256<>+0x9c(SB)/4, $0x240ca1cc
+-
+-DATA K256<>+0xa0(SB)/4, $0x2de92c6f // k21 - k24
+-DATA K256<>+0xa4(SB)/4, $0x4a7484aa
+-DATA K256<>+0xa8(SB)/4, $0x5cb0a9dc
+-DATA K256<>+0xac(SB)/4, $0x76f988da
+-DATA K256<>+0xb0(SB)/4, $0x2de92c6f
+-DATA K256<>+0xb4(SB)/4, $0x4a7484aa
+-DATA K256<>+0xb8(SB)/4, $0x5cb0a9dc
+-DATA K256<>+0xbc(SB)/4, $0x76f988da
+-
+-DATA K256<>+0xc0(SB)/4, $0x983e5152 // k25 - k28
+-DATA K256<>+0xc4(SB)/4, $0xa831c66d
+-DATA K256<>+0xc8(SB)/4, $0xb00327c8
+-DATA K256<>+0xcc(SB)/4, $0xbf597fc7
+-DATA K256<>+0xd0(SB)/4, $0x983e5152
+-DATA K256<>+0xd4(SB)/4, $0xa831c66d
+-DATA K256<>+0xd8(SB)/4, $0xb00327c8
+-DATA K256<>+0xdc(SB)/4, $0xbf597fc7
+-
+-DATA K256<>+0xe0(SB)/4, $0xc6e00bf3 // k29 - k32
+-DATA K256<>+0xe4(SB)/4, $0xd5a79147
+-DATA K256<>+0xe8(SB)/4, $0x06ca6351
+-DATA K256<>+0xec(SB)/4, $0x14292967
+-DATA K256<>+0xf0(SB)/4, $0xc6e00bf3
+-DATA K256<>+0xf4(SB)/4, $0xd5a79147
+-DATA K256<>+0xf8(SB)/4, $0x06ca6351
+-DATA K256<>+0xfc(SB)/4, $0x14292967
+-
+-DATA K256<>+0x100(SB)/4, $0x27b70a85
+-DATA K256<>+0x104(SB)/4, $0x2e1b2138
+-DATA K256<>+0x108(SB)/4, $0x4d2c6dfc
+-DATA K256<>+0x10c(SB)/4, $0x53380d13
+-DATA K256<>+0x110(SB)/4, $0x27b70a85
+-DATA K256<>+0x114(SB)/4, $0x2e1b2138
+-DATA K256<>+0x118(SB)/4, $0x4d2c6dfc
+-DATA K256<>+0x11c(SB)/4, $0x53380d13
+-
+-DATA K256<>+0x120(SB)/4, $0x650a7354
+-DATA K256<>+0x124(SB)/4, $0x766a0abb
+-DATA K256<>+0x128(SB)/4, $0x81c2c92e
+-DATA K256<>+0x12c(SB)/4, $0x92722c85
+-DATA K256<>+0x130(SB)/4, $0x650a7354
+-DATA K256<>+0x134(SB)/4, $0x766a0abb
+-DATA K256<>+0x138(SB)/4, $0x81c2c92e
+-DATA K256<>+0x13c(SB)/4, $0x92722c85
+-
+-DATA K256<>+0x140(SB)/4, $0xa2bfe8a1
+-DATA K256<>+0x144(SB)/4, $0xa81a664b
+-DATA K256<>+0x148(SB)/4, $0xc24b8b70
+-DATA K256<>+0x14c(SB)/4, $0xc76c51a3
+-DATA K256<>+0x150(SB)/4, $0xa2bfe8a1
+-DATA K256<>+0x154(SB)/4, $0xa81a664b
+-DATA K256<>+0x158(SB)/4, $0xc24b8b70
+-DATA K256<>+0x15c(SB)/4, $0xc76c51a3
+-
+-DATA K256<>+0x160(SB)/4, $0xd192e819
+-DATA K256<>+0x164(SB)/4, $0xd6990624
+-DATA K256<>+0x168(SB)/4, $0xf40e3585
+-DATA K256<>+0x16c(SB)/4, $0x106aa070
+-DATA K256<>+0x170(SB)/4, $0xd192e819
+-DATA K256<>+0x174(SB)/4, $0xd6990624
+-DATA K256<>+0x178(SB)/4, $0xf40e3585
+-DATA K256<>+0x17c(SB)/4, $0x106aa070
+-
+-DATA K256<>+0x180(SB)/4, $0x19a4c116
+-DATA K256<>+0x184(SB)/4, $0x1e376c08
+-DATA K256<>+0x188(SB)/4, $0x2748774c
+-DATA K256<>+0x18c(SB)/4, $0x34b0bcb5
+-DATA K256<>+0x190(SB)/4, $0x19a4c116
+-DATA K256<>+0x194(SB)/4, $0x1e376c08
+-DATA K256<>+0x198(SB)/4, $0x2748774c
+-DATA K256<>+0x19c(SB)/4, $0x34b0bcb5
+-
+-DATA K256<>+0x1a0(SB)/4, $0x391c0cb3
+-DATA K256<>+0x1a4(SB)/4, $0x4ed8aa4a
+-DATA K256<>+0x1a8(SB)/4, $0x5b9cca4f
+-DATA K256<>+0x1ac(SB)/4, $0x682e6ff3
+-DATA K256<>+0x1b0(SB)/4, $0x391c0cb3
+-DATA K256<>+0x1b4(SB)/4, $0x4ed8aa4a
+-DATA K256<>+0x1b8(SB)/4, $0x5b9cca4f
+-DATA K256<>+0x1bc(SB)/4, $0x682e6ff3
+-
+-DATA K256<>+0x1c0(SB)/4, $0x748f82ee
+-DATA K256<>+0x1c4(SB)/4, $0x78a5636f
+-DATA K256<>+0x1c8(SB)/4, $0x84c87814
+-DATA K256<>+0x1cc(SB)/4, $0x8cc70208
+-DATA K256<>+0x1d0(SB)/4, $0x748f82ee
+-DATA K256<>+0x1d4(SB)/4, $0x78a5636f
+-DATA K256<>+0x1d8(SB)/4, $0x84c87814
+-DATA K256<>+0x1dc(SB)/4, $0x8cc70208
+-
+-DATA K256<>+0x1e0(SB)/4, $0x90befffa
+-DATA K256<>+0x1e4(SB)/4, $0xa4506ceb
+-DATA K256<>+0x1e8(SB)/4, $0xbef9a3f7
+-DATA K256<>+0x1ec(SB)/4, $0xc67178f2
+-DATA K256<>+0x1f0(SB)/4, $0x90befffa
+-DATA K256<>+0x1f4(SB)/4, $0xa4506ceb
+-DATA K256<>+0x1f8(SB)/4, $0xbef9a3f7
+-DATA K256<>+0x1fc(SB)/4, $0xc67178f2
+-
+-GLOBL K256<>(SB), (NOPTR + RODATA), $512
+diff --git a/src/cmd/internal/notsha256/sha256block_decl.go b/src/cmd/internal/notsha256/sha256block_decl.go
+deleted file mode 100644
+index ab3f7d294b..0000000000
+--- a/src/cmd/internal/notsha256/sha256block_decl.go
++++ /dev/null
+@@ -1,10 +0,0 @@
+-// Copyright 2013 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego && (386 || amd64 || ppc64le || ppc64)
+-
+-package notsha256
+-
+-//go:noescape
+-func block(dig *digest, p []byte)
+diff --git a/src/cmd/internal/notsha256/sha256block_generic.go b/src/cmd/internal/notsha256/sha256block_generic.go
+deleted file mode 100644
+index 76d53728ab..0000000000
+--- a/src/cmd/internal/notsha256/sha256block_generic.go
++++ /dev/null
+@@ -1,11 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build purego || (!amd64 && !386 && !ppc64le && !ppc64)
+-
+-package notsha256
+-
+-func block(dig *digest, p []byte) {
+-	blockGeneric(dig, p)
+-}
+diff --git a/src/cmd/internal/notsha256/sha256block_ppc64x.s b/src/cmd/internal/notsha256/sha256block_ppc64x.s
+deleted file mode 100644
+index 93e85509ea..0000000000
+--- a/src/cmd/internal/notsha256/sha256block_ppc64x.s
++++ /dev/null
+@@ -1,459 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//
+-// WARNING: this file is built by the bootstrap compiler, thus
+-// it must maintain compatibility with the oldest supported
+-// bootstrap toolchain.
+-//
+-
+-//go:build !purego && (ppc64 || ppc64le)
+-
+-// Based on CRYPTOGAMS code with the following comment:
+-// # ====================================================================
+-// # Written by Andy Polyakov <appro@openssl.org> for the OpenSSL
+-// # project. The module is, however, dual licensed under OpenSSL and
+-// # CRYPTOGAMS licenses depending on where you obtain it. For further
+-// # details see http://www.openssl.org/~appro/cryptogams/.
+-// # ====================================================================
+-
+-#include "textflag.h"
+-
+-// SHA256 block routine. See sha256block.go for Go equivalent.
+-//
+-// The algorithm is detailed in FIPS 180-4:
+-//
+-//  https://csrc.nist.gov/publications/fips/fips180-4/fips-180-4.pdf
+-//
+-// Wt = Mt; for 0 <= t <= 15
+-// Wt = SIGMA1(Wt-2) + SIGMA0(Wt-15) + Wt-16; for 16 <= t <= 63
+-//
+-// a = H0
+-// b = H1
+-// c = H2
+-// d = H3
+-// e = H4
+-// f = H5
+-// g = H6
+-// h = H7
+-//
+-// for t = 0 to 63 {
+-//    T1 = h + BIGSIGMA1(e) + Ch(e,f,g) + Kt + Wt
+-//    T2 = BIGSIGMA0(a) + Maj(a,b,c)
+-//    h = g
+-//    g = f
+-//    f = e
+-//    e = d + T1
+-//    d = c
+-//    c = b
+-//    b = a
+-//    a = T1 + T2
+-// }
+-//
+-// H0 = a + H0
+-// H1 = b + H1
+-// H2 = c + H2
+-// H3 = d + H3
+-// H4 = e + H4
+-// H5 = f + H5
+-// H6 = g + H6
+-// H7 = h + H7
+-
+-#define CTX	R3
+-#define INP	R4
+-#define END	R5
+-#define TBL	R6 // Pointer into kcon table
+-#define LEN	R9
+-#define TEMP	R12
+-
+-#define TBL_STRT	R7 // Pointer to start of kcon table.
+-
+-#define R_x000	R0
+-#define R_x010	R8
+-#define R_x020	R10
+-#define R_x030	R11
+-#define R_x040	R14
+-#define R_x050	R15
+-#define R_x060	R16
+-#define R_x070	R17
+-#define R_x080	R18
+-#define R_x090	R19
+-#define R_x0a0	R20
+-#define R_x0b0	R21
+-#define R_x0c0	R22
+-#define R_x0d0	R23
+-#define R_x0e0	R24
+-#define R_x0f0	R25
+-#define R_x100	R26
+-#define R_x110	R27
+-
+-
+-// V0-V7 are A-H
+-// V8-V23 are used for the message schedule
+-#define KI	V24
+-#define FUNC	V25
+-#define S0	V26
+-#define S1	V27
+-#define s0	V28
+-#define s1	V29
+-#define LEMASK	V31 // Permutation control register for little endian
+-
+-// 4 copies of each Kt, to fill all 4 words of a vector register
+-DATA  ·kcon+0x000(SB)/8, $0x428a2f98428a2f98
+-DATA  ·kcon+0x008(SB)/8, $0x428a2f98428a2f98
+-DATA  ·kcon+0x010(SB)/8, $0x7137449171374491
+-DATA  ·kcon+0x018(SB)/8, $0x7137449171374491
+-DATA  ·kcon+0x020(SB)/8, $0xb5c0fbcfb5c0fbcf
+-DATA  ·kcon+0x028(SB)/8, $0xb5c0fbcfb5c0fbcf
+-DATA  ·kcon+0x030(SB)/8, $0xe9b5dba5e9b5dba5
+-DATA  ·kcon+0x038(SB)/8, $0xe9b5dba5e9b5dba5
+-DATA  ·kcon+0x040(SB)/8, $0x3956c25b3956c25b
+-DATA  ·kcon+0x048(SB)/8, $0x3956c25b3956c25b
+-DATA  ·kcon+0x050(SB)/8, $0x59f111f159f111f1
+-DATA  ·kcon+0x058(SB)/8, $0x59f111f159f111f1
+-DATA  ·kcon+0x060(SB)/8, $0x923f82a4923f82a4
+-DATA  ·kcon+0x068(SB)/8, $0x923f82a4923f82a4
+-DATA  ·kcon+0x070(SB)/8, $0xab1c5ed5ab1c5ed5
+-DATA  ·kcon+0x078(SB)/8, $0xab1c5ed5ab1c5ed5
+-DATA  ·kcon+0x080(SB)/8, $0xd807aa98d807aa98
+-DATA  ·kcon+0x088(SB)/8, $0xd807aa98d807aa98
+-DATA  ·kcon+0x090(SB)/8, $0x12835b0112835b01
+-DATA  ·kcon+0x098(SB)/8, $0x12835b0112835b01
+-DATA  ·kcon+0x0A0(SB)/8, $0x243185be243185be
+-DATA  ·kcon+0x0A8(SB)/8, $0x243185be243185be
+-DATA  ·kcon+0x0B0(SB)/8, $0x550c7dc3550c7dc3
+-DATA  ·kcon+0x0B8(SB)/8, $0x550c7dc3550c7dc3
+-DATA  ·kcon+0x0C0(SB)/8, $0x72be5d7472be5d74
+-DATA  ·kcon+0x0C8(SB)/8, $0x72be5d7472be5d74
+-DATA  ·kcon+0x0D0(SB)/8, $0x80deb1fe80deb1fe
+-DATA  ·kcon+0x0D8(SB)/8, $0x80deb1fe80deb1fe
+-DATA  ·kcon+0x0E0(SB)/8, $0x9bdc06a79bdc06a7
+-DATA  ·kcon+0x0E8(SB)/8, $0x9bdc06a79bdc06a7
+-DATA  ·kcon+0x0F0(SB)/8, $0xc19bf174c19bf174
+-DATA  ·kcon+0x0F8(SB)/8, $0xc19bf174c19bf174
+-DATA  ·kcon+0x100(SB)/8, $0xe49b69c1e49b69c1
+-DATA  ·kcon+0x108(SB)/8, $0xe49b69c1e49b69c1
+-DATA  ·kcon+0x110(SB)/8, $0xefbe4786efbe4786
+-DATA  ·kcon+0x118(SB)/8, $0xefbe4786efbe4786
+-DATA  ·kcon+0x120(SB)/8, $0x0fc19dc60fc19dc6
+-DATA  ·kcon+0x128(SB)/8, $0x0fc19dc60fc19dc6
+-DATA  ·kcon+0x130(SB)/8, $0x240ca1cc240ca1cc
+-DATA  ·kcon+0x138(SB)/8, $0x240ca1cc240ca1cc
+-DATA  ·kcon+0x140(SB)/8, $0x2de92c6f2de92c6f
+-DATA  ·kcon+0x148(SB)/8, $0x2de92c6f2de92c6f
+-DATA  ·kcon+0x150(SB)/8, $0x4a7484aa4a7484aa
+-DATA  ·kcon+0x158(SB)/8, $0x4a7484aa4a7484aa
+-DATA  ·kcon+0x160(SB)/8, $0x5cb0a9dc5cb0a9dc
+-DATA  ·kcon+0x168(SB)/8, $0x5cb0a9dc5cb0a9dc
+-DATA  ·kcon+0x170(SB)/8, $0x76f988da76f988da
+-DATA  ·kcon+0x178(SB)/8, $0x76f988da76f988da
+-DATA  ·kcon+0x180(SB)/8, $0x983e5152983e5152
+-DATA  ·kcon+0x188(SB)/8, $0x983e5152983e5152
+-DATA  ·kcon+0x190(SB)/8, $0xa831c66da831c66d
+-DATA  ·kcon+0x198(SB)/8, $0xa831c66da831c66d
+-DATA  ·kcon+0x1A0(SB)/8, $0xb00327c8b00327c8
+-DATA  ·kcon+0x1A8(SB)/8, $0xb00327c8b00327c8
+-DATA  ·kcon+0x1B0(SB)/8, $0xbf597fc7bf597fc7
+-DATA  ·kcon+0x1B8(SB)/8, $0xbf597fc7bf597fc7
+-DATA  ·kcon+0x1C0(SB)/8, $0xc6e00bf3c6e00bf3
+-DATA  ·kcon+0x1C8(SB)/8, $0xc6e00bf3c6e00bf3
+-DATA  ·kcon+0x1D0(SB)/8, $0xd5a79147d5a79147
+-DATA  ·kcon+0x1D8(SB)/8, $0xd5a79147d5a79147
+-DATA  ·kcon+0x1E0(SB)/8, $0x06ca635106ca6351
+-DATA  ·kcon+0x1E8(SB)/8, $0x06ca635106ca6351
+-DATA  ·kcon+0x1F0(SB)/8, $0x1429296714292967
+-DATA  ·kcon+0x1F8(SB)/8, $0x1429296714292967
+-DATA  ·kcon+0x200(SB)/8, $0x27b70a8527b70a85
+-DATA  ·kcon+0x208(SB)/8, $0x27b70a8527b70a85
+-DATA  ·kcon+0x210(SB)/8, $0x2e1b21382e1b2138
+-DATA  ·kcon+0x218(SB)/8, $0x2e1b21382e1b2138
+-DATA  ·kcon+0x220(SB)/8, $0x4d2c6dfc4d2c6dfc
+-DATA  ·kcon+0x228(SB)/8, $0x4d2c6dfc4d2c6dfc
+-DATA  ·kcon+0x230(SB)/8, $0x53380d1353380d13
+-DATA  ·kcon+0x238(SB)/8, $0x53380d1353380d13
+-DATA  ·kcon+0x240(SB)/8, $0x650a7354650a7354
+-DATA  ·kcon+0x248(SB)/8, $0x650a7354650a7354
+-DATA  ·kcon+0x250(SB)/8, $0x766a0abb766a0abb
+-DATA  ·kcon+0x258(SB)/8, $0x766a0abb766a0abb
+-DATA  ·kcon+0x260(SB)/8, $0x81c2c92e81c2c92e
+-DATA  ·kcon+0x268(SB)/8, $0x81c2c92e81c2c92e
+-DATA  ·kcon+0x270(SB)/8, $0x92722c8592722c85
+-DATA  ·kcon+0x278(SB)/8, $0x92722c8592722c85
+-DATA  ·kcon+0x280(SB)/8, $0xa2bfe8a1a2bfe8a1
+-DATA  ·kcon+0x288(SB)/8, $0xa2bfe8a1a2bfe8a1
+-DATA  ·kcon+0x290(SB)/8, $0xa81a664ba81a664b
+-DATA  ·kcon+0x298(SB)/8, $0xa81a664ba81a664b
+-DATA  ·kcon+0x2A0(SB)/8, $0xc24b8b70c24b8b70
+-DATA  ·kcon+0x2A8(SB)/8, $0xc24b8b70c24b8b70
+-DATA  ·kcon+0x2B0(SB)/8, $0xc76c51a3c76c51a3
+-DATA  ·kcon+0x2B8(SB)/8, $0xc76c51a3c76c51a3
+-DATA  ·kcon+0x2C0(SB)/8, $0xd192e819d192e819
+-DATA  ·kcon+0x2C8(SB)/8, $0xd192e819d192e819
+-DATA  ·kcon+0x2D0(SB)/8, $0xd6990624d6990624
+-DATA  ·kcon+0x2D8(SB)/8, $0xd6990624d6990624
+-DATA  ·kcon+0x2E0(SB)/8, $0xf40e3585f40e3585
+-DATA  ·kcon+0x2E8(SB)/8, $0xf40e3585f40e3585
+-DATA  ·kcon+0x2F0(SB)/8, $0x106aa070106aa070
+-DATA  ·kcon+0x2F8(SB)/8, $0x106aa070106aa070
+-DATA  ·kcon+0x300(SB)/8, $0x19a4c11619a4c116
+-DATA  ·kcon+0x308(SB)/8, $0x19a4c11619a4c116
+-DATA  ·kcon+0x310(SB)/8, $0x1e376c081e376c08
+-DATA  ·kcon+0x318(SB)/8, $0x1e376c081e376c08
+-DATA  ·kcon+0x320(SB)/8, $0x2748774c2748774c
+-DATA  ·kcon+0x328(SB)/8, $0x2748774c2748774c
+-DATA  ·kcon+0x330(SB)/8, $0x34b0bcb534b0bcb5
+-DATA  ·kcon+0x338(SB)/8, $0x34b0bcb534b0bcb5
+-DATA  ·kcon+0x340(SB)/8, $0x391c0cb3391c0cb3
+-DATA  ·kcon+0x348(SB)/8, $0x391c0cb3391c0cb3
+-DATA  ·kcon+0x350(SB)/8, $0x4ed8aa4a4ed8aa4a
+-DATA  ·kcon+0x358(SB)/8, $0x4ed8aa4a4ed8aa4a
+-DATA  ·kcon+0x360(SB)/8, $0x5b9cca4f5b9cca4f
+-DATA  ·kcon+0x368(SB)/8, $0x5b9cca4f5b9cca4f
+-DATA  ·kcon+0x370(SB)/8, $0x682e6ff3682e6ff3
+-DATA  ·kcon+0x378(SB)/8, $0x682e6ff3682e6ff3
+-DATA  ·kcon+0x380(SB)/8, $0x748f82ee748f82ee
+-DATA  ·kcon+0x388(SB)/8, $0x748f82ee748f82ee
+-DATA  ·kcon+0x390(SB)/8, $0x78a5636f78a5636f
+-DATA  ·kcon+0x398(SB)/8, $0x78a5636f78a5636f
+-DATA  ·kcon+0x3A0(SB)/8, $0x84c8781484c87814
+-DATA  ·kcon+0x3A8(SB)/8, $0x84c8781484c87814
+-DATA  ·kcon+0x3B0(SB)/8, $0x8cc702088cc70208
+-DATA  ·kcon+0x3B8(SB)/8, $0x8cc702088cc70208
+-DATA  ·kcon+0x3C0(SB)/8, $0x90befffa90befffa
+-DATA  ·kcon+0x3C8(SB)/8, $0x90befffa90befffa
+-DATA  ·kcon+0x3D0(SB)/8, $0xa4506ceba4506ceb
+-DATA  ·kcon+0x3D8(SB)/8, $0xa4506ceba4506ceb
+-DATA  ·kcon+0x3E0(SB)/8, $0xbef9a3f7bef9a3f7
+-DATA  ·kcon+0x3E8(SB)/8, $0xbef9a3f7bef9a3f7
+-DATA  ·kcon+0x3F0(SB)/8, $0xc67178f2c67178f2
+-DATA  ·kcon+0x3F8(SB)/8, $0xc67178f2c67178f2
+-DATA  ·kcon+0x400(SB)/8, $0x0000000000000000
+-DATA  ·kcon+0x408(SB)/8, $0x0000000000000000
+-
+-#ifdef GOARCH_ppc64le
+-DATA  ·kcon+0x410(SB)/8, $0x1011121310111213 // permutation control vectors
+-DATA  ·kcon+0x418(SB)/8, $0x1011121300010203
+-DATA  ·kcon+0x420(SB)/8, $0x1011121310111213
+-DATA  ·kcon+0x428(SB)/8, $0x0405060700010203
+-DATA  ·kcon+0x430(SB)/8, $0x1011121308090a0b
+-DATA  ·kcon+0x438(SB)/8, $0x0405060700010203
+-#else
+-DATA  ·kcon+0x410(SB)/8, $0x1011121300010203
+-DATA  ·kcon+0x418(SB)/8, $0x1011121310111213 // permutation control vectors
+-DATA  ·kcon+0x420(SB)/8, $0x0405060700010203
+-DATA  ·kcon+0x428(SB)/8, $0x1011121310111213
+-DATA  ·kcon+0x430(SB)/8, $0x0001020304050607
+-DATA  ·kcon+0x438(SB)/8, $0x08090a0b10111213
+-#endif
+-
+-GLOBL ·kcon(SB), RODATA, $1088
+-
+-#define SHA256ROUND0(a, b, c, d, e, f, g, h, xi, idx) \
+-	VSEL		g, f, e, FUNC; \
+-	VSHASIGMAW	$15, e, $1, S1; \
+-	VADDUWM		xi, h, h; \
+-	VSHASIGMAW	$0, a, $1, S0; \
+-	VADDUWM		FUNC, h, h; \
+-	VXOR		b, a, FUNC; \
+-	VADDUWM		S1, h, h; \
+-	VSEL		b, c, FUNC, FUNC; \
+-	VADDUWM		KI, g, g; \
+-	VADDUWM		h, d, d; \
+-	VADDUWM		FUNC, S0, S0; \
+-	LVX		(TBL)(idx), KI; \
+-	VADDUWM		S0, h, h
+-
+-#define SHA256ROUND1(a, b, c, d, e, f, g, h, xi, xj, xj_1, xj_9, xj_14, idx) \
+-	VSHASIGMAW	$0, xj_1, $0, s0; \
+-	VSEL		g, f, e, FUNC; \
+-	VSHASIGMAW	$15, e, $1, S1; \
+-	VADDUWM		xi, h, h; \
+-	VSHASIGMAW	$0, a, $1, S0; \
+-	VSHASIGMAW	$15, xj_14, $0, s1; \
+-	VADDUWM		FUNC, h, h; \
+-	VXOR		b, a, FUNC; \
+-	VADDUWM		xj_9, xj, xj; \
+-	VADDUWM		S1, h, h; \
+-	VSEL		b, c, FUNC, FUNC; \
+-	VADDUWM		KI, g, g; \
+-	VADDUWM		h, d, d; \
+-	VADDUWM		FUNC, S0, S0; \
+-	VADDUWM		s0, xj, xj; \
+-	LVX		(TBL)(idx), KI; \
+-	VADDUWM		S0, h, h; \
+-	VADDUWM		s1, xj, xj
+-
+-#ifdef GOARCH_ppc64le
+-#define VPERMLE(va,vb,vc,vt) VPERM va, vb, vc, vt
+-#else
+-#define VPERMLE(va,vb,vc,vt)
+-#endif
+-
+-// func block(dig *digest, p []byte)
+-TEXT ·block(SB),0,$0-32
+-	MOVD	dig+0(FP), CTX
+-	MOVD	p_base+8(FP), INP
+-	MOVD	p_len+16(FP), LEN
+-
+-	SRD	$6, LEN
+-	SLD	$6, LEN
+-	ADD	INP, LEN, END
+-
+-	CMP	INP, END
+-	BEQ	end
+-
+-	MOVD	$·kcon(SB), TBL_STRT
+-	MOVD	$0x10, R_x010
+-
+-#ifdef GOARCH_ppc64le
+-	MOVWZ	$8, TEMP
+-	LVSL	(TEMP)(R0), LEMASK
+-	VSPLTISB	$0x0F, KI
+-	VXOR	KI, LEMASK, LEMASK
+-#endif
+-
+-	LXVW4X	(CTX)(R_x000), V0
+-	LXVW4X	(CTX)(R_x010), V4
+-
+-	// unpack the input values into vector registers
+-	VSLDOI	$4, V0, V0, V1
+-	VSLDOI	$8, V0, V0, V2
+-	VSLDOI	$12, V0, V0, V3
+-	VSLDOI	$4, V4, V4, V5
+-	VSLDOI	$8, V4, V4, V6
+-	VSLDOI	$12, V4, V4, V7
+-
+-	MOVD	$0x020, R_x020
+-	MOVD	$0x030, R_x030
+-	MOVD	$0x040, R_x040
+-	MOVD	$0x050, R_x050
+-	MOVD	$0x060, R_x060
+-	MOVD	$0x070, R_x070
+-	MOVD	$0x080, R_x080
+-	MOVD	$0x090, R_x090
+-	MOVD	$0x0a0, R_x0a0
+-	MOVD	$0x0b0, R_x0b0
+-	MOVD	$0x0c0, R_x0c0
+-	MOVD	$0x0d0, R_x0d0
+-	MOVD	$0x0e0, R_x0e0
+-	MOVD	$0x0f0, R_x0f0
+-	MOVD	$0x100, R_x100
+-	MOVD	$0x110, R_x110
+-
+-loop:
+-	MOVD	TBL_STRT, TBL
+-	LVX	(TBL)(R_x000), KI
+-
+-	LXVD2X	(INP)(R_x000), V8 // load v8 in advance
+-
+-	// Offload to VSR24-31 (aka FPR24-31)
+-	XXLOR	V0, V0, VS24
+-	XXLOR	V1, V1, VS25
+-	XXLOR	V2, V2, VS26
+-	XXLOR	V3, V3, VS27
+-	XXLOR	V4, V4, VS28
+-	XXLOR	V5, V5, VS29
+-	XXLOR	V6, V6, VS30
+-	XXLOR	V7, V7, VS31
+-
+-	VADDUWM	KI, V7, V7        // h+K[i]
+-	LVX	(TBL)(R_x010), KI
+-
+-	VPERMLE(V8, V8, LEMASK, V8)
+-	SHA256ROUND0(V0, V1, V2, V3, V4, V5, V6, V7, V8, R_x020)
+-	VSLDOI	$4, V8, V8, V9
+-	SHA256ROUND0(V7, V0, V1, V2, V3, V4, V5, V6, V9, R_x030)
+-	VSLDOI	$4, V9, V9, V10
+-	SHA256ROUND0(V6, V7, V0, V1, V2, V3, V4, V5, V10, R_x040)
+-	LXVD2X	(INP)(R_x010), V12 // load v12 in advance
+-	VSLDOI	$4, V10, V10, V11
+-	SHA256ROUND0(V5, V6, V7, V0, V1, V2, V3, V4, V11, R_x050)
+-	VPERMLE(V12, V12, LEMASK, V12)
+-	SHA256ROUND0(V4, V5, V6, V7, V0, V1, V2, V3, V12, R_x060)
+-	VSLDOI	$4, V12, V12, V13
+-	SHA256ROUND0(V3, V4, V5, V6, V7, V0, V1, V2, V13, R_x070)
+-	VSLDOI	$4, V13, V13, V14
+-	SHA256ROUND0(V2, V3, V4, V5, V6, V7, V0, V1, V14, R_x080)
+-	LXVD2X	(INP)(R_x020), V16 // load v16 in advance
+-	VSLDOI	$4, V14, V14, V15
+-	SHA256ROUND0(V1, V2, V3, V4, V5, V6, V7, V0, V15, R_x090)
+-	VPERMLE(V16, V16, LEMASK, V16)
+-	SHA256ROUND0(V0, V1, V2, V3, V4, V5, V6, V7, V16, R_x0a0)
+-	VSLDOI	$4, V16, V16, V17
+-	SHA256ROUND0(V7, V0, V1, V2, V3, V4, V5, V6, V17, R_x0b0)
+-	VSLDOI	$4, V17, V17, V18
+-	SHA256ROUND0(V6, V7, V0, V1, V2, V3, V4, V5, V18, R_x0c0)
+-	VSLDOI	$4, V18, V18, V19
+-	LXVD2X	(INP)(R_x030), V20 // load v20 in advance
+-	SHA256ROUND0(V5, V6, V7, V0, V1, V2, V3, V4, V19, R_x0d0)
+-	VPERMLE(V20, V20, LEMASK, V20)
+-	SHA256ROUND0(V4, V5, V6, V7, V0, V1, V2, V3, V20, R_x0e0)
+-	VSLDOI	$4, V20, V20, V21
+-	SHA256ROUND0(V3, V4, V5, V6, V7, V0, V1, V2, V21, R_x0f0)
+-	VSLDOI	$4, V21, V21, V22
+-	SHA256ROUND0(V2, V3, V4, V5, V6, V7, V0, V1, V22, R_x100)
+-	VSLDOI	$4, V22, V22, V23
+-	SHA256ROUND1(V1, V2, V3, V4, V5, V6, V7, V0, V23, V8, V9, V17, V22, R_x110)
+-
+-	MOVD	$3, TEMP
+-	MOVD	TEMP, CTR
+-	ADD	$0x120, TBL
+-	ADD	$0x40, INP
+-
+-L16_xx:
+-	SHA256ROUND1(V0, V1, V2, V3, V4, V5, V6, V7, V8, V9, V10, V18, V23, R_x000)
+-	SHA256ROUND1(V7, V0, V1, V2, V3, V4, V5, V6, V9, V10, V11, V19, V8, R_x010)
+-	SHA256ROUND1(V6, V7, V0, V1, V2, V3, V4, V5, V10, V11, V12, V20, V9, R_x020)
+-	SHA256ROUND1(V5, V6, V7, V0, V1, V2, V3, V4, V11, V12, V13, V21, V10, R_x030)
+-	SHA256ROUND1(V4, V5, V6, V7, V0, V1, V2, V3, V12, V13, V14, V22, V11, R_x040)
+-	SHA256ROUND1(V3, V4, V5, V6, V7, V0, V1, V2, V13, V14, V15, V23, V12, R_x050)
+-	SHA256ROUND1(V2, V3, V4, V5, V6, V7, V0, V1, V14, V15, V16, V8, V13, R_x060)
+-	SHA256ROUND1(V1, V2, V3, V4, V5, V6, V7, V0, V15, V16, V17, V9, V14, R_x070)
+-	SHA256ROUND1(V0, V1, V2, V3, V4, V5, V6, V7, V16, V17, V18, V10, V15, R_x080)
+-	SHA256ROUND1(V7, V0, V1, V2, V3, V4, V5, V6, V17, V18, V19, V11, V16, R_x090)
+-	SHA256ROUND1(V6, V7, V0, V1, V2, V3, V4, V5, V18, V19, V20, V12, V17, R_x0a0)
+-	SHA256ROUND1(V5, V6, V7, V0, V1, V2, V3, V4, V19, V20, V21, V13, V18, R_x0b0)
+-	SHA256ROUND1(V4, V5, V6, V7, V0, V1, V2, V3, V20, V21, V22, V14, V19, R_x0c0)
+-	SHA256ROUND1(V3, V4, V5, V6, V7, V0, V1, V2, V21, V22, V23, V15, V20, R_x0d0)
+-	SHA256ROUND1(V2, V3, V4, V5, V6, V7, V0, V1, V22, V23, V8, V16, V21, R_x0e0)
+-	SHA256ROUND1(V1, V2, V3, V4, V5, V6, V7, V0, V23, V8, V9, V17, V22, R_x0f0)
+-	ADD	$0x100, TBL
+-
+-	BDNZ	L16_xx
+-
+-	XXLOR	VS24, VS24, V10
+-
+-	XXLOR	VS25, VS25, V11
+-	VADDUWM	V10, V0, V0
+-	XXLOR	VS26, VS26, V12
+-	VADDUWM	V11, V1, V1
+-	XXLOR	VS27, VS27, V13
+-	VADDUWM	V12, V2, V2
+-	XXLOR	VS28, VS28, V14
+-	VADDUWM	V13, V3, V3
+-	XXLOR	VS29, VS29, V15
+-	VADDUWM	V14, V4, V4
+-	XXLOR	VS30, VS30, V16
+-	VADDUWM	V15, V5, V5
+-	XXLOR	VS31, VS31, V17
+-	VADDUWM	V16, V6, V6
+-	VADDUWM	V17, V7, V7
+-
+-	CMPU	INP, END
+-	BLT	loop
+-
+-	LVX	(TBL)(R_x000), V8
+-	VPERM	V0, V1, KI, V0
+-	LVX	(TBL)(R_x010), V9
+-	VPERM	V4, V5, KI, V4
+-	VPERM	V0, V2, V8, V0
+-	VPERM	V4, V6, V8, V4
+-	VPERM	V0, V3, V9, V0
+-	VPERM	V4, V7, V9, V4
+-	STXVD2X	V0, (CTX+R_x000)
+-	STXVD2X	V4, (CTX+R_x010)
+-
+-end:
+-	RET
+-

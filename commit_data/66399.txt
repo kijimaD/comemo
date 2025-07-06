@@ -1,0 +1,372 @@
+commit 26ba61dfad46f24a2a3138a40f738ecd22536edf
+Author: Robert Griesemer <gri@golang.org>
+Date:   Wed Feb 26 15:14:30 2025 -0800
+
+    go/types, types2: remove most remaining references to coreType in builtin.go
+    
+    For now, use commonUnder (formerly called sharedUnder) and update
+    error messages and comments. We can provide better error messages
+    in individual cases eventually.
+    
+    Kepp using coreType for make built-in for now because it must accept
+    different channel types with non-conflicting directions and identical
+    element types. Added extra test cases.
+    
+    While at it, rename sharedUnder, sharedUnderOrChan to commonUnder
+    and commonUnderOrChan, respectively (per suggestion from rfindley).
+    
+    For #70128.
+    
+    Change-Id: I11f3d5ce858746574f4302271d8cb763c2cdcf98
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653139
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/builtins.go    |  8 ++++----
+ src/cmd/compile/internal/types2/call.go        |  4 ++--
+ src/cmd/compile/internal/types2/lookup.go      |  4 ++--
+ src/cmd/compile/internal/types2/stmt.go        |  4 ++--
+ src/cmd/compile/internal/types2/under.go       | 18 +++++++++++-------
+ src/go/types/builtins.go                       |  8 ++++----
+ src/go/types/call.go                           |  4 ++--
+ src/go/types/lookup.go                         |  4 ++--
+ src/go/types/stmt.go                           |  4 ++--
+ src/go/types/under.go                          | 18 +++++++++++-------
+ src/internal/types/testdata/check/builtins1.go | 12 ++++++++----
+ 11 files changed, 50 insertions(+), 38 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/builtins.go b/src/cmd/compile/internal/types2/builtins.go
+index e7d5f56c81..7160efec89 100644
+--- a/src/cmd/compile/internal/types2/builtins.go
++++ b/src/cmd/compile/internal/types2/builtins.go
+@@ -377,7 +377,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 
+ 	case _Copy:
+ 		// copy(x, y []T) int
+-		dst, _ := coreType(x.typ).(*Slice)
++		dst, _ := commonUnder(check, x.typ, nil).(*Slice)
+ 
+ 		y := args[1]
+ 		src0 := coreString(y.typ)
+@@ -520,7 +520,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		case *Map, *Chan:
+ 			min = 1
+ 		case nil:
+-			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: no core type", arg0)
++			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: no common underlying type", arg0)
+ 			return
+ 		default:
+ 			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
+@@ -818,7 +818,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
+ 		check.verifyVersionf(call.Fun, go1_17, "unsafe.Slice")
+ 
+-		ptr, _ := coreType(x.typ).(*Pointer)
++		ptr, _ := commonUnder(check, x.typ, nil).(*Pointer)
+ 		if ptr == nil {
+ 			check.errorf(x, InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
+ 			return
+@@ -839,7 +839,7 @@ func (check *Checker) builtin(x *operand, call *syntax.CallExpr, id builtinId) (
+ 		// unsafe.SliceData(slice []T) *T
+ 		check.verifyVersionf(call.Fun, go1_20, "unsafe.SliceData")
+ 
+-		slice, _ := coreType(x.typ).(*Slice)
++		slice, _ := commonUnder(check, x.typ, nil).(*Slice)
+ 		if slice == nil {
+ 			check.errorf(x, InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)
+ 			return
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index 3a73a6c2c3..17291b2063 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -243,9 +243,9 @@ func (check *Checker) callExpr(x *operand, call *syntax.CallExpr) exprKind {
+ 	cgocall := x.mode == cgofunc
+ 
+ 	// If the operand type is a type parameter, all types in its type set
+-	// must have a shared underlying type, which must be a signature.
++	// must have a common underlying type, which must be a signature.
+ 	var cause string
+-	sig, _ := sharedUnder(check, x.typ, &cause).(*Signature)
++	sig, _ := commonUnder(check, x.typ, &cause).(*Signature)
+ 	if sig == nil {
+ 		if cause != "" {
+ 			check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, cause)
+diff --git a/src/cmd/compile/internal/types2/lookup.go b/src/cmd/compile/internal/types2/lookup.go
+index 8f87dc0961..8dd01918e3 100644
+--- a/src/cmd/compile/internal/types2/lookup.go
++++ b/src/cmd/compile/internal/types2/lookup.go
+@@ -67,13 +67,13 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
+ 
+ 	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, foldCase)
+ 
+-	// If we didn't find anything and if we have a type parameter with a shared underlying
++	// If we didn't find anything and if we have a type parameter with a common underlying
+ 	// type, see if there is a matching field (but not a method, those need to be declared
+ 	// explicitly in the constraint). If the constraint is a named pointer type (see above),
+ 	// we are ok here because only fields are accepted as results.
+ 	const enableTParamFieldLookup = false // see go.dev/issue/51576
+ 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
+-		if t := sharedUnder(nil, T, nil); t != nil {
++		if t := commonUnder(nil, T, nil); t != nil {
+ 			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase)
+ 			if _, ok := obj.(*Var); !ok {
+ 				obj, index, indirect = nil, nil, false // accept fields (variables) only
+diff --git a/src/cmd/compile/internal/types2/stmt.go b/src/cmd/compile/internal/types2/stmt.go
+index 3cd29fbb4c..8e5beed3f6 100644
+--- a/src/cmd/compile/internal/types2/stmt.go
++++ b/src/cmd/compile/internal/types2/stmt.go
+@@ -1002,7 +1002,7 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
+ 	}
+ 
+ 	var cause1 string
+-	rtyp := sharedUnderOrChan(check, orig, &cause1)
++	rtyp := commonUnderOrChan(check, orig, &cause1)
+ 	if rtyp == nil {
+ 		return bad(cause1)
+ 	}
+@@ -1041,7 +1041,7 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
+ 		assert(typ.Recv() == nil)
+ 		// check iterator argument type
+ 		var cause2 string
+-		cb, _ := sharedUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
++		cb, _ := commonUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
+ 		switch {
+ 		case cb == nil:
+ 			if cause2 != "" {
+diff --git a/src/cmd/compile/internal/types2/under.go b/src/cmd/compile/internal/types2/under.go
+index 911687396b..7dc4f7dd74 100644
+--- a/src/cmd/compile/internal/types2/under.go
++++ b/src/cmd/compile/internal/types2/under.go
+@@ -40,13 +40,17 @@ func typeset(t Type, yield func(t, u Type) bool) {
+ 	yield(t, under(t))
+ }
+ 
+-// If t is not a type parameter, sharedUnder returns the underlying type.
+-// If t is a type parameter, sharedUnder returns the single underlying
++// TODO(gri) commonUnder, commonUnderOrChan, and Checker.chanElem (expr.go)
++//           have a lot of similarities. Maybe we can find common ground
++//           between them and distill a better factorization.
++
++// If t is not a type parameter, commonUnder returns the underlying type.
++// If t is a type parameter, commonUnder returns the common underlying
+ // type of all types in its type set if it exists.
+ // Otherwise the result is nil, and *cause reports the error if a non-nil
+ // cause is provided.
+ // The check parameter is only used if *cause reports an error; it may be nil.
+-func sharedUnder(check *Checker, t Type, cause *string) Type {
++func commonUnder(check *Checker, t Type, cause *string) Type {
+ 	var s, su Type
+ 
+ 	bad := func(s string) bool {
+@@ -72,16 +76,16 @@ func sharedUnder(check *Checker, t Type, cause *string) Type {
+ 	return su
+ }
+ 
+-// If t is not a type parameter, sharedUnderOrChan returns the underlying type;
++// If t is not a type parameter, commonUnderOrChan returns the underlying type;
+ // if that type is a channel type it must permit receive operations.
+-// If t is a type parameter, sharedUnderOrChan returns the single underlying
++// If t is a type parameter, commonUnderOrChan returns the common underlying
+ // type of all types in its type set if it exists, or, if the type set contains
+ // only channel types permitting receive operations and with identical element
+-// types, sharedUnderOrChan returns one of those channel types.
++// types, commonUnderOrChan returns one of those channel types.
+ // Otherwise the result is nil, and *cause reports the error if a non-nil cause
+ // is provided.
+ // The check parameter is only used if *cause reports an error; it may be nil.
+-func sharedUnderOrChan(check *Checker, t Type, cause *string) Type {
++func commonUnderOrChan(check *Checker, t Type, cause *string) Type {
+ 	var s, su Type
+ 	var sc *Chan
+ 
+diff --git a/src/go/types/builtins.go b/src/go/types/builtins.go
+index 786c0d5ea4..802afe35de 100644
+--- a/src/go/types/builtins.go
++++ b/src/go/types/builtins.go
+@@ -380,7 +380,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 
+ 	case _Copy:
+ 		// copy(x, y []T) int
+-		dst, _ := coreType(x.typ).(*Slice)
++		dst, _ := commonUnder(check, x.typ, nil).(*Slice)
+ 
+ 		y := args[1]
+ 		src0 := coreString(y.typ)
+@@ -523,7 +523,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		case *Map, *Chan:
+ 			min = 1
+ 		case nil:
+-			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: no core type", arg0)
++			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s: no common underlying type", arg0)
+ 			return
+ 		default:
+ 			check.errorf(arg0, InvalidMake, invalidArg+"cannot make %s; type must be slice, map, or channel", arg0)
+@@ -821,7 +821,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// unsafe.Slice(ptr *T, len IntegerType) []T
+ 		check.verifyVersionf(call.Fun, go1_17, "unsafe.Slice")
+ 
+-		ptr, _ := coreType(x.typ).(*Pointer)
++		ptr, _ := commonUnder(check, x.typ, nil).(*Pointer)
+ 		if ptr == nil {
+ 			check.errorf(x, InvalidUnsafeSlice, invalidArg+"%s is not a pointer", x)
+ 			return
+@@ -842,7 +842,7 @@ func (check *Checker) builtin(x *operand, call *ast.CallExpr, id builtinId) (_ b
+ 		// unsafe.SliceData(slice []T) *T
+ 		check.verifyVersionf(call.Fun, go1_20, "unsafe.SliceData")
+ 
+-		slice, _ := coreType(x.typ).(*Slice)
++		slice, _ := commonUnder(check, x.typ, nil).(*Slice)
+ 		if slice == nil {
+ 			check.errorf(x, InvalidUnsafeSliceData, invalidArg+"%s is not a slice", x)
+ 			return
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index a839477b8c..b722c3ea26 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -245,9 +245,9 @@ func (check *Checker) callExpr(x *operand, call *ast.CallExpr) exprKind {
+ 	cgocall := x.mode == cgofunc
+ 
+ 	// If the operand type is a type parameter, all types in its type set
+-	// must have a shared underlying type, which must be a signature.
++	// must have a common underlying type, which must be a signature.
+ 	var cause string
+-	sig, _ := sharedUnder(check, x.typ, &cause).(*Signature)
++	sig, _ := commonUnder(check, x.typ, &cause).(*Signature)
+ 	if sig == nil {
+ 		if cause != "" {
+ 			check.errorf(x, InvalidCall, invalidOp+"cannot call %s: %s", x, cause)
+diff --git a/src/go/types/lookup.go b/src/go/types/lookup.go
+index cbf16ae7c8..3779fa7e28 100644
+--- a/src/go/types/lookup.go
++++ b/src/go/types/lookup.go
+@@ -70,13 +70,13 @@ func lookupFieldOrMethod(T Type, addressable bool, pkg *Package, name string, fo
+ 
+ 	obj, index, indirect = lookupFieldOrMethodImpl(T, addressable, pkg, name, foldCase)
+ 
+-	// If we didn't find anything and if we have a type parameter with a shared underlying
++	// If we didn't find anything and if we have a type parameter with a common underlying
+ 	// type, see if there is a matching field (but not a method, those need to be declared
+ 	// explicitly in the constraint). If the constraint is a named pointer type (see above),
+ 	// we are ok here because only fields are accepted as results.
+ 	const enableTParamFieldLookup = false // see go.dev/issue/51576
+ 	if enableTParamFieldLookup && obj == nil && isTypeParam(T) {
+-		if t := sharedUnder(nil, T, nil); t != nil {
++		if t := commonUnder(nil, T, nil); t != nil {
+ 			obj, index, indirect = lookupFieldOrMethodImpl(t, addressable, pkg, name, foldCase)
+ 			if _, ok := obj.(*Var); !ok {
+ 				obj, index, indirect = nil, nil, false // accept fields (variables) only
+diff --git a/src/go/types/stmt.go b/src/go/types/stmt.go
+index 983467e36a..297dc3ba06 100644
+--- a/src/go/types/stmt.go
++++ b/src/go/types/stmt.go
+@@ -1020,7 +1020,7 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
+ 	}
+ 
+ 	var cause1 string
+-	rtyp := sharedUnderOrChan(check, orig, &cause1)
++	rtyp := commonUnderOrChan(check, orig, &cause1)
+ 	if rtyp == nil {
+ 		return bad(cause1)
+ 	}
+@@ -1059,7 +1059,7 @@ func rangeKeyVal(check *Checker, orig Type, allowVersion func(goVersion) bool) (
+ 		assert(typ.Recv() == nil)
+ 		// check iterator argument type
+ 		var cause2 string
+-		cb, _ := sharedUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
++		cb, _ := commonUnder(check, typ.Params().At(0).Type(), &cause2).(*Signature)
+ 		switch {
+ 		case cb == nil:
+ 			if cause2 != "" {
+diff --git a/src/go/types/under.go b/src/go/types/under.go
+index f72f929039..6dd744c3c2 100644
+--- a/src/go/types/under.go
++++ b/src/go/types/under.go
+@@ -43,13 +43,17 @@ func typeset(t Type, yield func(t, u Type) bool) {
+ 	yield(t, under(t))
+ }
+ 
+-// If t is not a type parameter, sharedUnder returns the underlying type.
+-// If t is a type parameter, sharedUnder returns the single underlying
++// TODO(gri) commonUnder, commonUnderOrChan, and Checker.chanElem (expr.go)
++//           have a lot of similarities. Maybe we can find common ground
++//           between them and distill a better factorization.
++
++// If t is not a type parameter, commonUnder returns the underlying type.
++// If t is a type parameter, commonUnder returns the common underlying
+ // type of all types in its type set if it exists.
+ // Otherwise the result is nil, and *cause reports the error if a non-nil
+ // cause is provided.
+ // The check parameter is only used if *cause reports an error; it may be nil.
+-func sharedUnder(check *Checker, t Type, cause *string) Type {
++func commonUnder(check *Checker, t Type, cause *string) Type {
+ 	var s, su Type
+ 
+ 	bad := func(s string) bool {
+@@ -75,16 +79,16 @@ func sharedUnder(check *Checker, t Type, cause *string) Type {
+ 	return su
+ }
+ 
+-// If t is not a type parameter, sharedUnderOrChan returns the underlying type;
++// If t is not a type parameter, commonUnderOrChan returns the underlying type;
+ // if that type is a channel type it must permit receive operations.
+-// If t is a type parameter, sharedUnderOrChan returns the single underlying
++// If t is a type parameter, commonUnderOrChan returns the common underlying
+ // type of all types in its type set if it exists, or, if the type set contains
+ // only channel types permitting receive operations and with identical element
+-// types, sharedUnderOrChan returns one of those channel types.
++// types, commonUnderOrChan returns one of those channel types.
+ // Otherwise the result is nil, and *cause reports the error if a non-nil cause
+ // is provided.
+ // The check parameter is only used if *cause reports an error; it may be nil.
+-func sharedUnderOrChan(check *Checker, t Type, cause *string) Type {
++func commonUnderOrChan(check *Checker, t Type, cause *string) Type {
+ 	var s, su Type
+ 	var sc *Chan
+ 
+diff --git a/src/internal/types/testdata/check/builtins1.go b/src/internal/types/testdata/check/builtins1.go
+index f7ac72d4b9..498dd4b463 100644
+--- a/src/internal/types/testdata/check/builtins1.go
++++ b/src/internal/types/testdata/check/builtins1.go
+@@ -152,7 +152,9 @@ func _[
+ 
+ 	C1 ~chan int,
+ 	C2 ~chan int | ~chan string,
+-	C3 chan int | myChan, // single underlying type
++	C3 chan int | myChan,     // single underlying type
++	C4 chan int | chan<- int, // channels may have different (non-conflicting) directions
++	C5 <-chan int | chan<- int,
+ ]() {
+ 	type S0 []int
+ 	_ = make([]int, 10)
+@@ -162,7 +164,7 @@ func _[
+ 	_ = make /* ERROR "expects 2 or 3 arguments" */ (S1)
+ 	_ = make(S1, 10, 20)
+ 	_ = make /* ERROR "expects 2 or 3 arguments" */ (S1, 10, 20, 30)
+-	_ = make(S2 /* ERROR "cannot make S2: no core type" */ , 10)
++	_ = make(S2 /* ERROR "cannot make S2: no common underlying type" */ , 10)
+ 
+ 	type M0 map[string]int
+ 	_ = make(map[string]int)
+@@ -170,7 +172,7 @@ func _[
+ 	_ = make(M1)
+ 	_ = make(M1, 10)
+ 	_ = make/* ERROR "expects 1 or 2 arguments" */(M1, 10, 20)
+-	_ = make(M2 /* ERROR "cannot make M2: no core type" */ )
++	_ = make(M2 /* ERROR "cannot make M2: no common underlying type" */ )
+ 
+ 	type C0 chan int
+ 	_ = make(chan int)
+@@ -178,8 +180,10 @@ func _[
+ 	_ = make(C1)
+ 	_ = make(C1, 10)
+ 	_ = make/* ERROR "expects 1 or 2 arguments" */(C1, 10, 20)
+-	_ = make(C2 /* ERROR "cannot make C2: no core type" */ )
++	_ = make(C2 /* ERROR "cannot make C2: no common underlying type" */ )
+ 	_ = make(C3)
++	_ = make(C4)
++	_ = make(C5 /* ERROR "cannot make C5: no common underlying type" */ )
+ }
+ 
+ // max

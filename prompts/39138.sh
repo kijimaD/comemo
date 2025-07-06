@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 39138: 55dec44010bdabbbac8f58d1059b1fb83e869408
+# Index 39138: 31389254def190938c0cc802f645f958734bc865
 
 echo "🚀 Generating explanation for commit 39138..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 39138..."
 
 ### メタデータ
 - **コミットインデックス**: 39138
-- **コミットハッシュ**: 55dec44010bdabbbac8f58d1059b1fb83e869408
-- **GitHub URL**: https://github.com/golang/go/commit/55dec44010bdabbbac8f58d1059b1fb83e869408
+- **コミットハッシュ**: 31389254def190938c0cc802f645f958734bc865
+- **GitHub URL**: https://github.com/golang/go/commit/31389254def190938c0cc802f645f958734bc865
 
 ### 章構成
 

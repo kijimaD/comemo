@@ -1,0 +1,313 @@
+commit 0b0dfcd5404ce86d6c818d78bdb6348ded459e96
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Jul 24 10:24:06 2024 +0000
+
+    runtime: use slices and maps to clean up tests
+    
+    Replace reflect.DeepEqual with slices.Equal/maps.Equal, which is
+    much faster.
+    
+    Also remove some unecessary helper functions.
+    
+    Change-Id: I3e4fa2938fed1598278c9e556cd4fa3b9ed3ad6d
+    GitHub-Last-Rev: 69bb43fc6e5c4a4a7d028528fe00b43db784464e
+    GitHub-Pull-Request: golang/go#67603
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/587815
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/runtime/callers_test.go             |  4 ++--
+ src/runtime/defer_test.go               |  4 ++--
+ src/runtime/map_test.go                 |  4 ++--
+ src/runtime/metrics/description_test.go |  4 ++--
+ src/runtime/metrics_test.go             |  4 ++--
+ src/runtime/pprof/label_test.go         | 11 +++--------
+ src/runtime/pprof/runtime_test.go       | 22 +++++++++++-----------
+ src/runtime/profbuf_test.go             |  6 +++---
+ src/runtime/race/sched_test.go          |  4 ++--
+ 9 files changed, 29 insertions(+), 34 deletions(-)
+
+diff --git a/src/runtime/callers_test.go b/src/runtime/callers_test.go
+index 49a1d5a6f7..9429442fc0 100644
+--- a/src/runtime/callers_test.go
++++ b/src/runtime/callers_test.go
+@@ -5,8 +5,8 @@
+ package runtime_test
+ 
+ import (
+-	"reflect"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -80,7 +80,7 @@ func testCallersEqual(t *testing.T, pcs []uintptr, want []string) {
+ 		}
+ 		got = append(got, frame.Function)
+ 	}
+-	if !reflect.DeepEqual(want, got) {
++	if !slices.Equal(want, got) {
+ 		t.Fatalf("wanted %v, got %v", want, got)
+ 	}
+ }
+diff --git a/src/runtime/defer_test.go b/src/runtime/defer_test.go
+index d73202ae6a..e3d0d07768 100644
+--- a/src/runtime/defer_test.go
++++ b/src/runtime/defer_test.go
+@@ -5,8 +5,8 @@
+ package runtime_test
+ 
+ import (
+-	"reflect"
+ 	"runtime"
++	"slices"
+ 	"testing"
+ )
+ 
+@@ -83,7 +83,7 @@ func TestConditionalDefers(t *testing.T) {
+ 			t.Fatal("expected panic")
+ 		}
+ 		want := []int{4, 2, 1}
+-		if !reflect.DeepEqual(want, list) {
++		if !slices.Equal(want, list) {
+ 			t.Fatalf("wanted %v, got %v", want, list)
+ 		}
+ 
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index 13624e0938..ba2ea74649 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -144,7 +144,7 @@ func TestMapAppendAssignment(t *testing.T) {
+ 	m[0] = append(m[0], a...)
+ 
+ 	want := []int{12345, 67890, 123, 456, 7, 8, 9, 0}
+-	if got := m[0]; !reflect.DeepEqual(got, want) {
++	if got := m[0]; !slices.Equal(got, want) {
+ 		t.Errorf("got %v, want %v", got, want)
+ 	}
+ }
+@@ -533,7 +533,7 @@ func TestMapIterOrder(t *testing.T) {
+ 			first := ord()
+ 			ok := false
+ 			for try := 0; try < 100; try++ {
+-				if !reflect.DeepEqual(first, ord()) {
++				if !slices.Equal(first, ord()) {
+ 					ok = true
+ 					break
+ 				}
+diff --git a/src/runtime/metrics/description_test.go b/src/runtime/metrics/description_test.go
+index 4fc652362e..0ee9ea16d0 100644
+--- a/src/runtime/metrics/description_test.go
++++ b/src/runtime/metrics/description_test.go
+@@ -18,7 +18,7 @@ import (
+ 	"os"
+ 	"regexp"
+ 	"runtime/metrics"
+-	"sort"
++	"slices"
+ 	"strings"
+ 	"testing"
+ 	_ "unsafe"
+@@ -43,7 +43,7 @@ func TestNames(t *testing.T) {
+ 	}
+ 
+ 	names := runtime_readMetricNames()
+-	sort.Strings(names)
++	slices.Sort(names)
+ 	samples := make([]metrics.Sample, len(names))
+ 	for i, name := range names {
+ 		samples[i].Name = name
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index ebbf0e4fd0..9191d86d04 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -201,10 +201,10 @@ func TestReadMetrics(t *testing.T) {
+ 	checkUint64(t, "/gc/heap/frees:objects", frees, mstats.Frees-tinyAllocs)
+ 
+ 	// Verify that /gc/pauses:seconds is a copy of /sched/pauses/total/gc:seconds
+-	if !reflect.DeepEqual(gcPauses.Buckets, schedPausesTotalGC.Buckets) {
++	if !slices.Equal(gcPauses.Buckets, schedPausesTotalGC.Buckets) {
+ 		t.Errorf("/gc/pauses:seconds buckets %v do not match /sched/pauses/total/gc:seconds buckets %v", gcPauses.Buckets, schedPausesTotalGC.Counts)
+ 	}
+-	if !reflect.DeepEqual(gcPauses.Counts, schedPausesTotalGC.Counts) {
++	if !slices.Equal(gcPauses.Counts, schedPausesTotalGC.Counts) {
+ 		t.Errorf("/gc/pauses:seconds counts %v do not match /sched/pauses/total/gc:seconds counts %v", gcPauses.Counts, schedPausesTotalGC.Counts)
+ 	}
+ }
+diff --git a/src/runtime/pprof/label_test.go b/src/runtime/pprof/label_test.go
+index cefd9a53e2..38d9e80dfc 100644
+--- a/src/runtime/pprof/label_test.go
++++ b/src/runtime/pprof/label_test.go
+@@ -7,7 +7,8 @@ package pprof
+ import (
+ 	"context"
+ 	"reflect"
+-	"sort"
++	"slices"
++	"strings"
+ 	"testing"
+ )
+ 
+@@ -17,16 +18,10 @@ func labelsSorted(ctx context.Context) []label {
+ 		ls = append(ls, label{key, value})
+ 		return true
+ 	})
+-	sort.Sort(labelSorter(ls))
++	slices.SortFunc(ls, func(a, b label) int { return strings.Compare(a.key, b.key) })
+ 	return ls
+ }
+ 
+-type labelSorter []label
+-
+-func (s labelSorter) Len() int           { return len(s) }
+-func (s labelSorter) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+-func (s labelSorter) Less(i, j int) bool { return s[i].key < s[j].key }
+-
+ func TestContextLabels(t *testing.T) {
+ 	// Background context starts with no labels.
+ 	ctx := context.Background()
+diff --git a/src/runtime/pprof/runtime_test.go b/src/runtime/pprof/runtime_test.go
+index 0dd5324b42..e77c7f2bc9 100644
+--- a/src/runtime/pprof/runtime_test.go
++++ b/src/runtime/pprof/runtime_test.go
+@@ -7,7 +7,7 @@ package pprof
+ import (
+ 	"context"
+ 	"fmt"
+-	"reflect"
++	"maps"
+ 	"testing"
+ )
+ 
+@@ -15,11 +15,11 @@ func TestSetGoroutineLabels(t *testing.T) {
+ 	sync := make(chan struct{})
+ 
+ 	wantLabels := map[string]string{}
+-	if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++	if gotLabels := getProfLabel(); !maps.Equal(gotLabels, wantLabels) {
+ 		t.Errorf("Expected parent goroutine's profile labels to be empty before test, got %v", gotLabels)
+ 	}
+ 	go func() {
+-		if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++		if gotLabels := getProfLabel(); !maps.Equal(gotLabels, wantLabels) {
+ 			t.Errorf("Expected child goroutine's profile labels to be empty before test, got %v", gotLabels)
+ 		}
+ 		sync <- struct{}{}
+@@ -29,11 +29,11 @@ func TestSetGoroutineLabels(t *testing.T) {
+ 	wantLabels = map[string]string{"key": "value"}
+ 	ctx := WithLabels(context.Background(), Labels("key", "value"))
+ 	SetGoroutineLabels(ctx)
+-	if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++	if gotLabels := getProfLabel(); !maps.Equal(gotLabels, wantLabels) {
+ 		t.Errorf("parent goroutine's profile labels: got %v, want %v", gotLabels, wantLabels)
+ 	}
+ 	go func() {
+-		if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++		if gotLabels := getProfLabel(); !maps.Equal(gotLabels, wantLabels) {
+ 			t.Errorf("child goroutine's profile labels: got %v, want %v", gotLabels, wantLabels)
+ 		}
+ 		sync <- struct{}{}
+@@ -43,11 +43,11 @@ func TestSetGoroutineLabels(t *testing.T) {
+ 	wantLabels = map[string]string{}
+ 	ctx = context.Background()
+ 	SetGoroutineLabels(ctx)
+-	if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++	if gotLabels := getProfLabel(); !maps.Equal(gotLabels, wantLabels) {
+ 		t.Errorf("Expected parent goroutine's profile labels to be empty, got %v", gotLabels)
+ 	}
+ 	go func() {
+-		if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++		if gotLabels := getProfLabel(); !maps.Equal(gotLabels, wantLabels) {
+ 			t.Errorf("Expected child goroutine's profile labels to be empty, got %v", gotLabels)
+ 		}
+ 		sync <- struct{}{}
+@@ -57,20 +57,20 @@ func TestSetGoroutineLabels(t *testing.T) {
+ 
+ func TestDo(t *testing.T) {
+ 	wantLabels := map[string]string{}
+-	if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++	if gotLabels := getProfLabel(); !maps.Equal(gotLabels, wantLabels) {
+ 		t.Errorf("Expected parent goroutine's profile labels to be empty before Do, got %v", gotLabels)
+ 	}
+ 
+ 	Do(context.Background(), Labels("key1", "value1", "key2", "value2"), func(ctx context.Context) {
+ 		wantLabels := map[string]string{"key1": "value1", "key2": "value2"}
+-		if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++		if gotLabels := getProfLabel(); !maps.Equal(gotLabels, wantLabels) {
+ 			t.Errorf("parent goroutine's profile labels: got %v, want %v", gotLabels, wantLabels)
+ 		}
+ 
+ 		sync := make(chan struct{})
+ 		go func() {
+ 			wantLabels := map[string]string{"key1": "value1", "key2": "value2"}
+-			if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++			if gotLabels := getProfLabel(); !maps.Equal(gotLabels, wantLabels) {
+ 				t.Errorf("child goroutine's profile labels: got %v, want %v", gotLabels, wantLabels)
+ 			}
+ 			sync <- struct{}{}
+@@ -80,7 +80,7 @@ func TestDo(t *testing.T) {
+ 	})
+ 
+ 	wantLabels = map[string]string{}
+-	if gotLabels := getProfLabel(); !reflect.DeepEqual(gotLabels, wantLabels) {
++	if gotLabels := getProfLabel(); !maps.Equal(gotLabels, wantLabels) {
+ 		fmt.Printf("%#v", gotLabels)
+ 		fmt.Printf("%#v", wantLabels)
+ 		t.Errorf("Expected parent goroutine's profile labels to be empty after Do, got %v", gotLabels)
+diff --git a/src/runtime/profbuf_test.go b/src/runtime/profbuf_test.go
+index dac78ffd31..9050d1fa25 100644
+--- a/src/runtime/profbuf_test.go
++++ b/src/runtime/profbuf_test.go
+@@ -5,8 +5,8 @@
+ package runtime_test
+ 
+ import (
+-	"reflect"
+ 	. "runtime"
++	"slices"
+ 	"testing"
+ 	"time"
+ 	"unsafe"
+@@ -20,7 +20,7 @@ func TestProfBuf(t *testing.T) {
+ 	}
+ 	read := func(t *testing.T, b *ProfBuf, data []uint64, tags []unsafe.Pointer) {
+ 		rdata, rtags, eof := b.Read(ProfBufNonBlocking)
+-		if !reflect.DeepEqual(rdata, data) || !reflect.DeepEqual(rtags, tags) {
++		if !slices.Equal(rdata, data) || !slices.Equal(rtags, tags) {
+ 			t.Fatalf("unexpected profile read:\nhave data %#x\nwant data %#x\nhave tags %#x\nwant tags %#x", rdata, data, rtags, tags)
+ 		}
+ 		if eof {
+@@ -32,7 +32,7 @@ func TestProfBuf(t *testing.T) {
+ 		go func() {
+ 			eof := data == nil
+ 			rdata, rtags, reof := b.Read(ProfBufBlocking)
+-			if !reflect.DeepEqual(rdata, data) || !reflect.DeepEqual(rtags, tags) || reof != eof {
++			if !slices.Equal(rdata, data) || !slices.Equal(rtags, tags) || reof != eof {
+ 				// Errorf, not Fatalf, because called in goroutine.
+ 				t.Errorf("unexpected profile read:\nhave data %#x\nwant data %#x\nhave tags %#x\nwant tags %#x\nhave eof=%v, want %v", rdata, data, rtags, tags, reof, eof)
+ 			}
+diff --git a/src/runtime/race/sched_test.go b/src/runtime/race/sched_test.go
+index a66860cda0..edff0d5c38 100644
+--- a/src/runtime/race/sched_test.go
++++ b/src/runtime/race/sched_test.go
+@@ -8,8 +8,8 @@ package race_test
+ 
+ import (
+ 	"fmt"
+-	"reflect"
+ 	"runtime"
++	"slices"
+ 	"strings"
+ 	"testing"
+ )
+@@ -35,7 +35,7 @@ func TestRandomScheduling(t *testing.T) {
+ 	}
+ 
+ 	for i := 0; i < N; i++ {
+-		if !reflect.DeepEqual(out[0], out[i]) {
++		if !slices.Equal(out[0], out[i]) {
+ 			return // found a different order
+ 		}
+ 	}

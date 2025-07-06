@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 15174: 5fa6721a311f1a4a71cf88502c44537e519b4787
+# Index 15174: 91934ff5d83807228d021925ed9d9d78d2b777e6
 
 echo "🚀 Generating explanation for commit 15174..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 15174..."
 
 ### メタデータ
 - **コミットインデックス**: 15174
-- **コミットハッシュ**: 5fa6721a311f1a4a71cf88502c44537e519b4787
-- **GitHub URL**: https://github.com/golang/go/commit/5fa6721a311f1a4a71cf88502c44537e519b4787
+- **コミットハッシュ**: 91934ff5d83807228d021925ed9d9d78d2b777e6
+- **GitHub URL**: https://github.com/golang/go/commit/91934ff5d83807228d021925ed9d9d78d2b777e6
 
 ### 章構成
 

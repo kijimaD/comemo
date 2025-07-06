@@ -1,0 +1,133 @@
+commit f41fdd962db3264e62ec6acb4a8f5e40d22bdfed
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Fri Dec 13 17:20:38 2024 +0800
+
+    cmd/internal/obj/loong64: add {V,XV}NEG{B/H/W/V} instructions support
+    
+    Go asm syntax:
+             VNEG{B/H/W/V}          VJ, VD
+            XVNEG{B/H/W/V}          XJ, XD
+    
+    Equivalent platform assembler syntax:
+             vneg.{b/h/w/d}         vd, vj
+            xvneg.{b/h/w/d}         xd, xj
+    
+    Change-Id: Ie0a82a434b0ffbcb77425a65b96eff56e030028c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635935
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s | 10 ++++++++++
+ src/cmd/internal/obj/loong64/a.out.go           | 10 ++++++++++
+ src/cmd/internal/obj/loong64/anames.go          |  8 ++++++++
+ src/cmd/internal/obj/loong64/asm.go             | 24 ++++++++++++++++++++++++
+ 4 files changed, 52 insertions(+)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 60e253cec3..8da4824dbc 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -849,3 +849,13 @@ lable2:
+ 	XVFRECIPD	X2, X1		// 41f89c76
+ 	XVFRSQRTF	X2, X1		// 41049d76
+ 	XVFRSQRTD	X2, X1		// 41089d76
++
++	// [X]VNEG{B/H/W/V} instructions
++	VNEGB		V1, V2		// 22309c72
++	VNEGH		V1, V2		// 22349c72
++	VNEGW		V1, V2		// 22389c72
++	VNEGV		V1, V2		// 223c9c72
++	XVNEGB		X2, X1		// 41309c76
++	XVNEGH		X2, X1		// 41349c76
++	XVNEGW		X2, X1		// 41389c76
++	XVNEGV		X2, X1		// 413c9c76
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 9df63de388..7eaf5c0ce1 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -950,6 +950,16 @@ const (
+ 	AXVFRSQRTF
+ 	AXVFRSQRTD
+ 
++	// LSX and LASX integer neg instructions
++	AVNEGB
++	AVNEGH
++	AVNEGW
++	AVNEGV
++	AXVNEGB
++	AXVNEGH
++	AXVNEGW
++	AXVNEGV
++
+ 	ALAST
+ 
+ 	// aliases
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index bc7948eb00..eae240d5fd 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -449,5 +449,13 @@ var Anames = []string{
+ 	"XVFRECIPD",
+ 	"XVFRSQRTF",
+ 	"XVFRSQRTD",
++	"VNEGB",
++	"VNEGH",
++	"VNEGW",
++	"VNEGV",
++	"XVNEGB",
++	"XVNEGH",
++	"XVNEGW",
++	"XVNEGV",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 3186791791..f128dc16e9 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1659,6 +1659,10 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AVFRECIPD, r0)
+ 			opset(AVFRSQRTF, r0)
+ 			opset(AVFRSQRTD, r0)
++			opset(AVNEGB, r0)
++			opset(AVNEGH, r0)
++			opset(AVNEGW, r0)
++			opset(AVNEGV, r0)
+ 
+ 		case AXVPCNTB:
+ 			opset(AXVPCNTH, r0)
+@@ -1670,6 +1674,10 @@ func buildop(ctxt *obj.Link) {
+ 			opset(AXVFRECIPD, r0)
+ 			opset(AXVFRSQRTF, r0)
+ 			opset(AXVFRSQRTD, r0)
++			opset(AXVNEGB, r0)
++			opset(AXVNEGH, r0)
++			opset(AXVNEGW, r0)
++			opset(AXVNEGV, r0)
+ 
+ 		case AVADDB:
+ 			opset(AVADDH, r0)
+@@ -3366,6 +3374,22 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x1da741 << 10 // xvfrsqrt.s
+ 	case AXVFRSQRTD:
+ 		return 0x1da742 << 10 // xvfrsqrt.d
++	case AVNEGB:
++		return 0x1ca70c << 10 // vneg.b
++	case AVNEGH:
++		return 0x1ca70d << 10 // vneg.h
++	case AVNEGW:
++		return 0x1ca70e << 10 // vneg.w
++	case AVNEGV:
++		return 0x1ca70f << 10 // vneg.d
++	case AXVNEGB:
++		return 0x1da70c << 10 // xvneg.b
++	case AXVNEGH:
++		return 0x1da70d << 10 // xvneg.h
++	case AXVNEGW:
++		return 0x1da70e << 10 // xvneg.w
++	case AXVNEGV:
++		return 0x1da70f << 10 // xvneg.d
+ 	}
+ 
+ 	c.ctxt.Diag("bad rr opcode %v", a)

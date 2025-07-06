@@ -1,0 +1,33 @@
+commit a08d2db6d1b8a46d2fc909b848da20ef1b8f5e8f
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Mon Apr 7 11:45:45 2025 -0400
+
+    doc/go1.25: document macOS requirements
+    
+    For #69839.
+    For #71661.
+    
+    Change-Id: Ic13f4b7fb81461d55216b260384ee10037b86054
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663515
+    TryBot-Bypass: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ doc/next/7-ports.md | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/doc/next/7-ports.md b/doc/next/7-ports.md
+index d2ba1ebb85..eb4f0d5a97 100644
+--- a/doc/next/7-ports.md
++++ b/doc/next/7-ports.md
+@@ -1,5 +1,10 @@
+ ## Ports {#ports}
+ 
++### Darwin
++
++<!-- go.dev/issue/69839 -->
++As [announced](/doc/go1.24#darwin) in the Go 1.24 release notes, Go 1.25 requires macOS 12 Monterey or later; support for previous versions has been discontinued.
++
+ ### Windows
+ 
+ <!-- go.dev/issue/71671 -->

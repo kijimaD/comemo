@@ -1,0 +1,28 @@
+commit 2b3d98f2ba839d4e1007652c4c92a4610092f55e
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu May 16 22:47:59 2024 +0800
+
+    doc: make symbol links simpler for relnotes
+    
+    Change-Id: Ie8ff3d1d1398618b9a229aa3cb1ef2deaa58c3d6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586056
+    Reviewed-by: Jonathan Amsterdam <jba@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ doc/next/6-stdlib/99-minor/crypto/x509/66249.md | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/crypto/x509/66249.md b/doc/next/6-stdlib/99-minor/crypto/x509/66249.md
+index 5b1d98222a..d449e74d66 100644
+--- a/doc/next/6-stdlib/99-minor/crypto/x509/66249.md
++++ b/doc/next/6-stdlib/99-minor/crypto/x509/66249.md
+@@ -1,3 +1,3 @@
+-The new [`ParseOID`](/pkg/crypto/x509#ParseOID) function parses a dot-encoded ASN.1 Object Identifier string.
+-The [`OID`](/pkg/crypto/x509#OID) type now implements the [`BinaryMarshaler`](/pkg/encoding#BinaryMarshaler), [`BinaryUnmarshaler`](/pkg/encoding#BinaryUnmarshaler),
+-[`TextMarshaler`](/pkg/encoding#TextMarshaler), [`TextUnmarshaler`](/pkg/encoding#TextUnmarshaler) interfaces.
++The new [ParseOID] function parses a dot-encoded ASN.1 Object Identifier string.
++The [OID] type now implements the [encoding.BinaryMarshaler],
++[encoding.BinaryUnmarshaler], [encoding.TextMarshaler], [encoding.TextUnmarshaler] interfaces.

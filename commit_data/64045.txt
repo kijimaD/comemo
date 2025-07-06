@@ -1,0 +1,144 @@
+commit 2be4b3913a3693958f95b520a309bfc4fda0ee21
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jun 3 18:42:12 2024 -0400
+
+    cmd/go/internal/modload: respect overlays when loading go.work files
+    
+    Before this change, we didn't initialize the overlays in the fsys
+    package or use the fsys logic to read the files, so overlays were not
+    respected for go.work files. Initialize fsys before loading the go.work
+    file (initialization is idempotent) and use the new fsys.ReadFile
+    function to read the file instead of os.ReadFile.
+    
+    fsys.ReadFile just opens the file with fsys.Open and then calls
+    io.ReadAll on it. (This is less efficient than what os.ReadFile does:
+    os.ReadFile reads into a buffer it allocated that's the file's size
+    while io.ReadAll doesn't know how big the file is so it just reads in
+    512 byte chunks.)
+    
+    Change-Id: Ic40bcbb483a16c5d4dd1d896306ea99a16f370f3
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590755
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/internal/fsys/fsys.go            | 18 ++++++++-----
+ src/cmd/go/internal/modload/init.go         |  7 ++++-
+ src/cmd/go/testdata/script/work_overlay.txt | 41 +++++++++++++++++++++++++++++
+ 3 files changed, 59 insertions(+), 7 deletions(-)
+
+diff --git a/src/cmd/go/internal/fsys/fsys.go b/src/cmd/go/internal/fsys/fsys.go
+index 06159dbbb7..c5889a2739 100644
+--- a/src/cmd/go/internal/fsys/fsys.go
++++ b/src/cmd/go/internal/fsys/fsys.go
+@@ -11,6 +11,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"internal/godebug"
++	"io"
+ 	"io/fs"
+ 	"log"
+ 	"os"
+@@ -403,12 +404,6 @@ func Open(path string) (*os.File, error) {
+ 	return openFile(path, os.O_RDONLY, 0)
+ }
+ 
+-// OpenFile opens the file at or overlaid on the given path with the flag and perm.
+-func OpenFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+-	Trace("OpenFile", path)
+-	return openFile(path, flag, perm)
+-}
+-
+ func openFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+ 	cpath := canonicalize(path)
+ 	if node, ok := overlay[cpath]; ok {
+@@ -435,6 +430,17 @@ func openFile(path string, flag int, perm os.FileMode) (*os.File, error) {
+ 	return os.OpenFile(cpath, flag, perm)
+ }
+ 
++// ReadFile reads the file at or overlaid on the given path.
++func ReadFile(path string) ([]byte, error) {
++	f, err := Open(path)
++	if err != nil {
++		return nil, err
++	}
++	defer f.Close()
++
++	return io.ReadAll(f)
++}
++
+ // IsDirWithGoFiles reports whether dir is a directory containing Go files
+ // either on disk or in the overlay.
+ func IsDirWithGoFiles(dir string) (bool, error) {
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index 4ba1bf98ee..4b19682536 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -343,6 +343,10 @@ func BinDir() string {
+ // operate in workspace mode. It should not be called by other commands,
+ // for example 'go mod tidy', that don't operate in workspace mode.
+ func InitWorkfile() {
++	// Initialize fsys early because we need overlay to read go.work file.
++	if err := fsys.Init(base.Cwd()); err != nil {
++		base.Fatal(err)
++	}
+ 	workFilePath = FindGoWork(base.Cwd())
+ }
+ 
+@@ -708,7 +712,8 @@ func loadWorkFile(path string) (workFile *modfile.WorkFile, modRoots []string, e
+ 
+ // ReadWorkFile reads and parses the go.work file at the given path.
+ func ReadWorkFile(path string) (*modfile.WorkFile, error) {
+-	workData, err := os.ReadFile(path)
++	path = base.ShortPath(path) // use short path in any errors
++	workData, err := fsys.ReadFile(path)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/go/testdata/script/work_overlay.txt b/src/cmd/go/testdata/script/work_overlay.txt
+new file mode 100644
+index 0000000000..161ad74c42
+--- /dev/null
++++ b/src/cmd/go/testdata/script/work_overlay.txt
+@@ -0,0 +1,41 @@
++# Test that overlays are respected when opening go.work files.
++
++# go.work in overlay, but not on disk.
++go list -overlay=overlay.json -m
++stdout example.com/a
++stdout example.com/b
++! stdout example.com/c
++
++# control case for go.work on disk and in overlay:
++# go.work is on disk but not in overlay.
++cp go.work.non-overlay go.work
++go list -m
++stdout example.com/a
++stdout example.com/b
++stdout example.com/c
++
++# go.work on disk and in overlay.
++go list -overlay=overlay.json -m
++stdout example.com/a
++stdout example.com/b
++! stdout example.com/c
++
++-- overlay.json --
++{"Replace": {"go.work": "overlaywork"}}
++-- overlaywork --
++use (
++    ./a
++    ./b
++)
++-- go.work.non-overlay --
++use (
++    ./a
++    ./b
++    ./c
++)
++-- a/go.mod --
++module example.com/a
++-- b/go.mod --
++module example.com/b
++-- c/go.mod --
++module example.com/c

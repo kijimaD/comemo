@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 62348: fda918389947d32e854ddfc8c972b88bd31369c4
+# Index 62348: 53393062ba95299e82ecaa3a0af69315e414e624
 
 echo "🚀 Generating explanation for commit 62348..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 62348..."
 
 ### メタデータ
 - **コミットインデックス**: 62348
-- **コミットハッシュ**: fda918389947d32e854ddfc8c972b88bd31369c4
-- **GitHub URL**: https://github.com/golang/go/commit/fda918389947d32e854ddfc8c972b88bd31369c4
+- **コミットハッシュ**: 53393062ba95299e82ecaa3a0af69315e414e624
+- **GitHub URL**: https://github.com/golang/go/commit/53393062ba95299e82ecaa3a0af69315e414e624
 
 ### 章構成
 

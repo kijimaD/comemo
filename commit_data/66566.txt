@@ -1,0 +1,72 @@
+commit 35139d6e45b4384ea4f87b8e36bc1355dd52d641
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Fri Mar 14 13:47:54 2025 -0700
+
+    runtime: log profile when mutex profile test fails
+    
+    For #70602
+    
+    Change-Id: I3f723ebc17ef690d5be7f4f948c9dd1f890196fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658095
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/metrics_test.go | 22 +++++++++++++++++-----
+ 1 file changed, 17 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/metrics_test.go b/src/runtime/metrics_test.go
+index 9191d86d04..a036f37b97 100644
+--- a/src/runtime/metrics_test.go
++++ b/src/runtime/metrics_test.go
+@@ -1020,8 +1020,8 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+ 		return metricGrowth, profileGrowth, p
+ 	}
+ 
+-	testcase := func(strictTiming bool, acceptStacks [][]string, workers int, fn func() bool) func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
+-		return func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64) {
++	testcase := func(strictTiming bool, acceptStacks [][]string, workers int, fn func() bool) func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64, explain func()) {
++		return func(t *testing.T) (metricGrowth, profileGrowth float64, n, value int64, explain func()) {
+ 			metricGrowth, profileGrowth, p := measureDelta(t, func() {
+ 				var started, stopped sync.WaitGroup
+ 				started.Add(workers)
+@@ -1113,7 +1113,9 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+ 				}
+ 			}
+ 
+-			return metricGrowth, profileGrowth, n, value
++			return metricGrowth, profileGrowth, n, value, func() {
++				t.Logf("profile:\n%s", p)
++			}
+ 		}
+ 	}
+ 
+@@ -1173,7 +1175,12 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+ 			defer runtime.SetMutexProfileFraction(old)
+ 
+ 			needContention.Store(int64(len(mus) - 1))
+-			metricGrowth, profileGrowth, n, _ := testcase(true, stks, workers, fn)(t)
++			metricGrowth, profileGrowth, n, _, explain := testcase(true, stks, workers, fn)(t)
++			defer func() {
++				if t.Failed() {
++					explain()
++				}
++			}()
+ 
+ 			t.Run("metric", func(t *testing.T) {
+ 				// The runtime/metrics view may be sampled at 1 per
+@@ -1208,7 +1215,12 @@ func TestRuntimeLockMetricsAndProfile(t *testing.T) {
+ 			defer runtime.SetMutexProfileFraction(old)
+ 
+ 			needContention.Store(int64(len(mus) - 1))
+-			metricGrowth, profileGrowth, n, _ := testcase(true, stks, workers, fn)(t)
++			metricGrowth, profileGrowth, n, _, explain := testcase(true, stks, workers, fn)(t)
++			defer func() {
++				if t.Failed() {
++					explain()
++				}
++			}()
+ 
+ 			// With 100 trials and profile fraction of 2, we expect to capture
+ 			// 50 samples. Allow the test to pass if we get at least 20 samples;

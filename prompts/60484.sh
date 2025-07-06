@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 60484: deed521ea3daf42cb9c8388ae48fe57f17e252f5
+# Index 60484: b0e1707f94b9c6254c8cb2987d7b5c0db2ec5f2e
 
 echo "🚀 Generating explanation for commit 60484..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 60484..."
 
 ### メタデータ
 - **コミットインデックス**: 60484
-- **コミットハッシュ**: deed521ea3daf42cb9c8388ae48fe57f17e252f5
-- **GitHub URL**: https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5
+- **コミットハッシュ**: b0e1707f94b9c6254c8cb2987d7b5c0db2ec5f2e
+- **GitHub URL**: https://github.com/golang/go/commit/b0e1707f94b9c6254c8cb2987d7b5c0db2ec5f2e
 
 ### 章構成
 

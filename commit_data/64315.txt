@@ -1,0 +1,70 @@
+commit b6efbd4efc733f3f398929e2722accfdb2653032
+Author: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+Date:   Fri Jul 26 18:09:57 2024 +0700
+
+    cmd/compile, reflect: treat abi.NoEscape as cheap call
+    
+    The abi.NoEscape function is introduced to replace all usages of
+    noescape wrapper in the standard library. However, the last usage in
+    reflect package is still present, because the inlining test failed if
+    abi.NoEscape were used. The reason is that reflect.noescape is treated
+    as a cheap call, while abi.NoEscape is not.
+    
+    By treating abi.NoEscape a cheap call, the last usage of noescape in
+    reflect package can now be removed.
+    
+    Change-Id: I798079780129221a5a26cbcb18c95ee30855b784
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601275
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/inline/inl.go |  4 ++--
+ src/reflect/value.go                   | 12 +-----------
+ 2 files changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 017bc25e46..513d2678f6 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -460,10 +460,10 @@ opSwitch:
+ 				case "panicrangestate":
+ 					cheap = true
+ 				}
+-				// Special case for reflect.noescape. It does just type
++				// Special case for internal/abi.NoEscape. It does just type
+ 				// conversions to appease the escape analysis, and doesn't
+ 				// generate code.
+-				if types.ReflectSymName(name.Sym()) == "noescape" {
++				if s := name.Sym(); s.Name == "NoEscape" && s.Pkg.Path == "internal/abi" {
+ 					cheap = true
+ 				}
+ 			}
+diff --git a/src/reflect/value.go b/src/reflect/value.go
+index 0854371ed4..8df7d13114 100644
+--- a/src/reflect/value.go
++++ b/src/reflect/value.go
+@@ -2677,7 +2677,7 @@ func (v Value) TrySend(x Value) bool {
+ // Type returns v's type.
+ func (v Value) Type() Type {
+ 	if v.flag != 0 && v.flag&flagMethod == 0 {
+-		return (*rtype)(noescape(unsafe.Pointer(v.typ_))) // inline of toRType(v.typ()), for own inlining in inline test
++		return (*rtype)(abi.NoEscape(unsafe.Pointer(v.typ_))) // inline of toRType(v.typ()), for own inlining in inline test
+ 	}
+ 	return v.typeSlow()
+ }
+@@ -4018,13 +4018,3 @@ func contentEscapes(x unsafe.Pointer) {
+ 		escapes(*(*any)(x)) // the dereference may not always be safe, but never executed
+ 	}
+ }
+-
+-// This is just a wrapper around abi.NoEscape. The inlining heuristics are
+-// finnicky and for whatever reason treat the local call to noescape as much
+-// lower cost with respect to the inliner budget. (That is, replacing calls to
+-// noescape with abi.NoEscape will cause inlining tests to fail.)
+-//
+-//go:nosplit
+-func noescape(p unsafe.Pointer) unsafe.Pointer {
+-	return abi.NoEscape(p)
+-}

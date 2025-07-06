@@ -1,0 +1,212 @@
+commit d92c34a3870bace34724e69ec2516d59ae432d32
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Dec 13 17:33:16 2024 -0500
+
+    cmd/go: don't create test actions for incomplete packages
+    
+    If a package is incomplete, don't create the actions for building and
+    testing it. Instead report the errors for the package's dependencies
+    and report a setup failed error (similar to what we'd to for a load
+    error when producing the test packages). This produces similar errors to
+    what were produced by load.CheckPackageErrors while still produing the
+    test failure actions per package under test.
+    
+    (I wasn't sure what to do about the last test case in test_setup_error.
+    I think it should be treated the same as other load errors?)
+    
+    Fixes #70820
+    
+    Change-Id: Ie95e3c158c50ed35a1f27237ef3db40502719993
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635856
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Austin Clements <austin@google.com>
+---
+ src/cmd/go/internal/load/pkg.go                 | 21 +++++++++++++----
+ src/cmd/go/internal/test/test.go                | 22 ++++++++++++++++--
+ src/cmd/go/testdata/script/test_json_build.txt  | 22 ++++++++++++++++++
+ src/cmd/go/testdata/script/test_setup_error.txt | 30 ++++++++++++++++++++++---
+ 4 files changed, 86 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index df790e1eaa..15f6b2e87b 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -3068,7 +3068,15 @@ func setPGOProfilePath(pkgs []*Package) {
+ // CheckPackageErrors prints errors encountered loading pkgs and their
+ // dependencies, then exits with a non-zero status if any errors were found.
+ func CheckPackageErrors(pkgs []*Package) {
+-	var anyIncomplete bool
++	PackageErrors(pkgs, func(p *Package) {
++		DefaultPrinter().Errorf(p, "%v", p.Error)
++	})
++	base.ExitIfErrors()
++}
++
++// PackageErrors calls report for errors encountered loading pkgs and their dependencies.
++func PackageErrors(pkgs []*Package, report func(*Package)) {
++	var anyIncomplete, anyErrors bool
+ 	for _, pkg := range pkgs {
+ 		if pkg.Incomplete {
+ 			anyIncomplete = true
+@@ -3078,11 +3086,14 @@ func CheckPackageErrors(pkgs []*Package) {
+ 		all := PackageList(pkgs)
+ 		for _, p := range all {
+ 			if p.Error != nil {
+-				DefaultPrinter().Errorf(p, "%v", p.Error)
++				report(p)
++				anyErrors = true
+ 			}
+ 		}
+ 	}
+-	base.ExitIfErrors()
++	if anyErrors {
++		return
++	}
+ 
+ 	// Check for duplicate loads of the same package.
+ 	// That should be impossible, but if it does happen then
+@@ -3105,7 +3116,9 @@ func CheckPackageErrors(pkgs []*Package) {
+ 		}
+ 		seen[key] = true
+ 	}
+-	base.ExitIfErrors()
++	if len(reported) > 0 {
++		base.ExitIfErrors()
++	}
+ }
+ 
+ // mainPackagesOnly filters out non-main packages matched only by arguments
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index b530d027df..90f2d88d6b 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -994,14 +994,15 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 
+ 	// Prepare build + run + print actions for all packages being tested.
+ 	for _, p := range pkgs {
+-		buildTest, runTest, printTest, perr, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
+-		if err != nil {
++		reportErr := func(perr *load.Package, err error) {
+ 			str := err.Error()
+ 			if p.ImportPath != "" {
+ 				load.DefaultPrinter().Errorf(perr, "# %s\n%s", p.ImportPath, str)
+ 			} else {
+ 				load.DefaultPrinter().Errorf(perr, "%s", str)
+ 			}
++		}
++		reportSetupFailed := func(perr *load.Package, err error) {
+ 			var stdout io.Writer = os.Stdout
+ 			if testJSON {
+ 				json := test2json.NewConverter(stdout, p.ImportPath, test2json.Timestamp)
+@@ -1020,6 +1021,23 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 			}
+ 			fmt.Fprintf(stdout, "FAIL\t%s [setup failed]\n", p.ImportPath)
+ 			base.SetExitStatus(1)
++		}
++
++		var firstErrPkg *load.Package // arbitrarily report setup failed error for first error pkg reached in DFS
++		load.PackageErrors([]*load.Package{p}, func(p *load.Package) {
++			reportErr(p, p.Error)
++			if firstErrPkg == nil {
++				firstErrPkg = p
++			}
++		})
++		if firstErrPkg != nil {
++			reportSetupFailed(firstErrPkg, firstErrPkg.Error)
++			continue
++		}
++		buildTest, runTest, printTest, perr, err := builderTest(b, ctx, pkgOpts, p, allImports[p], writeCoverMetaAct)
++		if err != nil {
++			reportErr(perr, err)
++			reportSetupFailed(perr, err)
+ 			continue
+ 		}
+ 		builds = append(builds, buildTest)
+diff --git a/src/cmd/go/testdata/script/test_json_build.txt b/src/cmd/go/testdata/script/test_json_build.txt
+index 0a40649dcc..df8863ae03 100644
+--- a/src/cmd/go/testdata/script/test_json_build.txt
++++ b/src/cmd/go/testdata/script/test_json_build.txt
+@@ -40,6 +40,18 @@ stdout '"Action":"output","Package":"m/loaderror","Output":"FAIL\\tm/loaderror \
+ stdout '"Action":"fail","Package":"m/loaderror","Elapsed":.*,"FailedBuild":"x"'
+ ! stderr '.'
+ 
++# Test an import cycle loading error in a non test file. (#70820)
++! go test -json -o=$devnull ./cycle/p
++stdout '"ImportPath":"m/cycle/q","Action":"build-output","Output":"# m/cycle/p\\n"'
++stdout '"ImportPath":"m/cycle/q","Action":"build-output","Output":"package m/cycle/p\\n"'
++stdout '"ImportPath":"m/cycle/q","Action":"build-output","Output":"\\timports m/cycle/q from p.go\\n"'
++stdout '"ImportPath":"m/cycle/q","Action":"build-output","Output":"\\timports m/cycle/q from q.go: import cycle not allowed\\n"'
++stdout '"ImportPath":"m/cycle/q","Action":"build-fail"'
++stdout '"Action":"start","Package":"m/cycle/p"'
++stdout '"Action":"output","Package":"m/cycle/p","Output":"FAIL\\tm/cycle/p \[setup failed\]\\n"'
++stdout '"Action":"fail","Package":"m/cycle/p","Elapsed":.*,"FailedBuild":"m/cycle/q"'
++! stderr '.'
++
+ # Test a vet error
+ ! go test -json -o=$devnull ./veterror
+ stdout '"ImportPath":"m/veterror \[m/veterror.test\]","Action":"build-output","Output":"# m/veterror\\n"'
+@@ -99,3 +111,13 @@ import (
+ func TestVetError(t *testing.T) {
+         fmt.Printf("%s")
+ }
++-- cycle/p/p.go --
++package p
++
++import "m/cycle/q"
++-- cycle/q/q.go --
++package q
++
++import (
++	"m/cycle/q"
++)
+diff --git a/src/cmd/go/testdata/script/test_setup_error.txt b/src/cmd/go/testdata/script/test_setup_error.txt
+index 2999067f2c..bf566d4621 100644
+--- a/src/cmd/go/testdata/script/test_setup_error.txt
++++ b/src/cmd/go/testdata/script/test_setup_error.txt
+@@ -33,10 +33,23 @@ stderr '# m/t2/p\n.*package x is not in std'
+ stdout 'FAIL	m/t2/p \[setup failed\]'
+ stdout 'ok  	m/t'
+ 
+-# Finally, this one is a build error, but produced by cmd/go directly
++# Test that an import cycle error is reported. Test for #70820
++! go test -o=$devnull ./cycle/p ./t
++stderr '# m/cycle/p\n.*package m/cycle/p\n\timports m/cycle/p from p\.go: import cycle not allowed'
++stdout 'FAIL	m/cycle/p \[setup failed\]'
++stdout 'ok  	m/t'
++
++# Test that multiple errors for the same package under test are reported.
++! go test -o=$devnull ./cycle/q ./t
++stderr '# m/cycle/q\n.*package m/cycle/q\n\timports m/cycle/p from q\.go\n\timports m/cycle/p from p\.go: import cycle not allowed'
++stdout 'FAIL	m/cycle/q \[setup failed\]'
++stdout 'ok  	m/t'
++
++# Finally, this one is a non-import-cycle load error that
++# is produced for the package under test.
+ ! go test -o=$devnull . ./t
+-stderr '^\.: no Go files in '$PWD'$'
+-stdout 'FAIL	. \[build failed\]'
++stderr '# \.\n.*no Go files in '$PWD'$'
++stdout 'FAIL	. \[setup failed\]'
+ stdout 'ok  	m/t'
+ 
+ -- go.mod --
+@@ -68,6 +81,17 @@ package p
+ package p
+ 
+ import "m/bad"
++-- cycle/p/p.go --
++package p
++
++import "m/cycle/p"
++-- cycle/q/q.go --
++package q
++
++import (
++	"m/bad"
++	"m/cycle/p"
++)
+ -- bad/bad.go --
+ package bad
+ 

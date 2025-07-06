@@ -1,0 +1,227 @@
+commit b485e5bceb8cf417c28debe82f9c42b91f66132e
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Sun Dec 22 20:26:23 2024 -0800
+
+    os: remove Process.mode field
+    
+    It's now redundant with checking whether the handle field is nil.
+    
+    For #70907
+    
+    Change-Id: I877f2a7c63d15ab5f8e3d2c9aa24776c2e3e2056
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638576
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+---
+ src/os/exec.go         | 49 ++++++++++++-------------------------------------
+ src/os/exec_unix.go    | 19 ++++++-------------
+ src/os/exec_windows.go |  2 +-
+ 3 files changed, 19 insertions(+), 51 deletions(-)
+
+diff --git a/src/os/exec.go b/src/os/exec.go
+index e00a476954..a531cdab08 100644
+--- a/src/os/exec.go
++++ b/src/os/exec.go
+@@ -17,26 +17,6 @@ import (
+ // ErrProcessDone indicates a [Process] has finished.
+ var ErrProcessDone = errors.New("os: process already finished")
+ 
+-type processMode uint8
+-
+-const (
+-	// modePID means that Process operations such use the raw PID from the
+-	// Pid field. handle is not used.
+-	//
+-	// This may be due to the host not supporting handles, or because
+-	// Process was created as a literal, leaving handle unset.
+-	//
+-	// This must be the zero value so Process literals get modePID.
+-	modePID processMode = iota
+-
+-	// modeHandle means that Process operations use handle, which is
+-	// initialized with an OS process handle.
+-	//
+-	// Note that Release and Wait will deactivate and eventually close the
+-	// handle, so acquire may fail, indicating the reason.
+-	modeHandle
+-)
+-
+ type processStatus uint64
+ 
+ const (
+@@ -58,15 +38,13 @@ const (
+ type Process struct {
+ 	Pid int
+ 
+-	mode processMode
+-
+ 	// State contains the atomic process state.
+ 	//
+-	// In modePID, this consists only of the processStatus fields, which
+-	// indicate if the process is done/released.
++	// If handle is nil, this consists only of the processStatus fields,
++	// which indicate if the process is done/released.
+ 	//
+-	// In modeHandle, the lower bits also contain a reference count for the
+-	// handle field.
++	// In handle is not nil, the lower bits also contain a reference
++	// count for the handle field.
+ 	//
+ 	// The Process itself initially holds 1 persistent reference. Any
+ 	// operation that uses the handle with a system call temporarily holds
+@@ -87,7 +65,7 @@ type Process struct {
+ 	// errors returned by concurrent calls.
+ 	state atomic.Uint64
+ 
+-	// Used only in modePID.
++	// Used only when handle is nil
+ 	sigMu sync.RWMutex // avoid race between wait and signal
+ 
+ 	// handle, if not nil, is a pointer to a struct
+@@ -154,8 +132,7 @@ func (ph *processHandle) release() {
+ 
+ func newPIDProcess(pid int) *Process {
+ 	p := &Process{
+-		Pid:  pid,
+-		mode: modePID,
++		Pid: pid,
+ 	}
+ 	runtime.SetFinalizer(p, (*Process).Release)
+ 	return p
+@@ -172,7 +149,6 @@ func newHandleProcess(pid int, handle uintptr) *Process {
+ 
+ 	p := &Process{
+ 		Pid:    pid,
+-		mode:   modeHandle,
+ 		handle: ph,
+ 	}
+ 	p.state.Store(1) // 1 persistent reference
+@@ -182,8 +158,7 @@ func newHandleProcess(pid int, handle uintptr) *Process {
+ 
+ func newDoneProcess(pid int) *Process {
+ 	p := &Process{
+-		Pid:  pid,
+-		mode: modePID,
++		Pid: pid,
+ 	}
+ 	p.state.Store(uint64(statusDone)) // No persistent reference, as there is no handle.
+ 	runtime.SetFinalizer(p, (*Process).Release)
+@@ -191,7 +166,7 @@ func newDoneProcess(pid int) *Process {
+ }
+ 
+ func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
+-	if p.mode != modeHandle {
++	if p.handle == nil {
+ 		panic("handleTransientAcquire called in invalid mode")
+ 	}
+ 
+@@ -213,7 +188,7 @@ func (p *Process) handleTransientAcquire() (uintptr, processStatus) {
+ }
+ 
+ func (p *Process) handleTransientRelease() {
+-	if p.mode != modeHandle {
++	if p.handle == nil {
+ 		panic("handleTransientRelease called in invalid mode")
+ 	}
+ 
+@@ -250,7 +225,7 @@ func (p *Process) handleTransientRelease() {
+ // Returns the status prior to this call. If this is not statusOK, then the
+ // reference was not dropped or status changed.
+ func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
+-	if p.mode != modeHandle {
++	if p.handle == nil {
+ 		panic("handlePersistentRelease called in invalid mode")
+ 	}
+ 
+@@ -280,7 +255,7 @@ func (p *Process) handlePersistentRelease(reason processStatus) processStatus {
+ }
+ 
+ func (p *Process) pidStatus() processStatus {
+-	if p.mode != modePID {
++	if p.handle != nil {
+ 		panic("pidStatus called in invalid mode")
+ 	}
+ 
+@@ -288,7 +263,7 @@ func (p *Process) pidStatus() processStatus {
+ }
+ 
+ func (p *Process) pidDeactivate(reason processStatus) {
+-	if p.mode != modePID {
++	if p.handle != nil {
+ 		panic("pidDeactivate called in invalid mode")
+ 	}
+ 
+diff --git a/src/os/exec_unix.go b/src/os/exec_unix.go
+index 34467ac7a0..e58801b184 100644
+--- a/src/os/exec_unix.go
++++ b/src/os/exec_unix.go
+@@ -21,15 +21,12 @@ const (
+ 
+ func (p *Process) wait() (ps *ProcessState, err error) {
+ 	// Which type of Process do we have?
+-	switch p.mode {
+-	case modeHandle:
++	if p.handle != nil {
+ 		// pidfd
+ 		return p.pidfdWait()
+-	case modePID:
++	} else {
+ 		// Regular PID
+ 		return p.pidWait()
+-	default:
+-		panic("unreachable")
+ 	}
+ }
+ 
+@@ -85,15 +82,12 @@ func (p *Process) signal(sig Signal) error {
+ 	}
+ 
+ 	// Which type of Process do we have?
+-	switch p.mode {
+-	case modeHandle:
++	if p.handle != nil {
+ 		// pidfd
+ 		return p.pidfdSendSignal(s)
+-	case modePID:
++	} else {
+ 		// Regular PID
+ 		return p.pidSignal(s)
+-	default:
+-		panic("unreachable")
+ 	}
+ }
+ 
+@@ -131,15 +125,14 @@ func (p *Process) release() error {
+ 	// solely on statusReleased to determine that the Process is released.
+ 	p.Pid = pidReleased
+ 
+-	switch p.mode {
+-	case modeHandle:
++	if p.handle != nil {
+ 		// Drop the Process' reference and mark handle unusable for
+ 		// future calls.
+ 		//
+ 		// Ignore the return value: we don't care if this was a no-op
+ 		// racing with Wait, or a double Release.
+ 		p.handlePersistentRelease(statusReleased)
+-	case modePID:
++	} else {
+ 		// Just mark the PID unusable.
+ 		p.pidDeactivate(statusReleased)
+ 	}
+diff --git a/src/os/exec_windows.go b/src/os/exec_windows.go
+index 43445d6804..969eeb7c21 100644
+--- a/src/os/exec_windows.go
++++ b/src/os/exec_windows.go
+@@ -12,7 +12,7 @@ import (
+ 	"time"
+ )
+ 
+-// Note that Process.mode is always modeHandle because Windows always requires
++// Note that Process.handle is never nil because Windows always requires
+ // a handle. A manually-created Process literal is not valid.
+ 
+ func (p *Process) wait() (ps *ProcessState, err error) {

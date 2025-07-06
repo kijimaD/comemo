@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 29814: 87b1aaa37cefec8deacdf9c3c30d26015bdfb00b
+# Index 29814: 496174e32e8983f46c6178cab250ea08f4d89dd2
 
 echo "🚀 Generating explanation for commit 29814..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 29814..."
 
 ### メタデータ
 - **コミットインデックス**: 29814
-- **コミットハッシュ**: 87b1aaa37cefec8deacdf9c3c30d26015bdfb00b
-- **GitHub URL**: https://github.com/golang/go/commit/87b1aaa37cefec8deacdf9c3c30d26015bdfb00b
+- **コミットハッシュ**: 496174e32e8983f46c6178cab250ea08f4d89dd2
+- **GitHub URL**: https://github.com/golang/go/commit/496174e32e8983f46c6178cab250ea08f4d89dd2
 
 ### 章構成
 

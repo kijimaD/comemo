@@ -1,0 +1,116 @@
+commit 3f2737f5ddea3375303b952e3d87843d7fc0f986
+Author: apocelipes <seve3r@outlook.com>
+Date:   Thu Sep 26 08:23:13 2024 +0000
+
+    net/http: use sync.OnceFunc, sync.OnceValue
+    
+    Use sync.OnceFunc and sync.OnceValue to simplify the code.
+    
+    Change-Id: Ie47e0444c2b9d3260f6ef94cdc6ee8ee5bcf9f71
+    GitHub-Last-Rev: 520afbec2a392d73dfd9697035804be7c7cc8b77
+    GitHub-Pull-Request: golang/go#69634
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616037
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/net/http/client.go         | 15 ++++++---------
+ src/net/http/transport_test.go | 24 +++++++++---------------
+ 2 files changed, 15 insertions(+), 24 deletions(-)
+
+diff --git a/src/net/http/client.go b/src/net/http/client.go
+index cbf7c54501..67b2a89ac9 100644
+--- a/src/net/http/client.go
++++ b/src/net/http/client.go
+@@ -388,15 +388,12 @@ func setRequestCancel(req *Request, rt RoundTripper, deadline time.Time) (stopTi
+ 	}
+ 
+ 	stopTimerCh := make(chan struct{})
+-	var once sync.Once
+-	stopTimer = func() {
+-		once.Do(func() {
+-			close(stopTimerCh)
+-			if cancelCtx != nil {
+-				cancelCtx()
+-			}
+-		})
+-	}
++	stopTimer = sync.OnceFunc(func() {
++		close(stopTimerCh)
++		if cancelCtx != nil {
++			cancelCtx()
++		}
++	})
+ 
+ 	timer := time.NewTimer(time.Until(deadline))
+ 	var timedOut atomic.Bool
+diff --git a/src/net/http/transport_test.go b/src/net/http/transport_test.go
+index 3c353ed253..b76b8dfcff 100644
+--- a/src/net/http/transport_test.go
++++ b/src/net/http/transport_test.go
+@@ -2586,8 +2586,8 @@ func runCancelTestTransport(t *testing.T, mode testMode, f func(t *testing.T, te
+ 
+ // runCancelTestChannel uses Request.Cancel.
+ func runCancelTestChannel(t *testing.T, mode testMode, f func(t *testing.T, test cancelTest)) {
+-	var cancelOnce sync.Once
+ 	cancelc := make(chan struct{})
++	cancelOnce := sync.OnceFunc(func() { close(cancelc) })
+ 	f(t, cancelTest{
+ 		mode: mode,
+ 		newReq: func(req *Request) *Request {
+@@ -2595,9 +2595,7 @@ func runCancelTestChannel(t *testing.T, mode testMode, f func(t *testing.T, test
+ 			return req
+ 		},
+ 		cancel: func(tr *Transport, req *Request) {
+-			cancelOnce.Do(func() {
+-				close(cancelc)
+-			})
++			cancelOnce()
+ 		},
+ 		checkErr: func(when string, err error) {
+ 			if !errors.Is(err, ExportErrRequestCanceled) && !errors.Is(err, ExportErrRequestCanceledConn) {
+@@ -5114,20 +5112,16 @@ func testTransportEventTraceTLSVerify(t *testing.T, mode testMode) {
+ 	}
+ }
+ 
+-var (
+-	isDNSHijackedOnce sync.Once
+-	isDNSHijacked     bool
+-)
++var isDNSHijacked = sync.OnceValue(func() bool {
++	addrs, _ := net.LookupHost("dns-should-not-resolve.golang")
++	return len(addrs) != 0
++})
+ 
+ func skipIfDNSHijacked(t *testing.T) {
+ 	// Skip this test if the user is using a shady/ISP
+ 	// DNS server hijacking queries.
+ 	// See issues 16732, 16716.
+-	isDNSHijackedOnce.Do(func() {
+-		addrs, _ := net.LookupHost("dns-should-not-resolve.golang")
+-		isDNSHijacked = len(addrs) != 0
+-	})
+-	if isDNSHijacked {
++	if isDNSHijacked() {
+ 		t.Skip("skipping; test requires non-hijacking DNS server")
+ 	}
+ }
+@@ -5463,7 +5457,7 @@ func TestTransportReturnsPeekError(t *testing.T) {
+ 	errValue := errors.New("specific error value")
+ 
+ 	wrote := make(chan struct{})
+-	var wroteOnce sync.Once
++	wroteOnce := sync.OnceFunc(func() { close(wrote) })
+ 
+ 	tr := &Transport{
+ 		Dial: func(network, addr string) (net.Conn, error) {
+@@ -5473,7 +5467,7 @@ func TestTransportReturnsPeekError(t *testing.T) {
+ 					return 0, errValue
+ 				},
+ 				write: func(p []byte) (int, error) {
+-					wroteOnce.Do(func() { close(wrote) })
++					wroteOnce()
+ 					return len(p), nil
+ 				},
+ 			}

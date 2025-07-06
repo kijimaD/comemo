@@ -1,0 +1,105 @@
+commit b057b8872d8297ec9ccbfd9d29dad51dff795846
+Author: Oleksandr Redko <oleksandr.red+github@gmail.com>
+Date:   Tue Dec 17 19:05:23 2024 +0200
+
+    bytes, strings: add cross-references in docstrings
+    
+    For newly funcs SplitSeq, SplitAfterSeq, FieldsSeq, FieldsFuncSeq.
+    
+    Updates #61901.
+    
+    Change-Id: I3c97bfd9c2250de68aaea348c82a05635ee797af
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637176
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/bytes/iter.go   | 10 +++++-----
+ src/strings/iter.go | 10 +++++-----
+ 2 files changed, 10 insertions(+), 10 deletions(-)
+
+diff --git a/src/bytes/iter.go b/src/bytes/iter.go
+index 1cf13a94ec..9890a478a8 100644
+--- a/src/bytes/iter.go
++++ b/src/bytes/iter.go
+@@ -68,7 +68,7 @@ func splitSeq(s, sep []byte, sepSave int) iter.Seq[[]byte] {
+ }
+ 
+ // SplitSeq returns an iterator over all substrings of s separated by sep.
+-// The iterator yields the same strings that would be returned by Split(s, sep),
++// The iterator yields the same strings that would be returned by [Split](s, sep),
+ // but without constructing the slice.
+ // It returns a single-use iterator.
+ func SplitSeq(s, sep []byte) iter.Seq[[]byte] {
+@@ -76,7 +76,7 @@ func SplitSeq(s, sep []byte) iter.Seq[[]byte] {
+ }
+ 
+ // SplitAfterSeq returns an iterator over substrings of s split after each instance of sep.
+-// The iterator yields the same strings that would be returned by SplitAfter(s, sep),
++// The iterator yields the same strings that would be returned by [SplitAfter](s, sep),
+ // but without constructing the slice.
+ // It returns a single-use iterator.
+ func SplitAfterSeq(s, sep []byte) iter.Seq[[]byte] {
+@@ -84,8 +84,8 @@ func SplitAfterSeq(s, sep []byte) iter.Seq[[]byte] {
+ }
+ 
+ // FieldsSeq returns an iterator over substrings of s split around runs of
+-// whitespace characters, as defined by unicode.IsSpace.
+-// The iterator yields the same strings that would be returned by Fields(s),
++// whitespace characters, as defined by [unicode.IsSpace].
++// The iterator yields the same strings that would be returned by [Fields](s),
+ // but without constructing the slice.
+ func FieldsSeq(s []byte) iter.Seq[[]byte] {
+ 	return func(yield func([]byte) bool) {
+@@ -118,7 +118,7 @@ func FieldsSeq(s []byte) iter.Seq[[]byte] {
+ 
+ // FieldsFuncSeq returns an iterator over substrings of s split around runs of
+ // Unicode code points satisfying f(c).
+-// The iterator yields the same strings that would be returned by FieldsFunc(s),
++// The iterator yields the same strings that would be returned by [FieldsFunc](s),
+ // but without constructing the slice.
+ func FieldsFuncSeq(s []byte, f func(rune) bool) iter.Seq[[]byte] {
+ 	return func(yield func([]byte) bool) {
+diff --git a/src/strings/iter.go b/src/strings/iter.go
+index b9620902bf..3168e59687 100644
+--- a/src/strings/iter.go
++++ b/src/strings/iter.go
+@@ -68,7 +68,7 @@ func splitSeq(s, sep string, sepSave int) iter.Seq[string] {
+ }
+ 
+ // SplitSeq returns an iterator over all substrings of s separated by sep.
+-// The iterator yields the same strings that would be returned by Split(s, sep),
++// The iterator yields the same strings that would be returned by [Split](s, sep),
+ // but without constructing the slice.
+ // It returns a single-use iterator.
+ func SplitSeq(s, sep string) iter.Seq[string] {
+@@ -76,7 +76,7 @@ func SplitSeq(s, sep string) iter.Seq[string] {
+ }
+ 
+ // SplitAfterSeq returns an iterator over substrings of s split after each instance of sep.
+-// The iterator yields the same strings that would be returned by SplitAfter(s, sep),
++// The iterator yields the same strings that would be returned by [SplitAfter](s, sep),
+ // but without constructing the slice.
+ // It returns a single-use iterator.
+ func SplitAfterSeq(s, sep string) iter.Seq[string] {
+@@ -84,8 +84,8 @@ func SplitAfterSeq(s, sep string) iter.Seq[string] {
+ }
+ 
+ // FieldsSeq returns an iterator over substrings of s split around runs of
+-// whitespace characters, as defined by unicode.IsSpace.
+-// The iterator yields the same strings that would be returned by Fields(s),
++// whitespace characters, as defined by [unicode.IsSpace].
++// The iterator yields the same strings that would be returned by [Fields](s),
+ // but without constructing the slice.
+ func FieldsSeq(s string) iter.Seq[string] {
+ 	return func(yield func(string) bool) {
+@@ -118,7 +118,7 @@ func FieldsSeq(s string) iter.Seq[string] {
+ 
+ // FieldsFuncSeq returns an iterator over substrings of s split around runs of
+ // Unicode code points satisfying f(c).
+-// The iterator yields the same strings that would be returned by FieldsFunc(s),
++// The iterator yields the same strings that would be returned by [FieldsFunc](s),
+ // but without constructing the slice.
+ func FieldsFuncSeq(s string, f func(rune) bool) iter.Seq[string] {
+ 	return func(yield func(string) bool) {

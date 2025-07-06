@@ -1,0 +1,34 @@
+commit 669d87a935536eb14cb2db311a83345359189924
+Author: Cosmos Nicolaou <cosmos.nicolaou@gmail.com>
+Date:   Thu Dec 19 15:55:05 2024 -0800
+
+    runtime/pprof: continued attempt to deflake the VMInfo test.
+    
+    This change catches an additional error message to trigger skipping
+    the test when the underlying system is failing.
+    
+    Fixes #62352
+    
+    Change-Id: I5c12b20f3e9023597ff89fc905c0646a80ec4811
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637995
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/pprof/vminfo_darwin_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/runtime/pprof/vminfo_darwin_test.go b/src/runtime/pprof/vminfo_darwin_test.go
+index 4c0a0fefd8..6d375c5d53 100644
+--- a/src/runtime/pprof/vminfo_darwin_test.go
++++ b/src/runtime/pprof/vminfo_darwin_test.go
+@@ -97,7 +97,7 @@ func useVMMap(t *testing.T) (hi, lo uint64, retryable bool, err error) {
+ 		t.Logf("vmmap output: %s", out)
+ 		if ee, ok := cmdErr.(*exec.ExitError); ok && len(ee.Stderr) > 0 {
+ 			t.Logf("%v: %v\n%s", cmd, cmdErr, ee.Stderr)
+-			if testing.Short() && strings.Contains(string(ee.Stderr), "No process corpse slots currently available, waiting to get one") {
++			if testing.Short() && (strings.Contains(string(ee.Stderr), "No process corpse slots currently available, waiting to get one") || strings.Contains(string(ee.Stderr), "Failed to generate corpse from the process")) {
+ 				t.Skipf("Skipping knwn flake in short test mode")
+ 			}
+ 			retryable = bytes.Contains(ee.Stderr, []byte("resource shortage"))

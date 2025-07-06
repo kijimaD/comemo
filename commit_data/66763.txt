@@ -1,0 +1,135 @@
+commit af278bfb1f07b9f8f84d325a84b3891a3ab0dbf1
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Apr 7 10:33:31 2025 -0700
+
+    cmd/compile: add additional flag constant folding rules
+    
+    Fixes #73200
+    
+    Change-Id: I77518d37acd838acf79ed113194bac5e2c30897f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663535
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+---
+ src/cmd/compile/internal/ssa/_gen/ARM64.rules | 22 ++++++++--------
+ src/cmd/compile/internal/ssa/rewriteARM64.go  | 22 ++++++++++++++++
+ test/fixedbugs/issue73200.go                  | 36 +++++++++++++++++++++++++++
+ 3 files changed, 70 insertions(+), 10 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/ARM64.rules b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+index 3962cd7a2d..7040046711 100644
+--- a/src/cmd/compile/internal/ssa/_gen/ARM64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/ARM64.rules
+@@ -1385,16 +1385,18 @@
+ (CSNEG [cc] x y (InvertFlags cmp)) => (CSNEG [arm64Invert(cc)] x y cmp)
+ 
+ // absorb flag constants into boolean values
+-(Equal         (FlagConstant [fc])) => (MOVDconst [b2i(fc.eq())])
+-(NotEqual      (FlagConstant [fc])) => (MOVDconst [b2i(fc.ne())])
+-(LessThan      (FlagConstant [fc])) => (MOVDconst [b2i(fc.lt())])
+-(LessThanU     (FlagConstant [fc])) => (MOVDconst [b2i(fc.ult())])
+-(LessEqual     (FlagConstant [fc])) => (MOVDconst [b2i(fc.le())])
+-(LessEqualU    (FlagConstant [fc])) => (MOVDconst [b2i(fc.ule())])
+-(GreaterThan   (FlagConstant [fc])) => (MOVDconst [b2i(fc.gt())])
+-(GreaterThanU  (FlagConstant [fc])) => (MOVDconst [b2i(fc.ugt())])
+-(GreaterEqual  (FlagConstant [fc])) => (MOVDconst [b2i(fc.ge())])
+-(GreaterEqualU (FlagConstant [fc])) => (MOVDconst [b2i(fc.uge())])
++(Equal             (FlagConstant [fc])) => (MOVDconst [b2i(fc.eq())])
++(NotEqual          (FlagConstant [fc])) => (MOVDconst [b2i(fc.ne())])
++(LessThan          (FlagConstant [fc])) => (MOVDconst [b2i(fc.lt())])
++(LessThanU         (FlagConstant [fc])) => (MOVDconst [b2i(fc.ult())])
++(LessEqual         (FlagConstant [fc])) => (MOVDconst [b2i(fc.le())])
++(LessEqualU        (FlagConstant [fc])) => (MOVDconst [b2i(fc.ule())])
++(GreaterThan       (FlagConstant [fc])) => (MOVDconst [b2i(fc.gt())])
++(GreaterThanU      (FlagConstant [fc])) => (MOVDconst [b2i(fc.ugt())])
++(GreaterEqual      (FlagConstant [fc])) => (MOVDconst [b2i(fc.ge())])
++(GreaterEqualU     (FlagConstant [fc])) => (MOVDconst [b2i(fc.uge())])
++(LessThanNoov      (FlagConstant [fc])) => (MOVDconst [b2i(fc.ltNoov())])
++(GreaterEqualNoov  (FlagConstant [fc])) => (MOVDconst [b2i(fc.geNoov())])
+ 
+ // absorb InvertFlags into boolean values
+ (Equal            (InvertFlags x)) => (Equal x)
+diff --git a/src/cmd/compile/internal/ssa/rewriteARM64.go b/src/cmd/compile/internal/ssa/rewriteARM64.go
+index cabc3760df..7f2feabbf7 100644
+--- a/src/cmd/compile/internal/ssa/rewriteARM64.go
++++ b/src/cmd/compile/internal/ssa/rewriteARM64.go
+@@ -6182,6 +6182,17 @@ func rewriteValueARM64_OpARM64GreaterEqualNoov(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
++	// match: (GreaterEqualNoov (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.geNoov())])
++	for {
++		if v_0.Op != OpARM64FlagConstant {
++			break
++		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64ToAuxInt(b2i(fc.geNoov()))
++		return true
++	}
+ 	// match: (GreaterEqualNoov (InvertFlags x))
+ 	// result: (CSINC [OpARM64NotEqual] (LessThanNoov <typ.Bool> x) (MOVDconst [0]) x)
+ 	for {
+@@ -6918,6 +6929,17 @@ func rewriteValueARM64_OpARM64LessThanNoov(v *Value) bool {
+ 	v_0 := v.Args[0]
+ 	b := v.Block
+ 	typ := &b.Func.Config.Types
++	// match: (LessThanNoov (FlagConstant [fc]))
++	// result: (MOVDconst [b2i(fc.ltNoov())])
++	for {
++		if v_0.Op != OpARM64FlagConstant {
++			break
++		}
++		fc := auxIntToFlagConstant(v_0.AuxInt)
++		v.reset(OpARM64MOVDconst)
++		v.AuxInt = int64ToAuxInt(b2i(fc.ltNoov()))
++		return true
++	}
+ 	// match: (LessThanNoov (InvertFlags x))
+ 	// result: (CSEL0 [OpARM64NotEqual] (GreaterEqualNoov <typ.Bool> x) x)
+ 	for {
+diff --git a/test/fixedbugs/issue73200.go b/test/fixedbugs/issue73200.go
+new file mode 100644
+index 0000000000..060f794565
+--- /dev/null
++++ b/test/fixedbugs/issue73200.go
+@@ -0,0 +1,36 @@
++// build
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package main
++
++var g bool
++
++func main() {
++	l_4 := uint32(0x6E54EE87)
++	v4 := int8(-Int64FromInt64(1))
++	g = int32(v4) >= safe_mod_func_int32_t_s_s(BoolInt32(l_4 >= 1), 7)
++}
++
++func safe_mod_func_int32_t_s_s(si1 int32, si2 int32) (r int32) {
++	var v1 int32
++	if si2 == 0 {
++		v1 = si1
++	} else {
++		v1 = si1 % si2
++	}
++	return v1
++}
++
++func Int64FromInt64(n int64) int64 {
++	return n
++}
++
++func BoolInt32(b bool) int32 {
++	if b {
++		return 1
++	}
++	return 0
++}

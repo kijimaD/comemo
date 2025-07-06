@@ -1,0 +1,136 @@
+commit 82c14346d89ec0eeca114f9ca0e88516b2cda454
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Wed Jul 3 14:14:34 2024 -0400
+
+    cmd/link: don't disable memory profiling when pprof.WriteHeapProfile is used
+    
+    We have an optimization that if the memory profile is not consumed
+    anywhere, we set the memory profiling rate to 0 to disable the
+    "background" low-rate profiling. We detect whether the memory
+    profile is used by checking whether the runtime.MemProfile function
+    is reachable at link time. Previously, all APIs that access the
+    memory profile go through runtime.MemProfile. But the code was
+    refactored in CL 572396, and now the legacy entry point
+    WriteHeapProfile uses pprof_memProfileInternal without going
+    through runtime.MemProfile. In fact, even with the recommended
+    runtime/pprof.Profile API (pprof.Lookup or pprof.Profiles),
+    runtime.MemProfile is only (happen to be) reachable through
+    countHeap.
+    
+    Change the linker to check runtime.memProfileInternal instead,
+    which is on all code paths that retrieve the memory profile. Add
+    a test case for WriteHeapProfile, so we cover all entry points.
+    
+    Fixes #68136.
+    
+    Change-Id: I075c8d45c95c81825a1822f032e23107aea4303c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/596538
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/link/internal/ld/ld_test.go | 29 ++++++++++++++++++++++++++++-
+ src/cmd/link/internal/ld/lib.go     |  4 ++--
+ src/runtime/mprof.go                | 10 +++++++++-
+ src/runtime/pprof/pprof.go          |  3 ++-
+ 4 files changed, 41 insertions(+), 5 deletions(-)
+
+diff --git a/src/cmd/link/internal/ld/ld_test.go b/src/cmd/link/internal/ld/ld_test.go
+index 1767667759..c954ab6bca 100644
+--- a/src/cmd/link/internal/ld/ld_test.go
++++ b/src/cmd/link/internal/ld/ld_test.go
+@@ -304,7 +304,34 @@ package main
+ import "runtime"
+ import "runtime/pprof"
+ func main() {
+-        _ = pprof.Profiles()
++	_ = pprof.Profiles()
++	println(runtime.MemProfileRate)
++}
++`,
++			"524288",
++		},
++		{
++			"with_memprofile_runtime_pprof_writeheap",
++			`
++package main
++import "io"
++import "runtime"
++import "runtime/pprof"
++func main() {
++	_ = pprof.WriteHeapProfile(io.Discard)
++	println(runtime.MemProfileRate)
++}
++`,
++			"524288",
++		},
++		{
++			"with_memprofile_runtime_pprof_lookupheap",
++			`
++package main
++import "runtime"
++import "runtime/pprof"
++func main() {
++	_ = pprof.Lookup("heap")
+ 	println(runtime.MemProfileRate)
+ }
+ `,
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 4f1eebb9e3..d66027387b 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -892,9 +892,9 @@ func (ctxt *Link) linksetup() {
+ 		}
+ 
+ 		// Set runtime.disableMemoryProfiling bool if
+-		// runtime.MemProfile is not retained in the binary after
++		// runtime.memProfileInternal is not retained in the binary after
+ 		// deadcode (and we're not dynamically linking).
+-		memProfile := ctxt.loader.Lookup("runtime.MemProfile", abiInternalVer)
++		memProfile := ctxt.loader.Lookup("runtime.memProfileInternal", abiInternalVer)
+ 		if memProfile != 0 && !ctxt.loader.AttrReachable(memProfile) && !ctxt.DynlinkingGo() {
+ 			memProfSym := ctxt.loader.LookupOrCreateSym("runtime.disableMemoryProfiling", 0)
+ 			sb := ctxt.loader.MakeSymbolUpdater(memProfSym)
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index b51a1ad3ce..b4fe0e5549 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -892,9 +892,10 @@ func (r *StackRecord) Stack() []uintptr {
+ // at the beginning of main).
+ var MemProfileRate int = 512 * 1024
+ 
+-// disableMemoryProfiling is set by the linker if runtime.MemProfile
++// disableMemoryProfiling is set by the linker if memory profiling
+ // is not used and the link type guarantees nobody else could use it
+ // elsewhere.
++// We check if the runtime.memProfileInternal symbol is present.
+ var disableMemoryProfiling bool
+ 
+ // A MemProfileRecord describes the live objects allocated
+@@ -955,6 +956,13 @@ func MemProfile(p []MemProfileRecord, inuseZero bool) (n int, ok bool) {
+ // memProfileInternal returns the number of records n in the profile. If there
+ // are less than size records, copyFn is invoked for each record, and ok returns
+ // true.
++//
++// The linker set disableMemoryProfiling to true to disable memory profiling
++// if this function is not reachable. Mark it noinline to ensure the symbol exists.
++// (This function is big and normally not inlined anyway.)
++// See also disableMemoryProfiling above and cmd/link/internal/ld/lib.go:linksetup.
++//
++//go:noinline
+ func memProfileInternal(size int, inuseZero bool, copyFn func(profilerecord.MemProfileRecord)) (n int, ok bool) {
+ 	cycle := mProfCycle.read()
+ 	// If we're between mProf_NextCycle and mProf_Flush, take care
+diff --git a/src/runtime/pprof/pprof.go b/src/runtime/pprof/pprof.go
+index be17e59875..d3af5bba91 100644
+--- a/src/runtime/pprof/pprof.go
++++ b/src/runtime/pprof/pprof.go
+@@ -586,7 +586,8 @@ func writeHeapInternal(w io.Writer, debug int, defaultSampleType string) error {
+ 		runtime.ReadMemStats(memStats)
+ 	}
+ 
+-	// Find out how many records there are (MemProfile(nil, true)),
++	// Find out how many records there are (the call
++	// pprof_memProfileInternal(nil, true) below),
+ 	// allocate that many records, and get the data.
+ 	// There's a race—more records might be added between
+ 	// the two calls—so allocate a few extra records for safety

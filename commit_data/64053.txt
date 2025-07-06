@@ -1,0 +1,35 @@
+commit ce51533a9d541fa0d1511e18f20ee61d4ecbb5a9
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Jun 5 13:41:20 2024 -0700
+
+    os/signal: remove SIGSYS from list of signals that take no action
+    
+    It actually causes the program to throw.
+    
+    Fixes #67729
+    
+    Change-Id: Id970baff631616a4dc4e434827e622e1b16f2724
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590915
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/os/signal/doc.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/os/signal/doc.go b/src/os/signal/doc.go
+index 900704a1a9..1d3e6eb573 100644
+--- a/src/os/signal/doc.go
++++ b/src/os/signal/doc.go
+@@ -68,7 +68,7 @@ signals SIGTSTP, SIGTTIN, and SIGTTOU, in which case the system
+ default behavior does not occur. It also applies to some signals that
+ otherwise cause no action: SIGUSR1, SIGUSR2, SIGPIPE, SIGALRM,
+ SIGCHLD, SIGCONT, SIGURG, SIGXCPU, SIGXFSZ, SIGVTALRM, SIGWINCH,
+-SIGIO, SIGPWR, SIGSYS, SIGINFO, SIGTHR, SIGWAITING, SIGLWP, SIGFREEZE,
++SIGIO, SIGPWR, SIGINFO, SIGTHR, SIGWAITING, SIGLWP, SIGFREEZE,
+ SIGTHAW, SIGLOST, SIGXRES, SIGJVM1, SIGJVM2, and any real time signals
+ used on the system. Note that not all of these signals are available
+ on all systems.

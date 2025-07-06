@@ -1,0 +1,94 @@
+commit 935bf1395c47088d3455722452b28f18084f1450
+Author: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+Date:   Thu Jun 27 23:59:38 2024 +0000
+
+    cmd/go: place GOROOT/bin at the beginning of PATH in 'go run'
+    
+    This causes programs that use 'go' as a subprocess to use the same go
+    command as the parent 'go run' command.
+    
+    Fixes #68005
+    
+    Change-Id: I937cef474bf038a925bb74fc73e5f377b03e27b7
+    GitHub-Last-Rev: 9986537cadb0921763cc1496a63e3806b4aac1ac
+    GitHub-Pull-Request: golang/go#68040
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593255
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/internal/base/base.go               |  5 ++-
+ src/cmd/go/testdata/script/run_goroot_PATH.txt | 42 ++++++++++++++++++++++++++
+ 2 files changed, 46 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/base/base.go b/src/cmd/go/internal/base/base.go
+index 2171d13909..0ba2ffd415 100644
+--- a/src/cmd/go/internal/base/base.go
++++ b/src/cmd/go/internal/base/base.go
+@@ -14,6 +14,7 @@ import (
+ 	"os"
+ 	"os/exec"
+ 	"reflect"
++	"slices"
+ 	"strings"
+ 	"sync"
+ 
+@@ -211,7 +212,9 @@ func RunStdin(cmdline []string) {
+ 	cmd.Stdin = os.Stdin
+ 	cmd.Stdout = os.Stdout
+ 	cmd.Stderr = os.Stderr
+-	cmd.Env = cfg.OrigEnv
++	env := slices.Clip(cfg.OrigEnv)
++	env = AppendPATH(env)
++	cmd.Env = env
+ 	StartSigHandlers()
+ 	if err := cmd.Run(); err != nil {
+ 		Errorf("%v", err)
+diff --git a/src/cmd/go/testdata/script/run_goroot_PATH.txt b/src/cmd/go/testdata/script/run_goroot_PATH.txt
+new file mode 100644
+index 0000000000..a103cf645e
+--- /dev/null
++++ b/src/cmd/go/testdata/script/run_goroot_PATH.txt
+@@ -0,0 +1,42 @@
++# https://go.dev/issue/68005: 'go run' should run the program with its own GOROOT/bin
++# at the beginning of $PATH.
++
++[short] skip
++
++[!GOOS:plan9] env PATH=
++[GOOS:plan9] env path=
++go run .
++
++[!GOOS:plan9] env PATH=$WORK${/}bin
++[GOOS:plan9] env path=$WORK${/}bin
++go run .
++
++-- go.mod --
++module example
++
++go 1.19
++-- main.go --
++package main
++
++import (
++	"fmt"
++	"os"
++	"os/exec"
++	"path/filepath"
++)
++
++func main() {
++	got, err := exec.LookPath("go")
++	if err != nil {
++		fmt.Println(err)
++		os.Exit(1)
++	}
++
++	want := filepath.Join(os.Getenv("GOROOT"), "bin", "go" + os.Getenv("GOEXE"))
++	if got != want {
++		fmt.Printf(`exec.LookPath("go") = %q; want %q\n`, got, want)
++		os.Exit(1)
++	}
++}
++-- $WORK/bin/README.txt --
++This directory contains no executables.

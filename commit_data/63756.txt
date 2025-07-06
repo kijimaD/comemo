@@ -1,0 +1,132 @@
+commit 408739fc96f00a50642673544e803a3c3f3e27df
+Author: Paul E. Murphy <murp@ibm.com>
+Date:   Mon May 13 11:56:42 2024 -0500
+
+    cmd/compile,cmd/asm: on PPC64, generate compares against constant 0
+    
+    Merge the handling of CMPx r,r,cr and CMPx r,i,cr when assembling.
+    
+    This prevents generating machine code like cmpd rx,r0 when cmpdi rx,0
+    is preferred. The preferred form can be fused on Power10 for faster
+    execution of some instruction sequences.
+    
+    Likewise, update a common case to use $0 instead of R0 to take
+    advantage of this.
+    
+    Change-Id: If2549ca25a5f7d23001885ad444c70d829b3b066
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-ppc64_power10,gotip-linux-ppc64_power8,gotip-linux-ppc64le_power10,gotip-linux-ppc64le_power8,gotip-linux-ppc64le_power9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585137
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Lynn Boger <laboger@linux.vnet.ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/asm/internal/asm/testdata/ppc64.s | 23 +++++++++++++++++++++--
+ src/cmd/compile/internal/ppc64/ssa.go     |  4 ++--
+ src/cmd/internal/obj/ppc64/asm9.go        | 28 +++++++++-------------------
+ 3 files changed, 32 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/ppc64.s b/src/cmd/asm/internal/asm/testdata/ppc64.s
+index 8627408f06..7e8c6f9cf2 100644
+--- a/src/cmd/asm/internal/asm/testdata/ppc64.s
++++ b/src/cmd/asm/internal/asm/testdata/ppc64.s
+@@ -260,13 +260,32 @@ TEXT asmtest(SB),DUPOK|NOSPLIT,$0
+ 	XORIS $15, R3, R4               // 6c64000f
+ 	XOR   $983040, R3, R4           // 6c64000f
+ 
+-	// TODO: the order of CR operands don't match
++	// TODO: cleanup inconsistency of printing CMPx opcodes with explicit CR arguments.
+ 	CMP R3, R4                      // 7c232000
++	CMP R3, R0                      // 7c230000
++	CMP R3, R0, CR1                 // CMP R3,CR1,R0   // 7ca30000
+ 	CMPU R3, R4                     // 7c232040
++	CMPU R3, R0                     // 7c230040
++	CMPU R3, R0, CR2                // CMPU R3,CR2,R0  // 7d230040
+ 	CMPW R3, R4                     // 7c032000
++	CMPW R3, R0                     // 7c030000
++	CMPW R3, R0, CR3                // CMPW R3,CR3,R0  // 7d830000
+ 	CMPWU R3, R4                    // 7c032040
+-	CMPB R3,R4,R4                   // 7c6423f8
++	CMPWU R3, R0                    // 7c030040
++	CMPWU R3, R0, CR4               // CMPWU R3,CR4,R0 // 7e030040
++	CMP R3, $0                      // 2c230000
++	CMPU R3, $0                     // 28230000
++	CMPW R3, $0                     // 2c030000
++	CMPWU R3, $0                    // 28030000
++	CMP R3, $0, CR0                 // CMP R3,CR0,$0        // 2c230000
++	CMPU R3, $0, CR1                // CMPU R3,CR1,$0       // 28a30000
++	CMPW R3, $0, CR2                // CMPW R3,CR2,$0       // 2d030000
++	CMPW R3, $-32768, CR2           // CMPW R3,CR2,$-32768  // 2d038000
++	CMPWU R3, $0, CR3               // CMPWU R3,CR3,$0      // 29830000
++	CMPWU R3, $0x8008, CR3          // CMPWU R3,CR3,$32776  // 29838008
++
+ 	CMPEQB R3,R4,CR6                // 7f0321c0
++	CMPB R3,R4,R4                   // 7c6423f8
+ 
+ 	ADD R3, R4                      // 7c841a14
+ 	ADD R3, R4, R5                  // 7ca41a14
+diff --git a/src/cmd/compile/internal/ppc64/ssa.go b/src/cmd/compile/internal/ppc64/ssa.go
+index db420b7cb4..d4974ba77e 100644
+--- a/src/cmd/compile/internal/ppc64/ssa.go
++++ b/src/cmd/compile/internal/ppc64/ssa.go
+@@ -2004,8 +2004,8 @@ func ssaGenBlock(s *ssagen.State, b, next *ssa.Block) {
+ 		p := s.Prog(ppc64.ACMP)
+ 		p.From.Type = obj.TYPE_REG
+ 		p.From.Reg = ppc64.REG_R3
+-		p.To.Type = obj.TYPE_REG
+-		p.To.Reg = ppc64.REG_R0
++		p.To.Type = obj.TYPE_CONST
++		p.To.Offset = 0
+ 
+ 		p = s.Prog(ppc64.ABNE)
+ 		p.To.Type = obj.TYPE_BRANCH
+diff --git a/src/cmd/internal/obj/ppc64/asm9.go b/src/cmd/internal/obj/ppc64/asm9.go
+index d9b7c2eed3..74f1772e3d 100644
+--- a/src/cmd/internal/obj/ppc64/asm9.go
++++ b/src/cmd/internal/obj/ppc64/asm9.go
+@@ -472,12 +472,12 @@ var optabBase = []Optab{
+ 
+ 	{as: ACMP, a1: C_REG, a6: C_REG, type_: 70, size: 4},
+ 	{as: ACMP, a1: C_REG, a2: C_CREG, a6: C_REG, type_: 70, size: 4},
+-	{as: ACMP, a1: C_REG, a6: C_S16CON, type_: 71, size: 4},
+-	{as: ACMP, a1: C_REG, a2: C_CREG, a6: C_S16CON, type_: 71, size: 4},
++	{as: ACMP, a1: C_REG, a6: C_S16CON, type_: 70, size: 4},
++	{as: ACMP, a1: C_REG, a2: C_CREG, a6: C_S16CON, type_: 70, size: 4},
+ 	{as: ACMPU, a1: C_REG, a6: C_REG, type_: 70, size: 4},
+ 	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_REG, type_: 70, size: 4},
+-	{as: ACMPU, a1: C_REG, a6: C_U16CON, type_: 71, size: 4},
+-	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_U16CON, type_: 71, size: 4},
++	{as: ACMPU, a1: C_REG, a6: C_U16CON, type_: 70, size: 4},
++	{as: ACMPU, a1: C_REG, a2: C_CREG, a6: C_U16CON, type_: 70, size: 4},
+ 	{as: AFCMPO, a1: C_FREG, a6: C_FREG, type_: 70, size: 4},
+ 	{as: AFCMPO, a1: C_FREG, a2: C_CREG, a6: C_FREG, type_: 70, size: 4},
+ 	{as: ATW, a1: C_32CON, a2: C_REG, a6: C_REG, type_: 60, size: 4},
+@@ -3449,23 +3449,13 @@ func asmout(c *ctxt9, p *obj.Prog, o *Optab, out *[5]uint32) {
+ 
+ 		o1 = AOP_RRR(OP_MTCRF, uint32(p.From.Reg), 0, 0) | uint32(v)<<12
+ 
+-	case 70: /* [f]cmp r,r,cr*/
+-		var r int
+-		if p.Reg == 0 {
+-			r = 0
+-		} else {
+-			r = (int(p.Reg) & 7) << 2
+-		}
+-		o1 = AOP_RRR(c.oprrr(p.As), uint32(r), uint32(p.From.Reg), uint32(p.To.Reg))
+-
+-	case 71: /* cmp[l] r,i,cr*/
+-		var r int
+-		if p.Reg == 0 {
+-			r = 0
++	case 70: /* cmp* r,r,cr or cmp*i r,i,cr or fcmp f,f,cr or cmpeqb r,r */
++		r := uint32(p.Reg&7) << 2
++		if p.To.Type == obj.TYPE_CONST {
++			o1 = AOP_IRR(c.opirr(p.As), r, uint32(p.From.Reg), uint32(uint16(p.To.Offset)))
+ 		} else {
+-			r = (int(p.Reg) & 7) << 2
++			o1 = AOP_RRR(c.oprrr(p.As), r, uint32(p.From.Reg), uint32(p.To.Reg))
+ 		}
+-		o1 = AOP_RRR(c.opirr(p.As), uint32(r), uint32(p.From.Reg), 0) | uint32(c.regoff(&p.To))&0xffff
+ 
+ 	case 72: /* slbmte (Rb+Rs -> slb[Rb]) -> Rs, Rb */
+ 		o1 = AOP_RRR(c.oprrr(p.As), uint32(p.From.Reg), 0, uint32(p.To.Reg))

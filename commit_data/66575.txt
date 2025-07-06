@@ -1,0 +1,36 @@
+commit bceade5ef8ab6d28ad363cd7ca60a9be89990a00
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Mar 17 11:53:22 2025 -0400
+
+    doc/next: add release note for work package pattern
+    
+    For #71294
+    Fixes #50745
+    
+    Change-Id: Iff05e98ac860a1764d4c59572f9abc3ae8d9c5fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658495
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ doc/next/3-tools.md | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 68017c8def..977c89670c 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -10,6 +10,12 @@ These new error reports may be disabled by setting
+ `ASAN_OPTIONS=detect_leaks=0` in the environment when running the
+ program.
+ 
++<!-- go.dev/issue/71294 -->
++
++The new `work` package pattern matches all packages in the work (formerly called main)
++modules: either the single work module in module mode or the set of workspace modules
++in workspace mode.
++
+ <!-- go.dev/issue/65847 -->
+ 
+ When the go command updates the `go` line in a `go.mod` or `go.work` file,

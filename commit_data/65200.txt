@@ -1,0 +1,335 @@
+commit f505d6c581b633db5ca400a593ffd98d7e2c6cc9
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Oct 18 18:54:45 2024 +0200
+
+    crypto/internal/fips: add self-test mechanism
+    
+    Updates #69536
+    
+    Change-Id: Ib68b0e7058221a89908fd47f255f0a983883bee8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621075
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/crypto/internal/fips/cast.go               | 53 ++++++++++++++++++++++++++
+ src/crypto/internal/fips/cast_external_test.go | 51 +++++++++++++++++++++++++
+ src/crypto/internal/fips/cast_test.go          | 13 +++++++
+ src/crypto/internal/fips/hmac/cast.go          | 34 +++++++++++++++++
+ src/crypto/internal/fips/sha256/cast.go        | 32 ++++++++++++++++
+ src/crypto/internal/fips/sha3/cast.go          | 32 ++++++++++++++++
+ src/crypto/internal/fips/sha512/cast.go        | 36 +++++++++++++++++
+ src/runtime/panic.go                           |  5 +++
+ 8 files changed, 256 insertions(+)
+
+diff --git a/src/crypto/internal/fips/cast.go b/src/crypto/internal/fips/cast.go
+new file mode 100644
+index 0000000000..f203a82c56
+--- /dev/null
++++ b/src/crypto/internal/fips/cast.go
+@@ -0,0 +1,53 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips
++
++import (
++	"errors"
++	"internal/godebug"
++	"strings"
++	_ "unsafe" // for go:linkname
++)
++
++// fatal is [runtime.fatal], pushed via linkname.
++//
++//go:linkname fatal
++func fatal(string)
++
++// failfipscast is a GODEBUG key allowing simulation of a Cryptographic Algorithm
++// Self-Test (CAST) failure, as required during FIPS 140-3 functional testing.
++// The value is a substring of the target CAST name.
++var failfipscast = godebug.New("#failfipscast")
++
++// testingOnlyCASTHook is called during tests with each CAST name.
++var testingOnlyCASTHook func(string)
++
++// CAST runs the named Cryptographic Algorithm Self-Test (if compiled and
++// operated in FIPS mode) and aborts the program (stopping the module
++// input/output and entering the "error state") if the self-test fails.
++//
++// These are mandatory self-checks that must be performed by FIPS 140-3 modules
++// before the algorithm is used. See Implementation Guidance 10.3.A.
++//
++// The name must not contain commas, colons, hashes, or equal signs.
++//
++// When calling this function, also add the calling package to cast_test.go.
++func CAST(name string, f func() error) {
++	if strings.ContainsAny(name, ",#=:") {
++		panic("fips: invalid self-test name: " + name)
++	}
++	if testingOnlyCASTHook != nil {
++		testingOnlyCASTHook(name)
++	}
++
++	err := f()
++	if failfipscast.Value() != "" && strings.Contains(name, failfipscast.Value()) {
++		err = errors.New("simulated CAST failure")
++	}
++	if err != nil {
++		fatal("FIPS 140-3 self-test failed: " + name + ": " + err.Error())
++		panic("unreachable")
++	}
++}
+diff --git a/src/crypto/internal/fips/cast_external_test.go b/src/crypto/internal/fips/cast_external_test.go
+new file mode 100644
+index 0000000000..62c0a60686
+--- /dev/null
++++ b/src/crypto/internal/fips/cast_external_test.go
+@@ -0,0 +1,51 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips_test
++
++import (
++	"crypto/internal/fips"
++	"fmt"
++	"internal/testenv"
++	"strings"
++	"testing"
++
++	// Import packages that define CASTs to test them.
++	_ "crypto/internal/fips/hmac"
++	_ "crypto/internal/fips/sha256"
++	_ "crypto/internal/fips/sha3"
++	_ "crypto/internal/fips/sha512"
++)
++
++func TestCAST(t *testing.T) {
++	if len(fips.AllCASTs) == 0 {
++		t.Errorf("no CASTs to test")
++	}
++
++	for _, name := range fips.AllCASTs {
++		t.Logf("CAST %s completed successfully", name)
++	}
++
++	t.Run("SimulateFailures", func(t *testing.T) {
++		testenv.MustHaveExec(t)
++		for _, name := range fips.AllCASTs {
++			t.Run(name, func(t *testing.T) {
++				t.Parallel()
++				cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestCAST", "-test.v")
++				cmd = testenv.CleanCmdEnv(cmd)
++				cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s", name))
++				out, err := cmd.CombinedOutput()
++				if err == nil {
++					t.Error(err)
++				} else {
++					t.Logf("CAST %s failed and caused the program to exit", name)
++					t.Logf("%s", out)
++				}
++				if strings.Contains(string(out), "completed successfully") {
++					t.Errorf("CAST %s failure did not stop the program", name)
++				}
++			})
++		}
++	})
++}
+diff --git a/src/crypto/internal/fips/cast_test.go b/src/crypto/internal/fips/cast_test.go
+new file mode 100644
+index 0000000000..9a2063805a
+--- /dev/null
++++ b/src/crypto/internal/fips/cast_test.go
+@@ -0,0 +1,13 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fips
++
++var AllCASTs []string
++
++func init() {
++	testingOnlyCASTHook = func(name string) {
++		AllCASTs = append(AllCASTs, name)
++	}
++}
+diff --git a/src/crypto/internal/fips/hmac/cast.go b/src/crypto/internal/fips/hmac/cast.go
+new file mode 100644
+index 0000000000..292e311123
+--- /dev/null
++++ b/src/crypto/internal/fips/hmac/cast.go
+@@ -0,0 +1,34 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package hmac
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"crypto/internal/fips/sha256"
++	"errors"
++)
++
++func init() {
++	fips.CAST("HMAC-SHA2-256", func() error {
++		input := []byte{
++			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
++			0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
++		}
++		want := []byte{
++			0xf0, 0x8d, 0x82, 0x8d, 0x4c, 0x9e, 0xad, 0x3d,
++			0xdc, 0x12, 0x9c, 0x4e, 0x70, 0xc4, 0x19, 0x2a,
++			0x4f, 0x12, 0x73, 0x23, 0x73, 0x77, 0x66, 0x05,
++			0x10, 0xee, 0x57, 0x6b, 0x3a, 0xc7, 0x14, 0x41,
++		}
++		h := New(sha256.New, input)
++		h.Write(input)
++		h.Write(input)
++		if got := h.Sum(nil); !bytes.Equal(got, want) {
++			return errors.New("unexpected result")
++		}
++		return nil
++	})
++}
+diff --git a/src/crypto/internal/fips/sha256/cast.go b/src/crypto/internal/fips/sha256/cast.go
+new file mode 100644
+index 0000000000..ea40ebe76c
+--- /dev/null
++++ b/src/crypto/internal/fips/sha256/cast.go
+@@ -0,0 +1,32 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha256
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"errors"
++)
++
++func init() {
++	fips.CAST("SHA2-256", func() error {
++		input := []byte{
++			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
++			0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
++		}
++		want := []byte{
++			0x5d, 0xfb, 0xab, 0xee, 0xdf, 0x31, 0x8b, 0xf3,
++			0x3c, 0x09, 0x27, 0xc4, 0x3d, 0x76, 0x30, 0xf5,
++			0x1b, 0x82, 0xf3, 0x51, 0x74, 0x03, 0x01, 0x35,
++			0x4f, 0xa3, 0xd7, 0xfc, 0x51, 0xf0, 0x13, 0x2e,
++		}
++		h := New()
++		h.Write(input)
++		if got := h.Sum(nil); !bytes.Equal(got, want) {
++			return errors.New("unexpected result")
++		}
++		return nil
++	})
++}
+diff --git a/src/crypto/internal/fips/sha3/cast.go b/src/crypto/internal/fips/sha3/cast.go
+new file mode 100644
+index 0000000000..6173f5b147
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/cast.go
+@@ -0,0 +1,32 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha3
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"errors"
++)
++
++func init() {
++	fips.CAST("cSHAKE128", func() error {
++		input := []byte{
++			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
++			0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
++		}
++		want := []byte{
++			0xd2, 0x17, 0x37, 0x39, 0xf6, 0xa1, 0xe4, 0x6e,
++			0x81, 0xe5, 0x70, 0xe3, 0x1b, 0x10, 0x4c, 0x82,
++			0xc5, 0x48, 0xee, 0xe6, 0x09, 0xf5, 0x89, 0x52,
++			0x52, 0xa4, 0x69, 0xd4, 0xd0, 0x76, 0x68, 0x6b,
++		}
++		h := NewCShake128(input, input)
++		h.Write(input)
++		if got := h.Sum(nil); !bytes.Equal(got, want) {
++			return errors.New("unexpected result")
++		}
++		return nil
++	})
++}
+diff --git a/src/crypto/internal/fips/sha512/cast.go b/src/crypto/internal/fips/sha512/cast.go
+new file mode 100644
+index 0000000000..94e95667bb
+--- /dev/null
++++ b/src/crypto/internal/fips/sha512/cast.go
+@@ -0,0 +1,36 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha512
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"errors"
++)
++
++func init() {
++	fips.CAST("SHA2-512", func() error {
++		input := []byte{
++			0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
++			0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10,
++		}
++		want := []byte{
++			0xb4, 0xc4, 0xe0, 0x46, 0x82, 0x6b, 0xd2, 0x61,
++			0x90, 0xd0, 0x97, 0x15, 0xfc, 0x31, 0xf4, 0xe6,
++			0xa7, 0x28, 0x20, 0x4e, 0xad, 0xd1, 0x12, 0x90,
++			0x5b, 0x08, 0xb1, 0x4b, 0x7f, 0x15, 0xc4, 0xf3,
++			0x8e, 0x29, 0xb2, 0xfc, 0x54, 0x26, 0x5a, 0x12,
++			0x63, 0x26, 0xc5, 0xbd, 0xea, 0x66, 0xc1, 0xb0,
++			0x8e, 0x9e, 0x47, 0x72, 0x3b, 0x2d, 0x70, 0x06,
++			0x5a, 0xc1, 0x26, 0x2e, 0xcc, 0x37, 0xbf, 0xb1,
++		}
++		h := New()
++		h.Write(input)
++		if got := h.Sum(nil); !bytes.Equal(got, want) {
++			return errors.New("unexpected result")
++		}
++		return nil
++	})
++}
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index a10d1dc959..f97f1c6a66 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1038,6 +1038,11 @@ func rand_fatal(s string) {
+ 	fatal(s)
+ }
+ 
++//go:linkname fips_fatal crypto/internal/fips.fatal
++func fips_fatal(s string) {
++	fatal(s)
++}
++
+ // throw triggers a fatal error that dumps a stack trace and exits.
+ //
+ // throw should be used for runtime-internal fatal errors where Go itself,

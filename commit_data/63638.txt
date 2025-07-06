@@ -1,0 +1,76 @@
+commit ad10fbd3c4ec7413775028213f4d5089b18926f7
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Fri Apr 5 07:38:52 2024 +0200
+
+    image/png: remove go-fuzz test
+    
+    An identical go1.18 test exists at `src/image/png/fuzz_test.go`.
+    
+    Change-Id: I3e4db46296fb6a56655f849da8c0689aa5a1c28c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/576795
+    Reviewed-by: qiu laidongfeng2 <2645477756@qq.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/image/png/fuzz.go | 52 ---------------------------------------------------
+ 1 file changed, 52 deletions(-)
+
+diff --git a/src/image/png/fuzz.go b/src/image/png/fuzz.go
+deleted file mode 100644
+index 688b6c9936..0000000000
+--- a/src/image/png/fuzz.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Copyright 2019 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build gofuzz
+-
+-package png
+-
+-import (
+-	"bytes"
+-	"fmt"
+-)
+-
+-func Fuzz(data []byte) int {
+-	cfg, err := DecodeConfig(bytes.NewReader(data))
+-	if err != nil {
+-		return 0
+-	}
+-	if cfg.Width*cfg.Height > 1e6 {
+-		return 0
+-	}
+-	img, err := Decode(bytes.NewReader(data))
+-	if err != nil {
+-		return 0
+-	}
+-	levels := []CompressionLevel{
+-		DefaultCompression,
+-		NoCompression,
+-		BestSpeed,
+-		BestCompression,
+-	}
+-	for _, l := range levels {
+-		var w bytes.Buffer
+-		e := &Encoder{CompressionLevel: l}
+-		err = e.Encode(&w, img)
+-		if err != nil {
+-			panic(err)
+-		}
+-		img1, err := Decode(&w)
+-		if err != nil {
+-			panic(err)
+-		}
+-		got := img1.Bounds()
+-		want := img.Bounds()
+-		if !got.Eq(want) {
+-			fmt.Printf("bounds0: %#v\n", want)
+-			fmt.Printf("bounds1: %#v\n", got)
+-			panic("bounds have changed")
+-		}
+-	}
+-	return 1
+-}

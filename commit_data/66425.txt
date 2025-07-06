@@ -1,0 +1,418 @@
+commit 3705a6f1f0a66e70916bb09f50f4fcd1c520df53
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Tue Mar 4 19:45:29 2025 +0000
+
+    all: update golang.org/x/net
+    
+    For #71984
+    
+    Change-Id: Ic15826f09ea818f8833bd3d979bffaede24d49df
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/654717
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Junyang Shao <shaojunyang@google.com>
+---
+ src/go.mod                                         |   4 +-
+ src/go.sum                                         |   8 +-
+ src/net/http/h2_bundle.go                          | 131 +++++++--------------
+ src/net/http/internal/httpcommon/httpcommon.go     |  86 ++++++++++++++
+ .../golang.org/x/net/http/httpproxy/proxy.go       |  10 +-
+ src/vendor/modules.txt                             |   8 +-
+ 6 files changed, 149 insertions(+), 98 deletions(-)
+
+diff --git a/src/go.mod b/src/go.mod
+index c0bbca7e29..703e75746b 100644
+--- a/src/go.mod
++++ b/src/go.mod
+@@ -3,8 +3,8 @@ module std
+ go 1.25
+ 
+ require (
+-	golang.org/x/crypto v0.33.1-0.20250210163342-e47973b1c108
+-	golang.org/x/net v0.35.1-0.20250213222735-884432780bfd
++	golang.org/x/crypto v0.35.0
++	golang.org/x/net v0.36.0
+ )
+ 
+ require (
+diff --git a/src/go.sum b/src/go.sum
+index 61223c0bbb..5a90667557 100644
+--- a/src/go.sum
++++ b/src/go.sum
+@@ -1,7 +1,7 @@
+-golang.org/x/crypto v0.33.1-0.20250210163342-e47973b1c108 h1:FwaGHNRX5GDt6vHr+Ly+yRTs0ADe4xTlGOzwaga4ZOs=
+-golang.org/x/crypto v0.33.1-0.20250210163342-e47973b1c108/go.mod h1:bVdXmD7IV/4GdElGPozy6U7lWdRXA4qyRVGJV57uQ5M=
+-golang.org/x/net v0.35.1-0.20250213222735-884432780bfd h1:NtufTkm/X6BNpniJAbESf1Mvax5jGy+/oP53IEn5RiA=
+-golang.org/x/net v0.35.1-0.20250213222735-884432780bfd/go.mod h1:EglIi67kWsHKlRzzVMUD93VMSWGFOMSZgxFjparz1Qk=
++golang.org/x/crypto v0.35.0 h1:b15kiHdrGCHrP6LvwaQ3c03kgNhhiMgvlhxHQhmg2Xs=
++golang.org/x/crypto v0.35.0/go.mod h1:dy7dXNW32cAb/6/PRuTNsix8T+vJAqvuIy5Bli/x0YQ=
++golang.org/x/net v0.36.0 h1:vWF2fRbw4qslQsQzgFqZff+BItCvGFQqKzKIzx1rmoA=
++golang.org/x/net v0.36.0/go.mod h1:bFmbeoIPfrw4sMHNhb4J9f6+tPziuGjq7Jk/38fxi1I=
+ golang.org/x/sys v0.30.0 h1:QjkSwP/36a20jFYWkSue1YwXzLmsV5Gfq7Eiy72C1uc=
+ golang.org/x/sys v0.30.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/text v0.22.0 h1:bofq7m3/HAFvbF51jz3Q9wLg3jkvSPuiZu/pD1XwgtM=
+diff --git a/src/net/http/h2_bundle.go b/src/net/http/h2_bundle.go
+index 9933c413ac..7e2b914c89 100644
+--- a/src/net/http/h2_bundle.go
++++ b/src/net/http/h2_bundle.go
+@@ -6175,25 +6175,25 @@ func (sc *http2serverConn) newStream(id, pusherID uint32, state http2streamState
+ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHeadersFrame) (*http2responseWriter, *Request, error) {
+ 	sc.serveG.check()
+ 
+-	rp := http2requestParam{
+-		method:    f.PseudoValue("method"),
+-		scheme:    f.PseudoValue("scheme"),
+-		authority: f.PseudoValue("authority"),
+-		path:      f.PseudoValue("path"),
+-		protocol:  f.PseudoValue("protocol"),
++	rp := httpcommon.ServerRequestParam{
++		Method:    f.PseudoValue("method"),
++		Scheme:    f.PseudoValue("scheme"),
++		Authority: f.PseudoValue("authority"),
++		Path:      f.PseudoValue("path"),
++		Protocol:  f.PseudoValue("protocol"),
+ 	}
+ 
+ 	// extended connect is disabled, so we should not see :protocol
+-	if http2disableExtendedConnectProtocol && rp.protocol != "" {
++	if http2disableExtendedConnectProtocol && rp.Protocol != "" {
+ 		return nil, nil, sc.countError("bad_connect", http2streamError(f.StreamID, http2ErrCodeProtocol))
+ 	}
+ 
+-	isConnect := rp.method == "CONNECT"
++	isConnect := rp.Method == "CONNECT"
+ 	if isConnect {
+-		if rp.protocol == "" && (rp.path != "" || rp.scheme != "" || rp.authority == "") {
++		if rp.Protocol == "" && (rp.Path != "" || rp.Scheme != "" || rp.Authority == "") {
+ 			return nil, nil, sc.countError("bad_connect", http2streamError(f.StreamID, http2ErrCodeProtocol))
+ 		}
+-	} else if rp.method == "" || rp.path == "" || (rp.scheme != "https" && rp.scheme != "http") {
++	} else if rp.Method == "" || rp.Path == "" || (rp.Scheme != "https" && rp.Scheme != "http") {
+ 		// See 8.1.2.6 Malformed Requests and Responses:
+ 		//
+ 		// Malformed requests or responses that are detected
+@@ -6207,15 +6207,16 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
+ 		return nil, nil, sc.countError("bad_path_method", http2streamError(f.StreamID, http2ErrCodeProtocol))
+ 	}
+ 
+-	rp.header = make(Header)
++	header := make(Header)
++	rp.Header = header
+ 	for _, hf := range f.RegularFields() {
+-		rp.header.Add(sc.canonicalHeader(hf.Name), hf.Value)
++		header.Add(sc.canonicalHeader(hf.Name), hf.Value)
+ 	}
+-	if rp.authority == "" {
+-		rp.authority = rp.header.Get("Host")
++	if rp.Authority == "" {
++		rp.Authority = header.Get("Host")
+ 	}
+-	if rp.protocol != "" {
+-		rp.header.Set(":protocol", rp.protocol)
++	if rp.Protocol != "" {
++		header.Set(":protocol", rp.Protocol)
+ 	}
+ 
+ 	rw, req, err := sc.newWriterAndRequestNoBody(st, rp)
+@@ -6224,7 +6225,7 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
+ 	}
+ 	bodyOpen := !f.StreamEnded()
+ 	if bodyOpen {
+-		if vv, ok := rp.header["Content-Length"]; ok {
++		if vv, ok := rp.Header["Content-Length"]; ok {
+ 			if cl, err := strconv.ParseUint(vv[0], 10, 63); err == nil {
+ 				req.ContentLength = int64(cl)
+ 			} else {
+@@ -6240,84 +6241,38 @@ func (sc *http2serverConn) newWriterAndRequest(st *http2stream, f *http2MetaHead
+ 	return rw, req, nil
+ }
+ 
+-type http2requestParam struct {
+-	method                  string
+-	scheme, authority, path string
+-	protocol                string
+-	header                  Header
+-}
+-
+-func (sc *http2serverConn) newWriterAndRequestNoBody(st *http2stream, rp http2requestParam) (*http2responseWriter, *Request, error) {
++func (sc *http2serverConn) newWriterAndRequestNoBody(st *http2stream, rp httpcommon.ServerRequestParam) (*http2responseWriter, *Request, error) {
+ 	sc.serveG.check()
+ 
+ 	var tlsState *tls.ConnectionState // nil if not scheme https
+-	if rp.scheme == "https" {
++	if rp.Scheme == "https" {
+ 		tlsState = sc.tlsState
+ 	}
+ 
+-	needsContinue := httpguts.HeaderValuesContainsToken(rp.header["Expect"], "100-continue")
+-	if needsContinue {
+-		rp.header.Del("Expect")
+-	}
+-	// Merge Cookie headers into one "; "-delimited value.
+-	if cookies := rp.header["Cookie"]; len(cookies) > 1 {
+-		rp.header.Set("Cookie", strings.Join(cookies, "; "))
+-	}
+-
+-	// Setup Trailers
+-	var trailer Header
+-	for _, v := range rp.header["Trailer"] {
+-		for _, key := range strings.Split(v, ",") {
+-			key = CanonicalHeaderKey(textproto.TrimString(key))
+-			switch key {
+-			case "Transfer-Encoding", "Trailer", "Content-Length":
+-				// Bogus. (copy of http1 rules)
+-				// Ignore.
+-			default:
+-				if trailer == nil {
+-					trailer = make(Header)
+-				}
+-				trailer[key] = nil
+-			}
+-		}
+-	}
+-	delete(rp.header, "Trailer")
+-
+-	var url_ *url.URL
+-	var requestURI string
+-	if rp.method == "CONNECT" && rp.protocol == "" {
+-		url_ = &url.URL{Host: rp.authority}
+-		requestURI = rp.authority // mimic HTTP/1 server behavior
+-	} else {
+-		var err error
+-		url_, err = url.ParseRequestURI(rp.path)
+-		if err != nil {
+-			return nil, nil, sc.countError("bad_path", http2streamError(st.id, http2ErrCodeProtocol))
+-		}
+-		requestURI = rp.path
++	res := httpcommon.NewServerRequest(rp)
++	if res.InvalidReason != "" {
++		return nil, nil, sc.countError(res.InvalidReason, http2streamError(st.id, http2ErrCodeProtocol))
+ 	}
+ 
+ 	body := &http2requestBody{
+ 		conn:          sc,
+ 		stream:        st,
+-		needsContinue: needsContinue,
++		needsContinue: res.NeedsContinue,
+ 	}
+-	req := &Request{
+-		Method:     rp.method,
+-		URL:        url_,
++	req := (&Request{
++		Method:     rp.Method,
++		URL:        res.URL,
+ 		RemoteAddr: sc.remoteAddrStr,
+-		Header:     rp.header,
+-		RequestURI: requestURI,
++		Header:     rp.Header,
++		RequestURI: res.RequestURI,
+ 		Proto:      "HTTP/2.0",
+ 		ProtoMajor: 2,
+ 		ProtoMinor: 0,
+ 		TLS:        tlsState,
+-		Host:       rp.authority,
++		Host:       rp.Authority,
+ 		Body:       body,
+-		Trailer:    trailer,
+-	}
+-	req = req.WithContext(st.ctx)
+-
++		Trailer:    res.Trailer,
++	}).WithContext(st.ctx)
+ 	rw := sc.newResponseWriter(st, req)
+ 	return rw, req, nil
+ }
+@@ -7212,12 +7167,12 @@ func (sc *http2serverConn) startPush(msg *http2startPushRequest) {
+ 		// we start in "half closed (remote)" for simplicity.
+ 		// See further comments at the definition of stateHalfClosedRemote.
+ 		promised := sc.newStream(promisedID, msg.parent.id, http2stateHalfClosedRemote)
+-		rw, req, err := sc.newWriterAndRequestNoBody(promised, http2requestParam{
+-			method:    msg.method,
+-			scheme:    msg.url.Scheme,
+-			authority: msg.url.Host,
+-			path:      msg.url.RequestURI(),
+-			header:    http2cloneHeader(msg.header), // clone since handler runs concurrently with writing the PUSH_PROMISE
++		rw, req, err := sc.newWriterAndRequestNoBody(promised, httpcommon.ServerRequestParam{
++			Method:    msg.method,
++			Scheme:    msg.url.Scheme,
++			Authority: msg.url.Host,
++			Path:      msg.url.RequestURI(),
++			Header:    http2cloneHeader(msg.header), // clone since handler runs concurrently with writing the PUSH_PROMISE
+ 		})
+ 		if err != nil {
+ 			// Should not happen, since we've already validated msg.url.
+@@ -9522,6 +9477,13 @@ func (rl *http2clientConnReadLoop) cleanup() {
+ 	}
+ 	cc.cond.Broadcast()
+ 	cc.mu.Unlock()
++
++	if !cc.seenSettings {
++		// If we have a pending request that wants extended CONNECT,
++		// let it continue and fail with the connection error.
++		cc.extendedConnectAllowed = true
++		close(cc.seenSettingsChan)
++	}
+ }
+ 
+ // countReadFrameError calls Transport.CountError with a string
+@@ -9614,9 +9576,6 @@ func (rl *http2clientConnReadLoop) run() error {
+ 			if http2VerboseLogs {
+ 				cc.vlogf("http2: Transport conn %p received error from processing frame %v: %v", cc, http2summarizeFrame(f), err)
+ 			}
+-			if !cc.seenSettings {
+-				close(cc.seenSettingsChan)
+-			}
+ 			return err
+ 		}
+ 	}
+diff --git a/src/net/http/internal/httpcommon/httpcommon.go b/src/net/http/internal/httpcommon/httpcommon.go
+index c9f1778572..5e0c24035a 100644
+--- a/src/net/http/internal/httpcommon/httpcommon.go
++++ b/src/net/http/internal/httpcommon/httpcommon.go
+@@ -530,3 +530,89 @@ func shouldSendReqContentLength(method string, contentLength int64) bool {
+ 		return false
+ 	}
+ }
++
++// ServerRequestParam is parameters to NewServerRequest.
++type ServerRequestParam struct {
++	Method                  string
++	Scheme, Authority, Path string
++	Protocol                string
++	Header                  map[string][]string
++}
++
++// ServerRequestResult is the result of NewServerRequest.
++type ServerRequestResult struct {
++	// Various http.Request fields.
++	URL        *url.URL
++	RequestURI string
++	Trailer    map[string][]string
++
++	NeedsContinue bool // client provided an "Expect: 100-continue" header
++
++	// If the request should be rejected, this is a short string suitable for passing
++	// to the http2 package's CountError function.
++	// It might be a bit odd to return errors this way rather than returing an error,
++	// but this ensures we don't forget to include a CountError reason.
++	InvalidReason string
++}
++
++func NewServerRequest(rp ServerRequestParam) ServerRequestResult {
++	needsContinue := httpguts.HeaderValuesContainsToken(rp.Header["Expect"], "100-continue")
++	if needsContinue {
++		delete(rp.Header, "Expect")
++	}
++	// Merge Cookie headers into one "; "-delimited value.
++	if cookies := rp.Header["Cookie"]; len(cookies) > 1 {
++		rp.Header["Cookie"] = []string{strings.Join(cookies, "; ")}
++	}
++
++	// Setup Trailers
++	var trailer map[string][]string
++	for _, v := range rp.Header["Trailer"] {
++		for _, key := range strings.Split(v, ",") {
++			key = textproto.CanonicalMIMEHeaderKey(textproto.TrimString(key))
++			switch key {
++			case "Transfer-Encoding", "Trailer", "Content-Length":
++				// Bogus. (copy of http1 rules)
++				// Ignore.
++			default:
++				if trailer == nil {
++					trailer = make(map[string][]string)
++				}
++				trailer[key] = nil
++			}
++		}
++	}
++	delete(rp.Header, "Trailer")
++
++	// "':authority' MUST NOT include the deprecated userinfo subcomponent
++	// for "http" or "https" schemed URIs."
++	// https://www.rfc-editor.org/rfc/rfc9113.html#section-8.3.1-2.3.8
++	if strings.IndexByte(rp.Authority, '@') != -1 && (rp.Scheme == "http" || rp.Scheme == "https") {
++		return ServerRequestResult{
++			InvalidReason: "userinfo_in_authority",
++		}
++	}
++
++	var url_ *url.URL
++	var requestURI string
++	if rp.Method == "CONNECT" && rp.Protocol == "" {
++		url_ = &url.URL{Host: rp.Authority}
++		requestURI = rp.Authority // mimic HTTP/1 server behavior
++	} else {
++		var err error
++		url_, err = url.ParseRequestURI(rp.Path)
++		if err != nil {
++			return ServerRequestResult{
++				InvalidReason: "bad_path",
++			}
++		}
++		requestURI = rp.Path
++	}
++
++	return ServerRequestResult{
++		URL:           url_,
++		NeedsContinue: needsContinue,
++		RequestURI:    requestURI,
++		Trailer:       trailer,
++	}
++}
+diff --git a/src/vendor/golang.org/x/net/http/httpproxy/proxy.go b/src/vendor/golang.org/x/net/http/httpproxy/proxy.go
+index 6404aaf157..d89c257ae7 100644
+--- a/src/vendor/golang.org/x/net/http/httpproxy/proxy.go
++++ b/src/vendor/golang.org/x/net/http/httpproxy/proxy.go
+@@ -14,6 +14,7 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"net"
++	"net/netip"
+ 	"net/url"
+ 	"os"
+ 	"strings"
+@@ -177,8 +178,10 @@ func (cfg *config) useProxy(addr string) bool {
+ 	if host == "localhost" {
+ 		return false
+ 	}
+-	ip := net.ParseIP(host)
+-	if ip != nil {
++	nip, err := netip.ParseAddr(host)
++	var ip net.IP
++	if err == nil {
++		ip = net.IP(nip.AsSlice())
+ 		if ip.IsLoopback() {
+ 			return false
+ 		}
+@@ -360,6 +363,9 @@ type domainMatch struct {
+ }
+ 
+ func (m domainMatch) match(host, port string, ip net.IP) bool {
++	if ip != nil {
++		return false
++	}
+ 	if strings.HasSuffix(host, m.host) || (m.matchHost && host == m.host[1:]) {
+ 		return m.port == "" || m.port == port
+ 	}
+diff --git a/src/vendor/modules.txt b/src/vendor/modules.txt
+index 791a7d8e87..58763fb99b 100644
+--- a/src/vendor/modules.txt
++++ b/src/vendor/modules.txt
+@@ -1,13 +1,13 @@
+-# golang.org/x/crypto v0.33.1-0.20250210163342-e47973b1c108
+-## explicit; go 1.20
++# golang.org/x/crypto v0.35.0
++## explicit; go 1.23.0
+ golang.org/x/crypto/chacha20
+ golang.org/x/crypto/chacha20poly1305
+ golang.org/x/crypto/cryptobyte
+ golang.org/x/crypto/cryptobyte/asn1
+ golang.org/x/crypto/internal/alias
+ golang.org/x/crypto/internal/poly1305
+-# golang.org/x/net v0.35.1-0.20250213222735-884432780bfd
+-## explicit; go 1.18
++# golang.org/x/net v0.36.0
++## explicit; go 1.23.0
+ golang.org/x/net/dns/dnsmessage
+ golang.org/x/net/http/httpguts
+ golang.org/x/net/http/httpproxy

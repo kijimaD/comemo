@@ -1,0 +1,235 @@
+commit 447ad32a1db8492ce8549ae27e0b72b611938253
+Author: Lorenz Bauer <oss@lmb.io>
+Date:   Thu May 16 11:22:36 2024 +0100
+
+    encoding/binary: speed up Size
+    
+    Size() is currently not called from the fast path, since the package
+    handles the buffer sizing for Read and Write internally. This will change
+    when adding Append() because callers can use Size to avoid allocations when
+    writing into bytes.Buffer via AvailableBuffer for example.
+    
+    Add a fast path for simple types and extend the existing struct size cache
+    to arrays of structs.
+    
+    Change-Id: I3af16a2b6c9e2dbe6166a2f8c96bcd2e936719e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584358
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+---
+ src/encoding/binary/binary.go      | 93 +++++++++++++++++++++++++++++++++++++-
+ src/encoding/binary/binary_test.go | 63 ++++++++++++++++++++++++++
+ 2 files changed, 155 insertions(+), 1 deletion(-)
+
+diff --git a/src/encoding/binary/binary.go b/src/encoding/binary/binary.go
+index 55aa880ea5..6056b8dd99 100644
+--- a/src/encoding/binary/binary.go
++++ b/src/encoding/binary/binary.go
+@@ -579,6 +579,97 @@ func encodeFast(bs []byte, order ByteOrder, data any) {
+ // must be a fixed-size value or a slice of fixed-size values, or a pointer to such data.
+ // If v is neither of these, Size returns -1.
+ func Size(v any) int {
++	switch data := v.(type) {
++	case bool, int8, uint8:
++		return 1
++	case *bool:
++		if data == nil {
++			return -1
++		}
++		return 1
++	case *int8:
++		if data == nil {
++			return -1
++		}
++		return 1
++	case *uint8:
++		if data == nil {
++			return -1
++		}
++		return 1
++	case []bool:
++		return len(data)
++	case []int8:
++		return len(data)
++	case []uint8:
++		return len(data)
++	case int16, uint16:
++		return 2
++	case *int16:
++		if data == nil {
++			return -1
++		}
++		return 2
++	case *uint16:
++		if data == nil {
++			return -1
++		}
++		return 2
++	case []int16:
++		return 2 * len(data)
++	case []uint16:
++		return 2 * len(data)
++	case int32, uint32:
++		return 4
++	case *int32:
++		if data == nil {
++			return -1
++		}
++		return 4
++	case *uint32:
++		if data == nil {
++			return -1
++		}
++		return 4
++	case []int32:
++		return 4 * len(data)
++	case []uint32:
++		return 4 * len(data)
++	case int64, uint64:
++		return 8
++	case *int64:
++		if data == nil {
++			return -1
++		}
++		return 8
++	case *uint64:
++		if data == nil {
++			return -1
++		}
++		return 8
++	case []int64:
++		return 8 * len(data)
++	case []uint64:
++		return 8 * len(data)
++	case float32:
++		return 4
++	case *float32:
++		if data == nil {
++			return -1
++		}
++		return 4
++	case float64:
++		return 8
++	case *float64:
++		if data == nil {
++			return -1
++		}
++		return 8
++	case []float32:
++		return 4 * len(data)
++	case []float64:
++		return 8 * len(data)
++	}
+ 	return dataSize(reflect.Indirect(reflect.ValueOf(v)))
+ }
+ 
+@@ -590,7 +681,7 @@ var structSize sync.Map // map[reflect.Type]int
+ // occupied by the header. If the type of v is not acceptable, dataSize returns -1.
+ func dataSize(v reflect.Value) int {
+ 	switch v.Kind() {
+-	case reflect.Slice:
++	case reflect.Slice, reflect.Array:
+ 		t := v.Type().Elem()
+ 		if size, ok := structSize.Load(t); ok {
+ 			return size.(int) * v.Len()
+diff --git a/src/encoding/binary/binary_test.go b/src/encoding/binary/binary_test.go
+index ca80c54c15..9eb536c990 100644
+--- a/src/encoding/binary/binary_test.go
++++ b/src/encoding/binary/binary_test.go
+@@ -429,10 +429,14 @@ func TestSizeStructCache(t *testing.T) {
+ 		want int
+ 	}{
+ 		{new(foo), 1},
++		{new([1]foo), 0},
++		{make([]foo, 1), 0},
+ 		{new(bar), 1},
+ 		{new(bar), 0},
+ 		{new(struct{ A Struct }), 1},
+ 		{new(struct{ A Struct }), 0},
++		{new([1]struct{ A Struct }), 0},
++		{make([]struct{ A Struct }, 1), 0},
+ 	}
+ 
+ 	for _, tc := range testcases {
+@@ -458,6 +462,18 @@ func TestSizeInvalid(t *testing.T) {
+ 		[]int(nil),
+ 		new([]int),
+ 		(*[]int)(nil),
++		(*int8)(nil),
++		(*uint8)(nil),
++		(*int16)(nil),
++		(*uint16)(nil),
++		(*int32)(nil),
++		(*uint32)(nil),
++		(*int64)(nil),
++		(*uint64)(nil),
++		(*float32)(nil),
++		(*float64)(nil),
++		(*complex64)(nil),
++		(*complex128)(nil),
+ 	}
+ 	for _, tc := range testcases {
+ 		if got := Size(tc); got != -1 {
+@@ -704,6 +720,43 @@ func TestAppendAllocs(t *testing.T) {
+ 	}
+ }
+ 
++var sizableTypes = []any{
++	bool(false),
++	int8(0),
++	int16(0),
++	int32(0),
++	int64(0),
++	uint8(0),
++	uint16(0),
++	uint32(0),
++	uint64(0),
++	float32(0),
++	float64(0),
++	complex64(0),
++	complex128(0),
++	Struct{},
++	&Struct{},
++	[]Struct{},
++	([]Struct)(nil),
++	[1]Struct{},
++}
++
++func TestSizeAllocs(t *testing.T) {
++	for _, data := range sizableTypes {
++		t.Run(fmt.Sprintf("%T", data), func(t *testing.T) {
++			// Size uses a sync.Map behind the scenes. The slow lookup path of
++			// that does allocate, so we need a couple of runs here to be
++			// allocation free.
++			allocs := testing.AllocsPerRun(10, func() {
++				_ = Size(data)
++			})
++			if allocs != 0 {
++				t.Fatalf("Expected no allocations, got %v", allocs)
++			}
++		})
++	}
++}
++
+ type byteSliceReader struct {
+ 	remain []byte
+ }
+@@ -1075,6 +1128,16 @@ func BenchmarkWriteSlice1000Uint8s(b *testing.B) {
+ 	}
+ }
+ 
++func BenchmarkSize(b *testing.B) {
++	for _, data := range sizableTypes {
++		b.Run(fmt.Sprintf("%T", data), func(b *testing.B) {
++			for range b.N {
++				_ = Size(data)
++			}
++		})
++	}
++}
++
+ func TestNativeEndian(t *testing.T) {
+ 	const val = 0x12345678
+ 	i := uint32(val)

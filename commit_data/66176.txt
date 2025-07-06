@@ -1,0 +1,36 @@
+commit 1eb4c0dcb125d27e1a4296ae136f75ac08c3b9c5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed Feb 12 12:37:52 2025 +0100
+
+    cmd/dist: test GOFIPS140=latest rather than just the GODEBUG
+    
+    GOFIPS140=latest turns on the GODEBUG by default, and it's otherwise
+    untested.
+    
+    Change-Id: I6a6a4656ff7ad313ce2c61ee4144ad2858bd148c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648819
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/cmd/dist/test.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/dist/test.go b/src/cmd/dist/test.go
+index 005e1da86a..b137c7db79 100644
+--- a/src/cmd/dist/test.go
++++ b/src/cmd/dist/test.go
+@@ -712,9 +712,9 @@ func (t *tester) registerTests() {
+ 	// Check that all crypto packages compile (and test correctly, in longmode) with fips.
+ 	if t.fipsSupported() {
+ 		// Test standard crypto packages with fips140=on.
+-		t.registerTest("GODEBUG=fips140=on go test crypto/...", &goTest{
++		t.registerTest("GOFIPS140=latest go test crypto/...", &goTest{
+ 			variant: "gofips140",
+-			env:     []string{"GODEBUG=fips140=on"},
++			env:     []string{"GOFIPS140=latest"},
+ 			pkg:     "crypto/...",
+ 		})
+ 

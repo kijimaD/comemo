@@ -1,0 +1,100 @@
+commit cb55d1a0c8e37c4e5c3c45dc6e8fed8d76a18b90
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri May 17 19:59:31 2024 -0400
+
+    [release-branch.go1.22] cmd/link: add runtime.text.N symbols to macho symbol table in dynlink mode
+    
+    In dynamic linking mode (e.g. when using plugins) on darwin, the
+    marker symbols runtime.text and runtime.etext are added to Textp
+    in an early stage, so when adding symbols to the symbol table we
+    don't need to explicitly add them. However, when splitting text
+    sections, the runtime.text.N marker symbols for the addtional
+    sections are not added to Textp. So we do need to add them
+    explicitly to the symbol table.
+    
+    Updates #66993.
+    Fixes #67527.
+    
+    Change-Id: Ic718d03cd71fc0bfb931cff82640b1f4c53b89be
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    (cherry picked from commit 9a9dd72d5c2b2f808a0a7ef204e307bc1dbee78c)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586081
+---
+ src/cmd/cgo/internal/testplugin/plugin_test.go | 19 +++++++++++++++++++
+ src/cmd/link/internal/ld/macho.go              | 20 ++++++++++++--------
+ 2 files changed, 31 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/testplugin/plugin_test.go b/src/cmd/cgo/internal/testplugin/plugin_test.go
+index 1e32ff8a06..4900ada182 100644
+--- a/src/cmd/cgo/internal/testplugin/plugin_test.go
++++ b/src/cmd/cgo/internal/testplugin/plugin_test.go
+@@ -74,6 +74,7 @@ func testMain(m *testing.M) int {
+ 	}
+ 	defer os.RemoveAll(GOPATH)
+ 	tmpDir = GOPATH
++	fmt.Printf("TMPDIR=%s\n", tmpDir)
+ 
+ 	modRoot := filepath.Join(GOPATH, "src", "testplugin")
+ 	altRoot := filepath.Join(GOPATH, "alt", "src", "testplugin")
+@@ -395,3 +396,21 @@ func TestIssue62430(t *testing.T) {
+ 	goCmd(t, "build", "-o", "issue62430.exe", "./issue62430/main.go")
+ 	run(t, "./issue62430.exe")
+ }
++
++func TestTextSectionSplit(t *testing.T) {
++	globalSkip(t)
++	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
++		t.Skipf("text section splitting is not done in %s/%s", runtime.GOOS, runtime.GOARCH)
++	}
++
++	// Use -ldflags=-debugtextsize=262144 to let the linker split text section
++	// at a smaller size threshold, so it actually splits for the test binary.
++	goCmd(nil, "build", "-ldflags=-debugtextsize=262144", "-o", "host-split.exe", "./host")
++	run(t, "./host-split.exe")
++
++	// Check that we did split text sections.
++	syms := goCmd(nil, "tool", "nm", "host-split.exe")
++	if !strings.Contains(syms, "runtime.text.1") {
++		t.Errorf("runtime.text.1 not found, text section not split?")
++	}
++}
+diff --git a/src/cmd/link/internal/ld/macho.go b/src/cmd/link/internal/ld/macho.go
+index fc38b0d99d..a36043c777 100644
+--- a/src/cmd/link/internal/ld/macho.go
++++ b/src/cmd/link/internal/ld/macho.go
+@@ -901,21 +901,25 @@ func collectmachosyms(ctxt *Link) {
+ 	// Add special runtime.text and runtime.etext symbols (which are local).
+ 	// We've already included this symbol in Textp on darwin if ctxt.DynlinkingGo().
+ 	// See data.go:/textaddress
++	// NOTE: runtime.text.N symbols (if we split text sections) are not added, though,
++	// so we handle them here.
+ 	if !*FlagS {
+ 		if !ctxt.DynlinkingGo() {
+ 			s := ldr.Lookup("runtime.text", 0)
+ 			if ldr.SymType(s) == sym.STEXT {
+ 				addsym(s)
+ 			}
+-			for n := range Segtext.Sections[1:] {
+-				s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
+-				if s != 0 {
+-					addsym(s)
+-				} else {
+-					break
+-				}
++		}
++		for n := range Segtext.Sections[1:] {
++			s := ldr.Lookup(fmt.Sprintf("runtime.text.%d", n+1), 0)
++			if s != 0 {
++				addsym(s)
++			} else {
++				break
+ 			}
+-			s = ldr.Lookup("runtime.etext", 0)
++		}
++		if !ctxt.DynlinkingGo() {
++			s := ldr.Lookup("runtime.etext", 0)
+ 			if ldr.SymType(s) == sym.STEXT {
+ 				addsym(s)
+ 			}

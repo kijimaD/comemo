@@ -1,0 +1,402 @@
+commit 9935dd99da40eea305685a32dbaebc4b9273593b
+Author: Russ Cox <rsc@golang.org>
+Date:   Thu Nov 14 14:09:54 2024 -0500
+
+    cmd/go: add basic GOFIPS140 support
+    
+    GOFIPS140 does two things: (1) control whether to build binaries that
+    run in FIPS-140 mode by default, and (2) control which version of the
+    crypto/internal/fips source tree to use during a build.
+    
+    This CL implements part (1). It recognizes the GOFIPS140 settings
+    "off" and "latest" and uses them to set the default GODEBUG=fips140
+    setting to "off" or "on" accordingly.
+    
+    The documentation for GOFIPS140 is in a follow-up CL.
+    
+    See cmd/go/internal/fips/fips.go for an overview.
+    
+    For #70200.
+    
+    Change-Id: I045f8ae0f19778a1e72a5cd2b6a7b0c88934fc30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629198
+    Auto-Submit: Russ Cox <rsc@golang.org>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/cfg/cfg.go      |   1 +
+ src/cmd/go/internal/envcmd/env.go   |   1 +
+ src/cmd/go/internal/fips/fips.go    | 124 ++++++++++++++++++++++++++++++++++++
+ src/cmd/go/internal/load/godebug.go |  14 ++++
+ src/cmd/go/internal/load/pkg.go     |   4 ++
+ src/cmd/go/internal/modload/init.go |   4 ++
+ src/cmd/go/internal/work/buildid.go |  16 ++++-
+ src/cmd/go/internal/work/gc.go      |   4 ++
+ src/cmd/go/testdata/script/fips.txt |  53 +++++++++++++++
+ 9 files changed, 220 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 5b8468926f..b4dac0bf1e 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -439,6 +439,7 @@ var (
+ 	GORISCV64, goRISCV64Changed = EnvOrAndChanged("GORISCV64", buildcfg.DefaultGORISCV64)
+ 	GOWASM, goWASMChanged       = EnvOrAndChanged("GOWASM", fmt.Sprint(buildcfg.GOWASM))
+ 
++	GOFIPS140, GOFIPS140Changed = EnvOrAndChanged("GOFIPS140", buildcfg.GOFIPS140)
+ 	GOPROXY, GOPROXYChanged     = EnvOrAndChanged("GOPROXY", "")
+ 	GOSUMDB, GOSUMDBChanged     = EnvOrAndChanged("GOSUMDB", "")
+ 	GOPRIVATE                   = Getenv("GOPRIVATE")
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index b44bb93e8c..19db68e4f8 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -96,6 +96,7 @@ func MkEnv() []cfg.EnvVar {
+ 		// a different version (for example, when bisecting a regression).
+ 		{Name: "GOEXPERIMENT", Value: cfg.RawGOEXPERIMENT},
+ 
++		{Name: "GOFIPS140", Value: cfg.GOFIPS140, Changed: cfg.GOFIPS140Changed},
+ 		{Name: "GOFLAGS", Value: cfg.Getenv("GOFLAGS")},
+ 		{Name: "GOHOSTARCH", Value: runtime.GOARCH},
+ 		{Name: "GOHOSTOS", Value: runtime.GOOS},
+diff --git a/src/cmd/go/internal/fips/fips.go b/src/cmd/go/internal/fips/fips.go
+new file mode 100644
+index 0000000000..82837c3cd1
+--- /dev/null
++++ b/src/cmd/go/internal/fips/fips.go
+@@ -0,0 +1,124 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package fips implements support for the GOFIPS140 build setting.
++//
++// The GOFIPS140 build setting controls two aspects of the build:
++//
++//   - Whether binaries are built to default to running in FIPS-140 mode,
++//     meaning whether they default to GODEBUG=fips140=on or =off.
++//
++//   - Which copy of the crypto/internal/fips source code to use.
++//     The default is obviously GOROOT/src/crypto/internal/fips,
++//     but earlier snapshots that have differing levels of external
++//     validation and certification are stored in GOROOT/lib/fips140
++//     and can be substituted into the build instead.
++//
++// This package provides the logic needed by the rest of the go command
++// to make those decisions and implement the resulting policy.
++//
++// [Init] must be called to initialize the FIPS logic. It may fail and
++// call base.Fatalf.
++//
++// When GOFIPS140=off, [Enabled] returns false, and the build is
++// unchanged from its usual behaviors.
++//
++// When GOFIPS140 is anything else, [Enabled] returns true, and the build
++// sets the default GODEBUG to include fips140=on. This will make
++// binaries change their behavior at runtime to confirm to various
++// FIPS-140 details. [cmd/go/internal/load.defaultGODEBUG] calls
++// [fips.Enabled] when preparing the default settings.
++//
++// For all builds, FIPS code and data is laid out in contiguous regions
++// that are conceptually concatenated into a "fips object file" that the
++// linker hashes and then binaries can re-hash at startup to detect
++// corruption of those symbols. When [Enabled] is true, the link step
++// passes -fipso={a.Objdir}/fips.o to the linker to save a copy of the
++// fips.o file. Since the first build target always uses a.Objdir set to
++// $WORK/b001, a build like
++//
++//	GOFIPS140=latest go build -work my/binary
++//
++// will leave fips.o behind in $WORK/b001. Auditors like to be able to
++// see that file. Accordingly, when [Enabled] returns true,
++// [cmd/go/internal/work.Builder.useCache] arranges never to cache linker
++// output, so that the link step always runs, and fips.o is always left
++// behind in the link step. If this proves too slow, we could always
++// cache fips.o as an extra link output and then restore it when -work is
++// set, but we went a very long time never caching link steps at all, so
++// not caching them in FIPS mode seems perfectly fine.
++//
++// When GOFIPS140 is set to something besides off and latest, [Snapshot]
++// returns true, indicating that the build should replace the latest copy
++// of crypto/internal/fips with an earlier snapshot. The reason to do
++// this is to use a copy that has been through additional lab validation
++// (an "in-process" module) or NIST certification (a "certified" module).
++// This functionality is not yet implemented.
++package fips
++
++import (
++	"cmd/go/internal/base"
++	"cmd/go/internal/cfg"
++)
++
++// Init initializes the FIPS settings.
++// It must be called before using any other functions in this package.
++// If initialization fails, Init calls base.Fatalf.
++func Init() {
++	if initDone {
++		return
++	}
++	initDone = true
++	initVersion()
++}
++
++var initDone bool
++
++// checkInit panics if Init has not been called.
++func checkInit() {
++	if !initDone {
++		panic("fips: not initialized")
++	}
++}
++
++// Version reports the GOFIPS140 version in use,
++// which is either "off", "latest", or a version like "v1.2.3".
++// If GOFIPS140 is set to an alias like "inprocess" or "certified",
++// Version returns the underlying version.
++func Version() string {
++	checkInit()
++	return version
++}
++
++// Enabled reports whether FIPS mode is enabled at all.
++// That is, it reports whether GOFIPS140 is set to something besides "off".
++func Enabled() bool {
++	checkInit()
++	return version != "off"
++}
++
++// Snapshot reports whether FIPS mode is using a source snapshot
++// rather than $GOROOT/src/crypto/internal/fips.
++// That is, it reports whether GOFIPS140 is set to something besides "latest" or "off".
++func Snapshot() bool {
++	checkInit()
++	return version != "latest" && version != "off"
++}
++
++var version string
++
++func initVersion() {
++	// For off and latest, use the local source tree.
++	v := cfg.GOFIPS140
++	if v == "off" || v == "" {
++		version = "off"
++		return
++	}
++	if v == "latest" {
++		version = "latest"
++		return
++	}
++
++	base.Fatalf("go: unknown GOFIPS140 version %q", v)
++}
+diff --git a/src/cmd/go/internal/load/godebug.go b/src/cmd/go/internal/load/godebug.go
+index 535876c513..db73c73a15 100644
+--- a/src/cmd/go/internal/load/godebug.go
++++ b/src/cmd/go/internal/load/godebug.go
+@@ -14,6 +14,7 @@ import (
+ 	"strconv"
+ 	"strings"
+ 
++	"cmd/go/internal/fips"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/modload"
+ )
+@@ -61,12 +62,25 @@ func defaultGODEBUG(p *Package, directives, testDirectives, xtestDirectives []bu
+ 	}
+ 
+ 	var m map[string]string
++
++	// If GOFIPS140 is set to anything but "off",
++	// default to GODEBUG=fips140=on.
++	if fips.Enabled() {
++		if m == nil {
++			m = make(map[string]string)
++		}
++		m["fips140"] = "on"
++	}
++
++	// Add directives from main module go.mod.
+ 	for _, g := range modload.MainModules.Godebugs() {
+ 		if m == nil {
+ 			m = make(map[string]string)
+ 		}
+ 		m[g.Key] = g.Value
+ 	}
++
++	// Add directives from packages.
+ 	for _, list := range [][]build.Directive{p.Internal.Build.Directives, directives, testDirectives, xtestDirectives} {
+ 		for _, d := range list {
+ 			k, v, err := ParseGoDebug(d.Text)
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index ac4ba1a342..0a2008686b 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -32,6 +32,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/fips"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/imports"
+@@ -2429,6 +2430,9 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 	if cfg.RawGOEXPERIMENT != "" {
+ 		appendSetting("GOEXPERIMENT", cfg.RawGOEXPERIMENT)
+ 	}
++	if fips.Enabled() {
++		appendSetting("GOFIPS140", fips.Version())
++	}
+ 	appendSetting("GOOS", cfg.BuildContext.GOOS)
+ 	if key, val, _ := cfg.GetArchEnv(); key != "" && val != "" {
+ 		appendSetting(key, val)
+diff --git a/src/cmd/go/internal/modload/init.go b/src/cmd/go/internal/modload/init.go
+index ffd6e13217..2142291445 100644
+--- a/src/cmd/go/internal/modload/init.go
++++ b/src/cmd/go/internal/modload/init.go
+@@ -23,6 +23,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/fips"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/lockedfile"
+@@ -355,6 +356,7 @@ func BinDir() string {
+ // for example 'go mod tidy', that don't operate in workspace mode.
+ func InitWorkfile() {
+ 	// Initialize fsys early because we need overlay to read go.work file.
++	fips.Init()
+ 	if err := fsys.Init(); err != nil {
+ 		base.Fatal(err)
+ 	}
+@@ -414,6 +416,8 @@ func Init() {
+ 	}
+ 	initialized = true
+ 
++	fips.Init()
++
+ 	// Keep in sync with WillBeEnabled. We perform extra validation here, and
+ 	// there are lots of diagnostics and side effects, so we can't use
+ 	// WillBeEnabled directly.
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 29538fb8d6..d6121fbb19 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -15,6 +15,7 @@ import (
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cache"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/fips"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/str"
+ 	"cmd/internal/buildid"
+@@ -447,6 +448,19 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string,
+ 		a.buildID = actionID + buildIDSeparator + mainpkg.buildID + buildIDSeparator + contentID
+ 	}
+ 
++	// In FIPS mode, we disable any link caching,
++	// so that we always leave fips.o in $WORK/b001.
++	// This makes sure that labs validating the FIPS
++	// implementation can always run 'go build -work'
++	// and then find fips.o in $WORK/b001/fips.o.
++	// We could instead also save the fips.o and restore it
++	// to $WORK/b001 from the cache,
++	// but we went years without caching binaries anyway,
++	// so not caching them for FIPS will be fine, at least to start.
++	if a.Mode == "link" && fips.Enabled() && a.Package != nil && !strings.HasSuffix(a.Package.ImportPath, ".test") {
++		return false
++	}
++
+ 	// If user requested -a, we force a rebuild, so don't use the cache.
+ 	if cfg.BuildA {
+ 		if p := a.Package; p != nil && !p.Stale {
+@@ -506,7 +520,7 @@ func (b *Builder) useCache(a *Action, actionHash cache.ActionID, target string,
+ 				oldBuildID := a.buildID
+ 				a.buildID = id[1] + buildIDSeparator + id[2]
+ 				linkID := buildid.HashToString(b.linkActionID(a.triggers[0]))
+-				if id[0] == linkID {
++				if id[0] == linkID && !fips.Enabled() {
+ 					// Best effort attempt to display output from the compile and link steps.
+ 					// If it doesn't work, it doesn't work: reusing the cached binary is more
+ 					// important than reprinting diagnostic information.
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index 62d9a34abe..573554e8bf 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -19,6 +19,7 @@ import (
+ 
+ 	"cmd/go/internal/base"
+ 	"cmd/go/internal/cfg"
++	"cmd/go/internal/fips"
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/gover"
+ 	"cmd/go/internal/load"
+@@ -614,6 +615,9 @@ func (gcToolchain) ld(b *Builder, root *Action, targetPath, importcfg, mainpkg s
+ 	if cfg.BuildBuildmode == "plugin" {
+ 		ldflags = append(ldflags, "-pluginpath", pluginPath(root))
+ 	}
++	if fips.Enabled() {
++		ldflags = append(ldflags, "-fipso", filepath.Join(root.Objdir, "fips.o"))
++	}
+ 
+ 	// Store BuildID inside toolchain binaries as a unique identifier of the
+ 	// tool being run, for use by content-based staleness determination.
+diff --git a/src/cmd/go/testdata/script/fips.txt b/src/cmd/go/testdata/script/fips.txt
+new file mode 100644
+index 0000000000..fd791d3990
+--- /dev/null
++++ b/src/cmd/go/testdata/script/fips.txt
+@@ -0,0 +1,53 @@
++# list with GOFIPS140=off
++env GOFIPS140=off
++go list -f '{{.DefaultGODEBUG}}'
++! stdout fips140
++
++# list with GOFIPS140=latest
++env GOFIPS140=latest
++go list -f '{{.DefaultGODEBUG}}'
++stdout fips140=on
++
++[short] skip
++
++# build with GOFIPS140=off is cached
++env GOFIPS140=off
++go build -x -o x.exe
++! stderr .-fipso
++go build -x -o x.exe
++! stderr link
++
++# build with GOFIPS140=latest is NOT cached (need fipso)
++env GOFIPS140=latest
++go build -x -o x.exe
++stderr link.*-fipso
++go build -x -o x.exe
++stderr link.*-fipso
++
++# build test with GOFIPS140=off is cached
++env GOFIPS140=off
++go test -x -c
++! stderr .-fipso
++go test -x -c
++! stderr link
++
++# build test with GOFIPS140=latest is cached
++env GOFIPS140=latest
++go test -x -c
++stderr link.*-fipso
++go test -x -c
++! stderr link
++
++
++
++-- go.mod --
++module m
++-- x.go --
++package main
++import _ "crypto/sha256"
++func main() {
++}
++-- x_test.go --
++package main
++import "testing"
++func Test(t *testing.T) {}

@@ -1,0 +1,218 @@
+commit 17ed2159583289d77c994d479c24f7e7c2837332
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Jan 9 15:01:03 2025 -0800
+
+    go/types, types2: don't panic when instantiating generic alias with wrong number of type arguments
+    
+    The existing code assumed the type argument count check in
+    Checker.instance couldn't fail for generic alias types
+    (matching the code for generic signatures), but it actually
+    can.
+    
+    Adjust the code accordingly and document that the result of
+    Checker.instance may be invalid.
+    
+    Review all call sites of Checker.instance and make sure we
+    handle the failure case, or document the code accordingly
+    (in the case of generic signatures).
+    
+    When reporting an type argument count error, use the alias
+    name rather than the alias string representation to match
+    the error we get for a non-alias type.
+    
+    While at it, update the manual.go template for ease of use.
+    
+    Fixes #71198.
+    
+    Change-Id: I6d19ec6418440e9b49574a2d7dd9825e0af6c2fc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/641857
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/call.go             |  3 +++
+ src/cmd/compile/internal/types2/instantiate.go      | 11 ++++++++---
+ src/cmd/compile/internal/types2/testdata/manual.go  |  2 +-
+ src/cmd/compile/internal/types2/typexpr.go          | 11 ++++++++---
+ src/go/types/call.go                                |  3 +++
+ src/go/types/instantiate.go                         | 11 ++++++++---
+ src/go/types/testdata/manual.go                     |  2 +-
+ src/go/types/typexpr.go                             | 11 ++++++++---
+ src/internal/types/testdata/fixedbugs/issue71198.go | 16 ++++++++++++++++
+ 9 files changed, 56 insertions(+), 14 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/call.go b/src/cmd/compile/internal/types2/call.go
+index ae2ab5f984..897c846d8f 100644
+--- a/src/cmd/compile/internal/types2/call.go
++++ b/src/cmd/compile/internal/types2/call.go
+@@ -142,6 +142,9 @@ func (check *Checker) instantiateSignature(pos syntax.Pos, expr syntax.Expr, typ
+ 		}()
+ 	}
+ 
++	// For signatures, Checker.instance will always succeed because the type argument
++	// count is correct at this point (see assertion above); hence the type assertion
++	// to *Signature will always succeed.
+ 	inst := check.instance(pos, typ, targs, nil, check.context()).(*Signature)
+ 	assert(inst.TypeParams().Len() == 0) // signature is not generic anymore
+ 	check.recordInstance(expr, targs, inst)
+diff --git a/src/cmd/compile/internal/types2/instantiate.go b/src/cmd/compile/internal/types2/instantiate.go
+index e51cf18de6..03c490a386 100644
+--- a/src/cmd/compile/internal/types2/instantiate.go
++++ b/src/cmd/compile/internal/types2/instantiate.go
+@@ -74,7 +74,8 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ // instance instantiates the given original (generic) function or type with the
+ // provided type arguments and returns the resulting instance. If an identical
+ // instance exists already in the given contexts, it returns that instance,
+-// otherwise it creates a new one.
++// otherwise it creates a new one. If there is an error (such as wrong number
++// of type arguments), the result is Typ[Invalid].
+ //
+ // If expanding is non-nil, it is the Named instance type currently being
+ // expanded. If ctxt is non-nil, it is the context associated with the current
+@@ -133,9 +134,13 @@ func (check *Checker) instance(pos syntax.Pos, orig genericType, targs []Type, e
+ 			assert(expanding == nil) // Alias instances cannot be reached from Named types
+ 		}
+ 
++		// verify type parameter count (see go.dev/issue/71198 for a test case)
+ 		tparams := orig.TypeParams()
+-		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
+-		if !check.validateTArgLen(pos, orig.String(), tparams.Len(), len(targs)) {
++		if !check.validateTArgLen(pos, orig.obj.Name(), tparams.Len(), len(targs)) {
++			// TODO(gri) Consider returning a valid alias instance with invalid
++			//           underlying (aliased) type to match behavior of *Named
++			//           types. Then this function will never return an invalid
++			//           result.
+ 			return Typ[Invalid]
+ 		}
+ 		if tparams.Len() == 0 {
+diff --git a/src/cmd/compile/internal/types2/testdata/manual.go b/src/cmd/compile/internal/types2/testdata/manual.go
+index d8f312f61d..825ab50f92 100644
+--- a/src/cmd/compile/internal/types2/testdata/manual.go
++++ b/src/cmd/compile/internal/types2/testdata/manual.go
+@@ -1,4 +1,4 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/cmd/compile/internal/types2/typexpr.go b/src/cmd/compile/internal/types2/typexpr.go
+index d955654fc9..fa6a6f622a 100644
+--- a/src/cmd/compile/internal/types2/typexpr.go
++++ b/src/cmd/compile/internal/types2/typexpr.go
+@@ -475,9 +475,14 @@ func (check *Checker) instantiatedType(x syntax.Expr, xlist []syntax.Expr, def *
+ 	}
+ 
+ 	// create instance
+-	// The instance is not generic anymore as it has type arguments, but it still
+-	// satisfies the genericType interface because it has type parameters, too.
+-	inst := check.instance(x.Pos(), gtyp, targs, nil, check.context()).(genericType)
++	// The instance is not generic anymore as it has type arguments, but unless
++	// instantiation failed, it still satisfies the genericType interface because
++	// it has type parameters, too.
++	ityp := check.instance(x.Pos(), gtyp, targs, nil, check.context())
++	inst, _ := ityp.(genericType)
++	if inst == nil {
++		return Typ[Invalid]
++	}
+ 
+ 	// For Named types, orig.tparams may not be set up, so we need to do expansion later.
+ 	check.later(func() {
+diff --git a/src/go/types/call.go b/src/go/types/call.go
+index 200068b176..4e8dfc0d6b 100644
+--- a/src/go/types/call.go
++++ b/src/go/types/call.go
+@@ -143,6 +143,9 @@ func (check *Checker) instantiateSignature(pos token.Pos, expr ast.Expr, typ *Si
+ 		}()
+ 	}
+ 
++	// For signatures, Checker.instance will always succeed because the type argument
++	// count is correct at this point (see assertion above); hence the type assertion
++	// to *Signature will always succeed.
+ 	inst := check.instance(pos, typ, targs, nil, check.context()).(*Signature)
+ 	assert(inst.TypeParams().Len() == 0) // signature is not generic anymore
+ 	check.recordInstance(expr, targs, inst)
+diff --git a/src/go/types/instantiate.go b/src/go/types/instantiate.go
+index 48eef7ca76..4b36312f96 100644
+--- a/src/go/types/instantiate.go
++++ b/src/go/types/instantiate.go
+@@ -77,7 +77,8 @@ func Instantiate(ctxt *Context, orig Type, targs []Type, validate bool) (Type, e
+ // instance instantiates the given original (generic) function or type with the
+ // provided type arguments and returns the resulting instance. If an identical
+ // instance exists already in the given contexts, it returns that instance,
+-// otherwise it creates a new one.
++// otherwise it creates a new one. If there is an error (such as wrong number
++// of type arguments), the result is Typ[Invalid].
+ //
+ // If expanding is non-nil, it is the Named instance type currently being
+ // expanded. If ctxt is non-nil, it is the context associated with the current
+@@ -136,9 +137,13 @@ func (check *Checker) instance(pos token.Pos, orig genericType, targs []Type, ex
+ 			assert(expanding == nil) // Alias instances cannot be reached from Named types
+ 		}
+ 
++		// verify type parameter count (see go.dev/issue/71198 for a test case)
+ 		tparams := orig.TypeParams()
+-		// TODO(gri) investigate if this is needed (type argument and parameter count seem to be correct here)
+-		if !check.validateTArgLen(pos, orig.String(), tparams.Len(), len(targs)) {
++		if !check.validateTArgLen(pos, orig.obj.Name(), tparams.Len(), len(targs)) {
++			// TODO(gri) Consider returning a valid alias instance with invalid
++			//           underlying (aliased) type to match behavior of *Named
++			//           types. Then this function will never return an invalid
++			//           result.
+ 			return Typ[Invalid]
+ 		}
+ 		if tparams.Len() == 0 {
+diff --git a/src/go/types/testdata/manual.go b/src/go/types/testdata/manual.go
+index d8f312f61d..825ab50f92 100644
+--- a/src/go/types/testdata/manual.go
++++ b/src/go/types/testdata/manual.go
+@@ -1,4 +1,4 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
++// Copyright 2025 The Go Authors. All rights reserved.
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+diff --git a/src/go/types/typexpr.go b/src/go/types/typexpr.go
+index 5bcbc2d1d3..e560f2c131 100644
+--- a/src/go/types/typexpr.go
++++ b/src/go/types/typexpr.go
+@@ -471,9 +471,14 @@ func (check *Checker) instantiatedType(ix *indexedExpr, def *TypeName) (res Type
+ 	}
+ 
+ 	// create instance
+-	// The instance is not generic anymore as it has type arguments, but it still
+-	// satisfies the genericType interface because it has type parameters, too.
+-	inst := check.instance(ix.Pos(), gtyp, targs, nil, check.context()).(genericType)
++	// The instance is not generic anymore as it has type arguments, but unless
++	// instantiation failed, it still satisfies the genericType interface because
++	// it has type parameters, too.
++	ityp := check.instance(ix.Pos(), gtyp, targs, nil, check.context())
++	inst, _ := ityp.(genericType)
++	if inst == nil {
++		return Typ[Invalid]
++	}
+ 
+ 	// For Named types, orig.tparams may not be set up, so we need to do expansion later.
+ 	check.later(func() {
+diff --git a/src/internal/types/testdata/fixedbugs/issue71198.go b/src/internal/types/testdata/fixedbugs/issue71198.go
+new file mode 100644
+index 0000000000..479f8e2b0c
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue71198.go
+@@ -0,0 +1,16 @@
++// -gotypesalias=1
++
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++type A[_ any] = any
++
++// This must not panic; also the error message must match the style for non-alias types, below.
++func _[_ A /* ERROR "too many type arguments for type A: have 2, want 1" */ [int, string]]() {}
++
++type T[_ any] any
++
++func _[_ T /* ERROR "too many type arguments for type T: have 2, want 1" */ [int, string]]() {}

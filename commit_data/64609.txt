@@ -1,0 +1,33 @@
+commit 7c7d6d31f3a88d79d66ae2224e1a8ef61da4cd67
+Author: Kevin Z <zyxkad@gmail.com>
+Date:   Sat Aug 24 17:36:18 2024 +0000
+
+    internal/runtime/sys: fix typo in comment
+    
+    just removed a single byte :)
+    
+    Change-Id: Icd734f9f8f22b2ed0d9d0125d18b6d291bb14cd6
+    GitHub-Last-Rev: 93c0fd00d863c8a992c63f1bc01c0877b1bdff0c
+    GitHub-Pull-Request: golang/go#69056
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607878
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/runtime/sys/nih.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/internal/runtime/sys/nih.go b/src/internal/runtime/sys/nih.go
+index 17eab67345..a9cbc48e14 100644
+--- a/src/internal/runtime/sys/nih.go
++++ b/src/internal/runtime/sys/nih.go
+@@ -14,7 +14,7 @@ type nih struct{}
+ // Other types can embed NotInHeap to make it not-in-heap. Specifically, pointers
+ // to these types must always fail the `runtime.inheap` check. The type may be used
+ // for global variables, or for objects in unmanaged memory (e.g., allocated with
+-// `sysAlloc`, `persistentalloc`, r`fixalloc`, or from a manually-managed span).
++// `sysAlloc`, `persistentalloc`, `fixalloc`, or from a manually-managed span).
+ //
+ // Specifically:
+ //

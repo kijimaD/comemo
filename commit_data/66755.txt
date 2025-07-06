@@ -1,0 +1,85 @@
+commit adb29670fcf704e1b76db4d31331aaecd0db7118
+Author: Richard Miller <millerresearch@gmail.com>
+Date:   Fri Apr 4 20:48:18 2025 +0100
+
+    runtime: protect plan9 time_now function with !faketime build tag
+    
+    The introduction of monotonic time support for Plan 9 in CL 656755
+    causes a build error with multiple declaration of time_now when
+    built with tag faketime. Correct this by moving function time_now
+    into its own source file with !faketime build tag.
+    
+    Fixes #73169
+    
+    Change-Id: Id7a9a1c77e286511e25546089681f2f88a9538bb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662856
+    Reviewed-by: Austin Clements <austin@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: David du Colombier <0intro@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/os_plan9.go   | 16 +---------------
+ src/runtime/time_plan9.go | 24 ++++++++++++++++++++++++
+ 2 files changed, 25 insertions(+), 15 deletions(-)
+
+diff --git a/src/runtime/os_plan9.go b/src/runtime/os_plan9.go
+index 6ddf1d21d4..59224bcfa8 100644
+--- a/src/runtime/os_plan9.go
++++ b/src/runtime/os_plan9.go
+@@ -222,6 +222,7 @@ func unminit() {
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+ //
+ // This always runs without a P, so //go:nowritebarrierrec is required.
++//
+ //go:nowritebarrierrec
+ func mdestroy(mp *m) {
+ }
+@@ -595,18 +596,3 @@ func walltime() (sec int64, nsec int32) {
+ 	readtime(&t[0], 1, 1)
+ 	return timesplit(frombe(t[0]))
+ }
+-
+-// Do not remove or change the type signature.
+-// See comment in timestub.go.
+-//
+-//go:linkname time_now time.now
+-func time_now() (sec int64, nsec int32, mono int64) {
+-	var t [4]uint64
+-	if readtime(&t[0], 1, 4) == 4 {
+-		mono = int64(frombe(t[3])) // new kernel, use monotonic time
+-	} else {
+-		mono = int64(frombe(t[0])) // old kernel, fall back to unix time
+-	}
+-	sec, nsec = timesplit(frombe(t[0]))
+-	return
+-}
+diff --git a/src/runtime/time_plan9.go b/src/runtime/time_plan9.go
+new file mode 100644
+index 0000000000..0bd165d07c
+--- /dev/null
++++ b/src/runtime/time_plan9.go
+@@ -0,0 +1,24 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !faketime
++
++package runtime
++
++import _ "unsafe" // for go:linkname
++
++// Do not remove or change the type signature.
++// See comment in timestub.go.
++//
++//go:linkname time_now time.now
++func time_now() (sec int64, nsec int32, mono int64) {
++	var t [4]uint64
++	if readtime(&t[0], 1, 4) == 4 {
++		mono = int64(frombe(t[3])) // new kernel, use monotonic time
++	} else {
++		mono = int64(frombe(t[0])) // old kernel, fall back to unix time
++	}
++	sec, nsec = timesplit(frombe(t[0]))
++	return
++}

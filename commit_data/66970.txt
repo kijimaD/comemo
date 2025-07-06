@@ -1,0 +1,1499 @@
+commit e46c8e0558d287fcffde75bb458419288e71db62
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Feb 19 16:33:21 2025 +0000
+
+    runtime: schedule cleanups across multiple goroutines
+    
+    This change splits the finalizer and cleanup queues and implements a new
+    lock-free blocking queue for cleanups. The basic design is as follows:
+    
+    The cleanup queue is organized in fixed-sized blocks. Individual cleanup
+    functions are queued, but only whole blocks are dequeued.
+    
+    Enqueuing cleanups places them in P-local cleanup blocks. These are
+    flushed to the full list as they get full. Cleanups can only be enqueued
+    by an active sweeper.
+    
+    Dequeuing cleanups always dequeues entire blocks from the full list.
+    Cleanup blocks can be dequeued and executed at any time.
+    
+    The very last active sweeper in the sweep phase is responsible for
+    flushing all local cleanup blocks to the full list. It can do this
+    without any synchronization because the next GC can't start yet, so we
+    can be very certain that nobody else will be accessing the local blocks.
+    
+    Cleanup blocks are stored off-heap because the need to be allocated by
+    the sweeper, which is called from heap allocation paths. As a result,
+    the GC treats cleanup blocks as roots, just like finalizer blocks.
+    
+    Flushes to the full list signal to the scheduler that cleanup goroutines
+    should be awoken. Every time the scheduler goes to wake up a cleanup
+    goroutine and there were more signals than goroutines to wake, it then
+    forwards this signal to runtime.AddCleanup, so that it creates another
+    goroutine the next time it is called, up to gomaxprocs goroutines.
+    
+    The signals here are a little convoluted, but exist because the sweeper
+    and the scheduler cannot safely create new goroutines.
+    
+    For #71772.
+    For #71825.
+    
+    Change-Id: Ie839fde2b67e1b79ac1426be0ea29a8d923a62cc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650697
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/internal/objabi/funcid.go                  |  43 +-
+ src/internal/abi/symtab.go                         |   3 +-
+ src/runtime/abi_test.go                            |   3 +
+ src/runtime/crash_test.go                          | 144 +++----
+ src/runtime/export_test.go                         |   4 +
+ src/runtime/lockrank.go                            |  55 +--
+ src/runtime/mcleanup.go                            | 434 ++++++++++++++++++++-
+ src/runtime/mcleanup_test.go                       |  40 ++
+ src/runtime/mfinal.go                              |  26 +-
+ src/runtime/mgc.go                                 |   6 +
+ src/runtime/mgcmark.go                             |  11 +-
+ src/runtime/mgcsweep.go                            |   2 +
+ src/runtime/mheap.go                               |   2 +-
+ src/runtime/mklockrank.go                          |   2 +
+ src/runtime/mprof.go                               |  17 +-
+ src/runtime/pprof/pprof_test.go                    |  12 +-
+ src/runtime/proc.go                                |   7 +
+ src/runtime/runtime2.go                            |  54 +--
+ .../testdata/testprog/finalizer_deadlock.go        |  16 +-
+ src/runtime/traceback.go                           |  24 +-
+ src/sync/oncefunc_test.go                          |  14 +-
+ src/unique/handle.go                               |   7 -
+ src/unique/handle_test.go                          |   9 +-
+ test/fixedbugs/issue30908.go                       |   2 +-
+ 24 files changed, 722 insertions(+), 215 deletions(-)
+
+diff --git a/src/cmd/internal/objabi/funcid.go b/src/cmd/internal/objabi/funcid.go
+index 5fd0c02baa..b953d84803 100644
+--- a/src/cmd/internal/objabi/funcid.go
++++ b/src/cmd/internal/objabi/funcid.go
+@@ -10,27 +10,28 @@ import (
+ )
+ 
+ var funcIDs = map[string]abi.FuncID{
+-	"abort":                    abi.FuncID_abort,
+-	"asmcgocall":               abi.FuncID_asmcgocall,
+-	"asyncPreempt":             abi.FuncID_asyncPreempt,
+-	"cgocallback":              abi.FuncID_cgocallback,
+-	"corostart":                abi.FuncID_corostart,
+-	"debugCallV2":              abi.FuncID_debugCallV2,
+-	"gcBgMarkWorker":           abi.FuncID_gcBgMarkWorker,
+-	"rt0_go":                   abi.FuncID_rt0_go,
+-	"goexit":                   abi.FuncID_goexit,
+-	"gogo":                     abi.FuncID_gogo,
+-	"gopanic":                  abi.FuncID_gopanic,
+-	"handleAsyncEvent":         abi.FuncID_handleAsyncEvent,
+-	"main":                     abi.FuncID_runtime_main,
+-	"mcall":                    abi.FuncID_mcall,
+-	"morestack":                abi.FuncID_morestack,
+-	"mstart":                   abi.FuncID_mstart,
+-	"panicwrap":                abi.FuncID_panicwrap,
+-	"runFinalizersAndCleanups": abi.FuncID_runFinalizersAndCleanups,
+-	"sigpanic":                 abi.FuncID_sigpanic,
+-	"systemstack_switch":       abi.FuncID_systemstack_switch,
+-	"systemstack":              abi.FuncID_systemstack,
++	"abort":              abi.FuncID_abort,
++	"asmcgocall":         abi.FuncID_asmcgocall,
++	"asyncPreempt":       abi.FuncID_asyncPreempt,
++	"cgocallback":        abi.FuncID_cgocallback,
++	"corostart":          abi.FuncID_corostart,
++	"debugCallV2":        abi.FuncID_debugCallV2,
++	"gcBgMarkWorker":     abi.FuncID_gcBgMarkWorker,
++	"rt0_go":             abi.FuncID_rt0_go,
++	"goexit":             abi.FuncID_goexit,
++	"gogo":               abi.FuncID_gogo,
++	"gopanic":            abi.FuncID_gopanic,
++	"handleAsyncEvent":   abi.FuncID_handleAsyncEvent,
++	"main":               abi.FuncID_runtime_main,
++	"mcall":              abi.FuncID_mcall,
++	"morestack":          abi.FuncID_morestack,
++	"mstart":             abi.FuncID_mstart,
++	"panicwrap":          abi.FuncID_panicwrap,
++	"runFinalizers":      abi.FuncID_runFinalizers,
++	"runCleanups":        abi.FuncID_runCleanups,
++	"sigpanic":           abi.FuncID_sigpanic,
++	"systemstack_switch": abi.FuncID_systemstack_switch,
++	"systemstack":        abi.FuncID_systemstack,
+ 
+ 	// Don't show in call stack but otherwise not special.
+ 	"deferreturn": abi.FuncIDWrapper,
+diff --git a/src/internal/abi/symtab.go b/src/internal/abi/symtab.go
+index 0a09a58ab2..ce322f2d75 100644
+--- a/src/internal/abi/symtab.go
++++ b/src/internal/abi/symtab.go
+@@ -56,8 +56,9 @@ const (
+ 	FuncID_mstart
+ 	FuncID_panicwrap
+ 	FuncID_rt0_go
+-	FuncID_runFinalizersAndCleanups
+ 	FuncID_runtime_main
++	FuncID_runFinalizers
++	FuncID_runCleanups
+ 	FuncID_sigpanic
+ 	FuncID_systemstack
+ 	FuncID_systemstack_switch
+diff --git a/src/runtime/abi_test.go b/src/runtime/abi_test.go
+index af187fc7a8..5f8e44a171 100644
+--- a/src/runtime/abi_test.go
++++ b/src/runtime/abi_test.go
+@@ -66,6 +66,9 @@ func TestFinalizerRegisterABI(t *testing.T) {
+ 	runtime.GC()
+ 	runtime.GC()
+ 
++	// Make sure the finalizer goroutine is running.
++	runtime.SetFinalizer(new(TintPointer), func(_ *TintPointer) {})
++
+ 	// fing will only pick the new IntRegArgs up if it's currently
+ 	// sleeping and wakes up, so wait for it to go to sleep.
+ 	success := false
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 74af1acd1f..e29a78c2e4 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -1102,79 +1102,85 @@ func TestNetpollWaiters(t *testing.T) {
+ 	}
+ }
+ 
+-// The runtime.runFinalizersAndCleanups frame should appear in panics, even if
+-// runtime frames are normally hidden (GOTRACEBACK=all).
+-func TestFinalizerDeadlockPanic(t *testing.T) {
++func TestFinalizerOrCleanupDeadlock(t *testing.T) {
+ 	t.Parallel()
+-	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GOTRACEBACK=all", "GO_TEST_FINALIZER_DEADLOCK=panic")
+ 
+-	want := "runtime.runFinalizersAndCleanups()"
+-	if !strings.Contains(output, want) {
+-		t.Errorf("output does not contain %q:\n%s", want, output)
+-	}
+-}
+-
+-// The runtime.runFinalizersAndCleanups frame should appear in runtime.Stack,
+-// even though runtime frames are normally hidden.
+-func TestFinalizerDeadlockStack(t *testing.T) {
+-	t.Parallel()
+-	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=stack")
+-
+-	want := "runtime.runFinalizersAndCleanups()"
+-	if !strings.Contains(output, want) {
+-		t.Errorf("output does not contain %q:\n%s", want, output)
+-	}
+-}
+-
+-// The runtime.runFinalizersAndCleanups frame should appear in goroutine
+-// profiles.
+-func TestFinalizerDeadlockPprofProto(t *testing.T) {
+-	t.Parallel()
+-	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_proto")
++	for _, useCleanup := range []bool{false, true} {
++		progName := "Finalizer"
++		want := "runtime.runFinalizers"
++		if useCleanup {
++			progName = "Cleanup"
++			want = "runtime.runCleanups"
++		}
+ 
+-	p, err := profile.Parse(strings.NewReader(output))
+-	if err != nil {
+-		// Logging the binary proto data is not very nice, but it might
+-		// be a text error message instead.
+-		t.Logf("Output: %s", output)
+-		t.Fatalf("Error parsing proto output: %v", err)
+-	}
+-
+-	want := "runtime.runFinalizersAndCleanups"
+-	for _, s := range p.Sample {
+-		for _, loc := range s.Location {
+-			for _, line := range loc.Line {
+-				if line.Function.Name == want {
+-					// Done!
+-					return
++		// The runtime.runFinalizers/runtime.runCleanups frame should appear in panics, even if
++		// runtime frames are normally hidden (GOTRACEBACK=all).
++		t.Run("Panic", func(t *testing.T) {
++			t.Parallel()
++			output := runTestProg(t, "testprog", progName+"Deadlock", "GOTRACEBACK=all", "GO_TEST_FINALIZER_DEADLOCK=panic")
++			want := want + "()"
++			if !strings.Contains(output, want) {
++				t.Errorf("output does not contain %q:\n%s", want, output)
++			}
++		})
++
++		// The runtime.runFinalizers/runtime.Cleanups frame should appear in runtime.Stack,
++		// even though runtime frames are normally hidden.
++		t.Run("Stack", func(t *testing.T) {
++			t.Parallel()
++			output := runTestProg(t, "testprog", progName+"Deadlock", "GO_TEST_FINALIZER_DEADLOCK=stack")
++			want := want + "()"
++			if !strings.Contains(output, want) {
++				t.Errorf("output does not contain %q:\n%s", want, output)
++			}
++		})
++
++		// The runtime.runFinalizers/runtime.Cleanups frame should appear in goroutine
++		// profiles.
++		t.Run("PprofProto", func(t *testing.T) {
++			t.Parallel()
++			output := runTestProg(t, "testprog", progName+"Deadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_proto")
++
++			p, err := profile.Parse(strings.NewReader(output))
++			if err != nil {
++				// Logging the binary proto data is not very nice, but it might
++				// be a text error message instead.
++				t.Logf("Output: %s", output)
++				t.Fatalf("Error parsing proto output: %v", err)
++			}
++			for _, s := range p.Sample {
++				for _, loc := range s.Location {
++					for _, line := range loc.Line {
++						if line.Function.Name == want {
++							// Done!
++							return
++						}
++					}
+ 				}
+ 			}
+-		}
+-	}
+-
+-	t.Errorf("Profile does not contain %q:\n%s", want, p)
+-}
+-
+-// The runtime.runFinalizersAndCleanups frame should appear in goroutine
+-// profiles (debug=1).
+-func TestFinalizerDeadlockPprofDebug1(t *testing.T) {
+-	t.Parallel()
+-	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_debug1")
+-
+-	want := "runtime.runFinalizersAndCleanups+"
+-	if !strings.Contains(output, want) {
+-		t.Errorf("output does not contain %q:\n%s", want, output)
+-	}
+-}
+-
+-// The runtime.runFinalizersAndCleanups frame should appear in goroutine
+-// profiles (debug=2).
+-func TestFinalizerDeadlockPprofDebug2(t *testing.T) {
+-	t.Parallel()
+-	output := runTestProg(t, "testprog", "FinalizerDeadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_debug2")
+-
+-	want := "runtime.runFinalizersAndCleanups()"
+-	if !strings.Contains(output, want) {
+-		t.Errorf("output does not contain %q:\n%s", want, output)
++			t.Errorf("Profile does not contain %q:\n%s", want, p)
++		})
++
++		// The runtime.runFinalizers/runtime.runCleanups frame should appear in goroutine
++		// profiles (debug=1).
++		t.Run("PprofDebug1", func(t *testing.T) {
++			t.Parallel()
++			output := runTestProg(t, "testprog", progName+"Deadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_debug1")
++			want := want + "+"
++			if !strings.Contains(output, want) {
++				t.Errorf("output does not contain %q:\n%s", want, output)
++			}
++		})
++
++		// The runtime.runFinalizers/runtime.runCleanups frame should appear in goroutine
++		// profiles (debug=2).
++		t.Run("PprofDebug2", func(t *testing.T) {
++			t.Parallel()
++			output := runTestProg(t, "testprog", progName+"Deadlock", "GO_TEST_FINALIZER_DEADLOCK=pprof_debug2")
++			want := want + "()"
++			if !strings.Contains(output, want) {
++				t.Errorf("output does not contain %q:\n%s", want, output)
++			}
++		})
+ 	}
+ }
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index 520b060599..e7f5d426e4 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -1798,6 +1798,10 @@ func BlockUntilEmptyFinalizerQueue(timeout int64) bool {
+ 	return blockUntilEmptyFinalizerQueue(timeout)
+ }
+ 
++func BlockUntilEmptyCleanupQueue(timeout int64) bool {
++	return gcCleanups.blockUntilEmpty(timeout)
++}
++
+ func FrameStartLine(f *Frame) int {
+ 	return f.startLine
+ }
+diff --git a/src/runtime/lockrank.go b/src/runtime/lockrank.go
+index 7a5a618517..024fc1ebf4 100644
+--- a/src/runtime/lockrank.go
++++ b/src/runtime/lockrank.go
+@@ -18,6 +18,7 @@ const (
+ 	lockRankSweepWaiters
+ 	lockRankAssistQueue
+ 	lockRankStrongFromWeakQueue
++	lockRankCleanupQueue
+ 	lockRankSweep
+ 	lockRankTestR
+ 	lockRankTestW
+@@ -93,6 +94,7 @@ var lockNames = []string{
+ 	lockRankSweepWaiters:        "sweepWaiters",
+ 	lockRankAssistQueue:         "assistQueue",
+ 	lockRankStrongFromWeakQueue: "strongFromWeakQueue",
++	lockRankCleanupQueue:        "cleanupQueue",
+ 	lockRankSweep:               "sweep",
+ 	lockRankTestR:               "testR",
+ 	lockRankTestW:               "testW",
+@@ -174,6 +176,7 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankSweepWaiters:        {},
+ 	lockRankAssistQueue:         {},
+ 	lockRankStrongFromWeakQueue: {},
++	lockRankCleanupQueue:        {},
+ 	lockRankSweep:               {},
+ 	lockRankTestR:               {},
+ 	lockRankTestW:               {},
+@@ -185,11 +188,11 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankPollDesc:            {},
+ 	lockRankWakeableSleep:       {},
+ 	lockRankHchan:               {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankWakeableSleep, lockRankHchan},
+-	lockRankAllocmR:             {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan},
+-	lockRankExecR:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan},
+-	lockRankSched:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR},
+-	lockRankAllg:                {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched},
+-	lockRankAllp:                {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched},
++	lockRankAllocmR:             {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan},
++	lockRankExecR:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan},
++	lockRankSched:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR},
++	lockRankAllg:                {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched},
++	lockRankAllp:                {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched},
+ 	lockRankNotifyList:          {},
+ 	lockRankSudog:               {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankWakeableSleep, lockRankHchan, lockRankNotifyList},
+ 	lockRankTimers:              {lockRankSysmon, lockRankScavenge, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankTimers},
+@@ -202,29 +205,29 @@ var lockPartialOrder [][]lockRank = [][]lockRank{
+ 	lockRankUserArenaState:      {},
+ 	lockRankTraceBuf:            {lockRankSysmon, lockRankScavenge},
+ 	lockRankTraceStrings:        {lockRankSysmon, lockRankScavenge, lockRankTraceBuf},
+-	lockRankFin:                 {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankSpanSetSpine:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankMspanSpecial:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankTraceTypeTab:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankGcBitsArenas:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankMspanSpecial},
+-	lockRankProfInsert:          {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankProfBlock:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankProfMemActive:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
+-	lockRankProfMemFuture:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankProfMemActive},
+-	lockRankGscan:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture},
+-	lockRankStackpool:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
+-	lockRankStackLarge:          {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
+-	lockRankHchanLeaf:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankHchanLeaf},
+-	lockRankWbufSpans:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
+-	lockRankMheap:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans},
+-	lockRankMheapSpecial:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
+-	lockRankGlobalAlloc:         {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankMheapSpecial},
+-	lockRankTrace:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
+-	lockRankTraceStackTab:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankTrace},
++	lockRankFin:                 {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankSpanSetSpine:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankMspanSpecial:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankTraceTypeTab:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankGcBitsArenas:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankMspanSpecial},
++	lockRankProfInsert:          {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankProfBlock:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankProfMemActive:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings},
++	lockRankProfMemFuture:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankItab, lockRankReflectOffs, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankProfMemActive},
++	lockRankGscan:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture},
++	lockRankStackpool:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
++	lockRankStackLarge:          {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
++	lockRankHchanLeaf:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankHchanLeaf},
++	lockRankWbufSpans:           {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan},
++	lockRankMheap:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans},
++	lockRankMheapSpecial:        {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
++	lockRankGlobalAlloc:         {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankMheapSpecial},
++	lockRankTrace:               {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap},
++	lockRankTraceStackTab:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankDefer, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollCache, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR, lockRankExecR, lockRankSched, lockRankAllg, lockRankAllp, lockRankNotifyList, lockRankSudog, lockRankTimers, lockRankTimer, lockRankNetpollInit, lockRankRoot, lockRankItab, lockRankReflectOffs, lockRankSynctest, lockRankUserArenaState, lockRankTraceBuf, lockRankTraceStrings, lockRankFin, lockRankSpanSetSpine, lockRankMspanSpecial, lockRankGcBitsArenas, lockRankProfInsert, lockRankProfBlock, lockRankProfMemActive, lockRankProfMemFuture, lockRankGscan, lockRankStackpool, lockRankStackLarge, lockRankWbufSpans, lockRankMheap, lockRankTrace},
+ 	lockRankPanic:               {},
+ 	lockRankDeadlock:            {lockRankPanic, lockRankDeadlock},
+ 	lockRankRaceFini:            {lockRankPanic},
+-	lockRankAllocmRInternal:     {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankAllocmW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR},
+-	lockRankExecRInternal:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankExecR},
++	lockRankAllocmRInternal:     {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankAllocmW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankAllocmR},
++	lockRankExecRInternal:       {lockRankSysmon, lockRankScavenge, lockRankForcegc, lockRankSweepWaiters, lockRankAssistQueue, lockRankStrongFromWeakQueue, lockRankCleanupQueue, lockRankSweep, lockRankTestR, lockRankTimerSend, lockRankExecW, lockRankCpuprof, lockRankPollDesc, lockRankWakeableSleep, lockRankHchan, lockRankExecR},
+ 	lockRankTestRInternal:       {lockRankTestR, lockRankTestW},
+ }
+diff --git a/src/runtime/mcleanup.go b/src/runtime/mcleanup.go
+index d41a4971b5..f27758d9f2 100644
+--- a/src/runtime/mcleanup.go
++++ b/src/runtime/mcleanup.go
+@@ -6,6 +6,10 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/cpu"
++	"internal/goarch"
++	"internal/runtime/atomic"
++	"internal/runtime/sys"
+ 	"unsafe"
+ )
+ 
+@@ -110,8 +114,10 @@ func AddCleanup[T, S any](ptr *T, cleanup func(S), arg S) Cleanup {
+ 		panic("runtime.AddCleanup: ptr not in allocated block")
+ 	}
+ 
+-	// Ensure we have a finalizer processing goroutine running.
+-	createfing()
++	// Create another G if necessary.
++	if gcCleanups.needG() {
++		gcCleanups.createGs()
++	}
+ 
+ 	id := addCleanup(unsafe.Pointer(ptr), fv)
+ 	return Cleanup{
+@@ -191,3 +197,427 @@ func (c Cleanup) Stop() {
+ 	mheap_.specialCleanupAlloc.free(unsafe.Pointer(found))
+ 	unlock(&mheap_.speciallock)
+ }
++
++const cleanupBlockSize = 512
++
++// cleanupBlock is an block of cleanups to be executed.
++//
++// cleanupBlock is allocated from non-GC'd memory, so any heap pointers
++// must be specially handled. The GC and cleanup queue currently assume
++// that the cleanup queue does not grow during marking (but it can shrink).
++type cleanupBlock struct {
++	cleanupBlockHeader
++	cleanups [(cleanupBlockSize - unsafe.Sizeof(cleanupBlockHeader{})) / goarch.PtrSize]*funcval
++}
++
++var cleanupBlockPtrMask [cleanupBlockSize / goarch.PtrSize / 8]byte
++
++type cleanupBlockHeader struct {
++	_ sys.NotInHeap
++	lfnode
++	alllink *cleanupBlock
++
++	// n is sometimes accessed atomically.
++	//
++	// The invariant depends on what phase the garbage collector is in.
++	// During the sweep phase (gcphase == _GCoff), each block has exactly
++	// one owner, so it's always safe to update this without atomics.
++	// But if this *could* be updated during the mark phase, it must be
++	// updated atomically to synchronize with the garbage collector
++	// scanning the block as a root.
++	n uint32
++}
++
++// enqueue pushes a single cleanup function into the block.
++//
++// Returns if this enqueue call filled the block. This is odd,
++// but we want to flush full blocks eagerly to get cleanups
++// running as soon as possible.
++//
++// Must only be called if the GC is in the sweep phase (gcphase == _GCoff),
++// because it does not synchronize with the garbage collector.
++func (b *cleanupBlock) enqueue(fn *funcval) bool {
++	b.cleanups[b.n] = fn
++	b.n++
++	return b.full()
++}
++
++// full returns true if the cleanup block is full.
++func (b *cleanupBlock) full() bool {
++	return b.n == uint32(len(b.cleanups))
++}
++
++// empty returns true if the cleanup block is empty.
++func (b *cleanupBlock) empty() bool {
++	return b.n == 0
++}
++
++// take moves as many cleanups as possible from b into a.
++func (a *cleanupBlock) take(b *cleanupBlock) {
++	dst := a.cleanups[a.n:]
++	if uint32(len(dst)) >= b.n {
++		// Take all.
++		copy(dst, b.cleanups[:])
++		a.n += b.n
++		b.n = 0
++	} else {
++		// Partial take. Copy from the tail to avoid having
++		// to move more memory around.
++		copy(dst, b.cleanups[b.n-uint32(len(dst)):b.n])
++		a.n = uint32(len(a.cleanups))
++		b.n -= uint32(len(dst))
++	}
++}
++
++// cleanupQueue is a queue of ready-to-run cleanup functions.
++type cleanupQueue struct {
++	// Stack of full cleanup blocks.
++	full lfstack
++	_    [cpu.CacheLinePadSize - unsafe.Sizeof(lfstack(0))]byte
++
++	// Stack of free cleanup blocks.
++	free lfstack
++
++	// flushed indicates whether all local cleanupBlocks have been
++	// flushed, and we're in a period of time where this condition is
++	// stable (after the last sweeper, before the next sweep phase
++	// begins).
++	flushed atomic.Bool // Next to free because frequently accessed together.
++
++	_ [cpu.CacheLinePadSize - unsafe.Sizeof(lfstack(0)) - 1]byte
++
++	// Linked list of all cleanup blocks.
++	all atomic.UnsafePointer // *cleanupBlock
++	_   [cpu.CacheLinePadSize - unsafe.Sizeof(atomic.UnsafePointer{})]byte
++
++	state cleanupSleep
++	_     [cpu.CacheLinePadSize - unsafe.Sizeof(cleanupSleep{})]byte
++
++	// Goroutine block state.
++	//
++	// lock protects sleeping and writes to ng. It is also the lock
++	// used by cleanup goroutines to park atomically with updates to
++	// sleeping and ng.
++	lock     mutex
++	sleeping gList
++	running  atomic.Uint32
++	ng       atomic.Uint32
++	needg    atomic.Uint32
++}
++
++// cleanupSleep is an atomically-updatable cleanupSleepState.
++type cleanupSleep struct {
++	u atomic.Uint64 // cleanupSleepState
++}
++
++func (s *cleanupSleep) load() cleanupSleepState {
++	return cleanupSleepState(s.u.Load())
++}
++
++// awaken indicates that N cleanup goroutines should be awoken.
++func (s *cleanupSleep) awaken(n int) {
++	s.u.Add(int64(n))
++}
++
++// sleep indicates that a cleanup goroutine is about to go to sleep.
++func (s *cleanupSleep) sleep() {
++	s.u.Add(1 << 32)
++}
++
++// take returns the number of goroutines to wake to handle
++// the cleanup load, and also how many extra wake signals
++// there were. The caller takes responsibility for waking
++// up "wake" cleanup goroutines.
++//
++// The number of goroutines to wake is guaranteed to be
++// bounded by the current sleeping goroutines, provided
++// they call sleep before going to sleep, and all wakeups
++// are preceded by a call to take.
++func (s *cleanupSleep) take() (wake, extra uint32) {
++	for {
++		old := s.load()
++		if old == 0 {
++			return 0, 0
++		}
++		if old.wakes() > old.asleep() {
++			wake = old.asleep()
++			extra = old.wakes() - old.asleep()
++		} else {
++			wake = old.wakes()
++			extra = 0
++		}
++		new := cleanupSleepState(old.asleep()-wake) << 32
++		if s.u.CompareAndSwap(uint64(old), uint64(new)) {
++			return
++		}
++	}
++}
++
++// cleanupSleepState consists of two fields: the number of
++// goroutines currently asleep (equivalent to len(q.sleeping)), and
++// the number of times a wakeup signal has been sent.
++// These two fields are packed together in a uint64, such
++// that they may be updated atomically as part of cleanupSleep.
++// The top 32 bits is the number of sleeping goroutines,
++// and the bottom 32 bits is the number of wakeup signals.
++type cleanupSleepState uint64
++
++func (s cleanupSleepState) asleep() uint32 {
++	return uint32(s >> 32)
++}
++
++func (s cleanupSleepState) wakes() uint32 {
++	return uint32(s)
++}
++
++// enqueue queues a single cleanup for execution.
++//
++// Called by the sweeper, and only the sweeper.
++func (q *cleanupQueue) enqueue(fn *funcval) {
++	mp := acquirem()
++	pp := mp.p.ptr()
++	b := pp.cleanups
++	if b == nil {
++		if q.flushed.Load() {
++			q.flushed.Store(false)
++		}
++		b = (*cleanupBlock)(q.free.pop())
++		if b == nil {
++			b = (*cleanupBlock)(persistentalloc(cleanupBlockSize, tagAlign, &memstats.gcMiscSys))
++			for {
++				next := (*cleanupBlock)(q.all.Load())
++				b.alllink = next
++				if q.all.CompareAndSwap(unsafe.Pointer(next), unsafe.Pointer(b)) {
++					break
++				}
++			}
++		}
++		pp.cleanups = b
++	}
++	if full := b.enqueue(fn); full {
++		q.full.push(&b.lfnode)
++		pp.cleanups = nil
++		q.state.awaken(1)
++	}
++	releasem(mp)
++}
++
++// dequeue pops a block of cleanups from the queue. Blocks until one is available
++// and never returns nil.
++func (q *cleanupQueue) dequeue() *cleanupBlock {
++	for {
++		b := (*cleanupBlock)(q.full.pop())
++		if b != nil {
++			return b
++		}
++		lock(&q.lock)
++		q.sleeping.push(getg())
++		q.state.sleep()
++		goparkunlock(&q.lock, waitReasonCleanupWait, traceBlockSystemGoroutine, 1)
++	}
++}
++
++// tryDequeue is a non-blocking attempt to dequeue a block of cleanups.
++// May return nil if there are no blocks to run.
++func (q *cleanupQueue) tryDequeue() *cleanupBlock {
++	return (*cleanupBlock)(q.full.pop())
++}
++
++// flush pushes all active cleanup blocks to the full list and wakes up cleanup
++// goroutines to handle them.
++//
++// Must only be called at a point when we can guarantee that no more cleanups
++// are being queued, such as after the final sweeper for the cycle is done
++// but before the next mark phase.
++func (q *cleanupQueue) flush() {
++	mp := acquirem()
++	flushed := 0
++	emptied := 0
++	missing := 0
++
++	// Coalesce the partially-filled blocks to present a more accurate picture of demand.
++	// We use the number of coalesced blocks to process as a signal for demand to create
++	// new cleanup goroutines.
++	var cb *cleanupBlock
++	for _, pp := range allp {
++		b := pp.cleanups
++		if b == nil {
++			missing++
++			continue
++		}
++		pp.cleanups = nil
++		if cb == nil {
++			cb = b
++			continue
++		}
++		// N.B. After take, either cb is full, b is empty, or both.
++		cb.take(b)
++		if cb.full() {
++			q.full.push(&cb.lfnode)
++			flushed++
++			cb = b
++			b = nil
++		}
++		if b != nil && b.empty() {
++			q.free.push(&b.lfnode)
++			emptied++
++		}
++	}
++	if cb != nil {
++		q.full.push(&cb.lfnode)
++		flushed++
++	}
++	if flushed != 0 {
++		q.state.awaken(flushed)
++	}
++	if flushed+emptied+missing != len(allp) {
++		throw("failed to correctly flush all P-owned cleanup blocks")
++	}
++	q.flushed.Store(true)
++	releasem(mp)
++}
++
++// needsWake returns true if cleanup goroutines need to be awoken or created to handle cleanup load.
++func (q *cleanupQueue) needsWake() bool {
++	s := q.state.load()
++	return s.wakes() > 0 && (s.asleep() > 0 || q.ng.Load() < maxCleanupGs())
++}
++
++// wake wakes up one or more goroutines to process the cleanup queue. If there aren't
++// enough sleeping goroutines to handle the demand, wake will arrange for new goroutines
++// to be created.
++func (q *cleanupQueue) wake() {
++	wake, extra := q.state.take()
++	if extra != 0 {
++		newg := min(extra, maxCleanupGs()-q.ng.Load())
++		if newg > 0 {
++			q.needg.Add(int32(newg))
++		}
++	}
++	if wake == 0 {
++		return
++	}
++
++	// By calling 'take', we've taken ownership of waking 'wake' goroutines.
++	// Nobody else will wake up these goroutines, so they're guaranteed
++	// to be sitting on q.sleeping, waiting for us to wake them.
++	//
++	// Collect them and schedule them.
++	var list gList
++	lock(&q.lock)
++	for range wake {
++		list.push(q.sleeping.pop())
++	}
++	unlock(&q.lock)
++
++	injectglist(&list)
++	return
++}
++
++func (q *cleanupQueue) needG() bool {
++	have := q.ng.Load()
++	if have >= maxCleanupGs() {
++		return false
++	}
++	if have == 0 {
++		// Make sure we have at least one.
++		return true
++	}
++	return q.needg.Load() > 0
++}
++
++func (q *cleanupQueue) createGs() {
++	lock(&q.lock)
++	have := q.ng.Load()
++	need := min(q.needg.Swap(0), maxCleanupGs()-have)
++	if have == 0 && need == 0 {
++		// Make sure we have at least one.
++		need = 1
++	}
++	if need > 0 {
++		q.ng.Add(int32(need))
++	}
++	unlock(&q.lock)
++
++	for range need {
++		go runCleanups()
++	}
++}
++
++func (q *cleanupQueue) beginRunningCleanups() {
++	// Update runningCleanups and running atomically with respect
++	// to goroutine profiles by disabling preemption.
++	mp := acquirem()
++	getg().runningCleanups.Store(true)
++	q.running.Add(1)
++	releasem(mp)
++}
++
++func (q *cleanupQueue) endRunningCleanups() {
++	// Update runningCleanups and running atomically with respect
++	// to goroutine profiles by disabling preemption.
++	mp := acquirem()
++	getg().runningCleanups.Store(false)
++	q.running.Add(-1)
++	releasem(mp)
++}
++
++func maxCleanupGs() uint32 {
++	// N.B. Left as a function to make changing the policy easier.
++	return uint32(max(gomaxprocs/4, 1))
++}
++
++// gcCleanups is the global cleanup queue.
++var gcCleanups cleanupQueue
++
++// runCleanups is the entrypoint for all cleanup-running goroutines.
++func runCleanups() {
++	for {
++		b := gcCleanups.dequeue()
++		if raceenabled {
++			racefingo()
++		}
++
++		gcCleanups.beginRunningCleanups()
++		for i := 0; i < int(b.n); i++ {
++			fn := b.cleanups[i]
++			cleanup := *(*func())(unsafe.Pointer(&fn))
++			cleanup()
++			b.cleanups[i] = nil
++		}
++		gcCleanups.endRunningCleanups()
++
++		atomic.Store(&b.n, 0) // Synchronize with markroot. See comment in cleanupBlockHeader.
++		gcCleanups.free.push(&b.lfnode)
++	}
++}
++
++// blockUntilEmpty blocks until either the cleanup queue is emptied
++// and the cleanups have been executed, or the timeout is reached.
++// Returns true if the cleanup queue was emptied.
++// This is used by the sync and unique tests.
++func (q *cleanupQueue) blockUntilEmpty(timeout int64) bool {
++	start := nanotime()
++	for nanotime()-start < timeout {
++		lock(&q.lock)
++		// The queue is empty when there's no work left to do *and* all the cleanup goroutines
++		// are asleep. If they're not asleep, they may be actively working on a block.
++		if q.flushed.Load() && q.full.empty() && uint32(q.sleeping.size) == q.ng.Load() {
++			unlock(&q.lock)
++			return true
++		}
++		unlock(&q.lock)
++		Gosched()
++	}
++	return false
++}
++
++//go:linkname unique_runtime_blockUntilEmptyCleanupQueue unique.runtime_blockUntilEmptyCleanupQueue
++func unique_runtime_blockUntilEmptyCleanupQueue(timeout int64) bool {
++	return gcCleanups.blockUntilEmpty(timeout)
++}
++
++//go:linkname sync_test_runtime_blockUntilEmptyCleanupQueue sync_test.runtime_blockUntilEmptyCleanupQueue
++func sync_test_runtime_blockUntilEmptyCleanupQueue(timeout int64) bool {
++	return gcCleanups.blockUntilEmpty(timeout)
++}
+diff --git a/src/runtime/mcleanup_test.go b/src/runtime/mcleanup_test.go
+index d62356feef..22b9eccd20 100644
+--- a/src/runtime/mcleanup_test.go
++++ b/src/runtime/mcleanup_test.go
+@@ -5,8 +5,11 @@
+ package runtime_test
+ 
+ import (
++	"internal/runtime/atomic"
+ 	"runtime"
++	"sync"
+ 	"testing"
++	"time"
+ 	"unsafe"
+ )
+ 
+@@ -296,3 +299,40 @@ func TestCleanupPointerEqualsArg(t *testing.T) {
+ 	v = nil
+ 	runtime.GC()
+ }
++
++// Checks to make sure cleanups aren't lost when there are a lot of them.
++func TestCleanupLost(t *testing.T) {
++	type T struct {
++		v int
++		p unsafe.Pointer
++	}
++
++	cleanups := 10_000
++	if testing.Short() {
++		cleanups = 100
++	}
++	n := runtime.GOMAXPROCS(-1)
++	want := n * cleanups
++	var got atomic.Uint64
++	var wg sync.WaitGroup
++	for i := range n {
++		wg.Add(1)
++		go func(i int) {
++			defer wg.Done()
++
++			for range cleanups {
++				v := &new(T).v
++				*v = 97531
++				runtime.AddCleanup(v, func(_ int) {
++					got.Add(1)
++				}, 97531)
++			}
++		}(i)
++	}
++	wg.Wait()
++	runtime.GC()
++	runtime.BlockUntilEmptyCleanupQueue(int64(10 * time.Second))
++	if got := int(got.Load()); got != want {
++		t.Errorf("expected %d cleanups to be executed, got %d", got, want)
++	}
++}
+diff --git a/src/runtime/mfinal.go b/src/runtime/mfinal.go
+index 9add92557c..4a0e110373 100644
+--- a/src/runtime/mfinal.go
++++ b/src/runtime/mfinal.go
+@@ -17,7 +17,7 @@ import (
+ 
+ const finBlockSize = 4 * 1024
+ 
+-// finBlock is an block of finalizers/cleanups to be executed. finBlocks
++// finBlock is an block of finalizers to be executed. finBlocks
+ // are arranged in a linked list for the finalizer queue.
+ //
+ // finBlock is allocated from non-GC'd memory, so any heap pointers
+@@ -165,7 +165,7 @@ func wakefing() *g {
+ func createfing() {
+ 	// start the finalizer goroutine exactly once
+ 	if fingStatus.Load() == fingUninitialized && fingStatus.CompareAndSwap(fingUninitialized, fingCreated) {
+-		go runFinalizersAndCleanups()
++		go runFinalizers()
+ 	}
+ }
+ 
+@@ -177,8 +177,8 @@ func finalizercommit(gp *g, lock unsafe.Pointer) bool {
+ 	return true
+ }
+ 
+-// This is the goroutine that runs all of the finalizers and cleanups.
+-func runFinalizersAndCleanups() {
++// This is the goroutine that runs all of the finalizers.
++func runFinalizers() {
+ 	var (
+ 		frame    unsafe.Pointer
+ 		framecap uintptr
+@@ -207,22 +207,6 @@ func runFinalizersAndCleanups() {
+ 			for i := fb.cnt; i > 0; i-- {
+ 				f := &fb.fin[i-1]
+ 
+-				// arg will only be nil when a cleanup has been queued.
+-				if f.arg == nil {
+-					var cleanup func()
+-					fn := unsafe.Pointer(f.fn)
+-					cleanup = *(*func())(unsafe.Pointer(&fn))
+-					fingStatus.Or(fingRunningFinalizer)
+-					cleanup()
+-					fingStatus.And(^fingRunningFinalizer)
+-
+-					f.fn = nil
+-					f.arg = nil
+-					f.ot = nil
+-					atomic.Store(&fb.cnt, i-1)
+-					continue
+-				}
+-
+ 				var regs abi.RegArgs
+ 				// The args may be passed in registers or on stack. Even for
+ 				// the register case, we still need the spill slots.
+@@ -241,8 +225,6 @@ func runFinalizersAndCleanups() {
+ 					frame = mallocgc(framesz, nil, true)
+ 					framecap = framesz
+ 				}
+-				// cleanups also have a nil fint. Cleanups should have been processed before
+-				// reaching this point.
+ 				if f.fint == nil {
+ 					throw("missing type in finalizer")
+ 				}
+diff --git a/src/runtime/mgc.go b/src/runtime/mgc.go
+index 354ea22b0e..f96dbadd01 100644
+--- a/src/runtime/mgc.go
++++ b/src/runtime/mgc.go
+@@ -187,12 +187,18 @@ func gcinit() {
+ 	// Use the environment variable GOMEMLIMIT for the initial memoryLimit value.
+ 	gcController.init(readGOGC(), readGOMEMLIMIT())
+ 
++	// Set up the cleanup block ptr mask.
++	for i := range cleanupBlockPtrMask {
++		cleanupBlockPtrMask[i] = 0xff
++	}
++
+ 	work.startSema = 1
+ 	work.markDoneSema = 1
+ 	lockInit(&work.sweepWaiters.lock, lockRankSweepWaiters)
+ 	lockInit(&work.assistQueue.lock, lockRankAssistQueue)
+ 	lockInit(&work.strongFromWeak.lock, lockRankStrongFromWeakQueue)
+ 	lockInit(&work.wbufSpans.lock, lockRankWbufSpans)
++	lockInit(&gcCleanups.lock, lockRankCleanupQueue)
+ }
+ 
+ // gcenable is called after the bulk of the runtime initialization,
+diff --git a/src/runtime/mgcmark.go b/src/runtime/mgcmark.go
+index 8340f39a4b..5aabc14b40 100644
+--- a/src/runtime/mgcmark.go
++++ b/src/runtime/mgcmark.go
+@@ -18,6 +18,7 @@ import (
+ const (
+ 	fixedRootFinalizers = iota
+ 	fixedRootFreeGStacks
++	fixedRootCleanups
+ 	fixedRootCount
+ 
+ 	// rootBlockBytes is the number of bytes to scan per data or
+@@ -179,8 +180,6 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
+ 	case i == fixedRootFinalizers:
+ 		for fb := allfin; fb != nil; fb = fb.alllink {
+ 			cnt := uintptr(atomic.Load(&fb.cnt))
+-			// Finalizers that contain cleanups only have fn set. None of the other
+-			// fields are necessary.
+ 			scanblock(uintptr(unsafe.Pointer(&fb.fin[0])), cnt*unsafe.Sizeof(fb.fin[0]), &finptrmask[0], gcw, nil)
+ 		}
+ 
+@@ -189,6 +188,14 @@ func markroot(gcw *gcWork, i uint32, flushBgCredit bool) int64 {
+ 		// stackfree.
+ 		systemstack(markrootFreeGStacks)
+ 
++	case i == fixedRootCleanups:
++		for cb := (*cleanupBlock)(gcCleanups.all.Load()); cb != nil; cb = cb.alllink {
++			// N.B. This only needs to synchronize with cleanup execution, which only resets these blocks.
++			// All cleanup queueing happens during sweep.
++			n := uintptr(atomic.Load(&cb.n))
++			scanblock(uintptr(unsafe.Pointer(&cb.cleanups[0])), n*goarch.PtrSize, &cleanupBlockPtrMask[0], gcw, nil)
++		}
++
+ 	case work.baseSpans <= i && i < work.baseStacks:
+ 		// mark mspan.specials
+ 		markrootSpans(gcw, int(i-work.baseSpans))
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 191935dfd5..046dd798c8 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -177,6 +177,8 @@ func (a *activeSweep) end(sl sweepLocker) {
+ 				live := gcController.heapLive.Load()
+ 				print("pacer: sweep done at heap size ", live>>20, "MB; allocated ", (live-mheap_.sweepHeapLiveBasis)>>20, "MB during sweep; swept ", mheap_.pagesSwept.Load(), " pages at ", mheap_.sweepPagesPerByte, " pages/byte\n")
+ 			}
++			// Now that sweeping is completely done, flush remaining cleanups.
++			gcCleanups.flush()
+ 			return
+ 		}
+ 	}
+diff --git a/src/runtime/mheap.go b/src/runtime/mheap.go
+index aaade7e750..dbad51dcbf 100644
+--- a/src/runtime/mheap.go
++++ b/src/runtime/mheap.go
+@@ -2625,7 +2625,7 @@ func freeSpecial(s *special, p unsafe.Pointer, size uintptr) {
+ 		// Cleanups, unlike finalizers, do not resurrect the objects
+ 		// they're attached to, so we only need to pass the cleanup
+ 		// function, not the object.
+-		queuefinalizer(nil, sc.fn, 0, nil, nil)
++		gcCleanups.enqueue(sc.fn)
+ 		lock(&mheap_.speciallock)
+ 		mheap_.specialCleanupAlloc.free(unsafe.Pointer(sc))
+ 		unlock(&mheap_.speciallock)
+diff --git a/src/runtime/mklockrank.go b/src/runtime/mklockrank.go
+index e4a749dd31..dd30541211 100644
+--- a/src/runtime/mklockrank.go
++++ b/src/runtime/mklockrank.go
+@@ -51,6 +51,7 @@ NONE <
+   sweepWaiters,
+   assistQueue,
+   strongFromWeakQueue,
++  cleanupQueue,
+   sweep;
+ 
+ # Test only
+@@ -62,6 +63,7 @@ NONE < timerSend;
+ NONE < allocmW, execW, cpuprof, pollCache, pollDesc, wakeableSleep;
+ scavenge, sweep, testR, wakeableSleep, timerSend < hchan;
+ assistQueue,
++  cleanupQueue,
+   cpuprof,
+   forcegc,
+   hchan,
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index 5e2643600d..a033e28479 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -1323,11 +1323,12 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels
+ 	// with what we'd get from isSystemGoroutine, we need special handling for
+ 	// goroutines that can vary between user and system to ensure that the count
+ 	// doesn't change during the collection. So, check the finalizer goroutine
+-	// in particular.
++	// and cleanup goroutines in particular.
+ 	n = int(gcount())
+ 	if fingStatus.Load()&fingRunningFinalizer != 0 {
+ 		n++
+ 	}
++	n += int(gcCleanups.running.Load())
+ 
+ 	if n > len(p) {
+ 		// There's not enough space in p to store the whole profile, so (per the
+@@ -1358,15 +1359,6 @@ func goroutineProfileWithLabelsConcurrent(p []profilerecord.StackRecord, labels
+ 	goroutineProfile.active = true
+ 	goroutineProfile.records = p
+ 	goroutineProfile.labels = labels
+-	// The finalizer goroutine needs special handling because it can vary over
+-	// time between being a user goroutine (eligible for this profile) and a
+-	// system goroutine (to be excluded). Pick one before restarting the world.
+-	if fing != nil {
+-		fing.goroutineProfiled.Store(goroutineProfileSatisfied)
+-		if readgstatus(fing) != _Gdead && !isSystemGoroutine(fing, false) {
+-			doRecordGoroutineProfile(fing, pcbuf)
+-		}
+-	}
+ 	startTheWorld(stw)
+ 
+ 	// Visit each goroutine that existed as of the startTheWorld call above.
+@@ -1439,9 +1431,8 @@ func tryRecordGoroutineProfile(gp1 *g, pcbuf []uintptr, yield func()) {
+ 		// so here we check _Gdead first.
+ 		return
+ 	}
+-	if isSystemGoroutine(gp1, true) {
+-		// System goroutines should not appear in the profile. (The finalizer
+-		// goroutine is marked as "already profiled".)
++	if isSystemGoroutine(gp1, false) {
++		// System goroutines should not appear in the profile.
+ 		return
+ 	}
+ 
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 5477d9ed26..01d3b0aa4b 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -1577,8 +1577,8 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
+ 		return strings.Count(s, "\truntime/pprof.runtime_goroutineProfileWithLabels+")
+ 	}
+ 
+-	includesFinalizer := func(s string) bool {
+-		return strings.Contains(s, "runtime.runFinalizersAndCleanups")
++	includesFinalizerOrCleanup := func(s string) bool {
++		return strings.Contains(s, "runtime.runFinalizers") || strings.Contains(s, "runtime.runCleanups")
+ 	}
+ 
+ 	// Concurrent calls to the goroutine profiler should not trigger data races
+@@ -1616,8 +1616,8 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
+ 		var w strings.Builder
+ 		goroutineProf.WriteTo(&w, 1)
+ 		prof := w.String()
+-		if includesFinalizer(prof) {
+-			t.Errorf("profile includes finalizer (but finalizer should be marked as system):\n%s", prof)
++		if includesFinalizerOrCleanup(prof) {
++			t.Errorf("profile includes finalizer or cleanup (but should be marked as system):\n%s", prof)
+ 		}
+ 	})
+ 
+@@ -1648,7 +1648,7 @@ func TestGoroutineProfileConcurrency(t *testing.T) {
+ 		var w strings.Builder
+ 		goroutineProf.WriteTo(&w, 1)
+ 		prof := w.String()
+-		if !includesFinalizer(prof) {
++		if !includesFinalizerOrCleanup(prof) {
+ 			t.Errorf("profile does not include finalizer (and it should be marked as user):\n%s", prof)
+ 		}
+ 	})
+@@ -2065,7 +2065,7 @@ func TestLabelSystemstack(t *testing.T) {
+ 					// which part of the function they are
+ 					// at.
+ 					mayBeLabeled = true
+-				case "runtime.bgsweep", "runtime.bgscavenge", "runtime.forcegchelper", "runtime.gcBgMarkWorker", "runtime.runFinalizersAndCleanups", "runtime.sysmon":
++				case "runtime.bgsweep", "runtime.bgscavenge", "runtime.forcegchelper", "runtime.gcBgMarkWorker", "runtime.runFinalizers", "runtime.runCleanups", "runtime.sysmon":
+ 					// Runtime system goroutines or threads
+ 					// (such as those identified by
+ 					// runtime.isSystemGoroutine). These
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index f6814d458c..9753ba5378 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -3361,6 +3361,12 @@ top:
+ 			ready(gp, 0, true)
+ 		}
+ 	}
++
++	// Wake up one or more cleanup Gs.
++	if gcCleanups.needsWake() {
++		gcCleanups.wake()
++	}
++
+ 	if *cgo_yield != nil {
+ 		asmcgocall(*cgo_yield, nil)
+ 	}
+@@ -5110,6 +5116,7 @@ func newproc1(fn *funcval, callergp *g, callerpc uintptr, parked bool, waitreaso
+ 	newg.gopc = callerpc
+ 	newg.ancestors = saveAncestors(callergp)
+ 	newg.startpc = fn.fn
++	newg.runningCleanups.Store(false)
+ 	if isSystemGoroutine(newg, false) {
+ 		sched.ngsys.Add(1)
+ 	} else {
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 16f89f0bf5..da6791f9d2 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -458,30 +458,31 @@ type g struct {
+ 	inMarkAssist bool
+ 	coroexit     bool // argument to coroswitch_m
+ 
+-	raceignore    int8  // ignore race detection events
+-	nocgocallback bool  // whether disable callback from C
+-	tracking      bool  // whether we're tracking this G for sched latency statistics
+-	trackingSeq   uint8 // used to decide whether to track this G
+-	trackingStamp int64 // timestamp of when the G last started being tracked
+-	runnableTime  int64 // the amount of time spent runnable, cleared when running, only used when tracking
+-	lockedm       muintptr
+-	fipsIndicator uint8
+-	sig           uint32
+-	writebuf      []byte
+-	sigcode0      uintptr
+-	sigcode1      uintptr
+-	sigpc         uintptr
+-	parentGoid    uint64          // goid of goroutine that created this goroutine
+-	gopc          uintptr         // pc of go statement that created this goroutine
+-	ancestors     *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
+-	startpc       uintptr         // pc of goroutine function
+-	racectx       uintptr
+-	waiting       *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
+-	cgoCtxt       []uintptr      // cgo traceback context
+-	labels        unsafe.Pointer // profiler labels
+-	timer         *timer         // cached timer for time.Sleep
+-	sleepWhen     int64          // when to sleep until
+-	selectDone    atomic.Uint32  // are we participating in a select and did someone win the race?
++	raceignore      int8  // ignore race detection events
++	nocgocallback   bool  // whether disable callback from C
++	tracking        bool  // whether we're tracking this G for sched latency statistics
++	trackingSeq     uint8 // used to decide whether to track this G
++	trackingStamp   int64 // timestamp of when the G last started being tracked
++	runnableTime    int64 // the amount of time spent runnable, cleared when running, only used when tracking
++	lockedm         muintptr
++	fipsIndicator   uint8
++	runningCleanups atomic.Bool
++	sig             uint32
++	writebuf        []byte
++	sigcode0        uintptr
++	sigcode1        uintptr
++	sigpc           uintptr
++	parentGoid      uint64          // goid of goroutine that created this goroutine
++	gopc            uintptr         // pc of go statement that created this goroutine
++	ancestors       *[]ancestorInfo // ancestor information goroutine(s) that created this goroutine (only used if debug.tracebackancestors)
++	startpc         uintptr         // pc of goroutine function
++	racectx         uintptr
++	waiting         *sudog         // sudog structures this g is waiting on (that have a valid elem ptr); in lock order
++	cgoCtxt         []uintptr      // cgo traceback context
++	labels          unsafe.Pointer // profiler labels
++	timer           *timer         // cached timer for time.Sleep
++	sleepWhen       int64          // when to sleep until
++	selectDone      atomic.Uint32  // are we participating in a select and did someone win the race?
+ 
+ 	// goroutineProfiled indicates the status of this goroutine's stack for the
+ 	// current in-progress goroutine profile
+@@ -730,6 +731,9 @@ type p struct {
+ 	// Timer heap.
+ 	timers timers
+ 
++	// Cleanups.
++	cleanups *cleanupBlock
++
+ 	// maxStackScanDelta accumulates the amount of stack space held by
+ 	// live goroutines (i.e. those eligible for stack scanning).
+ 	// Flushed to gcController.maxStackScan once maxStackScanSlack
+@@ -1083,6 +1087,7 @@ const (
+ 	waitReasonSynctestChanReceive                     // "chan receive (synctest)"
+ 	waitReasonSynctestChanSend                        // "chan send (synctest)"
+ 	waitReasonSynctestSelect                          // "select (synctest)"
++	waitReasonCleanupWait                             // "cleanup wait"
+ )
+ 
+ var waitReasonStrings = [...]string{
+@@ -1130,6 +1135,7 @@ var waitReasonStrings = [...]string{
+ 	waitReasonSynctestChanReceive:   "chan receive (synctest)",
+ 	waitReasonSynctestChanSend:      "chan send (synctest)",
+ 	waitReasonSynctestSelect:        "select (synctest)",
++	waitReasonCleanupWait:           "cleanup wait",
+ }
+ 
+ func (w waitReason) String() string {
+diff --git a/src/runtime/testdata/testprog/finalizer_deadlock.go b/src/runtime/testdata/testprog/finalizer_deadlock.go
+index a55145fa15..e3131541aa 100644
+--- a/src/runtime/testdata/testprog/finalizer_deadlock.go
++++ b/src/runtime/testdata/testprog/finalizer_deadlock.go
+@@ -15,18 +15,24 @@ import (
+ var finalizerDeadlockMode = flag.String("finalizer-deadlock-mode", "panic", "Trigger mode of FinalizerDeadlock")
+ 
+ func init() {
+-	register("FinalizerDeadlock", FinalizerDeadlock)
++	register("FinalizerDeadlock", func() { FinalizerOrCleanupDeadlock(false) })
++	register("CleanupDeadlock", func() { FinalizerOrCleanupDeadlock(true) })
+ }
+ 
+-func FinalizerDeadlock() {
++func FinalizerOrCleanupDeadlock(useCleanup bool) {
+ 	flag.Parse()
+ 
+ 	started := make(chan struct{})
+-	b := new([16]byte)
+-	runtime.SetFinalizer(b, func(*[16]byte) {
++	fn := func() {
+ 		started <- struct{}{}
+ 		select {}
+-	})
++	}
++	b := new([16]byte)
++	if useCleanup {
++		runtime.AddCleanup(b, func(struct{}) { fn() }, struct{}{})
++	} else {
++		runtime.SetFinalizer(b, func(*[16]byte) { fn() })
++	}
+ 	b = nil
+ 
+ 	runtime.GC()
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index d6aa022674..276e601f7c 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1131,9 +1131,9 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
+ 		return false
+ 	}
+ 
+-	// Always show runtime.runFinalizersAndCleanups as context that this
+-	// goroutine is running finalizers, otherwise there is no obvious
+-	// indicator.
++	// Always show runtime.runFinalizers and runtime.runCleanups as
++	// context that this goroutine is running finalizers or cleanups,
++	// otherwise there is no obvious indicator.
+ 	//
+ 	// TODO(prattmic): A more general approach would be to always show the
+ 	// outermost frame (besides runtime.goexit), even if it is a runtime.
+@@ -1142,8 +1142,8 @@ func showfuncinfo(sf srcFunc, firstFrame bool, calleeID abi.FuncID) bool {
+ 	//
+ 	// Unfortunately, implementing this requires looking ahead at the next
+ 	// frame, which goes against traceback's incremental approach (see big
+-	// coment in traceback1).
+-	if sf.funcID == abi.FuncID_runFinalizersAndCleanups {
++	// comment in traceback1).
++	if sf.funcID == abi.FuncID_runFinalizers || sf.funcID == abi.FuncID_runCleanups {
+ 		return true
+ 	}
+ 
+@@ -1352,7 +1352,7 @@ func tracebackHexdump(stk stack, frame *stkframe, bad uintptr) {
+ // in stack dumps and deadlock detector. This is any goroutine that
+ // starts at a runtime.* entry point, except for runtime.main,
+ // runtime.handleAsyncEvent (wasm only) and sometimes
+-// runtime.runFinalizersAndCleanups.
++// runtime.runFinalizers/runtime.runCleanups.
+ //
+ // If fixed is true, any goroutine that can vary between user and
+ // system (that is, the finalizer goroutine) is considered a user
+@@ -1366,7 +1366,7 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
+ 	if f.funcID == abi.FuncID_runtime_main || f.funcID == abi.FuncID_corostart || f.funcID == abi.FuncID_handleAsyncEvent {
+ 		return false
+ 	}
+-	if f.funcID == abi.FuncID_runFinalizersAndCleanups {
++	if f.funcID == abi.FuncID_runFinalizers {
+ 		// We include the finalizer goroutine if it's calling
+ 		// back into user code.
+ 		if fixed {
+@@ -1376,6 +1376,16 @@ func isSystemGoroutine(gp *g, fixed bool) bool {
+ 		}
+ 		return fingStatus.Load()&fingRunningFinalizer == 0
+ 	}
++	if f.funcID == abi.FuncID_runCleanups {
++		// We include the cleanup goroutines if they're calling
++		// back into user code.
++		if fixed {
++			// This goroutine can vary. In fixed mode,
++			// always consider it a user goroutine.
++			return false
++		}
++		return !gp.runningCleanups.Load()
++	}
+ 	return stringslite.HasPrefix(funcname(f), "runtime.")
+ }
+ 
+diff --git a/src/sync/oncefunc_test.go b/src/sync/oncefunc_test.go
+index 8fc87d2987..9172016635 100644
+--- a/src/sync/oncefunc_test.go
++++ b/src/sync/oncefunc_test.go
+@@ -237,7 +237,7 @@ func TestOnceXGC(t *testing.T) {
+ 			var gc atomic.Bool
+ 			runtime.AddCleanup(&buf[0], func(g *atomic.Bool) { g.Store(true) }, &gc)
+ 			f := fn(buf)
+-			gcwaitfin()
++			runCleanups()
+ 			if gc.Load() != false {
+ 				t.Fatal("wrapped function garbage collected too early")
+ 			}
+@@ -245,7 +245,7 @@ func TestOnceXGC(t *testing.T) {
+ 				defer func() { recover() }()
+ 				f()
+ 			}()
+-			gcwaitfin()
++			runCleanups()
+ 			if gc.Load() != true {
+ 				// Even if f is still alive, the function passed to Once(Func|Value|Values)
+ 				// is not kept alive after the first call to f.
+@@ -259,14 +259,14 @@ func TestOnceXGC(t *testing.T) {
+ 	}
+ }
+ 
+-// gcwaitfin performs garbage collection and waits for all finalizers to run.
+-func gcwaitfin() {
++// runCleanups performs garbage collection and waits for all cleanups to run.
++func runCleanups() {
+ 	runtime.GC()
+-	runtime_blockUntilEmptyFinalizerQueue(math.MaxInt64)
++	runtime_blockUntilEmptyCleanupQueue(math.MaxInt64)
+ }
+ 
+-//go:linkname runtime_blockUntilEmptyFinalizerQueue runtime.blockUntilEmptyFinalizerQueue
+-func runtime_blockUntilEmptyFinalizerQueue(int64) bool
++//go:linkname runtime_blockUntilEmptyCleanupQueue
++func runtime_blockUntilEmptyCleanupQueue(int64) bool
+ 
+ var (
+ 	onceFunc = sync.OnceFunc(func() {})
+diff --git a/src/unique/handle.go b/src/unique/handle.go
+index a107fcbe7a..93905e8185 100644
+--- a/src/unique/handle.go
++++ b/src/unique/handle.go
+@@ -67,10 +67,3 @@ type uniqueMap[T comparable] struct {
+ 	*canonMap[T]
+ 	cloneSeq
+ }
+-
+-// Implemented in runtime.
+-//
+-// Used only by tests.
+-//
+-//go:linkname runtime_blockUntilEmptyFinalizerQueue
+-func runtime_blockUntilEmptyFinalizerQueue(timeout int64) bool
+diff --git a/src/unique/handle_test.go b/src/unique/handle_test.go
+index 7cd63c5eeb..4053597e18 100644
+--- a/src/unique/handle_test.go
++++ b/src/unique/handle_test.go
+@@ -89,7 +89,7 @@ func drainCleanupQueue(t *testing.T) {
+ 	t.Helper()
+ 
+ 	runtime.GC() // Queue up the cleanups.
+-	runtime_blockUntilEmptyFinalizerQueue(int64(5 * time.Second))
++	runtime_blockUntilEmptyCleanupQueue(int64(5 * time.Second))
+ }
+ 
+ func checkMapsFor[T comparable](t *testing.T, value T) {
+@@ -176,3 +176,10 @@ func TestNestedHandle(t *testing.T) {
+ 	drainMaps[testNestedHandle](t)
+ 	checkMapsFor(t, n0)
+ }
++
++// Implemented in runtime.
++//
++// Used only by tests.
++//
++//go:linkname runtime_blockUntilEmptyCleanupQueue
++func runtime_blockUntilEmptyCleanupQueue(timeout int64) bool
+diff --git a/test/fixedbugs/issue30908.go b/test/fixedbugs/issue30908.go
+index 98dd641066..c7679e2ba2 100644
+--- a/test/fixedbugs/issue30908.go
++++ b/test/fixedbugs/issue30908.go
+@@ -4,6 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !nacl && !js
++//go:build !nacl && !js && !wasip1
+ 
+ package ignored

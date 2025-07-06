@@ -1,0 +1,44 @@
+commit 464aae706b0ca1edc96b6c6988a1553d75605fca
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Fri Sep 6 16:28:20 2024 +0000
+
+    go/printer: check whether !isTypeElem, instead of combinesWithName when ParenExpr
+    
+    See discussion in CL 610115 and CL 610758.
+    
+    For #69206
+    
+    Change-Id: I16f394cb3440106650fb64a466f2723a4dba3871
+    GitHub-Last-Rev: 37993b5baf11f83e8fb9428981965f2d964cddf3
+    GitHub-Pull-Request: golang/go#69309
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/go/printer/nodes.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/go/printer/nodes.go b/src/go/printer/nodes.go
+index 780d58ec5c..38d6f62a95 100644
+--- a/src/go/printer/nodes.go
++++ b/src/go/printer/nodes.go
+@@ -380,7 +380,7 @@ func (p *printer) parameters(fields *ast.FieldList, mode paramMode) {
+ 		if closing := p.lineFor(fields.Closing); 0 < prevLine && prevLine < closing {
+ 			p.print(token.COMMA)
+ 			p.linebreak(closing, 0, ignore, true)
+-		} else if mode == typeTParam && fields.NumFields() == 1 && combinesWithName(fields.List[0].Type) {
++		} else if mode == typeTParam && fields.NumFields() == 1 && combinesWithName(stripParensAlways(fields.List[0].Type)) {
+ 			// A type parameter list [P T] where the name P and the type expression T syntactically
+ 			// combine to another valid (value) expression requires a trailing comma, as in [P *T,]
+ 			// (or an enclosing interface as in [P interface(*T)]), so that the type parameter list
+@@ -411,7 +411,7 @@ func combinesWithName(x ast.Expr) bool {
+ 	case *ast.BinaryExpr:
+ 		return combinesWithName(x.X) && !isTypeElem(x.Y)
+ 	case *ast.ParenExpr:
+-		return combinesWithName(x.X)
++		return !isTypeElem(x.X)
+ 	}
+ 	return false
+ }

@@ -1,0 +1,604 @@
+commit eb6f2c24cd17c0ca1df7e343f8d9187eef7d6e13
+Author: Jason A. Donenfeld <Jason@zx2c4.com>
+Date:   Sun Sep 22 03:45:29 2024 +0200
+
+    runtime: use vDSO for getrandom() on linux
+    
+    Linux 6.11 supports calling getrandom() from the vDSO. It operates on a
+    thread-local opaque state allocated with mmap using flags specified by
+    the vDSO.
+    
+    Opaque states are allocated in chunks, ideally ncpu at a time as a hint,
+    rounding up to as many fit in a complete page. On first use, a state is
+    assigned to an m, which owns that state, until the m exits, at which
+    point it is given back to the pool.
+    
+    Performance appears to be quite good:
+    
+               │    sec/op    │   sec/op       vs base                 │
+    Read/4-16    222.45n ± 3%   27.13n   ± 6%  -87.80% (p=0.000 n=10)
+               │     B/s      │      B/s       vs base                 │
+    Read/4-16    17.15Mi ± 3%   140.61Mi ± 6%  +719.82% (p=0.000 n=10)
+    
+    Fixes #69577.
+    
+    Change-Id: Ib6f44e8f2f3940c94d970eaada0eb566ec297dc7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/614835
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Auto-Submit: Jason Donenfeld <Jason@zx2c4.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/crypto/rand/rand_test.go           |   3 +
+ src/internal/syscall/unix/getrandom.go |  10 ++++
+ src/runtime/os_linux.go                |   9 +++
+ src/runtime/sys_linux_amd64.s          |  33 +++++++++++
+ src/runtime/sys_linux_arm64.s          |  45 +++++++++++++++
+ src/runtime/sys_linux_loong64.s        |  43 ++++++++++++++
+ src/runtime/sys_linux_ppc64x.s         |  50 +++++++++++++++++
+ src/runtime/sys_linux_s390x.s          |  50 +++++++++++++++++
+ src/runtime/vdso_linux_amd64.go        |   2 +
+ src/runtime/vdso_linux_arm64.go        |   7 ++-
+ src/runtime/vdso_linux_loong64.go      |   5 +-
+ src/runtime/vdso_linux_ppc64x.go       |   5 +-
+ src/runtime/vdso_linux_s390x.go        |   5 +-
+ src/runtime/vgetrandom_linux.go        | 100 +++++++++++++++++++++++++++++++++
+ src/runtime/vgetrandom_unsupported.go  |  18 ++++++
+ 15 files changed, 377 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/rand/rand_test.go b/src/crypto/rand/rand_test.go
+index bbd4a86cda..ec6e8a24d9 100644
+--- a/src/crypto/rand/rand_test.go
++++ b/src/crypto/rand/rand_test.go
+@@ -43,6 +43,9 @@ func TestReadEmpty(t *testing.T) {
+ }
+ 
+ func BenchmarkRead(b *testing.B) {
++	b.Run("4", func(b *testing.B) {
++		benchmarkRead(b, 4)
++	})
+ 	b.Run("32", func(b *testing.B) {
+ 		benchmarkRead(b, 32)
+ 	})
+diff --git a/src/internal/syscall/unix/getrandom.go b/src/internal/syscall/unix/getrandom.go
+index 4270898b7e..2dbe19887c 100644
+--- a/src/internal/syscall/unix/getrandom.go
++++ b/src/internal/syscall/unix/getrandom.go
+@@ -12,6 +12,9 @@ import (
+ 	"unsafe"
+ )
+ 
++//go:linkname vgetrandom runtime.vgetrandom
++func vgetrandom(p []byte, flags uint32) (ret int, supported bool)
++
+ var getrandomUnsupported atomic.Bool
+ 
+ // GetRandomFlag is a flag supported by the getrandom system call.
+@@ -19,6 +22,13 @@ type GetRandomFlag uintptr
+ 
+ // GetRandom calls the getrandom system call.
+ func GetRandom(p []byte, flags GetRandomFlag) (n int, err error) {
++	ret, supported := vgetrandom(p, uint32(flags))
++	if supported {
++		if ret < 0 {
++			return 0, syscall.Errno(-ret)
++		}
++		return ret, nil
++	}
+ 	if getrandomUnsupported.Load() {
+ 		return 0, syscall.ENOSYS
+ 	}
+diff --git a/src/runtime/os_linux.go b/src/runtime/os_linux.go
+index e18ef8e776..979761cc6a 100644
+--- a/src/runtime/os_linux.go
++++ b/src/runtime/os_linux.go
+@@ -31,6 +31,10 @@ type mOS struct {
+ 	// needPerThreadSyscall indicates that a per-thread syscall is required
+ 	// for doAllThreadsSyscall.
+ 	needPerThreadSyscall atomic.Uint8
++
++	// This is a pointer to a chunk of memory allocated with a special
++	// mmap invocation in vgetrandomGetState().
++	vgetrandomState uintptr
+ }
+ 
+ //go:noescape
+@@ -344,6 +348,7 @@ func osinit() {
+ 	ncpu = getproccount()
+ 	physHugePageSize = getHugePageSize()
+ 	osArchInit()
++	vgetrandomInit()
+ }
+ 
+ var urandom_dev = []byte("/dev/urandom\x00")
+@@ -400,6 +405,10 @@ func unminit() {
+ // Called from exitm, but not from drop, to undo the effect of thread-owned
+ // resources in minit, semacreate, or elsewhere. Do not take locks after calling this.
+ func mdestroy(mp *m) {
++	if mp.vgetrandomState != 0 {
++		vgetrandomPutState(mp.vgetrandomState)
++		mp.vgetrandomState = 0
++	}
+ }
+ 
+ // #ifdef GOARCH_386
+diff --git a/src/runtime/sys_linux_amd64.s b/src/runtime/sys_linux_amd64.s
+index b6c64dc095..941f70b0e8 100644
+--- a/src/runtime/sys_linux_amd64.s
++++ b/src/runtime/sys_linux_amd64.s
+@@ -704,3 +704,36 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
+ 	SYSCALL
+ 	MOVQ	AX, ret+0(FP)
+ 	RET
++
++// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
++TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
++	MOVQ	SI, R8 // stateSize
++	MOVL	CX, DX // flags
++	MOVQ	DI, CX // state
++	MOVQ	BX, SI // length
++	MOVQ	AX, DI // buf
++
++	MOVQ	SP, R12
++
++	MOVQ	runtime·vdsoGetrandomSym(SB), AX
++	MOVQ	g_m(R14), BX
++
++	MOVQ	m_vdsoPC(BX), R9
++	MOVQ	R9, 0(SP)
++	MOVQ	m_vdsoSP(BX), R9
++	MOVQ	R9, 8(SP)
++	LEAQ	buf+0(FP), R9
++	MOVQ	R9, m_vdsoSP(BX)
++	MOVQ	-8(R9), R9
++	MOVQ	R9, m_vdsoPC(BX)
++
++	ANDQ	$~15, SP
++
++	CALL	AX
++
++	MOVQ	R12, SP
++	MOVQ	8(SP), R9
++	MOVQ	R9, m_vdsoSP(BX)
++	MOVQ	0(SP), R9
++	MOVQ	R9, m_vdsoPC(BX)
++	RET
+diff --git a/src/runtime/sys_linux_arm64.s b/src/runtime/sys_linux_arm64.s
+index 51c87bea05..7a81d5479e 100644
+--- a/src/runtime/sys_linux_arm64.s
++++ b/src/runtime/sys_linux_arm64.s
+@@ -785,3 +785,48 @@ TEXT runtime·sbrk0(SB),NOSPLIT,$0-8
+ 	SVC
+ 	MOVD	R0, ret+0(FP)
+ 	RET
++
++// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
++TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
++	MOVD	RSP, R20
++
++	MOVD	runtime·vdsoGetrandomSym(SB), R8
++	MOVD	g_m(g), R21
++
++	MOVD	m_vdsoPC(R21), R9
++	MOVD	R9, 8(RSP)
++	MOVD	m_vdsoSP(R21), R9
++	MOVD	R9, 16(RSP)
++	MOVD	LR, m_vdsoPC(R21)
++	MOVD	$buf-8(FP), R9
++	MOVD	R9, m_vdsoSP(R21)
++
++	MOVD	RSP, R9
++	BIC	$15, R9
++	MOVD	R9, RSP
++
++	MOVBU	runtime·iscgo(SB), R9
++	CBNZ	R9, nosaveg
++	MOVD	m_gsignal(R21), R9
++	CBZ	R9, nosaveg
++	CMP	g, R9
++	BEQ	nosaveg
++	MOVD	(g_stack+stack_lo)(R9), R22
++	MOVD	g, (R22)
++
++	BL	(R8)
++
++	MOVD	ZR, (R22)
++	B	restore
++
++nosaveg:
++	BL	(R8)
++
++restore:
++	MOVD	R20, RSP
++	MOVD	16(RSP), R1
++	MOVD	R1, m_vdsoSP(R21)
++	MOVD	8(RSP), R1
++	MOVD	R1, m_vdsoPC(R21)
++	NOP	R0 // Satisfy go vet, since the return value comes from the vDSO function.
++	RET
+diff --git a/src/runtime/sys_linux_loong64.s b/src/runtime/sys_linux_loong64.s
+index eba8e1f24c..0a25d56047 100644
+--- a/src/runtime/sys_linux_loong64.s
++++ b/src/runtime/sys_linux_loong64.s
+@@ -657,3 +657,46 @@ TEXT runtime·socket(SB),$0-20
+ 	MOVV	R0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+ 	MOVW	R0, ret+16(FP) // for vet
+ 	RET
++
++// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
++TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
++	MOVV	R3, R23
++
++	MOVV	runtime·vdsoGetrandomSym(SB), R12
++
++	MOVV	g_m(g), R24
++
++	MOVV	m_vdsoPC(R24), R13
++	MOVV	R13, 8(R3)
++	MOVV	m_vdsoSP(R24), R13
++	MOVV	R13, 16(R3)
++	MOVV	R1, m_vdsoPC(R24)
++	MOVV    $buf-8(FP), R13
++	MOVV	R13, m_vdsoSP(R24)
++
++	AND	$~15, R3
++
++	MOVBU	runtime·iscgo(SB), R13
++	BNE	R13, nosaveg
++	MOVV	m_gsignal(R24), R13
++	BEQ	R13, nosaveg
++	BEQ	g, R13, nosaveg
++	MOVV	(g_stack+stack_lo)(R13), R25
++	MOVV	g, (R25)
++
++	JAL	(R12)
++
++	MOVV	R0, (R25)
++	JMP	restore
++
++nosaveg:
++	JAL	(R12)
++
++restore:
++	MOVV	R23, R3
++	MOVV	16(R3), R25
++	MOVV	R25, m_vdsoSP(R24)
++	MOVV	8(R3), R25
++	MOVV	R25, m_vdsoPC(R24)
++	NOP	R4 // Satisfy go vet, since the return value comes from the vDSO function.
++	RET
+diff --git a/src/runtime/sys_linux_ppc64x.s b/src/runtime/sys_linux_ppc64x.s
+index ba4988b723..8735b932ed 100644
+--- a/src/runtime/sys_linux_ppc64x.s
++++ b/src/runtime/sys_linux_ppc64x.s
+@@ -757,3 +757,53 @@ TEXT runtime·socket(SB),$0-20
+ 	MOVD	R0, 0(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+ 	MOVW	R0, ret+16(FP) // for vet
+ 	RET
++
++// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
++TEXT runtime·vgetrandom1<ABIInternal>(SB),NOSPLIT,$16-48
++	MOVD	R1, R15
++
++	MOVD	runtime·vdsoGetrandomSym(SB), R12
++	MOVD	R12, CTR
++	MOVD	g_m(g), R21
++
++	MOVD	m_vdsoPC(R21), R22
++	MOVD	R22, 32(R1)
++	MOVD	m_vdsoSP(R21), R22
++	MOVD	R22, 40(R1)
++	MOVD	LR, m_vdsoPC(R21)
++	MOVD	$buf-FIXED_FRAME(FP), R22
++	MOVD	R22, m_vdsoSP(R21)
++
++	RLDICR  $0, R1, $59, R1
++
++	MOVBZ	runtime·iscgo(SB), R22
++	CMP	R22, $0
++	BNE	nosaveg
++	MOVD	m_gsignal(R21), R22
++	CMP	R22, $0
++	BEQ	nosaveg
++	CMP	R22, g
++	BEQ	nosaveg
++	MOVD	(g_stack+stack_lo)(R22), R22
++	MOVD	g, (R22)
++
++	BL	(CTR)
++
++	MOVD	$0, (R22)
++	JMP	restore
++
++nosaveg:
++	BL	(CTR)
++
++restore:
++	MOVD	$0, R0
++	MOVD	R15, R1
++	MOVD	40(R1), R22
++	MOVD	R22, m_vdsoSP(R21)
++	MOVD	32(R1), R22
++	MOVD	R22, m_vdsoPC(R21)
++
++	BVC	out
++	NEG	R3, R3
++out:
++	RET
+diff --git a/src/runtime/sys_linux_s390x.s b/src/runtime/sys_linux_s390x.s
+index adf5612c3c..7da4a52729 100644
+--- a/src/runtime/sys_linux_s390x.s
++++ b/src/runtime/sys_linux_s390x.s
+@@ -604,3 +604,53 @@ TEXT runtime·socket(SB),$0-20
+ 	MOVD	$0, 2(R0) // unimplemented, only needed for android; declared in stubs_linux.go
+ 	MOVW	R0, ret+16(FP)
+ 	RET
++
++// func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
++TEXT runtime·vgetrandom1(SB),NOSPLIT,$16-48
++	MOVD	buf+0(FP), R2
++	MOVD	length+8(FP), R3
++	MOVW	flags+16(FP), R4
++	MOVD	state+24(FP), R5
++	MOVD	stateSize+32(FP), R6
++
++	MOVD	R15, R7
++
++	MOVD	runtime·vdsoGetrandomSym(SB), R1
++	MOVD	g_m(g), R9
++
++	MOVD	m_vdsoPC(R9), R12
++	MOVD	R12, 8(R15)
++	MOVD	m_vdsoSP(R9), R12
++	MOVD	R12, 16(R15)
++	MOVD	R14, m_vdsoPC(R9)
++	MOVD	$buf+0(FP), R12
++	MOVD	R12, m_vdsoSP(R9)
++
++	SUB	$160, R15
++	MOVD	$~7, R12
++	AND	R12, R15
++
++	MOVB	runtime·iscgo(SB), R12
++	CMPBNE	R12, $0, nosaveg
++	MOVD	m_gsignal(R9), R12
++	CMPBEQ	R12, $0, nosaveg
++	CMPBEQ	g, R12, nosaveg
++	MOVD	(g_stack+stack_lo)(R12), R12
++	MOVD	g, (R12)
++
++	BL	R1
++
++	MOVD	$0, (R12)
++	JMP	restore
++
++nosaveg:
++	BL	R1
++
++restore:
++	MOVD	R7, R15
++	MOVD	16(R15), R12
++	MOVD	R12, m_vdsoSP(R9)
++	MOVD	8(R15), R12
++	MOVD	R12, m_vdsoPC(R9)
++	MOVD	R2, ret+40(FP)
++	RET
+diff --git a/src/runtime/vdso_linux_amd64.go b/src/runtime/vdso_linux_amd64.go
+index 9c56409137..8a89771ca4 100644
+--- a/src/runtime/vdso_linux_amd64.go
++++ b/src/runtime/vdso_linux_amd64.go
+@@ -17,11 +17,13 @@ var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6", 0x3ae75f6}
+ var vdsoSymbolKeys = []vdsoSymbolKey{
+ 	{"__vdso_gettimeofday", 0x315ca59, 0xb01bca00, &vdsoGettimeofdaySym},
+ 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
++	{"__vdso_getrandom", 0x25425d, 0x84a559bf, &vdsoGetrandomSym},
+ }
+ 
+ var (
+ 	vdsoGettimeofdaySym uintptr
+ 	vdsoClockgettimeSym uintptr
++	vdsoGetrandomSym    uintptr
+ )
+ 
+ // vdsoGettimeofdaySym is accessed from the syscall package.
+diff --git a/src/runtime/vdso_linux_arm64.go b/src/runtime/vdso_linux_arm64.go
+index f5959525af..21f875d0df 100644
+--- a/src/runtime/vdso_linux_arm64.go
++++ b/src/runtime/vdso_linux_arm64.go
+@@ -15,7 +15,10 @@ var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6.39", 0x75fcb89}
+ 
+ var vdsoSymbolKeys = []vdsoSymbolKey{
+ 	{"__kernel_clock_gettime", 0xb0cd725, 0xdfa941fd, &vdsoClockgettimeSym},
++	{"__kernel_getrandom", 0x9800c0d, 0x540d4e24, &vdsoGetrandomSym},
+ }
+ 
+-// initialize to fall back to syscall
+-var vdsoClockgettimeSym uintptr = 0
++var (
++	vdsoClockgettimeSym uintptr
++	vdsoGetrandomSym    uintptr
++)
+diff --git a/src/runtime/vdso_linux_loong64.go b/src/runtime/vdso_linux_loong64.go
+index e00ef952b3..37ee02dcb0 100644
+--- a/src/runtime/vdso_linux_loong64.go
++++ b/src/runtime/vdso_linux_loong64.go
+@@ -19,9 +19,10 @@ var vdsoLinuxVersion = vdsoVersionKey{"LINUX_5.10", 0xae78f70}
+ 
+ var vdsoSymbolKeys = []vdsoSymbolKey{
+ 	{"__vdso_clock_gettime", 0xd35ec75, 0x6e43a318, &vdsoClockgettimeSym},
++	{"__vdso_getrandom", 0x25425d, 0x84a559bf, &vdsoGetrandomSym},
+ }
+ 
+-// initialize to fall back to syscall
+ var (
+-	vdsoClockgettimeSym uintptr = 0
++	vdsoClockgettimeSym uintptr
++	vdsoGetrandomSym    uintptr
+ )
+diff --git a/src/runtime/vdso_linux_ppc64x.go b/src/runtime/vdso_linux_ppc64x.go
+index 09c8d9d20e..939da7b54c 100644
+--- a/src/runtime/vdso_linux_ppc64x.go
++++ b/src/runtime/vdso_linux_ppc64x.go
+@@ -16,9 +16,10 @@ var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6.15", 0x75fcba5}
+ 
+ var vdsoSymbolKeys = []vdsoSymbolKey{
+ 	{"__kernel_clock_gettime", 0xb0cd725, 0xdfa941fd, &vdsoClockgettimeSym},
++	{"__kernel_getrandom", 0x9800c0d, 0x540d4e24, &vdsoGetrandomSym},
+ }
+ 
+-// initialize with vsyscall fallbacks
+ var (
+-	vdsoClockgettimeSym uintptr = 0
++	vdsoClockgettimeSym uintptr
++	vdsoGetrandomSym    uintptr
+ )
+diff --git a/src/runtime/vdso_linux_s390x.go b/src/runtime/vdso_linux_s390x.go
+index 970ecd3ce6..113152ff0a 100644
+--- a/src/runtime/vdso_linux_s390x.go
++++ b/src/runtime/vdso_linux_s390x.go
+@@ -16,9 +16,10 @@ var vdsoLinuxVersion = vdsoVersionKey{"LINUX_2.6.29", 0x75fcbb9}
+ 
+ var vdsoSymbolKeys = []vdsoSymbolKey{
+ 	{"__kernel_clock_gettime", 0xb0cd725, 0xdfa941fd, &vdsoClockgettimeSym},
++	{"__kernel_getrandom", 0x9800c0d, 0x540d4e24, &vdsoGetrandomSym},
+ }
+ 
+-// initialize with vsyscall fallbacks
+ var (
+-	vdsoClockgettimeSym uintptr = 0
++	vdsoClockgettimeSym uintptr
++	vdsoGetrandomSym    uintptr
+ )
+diff --git a/src/runtime/vgetrandom_linux.go b/src/runtime/vgetrandom_linux.go
+new file mode 100644
+index 0000000000..1e8c8ceaf0
+--- /dev/null
++++ b/src/runtime/vgetrandom_linux.go
+@@ -0,0 +1,100 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build linux && (amd64 || arm64 || arm64be || ppc64 || ppc64le || loong64 || s390x)
++
++package runtime
++
++import "unsafe"
++
++func vgetrandom1(buf *byte, length uintptr, flags uint32, state uintptr, stateSize uintptr) int
++
++var vgetrandomAlloc struct {
++	states     []uintptr
++	statesLock mutex
++	stateSize  uintptr
++	mmapProt   int32
++	mmapFlags  int32
++}
++
++func vgetrandomInit() {
++	if vdsoGetrandomSym == 0 {
++		return
++	}
++
++	var params struct {
++		SizeOfOpaqueState uint32
++		MmapProt          uint32
++		MmapFlags         uint32
++		reserved          [13]uint32
++	}
++	if vgetrandom1(nil, 0, 0, uintptr(unsafe.Pointer(&params)), ^uintptr(0)) != 0 {
++		return
++	}
++	vgetrandomAlloc.stateSize = uintptr(params.SizeOfOpaqueState)
++	vgetrandomAlloc.mmapProt = int32(params.MmapProt)
++	vgetrandomAlloc.mmapFlags = int32(params.MmapFlags)
++
++	lockInit(&vgetrandomAlloc.statesLock, lockRankLeafRank)
++}
++
++func vgetrandomGetState() uintptr {
++	lock(&vgetrandomAlloc.statesLock)
++	if len(vgetrandomAlloc.states) == 0 {
++		num := uintptr(ncpu) // Just a reasonable size hint to start.
++		allocSize := (num*vgetrandomAlloc.stateSize + physPageSize - 1) &^ (physPageSize - 1)
++		num = (physPageSize / vgetrandomAlloc.stateSize) * (allocSize / physPageSize)
++		p, err := mmap(nil, allocSize, vgetrandomAlloc.mmapProt, vgetrandomAlloc.mmapFlags, -1, 0)
++		if err != 0 {
++			unlock(&vgetrandomAlloc.statesLock)
++			return 0
++		}
++		newBlock := uintptr(p)
++		if vgetrandomAlloc.states == nil {
++			vgetrandomAlloc.states = make([]uintptr, 0, num)
++		}
++		for i := uintptr(0); i < num; i++ {
++			if (newBlock&(physPageSize-1))+vgetrandomAlloc.stateSize > physPageSize {
++				newBlock = (newBlock + physPageSize - 1) &^ (physPageSize - 1)
++			}
++			vgetrandomAlloc.states = append(vgetrandomAlloc.states, newBlock)
++			newBlock += vgetrandomAlloc.stateSize
++		}
++	}
++	state := vgetrandomAlloc.states[len(vgetrandomAlloc.states)-1]
++	vgetrandomAlloc.states = vgetrandomAlloc.states[:len(vgetrandomAlloc.states)-1]
++	unlock(&vgetrandomAlloc.statesLock)
++	return state
++}
++
++func vgetrandomPutState(state uintptr) {
++	lock(&vgetrandomAlloc.statesLock)
++	vgetrandomAlloc.states = append(vgetrandomAlloc.states, state)
++	unlock(&vgetrandomAlloc.statesLock)
++}
++
++// This is exported for use in internal/syscall/unix as well as x/sys/unix.
++//
++//go:linkname vgetrandom
++func vgetrandom(p []byte, flags uint32) (ret int, supported bool) {
++	if vgetrandomAlloc.stateSize == 0 {
++		return -1, false
++	}
++
++	mp := acquirem()
++	if mp.vgetrandomState == 0 {
++		state := vgetrandomGetState()
++		if state == 0 {
++			releasem(mp)
++			return -1, false
++		}
++		mp.vgetrandomState = state
++	}
++
++	ret = vgetrandom1(unsafe.SliceData(p), uintptr(len(p)), flags, mp.vgetrandomState, vgetrandomAlloc.stateSize)
++	supported = true
++
++	releasem(mp)
++	return
++}
+diff --git a/src/runtime/vgetrandom_unsupported.go b/src/runtime/vgetrandom_unsupported.go
+new file mode 100644
+index 0000000000..070392cfaa
+--- /dev/null
++++ b/src/runtime/vgetrandom_unsupported.go
+@@ -0,0 +1,18 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !(linux && (amd64 || arm64 || arm64be || ppc64 || ppc64le || loong64 || s390x))
++
++package runtime
++
++import _ "unsafe"
++
++//go:linkname vgetrandom
++func vgetrandom(p []byte, flags uint32) (ret int, supported bool) {
++	return -1, false
++}
++
++func vgetrandomPutState(state uintptr) {}
++
++func vgetrandomInit() {}

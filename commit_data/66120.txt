@@ -1,0 +1,84 @@
+commit 3924fe92b61042df7bef5c19db0ab0316d111e9b
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Feb 7 09:55:15 2025 -0800
+
+    runtime: establish happens-before between goroutine and bubble exit
+    
+    synctest.Run waits for all bubbled goroutines to exit before returning.
+    Establish a happens-before relationship between the bubbled goroutines
+    exiting and Run returning.
+    
+    For #67434
+    
+    Change-Id: Ibda7ec2075ae50838c0851e60dc5b3c6f3ca70fb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647755
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/internal/synctest/synctest_test.go | 26 ++++++++++++++++++++++++++
+ src/runtime/synctest.go                |  7 +++++++
+ 2 files changed, 33 insertions(+)
+
+diff --git a/src/internal/synctest/synctest_test.go b/src/internal/synctest/synctest_test.go
+index 7d1e04e2ba..450d5f5416 100644
+--- a/src/internal/synctest/synctest_test.go
++++ b/src/internal/synctest/synctest_test.go
+@@ -433,6 +433,32 @@ func TestWaitGroup(t *testing.T) {
+ 	})
+ }
+ 
++func TestHappensBefore(t *testing.T) {
++	var v int
++	synctest.Run(func() {
++		go func() {
++			v++ // 1
++		}()
++		// Wait creates a happens-before relationship on the above goroutine exiting.
++		synctest.Wait()
++		go func() {
++			v++ // 2
++		}()
++	})
++	// Run exiting creates a happens-before relationship on goroutines started in the bubble.
++	synctest.Run(func() {
++		v++ // 3
++		// There is a happens-before relationship between the time.AfterFunc call,
++		// and the func running.
++		time.AfterFunc(0, func() {
++			v++ // 4
++		})
++	})
++	if got, want := v, 4; got != want {
++		t.Errorf("v = %v, want %v", got, want)
++	}
++}
++
+ func wantPanic(t *testing.T, want string) {
+ 	if e := recover(); e != nil {
+ 		if got := fmt.Sprint(e); got != want {
+diff --git a/src/runtime/synctest.go b/src/runtime/synctest.go
+index 498c3b92dd..65bb15dfbb 100644
+--- a/src/runtime/synctest.go
++++ b/src/runtime/synctest.go
+@@ -182,6 +182,8 @@ func synctestRun(f func()) {
+ 	sg.active++
+ 	for {
+ 		if raceenabled {
++			// Establish a happens-before relationship between a timer being created,
++			// and the timer running.
+ 			raceacquireg(gp, gp.syncGroup.raceaddr())
+ 		}
+ 		unlock(&sg.mu)
+@@ -205,6 +207,11 @@ func synctestRun(f func()) {
+ 
+ 	total := sg.total
+ 	unlock(&sg.mu)
++	if raceenabled {
++		// Establish a happens-before relationship between bubbled goroutines exiting
++		// and Run returning.
++		raceacquireg(gp, gp.syncGroup.raceaddr())
++	}
+ 	if total != 1 {
+ 		panic("deadlock: all goroutines in bubble are blocked")
+ 	}

@@ -1,0 +1,31 @@
+commit 57c44fdefc818f90b98fa1d5c0cd0fccdc35edf8
+Author: Sean Liao <sean@liao.dev>
+Date:   Sat Mar 15 00:14:14 2025 +0000
+
+    html/template: document comment stripping
+    
+    Fixes #28628
+    
+    Change-Id: I8b68f55f25e62f747d7cc48a490fec7f426f53d1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658115
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/html/template/doc.go | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/src/html/template/doc.go b/src/html/template/doc.go
+index 4d880738e6..38d58669de 100644
+--- a/src/html/template/doc.go
++++ b/src/html/template/doc.go
+@@ -28,6 +28,9 @@ HTML templates treat data values as plain text which should be encoded so they
+ can be safely embedded in an HTML document. The escaping is contextual, so
+ actions can appear within JavaScript, CSS, and URI contexts.
+ 
++Comments are stripped from output, except for those passed in via the
++[HTML], [CSS], and [JS] types for their respective contexts.
++
+ The security model used by this package assumes that template authors are
+ trusted, while Execute's data parameter is not. More details are
+ provided below.

@@ -1,0 +1,95 @@
+commit 755c18ecdfe64df060be91fb669ca1a68527830b
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Aug 21 14:38:30 2024 +0000
+
+    unique: use TypeFor instead of TypeOf to get type in Make
+    
+    Currently the first thing Make does it get the abi.Type of its argument,
+    and uses abi.TypeOf to do it. However, this has a problem for interface
+    types, since the type of the value stored in the interface value will
+    bleed through. This is a classic reflection mistake.
+    
+    Fix this by implementing and using a generic TypeFor which matches
+    reflect.TypeFor. This gets the type of the type parameter, which is far
+    less ambiguous and error-prone.
+    
+    Fixes #68990.
+    
+    Change-Id: Idd8d9a1095ef017e9cd7c7779314f7d4034f01a7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607355
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/abi/type.go  | 9 +++++++++
+ src/unique/clone_test.go  | 2 +-
+ src/unique/handle.go      | 2 +-
+ src/unique/handle_test.go | 3 ++-
+ 4 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index 598c919d0c..df61400923 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -177,6 +177,15 @@ func TypeOf(a any) *Type {
+ 	return (*Type)(NoEscape(unsafe.Pointer(eface.Type)))
+ }
+ 
++// TypeFor returns the abi.Type for a type parameter.
++func TypeFor[T any]() *Type {
++	var v T
++	if t := TypeOf(v); t != nil {
++		return t // optimize for T being a non-interface kind
++	}
++	return TypeOf((*T)(nil)).Elem() // only for an interface kind
++}
++
+ func (t *Type) Kind() Kind { return t.Kind_ & KindMask }
+ 
+ func (t *Type) HasName() bool {
+diff --git a/src/unique/clone_test.go b/src/unique/clone_test.go
+index 69a9a540c0..b0ba5b312e 100644
+--- a/src/unique/clone_test.go
++++ b/src/unique/clone_test.go
+@@ -27,7 +27,7 @@ func cSeq(stringOffsets ...uintptr) cloneSeq {
+ 
+ func testCloneSeq[T any](t *testing.T, want cloneSeq) {
+ 	typName := reflect.TypeFor[T]().Name()
+-	typ := abi.TypeOf(*new(T))
++	typ := abi.TypeFor[T]()
+ 	t.Run(typName, func(t *testing.T) {
+ 		got := makeCloneSeq(typ)
+ 		if !reflect.DeepEqual(got, want) {
+diff --git a/src/unique/handle.go b/src/unique/handle.go
+index 0842ae3185..96d8fedb0c 100644
+--- a/src/unique/handle.go
++++ b/src/unique/handle.go
+@@ -31,7 +31,7 @@ func (h Handle[T]) Value() T {
+ // are equal if and only if the values used to produce them are equal.
+ func Make[T comparable](value T) Handle[T] {
+ 	// Find the map for type T.
+-	typ := abi.TypeOf(value)
++	typ := abi.TypeFor[T]()
+ 	ma, ok := uniqueMaps.Load(typ)
+ 	if !ok {
+ 		// This is a good time to initialize cleanup, since we must go through
+diff --git a/src/unique/handle_test.go b/src/unique/handle_test.go
+index dffe10ac72..b031bbf685 100644
+--- a/src/unique/handle_test.go
++++ b/src/unique/handle_test.go
+@@ -41,6 +41,7 @@ func TestHandle(t *testing.T) {
+ 		s: [2]testStringStruct{testStringStruct{"y"}, testStringStruct{"z"}},
+ 	})
+ 	testHandle[testStruct](t, testStruct{0.5, "184"})
++	testHandle[testEface](t, testEface("hello"))
+ }
+ 
+ func testHandle[T comparable](t *testing.T, value T) {
+@@ -93,7 +94,7 @@ func drainMaps(t *testing.T) {
+ 
+ func checkMapsFor[T comparable](t *testing.T, value T) {
+ 	// Manually load the value out of the map.
+-	typ := abi.TypeOf(value)
++	typ := abi.TypeFor[T]()
+ 	a, ok := uniqueMaps.Load(typ)
+ 	if !ok {
+ 		return

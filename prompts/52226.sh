@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 52226: caa46312eeca1275ce22ecf8985ca31ef8de7883
+# Index 52226: c92c2c9d625ff3957d1c9313183fd0fe8f26984e
 
 echo "🚀 Generating explanation for commit 52226..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 52226..."
 
 ### メタデータ
 - **コミットインデックス**: 52226
-- **コミットハッシュ**: caa46312eeca1275ce22ecf8985ca31ef8de7883
-- **GitHub URL**: https://github.com/golang/go/commit/caa46312eeca1275ce22ecf8985ca31ef8de7883
+- **コミットハッシュ**: c92c2c9d625ff3957d1c9313183fd0fe8f26984e
+- **GitHub URL**: https://github.com/golang/go/commit/c92c2c9d625ff3957d1c9313183fd0fe8f26984e
 
 ### 章構成
 

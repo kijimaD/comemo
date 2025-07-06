@@ -1,0 +1,403 @@
+commit 200b2809f6fb292b32ddfa2e6776b45f120edd74
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jun 3 17:41:06 2024 -0400
+
+    cmd/vendor: pull in golang.org/x/telemetry@4691165
+    
+    Commands run:
+        go get golang.org/x/telemetry@4691165
+        go mod vendor
+        go mod tidy
+    
+    Change-Id: Icc72e77bab5e9687fbef74ada812708180725869
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/590076
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+---
+ src/cmd/go.mod                                     |   2 +-
+ src/cmd/go.sum                                     |   4 +-
+ .../x/telemetry/internal/configstore/download.go   |   5 +
+ .../internal/configstore/download_windows.go       |  33 +++++++
+ .../x/telemetry/internal/upload/reports.go         |  29 +++++-
+ .../x/telemetry/internal/upload/upload.go          |  25 ++++-
+ src/cmd/vendor/golang.org/x/telemetry/start.go     | 110 ++++++++++-----------
+ src/cmd/vendor/modules.txt                         |   2 +-
+ 8 files changed, 144 insertions(+), 66 deletions(-)
+
+diff --git a/src/cmd/go.mod b/src/cmd/go.mod
+index e9bc088f1f..385c6f0217 100644
+--- a/src/cmd/go.mod
++++ b/src/cmd/go.mod
+@@ -9,7 +9,7 @@ require (
+ 	golang.org/x/mod v0.17.1-0.20240514174713-c0bdc7bd01c9
+ 	golang.org/x/sync v0.7.0
+ 	golang.org/x/sys v0.20.0
+-	golang.org/x/telemetry v0.0.0-20240520205152-bf80d5667fb9
++	golang.org/x/telemetry v0.0.0-20240531174915-469116581a8e
+ 	golang.org/x/term v0.18.0
+ 	golang.org/x/tools v0.20.1-0.20240429173604-74c9cfe4d22f
+ )
+diff --git a/src/cmd/go.sum b/src/cmd/go.sum
+index 19d4817a9d..8d1f69e587 100644
+--- a/src/cmd/go.sum
++++ b/src/cmd/go.sum
+@@ -16,8 +16,8 @@ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+ golang.org/x/sys v0.20.0 h1:Od9JTbYCk261bKm4M/mw7AklTlFYIa0bIp9BgSm1S8Y=
+ golang.org/x/sys v0.20.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+-golang.org/x/telemetry v0.0.0-20240520205152-bf80d5667fb9 h1:YjhQ60ZAs9YrTY7Fz05TnZ8jS7kN+w50q4dihOdsqGM=
+-golang.org/x/telemetry v0.0.0-20240520205152-bf80d5667fb9/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
++golang.org/x/telemetry v0.0.0-20240531174915-469116581a8e h1:KnHU4oHoGCy3f0KxRlS5LwStte+o8u+f2cyT0flohIU=
++golang.org/x/telemetry v0.0.0-20240531174915-469116581a8e/go.mod h1:pRgIJT+bRLFKnoM1ldnzKoxTIn14Yxz928LQRYYgIN0=
+ golang.org/x/term v0.18.0 h1:FcHjZXDMxI8mM3nwhX9HlKop4C0YQvCVCdwYl2wOtE8=
+ golang.org/x/term v0.18.0/go.mod h1:ILwASektA3OnRv7amZ1xhE/KTR+u50pbXfZ03+6Nx58=
+ golang.org/x/text v0.14.0 h1:ScX5w1eTa3QqT8oi6+ziP7dTV1S2+ALU0bI+0zXKWiQ=
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go b/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go
+index b73763a9f2..a38f371d0f 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download.go
+@@ -25,6 +25,10 @@ const (
+ 	configFileName = "config.json"
+ )
+ 
++// needNoConsole is used on windows to set the windows.CREATE_NO_WINDOW
++// creation flag.
++var needNoConsole = func(cmd *exec.Cmd) {}
++
+ // Download fetches the requested telemetry UploadConfig using "go mod
+ // download". If envOverlay is provided, it is appended to the environment used
+ // for invoking the go command.
+@@ -37,6 +41,7 @@ func Download(version string, envOverlay []string) (*telemetry.UploadConfig, str
+ 	modVer := ModulePath + "@" + version
+ 	var stdout, stderr bytes.Buffer
+ 	cmd := exec.Command("go", "mod", "download", "-json", modVer)
++	needNoConsole(cmd)
+ 	cmd.Env = append(os.Environ(), envOverlay...)
+ 	cmd.Stdout = &stdout
+ 	cmd.Stderr = &stderr
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download_windows.go b/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download_windows.go
+new file mode 100644
+index 0000000000..1368de192a
+--- /dev/null
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/configstore/download_windows.go
+@@ -0,0 +1,33 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build windows
++
++package configstore
++
++import (
++	"os/exec"
++	"syscall"
++
++	"golang.org/x/sys/windows"
++)
++
++func init() {
++	needNoConsole = needNoConsoleWindows
++}
++
++func needNoConsoleWindows(cmd *exec.Cmd) {
++	// The uploader main process is likely a daemonized process with no console.
++	// (see x/telemetry/start_windows.go) The console creation behavior when
++	// a parent is a console process without console is not clearly documented
++	// but empirically we observed the new console is created and attached to the
++	// subprocess in the default setup.
++	//
++	// Ensure no new console is attached to the subprocess by setting CREATE_NO_WINDOW.
++	//   https://learn.microsoft.com/en-us/windows/console/creation-of-a-console
++	//   https://learn.microsoft.com/en-us/windows/win32/procthread/process-creation-flags
++	cmd.SysProcAttr = &syscall.SysProcAttr{
++		CreationFlags: windows.CREATE_NO_WINDOW,
++	}
++}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+index 41757897ea..d1091f40ad 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/reports.go
+@@ -248,10 +248,10 @@ func (u *uploader) createReport(start time.Time, expiryDate string, countFiles [
+ 	// write the uploadable file
+ 	var errUpload, errLocal error
+ 	if uploadOK {
+-		errUpload = os.WriteFile(uploadFileName, uploadContents, 0644)
++		_, errUpload = exclusiveWrite(uploadFileName, uploadContents)
+ 	}
+ 	// write the local file
+-	errLocal = os.WriteFile(localFileName, localContents, 0644)
++	_, errLocal = exclusiveWrite(localFileName, localContents)
+ 	/*  Wrote the files */
+ 
+ 	// even though these errors won't occur, what should happen
+@@ -270,6 +270,31 @@ func (u *uploader) createReport(start time.Time, expiryDate string, countFiles [
+ 	return "", nil
+ }
+ 
++// exclusiveWrite attempts to create filename exclusively, and if successful,
++// writes content to the resulting file handle.
++//
++// It returns a boolean indicating whether the exclusive handle was acquired,
++// and an error indicating whether the operation succeeded.
++// If the file already exists, exclusiveWrite returns (false, nil).
++func exclusiveWrite(filename string, content []byte) (_ bool, rerr error) {
++	f, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0644)
++	if err != nil {
++		if os.IsExist(err) {
++			return false, nil
++		}
++		return false, err
++	}
++	defer func() {
++		if err := f.Close(); err != nil && rerr == nil {
++			rerr = err
++		}
++	}()
++	if _, err := f.Write(content); err != nil {
++		return false, err
++	}
++	return true, nil
++}
++
+ // return an existing ProgremReport, or create anew
+ func findProgReport(meta map[string]string, report *telemetry.Report) *telemetry.ProgramReport {
+ 	for _, prog := range report.Programs {
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+index 0e75d09c01..2a3bf70f9d 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/internal/upload/upload.go
+@@ -61,11 +61,31 @@ func (u *uploader) uploadReport(fname string) {
+ 
+ // try to upload the report, 'true' if successful
+ func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
+-	b := bytes.NewReader(buf)
+ 	fdate := strings.TrimSuffix(filepath.Base(fname), ".json")
+ 	fdate = fdate[len(fdate)-len("2006-01-02"):]
+-	endpoint := u.uploadServerURL + "/" + fdate
+ 
++	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
++	if _, err := os.Stat(newname); err == nil {
++		// Another process uploaded but failed to clean up (or hasn't yet cleaned
++		// up). Ensure that cleanup occurs.
++		_ = os.Remove(fname)
++		return false
++	}
++
++	// Lock the upload, to prevent duplicate uploads.
++	{
++		lockname := newname + ".lock"
++		lockfile, err := os.OpenFile(lockname, os.O_CREATE|os.O_EXCL, 0666)
++		if err != nil {
++			u.logger.Printf("Failed to acquire lock %s: %v", lockname, err)
++			return false
++		}
++		_ = lockfile.Close()
++		defer os.Remove(lockname)
++	}
++
++	endpoint := u.uploadServerURL + "/" + fdate
++	b := bytes.NewReader(buf)
+ 	resp, err := http.Post(endpoint, "application/json", b)
+ 	if err != nil {
+ 		u.logger.Printf("Error upload %s to %s: %v", filepath.Base(fname), endpoint, err)
+@@ -85,7 +105,6 @@ func (u *uploader) uploadReportContents(fname string, buf []byte) bool {
+ 		return false
+ 	}
+ 	// Store a copy of the uploaded report in the uploaded directory.
+-	newname := filepath.Join(u.dir.UploadDir(), fdate+".json")
+ 	if err := os.WriteFile(newname, buf, 0644); err == nil {
+ 		os.Remove(fname) // if it exists
+ 	}
+diff --git a/src/cmd/vendor/golang.org/x/telemetry/start.go b/src/cmd/vendor/golang.org/x/telemetry/start.go
+index 426a18bb02..76fa9b6b4d 100644
+--- a/src/cmd/vendor/golang.org/x/telemetry/start.go
++++ b/src/cmd/vendor/golang.org/x/telemetry/start.go
+@@ -94,8 +94,8 @@ func Start(config Config) *StartResult {
+ 	mode, _ := telemetry.Default.Mode()
+ 	if mode == "off" {
+ 		// Telemetry is turned off. Crash reporting doesn't work without telemetry
+-		// at least set to "local", and the uploader isn't started in uploaderChild if
+-		// mode is "off"
++		// at least set to "local". The upload process runs in both "on" and "local" modes.
++		// In local mode the upload process builds local reports but does not do the upload.
+ 		return result
+ 	}
+ 
+@@ -109,35 +109,35 @@ func Start(config Config) *StartResult {
+ 		return result
+ 	}
+ 
+-	// Crash monitoring and uploading both require a sidecar process.
+-	var (
+-		reportCrashes = config.ReportCrashes && crashmonitor.Supported()
+-		upload        = config.Upload && mode != "off"
+-	)
+-	if reportCrashes || upload {
+-		switch v := os.Getenv(telemetryChildVar); v {
+-		case "":
+-			// The subprocess started by parent has X_TELEMETRY_CHILD=1.
+-			parent(reportCrashes, result)
+-		case "1":
+-			// golang/go#67211: be sure to set telemetryChildVar before running the
+-			// child, because the child itself invokes the go command to download the
+-			// upload config. If the telemetryChildVar variable is still set to "1",
+-			// that delegated go command may think that it is itself a telemetry
+-			// child.
+-			//
+-			// On the other hand, if telemetryChildVar were simply unset, then the
+-			// delegated go commands would fork themselves recursively. Short-circuit
+-			// this recursion.
+-			os.Setenv(telemetryChildVar, "2")
+-			child(reportCrashes, upload, config.UploadStartTime, config.UploadURL)
+-			os.Exit(0)
+-		case "2":
+-			// Do nothing: see note above.
+-		default:
+-			log.Fatalf("unexpected value for %q: %q", telemetryChildVar, v)
++	var reportCrashes = config.ReportCrashes && crashmonitor.Supported()
++
++	switch v := os.Getenv(telemetryChildVar); v {
++	case "":
++		// The subprocess started by parent has GO_TELEMETRY_CHILD=1.
++		childShouldUpload := config.Upload && acquireUploadToken()
++		if reportCrashes || childShouldUpload {
++			parent(reportCrashes, childShouldUpload, result)
+ 		}
++	case "1":
++		// golang/go#67211: be sure to set telemetryChildVar before running the
++		// child, because the child itself invokes the go command to download the
++		// upload config. If the telemetryChildVar variable is still set to "1",
++		// that delegated go command may think that it is itself a telemetry
++		// child.
++		//
++		// On the other hand, if telemetryChildVar were simply unset, then the
++		// delegated go commands would fork themselves recursively. Short-circuit
++		// this recursion.
++		os.Setenv(telemetryChildVar, "2")
++		upload := os.Getenv(telemetryUploadVar) == "1"
++		child(reportCrashes, upload, config.UploadStartTime, config.UploadURL)
++		os.Exit(0)
++	case "2":
++		// Do nothing: see note above.
++	default:
++		log.Fatalf("unexpected value for %q: %q", telemetryChildVar, v)
+ 	}
++
+ 	return result
+ }
+ 
+@@ -163,9 +163,13 @@ var daemonize = func(cmd *exec.Cmd) {}
+ //
+ // If telemetryChildVar is set to "2", this is a child of the child, and no
+ // further forking should occur.
+-const telemetryChildVar = "X_TELEMETRY_CHILD"
++const telemetryChildVar = "GO_TELEMETRY_CHILD"
++
++// If telemetryUploadVar is set to "1" in the environment, the upload token has been
++// acquired by the parent, and the child should attempt an upload.
++const telemetryUploadVar = "GO_TELEMETRY_CHILD_UPLOAD"
+ 
+-func parent(reportCrashes bool, result *StartResult) {
++func parent(reportCrashes, upload bool, result *StartResult) {
+ 	// This process is the application (parent).
+ 	// Fork+exec the telemetry child.
+ 	exe, err := os.Executable()
+@@ -179,6 +183,9 @@ func parent(reportCrashes bool, result *StartResult) {
+ 	cmd := exec.Command(exe, "** telemetry **") // this unused arg is just for ps(1)
+ 	daemonize(cmd)
+ 	cmd.Env = append(os.Environ(), telemetryChildVar+"=1")
++	if upload {
++		cmd.Env = append(cmd.Env, telemetryUploadVar+"=1")
++	}
+ 	cmd.Dir = telemetry.Default.LocalDir()
+ 
+ 	// The child process must write to a log file, not
+@@ -251,26 +258,6 @@ func child(reportCrashes, upload bool, uploadStartTime time.Time, uploadURL stri
+ }
+ 
+ func uploaderChild(asof time.Time, uploadURL string) {
+-	if mode, _ := telemetry.Default.Mode(); mode == "off" {
+-		// There's no work to be done if telemetry is turned off.
+-		return
+-	}
+-	if telemetry.Default.LocalDir() == "" {
+-		// The telemetry dir wasn't initialized properly, probably because
+-		// os.UserConfigDir did not complete successfully. In that case
+-		// there are no counters to upload, so we should just do nothing.
+-		return
+-	}
+-	tokenfilepath := filepath.Join(telemetry.Default.LocalDir(), "upload.token")
+-	ok, err := acquireUploadToken(tokenfilepath)
+-	if err != nil {
+-		log.Printf("error acquiring upload token: %v", err)
+-		return
+-	} else if !ok {
+-		// It hasn't been a day since the last upload.Run attempt or there's
+-		// a concurrently running uploader.
+-		return
+-	}
+ 	if err := upload.Run(upload.RunConfig{
+ 		UploadURL: uploadURL,
+ 		LogWriter: os.Stderr,
+@@ -284,7 +271,14 @@ func uploaderChild(asof time.Time, uploadURL string) {
+ // To limit the frequency of uploads, only one token is issue per
+ // machine per time period.
+ // The boolean indicates whether the token was acquired.
+-func acquireUploadToken(tokenfile string) (bool, error) {
++func acquireUploadToken() bool {
++	if telemetry.Default.LocalDir() == "" {
++		// The telemetry dir wasn't initialized properly, probably because
++		// os.UserConfigDir did not complete successfully. In that case
++		// there are no counters to upload, so we should just do nothing.
++		return false
++	}
++	tokenfile := filepath.Join(telemetry.Default.LocalDir(), "upload.token")
+ 	const period = 24 * time.Hour
+ 
+ 	// A process acquires a token by successfully creating a
+@@ -296,7 +290,7 @@ func acquireUploadToken(tokenfile string) (bool, error) {
+ 	fi, err := os.Stat(tokenfile)
+ 	if err == nil {
+ 		if time.Since(fi.ModTime()) < period {
+-			return false, nil
++			return false
+ 		}
+ 		// There's a possible race here where two processes check the
+ 		// token file and see that it's older than the period, then the
+@@ -307,16 +301,18 @@ func acquireUploadToken(tokenfile string) (bool, error) {
+ 		// the token to do rate limiting, not for correctness.
+ 		_ = os.Remove(tokenfile)
+ 	} else if !os.IsNotExist(err) {
+-		return false, fmt.Errorf("statting token file: %v", err)
++		log.Printf("error acquiring upload taken: statting token file: %v", err)
++		return false
+ 	}
+ 
+ 	f, err := os.OpenFile(tokenfile, os.O_CREATE|os.O_EXCL, 0666)
+ 	if err != nil {
+ 		if os.IsExist(err) {
+-			return false, nil
++			return false
+ 		}
+-		return false, fmt.Errorf("creating token file: %v", err)
++		log.Printf("error acquiring upload token: creating token file: %v", err)
++		return false
+ 	}
+ 	_ = f.Close()
+-	return true, nil
++	return true
+ }
+diff --git a/src/cmd/vendor/modules.txt b/src/cmd/vendor/modules.txt
+index c1ce6ec495..dbaa249988 100644
+--- a/src/cmd/vendor/modules.txt
++++ b/src/cmd/vendor/modules.txt
+@@ -45,7 +45,7 @@ golang.org/x/sync/semaphore
+ golang.org/x/sys/plan9
+ golang.org/x/sys/unix
+ golang.org/x/sys/windows
+-# golang.org/x/telemetry v0.0.0-20240520205152-bf80d5667fb9
++# golang.org/x/telemetry v0.0.0-20240531174915-469116581a8e
+ ## explicit; go 1.20
+ golang.org/x/telemetry
+ golang.org/x/telemetry/counter

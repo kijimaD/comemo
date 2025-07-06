@@ -1,0 +1,37 @@
+commit 304d9e2fd1b62d236eb48ec838be3680cb7845e6
+Author: Lokesh Kumar <lkumar94@gmail.com>
+Date:   Wed May 21 14:48:21 2025 +0000
+
+    bufio: update buffer documentation
+    
+    Fixes #73778
+    
+    Change-Id: If6d87a92786c9b0ee2bd790b57937919afe0fc5c
+    GitHub-Last-Rev: 4b4c7595d5779a127b01a5d71adca91cb5aa6c05
+    GitHub-Pull-Request: golang/go#73804
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674695
+    Auto-Submit: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/bufio/scan.go | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/bufio/scan.go b/src/bufio/scan.go
+index a26b2ff17d..1a0a3907c9 100644
+--- a/src/bufio/scan.go
++++ b/src/bufio/scan.go
+@@ -260,8 +260,11 @@ func (s *Scanner) setErr(err error) {
+ 	}
+ }
+ 
+-// Buffer sets the initial buffer to use when scanning
++// Buffer controls memory allocation by the Scanner.
++// It sets the initial buffer to use when scanning
+ // and the maximum size of buffer that may be allocated during scanning.
++// The contents of the buffer are ignored.
++//
+ // The maximum token size must be less than the larger of max and cap(buf).
+ // If max <= cap(buf), [Scanner.Scan] will use this buffer only and do no allocation.
+ //

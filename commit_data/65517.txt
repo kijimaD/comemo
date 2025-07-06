@@ -1,0 +1,59 @@
+commit 81fc3d223946d8d09463e40df597086275c01701
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Oct 21 12:08:53 2024 +0200
+
+    crypto/internal/mlkem768: remove crypto/rand.Read error checking
+    
+    After #66821 crypto/rand.Read can't return an error.
+    
+    Change-Id: I185063a25ef70986448f2a300e5578de17f6e61e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621979
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+---
+ src/crypto/internal/mlkem768/mlkem768.go | 18 ++++++------------
+ 1 file changed, 6 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/internal/mlkem768/mlkem768.go b/src/crypto/internal/mlkem768/mlkem768.go
+index 45f4b78056..f152e7682e 100644
+--- a/src/crypto/internal/mlkem768/mlkem768.go
++++ b/src/crypto/internal/mlkem768/mlkem768.go
+@@ -112,19 +112,15 @@ type decryptionKey struct {
+ func GenerateKey() (*DecapsulationKey, error) {
+ 	// The actual logic is in a separate function to outline this allocation.
+ 	dk := &DecapsulationKey{}
+-	return generateKey(dk)
++	return generateKey(dk), nil
+ }
+ 
+-func generateKey(dk *DecapsulationKey) (*DecapsulationKey, error) {
++func generateKey(dk *DecapsulationKey) *DecapsulationKey {
+ 	var d [32]byte
+-	if _, err := rand.Read(d[:]); err != nil {
+-		return nil, errors.New("mlkem768: crypto/rand Read failed: " + err.Error())
+-	}
++	rand.Read(d[:])
+ 	var z [32]byte
+-	if _, err := rand.Read(z[:]); err != nil {
+-		return nil, errors.New("mlkem768: crypto/rand Read failed: " + err.Error())
+-	}
+-	return kemKeyGen(dk, &d, &z), nil
++	rand.Read(z[:])
++	return kemKeyGen(dk, &d, &z)
+ }
+ 
+ // NewKeyFromSeed deterministically generates a decapsulation key from a 64-byte
+@@ -214,9 +210,7 @@ func encapsulate(cc *[CiphertextSize]byte, encapsulationKey []byte) (ciphertext,
+ 		return nil, nil, errors.New("mlkem768: invalid encapsulation key length")
+ 	}
+ 	var m [messageSize]byte
+-	if _, err := rand.Read(m[:]); err != nil {
+-		return nil, nil, errors.New("mlkem768: crypto/rand Read failed: " + err.Error())
+-	}
++	rand.Read(m[:])
+ 	// Note that the modulus check (step 2 of the encapsulation key check from
+ 	// FIPS 203, Section 7.2) is performed by polyByteDecode in parseEK.
+ 	return kemEncaps(cc, encapsulationKey, &m)

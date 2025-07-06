@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 55698: dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
+# Index 55698: a900a176bf946ac220336c7c5dad107745fc9c41
 
 echo "🚀 Generating explanation for commit 55698..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 55698..."
 
 ### メタデータ
 - **コミットインデックス**: 55698
-- **コミットハッシュ**: dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
-- **GitHub URL**: https://github.com/golang/go/commit/dbdb3359b5b7cf948d74ba0f95e992ee98933bc5
+- **コミットハッシュ**: a900a176bf946ac220336c7c5dad107745fc9c41
+- **GitHub URL**: https://github.com/golang/go/commit/a900a176bf946ac220336c7c5dad107745fc9c41
 
 ### 章構成
 

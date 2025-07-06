@@ -1,0 +1,995 @@
+commit 63ba2b9d84dede1df107db30b4ff8139711402eb
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Oct 25 15:08:54 2024 -0400
+
+    cmd/compile,internal/runtime/maps: stack allocated maps and small alloc
+    
+    The compiler will stack allocate the Map struct and initial group if
+    possible.
+    
+    Stack maps are initialized inline without calling into the runtime.
+    Small heap allocated maps use makemap_small.
+    
+    These are the same heuristics as existing maps.
+    
+    For #54766.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest-swissmap
+    Change-Id: I6c371d1309716fd1c38a3212d417b3c76db5c9b9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622042
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ .../compile/internal/typecheck/_builtin/runtime.go |   1 +
+ src/cmd/compile/internal/typecheck/builtin.go      | 392 +++++++++++----------
+ src/cmd/compile/internal/walk/builtin.go           |  92 ++++-
+ src/internal/abi/map_swiss.go                      |   6 +
+ src/internal/runtime/maps/export_test.go           |   2 +-
+ src/internal/runtime/maps/map.go                   |  90 +++--
+ src/runtime/map_swiss.go                           |  15 +-
+ test/live.go                                       |  10 +
+ test/live_noswiss.go                               |  32 --
+ test/live_regabi.go                                |  10 +
+ test/live_regabi_noswiss.go                        |  31 --
+ test/live_regabi_swiss.go                          |  31 --
+ test/live_swiss.go                                 |  32 --
+ 13 files changed, 364 insertions(+), 380 deletions(-)
+
+diff --git a/src/cmd/compile/internal/typecheck/_builtin/runtime.go b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+index 1f1b41c910..6761432530 100644
+--- a/src/cmd/compile/internal/typecheck/_builtin/runtime.go
++++ b/src/cmd/compile/internal/typecheck/_builtin/runtime.go
+@@ -129,6 +129,7 @@ func panicrangestate(state int)
+ // defer in range over func
+ func deferrangefunc() interface{}
+ 
++func rand() uint64
+ func rand32() uint32
+ 
+ // *byte is really *runtime.Type
+diff --git a/src/cmd/compile/internal/typecheck/builtin.go b/src/cmd/compile/internal/typecheck/builtin.go
+index cf6b6e4a61..0a0e5917f6 100644
+--- a/src/cmd/compile/internal/typecheck/builtin.go
++++ b/src/cmd/compile/internal/typecheck/builtin.go
+@@ -109,138 +109,139 @@ var runtimeDecls = [...]struct {
+ 	{"efaceeq", funcTag, 77},
+ 	{"panicrangestate", funcTag, 78},
+ 	{"deferrangefunc", funcTag, 79},
+-	{"rand32", funcTag, 80},
+-	{"makemap64", funcTag, 82},
+-	{"makemap", funcTag, 83},
+-	{"makemap_small", funcTag, 84},
+-	{"mapaccess1", funcTag, 85},
+-	{"mapaccess1_fast32", funcTag, 86},
+-	{"mapaccess1_fast64", funcTag, 87},
+-	{"mapaccess1_faststr", funcTag, 88},
+-	{"mapaccess1_fat", funcTag, 89},
+-	{"mapaccess2", funcTag, 90},
+-	{"mapaccess2_fast32", funcTag, 91},
+-	{"mapaccess2_fast64", funcTag, 92},
+-	{"mapaccess2_faststr", funcTag, 93},
+-	{"mapaccess2_fat", funcTag, 94},
+-	{"mapassign", funcTag, 85},
+-	{"mapassign_fast32", funcTag, 86},
+-	{"mapassign_fast32ptr", funcTag, 95},
+-	{"mapassign_fast64", funcTag, 87},
+-	{"mapassign_fast64ptr", funcTag, 95},
+-	{"mapassign_faststr", funcTag, 88},
+-	{"mapiterinit", funcTag, 96},
+-	{"mapdelete", funcTag, 96},
+-	{"mapdelete_fast32", funcTag, 97},
+-	{"mapdelete_fast64", funcTag, 98},
+-	{"mapdelete_faststr", funcTag, 99},
+-	{"mapiternext", funcTag, 100},
+-	{"mapclear", funcTag, 101},
+-	{"makechan64", funcTag, 103},
+-	{"makechan", funcTag, 104},
+-	{"chanrecv1", funcTag, 106},
+-	{"chanrecv2", funcTag, 107},
+-	{"chansend1", funcTag, 109},
+-	{"closechan", funcTag, 110},
+-	{"chanlen", funcTag, 111},
+-	{"chancap", funcTag, 111},
+-	{"writeBarrier", varTag, 113},
+-	{"typedmemmove", funcTag, 114},
+-	{"typedmemclr", funcTag, 115},
+-	{"typedslicecopy", funcTag, 116},
+-	{"selectnbsend", funcTag, 117},
+-	{"selectnbrecv", funcTag, 118},
+-	{"selectsetpc", funcTag, 119},
+-	{"selectgo", funcTag, 120},
++	{"rand", funcTag, 80},
++	{"rand32", funcTag, 81},
++	{"makemap64", funcTag, 83},
++	{"makemap", funcTag, 84},
++	{"makemap_small", funcTag, 85},
++	{"mapaccess1", funcTag, 86},
++	{"mapaccess1_fast32", funcTag, 87},
++	{"mapaccess1_fast64", funcTag, 88},
++	{"mapaccess1_faststr", funcTag, 89},
++	{"mapaccess1_fat", funcTag, 90},
++	{"mapaccess2", funcTag, 91},
++	{"mapaccess2_fast32", funcTag, 92},
++	{"mapaccess2_fast64", funcTag, 93},
++	{"mapaccess2_faststr", funcTag, 94},
++	{"mapaccess2_fat", funcTag, 95},
++	{"mapassign", funcTag, 86},
++	{"mapassign_fast32", funcTag, 87},
++	{"mapassign_fast32ptr", funcTag, 96},
++	{"mapassign_fast64", funcTag, 88},
++	{"mapassign_fast64ptr", funcTag, 96},
++	{"mapassign_faststr", funcTag, 89},
++	{"mapiterinit", funcTag, 97},
++	{"mapdelete", funcTag, 97},
++	{"mapdelete_fast32", funcTag, 98},
++	{"mapdelete_fast64", funcTag, 99},
++	{"mapdelete_faststr", funcTag, 100},
++	{"mapiternext", funcTag, 101},
++	{"mapclear", funcTag, 102},
++	{"makechan64", funcTag, 104},
++	{"makechan", funcTag, 105},
++	{"chanrecv1", funcTag, 107},
++	{"chanrecv2", funcTag, 108},
++	{"chansend1", funcTag, 110},
++	{"closechan", funcTag, 111},
++	{"chanlen", funcTag, 112},
++	{"chancap", funcTag, 112},
++	{"writeBarrier", varTag, 114},
++	{"typedmemmove", funcTag, 115},
++	{"typedmemclr", funcTag, 116},
++	{"typedslicecopy", funcTag, 117},
++	{"selectnbsend", funcTag, 118},
++	{"selectnbrecv", funcTag, 119},
++	{"selectsetpc", funcTag, 120},
++	{"selectgo", funcTag, 121},
+ 	{"block", funcTag, 9},
+-	{"makeslice", funcTag, 121},
+-	{"makeslice64", funcTag, 122},
+-	{"makeslicecopy", funcTag, 123},
+-	{"growslice", funcTag, 125},
+-	{"unsafeslicecheckptr", funcTag, 126},
++	{"makeslice", funcTag, 122},
++	{"makeslice64", funcTag, 123},
++	{"makeslicecopy", funcTag, 124},
++	{"growslice", funcTag, 126},
++	{"unsafeslicecheckptr", funcTag, 127},
+ 	{"panicunsafeslicelen", funcTag, 9},
+ 	{"panicunsafeslicenilptr", funcTag, 9},
+-	{"unsafestringcheckptr", funcTag, 127},
++	{"unsafestringcheckptr", funcTag, 128},
+ 	{"panicunsafestringlen", funcTag, 9},
+ 	{"panicunsafestringnilptr", funcTag, 9},
+-	{"memmove", funcTag, 128},
+-	{"memclrNoHeapPointers", funcTag, 129},
+-	{"memclrHasPointers", funcTag, 129},
+-	{"memequal", funcTag, 130},
+-	{"memequal0", funcTag, 131},
+-	{"memequal8", funcTag, 131},
+-	{"memequal16", funcTag, 131},
+-	{"memequal32", funcTag, 131},
+-	{"memequal64", funcTag, 131},
+-	{"memequal128", funcTag, 131},
+-	{"f32equal", funcTag, 132},
+-	{"f64equal", funcTag, 132},
+-	{"c64equal", funcTag, 132},
+-	{"c128equal", funcTag, 132},
+-	{"strequal", funcTag, 132},
+-	{"interequal", funcTag, 132},
+-	{"nilinterequal", funcTag, 132},
+-	{"memhash", funcTag, 133},
+-	{"memhash0", funcTag, 134},
+-	{"memhash8", funcTag, 134},
+-	{"memhash16", funcTag, 134},
+-	{"memhash32", funcTag, 134},
+-	{"memhash64", funcTag, 134},
+-	{"memhash128", funcTag, 134},
+-	{"f32hash", funcTag, 135},
+-	{"f64hash", funcTag, 135},
+-	{"c64hash", funcTag, 135},
+-	{"c128hash", funcTag, 135},
+-	{"strhash", funcTag, 135},
+-	{"interhash", funcTag, 135},
+-	{"nilinterhash", funcTag, 135},
+-	{"int64div", funcTag, 136},
+-	{"uint64div", funcTag, 137},
+-	{"int64mod", funcTag, 136},
+-	{"uint64mod", funcTag, 137},
+-	{"float64toint64", funcTag, 138},
+-	{"float64touint64", funcTag, 139},
+-	{"float64touint32", funcTag, 140},
+-	{"int64tofloat64", funcTag, 141},
+-	{"int64tofloat32", funcTag, 143},
+-	{"uint64tofloat64", funcTag, 144},
+-	{"uint64tofloat32", funcTag, 145},
+-	{"uint32tofloat64", funcTag, 146},
+-	{"complex128div", funcTag, 147},
++	{"memmove", funcTag, 129},
++	{"memclrNoHeapPointers", funcTag, 130},
++	{"memclrHasPointers", funcTag, 130},
++	{"memequal", funcTag, 131},
++	{"memequal0", funcTag, 132},
++	{"memequal8", funcTag, 132},
++	{"memequal16", funcTag, 132},
++	{"memequal32", funcTag, 132},
++	{"memequal64", funcTag, 132},
++	{"memequal128", funcTag, 132},
++	{"f32equal", funcTag, 133},
++	{"f64equal", funcTag, 133},
++	{"c64equal", funcTag, 133},
++	{"c128equal", funcTag, 133},
++	{"strequal", funcTag, 133},
++	{"interequal", funcTag, 133},
++	{"nilinterequal", funcTag, 133},
++	{"memhash", funcTag, 134},
++	{"memhash0", funcTag, 135},
++	{"memhash8", funcTag, 135},
++	{"memhash16", funcTag, 135},
++	{"memhash32", funcTag, 135},
++	{"memhash64", funcTag, 135},
++	{"memhash128", funcTag, 135},
++	{"f32hash", funcTag, 136},
++	{"f64hash", funcTag, 136},
++	{"c64hash", funcTag, 136},
++	{"c128hash", funcTag, 136},
++	{"strhash", funcTag, 136},
++	{"interhash", funcTag, 136},
++	{"nilinterhash", funcTag, 136},
++	{"int64div", funcTag, 137},
++	{"uint64div", funcTag, 138},
++	{"int64mod", funcTag, 137},
++	{"uint64mod", funcTag, 138},
++	{"float64toint64", funcTag, 139},
++	{"float64touint64", funcTag, 140},
++	{"float64touint32", funcTag, 141},
++	{"int64tofloat64", funcTag, 142},
++	{"int64tofloat32", funcTag, 144},
++	{"uint64tofloat64", funcTag, 145},
++	{"uint64tofloat32", funcTag, 146},
++	{"uint32tofloat64", funcTag, 147},
++	{"complex128div", funcTag, 148},
+ 	{"racefuncenter", funcTag, 31},
+ 	{"racefuncexit", funcTag, 9},
+ 	{"raceread", funcTag, 31},
+ 	{"racewrite", funcTag, 31},
+-	{"racereadrange", funcTag, 148},
+-	{"racewriterange", funcTag, 148},
+-	{"msanread", funcTag, 148},
+-	{"msanwrite", funcTag, 148},
+-	{"msanmove", funcTag, 149},
+-	{"asanread", funcTag, 148},
+-	{"asanwrite", funcTag, 148},
+-	{"checkptrAlignment", funcTag, 150},
+-	{"checkptrArithmetic", funcTag, 152},
+-	{"libfuzzerTraceCmp1", funcTag, 153},
+-	{"libfuzzerTraceCmp2", funcTag, 154},
+-	{"libfuzzerTraceCmp4", funcTag, 155},
+-	{"libfuzzerTraceCmp8", funcTag, 156},
+-	{"libfuzzerTraceConstCmp1", funcTag, 153},
+-	{"libfuzzerTraceConstCmp2", funcTag, 154},
+-	{"libfuzzerTraceConstCmp4", funcTag, 155},
+-	{"libfuzzerTraceConstCmp8", funcTag, 156},
+-	{"libfuzzerHookStrCmp", funcTag, 157},
+-	{"libfuzzerHookEqualFold", funcTag, 157},
+-	{"addCovMeta", funcTag, 159},
++	{"racereadrange", funcTag, 149},
++	{"racewriterange", funcTag, 149},
++	{"msanread", funcTag, 149},
++	{"msanwrite", funcTag, 149},
++	{"msanmove", funcTag, 150},
++	{"asanread", funcTag, 149},
++	{"asanwrite", funcTag, 149},
++	{"checkptrAlignment", funcTag, 151},
++	{"checkptrArithmetic", funcTag, 153},
++	{"libfuzzerTraceCmp1", funcTag, 154},
++	{"libfuzzerTraceCmp2", funcTag, 155},
++	{"libfuzzerTraceCmp4", funcTag, 156},
++	{"libfuzzerTraceCmp8", funcTag, 157},
++	{"libfuzzerTraceConstCmp1", funcTag, 154},
++	{"libfuzzerTraceConstCmp2", funcTag, 155},
++	{"libfuzzerTraceConstCmp4", funcTag, 156},
++	{"libfuzzerTraceConstCmp8", funcTag, 157},
++	{"libfuzzerHookStrCmp", funcTag, 158},
++	{"libfuzzerHookEqualFold", funcTag, 158},
++	{"addCovMeta", funcTag, 160},
+ 	{"x86HasPOPCNT", varTag, 6},
+ 	{"x86HasSSE41", varTag, 6},
+ 	{"x86HasFMA", varTag, 6},
+ 	{"armHasVFPv4", varTag, 6},
+ 	{"arm64HasATOMICS", varTag, 6},
+-	{"asanregisterglobals", funcTag, 129},
++	{"asanregisterglobals", funcTag, 130},
+ }
+ 
+ func runtimeTypes() []*types.Type {
+-	var typs [160]*types.Type
++	var typs [161]*types.Type
+ 	typs[0] = types.ByteType
+ 	typs[1] = types.NewPtr(typs[0])
+ 	typs[2] = types.Types[types.TANY]
+@@ -321,86 +322,87 @@ func runtimeTypes() []*types.Type {
+ 	typs[77] = newSig(params(typs[76], typs[7], typs[7]), params(typs[6]))
+ 	typs[78] = newSig(params(typs[15]), nil)
+ 	typs[79] = newSig(nil, params(typs[10]))
+-	typs[80] = newSig(nil, params(typs[65]))
+-	typs[81] = types.NewMap(typs[2], typs[2])
+-	typs[82] = newSig(params(typs[1], typs[22], typs[3]), params(typs[81]))
+-	typs[83] = newSig(params(typs[1], typs[15], typs[3]), params(typs[81]))
+-	typs[84] = newSig(nil, params(typs[81]))
+-	typs[85] = newSig(params(typs[1], typs[81], typs[3]), params(typs[3]))
+-	typs[86] = newSig(params(typs[1], typs[81], typs[65]), params(typs[3]))
+-	typs[87] = newSig(params(typs[1], typs[81], typs[24]), params(typs[3]))
+-	typs[88] = newSig(params(typs[1], typs[81], typs[28]), params(typs[3]))
+-	typs[89] = newSig(params(typs[1], typs[81], typs[3], typs[1]), params(typs[3]))
+-	typs[90] = newSig(params(typs[1], typs[81], typs[3]), params(typs[3], typs[6]))
+-	typs[91] = newSig(params(typs[1], typs[81], typs[65]), params(typs[3], typs[6]))
+-	typs[92] = newSig(params(typs[1], typs[81], typs[24]), params(typs[3], typs[6]))
+-	typs[93] = newSig(params(typs[1], typs[81], typs[28]), params(typs[3], typs[6]))
+-	typs[94] = newSig(params(typs[1], typs[81], typs[3], typs[1]), params(typs[3], typs[6]))
+-	typs[95] = newSig(params(typs[1], typs[81], typs[7]), params(typs[3]))
+-	typs[96] = newSig(params(typs[1], typs[81], typs[3]), nil)
+-	typs[97] = newSig(params(typs[1], typs[81], typs[65]), nil)
+-	typs[98] = newSig(params(typs[1], typs[81], typs[24]), nil)
+-	typs[99] = newSig(params(typs[1], typs[81], typs[28]), nil)
+-	typs[100] = newSig(params(typs[3]), nil)
+-	typs[101] = newSig(params(typs[1], typs[81]), nil)
+-	typs[102] = types.NewChan(typs[2], types.Cboth)
+-	typs[103] = newSig(params(typs[1], typs[22]), params(typs[102]))
+-	typs[104] = newSig(params(typs[1], typs[15]), params(typs[102]))
+-	typs[105] = types.NewChan(typs[2], types.Crecv)
+-	typs[106] = newSig(params(typs[105], typs[3]), nil)
+-	typs[107] = newSig(params(typs[105], typs[3]), params(typs[6]))
+-	typs[108] = types.NewChan(typs[2], types.Csend)
+-	typs[109] = newSig(params(typs[108], typs[3]), nil)
+-	typs[110] = newSig(params(typs[108]), nil)
+-	typs[111] = newSig(params(typs[2]), params(typs[15]))
+-	typs[112] = types.NewArray(typs[0], 3)
+-	typs[113] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[112]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
+-	typs[114] = newSig(params(typs[1], typs[3], typs[3]), nil)
+-	typs[115] = newSig(params(typs[1], typs[3]), nil)
+-	typs[116] = newSig(params(typs[1], typs[3], typs[15], typs[3], typs[15]), params(typs[15]))
+-	typs[117] = newSig(params(typs[108], typs[3]), params(typs[6]))
+-	typs[118] = newSig(params(typs[3], typs[105]), params(typs[6], typs[6]))
+-	typs[119] = newSig(params(typs[76]), nil)
+-	typs[120] = newSig(params(typs[1], typs[1], typs[76], typs[15], typs[15], typs[6]), params(typs[15], typs[6]))
+-	typs[121] = newSig(params(typs[1], typs[15], typs[15]), params(typs[7]))
+-	typs[122] = newSig(params(typs[1], typs[22], typs[22]), params(typs[7]))
+-	typs[123] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
+-	typs[124] = types.NewSlice(typs[2])
+-	typs[125] = newSig(params(typs[3], typs[15], typs[15], typs[15], typs[1]), params(typs[124]))
+-	typs[126] = newSig(params(typs[1], typs[7], typs[22]), nil)
+-	typs[127] = newSig(params(typs[7], typs[22]), nil)
+-	typs[128] = newSig(params(typs[3], typs[3], typs[5]), nil)
+-	typs[129] = newSig(params(typs[7], typs[5]), nil)
+-	typs[130] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
+-	typs[131] = newSig(params(typs[3], typs[3]), params(typs[6]))
+-	typs[132] = newSig(params(typs[7], typs[7]), params(typs[6]))
+-	typs[133] = newSig(params(typs[3], typs[5], typs[5]), params(typs[5]))
+-	typs[134] = newSig(params(typs[7], typs[5]), params(typs[5]))
+-	typs[135] = newSig(params(typs[3], typs[5]), params(typs[5]))
+-	typs[136] = newSig(params(typs[22], typs[22]), params(typs[22]))
+-	typs[137] = newSig(params(typs[24], typs[24]), params(typs[24]))
+-	typs[138] = newSig(params(typs[20]), params(typs[22]))
+-	typs[139] = newSig(params(typs[20]), params(typs[24]))
+-	typs[140] = newSig(params(typs[20]), params(typs[65]))
+-	typs[141] = newSig(params(typs[22]), params(typs[20]))
+-	typs[142] = types.Types[types.TFLOAT32]
+-	typs[143] = newSig(params(typs[22]), params(typs[142]))
+-	typs[144] = newSig(params(typs[24]), params(typs[20]))
+-	typs[145] = newSig(params(typs[24]), params(typs[142]))
+-	typs[146] = newSig(params(typs[65]), params(typs[20]))
+-	typs[147] = newSig(params(typs[26], typs[26]), params(typs[26]))
+-	typs[148] = newSig(params(typs[5], typs[5]), nil)
+-	typs[149] = newSig(params(typs[5], typs[5], typs[5]), nil)
+-	typs[150] = newSig(params(typs[7], typs[1], typs[5]), nil)
+-	typs[151] = types.NewSlice(typs[7])
+-	typs[152] = newSig(params(typs[7], typs[151]), nil)
+-	typs[153] = newSig(params(typs[69], typs[69], typs[17]), nil)
+-	typs[154] = newSig(params(typs[63], typs[63], typs[17]), nil)
+-	typs[155] = newSig(params(typs[65], typs[65], typs[17]), nil)
+-	typs[156] = newSig(params(typs[24], typs[24], typs[17]), nil)
+-	typs[157] = newSig(params(typs[28], typs[28], typs[17]), nil)
+-	typs[158] = types.NewArray(typs[0], 16)
+-	typs[159] = newSig(params(typs[7], typs[65], typs[158], typs[28], typs[15], typs[69], typs[69]), params(typs[65]))
++	typs[80] = newSig(nil, params(typs[24]))
++	typs[81] = newSig(nil, params(typs[65]))
++	typs[82] = types.NewMap(typs[2], typs[2])
++	typs[83] = newSig(params(typs[1], typs[22], typs[3]), params(typs[82]))
++	typs[84] = newSig(params(typs[1], typs[15], typs[3]), params(typs[82]))
++	typs[85] = newSig(nil, params(typs[82]))
++	typs[86] = newSig(params(typs[1], typs[82], typs[3]), params(typs[3]))
++	typs[87] = newSig(params(typs[1], typs[82], typs[65]), params(typs[3]))
++	typs[88] = newSig(params(typs[1], typs[82], typs[24]), params(typs[3]))
++	typs[89] = newSig(params(typs[1], typs[82], typs[28]), params(typs[3]))
++	typs[90] = newSig(params(typs[1], typs[82], typs[3], typs[1]), params(typs[3]))
++	typs[91] = newSig(params(typs[1], typs[82], typs[3]), params(typs[3], typs[6]))
++	typs[92] = newSig(params(typs[1], typs[82], typs[65]), params(typs[3], typs[6]))
++	typs[93] = newSig(params(typs[1], typs[82], typs[24]), params(typs[3], typs[6]))
++	typs[94] = newSig(params(typs[1], typs[82], typs[28]), params(typs[3], typs[6]))
++	typs[95] = newSig(params(typs[1], typs[82], typs[3], typs[1]), params(typs[3], typs[6]))
++	typs[96] = newSig(params(typs[1], typs[82], typs[7]), params(typs[3]))
++	typs[97] = newSig(params(typs[1], typs[82], typs[3]), nil)
++	typs[98] = newSig(params(typs[1], typs[82], typs[65]), nil)
++	typs[99] = newSig(params(typs[1], typs[82], typs[24]), nil)
++	typs[100] = newSig(params(typs[1], typs[82], typs[28]), nil)
++	typs[101] = newSig(params(typs[3]), nil)
++	typs[102] = newSig(params(typs[1], typs[82]), nil)
++	typs[103] = types.NewChan(typs[2], types.Cboth)
++	typs[104] = newSig(params(typs[1], typs[22]), params(typs[103]))
++	typs[105] = newSig(params(typs[1], typs[15]), params(typs[103]))
++	typs[106] = types.NewChan(typs[2], types.Crecv)
++	typs[107] = newSig(params(typs[106], typs[3]), nil)
++	typs[108] = newSig(params(typs[106], typs[3]), params(typs[6]))
++	typs[109] = types.NewChan(typs[2], types.Csend)
++	typs[110] = newSig(params(typs[109], typs[3]), nil)
++	typs[111] = newSig(params(typs[109]), nil)
++	typs[112] = newSig(params(typs[2]), params(typs[15]))
++	typs[113] = types.NewArray(typs[0], 3)
++	typs[114] = types.NewStruct([]*types.Field{types.NewField(src.NoXPos, Lookup("enabled"), typs[6]), types.NewField(src.NoXPos, Lookup("pad"), typs[113]), types.NewField(src.NoXPos, Lookup("cgo"), typs[6]), types.NewField(src.NoXPos, Lookup("alignme"), typs[24])})
++	typs[115] = newSig(params(typs[1], typs[3], typs[3]), nil)
++	typs[116] = newSig(params(typs[1], typs[3]), nil)
++	typs[117] = newSig(params(typs[1], typs[3], typs[15], typs[3], typs[15]), params(typs[15]))
++	typs[118] = newSig(params(typs[109], typs[3]), params(typs[6]))
++	typs[119] = newSig(params(typs[3], typs[106]), params(typs[6], typs[6]))
++	typs[120] = newSig(params(typs[76]), nil)
++	typs[121] = newSig(params(typs[1], typs[1], typs[76], typs[15], typs[15], typs[6]), params(typs[15], typs[6]))
++	typs[122] = newSig(params(typs[1], typs[15], typs[15]), params(typs[7]))
++	typs[123] = newSig(params(typs[1], typs[22], typs[22]), params(typs[7]))
++	typs[124] = newSig(params(typs[1], typs[15], typs[15], typs[7]), params(typs[7]))
++	typs[125] = types.NewSlice(typs[2])
++	typs[126] = newSig(params(typs[3], typs[15], typs[15], typs[15], typs[1]), params(typs[125]))
++	typs[127] = newSig(params(typs[1], typs[7], typs[22]), nil)
++	typs[128] = newSig(params(typs[7], typs[22]), nil)
++	typs[129] = newSig(params(typs[3], typs[3], typs[5]), nil)
++	typs[130] = newSig(params(typs[7], typs[5]), nil)
++	typs[131] = newSig(params(typs[3], typs[3], typs[5]), params(typs[6]))
++	typs[132] = newSig(params(typs[3], typs[3]), params(typs[6]))
++	typs[133] = newSig(params(typs[7], typs[7]), params(typs[6]))
++	typs[134] = newSig(params(typs[3], typs[5], typs[5]), params(typs[5]))
++	typs[135] = newSig(params(typs[7], typs[5]), params(typs[5]))
++	typs[136] = newSig(params(typs[3], typs[5]), params(typs[5]))
++	typs[137] = newSig(params(typs[22], typs[22]), params(typs[22]))
++	typs[138] = newSig(params(typs[24], typs[24]), params(typs[24]))
++	typs[139] = newSig(params(typs[20]), params(typs[22]))
++	typs[140] = newSig(params(typs[20]), params(typs[24]))
++	typs[141] = newSig(params(typs[20]), params(typs[65]))
++	typs[142] = newSig(params(typs[22]), params(typs[20]))
++	typs[143] = types.Types[types.TFLOAT32]
++	typs[144] = newSig(params(typs[22]), params(typs[143]))
++	typs[145] = newSig(params(typs[24]), params(typs[20]))
++	typs[146] = newSig(params(typs[24]), params(typs[143]))
++	typs[147] = newSig(params(typs[65]), params(typs[20]))
++	typs[148] = newSig(params(typs[26], typs[26]), params(typs[26]))
++	typs[149] = newSig(params(typs[5], typs[5]), nil)
++	typs[150] = newSig(params(typs[5], typs[5], typs[5]), nil)
++	typs[151] = newSig(params(typs[7], typs[1], typs[5]), nil)
++	typs[152] = types.NewSlice(typs[7])
++	typs[153] = newSig(params(typs[7], typs[152]), nil)
++	typs[154] = newSig(params(typs[69], typs[69], typs[17]), nil)
++	typs[155] = newSig(params(typs[63], typs[63], typs[17]), nil)
++	typs[156] = newSig(params(typs[65], typs[65], typs[17]), nil)
++	typs[157] = newSig(params(typs[24], typs[24], typs[17]), nil)
++	typs[158] = newSig(params(typs[28], typs[28], typs[17]), nil)
++	typs[159] = types.NewArray(typs[0], 16)
++	typs[160] = newSig(params(typs[7], typs[65], typs[159], typs[28], typs[15], typs[69], typs[69]), params(typs[65]))
+ 	return typs[:]
+ }
+ 
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 51c5e0b94b..be32e77ded 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -320,22 +320,90 @@ func walkMakeMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 
+ func walkMakeSwissMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 	t := n.Type()
+-	hmapType := reflectdata.SwissMapType()
++	mapType := reflectdata.SwissMapType()
+ 	hint := n.Len
+ 
+-	// var h *hmap
+-	var h ir.Node
++	// var m *Map
++	var m ir.Node
+ 	if n.Esc() == ir.EscNone {
+ 		// Allocate hmap on stack.
+ 
+-		// var hv hmap
+-		// h = &hv
+-		h = stackTempAddr(init, hmapType)
++		// var mv Map
++		// m = &mv
++		m = stackTempAddr(init, mapType)
+ 
+-		// TODO(go.dev/issue/54766): Stack allocated table/groups.
+-	} else {
+-		h = typecheck.NodNil()
++		// Allocate one group pointed to by m.dirPtr on stack if hint
++		// is not larger than SwissMapGroupSlots. In case hint is
++		// larger, runtime.makemap will allocate on the heap.
++		// Maximum key and elem size is 128 bytes, larger objects
++		// are stored with an indirection. So max bucket size is 2048+eps.
++		if !ir.IsConst(hint, constant.Int) ||
++			constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.SwissMapGroupSlots)) {
++
++			// In case hint is larger than SwissMapGroupSlots
++			// runtime.makemap will allocate on the heap, see
++			// #20184
++			//
++			// if hint <= abi.SwissMapGroupSlots {
++			//     var gv group
++			//     g = &gv
++			//     g.ctrl = abi.SwissMapCtrlEmpty
++			//     m.dirPtr = g
++			// }
++
++			nif := ir.NewIfStmt(base.Pos, ir.NewBinaryExpr(base.Pos, ir.OLE, hint, ir.NewInt(base.Pos, abi.SwissMapGroupSlots)), nil, nil)
++			nif.Likely = true
++
++			groupType := reflectdata.SwissMapGroupType(t)
++
++			// var gv group
++			// g = &gv
++			g := stackTempAddr(&nif.Body, groupType)
++
++			// Can't use ir.NewInt because bit 63 is set, which
++			// makes conversion to uint64 upset.
++			empty := ir.NewBasicLit(base.Pos, types.UntypedInt, constant.MakeUint64(abi.SwissMapCtrlEmpty))
++
++			// g.ctrl = abi.SwissMapCtrlEmpty
++			csym := groupType.Field(0).Sym // g.ctrl see reflectdata/map_swiss.go
++			ca := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, g, csym), empty)
++			nif.Body.Append(ca)
++
++			// m.dirPtr = g
++			dsym := mapType.Field(2).Sym // m.dirPtr see reflectdata/map_swiss.go
++			na := ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, m, dsym), typecheck.ConvNop(g, types.Types[types.TUNSAFEPTR]))
++			nif.Body.Append(na)
++			appendWalkStmt(init, nif)
++		}
++	}
++
++	if ir.IsConst(hint, constant.Int) && constant.Compare(hint.Val(), token.LEQ, constant.MakeInt64(abi.SwissMapGroupSlots)) {
++		// Handling make(map[any]any) and
++		// make(map[any]any, hint) where hint <= abi.SwissMapGroupSlots
++		// specially allows for faster map initialization and
++		// improves binary size by using calls with fewer arguments.
++		// For hint <= abi.SwissMapGroupSlots no groups will be
++		// allocated by makemap. Therefore, no groups need to be
++		// allocated in this code path.
++		if n.Esc() == ir.EscNone {
++			// Only need to initialize m.seed since
++			// m map has been allocated on the stack already.
++			// m.seed = uintptr(rand())
++			rand := mkcall("rand", types.Types[types.TUINT64], init)
++			seedSym := mapType.Field(1).Sym // m.seed see reflectdata/map_swiss.go
++			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, m, seedSym), typecheck.Conv(rand, types.Types[types.TUINTPTR])))
++			return typecheck.ConvNop(m, t)
++		}
++		// Call runtime.makemap_small to allocate a
++		// map on the heap and initialize the map's seed field.
++		fn := typecheck.LookupRuntime("makemap_small", t.Key(), t.Elem())
++		return mkcall1(fn, n.Type(), init)
+ 	}
++
++	if n.Esc() != ir.EscNone {
++		m = typecheck.NodNil()
++	}
++
+ 	// Map initialization with a variable or large hint is
+ 	// more complicated. We therefore generate a call to
+ 	// runtime.makemap to initialize hmap and allocate the
+@@ -355,8 +423,8 @@ func walkMakeSwissMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 		argtype = types.Types[types.TINT]
+ 	}
+ 
+-	fn := typecheck.LookupRuntime(fnname, hmapType, t.Key(), t.Elem())
+-	return mkcall1(fn, n.Type(), init, reflectdata.MakeMapRType(base.Pos, n), typecheck.Conv(hint, argtype), h)
++	fn := typecheck.LookupRuntime(fnname, mapType, t.Key(), t.Elem())
++	return mkcall1(fn, n.Type(), init, reflectdata.MakeMapRType(base.Pos, n), typecheck.Conv(hint, argtype), m)
+ }
+ 
+ func walkMakeOldMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+@@ -422,7 +490,7 @@ func walkMakeOldMap(n *ir.MakeExpr, init *ir.Nodes) ir.Node {
+ 			appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.NewSelectorExpr(base.Pos, ir.ODOT, h, hashsym), rand))
+ 			return typecheck.ConvNop(h, t)
+ 		}
+-		// Call runtime.makehmap to allocate an
++		// Call runtime.makemap_small to allocate an
+ 		// hmap on the heap and initialize hmap's hash0 field.
+ 		fn := typecheck.LookupRuntime("makemap_small", t.Key(), t.Elem())
+ 		return mkcall1(fn, n.Type(), init)
+diff --git a/src/internal/abi/map_swiss.go b/src/internal/abi/map_swiss.go
+index c214571a7d..92e66b7d36 100644
+--- a/src/internal/abi/map_swiss.go
++++ b/src/internal/abi/map_swiss.go
+@@ -21,6 +21,12 @@ const (
+ 	// Must fit in a uint8.
+ 	SwissMapMaxKeyBytes  = 128
+ 	SwissMapMaxElemBytes = 128
++
++	ctrlEmpty   = 0b10000000
++	bitsetLSB   = 0x0101010101010101
++
++	// Value of control word with all empty slots.
++	SwissMapCtrlEmpty = bitsetLSB * uint64(ctrlEmpty)
+ )
+ 
+ type SwissMapType struct {
+diff --git a/src/internal/runtime/maps/export_test.go b/src/internal/runtime/maps/export_test.go
+index 3846fea21b..2c7b05ea2d 100644
+--- a/src/internal/runtime/maps/export_test.go
++++ b/src/internal/runtime/maps/export_test.go
+@@ -24,7 +24,7 @@ const maxAllocTest = 1 << 30
+ 
+ func NewTestMap[K comparable, V any](hint uintptr) (*Map, *abi.SwissMapType) {
+ 	mt := newTestMapType[K, V]()
+-	return NewMap(mt, hint, maxAllocTest), mt
++	return NewMap(mt, hint, nil, maxAllocTest), mt
+ }
+ 
+ func (m *Map) TableCount() int {
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index 4ac7914d81..262f20f5cb 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -246,71 +246,82 @@ func depthToShift(depth uint8) uint8 {
+ 	return 64 - depth
+ }
+ 
++// If m is non-nil, it should be used rather than allocating.
++//
+ // maxAlloc should be runtime.maxAlloc.
+ //
+ // TODO(prattmic): Put maxAlloc somewhere accessible.
+-func NewMap(mt *abi.SwissMapType, hint, maxAlloc uintptr) *Map {
++func NewMap(mt *abi.SwissMapType, hint uintptr, m *Map, maxAlloc uintptr) *Map {
++	if m == nil {
++		m = new(Map)
++	}
++
++	m.seed = uintptr(rand())
++
++	if hint <= abi.SwissMapGroupSlots {
++		// A small map can fill all 8 slots, so no need to increase
++		// target capacity.
++		//
++		// In fact, since an 8 slot group is what the first assignment
++		// to an empty map would allocate anyway, it doesn't matter if
++		// we allocate here or on the first assignment.
++		//
++		// Thus we just return without allocating. (We'll save the
++		// allocation completely if no assignment comes.)
++
++		// Note that the compiler may have initialized m.dirPtr with a
++		// pointer to a stack-allocated group, in which case we already
++		// have a group. The control word is already initialized.
++
++		return m
++	}
++
++	// Full size map.
++
+ 	// Set initial capacity to hold hint entries without growing in the
+ 	// average case.
+-	var targetCapacity uintptr
+-	if hint <= abi.SwissMapGroupSlots {
+-		// Small map can fill all 8 slots. We set the target to 0 here
+-		// because an 8 slot small map is what the first assignment to
+-		// an empty map will allocate anyway. Whether we allocate here
+-		// or in the first assignment makes no difference. And if there
+-		// is a chance that the caller won't write at all then it is
+-		// better to delay.
+-		targetCapacity = 0
+-	} else {
+-		targetCapacity = (hint * abi.SwissMapGroupSlots) / maxAvgGroupLoad
+-		if targetCapacity < hint { // overflow
+-			targetCapacity = 0
+-		}
++	targetCapacity := (hint * abi.SwissMapGroupSlots) / maxAvgGroupLoad
++	if targetCapacity < hint { // overflow
++		return m // return an empty map.
+ 	}
+ 
+ 	dirSize := (uint64(targetCapacity) + maxTableCapacity - 1) / maxTableCapacity
+ 	dirSize, overflow := alignUpPow2(dirSize)
+ 	if overflow || dirSize > uint64(math.MaxUintptr) {
+-		targetCapacity = 0
++		return m // return an empty map.
+ 	}
+ 
+ 	// Reject hints that are obviously too large.
+ 	groups, overflow := math.MulUintptr(uintptr(dirSize), maxTableCapacity)
+ 	if overflow {
+-		targetCapacity = 0
++		return m // return an empty map.
+ 	} else {
+ 		mem, overflow := math.MulUintptr(groups, mt.Group.Size_)
+ 		if overflow || mem > maxAlloc {
+-			targetCapacity = 0
++			return m // return an empty map.
+ 		}
+ 	}
+ 
+-	globalDepth := uint8(sys.TrailingZeros64(dirSize))
+-	if targetCapacity == 0 {
+-		// TrailingZeros64 returns 64 for 0.
+-		globalDepth = 0
+-	}
++	m.globalDepth = uint8(sys.TrailingZeros64(dirSize))
++	m.globalShift = depthToShift(m.globalDepth)
+ 
+-	m := &Map{
+-		seed: uintptr(rand()),
++	directory := make([]*table, dirSize)
+ 
+-		globalDepth: globalDepth,
+-		globalShift: depthToShift(globalDepth),
++	for i := range directory {
++		// TODO: Think more about initial table capacity.
++		directory[i] = newTable(mt, uint64(targetCapacity)/dirSize, i, m.globalDepth)
+ 	}
+ 
+-	if targetCapacity > 0 {
+-		// Full map.
+-		directory := make([]*table, dirSize)
+-
+-		for i := range directory {
+-			// TODO: Think more about initial table capacity.
+-			directory[i] = newTable(mt, uint64(targetCapacity)/dirSize, i, globalDepth)
+-		}
++	m.dirPtr = unsafe.Pointer(&directory[0])
++	m.dirLen = len(directory)
+ 
+-		m.dirPtr = unsafe.Pointer(&directory[0])
+-		m.dirLen = len(directory)
+-	}
++	return m
++}
+ 
++func NewEmptyMap() *Map {
++	m := new(Map)
++	m.seed = uintptr(rand())
++	// See comment in NewMap. No need to eager allocate a group.
+ 	return m
+ }
+ 
+@@ -623,6 +634,9 @@ func (m *Map) growToTable(typ *abi.SwissMapType) {
+ 
+ 	m.dirPtr = unsafe.Pointer(&directory[0])
+ 	m.dirLen = len(directory)
++
++	m.globalDepth = 0
++	m.globalShift = depthToShift(m.globalDepth)
+ }
+ 
+ func (m *Map) Delete(typ *abi.SwissMapType, key unsafe.Pointer) {
+diff --git a/src/runtime/map_swiss.go b/src/runtime/map_swiss.go
+index 3a6f40252a..75c72b20f5 100644
+--- a/src/runtime/map_swiss.go
++++ b/src/runtime/map_swiss.go
+@@ -37,24 +37,23 @@ func makemap64(t *abi.SwissMapType, hint int64, m *maps.Map) *maps.Map {
+ }
+ 
+ // makemap_small implements Go map creation for make(map[k]v) and
+-// make(map[k]v, hint) when hint is known to be at most bucketCnt
++// make(map[k]v, hint) when hint is known to be at most abi.SwissMapGroupSlots
+ // at compile time and the map needs to be allocated on the heap.
+ func makemap_small() *maps.Map {
+-	panic("unimplemented")
++	return maps.NewEmptyMap()
+ }
+ 
+ // makemap implements Go map creation for make(map[k]v, hint).
+-// If the compiler has determined that the map or the first bucket
+-// can be created on the stack, h and/or bucket may be non-nil.
+-// If h != nil, the map can be created directly in h.
+-// If h.buckets != nil, bucket pointed to can be used as the first bucket.
++// If the compiler has determined that the map or the first group
++// can be created on the stack, m and optionally m.dirPtr may be non-nil.
++// If m != nil, the map can be created directly in m.
++// If m.dirPtr != nil, it points to a group usable for a small map.
+ func makemap(t *abi.SwissMapType, hint int, m *maps.Map) *maps.Map {
+ 	if hint < 0 {
+ 		hint = 0
+ 	}
+ 
+-	// TODO: use existing m
+-	return maps.NewMap(t, uintptr(hint), maxAlloc)
++	return maps.NewMap(t, uintptr(hint), m, maxAlloc)
+ }
+ 
+ // mapaccess1 returns a pointer to h[key].  Never returns nil, instead
+diff --git a/test/live.go b/test/live.go
+index aef7c50c64..250a77cdac 100644
+--- a/test/live.go
++++ b/test/live.go
+@@ -659,6 +659,16 @@ func newT40() *T40 {
+ 	return &ret
+ }
+ 
++func good40() {
++	ret := T40{}              // ERROR "stack object ret T40$"
++	ret.m = make(map[int]int) // ERROR "live at call to rand(32)?: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ (runtime.hmap|internal/runtime/maps.Map)$"
++	t := &ret
++	printnl() // ERROR "live at call to printnl: ret$"
++	// Note: ret is live at the printnl because the compiler moves &ret
++	// from before the printnl to after.
++	useT40(t)
++}
++
+ func bad40() {
+ 	t := newT40()
+ 	_ = t
+diff --git a/test/live_noswiss.go b/test/live_noswiss.go
+deleted file mode 100644
+index e72073196a..0000000000
+--- a/test/live_noswiss.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+-
+-//go:build !goexperiment.swissmap && !goexperiment.regabiargs
+-
+-// For register ABI, liveness info changes slightly. See live_regabi.go.
+-
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// non-swissmap-specific tests for live.go
+-
+-package main
+-
+-func printnl()
+-
+-type T40 struct {
+-	m map[int]int
+-}
+-
+-//go:noescape
+-func useT40(*T40)
+-
+-func good40() {
+-	ret := T40{}              // ERROR "stack object ret T40$"
+-	ret.m = make(map[int]int) // ERROR "live at call to rand32: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
+-	t := &ret
+-	printnl() // ERROR "live at call to printnl: ret$"
+-	// Note: ret is live at the printnl because the compiler moves &ret
+-	// from before the printnl to after.
+-	useT40(t)
+-}
+diff --git a/test/live_regabi.go b/test/live_regabi.go
+index 196294a138..090e2ec577 100644
+--- a/test/live_regabi.go
++++ b/test/live_regabi.go
+@@ -657,6 +657,16 @@ func newT40() *T40 {
+ 	return &ret
+ }
+ 
++func good40() {
++	ret := T40{}              // ERROR "stack object ret T40$"
++	ret.m = make(map[int]int) // ERROR "live at call to rand(32)?: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ (runtime.hmap|internal/runtime/maps.Map)$"
++	t := &ret
++	printnl() // ERROR "live at call to printnl: ret$"
++	// Note: ret is live at the printnl because the compiler moves &ret
++	// from before the printnl to after.
++	useT40(t)
++}
++
+ func bad40() {
+ 	t := newT40()
+ 	_ = t
+diff --git a/test/live_regabi_noswiss.go b/test/live_regabi_noswiss.go
+deleted file mode 100644
+index 6404d65d27..0000000000
+--- a/test/live_regabi_noswiss.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+-
+-//go:build !goexperiment.swissmap && ((amd64 && goexperiment.regabiargs) || (arm64 && goexperiment.regabiargs))
+-
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// non-swissmap-specific tests for live_regabi.go
+-// TODO(#54766): temporary while fast variants are disabled.
+-
+-package main
+-
+-func printnl()
+-
+-type T40 struct {
+-	m map[int]int
+-}
+-
+-//go:noescape
+-func useT40(*T40)
+-
+-func good40() {
+-	ret := T40{}              // ERROR "stack object ret T40$"
+-	ret.m = make(map[int]int) // ERROR "live at call to rand32: .autotmp_[0-9]+$" "stack object .autotmp_[0-9]+ runtime.hmap$"
+-	t := &ret
+-	printnl() // ERROR "live at call to printnl: ret$"
+-	// Note: ret is live at the printnl because the compiler moves &ret
+-	// from before the printnl to after.
+-	useT40(t)
+-}
+diff --git a/test/live_regabi_swiss.go b/test/live_regabi_swiss.go
+deleted file mode 100644
+index ef347d27f8..0000000000
+--- a/test/live_regabi_swiss.go
++++ /dev/null
+@@ -1,31 +0,0 @@
+-// errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+-
+-//go:build goexperiment.swissmap && ((amd64 && goexperiment.regabiargs) || (arm64 && goexperiment.regabiargs))
+-
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// swissmap-specific tests for live_regabi.go
+-// TODO(#54766): temporary while fast variants are disabled.
+-
+-package main
+-
+-func printnl()
+-
+-type T40 struct {
+-	m map[int]int
+-}
+-
+-//go:noescape
+-func useT40(*T40)
+-
+-func good40() {
+-	ret := T40{}              // ERROR "stack object ret T40$"
+-	ret.m = make(map[int]int) // ERROR "stack object .autotmp_[0-9]+ internal/runtime/maps.Map$"
+-	t := &ret
+-	printnl() // ERROR "live at call to printnl: ret$"
+-	// Note: ret is live at the printnl because the compiler moves &ret
+-	// from before the printnl to after.
+-	useT40(t)
+-}
+diff --git a/test/live_swiss.go b/test/live_swiss.go
+deleted file mode 100644
+index eacd23ab5a..0000000000
+--- a/test/live_swiss.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// errorcheckwithauto -0 -l -live -wb=0 -d=ssa/insert_resched_checks/off
+-
+-//go:build goexperiment.swissmap && !goexperiment.regabiargs
+-
+-// For register ABI, liveness info changes slightly. See live_regabi.go.
+-
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-// swissmap-specific tests for live.go
+-
+-package main
+-
+-func printnl()
+-
+-type T40 struct {
+-	m map[int]int
+-}
+-
+-//go:noescape
+-func useT40(*T40)
+-
+-func good40() {
+-	ret := T40{}              // ERROR "stack object ret T40$"
+-	ret.m = make(map[int]int) // ERROR "stack object .autotmp_[0-9]+ internal/runtime/maps.Map$"
+-	t := &ret
+-	printnl() // ERROR "live at call to printnl: ret$"
+-	// Note: ret is live at the printnl because the compiler moves &ret
+-	// from before the printnl to after.
+-	useT40(t)
+-}

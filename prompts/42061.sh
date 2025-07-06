@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 42061: ceca99bdebf1154879288d108c8506372e1a0173
+# Index 42061: 29f14f058d2ad7ebce4a6bbcd1909c0e1986eaaa
 
 echo "🚀 Generating explanation for commit 42061..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 42061..."
 
 ### メタデータ
 - **コミットインデックス**: 42061
-- **コミットハッシュ**: ceca99bdebf1154879288d108c8506372e1a0173
-- **GitHub URL**: https://github.com/golang/go/commit/ceca99bdebf1154879288d108c8506372e1a0173
+- **コミットハッシュ**: 29f14f058d2ad7ebce4a6bbcd1909c0e1986eaaa
+- **GitHub URL**: https://github.com/golang/go/commit/29f14f058d2ad7ebce4a6bbcd1909c0e1986eaaa
 
 ### 章構成
 

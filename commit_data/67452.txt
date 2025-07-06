@@ -1,0 +1,132 @@
+commit 740857f529ce4074c7f9aa1d6f38db8c4a00246c
+Author: Michael Pratt <mpratt@google.com>
+Date:   Fri Jun 27 17:21:20 2025 -0400
+
+    runtime: stash allpSnapshot on the M
+    
+    findRunnable takes a snapshot of allp prior to dropping the P because
+    afterwards procresize may mutate allp without synchronization.
+    procresize is careful to never mutate the contents up to cap(allp), so
+    findRunnable can still safely access the Ps in the slice.
+    
+    Unfortunately, growing allp is problematic. If procresize grows the allp
+    backing array, it drops the reference to the old array. allpSnapshot
+    still refers to the old array, but allpSnapshot is on the system stack
+    in findRunnable, which also likely no longer has a P at all.
+    
+    This means that a future GC will not find the reference and can free the
+    array and use it for another allocation. This would corrupt later reads
+    that findRunnable does from the array.
+    
+    The fix is simple: the M struct itself is reachable by the GC, so we can
+    stash the snapshot in the M to ensure it is visible to the GC.
+    
+    The ugliest part of the CL is the cleanup when we are done with the
+    snapshot because there are so many return/goto top sites. I am tempted
+    to put mp.clearAllpSnapshot() in the caller and at top to make this less
+    error prone, at the expensive of extra unnecessary writes.
+    
+    Fixes #74414.
+    
+    Change-Id: I6a6a636c484e4f4b34794fd07910b3fffeca830b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684460
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/proc.go     | 41 ++++++++++++++++++++++++++++++++++++++++-
+ src/runtime/runtime2.go |  1 +
+ 2 files changed, 41 insertions(+), 1 deletion(-)
+
+diff --git a/src/runtime/proc.go b/src/runtime/proc.go
+index 0376f7812b..b41bbe93cf 100644
+--- a/src/runtime/proc.go
++++ b/src/runtime/proc.go
+@@ -1059,6 +1059,28 @@ func (mp *m) becomeSpinning() {
+ 	sched.needspinning.Store(0)
+ }
+ 
++// Take a snapshot of allp, for use after dropping the P.
++//
++// Must be called with a P, but the returned slice may be used after dropping
++// the P. The M holds a reference on the snapshot to keep the backing array
++// alive.
++//
++//go:yeswritebarrierrec
++func (mp *m) snapshotAllp() []*p {
++	mp.allpSnapshot = allp
++	return mp.allpSnapshot
++}
++
++// Clear the saved allp snapshot. Should be called as soon as the snapshot is
++// no longer required.
++//
++// Must be called after reacquiring a P, as it requires a write barrier.
++//
++//go:yeswritebarrierrec
++func (mp *m) clearAllpSnapshot() {
++	mp.allpSnapshot = nil
++}
++
+ func (mp *m) hasCgoOnStack() bool {
+ 	return mp.ncgo > 0 || mp.isextra
+ }
+@@ -3346,6 +3368,11 @@ func findRunnable() (gp *g, inheritTime, tryWakeP bool) {
+ 	// an M.
+ 
+ top:
++	// We may have collected an allp snapshot below. The snapshot is only
++	// required in each loop iteration. Clear it to all GC to collect the
++	// slice.
++	mp.clearAllpSnapshot()
++
+ 	pp := mp.p.ptr()
+ 	if sched.gcwaiting.Load() {
+ 		gcstopm()
+@@ -3527,7 +3554,11 @@ top:
+ 	// which can change underfoot once we no longer block
+ 	// safe-points. We don't need to snapshot the contents because
+ 	// everything up to cap(allp) is immutable.
+-	allpSnapshot := allp
++	//
++	// We clear the snapshot from the M after return via
++	// mp.clearAllpSnapshop (in schedule) and on each iteration of the top
++	// loop.
++	allpSnapshot := mp.snapshotAllp()
+ 	// Also snapshot masks. Value changes are OK, but we can't allow
+ 	// len to change out from under us.
+ 	idlepMaskSnapshot := idlepMask
+@@ -3668,6 +3699,9 @@ top:
+ 		pollUntil = checkTimersNoP(allpSnapshot, timerpMaskSnapshot, pollUntil)
+ 	}
+ 
++	// We don't need allp anymore at this pointer, but can't clear the
++	// snapshot without a P for the write barrier..
++
+ 	// Poll network until next timer.
+ 	if netpollinited() && (netpollAnyWaiters() || pollUntil != 0) && sched.lastpoll.Swap(0) != 0 {
+ 		sched.pollUntil.Store(pollUntil)
+@@ -4103,6 +4137,11 @@ top:
+ 
+ 	gp, inheritTime, tryWakeP := findRunnable() // blocks until work is available
+ 
++	// findRunnable may have collected an allp snapshot. The snapshot is
++	// only required within findRunnable. Clear it to all GC to collect the
++	// slice.
++	mp.clearAllpSnapshot()
++
+ 	if debug.dontfreezetheworld > 0 && freezing.Load() {
+ 		// See comment in freezetheworld. We don't want to perturb
+ 		// scheduler state, so we didn't gcstopm in findRunnable, but
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 49a2ba2752..527611f96a 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -565,6 +565,7 @@ type m struct {
+ 	needextram      bool
+ 	g0StackAccurate bool // whether the g0 stack has accurate bounds
+ 	traceback       uint8
++	allpSnapshot    []*p          // Snapshot of allp for use after dropping P in findRunnable, nil otherwise.
+ 	ncgocall        uint64        // number of cgo calls in total
+ 	ncgo            int32         // number of cgo calls currently in progress
+ 	cgoCallersUse   atomic.Uint32 // if non-zero, cgoCallers in use temporarily

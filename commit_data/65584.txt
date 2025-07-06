@@ -1,0 +1,46 @@
+commit c901d93fcd5b1a2439232de4469400fd7a327128
+Author: Roland Shoemaker <roland@golang.org>
+Date:   Fri Nov 15 07:40:49 2024 -0800
+
+    cmd/go: enforce -Wl,--push-state logic only when it is a prefix
+    
+    Make sure we only run the --push-state logic when -Wl,--push-state is a
+    prefix of the argument, not just present in the argument string.
+    
+    Thanks to Juho Forsén of Mattermost for reporting this issue.
+    
+    Change-Id: I799f7854ff680674fd84cf2136fadf70817fc7e2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/cmd/go/internal/work/security.go      | 2 +-
+ src/cmd/go/internal/work/security_test.go | 2 ++
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/go/internal/work/security.go b/src/cmd/go/internal/work/security.go
+index e48dffdb7f..1e2f81b2d4 100644
+--- a/src/cmd/go/internal/work/security.go
++++ b/src/cmd/go/internal/work/security.go
+@@ -312,7 +312,7 @@ Args:
+ 		for _, re := range valid {
+ 			if match := re.FindString(arg); match == arg { // must be complete match
+ 				continue Args
+-			} else if match == "-Wl,--push-state" {
++			} else if strings.HasPrefix(arg, "-Wl,--push-state,") {
+ 				// Examples for --push-state are written
+ 				//     -Wl,--push-state,--as-needed
+ 				// Support other commands in the same -Wl arg.
+diff --git a/src/cmd/go/internal/work/security_test.go b/src/cmd/go/internal/work/security_test.go
+index 1cb0aa8e4a..63dd569f7d 100644
+--- a/src/cmd/go/internal/work/security_test.go
++++ b/src/cmd/go/internal/work/security_test.go
+@@ -250,6 +250,8 @@ var badLinkerFlags = [][]string{
+ 	{"-Wl,-R,-flag"},
+ 	{"-Wl,--push-state,"},
+ 	{"-Wl,--push-state,@foo"},
++	{"-fplugin=./-Wl,--push-state,-R.so"},
++	{"./-Wl,--push-state,-R.c"},
+ }
+ 
+ func TestCheckLinkerFlags(t *testing.T) {

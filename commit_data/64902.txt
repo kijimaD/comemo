@@ -1,0 +1,243 @@
+commit b17a55d0953429c9b23ef89407734ac9bba159f5
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Sep 24 14:08:28 2024 -0700
+
+    go/types, types2: move Checker.indexedElts into literals.go where it belongs
+    
+    The function is only used by Checker.compositeLit.
+    Also, now its go/types source can be gerated from the types2 source.
+    No other code changes.
+    
+    Change-Id: I88b7ad371d809a5d9bf8e635d9e003ba0a71ab78
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/615635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Tim King <taking@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/types2/index.go    | 47 -----------------------------
+ src/cmd/compile/internal/types2/literals.go | 47 +++++++++++++++++++++++++++++
+ src/go/types/index.go                       | 47 -----------------------------
+ src/go/types/literals.go                    | 47 +++++++++++++++++++++++++++++
+ 4 files changed, 94 insertions(+), 94 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/index.go b/src/cmd/compile/internal/types2/index.go
+index 51684340f7..d1d7a530b6 100644
+--- a/src/cmd/compile/internal/types2/index.go
++++ b/src/cmd/compile/internal/types2/index.go
+@@ -415,50 +415,3 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
+ 
+ 	return true
+ }
+-
+-// indexedElts checks the elements (elts) of an array or slice composite literal
+-// against the literal's element type (typ), and the element indices against
+-// the literal length if known (length >= 0). It returns the length of the
+-// literal (maximum index value + 1).
+-func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) int64 {
+-	visited := make(map[int64]bool, len(elts))
+-	var index, max int64
+-	for _, e := range elts {
+-		// determine and check index
+-		validIndex := false
+-		eval := e
+-		if kv, _ := e.(*syntax.KeyValueExpr); kv != nil {
+-			if typ, i := check.index(kv.Key, length); isValid(typ) {
+-				if i >= 0 {
+-					index = i
+-					validIndex = true
+-				} else {
+-					check.errorf(e, InvalidLitIndex, "index %s must be integer constant", kv.Key)
+-				}
+-			}
+-			eval = kv.Value
+-		} else if length >= 0 && index >= length {
+-			check.errorf(e, OversizeArrayLit, "index %d is out of bounds (>= %d)", index, length)
+-		} else {
+-			validIndex = true
+-		}
+-
+-		// if we have a valid index, check for duplicate entries
+-		if validIndex {
+-			if visited[index] {
+-				check.errorf(e, DuplicateLitKey, "duplicate index %d in array or slice literal", index)
+-			}
+-			visited[index] = true
+-		}
+-		index++
+-		if index > max {
+-			max = index
+-		}
+-
+-		// check element against composite literal element type
+-		var x operand
+-		check.exprWithHint(&x, eval, typ)
+-		check.assignment(&x, typ, "array or slice literal")
+-	}
+-	return max
+-}
+diff --git a/src/cmd/compile/internal/types2/literals.go b/src/cmd/compile/internal/types2/literals.go
+index 1a90700ade..7e16d9d4c1 100644
+--- a/src/cmd/compile/internal/types2/literals.go
++++ b/src/cmd/compile/internal/types2/literals.go
+@@ -340,3 +340,50 @@ func (check *Checker) compositeLit(x *operand, e *syntax.CompositeLit, hint Type
+ 	x.mode = value
+ 	x.typ = typ
+ }
++
++// indexedElts checks the elements (elts) of an array or slice composite literal
++// against the literal's element type (typ), and the element indices against
++// the literal length if known (length >= 0). It returns the length of the
++// literal (maximum index value + 1).
++func (check *Checker) indexedElts(elts []syntax.Expr, typ Type, length int64) int64 {
++	visited := make(map[int64]bool, len(elts))
++	var index, max int64
++	for _, e := range elts {
++		// determine and check index
++		validIndex := false
++		eval := e
++		if kv, _ := e.(*syntax.KeyValueExpr); kv != nil {
++			if typ, i := check.index(kv.Key, length); isValid(typ) {
++				if i >= 0 {
++					index = i
++					validIndex = true
++				} else {
++					check.errorf(e, InvalidLitIndex, "index %s must be integer constant", kv.Key)
++				}
++			}
++			eval = kv.Value
++		} else if length >= 0 && index >= length {
++			check.errorf(e, OversizeArrayLit, "index %d is out of bounds (>= %d)", index, length)
++		} else {
++			validIndex = true
++		}
++
++		// if we have a valid index, check for duplicate entries
++		if validIndex {
++			if visited[index] {
++				check.errorf(e, DuplicateLitKey, "duplicate index %d in array or slice literal", index)
++			}
++			visited[index] = true
++		}
++		index++
++		if index > max {
++			max = index
++		}
++
++		// check element against composite literal element type
++		var x operand
++		check.exprWithHint(&x, eval, typ)
++		check.assignment(&x, typ, "array or slice literal")
++	}
++	return max
++}
+diff --git a/src/go/types/index.go b/src/go/types/index.go
+index 1b1a7b0007..e52d9a00ff 100644
+--- a/src/go/types/index.go
++++ b/src/go/types/index.go
+@@ -408,50 +408,3 @@ func (check *Checker) isValidIndex(x *operand, code Code, what string, allowNega
+ 
+ 	return true
+ }
+-
+-// indexedElts checks the elements (elts) of an array or slice composite literal
+-// against the literal's element type (typ), and the element indices against
+-// the literal length if known (length >= 0). It returns the length of the
+-// literal (maximum index value + 1).
+-func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64 {
+-	visited := make(map[int64]bool, len(elts))
+-	var index, max int64
+-	for _, e := range elts {
+-		// determine and check index
+-		validIndex := false
+-		eval := e
+-		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
+-			if typ, i := check.index(kv.Key, length); isValid(typ) {
+-				if i >= 0 {
+-					index = i
+-					validIndex = true
+-				} else {
+-					check.errorf(e, InvalidLitIndex, "index %s must be integer constant", kv.Key)
+-				}
+-			}
+-			eval = kv.Value
+-		} else if length >= 0 && index >= length {
+-			check.errorf(e, OversizeArrayLit, "index %d is out of bounds (>= %d)", index, length)
+-		} else {
+-			validIndex = true
+-		}
+-
+-		// if we have a valid index, check for duplicate entries
+-		if validIndex {
+-			if visited[index] {
+-				check.errorf(e, DuplicateLitKey, "duplicate index %d in array or slice literal", index)
+-			}
+-			visited[index] = true
+-		}
+-		index++
+-		if index > max {
+-			max = index
+-		}
+-
+-		// check element against composite literal element type
+-		var x operand
+-		check.exprWithHint(&x, eval, typ)
+-		check.assignment(&x, typ, "array or slice literal")
+-	}
+-	return max
+-}
+diff --git a/src/go/types/literals.go b/src/go/types/literals.go
+index efcaa859dc..46a93bb10a 100644
+--- a/src/go/types/literals.go
++++ b/src/go/types/literals.go
+@@ -344,3 +344,50 @@ func (check *Checker) compositeLit(x *operand, e *ast.CompositeLit, hint Type) {
+ 	x.mode = value
+ 	x.typ = typ
+ }
++
++// indexedElts checks the elements (elts) of an array or slice composite literal
++// against the literal's element type (typ), and the element indices against
++// the literal length if known (length >= 0). It returns the length of the
++// literal (maximum index value + 1).
++func (check *Checker) indexedElts(elts []ast.Expr, typ Type, length int64) int64 {
++	visited := make(map[int64]bool, len(elts))
++	var index, max int64
++	for _, e := range elts {
++		// determine and check index
++		validIndex := false
++		eval := e
++		if kv, _ := e.(*ast.KeyValueExpr); kv != nil {
++			if typ, i := check.index(kv.Key, length); isValid(typ) {
++				if i >= 0 {
++					index = i
++					validIndex = true
++				} else {
++					check.errorf(e, InvalidLitIndex, "index %s must be integer constant", kv.Key)
++				}
++			}
++			eval = kv.Value
++		} else if length >= 0 && index >= length {
++			check.errorf(e, OversizeArrayLit, "index %d is out of bounds (>= %d)", index, length)
++		} else {
++			validIndex = true
++		}
++
++		// if we have a valid index, check for duplicate entries
++		if validIndex {
++			if visited[index] {
++				check.errorf(e, DuplicateLitKey, "duplicate index %d in array or slice literal", index)
++			}
++			visited[index] = true
++		}
++		index++
++		if index > max {
++			max = index
++		}
++
++		// check element against composite literal element type
++		var x operand
++		check.exprWithHint(&x, eval, typ)
++		check.assignment(&x, typ, "array or slice literal")
++	}
++	return max
++}

@@ -1,0 +1,44 @@
+commit 6df37f70de585a9895c6c0556efe199fa65cf789
+Author: Andy Pan <i@andypan.me>
+Date:   Tue Oct 29 14:18:38 2024 +0800
+
+    internal/poll: make sendfile(2) work on Androids
+    
+    Fixes some Android builders.
+    
+    Ref:
+    https://build.golang.org/log/2b60164954ad0c56ce5134cb2bb81d1532723253
+    https://build.golang.org/log/f5290236a27b099020fe56ff5d271886353b64f8
+    
+    Change-Id: Ia5305aefa9ca8230dfa0cd892b79b8cf60e40430
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622998
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/poll/sendfile_unix.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/internal/poll/sendfile_unix.go b/src/internal/poll/sendfile_unix.go
+index 1426a1229b..1efcf57b9a 100644
+--- a/src/internal/poll/sendfile_unix.go
++++ b/src/internal/poll/sendfile_unix.go
+@@ -28,7 +28,7 @@ import (
+ // has not modified the source or destination,
+ // and the caller should perform the copy using a fallback implementation.
+ func SendFile(dstFD *FD, src int, size int64) (n int64, err error, handled bool) {
+-	if runtime.GOOS == "linux" {
++	if goos := runtime.GOOS; goos == "linux" || goos == "android" {
+ 		// Linux's sendfile doesn't require any setup:
+ 		// It sends from the current position of the source file and
+ 		// updates the position of the source after sending.
+@@ -124,7 +124,7 @@ func sendFile(dstFD *FD, src int, offset *int64, size int64) (written int64, err
+ 
+ func sendFileChunk(dst, src int, offset *int64, size int, written int64) (n int, err error) {
+ 	switch runtime.GOOS {
+-	case "linux":
++	case "linux", "android":
+ 		// The offset is always nil on Linux.
+ 		n, err = syscall.Sendfile(dst, src, offset, size)
+ 	case "solaris", "illumos":

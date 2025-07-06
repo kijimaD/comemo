@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 49711: b5e33a50fe600314752b866980a9b2498f23a326
+# Index 49711: 6ba4a300d894b33fd8bf076dec08a5e3245d3a2c
 
 echo "🚀 Generating explanation for commit 49711..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 49711..."
 
 ### メタデータ
 - **コミットインデックス**: 49711
-- **コミットハッシュ**: b5e33a50fe600314752b866980a9b2498f23a326
-- **GitHub URL**: https://github.com/golang/go/commit/b5e33a50fe600314752b866980a9b2498f23a326
+- **コミットハッシュ**: 6ba4a300d894b33fd8bf076dec08a5e3245d3a2c
+- **GitHub URL**: https://github.com/golang/go/commit/6ba4a300d894b33fd8bf076dec08a5e3245d3a2c
 
 ### 章構成
 

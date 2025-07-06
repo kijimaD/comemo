@@ -1,0 +1,56 @@
+commit c686783cabd4603cdff662f8cf9180c4f76b7928
+Author: Than McIntosh <thanm@google.com>
+Date:   Thu Apr 11 15:16:22 2024 +0000
+
+    cmd/compile/internal/ssa: delay rewrite cycle detection for huge funcs
+    
+    The SSA rewrite pass has some logic that looks to see whether a
+    suspiciously large number of rewrites is happening, and if so, turns
+    on logic to try to detect rewrite cycles. The cycle detection logic is
+    quite expensive (hashes the entire function), meaning that for very
+    large functions we might get a successful compilation in a minute or
+    two with no cycle detection, but take a couple of hours once cycle
+    detection kicks in.
+    
+    This patch moves from a fixed limit of 1000 iterations to a limit set
+    partially based on the size of the function (meaning that we'll wait
+    longer before turning cycle detection for a large func).
+    
+    Fixes #66773.
+    
+    Change-Id: I72f8524d706f15b3f0150baf6abeab2a5d3e15c4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/578215
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/cmd/compile/internal/ssa/rewrite.go | 10 +++++++++-
+ 1 file changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 34a2ee8d13..9961b540b7 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -40,6 +40,14 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
+ 	if debug > 1 {
+ 		fmt.Printf("%s: rewriting for %s\n", f.pass.name, f.Name)
+ 	}
++	// if the number of rewrite iterations reaches itersLimit we will
++	// at that point turn on cycle detection. Instead of a fixed limit,
++	// size the limit according to func size to allow for cases such
++	// as the one in issue #66773.
++	itersLimit := f.NumBlocks()
++	if itersLimit < 20 {
++		itersLimit = 20
++	}
+ 	var iters int
+ 	var states map[string]bool
+ 	for {
+@@ -154,7 +162,7 @@ func applyRewrite(f *Func, rb blockRewriter, rv valueRewriter, deadcode deadValu
+ 			break
+ 		}
+ 		iters++
+-		if (iters > 1000 || debug >= 2) && change {
++		if (iters > itersLimit || debug >= 2) && change {
+ 			// We've done a suspiciously large number of rewrites (or we're in debug mode).
+ 			// As of Sep 2021, 90% of rewrites complete in 4 iterations or fewer
+ 			// and the maximum value encountered during make.bash is 12.

@@ -1,0 +1,24 @@
+commit 4e1cc09f8b9bcef2b6d0839a7d0026b50c21998b
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Aug 20 09:38:47 2024 -0700
+
+    doc/next: update 36532.md to wording suggested in CL
+    
+    Change-Id: If7a2aa45770d19ee15f8fe99cab62624c2e29ef6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606958
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ doc/next/6-stdlib/99-minor/testing/36532.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/testing/36532.md b/doc/next/6-stdlib/99-minor/testing/36532.md
+index ffa92acf0c..1c3ad893ba 100644
+--- a/doc/next/6-stdlib/99-minor/testing/36532.md
++++ b/doc/next/6-stdlib/99-minor/testing/36532.md
+@@ -1,2 +1,2 @@
+ The new [T.Context] and [B.Context] methods return a context that's canceled
+-before the end of its associated test or benchmark function.
++after the test completes and before test cleanup functions run.

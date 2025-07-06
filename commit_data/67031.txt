@@ -1,0 +1,274 @@
+commit c31a5c571f32f350a0a1b30f2b0e85576096e14c
+Author: Xiaolin Zhao <zhaoxiaolin@loongson.cn>
+Date:   Wed May 14 14:35:41 2025 +0800
+
+    cmd/compile: fold negation into addition/subtraction on loong64
+    
+    This change also avoid double negation, and add loong64 codegen for arithmetic tests.
+    Reduce the number of go toolchain instructions on loong64 as follows.
+    
+        file      before    after     Δ       %
+        addr2line 279972    279896  -76    -0.0271%
+        asm       556390    556310  -80    -0.0144%
+        buildid   272376    272300  -76    -0.0279%
+        cgo       481534    481550  +16    +0.0033%
+        compile   2457992   2457396 -596   -0.0242%
+        covdata   323488    323404  -84    -0.0260%
+        cover     518630    518490  -140   -0.0270%
+        dist      340894    340814  -80    -0.0235%
+        distpack  282568    282484  -84    -0.0297%
+        doc       790224    789984  -240   -0.0304%
+        fix       324408    324348  -60    -0.0185%
+        link      704910    704666  -244   -0.0346%
+        nm        277220    277144  -76    -0.0274%
+        objdump   508026    507878  -148   -0.0291%
+        pack      221810    221786  -24    -0.0108%
+        pprof     1470284   1469880 -404   -0.0275%
+        test2json 254896    254852  -44    -0.0173%
+        trace     1100390   1100074 -316   -0.0287%
+        vet       781398    781142  -256   -0.0328%
+        go        1529668   1529128 -540   -0.0353%
+        gofmt     318668    318568  -100   -0.0314%
+        total     13795746 13792094 -3652  -0.0265%
+    
+    Change-Id: I88d1f12cfc4be0e92687c48e06a57213aa484aca
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672555
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules | 10 +++
+ src/cmd/compile/internal/ssa/rewrite.go         |  5 ++
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 83 +++++++++++++++++++++++++
+ test/codegen/arithmetic.go                      | 10 +++
+ 4 files changed, 108 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 7fc40577ba..100bb232d4 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -776,12 +776,22 @@
+ 
+ // generic simplifications
+ (ADDV x (NEGV y)) => (SUBV x y)
++(SUBV x (NEGV y)) => (ADDV x y)
+ (SUBV x x) => (MOVVconst [0])
+ (SUBV (MOVVconst [0]) x) => (NEGV x)
+ (AND x x) => x
+ (OR  x x) => x
+ (XOR x x) => (MOVVconst [0])
+ 
++// Fold negation into subtraction.
++(NEGV (SUBV x y)) => (SUBV y x)
++(NEGV <t> s:(ADDVconst [c] (SUBV x y))) && s.Uses == 1 && is12Bit(-c) => (ADDVconst [-c] (SUBV <t> y x))
++
++// Double negation.
++(NEGV (NEGV x)) => x
++// Fold NEGV into ADDVconst. Take care to keep c in 12 bit range.
++(NEGV <t> s:(ADDVconst [c] (NEGV x))) && s.Uses == 1 && is12Bit(-c) => (ADDVconst [-c] x)
++
+ // remove redundant *const ops
+ (ADDVconst [0]  x) => x
+ (SUBVconst [0]  x) => x
+diff --git a/src/cmd/compile/internal/ssa/rewrite.go b/src/cmd/compile/internal/ssa/rewrite.go
+index 38f75d185a..c94c1586e9 100644
+--- a/src/cmd/compile/internal/ssa/rewrite.go
++++ b/src/cmd/compile/internal/ssa/rewrite.go
+@@ -524,6 +524,11 @@ func isU8Bit(n int64) bool {
+ 	return n == int64(uint8(n))
+ }
+ 
++// is12Bit reports whether n can be represented as a signed 12 bit integer.
++func is12Bit(n int64) bool {
++	return -(1<<11) <= n && n < (1<<11)
++}
++
+ // isU12Bit reports whether n can be represented as an unsigned 12 bit integer.
+ func isU12Bit(n int64) bool {
+ 	return 0 <= n && n < (1<<12)
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index ea6aee8250..fcff307c65 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -5421,6 +5421,77 @@ func rewriteValueLOONG64_OpLOONG64MULV(v *Value) bool {
+ }
+ func rewriteValueLOONG64_OpLOONG64NEGV(v *Value) bool {
+ 	v_0 := v.Args[0]
++	b := v.Block
++	// match: (NEGV (SUBV x y))
++	// result: (SUBV y x)
++	for {
++		if v_0.Op != OpLOONG64SUBV {
++			break
++		}
++		y := v_0.Args[1]
++		x := v_0.Args[0]
++		v.reset(OpLOONG64SUBV)
++		v.AddArg2(y, x)
++		return true
++	}
++	// match: (NEGV <t> s:(ADDVconst [c] (SUBV x y)))
++	// cond: s.Uses == 1 && is12Bit(-c)
++	// result: (ADDVconst [-c] (SUBV <t> y x))
++	for {
++		t := v.Type
++		s := v_0
++		if s.Op != OpLOONG64ADDVconst {
++			break
++		}
++		c := auxIntToInt64(s.AuxInt)
++		s_0 := s.Args[0]
++		if s_0.Op != OpLOONG64SUBV {
++			break
++		}
++		y := s_0.Args[1]
++		x := s_0.Args[0]
++		if !(s.Uses == 1 && is12Bit(-c)) {
++			break
++		}
++		v.reset(OpLOONG64ADDVconst)
++		v.AuxInt = int64ToAuxInt(-c)
++		v0 := b.NewValue0(v.Pos, OpLOONG64SUBV, t)
++		v0.AddArg2(y, x)
++		v.AddArg(v0)
++		return true
++	}
++	// match: (NEGV (NEGV x))
++	// result: x
++	for {
++		if v_0.Op != OpLOONG64NEGV {
++			break
++		}
++		x := v_0.Args[0]
++		v.copyOf(x)
++		return true
++	}
++	// match: (NEGV <t> s:(ADDVconst [c] (NEGV x)))
++	// cond: s.Uses == 1 && is12Bit(-c)
++	// result: (ADDVconst [-c] x)
++	for {
++		s := v_0
++		if s.Op != OpLOONG64ADDVconst {
++			break
++		}
++		c := auxIntToInt64(s.AuxInt)
++		s_0 := s.Args[0]
++		if s_0.Op != OpLOONG64NEGV {
++			break
++		}
++		x := s_0.Args[0]
++		if !(s.Uses == 1 && is12Bit(-c)) {
++			break
++		}
++		v.reset(OpLOONG64ADDVconst)
++		v.AuxInt = int64ToAuxInt(-c)
++		v.AddArg(x)
++		return true
++	}
+ 	// match: (NEGV (MOVVconst [c]))
+ 	// result: (MOVVconst [-c])
+ 	for {
+@@ -6761,6 +6832,18 @@ func rewriteValueLOONG64_OpLOONG64SUBV(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (SUBV x (NEGV y))
++	// result: (ADDV x y)
++	for {
++		x := v_0
++		if v_1.Op != OpLOONG64NEGV {
++			break
++		}
++		y := v_1.Args[0]
++		v.reset(OpLOONG64ADDV)
++		v.AddArg2(x, y)
++		return true
++	}
+ 	// match: (SUBV x x)
+ 	// result: (MOVVconst [0])
+ 	for {
+diff --git a/test/codegen/arithmetic.go b/test/codegen/arithmetic.go
+index 7bac85eb6c..d02154bd3c 100644
+--- a/test/codegen/arithmetic.go
++++ b/test/codegen/arithmetic.go
+@@ -91,6 +91,7 @@ func SubFromConst(a int) int {
+ }
+ 
+ func SubFromConstNeg(a int) int {
++	// loong64: "ADDV[U]\t\\$40"
+ 	// ppc64x: `ADD\t[$]40,\sR[0-9]+,\sR`
+ 	// riscv64: "ADDI\t\\$40",-"NEG"
+ 	c := 40 - (-a)
+@@ -98,6 +99,7 @@ func SubFromConstNeg(a int) int {
+ }
+ 
+ func SubSubFromConst(a int) int {
++	// loong64: "ADDV[U]\t\\$20"
+ 	// ppc64x: `ADD\t[$]20,\sR[0-9]+,\sR`
+ 	// riscv64: "ADDI\t\\$20",-"NEG"
+ 	c := 40 - (20 - a)
+@@ -112,6 +114,7 @@ func AddSubFromConst(a int) int {
+ }
+ 
+ func NegSubFromConst(a int) int {
++	// loong64: "ADDV[U]\t\\$-20"
+ 	// ppc64x: `ADD\t[$]-20,\sR[0-9]+,\sR`
+ 	// riscv64: "ADDI\t\\$-20"
+ 	c := -(20 - a)
+@@ -119,6 +122,7 @@ func NegSubFromConst(a int) int {
+ }
+ 
+ func NegAddFromConstNeg(a int) int {
++	// loong64: "ADDV[U]\t\\$-40","SUBV"
+ 	// ppc64x: `SUBC\tR[0-9]+,\s[$]40,\sR`
+ 	// riscv64: "ADDI\t\\$-40","NEG"
+ 	c := -(-40 + a)
+@@ -127,6 +131,7 @@ func NegAddFromConstNeg(a int) int {
+ 
+ func SubSubNegSimplify(a, b int) int {
+ 	// amd64:"NEGQ"
++	// loong64:"SUBV"
+ 	// ppc64x:"NEG"
+ 	// riscv64:"NEG",-"SUB"
+ 	r := (a - b) - a
+@@ -135,6 +140,7 @@ func SubSubNegSimplify(a, b int) int {
+ 
+ func SubAddSimplify(a, b int) int {
+ 	// amd64:-"SUBQ",-"ADDQ"
++	// loong64:-"SUBV",-"ADDV"
+ 	// ppc64x:-"SUB",-"ADD"
+ 	// riscv64:-"SUB",-"ADD"
+ 	r := a + (b - a)
+@@ -143,6 +149,7 @@ func SubAddSimplify(a, b int) int {
+ 
+ func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
+ 	// amd64:-"ADDQ"
++	// loong64:"SUBV",-"ADDV"
+ 	r := (a + b) - (a + c)
+ 	// amd64:-"ADDQ"
+ 	r1 := (a + b) - (c + a)
+@@ -151,6 +158,7 @@ func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
+ 	// amd64:-"ADDQ"
+ 	r3 := (b + a) - (c + a)
+ 	// amd64:-"SUBQ"
++	// loong64:"ADDV",-"SUBV"
+ 	r4 := (a - c) + (c + b)
+ 	// amd64:-"SUBQ"
+ 	r5 := (a - c) + (b + c)
+@@ -159,6 +167,7 @@ func SubAddSimplify2(a, b, c int) (int, int, int, int, int, int) {
+ 
+ func SubAddNegSimplify(a, b int) int {
+ 	// amd64:"NEGQ",-"ADDQ",-"SUBQ"
++	// loong64:"SUBV",-"ADDV"
+ 	// ppc64x:"NEG",-"ADD",-"SUB"
+ 	// riscv64:"NEG",-"ADD",-"SUB"
+ 	r := a - (b + a)
+@@ -167,6 +176,7 @@ func SubAddNegSimplify(a, b int) int {
+ 
+ func AddAddSubSimplify(a, b, c int) int {
+ 	// amd64:-"SUBQ"
++	// loong64:"ADDV",-"SUBV"
+ 	// ppc64x:-"SUB"
+ 	// riscv64:"ADD","ADD",-"SUB"
+ 	r := a + (b + (c - a))

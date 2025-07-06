@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 60022: db7bb2742ce01601842e277e7808d225ff8390cd
+# Index 60022: 7b0835d42de1deccd889451eda12390a56722ab7
 
 echo "🚀 Generating explanation for commit 60022..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 60022..."
 
 ### メタデータ
 - **コミットインデックス**: 60022
-- **コミットハッシュ**: db7bb2742ce01601842e277e7808d225ff8390cd
-- **GitHub URL**: https://github.com/golang/go/commit/db7bb2742ce01601842e277e7808d225ff8390cd
+- **コミットハッシュ**: 7b0835d42de1deccd889451eda12390a56722ab7
+- **GitHub URL**: https://github.com/golang/go/commit/7b0835d42de1deccd889451eda12390a56722ab7
 
 ### 章構成
 

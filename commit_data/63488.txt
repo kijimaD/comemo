@@ -1,0 +1,377 @@
+commit 4084bc1aa2af3ad479632c597458c6d9d1b2dec8
+Author: Michael Pratt <mpratt@google.com>
+Date:   Wed Feb 28 15:25:40 2024 -0500
+
+    cmd/go: inital plumbing for PGO profiles preprocessing
+    
+    The new go tool preprofile preprocesses a PGO pprof profile into an
+    intermediate representation that is more efficient for the compiler to
+    consume. Performing preprocessing avoids having every single compile
+    process from duplicating the same processing.
+    
+    This CL prepares the initial plumbing to support automatic preprocessing
+    by cmd/go.
+    
+    Each compile action takes a new dependency on a new "preprocess PGO
+    profile" action. The same action instance is shared by all compile
+    actions (assuming they have the same input profile), so the action only
+    executes once.
+    
+    Builder.build retrieves the file to pass to -pgofile from the output of
+    the preprocessing action, rather than directly from
+    p.Internal.PGOProfile.
+    
+    Builder.buildActionID also uses the preprocess output as the PGO
+    component of the cache key, rather than the original source. This
+    doesn't matter for normal toolchain releases, as the two files are
+    semantically equivalent, but it is useful for correct cache invalidation
+    in development. For example, if _only_ go tool preprofile changes
+    (potentially changing the output), then we must regenerate the output
+    and then rebuild all packages.
+    
+    This CL does not actually invoke go tool preprocess. That will come in
+    the next CL. For now, it just copies the input pprof profile.
+    
+    This CL shouldn't be submitted on its own, only with the children. Since
+    the new action doesn't yet use the build cache, every build (even fully
+    cached builds) unconditionally run the PGO action.
+    
+    For #58102.
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-linux-amd64-longtest
+    Change-Id: I594417cfb0164cd39439a03977c904e4c0c83b8b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/569423
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/work/action.go                 | 42 ++++++++++++++++++++++
+ src/cmd/go/internal/work/exec.go                   | 26 ++++++++++----
+ src/cmd/go/internal/work/gc.go                     |  6 ++--
+ src/cmd/go/internal/work/gccgo.go                  |  2 +-
+ src/cmd/go/testdata/script/build_pgo.txt           |  9 +++--
+ src/cmd/go/testdata/script/build_pgo_auto.txt      | 19 +++++-----
+ .../go/testdata/script/build_pgo_auto_multi.txt    | 36 ++++++++-----------
+ 7 files changed, 96 insertions(+), 44 deletions(-)
+
+diff --git a/src/cmd/go/internal/work/action.go b/src/cmd/go/internal/work/action.go
+index 723dc2b127..c4cee8947c 100644
+--- a/src/cmd/go/internal/work/action.go
++++ b/src/cmd/go/internal/work/action.go
+@@ -461,6 +461,34 @@ func (ba *buildActor) Act(b *Builder, ctx context.Context, a *Action) error {
+ 	return b.build(ctx, a)
+ }
+ 
++// pgoActor implements the Actor interface for preprocessing PGO profiles.
++type pgoActor struct {
++	// input is the path to the original pprof profile.
++	input string
++}
++
++func (p *pgoActor) Act(b *Builder, ctx context.Context, a *Action) error {
++	// TODO(prattmic): Integrate with build cache to cache output.
++
++	sh := b.Shell(a)
++
++	if err := sh.Mkdir(a.Objdir); err != nil {
++		return err
++	}
++
++	// TODO(prattmic): This should use go tool preprofile to actually
++	// preprocess the profile. For now, this is a dummy implementation that
++	// simply copies the input to the output. This is technically a valid
++	// implementation because go tool compile -pgofile accepts either a
++	// pprof file or preprocessed file.
++	if err := sh.CopyFile(a.Target, p.input, 0644, false); err != nil {
++		return err
++	}
++
++	a.built = a.Target
++	return nil
++}
++
+ // CompileAction returns the action for compiling and possibly installing
+ // (according to mode) the given package. The resulting action is only
+ // for building packages (archives), never for linking executables.
+@@ -494,6 +522,20 @@ func (b *Builder) CompileAction(mode, depMode BuildMode, p *load.Package) *Actio
+ 			}
+ 		}
+ 
++		if p.Internal.PGOProfile != "" {
++			pgoAction := b.cacheAction("preprocess PGO profile "+p.Internal.PGOProfile, nil, func() *Action {
++				a := &Action{
++					Mode:    "preprocess PGO profile",
++					Actor:   &pgoActor{input: p.Internal.PGOProfile},
++					Objdir:  b.NewObjdir(),
++				}
++				a.Target = filepath.Join(a.Objdir, "pgo.preprofile")
++
++				return a
++			})
++			a.Deps = append(a.Deps, pgoAction)
++		}
++
+ 		if p.Standard {
+ 			switch p.ImportPath {
+ 			case "builtin", "unsafe":
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index 505186da08..a3d1533899 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -395,14 +395,14 @@ func (b *Builder) buildActionID(a *Action) cache.ActionID {
+ 	for _, file := range inputFiles {
+ 		fmt.Fprintf(h, "file %s %s\n", file, b.fileHash(filepath.Join(p.Dir, file)))
+ 	}
+-	if p.Internal.PGOProfile != "" {
+-		fmt.Fprintf(h, "pgofile %s\n", b.fileHash(p.Internal.PGOProfile))
+-	}
+ 	for _, a1 := range a.Deps {
+ 		p1 := a1.Package
+ 		if p1 != nil {
+ 			fmt.Fprintf(h, "import %s %s\n", p1.ImportPath, contentID(a1.buildID))
+ 		}
++		if a1.Mode == "preprocess PGO profile" {
++			fmt.Fprintf(h, "pgofile %s\n", b.fileHash(a1.built))
++		}
+ 	}
+ 
+ 	return h.Sum()
+@@ -864,6 +864,18 @@ OverlayLoop:
+ 		embedcfg = js
+ 	}
+ 
++	// Find PGO profile if needed.
++	var pgoProfile string
++	for _, a1 := range a.Deps {
++		if a1.Mode != "preprocess PGO profile" {
++			continue
++		}
++		if pgoProfile != "" {
++			return fmt.Errorf("action contains multiple PGO profile dependencies")
++		}
++		pgoProfile = a1.built
++	}
++
+ 	if p.Internal.BuildInfo != nil && cfg.ModulesEnabled {
+ 		prog := modload.ModInfoProg(p.Internal.BuildInfo.String(), cfg.BuildToolchainName == "gccgo")
+ 		if len(prog) > 0 {
+@@ -876,7 +888,7 @@ OverlayLoop:
+ 
+ 	// Compile Go.
+ 	objpkg := objdir + "_pkg_.a"
+-	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, gofiles)
++	ofile, out, err := BuildToolchain.gc(b, a, objpkg, icfg.Bytes(), embedcfg, symabis, len(sfiles) > 0, pgoProfile, gofiles)
+ 	if err := sh.reportCmd("", "", out, err); err != nil {
+ 		return err
+ 	}
+@@ -2041,7 +2053,7 @@ func mkAbs(dir, f string) string {
+ type toolchain interface {
+ 	// gc runs the compiler in a specific directory on a set of files
+ 	// and returns the name of the generated output file.
+-	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error)
++	gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, out []byte, err error)
+ 	// cc runs the toolchain's C compiler in a directory on a C file
+ 	// to produce an output file.
+ 	cc(b *Builder, a *Action, ofile, cfile string) error
+@@ -2081,7 +2093,7 @@ func (noToolchain) linker() string {
+ 	return ""
+ }
+ 
+-func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, out []byte, err error) {
++func (noToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, out []byte, err error) {
+ 	return "", nil, noCompiler()
+ }
+ 
+@@ -3252,7 +3264,7 @@ func (b *Builder) swigDoIntSize(objdir string) (intsize string, err error) {
+ 
+ 	p := load.GoFilesPackage(context.TODO(), load.PackageOpts{}, srcs)
+ 
+-	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, srcs); e != nil {
++	if _, _, e := BuildToolchain.gc(b, &Action{Mode: "swigDoIntSize", Package: p, Objdir: objdir}, "", nil, nil, "", false, "", srcs); e != nil {
+ 		return "32", nil
+ 	}
+ 	return "64", nil
+diff --git a/src/cmd/go/internal/work/gc.go b/src/cmd/go/internal/work/gc.go
+index be61a606d5..c6041aa22a 100644
+--- a/src/cmd/go/internal/work/gc.go
++++ b/src/cmd/go/internal/work/gc.go
+@@ -53,7 +53,7 @@ func pkgPath(a *Action) string {
+ 	return ppath
+ }
+ 
+-func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
++func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, output []byte, err error) {
+ 	p := a.Package
+ 	sh := b.Shell(a)
+ 	objdir := a.Objdir
+@@ -112,8 +112,8 @@ func (gcToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg
+ 	if p.Internal.Cover.Cfg != "" {
+ 		defaultGcFlags = append(defaultGcFlags, "-coveragecfg="+p.Internal.Cover.Cfg)
+ 	}
+-	if p.Internal.PGOProfile != "" {
+-		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+p.Internal.PGOProfile)
++	if pgoProfile != "" {
++		defaultGcFlags = append(defaultGcFlags, "-pgoprofile="+pgoProfile)
+ 	}
+ 	if symabis != "" {
+ 		defaultGcFlags = append(defaultGcFlags, "-symabis", symabis)
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 2dce9f1ace..91d744e658 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -59,7 +59,7 @@ func checkGccgoBin() {
+ 	base.Exit()
+ }
+ 
+-func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, gofiles []string) (ofile string, output []byte, err error) {
++func (tools gccgoToolchain) gc(b *Builder, a *Action, archive string, importcfg, embedcfg []byte, symabis string, asmhdr bool, pgoProfile string, gofiles []string) (ofile string, output []byte, err error) {
+ 	p := a.Package
+ 	sh := b.Shell(a)
+ 	objdir := a.Objdir
+diff --git a/src/cmd/go/testdata/script/build_pgo.txt b/src/cmd/go/testdata/script/build_pgo.txt
+index 3b0804badd..48bba683c1 100644
+--- a/src/cmd/go/testdata/script/build_pgo.txt
++++ b/src/cmd/go/testdata/script/build_pgo.txt
+@@ -9,7 +9,8 @@ go build triv.go
+ # build with PGO, should trigger rebuild
+ # starting with an empty profile (the compiler accepts it)
+ go build -x -pgo=prof -o triv.exe triv.go
+-stderr 'compile.*-pgoprofile=.*prof.*triv.go'
++stderr 'cp.*prof' # preprocess PGO profile
++stderr 'compile.*-pgoprofile=.*triv.go'
+ 
+ # check that PGO appears in build info
+ # N.B. we can't start the stdout check with -pgo because the script assumes that
+@@ -33,9 +34,11 @@ cmp stdout list.out
+ # overwrite the prof
+ go run overwrite.go
+ 
+-# build again, profile content changed, should trigger rebuild
++# build again, profile content changed, should trigger rebuild, including std
+ go build -n -pgo=prof triv.go
+-stderr 'compile.*-pgoprofile=.*prof.*p.go'
++stderr 'cp.*prof' # preprocess PGO profile
++stderr 'compile.*-pgoprofile=.*triv.go'
++stderr 'compile.*-p runtime.*-pgoprofile=.*'
+ 
+ # check that the build ID is different
+ go list -export -json=BuildID -pgo=prof triv.go
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto.txt b/src/cmd/go/testdata/script/build_pgo_auto.txt
+index 509be0d5c6..aebf83d224 100644
+--- a/src/cmd/go/testdata/script/build_pgo_auto.txt
++++ b/src/cmd/go/testdata/script/build_pgo_auto.txt
+@@ -4,10 +4,11 @@
+ 
+ # use default.pgo for a single main package
+ go build -n -pgo=auto -o a1.exe ./a/a1
+-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
++stderr 'cp.*default\.pgo' # preprocess PGO profile
++stderr 'compile.*-pgoprofile=.*a1.go'
+ 
+ # check that pgo applied to dependencies
+-stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
++stderr 'compile.*-p test/dep.*-pgoprofile=.*'
+ 
+ # check that pgo appears in build info
+ # N.B. we can't start the stdout check with -pgo because the script assumes that
+@@ -19,7 +20,7 @@ stderr 'build\\t-pgo=.*default\.pgo'
+ 
+ # use default.pgo for ... with a single main package
+ go build -n -pgo=auto ./a/...
+-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
++stderr 'compile.*-pgoprofile=.*a1.go'
+ 
+ # check that pgo appears in build info
+ stderr 'build\\t-pgo=.*default\.pgo'
+@@ -34,14 +35,14 @@ stderr 'compile.*nopgo.go'
+ 
+ # other build-related commands
+ go install -a -n -pgo=auto ./a/a1
+-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
++stderr 'compile.*-pgoprofile=.*a1.go'
+ 
+ go run -a -n -pgo=auto ./a/a1
+-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
++stderr 'compile.*-pgoprofile=.*a1.go'
+ 
+ go test -a -n -pgo=auto ./a/a1
+-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go.*a1_test.go'
+-stderr 'compile.*-pgoprofile=.*default\.pgo.*external_test.go'
++stderr 'compile.*-pgoprofile=.*a1.go.*a1_test.go'
++stderr 'compile.*-pgoprofile=.*external_test.go'
+ 
+ # go list commands should succeed as usual
+ go list -pgo=auto ./a/a1
+@@ -53,8 +54,8 @@ go list -deps -pgo=auto ./a/a1
+ # -pgo=auto is the default. Commands without explicit -pgo=auto
+ # should work as -pgo=auto.
+ go build -a -n -o a1.exe ./a/a1
+-stderr 'compile.*-pgoprofile=.*default\.pgo.*a1.go'
+-stderr 'compile.*-p test/dep.*-pgoprofile=.*default\.pgo'
++stderr 'compile.*-pgoprofile=.*a1.go'
++stderr 'compile.*-p test/dep.*-pgoprofile=.*'
+ 
+ # check that pgo appears in build info
+ stderr 'build\\t-pgo=.*default\.pgo'
+diff --git a/src/cmd/go/testdata/script/build_pgo_auto_multi.txt b/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
+index 991b72ce85..88cc49d421 100644
+--- a/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
++++ b/src/cmd/go/testdata/script/build_pgo_auto_multi.txt
+@@ -2,24 +2,21 @@
+ 
+ go install -a -n -pgo=auto ./a ./b ./nopgo
+ 
+-# a/default.pgo applies to package a and (transitive)
+-# dependencies.
+-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*a(/|\\\\)a\.go'
+-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
+-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep2(/|\\\\)dep2\.go'
+-stderr -count=1 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep3(/|\\\\)dep3\.go'
++# a/default.pgo and b/default.pgo are both preprocessed
++stderr 'cp.*a(/|\\)default\.pgo'
++stderr 'cp.*b(/|\\)default\.pgo'
+ 
+-# b/default.pgo applies to package b and (transitive)
+-# dependencies.
+-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b\.go'
+-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
+-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep2(/|\\\\)dep2\.go'
+-stderr -count=1 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep3(/|\\\\)dep3\.go'
++# a and b built once each with PGO.
++# Ideally we would check that the passed profile is the expected profile (here
++# and for dependencies). Unfortunately there is no nice way to map the expected
++# paths after preprocessing.
++stderr -count=1 'compile.*-pgoprofile=.*a(/|\\\\)a\.go'
++stderr -count=1 'compile.*-pgoprofile=.*b(/|\\\\)b\.go'
+ 
+ # nopgo should be built without PGO.
+ ! stderr 'compile.*-pgoprofile=.*nopgo(/|\\\\)nopgo\.go'
+ 
+-# Dependencies should also be built without PGO.
++# Dependencies should also be built with and without PGO.
+ # Here we want to match a compile action without -pgoprofile,
+ # by matching 3 occurrences of "compile dep.go", among which
+ # 2 of them have -pgoprofile (therefore one without).
+@@ -39,17 +36,14 @@ stderr 'path\\ttest/b\\n.*build\\t-pgo=.*b(/|\\\\)default\.pgo'
+ 
+ # go test works the same way
+ go test -a -n -pgo=auto ./a ./b ./nopgo
+-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*a(/|\\\\)a_test\.go'
+-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
+-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*b(/|\\\\)b_test\.go'
+-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*dep(/|\\\\)dep\.go'
++stderr -count=1 'compile.*-pgoprofile=.*a(/|\\\\)a_test\.go'
++stderr -count=1 'compile.*-pgoprofile=.*b(/|\\\\)b_test\.go'
++stderr -count=2 'compile.*-pgoprofile=.*dep(/|\\\\)dep\.go'
+ ! stderr 'compile.*-pgoprofile=.*nopgo(/|\\\\)nopgo_test\.go'
+ 
+ # test-only dependencies also have profiles attached
+-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*testdep(/|\\\\)testdep\.go'
+-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*testdep(/|\\\\)testdep\.go'
+-stderr 'compile.*-pgoprofile=.*a(/|\\\\)default\.pgo.*testdep2(/|\\\\)testdep2\.go'
+-stderr 'compile.*-pgoprofile=.*b(/|\\\\)default\.pgo.*testdep2(/|\\\\)testdep2\.go'
++stderr -count=2 'compile.*-pgoprofile=.*testdep(/|\\\\)testdep\.go'
++stderr -count=2 'compile.*-pgoprofile=.*testdep2(/|\\\\)testdep2\.go'
+ 
+ # go list -deps prints packages built multiple times.
+ go list -pgo=auto -deps ./a ./b ./nopgo

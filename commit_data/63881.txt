@@ -1,0 +1,327 @@
+commit 8ab131fb1256a4a795c610e145c022e22e2d1567
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Tue May 21 23:17:13 2024 -0700
+
+    runtime: split mutex profile clocks
+    
+    Mutex contention measurements work with two clocks: nanotime for use in
+    runtime/metrics, and cputicks for the runtime/pprof profile. They're
+    subject to different sampling rates: the runtime/metrics view is always
+    enabled, but the profile is adjustable and is turned off by default.
+    They have different levels of overhead: it can take as little as one
+    instruction to read cputicks while nanotime calls are more elaborate
+    (although some platforms implement cputicks as a nanotime call). The use
+    of the timestamps is also different: the profile's view needs to attach
+    the delay in some Ms' lock2 calls to another M's unlock2 call stack, but
+    the metric's view is only an int64.
+    
+    Treat them differently. Don't bother threading the nanotime clock
+    through to the unlock2 call, measure and report it directly within
+    lock2. Sample nanotime at a constant gTrackingPeriod.
+    
+    Don't consult any clocks unless the mutex is actually contended.
+    
+    Continue liberal use of cputicks for now.
+    
+    For #66999
+    
+    Change-Id: I1c2085ea0e695bfa90c30fadedc99ced9eb1f69e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586796
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Run-TryBot: Rhys Hiltner <rhys.hiltner@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/runtime/lock_futex.go | 28 +++++++++++++++++------
+ src/runtime/lock_sema.go  | 29 ++++++++++++++++++------
+ src/runtime/mprof.go      | 58 +++++++++++++++++++----------------------------
+ 3 files changed, 66 insertions(+), 49 deletions(-)
+
+diff --git a/src/runtime/lock_futex.go b/src/runtime/lock_futex.go
+index 9be231f2ea..ef9a800b56 100644
+--- a/src/runtime/lock_futex.go
++++ b/src/runtime/lock_futex.go
+@@ -80,7 +80,14 @@ func lock2(l *mutex) {
+ 		gp.stackguard0, gp.throwsplit = stackPreempt, true
+ 	}
+ 
+-	gp.m.mWaitList.acquireTimes = timePair{nanotime: nanotime(), cputicks: cputicks()}
++	var startNanos int64
++	const sampleRate = gTrackingPeriod
++	sample := cheaprandn(sampleRate) == 0
++	if sample {
++		startNanos = nanotime()
++	}
++	gp.m.mWaitList.acquireTicks = cputicks()
++
+ 	// On uniprocessors, no point spinning.
+ 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
+ 	spin := 0
+@@ -112,7 +119,7 @@ Loop:
+ 
+ 					if v == old || atomic.Casuintptr(&l.key, old, v) {
+ 						gp.m.mWaitList.clearLinks()
+-						gp.m.mWaitList.acquireTimes = timePair{}
++						gp.m.mWaitList.acquireTicks = 0
+ 						break
+ 					}
+ 					v = atomic.Loaduintptr(&l.key)
+@@ -120,6 +127,11 @@ Loop:
+ 				if gp == gp.m.curg {
+ 					gp.stackguard0, gp.throwsplit = stackguard0, throwsplit
+ 				}
++
++				if sample {
++					endNanos := nanotime()
++					gp.m.mLockProfile.waitTime.Add((endNanos - startNanos) * sampleRate)
++				}
+ 				return
+ 			}
+ 			i = 0
+@@ -161,7 +173,8 @@ func unlock(l *mutex) {
+ }
+ 
+ func unlock2(l *mutex) {
+-	now, dt := timePair{nanotime: nanotime(), cputicks: cputicks()}, timePair{}
++	var claimed bool
++	var cycles int64
+ 	for {
+ 		v := atomic.Loaduintptr(&l.key)
+ 		if v == mutex_locked {
+@@ -171,10 +184,11 @@ func unlock2(l *mutex) {
+ 		} else if v&mutex_locked == 0 {
+ 			throw("unlock of unlocked lock")
+ 		} else {
+-			if now != (timePair{}) {
++			if !claimed {
++				claimed = true
++				nowTicks := cputicks()
+ 				head := muintptr(v &^ (mutex_sleeping | mutex_locked))
+-				dt = claimMutexWaitTime(now, head)
+-				now = timePair{}
++				cycles = claimMutexWaitTime(nowTicks, head)
+ 			}
+ 
+ 			// Other M's are waiting for the lock.
+@@ -186,7 +200,7 @@ func unlock2(l *mutex) {
+ 	}
+ 
+ 	gp := getg()
+-	gp.m.mLockProfile.recordUnlock(dt)
++	gp.m.mLockProfile.recordUnlock(cycles)
+ 	gp.m.locks--
+ 	if gp.m.locks < 0 {
+ 		throw("runtime·unlock: lock count")
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 0d7bd5b9c9..6c941c6514 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -60,7 +60,14 @@ func lock2(l *mutex) {
+ 		gp.stackguard0, gp.throwsplit = stackPreempt, true
+ 	}
+ 
+-	gp.m.mWaitList.acquireTimes = timePair{nanotime: nanotime(), cputicks: cputicks()}
++	var startNanos int64
++	const sampleRate = gTrackingPeriod
++	sample := cheaprandn(sampleRate) == 0
++	if sample {
++		startNanos = nanotime()
++	}
++	gp.m.mWaitList.acquireTicks = cputicks()
++
+ 	// On uniprocessor's, no point spinning.
+ 	// On multiprocessors, spin for ACTIVE_SPIN attempts.
+ 	spin := 0
+@@ -88,7 +95,7 @@ Loop:
+ 
+ 					if v == old || atomic.Casuintptr(&l.key, old, v) {
+ 						gp.m.mWaitList.clearLinks()
+-						gp.m.mWaitList.acquireTimes = timePair{}
++						gp.m.mWaitList.acquireTicks = 0
+ 						break
+ 					}
+ 					v = atomic.Loaduintptr(&l.key)
+@@ -96,6 +103,11 @@ Loop:
+ 				if gp == gp.m.curg {
+ 					gp.stackguard0, gp.throwsplit = stackguard0, throwsplit
+ 				}
++
++				if sample {
++					endNanos := nanotime()
++					gp.m.mLockProfile.waitTime.Add((endNanos - startNanos) * sampleRate)
++				}
+ 				return
+ 			}
+ 			i = 0
+@@ -145,7 +157,8 @@ func unlock(l *mutex) {
+ //
+ //go:nowritebarrier
+ func unlock2(l *mutex) {
+-	now, dt := timePair{nanotime: nanotime(), cputicks: cputicks()}, timePair{}
++	var claimed bool
++	var cycles int64
+ 	gp := getg()
+ 	var mp *m
+ 	for {
+@@ -155,9 +168,11 @@ func unlock2(l *mutex) {
+ 				break
+ 			}
+ 		} else {
+-			if now != (timePair{}) {
+-				dt = claimMutexWaitTime(now, muintptr(v&^locked))
+-				now = timePair{}
++			if !claimed {
++				claimed = true
++				nowTicks := cputicks()
++				head := muintptr(v &^ locked)
++				cycles = claimMutexWaitTime(nowTicks, head)
+ 			}
+ 
+ 			// Other M's are waiting for the lock.
+@@ -171,7 +186,7 @@ func unlock2(l *mutex) {
+ 		}
+ 	}
+ 
+-	gp.m.mLockProfile.recordUnlock(dt)
++	gp.m.mLockProfile.recordUnlock(cycles)
+ 	gp.m.locks--
+ 	if gp.m.locks < 0 {
+ 		throw("runtime·unlock: lock count")
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index fd0a018724..1d44164b84 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -590,7 +590,7 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
+ // mutex.
+ //
+ // Having found the head and tail nodes and a correct waiters count, the
+-// unlocking M can read and update those two nodes' acquireTimes fields and thus
++// unlocking M can read and update those two nodes' acquireTicks field and thus
+ // take responsibility for (an estimate of) the entire list's delay since the
+ // last unlock call.
+ //
+@@ -603,21 +603,16 @@ func saveblockevent(cycles, rate int64, skip int, which bucketType) {
+ // runtime controls the order of thread wakeups (it's a LIFO stack), but with
+ // lock_futex.go the OS can wake an arbitrary thread.
+ type mWaitList struct {
+-	acquireTimes timePair // start of current wait (set by us, updated by others during unlock)
++	acquireTicks int64    // start of current wait (set by us, updated by others during unlock)
+ 	next         muintptr // next m waiting for lock (set by us, cleared by another during unlock)
+ 	prev         muintptr // previous m waiting for lock (an amortized hint, set by another during unlock)
+ 	tail         muintptr // final m waiting for lock (an amortized hint, set by others during unlock)
+ 	waiters      int32    // length of waiting m list (an amortized hint, set by another during unlock)
+ }
+ 
+-type timePair struct {
+-	nanotime int64
+-	cputicks int64
+-}
+-
+ // clearLinks resets the fields related to the M's position in the list of Ms
+-// waiting for a mutex. It leaves acquireTimes intact, since this M may still be
+-// waiting and may have had its acquireTimes updated by an unlock2 call.
++// waiting for a mutex. It leaves acquireTicks intact, since this M may still be
++// waiting and may have had its acquireTicks updated by an unlock2 call.
+ //
+ // In lock_sema.go, the previous owner of the mutex dequeues an M and then wakes
+ // it; with semaphore-based sleep, it's important that each M receives only one
+@@ -736,8 +731,8 @@ func removeMutexWaitList(head muintptr, mp *m) muintptr {
+ 	hp := head.ptr()
+ 	tail := hp.mWaitList.tail
+ 	waiters := hp.mWaitList.waiters
+-	headTimes := hp.mWaitList.acquireTimes
+-	tailTimes := hp.mWaitList.tail.ptr().mWaitList.acquireTimes
++	headTicks := hp.mWaitList.acquireTicks
++	tailTicks := hp.mWaitList.tail.ptr().mWaitList.acquireTicks
+ 
+ 	mp.mWaitList.tail = 0
+ 
+@@ -773,42 +768,40 @@ func removeMutexWaitList(head muintptr, mp *m) muintptr {
+ 		hp.mWaitList.prev = 0
+ 		hp.mWaitList.tail = tail
+ 		hp.mWaitList.waiters = waiters - 1
+-		hp.mWaitList.acquireTimes = headTimes
++		hp.mWaitList.acquireTicks = headTicks
+ 	}
+ 	if tp := tail.ptr(); tp != nil {
+-		tp.mWaitList.acquireTimes = tailTimes
++		tp.mWaitList.acquireTicks = tailTicks
+ 	}
+ 	return head
+ }
+ 
+-// claimMutexWaitTime advances the acquireTimes of the list of waiting Ms at
++// claimMutexWaitTime advances the acquireTicks of the list of waiting Ms at
+ // head to now, returning an estimate of the total wait time claimed by that
+ // action.
+-func claimMutexWaitTime(now timePair, head muintptr) timePair {
++func claimMutexWaitTime(nowTicks int64, head muintptr) int64 {
+ 	fixMutexWaitList(head)
+ 	hp := head.ptr()
+ 	if hp == nil {
+-		return timePair{}
++		return 0
+ 	}
+ 	tp := hp.mWaitList.tail.ptr()
+ 	waiters := hp.mWaitList.waiters
+-	headTimes := hp.mWaitList.acquireTimes
+-	tailTimes := tp.mWaitList.acquireTimes
++	headTicks := hp.mWaitList.acquireTicks
++	tailTicks := tp.mWaitList.acquireTicks
+ 
+-	var dt timePair
+-	dt.nanotime = now.nanotime - headTimes.nanotime
+-	dt.cputicks = now.cputicks - headTimes.cputicks
++	var cycles int64
++	cycles = nowTicks - headTicks
+ 	if waiters > 1 {
+-		dt.nanotime = int64(waiters) * (dt.nanotime + now.nanotime - tailTimes.nanotime) / 2
+-		dt.cputicks = int64(waiters) * (dt.cputicks + now.cputicks - tailTimes.cputicks) / 2
++		cycles = int64(waiters) * (cycles + nowTicks - tailTicks) / 2
+ 	}
+ 
+ 	// When removeMutexWaitList removes a head or tail node, it's responsible
+ 	// for applying these changes to the new head or tail.
+-	hp.mWaitList.acquireTimes = now
+-	tp.mWaitList.acquireTimes = now
++	hp.mWaitList.acquireTicks = nowTicks
++	tp.mWaitList.acquireTicks = nowTicks
+ 
+-	return dt
++	return cycles
+ }
+ 
+ // mLockProfile is part of the M struct to hold information relating to mutex
+@@ -839,26 +832,21 @@ type mLockProfile struct {
+ // From unlock2, we might not be holding a p in this code.
+ //
+ //go:nowritebarrierrec
+-func (prof *mLockProfile) recordUnlock(dt timePair) {
+-	if dt != (timePair{}) {
++func (prof *mLockProfile) recordUnlock(cycles int64) {
++	if cycles != 0 {
+ 		// We could make a point of clearing out the local storage right before
+ 		// this, to have a slightly better chance of being able to see the call
+ 		// stack if the program has several (nested) contended locks. If apps
+ 		// are seeing a lot of _LostContendedRuntimeLock samples, maybe that'll
+ 		// be a worthwhile change.
+-		prof.proposeUnlock(dt)
++		prof.proposeUnlock(cycles)
+ 	}
+ 	if getg().m.locks == 1 && prof.cycles != 0 {
+ 		prof.store()
+ 	}
+ }
+ 
+-func (prof *mLockProfile) proposeUnlock(dt timePair) {
+-	if nanos := dt.nanotime; nanos > 0 {
+-		prof.waitTime.Add(nanos)
+-	}
+-
+-	cycles := dt.cputicks
++func (prof *mLockProfile) proposeUnlock(cycles int64) {
+ 	if cycles <= 0 {
+ 		return
+ 	}

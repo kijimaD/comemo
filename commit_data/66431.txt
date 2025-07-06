@@ -1,0 +1,47 @@
+commit 6f90ae362352552a8b6384e28c5751bb7110c33b
+Author: go101 <tapir.liu@gmail.com>
+Date:   Sat Dec 21 13:31:27 2024 +0000
+
+    cmd/compile: improve issue62407_test
+    
+    The original issue62407_test also passes with versions prior to 1.23.
+    The improvement makes it fail with versions prior to 1.23.
+    
+    Change-Id: I94bfb9d1ac695c8e07997d7029fc2101535e14f8
+    GitHub-Last-Rev: 44be2a610a1a79d04dc3d228af2b313200f4d900
+    GitHub-Pull-Request: golang/go#70938
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/638036
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+---
+ src/cmd/compile/internal/test/issue62407_test.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/compile/internal/test/issue62407_test.go b/src/cmd/compile/internal/test/issue62407_test.go
+index d065673627..fc9e7a5be0 100644
+--- a/src/cmd/compile/internal/test/issue62407_test.go
++++ b/src/cmd/compile/internal/test/issue62407_test.go
+@@ -10,7 +10,7 @@ import (
+ )
+ 
+ //go:noinline
+-func foo() string { return "foo" }
++func foo() string { return "foofoofoofoofoofo" } // len == 17
+ 
+ //go:noinline
+ func empty() string { return "" }
+@@ -23,8 +23,8 @@ func TestConcatBytes(t *testing.T) {
+ 		want []byte
+ 	}{
+ 		"two empty elements":                 {got: []byte(empty + empty), want: []byte{}},
+-		"two nonempty elements":              {got: []byte(s + s), want: []byte("foofoo")},
+-		"one empty and one nonempty element": {got: []byte(s + empty), want: []byte("foo")},
++		"two nonempty elements":              {got: []byte(s + s), want: append([]byte(foo()), foo()...)},
++		"one empty and one nonempty element": {got: []byte(s + empty), want: []byte(foo())},
+ 		"multiple empty elements":            {got: []byte(empty + empty + empty + empty + empty + empty), want: []byte{}},
+ 		"multiple nonempty elements":         {got: []byte("1" + "2" + "3" + "4" + "5" + "6"), want: []byte("123456")},
+ 	}

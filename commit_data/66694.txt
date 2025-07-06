@@ -1,0 +1,59 @@
+commit 6722c008c139a8abfe841275d12a601d7ea513a1
+Author: Mark Freeman <mark@golang.org>
+Date:   Wed Mar 26 20:13:16 2025 +0000
+
+    cmd/compile: rename some test packages in codegen
+    
+    All other files here use the codegen package.
+    
+    Change-Id: I714162941b9fa9051dacc29643e905fe60b9304b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/661135
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+---
+ test/codegen/issue56440.go | 2 +-
+ test/codegen/issue58166.go | 2 +-
+ test/codegen/issue66585.go | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/test/codegen/issue56440.go b/test/codegen/issue56440.go
+index c6c1e66789..826dea8586 100644
+--- a/test/codegen/issue56440.go
++++ b/test/codegen/issue56440.go
+@@ -8,7 +8,7 @@
+ // is constant. We check this by making sure that the constant length
+ // is folded into a load offset.
+ 
+-package p
++package codegen
+ 
+ func f(x []int) int {
+ 	s := make([]int, 3)
+diff --git a/test/codegen/issue58166.go b/test/codegen/issue58166.go
+index 8be5aac841..b38f9c916e 100644
+--- a/test/codegen/issue58166.go
++++ b/test/codegen/issue58166.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package p
++package codegen
+ 
+ func dgemmSerialNotNot(m, n, k int, a []float64, lda int, b []float64, ldb int, c []float64, ldc int, alpha float64) {
+ 	for i := 0; i < m; i++ {
+diff --git a/test/codegen/issue66585.go b/test/codegen/issue66585.go
+index 32a180be0e..867a96218c 100644
+--- a/test/codegen/issue66585.go
++++ b/test/codegen/issue66585.go
+@@ -4,7 +4,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package p
++package codegen
+ 
+ var x = func() int {
+ 	n := 0

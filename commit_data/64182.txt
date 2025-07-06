@@ -1,0 +1,52 @@
+commit 94982a07825aec711f11c97283e99e467838d616
+Author: Michael Matloob <matloob@golang.org>
+Date:   Mon Jul 1 14:13:21 2024 -0400
+
+    cmd/go/internal/workcmd: remove a potentially confusing statement
+    
+    A statement in the go work use docs that was meant to clarify that go
+    work use would clean up use statements where the directories did not
+    exist ended up causing confusion.
+    
+    Remove that statement for now. We might want to add something back in
+    the future.
+    
+    For #68245
+    
+    Change-Id: I7f6646b5dd05c18aa15e0e54f2816753f318404e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/595536
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Eli Bendersky <eliben@google.com>
+---
+ src/cmd/go/alldocs.go              | 3 +--
+ src/cmd/go/internal/workcmd/use.go | 3 +--
+ 2 files changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 2840ba6ea9..75e6d65d0c 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -1689,8 +1689,7 @@
+ //
+ // The -r flag searches recursively for modules in the argument
+ // directories, and the use command operates as if each of the directories
+-// were specified as arguments: namely, use directives will be added for
+-// directories that exist, and removed for directories that do not exist.
++// were specified as arguments.
+ //
+ // See the workspaces reference at https://go.dev/ref/mod#workspaces
+ // for more information.
+diff --git a/src/cmd/go/internal/workcmd/use.go b/src/cmd/go/internal/workcmd/use.go
+index 55477119d4..0cdbed6b18 100644
+--- a/src/cmd/go/internal/workcmd/use.go
++++ b/src/cmd/go/internal/workcmd/use.go
+@@ -42,8 +42,7 @@ thing that go work use does.
+ 
+ The -r flag searches recursively for modules in the argument
+ directories, and the use command operates as if each of the directories
+-were specified as arguments: namely, use directives will be added for
+-directories that exist, and removed for directories that do not exist.
++were specified as arguments.
+ 
+ 
+ 

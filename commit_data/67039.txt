@@ -1,0 +1,78 @@
+commit 01e0e8b6b397f2e775d9ccbfcde104d025464382
+Author: Nick Ripley <nick.ripley@datadoghq.com>
+Date:   Thu May 15 07:01:14 2025 -0400
+
+    runtime/pprof: include PCs for deduplication in TestMutexBlockFullAggregation
+    
+    TestMutexBlockFullAggregation aggregates stacks by function, file, and
+    line number. But there can be multiple function calls on the same line,
+    giving us different sequences of PCs. This causes the test to spuriously
+    fail in some cases. Include PCs in the stacks for this test.
+    
+    Also pick up a small "range over int" modernize suggestion while we're
+    looking at the test.
+    
+    Fixes #73641
+    
+    Change-Id: I50489e19fcf920e27b9eebd9d4b35feb89981cbc
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673115
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/pprof/pprof_test.go | 13 ++++++++-----
+ 1 file changed, 8 insertions(+), 5 deletions(-)
+
+diff --git a/src/runtime/pprof/pprof_test.go b/src/runtime/pprof/pprof_test.go
+index 01d3b0aa4b..6f9446a745 100644
+--- a/src/runtime/pprof/pprof_test.go
++++ b/src/runtime/pprof/pprof_test.go
+@@ -2632,7 +2632,7 @@ func produceProfileEvents(t *testing.T, depth int) {
+ 	goroutineDeep(t, depth-4) // -4 for produceProfileEvents, **, chanrecv1, chanrev, gopark
+ }
+ 
+-func getProfileStacks(collect func([]runtime.BlockProfileRecord) (int, bool), fileLine bool) []string {
++func getProfileStacks(collect func([]runtime.BlockProfileRecord) (int, bool), fileLine bool, pcs bool) []string {
+ 	var n int
+ 	var ok bool
+ 	var p []runtime.BlockProfileRecord
+@@ -2651,6 +2651,9 @@ func getProfileStacks(collect func([]runtime.BlockProfileRecord) (int, bool), fi
+ 			if i > 0 {
+ 				stack.WriteByte('\n')
+ 			}
++			if pcs {
++				fmt.Fprintf(&stack, "%x ", pc)
++			}
+ 			// Use FuncForPC instead of CallersFrames,
+ 			// because we want to see the info for exactly
+ 			// the PCs returned by the mutex profile to
+@@ -2691,9 +2694,9 @@ func TestMutexBlockFullAggregation(t *testing.T) {
+ 
+ 	wg := sync.WaitGroup{}
+ 	wg.Add(workers)
+-	for j := 0; j < workers; j++ {
++	for range workers {
+ 		go func() {
+-			for i := 0; i < iters; i++ {
++			for range iters {
+ 				m.Lock()
+ 				// Wait at least 1 millisecond to pass the
+ 				// starvation threshold for the mutex
+@@ -2706,7 +2709,7 @@ func TestMutexBlockFullAggregation(t *testing.T) {
+ 	wg.Wait()
+ 
+ 	assertNoDuplicates := func(name string, collect func([]runtime.BlockProfileRecord) (int, bool)) {
+-		stacks := getProfileStacks(collect, true)
++		stacks := getProfileStacks(collect, true, true)
+ 		seen := make(map[string]struct{})
+ 		for _, s := range stacks {
+ 			if _, ok := seen[s]; ok {
+@@ -2782,7 +2785,7 @@ runtime/pprof.inlineA`,
+ 
+ 	for _, tc := range tcs {
+ 		t.Run(tc.Name, func(t *testing.T) {
+-			stacks := getProfileStacks(tc.Collect, false)
++			stacks := getProfileStacks(tc.Collect, false, false)
+ 			for _, s := range stacks {
+ 				if strings.Contains(s, tc.SubStack) {
+ 					return

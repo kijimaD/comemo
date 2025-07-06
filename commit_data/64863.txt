@@ -1,0 +1,131 @@
+commit 3dc146da7f31883fddc4bd227dd373398b08667e
+Author: qiulaidongfeng <2645477756@qq.com>
+Date:   Tue Sep 17 11:59:49 2024 +0800
+
+    go/types, types2: better error message when type argument cannot use operator
+    
+    Fixes #63524
+    
+    Change-Id: Id33936b9bcfb6a7333c6d084247044bba2f29219
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613756
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+---
+ src/cmd/compile/internal/types2/expr.go             |  2 +-
+ src/go/types/expr.go                                |  2 +-
+ src/internal/types/testdata/check/typeparams.go     |  6 +++---
+ src/internal/types/testdata/fixedbugs/issue48712.go |  8 ++++----
+ src/internal/types/testdata/spec/comparisons.go     | 18 +++++++++---------
+ 5 files changed, 18 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/expr.go b/src/cmd/compile/internal/types2/expr.go
+index 72f0efbfde..96f05ddb11 100644
+--- a/src/cmd/compile/internal/types2/expr.go
++++ b/src/cmd/compile/internal/types2/expr.go
+@@ -574,7 +574,7 @@ Error:
+ 			if !isTypeParam(x.typ) {
+ 				errOp = y
+ 			}
+-			cause = check.sprintf("type parameter %s is not comparable with %s", errOp.typ, op)
++			cause = check.sprintf("type parameter %s cannot use operator %s", errOp.typ, op)
+ 		} else {
+ 			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
+ 		}
+diff --git a/src/go/types/expr.go b/src/go/types/expr.go
+index 4f17ebbc4f..d918059f77 100644
+--- a/src/go/types/expr.go
++++ b/src/go/types/expr.go
+@@ -565,7 +565,7 @@ Error:
+ 			if !isTypeParam(x.typ) {
+ 				errOp = y
+ 			}
+-			cause = check.sprintf("type parameter %s is not comparable with %s", errOp.typ, op)
++			cause = check.sprintf("type parameter %s cannot use operator %s", errOp.typ, op)
+ 		} else {
+ 			cause = check.sprintf("operator %s not defined on %s", op, check.kindString(errOp.typ)) // catch-all
+ 		}
+diff --git a/src/internal/types/testdata/check/typeparams.go b/src/internal/types/testdata/check/typeparams.go
+index b002377df7..5fd82a5aa0 100644
+--- a/src/internal/types/testdata/check/typeparams.go
++++ b/src/internal/types/testdata/check/typeparams.go
+@@ -58,10 +58,10 @@ func min[T interface{ ~int }](x, y T) T {
+ }
+ 
+ func _[T interface{~int | ~float32}](x, y T) bool { return x < y }
+-func _[T any](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
+-func _[T interface{~int | ~float32 | ~bool}](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
++func _[T any](x, y T) bool { return x /* ERROR "type parameter T cannot use operator <" */ < y }
++func _[T interface{~int | ~float32 | ~bool}](x, y T) bool { return x /* ERROR "type parameter T cannot use operator <" */ < y }
+ 
+-func _[T C1[T]](x, y T) bool { return x /* ERROR "type parameter T is not comparable" */ < y }
++func _[T C1[T]](x, y T) bool { return x /* ERROR "type parameter T cannot use operator <" */ < y }
+ func _[T C2[T]](x, y T) bool { return x < y }
+ 
+ type C1[T any] interface{}
+diff --git a/src/internal/types/testdata/fixedbugs/issue48712.go b/src/internal/types/testdata/fixedbugs/issue48712.go
+index 76ad16cd8f..028660fb1e 100644
+--- a/src/internal/types/testdata/fixedbugs/issue48712.go
++++ b/src/internal/types/testdata/fixedbugs/issue48712.go
+@@ -10,7 +10,7 @@ func _[P comparable](x, y P) {
+ 	_ = y == x
+ 	_ = y == y
+ 
+-	_ = x /* ERROR "type parameter P is not comparable with <" */ < y
++	_ = x /* ERROR "type parameter P cannot use operator <" */ < y
+ }
+ 
+ func _[P comparable](x P, y any) {
+@@ -19,7 +19,7 @@ func _[P comparable](x P, y any) {
+ 	_ = y == x
+ 	_ = y == y
+ 
+-	_ = x /* ERROR "type parameter P is not comparable with <" */ < y
++	_ = x /* ERROR "type parameter P cannot use operator <" */ < y
+ }
+ 
+ func _[P any](x, y P) {
+@@ -28,7 +28,7 @@ func _[P any](x, y P) {
+ 	_ = y /* ERROR "incomparable types in type set" */ == x
+ 	_ = y /* ERROR "incomparable types in type set" */ == y
+ 
+-	_ = x /* ERROR "type parameter P is not comparable with <" */ < y
++	_ = x /* ERROR "type parameter P cannot use operator <" */ < y
+ }
+ 
+ func _[P any](x P, y any) {
+@@ -37,5 +37,5 @@ func _[P any](x P, y any) {
+ 	_ = y == x // ERROR "incomparable types in type set"
+ 	_ = y == y
+ 
+-	_ = x /* ERROR "type parameter P is not comparable with <" */ < y
++	_ = x /* ERROR "type parameter P cannot use operator <" */ < y
+ }
+diff --git a/src/internal/types/testdata/spec/comparisons.go b/src/internal/types/testdata/spec/comparisons.go
+index 492890e49e..dd92d99b1b 100644
+--- a/src/internal/types/testdata/spec/comparisons.go
++++ b/src/internal/types/testdata/spec/comparisons.go
+@@ -108,13 +108,13 @@ func _[
+ 	_ = c == nil
+ 
+ 	_ = b < b
+-	_ = a /* ERROR "type parameter A is not comparable with <" */ < a
+-	_ = l /* ERROR "type parameter L is not comparable with <" */ < l
+-	_ = s /* ERROR "type parameter S is not comparable with <" */ < s
+-	_ = p /* ERROR "type parameter P is not comparable with <" */ < p
+-	_ = f /* ERROR "type parameter F is not comparable with <" */ < f
+-	_ = i /* ERROR "type parameter I is not comparable with <" */ < i
+-	_ = j /* ERROR "type parameter J is not comparable with <" */ < j
+-	_ = m /* ERROR "type parameter M is not comparable with <" */ < m
+-	_ = c /* ERROR "type parameter C is not comparable with <" */ < c
++	_ = a /* ERROR "type parameter A cannot use operator <" */ < a
++	_ = l /* ERROR "type parameter L cannot use operator <" */ < l
++	_ = s /* ERROR "type parameter S cannot use operator <" */ < s
++	_ = p /* ERROR "type parameter P cannot use operator <" */ < p
++	_ = f /* ERROR "type parameter F cannot use operator <" */ < f
++	_ = i /* ERROR "type parameter I cannot use operator <" */ < i
++	_ = j /* ERROR "type parameter J cannot use operator <" */ < j
++	_ = m /* ERROR "type parameter M cannot use operator <" */ < m
++	_ = c /* ERROR "type parameter C cannot use operator <" */ < c
+ }

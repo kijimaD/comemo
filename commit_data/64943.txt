@@ -1,0 +1,66 @@
+commit 2bffb8b3fb2d9137ccfa87fc35137371b86a2e96
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Jul 17 14:15:32 2024 +0200
+
+    slices: prevent Clone keeping alive the array when cloning empty slices
+    
+    Fixes #68488
+    
+    Change-Id: I39aba22cdfe8ca0bbe69db7c64f1bca75fa067fa
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/598875
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/slices/slices.go      |  9 +++++++--
+ src/slices/slices_test.go | 10 ++++++++++
+ 2 files changed, 17 insertions(+), 2 deletions(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index 25c124d291..f53c93be52 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -346,8 +346,13 @@ func Replace[S ~[]E, E any](s S, i, j int, v ...E) S {
+ // The elements are copied using assignment, so this is a shallow clone.
+ // The result may have additional unused capacity.
+ func Clone[S ~[]E, E any](s S) S {
+-	// The s[:0:0] preserves nil in case it matters.
+-	return append(s[:0:0], s...)
++	// Preserve nilness in case it matters.
++	if s == nil {
++		return nil
++	}
++	// Avoid s[:0:0] as it leads to unwanted liveness when cloning a
++	// zero-length slice of a large array; see https://go.dev/issue/68488.
++	return append(S{}, s...)
+ }
+ 
+ // Compact replaces consecutive runs of equal elements with a single copy.
+diff --git a/src/slices/slices_test.go b/src/slices/slices_test.go
+index 68c8a3adc2..26cbb87fcd 100644
+--- a/src/slices/slices_test.go
++++ b/src/slices/slices_test.go
+@@ -12,6 +12,7 @@ import (
+ 	. "slices"
+ 	"strings"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ var equalIntTests = []struct {
+@@ -1450,3 +1451,12 @@ func TestRepeatPanics(t *testing.T) {
+ 		}
+ 	}
+ }
++
++func TestIssue68488(t *testing.T) {
++	s := make([]int, 3)
++	clone := Clone(s[1:1])
++	switch unsafe.SliceData(clone) {
++	case &s[0], &s[1], &s[2]:
++		t.Error("clone keeps alive s due to array overlap")
++	}
++}

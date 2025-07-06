@@ -1,0 +1,70 @@
+commit 849770dec9191475ffed23f0d0985d8222c51e53
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Tue May 14 22:34:58 2024 -0400
+
+    cmd/compile: disallow linkname referring to instantiations
+    
+    Linknaming an instantiated generic symbol isn't particularly
+    useful: it doesn't guarantee the instantiation exists, and the
+    instantiated symbol name may be subject to change. Checked with a
+    large code corpus, currently there is no occurrance of linkname
+    to an instantiated generic symbol (or symbol with a bracket in its
+    name). This also suggests that it is not very useful. Linkname is
+    already an unsafe mechanism. We don't need to allow it to do more
+    unsafe things without justification.
+    
+    Change-Id: Ifaa20c98166b28a9d7dc3290c013c2b5bb7682e7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/585458
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+---
+ src/cmd/compile/internal/noder/writer.go | 5 +++++
+ test/linkname3.go                        | 6 +++++-
+ 2 files changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/noder/writer.go b/src/cmd/compile/internal/noder/writer.go
+index a48e193c5f..13706f9dd2 100644
+--- a/src/cmd/compile/internal/noder/writer.go
++++ b/src/cmd/compile/internal/noder/writer.go
+@@ -12,6 +12,7 @@ import (
+ 	"internal/buildcfg"
+ 	"internal/pkgbits"
+ 	"os"
++	"strings"
+ 
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+@@ -2610,6 +2611,10 @@ func (pw *pkgWriter) collectDecls(noders []*noder) {
+ 				pw.errorf(l.pos, "//go:linkname only allowed in Go files that import \"unsafe\"")
+ 				continue
+ 			}
++			if strings.Contains(l.remote, "[") && strings.Contains(l.remote, "]") {
++				pw.errorf(l.pos, "//go:linkname reference of an instantiation is not allowed")
++				continue
++			}
+ 
+ 			switch obj := pw.curpkg.Scope().Lookup(l.local).(type) {
+ 			case *types2.Func, *types2.Var:
+diff --git a/test/linkname3.go b/test/linkname3.go
+index df110cd064..0d5df0b86e 100644
+--- a/test/linkname3.go
++++ b/test/linkname3.go
+@@ -13,13 +13,17 @@ type t int
+ 
+ var x, y int
+ 
++func F[T any](T) {}
++
+ //go:linkname x ok
+ 
+ // ERROR "//go:linkname must refer to declared function or variable"
+ // ERROR "//go:linkname must refer to declared function or variable"
+ // ERROR "duplicate //go:linkname for x"
++// ERROR "//go:linkname reference of an instantiation is not allowed"
+ 
+-//line linkname3.go:18
++//line linkname3.go:20
+ //go:linkname nonexist nonexist
+ //go:linkname t notvarfunc
+ //go:linkname x duplicate
++//go:linkname i F[go.shape.int]

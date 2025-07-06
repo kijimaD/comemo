@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9090: 5ea4d73b175cf49196061ff89e07d37b66b3a111
+# Index 9090: 4c986d86b142d82cbf1064f2a01b49eaf649fe8b
 
 echo "🚀 Generating explanation for commit 9090..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 9090..."
 
 ### メタデータ
 - **コミットインデックス**: 9090
-- **コミットハッシュ**: 5ea4d73b175cf49196061ff89e07d37b66b3a111
-- **GitHub URL**: https://github.com/golang/go/commit/5ea4d73b175cf49196061ff89e07d37b66b3a111
+- **コミットハッシュ**: 4c986d86b142d82cbf1064f2a01b49eaf649fe8b
+- **GitHub URL**: https://github.com/golang/go/commit/4c986d86b142d82cbf1064f2a01b49eaf649fe8b
 
 ### 章構成
 

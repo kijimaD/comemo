@@ -1,0 +1,202 @@
+commit 665af869920432879629c1d64cf59f129942dcd6
+Author: Max Neverov <neverov.max@gmail.com>
+Date:   Tue Mar 18 20:02:03 2025 +0000
+
+    cmd/go: fail go clean command when failed to find go cache directory
+    
+    Currently, if computing of the go cache directory fails it does not expose the error. Commands like go clean, exec, modindex that use go cache directory continue execution producing incorrect or no result. This patch adds an error to the return values such that it can be validated on call sites. It also introduces such validation in go clean -cache command to fail execution in case when error occurred.
+    
+    Fixes #69997
+    
+    Change-Id: I53fd1ec67f0a6bd8a367e785dcb145a673c084dc
+    GitHub-Last-Rev: e2063d10db7bb969bcbc8993761e3b38bb420938
+    GitHub-Pull-Request: golang/go#70392
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628596
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/alldocs.go                        |  2 +-
+ src/cmd/go/go_test.go                        |  2 +-
+ src/cmd/go/internal/cache/default.go         | 12 ++++++------
+ src/cmd/go/internal/clean/clean.go           | 10 ++++++++--
+ src/cmd/go/internal/envcmd/env.go            |  2 +-
+ src/cmd/go/internal/help/helpdoc.go          |  2 +-
+ src/cmd/go/internal/modindex/read.go         |  2 +-
+ src/cmd/go/internal/test/test.go             |  2 +-
+ src/cmd/go/internal/work/shell.go            |  2 +-
+ src/cmd/go/testdata/script/clean_cache_n.txt |  5 +++++
+ 10 files changed, 26 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7063a9f216..ace9899250 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2343,7 +2343,7 @@
+ //		The directory where 'go install' will install a command.
+ //	GOCACHE
+ //		The directory where the go command will store cached
+-//		information for reuse in future builds.
++//		information for reuse in future builds. Must be an absolute path.
+ //	GOCACHEPROG
+ //		A command (with optional space-separated flags) that implements an
+ //		external go command build cache.
+diff --git a/src/cmd/go/go_test.go b/src/cmd/go/go_test.go
+index 84e4b7abea..83323aeaad 100644
+--- a/src/cmd/go/go_test.go
++++ b/src/cmd/go/go_test.go
+@@ -197,7 +197,7 @@ func TestMain(m *testing.M) {
+ 		defer removeAll(testTmpDir)
+ 	}
+ 
+-	testGOCACHE, _ = cache.DefaultDir()
++	testGOCACHE, _, _ = cache.DefaultDir()
+ 	if testenv.HasGoBuild() {
+ 		testBin = filepath.Join(testTmpDir, "testbin")
+ 		if err := os.Mkdir(testBin, 0777); err != nil {
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index f8e5696cbd..eec2be9fa0 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -34,11 +34,11 @@ See golang.org to learn more about Go.
+ // initDefaultCache does the work of finding the default cache
+ // the first time Default is called.
+ func initDefaultCache() Cache {
+-	dir, _ := DefaultDir()
++	dir, _, err := DefaultDir()
++	if err != nil {
++		base.Fatalf("build cache is required, but could not be located: %v", err)
++	}
+ 	if dir == "off" {
+-		if defaultDirErr != nil {
+-			base.Fatalf("build cache is required, but could not be located: %v", defaultDirErr)
+-		}
+ 		base.Fatalf("build cache is disabled by GOCACHE=off, but required as of Go 1.12")
+ 	}
+ 	if err := os.MkdirAll(dir, 0o777); err != nil {
+@@ -71,7 +71,7 @@ var (
+ // DefaultDir returns the effective GOCACHE setting.
+ // It returns "off" if the cache is disabled,
+ // and reports whether the effective value differs from GOCACHE.
+-func DefaultDir() (string, bool) {
++func DefaultDir() (string, bool, error) {
+ 	// Save the result of the first call to DefaultDir for later use in
+ 	// initDefaultCache. cmd/go/main.go explicitly sets GOCACHE so that
+ 	// subprocesses will inherit it, but that means initDefaultCache can't
+@@ -100,5 +100,5 @@ func DefaultDir() (string, bool) {
+ 		defaultDir = filepath.Join(dir, "go-build")
+ 	})
+ 
+-	return defaultDir, defaultDirChanged
++	return defaultDir, defaultDirChanged, defaultDirErr
+ }
+diff --git a/src/cmd/go/internal/clean/clean.go b/src/cmd/go/internal/clean/clean.go
+index 18c5ae23fc..63e2dfdbc7 100644
+--- a/src/cmd/go/internal/clean/clean.go
++++ b/src/cmd/go/internal/clean/clean.go
+@@ -155,7 +155,10 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 	sh := work.NewShell("", &load.TextPrinter{Writer: os.Stdout})
+ 
+ 	if cleanCache {
+-		dir, _ := cache.DefaultDir()
++		dir, _, err := cache.DefaultDir()
++		if err != nil {
++			base.Fatal(err)
++		}
+ 		if dir != "off" {
+ 			// Remove the cache subdirectories but not the top cache directory.
+ 			// The top cache directory may have been created with special permissions
+@@ -182,7 +185,10 @@ func runClean(ctx context.Context, cmd *base.Command, args []string) {
+ 		// Instead of walking through the entire cache looking for test results,
+ 		// we write a file to the cache indicating that all test results from before
+ 		// right now are to be ignored.
+-		dir, _ := cache.DefaultDir()
++		dir, _, err := cache.DefaultDir()
++		if err != nil {
++			base.Fatal(err)
++		}
+ 		if dir != "off" {
+ 			f, err := lockedfile.Edit(filepath.Join(dir, "testexpire.txt"))
+ 			if err == nil {
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index f0a6989a57..b60e2adbe5 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -131,7 +131,7 @@ func MkEnv() []cfg.EnvVar {
+ 				env[i].Changed = true
+ 			}
+ 		case "GOCACHE":
+-			env[i].Value, env[i].Changed = cache.DefaultDir()
++			env[i].Value, env[i].Changed, _ = cache.DefaultDir()
+ 		case "GOTOOLCHAIN":
+ 			env[i].Value, env[i].Changed = cfg.EnvOrAndChanged("GOTOOLCHAIN", "")
+ 		case "GODEBUG":
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index e08b8c7a5a..6101a45829 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -507,7 +507,7 @@ General-purpose environment variables:
+ 		The directory where 'go install' will install a command.
+ 	GOCACHE
+ 		The directory where the go command will store cached
+-		information for reuse in future builds.
++		information for reuse in future builds. Must be an absolute path.
+ 	GOCACHEPROG
+ 		A command (with optional space-separated flags) that implements an
+ 		external go command build cache.
+diff --git a/src/cmd/go/internal/modindex/read.go b/src/cmd/go/internal/modindex/read.go
+index 913f49994f..d87fb06b57 100644
+--- a/src/cmd/go/internal/modindex/read.go
++++ b/src/cmd/go/internal/modindex/read.go
+@@ -156,7 +156,7 @@ func GetPackage(modroot, pkgdir string) (*IndexPackage, error) {
+ // using the index, for instance because the index is disabled, or the package
+ // is not in a module.
+ func GetModule(modroot string) (*Module, error) {
+-	dir, _ := cache.DefaultDir()
++	dir, _, _ := cache.DefaultDir()
+ 	if !enabled || dir == "off" {
+ 		return nil, errDisabled
+ 	}
+diff --git a/src/cmd/go/internal/test/test.go b/src/cmd/go/internal/test/test.go
+index b842c2f48e..6c4a6a574d 100644
+--- a/src/cmd/go/internal/test/test.go
++++ b/src/cmd/go/internal/test/test.go
+@@ -840,7 +840,7 @@ func runTest(ctx context.Context, cmd *base.Command, args []string) {
+ 	// Read testcache expiration time, if present.
+ 	// (We implement go clean -testcache by writing an expiration date
+ 	// instead of searching out and deleting test result cache entries.)
+-	if dir, _ := cache.DefaultDir(); dir != "off" {
++	if dir, _, _ := cache.DefaultDir(); dir != "off" {
+ 		if data, _ := lockedfile.Read(filepath.Join(dir, "testexpire.txt")); len(data) > 0 && data[len(data)-1] == '\n' {
+ 			if t, err := strconv.ParseInt(string(data[:len(data)-1]), 10, 64); err == nil {
+ 				testCacheExpire = time.Unix(0, t)
+diff --git a/src/cmd/go/internal/work/shell.go b/src/cmd/go/internal/work/shell.go
+index dd5a31c606..2604b074da 100644
+--- a/src/cmd/go/internal/work/shell.go
++++ b/src/cmd/go/internal/work/shell.go
+@@ -127,7 +127,7 @@ func (sh *Shell) moveOrCopyFile(dst, src string, perm fs.FileMode, force bool) e
+ 	// Otherwise fall back to standard copy.
+ 
+ 	// If the source is in the build cache, we need to copy it.
+-	dir, _ := cache.DefaultDir()
++	dir, _, _ := cache.DefaultDir()
+ 	if strings.HasPrefix(src, dir) {
+ 		return sh.CopyFile(dst, src, perm, force)
+ 	}
+diff --git a/src/cmd/go/testdata/script/clean_cache_n.txt b/src/cmd/go/testdata/script/clean_cache_n.txt
+index b93134e6bb..8ac9befa5b 100644
+--- a/src/cmd/go/testdata/script/clean_cache_n.txt
++++ b/src/cmd/go/testdata/script/clean_cache_n.txt
+@@ -20,6 +20,11 @@ go clean -cache
+ ! go clean -cache .
+ stderr 'go: clean -cache cannot be used with package arguments'
+ 
++# GOCACHE must be an absolute path.
++env GOCACHE=.
++! go clean -cache
++stderr 'go: GOCACHE is not an absolute path'
++
+ -- main.go --
+ package main
+ 

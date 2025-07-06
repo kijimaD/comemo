@@ -1,0 +1,73 @@
+commit de646d94f76237e10c932e361d0b89d0e8036902
+Author: Michael Matloob <matloob@golang.org>
+Date:   Tue Jul 1 16:28:24 2025 -0400
+
+    cmd/go/internal/modindex: apply changes in CL 502615 to modindex package
+    
+    CL 502615 modified go/build to check for invalid import paths, but did
+    not make those changes to the corresponding code in the modindex
+    package. Apply those changes here.
+    
+    We should try to deduplicate the code to prevent this from happening
+    again.
+    
+    For #73976
+    For #74446
+    
+    Change-Id: I69fc5e2c829efb818c9974ec8126807a1c8f7913
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/685317
+    TryBot-Bypass: Michael Matloob <matloob@google.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Michael Matloob <matloob@google.com>
+---
+ src/cmd/go/internal/modindex/build_read.go | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
+
+diff --git a/src/cmd/go/internal/modindex/build_read.go b/src/cmd/go/internal/modindex/build_read.go
+index 9137200123..f05b215c19 100644
+--- a/src/cmd/go/internal/modindex/build_read.go
++++ b/src/cmd/go/internal/modindex/build_read.go
+@@ -15,6 +15,7 @@ import (
+ 	"go/ast"
+ 	"go/build"
+ 	"go/parser"
++	"go/scanner"
+ 	"go/token"
+ 	"io"
+ 	"strconv"
+@@ -463,6 +464,13 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
+ 			if err != nil {
+ 				return fmt.Errorf("parser returned invalid quoted string: <%s>", quoted)
+ 			}
++			if !isValidImport(path) {
++				// The parser used to return a parse error for invalid import paths, but
++				// no longer does, so check for and create the error here instead.
++				info.parseErr = scanner.Error{Pos: info.fset.Position(spec.Pos()), Msg: "invalid import path: " + path}
++				info.imports = nil
++				return nil
++			}
+ 			if path == "embed" {
+ 				hasEmbed = true
+ 			}
+@@ -520,6 +528,20 @@ func readGoInfo(f io.Reader, info *fileInfo) error {
+ 	return nil
+ }
+ 
++// isValidImport checks if the import is a valid import using the more strict
++// checks allowed by the implementation restriction in https://go.dev/ref/spec#Import_declarations.
++// It was ported from the function of the same name that was removed from the
++// parser in CL 424855, when the parser stopped doing these checks.
++func isValidImport(s string) bool {
++	const illegalChars = `!"#$%&'()*,:;<=>?[\]^{|}` + "`\uFFFD"
++	for _, r := range s {
++		if !unicode.IsGraphic(r) || unicode.IsSpace(r) || strings.ContainsRune(illegalChars, r) {
++			return false
++		}
++	}
++	return s != ""
++}
++
+ // parseGoEmbed parses the text following "//go:embed" to extract the glob patterns.
+ // It accepts unquoted space-separated patterns as well as double-quoted and back-quoted Go strings.
+ // This is based on a similar function in cmd/compile/internal/gc/noder.go;

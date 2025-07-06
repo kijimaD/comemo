@@ -1,0 +1,119 @@
+commit 5858205831117498e7b65ded82e398b28cff6c37
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri Sep 6 13:59:16 2024 -0400
+
+    cmd/go: add an exception for 'go telemetry off' to not open counters
+    
+    There is the expectation that if 'go telemetry off' is run with a clean
+    home directory that no counter files are written. But we were writing
+    counters in that case because the act of turning telemetry off was done
+    after the act of opening the counter files, so the counter files were
+    opened depending on what the previous mode was. Add a special check that
+    the command is not 'go telemetry off' before opening counter files.
+    
+    Fixes #69269
+    
+    Change-Id: I8fc37dfe24ec7f454676cc2fdd4b79a13a7aba9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611456
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Auto-Submit: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/main.go                       | 44 ++++++++++++++++++++++++++++++--
+ src/cmd/go/testdata/script/telemetry.txt | 20 ++++++++++++++-
+ 2 files changed, 61 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 1c58232a66..f2e4d890d3 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -97,11 +97,16 @@ var counterErrorsGOPATHEntryRelative = counter.New("go/errors:gopath-entry-relat
+ func main() {
+ 	log.SetFlags(0)
+ 	telemetry.MaybeChild() // Run in child mode if this is the telemetry sidecar child process.
+-	counter.Open()         // Open the telemetry counter file so counters can be written to it.
++	cmdIsGoTelemetryOff := cmdIsGoTelemetryOff()
++	if !cmdIsGoTelemetryOff {
++		counter.Open() // Open the telemetry counter file so counters can be written to it.
++	}
+ 	handleChdirFlag()
+ 	toolchain.Select()
+ 
+-	telemetry.MaybeParent() // Run the upload process. Opening the counter file is idempotent.
++	if !cmdIsGoTelemetryOff {
++		telemetry.MaybeParent() // Run the upload process. Opening the counter file is idempotent.
++	}
+ 	flag.Usage = base.Usage
+ 	flag.Parse()
+ 	counter.Inc("go/invocations")
+@@ -214,6 +219,41 @@ func main() {
+ 	base.Exit()
+ }
+ 
++// cmdIsGoTelemeteryOff reports whether the command is "go telemetry off". This
++// is used to decide whether to disable the opening of counter files. See #69269.
++func cmdIsGoTelemetryOff() bool {
++	restArgs := os.Args[1:]
++	// skipChdirFlag skips the -C flag, which is the only flag that can appear
++	// in a valid 'go telemetry off' command, and which hasn't been processed
++	// yet. We need to determine if the command is 'go telemetry off' before we open
++	// the counter file, but we want to process -C after we open counters so that
++	// we can increment the flag counter for it.
++	skipChdirFlag := func() {
++		if len(restArgs) == 0 {
++			return
++		}
++		switch a := restArgs[0]; {
++		case a == "-C", a == "--C":
++			if len(restArgs) < 2 {
++				restArgs = nil
++				return
++			}
++			restArgs = restArgs[2:]
++
++		case strings.HasPrefix(a, "-C="), strings.HasPrefix(a, "--C="):
++			restArgs = restArgs[1:]
++		}
++	}
++	skipChdirFlag()
++	cmd, used := lookupCmd(restArgs)
++	if cmd != telemetrycmd.CmdTelemetry {
++		return false
++	}
++	restArgs = restArgs[used:]
++	skipChdirFlag()
++	return len(restArgs) == 1 && restArgs[0] == "off"
++}
++
+ // lookupCmd interprets the initial elements of args
+ // to find a command to run (cmd.Runnable() == true)
+ // or else a command group that ran out of arguments
+diff --git a/src/cmd/go/testdata/script/telemetry.txt b/src/cmd/go/testdata/script/telemetry.txt
+index 838e743d50..7edbe66b5f 100644
+--- a/src/cmd/go/testdata/script/telemetry.txt
++++ b/src/cmd/go/testdata/script/telemetry.txt
+@@ -48,4 +48,22 @@ stdout 'GOTELEMETRYDIR=''?'$userconfig'[\\/]go[\\/]telemetry''?'
+ ! go env -w GOTELEMETRY=off
+ stderr '^go: GOTELEMETRY cannot be modified$'
+ ! go env -w GOTELEMETRYDIR=foo
+-stderr '^go: GOTELEMETRYDIR cannot be modified$'
+\ No newline at end of file
++stderr '^go: GOTELEMETRYDIR cannot be modified$'
++
++# Test issue #69269: 'go telemetry off' should not increment counters.
++# Establish that previous commands did write telemetry files.
++exists $userconfig/go/telemetry/local
++# Now check for go telemetry off behavior.
++rm $userconfig/go/telemetry/local
++go telemetry off
++! exists $userconfig/go/telemetry/local
++# Check for the behavior with -C, the only flag 'go telemetry off' can take.
++go telemetry local
++go -C $WORK telemetry off
++! exists $userconfig/go/telemetry/local
++go telemetry local
++go telemetry -C=$WORK off
++! exists $userconfig/go/telemetry/local
++go telemetry local
++go help telemetry
++exists $userconfig/go/telemetry/local

@@ -1,0 +1,101 @@
+commit 336626bac4c62b617127d41dccae17eed0350b0f
+Author: Keith Randall <khr@golang.org>
+Date:   Fri Mar 14 13:36:58 2025 -0700
+
+    cmd/compile: ensure we evaluate side effects of len() arg
+    
+    For any len() which requires the evaluation of its arg (according to the spec).
+    
+    Update #72844
+    
+    Change-Id: Id2b0bcc78073a6d5051abd000131dafdf65e7f26
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/658097
+    Reviewed-by: Cuong Manh Le <cuong.manhle.vn@gmail.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssagen/ssa.go   | 25 +++++++++++++++++--------
+ src/cmd/compile/internal/walk/builtin.go |  5 +++--
+ test/fixedbugs/issue72844.go             |  4 ++--
+ 3 files changed, 22 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 80e91436bb..0b77a1334f 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -3469,19 +3469,28 @@ func (s *state) exprCheckPtr(n ir.Node, checkPtrOK bool) *ssa.Value {
+ 
+ 	case ir.OLEN, ir.OCAP:
+ 		n := n.(*ir.UnaryExpr)
++		// Note: all constant cases are handled by the frontend. If len or cap
++		// makes it here, we want the side effects of the argument. See issue 72844.
++		a := s.expr(n.X)
++		t := n.X.Type()
+ 		switch {
+-		case n.X.Type().IsSlice():
++		case t.IsSlice():
+ 			op := ssa.OpSliceLen
+ 			if n.Op() == ir.OCAP {
+ 				op = ssa.OpSliceCap
+ 			}
+-			return s.newValue1(op, types.Types[types.TINT], s.expr(n.X))
+-		case n.X.Type().IsString(): // string; not reachable for OCAP
+-			return s.newValue1(ssa.OpStringLen, types.Types[types.TINT], s.expr(n.X))
+-		case n.X.Type().IsMap(), n.X.Type().IsChan():
+-			return s.referenceTypeBuiltin(n, s.expr(n.X))
+-		default: // array
+-			return s.constInt(types.Types[types.TINT], n.X.Type().NumElem())
++			return s.newValue1(op, types.Types[types.TINT], a)
++		case t.IsString(): // string; not reachable for OCAP
++			return s.newValue1(ssa.OpStringLen, types.Types[types.TINT], a)
++		case t.IsMap(), t.IsChan():
++			return s.referenceTypeBuiltin(n, a)
++		case t.IsArray():
++			return s.constInt(types.Types[types.TINT], t.NumElem())
++		case t.IsPtr() && t.Elem().IsArray():
++			return s.constInt(types.Types[types.TINT], t.Elem().NumElem())
++		default:
++			s.Fatalf("bad type in len/cap: %v", t)
++			return nil
+ 		}
+ 
+ 	case ir.OSPTR:
+diff --git a/src/cmd/compile/internal/walk/builtin.go b/src/cmd/compile/internal/walk/builtin.go
+index 2e13daf879..99cf2d784d 100644
+--- a/src/cmd/compile/internal/walk/builtin.go
++++ b/src/cmd/compile/internal/walk/builtin.go
+@@ -278,12 +278,13 @@ func walkLenCap(n *ir.UnaryExpr, init *ir.Nodes) ir.Node {
+ 	// replace len(*[10]int) with 10.
+ 	// delayed until now to preserve side effects.
+ 	t := n.X.Type()
+-
+ 	if t.IsPtr() {
+ 		t = t.Elem()
+ 	}
+ 	if t.IsArray() {
+-		safeExpr(n.X, init)
++		// evaluate any side effects in n.X. See issue 72844.
++		appendWalkStmt(init, ir.NewAssignStmt(base.Pos, ir.BlankNode, n.X))
++
+ 		con := ir.NewConstExpr(constant.MakeInt64(t.NumElem()), n)
+ 		con.SetTypecheck(1)
+ 		return con
+diff --git a/test/fixedbugs/issue72844.go b/test/fixedbugs/issue72844.go
+index 0322841ded..65f1d34275 100644
+--- a/test/fixedbugs/issue72844.go
++++ b/test/fixedbugs/issue72844.go
+@@ -47,11 +47,11 @@ func testRange4() {
+ }
+ 
+ func main() {
+-	//shouldPanic(testLen1)
++	shouldPanic(testLen1)
+ 	shouldNotPanic(testLen2)
+ 	shouldNotPanic(testLen3)
+ 	shouldNotPanic(testLen4)
+-	//shouldPanic(testRange1)
++	shouldPanic(testRange1)
+ 	shouldNotPanic(testRange2)
+ 	shouldNotPanic(testRange3)
+ 	shouldNotPanic(testRange4)

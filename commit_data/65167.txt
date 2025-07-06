@@ -1,0 +1,200 @@
+commit 58babf6e0bf58cd81bb5a71744a1c195fba2d6c8
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Mon Oct 21 17:34:22 2024 +0000
+
+    [release-branch.go1.23] runtime,time: use atomic.Int32 for isSending
+    
+    This change switches isSending to be an atomic.Int32 instead of an
+    atomic.Uint8. The Int32 version is managed as a counter, which is
+    something that we couldn't do with Uint8 without adding a new intrinsic
+    which may not be available on all architectures.
+    
+    That is, instead of only being able to support 8 concurrent timer
+    firings on the same timer because we only have 8 independent bits to set
+    for each concurrent timer firing, we can now have 2^31-1 concurrent
+    timer firings before running into any issues. Like the fact that each
+    bit-set was matched with a clear, here we match increments with
+    decrements to indicate that we're in the "sending on a channel" critical
+    section in the timer code, so we can report the correct result back on
+    Stop or Reset.
+    
+    We choose an Int32 instead of a Uint32 because it's easier to check for
+    obviously bad values (negative values are always bad) and 2^31-1
+    concurrent timer firings should be enough for anyone.
+    
+    Previously, we avoided anything bigger than a Uint8 because we could
+    pack it into some padding in the runtime.timer struct. But it turns out
+    that the type that actually matters, runtime.timeTimer, is exactly 96
+    bytes in size. This means its in the next size class up in the 112 byte
+    size class because of an allocation header. We thus have some free space
+    to work with. This change increases the size of this struct from 96
+    bytes to 104 bytes.
+    
+    (I'm not sure if runtime.timer is often allocated directly, but if it
+    is, we get lucky in the same way too. It's exactly 80 bytes in size,
+    which means its in the 96-byte size class, leaving us with some space to
+    work with.)
+    
+    Fixes #69978
+    For #69969.
+    Related to #69880 and #69312 and #69882.
+    
+    Change-Id: I9fd59cb6a69365c62971d1f225490a65c58f3e77
+    Cq-Include-Trybots: luci.golang.try:go1.23-linux-amd64-longtest
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621616
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    (cherry picked from commit 6a49f81edc7aa8aa12e26a1a0ed8819a3e5c7b5e)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621856
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/time.go    | 59 +++++++++++++++-----------------------------------
+ src/time/sleep_test.go | 30 +++++++++++++++++++++++--
+ 2 files changed, 46 insertions(+), 43 deletions(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 19b4ac9901..7b344a3496 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -30,36 +30,6 @@ type timer struct {
+ 	state  uint8        // state bits
+ 	isChan bool         // timer has a channel; immutable; can be read without lock
+ 
+-	// isSending is used to handle races between running a
+-	// channel timer and stopping or resetting the timer.
+-	// It is used only for channel timers (t.isChan == true).
+-	// It is not used for tickers.
+-	// The lowest zero bit is set when about to send a value on the channel,
+-	// and cleared after sending the value.
+-	// The stop/reset code uses this to detect whether it
+-	// stopped the channel send.
+-	//
+-	// An isSending bit is set only when t.mu is held.
+-	// An isSending bit is cleared only when t.sendLock is held.
+-	// isSending is read only when both t.mu and t.sendLock are held.
+-	//
+-	// Setting and clearing Uint8 bits handles the case of
+-	// a timer that is reset concurrently with unlockAndRun.
+-	// If the reset timer runs immediately, we can wind up with
+-	// concurrent calls to unlockAndRun for the same timer.
+-	// Using matched bit set and clear in unlockAndRun
+-	// ensures that the value doesn't get temporarily out of sync.
+-	//
+-	// We use a uint8 to keep the timer struct small.
+-	// This means that we can only support up to 8 concurrent
+-	// runs of a timer, where a concurrent run can only occur if
+-	// we start a run, unlock the timer, the timer is reset to a new
+-	// value (or the ticker fires again), it is ready to run,
+-	// and it is actually run, all before the first run completes.
+-	// Since completing a run is fast, even 2 concurrent timer runs are
+-	// nearly impossible, so this should be safe in practice.
+-	isSending atomic.Uint8
+-
+ 	blocked uint32 // number of goroutines blocked on timer's channel
+ 
+ 	// Timer wakes up at when, and then at when+period, ... (period > 0 only)
+@@ -99,6 +69,20 @@ type timer struct {
+ 	// sendLock protects sends on the timer's channel.
+ 	// Not used for async (pre-Go 1.23) behavior when debug.asynctimerchan.Load() != 0.
+ 	sendLock mutex
++
++	// isSending is used to handle races between running a
++	// channel timer and stopping or resetting the timer.
++	// It is used only for channel timers (t.isChan == true).
++	// It is not used for tickers.
++	// The value is incremented when about to send a value on the channel,
++	// and decremented after sending the value.
++	// The stop/reset code uses this to detect whether it
++	// stopped the channel send.
++	//
++	// isSending is incremented only when t.mu is held.
++	// isSending is decremented only when t.sendLock is held.
++	// isSending is read only when both t.mu and t.sendLock are held.
++	isSending atomic.Int32
+ }
+ 
+ // init initializes a newly allocated timer t.
+@@ -1065,20 +1049,11 @@ func (t *timer) unlockAndRun(now int64) {
+ 	}
+ 
+ 	async := debug.asynctimerchan.Load() != 0
+-	var isSendingClear uint8
+ 	if !async && t.isChan && t.period == 0 {
+ 		// Tell Stop/Reset that we are sending a value.
+-		// Set the lowest zero bit.
+-		// We do this awkward step because atomic.Uint8
+-		// doesn't support Add or CompareAndSwap.
+-		// We only set bits with t locked.
+-		v := t.isSending.Load()
+-		i := sys.TrailingZeros8(^v)
+-		if i == 8 {
++		if t.isSending.Add(1) < 0 {
+ 			throw("too many concurrent timer firings")
+ 		}
+-		isSendingClear = 1 << i
+-		t.isSending.Or(isSendingClear)
+ 	}
+ 
+ 	t.unlock()
+@@ -1121,7 +1096,9 @@ func (t *timer) unlockAndRun(now int64) {
+ 			// We are committed to possibly sending a value
+ 			// based on seq, so no need to keep telling
+ 			// stop/modify that we are sending.
+-			t.isSending.And(^isSendingClear)
++			if t.isSending.Add(-1) < 0 {
++				throw("mismatched isSending updates")
++			}
+ 		}
+ 
+ 		if t.seq != seq {
+diff --git a/src/time/sleep_test.go b/src/time/sleep_test.go
+index 520ff957d0..285a2e748c 100644
+--- a/src/time/sleep_test.go
++++ b/src/time/sleep_test.go
+@@ -847,9 +847,9 @@ func testStopResetResultGODEBUG(t *testing.T, testStop bool, godebug string) {
+ 	wg.Wait()
+ }
+ 
+-// Test having a large number of goroutines wake up a timer simultaneously.
++// Test having a large number of goroutines wake up a ticker simultaneously.
+ // This used to trigger a crash when run under x/tools/cmd/stress.
+-func TestMultiWakeup(t *testing.T) {
++func TestMultiWakeupTicker(t *testing.T) {
+ 	if testing.Short() {
+ 		t.Skip("-short")
+ 	}
+@@ -872,6 +872,32 @@ func TestMultiWakeup(t *testing.T) {
+ 	wg.Wait()
+ }
+ 
++// Test having a large number of goroutines wake up a timer simultaneously.
++// This used to trigger a crash when run under x/tools/cmd/stress.
++func TestMultiWakeupTimer(t *testing.T) {
++	if testing.Short() {
++		t.Skip("-short")
++	}
++
++	goroutines := runtime.GOMAXPROCS(0)
++	timer := NewTimer(Nanosecond)
++	var wg sync.WaitGroup
++	wg.Add(goroutines)
++	for range goroutines {
++		go func() {
++			defer wg.Done()
++			for range 10000 {
++				select {
++				case <-timer.C:
++				default:
++				}
++				timer.Reset(Nanosecond)
++			}
++		}()
++	}
++	wg.Wait()
++}
++
+ // Benchmark timer latency when the thread that creates the timer is busy with
+ // other work and the timers must be serviced by other threads.
+ // https://golang.org/issue/38860

@@ -1,0 +1,131 @@
+commit 854349eeb45d89c32ccf9fdbce8b857bc4064cd7
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Aug 13 15:08:32 2024 +0200
+
+    os/user: speed up Current on Windows
+    
+    [This is a roll-forward of CL 597255, which had to be rolled back
+    because it broke the windows-arm64 builder, whose current user display
+    name is unavailable. This new CL fixes the issue by reintroducing the
+    historical behavior of falling back to the user name instead of
+    returning an error].
+    
+    user.Current is slow on Windows sessions connected to an Active
+    Directory domain. This is because it uses Windows APIs that do RPC
+    calls to the domain controller, such as TranslateAccountW and
+    NetUserGetInfo.
+    
+    This change speeds up user.Current by using the GetUserNameEx API
+    instead, which is already optimized for retrieving the current user
+    name in different formats.
+    
+    These are the improvements I see with the new implementation:
+    
+    goos: windows
+    goarch: amd64
+    pkg: os/user
+    cpu: Intel(R) Core(TM) i7-10850H CPU @ 2.70GHz
+               │   old.txt   │               new.txt                │
+               │   sec/op    │    sec/op     vs base                │
+    Current-12   501.8µ ± 7%   118.6µ ± 11%  -76.36% (p=0.000 n=10)
+    
+               │  old.txt   │              new.txt              │
+               │    B/op    │    B/op     vs base               │
+    Current-12   888.0 ± 0%   832.0 ± 0%  -6.31% (p=0.000 n=10)
+    
+               │  old.txt   │              new.txt               │
+               │ allocs/op  │ allocs/op   vs base                │
+    Current-12   15.00 ± 0%   11.00 ± 0%  -26.67% (p=0.000 n=10)
+    
+    Updates #5298
+    Fixes #21867
+    Fixes #68312
+    
+    Cq-Include-Trybots: luci.golang.try:gotip-windows-amd64-longtest,gotip-windows-arm64
+    Change-Id: Ib7f77086d389cccb9d91cb77ea688d438a0ee5fd
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605135
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Mauri de Souza Meneguzzo <mauri870@gmail.com>
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/syscall/windows/security_windows.go | 19 +++++++++++++++++++
+ src/os/user/lookup_windows.go                    | 18 +++++++++++++++---
+ src/os/user/user_test.go                         |  3 ++-
+ 3 files changed, 36 insertions(+), 4 deletions(-)
+
+diff --git a/src/internal/syscall/windows/security_windows.go b/src/internal/syscall/windows/security_windows.go
+index 95694c368a..e528744caa 100644
+--- a/src/internal/syscall/windows/security_windows.go
++++ b/src/internal/syscall/windows/security_windows.go
+@@ -156,3 +156,22 @@ type UserInfo4 struct {
+ //
+ //go:linkname GetSystemDirectory
+ func GetSystemDirectory() string // Implemented in runtime package.
++
++// GetUserName retrieves the user name of the current thread
++// in the specified format.
++func GetUserName(format uint32) (string, error) {
++	n := uint32(50)
++	for {
++		b := make([]uint16, n)
++		e := syscall.GetUserNameEx(format, &b[0], &n)
++		if e == nil {
++			return syscall.UTF16ToString(b[:n]), nil
++		}
++		if e != syscall.ERROR_MORE_DATA {
++			return "", e
++		}
++		if n <= uint32(len(b)) {
++			return "", e
++		}
++	}
++}
+diff --git a/src/os/user/lookup_windows.go b/src/os/user/lookup_windows.go
+index f259269a53..edecac703a 100644
+--- a/src/os/user/lookup_windows.go
++++ b/src/os/user/lookup_windows.go
+@@ -232,12 +232,24 @@ func current() (*User, error) {
+ 		if e != nil {
+ 			return e
+ 		}
+-		username, domain, e := lookupUsernameAndDomain(u.User.Sid)
++		username, e := windows.GetUserName(syscall.NameSamCompatible)
+ 		if e != nil {
+ 			return e
+ 		}
+-		usr, e = newUser(uid, gid, dir, username, domain)
+-		return e
++		displayName, e := windows.GetUserName(syscall.NameDisplay)
++		if e != nil {
++			// Historically, the username is used as fallback
++			// when the display name can't be retrieved.
++			displayName = username
++		}
++		usr = &User{
++			Uid:      uid,
++			Gid:      gid,
++			Username: username,
++			Name:     displayName,
++			HomeDir:  dir,
++		}
++		return nil
+ 	})
+ 	return usr, err
+ }
+diff --git a/src/os/user/user_test.go b/src/os/user/user_test.go
+index fa597b78ec..31486aed03 100644
+--- a/src/os/user/user_test.go
++++ b/src/os/user/user_test.go
+@@ -45,8 +45,9 @@ func TestCurrent(t *testing.T) {
+ }
+ 
+ func BenchmarkCurrent(b *testing.B) {
++	// Benchmark current instead of Current because Current caches the result.
+ 	for i := 0; i < b.N; i++ {
+-		Current()
++		current()
+ 	}
+ }
+ 

@@ -1,0 +1,116 @@
+commit cf058730293ac95ce0df40db8068219fe21cbb8a
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat Apr 27 08:04:28 2024 -0400
+
+    net/http: represent multi wildcards properly
+    
+    The routing tree used for matching ServeMux patterns used the
+    key "*" to hold a child node for a multi-segment wildcard.
+    The problem is that "*" is a valid path segment, which confused
+    the matching algorithm: it would fetch the multi wildcard child
+    when looking for the literal child for "*".
+    
+    Eschew clever encodings. Use a separate field in the node to
+    represent the multi wildcard child.
+    
+    Fixes #67067.
+    
+    Change-Id: I300ca08b8628f5367626cf41979f6c238ed8c831
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/582115
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/net/http/request_test.go      |  8 ++++++++
+ src/net/http/routing_tree.go      |  8 +++++---
+ src/net/http/routing_tree_test.go | 11 +++++++++--
+ 3 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/net/http/request_test.go b/src/net/http/request_test.go
+index 8c8116123c..a7deba46e3 100644
+--- a/src/net/http/request_test.go
++++ b/src/net/http/request_test.go
+@@ -1559,6 +1559,14 @@ func TestPathValue(t *testing.T) {
+ 				"other": "there/is//more",
+ 			},
+ 		},
++		{
++			"/names/{name}/{other...}",
++			"/names/n/*",
++			map[string]string{
++				"name":  "n",
++				"other": "*",
++			},
++		},
+ 	} {
+ 		mux := NewServeMux()
+ 		mux.HandleFunc(test.pattern, func(w ResponseWriter, r *Request) {
+diff --git a/src/net/http/routing_tree.go b/src/net/http/routing_tree.go
+index 8812ed04e2..fdc58ab692 100644
+--- a/src/net/http/routing_tree.go
++++ b/src/net/http/routing_tree.go
+@@ -34,8 +34,8 @@ type routingNode struct {
+ 	// special children keys:
+ 	//     "/"	trailing slash (resulting from {$})
+ 	//	   ""   single wildcard
+-	//	   "*"  multi wildcard
+ 	children   mapping[string, *routingNode]
++	multiChild *routingNode // child with multi wildcard
+ 	emptyChild *routingNode // optimization: child with key ""
+ }
+ 
+@@ -63,7 +63,9 @@ func (n *routingNode) addSegments(segs []segment, p *pattern, h Handler) {
+ 		if len(segs) != 1 {
+ 			panic("multi wildcard not last")
+ 		}
+-		n.addChild("*").set(p, h)
++		c := &routingNode{}
++		n.multiChild = c
++		c.set(p, h)
+ 	} else if seg.wild {
+ 		n.addChild("").addSegments(segs[1:], p, h)
+ 	} else {
+@@ -185,7 +187,7 @@ func (n *routingNode) matchPath(path string, matches []string) (*routingNode, []
+ 	}
+ 	// Lastly, match the pattern (there can be at most one) that has a multi
+ 	// wildcard in this position to the rest of the path.
+-	if c := n.findChild("*"); c != nil {
++	if c := n.multiChild; c != nil {
+ 		// Don't record a match for a nameless wildcard (which arises from a
+ 		// trailing slash in the pattern).
+ 		if c.pattern.lastSegment().s != "" {
+diff --git a/src/net/http/routing_tree_test.go b/src/net/http/routing_tree_test.go
+index 3c27308a63..7de6b19507 100644
+--- a/src/net/http/routing_tree_test.go
++++ b/src/net/http/routing_tree_test.go
+@@ -72,10 +72,10 @@ func TestRoutingAddPattern(t *testing.T) {
+                 "/a/b"
+                 "":
+                     "/a/b/{y}"
+-                "*":
+-                    "/a/b/{x...}"
+                 "/":
+                     "/a/b/{$}"
++                MULTI:
++                    "/a/b/{x...}"
+         "g":
+             "":
+                 "j":
+@@ -172,6 +172,8 @@ func TestRoutingNodeMatch(t *testing.T) {
+ 			"HEAD /headwins", nil},
+ 		{"GET", "", "/path/to/file",
+ 			"/path/{p...}", []string{"to/file"}},
++		{"GET", "", "/path/*",
++			"/path/{p...}", []string{"*"}},
+ 	})
+ 
+ 	// A pattern ending in {$} should only match URLS with a trailing slash.
+@@ -291,4 +293,9 @@ func (n *routingNode) print(w io.Writer, level int) {
+ 		n, _ := n.children.find(k)
+ 		n.print(w, level+1)
+ 	}
++
++	if n.multiChild != nil {
++		fmt.Fprintf(w, "%sMULTI:\n", indent)
++		n.multiChild.print(w, level+1)
++	}
+ }

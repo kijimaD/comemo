@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 38386: c659be4dc862cdf14a24134f2cfc16fa81e6d84c
+# Index 38386: bafe466a9537d8ea5ac5767504628803302ebb12
 
 echo "🚀 Generating explanation for commit 38386..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 38386..."
 
 ### メタデータ
 - **コミットインデックス**: 38386
-- **コミットハッシュ**: c659be4dc862cdf14a24134f2cfc16fa81e6d84c
-- **GitHub URL**: https://github.com/golang/go/commit/c659be4dc862cdf14a24134f2cfc16fa81e6d84c
+- **コミットハッシュ**: bafe466a9537d8ea5ac5767504628803302ebb12
+- **GitHub URL**: https://github.com/golang/go/commit/bafe466a9537d8ea5ac5767504628803302ebb12
 
 ### 章構成
 

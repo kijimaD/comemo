@@ -1,0 +1,90 @@
+commit cf164403d1ae1459bf48cb7aea3cf16f8aca5a98
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Fri Apr 26 21:49:41 2024 +0800
+
+    slices: reduce code nesting depth for Compact and CompactFunc
+    
+    To make it easier to read.
+    
+    Change-Id: I2fa1eb78d879b9d86b4dc839be7ede37c7c864f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581976
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joedian Reid <joedian@google.com>
+---
+ src/slices/slices.go | 50 ++++++++++++++++++++++++++------------------------
+ 1 file changed, 26 insertions(+), 24 deletions(-)
+
+diff --git a/src/slices/slices.go b/src/slices/slices.go
+index ae4c2adbf4..857ab46314 100644
+--- a/src/slices/slices.go
++++ b/src/slices/slices.go
+@@ -355,20 +355,21 @@ func Clone[S ~[]E, E any](s S) S {
+ // which may have a smaller length.
+ // Compact zeroes the elements between the new length and the original length.
+ func Compact[S ~[]E, E comparable](s S) S {
+-	if len(s) > 1 {
+-		for k := 1; k < len(s); k++ {
+-			if s[k] == s[k-1] {
+-				s2 := s[k:]
+-				for k2 := 1; k2 < len(s2); k2++ {
+-					if s2[k2] != s2[k2-1] {
+-						s[k] = s2[k2]
+-						k++
+-					}
++	if len(s) < 2 {
++		return s
++	}
++	for k := 1; k < len(s); k++ {
++		if s[k] == s[k-1] {
++			s2 := s[k:]
++			for k2 := 1; k2 < len(s2); k2++ {
++				if s2[k2] != s2[k2-1] {
++					s[k] = s2[k2]
++					k++
+ 				}
+-
+-				clear(s[k:]) // zero/nil out the obsolete elements, for GC
+-				return s[:k]
+ 			}
++
++			clear(s[k:]) // zero/nil out the obsolete elements, for GC
++			return s[:k]
+ 		}
+ 	}
+ 	return s
+@@ -378,20 +379,21 @@ func Compact[S ~[]E, E comparable](s S) S {
+ // For runs of elements that compare equal, CompactFunc keeps the first one.
+ // CompactFunc zeroes the elements between the new length and the original length.
+ func CompactFunc[S ~[]E, E any](s S, eq func(E, E) bool) S {
+-	if len(s) > 1 {
+-		for k := 1; k < len(s); k++ {
+-			if eq(s[k], s[k-1]) {
+-				s2 := s[k:]
+-				for k2 := 1; k2 < len(s2); k2++ {
+-					if !eq(s2[k2], s2[k2-1]) {
+-						s[k] = s2[k2]
+-						k++
+-					}
++	if len(s) < 2 {
++		return s
++	}
++	for k := 1; k < len(s); k++ {
++		if eq(s[k], s[k-1]) {
++			s2 := s[k:]
++			for k2 := 1; k2 < len(s2); k2++ {
++				if !eq(s2[k2], s2[k2-1]) {
++					s[k] = s2[k2]
++					k++
+ 				}
+-
+-				clear(s[k:]) // zero/nil out the obsolete elements, for GC
+-				return s[:k]
+ 			}
++
++			clear(s[k:]) // zero/nil out the obsolete elements, for GC
++			return s[:k]
+ 		}
+ 	}
+ 	return s

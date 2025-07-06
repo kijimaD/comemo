@@ -1,0 +1,54 @@
+commit 137328f92dd5250ace285fc0d163b6b9401504fa
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri May 17 18:05:11 2024 +0800
+
+    runtime: use ABIInternal for calls to sigtrampgo on linux/loong64
+    
+    Change-Id: I13fd5a96daff66a2ecb54f5bafa3d6e5c60f3879
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586357
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Meidan Li <limeidan@loongson.cn>
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+---
+ src/runtime/sys_linux_loong64.s | 14 ++++++--------
+ 1 file changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/sys_linux_loong64.s b/src/runtime/sys_linux_loong64.s
+index 0a25d56047..57cee99da7 100644
+--- a/src/runtime/sys_linux_loong64.s
++++ b/src/runtime/sys_linux_loong64.s
+@@ -431,12 +431,9 @@ TEXT runtime·sigfwd(SB),NOSPLIT,$0-32
+ 	JAL	(R20)
+ 	RET
+ 
++// Called from c-abi, R4: sig, R5: info, R6: cxt
+ // func sigtramp(signo, ureg, ctxt unsafe.Pointer)
+ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$168
+-	MOVW	R4, (1*8)(R3)
+-	MOVV	R5, (2*8)(R3)
+-	MOVV	R6, (3*8)(R3)
+-
+ 	// Save callee-save registers in the case of signal forwarding.
+ 	// Please refer to https://golang.org/issue/31827 .
+ 	SAVE_R22_TO_R31((4*8))
+@@ -444,12 +441,13 @@ TEXT runtime·sigtramp(SB),NOSPLIT|TOPFRAME,$168
+ 
+ 	// this might be called in external code context,
+ 	// where g is not set.
+-	MOVB	runtime·iscgo(SB), R4
+-	BEQ	R4, 2(PC)
++	MOVB	runtime·iscgo(SB), R7
++	BEQ	R7, 2(PC)
+ 	JAL	runtime·load_g(SB)
+ 
+-	MOVV	$runtime·sigtrampgo(SB), R4
+-	JAL	(R4)
++	// R5 and R6 already contain info and ctx, respectively.
++	MOVV	$runtime·sigtrampgo<ABIInternal>(SB), R7
++	JAL	(R7)
+ 
+ 	// Restore callee-save registers.
+ 	RESTORE_R22_TO_R31((4*8))

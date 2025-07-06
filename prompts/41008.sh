@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41008: 4757518737c8866db012c6ca9ebe04597f12f5df
+# Index 41008: d1887676d96daf969d886a4ec13cbad4908d51af
 
 echo "🚀 Generating explanation for commit 41008..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 41008..."
 
 ### メタデータ
 - **コミットインデックス**: 41008
-- **コミットハッシュ**: 4757518737c8866db012c6ca9ebe04597f12f5df
-- **GitHub URL**: https://github.com/golang/go/commit/4757518737c8866db012c6ca9ebe04597f12f5df
+- **コミットハッシュ**: d1887676d96daf969d886a4ec13cbad4908d51af
+- **GitHub URL**: https://github.com/golang/go/commit/d1887676d96daf969d886a4ec13cbad4908d51af
 
 ### 章構成
 

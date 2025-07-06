@@ -1,0 +1,82 @@
+commit 2297c34cdf05b1f048f078e4eac8ed12a8735a2b
+Merge: 26682773ca c93477b5e5
+Author: Carlos Amedee <carlos@golang.org>
+Date:   Wed Dec 11 17:45:38 2024 -0500
+
+    [release-branch.go1.24] all: merge master (c93477b) into release-branch.go1.24
+    
+    Merge List:
+    
+    + 2024-12-11 c93477b5e5 crypto: use provided random Reader in FIPS mode
+    + 2024-12-11 3104b6adbb log/slog: make DiscardHandler example package-level
+    + 2024-12-11 5424f2e200 cmd/go: add more tests for GOAUTH's user provided authenticator
+    + 2024-12-11 d5c1333eb4 net/http: document zero value of Protocols
+    + 2024-12-11 a7c4cadce0 cmd/compile: update broken link
+    + 2024-12-11 979c1cfbe8 net: avoid unnecessary interface lookup fetching all interface addresses
+    + 2024-12-11 e424d78c3d internal/goos: fix bug in gengoos.go
+    + 2024-12-11 6c25cf1c5f cmd/internal/objfile: break out dissassemblers to another package
+    + 2024-12-11 e0c76d95ab syscall: remove a wrong comment in Clearenv
+    + 2024-12-11 a9922d096f reflect: consistently document when value must be settable
+    + 2024-12-10 4ce116a884 runtime: avoid panic in expired synctest timer chan read
+    + 2024-12-10 e6de1b2deb html/template: escape script tags in JS errors case insensitively
+    + 2024-12-10 fce17b0c77 crypto/internal/fips140/ecdsa: fix reseed_counter check for HMAC_DRBG_Generate_algorithm
+    + 2024-12-09 d87878c62b runtime: make special offset a uintptr
+    + 2024-12-09 6705ac6885 runtime: remove datadog-agent from prof labels hall of shame
+    + 2024-12-09 07398d2e57 weak: align weak.Pointer documentation with runtime.AddCleanup
+    + 2024-12-09 e3e1d73528 bufio: make the description of Peek's behavior better
+    + 2024-12-09 e79b2e1e3a cmd/go: document the build cache as safe for concurrent use
+    + 2024-12-08 c8fb6ae617 lib/wasm: provide fs.constants.O_DIRECTORY definition
+    + 2024-12-07 8c3e391573 runtime: improve AddCleanup documentation
+    + 2024-12-07 04cdaa9984 cmd/go: document c-shared buildmode for building WASI library/reactor
+    + 2024-12-06 312f7c1bd3 runtime: add note that Callers never returns an entry PC
+    
+    Change-Id: I52e035228121de3d8219ab13f195d4293daaaa34
+
+ lib/wasm/wasm_exec.js                          |  2 +-
+ src/bufio/bufio.go                             |  7 +-
+ src/cmd/compile/internal/ssa/_gen/rulegen.go   |  3 +-
+ src/cmd/go/alldocs.go                          |  6 +-
+ src/cmd/go/internal/help/helpdoc.go            |  6 +-
+ src/cmd/go/testdata/script/goauth_userauth.txt | 94 ++++++++++++++++++++------
+ src/cmd/internal/{objfile => disasm}/disasm.go | 28 ++++----
+ src/cmd/internal/objfile/objfile.go            | 10 +--
+ src/cmd/objdump/main.go                        |  3 +-
+ src/cmd/pprof/pprof.go                         |  9 +--
+ src/crypto/ecdh/nist.go                        |  5 ++
+ src/crypto/ecdsa/ecdsa.go                      |  7 ++
+ src/crypto/internal/fips140/drbg/rand.go       | 37 ++++++++++
+ src/crypto/internal/fips140/ecdh/ecdh.go       | 20 ++----
+ src/crypto/internal/fips140/ecdsa/cast.go      |  3 +-
+ src/crypto/internal/fips140/ecdsa/ecdsa.go     | 23 +------
+ src/crypto/internal/fips140/ecdsa/hmacdrbg.go  |  2 +
+ src/crypto/internal/fips140/ed25519/ed25519.go | 19 ++----
+ src/crypto/internal/fips140/rsa/keygen.go      | 14 +---
+ src/crypto/internal/fips140/rsa/pkcs1v22.go    | 21 ++----
+ src/crypto/internal/fips140only/fips140only.go |  7 ++
+ src/crypto/internal/fips140test/cast_test.go   |  2 +-
+ src/crypto/rand/rand.go                        |  4 +-
+ src/crypto/rsa/fips.go                         |  9 +++
+ src/crypto/rsa/rsa.go                          |  3 +
+ src/crypto/rsa/rsa_test.go                     |  4 --
+ src/html/template/js.go                        | 11 +--
+ src/html/template/js_test.go                   |  4 +-
+ src/internal/goos/gengoos.go                   |  2 +-
+ src/internal/synctest/synctest_test.go         | 41 ++++++++++-
+ src/log/slog/example_discard_test.go           |  2 +-
+ src/net/http/http.go                           |  1 +
+ src/net/interface_linux.go                     | 21 +-----
+ src/reflect/map_noswiss.go                     |  2 +
+ src/reflect/map_swiss.go                       |  2 +
+ src/reflect/value.go                           | 36 ++++++----
+ src/runtime/mcleanup.go                        | 37 ++++++++--
+ src/runtime/mfinal.go                          |  3 +
+ src/runtime/mheap.go                           |  4 +-
+ src/runtime/pinner.go                          |  2 +-
+ src/runtime/proflabel.go                       |  2 -
+ src/runtime/symtab.go                          | 13 ++--
+ src/runtime/time.go                            | 10 ++-
+ src/syscall/env_unix.go                        |  2 +-
+ src/weak/doc.go                                | 27 +-------
+ src/weak/pointer.go                            | 42 ++++++++++--
+ src/weak/pointer_test.go                       | 17 +++++
+ 47 files changed, 404 insertions(+), 225 deletions(-)

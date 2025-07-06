@@ -1,0 +1,70 @@
+commit 26c59d3153a7662875e1dd7c02c6ae36b9bc269b
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Dec 17 10:51:36 2024 +0100
+
+    crypto/internal/fips140/sha3/_asm: remove unnecessary x/crypto dependency
+    
+    There is no need to blank-import golang.org/x/crypto/sha3, as we are not
+    using any crypto.SHA3 variant in the code.
+    
+    Change-Id: Ia5455647f737371fc4ec0972bf9a90d5ee854495
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637055
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/fips140/sha3/_asm/go.mod               | 6 +-----
+ src/crypto/internal/fips140/sha3/_asm/go.sum               | 4 ----
+ src/crypto/internal/fips140/sha3/_asm/keccakf_amd64_asm.go | 1 -
+ 3 files changed, 1 insertion(+), 10 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/sha3/_asm/go.mod b/src/crypto/internal/fips140/sha3/_asm/go.mod
+index 265a88d077..39e83acc94 100644
+--- a/src/crypto/internal/fips140/sha3/_asm/go.mod
++++ b/src/crypto/internal/fips140/sha3/_asm/go.mod
+@@ -2,14 +2,10 @@ module sha3/_asm
+ 
+ go 1.22
+ 
+-require (
+-	github.com/mmcloughlin/avo v0.6.0
+-	golang.org/x/crypto v0.25.0
+-)
++require github.com/mmcloughlin/avo v0.6.0
+ 
+ require (
+ 	golang.org/x/mod v0.19.0 // indirect
+ 	golang.org/x/sync v0.7.0 // indirect
+-	golang.org/x/sys v0.22.0 // indirect
+ 	golang.org/x/tools v0.23.0 // indirect
+ )
+diff --git a/src/crypto/internal/fips140/sha3/_asm/go.sum b/src/crypto/internal/fips140/sha3/_asm/go.sum
+index a2552b8eb9..9e8f35f70f 100644
+--- a/src/crypto/internal/fips140/sha3/_asm/go.sum
++++ b/src/crypto/internal/fips140/sha3/_asm/go.sum
+@@ -1,12 +1,8 @@
+ github.com/mmcloughlin/avo v0.6.0 h1:QH6FU8SKoTLaVs80GA8TJuLNkUYl4VokHKlPhVDg4YY=
+ github.com/mmcloughlin/avo v0.6.0/go.mod h1:8CoAGaCSYXtCPR+8y18Y9aB/kxb8JSS6FRI7mSkvD+8=
+-golang.org/x/crypto v0.25.0 h1:ypSNr+bnYL2YhwoMt2zPxHFmbAN1KZs/njMG3hxUp30=
+-golang.org/x/crypto v0.25.0/go.mod h1:T+wALwcMOSE0kXgUAnPAHqTLW+XHgcELELW8VaDgm/M=
+ golang.org/x/mod v0.19.0 h1:fEdghXQSo20giMthA7cd28ZC+jts4amQ3YMXiP5oMQ8=
+ golang.org/x/mod v0.19.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
+ golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
+ golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
+-golang.org/x/sys v0.22.0 h1:RI27ohtqKCnwULzJLqkv897zojh5/DwS/ENaMzUOaWI=
+-golang.org/x/sys v0.22.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
+ golang.org/x/tools v0.23.0 h1:SGsXPZ+2l4JsgaCKkx+FQ9YZ5XEtA1GZYuoDjenLjvg=
+ golang.org/x/tools v0.23.0/go.mod h1:pnu6ufv6vQkll6szChhK3C3L/ruaIv5eBeztNG8wtsI=
+diff --git a/src/crypto/internal/fips140/sha3/_asm/keccakf_amd64_asm.go b/src/crypto/internal/fips140/sha3/_asm/keccakf_amd64_asm.go
+index 02242c9a01..5e59b11fc8 100644
+--- a/src/crypto/internal/fips140/sha3/_asm/keccakf_amd64_asm.go
++++ b/src/crypto/internal/fips140/sha3/_asm/keccakf_amd64_asm.go
+@@ -13,7 +13,6 @@ import (
+ 	. "github.com/mmcloughlin/avo/build"
+ 	. "github.com/mmcloughlin/avo/operand"
+ 	. "github.com/mmcloughlin/avo/reg"
+-	_ "golang.org/x/crypto/sha3"
+ )
+ 
+ //go:generate go run . -out ../sha3_amd64.s

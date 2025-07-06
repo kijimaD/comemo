@@ -1,0 +1,80 @@
+commit 866e260f92546e5bec910aa526756078eb1a6a0d
+Author: Andy Pan <i@andypan.me>
+Date:   Wed Aug 14 09:41:28 2024 +0800
+
+    os: only employ sendfile(3ext) on illumos when target is regular file
+    
+    Fixes #68863
+    
+    Change-Id: I0ca324137d1f7510bd0b245791fef07d3b5b401a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605355
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Run-TryBot: Andy Pan <panjf2000@gmail.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/os/readfrom_unix_test.go |  4 ++--
+ src/os/zero_copy_solaris.go  | 19 +++++++++++++++++++
+ 2 files changed, 21 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/readfrom_unix_test.go b/src/os/readfrom_unix_test.go
+index 966a4e9962..9ed633639a 100644
+--- a/src/os/readfrom_unix_test.go
++++ b/src/os/readfrom_unix_test.go
+@@ -198,7 +198,7 @@ func TestCopyFile(t *testing.T) {
+ 				}
+ 				switch runtime.GOOS {
+ 				case "illumos", "solaris":
+-					// On SunOS, We rely on File.Stat to get the size of the file,
++					// On SunOS, We rely on File.Stat to get the size of the source file,
+ 					// which doesn't work for pipe.
+ 					if hook.called {
+ 						t.Fatalf("%s: shouldn't have called the hook with a source of pipe", testName)
+@@ -267,7 +267,7 @@ func TestCopyFile(t *testing.T) {
+ 				}
+ 				switch runtime.GOOS {
+ 				case "illumos", "solaris":
+-					// On SunOS, We rely on File.Stat to get the size of the file,
++					// On SunOS, We rely on File.Stat to get the size of the source file,
+ 					// which doesn't work for pipe.
+ 					if hook.called {
+ 						t.Fatalf("%s: shouldn't have called the hook with a source of pipe", testName)
+diff --git a/src/os/zero_copy_solaris.go b/src/os/zero_copy_solaris.go
+index 9d9eca1ae7..9fb659024e 100644
+--- a/src/os/zero_copy_solaris.go
++++ b/src/os/zero_copy_solaris.go
+@@ -7,6 +7,7 @@ package os
+ import (
+ 	"internal/poll"
+ 	"io"
++	"runtime"
+ 	"syscall"
+ )
+ 
+@@ -55,6 +56,24 @@ func (f *File) readFrom(r io.Reader) (written int64, handled bool, err error) {
+ 		return 0, false, nil
+ 	}
+ 
++	// sendfile() on illumos seems to incur intermittent failures when the
++	// target file is a standard stream (stdout/stderr), we hereby skip any
++	// character devices conservatively and leave them to generic copy.
++	// Check out https://go.dev/issue/68863 for more details.
++	if runtime.GOOS == "illumos" {
++		fi, err := f.Stat()
++		if err != nil {
++			return 0, false, nil
++		}
++		st, ok := fi.Sys().(*syscall.Stat_t)
++		if !ok {
++			return 0, false, nil
++		}
++		if typ := st.Mode & syscall.S_IFMT; typ == syscall.S_IFCHR || typ == syscall.S_IFBLK {
++			return 0, false, nil
++		}
++	}
++
+ 	if remain == 0 {
+ 		fi, err := src.Stat()
+ 		if err != nil {

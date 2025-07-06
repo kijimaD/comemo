@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 19396: 7b103c555f9200eed9329f433378e72c7909e398
+# Index 19396: c0d4576593906e169f367e7c61d94ed37cc782b8
 
 echo "🚀 Generating explanation for commit 19396..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 19396..."
 
 ### メタデータ
 - **コミットインデックス**: 19396
-- **コミットハッシュ**: 7b103c555f9200eed9329f433378e72c7909e398
-- **GitHub URL**: https://github.com/golang/go/commit/7b103c555f9200eed9329f433378e72c7909e398
+- **コミットハッシュ**: c0d4576593906e169f367e7c61d94ed37cc782b8
+- **GitHub URL**: https://github.com/golang/go/commit/c0d4576593906e169f367e7c61d94ed37cc782b8
 
 ### 章構成
 

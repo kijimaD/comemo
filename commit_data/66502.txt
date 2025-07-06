@@ -1,0 +1,212 @@
+commit 6c70f2b960b39e37a6534948d32c02735afcd774
+Author: Alexander Musman <alexander.musman@gmail.com>
+Date:   Mon Feb 17 23:27:38 2025 +0300
+
+    cmd/compile: Enable inlining of tail calls
+    
+    Enable inlining tail calls and do not limit emitting tail calls only to the
+    non-inlineable methods when generating wrappers. This change produces
+    additional code size reduction.
+    
+     Code size difference measured with this change (tried for x86_64):
+        etcd binary:
+        .text section size: 10613393 -> 10593841 (0.18%)
+        total binary size:  33450787 -> 33424307 (0.07%)
+    
+        compile binary:
+        .text section size: 10171025 -> 10126545 (0.43%)
+        total binary size:  28241012 -> 28192628 (0.17%)
+    
+        cockroach binary:
+        .text section size:  83947260 -> 83694140  (0.3%)
+        total binary size:  263799808 -> 263534160 (0.1%)
+    
+    Change-Id: I694f83cb838e64bd4c51f05b7b9f2bf0193bb551
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650455
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+---
+ .../internal/inline/interleaved/interleaved.go     | 28 +++++++++++++++-------
+ src/cmd/compile/internal/ir/node_gen.go            |  4 ++--
+ src/cmd/compile/internal/ir/stmt.go                |  2 +-
+ src/cmd/compile/internal/noder/reader.go           |  3 +--
+ src/cmd/compile/internal/ssagen/ssa.go             |  2 +-
+ src/cmd/compile/internal/typecheck/stmt.go         |  2 +-
+ src/cmd/compile/internal/walk/stmt.go              |  3 ++-
+ test/tailcall.go                                   | 10 ++++----
+ 8 files changed, 31 insertions(+), 23 deletions(-)
+
+diff --git a/src/cmd/compile/internal/inline/interleaved/interleaved.go b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+index a35121517a..140e2b3543 100644
+--- a/src/cmd/compile/internal/inline/interleaved/interleaved.go
++++ b/src/cmd/compile/internal/inline/interleaved/interleaved.go
+@@ -279,12 +279,7 @@ func (s *inlClosureState) mark(n ir.Node) ir.Node {
+ 
+ 	ok := match(n)
+ 
+-	// can't wrap TailCall's child into ParenExpr
+-	if t, ok := n.(*ir.TailCallStmt); ok {
+-		ir.EditChildren(t.Call, s.mark)
+-	} else {
+-		ir.EditChildren(n, s.mark)
+-	}
++	ir.EditChildren(n, s.mark)
+ 
+ 	if ok {
+ 		if p == nil {
+@@ -322,6 +317,23 @@ func (s *inlClosureState) unparenthesize() {
+ 			n = paren.X
+ 		}
+ 		ir.EditChildren(n, unparen)
++		// special case for tail calls: if the tail call was inlined, transform
++		// the tail call to a return stmt if the inlined function was not void,
++		// otherwise replace it with the inlined expression followed by a return.
++		if tail, ok := n.(*ir.TailCallStmt); ok {
++			if inl, done := tail.Call.(*ir.InlinedCallExpr); done {
++				if len(inl.ReturnVars) != 0 {
++					ret := ir.NewReturnStmt(tail.Pos(), []ir.Node{inl})
++					if len(inl.ReturnVars) > 1 {
++						typecheck.RewriteMultiValueCall(ret, inl)
++					}
++					n = ret
++				} else {
++					ret := ir.NewReturnStmt(tail.Pos(), nil)
++					n = ir.NewBlockStmt(tail.Pos(), []ir.Node{inl, ret})
++				}
++			}
++		}
+ 		return n
+ 	}
+ 	ir.EditChildren(s.fn, unparen)
+@@ -358,11 +370,9 @@ func (s *inlClosureState) fixpoint() bool {
+ }
+ 
+ func match(n ir.Node) bool {
+-	switch n := n.(type) {
++	switch n.(type) {
+ 	case *ir.CallExpr:
+ 		return true
+-	case *ir.TailCallStmt:
+-		n.Call.NoInline = true // can't inline yet
+ 	}
+ 	return false
+ }
+diff --git a/src/cmd/compile/internal/ir/node_gen.go b/src/cmd/compile/internal/ir/node_gen.go
+index 026acbf9dd..e67b5ba0bc 100644
+--- a/src/cmd/compile/internal/ir/node_gen.go
++++ b/src/cmd/compile/internal/ir/node_gen.go
+@@ -2202,13 +2202,13 @@ func (n *TailCallStmt) doChildrenWithHidden(do func(Node) bool) bool {
+ func (n *TailCallStmt) editChildren(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Call != nil {
+-		n.Call = edit(n.Call).(*CallExpr)
++		n.Call = edit(n.Call)
+ 	}
+ }
+ func (n *TailCallStmt) editChildrenWithHidden(edit func(Node) Node) {
+ 	editNodes(n.init, edit)
+ 	if n.Call != nil {
+-		n.Call = edit(n.Call).(*CallExpr)
++		n.Call = edit(n.Call)
+ 	}
+ }
+ 
+diff --git a/src/cmd/compile/internal/ir/stmt.go b/src/cmd/compile/internal/ir/stmt.go
+index 0801ecdd9e..ae7fb2080b 100644
+--- a/src/cmd/compile/internal/ir/stmt.go
++++ b/src/cmd/compile/internal/ir/stmt.go
+@@ -479,7 +479,7 @@ func NewSwitchStmt(pos src.XPos, tag Node, cases []*CaseClause) *SwitchStmt {
+ // code generation to jump directly to another function entirely.
+ type TailCallStmt struct {
+ 	miniStmt
+-	Call *CallExpr // the underlying call
++	Call Node // the underlying call
+ }
+ 
+ func NewTailCallStmt(pos src.XPos, call *CallExpr) *TailCallStmt {
+diff --git a/src/cmd/compile/internal/noder/reader.go b/src/cmd/compile/internal/noder/reader.go
+index eca66487fa..0f08bce10f 100644
+--- a/src/cmd/compile/internal/noder/reader.go
++++ b/src/cmd/compile/internal/noder/reader.go
+@@ -3983,12 +3983,11 @@ func addTailCall(pos src.XPos, fn *ir.Func, recv ir.Node, method *types.Field) {
+ 
+ 	if recv.Type() != nil && recv.Type().IsPtr() && method.Type.Recv().Type.IsPtr() &&
+ 		method.Embedded != 0 && !types.IsInterfaceMethod(method.Type) &&
+-		!unifiedHaveInlineBody(ir.MethodExprName(dot).Func) &&
+ 		!(base.Ctxt.Arch.Name == "ppc64le" && base.Ctxt.Flag_dynlink) {
+ 		if base.Debug.TailCall != 0 {
+ 			base.WarnfAt(fn.Nname.Type().Recv().Type.Elem().Pos(), "tail call emitted for the method %v wrapper", method.Nname)
+ 		}
+-		// Prefer OTAILCALL to reduce code size (except the case when the called method can be inlined).
++		// Prefer OTAILCALL to reduce code size (the called method can be inlined).
+ 		fn.Body.Append(ir.NewTailCallStmt(pos, call))
+ 		return
+ 	}
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 07269e65f2..333c89b209 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -1797,7 +1797,7 @@ func (s *state) stmt(n ir.Node) {
+ 
+ 	case ir.OTAILCALL:
+ 		n := n.(*ir.TailCallStmt)
+-		s.callResult(n.Call, callTail)
++		s.callResult(n.Call.(*ir.CallExpr), callTail)
+ 		call := s.mem()
+ 		b := s.endBlock()
+ 		b.Kind = ssa.BlockRetJmp // could use BlockExit. BlockRetJmp is mostly for clarity.
+diff --git a/src/cmd/compile/internal/typecheck/stmt.go b/src/cmd/compile/internal/typecheck/stmt.go
+index 8d792485d8..bb3a29dd13 100644
+--- a/src/cmd/compile/internal/typecheck/stmt.go
++++ b/src/cmd/compile/internal/typecheck/stmt.go
+@@ -137,7 +137,7 @@ assignOK:
+ 	if cr > len(rhs) {
+ 		stmt := stmt.(*ir.AssignListStmt)
+ 		stmt.SetOp(ir.OAS2FUNC)
+-		r := rhs[0].(*ir.CallExpr)
++		r := rhs[0]
+ 		rtyp := r.Type()
+ 
+ 		mismatched := false
+diff --git a/src/cmd/compile/internal/walk/stmt.go b/src/cmd/compile/internal/walk/stmt.go
+index b2a226e078..2e5ca3180f 100644
+--- a/src/cmd/compile/internal/walk/stmt.go
++++ b/src/cmd/compile/internal/walk/stmt.go
+@@ -139,7 +139,8 @@ func walkStmt(n ir.Node) ir.Node {
+ 		n := n.(*ir.TailCallStmt)
+ 
+ 		var init ir.Nodes
+-		n.Call.Fun = walkExpr(n.Call.Fun, &init)
++		call := n.Call.(*ir.CallExpr)
++		call.Fun = walkExpr(call.Fun, &init)
+ 
+ 		if len(init) > 0 {
+ 			init.Append(n)
+diff --git a/test/tailcall.go b/test/tailcall.go
+index 6b14a2f1b7..c1c35c5e48 100644
+--- a/test/tailcall.go
++++ b/test/tailcall.go
+@@ -7,16 +7,14 @@
+ package p
+ 
+ // Test that when generating wrappers for methods, we generate a tail call to the pointer version of
+-// the method, if that method is not inlineable. We use go:noinline here to force the non-inlineability
+-// condition.
++// the method.
+ 
+-//go:noinline
+-func (f *Foo) Get2Vals() [2]int { return [2]int{f.Val, f.Val + 1} }
+-func (f *Foo) Get3Vals() [3]int { return [3]int{f.Val, f.Val + 1, f.Val + 2} }
++func (f *Foo) Get2Vals() [2]int          { return [2]int{f.Val, f.Val + 1} }
++func (f *Foo) Get3Vals() (int, int, int) { return f.Val, f.Val + 1, f.Val + 2 }
+ 
+ type Foo struct{ Val int }
+ 
+-type Bar struct { // ERROR "tail call emitted for the method \(\*Foo\).Get2Vals wrapper"
++type Bar struct { // ERROR "tail call emitted for the method \(\*Foo\).Get2Vals wrapper" "tail call emitted for the method \(\*Foo\).Get3Vals wrapper"
+ 	int64
+ 	*Foo // needs a method wrapper
+ 	string

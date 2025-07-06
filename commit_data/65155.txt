@@ -1,0 +1,29 @@
+commit c2b580a47467e6236f1b9f2f7f72e6ada3a79806
+Author: David Chase <drchase@google.com>
+Date:   Thu Oct 24 14:17:39 2024 -0400
+
+    cmd/compile: spell "go.runtime" correctly for inline "cheap" test
+    
+    Updates #69539.
+    
+    Change-Id: I40885e9c23f35772f8ace645044afee0d55b70b2
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/622415
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/cmd/compile/internal/inline/inl.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index e3462f54ec..6c0521d1f5 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -467,7 +467,7 @@ opSwitch:
+ 						v.reason = "call to " + fn
+ 						return true
+ 					}
+-				case "runtime":
++				case "go.runtime":
+ 					switch fn {
+ 					case "throw":
+ 						// runtime.throw is a "cheap call" like panic in normal code.

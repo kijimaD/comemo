@@ -1,0 +1,228 @@
+commit e9eb88ae7291bf9f1b05e8e4860474c734c5448d
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Feb 11 09:17:08 2025 +0100
+
+    {all,clean,make,race,run}.bat: simplify error handling
+    
+    The bat files can use "if" + parentheses to make it easier to
+    understand how the if-case is handled rather than the more cryptic
+    "if" + "goto".
+    
+    While here, replace some "goto"s with direct "exit" calls.
+    
+    Change-Id: I20e1804439b5088f8f1e5cbf8676f3d58560109d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648375
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/all.bat   | 16 ++++++----------
+ src/clean.bat | 15 +++++----------
+ src/make.bat  | 28 ++++++++++++----------------
+ src/race.bat  | 34 +++++++++++++---------------------
+ src/run.bat   | 16 ++++++----------
+ 5 files changed, 42 insertions(+), 67 deletions(-)
+
+diff --git a/src/all.bat b/src/all.bat
+index cb4536284e..4c681d15eb 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -6,15 +6,11 @@
+ 
+ setlocal
+ 
+-if exist make.bat goto ok
+-echo all.bat must be run from go\src
+-exit /b 1
+-:ok
++if not exist make.bat (
++    echo all.bat must be run from go\src
++    exit /b 1
++)
+ 
+-call .\make.bat --no-banner || goto fail
+-call .\run.bat --no-rebuild || goto fail
++call .\make.bat --no-banner || exit /b 1
++call .\run.bat --no-rebuild || exit /b 1
+ ..\bin\go tool dist banner
+-goto :eof
+-
+-:fail
+-exit /b 1
+diff --git a/src/clean.bat b/src/clean.bat
+index 51fa857b7c..2e03806305 100644
+--- a/src/clean.bat
++++ b/src/clean.bat
+@@ -6,21 +6,16 @@
+ 
+ setlocal
+ 
+-go tool dist env -w -p >env.bat || goto fail
++go tool dist env -w -p >env.bat || exit /b 1
+ call .\env.bat
+ del env.bat
+ echo.
+ 
+-if exist %GOTOOLDIR%\dist.exe goto distok
+-echo cannot find %GOTOOLDIR%\dist; nothing to clean
+-goto fail
+-:distok
++if not exist %GOTOOLDIR%\dist.exe (
++    echo cannot find %GOTOOLDIR%\dist.exe; nothing to clean
++    exit /b 1
++)
+ 
+ "%GOBIN%\go" clean -i std
+ "%GOBIN%\go" tool dist clean
+ "%GOBIN%\go" clean -i cmd
+-
+-goto :eof
+-
+-:fail
+-exit /b 1
+diff --git a/src/make.bat b/src/make.bat
+index 0d5dd2761a..890829131b 100644
+--- a/src/make.bat
++++ b/src/make.bat
+@@ -36,10 +36,10 @@
+ 
+ setlocal
+ 
+-if exist make.bat goto ok
+-echo Must run make.bat from Go src directory.
+-goto fail
+-:ok
++if not exist make.bat (
++	echo Must run make.bat from Go src directory.
++	exit /b 1
++)
+ 
+ :: Clean old generated file that will cause problems in the build.
+ del /F ".\pkg\runtime\runtime_defs.go" 2>NUL
+@@ -78,7 +78,11 @@ if "x%GOROOT_BOOTSTRAP%"=="x" if exist "%HOMEDRIVE%%HOMEPATH%\sdk\go%bootgo%" se
+ if "x%GOROOT_BOOTSTRAP%"=="x" set GOROOT_BOOTSTRAP=%HOMEDRIVE%%HOMEPATH%\Go1.4
+ 
+ :bootstrapset
+-if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" goto bootstrapfail
++if not exist "%GOROOT_BOOTSTRAP%\bin\go.exe" (
++	echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
++	echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go %bootgo%.
++	exit /b 1
++)
+ set GOROOT=%GOROOT_TEMP%
+ set GOROOT_TEMP=
+ 
+@@ -90,9 +94,9 @@ echo Building Go cmd/dist using %GOROOT_BOOTSTRAP%. (%GOROOT_BOOTSTRAP_VERSION%)
+ if x%vflag==x-v echo cmd/dist
+ set GOROOT=%GOROOT_BOOTSTRAP%
+ set GOBIN=
+-"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist || goto fail
++"%GOROOT_BOOTSTRAP%\bin\go.exe" build -o cmd\dist\dist.exe .\cmd\dist || exit /b 1
+ endlocal
+-.\cmd\dist\dist.exe env -w -p >env.bat || goto fail
++.\cmd\dist\dist.exe env -w -p >env.bat || exit /b 1
+ call .\env.bat
+ del env.bat
+ if x%vflag==x-v echo.
+@@ -109,7 +113,7 @@ if x%4==x--dist-tool goto copydist
+ :: Run dist bootstrap to complete make.bash.
+ :: Bootstrap installs a proper cmd/dist, built with the new toolchain.
+ :: Throw ours, built with the bootstrap toolchain, away after bootstrap.
+-.\cmd\dist\dist.exe bootstrap -a %* || goto fail
++.\cmd\dist\dist.exe bootstrap -a %* || exit /b 1
+ del .\cmd\dist\dist.exe
+ goto :eof
+ 
+@@ -131,11 +135,3 @@ set GOOS=
+ set GOARCH=
+ set GOEXPERIMENT=
+ set GOFLAGS=
+-goto :eof
+-
+-:bootstrapfail
+-echo ERROR: Cannot find %GOROOT_BOOTSTRAP%\bin\go.exe
+-echo Set GOROOT_BOOTSTRAP to a working Go tree ^>= Go %bootgo%.
+-
+-:fail
+-exit /b 1
+diff --git a/src/race.bat b/src/race.bat
+index 7f1e0a1987..60fcfb90c7 100644
+--- a/src/race.bat
++++ b/src/race.bat
+@@ -9,30 +9,22 @@
+ 
+ setlocal
+ 
+-if exist make.bat goto ok
+-echo race.bat must be run from go\src
+-exit /b 1
+-:ok
++if not exist make.bat (
++    echo race.bat must be run from go\src
++    exit /b 1
++)
+ 
+ set GOROOT=%CD%\..
+-call .\make.bat --dist-tool >NUL || goto fail
+-.\cmd\dist\dist.exe env -w -p >env.bat || goto fail
++call .\make.bat --dist-tool >NUL || exit /b 1
++.\cmd\dist\dist.exe env -w -p >env.bat || exit /b 1
+ call .\env.bat
+ del env.bat
+ 
+-if %GOHOSTARCH% == amd64 goto continue
+-echo Race detector is only supported on windows/amd64.
+-goto fail
++if not %GOHOSTARCH% == amd64 (
++    echo Race detector is only supported on windows/amd64.
++    exit /b 1
++)
+ 
+-:continue
+-call .\make.bat --no-banner || goto fail
+-echo # go install -race std
+-go install -race std || goto fail
+-go tool dist test -race || goto fail
+-
+-echo All tests passed.
+-goto :eof
+-
+-:fail
+-echo Fail.
+-exit /b 1
++call .\make.bat --no-banner || exit /b 1
++go install -race std || exit /b 1
++go tool dist test -race || exit /b 1
+diff --git a/src/run.bat b/src/run.bat
+index 3e7b1a1b0c..b6a101b2ff 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -4,21 +4,17 @@
+ 
+ @echo off
+ 
+-if exist ..\bin\go.exe goto ok
+-echo Must run run.bat from Go src directory after installing cmd/go.
+-goto fail
+-:ok
++if not exist ..\bin\go.exe (
++    echo Must run run.bat from Go src directory after installing cmd/go.
++    exit /b 1
++)
+ 
+ setlocal
+ 
+ set GOENV=off
+-..\bin\go tool dist env > env.bat || goto fail
++..\bin\go tool dist env > env.bat || exit /b 1
+ call .\env.bat
+ del env.bat
+ 
+ set GOPATH=c:\nonexist-gopath
+-..\bin\go tool dist test --rebuild %* || goto fail
+-goto :eof
+-
+-:fail
+-exit /b 1
++..\bin\go tool dist test --rebuild %* || exit /b 1

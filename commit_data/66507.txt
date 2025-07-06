@@ -1,0 +1,106 @@
+commit 908af6529c1d3094da999fdafe79313c41826afa
+Author: Sean Liao <sean@liao.dev>
+Date:   Mon Mar 10 22:10:58 2025 +0000
+
+    archive/zip: error on ReadDir if there are invalid file names
+    
+    Fixes #50179
+    
+    Change-Id: I616a6d1279d025e345d2daa6d44b687c8a2d09e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656495
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/archive/zip/reader.go      |  7 +++++++
+ src/archive/zip/reader_test.go | 44 ++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 51 insertions(+)
+
+diff --git a/src/archive/zip/reader.go b/src/archive/zip/reader.go
+index 963526db11..6b57f767fc 100644
+--- a/src/archive/zip/reader.go
++++ b/src/archive/zip/reader.go
+@@ -8,6 +8,7 @@ import (
+ 	"bufio"
+ 	"encoding/binary"
+ 	"errors"
++	"fmt"
+ 	"hash"
+ 	"hash/crc32"
+ 	"internal/godebug"
+@@ -988,6 +989,12 @@ func (d *openDir) ReadDir(count int) ([]fs.DirEntry, error) {
+ 		s, err := d.files[d.offset+i].stat()
+ 		if err != nil {
+ 			return nil, err
++		} else if s.Name() == "." || !fs.ValidPath(s.Name()) {
++			return nil, &fs.PathError{
++				Op:   "readdir",
++				Path: d.e.name,
++				Err:  fmt.Errorf("invalid file name: %v", d.files[d.offset+i].name),
++			}
+ 		}
+ 		list[i] = s
+ 	}
+diff --git a/src/archive/zip/reader_test.go b/src/archive/zip/reader_test.go
+index bfa35c992a..410b2d037e 100644
+--- a/src/archive/zip/reader_test.go
++++ b/src/archive/zip/reader_test.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"encoding/binary"
+ 	"encoding/hex"
++	"errors"
+ 	"internal/obscuretestdata"
+ 	"io"
+ 	"io/fs"
+@@ -1281,6 +1282,49 @@ func TestFSWalk(t *testing.T) {
+ 	}
+ }
+ 
++func TestFSWalkBadFile(t *testing.T) {
++	t.Parallel()
++
++	var buf bytes.Buffer
++	zw := NewWriter(&buf)
++	hdr := &FileHeader{Name: "."}
++	hdr.SetMode(fs.ModeDir | 0o755)
++	w, err := zw.CreateHeader(hdr)
++	if err != nil {
++		t.Fatalf("create zip header: %v", err)
++	}
++	_, err = w.Write([]byte("some data"))
++	if err != nil {
++		t.Fatalf("write zip contents: %v", err)
++
++	}
++	err = zw.Close()
++	if err != nil {
++		t.Fatalf("close zip writer: %v", err)
++
++	}
++
++	zr, err := NewReader(bytes.NewReader(buf.Bytes()), int64(buf.Len()))
++	if err != nil {
++		t.Fatalf("create zip reader: %v", err)
++
++	}
++	var count int
++	var errRepeat = errors.New("repeated call to path")
++	err = fs.WalkDir(zr, ".", func(p string, d fs.DirEntry, err error) error {
++		count++
++		if count > 2 { // once for directory read, once for the error
++			return errRepeat
++		}
++		return err
++	})
++	if err == nil {
++		t.Fatalf("expected error from invalid file name")
++	} else if errors.Is(err, errRepeat) {
++		t.Fatal(err)
++	}
++}
++
+ func TestFSModTime(t *testing.T) {
+ 	t.Parallel()
+ 	z, err := OpenReader("testdata/subdir.zip")

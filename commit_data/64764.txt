@@ -1,0 +1,89 @@
+commit ba2a16cb63ec81703198f05e9d7bf6f1c892f9df
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Wed Sep 4 15:42:26 2024 -0700
+
+    cmd/go/internal/auth: use sync.OnceValues
+    
+    Use sync.OnceValues (CL 451356, since Go 1.21) instead of sync.Once for
+    cleaner code and less global variables, preventing their potential
+    misuse.
+    
+    Change-Id: I9d7ccc42847fe77af1757672c31bb39e20007f92
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/611016
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/go/internal/auth/auth.go  |  6 +++++-
+ src/cmd/go/internal/auth/netrc.go | 21 +++++++--------------
+ 2 files changed, 12 insertions(+), 15 deletions(-)
+
+diff --git a/src/cmd/go/internal/auth/auth.go b/src/cmd/go/internal/auth/auth.go
+index 77edeb8924..b4ada4ef8b 100644
+--- a/src/cmd/go/internal/auth/auth.go
++++ b/src/cmd/go/internal/auth/auth.go
+@@ -10,13 +10,17 @@ import "net/http"
+ // AddCredentials fills in the user's credentials for req, if any.
+ // The return value reports whether any matching credentials were found.
+ func AddCredentials(req *http.Request) (added bool) {
++	netrc, _ := readNetrc()
++	if len(netrc) == 0 {
++		return false
++	}
++
+ 	host := req.Host
+ 	if host == "" {
+ 		host = req.URL.Hostname()
+ 	}
+ 
+ 	// TODO(golang.org/issue/26232): Support arbitrary user-provided credentials.
+-	netrcOnce.Do(readNetrc)
+ 	for _, l := range netrc {
+ 		if l.machine == host {
+ 			req.SetBasicAuth(l.login, l.password)
+diff --git a/src/cmd/go/internal/auth/netrc.go b/src/cmd/go/internal/auth/netrc.go
+index 0107f20d7a..f48dec1ab5 100644
+--- a/src/cmd/go/internal/auth/netrc.go
++++ b/src/cmd/go/internal/auth/netrc.go
+@@ -18,12 +18,6 @@ type netrcLine struct {
+ 	password string
+ }
+ 
+-var (
+-	netrcOnce sync.Once
+-	netrc     []netrcLine
+-	netrcErr  error
+-)
+-
+ func parseNetrc(data string) []netrcLine {
+ 	// See https://www.gnu.org/software/inetutils/manual/html_node/The-_002enetrc-file.html
+ 	// for documentation on the .netrc format.
+@@ -91,20 +85,19 @@ func netrcPath() (string, error) {
+ 	return filepath.Join(dir, base), nil
+ }
+ 
+-func readNetrc() {
++var readNetrc = sync.OnceValues(func() ([]netrcLine, error) {
+ 	path, err := netrcPath()
+ 	if err != nil {
+-		netrcErr = err
+-		return
++		return nil, err
+ 	}
+ 
+ 	data, err := os.ReadFile(path)
+ 	if err != nil {
+-		if !os.IsNotExist(err) {
+-			netrcErr = err
++		if os.IsNotExist(err) {
++			err = nil
+ 		}
+-		return
++		return nil, err
+ 	}
+ 
+-	netrc = parseNetrc(string(data))
+-}
++	return parseNetrc(string(data)), nil
++})

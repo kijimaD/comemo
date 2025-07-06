@@ -1,0 +1,51 @@
+commit 8abb8aa9a96dc0590bd2e99628192e590b0295ec
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Mon Mar 3 13:34:15 2025 +0000
+
+    testing: modify got,want equal comparison for unordered example output
+    
+    This change eliminates sortLines function to avoid strings.Join calls.
+    
+    It's not a performance problem, this change tries to make the comparison
+    more straightforward.
+    
+    Change-Id: I3a7ae877c9fc927833ab9f143205f7e007197f60
+    GitHub-Last-Rev: a71aa58c58533fed24ba9c101664b977a094caf9
+    GitHub-Pull-Request: golang/go#72025
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/653556
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/testing/example.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/testing/example.go b/src/testing/example.go
+index c343ae2aa2..58c36f2edb 100644
+--- a/src/testing/example.go
++++ b/src/testing/example.go
+@@ -46,12 +46,6 @@ func runExamples(matchString func(pat, str string) (bool, error), examples []Int
+ 	return ran, ok
+ }
+ 
+-func sortLines(output string) string {
+-	lines := strings.Split(output, "\n")
+-	slices.Sort(lines)
+-	return strings.Join(lines, "\n")
+-}
+-
+ // processRunResult computes a summary and status of the result of running an example test.
+ // stdout is the captured output from stdout of the test.
+ // recovered is the result of invoking recover after running the test, in case it panicked.
+@@ -72,7 +66,9 @@ func (eg *InternalExample) processRunResult(stdout string, timeSpent time.Durati
+ 		want = strings.ReplaceAll(want, "\r\n", "\n")
+ 	}
+ 	if eg.Unordered {
+-		if sortLines(got) != sortLines(want) && recovered == nil {
++		gotLines := slices.Sorted(strings.SplitSeq(got, "\n"))
++		wantLines := slices.Sorted(strings.SplitSeq(want, "\n"))
++		if !slices.Equal(gotLines, wantLines) && recovered == nil {
+ 			fail = fmt.Sprintf("got:\n%s\nwant (unordered):\n%s\n", stdout, eg.Output)
+ 		}
+ 	} else {

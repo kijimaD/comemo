@@ -1,0 +1,1022 @@
+commit 26fdb07d4ce58885305283ba18960f582f4eaa73
+Author: Damien Neil <dneil@google.com>
+Date:   Tue Mar 25 10:31:00 2025 -0700
+
+    os: add Root.Symlink
+    
+    For #67002
+    
+    Change-Id: Ia1637b61eae49e97e1d07f058ad2390e74cd3403
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/660635
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+---
+ api/next/67002.txt                               |   1 +
+ doc/next/6-stdlib/99-minor/os/67002.md           |   1 +
+ src/internal/syscall/unix/asm_darwin.s           |   1 +
+ src/internal/syscall/unix/asm_openbsd.s          |   2 +
+ src/internal/syscall/unix/at.go                  |  19 +++
+ src/internal/syscall/unix/at_aix.go              |   1 +
+ src/internal/syscall/unix/at_darwin.go           |  26 ++++
+ src/internal/syscall/unix/at_libc.go             |  24 ++-
+ src/internal/syscall/unix/at_openbsd.go          |  26 ++++
+ src/internal/syscall/unix/at_solaris.go          |   1 +
+ src/internal/syscall/unix/at_sysnum_dragonfly.go |   1 +
+ src/internal/syscall/unix/at_sysnum_freebsd.go   |   1 +
+ src/internal/syscall/unix/at_sysnum_linux.go     |   1 +
+ src/internal/syscall/unix/at_sysnum_netbsd.go    |   1 +
+ src/internal/syscall/unix/at_wasip1.go           |  33 ++++-
+ src/internal/syscall/windows/at_windows.go       | 175 ++++++++++++++++++++++
+ src/os/os_test.go                                |  37 +++--
+ src/os/root.go                                   |  12 ++
+ src/os/root_noopenat.go                          |  11 ++
+ src/os/root_test.go                              |  42 ++++++
+ src/os/root_unix.go                              |  14 ++
+ src/os/root_windows.go                           |  46 ++++++
+ src/os/root_windows_test.go                      | 177 +++++++++++++++++++++++
+ 23 files changed, 635 insertions(+), 18 deletions(-)
+
+diff --git a/api/next/67002.txt b/api/next/67002.txt
+index 98c532f1d3..112f477e8e 100644
+--- a/api/next/67002.txt
++++ b/api/next/67002.txt
+@@ -5,3 +5,4 @@ pkg os, method (*Root) Lchown(string, int, int) error #67002
+ pkg os, method (*Root) Link(string, string) error #67002
+ pkg os, method (*Root) Readlink(string) (string, error) #67002
+ pkg os, method (*Root) Rename(string, string) error #67002
++pkg os, method (*Root) Symlink(string, string) error #67002
+diff --git a/doc/next/6-stdlib/99-minor/os/67002.md b/doc/next/6-stdlib/99-minor/os/67002.md
+index ff087748c5..84661c6c40 100644
+--- a/doc/next/6-stdlib/99-minor/os/67002.md
++++ b/doc/next/6-stdlib/99-minor/os/67002.md
+@@ -7,3 +7,4 @@ The [os.Root] type supports the following additional methods:
+   * [os.Root.Link]
+   * [os.Root.Readlink]
+   * [os.Root.Rename]
++  * [os.Root.Symlink]
+diff --git a/src/internal/syscall/unix/asm_darwin.s b/src/internal/syscall/unix/asm_darwin.s
+index 79d384c941..9803c7260f 100644
+--- a/src/internal/syscall/unix/asm_darwin.s
++++ b/src/internal/syscall/unix/asm_darwin.s
+@@ -29,3 +29,4 @@ TEXT ·libc_fchmodat_trampoline(SB),NOSPLIT,$0-0; JMP libc_fchmodat(SB)
+ TEXT ·libc_fchownat_trampoline(SB),NOSPLIT,$0-0; JMP libc_fchownat(SB)
+ TEXT ·libc_renameat_trampoline(SB),NOSPLIT,$0-0; JMP libc_renameat(SB)
+ TEXT ·libc_linkat_trampoline(SB),NOSPLIT,$0-0; JMP libc_linkat(SB)
++TEXT ·libc_symlinkat_trampoline(SB),NOSPLIT,$0-0; JMP libc_symlinkat(SB)
+diff --git a/src/internal/syscall/unix/asm_openbsd.s b/src/internal/syscall/unix/asm_openbsd.s
+index 481dd7d700..d7c230555c 100644
+--- a/src/internal/syscall/unix/asm_openbsd.s
++++ b/src/internal/syscall/unix/asm_openbsd.s
+@@ -22,3 +22,5 @@ TEXT ·libc_renameat_trampoline(SB),NOSPLIT,$0-0
+         JMP	libc_renameat(SB)
+ TEXT ·libc_linkat_trampoline(SB),NOSPLIT,$0-0
+         JMP	libc_linkat(SB)
++TEXT ·libc_symlinkat_trampoline(SB),NOSPLIT,$0-0
++        JMP	libc_symlinkat(SB)
+diff --git a/src/internal/syscall/unix/at.go b/src/internal/syscall/unix/at.go
+index 4549a07f8c..96272afc7b 100644
+--- a/src/internal/syscall/unix/at.go
++++ b/src/internal/syscall/unix/at.go
+@@ -158,3 +158,22 @@ func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int
+ 	}
+ 	return nil
+ }
++
++func Symlinkat(oldpath string, newdirfd int, newpath string) error {
++	oldp, err := syscall.BytePtrFromString(oldpath)
++	if err != nil {
++		return err
++	}
++	newp, err := syscall.BytePtrFromString(newpath)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall.Syscall(symlinkatTrap,
++		uintptr(unsafe.Pointer(oldp)),
++		uintptr(newdirfd),
++		uintptr(unsafe.Pointer(newp)))
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_aix.go b/src/internal/syscall/unix/at_aix.go
+index 573554927e..8bf7b4dd81 100644
+--- a/src/internal/syscall/unix/at_aix.go
++++ b/src/internal/syscall/unix/at_aix.go
+@@ -10,6 +10,7 @@ package unix
+ //go:cgo_import_dynamic libc_linkat linkat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_openat openat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_renameat renameat "libc.a/shr_64.o"
++//go:cgo_import_dynamic libc_symlinkat symlinkat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_readlinkat readlinkat "libc.a/shr_64.o"
+ //go:cgo_import_dynamic libc_mkdirat mkdirat "libc.a/shr_64.o"
+diff --git a/src/internal/syscall/unix/at_darwin.go b/src/internal/syscall/unix/at_darwin.go
+index 61437672ee..c74c827626 100644
+--- a/src/internal/syscall/unix/at_darwin.go
++++ b/src/internal/syscall/unix/at_darwin.go
+@@ -154,3 +154,29 @@ func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int
+ 	}
+ 	return nil
+ }
++
++func libc_symlinkat_trampoline()
++
++//go:cgo_import_dynamic libc_symlinkat symlinkat "/usr/lib/libSystem.B.dylib"
++
++func Symlinkat(oldpath string, newdirfd int, newpath string) error {
++	oldp, err := syscall.BytePtrFromString(oldpath)
++	if err != nil {
++		return err
++	}
++	newp, err := syscall.BytePtrFromString(newpath)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_symlinkat_trampoline),
++		uintptr(unsafe.Pointer(oldp)),
++		uintptr(newdirfd),
++		uintptr(unsafe.Pointer(newp)),
++		0,
++		0,
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_libc.go b/src/internal/syscall/unix/at_libc.go
+index b32d3bba39..5c64b34d48 100644
+--- a/src/internal/syscall/unix/at_libc.go
++++ b/src/internal/syscall/unix/at_libc.go
+@@ -20,6 +20,7 @@ import (
+ //go:linkname procFchownat libc_fchownat
+ //go:linkname procRenameat libc_renameat
+ //go:linkname procLinkat libc_linkat
++//go:linkname procSymlinkat libc_symlinkat
+ 
+ var (
+ 	procFstatat,
+@@ -30,7 +31,8 @@ var (
+ 	procFchmodat,
+ 	procFchownat,
+ 	procRenameat,
+-	procLinkat uintptr
++	procLinkat,
++	procSymlinkat uintptr
+ )
+ 
+ func Unlinkat(dirfd int, path string, flags int) error {
+@@ -208,3 +210,23 @@ func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int
+ 	}
+ 	return nil
+ }
++
++func Symlinkat(oldpath string, newdirfd int, newpath string) error {
++	oldp, err := syscall.BytePtrFromString(oldpath)
++	if err != nil {
++		return err
++	}
++	newp, err := syscall.BytePtrFromString(newpath)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall6(uintptr(unsafe.Pointer(&procSymlinkat)), 3,
++		uintptr(unsafe.Pointer(oldp)),
++		uintptr(newdirfd),
++		uintptr(unsafe.Pointer(newp)),
++		0, 0, 0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_openbsd.go b/src/internal/syscall/unix/at_openbsd.go
+index 2a433930f3..0fd5e90e5c 100644
+--- a/src/internal/syscall/unix/at_openbsd.go
++++ b/src/internal/syscall/unix/at_openbsd.go
+@@ -145,3 +145,29 @@ func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int
+ 	}
+ 	return nil
+ }
++
++func libc_symlinkat_trampoline()
++
++//go:cgo_import_dynamic libc_symlinkat symlinkat "libc.so"
++
++func Symlinkat(oldpath string, newdirfd int, newpath string) error {
++	oldp, err := syscall.BytePtrFromString(oldpath)
++	if err != nil {
++		return err
++	}
++	newp, err := syscall.BytePtrFromString(newpath)
++	if err != nil {
++		return err
++	}
++	_, _, errno := syscall_syscall6(abi.FuncPCABI0(libc_symlinkat_trampoline),
++		uintptr(unsafe.Pointer(oldp)),
++		uintptr(newdirfd),
++		uintptr(unsafe.Pointer(newp)),
++		0,
++		0,
++		0)
++	if errno != 0 {
++		return errno
++	}
++	return nil
++}
+diff --git a/src/internal/syscall/unix/at_solaris.go b/src/internal/syscall/unix/at_solaris.go
+index abfda15688..5d69ae5bee 100644
+--- a/src/internal/syscall/unix/at_solaris.go
++++ b/src/internal/syscall/unix/at_solaris.go
+@@ -19,6 +19,7 @@ func rawSyscall6(trap, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2 uintptr, e
+ //go:cgo_import_dynamic libc_linkat linkat "libc.so"
+ //go:cgo_import_dynamic libc_openat openat "libc.so"
+ //go:cgo_import_dynamic libc_renameat renameat "libc.so"
++//go:cgo_import_dynamic libc_symlinkat symlinkat "libc.so"
+ //go:cgo_import_dynamic libc_unlinkat unlinkat "libc.so"
+ //go:cgo_import_dynamic libc_readlinkat readlinkat "libc.so"
+ //go:cgo_import_dynamic libc_mkdirat mkdirat "libc.so"
+diff --git a/src/internal/syscall/unix/at_sysnum_dragonfly.go b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+index 3ba2c54152..9728b969c4 100644
+--- a/src/internal/syscall/unix/at_sysnum_dragonfly.go
++++ b/src/internal/syscall/unix/at_sysnum_dragonfly.go
+@@ -16,6 +16,7 @@ const (
+ 	fchownatTrap   uintptr = syscall.SYS_FCHOWNAT
+ 	renameatTrap   uintptr = syscall.SYS_RENAMEAT
+ 	linkatTrap     uintptr = syscall.SYS_LINKAT
++	symlinkatTrap  uintptr = syscall.SYS_SYMLINKAT
+ 
+ 	AT_EACCESS          = 0x4
+ 	AT_FDCWD            = 0xfffafdcd
+diff --git a/src/internal/syscall/unix/at_sysnum_freebsd.go b/src/internal/syscall/unix/at_sysnum_freebsd.go
+index 032b8b5276..c1fdcabf41 100644
+--- a/src/internal/syscall/unix/at_sysnum_freebsd.go
++++ b/src/internal/syscall/unix/at_sysnum_freebsd.go
+@@ -23,4 +23,5 @@ const (
+ 	fchownatTrap       uintptr = syscall.SYS_FCHOWNAT
+ 	renameatTrap       uintptr = syscall.SYS_RENAMEAT
+ 	linkatTrap         uintptr = syscall.SYS_LINKAT
++	symlinkatTrap      uintptr = syscall.SYS_SYMLINKAT
+ )
+diff --git a/src/internal/syscall/unix/at_sysnum_linux.go b/src/internal/syscall/unix/at_sysnum_linux.go
+index 6b8bebff2a..bb7f244fe2 100644
+--- a/src/internal/syscall/unix/at_sysnum_linux.go
++++ b/src/internal/syscall/unix/at_sysnum_linux.go
+@@ -14,6 +14,7 @@ const (
+ 	fchmodatTrap   uintptr = syscall.SYS_FCHMODAT
+ 	fchownatTrap   uintptr = syscall.SYS_FCHOWNAT
+ 	linkatTrap     uintptr = syscall.SYS_LINKAT
++	symlinkatTrap  uintptr = syscall.SYS_SYMLINKAT
+ )
+ 
+ const (
+diff --git a/src/internal/syscall/unix/at_sysnum_netbsd.go b/src/internal/syscall/unix/at_sysnum_netbsd.go
+index 01e10ddd59..b59b5e0cf9 100644
+--- a/src/internal/syscall/unix/at_sysnum_netbsd.go
++++ b/src/internal/syscall/unix/at_sysnum_netbsd.go
+@@ -16,6 +16,7 @@ const (
+ 	fchownatTrap   uintptr = syscall.SYS_FCHOWNAT
+ 	renameatTrap   uintptr = syscall.SYS_RENAMEAT
+ 	linkatTrap     uintptr = syscall.SYS_LINKAT
++	symlinkatTrap  uintptr = syscall.SYS_SYMLINKAT
+ )
+ 
+ const (
+diff --git a/src/internal/syscall/unix/at_wasip1.go b/src/internal/syscall/unix/at_wasip1.go
+index 72537caf1e..dfbb365f2a 100644
+--- a/src/internal/syscall/unix/at_wasip1.go
++++ b/src/internal/syscall/unix/at_wasip1.go
+@@ -101,6 +101,10 @@ func Mkdirat(dirfd int, path string, mode uint32) error {
+ 	))
+ }
+ 
++//go:wasmimport wasi_snapshot_preview1 path_create_directory
++//go:noescape
++func path_create_directory(fd int32, path *byte, pathLen size) syscall.Errno
++
+ func Fchmodat(dirfd int, path string, mode uint32, flags int) error {
+ 	// WASI preview 1 doesn't support changing file modes.
+ 	return syscall.ENOSYS
+@@ -111,10 +115,6 @@ func Fchownat(dirfd int, path string, uid, gid int, flags int) error {
+ 	return syscall.ENOSYS
+ }
+ 
+-//go:wasmimport wasi_snapshot_preview1 path_rename
+-//go:noescape
+-func path_rename(oldFd int32, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) syscall.Errno
+-
+ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error {
+ 	if oldpath == "" || newpath == "" {
+ 		return syscall.EINVAL
+@@ -129,9 +129,9 @@ func Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) error
+ 	))
+ }
+ 
+-//go:wasmimport wasi_snapshot_preview1 path_link
++//go:wasmimport wasi_snapshot_preview1 path_rename
+ //go:noescape
+-func path_link(oldFd int32, oldFlags uint32, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) syscall.Errno
++func path_rename(oldFd int32, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) syscall.Errno
+ 
+ func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int) error {
+ 	if oldpath == "" || newpath == "" {
+@@ -148,9 +148,26 @@ func Linkat(olddirfd int, oldpath string, newdirfd int, newpath string, flag int
+ 	))
+ }
+ 
+-//go:wasmimport wasi_snapshot_preview1 path_create_directory
++//go:wasmimport wasi_snapshot_preview1 path_link
+ //go:noescape
+-func path_create_directory(fd int32, path *byte, pathLen size) syscall.Errno
++func path_link(oldFd int32, oldFlags uint32, oldPath *byte, oldPathLen size, newFd int32, newPath *byte, newPathLen size) syscall.Errno
++
++func Symlinkat(oldpath string, newdirfd int, newpath string) error {
++	if oldpath == "" || newpath == "" {
++		return syscall.EINVAL
++	}
++	return errnoErr(path_symlink(
++		unsafe.StringData(oldpath),
++		size(len(oldpath)),
++		int32(newdirfd),
++		unsafe.StringData(newpath),
++		size(len(newpath)),
++	))
++}
++
++//go:wasmimport wasi_snapshot_preview1 path_symlink
++//go:noescape
++func path_symlink(oldPath *byte, oldPathLen size, fd int32, newPath *byte, newPathLen size) syscall.Errno
+ 
+ func errnoErr(errno syscall.Errno) error {
+ 	if errno == 0 {
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index 4b939d46ab..f04de276b9 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -5,6 +5,8 @@
+ package windows
+ 
+ import (
++	"runtime"
++	"structs"
+ 	"syscall"
+ 	"unsafe"
+ )
+@@ -376,3 +378,176 @@ func Linkat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, ne
+ 	}
+ 	return err
+ }
++
++// SymlinkatFlags configure Symlinkat.
++//
++// Symbolic links have two properties: They may be directory or file links,
++// and they may be absolute or relative.
++//
++// The Windows API defines flags describing these properties
++// (SYMBOLIC_LINK_FLAG_DIRECTORY and SYMLINK_FLAG_RELATIVE),
++// but the flags are passed to different system calls and
++// do not have distinct values, so we define our own enumeration
++// that permits expressing both.
++type SymlinkatFlags uint
++
++const (
++	SYMLINKAT_DIRECTORY = SymlinkatFlags(1 << iota)
++	SYMLINKAT_RELATIVE
++)
++
++func Symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags SymlinkatFlags) error {
++	// Temporarily acquire symlink-creating privileges if possible.
++	// This is the behavior of CreateSymbolicLinkW.
++	//
++	// (When passed the SYMBOLIC_LINK_FLAG_ALLOW_UNPRIVILEGED_CREATE flag,
++	// CreateSymbolicLinkW ignores errors in acquiring privileges, as we do here.)
++	return withPrivilege("SeCreateSymbolicLinkPrivilege", func() error {
++		return symlinkat(oldname, newdirfd, newname, flags)
++	})
++}
++
++func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags SymlinkatFlags) error {
++	oldnameu16, err := syscall.UTF16FromString(oldname)
++	if err != nil {
++		return err
++	}
++	oldnameu16 = oldnameu16[:len(oldnameu16)-1] // trim off terminal NUL
++
++	var options uint32
++	if flags&SYMLINKAT_DIRECTORY != 0 {
++		options |= FILE_DIRECTORY_FILE
++	} else {
++		options |= FILE_NON_DIRECTORY_FILE
++	}
++
++	objAttrs := &OBJECT_ATTRIBUTES{}
++	if err := objAttrs.init(newdirfd, newname); err != nil {
++		return err
++	}
++	var h syscall.Handle
++	err = NtCreateFile(
++		&h,
++		SYNCHRONIZE|FILE_WRITE_ATTRIBUTES|DELETE,
++		objAttrs,
++		&IO_STATUS_BLOCK{},
++		nil,
++		syscall.FILE_ATTRIBUTE_NORMAL,
++		0,
++		FILE_CREATE,
++		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT|options,
++		0,
++		0,
++	)
++	if err != nil {
++		return ntCreateFileError(err, 0)
++	}
++	defer syscall.CloseHandle(h)
++
++	// https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_reparse_data_buffer
++	type reparseDataBufferT struct {
++		_ structs.HostLayout
++
++		ReparseTag        uint32
++		ReparseDataLength uint16
++		Reserved          uint16
++
++		SubstituteNameOffset uint16
++		SubstituteNameLength uint16
++		PrintNameOffset      uint16
++		PrintNameLength      uint16
++		Flags                uint32
++	}
++
++	const (
++		headerSize = uint16(unsafe.Offsetof(reparseDataBufferT{}.SubstituteNameOffset))
++		bufferSize = uint16(unsafe.Sizeof(reparseDataBufferT{}))
++	)
++
++	// Data buffer containing a SymbolicLinkReparseBuffer followed by the link target.
++	rdbbuf := make([]byte, bufferSize+uint16(2*len(oldnameu16)))
++
++	rdb := (*reparseDataBufferT)(unsafe.Pointer(&rdbbuf[0]))
++	rdb.ReparseTag = syscall.IO_REPARSE_TAG_SYMLINK
++	rdb.ReparseDataLength = uint16(len(rdbbuf)) - uint16(headerSize)
++	rdb.SubstituteNameOffset = 0
++	rdb.SubstituteNameLength = uint16(2 * len(oldnameu16))
++	rdb.PrintNameOffset = 0
++	rdb.PrintNameLength = rdb.SubstituteNameLength
++	if flags&SYMLINKAT_RELATIVE != 0 {
++		rdb.Flags = SYMLINK_FLAG_RELATIVE
++	}
++
++	namebuf := rdbbuf[bufferSize:]
++	copy(namebuf, unsafe.String((*byte)(unsafe.Pointer(&oldnameu16[0])), 2*len(oldnameu16)))
++
++	err = syscall.DeviceIoControl(
++		h,
++		FSCTL_SET_REPARSE_POINT,
++		&rdbbuf[0],
++		uint32(len(rdbbuf)),
++		nil,
++		0,
++		nil,
++		nil)
++	if err != nil {
++		// Creating the symlink has failed, so try to remove the file.
++		const FileDispositionInformation = 13
++		NtSetInformationFile(
++			h,
++			&IO_STATUS_BLOCK{},
++			uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
++				DeleteFile: true,
++			})),
++			uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
++			FileDispositionInformation,
++		)
++		return err
++	}
++
++	return nil
++}
++
++// withPrivilege temporariliy acquires the named privilege and runs f.
++// If the privilege cannot be acquired it runs f anyway,
++// which should fail with an appropriate error.
++func withPrivilege(privilege string, f func() error) error {
++	runtime.LockOSThread()
++	defer runtime.UnlockOSThread()
++
++	err := ImpersonateSelf(SecurityImpersonation)
++	if err != nil {
++		return f()
++	}
++	defer RevertToSelf()
++
++	curThread, err := GetCurrentThread()
++	if err != nil {
++		return f()
++	}
++	var token syscall.Token
++	err = OpenThreadToken(curThread, syscall.TOKEN_QUERY|TOKEN_ADJUST_PRIVILEGES, false, &token)
++	if err != nil {
++		return f()
++	}
++	defer syscall.CloseHandle(syscall.Handle(token))
++
++	privStr, err := syscall.UTF16PtrFromString(privilege)
++	if err != nil {
++		return f()
++	}
++	var tokenPriv TOKEN_PRIVILEGES
++	err = LookupPrivilegeValue(nil, privStr, &tokenPriv.Privileges[0].Luid)
++	if err != nil {
++		return f()
++	}
++
++	tokenPriv.PrivilegeCount = 1
++	tokenPriv.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED
++	err = AdjustTokenPrivileges(token, false, &tokenPriv, 0, nil, nil)
++	if err != nil {
++		return f()
++	}
++
++	return f()
++}
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 3ab8226e44..c6c08d062a 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -923,43 +923,62 @@ func testHardLink(t *testing.T, root *Root) {
+ }
+ 
+ func TestSymlink(t *testing.T) {
++	testMaybeRooted(t, testSymlink)
++}
++func testSymlink(t *testing.T, root *Root) {
+ 	testenv.MustHaveSymlink(t)
+-	t.Chdir(t.TempDir())
++
++	var (
++		create   = Create
++		open     = Open
++		symlink  = Symlink
++		stat     = Stat
++		lstat    = Lstat
++		readlink = Readlink
++	)
++	if root != nil {
++		create = root.Create
++		open = root.Open
++		symlink = root.Symlink
++		stat = root.Stat
++		lstat = root.Lstat
++		readlink = root.Readlink
++	}
+ 
+ 	from, to := "symlinktestfrom", "symlinktestto"
+-	file, err := Create(to)
++	file, err := create(to)
+ 	if err != nil {
+ 		t.Fatalf("Create(%q) failed: %v", to, err)
+ 	}
+ 	if err = file.Close(); err != nil {
+ 		t.Errorf("Close(%q) failed: %v", to, err)
+ 	}
+-	err = Symlink(to, from)
++	err = symlink(to, from)
+ 	if err != nil {
+ 		t.Fatalf("Symlink(%q, %q) failed: %v", to, from, err)
+ 	}
+-	tostat, err := Lstat(to)
++	tostat, err := lstat(to)
+ 	if err != nil {
+ 		t.Fatalf("Lstat(%q) failed: %v", to, err)
+ 	}
+ 	if tostat.Mode()&ModeSymlink != 0 {
+ 		t.Fatalf("Lstat(%q).Mode()&ModeSymlink = %v, want 0", to, tostat.Mode()&ModeSymlink)
+ 	}
+-	fromstat, err := Stat(from)
++	fromstat, err := stat(from)
+ 	if err != nil {
+ 		t.Fatalf("Stat(%q) failed: %v", from, err)
+ 	}
+ 	if !SameFile(tostat, fromstat) {
+ 		t.Errorf("Symlink(%q, %q) did not create symlink", to, from)
+ 	}
+-	fromstat, err = Lstat(from)
++	fromstat, err = lstat(from)
+ 	if err != nil {
+ 		t.Fatalf("Lstat(%q) failed: %v", from, err)
+ 	}
+ 	if fromstat.Mode()&ModeSymlink == 0 {
+ 		t.Fatalf("Lstat(%q).Mode()&ModeSymlink = 0, want %v", from, ModeSymlink)
+ 	}
+-	fromstat, err = Stat(from)
++	fromstat, err = stat(from)
+ 	if err != nil {
+ 		t.Fatalf("Stat(%q) failed: %v", from, err)
+ 	}
+@@ -969,14 +988,14 @@ func TestSymlink(t *testing.T) {
+ 	if fromstat.Mode()&ModeSymlink != 0 {
+ 		t.Fatalf("Stat(%q).Mode()&ModeSymlink = %v, want 0", from, fromstat.Mode()&ModeSymlink)
+ 	}
+-	s, err := Readlink(from)
++	s, err := readlink(from)
+ 	if err != nil {
+ 		t.Fatalf("Readlink(%q) failed: %v", from, err)
+ 	}
+ 	if s != to {
+ 		t.Fatalf("Readlink(%q) = %q, want %q", from, s, to)
+ 	}
+-	file, err = Open(from)
++	file, err = open(from)
+ 	if err != nil {
+ 		t.Fatalf("Open(%q) failed: %v", from, err)
+ 	}
+diff --git a/src/os/root.go b/src/os/root.go
+index 8c82f94866..49d09fe97b 100644
+--- a/src/os/root.go
++++ b/src/os/root.go
+@@ -218,6 +218,18 @@ func (r *Root) Link(oldname, newname string) error {
+ 	return rootLink(r, oldname, newname)
+ }
+ 
++// Symlink creates newname as a symbolic link to oldname.
++// See [Symlink] for more details.
++//
++// Symlink does not validate oldname,
++// which may reference a location outside the root.
++//
++// On Windows, a directory link is created if oldname references
++// a directory within the root. Otherwise a file link is created.
++func (r *Root) Symlink(oldname, newname string) error {
++	return rootSymlink(r, oldname, newname)
++}
++
+ func (r *Root) logOpen(name string) {
+ 	if log := testlog.Logger(); log != nil {
+ 		// This won't be right if r's name has changed since it was opened,
+diff --git a/src/os/root_noopenat.go b/src/os/root_noopenat.go
+index d53d02394d..47d6ebfa82 100644
+--- a/src/os/root_noopenat.go
++++ b/src/os/root_noopenat.go
+@@ -198,3 +198,14 @@ func rootLink(r *Root, oldname, newname string) error {
+ 	}
+ 	return nil
+ }
++
++func rootSymlink(r *Root, oldname, newname string) error {
++	if err := checkPathEscapesLstat(r, newname); err != nil {
++		return &PathError{Op: "symlinkat", Path: newname, Err: err}
++	}
++	err := Symlink(oldname, joinPath(r.root.name, newname))
++	if err != nil {
++		return &LinkError{"symlinkat", oldname, newname, underlyingError(err)}
++	}
++	return nil
++}
+diff --git a/src/os/root_test.go b/src/os/root_test.go
+index 7b8eae03a1..bf1b755ad1 100644
+--- a/src/os/root_test.go
++++ b/src/os/root_test.go
+@@ -858,6 +858,29 @@ func testRootMoveTo(t *testing.T, rename bool) {
+ 	}
+ }
+ 
++func TestRootSymlink(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++	for _, test := range rootTestCases {
++		test.run(t, func(t *testing.T, target string, root *os.Root) {
++			wantError := test.wantError
++			if test.ltarget != "" {
++				// We can't create a symlink over an existing symlink.
++				wantError = true
++			}
++
++			const wantTarget = "linktarget"
++			err := root.Symlink(wantTarget, test.open)
++			if errEndsTest(t, err, wantError, "root.Symlink(%q)", test.open) {
++				return
++			}
++			got, err := os.Readlink(target)
++			if err != nil || got != wantTarget {
++				t.Fatalf("ReadLink(%q) = %q, %v; want %q, nil", target, got, err, wantTarget)
++			}
++		})
++	}
++}
++
+ // A rootConsistencyTest is a test case comparing os.Root behavior with
+ // the corresponding non-Root function.
+ //
+@@ -1364,6 +1387,25 @@ func testRootConsistencyMove(t *testing.T, rename bool) {
+ 	}
+ }
+ 
++func TestRootConsistencySymlink(t *testing.T) {
++	testenv.MustHaveSymlink(t)
++	for _, test := range rootConsistencyTestCases {
++		test.run(t, func(t *testing.T, path string, r *os.Root) (string, error) {
++			const target = "linktarget"
++			var err error
++			var got string
++			if r == nil {
++				err = os.Symlink(target, path)
++				got, _ = os.Readlink(target)
++			} else {
++				err = r.Symlink(target, path)
++				got, _ = r.Readlink(target)
++			}
++			return got, err
++		})
++	}
++}
++
+ func TestRootRenameAfterOpen(t *testing.T) {
+ 	switch runtime.GOOS {
+ 	case "windows":
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index f2a88f546a..ed7a406cc7 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -132,6 +132,16 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+ 	return fi, nil
+ }
+ 
++func rootSymlink(r *Root, oldname, newname string) error {
++	_, err := doInRoot(r, newname, func(parent sysfdType, name string) (struct{}, error) {
++		return struct{}{}, symlinkat(oldname, parent, name)
++	})
++	if err != nil {
++		return &LinkError{"symlinkat", oldname, newname, err}
++	}
++	return nil
++}
++
+ // On systems which use fchmodat, fchownat, etc., we have a race condition:
+ // When "name" is a symlink, Root.Chmod("name") should act on the target of that link.
+ // However, fchmodat doesn't allow us to chmod a file only if it is not a symlink;
+@@ -217,6 +227,10 @@ func linkat(oldfd int, oldname string, newfd int, newname string) error {
+ 	return unix.Linkat(oldfd, oldname, newfd, newname, 0)
+ }
+ 
++func symlinkat(oldname string, newfd int, newname string) error {
++	return unix.Symlinkat(oldname, newfd, newname)
++}
++
+ // checkSymlink resolves the symlink name in parent,
+ // and returns errSymlink with the link contents.
+ //
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index 0c37acb089..eb82715046 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -233,6 +233,52 @@ func rootStat(r *Root, name string, lstat bool) (FileInfo, error) {
+ 	return fi, nil
+ }
+ 
++func rootSymlink(r *Root, oldname, newname string) error {
++	if oldname == "" {
++		return syscall.EINVAL
++	}
++
++	// CreateSymbolicLinkW converts volume-relative paths into absolute ones.
++	// Do the same.
++	if filepathlite.VolumeNameLen(oldname) > 0 && !filepathlite.IsAbs(oldname) {
++		p, err := syscall.FullPath(oldname)
++		if err == nil {
++			oldname = p
++		}
++	}
++
++	// If oldname can be resolved to a directory in the root, create a directory link.
++	// Otherwise, create a file link.
++	var flags windows.SymlinkatFlags
++	if filepathlite.VolumeNameLen(oldname) == 0 && !IsPathSeparator(oldname[0]) {
++		// oldname is a path relative to the directory containing newname.
++		// Prepend newname's directory to it to make a path relative to the root.
++		// For example, if oldname=old and newname=a\new, destPath=a\old.
++		destPath := oldname
++		if dir := dirname(newname); dir != "." {
++			destPath = dir + `\` + oldname
++		}
++		fi, err := r.Stat(destPath)
++		if err == nil && fi.IsDir() {
++			flags |= windows.SYMLINKAT_DIRECTORY
++		}
++	}
++
++	// Empirically, CreateSymbolicLinkW appears to set the relative flag iff
++	// the target does not contain a volume name.
++	if filepathlite.VolumeNameLen(oldname) == 0 {
++		flags |= windows.SYMLINKAT_RELATIVE
++	}
++
++	_, err := doInRoot(r, newname, func(parent sysfdType, name string) (struct{}, error) {
++		return struct{}{}, windows.Symlinkat(oldname, parent, name, flags)
++	})
++	if err != nil {
++		return &LinkError{"symlinkat", oldname, newname, err}
++	}
++	return nil
++}
++
+ func chmodat(parent syscall.Handle, name string, mode FileMode) error {
+ 	// Currently, on Windows os.Chmod("symlink") will act on "symlink",
+ 	// not on any file it points to.
+diff --git a/src/os/root_windows_test.go b/src/os/root_windows_test.go
+index 62e2097123..8ae6f0c9d3 100644
+--- a/src/os/root_windows_test.go
++++ b/src/os/root_windows_test.go
+@@ -8,9 +8,13 @@ package os_test
+ 
+ import (
+ 	"errors"
++	"fmt"
++	"internal/syscall/windows"
+ 	"os"
+ 	"path/filepath"
++	"syscall"
+ 	"testing"
++	"unsafe"
+ )
+ 
+ // Verify that Root.Open rejects Windows reserved names.
+@@ -51,3 +55,176 @@ func TestRootWindowsCaseInsensitivity(t *testing.T) {
+ 		t.Fatalf("os.Stat(file) after deletion: %v, want ErrNotFound", err)
+ 	}
+ }
++
++// TestRootSymlinkRelativity tests that symlinks created using Root.Symlink have the
++// same SYMLINK_FLAG_RELATIVE value as ones creates using os.Symlink.
++func TestRootSymlinkRelativity(t *testing.T) {
++	dir := t.TempDir()
++	root, err := os.OpenRoot(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer root.Close()
++
++	for i, test := range []struct {
++		name   string
++		target string
++	}{{
++		name:   "relative",
++		target: `foo`,
++	}, {
++		name:   "absolute",
++		target: `C:\foo`,
++	}, {
++		name:   "current working directory-relative",
++		target: `C:foo`,
++	}, {
++		name:   "root-relative",
++		target: `\foo`,
++	}, {
++		name:   "question prefix",
++		target: `\\?\foo`,
++	}, {
++		name:   "relative with dot dot",
++		target: `a\..\b`, // could be cleaned (but isn't)
++	}} {
++		t.Run(test.name, func(t *testing.T) {
++			name := fmt.Sprintf("symlink_%v", i)
++			if err := os.Symlink(test.target, filepath.Join(dir, name)); err != nil {
++				t.Fatal(err)
++			}
++			if err := root.Symlink(test.target, name+"_at"); err != nil {
++				t.Fatal(err)
++			}
++
++			osRDB, err := readSymlinkReparseData(filepath.Join(dir, name))
++			if err != nil {
++				t.Fatal(err)
++			}
++			rootRDB, err := readSymlinkReparseData(filepath.Join(dir, name+"_at"))
++			if err != nil {
++				t.Fatal(err)
++			}
++			if osRDB.Flags != rootRDB.Flags {
++				t.Errorf("symlink target %q: Symlink flags = %x, Root.Symlink flags = %x", test.target, osRDB.Flags, rootRDB.Flags)
++			}
++
++			// Compare the link target.
++			// os.Symlink converts current working directory-relative links
++			// such as c:foo into absolute links.
++			osTarget, err := os.Readlink(filepath.Join(dir, name))
++			if err != nil {
++				t.Fatal(err)
++			}
++			rootTarget, err := os.Readlink(filepath.Join(dir, name+"_at"))
++			if err != nil {
++				t.Fatal(err)
++			}
++			if osTarget != rootTarget {
++				t.Errorf("symlink created with target %q: Symlink target = %q, Root.Symlink target = %q", test.target, osTarget, rootTarget)
++			}
++		})
++	}
++}
++
++func readSymlinkReparseData(name string) (*windows.SymbolicLinkReparseBuffer, error) {
++	nameu16, err := syscall.UTF16FromString(name)
++	if err != nil {
++		return nil, err
++	}
++	h, err := syscall.CreateFile(&nameu16[0], syscall.GENERIC_READ, 0, nil, syscall.OPEN_EXISTING,
++		syscall.FILE_FLAG_OPEN_REPARSE_POINT|syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
++	if err != nil {
++		return nil, err
++	}
++	defer syscall.CloseHandle(h)
++
++	var rdbbuf [syscall.MAXIMUM_REPARSE_DATA_BUFFER_SIZE]byte
++	var bytesReturned uint32
++	err = syscall.DeviceIoControl(h, syscall.FSCTL_GET_REPARSE_POINT, nil, 0, &rdbbuf[0], uint32(len(rdbbuf)), &bytesReturned, nil)
++	if err != nil {
++		return nil, err
++	}
++
++	rdb := (*windows.REPARSE_DATA_BUFFER)(unsafe.Pointer(&rdbbuf[0]))
++	if rdb.ReparseTag != syscall.IO_REPARSE_TAG_SYMLINK {
++		return nil, fmt.Errorf("%q: not a symlink", name)
++	}
++
++	bufoff := unsafe.Offsetof(rdb.DUMMYUNIONNAME)
++	symlinkBuf := (*windows.SymbolicLinkReparseBuffer)(unsafe.Pointer(&rdbbuf[bufoff]))
++
++	return symlinkBuf, nil
++}
++
++// TestRootSymlinkToDirectory tests that Root.Symlink creates directory links
++// when the target is a directory contained within the root.
++func TestRootSymlinkToDirectory(t *testing.T) {
++	dir := t.TempDir()
++	root, err := os.OpenRoot(dir)
++	if err != nil {
++		t.Fatal(err)
++	}
++	defer root.Close()
++
++	if err := os.Mkdir(filepath.Join(dir, "dir"), 0777); err != nil {
++		t.Fatal(err)
++	}
++	if err := os.WriteFile(filepath.Join(dir, "file"), nil, 0666); err != nil {
++		t.Fatal(err)
++	}
++
++	dir2 := t.TempDir()
++
++	for i, test := range []struct {
++		name    string
++		target  string
++		wantDir bool
++	}{{
++		name:    "directory outside root",
++		target:  dir2,
++		wantDir: false,
++	}, {
++		name:    "directory inside root",
++		target:  "dir",
++		wantDir: true,
++	}, {
++		name:    "file inside root",
++		target:  "file",
++		wantDir: false,
++	}, {
++		name:    "nonexistent inside root",
++		target:  "nonexistent",
++		wantDir: false,
++	}} {
++		t.Run(test.name, func(t *testing.T) {
++			name := fmt.Sprintf("symlink_%v", i)
++			if err := root.Symlink(test.target, name); err != nil {
++				t.Fatal(err)
++			}
++
++			// Lstat strips the directory mode bit from reparse points,
++			// so we need to use GetFileInformationByHandle directly to
++			// determine if this is a directory link.
++			nameu16, err := syscall.UTF16PtrFromString(filepath.Join(dir, name))
++			if err != nil {
++				t.Fatal(err)
++			}
++			h, err := syscall.CreateFile(nameu16, 0, 0, nil, syscall.OPEN_EXISTING,
++				syscall.FILE_FLAG_OPEN_REPARSE_POINT|syscall.FILE_FLAG_BACKUP_SEMANTICS, 0)
++			if err != nil {
++				t.Fatal(err)
++			}
++			defer syscall.CloseHandle(h)
++			var fi syscall.ByHandleFileInformation
++			if err := syscall.GetFileInformationByHandle(h, &fi); err != nil {
++				t.Fatal(err)
++			}
++			gotDir := fi.FileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0
++
++			if got, want := gotDir, test.wantDir; got != want {
++				t.Errorf("link target %q: isDir = %v, want %v", test.target, got, want)
++			}
++		})
++	}
++}

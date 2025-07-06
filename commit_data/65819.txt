@@ -1,0 +1,220 @@
+commit 090748d6c7973e9bb8f5efe069135c8ea0f0d89c
+Author: Austin Clements <austin@google.com>
+Date:   Thu Dec 12 15:43:37 2024 -0500
+
+    testing: improve B.Loop docs, use B.Loop in examples
+    
+    This updates the testing documentation to frame B.Loop as the
+    canonical way to write benchmarks. We retain documentation on b.N
+    benchmarks because people will definitely continue to see them (and
+    write them), but it's demoted to clearly second class.
+    
+    This also attempts to clarify and refine the B.Loop documentation
+    itself.
+    
+    Updates #61515
+    Fixes #70787
+    
+    Change-Id: If5123435bfe3a5883a753119ecdf7bbc41afd499
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/635895
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Caleb Spare <cespare@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Austin Clements <austin@google.com>
+---
+ src/testing/benchmark.go      | 54 +++++++++++++++++++++++++------------------
+ src/testing/benchmark_test.go |  4 ++--
+ src/testing/testing.go        | 46 ++++++++++++++++++++++++++++--------
+ 3 files changed, 71 insertions(+), 33 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index 78e1b2de6d..8b84444f38 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -78,7 +78,7 @@ type InternalBenchmark struct {
+ }
+ 
+ // B is a type passed to [Benchmark] functions to manage benchmark
+-// timing and to specify the number of iterations to run.
++// timing and control the number of iterations.
+ //
+ // A benchmark ends when its Benchmark function returns or calls any of the methods
+ // FailNow, Fatal, Fatalf, SkipNow, Skip, or Skipf. Those methods must be called
+@@ -133,8 +133,7 @@ func (b *B) StartTimer() {
+ }
+ 
+ // StopTimer stops timing a test. This can be used to pause the timer
+-// while performing complex initialization that you don't
+-// want to measure.
++// while performing steps that you don't want to measure.
+ func (b *B) StopTimer() {
+ 	if b.timerOn {
+ 		b.duration += highPrecisionTimeSince(b.start)
+@@ -387,7 +386,7 @@ func (b *B) loopSlowPath() bool {
+ 		b.ResetTimer()
+ 		return true
+ 	}
+-	// Handles fixed time case
++	// Handles fixed iterations case
+ 	if b.benchTime.n > 0 {
+ 		if b.N < b.benchTime.n {
+ 			b.N = b.benchTime.n
+@@ -396,31 +395,42 @@ func (b *B) loopSlowPath() bool {
+ 		}
+ 		return false
+ 	}
+-	// Handles fixed iteration count case
++	// Handles fixed time case
+ 	return b.stopOrScaleBLoop()
+ }
+ 
+-// Loop returns true until b.N calls has been made to it.
+-//
+-// A benchmark should either use Loop or contain an explicit loop from 0 to b.N, but not both.
+-// After the benchmark finishes, b.N will contain the total number of calls to op, so the benchmark
+-// may use b.N to compute other average metrics.
++// Loop returns true as long as the benchmark should continue running.
+ //
+-// The parameters and results of function calls inside the body of "for b.Loop() {...}" are guaranteed
+-// not to be optimized away.
+-// Also, the local loop scaling for b.Loop ensures the benchmark function containing the loop will only
+-// be executed once, i.e. for such construct:
++// A typical benchmark is structured like:
+ //
+-//	testing.Benchmark(func(b *testing.B) {
+-//			...(setup)
+-//			for b.Loop() {
+-//				...(benchmark logic)
+-//			}
+-//			...(clean-up)
++//	func Benchmark(b *testing.B) {
++//		... setup ...
++//		for b.Loop() {
++//			... code to measure ...
++//		}
++//		... cleanup ...
+ //	}
+ //
+-// The ...(setup) and ...(clean-up) logic will only be executed once.
+-// Also benchtime=Nx (N>1) will result in exactly N executions instead of N+1 for b.N style loops.
++// Loop resets the benchmark timer the first time it is called in a benchmark,
++// so any setup performed prior to starting the benchmark loop does not count
++// toward the benchmark measurement.
++//
++// The compiler never optimizes away calls to functions within the body of a
++// "for b.Loop() { ... }" loop. This prevents surprises that can otherwise occur
++// if the compiler determines that the result of a benchmarked function is
++// unused. The loop must be written in exactly this form, and this only applies
++// to calls syntactically between the curly braces of the loop. Optimizations
++// are performed as usual in any functions called by the loop.
++//
++// After Loop returns false, b.N contains the total number of iterations that
++// ran, so the benchmark may use b.N to compute other average metrics.
++//
++// Prior to the introduction of Loop, benchmarks were expected to contain an
++// explicit loop from 0 to b.N. Benchmarks should either use Loop or contain a
++// loop to b.N, but not both. Loop offers more automatic management of the
++// benchmark timer, and runs each benchmark function only once per measurement,
++// whereas b.N-based benchmarks must run the benchmark function (and any
++// associated setup and cleanup) several times.
+ func (b *B) Loop() bool {
+ 	if b.loopN != 0 && b.loopN < b.N {
+ 		b.loopN++
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index 259b70ed4c..b3089b3119 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -155,7 +155,7 @@ func ExampleB_Loop() {
+ 	}
+ 	n := 0
+ 	testing.Benchmark(func(b *testing.B) {
+-		// Unlike "for i := range N {...}" style loops, this
++		// Unlike "for i := range b.N {...}" style loops, this
+ 		// setup logic will only be executed once, so simpleFunc
+ 		// will always get argument 1.
+ 		n++
+@@ -219,7 +219,7 @@ func ExampleB_ReportMetric() {
+ 	// specific algorithm (in this case, sorting).
+ 	testing.Benchmark(func(b *testing.B) {
+ 		var compares int64
+-		for i := 0; i < b.N; i++ {
++		for b.Loop() {
+ 			s := []int{5, 4, 3, 2, 1}
+ 			slices.SortFunc(s, func(a, b int) int {
+ 				compares++
+diff --git a/src/testing/testing.go b/src/testing/testing.go
+index e353ceb741..8b4bdfbc39 100644
+--- a/src/testing/testing.go
++++ b/src/testing/testing.go
+@@ -72,27 +72,24 @@
+ // A sample benchmark function looks like this:
+ //
+ //	func BenchmarkRandInt(b *testing.B) {
+-//	    for range b.N {
++//	    for b.Loop() {
+ //	        rand.Int()
+ //	    }
+ //	}
+ //
+-// The benchmark function must run the target code b.N times.
+-// It is called multiple times with b.N adjusted until the
+-// benchmark function lasts long enough to be timed reliably.
+ // The output
+ //
+ //	BenchmarkRandInt-8   	68453040	        17.8 ns/op
+ //
+-// means that the loop ran 68453040 times at a speed of 17.8 ns per loop.
++// means that the body of the loop ran 68453040 times at a speed of 17.8 ns per loop.
+ //
+-// If a benchmark needs some expensive setup before running, the timer
+-// may be reset:
++// Only the body of the loop is timed, so benchmarks may do expensive
++// setup before calling b.Loop, which will not be counted toward the
++// benchmark measurement:
+ //
+ //	func BenchmarkBigLen(b *testing.B) {
+ //	    big := NewBig()
+-//	    b.ResetTimer()
+-//	    for range b.N {
++//	    for b.Loop() {
+ //	        big.Len()
+ //	    }
+ //	}
+@@ -120,6 +117,37 @@
+ // In particular, https://golang.org/x/perf/cmd/benchstat performs
+ // statistically robust A/B comparisons.
+ //
++// # b.N-style benchmarks
++//
++// Prior to the introduction of [B.Loop], benchmarks were written in a
++// different style using [B.N]. For example:
++//
++//	func BenchmarkRandInt(b *testing.B) {
++//	    for range b.N {
++//	        rand.Int()
++//	    }
++//	}
++//
++// In this style of benchmark, the benchmark function must run
++// the target code b.N times. The benchmark function is called
++// multiple times with b.N adjusted until the benchmark function
++// lasts long enough to be timed reliably. This also means any setup
++// done before the loop may be run several times.
++//
++// If a benchmark needs some expensive setup before running, the timer
++// should be explicitly reset:
++//
++//	func BenchmarkBigLen(b *testing.B) {
++//	    big := NewBig()
++//	    b.ResetTimer()
++//	    for range b.N {
++//	        big.Len()
++//	    }
++//	}
++//
++// New benchmarks should prefer using [B.Loop], which is more robust
++// and more efficient.
++//
+ // # Examples
+ //
+ // The package also runs and verifies example code. Example functions may

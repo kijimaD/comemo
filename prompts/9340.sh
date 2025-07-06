@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9340: 2e394c51d9453c2f94c19f444e2f056ba50a22af
+# Index 9340: 5da14d1697d16efea832ce5756e20c76ed160f0a
 
 echo "🚀 Generating explanation for commit 9340..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 9340..."
 
 ### メタデータ
 - **コミットインデックス**: 9340
-- **コミットハッシュ**: 2e394c51d9453c2f94c19f444e2f056ba50a22af
-- **GitHub URL**: https://github.com/golang/go/commit/2e394c51d9453c2f94c19f444e2f056ba50a22af
+- **コミットハッシュ**: 5da14d1697d16efea832ce5756e20c76ed160f0a
+- **GitHub URL**: https://github.com/golang/go/commit/5da14d1697d16efea832ce5756e20c76ed160f0a
 
 ### 章構成
 

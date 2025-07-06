@@ -1,0 +1,43 @@
+commit 64d82cd72c222caa93b2f71c5970a00ec4e7929a
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 20 18:31:42 2025 +0100
+
+    os: don't log the entire environment in tests
+    
+    TestEnvironConsistency logs the values of all the environment variables,
+    which can be quite large on some environments. This change limits the
+    output to just the variables that caused the test to fail.
+    
+    Change-Id: Ie796b57ac2cc845093c73298058b720df344fa28
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/650581
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/os/env_test.go | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/os/env_test.go b/src/os/env_test.go
+index e3de64196a..2515881db8 100644
+--- a/src/os/env_test.go
++++ b/src/os/env_test.go
+@@ -189,17 +189,13 @@ func TestEnvironConsistency(t *testing.T) {
+ 		k := kv[:i]
+ 		v := kv[i+1:]
+ 		v2, ok := LookupEnv(k)
+-		if ok && v == v2 {
+-			t.Logf("LookupEnv(%q) = %q, %t", k, v2, ok)
+-		} else {
++		if !ok || v != v2 {
+ 			t.Errorf("Environ contains %q, but LookupEnv(%q) = %q, %t", kv, k, v2, ok)
+ 		}
+ 
+ 		// Since k=v is already present in the environment,
+ 		// setting it should be a no-op.
+-		if err := Setenv(k, v); err == nil {
+-			t.Logf("Setenv(%q, %q)", k, v)
+-		} else {
++		if err := Setenv(k, v); err != nil {
+ 			t.Errorf("Environ contains %q, but SetEnv(%q, %q) = %q", kv, k, v, err)
+ 		}
+ 	}

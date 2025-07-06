@@ -1,0 +1,236 @@
+commit 2a3e2e9b297955d811f62b1861906a831951ef0e
+Author: Austin Clements <austin@google.com>
+Date:   Mon Jun 24 12:19:00 2024 -0400
+
+    runtime: allow experimental trace batches to be reused
+    
+    Currently, we can only cache regular trace event buffers on each M. As
+    a result, calling unsafeTraceExpWriter will, in effect, always return
+    a new trace batch, with all of the overhead that entails.
+    
+    This extends that cache to support buffers for experimental trace
+    data. This way, unsafeTraceExpWriter can return a partially used
+    buffer, which the caller can continue to extend. This gives the caller
+    control over when these buffers get flushed and reuses all of the
+    existing trace buffering mechanism.
+    
+    This also has the consequence of simplifying the experimental batch
+    infrastructure a bit. Now, traceWriter needs to know the experiment ID
+    anyway, which means there's no need for a separate traceExpWriter
+    type.
+    
+    Change-Id: Idc2100176c5d02e0fbb229dc8aa4aea2b1cf5231
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594595
+    Auto-Submit: Austin Clements <austin@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/trace.go        |  9 +++++----
+ src/runtime/tracebuf.go     | 20 +++++++-------------
+ src/runtime/traceexp.go     | 33 +++++++++++++--------------------
+ src/runtime/traceruntime.go | 22 ++++++++++++----------
+ src/runtime/tracetype.go    |  2 +-
+ 5 files changed, 38 insertions(+), 48 deletions(-)
+
+diff --git a/src/runtime/trace.go b/src/runtime/trace.go
+index adf7b0951d..bc2978bb4b 100644
+--- a/src/runtime/trace.go
++++ b/src/runtime/trace.go
+@@ -524,10 +524,11 @@ func traceAdvance(stopTrace bool) {
+ 				// trace.lock needed for traceBufFlush, but also to synchronize
+ 				// with traceThreadDestroy, which flushes both buffers unconditionally.
+ 				lock(&trace.lock)
+-				bufp := &mp.trace.buf[gen%2]
+-				if *bufp != nil {
+-					traceBufFlush(*bufp, gen)
+-					*bufp = nil
++				for exp, buf := range mp.trace.buf[gen%2] {
++					if buf != nil {
++						traceBufFlush(buf, gen)
++						mp.trace.buf[gen%2][exp] = nil
++					}
+ 				}
+ 				unlock(&trace.lock)
+ 
+diff --git a/src/runtime/tracebuf.go b/src/runtime/tracebuf.go
+index be6e3e582b..0849a57809 100644
+--- a/src/runtime/tracebuf.go
++++ b/src/runtime/tracebuf.go
+@@ -24,6 +24,7 @@ const traceBytesPerNumber = 10
+ // we can change it if it's deemed too error-prone.
+ type traceWriter struct {
+ 	traceLocker
++	exp traceExperiment
+ 	*traceBuf
+ }
+ 
+@@ -47,7 +48,7 @@ func (tl traceLocker) writer() traceWriter {
+ 			gp.throwsplit = true
+ 		}
+ 	}
+-	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2]}
++	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2][traceNoExperiment]}
+ }
+ 
+ // unsafeTraceWriter produces a traceWriter that doesn't lock the trace.
+@@ -105,7 +106,7 @@ func (w traceWriter) end() {
+ 		// less error-prone.
+ 		return
+ 	}
+-	w.mp.trace.buf[w.gen%2] = w.traceBuf
++	w.mp.trace.buf[w.gen%2][w.exp] = w.traceBuf
+ 	if debugTraceReentrancy {
+ 		// The writer is no longer live, we can drop throwsplit (if it wasn't
+ 		// already set upon entry).
+@@ -127,7 +128,7 @@ func (w traceWriter) end() {
+ func (w traceWriter) ensure(maxSize int) (traceWriter, bool) {
+ 	refill := w.traceBuf == nil || !w.available(maxSize)
+ 	if refill {
+-		w = w.refill(traceNoExperiment)
++		w = w.refill()
+ 	}
+ 	return w, refill
+ }
+@@ -151,14 +152,7 @@ func (w traceWriter) flush() traceWriter {
+ }
+ 
+ // refill puts w.traceBuf on the queue of full buffers and refresh's w's buffer.
+-//
+-// exp indicates whether the refilled batch should be EvExperimentalBatch.
+-//
+-// nosplit because it's part of writing an event for an M, which must not
+-// have any stack growth.
+-//
+-//go:nosplit
+-func (w traceWriter) refill(exp traceExperiment) traceWriter {
++func (w traceWriter) refill() traceWriter {
+ 	systemstack(func() {
+ 		lock(&trace.lock)
+ 		if w.traceBuf != nil {
+@@ -192,11 +186,11 @@ func (w traceWriter) refill(exp traceExperiment) traceWriter {
+ 	}
+ 
+ 	// Write the buffer's header.
+-	if exp == traceNoExperiment {
++	if w.exp == traceNoExperiment {
+ 		w.byte(byte(traceEvEventBatch))
+ 	} else {
+ 		w.byte(byte(traceEvExperimentalBatch))
+-		w.byte(byte(exp))
++		w.byte(byte(w.exp))
+ 	}
+ 	w.varint(uint64(w.gen))
+ 	w.varint(uint64(mID))
+diff --git a/src/runtime/traceexp.go b/src/runtime/traceexp.go
+index 1438191a91..13eec0c0b6 100644
+--- a/src/runtime/traceexp.go
++++ b/src/runtime/traceexp.go
+@@ -4,15 +4,15 @@
+ 
+ package runtime
+ 
+-// traceExpWriter is a wrapper around trace writer that produces traceEvExperimentalBatch
+-// batches. This means that the data written to the writer need not conform to the standard
+-// trace format.
+-type traceExpWriter struct {
+-	traceWriter
+-	exp traceExperiment
++// expWriter returns a traceWriter that writes into the current M's stream for
++// the given experiment.
++func (tl traceLocker) expWriter(exp traceExperiment) traceWriter {
++	return traceWriter{traceLocker: tl, traceBuf: tl.mp.trace.buf[tl.gen%2][exp], exp: exp}
+ }
+ 
+-// unsafeTraceExpWriter produces a traceExpWriter that doesn't lock the trace.
++// unsafeTraceExpWriter produces a traceWriter for experimental trace batches
++// that doesn't lock the trace. Data written to experimental batches need not
++// conform to the standard trace format.
+ //
+ // It should only be used in contexts where either:
+ // - Another traceLocker is held.
+@@ -21,19 +21,8 @@ type traceExpWriter struct {
+ // This does not have the same stack growth restrictions as traceLocker.writer.
+ //
+ // buf may be nil.
+-func unsafeTraceExpWriter(gen uintptr, buf *traceBuf, exp traceExperiment) traceExpWriter {
+-	return traceExpWriter{traceWriter{traceLocker: traceLocker{gen: gen}, traceBuf: buf}, exp}
+-}
+-
+-// ensure makes sure that at least maxSize bytes are available to write.
+-//
+-// Returns whether the buffer was flushed.
+-func (w traceExpWriter) ensure(maxSize int) (traceExpWriter, bool) {
+-	refill := w.traceBuf == nil || !w.available(maxSize)
+-	if refill {
+-		w.traceWriter = w.traceWriter.refill(w.exp)
+-	}
+-	return w, refill
++func unsafeTraceExpWriter(gen uintptr, buf *traceBuf, exp traceExperiment) traceWriter {
++	return traceWriter{traceLocker: traceLocker{gen: gen}, traceBuf: buf, exp: exp}
+ }
+ 
+ // traceExperiment is an enumeration of the different kinds of experiments supported for tracing.
+@@ -45,6 +34,10 @@ const (
+ 
+ 	// traceExperimentAllocFree is an experiment to add alloc/free events to the trace.
+ 	traceExperimentAllocFree
++
++	// traceNumExperiments is the number of trace experiments (and 1 higher than
++	// the highest numbered experiment).
++	traceNumExperiments
+ )
+ 
+ // Experimental events.
+diff --git a/src/runtime/traceruntime.go b/src/runtime/traceruntime.go
+index 5808fb0050..dfbf183de5 100644
+--- a/src/runtime/traceruntime.go
++++ b/src/runtime/traceruntime.go
+@@ -24,11 +24,11 @@ func (s *gTraceState) reset() {
+ 
+ // mTraceState is per-M state for the tracer.
+ type mTraceState struct {
+-	seqlock       atomic.Uintptr // seqlock indicating that this M is writing to a trace buffer.
+-	buf           [2]*traceBuf   // Per-M traceBuf for writing. Indexed by trace.gen%2.
+-	link          *m             // Snapshot of alllink or freelink.
+-	reentered     uint32         // Whether we've reentered tracing from within tracing.
+-	oldthrowsplit bool           // gp.throwsplit upon calling traceLocker.writer. For debugging.
++	seqlock       atomic.Uintptr                    // seqlock indicating that this M is writing to a trace buffer.
++	buf           [2][traceNumExperiments]*traceBuf // Per-M traceBuf for writing. Indexed by trace.gen%2.
++	link          *m                                // Snapshot of alllink or freelink.
++	reentered     uint32                            // Whether we've reentered tracing from within tracing.
++	oldthrowsplit bool                              // gp.throwsplit upon calling traceLocker.writer. For debugging.
+ }
+ 
+ // pTraceState is per-P state for the tracer.
+@@ -691,11 +691,13 @@ func traceThreadDestroy(mp *m) {
+ 	systemstack(func() {
+ 		lock(&trace.lock)
+ 		for i := range mp.trace.buf {
+-			if mp.trace.buf[i] != nil {
+-				// N.B. traceBufFlush accepts a generation, but it
+-				// really just cares about gen%2.
+-				traceBufFlush(mp.trace.buf[i], uintptr(i))
+-				mp.trace.buf[i] = nil
++			for exp, buf := range mp.trace.buf[i] {
++				if buf != nil {
++					// N.B. traceBufFlush accepts a generation, but it
++					// really just cares about gen%2.
++					traceBufFlush(buf, uintptr(i))
++					mp.trace.buf[i][exp] = nil
++				}
+ 			}
+ 		}
+ 		unlock(&trace.lock)
+diff --git a/src/runtime/tracetype.go b/src/runtime/tracetype.go
+index b27a690916..d9e340f64a 100644
+--- a/src/runtime/tracetype.go
++++ b/src/runtime/tracetype.go
+@@ -43,7 +43,7 @@ func (t *traceTypeTable) dump(gen uintptr) {
+ 	t.tab.reset()
+ }
+ 
+-func dumpTypesRec(node *traceMapNode, w traceExpWriter) traceExpWriter {
++func dumpTypesRec(node *traceMapNode, w traceWriter) traceWriter {
+ 	typ := (*abi.Type)(*(*unsafe.Pointer)(unsafe.Pointer(&node.data[0])))
+ 	typName := toRType(typ).string()
+ 

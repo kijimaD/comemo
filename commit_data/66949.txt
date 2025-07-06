@@ -1,0 +1,136 @@
+commit 86101b083ad14bb0c6ca9c55d2869cba57760046
+Author: Damien Neil <dneil@google.com>
+Date:   Fri Feb 21 10:55:32 2025 -0800
+
+    runtime: print stack traces for bubbled goroutines on synctest deadlock
+    
+    When synctest.Run panics due to every goroutine in the bubble being
+    blocked, print a stack trace for every goroutine in the bubble.
+    
+    For #67434
+    
+    Change-Id: Ie751c2ee6fa136930b18f4bee0277ff30da46905
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/645719
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/runtime/panic.go     | 29 +++++++++++++++++++++++------
+ src/runtime/synctest.go  | 10 +++++++++-
+ src/runtime/traceback.go |  6 +++++-
+ 3 files changed, 37 insertions(+), 8 deletions(-)
+
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 281fe04bca..706f9879dc 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -1272,7 +1272,7 @@ func fatalthrow(t throwType) {
+ 
+ 		startpanic_m()
+ 
+-		if dopanic_m(gp, pc, sp) {
++		if dopanic_m(gp, pc, sp, nil) {
+ 			// crash uses a decent amount of nosplit stack and we're already
+ 			// low on stack in throw, so crash on the system stack (unlike
+ 			// fatalpanic).
+@@ -1310,7 +1310,14 @@ func fatalpanic(msgs *_panic) {
+ 			printpanics(msgs)
+ 		}
+ 
+-		docrash = dopanic_m(gp, pc, sp)
++		// If this panic is the result of a synctest bubble deadlock,
++		// print stacks for the goroutines in the bubble.
++		var sg *synctestGroup
++		if de, ok := msgs.arg.(synctestDeadlockError); ok {
++			sg = de.sg
++		}
++
++		docrash = dopanic_m(gp, pc, sp, sg)
+ 	})
+ 
+ 	if docrash {
+@@ -1392,7 +1399,8 @@ var deadlock mutex
+ 
+ // gp is the crashing g running on this M, but may be a user G, while getg() is
+ // always g0.
+-func dopanic_m(gp *g, pc, sp uintptr) bool {
++// If sg is non-nil, print the stacks for goroutines in this group as well.
++func dopanic_m(gp *g, pc, sp uintptr, sg *synctestGroup) bool {
+ 	if gp.sig != 0 {
+ 		signame := signame(gp.sig)
+ 		if signame != "" {
+@@ -1416,10 +1424,19 @@ func dopanic_m(gp *g, pc, sp uintptr) bool {
+ 			print("\nruntime stack:\n")
+ 			traceback(pc, sp, 0, gp)
+ 		}
+-		if !didothers && all {
+-			didothers = true
+-			tracebackothers(gp)
++		if !didothers {
++			if all {
++				didothers = true
++				tracebackothers(gp)
++			} else if sg != nil {
++				// This panic is caused by a synctest bubble deadlock.
++				// Print stacks for goroutines in the deadlocked bubble.
++				tracebacksomeothers(gp, func(other *g) bool {
++					return sg == other.syncGroup
++				})
++			}
+ 		}
++
+ 	}
+ 	unlock(&paniclk)
+ 
+diff --git a/src/runtime/synctest.go b/src/runtime/synctest.go
+index f2ac6ab5c7..b197758ad9 100644
+--- a/src/runtime/synctest.go
++++ b/src/runtime/synctest.go
+@@ -220,7 +220,7 @@ func synctestRun(f func()) {
+ 		raceacquireg(gp, gp.syncGroup.raceaddr())
+ 	}
+ 	if total != 1 {
+-		panic("deadlock: all goroutines in bubble are blocked")
++		panic(synctestDeadlockError{sg})
+ 	}
+ 	if gp.timer != nil && gp.timer.isFake {
+ 		// Verify that we haven't marked this goroutine's sleep timer as fake.
+@@ -229,6 +229,14 @@ func synctestRun(f func()) {
+ 	}
+ }
+ 
++type synctestDeadlockError struct {
++	sg *synctestGroup
++}
++
++func (synctestDeadlockError) Error() string {
++	return "deadlock: all goroutines in bubble are blocked"
++}
++
+ func synctestidle_c(gp *g, _ unsafe.Pointer) bool {
+ 	lock(&gp.syncGroup.mu)
+ 	canIdle := true
+diff --git a/src/runtime/traceback.go b/src/runtime/traceback.go
+index 2ba05395d2..1390e8b1bd 100644
+--- a/src/runtime/traceback.go
++++ b/src/runtime/traceback.go
+@@ -1261,6 +1261,10 @@ func goroutineheader(gp *g) {
+ }
+ 
+ func tracebackothers(me *g) {
++	tracebacksomeothers(me, func(*g) bool { return true })
++}
++
++func tracebacksomeothers(me *g, showf func(*g) bool) {
+ 	level, _, _ := gotraceback()
+ 
+ 	// Show the current goroutine first, if we haven't already.
+@@ -1279,7 +1283,7 @@ func tracebackothers(me *g) {
+ 	// against concurrent creation of new Gs, but even with allglock we may
+ 	// miss Gs created after this loop.
+ 	forEachGRace(func(gp *g) {
+-		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || isSystemGoroutine(gp, false) && level < 2 {
++		if gp == me || gp == curgp || readgstatus(gp) == _Gdead || !showf(gp) || (isSystemGoroutine(gp, false) && level < 2) {
+ 			return
+ 		}
+ 		print("\n")

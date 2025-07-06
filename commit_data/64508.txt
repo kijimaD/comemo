@@ -1,0 +1,73 @@
+commit 0a525a3ed0effd31749a0d56f9349cf533f90ce9
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Aug 8 13:11:14 2024 -0700
+
+    [release-branch.go1.22] os: fix Chtimes test flakes
+    
+    It appears that some builders (notably, linux-arm) have some additional
+    security software installed, which apparently reads the files created by
+    tests. As a result, test file atime is changed, making the test fail
+    like these:
+    
+    === RUN   TestChtimesOmit
+        ...
+        os_test.go:1475: atime mismatch, got: "2024-07-30 18:42:03.450932494 +0000 UTC", want: "2024-07-30 18:42:02.450932494 +0000 UTC"
+    
+    === RUN   TestChtimes
+        ...
+        os_test.go:1539: AccessTime didn't go backwards; was=2024-07-31 20:45:53.390326147 +0000 UTC, after=2024-07-31 20:45:53.394326118 +0000 UTC
+    
+    According to inode(7), atime is changed when more than 0 bytes are read
+    from the file. So, one possible solution to these flakes is to make the
+    test files empty, so no one can read more than 0 bytes from them.
+    
+    For #68687
+    For #68663
+    Fixes #68811
+    
+    Change-Id: Ib9234567883ef7b16ff8811e3360cd26c2d6bdab
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/604315
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    (cherry picked from commit 84266e1469cfa6fa8e1b41518528a96950db7562)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605375
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/os/os_test.go | 10 +++-------
+ 1 file changed, 3 insertions(+), 7 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 6adc3b5479..7dca66cc96 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -1382,9 +1382,8 @@ func TestChtimes(t *testing.T) {
+ 	t.Parallel()
+ 
+ 	f := newFile("TestChtimes", t)
++	// This should be an empty file (see #68687, #68663).
+ 	defer Remove(f.Name())
+-
+-	f.Write([]byte("hello, world\n"))
+ 	f.Close()
+ 
+ 	testChtimes(t, f.Name())
+@@ -1392,13 +1391,10 @@ func TestChtimes(t *testing.T) {
+ 
+ func TestChtimesWithZeroTimes(t *testing.T) {
+ 	file := newFile("chtimes-with-zero", t)
+-	_, err := file.Write([]byte("hello, world\n"))
+-	if err != nil {
+-		t.Fatalf("Write: %s", err)
+-	}
++	// This should be an empty file (see #68687, #68663).
+ 	fName := file.Name()
+ 	defer Remove(file.Name())
+-	err = file.Close()
++	err := file.Close()
+ 	if err != nil {
+ 		t.Errorf("%v", err)
+ 	}

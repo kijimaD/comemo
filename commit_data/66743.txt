@@ -1,0 +1,317 @@
+commit 6839e71d82e0f2c93e043820db6c0238a65ae0fa
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Apr 4 12:16:09 2025 +0200
+
+    internal/syscall/windows: use unsafe.Pointer instead of uintptr
+    
+    Some functions accept a uintptr when they should accept an
+    unsafe.Pointer, else the compiler won't know that the pointer should
+    be kept alive across the call, potentially causing undefined behavior.
+    
+    Fixes #73156 (potentially)
+    
+    Change-Id: I29c847eb8ffbb785fabf217e9f3718d10cfb5047
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/662855
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/internal/syscall/windows/at_windows.go        | 24 +++++++++++------------
+ src/internal/syscall/windows/exec_windows_test.go |  2 +-
+ src/internal/syscall/windows/security_windows.go  |  2 +-
+ src/internal/syscall/windows/syscall_windows.go   | 16 ++++++++++-----
+ src/internal/syscall/windows/zsyscall_windows.go  | 18 ++++++++---------
+ src/net/interface_windows.go                      |  2 +-
+ src/os/root_windows.go                            |  2 +-
+ src/runtime/runtime-seh_windows_test.go           |  8 ++++----
+ 8 files changed, 40 insertions(+), 34 deletions(-)
+
+diff --git a/src/internal/syscall/windows/at_windows.go b/src/internal/syscall/windows/at_windows.go
+index 919dda1f50..41ab5d7b52 100644
+--- a/src/internal/syscall/windows/at_windows.go
++++ b/src/internal/syscall/windows/at_windows.go
+@@ -116,7 +116,7 @@ func Openat(dirfd syscall.Handle, name string, flag uint64, perm uint32) (_ sysc
+ 		FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+ 		disposition,
+ 		FILE_SYNCHRONOUS_IO_NONALERT|FILE_OPEN_FOR_BACKUP_INTENT|options,
+-		0,
++		nil,
+ 		0,
+ 	)
+ 	if err != nil {
+@@ -178,7 +178,7 @@ func Mkdirat(dirfd syscall.Handle, name string, mode uint32) error {
+ 		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE,
+ 		FILE_CREATE,
+ 		FILE_DIRECTORY_FILE,
+-		0,
++		nil,
+ 		0,
+ 	)
+ 	if err != nil {
+@@ -218,7 +218,7 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
+ 	err = NtSetInformationFile(
+ 		h,
+ 		&IO_STATUS_BLOCK{},
+-		uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION_EX{
++		unsafe.Pointer(&FILE_DISPOSITION_INFORMATION_EX{
+ 			Flags: FILE_DISPOSITION_DELETE |
+ 				FILE_DISPOSITION_FORCE_IMAGE_SECTION_CHECK |
+ 				FILE_DISPOSITION_POSIX_SEMANTICS |
+@@ -226,7 +226,7 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
+ 				// behavior on Unix platforms of permitting deletion of
+ 				// read-only files.
+ 				FILE_DISPOSITION_IGNORE_READONLY_ATTRIBUTE,
+-		})),
++		}),
+ 		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION_EX{})),
+ 		FileDispositionInformationEx,
+ 	)
+@@ -245,9 +245,9 @@ func Deleteat(dirfd syscall.Handle, name string, options uint32) error {
+ 	err = NtSetInformationFile(
+ 		h,
+ 		&IO_STATUS_BLOCK{},
+-		uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
++		unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
+ 			DeleteFile: true,
+-		})),
++		}),
+ 		uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
+ 		FileDispositionInformation,
+ 	)
+@@ -298,7 +298,7 @@ func Renameat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle,
+ 	err = NtSetInformationFile(
+ 		h,
+ 		&IO_STATUS_BLOCK{},
+-		uintptr(unsafe.Pointer(&renameInfoEx)),
++		unsafe.Pointer(&renameInfoEx),
+ 		uint32(unsafe.Sizeof(FILE_RENAME_INFORMATION_EX{})),
+ 		FileRenameInformationEx,
+ 	)
+@@ -321,7 +321,7 @@ func Renameat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle,
+ 	err = NtSetInformationFile(
+ 		h,
+ 		&IO_STATUS_BLOCK{},
+-		uintptr(unsafe.Pointer(&renameInfo)),
++		unsafe.Pointer(&renameInfo),
+ 		uint32(unsafe.Sizeof(FILE_RENAME_INFORMATION{})),
+ 		FileRenameInformation,
+ 	)
+@@ -369,7 +369,7 @@ func Linkat(olddirfd syscall.Handle, oldpath string, newdirfd syscall.Handle, ne
+ 	err = NtSetInformationFile(
+ 		h,
+ 		&IO_STATUS_BLOCK{},
+-		uintptr(unsafe.Pointer(&linkInfo)),
++		unsafe.Pointer(&linkInfo),
+ 		uint32(unsafe.Sizeof(FILE_LINK_INFORMATION{})),
+ 		FileLinkInformation,
+ 	)
+@@ -436,7 +436,7 @@ func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags Sy
+ 		0,
+ 		FILE_CREATE,
+ 		FILE_OPEN_REPARSE_POINT|FILE_OPEN_FOR_BACKUP_INTENT|FILE_SYNCHRONOUS_IO_NONALERT|options,
+-		0,
++		nil,
+ 		0,
+ 	)
+ 	if err != nil {
+@@ -496,9 +496,9 @@ func symlinkat(oldname string, newdirfd syscall.Handle, newname string, flags Sy
+ 		NtSetInformationFile(
+ 			h,
+ 			&IO_STATUS_BLOCK{},
+-			uintptr(unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
++			unsafe.Pointer(&FILE_DISPOSITION_INFORMATION{
+ 				DeleteFile: true,
+-			})),
++			}),
+ 			uint32(unsafe.Sizeof(FILE_DISPOSITION_INFORMATION{})),
+ 			FileDispositionInformation,
+ 		)
+diff --git a/src/internal/syscall/windows/exec_windows_test.go b/src/internal/syscall/windows/exec_windows_test.go
+index fc694199f7..d10d8c269c 100644
+--- a/src/internal/syscall/windows/exec_windows_test.go
++++ b/src/internal/syscall/windows/exec_windows_test.go
+@@ -130,7 +130,7 @@ func getIntegrityLevelToken(wns string) (syscall.Token, error) {
+ 
+ 	err = windows.SetTokenInformation(token,
+ 		syscall.TokenIntegrityLevel,
+-		uintptr(unsafe.Pointer(tml)),
++		unsafe.Pointer(tml),
+ 		tml.Size())
+ 	if err != nil {
+ 		token.Close()
+diff --git a/src/internal/syscall/windows/security_windows.go b/src/internal/syscall/windows/security_windows.go
+index 017e25aaef..f0ab52ac81 100644
+--- a/src/internal/syscall/windows/security_windows.go
++++ b/src/internal/syscall/windows/security_windows.go
+@@ -61,7 +61,7 @@ func AdjustTokenPrivileges(token syscall.Token, disableAllPrivileges bool, newst
+ }
+ 
+ //sys DuplicateTokenEx(hExistingToken syscall.Token, dwDesiredAccess uint32, lpTokenAttributes *syscall.SecurityAttributes, impersonationLevel uint32, tokenType TokenType, phNewToken *syscall.Token) (err error) = advapi32.DuplicateTokenEx
+-//sys SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) = advapi32.SetTokenInformation
++//sys SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation unsafe.Pointer, tokenInformationLength uint32) (err error) = advapi32.SetTokenInformation
+ 
+ type SID_AND_ATTRIBUTES struct {
+ 	Sid        *syscall.SID
+diff --git a/src/internal/syscall/windows/syscall_windows.go b/src/internal/syscall/windows/syscall_windows.go
+index a34d85df0f..b6859a5432 100644
+--- a/src/internal/syscall/windows/syscall_windows.go
++++ b/src/internal/syscall/windows/syscall_windows.go
+@@ -186,7 +186,7 @@ const (
+ 	IfOperStatusLowerLayerDown = 7
+ )
+ 
+-//sys	GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
++//sys	GetAdaptersAddresses(family uint32, flags uint32, reserved unsafe.Pointer, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) = iphlpapi.GetAdaptersAddresses
+ //sys	GetComputerNameEx(nameformat uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
+ //sys	MoveFileEx(from *uint16, to *uint16, flags uint32) (err error) = MoveFileExW
+ //sys	GetModuleFileName(module syscall.Handle, fn *uint16, len uint32) (n uint32, err error) = kernel32.GetModuleFileNameW
+@@ -454,8 +454,14 @@ type FILE_FULL_DIR_INFO struct {
+ //sys	GetVolumeInformationByHandle(file syscall.Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
+ //sys	GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16, bufferlength uint32) (err error) = GetVolumeNameForVolumeMountPointW
+ 
+-//sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) = kernel32.RtlLookupFunctionEntry
+-//sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) = kernel32.RtlVirtualUnwind
++type RUNTIME_FUNCTION struct {
++	BeginAddress uint32
++	EndAddress   uint32
++	UnwindData   uint32
++}
++
++//sys	RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table unsafe.Pointer) (ret *RUNTIME_FUNCTION) = kernel32.RtlLookupFunctionEntry
++//sys	RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry *RUNTIME_FUNCTION, ctxt unsafe.Pointer, data unsafe.Pointer, frame *uintptr, ctxptrs unsafe.Pointer) (ret uintptr) = kernel32.RtlVirtualUnwind
+ 
+ type SERVICE_STATUS struct {
+ 	ServiceType             uint32
+@@ -556,9 +562,9 @@ type FILE_MODE_INFORMATION struct {
+ }
+ 
+ // NT Native APIs
+-//sys   NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer uintptr, ealength uint32) (ntstatus error) = ntdll.NtCreateFile
++//sys   NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer unsafe.Pointer, ealength uint32) (ntstatus error) = ntdll.NtCreateFile
+ //sys   NtOpenFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, share uint32, options uint32) (ntstatus error) = ntdll.NtOpenFile
+ //sys   rtlNtStatusToDosErrorNoTeb(ntstatus NTStatus) (ret syscall.Errno) = ntdll.RtlNtStatusToDosErrorNoTeb
+-//sys   NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtSetInformationFile
++//sys   NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtSetInformationFile
+ //sys	RtlIsDosDeviceName_U(name *uint16) (ret uint32) = ntdll.RtlIsDosDeviceName_U
+ //sys   NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) = ntdll.NtQueryInformationFile
+diff --git a/src/internal/syscall/windows/zsyscall_windows.go b/src/internal/syscall/windows/zsyscall_windows.go
+index b9de47927d..c53c517198 100644
+--- a/src/internal/syscall/windows/zsyscall_windows.go
++++ b/src/internal/syscall/windows/zsyscall_windows.go
+@@ -233,7 +233,7 @@ func RevertToSelf() (err error) {
+ 	return
+ }
+ 
+-func SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation uintptr, tokenInformationLength uint32) (err error) {
++func SetTokenInformation(tokenHandle syscall.Token, tokenInformationClass uint32, tokenInformation unsafe.Pointer, tokenInformationLength uint32) (err error) {
+ 	r1, _, e1 := syscall.Syscall6(procSetTokenInformation.Addr(), 4, uintptr(tokenHandle), uintptr(tokenInformationClass), uintptr(tokenInformation), uintptr(tokenInformationLength), 0, 0)
+ 	if r1 == 0 {
+ 		err = errnoErr(e1)
+@@ -253,7 +253,7 @@ func ProcessPrng(buf []byte) (err error) {
+ 	return
+ }
+ 
+-func GetAdaptersAddresses(family uint32, flags uint32, reserved uintptr, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
++func GetAdaptersAddresses(family uint32, flags uint32, reserved unsafe.Pointer, adapterAddresses *IpAdapterAddresses, sizePointer *uint32) (errcode error) {
+ 	r0, _, _ := syscall.Syscall6(procGetAdaptersAddresses.Addr(), 5, uintptr(family), uintptr(flags), uintptr(reserved), uintptr(unsafe.Pointer(adapterAddresses)), uintptr(unsafe.Pointer(sizePointer)), 0)
+ 	if r0 != 0 {
+ 		errcode = syscall.Errno(r0)
+@@ -430,14 +430,14 @@ func MultiByteToWideChar(codePage uint32, dwFlags uint32, str *byte, nstr int32,
+ 	return
+ }
+ 
+-func RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table *byte) (ret uintptr) {
+-	r0, _, _ := syscall.Syscall(procRtlLookupFunctionEntry.Addr(), 3, uintptr(pc), uintptr(unsafe.Pointer(baseAddress)), uintptr(unsafe.Pointer(table)))
+-	ret = uintptr(r0)
++func RtlLookupFunctionEntry(pc uintptr, baseAddress *uintptr, table unsafe.Pointer) (ret *RUNTIME_FUNCTION) {
++	r0, _, _ := syscall.Syscall(procRtlLookupFunctionEntry.Addr(), 3, uintptr(pc), uintptr(unsafe.Pointer(baseAddress)), uintptr(table))
++	ret = (*RUNTIME_FUNCTION)(unsafe.Pointer(r0))
+ 	return
+ }
+ 
+-func RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry uintptr, ctxt uintptr, data *uintptr, frame *uintptr, ctxptrs *byte) (ret uintptr) {
+-	r0, _, _ := syscall.Syscall9(procRtlVirtualUnwind.Addr(), 8, uintptr(handlerType), uintptr(baseAddress), uintptr(pc), uintptr(entry), uintptr(ctxt), uintptr(unsafe.Pointer(data)), uintptr(unsafe.Pointer(frame)), uintptr(unsafe.Pointer(ctxptrs)), 0)
++func RtlVirtualUnwind(handlerType uint32, baseAddress uintptr, pc uintptr, entry *RUNTIME_FUNCTION, ctxt unsafe.Pointer, data unsafe.Pointer, frame *uintptr, ctxptrs unsafe.Pointer) (ret uintptr) {
++	r0, _, _ := syscall.Syscall9(procRtlVirtualUnwind.Addr(), 8, uintptr(handlerType), uintptr(baseAddress), uintptr(pc), uintptr(unsafe.Pointer(entry)), uintptr(ctxt), uintptr(data), uintptr(unsafe.Pointer(frame)), uintptr(ctxptrs), 0)
+ 	ret = uintptr(r0)
+ 	return
+ }
+@@ -506,7 +506,7 @@ func NetUserGetLocalGroups(serverName *uint16, userName *uint16, level uint32, f
+ 	return
+ }
+ 
+-func NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer uintptr, ealength uint32) (ntstatus error) {
++func NtCreateFile(handle *syscall.Handle, access uint32, oa *OBJECT_ATTRIBUTES, iosb *IO_STATUS_BLOCK, allocationSize *int64, attributes uint32, share uint32, disposition uint32, options uint32, eabuffer unsafe.Pointer, ealength uint32) (ntstatus error) {
+ 	r0, _, _ := syscall.Syscall12(procNtCreateFile.Addr(), 11, uintptr(unsafe.Pointer(handle)), uintptr(access), uintptr(unsafe.Pointer(oa)), uintptr(unsafe.Pointer(iosb)), uintptr(unsafe.Pointer(allocationSize)), uintptr(attributes), uintptr(share), uintptr(disposition), uintptr(options), uintptr(eabuffer), uintptr(ealength), 0)
+ 	if r0 != 0 {
+ 		ntstatus = NTStatus(r0)
+@@ -530,7 +530,7 @@ func NtQueryInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuff
+ 	return
+ }
+ 
+-func NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer uintptr, inBufferLen uint32, class uint32) (ntstatus error) {
++func NtSetInformationFile(handle syscall.Handle, iosb *IO_STATUS_BLOCK, inBuffer unsafe.Pointer, inBufferLen uint32, class uint32) (ntstatus error) {
+ 	r0, _, _ := syscall.Syscall6(procNtSetInformationFile.Addr(), 5, uintptr(handle), uintptr(unsafe.Pointer(iosb)), uintptr(inBuffer), uintptr(inBufferLen), uintptr(class), 0)
+ 	if r0 != 0 {
+ 		ntstatus = NTStatus(r0)
+diff --git a/src/net/interface_windows.go b/src/net/interface_windows.go
+index 1b487dc474..7a5cb5723f 100644
+--- a/src/net/interface_windows.go
++++ b/src/net/interface_windows.go
+@@ -21,7 +21,7 @@ func adapterAddresses() ([]*windows.IpAdapterAddresses, error) {
+ 	for {
+ 		b = make([]byte, l)
+ 		const flags = windows.GAA_FLAG_INCLUDE_PREFIX | windows.GAA_FLAG_INCLUDE_GATEWAYS
+-		err := windows.GetAdaptersAddresses(syscall.AF_UNSPEC, flags, 0, (*windows.IpAdapterAddresses)(unsafe.Pointer(&b[0])), &l)
++		err := windows.GetAdaptersAddresses(syscall.AF_UNSPEC, flags, nil, (*windows.IpAdapterAddresses)(unsafe.Pointer(&b[0])), &l)
+ 		if err == nil {
+ 			if l == 0 {
+ 				return nil, nil
+diff --git a/src/os/root_windows.go b/src/os/root_windows.go
+index 2eeb53e362..0e573d91ab 100644
+--- a/src/os/root_windows.go
++++ b/src/os/root_windows.go
+@@ -167,7 +167,7 @@ func readReparseLinkAt(dirfd syscall.Handle, name string) (string, error) {
+ 		syscall.FILE_SHARE_READ|syscall.FILE_SHARE_WRITE|syscall.FILE_SHARE_DELETE,
+ 		windows.FILE_OPEN,
+ 		windows.FILE_SYNCHRONOUS_IO_NONALERT|windows.FILE_OPEN_REPARSE_POINT,
+-		0,
++		nil,
+ 		0,
+ 	)
+ 	if err != nil {
+diff --git a/src/runtime/runtime-seh_windows_test.go b/src/runtime/runtime-seh_windows_test.go
+index 42509532be..ca92d7f178 100644
+--- a/src/runtime/runtime-seh_windows_test.go
++++ b/src/runtime/runtime-seh_windows_test.go
+@@ -53,12 +53,12 @@ func TestSehLookupFunctionEntry(t *testing.T) {
+ 		var base uintptr
+ 		fn := windows.RtlLookupFunctionEntry(tt.pc, &base, nil)
+ 		if !tt.hasframe {
+-			if fn != 0 {
++			if fn != nil {
+ 				t.Errorf("%s: unexpected frame", tt.name)
+ 			}
+ 			continue
+ 		}
+-		if fn == 0 {
++		if fn == nil {
+ 			t.Errorf("%s: missing frame", tt.name)
+ 		}
+ 	}
+@@ -75,12 +75,12 @@ func sehCallers() []uintptr {
+ 	var n int
+ 	for i := 0; i < len(pcs); i++ {
+ 		fn := windows.RtlLookupFunctionEntry(ctx.GetPC(), &base, nil)
+-		if fn == 0 {
++		if fn == nil {
+ 			break
+ 		}
+ 		pcs[i] = ctx.GetPC()
+ 		n++
+-		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, uintptr(unsafe.Pointer(ctx)), nil, &frame, nil)
++		windows.RtlVirtualUnwind(0, base, ctx.GetPC(), fn, unsafe.Pointer(ctx), nil, &frame, nil)
+ 	}
+ 	return pcs[:n]
+ }

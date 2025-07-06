@@ -1,0 +1,172 @@
+commit 239666cd7343d46c40a5b929c8bec8b532dbe83f
+Author: Wei Fu <fuweid89@gmail.com>
+Date:   Thu Aug 22 16:22:53 2024 +0800
+
+    os: dup pidfd if caller sets PidFD manually
+    
+    Fixes #68984
+    Change-Id: I16d25777cb38a337cd4204a8147eaf866c3df9e1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/607695
+    Reviewed-by: Kirill Kolyshkin <kolyshkin@gmail.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+---
+ src/os/exec_posix.go       |  5 +++--
+ src/os/pidfd_linux.go      | 27 ++++++++++++++++++++-------
+ src/os/pidfd_linux_test.go | 32 ++++++++++++++++++++++++++++++++
+ src/os/pidfd_other.go      |  6 +++---
+ 4 files changed, 58 insertions(+), 12 deletions(-)
+
+diff --git a/src/os/exec_posix.go b/src/os/exec_posix.go
+index cba2e15167..ff51247d56 100644
+--- a/src/os/exec_posix.go
++++ b/src/os/exec_posix.go
+@@ -35,10 +35,11 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 		}
+ 	}
+ 
++	attrSys, shouldDupPidfd := ensurePidfd(attr.Sys)
+ 	sysattr := &syscall.ProcAttr{
+ 		Dir: attr.Dir,
+ 		Env: attr.Env,
+-		Sys: ensurePidfd(attr.Sys),
++		Sys: attrSys,
+ 	}
+ 	if sysattr.Env == nil {
+ 		sysattr.Env, err = execenv.Default(sysattr.Sys)
+@@ -63,7 +64,7 @@ func startProcess(name string, argv []string, attr *ProcAttr) (p *Process, err e
+ 	// For Windows, syscall.StartProcess above already returned a process handle.
+ 	if runtime.GOOS != "windows" {
+ 		var ok bool
+-		h, ok = getPidfd(sysattr.Sys)
++		h, ok = getPidfd(sysattr.Sys, shouldDupPidfd)
+ 		if !ok {
+ 			return newPIDProcess(pid), nil
+ 		}
+diff --git a/src/os/pidfd_linux.go b/src/os/pidfd_linux.go
+index 0404c4ff64..545cfe9613 100644
+--- a/src/os/pidfd_linux.go
++++ b/src/os/pidfd_linux.go
+@@ -19,9 +19,12 @@ import (
+ 	"unsafe"
+ )
+ 
+-func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
++// ensurePidfd initializes the PidFD field in sysAttr if it is not already set.
++// It returns the original or modified SysProcAttr struct and a flag indicating
++// whether the PidFD should be duplicated before using.
++func ensurePidfd(sysAttr *syscall.SysProcAttr) (*syscall.SysProcAttr, bool) {
+ 	if !pidfdWorks() {
+-		return sysAttr
++		return sysAttr, false
+ 	}
+ 
+ 	var pidfd int
+@@ -29,23 +32,33 @@ func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
+ 	if sysAttr == nil {
+ 		return &syscall.SysProcAttr{
+ 			PidFD: &pidfd,
+-		}
++		}, false
+ 	}
+ 	if sysAttr.PidFD == nil {
+ 		newSys := *sysAttr // copy
+ 		newSys.PidFD = &pidfd
+-		return &newSys
++		return &newSys, false
+ 	}
+ 
+-	return sysAttr
++	return sysAttr, true
+ }
+ 
+-func getPidfd(sysAttr *syscall.SysProcAttr) (uintptr, bool) {
++// getPidfd returns the value of sysAttr.PidFD (or its duplicate if needDup is
++// set) and a flag indicating whether the value can be used.
++func getPidfd(sysAttr *syscall.SysProcAttr, needDup bool) (uintptr, bool) {
+ 	if !pidfdWorks() {
+ 		return 0, false
+ 	}
+ 
+-	return uintptr(*sysAttr.PidFD), true
++	h := *sysAttr.PidFD
++	if needDup {
++		dupH, e := unix.Fcntl(h, syscall.F_DUPFD_CLOEXEC, 0)
++		if e != nil {
++			return 0, false
++		}
++		h = dupH
++	}
++	return uintptr(h), true
+ }
+ 
+ func pidfdFind(pid int) (uintptr, error) {
+diff --git a/src/os/pidfd_linux_test.go b/src/os/pidfd_linux_test.go
+index 837593706b..fa0877037b 100644
+--- a/src/os/pidfd_linux_test.go
++++ b/src/os/pidfd_linux_test.go
+@@ -6,6 +6,7 @@ package os_test
+ 
+ import (
+ 	"errors"
++	"internal/syscall/unix"
+ 	"internal/testenv"
+ 	"os"
+ 	"syscall"
+@@ -57,3 +58,34 @@ func TestFindProcessViaPidfd(t *testing.T) {
+ 		t.Fatalf("Release: got %v, want <nil>", err)
+ 	}
+ }
++
++func TestStartProcessWithPidfd(t *testing.T) {
++	testenv.MustHaveGoBuild(t)
++	t.Parallel()
++
++	if err := os.CheckPidfdOnce(); err != nil {
++		// Non-pidfd code paths tested in exec_unix_test.go.
++		t.Skipf("skipping: pidfd not available: %v", err)
++	}
++
++	var pidfd int
++	p, err := os.StartProcess(testenv.GoToolPath(t), []string{"go"}, &os.ProcAttr{
++		Sys: &syscall.SysProcAttr{
++			PidFD: &pidfd,
++		},
++	})
++	if err != nil {
++		t.Fatalf("starting test process: %v", err)
++	}
++	defer syscall.Close(pidfd)
++
++	if _, err := p.Wait(); err != nil {
++		t.Fatalf("Wait: got %v, want <nil>", err)
++	}
++
++	// Check the pidfd is still valid
++	err = unix.PidFDSendSignal(uintptr(pidfd), syscall.Signal(0))
++	if !errors.Is(err, syscall.ESRCH) {
++		t.Errorf("SendSignal: got %v, want %v", err, syscall.ESRCH)
++	}
++}
+diff --git a/src/os/pidfd_other.go b/src/os/pidfd_other.go
+index 5780432779..7a282307db 100644
+--- a/src/os/pidfd_other.go
++++ b/src/os/pidfd_other.go
+@@ -8,11 +8,11 @@ package os
+ 
+ import "syscall"
+ 
+-func ensurePidfd(sysAttr *syscall.SysProcAttr) *syscall.SysProcAttr {
+-	return sysAttr
++func ensurePidfd(sysAttr *syscall.SysProcAttr) (*syscall.SysProcAttr, bool) {
++	return sysAttr, false
+ }
+ 
+-func getPidfd(_ *syscall.SysProcAttr) (uintptr, bool) {
++func getPidfd(_ *syscall.SysProcAttr, _ bool) (uintptr, bool) {
+ 	return 0, false
+ }
+ 

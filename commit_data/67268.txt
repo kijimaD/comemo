@@ -1,0 +1,50 @@
+commit 1161228bf189713e8cb40911bf790d6a972a704b
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Wed May 28 17:51:44 2025 +0000
+
+    [dev.simd] cmd/compile: add a fp1m1fp1 register shape to amd64
+    
+    Change-Id: I9dd00cc8bef4712eff16968e4962d850859fc3f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/676997
+    Commit-Queue: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/AMD64Ops.go     | 3 ++-
+ src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go | 2 +-
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+index aafe4d179b..c773afa9d3 100644
+--- a/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/AMD64Ops.go
+@@ -185,6 +185,7 @@ func init() {
+ 		fp1m1    = regInfo{inputs: fponly, outputs: maskonly}
+ 		m1fp1    = regInfo{inputs: maskonly, outputs: fponly}
+ 		fp2m1    = regInfo{inputs: []regMask{fp, fp}, outputs: maskonly}
++		fp1m1fp1 = regInfo{inputs: []regMask{fp, mask}, outputs: fponly}
+ 		fp2m1fp1 = regInfo{inputs: []regMask{fp, fp, mask}, outputs: fponly}
+ 		fp2m1m1  = regInfo{inputs: []regMask{fp, fp, mask}, outputs: maskonly}
+ 
+@@ -1297,7 +1298,7 @@ func init() {
+ 		pkg:                "cmd/internal/obj/x86",
+ 		genfile:            "../../amd64/ssa.go",
+ 		genSIMDfile:        "../../amd64/simdssa.go",
+-		ops:                append(AMD64ops, simdAMD64Ops(fp11, fp21, fp2m1, fp2m1fp1, fp2m1m1)...), // AMD64ops,
++		ops:                append(AMD64ops, simdAMD64Ops(fp11, fp21, fp2m1, fp1m1fp1, fp2m1fp1, fp2m1m1)...), // AMD64ops,
+ 		blocks:             AMD64blocks,
+ 		regnames:           regNamesAMD64,
+ 		ParamIntRegNames:   "AX BX CX DI SI R8 R9 R10 R11",
+diff --git a/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go b/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go
+index b0852dba3d..ff53e46e6c 100644
+--- a/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go
++++ b/src/cmd/compile/internal/ssa/_gen/simdAMD64ops.go
+@@ -2,7 +2,7 @@
+ 
+ package main
+ 
+-func simdAMD64Ops(fp11, fp21, fp2m1, fp2m1fp1, fp2m1m1 regInfo) []opData {
++func simdAMD64Ops(fp11, fp21, fp2m1, fp1m1fp1, fp2m1fp1, fp2m1m1 regInfo) []opData {
+ 	return []opData{
+ 		//		{name: "VPADDB", argLength: 2, reg: fp21, asm: "VPADDB", commutative: true},
+ 		//      etc, generated

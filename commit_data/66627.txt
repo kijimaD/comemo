@@ -1,0 +1,53 @@
+commit 93fe8c0415a10d26143a3ec1349937b2d94d0ebd
+Author: Julien Cretel <jub0bsinthecloud@gmail.com>
+Date:   Thu Mar 20 20:33:46 2025 +0000
+
+    strings: don't assert on Replace's allocs for ASAN
+    
+    CL 657935 caused failures on the ASAN builder.
+    
+    Under ASAN, do not assert on the number of allocations incurred by Replace.
+    
+    Fixes #72973
+    
+    Change-Id: I61536be6def6f2489d2a026c943c6e232865b723
+    GitHub-Last-Rev: 4aee3c2560c9a6fa6ba7c1950acc2172a7cfffe4
+    GitHub-Pull-Request: golang/go#72975
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/659696
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Jorropo <jorropo.pgm@gmail.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+---
+ src/strings/strings_test.go | 9 ++++++---
+ 1 file changed, 6 insertions(+), 3 deletions(-)
+
+diff --git a/src/strings/strings_test.go b/src/strings/strings_test.go
+index 3f228b703f..d058ba7358 100644
+--- a/src/strings/strings_test.go
++++ b/src/strings/strings_test.go
+@@ -7,6 +7,7 @@ package strings_test
+ import (
+ 	"bytes"
+ 	"fmt"
++	"internal/asan"
+ 	"io"
+ 	"iter"
+ 	"math"
+@@ -1473,9 +1474,11 @@ var ReplaceTests = []struct {
+ 
+ func TestReplace(t *testing.T) {
+ 	for _, tt := range ReplaceTests {
+-		allocs := testing.AllocsPerRun(10, func() { Replace(tt.in, tt.old, tt.new, tt.n) })
+-		if allocs > 1 {
+-			t.Errorf("Replace(%q, %q, %q, %d) allocates %.2f objects", tt.in, tt.old, tt.new, tt.n, allocs)
++		if !asan.Enabled { // See issue #72973.
++			allocs := testing.AllocsPerRun(10, func() { Replace(tt.in, tt.old, tt.new, tt.n) })
++			if allocs > 1 {
++				t.Errorf("Replace(%q, %q, %q, %d) allocates %.2f objects", tt.in, tt.old, tt.new, tt.n, allocs)
++			}
+ 		}
+ 		if s := Replace(tt.in, tt.old, tt.new, tt.n); s != tt.out {
+ 			t.Errorf("Replace(%q, %q, %q, %d) = %q, want %q", tt.in, tt.old, tt.new, tt.n, s, tt.out)

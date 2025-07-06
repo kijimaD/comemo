@@ -1,0 +1,329 @@
+commit 036e93ba7631bb12844f01078979e761144f227f
+Author: Michael Matloob <matloob@golang.org>
+Date:   Wed May 8 15:54:12 2024 -0400
+
+    cmd/go: add go telemetry command and GOTELEMETRY, GOTELEMETRYDIR
+    
+    Add the go telemetry command to support setting and viewing the
+    telemetry mode. Also add the non-settable GOTELEMETRY and GOTELEMETRYDIR
+    variables to go env, which contain the mode and telemetry dir.
+    
+    For #67111
+    
+    Change-Id: Id7e89cefe30acfe3d865fa467315fe7cda975de9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584535
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Sam Thanawalla <samthanawalla@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/alldocs.go                             | 33 ++++++++
+ src/cmd/go/internal/envcmd/env.go                 |  3 +
+ src/cmd/go/internal/telemetrycmd/telemetry.go     | 92 +++++++++++++++++++++++
+ src/cmd/go/main.go                                |  2 +
+ src/cmd/go/testdata/script/telemetry.txt          | 51 +++++++++++++
+ src/cmd/internal/telemetry/telemetry.go           | 35 +++++++++
+ src/cmd/internal/telemetry/telemetry_bootstrap.go |  3 +
+ 7 files changed, 219 insertions(+)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 9263be5a6b..52fb4c25a8 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -27,6 +27,7 @@
+ //	mod         module maintenance
+ //	work        workspace maintenance
+ //	run         compile and run Go program
++//	telemetry   manage telemetry data and settings
+ //	test        test packages
+ //	tool        run specified go tool
+ //	version     print Go version
+@@ -1754,6 +1755,38 @@
+ //
+ // See also: go build.
+ //
++// # Manage telemetry data and settings
++//
++// Usage:
++//
++//	go telemetry [off|local|on]
++//
++// Telemetry is used to manage Go telemetry data and settings.
++//
++// Telemetry can be in one of three modes: off, local, or on.
++//
++// When telemetry is in local mode, counter data is written to the local file
++// system, but will not be uploaded to remote servers.
++//
++// When telemetry is off, local counter data is neither collected nor uploaded.
++//
++// When telemetry is on, telemetry data is written to the local file system
++// and periodically sent to https://telemetry.go.dev/. Uploaded data is used to
++// help improve the Go toolchain and related tools, and it will be published as
++// part of a public dataset.
++//
++// For more details, see https://telemetry.go.dev/privacy.
++// This data is collected in accordance with the Google Privacy Policy
++// (https://policies.google.com/privacy).
++//
++// To view the current telemetry mode, run "go telemetry".
++// To disable telemetry uploading, but keep local data collection, run
++// "go telemetry local".
++// To enable both collection and uploading, run “go telemetry on”.
++// To disable both collection and uploading, run "go telemetry off".
++//
++// See https://go.dev/doc/telemetry for more information on telemetry.
++//
+ // # Test packages
+ //
+ // Usage:
+diff --git a/src/cmd/go/internal/envcmd/env.go b/src/cmd/go/internal/envcmd/env.go
+index c271353dc7..b25010a29a 100644
+--- a/src/cmd/go/internal/envcmd/env.go
++++ b/src/cmd/go/internal/envcmd/env.go
+@@ -29,6 +29,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/work"
+ 	"cmd/internal/quoted"
++	"cmd/internal/telemetry"
+ )
+ 
+ var CmdEnv = &base.Command{
+@@ -110,6 +111,8 @@ func MkEnv() []cfg.EnvVar {
+ 		{Name: "GOVCS", Value: cfg.GOVCS},
+ 		{Name: "GOVERSION", Value: runtime.Version()},
+ 		{Name: "GODEBUG", Value: os.Getenv("GODEBUG")},
++		{Name: "GOTELEMETRY", Value: telemetry.Mode()},
++		{Name: "GOTELEMETRYDIR", Value: telemetry.Dir()},
+ 	}
+ 
+ 	for i := range env {
+diff --git a/src/cmd/go/internal/telemetrycmd/telemetry.go b/src/cmd/go/internal/telemetrycmd/telemetry.go
+new file mode 100644
+index 0000000000..5542a02162
+--- /dev/null
++++ b/src/cmd/go/internal/telemetrycmd/telemetry.go
+@@ -0,0 +1,92 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package telemetrycmd implements the "go telemetry" command.
++package telemetrycmd
++
++import (
++	"context"
++	"fmt"
++	"os"
++
++	"cmd/go/internal/base"
++	"cmd/internal/telemetry"
++)
++
++var CmdTelemetry = &base.Command{
++	UsageLine: "go telemetry [off|local|on]",
++	Short:     "manage telemetry data and settings",
++	Long: `Telemetry is used to manage Go telemetry data and settings.
++
++Telemetry can be in one of three modes: off, local, or on.
++
++When telemetry is in local mode, counter data is written to the local file
++system, but will not be uploaded to remote servers.
++
++When telemetry is off, local counter data is neither collected nor uploaded.
++
++When telemetry is on, telemetry data is written to the local file system
++and periodically sent to https://telemetry.go.dev/. Uploaded data is used to
++help improve the Go toolchain and related tools, and it will be published as
++part of a public dataset.
++
++For more details, see https://telemetry.go.dev/privacy.
++This data is collected in accordance with the Google Privacy Policy
++(https://policies.google.com/privacy).
++
++To view the current telemetry mode, run "go telemetry".
++To disable telemetry uploading, but keep local data collection, run
++"go telemetry local".
++To enable both collection and uploading, run “go telemetry on”.
++To disable both collection and uploading, run "go telemetry off".
++
++See https://go.dev/doc/telemetry for more information on telemetry.
++`,
++	Run: runTelemetry,
++}
++
++func init() {
++	base.AddChdirFlag(&CmdTelemetry.Flag)
++}
++
++func runTelemetry(ctx context.Context, cmd *base.Command, args []string) {
++	if len(args) == 0 {
++		fmt.Println(telemetry.Mode())
++		return
++	}
++
++	if len(args) != 1 {
++		cmd.Usage()
++	}
++
++	mode := args[0]
++	if mode != "local" && mode != "off" && mode != "on" {
++		cmd.Usage()
++	}
++	if old := telemetry.Mode(); old == mode {
++		return
++	}
++
++	if err := telemetry.SetMode(mode); err != nil {
++		base.Fatalf("go: failed to set the telemetry mode to %s: %v", mode, err)
++	}
++	if mode == "on" {
++		fmt.Fprintln(os.Stderr, telemetryOnMessage())
++	}
++}
++
++func telemetryOnMessage() string {
++	return `Telemetry uploading is now enabled and data will be periodically sent to
++https://telemetry.go.dev/. Uploaded data is used to help improve the Go
++toolchain and related tools, and it will be published as part of a public
++dataset.
++
++For more details, see https://telemetry.go.dev/privacy.
++This data is collected in accordance with the Google Privacy Policy
++(https://policies.google.com/privacy).
++
++To disable telemetry uploading, but keep local data collection, run
++“go telemetry local”.
++To disable both collection and uploading, run “go telemetry off“.`
++}
+diff --git a/src/cmd/go/main.go b/src/cmd/go/main.go
+index 3fe5cd4ee1..03395b87f9 100644
+--- a/src/cmd/go/main.go
++++ b/src/cmd/go/main.go
+@@ -34,6 +34,7 @@ import (
+ 	"cmd/go/internal/modget"
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/run"
++	"cmd/go/internal/telemetrycmd"
+ 	"cmd/go/internal/test"
+ 	"cmd/go/internal/tool"
+ 	"cmd/go/internal/toolchain"
+@@ -61,6 +62,7 @@ func init() {
+ 		modcmd.CmdMod,
+ 		workcmd.CmdWork,
+ 		run.CmdRun,
++		telemetrycmd.CmdTelemetry,
+ 		test.CmdTest,
+ 		tool.CmdTool,
+ 		version.CmdVersion,
+diff --git a/src/cmd/go/testdata/script/telemetry.txt b/src/cmd/go/testdata/script/telemetry.txt
+new file mode 100644
+index 0000000000..e9aa0f1085
+--- /dev/null
++++ b/src/cmd/go/testdata/script/telemetry.txt
+@@ -0,0 +1,51 @@
++# Tests for the telemetry subcommand,
++
++# The script test framework sets TEST_TELEMETRY_DIR (overriding the
++# default telemetry dir location) and then checks that at least one
++# counter has been written per script tests.
++# Run go before unsetting TEST_TELEMETRY_DIR to make the tests happy.
++# We want to unset it so the environment we're testing is as close
++# to a user's environment.
++go help telemetry
++env TEST_TELEMETRY_DIR=
++
++# Set userconfig dir, which is determined by os.UserConfigDir.
++# The telemetry dir is determined using that.
++mkdir $WORK/userconfig
++env AppData=$WORK\userconfig # windows
++[GOOS:windows] env userconfig=$AppData
++env HOME=$WORK/userconfig # darwin,unix,ios
++[GOOS:darwin] env userconfig=$HOME'/Library/Application Support'
++[GOOS:ios] env userconfig=$HOME'/Library/Application Support'
++[!GOOS:windows] [!GOOS:darwin] [!GOOS:ios] [!GOOS:plan9] env userconfig=$HOME/.config
++env home=$WORK/userconfig # plan9
++[GOOS:plan9] env userconfig=$home/lib
++
++go telemetry
++stdout 'local'
++
++go telemetry off
++go telemetry
++stdout 'off'
++go env GOTELEMETRY
++stdout 'off'
++
++go telemetry local
++go telemetry
++stdout 'local'
++go env GOTELEMETRY
++stdout 'local'
++
++go telemetry on
++go telemetry
++stdout 'on'
++go env GOTELEMETRY
++stdout 'on'
++
++go env
++stdout 'GOTELEMETRY=''?on''?'
++stdout 'GOTELEMETRYDIR=''?'$userconfig'[\\/]go[\\/]telemetry''?'
++! go env -w GOTELEMETRY=off
++stderr '^go: unknown go command variable GOTELEMETRY$'
++! go env -w GOTELEMETRYDIR=foo
++stderr '^go: unknown go command variable GOTELEMETRYDIR$'
+\ No newline at end of file
+diff --git a/src/cmd/internal/telemetry/telemetry.go b/src/cmd/internal/telemetry/telemetry.go
+index 2420a07708..221b6a007d 100644
+--- a/src/cmd/internal/telemetry/telemetry.go
++++ b/src/cmd/internal/telemetry/telemetry.go
+@@ -74,3 +74,38 @@ func CountFlagValue(prefix string, flagSet flag.FlagSet, flagName string) {
+ 		}
+ 	})
+ }
++
++// Mode returns the current telemetry mode.
++//
++// The telemetry mode is a global value that controls both the local collection
++// and uploading of telemetry data. Possible mode values are:
++//   - "on":    both collection and uploading is enabled
++//   - "local": collection is enabled, but uploading is disabled
++//   - "off":   both collection and uploading are disabled
++//
++// When mode is "on", or "local", telemetry data is written to the local file
++// system and may be inspected with the [gotelemetry] command.
++//
++// If an error occurs while reading the telemetry mode from the file system,
++// Mode returns the default value "local".
++//
++// [gotelemetry]: https://pkg.go.dev/golang.org/x/telemetry/cmd/gotelemetry
++func Mode() string {
++	return telemetry.Mode()
++}
++
++// SetMode sets the global telemetry mode to the given value.
++//
++// See the documentation of [Mode] for a description of the supported mode
++// values.
++//
++// An error is returned if the provided mode value is invalid, or if an error
++// occurs while persisting the mode value to the file system.
++func SetMode(mode string) error {
++	return telemetry.SetMode(mode)
++}
++
++// Dir returns the telemetry directory.
++func Dir() string {
++	return telemetry.Dir()
++}
+diff --git a/src/cmd/internal/telemetry/telemetry_bootstrap.go b/src/cmd/internal/telemetry/telemetry_bootstrap.go
+index 01549b6970..1740bdb701 100644
+--- a/src/cmd/internal/telemetry/telemetry_bootstrap.go
++++ b/src/cmd/internal/telemetry/telemetry_bootstrap.go
+@@ -19,3 +19,6 @@ func NewCounter(name string) dummyCounter                                 { retu
+ func NewStackCounter(name string, depth int) dummyCounter                 { return dummyCounter{} }
+ func CountFlags(name string, flagSet flag.FlagSet)                        {}
+ func CountFlagValue(prefix string, flagSet flag.FlagSet, flagName string) {}
++func Mode() string                                                        { return "" }
++func SetMode(mode string) error                                           { return nil }
++func Dir() string                                                         { return "" }

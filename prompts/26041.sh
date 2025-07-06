@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 26041: 6094dad0842dd6d233123c175eec830d140e4865
+# Index 26041: 0b8d583320b2f6247669ef0bb1ba011054ca1c88
 
 echo "🚀 Generating explanation for commit 26041..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 26041..."
 
 ### メタデータ
 - **コミットインデックス**: 26041
-- **コミットハッシュ**: 6094dad0842dd6d233123c175eec830d140e4865
-- **GitHub URL**: https://github.com/golang/go/commit/6094dad0842dd6d233123c175eec830d140e4865
+- **コミットハッシュ**: 0b8d583320b2f6247669ef0bb1ba011054ca1c88
+- **GitHub URL**: https://github.com/golang/go/commit/0b8d583320b2f6247669ef0bb1ba011054ca1c88
 
 ### 章構成
 

@@ -1,0 +1,246 @@
+commit 88c013d6ff6740451e7d294f99206c98c7f23f70
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 20 16:28:14 2025 -0400
+
+    [dev.simd] cmd/compile: generate function body for bodyless intrinsics
+    
+    For a compiler intrinsic, if it is used in a non-call context, e.g.
+    as a function pointer, currently it requires fallback
+    implementation (e.g. assembly code for atomic operations),
+    otherwise it will result in a build failure. The fallback
+    implementation needs to be maintained and tested, albeit rarely
+    used in practice.
+    
+    Also, for SIMD, we're currently adding a large number of compiler
+    intrinsics without providing fallback implementations (we might in
+    the future). As methods, it is not unlikely that they are used in
+    a non-call context, e.g. referenced from the type descriptor.
+    
+    This CL lets the compiler generate the function body for
+    bodyless intrinsics. The compiler already recognizes a call to
+    the function as an intrinsic and can directly generate code for it.
+    So we just fill in the body with a call to the same function.
+    
+    Change-Id: I2636e3128f28301c9abaf2b48bc962ab56e7d1a9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/683096
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/gc/compile.go        | 40 ++++++++++-------
+ src/cmd/compile/internal/gc/main.go           |  3 +-
+ src/cmd/compile/internal/ir/expr.go           | 11 +++++
+ src/cmd/compile/internal/ssagen/abi.go        | 12 +++++
+ src/cmd/compile/internal/ssagen/intrinsics.go | 63 ++++++++++++++++++++++++++-
+ 5 files changed, 111 insertions(+), 18 deletions(-)
+
+diff --git a/src/cmd/compile/internal/gc/compile.go b/src/cmd/compile/internal/gc/compile.go
+index 1a40df9a84..1eb4b8cc37 100644
+--- a/src/cmd/compile/internal/gc/compile.go
++++ b/src/cmd/compile/internal/gc/compile.go
+@@ -29,7 +29,7 @@ var (
+ 	compilequeue []*ir.Func // functions waiting to be compiled
+ )
+ 
+-func enqueueFunc(fn *ir.Func) {
++func enqueueFunc(fn *ir.Func, symABIs *ssagen.SymABIs) {
+ 	if ir.CurFunc != nil {
+ 		base.FatalfAt(fn.Pos(), "enqueueFunc %v inside %v", fn, ir.CurFunc)
+ 	}
+@@ -49,22 +49,30 @@ func enqueueFunc(fn *ir.Func) {
+ 	}
+ 
+ 	if len(fn.Body) == 0 {
+-		// Initialize ABI wrappers if necessary.
+-		ir.InitLSym(fn, false)
+-		types.CalcSize(fn.Type())
+-		a := ssagen.AbiForBodylessFuncStackMap(fn)
+-		abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
+-		if fn.ABI == obj.ABI0 {
+-			// The current args_stackmap generation assumes the function
+-			// is ABI0, and only ABI0 assembly function can have a FUNCDATA
+-			// reference to args_stackmap (see cmd/internal/obj/plist.go:Flushplist).
+-			// So avoid introducing an args_stackmap if the func is not ABI0.
+-			liveness.WriteFuncMap(fn, abiInfo)
+-
+-			x := ssagen.EmitArgInfo(fn, abiInfo)
+-			objw.Global(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
++		if ir.IsIntrinsicSym(fn.Sym()) && fn.Sym().Linkname == "" && !symABIs.HasDef(fn.Sym()) {
++			// Generate the function body for a bodyless intrinsic, in case it
++			// is used in a non-call context (e.g. as a function pointer).
++			// We skip functions defined in assembly, or has a linkname (which
++			// could be defined in another package).
++			ssagen.GenIntrinsicBody(fn)
++		} else {
++			// Initialize ABI wrappers if necessary.
++			ir.InitLSym(fn, false)
++			types.CalcSize(fn.Type())
++			a := ssagen.AbiForBodylessFuncStackMap(fn)
++			abiInfo := a.ABIAnalyzeFuncType(fn.Type()) // abiInfo has spill/home locations for wrapper
++			if fn.ABI == obj.ABI0 {
++				// The current args_stackmap generation assumes the function
++				// is ABI0, and only ABI0 assembly function can have a FUNCDATA
++				// reference to args_stackmap (see cmd/internal/obj/plist.go:Flushplist).
++				// So avoid introducing an args_stackmap if the func is not ABI0.
++				liveness.WriteFuncMap(fn, abiInfo)
++
++				x := ssagen.EmitArgInfo(fn, abiInfo)
++				objw.Global(x, int32(len(x.P)), obj.RODATA|obj.LOCAL)
++			}
++			return
+ 		}
+-		return
+ 	}
+ 
+ 	errorsBefore := base.Errors()
+diff --git a/src/cmd/compile/internal/gc/main.go b/src/cmd/compile/internal/gc/main.go
+index 253ec3257a..c486920f5b 100644
+--- a/src/cmd/compile/internal/gc/main.go
++++ b/src/cmd/compile/internal/gc/main.go
+@@ -188,6 +188,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 
+ 	ir.EscFmt = escape.Fmt
+ 	ir.IsIntrinsicCall = ssagen.IsIntrinsicCall
++	ir.IsIntrinsicSym = ssagen.IsIntrinsicSym
+ 	inline.SSADumpInline = ssagen.DumpInline
+ 	ssagen.InitEnv()
+ 	ssagen.InitTables()
+@@ -304,7 +305,7 @@ func Main(archInit func(*ssagen.ArchInfo)) {
+ 		}
+ 
+ 		if nextFunc < len(typecheck.Target.Funcs) {
+-			enqueueFunc(typecheck.Target.Funcs[nextFunc])
++			enqueueFunc(typecheck.Target.Funcs[nextFunc], symABIs)
+ 			nextFunc++
+ 			continue
+ 		}
+diff --git a/src/cmd/compile/internal/ir/expr.go b/src/cmd/compile/internal/ir/expr.go
+index 702adfdd84..e27e4336c9 100644
+--- a/src/cmd/compile/internal/ir/expr.go
++++ b/src/cmd/compile/internal/ir/expr.go
+@@ -1022,6 +1022,9 @@ func StaticCalleeName(n Node) *Name {
+ // IsIntrinsicCall reports whether the compiler back end will treat the call as an intrinsic operation.
+ var IsIntrinsicCall = func(*CallExpr) bool { return false }
+ 
++// IsIntrinsicSym reports whether the compiler back end will treat a call to this symbol as an intrinsic operation.
++var IsIntrinsicSym = func(*types.Sym) bool { return false }
++
+ // SameSafeExpr checks whether it is safe to reuse one of l and r
+ // instead of computing both. SameSafeExpr assumes that l and r are
+ // used in the same statement or expression. In order for it to be
+@@ -1140,6 +1143,14 @@ func ParamNames(ft *types.Type) []Node {
+ 	return args
+ }
+ 
++func RecvParamNames(ft *types.Type) []Node {
++	args := make([]Node, ft.NumRecvs()+ft.NumParams())
++	for i, f := range ft.RecvParams() {
++		args[i] = f.Nname.(*Name)
++	}
++	return args
++}
++
+ // MethodSym returns the method symbol representing a method name
+ // associated with a specific receiver type.
+ //
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 3d50155cf3..0e8dbd9445 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -99,6 +99,18 @@ func (s *SymABIs) ReadSymABIs(file string) {
+ 	}
+ }
+ 
++// HasDef returns whether the given symbol has an assembly definition.
++func (s *SymABIs) HasDef(sym *types.Sym) bool {
++	symName := sym.Linkname
++	if symName == "" {
++		symName = sym.Pkg.Prefix + "." + sym.Name
++	}
++	symName = s.canonicalize(symName)
++
++	_, hasDefABI := s.defs[symName]
++	return hasDefABI
++}
++
+ // GenABIWrappers applies ABI information to Funcs and generates ABI
+ // wrapper functions where necessary.
+ func (s *SymABIs) GenABIWrappers() {
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 186cfc4865..660047df1f 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -12,6 +12,7 @@ import (
+ 	"cmd/compile/internal/base"
+ 	"cmd/compile/internal/ir"
+ 	"cmd/compile/internal/ssa"
++	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+ 	"cmd/internal/sys"
+ )
+@@ -1751,5 +1752,65 @@ func IsIntrinsicCall(n *ir.CallExpr) bool {
+ 	if !ok {
+ 		return false
+ 	}
+-	return findIntrinsic(name.Sym()) != nil
++	return IsIntrinsicSym(name.Sym())
++}
++
++func IsIntrinsicSym(sym *types.Sym) bool {
++	return findIntrinsic(sym) != nil
++}
++
++// GenIntrinsicBody generates the function body for a bodyless intrinsic.
++// This is used when the intrinsic is used in a non-call context, e.g.
++// as a function pointer, or (for a method) being referenced from the type
++// descriptor.
++//
++// The compiler already recognizes a call to fn as an intrinsic and can
++// directly generate code for it. So we just fill in the body with a call
++// to fn.
++func GenIntrinsicBody(fn *ir.Func) {
++	if ir.CurFunc != nil {
++		base.FatalfAt(fn.Pos(), "enqueueFunc %v inside %v", fn, ir.CurFunc)
++	}
++
++	if base.Flag.LowerR != 0 {
++		fmt.Println("generate intrinsic for", ir.FuncName(fn))
++	}
++
++	pos := fn.Pos()
++	ft := fn.Type()
++	var ret ir.Node
++
++	// For a method, it usually starts with an ODOTMETH (pre-typecheck) or
++	// OMETHEXPR (post-typecheck) referencing the method symbol without the
++	// receiver type, and Walk rewrites it to a call directly to the
++	// type-qualified method symbol, moving the receiver to an argument.
++	// Here fn has already the type-qualified method symbol, and it is hard
++	// to get the unqualified symbol. So we just generate the post-Walk form
++	// and mark it typechecked and Walked.
++	call := ir.NewCallExpr(pos, ir.OCALLFUNC, fn.Nname, nil)
++	call.Args = ir.RecvParamNames(ft)
++	call.IsDDD = ft.IsVariadic()
++	typecheck.Exprs(call.Args)
++	call.SetTypecheck(1)
++	call.SetWalked(true)
++	ret = call
++	if ft.NumResults() > 0 {
++		if ft.NumResults() == 1 {
++			call.SetType(ft.Result(0).Type)
++		} else {
++			call.SetType(ft.ResultsTuple())
++		}
++		n := ir.NewReturnStmt(base.Pos, nil)
++		n.Results = []ir.Node{call}
++		ret = n
++	}
++	fn.Body.Append(ret)
++
++	if base.Flag.LowerR != 0 {
++		ir.DumpList("generate intrinsic body", fn.Body)
++	}
++
++	ir.CurFunc = fn
++	typecheck.Stmts(fn.Body)
++	ir.CurFunc = nil // we know CurFunc is nil at entry
+ }

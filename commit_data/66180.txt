@@ -1,0 +1,32 @@
+commit f7becfc7f1e514ee658eae3997ae09cab9edb123
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Dec 14 11:03:27 2024 +0000
+
+    go/types: use documented version of gotypesalias GODEBUG
+    
+    This way the code would panic, in case it does not exist.
+    
+    Change-Id: I95de7460c0386afdc5d3f6a847e9fcbd22446010
+    GitHub-Last-Rev: 9ae0502a091feed45169f5c1a7e2761f8ffa2841
+    GitHub-Pull-Request: golang/go#70845
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/636097
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/go/types/eval_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/go/types/eval_test.go b/src/go/types/eval_test.go
+index 49d901f692..f7f0da0db9 100644
+--- a/src/go/types/eval_test.go
++++ b/src/go/types/eval_test.go
+@@ -208,7 +208,7 @@ func TestEvalPos(t *testing.T) {
+ }
+ 
+ // gotypesalias controls the use of Alias types.
+-var gotypesalias = godebug.New("#gotypesalias")
++var gotypesalias = godebug.New("gotypesalias")
+ 
+ // split splits string s at the first occurrence of s, trimming spaces.
+ func split(s, sep string) (string, string) {

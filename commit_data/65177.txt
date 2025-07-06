@@ -1,0 +1,8081 @@
+commit 7557a24927080557fc9baec62786e8c1d1aaa4b5
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Sep 30 16:54:12 2024 +0200
+
+    crypto/internal/fips/sha3: import x/crypto/sha3@750a45fe5e4
+    
+    For now just internally, pending a dedicated proposal for the exposed
+    package API.
+    
+    In this CL the code is copied verbatim, for ease of review. Only the
+    imports were replaced with the corresponding internal ones, and
+    crypto.RegisterHash calls were disabled. Also, the 0.5MB keccakkats file
+    was dropped, supplanted by TestCSHAKEAccumulated and ACVP tests.
+    
+    Updates #65269
+    Updates #69982
+    For #69536
+    
+    Change-Id: Ia4735b50c99b9573a5c4889733c4a119930fe658
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616717
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ src/crypto/internal/fips/sha3/_asm/go.mod          |   15 +
+ src/crypto/internal/fips/sha3/_asm/go.sum          |   12 +
+ .../internal/fips/sha3/_asm/keccakf_amd64_asm.go   |  438 ++
+ src/crypto/internal/fips/sha3/allocations_test.go  |   60 +
+ src/crypto/internal/fips/sha3/doc.go               |   66 +
+ src/crypto/internal/fips/sha3/hashes.go            |  125 +
+ src/crypto/internal/fips/sha3/hashes_noasm.go      |   23 +
+ src/crypto/internal/fips/sha3/keccakf.go           |  414 ++
+ src/crypto/internal/fips/sha3/keccakf_amd64.go     |   13 +
+ src/crypto/internal/fips/sha3/keccakf_amd64.s      | 5419 ++++++++++++++++++++
+ src/crypto/internal/fips/sha3/sha3.go              |  243 +
+ src/crypto/internal/fips/sha3/sha3_s390x.go        |  302 ++
+ src/crypto/internal/fips/sha3/sha3_s390x.s         |   33 +
+ src/crypto/internal/fips/sha3/sha3_test.go         |  552 ++
+ src/crypto/internal/fips/sha3/shake.go             |  193 +
+ src/crypto/internal/fips/sha3/shake_noasm.go       |   15 +
+ .../fips/sha3/testdata/keccakKats.json.deflate     |  Bin 0 -> 540828 bytes
+ src/go/build/deps_test.go                          |    1 +
+ 18 files changed, 7924 insertions(+)
+
+diff --git a/src/crypto/internal/fips/sha3/_asm/go.mod b/src/crypto/internal/fips/sha3/_asm/go.mod
+new file mode 100644
+index 0000000000..265a88d077
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/_asm/go.mod
+@@ -0,0 +1,15 @@
++module sha3/_asm
++
++go 1.22
++
++require (
++	github.com/mmcloughlin/avo v0.6.0
++	golang.org/x/crypto v0.25.0
++)
++
++require (
++	golang.org/x/mod v0.19.0 // indirect
++	golang.org/x/sync v0.7.0 // indirect
++	golang.org/x/sys v0.22.0 // indirect
++	golang.org/x/tools v0.23.0 // indirect
++)
+diff --git a/src/crypto/internal/fips/sha3/_asm/go.sum b/src/crypto/internal/fips/sha3/_asm/go.sum
+new file mode 100644
+index 0000000000..a2552b8eb9
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/_asm/go.sum
+@@ -0,0 +1,12 @@
++github.com/mmcloughlin/avo v0.6.0 h1:QH6FU8SKoTLaVs80GA8TJuLNkUYl4VokHKlPhVDg4YY=
++github.com/mmcloughlin/avo v0.6.0/go.mod h1:8CoAGaCSYXtCPR+8y18Y9aB/kxb8JSS6FRI7mSkvD+8=
++golang.org/x/crypto v0.25.0 h1:ypSNr+bnYL2YhwoMt2zPxHFmbAN1KZs/njMG3hxUp30=
++golang.org/x/crypto v0.25.0/go.mod h1:T+wALwcMOSE0kXgUAnPAHqTLW+XHgcELELW8VaDgm/M=
++golang.org/x/mod v0.19.0 h1:fEdghXQSo20giMthA7cd28ZC+jts4amQ3YMXiP5oMQ8=
++golang.org/x/mod v0.19.0/go.mod h1:hTbmBsO62+eylJbnUtE2MGJUyE7QWk4xUqPFrRgJ+7c=
++golang.org/x/sync v0.7.0 h1:YsImfSBoP9QPYL0xyKJPq0gcaJdG3rInoqxTWbfQu9M=
++golang.org/x/sync v0.7.0/go.mod h1:Czt+wKu1gCyEFDUtn0jG5QVvpJ6rzVqr5aXyt9drQfk=
++golang.org/x/sys v0.22.0 h1:RI27ohtqKCnwULzJLqkv897zojh5/DwS/ENaMzUOaWI=
++golang.org/x/sys v0.22.0/go.mod h1:/VUhepiaJMQUp4+oa/7Zr1D23ma6VTLIYjOOTFZPUcA=
++golang.org/x/tools v0.23.0 h1:SGsXPZ+2l4JsgaCKkx+FQ9YZ5XEtA1GZYuoDjenLjvg=
++golang.org/x/tools v0.23.0/go.mod h1:pnu6ufv6vQkll6szChhK3C3L/ruaIv5eBeztNG8wtsI=
+diff --git a/src/crypto/internal/fips/sha3/_asm/keccakf_amd64_asm.go b/src/crypto/internal/fips/sha3/_asm/keccakf_amd64_asm.go
+new file mode 100644
+index 0000000000..78e931f757
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/_asm/keccakf_amd64_asm.go
+@@ -0,0 +1,438 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// This code was translated into a form compatible with 6a from the public
++// domain sources at https://github.com/gvanas/KeccakCodePackage
++
++package main
++
++import (
++	. "github.com/mmcloughlin/avo/build"
++	. "github.com/mmcloughlin/avo/operand"
++	. "github.com/mmcloughlin/avo/reg"
++	_ "golang.org/x/crypto/sha3"
++)
++
++//go:generate go run . -out ../keccakf_amd64.s -pkg sha3
++
++// Round Constants for use in the ι step.
++var RoundConstants = [24]uint64{
++	0x0000000000000001,
++	0x0000000000008082,
++	0x800000000000808A,
++	0x8000000080008000,
++	0x000000000000808B,
++	0x0000000080000001,
++	0x8000000080008081,
++	0x8000000000008009,
++	0x000000000000008A,
++	0x0000000000000088,
++	0x0000000080008009,
++	0x000000008000000A,
++	0x000000008000808B,
++	0x800000000000008B,
++	0x8000000000008089,
++	0x8000000000008003,
++	0x8000000000008002,
++	0x8000000000000080,
++	0x000000000000800A,
++	0x800000008000000A,
++	0x8000000080008081,
++	0x8000000000008080,
++	0x0000000080000001,
++	0x8000000080008008,
++}
++
++var (
++	// Temporary registers
++	rT1 GPPhysical = RAX
++
++	// Round vars
++	rpState = Mem{Base: RDI}
++	rpStack = Mem{Base: RSP}
++
++	rDa = RBX
++	rDe = RCX
++	rDi = RDX
++	rDo = R8
++	rDu = R9
++
++	rBa = R10
++	rBe = R11
++	rBi = R12
++	rBo = R13
++	rBu = R14
++
++	rCa = RSI
++	rCe = RBP
++	rCi = rBi
++	rCo = rBo
++	rCu = R15
++)
++
++const (
++	_ba = iota * 8
++	_be
++	_bi
++	_bo
++	_bu
++	_ga
++	_ge
++	_gi
++	_go
++	_gu
++	_ka
++	_ke
++	_ki
++	_ko
++	_ku
++	_ma
++	_me
++	_mi
++	_mo
++	_mu
++	_sa
++	_se
++	_si
++	_so
++	_su
++)
++
++func main() {
++	Package("golang.org/x/crypto/sha3")
++	ConstraintExpr("amd64,!purego,gc")
++	keccakF1600()
++	Generate()
++}
++
++func MOVQ_RBI_RCE() { MOVQ(rBi, rCe) }
++func XORQ_RT1_RCA() { XORQ(rT1, rCa) }
++func XORQ_RT1_RCE() { XORQ(rT1, rCe) }
++func XORQ_RBA_RCU() { XORQ(rBa, rCu) }
++func XORQ_RBE_RCU() { XORQ(rBe, rCu) }
++func XORQ_RDU_RCU() { XORQ(rDu, rCu) }
++func XORQ_RDA_RCA() { XORQ(rDa, rCa) }
++func XORQ_RDE_RCE() { XORQ(rDe, rCe) }
++
++type ArgMacro func()
++
++func mKeccakRound(
++	iState, oState Mem,
++	rc U64,
++	B_RBI_RCE, G_RT1_RCA, G_RT1_RCE, G_RBA_RCU,
++	K_RT1_RCA, K_RT1_RCE, K_RBA_RCU, M_RT1_RCA,
++	M_RT1_RCE, M_RBE_RCU, S_RDU_RCU, S_RDA_RCA,
++	S_RDE_RCE ArgMacro,
++) {
++	Comment("Prepare round")
++	MOVQ(rCe, rDa)
++	ROLQ(Imm(1), rDa)
++
++	MOVQ(iState.Offset(_bi), rCi)
++	XORQ(iState.Offset(_gi), rDi)
++	XORQ(rCu, rDa)
++	XORQ(iState.Offset(_ki), rCi)
++	XORQ(iState.Offset(_mi), rDi)
++	XORQ(rDi, rCi)
++
++	MOVQ(rCi, rDe)
++	ROLQ(Imm(1), rDe)
++
++	MOVQ(iState.Offset(_bo), rCo)
++	XORQ(iState.Offset(_go), rDo)
++	XORQ(rCa, rDe)
++	XORQ(iState.Offset(_ko), rCo)
++	XORQ(iState.Offset(_mo), rDo)
++	XORQ(rDo, rCo)
++
++	MOVQ(rCo, rDi)
++	ROLQ(Imm(1), rDi)
++
++	MOVQ(rCu, rDo)
++	XORQ(rCe, rDi)
++	ROLQ(Imm(1), rDo)
++
++	MOVQ(rCa, rDu)
++	XORQ(rCi, rDo)
++	ROLQ(Imm(1), rDu)
++
++	Comment("Result b")
++	MOVQ(iState.Offset(_ba), rBa)
++	MOVQ(iState.Offset(_ge), rBe)
++	XORQ(rCo, rDu)
++	MOVQ(iState.Offset(_ki), rBi)
++	MOVQ(iState.Offset(_mo), rBo)
++	MOVQ(iState.Offset(_su), rBu)
++	XORQ(rDe, rBe)
++	ROLQ(Imm(44), rBe)
++	XORQ(rDi, rBi)
++	XORQ(rDa, rBa)
++	ROLQ(Imm(43), rBi)
++
++	MOVQ(rBe, rCa)
++	MOVQ(rc, rT1)
++	ORQ(rBi, rCa)
++	XORQ(rBa, rT1)
++	XORQ(rT1, rCa)
++	MOVQ(rCa, oState.Offset(_ba))
++
++	XORQ(rDu, rBu)
++	ROLQ(Imm(14), rBu)
++	MOVQ(rBa, rCu)
++	ANDQ(rBe, rCu)
++	XORQ(rBu, rCu)
++	MOVQ(rCu, oState.Offset(_bu))
++
++	XORQ(rDo, rBo)
++	ROLQ(Imm(21), rBo)
++	MOVQ(rBo, rT1)
++	ANDQ(rBu, rT1)
++	XORQ(rBi, rT1)
++	MOVQ(rT1, oState.Offset(_bi))
++
++	NOTQ(rBi)
++	ORQ(rBa, rBu)
++	ORQ(rBo, rBi)
++	XORQ(rBo, rBu)
++	XORQ(rBe, rBi)
++	MOVQ(rBu, oState.Offset(_bo))
++	MOVQ(rBi, oState.Offset(_be))
++	B_RBI_RCE()
++
++	Comment("Result g")
++	MOVQ(iState.Offset(_gu), rBe)
++	XORQ(rDu, rBe)
++	MOVQ(iState.Offset(_ka), rBi)
++	ROLQ(Imm(20), rBe)
++	XORQ(rDa, rBi)
++	ROLQ(Imm(3), rBi)
++	MOVQ(iState.Offset(_bo), rBa)
++	MOVQ(rBe, rT1)
++	ORQ(rBi, rT1)
++	XORQ(rDo, rBa)
++	MOVQ(iState.Offset(_me), rBo)
++	MOVQ(iState.Offset(_si), rBu)
++	ROLQ(Imm(28), rBa)
++	XORQ(rBa, rT1)
++	MOVQ(rT1, oState.Offset(_ga))
++	G_RT1_RCA()
++
++	XORQ(rDe, rBo)
++	ROLQ(Imm(45), rBo)
++	MOVQ(rBi, rT1)
++	ANDQ(rBo, rT1)
++	XORQ(rBe, rT1)
++	MOVQ(rT1, oState.Offset(_ge))
++	G_RT1_RCE()
++
++	XORQ(rDi, rBu)
++	ROLQ(Imm(61), rBu)
++	MOVQ(rBu, rT1)
++	ORQ(rBa, rT1)
++	XORQ(rBo, rT1)
++	MOVQ(rT1, oState.Offset(_go))
++
++	ANDQ(rBe, rBa)
++	XORQ(rBu, rBa)
++	MOVQ(rBa, oState.Offset(_gu))
++	NOTQ(rBu)
++	G_RBA_RCU()
++
++	ORQ(rBu, rBo)
++	XORQ(rBi, rBo)
++	MOVQ(rBo, oState.Offset(_gi))
++
++	Comment("Result k")
++	MOVQ(iState.Offset(_be), rBa)
++	MOVQ(iState.Offset(_gi), rBe)
++	MOVQ(iState.Offset(_ko), rBi)
++	MOVQ(iState.Offset(_mu), rBo)
++	MOVQ(iState.Offset(_sa), rBu)
++	XORQ(rDi, rBe)
++	ROLQ(Imm(6), rBe)
++	XORQ(rDo, rBi)
++	ROLQ(Imm(25), rBi)
++	MOVQ(rBe, rT1)
++	ORQ(rBi, rT1)
++	XORQ(rDe, rBa)
++	ROLQ(Imm(1), rBa)
++	XORQ(rBa, rT1)
++	MOVQ(rT1, oState.Offset(_ka))
++	K_RT1_RCA()
++
++	XORQ(rDu, rBo)
++	ROLQ(Imm(8), rBo)
++	MOVQ(rBi, rT1)
++	ANDQ(rBo, rT1)
++	XORQ(rBe, rT1)
++	MOVQ(rT1, oState.Offset(_ke))
++	K_RT1_RCE()
++
++	XORQ(rDa, rBu)
++	ROLQ(Imm(18), rBu)
++	NOTQ(rBo)
++	MOVQ(rBo, rT1)
++	ANDQ(rBu, rT1)
++	XORQ(rBi, rT1)
++	MOVQ(rT1, oState.Offset(_ki))
++
++	MOVQ(rBu, rT1)
++	ORQ(rBa, rT1)
++	XORQ(rBo, rT1)
++	MOVQ(rT1, oState.Offset(_ko))
++
++	ANDQ(rBe, rBa)
++	XORQ(rBu, rBa)
++	MOVQ(rBa, oState.Offset(_ku))
++	K_RBA_RCU()
++
++	Comment("Result m")
++	MOVQ(iState.Offset(_ga), rBe)
++	XORQ(rDa, rBe)
++	MOVQ(iState.Offset(_ke), rBi)
++	ROLQ(Imm(36), rBe)
++	XORQ(rDe, rBi)
++	MOVQ(iState.Offset(_bu), rBa)
++	ROLQ(Imm(10), rBi)
++	MOVQ(rBe, rT1)
++	MOVQ(iState.Offset(_mi), rBo)
++	ANDQ(rBi, rT1)
++	XORQ(rDu, rBa)
++	MOVQ(iState.Offset(_so), rBu)
++	ROLQ(Imm(27), rBa)
++	XORQ(rBa, rT1)
++	MOVQ(rT1, oState.Offset(_ma))
++	M_RT1_RCA()
++
++	XORQ(rDi, rBo)
++	ROLQ(Imm(15), rBo)
++	MOVQ(rBi, rT1)
++	ORQ(rBo, rT1)
++	XORQ(rBe, rT1)
++	MOVQ(rT1, oState.Offset(_me))
++	M_RT1_RCE()
++
++	XORQ(rDo, rBu)
++	ROLQ(Imm(56), rBu)
++	NOTQ(rBo)
++	MOVQ(rBo, rT1)
++	ORQ(rBu, rT1)
++	XORQ(rBi, rT1)
++	MOVQ(rT1, oState.Offset(_mi))
++
++	ORQ(rBa, rBe)
++	XORQ(rBu, rBe)
++	MOVQ(rBe, oState.Offset(_mu))
++
++	ANDQ(rBa, rBu)
++	XORQ(rBo, rBu)
++	MOVQ(rBu, oState.Offset(_mo))
++	M_RBE_RCU()
++
++	Comment("Result s")
++	MOVQ(iState.Offset(_bi), rBa)
++	MOVQ(iState.Offset(_go), rBe)
++	MOVQ(iState.Offset(_ku), rBi)
++	XORQ(rDi, rBa)
++	MOVQ(iState.Offset(_ma), rBo)
++	ROLQ(Imm(62), rBa)
++	XORQ(rDo, rBe)
++	MOVQ(iState.Offset(_se), rBu)
++	ROLQ(Imm(55), rBe)
++
++	XORQ(rDu, rBi)
++	MOVQ(rBa, rDu)
++	XORQ(rDe, rBu)
++	ROLQ(Imm(2), rBu)
++	ANDQ(rBe, rDu)
++	XORQ(rBu, rDu)
++	MOVQ(rDu, oState.Offset(_su))
++
++	ROLQ(Imm(39), rBi)
++	S_RDU_RCU()
++	NOTQ(rBe)
++	XORQ(rDa, rBo)
++	MOVQ(rBe, rDa)
++	ANDQ(rBi, rDa)
++	XORQ(rBa, rDa)
++	MOVQ(rDa, oState.Offset(_sa))
++	S_RDA_RCA()
++
++	ROLQ(Imm(41), rBo)
++	MOVQ(rBi, rDe)
++	ORQ(rBo, rDe)
++	XORQ(rBe, rDe)
++	MOVQ(rDe, oState.Offset(_se))
++	S_RDE_RCE()
++
++	MOVQ(rBo, rDi)
++	MOVQ(rBu, rDo)
++	ANDQ(rBu, rDi)
++	ORQ(rBa, rDo)
++	XORQ(rBi, rDi)
++	XORQ(rBo, rDo)
++	MOVQ(rDi, oState.Offset(_si))
++	MOVQ(rDo, oState.Offset(_so))
++}
++
++// keccakF1600 applies the Keccak permutation to a 1600b-wide
++// state represented as a slice of 25 uint64s.
++func keccakF1600() {
++	Implement("keccakF1600")
++	AllocLocal(200)
++
++	Load(Param("a"), rpState.Base)
++
++	Comment("Convert the user state into an internal state")
++	NOTQ(rpState.Offset(_be))
++	NOTQ(rpState.Offset(_bi))
++	NOTQ(rpState.Offset(_go))
++	NOTQ(rpState.Offset(_ki))
++	NOTQ(rpState.Offset(_mi))
++	NOTQ(rpState.Offset(_sa))
++
++	Comment("Execute the KeccakF permutation")
++	MOVQ(rpState.Offset(_ba), rCa)
++	MOVQ(rpState.Offset(_be), rCe)
++	MOVQ(rpState.Offset(_bu), rCu)
++
++	XORQ(rpState.Offset(_ga), rCa)
++	XORQ(rpState.Offset(_ge), rCe)
++	XORQ(rpState.Offset(_gu), rCu)
++
++	XORQ(rpState.Offset(_ka), rCa)
++	XORQ(rpState.Offset(_ke), rCe)
++	XORQ(rpState.Offset(_ku), rCu)
++
++	XORQ(rpState.Offset(_ma), rCa)
++	XORQ(rpState.Offset(_me), rCe)
++	XORQ(rpState.Offset(_mu), rCu)
++
++	XORQ(rpState.Offset(_sa), rCa)
++	XORQ(rpState.Offset(_se), rCe)
++	MOVQ(rpState.Offset(_si), rDi)
++	MOVQ(rpState.Offset(_so), rDo)
++	XORQ(rpState.Offset(_su), rCu)
++
++	for i, rc := range RoundConstants[:len(RoundConstants)-1] {
++		var iState, oState Mem
++		if i%2 == 0 {
++			iState, oState = rpState, rpStack
++		} else {
++			iState, oState = rpStack, rpState
++		}
++		mKeccakRound(iState, oState, U64(rc), MOVQ_RBI_RCE, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBA_RCU, XORQ_RT1_RCA, XORQ_RT1_RCE, XORQ_RBE_RCU, XORQ_RDU_RCU, XORQ_RDA_RCA, XORQ_RDE_RCE)
++	}
++	mKeccakRound(rpStack, rpState, U64(RoundConstants[len(RoundConstants)-1]), NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP, NOP)
++
++	Comment("Revert the internal state to the user state")
++	NOTQ(rpState.Offset(_be))
++	NOTQ(rpState.Offset(_bi))
++	NOTQ(rpState.Offset(_go))
++	NOTQ(rpState.Offset(_ki))
++	NOTQ(rpState.Offset(_mi))
++	NOTQ(rpState.Offset(_sa))
++
++	RET()
++}
+diff --git a/src/crypto/internal/fips/sha3/allocations_test.go b/src/crypto/internal/fips/sha3/allocations_test.go
+new file mode 100644
+index 0000000000..4f5bc6be35
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/allocations_test.go
+@@ -0,0 +1,60 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !noopt
++
++package sha3_test
++
++import (
++	"crypto/internal/fips/sha3"
++	"runtime"
++	"testing"
++)
++
++var sink byte
++
++func TestAllocations(t *testing.T) {
++	want := 0.0
++
++	if runtime.GOARCH == "s390x" {
++		// On s390x the returned hash.Hash is conditional so it escapes.
++		want = 3.0
++	}
++
++	t.Run("New", func(t *testing.T) {
++		if allocs := testing.AllocsPerRun(10, func() {
++			h := sha3.New256()
++			b := []byte("ABC")
++			h.Write(b)
++			out := make([]byte, 0, 32)
++			out = h.Sum(out)
++			sink ^= out[0]
++		}); allocs > want {
++			t.Errorf("expected zero allocations, got %0.1f", allocs)
++		}
++	})
++	t.Run("NewShake", func(t *testing.T) {
++		if allocs := testing.AllocsPerRun(10, func() {
++			h := sha3.NewShake128()
++			b := []byte("ABC")
++			h.Write(b)
++			out := make([]byte, 0, 32)
++			out = h.Sum(out)
++			sink ^= out[0]
++			h.Read(out)
++			sink ^= out[0]
++		}); allocs > want {
++			t.Errorf("expected zero allocations, got %0.1f", allocs)
++		}
++	})
++	t.Run("Sum", func(t *testing.T) {
++		if allocs := testing.AllocsPerRun(10, func() {
++			b := []byte("ABC")
++			out := sha3.Sum256(b)
++			sink ^= out[0]
++		}); allocs > want {
++			t.Errorf("expected zero allocations, got %0.1f", allocs)
++		}
++	})
++}
+diff --git a/src/crypto/internal/fips/sha3/doc.go b/src/crypto/internal/fips/sha3/doc.go
+new file mode 100644
+index 0000000000..bbf391fe6e
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/doc.go
+@@ -0,0 +1,66 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package sha3 implements the SHA-3 fixed-output-length hash functions and
++// the SHAKE variable-output-length hash functions defined by FIPS-202.
++//
++// All types in this package also implement [encoding.BinaryMarshaler],
++// [encoding.BinaryAppender] and [encoding.BinaryUnmarshaler] to marshal and
++// unmarshal the internal state of the hash.
++//
++// Both types of hash function use the "sponge" construction and the Keccak
++// permutation. For a detailed specification see http://keccak.noekeon.org/
++//
++// # Guidance
++//
++// If you aren't sure what function you need, use SHAKE256 with at least 64
++// bytes of output. The SHAKE instances are faster than the SHA3 instances;
++// the latter have to allocate memory to conform to the hash.Hash interface.
++//
++// If you need a secret-key MAC (message authentication code), prepend the
++// secret key to the input, hash with SHAKE256 and read at least 32 bytes of
++// output.
++//
++// # Security strengths
++//
++// The SHA3-x (x equals 224, 256, 384, or 512) functions have a security
++// strength against preimage attacks of x bits. Since they only produce "x"
++// bits of output, their collision-resistance is only "x/2" bits.
++//
++// The SHAKE-256 and -128 functions have a generic security strength of 256 and
++// 128 bits against all attacks, provided that at least 2x bits of their output
++// is used.  Requesting more than 64 or 32 bytes of output, respectively, does
++// not increase the collision-resistance of the SHAKE functions.
++//
++// # The sponge construction
++//
++// A sponge builds a pseudo-random function from a public pseudo-random
++// permutation, by applying the permutation to a state of "rate + capacity"
++// bytes, but hiding "capacity" of the bytes.
++//
++// A sponge starts out with a zero state. To hash an input using a sponge, up
++// to "rate" bytes of the input are XORed into the sponge's state. The sponge
++// is then "full" and the permutation is applied to "empty" it. This process is
++// repeated until all the input has been "absorbed". The input is then padded.
++// The digest is "squeezed" from the sponge in the same way, except that output
++// is copied out instead of input being XORed in.
++//
++// A sponge is parameterized by its generic security strength, which is equal
++// to half its capacity; capacity + rate is equal to the permutation's width.
++// Since the KeccakF-1600 permutation is 1600 bits (200 bytes) wide, this means
++// that the security strength of a sponge instance is equal to (1600 - bitrate) / 2.
++//
++// # Recommendations
++//
++// The SHAKE functions are recommended for most new uses. They can produce
++// output of arbitrary length. SHAKE256, with an output length of at least
++// 64 bytes, provides 256-bit security against all attacks.  The Keccak team
++// recommends it for most applications upgrading from SHA2-512. (NIST chose a
++// much stronger, but much slower, sponge instance for SHA3-512.)
++//
++// The SHA-3 functions are "drop-in" replacements for the SHA-2 functions.
++// They produce output of the same length, with the same security strengths
++// against all attacks. This means, in particular, that SHA3-256 only has
++// 128-bit collision resistance, because its output length is 32 bytes.
++package sha3
+diff --git a/src/crypto/internal/fips/sha3/hashes.go b/src/crypto/internal/fips/sha3/hashes.go
+new file mode 100644
+index 0000000000..24014a2545
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/hashes.go
+@@ -0,0 +1,125 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha3
++
++// This file provides functions for creating instances of the SHA-3
++// and SHAKE hash functions, as well as utility functions for hashing
++// bytes.
++
++import "crypto/internal/fips"
++
++// New224 creates a new SHA3-224 hash.
++// Its generic security strength is 224 bits against preimage attacks,
++// and 112 bits against collision attacks.
++func New224() fips.Hash {
++	return new224()
++}
++
++// New256 creates a new SHA3-256 hash.
++// Its generic security strength is 256 bits against preimage attacks,
++// and 128 bits against collision attacks.
++func New256() fips.Hash {
++	return new256()
++}
++
++// New384 creates a new SHA3-384 hash.
++// Its generic security strength is 384 bits against preimage attacks,
++// and 192 bits against collision attacks.
++func New384() fips.Hash {
++	return new384()
++}
++
++// New512 creates a new SHA3-512 hash.
++// Its generic security strength is 512 bits against preimage attacks,
++// and 256 bits against collision attacks.
++func New512() fips.Hash {
++	return new512()
++}
++
++// TODO(fips): do this in the stdlib crypto/sha3 package.
++//
++//     crypto.RegisterHash(crypto.SHA3_224, New224)
++//     crypto.RegisterHash(crypto.SHA3_256, New256)
++//     crypto.RegisterHash(crypto.SHA3_384, New384)
++//     crypto.RegisterHash(crypto.SHA3_512, New512)
++
++const (
++	dsbyteSHA3   = 0b00000110
++	dsbyteKeccak = 0b00000001
++	dsbyteShake  = 0b00011111
++	dsbyteCShake = 0b00000100
++
++	// rateK[c] is the rate in bytes for Keccak[c] where c is the capacity in
++	// bits. Given the sponge size is 1600 bits, the rate is 1600 - c bits.
++	rateK256  = (1600 - 256) / 8
++	rateK448  = (1600 - 448) / 8
++	rateK512  = (1600 - 512) / 8
++	rateK768  = (1600 - 768) / 8
++	rateK1024 = (1600 - 1024) / 8
++)
++
++func new224Generic() *state {
++	return &state{rate: rateK448, outputLen: 28, dsbyte: dsbyteSHA3}
++}
++
++func new256Generic() *state {
++	return &state{rate: rateK512, outputLen: 32, dsbyte: dsbyteSHA3}
++}
++
++func new384Generic() *state {
++	return &state{rate: rateK768, outputLen: 48, dsbyte: dsbyteSHA3}
++}
++
++func new512Generic() *state {
++	return &state{rate: rateK1024, outputLen: 64, dsbyte: dsbyteSHA3}
++}
++
++// NewLegacyKeccak256 creates a new Keccak-256 hash.
++//
++// Only use this function if you require compatibility with an existing cryptosystem
++// that uses non-standard padding. All other users should use New256 instead.
++func NewLegacyKeccak256() fips.Hash {
++	return &state{rate: rateK512, outputLen: 32, dsbyte: dsbyteKeccak}
++}
++
++// NewLegacyKeccak512 creates a new Keccak-512 hash.
++//
++// Only use this function if you require compatibility with an existing cryptosystem
++// that uses non-standard padding. All other users should use New512 instead.
++func NewLegacyKeccak512() fips.Hash {
++	return &state{rate: rateK1024, outputLen: 64, dsbyte: dsbyteKeccak}
++}
++
++// Sum224 returns the SHA3-224 digest of the data.
++func Sum224(data []byte) (digest [28]byte) {
++	h := New224()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
++
++// Sum256 returns the SHA3-256 digest of the data.
++func Sum256(data []byte) (digest [32]byte) {
++	h := New256()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
++
++// Sum384 returns the SHA3-384 digest of the data.
++func Sum384(data []byte) (digest [48]byte) {
++	h := New384()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
++
++// Sum512 returns the SHA3-512 digest of the data.
++func Sum512(data []byte) (digest [64]byte) {
++	h := New512()
++	h.Write(data)
++	h.Sum(digest[:0])
++	return
++}
+diff --git a/src/crypto/internal/fips/sha3/hashes_noasm.go b/src/crypto/internal/fips/sha3/hashes_noasm.go
+new file mode 100644
+index 0000000000..9d85fb6214
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/hashes_noasm.go
+@@ -0,0 +1,23 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !gc || purego || !s390x
++
++package sha3
++
++func new224() *state {
++	return new224Generic()
++}
++
++func new256() *state {
++	return new256Generic()
++}
++
++func new384() *state {
++	return new384Generic()
++}
++
++func new512() *state {
++	return new512Generic()
++}
+diff --git a/src/crypto/internal/fips/sha3/keccakf.go b/src/crypto/internal/fips/sha3/keccakf.go
+new file mode 100644
+index 0000000000..ce48b1dd3e
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/keccakf.go
+@@ -0,0 +1,414 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !amd64 || purego || !gc
++
++package sha3
++
++import "math/bits"
++
++// rc stores the round constants for use in the ι step.
++var rc = [24]uint64{
++	0x0000000000000001,
++	0x0000000000008082,
++	0x800000000000808A,
++	0x8000000080008000,
++	0x000000000000808B,
++	0x0000000080000001,
++	0x8000000080008081,
++	0x8000000000008009,
++	0x000000000000008A,
++	0x0000000000000088,
++	0x0000000080008009,
++	0x000000008000000A,
++	0x000000008000808B,
++	0x800000000000008B,
++	0x8000000000008089,
++	0x8000000000008003,
++	0x8000000000008002,
++	0x8000000000000080,
++	0x000000000000800A,
++	0x800000008000000A,
++	0x8000000080008081,
++	0x8000000000008080,
++	0x0000000080000001,
++	0x8000000080008008,
++}
++
++// keccakF1600 applies the Keccak permutation to a 1600b-wide
++// state represented as a slice of 25 uint64s.
++func keccakF1600(a *[25]uint64) {
++	// Implementation translated from Keccak-inplace.c
++	// in the keccak reference code.
++	var t, bc0, bc1, bc2, bc3, bc4, d0, d1, d2, d3, d4 uint64
++
++	for i := 0; i < 24; i += 4 {
++		// Combines the 5 steps in each round into 2 steps.
++		// Unrolls 4 rounds per loop and spreads some steps across rounds.
++
++		// Round 1
++		bc0 = a[0] ^ a[5] ^ a[10] ^ a[15] ^ a[20]
++		bc1 = a[1] ^ a[6] ^ a[11] ^ a[16] ^ a[21]
++		bc2 = a[2] ^ a[7] ^ a[12] ^ a[17] ^ a[22]
++		bc3 = a[3] ^ a[8] ^ a[13] ^ a[18] ^ a[23]
++		bc4 = a[4] ^ a[9] ^ a[14] ^ a[19] ^ a[24]
++		d0 = bc4 ^ (bc1<<1 | bc1>>63)
++		d1 = bc0 ^ (bc2<<1 | bc2>>63)
++		d2 = bc1 ^ (bc3<<1 | bc3>>63)
++		d3 = bc2 ^ (bc4<<1 | bc4>>63)
++		d4 = bc3 ^ (bc0<<1 | bc0>>63)
++
++		bc0 = a[0] ^ d0
++		t = a[6] ^ d1
++		bc1 = bits.RotateLeft64(t, 44)
++		t = a[12] ^ d2
++		bc2 = bits.RotateLeft64(t, 43)
++		t = a[18] ^ d3
++		bc3 = bits.RotateLeft64(t, 21)
++		t = a[24] ^ d4
++		bc4 = bits.RotateLeft64(t, 14)
++		a[0] = bc0 ^ (bc2 &^ bc1) ^ rc[i]
++		a[6] = bc1 ^ (bc3 &^ bc2)
++		a[12] = bc2 ^ (bc4 &^ bc3)
++		a[18] = bc3 ^ (bc0 &^ bc4)
++		a[24] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[10] ^ d0
++		bc2 = bits.RotateLeft64(t, 3)
++		t = a[16] ^ d1
++		bc3 = bits.RotateLeft64(t, 45)
++		t = a[22] ^ d2
++		bc4 = bits.RotateLeft64(t, 61)
++		t = a[3] ^ d3
++		bc0 = bits.RotateLeft64(t, 28)
++		t = a[9] ^ d4
++		bc1 = bits.RotateLeft64(t, 20)
++		a[10] = bc0 ^ (bc2 &^ bc1)
++		a[16] = bc1 ^ (bc3 &^ bc2)
++		a[22] = bc2 ^ (bc4 &^ bc3)
++		a[3] = bc3 ^ (bc0 &^ bc4)
++		a[9] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[20] ^ d0
++		bc4 = bits.RotateLeft64(t, 18)
++		t = a[1] ^ d1
++		bc0 = bits.RotateLeft64(t, 1)
++		t = a[7] ^ d2
++		bc1 = bits.RotateLeft64(t, 6)
++		t = a[13] ^ d3
++		bc2 = bits.RotateLeft64(t, 25)
++		t = a[19] ^ d4
++		bc3 = bits.RotateLeft64(t, 8)
++		a[20] = bc0 ^ (bc2 &^ bc1)
++		a[1] = bc1 ^ (bc3 &^ bc2)
++		a[7] = bc2 ^ (bc4 &^ bc3)
++		a[13] = bc3 ^ (bc0 &^ bc4)
++		a[19] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[5] ^ d0
++		bc1 = bits.RotateLeft64(t, 36)
++		t = a[11] ^ d1
++		bc2 = bits.RotateLeft64(t, 10)
++		t = a[17] ^ d2
++		bc3 = bits.RotateLeft64(t, 15)
++		t = a[23] ^ d3
++		bc4 = bits.RotateLeft64(t, 56)
++		t = a[4] ^ d4
++		bc0 = bits.RotateLeft64(t, 27)
++		a[5] = bc0 ^ (bc2 &^ bc1)
++		a[11] = bc1 ^ (bc3 &^ bc2)
++		a[17] = bc2 ^ (bc4 &^ bc3)
++		a[23] = bc3 ^ (bc0 &^ bc4)
++		a[4] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[15] ^ d0
++		bc3 = bits.RotateLeft64(t, 41)
++		t = a[21] ^ d1
++		bc4 = bits.RotateLeft64(t, 2)
++		t = a[2] ^ d2
++		bc0 = bits.RotateLeft64(t, 62)
++		t = a[8] ^ d3
++		bc1 = bits.RotateLeft64(t, 55)
++		t = a[14] ^ d4
++		bc2 = bits.RotateLeft64(t, 39)
++		a[15] = bc0 ^ (bc2 &^ bc1)
++		a[21] = bc1 ^ (bc3 &^ bc2)
++		a[2] = bc2 ^ (bc4 &^ bc3)
++		a[8] = bc3 ^ (bc0 &^ bc4)
++		a[14] = bc4 ^ (bc1 &^ bc0)
++
++		// Round 2
++		bc0 = a[0] ^ a[5] ^ a[10] ^ a[15] ^ a[20]
++		bc1 = a[1] ^ a[6] ^ a[11] ^ a[16] ^ a[21]
++		bc2 = a[2] ^ a[7] ^ a[12] ^ a[17] ^ a[22]
++		bc3 = a[3] ^ a[8] ^ a[13] ^ a[18] ^ a[23]
++		bc4 = a[4] ^ a[9] ^ a[14] ^ a[19] ^ a[24]
++		d0 = bc4 ^ (bc1<<1 | bc1>>63)
++		d1 = bc0 ^ (bc2<<1 | bc2>>63)
++		d2 = bc1 ^ (bc3<<1 | bc3>>63)
++		d3 = bc2 ^ (bc4<<1 | bc4>>63)
++		d4 = bc3 ^ (bc0<<1 | bc0>>63)
++
++		bc0 = a[0] ^ d0
++		t = a[16] ^ d1
++		bc1 = bits.RotateLeft64(t, 44)
++		t = a[7] ^ d2
++		bc2 = bits.RotateLeft64(t, 43)
++		t = a[23] ^ d3
++		bc3 = bits.RotateLeft64(t, 21)
++		t = a[14] ^ d4
++		bc4 = bits.RotateLeft64(t, 14)
++		a[0] = bc0 ^ (bc2 &^ bc1) ^ rc[i+1]
++		a[16] = bc1 ^ (bc3 &^ bc2)
++		a[7] = bc2 ^ (bc4 &^ bc3)
++		a[23] = bc3 ^ (bc0 &^ bc4)
++		a[14] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[20] ^ d0
++		bc2 = bits.RotateLeft64(t, 3)
++		t = a[11] ^ d1
++		bc3 = bits.RotateLeft64(t, 45)
++		t = a[2] ^ d2
++		bc4 = bits.RotateLeft64(t, 61)
++		t = a[18] ^ d3
++		bc0 = bits.RotateLeft64(t, 28)
++		t = a[9] ^ d4
++		bc1 = bits.RotateLeft64(t, 20)
++		a[20] = bc0 ^ (bc2 &^ bc1)
++		a[11] = bc1 ^ (bc3 &^ bc2)
++		a[2] = bc2 ^ (bc4 &^ bc3)
++		a[18] = bc3 ^ (bc0 &^ bc4)
++		a[9] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[15] ^ d0
++		bc4 = bits.RotateLeft64(t, 18)
++		t = a[6] ^ d1
++		bc0 = bits.RotateLeft64(t, 1)
++		t = a[22] ^ d2
++		bc1 = bits.RotateLeft64(t, 6)
++		t = a[13] ^ d3
++		bc2 = bits.RotateLeft64(t, 25)
++		t = a[4] ^ d4
++		bc3 = bits.RotateLeft64(t, 8)
++		a[15] = bc0 ^ (bc2 &^ bc1)
++		a[6] = bc1 ^ (bc3 &^ bc2)
++		a[22] = bc2 ^ (bc4 &^ bc3)
++		a[13] = bc3 ^ (bc0 &^ bc4)
++		a[4] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[10] ^ d0
++		bc1 = bits.RotateLeft64(t, 36)
++		t = a[1] ^ d1
++		bc2 = bits.RotateLeft64(t, 10)
++		t = a[17] ^ d2
++		bc3 = bits.RotateLeft64(t, 15)
++		t = a[8] ^ d3
++		bc4 = bits.RotateLeft64(t, 56)
++		t = a[24] ^ d4
++		bc0 = bits.RotateLeft64(t, 27)
++		a[10] = bc0 ^ (bc2 &^ bc1)
++		a[1] = bc1 ^ (bc3 &^ bc2)
++		a[17] = bc2 ^ (bc4 &^ bc3)
++		a[8] = bc3 ^ (bc0 &^ bc4)
++		a[24] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[5] ^ d0
++		bc3 = bits.RotateLeft64(t, 41)
++		t = a[21] ^ d1
++		bc4 = bits.RotateLeft64(t, 2)
++		t = a[12] ^ d2
++		bc0 = bits.RotateLeft64(t, 62)
++		t = a[3] ^ d3
++		bc1 = bits.RotateLeft64(t, 55)
++		t = a[19] ^ d4
++		bc2 = bits.RotateLeft64(t, 39)
++		a[5] = bc0 ^ (bc2 &^ bc1)
++		a[21] = bc1 ^ (bc3 &^ bc2)
++		a[12] = bc2 ^ (bc4 &^ bc3)
++		a[3] = bc3 ^ (bc0 &^ bc4)
++		a[19] = bc4 ^ (bc1 &^ bc0)
++
++		// Round 3
++		bc0 = a[0] ^ a[5] ^ a[10] ^ a[15] ^ a[20]
++		bc1 = a[1] ^ a[6] ^ a[11] ^ a[16] ^ a[21]
++		bc2 = a[2] ^ a[7] ^ a[12] ^ a[17] ^ a[22]
++		bc3 = a[3] ^ a[8] ^ a[13] ^ a[18] ^ a[23]
++		bc4 = a[4] ^ a[9] ^ a[14] ^ a[19] ^ a[24]
++		d0 = bc4 ^ (bc1<<1 | bc1>>63)
++		d1 = bc0 ^ (bc2<<1 | bc2>>63)
++		d2 = bc1 ^ (bc3<<1 | bc3>>63)
++		d3 = bc2 ^ (bc4<<1 | bc4>>63)
++		d4 = bc3 ^ (bc0<<1 | bc0>>63)
++
++		bc0 = a[0] ^ d0
++		t = a[11] ^ d1
++		bc1 = bits.RotateLeft64(t, 44)
++		t = a[22] ^ d2
++		bc2 = bits.RotateLeft64(t, 43)
++		t = a[8] ^ d3
++		bc3 = bits.RotateLeft64(t, 21)
++		t = a[19] ^ d4
++		bc4 = bits.RotateLeft64(t, 14)
++		a[0] = bc0 ^ (bc2 &^ bc1) ^ rc[i+2]
++		a[11] = bc1 ^ (bc3 &^ bc2)
++		a[22] = bc2 ^ (bc4 &^ bc3)
++		a[8] = bc3 ^ (bc0 &^ bc4)
++		a[19] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[15] ^ d0
++		bc2 = bits.RotateLeft64(t, 3)
++		t = a[1] ^ d1
++		bc3 = bits.RotateLeft64(t, 45)
++		t = a[12] ^ d2
++		bc4 = bits.RotateLeft64(t, 61)
++		t = a[23] ^ d3
++		bc0 = bits.RotateLeft64(t, 28)
++		t = a[9] ^ d4
++		bc1 = bits.RotateLeft64(t, 20)
++		a[15] = bc0 ^ (bc2 &^ bc1)
++		a[1] = bc1 ^ (bc3 &^ bc2)
++		a[12] = bc2 ^ (bc4 &^ bc3)
++		a[23] = bc3 ^ (bc0 &^ bc4)
++		a[9] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[5] ^ d0
++		bc4 = bits.RotateLeft64(t, 18)
++		t = a[16] ^ d1
++		bc0 = bits.RotateLeft64(t, 1)
++		t = a[2] ^ d2
++		bc1 = bits.RotateLeft64(t, 6)
++		t = a[13] ^ d3
++		bc2 = bits.RotateLeft64(t, 25)
++		t = a[24] ^ d4
++		bc3 = bits.RotateLeft64(t, 8)
++		a[5] = bc0 ^ (bc2 &^ bc1)
++		a[16] = bc1 ^ (bc3 &^ bc2)
++		a[2] = bc2 ^ (bc4 &^ bc3)
++		a[13] = bc3 ^ (bc0 &^ bc4)
++		a[24] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[20] ^ d0
++		bc1 = bits.RotateLeft64(t, 36)
++		t = a[6] ^ d1
++		bc2 = bits.RotateLeft64(t, 10)
++		t = a[17] ^ d2
++		bc3 = bits.RotateLeft64(t, 15)
++		t = a[3] ^ d3
++		bc4 = bits.RotateLeft64(t, 56)
++		t = a[14] ^ d4
++		bc0 = bits.RotateLeft64(t, 27)
++		a[20] = bc0 ^ (bc2 &^ bc1)
++		a[6] = bc1 ^ (bc3 &^ bc2)
++		a[17] = bc2 ^ (bc4 &^ bc3)
++		a[3] = bc3 ^ (bc0 &^ bc4)
++		a[14] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[10] ^ d0
++		bc3 = bits.RotateLeft64(t, 41)
++		t = a[21] ^ d1
++		bc4 = bits.RotateLeft64(t, 2)
++		t = a[7] ^ d2
++		bc0 = bits.RotateLeft64(t, 62)
++		t = a[18] ^ d3
++		bc1 = bits.RotateLeft64(t, 55)
++		t = a[4] ^ d4
++		bc2 = bits.RotateLeft64(t, 39)
++		a[10] = bc0 ^ (bc2 &^ bc1)
++		a[21] = bc1 ^ (bc3 &^ bc2)
++		a[7] = bc2 ^ (bc4 &^ bc3)
++		a[18] = bc3 ^ (bc0 &^ bc4)
++		a[4] = bc4 ^ (bc1 &^ bc0)
++
++		// Round 4
++		bc0 = a[0] ^ a[5] ^ a[10] ^ a[15] ^ a[20]
++		bc1 = a[1] ^ a[6] ^ a[11] ^ a[16] ^ a[21]
++		bc2 = a[2] ^ a[7] ^ a[12] ^ a[17] ^ a[22]
++		bc3 = a[3] ^ a[8] ^ a[13] ^ a[18] ^ a[23]
++		bc4 = a[4] ^ a[9] ^ a[14] ^ a[19] ^ a[24]
++		d0 = bc4 ^ (bc1<<1 | bc1>>63)
++		d1 = bc0 ^ (bc2<<1 | bc2>>63)
++		d2 = bc1 ^ (bc3<<1 | bc3>>63)
++		d3 = bc2 ^ (bc4<<1 | bc4>>63)
++		d4 = bc3 ^ (bc0<<1 | bc0>>63)
++
++		bc0 = a[0] ^ d0
++		t = a[1] ^ d1
++		bc1 = bits.RotateLeft64(t, 44)
++		t = a[2] ^ d2
++		bc2 = bits.RotateLeft64(t, 43)
++		t = a[3] ^ d3
++		bc3 = bits.RotateLeft64(t, 21)
++		t = a[4] ^ d4
++		bc4 = bits.RotateLeft64(t, 14)
++		a[0] = bc0 ^ (bc2 &^ bc1) ^ rc[i+3]
++		a[1] = bc1 ^ (bc3 &^ bc2)
++		a[2] = bc2 ^ (bc4 &^ bc3)
++		a[3] = bc3 ^ (bc0 &^ bc4)
++		a[4] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[5] ^ d0
++		bc2 = bits.RotateLeft64(t, 3)
++		t = a[6] ^ d1
++		bc3 = bits.RotateLeft64(t, 45)
++		t = a[7] ^ d2
++		bc4 = bits.RotateLeft64(t, 61)
++		t = a[8] ^ d3
++		bc0 = bits.RotateLeft64(t, 28)
++		t = a[9] ^ d4
++		bc1 = bits.RotateLeft64(t, 20)
++		a[5] = bc0 ^ (bc2 &^ bc1)
++		a[6] = bc1 ^ (bc3 &^ bc2)
++		a[7] = bc2 ^ (bc4 &^ bc3)
++		a[8] = bc3 ^ (bc0 &^ bc4)
++		a[9] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[10] ^ d0
++		bc4 = bits.RotateLeft64(t, 18)
++		t = a[11] ^ d1
++		bc0 = bits.RotateLeft64(t, 1)
++		t = a[12] ^ d2
++		bc1 = bits.RotateLeft64(t, 6)
++		t = a[13] ^ d3
++		bc2 = bits.RotateLeft64(t, 25)
++		t = a[14] ^ d4
++		bc3 = bits.RotateLeft64(t, 8)
++		a[10] = bc0 ^ (bc2 &^ bc1)
++		a[11] = bc1 ^ (bc3 &^ bc2)
++		a[12] = bc2 ^ (bc4 &^ bc3)
++		a[13] = bc3 ^ (bc0 &^ bc4)
++		a[14] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[15] ^ d0
++		bc1 = bits.RotateLeft64(t, 36)
++		t = a[16] ^ d1
++		bc2 = bits.RotateLeft64(t, 10)
++		t = a[17] ^ d2
++		bc3 = bits.RotateLeft64(t, 15)
++		t = a[18] ^ d3
++		bc4 = bits.RotateLeft64(t, 56)
++		t = a[19] ^ d4
++		bc0 = bits.RotateLeft64(t, 27)
++		a[15] = bc0 ^ (bc2 &^ bc1)
++		a[16] = bc1 ^ (bc3 &^ bc2)
++		a[17] = bc2 ^ (bc4 &^ bc3)
++		a[18] = bc3 ^ (bc0 &^ bc4)
++		a[19] = bc4 ^ (bc1 &^ bc0)
++
++		t = a[20] ^ d0
++		bc3 = bits.RotateLeft64(t, 41)
++		t = a[21] ^ d1
++		bc4 = bits.RotateLeft64(t, 2)
++		t = a[22] ^ d2
++		bc0 = bits.RotateLeft64(t, 62)
++		t = a[23] ^ d3
++		bc1 = bits.RotateLeft64(t, 55)
++		t = a[24] ^ d4
++		bc2 = bits.RotateLeft64(t, 39)
++		a[20] = bc0 ^ (bc2 &^ bc1)
++		a[21] = bc1 ^ (bc3 &^ bc2)
++		a[22] = bc2 ^ (bc4 &^ bc3)
++		a[23] = bc3 ^ (bc0 &^ bc4)
++		a[24] = bc4 ^ (bc1 &^ bc0)
++	}
++}
+diff --git a/src/crypto/internal/fips/sha3/keccakf_amd64.go b/src/crypto/internal/fips/sha3/keccakf_amd64.go
+new file mode 100644
+index 0000000000..b908696be5
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/keccakf_amd64.go
+@@ -0,0 +1,13 @@
++// Copyright 2015 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build amd64 && !purego && gc
++
++package sha3
++
++// This function is implemented in keccakf_amd64.s.
++
++//go:noescape
++
++func keccakF1600(a *[25]uint64)
+diff --git a/src/crypto/internal/fips/sha3/keccakf_amd64.s b/src/crypto/internal/fips/sha3/keccakf_amd64.s
+new file mode 100644
+index 0000000000..99e2f16e97
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/keccakf_amd64.s
+@@ -0,0 +1,5419 @@
++// Code generated by command: go run keccakf_amd64_asm.go -out ../keccakf_amd64.s -pkg sha3. DO NOT EDIT.
++
++//go:build amd64 && !purego && gc
++
++// func keccakF1600(a *[25]uint64)
++TEXT ·keccakF1600(SB), $200-8
++	MOVQ a+0(FP), DI
++
++	// Convert the user state into an internal state
++	NOTQ 8(DI)
++	NOTQ 16(DI)
++	NOTQ 64(DI)
++	NOTQ 96(DI)
++	NOTQ 136(DI)
++	NOTQ 160(DI)
++
++	// Execute the KeccakF permutation
++	MOVQ (DI), SI
++	MOVQ 8(DI), BP
++	MOVQ 32(DI), R15
++	XORQ 40(DI), SI
++	XORQ 48(DI), BP
++	XORQ 72(DI), R15
++	XORQ 80(DI), SI
++	XORQ 88(DI), BP
++	XORQ 112(DI), R15
++	XORQ 120(DI), SI
++	XORQ 128(DI), BP
++	XORQ 152(DI), R15
++	XORQ 160(DI), SI
++	XORQ 168(DI), BP
++	MOVQ 176(DI), DX
++	MOVQ 184(DI), R8
++	XORQ 192(DI), R15
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000000000001, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000000008082, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x800000000000808a, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000080008000, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x000000000000808b, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000080000001, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000080008081, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000008009, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x000000000000008a, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000000000088, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000080008009, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x000000008000000a, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x000000008000808b, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x800000000000008b, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000008089, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000008003, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000008002, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000000080, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x000000000000800a, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x800000008000000a, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000080008081, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000000008080, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(DI), R12
++	XORQ 56(DI), DX
++	XORQ R15, BX
++	XORQ 96(DI), R12
++	XORQ 136(DI), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(DI), R13
++	XORQ 64(DI), R8
++	XORQ SI, CX
++	XORQ 104(DI), R13
++	XORQ 144(DI), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (DI), R10
++	MOVQ 48(DI), R11
++	XORQ R13, R9
++	MOVQ 96(DI), R12
++	MOVQ 144(DI), R13
++	MOVQ 192(DI), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x0000000080000001, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (SP)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(SP)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(SP)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(SP)
++	MOVQ R12, 8(SP)
++	MOVQ R12, BP
++
++	// Result g
++	MOVQ 72(DI), R11
++	XORQ R9, R11
++	MOVQ 80(DI), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(DI), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(DI), R13
++	MOVQ 176(DI), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(SP)
++	XORQ AX, SI
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(SP)
++	XORQ AX, BP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(SP)
++	NOTQ R14
++	XORQ R10, R15
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(SP)
++
++	// Result k
++	MOVQ 8(DI), R10
++	MOVQ 56(DI), R11
++	MOVQ 104(DI), R12
++	MOVQ 152(DI), R13
++	MOVQ 160(DI), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(SP)
++	XORQ AX, SI
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(SP)
++	XORQ AX, BP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(SP)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(SP)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(SP)
++	XORQ R10, R15
++
++	// Result m
++	MOVQ 40(DI), R11
++	XORQ BX, R11
++	MOVQ 88(DI), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(DI), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(DI), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(DI), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(SP)
++	XORQ AX, SI
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(SP)
++	XORQ AX, BP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(SP)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(SP)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(SP)
++	XORQ R11, R15
++
++	// Result s
++	MOVQ 16(DI), R10
++	MOVQ 64(DI), R11
++	MOVQ 112(DI), R12
++	XORQ DX, R10
++	MOVQ 120(DI), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(DI), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(SP)
++	ROLQ $0x27, R12
++	XORQ R9, R15
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(SP)
++	XORQ BX, SI
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(SP)
++	XORQ CX, BP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(SP)
++	MOVQ R8, 184(SP)
++
++	// Prepare round
++	MOVQ BP, BX
++	ROLQ $0x01, BX
++	MOVQ 16(SP), R12
++	XORQ 56(SP), DX
++	XORQ R15, BX
++	XORQ 96(SP), R12
++	XORQ 136(SP), DX
++	XORQ DX, R12
++	MOVQ R12, CX
++	ROLQ $0x01, CX
++	MOVQ 24(SP), R13
++	XORQ 64(SP), R8
++	XORQ SI, CX
++	XORQ 104(SP), R13
++	XORQ 144(SP), R8
++	XORQ R8, R13
++	MOVQ R13, DX
++	ROLQ $0x01, DX
++	MOVQ R15, R8
++	XORQ BP, DX
++	ROLQ $0x01, R8
++	MOVQ SI, R9
++	XORQ R12, R8
++	ROLQ $0x01, R9
++
++	// Result b
++	MOVQ (SP), R10
++	MOVQ 48(SP), R11
++	XORQ R13, R9
++	MOVQ 96(SP), R12
++	MOVQ 144(SP), R13
++	MOVQ 192(SP), R14
++	XORQ CX, R11
++	ROLQ $0x2c, R11
++	XORQ DX, R12
++	XORQ BX, R10
++	ROLQ $0x2b, R12
++	MOVQ R11, SI
++	MOVQ $0x8000000080008008, AX
++	ORQ  R12, SI
++	XORQ R10, AX
++	XORQ AX, SI
++	MOVQ SI, (DI)
++	XORQ R9, R14
++	ROLQ $0x0e, R14
++	MOVQ R10, R15
++	ANDQ R11, R15
++	XORQ R14, R15
++	MOVQ R15, 32(DI)
++	XORQ R8, R13
++	ROLQ $0x15, R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 16(DI)
++	NOTQ R12
++	ORQ  R10, R14
++	ORQ  R13, R12
++	XORQ R13, R14
++	XORQ R11, R12
++	MOVQ R14, 24(DI)
++	MOVQ R12, 8(DI)
++	NOP
++
++	// Result g
++	MOVQ 72(SP), R11
++	XORQ R9, R11
++	MOVQ 80(SP), R12
++	ROLQ $0x14, R11
++	XORQ BX, R12
++	ROLQ $0x03, R12
++	MOVQ 24(SP), R10
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ R8, R10
++	MOVQ 128(SP), R13
++	MOVQ 176(SP), R14
++	ROLQ $0x1c, R10
++	XORQ R10, AX
++	MOVQ AX, 40(DI)
++	NOP
++	XORQ CX, R13
++	ROLQ $0x2d, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 48(DI)
++	NOP
++	XORQ DX, R14
++	ROLQ $0x3d, R14
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 64(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 72(DI)
++	NOTQ R14
++	NOP
++	ORQ  R14, R13
++	XORQ R12, R13
++	MOVQ R13, 56(DI)
++
++	// Result k
++	MOVQ 8(SP), R10
++	MOVQ 56(SP), R11
++	MOVQ 104(SP), R12
++	MOVQ 152(SP), R13
++	MOVQ 160(SP), R14
++	XORQ DX, R11
++	ROLQ $0x06, R11
++	XORQ R8, R12
++	ROLQ $0x19, R12
++	MOVQ R11, AX
++	ORQ  R12, AX
++	XORQ CX, R10
++	ROLQ $0x01, R10
++	XORQ R10, AX
++	MOVQ AX, 80(DI)
++	NOP
++	XORQ R9, R13
++	ROLQ $0x08, R13
++	MOVQ R12, AX
++	ANDQ R13, AX
++	XORQ R11, AX
++	MOVQ AX, 88(DI)
++	NOP
++	XORQ BX, R14
++	ROLQ $0x12, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ANDQ R14, AX
++	XORQ R12, AX
++	MOVQ AX, 96(DI)
++	MOVQ R14, AX
++	ORQ  R10, AX
++	XORQ R13, AX
++	MOVQ AX, 104(DI)
++	ANDQ R11, R10
++	XORQ R14, R10
++	MOVQ R10, 112(DI)
++	NOP
++
++	// Result m
++	MOVQ 40(SP), R11
++	XORQ BX, R11
++	MOVQ 88(SP), R12
++	ROLQ $0x24, R11
++	XORQ CX, R12
++	MOVQ 32(SP), R10
++	ROLQ $0x0a, R12
++	MOVQ R11, AX
++	MOVQ 136(SP), R13
++	ANDQ R12, AX
++	XORQ R9, R10
++	MOVQ 184(SP), R14
++	ROLQ $0x1b, R10
++	XORQ R10, AX
++	MOVQ AX, 120(DI)
++	NOP
++	XORQ DX, R13
++	ROLQ $0x0f, R13
++	MOVQ R12, AX
++	ORQ  R13, AX
++	XORQ R11, AX
++	MOVQ AX, 128(DI)
++	NOP
++	XORQ R8, R14
++	ROLQ $0x38, R14
++	NOTQ R13
++	MOVQ R13, AX
++	ORQ  R14, AX
++	XORQ R12, AX
++	MOVQ AX, 136(DI)
++	ORQ  R10, R11
++	XORQ R14, R11
++	MOVQ R11, 152(DI)
++	ANDQ R10, R14
++	XORQ R13, R14
++	MOVQ R14, 144(DI)
++	NOP
++
++	// Result s
++	MOVQ 16(SP), R10
++	MOVQ 64(SP), R11
++	MOVQ 112(SP), R12
++	XORQ DX, R10
++	MOVQ 120(SP), R13
++	ROLQ $0x3e, R10
++	XORQ R8, R11
++	MOVQ 168(SP), R14
++	ROLQ $0x37, R11
++	XORQ R9, R12
++	MOVQ R10, R9
++	XORQ CX, R14
++	ROLQ $0x02, R14
++	ANDQ R11, R9
++	XORQ R14, R9
++	MOVQ R9, 192(DI)
++	ROLQ $0x27, R12
++	NOP
++	NOTQ R11
++	XORQ BX, R13
++	MOVQ R11, BX
++	ANDQ R12, BX
++	XORQ R10, BX
++	MOVQ BX, 160(DI)
++	NOP
++	ROLQ $0x29, R13
++	MOVQ R12, CX
++	ORQ  R13, CX
++	XORQ R11, CX
++	MOVQ CX, 168(DI)
++	NOP
++	MOVQ R13, DX
++	MOVQ R14, R8
++	ANDQ R14, DX
++	ORQ  R10, R8
++	XORQ R12, DX
++	XORQ R13, R8
++	MOVQ DX, 176(DI)
++	MOVQ R8, 184(DI)
++
++	// Revert the internal state to the user state
++	NOTQ 8(DI)
++	NOTQ 16(DI)
++	NOTQ 64(DI)
++	NOTQ 96(DI)
++	NOTQ 136(DI)
++	NOTQ 160(DI)
++	RET
+diff --git a/src/crypto/internal/fips/sha3/sha3.go b/src/crypto/internal/fips/sha3/sha3.go
+new file mode 100644
+index 0000000000..7ef08a5a3a
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/sha3.go
+@@ -0,0 +1,243 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha3
++
++import (
++	"crypto/internal/fips/subtle"
++	"errors"
++	"internal/byteorder"
++	"internal/goarch"
++	"unsafe"
++)
++
++// spongeDirection indicates the direction bytes are flowing through the sponge.
++type spongeDirection int
++
++const (
++	// spongeAbsorbing indicates that the sponge is absorbing input.
++	spongeAbsorbing spongeDirection = iota
++	// spongeSqueezing indicates that the sponge is being squeezed.
++	spongeSqueezing
++)
++
++type state struct {
++	a [1600 / 8]byte // main state of the hash
++
++	// a[n:rate] is the buffer. If absorbing, it's the remaining space to XOR
++	// into before running the permutation. If squeezing, it's the remaining
++	// output to produce before running the permutation.
++	n, rate int
++
++	// dsbyte contains the "domain separation" bits and the first bit of
++	// the padding. Sections 6.1 and 6.2 of [1] separate the outputs of the
++	// SHA-3 and SHAKE functions by appending bitstrings to the message.
++	// Using a little-endian bit-ordering convention, these are "01" for SHA-3
++	// and "1111" for SHAKE, or 00000010b and 00001111b, respectively. Then the
++	// padding rule from section 5.1 is applied to pad the message to a multiple
++	// of the rate, which involves adding a "1" bit, zero or more "0" bits, and
++	// a final "1" bit. We merge the first "1" bit from the padding into dsbyte,
++	// giving 00000110b (0x06) and 00011111b (0x1f).
++	// [1] http://csrc.nist.gov/publications/drafts/fips-202/fips_202_draft.pdf
++	//     "Draft FIPS 202: SHA-3 Standard: Permutation-Based Hash and
++	//      Extendable-Output Functions (May 2014)"
++	dsbyte byte
++
++	outputLen int             // the default output size in bytes
++	state     spongeDirection // whether the sponge is absorbing or squeezing
++}
++
++// BlockSize returns the rate of sponge underlying this hash function.
++func (d *state) BlockSize() int { return d.rate }
++
++// Size returns the output size of the hash function in bytes.
++func (d *state) Size() int { return d.outputLen }
++
++// Reset clears the internal state by zeroing the sponge state and
++// the buffer indexes, and setting Sponge.state to absorbing.
++func (d *state) Reset() {
++	// Zero the permutation's state.
++	for i := range d.a {
++		d.a[i] = 0
++	}
++	d.state = spongeAbsorbing
++	d.n = 0
++}
++
++func (d *state) clone() *state {
++	ret := *d
++	return &ret
++}
++
++// permute applies the KeccakF-1600 permutation.
++func (d *state) permute() {
++	var a *[25]uint64
++	if goarch.BigEndian {
++		a = new([25]uint64)
++		for i := range a {
++			a[i] = byteorder.LeUint64(d.a[i*8:])
++		}
++	} else {
++		a = (*[25]uint64)(unsafe.Pointer(&d.a))
++	}
++
++	keccakF1600(a)
++	d.n = 0
++
++	if goarch.BigEndian {
++		for i := range a {
++			byteorder.LePutUint64(d.a[i*8:], a[i])
++		}
++	}
++}
++
++// pads appends the domain separation bits in dsbyte, applies
++// the multi-bitrate 10..1 padding rule, and permutes the state.
++func (d *state) padAndPermute() {
++	// Pad with this instance's domain-separator bits. We know that there's
++	// at least one byte of space in the sponge because, if it were full,
++	// permute would have been called to empty it. dsbyte also contains the
++	// first one bit for the padding. See the comment in the state struct.
++	d.a[d.n] ^= d.dsbyte
++	// This adds the final one bit for the padding. Because of the way that
++	// bits are numbered from the LSB upwards, the final bit is the MSB of
++	// the last byte.
++	d.a[d.rate-1] ^= 0x80
++	// Apply the permutation
++	d.permute()
++	d.state = spongeSqueezing
++}
++
++// Write absorbs more data into the hash's state. It panics if any
++// output has already been read.
++func (d *state) Write(p []byte) (n int, err error) {
++	if d.state != spongeAbsorbing {
++		panic("sha3: Write after Read")
++	}
++
++	n = len(p)
++
++	for len(p) > 0 {
++		x := subtle.XORBytes(d.a[d.n:d.rate], d.a[d.n:d.rate], p)
++		d.n += x
++		p = p[x:]
++
++		// If the sponge is full, apply the permutation.
++		if d.n == d.rate {
++			d.permute()
++		}
++	}
++
++	return
++}
++
++// Read squeezes an arbitrary number of bytes from the sponge.
++func (d *state) Read(out []byte) (n int, err error) {
++	// If we're still absorbing, pad and apply the permutation.
++	if d.state == spongeAbsorbing {
++		d.padAndPermute()
++	}
++
++	n = len(out)
++
++	// Now, do the squeezing.
++	for len(out) > 0 {
++		// Apply the permutation if we've squeezed the sponge dry.
++		if d.n == d.rate {
++			d.permute()
++		}
++
++		x := copy(out, d.a[d.n:d.rate])
++		d.n += x
++		out = out[x:]
++	}
++
++	return
++}
++
++// Sum applies padding to the hash state and then squeezes out the desired
++// number of output bytes. It panics if any output has already been read.
++func (d *state) Sum(in []byte) []byte {
++	if d.state != spongeAbsorbing {
++		panic("sha3: Sum after Read")
++	}
++
++	// Make a copy of the original hash so that caller can keep writing
++	// and summing.
++	dup := d.clone()
++	hash := make([]byte, dup.outputLen, 64) // explicit cap to allow stack allocation
++	dup.Read(hash)
++	return append(in, hash...)
++}
++
++const (
++	magicSHA3   = "sha\x08"
++	magicShake  = "sha\x09"
++	magicCShake = "sha\x0a"
++	magicKeccak = "sha\x0b"
++	// magic || rate || main state || n || sponge direction
++	marshaledSize = len(magicSHA3) + 1 + 200 + 1 + 1
++)
++
++func (d *state) MarshalBinary() ([]byte, error) {
++	return d.AppendBinary(make([]byte, 0, marshaledSize))
++}
++
++func (d *state) AppendBinary(b []byte) ([]byte, error) {
++	switch d.dsbyte {
++	case dsbyteSHA3:
++		b = append(b, magicSHA3...)
++	case dsbyteShake:
++		b = append(b, magicShake...)
++	case dsbyteCShake:
++		b = append(b, magicCShake...)
++	case dsbyteKeccak:
++		b = append(b, magicKeccak...)
++	default:
++		panic("unknown dsbyte")
++	}
++	// rate is at most 168, and n is at most rate.
++	b = append(b, byte(d.rate))
++	b = append(b, d.a[:]...)
++	b = append(b, byte(d.n), byte(d.state))
++	return b, nil
++}
++
++func (d *state) UnmarshalBinary(b []byte) error {
++	if len(b) != marshaledSize {
++		return errors.New("sha3: invalid hash state")
++	}
++
++	magic := string(b[:len(magicSHA3)])
++	b = b[len(magicSHA3):]
++	switch {
++	case magic == magicSHA3 && d.dsbyte == dsbyteSHA3:
++	case magic == magicShake && d.dsbyte == dsbyteShake:
++	case magic == magicCShake && d.dsbyte == dsbyteCShake:
++	case magic == magicKeccak && d.dsbyte == dsbyteKeccak:
++	default:
++		return errors.New("sha3: invalid hash state identifier")
++	}
++
++	rate := int(b[0])
++	b = b[1:]
++	if rate != d.rate {
++		return errors.New("sha3: invalid hash state function")
++	}
++
++	copy(d.a[:], b)
++	b = b[len(d.a):]
++
++	n, state := int(b[0]), spongeDirection(b[1])
++	if n > d.rate {
++		return errors.New("sha3: invalid hash state")
++	}
++	d.n = n
++	if state != spongeAbsorbing && state != spongeSqueezing {
++		return errors.New("sha3: invalid hash state")
++	}
++	d.state = state
++
++	return nil
++}
+diff --git a/src/crypto/internal/fips/sha3/sha3_s390x.go b/src/crypto/internal/fips/sha3/sha3_s390x.go
+new file mode 100644
+index 0000000000..8cb58c28cb
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/sha3_s390x.go
+@@ -0,0 +1,302 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build gc && !purego
++
++package sha3
++
++// This file contains code for using the 'compute intermediate
++// message digest' (KIMD) and 'compute last message digest' (KLMD)
++// instructions to compute SHA-3 and SHAKE hashes on IBM Z.
++
++import (
++	"crypto/internal/fips"
++	"internal/cpu"
++)
++
++// codes represent 7-bit KIMD/KLMD function codes as defined in
++// the Principles of Operation.
++type code uint64
++
++const (
++	// function codes for KIMD/KLMD
++	sha3_224  code = 32
++	sha3_256       = 33
++	sha3_384       = 34
++	sha3_512       = 35
++	shake_128      = 36
++	shake_256      = 37
++	nopad          = 0x100
++)
++
++// kimd is a wrapper for the 'compute intermediate message digest' instruction.
++// src must be a multiple of the rate for the given function code.
++//
++//go:noescape
++func kimd(function code, chain *[200]byte, src []byte)
++
++// klmd is a wrapper for the 'compute last message digest' instruction.
++// src padding is handled by the instruction.
++//
++//go:noescape
++func klmd(function code, chain *[200]byte, dst, src []byte)
++
++type asmState struct {
++	a         [200]byte       // 1600 bit state
++	buf       []byte          // care must be taken to ensure cap(buf) is a multiple of rate
++	rate      int             // equivalent to block size
++	storage   [3072]byte      // underlying storage for buf
++	outputLen int             // output length for full security
++	function  code            // KIMD/KLMD function code
++	state     spongeDirection // whether the sponge is absorbing or squeezing
++}
++
++func newAsmState(function code) *asmState {
++	var s asmState
++	s.function = function
++	switch function {
++	case sha3_224:
++		s.rate = 144
++		s.outputLen = 28
++	case sha3_256:
++		s.rate = 136
++		s.outputLen = 32
++	case sha3_384:
++		s.rate = 104
++		s.outputLen = 48
++	case sha3_512:
++		s.rate = 72
++		s.outputLen = 64
++	case shake_128:
++		s.rate = 168
++		s.outputLen = 32
++	case shake_256:
++		s.rate = 136
++		s.outputLen = 64
++	default:
++		panic("sha3: unrecognized function code")
++	}
++
++	// limit s.buf size to a multiple of s.rate
++	s.resetBuf()
++	return &s
++}
++
++func (s *asmState) clone() *asmState {
++	c := *s
++	c.buf = c.storage[:len(s.buf):cap(s.buf)]
++	return &c
++}
++
++// copyIntoBuf copies b into buf. It will panic if there is not enough space to
++// store all of b.
++func (s *asmState) copyIntoBuf(b []byte) {
++	bufLen := len(s.buf)
++	s.buf = s.buf[:len(s.buf)+len(b)]
++	copy(s.buf[bufLen:], b)
++}
++
++// resetBuf points buf at storage, sets the length to 0 and sets cap to be a
++// multiple of the rate.
++func (s *asmState) resetBuf() {
++	max := (cap(s.storage) / s.rate) * s.rate
++	s.buf = s.storage[:0:max]
++}
++
++// Write (via the embedded io.Writer interface) adds more data to the running hash.
++// It never returns an error.
++func (s *asmState) Write(b []byte) (int, error) {
++	if s.state != spongeAbsorbing {
++		panic("sha3: Write after Read")
++	}
++	length := len(b)
++	for len(b) > 0 {
++		if len(s.buf) == 0 && len(b) >= cap(s.buf) {
++			// Hash the data directly and push any remaining bytes
++			// into the buffer.
++			remainder := len(b) % s.rate
++			kimd(s.function, &s.a, b[:len(b)-remainder])
++			if remainder != 0 {
++				s.copyIntoBuf(b[len(b)-remainder:])
++			}
++			return length, nil
++		}
++
++		if len(s.buf) == cap(s.buf) {
++			// flush the buffer
++			kimd(s.function, &s.a, s.buf)
++			s.buf = s.buf[:0]
++		}
++
++		// copy as much as we can into the buffer
++		n := len(b)
++		if len(b) > cap(s.buf)-len(s.buf) {
++			n = cap(s.buf) - len(s.buf)
++		}
++		s.copyIntoBuf(b[:n])
++		b = b[n:]
++	}
++	return length, nil
++}
++
++// Read squeezes an arbitrary number of bytes from the sponge.
++func (s *asmState) Read(out []byte) (n int, err error) {
++	// The 'compute last message digest' instruction only stores the digest
++	// at the first operand (dst) for SHAKE functions.
++	if s.function != shake_128 && s.function != shake_256 {
++		panic("sha3: can only call Read for SHAKE functions")
++	}
++
++	n = len(out)
++
++	// need to pad if we were absorbing
++	if s.state == spongeAbsorbing {
++		s.state = spongeSqueezing
++
++		// write hash directly into out if possible
++		if len(out)%s.rate == 0 {
++			klmd(s.function, &s.a, out, s.buf) // len(out) may be 0
++			s.buf = s.buf[:0]
++			return
++		}
++
++		// write hash into buffer
++		max := cap(s.buf)
++		if max > len(out) {
++			max = (len(out)/s.rate)*s.rate + s.rate
++		}
++		klmd(s.function, &s.a, s.buf[:max], s.buf)
++		s.buf = s.buf[:max]
++	}
++
++	for len(out) > 0 {
++		// flush the buffer
++		if len(s.buf) != 0 {
++			c := copy(out, s.buf)
++			out = out[c:]
++			s.buf = s.buf[c:]
++			continue
++		}
++
++		// write hash directly into out if possible
++		if len(out)%s.rate == 0 {
++			klmd(s.function|nopad, &s.a, out, nil)
++			return
++		}
++
++		// write hash into buffer
++		s.resetBuf()
++		if cap(s.buf) > len(out) {
++			s.buf = s.buf[:(len(out)/s.rate)*s.rate+s.rate]
++		}
++		klmd(s.function|nopad, &s.a, s.buf, nil)
++	}
++	return
++}
++
++// Sum appends the current hash to b and returns the resulting slice.
++// It does not change the underlying hash state.
++func (s *asmState) Sum(b []byte) []byte {
++	if s.state != spongeAbsorbing {
++		panic("sha3: Sum after Read")
++	}
++
++	// Copy the state to preserve the original.
++	a := s.a
++
++	// Hash the buffer. Note that we don't clear it because we
++	// aren't updating the state.
++	switch s.function {
++	case sha3_224, sha3_256, sha3_384, sha3_512:
++		klmd(s.function, &a, nil, s.buf)
++		return append(b, a[:s.outputLen]...)
++	case shake_128, shake_256:
++		d := make([]byte, s.outputLen, 64)
++		klmd(s.function, &a, d, s.buf)
++		return append(b, d[:s.outputLen]...)
++	default:
++		panic("sha3: unknown function")
++	}
++}
++
++// Reset resets the Hash to its initial state.
++func (s *asmState) Reset() {
++	for i := range s.a {
++		s.a[i] = 0
++	}
++	s.resetBuf()
++	s.state = spongeAbsorbing
++}
++
++// Size returns the number of bytes Sum will return.
++func (s *asmState) Size() int {
++	return s.outputLen
++}
++
++// BlockSize returns the hash's underlying block size.
++// The Write method must be able to accept any amount
++// of data, but it may operate more efficiently if all writes
++// are a multiple of the block size.
++func (s *asmState) BlockSize() int {
++	return s.rate
++}
++
++// Clone returns a copy of the ShakeHash in its current state.
++func (s *asmState) Clone() ShakeHash {
++	return s.clone()
++}
++
++// new224 returns an assembly implementation of SHA3-224 if available,
++// otherwise it returns a generic implementation.
++func new224() fips.Hash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(sha3_224)
++	}
++	return new224Generic()
++}
++
++// new256 returns an assembly implementation of SHA3-256 if available,
++// otherwise it returns a generic implementation.
++func new256() fips.Hash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(sha3_256)
++	}
++	return new256Generic()
++}
++
++// new384 returns an assembly implementation of SHA3-384 if available,
++// otherwise it returns a generic implementation.
++func new384() fips.Hash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(sha3_384)
++	}
++	return new384Generic()
++}
++
++// new512 returns an assembly implementation of SHA3-512 if available,
++// otherwise it returns a generic implementation.
++func new512() fips.Hash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(sha3_512)
++	}
++	return new512Generic()
++}
++
++// newShake128 returns an assembly implementation of SHAKE-128 if available,
++// otherwise it returns a generic implementation.
++func newShake128() ShakeHash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(shake_128)
++	}
++	return newShake128Generic()
++}
++
++// newShake256 returns an assembly implementation of SHAKE-256 if available,
++// otherwise it returns a generic implementation.
++func newShake256() ShakeHash {
++	if cpu.S390X.HasSHA3 {
++		return newAsmState(shake_256)
++	}
++	return newShake256Generic()
++}
+diff --git a/src/crypto/internal/fips/sha3/sha3_s390x.s b/src/crypto/internal/fips/sha3/sha3_s390x.s
+new file mode 100644
+index 0000000000..826b862c77
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/sha3_s390x.s
+@@ -0,0 +1,33 @@
++// Copyright 2017 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build gc && !purego
++
++#include "textflag.h"
++
++// func kimd(function code, chain *[200]byte, src []byte)
++TEXT ·kimd(SB), NOFRAME|NOSPLIT, $0-40
++	MOVD function+0(FP), R0
++	MOVD chain+8(FP), R1
++	LMG  src+16(FP), R2, R3 // R2=base, R3=len
++
++continue:
++	WORD $0xB93E0002 // KIMD --, R2
++	BVS  continue    // continue if interrupted
++	MOVD $0, R0      // reset R0 for pre-go1.8 compilers
++	RET
++
++// func klmd(function code, chain *[200]byte, dst, src []byte)
++TEXT ·klmd(SB), NOFRAME|NOSPLIT, $0-64
++	// TODO: SHAKE support
++	MOVD function+0(FP), R0
++	MOVD chain+8(FP), R1
++	LMG  dst+16(FP), R2, R3 // R2=base, R3=len
++	LMG  src+40(FP), R4, R5 // R4=base, R5=len
++
++continue:
++	WORD $0xB93F0024 // KLMD R2, R4
++	BVS  continue    // continue if interrupted
++	MOVD $0, R0      // reset R0 for pre-go1.8 compilers
++	RET
+diff --git a/src/crypto/internal/fips/sha3/sha3_test.go b/src/crypto/internal/fips/sha3/sha3_test.go
+new file mode 100644
+index 0000000000..980ed43a5f
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/sha3_test.go
+@@ -0,0 +1,552 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha3
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"encoding"
++	"encoding/hex"
++	"fmt"
++	"io"
++	"math/rand"
++	"strings"
++	"testing"
++)
++
++const testString = "brekeccakkeccak koax koax"
++
++// testDigests contains functions returning hash.Hash instances
++// with output-length equal to the KAT length for SHA-3, Keccak
++// and SHAKE instances.
++var testDigests = map[string]func() fips.Hash{
++	"SHA3-224":   New224,
++	"SHA3-256":   New256,
++	"SHA3-384":   New384,
++	"SHA3-512":   New512,
++	"Keccak-256": NewLegacyKeccak256,
++	"Keccak-512": NewLegacyKeccak512,
++}
++
++// testShakes contains functions that return sha3.ShakeHash instances for
++// with output-length equal to the KAT length.
++var testShakes = map[string]struct {
++	constructor  func(N []byte, S []byte) ShakeHash
++	defAlgoName  string
++	defCustomStr string
++}{
++	// NewCShake without customization produces same result as SHAKE
++	"SHAKE128":  {NewCShake128, "", ""},
++	"SHAKE256":  {NewCShake256, "", ""},
++	"cSHAKE128": {NewCShake128, "CSHAKE128", "CustomString"},
++	"cSHAKE256": {NewCShake256, "CSHAKE256", "CustomString"},
++}
++
++// decodeHex converts a hex-encoded string into a raw byte string.
++func decodeHex(s string) []byte {
++	b, err := hex.DecodeString(s)
++	if err != nil {
++		panic(err)
++	}
++	return b
++}
++
++// TestKeccak does a basic test of the non-standardized Keccak hash functions.
++func TestKeccak(t *testing.T) {
++	tests := []struct {
++		fn   func() fips.Hash
++		data []byte
++		want string
++	}{
++		{
++			NewLegacyKeccak256,
++			[]byte("abc"),
++			"4e03657aea45a94fc7d47ba826c8d667c0d1e6e33a64a036ec44f58fa12d6c45",
++		},
++		{
++			NewLegacyKeccak512,
++			[]byte("abc"),
++			"18587dc2ea106b9a1563e32b3312421ca164c7f1f07bc922a9c83d77cea3a1e5d0c69910739025372dc14ac9642629379540c17e2a65b19d77aa511a9d00bb96",
++		},
++	}
++
++	for _, u := range tests {
++		h := u.fn()
++		h.Write(u.data)
++		got := h.Sum(nil)
++		want := decodeHex(u.want)
++		if !bytes.Equal(got, want) {
++			t.Errorf("unexpected hash for size %d: got '%x' want '%s'", h.Size()*8, got, u.want)
++		}
++	}
++}
++
++// TestShakeSum tests that the output of Sum matches the output of Read.
++func TestShakeSum(t *testing.T) {
++	tests := [...]struct {
++		name        string
++		hash        ShakeHash
++		expectedLen int
++	}{
++		{"SHAKE128", NewShake128(), 32},
++		{"SHAKE256", NewShake256(), 64},
++		{"cSHAKE128", NewCShake128([]byte{'X'}, nil), 32},
++		{"cSHAKE256", NewCShake256([]byte{'X'}, nil), 64},
++	}
++
++	for _, test := range tests {
++		t.Run(test.name, func(t *testing.T) {
++			s := test.hash.Sum(nil)
++			if len(s) != test.expectedLen {
++				t.Errorf("Unexpected digest length: got %d, want %d", len(s), test.expectedLen)
++			}
++			r := make([]byte, test.expectedLen)
++			test.hash.Read(r)
++			if !bytes.Equal(s, r) {
++				t.Errorf("Mismatch between Sum and Read:\nSum:  %s\nRead: %s", hex.EncodeToString(s), hex.EncodeToString(r))
++			}
++		})
++	}
++}
++
++// TestUnalignedWrite tests that writing data in an arbitrary pattern with
++// small input buffers.
++func TestUnalignedWrite(t *testing.T) {
++	buf := sequentialBytes(0x10000)
++	for alg, df := range testDigests {
++		d := df()
++		d.Reset()
++		d.Write(buf)
++		want := d.Sum(nil)
++		d.Reset()
++		for i := 0; i < len(buf); {
++			// Cycle through offsets which make a 137 byte sequence.
++			// Because 137 is prime this sequence should exercise all corner cases.
++			offsets := [17]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1}
++			for _, j := range offsets {
++				if v := len(buf) - i; v < j {
++					j = v
++				}
++				d.Write(buf[i : i+j])
++				i += j
++			}
++		}
++		got := d.Sum(nil)
++		if !bytes.Equal(got, want) {
++			t.Errorf("Unaligned writes, alg=%s\ngot %q, want %q", alg, got, want)
++		}
++	}
++
++	// Same for SHAKE
++	for alg, df := range testShakes {
++		want := make([]byte, 16)
++		got := make([]byte, 16)
++		d := df.constructor([]byte(df.defAlgoName), []byte(df.defCustomStr))
++
++		d.Reset()
++		d.Write(buf)
++		d.Read(want)
++		d.Reset()
++		for i := 0; i < len(buf); {
++			// Cycle through offsets which make a 137 byte sequence.
++			// Because 137 is prime this sequence should exercise all corner cases.
++			offsets := [17]int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 1}
++			for _, j := range offsets {
++				if v := len(buf) - i; v < j {
++					j = v
++				}
++				d.Write(buf[i : i+j])
++				i += j
++			}
++		}
++		d.Read(got)
++		if !bytes.Equal(got, want) {
++			t.Errorf("Unaligned writes, alg=%s\ngot %q, want %q", alg, got, want)
++		}
++	}
++}
++
++// TestAppend checks that appending works when reallocation is necessary.
++func TestAppend(t *testing.T) {
++	d := New224()
++
++	for capacity := 2; capacity <= 66; capacity += 64 {
++		// The first time around the loop, Sum will have to reallocate.
++		// The second time, it will not.
++		buf := make([]byte, 2, capacity)
++		d.Reset()
++		d.Write([]byte{0xcc})
++		buf = d.Sum(buf)
++		expected := "0000DF70ADC49B2E76EEE3A6931B93FA41841C3AF2CDF5B32A18B5478C39"
++		if got := strings.ToUpper(hex.EncodeToString(buf)); got != expected {
++			t.Errorf("got %s, want %s", got, expected)
++		}
++	}
++}
++
++// TestAppendNoRealloc tests that appending works when no reallocation is necessary.
++func TestAppendNoRealloc(t *testing.T) {
++	buf := make([]byte, 1, 200)
++	d := New224()
++	d.Write([]byte{0xcc})
++	buf = d.Sum(buf)
++	expected := "00DF70ADC49B2E76EEE3A6931B93FA41841C3AF2CDF5B32A18B5478C39"
++	if got := strings.ToUpper(hex.EncodeToString(buf)); got != expected {
++		t.Errorf("got %s, want %s", got, expected)
++	}
++}
++
++// TestSqueezing checks that squeezing the full output a single time produces
++// the same output as repeatedly squeezing the instance.
++func TestSqueezing(t *testing.T) {
++	for algo, v := range testShakes {
++		d0 := v.constructor([]byte(v.defAlgoName), []byte(v.defCustomStr))
++		d0.Write([]byte(testString))
++		ref := make([]byte, 32)
++		d0.Read(ref)
++
++		d1 := v.constructor([]byte(v.defAlgoName), []byte(v.defCustomStr))
++		d1.Write([]byte(testString))
++		var multiple []byte
++		for range ref {
++			one := make([]byte, 1)
++			d1.Read(one)
++			multiple = append(multiple, one...)
++		}
++		if !bytes.Equal(ref, multiple) {
++			t.Errorf("%s: squeezing %d bytes one at a time failed", algo, len(ref))
++		}
++	}
++}
++
++// sequentialBytes produces a buffer of size consecutive bytes 0x00, 0x01, ..., used for testing.
++//
++// The alignment of each slice is intentionally randomized to detect alignment
++// issues in the implementation. See https://golang.org/issue/37644.
++// Ideally, the compiler should fuzz the alignment itself.
++// (See https://golang.org/issue/35128.)
++func sequentialBytes(size int) []byte {
++	alignmentOffset := rand.Intn(8)
++	result := make([]byte, size+alignmentOffset)[alignmentOffset:]
++	for i := range result {
++		result[i] = byte(i)
++	}
++	return result
++}
++
++func TestReset(t *testing.T) {
++	out1 := make([]byte, 32)
++	out2 := make([]byte, 32)
++
++	for _, v := range testShakes {
++		// Calculate hash for the first time
++		c := v.constructor(nil, []byte{0x99, 0x98})
++		c.Write(sequentialBytes(0x100))
++		c.Read(out1)
++
++		// Calculate hash again
++		c.Reset()
++		c.Write(sequentialBytes(0x100))
++		c.Read(out2)
++
++		if !bytes.Equal(out1, out2) {
++			t.Error("\nExpected:\n", out1, "\ngot:\n", out2)
++		}
++	}
++}
++
++func TestClone(t *testing.T) {
++	out1 := make([]byte, 16)
++	out2 := make([]byte, 16)
++
++	// Test for sizes smaller and larger than block size.
++	for _, size := range []int{0x1, 0x100} {
++		in := sequentialBytes(size)
++		for _, v := range testShakes {
++			h1 := v.constructor(nil, []byte{0x01})
++			h1.Write([]byte{0x01})
++
++			h2 := h1.Clone()
++
++			h1.Write(in)
++			h1.Read(out1)
++
++			h2.Write(in)
++			h2.Read(out2)
++
++			if !bytes.Equal(out1, out2) {
++				t.Error("\nExpected:\n", hex.EncodeToString(out1), "\ngot:\n", hex.EncodeToString(out2))
++			}
++		}
++	}
++}
++
++func TestCSHAKEAccumulated(t *testing.T) {
++	// Generated with pycryptodome@3.20.0
++	//
++	//    from Crypto.Hash import cSHAKE128
++	//    rng = cSHAKE128.new()
++	//    acc = cSHAKE128.new()
++	//    for n in range(200):
++	//        N = rng.read(n)
++	//        for s in range(200):
++	//            S = rng.read(s)
++	//            c = cSHAKE128.cSHAKE_XOF(data=None, custom=S, capacity=256, function=N)
++	//            c.update(rng.read(100))
++	//            acc.update(c.read(200))
++	//            c = cSHAKE128.cSHAKE_XOF(data=None, custom=S, capacity=256, function=N)
++	//            c.update(rng.read(168))
++	//            acc.update(c.read(200))
++	//            c = cSHAKE128.cSHAKE_XOF(data=None, custom=S, capacity=256, function=N)
++	//            c.update(rng.read(200))
++	//            acc.update(c.read(200))
++	//    print(acc.read(32).hex())
++	//
++	// and with @noble/hashes@v1.5.0
++	//
++	//    import { bytesToHex } from "@noble/hashes/utils";
++	//    import { cshake128 } from "@noble/hashes/sha3-addons";
++	//    const rng = cshake128.create();
++	//    const acc = cshake128.create();
++	//    for (let n = 0; n < 200; n++) {
++	//        const N = rng.xof(n);
++	//        for (let s = 0; s < 200; s++) {
++	//            const S = rng.xof(s);
++	//            let c = cshake128.create({ NISTfn: N, personalization: S });
++	//            c.update(rng.xof(100));
++	//            acc.update(c.xof(200));
++	//            c = cshake128.create({ NISTfn: N, personalization: S });
++	//            c.update(rng.xof(168));
++	//            acc.update(c.xof(200));
++	//            c = cshake128.create({ NISTfn: N, personalization: S });
++	//            c.update(rng.xof(200));
++	//            acc.update(c.xof(200));
++	//        }
++	//    }
++	//    console.log(bytesToHex(acc.xof(32)));
++	//
++	t.Run("cSHAKE128", func(t *testing.T) {
++		testCSHAKEAccumulated(t, NewCShake128, rateK256,
++			"bb14f8657c6ec5403d0b0e2ef3d3393497e9d3b1a9a9e8e6c81dbaa5fd809252")
++	})
++	t.Run("cSHAKE256", func(t *testing.T) {
++		testCSHAKEAccumulated(t, NewCShake256, rateK512,
++			"0baaf9250c6e25f0c14ea5c7f9bfde54c8a922c8276437db28f3895bdf6eeeef")
++	})
++}
++
++func testCSHAKEAccumulated(t *testing.T, newCShake func(N, S []byte) ShakeHash, rate int64, exp string) {
++	rnd := newCShake(nil, nil)
++	acc := newCShake(nil, nil)
++	for n := 0; n < 200; n++ {
++		N := make([]byte, n)
++		rnd.Read(N)
++		for s := 0; s < 200; s++ {
++			S := make([]byte, s)
++			rnd.Read(S)
++
++			c := newCShake(N, S)
++			io.CopyN(c, rnd, 100 /* < rate */)
++			io.CopyN(acc, c, 200)
++
++			c.Reset()
++			io.CopyN(c, rnd, rate)
++			io.CopyN(acc, c, 200)
++
++			c.Reset()
++			io.CopyN(c, rnd, 200 /* > rate */)
++			io.CopyN(acc, c, 200)
++		}
++	}
++	if got := hex.EncodeToString(acc.Sum(nil)[:32]); got != exp {
++		t.Errorf("got %s, want %s", got, exp)
++	}
++}
++
++func TestCSHAKELargeS(t *testing.T) {
++	if testing.Short() {
++		t.Skip("skipping test in short mode.")
++	}
++
++	// See https://go.dev/issue/66232.
++	const s = (1<<32)/8 + 1000 // s * 8 > 2^32
++	S := make([]byte, s)
++	rnd := NewShake128()
++	rnd.Read(S)
++	c := NewCShake128(nil, S)
++	io.CopyN(c, rnd, 1000)
++
++	// Generated with pycryptodome@3.20.0
++	//
++	//    from Crypto.Hash import cSHAKE128
++	//    rng = cSHAKE128.new()
++	//    S = rng.read(536871912)
++	//    c = cSHAKE128.new(custom=S)
++	//    c.update(rng.read(1000))
++	//    print(c.read(32).hex())
++	//
++	exp := "2cb9f237767e98f2614b8779cf096a52da9b3a849280bbddec820771ae529cf0"
++	if got := hex.EncodeToString(c.Sum(nil)); got != exp {
++		t.Errorf("got %s, want %s", got, exp)
++	}
++}
++
++func TestMarshalUnmarshal(t *testing.T) {
++	t.Run("SHA3-224", func(t *testing.T) { testMarshalUnmarshal(t, New224()) })
++	t.Run("SHA3-256", func(t *testing.T) { testMarshalUnmarshal(t, New256()) })
++	t.Run("SHA3-384", func(t *testing.T) { testMarshalUnmarshal(t, New384()) })
++	t.Run("SHA3-512", func(t *testing.T) { testMarshalUnmarshal(t, New512()) })
++	t.Run("SHAKE128", func(t *testing.T) { testMarshalUnmarshal(t, NewShake128()) })
++	t.Run("SHAKE256", func(t *testing.T) { testMarshalUnmarshal(t, NewShake256()) })
++	t.Run("cSHAKE128", func(t *testing.T) { testMarshalUnmarshal(t, NewCShake128([]byte("N"), []byte("S"))) })
++	t.Run("cSHAKE256", func(t *testing.T) { testMarshalUnmarshal(t, NewCShake256([]byte("N"), []byte("S"))) })
++	t.Run("Keccak-256", func(t *testing.T) { testMarshalUnmarshal(t, NewLegacyKeccak256()) })
++	t.Run("Keccak-512", func(t *testing.T) { testMarshalUnmarshal(t, NewLegacyKeccak512()) })
++}
++
++// TODO(filippo): move this to crypto/internal/cryptotest.
++func testMarshalUnmarshal(t *testing.T, h fips.Hash) {
++	buf := make([]byte, 200)
++	rand.Read(buf)
++	n := rand.Intn(200)
++	h.Write(buf)
++	want := h.Sum(nil)
++	h.Reset()
++	h.Write(buf[:n])
++	b, err := h.(encoding.BinaryMarshaler).MarshalBinary()
++	if err != nil {
++		t.Errorf("MarshalBinary: %v", err)
++	}
++	h.Write(bytes.Repeat([]byte{0}, 200))
++	if err := h.(encoding.BinaryUnmarshaler).UnmarshalBinary(b); err != nil {
++		t.Errorf("UnmarshalBinary: %v", err)
++	}
++	h.Write(buf[n:])
++	got := h.Sum(nil)
++	if !bytes.Equal(got, want) {
++		t.Errorf("got %x, want %x", got, want)
++	}
++}
++
++// BenchmarkPermutationFunction measures the speed of the permutation function
++// with no input data.
++func BenchmarkPermutationFunction(b *testing.B) {
++	b.SetBytes(int64(200))
++	var lanes [25]uint64
++	for i := 0; i < b.N; i++ {
++		keccakF1600(&lanes)
++	}
++}
++
++// benchmarkHash tests the speed to hash num buffers of buflen each.
++func benchmarkHash(b *testing.B, h fips.Hash, size, num int) {
++	b.StopTimer()
++	h.Reset()
++	data := sequentialBytes(size)
++	b.SetBytes(int64(size * num))
++	b.StartTimer()
++
++	var state []byte
++	for i := 0; i < b.N; i++ {
++		for j := 0; j < num; j++ {
++			h.Write(data)
++		}
++		state = h.Sum(state[:0])
++	}
++	b.StopTimer()
++	h.Reset()
++}
++
++// benchmarkShake is specialized to the Shake instances, which don't
++// require a copy on reading output.
++func benchmarkShake(b *testing.B, h ShakeHash, size, num int) {
++	b.StopTimer()
++	h.Reset()
++	data := sequentialBytes(size)
++	d := make([]byte, 32)
++
++	b.SetBytes(int64(size * num))
++	b.StartTimer()
++
++	for i := 0; i < b.N; i++ {
++		h.Reset()
++		for j := 0; j < num; j++ {
++			h.Write(data)
++		}
++		h.Read(d)
++	}
++}
++
++func BenchmarkSha3_512_MTU(b *testing.B) { benchmarkHash(b, New512(), 1350, 1) }
++func BenchmarkSha3_384_MTU(b *testing.B) { benchmarkHash(b, New384(), 1350, 1) }
++func BenchmarkSha3_256_MTU(b *testing.B) { benchmarkHash(b, New256(), 1350, 1) }
++func BenchmarkSha3_224_MTU(b *testing.B) { benchmarkHash(b, New224(), 1350, 1) }
++
++func BenchmarkShake128_MTU(b *testing.B)  { benchmarkShake(b, NewShake128(), 1350, 1) }
++func BenchmarkShake256_MTU(b *testing.B)  { benchmarkShake(b, NewShake256(), 1350, 1) }
++func BenchmarkShake256_16x(b *testing.B)  { benchmarkShake(b, NewShake256(), 16, 1024) }
++func BenchmarkShake256_1MiB(b *testing.B) { benchmarkShake(b, NewShake256(), 1024, 1024) }
++
++func BenchmarkSha3_512_1MiB(b *testing.B) { benchmarkHash(b, New512(), 1024, 1024) }
++
++func Example_sum() {
++	buf := []byte("some data to hash")
++	// A hash needs to be 64 bytes long to have 256-bit collision resistance.
++	h := make([]byte, 64)
++	// Compute a 64-byte hash of buf and put it in h.
++	ShakeSum256(h, buf)
++	fmt.Printf("%x\n", h)
++	// Output: 0f65fe41fc353e52c55667bb9e2b27bfcc8476f2c413e9437d272ee3194a4e3146d05ec04a25d16b8f577c19b82d16b1424c3e022e783d2b4da98de3658d363d
++}
++
++func Example_mac() {
++	k := []byte("this is a secret key; you should generate a strong random key that's at least 32 bytes long")
++	buf := []byte("and this is some data to authenticate")
++	// A MAC with 32 bytes of output has 256-bit security strength -- if you use at least a 32-byte-long key.
++	h := make([]byte, 32)
++	d := NewShake256()
++	// Write the key into the hash.
++	d.Write(k)
++	// Now write the data.
++	d.Write(buf)
++	// Read 32 bytes of output from the hash into h.
++	d.Read(h)
++	fmt.Printf("%x\n", h)
++	// Output: 78de2974bd2711d5549ffd32b753ef0f5fa80a0db2556db60f0987eb8a9218ff
++}
++
++func ExampleNewCShake256() {
++	out := make([]byte, 32)
++	msg := []byte("The quick brown fox jumps over the lazy dog")
++
++	// Example 1: Simple cshake
++	c1 := NewCShake256([]byte("NAME"), []byte("Partition1"))
++	c1.Write(msg)
++	c1.Read(out)
++	fmt.Println(hex.EncodeToString(out))
++
++	// Example 2: Different customization string produces different digest
++	c1 = NewCShake256([]byte("NAME"), []byte("Partition2"))
++	c1.Write(msg)
++	c1.Read(out)
++	fmt.Println(hex.EncodeToString(out))
++
++	// Example 3: Longer output length produces longer digest
++	out = make([]byte, 64)
++	c1 = NewCShake256([]byte("NAME"), []byte("Partition1"))
++	c1.Write(msg)
++	c1.Read(out)
++	fmt.Println(hex.EncodeToString(out))
++
++	// Example 4: Next read produces different result
++	c1.Read(out)
++	fmt.Println(hex.EncodeToString(out))
++
++	// Output:
++	//a90a4c6ca9af2156eba43dc8398279e6b60dcd56fb21837afe6c308fd4ceb05b
++	//a8db03e71f3e4da5c4eee9d28333cdd355f51cef3c567e59be5beb4ecdbb28f0
++	//a90a4c6ca9af2156eba43dc8398279e6b60dcd56fb21837afe6c308fd4ceb05b9dd98c6ee866ca7dc5a39d53e960f400bcd5a19c8a2d6ec6459f63696543a0d8
++	//85e73a72228d08b46515553ca3a29d47df3047e5d84b12d6c2c63e579f4fd1105716b7838e92e981863907f434bfd4443c9e56ea09da998d2f9b47db71988109
++}
+diff --git a/src/crypto/internal/fips/sha3/shake.go b/src/crypto/internal/fips/sha3/shake.go
+new file mode 100644
+index 0000000000..dae9411e4d
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/shake.go
+@@ -0,0 +1,193 @@
++// Copyright 2014 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sha3
++
++// This file defines the ShakeHash interface, and provides
++// functions for creating SHAKE and cSHAKE instances, as well as utility
++// functions for hashing bytes to arbitrary-length output.
++//
++//
++// SHAKE implementation is based on FIPS PUB 202 [1]
++// cSHAKE implementations is based on NIST SP 800-185 [2]
++//
++// [1] https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.202.pdf
++// [2] https://doi.org/10.6028/NIST.SP.800-185
++
++import (
++	"bytes"
++	"crypto/internal/fips"
++	"errors"
++	"internal/byteorder"
++	"io"
++	"math/bits"
++)
++
++// ShakeHash defines the interface to hash functions that support
++// arbitrary-length output. When used as a plain [hash.Hash], it
++// produces minimum-length outputs that provide full-strength generic
++// security.
++type ShakeHash interface {
++	fips.Hash
++
++	// Read reads more output from the hash; reading affects the hash's
++	// state. (ShakeHash.Read is thus very different from Hash.Sum)
++	// It never returns an error, but subsequent calls to Write or Sum
++	// will panic.
++	io.Reader
++
++	// Clone returns a copy of the ShakeHash in its current state.
++	Clone() ShakeHash
++}
++
++// cSHAKE specific context
++type cshakeState struct {
++	*state // SHA-3 state context and Read/Write operations
++
++	// initBlock is the cSHAKE specific initialization set of bytes. It is initialized
++	// by newCShake function and stores concatenation of N followed by S, encoded
++	// by the method specified in 3.3 of [1].
++	// It is stored here in order for Reset() to be able to put context into
++	// initial state.
++	initBlock []byte
++}
++
++func bytepad(data []byte, rate int) []byte {
++	out := make([]byte, 0, 9+len(data)+rate-1)
++	out = append(out, leftEncode(uint64(rate))...)
++	out = append(out, data...)
++	if padlen := rate - len(out)%rate; padlen < rate {
++		out = append(out, make([]byte, padlen)...)
++	}
++	return out
++}
++
++func leftEncode(x uint64) []byte {
++	// Let n be the smallest positive integer for which 2^(8n) > x.
++	n := (bits.Len64(x) + 7) / 8
++	if n == 0 {
++		n = 1
++	}
++	// Return n || x with n as a byte and x an n bytes in big-endian order.
++	b := make([]byte, 9)
++	byteorder.BePutUint64(b[1:], x)
++	b = b[9-n-1:]
++	b[0] = byte(n)
++	return b
++}
++
++func newCShake(N, S []byte, rate, outputLen int, dsbyte byte) ShakeHash {
++	c := cshakeState{state: &state{rate: rate, outputLen: outputLen, dsbyte: dsbyte}}
++	c.initBlock = make([]byte, 0, 9+len(N)+9+len(S)) // leftEncode returns max 9 bytes
++	c.initBlock = append(c.initBlock, leftEncode(uint64(len(N))*8)...)
++	c.initBlock = append(c.initBlock, N...)
++	c.initBlock = append(c.initBlock, leftEncode(uint64(len(S))*8)...)
++	c.initBlock = append(c.initBlock, S...)
++	c.Write(bytepad(c.initBlock, c.rate))
++	return &c
++}
++
++// Reset resets the hash to initial state.
++func (c *cshakeState) Reset() {
++	c.state.Reset()
++	c.Write(bytepad(c.initBlock, c.rate))
++}
++
++// Clone returns copy of a cSHAKE context within its current state.
++func (c *cshakeState) Clone() ShakeHash {
++	b := make([]byte, len(c.initBlock))
++	copy(b, c.initBlock)
++	return &cshakeState{state: c.clone(), initBlock: b}
++}
++
++// Clone returns copy of SHAKE context within its current state.
++func (c *state) Clone() ShakeHash {
++	return c.clone()
++}
++
++func (c *cshakeState) MarshalBinary() ([]byte, error) {
++	return c.AppendBinary(make([]byte, 0, marshaledSize+len(c.initBlock)))
++}
++
++func (c *cshakeState) AppendBinary(b []byte) ([]byte, error) {
++	b, err := c.state.AppendBinary(b)
++	if err != nil {
++		return nil, err
++	}
++	b = append(b, c.initBlock...)
++	return b, nil
++}
++
++func (c *cshakeState) UnmarshalBinary(b []byte) error {
++	if len(b) <= marshaledSize {
++		return errors.New("sha3: invalid hash state")
++	}
++	if err := c.state.UnmarshalBinary(b[:marshaledSize]); err != nil {
++		return err
++	}
++	c.initBlock = bytes.Clone(b[marshaledSize:])
++	return nil
++}
++
++// NewShake128 creates a new SHAKE128 variable-output-length ShakeHash.
++// Its generic security strength is 128 bits against all attacks if at
++// least 32 bytes of its output are used.
++func NewShake128() ShakeHash {
++	return newShake128()
++}
++
++// NewShake256 creates a new SHAKE256 variable-output-length ShakeHash.
++// Its generic security strength is 256 bits against all attacks if
++// at least 64 bytes of its output are used.
++func NewShake256() ShakeHash {
++	return newShake256()
++}
++
++func newShake128Generic() *state {
++	return &state{rate: rateK256, outputLen: 32, dsbyte: dsbyteShake}
++}
++
++func newShake256Generic() *state {
++	return &state{rate: rateK512, outputLen: 64, dsbyte: dsbyteShake}
++}
++
++// NewCShake128 creates a new instance of cSHAKE128 variable-output-length ShakeHash,
++// a customizable variant of SHAKE128.
++// N is used to define functions based on cSHAKE, it can be empty when plain cSHAKE is
++// desired. S is a customization byte string used for domain separation - two cSHAKE
++// computations on same input with different S yield unrelated outputs.
++// When N and S are both empty, this is equivalent to NewShake128.
++func NewCShake128(N, S []byte) ShakeHash {
++	if len(N) == 0 && len(S) == 0 {
++		return NewShake128()
++	}
++	return newCShake(N, S, rateK256, 32, dsbyteCShake)
++}
++
++// NewCShake256 creates a new instance of cSHAKE256 variable-output-length ShakeHash,
++// a customizable variant of SHAKE256.
++// N is used to define functions based on cSHAKE, it can be empty when plain cSHAKE is
++// desired. S is a customization byte string used for domain separation - two cSHAKE
++// computations on same input with different S yield unrelated outputs.
++// When N and S are both empty, this is equivalent to NewShake256.
++func NewCShake256(N, S []byte) ShakeHash {
++	if len(N) == 0 && len(S) == 0 {
++		return NewShake256()
++	}
++	return newCShake(N, S, rateK512, 64, dsbyteCShake)
++}
++
++// ShakeSum128 writes an arbitrary-length digest of data into hash.
++func ShakeSum128(hash, data []byte) {
++	h := NewShake128()
++	h.Write(data)
++	h.Read(hash)
++}
++
++// ShakeSum256 writes an arbitrary-length digest of data into hash.
++func ShakeSum256(hash, data []byte) {
++	h := NewShake256()
++	h.Write(data)
++	h.Read(hash)
++}
+diff --git a/src/crypto/internal/fips/sha3/shake_noasm.go b/src/crypto/internal/fips/sha3/shake_noasm.go
+new file mode 100644
+index 0000000000..4276ba4ab2
+--- /dev/null
++++ b/src/crypto/internal/fips/sha3/shake_noasm.go
+@@ -0,0 +1,15 @@
++// Copyright 2023 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !gc || purego || !s390x
++
++package sha3
++
++func newShake128() *state {
++	return newShake128Generic()
++}
++
++func newShake256() *state {
++	return newShake256Generic()
++}
+diff --git a/src/crypto/internal/fips/sha3/testdata/keccakKats.json.deflate b/src/crypto/internal/fips/sha3/testdata/keccakKats.json.deflate
+new file mode 100644
+index 0000000000..7a94c2f8bc
+Binary files /dev/null and b/src/crypto/internal/fips/sha3/testdata/keccakKats.json.deflate differ
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index cc9d304bc6..c6a2518f62 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -453,6 +453,7 @@ var depsRules = `
+ 	< crypto/internal/fips/subtle
+ 	< crypto/internal/fips/sha256
+ 	< crypto/internal/fips/sha512
++	< crypto/internal/fips/sha3
+ 	< crypto/internal/fips/hmac
+ 	< FIPS;
+ 

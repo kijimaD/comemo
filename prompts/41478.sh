@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41478: ee3f768d3861e00dbc6a81392a711209f66e235c
+# Index 41478: 1abf3aa55bb8b346bb1575ac8db5022f215df65a
 
 echo "🚀 Generating explanation for commit 41478..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 41478..."
 
 ### メタデータ
 - **コミットインデックス**: 41478
-- **コミットハッシュ**: ee3f768d3861e00dbc6a81392a711209f66e235c
-- **GitHub URL**: https://github.com/golang/go/commit/ee3f768d3861e00dbc6a81392a711209f66e235c
+- **コミットハッシュ**: 1abf3aa55bb8b346bb1575ac8db5022f215df65a
+- **GitHub URL**: https://github.com/golang/go/commit/1abf3aa55bb8b346bb1575ac8db5022f215df65a
 
 ### 章構成
 

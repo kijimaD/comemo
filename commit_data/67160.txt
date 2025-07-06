@@ -1,0 +1,498 @@
+commit ed24bb4e6047890af272733c5a8bdcc43834e517
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Wed Feb 12 18:55:04 2025 -0500
+
+    cmd/compile/internal/escape: propagate constants to interface conversions to avoid allocs
+    
+    Currently, the integer value in the following interface conversion gets
+    heap allocated:
+    
+       v := 1000
+       fmt.Println(v)
+    
+    In contrast, this conversion does not currently cause the integer value
+    to be heap allocated:
+    
+       fmt.Println(1000)
+    
+    The second example is able to avoid heap allocation because of an
+    optimization in walk (by Josh in #18704 and related issues) that
+    recognizes a literal is being used. In the first example, that
+    optimization is currently thwarted by the literal getting assigned
+    to a local variable prior to use in the interface conversion.
+    
+    This CL propagates constants to interface conversions like
+    in the first example to avoid heap allocations, instead using
+    a read-only global. The net effect is roughly turning the first example
+    into the second.
+    
+    One place this comes up in practice currently is with logging or
+    debug prints. For example, if we have something like:
+    
+       func conditionalDebugf(format string, args ...interface{}) {
+            if debugEnabled {
+                    fmt.Fprintf(io.Discard, format, args...)
+            }
+       }
+    
+    Prior to this CL, this integer is heap allocated, even when the
+    debugEnabled flag is false, and even when the compiler
+    inlines conditionalDebugf:
+    
+       v := 1000
+       conditionalDebugf("hello %d", v)
+    
+    With this CL, the integer here is no longer heap allocated, even when
+    the debugEnabled flag is enabled, because the compiler can now see that
+    it can use a read-only global.
+    
+    See the writeup in #71359 for more details.
+    
+    CL 649076 (earlier in our stack) added most of the tests
+    along with debug diagnostics in convert.go to make it easier
+    to test this change.
+    
+    Updates #71359
+    Updates #62653
+    Updates #53465
+    Updates #8618
+    
+    Change-Id: I19a51e74b36576ebb0b9cf599267cbd2bd847ce4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/649079
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/escape/escape.go | 22 +++++++-
+ src/fmt/fmt_test.go                       | 17 ++++--
+ src/log/slog/logger_test.go               |  6 +--
+ test/escape5.go                           |  2 +-
+ test/escape_iface.go                      |  8 +--
+ test/escape_iface_data.go                 | 88 ++++++++++++++++++++++---------
+ test/fixedbugs/issue12006.go              | 10 ++--
+ test/fixedbugs/issue30898.go              |  2 +-
+ 8 files changed, 112 insertions(+), 43 deletions(-)
+
+diff --git a/src/cmd/compile/internal/escape/escape.go b/src/cmd/compile/internal/escape/escape.go
+index 43fe0b8af5..06dee7ec41 100644
+--- a/src/cmd/compile/internal/escape/escape.go
++++ b/src/cmd/compile/internal/escape/escape.go
+@@ -531,8 +531,11 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
+ 	if n == nil || fn == nil {
+ 		return
+ 	}
+-	if n.Op() != ir.OMAKESLICE {
+-		// TODO(thepudds): we handle more cases later in our CL stack.
++	if n.Op() != ir.OMAKESLICE && n.Op() != ir.OCONVIFACE {
++		return
++	}
++	if base.Flag.Cfg.CoverageInfo != nil {
++		// Avoid altering coverage results.
+ 		return
+ 	}
+ 
+@@ -562,6 +565,21 @@ func (b *batch) rewriteWithLiterals(n ir.Node, fn *ir.Func) {
+ 				*r = lit
+ 			}
+ 		}
++	case ir.OCONVIFACE:
++		// Check if we can replace a non-constant expression in an interface conversion with
++		// a literal to avoid heap allocating the underlying interface value.
++		conv := n.(*ir.ConvExpr)
++		if conv.X.Op() != ir.OLITERAL && !conv.X.Type().IsInterface() {
++			v := ro.StaticValue(conv.X)
++			if v != nil && v.Op() == ir.OLITERAL && ir.ValidTypeForConst(conv.X.Type(), v.Val()) {
++				if base.Debug.EscapeDebug >= 3 {
++					base.WarnfAt(n.Pos(), "rewriting OCONVIFACE value from %v (%v) to %v (%v)", conv.X, conv.X.Type(), v, v.Type())
++				}
++				v := v.(*ir.BasicLit)
++				conv.X = ir.NewBasicLit(conv.X.Pos(), conv.X.Type(), v.Val())
++				typecheck.Expr(conv)
++			}
++		}
+ 	}
+ }
+ 
+diff --git a/src/fmt/fmt_test.go b/src/fmt/fmt_test.go
+index 82daf62771..a896b8fe24 100644
+--- a/src/fmt/fmt_test.go
++++ b/src/fmt/fmt_test.go
+@@ -1495,11 +1495,15 @@ var mallocTest = []struct {
+ 	{1, `Sprintf("%x %x")`, func() { _ = Sprintf("%x %x", 7, 112) }},
+ 	{1, `Sprintf("%g")`, func() { _ = Sprintf("%g", float32(3.14159)) }},
+ 	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%s", "hello") }},
++	{0, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); s := "hello"; Fprintf(&mallocBuf, "%s", s) }},
++	{1, `Fprintf(buf, "%s")`, func() { mallocBuf.Reset(); s := "hello"; Fprintf(&mallocBuf, "%s", noliteral(s)) }},
+ 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 7) }},
+ 	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%x", 1<<16) }},
+-	{1, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", i) }}, // not constant
++	{0, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", i) }},
++	{1, `Fprintf(buf, "%x")`, func() { mallocBuf.Reset(); i := 1 << 16; Fprintf(&mallocBuf, "%x", noliteral(i)) }},
+ 	{4, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); s := []int{1, 2}; Fprintf(&mallocBuf, "%v", s) }},
+ 	{1, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", P{1, 2}) }},
++	{1, `Fprintf(buf, "%v")`, func() { mallocBuf.Reset(); type P struct{ x, y int }; Fprintf(&mallocBuf, "%v", noliteral(P{1, 2})) }},
+ 	{2, `Fprintf(buf, "%80000s")`, func() { mallocBuf.Reset(); Fprintf(&mallocBuf, "%80000s", "hello") }}, // large buffer (>64KB)
+ 	// If the interface value doesn't need to allocate, amortized allocation overhead should be zero.
+ 	{0, `Fprintf(buf, "%x %x %x")`, func() {
+@@ -1519,8 +1523,8 @@ func TestCountMallocs(t *testing.T) {
+ 	}
+ 	for _, mt := range mallocTest {
+ 		mallocs := testing.AllocsPerRun(100, mt.fn)
+-		if got, max := mallocs, float64(mt.count); got > max {
+-			t.Errorf("%s: got %v allocs, want <=%v", mt.desc, got, max)
++		if got, max := mallocs, float64(mt.count); got != max {
++			t.Errorf("%s: got %v allocs, want %v", mt.desc, got, max)
+ 		}
+ 	}
+ }
+@@ -2010,3 +2014,10 @@ func TestAppendln(t *testing.T) {
+ 		t.Fatalf("Appendln allocated a new slice")
+ 	}
+ }
++
++// noliteral prevents escape analysis from recognizing a literal value.
++//
++//go:noinline
++func noliteral[T any](t T) T {
++	return t
++}
+diff --git a/src/log/slog/logger_test.go b/src/log/slog/logger_test.go
+index 558aecaf6e..63595504fe 100644
+--- a/src/log/slog/logger_test.go
++++ b/src/log/slog/logger_test.go
+@@ -349,7 +349,7 @@ func TestAlloc(t *testing.T) {
+ 	t.Run("2 pairs", func(t *testing.T) {
+ 		s := "abc"
+ 		i := 2000
+-		wantAllocs(t, 2, func() {
++		wantAllocs(t, 0, func() {
+ 			dl.Info("hello",
+ 				"n", i,
+ 				"s", s,
+@@ -360,7 +360,7 @@ func TestAlloc(t *testing.T) {
+ 		l := New(DiscardHandler)
+ 		s := "abc"
+ 		i := 2000
+-		wantAllocs(t, 2, func() {
++		wantAllocs(t, 0, func() {
+ 			l.Log(ctx, LevelInfo, "hello",
+ 				"n", i,
+ 				"s", s,
+@@ -384,7 +384,7 @@ func TestAlloc(t *testing.T) {
+ 		s := "abc"
+ 		i := 2000
+ 		d := time.Second
+-		wantAllocs(t, 10, func() {
++		wantAllocs(t, 1, func() {
+ 			dl.Info("hello",
+ 				"n", i, "s", s, "d", d,
+ 				"n", i, "s", s, "d", d,
+diff --git a/test/escape5.go b/test/escape5.go
+index 133d973ba5..2ed8b5789d 100644
+--- a/test/escape5.go
++++ b/test/escape5.go
+@@ -252,7 +252,7 @@ func f29000(_ int, x interface{}) { // ERROR "leaking param: x"
+ 
+ func g29000() {
+ 	x := 1
+-	f29000(2, x) // ERROR "x escapes to heap"
++	f29000(2, x) // ERROR "1 escapes to heap"
+ }
+ 
+ // Issue 28369: taking an address of a parameter and converting it into a uintptr causes an
+diff --git a/test/escape_iface.go b/test/escape_iface.go
+index d822cca2f8..78b5209a62 100644
+--- a/test/escape_iface.go
++++ b/test/escape_iface.go
+@@ -228,8 +228,8 @@ func dotTypeEscape2() { // #13805, #15796
+ 		j := 0
+ 		var v int
+ 		var ok bool
+-		var x interface{} = i // ERROR "i does not escape"
+-		var y interface{} = j // ERROR "j does not escape"
++		var x interface{} = i // ERROR "0 does not escape"
++		var y interface{} = j // ERROR "0 does not escape"
+ 
+ 		*(&v) = x.(int)
+ 		*(&v), *(&ok) = y.(int)
+@@ -238,8 +238,8 @@ func dotTypeEscape2() { // #13805, #15796
+ 		i := 0
+ 		j := 0
+ 		var ok bool
+-		var x interface{} = i // ERROR "i does not escape"
+-		var y interface{} = j // ERROR "j does not escape"
++		var x interface{} = i // ERROR "0 does not escape"
++		var y interface{} = j // ERROR "0 does not escape"
+ 
+ 		sink = x.(int)         // ERROR "x.\(int\) escapes to heap"
+ 		sink, *(&ok) = y.(int) // ERROR "autotmp_.* escapes to heap"
+diff --git a/test/escape_iface_data.go b/test/escape_iface_data.go
+index 556be2067c..46814f3a9f 100644
+--- a/test/escape_iface_data.go
++++ b/test/escape_iface_data.go
+@@ -17,7 +17,7 @@ func string1() {
+ 
+ func string2() {
+ 	v := "abc"
+-	sink = v
++	sink = v // ERROR "using global for interface value"
+ }
+ 
+ func string3() {
+@@ -26,7 +26,7 @@ func string3() {
+ 
+ func string4() {
+ 	v := ""
+-	sink = v
++	sink = v // ERROR "using global for interface value"
+ }
+ 
+ func string5() {
+@@ -36,8 +36,8 @@ func string5() {
+ 
+ func string6() {
+ 	var a any
+-	v := "abc" // ERROR "using stack temporary for interface value"
+-	a = v
++	v := "abc"
++	a = v // ERROR "using global for interface value"
+ 	_ = a
+ }
+ 
+@@ -49,7 +49,7 @@ func string7(v string) {
+ func string8() {
+ 	v0 := "abc"
+ 	v := v0
+-	string7(v)
++	string7(v) // ERROR "using global for interface value"
+ }
+ 
+ func string9() {
+@@ -58,7 +58,7 @@ func string9() {
+ 	f := func() {
+ 		string7(v)
+ 	}
+-	f()
++	f() // ERROR "using global for interface value"
+ }
+ 
+ func string10() {
+@@ -70,14 +70,14 @@ func string10() {
+ 		}
+ 		f2()
+ 	}
+-	f()
++	f() // ERROR "using global for interface value"
+ }
+ 
+ func string11() {
+ 	v0 := "abc"
+ 	v := v0
+ 	defer func() {
+-		string7(v)
++		string7(v) // ERROR "using global for interface value"
+ 	}()
+ }
+ 
+@@ -87,7 +87,7 @@ func integer1() {
+ 
+ func integer2() {
+ 	v := 42
+-	sink = v
++	sink = v // ERROR "using global for interface value"
+ }
+ 
+ func integer3() {
+@@ -96,7 +96,7 @@ func integer3() {
+ 
+ func integer4a() {
+ 	v := 0
+-	sink = v
++	sink = v // ERROR "using global for interface value"
+ }
+ 
+ func integer4b() {
+@@ -111,8 +111,8 @@ func integer5() {
+ 
+ func integer6() {
+ 	var a any
+-	v := 42 // ERROR "using stack temporary for interface value"
+-	a = v
++	v := 42
++	a = v // ERROR "using global for interface value"
+ 	_ = a
+ }
+ 
+@@ -140,24 +140,22 @@ func named1b() {
+ 
+ func named2a() {
+ 	v := MyInt(0)
+-	sink = v
++	sink = v // ERROR "using global for interface value"
+ }
+ 
+ func named2b() {
+ 	v := MyInt(42)
+-	escapes(v)
++	escapes(v) // ERROR "using global for interface value"
+ }
+ 
+-// Unfortunate: we currently require matching types, which we could relax.
+ func named2c() {
+ 	v := 42
+-	sink = MyInt(v)
++	sink = MyInt(v) // ERROR "using global for interface value"
+ }
+ 
+-// Unfortunate: we currently require matching types, which we could relax.
+ func named2d() {
+ 	v := 42
+-	escapes(MyInt(v))
++	escapes(MyInt(v)) // ERROR "using global for interface value"
+ }
+ func named3a() {
+ 	sink = MyInt(42) // ERROR "using global for interface value"
+@@ -169,22 +167,22 @@ func named3b() {
+ 
+ func named4a() {
+ 	v := MyInt(0)
+-	sink = v
++	sink = v // ERROR "using global for interface value"
+ }
+ 
+ func named4b() {
+ 	v := MyInt(0)
+-	escapes(v)
++	escapes(v) // ERROR "using global for interface value"
+ }
+ 
+ func named4c() {
+ 	v := 0
+-	sink = MyInt(v)
++	sink = MyInt(v) // ERROR "using global for interface value"
+ }
+ 
+ func named4d() {
+ 	v := 0
+-	escapes(MyInt(v))
++	escapes(MyInt(v)) // ERROR "using global for interface value"
+ }
+ 
+ func named5() {
+@@ -194,8 +192,8 @@ func named5() {
+ 
+ func named6() {
+ 	var a any
+-	v := MyInt(42) // ERROR "using stack temporary for interface value"
+-	a = v
++	v := MyInt(42)
++	a = v // ERROR "using global for interface value"
+ 	_ = a
+ }
+ 
+@@ -255,3 +253,45 @@ func emptyStruct2() {
+ func emptyStruct3(v struct{}) { // ERROR "using global for zero-sized interface value"
+ 	sink = v
+ }
++
++// Some light emulation of conditional debug printing (such as in #53465).
++
++func Printf(format string, args ...any) {
++	for _, arg := range args {
++		sink = arg
++	}
++}
++
++var enabled = true
++
++func debugf(format string, args ...interface{}) {
++	if enabled {
++		Printf(format, args...)
++	}
++}
++
++//go:noinline
++func debugf2(format string, args ...interface{}) {
++	if enabled {
++		Printf(format, args...)
++	}
++}
++
++func f1() {
++	v := 1000
++	debugf("hello %d", v) // ERROR "using global for interface value"
++}
++
++func f2() {
++	v := 1000
++	debugf2("hello %d", v) // ERROR "using global for interface value"
++}
++
++//go:noinline
++func f3(i int) {
++	debugf("hello %d", i)
++}
++
++func f4() {
++	f3(1000)
++}
+diff --git a/test/fixedbugs/issue12006.go b/test/fixedbugs/issue12006.go
+index 045ed043bb..94ff52442c 100644
+--- a/test/fixedbugs/issue12006.go
++++ b/test/fixedbugs/issue12006.go
+@@ -84,7 +84,7 @@ func TFooI() {
+ 	a := int32(1) // ERROR "moved to heap: a"
+ 	b := "cat"
+ 	c := &a
+-	FooI(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "... argument does not escape"
++	FooI(a, b, c) // ERROR "a escapes to heap" ".cat. escapes to heap" "... argument does not escape"
+ }
+ 
+ func FooJ(args ...interface{}) *int32 { // ERROR "leaking param: args to result ~r0 level=1"
+@@ -108,14 +108,14 @@ func TFooJ1() {
+ 	a := int32(1)
+ 	b := "cat"
+ 	c := &a
+-	FooJ(a, b, c) // ERROR "a does not escape" "b does not escape" "... argument does not escape"
++	FooJ(a, b, c) // ERROR "a does not escape" ".cat. does not escape" "... argument does not escape"
+ }
+ 
+ func TFooJ2() {
+ 	a := int32(1) // ERROR "moved to heap: a"
+ 	b := "cat"
+ 	c := &a
+-	isink = FooJ(a, b, c) // ERROR "a escapes to heap" "b escapes to heap" "... argument does not escape"
++	isink = FooJ(a, b, c) // ERROR "a escapes to heap" ".cat. escapes to heap" "... argument does not escape"
+ }
+ 
+ type fakeSlice struct {
+@@ -144,7 +144,7 @@ func TFooK2() {
+ 	a := int32(1) // ERROR "moved to heap: a"
+ 	b := "cat"
+ 	c := &a
+-	fs := fakeSlice{3, &[4]interface{}{a, b, c, nil}} // ERROR "a escapes to heap" "b escapes to heap" "&\[4\]interface {}{...} does not escape"
++	fs := fakeSlice{3, &[4]interface{}{a, b, c, nil}} // ERROR "a escapes to heap" ".cat. escapes to heap" "&\[4\]interface {}{...} does not escape"
+ 	isink = FooK(fs)
+ }
+ 
+@@ -169,6 +169,6 @@ func TFooL2() {
+ 	a := int32(1) // ERROR "moved to heap: a"
+ 	b := "cat"
+ 	c := &a
+-	s := []interface{}{a, b, c} // ERROR "a escapes to heap" "b escapes to heap" "\[\]interface {}{...} does not escape"
++	s := []interface{}{a, b, c} // ERROR "a escapes to heap" ".cat. escapes to heap" "\[\]interface {}{...} does not escape"
+ 	isink = FooL(s)
+ }
+diff --git a/test/fixedbugs/issue30898.go b/test/fixedbugs/issue30898.go
+index c7f6f2d371..38358949e2 100644
+--- a/test/fixedbugs/issue30898.go
++++ b/test/fixedbugs/issue30898.go
+@@ -15,5 +15,5 @@ func debugf(format string, args ...interface{}) { // ERROR "can inline debugf" "
+ 
+ func bar() { // ERROR "can inline bar"
+ 	value := 10
+-	debugf("value is %d", value) // ERROR "inlining call to debugf" "value does not escape" "\.\.\. argument does not escape"
++	debugf("value is %d", value) // ERROR "inlining call to debugf" "10 does not escape" "\.\.\. argument does not escape"
+ }

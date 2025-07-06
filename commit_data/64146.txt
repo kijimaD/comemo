@@ -1,0 +1,150 @@
+commit 179ccb7042b805b78b76151981f7a7f53f3d2968
+Author: Sam Thanawalla <samthanawalla@google.com>
+Date:   Mon May 20 20:43:39 2024 +0000
+
+    [release-branch.go1.22] cmd/go: fix go list -u -m all with too new retractions dependency
+    
+    Previously, go would not report retractions of dependencies that have a
+    newer version of Go. With this change, we will still display retractions despite a version difference when go list -u -m is used.
+    
+    For: #66403
+    Fixes: #68052
+    
+    Change-Id: I6406680235e294269836ae4cbe3d5680ca10eea0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588775
+    Auto-Submit: Sam Thanawalla <samthanawalla@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    (cherry picked from commit e44fa1c1a9139ad457d8fa84a68afa3f40e7732a)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/593355
+---
+ src/cmd/go/internal/modload/modfile.go             | 23 ++++++++++++++--------
+ .../example.com_retract_newergoversion_v1.0.0.txt  | 10 ++++++++++
+ .../example.com_retract_newergoversion_v1.2.0.txt  | 12 +++++++++++
+ .../script/list_retractions_issue66403.txt         | 20 +++++++++++++++++++
+ 4 files changed, 57 insertions(+), 8 deletions(-)
+
+diff --git a/src/cmd/go/internal/modload/modfile.go b/src/cmd/go/internal/modload/modfile.go
+index 899f1b3d09..1d6b28db19 100644
+--- a/src/cmd/go/internal/modload/modfile.go
++++ b/src/cmd/go/internal/modload/modfile.go
+@@ -190,7 +190,7 @@ func CheckRetractions(ctx context.Context, m module.Version) (err error) {
+ 		return err
+ 	}
+ 	summary, err := rawGoModSummary(rm)
+-	if err != nil {
++	if err != nil && !errors.Is(err, gover.ErrTooNew) {
+ 		return err
+ 	}
+ 
+@@ -298,7 +298,7 @@ func CheckDeprecation(ctx context.Context, m module.Version) (deprecation string
+ 		return "", err
+ 	}
+ 	summary, err := rawGoModSummary(latest)
+-	if err != nil {
++	if err != nil && !errors.Is(err, gover.ErrTooNew) {
+ 		return "", err
+ 	}
+ 	return summary.deprecated, nil
+@@ -644,6 +644,8 @@ func goModSummary(m module.Version) (*modFileSummary, error) {
+ // its dependencies.
+ //
+ // rawGoModSummary cannot be used on the main module outside of workspace mode.
++// The modFileSummary can still be used for retractions and deprecations
++// even if a TooNewError is returned.
+ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 	if gover.IsToolchain(m.Path) {
+ 		if m.Path == "go" && gover.Compare(m.Version, gover.GoStrictVersion) >= 0 {
+@@ -698,12 +700,7 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 				summary.require = append(summary.require, req.Mod)
+ 			}
+ 		}
+-		if summary.goVersion != "" && gover.Compare(summary.goVersion, gover.GoStrictVersion) >= 0 {
+-			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
+-				return nil, &gover.TooNewError{What: "module " + m.String(), GoVersion: summary.goVersion}
+-			}
+-			summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
+-		}
++
+ 		if len(f.Retract) > 0 {
+ 			summary.retract = make([]retraction, 0, len(f.Retract))
+ 			for _, ret := range f.Retract {
+@@ -714,6 +711,16 @@ func rawGoModSummary(m module.Version) (*modFileSummary, error) {
+ 			}
+ 		}
+ 
++		// This block must be kept at the end of the function because the summary may
++		// be used for reading retractions or deprecations even if a TooNewError is
++		// returned.
++		if summary.goVersion != "" && gover.Compare(summary.goVersion, gover.GoStrictVersion) >= 0 {
++			summary.require = append(summary.require, module.Version{Path: "go", Version: summary.goVersion})
++			if gover.Compare(summary.goVersion, gover.Local()) > 0 {
++				return summary, &gover.TooNewError{What: "module " + m.String(), GoVersion: summary.goVersion}
++			}
++		}
++
+ 		return summary, nil
+ 	})
+ }
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_newergoversion_v1.0.0.txt b/src/cmd/go/testdata/mod/example.com_retract_newergoversion_v1.0.0.txt
+new file mode 100644
+index 0000000000..21d5352984
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_newergoversion_v1.0.0.txt
+@@ -0,0 +1,10 @@
++-- .mod --
++module example.com/retract/newergoversion
++
++go 1.21
++
++-- .info --
++{"Version":"v1.0.0"}
++
++-- retract.go --
++package newergoversion
+\ No newline at end of file
+diff --git a/src/cmd/go/testdata/mod/example.com_retract_newergoversion_v1.2.0.txt b/src/cmd/go/testdata/mod/example.com_retract_newergoversion_v1.2.0.txt
+new file mode 100644
+index 0000000000..7aa28b90e3
+--- /dev/null
++++ b/src/cmd/go/testdata/mod/example.com_retract_newergoversion_v1.2.0.txt
+@@ -0,0 +1,12 @@
++-- .mod --
++module example.com/retract/newergoversion
++
++go 1.23
++
++retract v1.2.0
++
++-- .info --
++{"Version":"v1.2.0"}
++
++-- retract.go --
++package newergoversion
+diff --git a/src/cmd/go/testdata/script/list_retractions_issue66403.txt b/src/cmd/go/testdata/script/list_retractions_issue66403.txt
+new file mode 100644
+index 0000000000..717d129d4c
+--- /dev/null
++++ b/src/cmd/go/testdata/script/list_retractions_issue66403.txt
+@@ -0,0 +1,20 @@
++# For issue #66403, go list -u -m all should not fail if a module
++# with retractions has a newer version.
++
++env TESTGO_VERSION=go1.21
++env TESTGO_VERSION_SWITCH=switch
++go list -u -m example.com/retract/newergoversion
++stdout 'example.com/retract/newergoversion v1.0.0'
++! stdout 'v1.2.0'
++
++-- go.mod --
++module example.com/m
++
++go 1.22
++
++require example.com/retract/newergoversion v1.0.0
++
++-- main.go --
++package main
++
++import _ "example.com/retract/newergoversion"
+\ No newline at end of file

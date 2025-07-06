@@ -1,0 +1,32 @@
+commit c4a595cf294558579ab6342f1628ad37a7a4221c
+Author: guoguangwu <guoguangwug@gmail.com>
+Date:   Fri Jun 7 04:07:05 2024 +0000
+
+    cmd/compile: use raw strings to avoid double escapes
+    
+    Change-Id: I9b24ff7dec0825a8a9d094dfef6553aa605ef47d
+    GitHub-Last-Rev: 785589211cea172377bb67e895491d8678939600
+    GitHub-Pull-Request: golang/go#67871
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591257
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/compile/internal/ssa/debug_test.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ssa/debug_test.go b/src/cmd/compile/internal/ssa/debug_test.go
+index 2f21aca784..5920428bf9 100644
+--- a/src/cmd/compile/internal/ssa/debug_test.go
++++ b/src/cmd/compile/internal/ssa/debug_test.go
+@@ -591,7 +591,7 @@ func newGdb(t testing.TB, tag, executable string, args ...string) dbgr {
+ 	s := &gdbState{tagg: tag, cmd: cmd, args: args}
+ 	s.atLineRe = regexp.MustCompile("(^|\n)([0-9]+)(.*)")
+ 	s.funcFileLinePCre = regexp.MustCompile(
+-		"([^ ]+) [(][^)]*[)][ \\t\\n]+at ([^:]+):([0-9]+)")
++		`([^ ]+) [(][^)]*[)][ \t\n]+at ([^:]+):([0-9]+)`)
+ 	// runtime.main () at /Users/drchase/GoogleDrive/work/go/src/runtime/proc.go:201
+ 	//                                    function              file    line
+ 	// Thread 2 hit Breakpoint 1, main.main () at /Users/drchase/GoogleDrive/work/debug/hist.go:18

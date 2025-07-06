@@ -1,0 +1,3014 @@
+commit dcebb675b3fa0fd8d3056323a9f7f857ce4a2105
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Wed Dec 18 14:45:09 2024 -0800
+
+    internal/routebsd: simplify for standard library
+    
+    Discard everything we don't need from x/net/route.
+    
+    Change-Id: If6a4ecb37e5e2349bc4df46c151990719a14f2c7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637696
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+---
+ src/internal/routebsd/address.go              | 251 +++++---------------------
+ src/internal/routebsd/address_darwin_test.go  |  29 ++-
+ src/internal/routebsd/address_test.go         |  14 +-
+ src/internal/routebsd/binary.go               |  52 +-----
+ src/internal/routebsd/empty.s                 |   7 -
+ src/internal/routebsd/interface.go            |  23 +--
+ src/internal/routebsd/interface_announce.go   |  32 ----
+ src/internal/routebsd/interface_classic.go    |   6 +-
+ src/internal/routebsd/interface_freebsd.go    |  29 +--
+ src/internal/routebsd/interface_multicast.go  |   4 +-
+ src/internal/routebsd/interface_openbsd.go    |  31 +---
+ src/internal/routebsd/message.go              |  29 +--
+ src/internal/routebsd/message_darwin_test.go  |  19 +-
+ src/internal/routebsd/message_freebsd_test.go |  73 +-------
+ src/internal/routebsd/message_test.go         | 199 +-------------------
+ src/internal/routebsd/route.go                | 145 ++++-----------
+ src/internal/routebsd/route_classic.go        |  75 --------
+ src/internal/routebsd/route_openbsd.go        |  67 -------
+ src/internal/routebsd/route_test.go           | 173 ++----------------
+ src/internal/routebsd/sys.go                  |   2 +-
+ src/internal/routebsd/sys_darwin.go           |  71 +-------
+ src/internal/routebsd/sys_dragonfly.go        |  71 ++------
+ src/internal/routebsd/sys_freebsd.go          | 124 ++-----------
+ src/internal/routebsd/sys_netbsd.go           |  63 +------
+ src/internal/routebsd/sys_openbsd.go          |  66 +------
+ src/internal/routebsd/syscall.go              |  12 --
+ src/internal/routebsd/zsys_darwin.go          |  22 ---
+ src/internal/routebsd/zsys_dragonfly.go       |  20 --
+ src/internal/routebsd/zsys_freebsd_386.go     |  55 ------
+ src/internal/routebsd/zsys_freebsd_amd64.go   |  52 ------
+ src/internal/routebsd/zsys_freebsd_arm.go     |  52 ------
+ src/internal/routebsd/zsys_freebsd_arm64.go   |  52 ------
+ src/internal/routebsd/zsys_freebsd_riscv64.go |  52 ------
+ src/internal/routebsd/zsys_netbsd.go          |  17 --
+ src/internal/routebsd/zsys_openbsd.go         |  12 --
+ src/net/interface_bsd.go                      |  35 ++--
+ src/net/interface_bsdvar.go                   |   6 +-
+ src/net/interface_darwin.go                   |  26 ++-
+ src/net/interface_freebsd.go                  |  26 ++-
+ 39 files changed, 254 insertions(+), 1840 deletions(-)
+
+diff --git a/src/internal/routebsd/address.go b/src/internal/routebsd/address.go
+index 9479bb10e3..3368b22786 100644
+--- a/src/internal/routebsd/address.go
++++ b/src/internal/routebsd/address.go
+@@ -7,6 +7,7 @@
+ package routebsd
+ 
+ import (
++	"net/netip"
+ 	"runtime"
+ 	"syscall"
+ )
+@@ -27,39 +28,6 @@ type LinkAddr struct {
+ // Family implements the Family method of Addr interface.
+ func (a *LinkAddr) Family() int { return syscall.AF_LINK }
+ 
+-func (a *LinkAddr) lenAndSpace() (int, int) {
+-	l := 8 + len(a.Name) + len(a.Addr)
+-	return l, roundup(l)
+-}
+-
+-func (a *LinkAddr) marshal(b []byte) (int, error) {
+-	l, ll := a.lenAndSpace()
+-	if len(b) < ll {
+-		return 0, errShortBuffer
+-	}
+-	nlen, alen := len(a.Name), len(a.Addr)
+-	if nlen > 255 || alen > 255 {
+-		return 0, errInvalidAddr
+-	}
+-	b[0] = byte(l)
+-	b[1] = syscall.AF_LINK
+-	if a.Index > 0 {
+-		nativeEndian.PutUint16(b[2:4], uint16(a.Index))
+-	}
+-	data := b[8:]
+-	if nlen > 0 {
+-		b[5] = byte(nlen)
+-		copy(data[:nlen], a.Name)
+-		data = data[nlen:]
+-	}
+-	if alen > 0 {
+-		b[6] = byte(alen)
+-		copy(data[:alen], a.Addr)
+-		data = data[alen:]
+-	}
+-	return ll, nil
+-}
+-
+ func parseLinkAddr(b []byte) (Addr, error) {
+ 	if len(b) < 8 {
+ 		return nil, errInvalidAddr
+@@ -118,54 +86,17 @@ func parseKernelLinkAddr(_ int, b []byte) (int, Addr, error) {
+ 	return l, &LinkAddr{Name: name, Addr: addr}, nil
+ }
+ 
+-// An Inet4Addr represents an internet address for IPv4.
+-type Inet4Addr struct {
+-	IP [4]byte // IP address
+-}
+-
+-// Family implements the Family method of Addr interface.
+-func (a *Inet4Addr) Family() int { return syscall.AF_INET }
+-
+-func (a *Inet4Addr) lenAndSpace() (int, int) {
+-	return sizeofSockaddrInet, roundup(sizeofSockaddrInet)
+-}
+-
+-func (a *Inet4Addr) marshal(b []byte) (int, error) {
+-	l, ll := a.lenAndSpace()
+-	if len(b) < ll {
+-		return 0, errShortBuffer
+-	}
+-	b[0] = byte(l)
+-	b[1] = syscall.AF_INET
+-	copy(b[4:8], a.IP[:])
+-	return ll, nil
+-}
+-
+-// An Inet6Addr represents an internet address for IPv6.
+-type Inet6Addr struct {
+-	IP     [16]byte // IP address
+-	ZoneID int      // zone identifier
+-}
+-
+-// Family implements the Family method of Addr interface.
+-func (a *Inet6Addr) Family() int { return syscall.AF_INET6 }
+-
+-func (a *Inet6Addr) lenAndSpace() (int, int) {
+-	return sizeofSockaddrInet6, roundup(sizeofSockaddrInet6)
++// An InetAddr represent an internet address using IPv4 or IPv6.
++type InetAddr struct {
++	IP netip.Addr
+ }
+ 
+-func (a *Inet6Addr) marshal(b []byte) (int, error) {
+-	l, ll := a.lenAndSpace()
+-	if len(b) < ll {
+-		return 0, errShortBuffer
+-	}
+-	b[0] = byte(l)
+-	b[1] = syscall.AF_INET6
+-	copy(b[8:24], a.IP[:])
+-	if a.ZoneID > 0 {
+-		nativeEndian.PutUint32(b[24:28], uint32(a.ZoneID))
++func (a *InetAddr) Family() int {
++	if a.IP.Is4() {
++		return syscall.AF_INET
++	} else {
++		return syscall.AF_INET6
+ 	}
+-	return ll, nil
+ }
+ 
+ // parseInetAddr parses b as an internet address for IPv4 or IPv6.
+@@ -180,12 +111,15 @@ func parseInetAddr(af int, b []byte) (Addr, error) {
+ 			return nil, errInvalidAddr
+ 		}
+ 		sockAddrLen := int(b[0])
+-		a := &Inet4Addr{}
++		var ip [4]byte
+ 		n := off4 + 4
+ 		if sockAddrLen < n {
+ 			n = sockAddrLen
+ 		}
+-		copy(a.IP[:], b[off4:n])
++		copy(ip[:], b[off4:n])
++		a := &InetAddr{
++			IP: netip.AddrFrom4(ip),
++		}
+ 		return a, nil
+ 	case syscall.AF_INET6:
+ 		if len(b) < (off6+1) || len(b) < int(b[0]) || b[0] == 0 {
+@@ -196,22 +130,23 @@ func parseInetAddr(af int, b []byte) (Addr, error) {
+ 		if sockAddrLen < n {
+ 			n = sockAddrLen
+ 		}
+-		a := &Inet6Addr{}
+-		if sockAddrLen == sizeofSockaddrInet6 {
+-			a.ZoneID = int(nativeEndian.Uint32(b[24:28]))
+-		}
+-		copy(a.IP[:], b[off6:n])
+-		if a.IP[0] == 0xfe && a.IP[1]&0xc0 == 0x80 || a.IP[0] == 0xff && (a.IP[1]&0x0f == 0x01 || a.IP[1]&0x0f == 0x02) {
++		var ip [16]byte
++		copy(ip[:], b[off6:n])
++		if ip[0] == 0xfe && ip[1]&0xc0 == 0x80 || ip[0] == 0xff && (ip[1]&0x0f == 0x01 || ip[1]&0x0f == 0x02) {
+ 			// KAME based IPv6 protocol stack usually
+ 			// embeds the interface index in the
+ 			// interface-local or link-local address as
+ 			// the kernel-internal form.
+-			id := int(bigEndian.Uint16(a.IP[2:4]))
++			id := int(bigEndian.Uint16(ip[2:4]))
+ 			if id != 0 {
+-				a.ZoneID = id
+-				a.IP[2], a.IP[3] = 0, 0
++				ip[2], ip[3] = 0, 0
+ 			}
+ 		}
++		// The kernel can provide an integer zone ID.
++		// We ignore it.
++		a := &InetAddr{
++			IP: netip.AddrFrom16(ip),
++		}
+ 		return a, nil
+ 	default:
+ 		return nil, errInvalidAddr
+@@ -260,130 +195,42 @@ func parseKernelInetAddr(af int, b []byte) (int, Addr, error) {
+ 		off6 = 8 // offset of in6_addr
+ 	)
+ 	switch {
+-	case b[0] == sizeofSockaddrInet6:
+-		a := &Inet6Addr{}
+-		copy(a.IP[:], b[off6:off6+16])
++	case b[0] == syscall.SizeofSockaddrInet6:
++		a := &InetAddr{
++			IP: netip.AddrFrom16([16]byte(b[off6:off6+16])),
++		}
+ 		return int(b[0]), a, nil
+ 	case af == syscall.AF_INET6:
+-		a := &Inet6Addr{}
++		var ab[16]byte
+ 		if l-1 < off6 {
+-			copy(a.IP[:], b[1:l])
++			copy(ab[:], b[1:l])
+ 		} else {
+-			copy(a.IP[:], b[l-off6:l])
++			copy(ab[:], b[l-off6:l])
++		}
++		a := &InetAddr{
++			IP: netip.AddrFrom16(ab),
+ 		}
+ 		return int(b[0]), a, nil
+-	case b[0] == sizeofSockaddrInet:
+-		a := &Inet4Addr{}
+-		copy(a.IP[:], b[off4:off4+4])
++	case b[0] == syscall.SizeofSockaddrInet4:
++		a := &InetAddr{
++			IP: netip.AddrFrom4([4]byte(b[off4:off4+4])),
++		}
+ 		return int(b[0]), a, nil
+ 	default: // an old fashion, AF_UNSPEC or unknown means AF_INET
+-		a := &Inet4Addr{}
++		var ab [4]byte
+ 		if l-1 < off4 {
+-			copy(a.IP[:], b[1:l])
++			copy(ab[:], b[1:l])
+ 		} else {
+-			copy(a.IP[:], b[l-off4:l])
++			copy(ab[:], b[l-off4:l])
+ 		}
+-		return int(b[0]), a, nil
+-	}
+-}
+-
+-// A DefaultAddr represents an address of various operating
+-// system-specific features.
+-type DefaultAddr struct {
+-	af  int
+-	Raw []byte // raw format of address
+-}
+-
+-// Family implements the Family method of Addr interface.
+-func (a *DefaultAddr) Family() int { return a.af }
+-
+-func (a *DefaultAddr) lenAndSpace() (int, int) {
+-	l := len(a.Raw)
+-	return l, roundup(l)
+-}
+-
+-func (a *DefaultAddr) marshal(b []byte) (int, error) {
+-	l, ll := a.lenAndSpace()
+-	if len(b) < ll {
+-		return 0, errShortBuffer
+-	}
+-	if l > 255 {
+-		return 0, errInvalidAddr
+-	}
+-	b[1] = byte(l)
+-	copy(b[:l], a.Raw)
+-	return ll, nil
+-}
+-
+-func parseDefaultAddr(b []byte) (Addr, error) {
+-	if len(b) < 2 || len(b) < int(b[0]) {
+-		return nil, errInvalidAddr
+-	}
+-	a := &DefaultAddr{af: int(b[1]), Raw: b[:b[0]]}
+-	return a, nil
+-}
+-
+-func addrsSpace(as []Addr) int {
+-	var l int
+-	for _, a := range as {
+-		switch a := a.(type) {
+-		case *LinkAddr:
+-			_, ll := a.lenAndSpace()
+-			l += ll
+-		case *Inet4Addr:
+-			_, ll := a.lenAndSpace()
+-			l += ll
+-		case *Inet6Addr:
+-			_, ll := a.lenAndSpace()
+-			l += ll
+-		case *DefaultAddr:
+-			_, ll := a.lenAndSpace()
+-			l += ll
+-		}
+-	}
+-	return l
+-}
+-
+-// marshalAddrs marshals as and returns a bitmap indicating which
+-// address is stored in b.
+-func marshalAddrs(b []byte, as []Addr) (uint, error) {
+-	var attrs uint
+-	for i, a := range as {
+-		switch a := a.(type) {
+-		case *LinkAddr:
+-			l, err := a.marshal(b)
+-			if err != nil {
+-				return 0, err
+-			}
+-			b = b[l:]
+-			attrs |= 1 << uint(i)
+-		case *Inet4Addr:
+-			l, err := a.marshal(b)
+-			if err != nil {
+-				return 0, err
+-			}
+-			b = b[l:]
+-			attrs |= 1 << uint(i)
+-		case *Inet6Addr:
+-			l, err := a.marshal(b)
+-			if err != nil {
+-				return 0, err
+-			}
+-			b = b[l:]
+-			attrs |= 1 << uint(i)
+-		case *DefaultAddr:
+-			l, err := a.marshal(b)
+-			if err != nil {
+-				return 0, err
+-			}
+-			b = b[l:]
+-			attrs |= 1 << uint(i)
++		a := &InetAddr{
++			IP: netip.AddrFrom4(ab),
+ 		}
++		return int(b[0]), a, nil
+ 	}
+-	return attrs, nil
+ }
+ 
+-func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) ([]Addr, error) {
++func parseAddrs(attrs uint, b []byte) ([]Addr, error) {
+ 	var as [syscall.RTAX_MAX]Addr
+ 	af := int(syscall.AF_UNSPEC)
+ 	for i := uint(0); i < syscall.RTAX_MAX && len(b) >= roundup(0); i++ {
+@@ -420,7 +267,7 @@ func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) (
+ 				}
+ 				b = b[l:]
+ 			default:
+-				l, a, err := fn(af, b)
++				l, a, err := parseKernelInetAddr(af, b)
+ 				if err != nil {
+ 					return nil, err
+ 				}
+@@ -433,11 +280,7 @@ func parseAddrs(attrs uint, fn func(int, []byte) (int, Addr, error), b []byte) (
+ 				}
+ 			}
+ 		} else {
+-			a, err := parseDefaultAddr(b)
+-			if err != nil {
+-				return nil, err
+-			}
+-			as[i] = a
++			// Skip unknown addresses.
+ 			l := roundup(int(b[0]))
+ 			if len(b) < l {
+ 				return nil, errMessageTooShort
+diff --git a/src/internal/routebsd/address_darwin_test.go b/src/internal/routebsd/address_darwin_test.go
+index 02a407a0c7..5f93e363a6 100644
+--- a/src/internal/routebsd/address_darwin_test.go
++++ b/src/internal/routebsd/address_darwin_test.go
+@@ -5,6 +5,7 @@
+ package routebsd
+ 
+ import (
++	"net/netip"
+ 	"reflect"
+ 	"syscall"
+ 	"testing"
+@@ -12,7 +13,6 @@ import (
+ 
+ type parseAddrsOnDarwinTest struct {
+ 	attrs uint
+-	fn    func(int, []byte) (int, Addr, error)
+ 	b     []byte
+ 	as    []Addr
+ }
+@@ -20,7 +20,6 @@ type parseAddrsOnDarwinTest struct {
+ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
+ 	{
+ 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
+-		parseKernelInetAddr,
+ 		[]byte{
+ 			0x10, 0x2, 0x0, 0x0, 0xc0, 0xa8, 0x56, 0x0,
+ 			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+@@ -32,9 +31,9 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
+ 			0x7, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+ 		},
+ 		[]Addr{
+-			&Inet4Addr{IP: [4]byte{192, 168, 86, 0}},
++			&InetAddr{IP: netip.AddrFrom4([4]byte{192, 168, 86, 0})},
+ 			&LinkAddr{Index: 4},
+-			&Inet4Addr{IP: [4]byte{255, 255, 255, 255}},
++			&InetAddr{IP: netip.AddrFrom4([4]byte{255, 255, 255, 255})},
+ 			nil,
+ 			nil,
+ 			nil,
+@@ -44,7 +43,6 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
+ 	},
+ 	{
+ 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
+-		parseKernelInetAddr,
+ 		[]byte{
+ 			0x10, 0x02, 0x00, 0x00, 0x64, 0x71, 0x00, 0x00,
+ 			0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+@@ -56,9 +54,9 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
+ 			0x06, 0x02, 0x00, 0x00, 0xff, 0xff, 0x00, 0x00,
+ 		},
+ 		[]Addr{
+-			&Inet4Addr{IP: [4]byte{100, 113, 0, 0}},
++			&InetAddr{IP: netip.AddrFrom4([4]byte{100, 113, 0, 0})},
+ 			&LinkAddr{Index: 33, Name: "utun4319"},
+-			&Inet4Addr{IP: [4]byte{255, 255, 0, 0}},
++			&InetAddr{IP: netip.AddrFrom4([4]byte{255, 255, 0, 0})},
+ 			nil,
+ 			nil,
+ 			nil,
+@@ -70,7 +68,6 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
+ 	// gw fe80:0000:0000:0000:f22f:4bff:fe09:3bff
+ 	{
+ 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
+-		parseKernelInetAddr,
+ 		[]byte{
+ 			0x1c, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+ 			0xfd, 0x84, 0x1b, 0x4e, 0x62, 0x81, 0x00, 0x00,
+@@ -86,9 +83,9 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
+ 			0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x00,
+ 		},
+ 		[]Addr{
+-			&Inet6Addr{IP: [16]byte{0xfd, 0x84, 0x1b, 0x4e, 0x62, 0x81}},
+-			&Inet6Addr{IP: [16]byte{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff}, ZoneID: 33},
+-			&Inet6Addr{IP: [16]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
++			&InetAddr{IP: netip.AddrFrom16([16]byte{0xfd, 0x84, 0x1b, 0x4e, 0x62, 0x81})},
++			&InetAddr{IP: netip.AddrFrom16([16]byte{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff})},
++			&InetAddr{IP: netip.AddrFrom16([16]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})},
+ 			nil,
+ 			nil,
+ 			nil,
+@@ -99,7 +96,6 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
+ 	// golang/go#70528, the kernel can produce addresses of length 0
+ 	{
+ 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
+-		parseKernelInetAddr,
+ 		[]byte{
+ 			0x00, 0x1e, 0x00, 0x00,
+ 
+@@ -113,8 +109,8 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
+ 		},
+ 		[]Addr{
+ 			nil,
+-			&Inet6Addr{IP: [16]byte{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff}, ZoneID: 33},
+-			&Inet6Addr{IP: [16]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}},
++			&InetAddr{IP: netip.AddrFrom16([16]byte{0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf2, 0x2f, 0x4b, 0xff, 0xfe, 0x09, 0x3b, 0xff})},
++			&InetAddr{IP: netip.AddrFrom16([16]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff})},
+ 			nil,
+ 			nil,
+ 			nil,
+@@ -125,7 +121,6 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
+ 	// Additional case: golang/go/issues/70528#issuecomment-2498692877
+ 	{
+ 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK,
+-		parseKernelInetAddr,
+ 		[]byte{
+ 			0x84, 0x00, 0x05, 0x04, 0x01, 0x00, 0x00, 0x00, 0x03, 0x08, 0x00, 0x01, 0x15, 0x00, 0x00, 0x00,
+ 			0x1B, 0x01, 0x00, 0x00, 0xF5, 0x5A, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+@@ -138,7 +133,7 @@ var parseAddrsOnDarwinLittleEndianTests = []parseAddrsOnDarwinTest{
+ 			0x00, 0x00, 0x00, 0x00,
+ 		},
+ 		[]Addr{
+-			&Inet4Addr{IP: [4]byte{0x0, 0x0, 0x0, 0x0}},
++			&InetAddr{IP: netip.AddrFrom4([4]byte{0x0, 0x0, 0x0, 0x0})},
+ 			nil,
+ 			nil,
+ 			nil,
+@@ -157,7 +152,7 @@ func TestParseAddrsOnDarwin(t *testing.T) {
+ 	}
+ 
+ 	for i, tt := range tests {
+-		as, err := parseAddrs(tt.attrs, tt.fn, tt.b)
++		as, err := parseAddrs(tt.attrs, tt.b)
+ 		if err != nil {
+ 			t.Error(i, err)
+ 			continue
+diff --git a/src/internal/routebsd/address_test.go b/src/internal/routebsd/address_test.go
+index c230bb2f1c..29de22b413 100644
+--- a/src/internal/routebsd/address_test.go
++++ b/src/internal/routebsd/address_test.go
+@@ -7,6 +7,7 @@
+ package routebsd
+ 
+ import (
++	"net/netip"
+ 	"reflect"
+ 	"syscall"
+ 	"testing"
+@@ -14,7 +15,6 @@ import (
+ 
+ type parseAddrsTest struct {
+ 	attrs uint
+-	fn    func(int, []byte) (int, Addr, error)
+ 	b     []byte
+ 	as    []Addr
+ }
+@@ -22,7 +22,6 @@ type parseAddrsTest struct {
+ var parseAddrsLittleEndianTests = []parseAddrsTest{
+ 	{
+ 		syscall.RTA_DST | syscall.RTA_GATEWAY | syscall.RTA_NETMASK | syscall.RTA_BRD,
+-		parseKernelInetAddr,
+ 		[]byte{
+ 			0x38, 0x12, 0x0, 0x0, 0xff, 0xff, 0xff, 0x0,
+ 			0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
+@@ -49,17 +48,16 @@ var parseAddrsLittleEndianTests = []parseAddrsTest{
+ 		[]Addr{
+ 			&LinkAddr{Index: 0},
+ 			&LinkAddr{Index: 2, Name: "em1", Addr: []byte{0x00, 0x0c, 0x29, 0x66, 0x2c, 0xdc}},
+-			&Inet4Addr{IP: [4]byte{172, 16, 220, 180}},
++			&InetAddr{IP: netip.AddrFrom4([4]byte{172, 16, 220, 180})},
+ 			nil,
+ 			nil,
+ 			nil,
+ 			nil,
+-			&Inet4Addr{IP: [4]byte{172, 16, 220, 255}},
++			&InetAddr{IP: netip.AddrFrom4([4]byte{172, 16, 220, 255})},
+ 		},
+ 	},
+ 	{
+ 		syscall.RTA_NETMASK | syscall.RTA_IFP | syscall.RTA_IFA,
+-		parseKernelInetAddr,
+ 		[]byte{
+ 			0x7, 0x0, 0x0, 0x0, 0xff, 0xff, 0xff, 0x0,
+ 
+@@ -73,10 +71,10 @@ var parseAddrsLittleEndianTests = []parseAddrsTest{
+ 		[]Addr{
+ 			nil,
+ 			nil,
+-			&Inet4Addr{IP: [4]byte{255, 255, 255, 0}},
++			&InetAddr{IP: netip.AddrFrom4([4]byte{255, 255, 255, 0})},
+ 			nil,
+ 			&LinkAddr{Index: 10, Name: "vlan5682"},
+-			&Inet4Addr{IP: [4]byte{169, 254, 0, 1}},
++			&InetAddr{IP: netip.AddrFrom4([4]byte{169, 254, 0, 1})},
+ 			nil,
+ 			nil,
+ 		},
+@@ -90,7 +88,7 @@ func TestParseAddrs(t *testing.T) {
+ 	}
+ 
+ 	for i, tt := range tests {
+-		as, err := parseAddrs(tt.attrs, tt.fn, tt.b)
++		as, err := parseAddrs(tt.attrs, tt.b)
+ 		if err != nil {
+ 			t.Error(i, err)
+ 			continue
+diff --git a/src/internal/routebsd/binary.go b/src/internal/routebsd/binary.go
+index 66b234c4f2..15f880472a 100644
+--- a/src/internal/routebsd/binary.go
++++ b/src/internal/routebsd/binary.go
+@@ -6,6 +6,8 @@
+ 
+ package routebsd
+ 
++import "internal/byteorder"
++
+ // This file contains duplicates of encoding/binary package.
+ //
+ // This package is supposed to be used by the net package of standard
+@@ -20,71 +22,33 @@ var (
+ type binaryByteOrder interface {
+ 	Uint16([]byte) uint16
+ 	Uint32([]byte) uint32
+-	PutUint16([]byte, uint16)
+-	PutUint32([]byte, uint32)
+ 	Uint64([]byte) uint64
+ }
+ 
+ type binaryLittleEndian struct{}
+ 
+ func (binaryLittleEndian) Uint16(b []byte) uint16 {
+-	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint16(b[0]) | uint16(b[1])<<8
+-}
+-
+-func (binaryLittleEndian) PutUint16(b []byte, v uint16) {
+-	_ = b[1] // early bounds check to guarantee safety of writes below
+-	b[0] = byte(v)
+-	b[1] = byte(v >> 8)
++	return byteorder.LEUint16(b)
+ }
+ 
+ func (binaryLittleEndian) Uint32(b []byte) uint32 {
+-	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint32(b[0]) | uint32(b[1])<<8 | uint32(b[2])<<16 | uint32(b[3])<<24
+-}
+-
+-func (binaryLittleEndian) PutUint32(b []byte, v uint32) {
+-	_ = b[3] // early bounds check to guarantee safety of writes below
+-	b[0] = byte(v)
+-	b[1] = byte(v >> 8)
+-	b[2] = byte(v >> 16)
+-	b[3] = byte(v >> 24)
++	return byteorder.LEUint32(b)
+ }
+ 
+ func (binaryLittleEndian) Uint64(b []byte) uint64 {
+-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint64(b[0]) | uint64(b[1])<<8 | uint64(b[2])<<16 | uint64(b[3])<<24 |
+-		uint64(b[4])<<32 | uint64(b[5])<<40 | uint64(b[6])<<48 | uint64(b[7])<<56
++	return byteorder.LEUint64(b)
+ }
+ 
+ type binaryBigEndian struct{}
+ 
+ func (binaryBigEndian) Uint16(b []byte) uint16 {
+-	_ = b[1] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint16(b[1]) | uint16(b[0])<<8
+-}
+-
+-func (binaryBigEndian) PutUint16(b []byte, v uint16) {
+-	_ = b[1] // early bounds check to guarantee safety of writes below
+-	b[0] = byte(v >> 8)
+-	b[1] = byte(v)
++	return byteorder.BEUint16(b)
+ }
+ 
+ func (binaryBigEndian) Uint32(b []byte) uint32 {
+-	_ = b[3] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint32(b[3]) | uint32(b[2])<<8 | uint32(b[1])<<16 | uint32(b[0])<<24
+-}
+-
+-func (binaryBigEndian) PutUint32(b []byte, v uint32) {
+-	_ = b[3] // early bounds check to guarantee safety of writes below
+-	b[0] = byte(v >> 24)
+-	b[1] = byte(v >> 16)
+-	b[2] = byte(v >> 8)
+-	b[3] = byte(v)
++	return byteorder.BEUint32(b)
+ }
+ 
+ func (binaryBigEndian) Uint64(b []byte) uint64 {
+-	_ = b[7] // bounds check hint to compiler; see golang.org/issue/14808
+-	return uint64(b[7]) | uint64(b[6])<<8 | uint64(b[5])<<16 | uint64(b[4])<<24 |
+-		uint64(b[3])<<32 | uint64(b[2])<<40 | uint64(b[1])<<48 | uint64(b[0])<<56
++	return byteorder.BEUint64(b)
+ }
+diff --git a/src/internal/routebsd/empty.s b/src/internal/routebsd/empty.s
+deleted file mode 100644
+index 49d79791e0..0000000000
+--- a/src/internal/routebsd/empty.s
++++ /dev/null
+@@ -1,7 +0,0 @@
+-// Copyright 2018 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build darwin && go1.12
+-
+-// This exists solely so we can linkname in symbols from syscall.
+diff --git a/src/internal/routebsd/interface.go b/src/internal/routebsd/interface.go
+index a1523329b1..1ec415547f 100644
+--- a/src/internal/routebsd/interface.go
++++ b/src/internal/routebsd/interface.go
+@@ -30,9 +30,6 @@ type InterfaceAddrMessage struct {
+ 	raw []byte // raw message
+ }
+ 
+-// Sys implements the Sys method of Message interface.
+-func (m *InterfaceAddrMessage) Sys() []Sys { return nil }
+-
+ // An InterfaceMulticastAddrMessage represents an interface multicast
+ // address message.
+ type InterfaceMulticastAddrMessage struct {
+@@ -45,20 +42,8 @@ type InterfaceMulticastAddrMessage struct {
+ 	raw []byte // raw message
+ }
+ 
+-// Sys implements the Sys method of Message interface.
+-func (m *InterfaceMulticastAddrMessage) Sys() []Sys { return nil }
+-
+-// An InterfaceAnnounceMessage represents an interface announcement
+-// message.
+-type InterfaceAnnounceMessage struct {
+-	Version int    // message version
+-	Type    int    // message type
+-	Index   int    // interface index
+-	Name    string // interface name
+-	What    int    // what type of announcement
+-
+-	raw []byte // raw message
+-}
++// Implement the Message interface.
+ 
+-// Sys implements the Sys method of Message interface.
+-func (m *InterfaceAnnounceMessage) Sys() []Sys { return nil }
++func (InterfaceMessage) message() {}
++func (InterfaceAddrMessage) message() {}
++func (InterfaceMulticastAddrMessage) message() {}
+diff --git a/src/internal/routebsd/interface_announce.go b/src/internal/routebsd/interface_announce.go
+deleted file mode 100644
+index 834f8d3518..0000000000
+--- a/src/internal/routebsd/interface_announce.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build dragonfly || freebsd || netbsd
+-
+-package routebsd
+-
+-func (w *wireFormat) parseInterfaceAnnounceMessage(_ RIBType, b []byte) (Message, error) {
+-	if len(b) < w.bodyOff {
+-		return nil, errMessageTooShort
+-	}
+-	l := int(nativeEndian.Uint16(b[:2]))
+-	if len(b) < l {
+-		return nil, errInvalidMessage
+-	}
+-	m := &InterfaceAnnounceMessage{
+-		Version: int(b[2]),
+-		Type:    int(b[3]),
+-		Index:   int(nativeEndian.Uint16(b[4:6])),
+-		What:    int(nativeEndian.Uint16(b[22:24])),
+-		raw:     b[:l],
+-	}
+-	for i := 0; i < 16; i++ {
+-		if b[6+i] != 0 {
+-			continue
+-		}
+-		m.Name = string(b[6 : 6+i])
+-		break
+-	}
+-	return m, nil
+-}
+diff --git a/src/internal/routebsd/interface_classic.go b/src/internal/routebsd/interface_classic.go
+index 9d706a50dc..7b26c7eb2a 100644
+--- a/src/internal/routebsd/interface_classic.go
++++ b/src/internal/routebsd/interface_classic.go
+@@ -11,7 +11,7 @@ import (
+ 	"syscall"
+ )
+ 
+-func (w *wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error) {
++func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
+ 	if len(b) < w.bodyOff {
+ 		return nil, errMessageTooShort
+ 	}
+@@ -41,7 +41,7 @@ func (w *wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error)
+ 	return m, nil
+ }
+ 
+-func (w *wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, error) {
++func (w *wireFormat) parseInterfaceAddrMessage(b []byte) (Message, error) {
+ 	if len(b) < w.bodyOff {
+ 		return nil, errMessageTooShort
+ 	}
+@@ -61,7 +61,7 @@ func (w *wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, er
+ 		m.Index = int(nativeEndian.Uint16(b[12:14]))
+ 	}
+ 	var err error
+-	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), parseKernelInetAddr, b[w.bodyOff:])
++	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), b[w.bodyOff:])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/internal/routebsd/interface_freebsd.go b/src/internal/routebsd/interface_freebsd.go
+index 4a3ad8e30b..7e105544b6 100644
+--- a/src/internal/routebsd/interface_freebsd.go
++++ b/src/internal/routebsd/interface_freebsd.go
+@@ -6,18 +6,9 @@ package routebsd
+ 
+ import "syscall"
+ 
+-func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, error) {
+-	var extOff, bodyOff int
+-	if typ == syscall.NET_RT_IFLISTL {
+-		if len(b) < 20 {
+-			return nil, errMessageTooShort
+-		}
+-		extOff = int(nativeEndian.Uint16(b[18:20]))
+-		bodyOff = int(nativeEndian.Uint16(b[16:18]))
+-	} else {
+-		extOff = w.extOff
+-		bodyOff = w.bodyOff
+-	}
++func (w *wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
++	extOff := w.extOff
++	bodyOff := w.bodyOff
+ 	if len(b) < extOff || len(b) < bodyOff {
+ 		return nil, errInvalidMessage
+ 	}
+@@ -47,16 +38,8 @@ func (w *wireFormat) parseInterfaceMessage(typ RIBType, b []byte) (Message, erro
+ 	return m, nil
+ }
+ 
+-func (w *wireFormat) parseInterfaceAddrMessage(typ RIBType, b []byte) (Message, error) {
+-	var bodyOff int
+-	if typ == syscall.NET_RT_IFLISTL {
+-		if len(b) < 24 {
+-			return nil, errMessageTooShort
+-		}
+-		bodyOff = int(nativeEndian.Uint16(b[16:18]))
+-	} else {
+-		bodyOff = w.bodyOff
+-	}
++func (w *wireFormat) parseInterfaceAddrMessage(b []byte) (Message, error) {
++	bodyOff := w.bodyOff
+ 	if len(b) < bodyOff {
+ 		return nil, errInvalidMessage
+ 	}
+@@ -72,7 +55,7 @@ func (w *wireFormat) parseInterfaceAddrMessage(typ RIBType, b []byte) (Message,
+ 		raw:     b[:l],
+ 	}
+ 	var err error
+-	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), parseKernelInetAddr, b[bodyOff:])
++	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), b[bodyOff:])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/internal/routebsd/interface_multicast.go b/src/internal/routebsd/interface_multicast.go
+index c00199cf49..8d2c7f56dc 100644
+--- a/src/internal/routebsd/interface_multicast.go
++++ b/src/internal/routebsd/interface_multicast.go
+@@ -6,7 +6,7 @@
+ 
+ package routebsd
+ 
+-func (w *wireFormat) parseInterfaceMulticastAddrMessage(_ RIBType, b []byte) (Message, error) {
++func (w *wireFormat) parseInterfaceMulticastAddrMessage(b []byte) (Message, error) {
+ 	if len(b) < w.bodyOff {
+ 		return nil, errMessageTooShort
+ 	}
+@@ -22,7 +22,7 @@ func (w *wireFormat) parseInterfaceMulticastAddrMessage(_ RIBType, b []byte) (Me
+ 		raw:     b[:l],
+ 	}
+ 	var err error
+-	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), parseKernelInetAddr, b[w.bodyOff:])
++	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[4:8])), b[w.bodyOff:])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/internal/routebsd/interface_openbsd.go b/src/internal/routebsd/interface_openbsd.go
+index 208ff78425..8c6cd6f783 100644
+--- a/src/internal/routebsd/interface_openbsd.go
++++ b/src/internal/routebsd/interface_openbsd.go
+@@ -6,7 +6,7 @@ package routebsd
+ 
+ import "syscall"
+ 
+-func (*wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error) {
++func (*wireFormat) parseInterfaceMessage(b []byte) (Message, error) {
+ 	if len(b) < 32 {
+ 		return nil, errMessageTooShort
+ 	}
+@@ -39,7 +39,7 @@ func (*wireFormat) parseInterfaceMessage(_ RIBType, b []byte) (Message, error) {
+ 	return m, nil
+ }
+ 
+-func (*wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, error) {
++func (*wireFormat) parseInterfaceAddrMessage(b []byte) (Message, error) {
+ 	if len(b) < 24 {
+ 		return nil, errMessageTooShort
+ 	}
+@@ -59,34 +59,9 @@ func (*wireFormat) parseInterfaceAddrMessage(_ RIBType, b []byte) (Message, erro
+ 		raw:     b[:l],
+ 	}
+ 	var err error
+-	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[12:16])), parseKernelInetAddr, b[bodyOff:])
++	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[12:16])), b[bodyOff:])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+ 	return m, nil
+ }
+-
+-func (*wireFormat) parseInterfaceAnnounceMessage(_ RIBType, b []byte) (Message, error) {
+-	if len(b) < 26 {
+-		return nil, errMessageTooShort
+-	}
+-	l := int(nativeEndian.Uint16(b[:2]))
+-	if len(b) < l {
+-		return nil, errInvalidMessage
+-	}
+-	m := &InterfaceAnnounceMessage{
+-		Version: int(b[2]),
+-		Type:    int(b[3]),
+-		Index:   int(nativeEndian.Uint16(b[6:8])),
+-		What:    int(nativeEndian.Uint16(b[8:10])),
+-		raw:     b[:l],
+-	}
+-	for i := 0; i < 16; i++ {
+-		if b[10+i] != 0 {
+-			continue
+-		}
+-		m.Name = string(b[10 : 10+i])
+-		break
+-	}
+-	return m, nil
+-}
+diff --git a/src/internal/routebsd/message.go b/src/internal/routebsd/message.go
+index f8666b6648..f08dfc25dd 100644
+--- a/src/internal/routebsd/message.go
++++ b/src/internal/routebsd/message.go
+@@ -8,32 +8,12 @@ package routebsd
+ 
+ // A Message represents a routing message.
+ type Message interface {
+-	// Sys returns operating system-specific information.
+-	Sys() []Sys
++	message()
+ }
+ 
+-// A Sys reprensents operating system-specific information.
+-type Sys interface {
+-	// SysType returns a type of operating system-specific
+-	// information.
+-	SysType() SysType
+-}
+-
+-// A SysType represents a type of operating system-specific
+-// information.
+-type SysType int
+-
+-const (
+-	SysMetrics SysType = iota
+-	SysStats
+-)
+-
+-// ParseRIB parses b as a routing information base and returns a list
++// parseRIB parses b as a routing information base and returns a list
+ // of routing messages.
+-func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
+-	if !typ.parseable() {
+-		return nil, errUnsupportedMessage
+-	}
++func parseRIB(b []byte) ([]Message, error) {
+ 	var msgs []Message
+ 	nmsgs, nskips := 0, 0
+ 	for len(b) > 4 {
+@@ -52,7 +32,7 @@ func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
+ 		if w, ok := wireFormats[int(b[3])]; !ok {
+ 			nskips++
+ 		} else {
+-			m, err := w.parse(typ, b[:l])
++			m, err := w.parse(b[:l])
+ 			if err != nil {
+ 				return nil, err
+ 			}
+@@ -64,6 +44,7 @@ func ParseRIB(typ RIBType, b []byte) ([]Message, error) {
+ 		}
+ 		b = b[l:]
+ 	}
++
+ 	// We failed to parse any of the messages - version mismatch?
+ 	if nmsgs != len(msgs)+nskips {
+ 		return nil, errMessageMismatch
+diff --git a/src/internal/routebsd/message_darwin_test.go b/src/internal/routebsd/message_darwin_test.go
+index a7fbdecf5d..f224f0a73d 100644
+--- a/src/internal/routebsd/message_darwin_test.go
++++ b/src/internal/routebsd/message_darwin_test.go
+@@ -9,20 +9,11 @@ import (
+ 	"testing"
+ )
+ 
+-func TestFetchAndParseRIBOnDarwin(t *testing.T) {
+-	for _, typ := range []RIBType{syscall.NET_RT_FLAGS, syscall.NET_RT_DUMP2, syscall.NET_RT_IFLIST2} {
+-		var lastErr error
+-		var ms []Message
+-		for _, af := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
+-			rs, err := fetchAndParseRIB(af, typ)
+-			if err != nil {
+-				lastErr = err
+-				continue
+-			}
+-			ms = append(ms, rs...)
+-		}
+-		if len(ms) == 0 && lastErr != nil {
+-			t.Error(typ, lastErr)
++func TestFetchRIBMessagesOnDarwin(t *testing.T) {
++	for _, typ := range []int{syscall.NET_RT_FLAGS, syscall.NET_RT_DUMP2, syscall.NET_RT_IFLIST2} {
++		ms, err := FetchRIBMessages(typ, 0)
++		if err != nil {
++			t.Error(typ, err)
+ 			continue
+ 		}
+ 		ss, err := msgs(ms).validate()
+diff --git a/src/internal/routebsd/message_freebsd_test.go b/src/internal/routebsd/message_freebsd_test.go
+index f165e7c0e7..f0065198c8 100644
+--- a/src/internal/routebsd/message_freebsd_test.go
++++ b/src/internal/routebsd/message_freebsd_test.go
+@@ -9,20 +9,11 @@ import (
+ 	"testing"
+ )
+ 
+-func TestFetchAndParseRIBOnFreeBSD(t *testing.T) {
+-	for _, typ := range []RIBType{syscall.NET_RT_IFMALIST} {
+-		var lastErr error
+-		var ms []Message
+-		for _, af := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
+-			rs, err := fetchAndParseRIB(af, typ)
+-			if err != nil {
+-				lastErr = err
+-				continue
+-			}
+-			ms = append(ms, rs...)
+-		}
+-		if len(ms) == 0 && lastErr != nil {
+-			t.Error(typ, lastErr)
++func TestFetchRIBMessagesOnFreeBSD(t *testing.T) {
++	for _, typ := range []int{syscall.NET_RT_IFMALIST} {
++		ms, err := FetchRIBMessages(typ, 0)
++		if err != nil {
++			t.Error(typ, err)
+ 			continue
+ 		}
+ 		ss, err := msgs(ms).validate()
+@@ -35,57 +26,3 @@ func TestFetchAndParseRIBOnFreeBSD(t *testing.T) {
+ 		}
+ 	}
+ }
+-
+-func TestFetchAndParseRIBOnFreeBSD10AndAbove(t *testing.T) {
+-	if _, err := FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLISTL, 0); err != nil {
+-		t.Skip("NET_RT_IFLISTL not supported")
+-	}
+-	if compatFreeBSD32 {
+-		t.Skip("NET_RT_IFLIST vs. NET_RT_IFLISTL doesn't work for 386 emulation on amd64")
+-	}
+-
+-	var tests = [2]struct {
+-		typ  RIBType
+-		b    []byte
+-		msgs []Message
+-		ss   []string
+-	}{
+-		{typ: syscall.NET_RT_IFLIST},
+-		{typ: syscall.NET_RT_IFLISTL},
+-	}
+-	for i := range tests {
+-		var lastErr error
+-		for _, af := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
+-			rs, err := fetchAndParseRIB(af, tests[i].typ)
+-			if err != nil {
+-				lastErr = err
+-				continue
+-			}
+-			tests[i].msgs = append(tests[i].msgs, rs...)
+-		}
+-		if len(tests[i].msgs) == 0 && lastErr != nil {
+-			t.Error(tests[i].typ, lastErr)
+-			continue
+-		}
+-		tests[i].ss, lastErr = msgs(tests[i].msgs).validate()
+-		if lastErr != nil {
+-			t.Error(tests[i].typ, lastErr)
+-			continue
+-		}
+-		for _, s := range tests[i].ss {
+-			t.Log(s)
+-		}
+-	}
+-	for i := len(tests) - 1; i > 0; i-- {
+-		if len(tests[i].ss) != len(tests[i-1].ss) {
+-			t.Errorf("got %v; want %v", tests[i].ss, tests[i-1].ss)
+-			continue
+-		}
+-		for j, s1 := range tests[i].ss {
+-			s0 := tests[i-1].ss[j]
+-			if s1 != s0 {
+-				t.Errorf("got %s; want %s", s1, s0)
+-			}
+-		}
+-	}
+-}
+diff --git a/src/internal/routebsd/message_test.go b/src/internal/routebsd/message_test.go
+index 9d0d7284fc..958f201062 100644
+--- a/src/internal/routebsd/message_test.go
++++ b/src/internal/routebsd/message_test.go
+@@ -7,26 +7,15 @@
+ package routebsd
+ 
+ import (
+-	"os"
+ 	"syscall"
+ 	"testing"
+-	"time"
+ )
+ 
+-func TestFetchAndParseRIB(t *testing.T) {
+-	for _, typ := range []RIBType{syscall.NET_RT_DUMP, syscall.NET_RT_IFLIST} {
+-		var lastErr error
+-		var ms []Message
+-		for _, af := range []int{syscall.AF_UNSPEC, syscall.AF_INET, syscall.AF_INET6} {
+-			rs, err := fetchAndParseRIB(af, typ)
+-			if err != nil {
+-				lastErr = err
+-				continue
+-			}
+-			ms = append(ms, rs...)
+-		}
+-		if len(ms) == 0 && lastErr != nil {
+-			t.Error(typ, lastErr)
++func TestFetchRIBMessages(t *testing.T) {
++	for _, typ := range []int{syscall.NET_RT_DUMP, syscall.NET_RT_IFLIST} {
++		ms, err := FetchRIBMessages(typ, 0)
++		if err != nil {
++			t.Error(typ, err)
+ 			continue
+ 		}
+ 		ss, err := msgs(ms).validate()
+@@ -40,86 +29,6 @@ func TestFetchAndParseRIB(t *testing.T) {
+ 	}
+ }
+ 
+-var (
+-	rtmonSock int
+-	rtmonErr  error
+-)
+-
+-func init() {
+-	// We need to keep rtmonSock alive to avoid treading on
+-	// recycled socket descriptors.
+-	rtmonSock, rtmonErr = syscall.Socket(syscall.AF_ROUTE, syscall.SOCK_RAW, syscall.AF_UNSPEC)
+-}
+-
+-// TestMonitorAndParseRIB leaks a worker goroutine and a socket
+-// descriptor but that's intentional.
+-func TestMonitorAndParseRIB(t *testing.T) {
+-	if testing.Short() || os.Getuid() != 0 {
+-		t.Skip("must be root")
+-	}
+-
+-	if rtmonErr != nil {
+-		t.Fatal(rtmonErr)
+-	}
+-
+-	// We suppose that using an IPv4 link-local address and the
+-	// dot1Q ID for Token Ring and FDDI doesn't harm anyone.
+-	pv := &propVirtual{addr: "169.254.0.1", mask: "255.255.255.0"}
+-	if err := pv.configure(1002); err != nil {
+-		t.Skip(err)
+-	}
+-	if err := pv.setup(); err != nil {
+-		t.Skip(err)
+-	}
+-	pv.teardown()
+-
+-	go func() {
+-		b := make([]byte, os.Getpagesize())
+-		for {
+-			// There's no easy way to unblock this read
+-			// call because the routing message exchange
+-			// over routing socket is a connectionless
+-			// message-oriented protocol, no control plane
+-			// for signaling connectivity, and we cannot
+-			// use the net package of standard library due
+-			// to the lack of support for routing socket
+-			// and circular dependency.
+-			n, err := syscall.Read(rtmonSock, b)
+-			if err != nil {
+-				return
+-			}
+-			ms, err := ParseRIB(0, b[:n])
+-			if err != nil {
+-				t.Error(err)
+-				return
+-			}
+-			ss, err := msgs(ms).validate()
+-			if err != nil {
+-				t.Error(err)
+-				return
+-			}
+-			for _, s := range ss {
+-				t.Log(s)
+-			}
+-		}
+-	}()
+-
+-	for _, vid := range []int{1002, 1003, 1004, 1005} {
+-		pv := &propVirtual{addr: "169.254.0.1", mask: "255.255.255.0"}
+-		if err := pv.configure(vid); err != nil {
+-			t.Fatal(err)
+-		}
+-		if err := pv.setup(); err != nil {
+-			t.Fatal(err)
+-		}
+-		time.Sleep(200 * time.Millisecond)
+-		if err := pv.teardown(); err != nil {
+-			t.Fatal(err)
+-		}
+-		time.Sleep(200 * time.Millisecond)
+-	}
+-}
+-
+ func TestParseRIBWithFuzz(t *testing.T) {
+ 	for _, fuzz := range []string{
+ 		"0\x00\x05\x050000000000000000" +
+@@ -137,102 +46,6 @@ func TestParseRIBWithFuzz(t *testing.T) {
+ 		"\x00\x00\x00\x01\x00",
+ 		"00000",
+ 	} {
+-		for typ := RIBType(0); typ < 256; typ++ {
+-			ParseRIB(typ, []byte(fuzz))
+-		}
+-	}
+-}
+-
+-func TestRouteMessage(t *testing.T) {
+-	s, err := syscall.Socket(syscall.AF_ROUTE, syscall.SOCK_RAW, syscall.AF_UNSPEC)
+-	if err != nil {
+-		t.Fatal(err)
+-	}
+-	defer syscall.Close(s)
+-
+-	var ms []RouteMessage
+-	for _, af := range []int{syscall.AF_INET, syscall.AF_INET6} {
+-		if _, err := fetchAndParseRIB(af, syscall.NET_RT_DUMP); err != nil {
+-			t.Log(err)
+-			continue
+-		}
+-		switch af {
+-		case syscall.AF_INET:
+-			ms = append(ms, []RouteMessage{
+-				{
+-					Type: syscall.RTM_GET,
+-					Addrs: []Addr{
+-						syscall.RTAX_DST:     &Inet4Addr{IP: [4]byte{127, 0, 0, 1}},
+-						syscall.RTAX_GATEWAY: nil,
+-						syscall.RTAX_NETMASK: nil,
+-						syscall.RTAX_GENMASK: nil,
+-						syscall.RTAX_IFP:     &LinkAddr{},
+-						syscall.RTAX_IFA:     &Inet4Addr{},
+-						syscall.RTAX_AUTHOR:  nil,
+-						syscall.RTAX_BRD:     &Inet4Addr{},
+-					},
+-				},
+-				{
+-					Type: syscall.RTM_GET,
+-					Addrs: []Addr{
+-						syscall.RTAX_DST: &Inet4Addr{IP: [4]byte{127, 0, 0, 1}},
+-					},
+-				},
+-			}...)
+-		case syscall.AF_INET6:
+-			ms = append(ms, []RouteMessage{
+-				{
+-					Type: syscall.RTM_GET,
+-					Addrs: []Addr{
+-						syscall.RTAX_DST:     &Inet6Addr{IP: [16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
+-						syscall.RTAX_GATEWAY: nil,
+-						syscall.RTAX_NETMASK: nil,
+-						syscall.RTAX_GENMASK: nil,
+-						syscall.RTAX_IFP:     &LinkAddr{},
+-						syscall.RTAX_IFA:     &Inet6Addr{},
+-						syscall.RTAX_AUTHOR:  nil,
+-						syscall.RTAX_BRD:     &Inet6Addr{},
+-					},
+-				},
+-				{
+-					Type: syscall.RTM_GET,
+-					Addrs: []Addr{
+-						syscall.RTAX_DST: &Inet6Addr{IP: [16]byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
+-					},
+-				},
+-			}...)
+-		}
+-	}
+-	for i, m := range ms {
+-		m.ID = uintptr(os.Getpid())
+-		m.Seq = i + 1
+-		wb, err := m.Marshal()
+-		if err != nil {
+-			t.Fatalf("%v: %v", m, err)
+-		}
+-		if _, err := syscall.Write(s, wb); err != nil {
+-			t.Fatalf("%v: %v", m, err)
+-		}
+-		rb := make([]byte, os.Getpagesize())
+-		n, err := syscall.Read(s, rb)
+-		if err != nil {
+-			t.Fatalf("%v: %v", m, err)
+-		}
+-		rms, err := ParseRIB(0, rb[:n])
+-		if err != nil {
+-			t.Fatalf("%v: %v", m, err)
+-		}
+-		for _, rm := range rms {
+-			if rm, ok := rm.(*RouteMessage); ok && rm.Err != nil {
+-				t.Errorf("%v: %v", m, rm.Err)
+-			}
+-		}
+-		ss, err := msgs(rms).validate()
+-		if err != nil {
+-			t.Fatalf("%v: %v", m, err)
+-		}
+-		for _, s := range ss {
+-			t.Log(s)
+-		}
++		parseRIB([]byte(fuzz))
+ 	}
+ }
+diff --git a/src/internal/routebsd/route.go b/src/internal/routebsd/route.go
+index d519c295fe..5b6062e125 100644
+--- a/src/internal/routebsd/route.go
++++ b/src/internal/routebsd/route.go
+@@ -4,131 +4,56 @@
+ 
+ //go:build darwin || dragonfly || freebsd || netbsd || openbsd
+ 
+-// Package route provides basic functions for the manipulation of
+-// packet routing facilities on BSD variants.
+-//
+-// The package supports any version of Darwin, any version of
+-// DragonFly BSD, FreeBSD 7 and above, NetBSD 6 and above, and OpenBSD
+-// 5.6 and above.
++// Package routebsd supports reading interface addresses on BSD systems.
++// This is a very stripped down version of x/net/route,
++// for use by the net package in the standard library.
+ package routebsd
+ 
+ import (
+ 	"errors"
+-	"os"
+ 	"syscall"
+ )
+ 
+ var (
+-	errUnsupportedMessage = errors.New("unsupported message")
+-	errMessageMismatch    = errors.New("message mismatch")
+-	errMessageTooShort    = errors.New("message too short")
+-	errInvalidMessage     = errors.New("invalid message")
+-	errInvalidAddr        = errors.New("invalid address")
+-	errShortBuffer        = errors.New("short buffer")
+-)
+-
+-// A RouteMessage represents a message conveying an address prefix, a
+-// nexthop address and an output interface.
+-//
+-// Unlike other messages, this message can be used to query adjacency
+-// information for the given address prefix, to add a new route, and
+-// to delete or modify the existing route from the routing information
+-// base inside the kernel by writing and reading route messages on a
+-// routing socket.
+-//
+-// For the manipulation of routing information, the route message must
+-// contain appropriate fields that include:
+-//
+-//	Version       = <must be specified>
+-//	Type          = <must be specified>
+-//	Flags         = <must be specified>
+-//	Index         = <must be specified if necessary>
+-//	ID            = <must be specified>
+-//	Seq           = <must be specified>
+-//	Addrs         = <must be specified>
+-//
+-// The Type field specifies a type of manipulation, the Flags field
+-// specifies a class of target information and the Addrs field
+-// specifies target information like the following:
+-//
+-//	route.RouteMessage{
+-//		Version: RTM_VERSION,
+-//		Type: RTM_GET,
+-//		Flags: RTF_UP | RTF_HOST,
+-//		ID: uintptr(os.Getpid()),
+-//		Seq: 1,
+-//		Addrs: []route.Addrs{
+-//			RTAX_DST: &route.Inet4Addr{ ... },
+-//			RTAX_IFP: &route.LinkAddr{ ... },
+-//			RTAX_BRD: &route.Inet4Addr{ ... },
+-//		},
+-//	}
+-//
+-// The values for the above fields depend on the implementation of
+-// each operating system.
+-//
+-// The Err field on a response message contains an error value on the
+-// requested operation. If non-nil, the requested operation is failed.
+-type RouteMessage struct {
+-	Version int     // message version
+-	Type    int     // message type
+-	Flags   int     // route flags
+-	Index   int     // interface index when attached
+-	ID      uintptr // sender's identifier; usually process ID
+-	Seq     int     // sequence number
+-	Err     error   // error on requested operation
+-	Addrs   []Addr  // addresses
+-
+-	extOff int    // offset of header extension
+-	raw    []byte // raw message
+-}
+-
+-// Marshal returns the binary encoding of m.
+-func (m *RouteMessage) Marshal() ([]byte, error) {
+-	return m.marshal()
+-}
+-
+-// A RIBType represents a type of routing information base.
+-type RIBType int
+-
+-const (
+-	RIBTypeRoute     RIBType = syscall.NET_RT_DUMP
+-	RIBTypeInterface RIBType = syscall.NET_RT_IFLIST
++	errMessageMismatch = errors.New("message mismatch")
++	errMessageTooShort = errors.New("message too short")
++	errInvalidMessage  = errors.New("invalid message")
++	errInvalidAddr     = errors.New("invalid address")
+ )
+ 
+-// FetchRIB fetches a routing information base from the operating
++// fetchRIB fetches a routing information base from the operating
+ // system.
+ //
+-// The provided af must be an address family.
+-//
+-// The provided arg must be a RIBType-specific argument.
+-// When RIBType is related to routes, arg might be a set of route
+-// flags. When RIBType is related to network interfaces, arg might be
+-// an interface index or a set of interface flags. In most cases, zero
+-// means a wildcard.
+-func FetchRIB(af int, typ RIBType, arg int) ([]byte, error) {
++// The arg is an interface index or 0 for all.
++func fetchRIB(typ, arg int) ([]byte, error) {
+ 	try := 0
+ 	for {
+ 		try++
+-		mib := [6]int32{syscall.CTL_NET, syscall.AF_ROUTE, 0, int32(af), int32(typ), int32(arg)}
+-		n := uintptr(0)
+-		if err := sysctl(mib[:], nil, &n, nil, 0); err != nil {
+-			return nil, os.NewSyscallError("sysctl", err)
+-		}
+-		if n == 0 {
+-			return nil, nil
++		b, err := syscall.RouteRIB(typ, arg)
++
++		// If the sysctl failed because the data got larger
++		// between the two sysctl calls, try a few times
++		// before failing (issue #45736).
++		const maxTries = 3
++		if err == syscall.ENOMEM && try < maxTries {
++			continue
+ 		}
+-		b := make([]byte, n)
+-		if err := sysctl(mib[:], &b[0], &n, nil, 0); err != nil {
+-			// If the sysctl failed because the data got larger
+-			// between the two sysctl calls, try a few times
+-			// before failing. (golang.org/issue/45736).
+-			const maxTries = 3
+-			if err == syscall.ENOMEM && try < maxTries {
+-				continue
+-			}
+-			return nil, os.NewSyscallError("sysctl", err)
+-		}
+-		return b[:n], nil
++
++		return b, err
++	}
++}
++
++// FetchRIBMessages fetches a list of addressing messages for an interface.
++// The typ argument is something like syscall.NET_RT_IFLIST.
++// The argument is an interface index or 0 for all.
++func FetchRIBMessages(typ, arg int) ([]Message, error) {
++	b, err := fetchRIB(typ, arg)
++	if err != nil {
++		return nil, err
++	}
++	ms, err := parseRIB(b)
++	if err != nil {
++		return nil, err
+ 	}
++	return ms, nil
+ }
+diff --git a/src/internal/routebsd/route_classic.go b/src/internal/routebsd/route_classic.go
+deleted file mode 100644
+index 0d105d7bd4..0000000000
+--- a/src/internal/routebsd/route_classic.go
++++ /dev/null
+@@ -1,75 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build darwin || dragonfly || freebsd || netbsd
+-
+-package routebsd
+-
+-import (
+-	"runtime"
+-	"syscall"
+-)
+-
+-func (m *RouteMessage) marshal() ([]byte, error) {
+-	w, ok := wireFormats[m.Type]
+-	if !ok {
+-		return nil, errUnsupportedMessage
+-	}
+-	l := w.bodyOff + addrsSpace(m.Addrs)
+-	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+-		// Fix stray pointer writes on macOS.
+-		// See golang.org/issue/22456.
+-		l += 1024
+-	}
+-	b := make([]byte, l)
+-	nativeEndian.PutUint16(b[:2], uint16(l))
+-	if m.Version == 0 {
+-		b[2] = rtmVersion
+-	} else {
+-		b[2] = byte(m.Version)
+-	}
+-	b[3] = byte(m.Type)
+-	nativeEndian.PutUint32(b[8:12], uint32(m.Flags))
+-	nativeEndian.PutUint16(b[4:6], uint16(m.Index))
+-	nativeEndian.PutUint32(b[16:20], uint32(m.ID))
+-	nativeEndian.PutUint32(b[20:24], uint32(m.Seq))
+-	attrs, err := marshalAddrs(b[w.bodyOff:], m.Addrs)
+-	if err != nil {
+-		return nil, err
+-	}
+-	if attrs > 0 {
+-		nativeEndian.PutUint32(b[12:16], uint32(attrs))
+-	}
+-	return b, nil
+-}
+-
+-func (w *wireFormat) parseRouteMessage(typ RIBType, b []byte) (Message, error) {
+-	if len(b) < w.bodyOff {
+-		return nil, errMessageTooShort
+-	}
+-	l := int(nativeEndian.Uint16(b[:2]))
+-	if len(b) < l {
+-		return nil, errInvalidMessage
+-	}
+-	m := &RouteMessage{
+-		Version: int(b[2]),
+-		Type:    int(b[3]),
+-		Flags:   int(nativeEndian.Uint32(b[8:12])),
+-		Index:   int(nativeEndian.Uint16(b[4:6])),
+-		ID:      uintptr(nativeEndian.Uint32(b[16:20])),
+-		Seq:     int(nativeEndian.Uint32(b[20:24])),
+-		extOff:  w.extOff,
+-		raw:     b[:l],
+-	}
+-	errno := syscall.Errno(nativeEndian.Uint32(b[28:32]))
+-	if errno != 0 {
+-		m.Err = errno
+-	}
+-	var err error
+-	m.Addrs, err = parseAddrs(uint(nativeEndian.Uint32(b[12:16])), parseKernelInetAddr, b[w.bodyOff:])
+-	if err != nil {
+-		return nil, err
+-	}
+-	return m, nil
+-}
+diff --git a/src/internal/routebsd/route_openbsd.go b/src/internal/routebsd/route_openbsd.go
+deleted file mode 100644
+index e125b89006..0000000000
+--- a/src/internal/routebsd/route_openbsd.go
++++ /dev/null
+@@ -1,67 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package routebsd
+-
+-import (
+-	"syscall"
+-)
+-
+-func (m *RouteMessage) marshal() ([]byte, error) {
+-	l := sizeofRtMsghdr + addrsSpace(m.Addrs)
+-	b := make([]byte, l)
+-	nativeEndian.PutUint16(b[:2], uint16(l))
+-	if m.Version == 0 {
+-		b[2] = syscall.RTM_VERSION
+-	} else {
+-		b[2] = byte(m.Version)
+-	}
+-	b[3] = byte(m.Type)
+-	nativeEndian.PutUint16(b[4:6], uint16(sizeofRtMsghdr))
+-	nativeEndian.PutUint32(b[16:20], uint32(m.Flags))
+-	nativeEndian.PutUint16(b[6:8], uint16(m.Index))
+-	nativeEndian.PutUint32(b[24:28], uint32(m.ID))
+-	nativeEndian.PutUint32(b[28:32], uint32(m.Seq))
+-	attrs, err := marshalAddrs(b[sizeofRtMsghdr:], m.Addrs)
+-	if err != nil {
+-		return nil, err
+-	}
+-	if attrs > 0 {
+-		nativeEndian.PutUint32(b[12:16], uint32(attrs))
+-	}
+-	return b, nil
+-}
+-
+-func (*wireFormat) parseRouteMessage(_ RIBType, b []byte) (Message, error) {
+-	if len(b) < sizeofRtMsghdr {
+-		return nil, errMessageTooShort
+-	}
+-	l := int(nativeEndian.Uint16(b[:2]))
+-	if len(b) < l {
+-		return nil, errInvalidMessage
+-	}
+-	m := &RouteMessage{
+-		Version: int(b[2]),
+-		Type:    int(b[3]),
+-		Flags:   int(nativeEndian.Uint32(b[16:20])),
+-		Index:   int(nativeEndian.Uint16(b[6:8])),
+-		ID:      uintptr(nativeEndian.Uint32(b[24:28])),
+-		Seq:     int(nativeEndian.Uint32(b[28:32])),
+-		raw:     b[:l],
+-	}
+-	ll := int(nativeEndian.Uint16(b[4:6]))
+-	if len(b) < ll {
+-		return nil, errInvalidMessage
+-	}
+-	errno := syscall.Errno(nativeEndian.Uint32(b[32:36]))
+-	if errno != 0 {
+-		m.Err = errno
+-	}
+-	as, err := parseAddrs(uint(nativeEndian.Uint32(b[12:16])), parseKernelInetAddr, b[ll:])
+-	if err != nil {
+-		return nil, err
+-	}
+-	m.Addrs = as
+-	return m, nil
+-}
+diff --git a/src/internal/routebsd/route_test.go b/src/internal/routebsd/route_test.go
+index 2ac5fee9bd..613175e388 100644
+--- a/src/internal/routebsd/route_test.go
++++ b/src/internal/routebsd/route_test.go
+@@ -8,15 +8,10 @@ package routebsd
+ 
+ import (
+ 	"fmt"
+-	"os/exec"
+ 	"runtime"
+ 	"syscall"
+ )
+ 
+-func (m *RouteMessage) String() string {
+-	return fmt.Sprintf("%s", addrAttrs(nativeEndian.Uint32(m.raw[12:16])))
+-}
+-
+ func (m *InterfaceMessage) String() string {
+ 	var attrs addrAttrs
+ 	if runtime.GOOS == "openbsd" {
+@@ -41,25 +36,6 @@ func (m *InterfaceMulticastAddrMessage) String() string {
+ 	return fmt.Sprintf("%s", addrAttrs(nativeEndian.Uint32(m.raw[4:8])))
+ }
+ 
+-func (m *InterfaceAnnounceMessage) String() string {
+-	what := "<nil>"
+-	switch m.What {
+-	case 0:
+-		what = "arrival"
+-	case 1:
+-		what = "departure"
+-	}
+-	return fmt.Sprintf("(%d %s %s)", m.Index, m.Name, what)
+-}
+-
+-func (m *InterfaceMetrics) String() string {
+-	return fmt.Sprintf("(type=%d mtu=%d)", m.Type, m.MTU)
+-}
+-
+-func (m *RouteMetrics) String() string {
+-	return fmt.Sprintf("(pmtu=%d)", m.PathMTU)
+-}
+-
+ type addrAttrs uint
+ 
+ var addrAttrNames = [...]string{
+@@ -102,15 +78,6 @@ func (ms msgs) validate() ([]string, error) {
+ 	var ss []string
+ 	for _, m := range ms {
+ 		switch m := m.(type) {
+-		case *RouteMessage:
+-			if err := addrs(m.Addrs).match(addrAttrs(nativeEndian.Uint32(m.raw[12:16]))); err != nil {
+-				return nil, err
+-			}
+-			sys := m.Sys()
+-			if sys == nil {
+-				return nil, fmt.Errorf("no sys for %s", m.String())
+-			}
+-			ss = append(ss, m.String()+" "+syss(sys).String()+" "+addrs(m.Addrs).String())
+ 		case *InterfaceMessage:
+ 			var attrs addrAttrs
+ 			if runtime.GOOS == "openbsd" {
+@@ -121,11 +88,7 @@ func (ms msgs) validate() ([]string, error) {
+ 			if err := addrs(m.Addrs).match(attrs); err != nil {
+ 				return nil, err
+ 			}
+-			sys := m.Sys()
+-			if sys == nil {
+-				return nil, fmt.Errorf("no sys for %s", m.String())
+-			}
+-			ss = append(ss, m.String()+" "+syss(sys).String()+" "+addrs(m.Addrs).String())
++			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
+ 		case *InterfaceAddrMessage:
+ 			var attrs addrAttrs
+ 			if runtime.GOOS == "openbsd" {
+@@ -142,8 +105,6 @@ func (ms msgs) validate() ([]string, error) {
+ 				return nil, err
+ 			}
+ 			ss = append(ss, m.String()+" "+addrs(m.Addrs).String())
+-		case *InterfaceAnnounceMessage:
+-			ss = append(ss, m.String())
+ 		default:
+ 			ss = append(ss, fmt.Sprintf("%+v", m))
+ 		}
+@@ -151,27 +112,6 @@ func (ms msgs) validate() ([]string, error) {
+ 	return ss, nil
+ }
+ 
+-type syss []Sys
+-
+-func (sys syss) String() string {
+-	var s string
+-	for _, sy := range sys {
+-		switch sy := sy.(type) {
+-		case *InterfaceMetrics:
+-			if len(s) > 0 {
+-				s += " "
+-			}
+-			s += sy.String()
+-		case *RouteMetrics:
+-			if len(s) > 0 {
+-				s += " "
+-			}
+-			s += sy.String()
+-		}
+-	}
+-	return s
+-}
+-
+ type addrFamily int
+ 
+ func (af addrFamily) String() string {
+@@ -239,16 +179,8 @@ func (a *LinkAddr) String() string {
+ 	return fmt.Sprintf("(%v %d %s %s)", addrFamily(a.Family()), a.Index, name, lla)
+ }
+ 
+-func (a *Inet4Addr) String() string {
+-	return fmt.Sprintf("(%v %v)", addrFamily(a.Family()), ipAddr(a.IP[:]))
+-}
+-
+-func (a *Inet6Addr) String() string {
+-	return fmt.Sprintf("(%v %v %d)", addrFamily(a.Family()), ipAddr(a.IP[:]), a.ZoneID)
+-}
+-
+-func (a *DefaultAddr) String() string {
+-	return fmt.Sprintf("(%v %s)", addrFamily(a.Family()), ipAddr(a.Raw[2:]).String())
++func (a *InetAddr) String() string {
++	return fmt.Sprintf("(%v %v)", addrFamily(a.Family()), a.IP)
+ }
+ 
+ type addrs []Addr
+@@ -265,11 +197,7 @@ func (as addrs) String() string {
+ 		switch a := a.(type) {
+ 		case *LinkAddr:
+ 			s += a.String()
+-		case *Inet4Addr:
+-			s += a.String()
+-		case *Inet6Addr:
+-			s += a.String()
+-		case *DefaultAddr:
++		case *InetAddr:
+ 			s += a.String()
+ 		}
+ 	}
+@@ -286,19 +214,20 @@ func (as addrs) match(attrs addrAttrs) error {
+ 		if as[i] != nil {
+ 			ts |= 1 << uint(i)
+ 		}
+-		switch as[i].(type) {
+-		case *Inet4Addr:
+-			if af == syscall.AF_UNSPEC {
+-				af = syscall.AF_INET
+-			}
+-			if af != syscall.AF_INET {
+-				return fmt.Errorf("got %v; want %v", addrs(as), addrFamily(af))
++		switch addr := as[i].(type) {
++		case *InetAddr:
++			got := 0
++			if addr.IP.Is4() {
++				got = syscall.AF_INET
++			} else if addr.IP.Is6() {
++				got = syscall.AF_INET6
+ 			}
+-		case *Inet6Addr:
+ 			if af == syscall.AF_UNSPEC {
+-				af = syscall.AF_INET6
++				if got != 0 {
++					af = got
++				}
+ 			}
+-			if af != syscall.AF_INET6 {
++			if got != 0 && af != got {
+ 				return fmt.Errorf("got %v; want %v", addrs(as), addrFamily(af))
+ 			}
+ 		}
+@@ -308,75 +237,3 @@ func (as addrs) match(attrs addrAttrs) error {
+ 	}
+ 	return nil
+ }
+-
+-func fetchAndParseRIB(af int, typ RIBType) ([]Message, error) {
+-	b, err := FetchRIB(af, typ, 0)
+-	if err != nil {
+-		return nil, fmt.Errorf("%v %d %v", addrFamily(af), typ, err)
+-	}
+-	ms, err := ParseRIB(typ, b)
+-	if err != nil {
+-		return nil, fmt.Errorf("%v %d %v", addrFamily(af), typ, err)
+-	}
+-	return ms, nil
+-}
+-
+-// propVirtual is a proprietary virtual network interface.
+-type propVirtual struct {
+-	name         string
+-	addr, mask   string
+-	setupCmds    []*exec.Cmd
+-	teardownCmds []*exec.Cmd
+-}
+-
+-func (pv *propVirtual) setup() error {
+-	for _, cmd := range pv.setupCmds {
+-		if err := cmd.Run(); err != nil {
+-			pv.teardown()
+-			return err
+-		}
+-	}
+-	return nil
+-}
+-
+-func (pv *propVirtual) teardown() error {
+-	for _, cmd := range pv.teardownCmds {
+-		if err := cmd.Run(); err != nil {
+-			return err
+-		}
+-	}
+-	return nil
+-}
+-
+-func (pv *propVirtual) configure(suffix int) error {
+-	if runtime.GOOS == "openbsd" {
+-		pv.name = fmt.Sprintf("vether%d", suffix)
+-	} else {
+-		pv.name = fmt.Sprintf("vlan%d", suffix)
+-	}
+-	xname, err := exec.LookPath("ifconfig")
+-	if err != nil {
+-		return err
+-	}
+-	pv.setupCmds = append(pv.setupCmds, &exec.Cmd{
+-		Path: xname,
+-		Args: []string{"ifconfig", pv.name, "create"},
+-	})
+-	if runtime.GOOS == "netbsd" {
+-		// NetBSD requires an underlying dot1Q-capable network
+-		// interface.
+-		pv.setupCmds = append(pv.setupCmds, &exec.Cmd{
+-			Path: xname,
+-			Args: []string{"ifconfig", pv.name, "vlan", fmt.Sprintf("%d", suffix&0xfff), "vlanif", "wm0"},
+-		})
+-	}
+-	pv.setupCmds = append(pv.setupCmds, &exec.Cmd{
+-		Path: xname,
+-		Args: []string{"ifconfig", pv.name, "inet", pv.addr, "netmask", pv.mask},
+-	})
+-	pv.teardownCmds = append(pv.teardownCmds, &exec.Cmd{
+-		Path: xname,
+-		Args: []string{"ifconfig", pv.name, "destroy"},
+-	})
+-	return nil
+-}
+diff --git a/src/internal/routebsd/sys.go b/src/internal/routebsd/sys.go
+index 69ef7b7871..8805bca97e 100644
+--- a/src/internal/routebsd/sys.go
++++ b/src/internal/routebsd/sys.go
+@@ -41,5 +41,5 @@ func roundup(l int) int {
+ type wireFormat struct {
+ 	extOff  int // offset of header extension
+ 	bodyOff int // offset of message body
+-	parse   func(RIBType, []byte) (Message, error)
++	parse   func([]byte) (Message, error)
+ }
+diff --git a/src/internal/routebsd/sys_darwin.go b/src/internal/routebsd/sys_darwin.go
+index 2d8424a1c9..14864e2e32 100644
+--- a/src/internal/routebsd/sys_darwin.go
++++ b/src/internal/routebsd/sys_darwin.go
+@@ -6,77 +6,27 @@ package routebsd
+ 
+ import "syscall"
+ 
+-func (typ RIBType) parseable() bool {
+-	switch typ {
+-	case syscall.NET_RT_STAT, syscall.NET_RT_TRASH:
+-		return false
+-	default:
+-		return true
+-	}
+-}
+-
+-// RouteMetrics represents route metrics.
+-type RouteMetrics struct {
+-	PathMTU int // path maximum transmission unit
+-}
+-
+-// SysType implements the SysType method of Sys interface.
+-func (rmx *RouteMetrics) SysType() SysType { return SysMetrics }
+-
+-// Sys implements the Sys method of Message interface.
+-func (m *RouteMessage) Sys() []Sys {
+-	return []Sys{
+-		&RouteMetrics{
+-			PathMTU: int(nativeEndian.Uint32(m.raw[m.extOff+4 : m.extOff+8])),
+-		},
+-	}
+-}
+-
+-// InterfaceMetrics represents interface metrics.
+-type InterfaceMetrics struct {
+-	Type int // interface type
+-	MTU  int // maximum transmission unit
++// MTU returns the interface MTU.
++func (m *InterfaceMessage) MTU() int {
++	return int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12]))
+ }
+ 
+-// SysType implements the SysType method of Sys interface.
+-func (imx *InterfaceMetrics) SysType() SysType { return SysMetrics }
+-
+-// Sys implements the Sys method of Message interface.
+-func (m *InterfaceMessage) Sys() []Sys {
+-	return []Sys{
+-		&InterfaceMetrics{
+-			Type: int(m.raw[m.extOff]),
+-			MTU:  int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12])),
+-		},
+-	}
+-}
++// sizeofIfMsghdr2 is copied from x/sys/unix.
++const sizeofIfMsghdr2 = 0xa0
+ 
+ func probeRoutingStack() (int, map[int]*wireFormat) {
+-	rtm := &wireFormat{extOff: 36, bodyOff: sizeofRtMsghdrDarwin15}
+-	rtm.parse = rtm.parseRouteMessage
+-	rtm2 := &wireFormat{extOff: 36, bodyOff: sizeofRtMsghdr2Darwin15}
+-	rtm2.parse = rtm2.parseRouteMessage
+-	ifm := &wireFormat{extOff: 16, bodyOff: sizeofIfMsghdrDarwin15}
++	ifm := &wireFormat{extOff: 16, bodyOff: syscall.SizeofIfMsghdr}
+ 	ifm.parse = ifm.parseInterfaceMessage
+-	ifm2 := &wireFormat{extOff: 32, bodyOff: sizeofIfMsghdr2Darwin15}
++	ifm2 := &wireFormat{extOff: 32, bodyOff: sizeofIfMsghdr2}
+ 	ifm2.parse = ifm2.parseInterfaceMessage
+-	ifam := &wireFormat{extOff: sizeofIfaMsghdrDarwin15, bodyOff: sizeofIfaMsghdrDarwin15}
++	ifam := &wireFormat{extOff: syscall.SizeofIfaMsghdr, bodyOff: syscall.SizeofIfaMsghdr}
+ 	ifam.parse = ifam.parseInterfaceAddrMessage
+-	ifmam := &wireFormat{extOff: sizeofIfmaMsghdrDarwin15, bodyOff: sizeofIfmaMsghdrDarwin15}
++	ifmam := &wireFormat{extOff: syscall.SizeofIfmaMsghdr, bodyOff: syscall.SizeofIfmaMsghdr}
+ 	ifmam.parse = ifmam.parseInterfaceMulticastAddrMessage
+-	ifmam2 := &wireFormat{extOff: sizeofIfmaMsghdr2Darwin15, bodyOff: sizeofIfmaMsghdr2Darwin15}
++	ifmam2 := &wireFormat{extOff: syscall.SizeofIfmaMsghdr2, bodyOff: syscall.SizeofIfmaMsghdr2}
+ 	ifmam2.parse = ifmam2.parseInterfaceMulticastAddrMessage
+ 	// Darwin kernels require 32-bit aligned access to routing facilities.
+ 	return 4, map[int]*wireFormat{
+-		syscall.RTM_ADD:       rtm,
+-		syscall.RTM_DELETE:    rtm,
+-		syscall.RTM_CHANGE:    rtm,
+-		syscall.RTM_GET:       rtm,
+-		syscall.RTM_LOSING:    rtm,
+-		syscall.RTM_REDIRECT:  rtm,
+-		syscall.RTM_MISS:      rtm,
+-		syscall.RTM_LOCK:      rtm,
+-		syscall.RTM_RESOLVE:   rtm,
+ 		syscall.RTM_NEWADDR:   ifam,
+ 		syscall.RTM_DELADDR:   ifam,
+ 		syscall.RTM_IFINFO:    ifm,
+@@ -84,6 +34,5 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 		syscall.RTM_DELMADDR:  ifmam,
+ 		syscall.RTM_IFINFO2:   ifm2,
+ 		syscall.RTM_NEWMADDR2: ifmam2,
+-		syscall.RTM_GET2:      rtm2,
+ 	}
+ }
+diff --git a/src/internal/routebsd/sys_dragonfly.go b/src/internal/routebsd/sys_dragonfly.go
+index a3ee0ff73f..ce0e6fd403 100644
+--- a/src/internal/routebsd/sys_dragonfly.go
++++ b/src/internal/routebsd/sys_dragonfly.go
+@@ -9,80 +9,33 @@ import (
+ 	"unsafe"
+ )
+ 
+-func (typ RIBType) parseable() bool { return true }
+-
+-// RouteMetrics represents route metrics.
+-type RouteMetrics struct {
+-	PathMTU int // path maximum transmission unit
+-}
+-
+-// SysType implements the SysType method of Sys interface.
+-func (rmx *RouteMetrics) SysType() SysType { return SysMetrics }
+-
+-// Sys implements the Sys method of Message interface.
+-func (m *RouteMessage) Sys() []Sys {
+-	return []Sys{
+-		&RouteMetrics{
+-			PathMTU: int(nativeEndian.Uint64(m.raw[m.extOff+8 : m.extOff+16])),
+-		},
+-	}
+-}
+-
+-// InterfaceMetrics represents interface metrics.
+-type InterfaceMetrics struct {
+-	Type int // interface type
+-	MTU  int // maximum transmission unit
+-}
+-
+-// SysType implements the SysType method of Sys interface.
+-func (imx *InterfaceMetrics) SysType() SysType { return SysMetrics }
+-
+-// Sys implements the Sys method of Message interface.
+-func (m *InterfaceMessage) Sys() []Sys {
+-	return []Sys{
+-		&InterfaceMetrics{
+-			Type: int(m.raw[m.extOff]),
+-			MTU:  int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12])),
+-		},
+-	}
++// MTU returns the interface MTU.
++func (m *InterfaceMessage) MTU() int {
++	return int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12]))
+ }
+ 
+ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 	var p uintptr
+-	rtm := &wireFormat{extOff: 40, bodyOff: sizeofRtMsghdrDragonFlyBSD4}
+-	rtm.parse = rtm.parseRouteMessage
+-	ifm := &wireFormat{extOff: 16, bodyOff: sizeofIfMsghdrDragonFlyBSD4}
++	ifm := &wireFormat{extOff: 16, bodyOff: syscall.SizeofIfMsghdr}
+ 	ifm.parse = ifm.parseInterfaceMessage
+-	ifam := &wireFormat{extOff: sizeofIfaMsghdrDragonFlyBSD4, bodyOff: sizeofIfaMsghdrDragonFlyBSD4}
++	ifam := &wireFormat{extOff: syscall.SizeofIfaMsghdr, bodyOff: syscall.SizeofIfaMsghdr}
+ 	ifam.parse = ifam.parseInterfaceAddrMessage
+-	ifmam := &wireFormat{extOff: sizeofIfmaMsghdrDragonFlyBSD4, bodyOff: sizeofIfmaMsghdrDragonFlyBSD4}
++	ifmam := &wireFormat{extOff: syscall.SizeofIfmaMsghdr, bodyOff: syscall.SizeofIfmaMsghdr}
+ 	ifmam.parse = ifmam.parseInterfaceMulticastAddrMessage
+-	ifanm := &wireFormat{extOff: sizeofIfAnnouncemsghdrDragonFlyBSD4, bodyOff: sizeofIfAnnouncemsghdrDragonFlyBSD4}
+-	ifanm.parse = ifanm.parseInterfaceAnnounceMessage
+ 
+ 	rel, _ := syscall.SysctlUint32("kern.osreldate")
+ 	if rel >= 500705 {
+ 		// https://github.com/DragonFlyBSD/DragonFlyBSD/commit/43a373152df2d405c9940983e584e6a25e76632d
+ 		// but only the size of struct ifa_msghdr actually changed
+ 		rtmVersion = 7
+-		ifam.bodyOff = sizeofIfaMsghdrDragonFlyBSD58
++		ifam.bodyOff = 0x18
+ 	}
+ 
+ 	return int(unsafe.Sizeof(p)), map[int]*wireFormat{
+-		syscall.RTM_ADD:        rtm,
+-		syscall.RTM_DELETE:     rtm,
+-		syscall.RTM_CHANGE:     rtm,
+-		syscall.RTM_GET:        rtm,
+-		syscall.RTM_LOSING:     rtm,
+-		syscall.RTM_REDIRECT:   rtm,
+-		syscall.RTM_MISS:       rtm,
+-		syscall.RTM_LOCK:       rtm,
+-		syscall.RTM_RESOLVE:    rtm,
+-		syscall.RTM_NEWADDR:    ifam,
+-		syscall.RTM_DELADDR:    ifam,
+-		syscall.RTM_IFINFO:     ifm,
+-		syscall.RTM_NEWMADDR:   ifmam,
+-		syscall.RTM_DELMADDR:   ifmam,
+-		syscall.RTM_IFANNOUNCE: ifanm,
++		syscall.RTM_NEWADDR:  ifam,
++		syscall.RTM_DELADDR:  ifam,
++		syscall.RTM_IFINFO:   ifm,
++		syscall.RTM_NEWMADDR: ifmam,
++		syscall.RTM_DELMADDR: ifmam,
+ 	}
+ }
+diff --git a/src/internal/routebsd/sys_freebsd.go b/src/internal/routebsd/sys_freebsd.go
+index 6136e66385..5d5f49e42e 100644
+--- a/src/internal/routebsd/sys_freebsd.go
++++ b/src/internal/routebsd/sys_freebsd.go
+@@ -9,52 +9,13 @@ import (
+ 	"unsafe"
+ )
+ 
+-func (typ RIBType) parseable() bool { return true }
+-
+-// RouteMetrics represents route metrics.
+-type RouteMetrics struct {
+-	PathMTU int // path maximum transmission unit
++// MTU returns the interface MTU.
++func (m *InterfaceMessage) MTU() int {
++	return int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12]))
+ }
+ 
+-// SysType implements the SysType method of Sys interface.
+-func (rmx *RouteMetrics) SysType() SysType { return SysMetrics }
+-
+-// Sys implements the Sys method of Message interface.
+-func (m *RouteMessage) Sys() []Sys {
+-	if kernelAlign == 8 {
+-		return []Sys{
+-			&RouteMetrics{
+-				PathMTU: int(nativeEndian.Uint64(m.raw[m.extOff+8 : m.extOff+16])),
+-			},
+-		}
+-	}
+-	return []Sys{
+-		&RouteMetrics{
+-			PathMTU: int(nativeEndian.Uint32(m.raw[m.extOff+4 : m.extOff+8])),
+-		},
+-	}
+-}
+-
+-// InterfaceMetrics represents interface metrics.
+-type InterfaceMetrics struct {
+-	Type int // interface type
+-	MTU  int // maximum transmission unit
+-}
+-
+-// SysType implements the SysType method of Sys interface.
+-func (imx *InterfaceMetrics) SysType() SysType { return SysMetrics }
+-
+-// Sys implements the Sys method of Message interface.
+-func (m *InterfaceMessage) Sys() []Sys {
+-	return []Sys{
+-		&InterfaceMetrics{
+-			Type: int(m.raw[m.extOff]),
+-			MTU:  int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12])),
+-		},
+-	}
+-}
+-
+-var compatFreeBSD32 bool // 386 emulation on amd64
++// sizeofIfMsghdr is the size used on FreeBSD 11 for all platforms.
++const sizeofIfMsghdr = 0xa8
+ 
+ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 	var p uintptr
+@@ -85,76 +46,17 @@ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 			break
+ 		}
+ 	}
+-	if align != wordSize {
+-		compatFreeBSD32 = true // 386 emulation on amd64
+-	}
+-	var rtm, ifm, ifam, ifmam, ifanm *wireFormat
+-	if compatFreeBSD32 {
+-		rtm = &wireFormat{extOff: sizeofRtMsghdrFreeBSD10Emu - sizeofRtMetricsFreeBSD10Emu, bodyOff: sizeofRtMsghdrFreeBSD10Emu}
+-		ifm = &wireFormat{extOff: 16}
+-		ifam = &wireFormat{extOff: sizeofIfaMsghdrFreeBSD10Emu, bodyOff: sizeofIfaMsghdrFreeBSD10Emu}
+-		ifmam = &wireFormat{extOff: sizeofIfmaMsghdrFreeBSD10Emu, bodyOff: sizeofIfmaMsghdrFreeBSD10Emu}
+-		ifanm = &wireFormat{extOff: sizeofIfAnnouncemsghdrFreeBSD10Emu, bodyOff: sizeofIfAnnouncemsghdrFreeBSD10Emu}
+-	} else {
+-		rtm = &wireFormat{extOff: sizeofRtMsghdrFreeBSD10 - sizeofRtMetricsFreeBSD10, bodyOff: sizeofRtMsghdrFreeBSD10}
+-		ifm = &wireFormat{extOff: 16}
+-		ifam = &wireFormat{extOff: sizeofIfaMsghdrFreeBSD10, bodyOff: sizeofIfaMsghdrFreeBSD10}
+-		ifmam = &wireFormat{extOff: sizeofIfmaMsghdrFreeBSD10, bodyOff: sizeofIfmaMsghdrFreeBSD10}
+-		ifanm = &wireFormat{extOff: sizeofIfAnnouncemsghdrFreeBSD10, bodyOff: sizeofIfAnnouncemsghdrFreeBSD10}
+-	}
+-	rel, _ := syscall.SysctlUint32("kern.osreldate")
+-	switch {
+-	case rel < 800000:
+-		if compatFreeBSD32 {
+-			ifm.bodyOff = sizeofIfMsghdrFreeBSD7Emu
+-		} else {
+-			ifm.bodyOff = sizeofIfMsghdrFreeBSD7
+-		}
+-	case 800000 <= rel && rel < 900000:
+-		if compatFreeBSD32 {
+-			ifm.bodyOff = sizeofIfMsghdrFreeBSD8Emu
+-		} else {
+-			ifm.bodyOff = sizeofIfMsghdrFreeBSD8
+-		}
+-	case 900000 <= rel && rel < 1000000:
+-		if compatFreeBSD32 {
+-			ifm.bodyOff = sizeofIfMsghdrFreeBSD9Emu
+-		} else {
+-			ifm.bodyOff = sizeofIfMsghdrFreeBSD9
+-		}
+-	case 1000000 <= rel && rel < 1100000:
+-		if compatFreeBSD32 {
+-			ifm.bodyOff = sizeofIfMsghdrFreeBSD10Emu
+-		} else {
+-			ifm.bodyOff = sizeofIfMsghdrFreeBSD10
+-		}
+-	default:
+-		if compatFreeBSD32 {
+-			ifm.bodyOff = sizeofIfMsghdrFreeBSD11Emu
+-		} else {
+-			ifm.bodyOff = sizeofIfMsghdrFreeBSD11
+-		}
+-	}
+-	rtm.parse = rtm.parseRouteMessage
++	ifm := &wireFormat{extOff: 16, bodyOff: sizeofIfMsghdr}
+ 	ifm.parse = ifm.parseInterfaceMessage
++	ifam := &wireFormat{extOff: syscall.SizeofIfaMsghdr, bodyOff: syscall.SizeofIfaMsghdr}
+ 	ifam.parse = ifam.parseInterfaceAddrMessage
++	ifmam := &wireFormat{extOff: syscall.SizeofIfmaMsghdr, bodyOff: syscall.SizeofIfmaMsghdr}
+ 	ifmam.parse = ifmam.parseInterfaceMulticastAddrMessage
+-	ifanm.parse = ifanm.parseInterfaceAnnounceMessage
+ 	return align, map[int]*wireFormat{
+-		syscall.RTM_ADD:        rtm,
+-		syscall.RTM_DELETE:     rtm,
+-		syscall.RTM_CHANGE:     rtm,
+-		syscall.RTM_GET:        rtm,
+-		syscall.RTM_LOSING:     rtm,
+-		syscall.RTM_REDIRECT:   rtm,
+-		syscall.RTM_MISS:       rtm,
+-		syscall.RTM_LOCK:       rtm,
+-		syscall.RTM_RESOLVE:    rtm,
+-		syscall.RTM_NEWADDR:    ifam,
+-		syscall.RTM_DELADDR:    ifam,
+-		syscall.RTM_IFINFO:     ifm,
+-		syscall.RTM_NEWMADDR:   ifmam,
+-		syscall.RTM_DELMADDR:   ifmam,
+-		syscall.RTM_IFANNOUNCE: ifanm,
++		syscall.RTM_NEWADDR:  ifam,
++		syscall.RTM_DELADDR:  ifam,
++		syscall.RTM_IFINFO:   ifm,
++		syscall.RTM_NEWMADDR: ifmam,
++		syscall.RTM_DELMADDR: ifmam,
+ 	}
+ }
+diff --git a/src/internal/routebsd/sys_netbsd.go b/src/internal/routebsd/sys_netbsd.go
+index 3a33174454..b181f727c2 100644
+--- a/src/internal/routebsd/sys_netbsd.go
++++ b/src/internal/routebsd/sys_netbsd.go
+@@ -6,68 +6,21 @@ package routebsd
+ 
+ import "syscall"
+ 
+-func (typ RIBType) parseable() bool { return true }
+-
+-// RouteMetrics represents route metrics.
+-type RouteMetrics struct {
+-	PathMTU int // path maximum transmission unit
+-}
+-
+-// SysType implements the SysType method of Sys interface.
+-func (rmx *RouteMetrics) SysType() SysType { return SysMetrics }
+-
+-// Sys implements the Sys method of Message interface.
+-func (m *RouteMessage) Sys() []Sys {
+-	return []Sys{
+-		&RouteMetrics{
+-			PathMTU: int(nativeEndian.Uint64(m.raw[m.extOff+8 : m.extOff+16])),
+-		},
+-	}
+-}
+-
+-// RouteMetrics represents route metrics.
+-type InterfaceMetrics struct {
+-	Type int // interface type
+-	MTU  int // maximum transmission unit
+-}
+-
+-// SysType implements the SysType method of Sys interface.
+-func (imx *InterfaceMetrics) SysType() SysType { return SysMetrics }
+-
+-// Sys implements the Sys method of Message interface.
+-func (m *InterfaceMessage) Sys() []Sys {
+-	return []Sys{
+-		&InterfaceMetrics{
+-			Type: int(m.raw[m.extOff]),
+-			MTU:  int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12])),
+-		},
+-	}
++// MTU returns the interface MTU.
++func (m *InterfaceMessage) MTU() int {
++	return int(nativeEndian.Uint32(m.raw[m.extOff+8 : m.extOff+12]))
+ }
+ 
+ func probeRoutingStack() (int, map[int]*wireFormat) {
+-	rtm := &wireFormat{extOff: 40, bodyOff: sizeofRtMsghdrNetBSD7}
+-	rtm.parse = rtm.parseRouteMessage
+-	ifm := &wireFormat{extOff: 16, bodyOff: sizeofIfMsghdrNetBSD7}
++	ifm := &wireFormat{extOff: 16, bodyOff: syscall.SizeofIfMsghdr}
+ 	ifm.parse = ifm.parseInterfaceMessage
+-	ifam := &wireFormat{extOff: sizeofIfaMsghdrNetBSD7, bodyOff: sizeofIfaMsghdrNetBSD7}
++	ifam := &wireFormat{extOff: syscall.SizeofIfaMsghdr, bodyOff: syscall.SizeofIfaMsghdr}
+ 	ifam.parse = ifam.parseInterfaceAddrMessage
+-	ifanm := &wireFormat{extOff: sizeofIfAnnouncemsghdrNetBSD7, bodyOff: sizeofIfAnnouncemsghdrNetBSD7}
+-	ifanm.parse = ifanm.parseInterfaceAnnounceMessage
+ 	// NetBSD 6 and above kernels require 64-bit aligned access to
+ 	// routing facilities.
+ 	return 8, map[int]*wireFormat{
+-		syscall.RTM_ADD:        rtm,
+-		syscall.RTM_DELETE:     rtm,
+-		syscall.RTM_CHANGE:     rtm,
+-		syscall.RTM_GET:        rtm,
+-		syscall.RTM_LOSING:     rtm,
+-		syscall.RTM_REDIRECT:   rtm,
+-		syscall.RTM_MISS:       rtm,
+-		syscall.RTM_LOCK:       rtm,
+-		syscall.RTM_RESOLVE:    rtm,
+-		syscall.RTM_NEWADDR:    ifam,
+-		syscall.RTM_DELADDR:    ifam,
+-		syscall.RTM_IFANNOUNCE: ifanm,
+-		syscall.RTM_IFINFO:     ifm,
++		syscall.RTM_NEWADDR: ifam,
++		syscall.RTM_DELADDR: ifam,
++		syscall.RTM_IFINFO:  ifm,
+ 	}
+ }
+diff --git a/src/internal/routebsd/sys_openbsd.go b/src/internal/routebsd/sys_openbsd.go
+index aaeb728475..83256c8fab 100644
+--- a/src/internal/routebsd/sys_openbsd.go
++++ b/src/internal/routebsd/sys_openbsd.go
+@@ -9,74 +9,20 @@ import (
+ 	"unsafe"
+ )
+ 
+-func (typ RIBType) parseable() bool {
+-	switch typ {
+-	case syscall.NET_RT_STATS, syscall.NET_RT_TABLE:
+-		return false
+-	default:
+-		return true
+-	}
+-}
+-
+-// RouteMetrics represents route metrics.
+-type RouteMetrics struct {
+-	PathMTU int // path maximum transmission unit
+-}
+-
+-// SysType implements the SysType method of Sys interface.
+-func (rmx *RouteMetrics) SysType() SysType { return SysMetrics }
+-
+-// Sys implements the Sys method of Message interface.
+-func (m *RouteMessage) Sys() []Sys {
+-	return []Sys{
+-		&RouteMetrics{
+-			PathMTU: int(nativeEndian.Uint32(m.raw[60:64])),
+-		},
+-	}
+-}
+-
+-// InterfaceMetrics represents interface metrics.
+-type InterfaceMetrics struct {
+-	Type int // interface type
+-	MTU  int // maximum transmission unit
+-}
+-
+-// SysType implements the SysType method of Sys interface.
+-func (imx *InterfaceMetrics) SysType() SysType { return SysMetrics }
+-
+-// Sys implements the Sys method of Message interface.
+-func (m *InterfaceMessage) Sys() []Sys {
+-	return []Sys{
+-		&InterfaceMetrics{
+-			Type: int(m.raw[24]),
+-			MTU:  int(nativeEndian.Uint32(m.raw[28:32])),
+-		},
+-	}
++// MTU returns the interface MTU.
++func (m *InterfaceMessage) MTU() int {
++	return int(nativeEndian.Uint32(m.raw[28:32]))
+ }
+ 
+ func probeRoutingStack() (int, map[int]*wireFormat) {
+ 	var p uintptr
+-	rtm := &wireFormat{extOff: -1, bodyOff: -1}
+-	rtm.parse = rtm.parseRouteMessage
+ 	ifm := &wireFormat{extOff: -1, bodyOff: -1}
+ 	ifm.parse = ifm.parseInterfaceMessage
+ 	ifam := &wireFormat{extOff: -1, bodyOff: -1}
+ 	ifam.parse = ifam.parseInterfaceAddrMessage
+-	ifanm := &wireFormat{extOff: -1, bodyOff: -1}
+-	ifanm.parse = ifanm.parseInterfaceAnnounceMessage
+ 	return int(unsafe.Sizeof(p)), map[int]*wireFormat{
+-		syscall.RTM_ADD:        rtm,
+-		syscall.RTM_DELETE:     rtm,
+-		syscall.RTM_CHANGE:     rtm,
+-		syscall.RTM_GET:        rtm,
+-		syscall.RTM_LOSING:     rtm,
+-		syscall.RTM_REDIRECT:   rtm,
+-		syscall.RTM_MISS:       rtm,
+-		syscall.RTM_RESOLVE:    rtm,
+-		syscall.RTM_NEWADDR:    ifam,
+-		syscall.RTM_DELADDR:    ifam,
+-		syscall.RTM_IFINFO:     ifm,
+-		syscall.RTM_IFANNOUNCE: ifanm,
+-		syscall.RTM_DESYNC:     rtm,
++		syscall.RTM_NEWADDR: ifam,
++		syscall.RTM_DELADDR: ifam,
++		syscall.RTM_IFINFO:  ifm,
+ 	}
+ }
+diff --git a/src/internal/routebsd/syscall.go b/src/internal/routebsd/syscall.go
+deleted file mode 100644
+index 559aa7dfdc..0000000000
+--- a/src/internal/routebsd/syscall.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build darwin || dragonfly || freebsd || netbsd || openbsd
+-
+-package routebsd
+-
+-import _ "unsafe" // for linkname
+-
+-//go:linkname sysctl syscall.sysctl
+-func sysctl(mib []int32, old *byte, oldlen *uintptr, new *byte, newlen uintptr) error
+diff --git a/src/internal/routebsd/zsys_darwin.go b/src/internal/routebsd/zsys_darwin.go
+deleted file mode 100644
+index 3e6cbb0b0d..0000000000
+--- a/src/internal/routebsd/zsys_darwin.go
++++ /dev/null
+@@ -1,22 +0,0 @@
+-// Code generated by cmd/cgo -godefs; DO NOT EDIT.
+-// cgo -godefs defs_darwin.go
+-
+-package routebsd
+-
+-const (
+-	sizeofIfMsghdrDarwin15    = 0x70
+-	sizeofIfaMsghdrDarwin15   = 0x14
+-	sizeofIfmaMsghdrDarwin15  = 0x10
+-	sizeofIfMsghdr2Darwin15   = 0xa0
+-	sizeofIfmaMsghdr2Darwin15 = 0x14
+-	sizeofIfDataDarwin15      = 0x60
+-	sizeofIfData64Darwin15    = 0x80
+-
+-	sizeofRtMsghdrDarwin15  = 0x5c
+-	sizeofRtMsghdr2Darwin15 = 0x5c
+-	sizeofRtMetricsDarwin15 = 0x38
+-
+-	sizeofSockaddrStorage = 0x80
+-	sizeofSockaddrInet    = 0x10
+-	sizeofSockaddrInet6   = 0x1c
+-)
+diff --git a/src/internal/routebsd/zsys_dragonfly.go b/src/internal/routebsd/zsys_dragonfly.go
+deleted file mode 100644
+index 41e74d53ae..0000000000
+--- a/src/internal/routebsd/zsys_dragonfly.go
++++ /dev/null
+@@ -1,20 +0,0 @@
+-// Code generated by cmd/cgo -godefs; DO NOT EDIT.
+-// cgo -godefs defs_dragonfly.go
+-
+-package routebsd
+-
+-const (
+-	sizeofIfMsghdrDragonFlyBSD4         = 0xb0
+-	sizeofIfaMsghdrDragonFlyBSD4        = 0x14
+-	sizeofIfmaMsghdrDragonFlyBSD4       = 0x10
+-	sizeofIfAnnouncemsghdrDragonFlyBSD4 = 0x18
+-
+-	sizeofIfaMsghdrDragonFlyBSD58 = 0x18
+-
+-	sizeofRtMsghdrDragonFlyBSD4  = 0x98
+-	sizeofRtMetricsDragonFlyBSD4 = 0x70
+-
+-	sizeofSockaddrStorage = 0x80
+-	sizeofSockaddrInet    = 0x10
+-	sizeofSockaddrInet6   = 0x1c
+-)
+diff --git a/src/internal/routebsd/zsys_freebsd_386.go b/src/internal/routebsd/zsys_freebsd_386.go
+deleted file mode 100644
+index 2a85855477..0000000000
+--- a/src/internal/routebsd/zsys_freebsd_386.go
++++ /dev/null
+@@ -1,55 +0,0 @@
+-// Code generated by cmd/cgo -godefs; DO NOT EDIT.
+-// cgo -godefs defs_freebsd.go
+-
+-package routebsd
+-
+-const (
+-	sizeofIfMsghdrlFreeBSD10        = 0x68
+-	sizeofIfaMsghdrFreeBSD10        = 0x14
+-	sizeofIfaMsghdrlFreeBSD10       = 0x6c
+-	sizeofIfmaMsghdrFreeBSD10       = 0x10
+-	sizeofIfAnnouncemsghdrFreeBSD10 = 0x18
+-
+-	sizeofRtMsghdrFreeBSD10  = 0x5c
+-	sizeofRtMetricsFreeBSD10 = 0x38
+-
+-	sizeofIfMsghdrFreeBSD7  = 0x60
+-	sizeofIfMsghdrFreeBSD8  = 0x60
+-	sizeofIfMsghdrFreeBSD9  = 0x60
+-	sizeofIfMsghdrFreeBSD10 = 0x64
+-	sizeofIfMsghdrFreeBSD11 = 0xa8
+-
+-	sizeofIfDataFreeBSD7  = 0x50
+-	sizeofIfDataFreeBSD8  = 0x50
+-	sizeofIfDataFreeBSD9  = 0x50
+-	sizeofIfDataFreeBSD10 = 0x54
+-	sizeofIfDataFreeBSD11 = 0x98
+-
+-	// MODIFIED BY HAND FOR 386 EMULATION ON AMD64
+-	// 386 EMULATION USES THE UNDERLYING RAW DATA LAYOUT
+-
+-	sizeofIfMsghdrlFreeBSD10Emu        = 0xb0
+-	sizeofIfaMsghdrFreeBSD10Emu        = 0x14
+-	sizeofIfaMsghdrlFreeBSD10Emu       = 0xb0
+-	sizeofIfmaMsghdrFreeBSD10Emu       = 0x10
+-	sizeofIfAnnouncemsghdrFreeBSD10Emu = 0x18
+-
+-	sizeofRtMsghdrFreeBSD10Emu  = 0x98
+-	sizeofRtMetricsFreeBSD10Emu = 0x70
+-
+-	sizeofIfMsghdrFreeBSD7Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD8Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD9Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD10Emu = 0xa8
+-	sizeofIfMsghdrFreeBSD11Emu = 0xa8
+-
+-	sizeofIfDataFreeBSD7Emu  = 0x98
+-	sizeofIfDataFreeBSD8Emu  = 0x98
+-	sizeofIfDataFreeBSD9Emu  = 0x98
+-	sizeofIfDataFreeBSD10Emu = 0x98
+-	sizeofIfDataFreeBSD11Emu = 0x98
+-
+-	sizeofSockaddrStorage = 0x80
+-	sizeofSockaddrInet    = 0x10
+-	sizeofSockaddrInet6   = 0x1c
+-)
+diff --git a/src/internal/routebsd/zsys_freebsd_amd64.go b/src/internal/routebsd/zsys_freebsd_amd64.go
+deleted file mode 100644
+index ea7b959f05..0000000000
+--- a/src/internal/routebsd/zsys_freebsd_amd64.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Code generated by cmd/cgo -godefs; DO NOT EDIT.
+-// cgo -godefs defs_freebsd.go
+-
+-package routebsd
+-
+-const (
+-	sizeofIfMsghdrlFreeBSD10        = 0xb0
+-	sizeofIfaMsghdrFreeBSD10        = 0x14
+-	sizeofIfaMsghdrlFreeBSD10       = 0xb0
+-	sizeofIfmaMsghdrFreeBSD10       = 0x10
+-	sizeofIfAnnouncemsghdrFreeBSD10 = 0x18
+-
+-	sizeofRtMsghdrFreeBSD10  = 0x98
+-	sizeofRtMetricsFreeBSD10 = 0x70
+-
+-	sizeofIfMsghdrFreeBSD7  = 0xa8
+-	sizeofIfMsghdrFreeBSD8  = 0xa8
+-	sizeofIfMsghdrFreeBSD9  = 0xa8
+-	sizeofIfMsghdrFreeBSD10 = 0xa8
+-	sizeofIfMsghdrFreeBSD11 = 0xa8
+-
+-	sizeofIfDataFreeBSD7  = 0x98
+-	sizeofIfDataFreeBSD8  = 0x98
+-	sizeofIfDataFreeBSD9  = 0x98
+-	sizeofIfDataFreeBSD10 = 0x98
+-	sizeofIfDataFreeBSD11 = 0x98
+-
+-	sizeofIfMsghdrlFreeBSD10Emu        = 0xb0
+-	sizeofIfaMsghdrFreeBSD10Emu        = 0x14
+-	sizeofIfaMsghdrlFreeBSD10Emu       = 0xb0
+-	sizeofIfmaMsghdrFreeBSD10Emu       = 0x10
+-	sizeofIfAnnouncemsghdrFreeBSD10Emu = 0x18
+-
+-	sizeofRtMsghdrFreeBSD10Emu  = 0x98
+-	sizeofRtMetricsFreeBSD10Emu = 0x70
+-
+-	sizeofIfMsghdrFreeBSD7Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD8Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD9Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD10Emu = 0xa8
+-	sizeofIfMsghdrFreeBSD11Emu = 0xa8
+-
+-	sizeofIfDataFreeBSD7Emu  = 0x98
+-	sizeofIfDataFreeBSD8Emu  = 0x98
+-	sizeofIfDataFreeBSD9Emu  = 0x98
+-	sizeofIfDataFreeBSD10Emu = 0x98
+-	sizeofIfDataFreeBSD11Emu = 0x98
+-
+-	sizeofSockaddrStorage = 0x80
+-	sizeofSockaddrInet    = 0x10
+-	sizeofSockaddrInet6   = 0x1c
+-)
+diff --git a/src/internal/routebsd/zsys_freebsd_arm.go b/src/internal/routebsd/zsys_freebsd_arm.go
+deleted file mode 100644
+index 1c3d653c86..0000000000
+--- a/src/internal/routebsd/zsys_freebsd_arm.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Code generated by cmd/cgo -godefs; DO NOT EDIT.
+-// cgo -godefs defs_freebsd.go
+-
+-package routebsd
+-
+-const (
+-	sizeofIfMsghdrlFreeBSD10        = 0x68
+-	sizeofIfaMsghdrFreeBSD10        = 0x14
+-	sizeofIfaMsghdrlFreeBSD10       = 0x6c
+-	sizeofIfmaMsghdrFreeBSD10       = 0x10
+-	sizeofIfAnnouncemsghdrFreeBSD10 = 0x18
+-
+-	sizeofRtMsghdrFreeBSD10  = 0x5c
+-	sizeofRtMetricsFreeBSD10 = 0x38
+-
+-	sizeofIfMsghdrFreeBSD7  = 0x70
+-	sizeofIfMsghdrFreeBSD8  = 0x70
+-	sizeofIfMsghdrFreeBSD9  = 0x70
+-	sizeofIfMsghdrFreeBSD10 = 0x70
+-	sizeofIfMsghdrFreeBSD11 = 0xa8
+-
+-	sizeofIfDataFreeBSD7  = 0x60
+-	sizeofIfDataFreeBSD8  = 0x60
+-	sizeofIfDataFreeBSD9  = 0x60
+-	sizeofIfDataFreeBSD10 = 0x60
+-	sizeofIfDataFreeBSD11 = 0x98
+-
+-	sizeofIfMsghdrlFreeBSD10Emu        = 0x68
+-	sizeofIfaMsghdrFreeBSD10Emu        = 0x14
+-	sizeofIfaMsghdrlFreeBSD10Emu       = 0x6c
+-	sizeofIfmaMsghdrFreeBSD10Emu       = 0x10
+-	sizeofIfAnnouncemsghdrFreeBSD10Emu = 0x18
+-
+-	sizeofRtMsghdrFreeBSD10Emu  = 0x5c
+-	sizeofRtMetricsFreeBSD10Emu = 0x38
+-
+-	sizeofIfMsghdrFreeBSD7Emu  = 0x70
+-	sizeofIfMsghdrFreeBSD8Emu  = 0x70
+-	sizeofIfMsghdrFreeBSD9Emu  = 0x70
+-	sizeofIfMsghdrFreeBSD10Emu = 0x70
+-	sizeofIfMsghdrFreeBSD11Emu = 0xa8
+-
+-	sizeofIfDataFreeBSD7Emu  = 0x60
+-	sizeofIfDataFreeBSD8Emu  = 0x60
+-	sizeofIfDataFreeBSD9Emu  = 0x60
+-	sizeofIfDataFreeBSD10Emu = 0x60
+-	sizeofIfDataFreeBSD11Emu = 0x98
+-
+-	sizeofSockaddrStorage = 0x80
+-	sizeofSockaddrInet    = 0x10
+-	sizeofSockaddrInet6   = 0x1c
+-)
+diff --git a/src/internal/routebsd/zsys_freebsd_arm64.go b/src/internal/routebsd/zsys_freebsd_arm64.go
+deleted file mode 100644
+index ea7b959f05..0000000000
+--- a/src/internal/routebsd/zsys_freebsd_arm64.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Code generated by cmd/cgo -godefs; DO NOT EDIT.
+-// cgo -godefs defs_freebsd.go
+-
+-package routebsd
+-
+-const (
+-	sizeofIfMsghdrlFreeBSD10        = 0xb0
+-	sizeofIfaMsghdrFreeBSD10        = 0x14
+-	sizeofIfaMsghdrlFreeBSD10       = 0xb0
+-	sizeofIfmaMsghdrFreeBSD10       = 0x10
+-	sizeofIfAnnouncemsghdrFreeBSD10 = 0x18
+-
+-	sizeofRtMsghdrFreeBSD10  = 0x98
+-	sizeofRtMetricsFreeBSD10 = 0x70
+-
+-	sizeofIfMsghdrFreeBSD7  = 0xa8
+-	sizeofIfMsghdrFreeBSD8  = 0xa8
+-	sizeofIfMsghdrFreeBSD9  = 0xa8
+-	sizeofIfMsghdrFreeBSD10 = 0xa8
+-	sizeofIfMsghdrFreeBSD11 = 0xa8
+-
+-	sizeofIfDataFreeBSD7  = 0x98
+-	sizeofIfDataFreeBSD8  = 0x98
+-	sizeofIfDataFreeBSD9  = 0x98
+-	sizeofIfDataFreeBSD10 = 0x98
+-	sizeofIfDataFreeBSD11 = 0x98
+-
+-	sizeofIfMsghdrlFreeBSD10Emu        = 0xb0
+-	sizeofIfaMsghdrFreeBSD10Emu        = 0x14
+-	sizeofIfaMsghdrlFreeBSD10Emu       = 0xb0
+-	sizeofIfmaMsghdrFreeBSD10Emu       = 0x10
+-	sizeofIfAnnouncemsghdrFreeBSD10Emu = 0x18
+-
+-	sizeofRtMsghdrFreeBSD10Emu  = 0x98
+-	sizeofRtMetricsFreeBSD10Emu = 0x70
+-
+-	sizeofIfMsghdrFreeBSD7Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD8Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD9Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD10Emu = 0xa8
+-	sizeofIfMsghdrFreeBSD11Emu = 0xa8
+-
+-	sizeofIfDataFreeBSD7Emu  = 0x98
+-	sizeofIfDataFreeBSD8Emu  = 0x98
+-	sizeofIfDataFreeBSD9Emu  = 0x98
+-	sizeofIfDataFreeBSD10Emu = 0x98
+-	sizeofIfDataFreeBSD11Emu = 0x98
+-
+-	sizeofSockaddrStorage = 0x80
+-	sizeofSockaddrInet    = 0x10
+-	sizeofSockaddrInet6   = 0x1c
+-)
+diff --git a/src/internal/routebsd/zsys_freebsd_riscv64.go b/src/internal/routebsd/zsys_freebsd_riscv64.go
+deleted file mode 100644
+index ea7b959f05..0000000000
+--- a/src/internal/routebsd/zsys_freebsd_riscv64.go
++++ /dev/null
+@@ -1,52 +0,0 @@
+-// Code generated by cmd/cgo -godefs; DO NOT EDIT.
+-// cgo -godefs defs_freebsd.go
+-
+-package routebsd
+-
+-const (
+-	sizeofIfMsghdrlFreeBSD10        = 0xb0
+-	sizeofIfaMsghdrFreeBSD10        = 0x14
+-	sizeofIfaMsghdrlFreeBSD10       = 0xb0
+-	sizeofIfmaMsghdrFreeBSD10       = 0x10
+-	sizeofIfAnnouncemsghdrFreeBSD10 = 0x18
+-
+-	sizeofRtMsghdrFreeBSD10  = 0x98
+-	sizeofRtMetricsFreeBSD10 = 0x70
+-
+-	sizeofIfMsghdrFreeBSD7  = 0xa8
+-	sizeofIfMsghdrFreeBSD8  = 0xa8
+-	sizeofIfMsghdrFreeBSD9  = 0xa8
+-	sizeofIfMsghdrFreeBSD10 = 0xa8
+-	sizeofIfMsghdrFreeBSD11 = 0xa8
+-
+-	sizeofIfDataFreeBSD7  = 0x98
+-	sizeofIfDataFreeBSD8  = 0x98
+-	sizeofIfDataFreeBSD9  = 0x98
+-	sizeofIfDataFreeBSD10 = 0x98
+-	sizeofIfDataFreeBSD11 = 0x98
+-
+-	sizeofIfMsghdrlFreeBSD10Emu        = 0xb0
+-	sizeofIfaMsghdrFreeBSD10Emu        = 0x14
+-	sizeofIfaMsghdrlFreeBSD10Emu       = 0xb0
+-	sizeofIfmaMsghdrFreeBSD10Emu       = 0x10
+-	sizeofIfAnnouncemsghdrFreeBSD10Emu = 0x18
+-
+-	sizeofRtMsghdrFreeBSD10Emu  = 0x98
+-	sizeofRtMetricsFreeBSD10Emu = 0x70
+-
+-	sizeofIfMsghdrFreeBSD7Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD8Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD9Emu  = 0xa8
+-	sizeofIfMsghdrFreeBSD10Emu = 0xa8
+-	sizeofIfMsghdrFreeBSD11Emu = 0xa8
+-
+-	sizeofIfDataFreeBSD7Emu  = 0x98
+-	sizeofIfDataFreeBSD8Emu  = 0x98
+-	sizeofIfDataFreeBSD9Emu  = 0x98
+-	sizeofIfDataFreeBSD10Emu = 0x98
+-	sizeofIfDataFreeBSD11Emu = 0x98
+-
+-	sizeofSockaddrStorage = 0x80
+-	sizeofSockaddrInet    = 0x10
+-	sizeofSockaddrInet6   = 0x1c
+-)
+diff --git a/src/internal/routebsd/zsys_netbsd.go b/src/internal/routebsd/zsys_netbsd.go
+deleted file mode 100644
+index f072c311de..0000000000
+--- a/src/internal/routebsd/zsys_netbsd.go
++++ /dev/null
+@@ -1,17 +0,0 @@
+-// Code generated by cmd/cgo -godefs; DO NOT EDIT.
+-// cgo -godefs defs_netbsd.go
+-
+-package routebsd
+-
+-const (
+-	sizeofIfMsghdrNetBSD7         = 0x98
+-	sizeofIfaMsghdrNetBSD7        = 0x18
+-	sizeofIfAnnouncemsghdrNetBSD7 = 0x18
+-
+-	sizeofRtMsghdrNetBSD7  = 0x78
+-	sizeofRtMetricsNetBSD7 = 0x50
+-
+-	sizeofSockaddrStorage = 0x80
+-	sizeofSockaddrInet    = 0x10
+-	sizeofSockaddrInet6   = 0x1c
+-)
+diff --git a/src/internal/routebsd/zsys_openbsd.go b/src/internal/routebsd/zsys_openbsd.go
+deleted file mode 100644
+index 2bb7641254..0000000000
+--- a/src/internal/routebsd/zsys_openbsd.go
++++ /dev/null
+@@ -1,12 +0,0 @@
+-// Code generated by cmd/cgo -godefs; DO NOT EDIT.
+-// cgo -godefs defs_openbsd.go
+-
+-package routebsd
+-
+-const (
+-	sizeofRtMsghdr = 0x60
+-
+-	sizeofSockaddrStorage = 0x100
+-	sizeofSockaddrInet    = 0x10
+-	sizeofSockaddrInet6   = 0x1c
+-)
+diff --git a/src/net/interface_bsd.go b/src/net/interface_bsd.go
+index 687af00170..0861610f16 100644
+--- a/src/net/interface_bsd.go
++++ b/src/net/interface_bsd.go
+@@ -38,12 +38,7 @@ func interfaceTable(ifindex int) ([]Interface, error) {
+ 				ift[n].HardwareAddr = make([]byte, len(sa.Addr))
+ 				copy(ift[n].HardwareAddr, sa.Addr)
+ 			}
+-			for _, sys := range m.Sys() {
+-				if imx, ok := sys.(*routebsd.InterfaceMetrics); ok {
+-					ift[n].MTU = imx.MTU
+-					break
+-				}
+-			}
++			ift[n].MTU = m.MTU()
+ 			n++
+ 			if ifindex == m.Index {
+ 				return ift[:n], nil
+@@ -97,19 +92,27 @@ func interfaceAddrTable(ifi *Interface) ([]Addr, error) {
+ 			}
+ 			var mask IPMask
+ 			switch sa := m.Addrs[syscall.RTAX_NETMASK].(type) {
+-			case *routebsd.Inet4Addr:
+-				mask = IPv4Mask(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
+-			case *routebsd.Inet6Addr:
+-				mask = make(IPMask, IPv6len)
+-				copy(mask, sa.IP[:])
++			case *routebsd.InetAddr:
++				if sa.IP.Is4() {
++					a := sa.IP.As4()
++					mask = IPv4Mask(a[0], a[1], a[2], a[3])
++				} else if sa.IP.Is6() {
++					a := sa.IP.As16()
++					mask = make(IPMask, IPv6len)
++					copy(mask, a[:])
++				}
+ 			}
+ 			var ip IP
+ 			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
+-			case *routebsd.Inet4Addr:
+-				ip = IPv4(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
+-			case *routebsd.Inet6Addr:
+-				ip = make(IP, IPv6len)
+-				copy(ip, sa.IP[:])
++			case *routebsd.InetAddr:
++				if sa.IP.Is4() {
++					a := sa.IP.As4()
++					ip = IPv4(a[0], a[1], a[2], a[3])
++				} else if sa.IP.Is6() {
++					a := sa.IP.As16()
++					ip = make(IP, IPv6len)
++					copy(ip, a[:])
++				}
+ 			}
+ 			if ip != nil && mask != nil { // NetBSD may contain routebsd.LinkAddr
+ 				ifat = append(ifat, &IPNet{IP: ip, Mask: mask})
+diff --git a/src/net/interface_bsdvar.go b/src/net/interface_bsdvar.go
+index 3946921232..dc6c293a8e 100644
+--- a/src/net/interface_bsdvar.go
++++ b/src/net/interface_bsdvar.go
+@@ -12,11 +12,7 @@ import (
+ )
+ 
+ func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
+-	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST, ifindex)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return routebsd.ParseRIB(syscall.NET_RT_IFLIST, rib)
++	return routebsd.FetchRIBMessages(syscall.NET_RT_IFLIST, ifindex)
+ }
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific
+diff --git a/src/net/interface_darwin.go b/src/net/interface_darwin.go
+index 45f1363025..95c44e68e6 100644
+--- a/src/net/interface_darwin.go
++++ b/src/net/interface_darwin.go
+@@ -10,21 +10,13 @@ import (
+ )
+ 
+ func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
+-	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST, ifindex)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return routebsd.ParseRIB(syscall.NET_RT_IFLIST, rib)
++	return routebsd.FetchRIBMessages(syscall.NET_RT_IFLIST, ifindex)
+ }
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific
+ // interface.
+ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+-	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFLIST2, ifi.Index)
+-	if err != nil {
+-		return nil, err
+-	}
+-	msgs, err := routebsd.ParseRIB(syscall.NET_RT_IFLIST2, rib)
++	msgs, err := routebsd.FetchRIBMessages(syscall.NET_RT_IFLIST2, ifi.Index)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -37,11 +29,15 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 			}
+ 			var ip IP
+ 			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
+-			case *routebsd.Inet4Addr:
+-				ip = IPv4(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
+-			case *routebsd.Inet6Addr:
+-				ip = make(IP, IPv6len)
+-				copy(ip, sa.IP[:])
++			case *routebsd.InetAddr:
++				if sa.IP.Is4() {
++					a := sa.IP.As4()
++					ip = IPv4(a[0], a[1], a[2], a[3])
++				} else if sa.IP.Is6() {
++					a := sa.IP.As16()
++					ip = make(IP, IPv6len)
++					copy(ip, a[:])
++				}
+ 			}
+ 			if ip != nil {
+ 				ifmat = append(ifmat, &IPAddr{IP: ip})
+diff --git a/src/net/interface_freebsd.go b/src/net/interface_freebsd.go
+index fda7a86a2f..301faa47ba 100644
+--- a/src/net/interface_freebsd.go
++++ b/src/net/interface_freebsd.go
+@@ -10,21 +10,13 @@ import (
+ )
+ 
+ func interfaceMessages(ifindex int) ([]routebsd.Message, error) {
+-	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, routebsd.RIBTypeInterface, ifindex)
+-	if err != nil {
+-		return nil, err
+-	}
+-	return routebsd.ParseRIB(routebsd.RIBTypeInterface, rib)
++	return routebsd.FetchRIBMessages(syscall.NET_RT_IFLIST, ifindex)
+ }
+ 
+ // interfaceMulticastAddrTable returns addresses for a specific
+ // interface.
+ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+-	rib, err := routebsd.FetchRIB(syscall.AF_UNSPEC, syscall.NET_RT_IFMALIST, ifi.Index)
+-	if err != nil {
+-		return nil, err
+-	}
+-	msgs, err := routebsd.ParseRIB(syscall.NET_RT_IFMALIST, rib)
++	msgs, err := routebsd.FetchRIBMessages(syscall.NET_RT_IFMALIST, ifi.Index)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -37,11 +29,15 @@ func interfaceMulticastAddrTable(ifi *Interface) ([]Addr, error) {
+ 			}
+ 			var ip IP
+ 			switch sa := m.Addrs[syscall.RTAX_IFA].(type) {
+-			case *routebsd.Inet4Addr:
+-				ip = IPv4(sa.IP[0], sa.IP[1], sa.IP[2], sa.IP[3])
+-			case *routebsd.Inet6Addr:
+-				ip = make(IP, IPv6len)
+-				copy(ip, sa.IP[:])
++			case *routebsd.InetAddr:
++				if sa.IP.Is4() {
++					a := sa.IP.As4()
++					ip = IPv4(a[0], a[1], a[2], a[3])
++				} else if sa.IP.Is6() {
++					a := sa.IP.As16()
++					ip = make(IP, IPv6len)
++					copy(ip, a[:])
++				}
+ 			}
+ 			if ip != nil {
+ 				ifmat = append(ifmat, &IPAddr{IP: ip})

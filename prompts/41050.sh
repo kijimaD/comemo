@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41050: 8c5de667d3b1349a3058e4c57b01f0309502a118
+# Index 41050: 43e8fd4ef1ae24f1505bd34708fc30aa2b736c52
 
 echo "🚀 Generating explanation for commit 41050..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 41050..."
 
 ### メタデータ
 - **コミットインデックス**: 41050
-- **コミットハッシュ**: 8c5de667d3b1349a3058e4c57b01f0309502a118
-- **GitHub URL**: https://github.com/golang/go/commit/8c5de667d3b1349a3058e4c57b01f0309502a118
+- **コミットハッシュ**: 43e8fd4ef1ae24f1505bd34708fc30aa2b736c52
+- **GitHub URL**: https://github.com/golang/go/commit/43e8fd4ef1ae24f1505bd34708fc30aa2b736c52
 
 ### 章構成
 

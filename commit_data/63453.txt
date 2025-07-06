@@ -1,0 +1,651 @@
+commit 91c04826723a10f6778a935e743a34de81312489
+Author: Andy Pan <i@andypan.me>
+Date:   Mon Apr 8 11:51:45 2024 +0800
+
+    net: implement TCP_KEEPIDLE, TCP_KEEPINTVL, and TCP_KEEPCNT on Solaris 11.4
+    
+    Also simulate TCP_KEEPIDLE, TCP_KEEPINTVL, and TCP_KEEPCNT with
+    TCP_KEEPALIVE_THRESHOLD + TCP_KEEPALIVE_ABORT_THRESHOLD for
+    Solaris prior to 11.4
+    
+    Fixes #9614
+    Fixes #64251
+    
+    Change-Id: Ia0777076a7952630bc52761cddd0b06b0d81c6a0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/577195
+    Commit-Queue: Ian Lance Taylor <iant@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ .../syscall/unix/kernel_version_solaris.go         |   7 +
+ src/net/tcpconn_keepalive_conf_solaris_test.go     | 115 ++++++++++++++++
+ src/net/tcpconn_keepalive_conf_unix_test.go        |  11 +-
+ src/net/tcpconn_keepalive_solaris_test.go          | 151 ++++++++++++++++-----
+ src/net/tcpconn_keepalive_test.go                  |  19 ++-
+ src/net/tcpsock.go                                 |   8 +-
+ src/net/tcpsock_solaris.go                         |  38 ++++++
+ src/net/tcpsock_unix.go                            |   2 +-
+ src/net/tcpsockopt_solaris.go                      | 113 +++++++++++----
+ 9 files changed, 384 insertions(+), 80 deletions(-)
+
+diff --git a/src/internal/syscall/unix/kernel_version_solaris.go b/src/internal/syscall/unix/kernel_version_solaris.go
+index 86161e2ee5..3f399411d7 100644
+--- a/src/internal/syscall/unix/kernel_version_solaris.go
++++ b/src/internal/syscall/unix/kernel_version_solaris.go
+@@ -97,3 +97,10 @@ var SupportAccept4 = sync.OnceValue(func() bool {
+ 		return err != syscall.ENOSYS
+ 	}
+ })
++
++// SupportTCPKeepAliveIdleIntvlCNT determines whether the TCP_KEEPIDLE, TCP_KEEPINTVL and TCP_KEEPCNT
++// are available by checking the kernel version for Solaris 11.4.
++var SupportTCPKeepAliveIdleIntvlCNT = sync.OnceValue(func() bool {
++	major, minor := KernelVersion()
++	return major > 11 || (major == 11 && minor >= 4)
++})
+diff --git a/src/net/tcpconn_keepalive_conf_solaris_test.go b/src/net/tcpconn_keepalive_conf_solaris_test.go
+new file mode 100644
+index 0000000000..bdd4395786
+--- /dev/null
++++ b/src/net/tcpconn_keepalive_conf_solaris_test.go
+@@ -0,0 +1,115 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build solaris && !illumos
++
++package net
++
++import (
++	"testing"
++	"time"
++)
++
++const (
++	syscall_TCP_KEEPIDLE  = sysTCP_KEEPIDLE
++	syscall_TCP_KEEPCNT   = sysTCP_KEEPCNT
++	syscall_TCP_KEEPINTVL = sysTCP_KEEPINTVL
++)
++
++type fdType = int
++
++func maybeSkipKeepAliveTest(_ *testing.T) {}
++
++var testConfigs = []KeepAliveConfig{
++	{
++		Enable:   true,
++		Idle:     20 * time.Second, // the minimum value is ten seconds on Solaris
++		Interval: 10 * time.Second, // ditto
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     0,
++		Interval: 0,
++		Count:    0,
++	},
++	{
++		Enable:   true,
++		Idle:     -1,
++		Interval: -1,
++		Count:    -1,
++	},
++	{
++		Enable:   true,
++		Idle:     -1,
++		Interval: 10 * time.Second,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     20 * time.Second,
++		Interval: -1,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     20 * time.Second,
++		Interval: 10 * time.Second,
++		Count:    -1,
++	},
++	{
++		Enable:   true,
++		Idle:     -1,
++		Interval: -1,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     -1,
++		Interval: 10 * time.Second,
++		Count:    -1,
++	},
++	{
++		Enable:   true,
++		Idle:     20 * time.Second,
++		Interval: -1,
++		Count:    -1,
++	},
++	{
++		Enable:   true,
++		Idle:     0,
++		Interval: 10 * time.Second,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     20 * time.Second,
++		Interval: 0,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     20 * time.Second,
++		Interval: 10 * time.Second,
++		Count:    0,
++	},
++	{
++		Enable:   true,
++		Idle:     0,
++		Interval: 0,
++		Count:    10,
++	},
++	{
++		Enable:   true,
++		Idle:     0,
++		Interval: 10 * time.Second,
++		Count:    0,
++	},
++	{
++		Enable:   true,
++		Idle:     20 * time.Second,
++		Interval: 0,
++		Count:    0,
++	},
++}
+diff --git a/src/net/tcpconn_keepalive_conf_unix_test.go b/src/net/tcpconn_keepalive_conf_unix_test.go
+index 5ec5c847de..95f3213811 100644
+--- a/src/net/tcpconn_keepalive_conf_unix_test.go
++++ b/src/net/tcpconn_keepalive_conf_unix_test.go
+@@ -2,12 +2,11 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build aix || dragonfly || freebsd || linux || netbsd || solaris
++//go:build aix || dragonfly || freebsd || illumos || linux || netbsd
+ 
+ package net
+ 
+ import (
+-	"runtime"
+ 	"syscall"
+ 	"testing"
+ )
+@@ -20,10 +19,4 @@ const (
+ 
+ type fdType = int
+ 
+-func maybeSkipKeepAliveTest(t *testing.T) {
+-	// TODO(panjf2000): stop skipping this test on Solaris
+-	//  when https://go.dev/issue/64251 is fixed.
+-	if runtime.GOOS == "solaris" {
+-		t.Skip("skipping on solaris for now")
+-	}
+-}
++func maybeSkipKeepAliveTest(_ *testing.T) {}
+diff --git a/src/net/tcpconn_keepalive_solaris_test.go b/src/net/tcpconn_keepalive_solaris_test.go
+index bb0d851aba..663165f044 100644
+--- a/src/net/tcpconn_keepalive_solaris_test.go
++++ b/src/net/tcpconn_keepalive_solaris_test.go
+@@ -7,51 +7,71 @@
+ package net
+ 
+ import (
++	"internal/syscall/unix"
+ 	"syscall"
+ 	"testing"
+ 	"time"
+ )
+ 
+-var testConfigs = []KeepAliveConfig{
+-	{
+-		Enable:   true,
+-		Idle:     2 * time.Second,
+-		Interval: -1,
+-		Count:    -1,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     0,
+-		Interval: -1,
+-		Count:    -1,
+-	},
+-	{
+-		Enable:   true,
+-		Idle:     -1,
+-		Interval: -1,
+-		Count:    -1,
+-	},
+-}
+-
+ func getCurrentKeepAliveSettings(fd fdType) (cfg KeepAliveConfig, err error) {
+ 	tcpKeepAlive, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE)
+ 	if err != nil {
+ 		return
+ 	}
+-	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_THRESHOLD)
+-	if err != nil {
+-		return
++
++	var (
++		tcpKeepAliveIdle         int
++		tcpKeepAliveInterval     int
++		tcpKeepAliveIdleTime     time.Duration
++		tcpKeepAliveIntervalTime time.Duration
++		tcpKeepAliveCount        int
++	)
++	if unix.SupportTCPKeepAliveIdleIntvlCNT() {
++		tcpKeepAliveIdle, err = syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPIDLE)
++		if err != nil {
++			return
++		}
++		tcpKeepAliveIdleTime = time.Duration(tcpKeepAliveIdle) * time.Second
++
++		tcpKeepAliveInterval, err = syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPINTVL)
++		if err != nil {
++			return
++		}
++		tcpKeepAliveIntervalTime = time.Duration(tcpKeepAliveInterval) * time.Second
++
++		tcpKeepAliveCount, err = syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPCNT)
++		if err != nil {
++			return
++		}
++	} else {
++		tcpKeepAliveIdle, err = syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_THRESHOLD)
++		if err != nil {
++			return
++		}
++		tcpKeepAliveIdleTime = time.Duration(tcpKeepAliveIdle) * time.Millisecond
++
++		// TCP_KEEPINTVL and TCP_KEEPCNT are not available on Solaris prior to 11.4,
++		// so we have to use the value of TCP_KEEPALIVE_ABORT_THRESHOLD for Interval
++		// and 1 for Count to keep this test going.
++		tcpKeepAliveInterval, err = syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_ABORT_THRESHOLD)
++		if err != nil {
++			return
++		}
++		tcpKeepAliveIntervalTime = time.Duration(tcpKeepAliveInterval) * time.Millisecond
++		tcpKeepAliveCount = 1
+ 	}
+ 	cfg = KeepAliveConfig{
+ 		Enable:   tcpKeepAlive != 0,
+-		Idle:     time.Duration(tcpKeepAliveIdle) * time.Millisecond,
+-		Interval: -1,
+-		Count:    -1,
++		Idle:     tcpKeepAliveIdleTime,
++		Interval: tcpKeepAliveIntervalTime,
++		Count:    tcpKeepAliveCount,
+ 	}
+ 	return
+ }
+ 
+ func verifyKeepAliveSettings(t *testing.T, fd fdType, oldCfg, cfg KeepAliveConfig) {
++	const defaultTcpKeepAliveAbortThreshold = 8 * time.Minute // default value on Solaris
++
+ 	if cfg.Idle == 0 {
+ 		cfg.Idle = defaultTCPKeepAliveIdle
+ 	}
+@@ -64,11 +84,32 @@ func verifyKeepAliveSettings(t *testing.T, fd fdType, oldCfg, cfg KeepAliveConfi
+ 	if cfg.Idle == -1 {
+ 		cfg.Idle = oldCfg.Idle
+ 	}
+-	if cfg.Interval == -1 {
+-		cfg.Interval = oldCfg.Interval
+-	}
+-	if cfg.Count == -1 {
+-		cfg.Count = oldCfg.Count
++
++	tcpKeepAliveAbortThreshold := defaultTcpKeepAliveAbortThreshold
++	if unix.SupportTCPKeepAliveIdleIntvlCNT() {
++		// Check out the comment on KeepAliveConfig to understand the following logic.
++		switch {
++		case cfg.Interval == -1 && cfg.Count == -1:
++			cfg.Interval = oldCfg.Interval
++			cfg.Count = oldCfg.Count
++		case cfg.Interval == -1 && cfg.Count > 0:
++			cfg.Interval = defaultTcpKeepAliveAbortThreshold / time.Duration(cfg.Count)
++		case cfg.Count == -1 && cfg.Interval > 0:
++			cfg.Count = int(defaultTcpKeepAliveAbortThreshold / cfg.Interval)
++		case cfg.Interval > 0 && cfg.Count > 0:
++			// TCP_KEEPALIVE_ABORT_THRESHOLD will be recalculated only when both TCP_KEEPINTVL
++			// and TCP_KEEPCNT are set, otherwise it will remain the default value.
++			tcpKeepAliveAbortThreshold = cfg.Interval * time.Duration(cfg.Count)
++		}
++	} else {
++		cfg.Interval = cfg.Interval * time.Duration(cfg.Count)
++		// Either Interval or Count is set to a negative value, TCP_KEEPALIVE_ABORT_THRESHOLD
++		// will remain the default value, so use the old Interval for the subsequent test.
++		if cfg.Interval == -1 || cfg.Count == -1 {
++			cfg.Interval = oldCfg.Interval
++		}
++		cfg.Count = 1
++		tcpKeepAliveAbortThreshold = cfg.Interval
+ 	}
+ 
+ 	tcpKeepAlive, err := syscall.GetsockoptInt(fd, syscall.SOL_SOCKET, syscall.SO_KEEPALIVE)
+@@ -79,11 +120,51 @@ func verifyKeepAliveSettings(t *testing.T, fd fdType, oldCfg, cfg KeepAliveConfi
+ 		t.Fatalf("SO_KEEPALIVE: got %t; want %t", tcpKeepAlive != 0, cfg.Enable)
+ 	}
+ 
+-	tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_THRESHOLD)
++	// TCP_KEEPALIVE_THRESHOLD and TCP_KEEPALIVE_ABORT_THRESHOLD are both available on Solaris 11.4
++	// and previous versions, so we can verify these two options regardless of the kernel version.
++	tcpKeepAliveThreshold, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_THRESHOLD)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if time.Duration(tcpKeepAliveThreshold)*time.Millisecond != cfg.Idle {
++		t.Fatalf("TCP_KEEPIDLE: got %dms; want %v", tcpKeepAliveThreshold, cfg.Idle)
++	}
++
++	tcpKeepAliveAbortInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_ABORT_THRESHOLD)
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	if time.Duration(tcpKeepAliveIdle)*time.Millisecond != cfg.Idle {
+-		t.Fatalf("TCP_KEEPIDLE: got %dms; want %v", tcpKeepAliveIdle, cfg.Idle)
++	if time.Duration(tcpKeepAliveAbortInterval)*time.Millisecond != tcpKeepAliveAbortThreshold {
++		t.Fatalf("TCP_KEEPALIVE_ABORT_THRESHOLD: got %dms; want %v", tcpKeepAliveAbortInterval, tcpKeepAliveAbortThreshold)
++	}
++
++	if unix.SupportTCPKeepAliveIdleIntvlCNT() {
++		tcpKeepAliveIdle, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPIDLE)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if time.Duration(tcpKeepAliveIdle)*time.Second != cfg.Idle {
++			t.Fatalf("TCP_KEEPIDLE: got %ds; want %v", tcpKeepAliveIdle, cfg.Idle)
++		}
++
++		tcpKeepAliveInterval, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPINTVL)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if time.Duration(tcpKeepAliveInterval)*time.Second != cfg.Interval {
++			t.Fatalf("TCP_KEEPINTVL: got %ds; want %v", tcpKeepAliveInterval, cfg.Interval)
++		}
++
++		tcpKeepAliveCount, err := syscall.GetsockoptInt(fd, syscall.IPPROTO_TCP, syscall_TCP_KEEPCNT)
++		if err != nil {
++			t.Fatal(err)
++		}
++		if tcpKeepAliveCount != cfg.Count {
++			t.Fatalf("TCP_KEEPCNT: got %d; want %d", tcpKeepAliveCount, cfg.Count)
++		}
++	} else {
++		if cfg.Count != 1 {
++			t.Fatalf("TCP_KEEPCNT: got %d; want 1", cfg.Count)
++		}
+ 	}
+ }
+diff --git a/src/net/tcpconn_keepalive_test.go b/src/net/tcpconn_keepalive_test.go
+index 665307d1cd..53d0be034f 100644
+--- a/src/net/tcpconn_keepalive_test.go
++++ b/src/net/tcpconn_keepalive_test.go
+@@ -6,7 +6,10 @@
+ 
+ package net
+ 
+-import "testing"
++import (
++	"runtime"
++	"testing"
++)
+ 
+ func TestTCPConnKeepAliveConfigDialer(t *testing.T) {
+ 	maybeSkipKeepAliveTest(t)
+@@ -164,8 +167,18 @@ func TestTCPConnKeepAliveConfig(t *testing.T) {
+ 			t.Fatal(errHook)
+ 		}
+ 
+-		if err := c.(*TCPConn).SetKeepAliveConfig(cfg); err != nil {
+-			t.Fatal(err)
++		err = c.(*TCPConn).SetKeepAliveConfig(cfg)
++		if err != nil {
++			if runtime.GOOS == "solaris" {
++				// Solaris prior to 11.4 does not support TCP_KEEPINTVL and TCP_KEEPCNT,
++				// so it will return syscall.ENOPROTOOPT when only one of Interval and Count
++				// is negative. This is expected, so skip the error check in this case.
++				if cfg.Interval >= 0 && cfg.Count >= 0 {
++					t.Fatal(err)
++				}
++			} else {
++				t.Fatal(err)
++			}
+ 		}
+ 
+ 		if err := sc.Control(func(fd uintptr) {
+diff --git a/src/net/tcpsock.go b/src/net/tcpsock.go
+index 0b7984f5f7..f5df502f0f 100644
+--- a/src/net/tcpsock.go
++++ b/src/net/tcpsock.go
+@@ -127,12 +127,8 @@ type TCPConn struct {
+ // the other will be set to the system default value, and ultimately,
+ // set both Idle and Interval to negative values if you want to leave them unchanged.
+ //
+-// Also note that on illumos distributions like OmniOS that support TCP Keep-Alive,
+-// setting only one of Idle and Interval to a non-negative value along with the
+-// negative other one will result in the negative one being recalculated as the
+-// quotient of tcp_keepalive_abort_interval(eight minutes as default) and the
+-// non-negative one. Thus, you may as well set the other one to a non-negative
+-// value if you've already set one of Idle and Interval.
++// Note that Solaris and its derivatives do not support setting Interval to a non-negative value
++// and Count to a negative value, or vice-versa.
+ type KeepAliveConfig struct {
+ 	// If Enable is true, keep-alive probes are enabled.
+ 	Enable bool
+diff --git a/src/net/tcpsock_solaris.go b/src/net/tcpsock_solaris.go
+new file mode 100644
+index 0000000000..924e2f7400
+--- /dev/null
++++ b/src/net/tcpsock_solaris.go
+@@ -0,0 +1,38 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !illumos
++
++package net
++
++import (
++	"internal/syscall/unix"
++	"syscall"
++)
++
++// SetKeepAliveConfig configures keep-alive messages sent by the operating system.
++func (c *TCPConn) SetKeepAliveConfig(config KeepAliveConfig) error {
++	if !c.ok() {
++		return syscall.EINVAL
++	}
++
++	if err := setKeepAlive(c.fd, config.Enable); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++	}
++	if unix.SupportTCPKeepAliveIdleIntvlCNT() {
++		if err := setKeepAliveIdle(c.fd, config.Idle); err != nil {
++			return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++		}
++		if err := setKeepAliveInterval(c.fd, config.Interval); err != nil {
++			return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++		}
++		if err := setKeepAliveCount(c.fd, config.Count); err != nil {
++			return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++		}
++	} else if err := setKeepAliveIdleAndIntervalAndCount(c.fd, config.Idle, config.Interval, config.Count); err != nil {
++		return &OpError{Op: "set", Net: c.fd.net, Source: c.fd.laddr, Addr: c.fd.raddr, Err: err}
++	}
++
++	return nil
++}
+diff --git a/src/net/tcpsock_unix.go b/src/net/tcpsock_unix.go
+index b5c05f4ead..01879e38ee 100644
+--- a/src/net/tcpsock_unix.go
++++ b/src/net/tcpsock_unix.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build !windows
++//go:build (!windows && !solaris) || illumos
+ 
+ package net
+ 
+diff --git a/src/net/tcpsockopt_solaris.go b/src/net/tcpsockopt_solaris.go
+index ba27e13b21..df2ddbd113 100644
+--- a/src/net/tcpsockopt_solaris.go
++++ b/src/net/tcpsockopt_solaris.go
+@@ -7,52 +7,113 @@
+ package net
+ 
+ import (
++	"internal/syscall/unix"
+ 	"runtime"
+ 	"syscall"
+ 	"time"
+ )
+ 
++// Some macros of TCP Keep-Alive options on Solaris 11.4 may
++// differ from those on OpenSolaris-based derivatives.
++const (
++	sysTCP_KEEPIDLE  = 0x1D
++	sysTCP_KEEPINTVL = 0x1E
++	sysTCP_KEEPCNT   = 0x1F
++)
++
+ func setKeepAliveIdle(fd *netFD, d time.Duration) error {
++	if !unix.SupportTCPKeepAliveIdleIntvlCNT() {
++		return setKeepAliveIdleAndIntervalAndCount(fd, d, -1, -1)
++	}
++
+ 	if d == 0 {
+ 		d = defaultTCPKeepAliveIdle
+ 	} else if d < 0 {
+ 		return nil
+ 	}
++	// The kernel expects seconds so round to next highest second.
++	secs := int(roundDurationUp(d, time.Second))
++	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, sysTCP_KEEPIDLE, secs)
++	runtime.KeepAlive(fd)
++	return wrapSyscallError("setsockopt", err)
++}
+ 
+-	// The kernel expects milliseconds so round to next highest
+-	// millisecond.
+-	msecs := int(roundDurationUp(d, time.Millisecond))
++func setKeepAliveInterval(fd *netFD, d time.Duration) error {
++	if !unix.SupportTCPKeepAliveIdleIntvlCNT() {
++		return syscall.EPROTOTYPE
++	}
+ 
+-	// TODO(panjf2000): the system call here always returns an error of invalid argument,
+-	//	 this was never discovered due to the lack of tests for TCP keep-alive on various
+-	//	 platforms in Go's test suite. Try to dive deep and figure out the reason later.
+-	// Check out https://go.dev/issue/64251 for more details.
+-	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_THRESHOLD, msecs)
++	if d == 0 {
++		d = defaultTCPKeepAliveInterval
++	} else if d < 0 {
++		return nil
++	}
++	// The kernel expects seconds so round to next highest second.
++	secs := int(roundDurationUp(d, time.Second))
++	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, sysTCP_KEEPINTVL, secs)
+ 	runtime.KeepAlive(fd)
+ 	return wrapSyscallError("setsockopt", err)
+ }
+ 
+-func setKeepAliveInterval(_ *netFD, d time.Duration) error {
+-	if d < 0 {
+-		return nil
++func setKeepAliveCount(fd *netFD, n int) error {
++	if !unix.SupportTCPKeepAliveIdleIntvlCNT() {
++		return syscall.EPROTOTYPE
+ 	}
+ 
+-	// Normally we'd do
+-	//	syscall.SetsockoptInt(fd.sysfd, syscall.IPPROTO_TCP, syscall.TCP_KEEPINTVL, secs)
+-	// here, but we can't because Solaris does not have TCP_KEEPINTVL.
+-	// Solaris has TCP_KEEPALIVE_ABORT_THRESHOLD, but it's not the same
+-	// thing, it refers to the total time until aborting (not between
+-	// probes), and it uses an exponential backoff algorithm instead of
+-	// waiting the same time between probes. We can't hope for the best
+-	// and do it anyway, like on Darwin, because Solaris might eventually
+-	// allocate a constant with a different meaning for the value of
+-	// TCP_KEEPINTVL on illumos.
+-	return syscall.ENOPROTOOPT
++	if n == 0 {
++		n = defaultTCPKeepAliveCount
++	} else if n < 0 {
++		return nil
++	}
++	err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, sysTCP_KEEPCNT, n)
++	runtime.KeepAlive(fd)
++	return wrapSyscallError("setsockopt", err)
+ }
+ 
+-func setKeepAliveCount(_ *netFD, n int) error {
+-	if n < 0 {
+-		return nil
++// setKeepAliveIdleAndIntervalAndCount serves for Solaris prior to 11.4 by simulating
++// the TCP_KEEPIDLE, TCP_KEEPINTVL, and TCP_KEEPCNT with `TCP_KEEPALIVE_THRESHOLD` + `TCP_KEEPALIVE_ABORT_THRESHOLD`.
++func setKeepAliveIdleAndIntervalAndCount(fd *netFD, idle, interval time.Duration, count int) error {
++	if idle == 0 {
++		idle = defaultTCPKeepAliveIdle
++	}
++
++	// The kernel expects milliseconds so round to next highest
++	// millisecond.
++	if idle > 0 {
++		msecs := int(roundDurationUp(idle, time.Millisecond))
++		err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_THRESHOLD, msecs)
++		runtime.KeepAlive(fd)
++		if err != nil {
++			return wrapSyscallError("setsockopt", err)
++		}
+ 	}
+-	return syscall.ENOPROTOOPT
++
++	if interval == 0 {
++		interval = defaultTCPKeepAliveInterval
++	}
++	if count == 0 {
++		count = defaultTCPKeepAliveCount
++	}
++	// TCP_KEEPINTVL and TCP_KEEPCNT are not available on Solaris
++	// prior to 11.4, so it's pointless to "leave it unchanged"
++	// with negative value for only one of them. On the other hand,
++	// setting both to negative values should pragmatically leave the
++	// TCP_KEEPALIVE_ABORT_THRESHOLD unchanged.
++	abortIdle := int(roundDurationUp(interval, time.Millisecond)) * count
++	if abortIdle < 0 {
++		return syscall.ENOPROTOOPT
++	}
++	if interval < 0 && count < 0 {
++		abortIdle = -1
++	}
++
++	if abortIdle > 0 {
++		// Note that the consequent probes will not be sent at equal intervals on Solaris,
++		// but will be sent using the exponential backoff algorithm.
++		err := fd.pfd.SetsockoptInt(syscall.IPPROTO_TCP, syscall.TCP_KEEPALIVE_ABORT_THRESHOLD, abortIdle)
++		runtime.KeepAlive(fd)
++		return wrapSyscallError("setsockopt", err)
++	}
++
++	return nil
+ }

@@ -1,0 +1,74 @@
+commit c2c89d95516d2a6b51aa1766ed5f76e542ab282c
+Author: Damien Neil <dneil@google.com>
+Date:   Tue May 13 15:35:19 2025 -0700
+
+    [release-branch.go1.23] os: don't follow symlinks on Windows when O_CREATE|O_EXCL
+    
+    (This cherry-pick includes both CL 672396 and CL 676655.)
+    
+    Match standard Unix behavior: Symlinks are not followed when
+    O_CREATE|O_EXCL is passed to open.
+    
+    Thanks to Junyoung Park and Dong-uk Kim of KAIST Hacking Lab
+    for discovering this issue.
+    
+    For #73702
+    Fixes #73719
+    Fixes CVE-2025-0913
+    
+    Change-Id: Ieb46a6780c5e9a6090b09cd34290f04a8e3b0ca5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/672396
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677195
+    TryBot-Bypass: Michael Knyszek <mknyszek@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/os/os_test.go              | 18 ++++++++++++++++++
+ src/syscall/syscall_windows.go |  3 +++
+ 2 files changed, 21 insertions(+)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index f1755dfa91..24a1d84b16 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -2174,6 +2174,24 @@ func TestAppend(t *testing.T) {
+ 	}
+ }
+ 
++func TestOpenFileCreateExclDanglingSymlink(t *testing.T) {
++	defer chtmpdir(t)()
++	const link = "link"
++	if err := Symlink("does_not_exist", link); err != nil {
++		t.Fatal(err)
++	}
++	f, err := OpenFile(link, O_WRONLY|O_CREATE|O_EXCL, 0o666)
++	if err == nil {
++		f.Close()
++	}
++	if !errors.Is(err, ErrExist) {
++		t.Errorf("OpenFile of a dangling symlink with O_CREATE|O_EXCL = %v, want ErrExist", err)
++	}
++	if _, err := Stat(link); err == nil {
++		t.Errorf("OpenFile of a dangling symlink with O_CREATE|O_EXCL created a file")
++	}
++}
++
+ func TestStatDirWithTrailingSlash(t *testing.T) {
+ 	t.Parallel()
+ 
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index d49ee522c4..bbc1a11784 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -406,6 +406,9 @@ func Open(path string, mode int, perm uint32) (fd Handle, err error) {
+ 			}
+ 		}
+ 	}
++	if createmode == CREATE_NEW {
++		attrs |= FILE_FLAG_OPEN_REPARSE_POINT // don't follow symlinks
++	}
+ 	if createmode == OPEN_EXISTING && access == GENERIC_READ {
+ 		// Necessary for opening directory handles.
+ 		attrs |= FILE_FLAG_BACKUP_SEMANTICS

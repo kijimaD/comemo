@@ -1,0 +1,34 @@
+commit fe873490028958be3f9338ff45c9b0f6fe9a11dc
+Author: Tobias Klauser <tklauser@distanz.ch>
+Date:   Thu Oct 3 17:23:22 2024 +0200
+
+    slices: print modified cloned slice in ExampleClone
+    
+    Make it obvious that numbers wasn't modified, but clone was.
+    
+    Change-Id: Id8bd4ca59b7348cd218faef61abfdf12e20c89f0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/617795
+    Auto-Submit: Tobias Klauser <tobias.klauser@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/slices/example_test.go | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/slices/example_test.go b/src/slices/example_test.go
+index 305745e883..f775b88f6b 100644
+--- a/src/slices/example_test.go
++++ b/src/slices/example_test.go
+@@ -325,9 +325,11 @@ func ExampleClone() {
+ 	fmt.Println(clone)
+ 	clone[2] = 10
+ 	fmt.Println(numbers)
++	fmt.Println(clone)
+ 	// Output:
+ 	// [0 42 -10 8]
+ 	// [0 42 -10 8]
++	// [0 42 10 8]
+ }
+ 
+ func ExampleGrow() {

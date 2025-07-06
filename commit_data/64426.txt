@@ -1,0 +1,43 @@
+commit 7adb01220584115365acc9ebda0317d530288a1a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Thu Aug 1 23:41:13 2024 +0200
+
+    [release-branch.go1.23] crypto/tls: fix testHandshake close flakes
+    
+    The flakes were introduced by me in CL 586655. It's unclear why only
+    FreeBSD seems affected, maybe other TCP stacks handle sending on a
+    half-closed connection differently, or aren't as quick to propagate the
+    RST over localhost.
+    
+    Updates #68155
+    
+    Change-Id: I32a1b474a7d6531dbab93910c23568b867629e8c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Run-TryBot: Filippo Valsorda <filippo@golang.org>
+    TryBot-Result: Gopher Robot <gobot@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+---
+ src/crypto/tls/handshake_test.go | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/tls/handshake_test.go b/src/crypto/tls/handshake_test.go
+index bc3d23d5ad..41c2643f2a 100644
+--- a/src/crypto/tls/handshake_test.go
++++ b/src/crypto/tls/handshake_test.go
+@@ -491,9 +491,10 @@ func testHandshake(t *testing.T, clientConfig, serverConfig *Config) (serverStat
+ 		if got := string(buf); got != sentinel {
+ 			t.Errorf("read %q from TLS connection, but expected %q", got, sentinel)
+ 		}
+-		if err := cli.Close(); err != nil {
+-			t.Errorf("failed to call cli.Close: %v", err)
+-		}
++		// We discard the error because after ReadAll returns the server must
++		// have already closed the connection. Sending data (the closeNotify
++		// alert) can cause a reset, that will make Close return an error.
++		cli.Close()
+ 	}()
+ 	server := Server(s, serverConfig)
+ 	err = server.Handshake()

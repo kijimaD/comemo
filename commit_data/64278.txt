@@ -1,0 +1,71 @@
+commit b0f7be3cfa1ee5fbfe46590475861677cc9514fa
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Jun 12 20:24:44 2024 -0700
+
+    cmd/compile: don't treat an InlMark as a read during deadstore
+    
+    An InlMark "read" can't make an otherwise dead store live. Without this
+    CL, we sometimes zero an object twice in succession because we think
+    there is a reader in between.
+    
+    Kind of challenging to make a test for this. The second zeroing has the
+    same instruction on the same line number, so codegen tests can't see it.
+    
+    Fixes #67957
+    
+    Change-Id: I7fb97ebff50d8eb6246fc4802d1136b7cc76c45f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592615
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/ssa/deadstore.go |  4 ++++
+ src/runtime/symtabinl_test.go             | 19 ++++++++++---------
+ 2 files changed, 14 insertions(+), 9 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssa/deadstore.go b/src/cmd/compile/internal/ssa/deadstore.go
+index ce04cb3a24..a0d61bad03 100644
+--- a/src/cmd/compile/internal/ssa/deadstore.go
++++ b/src/cmd/compile/internal/ssa/deadstore.go
+@@ -59,6 +59,10 @@ func dse(f *Func) {
+ 						continue
+ 					}
+ 				}
++				if v.Op == OpInlMark {
++					// Not really a use of the memory. See #67957.
++					continue
++				}
+ 				for _, a := range v.Args {
+ 					if a.Block == b && a.Type.IsMemory() {
+ 						loadUse.add(a.ID)
+diff --git a/src/runtime/symtabinl_test.go b/src/runtime/symtabinl_test.go
+index db682e0c9c..ab58c05380 100644
+--- a/src/runtime/symtabinl_test.go
++++ b/src/runtime/symtabinl_test.go
+@@ -107,16 +107,17 @@ func lineNumber() int {
+ // Below here is the test data for XTestInlineUnwinder
+ 
+ var tiuStart = lineNumber() // +0
+-var tiu1, tiu2, tiu3 int    // +1
+-func tiuInlined1() { // +2
+-	tiu1++ // +3
++var tiu2, tiu3 int          // +1
++func tiuInlined1(i int) { // +2
++	tiu1[i]++ // +3
+ } // +4
+ func tiuInlined2() { // +5
+-	tiuInlined1() // +6
+-	tiu2++        // +7
++	tiuInlined1(1) // +6
++	tiu2++         // +7
+ } // +8
+ func tiuTest() { // +9
+-	tiuInlined1() // +10
+-	tiuInlined2() // +11
+-	tiu3++        // +12
+-} // +13
++	tiuInlined1(0) // +10
++	tiuInlined2()  // +11
++	tiu3++         // +12
++}               // +13
++var tiu1 [2]int // +14

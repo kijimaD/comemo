@@ -1,0 +1,35 @@
+commit c55a170083dc58611e5acb6535093d0cf4e43175
+Author: komuw <komuw05@gmail.com>
+Date:   Wed Aug 28 14:12:31 2024 +0000
+
+    crypto/cipher: update documentation for aead Open
+    
+    The remaining capacity of dst should not overlap ciphertext.
+    The previous wording was probably a copy paste mistake from aead Seal.
+    
+    Change-Id: Iaa28073f9ea90cbe2032c0c1149a78feab6c9239
+    GitHub-Last-Rev: fb54bc84c471648eb9d4c56492a8ff6d7db69b2b
+    GitHub-Pull-Request: golang/go#69108
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/609075
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/cipher/gcm.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index 505be50c6a..9b86b06c98 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -39,7 +39,7 @@ type AEAD interface {
+ 	// value passed to Seal.
+ 	//
+ 	// To reuse ciphertext's storage for the decrypted output, use ciphertext[:0]
+-	// as dst. Otherwise, the remaining capacity of dst must not overlap plaintext.
++	// as dst. Otherwise, the remaining capacity of dst must not overlap ciphertext.
+ 	//
+ 	// Even if the function fails, the contents of dst, up to its capacity,
+ 	// may be overwritten.

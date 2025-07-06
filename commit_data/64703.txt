@@ -1,0 +1,93 @@
+commit 21ac23a96f204dfb558a8d3071380c1d105a93ba
+Author: Michael Anthony Knyszek <mknyszek@google.com>
+Date:   Wed Sep 4 16:46:33 2024 +0000
+
+    unique: don't retain uncloned input as key
+    
+    Currently the unique package tries to clone strings that get stored in
+    its internal map to avoid retaining large strings.
+    
+    However, this falls over entirely due to the fact that the original
+    string is *still* stored in the map as a key. Whoops. Fix this by
+    storing the cloned value in the map instead.
+    
+    This change also adds a test which fails without this change.
+    
+    Change-Id: I1a6bb68ed79b869ea12ab6be061a5ae4b4377ddb
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610738
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/unique/handle.go      |  7 ++++---
+ src/unique/handle_test.go | 22 ++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 3 deletions(-)
+
+diff --git a/src/unique/handle.go b/src/unique/handle.go
+index 96d8fedb0c..abc620f60f 100644
+--- a/src/unique/handle.go
++++ b/src/unique/handle.go
+@@ -50,13 +50,13 @@ func Make[T comparable](value T) Handle[T] {
+ 		toInsert     *T // Keep this around to keep it alive.
+ 		toInsertWeak weak.Pointer[T]
+ 	)
+-	newValue := func() weak.Pointer[T] {
++	newValue := func() (T, weak.Pointer[T]) {
+ 		if toInsert == nil {
+ 			toInsert = new(T)
+ 			*toInsert = clone(value, &m.cloneSeq)
+ 			toInsertWeak = weak.Make(toInsert)
+ 		}
+-		return toInsertWeak
++		return *toInsert, toInsertWeak
+ 	}
+ 	var ptr *T
+ 	for {
+@@ -64,7 +64,8 @@ func Make[T comparable](value T) Handle[T] {
+ 		wp, ok := m.Load(value)
+ 		if !ok {
+ 			// Try to insert a new value into the map.
+-			wp, _ = m.LoadOrStore(value, newValue())
++			k, v := newValue()
++			wp, _ = m.LoadOrStore(k, v)
+ 		}
+ 		// Now that we're sure there's a value in the map, let's
+ 		// try to get the pointer we need out of it.
+diff --git a/src/unique/handle_test.go b/src/unique/handle_test.go
+index ffb2be42b1..7d12edd467 100644
+--- a/src/unique/handle_test.go
++++ b/src/unique/handle_test.go
+@@ -9,7 +9,10 @@ import (
+ 	"internal/abi"
+ 	"reflect"
+ 	"runtime"
++	"strings"
+ 	"testing"
++	"time"
++	"unsafe"
+ )
+ 
+ // Set up special types. Because the internal maps are sharded by type,
+@@ -110,3 +113,22 @@ func checkMapsFor[T comparable](t *testing.T, value T) {
+ 	}
+ 	t.Errorf("failed to drain internal maps of %v", value)
+ }
++
++func TestMakeClonesStrings(t *testing.T) {
++	s := strings.Clone("abcdefghijklmnopqrstuvwxyz") // N.B. Must be big enough to not be tiny-allocated.
++	ran := make(chan bool)
++	runtime.SetFinalizer(unsafe.StringData(s), func(_ *byte) {
++		ran <- true
++	})
++	h := Make(s)
++
++	// Clean up s (hopefully) and run the finalizer.
++	runtime.GC()
++
++	select {
++	case <-time.After(1 * time.Second):
++		t.Fatal("string was improperly retained")
++	case <-ran:
++	}
++	runtime.KeepAlive(h)
++}

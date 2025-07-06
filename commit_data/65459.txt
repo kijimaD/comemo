@@ -1,0 +1,1525 @@
+commit 45869f5931554f0db1169bc268db7ffd8d400e9e
+Author: Keith Randall <khr@golang.org>
+Date:   Wed Sep 25 22:34:43 2024 -0700
+
+    runtime: get rid of gc programs for types
+    
+    Instead, have the runtime build the gc bitmaps on demand
+    at runtime.
+    
+    Change-Id: If7a245bc62e4bce3ce80972410b0ed307d921abe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616255
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/cmd/compile/internal/reflectdata/reflect.go | 147 +++-----------------
+ src/cmd/link/internal/ld/data.go                |  14 +-
+ src/cmd/link/internal/ld/decodesym.go           |  10 +-
+ src/cmd/link/internal/ld/lib.go                 |   8 +-
+ src/internal/abi/type.go                        |  27 ++--
+ src/reflect/all_test.go                         |   2 +-
+ src/reflect/export_test.go                      |   3 -
+ src/reflect/type.go                             | 137 +++---------------
+ src/runtime/arena.go                            |  13 +-
+ src/runtime/bitcursor_test.go                   |  49 +++++++
+ src/runtime/cgocheck.go                         |  93 +------------
+ src/runtime/export_test.go                      |  19 ++-
+ src/runtime/gcinfo_test.go                      |   2 +-
+ src/runtime/malloc.go                           |   4 +
+ src/runtime/mbitmap.go                          | 176 ++++++++----------------
+ src/runtime/mgcsweep.go                         |  13 --
+ src/runtime/race/testdata/map_test.go           |   2 +-
+ src/runtime/stkframe.go                         |   5 +-
+ src/runtime/stubs.go                            |   2 +
+ src/runtime/type.go                             | 176 ++++++++++++++++++++++++
+ 20 files changed, 396 insertions(+), 506 deletions(-)
+
+diff --git a/src/cmd/compile/internal/reflectdata/reflect.go b/src/cmd/compile/internal/reflectdata/reflect.go
+index c26ac3d74c..a4a701c9a2 100644
+--- a/src/cmd/compile/internal/reflectdata/reflect.go
++++ b/src/cmd/compile/internal/reflectdata/reflect.go
+@@ -9,7 +9,6 @@ import (
+ 	"fmt"
+ 	"internal/abi"
+ 	"internal/buildcfg"
+-	"os"
+ 	"slices"
+ 	"sort"
+ 	"strings"
+@@ -25,7 +24,6 @@ import (
+ 	"cmd/compile/internal/typebits"
+ 	"cmd/compile/internal/typecheck"
+ 	"cmd/compile/internal/types"
+-	"cmd/internal/gcprog"
+ 	"cmd/internal/obj"
+ 	"cmd/internal/objabi"
+ 	"cmd/internal/src"
+@@ -437,8 +435,8 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
+ 		sptr = writeType(tptr)
+ 	}
+ 
+-	gcsym, useGCProg, ptrdata := dgcsym(t, true, true)
+-	if !useGCProg {
++	gcsym, onDemand, ptrdata := dgcsym(t, true, true)
++	if !onDemand {
+ 		delete(gcsymset, t)
+ 	}
+ 
+@@ -471,6 +469,9 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
+ 	if compare.IsRegularMemory(t) {
+ 		tflag |= abi.TFlagRegularMemory
+ 	}
++	if onDemand {
++		tflag |= abi.TFlagGCMaskOnDemand
++	}
+ 
+ 	exported := false
+ 	p := t.NameString()
+@@ -513,9 +514,6 @@ func dcommontype(c rttype.Cursor, t *types.Type) {
+ 	if types.IsDirectIface(t) {
+ 		kind |= abi.KindDirectIface
+ 	}
+-	if useGCProg {
+-		kind |= abi.KindGCProg
+-	}
+ 	c.Field("Kind_").WriteUint8(uint8(kind))
+ 
+ 	c.Field("Equal").WritePtr(eqfunc)
+@@ -1242,18 +1240,18 @@ func GCSym(t *types.Type) (lsym *obj.LSym, ptrdata int64) {
+ }
+ 
+ // dgcsym returns a data symbol containing GC information for type t, along
+-// with a boolean reporting whether the UseGCProg bit should be set in the
+-// type kind, and the ptrdata field to record in the reflect type information.
++// with a boolean reporting whether the gc mask should be computed on demand
++// at runtime, and the ptrdata field to record in the reflect type information.
+ // When write is true, it writes the symbol data.
+-func dgcsym(t *types.Type, write, gcProgAllowed bool) (lsym *obj.LSym, useGCProg bool, ptrdata int64) {
++func dgcsym(t *types.Type, write, onDemandAllowed bool) (lsym *obj.LSym, onDemand bool, ptrdata int64) {
+ 	ptrdata = types.PtrDataSize(t)
+-	if !gcProgAllowed || ptrdata/int64(types.PtrSize) <= abi.MaxPtrmaskBytes*8 {
++	if !onDemandAllowed || ptrdata/int64(types.PtrSize) <= abi.MaxPtrmaskBytes*8 {
+ 		lsym = dgcptrmask(t, write)
+ 		return
+ 	}
+ 
+-	useGCProg = true
+-	lsym, ptrdata = dgcprog(t, write)
++	onDemand = true
++	lsym = dgcptrmaskOnDemand(t, write)
+ 	return
+ }
+ 
+@@ -1300,120 +1298,17 @@ func fillptrmask(t *types.Type, ptrmask []byte) {
+ 	}
+ }
+ 
+-// dgcprog emits and returns the symbol containing a GC program for type t
+-// along with the size of the data described by the program (in the range
+-// [types.PtrDataSize(t), t.Width]).
+-// In practice, the size is types.PtrDataSize(t) except for non-trivial arrays.
+-// For non-trivial arrays, the program describes the full t.Width size.
+-func dgcprog(t *types.Type, write bool) (*obj.LSym, int64) {
+-	types.CalcSize(t)
+-	if t.Size() == types.BADWIDTH {
+-		base.Fatalf("dgcprog: %v badwidth", t)
+-	}
+-	lsym := TypeLinksymPrefix(".gcprog", t)
+-	var p gcProg
+-	p.init(lsym, write)
+-	p.emit(t, 0)
+-	offset := p.w.BitIndex() * int64(types.PtrSize)
+-	p.end()
+-	if ptrdata := types.PtrDataSize(t); offset < ptrdata || offset > t.Size() {
+-		base.Fatalf("dgcprog: %v: offset=%d but ptrdata=%d size=%d", t, offset, ptrdata, t.Size())
+-	}
+-	return lsym, offset
+-}
+-
+-type gcProg struct {
+-	lsym   *obj.LSym
+-	symoff int
+-	w      gcprog.Writer
+-	write  bool
+-}
+-
+-func (p *gcProg) init(lsym *obj.LSym, write bool) {
+-	p.lsym = lsym
+-	p.write = write && !lsym.OnList()
+-	p.symoff = 4 // first 4 bytes hold program length
+-	if !write {
+-		p.w.Init(func(byte) {})
+-		return
+-	}
+-	p.w.Init(p.writeByte)
+-	if base.Debug.GCProg > 0 {
+-		fmt.Fprintf(os.Stderr, "compile: start GCProg for %v\n", lsym)
+-		p.w.Debug(os.Stderr)
+-	}
+-}
+-
+-func (p *gcProg) writeByte(x byte) {
+-	p.symoff = objw.Uint8(p.lsym, p.symoff, x)
+-}
+-
+-func (p *gcProg) end() {
+-	p.w.End()
+-	if !p.write {
+-		return
+-	}
+-	objw.Uint32(p.lsym, 0, uint32(p.symoff-4))
+-	objw.Global(p.lsym, int32(p.symoff), obj.DUPOK|obj.RODATA|obj.LOCAL)
+-	p.lsym.Set(obj.AttrContentAddressable, true)
+-	if base.Debug.GCProg > 0 {
+-		fmt.Fprintf(os.Stderr, "compile: end GCProg for %v\n", p.lsym)
+-	}
+-}
+-
+-func (p *gcProg) emit(t *types.Type, offset int64) {
+-	types.CalcSize(t)
+-	if !t.HasPointers() {
+-		return
+-	}
+-	if t.Size() == int64(types.PtrSize) {
+-		p.w.Ptr(offset / int64(types.PtrSize))
+-		return
+-	}
+-	switch t.Kind() {
+-	default:
+-		base.Fatalf("gcProg.emit: unexpected type %v", t)
+-
+-	case types.TSTRING:
+-		p.w.Ptr(offset / int64(types.PtrSize))
+-
+-	case types.TINTER:
+-		// Note: the first word isn't a pointer. See comment in typebits.Set
+-		p.w.Ptr(offset/int64(types.PtrSize) + 1)
+-
+-	case types.TSLICE:
+-		p.w.Ptr(offset / int64(types.PtrSize))
+-
+-	case types.TARRAY:
+-		if t.NumElem() == 0 {
+-			// should have been handled by haspointers check above
+-			base.Fatalf("gcProg.emit: empty array")
+-		}
+-
+-		// Flatten array-of-array-of-array to just a big array by multiplying counts.
+-		count := t.NumElem()
+-		elem := t.Elem()
+-		for elem.IsArray() {
+-			count *= elem.NumElem()
+-			elem = elem.Elem()
+-		}
+-
+-		if !p.w.ShouldRepeat(elem.Size()/int64(types.PtrSize), count) {
+-			// Cheaper to just emit the bits.
+-			for i := int64(0); i < count; i++ {
+-				p.emit(elem, offset+i*elem.Size())
+-			}
+-			return
+-		}
+-		p.emit(elem, offset)
+-		p.w.ZeroUntil((offset + elem.Size()) / int64(types.PtrSize))
+-		p.w.Repeat(elem.Size()/int64(types.PtrSize), count-1)
+-
+-	case types.TSTRUCT:
+-		for _, t1 := range t.Fields() {
+-			p.emit(t1.Type, offset+t1.Offset)
+-		}
++// dgcptrmaskOnDemand emits and returns the symbol that should be referenced by
++// the GCData field of a type, for large types.
++func dgcptrmaskOnDemand(t *types.Type, write bool) *obj.LSym {
++	lsym := TypeLinksymPrefix(".gcmask", t)
++	if write && !lsym.OnList() {
++		// Note: contains a pointer, but a pointer to a
++		// persistentalloc allocation. Starts with nil.
++		objw.Uintptr(lsym, 0, 0)
++		objw.Global(lsym, int32(types.PtrSize), obj.DUPOK|obj.NOPTR|obj.LOCAL) // TODO:bss?
+ 	}
++	return lsym
+ }
+ 
+ // ZeroAddr returns the address of a symbol with at least
+diff --git a/src/cmd/link/internal/ld/data.go b/src/cmd/link/internal/ld/data.go
+index 5f05399b5e..db31260f92 100644
+--- a/src/cmd/link/internal/ld/data.go
++++ b/src/cmd/link/internal/ld/data.go
+@@ -1336,7 +1336,7 @@ func (p *GCProg) AddSym(s loader.Sym) {
+ 	// everything we see should have pointers and should therefore have a type.
+ 	if typ == 0 {
+ 		switch ldr.SymName(s) {
+-		case "runtime.data", "runtime.edata", "runtime.bss", "runtime.ebss":
++		case "runtime.data", "runtime.edata", "runtime.bss", "runtime.ebss", "runtime.gcdata", "runtime.gcbss":
+ 			// Ignore special symbols that are sometimes laid out
+ 			// as real symbols. See comment about dyld on darwin in
+ 			// the address function.
+@@ -1360,14 +1360,20 @@ func (p *GCProg) AddSym(s loader.Sym) {
+ func (p *GCProg) AddType(off int64, typ loader.Sym) {
+ 	ldr := p.ctxt.loader
+ 	typData := ldr.Data(typ)
++	ptrdata := decodetypePtrdata(p.ctxt.Arch, typData)
++	if ptrdata == 0 {
++		p.ctxt.Errorf(p.sym.Sym(), "has no pointers but in data section")
++		// TODO: just skip these? They might occur in assembly
++		// that doesn't know to use NOPTR? But there must have been
++		// a Go declaration somewhere.
++	}
+ 	switch decodetypeKind(p.ctxt.Arch, typData) {
+ 	default:
+-		if decodetypeUsegcprog(p.ctxt.Arch, typData) {
+-			p.ctxt.Errorf(p.sym.Sym(), "GC program for non-aggregate type")
++		if decodetypeGCMaskOnDemand(p.ctxt.Arch, typData) {
++			p.ctxt.Errorf(p.sym.Sym(), "GC mask not available")
+ 		}
+ 		// Copy pointers from mask into program.
+ 		ptrsize := int64(p.ctxt.Arch.PtrSize)
+-		ptrdata := decodetypePtrdata(p.ctxt.Arch, typData)
+ 		mask := decodetypeGcmask(p.ctxt, typ)
+ 		for i := int64(0); i < ptrdata/ptrsize; i++ {
+ 			if (mask[i/8]>>uint(i%8))&1 != 0 {
+diff --git a/src/cmd/link/internal/ld/decodesym.go b/src/cmd/link/internal/ld/decodesym.go
+index 22d1fd02e2..4d38ec1a77 100644
+--- a/src/cmd/link/internal/ld/decodesym.go
++++ b/src/cmd/link/internal/ld/decodesym.go
+@@ -41,11 +41,6 @@ func decodetypeKind(arch *sys.Arch, p []byte) abi.Kind {
+ 	return abi.Kind(p[2*arch.PtrSize+7]) & abi.KindMask //  0x13 / 0x1f
+ }
+ 
+-// Type.commonType.kind
+-func decodetypeUsegcprog(arch *sys.Arch, p []byte) bool {
+-	return abi.Kind(p[2*arch.PtrSize+7])&abi.KindGCProg != 0 //  0x13 / 0x1f
+-}
+-
+ // Type.commonType.size
+ func decodetypeSize(arch *sys.Arch, p []byte) int64 {
+ 	return int64(decodeInuxi(arch, p, arch.PtrSize)) // 0x8 / 0x10
+@@ -61,6 +56,11 @@ func decodetypeHasUncommon(arch *sys.Arch, p []byte) bool {
+ 	return abi.TFlag(p[abi.TFlagOff(arch.PtrSize)])&abi.TFlagUncommon != 0
+ }
+ 
++// Type.commonType.tflag
++func decodetypeGCMaskOnDemand(arch *sys.Arch, p []byte) bool {
++	return abi.TFlag(p[abi.TFlagOff(arch.PtrSize)])&abi.TFlagGCMaskOnDemand != 0
++}
++
+ // Type.FuncType.dotdotdot
+ func decodetypeFuncDotdotdot(arch *sys.Arch, p []byte) bool {
+ 	return uint16(decodeInuxi(arch, p[commonsize(arch)+2:], 2))&(1<<15) != 0
+diff --git a/src/cmd/link/internal/ld/lib.go b/src/cmd/link/internal/ld/lib.go
+index 48bdf73b3b..0d38593ec7 100644
+--- a/src/cmd/link/internal/ld/lib.go
++++ b/src/cmd/link/internal/ld/lib.go
+@@ -879,13 +879,13 @@ func (ctxt *Link) linksetup() {
+ 		if ctxt.Arch.Family == sys.ARM {
+ 			goarm := ctxt.loader.LookupOrCreateSym("runtime.goarm", 0)
+ 			sb := ctxt.loader.MakeSymbolUpdater(goarm)
+-			sb.SetType(sym.SDATA)
++			sb.SetType(sym.SNOPTRDATA)
+ 			sb.SetSize(0)
+ 			sb.AddUint8(uint8(buildcfg.GOARM.Version))
+ 
+ 			goarmsoftfp := ctxt.loader.LookupOrCreateSym("runtime.goarmsoftfp", 0)
+ 			sb2 := ctxt.loader.MakeSymbolUpdater(goarmsoftfp)
+-			sb2.SetType(sym.SDATA)
++			sb2.SetType(sym.SNOPTRDATA)
+ 			sb2.SetSize(0)
+ 			if buildcfg.GOARM.SoftFloat {
+ 				sb2.AddUint8(1)
+@@ -901,7 +901,7 @@ func (ctxt *Link) linksetup() {
+ 		if memProfile != 0 && !ctxt.loader.AttrReachable(memProfile) && !ctxt.DynlinkingGo() {
+ 			memProfSym := ctxt.loader.LookupOrCreateSym("runtime.disableMemoryProfiling", 0)
+ 			sb := ctxt.loader.MakeSymbolUpdater(memProfSym)
+-			sb.SetType(sym.SDATA)
++			sb.SetType(sym.SNOPTRDATA)
+ 			sb.SetSize(0)
+ 			sb.AddUint8(1) // true bool
+ 		}
+@@ -962,7 +962,7 @@ func (ctxt *Link) mangleTypeSym() {
+ 	ldr := ctxt.loader
+ 	for s := loader.Sym(1); s < loader.Sym(ldr.NSym()); s++ {
+ 		if !ldr.AttrReachable(s) && !ctxt.linkShared {
+-			// If -linkshared, the GCProg generation code may need to reach
++			// If -linkshared, the gc mask generation code may need to reach
+ 			// out to the shared library for the type descriptor's data, even
+ 			// the type descriptor itself is not actually needed at run time
+ 			// (therefore not reachable). We still need to mangle its name,
+diff --git a/src/internal/abi/type.go b/src/internal/abi/type.go
+index df61400923..1c1793fcf5 100644
+--- a/src/internal/abi/type.go
++++ b/src/internal/abi/type.go
+@@ -29,8 +29,16 @@ type Type struct {
+ 	// (ptr to object A, ptr to object B) -> ==?
+ 	Equal func(unsafe.Pointer, unsafe.Pointer) bool
+ 	// GCData stores the GC type data for the garbage collector.
+-	// If the KindGCProg bit is set in kind, GCData is a GC program.
+-	// Otherwise it is a ptrmask bitmap. See mbitmap.go for details.
++	// Normally, GCData points to a bitmask that describes the
++	// ptr/nonptr fields of the type. The bitmask will have at
++	// least PtrBytes/ptrSize bits.
++	// If the TFlagGCMaskOnDemand bit is set, GCData is instead a
++	// **byte and the pointer to the bitmask is one dereference away.
++	// The runtime will build the bitmask if needed.
++	// (See runtime/type.go:getGCMask.)
++	// Note: multiple types may have the same value of GCData,
++	// including when TFlagGCMaskOnDemand is set. The types will, of course,
++	// have the same pointer layout (but not necessarily the same size).
+ 	GCData    *byte
+ 	Str       NameOff // string form
+ 	PtrToThis TypeOff // type for pointer to this type, may be zero
+@@ -73,7 +81,6 @@ const (
+ const (
+ 	// TODO (khr, drchase) why aren't these in TFlag?  Investigate, fix if possible.
+ 	KindDirectIface Kind = 1 << 5
+-	KindGCProg      Kind = 1 << 6 // Type.gc points to GC program
+ 	KindMask        Kind = (1 << 5) - 1
+ )
+ 
+@@ -112,11 +119,12 @@ const (
+ 	// this type as a single region of t.size bytes.
+ 	TFlagRegularMemory TFlag = 1 << 3
+ 
+-	// TFlagUnrolledBitmap marks special types that are unrolled-bitmap
+-	// versions of types with GC programs.
+-	// These types need to be deallocated when the underlying object
+-	// is freed.
+-	TFlagUnrolledBitmap TFlag = 1 << 4
++	// TFlagGCMaskOnDemand means that the GC pointer bitmask will be
++	// computed on demand at runtime instead of being precomputed at
++	// compile time. If this flag is set, the GCData field effectively
++	// has type **byte instead of *byte. The runtime will store a
++	// pointer to the GC pointer bitmask in *GCData.
++	TFlagGCMaskOnDemand TFlag = 1 << 4
+ )
+ 
+ // NameOff is the offset to a name from moduledata.types.  See resolveNameOff in runtime.
+@@ -206,6 +214,9 @@ func (t *Type) IsDirectIface() bool {
+ }
+ 
+ func (t *Type) GcSlice(begin, end uintptr) []byte {
++	if t.TFlag&TFlagGCMaskOnDemand != 0 {
++		panic("GcSlice can't handle on-demand gcdata types")
++	}
+ 	return unsafe.Slice(t.GCData, int(end))[begin:]
+ }
+ 
+diff --git a/src/reflect/all_test.go b/src/reflect/all_test.go
+index db273899b0..687bbfc107 100644
+--- a/src/reflect/all_test.go
++++ b/src/reflect/all_test.go
+@@ -6841,7 +6841,7 @@ func TestInvalid(t *testing.T) {
+ }
+ 
+ // Issue 8917.
+-func TestLargeGCProg(t *testing.T) {
++func TestLarge(t *testing.T) {
+ 	fv := ValueOf(func([256]*byte) {})
+ 	fv.Call([]Value{ValueOf([256]*byte{})})
+ }
+diff --git a/src/reflect/export_test.go b/src/reflect/export_test.go
+index 7ab3e957fc..eedd063fcb 100644
+--- a/src/reflect/export_test.go
++++ b/src/reflect/export_test.go
+@@ -58,9 +58,6 @@ func FuncLayout(t Type, rcvr Type) (frametype Type, argSize, retOffset uintptr,
+ 		inReg = append(inReg, bool2byte(abid.inRegPtrs.Get(i)))
+ 		outReg = append(outReg, bool2byte(abid.outRegPtrs.Get(i)))
+ 	}
+-	if ft.Kind_&abi.KindGCProg != 0 {
+-		panic("can't handle gc programs")
+-	}
+ 
+ 	// Expand frame type's GC bitmap into byte-map.
+ 	ptrs = ft.Pointers()
+diff --git a/src/reflect/type.go b/src/reflect/type.go
+index 3ae50c1fb9..0e41a6db99 100644
+--- a/src/reflect/type.go
++++ b/src/reflect/type.go
+@@ -2039,16 +2039,9 @@ func hashMightPanic(t *abi.Type) bool {
+ 	}
+ }
+ 
+-func (t *rtype) gcSlice(begin, end uintptr) []byte {
+-	return (*[1 << 30]byte)(unsafe.Pointer(t.t.GCData))[begin:end:end]
+-}
+-
+ // emitGCMask writes the GC mask for [n]typ into out, starting at bit
+ // offset base.
+ func emitGCMask(out []byte, base uintptr, typ *abi.Type, n uintptr) {
+-	if typ.Kind_&abi.KindGCProg != 0 {
+-		panic("reflect: unexpected GC program")
+-	}
+ 	ptrs := typ.PtrBytes / goarch.PtrSize
+ 	words := typ.Size_ / goarch.PtrSize
+ 	mask := typ.GcSlice(0, (ptrs+7)/8)
+@@ -2062,32 +2055,6 @@ func emitGCMask(out []byte, base uintptr, typ *abi.Type, n uintptr) {
+ 	}
+ }
+ 
+-// appendGCProg appends the GC program for the first ptrdata bytes of
+-// typ to dst and returns the extended slice.
+-func appendGCProg(dst []byte, typ *abi.Type) []byte {
+-	if typ.Kind_&abi.KindGCProg != 0 {
+-		// Element has GC program; emit one element.
+-		n := uintptr(*(*uint32)(unsafe.Pointer(typ.GCData)))
+-		prog := typ.GcSlice(4, 4+n-1)
+-		return append(dst, prog...)
+-	}
+-
+-	// Element is small with pointer mask; use as literal bits.
+-	ptrs := typ.PtrBytes / goarch.PtrSize
+-	mask := typ.GcSlice(0, (ptrs+7)/8)
+-
+-	// Emit 120-bit chunks of full bytes (max is 127 but we avoid using partial bytes).
+-	for ; ptrs > 120; ptrs -= 120 {
+-		dst = append(dst, 120)
+-		dst = append(dst, mask[:15]...)
+-		mask = mask[15:]
+-	}
+-
+-	dst = append(dst, byte(ptrs))
+-	dst = append(dst, mask...)
+-	return dst
+-}
+-
+ // SliceOf returns the slice type with element type t.
+ // For example, if t represents int, SliceOf(t) represents []int.
+ func SliceOf(t Type) Type {
+@@ -2226,8 +2193,6 @@ func StructOf(fields []StructField) Type {
+ 		fs   = make([]structField, len(fields))
+ 		repr = make([]byte, 0, 64)
+ 		fset = map[string]struct{}{} // fields' names
+-
+-		hasGCProg = false // records whether a struct-field type has a GCProg
+ 	)
+ 
+ 	lastzero := uintptr(0)
+@@ -2245,9 +2210,6 @@ func StructOf(fields []StructField) Type {
+ 		}
+ 		f, fpkgpath := runtimeStructField(field)
+ 		ft := f.Typ
+-		if ft.Kind_&abi.KindGCProg != 0 {
+-			hasGCProg = true
+-		}
+ 		if fpkgpath != "" {
+ 			if pkgpath == "" {
+ 				pkgpath = fpkgpath
+@@ -2518,51 +2480,19 @@ func StructOf(fields []StructField) Type {
+ 		typ.TFlag |= abi.TFlagUncommon
+ 	}
+ 
+-	if hasGCProg {
+-		lastPtrField := 0
+-		for i, ft := range fs {
+-			if ft.Typ.Pointers() {
+-				lastPtrField = i
+-			}
+-		}
+-		prog := []byte{0, 0, 0, 0} // will be length of prog
+-		var off uintptr
+-		for i, ft := range fs {
+-			if i > lastPtrField {
+-				// gcprog should not include anything for any field after
+-				// the last field that contains pointer data
+-				break
+-			}
+-			if !ft.Typ.Pointers() {
+-				// Ignore pointerless fields.
+-				continue
+-			}
+-			// Pad to start of this field with zeros.
+-			if ft.Offset > off {
+-				n := (ft.Offset - off) / goarch.PtrSize
+-				prog = append(prog, 0x01, 0x00) // emit a 0 bit
+-				if n > 1 {
+-					prog = append(prog, 0x81)      // repeat previous bit
+-					prog = appendVarint(prog, n-1) // n-1 times
+-				}
+-				off = ft.Offset
+-			}
+-
+-			prog = appendGCProg(prog, ft.Typ)
+-			off += ft.Typ.PtrBytes
+-		}
+-		prog = append(prog, 0)
+-		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
+-		typ.Kind_ |= abi.KindGCProg
+-		typ.GCData = &prog[0]
+-	} else {
+-		typ.Kind_ &^= abi.KindGCProg
++	if typ.PtrBytes == 0 {
++		typ.GCData = nil
++	} else if typ.PtrBytes <= abi.MaxPtrmaskBytes*8*goarch.PtrSize {
+ 		bv := new(bitVector)
+ 		addTypeBits(bv, 0, &typ.Type)
+-		if len(bv.data) > 0 {
+-			typ.GCData = &bv.data[0]
+-		}
++		typ.GCData = &bv.data[0]
++	} else {
++		// Runtime will build the mask if needed. We just need to allocate
++		// space to store it.
++		typ.TFlag |= abi.TFlagGCMaskOnDemand
++		typ.GCData = (*byte)(unsafe.Pointer(new(uintptr)))
+ 	}
++
+ 	typ.Equal = nil
+ 	if comparable {
+ 		typ.Equal = func(p, q unsafe.Pointer) bool {
+@@ -2694,6 +2624,8 @@ func ArrayOf(length int, elem Type) Type {
+ 	array.Size_ = typ.Size_ * uintptr(length)
+ 	if length > 0 && typ.Pointers() {
+ 		array.PtrBytes = typ.Size_*uintptr(length-1) + typ.PtrBytes
++	} else {
++		array.PtrBytes = 0
+ 	}
+ 	array.Align_ = typ.Align_
+ 	array.FieldAlign_ = typ.FieldAlign_
+@@ -2701,21 +2633,18 @@ func ArrayOf(length int, elem Type) Type {
+ 	array.Slice = &(SliceOf(elem).(*rtype).t)
+ 
+ 	switch {
+-	case !typ.Pointers() || array.Size_ == 0:
++	case array.PtrBytes == 0:
+ 		// No pointers.
+ 		array.GCData = nil
+-		array.PtrBytes = 0
+ 
+ 	case length == 1:
+ 		// In memory, 1-element array looks just like the element.
+-		array.Kind_ |= typ.Kind_ & abi.KindGCProg
++		// We share the bitmask with the element type.
++		array.TFlag |= typ.TFlag & abi.TFlagGCMaskOnDemand
+ 		array.GCData = typ.GCData
+-		array.PtrBytes = typ.PtrBytes
+ 
+-	case typ.Kind_&abi.KindGCProg == 0 && array.Size_ <= abi.MaxPtrmaskBytes*8*goarch.PtrSize:
+-		// Element is small with pointer mask; array is still small.
+-		// Create direct pointer mask by turning each 1 bit in elem
+-		// into length 1 bits in larger mask.
++	case array.PtrBytes <= abi.MaxPtrmaskBytes*8*goarch.PtrSize:
++		// Create pointer mask by repeating the element bitmask Len times.
+ 		n := (array.PtrBytes/goarch.PtrSize + 7) / 8
+ 		// Runtime needs pointer masks to be a multiple of uintptr in size.
+ 		n = (n + goarch.PtrSize - 1) &^ (goarch.PtrSize - 1)
+@@ -2724,34 +2653,10 @@ func ArrayOf(length int, elem Type) Type {
+ 		array.GCData = &mask[0]
+ 
+ 	default:
+-		// Create program that emits one element
+-		// and then repeats to make the array.
+-		prog := []byte{0, 0, 0, 0} // will be length of prog
+-		prog = appendGCProg(prog, typ)
+-		// Pad from ptrdata to size.
+-		elemPtrs := typ.PtrBytes / goarch.PtrSize
+-		elemWords := typ.Size_ / goarch.PtrSize
+-		if elemPtrs < elemWords {
+-			// Emit literal 0 bit, then repeat as needed.
+-			prog = append(prog, 0x01, 0x00)
+-			if elemPtrs+1 < elemWords {
+-				prog = append(prog, 0x81)
+-				prog = appendVarint(prog, elemWords-elemPtrs-1)
+-			}
+-		}
+-		// Repeat length-1 times.
+-		if elemWords < 0x80 {
+-			prog = append(prog, byte(elemWords|0x80))
+-		} else {
+-			prog = append(prog, 0x80)
+-			prog = appendVarint(prog, elemWords)
+-		}
+-		prog = appendVarint(prog, uintptr(length)-1)
+-		prog = append(prog, 0)
+-		*(*uint32)(unsafe.Pointer(&prog[0])) = uint32(len(prog) - 4)
+-		array.Kind_ |= abi.KindGCProg
+-		array.GCData = &prog[0]
+-		array.PtrBytes = array.Size_ // overestimate but ok; must match program
++		// Runtime will build the mask if needed. We just need to allocate
++		// space to store it.
++		array.TFlag |= abi.TFlagGCMaskOnDemand
++		array.GCData = (*byte)(unsafe.Pointer(new(uintptr)))
+ 	}
+ 
+ 	etyp := typ
+diff --git a/src/runtime/arena.go b/src/runtime/arena.go
+index ab876dd21f..0ffc74e872 100644
+--- a/src/runtime/arena.go
++++ b/src/runtime/arena.go
+@@ -554,13 +554,7 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
+ 	base := s.base()
+ 	h := s.writeUserArenaHeapBits(uintptr(ptr))
+ 
+-	p := typ.GCData // start of 1-bit pointer mask (or GC program)
+-	var gcProgBits uintptr
+-	if typ.Kind_&abi.KindGCProg != 0 {
+-		// Expand gc program, using the object itself for storage.
+-		gcProgBits = runGCProg(addb(p, 4), (*byte)(ptr))
+-		p = (*byte)(ptr)
+-	}
++	p := getGCMask(typ) // start of 1-bit pointer mask
+ 	nb := typ.PtrBytes / goarch.PtrSize
+ 
+ 	for i := uintptr(0); i < nb; i += ptrBits {
+@@ -585,11 +579,6 @@ func userArenaHeapBitsSetType(typ *_type, ptr unsafe.Pointer, s *mspan) {
+ 	h = h.pad(s, typ.Size_-typ.PtrBytes)
+ 	h.flush(s, uintptr(ptr), typ.Size_)
+ 
+-	if typ.Kind_&abi.KindGCProg != 0 {
+-		// Zero out temporary ptrmask buffer inside object.
+-		memclrNoHeapPointers(ptr, (gcProgBits+7)/8)
+-	}
+-
+ 	// Update the PtrBytes value in the type information. After this
+ 	// point, the GC will observe the new bitmap.
+ 	s.largeType.PtrBytes = uintptr(ptr) - base + typ.PtrBytes
+diff --git a/src/runtime/bitcursor_test.go b/src/runtime/bitcursor_test.go
+new file mode 100644
+index 0000000000..3a4c7d0fc3
+--- /dev/null
++++ b/src/runtime/bitcursor_test.go
+@@ -0,0 +1,49 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package runtime_test
++
++import (
++	. "runtime"
++	"testing"
++)
++
++func TestBitCursor(t *testing.T) {
++	ones := [5]byte{0xff, 0xff, 0xff, 0xff, 0xff}
++	zeros := [5]byte{0, 0, 0, 0, 0}
++
++	for start := uintptr(0); start < 16; start++ {
++		for end := start + 1; end < 32; end++ {
++			buf := zeros
++			NewBitCursor(&buf[0]).Offset(start).Write(&ones[0], end-start)
++
++			for i := uintptr(0); i < uintptr(len(buf)*8); i++ {
++				bit := buf[i/8] >> (i % 8) & 1
++				if bit == 0 && i >= start && i < end {
++					t.Errorf("bit %d not set in [%d:%d]", i, start, end)
++				}
++				if bit == 1 && (i < start || i >= end) {
++					t.Errorf("bit %d is set outside [%d:%d]", i, start, end)
++				}
++			}
++		}
++	}
++
++	for start := uintptr(0); start < 16; start++ {
++		for end := start + 1; end < 32; end++ {
++			buf := ones
++			NewBitCursor(&buf[0]).Offset(start).Write(&zeros[0], end-start)
++
++			for i := uintptr(0); i < uintptr(len(buf)*8); i++ {
++				bit := buf[i/8] >> (i % 8) & 1
++				if bit == 1 && i >= start && i < end {
++					t.Errorf("bit %d not cleared in [%d:%d]", i, start, end)
++				}
++				if bit == 0 && (i < start || i >= end) {
++					t.Errorf("bit %d cleared outside [%d:%d]", i, start, end)
++				}
++			}
++		}
++	}
++}
+diff --git a/src/runtime/cgocheck.go b/src/runtime/cgocheck.go
+index 3f2c271953..ab804a5a36 100644
+--- a/src/runtime/cgocheck.go
++++ b/src/runtime/cgocheck.go
+@@ -8,7 +8,6 @@
+ package runtime
+ 
+ import (
+-	"internal/abi"
+ 	"internal/goarch"
+ 	"unsafe"
+ )
+@@ -142,52 +141,7 @@ func cgoCheckTypedBlock(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 		size = ptrdataSize
+ 	}
+ 
+-	if typ.Kind_&abi.KindGCProg == 0 {
+-		cgoCheckBits(src, typ.GCData, off, size)
+-		return
+-	}
+-
+-	// The type has a GC program. Try to find GC bits somewhere else.
+-	for _, datap := range activeModules() {
+-		if cgoInRange(src, datap.data, datap.edata) {
+-			doff := uintptr(src) - datap.data
+-			cgoCheckBits(add(src, -doff), datap.gcdatamask.bytedata, off+doff, size)
+-			return
+-		}
+-		if cgoInRange(src, datap.bss, datap.ebss) {
+-			boff := uintptr(src) - datap.bss
+-			cgoCheckBits(add(src, -boff), datap.gcbssmask.bytedata, off+boff, size)
+-			return
+-		}
+-	}
+-
+-	s := spanOfUnchecked(uintptr(src))
+-	if s.state.get() == mSpanManual {
+-		// There are no heap bits for value stored on the stack.
+-		// For a channel receive src might be on the stack of some
+-		// other goroutine, so we can't unwind the stack even if
+-		// we wanted to.
+-		// We can't expand the GC program without extra storage
+-		// space we can't easily get.
+-		// Fortunately we have the type information.
+-		systemstack(func() {
+-			cgoCheckUsingType(typ, src, off, size)
+-		})
+-		return
+-	}
+-
+-	// src must be in the regular heap.
+-	tp := s.typePointersOf(uintptr(src), size)
+-	for {
+-		var addr uintptr
+-		if tp, addr = tp.next(uintptr(src) + size); addr == 0 {
+-			break
+-		}
+-		v := *(*unsafe.Pointer)(unsafe.Pointer(addr))
+-		if cgoIsGoPointer(v) && !isPinned(v) {
+-			throw(cgoWriteBarrierFail)
+-		}
+-	}
++	cgoCheckBits(src, getGCMask(typ), off, size)
+ }
+ 
+ // cgoCheckBits checks the block of memory at src, for up to size
+@@ -245,48 +199,5 @@ func cgoCheckUsingType(typ *_type, src unsafe.Pointer, off, size uintptr) {
+ 		size = ptrdataSize
+ 	}
+ 
+-	if typ.Kind_&abi.KindGCProg == 0 {
+-		cgoCheckBits(src, typ.GCData, off, size)
+-		return
+-	}
+-	switch typ.Kind_ & abi.KindMask {
+-	default:
+-		throw("can't happen")
+-	case abi.Array:
+-		at := (*arraytype)(unsafe.Pointer(typ))
+-		for i := uintptr(0); i < at.Len; i++ {
+-			if off < at.Elem.Size_ {
+-				cgoCheckUsingType(at.Elem, src, off, size)
+-			}
+-			src = add(src, at.Elem.Size_)
+-			skipped := off
+-			if skipped > at.Elem.Size_ {
+-				skipped = at.Elem.Size_
+-			}
+-			checked := at.Elem.Size_ - skipped
+-			off -= skipped
+-			if size <= checked {
+-				return
+-			}
+-			size -= checked
+-		}
+-	case abi.Struct:
+-		st := (*structtype)(unsafe.Pointer(typ))
+-		for _, f := range st.Fields {
+-			if off < f.Typ.Size_ {
+-				cgoCheckUsingType(f.Typ, src, off, size)
+-			}
+-			src = add(src, f.Typ.Size_)
+-			skipped := off
+-			if skipped > f.Typ.Size_ {
+-				skipped = f.Typ.Size_
+-			}
+-			checked := f.Typ.Size_ - skipped
+-			off -= skipped
+-			if size <= checked {
+-				return
+-			}
+-			size -= checked
+-		}
+-	}
++	cgoCheckBits(src, getGCMask(typ), off, size)
+ }
+diff --git a/src/runtime/export_test.go b/src/runtime/export_test.go
+index f19002ceff..5153ae5f36 100644
+--- a/src/runtime/export_test.go
++++ b/src/runtime/export_test.go
+@@ -94,9 +94,9 @@ func Netpoll(delta int64) {
+ 	})
+ }
+ 
+-func GCMask(x any) (ret []byte) {
++func PointerMask(x any) (ret []byte) {
+ 	systemstack(func() {
+-		ret = getgcmask(x)
++		ret = pointerMask(x)
+ 	})
+ 	return
+ }
+@@ -1864,3 +1864,18 @@ func GCMarkDoneResetRestartFlag() {
+ 	gcDebugMarkDone.restartedDueTo27993 = false
+ 	releasem(mp)
+ }
++
++type BitCursor struct {
++	b bitCursor
++}
++
++func NewBitCursor(buf *byte) BitCursor {
++	return BitCursor{b: bitCursor{ptr: buf, n: 0}}
++}
++
++func (b BitCursor) Write(data *byte, cnt uintptr) {
++	b.b.write(data, cnt)
++}
++func (b BitCursor) Offset(cnt uintptr) BitCursor {
++	return BitCursor{b: b.b.offset(cnt)}
++}
+diff --git a/src/runtime/gcinfo_test.go b/src/runtime/gcinfo_test.go
+index 5f72caf0ec..02457f682e 100644
+--- a/src/runtime/gcinfo_test.go
++++ b/src/runtime/gcinfo_test.go
+@@ -90,7 +90,7 @@ func TestGCInfo(t *testing.T) {
+ }
+ 
+ func verifyGCInfo(t *testing.T, name string, p any, mask0 []byte) {
+-	mask := runtime.GCMask(p)
++	mask := runtime.PointerMask(p)
+ 	if bytes.HasPrefix(mask, mask0) {
+ 		// Just the prefix matching is OK.
+ 		//
+diff --git a/src/runtime/malloc.go b/src/runtime/malloc.go
+index e23d8224d1..73d663f7f5 100644
+--- a/src/runtime/malloc.go
++++ b/src/runtime/malloc.go
+@@ -1900,6 +1900,10 @@ var persistentChunks *notInHeap
+ //
+ // Consider marking persistentalloc'd types not in heap by embedding
+ // internal/runtime/sys.NotInHeap.
++//
++// nosplit because it is used during write barriers and must not be preempted.
++//
++//go:nosplit
+ func persistentalloc(size, align uintptr, sysStat *sysMemStat) unsafe.Pointer {
+ 	var p *notInHeap
+ 	systemstack(func() {
+diff --git a/src/runtime/mbitmap.go b/src/runtime/mbitmap.go
+index ed5b3e977c..148b2d788e 100644
+--- a/src/runtime/mbitmap.go
++++ b/src/runtime/mbitmap.go
+@@ -197,15 +197,14 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
+ 			return typePointers{}
+ 		}
+ 	}
+-	gcdata := typ.GCData
+-	return typePointers{elem: addr, addr: addr, mask: readUintptr(gcdata), typ: typ}
++	gcmask := getGCMask(typ)
++	return typePointers{elem: addr, addr: addr, mask: readUintptr(gcmask), typ: typ}
+ }
+ 
+ // typePointersOfType is like typePointersOf, but assumes addr points to one or more
+-// contiguous instances of the provided type. The provided type must not be nil and
+-// it must not have its type metadata encoded as a gcprog.
++// contiguous instances of the provided type. The provided type must not be nil.
+ //
+-// It returns an iterator that tiles typ.GCData starting from addr. It's the caller's
++// It returns an iterator that tiles typ's gcmask starting from addr. It's the caller's
+ // responsibility to limit iteration.
+ //
+ // nosplit because its callers are nosplit and require all their callees to be nosplit.
+@@ -213,15 +212,15 @@ func (span *mspan) typePointersOfUnchecked(addr uintptr) typePointers {
+ //go:nosplit
+ func (span *mspan) typePointersOfType(typ *abi.Type, addr uintptr) typePointers {
+ 	const doubleCheck = false
+-	if doubleCheck && (typ == nil || typ.Kind_&abi.KindGCProg != 0) {
++	if doubleCheck && typ == nil {
+ 		throw("bad type passed to typePointersOfType")
+ 	}
+ 	if span.spanclass.noscan() {
+ 		return typePointers{}
+ 	}
+ 	// Since we have the type, pretend we have a header.
+-	gcdata := typ.GCData
+-	return typePointers{elem: addr, addr: addr, mask: readUintptr(gcdata), typ: typ}
++	gcmask := getGCMask(typ)
++	return typePointers{elem: addr, addr: addr, mask: readUintptr(gcmask), typ: typ}
+ }
+ 
+ // nextFast is the fast path of next. nextFast is written to be inlineable and,
+@@ -295,7 +294,7 @@ func (tp typePointers) next(limit uintptr) (typePointers, uintptr) {
+ 		}
+ 
+ 		// Grab more bits and try again.
+-		tp.mask = readUintptr(addb(tp.typ.GCData, (tp.addr-tp.elem)/goarch.PtrSize/8))
++		tp.mask = readUintptr(addb(getGCMask(tp.typ), (tp.addr-tp.elem)/goarch.PtrSize/8))
+ 		if tp.addr+goarch.PtrSize*ptrBits > limit {
+ 			bits := (tp.addr + goarch.PtrSize*ptrBits - limit) / goarch.PtrSize
+ 			tp.mask &^= ((1 << (bits)) - 1) << (ptrBits - bits)
+@@ -345,7 +344,7 @@ func (tp typePointers) fastForward(n, limit uintptr) typePointers {
+ 		// Move up to the next element.
+ 		tp.elem += tp.typ.Size_
+ 		tp.addr = tp.elem
+-		tp.mask = readUintptr(tp.typ.GCData)
++		tp.mask = readUintptr(getGCMask(tp.typ))
+ 
+ 		// We may have exceeded the limit after this. Bail just like next does.
+ 		if tp.addr >= limit {
+@@ -354,7 +353,7 @@ func (tp typePointers) fastForward(n, limit uintptr) typePointers {
+ 	} else {
+ 		// Grab the mask, but then clear any bits before the target address and any
+ 		// bits over the limit.
+-		tp.mask = readUintptr(addb(tp.typ.GCData, (tp.addr-tp.elem)/goarch.PtrSize/8))
++		tp.mask = readUintptr(addb(getGCMask(tp.typ), (tp.addr-tp.elem)/goarch.PtrSize/8))
+ 		tp.mask &^= (1 << ((target - tp.addr) / goarch.PtrSize)) - 1
+ 	}
+ 	if tp.addr+goarch.PtrSize*ptrBits > limit {
+@@ -457,7 +456,7 @@ func bulkBarrierPreWrite(dst, src, size uintptr, typ *abi.Type) {
+ 	}
+ 
+ 	var tp typePointers
+-	if typ != nil && typ.Kind_&abi.KindGCProg == 0 {
++	if typ != nil {
+ 		tp = s.typePointersOfType(typ, dst)
+ 	} else {
+ 		tp = s.typePointersOf(dst, size)
+@@ -518,7 +517,7 @@ func bulkBarrierPreWriteSrcOnly(dst, src, size uintptr, typ *abi.Type) {
+ 	}
+ 
+ 	var tp typePointers
+-	if typ != nil && typ.Kind_&abi.KindGCProg == 0 {
++	if typ != nil {
+ 		tp = s.typePointersOfType(typ, dst)
+ 	} else {
+ 		tp = s.typePointersOf(dst, size)
+@@ -641,7 +640,7 @@ func (span *mspan) heapBitsSmallForAddr(addr uintptr) uintptr {
+ //go:nosplit
+ func (span *mspan) writeHeapBitsSmall(x, dataSize uintptr, typ *_type) (scanSize uintptr) {
+ 	// The objects here are always really small, so a single load is sufficient.
+-	src0 := readUintptr(typ.GCData)
++	src0 := readUintptr(getGCMask(typ))
+ 
+ 	// Create repetitions of the bitmap if we have a small slice backing store.
+ 	scanSize = typ.PtrBytes
+@@ -740,35 +739,6 @@ func heapSetTypeSmallHeader(x, dataSize uintptr, typ *_type, header **_type, spa
+ 
+ func heapSetTypeLarge(x, dataSize uintptr, typ *_type, span *mspan) uintptr {
+ 	gctyp := typ
+-	if typ.Kind_&abi.KindGCProg != 0 {
+-		// Allocate space to unroll the gcprog. This space will consist of
+-		// a dummy _type value and the unrolled gcprog. The dummy _type will
+-		// refer to the bitmap, and the mspan will refer to the dummy _type.
+-		if span.spanclass.sizeclass() != 0 {
+-			throw("GCProg for type that isn't large")
+-		}
+-		spaceNeeded := alignUp(unsafe.Sizeof(_type{}), goarch.PtrSize)
+-		heapBitsOff := spaceNeeded
+-		spaceNeeded += alignUp(typ.PtrBytes/goarch.PtrSize/8, goarch.PtrSize)
+-		npages := alignUp(spaceNeeded, pageSize) / pageSize
+-		var progSpan *mspan
+-		systemstack(func() {
+-			progSpan = mheap_.allocManual(npages, spanAllocPtrScalarBits)
+-			memclrNoHeapPointers(unsafe.Pointer(progSpan.base()), progSpan.npages*pageSize)
+-		})
+-		// Write a dummy _type in the new space.
+-		//
+-		// We only need to write size, PtrBytes, and GCData, since that's all
+-		// the GC cares about.
+-		gctyp = (*_type)(unsafe.Pointer(progSpan.base()))
+-		gctyp.Size_ = typ.Size_
+-		gctyp.PtrBytes = typ.PtrBytes
+-		gctyp.GCData = (*byte)(add(unsafe.Pointer(progSpan.base()), heapBitsOff))
+-		gctyp.TFlag = abi.TFlagUnrolledBitmap
+-
+-		// Expand the GC program into space reserved at the end of the new span.
+-		runGCProg(addb(typ.GCData, 4), gctyp.GCData)
+-	}
+ 	// Write out the header.
+ 	span.largeType = gctyp
+ 	if doubleCheckHeapSetType {
+@@ -821,7 +791,7 @@ func doubleCheckHeapPointers(x, dataSize uintptr, typ *_type, header **_type, sp
+ 			off := i % typ.Size_
+ 			if off < typ.PtrBytes {
+ 				j := off / goarch.PtrSize
+-				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
++				want = *addb(getGCMask(typ), j/8)>>(j%8)&1 != 0
+ 			}
+ 		}
+ 		if want {
+@@ -844,7 +814,7 @@ func doubleCheckHeapPointers(x, dataSize uintptr, typ *_type, header **_type, sp
+ 		}
+ 		println("runtime: extra pointer:", hex(addr))
+ 	}
+-	print("runtime: hasHeader=", header != nil, " typ.Size_=", typ.Size_, " hasGCProg=", typ.Kind_&abi.KindGCProg != 0, "\n")
++	print("runtime: hasHeader=", header != nil, " typ.Size_=", typ.Size_, " TFlagGCMaskOnDemaind=", typ.TFlag&abi.TFlagGCMaskOnDemand != 0, "\n")
+ 	print("runtime: x=", hex(x), " dataSize=", dataSize, " elemsize=", span.elemsize, "\n")
+ 	print("runtime: typ=", unsafe.Pointer(typ), " typ.PtrBytes=", typ.PtrBytes, "\n")
+ 	print("runtime: limit=", hex(x+span.elemsize), "\n")
+@@ -878,7 +848,7 @@ func doubleCheckHeapPointersInterior(x, interior, size, dataSize uintptr, typ *_
+ 			off := i % typ.Size_
+ 			if off < typ.PtrBytes {
+ 				j := off / goarch.PtrSize
+-				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
++				want = *addb(getGCMask(typ), j/8)>>(j%8)&1 != 0
+ 			}
+ 		}
+ 		if want {
+@@ -926,7 +896,7 @@ func doubleCheckHeapPointersInterior(x, interior, size, dataSize uintptr, typ *_
+ 			off := i % typ.Size_
+ 			if off < typ.PtrBytes {
+ 				j := off / goarch.PtrSize
+-				want = *addb(typ.GCData, j/8)>>(j%8)&1 != 0
++				want = *addb(getGCMask(typ), j/8)>>(j%8)&1 != 0
+ 			}
+ 		}
+ 		if want {
+@@ -942,7 +912,7 @@ func doubleCheckHeapPointersInterior(x, interior, size, dataSize uintptr, typ *_
+ 
+ //go:nosplit
+ func doubleCheckTypePointersOfType(s *mspan, typ *_type, addr, size uintptr) {
+-	if typ == nil || typ.Kind_&abi.KindGCProg != 0 {
++	if typ == nil {
+ 		return
+ 	}
+ 	if typ.Kind_&abi.KindMask == abi.Interface {
+@@ -1392,9 +1362,6 @@ func bulkBarrierBitmap(dst, src, size, maskOffset uintptr, bits *uint8) {
+ //
+ // The type typ must correspond exactly to [src, src+size) and [dst, dst+size).
+ // dst, src, and size must be pointer-aligned.
+-// The type typ must have a plain bitmap, not a GC program.
+-// The only use of this function is in channel sends, and the
+-// 64 kB channel element limit takes care of this for us.
+ //
+ // Must not be preempted because it typically runs right before memmove,
+ // and the GC must observe them as an atomic action.
+@@ -1410,14 +1377,10 @@ func typeBitsBulkBarrier(typ *_type, dst, src, size uintptr) {
+ 		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " of size ", typ.Size_, " but memory size", size)
+ 		throw("runtime: invalid typeBitsBulkBarrier")
+ 	}
+-	if typ.Kind_&abi.KindGCProg != 0 {
+-		println("runtime: typeBitsBulkBarrier with type ", toRType(typ).string(), " with GC prog")
+-		throw("runtime: invalid typeBitsBulkBarrier")
+-	}
+ 	if !writeBarrier.enabled {
+ 		return
+ 	}
+-	ptrmask := typ.GCData
++	ptrmask := getGCMask(typ)
+ 	buf := &getg().m.p.ptr().wbBuf
+ 	var bits uint32
+ 	for i := uintptr(0); i < typ.PtrBytes; i += goarch.PtrSize {
+@@ -1502,6 +1465,9 @@ func progToPointerMask(prog *byte, size uintptr) bitvector {
+ //	0nnnnnnn: emit n bits copied from the next (n+7)/8 bytes
+ //	10000000 n c: repeat the previous n bits c times; n, c are varints
+ //	1nnnnnnn c: repeat the previous n bits c times; c is a varint
++//
++// Currently, gc programs are only used for describing data and bss
++// sections of the binary.
+ 
+ // runGCProg returns the number of 1-bit entries written to memory.
+ func runGCProg(prog, dst *byte) uintptr {
+@@ -1698,24 +1664,6 @@ Run:
+ 	return totalBits
+ }
+ 
+-// materializeGCProg allocates space for the (1-bit) pointer bitmask
+-// for an object of size ptrdata.  Then it fills that space with the
+-// pointer bitmask specified by the program prog.
+-// The bitmask starts at s.startAddr.
+-// The result must be deallocated with dematerializeGCProg.
+-func materializeGCProg(ptrdata uintptr, prog *byte) *mspan {
+-	// Each word of ptrdata needs one bit in the bitmap.
+-	bitmapBytes := divRoundUp(ptrdata, 8*goarch.PtrSize)
+-	// Compute the number of pages needed for bitmapBytes.
+-	pages := divRoundUp(bitmapBytes, pageSize)
+-	s := mheap_.allocManual(pages, spanAllocPtrScalarBits)
+-	runGCProg(addb(prog, 4), (*byte)(unsafe.Pointer(s.startAddr)))
+-	return s
+-}
+-func dematerializeGCProg(s *mspan) {
+-	mheap_.freeManual(s, spanAllocPtrScalarBits)
+-}
+-
+ func dumpGCProg(p *byte) {
+ 	nptr := 0
+ 	for {
+@@ -1768,13 +1716,13 @@ func dumpGCProg(p *byte) {
+ //
+ //go:linkname reflect_gcbits reflect.gcbits
+ func reflect_gcbits(x any) []byte {
+-	return getgcmask(x)
++	return pointerMask(x)
+ }
+ 
+ // Returns GC type info for the pointer stored in ep for testing.
+ // If ep points to the stack, only static live information will be returned
+ // (i.e. not for objects which are only dynamically live stack objects).
+-func getgcmask(ep any) (mask []byte) {
++func pointerMask(ep any) (mask []byte) {
+ 	e := *efaceOf(&ep)
+ 	p := e.data
+ 	t := e._type
+@@ -1850,50 +1798,48 @@ func getgcmask(ep any) (mask []byte) {
+ 			maskFromHeap = maskFromHeap[:len(maskFromHeap)-1]
+ 		}
+ 
+-		if et.Kind_&abi.KindGCProg == 0 {
+-			// Unroll again, but this time from the type information.
+-			maskFromType := make([]byte, (limit-base)/goarch.PtrSize)
+-			tp = s.typePointersOfType(et, base)
+-			for {
+-				var addr uintptr
+-				if tp, addr = tp.next(limit); addr == 0 {
+-					break
+-				}
+-				maskFromType[(addr-base)/goarch.PtrSize] = 1
++		// Unroll again, but this time from the type information.
++		maskFromType := make([]byte, (limit-base)/goarch.PtrSize)
++		tp = s.typePointersOfType(et, base)
++		for {
++			var addr uintptr
++			if tp, addr = tp.next(limit); addr == 0 {
++				break
+ 			}
++			maskFromType[(addr-base)/goarch.PtrSize] = 1
++		}
+ 
+-			// Validate that the prefix of maskFromType is equal to
+-			// maskFromHeap. maskFromType may contain more pointers than
+-			// maskFromHeap produces because maskFromHeap may be able to
+-			// get exact type information for certain classes of objects.
+-			// With maskFromType, we're always just tiling the type bitmap
+-			// through to the elemsize.
+-			//
+-			// It's OK if maskFromType has pointers in elemsize that extend
+-			// past the actual populated space; we checked above that all
+-			// that space is zeroed, so just the GC will just see nil pointers.
+-			differs := false
+-			for i := range maskFromHeap {
+-				if maskFromHeap[i] != maskFromType[i] {
+-					differs = true
+-					break
+-				}
++		// Validate that the prefix of maskFromType is equal to
++		// maskFromHeap. maskFromType may contain more pointers than
++		// maskFromHeap produces because maskFromHeap may be able to
++		// get exact type information for certain classes of objects.
++		// With maskFromType, we're always just tiling the type bitmap
++		// through to the elemsize.
++		//
++		// It's OK if maskFromType has pointers in elemsize that extend
++		// past the actual populated space; we checked above that all
++		// that space is zeroed, so just the GC will just see nil pointers.
++		differs := false
++		for i := range maskFromHeap {
++			if maskFromHeap[i] != maskFromType[i] {
++				differs = true
++				break
+ 			}
++		}
+ 
+-			if differs {
+-				print("runtime: heap mask=")
+-				for _, b := range maskFromHeap {
+-					print(b)
+-				}
+-				println()
+-				print("runtime: type mask=")
+-				for _, b := range maskFromType {
+-					print(b)
+-				}
+-				println()
+-				print("runtime: type=", toRType(et).string(), "\n")
+-				throw("found two different masks from two different methods")
++		if differs {
++			print("runtime: heap mask=")
++			for _, b := range maskFromHeap {
++				print(b)
++			}
++			println()
++			print("runtime: type mask=")
++			for _, b := range maskFromType {
++				print(b)
+ 			}
++			println()
++			print("runtime: type=", toRType(et).string(), "\n")
++			throw("found two different masks from two different methods")
+ 		}
+ 
+ 		// Select the heap mask to return. We may not have a type mask.
+diff --git a/src/runtime/mgcsweep.go b/src/runtime/mgcsweep.go
+index 83064e8eea..eb6d985ce0 100644
+--- a/src/runtime/mgcsweep.go
++++ b/src/runtime/mgcsweep.go
+@@ -25,7 +25,6 @@
+ package runtime
+ 
+ import (
+-	"internal/abi"
+ 	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+@@ -818,18 +817,6 @@ func (sl *sweepLocked) sweep(preserve bool) bool {
+ 			} else {
+ 				mheap_.freeSpan(s)
+ 			}
+-			if s.largeType != nil && s.largeType.TFlag&abi.TFlagUnrolledBitmap != 0 {
+-				// The unrolled GCProg bitmap is allocated separately.
+-				// Free the space for the unrolled bitmap.
+-				systemstack(func() {
+-					s := spanOf(uintptr(unsafe.Pointer(s.largeType)))
+-					mheap_.freeManual(s, spanAllocPtrScalarBits)
+-				})
+-				// Make sure to zero this pointer without putting the old
+-				// value in a write buffer, as the old value might be an
+-				// invalid pointer. See arena.go:(*mheap).allocUserArenaChunk.
+-				*(*uintptr)(unsafe.Pointer(&s.largeType)) = 0
+-			}
+ 			return true
+ 		}
+ 
+diff --git a/src/runtime/race/testdata/map_test.go b/src/runtime/race/testdata/map_test.go
+index 88e735ecd3..83f59b751e 100644
+--- a/src/runtime/race/testdata/map_test.go
++++ b/src/runtime/race/testdata/map_test.go
+@@ -242,7 +242,7 @@ func TestRaceMapAssignMultipleReturn(t *testing.T) {
+ }
+ 
+ // BigKey and BigVal must be larger than 256 bytes,
+-// so that compiler sets KindGCProg for them.
++// so that compiler stores them indirectly.
+ type BigKey [1000]*int
+ 
+ type BigVal struct {
+diff --git a/src/runtime/stkframe.go b/src/runtime/stkframe.go
+index b09320fa74..819b7f6c7d 100644
+--- a/src/runtime/stkframe.go
++++ b/src/runtime/stkframe.go
+@@ -264,9 +264,6 @@ var methodValueCallFrameObjs [1]stackObjectRecord // initialized in stackobjecti
+ func stkobjinit() {
+ 	var abiRegArgsEface any = abi.RegArgs{}
+ 	abiRegArgsType := efaceOf(&abiRegArgsEface)._type
+-	if abiRegArgsType.Kind_&abi.KindGCProg != 0 {
+-		throw("abiRegArgsType needs GC Prog, update methodValueCallFrameObjs")
+-	}
+ 	// Set methodValueCallFrameObjs[0].gcdataoff so that
+ 	// stackObjectRecord.gcdata() will work correctly with it.
+ 	ptr := uintptr(unsafe.Pointer(&methodValueCallFrameObjs[0]))
+@@ -284,6 +281,6 @@ func stkobjinit() {
+ 		off:       -int32(alignUp(abiRegArgsType.Size_, 8)), // It's always the highest address local.
+ 		size:      int32(abiRegArgsType.Size_),
+ 		ptrBytes:  int32(abiRegArgsType.PtrBytes),
+-		gcdataoff: uint32(uintptr(unsafe.Pointer(abiRegArgsType.GCData)) - mod.rodata),
++		gcdataoff: uint32(uintptr(unsafe.Pointer(getGCMask(abiRegArgsType))) - mod.rodata),
+ 	}
+ }
+diff --git a/src/runtime/stubs.go b/src/runtime/stubs.go
+index 2a2b484a1b..55153a2038 100644
+--- a/src/runtime/stubs.go
++++ b/src/runtime/stubs.go
+@@ -371,6 +371,8 @@ func alignDown(n, a uintptr) uintptr {
+ }
+ 
+ // divRoundUp returns ceil(n / a).
++//
++//go:nosplit
+ func divRoundUp(n, a uintptr) uintptr {
+ 	// a is generally a power of two. This will get inlined and
+ 	// the compiler will optimize the division.
+diff --git a/src/runtime/type.go b/src/runtime/type.go
+index dbca2d9dfa..9702164b1a 100644
+--- a/src/runtime/type.go
++++ b/src/runtime/type.go
+@@ -8,7 +8,9 @@ package runtime
+ 
+ import (
+ 	"internal/abi"
++	"internal/goarch"
+ 	"internal/goexperiment"
++	"internal/runtime/atomic"
+ 	"unsafe"
+ )
+ 
+@@ -73,6 +75,180 @@ func (t rtype) pkgpath() string {
+ 	return ""
+ }
+ 
++// getGCMask returns the pointer/nonpointer bitmask for type t.
++//
++// nosplit because it is used during write barriers and must not be preempted.
++//
++//go:nosplit
++func getGCMask(t *_type) *byte {
++	if t.TFlag&abi.TFlagGCMaskOnDemand != 0 {
++		// Split the rest into getGCMaskOnDemand so getGCMask itself is inlineable.
++		return getGCMaskOnDemand(t)
++	}
++	return t.GCData
++}
++
++// inProgress is a byte whose address is a sentinel indicating that
++// some thread is currently building the GC bitmask for a type.
++var inProgress byte
++
++// nosplit because it is used during write barriers and must not be preempted.
++//
++//go:nosplit
++func getGCMaskOnDemand(t *_type) *byte {
++	// For large types, GCData doesn't point directly to a bitmask.
++	// Instead it points to a pointer to a bitmask, and the runtime
++	// is responsible for (on first use) creating the bitmask and
++	// storing a pointer to it in that slot.
++	// TODO: we could use &t.GCData as the slot, but types are
++	// in read-only memory currently.
++	addr := unsafe.Pointer(t.GCData)
++
++	for {
++		p := (*byte)(atomic.Loadp(addr))
++		switch p {
++		default: // Already built.
++			return p
++		case &inProgress: // Someone else is currently building it.
++			// Just wait until the builder is done.
++			// We can't block here, so spinning while having
++			// the OS thread yield is about the best we can do.
++			osyield()
++			continue
++		case nil: // Not built yet.
++			// Attempt to get exclusive access to build it.
++			if !atomic.Casp1((*unsafe.Pointer)(addr), nil, unsafe.Pointer(&inProgress)) {
++				continue
++			}
++
++			// Build gcmask for this type.
++			bytes := goarch.PtrSize * divRoundUp(t.PtrBytes/goarch.PtrSize, 8*goarch.PtrSize)
++			p = (*byte)(persistentalloc(bytes, goarch.PtrSize, &memstats.other_sys))
++			systemstack(func() {
++				buildGCMask(t, bitCursor{ptr: p, n: 0})
++			})
++
++			// Store the newly-built gcmask for future callers.
++			atomic.StorepNoWB(addr, unsafe.Pointer(p))
++			return p
++		}
++	}
++}
++
++// A bitCursor is a simple cursor to memory to which we
++// can write a set of bits.
++type bitCursor struct {
++	ptr *byte   // base of region
++	n   uintptr // cursor points to bit n of region
++}
++
++// Write to b cnt bits starting at bit 0 of data.
++// Requires cnt>0.
++func (b bitCursor) write(data *byte, cnt uintptr) {
++	// Starting byte for writing.
++	p := addb(b.ptr, b.n/8)
++
++	// Note: if we're starting halfway through a byte, we load the
++	// existing lower bits so we don't clobber them.
++	n := b.n % 8                    // # of valid bits in buf
++	buf := uintptr(*p) & (1<<n - 1) // buffered bits to start
++
++	// Work 8 bits at a time.
++	for cnt > 8 {
++		// Read 8 more bits, now buf has 8-15 valid bits in it.
++		buf |= uintptr(*data) << n
++		n += 8
++		data = addb(data, 1)
++		cnt -= 8
++		// Write 8 of the buffered bits out.
++		*p = byte(buf)
++		buf >>= 8
++		n -= 8
++		p = addb(p, 1)
++	}
++	// Read remaining bits.
++	buf |= (uintptr(*data) & (1<<cnt - 1)) << n
++	n += cnt
++
++	// Flush remaining bits.
++	if n > 8 {
++		*p = byte(buf)
++		buf >>= 8
++		n -= 8
++		p = addb(p, 1)
++	}
++	*p &^= 1<<n - 1
++	*p |= byte(buf)
++}
++
++func (b bitCursor) offset(cnt uintptr) bitCursor {
++	return bitCursor{ptr: b.ptr, n: b.n + cnt}
++}
++
++// buildGCMask writes the ptr/nonptr bitmap for t to dst.
++// t must have a pointer.
++func buildGCMask(t *_type, dst bitCursor) {
++	// Note: we want to avoid a situation where buildGCMask gets into a
++	// very deep recursion, because M stacks are fixed size and pretty small
++	// (16KB). We do that by ensuring that any recursive
++	// call operates on a type at most half the size of its parent.
++	// Thus, the recursive chain can be at most 64 calls deep (on a
++	// 64-bit machine).
++	// Recursion is avoided by using a "tail call" (jumping to the
++	// "top" label) for any recursive call with a large subtype.
++top:
++	if t.PtrBytes == 0 {
++		throw("pointerless type")
++	}
++	if t.TFlag&abi.TFlagGCMaskOnDemand == 0 {
++		// copy t.GCData to dst
++		dst.write(t.GCData, t.PtrBytes/goarch.PtrSize)
++		return
++	}
++	// The above case should handle all kinds except
++	// possibly arrays and structs.
++	switch t.Kind() {
++	case abi.Array:
++		a := t.ArrayType()
++		if a.Len == 1 {
++			// Avoid recursive call for element type that
++			// isn't smaller than the parent type.
++			t = a.Elem
++			goto top
++		}
++		e := a.Elem
++		for i := uintptr(0); i < a.Len; i++ {
++			buildGCMask(e, dst)
++			dst = dst.offset(e.Size_ / goarch.PtrSize)
++		}
++	case abi.Struct:
++		s := t.StructType()
++		var bigField abi.StructField
++		for _, f := range s.Fields {
++			ft := f.Typ
++			if !ft.Pointers() {
++				continue
++			}
++			if ft.Size_ > t.Size_/2 {
++				// Avoid recursive call for field type that
++				// is larger than half of the parent type.
++				// There can be only one.
++				bigField = f
++				continue
++			}
++			buildGCMask(ft, dst.offset(f.Offset/goarch.PtrSize))
++		}
++		if bigField.Typ != nil {
++			// Note: this case causes bits to be written out of order.
++			t = bigField.Typ
++			dst = dst.offset(bigField.Offset / goarch.PtrSize)
++			goto top
++		}
++	default:
++		throw("unexpected kind")
++	}
++}
++
+ // reflectOffs holds type offsets defined at run time by the reflect package.
+ //
+ // When a type is defined at run time, its *rtype data lives on the heap.

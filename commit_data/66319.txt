@@ -1,0 +1,225 @@
+commit f707e53fd52284e58b9ea5d7889ad360d34d5116
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Mon Feb 24 09:57:04 2025 +0100
+
+    all: surround -test.run arguments with ^$
+    
+    If the -test.run value is not surrounded by ^$ then any test that
+    matches the -test.run value will be run. This is normally not the
+    desired behavior, as it can lead to unexpected tests being run.
+    
+    Change-Id: I3447aaebad5156bbef7f263cdb9f6b8c32331324
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/651956
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt | 8 ++++----
+ src/crypto/internal/fips140test/cast_test.go         | 2 +-
+ src/crypto/internal/fips140test/check_test.go        | 4 ++--
+ src/crypto/internal/sysrand/rand_test.go             | 2 +-
+ src/crypto/rand/rand_test.go                         | 2 +-
+ src/math/rand/default_test.go                        | 2 +-
+ src/net/net_windows_test.go                          | 2 +-
+ src/runtime/crash_test.go                            | 4 ++--
+ src/runtime/debug/example_monitor_test.go            | 2 +-
+ src/runtime/syscall_windows_test.go                  | 4 ++--
+ src/syscall/exec_freebsd_test.go                     | 2 +-
+ 11 files changed, 17 insertions(+), 17 deletions(-)
+
+diff --git a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+index 3e3fbade23..8a7a24ab70 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_seed_corpus.txt
+@@ -4,7 +4,7 @@ env GOCACHE=$WORK/cache
+ 
+ # Test that fuzzing a target with a failure in f.Add prints the crash
+ # and doesn't write anything to testdata/fuzz
+-! go test -fuzz=FuzzWithAdd -run=FuzzWithAdd -fuzztime=1x
++! go test -fuzz=^FuzzWithAdd$ -run=^FuzzWithAdd$ -fuzztime=1x
+ ! stdout ^ok
+ ! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
+ stdout FAIL
+@@ -68,7 +68,7 @@ go clean -fuzzcache
+ 
+ # Test that fuzzing a target (with -run=None set) with a failure in f.Add prints
+ # the crash and doesn't write anything to testdata/fuzz -fuzztime=1x
+-! go test -fuzz=FuzzWithAdd -run=None
++! go test -fuzz=^FuzzWithAdd$ -run=None
+ ! stdout ^ok
+ ! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
+ stdout FAIL
+@@ -107,14 +107,14 @@ go clean -fuzzcache
+ # the seed corpus before attempting to fuzz.
+ 
+ go test -c
+-! exec ./x.test$GOEXE -test.fuzz=FuzzWithAdd -test.run=FuzzWithAdd -test.fuzztime=1x -test.fuzzcachedir=$WORK/cache
++! exec ./x.test$GOEXE -test.fuzz=^FuzzWithAdd$ -test.run=^FuzzWithAdd$ -test.fuzztime=1x -test.fuzzcachedir=$WORK/cache
+ ! stdout ^ok
+ ! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithAdd[/\\]'
+ stdout FAIL
+ stderr warning
+ 
+ go test -c
+-! exec ./x.test$GOEXE -test.fuzz=FuzzWithTestdata -test.run=FuzzWithTestdata -test.fuzztime=1x -test.fuzzcachedir=$WORK/cache
++! exec ./x.test$GOEXE -test.fuzz=FuzzWithTestdata -test.run=^FuzzWithTestdata$ -test.fuzztime=1x -test.fuzzcachedir=$WORK/cache
+ ! stdout ^ok
+ ! stdout 'Failing input written to testdata[/\\]fuzz[/\\]FuzzWithTestdata[/\\]'
+ stdout FAIL
+diff --git a/src/crypto/internal/fips140test/cast_test.go b/src/crypto/internal/fips140test/cast_test.go
+index 41122f339d..1818b583d5 100644
+--- a/src/crypto/internal/fips140test/cast_test.go
++++ b/src/crypto/internal/fips140test/cast_test.go
+@@ -171,7 +171,7 @@ func TestCASTFailures(t *testing.T) {
+ 			}
+ 			t.Logf("CAST/PCT succeeded: %s", name)
+ 			t.Logf("Testing CAST/PCT failure...")
+-			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestConditionals", "-test.v")
++			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestConditionals$", "-test.v")
+ 			cmd.Env = append(cmd.Env, fmt.Sprintf("GODEBUG=failfipscast=%s,fips140=on", name))
+ 			out, err := cmd.CombinedOutput()
+ 			t.Logf("%s", out)
+diff --git a/src/crypto/internal/fips140test/check_test.go b/src/crypto/internal/fips140test/check_test.go
+index f516455fb4..c4f6a95e3e 100644
+--- a/src/crypto/internal/fips140test/check_test.go
++++ b/src/crypto/internal/fips140test/check_test.go
+@@ -35,7 +35,7 @@ func TestIntegrityCheck(t *testing.T) {
+ 		t.Skipf("skipping: %v", err)
+ 	}
+ 
+-	cmd := testenv.Command(t, testenv.Executable(t), "-test.v", "-test.run=TestIntegrityCheck")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.v", "-test.run=^TestIntegrityCheck$")
+ 	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
+ 	out, err := cmd.CombinedOutput()
+ 	if err != nil {
+@@ -74,7 +74,7 @@ func TestIntegrityCheckFailure(t *testing.T) {
+ 	}
+ 
+ 	t.Logf("running modified binary...")
+-	cmd := testenv.Command(t, binPath, "-test.v", "-test.run=TestIntegrityCheck$")
++	cmd := testenv.Command(t, binPath, "-test.v", "-test.run=^TestIntegrityCheck$")
+ 	cmd.Env = append(cmd.Environ(), "GODEBUG=fips140=on")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%s", out)
+diff --git a/src/crypto/internal/sysrand/rand_test.go b/src/crypto/internal/sysrand/rand_test.go
+index 55b11a929b..1d8eb00f56 100644
+--- a/src/crypto/internal/sysrand/rand_test.go
++++ b/src/crypto/internal/sysrand/rand_test.go
+@@ -105,7 +105,7 @@ func TestReadError(t *testing.T) {
+ 		return
+ 	}
+ 
+-	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestReadError")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestReadError$")
+ 	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1")
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+diff --git a/src/crypto/rand/rand_test.go b/src/crypto/rand/rand_test.go
+index 9047ac193b..22ccb8a353 100644
+--- a/src/crypto/rand/rand_test.go
++++ b/src/crypto/rand/rand_test.go
+@@ -180,7 +180,7 @@ func TestReadError(t *testing.T) {
+ 		return
+ 	}
+ 
+-	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestReadError")
++	cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestReadError$")
+ 	cmd.Env = append(os.Environ(), "GO_TEST_READ_ERROR=1")
+ 	out, err := cmd.CombinedOutput()
+ 	if err == nil {
+diff --git a/src/math/rand/default_test.go b/src/math/rand/default_test.go
+index b42cd165c8..0ba51b4dbd 100644
+--- a/src/math/rand/default_test.go
++++ b/src/math/rand/default_test.go
+@@ -37,7 +37,7 @@ func TestDefaultRace(t *testing.T) {
+ 		i := i
+ 		t.Run(strconv.Itoa(i), func(t *testing.T) {
+ 			t.Parallel()
+-			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=TestDefaultRace")
++			cmd := testenv.Command(t, testenv.Executable(t), "-test.run=^TestDefaultRace$")
+ 			cmd = testenv.CleanCmdEnv(cmd)
+ 			cmd.Env = append(cmd.Env, fmt.Sprintf("GO_RAND_TEST_HELPER_CODE=%d", i/2))
+ 			if i%2 != 0 {
+diff --git a/src/net/net_windows_test.go b/src/net/net_windows_test.go
+index bc3171b4ea..671de76780 100644
+--- a/src/net/net_windows_test.go
++++ b/src/net/net_windows_test.go
+@@ -100,7 +100,7 @@ func TestAcceptIgnoreSomeErrors(t *testing.T) {
+ 	defer ln.Close()
+ 
+ 	// Start child process that connects to our listener.
+-	cmd := exec.Command(testenv.Executable(t), "-test.run=TestAcceptIgnoreSomeErrors")
++	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestAcceptIgnoreSomeErrors$")
+ 	cmd.Env = append(os.Environ(), "GOTEST_DIAL_ADDR="+ln.Addr().String())
+ 	stdout, err := cmd.StdoutPipe()
+ 	if err != nil {
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 00e84a3879..0265c28be1 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -901,7 +901,7 @@ func TestRuntimePanic(t *testing.T) {
+ }
+ 
+ func TestTracebackRuntimeFunction(t *testing.T) {
+-	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=TestTracebackRuntimeFunction"))
++	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestTracebackRuntimeFunction$"))
+ 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_READMEMSTATS=1")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%s", out)
+@@ -913,7 +913,7 @@ func TestTracebackRuntimeFunction(t *testing.T) {
+ }
+ 
+ func TestTracebackRuntimeMethod(t *testing.T) {
+-	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=TestTracebackRuntimeMethod"))
++	cmd := testenv.CleanCmdEnv(exec.Command(testenv.Executable(t), "-test.run=^TestTracebackRuntimeMethod$"))
+ 	cmd.Env = append(cmd.Env, "GO_TEST_RUNTIME_NPE_FUNCMETHOD=1")
+ 	out, err := cmd.CombinedOutput()
+ 	t.Logf("%s", out)
+diff --git a/src/runtime/debug/example_monitor_test.go b/src/runtime/debug/example_monitor_test.go
+index b077e7adb3..3b8f4dccd9 100644
+--- a/src/runtime/debug/example_monitor_test.go
++++ b/src/runtime/debug/example_monitor_test.go
+@@ -83,7 +83,7 @@ func monitor() {
+ 	if err != nil {
+ 		log.Fatal(err)
+ 	}
+-	cmd := exec.Command(exe, "-test.run=ExampleSetCrashOutput_monitor")
++	cmd := exec.Command(exe, "-test.run=^ExampleSetCrashOutput_monitor$")
+ 	cmd.Env = append(os.Environ(), monitorVar+"=1")
+ 	cmd.Stderr = os.Stderr
+ 	cmd.Stdout = os.Stderr
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 7a7269d125..6709267403 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -657,7 +657,7 @@ func TestWERDialogue(t *testing.T) {
+ 	if err != nil {
+ 		t.Fatal(err)
+ 	}
+-	cmd := testenv.CleanCmdEnv(testenv.Command(t, exe, "-test.run=TestWERDialogue"))
++	cmd := testenv.CleanCmdEnv(testenv.Command(t, exe, "-test.run=^TestWERDialogue$"))
+ 	cmd.Env = append(cmd.Env, "TEST_WER_DIALOGUE=1", "GOTRACEBACK=wer")
+ 	// Child process should not open WER dialogue, but return immediately instead.
+ 	// The exit code can't be reliably tested here because Windows can change it.
+@@ -1043,7 +1043,7 @@ func TestNumCPU(t *testing.T) {
+ 	_GetProcessAffinityMask := kernel32.MustFindProc("GetProcessAffinityMask")
+ 	_SetProcessAffinityMask := kernel32.MustFindProc("SetProcessAffinityMask")
+ 
+-	cmd := exec.Command(testenv.Executable(t), "-test.run=TestNumCPU")
++	cmd := exec.Command(testenv.Executable(t), "-test.run=^TestNumCPU$")
+ 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 	var buf strings.Builder
+ 	cmd.Stdout = &buf
+diff --git a/src/syscall/exec_freebsd_test.go b/src/syscall/exec_freebsd_test.go
+index 2e9513f098..34c4b9e2bb 100644
+--- a/src/syscall/exec_freebsd_test.go
++++ b/src/syscall/exec_freebsd_test.go
+@@ -88,7 +88,7 @@ func TestJailAttach(t *testing.T) {
+ 		t.Fatalf("Build of syscall in jail root failed, output %v, err %v", o, err)
+ 	}
+ 
+-	cmd = exec.Command("/syscall.test", "-test.run=TestJailAttach", "/")
++	cmd = exec.Command("/syscall.test", "-test.run=^TestJailAttach$", "/")
+ 	cmd.Env = append(os.Environ(), "GO_WANT_HELPER_PROCESS=1")
+ 	cmd.SysProcAttr = &syscall.SysProcAttr{Jail: jid}
+ 	out, err := cmd.CombinedOutput()

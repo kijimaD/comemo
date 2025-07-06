@@ -1,0 +1,3185 @@
+commit c4aea467842efc3baf6cd2f5ad19fe23d7304c2e
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Fri Nov 1 11:46:34 2024 +0100
+
+    crypto/aes: move to crypto/internal/fips/aes
+    
+    The crypto/aes <-> crypto/cipher interfaces and the hardware support
+    upgrades were layered over the years, and had grown unwieldily.
+    
+    Before: conditionally wrap the private crypto/aes type in private types
+    that implement an interface that's interface-upgraded by crypto/cipher
+    to replace the generic implementation in crypto/cipher.
+    
+    crypto/aes depended on crypto/cipher, which is backwards.
+    
+    After: provide concrete exported implementations of modes in
+    crypto/internal/fips/aes that crypto/cipher returns if the input Block
+    is the crypto/internal/fips/aes concrete implementation.
+    
+    crypto/aes and crypto/cipher both depend on crypto/internal/fips/aes.
+    
+    Also, made everything follow go.dev/wiki/TargetSpecific by only putting
+    the minimal code necessary and no exported functions in build-tagged
+    files.
+    
+    The GCM integration still uses an interface upgrade, because the generic
+    implementation is complex enough that it was not trivial to duplicate.
+    This will be fixed in a future CL to make review easier.
+    
+    For #69536
+    
+    Change-Id: I21c2b93a498edb31c562b1aca824e21e8457fdff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624395
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/aes/aes.go                              |  48 ++++
+ src/crypto/aes/aes_test.go                         | 243 ---------------------
+ src/crypto/aes/cbc_ppc64x.go                       |  74 -------
+ src/crypto/aes/cbc_s390x.go                        |  68 ------
+ src/crypto/aes/cipher.go                           |  82 -------
+ src/crypto/aes/cipher_asm.go                       | 114 ----------
+ src/crypto/aes/cipher_generic.go                   |  26 ---
+ src/crypto/aes/cipher_s390x.go                     |  98 ---------
+ src/crypto/aes/ctr_s390x.go                        |  86 --------
+ src/crypto/aes/modes.go                            |  37 ----
+ src/crypto/aes/modes_test.go                       | 112 ----------
+ src/crypto/cipher/cbc.go                           |  23 +-
+ src/crypto/cipher/ctr.go                           |  20 +-
+ src/crypto/cipher/gcm.go                           |  26 ++-
+ src/crypto/cipher/modes_test.go                    | 123 +++++++++++
+ .../fips}/aes/_asm/ctr/ctr_amd64_asm.go            |   0
+ src/crypto/{ => internal/fips}/aes/_asm/ctr/go.mod |   0
+ src/crypto/{ => internal/fips}/aes/_asm/ctr/go.sum |   0
+ .../fips}/aes/_asm/gcm/gcm_amd64_asm.go            |   2 +-
+ src/crypto/{ => internal/fips}/aes/_asm/gcm/go.mod |   0
+ src/crypto/{ => internal/fips}/aes/_asm/gcm/go.sum |   0
+ .../fips/aes/_asm/standard/aes_amd64.go}           |   2 +-
+ .../{ => internal/fips}/aes/_asm/standard/go.mod   |   0
+ .../{ => internal/fips}/aes/_asm/standard/go.sum   |   0
+ src/crypto/internal/fips/aes/aes.go                | 125 +++++++++++
+ .../asm_amd64.s => internal/fips/aes/aes_amd64.s}  |   0
+ .../asm_arm64.s => internal/fips/aes/aes_arm64.s}  |   0
+ src/crypto/internal/fips/aes/aes_asm.go            |  71 ++++++
+ .../block.go => internal/fips/aes/aes_generic.go}  |  39 ++--
+ src/crypto/internal/fips/aes/aes_noasm.go          |  26 +++
+ .../fips/aes/aes_ppc64x.s}                         |   0
+ src/crypto/internal/fips/aes/aes_s390x.go          |  78 +++++++
+ .../asm_s390x.s => internal/fips/aes/aes_s390x.s}  |  33 ---
+ src/crypto/internal/fips/aes/aes_test.go           | 120 ++++++++++
+ src/crypto/internal/fips/aes/cbc.go                | 127 +++++++++++
+ src/crypto/internal/fips/aes/cbc_noasm.go          |  15 ++
+ src/crypto/internal/fips/aes/cbc_ppc64x.go         |  31 +++
+ src/crypto/internal/fips/aes/cbc_s390x.go          |  28 +++
+ src/crypto/{ => internal/fips}/aes/const.go        |   9 -
+ .../{aes/ctr_asm.go => internal/fips/aes/ctr.go}   |  71 +++---
+ src/crypto/{ => internal/fips}/aes/ctr_amd64.s     |   0
+ src/crypto/{ => internal/fips}/aes/ctr_arm64.s     |   0
+ .../{ => internal/fips}/aes/ctr_arm64_gen.go       |   0
+ src/crypto/internal/fips/aes/ctr_asm.go            |  53 +++++
+ src/crypto/internal/fips/aes/ctr_noasm.go          |  23 ++
+ src/crypto/internal/fips/aes/ctr_s390x.go          |  48 ++++
+ src/crypto/{ => internal/fips}/aes/gcm_amd64.s     |   0
+ src/crypto/{ => internal/fips}/aes/gcm_arm64.s     |   0
+ .../aes_gcm.go => internal/fips/aes/gcm_asm.go}    |  30 ++-
+ src/crypto/internal/fips/aes/gcm_noasm.go          |  29 +++
+ src/crypto/{ => internal/fips}/aes/gcm_ppc64x.go   |  35 ++-
+ src/crypto/{ => internal/fips}/aes/gcm_ppc64x.s    |   0
+ src/crypto/{ => internal/fips}/aes/gcm_s390x.go    |  71 ++----
+ src/crypto/internal/fips/aes/interface_test.go     |  16 ++
+ src/go/build/deps_test.go                          |   1 +
+ 55 files changed, 1122 insertions(+), 1141 deletions(-)
+
+diff --git a/src/crypto/aes/aes.go b/src/crypto/aes/aes.go
+new file mode 100644
+index 0000000000..6ddcdf603a
+--- /dev/null
++++ b/src/crypto/aes/aes.go
+@@ -0,0 +1,48 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++// Package aes implements AES encryption (formerly Rijndael), as defined in
++// U.S. Federal Information Processing Standards Publication 197.
++//
++// The AES operations in this package are not implemented using constant-time algorithms.
++// An exception is when running on systems with enabled hardware support for AES
++// that makes these operations constant-time. Examples include amd64 systems using AES-NI
++// extensions and s390x systems using Message-Security-Assist extensions.
++// On such systems, when the result of NewCipher is passed to cipher.NewGCM,
++// the GHASH operation used by GCM is also constant-time.
++package aes
++
++import (
++	"crypto/cipher"
++	"crypto/internal/boring"
++	"crypto/internal/fips/aes"
++	"strconv"
++)
++
++// The AES block size in bytes.
++const BlockSize = 16
++
++type KeySizeError int
++
++func (k KeySizeError) Error() string {
++	return "crypto/aes: invalid key size " + strconv.Itoa(int(k))
++}
++
++// NewCipher creates and returns a new [cipher.Block].
++// The key argument should be the AES key,
++// either 16, 24, or 32 bytes to select
++// AES-128, AES-192, or AES-256.
++func NewCipher(key []byte) (cipher.Block, error) {
++	k := len(key)
++	switch k {
++	default:
++		return nil, KeySizeError(k)
++	case 16, 24, 32:
++		break
++	}
++	if boring.Enabled {
++		return boring.NewAESCipher(key)
++	}
++	return aes.New(key)
++}
+diff --git a/src/crypto/aes/aes_test.go b/src/crypto/aes/aes_test.go
+index 8d2da5e177..6f4156f53f 100644
+--- a/src/crypto/aes/aes_test.go
++++ b/src/crypto/aes/aes_test.go
+@@ -10,238 +10,9 @@ import (
+ 	"testing"
+ )
+ 
+-// See const.go for overview of math here.
+-
+-// Test that powx is initialized correctly.
+-// (Can adapt this code to generate it too.)
+-func TestPowx(t *testing.T) {
+-	p := 1
+-	for i := 0; i < len(powx); i++ {
+-		if powx[i] != byte(p) {
+-			t.Errorf("powx[%d] = %#x, want %#x", i, powx[i], p)
+-		}
+-		p <<= 1
+-		if p&0x100 != 0 {
+-			p ^= poly
+-		}
+-	}
+-}
+-
+-// Multiply b and c as GF(2) polynomials modulo poly
+-func mul(b, c uint32) uint32 {
+-	i := b
+-	j := c
+-	s := uint32(0)
+-	for k := uint32(1); k < 0x100 && j != 0; k <<= 1 {
+-		// Invariant: k == 1<<n, i == b * xⁿ
+-
+-		if j&k != 0 {
+-			// s += i in GF(2); xor in binary
+-			s ^= i
+-			j ^= k // turn off bit to end loop early
+-		}
+-
+-		// i *= x in GF(2) modulo the polynomial
+-		i <<= 1
+-		if i&0x100 != 0 {
+-			i ^= poly
+-		}
+-	}
+-	return s
+-}
+-
+-// Test all mul inputs against bit-by-bit n² algorithm.
+-func TestMul(t *testing.T) {
+-	for i := uint32(0); i < 256; i++ {
+-		for j := uint32(0); j < 256; j++ {
+-			// Multiply i, j bit by bit.
+-			s := uint8(0)
+-			for k := uint(0); k < 8; k++ {
+-				for l := uint(0); l < 8; l++ {
+-					if i&(1<<k) != 0 && j&(1<<l) != 0 {
+-						s ^= powx[k+l]
+-					}
+-				}
+-			}
+-			if x := mul(i, j); x != uint32(s) {
+-				t.Fatalf("mul(%#x, %#x) = %#x, want %#x", i, j, x, s)
+-			}
+-		}
+-	}
+-}
+-
+-// Check that S-boxes are inverses of each other.
+-// They have more structure that we could test,
+-// but if this sanity check passes, we'll assume
+-// the cut and paste from the FIPS PDF worked.
+-func TestSboxes(t *testing.T) {
+-	for i := 0; i < 256; i++ {
+-		if j := sbox0[sbox1[i]]; j != byte(i) {
+-			t.Errorf("sbox0[sbox1[%#x]] = %#x", i, j)
+-		}
+-		if j := sbox1[sbox0[i]]; j != byte(i) {
+-			t.Errorf("sbox1[sbox0[%#x]] = %#x", i, j)
+-		}
+-	}
+-}
+-
+-// Test that encryption tables are correct.
+-// (Can adapt this code to generate them too.)
+-func TestTe(t *testing.T) {
+-	for i := 0; i < 256; i++ {
+-		s := uint32(sbox0[i])
+-		s2 := mul(s, 2)
+-		s3 := mul(s, 3)
+-		w := s2<<24 | s<<16 | s<<8 | s3
+-		te := [][256]uint32{te0, te1, te2, te3}
+-		for j := 0; j < 4; j++ {
+-			if x := te[j][i]; x != w {
+-				t.Fatalf("te[%d][%d] = %#x, want %#x", j, i, x, w)
+-			}
+-			w = w<<24 | w>>8
+-		}
+-	}
+-}
+-
+-// Test that decryption tables are correct.
+-// (Can adapt this code to generate them too.)
+-func TestTd(t *testing.T) {
+-	for i := 0; i < 256; i++ {
+-		s := uint32(sbox1[i])
+-		s9 := mul(s, 0x9)
+-		sb := mul(s, 0xb)
+-		sd := mul(s, 0xd)
+-		se := mul(s, 0xe)
+-		w := se<<24 | s9<<16 | sd<<8 | sb
+-		td := [][256]uint32{td0, td1, td2, td3}
+-		for j := 0; j < 4; j++ {
+-			if x := td[j][i]; x != w {
+-				t.Fatalf("td[%d][%d] = %#x, want %#x", j, i, x, w)
+-			}
+-			w = w<<24 | w>>8
+-		}
+-	}
+-}
+-
+ // Test vectors are from FIPS 197:
+ //	https://csrc.nist.gov/publications/fips/fips197/fips-197.pdf
+ 
+-// Appendix A of FIPS 197: Key expansion examples
+-type KeyTest struct {
+-	key []byte
+-	enc []uint32
+-	dec []uint32 // decryption expansion; not in FIPS 197, computed from C implementation.
+-}
+-
+-var keyTests = []KeyTest{
+-	{
+-		// A.1.  Expansion of a 128-bit Cipher Key
+-		[]byte{0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6, 0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c},
+-		[]uint32{
+-			0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x09cf4f3c,
+-			0xa0fafe17, 0x88542cb1, 0x23a33939, 0x2a6c7605,
+-			0xf2c295f2, 0x7a96b943, 0x5935807a, 0x7359f67f,
+-			0x3d80477d, 0x4716fe3e, 0x1e237e44, 0x6d7a883b,
+-			0xef44a541, 0xa8525b7f, 0xb671253b, 0xdb0bad00,
+-			0xd4d1c6f8, 0x7c839d87, 0xcaf2b8bc, 0x11f915bc,
+-			0x6d88a37a, 0x110b3efd, 0xdbf98641, 0xca0093fd,
+-			0x4e54f70e, 0x5f5fc9f3, 0x84a64fb2, 0x4ea6dc4f,
+-			0xead27321, 0xb58dbad2, 0x312bf560, 0x7f8d292f,
+-			0xac7766f3, 0x19fadc21, 0x28d12941, 0x575c006e,
+-			0xd014f9a8, 0xc9ee2589, 0xe13f0cc8, 0xb6630ca6,
+-		},
+-		[]uint32{
+-			0xd014f9a8, 0xc9ee2589, 0xe13f0cc8, 0xb6630ca6,
+-			0xc7b5a63, 0x1319eafe, 0xb0398890, 0x664cfbb4,
+-			0xdf7d925a, 0x1f62b09d, 0xa320626e, 0xd6757324,
+-			0x12c07647, 0xc01f22c7, 0xbc42d2f3, 0x7555114a,
+-			0x6efcd876, 0xd2df5480, 0x7c5df034, 0xc917c3b9,
+-			0x6ea30afc, 0xbc238cf6, 0xae82a4b4, 0xb54a338d,
+-			0x90884413, 0xd280860a, 0x12a12842, 0x1bc89739,
+-			0x7c1f13f7, 0x4208c219, 0xc021ae48, 0x969bf7b,
+-			0xcc7505eb, 0x3e17d1ee, 0x82296c51, 0xc9481133,
+-			0x2b3708a7, 0xf262d405, 0xbc3ebdbf, 0x4b617d62,
+-			0x2b7e1516, 0x28aed2a6, 0xabf71588, 0x9cf4f3c,
+-		},
+-	},
+-	{
+-		// A.2.  Expansion of a 192-bit Cipher Key
+-		[]byte{
+-			0x8e, 0x73, 0xb0, 0xf7, 0xda, 0x0e, 0x64, 0x52, 0xc8, 0x10, 0xf3, 0x2b, 0x80, 0x90, 0x79, 0xe5,
+-			0x62, 0xf8, 0xea, 0xd2, 0x52, 0x2c, 0x6b, 0x7b,
+-		},
+-		[]uint32{
+-			0x8e73b0f7, 0xda0e6452, 0xc810f32b, 0x809079e5,
+-			0x62f8ead2, 0x522c6b7b, 0xfe0c91f7, 0x2402f5a5,
+-			0xec12068e, 0x6c827f6b, 0x0e7a95b9, 0x5c56fec2,
+-			0x4db7b4bd, 0x69b54118, 0x85a74796, 0xe92538fd,
+-			0xe75fad44, 0xbb095386, 0x485af057, 0x21efb14f,
+-			0xa448f6d9, 0x4d6dce24, 0xaa326360, 0x113b30e6,
+-			0xa25e7ed5, 0x83b1cf9a, 0x27f93943, 0x6a94f767,
+-			0xc0a69407, 0xd19da4e1, 0xec1786eb, 0x6fa64971,
+-			0x485f7032, 0x22cb8755, 0xe26d1352, 0x33f0b7b3,
+-			0x40beeb28, 0x2f18a259, 0x6747d26b, 0x458c553e,
+-			0xa7e1466c, 0x9411f1df, 0x821f750a, 0xad07d753,
+-			0xca400538, 0x8fcc5006, 0x282d166a, 0xbc3ce7b5,
+-			0xe98ba06f, 0x448c773c, 0x8ecc7204, 0x01002202,
+-		},
+-		nil,
+-	},
+-	{
+-		// A.3.  Expansion of a 256-bit Cipher Key
+-		[]byte{
+-			0x60, 0x3d, 0xeb, 0x10, 0x15, 0xca, 0x71, 0xbe, 0x2b, 0x73, 0xae, 0xf0, 0x85, 0x7d, 0x77, 0x81,
+-			0x1f, 0x35, 0x2c, 0x07, 0x3b, 0x61, 0x08, 0xd7, 0x2d, 0x98, 0x10, 0xa3, 0x09, 0x14, 0xdf, 0xf4,
+-		},
+-		[]uint32{
+-			0x603deb10, 0x15ca71be, 0x2b73aef0, 0x857d7781,
+-			0x1f352c07, 0x3b6108d7, 0x2d9810a3, 0x0914dff4,
+-			0x9ba35411, 0x8e6925af, 0xa51a8b5f, 0x2067fcde,
+-			0xa8b09c1a, 0x93d194cd, 0xbe49846e, 0xb75d5b9a,
+-			0xd59aecb8, 0x5bf3c917, 0xfee94248, 0xde8ebe96,
+-			0xb5a9328a, 0x2678a647, 0x98312229, 0x2f6c79b3,
+-			0x812c81ad, 0xdadf48ba, 0x24360af2, 0xfab8b464,
+-			0x98c5bfc9, 0xbebd198e, 0x268c3ba7, 0x09e04214,
+-			0x68007bac, 0xb2df3316, 0x96e939e4, 0x6c518d80,
+-			0xc814e204, 0x76a9fb8a, 0x5025c02d, 0x59c58239,
+-			0xde136967, 0x6ccc5a71, 0xfa256395, 0x9674ee15,
+-			0x5886ca5d, 0x2e2f31d7, 0x7e0af1fa, 0x27cf73c3,
+-			0x749c47ab, 0x18501dda, 0xe2757e4f, 0x7401905a,
+-			0xcafaaae3, 0xe4d59b34, 0x9adf6ace, 0xbd10190d,
+-			0xfe4890d1, 0xe6188d0b, 0x046df344, 0x706c631e,
+-		},
+-		nil,
+-	},
+-}
+-
+-// Test key expansion against FIPS 197 examples.
+-func TestExpandKey(t *testing.T) {
+-L:
+-	for i, tt := range keyTests {
+-		enc := make([]uint32, len(tt.enc))
+-		var dec []uint32
+-		if tt.dec != nil {
+-			dec = make([]uint32, len(tt.dec))
+-		}
+-		// This test could only test Go version of expandKey because asm
+-		// version might use different memory layout for expanded keys
+-		// This is OK because we don't expose expanded keys to the outside
+-		expandKeyGo(tt.key, enc, dec)
+-		for j, v := range enc {
+-			if v != tt.enc[j] {
+-				t.Errorf("key %d: enc[%d] = %#x, want %#x", i, j, v, tt.enc[j])
+-				continue L
+-			}
+-		}
+-		for j, v := range dec {
+-			if v != tt.dec[j] {
+-				t.Errorf("key %d: dec[%d] = %#x, want %#x", i, j, v, tt.dec[j])
+-				continue L
+-			}
+-		}
+-	}
+-}
+-
+ // Appendix B, C of FIPS 197: Cipher examples, Example vectors.
+ type CryptTest struct {
+ 	key []byte
+@@ -365,20 +136,6 @@ func benchmarkDecrypt(b *testing.B, tt CryptTest) {
+ 	}
+ }
+ 
+-func BenchmarkExpand(b *testing.B) {
+-	b.Run("AES-128", func(b *testing.B) { benchmarkExpand(b, encryptTests[1]) })
+-	b.Run("AES-192", func(b *testing.B) { benchmarkExpand(b, encryptTests[2]) })
+-	b.Run("AES-256", func(b *testing.B) { benchmarkExpand(b, encryptTests[3]) })
+-}
+-
+-func benchmarkExpand(b *testing.B, tt CryptTest) {
+-	c := &aesCipher{l: uint8(len(tt.key) + 28)}
+-	b.ResetTimer()
+-	for i := 0; i < b.N; i++ {
+-		expandKey(tt.key, c.enc[:c.l], c.dec[:c.l])
+-	}
+-}
+-
+ func BenchmarkCreateCipher(b *testing.B) {
+ 	b.Run("AES-128", func(b *testing.B) { benchmarkCreateCipher(b, encryptTests[1]) })
+ 	b.Run("AES-192", func(b *testing.B) { benchmarkCreateCipher(b, encryptTests[2]) })
+diff --git a/src/crypto/aes/cbc_ppc64x.go b/src/crypto/aes/cbc_ppc64x.go
+deleted file mode 100644
+index 6311a115f7..0000000000
+--- a/src/crypto/aes/cbc_ppc64x.go
++++ /dev/null
+@@ -1,74 +0,0 @@
+-// Copyright 2021 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (ppc64 || ppc64le) && !purego
+-
+-package aes
+-
+-import (
+-	"crypto/cipher"
+-	"crypto/internal/fips/alias"
+-)
+-
+-// Assert that aesCipherAsm implements the cbcEncAble and cbcDecAble interfaces.
+-var _ cbcEncAble = (*aesCipherAsm)(nil)
+-var _ cbcDecAble = (*aesCipherAsm)(nil)
+-
+-const cbcEncrypt = 1
+-const cbcDecrypt = 0
+-
+-type cbc struct {
+-	b   *aesCipherAsm
+-	enc int
+-	iv  [BlockSize]byte
+-}
+-
+-func (b *aesCipherAsm) NewCBCEncrypter(iv []byte) cipher.BlockMode {
+-	var c cbc
+-	c.b = b
+-	c.enc = cbcEncrypt
+-	copy(c.iv[:], iv)
+-	return &c
+-}
+-
+-func (b *aesCipherAsm) NewCBCDecrypter(iv []byte) cipher.BlockMode {
+-	var c cbc
+-	c.b = b
+-	c.enc = cbcDecrypt
+-	copy(c.iv[:], iv)
+-	return &c
+-}
+-
+-func (x *cbc) BlockSize() int { return BlockSize }
+-
+-// cryptBlocksChain invokes the cipher message identifying encrypt or decrypt.
+-//
+-//go:noescape
+-func cryptBlocksChain(src, dst *byte, length int, key *uint32, iv *byte, enc int, nr int)
+-
+-func (x *cbc) CryptBlocks(dst, src []byte) {
+-	if len(src)%BlockSize != 0 {
+-		panic("crypto/cipher: input not full blocks")
+-	}
+-	if len(dst) < len(src) {
+-		panic("crypto/cipher: output smaller than input")
+-	}
+-	if alias.InexactOverlap(dst[:len(src)], src) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-	if len(src) > 0 {
+-		if x.enc == cbcEncrypt {
+-			cryptBlocksChain(&src[0], &dst[0], len(src), &x.b.enc[0], &x.iv[0], x.enc, int(x.b.l)/4-1)
+-		} else {
+-			cryptBlocksChain(&src[0], &dst[0], len(src), &x.b.dec[0], &x.iv[0], x.enc, int(x.b.l)/4-1)
+-		}
+-	}
+-}
+-
+-func (x *cbc) SetIV(iv []byte) {
+-	if len(iv) != BlockSize {
+-		panic("cipher: incorrect length IV")
+-	}
+-	copy(x.iv[:], iv)
+-}
+diff --git a/src/crypto/aes/cbc_s390x.go b/src/crypto/aes/cbc_s390x.go
+deleted file mode 100644
+index 3cc531e50b..0000000000
+--- a/src/crypto/aes/cbc_s390x.go
++++ /dev/null
+@@ -1,68 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-package aes
+-
+-import (
+-	"crypto/cipher"
+-	"crypto/internal/fips/alias"
+-)
+-
+-// Assert that aesCipherAsm implements the cbcEncAble and cbcDecAble interfaces.
+-var _ cbcEncAble = (*aesCipherAsm)(nil)
+-var _ cbcDecAble = (*aesCipherAsm)(nil)
+-
+-type cbc struct {
+-	b  *aesCipherAsm
+-	c  code
+-	iv [BlockSize]byte
+-}
+-
+-func (b *aesCipherAsm) NewCBCEncrypter(iv []byte) cipher.BlockMode {
+-	var c cbc
+-	c.b = b
+-	c.c = b.function
+-	copy(c.iv[:], iv)
+-	return &c
+-}
+-
+-func (b *aesCipherAsm) NewCBCDecrypter(iv []byte) cipher.BlockMode {
+-	var c cbc
+-	c.b = b
+-	c.c = b.function + 128 // decrypt function code is encrypt + 128
+-	copy(c.iv[:], iv)
+-	return &c
+-}
+-
+-func (x *cbc) BlockSize() int { return BlockSize }
+-
+-// cryptBlocksChain invokes the cipher message with chaining (KMC) instruction
+-// with the given function code. The length must be a multiple of BlockSize (16).
+-//
+-//go:noescape
+-func cryptBlocksChain(c code, iv, key, dst, src *byte, length int)
+-
+-func (x *cbc) CryptBlocks(dst, src []byte) {
+-	if len(src)%BlockSize != 0 {
+-		panic("crypto/cipher: input not full blocks")
+-	}
+-	if len(dst) < len(src) {
+-		panic("crypto/cipher: output smaller than input")
+-	}
+-	if alias.InexactOverlap(dst[:len(src)], src) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-	if len(src) > 0 {
+-		cryptBlocksChain(x.c, &x.iv[0], &x.b.key[0], &dst[0], &src[0], len(src))
+-	}
+-}
+-
+-func (x *cbc) SetIV(iv []byte) {
+-	if len(iv) != BlockSize {
+-		panic("cipher: incorrect length IV")
+-	}
+-	copy(x.iv[:], iv)
+-}
+diff --git a/src/crypto/aes/cipher.go b/src/crypto/aes/cipher.go
+deleted file mode 100644
+index c9a7625215..0000000000
+--- a/src/crypto/aes/cipher.go
++++ /dev/null
+@@ -1,82 +0,0 @@
+-// Copyright 2009 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package aes
+-
+-import (
+-	"crypto/cipher"
+-	"crypto/internal/boring"
+-	"crypto/internal/fips/alias"
+-	"strconv"
+-)
+-
+-// The AES block size in bytes.
+-const BlockSize = 16
+-
+-// A cipher is an instance of AES encryption using a particular key.
+-type aesCipher struct {
+-	l   uint8 // only this length of the enc and dec array is actually used
+-	enc [28 + 32]uint32
+-	dec [28 + 32]uint32
+-}
+-
+-type KeySizeError int
+-
+-func (k KeySizeError) Error() string {
+-	return "crypto/aes: invalid key size " + strconv.Itoa(int(k))
+-}
+-
+-// NewCipher creates and returns a new [cipher.Block].
+-// The key argument should be the AES key,
+-// either 16, 24, or 32 bytes to select
+-// AES-128, AES-192, or AES-256.
+-func NewCipher(key []byte) (cipher.Block, error) {
+-	k := len(key)
+-	switch k {
+-	default:
+-		return nil, KeySizeError(k)
+-	case 16, 24, 32:
+-		break
+-	}
+-	if boring.Enabled {
+-		return boring.NewAESCipher(key)
+-	}
+-	return newCipher(key)
+-}
+-
+-// newCipherGeneric creates and returns a new cipher.Block
+-// implemented in pure Go.
+-func newCipherGeneric(key []byte) (cipher.Block, error) {
+-	c := aesCipher{l: uint8(len(key) + 28)}
+-	expandKeyGo(key, c.enc[:c.l], c.dec[:c.l])
+-	return &c, nil
+-}
+-
+-func (c *aesCipher) BlockSize() int { return BlockSize }
+-
+-func (c *aesCipher) Encrypt(dst, src []byte) {
+-	if len(src) < BlockSize {
+-		panic("crypto/aes: input not full block")
+-	}
+-	if len(dst) < BlockSize {
+-		panic("crypto/aes: output not full block")
+-	}
+-	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+-		panic("crypto/aes: invalid buffer overlap")
+-	}
+-	encryptBlockGo(c.enc[:c.l], dst, src)
+-}
+-
+-func (c *aesCipher) Decrypt(dst, src []byte) {
+-	if len(src) < BlockSize {
+-		panic("crypto/aes: input not full block")
+-	}
+-	if len(dst) < BlockSize {
+-		panic("crypto/aes: output not full block")
+-	}
+-	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+-		panic("crypto/aes: invalid buffer overlap")
+-	}
+-	decryptBlockGo(c.dec[:c.l], dst, src)
+-}
+diff --git a/src/crypto/aes/cipher_asm.go b/src/crypto/aes/cipher_asm.go
+deleted file mode 100644
+index 84f8e91f6f..0000000000
+--- a/src/crypto/aes/cipher_asm.go
++++ /dev/null
+@@ -1,114 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (amd64 || arm64 || ppc64 || ppc64le) && !purego
+-
+-package aes
+-
+-import (
+-	"crypto/cipher"
+-	"crypto/internal/boring"
+-	"crypto/internal/fips/alias"
+-	"internal/cpu"
+-	"internal/goarch"
+-)
+-
+-// defined in asm_*.s
+-
+-//go:noescape
+-func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+-
+-//go:noescape
+-func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
+-
+-//go:noescape
+-func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
+-
+-type aesCipherAsm struct {
+-	aesCipher
+-}
+-
+-// aesCipherGCM implements crypto/cipher.gcmAble so that crypto/cipher.NewGCM
+-// will use the optimised implementation in aes_gcm.go when possible.
+-// Instances of this type only exist when hasGCMAsm returns true. Likewise,
+-// the gcmAble implementation is in aes_gcm.go.
+-type aesCipherGCM struct {
+-	aesCipherAsm
+-}
+-
+-var supportsAES = cpu.X86.HasAES || cpu.ARM64.HasAES || goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1
+-var supportsGFMUL = cpu.X86.HasPCLMULQDQ || cpu.ARM64.HasPMULL
+-
+-func newCipher(key []byte) (cipher.Block, error) {
+-	if !supportsAES {
+-		return newCipherGeneric(key)
+-	}
+-	// Note that under certain circumstances, we only return the inner aesCipherAsm.
+-	// This avoids an unnecessary allocation of the aesCipher struct.
+-	c := aesCipherGCM{aesCipherAsm{aesCipher{l: uint8(len(key) + 28)}}}
+-	var rounds int
+-	switch len(key) {
+-	case 128 / 8:
+-		rounds = 10
+-	case 192 / 8:
+-		rounds = 12
+-	case 256 / 8:
+-		rounds = 14
+-	default:
+-		return nil, KeySizeError(len(key))
+-	}
+-
+-	expandKeyAsm(rounds, &key[0], &c.enc[0], &c.dec[0])
+-	if supportsAES && supportsGFMUL {
+-		return &c, nil
+-	}
+-	return &c.aesCipherAsm, nil
+-}
+-
+-func (c *aesCipherAsm) BlockSize() int { return BlockSize }
+-
+-func (c *aesCipherAsm) Encrypt(dst, src []byte) {
+-	boring.Unreachable()
+-	if len(src) < BlockSize {
+-		panic("crypto/aes: input not full block")
+-	}
+-	if len(dst) < BlockSize {
+-		panic("crypto/aes: output not full block")
+-	}
+-	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+-		panic("crypto/aes: invalid buffer overlap")
+-	}
+-	encryptBlockAsm(int(c.l)/4-1, &c.enc[0], &dst[0], &src[0])
+-}
+-
+-func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+-	boring.Unreachable()
+-	if len(src) < BlockSize {
+-		panic("crypto/aes: input not full block")
+-	}
+-	if len(dst) < BlockSize {
+-		panic("crypto/aes: output not full block")
+-	}
+-	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+-		panic("crypto/aes: invalid buffer overlap")
+-	}
+-	decryptBlockAsm(int(c.l)/4-1, &c.dec[0], &dst[0], &src[0])
+-}
+-
+-// expandKey is used by BenchmarkExpand to ensure that the asm implementation
+-// of key expansion is used for the benchmark when it is available.
+-func expandKey(key []byte, enc, dec []uint32) {
+-	if supportsAES {
+-		rounds := 10 // rounds needed for AES128
+-		switch len(key) {
+-		case 192 / 8:
+-			rounds = 12
+-		case 256 / 8:
+-			rounds = 14
+-		}
+-		expandKeyAsm(rounds, &key[0], &enc[0], &dec[0])
+-	} else {
+-		expandKeyGo(key, enc, dec)
+-	}
+-}
+diff --git a/src/crypto/aes/cipher_generic.go b/src/crypto/aes/cipher_generic.go
+deleted file mode 100644
+index 7c7d89aa87..0000000000
+--- a/src/crypto/aes/cipher_generic.go
++++ /dev/null
+@@ -1,26 +0,0 @@
+-// Copyright 2012 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build (!amd64 && !s390x && !ppc64 && !ppc64le && !arm64) || purego
+-
+-package aes
+-
+-import (
+-	"crypto/cipher"
+-)
+-
+-// newCipher calls the newCipherGeneric function
+-// directly. Platforms with hardware accelerated
+-// implementations of AES should implement their
+-// own version of newCipher (which may then call
+-// newCipherGeneric if needed).
+-func newCipher(key []byte) (cipher.Block, error) {
+-	return newCipherGeneric(key)
+-}
+-
+-// expandKey is used by BenchmarkExpand and should
+-// call an assembly implementation if one is available.
+-func expandKey(key []byte, enc, dec []uint32) {
+-	expandKeyGo(key, enc, dec)
+-}
+diff --git a/src/crypto/aes/cipher_s390x.go b/src/crypto/aes/cipher_s390x.go
+deleted file mode 100644
+index 08de1caa11..0000000000
+--- a/src/crypto/aes/cipher_s390x.go
++++ /dev/null
+@@ -1,98 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-package aes
+-
+-import (
+-	"crypto/cipher"
+-	"crypto/internal/fips/alias"
+-	"internal/cpu"
+-)
+-
+-type code int
+-
+-// Function codes for the cipher message family of instructions.
+-const (
+-	aes128 code = 18
+-	aes192      = 19
+-	aes256      = 20
+-)
+-
+-type aesCipherAsm struct {
+-	function code     // code for cipher message instruction
+-	key      []byte   // key (128, 192 or 256 bits)
+-	storage  [32]byte // array backing key slice
+-}
+-
+-// cryptBlocks invokes the cipher message (KM) instruction with
+-// the given function code. This is equivalent to AES in ECB
+-// mode. The length must be a multiple of BlockSize (16).
+-//
+-//go:noescape
+-func cryptBlocks(c code, key, dst, src *byte, length int)
+-
+-func newCipher(key []byte) (cipher.Block, error) {
+-	// The aesCipherAsm type implements the cbcEncAble, cbcDecAble,
+-	// ctrAble and gcmAble interfaces. We therefore need to check
+-	// for all the features required to implement these modes.
+-	// Keep in sync with crypto/tls/common.go.
+-	if !(cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR && (cpu.S390X.HasGHASH || cpu.S390X.HasAESGCM)) {
+-		return newCipherGeneric(key)
+-	}
+-
+-	var function code
+-	switch len(key) {
+-	case 128 / 8:
+-		function = aes128
+-	case 192 / 8:
+-		function = aes192
+-	case 256 / 8:
+-		function = aes256
+-	default:
+-		return nil, KeySizeError(len(key))
+-	}
+-
+-	var c aesCipherAsm
+-	c.function = function
+-	c.key = c.storage[:len(key)]
+-	copy(c.key, key)
+-	return &c, nil
+-}
+-
+-func (c *aesCipherAsm) BlockSize() int { return BlockSize }
+-
+-func (c *aesCipherAsm) Encrypt(dst, src []byte) {
+-	if len(src) < BlockSize {
+-		panic("crypto/aes: input not full block")
+-	}
+-	if len(dst) < BlockSize {
+-		panic("crypto/aes: output not full block")
+-	}
+-	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+-		panic("crypto/aes: invalid buffer overlap")
+-	}
+-	cryptBlocks(c.function, &c.key[0], &dst[0], &src[0], BlockSize)
+-}
+-
+-func (c *aesCipherAsm) Decrypt(dst, src []byte) {
+-	if len(src) < BlockSize {
+-		panic("crypto/aes: input not full block")
+-	}
+-	if len(dst) < BlockSize {
+-		panic("crypto/aes: output not full block")
+-	}
+-	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
+-		panic("crypto/aes: invalid buffer overlap")
+-	}
+-	// The decrypt function code is equal to the function code + 128.
+-	cryptBlocks(c.function+128, &c.key[0], &dst[0], &src[0], BlockSize)
+-}
+-
+-// expandKey is used by BenchmarkExpand. cipher message (KM) does not need key
+-// expansion so there is no assembly equivalent.
+-func expandKey(key []byte, enc, dec []uint32) {
+-	expandKeyGo(key, enc, dec)
+-}
+diff --git a/src/crypto/aes/ctr_s390x.go b/src/crypto/aes/ctr_s390x.go
+deleted file mode 100644
+index df335dcea3..0000000000
+--- a/src/crypto/aes/ctr_s390x.go
++++ /dev/null
+@@ -1,86 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-//go:build !purego
+-
+-package aes
+-
+-import (
+-	"crypto/cipher"
+-	"crypto/internal/fips/alias"
+-	"internal/byteorder"
+-)
+-
+-// Assert that aesCipherAsm implements the ctrAble interface.
+-var _ ctrAble = (*aesCipherAsm)(nil)
+-
+-// xorBytes xors the contents of a and b and places the resulting values into
+-// dst. If a and b are not the same length then the number of bytes processed
+-// will be equal to the length of shorter of the two. Returns the number
+-// of bytes processed.
+-//
+-//go:noescape
+-func xorBytes(dst, a, b []byte) int
+-
+-// streamBufferSize is the number of bytes of encrypted counter values to cache.
+-const streamBufferSize = 32 * BlockSize
+-
+-type aesctr struct {
+-	block   *aesCipherAsm          // block cipher
+-	ctr     [2]uint64              // next value of the counter (big endian)
+-	buffer  []byte                 // buffer for the encrypted counter values
+-	storage [streamBufferSize]byte // array backing buffer slice
+-}
+-
+-// NewCTR returns a Stream which encrypts/decrypts using the AES block
+-// cipher in counter mode. The length of iv must be the same as [BlockSize].
+-func (c *aesCipherAsm) NewCTR(iv []byte) cipher.Stream {
+-	if len(iv) != BlockSize {
+-		panic("cipher.NewCTR: IV length must equal block size")
+-	}
+-	var ac aesctr
+-	ac.block = c
+-	ac.ctr[0] = byteorder.BeUint64(iv[0:]) // high bits
+-	ac.ctr[1] = byteorder.BeUint64(iv[8:]) // low bits
+-	ac.buffer = ac.storage[:0]
+-	return &ac
+-}
+-
+-func (c *aesctr) refill() {
+-	// Fill up the buffer with an incrementing count.
+-	c.buffer = c.storage[:streamBufferSize]
+-	c0, c1 := c.ctr[0], c.ctr[1]
+-	for i := 0; i < streamBufferSize; i += 16 {
+-		byteorder.BePutUint64(c.buffer[i+0:], c0)
+-		byteorder.BePutUint64(c.buffer[i+8:], c1)
+-
+-		// Increment in big endian: c0 is high, c1 is low.
+-		c1++
+-		if c1 == 0 {
+-			// add carry
+-			c0++
+-		}
+-	}
+-	c.ctr[0], c.ctr[1] = c0, c1
+-	// Encrypt the buffer using AES in ECB mode.
+-	cryptBlocks(c.block.function, &c.block.key[0], &c.buffer[0], &c.buffer[0], streamBufferSize)
+-}
+-
+-func (c *aesctr) XORKeyStream(dst, src []byte) {
+-	if len(dst) < len(src) {
+-		panic("crypto/cipher: output smaller than input")
+-	}
+-	if alias.InexactOverlap(dst[:len(src)], src) {
+-		panic("crypto/cipher: invalid buffer overlap")
+-	}
+-	for len(src) > 0 {
+-		if len(c.buffer) == 0 {
+-			c.refill()
+-		}
+-		n := xorBytes(dst, src, c.buffer)
+-		c.buffer = c.buffer[n:]
+-		src = src[n:]
+-		dst = dst[n:]
+-	}
+-}
+diff --git a/src/crypto/aes/modes.go b/src/crypto/aes/modes.go
+deleted file mode 100644
+index 5c0b08eb6d..0000000000
+--- a/src/crypto/aes/modes.go
++++ /dev/null
+@@ -1,37 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package aes
+-
+-import (
+-	"crypto/cipher"
+-)
+-
+-// gcmAble is implemented by cipher.Blocks that can provide an optimized
+-// implementation of GCM through the AEAD interface.
+-// See crypto/cipher/gcm.go.
+-type gcmAble interface {
+-	NewGCM(nonceSize, tagSize int) (cipher.AEAD, error)
+-}
+-
+-// cbcEncAble is implemented by cipher.Blocks that can provide an optimized
+-// implementation of CBC encryption through the cipher.BlockMode interface.
+-// See crypto/cipher/cbc.go.
+-type cbcEncAble interface {
+-	NewCBCEncrypter(iv []byte) cipher.BlockMode
+-}
+-
+-// cbcDecAble is implemented by cipher.Blocks that can provide an optimized
+-// implementation of CBC decryption through the cipher.BlockMode interface.
+-// See crypto/cipher/cbc.go.
+-type cbcDecAble interface {
+-	NewCBCDecrypter(iv []byte) cipher.BlockMode
+-}
+-
+-// ctrAble is implemented by cipher.Blocks that can provide an optimized
+-// implementation of CTR through the cipher.Stream interface.
+-// See crypto/cipher/ctr.go.
+-type ctrAble interface {
+-	NewCTR(iv []byte) cipher.Stream
+-}
+diff --git a/src/crypto/aes/modes_test.go b/src/crypto/aes/modes_test.go
+deleted file mode 100644
+index a3364c9b51..0000000000
+--- a/src/crypto/aes/modes_test.go
++++ /dev/null
+@@ -1,112 +0,0 @@
+-// Copyright 2016 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package aes
+-
+-import (
+-	"crypto/cipher"
+-	"testing"
+-)
+-
+-// Check that the optimized implementations of cipher modes will
+-// be picked up correctly.
+-
+-// testInterface can be asserted to check that a type originates
+-// from this test group.
+-type testInterface interface {
+-	InAESPackage() bool
+-}
+-
+-// testBlock implements the cipher.Block interface and any *Able
+-// interfaces that need to be tested.
+-type testBlock struct{}
+-
+-func (*testBlock) BlockSize() int      { return 0 }
+-func (*testBlock) Encrypt(a, b []byte) {}
+-func (*testBlock) Decrypt(a, b []byte) {}
+-func (*testBlock) NewGCM(int, int) (cipher.AEAD, error) {
+-	return &testAEAD{}, nil
+-}
+-func (*testBlock) NewCBCEncrypter([]byte) cipher.BlockMode {
+-	return &testBlockMode{}
+-}
+-func (*testBlock) NewCBCDecrypter([]byte) cipher.BlockMode {
+-	return &testBlockMode{}
+-}
+-func (*testBlock) NewCTR([]byte) cipher.Stream {
+-	return &testStream{}
+-}
+-
+-// testAEAD implements the cipher.AEAD interface.
+-type testAEAD struct{}
+-
+-func (*testAEAD) NonceSize() int                         { return 0 }
+-func (*testAEAD) Overhead() int                          { return 0 }
+-func (*testAEAD) Seal(a, b, c, d []byte) []byte          { return []byte{} }
+-func (*testAEAD) Open(a, b, c, d []byte) ([]byte, error) { return []byte{}, nil }
+-func (*testAEAD) InAESPackage() bool                     { return true }
+-
+-// Test the gcmAble interface is detected correctly by the cipher package.
+-func TestGCMAble(t *testing.T) {
+-	b := cipher.Block(&testBlock{})
+-	if _, ok := b.(gcmAble); !ok {
+-		t.Fatalf("testBlock does not implement the gcmAble interface")
+-	}
+-	aead, err := cipher.NewGCM(b)
+-	if err != nil {
+-		t.Fatalf("%v", err)
+-	}
+-	if _, ok := aead.(testInterface); !ok {
+-		t.Fatalf("cipher.NewGCM did not use gcmAble interface")
+-	}
+-}
+-
+-// testBlockMode implements the cipher.BlockMode interface.
+-type testBlockMode struct{}
+-
+-func (*testBlockMode) BlockSize() int          { return 0 }
+-func (*testBlockMode) CryptBlocks(a, b []byte) {}
+-func (*testBlockMode) InAESPackage() bool      { return true }
+-
+-// Test the cbcEncAble interface is detected correctly by the cipher package.
+-func TestCBCEncAble(t *testing.T) {
+-	b := cipher.Block(&testBlock{})
+-	if _, ok := b.(cbcEncAble); !ok {
+-		t.Fatalf("testBlock does not implement the cbcEncAble interface")
+-	}
+-	bm := cipher.NewCBCEncrypter(b, []byte{})
+-	if _, ok := bm.(testInterface); !ok {
+-		t.Fatalf("cipher.NewCBCEncrypter did not use cbcEncAble interface")
+-	}
+-}
+-
+-// Test the cbcDecAble interface is detected correctly by the cipher package.
+-func TestCBCDecAble(t *testing.T) {
+-	b := cipher.Block(&testBlock{})
+-	if _, ok := b.(cbcDecAble); !ok {
+-		t.Fatalf("testBlock does not implement the cbcDecAble interface")
+-	}
+-	bm := cipher.NewCBCDecrypter(b, []byte{})
+-	if _, ok := bm.(testInterface); !ok {
+-		t.Fatalf("cipher.NewCBCDecrypter did not use cbcDecAble interface")
+-	}
+-}
+-
+-// testStream implements the cipher.Stream interface.
+-type testStream struct{}
+-
+-func (*testStream) XORKeyStream(a, b []byte) {}
+-func (*testStream) InAESPackage() bool       { return true }
+-
+-// Test the ctrAble interface is detected correctly by the cipher package.
+-func TestCTRAble(t *testing.T) {
+-	b := cipher.Block(&testBlock{})
+-	if _, ok := b.(ctrAble); !ok {
+-		t.Fatalf("testBlock does not implement the ctrAble interface")
+-	}
+-	s := cipher.NewCTR(b, []byte{})
+-	if _, ok := s.(testInterface); !ok {
+-		t.Fatalf("cipher.NewCTR did not use ctrAble interface")
+-	}
+-}
+diff --git a/src/crypto/cipher/cbc.go b/src/crypto/cipher/cbc.go
+index 61a6b7a396..9f94056833 100644
+--- a/src/crypto/cipher/cbc.go
++++ b/src/crypto/cipher/cbc.go
+@@ -13,6 +13,7 @@ package cipher
+ 
+ import (
+ 	"bytes"
++	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ )
+@@ -36,9 +37,8 @@ func newCBC(b Block, iv []byte) *cbc {
+ type cbcEncrypter cbc
+ 
+ // cbcEncAble is an interface implemented by ciphers that have a specific
+-// optimized implementation of CBC encryption, like crypto/aes.
+-// NewCBCEncrypter will check for this interface and return the specific
+-// BlockMode if found.
++// optimized implementation of CBC encryption. crypto/aes doesn't use this
++// anymore, and we'd like to eventually remove it.
+ type cbcEncAble interface {
+ 	NewCBCEncrypter(iv []byte) BlockMode
+ }
+@@ -50,6 +50,9 @@ func NewCBCEncrypter(b Block, iv []byte) BlockMode {
+ 	if len(iv) != b.BlockSize() {
+ 		panic("cipher.NewCBCEncrypter: IV length must equal block size")
+ 	}
++	if b, ok := b.(*aes.Block); ok {
++		return aes.NewCBCEncrypter(b, [16]byte(iv))
++	}
+ 	if cbc, ok := b.(cbcEncAble); ok {
+ 		return cbc.NewCBCEncrypter(iv)
+ 	}
+@@ -79,6 +82,9 @@ func (x *cbcEncrypter) CryptBlocks(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
++	if _, ok := x.b.(*aes.Block); ok {
++		panic("crypto/cipher: internal error: generic CBC used with AES")
++	}
+ 
+ 	iv := x.iv
+ 
+@@ -107,9 +113,8 @@ func (x *cbcEncrypter) SetIV(iv []byte) {
+ type cbcDecrypter cbc
+ 
+ // cbcDecAble is an interface implemented by ciphers that have a specific
+-// optimized implementation of CBC decryption, like crypto/aes.
+-// NewCBCDecrypter will check for this interface and return the specific
+-// BlockMode if found.
++// optimized implementation of CBC decryption. crypto/aes doesn't use this
++// anymore, and we'd like to eventually remove it.
+ type cbcDecAble interface {
+ 	NewCBCDecrypter(iv []byte) BlockMode
+ }
+@@ -121,6 +126,9 @@ func NewCBCDecrypter(b Block, iv []byte) BlockMode {
+ 	if len(iv) != b.BlockSize() {
+ 		panic("cipher.NewCBCDecrypter: IV length must equal block size")
+ 	}
++	if b, ok := b.(*aes.Block); ok {
++		return aes.NewCBCDecrypter(b, [16]byte(iv))
++	}
+ 	if cbc, ok := b.(cbcDecAble); ok {
+ 		return cbc.NewCBCDecrypter(iv)
+ 	}
+@@ -150,6 +158,9 @@ func (x *cbcDecrypter) CryptBlocks(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
++	if _, ok := x.b.(*aes.Block); ok {
++		panic("crypto/cipher: internal error: generic CBC used with AES")
++	}
+ 	if len(src) == 0 {
+ 		return
+ 	}
+diff --git a/src/crypto/cipher/ctr.go b/src/crypto/cipher/ctr.go
+index 8974bf3d88..e53e96609b 100644
+--- a/src/crypto/cipher/ctr.go
++++ b/src/crypto/cipher/ctr.go
+@@ -14,6 +14,7 @@ package cipher
+ 
+ import (
+ 	"bytes"
++	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ )
+@@ -28,8 +29,8 @@ type ctr struct {
+ const streamBufferSize = 512
+ 
+ // ctrAble is an interface implemented by ciphers that have a specific optimized
+-// implementation of CTR, like crypto/aes. NewCTR will check for this interface
+-// and return the specific Stream if found.
++// implementation of CTR. crypto/aes doesn't use this anymore, and we'd like to
++// eventually remove it.
+ type ctrAble interface {
+ 	NewCTR(iv []byte) Stream
+ }
+@@ -37,6 +38,9 @@ type ctrAble interface {
+ // NewCTR returns a [Stream] which encrypts/decrypts using the given [Block] in
+ // counter mode. The length of iv must be the same as the [Block]'s block size.
+ func NewCTR(block Block, iv []byte) Stream {
++	if block, ok := block.(*aes.Block); ok {
++		return aesCtrWrapper{aes.NewCTR(block, iv)}
++	}
+ 	if ctr, ok := block.(ctrAble); ok {
+ 		return ctr.NewCTR(iv)
+ 	}
+@@ -55,6 +59,15 @@ func NewCTR(block Block, iv []byte) Stream {
+ 	}
+ }
+ 
++// aesCtrWrapper hides extra methods from aes.CTR.
++type aesCtrWrapper struct {
++	c *aes.CTR
++}
++
++func (x aesCtrWrapper) XORKeyStream(dst, src []byte) {
++	x.c.XORKeyStream(dst, src)
++}
++
+ func (x *ctr) refill() {
+ 	remain := len(x.out) - x.outUsed
+ 	copy(x.out, x.out[x.outUsed:])
+@@ -83,6 +96,9 @@ func (x *ctr) XORKeyStream(dst, src []byte) {
+ 	if alias.InexactOverlap(dst[:len(src)], src) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+ 	}
++	if _, ok := x.b.(*aes.Block); ok {
++		panic("crypto/cipher: internal error: generic CTR used with AES")
++	}
+ 	for len(src) > 0 {
+ 		if x.outUsed >= len(x.out)-x.b.BlockSize() {
+ 			x.refill()
+diff --git a/src/crypto/cipher/gcm.go b/src/crypto/cipher/gcm.go
+index ec5090b326..2010f200f0 100644
+--- a/src/crypto/cipher/gcm.go
++++ b/src/crypto/cipher/gcm.go
+@@ -5,6 +5,7 @@
+ package cipher
+ 
+ import (
++	"crypto/internal/fips/aes"
+ 	"crypto/internal/fips/alias"
+ 	"crypto/subtle"
+ 	"errors"
+@@ -46,13 +47,6 @@ type AEAD interface {
+ 	Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error)
+ }
+ 
+-// gcmAble is an interface implemented by ciphers that have a specific optimized
+-// implementation of GCM, like crypto/aes. NewGCM will check for this interface
+-// and return the specific AEAD if found.
+-type gcmAble interface {
+-	NewGCM(nonceSize, tagSize int) (AEAD, error)
+-}
+-
+ // gcmFieldElement represents a value in GF(2¹²⁸). In order to reflect the GCM
+ // standard and make binary.BigEndian suitable for marshaling these values, the
+ // bits are stored in big endian order. For example:
+@@ -109,6 +103,13 @@ func NewGCMWithTagSize(cipher Block, tagSize int) (AEAD, error) {
+ 	return newGCMWithNonceAndTagSize(cipher, gcmStandardNonceSize, tagSize)
+ }
+ 
++// gcmAble is an interface implemented by ciphers that have a specific optimized
++// implementation of GCM. crypto/aes doesn't use this anymore, and we'd like to
++// eventually remove it.
++type gcmAble interface {
++	NewGCM(nonceSize, tagSize int) (AEAD, error)
++}
++
+ func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, error) {
+ 	if tagSize < gcmMinimumTagSize || tagSize > gcmBlockSize {
+ 		return nil, errors.New("cipher: incorrect tag size given to GCM")
+@@ -118,6 +119,17 @@ func newGCMWithNonceAndTagSize(cipher Block, nonceSize, tagSize int) (AEAD, erro
+ 		return nil, errors.New("cipher: the nonce can't have zero length, or the security of the key will be immediately compromised")
+ 	}
+ 
++	if cipher, ok := cipher.(interface {
++		NewGCM(nonceSize, tagSize int) (*aes.GCM, error)
++	}); ok {
++		gcm, err := cipher.NewGCM(nonceSize, tagSize)
++		// TODO(filippo): Remove this check once the generic implementation is
++		// moved to crypto/internal/fips/aes and this always returns non-nil.
++		if gcm != nil || err != nil {
++			return gcm, err
++		}
++	}
++
+ 	if cipher, ok := cipher.(gcmAble); ok {
+ 		return cipher.NewGCM(nonceSize, tagSize)
+ 	}
+diff --git a/src/crypto/cipher/modes_test.go b/src/crypto/cipher/modes_test.go
+new file mode 100644
+index 0000000000..fba371f8c9
+--- /dev/null
++++ b/src/crypto/cipher/modes_test.go
+@@ -0,0 +1,123 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package cipher_test
++
++import (
++	"crypto/aes"
++	. "crypto/cipher"
++	"reflect"
++	"testing"
++)
++
++// Historically, crypto/aes's Block would implement some undocumented
++// methods for crypto/cipher to use from NewCTR, NewCBCEncrypter, etc.
++// This is no longer the case, but for now test that the mechanism is
++// still working until we explicitly decide to remove it.
++
++type block struct {
++	Block
++}
++
++func (block) BlockSize() int {
++	return 16
++}
++
++type specialCTR struct {
++	Stream
++}
++
++func (block) NewCTR(iv []byte) Stream {
++	return specialCTR{}
++}
++
++func TestCTRAble(t *testing.T) {
++	b := block{}
++	s := NewCTR(b, make([]byte, 16))
++	if _, ok := s.(specialCTR); !ok {
++		t.Errorf("NewCTR did not return specialCTR")
++	}
++}
++
++type specialCBC struct {
++	BlockMode
++}
++
++func (block) NewCBCEncrypter(iv []byte) BlockMode {
++	return specialCBC{}
++}
++
++func (block) NewCBCDecrypter(iv []byte) BlockMode {
++	return specialCBC{}
++}
++
++func TestCBCAble(t *testing.T) {
++	b := block{}
++	s := NewCBCEncrypter(b, make([]byte, 16))
++	if _, ok := s.(specialCBC); !ok {
++		t.Errorf("NewCBCEncrypter did not return specialCBC")
++	}
++	s = NewCBCDecrypter(b, make([]byte, 16))
++	if _, ok := s.(specialCBC); !ok {
++		t.Errorf("NewCBCDecrypter did not return specialCBC")
++	}
++}
++
++type specialGCM struct {
++	AEAD
++}
++
++func (block) NewGCM(nonceSize, tagSize int) (AEAD, error) {
++	return specialGCM{}, nil
++}
++
++func TestGCM(t *testing.T) {
++	b := block{}
++	s, err := NewGCM(b)
++	if err != nil {
++		t.Errorf("NewGCM failed: %v", err)
++	}
++	if _, ok := s.(specialGCM); !ok {
++		t.Errorf("NewGCM did not return specialGCM")
++	}
++}
++
++// TestNoExtraMethods makes sure we don't accidentally expose methods on the
++// underlying implementations of modes.
++func TestNoExtraMethods(t *testing.T) {
++	b, _ := aes.NewCipher(make([]byte, 16))
++
++	ctr := NewCTR(b, make([]byte, 16))
++	ctrExpected := []string{"XORKeyStream"}
++	if got := exportedMethods(ctr); !reflect.DeepEqual(got, ctrExpected) {
++		t.Errorf("CTR: got %v, want %v", got, ctrExpected)
++	}
++
++	cbc := NewCBCEncrypter(b, make([]byte, 16))
++	cbcExpected := []string{"BlockSize", "CryptBlocks", "SetIV"}
++	if got := exportedMethods(cbc); !reflect.DeepEqual(got, cbcExpected) {
++		t.Errorf("CBC: got %v, want %v", got, cbcExpected)
++	}
++	cbc = NewCBCDecrypter(b, make([]byte, 16))
++	if got := exportedMethods(cbc); !reflect.DeepEqual(got, cbcExpected) {
++		t.Errorf("CBC: got %v, want %v", got, cbcExpected)
++	}
++
++	gcm, _ := NewGCM(b)
++	gcmExpected := []string{"NonceSize", "Open", "Overhead", "Seal"}
++	if got := exportedMethods(gcm); !reflect.DeepEqual(got, gcmExpected) {
++		t.Errorf("GCM: got %v, want %v", got, gcmExpected)
++	}
++}
++
++func exportedMethods(x any) []string {
++	var methods []string
++	v := reflect.ValueOf(x)
++	for i := 0; i < v.NumMethod(); i++ {
++		if v.Type().Method(i).IsExported() {
++			methods = append(methods, v.Type().Method(i).Name)
++		}
++	}
++	return methods
++}
+diff --git a/src/crypto/aes/_asm/ctr/ctr_amd64_asm.go b/src/crypto/internal/fips/aes/_asm/ctr/ctr_amd64_asm.go
+similarity index 100%
+rename from src/crypto/aes/_asm/ctr/ctr_amd64_asm.go
+rename to src/crypto/internal/fips/aes/_asm/ctr/ctr_amd64_asm.go
+diff --git a/src/crypto/aes/_asm/ctr/go.mod b/src/crypto/internal/fips/aes/_asm/ctr/go.mod
+similarity index 100%
+rename from src/crypto/aes/_asm/ctr/go.mod
+rename to src/crypto/internal/fips/aes/_asm/ctr/go.mod
+diff --git a/src/crypto/aes/_asm/ctr/go.sum b/src/crypto/internal/fips/aes/_asm/ctr/go.sum
+similarity index 100%
+rename from src/crypto/aes/_asm/ctr/go.sum
+rename to src/crypto/internal/fips/aes/_asm/ctr/go.sum
+diff --git a/src/crypto/aes/_asm/gcm/gcm_amd64_asm.go b/src/crypto/internal/fips/aes/_asm/gcm/gcm_amd64_asm.go
+similarity index 99%
+rename from src/crypto/aes/_asm/gcm/gcm_amd64_asm.go
+rename to src/crypto/internal/fips/aes/_asm/gcm/gcm_amd64_asm.go
+index c6606822eb..ed5f14b938 100644
+--- a/src/crypto/aes/_asm/gcm/gcm_amd64_asm.go
++++ b/src/crypto/internal/fips/aes/_asm/gcm/gcm_amd64_asm.go
+@@ -18,7 +18,7 @@ import (
+ 	. "github.com/mmcloughlin/avo/reg"
+ )
+ 
+-//go:generate go run . -out ../../gcm_amd64.s -pkg aes
++//go:generate go run . -out ../../gcm_amd64.s
+ 
+ var (
+ 	B0 VecPhysical = X0
+diff --git a/src/crypto/aes/_asm/gcm/go.mod b/src/crypto/internal/fips/aes/_asm/gcm/go.mod
+similarity index 100%
+rename from src/crypto/aes/_asm/gcm/go.mod
+rename to src/crypto/internal/fips/aes/_asm/gcm/go.mod
+diff --git a/src/crypto/aes/_asm/gcm/go.sum b/src/crypto/internal/fips/aes/_asm/gcm/go.sum
+similarity index 100%
+rename from src/crypto/aes/_asm/gcm/go.sum
+rename to src/crypto/internal/fips/aes/_asm/gcm/go.sum
+diff --git a/src/crypto/aes/_asm/standard/asm_amd64.go b/src/crypto/internal/fips/aes/_asm/standard/aes_amd64.go
+similarity index 99%
+rename from src/crypto/aes/_asm/standard/asm_amd64.go
+rename to src/crypto/internal/fips/aes/_asm/standard/aes_amd64.go
+index ed23e31097..44e0a79289 100644
+--- a/src/crypto/aes/_asm/standard/asm_amd64.go
++++ b/src/crypto/internal/fips/aes/_asm/standard/aes_amd64.go
+@@ -14,7 +14,7 @@ import (
+ 	. "github.com/mmcloughlin/avo/reg"
+ )
+ 
+-//go:generate go run . -out ../../asm_amd64.s -pkg aes
++//go:generate go run . -out ../../aes_amd64.s
+ 
+ func main() {
+ 	Package("crypto/aes")
+diff --git a/src/crypto/aes/_asm/standard/go.mod b/src/crypto/internal/fips/aes/_asm/standard/go.mod
+similarity index 100%
+rename from src/crypto/aes/_asm/standard/go.mod
+rename to src/crypto/internal/fips/aes/_asm/standard/go.mod
+diff --git a/src/crypto/aes/_asm/standard/go.sum b/src/crypto/internal/fips/aes/_asm/standard/go.sum
+similarity index 100%
+rename from src/crypto/aes/_asm/standard/go.sum
+rename to src/crypto/internal/fips/aes/_asm/standard/go.sum
+diff --git a/src/crypto/internal/fips/aes/aes.go b/src/crypto/internal/fips/aes/aes.go
+new file mode 100644
+index 0000000000..36cc83ee7a
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/aes.go
+@@ -0,0 +1,125 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aes
++
++import (
++	"crypto/internal/fips/alias"
++	"strconv"
++)
++
++// BlockSize is the AES block size in bytes.
++const BlockSize = 16
++
++// A Block is an instance of AES using a particular key.
++// It is safe for concurrent use.
++type Block struct {
++	block
++}
++
++// blockExpanded is the block type used for all architectures except s390x,
++// which feeds the raw key directly to its instructions.
++type blockExpanded struct {
++	rounds int
++	// Round keys, where only the first (rounds + 1) × (128 ÷ 32) words are used.
++	enc [60]uint32
++	dec [60]uint32
++}
++
++const (
++	// AES-128 has 128-bit keys, 10 rounds, and uses 11 128-bit round keys
++	// (11×128÷32 = 44 32-bit words).
++
++	// AES-192 has 192-bit keys, 12 rounds, and uses 13 128-bit round keys
++	// (13×128÷32 = 52 32-bit words).
++
++	// AES-256 has 256-bit keys, 14 rounds, and uses 15 128-bit round keys
++	// (15×128÷32 = 60 32-bit words).
++
++	aes128KeySize = 16
++	aes192KeySize = 24
++	aes256KeySize = 32
++
++	aes128Rounds = 10
++	aes192Rounds = 12
++	aes256Rounds = 14
++)
++
++// roundKeysSize returns the number of uint32 of c.end or c.dec that are used.
++func (b *blockExpanded) roundKeysSize() int {
++	return (b.rounds + 1) * (128 / 32)
++}
++
++type KeySizeError int
++
++func (k KeySizeError) Error() string {
++	return "crypto/aes: invalid key size " + strconv.Itoa(int(k))
++}
++
++// New creates and returns a new [cipher.Block] implementation.
++// The key argument should be the AES key, either 16, 24, or 32 bytes to select
++// AES-128, AES-192, or AES-256.
++func New(key []byte) (*Block, error) {
++	// This call is outline to let the allocation happen on the parent stack.
++	return newOutlined(&Block{}, key)
++}
++
++// newOutlined is marked go:noinline to avoid it inlining into New, and making New
++// too complex to inline itself.
++//
++//go:noinline
++func newOutlined(b *Block, key []byte) (*Block, error) {
++	switch len(key) {
++	case aes128KeySize, aes192KeySize, aes256KeySize:
++	default:
++		return nil, KeySizeError(len(key))
++	}
++	return newBlock(b, key), nil
++}
++
++func newBlockExpanded(c *blockExpanded, key []byte) {
++	switch len(key) {
++	case aes128KeySize:
++		c.rounds = aes128Rounds
++	case aes192KeySize:
++		c.rounds = aes192Rounds
++	case aes256KeySize:
++		c.rounds = aes256Rounds
++	}
++	expandKeyGeneric(c, key)
++}
++
++func (c *Block) BlockSize() int { return BlockSize }
++
++func (c *Block) Encrypt(dst, src []byte) {
++	if len(src) < BlockSize {
++		panic("crypto/aes: input not full block")
++	}
++	if len(dst) < BlockSize {
++		panic("crypto/aes: output not full block")
++	}
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++		panic("crypto/aes: invalid buffer overlap")
++	}
++	encryptBlock(c, dst, src)
++}
++
++func (c *Block) Decrypt(dst, src []byte) {
++	if len(src) < BlockSize {
++		panic("crypto/aes: input not full block")
++	}
++	if len(dst) < BlockSize {
++		panic("crypto/aes: output not full block")
++	}
++	if alias.InexactOverlap(dst[:BlockSize], src[:BlockSize]) {
++		panic("crypto/aes: invalid buffer overlap")
++	}
++	decryptBlock(c, dst, src)
++}
++
++// NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
++// called by [crypto/cipher.NewGCM] via an interface upgrade.
++func (c *Block) NewGCM(nonceSize, tagSize int) (*GCM, error) {
++	return newGCM(c, nonceSize, tagSize)
++}
+diff --git a/src/crypto/aes/asm_amd64.s b/src/crypto/internal/fips/aes/aes_amd64.s
+similarity index 100%
+rename from src/crypto/aes/asm_amd64.s
+rename to src/crypto/internal/fips/aes/aes_amd64.s
+diff --git a/src/crypto/aes/asm_arm64.s b/src/crypto/internal/fips/aes/aes_arm64.s
+similarity index 100%
+rename from src/crypto/aes/asm_arm64.s
+rename to src/crypto/internal/fips/aes/aes_arm64.s
+diff --git a/src/crypto/internal/fips/aes/aes_asm.go b/src/crypto/internal/fips/aes/aes_asm.go
+new file mode 100644
+index 0000000000..6dfcdc19df
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/aes_asm.go
+@@ -0,0 +1,71 @@
++// Copyright 2012 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (amd64 || arm64 || ppc64 || ppc64le) && !purego
++
++package aes
++
++import (
++	"internal/cpu"
++	"internal/goarch"
++)
++
++//go:noescape
++func encryptBlockAsm(nr int, xk *uint32, dst, src *byte)
++
++//go:noescape
++func decryptBlockAsm(nr int, xk *uint32, dst, src *byte)
++
++//go:noescape
++func expandKeyAsm(nr int, key *byte, enc *uint32, dec *uint32)
++
++var supportsAES = cpu.X86.HasAES && cpu.X86.HasSSE41 && cpu.X86.HasSSSE3 ||
++	cpu.ARM64.HasAES || goarch.IsPpc64 == 1 || goarch.IsPpc64le == 1
++var supportsGFMUL = cpu.X86.HasPCLMULQDQ || cpu.ARM64.HasPMULL
++
++// checkGenericIsExpected is called by the variable-time implementation to make
++// sure it is not used when hardware support is available. It shouldn't happen,
++// but this way it's more evidently correct.
++func checkGenericIsExpected() {
++	if supportsAES {
++		panic("crypto/aes: internal error: using generic implementation despite hardware support")
++	}
++}
++
++type block struct {
++	blockExpanded
++}
++
++func newBlock(c *Block, key []byte) *Block {
++	switch len(key) {
++	case aes128KeySize:
++		c.rounds = aes128Rounds
++	case aes192KeySize:
++		c.rounds = aes192Rounds
++	case aes256KeySize:
++		c.rounds = aes256Rounds
++	}
++	if supportsAES {
++		expandKeyAsm(c.rounds, &key[0], &c.enc[0], &c.dec[0])
++	} else {
++		expandKeyGeneric(&c.blockExpanded, key)
++	}
++	return c
++}
++
++func encryptBlock(c *Block, dst, src []byte) {
++	if supportsAES {
++		encryptBlockAsm(c.rounds, &c.enc[0], &dst[0], &src[0])
++	} else {
++		encryptBlockGeneric(&c.blockExpanded, dst, src)
++	}
++}
++
++func decryptBlock(c *Block, dst, src []byte) {
++	if supportsAES {
++		decryptBlockAsm(c.rounds, &c.dec[0], &dst[0], &src[0])
++	} else {
++		decryptBlockGeneric(&c.blockExpanded, dst, src)
++	}
++}
+diff --git a/src/crypto/aes/block.go b/src/crypto/internal/fips/aes/aes_generic.go
+similarity index 90%
+rename from src/crypto/aes/block.go
+rename to src/crypto/internal/fips/aes/aes_generic.go
+index 618eb7752a..936fb48153 100644
+--- a/src/crypto/aes/block.go
++++ b/src/crypto/internal/fips/aes/aes_generic.go
+@@ -39,7 +39,10 @@ package aes
+ import "internal/byteorder"
+ 
+ // Encrypt one block from src into dst, using the expanded key xk.
+-func encryptBlockGo(xk []uint32, dst, src []byte) {
++func encryptBlockGeneric(c *blockExpanded, dst, src []byte) {
++	checkGenericIsExpected()
++	xk := c.enc[:]
++
+ 	_ = src[15] // early bounds check
+ 	s0 := byteorder.BeUint32(src[0:4])
+ 	s1 := byteorder.BeUint32(src[4:8])
+@@ -53,11 +56,9 @@ func encryptBlockGo(xk []uint32, dst, src []byte) {
+ 	s3 ^= xk[3]
+ 
+ 	// Middle rounds shuffle using tables.
+-	// Number of rounds is set by length of expanded key.
+-	nr := len(xk)/4 - 2 // - 2: one above, one more below
+ 	k := 4
+ 	var t0, t1, t2, t3 uint32
+-	for r := 0; r < nr; r++ {
++	for r := 0; r < c.rounds-1; r++ {
+ 		t0 = xk[k+0] ^ te0[uint8(s0>>24)] ^ te1[uint8(s1>>16)] ^ te2[uint8(s2>>8)] ^ te3[uint8(s3)]
+ 		t1 = xk[k+1] ^ te0[uint8(s1>>24)] ^ te1[uint8(s2>>16)] ^ te2[uint8(s3>>8)] ^ te3[uint8(s0)]
+ 		t2 = xk[k+2] ^ te0[uint8(s2>>24)] ^ te1[uint8(s3>>16)] ^ te2[uint8(s0>>8)] ^ te3[uint8(s1)]
+@@ -85,7 +86,10 @@ func encryptBlockGo(xk []uint32, dst, src []byte) {
+ }
+ 
+ // Decrypt one block from src into dst, using the expanded key xk.
+-func decryptBlockGo(xk []uint32, dst, src []byte) {
++func decryptBlockGeneric(c *blockExpanded, dst, src []byte) {
++	checkGenericIsExpected()
++	xk := c.dec[:]
++
+ 	_ = src[15] // early bounds check
+ 	s0 := byteorder.BeUint32(src[0:4])
+ 	s1 := byteorder.BeUint32(src[4:8])
+@@ -99,11 +103,9 @@ func decryptBlockGo(xk []uint32, dst, src []byte) {
+ 	s3 ^= xk[3]
+ 
+ 	// Middle rounds shuffle using tables.
+-	// Number of rounds is set by length of expanded key.
+-	nr := len(xk)/4 - 2 // - 2: one above, one more below
+ 	k := 4
+ 	var t0, t1, t2, t3 uint32
+-	for r := 0; r < nr; r++ {
++	for r := 0; r < c.rounds-1; r++ {
+ 		t0 = xk[k+0] ^ td0[uint8(s0>>24)] ^ td1[uint8(s3>>16)] ^ td2[uint8(s2>>8)] ^ td3[uint8(s1)]
+ 		t1 = xk[k+1] ^ td0[uint8(s1>>24)] ^ td1[uint8(s0>>16)] ^ td2[uint8(s3>>8)] ^ td3[uint8(s2)]
+ 		t2 = xk[k+2] ^ td0[uint8(s2>>24)] ^ td1[uint8(s1>>16)] ^ td2[uint8(s0>>8)] ^ td3[uint8(s3)]
+@@ -143,38 +145,37 @@ func rotw(w uint32) uint32 { return w<<8 | w>>24 }
+ 
+ // Key expansion algorithm. See FIPS-197, Figure 11.
+ // Their rcon[i] is our powx[i-1] << 24.
+-func expandKeyGo(key []byte, enc, dec []uint32) {
++func expandKeyGeneric(c *blockExpanded, key []byte) {
++	checkGenericIsExpected()
++
+ 	// Encryption key setup.
+ 	var i int
+ 	nk := len(key) / 4
+ 	for i = 0; i < nk; i++ {
+-		enc[i] = byteorder.BeUint32(key[4*i:])
++		c.enc[i] = byteorder.BeUint32(key[4*i:])
+ 	}
+-	for ; i < len(enc); i++ {
+-		t := enc[i-1]
++	for ; i < c.roundKeysSize(); i++ {
++		t := c.enc[i-1]
+ 		if i%nk == 0 {
+ 			t = subw(rotw(t)) ^ (uint32(powx[i/nk-1]) << 24)
+ 		} else if nk > 6 && i%nk == 4 {
+ 			t = subw(t)
+ 		}
+-		enc[i] = enc[i-nk] ^ t
++		c.enc[i] = c.enc[i-nk] ^ t
+ 	}
+ 
+ 	// Derive decryption key from encryption key.
+ 	// Reverse the 4-word round key sets from enc to produce dec.
+ 	// All sets but the first and last get the MixColumn transform applied.
+-	if dec == nil {
+-		return
+-	}
+-	n := len(enc)
++	n := c.roundKeysSize()
+ 	for i := 0; i < n; i += 4 {
+ 		ei := n - i - 4
+ 		for j := 0; j < 4; j++ {
+-			x := enc[ei+j]
++			x := c.enc[ei+j]
+ 			if i > 0 && i+4 < n {
+ 				x = td0[sbox0[x>>24]] ^ td1[sbox0[x>>16&0xff]] ^ td2[sbox0[x>>8&0xff]] ^ td3[sbox0[x&0xff]]
+ 			}
+-			dec[i+j] = x
++			c.dec[i+j] = x
+ 		}
+ 	}
+ }
+diff --git a/src/crypto/internal/fips/aes/aes_noasm.go b/src/crypto/internal/fips/aes/aes_noasm.go
+new file mode 100644
+index 0000000000..8ba540273e
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/aes_noasm.go
+@@ -0,0 +1,26 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (!amd64 && !s390x && !ppc64 && !ppc64le && !arm64) || purego
++
++package aes
++
++type block struct {
++	blockExpanded
++}
++
++func newBlock(c *Block, key []byte) *Block {
++	newBlockExpanded(&c.blockExpanded, key)
++	return c
++}
++
++func encryptBlock(c *Block, dst, src []byte) {
++	encryptBlockGeneric(&c.blockExpanded, dst, src)
++}
++
++func decryptBlock(c *Block, dst, src []byte) {
++	decryptBlockGeneric(&c.blockExpanded, dst, src)
++}
++
++func checkGenericIsExpected() {}
+diff --git a/src/crypto/aes/asm_ppc64x.s b/src/crypto/internal/fips/aes/aes_ppc64x.s
+similarity index 100%
+rename from src/crypto/aes/asm_ppc64x.s
+rename to src/crypto/internal/fips/aes/aes_ppc64x.s
+diff --git a/src/crypto/internal/fips/aes/aes_s390x.go b/src/crypto/internal/fips/aes/aes_s390x.go
+new file mode 100644
+index 0000000000..4bc0671805
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/aes_s390x.go
+@@ -0,0 +1,78 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++package aes
++
++import "internal/cpu"
++
++type code int
++
++// Function codes for the cipher message family of instructions.
++const (
++	aes128 code = 18
++	aes192      = 19
++	aes256      = 20
++)
++
++type block struct {
++	function code     // code for cipher message instruction
++	key      []byte   // key (128, 192 or 256 bits)
++	storage  [32]byte // array backing key slice
++
++	fallback *blockExpanded
++}
++
++// cryptBlocks invokes the cipher message (KM) instruction with
++// the given function code. This is equivalent to AES in ECB
++// mode. The length must be a multiple of BlockSize (16).
++//
++//go:noescape
++func cryptBlocks(c code, key, dst, src *byte, length int)
++
++var supportsAES = cpu.S390X.HasAES && cpu.S390X.HasAESCBC && cpu.S390X.HasAESCTR
++
++func checkGenericIsExpected() {
++	if supportsAES {
++		panic("crypto/aes: internal error: using generic implementation despite hardware support")
++	}
++}
++
++func newBlock(c *Block, key []byte) *Block {
++	if !supportsAES {
++		c.fallback = &blockExpanded{}
++		newBlockExpanded(c.fallback, key)
++		return c
++	}
++
++	switch len(key) {
++	case 128 / 8:
++		c.function = aes128
++	case 192 / 8:
++		c.function = aes192
++	case 256 / 8:
++		c.function = aes256
++	}
++	c.key = c.storage[:len(key)]
++	copy(c.key, key)
++	return c
++}
++
++func encryptBlock(c *Block, dst, src []byte) {
++	if c.fallback != nil {
++		encryptBlockGeneric(c.fallback, dst, src)
++	} else {
++		cryptBlocks(c.function, &c.key[0], &dst[0], &src[0], BlockSize)
++	}
++}
++
++func decryptBlock(c *Block, dst, src []byte) {
++	if c.fallback != nil {
++		decryptBlockGeneric(c.fallback, dst, src)
++	} else {
++		// The decrypt function code is equal to the function code + 128.
++		cryptBlocks(c.function+128, &c.key[0], &dst[0], &src[0], BlockSize)
++	}
++}
+diff --git a/src/crypto/aes/asm_s390x.s b/src/crypto/internal/fips/aes/aes_s390x.s
+similarity index 87%
+rename from src/crypto/aes/asm_s390x.s
+rename to src/crypto/internal/fips/aes/aes_s390x.s
+index 5da0d8bf9c..7cbb00eb4e 100644
+--- a/src/crypto/aes/asm_s390x.s
++++ b/src/crypto/internal/fips/aes/aes_s390x.s
+@@ -37,39 +37,6 @@ loop:
+ 	MVC	$16, 0(R1), 0(R8) // update iv
+ 	RET
+ 
+-// func xorBytes(dst, a, b []byte) int
+-TEXT ·xorBytes(SB),NOSPLIT,$0-80
+-	MOVD	dst_base+0(FP), R1
+-	MOVD	a_base+24(FP), R2
+-	MOVD	b_base+48(FP), R3
+-	MOVD	a_len+32(FP), R4
+-	MOVD	b_len+56(FP), R5
+-	CMPBLE	R4, R5, skip
+-	MOVD	R5, R4
+-skip:
+-	MOVD	R4, ret+72(FP)
+-	MOVD	$0, R5
+-	CMPBLT	R4, $8, tail
+-loop:
+-	MOVD	0(R2)(R5*1), R7
+-	MOVD	0(R3)(R5*1), R8
+-	XOR	R7, R8
+-	MOVD	R8, 0(R1)(R5*1)
+-	LAY	8(R5), R5
+-	SUB	$8, R4
+-	CMPBGE	R4, $8, loop
+-tail:
+-	CMPBEQ	R4, $0, done
+-	MOVB	0(R2)(R5*1), R7
+-	MOVB	0(R3)(R5*1), R8
+-	XOR	R7, R8
+-	MOVB	R8, 0(R1)(R5*1)
+-	LAY	1(R5), R5
+-	SUB	$1, R4
+-	BR	tail
+-done:
+-	RET
+-
+ // func cryptBlocksGCM(fn code, key, dst, src, buf []byte, cnt *[16]byte)
+ TEXT ·cryptBlocksGCM(SB),NOSPLIT,$0-112
+ 	MOVD	src_len+64(FP), R0
+diff --git a/src/crypto/internal/fips/aes/aes_test.go b/src/crypto/internal/fips/aes/aes_test.go
+new file mode 100644
+index 0000000000..3504638913
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/aes_test.go
+@@ -0,0 +1,120 @@
++// Copyright 2009 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aes
++
++import "testing"
++
++// See const.go for overview of math here.
++
++// Test that powx is initialized correctly.
++// (Can adapt this code to generate it too.)
++func TestPowx(t *testing.T) {
++	p := 1
++	for i := 0; i < len(powx); i++ {
++		if powx[i] != byte(p) {
++			t.Errorf("powx[%d] = %#x, want %#x", i, powx[i], p)
++		}
++		p <<= 1
++		if p&0x100 != 0 {
++			p ^= poly
++		}
++	}
++}
++
++// Multiply b and c as GF(2) polynomials modulo poly
++func mul(b, c uint32) uint32 {
++	i := b
++	j := c
++	s := uint32(0)
++	for k := uint32(1); k < 0x100 && j != 0; k <<= 1 {
++		// Invariant: k == 1<<n, i == b * xⁿ
++
++		if j&k != 0 {
++			// s += i in GF(2); xor in binary
++			s ^= i
++			j ^= k // turn off bit to end loop early
++		}
++
++		// i *= x in GF(2) modulo the polynomial
++		i <<= 1
++		if i&0x100 != 0 {
++			i ^= poly
++		}
++	}
++	return s
++}
++
++// Test all mul inputs against bit-by-bit n² algorithm.
++func TestMul(t *testing.T) {
++	for i := uint32(0); i < 256; i++ {
++		for j := uint32(0); j < 256; j++ {
++			// Multiply i, j bit by bit.
++			s := uint8(0)
++			for k := uint(0); k < 8; k++ {
++				for l := uint(0); l < 8; l++ {
++					if i&(1<<k) != 0 && j&(1<<l) != 0 {
++						s ^= powx[k+l]
++					}
++				}
++			}
++			if x := mul(i, j); x != uint32(s) {
++				t.Fatalf("mul(%#x, %#x) = %#x, want %#x", i, j, x, s)
++			}
++		}
++	}
++}
++
++// Check that S-boxes are inverses of each other.
++// They have more structure that we could test,
++// but if this sanity check passes, we'll assume
++// the cut and paste from the FIPS PDF worked.
++func TestSboxes(t *testing.T) {
++	for i := 0; i < 256; i++ {
++		if j := sbox0[sbox1[i]]; j != byte(i) {
++			t.Errorf("sbox0[sbox1[%#x]] = %#x", i, j)
++		}
++		if j := sbox1[sbox0[i]]; j != byte(i) {
++			t.Errorf("sbox1[sbox0[%#x]] = %#x", i, j)
++		}
++	}
++}
++
++// Test that encryption tables are correct.
++// (Can adapt this code to generate them too.)
++func TestTe(t *testing.T) {
++	for i := 0; i < 256; i++ {
++		s := uint32(sbox0[i])
++		s2 := mul(s, 2)
++		s3 := mul(s, 3)
++		w := s2<<24 | s<<16 | s<<8 | s3
++		te := [][256]uint32{te0, te1, te2, te3}
++		for j := 0; j < 4; j++ {
++			if x := te[j][i]; x != w {
++				t.Fatalf("te[%d][%d] = %#x, want %#x", j, i, x, w)
++			}
++			w = w<<24 | w>>8
++		}
++	}
++}
++
++// Test that decryption tables are correct.
++// (Can adapt this code to generate them too.)
++func TestTd(t *testing.T) {
++	for i := 0; i < 256; i++ {
++		s := uint32(sbox1[i])
++		s9 := mul(s, 0x9)
++		sb := mul(s, 0xb)
++		sd := mul(s, 0xd)
++		se := mul(s, 0xe)
++		w := se<<24 | s9<<16 | sd<<8 | sb
++		td := [][256]uint32{td0, td1, td2, td3}
++		for j := 0; j < 4; j++ {
++			if x := td[j][i]; x != w {
++				t.Fatalf("td[%d][%d] = %#x, want %#x", j, i, x, w)
++			}
++			w = w<<24 | w>>8
++		}
++	}
++}
+diff --git a/src/crypto/internal/fips/aes/cbc.go b/src/crypto/internal/fips/aes/cbc.go
+new file mode 100644
+index 0000000000..d4ec14f1a6
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/cbc.go
+@@ -0,0 +1,127 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aes
++
++import (
++	"crypto/internal/fips/alias"
++	"crypto/internal/fips/subtle"
++)
++
++type CBCEncrypter struct {
++	b  Block
++	iv [BlockSize]byte
++}
++
++// NewCBCEncrypter returns a [cipher.BlockMode] which encrypts in cipher block
++// chaining mode, using the given Block.
++func NewCBCEncrypter(b *Block, iv [BlockSize]byte) *CBCEncrypter {
++	return &CBCEncrypter{b: *b, iv: iv}
++}
++
++func (c *CBCEncrypter) BlockSize() int { return BlockSize }
++
++func (c *CBCEncrypter) CryptBlocks(dst, src []byte) {
++	if len(src)%BlockSize != 0 {
++		panic("crypto/cipher: input not full blocks")
++	}
++	if len(dst) < len(src) {
++		panic("crypto/cipher: output smaller than input")
++	}
++	if alias.InexactOverlap(dst[:len(src)], src) {
++		panic("crypto/cipher: invalid buffer overlap")
++	}
++	if len(src) == 0 {
++		return
++	}
++	cryptBlocksEnc(&c.b, &c.iv, dst, src)
++}
++
++func (x *CBCEncrypter) SetIV(iv []byte) {
++	if len(iv) != len(x.iv) {
++		panic("cipher: incorrect length IV")
++	}
++	copy(x.iv[:], iv)
++}
++
++func cryptBlocksEncGeneric(b *Block, civ *[BlockSize]byte, dst, src []byte) {
++	iv := civ[:]
++	for len(src) > 0 {
++		// Write the xor to dst, then encrypt in place.
++		subtle.XORBytes(dst[:BlockSize], src[:BlockSize], iv)
++		b.Encrypt(dst[:BlockSize], dst[:BlockSize])
++
++		// Move to the next block with this block as the next iv.
++		iv = dst[:BlockSize]
++		src = src[BlockSize:]
++		dst = dst[BlockSize:]
++	}
++
++	// Save the iv for the next CryptBlocks call.
++	copy(civ[:], iv)
++}
++
++type CBCDecrypter struct {
++	b  Block
++	iv [BlockSize]byte
++}
++
++// NewCBCDecrypter returns a [cipher.BlockMode] which decrypts in cipher block
++// chaining mode, using the given Block.
++func NewCBCDecrypter(b *Block, iv [BlockSize]byte) *CBCDecrypter {
++	return &CBCDecrypter{b: *b, iv: iv}
++}
++
++func (c *CBCDecrypter) BlockSize() int { return BlockSize }
++
++func (c *CBCDecrypter) CryptBlocks(dst, src []byte) {
++	if len(src)%BlockSize != 0 {
++		panic("crypto/cipher: input not full blocks")
++	}
++	if len(dst) < len(src) {
++		panic("crypto/cipher: output smaller than input")
++	}
++	if alias.InexactOverlap(dst[:len(src)], src) {
++		panic("crypto/cipher: invalid buffer overlap")
++	}
++	if len(src) == 0 {
++		return
++	}
++	cryptBlocksDec(&c.b, &c.iv, dst, src)
++}
++
++func (x *CBCDecrypter) SetIV(iv []byte) {
++	if len(iv) != len(x.iv) {
++		panic("cipher: incorrect length IV")
++	}
++	copy(x.iv[:], iv)
++}
++
++func cryptBlocksDecGeneric(b *Block, civ *[BlockSize]byte, dst, src []byte) {
++	// For each block, we need to xor the decrypted data with the previous
++	// block's ciphertext (the iv). To avoid making a copy each time, we loop
++	// over the blocks backwards.
++	end := len(src)
++	start := end - BlockSize
++	prev := start - BlockSize
++
++	// Copy the last block of ciphertext as the IV of the next call.
++	iv := *civ
++	copy(civ[:], src[start:end])
++
++	for start >= 0 {
++		b.Decrypt(dst[start:end], src[start:end])
++
++		if start > 0 {
++			subtle.XORBytes(dst[start:end], dst[start:end], src[prev:start])
++		} else {
++			// The first block is special because it uses the saved iv.
++			subtle.XORBytes(dst[start:end], dst[start:end], iv[:])
++		}
++
++		end -= BlockSize
++		start -= BlockSize
++		prev -= BlockSize
++	}
++}
+diff --git a/src/crypto/internal/fips/aes/cbc_noasm.go b/src/crypto/internal/fips/aes/cbc_noasm.go
+new file mode 100644
+index 0000000000..fd10c2e99f
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/cbc_noasm.go
+@@ -0,0 +1,15 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (!s390x && !ppc64 && !ppc64le) || purego
++
++package aes
++
++func cryptBlocksEnc(b *Block, civ *[BlockSize]byte, dst, src []byte) {
++	cryptBlocksEncGeneric(b, civ, dst, src)
++}
++
++func cryptBlocksDec(b *Block, civ *[BlockSize]byte, dst, src []byte) {
++	cryptBlocksDecGeneric(b, civ, dst, src)
++}
+diff --git a/src/crypto/internal/fips/aes/cbc_ppc64x.go b/src/crypto/internal/fips/aes/cbc_ppc64x.go
+new file mode 100644
+index 0000000000..460bae3d49
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/cbc_ppc64x.go
+@@ -0,0 +1,31 @@
++// Copyright 2021 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (ppc64 || ppc64le) && !purego
++
++package aes
++
++// cryptBlocksChain invokes the cipher message identifying encrypt or decrypt.
++//
++//go:noescape
++func cryptBlocksChain(src, dst *byte, length int, key *uint32, iv *byte, enc int, nr int)
++
++const cbcEncrypt = 1
++const cbcDecrypt = 0
++
++func cryptBlocksEnc(b *Block, civ *[BlockSize]byte, dst, src []byte) {
++	if !supportsAES {
++		cryptBlocksEncGeneric(b, civ, dst, src)
++	} else {
++		cryptBlocksChain(&src[0], &dst[0], len(src), &b.enc[0], &civ[0], cbcEncrypt, b.rounds)
++	}
++}
++
++func cryptBlocksDec(b *Block, civ *[BlockSize]byte, dst, src []byte) {
++	if !supportsAES {
++		cryptBlocksDecGeneric(b, civ, dst, src)
++	} else {
++		cryptBlocksChain(&src[0], &dst[0], len(src), &b.dec[0], &civ[0], cbcDecrypt, b.rounds)
++	}
++}
+diff --git a/src/crypto/internal/fips/aes/cbc_s390x.go b/src/crypto/internal/fips/aes/cbc_s390x.go
+new file mode 100644
+index 0000000000..39e7879aa8
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/cbc_s390x.go
+@@ -0,0 +1,28 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++package aes
++
++// cryptBlocksChain invokes the cipher message with chaining (KMC) instruction
++// with the given function code. The length must be a multiple of BlockSize (16).
++//
++//go:noescape
++func cryptBlocksChain(c code, iv, key, dst, src *byte, length int)
++
++func cryptBlocksEnc(b *Block, civ *[BlockSize]byte, dst, src []byte) {
++	if b.fallback != nil {
++		cryptBlocksEncGeneric(b, civ, dst, src)
++	}
++	cryptBlocksChain(b.function, &civ[0], &b.key[0], &dst[0], &src[0], len(src))
++}
++
++func cryptBlocksDec(b *Block, civ *[BlockSize]byte, dst, src []byte) {
++	if b.fallback != nil {
++		cryptBlocksDecGeneric(b, civ, dst, src)
++	}
++	// Decrypt function code is encrypt + 128.
++	cryptBlocksChain(b.function+128, &civ[0], &b.key[0], &dst[0], &src[0], len(src))
++}
+diff --git a/src/crypto/aes/const.go b/src/crypto/internal/fips/aes/const.go
+similarity index 97%
+rename from src/crypto/aes/const.go
+rename to src/crypto/internal/fips/aes/const.go
+index 4eca4b9aff..3ecc922b5a 100644
+--- a/src/crypto/aes/const.go
++++ b/src/crypto/internal/fips/aes/const.go
+@@ -2,15 +2,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// Package aes implements AES encryption (formerly Rijndael), as defined in
+-// U.S. Federal Information Processing Standards Publication 197.
+-//
+-// The AES operations in this package are not implemented using constant-time algorithms.
+-// An exception is when running on systems with enabled hardware support for AES
+-// that makes these operations constant-time. Examples include amd64 systems using AES-NI
+-// extensions and s390x systems using Message-Security-Assist extensions.
+-// On such systems, when the result of NewCipher is passed to cipher.NewGCM,
+-// the GHASH operation used by GCM is also constant-time.
+ package aes
+ 
+ // This file contains AES constants - 8720 bytes of initialized data.
+diff --git a/src/crypto/aes/ctr_asm.go b/src/crypto/internal/fips/aes/ctr.go
+similarity index 61%
+rename from src/crypto/aes/ctr_asm.go
+rename to src/crypto/internal/fips/aes/ctr.go
+index 5d293e3eab..a20d3864d5 100644
+--- a/src/crypto/aes/ctr_asm.go
++++ b/src/crypto/internal/fips/aes/ctr.go
+@@ -2,60 +2,35 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (amd64 || arm64) && !purego
+-
+ package aes
+ 
+ import (
+-	"crypto/cipher"
+ 	"crypto/internal/fips/alias"
++	"crypto/internal/fips/subtle"
+ 	"internal/byteorder"
+ 	"math/bits"
+ )
+ 
+-// Each ctrBlocksNAsm function XORs src with N blocks of counter keystream, and
+-// stores it in dst. src is loaded in full before storing dst, so they can
+-// overlap even inexactly. The starting counter value is passed in as a pair of
+-// little-endian 64-bit integers.
+-
+-//go:generate sh -c "go run ./ctr_arm64_gen.go | asmfmt > ctr_arm64.s"
+-
+-//go:noescape
+-func ctrBlocks1Asm(nr int, xk *[60]uint32, dst, src *[BlockSize]byte, ivlo, ivhi uint64)
+-
+-//go:noescape
+-func ctrBlocks2Asm(nr int, xk *[60]uint32, dst, src *[2 * BlockSize]byte, ivlo, ivhi uint64)
+-
+-//go:noescape
+-func ctrBlocks4Asm(nr int, xk *[60]uint32, dst, src *[4 * BlockSize]byte, ivlo, ivhi uint64)
+-
+-//go:noescape
+-func ctrBlocks8Asm(nr int, xk *[60]uint32, dst, src *[8 * BlockSize]byte, ivlo, ivhi uint64)
+-
+-type aesCtrWithIV struct {
+-	enc        [60]uint32
+-	rounds     int    // 10 for AES-128, 12 for AES-192, 14 for AES-256
++type CTR struct {
++	b          Block
+ 	ivlo, ivhi uint64 // start counter as 64-bit limbs
+ 	offset     uint64 // for XORKeyStream only
+ }
+ 
+-var _ ctrAble = (*aesCipherAsm)(nil)
+-
+-func (c *aesCipherAsm) NewCTR(iv []byte) cipher.Stream {
++func NewCTR(b *Block, iv []byte) *CTR {
+ 	if len(iv) != BlockSize {
+ 		panic("bad IV length")
+ 	}
+ 
+-	return &aesCtrWithIV{
+-		enc:    c.enc,
+-		rounds: int(c.l/4 - 1),
++	return &CTR{
++		b:      *b,
+ 		ivlo:   byteorder.BeUint64(iv[8:16]),
+ 		ivhi:   byteorder.BeUint64(iv[0:8]),
+ 		offset: 0,
+ 	}
+ }
+ 
+-func (c *aesCtrWithIV) XORKeyStream(dst, src []byte) {
++func (c *CTR) XORKeyStream(dst, src []byte) {
+ 	c.XORKeyStreamAt(dst, src, c.offset)
+ 
+ 	var carry uint64
+@@ -69,7 +44,7 @@ func (c *aesCtrWithIV) XORKeyStream(dst, src []byte) {
+ // seeks into the keystream by the given bytes offset from the start (ignoring
+ // any XORKetStream calls). This allows for random access into the keystream, up
+ // to 16 EiB from the start.
+-func (c *aesCtrWithIV) XORKeyStreamAt(dst, src []byte, offset uint64) {
++func (c *CTR) XORKeyStreamAt(dst, src []byte, offset uint64) {
+ 	if len(dst) < len(src) {
+ 		panic("crypto/aes: len(dst) < len(src)")
+ 	}
+@@ -84,7 +59,7 @@ func (c *aesCtrWithIV) XORKeyStreamAt(dst, src []byte, offset uint64) {
+ 		// We have a partial block at the beginning.
+ 		var in, out [BlockSize]byte
+ 		copy(in[blockOffset:], src)
+-		ctrBlocks1Asm(c.rounds, &c.enc, &out, &in, ivlo, ivhi)
++		ctrBlocks1(&c.b, &out, &in, ivlo, ivhi)
+ 		n := copy(dst, out[blockOffset:])
+ 		src = src[n:]
+ 		dst = dst[n:]
+@@ -92,7 +67,7 @@ func (c *aesCtrWithIV) XORKeyStreamAt(dst, src []byte, offset uint64) {
+ 	}
+ 
+ 	for len(src) >= 8*BlockSize {
+-		ctrBlocks8Asm(c.rounds, &c.enc, (*[8 * BlockSize]byte)(dst), (*[8 * BlockSize]byte)(src), ivlo, ivhi)
++		ctrBlocks8(&c.b, (*[8 * BlockSize]byte)(dst), (*[8 * BlockSize]byte)(src), ivlo, ivhi)
+ 		src = src[8*BlockSize:]
+ 		dst = dst[8*BlockSize:]
+ 		ivlo, ivhi = add128(ivlo, ivhi, 8)
+@@ -100,19 +75,19 @@ func (c *aesCtrWithIV) XORKeyStreamAt(dst, src []byte, offset uint64) {
+ 
+ 	// The tail can have at most 7 = 4 + 2 + 1 blocks.
+ 	if len(src) >= 4*BlockSize {
+-		ctrBlocks4Asm(c.rounds, &c.enc, (*[4 * BlockSize]byte)(dst), (*[4 * BlockSize]byte)(src), ivlo, ivhi)
++		ctrBlocks4(&c.b, (*[4 * BlockSize]byte)(dst), (*[4 * BlockSize]byte)(src), ivlo, ivhi)
+ 		src = src[4*BlockSize:]
+ 		dst = dst[4*BlockSize:]
+ 		ivlo, ivhi = add128(ivlo, ivhi, 4)
+ 	}
+ 	if len(src) >= 2*BlockSize {
+-		ctrBlocks2Asm(c.rounds, &c.enc, (*[2 * BlockSize]byte)(dst), (*[2 * BlockSize]byte)(src), ivlo, ivhi)
++		ctrBlocks2(&c.b, (*[2 * BlockSize]byte)(dst), (*[2 * BlockSize]byte)(src), ivlo, ivhi)
+ 		src = src[2*BlockSize:]
+ 		dst = dst[2*BlockSize:]
+ 		ivlo, ivhi = add128(ivlo, ivhi, 2)
+ 	}
+ 	if len(src) >= 1*BlockSize {
+-		ctrBlocks1Asm(c.rounds, &c.enc, (*[1 * BlockSize]byte)(dst), (*[1 * BlockSize]byte)(src), ivlo, ivhi)
++		ctrBlocks1(&c.b, (*[1 * BlockSize]byte)(dst), (*[1 * BlockSize]byte)(src), ivlo, ivhi)
+ 		src = src[1*BlockSize:]
+ 		dst = dst[1*BlockSize:]
+ 		ivlo, ivhi = add128(ivlo, ivhi, 1)
+@@ -122,11 +97,29 @@ func (c *aesCtrWithIV) XORKeyStreamAt(dst, src []byte, offset uint64) {
+ 		// We have a partial block at the end.
+ 		var in, out [BlockSize]byte
+ 		copy(in[:], src)
+-		ctrBlocks1Asm(c.rounds, &c.enc, &out, &in, ivlo, ivhi)
++		ctrBlocks1(&c.b, &out, &in, ivlo, ivhi)
+ 		copy(dst, out[:])
+ 	}
+ }
+ 
++// Each ctrBlocksN function XORs src with N blocks of counter keystream, and
++// stores it in dst. src is loaded in full before storing dst, so they can
++// overlap even inexactly. The starting counter value is passed in as a pair of
++// little-endian 64-bit integers.
++
++func ctrBlocks(b *Block, dst, src []byte, ivlo, ivhi uint64) {
++	buf := make([]byte, len(src), 8*BlockSize)
++	for i := 0; i < len(buf); i += BlockSize {
++		byteorder.BePutUint64(buf[i:], ivhi)
++		byteorder.BePutUint64(buf[i+8:], ivlo)
++		ivlo, ivhi = add128(ivlo, ivhi, 1)
++		b.Encrypt(buf[i:], buf[i:])
++	}
++	// XOR into buf first, in case src and dst overlap (see above).
++	subtle.XORBytes(buf, src, buf)
++	copy(dst, buf)
++}
++
+ func add128(lo, hi uint64, x uint64) (uint64, uint64) {
+ 	lo, c := bits.Add64(lo, x, 0)
+ 	hi, _ = bits.Add64(hi, 0, c)
+diff --git a/src/crypto/aes/ctr_amd64.s b/src/crypto/internal/fips/aes/ctr_amd64.s
+similarity index 100%
+rename from src/crypto/aes/ctr_amd64.s
+rename to src/crypto/internal/fips/aes/ctr_amd64.s
+diff --git a/src/crypto/aes/ctr_arm64.s b/src/crypto/internal/fips/aes/ctr_arm64.s
+similarity index 100%
+rename from src/crypto/aes/ctr_arm64.s
+rename to src/crypto/internal/fips/aes/ctr_arm64.s
+diff --git a/src/crypto/aes/ctr_arm64_gen.go b/src/crypto/internal/fips/aes/ctr_arm64_gen.go
+similarity index 100%
+rename from src/crypto/aes/ctr_arm64_gen.go
+rename to src/crypto/internal/fips/aes/ctr_arm64_gen.go
+diff --git a/src/crypto/internal/fips/aes/ctr_asm.go b/src/crypto/internal/fips/aes/ctr_asm.go
+new file mode 100644
+index 0000000000..76fd347e13
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/ctr_asm.go
+@@ -0,0 +1,53 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (amd64 || arm64) && !purego
++
++package aes
++
++//go:generate sh -c "go run ./ctr_arm64_gen.go | asmfmt > ctr_arm64.s"
++
++//go:noescape
++func ctrBlocks1Asm(nr int, xk *[60]uint32, dst, src *[BlockSize]byte, ivlo, ivhi uint64)
++
++//go:noescape
++func ctrBlocks2Asm(nr int, xk *[60]uint32, dst, src *[2 * BlockSize]byte, ivlo, ivhi uint64)
++
++//go:noescape
++func ctrBlocks4Asm(nr int, xk *[60]uint32, dst, src *[4 * BlockSize]byte, ivlo, ivhi uint64)
++
++//go:noescape
++func ctrBlocks8Asm(nr int, xk *[60]uint32, dst, src *[8 * BlockSize]byte, ivlo, ivhi uint64)
++
++func ctrBlocks1(b *Block, dst, src *[BlockSize]byte, ivlo, ivhi uint64) {
++	if !supportsAES {
++		ctrBlocks(b, dst[:], src[:], ivlo, ivhi)
++	} else {
++		ctrBlocks1Asm(b.rounds, &b.enc, dst, src, ivlo, ivhi)
++	}
++}
++
++func ctrBlocks2(b *Block, dst, src *[2 * BlockSize]byte, ivlo, ivhi uint64) {
++	if !supportsAES {
++		ctrBlocks(b, dst[:], src[:], ivlo, ivhi)
++	} else {
++		ctrBlocks2Asm(b.rounds, &b.enc, dst, src, ivlo, ivhi)
++	}
++}
++
++func ctrBlocks4(b *Block, dst, src *[4 * BlockSize]byte, ivlo, ivhi uint64) {
++	if !supportsAES {
++		ctrBlocks(b, dst[:], src[:], ivlo, ivhi)
++	} else {
++		ctrBlocks4Asm(b.rounds, &b.enc, dst, src, ivlo, ivhi)
++	}
++}
++
++func ctrBlocks8(b *Block, dst, src *[8 * BlockSize]byte, ivlo, ivhi uint64) {
++	if !supportsAES {
++		ctrBlocks(b, dst[:], src[:], ivlo, ivhi)
++	} else {
++		ctrBlocks8Asm(b.rounds, &b.enc, dst, src, ivlo, ivhi)
++	}
++}
+diff --git a/src/crypto/internal/fips/aes/ctr_noasm.go b/src/crypto/internal/fips/aes/ctr_noasm.go
+new file mode 100644
+index 0000000000..7f82d61e40
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/ctr_noasm.go
+@@ -0,0 +1,23 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (!amd64 && !arm64 && !s390x) || purego
++
++package aes
++
++func ctrBlocks1(b *Block, dst, src *[BlockSize]byte, ivlo, ivhi uint64) {
++	ctrBlocks(b, dst[:], src[:], ivlo, ivhi)
++}
++
++func ctrBlocks2(b *Block, dst, src *[2 * BlockSize]byte, ivlo, ivhi uint64) {
++	ctrBlocks(b, dst[:], src[:], ivlo, ivhi)
++}
++
++func ctrBlocks4(b *Block, dst, src *[4 * BlockSize]byte, ivlo, ivhi uint64) {
++	ctrBlocks(b, dst[:], src[:], ivlo, ivhi)
++}
++
++func ctrBlocks8(b *Block, dst, src *[8 * BlockSize]byte, ivlo, ivhi uint64) {
++	ctrBlocks(b, dst[:], src[:], ivlo, ivhi)
++}
+diff --git a/src/crypto/internal/fips/aes/ctr_s390x.go b/src/crypto/internal/fips/aes/ctr_s390x.go
+new file mode 100644
+index 0000000000..af8b4b1e97
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/ctr_s390x.go
+@@ -0,0 +1,48 @@
++// Copyright 2016 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++package aes
++
++import (
++	"crypto/internal/fips/subtle"
++	"internal/byteorder"
++)
++
++func ctrBlocks1(b *Block, dst, src *[BlockSize]byte, ivlo, ivhi uint64) {
++	ctrBlocksS390x(b, dst[:], src[:], ivlo, ivhi)
++}
++
++func ctrBlocks2(b *Block, dst, src *[2 * BlockSize]byte, ivlo, ivhi uint64) {
++	ctrBlocksS390x(b, dst[:], src[:], ivlo, ivhi)
++}
++
++func ctrBlocks4(b *Block, dst, src *[4 * BlockSize]byte, ivlo, ivhi uint64) {
++	ctrBlocksS390x(b, dst[:], src[:], ivlo, ivhi)
++}
++
++func ctrBlocks8(b *Block, dst, src *[8 * BlockSize]byte, ivlo, ivhi uint64) {
++	ctrBlocksS390x(b, dst[:], src[:], ivlo, ivhi)
++}
++
++func ctrBlocksS390x(b *Block, dst, src []byte, ivlo, ivhi uint64) {
++	if b.fallback != nil {
++		ctrBlocks(b, dst, src, ivlo, ivhi)
++	}
++
++	buf := make([]byte, len(src), 8*BlockSize)
++	for i := 0; i < len(buf); i += BlockSize {
++		byteorder.BePutUint64(buf[i:], ivhi)
++		byteorder.BePutUint64(buf[i+8:], ivlo)
++		ivlo, ivhi = add128(ivlo, ivhi, 1)
++	}
++
++	// Encrypt the buffer using AES in ECB mode.
++	cryptBlocks(b.function, &b.key[0], &buf[0], &buf[0], len(buf))
++
++	// XOR into buf first, in case src and dst overlap (see ctrBlocks).
++	subtle.XORBytes(buf, src, buf)
++	copy(dst, buf)
++}
+diff --git a/src/crypto/aes/gcm_amd64.s b/src/crypto/internal/fips/aes/gcm_amd64.s
+similarity index 100%
+rename from src/crypto/aes/gcm_amd64.s
+rename to src/crypto/internal/fips/aes/gcm_amd64.s
+diff --git a/src/crypto/aes/gcm_arm64.s b/src/crypto/internal/fips/aes/gcm_arm64.s
+similarity index 100%
+rename from src/crypto/aes/gcm_arm64.s
+rename to src/crypto/internal/fips/aes/gcm_arm64.s
+diff --git a/src/crypto/aes/aes_gcm.go b/src/crypto/internal/fips/aes/gcm_asm.go
+similarity index 87%
+rename from src/crypto/aes/aes_gcm.go
+rename to src/crypto/internal/fips/aes/gcm_asm.go
+index c1de6bfb3d..649fa1ff37 100644
+--- a/src/crypto/aes/aes_gcm.go
++++ b/src/crypto/internal/fips/aes/gcm_asm.go
+@@ -7,9 +7,8 @@
+ package aes
+ 
+ import (
+-	"crypto/cipher"
+ 	"crypto/internal/fips/alias"
+-	"crypto/subtle"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ )
+ 
+@@ -39,18 +38,17 @@ const (
+ 
+ var errOpen = errors.New("cipher: message authentication failed")
+ 
+-// Assert that aesCipherGCM implements the gcmAble interface.
+-var _ gcmAble = (*aesCipherGCM)(nil)
+-
+-// NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+-// called by [crypto/cipher.NewGCM] via the gcmAble interface.
+-func (c *aesCipherGCM) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+-	g := &gcmAsm{ks: c.enc[:c.l], nonceSize: nonceSize, tagSize: tagSize}
+-	gcmAesInit(&g.productTable, g.ks)
+-	return g, nil
++func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
++	if supportsAES && supportsGFMUL {
++		l := c.roundKeysSize()
++		g := &GCM{ks: c.enc[:l], nonceSize: nonceSize, tagSize: tagSize}
++		gcmAesInit(&g.productTable, g.ks)
++		return g, nil
++	}
++	return nil, nil
+ }
+ 
+-type gcmAsm struct {
++type GCM struct {
+ 	// ks is the key schedule, the length of which depends on the size of
+ 	// the AES key.
+ 	ks []uint32
+@@ -63,11 +61,11 @@ type gcmAsm struct {
+ 	tagSize int
+ }
+ 
+-func (g *gcmAsm) NonceSize() int {
++func (g *GCM) NonceSize() int {
+ 	return g.nonceSize
+ }
+ 
+-func (g *gcmAsm) Overhead() int {
++func (g *GCM) Overhead() int {
+ 	return g.tagSize
+ }
+ 
+@@ -88,7 +86,7 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
+ 
+ // Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+ // details.
+-func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
++func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+@@ -128,7 +126,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 
+ // Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+ // for details.
+-func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
++func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+diff --git a/src/crypto/internal/fips/aes/gcm_noasm.go b/src/crypto/internal/fips/aes/gcm_noasm.go
+new file mode 100644
+index 0000000000..995e5f648c
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/gcm_noasm.go
+@@ -0,0 +1,29 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build (!amd64 && !s390x && !ppc64 && !ppc64le && !arm64) || purego
++
++package aes
++
++func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
++	return nil, nil
++}
++
++type GCM struct{}
++
++func (g *GCM) NonceSize() int {
++	panic("not implemented")
++}
++
++func (g *GCM) Overhead() int {
++	panic("not implemented")
++}
++
++func (g *GCM) Seal(dst, nonce, plaintext, additionalData []byte) []byte {
++	panic("not implemented")
++}
++
++func (g *GCM) Open(dst, nonce, ciphertext, additionalData []byte) ([]byte, error) {
++	panic("not implemented")
++}
+diff --git a/src/crypto/aes/gcm_ppc64x.go b/src/crypto/internal/fips/aes/gcm_ppc64x.go
+similarity index 84%
+rename from src/crypto/aes/gcm_ppc64x.go
+rename to src/crypto/internal/fips/aes/gcm_ppc64x.go
+index d9aa5cf0ea..69276bd34b 100644
+--- a/src/crypto/aes/gcm_ppc64x.go
++++ b/src/crypto/internal/fips/aes/gcm_ppc64x.go
+@@ -7,9 +7,8 @@
+ package aes
+ 
+ import (
+-	"crypto/cipher"
+ 	"crypto/internal/fips/alias"
+-	"crypto/subtle"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ 	"internal/byteorder"
+ 	"runtime"
+@@ -35,11 +34,8 @@ const (
+ 
+ var errOpen = errors.New("cipher: message authentication failed")
+ 
+-// Assert that aesCipherGCM implements the gcmAble interface.
+-var _ gcmAble = (*aesCipherAsm)(nil)
+-
+-type gcmAsm struct {
+-	cipher *aesCipherAsm
++type GCM struct {
++	cipher *Block
+ 	// ks is the key schedule, the length of which depends on the size of
+ 	// the AES key.
+ 	ks []uint32
+@@ -54,11 +50,10 @@ type gcmAsm struct {
+ 
+ func counterCryptASM(nr int, out, in []byte, counter *[gcmBlockSize]byte, key *uint32)
+ 
+-// NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+-// called by [crypto/cipher.NewGCM] via the gcmAble interface.
+-func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
++func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
+ 	var h1, h2 uint64
+-	g := &gcmAsm{cipher: c, ks: c.enc[:c.l], nonceSize: nonceSize, tagSize: tagSize}
++	l := c.roundKeysSize()
++	g := &GCM{cipher: c, ks: c.enc[:l], nonceSize: nonceSize, tagSize: tagSize}
+ 
+ 	hle := make([]byte, gcmBlockSize)
+ 
+@@ -80,11 +75,11 @@ func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
+ 	return g, nil
+ }
+ 
+-func (g *gcmAsm) NonceSize() int {
++func (g *GCM) NonceSize() int {
+ 	return g.nonceSize
+ }
+ 
+-func (g *gcmAsm) Overhead() int {
++func (g *GCM) Overhead() int {
+ 	return g.tagSize
+ }
+ 
+@@ -100,7 +95,7 @@ func sliceForAppend(in []byte, n int) (head, tail []byte) {
+ }
+ 
+ // deriveCounter computes the initial GCM counter state from the given nonce.
+-func (g *gcmAsm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
++func (g *GCM) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
+ 	if len(nonce) == gcmStandardNonceSize {
+ 		copy(counter[:], nonce)
+ 		counter[gcmBlockSize-1] = 1
+@@ -119,8 +114,8 @@ func (g *gcmAsm) deriveCounter(counter *[gcmBlockSize]byte, nonce []byte) {
+ // of in.
+ // counterCryptASM implements counterCrypt which then allows the loop to
+ // be unrolled and optimized.
+-func (g *gcmAsm) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
+-	counterCryptASM(int(g.cipher.l)/4-1, out, in, counter, &g.cipher.enc[0])
++func (g *GCM) counterCrypt(out, in []byte, counter *[gcmBlockSize]byte) {
++	counterCryptASM(g.cipher.rounds, out, in, counter, &g.cipher.enc[0])
+ 
+ }
+ 
+@@ -134,7 +129,7 @@ func gcmInc32(counterBlock *[16]byte) {
+ // paddedGHASH pads data with zeroes until its length is a multiple of
+ // 16-bytes. It then calculates a new value for hash using the ghash
+ // algorithm.
+-func (g *gcmAsm) paddedGHASH(hash *[16]byte, data []byte) {
++func (g *GCM) paddedGHASH(hash *[16]byte, data []byte) {
+ 	if siz := len(data) - (len(data) % gcmBlockSize); siz > 0 {
+ 		gcmHash(hash[:], &g.productTable, data[:], siz)
+ 		data = data[siz:]
+@@ -148,7 +143,7 @@ func (g *gcmAsm) paddedGHASH(hash *[16]byte, data []byte) {
+ 
+ // auth calculates GHASH(ciphertext, additionalData), masks the result with
+ // tagMask and writes the result to out.
+-func (g *gcmAsm) auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte) {
++func (g *GCM) auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte) {
+ 	var hash [16]byte
+ 	g.paddedGHASH(&hash, aad)
+ 	g.paddedGHASH(&hash, ciphertext)
+@@ -163,7 +158,7 @@ func (g *gcmAsm) auth(out, ciphertext, aad []byte, tagMask *[gcmTagSize]byte) {
+ 
+ // Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+ // details.
+-func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
++func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("cipher: incorrect nonce length given to GCM")
+ 	}
+@@ -190,7 +185,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 
+ // Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+ // for details.
+-func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
++func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("cipher: incorrect nonce length given to GCM")
+ 	}
+diff --git a/src/crypto/aes/gcm_ppc64x.s b/src/crypto/internal/fips/aes/gcm_ppc64x.s
+similarity index 100%
+rename from src/crypto/aes/gcm_ppc64x.s
+rename to src/crypto/internal/fips/aes/gcm_ppc64x.s
+diff --git a/src/crypto/aes/gcm_s390x.go b/src/crypto/internal/fips/aes/gcm_s390x.go
+similarity index 85%
+rename from src/crypto/aes/gcm_s390x.go
+rename to src/crypto/internal/fips/aes/gcm_s390x.go
+index 8524cbb51c..40a4b15edc 100644
+--- a/src/crypto/aes/gcm_s390x.go
++++ b/src/crypto/internal/fips/aes/gcm_s390x.go
+@@ -7,9 +7,8 @@
+ package aes
+ 
+ import (
+-	"crypto/cipher"
+ 	"crypto/internal/fips/alias"
+-	"crypto/subtle"
++	"crypto/internal/fips/subtle"
+ 	"errors"
+ 	"internal/byteorder"
+ 	"internal/cpu"
+@@ -39,8 +38,8 @@ func gcmLengths(len0, len1 uint64) [16]byte {
+ // gcmHashKey represents the 16-byte hash key required by the GHASH algorithm.
+ type gcmHashKey [16]byte
+ 
+-type gcmAsm struct {
+-	block     *aesCipherAsm
++type GCM struct {
++	block     *Block
+ 	hashKey   gcmHashKey
+ 	nonceSize int
+ 	tagSize   int
+@@ -55,32 +54,23 @@ const (
+ 
+ var errOpen = errors.New("cipher: message authentication failed")
+ 
+-// Assert that aesCipherAsm implements the gcmAble interface.
+-var _ gcmAble = (*aesCipherAsm)(nil)
+-
+-// NewGCM returns the AES cipher wrapped in Galois Counter Mode. This is only
+-// called by [crypto/cipher.NewGCM] via the gcmAble interface.
+-func (c *aesCipherAsm) NewGCM(nonceSize, tagSize int) (cipher.AEAD, error) {
++func newGCM(c *Block, nonceSize, tagSize int) (*GCM, error) {
+ 	var hk gcmHashKey
+ 	c.Encrypt(hk[:], hk[:])
+-	g := gcmAsm{
++	g := GCM{
+ 		block:     c,
+ 		hashKey:   hk,
+ 		nonceSize: nonceSize,
+ 		tagSize:   tagSize,
+ 	}
+-	if cpu.S390X.HasAESGCM {
+-		g := gcmKMA{g}
+-		return &g, nil
+-	}
+ 	return &g, nil
+ }
+ 
+-func (g *gcmAsm) NonceSize() int {
++func (g *GCM) NonceSize() int {
+ 	return g.nonceSize
+ }
+ 
+-func (g *gcmAsm) Overhead() int {
++func (g *GCM) Overhead() int {
+ 	return g.tagSize
+ }
+ 
+@@ -108,7 +98,7 @@ func ghash(key *gcmHashKey, hash *[16]byte, data []byte)
+ 
+ // paddedGHASH pads data with zeroes until its length is a multiple of
+ // 16-bytes. It then calculates a new value for hash using the GHASH algorithm.
+-func (g *gcmAsm) paddedGHASH(hash *[16]byte, data []byte) {
++func (g *GCM) paddedGHASH(hash *[16]byte, data []byte) {
+ 	siz := len(data) &^ 0xf // align size to 16-bytes
+ 	if siz > 0 {
+ 		ghash(&g.hashKey, hash, data[:siz])
+@@ -138,7 +128,7 @@ func cryptBlocksGCM(fn code, key, dst, src, buf []byte, cnt *gcmCount)
+ // into dst. cnt is the initial count value and will be updated with the next
+ // count value. The length of dst must be greater than or equal to the length
+ // of src.
+-func (g *gcmAsm) counterCrypt(dst, src []byte, cnt *gcmCount) {
++func (g *GCM) counterCrypt(dst, src []byte, cnt *gcmCount) {
+ 	// Copying src into a buffer improves performance on some models when
+ 	// src and dst point to the same underlying array. We also need a
+ 	// buffer for counter values.
+@@ -166,7 +156,7 @@ func (g *gcmAsm) counterCrypt(dst, src []byte, cnt *gcmCount) {
+ 
+ // deriveCounter computes the initial GCM counter state from the given nonce.
+ // See NIST SP 800-38D, section 7.1.
+-func (g *gcmAsm) deriveCounter(nonce []byte) gcmCount {
++func (g *GCM) deriveCounter(nonce []byte) gcmCount {
+ 	// GCM has two modes of operation with respect to the initial counter
+ 	// state: a "fast path" for 96-bit (12-byte) nonces, and a "slow path"
+ 	// for nonces of other lengths. For a 96-bit nonce, the nonce, along
+@@ -189,7 +179,7 @@ func (g *gcmAsm) deriveCounter(nonce []byte) gcmCount {
+ 
+ // auth calculates GHASH(ciphertext, additionalData), masks the result with
+ // tagMask and writes the result to out.
+-func (g *gcmAsm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]byte) {
++func (g *GCM) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSize]byte) {
+ 	var hash [16]byte
+ 	g.paddedGHASH(&hash, additionalData)
+ 	g.paddedGHASH(&hash, ciphertext)
+@@ -204,7 +194,7 @@ func (g *gcmAsm) auth(out, ciphertext, additionalData []byte, tagMask *[gcmTagSi
+ 
+ // Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+ // details.
+-func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
++func (g *GCM) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+@@ -212,6 +202,10 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 		panic("crypto/cipher: message too large for GCM")
+ 	}
+ 
++	if cpu.S390X.HasAESGCM {
++		return kmaSeal(g, dst, nonce, plaintext, data)
++	}
++
+ 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+ 	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+@@ -233,7 +227,7 @@ func (g *gcmAsm) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 
+ // Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+ // for details.
+-func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
++func (g *GCM) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	if len(nonce) != g.nonceSize {
+ 		panic("crypto/cipher: incorrect nonce length given to GCM")
+ 	}
+@@ -249,6 +243,10 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 		return nil, errOpen
+ 	}
+ 
++	if cpu.S390X.HasAESGCM {
++		return kmaOpen(g, dst, nonce, ciphertext, data)
++	}
++
+ 	tag := ciphertext[len(ciphertext)-g.tagSize:]
+ 	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+ 
+@@ -279,12 +277,6 @@ func (g *gcmAsm) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	return ret, nil
+ }
+ 
+-// gcmKMA implements the cipher.AEAD interface using the KMA instruction. It should
+-// only be used if hasKMA is true.
+-type gcmKMA struct {
+-	gcmAsm
+-}
+-
+ // flags for the KMA instruction
+ const (
+ 	kmaHS      = 1 << 10 // hash subkey supplied
+@@ -303,14 +295,7 @@ func kmaGCM(fn code, key, dst, src, aad []byte, tag *[16]byte, cnt *gcmCount)
+ 
+ // Seal encrypts and authenticates plaintext. See the [cipher.AEAD] interface for
+ // details.
+-func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
+-	if len(nonce) != g.nonceSize {
+-		panic("crypto/cipher: incorrect nonce length given to GCM")
+-	}
+-	if uint64(len(plaintext)) > ((1<<32)-2)*BlockSize {
+-		panic("crypto/cipher: message too large for GCM")
+-	}
+-
++func kmaSeal(g *GCM, dst, nonce, plaintext, data []byte) []byte {
+ 	ret, out := sliceForAppend(dst, len(plaintext)+g.tagSize)
+ 	if alias.InexactOverlap(out[:len(plaintext)], plaintext) {
+ 		panic("crypto/cipher: invalid buffer overlap")
+@@ -328,17 +313,7 @@ func (g *gcmKMA) Seal(dst, nonce, plaintext, data []byte) []byte {
+ 
+ // Open authenticates and decrypts ciphertext. See the [cipher.AEAD] interface
+ // for details.
+-func (g *gcmKMA) Open(dst, nonce, ciphertext, data []byte) ([]byte, error) {
+-	if len(nonce) != g.nonceSize {
+-		panic("crypto/cipher: incorrect nonce length given to GCM")
+-	}
+-	if len(ciphertext) < g.tagSize {
+-		return nil, errOpen
+-	}
+-	if uint64(len(ciphertext)) > ((1<<32)-2)*uint64(BlockSize)+uint64(g.tagSize) {
+-		return nil, errOpen
+-	}
+-
++func kmaOpen(g *GCM, dst, nonce, ciphertext, data []byte) ([]byte, error) {
+ 	tag := ciphertext[len(ciphertext)-g.tagSize:]
+ 	ciphertext = ciphertext[:len(ciphertext)-g.tagSize]
+ 	ret, out := sliceForAppend(dst, len(ciphertext))
+diff --git a/src/crypto/internal/fips/aes/interface_test.go b/src/crypto/internal/fips/aes/interface_test.go
+new file mode 100644
+index 0000000000..f3b7a3950d
+--- /dev/null
++++ b/src/crypto/internal/fips/aes/interface_test.go
+@@ -0,0 +1,16 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package aes_test
++
++import (
++	"crypto/cipher"
++	"crypto/internal/fips/aes"
++)
++
++var _ cipher.Block = (*aes.Block)(nil)
++var _ cipher.Stream = (*aes.CTR)(nil)
++var _ cipher.BlockMode = (*aes.CBCDecrypter)(nil)
++var _ cipher.BlockMode = (*aes.CBCEncrypter)(nil)
++var _ cipher.AEAD = (*aes.GCM)(nil)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 8d721a02b8..bdb6b5a0d7 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -450,6 +450,7 @@ var depsRules = `
+ 	< crypto/internal/fips
+ 	< crypto/internal/fips/alias
+ 	< crypto/internal/fips/subtle
++	< crypto/internal/fips/aes
+ 	< crypto/internal/fips/sha256
+ 	< crypto/internal/fips/sha512
+ 	< crypto/internal/fips/sha3

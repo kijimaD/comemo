@@ -1,0 +1,45 @@
+commit 9f26d35fac2958cb6cbaafe676bb438584bcfbd0
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Tue Oct 22 14:56:13 2024 +0000
+
+    encoding/json: clarify omitempty option for {array,slice,map,string}
+    
+    This CL is inspired by:
+    https://github.com/golang/go/issues/29310#issuecomment-758768325
+    
+    When I read omitempty option in encoding/xml package, I find it's
+    a bit different than encoding/json package.
+    
+    I think it's more precise to say:
+    "any array, slice, map, or string of length zero."
+    
+    Update #29310
+    
+    Change-Id: Ia77167c3155411640224b349d4b34d0bb91ee11e
+    GitHub-Last-Rev: a4cf00dcc75067bd259bc600f288c9de4b5393cf
+    GitHub-Pull-Request: golang/go#69984
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621835
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Joseph Tsai <joetsai@digital-static.net>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/encoding/json/encode.go | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/encoding/json/encode.go b/src/encoding/json/encode.go
+index 02522f088a..d53e862d73 100644
+--- a/src/encoding/json/encode.go
++++ b/src/encoding/json/encode.go
+@@ -72,8 +72,8 @@ import (
+ //
+ // The "omitempty" option specifies that the field should be omitted
+ // from the encoding if the field has an empty value, defined as
+-// false, 0, a nil pointer, a nil interface value, and any empty array,
+-// slice, map, or string.
++// false, 0, a nil pointer, a nil interface value, and any array,
++// slice, map, or string of length zero.
+ //
+ // As a special case, if the field tag is "-", the field is always omitted.
+ // Note that a field with name "-" can still be generated using the tag "-,".

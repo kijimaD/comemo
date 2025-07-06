@@ -1,0 +1,89 @@
+commit 368a9ec99834652ca3f7d8fe24862a7581e12358
+Author: Joe Tsai <joetsai@digital-static.net>
+Date:   Tue Jan 14 12:43:27 2025 -0800
+
+    encoding/json: cleanup tests
+    
+    Perform minor cleanups in tests to improve printout of diffs
+    and/or follow modern coding style.
+    
+    This reduces the amount of diffs between v1 and the v2 prototype.
+    
+    Change-Id: I019bb9642e2135f2fa3eac6abfa6df91c397aa82
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642257
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Joseph Tsai <joetsai@digital-static.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/encoding/json/decode_test.go |  4 ++--
+ src/encoding/json/stream_test.go | 10 +++++-----
+ src/encoding/json/tags_test.go   |  4 +---
+ 3 files changed, 8 insertions(+), 10 deletions(-)
+
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 3905a054ce..8aad11b8bf 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -1321,7 +1321,7 @@ func TestUnmarshal(t *testing.T) {
+ 			var scan scanner
+ 			if err := checkValid(in, &scan); err != nil {
+ 				if !equalError(err, tt.err) {
+-					t.Fatalf("%s: checkValid error: %#v", tt.Where, err)
++					t.Fatalf("%s: checkValid error:\n\tgot  %#v\n\twant %#v", tt.Where, err, tt.err)
+ 				}
+ 			}
+ 			if tt.ptr == nil {
+@@ -1355,7 +1355,7 @@ func TestUnmarshal(t *testing.T) {
+ 				dec.DisallowUnknownFields()
+ 			}
+ 			if err := dec.Decode(v.Interface()); !equalError(err, tt.err) {
+-				t.Fatalf("%s: Decode error:\n\tgot:  %#v\n\twant: %#v", tt.Where, err, tt.err)
++				t.Fatalf("%s: Decode error:\n\tgot:  %v\n\twant: %v\n\n\tgot:  %#v\n\twant: %#v", tt.Where, err, tt.err, err, tt.err)
+ 			} else if err != nil && tt.out == nil {
+ 				// Initialize tt.out during an error where there are no mutations,
+ 				// so the output is just the zero value of the input type.
+diff --git a/src/encoding/json/stream_test.go b/src/encoding/json/stream_test.go
+index 32ede8cc7e..46f9407c88 100644
+--- a/src/encoding/json/stream_test.go
++++ b/src/encoding/json/stream_test.go
+@@ -79,9 +79,9 @@ func TestEncoder(t *testing.T) {
+ 				t.Fatalf("#%d.%d Encode error: %v", i, j, err)
+ 			}
+ 		}
+-		if have, want := buf.String(), nlines(streamEncoded, i); have != want {
++		if got, want := buf.String(), nlines(streamEncoded, i); got != want {
+ 			t.Errorf("encoding %d items: mismatch:", i)
+-			diff(t, []byte(have), []byte(want))
++			diff(t, []byte(got), []byte(want))
+ 			break
+ 		}
+ 	}
+@@ -148,9 +148,9 @@ func TestEncoderIndent(t *testing.T) {
+ 	for _, v := range streamTest {
+ 		enc.Encode(v)
+ 	}
+-	if have, want := buf.String(), streamEncodedIndent; have != want {
+-		t.Error("Encode mismatch:")
+-		diff(t, []byte(have), []byte(want))
++	if got, want := buf.String(), streamEncodedIndent; got != want {
++		t.Errorf("Encode mismatch:\ngot:\n%s\n\nwant:\n%s", got, want)
++		diff(t, []byte(got), []byte(want))
+ 	}
+ }
+ 
+diff --git a/src/encoding/json/tags_test.go b/src/encoding/json/tags_test.go
+index 1d2323dcee..eb43ff5530 100644
+--- a/src/encoding/json/tags_test.go
++++ b/src/encoding/json/tags_test.go
+@@ -4,9 +4,7 @@
+ 
+ package json
+ 
+-import (
+-	"testing"
+-)
++import "testing"
+ 
+ func TestTagParsing(t *testing.T) {
+ 	name, opts := parseTag("field,foobar,foo")

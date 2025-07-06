@@ -1,0 +1,75 @@
+commit f2bcab5fb3436144c750e48934b4829111d407d6
+Author: Kir Kolyshkin <kolyshkin@gmail.com>
+Date:   Thu Jul 11 11:32:41 2024 -0700
+
+    regexp: more cross-references in docstrings
+    
+    Change-Id: I93f617bb6d82b00d44ce9a54c2ddcc8a61209783
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/597776
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+---
+ src/regexp/regexp.go   | 16 ++++++----------
+ src/strings/strings.go |  2 +-
+ 2 files changed, 7 insertions(+), 11 deletions(-)
+
+diff --git a/src/regexp/regexp.go b/src/regexp/regexp.go
+index f439540482..e06099425e 100644
+--- a/src/regexp/regexp.go
++++ b/src/regexp/regexp.go
+@@ -14,10 +14,7 @@
+ // guaranteed to run in time linear in the size of the input.
+ // (This is a property not guaranteed by most open source
+ // implementations of regular expressions.) For more information
+-// about this property, see
+-//
+-//	https://swtch.com/~rsc/regexp/regexp1.html
+-//
++// about this property, see https://swtch.com/~rsc/regexp/regexp1.html
+ // or any book about automata theory.
+ //
+ // All characters are UTF-8-encoded code points.
+@@ -54,14 +51,13 @@
+ // subexpression did not match any string in the input. For 'String' versions
+ // an empty string means either no match or an empty match.
+ //
+-// There is also a subset of the methods that can be applied to text read
+-// from a RuneReader:
+-//
+-//	MatchReader, FindReaderIndex, FindReaderSubmatchIndex
++// There is also a subset of the methods that can be applied to text read from
++// an [io.RuneReader]: [Regexp.MatchReader], [Regexp.FindReaderIndex],
++// [Regexp.FindReaderSubmatchIndex].
+ //
+ // This set may grow. Note that regular expression matches may need to
+ // examine text beyond the text returned by a match, so the methods that
+-// match text from a RuneReader may read arbitrarily far into the input
++// match text from an [io.RuneReader] may read arbitrarily far into the input
+ // before returning.
+ //
+ // (There are a few other methods that do not match this pattern.)
+@@ -537,7 +533,7 @@ func (re *Regexp) Match(b []byte) bool {
+ 	return re.doMatch(nil, b, "")
+ }
+ 
+-// MatchReader reports whether the text returned by the RuneReader
++// MatchReader reports whether the text returned by the [io.RuneReader]
+ // contains any match of the regular expression pattern.
+ // More complicated queries need to use [Compile] and the full [Regexp] interface.
+ func MatchReader(pattern string, r io.RuneReader) (matched bool, err error) {
+diff --git a/src/strings/strings.go b/src/strings/strings.go
+index 52a715c66b..0bd3c1c233 100644
+--- a/src/strings/strings.go
++++ b/src/strings/strings.go
+@@ -286,7 +286,7 @@ func SplitN(s, sep string, n int) []string { return genSplit(s, sep, 0, n) }
+ //   - n < 0: all substrings.
+ //
+ // Edge cases for s and sep (for example, empty strings) are handled
+-// as described in the documentation for SplitAfter.
++// as described in the documentation for [SplitAfter].
+ func SplitAfterN(s, sep string, n int) []string {
+ 	return genSplit(s, sep, len(sep), n)
+ }

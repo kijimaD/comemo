@@ -1,0 +1,82 @@
+commit 76c70282538bf4cccd6f98b5b26df7f5a7f2cebd
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Feb 25 21:35:32 2025 -0800
+
+    runtime/cgo: avoid errors from -Wdeclaration-after-statement
+    
+    It's used by the SWIG CI build, at least, and it's an easy fix.
+    
+    Fixes #71961
+    
+    Change-Id: Id21071a5aef216b35ecf0e9cd3e05d08972d92fe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652181
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/cgo/cgo.go                | 3 ++-
+ src/runtime/cgo/gcc_libinit.c         | 7 +++++--
+ src/runtime/cgo/gcc_libinit_windows.c | 4 +++-
+ 3 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/runtime/cgo/cgo.go b/src/runtime/cgo/cgo.go
+index c37135fbbe..c90fb424ac 100644
+--- a/src/runtime/cgo/cgo.go
++++ b/src/runtime/cgo/cgo.go
+@@ -25,7 +25,8 @@ package cgo
+ 
+ // Use -fno-stack-protector to avoid problems locating the
+ // proper support functions. See issues #52919, #54313, #58385.
+-#cgo CFLAGS: -Wall -Werror -fno-stack-protector
++// Use -Wdeclaration-after-statement because some CI builds use it.
++#cgo CFLAGS: -Wall -Werror -fno-stack-protector -Wdeclaration-after-statement
+ 
+ #cgo solaris CPPFLAGS: -D_POSIX_PTHREAD_SEMANTICS
+ 
+diff --git a/src/runtime/cgo/gcc_libinit.c b/src/runtime/cgo/gcc_libinit.c
+index 2fe76e4360..e9b0a3f769 100644
+--- a/src/runtime/cgo/gcc_libinit.c
++++ b/src/runtime/cgo/gcc_libinit.c
+@@ -39,10 +39,11 @@ void
+ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
+ 	pthread_attr_t attr;
+ 	pthread_t p;
++	int err;
+ 
+ 	pthread_attr_init(&attr);
+ 	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+-	int err = _cgo_try_pthread_create(&p, &attr, func, arg);
++	err = _cgo_try_pthread_create(&p, &attr, func, arg);
+ 	if (err != 0) {
+ 		fprintf(stderr, "pthread_create failed: %s", strerror(err));
+ 		abort();
+@@ -52,9 +53,11 @@ x_cgo_sys_thread_create(void* (*func)(void*), void* arg) {
+ uintptr_t
+ _cgo_wait_runtime_init_done(void) {
+ 	void (*pfn)(struct context_arg*);
++	int done;
++
+ 	pfn = __atomic_load_n(&cgo_context_function, __ATOMIC_CONSUME);
+ 
+-	int done = 2;
++	done = 2;
+ 	if (__atomic_load_n(&runtime_init_done, __ATOMIC_CONSUME) != done) {
+ 		pthread_mutex_lock(&runtime_init_mu);
+ 		while (__atomic_load_n(&runtime_init_done, __ATOMIC_CONSUME) == 0) {
+diff --git a/src/runtime/cgo/gcc_libinit_windows.c b/src/runtime/cgo/gcc_libinit_windows.c
+index 5bd64acf23..83fc874348 100644
+--- a/src/runtime/cgo/gcc_libinit_windows.c
++++ b/src/runtime/cgo/gcc_libinit_windows.c
+@@ -71,8 +71,10 @@ x_cgo_sys_thread_create(unsigned long (__stdcall *func)(void*), void* arg) {
+ 
+ int
+ _cgo_is_runtime_initialized() {
++	 int status;
++
+ 	 EnterCriticalSection(&runtime_init_cs);
+-	 int status = runtime_init_done;
++	 status = runtime_init_done;
+ 	 LeaveCriticalSection(&runtime_init_cs);
+ 	 return status;
+ }

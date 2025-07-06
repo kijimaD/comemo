@@ -1,0 +1,464 @@
+commit 7d9802ac5e8e16dddb7e4368172a1c1666fccb77
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Oct 22 11:48:38 2024 -0700
+
+    go/types, types2: qualify named types in error messages with type kind
+    
+    Change the description of an operand x that has a named type of sorts
+    by providing a description of the type structure (array, struct, slice,
+    pointer, etc).
+    
+    For instance, given a (variable) operand x of a struct type T, the
+    operand is mentioned as (new):
+    
+            x (variable of struct type T)
+    
+    instead of (old):
+    
+            x (variable of type T)
+    
+    This approach is also used when a basic type is renamed, for instance
+    as in:
+    
+            x (value of uint type big.Word)
+    
+    which makes it clear that big.Word is a uint.
+    
+    This change is expected to produce more informative error messages.
+    
+    Fixes #69955.
+    
+    Change-Id: I544b0698f753a522c3b6e1800a492a94974fbab7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/621458
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/types2/issues_test.go     | 12 +++----
+ src/cmd/compile/internal/types2/operand.go         | 30 ++++++++++++----
+ src/go/types/issues_test.go                        | 12 +++----
+ src/go/types/operand.go                            | 30 ++++++++++++----
+ src/internal/types/testdata/check/builtins0.go     |  4 +--
+ src/internal/types/testdata/check/errors.go        |  2 +-
+ src/internal/types/testdata/check/issues0.go       |  2 +-
+ .../types/testdata/fixedbugs/issue49005.go         |  2 +-
+ .../types/testdata/fixedbugs/issue60377.go         |  2 +-
+ .../types/testdata/fixedbugs/issue62157.go         |  2 +-
+ .../types/testdata/fixedbugs/issue69955.go         | 42 ++++++++++++++++++++++
+ src/internal/types/testdata/spec/range.go          |  4 +--
+ src/internal/types/testdata/spec/range_int.go      |  2 +-
+ test/alias2.go                                     | 10 +++---
+ test/fixedbugs/issue48471.go                       |  2 +-
+ 15 files changed, 118 insertions(+), 40 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/issues_test.go b/src/cmd/compile/internal/types2/issues_test.go
+index 57cb3b9257..317a5f80c8 100644
+--- a/src/cmd/compile/internal/types2/issues_test.go
++++ b/src/cmd/compile/internal/types2/issues_test.go
+@@ -729,7 +729,7 @@ var _ I0 = b.S{}
+ type S struct{}
+ func (S) M0(struct{ f string }) {}
+ `,
+-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I0 value in variable declaration: b[.]S does not implement I0 [(]wrong type for method M0[)]
++			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I0 value in variable declaration: b[.]S does not implement I0 [(]wrong type for method M0[)]
+ .*have M0[(]struct{f string /[*] package b [*]/ }[)]
+ .*want M0[(]struct{f string /[*] package main [*]/ }[)]`},
+ 
+@@ -745,7 +745,7 @@ var _ I1 = b.S{}
+ type S struct{}
+ func (S) M1(struct{ string }) {}
+ `,
+-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I1 value in variable declaration: b[.]S does not implement I1 [(]wrong type for method M1[)]
++			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I1 value in variable declaration: b[.]S does not implement I1 [(]wrong type for method M1[)]
+ .*have M1[(]struct{string /[*] package b [*]/ }[)]
+ .*want M1[(]struct{string /[*] package main [*]/ }[)]`},
+ 
+@@ -761,7 +761,7 @@ var _ I2 = b.S{}
+ type S struct{}
+ func (S) M2(struct{ f struct{ f string } }) {}
+ `,
+-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I2 value in variable declaration: b[.]S does not implement I2 [(]wrong type for method M2[)]
++			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I2 value in variable declaration: b[.]S does not implement I2 [(]wrong type for method M2[)]
+ .*have M2[(]struct{f struct{f string} /[*] package b [*]/ }[)]
+ .*want M2[(]struct{f struct{f string} /[*] package main [*]/ }[)]`},
+ 
+@@ -777,7 +777,7 @@ var _ I3 = b.S{}
+ type S struct{}
+ func (S) M3(struct{ F struct{ f string } }) {}
+ `,
+-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I3 value in variable declaration: b[.]S does not implement I3 [(]wrong type for method M3[)]
++			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I3 value in variable declaration: b[.]S does not implement I3 [(]wrong type for method M3[)]
+ .*have M3[(]struct{F struct{f string /[*] package b [*]/ }}[)]
+ .*want M3[(]struct{F struct{f string /[*] package main [*]/ }}[)]`},
+ 
+@@ -793,7 +793,7 @@ var _ I4 = b.S{}
+ type S struct{}
+ func (S) M4(struct { *string }) {}
+ `,
+-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I4 value in variable declaration: b[.]S does not implement I4 [(]wrong type for method M4[)]
++			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I4 value in variable declaration: b[.]S does not implement I4 [(]wrong type for method M4[)]
+ .*have M4[(]struct{[*]string /[*] package b [*]/ }[)]
+ .*want M4[(]struct{[*]string /[*] package main [*]/ }[)]`},
+ 
+@@ -811,7 +811,7 @@ type S struct{}
+ type t struct{ A int }
+ func (S) M5(struct {S;t}) {}
+ `,
+-			`7:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I5 value in variable declaration: b[.]S does not implement I5 [(]wrong type for method M5[)]
++			`7:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I5 value in variable declaration: b[.]S does not implement I5 [(]wrong type for method M5[)]
+ .*have M5[(]struct{b[.]S; b[.]t}[)]
+ .*want M5[(]struct{b[.]S; t}[)]`},
+ 	}
+diff --git a/src/cmd/compile/internal/types2/operand.go b/src/cmd/compile/internal/types2/operand.go
+index 1ee0f499f6..81f46af535 100644
+--- a/src/cmd/compile/internal/types2/operand.go
++++ b/src/cmd/compile/internal/types2/operand.go
+@@ -178,15 +178,33 @@ func operandString(x *operand, qf Qualifier) string {
+ 	// <typ>
+ 	if hasType {
+ 		if isValid(x.typ) {
+-			var intro string
++			var desc string
+ 			if isGeneric(x.typ) {
+-				intro = " of generic type "
+-			} else {
+-				intro = " of type "
++				desc = "generic "
+ 			}
+-			buf.WriteString(intro)
++
++			// Describe the type structure if it is an *Alias or *Named type.
++			// If the type is a renamed basic type, describe the basic type,
++			// as in "int32 type MyInt" for a *Named type MyInt.
++			// If it is a type parameter, describe the constraint instead.
++			tpar, _ := Unalias(x.typ).(*TypeParam)
++			if tpar == nil {
++				switch x.typ.(type) {
++				case *Alias, *Named:
++					what := compositeKind(x.typ)
++					if what == "" {
++						// x.typ must be basic type
++						what = under(x.typ).(*Basic).name
++					}
++					desc += what + " "
++				}
++			}
++			// desc is "" or has a trailing space at the end
++
++			buf.WriteString(" of " + desc + "type ")
+ 			WriteType(&buf, x.typ, qf)
+-			if tpar, _ := Unalias(x.typ).(*TypeParam); tpar != nil {
++
++			if tpar != nil {
+ 				buf.WriteString(" constrained by ")
+ 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+ 				// If we have the type set and it's empty, say so for better error messages.
+diff --git a/src/go/types/issues_test.go b/src/go/types/issues_test.go
+index 9fc650df7c..5a55822aba 100644
+--- a/src/go/types/issues_test.go
++++ b/src/go/types/issues_test.go
+@@ -737,7 +737,7 @@ var _ I0 = b.S{}
+ type S struct{}
+ func (S) M0(struct{ f string }) {}
+ `,
+-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I0 value in variable declaration: b[.]S does not implement I0 [(]wrong type for method M0[)]
++			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I0 value in variable declaration: b[.]S does not implement I0 [(]wrong type for method M0[)]
+ .*have M0[(]struct{f string /[*] package b [*]/ }[)]
+ .*want M0[(]struct{f string /[*] package main [*]/ }[)]`},
+ 
+@@ -753,7 +753,7 @@ var _ I1 = b.S{}
+ type S struct{}
+ func (S) M1(struct{ string }) {}
+ `,
+-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I1 value in variable declaration: b[.]S does not implement I1 [(]wrong type for method M1[)]
++			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I1 value in variable declaration: b[.]S does not implement I1 [(]wrong type for method M1[)]
+ .*have M1[(]struct{string /[*] package b [*]/ }[)]
+ .*want M1[(]struct{string /[*] package main [*]/ }[)]`},
+ 
+@@ -769,7 +769,7 @@ var _ I2 = b.S{}
+ type S struct{}
+ func (S) M2(struct{ f struct{ f string } }) {}
+ `,
+-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I2 value in variable declaration: b[.]S does not implement I2 [(]wrong type for method M2[)]
++			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I2 value in variable declaration: b[.]S does not implement I2 [(]wrong type for method M2[)]
+ .*have M2[(]struct{f struct{f string} /[*] package b [*]/ }[)]
+ .*want M2[(]struct{f struct{f string} /[*] package main [*]/ }[)]`},
+ 
+@@ -785,7 +785,7 @@ var _ I3 = b.S{}
+ type S struct{}
+ func (S) M3(struct{ F struct{ f string } }) {}
+ `,
+-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I3 value in variable declaration: b[.]S does not implement I3 [(]wrong type for method M3[)]
++			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I3 value in variable declaration: b[.]S does not implement I3 [(]wrong type for method M3[)]
+ .*have M3[(]struct{F struct{f string /[*] package b [*]/ }}[)]
+ .*want M3[(]struct{F struct{f string /[*] package main [*]/ }}[)]`},
+ 
+@@ -801,7 +801,7 @@ var _ I4 = b.S{}
+ type S struct{}
+ func (S) M4(struct { *string }) {}
+ `,
+-			`6:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I4 value in variable declaration: b[.]S does not implement I4 [(]wrong type for method M4[)]
++			`6:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I4 value in variable declaration: b[.]S does not implement I4 [(]wrong type for method M4[)]
+ .*have M4[(]struct{[*]string /[*] package b [*]/ }[)]
+ .*want M4[(]struct{[*]string /[*] package main [*]/ }[)]`},
+ 
+@@ -819,7 +819,7 @@ type S struct{}
+ type t struct{ A int }
+ func (S) M5(struct {S;t}) {}
+ `,
+-			`7:12: cannot use b[.]S{} [(]value of type b[.]S[)] as I5 value in variable declaration: b[.]S does not implement I5 [(]wrong type for method M5[)]
++			`7:12: cannot use b[.]S{} [(]value of struct type b[.]S[)] as I5 value in variable declaration: b[.]S does not implement I5 [(]wrong type for method M5[)]
+ .*have M5[(]struct{b[.]S; b[.]t}[)]
+ .*want M5[(]struct{b[.]S; t}[)]`},
+ 	}
+diff --git a/src/go/types/operand.go b/src/go/types/operand.go
+index b6e0566b1a..d933c173ff 100644
+--- a/src/go/types/operand.go
++++ b/src/go/types/operand.go
+@@ -182,15 +182,33 @@ func operandString(x *operand, qf Qualifier) string {
+ 	// <typ>
+ 	if hasType {
+ 		if isValid(x.typ) {
+-			var intro string
++			var desc string
+ 			if isGeneric(x.typ) {
+-				intro = " of generic type "
+-			} else {
+-				intro = " of type "
++				desc = "generic "
+ 			}
+-			buf.WriteString(intro)
++
++			// Describe the type structure if it is an *Alias or *Named type.
++			// If the type is a renamed basic type, describe the basic type,
++			// as in "int32 type MyInt" for a *Named type MyInt.
++			// If it is a type parameter, describe the constraint instead.
++			tpar, _ := Unalias(x.typ).(*TypeParam)
++			if tpar == nil {
++				switch x.typ.(type) {
++				case *Alias, *Named:
++					what := compositeKind(x.typ)
++					if what == "" {
++						// x.typ must be basic type
++						what = under(x.typ).(*Basic).name
++					}
++					desc += what + " "
++				}
++			}
++			// desc is "" or has a trailing space at the end
++
++			buf.WriteString(" of " + desc + "type ")
+ 			WriteType(&buf, x.typ, qf)
+-			if tpar, _ := Unalias(x.typ).(*TypeParam); tpar != nil {
++
++			if tpar != nil {
+ 				buf.WriteString(" constrained by ")
+ 				WriteType(&buf, tpar.bound, qf) // do not compute interface type sets here
+ 				// If we have the type set and it's empty, say so for better error messages.
+diff --git a/src/internal/types/testdata/check/builtins0.go b/src/internal/types/testdata/check/builtins0.go
+index 1c0e69200e..62759d1e9c 100644
+--- a/src/internal/types/testdata/check/builtins0.go
++++ b/src/internal/types/testdata/check/builtins0.go
+@@ -515,7 +515,7 @@ func max1() {
+ 	_ = max(s)
+ 	_ = max(x, x)
+ 	_ = max(x, x, x, x, x)
+-	var _ int = max /* ERROR "cannot use max(m) (value of type myint) as int value" */ (m)
++	var _ int = max /* ERROR "cannot use max(m) (value of int type myint) as int value" */ (m)
+ 	_ = max(x, m /* ERROR "invalid argument: mismatched types int (previous argument) and myint (type of m)" */ , x)
+ 
+ 	_ = max(1, x)
+@@ -569,7 +569,7 @@ func min1() {
+ 	_ = min(s)
+ 	_ = min(x, x)
+ 	_ = min(x, x, x, x, x)
+-	var _ int = min /* ERROR "cannot use min(m) (value of type myint) as int value" */ (m)
++	var _ int = min /* ERROR "cannot use min(m) (value of int type myint) as int value" */ (m)
+ 	_ = min(x, m /* ERROR "invalid argument: mismatched types int (previous argument) and myint (type of m)" */ , x)
+ 
+ 	_ = min(1, x)
+diff --git a/src/internal/types/testdata/check/errors.go b/src/internal/types/testdata/check/errors.go
+index 10b6a22eb1..615cf862d1 100644
+--- a/src/internal/types/testdata/check/errors.go
++++ b/src/internal/types/testdata/check/errors.go
+@@ -58,7 +58,7 @@ func _() {
+ 
+ // Use unqualified names for package-local objects.
+ type T struct{}
+-var _ int = T /* ERROR "value of type T" */ {} // use T in error message rather than errors.T
++var _ int = T /* ERROR "value of struct type T" */ {} // use T in error message rather than errors.T
+ 
+ // Don't report errors containing "invalid type" (issue #24182).
+ func _(x *missing /* ERROR "undefined: missing" */ ) {
+diff --git a/src/internal/types/testdata/check/issues0.go b/src/internal/types/testdata/check/issues0.go
+index d78b65705a..44a709d66e 100644
+--- a/src/internal/types/testdata/check/issues0.go
++++ b/src/internal/types/testdata/check/issues0.go
+@@ -363,7 +363,7 @@ func issue35895() {
+ 
+ 	// Because both t1 and t2 have the same global package name (template),
+ 	// qualify packages with full path name in this case.
+-	var _ t1.Template = t2 /* ERRORx `cannot use .* \(value of type .html/template.\.Template\) as .text/template.\.Template` */ .Template{}
++	var _ t1.Template = t2 /* ERRORx `cannot use .* \(value of struct type .html/template.\.Template\) as .text/template.\.Template` */ .Template{}
+ }
+ 
+ func issue42989(s uint) {
+diff --git a/src/internal/types/testdata/fixedbugs/issue49005.go b/src/internal/types/testdata/fixedbugs/issue49005.go
+index d91c207873..6ec926ec61 100644
+--- a/src/internal/types/testdata/fixedbugs/issue49005.go
++++ b/src/internal/types/testdata/fixedbugs/issue49005.go
+@@ -26,6 +26,6 @@ type X2 struct{}
+ 
+ func _() {
+ 	switch F2().(type) {
+-	case * /* ERROR "impossible type switch case: *X2\n\tF2() (value of type T2) cannot have dynamic type *X2 (missing method M)" */ X2:
++	case * /* ERROR "impossible type switch case: *X2\n\tF2() (value of interface type T2) cannot have dynamic type *X2 (missing method M)" */ X2:
+ 	}
+ }
+diff --git a/src/internal/types/testdata/fixedbugs/issue60377.go b/src/internal/types/testdata/fixedbugs/issue60377.go
+index b754f89df7..17a9deb6d1 100644
+--- a/src/internal/types/testdata/fixedbugs/issue60377.go
++++ b/src/internal/types/testdata/fixedbugs/issue60377.go
+@@ -57,7 +57,7 @@ func _() {
+ 	var x S[int]
+ 	g4(x)      // we can infer int for P
+ 	g4[int](x) // int is the correct type argument
+-	g4[string](x /* ERROR "cannot use x (variable of type S[int]) as S[string] value in argument to g4[string]" */)
++	g4[string](x /* ERROR "cannot use x (variable of struct type S[int]) as S[string] value in argument to g4[string]" */)
+ }
+ 
+ // This is similar to the first example but here T1 is a component
+diff --git a/src/internal/types/testdata/fixedbugs/issue62157.go b/src/internal/types/testdata/fixedbugs/issue62157.go
+index c44f921f44..67a110df31 100644
+--- a/src/internal/types/testdata/fixedbugs/issue62157.go
++++ b/src/internal/types/testdata/fixedbugs/issue62157.go
+@@ -90,7 +90,7 @@ func _() {
+ 	B = f(B, b, a)
+ 
+ 	// verify type error
+-	A = f /* ERROR "cannot use f(B, b, a) (value of type namedB) as namedA value in assignment" */ (B, b, a)
++	A = f /* ERROR "cannot use f(B, b, a) (value of chan type namedB) as namedA value in assignment" */ (B, b, a)
+ }
+ 
+ // Test case 4: some more combinations
+diff --git a/src/internal/types/testdata/fixedbugs/issue69955.go b/src/internal/types/testdata/fixedbugs/issue69955.go
+new file mode 100644
+index 0000000000..68ddf4108c
+--- /dev/null
++++ b/src/internal/types/testdata/fixedbugs/issue69955.go
+@@ -0,0 +1,42 @@
++// -gotypesalias=1
++
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package p
++
++import "math/big"
++
++type (
++	S struct{}
++	N int
++
++	A = S
++	B = int
++	C = N
++)
++
++var (
++	i int
++	s S
++	n N
++	a A
++	b B
++	c C
++	w big.Word
++)
++
++const (
++	_ = i // ERROR "i (variable of type int) is not constant"
++	_ = s // ERROR "s (variable of struct type S) is not constant"
++	_ = struct /* ERROR "struct{}{} (value of type struct{}) is not constant" */ {}{}
++	_ = n // ERROR "n (variable of int type N) is not constant"
++
++	_ = a // ERROR "a (variable of struct type A) is not constant"
++	_ = b // ERROR "b (variable of int type B) is not constant"
++	_ = c // ERROR "c (variable of int type C) is not constant"
++	_ = w // ERROR "w (variable of uint type big.Word) is not constant"
++)
++
++var _ int = w /* ERROR "cannot use w + 1 (value of uint type big.Word) as int value in variable declaration" */ + 1
+diff --git a/src/internal/types/testdata/spec/range.go b/src/internal/types/testdata/spec/range.go
+index 9e32256fb7..52d1e70382 100644
+--- a/src/internal/types/testdata/spec/range.go
++++ b/src/internal/types/testdata/spec/range.go
+@@ -102,11 +102,11 @@ func test() {
+ 	for mi, ms := range f8 {
+ 		_, _ = mi, ms
+ 	}
+-	for i /* ERROR "cannot use i (value of type MyInt) as int value in assignment" */, s /* ERROR "cannot use s (value of type MyString) as string value in assignment" */ = range f8 {
++	for i /* ERROR "cannot use i (value of int32 type MyInt) as int value in assignment" */, s /* ERROR "cannot use s (value of string type MyString) as string value in assignment" */ = range f8 {
+ 		_, _ = mi, ms
+ 	}
+ 	for mi, ms := range f8 {
+-		i, s = mi /* ERROR "cannot use mi (variable of type MyInt) as int value in assignment" */, ms /* ERROR "cannot use ms (variable of type MyString) as string value in assignment" */
++		i, s = mi /* ERROR "cannot use mi (variable of int32 type MyInt) as int value in assignment" */, ms /* ERROR "cannot use ms (variable of string type MyString) as string value in assignment" */
+ 	}
+ 	for mi, ms = range f8 {
+ 		_, _ = mi, ms
+diff --git a/src/internal/types/testdata/spec/range_int.go b/src/internal/types/testdata/spec/range_int.go
+index 766736cc15..db3a78ffad 100644
+--- a/src/internal/types/testdata/spec/range_int.go
++++ b/src/internal/types/testdata/spec/range_int.go
+@@ -44,7 +44,7 @@ func _() {
+ 	for i, j /* ERROR "range over 10 (untyped int constant) permits only one iteration variable" */ := range 10 {
+ 		_, _ = i, j
+ 	}
+-	for i = range MyInt /* ERROR "cannot use MyInt(10) (constant 10 of type MyInt) as int value in range clause" */ (10) {
++	for i = range MyInt /* ERROR "cannot use MyInt(10) (constant 10 of int32 type MyInt) as int value in range clause" */ (10) {
+ 		_ = i
+ 	}
+ 	for mi := range MyInt(10) {
+diff --git a/test/alias2.go b/test/alias2.go
+index 95eb25a94b..7a926cc482 100644
+--- a/test/alias2.go
++++ b/test/alias2.go
+@@ -46,8 +46,8 @@ var _ A0 = T0{}
+ var _ T0 = A0{}
+ 
+ // But aliases and original types cannot be used with new types based on them.
+-var _ N0 = T0{} // ERROR "cannot use T0{} \(value of type T0\) as N0 value in variable declaration"
+-var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type A0\) as N0 value in variable declaration"
++var _ N0 = T0{} // ERROR "cannot use T0{} \(value of struct type T0\) as N0 value in variable declaration"
++var _ N0 = A0{} // ERROR "cannot use A0{} \(value of struct type A0\) as N0 value in variable declaration"
+ 
+ var _ A5 = Value{}
+ 
+@@ -82,10 +82,10 @@ func _() {
+ 	var _ A0 = T0{}
+ 	var _ T0 = A0{}
+ 
+-	var _ N0 = T0{} // ERROR "cannot use T0{} \(value of type T0\) as N0 value in variable declaration"
+-	var _ N0 = A0{} // ERROR "cannot use A0{} \(value of type A0\) as N0 value in variable declaration"
++	var _ N0 = T0{} // ERROR "cannot use T0{} \(value of struct type T0\) as N0 value in variable declaration"
++	var _ N0 = A0{} // ERROR "cannot use A0{} \(value of struct type A0\) as N0 value in variable declaration"
+ 
+-	var _ A5 = Value{} // ERROR "cannot use Value{} \(value of type reflect\.Value\) as A5 value in variable declaration"
++	var _ A5 = Value{} // ERROR "cannot use Value{} \(value of struct type reflect\.Value\) as A5 value in variable declaration"
+ }
+ 
+ // Invalid type alias declarations.
+diff --git a/test/fixedbugs/issue48471.go b/test/fixedbugs/issue48471.go
+index 75875c4004..a834c80675 100644
+--- a/test/fixedbugs/issue48471.go
++++ b/test/fixedbugs/issue48471.go
+@@ -51,6 +51,6 @@ func g() {
+ 	_ = i.(T6)  // ERROR "impossible type assertion: i.\(T6\)\n\tT6 does not implement I \(missing method M\)\n\t\thave m\(int\) string\n\t\twant M\(int\)"
+ 
+ 	var t *T4
+-	t = i // ERROR "cannot use i \(variable of type I\) as \*T4 value in assignment: need type assertion"
++	t = i // ERROR "cannot use i \(variable of interface type I\) as \*T4 value in assignment: need type assertion"
+ 	_ = t
+ }

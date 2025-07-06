@@ -1,0 +1,214 @@
+commit d365f2266df98985f19705717ff8cf4ad3e743dc
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon May 5 12:33:46 2025 -0400
+
+    runtime: replace mentions of "raised" with "panicked"
+    
+    Fixes #73526
+    
+    Change-Id: I4b801cf3e54b99559e6d5ca8fdb2fd0692a0d3a5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669975
+    TryBot-Bypass: Mark Freeman <mark@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+---
+ doc/next/4-runtime.md                               |  6 +++---
+ src/cmd/go/testdata/script/test_cleanup_failnow.txt |  4 ++--
+ src/cmd/go/testdata/script/test_fuzz_return.txt     |  2 +-
+ src/runtime/crash_test.go                           | 16 ++++++++--------
+ src/runtime/panic.go                                | 10 +++++-----
+ src/runtime/runtime2.go                             |  2 +-
+ src/runtime/testdata/testprog/crash.go              | 14 +++++++-------
+ 7 files changed, 27 insertions(+), 27 deletions(-)
+
+diff --git a/doc/next/4-runtime.md b/doc/next/4-runtime.md
+index b6b50f1c0a..e19996863d 100644
+--- a/doc/next/4-runtime.md
++++ b/doc/next/4-runtime.md
+@@ -3,11 +3,11 @@
+ <!-- go.dev/issue/71517 -->
+ 
+ The message printed when a program exits due to an unhandled panic
+-that was recovered and re-raised no longer repeats the text of
++that was recovered and repanicked no longer repeats the text of
+ the panic value.
+ 
+ Previously, a program which panicked with `panic("PANIC")`,
+-recovered the panic, and then re-panicked with the original
++recovered the panic, and then repanicked with the original
+ value would print:
+ 
+     panic: PANIC [recovered]
+@@ -15,7 +15,7 @@ value would print:
+ 
+ This program will now print:
+ 
+-    panic: PANIC [recovered, reraised]
++    panic: PANIC [recovered, repanicked]
+ 
+ <!-- go.dev/issue/71546 -->
+ 
+diff --git a/src/cmd/go/testdata/script/test_cleanup_failnow.txt b/src/cmd/go/testdata/script/test_cleanup_failnow.txt
+index 80182cd9e3..8f39d98852 100644
+--- a/src/cmd/go/testdata/script/test_cleanup_failnow.txt
++++ b/src/cmd/go/testdata/script/test_cleanup_failnow.txt
+@@ -14,8 +14,8 @@ env GOGC=off
+ 
+ ! go test -v cleanup_failnow/panic_nocleanup_test.go
+ ! stdout 'no tests to run'
+-stdout '(?s)panic: die \[recovered, reraised\]'
+-! stdout '(?s)panic: die \[recovered, reraised\].*panic: die'
++stdout '(?s)panic: die \[recovered, repanicked\]'
++! stdout '(?s)panic: die \[recovered, repanicked\].*panic: die'
+ 
+ ! go test -v cleanup_failnow/panic_withcleanup_test.go
+ ! stdout 'no tests to run'
+diff --git a/src/cmd/go/testdata/script/test_fuzz_return.txt b/src/cmd/go/testdata/script/test_fuzz_return.txt
+index d86783e9cb..c0540efb23 100644
+--- a/src/cmd/go/testdata/script/test_fuzz_return.txt
++++ b/src/cmd/go/testdata/script/test_fuzz_return.txt
+@@ -3,7 +3,7 @@
+ # Disable vet, as its "tests" analyzer would report the same problem statically.
+ 
+ ! go test -vet=off .
+-stdout '^panic: testing: fuzz target must not return a value \[recovered, reraised\]$'
++stdout '^panic: testing: fuzz target must not return a value \[recovered, repanicked\]$'
+ 
+ -- go.mod --
+ module test
+diff --git a/src/runtime/crash_test.go b/src/runtime/crash_test.go
+index 8504455088..74af1acd1f 100644
+--- a/src/runtime/crash_test.go
++++ b/src/runtime/crash_test.go
+@@ -357,19 +357,19 @@ panic: third panic
+ 
+ }
+ 
+-func TestReraisedPanic(t *testing.T) {
+-	output := runTestProg(t, "testprog", "ReraisedPanic")
+-	want := `panic: message [recovered, reraised]
++func TestRepanickedPanic(t *testing.T) {
++	output := runTestProg(t, "testprog", "RepanickedPanic")
++	want := `panic: message [recovered, repanicked]
+ `
+ 	if !strings.HasPrefix(output, want) {
+ 		t.Fatalf("output does not start with %q:\n%s", want, output)
+ 	}
+ }
+ 
+-func TestReraisedMiddlePanic(t *testing.T) {
+-	output := runTestProg(t, "testprog", "ReraisedMiddlePanic")
++func TestRepanickedMiddlePanic(t *testing.T) {
++	output := runTestProg(t, "testprog", "RepanickedMiddlePanic")
+ 	want := `panic: inner [recovered]
+-	panic: middle [recovered, reraised]
++	panic: middle [recovered, repanicked]
+ 	panic: outer
+ `
+ 	if !strings.HasPrefix(output, want) {
+@@ -377,8 +377,8 @@ func TestReraisedMiddlePanic(t *testing.T) {
+ 	}
+ }
+ 
+-func TestReraisedPanicSandwich(t *testing.T) {
+-	output := runTestProg(t, "testprog", "ReraisedPanicSandwich")
++func TestRepanickedPanicSandwich(t *testing.T) {
++	output := runTestProg(t, "testprog", "RepanickedPanicSandwich")
+ 	want := `panic: outer [recovered]
+ 	panic: inner [recovered]
+ 	panic: outer
+diff --git a/src/runtime/panic.go b/src/runtime/panic.go
+index 07a96a237b..281fe04bca 100644
+--- a/src/runtime/panic.go
++++ b/src/runtime/panic.go
+@@ -635,8 +635,8 @@ func preprintpanics(p *_panic) {
+ 	for p != nil {
+ 		if p.link != nil && *efaceOf(&p.link.arg) == *efaceOf(&p.arg) {
+ 			// This panic contains the same value as the next one in the chain.
+-			// Mark it as reraised. We will skip printing it twice in a row.
+-			p.link.reraised = true
++			// Mark it as repanicked. We will skip printing it twice in a row.
++			p.link.repanicked = true
+ 			p = p.link
+ 			continue
+ 		}
+@@ -655,7 +655,7 @@ func preprintpanics(p *_panic) {
+ func printpanics(p *_panic) {
+ 	if p.link != nil {
+ 		printpanics(p.link)
+-		if p.link.reraised {
++		if p.link.repanicked {
+ 			return
+ 		}
+ 		if !p.link.goexit {
+@@ -667,8 +667,8 @@ func printpanics(p *_panic) {
+ 	}
+ 	print("panic: ")
+ 	printpanicval(p.arg)
+-	if p.reraised {
+-		print(" [recovered, reraised]")
++	if p.repanicked {
++		print(" [recovered, repanicked]")
+ 	} else if p.recovered {
+ 		print(" [recovered]")
+ 	}
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 05cf345baf..5f36015e99 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -1013,7 +1013,7 @@ type _panic struct {
+ 	slotsPtr     unsafe.Pointer
+ 
+ 	recovered   bool // whether this panic has been recovered
+-	reraised    bool // whether this panic was reraised
++	repanicked  bool // whether this panic repanicked
+ 	goexit      bool
+ 	deferreturn bool
+ }
+diff --git a/src/runtime/testdata/testprog/crash.go b/src/runtime/testdata/testprog/crash.go
+index 56dd701ffb..556215a71e 100644
+--- a/src/runtime/testdata/testprog/crash.go
++++ b/src/runtime/testdata/testprog/crash.go
+@@ -19,9 +19,9 @@ func init() {
+ 	register("StringPanic", StringPanic)
+ 	register("NilPanic", NilPanic)
+ 	register("CircularPanic", CircularPanic)
+-	register("ReraisedPanic", ReraisedPanic)
+-	register("ReraisedMiddlePanic", ReraisedMiddlePanic)
+-	register("ReraisedPanicSandwich", ReraisedPanicSandwich)
++	register("RepanickedPanic", RepanickedPanic)
++	register("RepanickedMiddlePanic", RepanickedMiddlePanic)
++	register("RepanickedPanicSandwich", RepanickedPanicSandwich)
+ }
+ 
+ func test(name string) {
+@@ -141,14 +141,14 @@ func CircularPanic() {
+ 	panic(exampleCircleStartError{})
+ }
+ 
+-func ReraisedPanic() {
++func RepanickedPanic() {
+ 	defer func() {
+ 		panic(recover())
+ 	}()
+ 	panic("message")
+ }
+ 
+-func ReraisedMiddlePanic() {
++func RepanickedMiddlePanic() {
+ 	defer func() {
+ 		recover()
+ 		panic("outer")
+@@ -173,9 +173,9 @@ func ReraisedMiddlePanic() {
+ //	recovered, panic("inner") =>
+ //	panic(recovered outer panic value)
+ //
+-// Exercises the edge case where we reraise a panic value,
++// Exercises the edge case where we repanic a panic value,
+ // but with another panic in the middle.
+-func ReraisedPanicSandwich() {
++func RepanickedPanicSandwich() {
+ 	var outer any
+ 	defer func() {
+ 		recover()

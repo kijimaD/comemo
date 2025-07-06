@@ -1,0 +1,668 @@
+commit 7a2f757c521d9af201c6d3463a0e203c4104d5aa
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Nov 24 14:38:33 2024 +1100
+
+    cmd/internal/obj/riscv: update references to RISC-V specification
+    
+    Update references to version 20240411 of the RISC-V specifications.
+    Reorder and regroup instructions to maintain ordering. Also be
+    consistent with formatting.
+    
+    The instruction encodings table was seemingly missed in CL 616115.
+    
+    Change-Id: I47b7c8538383ff3b0503ba59db570c3d4f0d5653
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631935
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Meng Zhuo <mengzhuo1203@gmail.com>
+    Reviewed-by: Pengcheng Wang <wangpengcheng.pp@bytedance.com>
+---
+ src/cmd/asm/internal/asm/testdata/riscv64.s |   4 +
+ src/cmd/internal/obj/riscv/cpu.go           | 118 ++++++++++++++--------------
+ src/cmd/internal/obj/riscv/obj.go           |  54 +++++++------
+ 3 files changed, 94 insertions(+), 82 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/riscv64.s b/src/cmd/asm/internal/asm/testdata/riscv64.s
+index 37c0c1d858..9ab4e066be 100644
+--- a/src/cmd/asm/internal/asm/testdata/riscv64.s
++++ b/src/cmd/asm/internal/asm/testdata/riscv64.s
+@@ -363,6 +363,10 @@ start:
+ 	SLLIUW		$63, X17, X18			// 1b99f80b
+ 	SLLIUW		$1, X18, X19			// 9b191908
+ 
++	//
++	// "B" Extension for Bit Manipulation, Version 1.0.0
++	//
++
+ 	// 28.4.2: Basic Bit Manipulation (Zbb)
+ 	ANDN	X19, X20, X21				// b37a3a41 or 93caf9ffb37a5a01
+ 	ANDN	X19, X20				// 337a3a41 or 93cff9ff337afa01
+diff --git a/src/cmd/internal/obj/riscv/cpu.go b/src/cmd/internal/obj/riscv/cpu.go
+index 1501a5027e..69a8516696 100644
+--- a/src/cmd/internal/obj/riscv/cpu.go
++++ b/src/cmd/internal/obj/riscv/cpu.go
+@@ -571,6 +571,10 @@ const (
+ 	// 22.5 Quad-Precision Floating-Point Classify Instruction
+ 	AFCLASSQ
+ 
++	//
++	// "B" Extension for Bit Manipulation, Version 1.0.0
++	//
++
+ 	// 28.4.1: Address Generation Instructions (Zba)
+ 	AADDUW
+ 	ASH1ADD
+@@ -620,15 +624,15 @@ const (
+ 	ABSETI
+ 
+ 	//
+-	// RISC-V Vector ISA-extension (1.0) (Unprivileged 20240411)
++	// "V" Standard Extension for Vector Operations, Version 1.0
+ 	//
+ 
+-	// 31.6. Configuration-Setting Instructions
++	// 31.6: Configuration-Setting Instructions
+ 	AVSETVLI
+ 	AVSETIVLI
+ 	AVSETVL
+ 
+-	// 31.7.4. Vector Unit-Stride Instructions
++	// 31.7.4: Vector Unit-Stride Instructions
+ 	AVLE8V
+ 	AVLE16V
+ 	AVLE32V
+@@ -640,7 +644,7 @@ const (
+ 	AVLMV
+ 	AVSMV
+ 
+-	// 31.7.5. Vector Strided Instructions
++	// 31.7.5: Vector Strided Instructions
+ 	AVLSE8V
+ 	AVLSE16V
+ 	AVLSE32V
+@@ -650,7 +654,7 @@ const (
+ 	AVSSE32V
+ 	AVSSE64V
+ 
+-	// 31.7.6. Vector Indexed Instructions
++	// 31.7.6: Vector Indexed Instructions
+ 	AVLUXEI8V
+ 	AVLUXEI16V
+ 	AVLUXEI32V
+@@ -668,13 +672,13 @@ const (
+ 	AVSOXEI32V
+ 	AVSOXEI64V
+ 
+-	// 31.7.7. Unit-stride Fault-Only-First Loads
++	// 31.7.7: Unit-stride Fault-Only-First Loads
+ 	AVLE8FFV
+ 	AVLE16FFV
+ 	AVLE32FFV
+ 	AVLE64FFV
+ 
+-	// 31.7.9. Vector Load/Store Whole Register Instructions
++	// 31.7.9: Vector Load/Store Whole Register Instructions
+ 	AVL1RE8V
+ 	AVL1RE16V
+ 	AVL1RE32V
+@@ -696,7 +700,7 @@ const (
+ 	AVS4RV
+ 	AVS8RV
+ 
+-	// 31.11.1. Vector Single-Width Integer Add and Subtract
++	// 31.11.1: Vector Single-Width Integer Add and Subtract
+ 	AVADDVV
+ 	AVADDVX
+ 	AVADDVI
+@@ -705,7 +709,7 @@ const (
+ 	AVRSUBVX
+ 	AVRSUBVI
+ 
+-	// 31.11.2. Vector Widening Integer Add/Subtract
++	// 31.11.2: Vector Widening Integer Add/Subtract
+ 	AVWADDUVV
+ 	AVWADDUVX
+ 	AVWSUBUVV
+@@ -723,7 +727,7 @@ const (
+ 	AVWSUBWV
+ 	AVWSUBWX
+ 
+-	// 31.11.3. Vector Integer Extension
++	// 31.11.3: Vector Integer Extension
+ 	AVZEXTVF2
+ 	AVSEXTVF2
+ 	AVZEXTVF4
+@@ -731,7 +735,7 @@ const (
+ 	AVZEXTVF8
+ 	AVSEXTVF8
+ 
+-	// 31.11.4. Vector Integer Add-with-Carry / Subtract-with-Borrow Instructions
++	// 31.11.4: Vector Integer Add-with-Carry / Subtract-with-Borrow Instructions
+ 	AVADCVVM
+ 	AVADCVXM
+ 	AVADCVIM
+@@ -748,7 +752,7 @@ const (
+ 	AVMSBCVV
+ 	AVMSBCVX
+ 
+-	// 31.11.5. Vector Bitwise Logical Instructions
++	// 31.11.5: Vector Bitwise Logical Instructions
+ 	AVANDVV
+ 	AVANDVX
+ 	AVANDVI
+@@ -759,7 +763,7 @@ const (
+ 	AVXORVX
+ 	AVXORVI
+ 
+-	// 31.11.6. Vector Single-Width Shift Instructions
++	// 31.11.6: Vector Single-Width Shift Instructions
+ 	AVSLLVV
+ 	AVSLLVX
+ 	AVSLLVI
+@@ -770,7 +774,7 @@ const (
+ 	AVSRAVX
+ 	AVSRAVI
+ 
+-	// 31.11.7. Vector Narrowing Integer Right Shift Instructions
++	// 31.11.7: Vector Narrowing Integer Right Shift Instructions
+ 	AVNSRLWV
+ 	AVNSRLWX
+ 	AVNSRLWI
+@@ -778,7 +782,7 @@ const (
+ 	AVNSRAWX
+ 	AVNSRAWI
+ 
+-	// 31.11.8. Vector Integer Compare Instructions
++	// 31.11.8: Vector Integer Compare Instructions
+ 	AVMSEQVV
+ 	AVMSEQVX
+ 	AVMSEQVI
+@@ -800,7 +804,7 @@ const (
+ 	AVMSGTVX
+ 	AVMSGTVI
+ 
+-	// 31.11.9. Vector Integer Min/Max Instructions
++	// 31.11.9: Vector Integer Min/Max Instructions
+ 	AVMINUVV
+ 	AVMINUVX
+ 	AVMINVV
+@@ -810,7 +814,7 @@ const (
+ 	AVMAXVV
+ 	AVMAXVX
+ 
+-	// 31.11.10. Vector Single-Width Integer Multiply Instructions
++	// 31.11.10: Vector Single-Width Integer Multiply Instructions
+ 	AVMULVV
+ 	AVMULVX
+ 	AVMULHVV
+@@ -820,7 +824,7 @@ const (
+ 	AVMULHSUVV
+ 	AVMULHSUVX
+ 
+-	// 31.11.11. Vector Integer Divide Instructions
++	// 31.11.11: Vector Integer Divide Instructions
+ 	AVDIVUVV
+ 	AVDIVUVX
+ 	AVDIVVV
+@@ -830,7 +834,7 @@ const (
+ 	AVREMVV
+ 	AVREMVX
+ 
+-	// 31.11.12. Vector Widening Integer Multiply Instructions
++	// 31.11.12: Vector Widening Integer Multiply Instructions
+ 	AVWMULVV
+ 	AVWMULVX
+ 	AVWMULUVV
+@@ -838,7 +842,7 @@ const (
+ 	AVWMULSUVV
+ 	AVWMULSUVX
+ 
+-	// 31.11.13. Vector Single-Width Integer Multiply-Add Instructions
++	// 31.11.13: Vector Single-Width Integer Multiply-Add Instructions
+ 	AVMACCVV
+ 	AVMACCVX
+ 	AVNMSACVV
+@@ -848,7 +852,7 @@ const (
+ 	AVNMSUBVV
+ 	AVNMSUBVX
+ 
+-	// 31.11.14. Vector Widening Integer Multiply-Add Instructions
++	// 31.11.14: Vector Widening Integer Multiply-Add Instructions
+ 	AVWMACCUVV
+ 	AVWMACCUVX
+ 	AVWMACCVV
+@@ -857,17 +861,17 @@ const (
+ 	AVWMACCSUVX
+ 	AVWMACCUSVX
+ 
+-	// 31.11.15. Vector Integer Merge Instructions
++	// 31.11.15: Vector Integer Merge Instructions
+ 	AVMERGEVVM
+ 	AVMERGEVXM
+ 	AVMERGEVIM
+ 
+-	// 31.11.16. Vector Integer Move Instructions
++	// 31.11.16: Vector Integer Move Instructions
+ 	AVMVVV
+ 	AVMVVX
+ 	AVMVVI
+ 
+-	// 31.12.1. Vector Single-Width Saturating Add and Subtract
++	// 31.12.1: Vector Single-Width Saturating Add and Subtract
+ 	AVSADDUVV
+ 	AVSADDUVX
+ 	AVSADDUVI
+@@ -879,7 +883,7 @@ const (
+ 	AVSSUBVV
+ 	AVSSUBVX
+ 
+-	// 31.12.2. Vector Single-Width Averaging Add and Subtract
++	// 31.12.2: Vector Single-Width Averaging Add and Subtract
+ 	AVAADDUVV
+ 	AVAADDUVX
+ 	AVAADDVV
+@@ -889,11 +893,11 @@ const (
+ 	AVASUBVV
+ 	AVASUBVX
+ 
+-	// 31.12.3. Vector Single-Width Fractional Multiply with Rounding and Saturation
++	// 31.12.3: Vector Single-Width Fractional Multiply with Rounding and Saturation
+ 	AVSMULVV
+ 	AVSMULVX
+ 
+-	// 31.12.4. Vector Single-Width Scaling Shift Instructions
++	// 31.12.4: Vector Single-Width Scaling Shift Instructions
+ 	AVSSRLVV
+ 	AVSSRLVX
+ 	AVSSRLVI
+@@ -901,7 +905,7 @@ const (
+ 	AVSSRAVX
+ 	AVSSRAVI
+ 
+-	// 31.12.5. Vector Narrowing Fixed-Point Clip Instructions
++	// 31.12.5: Vector Narrowing Fixed-Point Clip Instructions
+ 	AVNCLIPUWV
+ 	AVNCLIPUWX
+ 	AVNCLIPUWI
+@@ -909,14 +913,14 @@ const (
+ 	AVNCLIPWX
+ 	AVNCLIPWI
+ 
+-	// 31.13.2. Vector Single-Width Floating-Point Add/Subtract Instructions
++	// 31.13.2: Vector Single-Width Floating-Point Add/Subtract Instructions
+ 	AVFADDVV
+ 	AVFADDVF
+ 	AVFSUBVV
+ 	AVFSUBVF
+ 	AVFRSUBVF
+ 
+-	// 31.13.3. Vector Widening Floating-Point Add/Subtract Instructions
++	// 31.13.3: Vector Widening Floating-Point Add/Subtract Instructions
+ 	AVFWADDVV
+ 	AVFWADDVF
+ 	AVFWSUBVV
+@@ -926,18 +930,18 @@ const (
+ 	AVFWSUBWV
+ 	AVFWSUBWF
+ 
+-	// 31.13.4. Vector Single-Width Floating-Point Multiply/Divide Instructions
++	// 31.13.4: Vector Single-Width Floating-Point Multiply/Divide Instructions
+ 	AVFMULVV
+ 	AVFMULVF
+ 	AVFDIVVV
+ 	AVFDIVVF
+ 	AVFRDIVVF
+ 
+-	// 31.13.5. Vector Widening Floating-Point Multiply
++	// 31.13.5: Vector Widening Floating-Point Multiply
+ 	AVFWMULVV
+ 	AVFWMULVF
+ 
+-	// 31.13.6. Vector Single-Width Floating-Point Fused Multiply-Add Instructions
++	// 31.13.6: Vector Single-Width Floating-Point Fused Multiply-Add Instructions
+ 	AVFMACCVV
+ 	AVFMACCVF
+ 	AVFNMACCVV
+@@ -955,7 +959,7 @@ const (
+ 	AVFNMSUBVV
+ 	AVFNMSUBVF
+ 
+-	// 31.13.7. Vector Widening Floating-Point Fused Multiply-Add Instructions
++	// 31.13.7: Vector Widening Floating-Point Fused Multiply-Add Instructions
+ 	AVFWMACCVV
+ 	AVFWMACCVF
+ 	AVFWNMACCVV
+@@ -965,22 +969,22 @@ const (
+ 	AVFWNMSACVV
+ 	AVFWNMSACVF
+ 
+-	// 31.13.8. Vector Floating-Point Square-Root Instruction
++	// 31.13.8: Vector Floating-Point Square-Root Instruction
+ 	AVFSQRTV
+ 
+-	// 31.13.9. Vector Floating-Point Reciprocal Square-Root Estimate Instruction
++	// 31.13.9: Vector Floating-Point Reciprocal Square-Root Estimate Instruction
+ 	AVFRSQRT7V
+ 
+-	// 31.13.10. Vector Floating-Point Reciprocal Estimate Instruction
++	// 31.13.10: Vector Floating-Point Reciprocal Estimate Instruction
+ 	AVFREC7V
+ 
+-	// 31.13.11. Vector Floating-Point MIN/MAX Instructions
++	// 31.13.11: Vector Floating-Point MIN/MAX Instructions
+ 	AVFMINVV
+ 	AVFMINVF
+ 	AVFMAXVV
+ 	AVFMAXVF
+ 
+-	// 31.13.12. Vector Floating-Point Sign-Injection Instructions
++	// 31.13.12: Vector Floating-Point Sign-Injection Instructions
+ 	AVFSGNJVV
+ 	AVFSGNJVF
+ 	AVFSGNJNVV
+@@ -988,7 +992,7 @@ const (
+ 	AVFSGNJXVV
+ 	AVFSGNJXVF
+ 
+-	// 31.13.13. Vector Floating-Point Compare Instructions
++	// 31.13.13: Vector Floating-Point Compare Instructions
+ 	AVMFEQVV
+ 	AVMFEQVF
+ 	AVMFNEVV
+@@ -1000,16 +1004,16 @@ const (
+ 	AVMFGTVF
+ 	AVMFGEVF
+ 
+-	// 31.13.14. Vector Floating-Point Classify Instruction
++	// 31.13.14: Vector Floating-Point Classify Instruction
+ 	AVFCLASSV
+ 
+-	// 31.13.15. Vector Floating-Point Merge Instruction
++	// 31.13.15: Vector Floating-Point Merge Instruction
+ 	AVFMERGEVFM
+ 
+-	// 31.13.16. Vector Floating-Point Move Instruction
++	// 31.13.16: Vector Floating-Point Move Instruction
+ 	AVFMVVF
+ 
+-	// 31.13.17. Single-Width Floating-Point/Integer Type-Convert Instructions
++	// 31.13.17: Single-Width Floating-Point/Integer Type-Convert Instructions
+ 	AVFCVTXUFV
+ 	AVFCVTXFV
+ 	AVFCVTRTZXUFV
+@@ -1017,7 +1021,7 @@ const (
+ 	AVFCVTFXUV
+ 	AVFCVTFXV
+ 
+-	// 31.13.18. Widening Floating-Point/Integer Type-Convert Instructions
++	// 31.13.18: Widening Floating-Point/Integer Type-Convert Instructions
+ 	AVFWCVTXUFV
+ 	AVFWCVTXFV
+ 	AVFWCVTRTZXUFV
+@@ -1026,7 +1030,7 @@ const (
+ 	AVFWCVTFXV
+ 	AVFWCVTFFV
+ 
+-	// 31.13.19. Narrowing Floating-Point/Integer Type-Convert Instructions
++	// 31.13.19: Narrowing Floating-Point/Integer Type-Convert Instructions
+ 	AVFNCVTXUFW
+ 	AVFNCVTXFW
+ 	AVFNCVTRTZXUFW
+@@ -1036,7 +1040,7 @@ const (
+ 	AVFNCVTFFW
+ 	AVFNCVTRODFFW
+ 
+-	// 31.14.1. Vector Single-Width Integer Reduction Instructions
++	// 31.14.1: Vector Single-Width Integer Reduction Instructions
+ 	AVREDSUMVS
+ 	AVREDMAXUVS
+ 	AVREDMAXVS
+@@ -1046,21 +1050,21 @@ const (
+ 	AVREDORVS
+ 	AVREDXORVS
+ 
+-	// 31.14.2. Vector Widening Integer Reduction Instructions
++	// 31.14.2: Vector Widening Integer Reduction Instructions
+ 	AVWREDSUMUVS
+ 	AVWREDSUMVS
+ 
+-	// 31.14.3. Vector Single-Width Floating-Point Reduction Instructions
++	// 31.14.3: Vector Single-Width Floating-Point Reduction Instructions
+ 	AVFREDOSUMVS
+ 	AVFREDUSUMVS
+ 	AVFREDMAXVS
+ 	AVFREDMINVS
+ 
+-	// 31.14.4. Vector Widening Floating-Point Reduction Instructions
++	// 31.14.4: Vector Widening Floating-Point Reduction Instructions
+ 	AVFWREDOSUMVS
+ 	AVFWREDUSUMVS
+ 
+-	// 31.15. Vector Mask Instructions
++	// 31.15: Vector Mask Instructions
+ 	AVMANDMM
+ 	AVMNANDMM
+ 	AVMANDNMM
+@@ -1077,15 +1081,15 @@ const (
+ 	AVIOTAM
+ 	AVIDV
+ 
+-	// 31.16.1. Integer Scalar Move Instructions
++	// 31.16.1: Integer Scalar Move Instructions
+ 	AVMVXS
+ 	AVMVSX
+ 
+-	// 31.16.2. Floating-Point Scalar Move Instructions
++	// 31.16.2: Floating-Point Scalar Move Instructions
+ 	AVFMVFS
+ 	AVFMVSF
+ 
+-	// 31.16.3. Vector Slide Instructions
++	// 31.16.3: Vector Slide Instructions
+ 	AVSLIDEUPVX
+ 	AVSLIDEUPVI
+ 	AVSLIDEDOWNVX
+@@ -1095,16 +1099,16 @@ const (
+ 	AVSLIDE1DOWNVX
+ 	AVFSLIDE1DOWNVF
+ 
+-	// 31.16.4. Vector Register Gather Instructions
++	// 31.16.4: Vector Register Gather Instructions
+ 	AVRGATHERVV
+ 	AVRGATHEREI16VV
+ 	AVRGATHERVX
+ 	AVRGATHERVI
+ 
+-	// 31.16.5. Vector Compress Instruction
++	// 31.16.5: Vector Compress Instruction
+ 	AVCOMPRESSVM
+ 
+-	// 31.16.6. Whole Vector Register Move
++	// 31.16.6: Whole Vector Register Move
+ 	AVMV1RV
+ 	AVMV2RV
+ 	AVMV4RV
+diff --git a/src/cmd/internal/obj/riscv/obj.go b/src/cmd/internal/obj/riscv/obj.go
+index 5f01c43e7b..381dc08560 100644
+--- a/src/cmd/internal/obj/riscv/obj.go
++++ b/src/cmd/internal/obj/riscv/obj.go
+@@ -1540,7 +1540,9 @@ type instructionData struct {
+ // their encoding type. Entries are masked with obj.AMask to keep
+ // indices small.
+ var instructions = [ALAST & obj.AMask]instructionData{
++	//
+ 	// Unprivileged ISA
++	//
+ 
+ 	// 2.4: Integer Computational Instructions
+ 	AADDI & obj.AMask:  {enc: iIIEncoding, ternary: true},
+@@ -1589,7 +1591,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	// 2.7: Memory Ordering
+ 	AFENCE & obj.AMask: {enc: iIIEncoding},
+ 
+-	// 5.2: Integer Computational Instructions (RV64I)
++	// 4.2: Integer Computational Instructions (RV64I)
+ 	AADDIW & obj.AMask: {enc: iIIEncoding, ternary: true},
+ 	ASLLIW & obj.AMask: {enc: iIIEncoding, ternary: true},
+ 	ASRLIW & obj.AMask: {enc: iIIEncoding, ternary: true},
+@@ -1600,14 +1602,14 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	ASUBW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+ 	ASRAW & obj.AMask:  {enc: rIIIEncoding, immForm: ASRAIW, ternary: true},
+ 
+-	// 5.3: Load and Store Instructions (RV64I)
++	// 4.3: Load and Store Instructions (RV64I)
+ 	ALD & obj.AMask: {enc: iIIEncoding},
+ 	ASD & obj.AMask: {enc: sIEncoding},
+ 
+ 	// 7.1: CSR Instructions
+ 	ACSRRS & obj.AMask: {enc: iIIEncoding},
+ 
+-	// 7.1: Multiplication Operations
++	// 13.1: Multiplication Operations
+ 	AMUL & obj.AMask:    {enc: rIIIEncoding, ternary: true},
+ 	AMULH & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+ 	AMULHU & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+@@ -1622,13 +1624,13 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AREMW & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+ 	AREMUW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+ 
+-	// 8.2: Load-Reserved/Store-Conditional
++	// 14.2: Load-Reserved/Store-Conditional Instructions (Zalrsc)
+ 	ALRW & obj.AMask: {enc: rIIIEncoding},
+ 	ALRD & obj.AMask: {enc: rIIIEncoding},
+ 	ASCW & obj.AMask: {enc: rIIIEncoding},
+ 	ASCD & obj.AMask: {enc: rIIIEncoding},
+ 
+-	// 8.3: Atomic Memory Operations
++	// 14.4: Atomic Memory Operations (Zaamo)
+ 	AAMOSWAPW & obj.AMask: {enc: rIIIEncoding},
+ 	AAMOSWAPD & obj.AMask: {enc: rIIIEncoding},
+ 	AAMOADDW & obj.AMask:  {enc: rIIIEncoding},
+@@ -1648,11 +1650,11 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AAMOMINUW & obj.AMask: {enc: rIIIEncoding},
+ 	AAMOMINUD & obj.AMask: {enc: rIIIEncoding},
+ 
+-	// 11.5: Single-Precision Load and Store Instructions
++	// 20.5: Single-Precision Load and Store Instructions
+ 	AFLW & obj.AMask: {enc: iFEncoding},
+ 	AFSW & obj.AMask: {enc: sFEncoding},
+ 
+-	// 11.6: Single-Precision Floating-Point Computational Instructions
++	// 20.6: Single-Precision Floating-Point Computational Instructions
+ 	AFADDS & obj.AMask:   {enc: rFFFEncoding},
+ 	AFSUBS & obj.AMask:   {enc: rFFFEncoding},
+ 	AFMULS & obj.AMask:   {enc: rFFFEncoding},
+@@ -1665,7 +1667,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AFNMSUBS & obj.AMask: {enc: rFFFFEncoding},
+ 	AFNMADDS & obj.AMask: {enc: rFFFFEncoding},
+ 
+-	// 11.7: Single-Precision Floating-Point Conversion and Move Instructions
++	// 20.7: Single-Precision Floating-Point Conversion and Move Instructions
+ 	AFCVTWS & obj.AMask:  {enc: rFIEncoding},
+ 	AFCVTLS & obj.AMask:  {enc: rFIEncoding},
+ 	AFCVTSW & obj.AMask:  {enc: rIFEncoding},
+@@ -1680,19 +1682,19 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AFMVXW & obj.AMask:   {enc: rFIEncoding},
+ 	AFMVWX & obj.AMask:   {enc: rIFEncoding},
+ 
+-	// 11.8: Single-Precision Floating-Point Compare Instructions
++	// 20.8: Single-Precision Floating-Point Compare Instructions
+ 	AFEQS & obj.AMask: {enc: rFFIEncoding},
+ 	AFLTS & obj.AMask: {enc: rFFIEncoding},
+ 	AFLES & obj.AMask: {enc: rFFIEncoding},
+ 
+-	// 11.9: Single-Precision Floating-Point Classify Instruction
++	// 20.9: Single-Precision Floating-Point Classify Instruction
+ 	AFCLASSS & obj.AMask: {enc: rFIEncoding},
+ 
+ 	// 12.3: Double-Precision Load and Store Instructions
+ 	AFLD & obj.AMask: {enc: iFEncoding},
+ 	AFSD & obj.AMask: {enc: sFEncoding},
+ 
+-	// 12.4: Double-Precision Floating-Point Computational Instructions
++	// 21.4: Double-Precision Floating-Point Computational Instructions
+ 	AFADDD & obj.AMask:   {enc: rFFFEncoding},
+ 	AFSUBD & obj.AMask:   {enc: rFFFEncoding},
+ 	AFMULD & obj.AMask:   {enc: rFFFEncoding},
+@@ -1705,7 +1707,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AFNMSUBD & obj.AMask: {enc: rFFFFEncoding},
+ 	AFNMADDD & obj.AMask: {enc: rFFFFEncoding},
+ 
+-	// 12.5: Double-Precision Floating-Point Conversion and Move Instructions
++	// 21.5: Double-Precision Floating-Point Conversion and Move Instructions
+ 	AFCVTWD & obj.AMask:  {enc: rFIEncoding},
+ 	AFCVTLD & obj.AMask:  {enc: rFIEncoding},
+ 	AFCVTDW & obj.AMask:  {enc: rIFEncoding},
+@@ -1722,25 +1724,19 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AFMVXD & obj.AMask:   {enc: rFIEncoding},
+ 	AFMVDX & obj.AMask:   {enc: rIFEncoding},
+ 
+-	// 12.6: Double-Precision Floating-Point Compare Instructions
++	// 21.6: Double-Precision Floating-Point Compare Instructions
+ 	AFEQD & obj.AMask: {enc: rFFIEncoding},
+ 	AFLTD & obj.AMask: {enc: rFFIEncoding},
+ 	AFLED & obj.AMask: {enc: rFFIEncoding},
+ 
+-	// 12.7: Double-Precision Floating-Point Classify Instruction
++	// 21.7: Double-Precision Floating-Point Classify Instruction
+ 	AFCLASSD & obj.AMask: {enc: rFIEncoding},
+ 
+-	// Privileged ISA
+-
+-	// 3.2.1: Environment Call and Breakpoint
+-	AECALL & obj.AMask:  {enc: iIIEncoding},
+-	AEBREAK & obj.AMask: {enc: iIIEncoding},
+-
+ 	//
+-	// RISC-V Bit-Manipulation ISA-extensions (1.0)
++	// "B" Extension for Bit Manipulation, Version 1.0.0
+ 	//
+ 
+-	// 1.1: Address Generation Instructions (Zba)
++	// 28.4.1: Address Generation Instructions (Zba)
+ 	AADDUW & obj.AMask:    {enc: rIIIEncoding, ternary: true},
+ 	ASH1ADD & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+ 	ASH1ADDUW & obj.AMask: {enc: rIIIEncoding, ternary: true},
+@@ -1750,7 +1746,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	ASH3ADDUW & obj.AMask: {enc: rIIIEncoding, ternary: true},
+ 	ASLLIUW & obj.AMask:   {enc: iIIEncoding, ternary: true},
+ 
+-	// 1.2: Basic Bit Manipulation (Zbb)
++	// 28.4.2: Basic Bit Manipulation (Zbb)
+ 	AANDN & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+ 	ACLZ & obj.AMask:   {enc: rIIEncoding},
+ 	ACLZW & obj.AMask:  {enc: rIIEncoding},
+@@ -1768,7 +1764,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AXNOR & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+ 	AZEXTH & obj.AMask: {enc: rIIEncoding},
+ 
+-	// 1.3: Bitwise Rotation (Zbb)
++	// 28.4.3: Bitwise Rotation (Zbb)
+ 	AROL & obj.AMask:   {enc: rIIIEncoding, ternary: true},
+ 	AROLW & obj.AMask:  {enc: rIIIEncoding, ternary: true},
+ 	AROR & obj.AMask:   {enc: rIIIEncoding, immForm: ARORI, ternary: true},
+@@ -1778,7 +1774,7 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	AORCB & obj.AMask:  {enc: iIIEncoding},
+ 	AREV8 & obj.AMask:  {enc: iIIEncoding},
+ 
+-	// 1.5: Single-bit Instructions (Zbs)
++	// 28.4.4: Single-bit Instructions (Zbs)
+ 	ABCLR & obj.AMask:  {enc: rIIIEncoding, immForm: ABCLRI, ternary: true},
+ 	ABCLRI & obj.AMask: {enc: iIIEncoding, ternary: true},
+ 	ABEXT & obj.AMask:  {enc: rIIIEncoding, immForm: ABEXTI, ternary: true},
+@@ -1788,6 +1784,14 @@ var instructions = [ALAST & obj.AMask]instructionData{
+ 	ABSET & obj.AMask:  {enc: rIIIEncoding, immForm: ABSETI, ternary: true},
+ 	ABSETI & obj.AMask: {enc: iIIEncoding, ternary: true},
+ 
++	//
++	// Privileged ISA
++	//
++
++	// 3.3.1: Environment Call and Breakpoint
++	AECALL & obj.AMask:  {enc: iIIEncoding},
++	AEBREAK & obj.AMask: {enc: iIIEncoding},
++
+ 	// Escape hatch
+ 	AWORD & obj.AMask: {enc: rawEncoding},
+ 

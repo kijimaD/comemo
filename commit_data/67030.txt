@@ -1,0 +1,272 @@
+commit de86d02c32f6690391ed79b99d0f763bb06606d5
+Author: Julian Zhu <jz531210@gmail.com>
+Date:   Fri Apr 25 21:03:53 2025 +0800
+
+    crypto/internal/fips140/subtle: add assembly implementation of xorBytes for arm
+    
+    goos: linux
+    goarch: arm
+    pkg: crypto/subtle
+                                         │       o        │                  n                  │
+                                         │     sec/op     │    sec/op     vs base               │
+    ConstantTimeByteEq-4                    5.353n ±  88%   4.012n ± 67%        ~ (p=0.381 n=8)
+    ConstantTimeEq-4                        4.151n ±   1%   4.078n ±  0%   -1.76% (p=0.000 n=8)
+    ConstantTimeLessOrEq-4                  4.010n ±  15%   4.154n ±  3%        ~ (p=0.584 n=8)
+    XORBytes/8Bytes-4                       85.69n ±  13%   44.02n ±  1%  -48.64% (p=0.000 n=8)
+    XORBytes/128Bytes-4                    164.85n ±   9%   84.62n ±  5%  -48.67% (p=0.000 n=8)
+    XORBytes/2048Bytes-4                   1374.0n ±   1%   741.2n ± 15%  -46.05% (p=0.000 n=8)
+    XORBytes/8192Bytes-4                    4.357µ ±   0%   2.801µ ±  0%  -35.71% (p=0.000 n=8)
+    XORBytes/32768Bytes-4                   16.67µ ±   0%   11.96µ ±  0%  -28.26% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes0Offset-4       83.28n ±   0%   42.77n ±  1%  -48.65% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes1Offset-4       61.52n ±   1%   50.30n ± 16%  -18.24% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes2Offset-4       61.75n ±   1%   42.72n ±  1%  -30.82% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes3Offset-4       61.53n ±   1%   42.70n ±  1%  -30.60% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes4Offset-4       83.28n ±   0%   42.71n ±  1%  -48.72% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes5Offset-4       61.53n ±   0%   42.73n ±  1%  -30.55% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes6Offset-4       61.58n ±   0%   42.69n ±  1%  -30.68% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes7Offset-4       61.63n ±   1%   42.70n ±  1%  -30.72% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes0Offset-4    154.15n ±   4%   83.48n ±  0%  -45.84% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes1Offset-4    265.25n ±   0%   91.70n ±  8%  -65.43% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes2Offset-4    265.20n ±   0%   98.09n ± 13%  -63.01% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes3Offset-4    265.20n ±   0%   85.48n ±  0%  -67.77% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes4Offset-4    150.05n ±   0%   83.52n ± 15%  -44.34% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes5Offset-4    265.20n ±   0%   85.48n ± 15%  -67.77% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes6Offset-4    265.20n ±   0%   96.16n ± 11%  -63.74% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes7Offset-4    265.20n ±   0%   85.49n ±  0%  -67.76% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes0Offset-4   1114.0n ±   0%   739.5n ±  0%  -33.62% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes1Offset-4   3285.0n ±  15%   783.5n ±  0%  -76.15% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes2Offset-4   3288.0n ±  15%   783.6n ± 25%  -76.17% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes3Offset-4   3286.0n ±   0%   783.5n ±  0%  -76.15% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes4Offset-4   1116.0n ± 115%   742.9n ±  0%  -33.43% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes5Offset-4   3285.0n ±   0%   785.0n ±  0%  -76.10% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes6Offset-4   3284.0n ±   0%   784.8n ±  0%  -76.10% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes7Offset-4   3283.0n ±   0%   784.9n ±  0%  -76.09% (p=0.000 n=8)
+    geomean                                 269.5n          129.5n        -51.93%
+    
+                                         │       o       │                   n                    │
+                                         │      B/s      │      B/s        vs base                │
+    XORBytes/8Bytes-4                      89.08Mi ± 11%   173.34Mi ±  1%   +94.58% (p=0.000 n=8)
+    XORBytes/128Bytes-4                    741.9Mi ± 10%   1442.6Mi ± 13%   +94.45% (p=0.000 n=8)
+    XORBytes/2048Bytes-4                   1.388Gi ±  0%    2.573Gi ± 13%   +85.40% (p=0.000 n=8)
+    XORBytes/8192Bytes-4                   1.751Gi ±  1%    2.724Gi ±  0%   +55.57% (p=0.000 n=8)
+    XORBytes/32768Bytes-4                  1.830Gi ±  0%    2.551Gi ±  0%   +39.38% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes0Offset-4      91.61Mi ±  0%   178.40Mi ±  1%   +94.75% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes1Offset-4      124.0Mi ±  1%    152.2Mi ± 18%   +22.73% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes2Offset-4      123.6Mi ±  1%    178.6Mi ± 14%   +44.54% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes3Offset-4      124.0Mi ±  1%    178.6Mi ±  1%   +44.10% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes4Offset-4      91.61Mi ±  0%   178.65Mi ±  1%   +95.01% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes5Offset-4      124.0Mi ±  1%    178.5Mi ±  1%   +43.98% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes6Offset-4      123.9Mi ±  1%    178.7Mi ±  1%   +44.23% (p=0.000 n=8)
+    XORBytesAlignment/8Bytes7Offset-4      123.8Mi ±  6%    178.7Mi ±  1%   +44.33% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes0Offset-4    792.5Mi ±  4%   1462.3Mi ± 13%   +84.51% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes1Offset-4    460.2Mi ±  0%   1337.2Mi ±  8%  +190.56% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes2Offset-4    460.2Mi ±  0%   1244.6Mi ± 15%  +170.42% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes3Offset-4    460.3Mi ±  0%   1428.1Mi ±  0%  +210.27% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes4Offset-4    813.5Mi ±  0%   1461.6Mi ± 13%   +79.67% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes5Offset-4    460.3Mi ±  0%   1428.0Mi ± 13%  +210.25% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes6Offset-4    460.3Mi ±  0%   1285.1Mi ± 11%  +179.16% (p=0.000 n=8)
+    XORBytesAlignment/128Bytes7Offset-4    460.2Mi ±  0%   1427.9Mi ± 18%  +210.25% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes0Offset-4   1.711Gi ±  0%    2.579Gi ±  0%   +50.71% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes1Offset-4   594.5Mi ± 13%   2493.0Mi ± 20%  +319.35% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes2Offset-4   594.0Mi ± 13%   2492.7Mi ± 20%  +319.63% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes3Offset-4   594.4Mi ± 53%   2492.8Mi ±  0%  +319.35% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes4Offset-4   1.710Gi ± 53%    2.567Gi ±  0%   +50.17% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes5Offset-4   594.5Mi ±  0%   2487.9Mi ±  0%  +318.47% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes6Offset-4   594.8Mi ±  0%   2488.6Mi ±  0%  +318.41% (p=0.000 n=8)
+    XORBytesAlignment/2048Bytes7Offset-4   594.9Mi ±  0%   2488.3Mi ±  0%  +318.28% (p=0.000 n=8)
+    geomean                                414.2Mi          921.5Mi        +122.46%
+    
+    Change-Id: I0ac50135de2e69fcf802be31e5175d666c93ad4c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/667817
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+---
+ src/crypto/internal/fips140/subtle/xor_arm.s      | 149 ++++++++++++++++++++++
+ src/crypto/internal/fips140/subtle/xor_asm.go     |   2 +-
+ src/crypto/internal/fips140/subtle/xor_generic.go |   2 +-
+ 3 files changed, 151 insertions(+), 2 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/subtle/xor_arm.s b/src/crypto/internal/fips140/subtle/xor_arm.s
+new file mode 100644
+index 0000000000..a9e4267a6b
+--- /dev/null
++++ b/src/crypto/internal/fips140/subtle/xor_arm.s
+@@ -0,0 +1,149 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++//go:build !purego
++
++#include "textflag.h"
++
++// func xorBytes(dst, a, b *byte, n int)
++TEXT ·xorBytes(SB), NOSPLIT|NOFRAME, $0
++	MOVW	dst+0(FP), R0
++	MOVW	a+4(FP), R1
++	MOVW	b+8(FP), R2
++	MOVW	n+12(FP), R3
++
++xor_32_check:
++	CMP	$32, R3
++	BLT	xor_16_check
++xor_32_loop:
++	MOVW	(R1), R4
++	MOVW	4(R1), R5
++	MOVW	8(R1), R6
++	MOVW	(R2), R7
++	MOVW	4(R2), R8
++	MOVW	8(R2), R9
++	EOR	R4, R7
++	EOR	R5, R8
++	EOR	R6, R9
++	MOVW	R7, (R0)
++	MOVW	R8, 4(R0)
++	MOVW	R9, 8(R0)
++
++	MOVW	12(R1), R4
++	MOVW	16(R1), R5
++	MOVW	20(R1), R6
++	MOVW	12(R2), R7
++	MOVW	16(R2), R8
++	MOVW	20(R2), R9
++	EOR	R4, R7
++	EOR	R5, R8
++	EOR	R6, R9
++	MOVW	R7, 12(R0)
++	MOVW	R8, 16(R0)
++	MOVW	R9, 20(R0)
++
++	MOVW	24(R1), R4
++	MOVW	28(R1), R5
++	MOVW	24(R2), R6
++	MOVW	28(R2), R7
++	EOR	 R4, R6
++	EOR	 R5, R7
++	MOVW	R6, 24(R0)
++	MOVW	R7, 28(R0)
++
++	ADD	$32, R1
++	ADD	$32, R2
++	ADD	$32, R0
++	SUB	$32, R3
++	CMP	$32, R3
++	BGE	xor_32_loop
++	CMP	$0, R3
++	BEQ	end
++
++xor_16_check:
++	CMP	$16, R3
++	BLT	xor_8_check
++xor_16:
++	MOVW	(R1), R4
++	MOVW	4(R1), R5
++	MOVW	(R2), R6
++	MOVW	4(R2), R7
++	EOR	R4, R6
++	EOR	R5, R7
++	MOVW	R6, (R0)
++	MOVW	R7, 4(R0)
++
++	MOVW	8(R1), R4
++	MOVW	12(R1), R5
++	MOVW	8(R2), R6
++	MOVW	12(R2), R7
++	EOR	R4, R6
++	EOR	R5, R7
++	MOVW	R6, 8(R0)
++	MOVW	R7, 12(R0)
++	ADD	$16, R1
++	ADD	$16, R2
++	ADD	$16, R0
++	SUB	$16, R3
++	CMP	$0, R3
++	BEQ	end
++
++xor_8_check:
++	CMP	$8, R3
++	BLT	xor_4_check
++xor_8:
++	MOVW	(R1), R4
++	MOVW	4(R1), R5
++	MOVW	(R2), R6
++	MOVW	4(R2), R7
++	EOR	R4, R6
++	EOR	R5, R7
++	MOVW	R6, (R0)
++	MOVW	R7, 4(R0)
++
++	ADD	$8, R0
++	ADD	$8, R1
++	ADD	$8, R2
++	SUB	$8, R3
++	CMP	$0, R3
++	BEQ	end
++
++xor_4_check:
++	CMP	$4, R3
++	BLT	xor_2_check
++xor_4:
++	MOVW	(R1), R4
++	MOVW	(R2), R5
++	EOR	R4, R5
++	MOVW	R5, (R0)
++	ADD	$4, R1
++	ADD	$4, R2
++	ADD	$4, R0
++	SUB	$4, R3
++	CMP	$0, R3
++	BEQ	end
++
++xor_2_check:
++	CMP	$2, R3
++	BLT	xor_1
++xor_2:
++	MOVH	(R1), R4
++	MOVH	(R2), R5
++	EOR	R4, R5
++	MOVH	R5, (R0)
++	ADD	$2, R1
++	ADD	$2, R2
++	ADD	$2, R0
++	SUB	$2, R3
++	CMP	$0, R3
++	BEQ	end
++
++xor_1:
++	MOVB	(R1), R4
++	MOVB	(R2), R5
++	EOR	R4, R5
++	MOVB	R5, (R0)
++
++end:
++	RET
+diff --git a/src/crypto/internal/fips140/subtle/xor_asm.go b/src/crypto/internal/fips140/subtle/xor_asm.go
+index 4fde85fe2e..216ae7ffeb 100644
+--- a/src/crypto/internal/fips140/subtle/xor_asm.go
++++ b/src/crypto/internal/fips140/subtle/xor_asm.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (amd64 || arm64 || loong64 || mips || mipsle || mips64 || mips64le || ppc64 || ppc64le || riscv64) && !purego
++//go:build (amd64 || arm || arm64 || loong64 || mips || mipsle || mips64 || mips64le || ppc64 || ppc64le || riscv64) && !purego
+ 
+ package subtle
+ 
+diff --git a/src/crypto/internal/fips140/subtle/xor_generic.go b/src/crypto/internal/fips140/subtle/xor_generic.go
+index ed484bc630..06d69ca91f 100644
+--- a/src/crypto/internal/fips140/subtle/xor_generic.go
++++ b/src/crypto/internal/fips140/subtle/xor_generic.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-//go:build (!amd64 && !arm64 && !loong64 && !mips && !mipsle && !mips64 && !mips64le && !ppc64 && !ppc64le && !riscv64) || purego
++//go:build (!amd64 && !arm && !arm64 && !loong64 && !mips && !mipsle && !mips64 && !mips64le && !ppc64 && !ppc64le && !riscv64) || purego
+ 
+ package subtle
+ 

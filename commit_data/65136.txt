@@ -1,0 +1,89 @@
+commit 0b4168f6ab570dcd5b7b002386dd9495c8ad1a2f
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Wed Oct 16 16:38:37 2024 +0200
+
+    syscall: only remove write data access when O_APPEND is set on Windows
+    
+    There is no need to remove all write accesses when O_APPEND is set,
+    only the FILE_WRITE_DATA access. This will allow files opened with
+    O_APPEND and O_WRONLY to be have their attributes and ACLs modified.
+    
+    Change-Id: I6fe3b25e87b141a9eb30805f395fec31242fd35d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620615
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/os/os_test.go              | 26 ++++++++++++++++++++++++++
+ src/syscall/syscall_windows.go |  8 +++++---
+ src/syscall/types_windows.go   |  1 +
+ 3 files changed, 32 insertions(+), 3 deletions(-)
+
+diff --git a/src/os/os_test.go b/src/os/os_test.go
+index 4db5521fee..5b1c8ba2f0 100644
+--- a/src/os/os_test.go
++++ b/src/os/os_test.go
+@@ -3593,3 +3593,29 @@ func TestCopyFSWithSymlinks(t *testing.T) {
+ 		t.Fatal("comparing two directories:", err)
+ 	}
+ }
++
++func TestAppendDoesntOverwrite(t *testing.T) {
++	name := filepath.Join(t.TempDir(), "file")
++	if err := WriteFile(name, []byte("hello"), 0666); err != nil {
++		t.Fatal(err)
++	}
++	f, err := OpenFile(name, O_APPEND|O_WRONLY, 0)
++	if err != nil {
++		t.Fatal(err)
++	}
++	if _, err := f.Write([]byte(" world")); err != nil {
++		f.Close()
++		t.Fatal(err)
++	}
++	if err := f.Close(); err != nil {
++		t.Fatal(err)
++	}
++	got, err := ReadFile(name)
++	if err != nil {
++		t.Fatal(err)
++	}
++	want := "hello world"
++	if string(got) != want {
++		t.Fatalf("got %q, want %q", got, want)
++	}
++}
+diff --git a/src/syscall/syscall_windows.go b/src/syscall/syscall_windows.go
+index 67a71dfc76..05c29c7b20 100644
+--- a/src/syscall/syscall_windows.go
++++ b/src/syscall/syscall_windows.go
+@@ -362,12 +362,14 @@ func Open(name string, flag int, perm uint32) (fd Handle, err error) {
+ 		access |= GENERIC_WRITE
+ 	}
+ 	if flag&O_APPEND != 0 {
+-		access |= FILE_APPEND_DATA
+-		// Remove GENERIC_WRITE access unless O_TRUNC is set,
+-		// in which case we need it to truncate the file.
++		// Remove GENERIC_WRITE unless O_TRUNC is set, in which case we need it to truncate the file.
++		// We can't just remove FILE_WRITE_DATA because GENERIC_WRITE without FILE_WRITE_DATA
++		// starts appending at the beginning of the file rather than at the end.
+ 		if flag&O_TRUNC == 0 {
+ 			access &^= GENERIC_WRITE
+ 		}
++		// Set all access rights granted by GENERIC_WRITE except for FILE_WRITE_DATA.
++		access |= FILE_APPEND_DATA | FILE_WRITE_ATTRIBUTES | _FILE_WRITE_EA | STANDARD_RIGHTS_WRITE | SYNCHRONIZE
+ 	}
+ 	sharemode := uint32(FILE_SHARE_READ | FILE_SHARE_WRITE)
+ 	var sa *SecurityAttributes
+diff --git a/src/syscall/types_windows.go b/src/syscall/types_windows.go
+index eb1ba06ce6..b0fae8a5dc 100644
+--- a/src/syscall/types_windows.go
++++ b/src/syscall/types_windows.go
+@@ -93,6 +93,7 @@ const (
+ 
+ 	FILE_LIST_DIRECTORY   = 0x00000001
+ 	FILE_APPEND_DATA      = 0x00000004
++	_FILE_WRITE_EA        = 0x00000010
+ 	FILE_WRITE_ATTRIBUTES = 0x00000100
+ 
+ 	FILE_SHARE_READ              = 0x00000001

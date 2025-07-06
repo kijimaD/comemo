@@ -1,0 +1,45 @@
+commit d682a9dfbe14d86c0d4c5b7841bfd2509cdd478f
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Sat Sep 14 10:09:58 2024 +0000
+
+    net/netip: use const for max address length
+    
+    Makes it consistent with other code in net/netip, also constants
+    are visible through LSP hover, which makes it easier to see the size.
+    
+    Change-Id: I3d02c860ac3c61cc037eaca5418297f78698c3f8
+    GitHub-Last-Rev: 785a8d58c372f5e1faa2e43dd1991d7040e36603
+    GitHub-Pull-Request: golang/go#69468
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/613356
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/net/netip/netip.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/net/netip/netip.go b/src/net/netip/netip.go
+index a1e93cb29b..82c0501139 100644
+--- a/src/net/netip/netip.go
++++ b/src/net/netip/netip.go
+@@ -974,16 +974,16 @@ func (ip Addr) MarshalText() ([]byte, error) {
+ 	case z0:
+ 		return []byte(""), nil
+ 	case z4:
+-		max := len("255.255.255.255")
++		const max = len("255.255.255.255")
+ 		b := make([]byte, 0, max)
+ 		return ip.appendTo4(b), nil
+ 	default:
+ 		if ip.Is4In6() {
+-			max := len("::ffff:255.255.255.255%enp5s0")
++			const max = len("::ffff:255.255.255.255%enp5s0")
+ 			b := make([]byte, 0, max)
+ 			return ip.appendTo4In6(b), nil
+ 		}
+-		max := len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
++		const max = len("ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff%enp5s0")
+ 		b := make([]byte, 0, max)
+ 		return ip.appendTo6(b), nil
+ 	}

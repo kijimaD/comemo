@@ -1,0 +1,112 @@
+commit 330bc950933edad89abf6d1eedbfea378cf9fdf6
+Author: Lynn Boger <laboger@linux.vnet.ibm.com>
+Date:   Mon Apr 15 16:13:57 2024 -0500
+
+    math/big: improve use of addze in mulAddVWW on ppc64x
+    
+    Improve the use of addze to avoid unnecessary register
+    moves on ppc64x.
+    
+    goos: linux
+    goarch: ppc64le
+    pkg: math/big
+    cpu: POWER10
+                     │   old.out    │               new.out               │
+                     │    sec/op    │    sec/op     vs base               │
+    MulAddVWW/1         4.524n ± 3%   4.248n ±  0%   -6.10% (p=0.002 n=6)
+    MulAddVWW/2         5.634n ± 0%   5.283n ±  0%   -6.24% (p=0.002 n=6)
+    MulAddVWW/3         6.406n ± 0%   5.918n ±  0%   -7.63% (p=0.002 n=6)
+    MulAddVWW/4         6.484n ± 0%   5.859n ±  0%   -9.64% (p=0.002 n=6)
+    MulAddVWW/5         7.363n ± 0%   6.766n ±  0%   -8.11% (p=0.002 n=6)
+    MulAddVWW/10       10.920n ± 0%   9.856n ±  0%   -9.75% (p=0.002 n=6)
+    MulAddVWW/100       83.46n ± 0%   66.95n ±  0%  -19.78% (p=0.002 n=6)
+    MulAddVWW/1000      856.0n ± 0%   681.6n ±  0%  -20.38% (p=0.002 n=6)
+    MulAddVWW/10000     8.589µ ± 1%   6.774µ ±  0%  -21.14% (p=0.002 n=6)
+    MulAddVWW/100000    86.22µ ± 0%   67.71µ ± 43%  -21.48% (p=0.065 n=6)
+    geomean             73.34n        63.62n        -13.26%
+    
+    
+    Change-Id: I95d6ac49ff6b64aa678e6896f57af9d85c923aad
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/579235
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Paul Murphy <murp@ibm.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/math/big/arith_ppc64x.s | 21 +++++++--------------
+ 1 file changed, 7 insertions(+), 14 deletions(-)
+
+diff --git a/src/math/big/arith_ppc64x.s b/src/math/big/arith_ppc64x.s
+index c483e252ab..330bc7e46c 100644
+--- a/src/math/big/arith_ppc64x.s
++++ b/src/math/big/arith_ppc64x.s
+@@ -514,9 +514,8 @@ TEXT ·mulAddVWW(SB), NOSPLIT, $0
+ 	MULLD   R9, R20, R6       // R6 = z0 = Low-order(x[i]*y)
+ 	MULHDU  R9, R20, R7       // R7 = z1 = High-order(x[i]*y)
+ 	ADDC    R4, R6            // R6 = z0 + r
+-	ADDZE   R7                // R7 = z1 + CA
++	ADDZE   R7, R4            // R4 = z1 + CA
+ 	CMP     R0, R11
+-	MOVD    R7, R4            // R4 = c
+ 	MOVD    R6, 0(R10)        // z[i]
+ 	BEQ     done
+ 
+@@ -536,20 +535,17 @@ loop:
+ 	MULLD   R9, R20, R24      // R24 = z0[i]
+ 	MULHDU  R9, R20, R20      // R20 = z1[i]
+ 	ADDC    R4, R24           // R24 = z0[i] + c
+-	ADDZE   R20               // R7 = z1[i] + CA
+ 	MULLD   R9, R21, R25
+ 	MULHDU  R9, R21, R21
+-	ADDC    R20, R25
+-	ADDZE   R21
++	ADDE    R20, R25
+ 	MULLD   R9, R22, R26
+ 	MULHDU  R9, R22, R22
+ 	MULLD   R9, R23, R27
+ 	MULHDU  R9, R23, R23
+-	ADDC    R21, R26
+-	ADDZE   R22
++	ADDE    R21, R26
+ 	MOVD    R24, 8(R10)       // z[i]
+ 	MOVD    R25, 16(R10)      // z[i+1]
+-	ADDC    R22, R27
++	ADDE    R22, R27
+ 	ADDZE   R23,R4		  // update carry
+ 	MOVD    R26, 24(R10)      // z[i+2]
+ 	MOVDU   R27, 32(R10)      // z[i+3]
+@@ -567,10 +563,9 @@ tail:
+ 	MULHDU  R9, R20, R25      // R25 = z1[i]
+ 	ADD     $-1, R11          // R11 = z_len - 1
+ 	ADDC    R4, R24
+-	ADDZE   R25
++	ADDZE   R25, R4
+ 	MOVDU   R24, 8(R10)       // z[i]
+ 	CMP     R0, R11
+-	MOVD    R25, R4           // R4 = c
+ 	BEQ     done              // If R11 = 0, we are done
+ 
+ 	MOVDU   8(R8), R20
+@@ -578,10 +573,9 @@ tail:
+ 	MULHDU  R9, R20, R25
+ 	ADD     $-1, R11
+ 	ADDC    R4, R24
+-	ADDZE   R25
++	ADDZE   R25, R4
+ 	MOVDU   R24, 8(R10)
+ 	CMP     R0, R11
+-	MOVD    R25, R4
+ 	BEQ     done
+ 
+ 	MOVD    8(R8), R20
+@@ -589,9 +583,8 @@ tail:
+ 	MULHDU  R9, R20, R25
+ 	ADD     $-1, R11
+ 	ADDC    R4, R24
+-	ADDZE   R25
++	ADDZE   R25,R4
+ 	MOVD    R24, 8(R10)
+-	MOVD    R25, R4
+ 
+ done:
+ 	MOVD    R4, c+64(FP)

@@ -1,0 +1,97 @@
+commit b6f05cc3335d8a3058a7892835b10d82fad31046
+Author: Joel Sing <joel@sing.id.au>
+Date:   Sun Aug 4 14:19:57 2024 +1000
+
+    cmd/compile/internal/ssagen: improve intrinsic architecture handling
+    
+    The architecture handling code for intrinsics is more complex than
+    it needs to be. sys.Archs is already an array of *sys.Arch and the
+    existing InFamily function can be used instead of a reimplementation.
+    
+    Add some test coverage for sys.Arch.InFamily while here.
+    
+    Change-Id: Ia764f211114fea65424c09a421c5ccb02b7187b0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/605476
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssagen/ssa.go | 16 ++++------------
+ src/cmd/internal/sys/arch_test.go      | 24 ++++++++++++++++++++++++
+ 2 files changed, 28 insertions(+), 12 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index dd16169103..c02f5f5129 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -4215,12 +4215,10 @@ type intrinsicKey struct {
+ func InitTables() {
+ 	intrinsics = map[intrinsicKey]intrinsicBuilder{}
+ 
+-	var all []*sys.Arch
+ 	var p4 []*sys.Arch
+ 	var p8 []*sys.Arch
+ 	var lwatomics []*sys.Arch
+-	for _, a := range &sys.Archs {
+-		all = append(all, a)
++	for _, a := range sys.Archs {
+ 		if a.PtrSize == 4 {
+ 			p4 = append(p4, a)
+ 		} else {
+@@ -4230,6 +4228,7 @@ func InitTables() {
+ 			lwatomics = append(lwatomics, a)
+ 		}
+ 	}
++	all := sys.Archs[:]
+ 
+ 	// add adds the intrinsic b for pkg.fn for the given list of architectures.
+ 	add := func(pkg, fn string, b intrinsicBuilder, archs ...*sys.Arch) {
+@@ -4239,15 +4238,8 @@ func InitTables() {
+ 	}
+ 	// addF does the same as add but operates on architecture families.
+ 	addF := func(pkg, fn string, b intrinsicBuilder, archFamilies ...sys.ArchFamily) {
+-		m := 0
+-		for _, f := range archFamilies {
+-			if f >= 32 {
+-				panic("too many architecture families")
+-			}
+-			m |= 1 << uint(f)
+-		}
+-		for _, a := range all {
+-			if m>>uint(a.Family)&1 != 0 {
++		for _, a := range sys.Archs {
++			if a.InFamily(archFamilies...) {
+ 				intrinsics[intrinsicKey{a, pkg, fn}] = b
+ 			}
+ 		}
+diff --git a/src/cmd/internal/sys/arch_test.go b/src/cmd/internal/sys/arch_test.go
+new file mode 100644
+index 0000000000..011d0923d5
+--- /dev/null
++++ b/src/cmd/internal/sys/arch_test.go
+@@ -0,0 +1,24 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package sys
++
++import (
++	"testing"
++)
++
++func TestArchInFamily(t *testing.T) {
++	if got, want := ArchPPC64LE.InFamily(AMD64), false; got != want {
++		t.Errorf("Got ArchPPC64LE.InFamily(AMD64) = %v, want %v", got, want)
++	}
++	if got, want := ArchPPC64LE.InFamily(PPC64), true; got != want {
++		t.Errorf("Got ArchPPC64LE.InFamily(PPC64) = %v, want %v", got, want)
++	}
++	if got, want := ArchPPC64LE.InFamily(AMD64, RISCV64), false; got != want {
++		t.Errorf("Got ArchPPC64LE.InFamily(AMD64, RISCV64) = %v, want %v", got, want)
++	}
++	if got, want := ArchPPC64LE.InFamily(AMD64, PPC64), true; got != want {
++		t.Errorf("Got ArchPPC64LE.InFamily(AMD64, PPC64) = %v, want %v", got, want)
++	}
++}

@@ -1,0 +1,147 @@
+commit 154fb4e1d45e503658542dee5296243a6146e7ca
+Author: Junyang Shao <shaojunyang@google.com>
+Date:   Thu Nov 21 07:36:25 2024 +0000
+
+    testing: Update testing.B.Loop to save benchmark results.
+    
+    This is fixing some the missing logic of CL 627755.
+    
+    Change-Id: I35acffef7299331fce21da4a80a26185b2e909f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/630455
+    Commit-Queue: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/testing/benchmark.go      | 51 +++++++++++++++++++++++--------------------
+ src/testing/benchmark_test.go | 17 +++++++++------
+ src/testing/testing_test.go   |  5 +++++
+ 3 files changed, 42 insertions(+), 31 deletions(-)
+
+diff --git a/src/testing/benchmark.go b/src/testing/benchmark.go
+index db0aec5100..67a5abccb4 100644
+--- a/src/testing/benchmark.go
++++ b/src/testing/benchmark.go
+@@ -230,13 +230,12 @@ func (b *B) run1() bool {
+ 	b.mu.RLock()
+ 	finished := b.finished
+ 	b.mu.RUnlock()
+-	// b.Loop() does its own ramp-up so we just need to run it once.
+-	if b.hasSub.Load() || finished || b.loopN != 0 {
++	if b.hasSub.Load() || finished {
+ 		tag := "BENCH"
+ 		if b.skipped {
+ 			tag = "SKIP"
+ 		}
+-		if b.chatty != nil && (len(b.output) > 0 || finished || b.loopN != 0) {
++		if b.chatty != nil && (len(b.output) > 0 || finished) {
+ 			b.trimOutput()
+ 			fmt.Fprintf(b.w, "%s--- %s: %s\n%s", b.chatty.prefix(), tag, b.name, b.output)
+ 		}
+@@ -304,28 +303,32 @@ func (b *B) launch() {
+ 		b.signal <- true
+ 	}()
+ 
+-	// Run the benchmark for at least the specified amount of time.
+-	if b.benchTime.n > 0 {
+-		// We already ran a single iteration in run1.
+-		// If -benchtime=1x was requested, use that result.
+-		// See https://golang.org/issue/32051.
+-		if b.benchTime.n > 1 {
+-			b.runN(b.benchTime.n)
+-		}
+-	} else {
+-		d := b.benchTime.d
+-		for n := int64(1); !b.failed && b.duration < d && n < 1e9; {
+-			last := n
+-			// Predict required iterations.
+-			goalns := d.Nanoseconds()
+-			prevIters := int64(b.N)
+-			prevns := b.duration.Nanoseconds()
+-			if prevns <= 0 {
+-				// Round up, to avoid div by zero.
+-				prevns = 1
++	// b.Loop does its own ramp-up logic so we just need to run it once.
++	// If b.loopN is non zero, it means b.Loop has already run.
++	if b.loopN == 0 {
++		// Run the benchmark for at least the specified amount of time.
++		if b.benchTime.n > 0 {
++			// We already ran a single iteration in run1.
++			// If -benchtime=1x was requested, use that result.
++			// See https://golang.org/issue/32051.
++			if b.benchTime.n > 1 {
++				b.runN(b.benchTime.n)
++			}
++		} else {
++			d := b.benchTime.d
++			for n := int64(1); !b.failed && b.duration < d && n < 1e9; {
++				last := n
++				// Predict required iterations.
++				goalns := d.Nanoseconds()
++				prevIters := int64(b.N)
++				prevns := b.duration.Nanoseconds()
++				if prevns <= 0 {
++					// Round up, to avoid div by zero.
++					prevns = 1
++				}
++				n = int64(predictN(goalns, prevIters, prevns, last))
++				b.runN(int(n))
+ 			}
+-			n = int64(predictN(goalns, prevIters, prevns, last))
+-			b.runN(int(n))
+ 		}
+ 	}
+ 	b.result = BenchmarkResult{b.N, b.duration, b.bytes, b.netAllocs, b.netBytes, b.extra}
+diff --git a/src/testing/benchmark_test.go b/src/testing/benchmark_test.go
+index 01bb695726..1f55fa5060 100644
+--- a/src/testing/benchmark_test.go
++++ b/src/testing/benchmark_test.go
+@@ -127,23 +127,26 @@ func TestRunParallelSkipNow(t *testing.T) {
+ 	})
+ }
+ 
+-func TestLoopEqualsRangeOverBN(t *testing.T) {
++func TestBLoopHasResults(t *testing.T) {
+ 	// Verify that b.N and the b.Loop() iteration count match.
+-	var nIterated, nInfered int
+-	testing.Benchmark(func(b *testing.B) {
++	var nIterated int
++	bRet := testing.Benchmark(func(b *testing.B) {
+ 		i := 0
+ 		for b.Loop() {
+ 			i++
+ 		}
+ 		nIterated = i
+-		nInfered = b.N
+ 	})
+-	if nIterated != nInfered {
+-		t.Fatalf("Iteration of the two different benchmark loop flavor differs, got %d iterations want %d", nIterated, nInfered)
+-	}
+ 	if nIterated == 0 {
+ 		t.Fatalf("Iteration count zero")
+ 	}
++	if bRet.N != nIterated {
++		t.Fatalf("Benchmark result N incorrect, got %d want %d", bRet.N, nIterated)
++	}
++	// We only need to check duration to make sure benchmark result is written.
++	if bRet.T == 0 {
++		t.Fatalf("Benchmark result duration unset")
++	}
+ }
+ 
+ func ExampleB_RunParallel() {
+diff --git a/src/testing/testing_test.go b/src/testing/testing_test.go
+index 4bf6378782..1e32a1e615 100644
+--- a/src/testing/testing_test.go
++++ b/src/testing/testing_test.go
+@@ -989,6 +989,11 @@ func TestBenchmarkBLoopIterationCorrect(t *testing.T) {
+ 	if c != want {
+ 		t.Errorf("got %d loop rampup; want %d", c, want)
+ 	}
++
++	re := regexp.MustCompile(`BenchmarkBLoopPrint-[0-9]+\s*2\s*[0-9]+\s*ns/op.*`)
++	if !re.Match(out) {
++		t.Errorf("Missing benchmark output")
++	}
+ }
+ 
+ func TestBenchmarkBNIterationCorrect(t *testing.T) {

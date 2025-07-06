@@ -1,0 +1,42 @@
+commit db5f2b415399da9b653e68aa03f23ce661cc5339
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Apr 23 17:30:02 2024 -0700
+
+    spec: clarify when a range expression is evaluated
+    
+    If the range expression is a numeric constant, the
+    range expression is also not evaluated.
+    
+    Change-Id: I97201e5c136d3d1a87ed1500b19b7199b30bc9ff
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/581298
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+---
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 0fd12bf4b5..f5069f62d6 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Language version go1.22 (Feb 6, 2024)",
++	"Subtitle": "Language version go1.22 (April 24, 2024)",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -6644,8 +6644,8 @@ the range clause is equivalent to the same clause without that identifier.
+ 
+ <p>
+ The range expression <code>x</code> is evaluated once before beginning the loop,
+-with one exception: if at most one iteration variable is present and
+-<code>len(x)</code> is <a href="#Length_and_capacity">constant</a>,
++with one exception: if at most one iteration variable is present and <code>x</code> or
++<a href="#Length_and_capacity"><code>len(x)</code></a> is <a href="#Constants">constant</a>,
+ the range expression is not evaluated.
+ </p>
+ 

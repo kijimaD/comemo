@@ -1,0 +1,45 @@
+commit 492e2b64dad81094a284f572b66eed93ee342fa7
+Author: Jes Cok <xigua67damn@gmail.com>
+Date:   Thu Aug 1 23:42:58 2024 +0000
+
+    time: fix some typos in CL 512355
+    
+    Change-Id: Id0fb180a2d7910cdff7f4ab7154d9ceeb2f1cb71
+    GitHub-Last-Rev: 03658dd9747684f69ea238a8d1d7f7d15446099e
+    GitHub-Pull-Request: golang/go#68709
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/602675
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/runtime/time.go | 2 +-
+ src/time/sleep.go   | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/runtime/time.go b/src/runtime/time.go
+index 79f0514c6e..abaf99aec5 100644
+--- a/src/runtime/time.go
++++ b/src/runtime/time.go
+@@ -38,7 +38,7 @@ type timer struct {
+ 	// The arg and seq are client-specified opaque arguments passed back to f.
+ 	// When used from netpoll, arg and seq have meanings defined by netpoll
+ 	// and are completely opaque to this code; in that context, seq is a sequence
+-	// number to recognize and squech stale function invocations.
++	// number to recognize and squelch stale function invocations.
+ 	// When used from package time, arg is a channel (for After, NewTicker)
+ 	// or the function to call (for AfterFunc) and seq is unused (0).
+ 	//
+diff --git a/src/time/sleep.go b/src/time/sleep.go
+index 7e2fa0c20a..d128efb0f1 100644
+--- a/src/time/sleep.go
++++ b/src/time/sleep.go
+@@ -180,7 +180,7 @@ func (t *Timer) Reset(d Duration) bool {
+ func sendTime(c any, seq uintptr, delta int64) {
+ 	// delta is how long ago the channel send was supposed to happen.
+ 	// The current time can be arbitrarily far into the future, because the runtime
+-	// can delay a sendTime call until a goroutines tries to receive from
++	// can delay a sendTime call until a goroutine tries to receive from
+ 	// the channel. Subtract delta to go back to the old time that we
+ 	// used to send.
+ 	select {

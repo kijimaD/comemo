@@ -1,0 +1,51 @@
+commit 01351209225d609f8012e2406550211137716727
+Author: Lin Lin <linlin152@foxmail.com>
+Date:   Thu Feb 27 00:43:12 2025 +0000
+
+    cmd/go: update c document
+    
+    Fixes: #11875
+    
+    Change-Id: I0ea2c3e94d7d1647c2aaa3d488ac3c1f5fb6cb18
+    GitHub-Last-Rev: 7512b33f055aa225d365d6c949a53778834e8dcd
+    GitHub-Pull-Request: golang/go#71966
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/652675
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+---
+ src/cmd/go/alldocs.go               | 4 +++-
+ src/cmd/go/internal/help/helpdoc.go | 4 +++-
+ 2 files changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/src/cmd/go/alldocs.go b/src/cmd/go/alldocs.go
+index 7805f86357..dba37e891d 100644
+--- a/src/cmd/go/alldocs.go
++++ b/src/cmd/go/alldocs.go
+@@ -2255,7 +2255,9 @@
+ // interfacing between languages. For information on SWIG see
+ // https://swig.org/. When running go build, any file with a .swig
+ // extension will be passed to SWIG. Any file with a .swigcxx extension
+-// will be passed to SWIG with the -c++ option.
++// will be passed to SWIG with the -c++ option. A package can't be just
++// a .swig or .swigcxx file; there must be at least one .go file, even if
++// it has just a package clause.
+ //
+ // When either cgo or SWIG is used, go build will pass any .c, .m, .s, .S
+ // or .sx files to the C compiler, and any .cc, .cpp, .cxx files to the C++
+diff --git a/src/cmd/go/internal/help/helpdoc.go b/src/cmd/go/internal/help/helpdoc.go
+index 4adabfbbd4..e08b8c7a5a 100644
+--- a/src/cmd/go/internal/help/helpdoc.go
++++ b/src/cmd/go/internal/help/helpdoc.go
+@@ -19,7 +19,9 @@ The second is the SWIG program, which is a general tool for
+ interfacing between languages. For information on SWIG see
+ https://swig.org/. When running go build, any file with a .swig
+ extension will be passed to SWIG. Any file with a .swigcxx extension
+-will be passed to SWIG with the -c++ option.
++will be passed to SWIG with the -c++ option. A package can't be just
++a .swig or .swigcxx file; there must be at least one .go file, even if
++it has just a package clause.
+ 
+ When either cgo or SWIG is used, go build will pass any .c, .m, .s, .S
+ or .sx files to the C compiler, and any .cc, .cpp, .cxx files to the C++

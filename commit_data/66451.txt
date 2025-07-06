@@ -1,0 +1,227 @@
+commit 66b76403547b9e517d532619c4a31063eb7ef93c
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Wed Mar 5 17:44:53 2025 +0100
+
+    compress/lzw,compress/gzip,compress/flate,compress/zlib,compress/bzip2: go doc links
+    
+    Add godoc links to compress/* package doc.
+    
+    Change-Id: I768ca250a39b0bb70eca35ac5b3b77ead73ca5f7
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655057
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+---
+ src/compress/bzip2/bzip2.go   |  2 +-
+ src/compress/flate/inflate.go |  6 +++---
+ src/compress/gzip/gunzip.go   |  4 ++--
+ src/compress/gzip/gzip.go     |  8 ++++----
+ src/compress/lzw/reader.go    |  4 ++--
+ src/compress/zlib/writer.go   | 30 +++++++++++++++---------------
+ 6 files changed, 27 insertions(+), 27 deletions(-)
+
+diff --git a/src/compress/bzip2/bzip2.go b/src/compress/bzip2/bzip2.go
+index d41ff2c83b..06991fbb22 100644
+--- a/src/compress/bzip2/bzip2.go
++++ b/src/compress/bzip2/bzip2.go
+@@ -40,7 +40,7 @@ type reader struct {
+ 	repeats     uint     // the number of copies of lastByte to output.
+ }
+ 
+-// NewReader returns an io.Reader which decompresses bzip2 data from r.
++// NewReader returns an [io.Reader] which decompresses bzip2 data from r.
+ // If r does not also implement [io.ByteReader],
+ // the decompressor may read more data than necessary from r.
+ func NewReader(r io.Reader) io.Reader {
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 3c04445dda..3f2172bb58 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -3,8 +3,8 @@
+ // license that can be found in the LICENSE file.
+ 
+ // Package flate implements the DEFLATE compressed data format, described in
+-// RFC 1951.  The gzip and zlib packages implement access to DEFLATE-based file
+-// formats.
++// RFC 1951.  The [compress/gzip] and [compress/zlib] packages implement access
++// to DEFLATE-based file formats.
+ package flate
+ 
+ import (
+@@ -820,7 +820,7 @@ func NewReader(r io.Reader) io.ReadCloser {
+ // with a preset dictionary. The returned [Reader] behaves as if
+ // the uncompressed data stream started with the given dictionary,
+ // which has already been read. NewReaderDict is typically used
+-// to read data compressed by NewWriterDict.
++// to read data compressed by [NewWriterDict].
+ //
+ // The ReadCloser returned by NewReaderDict also implements [Resetter].
+ func NewReaderDict(r io.Reader, dict []byte) io.ReadCloser {
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index 6ca05526ed..f3142dbf33 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -86,9 +86,9 @@ type Reader struct {
+ // If r does not also implement [io.ByteReader],
+ // the decompressor may read more data than necessary from r.
+ //
+-// It is the caller's responsibility to call Close on the [Reader] when done.
++// It is the caller's responsibility to call [Reader.Close] when done.
+ //
+-// The [Reader.Header] fields will be valid in the [Reader] returned.
++// The Reader.[Header] fields will be valid in the [Reader] returned.
+ func NewReader(r io.Reader) (*Reader, error) {
+ 	z := new(Reader)
+ 	if err := z.Reset(r); err != nil {
+diff --git a/src/compress/gzip/gzip.go b/src/compress/gzip/gzip.go
+index 5f24444237..a7f9e3e4fe 100644
+--- a/src/compress/gzip/gzip.go
++++ b/src/compress/gzip/gzip.go
+@@ -13,8 +13,8 @@ import (
+ 	"time"
+ )
+ 
+-// These constants are copied from the flate package, so that code that imports
+-// "compress/gzip" does not also have to import "compress/flate".
++// These constants are copied from the [flate] package, so that code that imports
++// [compress/gzip] does not also have to import [compress/flate].
+ const (
+ 	NoCompression      = flate.NoCompression
+ 	BestSpeed          = flate.BestSpeed
+@@ -23,7 +23,7 @@ const (
+ 	HuffmanOnly        = flate.HuffmanOnly
+ )
+ 
+-// A Writer is an io.WriteCloser.
++// A Writer is an [io.WriteCloser].
+ // Writes to a Writer are compressed and written to w.
+ type Writer struct {
+ 	Header      // written at first call to Write, Flush, or Close
+@@ -44,7 +44,7 @@ type Writer struct {
+ // It is the caller's responsibility to call Close on the [Writer] when done.
+ // Writes may be buffered and not flushed until Close.
+ //
+-// Callers that wish to set the fields in Writer.Header must do so before
++// Callers that wish to set the fields in Writer.[Header] must do so before
+ // the first call to Write, Flush, or Close.
+ func NewWriter(w io.Writer) *Writer {
+ 	z, _ := NewWriterLevel(w, DefaultCompression)
+diff --git a/src/compress/lzw/reader.go b/src/compress/lzw/reader.go
+index 2cdfaa11b2..678e6253d0 100644
+--- a/src/compress/lzw/reader.go
++++ b/src/compress/lzw/reader.go
+@@ -11,7 +11,7 @@
+ // two non-literal codes are a clear code and an EOF code.
+ //
+ // The TIFF file format uses a similar but incompatible version of the LZW
+-// algorithm. See the golang.org/x/image/tiff/lzw package for an
++// algorithm. See the [golang.org/x/image/tiff/lzw] package for an
+ // implementation.
+ package lzw
+ 
+@@ -42,7 +42,7 @@ const (
+ 	flushBuffer        = 1 << maxWidth
+ )
+ 
+-// Reader is an io.Reader which can be used to read compressed data in the
++// Reader is an [io.Reader] which can be used to read compressed data in the
+ // LZW format.
+ type Reader struct {
+ 	r        io.ByteReader
+diff --git a/src/compress/zlib/writer.go b/src/compress/zlib/writer.go
+index c65e80f742..93537268e0 100644
+--- a/src/compress/zlib/writer.go
++++ b/src/compress/zlib/writer.go
+@@ -13,8 +13,8 @@ import (
+ 	"io"
+ )
+ 
+-// These constants are copied from the flate package, so that code that imports
+-// "compress/zlib" does not also have to import "compress/flate".
++// These constants are copied from the [flate] package, so that code that imports
++// [compress/zlib] does not also have to import [compress/flate].
+ const (
+ 	NoCompression      = flate.NoCompression
+ 	BestSpeed          = flate.BestSpeed
+@@ -24,7 +24,7 @@ const (
+ )
+ 
+ // A Writer takes data written to it and writes the compressed
+-// form of that data to an underlying writer (see NewWriter).
++// form of that data to an underlying writer (see [NewWriter]).
+ type Writer struct {
+ 	w           io.Writer
+ 	level       int
+@@ -36,7 +36,7 @@ type Writer struct {
+ 	wroteHeader bool
+ }
+ 
+-// NewWriter creates a new Writer.
++// NewWriter creates a new [Writer].
+ // Writes to the returned Writer are compressed and written to w.
+ //
+ // It is the caller's responsibility to call Close on the Writer when done.
+@@ -46,17 +46,17 @@ func NewWriter(w io.Writer) *Writer {
+ 	return z
+ }
+ 
+-// NewWriterLevel is like NewWriter but specifies the compression level instead
+-// of assuming DefaultCompression.
++// NewWriterLevel is like [NewWriter] but specifies the compression level instead
++// of assuming [DefaultCompression].
+ //
+-// The compression level can be DefaultCompression, NoCompression, HuffmanOnly
+-// or any integer value between BestSpeed and BestCompression inclusive.
++// The compression level can be [DefaultCompression], [NoCompression], [HuffmanOnly]
++// or any integer value between [BestSpeed] and [BestCompression] inclusive.
+ // The error returned will be nil if the level is valid.
+ func NewWriterLevel(w io.Writer, level int) (*Writer, error) {
+ 	return NewWriterLevelDict(w, level, nil)
+ }
+ 
+-// NewWriterLevelDict is like NewWriterLevel but specifies a dictionary to
++// NewWriterLevelDict is like [NewWriterLevel] but specifies a dictionary to
+ // compress with.
+ //
+ // The dictionary may be nil. If not, its contents should not be modified until
+@@ -72,8 +72,8 @@ func NewWriterLevelDict(w io.Writer, level int, dict []byte) (*Writer, error) {
+ 	}, nil
+ }
+ 
+-// Reset clears the state of the Writer z such that it is equivalent to its
+-// initial state from NewWriterLevel or NewWriterLevelDict, but instead writing
++// Reset clears the state of the [Writer] z such that it is equivalent to its
++// initial state from [NewWriterLevel] or [NewWriterLevelDict], but instead writing
+ // to w.
+ func (z *Writer) Reset(w io.Writer) {
+ 	z.w = w
+@@ -138,8 +138,8 @@ func (z *Writer) writeHeader() (err error) {
+ 	return nil
+ }
+ 
+-// Write writes a compressed form of p to the underlying io.Writer. The
+-// compressed bytes are not necessarily flushed until the Writer is closed or
++// Write writes a compressed form of p to the underlying [io.Writer]. The
++// compressed bytes are not necessarily flushed until the [Writer] is closed or
+ // explicitly flushed.
+ func (z *Writer) Write(p []byte) (n int, err error) {
+ 	if !z.wroteHeader {
+@@ -160,7 +160,7 @@ func (z *Writer) Write(p []byte) (n int, err error) {
+ 	return
+ }
+ 
+-// Flush flushes the Writer to its underlying io.Writer.
++// Flush flushes the Writer to its underlying [io.Writer].
+ func (z *Writer) Flush() error {
+ 	if !z.wroteHeader {
+ 		z.err = z.writeHeader()
+@@ -173,7 +173,7 @@ func (z *Writer) Flush() error {
+ }
+ 
+ // Close closes the Writer, flushing any unwritten data to the underlying
+-// io.Writer, but does not close the underlying io.Writer.
++// [io.Writer], but does not close the underlying io.Writer.
+ func (z *Writer) Close() error {
+ 	if !z.wroteHeader {
+ 		z.err = z.writeHeader()

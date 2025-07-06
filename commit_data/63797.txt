@@ -1,0 +1,27 @@
+commit 06b45781603ec6998012ac63b2c0bda32600f682
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Thu May 16 12:09:38 2024 -0400
+
+    doc/README.md: give example of package-less symbol link
+    
+    Change-Id: I84d7b6aae7319cc62628a2b5ee752a0680377a15
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586135
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+---
+ doc/README.md | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/doc/README.md b/doc/README.md
+index f608f34fbd..3d0fb86102 100644
+--- a/doc/README.md
++++ b/doc/README.md
+@@ -40,6 +40,7 @@ flagged as a TODO by the automated tooling. That is true even for proposals that
+ Use the following forms in your markdown:
+ 
+ 	[http.Request]                     # symbol documentation; auto-linked as in Go doc strings
++	[Request]                          # short form, for symbols in the package being documented
+ 	[#12345](/issue/12345)             # GitHub issues
+ 	[CL 6789](/cl/6789)                # Gerrit changelists
+ 

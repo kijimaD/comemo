@@ -1,0 +1,75 @@
+commit 885fdfc082b3d5314b495aa4e8cf297e5de20052
+Author: apocelipes <seve3r@outlook.com>
+Date:   Wed Apr 3 17:47:52 2024 +0000
+
+    expvar: use slices to simplify the code
+    
+    No effect on benchmarks.
+    
+    Change-Id: I7454c21b25d5e44b9c4a39922ed470522f81872d
+    GitHub-Last-Rev: 5801b30dac33712c2e3d282b2d3a9fbe04779b2e
+    GitHub-Pull-Request: golang/go#66660
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/575777
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/expvar/expvar.go | 21 +++++++++------------
+ 1 file changed, 9 insertions(+), 12 deletions(-)
+
+diff --git a/src/expvar/expvar.go b/src/expvar/expvar.go
+index 5e9034e5d7..a30963c5a8 100644
+--- a/src/expvar/expvar.go
++++ b/src/expvar/expvar.go
+@@ -30,7 +30,7 @@ import (
+ 	"net/http"
+ 	"os"
+ 	"runtime"
+-	"sort"
++	"slices"
+ 	"strconv"
+ 	"sync"
+ 	"sync/atomic"
+@@ -181,13 +181,11 @@ func (v *Map) addKey(key string) {
+ 	v.keysMu.Lock()
+ 	defer v.keysMu.Unlock()
+ 	// Using insertion sort to place key into the already-sorted v.keys.
+-	if i := sort.SearchStrings(v.keys, key); i >= len(v.keys) {
+-		v.keys = append(v.keys, key)
+-	} else if v.keys[i] != key {
+-		v.keys = append(v.keys, "")
+-		copy(v.keys[i+1:], v.keys[i:])
+-		v.keys[i] = key
++	i, found := slices.BinarySearch(v.keys, key)
++	if found {
++		return
+ 	}
++	v.keys = slices.Insert(v.keys, i, key)
+ }
+ 
+ func (v *Map) Get(key string) Var {
+@@ -248,10 +246,9 @@ func (v *Map) AddFloat(key string, delta float64) {
+ func (v *Map) Delete(key string) {
+ 	v.keysMu.Lock()
+ 	defer v.keysMu.Unlock()
+-	i := sort.SearchStrings(v.keys, key)
+-	if i < len(v.keys) && key == v.keys[i] {
+-		v.keys = append(v.keys[:i], v.keys[i+1:]...)
+-		v.m.Delete(key)
++	i, found := slices.BinarySearch(v.keys, key)
++	if found {
++		v.keys = slices.Delete(v.keys, i, i+1)
+ 	}
+ }
+ 
+@@ -318,7 +315,7 @@ func Publish(name string, v Var) {
+ 	vars.keysMu.Lock()
+ 	defer vars.keysMu.Unlock()
+ 	vars.keys = append(vars.keys, name)
+-	sort.Strings(vars.keys)
++	slices.Sort(vars.keys)
+ }
+ 
+ // Get retrieves a named exported variable. It returns nil if the name has

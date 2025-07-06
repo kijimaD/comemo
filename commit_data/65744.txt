@@ -1,0 +1,50 @@
+commit 4c3aa5d32436486dce4927d240ebf596c0bbb8aa
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Wed Dec 4 13:07:08 2024 +0100
+
+    math/rand/v2: replace <= 0 with == 0 for Uint function docs
+    
+    This harmonize the docs with (*Rand).Uint* functions.
+    And it make it clearer, I wasn't sure if it would try to interpret
+    the uint as a signed number somehow, it does not pull any surprises
+    make that clear.
+    
+    Change-Id: I5a87a0a5563dbabfc31e536e40ee69b11f5cb6cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633535
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+---
+ src/math/rand/v2/rand.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/math/rand/v2/rand.go b/src/math/rand/v2/rand.go
+index fea1e3a2ba..f6b2e4754f 100644
+--- a/src/math/rand/v2/rand.go
++++ b/src/math/rand/v2/rand.go
+@@ -275,12 +275,12 @@ func Uint32() uint32 { return globalRand.Uint32() }
+ 
+ // Uint64N returns, as a uint64, a pseudo-random number in the half-open interval [0,n)
+ // from the default Source.
+-// It panics if n <= 0.
++// It panics if n == 0.
+ func Uint64N(n uint64) uint64 { return globalRand.Uint64N(n) }
+ 
+ // Uint32N returns, as a uint32, a pseudo-random number in the half-open interval [0,n)
+ // from the default Source.
+-// It panics if n <= 0.
++// It panics if n == 0.
+ func Uint32N(n uint32) uint32 { return globalRand.Uint32N(n) }
+ 
+ // Uint64 returns a pseudo-random 64-bit value as a uint64
+@@ -314,7 +314,7 @@ func IntN(n int) int { return globalRand.IntN(n) }
+ 
+ // UintN returns, as a uint, a pseudo-random number in the half-open interval [0,n)
+ // from the default Source.
+-// It panics if n <= 0.
++// It panics if n == 0.
+ func UintN(n uint) uint { return globalRand.UintN(n) }
+ 
+ // N returns a pseudo-random number in the half-open interval [0,n) from the default Source.

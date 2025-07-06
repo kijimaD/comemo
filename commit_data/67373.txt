@@ -1,0 +1,240 @@
+commit 6c50c8b892bc032960ac8ab23c78765be52f904f
+Author: David Chase <drchase@google.com>
+Date:   Fri Jun 13 16:10:22 2025 -0400
+
+    [dev.simd] cmd/compile: move simd helpers into compiler, out of generated code
+    
+    PAIRED w/ arch/internal/simdgen CL 681615
+    
+    This moves the helpers out of the generated code.
+    
+    Change-Id: I6150afd45dbdf8d1499e0b8ee80c1bd8be5d558e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681500
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssagen/intrinsics.go     | 101 ++++++++++++++++++++++
+ src/cmd/compile/internal/ssagen/simdintrinsics.go | 101 ----------------------
+ 2 files changed, 101 insertions(+), 101 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index d3a16a0f24..186cfc4865 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -1609,6 +1609,107 @@ func initIntrinsics(cfg *intrinsicBuildConfig) {
+ 	}
+ }
+ 
++func opLen1(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		return s.newValue1(op, t, args[0])
++	}
++}
++
++func opLen2(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		return s.newValue2(op, t, args[0], args[1])
++	}
++}
++
++func opLen3(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		return s.newValue3(op, t, args[0], args[1], args[2])
++	}
++}
++
++func opLen4(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		return s.newValue4(op, t, args[0], args[1], args[2], args[3])
++	}
++}
++
++func plainPanicSimdImm(s *state) {
++	cmp := s.newValue0(ssa.OpConstBool, types.Types[types.TBOOL])
++	cmp.AuxInt = 1
++	// TODO: make this a standalone panic instead of reusing the overflow panic.
++	// Or maybe after we implement the switch table this will be obsolete anyway.
++	s.check(cmp, ir.Syms.Panicoverflow)
++}
++
++func opLen1Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		if args[1].Op == ssa.OpConst8 {
++			return s.newValue1I(op, t, args[1].AuxInt<<int64(offset), args[0])
++		}
++		plainPanicSimdImm(s)
++		// Even though this default call is unreachable semantically,
++		// it has to return something, otherwise the compiler will try to generate
++		// default codes which might lead to a FwdRef being put at the entry block
++		// triggering a compiler panic.
++		return s.newValue1I(op, t, 0, args[0])
++	}
++}
++
++func opLen2Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		if args[1].Op == ssa.OpConst8 {
++			return s.newValue2I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2])
++		}
++		plainPanicSimdImm(s)
++		// Even though this default call is unreachable semantically,
++		// it has to return something, otherwise the compiler will try to generate
++		// default codes which might lead to a FwdRef being put at the entry block
++		// triggering a compiler panic.
++		return s.newValue2I(op, t, 0, args[0], args[2])
++	}
++}
++
++func opLen3Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		if args[1].Op == ssa.OpConst8 {
++			return s.newValue3I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2], args[3])
++		}
++		plainPanicSimdImm(s)
++		// Even though this default call is unreachable semantically,
++		// it has to return something, otherwise the compiler will try to generate
++		// default codes which might lead to a FwdRef being put at the entry block
++		// triggering a compiler panic.
++		return s.newValue3I(op, t, 0, args[0], args[2], args[3])
++	}
++}
++
++func opLen4Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		if args[1].Op == ssa.OpConst8 {
++			return s.newValue4I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2], args[3], args[4])
++		}
++		plainPanicSimdImm(s)
++		// Even though this default call is unreachable semantically,
++		// it has to return something, otherwise the compiler will try to generate
++		// default codes which might lead to a FwdRef being put at the entry block
++		// triggering a compiler panic.
++		return s.newValue4I(op, t, 0, args[0], args[2], args[3], args[4])
++	}
++}
++
++func simdLoad() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		return s.newValue2(ssa.OpLoad, n.Type(), args[0], s.mem())
++	}
++}
++
++func simdStore() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		s.store(args[0].Type, args[1], args[0])
++		return nil
++	}
++}
++
+ // findIntrinsic returns a function which builds the SSA equivalent of the
+ // function identified by the symbol sym.  If sym is not an intrinsic call, returns nil.
+ func findIntrinsic(sym *types.Sym) intrinsicBuilder {
+diff --git a/src/cmd/compile/internal/ssagen/simdintrinsics.go b/src/cmd/compile/internal/ssagen/simdintrinsics.go
+index 8b9bd92a0c..f5492ac6e8 100644
+--- a/src/cmd/compile/internal/ssagen/simdintrinsics.go
++++ b/src/cmd/compile/internal/ssagen/simdintrinsics.go
+@@ -1965,104 +1965,3 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
+ 	addF(simdPackage, "Mask8x64.And", opLen2(ssa.OpAndInt32x16, types.TypeVec512), sys.AMD64)
+ 	addF(simdPackage, "Mask8x64.Or", opLen2(ssa.OpOrInt32x16, types.TypeVec512), sys.AMD64)
+ }
+-
+-func opLen1(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-		return s.newValue1(op, t, args[0])
+-	}
+-}
+-
+-func opLen2(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-		return s.newValue2(op, t, args[0], args[1])
+-	}
+-}
+-
+-func opLen3(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-		return s.newValue3(op, t, args[0], args[1], args[2])
+-	}
+-}
+-
+-func opLen4(op ssa.Op, t *types.Type) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-		return s.newValue4(op, t, args[0], args[1], args[2], args[3])
+-	}
+-}
+-
+-func plainPanicSimdImm(s *state) {
+-	cmp := s.newValue0(ssa.OpConstBool, types.Types[types.TBOOL])
+-	cmp.AuxInt = 1
+-	// TODO: make this a standalone panic instead of reusing the overflow panic.
+-	// Or maybe after we implement the switch table this will be obsolete anyway.
+-	s.check(cmp, ir.Syms.Panicoverflow)
+-}
+-
+-func opLen1Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-		if args[1].Op == ssa.OpConst8 {
+-			return s.newValue1I(op, t, args[1].AuxInt<<int64(offset), args[0])
+-		}
+-		plainPanicSimdImm(s)
+-		// Even though this default call is unreachable semantically,
+-		// it has to return something, otherwise the compiler will try to generate
+-		// default codes which might lead to a FwdRef being put at the entry block
+-		// triggering a compiler panic.
+-		return s.newValue1I(op, t, 0, args[0])
+-	}
+-}
+-
+-func opLen2Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-		if args[1].Op == ssa.OpConst8 {
+-			return s.newValue2I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2])
+-		}
+-		plainPanicSimdImm(s)
+-		// Even though this default call is unreachable semantically,
+-		// it has to return something, otherwise the compiler will try to generate
+-		// default codes which might lead to a FwdRef being put at the entry block
+-		// triggering a compiler panic.
+-		return s.newValue2I(op, t, 0, args[0], args[2])
+-	}
+-}
+-
+-func opLen3Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-		if args[1].Op == ssa.OpConst8 {
+-			return s.newValue3I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2], args[3])
+-		}
+-		plainPanicSimdImm(s)
+-		// Even though this default call is unreachable semantically,
+-		// it has to return something, otherwise the compiler will try to generate
+-		// default codes which might lead to a FwdRef being put at the entry block
+-		// triggering a compiler panic.
+-		return s.newValue3I(op, t, 0, args[0], args[2], args[3])
+-	}
+-}
+-
+-func opLen4Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-		if args[1].Op == ssa.OpConst8 {
+-			return s.newValue4I(op, t, args[1].AuxInt<<int64(offset), args[0], args[2], args[3], args[4])
+-		}
+-		plainPanicSimdImm(s)
+-		// Even though this default call is unreachable semantically,
+-		// it has to return something, otherwise the compiler will try to generate
+-		// default codes which might lead to a FwdRef being put at the entry block
+-		// triggering a compiler panic.
+-		return s.newValue4I(op, t, 0, args[0], args[2], args[3], args[4])
+-	}
+-}
+-
+-func simdLoad() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-		return s.newValue2(ssa.OpLoad, n.Type(), args[0], s.mem())
+-	}
+-}
+-
+-func simdStore() func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+-		s.store(args[0].Type, args[1], args[0])
+-		return nil
+-	}
+-}

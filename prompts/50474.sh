@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50474: 5a3a9d87ed97f197aabcb868f6c0031c888d6122
+# Index 50474: 0da9eff5034521ccc51c32ebaad5fae20d8345fe
 
 echo "🚀 Generating explanation for commit 50474..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 50474..."
 
 ### メタデータ
 - **コミットインデックス**: 50474
-- **コミットハッシュ**: 5a3a9d87ed97f197aabcb868f6c0031c888d6122
-- **GitHub URL**: https://github.com/golang/go/commit/5a3a9d87ed97f197aabcb868f6c0031c888d6122
+- **コミットハッシュ**: 0da9eff5034521ccc51c32ebaad5fae20d8345fe
+- **GitHub URL**: https://github.com/golang/go/commit/0da9eff5034521ccc51c32ebaad5fae20d8345fe
 
 ### 章構成
 

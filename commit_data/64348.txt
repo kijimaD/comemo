@@ -1,0 +1,323 @@
+commit 6b2ffc72b67713de4f08915937a64392aa4dbff0
+Author: Than McIntosh <thanm@google.com>
+Date:   Sat Jul 27 14:59:42 2024 +0000
+
+    cmd: extract cmd/go's cfg.LookPath into separate pathcache package
+    
+    Lift out the LookPath cached lookup utility function into a separate
+    "cmd/internal/pathcache" package, so that it can be reused in other
+    commands in addition to cmd/go. No change in functionality.
+    
+    Change-Id: Ica7fa627000843360c3e353d40a9a70605fbe033
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601479
+    Reviewed-by: Michael Matloob <matloob@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/go/internal/cfg/bench_test.go                       | 3 ++-
+ src/cmd/go/internal/cfg/cfg.go                              | 3 ++-
+ src/cmd/go/internal/generate/generate.go                    | 3 ++-
+ src/cmd/go/internal/load/pkg.go                             | 3 ++-
+ src/cmd/go/internal/script/cmds.go                          | 4 ++--
+ src/cmd/go/internal/script/scripttest/scripttest.go         | 4 ++--
+ src/cmd/go/internal/toolchain/select.go                     | 3 ++-
+ src/cmd/go/internal/vcs/vcs.go                              | 3 ++-
+ src/cmd/go/internal/work/build.go                           | 3 ++-
+ src/cmd/go/internal/work/buildid.go                         | 3 ++-
+ src/cmd/go/internal/work/exec.go                            | 3 ++-
+ src/cmd/go/internal/work/gccgo.go                           | 3 ++-
+ src/cmd/go/internal/work/shell.go                           | 3 ++-
+ src/cmd/{go/internal/cfg => internal/pathcache}/lookpath.go | 2 +-
+ 14 files changed, 27 insertions(+), 16 deletions(-)
+
+diff --git a/src/cmd/go/internal/cfg/bench_test.go b/src/cmd/go/internal/cfg/bench_test.go
+index 2dd99319fc..1ed663125a 100644
+--- a/src/cmd/go/internal/cfg/bench_test.go
++++ b/src/cmd/go/internal/cfg/bench_test.go
+@@ -5,6 +5,7 @@
+ package cfg
+ 
+ import (
++	"cmd/internal/pathcache"
+ 	"internal/testenv"
+ 	"testing"
+ )
+@@ -13,7 +14,7 @@ func BenchmarkLookPath(b *testing.B) {
+ 	testenv.MustHaveExecPath(b, "go")
+ 	b.ResetTimer()
+ 	for i := 0; i < b.N; i++ {
+-		_, err := LookPath("go")
++		_, err := pathcache.LookPath("go")
+ 		if err != nil {
+ 			b.Fatal(err)
+ 		}
+diff --git a/src/cmd/go/internal/cfg/cfg.go b/src/cmd/go/internal/cfg/cfg.go
+index 3715a19a96..b2545ca4ea 100644
+--- a/src/cmd/go/internal/cfg/cfg.go
++++ b/src/cmd/go/internal/cfg/cfg.go
+@@ -21,6 +21,7 @@ import (
+ 	"sync"
+ 
+ 	"cmd/go/internal/fsys"
++	"cmd/internal/pathcache"
+ )
+ 
+ // Global build parameters (used during package load)
+@@ -162,7 +163,7 @@ func defaultContext() build.Context {
+ 		if ctxt.CgoEnabled {
+ 			if os.Getenv("CC") == "" {
+ 				cc := DefaultCC(ctxt.GOOS, ctxt.GOARCH)
+-				if _, err := LookPath(cc); err != nil {
++				if _, err := pathcache.LookPath(cc); err != nil {
+ 					defaultCgoEnabled = false
+ 				}
+ 			}
+diff --git a/src/cmd/go/internal/generate/generate.go b/src/cmd/go/internal/generate/generate.go
+index 6371353e20..3a3b95786a 100644
+--- a/src/cmd/go/internal/generate/generate.go
++++ b/src/cmd/go/internal/generate/generate.go
+@@ -28,6 +28,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/work"
++	"cmd/internal/pathcache"
+ )
+ 
+ var CmdGenerate = &base.Command{
+@@ -489,7 +490,7 @@ func (g *Generator) exec(words []string) {
+ 		// intends to use the same 'go' as 'go generate' itself.
+ 		// Prefer to resolve the binary from GOROOT/bin, and for consistency
+ 		// prefer to resolve any other commands there too.
+-		gorootBinPath, err := cfg.LookPath(filepath.Join(cfg.GOROOTbin, path))
++		gorootBinPath, err := pathcache.LookPath(filepath.Join(cfg.GOROOTbin, path))
+ 		if err == nil {
+ 			path = gorootBinPath
+ 		}
+diff --git a/src/cmd/go/internal/load/pkg.go b/src/cmd/go/internal/load/pkg.go
+index 0e871758b3..bf432f0bb7 100644
+--- a/src/cmd/go/internal/load/pkg.go
++++ b/src/cmd/go/internal/load/pkg.go
+@@ -44,6 +44,7 @@ import (
+ 	"cmd/go/internal/trace"
+ 	"cmd/go/internal/vcs"
+ 	"cmd/internal/par"
++	"cmd/internal/pathcache"
+ 	"cmd/internal/pkgpattern"
+ 
+ 	"golang.org/x/mod/modfile"
+@@ -2443,7 +2444,7 @@ func (p *Package) setBuildInfo(ctx context.Context, autoVCS bool) {
+ 			goto omitVCS
+ 		}
+ 		if cfg.BuildBuildvcs == "auto" && vcsCmd != nil && vcsCmd.Cmd != "" {
+-			if _, err := cfg.LookPath(vcsCmd.Cmd); err != nil {
++			if _, err := pathcache.LookPath(vcsCmd.Cmd); err != nil {
+ 				// We fould a repository, but the required VCS tool is not present.
+ 				// "-buildvcs=auto" means that we should silently drop the VCS metadata.
+ 				goto omitVCS
+diff --git a/src/cmd/go/internal/script/cmds.go b/src/cmd/go/internal/script/cmds.go
+index 3ea9193cb1..7a930caf35 100644
+--- a/src/cmd/go/internal/script/cmds.go
++++ b/src/cmd/go/internal/script/cmds.go
+@@ -5,7 +5,7 @@
+ package script
+ 
+ import (
+-	"cmd/go/internal/cfg"
++	"cmd/internal/pathcache"
+ 	"cmd/internal/robustio"
+ 	"errors"
+ 	"fmt"
+@@ -825,7 +825,7 @@ func Program(name string, cancel func(*exec.Cmd) error, waitDelay time.Duration)
+ 		},
+ 		func(s *State, args ...string) (WaitFunc, error) {
+ 			lookPathOnce.Do(func() {
+-				path, pathErr = cfg.LookPath(name)
++				path, pathErr = pathcache.LookPath(name)
+ 			})
+ 			if pathErr != nil {
+ 				return nil, pathErr
+diff --git a/src/cmd/go/internal/script/scripttest/scripttest.go b/src/cmd/go/internal/script/scripttest/scripttest.go
+index 6d7bd7863b..07183cd7bb 100644
+--- a/src/cmd/go/internal/script/scripttest/scripttest.go
++++ b/src/cmd/go/internal/script/scripttest/scripttest.go
+@@ -7,8 +7,8 @@ package scripttest
+ 
+ import (
+ 	"bufio"
+-	"cmd/go/internal/cfg"
+ 	"cmd/go/internal/script"
++	"cmd/internal/pathcache"
+ 	"errors"
+ 	"io"
+ 	"strings"
+@@ -137,7 +137,7 @@ func CachedExec() script.Cond {
+ 	return script.CachedCondition(
+ 		"<suffix> names an executable in the test binary's PATH",
+ 		func(name string) (bool, error) {
+-			_, err := cfg.LookPath(name)
++			_, err := pathcache.LookPath(name)
+ 			return err == nil, nil
+ 		})
+ }
+diff --git a/src/cmd/go/internal/toolchain/select.go b/src/cmd/go/internal/toolchain/select.go
+index 8e93e6c903..b20a2332a4 100644
+--- a/src/cmd/go/internal/toolchain/select.go
++++ b/src/cmd/go/internal/toolchain/select.go
+@@ -26,6 +26,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/run"
+ 	"cmd/go/internal/work"
++	"cmd/internal/pathcache"
+ 	"cmd/internal/telemetry/counter"
+ 
+ 	"golang.org/x/mod/module"
+@@ -308,7 +309,7 @@ func Exec(gotoolchain string) {
+ 	// Look in PATH for the toolchain before we download one.
+ 	// This allows custom toolchains as well as reuse of toolchains
+ 	// already installed using go install golang.org/dl/go1.2.3@latest.
+-	if exe, err := cfg.LookPath(gotoolchain); err == nil {
++	if exe, err := pathcache.LookPath(gotoolchain); err == nil {
+ 		execGoToolchain(gotoolchain, "", exe)
+ 	}
+ 
+diff --git a/src/cmd/go/internal/vcs/vcs.go b/src/cmd/go/internal/vcs/vcs.go
+index 19a6a5ef6b..2e7b5b0bea 100644
+--- a/src/cmd/go/internal/vcs/vcs.go
++++ b/src/cmd/go/internal/vcs/vcs.go
+@@ -27,6 +27,7 @@ import (
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/str"
+ 	"cmd/go/internal/web"
++	"cmd/internal/pathcache"
+ 
+ 	"golang.org/x/mod/module"
+ )
+@@ -678,7 +679,7 @@ func (v *Cmd) run1(dir string, cmdline string, keyval []string, verbose bool) ([
+ 		args = args[2:]
+ 	}
+ 
+-	_, err := cfg.LookPath(v.Cmd)
++	_, err := pathcache.LookPath(v.Cmd)
+ 	if err != nil {
+ 		fmt.Fprintf(os.Stderr,
+ 			"go: missing %s command. See https://golang.org/s/gogetcmd\n",
+diff --git a/src/cmd/go/internal/work/build.go b/src/cmd/go/internal/work/build.go
+index ccfb4622e2..83caea9525 100644
+--- a/src/cmd/go/internal/work/build.go
++++ b/src/cmd/go/internal/work/build.go
+@@ -23,6 +23,7 @@ import (
+ 	"cmd/go/internal/modload"
+ 	"cmd/go/internal/search"
+ 	"cmd/go/internal/trace"
++	"cmd/internal/pathcache"
+ )
+ 
+ var CmdBuild = &base.Command{
+@@ -901,7 +902,7 @@ func FindExecCmd() []string {
+ 	if cfg.Goos == runtime.GOOS && cfg.Goarch == runtime.GOARCH {
+ 		return ExecCmd
+ 	}
+-	path, err := cfg.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
++	path, err := pathcache.LookPath(fmt.Sprintf("go_%s_%s_exec", cfg.Goos, cfg.Goarch))
+ 	if err == nil {
+ 		ExecCmd = []string{path}
+ 	}
+diff --git a/src/cmd/go/internal/work/buildid.go b/src/cmd/go/internal/work/buildid.go
+index 4ee43e2436..2134079f83 100644
+--- a/src/cmd/go/internal/work/buildid.go
++++ b/src/cmd/go/internal/work/buildid.go
+@@ -18,6 +18,7 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/str"
+ 	"cmd/internal/buildid"
++	"cmd/internal/pathcache"
+ 	"cmd/internal/quoted"
+ 	"cmd/internal/telemetry/counter"
+ )
+@@ -292,7 +293,7 @@ func (b *Builder) gccToolID(name, language string) (id, exe string, err error) {
+ 		}
+ 		exe = fields[0]
+ 		if !strings.ContainsAny(exe, `/\`) {
+-			if lp, err := cfg.LookPath(exe); err == nil {
++			if lp, err := pathcache.LookPath(exe); err == nil {
+ 				exe = lp
+ 			}
+ 		}
+diff --git a/src/cmd/go/internal/work/exec.go b/src/cmd/go/internal/work/exec.go
+index c4852d82ae..5b17ef4811 100644
+--- a/src/cmd/go/internal/work/exec.go
++++ b/src/cmd/go/internal/work/exec.go
+@@ -9,6 +9,7 @@ package work
+ import (
+ 	"bytes"
+ 	"cmd/internal/cov/covcmd"
++	"cmd/internal/pathcache"
+ 	"context"
+ 	"crypto/sha256"
+ 	"encoding/json"
+@@ -2576,7 +2577,7 @@ func (b *Builder) gccCompilerID(compiler string) (id cache.ActionID, ok bool) {
+ 	//
+ 	// Otherwise, we compute a new validation description
+ 	// and compiler id (below).
+-	exe, err := cfg.LookPath(compiler)
++	exe, err := pathcache.LookPath(compiler)
+ 	if err != nil {
+ 		return cache.ActionID{}, false
+ 	}
+diff --git a/src/cmd/go/internal/work/gccgo.go b/src/cmd/go/internal/work/gccgo.go
+index 71f37e8d47..84d8c9e350 100644
+--- a/src/cmd/go/internal/work/gccgo.go
++++ b/src/cmd/go/internal/work/gccgo.go
+@@ -18,6 +18,7 @@ import (
+ 	"cmd/go/internal/fsys"
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/str"
++	"cmd/internal/pathcache"
+ 	"cmd/internal/pkgpath"
+ )
+ 
+@@ -33,7 +34,7 @@ func init() {
+ 	if GccgoName == "" {
+ 		GccgoName = "gccgo"
+ 	}
+-	GccgoBin, gccgoErr = cfg.LookPath(GccgoName)
++	GccgoBin, gccgoErr = pathcache.LookPath(GccgoName)
+ }
+ 
+ func (gccgoToolchain) compiler() string {
+diff --git a/src/cmd/go/internal/work/shell.go b/src/cmd/go/internal/work/shell.go
+index 869f6777c7..6bbd73c05d 100644
+--- a/src/cmd/go/internal/work/shell.go
++++ b/src/cmd/go/internal/work/shell.go
+@@ -12,6 +12,7 @@ import (
+ 	"cmd/go/internal/load"
+ 	"cmd/go/internal/str"
+ 	"cmd/internal/par"
++	"cmd/internal/pathcache"
+ 	"errors"
+ 	"fmt"
+ 	"internal/lazyregexp"
+@@ -606,7 +607,7 @@ func (sh *Shell) runOut(dir string, env []string, cmdargs ...any) ([]byte, error
+ 	}
+ 
+ 	var buf bytes.Buffer
+-	path, err := cfg.LookPath(cmdline[0])
++	path, err := pathcache.LookPath(cmdline[0])
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/src/cmd/go/internal/cfg/lookpath.go b/src/cmd/internal/pathcache/lookpath.go
+similarity index 96%
+rename from src/cmd/go/internal/cfg/lookpath.go
+rename to src/cmd/internal/pathcache/lookpath.go
+index f095cd6a65..5d1875af53 100644
+--- a/src/cmd/go/internal/cfg/lookpath.go
++++ b/src/cmd/internal/pathcache/lookpath.go
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-package cfg
++package pathcache
+ 
+ import (
+ 	"cmd/internal/par"

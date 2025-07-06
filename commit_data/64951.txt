@@ -1,0 +1,53 @@
+commit 3637ebf1e0d833234c1025db1faceeae6fe6ecbb
+Author: Davis Goodin <dagood@microsoft.com>
+Date:   Fri Sep 27 11:04:33 2024 -0700
+
+    crypto/internal/cryptotest: fix typos in AEAD test comments
+    
+    Some comments that describe the behavior being tested don't match the
+    test logic.
+    
+    Fix the comments to match test logic and documented behavior.
+    
+    Change-Id: I065d9d9069fa00bb865209f48e112456384c2b9d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/616338
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/crypto/internal/cryptotest/aead.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/crypto/internal/cryptotest/aead.go b/src/crypto/internal/cryptotest/aead.go
+index a6107e5419..85a9c92cf2 100644
+--- a/src/crypto/internal/cryptotest/aead.go
++++ b/src/crypto/internal/cryptotest/aead.go
+@@ -108,7 +108,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
+ 
+ 		// Test all combinations of plaintext and additional data lengths.
+ 		for _, ptLen := range lengths {
+-			if ptLen <= 1 { // We need enough room for an overlap to occur.
++			if ptLen <= 1 { // We need enough room for an inexact overlap to occur.
+ 				continue
+ 			}
+ 			for _, adLen := range lengths {
+@@ -196,7 +196,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
+ 						rng.Read(longBuff)
+ 						prefixes := [][]byte{shortBuff, longBuff}
+ 
+-						// Check each prefix gets appended to by Seal with altering them.
++						// Check each prefix gets appended to by Seal without altering them.
+ 						for _, prefix := range prefixes {
+ 							plaintext, addData := make([]byte, ptLen), make([]byte, adLen)
+ 							rng.Read(plaintext)
+@@ -227,7 +227,7 @@ func TestAEAD(t *testing.T, mAEAD MakeAEAD) {
+ 						rng.Read(longBuff)
+ 						prefixes := [][]byte{shortBuff, longBuff}
+ 
+-						// Check each prefix gets appended to by Open with altering them.
++						// Check each prefix gets appended to by Open without altering them.
+ 						for _, prefix := range prefixes {
+ 							before, addData := make([]byte, adLen), make([]byte, ptLen)
+ 							rng.Read(before)

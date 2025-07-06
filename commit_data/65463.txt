@@ -1,0 +1,147 @@
+commit 170436c045f1303543e6d0bf8b36fccac57da2cd
+Author: David Chase <drchase@google.com>
+Date:   Fri Nov 15 17:08:34 2024 -0500
+
+    cmd/compile: strongly favor closure inlining
+    
+    This tweaks the inlining cost knob for closures
+    specifically, they receive a doubled budget.  The
+    rationale for this is that closures have a lot of
+    "crud" in their IR that will disappear after inlining,
+    so the standard budget penalizes them unnecessarily.
+    
+    This is also the cause of these bugs -- looking at the
+    code involved, these closures "should" be inlineable,
+    therefore tweak the parameters until behavior matches
+    expectations.  It's not costly in binary size, because
+    the only-called-from-one-site case is common (especially
+    for rangefunc iterators).
+    
+    I can imagine better fixes and I am going to try to
+    get that done, but this one is small and makes things
+    better.
+    
+    Fixes #69411, #69539.
+    
+    Change-Id: I8a892c40323173a723799e0ddad69dcc2724a8f9
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629195
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/cgo/internal/test/callback_windows.go |  5 +++--
+ src/cmd/compile/internal/inline/inl.go        |  7 +++++++
+ test/closure3.dir/main.go                     | 18 +++++++++---------
+ 3 files changed, 19 insertions(+), 11 deletions(-)
+
+diff --git a/src/cmd/cgo/internal/test/callback_windows.go b/src/cmd/cgo/internal/test/callback_windows.go
+index 77bdfa4dd3..0e2b543a38 100644
+--- a/src/cmd/cgo/internal/test/callback_windows.go
++++ b/src/cmd/cgo/internal/test/callback_windows.go
+@@ -69,11 +69,11 @@ func testCallbackCallersSEH(t *testing.T) {
+ 	want := []string{
+ 		"test._Cfunc_backtrace",
+ 		"test.testCallbackCallersSEH.func1.1",
+-		"test.testCallbackCallersSEH.func1",
++		// "test.testCallbackCallersSEH.func1", // hidden by inlining
+ 		"test.goCallback",
+ 		"test._Cfunc_callback",
+ 		"test.nestedCall.func1",
+-		"test.nestedCall",
++		// "test.nestedCall", // hidden by inlining
+ 		"test.testCallbackCallersSEH",
+ 		"test.TestCallbackCallersSEH",
+ 	}
+@@ -84,6 +84,7 @@ func testCallbackCallersSEH(t *testing.T) {
+ 	})
+ 	got := make([]string, 0, n)
+ 	for i := 0; i < n; i++ {
++		// This test is brittle in the face of inliner changes
+ 		f := runtime.FuncForPC(pc[i] - 1)
+ 		if f == nil {
+ 			continue
+diff --git a/src/cmd/compile/internal/inline/inl.go b/src/cmd/compile/internal/inline/inl.go
+index 6c0521d1f5..6835b919b6 100644
+--- a/src/cmd/compile/internal/inline/inl.go
++++ b/src/cmd/compile/internal/inline/inl.go
+@@ -206,6 +206,9 @@ func inlineBudget(fn *ir.Func, profile *pgoir.Profile, relaxed bool, verbose boo
+ 	if relaxed {
+ 		budget += inlheur.BudgetExpansion(inlineMaxBudget)
+ 	}
++	if fn.ClosureParent != nil {
++		budget *= 2
++	}
+ 	return budget
+ }
+ 
+@@ -861,6 +864,10 @@ var InlineCall = func(callerfn *ir.Func, call *ir.CallExpr, fn *ir.Func, inlInde
+ //   - whether the inlined function is "hot" according to PGO.
+ func inlineCostOK(n *ir.CallExpr, caller, callee *ir.Func, bigCaller bool) (bool, int32, int32, bool) {
+ 	maxCost := int32(inlineMaxBudget)
++	if callee.ClosureParent != nil {
++		maxCost *= 2 // favor inlining closures
++	}
++
+ 	if bigCaller {
+ 		// We use this to restrict inlining into very big functions.
+ 		// See issue 26546 and 17566.
+diff --git a/test/closure3.dir/main.go b/test/closure3.dir/main.go
+index 7bed78c308..1f944e7ac6 100644
+--- a/test/closure3.dir/main.go
++++ b/test/closure3.dir/main.go
+@@ -221,14 +221,14 @@ func main() {
+ 
+ 	{
+ 		b := 2
+-		func(b int) { // ERROR "func literal does not escape"
+-			func() { // ERROR "can inline main.func25.1"
++		func(b int) { // ERROR "can inline main.func25"
++			func() { // ERROR "can inline main.func25.1" "can inline main.main.func25.func33"
+ 				b = 3
+ 			}() // ERROR "inlining call to main.func25.1"
+ 			if b != 3 {
+ 				ppanic("b != 3")
+ 			}
+-		}(b)
++		}(b) // ERROR "inlining call to main.func25" "inlining call to main.main.func25.func33"
+ 		if b != 2 {
+ 			ppanic("b != 2")
+ 		}
+@@ -258,13 +258,13 @@ func main() {
+ 		// revisit those. E.g., func34 and func36 are constructed by the inliner.
+ 		if r := func(x int) int { // ERROR "can inline main.func27"
+ 			b := 3
+-			return func(y int) int { // ERROR "can inline main.func27.1" "can inline main.main.func27.func34"
++			return func(y int) int { // ERROR "can inline main.func27.1" "can inline main.main.func27.func35"
+ 				c := 5
+-				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.main.func27.func34.1" "can inline main.func27.main.func27.1.2" "can inline main.main.func27.main.main.func27.func34.func36"
++				return func(z int) int { // ERROR "can inline main.func27.1.1" "can inline main.main.func27.func35.1" "can inline main.func27.main.func27.1.2" "can inline main.main.func27.main.main.func27.func35.func37"
+ 					return a*x + b*y + c*z
+ 				}(10) // ERROR "inlining call to main.func27.1.1"
+ 			}(100) // ERROR "inlining call to main.func27.1" "inlining call to main.func27.main.func27.1.2"
+-		}(1000); r != 2350 { // ERROR "inlining call to main.func27" "inlining call to main.main.func27.func34" "inlining call to main.main.func27.main.main.func27.func34.func36"
++		}(1000); r != 2350 { // ERROR "inlining call to main.func27" "inlining call to main.main.func27.func35" "inlining call to main.main.func27.main.main.func27.func35.func37"
+ 			ppanic("r != 2350")
+ 		}
+ 	}
+@@ -273,16 +273,16 @@ func main() {
+ 		a := 2
+ 		if r := func(x int) int { // ERROR "can inline main.func28"
+ 			b := 3
+-			return func(y int) int { // ERROR "can inline main.func28.1" "can inline main.main.func28.func35"
++			return func(y int) int { // ERROR "can inline main.func28.1" "can inline main.main.func28.func36"
+ 				c := 5
+-				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.main.func28.1.2" "can inline main.main.func28.func35.1" "can inline main.main.func28.main.main.func28.func35.func37"
++				func(z int) { // ERROR "can inline main.func28.1.1" "can inline main.func28.main.func28.1.2" "can inline main.main.func28.func36.1" "can inline main.main.func28.main.main.func28.func36.func38"
+ 					a = a * x
+ 					b = b * y
+ 					c = c * z
+ 				}(10) // ERROR "inlining call to main.func28.1.1"
+ 				return a + c
+ 			}(100) + b // ERROR "inlining call to main.func28.1" "inlining call to main.func28.main.func28.1.2"
+-		}(1000); r != 2350 { // ERROR "inlining call to main.func28" "inlining call to main.main.func28.func35" "inlining call to main.main.func28.main.main.func28.func35.func37"
++		}(1000); r != 2350 { // ERROR "inlining call to main.func28" "inlining call to main.main.func28.func36" "inlining call to main.main.func28.main.main.func28.func36.func38"
+ 			ppanic("r != 2350")
+ 		}
+ 		if a != 2000 {

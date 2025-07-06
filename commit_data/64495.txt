@@ -1,0 +1,89 @@
+commit b67443459a5bbe0e125e34538b4ce3c895de9efd
+Author: Robert Griesemer <gri@golang.org>
+Date:   Thu Aug 8 21:03:13 2024 -0700
+
+    spec: clarify prose for embedded struct fields
+    
+    The spec says that an embedded field must be specified
+    as a type name (or a pointer to a type name). This is
+    explicit in the prose and the FieldDecl syntax.
+    
+    However, the prose on promoted methods required a named
+    type (originally the term used for a "defined type").
+    Before the introduction of alias types, type names could
+    only refer to named/defined types, so the prose was ok.
+    
+    With the introduction of alias types in Go 1.9, we
+    distinguished between defined types (i.e., types given
+    a name through a type declaration) and type aliases
+    (types given an alternative name), and retired the notion
+    of a named type since any type with a name (alias type
+    and defined type) could be considered a "named type".
+    
+    To make things worse, with Go 1.18 we re-introduced the
+    notion of a named type which now includes predeclared
+    types, defined types, type parameters (and with that
+    type aliases denoting named types).
+    
+    In the process some of the wording on method promotion
+    didn't get updated correctly. At attempt to fix this
+    was made with CL 406054, but while that CL's description
+    correctly explained the intent, the CL changed the prose
+    from "defined type" to "named type" (which had the new
+    meaning after Go 1.18), and thus did not fix the issue.
+    
+    This CL fixes that fix by using the term "type name".
+    This makes the prose consistent for embedded types and
+    in turn clarifies that methods of embedded alias types
+    (defined or not) can be promoted, consistent with the
+    implementation.
+    
+    While at it, also document that the type of an embedded
+    field cannot be a type parameter. This restriction has
+    been in place since the introduction of type parameters
+    with Go 1.18 and is enforced by the compiler.
+    
+    Fixes #66540.
+    For #41687.
+    
+    Change-Id: If9e6a03d7b84d24a3e6a5ceda1d46bda99bdf1f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/603958
+    Reviewed-by: Ian Lance Taylor <iant@golang.org>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    Reviewed-by: Axel Wagner <axel.wagner.hh@googlemail.com>
+---
+ doc/go_spec.html | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index b5b7f15bbd..06aeeae658 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -1,6 +1,6 @@
+ <!--{
+ 	"Title": "The Go Programming Language Specification",
+-	"Subtitle": "Language version go1.23 (June 13, 2024)",
++	"Subtitle": "Language version go1.23 (Aug 12, 2024)",
+ 	"Path": "/ref/spec"
+ }-->
+ 
+@@ -1086,7 +1086,7 @@ A field declared with a type but no explicit field name is called an <i>embedded
+ An embedded field must be specified as
+ a type name <code>T</code> or as a pointer to a non-interface type name <code>*T</code>,
+ and <code>T</code> itself may not be
+-a pointer type. The unqualified type name acts as the field name.
++a pointer type or type parameter. The unqualified type name acts as the field name.
+ </p>
+ 
+ <pre>
+@@ -1127,7 +1127,7 @@ of a struct except that they cannot be used as field names in
+ </p>
+ 
+ <p>
+-Given a struct type <code>S</code> and a <a href="#Types">named type</a>
++Given a struct type <code>S</code> and a type name
+ <code>T</code>, promoted methods are included in the method set of the struct as follows:
+ </p>
+ <ul>

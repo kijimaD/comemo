@@ -1,0 +1,266 @@
+commit ead249a2e2989c6775235058d38f0e33afdf752a
+Author: David Chase <drchase@google.com>
+Date:   Sat Jun 28 11:05:44 2025 -0400
+
+    [dev.simd] cmd/compile: reorder operands for some simd operations
+    
+    This adds support for one ad hoc reordering, which
+    requires a new intrinsic-to-ssa helper matching the
+    name that is used in the generator (and this in the
+    generated code).  In this case, it is opLen{2,3}Imm8_2I
+    which expects the immediate after the self (0) and
+    first (1) parameters to the method, and before the
+    mask if there is one.  I.e., the immediate is arg 2
+    in the call.
+    
+    The changes to simdintrinsics and stubs are generated
+    by simdgen CL 684019.
+    
+    Change-Id: Ia54aab9825d469a2f3efa6d1fb079242181c0ca6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/684776
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/amd64/ssa.go             |  2 +-
+ src/cmd/compile/internal/ssagen/intrinsics.go     | 28 +++++++++++++
+ src/cmd/compile/internal/ssagen/simdintrinsics.go | 24 ++++++------
+ src/simd/stubs_amd64.go                           | 48 +++++++++++------------
+ 4 files changed, 65 insertions(+), 37 deletions(-)
+
+diff --git a/src/cmd/compile/internal/amd64/ssa.go b/src/cmd/compile/internal/amd64/ssa.go
+index 0c9d12620a..fadac16282 100644
+--- a/src/cmd/compile/internal/amd64/ssa.go
++++ b/src/cmd/compile/internal/amd64/ssa.go
+@@ -1866,7 +1866,7 @@ func spillArgReg(pp *objw.Progs, p *obj.Prog, f *ssa.Func, t *types.Type, reg in
+ func simdReg(v *ssa.Value) int16 {
+ 	t := v.Type
+ 	if !t.IsSIMD() {
+-		panic("simdReg: not a simd type")
++		base.Fatalf("simdReg: not a simd type; v=%s, b=b%d, f=%s", v.LongString(), v.Block.ID, v.Block.Func.Name)
+ 	}
+ 	switch t.Size() {
+ 	case 8:
+diff --git a/src/cmd/compile/internal/ssagen/intrinsics.go b/src/cmd/compile/internal/ssagen/intrinsics.go
+index 660047df1f..73e84077fd 100644
+--- a/src/cmd/compile/internal/ssagen/intrinsics.go
++++ b/src/cmd/compile/internal/ssagen/intrinsics.go
+@@ -1684,6 +1684,34 @@ func opLen3Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallE
+ 	}
+ }
+ 
++func opLen2Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		if args[1].Op == ssa.OpConst8 {
++			return s.newValue2I(op, t, args[2].AuxInt<<int64(offset), args[0], args[1])
++		}
++		plainPanicSimdImm(s)
++		// Even though this default call is unreachable semantically,
++		// it has to return something, otherwise the compiler will try to generate
++		// default codes which might lead to a FwdRef being put at the entry block
++		// triggering a compiler panic.
++		return s.newValue2I(op, t, 0, args[0], args[1])
++	}
++}
++
++func opLen3Imm8_2I(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
++		if args[1].Op == ssa.OpConst8 {
++			return s.newValue3I(op, t, args[2].AuxInt<<int64(offset), args[0], args[1], args[3])
++		}
++		plainPanicSimdImm(s)
++		// Even though this default call is unreachable semantically,
++		// it has to return something, otherwise the compiler will try to generate
++		// default codes which might lead to a FwdRef being put at the entry block
++		// triggering a compiler panic.
++		return s.newValue3I(op, t, 0, args[0], args[1], args[3])
++	}
++}
++
+ func opLen4Imm8(op ssa.Op, t *types.Type, offset int) func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 	return func(s *state, n *ir.CallExpr, args []*ssa.Value) *ssa.Value {
+ 		if args[1].Op == ssa.OpConst8 {
+diff --git a/src/cmd/compile/internal/ssagen/simdintrinsics.go b/src/cmd/compile/internal/ssagen/simdintrinsics.go
+index 87c1327f16..a7f9b9d8a3 100644
+--- a/src/cmd/compile/internal/ssagen/simdintrinsics.go
++++ b/src/cmd/compile/internal/ssagen/simdintrinsics.go
+@@ -262,12 +262,12 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
+ 	addF(simdPackage, "Float64x2.FusedMultiplySubAdd", opLen3(ssa.OpFusedMultiplySubAddFloat64x2, types.TypeVec128), sys.AMD64)
+ 	addF(simdPackage, "Float64x4.FusedMultiplySubAdd", opLen3(ssa.OpFusedMultiplySubAddFloat64x4, types.TypeVec256), sys.AMD64)
+ 	addF(simdPackage, "Float64x8.FusedMultiplySubAdd", opLen3(ssa.OpFusedMultiplySubAddFloat64x8, types.TypeVec512), sys.AMD64)
+-	addF(simdPackage, "Uint8x16.GaloisFieldAffineTransform", opLen2Imm8(ssa.OpGaloisFieldAffineTransformUint8x16, types.TypeVec128, 0), sys.AMD64)
+-	addF(simdPackage, "Uint8x32.GaloisFieldAffineTransform", opLen2Imm8(ssa.OpGaloisFieldAffineTransformUint8x32, types.TypeVec256, 0), sys.AMD64)
+-	addF(simdPackage, "Uint8x64.GaloisFieldAffineTransform", opLen2Imm8(ssa.OpGaloisFieldAffineTransformUint8x64, types.TypeVec512, 0), sys.AMD64)
+-	addF(simdPackage, "Uint8x16.GaloisFieldAffineTransformInversed", opLen2Imm8(ssa.OpGaloisFieldAffineTransformInversedUint8x16, types.TypeVec128, 0), sys.AMD64)
+-	addF(simdPackage, "Uint8x32.GaloisFieldAffineTransformInversed", opLen2Imm8(ssa.OpGaloisFieldAffineTransformInversedUint8x32, types.TypeVec256, 0), sys.AMD64)
+-	addF(simdPackage, "Uint8x64.GaloisFieldAffineTransformInversed", opLen2Imm8(ssa.OpGaloisFieldAffineTransformInversedUint8x64, types.TypeVec512, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x16.GaloisFieldAffineTransform", opLen2Imm8_2I(ssa.OpGaloisFieldAffineTransformUint8x16, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x32.GaloisFieldAffineTransform", opLen2Imm8_2I(ssa.OpGaloisFieldAffineTransformUint8x32, types.TypeVec256, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x64.GaloisFieldAffineTransform", opLen2Imm8_2I(ssa.OpGaloisFieldAffineTransformUint8x64, types.TypeVec512, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x16.GaloisFieldAffineTransformInversed", opLen2Imm8_2I(ssa.OpGaloisFieldAffineTransformInversedUint8x16, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x32.GaloisFieldAffineTransformInversed", opLen2Imm8_2I(ssa.OpGaloisFieldAffineTransformInversedUint8x32, types.TypeVec256, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x64.GaloisFieldAffineTransformInversed", opLen2Imm8_2I(ssa.OpGaloisFieldAffineTransformInversedUint8x64, types.TypeVec512, 0), sys.AMD64)
+ 	addF(simdPackage, "Uint8x16.GaloisFieldMul", opLen2(ssa.OpGaloisFieldMulUint8x16, types.TypeVec128), sys.AMD64)
+ 	addF(simdPackage, "Uint8x32.GaloisFieldMul", opLen2(ssa.OpGaloisFieldMulUint8x32, types.TypeVec256), sys.AMD64)
+ 	addF(simdPackage, "Uint8x64.GaloisFieldMul", opLen2(ssa.OpGaloisFieldMulUint8x64, types.TypeVec512), sys.AMD64)
+@@ -627,12 +627,12 @@ func simdIntrinsics(addF func(pkg, fn string, b intrinsicBuilder, archFamilies .
+ 	addF(simdPackage, "Float64x2.MaskedFusedMultiplySubAdd", opLen4(ssa.OpMaskedFusedMultiplySubAddFloat64x2, types.TypeVec128), sys.AMD64)
+ 	addF(simdPackage, "Float64x4.MaskedFusedMultiplySubAdd", opLen4(ssa.OpMaskedFusedMultiplySubAddFloat64x4, types.TypeVec256), sys.AMD64)
+ 	addF(simdPackage, "Float64x8.MaskedFusedMultiplySubAdd", opLen4(ssa.OpMaskedFusedMultiplySubAddFloat64x8, types.TypeVec512), sys.AMD64)
+-	addF(simdPackage, "Uint8x16.MaskedGaloisFieldAffineTransform", opLen3Imm8(ssa.OpMaskedGaloisFieldAffineTransformUint8x16, types.TypeVec128, 0), sys.AMD64)
+-	addF(simdPackage, "Uint8x32.MaskedGaloisFieldAffineTransform", opLen3Imm8(ssa.OpMaskedGaloisFieldAffineTransformUint8x32, types.TypeVec256, 0), sys.AMD64)
+-	addF(simdPackage, "Uint8x64.MaskedGaloisFieldAffineTransform", opLen3Imm8(ssa.OpMaskedGaloisFieldAffineTransformUint8x64, types.TypeVec512, 0), sys.AMD64)
+-	addF(simdPackage, "Uint8x16.MaskedGaloisFieldAffineTransformInversed", opLen3Imm8(ssa.OpMaskedGaloisFieldAffineTransformInversedUint8x16, types.TypeVec128, 0), sys.AMD64)
+-	addF(simdPackage, "Uint8x32.MaskedGaloisFieldAffineTransformInversed", opLen3Imm8(ssa.OpMaskedGaloisFieldAffineTransformInversedUint8x32, types.TypeVec256, 0), sys.AMD64)
+-	addF(simdPackage, "Uint8x64.MaskedGaloisFieldAffineTransformInversed", opLen3Imm8(ssa.OpMaskedGaloisFieldAffineTransformInversedUint8x64, types.TypeVec512, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x16.MaskedGaloisFieldAffineTransform", opLen3Imm8_2I(ssa.OpMaskedGaloisFieldAffineTransformUint8x16, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x32.MaskedGaloisFieldAffineTransform", opLen3Imm8_2I(ssa.OpMaskedGaloisFieldAffineTransformUint8x32, types.TypeVec256, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x64.MaskedGaloisFieldAffineTransform", opLen3Imm8_2I(ssa.OpMaskedGaloisFieldAffineTransformUint8x64, types.TypeVec512, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x16.MaskedGaloisFieldAffineTransformInversed", opLen3Imm8_2I(ssa.OpMaskedGaloisFieldAffineTransformInversedUint8x16, types.TypeVec128, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x32.MaskedGaloisFieldAffineTransformInversed", opLen3Imm8_2I(ssa.OpMaskedGaloisFieldAffineTransformInversedUint8x32, types.TypeVec256, 0), sys.AMD64)
++	addF(simdPackage, "Uint8x64.MaskedGaloisFieldAffineTransformInversed", opLen3Imm8_2I(ssa.OpMaskedGaloisFieldAffineTransformInversedUint8x64, types.TypeVec512, 0), sys.AMD64)
+ 	addF(simdPackage, "Uint8x16.MaskedGaloisFieldMul", opLen3(ssa.OpMaskedGaloisFieldMulUint8x16, types.TypeVec128), sys.AMD64)
+ 	addF(simdPackage, "Uint8x32.MaskedGaloisFieldMul", opLen3(ssa.OpMaskedGaloisFieldMulUint8x32, types.TypeVec256), sys.AMD64)
+ 	addF(simdPackage, "Uint8x64.MaskedGaloisFieldMul", opLen3(ssa.OpMaskedGaloisFieldMulUint8x64, types.TypeVec512), sys.AMD64)
+diff --git a/src/simd/stubs_amd64.go b/src/simd/stubs_amd64.go
+index e589378c72..f0db32a07d 100644
+--- a/src/simd/stubs_amd64.go
++++ b/src/simd/stubs_amd64.go
+@@ -1430,56 +1430,56 @@ func (x Float64x8) FusedMultiplySubAdd(y Float64x8, z Float64x8) Float64x8
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+-func (x Uint8x16) GaloisFieldAffineTransform(b uint8, y Uint64x2) Uint8x16
++func (x Uint8x16) GaloisFieldAffineTransform(y Uint64x2, b uint8) Uint8x16
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+-func (x Uint8x32) GaloisFieldAffineTransform(b uint8, y Uint64x4) Uint8x32
++func (x Uint8x32) GaloisFieldAffineTransform(y Uint64x4, b uint8) Uint8x32
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+-func (x Uint8x64) GaloisFieldAffineTransform(b uint8, y Uint64x8) Uint8x64
++func (x Uint8x64) GaloisFieldAffineTransform(y Uint64x8, b uint8) Uint8x64
+ 
+ /* GaloisFieldAffineTransformInversed */
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+ // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+-func (x Uint8x16) GaloisFieldAffineTransformInversed(b uint8, y Uint64x2) Uint8x16
++func (x Uint8x16) GaloisFieldAffineTransformInversed(y Uint64x2, b uint8) Uint8x16
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+ // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+-func (x Uint8x32) GaloisFieldAffineTransformInversed(b uint8, y Uint64x4) Uint8x32
++func (x Uint8x32) GaloisFieldAffineTransformInversed(y Uint64x4, b uint8) Uint8x32
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+ // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+-func (x Uint8x64) GaloisFieldAffineTransformInversed(b uint8, y Uint64x8) Uint8x64
++func (x Uint8x64) GaloisFieldAffineTransformInversed(y Uint64x8, b uint8) Uint8x64
+ 
+ /* GaloisFieldMul */
+ 
+@@ -3573,56 +3573,56 @@ func (x Float64x8) MaskedFusedMultiplySubAdd(y Float64x8, z Float64x8, u Mask64x
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+-func (x Uint8x16) MaskedGaloisFieldAffineTransform(b uint8, y Uint64x2, m Mask8x16) Uint8x16
++func (x Uint8x16) MaskedGaloisFieldAffineTransform(y Uint64x2, b uint8, m Mask8x16) Uint8x16
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+-func (x Uint8x32) MaskedGaloisFieldAffineTransform(b uint8, y Uint64x4, m Mask8x32) Uint8x32
++func (x Uint8x32) MaskedGaloisFieldAffineTransform(y Uint64x4, b uint8, m Mask8x32) Uint8x32
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8):
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEQB, CPU Feature: AVX512EVEX
+-func (x Uint8x64) MaskedGaloisFieldAffineTransform(b uint8, y Uint64x8, m Mask8x64) Uint8x64
++func (x Uint8x64) MaskedGaloisFieldAffineTransform(y Uint64x8, b uint8, m Mask8x64) Uint8x64
+ 
+ /* MaskedGaloisFieldAffineTransformInversed */
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+ // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+-func (x Uint8x16) MaskedGaloisFieldAffineTransformInversed(b uint8, y Uint64x2, m Mask8x16) Uint8x16
++func (x Uint8x16) MaskedGaloisFieldAffineTransformInversed(y Uint64x2, b uint8, m Mask8x16) Uint8x16
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+ // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+-func (x Uint8x32) MaskedGaloisFieldAffineTransformInversed(b uint8, y Uint64x4, m Mask8x32) Uint8x32
++func (x Uint8x32) MaskedGaloisFieldAffineTransformInversed(y Uint64x4, b uint8, m Mask8x32) Uint8x32
+ 
+ // GaloisFieldAffineTransform computes an affine transformation in GF(2^8),
+ // with x inversed with reduction polynomial x^8 + x^4 + x^3 + x + 1:
+ // x is a vector of 8-bit vectors, with each adjacent 8 as a group; y is a vector of 8x8 1-bit matrixes;
+-// imm is an 8-bit vector. The affine transformation is y * x + imm, with each element of y
++// b is an 8-bit vector. The affine transformation is y * x + b, with each element of y
+ // corresponding to a group of 8 elements in x.
+ //
+ // Asm: VGF2P8AFFINEINVQB, CPU Feature: AVX512EVEX
+-func (x Uint8x64) MaskedGaloisFieldAffineTransformInversed(b uint8, y Uint64x8, m Mask8x64) Uint8x64
++func (x Uint8x64) MaskedGaloisFieldAffineTransformInversed(y Uint64x8, b uint8, m Mask8x64) Uint8x64
+ 
+ /* MaskedGaloisFieldMul */
+ 

@@ -1,0 +1,106 @@
+commit 0a9321ad7f8c91e1b0c7184731257df923977eb9
+Author: Guoqi Chen <chenguoqi@loongson.cn>
+Date:   Fri Apr 7 22:37:57 2023 +0800
+
+    cmd/internal/obj/loong64: add CPUCFG instructions support
+    
+    The CPUCFG instruction is used to dynamically obtain the features
+    supported by the current CPU during the running of the program.
+    
+    Go asm syntax:
+            CPUCFG RJ, RD
+    
+    Equivalent platform assembler syntax:
+            cpucfg rd, rj
+    
+    Reference: https://loongson.github.io/LoongArch-Documentation/LoongArch-Vol1-EN.html
+    
+    Change-Id: I545110ff837ae9c5ccd7c448a1daf2d1277f9aa1
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/493436
+    Reviewed-by: sophie zhao <zhaoxiaolin@loongson.cn>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Qiqi Huang <huangqiqi@loongson.cn>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/asm/internal/asm/testdata/loong64enc1.s |  1 +
+ src/cmd/internal/obj/loong64/a.out.go           |  1 +
+ src/cmd/internal/obj/loong64/anames.go          |  1 +
+ src/cmd/internal/obj/loong64/asm.go             | 10 +++++++---
+ 4 files changed, 10 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/asm/internal/asm/testdata/loong64enc1.s b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+index 41156febc6..a98fca08aa 100644
+--- a/src/cmd/asm/internal/asm/testdata/loong64enc1.s
++++ b/src/cmd/asm/internal/asm/testdata/loong64enc1.s
+@@ -51,6 +51,7 @@ lable2:
+ 	ROTRV	R4, R5, R6		// a6901b00
+ 	CLO	R4, R5			// 85100000
+ 	CLZ	R4, R5			// 85140000
++	CPUCFG	R4, R5			// 856c0000
+ 	ADDF	F4, F5			// a5900001
+ 	ADDF	F4, R5, F6		// a6900001
+ 	CMPEQF	F4, R5			// a010120c
+diff --git a/src/cmd/internal/obj/loong64/a.out.go b/src/cmd/internal/obj/loong64/a.out.go
+index 2dd2a085a8..6d41b6aa03 100644
+--- a/src/cmd/internal/obj/loong64/a.out.go
++++ b/src/cmd/internal/obj/loong64/a.out.go
+@@ -448,6 +448,7 @@ const (
+ 	ARDTIMELW
+ 	ARDTIMEHW
+ 	ARDTIMED
++	ACPUCFG
+ 
+ 	ALAST
+ 
+diff --git a/src/cmd/internal/obj/loong64/anames.go b/src/cmd/internal/obj/loong64/anames.go
+index f21e8c9630..b961a2dcd1 100644
+--- a/src/cmd/internal/obj/loong64/anames.go
++++ b/src/cmd/internal/obj/loong64/anames.go
+@@ -182,5 +182,6 @@ var Anames = []string{
+ 	"RDTIMELW",
+ 	"RDTIMEHW",
+ 	"RDTIMED",
++	"CPUCFG",
+ 	"LAST",
+ }
+diff --git a/src/cmd/internal/obj/loong64/asm.go b/src/cmd/internal/obj/loong64/asm.go
+index 4eaf8bf5ed..9ce63c1f58 100644
+--- a/src/cmd/internal/obj/loong64/asm.go
++++ b/src/cmd/internal/obj/loong64/asm.go
+@@ -1230,6 +1230,7 @@ func buildop(ctxt *obj.Link) {
+ 
+ 		case ACLO:
+ 			opset(ACLZ, r0)
++			opset(ACPUCFG, r0)
+ 
+ 		case ATEQ:
+ 			opset(ATNE, r0)
+@@ -1420,14 +1421,15 @@ func (c *ctxt0) asmout(p *obj.Prog, o *Optab, out []uint32) {
+ 		o1 = OP_12IRR(c.opirr(-p.As), uint32(v), uint32(r), uint32(p.To.Reg))
+ 
+ 	case 9: // sll r1,[r2],r3
+-		if p.As != ACLO && p.As != ACLZ {
++		switch p.As {
++		case ACLO, ACLZ, ACPUCFG:
++			o1 = OP_RR(c.oprr(p.As), uint32(p.From.Reg), uint32(p.To.Reg))
++		default:
+ 			r := int(p.Reg)
+ 			if r == 0 {
+ 				r = int(p.To.Reg)
+ 			}
+ 			o1 = OP_RRR(c.oprrr(p.As), uint32(p.From.Reg), uint32(r), uint32(p.To.Reg))
+-		} else { // clo r1,r2
+-			o1 = OP_RR(c.oprr(p.As), uint32(p.From.Reg), uint32(p.To.Reg))
+ 		}
+ 
+ 	case 10: // add $con,[r1],r2 ==> mov $con, t; add t,[r1],r2
+@@ -2091,6 +2093,8 @@ func (c *ctxt0) oprr(a obj.As) uint32 {
+ 		return 0x4 << 10
+ 	case ACLZ:
+ 		return 0x5 << 10
++	case ACPUCFG:
++		return 0x1b << 10
+ 	case ARDTIMELW:
+ 		return 0x18 << 10
+ 	case ARDTIMEHW:

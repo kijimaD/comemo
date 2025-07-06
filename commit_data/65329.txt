@@ -1,0 +1,315 @@
+commit 5a9aeef9d54321702253257eb983d7a0cc1d97bf
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Nov 8 12:43:06 2024 -0500
+
+    cmd/compile: allow more types for wasmimport/wasmexport parameters and results
+    
+    As proposed on #66984, this CL allows more types to be used as
+    wasmimport/wasmexport function parameters and results.
+    Specifically, bool, string, and uintptr are now allowed, and also
+    pointer types that point to allowed element types. Allowed element
+    types includes sized integer and floating point types (including
+    small integer types like uint8 which are not directly allowed as
+    a parameter type), bool, array whose element type is allowed, and
+    struct whose fields are allowed element type and also include a
+    struct.HostLayout field.
+    
+    For #66984.
+    
+    Change-Id: Ie5452a1eda21c089780dfb4d4246de6008655c84
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/626615
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ssagen/abi.go | 77 +++++++++++++++++++++++++++++-----
+ src/cmd/internal/obj/link.go           |  4 ++
+ src/cmd/internal/obj/wasm/wasmobj.go   | 18 ++++++--
+ src/cmd/link/internal/wasm/asm.go      |  2 +-
+ test/wasmexport2.go                    | 57 ++++++++++++++++++-------
+ 5 files changed, 127 insertions(+), 31 deletions(-)
+
+diff --git a/src/cmd/compile/internal/ssagen/abi.go b/src/cmd/compile/internal/ssagen/abi.go
+index 6b6adff81f..9ab5498878 100644
+--- a/src/cmd/compile/internal/ssagen/abi.go
++++ b/src/cmd/compile/internal/ssagen/abi.go
+@@ -412,24 +412,39 @@ func GenWasmExportWrapper(wrapped *ir.Func) {
+ }
+ 
+ func paramsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultInfo, abiParams []abi.ABIParamAssignment) []obj.WasmField {
+-	wfs := make([]obj.WasmField, len(abiParams))
+-	for i, p := range abiParams {
++	wfs := make([]obj.WasmField, 0, len(abiParams))
++	for _, p := range abiParams {
+ 		t := p.Type
++		var wt obj.WasmFieldType
+ 		switch t.Kind() {
+ 		case types.TINT32, types.TUINT32:
+-			wfs[i].Type = obj.WasmI32
++			wt = obj.WasmI32
+ 		case types.TINT64, types.TUINT64:
+-			wfs[i].Type = obj.WasmI64
++			wt = obj.WasmI64
+ 		case types.TFLOAT32:
+-			wfs[i].Type = obj.WasmF32
++			wt = obj.WasmF32
+ 		case types.TFLOAT64:
+-			wfs[i].Type = obj.WasmF64
+-		case types.TUNSAFEPTR:
+-			wfs[i].Type = obj.WasmPtr
++			wt = obj.WasmF64
++		case types.TUNSAFEPTR, types.TUINTPTR:
++			wt = obj.WasmPtr
++		case types.TBOOL:
++			wt = obj.WasmBool
++		case types.TSTRING:
++			// Two parts, (ptr, len)
++			wt = obj.WasmPtr
++			wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result)})
++			wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result) + int64(types.PtrSize)})
++			continue
++		case types.TPTR:
++			if wasmElemTypeAllowed(t.Elem()) {
++				wt = obj.WasmPtr
++				break
++			}
++			fallthrough
+ 		default:
+ 			base.ErrorfAt(f.Pos(), 0, "%s: unsupported parameter type %s", pragma, t.String())
+ 		}
+-		wfs[i].Offset = p.FrameOffset(result)
++		wfs = append(wfs, obj.WasmField{Type: wt, Offset: p.FrameOffset(result)})
+ 	}
+ 	return wfs
+ }
+@@ -451,8 +466,16 @@ func resultsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultIn
+ 			wfs[i].Type = obj.WasmF32
+ 		case types.TFLOAT64:
+ 			wfs[i].Type = obj.WasmF64
+-		case types.TUNSAFEPTR:
++		case types.TUNSAFEPTR, types.TUINTPTR:
+ 			wfs[i].Type = obj.WasmPtr
++		case types.TBOOL:
++			wfs[i].Type = obj.WasmBool
++		case types.TPTR:
++			if wasmElemTypeAllowed(t.Elem()) {
++				wfs[i].Type = obj.WasmPtr
++				break
++			}
++			fallthrough
+ 		default:
+ 			base.ErrorfAt(f.Pos(), 0, "%s: unsupported result type %s", pragma, t.String())
+ 		}
+@@ -461,6 +484,40 @@ func resultsToWasmFields(f *ir.Func, pragma string, result *abi.ABIParamResultIn
+ 	return wfs
+ }
+ 
++// wasmElemTypeAllowed reports whether t is allowed to be passed in memory
++// (as a pointer's element type, a field of it, etc.) between the Go wasm
++// module and the host.
++func wasmElemTypeAllowed(t *types.Type) bool {
++	switch t.Kind() {
++	case types.TINT8, types.TUINT8, types.TINT16, types.TUINT16,
++		types.TINT32, types.TUINT32, types.TINT64, types.TUINT64,
++		types.TFLOAT32, types.TFLOAT64, types.TBOOL:
++		return true
++	case types.TARRAY:
++		return wasmElemTypeAllowed(t.Elem())
++	case types.TSTRUCT:
++		if len(t.Fields()) == 0 {
++			return true
++		}
++		seenHostLayout := false
++		for _, f := range t.Fields() {
++			sym := f.Type.Sym()
++			if sym != nil && sym.Name == "HostLayout" && sym.Pkg.Path == "structs" {
++				seenHostLayout = true
++				continue
++			}
++			if !wasmElemTypeAllowed(f.Type) {
++				return false
++			}
++		}
++		return seenHostLayout
++	}
++	// Pointer, and all pointerful types are not allowed, as pointers have
++	// different width on the Go side and the host side. (It will be allowed
++	// on GOARCH=wasm32.)
++	return false
++}
++
+ // setupWasmImport calculates the params and results in terms of WebAssembly values for the given function,
+ // and sets up the wasmimport metadata.
+ func setupWasmImport(f *ir.Func) {
+diff --git a/src/cmd/internal/obj/link.go b/src/cmd/internal/obj/link.go
+index bde8d3d280..b70d308317 100644
+--- a/src/cmd/internal/obj/link.go
++++ b/src/cmd/internal/obj/link.go
+@@ -762,6 +762,10 @@ const (
+ 	WasmF32
+ 	WasmF64
+ 	WasmPtr
++
++	// bool is not really a wasm type, but we allow it on wasmimport/wasmexport
++	// function parameters/results. 32-bit on Wasm side, 8-bit on Go side.
++	WasmBool
+ )
+ 
+ type InlMark struct {
+diff --git a/src/cmd/internal/obj/wasm/wasmobj.go b/src/cmd/internal/obj/wasm/wasmobj.go
+index 47d5fbd0a6..28ecd20cd0 100644
+--- a/src/cmd/internal/obj/wasm/wasmobj.go
++++ b/src/cmd/internal/obj/wasm/wasmobj.go
+@@ -853,8 +853,9 @@ func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
+ 			case obj.WasmF64:
+ 				p = appendp(p, AF64Load, constAddr(loadOffset))
+ 			case obj.WasmPtr:
+-				p = appendp(p, AI64Load, constAddr(loadOffset))
+-				p = appendp(p, AI32WrapI64)
++				p = appendp(p, AI32Load, constAddr(loadOffset))
++			case obj.WasmBool:
++				p = appendp(p, AI32Load8U, constAddr(loadOffset))
+ 			default:
+ 				panic("bad param type")
+ 			}
+@@ -906,6 +907,12 @@ func genWasmImportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
+ 				p = appendp(p, AGet, regAddr(REG_SP))
+ 				p = appendp(p, AGet, regAddr(REG_R0))
+ 				p = appendp(p, AI64Store, constAddr(storeOffset))
++			case obj.WasmBool:
++				p = appendp(p, AI64ExtendI32U)
++				p = appendp(p, ASet, regAddr(REG_R0))
++				p = appendp(p, AGet, regAddr(REG_SP))
++				p = appendp(p, AGet, regAddr(REG_R0))
++				p = appendp(p, AI64Store8, constAddr(storeOffset))
+ 			default:
+ 				panic("bad result type")
+ 			}
+@@ -944,6 +951,8 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
+ 		case obj.WasmPtr:
+ 			p = appendp(p, AI64ExtendI32U)
+ 			p = appendp(p, AI64Store, constAddr(f.Offset))
++		case obj.WasmBool:
++			p = appendp(p, AI32Store8, constAddr(f.Offset))
+ 		default:
+ 			panic("bad param type")
+ 		}
+@@ -996,8 +1005,9 @@ func genWasmExportWrapper(s *obj.LSym, appendp func(p *obj.Prog, as obj.As, args
+ 		case obj.WasmF64:
+ 			p = appendp(p, AF64Load, constAddr(f.Offset))
+ 		case obj.WasmPtr:
+-			p = appendp(p, AI64Load, constAddr(f.Offset))
+-			p = appendp(p, AI32WrapI64)
++			p = appendp(p, AI32Load, constAddr(f.Offset))
++		case obj.WasmBool:
++			p = appendp(p, AI32Load8U, constAddr(f.Offset))
+ 		default:
+ 			panic("bad result type")
+ 		}
+diff --git a/src/cmd/link/internal/wasm/asm.go b/src/cmd/link/internal/wasm/asm.go
+index ca4363f4a0..727da59da6 100644
+--- a/src/cmd/link/internal/wasm/asm.go
++++ b/src/cmd/link/internal/wasm/asm.go
+@@ -689,7 +689,7 @@ func fieldsToTypes(fields []obj.WasmField) []byte {
+ 	b := make([]byte, len(fields))
+ 	for i, f := range fields {
+ 		switch f.Type {
+-		case obj.WasmI32, obj.WasmPtr:
++		case obj.WasmI32, obj.WasmPtr, obj.WasmBool:
+ 			b[i] = I32
+ 		case obj.WasmI64:
+ 			b[i] = I64
+diff --git a/test/wasmexport2.go b/test/wasmexport2.go
+index e3b3bbed6e..cfbfab99b0 100644
+--- a/test/wasmexport2.go
++++ b/test/wasmexport2.go
+@@ -11,7 +11,10 @@
+ 
+ package p
+ 
+-import "unsafe"
++import (
++	"structs"
++	"unsafe"
++)
+ 
+ //go:wasmexport good1
+ func good1(int32, uint32, int64, uint64, float32, float64, unsafe.Pointer) {} // allowed types
+@@ -27,41 +30,63 @@ func good3() int32 { return 0 } // one result is ok
+ //go:wasmexport good4
+ func good4() unsafe.Pointer { return nil } // one result is ok
+ 
++//go:wasmexport good5
++func good5(string, uintptr) bool { return false } // bool, string, and uintptr are allowed
++
+ //go:wasmexport bad1
+-func bad1(string) {} // ERROR "go:wasmexport: unsupported parameter type"
++func bad1(any) {} // ERROR "go:wasmexport: unsupported parameter type"
+ 
+ //go:wasmexport bad2
+-func bad2(any) {} // ERROR "go:wasmexport: unsupported parameter type"
++func bad2(func()) {} // ERROR "go:wasmexport: unsupported parameter type"
+ 
+ //go:wasmexport bad3
+-func bad3(func()) {} // ERROR "go:wasmexport: unsupported parameter type"
++func bad3(uint8) {} // ERROR "go:wasmexport: unsupported parameter type"
+ 
+ //go:wasmexport bad4
+-func bad4(uint8) {} // ERROR "go:wasmexport: unsupported parameter type"
++func bad4(int) {} // ERROR "go:wasmexport: unsupported parameter type"
+ 
+-// Pointer types are not allowed, except unsafe.Pointer.
+ // Struct and array types are also not allowed.
+-// If proposal 66984 is accepted and implemented, we may allow them.
+-
+-//go:wasmexport bad5
+-func bad5(*int32) {} // ERROR "go:wasmexport: unsupported parameter type"
+ 
+ type S struct { x, y int32 }
+ 
++type H struct { _ structs.HostLayout; x, y int32 }
++
++type A = structs.HostLayout
++
++type AH struct { _ A; x, y int32 }
++
++//go:wasmexport bad5
++func bad5(S) {} // ERROR "go:wasmexport: unsupported parameter type"
++
+ //go:wasmexport bad6
+-func bad6(S) {} // ERROR "go:wasmexport: unsupported parameter type"
++func bad6(H) {} // ERROR "go:wasmexport: unsupported parameter type"
+ 
+ //go:wasmexport bad7
+-func bad7(*S) {} // ERROR "go:wasmexport: unsupported parameter type"
++func bad7([4]int32) {} // ERROR "go:wasmexport: unsupported parameter type"
++
++// Pointer types are not allowed, with resitrictions on
++// the element type.
++
++//go:wasmexport good6
++func good6(*int32, *uint8, *bool) {}
+ 
+ //go:wasmexport bad8
+-func bad8([4]int32) {} // ERROR "go:wasmexport: unsupported parameter type"
++func bad8(*S) {} // ERROR "go:wasmexport: unsupported parameter type" // without HostLayout, not allowed
+ 
+ //go:wasmexport bad9
+-func bad9() bool { return false } // ERROR "go:wasmexport: unsupported result type"
++func bad9() *S { return nil } // ERROR "go:wasmexport: unsupported result type"
+ 
+-//go:wasmexport bad10
+-func bad10() *byte { return nil } // ERROR "go:wasmexport: unsupported result type"
++//go:wasmexport good7
++func good7(*H, *AH) {} // pointer to struct with HostLayout is allowed
++
++//go:wasmexport good8
++func good8(*struct{}) {} // pointer to empty struct is allowed
++
++//go:wasmexport good9
++func good9(*[4]int32, *[2]H) {} // pointer to array is allowed, if the element type is okay
+ 
+ //go:wasmexport toomanyresults
+ func toomanyresults() (int32, int32) { return 0, 0 } // ERROR "go:wasmexport: too many return values"
++
++//go:wasmexport bad10
++func bad10() string { return "" } // ERROR "go:wasmexport: unsupported result type" // string cannot be a result

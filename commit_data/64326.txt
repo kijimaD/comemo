@@ -1,0 +1,50 @@
+commit 77a3c3b984c22186a9f9ec17b13c2d13060bc9c9
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Jun 25 12:47:20 2024 -0700
+
+    go/types, types2: remove superfluous if statement (minor cleanup)
+    
+    Found while re-reading this code.
+    
+    Change-Id: I5c87bb38ce07e49f1d122db1630c48d5ff082a30
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/594975
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+    Reviewed-by: Tim King <taking@google.com>
+---
+ src/cmd/compile/internal/types2/resolver.go | 4 +---
+ src/go/types/resolver.go                    | 4 +---
+ 2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/src/cmd/compile/internal/types2/resolver.go b/src/cmd/compile/internal/types2/resolver.go
+index 5676aa3618..4d9b4f92e1 100644
+--- a/src/cmd/compile/internal/types2/resolver.go
++++ b/src/cmd/compile/internal/types2/resolver.go
+@@ -560,9 +560,7 @@ L: // unpack receiver type
+ 	}
+ 
+ 	// unpack receiver name
+-	if name, _ := rtyp.(*syntax.Name); name != nil {
+-		rname = name
+-	}
++	rname, _ = rtyp.(*syntax.Name)
+ 
+ 	return
+ }
+diff --git a/src/go/types/resolver.go b/src/go/types/resolver.go
+index e6e882e35f..041c453667 100644
+--- a/src/go/types/resolver.go
++++ b/src/go/types/resolver.go
+@@ -545,9 +545,7 @@ L: // unpack receiver type
+ 	}
+ 
+ 	// unpack receiver name
+-	if name, _ := rtyp.(*ast.Ident); name != nil {
+-		rname = name
+-	}
++	rname, _ = rtyp.(*ast.Ident)
+ 
+ 	return
+ }

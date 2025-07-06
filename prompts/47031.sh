@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 47031: 0f66fb7b856b02497cf801ce72d80f375f53358b
+# Index 47031: 613388315e29d4e906805e602602500ca1e7e334
 
 echo "🚀 Generating explanation for commit 47031..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 47031..."
 
 ### メタデータ
 - **コミットインデックス**: 47031
-- **コミットハッシュ**: 0f66fb7b856b02497cf801ce72d80f375f53358b
-- **GitHub URL**: https://github.com/golang/go/commit/0f66fb7b856b02497cf801ce72d80f375f53358b
+- **コミットハッシュ**: 613388315e29d4e906805e602602500ca1e7e334
+- **GitHub URL**: https://github.com/golang/go/commit/613388315e29d4e906805e602602500ca1e7e334
 
 ### 章構成
 

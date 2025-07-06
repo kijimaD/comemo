@@ -1,0 +1,436 @@
+commit d2842229fce01f8df04bc141291ec4fefb5d4bfc
+Author: Jorropo <jorropo.pgm@gmail.com>
+Date:   Sun Mar 9 14:37:30 2025 +0100
+
+    cmd/compile: compute min's & max's limits from argument's limits inside flowLimit
+    
+    Updates #68857
+    
+    Change-Id: Ied07e656bba42f3b1b5f9b9f5442806aa2e7959b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/656157
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Auto-Submit: Jorropo <jorropo.pgm@gmail.com>
+---
+ src/cmd/compile/internal/ssa/prove.go |  83 +++++++++
+ test/prove.go                         | 311 ++++++++++++++++++++++++++++++++++
+ 2 files changed, 394 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/prove.go b/src/cmd/compile/internal/ssa/prove.go
+index b3362038cf..d1d851be91 100644
+--- a/src/cmd/compile/internal/ssa/prove.go
++++ b/src/cmd/compile/internal/ssa/prove.go
+@@ -1882,6 +1882,89 @@ func (ft *factsTable) flowLimit(v *Value) bool {
+ 		return ft.newLimit(v, lim)
+ 
+ 	case OpPhi:
++		{
++			// Work around for go.dev/issue/68857, look for min(x, y) and max(x, y).
++			b := v.Block
++			if len(b.Preds) != 2 {
++				goto notMinNorMax
++			}
++			// FIXME: this code searches for the following losange pattern
++			// because that what ssagen produce for min and max builtins:
++			// conditionBlock → (firstBlock, secondBlock) → v.Block
++			// there are three non losange equivalent constructions
++			// we could match for, but I didn't bother:
++			// conditionBlock → (v.Block, secondBlock → v.Block)
++			// conditionBlock → (firstBlock → v.Block, v.Block)
++			// conditionBlock → (v.Block, v.Block)
++			firstBlock, secondBlock := b.Preds[0].b, b.Preds[1].b
++			if firstBlock.Kind != BlockPlain || secondBlock.Kind != BlockPlain {
++				goto notMinNorMax
++			}
++			if len(firstBlock.Preds) != 1 || len(secondBlock.Preds) != 1 {
++				goto notMinNorMax
++			}
++			conditionBlock := firstBlock.Preds[0].b
++			if conditionBlock != secondBlock.Preds[0].b {
++				goto notMinNorMax
++			}
++			if conditionBlock.Kind != BlockIf {
++				goto notMinNorMax
++			}
++
++			less := conditionBlock.Controls[0]
++			var unsigned bool
++			switch less.Op {
++			case OpLess64U, OpLess32U, OpLess16U, OpLess8U,
++				OpLeq64U, OpLeq32U, OpLeq16U, OpLeq8U:
++				unsigned = true
++			case OpLess64, OpLess32, OpLess16, OpLess8,
++				OpLeq64, OpLeq32, OpLeq16, OpLeq8:
++			default:
++				goto notMinNorMax
++			}
++			small, big := less.Args[0], less.Args[1]
++			truev, falsev := v.Args[0], v.Args[1]
++			if conditionBlock.Succs[0].b == secondBlock {
++				truev, falsev = falsev, truev
++			}
++
++			bigl, smalll := ft.limits[big.ID], ft.limits[small.ID]
++			if truev == big {
++				if falsev == small {
++					// v := big if small <¿=? big else small
++					if unsigned {
++						maximum := max(bigl.umax, smalll.umax)
++						minimum := max(bigl.umin, smalll.umin)
++						return ft.unsignedMinMax(v, minimum, maximum)
++					} else {
++						maximum := max(bigl.max, smalll.max)
++						minimum := max(bigl.min, smalll.min)
++						return ft.signedMinMax(v, minimum, maximum)
++					}
++				} else {
++					goto notMinNorMax
++				}
++			} else if truev == small {
++				if falsev == big {
++					// v := small if small <¿=? big else big
++					if unsigned {
++						maximum := min(bigl.umax, smalll.umax)
++						minimum := min(bigl.umin, smalll.umin)
++						return ft.unsignedMinMax(v, minimum, maximum)
++					} else {
++						maximum := min(bigl.max, smalll.max)
++						minimum := min(bigl.min, smalll.min)
++						return ft.signedMinMax(v, minimum, maximum)
++					}
++				} else {
++					goto notMinNorMax
++				}
++			} else {
++				goto notMinNorMax
++			}
++		}
++	notMinNorMax:
++
+ 		// Compute the union of all the input phis.
+ 		// Often this will convey no information, because the block
+ 		// is not dominated by its predecessors and hence the
+diff --git a/test/prove.go b/test/prove.go
+index 908b05c7fa..9c829be459 100644
+--- a/test/prove.go
++++ b/test/prove.go
+@@ -1691,6 +1691,317 @@ func phiMin(a, b []byte) {
+ 	_ = b[:y] // ERROR "Proved IsSliceInBounds"
+ }
+ 
++func minPhiLeq[T uint | int](x, y T) (z T) {
++	if x <= y {
++		z = x
++	} else {
++		z = y
++	}
++	return z
++}
++func maxPhiLeq[T uint | int](x, y T) (z T) {
++	if y <= x {
++		z = x
++	} else {
++		z = y
++	}
++	return z
++}
++func mathBasedOnPhiLosangeMinUFirstLeq(x uint, ensureAllBranchesCouldHappen func() bool) uint {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = minPhiLeq(x, maxc)
++	x = maxPhiLeq(x, minc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
++		return 42424242
++	}
++	return x
++}
++func mathBasedOnPhiLosangeMinUSecondLeq(x uint, ensureAllBranchesCouldHappen func() bool) uint {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = maxPhiLeq(x, minc)
++	x = minPhiLeq(x, maxc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
++		return 42424242
++	}
++	return x
++}
++func mathBasedOnPhiLosangeMinFirstLeq(x int, ensureAllBranchesCouldHappen func() bool) int {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = minPhiLeq(x, maxc)
++	x = maxPhiLeq(x, minc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
++		return 42424242
++	}
++	return x
++}
++func mathBasedOnPhiLosangeMinSecondLeq(x int, ensureAllBranchesCouldHappen func() bool) int {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = maxPhiLeq(x, minc)
++	x = minPhiLeq(x, maxc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
++		return 42424242
++	}
++	return x
++}
++
++func minPhiLess[T uint | int](x, y T) (z T) {
++	if x < y {
++		z = x
++	} else {
++		z = y
++	}
++	return z
++}
++func maxPhiLess[T uint | int](x, y T) (z T) {
++	if y < x {
++		z = x
++	} else {
++		z = y
++	}
++	return z
++}
++func mathBasedOnPhiLosangeMinUFirstLess(x uint, ensureAllBranchesCouldHappen func() bool) uint {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = minPhiLess(x, maxc)
++	x = maxPhiLess(x, minc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
++		return 42424242
++	}
++	return x
++}
++func mathBasedOnPhiLosangeMinUSecondLess(x uint, ensureAllBranchesCouldHappen func() bool) uint {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = maxPhiLess(x, minc)
++	x = minPhiLess(x, maxc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
++		return 42424242
++	}
++	return x
++}
++func mathBasedOnPhiLosangeMinFirstLess(x int, ensureAllBranchesCouldHappen func() bool) int {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = minPhiLess(x, maxc)
++	x = maxPhiLess(x, minc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
++		return 42424242
++	}
++	return x
++}
++func mathBasedOnPhiLosangeMinSecondLess(x int, ensureAllBranchesCouldHappen func() bool) int {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = maxPhiLess(x, minc)
++	x = minPhiLess(x, maxc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
++		return 42424242
++	}
++	return x
++}
++
++func mathBasedOnPhiBuiltinMinUFirst(x uint, ensureAllBranchesCouldHappen func() bool) uint {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = min(x, maxc)
++	x = max(x, minc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
++		return 42424242
++	}
++	return x
++}
++func mathBasedOnPhiBuiltinMinUSecond(x uint, ensureAllBranchesCouldHappen func() bool) uint {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = max(x, minc)
++	x = min(x, maxc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64U$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64U$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64U$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64U$"
++		return 42424242
++	}
++	return x
++}
++func mathBasedOnPhiBuiltinMinFirst(x int, ensureAllBranchesCouldHappen func() bool) int {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = min(x, maxc)
++	x = max(x, minc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
++		return 42424242
++	}
++	return x
++}
++func mathBasedOnPhiBuiltinMinSecond(x int, ensureAllBranchesCouldHappen func() bool) int {
++	const maxc = 0xf2a
++	const minc = 0xf0a
++	x = max(x, minc)
++	x = min(x, maxc)
++
++	const k = 1
++	x += k
++
++	if ensureAllBranchesCouldHappen() && x > maxc+k { // ERROR "Disproved Less64$"
++		return 42
++	}
++	if ensureAllBranchesCouldHappen() && x <= maxc+k { // ERROR "Proved Leq64$"
++		return 4242
++	}
++	if ensureAllBranchesCouldHappen() && x < minc+k { // ERROR "Disproved Less64$"
++		return 424242
++	}
++	if ensureAllBranchesCouldHappen() && x >= minc+k { // ERROR "Proved Leq64$"
++		return 42424242
++	}
++	return x
++}
++
+ func issue16833(a, b []byte) {
+ 	n := copy(a, b)
+ 	_ = a[n:] // ERROR "Proved IsSliceInBounds"

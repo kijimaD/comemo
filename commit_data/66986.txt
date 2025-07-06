@@ -1,0 +1,145 @@
+commit 00b63486583ef8055c821fa16a87017e04dc2920
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Tue Apr 29 17:39:08 2025 -0400
+
+    crypto/tls: err for unsupported point format configs
+    
+    If a client or server explicitly offers point formats, and the point
+    formats don't include the uncompressed format, then error. This matches
+    BoringSSL and Rustls behaviour and allows enabling the
+    PointFormat-Client-MissingUncompressed bogo test.
+    
+    Updates #72006
+    
+    Change-Id: I27a2cd231e4b8762b0d9e2dbd3d8ddd5b87fd5c5
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/669157
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/tls/bogo_config.json    |  1 -
+ src/crypto/tls/common.go           |  6 +++++-
+ src/crypto/tls/handshake_client.go | 13 +++++++++++++
+ src/crypto/tls/handshake_server.go | 16 ++++++++++++----
+ src/crypto/tls/tls_test.go         |  2 +-
+ 5 files changed, 31 insertions(+), 7 deletions(-)
+
+diff --git a/src/crypto/tls/bogo_config.json b/src/crypto/tls/bogo_config.json
+index 81601d22c0..66f29998ff 100644
+--- a/src/crypto/tls/bogo_config.json
++++ b/src/crypto/tls/bogo_config.json
+@@ -131,7 +131,6 @@
+         "SendClientVersion-RSA": "TODO: first pass, this should be fixed",
+         "NoCommonCurves": "TODO: first pass, this should be fixed",
+         "PointFormat-EncryptedExtensions-TLS13": "TODO: first pass, this should be fixed",
+-        "PointFormat-Client-MissingUncompressed": "TODO: first pass, this should be fixed",
+         "TLS13-SendNoKEMModesWithPSK-Server": "TODO: first pass, this should be fixed",
+         "TLS13-DuplicateTicketEarlyDataSupport": "TODO: first pass, this should be fixed",
+         "Basic-Client-NoTicket-TLS-Sync": "TODO: first pass, this should be fixed",
+diff --git a/src/crypto/tls/common.go b/src/crypto/tls/common.go
+index 26f795f13a..cc00efdc54 100644
+--- a/src/crypto/tls/common.go
++++ b/src/crypto/tls/common.go
+@@ -1372,7 +1372,11 @@ func (chi *ClientHelloInfo) SupportsCertificate(c *Certificate) error {
+ 	}
+ 
+ 	// The only signed key exchange we support is ECDHE.
+-	if !supportsECDHE(config, vers, chi.SupportedCurves, chi.SupportedPoints) {
++	ecdheSupported, err := supportsECDHE(config, vers, chi.SupportedCurves, chi.SupportedPoints)
++	if err != nil {
++		return err
++	}
++	if !ecdheSupported {
+ 		return supportsRSAFallback(errors.New("client doesn't support ECDHE, can only use legacy RSA key exchange"))
+ 	}
+ 
+diff --git a/src/crypto/tls/handshake_client.go b/src/crypto/tls/handshake_client.go
+index 0971afabac..bb5b7a042a 100644
+--- a/src/crypto/tls/handshake_client.go
++++ b/src/crypto/tls/handshake_client.go
+@@ -893,6 +893,19 @@ func (hs *clientHandshakeState) processServerHello() (bool, error) {
+ 		return false, errors.New("tls: server selected unsupported compression format")
+ 	}
+ 
++	supportsPointFormat := false
++	offeredNonCompressedFormat := false
++	for _, format := range hs.serverHello.supportedPoints {
++		if format == pointFormatUncompressed {
++			supportsPointFormat = true
++		} else {
++			offeredNonCompressedFormat = true
++		}
++	}
++	if !supportsPointFormat && offeredNonCompressedFormat {
++		return false, errors.New("tls: server offered only incompatible point formats")
++	}
++
+ 	if c.handshakes == 0 && hs.serverHello.secureRenegotiationSupported {
+ 		c.secureRenegotiation = true
+ 		if len(hs.serverHello.secureRenegotiation) != 0 {
+diff --git a/src/crypto/tls/handshake_server.go b/src/crypto/tls/handshake_server.go
+index 507b69a0ed..677bb2e019 100644
+--- a/src/crypto/tls/handshake_server.go
++++ b/src/crypto/tls/handshake_server.go
+@@ -272,7 +272,11 @@ func (hs *serverHandshakeState) processClientHello() error {
+ 		hs.hello.scts = hs.cert.SignedCertificateTimestamps
+ 	}
+ 
+-	hs.ecdheOk = supportsECDHE(c.config, c.vers, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
++	hs.ecdheOk, err = supportsECDHE(c.config, c.vers, hs.clientHello.supportedCurves, hs.clientHello.supportedPoints)
++	if err != nil {
++		c.sendAlert(alertMissingExtension)
++		return err
++	}
+ 
+ 	if hs.ecdheOk && len(hs.clientHello.supportedPoints) > 0 {
+ 		// Although omitting the ec_point_formats extension is permitted, some
+@@ -343,7 +347,7 @@ func negotiateALPN(serverProtos, clientProtos []string, quic bool) (string, erro
+ 
+ // supportsECDHE returns whether ECDHE key exchanges can be used with this
+ // pre-TLS 1.3 client.
+-func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, supportedPoints []uint8) bool {
++func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, supportedPoints []uint8) (bool, error) {
+ 	supportsCurve := false
+ 	for _, curve := range supportedCurves {
+ 		if c.supportsCurve(version, curve) {
+@@ -353,10 +357,12 @@ func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, support
+ 	}
+ 
+ 	supportsPointFormat := false
++	offeredNonCompressedFormat := false
+ 	for _, pointFormat := range supportedPoints {
+ 		if pointFormat == pointFormatUncompressed {
+ 			supportsPointFormat = true
+-			break
++		} else {
++			offeredNonCompressedFormat = true
+ 		}
+ 	}
+ 	// Per RFC 8422, Section 5.1.2, if the Supported Point Formats extension is
+@@ -365,9 +371,11 @@ func supportsECDHE(c *Config, version uint16, supportedCurves []CurveID, support
+ 	// the parser. See https://go.dev/issue/49126.
+ 	if len(supportedPoints) == 0 {
+ 		supportsPointFormat = true
++	} else if offeredNonCompressedFormat && !supportsPointFormat {
++		return false, errors.New("tls: client offered only incompatible point formats")
+ 	}
+ 
+-	return supportsCurve && supportsPointFormat
++	return supportsCurve && supportsPointFormat, nil
+ }
+ 
+ func (hs *serverHandshakeState) pickCipherSuite() error {
+diff --git a/src/crypto/tls/tls_test.go b/src/crypto/tls/tls_test.go
+index 9c08600f8f..4913a3ae5c 100644
+--- a/src/crypto/tls/tls_test.go
++++ b/src/crypto/tls/tls_test.go
+@@ -1479,7 +1479,7 @@ func TestClientHelloInfo_SupportsCertificate(t *testing.T) {
+ 			SupportedPoints:   []uint8{1},
+ 			SignatureSchemes:  []SignatureScheme{ECDSAWithP256AndSHA256},
+ 			SupportedVersions: []uint16{VersionTLS12},
+-		}, "doesn't support ECDHE"},
++		}, "only incompatible point formats"},
+ 		{ecdsaCert, &ClientHelloInfo{
+ 			CipherSuites:      []uint16{TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256},
+ 			SupportedCurves:   []CurveID{CurveP256},

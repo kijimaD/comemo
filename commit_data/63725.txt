@@ -1,0 +1,39 @@
+commit 0fa334d45a54f2531c16baf97b19048dc01d434d
+Author: Michael Matloob <matloob@golang.org>
+Date:   Fri May 10 15:24:06 2024 -0400
+
+    [release-branch.go1.21] cmd/go/testdata/script: clear path in gotoolchain_issue66175
+    
+    The gotoolchain_issue66175 script test would fail if a binary named
+    go1.21 or go1.22 was present in the system PATH. Clear the path at the
+    beginning of the test to make it independent of the system path.
+    
+    For #67277
+    Fixes #67310
+    
+    Change-Id: I6d9133aee5b20ab116e07b659e8ecf3eb8add4ed
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584258
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    (cherry picked from commit a0a6026bb176d25401d7d188f95c1fe769d71db8)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/584935
+    Auto-Submit: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/go/testdata/script/gotoolchain_issue66175.txt | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/src/cmd/go/testdata/script/gotoolchain_issue66175.txt b/src/cmd/go/testdata/script/gotoolchain_issue66175.txt
+index c84ffbb0e7..5db4dbf381 100644
+--- a/src/cmd/go/testdata/script/gotoolchain_issue66175.txt
++++ b/src/cmd/go/testdata/script/gotoolchain_issue66175.txt
+@@ -1,5 +1,10 @@
+ env TESTGO_VERSION=go1.14
+ 
++# Clear the path so this test doesn't fail if the system running it\
++# has a binary named go1.21 or go1.22 on its path.
++[GOOS:plan9] env path=
++[!GOOS:plan9] env PATH=
++
+ # check for invalid toolchain in go.mod
+ go mod init m
+ go mod edit -go=1.14 -toolchain=go1.22

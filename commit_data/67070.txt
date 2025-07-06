@@ -1,0 +1,71 @@
+commit 3602cec3af6083d095729f3db8493a226b9273c3
+Author: Jonathan Amsterdam <jba@google.com>
+Date:   Sat May 17 19:36:06 2025 -0400
+
+    net/http: fix ServeMux.Handler on trailing-slash redirect
+    
+    When a match involves a trailing-slash redirect,  ServeMux.Handler now
+    returns the pattern that matched.
+    
+    Fixes #73688.
+    
+    Change-Id: I682d9cc9a3628bed8bf21139b98369ffa6c53792
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/673815
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+---
+ src/net/http/serve_test.go | 13 +++++++++++++
+ src/net/http/server.go     |  8 ++++++--
+ 2 files changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/net/http/serve_test.go b/src/net/http/serve_test.go
+index 5d2a29a6fc..84d383ccfa 100644
+--- a/src/net/http/serve_test.go
++++ b/src/net/http/serve_test.go
+@@ -391,6 +391,19 @@ func TestServeMuxHandler(t *testing.T) {
+ 	}
+ }
+ 
++// Issue 73688
++func TestServeMuxHandlerTrailingSlash(t *testing.T) {
++	setParallel(t)
++	mux := NewServeMux()
++	const original = "/{x}/"
++	mux.Handle(original, NotFoundHandler())
++	r, _ := NewRequest("POST", "/foo", nil)
++	_, p := mux.Handler(r)
++	if p != original {
++		t.Errorf("got %q, want %q", p, original)
++	}
++}
++
+ // Issue 24297
+ func TestServeMuxHandleFuncWithNilHandler(t *testing.T) {
+ 	setParallel(t)
+diff --git a/src/net/http/server.go b/src/net/http/server.go
+index 5dd21bdf3f..921b42b59e 100644
+--- a/src/net/http/server.go
++++ b/src/net/http/server.go
+@@ -2714,7 +2714,7 @@ func (mux *ServeMux) findHandler(r *Request) (h Handler, patStr string, _ *patte
+ 		var u *url.URL
+ 		n, matches, u = mux.matchOrRedirect(host, r.Method, path, r.URL)
+ 		if u != nil {
+-			return RedirectHandler(u.String(), StatusMovedPermanently), u.Path, nil, nil
++			return RedirectHandler(u.String(), StatusMovedPermanently), n.pattern.String(), nil, nil
+ 		}
+ 		if path != escapedPath {
+ 			// Redirect to cleaned path.
+@@ -2760,7 +2760,11 @@ func (mux *ServeMux) matchOrRedirect(host, method, path string, u *url.URL) (_ *
+ 		path += "/"
+ 		n2, _ := mux.tree.match(host, method, path)
+ 		if exactMatch(n2, path) {
+-			return nil, nil, &url.URL{Path: cleanPath(u.Path) + "/", RawQuery: u.RawQuery}
++			// It is safe to return n2 here: it is used only in the second RedirectHandler case
++			// of findHandler, and that method returns before it does the "n == nil" check where
++			// the first return value matters. We return it here only to make the pattern available
++			// to findHandler.
++			return n2, nil, &url.URL{Path: cleanPath(u.Path) + "/", RawQuery: u.RawQuery}
+ 		}
+ 	}
+ 	return n, matches, nil

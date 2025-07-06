@@ -1,0 +1,118 @@
+commit ee0d03fab6e38dc3f8d10032e7c30c68ac7ec066
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Feb 25 20:07:12 2025 +0000
+
+    sync: don't keep func alive after OnceFunc panics
+    
+    This moves the f = nil assignment to the defer statement,
+    so that in case the functions panics, the f func is not
+    referenced anymore.
+    
+    Change-Id: I3e53b90a10f21741e26602270822c8a75679f163
+    GitHub-Last-Rev: bda01100c6d48d1b0ca3e1baefef4d592cca1fee
+    GitHub-Pull-Request: golang/go#68636
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/601240
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/sync/oncefunc.go      |  6 +++---
+ src/sync/oncefunc_test.go | 21 +++++++++++++++++++--
+ 2 files changed, 22 insertions(+), 5 deletions(-)
+
+diff --git a/src/sync/oncefunc.go b/src/sync/oncefunc.go
+index 2c49efeef8..64d4007f71 100644
+--- a/src/sync/oncefunc.go
++++ b/src/sync/oncefunc.go
+@@ -21,6 +21,7 @@ func OnceFunc(f func()) func() {
+ 	return func() {
+ 		d.once.Do(func() {
+ 			defer func() {
++				d.f = nil // Do not keep f alive after invoking it.
+ 				d.p = recover()
+ 				if !d.valid {
+ 					// Re-panic immediately so on the first
+@@ -30,7 +31,6 @@ func OnceFunc(f func()) func() {
+ 				}
+ 			}()
+ 			d.f()
+-			d.f = nil      // Do not keep f alive after invoking it.
+ 			d.valid = true // Set only if f does not panic.
+ 		})
+ 		if !d.valid {
+@@ -57,13 +57,13 @@ func OnceValue[T any](f func() T) func() T {
+ 	return func() T {
+ 		d.once.Do(func() {
+ 			defer func() {
++				d.f = nil
+ 				d.p = recover()
+ 				if !d.valid {
+ 					panic(d.p)
+ 				}
+ 			}()
+ 			d.result = d.f()
+-			d.f = nil
+ 			d.valid = true
+ 		})
+ 		if !d.valid {
+@@ -92,13 +92,13 @@ func OnceValues[T1, T2 any](f func() (T1, T2)) func() (T1, T2) {
+ 	return func() (T1, T2) {
+ 		d.once.Do(func() {
+ 			defer func() {
++				d.f = nil
+ 				d.p = recover()
+ 				if !d.valid {
+ 					panic(d.p)
+ 				}
+ 			}()
+ 			d.r1, d.r2 = d.f()
+-			d.f = nil
+ 			d.valid = true
+ 		})
+ 		if !d.valid {
+diff --git a/src/sync/oncefunc_test.go b/src/sync/oncefunc_test.go
+index 743a816b65..8fc87d2987 100644
+--- a/src/sync/oncefunc_test.go
++++ b/src/sync/oncefunc_test.go
+@@ -219,6 +219,17 @@ func TestOnceXGC(t *testing.T) {
+ 			f := sync.OnceValues(func() (any, any) { buf[0] = 1; return nil, nil })
+ 			return func() { f() }
+ 		},
++		"OnceFunc panic": func(buf []byte) func() {
++			return sync.OnceFunc(func() { buf[0] = 1; panic("test panic") })
++		},
++		"OnceValue panic": func(buf []byte) func() {
++			f := sync.OnceValue(func() any { buf[0] = 1; panic("test panic") })
++			return func() { f() }
++		},
++		"OnceValues panic": func(buf []byte) func() {
++			f := sync.OnceValues(func() (any, any) { buf[0] = 1; panic("test panic") })
++			return func() { f() }
++		},
+ 	}
+ 	for n, fn := range fns {
+ 		t.Run(n, func(t *testing.T) {
+@@ -230,14 +241,20 @@ func TestOnceXGC(t *testing.T) {
+ 			if gc.Load() != false {
+ 				t.Fatal("wrapped function garbage collected too early")
+ 			}
+-			f()
++			func() {
++				defer func() { recover() }()
++				f()
++			}()
+ 			gcwaitfin()
+ 			if gc.Load() != true {
+ 				// Even if f is still alive, the function passed to Once(Func|Value|Values)
+ 				// is not kept alive after the first call to f.
+ 				t.Fatal("wrapped function should be garbage collected, but still live")
+ 			}
+-			f()
++			func() {
++				defer func() { recover() }()
++				f()
++			}()
+ 		})
+ 	}
+ }

@@ -1,0 +1,67 @@
+commit 6563a23560569488704754409667ebeca2648f68
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Thu Feb 6 09:19:20 2025 +0100
+
+    run.bat: pass through all arguments to "go tool dist test"
+    
+    nolocal is no longer needed after CL 647115. If we remove it, then
+    we can pass through all arguments to the Go command, which is
+    useful for running tests with additional flags, like -json or -v.
+    
+    Change-Id: I5c48d9b90720c039bf2ec3d9213e7ce5cea33818
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/647116
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/all.bat |  2 +-
+ src/run.bat | 14 +-------------
+ 2 files changed, 2 insertions(+), 14 deletions(-)
+
+diff --git a/src/all.bat b/src/all.bat
+index 016987f86e..0c4d5de70c 100644
+--- a/src/all.bat
++++ b/src/all.bat
+@@ -13,7 +13,7 @@ exit /b 1
+ 
+ call .\make.bat --no-banner --no-local
+ if errorlevel 1 goto fail
+-call .\run.bat --no-rebuild --no-local
++call .\run.bat --no-rebuild
+ if errorlevel 1 goto fail
+ "%GOTOOLDIR%/dist" banner
+ goto :eof
+diff --git a/src/run.bat b/src/run.bat
+index 8815a1109f..6a0ffe3af9 100644
+--- a/src/run.bat
++++ b/src/run.bat
+@@ -9,12 +9,7 @@ echo Must run run.bat from Go src directory after installing cmd/go.
+ goto fail
+ :ok
+ 
+-:: Keep environment variables within this script
+-:: unless invoked with --no-local.
+-if x%1==x--no-local goto nolocal
+-if x%2==x--no-local goto nolocal
+ setlocal
+-:nolocal
+ 
+ set GOENV=off
+ ..\bin\go tool dist env > env.bat
+@@ -23,14 +18,7 @@ call .\env.bat
+ del env.bat
+ 
+ set GOPATH=c:\nonexist-gopath
+-
+-if x%1==x--no-rebuild goto norebuild
+-..\bin\go tool dist test --rebuild
+-if errorlevel 1 goto fail
+-goto :eof
+-
+-:norebuild
+-..\bin\go tool dist test
++..\bin\go tool dist test --rebuild %*
+ if errorlevel 1 goto fail
+ goto :eof
+ 

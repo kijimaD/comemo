@@ -1,0 +1,265 @@
+commit 6f5194767ea032853b3f3e4cf008fbeec5c61945
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Sat Nov 16 14:14:21 2024 +0100
+
+    crypto/internal/bigmod: move to crypto/internal/fips/bigmod
+    
+    For #69536
+    
+    Change-Id: Ic096282c521958083d0ba816d62d908f6fcf7dbe
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/628676
+    Reviewed-by: Russ Cox <rsc@golang.org>
+    TryBot-Bypass: Filippo Valsorda <filippo@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/crypto/ecdsa/ecdsa.go                                   |  2 +-
+ src/crypto/ecdsa/ecdsa_test.go                              |  2 +-
+ src/crypto/internal/{ => fips}/bigmod/_asm/go.mod           |  2 +-
+ src/crypto/internal/{ => fips}/bigmod/_asm/go.sum           |  0
+ src/crypto/internal/{ => fips}/bigmod/_asm/nat_amd64_asm.go |  2 +-
+ src/crypto/internal/{ => fips}/bigmod/nat.go                |  6 +++---
+ src/crypto/internal/{ => fips}/bigmod/nat_386.s             |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_amd64.s           |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_arm.s             |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_arm64.s           |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_asm.go            | 13 +++++++++++--
+ src/crypto/internal/{ => fips}/bigmod/nat_loong64.s         |  2 +-
+ src/crypto/internal/{ => fips}/bigmod/nat_noasm.go          |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_ppc64x.s          |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_riscv64.s         |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_s390x.s           |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_test.go           |  0
+ src/crypto/internal/{ => fips}/bigmod/nat_wasm.go           |  0
+ src/crypto/internal/fipsdeps/cpu/cpu.go                     |  1 +
+ src/crypto/rsa/rsa.go                                       |  2 +-
+ src/go/build/deps_test.go                                   |  2 +-
+ 21 files changed, 22 insertions(+), 12 deletions(-)
+
+diff --git a/src/crypto/ecdsa/ecdsa.go b/src/crypto/ecdsa/ecdsa.go
+index 45215abed0..0973f82098 100644
+--- a/src/crypto/ecdsa/ecdsa.go
++++ b/src/crypto/ecdsa/ecdsa.go
+@@ -30,9 +30,9 @@ import (
+ 	"crypto/cipher"
+ 	"crypto/ecdh"
+ 	"crypto/elliptic"
+-	"crypto/internal/bigmod"
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
++	"crypto/internal/fips/bigmod"
+ 	"crypto/internal/fips/nistec"
+ 	"crypto/internal/randutil"
+ 	"crypto/sha512"
+diff --git a/src/crypto/ecdsa/ecdsa_test.go b/src/crypto/ecdsa/ecdsa_test.go
+index ae9fd81f93..25ccc52dad 100644
+--- a/src/crypto/ecdsa/ecdsa_test.go
++++ b/src/crypto/ecdsa/ecdsa_test.go
+@@ -9,7 +9,7 @@ import (
+ 	"bytes"
+ 	"compress/bzip2"
+ 	"crypto/elliptic"
+-	"crypto/internal/bigmod"
++	"crypto/internal/fips/bigmod"
+ 	"crypto/rand"
+ 	"crypto/sha1"
+ 	"crypto/sha256"
+diff --git a/src/crypto/internal/bigmod/_asm/go.mod b/src/crypto/internal/fips/bigmod/_asm/go.mod
+similarity index 86%
+rename from src/crypto/internal/bigmod/_asm/go.mod
+rename to src/crypto/internal/fips/bigmod/_asm/go.mod
+index 7600a4abbe..2193dc80d9 100644
+--- a/src/crypto/internal/bigmod/_asm/go.mod
++++ b/src/crypto/internal/fips/bigmod/_asm/go.mod
+@@ -1,4 +1,4 @@
+-module std/crypto/internal/bigmod/_asm
++module std/crypto/internal/fips/bigmod/_asm
+ 
+ go 1.19
+ 
+diff --git a/src/crypto/internal/bigmod/_asm/go.sum b/src/crypto/internal/fips/bigmod/_asm/go.sum
+similarity index 100%
+rename from src/crypto/internal/bigmod/_asm/go.sum
+rename to src/crypto/internal/fips/bigmod/_asm/go.sum
+diff --git a/src/crypto/internal/bigmod/_asm/nat_amd64_asm.go b/src/crypto/internal/fips/bigmod/_asm/nat_amd64_asm.go
+similarity index 98%
+rename from src/crypto/internal/bigmod/_asm/nat_amd64_asm.go
+rename to src/crypto/internal/fips/bigmod/_asm/nat_amd64_asm.go
+index bf64565d5c..8c1bedcc78 100644
+--- a/src/crypto/internal/bigmod/_asm/nat_amd64_asm.go
++++ b/src/crypto/internal/fips/bigmod/_asm/nat_amd64_asm.go
+@@ -15,7 +15,7 @@ import (
+ //go:generate go run . -out ../nat_amd64.s -pkg bigmod
+ 
+ func main() {
+-	Package("crypto/internal/bigmod")
++	Package("crypto/internal/fips/bigmod")
+ 	ConstraintExpr("!purego")
+ 
+ 	addMulVVW(1024)
+diff --git a/src/crypto/internal/bigmod/nat.go b/src/crypto/internal/fips/bigmod/nat.go
+similarity index 99%
+rename from src/crypto/internal/bigmod/nat.go
+rename to src/crypto/internal/fips/bigmod/nat.go
+index 7bd09b37ac..49000f1e74 100644
+--- a/src/crypto/internal/bigmod/nat.go
++++ b/src/crypto/internal/fips/bigmod/nat.go
+@@ -5,8 +5,8 @@
+ package bigmod
+ 
+ import (
++	"crypto/internal/fipsdeps/byteorder"
+ 	"errors"
+-	"internal/byteorder"
+ 	"math/bits"
+ )
+ 
+@@ -179,9 +179,9 @@ func (x *Nat) SetOverflowingBytes(b []byte, m *Modulus) (*Nat, error) {
+ // big-endian encoded uint value.
+ func bigEndianUint(buf []byte) uint {
+ 	if _W == 64 {
+-		return uint(byteorder.BeUint64(buf))
++		return uint(byteorder.BEUint64(buf))
+ 	}
+-	return uint(byteorder.BeUint32(buf))
++	return uint(byteorder.BEUint32(buf))
+ }
+ 
+ func (x *Nat) setBytes(b []byte) error {
+diff --git a/src/crypto/internal/bigmod/nat_386.s b/src/crypto/internal/fips/bigmod/nat_386.s
+similarity index 100%
+rename from src/crypto/internal/bigmod/nat_386.s
+rename to src/crypto/internal/fips/bigmod/nat_386.s
+diff --git a/src/crypto/internal/bigmod/nat_amd64.s b/src/crypto/internal/fips/bigmod/nat_amd64.s
+similarity index 100%
+rename from src/crypto/internal/bigmod/nat_amd64.s
+rename to src/crypto/internal/fips/bigmod/nat_amd64.s
+diff --git a/src/crypto/internal/bigmod/nat_arm.s b/src/crypto/internal/fips/bigmod/nat_arm.s
+similarity index 100%
+rename from src/crypto/internal/bigmod/nat_arm.s
+rename to src/crypto/internal/fips/bigmod/nat_arm.s
+diff --git a/src/crypto/internal/bigmod/nat_arm64.s b/src/crypto/internal/fips/bigmod/nat_arm64.s
+similarity index 100%
+rename from src/crypto/internal/bigmod/nat_arm64.s
+rename to src/crypto/internal/fips/bigmod/nat_arm64.s
+diff --git a/src/crypto/internal/bigmod/nat_asm.go b/src/crypto/internal/fips/bigmod/nat_asm.go
+similarity index 81%
+rename from src/crypto/internal/bigmod/nat_asm.go
+rename to src/crypto/internal/fips/bigmod/nat_asm.go
+index dd5419cb91..78ee32ac09 100644
+--- a/src/crypto/internal/bigmod/nat_asm.go
++++ b/src/crypto/internal/fips/bigmod/nat_asm.go
+@@ -6,7 +6,10 @@
+ 
+ package bigmod
+ 
+-import "internal/cpu"
++import (
++	"crypto/internal/fipsdeps/cpu"
++	"crypto/internal/impl"
++)
+ 
+ // amd64 assembly uses ADCX/ADOX/MULX if ADX is available to run two carry
+ // chains in the flags in parallel across the whole operation, and aggressively
+@@ -16,7 +19,13 @@ import "internal/cpu"
+ // amd64 without ADX, perform better than the compiler output.
+ // TODO(filippo): file cmd/compile performance issue.
+ 
+-var supportADX = cpu.X86.HasADX && cpu.X86.HasBMI2
++var supportADX = cpu.X86HasADX && cpu.X86HasBMI2
++
++func init() {
++	if cpu.AMD64 {
++		impl.Register("aes", "ADX", &supportADX)
++	}
++}
+ 
+ //go:noescape
+ func addMulVVW1024(z, x *uint, y uint) (c uint)
+diff --git a/src/crypto/internal/bigmod/nat_loong64.s b/src/crypto/internal/fips/bigmod/nat_loong64.s
+similarity index 97%
+rename from src/crypto/internal/bigmod/nat_loong64.s
+rename to src/crypto/internal/fips/bigmod/nat_loong64.s
+index 3423bd0b17..d88deb65b1 100644
+--- a/src/crypto/internal/bigmod/nat_loong64.s
++++ b/src/crypto/internal/fips/bigmod/nat_loong64.s
+@@ -2,7 +2,7 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// derived from crypto/internal/bigmod/nat_riscv64.s
++// derived from crypto/internal/fips/bigmod/nat_riscv64.s
+ 
+ //go:build !purego
+ 
+diff --git a/src/crypto/internal/bigmod/nat_noasm.go b/src/crypto/internal/fips/bigmod/nat_noasm.go
+similarity index 100%
+rename from src/crypto/internal/bigmod/nat_noasm.go
+rename to src/crypto/internal/fips/bigmod/nat_noasm.go
+diff --git a/src/crypto/internal/bigmod/nat_ppc64x.s b/src/crypto/internal/fips/bigmod/nat_ppc64x.s
+similarity index 100%
+rename from src/crypto/internal/bigmod/nat_ppc64x.s
+rename to src/crypto/internal/fips/bigmod/nat_ppc64x.s
+diff --git a/src/crypto/internal/bigmod/nat_riscv64.s b/src/crypto/internal/fips/bigmod/nat_riscv64.s
+similarity index 100%
+rename from src/crypto/internal/bigmod/nat_riscv64.s
+rename to src/crypto/internal/fips/bigmod/nat_riscv64.s
+diff --git a/src/crypto/internal/bigmod/nat_s390x.s b/src/crypto/internal/fips/bigmod/nat_s390x.s
+similarity index 100%
+rename from src/crypto/internal/bigmod/nat_s390x.s
+rename to src/crypto/internal/fips/bigmod/nat_s390x.s
+diff --git a/src/crypto/internal/bigmod/nat_test.go b/src/crypto/internal/fips/bigmod/nat_test.go
+similarity index 100%
+rename from src/crypto/internal/bigmod/nat_test.go
+rename to src/crypto/internal/fips/bigmod/nat_test.go
+diff --git a/src/crypto/internal/bigmod/nat_wasm.go b/src/crypto/internal/fips/bigmod/nat_wasm.go
+similarity index 100%
+rename from src/crypto/internal/bigmod/nat_wasm.go
+rename to src/crypto/internal/fips/bigmod/nat_wasm.go
+diff --git a/src/crypto/internal/fipsdeps/cpu/cpu.go b/src/crypto/internal/fipsdeps/cpu/cpu.go
+index a2b200b782..3ad35f5e9e 100644
+--- a/src/crypto/internal/fipsdeps/cpu/cpu.go
++++ b/src/crypto/internal/fipsdeps/cpu/cpu.go
+@@ -28,6 +28,7 @@ var S390XHasSHA256 = cpu.S390X.HasSHA256
+ var S390XHasSHA3 = cpu.S390X.HasSHA3
+ var S390XHasSHA512 = cpu.S390X.HasSHA512
+ var X86HasAES = cpu.X86.HasAES
++var X86HasADX = cpu.X86.HasADX
+ var X86HasAVX = cpu.X86.HasAVX
+ var X86HasAVX2 = cpu.X86.HasAVX2
+ var X86HasBMI2 = cpu.X86.HasBMI2
+diff --git a/src/crypto/rsa/rsa.go b/src/crypto/rsa/rsa.go
+index 3764e02127..2476856382 100644
+--- a/src/crypto/rsa/rsa.go
++++ b/src/crypto/rsa/rsa.go
+@@ -26,9 +26,9 @@ package rsa
+ 
+ import (
+ 	"crypto"
+-	"crypto/internal/bigmod"
+ 	"crypto/internal/boring"
+ 	"crypto/internal/boring/bbig"
++	"crypto/internal/fips/bigmod"
+ 	"crypto/internal/randutil"
+ 	"crypto/rand"
+ 	"crypto/subtle"
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index b762fd79e1..6babcce406 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -475,6 +475,7 @@ var depsRules = `
+ 	< crypto/internal/fips/ssh
+ 	< crypto/internal/fips/tls12
+ 	< crypto/internal/fips/tls13
++	< crypto/internal/fips/bigmod
+ 	< crypto/internal/fips/nistec/fiat
+ 	< crypto/internal/fips/nistec
+ 	< crypto/internal/fips/ecdh
+@@ -539,7 +540,6 @@ var depsRules = `
+ 	< encoding/asn1
+ 	< golang.org/x/crypto/cryptobyte/asn1
+ 	< golang.org/x/crypto/cryptobyte
+-	< crypto/internal/bigmod
+ 	< crypto/dsa, crypto/elliptic, crypto/rsa
+ 	< crypto/ecdsa
+ 	< CRYPTO-MATH;

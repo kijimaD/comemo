@@ -1,0 +1,38 @@
+commit 96f71597056db8b90a445b03bbec229d9f5b4344
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Tue Jul 30 19:01:10 2024 +0000
+
+    go/printer: correct cindex meaning in commentInfo comments
+    
+    (*printer).nextComment increases cindex by one after each call
+    and it always points to the next element.
+    
+    Change-Id: I65754ab6e30e10dc7473882e39737d2e0dc29070
+    GitHub-Last-Rev: f859283324af6ddf9fdc75ef08ee42ae26bc581b
+    GitHub-Pull-Request: golang/go#68032
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592557
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/go/printer/printer.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/go/printer/printer.go b/src/go/printer/printer.go
+index 32be3d67dd..5a6127c6b4 100644
+--- a/src/go/printer/printer.go
++++ b/src/go/printer/printer.go
+@@ -45,9 +45,9 @@ const (
+ )
+ 
+ type commentInfo struct {
+-	cindex         int               // current comment index
+-	comment        *ast.CommentGroup // = printer.comments[cindex]; or nil
+-	commentOffset  int               // = printer.posFor(printer.comments[cindex].List[0].Pos()).Offset; or infinity
++	cindex         int               // index of the next comment
++	comment        *ast.CommentGroup // = printer.comments[cindex-1]; or nil
++	commentOffset  int               // = printer.posFor(printer.comments[cindex-1].List[0].Pos()).Offset; or infinity
+ 	commentNewline bool              // true if the comment group contains newlines
+ }
+ 

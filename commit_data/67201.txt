@@ -1,0 +1,122 @@
+commit 0aeaa6a495b7273f7a2190bc9857710190808e54
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Tue May 20 20:51:11 2025 +0200
+
+    crypto/x509: use truncated SHA-256 for SubjectKeyId
+    
+    Fixes #71746
+    
+    Change-Id: I6a6a46568b092933d8ac2039df99ee9f0edf6e56
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674477
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ doc/godebug.md                                  |  3 +++
+ doc/next/6-stdlib/99-minor/crypto/x509/71746.md |  2 ++
+ src/crypto/x509/x509.go                         | 25 +++++++++++++++++++------
+ src/internal/godebugs/table.go                  |  1 +
+ src/runtime/metrics/doc.go                      |  4 ++++
+ 5 files changed, 29 insertions(+), 6 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index 3b8c62a46c..15be9da5df 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -183,6 +183,9 @@ limits. The default value `updatemaxprocs=1` will enable periodic updates.
+ Go 1.25 disabled SHA-1 signature algorithms in TLS 1.2 according to RFC 9155.
+ The default can be reverted using the `tlssha1=1` setting.
+ 
++Go 1.25 switched to SHA-256 to fill in missing SubjectKeyId in
++crypto/x509.CreateCertificate. The setting `x509sha256skid=0` reverts to SHA-1.
++
+ Go 1.25 corrected the semantics of contention reports for runtime-internal locks,
+ and so removed the [`runtimecontentionstacks` setting](/pkg/runtime#hdr-Environment_Variable).
+ 
+diff --git a/doc/next/6-stdlib/99-minor/crypto/x509/71746.md b/doc/next/6-stdlib/99-minor/crypto/x509/71746.md
+new file mode 100644
+index 0000000000..44e60293d3
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/x509/71746.md
+@@ -0,0 +1,2 @@
++[CreateCertificate] now uses truncated SHA-256 to populate the `SubjectKeyId` if
++it is missing. The GODEBUG setting `x509sha256skid=0` reverts to SHA-1.
+diff --git a/src/crypto/x509/x509.go b/src/crypto/x509/x509.go
+index b2543d0727..1f06b4fbc5 100644
+--- a/src/crypto/x509/x509.go
++++ b/src/crypto/x509/x509.go
+@@ -29,6 +29,7 @@ import (
+ 	"crypto/elliptic"
+ 	"crypto/rsa"
+ 	"crypto/sha1"
++	"crypto/sha256"
+ 	"crypto/x509/pkix"
+ 	"encoding/asn1"
+ 	"encoding/pem"
+@@ -1728,12 +1729,22 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 
+ 	subjectKeyId := template.SubjectKeyId
+ 	if len(subjectKeyId) == 0 && template.IsCA {
+-		// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2:
+-		//   (1) The keyIdentifier is composed of the 160-bit SHA-1 hash of the
+-		//   value of the BIT STRING subjectPublicKey (excluding the tag,
+-		//   length, and number of unused bits).
+-		h := sha1.Sum(publicKeyBytes)
+-		subjectKeyId = h[:]
++		if x509sha256skid.Value() == "0" {
++			x509sha256skid.IncNonDefault()
++			// SubjectKeyId generated using method 1 in RFC 5280, Section 4.2.1.2:
++			//   (1) The keyIdentifier is composed of the 160-bit SHA-1 hash of the
++			//   value of the BIT STRING subjectPublicKey (excluding the tag,
++			//   length, and number of unused bits).
++			h := sha1.Sum(publicKeyBytes)
++			subjectKeyId = h[:]
++		} else {
++			// SubjectKeyId generated using method 1 in RFC 7093, Section 2:
++			//    1) The keyIdentifier is composed of the leftmost 160-bits of the
++			//    SHA-256 hash of the value of the BIT STRING subjectPublicKey
++			//    (excluding the tag, length, and number of unused bits).
++			h := sha256.Sum256(publicKeyBytes)
++			subjectKeyId = h[:20]
++		}
+ 	}
+ 
+ 	// Check that the signer's public key matches the private key, if available.
+@@ -1781,6 +1792,8 @@ func CreateCertificate(rand io.Reader, template, parent *Certificate, pub, priv
+ 	})
+ }
+ 
++var x509sha256skid = godebug.New("x509sha256skid")
++
+ // pemCRLPrefix is the magic string that indicates that we have a PEM encoded
+ // CRL.
+ var pemCRLPrefix = []byte("-----BEGIN X509 CRL")
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index 29539b2f38..38dc7b0fac 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -70,6 +70,7 @@ var All = []Info{
+ 	{Name: "x509keypairleaf", Package: "crypto/tls", Changed: 23, Old: "0"},
+ 	{Name: "x509negativeserial", Package: "crypto/x509", Changed: 23, Old: "1"},
+ 	{Name: "x509rsacrt", Package: "crypto/x509", Changed: 24, Old: "0"},
++	{Name: "x509sha256skid", Package: "crypto/x509", Changed: 25, Old: "0"},
+ 	{Name: "x509usefallbackroots", Package: "crypto/x509"},
+ 	{Name: "x509usepolicies", Package: "crypto/x509", Changed: 24, Old: "0"},
+ 	{Name: "zipinsecurepath", Package: "archive/zip"},
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index 7ef09be2fc..32fc436e1a 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -384,6 +384,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the crypto/x509
+ 		package due to a non-default GODEBUG=x509rsacrt=... setting.
+ 
++	/godebug/non-default-behavior/x509sha256skid:events
++		The number of non-default behaviors executed by the crypto/x509
++		package due to a non-default GODEBUG=x509sha256skid=... setting.
++
+ 	/godebug/non-default-behavior/x509usefallbackroots:events
+ 		The number of non-default behaviors executed by the crypto/x509
+ 		package due to a non-default GODEBUG=x509usefallbackroots=...

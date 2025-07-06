@@ -1,0 +1,61 @@
+commit 9149876112facc113d77d2c65e1590184c57d0c2
+Author: Alberto Donizetti <alb.donizetti@gmail.com>
+Date:   Thu Jun 12 10:19:28 2025 +0200
+
+    all: replace a few user-visible mentions of golang.org and godoc.org
+    
+    This change replaces a few user-visible mentions of golang.org and
+    godoc.org with go.dev and pkg.go.dev, respectively. Non-user-visible
+    mentions (e.g. in test scripts) were left untouched.
+    
+    Change-Id: I5d828edcd618b6c55243d0dfcadc6fa1ce9422ce
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/681255
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/go/internal/bug/bug.go       | 2 +-
+ src/cmd/go/internal/cache/default.go | 2 +-
+ src/os/exec/exec.go                  | 2 +-
+ 3 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/cmd/go/internal/bug/bug.go b/src/cmd/go/internal/bug/bug.go
+index d3f9065d3d..4ff45d2d88 100644
+--- a/src/cmd/go/internal/bug/bug.go
++++ b/src/cmd/go/internal/bug/bug.go
+@@ -69,7 +69,7 @@ const bugFooter = `### What did you do?
+ <!--
+ If possible, provide a recipe for reproducing the error.
+ A complete runnable program is good.
+-A link on play.golang.org is best.
++A link on go.dev/play is best.
+ -->
+ 
+ 
+diff --git a/src/cmd/go/internal/cache/default.go b/src/cmd/go/internal/cache/default.go
+index b2dd69edc5..cc4e0517b4 100644
+--- a/src/cmd/go/internal/cache/default.go
++++ b/src/cmd/go/internal/cache/default.go
+@@ -28,7 +28,7 @@ var initDefaultCacheOnce = sync.OnceValue(initDefaultCache)
+ const cacheREADME = `This directory holds cached build artifacts from the Go build system.
+ Run "go clean -cache" if the directory is getting too large.
+ Run "go clean -fuzzcache" to delete the fuzz cache.
+-See golang.org to learn more about Go.
++See go.dev to learn more about Go.
+ `
+ 
+ // initDefaultCache does the work of finding the default cache
+diff --git a/src/os/exec/exec.go b/src/os/exec/exec.go
+index fecfc97d13..91a6831b04 100644
+--- a/src/os/exec/exec.go
++++ b/src/os/exec/exec.go
+@@ -17,7 +17,7 @@
+ //
+ // Note that the examples in this package assume a Unix system.
+ // They may not run on Windows, and they do not run in the Go Playground
+-// used by golang.org and godoc.org.
++// used by go.dev and pkg.go.dev.
+ //
+ // # Executables in the current directory
+ //

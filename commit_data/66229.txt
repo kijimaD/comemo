@@ -1,0 +1,31 @@
+commit c47d1aa7878a21e59a48a0a7a23c6bd23b389810
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Fri Nov 22 16:14:21 2024 +0100
+
+    runtime: remove unused fipstls_runtime_arg0 function
+    
+    fipstls_runtime_arg0 is unused since CL 629675.
+    
+    Change-Id: I981e55e95f4d1cbd33f4c438c1947ec39385376b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/631215
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Quim Muntal <quimmuntal@gmail.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+---
+ src/runtime/runtime_boring.go | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/src/runtime/runtime_boring.go b/src/runtime/runtime_boring.go
+index 5a98b20253..831ee67afc 100644
+--- a/src/runtime/runtime_boring.go
++++ b/src/runtime/runtime_boring.go
+@@ -14,6 +14,3 @@ func boring_runtime_arg0() string {
+ 	}
+ 	return argslice[0]
+ }
+-
+-//go:linkname fipstls_runtime_arg0 crypto/internal/boring/fipstls.runtime_arg0
+-func fipstls_runtime_arg0() string { return boring_runtime_arg0() }

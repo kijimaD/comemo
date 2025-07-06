@@ -1,0 +1,128 @@
+commit 1207de4f6c3739eb4339ff9eb5a794e9bdd7c4d2
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Oct 8 18:10:17 2024 +0200
+
+    [release-branch.go1.23] runtime: reduce syscall.SyscallX stack usage
+    
+    syscall.SyscallX consumes a lot of stack space, which is a problem
+    because they are nosplit functions. They used to use less stack space,
+    but CL 563315, that landed in Go 1.23, increased the stack usage by a
+    lot.
+    
+    This CL reduces the stack usage back to the previous level.
+    
+    Fixes #69848
+    Updates #69813
+    
+    Change-Id: Iddedd28b693c66a258da687389768055c493fc2e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/618497
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Michael Knyszek <mknyszek@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    (cherry picked from commit fa7343aca326aad061ab877c1a4cebb96c4355c1)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/623516
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/syscall_windows.go      | 30 ++++++++++++++++--------------
+ src/runtime/syscall_windows_test.go |  7 +++++++
+ 2 files changed, 23 insertions(+), 14 deletions(-)
+
+diff --git a/src/runtime/syscall_windows.go b/src/runtime/syscall_windows.go
+index 69d720a395..85b1b8c902 100644
+--- a/src/runtime/syscall_windows.go
++++ b/src/runtime/syscall_windows.go
+@@ -454,43 +454,37 @@ func syscall_getprocaddress(handle uintptr, procname *byte) (outhandle, err uint
+ //go:linkname syscall_Syscall syscall.Syscall
+ //go:nosplit
+ func syscall_Syscall(fn, nargs, a1, a2, a3 uintptr) (r1, r2, err uintptr) {
+-	args := [...]uintptr{a1, a2, a3}
+-	return syscall_SyscallN(fn, args[:nargs]...)
++	return syscall_syscalln(fn, nargs, a1, a2, a3)
+ }
+ 
+ //go:linkname syscall_Syscall6 syscall.Syscall6
+ //go:nosplit
+ func syscall_Syscall6(fn, nargs, a1, a2, a3, a4, a5, a6 uintptr) (r1, r2, err uintptr) {
+-	args := [...]uintptr{a1, a2, a3, a4, a5, a6}
+-	return syscall_SyscallN(fn, args[:nargs]...)
++	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6)
+ }
+ 
+ //go:linkname syscall_Syscall9 syscall.Syscall9
+ //go:nosplit
+ func syscall_Syscall9(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
+-	args := [...]uintptr{a1, a2, a3, a4, a5, a6, a7, a8, a9}
+-	return syscall_SyscallN(fn, args[:nargs]...)
++	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9)
+ }
+ 
+ //go:linkname syscall_Syscall12 syscall.Syscall12
+ //go:nosplit
+ func syscall_Syscall12(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12 uintptr) (r1, r2, err uintptr) {
+-	args := [...]uintptr{a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12}
+-	return syscall_SyscallN(fn, args[:nargs]...)
++	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12)
+ }
+ 
+ //go:linkname syscall_Syscall15 syscall.Syscall15
+ //go:nosplit
+ func syscall_Syscall15(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15 uintptr) (r1, r2, err uintptr) {
+-	args := [...]uintptr{a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15}
+-	return syscall_SyscallN(fn, args[:nargs]...)
++	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15)
+ }
+ 
+ //go:linkname syscall_Syscall18 syscall.Syscall18
+ //go:nosplit
+ func syscall_Syscall18(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18 uintptr) (r1, r2, err uintptr) {
+-	args := [...]uintptr{a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18}
+-	return syscall_SyscallN(fn, args[:nargs]...)
++	return syscall_syscalln(fn, nargs, a1, a2, a3, a4, a5, a6, a7, a8, a9, a10, a11, a12, a13, a14, a15, a16, a17, a18)
+ }
+ 
+ // maxArgs should be divisible by 2, as Windows stack
+@@ -503,7 +497,15 @@ const maxArgs = 42
+ //go:linkname syscall_SyscallN syscall.SyscallN
+ //go:nosplit
+ func syscall_SyscallN(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
+-	if len(args) > maxArgs {
++	return syscall_syscalln(fn, uintptr(len(args)), args...)
++}
++
++//go:nosplit
++func syscall_syscalln(fn, n uintptr, args ...uintptr) (r1, r2, err uintptr) {
++	if n > uintptr(len(args)) {
++		panic("syscall: n > len(args)") // should not be reachable from user code
++	}
++	if n > maxArgs {
+ 		panic("runtime: SyscallN has too many arguments")
+ 	}
+ 
+@@ -512,7 +514,7 @@ func syscall_SyscallN(fn uintptr, args ...uintptr) (r1, r2, err uintptr) {
+ 	// calls back into Go.
+ 	c := &getg().m.winsyscall
+ 	c.fn = fn
+-	c.n = uintptr(len(args))
++	c.n = n
+ 	if c.n != 0 {
+ 		c.args = uintptr(noescape(unsafe.Pointer(&args[0])))
+ 	}
+diff --git a/src/runtime/syscall_windows_test.go b/src/runtime/syscall_windows_test.go
+index 6a056c8d2b..156cf3eb8e 100644
+--- a/src/runtime/syscall_windows_test.go
++++ b/src/runtime/syscall_windows_test.go
+@@ -1212,6 +1212,13 @@ func TestBigStackCallbackSyscall(t *testing.T) {
+ 	}
+ }
+ 
++func TestSyscallStackUsage(t *testing.T) {
++	// Test that the stack usage of a syscall doesn't exceed the limit.
++	// See https://go.dev/issue/69813.
++	syscall.Syscall15(procSetEvent.Addr(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
++	syscall.Syscall18(procSetEvent.Addr(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
++}
++
+ var (
+ 	modwinmm    = syscall.NewLazyDLL("winmm.dll")
+ 	modkernel32 = syscall.NewLazyDLL("kernel32.dll")

@@ -1,0 +1,103 @@
+commit d7e5cd5851f9fea4512c20cf275d979516828521
+Author: Olivier Mengué <olivier.mengue@gmail.com>
+Date:   Thu Mar 6 09:23:15 2025 +0100
+
+    compress/flate,compress/lzw: fix incorrect godoc links
+    
+    Fix incorrect godoc links related to the use of the name "Reader" for
+    different things in the various compress/* packages:
+    - in compress/flate Reader is the interface describing the underlying reader,
+      not the decompressor as in other packages, so "returned reader" must
+      not be linked to Reader.
+    - in compress/lzw and compress/gzip Reader is the decompressor, not the
+      interface of the underlying reader, so "underlying reader" must not
+      be linked to Reader.
+    
+    With this patch the formatting of "underlying reader" and "returned
+    reader" is consistent accross compress/* packages.
+    
+    Change-Id: Iea315fd5ee5b6c177855693d68841f3709a382cf
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/655335
+    Reviewed-by: Junyang Shao <shaojunyang@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/compress/flate/deflate.go | 4 ++--
+ src/compress/flate/inflate.go | 4 ++--
+ src/compress/gzip/gunzip.go   | 4 ++--
+ src/compress/lzw/reader.go    | 2 +-
+ 4 files changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/src/compress/flate/deflate.go b/src/compress/flate/deflate.go
+index aa8e088615..6697f3a791 100644
+--- a/src/compress/flate/deflate.go
++++ b/src/compress/flate/deflate.go
+@@ -671,8 +671,8 @@ func NewWriter(w io.Writer, level int) (*Writer, error) {
+ // [Writer] with a preset dictionary. The returned [Writer] behaves
+ // as if the dictionary had been written to it without producing
+ // any compressed output. The compressed data written to w
+-// can only be decompressed by a [Reader] initialized with the
+-// same dictionary.
++// can only be decompressed by a reader initialized with the
++// same dictionary (see [NewReaderDict]).
+ func NewWriterDict(w io.Writer, level int, dict []byte) (*Writer, error) {
+ 	dw := &dictWriter{w}
+ 	zw, err := NewWriter(dw, level)
+diff --git a/src/compress/flate/inflate.go b/src/compress/flate/inflate.go
+index 3f2172bb58..4ed6aade14 100644
+--- a/src/compress/flate/inflate.go
++++ b/src/compress/flate/inflate.go
+@@ -256,7 +256,7 @@ func (h *huffmanDecoder) init(lengths []int) bool {
+ }
+ 
+ // The actual read interface needed by [NewReader].
+-// If the passed in io.Reader does not also have ReadByte,
++// If the passed in [io.Reader] does not also have ReadByte,
+ // the [NewReader] will introduce its own buffering.
+ type Reader interface {
+ 	io.Reader
+@@ -817,7 +817,7 @@ func NewReader(r io.Reader) io.ReadCloser {
+ }
+ 
+ // NewReaderDict is like [NewReader] but initializes the reader
+-// with a preset dictionary. The returned [Reader] behaves as if
++// with a preset dictionary. The returned reader behaves as if
+ // the uncompressed data stream started with the given dictionary,
+ // which has already been read. NewReaderDict is typically used
+ // to read data compressed by [NewWriterDict].
+diff --git a/src/compress/gzip/gunzip.go b/src/compress/gzip/gunzip.go
+index f3142dbf33..cfc4824015 100644
+--- a/src/compress/gzip/gunzip.go
++++ b/src/compress/gzip/gunzip.go
+@@ -242,7 +242,7 @@ func (z *Reader) readHeader() (hdr Header, err error) {
+ 	return hdr, nil
+ }
+ 
+-// Read implements [io.Reader], reading uncompressed bytes from its underlying [Reader].
++// Read implements [io.Reader], reading uncompressed bytes from its underlying reader.
+ func (z *Reader) Read(p []byte) (n int, err error) {
+ 	if z.err != nil {
+ 		return 0, z.err
+@@ -284,7 +284,7 @@ func (z *Reader) Read(p []byte) (n int, err error) {
+ 	return n, nil
+ }
+ 
+-// Close closes the [Reader]. It does not close the underlying [io.Reader].
++// Close closes the [Reader]. It does not close the underlying reader.
+ // In order for the GZIP checksum to be verified, the reader must be
+ // fully consumed until the [io.EOF].
+ func (z *Reader) Close() error { return z.decompressor.Close() }
+diff --git a/src/compress/lzw/reader.go b/src/compress/lzw/reader.go
+index 678e6253d0..00f2d72792 100644
+--- a/src/compress/lzw/reader.go
++++ b/src/compress/lzw/reader.go
+@@ -118,7 +118,7 @@ func (r *Reader) readMSB() (uint16, error) {
+ 	return code, nil
+ }
+ 
+-// Read implements io.Reader, reading uncompressed bytes from its underlying [Reader].
++// Read implements io.Reader, reading uncompressed bytes from its underlying reader.
+ func (r *Reader) Read(b []byte) (int, error) {
+ 	for {
+ 		if len(r.toRead) > 0 {

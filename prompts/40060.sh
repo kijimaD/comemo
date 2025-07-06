@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40060: f248cd3a0753ce02928525268d9c7d1fcceffee0
+# Index 40060: 6d620fc42ec2ae61cfedcd37d24afd8cb7654164
 
 echo "🚀 Generating explanation for commit 40060..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 40060..."
 
 ### メタデータ
 - **コミットインデックス**: 40060
-- **コミットハッシュ**: f248cd3a0753ce02928525268d9c7d1fcceffee0
-- **GitHub URL**: https://github.com/golang/go/commit/f248cd3a0753ce02928525268d9c7d1fcceffee0
+- **コミットハッシュ**: 6d620fc42ec2ae61cfedcd37d24afd8cb7654164
+- **GitHub URL**: https://github.com/golang/go/commit/6d620fc42ec2ae61cfedcd37d24afd8cb7654164
 
 ### 章構成
 

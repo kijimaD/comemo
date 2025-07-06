@@ -1,0 +1,32 @@
+commit 08a6e080cae0277f0c5458da84c7e3ca4d8f8199
+Author: Jonathan Hall <flimzy@flimzy.com>
+Date:   Wed Jan 10 21:23:25 2024 +0100
+
+    database/sql/driver: fix name in comment
+    
+    DefaultValueConverter => DefaultParameterConverter
+    
+    Change-Id: I0e726cfdbf21a5e00928899d1fd9144f89dcb805
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/555235
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Shay Nehmad <dude500@gmail.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/database/sql/driver/driver.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/database/sql/driver/driver.go b/src/database/sql/driver/driver.go
+index da310bfb12..d0892e80fc 100644
+--- a/src/database/sql/driver/driver.go
++++ b/src/database/sql/driver/driver.go
+@@ -415,7 +415,7 @@ type NamedValueChecker interface {
+ type ColumnConverter interface {
+ 	// ColumnConverter returns a ValueConverter for the provided
+ 	// column index. If the type of a specific column isn't known
+-	// or shouldn't be handled specially, DefaultValueConverter
++	// or shouldn't be handled specially, [DefaultParameterConverter]
+ 	// can be returned.
+ 	ColumnConverter(idx int) ValueConverter
+ }

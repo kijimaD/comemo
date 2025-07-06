@@ -1,0 +1,231 @@
+commit 601ea46a5308876e4460a1662718a9cd2c6ac2e3
+Author: TangYang <yang.tang@intel.com>
+Date:   Tue Jul 2 04:02:12 2024 +0000
+
+    runtime: add ERMS-based memmove support for modern CPU platforms
+    
+    The current memmove implementation uses REP MOVSB to copy data larger than
+    2KB when the useAVXmemmove global variable is false and the CPU supports
+    the ERMS feature.
+    
+    This feature is currently only enabled on CPUs in the Sandy Bridge (Client)
+    , Sandy Bridge (Server), Ivy Bridge (Client), and Ivy Bridge (Server)
+    microarchitectures.
+    
+    For modern Intel CPU microarchitectures that support the ERMS feature, such
+    as Ice Lake (Server), Sapphire Rapids , REP MOVSB achieves better
+    performance than the AVX-based copy currently implemented in memmove.
+    
+    Benchstat result:
+    
+    goos: linux
+    goarch: amd64
+    pkg: runtime
+    cpu: Intel(R) Xeon(R) Gold 6348 CPU @ 2.60GHz
+                   │  ./old.txt  │              ./new.txt              │
+                   │   sec/op    │   sec/op     vs base                │
+    Memmove/2048-2   25.24n ± 0%   24.27n ± 0%   -3.84% (p=0.000 n=10)
+    Memmove/4096-2   44.87n ± 0%   33.16n ± 1%  -26.11% (p=0.000 n=10)
+    geomean          33.65n        28.37n       -15.71%
+    
+                   │  ./old.txt   │               ./new.txt               │
+                   │     B/s      │      B/s       vs base                │
+    Memmove/2048-2   75.56Gi ± 0%    78.59Gi ± 0%   +4.02% (p=0.000 n=10)
+    Memmove/4096-2   85.01Gi ± 0%   115.05Gi ± 1%  +35.34% (p=0.000 n=10)
+    geomean          80.14Gi         95.09Gi       +18.65%
+    
+    Fixes #66958
+    
+    Change-Id: I1fafd1b51a16752f83ac15047cf3b29422a79d5d
+    GitHub-Last-Rev: 89cf5af32b1b41e1499282058656a8a5c7aed359
+    GitHub-Pull-Request: golang/go#66959
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/580735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Keith Randall <khr@golang.org>
+    Auto-Submit: Keith Randall <khr@golang.org>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/internal/cpu/cpu.go       |  1 +
+ src/internal/cpu/cpu_x86.go   |  8 ++++++--
+ src/runtime/cpuflags_amd64.go | 34 ++++++++++++++++++++++++----------
+ src/runtime/memmove_amd64.s   | 41 ++++++++++++++++++++++++++++-------------
+ 4 files changed, 59 insertions(+), 25 deletions(-)
+
+diff --git a/src/internal/cpu/cpu.go b/src/internal/cpu/cpu.go
+index 9be280c6ba..4ef43e3efc 100644
+--- a/src/internal/cpu/cpu.go
++++ b/src/internal/cpu/cpu.go
+@@ -37,6 +37,7 @@ var X86 struct {
+ 	HasBMI1      bool
+ 	HasBMI2      bool
+ 	HasERMS      bool
++	HasFSRM      bool
+ 	HasFMA       bool
+ 	HasOSXSAVE   bool
+ 	HasPCLMULQDQ bool
+diff --git a/src/internal/cpu/cpu_x86.go b/src/internal/cpu/cpu_x86.go
+index 2b629d4da0..ee812076e9 100644
+--- a/src/internal/cpu/cpu_x86.go
++++ b/src/internal/cpu/cpu_x86.go
+@@ -40,7 +40,8 @@ const (
+ 	cpuid_SHA      = 1 << 29
+ 	cpuid_AVX512BW = 1 << 30
+ 	cpuid_AVX512VL = 1 << 31
+-
++	// edx bits
++	cpuid_FSRM = 1 << 4
+ 	// edx bits for CPUID 0x80000001
+ 	cpuid_RDTSCP = 1 << 27
+ )
+@@ -52,6 +53,7 @@ func doinit() {
+ 		{Name: "adx", Feature: &X86.HasADX},
+ 		{Name: "aes", Feature: &X86.HasAES},
+ 		{Name: "erms", Feature: &X86.HasERMS},
++		{Name: "fsrm", Feature: &X86.HasFSRM},
+ 		{Name: "pclmulqdq", Feature: &X86.HasPCLMULQDQ},
+ 		{Name: "rdtscp", Feature: &X86.HasRDTSCP},
+ 		{Name: "sha", Feature: &X86.HasSHA},
+@@ -137,7 +139,7 @@ func doinit() {
+ 		return
+ 	}
+ 
+-	_, ebx7, _, _ := cpuid(7, 0)
++	_, ebx7, _, edx7 := cpuid(7, 0)
+ 	X86.HasBMI1 = isSet(ebx7, cpuid_BMI1)
+ 	X86.HasAVX2 = isSet(ebx7, cpuid_AVX2) && osSupportsAVX
+ 	X86.HasBMI2 = isSet(ebx7, cpuid_BMI2)
+@@ -151,6 +153,8 @@ func doinit() {
+ 		X86.HasAVX512VL = isSet(ebx7, cpuid_AVX512VL)
+ 	}
+ 
++	X86.HasFSRM = isSet(edx7, cpuid_FSRM)
++
+ 	var maxExtendedInformation uint32
+ 	maxExtendedInformation, _, _, _ = cpuid(0x80000000, 0)
+ 
+diff --git a/src/runtime/cpuflags_amd64.go b/src/runtime/cpuflags_amd64.go
+index 8cca4bca8f..b6d8c6c1e9 100644
+--- a/src/runtime/cpuflags_amd64.go
++++ b/src/runtime/cpuflags_amd64.go
+@@ -8,17 +8,31 @@ import (
+ 	"internal/cpu"
+ )
+ 
+-var useAVXmemmove bool
++var memmoveBits uint8
+ 
+-func init() {
+-	// Let's remove stepping and reserved fields
+-	processor := processorVersionInfo & 0x0FFF3FF0
++const (
++	// avxSupported indicates that the CPU supports AVX instructions.
++	avxSupported = 1 << 0
+ 
+-	isIntelBridgeFamily := isIntel &&
+-		processor == 0x206A0 ||
+-		processor == 0x206D0 ||
+-		processor == 0x306A0 ||
+-		processor == 0x306E0
++	// repmovsPreferred indicates that REP MOVSx instruction is more
++	// efficient on the CPU.
++	repmovsPreferred = 1 << 1
++)
+ 
+-	useAVXmemmove = cpu.X86.HasAVX && !isIntelBridgeFamily
++func init() {
++	// Here we assume that on modern CPUs with both FSRM and ERMS features,
++	// copying data blocks of 2KB or larger using the REP MOVSB instruction
++	// will be more efficient to avoid having to keep up with CPU generations.
++	// Therefore, we may retain a BlockList mechanism to ensure that microarchitectures
++	// that do not fit this case may appear in the future.
++	// We enable it on Intel CPUs first, and we may support more platforms
++	// in the future.
++	isERMSNiceCPU := isIntel
++	useREPMOV := isERMSNiceCPU && cpu.X86.HasERMS && cpu.X86.HasFSRM
++	if cpu.X86.HasAVX {
++		memmoveBits |= avxSupported
++	}
++	if useREPMOV {
++		memmoveBits |= repmovsPreferred
++	}
+ }
+diff --git a/src/runtime/memmove_amd64.s b/src/runtime/memmove_amd64.s
+index 018bb0b19d..8883b55ede 100644
+--- a/src/runtime/memmove_amd64.s
++++ b/src/runtime/memmove_amd64.s
+@@ -72,9 +72,10 @@ tail:
+ 	CMPQ	BX, $256
+ 	JBE	move_129through256
+ 
+-	TESTB	$1, runtime·useAVXmemmove(SB)
+-	JNZ	avxUnaligned
+-
++	MOVB	runtime·memmoveBits(SB), AX
++	// We have AVX but we don't want to use REP MOVSx.
++	CMPB	AX, $const_avxSupported
++	JEQ	avxUnaligned
+ /*
+  * check and set for backwards
+  */
+@@ -82,16 +83,23 @@ tail:
+ 	JLS	back
+ 
+ /*
+- * forward copy loop
+- */
++* forward copy loop
++*/
+ forward:
+ 	CMPQ	BX, $2048
+-	JLS	move_256through2048
+-
+-	// If REP MOVSB isn't fast, don't use it
+-	CMPB	internal∕cpu·X86+const_offsetX86HasERMS(SB), $1 // enhanced REP MOVSB/STOSB
+-	JNE	fwdBy8
++	JL	check_avx
++	// REP MOVSx is slow if destination address is unaligned.
++	TESTQ	$15,DI
++	JNZ	check_avx
++	TESTB	$const_repmovsPreferred, AX
++	JNZ	fwdBy8
++	// For backward copy, REP MOVSx performs worse than avx.
++check_avx:
++	TESTB	$const_avxSupported, AX
++	JNZ	avxUnaligned
+ 
++	CMPQ	BX, $2048
++	JLS	move_256through2048
+ 	// Check alignment
+ 	MOVL	SI, AX
+ 	ORL	DI, AX
+@@ -104,12 +112,16 @@ forward:
+ 	RET
+ 
+ fwdBy8:
++	// Loading the last (possibly partially overlapping) word and writing
++	// it at the end.
++	MOVQ	-8(SI)(BX*1), AX
++	LEAQ	-8(DI)(BX*1), DX
+ 	// Do 8 bytes at a time
+-	MOVQ	BX, CX
++	LEAQ 	-1(BX),CX
+ 	SHRQ	$3, CX
+-	ANDQ	$7, BX
+ 	REP;	MOVSQ
+-	JMP	tail
++	MOVQ	AX, (DX)
++	RET
+ 
+ back:
+ /*
+@@ -119,6 +131,9 @@ back:
+ 	ADDQ	BX, CX
+ 	CMPQ	CX, DI
+ 	JLS	forward
++
++	TESTB	$const_avxSupported, AX
++	JNZ	avxUnaligned
+ /*
+  * whole thing backwards has
+  * adjusted addresses

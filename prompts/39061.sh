@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 39061: 443990742ec6dd128fab41d4afaa8668e665eadd
+# Index 39061: c907a75494f0d828a9afa5f849684f3c09c4afa2
 
 echo "🚀 Generating explanation for commit 39061..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 39061..."
 
 ### メタデータ
 - **コミットインデックス**: 39061
-- **コミットハッシュ**: 443990742ec6dd128fab41d4afaa8668e665eadd
-- **GitHub URL**: https://github.com/golang/go/commit/443990742ec6dd128fab41d4afaa8668e665eadd
+- **コミットハッシュ**: c907a75494f0d828a9afa5f849684f3c09c4afa2
+- **GitHub URL**: https://github.com/golang/go/commit/c907a75494f0d828a9afa5f849684f3c09c4afa2
 
 ### 章構成
 

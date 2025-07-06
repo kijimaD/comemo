@@ -1,0 +1,40 @@
+commit 786e62bcd3f03d73ddf0c999780ffe6f1a0319ea
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Apr 15 09:19:36 2025 -0700
+
+    runtime: don't use cgo_unsafe_args for syscall9 wrapper
+    
+    It uses less stack space this way.
+    
+    Similar to CL 386719
+    Update #71302
+    
+    Change-Id: I585bde5f681a90a6900cbd326994ab8a122fd148
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/665695
+    Reviewed-by: Keith Randall <khr@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+---
+ src/runtime/sys_darwin.go | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/src/runtime/sys_darwin.go b/src/runtime/sys_darwin.go
+index 5c769a71ea..ad423afc60 100644
+--- a/src/runtime/sys_darwin.go
++++ b/src/runtime/sys_darwin.go
+@@ -70,12 +70,12 @@ func syscall6()
+ //
+ //go:linkname syscall_syscall9 syscall.syscall9
+ //go:nosplit
+-//go:cgo_unsafe_args
+ func syscall_syscall9(fn, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2, err uintptr) {
++	args := struct{ fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, r1, r2, err uintptr }{fn, a1, a2, a3, a4, a5, a6, a7, a8, a9, r1, r2, err}
+ 	entersyscall()
+-	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall9)), unsafe.Pointer(&fn))
++	libcCall(unsafe.Pointer(abi.FuncPCABI0(syscall9)), unsafe.Pointer(&args))
+ 	exitsyscall()
+-	return
++	return args.r1, args.r2, args.err
+ }
+ func syscall9()
+ 

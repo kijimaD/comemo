@@ -1,0 +1,497 @@
+commit 7255b949202bb752b6525aa24cb636ceaf24e4d1
+Author: Daniel McCarney <daniel@binaryparadox.net>
+Date:   Wed Dec 18 13:26:20 2024 -0500
+
+    crypto/internal/fips140test: add ML-KEM ACVP tests
+    
+    Adds ACVP test coverage for ML-KEM based on the NIST spec:
+    
+      https://pages.nist.gov/ACVP/draft-celi-acvp-ml-kem.html
+    
+    Notably we need to update the BoringSSL module version because the
+    acvptool was only recently updated to support testing ML-KEM.
+    
+    A few non-test updates are also required for the
+    crypto/internal/fips140/mlkem package:
+    
+    * For keyGen tests a new ExpandedBytes768() function is added that
+      converts a DecapsualtionKey768 struct into the expanded NIST
+      serialization. The existing Bytes() function returns the
+      key's seed, while ACVP testing requires the more cumbersome format.
+    * For decap tests a new TestingOnlyNewDecapsulationKey768()
+      constructor is added to produce a DecapsulationKey768 struct from the
+      expanded FIPS 203 serialization provided by the ACVP test vector. The
+      pre-existing NewDecapsulationKey768() function expects a seed as
+      input.
+    
+    The generate1024.go helper is updated to translate the above changes to
+    the generated mlkem1024.go implementation.
+    
+    Both of these new functions are exclusively for ACVP usage and so not
+    present in the public mlkem API. End users should always prefer to work
+    with seeds.
+    
+    Updates #69642
+    
+    Change-Id: I79784f8a8db00a2ddefdcece4b8de50b033c8f69
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/637439
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    Reviewed-by: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/crypto/internal/fips140/mlkem/generate1024.go  |   9 +-
+ src/crypto/internal/fips140/mlkem/mlkem1024.go     |  74 +++++++++++
+ src/crypto/internal/fips140/mlkem/mlkem768.go      |  76 ++++++++++++
+ .../internal/fips140test/acvp_capabilities.json    |   7 +-
+ .../internal/fips140test/acvp_test.config.json     |   4 +-
+ src/crypto/internal/fips140test/acvp_test.go       | 138 ++++++++++++++++++++-
+ 6 files changed, 300 insertions(+), 8 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/mlkem/generate1024.go b/src/crypto/internal/fips140/mlkem/generate1024.go
+index e002bf1414..9e38ad00df 100644
+--- a/src/crypto/internal/fips140/mlkem/generate1024.go
++++ b/src/crypto/internal/fips140/mlkem/generate1024.go
+@@ -22,6 +22,7 @@ var replacements = map[string]string{
+ 
+ 	"CiphertextSize768":       "CiphertextSize1024",
+ 	"EncapsulationKeySize768": "EncapsulationKeySize1024",
++	"decapsulationKeySize768": "decapsulationKeySize1024",
+ 
+ 	"encryptionKey": "encryptionKey1024",
+ 	"decryptionKey": "decryptionKey1024",
+@@ -33,9 +34,11 @@ var replacements = map[string]string{
+ 	"kemEncaps":  "kemEncaps1024",
+ 	"pkeEncrypt": "pkeEncrypt1024",
+ 
+-	"DecapsulationKey768":    "DecapsulationKey1024",
+-	"NewDecapsulationKey768": "NewDecapsulationKey1024",
+-	"newKeyFromSeed":         "newKeyFromSeed1024",
++	"DecapsulationKey768":               "DecapsulationKey1024",
++	"NewDecapsulationKey768":            "NewDecapsulationKey1024",
++	"TestingOnlyNewDecapsulationKey768": "TestingOnlyNewDecapsulationKey1024",
++	"newKeyFromSeed":                    "newKeyFromSeed1024",
++	"TestingOnlyExpandedBytes768":       "TestingOnlyExpandedBytes1024",
+ 
+ 	"kemDecaps":  "kemDecaps1024",
+ 	"pkeDecrypt": "pkeDecrypt1024",
+diff --git a/src/crypto/internal/fips140/mlkem/mlkem1024.go b/src/crypto/internal/fips140/mlkem/mlkem1024.go
+index c924c38293..034bf3b5d6 100644
+--- a/src/crypto/internal/fips140/mlkem/mlkem1024.go
++++ b/src/crypto/internal/fips140/mlkem/mlkem1024.go
+@@ -3,6 +3,7 @@
+ package mlkem
+ 
+ import (
++	"bytes"
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/drbg"
+ 	"crypto/internal/fips140/sha3"
+@@ -33,6 +34,32 @@ func (dk *DecapsulationKey1024) Bytes() []byte {
+ 	return b[:]
+ }
+ 
++// TestingOnlyExpandedBytes1024 returns the decapsulation key as a byte slice
++// using the full expanded NIST encoding.
++//
++// This should only be used for ACVP testing. For all other purposes prefer
++// the Bytes method that returns the (much smaller) seed.
++func TestingOnlyExpandedBytes1024(dk *DecapsulationKey1024) []byte {
++	b := make([]byte, 0, decapsulationKeySize1024)
++
++	// ByteEncode₁₂(s)
++	for i := range dk.s {
++		b = polyByteEncode(b, dk.s[i])
++	}
++
++	// ByteEncode₁₂(t) || ρ
++	for i := range dk.t {
++		b = polyByteEncode(b, dk.t[i])
++	}
++	b = append(b, dk.ρ[:]...)
++
++	// H(ek) || z
++	b = append(b, dk.h[:]...)
++	b = append(b, dk.z[:]...)
++
++	return b
++}
++
+ // EncapsulationKey returns the public encapsulation key necessary to produce
+ // ciphertexts.
+ func (dk *DecapsulationKey1024) EncapsulationKey() *EncapsulationKey1024 {
+@@ -130,6 +157,53 @@ func newKeyFromSeed1024(dk *DecapsulationKey1024, seed []byte) (*DecapsulationKe
+ 	return dk, nil
+ }
+ 
++// TestingOnlyNewDecapsulationKey1024 parses a decapsulation key from its expanded NIST format.
++//
++// Bytes() must not be called on the returned key, as it will not produce the
++// original seed.
++//
++// This function should only be used for ACVP testing. Prefer NewDecapsulationKey1024 for all
++// other purposes.
++func TestingOnlyNewDecapsulationKey1024(b []byte) (*DecapsulationKey1024, error) {
++	if len(b) != decapsulationKeySize1024 {
++		return nil, errors.New("mlkem: invalid NIST decapsulation key length")
++	}
++
++	dk := &DecapsulationKey1024{}
++	for i := range dk.s {
++		var err error
++		dk.s[i], err = polyByteDecode[nttElement](b[:encodingSize12])
++		if err != nil {
++			return nil, errors.New("mlkem: invalid secret key encoding")
++		}
++		b = b[encodingSize12:]
++	}
++
++	ek, err := NewEncapsulationKey1024(b[:EncapsulationKeySize1024])
++	if err != nil {
++		return nil, err
++	}
++	dk.ρ = ek.ρ
++	dk.h = ek.h
++	dk.encryptionKey1024 = ek.encryptionKey1024
++	b = b[EncapsulationKeySize1024:]
++
++	if !bytes.Equal(dk.h[:], b[:32]) {
++		return nil, errors.New("mlkem: inconsistent H(ek) in encoded bytes")
++	}
++	b = b[32:]
++
++	copy(dk.z[:], b)
++
++	// Generate a random d value for use in Bytes(). This is a safety mechanism
++	// that avoids returning a broken key vs a random key if this function is
++	// called in contravention of the TestingOnlyNewDecapsulationKey1024 function
++	// comment advising against it.
++	drbg.Read(dk.d[:])
++
++	return dk, nil
++}
++
+ // kemKeyGen1024 generates a decapsulation key.
+ //
+ // It implements ML-KEM.KeyGen_internal according to FIPS 203, Algorithm 16, and
+diff --git a/src/crypto/internal/fips140/mlkem/mlkem768.go b/src/crypto/internal/fips140/mlkem/mlkem768.go
+index 2c1cb5c33f..77043830d4 100644
+--- a/src/crypto/internal/fips140/mlkem/mlkem768.go
++++ b/src/crypto/internal/fips140/mlkem/mlkem768.go
+@@ -24,6 +24,7 @@ package mlkem
+ //go:generate go run generate1024.go -input mlkem768.go -output mlkem1024.go
+ 
+ import (
++	"bytes"
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/drbg"
+ 	"crypto/internal/fips140/sha3"
+@@ -57,6 +58,7 @@ const (
+ 
+ 	CiphertextSize768       = k*encodingSize10 + encodingSize4
+ 	EncapsulationKeySize768 = k*encodingSize12 + 32
++	decapsulationKeySize768 = k*encodingSize12 + EncapsulationKeySize768 + 32 + 32
+ )
+ 
+ // ML-KEM-1024 parameters.
+@@ -65,6 +67,7 @@ const (
+ 
+ 	CiphertextSize1024       = k1024*encodingSize11 + encodingSize5
+ 	EncapsulationKeySize1024 = k1024*encodingSize12 + 32
++	decapsulationKeySize1024 = k1024*encodingSize12 + EncapsulationKeySize1024 + 32 + 32
+ )
+ 
+ // A DecapsulationKey768 is the secret key used to decapsulate a shared key from a
+@@ -90,6 +93,32 @@ func (dk *DecapsulationKey768) Bytes() []byte {
+ 	return b[:]
+ }
+ 
++// TestingOnlyExpandedBytes768 returns the decapsulation key as a byte slice
++// using the full expanded NIST encoding.
++//
++// This should only be used for ACVP testing. For all other purposes prefer
++// the Bytes method that returns the (much smaller) seed.
++func TestingOnlyExpandedBytes768(dk *DecapsulationKey768) []byte {
++	b := make([]byte, 0, decapsulationKeySize768)
++
++	// ByteEncode₁₂(s)
++	for i := range dk.s {
++		b = polyByteEncode(b, dk.s[i])
++	}
++
++	// ByteEncode₁₂(t) || ρ
++	for i := range dk.t {
++		b = polyByteEncode(b, dk.t[i])
++	}
++	b = append(b, dk.ρ[:]...)
++
++	// H(ek) || z
++	b = append(b, dk.h[:]...)
++	b = append(b, dk.z[:]...)
++
++	return b
++}
++
+ // EncapsulationKey returns the public encapsulation key necessary to produce
+ // ciphertexts.
+ func (dk *DecapsulationKey768) EncapsulationKey() *EncapsulationKey768 {
+@@ -187,6 +216,53 @@ func newKeyFromSeed(dk *DecapsulationKey768, seed []byte) (*DecapsulationKey768,
+ 	return dk, nil
+ }
+ 
++// TestingOnlyNewDecapsulationKey768 parses a decapsulation key from its expanded NIST format.
++//
++// Bytes() must not be called on the returned key, as it will not produce the
++// original seed.
++//
++// This function should only be used for ACVP testing. Prefer NewDecapsulationKey768 for all
++// other purposes.
++func TestingOnlyNewDecapsulationKey768(b []byte) (*DecapsulationKey768, error) {
++	if len(b) != decapsulationKeySize768 {
++		return nil, errors.New("mlkem: invalid NIST decapsulation key length")
++	}
++
++	dk := &DecapsulationKey768{}
++	for i := range dk.s {
++		var err error
++		dk.s[i], err = polyByteDecode[nttElement](b[:encodingSize12])
++		if err != nil {
++			return nil, errors.New("mlkem: invalid secret key encoding")
++		}
++		b = b[encodingSize12:]
++	}
++
++	ek, err := NewEncapsulationKey768(b[:EncapsulationKeySize768])
++	if err != nil {
++		return nil, err
++	}
++	dk.ρ = ek.ρ
++	dk.h = ek.h
++	dk.encryptionKey = ek.encryptionKey
++	b = b[EncapsulationKeySize768:]
++
++	if !bytes.Equal(dk.h[:], b[:32]) {
++		return nil, errors.New("mlkem: inconsistent H(ek) in encoded bytes")
++	}
++	b = b[32:]
++
++	copy(dk.z[:], b)
++
++	// Generate a random d value for use in Bytes(). This is a safety mechanism
++	// that avoids returning a broken key vs a random key if this function is
++	// called in contravention of the TestingOnlyNewDecapsulationKey768 function
++	// comment advising against it.
++	drbg.Read(dk.d[:])
++
++	return dk, nil
++}
++
+ // kemKeyGen generates a decapsulation key.
+ //
+ // It implements ML-KEM.KeyGen_internal according to FIPS 203, Algorithm 16, and
+diff --git a/src/crypto/internal/fips140test/acvp_capabilities.json b/src/crypto/internal/fips140test/acvp_capabilities.json
+index 6502a98db1..38ce3a39c4 100644
+--- a/src/crypto/internal/fips140test/acvp_capabilities.json
++++ b/src/crypto/internal/fips140test/acvp_capabilities.json
+@@ -23,5 +23,8 @@
+   {"algorithm":"HMAC-SHA3-384","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":384,"min":32}],"revision":"1.0"},
+   {"algorithm":"HMAC-SHA3-512","keyLen":[{"increment":8,"max":524288,"min":8}],"macLen":[{"increment":8,"max":512,"min":32}],"revision":"1.0"},
+ 
+-  {"algorithm":"PBKDF","capabilities":[{"iterationCount":[{"min":1,"max":10000,"increment":1}],"keyLen":[{"min":112,"max":4096,"increment":8}],"passwordLen":[{"min":8,"max":64,"increment":1}],"saltLen":[{"min":128,"max":512,"increment":8}],"hmacAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}],"revision":"1.0"}
+-]
+\ No newline at end of file
++  {"algorithm":"PBKDF","capabilities":[{"iterationCount":[{"min":1,"max":10000,"increment":1}],"keyLen":[{"min":112,"max":4096,"increment":8}],"passwordLen":[{"min":8,"max":64,"increment":1}],"saltLen":[{"min":128,"max":512,"increment":8}],"hmacAlg":["SHA2-224","SHA2-256","SHA2-384","SHA2-512","SHA2-512/224","SHA2-512/256","SHA3-224","SHA3-256","SHA3-384","SHA3-512"]}],"revision":"1.0"},
++
++  {"algorithm":"ML-KEM","mode":"keyGen","revision":"FIPS203","parameterSets":["ML-KEM-768","ML-KEM-1024"]},
++  {"algorithm":"ML-KEM","mode":"encapDecap","revision":"FIPS203","parameterSets":["ML-KEM-768","ML-KEM-1024"],"functions":["encapsulation","decapsulation"]}
++]
+diff --git a/src/crypto/internal/fips140test/acvp_test.config.json b/src/crypto/internal/fips140test/acvp_test.config.json
+index 49ab51d0d2..f62743f0c5 100644
+--- a/src/crypto/internal/fips140test/acvp_test.config.json
++++ b/src/crypto/internal/fips140test/acvp_test.config.json
+@@ -23,5 +23,7 @@
+   {"Wrapper": "go", "In": "vectors/HMAC-SHA3-384.bz2", "Out": "expected/HMAC-SHA3-384.bz2"},
+   {"Wrapper": "go", "In": "vectors/HMAC-SHA3-512.bz2", "Out": "expected/HMAC-SHA3-512.bz2"},
+ 
+-  {"Wrapper": "go", "In": "vectors/PBKDF.bz2", "Out": "expected/PBKDF.bz2"}
++  {"Wrapper": "go", "In": "vectors/PBKDF.bz2", "Out": "expected/PBKDF.bz2"},
++
++  {"Wrapper": "go", "In": "vectors/ML-KEM.bz2", "Out": "expected/ML-KEM.bz2"}
+ ]
+\ No newline at end of file
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index 139655ecf6..70c2b7e718 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -24,6 +24,7 @@ import (
+ 	"crypto/internal/cryptotest"
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/hmac"
++	"crypto/internal/fips140/mlkem"
+ 	"crypto/internal/fips140/pbkdf2"
+ 	"crypto/internal/fips140/sha256"
+ 	"crypto/internal/fips140/sha3"
+@@ -75,6 +76,8 @@ var (
+ 	//   https://pages.nist.gov/ACVP/draft-fussell-acvp-mac.html#section-7
+ 	// PBKDF2 algorithm capabilities:
+ 	//   https://pages.nist.gov/ACVP/draft-celi-acvp-pbkdf.html#section-7.3
++	// ML-KEM algorithm capabilities:
++	//   https://pages.nist.gov/ACVP/draft-celi-acvp-ml-kem.html#section-7.3
+ 	//go:embed acvp_capabilities.json
+ 	capabilitiesJson []byte
+ 
+@@ -118,6 +121,13 @@ var (
+ 		"HMAC-SHA3-512":     cmdHmacAft(func() fips140.Hash { return sha3.New512() }),
+ 
+ 		"PBKDF": cmdPbkdf(),
++
++		"ML-KEM-768/keyGen":  cmdMlKem768KeyGenAft(),
++		"ML-KEM-768/encap":   cmdMlKem768EncapAft(),
++		"ML-KEM-768/decap":   cmdMlKem768DecapAft(),
++		"ML-KEM-1024/keyGen": cmdMlKem1024KeyGenAft(),
++		"ML-KEM-1024/encap":  cmdMlKem1024EncapAft(),
++		"ML-KEM-1024/decap":  cmdMlKem1024DecapAft(),
+ 	}
+ )
+ 
+@@ -404,14 +414,138 @@ func lookupHash(name string) (func() fips140.Hash, error) {
+ 	return h, nil
+ }
+ 
++func cmdMlKem768KeyGenAft() command {
++	return command{
++		requiredArgs: 1, // Seed
++		handler: func(args [][]byte) ([][]byte, error) {
++			seed := args[0]
++
++			dk, err := mlkem.NewDecapsulationKey768(seed)
++			if err != nil {
++				return nil, fmt.Errorf("generating ML-KEM 768 decapsulation key: %w", err)
++			}
++
++			// Important: we must return the full encoding of dk, not the seed.
++			return [][]byte{dk.EncapsulationKey().Bytes(), mlkem.TestingOnlyExpandedBytes768(dk)}, nil
++		},
++	}
++}
++
++func cmdMlKem768EncapAft() command {
++	return command{
++		requiredArgs: 2, // Public key, entropy
++		handler: func(args [][]byte) ([][]byte, error) {
++			pk := args[0]
++			entropy := args[1]
++
++			ek, err := mlkem.NewEncapsulationKey768(pk)
++			if err != nil {
++				return nil, fmt.Errorf("generating ML-KEM 768 encapsulation key: %w", err)
++			}
++
++			if len(entropy) != 32 {
++				return nil, fmt.Errorf("wrong entropy length: got %d, want 32", len(entropy))
++			}
++
++			sharedKey, ct := ek.EncapsulateInternal((*[32]byte)(entropy[:32]))
++
++			return [][]byte{ct, sharedKey}, nil
++		},
++	}
++}
++
++func cmdMlKem768DecapAft() command {
++	return command{
++		requiredArgs: 2, // Private key, ciphertext
++		handler: func(args [][]byte) ([][]byte, error) {
++			pk := args[0]
++			ct := args[1]
++
++			dk, err := mlkem.TestingOnlyNewDecapsulationKey768(pk)
++			if err != nil {
++				return nil, fmt.Errorf("generating ML-KEM 768 decapsulation key: %w", err)
++			}
++
++			sharedKey, err := dk.Decapsulate(ct)
++			if err != nil {
++				return nil, fmt.Errorf("decapsulating ML-KEM 768 ciphertext: %w", err)
++			}
++
++			return [][]byte{sharedKey}, nil
++		},
++	}
++}
++
++func cmdMlKem1024KeyGenAft() command {
++	return command{
++		requiredArgs: 1, // Seed
++		handler: func(args [][]byte) ([][]byte, error) {
++			seed := args[0]
++
++			dk, err := mlkem.NewDecapsulationKey1024(seed)
++			if err != nil {
++				return nil, fmt.Errorf("generating ML-KEM 1024 decapsulation key: %w", err)
++			}
++
++			// Important: we must return the full encoding of dk, not the seed.
++			return [][]byte{dk.EncapsulationKey().Bytes(), mlkem.TestingOnlyExpandedBytes1024(dk)}, nil
++		},
++	}
++}
++
++func cmdMlKem1024EncapAft() command {
++	return command{
++		requiredArgs: 2, // Public key, entropy
++		handler: func(args [][]byte) ([][]byte, error) {
++			pk := args[0]
++			entropy := args[1]
++
++			ek, err := mlkem.NewEncapsulationKey1024(pk)
++			if err != nil {
++				return nil, fmt.Errorf("generating ML-KEM 1024 encapsulation key: %w", err)
++			}
++
++			if len(entropy) != 32 {
++				return nil, fmt.Errorf("wrong entropy length: got %d, want 32", len(entropy))
++			}
++
++			sharedKey, ct := ek.EncapsulateInternal((*[32]byte)(entropy[:32]))
++
++			return [][]byte{ct, sharedKey}, nil
++		},
++	}
++}
++
++func cmdMlKem1024DecapAft() command {
++	return command{
++		requiredArgs: 2, // Private key, ciphertext
++		handler: func(args [][]byte) ([][]byte, error) {
++			pk := args[0]
++			ct := args[1]
++
++			dk, err := mlkem.TestingOnlyNewDecapsulationKey1024(pk)
++			if err != nil {
++				return nil, fmt.Errorf("generating ML-KEM 1024 decapsulation key: %w", err)
++			}
++
++			sharedKey, err := dk.Decapsulate(ct)
++			if err != nil {
++				return nil, fmt.Errorf("decapsulating ML-KEM 1024 ciphertext: %w", err)
++			}
++
++			return [][]byte{sharedKey}, nil
++		},
++	}
++}
++
+ func TestACVP(t *testing.T) {
+ 	testenv.SkipIfShortAndSlow(t)
+ 
+ 	const (
+ 		bsslModule    = "boringssl.googlesource.com/boringssl.git"
+-		bsslVersion   = "v0.0.0-20241015160643-2587c4974dbe"
++		bsslVersion   = "v0.0.0-20241218033850-ca3146c56300"
+ 		goAcvpModule  = "github.com/cpu/go-acvp"
+-		goAcvpVersion = "v0.0.0-20241011151719-6e0509dcb7ce"
++		goAcvpVersion = "v0.0.0-20250102201911-6839fc40f9f8"
+ 	)
+ 
+ 	// In crypto/tls/bogo_shim_test.go the test is skipped if run on a builder with runtime.GOOS == "windows"

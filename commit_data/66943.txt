@@ -1,0 +1,31 @@
+commit 66ea0ee409df5a025296d7dac8bb3dc1ec0d2b90
+Author: Mark Freeman <mark@golang.org>
+Date:   Mon May 5 16:39:11 2025 -0400
+
+    spec: avoid use of "raise" in conjunction with panics
+    
+    For #73526
+    
+    Change-Id: I06d8ae9080695745db68a51635faa0b244c1760e
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/670155
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Mark Freeman <mark@golang.org>
+    Auto-Submit: Mark Freeman <mark@golang.org>
+---
+ doc/go_spec.html | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/go_spec.html b/doc/go_spec.html
+index 479605e36c..183bc7fb37 100644
+--- a/doc/go_spec.html
++++ b/doc/go_spec.html
+@@ -7894,7 +7894,7 @@ causes a <a href="#Run_time_panics">run-time panic</a>.
+ <p>
+ The <code>protect</code> function in the example below invokes
+ the function argument <code>g</code> and protects callers from
+-run-time panics raised by <code>g</code>.
++run-time panics caused by <code>g</code>.
+ </p>
+ 
+ <pre>

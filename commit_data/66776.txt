@@ -1,0 +1,77 @@
+commit 7007dfcd0c32c1be83c921b0859dd48464c7c5aa
+Author: qmuntal <quimmuntal@gmail.com>
+Date:   Tue Apr 8 12:12:37 2025 +0200
+
+    os: clean-up NewFile tests
+    
+    This CL removes some unnecessary code and duplicated NewFile tests
+    cases.
+    
+    It also simplifies TestPipeCanceled by removing the need for using
+    SetReadDeadline. Using CancelIoEx instead of CancelIo makes the cancel
+    operations to finish almost instantly. The latter could take more than
+    20s to finish if called from a thread different from the one that
+    called ReadFile.
+    
+    Change-Id: I9033cbcad277666bc2aec89b3e5a3ef529da2cd8
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/663755
+    Reviewed-by: Alex Brainman <alex.brainman@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/os/os_windows_test.go | 19 ++++++-------------
+ 1 file changed, 6 insertions(+), 13 deletions(-)
+
+diff --git a/src/os/os_windows_test.go b/src/os/os_windows_test.go
+index 365694be65..5fbf987291 100644
+--- a/src/os/os_windows_test.go
++++ b/src/os/os_windows_test.go
+@@ -1834,7 +1834,6 @@ func TestFile(t *testing.T) {
+ 		{"overlapped-read", true, false},
+ 		{"overlapped-write", false, true},
+ 		{"sync", false, false},
+-		{"sync-pollable", false, false},
+ 	}
+ 	for _, tt := range tests {
+ 		t.Run(tt.name, func(t *testing.T) {
+@@ -1872,13 +1871,11 @@ func TestNamedPipe(t *testing.T) {
+ 		name            string
+ 		overlappedRead  bool
+ 		overlappedWrite bool
+-		pollable        bool
+ 	}{
+-		{"overlapped", true, true, true},
+-		{"overlapped-write", false, true, true},
+-		{"overlapped-read", true, false, true},
+-		{"sync", false, false, false},
+-		{"sync-pollable", false, false, true},
++		{"overlapped", true, true},
++		{"overlapped-write", false, true},
++		{"overlapped-read", true, false},
++		{"sync", false, false},
+ 	}
+ 	for _, tt := range tests {
+ 		t.Run(tt.name, func(t *testing.T) {
+@@ -1966,19 +1963,15 @@ func TestPipeCanceled(t *testing.T) {
+ 					return
+ 				}
+ 				if err := sc.Control(func(fd uintptr) {
+-					syscall.CancelIo(syscall.Handle(fd))
++					syscall.CancelIoEx(syscall.Handle(fd), nil)
+ 				}); err != nil {
+ 					t.Error(err)
++					return
+ 				}
+ 				time.Sleep(100 * time.Millisecond)
+ 			}
+ 		}
+ 	}()
+-	// Try to cancel for max 1 second.
+-	// Canceling is normally really fast, but it can take an
+-	// arbitrary amount of time on busy systems.
+-	// If it takes too long, we skip the test.
+-	file.SetReadDeadline(time.Now().Add(1 * time.Second))
+ 	var tmp [1]byte
+ 	// Read will block until the cancel is complete.
+ 	_, err := file.Read(tmp[:])

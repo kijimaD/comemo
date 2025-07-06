@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 30198: 8b07ec20f7a971edce9eaf413b20e453c50858c6
+# Index 30198: 5923df1af9f058a4f1bf095dfb1d2722cd4120a1
 
 echo "🚀 Generating explanation for commit 30198..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 30198..."
 
 ### メタデータ
 - **コミットインデックス**: 30198
-- **コミットハッシュ**: 8b07ec20f7a971edce9eaf413b20e453c50858c6
-- **GitHub URL**: https://github.com/golang/go/commit/8b07ec20f7a971edce9eaf413b20e453c50858c6
+- **コミットハッシュ**: 5923df1af9f058a4f1bf095dfb1d2722cd4120a1
+- **GitHub URL**: https://github.com/golang/go/commit/5923df1af9f058a4f1bf095dfb1d2722cd4120a1
 
 ### 章構成
 

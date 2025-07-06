@@ -1,0 +1,38 @@
+commit 4150372a5d2c3b70591efe1ce208f0a92747f1dc
+Author: Cherry Mui <cherryyz@google.com>
+Date:   Fri Jun 20 12:02:18 2025 -0400
+
+    [dev.simd] cmd/compile: don't treat devel compiler as a released compiler
+    
+    The compiler has a logic to print different messages on internal
+    compiler error depending on whether this is a released version of
+    Go. It hides the panic stack trace if it is a released version. It
+    does this by checking the version and see if it has a "go" prefix.
+    This includes all the released versions. However, for a non-
+    released build, if there is no explicit version set, cmd/dist now
+    sets the toolchain version as go1.X-devel_XXX, which makes it be
+    treated as a released compiler, and causes the stack trace to be
+    hidden. Change the logic to not match a devel compiler as a
+    released compiler.
+    
+    Change-Id: I5d3b2101527212f825b6e4000b36030c4f83870b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/682975
+    Reviewed-by: David Chase <drchase@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/base/print.go | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/base/print.go b/src/cmd/compile/internal/base/print.go
+index 119f06fbc0..9e3348c1ec 100644
+--- a/src/cmd/compile/internal/base/print.go
++++ b/src/cmd/compile/internal/base/print.go
+@@ -220,7 +220,7 @@ func FatalfAt(pos src.XPos, format string, args ...interface{}) {
+ 		fmt.Printf("\n")
+ 
+ 		// If this is a released compiler version, ask for a bug report.
+-		if Debug.Panic == 0 && strings.HasPrefix(buildcfg.Version, "go") {
++		if Debug.Panic == 0 && strings.HasPrefix(buildcfg.Version, "go") && !strings.Contains(buildcfg.Version, "devel") {
+ 			fmt.Printf("\n")
+ 			fmt.Printf("Please file a bug report including a short program that triggers the error.\n")
+ 			fmt.Printf("https://go.dev/issue/new\n")

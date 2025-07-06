@@ -1,0 +1,250 @@
+commit acc93dac8360640f860cf25985aebe7039bc71a5
+Author: Dmitri Shuralyov <dmitshur@golang.org>
+Date:   Thu May 23 10:11:35 2024 -0400
+
+    doc/next: populate TODOs found with relnote todo
+    
+    This is the first round of TODOs created based on relnote todo output.
+    There are many entries that need to be documented, expanded, reworded,
+    and this change makes progress on setting that up.
+    
+    For this cycle, relnote todo implemented a simple heuristic of finding
+    CLs that mention accepted proposals (see issue 62376, or comment
+    https://go.dev/issue/62376#issuecomment-2101086794 specifically).
+    The "Items that don't need to be mentioned in Go 1.23 release notes but
+    are picked up by relnote todo." section in todo.md contains an attempt
+    at reviewing that list. The large number of items needed to be reviewed
+    made it impractical to spend much time on any individual one.
+    
+    For #65614.
+    
+    Change-Id: Id9d5f1795575a46df2ec4ed0088de07ee6075a90
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/588015
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Dmitri Shuralyov <dmitshur@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+---
+ doc/next/3-tools.md                               | 19 ++++++++
+ doc/next/5-toolchain.md                           |  5 ++
+ doc/next/6-stdlib/1-time.md                       |  2 +
+ doc/next/6-stdlib/99-minor/crypto/tls/67061.md    |  2 +
+ doc/next/6-stdlib/99-minor/crypto/tls/67065.md    |  3 ++
+ doc/next/6-stdlib/99-minor/go/types/46477.md      | 13 +++++
+ doc/next/6-stdlib/99-minor/net/http/66343.md      |  1 +
+ doc/next/6-stdlib/99-minor/runtime/debug/42888.md |  1 -
+ doc/next/6-stdlib/99-minor/text/template/57646.md |  1 +
+ doc/next/7-ports.md                               |  6 +++
+ doc/next/9-todo.md                                | 59 +++++++++++++++++++++++
+ 11 files changed, 111 insertions(+), 1 deletion(-)
+
+diff --git a/doc/next/3-tools.md b/doc/next/3-tools.md
+index 93a332eac1..0526c37687 100644
+--- a/doc/next/3-tools.md
++++ b/doc/next/3-tools.md
+@@ -18,8 +18,23 @@ The new `go` `mod` `tidy` `-diff` flag causes the command not to modify
+ the files but instead print the necessary changes as a unified diff.
+ It exits with a non-zero code if updates are needed.
+ 
++<!-- go.dev/issue/52792, CL 562775 -->
++<!-- TODO: Improve this if needed. -->
++The `go` `list` `-m` `-json` command now includes new `Sum` and `GoModSum` fields.
++This is similar to the existing behavior of the `go` `mod` `download` `-json` command.
++
++<!-- go.dev/issue/67111 ("cmd/go: add go telemetry subcommand") -->
++The new `go` `telemetry` command should be documented here,
++as well as `GOTELEMETRY` and `GOTELEMETRYDIR` environment variables.
++<!-- go.dev/issue/58894 ("all: add opt-in transparent telemetry to Go toolchain") -->
++<!-- TODO: document Go 1.23 behavior (from https://go.dev/cl/559199, https://go.dev/cl/559519, https://go.dev/cl/559795, https://go.dev/cl/562715, https://go.dev/cl/562735, https://go.dev/cl/564555, https://go.dev/cl/570679, https://go.dev/cl/570736, https://go.dev/cl/582695, https://go.dev/cl/584276, https://go.dev/cl/585235, https://go.dev/cl/586138) -->
++
++<!-- go.dev/issue/65573 ("cmd/go: separate default GODEBUGs from go language version") -->
++<!-- TODO: document Go 1.23 behavior (from https://go.dev/cl/584218, https://go.dev/cl/584300, https://go.dev/cl/584475, https://go.dev/cl/584476) -->
++
+ ### Vet {#vet}
+ 
++<!-- go.dev/issue/46136 -->
+ The `go vet` subcommand now includes the
+ [stdversion](https://pkg.go.dev/golang.org/x/tools/go/analysis/passes/stdversion)
+ analyzer, which flags references to symbols that are too new for the version
+@@ -34,3 +49,7 @@ module whose go.mod file specifies `go 1.21`.
+ 
+ ### Cgo {#cgo}
+ 
++<!-- go.dev/issue/66456 -->
++[cmd/cgo] supports the new `-ldflags` flag for passing flags to the C linker.
++The `go` command uses it automatically, avoiding "argument list too long"
++errors with a very large `CGO_LDFLAGS`.
+diff --git a/doc/next/5-toolchain.md b/doc/next/5-toolchain.md
+index 8f36239779..c9437a6a8b 100644
+--- a/doc/next/5-toolchain.md
++++ b/doc/next/5-toolchain.md
+@@ -20,4 +20,9 @@ Hot block alignment can be disabled with `-gcflags=[<packages>=]-d=alignhot=0`
+ 
+ ## Linker {#linker}
+ 
++<!-- go.dev/issue/67401, CL 585556, CL 587220, and many more -->
++TODO: Say what needs to be said in Go 1.23 release notes regarding
++the locking down of future linkname uses.
+ 
++<!-- CL 473495 -->
++The new `-bindnow` flag enables full RELRO on ELF targets.
+diff --git a/doc/next/6-stdlib/1-time.md b/doc/next/6-stdlib/1-time.md
+index c809764ce1..6046ac5350 100644
+--- a/doc/next/6-stdlib/1-time.md
++++ b/doc/next/6-stdlib/1-time.md
+@@ -3,12 +3,14 @@
+ Go 1.23 makes two significant changes to the implementation of
+ [time.Timer] and [time.Ticker].
+ 
++<!-- go.dev/issue/61542 -->
+ First, `Timer`s and `Ticker`s that are no longer referred to by the program
+ become eligible for garbage collection immediately, even if their
+ `Stop` methods have not been called.
+ Earlier versions of Go did not collect unstopped `Timer`s until after
+ they had fired and never collected unstopped `Ticker`s.
+ 
++<!-- go.dev/issue/37196 -->
+ Second, the timer channel associated with a `Timer` or `Ticker` is
+ now unbuffered, with capacity 0.
+ The main effect of this change is that Go now guarantees
+diff --git a/doc/next/6-stdlib/99-minor/crypto/tls/67061.md b/doc/next/6-stdlib/99-minor/crypto/tls/67061.md
+new file mode 100644
+index 0000000000..4f53f509ef
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/tls/67061.md
+@@ -0,0 +1,2 @@
++<!-- TODO: Improve the wording. Mention the tlskyber GODEBUG. -->
++X25519Kyber768Draft00 is now enabled by default when [Config.CurvePreferences] is not set.
+diff --git a/doc/next/6-stdlib/99-minor/crypto/tls/67065.md b/doc/next/6-stdlib/99-minor/crypto/tls/67065.md
+new file mode 100644
+index 0000000000..3fcc8d5309
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/crypto/tls/67065.md
+@@ -0,0 +1,3 @@
++Go 1.23 changed the behavior of [X509KeyPair] and [LoadX509KeyPair]
++to populate the [Certificate.Leaf] field of the returned [Certificate].
++The new `x509keypairleaf` [GODEBUG setting](/doc/godebug) is added for this behavior.
+diff --git a/doc/next/6-stdlib/99-minor/go/types/46477.md b/doc/next/6-stdlib/99-minor/go/types/46477.md
+new file mode 100644
+index 0000000000..b0a2d21b15
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/go/types/46477.md
+@@ -0,0 +1,13 @@
++<!-- TODO: https://go.dev/issue/46477#issuecomment-2101270785 says:
++
++> In the meantime, we believe it makes sense to go forward with the Alias API changes
++> proposed in #67143 for 1.23, even though type parameters won't be allowed during type
++> checking. This lets work commence on parameterized alias support in tools.
++
++relevant CLs:
++
++https://go.dev/cl/566856 ("go/types, types2: initial support for parameterized type aliases")
++https://go.dev/cl/586955 ("internal/goexperiment: add aliastypeparams GOEXPERIMENT flag")
++https://go.dev/cl/586956 ("go/types, types2: use GOEXPERIMENT to enable alias type parameters")
++
++-->
+diff --git a/doc/next/6-stdlib/99-minor/net/http/66343.md b/doc/next/6-stdlib/99-minor/net/http/66343.md
+new file mode 100644
+index 0000000000..128ce68d45
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/net/http/66343.md
+@@ -0,0 +1 @@
++[Error] now removes misleading response headers.
+diff --git a/doc/next/6-stdlib/99-minor/runtime/debug/42888.md b/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
+index 2a65e691fe..f10753d25c 100644
+--- a/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
++++ b/doc/next/6-stdlib/99-minor/runtime/debug/42888.md
+@@ -1,4 +1,3 @@
+-
+ The [SetCrashOutput] function allows the user to specify an alternate
+ file to which the runtime should write its fatal crash report.
+ It may be used to construct an automated reporting mechanism for all
+diff --git a/doc/next/6-stdlib/99-minor/text/template/57646.md b/doc/next/6-stdlib/99-minor/text/template/57646.md
+new file mode 100644
+index 0000000000..5b8f031432
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/text/template/57646.md
+@@ -0,0 +1 @@
++Templates now support the new "else with" action, which reduces template complexity in some use cases.
+diff --git a/doc/next/7-ports.md b/doc/next/7-ports.md
+index f84cefc59b..64d19e4b0d 100644
+--- a/doc/next/7-ports.md
++++ b/doc/next/7-ports.md
+@@ -7,6 +7,12 @@ As [announced](go1.22#darwin) in the Go 1.22 release notes,
+ Go 1.23 requires macOS 11 Big Sur or later;
+ support for previous versions has been discontinued.
+ 
++### OpenBSD {#openbsd}
++
++<!-- go.dev/issue/55999, CL 518629, CL 518630 -->
++<!-- TODO: Should it say 'experimental' like in go.dev/doc/go1.22#openbsd or https://go.dev/doc/go1.20#freebsd-riscv, or not? -->
++Go 1.23 adds experimental support for OpenBSD on RISC-V (`GOOS=openbsd`, `GOARCH=riscv64`).
++
+ ### Wasm {#wasm}
+ 
+ <!-- go.dev/issue/63718 -->
+diff --git a/doc/next/9-todo.md b/doc/next/9-todo.md
+new file mode 100644
+index 0000000000..a667f065bd
+--- /dev/null
++++ b/doc/next/9-todo.md
+@@ -0,0 +1,59 @@
++<!-- These items need to be completed and moved to an appropriate location in the release notes. -->
++
++<!-- go.dev/issue/61405, CL 557835, CL 584596 -->
++TODO: Document that range-over-func is enabled (and that GOEXPERIMENT=rangefunc is relevant) in Go 1.23. This note should be moved to an appropriate location in the release notes.
++
++<!-- go.dev/issue/60905, CL 559555 -->
++TODO: The new `GOARM64` environment variable needs to be documented. This note should be moved to an appropriate location in the release notes.
++
++<!-- go.dev/issue/61476, CL 541135 -->
++TODO: The new `GORISCV64` environment variable needs to be documented. This note should be moved to an appropriate location in the release notes.
++
++<!-- These items need to be reviewed, and mentioned in the Go 1.23 release notes if applicable.
++
++None right now; more may come up later on.
++-->
++
++<!-- Maybe should be documented? Maybe shouldn't? Someone familiar with the change needs to determine.
++
++CL 359594 ("x/website/_content/ref/mod: document dotless module paths") - resolved go.dev/issue/32819 ("cmd/go: document that module names without dots are reserved") and also mentioned accepted proposal go.dev/issue/37641
++CL 570681 ("os: make FindProcess use pidfd on Linux") mentions accepted proposal go.dev/issue/51246 (described as fully implemented in Go 1.22) and NeedsInvestigation continuation issue go.dev/issue/62654.
++CL 555075 ("x/tools/go/ssa: support range-over-func") - x/tools CL implements range-over-func support in x/tools/go/ssa for accepted proposal https://go.dev/issue/66601; this particular proposal and change doesn't seem to need a dedicated mention in Go 1.23 release notes but someone more familiar should take another look
++-->
++
++<!-- Items that don't need to be mentioned in Go 1.23 release notes but are picked up by relnote todo.
++
++CL 458895 - an x/playground fix that mentioned an accepted cmd/go proposal go.dev/issue/40728 in Go 1.16 milestone...
++CL 582097 - an x/build CL working on relnote itself; it doesn't need a release note
++CL 561935 - crypto CL that used purego tag and mentioned accepted-but-not-implemented proposal https://go.dev/issue/23172 to document purego tag; doesn't need a release note
++CL 568340 - fixed a spurious race in time.Ticker.Reset (added via accepted proposal https://go.dev/issue/33184), doesn't seem to need a release note
++CL 562619 - x/website CL documented minimum bootstrap version on go.dev, mentioning accepted proposals go.dev/issue/54265 and go.dev/issue/44505; doesn't need a release note
++CL 557055 - x/tools CL implemented accepted proposal https://go.dev/issue/46941 for x/tools/go/ssa
++CL 564275 - an x/tools CL that updates test data in preparation for accepted proposal https://go.dev/issue/51473; said proposal isn't implemented for Go 1.23 and so it doesn't need a release note
++CL 572535 - used "unix" build tag in more places, mentioned accepted proposal https://go.dev/issue/51572; doesn't need a release note
++CL 555255 - an x/tools CL implements accepted proposal https://go.dev/issue/53367 for x/tools/go/cfg
++CL 585216 - an x/build CL mentions accepted proposal https://go.dev/issue/56001 because it fixed a bug causing downloads not to be produced for that new-to-Go-1.22 port; this isn't relevant to Go 1.23 release notes
++CL 481062 - added examples for accepted proposal https://go.dev/issue/56102; doesn't need a release note
++CL 497195 - an x/net CL adds one of 4 fields for accepted proposal https://go.dev/issue/57893 in x/net/http2; seemingly not related to net/http and so doesn't need a Go 1.23 release note
++CL 463097, CL 568198 - x/net CLs that implemented accepted proposal https://go.dev/issue/57953 for x/net/websocket; no need for rel note
++many x/net CLs - work on accepted proposal https://go.dev/issue/58547 to add a QUIC implementation to x/net/quic
++CL 514775 - implements a performance optimization for accepted proposal https://go.dev/issue/59488
++CL 484995 - x/sys CL implements accepted proposal https://go.dev/issue/59537 to add x/sys/unix API
++CL 555597 - optimizes TypeFor (added in accepted proposal https://go.dev/issue/60088) for non-interface types; doesn't seem to need a release note
++a few x/tools CLs deprecated and deleted the experimental golang.org/x/tools/cmd/getgo tool per accepted proposal https://go.dev/issue/60951; an unreleased change and not something that's in scope of Go 1.23 release notes
++many x/vuln CLs to implement accepted proposal https://go.dev/issue/61347 ("x/vuln: convert govulncheck output to sarif format") in govulncheck
++CL 516355 - x/crypto CL that implemented accepted proposal https://go.dev/issue/61447 for x/crypto/ssh; doesn't need a Go 1.23 release note
++CL 559799 - a Go 1.22 release note edit CL mentioned a Go 1.22 accepted proposal https://go.dev/issue/62039, a little after Go 1.23 development began
++CL 581555 - an x/tools CL mentioned accepted proposal https://go.dev/issue/62292 for x/tools/go/aalysis; doesn't need a Go 1.23 release note
++CL 578355 - mentioned accepted proposal https://go.dev/issue/63131 to add GOARCH=wasm32, but that proposal hasn't been implemented in Go 1.23 so it doesn't need a release note
++CL 543335 - x/exp CL that backported a change to behavior in slices package (accepted proposal https://go.dev/issue/63393) to x/exp/slices; doesn't need a Go 1.23 release note
++CL 556820 - x/tools CL implemented accepted proposal https://go.dev/issue/64548 for x/tools/go/analysis
++CL 557056 - x/tools CL implemented accepted proposal https://go.dev/issue/64608 for x/tools/go/packages
++CL 558695 - x/crypto CL worked on accepted proposal https://go.dev/issue/64962 for x/crypto/ssh
++CL 572016 - x/tools CL implemented accepted proposal https://go.dev/issue/65754 for x/tools/go/cfg
++a few x/tools CLs tagged and deleted the golang.org/x/tools/cmd/guru command per accepted proposal https://go.dev/issue/65880; an unreleased change and not something that's in scope of Go 1.23 release notes
++CL 580076 - seemingly internal cmd/go change to propagate module information for accepted proposal https://go.dev/issue/66315; doesn't seem to warrant a release note
++CL 529816 - the 'tests' vet check was initially added to the 'go test' suite per accepted proposal https://go.dev/issue/44251, but the change was rolled back in CL 571695, with no roll forward as of 2024-05-23; nothing to document in Go 1.23 release notes for it at this time
++CL 564035 - changed encoding/xml, but the change was too disrptive and rolled back in CL 570175, reopening tracking issue go.dev/issue/65691; nothing to document in Go 1.23 release notes
++CL 587855 - a demonstration of benefit of accepted proposal https://go.dev/issue/60529; actual change isn't happening in Go 1.23 so doesn't need a release note
++-->

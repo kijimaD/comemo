@@ -1,0 +1,1049 @@
+commit d327e52d438854acae275cdf9d2c1fe42f037eb8
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Wed May 21 19:41:06 2025 +0200
+
+    crypto/internal/fips140: use hash.Hash
+    
+    Since package hash is just the interface definition, not an
+    implementation, we can make a good argument that it doesn't impact the
+    security of the module and can be imported from outside.
+    
+    For #69521
+    
+    Change-Id: I6a6a4656b9c3cac8bb9ab8e8df11fa3238dc5d1d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/674917
+    Reviewed-by: Roland Shoemaker <roland@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Daniel McCarney <daniel@binaryparadox.net>
+    Reviewed-by: David Chase <drchase@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+---
+ src/crypto/internal/fips140/ecdsa/ecdsa.go    |   5 +-
+ src/crypto/internal/fips140/ecdsa/hmacdrbg.go |   5 +-
+ src/crypto/internal/fips140/fips140.go        |   7 +
+ src/crypto/internal/fips140/hash.go           |  32 ----
+ src/crypto/internal/fips140/hkdf/hkdf.go      |   7 +-
+ src/crypto/internal/fips140/hmac/hmac.go      |   7 +-
+ src/crypto/internal/fips140/pbkdf2/pbkdf2.go  |   3 +-
+ src/crypto/internal/fips140/rsa/pkcs1v22.go   |  23 +--
+ src/crypto/internal/fips140/ssh/kdf.go        |   4 +-
+ src/crypto/internal/fips140/tls12/tls12.go    |   7 +-
+ src/crypto/internal/fips140/tls13/tls13.go    |  38 ++--
+ src/crypto/internal/fips140test/acvp_test.go  | 249 +++++++++++++-------------
+ src/crypto/sha3/sha3_test.go                  |   4 +-
+ src/go/build/deps_test.go                     |   8 +-
+ 14 files changed, 192 insertions(+), 207 deletions(-)
+
+diff --git a/src/crypto/internal/fips140/ecdsa/ecdsa.go b/src/crypto/internal/fips140/ecdsa/ecdsa.go
+index 11389e8210..47c1b24421 100644
+--- a/src/crypto/internal/fips140/ecdsa/ecdsa.go
++++ b/src/crypto/internal/fips140/ecdsa/ecdsa.go
+@@ -11,6 +11,7 @@ import (
+ 	"crypto/internal/fips140/drbg"
+ 	"crypto/internal/fips140/nistec"
+ 	"errors"
++	"hash"
+ 	"io"
+ 	"sync"
+ )
+@@ -271,7 +272,7 @@ type Signature struct {
+ // the hash function H) using the private key, priv. If the hash is longer than
+ // the bit-length of the private key's curve order, the hash will be truncated
+ // to that length.
+-func Sign[P Point[P], H fips140.Hash](c *Curve[P], h func() H, priv *PrivateKey, rand io.Reader, hash []byte) (*Signature, error) {
++func Sign[P Point[P], H hash.Hash](c *Curve[P], h func() H, priv *PrivateKey, rand io.Reader, hash []byte) (*Signature, error) {
+ 	if priv.pub.curve != c.curve {
+ 		return nil, errors.New("ecdsa: private key does not match curve")
+ 	}
+@@ -304,7 +305,7 @@ func Sign[P Point[P], H fips140.Hash](c *Curve[P], h func() H, priv *PrivateKey,
+ // hash is longer than the bit-length of the private key's curve order, the hash
+ // will be truncated to that length. This applies Deterministic ECDSA as
+ // specified in FIPS 186-5 and RFC 6979.
+-func SignDeterministic[P Point[P], H fips140.Hash](c *Curve[P], h func() H, priv *PrivateKey, hash []byte) (*Signature, error) {
++func SignDeterministic[P Point[P], H hash.Hash](c *Curve[P], h func() H, priv *PrivateKey, hash []byte) (*Signature, error) {
+ 	if priv.pub.curve != c.curve {
+ 		return nil, errors.New("ecdsa: private key does not match curve")
+ 	}
+diff --git a/src/crypto/internal/fips140/ecdsa/hmacdrbg.go b/src/crypto/internal/fips140/ecdsa/hmacdrbg.go
+index 8f52091170..fa82ce39f9 100644
+--- a/src/crypto/internal/fips140/ecdsa/hmacdrbg.go
++++ b/src/crypto/internal/fips140/ecdsa/hmacdrbg.go
+@@ -8,6 +8,7 @@ import (
+ 	"bytes"
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/hmac"
++	"hash"
+ )
+ 
+ // hmacDRBG is an SP 800-90A Rev. 1 HMAC_DRBG.
+@@ -48,7 +49,7 @@ type personalizationString interface {
+ 	isPersonalizationString()
+ }
+ 
+-func newDRBG[H fips140.Hash](hash func() H, entropy, nonce []byte, s personalizationString) *hmacDRBG {
++func newDRBG[H hash.Hash](hash func() H, entropy, nonce []byte, s personalizationString) *hmacDRBG {
+ 	// HMAC_DRBG_Instantiate_algorithm, per Section 10.1.2.3.
+ 	fips140.RecordApproved()
+ 
+@@ -121,7 +122,7 @@ func newDRBG[H fips140.Hash](hash func() H, entropy, nonce []byte, s personaliza
+ //
+ // This should only be used for ACVP testing. hmacDRBG is not intended to be
+ // used directly.
+-func TestingOnlyNewDRBG(hash func() fips140.Hash, entropy, nonce []byte, s []byte) *hmacDRBG {
++func TestingOnlyNewDRBG(hash func() hash.Hash, entropy, nonce []byte, s []byte) *hmacDRBG {
+ 	return newDRBG(hash, entropy, nonce, plainPersonalizationString(s))
+ }
+ 
+diff --git a/src/crypto/internal/fips140/fips140.go b/src/crypto/internal/fips140/fips140.go
+index e05ad66374..050967f480 100644
+--- a/src/crypto/internal/fips140/fips140.go
++++ b/src/crypto/internal/fips140/fips140.go
+@@ -7,6 +7,7 @@ package fips140
+ import (
+ 	"crypto/internal/fips140deps/godebug"
+ 	"errors"
++	"hash"
+ 	"runtime"
+ )
+ 
+@@ -69,3 +70,9 @@ func Version() string {
+ 	// moved to a different file.
+ 	return "latest" //mkzip:version
+ }
++
++// Hash is a legacy compatibility alias for hash.Hash.
++//
++// It's only here because [crypto/internal/fips140/ecdsa.TestingOnlyNewDRBG]
++// takes a "func() fips140.Hash" in v1.0.0, instead of being generic.
++type Hash = hash.Hash
+diff --git a/src/crypto/internal/fips140/hash.go b/src/crypto/internal/fips140/hash.go
+deleted file mode 100644
+index bc6c7ca2f5..0000000000
+--- a/src/crypto/internal/fips140/hash.go
++++ /dev/null
+@@ -1,32 +0,0 @@
+-// Copyright 2024 The Go Authors. All rights reserved.
+-// Use of this source code is governed by a BSD-style
+-// license that can be found in the LICENSE file.
+-
+-package fips140
+-
+-import "io"
+-
+-// Hash is the common interface implemented by all hash functions. It is a copy
+-// of [hash.Hash] from the standard library, to avoid depending on security
+-// definitions from outside of the module.
+-type Hash interface {
+-	// Write (via the embedded io.Writer interface) adds more data to the
+-	// running hash. It never returns an error.
+-	io.Writer
+-
+-	// Sum appends the current hash to b and returns the resulting slice.
+-	// It does not change the underlying hash state.
+-	Sum(b []byte) []byte
+-
+-	// Reset resets the Hash to its initial state.
+-	Reset()
+-
+-	// Size returns the number of bytes Sum will return.
+-	Size() int
+-
+-	// BlockSize returns the hash's underlying block size.
+-	// The Write method must be able to accept any amount
+-	// of data, but it may operate more efficiently if all writes
+-	// are a multiple of the block size.
+-	BlockSize() int
+-}
+diff --git a/src/crypto/internal/fips140/hkdf/hkdf.go b/src/crypto/internal/fips140/hkdf/hkdf.go
+index e612fbbc21..2e8b83d41d 100644
+--- a/src/crypto/internal/fips140/hkdf/hkdf.go
++++ b/src/crypto/internal/fips140/hkdf/hkdf.go
+@@ -7,9 +7,10 @@ package hkdf
+ import (
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/hmac"
++	"hash"
+ )
+ 
+-func Extract[H fips140.Hash](h func() H, secret, salt []byte) []byte {
++func Extract[H hash.Hash](h func() H, secret, salt []byte) []byte {
+ 	if len(secret) < 112/8 {
+ 		fips140.RecordNonApproved()
+ 	}
+@@ -23,7 +24,7 @@ func Extract[H fips140.Hash](h func() H, secret, salt []byte) []byte {
+ 	return extractor.Sum(nil)
+ }
+ 
+-func Expand[H fips140.Hash](h func() H, pseudorandomKey []byte, info string, keyLen int) []byte {
++func Expand[H hash.Hash](h func() H, pseudorandomKey []byte, info string, keyLen int) []byte {
+ 	out := make([]byte, 0, keyLen)
+ 	expander := hmac.New(h, pseudorandomKey)
+ 	hmac.MarkAsUsedInKDF(expander)
+@@ -50,7 +51,7 @@ func Expand[H fips140.Hash](h func() H, pseudorandomKey []byte, info string, key
+ 	return out
+ }
+ 
+-func Key[H fips140.Hash](h func() H, secret, salt []byte, info string, keyLen int) []byte {
++func Key[H hash.Hash](h func() H, secret, salt []byte, info string, keyLen int) []byte {
+ 	prk := Extract(h, secret, salt)
+ 	return Expand(h, prk, info, keyLen)
+ }
+diff --git a/src/crypto/internal/fips140/hmac/hmac.go b/src/crypto/internal/fips140/hmac/hmac.go
+index 5a588d7c26..3d193d5592 100644
+--- a/src/crypto/internal/fips140/hmac/hmac.go
++++ b/src/crypto/internal/fips140/hmac/hmac.go
+@@ -12,6 +12,7 @@ import (
+ 	"crypto/internal/fips140/sha256"
+ 	"crypto/internal/fips140/sha3"
+ 	"crypto/internal/fips140/sha512"
++	"hash"
+ )
+ 
+ // key is zero padded to the block size of the hash function
+@@ -29,7 +30,7 @@ type marshalable interface {
+ 
+ type HMAC struct {
+ 	opad, ipad   []byte
+-	outer, inner fips140.Hash
++	outer, inner hash.Hash
+ 
+ 	// If marshaled is true, then opad and ipad do not contain a padded
+ 	// copy of the key, but rather the marshaled state of outer/inner after
+@@ -127,8 +128,8 @@ func (h *HMAC) Reset() {
+ 	h.marshaled = true
+ }
+ 
+-// New returns a new HMAC hash using the given [fips140.Hash] type and key.
+-func New[H fips140.Hash](h func() H, key []byte) *HMAC {
++// New returns a new HMAC hash using the given [hash.Hash] type and key.
++func New[H hash.Hash](h func() H, key []byte) *HMAC {
+ 	hm := &HMAC{keyLen: len(key)}
+ 	hm.outer = h()
+ 	hm.inner = h()
+diff --git a/src/crypto/internal/fips140/pbkdf2/pbkdf2.go b/src/crypto/internal/fips140/pbkdf2/pbkdf2.go
+index 05923f6826..2cd9b00241 100644
+--- a/src/crypto/internal/fips140/pbkdf2/pbkdf2.go
++++ b/src/crypto/internal/fips140/pbkdf2/pbkdf2.go
+@@ -8,6 +8,7 @@ import (
+ 	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/hmac"
+ 	"errors"
++	"hash"
+ )
+ 
+ // divRoundUp divides x+y-1 by y, rounding up if the result is not whole.
+@@ -19,7 +20,7 @@ func divRoundUp(x, y int) int {
+ 	return int((int64(x) + int64(y) - 1) / int64(y))
+ }
+ 
+-func Key[Hash fips140.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
++func Key[Hash hash.Hash](h func() Hash, password string, salt []byte, iter, keyLength int) ([]byte, error) {
+ 	setServiceIndicator(salt, keyLength)
+ 
+ 	if keyLength <= 0 {
+diff --git a/src/crypto/internal/fips140/rsa/pkcs1v22.go b/src/crypto/internal/fips140/rsa/pkcs1v22.go
+index a5bc56dafc..9ec28da794 100644
+--- a/src/crypto/internal/fips140/rsa/pkcs1v22.go
++++ b/src/crypto/internal/fips140/rsa/pkcs1v22.go
+@@ -16,6 +16,7 @@ import (
+ 	"crypto/internal/fips140/sha512"
+ 	"crypto/internal/fips140/subtle"
+ 	"errors"
++	"hash"
+ 	"io"
+ )
+ 
+@@ -48,7 +49,7 @@ func incCounter(c *[4]byte) {
+ 
+ // mgf1XOR XORs the bytes in out with a mask generated using the MGF1 function
+ // specified in PKCS #1 v2.1.
+-func mgf1XOR(out []byte, hash fips140.Hash, seed []byte) {
++func mgf1XOR(out []byte, hash hash.Hash, seed []byte) {
+ 	var counter [4]byte
+ 	var digest []byte
+ 
+@@ -67,7 +68,7 @@ func mgf1XOR(out []byte, hash fips140.Hash, seed []byte) {
+ 	}
+ }
+ 
+-func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash fips140.Hash) ([]byte, error) {
++func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash hash.Hash) ([]byte, error) {
+ 	// See RFC 8017, Section 9.1.1.
+ 
+ 	hLen := hash.Size()
+@@ -144,7 +145,7 @@ func emsaPSSEncode(mHash []byte, emBits int, salt []byte, hash fips140.Hash) ([]
+ 
+ const pssSaltLengthAutodetect = -1
+ 
+-func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash fips140.Hash) error {
++func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash hash.Hash) error {
+ 	// See RFC 8017, Section 9.1.2.
+ 
+ 	hLen := hash.Size()
+@@ -250,7 +251,7 @@ func emsaPSSVerify(mHash, em []byte, emBits, sLen int, hash fips140.Hash) error
+ 
+ // PSSMaxSaltLength returns the maximum salt length for a given public key and
+ // hash function.
+-func PSSMaxSaltLength(pub *PublicKey, hash fips140.Hash) (int, error) {
++func PSSMaxSaltLength(pub *PublicKey, hash hash.Hash) (int, error) {
+ 	saltLength := (pub.N.BitLen()-1+7)/8 - 2 - hash.Size()
+ 	if saltLength < 0 {
+ 		return 0, ErrMessageTooLong
+@@ -264,7 +265,7 @@ func PSSMaxSaltLength(pub *PublicKey, hash fips140.Hash) (int, error) {
+ }
+ 
+ // SignPSS calculates the signature of hashed using RSASSA-PSS.
+-func SignPSS(rand io.Reader, priv *PrivateKey, hash fips140.Hash, hashed []byte, saltLength int) ([]byte, error) {
++func SignPSS(rand io.Reader, priv *PrivateKey, hash hash.Hash, hashed []byte, saltLength int) ([]byte, error) {
+ 	fipsSelfTest()
+ 	fips140.RecordApproved()
+ 	checkApprovedHash(hash)
+@@ -311,19 +312,19 @@ func SignPSS(rand io.Reader, priv *PrivateKey, hash fips140.Hash, hashed []byte,
+ }
+ 
+ // VerifyPSS verifies sig with RSASSA-PSS automatically detecting the salt length.
+-func VerifyPSS(pub *PublicKey, hash fips140.Hash, digest []byte, sig []byte) error {
++func VerifyPSS(pub *PublicKey, hash hash.Hash, digest []byte, sig []byte) error {
+ 	return verifyPSS(pub, hash, digest, sig, pssSaltLengthAutodetect)
+ }
+ 
+ // VerifyPSS verifies sig with RSASSA-PSS and an expected salt length.
+-func VerifyPSSWithSaltLength(pub *PublicKey, hash fips140.Hash, digest []byte, sig []byte, saltLength int) error {
++func VerifyPSSWithSaltLength(pub *PublicKey, hash hash.Hash, digest []byte, sig []byte, saltLength int) error {
+ 	if saltLength < 0 {
+ 		return errors.New("crypto/rsa: salt length cannot be negative")
+ 	}
+ 	return verifyPSS(pub, hash, digest, sig, saltLength)
+ }
+ 
+-func verifyPSS(pub *PublicKey, hash fips140.Hash, digest []byte, sig []byte, saltLength int) error {
++func verifyPSS(pub *PublicKey, hash hash.Hash, digest []byte, sig []byte, saltLength int) error {
+ 	fipsSelfTest()
+ 	fips140.RecordApproved()
+ 	checkApprovedHash(hash)
+@@ -359,7 +360,7 @@ func verifyPSS(pub *PublicKey, hash fips140.Hash, digest []byte, sig []byte, sal
+ 	return emsaPSSVerify(digest, em, emBits, saltLength, hash)
+ }
+ 
+-func checkApprovedHash(hash fips140.Hash) {
++func checkApprovedHash(hash hash.Hash) {
+ 	switch hash.(type) {
+ 	case *sha256.Digest, *sha512.Digest, *sha3.Digest:
+ 	default:
+@@ -368,7 +369,7 @@ func checkApprovedHash(hash fips140.Hash) {
+ }
+ 
+ // EncryptOAEP encrypts the given message with RSAES-OAEP.
+-func EncryptOAEP(hash, mgfHash fips140.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
++func EncryptOAEP(hash, mgfHash hash.Hash, random io.Reader, pub *PublicKey, msg []byte, label []byte) ([]byte, error) {
+ 	// Note that while we don't commit to deterministic execution with respect
+ 	// to the random stream, we also don't apply MaybeReadByte, so per Hyrum's
+ 	// Law it's probably relied upon by some. It's a tolerable promise because a
+@@ -411,7 +412,7 @@ func EncryptOAEP(hash, mgfHash fips140.Hash, random io.Reader, pub *PublicKey, m
+ }
+ 
+ // DecryptOAEP decrypts ciphertext using RSAES-OAEP.
+-func DecryptOAEP(hash, mgfHash fips140.Hash, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
++func DecryptOAEP(hash, mgfHash hash.Hash, priv *PrivateKey, ciphertext []byte, label []byte) ([]byte, error) {
+ 	fipsSelfTest()
+ 	fips140.RecordApproved()
+ 	checkApprovedHash(hash)
+diff --git a/src/crypto/internal/fips140/ssh/kdf.go b/src/crypto/internal/fips140/ssh/kdf.go
+index 837af199c4..431deda8dd 100644
+--- a/src/crypto/internal/fips140/ssh/kdf.go
++++ b/src/crypto/internal/fips140/ssh/kdf.go
+@@ -7,8 +7,8 @@
+ package ssh
+ 
+ import (
+-	"crypto/internal/fips140"
+ 	_ "crypto/internal/fips140/check"
++	"hash"
+ )
+ 
+ type Direction struct {
+@@ -24,7 +24,7 @@ func init() {
+ 	ClientKeys = Direction{[]byte{'A'}, []byte{'C'}, []byte{'E'}}
+ }
+ 
+-func Keys[Hash fips140.Hash](hash func() Hash, d Direction,
++func Keys[Hash hash.Hash](hash func() Hash, d Direction,
+ 	K, H, sessionID []byte,
+ 	ivKeyLen, keyLen, macKeyLen int,
+ ) (ivKey, key, macKey []byte) {
+diff --git a/src/crypto/internal/fips140/tls12/tls12.go b/src/crypto/internal/fips140/tls12/tls12.go
+index b07e02c85f..5b4dcae101 100644
+--- a/src/crypto/internal/fips140/tls12/tls12.go
++++ b/src/crypto/internal/fips140/tls12/tls12.go
+@@ -9,11 +9,12 @@ import (
+ 	"crypto/internal/fips140/hmac"
+ 	"crypto/internal/fips140/sha256"
+ 	"crypto/internal/fips140/sha512"
++	"hash"
+ )
+ 
+ // PRF implements the TLS 1.2 pseudo-random function, as defined in RFC 5246,
+ // Section 5 and allowed by SP 800-135, Revision 1, Section 4.2.2.
+-func PRF[H fips140.Hash](hash func() H, secret []byte, label string, seed []byte, keyLen int) []byte {
++func PRF[H hash.Hash](hash func() H, secret []byte, label string, seed []byte, keyLen int) []byte {
+ 	labelAndSeed := make([]byte, len(label)+len(seed))
+ 	copy(labelAndSeed, label)
+ 	copy(labelAndSeed[len(label):], seed)
+@@ -24,7 +25,7 @@ func PRF[H fips140.Hash](hash func() H, secret []byte, label string, seed []byte
+ }
+ 
+ // pHash implements the P_hash function, as defined in RFC 5246, Section 5.
+-func pHash[H fips140.Hash](hash func() H, result, secret, seed []byte) {
++func pHash[H hash.Hash](hash func() H, result, secret, seed []byte) {
+ 	h := hmac.New(hash, secret)
+ 	h.Write(seed)
+ 	a := h.Sum(nil)
+@@ -48,7 +49,7 @@ const extendedMasterSecretLabel = "extended master secret"
+ 
+ // MasterSecret implements the TLS 1.2 extended master secret derivation, as
+ // defined in RFC 7627 and allowed by SP 800-135, Revision 1, Section 4.2.2.
+-func MasterSecret[H fips140.Hash](hash func() H, preMasterSecret, transcript []byte) []byte {
++func MasterSecret[H hash.Hash](hash func() H, preMasterSecret, transcript []byte) []byte {
+ 	// "The TLS 1.2 KDF is an approved KDF when the following conditions are
+ 	// satisfied: [...] (3) P_HASH uses either SHA-256, SHA-384 or SHA-512."
+ 	h := hash()
+diff --git a/src/crypto/internal/fips140/tls13/tls13.go b/src/crypto/internal/fips140/tls13/tls13.go
+index 009844a507..f2c2423a25 100644
+--- a/src/crypto/internal/fips140/tls13/tls13.go
++++ b/src/crypto/internal/fips140/tls13/tls13.go
+@@ -7,9 +7,9 @@
+ package tls13
+ 
+ import (
+-	"crypto/internal/fips140"
+ 	"crypto/internal/fips140/hkdf"
+ 	"crypto/internal/fips140deps/byteorder"
++	"hash"
+ )
+ 
+ // We don't set the service indicator in this package but we delegate that to
+@@ -17,7 +17,7 @@ import (
+ // its own.
+ 
+ // ExpandLabel implements HKDF-Expand-Label from RFC 8446, Section 7.1.
+-func ExpandLabel[H fips140.Hash](hash func() H, secret []byte, label string, context []byte, length int) []byte {
++func ExpandLabel[H hash.Hash](hash func() H, secret []byte, label string, context []byte, length int) []byte {
+ 	if len("tls13 ")+len(label) > 255 || len(context) > 255 {
+ 		// It should be impossible for this to panic: labels are fixed strings,
+ 		// and context is either a fixed-length computed hash, or parsed from a
+@@ -39,14 +39,14 @@ func ExpandLabel[H fips140.Hash](hash func() H, secret []byte, label string, con
+ 	return hkdf.Expand(hash, secret, string(hkdfLabel), length)
+ }
+ 
+-func extract[H fips140.Hash](hash func() H, newSecret, currentSecret []byte) []byte {
++func extract[H hash.Hash](hash func() H, newSecret, currentSecret []byte) []byte {
+ 	if newSecret == nil {
+ 		newSecret = make([]byte, hash().Size())
+ 	}
+ 	return hkdf.Extract(hash, newSecret, currentSecret)
+ }
+ 
+-func deriveSecret[H fips140.Hash](hash func() H, secret []byte, label string, transcript fips140.Hash) []byte {
++func deriveSecret[H hash.Hash](hash func() H, secret []byte, label string, transcript hash.Hash) []byte {
+ 	if transcript == nil {
+ 		transcript = hash()
+ 	}
+@@ -67,13 +67,13 @@ const (
+ 
+ type EarlySecret struct {
+ 	secret []byte
+-	hash   func() fips140.Hash
++	hash   func() hash.Hash
+ }
+ 
+-func NewEarlySecret[H fips140.Hash](hash func() H, psk []byte) *EarlySecret {
++func NewEarlySecret[H hash.Hash](h func() H, psk []byte) *EarlySecret {
+ 	return &EarlySecret{
+-		secret: extract(hash, psk, nil),
+-		hash:   func() fips140.Hash { return hash() },
++		secret: extract(h, psk, nil),
++		hash:   func() hash.Hash { return h() },
+ 	}
+ }
+ 
+@@ -83,13 +83,13 @@ func (s *EarlySecret) ResumptionBinderKey() []byte {
+ 
+ // ClientEarlyTrafficSecret derives the client_early_traffic_secret from the
+ // early secret and the transcript up to the ClientHello.
+-func (s *EarlySecret) ClientEarlyTrafficSecret(transcript fips140.Hash) []byte {
++func (s *EarlySecret) ClientEarlyTrafficSecret(transcript hash.Hash) []byte {
+ 	return deriveSecret(s.hash, s.secret, clientEarlyTrafficLabel, transcript)
+ }
+ 
+ type HandshakeSecret struct {
+ 	secret []byte
+-	hash   func() fips140.Hash
++	hash   func() hash.Hash
+ }
+ 
+ func (s *EarlySecret) HandshakeSecret(sharedSecret []byte) *HandshakeSecret {
+@@ -102,19 +102,19 @@ func (s *EarlySecret) HandshakeSecret(sharedSecret []byte) *HandshakeSecret {
+ 
+ // ClientHandshakeTrafficSecret derives the client_handshake_traffic_secret from
+ // the handshake secret and the transcript up to the ServerHello.
+-func (s *HandshakeSecret) ClientHandshakeTrafficSecret(transcript fips140.Hash) []byte {
++func (s *HandshakeSecret) ClientHandshakeTrafficSecret(transcript hash.Hash) []byte {
+ 	return deriveSecret(s.hash, s.secret, clientHandshakeTrafficLabel, transcript)
+ }
+ 
+ // ServerHandshakeTrafficSecret derives the server_handshake_traffic_secret from
+ // the handshake secret and the transcript up to the ServerHello.
+-func (s *HandshakeSecret) ServerHandshakeTrafficSecret(transcript fips140.Hash) []byte {
++func (s *HandshakeSecret) ServerHandshakeTrafficSecret(transcript hash.Hash) []byte {
+ 	return deriveSecret(s.hash, s.secret, serverHandshakeTrafficLabel, transcript)
+ }
+ 
+ type MasterSecret struct {
+ 	secret []byte
+-	hash   func() fips140.Hash
++	hash   func() hash.Hash
+ }
+ 
+ func (s *HandshakeSecret) MasterSecret() *MasterSecret {
+@@ -127,30 +127,30 @@ func (s *HandshakeSecret) MasterSecret() *MasterSecret {
+ 
+ // ClientApplicationTrafficSecret derives the client_application_traffic_secret_0
+ // from the master secret and the transcript up to the server Finished.
+-func (s *MasterSecret) ClientApplicationTrafficSecret(transcript fips140.Hash) []byte {
++func (s *MasterSecret) ClientApplicationTrafficSecret(transcript hash.Hash) []byte {
+ 	return deriveSecret(s.hash, s.secret, clientApplicationTrafficLabel, transcript)
+ }
+ 
+ // ServerApplicationTrafficSecret derives the server_application_traffic_secret_0
+ // from the master secret and the transcript up to the server Finished.
+-func (s *MasterSecret) ServerApplicationTrafficSecret(transcript fips140.Hash) []byte {
++func (s *MasterSecret) ServerApplicationTrafficSecret(transcript hash.Hash) []byte {
+ 	return deriveSecret(s.hash, s.secret, serverApplicationTrafficLabel, transcript)
+ }
+ 
+ // ResumptionMasterSecret derives the resumption_master_secret from the master secret
+ // and the transcript up to the client Finished.
+-func (s *MasterSecret) ResumptionMasterSecret(transcript fips140.Hash) []byte {
++func (s *MasterSecret) ResumptionMasterSecret(transcript hash.Hash) []byte {
+ 	return deriveSecret(s.hash, s.secret, resumptionLabel, transcript)
+ }
+ 
+ type ExporterMasterSecret struct {
+ 	secret []byte
+-	hash   func() fips140.Hash
++	hash   func() hash.Hash
+ }
+ 
+ // ExporterMasterSecret derives the exporter_master_secret from the master secret
+ // and the transcript up to the server Finished.
+-func (s *MasterSecret) ExporterMasterSecret(transcript fips140.Hash) *ExporterMasterSecret {
++func (s *MasterSecret) ExporterMasterSecret(transcript hash.Hash) *ExporterMasterSecret {
+ 	return &ExporterMasterSecret{
+ 		secret: deriveSecret(s.hash, s.secret, exporterLabel, transcript),
+ 		hash:   s.hash,
+@@ -159,7 +159,7 @@ func (s *MasterSecret) ExporterMasterSecret(transcript fips140.Hash) *ExporterMa
+ 
+ // EarlyExporterMasterSecret derives the exporter_master_secret from the early secret
+ // and the transcript up to the ClientHello.
+-func (s *EarlySecret) EarlyExporterMasterSecret(transcript fips140.Hash) *ExporterMasterSecret {
++func (s *EarlySecret) EarlyExporterMasterSecret(transcript hash.Hash) *ExporterMasterSecret {
+ 	return &ExporterMasterSecret{
+ 		secret: deriveSecret(s.hash, s.secret, earlyExporterLabel, transcript),
+ 		hash:   s.hash,
+diff --git a/src/crypto/internal/fips140test/acvp_test.go b/src/crypto/internal/fips140test/acvp_test.go
+index ddb234bab6..5871bde8be 100644
+--- a/src/crypto/internal/fips140test/acvp_test.go
++++ b/src/crypto/internal/fips140test/acvp_test.go
+@@ -50,6 +50,7 @@ import (
+ 	"encoding/binary"
+ 	"errors"
+ 	"fmt"
++	"hash"
+ 	"internal/testenv"
+ 	"io"
+ 	"math/big"
+@@ -198,32 +199,32 @@ var (
+ 		"cSHAKE-256":     cmdCShakeAft(func(N, S []byte) *sha3.SHAKE { return sha3.NewCShake256(N, S) }),
+ 		"cSHAKE-256/MCT": cmdCShakeMct(func(N, S []byte) *sha3.SHAKE { return sha3.NewCShake256(N, S) }),
+ 
+-		"HMAC-SHA2-224":     cmdHmacAft(func() fips140.Hash { return sha256.New224() }),
+-		"HMAC-SHA2-256":     cmdHmacAft(func() fips140.Hash { return sha256.New() }),
+-		"HMAC-SHA2-384":     cmdHmacAft(func() fips140.Hash { return sha512.New384() }),
+-		"HMAC-SHA2-512":     cmdHmacAft(func() fips140.Hash { return sha512.New() }),
+-		"HMAC-SHA2-512/224": cmdHmacAft(func() fips140.Hash { return sha512.New512_224() }),
+-		"HMAC-SHA2-512/256": cmdHmacAft(func() fips140.Hash { return sha512.New512_256() }),
+-		"HMAC-SHA3-224":     cmdHmacAft(func() fips140.Hash { return sha3.New224() }),
+-		"HMAC-SHA3-256":     cmdHmacAft(func() fips140.Hash { return sha3.New256() }),
+-		"HMAC-SHA3-384":     cmdHmacAft(func() fips140.Hash { return sha3.New384() }),
+-		"HMAC-SHA3-512":     cmdHmacAft(func() fips140.Hash { return sha3.New512() }),
+-
+-		"HKDF/SHA2-224":     cmdHkdfAft(func() fips140.Hash { return sha256.New224() }),
+-		"HKDF/SHA2-256":     cmdHkdfAft(func() fips140.Hash { return sha256.New() }),
+-		"HKDF/SHA2-384":     cmdHkdfAft(func() fips140.Hash { return sha512.New384() }),
+-		"HKDF/SHA2-512":     cmdHkdfAft(func() fips140.Hash { return sha512.New() }),
+-		"HKDF/SHA2-512/224": cmdHkdfAft(func() fips140.Hash { return sha512.New512_224() }),
+-		"HKDF/SHA2-512/256": cmdHkdfAft(func() fips140.Hash { return sha512.New512_256() }),
+-		"HKDF/SHA3-224":     cmdHkdfAft(func() fips140.Hash { return sha3.New224() }),
+-		"HKDF/SHA3-256":     cmdHkdfAft(func() fips140.Hash { return sha3.New256() }),
+-		"HKDF/SHA3-384":     cmdHkdfAft(func() fips140.Hash { return sha3.New384() }),
+-		"HKDF/SHA3-512":     cmdHkdfAft(func() fips140.Hash { return sha3.New512() }),
+-
+-		"HKDFExtract/SHA2-256":     cmdHkdfExtractAft(func() fips140.Hash { return sha256.New() }),
+-		"HKDFExtract/SHA2-384":     cmdHkdfExtractAft(func() fips140.Hash { return sha512.New384() }),
+-		"HKDFExpandLabel/SHA2-256": cmdHkdfExpandLabelAft(func() fips140.Hash { return sha256.New() }),
+-		"HKDFExpandLabel/SHA2-384": cmdHkdfExpandLabelAft(func() fips140.Hash { return sha512.New384() }),
++		"HMAC-SHA2-224":     cmdHmacAft(func() hash.Hash { return sha256.New224() }),
++		"HMAC-SHA2-256":     cmdHmacAft(func() hash.Hash { return sha256.New() }),
++		"HMAC-SHA2-384":     cmdHmacAft(func() hash.Hash { return sha512.New384() }),
++		"HMAC-SHA2-512":     cmdHmacAft(func() hash.Hash { return sha512.New() }),
++		"HMAC-SHA2-512/224": cmdHmacAft(func() hash.Hash { return sha512.New512_224() }),
++		"HMAC-SHA2-512/256": cmdHmacAft(func() hash.Hash { return sha512.New512_256() }),
++		"HMAC-SHA3-224":     cmdHmacAft(func() hash.Hash { return sha3.New224() }),
++		"HMAC-SHA3-256":     cmdHmacAft(func() hash.Hash { return sha3.New256() }),
++		"HMAC-SHA3-384":     cmdHmacAft(func() hash.Hash { return sha3.New384() }),
++		"HMAC-SHA3-512":     cmdHmacAft(func() hash.Hash { return sha3.New512() }),
++
++		"HKDF/SHA2-224":     cmdHkdfAft(func() hash.Hash { return sha256.New224() }),
++		"HKDF/SHA2-256":     cmdHkdfAft(func() hash.Hash { return sha256.New() }),
++		"HKDF/SHA2-384":     cmdHkdfAft(func() hash.Hash { return sha512.New384() }),
++		"HKDF/SHA2-512":     cmdHkdfAft(func() hash.Hash { return sha512.New() }),
++		"HKDF/SHA2-512/224": cmdHkdfAft(func() hash.Hash { return sha512.New512_224() }),
++		"HKDF/SHA2-512/256": cmdHkdfAft(func() hash.Hash { return sha512.New512_256() }),
++		"HKDF/SHA3-224":     cmdHkdfAft(func() hash.Hash { return sha3.New224() }),
++		"HKDF/SHA3-256":     cmdHkdfAft(func() hash.Hash { return sha3.New256() }),
++		"HKDF/SHA3-384":     cmdHkdfAft(func() hash.Hash { return sha3.New384() }),
++		"HKDF/SHA3-512":     cmdHkdfAft(func() hash.Hash { return sha3.New512() }),
++
++		"HKDFExtract/SHA2-256":     cmdHkdfExtractAft(func() hash.Hash { return sha256.New() }),
++		"HKDFExtract/SHA2-384":     cmdHkdfExtractAft(func() hash.Hash { return sha512.New384() }),
++		"HKDFExpandLabel/SHA2-256": cmdHkdfExpandLabelAft(func() hash.Hash { return sha256.New() }),
++		"HKDFExpandLabel/SHA2-384": cmdHkdfExpandLabelAft(func() hash.Hash { return sha512.New384() }),
+ 
+ 		"PBKDF": cmdPbkdf(),
+ 
+@@ -234,16 +235,16 @@ var (
+ 		"ML-KEM-1024/encap":  cmdMlKem1024EncapAft(),
+ 		"ML-KEM-1024/decap":  cmdMlKem1024DecapAft(),
+ 
+-		"hmacDRBG/SHA2-224":     cmdHmacDrbgAft(func() fips140.Hash { return sha256.New224() }),
+-		"hmacDRBG/SHA2-256":     cmdHmacDrbgAft(func() fips140.Hash { return sha256.New() }),
+-		"hmacDRBG/SHA2-384":     cmdHmacDrbgAft(func() fips140.Hash { return sha512.New384() }),
+-		"hmacDRBG/SHA2-512":     cmdHmacDrbgAft(func() fips140.Hash { return sha512.New() }),
+-		"hmacDRBG/SHA2-512/224": cmdHmacDrbgAft(func() fips140.Hash { return sha512.New512_224() }),
+-		"hmacDRBG/SHA2-512/256": cmdHmacDrbgAft(func() fips140.Hash { return sha512.New512_256() }),
+-		"hmacDRBG/SHA3-224":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New224() }),
+-		"hmacDRBG/SHA3-256":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New256() }),
+-		"hmacDRBG/SHA3-384":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New384() }),
+-		"hmacDRBG/SHA3-512":     cmdHmacDrbgAft(func() fips140.Hash { return sha3.New512() }),
++		"hmacDRBG/SHA2-224":     cmdHmacDrbgAft(func() hash.Hash { return sha256.New224() }),
++		"hmacDRBG/SHA2-256":     cmdHmacDrbgAft(func() hash.Hash { return sha256.New() }),
++		"hmacDRBG/SHA2-384":     cmdHmacDrbgAft(func() hash.Hash { return sha512.New384() }),
++		"hmacDRBG/SHA2-512":     cmdHmacDrbgAft(func() hash.Hash { return sha512.New() }),
++		"hmacDRBG/SHA2-512/224": cmdHmacDrbgAft(func() hash.Hash { return sha512.New512_224() }),
++		"hmacDRBG/SHA2-512/256": cmdHmacDrbgAft(func() hash.Hash { return sha512.New512_256() }),
++		"hmacDRBG/SHA3-224":     cmdHmacDrbgAft(func() hash.Hash { return sha3.New224() }),
++		"hmacDRBG/SHA3-256":     cmdHmacDrbgAft(func() hash.Hash { return sha3.New256() }),
++		"hmacDRBG/SHA3-384":     cmdHmacDrbgAft(func() hash.Hash { return sha3.New384() }),
++		"hmacDRBG/SHA3-512":     cmdHmacDrbgAft(func() hash.Hash { return sha3.New512() }),
+ 
+ 		"EDDSA/keyGen": cmdEddsaKeyGenAft(),
+ 		"EDDSA/keyVer": cmdEddsaKeyVerAft(),
+@@ -270,20 +271,20 @@ var (
+ 
+ 		// Note: Only SHA2-256, SHA2-384 and SHA2-512 are valid hash functions for TLSKDF.
+ 		// 		 See https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-tls.html#section-7.2.1
+-		"TLSKDF/1.2/SHA2-256": cmdTlsKdf12Aft(func() fips140.Hash { return sha256.New() }),
+-		"TLSKDF/1.2/SHA2-384": cmdTlsKdf12Aft(func() fips140.Hash { return sha512.New384() }),
+-		"TLSKDF/1.2/SHA2-512": cmdTlsKdf12Aft(func() fips140.Hash { return sha512.New() }),
++		"TLSKDF/1.2/SHA2-256": cmdTlsKdf12Aft(func() hash.Hash { return sha256.New() }),
++		"TLSKDF/1.2/SHA2-384": cmdTlsKdf12Aft(func() hash.Hash { return sha512.New384() }),
++		"TLSKDF/1.2/SHA2-512": cmdTlsKdf12Aft(func() hash.Hash { return sha512.New() }),
+ 
+ 		// Note: only SHA2-224, SHA2-256, SHA2-384 and SHA2-512 are valid hash functions for SSHKDF.
+ 		// 		 See https://pages.nist.gov/ACVP/draft-celi-acvp-kdf-ssh.html#section-7.2.1
+-		"SSHKDF/SHA2-224/client": cmdSshKdfAft(func() fips140.Hash { return sha256.New224() }, ssh.ClientKeys),
+-		"SSHKDF/SHA2-224/server": cmdSshKdfAft(func() fips140.Hash { return sha256.New224() }, ssh.ServerKeys),
+-		"SSHKDF/SHA2-256/client": cmdSshKdfAft(func() fips140.Hash { return sha256.New() }, ssh.ClientKeys),
+-		"SSHKDF/SHA2-256/server": cmdSshKdfAft(func() fips140.Hash { return sha256.New() }, ssh.ServerKeys),
+-		"SSHKDF/SHA2-384/client": cmdSshKdfAft(func() fips140.Hash { return sha512.New384() }, ssh.ClientKeys),
+-		"SSHKDF/SHA2-384/server": cmdSshKdfAft(func() fips140.Hash { return sha512.New384() }, ssh.ServerKeys),
+-		"SSHKDF/SHA2-512/client": cmdSshKdfAft(func() fips140.Hash { return sha512.New() }, ssh.ClientKeys),
+-		"SSHKDF/SHA2-512/server": cmdSshKdfAft(func() fips140.Hash { return sha512.New() }, ssh.ServerKeys),
++		"SSHKDF/SHA2-224/client": cmdSshKdfAft(func() hash.Hash { return sha256.New224() }, ssh.ClientKeys),
++		"SSHKDF/SHA2-224/server": cmdSshKdfAft(func() hash.Hash { return sha256.New224() }, ssh.ServerKeys),
++		"SSHKDF/SHA2-256/client": cmdSshKdfAft(func() hash.Hash { return sha256.New() }, ssh.ClientKeys),
++		"SSHKDF/SHA2-256/server": cmdSshKdfAft(func() hash.Hash { return sha256.New() }, ssh.ServerKeys),
++		"SSHKDF/SHA2-384/client": cmdSshKdfAft(func() hash.Hash { return sha512.New384() }, ssh.ClientKeys),
++		"SSHKDF/SHA2-384/server": cmdSshKdfAft(func() hash.Hash { return sha512.New384() }, ssh.ServerKeys),
++		"SSHKDF/SHA2-512/client": cmdSshKdfAft(func() hash.Hash { return sha512.New() }, ssh.ClientKeys),
++		"SSHKDF/SHA2-512/server": cmdSshKdfAft(func() hash.Hash { return sha512.New() }, ssh.ServerKeys),
+ 
+ 		"ECDH/P-224": cmdEcdhAftVal(ecdh.P224()),
+ 		"ECDH/P-256": cmdEcdhAftVal(ecdh.P256()),
+@@ -295,58 +296,58 @@ var (
+ 
+ 		"RSA/keyGen": cmdRsaKeyGenAft(),
+ 
+-		"RSA/sigGen/SHA2-224/pkcs1v1.5": cmdRsaSigGenAft(func() fips140.Hash { return sha256.New224() }, "SHA-224", false),
+-		"RSA/sigGen/SHA2-256/pkcs1v1.5": cmdRsaSigGenAft(func() fips140.Hash { return sha256.New() }, "SHA-256", false),
+-		"RSA/sigGen/SHA2-384/pkcs1v1.5": cmdRsaSigGenAft(func() fips140.Hash { return sha512.New384() }, "SHA-384", false),
+-		"RSA/sigGen/SHA2-512/pkcs1v1.5": cmdRsaSigGenAft(func() fips140.Hash { return sha512.New() }, "SHA-512", false),
+-		"RSA/sigGen/SHA2-224/pss":       cmdRsaSigGenAft(func() fips140.Hash { return sha256.New224() }, "SHA-224", true),
+-		"RSA/sigGen/SHA2-256/pss":       cmdRsaSigGenAft(func() fips140.Hash { return sha256.New() }, "SHA-256", true),
+-		"RSA/sigGen/SHA2-384/pss":       cmdRsaSigGenAft(func() fips140.Hash { return sha512.New384() }, "SHA-384", true),
+-		"RSA/sigGen/SHA2-512/pss":       cmdRsaSigGenAft(func() fips140.Hash { return sha512.New() }, "SHA-512", true),
+-
+-		"RSA/sigVer/SHA2-224/pkcs1v1.5": cmdRsaSigVerAft(func() fips140.Hash { return sha256.New224() }, "SHA-224", false),
+-		"RSA/sigVer/SHA2-256/pkcs1v1.5": cmdRsaSigVerAft(func() fips140.Hash { return sha256.New() }, "SHA-256", false),
+-		"RSA/sigVer/SHA2-384/pkcs1v1.5": cmdRsaSigVerAft(func() fips140.Hash { return sha512.New384() }, "SHA-384", false),
+-		"RSA/sigVer/SHA2-512/pkcs1v1.5": cmdRsaSigVerAft(func() fips140.Hash { return sha512.New() }, "SHA-512", false),
+-		"RSA/sigVer/SHA2-224/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha256.New224() }, "SHA-224", true),
+-		"RSA/sigVer/SHA2-256/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha256.New() }, "SHA-256", true),
+-		"RSA/sigVer/SHA2-384/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha512.New384() }, "SHA-384", true),
+-		"RSA/sigVer/SHA2-512/pss":       cmdRsaSigVerAft(func() fips140.Hash { return sha512.New() }, "SHA-512", true),
++		"RSA/sigGen/SHA2-224/pkcs1v1.5": cmdRsaSigGenAft(func() hash.Hash { return sha256.New224() }, "SHA-224", false),
++		"RSA/sigGen/SHA2-256/pkcs1v1.5": cmdRsaSigGenAft(func() hash.Hash { return sha256.New() }, "SHA-256", false),
++		"RSA/sigGen/SHA2-384/pkcs1v1.5": cmdRsaSigGenAft(func() hash.Hash { return sha512.New384() }, "SHA-384", false),
++		"RSA/sigGen/SHA2-512/pkcs1v1.5": cmdRsaSigGenAft(func() hash.Hash { return sha512.New() }, "SHA-512", false),
++		"RSA/sigGen/SHA2-224/pss":       cmdRsaSigGenAft(func() hash.Hash { return sha256.New224() }, "SHA-224", true),
++		"RSA/sigGen/SHA2-256/pss":       cmdRsaSigGenAft(func() hash.Hash { return sha256.New() }, "SHA-256", true),
++		"RSA/sigGen/SHA2-384/pss":       cmdRsaSigGenAft(func() hash.Hash { return sha512.New384() }, "SHA-384", true),
++		"RSA/sigGen/SHA2-512/pss":       cmdRsaSigGenAft(func() hash.Hash { return sha512.New() }, "SHA-512", true),
++
++		"RSA/sigVer/SHA2-224/pkcs1v1.5": cmdRsaSigVerAft(func() hash.Hash { return sha256.New224() }, "SHA-224", false),
++		"RSA/sigVer/SHA2-256/pkcs1v1.5": cmdRsaSigVerAft(func() hash.Hash { return sha256.New() }, "SHA-256", false),
++		"RSA/sigVer/SHA2-384/pkcs1v1.5": cmdRsaSigVerAft(func() hash.Hash { return sha512.New384() }, "SHA-384", false),
++		"RSA/sigVer/SHA2-512/pkcs1v1.5": cmdRsaSigVerAft(func() hash.Hash { return sha512.New() }, "SHA-512", false),
++		"RSA/sigVer/SHA2-224/pss":       cmdRsaSigVerAft(func() hash.Hash { return sha256.New224() }, "SHA-224", true),
++		"RSA/sigVer/SHA2-256/pss":       cmdRsaSigVerAft(func() hash.Hash { return sha256.New() }, "SHA-256", true),
++		"RSA/sigVer/SHA2-384/pss":       cmdRsaSigVerAft(func() hash.Hash { return sha512.New384() }, "SHA-384", true),
++		"RSA/sigVer/SHA2-512/pss":       cmdRsaSigVerAft(func() hash.Hash { return sha512.New() }, "SHA-512", true),
+ 
+ 		"KDF-counter":  cmdKdfCounterAft(),
+ 		"KDF-feedback": cmdKdfFeedbackAft(),
+ 
+-		"OneStepNoCounter/HMAC-SHA2-224":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha256.New224() }),
+-		"OneStepNoCounter/HMAC-SHA2-256":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha256.New() }),
+-		"OneStepNoCounter/HMAC-SHA2-384":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha512.New384() }),
+-		"OneStepNoCounter/HMAC-SHA2-512":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha512.New() }),
+-		"OneStepNoCounter/HMAC-SHA2-512/224": cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha512.New512_224() }),
+-		"OneStepNoCounter/HMAC-SHA2-512/256": cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha512.New512_256() }),
+-		"OneStepNoCounter/HMAC-SHA3-224":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New224() }),
+-		"OneStepNoCounter/HMAC-SHA3-256":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New256() }),
+-		"OneStepNoCounter/HMAC-SHA3-384":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New384() }),
+-		"OneStepNoCounter/HMAC-SHA3-512":     cmdOneStepNoCounterHmacAft(func() fips140.Hash { return sha3.New512() }),
+-
+-		"KTS-IFC/SHA2-224/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha256.New224() }),
+-		"KTS-IFC/SHA2-224/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha256.New224() }),
+-		"KTS-IFC/SHA2-256/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha256.New() }),
+-		"KTS-IFC/SHA2-256/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha256.New() }),
+-		"KTS-IFC/SHA2-384/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha512.New384() }),
+-		"KTS-IFC/SHA2-384/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha512.New384() }),
+-		"KTS-IFC/SHA2-512/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha512.New() }),
+-		"KTS-IFC/SHA2-512/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha512.New() }),
+-		"KTS-IFC/SHA2-512/224/initiator": cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha512.New512_224() }),
+-		"KTS-IFC/SHA2-512/224/responder": cmdKtsIfcResponderAft(func() fips140.Hash { return sha512.New512_224() }),
+-		"KTS-IFC/SHA2-512/256/initiator": cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha512.New512_256() }),
+-		"KTS-IFC/SHA2-512/256/responder": cmdKtsIfcResponderAft(func() fips140.Hash { return sha512.New512_256() }),
+-		"KTS-IFC/SHA3-224/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha3.New224() }),
+-		"KTS-IFC/SHA3-224/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha3.New224() }),
+-		"KTS-IFC/SHA3-256/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha3.New256() }),
+-		"KTS-IFC/SHA3-256/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha3.New256() }),
+-		"KTS-IFC/SHA3-384/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha3.New384() }),
+-		"KTS-IFC/SHA3-384/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha3.New384() }),
+-		"KTS-IFC/SHA3-512/initiator":     cmdKtsIfcInitiatorAft(func() fips140.Hash { return sha3.New512() }),
+-		"KTS-IFC/SHA3-512/responder":     cmdKtsIfcResponderAft(func() fips140.Hash { return sha3.New512() }),
++		"OneStepNoCounter/HMAC-SHA2-224":     cmdOneStepNoCounterHmacAft(func() hash.Hash { return sha256.New224() }),
++		"OneStepNoCounter/HMAC-SHA2-256":     cmdOneStepNoCounterHmacAft(func() hash.Hash { return sha256.New() }),
++		"OneStepNoCounter/HMAC-SHA2-384":     cmdOneStepNoCounterHmacAft(func() hash.Hash { return sha512.New384() }),
++		"OneStepNoCounter/HMAC-SHA2-512":     cmdOneStepNoCounterHmacAft(func() hash.Hash { return sha512.New() }),
++		"OneStepNoCounter/HMAC-SHA2-512/224": cmdOneStepNoCounterHmacAft(func() hash.Hash { return sha512.New512_224() }),
++		"OneStepNoCounter/HMAC-SHA2-512/256": cmdOneStepNoCounterHmacAft(func() hash.Hash { return sha512.New512_256() }),
++		"OneStepNoCounter/HMAC-SHA3-224":     cmdOneStepNoCounterHmacAft(func() hash.Hash { return sha3.New224() }),
++		"OneStepNoCounter/HMAC-SHA3-256":     cmdOneStepNoCounterHmacAft(func() hash.Hash { return sha3.New256() }),
++		"OneStepNoCounter/HMAC-SHA3-384":     cmdOneStepNoCounterHmacAft(func() hash.Hash { return sha3.New384() }),
++		"OneStepNoCounter/HMAC-SHA3-512":     cmdOneStepNoCounterHmacAft(func() hash.Hash { return sha3.New512() }),
++
++		"KTS-IFC/SHA2-224/initiator":     cmdKtsIfcInitiatorAft(func() hash.Hash { return sha256.New224() }),
++		"KTS-IFC/SHA2-224/responder":     cmdKtsIfcResponderAft(func() hash.Hash { return sha256.New224() }),
++		"KTS-IFC/SHA2-256/initiator":     cmdKtsIfcInitiatorAft(func() hash.Hash { return sha256.New() }),
++		"KTS-IFC/SHA2-256/responder":     cmdKtsIfcResponderAft(func() hash.Hash { return sha256.New() }),
++		"KTS-IFC/SHA2-384/initiator":     cmdKtsIfcInitiatorAft(func() hash.Hash { return sha512.New384() }),
++		"KTS-IFC/SHA2-384/responder":     cmdKtsIfcResponderAft(func() hash.Hash { return sha512.New384() }),
++		"KTS-IFC/SHA2-512/initiator":     cmdKtsIfcInitiatorAft(func() hash.Hash { return sha512.New() }),
++		"KTS-IFC/SHA2-512/responder":     cmdKtsIfcResponderAft(func() hash.Hash { return sha512.New() }),
++		"KTS-IFC/SHA2-512/224/initiator": cmdKtsIfcInitiatorAft(func() hash.Hash { return sha512.New512_224() }),
++		"KTS-IFC/SHA2-512/224/responder": cmdKtsIfcResponderAft(func() hash.Hash { return sha512.New512_224() }),
++		"KTS-IFC/SHA2-512/256/initiator": cmdKtsIfcInitiatorAft(func() hash.Hash { return sha512.New512_256() }),
++		"KTS-IFC/SHA2-512/256/responder": cmdKtsIfcResponderAft(func() hash.Hash { return sha512.New512_256() }),
++		"KTS-IFC/SHA3-224/initiator":     cmdKtsIfcInitiatorAft(func() hash.Hash { return sha3.New224() }),
++		"KTS-IFC/SHA3-224/responder":     cmdKtsIfcResponderAft(func() hash.Hash { return sha3.New224() }),
++		"KTS-IFC/SHA3-256/initiator":     cmdKtsIfcInitiatorAft(func() hash.Hash { return sha3.New256() }),
++		"KTS-IFC/SHA3-256/responder":     cmdKtsIfcResponderAft(func() hash.Hash { return sha3.New256() }),
++		"KTS-IFC/SHA3-384/initiator":     cmdKtsIfcInitiatorAft(func() hash.Hash { return sha3.New384() }),
++		"KTS-IFC/SHA3-384/responder":     cmdKtsIfcResponderAft(func() hash.Hash { return sha3.New384() }),
++		"KTS-IFC/SHA3-512/initiator":     cmdKtsIfcInitiatorAft(func() hash.Hash { return sha3.New512() }),
++		"KTS-IFC/SHA3-512/responder":     cmdKtsIfcResponderAft(func() hash.Hash { return sha3.New512() }),
+ 	}
+ )
+ 
+@@ -473,7 +474,7 @@ func cmdGetConfig() command {
+ // and writes the resulting digest as a response.
+ //
+ // See https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html
+-func cmdHashAft(h fips140.Hash) command {
++func cmdHashAft(h hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 1, // Message to hash.
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -501,7 +502,7 @@ func cmdHashAft(h fips140.Hash) command {
+ //
+ // [0]: https://pages.nist.gov/ACVP/draft-celi-acvp-sha.html#section-6.2
+ // [1]: https://boringssl.googlesource.com/boringssl/+/refs/heads/master/util/fipstools/acvp/ACVP.md#testing-other-fips-modules
+-func cmdHashMct(h fips140.Hash) command {
++func cmdHashMct(h hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 1, // Seed message.
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -545,7 +546,7 @@ func cmdHashMct(h fips140.Hash) command {
+ // like that handler it does not perform the outer 100 iterations.
+ //
+ // [0]: https://pages.nist.gov/ACVP/draft-celi-acvp-sha3.html#section-6.2.1
+-func cmdSha3Mct(h fips140.Hash) command {
++func cmdSha3Mct(h hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 1, // Seed message.
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -712,7 +713,7 @@ func cmdCShakeMct(hFn func(N, S []byte) *sha3.SHAKE) command {
+ 	}
+ }
+ 
+-func cmdHmacAft(h func() fips140.Hash) command {
++func cmdHmacAft(h func() hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 2, // Message and key
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -725,7 +726,7 @@ func cmdHmacAft(h func() fips140.Hash) command {
+ 	}
+ }
+ 
+-func cmdHkdfAft(h func() fips140.Hash) command {
++func cmdHkdfAft(h func() hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 4, // Key, salt, info, length bytes
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -739,7 +740,7 @@ func cmdHkdfAft(h func() fips140.Hash) command {
+ 	}
+ }
+ 
+-func cmdHkdfExtractAft(h func() fips140.Hash) command {
++func cmdHkdfExtractAft(h func() hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 2, // secret, salt
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -751,7 +752,7 @@ func cmdHkdfExtractAft(h func() fips140.Hash) command {
+ 	}
+ }
+ 
+-func cmdHkdfExpandLabelAft(h func() fips140.Hash) command {
++func cmdHkdfExpandLabelAft(h func() hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 4, // output length, secret, label, transcript hash
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -990,7 +991,7 @@ func pointFromAffine(curve elliptic.Curve, x, y *big.Int) ([]byte, error) {
+ 	return buf, nil
+ }
+ 
+-func signEcdsa[P ecdsa.Point[P], H fips140.Hash](c *ecdsa.Curve[P], h func() H, sigType ecdsaSigType, q []byte, sk []byte, digest []byte) (*ecdsa.Signature, error) {
++func signEcdsa[P ecdsa.Point[P], H hash.Hash](c *ecdsa.Curve[P], h func() H, sigType ecdsaSigType, q []byte, sk []byte, digest []byte) (*ecdsa.Signature, error) {
+ 	priv, err := ecdsa.NewPrivateKey(c, sk, q)
+ 	if err != nil {
+ 		return nil, fmt.Errorf("invalid private key: %w", err)
+@@ -1120,30 +1121,30 @@ func verifyEcdsa[P ecdsa.Point[P]](c *ecdsa.Curve[P], q []byte, digest []byte, s
+ 	return ecdsa.Verify(c, pub, digest, sig)
+ }
+ 
+-func lookupHash(name string) (func() fips140.Hash, error) {
+-	var h func() fips140.Hash
++func lookupHash(name string) (func() hash.Hash, error) {
++	var h func() hash.Hash
+ 
+ 	switch name {
+ 	case "SHA2-224":
+-		h = func() fips140.Hash { return sha256.New224() }
++		h = func() hash.Hash { return sha256.New224() }
+ 	case "SHA2-256":
+-		h = func() fips140.Hash { return sha256.New() }
++		h = func() hash.Hash { return sha256.New() }
+ 	case "SHA2-384":
+-		h = func() fips140.Hash { return sha512.New384() }
++		h = func() hash.Hash { return sha512.New384() }
+ 	case "SHA2-512":
+-		h = func() fips140.Hash { return sha512.New() }
++		h = func() hash.Hash { return sha512.New() }
+ 	case "SHA2-512/224":
+-		h = func() fips140.Hash { return sha512.New512_224() }
++		h = func() hash.Hash { return sha512.New512_224() }
+ 	case "SHA2-512/256":
+-		h = func() fips140.Hash { return sha512.New512_256() }
++		h = func() hash.Hash { return sha512.New512_256() }
+ 	case "SHA3-224":
+-		h = func() fips140.Hash { return sha3.New224() }
++		h = func() hash.Hash { return sha3.New224() }
+ 	case "SHA3-256":
+-		h = func() fips140.Hash { return sha3.New256() }
++		h = func() hash.Hash { return sha3.New256() }
+ 	case "SHA3-384":
+-		h = func() fips140.Hash { return sha3.New384() }
++		h = func() hash.Hash { return sha3.New384() }
+ 	case "SHA3-512":
+-		h = func() fips140.Hash { return sha3.New512() }
++		h = func() hash.Hash { return sha3.New512() }
+ 	default:
+ 		return nil, fmt.Errorf("unknown hash name: %q", name)
+ 	}
+@@ -1518,7 +1519,7 @@ func cmdCmacAesVerifyAft() command {
+ 	}
+ }
+ 
+-func cmdTlsKdf12Aft(h func() fips140.Hash) command {
++func cmdTlsKdf12Aft(h func() hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 5, // Number output bytes, secret, label, seed1, seed2
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -1533,7 +1534,7 @@ func cmdTlsKdf12Aft(h func() fips140.Hash) command {
+ 	}
+ }
+ 
+-func cmdSshKdfAft(hFunc func() fips140.Hash, direction ssh.Direction) command {
++func cmdSshKdfAft(hFunc func() hash.Hash, direction ssh.Direction) command {
+ 	return command{
+ 		requiredArgs: 4, // K, H, SessionID, cipher
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -1599,7 +1600,7 @@ func cmdEcdhAftVal[P ecdh.Point[P]](curve *ecdh.Curve[P]) command {
+ 	}
+ }
+ 
+-func cmdHmacDrbgAft(h func() fips140.Hash) command {
++func cmdHmacDrbgAft(h func() hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 6, // Output length, entropy, personalization, ad1, ad2, nonce
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -1623,7 +1624,7 @@ func cmdHmacDrbgAft(h func() fips140.Hash) command {
+ 			//   * Uninstantiate
+ 			// See Table 7 in draft-vassilev-acvp-drbg
+ 			out := make([]byte, outLen)
+-			drbg := ecdsa.TestingOnlyNewDRBG(h, entropy, nonce, personalization)
++			drbg := ecdsa.TestingOnlyNewDRBG(func() fips140.Hash { return h() }, entropy, nonce, personalization)
+ 			drbg.Generate(out)
+ 			drbg.Generate(out)
+ 
+@@ -1868,7 +1869,7 @@ func cmdRsaKeyGenAft() command {
+ 	}
+ }
+ 
+-func cmdRsaSigGenAft(hashFunc func() fips140.Hash, hashName string, pss bool) command {
++func cmdRsaSigGenAft(hashFunc func() hash.Hash, hashName string, pss bool) command {
+ 	return command{
+ 		requiredArgs: 2, // Modulus bit-size, message
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -1906,7 +1907,7 @@ func cmdRsaSigGenAft(hashFunc func() fips140.Hash, hashName string, pss bool) co
+ 	}
+ }
+ 
+-func cmdRsaSigVerAft(hashFunc func() fips140.Hash, hashName string, pss bool) command {
++func cmdRsaSigVerAft(hashFunc func() hash.Hash, hashName string, pss bool) command {
+ 	return command{
+ 		requiredArgs: 4, // n, e, message, signature
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -1966,7 +1967,7 @@ func getRSAKey(bits int) (*rsa.PrivateKey, error) {
+ 	return key, nil
+ }
+ 
+-func cmdOneStepNoCounterHmacAft(h func() fips140.Hash) command {
++func cmdOneStepNoCounterHmacAft(h func() hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 4, // key, info, salt, outBytes
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -1994,7 +1995,7 @@ func cmdOneStepNoCounterHmacAft(h func() fips140.Hash) command {
+ 	}
+ }
+ 
+-func cmdKtsIfcInitiatorAft(h func() fips140.Hash) command {
++func cmdKtsIfcInitiatorAft(h func() hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 3, // output bytes, n bytes, e bytes
+ 		handler: func(args [][]byte) ([][]byte, error) {
+@@ -2034,7 +2035,7 @@ func cmdKtsIfcInitiatorAft(h func() fips140.Hash) command {
+ 	}
+ }
+ 
+-func cmdKtsIfcResponderAft(h func() fips140.Hash) command {
++func cmdKtsIfcResponderAft(h func() hash.Hash) command {
+ 	return command{
+ 		requiredArgs: 6, // n bytes, e bytes, p bytes, q bytes, d bytes, c bytes
+ 		handler: func(args [][]byte) ([][]byte, error) {
+diff --git a/src/crypto/sha3/sha3_test.go b/src/crypto/sha3/sha3_test.go
+index f88e51d3e7..6757d6efa1 100644
+--- a/src/crypto/sha3/sha3_test.go
++++ b/src/crypto/sha3/sha3_test.go
+@@ -7,9 +7,9 @@ package sha3_test
+ import (
+ 	"bytes"
+ 	"crypto/internal/cryptotest"
+-	"crypto/internal/fips140"
+ 	. "crypto/sha3"
+ 	"encoding/hex"
++	"hash"
+ 	"io"
+ 	"math/rand"
+ 	"strings"
+@@ -450,7 +450,7 @@ func testMarshalUnmarshalSHAKE(t *testing.T, h *SHAKE) {
+ }
+ 
+ // benchmarkHash tests the speed to hash num buffers of buflen each.
+-func benchmarkHash(b *testing.B, h fips140.Hash, size, num int) {
++func benchmarkHash(b *testing.B, h hash.Hash, size, num int) {
+ 	b.StopTimer()
+ 	h.Reset()
+ 	data := sequentialBytes(size)
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index e4fcc766b7..23b6fd6c81 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -472,6 +472,7 @@ var depsRules = `
+ 
+ 	# FIPS is the FIPS 140 module.
+ 	# It must not depend on external crypto packages.
++	# Package hash is ok as it's only the interface.
+ 	# See also fips140deps.AllowedInternalPackages.
+ 
+ 	io, math/rand/v2 < crypto/internal/randutil;
+@@ -485,7 +486,8 @@ var depsRules = `
+ 	internal/cpu, internal/goarch < crypto/internal/fips140deps/cpu;
+ 	internal/godebug < crypto/internal/fips140deps/godebug;
+ 
+-	STR, crypto/internal/impl,
++	STR, hash,
++	crypto/internal/impl,
+ 	crypto/internal/entropy,
+ 	crypto/internal/randutil,
+ 	crypto/internal/fips140deps/byteorder,
+@@ -521,7 +523,7 @@ var depsRules = `
+ 
+ 	FIPS, internal/godebug < crypto/fips140;
+ 
+-	crypto, hash !< FIPS;
++	crypto !< FIPS;
+ 
+ 	# CRYPTO is core crypto algorithms - no cgo, fmt, net.
+ 	# Mostly wrappers around the FIPS module.
+@@ -529,7 +531,7 @@ var depsRules = `
+ 	NONE < crypto/internal/boring/sig, crypto/internal/boring/syso;
+ 	sync/atomic < crypto/internal/boring/bcache;
+ 
+-	FIPS, internal/godebug, hash, embed,
++	FIPS, internal/godebug, embed,
+ 	crypto/internal/boring/sig,
+ 	crypto/internal/boring/syso,
+ 	crypto/internal/boring/bcache

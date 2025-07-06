@@ -1,0 +1,101 @@
+commit 9114c51521c641ff6c33648da03774dc3eb86b79
+Author: Rhys Hiltner <rhys.hiltner@gmail.com>
+Date:   Wed May 29 16:43:38 2024 +0000
+
+    Revert "runtime: prepare for extensions to waiting M list"
+    
+    This reverts commit be0b569caa0eab1a7f30edf64e550bbf5f6ff235 (CL 585635).
+    
+    Reason for revert: This is part of a patch series that changed the
+    handling of contended lock2/unlock2 calls, reducing the maximum
+    throughput of contended runtime.mutex values, and causing a performance
+    regression on applications where that is (or became) the bottleneck.
+    
+    Updates #66999
+    Updates #67585
+    
+    Change-Id: I7843ccaecbd273b7ceacfa0f420dd993b4b15a0a
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/589117
+    Auto-Submit: Rhys Hiltner <rhys.hiltner@gmail.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Than McIntosh <thanm@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/runtime/lock_sema.go | 10 +++++-----
+ src/runtime/mprof.go     | 11 -----------
+ src/runtime/runtime2.go  |  2 +-
+ 3 files changed, 6 insertions(+), 17 deletions(-)
+
+diff --git a/src/runtime/lock_sema.go b/src/runtime/lock_sema.go
+index 1c24cf6d30..32d2235ad3 100644
+--- a/src/runtime/lock_sema.go
++++ b/src/runtime/lock_sema.go
+@@ -77,11 +77,11 @@ Loop:
+ 			osyield()
+ 		} else {
+ 			// Someone else has it.
+-			// l.key points to a linked list of M's waiting
+-			// for this lock, chained through m.mWaitList.next.
++			// l->waitm points to a linked list of M's waiting
++			// for this lock, chained through m->nextwaitm.
+ 			// Queue this M.
+ 			for {
+-				gp.m.mWaitList.next = muintptr(v &^ locked)
++				gp.m.nextwaitm = muintptr(v &^ locked)
+ 				if atomic.Casuintptr(&l.key, v, uintptr(unsafe.Pointer(gp.m))|locked) {
+ 					break
+ 				}
+@@ -119,7 +119,7 @@ func unlock2(l *mutex) {
+ 			// Other M's are waiting for the lock.
+ 			// Dequeue an M.
+ 			mp = muintptr(v &^ locked).ptr()
+-			if atomic.Casuintptr(&l.key, v, uintptr(mp.mWaitList.next)) {
++			if atomic.Casuintptr(&l.key, v, uintptr(mp.nextwaitm)) {
+ 				// Dequeued an M.  Wake it.
+ 				semawakeup(mp)
+ 				break
+@@ -200,7 +200,7 @@ func notetsleep_internal(n *note, ns int64, gp *g, deadline int64) bool {
+ 	// This reduces the nosplit footprint of notetsleep_internal.
+ 	gp = getg()
+ 
+-	// Register for wakeup on n.key.
++	// Register for wakeup on n->waitm.
+ 	if !atomic.Casuintptr(&n.key, 0, uintptr(unsafe.Pointer(gp.m))) {
+ 		// Must be locked (got wakeup).
+ 		if n.key != locked {
+diff --git a/src/runtime/mprof.go b/src/runtime/mprof.go
+index b97fac787e..b51a1ad3ce 100644
+--- a/src/runtime/mprof.go
++++ b/src/runtime/mprof.go
+@@ -667,17 +667,6 @@ func (lt *lockTimer) end() {
+ 	}
+ }
+ 
+-// mWaitList is part of the M struct, and holds the list of Ms that are waiting
+-// for a particular runtime.mutex.
+-//
+-// When an M is unable to immediately obtain a lock, it adds itself to the list
+-// of Ms waiting for the lock. It does that via this struct's next field,
+-// forming a singly-linked list with the mutex's key field pointing to the head
+-// of the list.
+-type mWaitList struct {
+-	next muintptr // next m waiting for lock (set by us, cleared by another during unlock)
+-}
+-
+ type mLockProfile struct {
+ 	waitTime   atomic.Int64 // total nanoseconds spent waiting in runtime.lockWithRank
+ 	stack      []uintptr    // stack that experienced contention in runtime.lockWithRank
+diff --git a/src/runtime/runtime2.go b/src/runtime/runtime2.go
+index 8645532ae0..4a78963961 100644
+--- a/src/runtime/runtime2.go
++++ b/src/runtime/runtime2.go
+@@ -596,8 +596,8 @@ type m struct {
+ 	createstack   [32]uintptr // stack that created this thread, it's used for StackRecord.Stack0, so it must align with it.
+ 	lockedExt     uint32      // tracking for external LockOSThread
+ 	lockedInt     uint32      // tracking for internal lockOSThread
++	nextwaitm     muintptr    // next m waiting for lock
+ 
+-	mWaitList    mWaitList    // list of runtime lock waiters
+ 	mLockProfile mLockProfile // fields relating to runtime.lock contention
+ 	profStack    []uintptr    // used for memory/block/mutex stack traces
+ 

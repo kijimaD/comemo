@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 61860: ea867378100acaa01291696ba6047b7ea766839e
+# Index 61860: 40cdf69fc9279ab28f84a6e0f965de8382c578fe
 
 echo "🚀 Generating explanation for commit 61860..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 61860..."
 
 ### メタデータ
 - **コミットインデックス**: 61860
-- **コミットハッシュ**: ea867378100acaa01291696ba6047b7ea766839e
-- **GitHub URL**: https://github.com/golang/go/commit/ea867378100acaa01291696ba6047b7ea766839e
+- **コミットハッシュ**: 40cdf69fc9279ab28f84a6e0f965de8382c578fe
+- **GitHub URL**: https://github.com/golang/go/commit/40cdf69fc9279ab28f84a6e0f965de8382c578fe
 
 ### 章構成
 

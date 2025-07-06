@@ -1,0 +1,338 @@
+commit ad072b3ae6eb8512b0e0fdfcf83e5584b1a8ba0a
+Author: Filippo Valsorda <filippo@golang.org>
+Date:   Mon Nov 18 13:43:58 2024 +0100
+
+    crypto/internal/fips: import crypto/internal/fips/check throughout
+    
+    The module must do the integrity self-check before any other operation
+    in FIPS mode.
+    
+    For #69536
+    
+    Change-Id: I8db52ea94e867812008a6e7a86ca2c648a0018c6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/629056
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    Auto-Submit: Filippo Valsorda <filippo@golang.org>
+    Reviewed-by: Russ Cox <rsc@golang.org>
+---
+ src/crypto/internal/fips/aes/cast.go               |  1 +
+ src/crypto/internal/fips/aes/gcm/cast.go           |  1 +
+ src/crypto/internal/fips/bigmod/nat.go             |  1 +
+ src/crypto/internal/fips/drbg/cast.go              |  1 +
+ src/crypto/internal/fips/ecdh/cast.go              |  1 +
+ src/crypto/internal/fips/ecdsa/cast.go             |  1 +
+ src/crypto/internal/fips/ed25519/cast.go           |  1 +
+ .../internal/fips/edwards25519/edwards25519.go     |  1 +
+ src/crypto/internal/fips/edwards25519/field/fe.go  |  1 +
+ src/crypto/internal/fips/hkdf/cast.go              |  1 +
+ src/crypto/internal/fips/mlkem/cast.go             |  1 +
+ src/crypto/internal/fips/nistec/fiat/cast.go       |  7 +++
+ src/crypto/internal/fips/nistec/nistec.go          |  2 +
+ src/crypto/internal/fips/ssh/kdf.go                |  5 ++-
+ src/crypto/internal/fips/tls12/cast.go             |  1 +
+ src/crypto/internal/fips/tls13/cast.go             |  1 +
+ src/crypto/internal/fipsdeps/fipsdeps_test.go      | 50 +++++++++++++++++-----
+ src/crypto/sha256/sha256.go                        |  1 -
+ src/go/build/deps_test.go                          |  6 +--
+ 19 files changed, 69 insertions(+), 15 deletions(-)
+
+diff --git a/src/crypto/internal/fips/aes/cast.go b/src/crypto/internal/fips/aes/cast.go
+index e1aea8a19b..4a143a43b2 100644
+--- a/src/crypto/internal/fips/aes/cast.go
++++ b/src/crypto/internal/fips/aes/cast.go
+@@ -7,6 +7,7 @@ package aes
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	_ "crypto/internal/fips/check"
+ 	"errors"
+ )
+ 
+diff --git a/src/crypto/internal/fips/aes/gcm/cast.go b/src/crypto/internal/fips/aes/gcm/cast.go
+index 3a2b6b7877..1373a01944 100644
+--- a/src/crypto/internal/fips/aes/gcm/cast.go
++++ b/src/crypto/internal/fips/aes/gcm/cast.go
+@@ -7,6 +7,7 @@ package gcm
+ import (
+ 	"crypto/internal/fips"
+ 	"crypto/internal/fips/aes"
++	_ "crypto/internal/fips/check"
+ 	"errors"
+ )
+ 
+diff --git a/src/crypto/internal/fips/bigmod/nat.go b/src/crypto/internal/fips/bigmod/nat.go
+index 49000f1e74..26148390a0 100644
+--- a/src/crypto/internal/fips/bigmod/nat.go
++++ b/src/crypto/internal/fips/bigmod/nat.go
+@@ -5,6 +5,7 @@
+ package bigmod
+ 
+ import (
++	_ "crypto/internal/fips/check"
+ 	"crypto/internal/fipsdeps/byteorder"
+ 	"errors"
+ 	"math/bits"
+diff --git a/src/crypto/internal/fips/drbg/cast.go b/src/crypto/internal/fips/drbg/cast.go
+index bf21a04ade..5f973c7f15 100644
+--- a/src/crypto/internal/fips/drbg/cast.go
++++ b/src/crypto/internal/fips/drbg/cast.go
+@@ -7,6 +7,7 @@ package drbg
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	_ "crypto/internal/fips/check"
+ 	"errors"
+ )
+ 
+diff --git a/src/crypto/internal/fips/ecdh/cast.go b/src/crypto/internal/fips/ecdh/cast.go
+index 766ca9cad7..e053bb6461 100644
+--- a/src/crypto/internal/fips/ecdh/cast.go
++++ b/src/crypto/internal/fips/ecdh/cast.go
+@@ -7,6 +7,7 @@ package ecdh
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	_ "crypto/internal/fips/check"
+ 	"crypto/internal/fips/nistec"
+ 	"errors"
+ 	"sync"
+diff --git a/src/crypto/internal/fips/ecdsa/cast.go b/src/crypto/internal/fips/ecdsa/cast.go
+index 280516aea7..6b0c709972 100644
+--- a/src/crypto/internal/fips/ecdsa/cast.go
++++ b/src/crypto/internal/fips/ecdsa/cast.go
+@@ -7,6 +7,7 @@ package ecdsa
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	_ "crypto/internal/fips/check"
+ 	"crypto/internal/fips/sha512"
+ 	"errors"
+ 	"sync"
+diff --git a/src/crypto/internal/fips/ed25519/cast.go b/src/crypto/internal/fips/ed25519/cast.go
+index 54b6371a9e..aa6ba668c0 100644
+--- a/src/crypto/internal/fips/ed25519/cast.go
++++ b/src/crypto/internal/fips/ed25519/cast.go
+@@ -7,6 +7,7 @@ package ed25519
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	_ "crypto/internal/fips/check"
+ 	"errors"
+ 	"sync"
+ )
+diff --git a/src/crypto/internal/fips/edwards25519/edwards25519.go b/src/crypto/internal/fips/edwards25519/edwards25519.go
+index c5bcfc231e..b190290af3 100644
+--- a/src/crypto/internal/fips/edwards25519/edwards25519.go
++++ b/src/crypto/internal/fips/edwards25519/edwards25519.go
+@@ -5,6 +5,7 @@
+ package edwards25519
+ 
+ import (
++	_ "crypto/internal/fips/check"
+ 	"crypto/internal/fips/edwards25519/field"
+ 	"errors"
+ )
+diff --git a/src/crypto/internal/fips/edwards25519/field/fe.go b/src/crypto/internal/fips/edwards25519/field/fe.go
+index e6402afa65..d0fafdad50 100644
+--- a/src/crypto/internal/fips/edwards25519/field/fe.go
++++ b/src/crypto/internal/fips/edwards25519/field/fe.go
+@@ -6,6 +6,7 @@
+ package field
+ 
+ import (
++	_ "crypto/internal/fips/check"
+ 	"crypto/internal/fips/subtle"
+ 	"crypto/internal/fipsdeps/byteorder"
+ 	"errors"
+diff --git a/src/crypto/internal/fips/hkdf/cast.go b/src/crypto/internal/fips/hkdf/cast.go
+index 67871a4438..98f6c97139 100644
+--- a/src/crypto/internal/fips/hkdf/cast.go
++++ b/src/crypto/internal/fips/hkdf/cast.go
+@@ -7,6 +7,7 @@ package hkdf
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	_ "crypto/internal/fips/check"
+ 	"crypto/internal/fips/sha256"
+ 	"errors"
+ )
+diff --git a/src/crypto/internal/fips/mlkem/cast.go b/src/crypto/internal/fips/mlkem/cast.go
+index de4988527e..a2162ee8ab 100644
+--- a/src/crypto/internal/fips/mlkem/cast.go
++++ b/src/crypto/internal/fips/mlkem/cast.go
+@@ -7,6 +7,7 @@ package mlkem
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	_ "crypto/internal/fips/check"
+ 	"errors"
+ )
+ 
+diff --git a/src/crypto/internal/fips/nistec/fiat/cast.go b/src/crypto/internal/fips/nistec/fiat/cast.go
+new file mode 100644
+index 0000000000..1b536fd7d7
+--- /dev/null
++++ b/src/crypto/internal/fips/nistec/fiat/cast.go
+@@ -0,0 +1,7 @@
++// Copyright 2024 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package fiat
++
++import _ "crypto/internal/fips/check"
+diff --git a/src/crypto/internal/fips/nistec/nistec.go b/src/crypto/internal/fips/nistec/nistec.go
+index d1c63dacd5..c85cfa370d 100644
+--- a/src/crypto/internal/fips/nistec/nistec.go
++++ b/src/crypto/internal/fips/nistec/nistec.go
+@@ -12,4 +12,6 @@
+ // can't be represented.
+ package nistec
+ 
++import _ "crypto/internal/fips/check"
++
+ //go:generate go run generate.go
+diff --git a/src/crypto/internal/fips/ssh/kdf.go b/src/crypto/internal/fips/ssh/kdf.go
+index ecb3dbe442..defcb7f47c 100644
+--- a/src/crypto/internal/fips/ssh/kdf.go
++++ b/src/crypto/internal/fips/ssh/kdf.go
+@@ -6,7 +6,10 @@
+ // Section 7.2 and allowed by SP 800-135 Revision 1.
+ package ssh
+ 
+-import "crypto/internal/fips"
++import (
++	"crypto/internal/fips"
++	_ "crypto/internal/fips/check"
++)
+ 
+ type Direction struct {
+ 	ivTag     []byte
+diff --git a/src/crypto/internal/fips/tls12/cast.go b/src/crypto/internal/fips/tls12/cast.go
+index 9c48947ab1..33cbd1514a 100644
+--- a/src/crypto/internal/fips/tls12/cast.go
++++ b/src/crypto/internal/fips/tls12/cast.go
+@@ -7,6 +7,7 @@ package tls12
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	_ "crypto/internal/fips/check"
+ 	"crypto/internal/fips/sha256"
+ 	"errors"
+ )
+diff --git a/src/crypto/internal/fips/tls13/cast.go b/src/crypto/internal/fips/tls13/cast.go
+index 54b4a70ac8..9b727afdc4 100644
+--- a/src/crypto/internal/fips/tls13/cast.go
++++ b/src/crypto/internal/fips/tls13/cast.go
+@@ -7,6 +7,7 @@ package tls13
+ import (
+ 	"bytes"
+ 	"crypto/internal/fips"
++	_ "crypto/internal/fips/check"
+ 	"crypto/internal/fips/sha256"
+ 	"errors"
+ )
+diff --git a/src/crypto/internal/fipsdeps/fipsdeps_test.go b/src/crypto/internal/fipsdeps/fipsdeps_test.go
+index 1d5ec25a12..d9f6b684f8 100644
+--- a/src/crypto/internal/fipsdeps/fipsdeps_test.go
++++ b/src/crypto/internal/fipsdeps/fipsdeps_test.go
+@@ -45,24 +45,54 @@ func TestImports(t *testing.T) {
+ 		t.Fatalf("go list: %v\n%s", err, out)
+ 	}
+ 
+-	// Ensure we don't import any unexpected internal package from the FIPS
+-	// module, since we can't change the module source after it starts
+-	// validation. This locks in the API of otherwise internal packages.
++	allPackages := make(map[string]bool)
++
++	// importCheck is the set of packages that import crypto/internal/fips/check.
++	importCheck := make(map[string]bool)
++
+ 	for _, line := range strings.Split(string(out), "\n") {
+ 		if line == "" {
+ 			continue
+ 		}
+-		parts := strings.Fields(line)
+-		if parts[1] == "crypto/internal/fips" ||
+-			strings.HasPrefix(parts[1], "crypto/internal/fips/") ||
+-			strings.HasPrefix(parts[1], "crypto/internal/fipsdeps/") {
++		pkg, importedPkg, _ := strings.Cut(line, " ")
++
++		allPackages[pkg] = true
++
++		if importedPkg == "crypto/internal/fips/check" {
++			importCheck[pkg] = true
++		}
++
++		// Ensure we don't import any unexpected internal package from the FIPS
++		// module, since we can't change the module source after it starts
++		// validation. This locks in the API of otherwise internal packages.
++		if importedPkg == "crypto/internal/fips" ||
++			strings.HasPrefix(importedPkg, "crypto/internal/fips/") ||
++			strings.HasPrefix(importedPkg, "crypto/internal/fipsdeps/") {
+ 			continue
+ 		}
+-		if AllowedInternalPackages[parts[1]] {
++		if AllowedInternalPackages[importedPkg] {
+ 			continue
+ 		}
+-		if strings.Contains(parts[1], "internal") {
+-			t.Errorf("unexpected import of internal package: %s -> %s", parts[0], parts[1])
++		if strings.Contains(importedPkg, "internal") {
++			t.Errorf("unexpected import of internal package: %s -> %s", pkg, importedPkg)
++		}
++	}
++
++	// Ensure that all packages except check and check's dependencies import check.
++	for pkg := range allPackages {
++		switch pkg {
++		case "crypto/internal/fips/check":
++		case "crypto/internal/fips":
++		case "crypto/internal/fips/alias":
++		case "crypto/internal/fips/subtle":
++		case "crypto/internal/fips/hmac":
++		case "crypto/internal/fips/sha3":
++		case "crypto/internal/fips/sha256":
++		case "crypto/internal/fips/sha512":
++		default:
++			if !importCheck[pkg] {
++				t.Errorf("package %s does not import crypto/internal/fips/check", pkg)
++			}
+ 		}
+ 	}
+ }
+diff --git a/src/crypto/sha256/sha256.go b/src/crypto/sha256/sha256.go
+index 3c3aba84c5..d87c689c90 100644
+--- a/src/crypto/sha256/sha256.go
++++ b/src/crypto/sha256/sha256.go
+@@ -9,7 +9,6 @@ package sha256
+ import (
+ 	"crypto"
+ 	"crypto/internal/boring"
+-	_ "crypto/internal/fips/check"
+ 	"crypto/internal/fips/sha256"
+ 	"hash"
+ )
+diff --git a/src/go/build/deps_test.go b/src/go/build/deps_test.go
+index 29e26fffbf..3481461ef9 100644
+--- a/src/go/build/deps_test.go
++++ b/src/go/build/deps_test.go
+@@ -462,14 +462,14 @@ var depsRules = `
+ 	< crypto/internal/fips
+ 	< crypto/internal/fips/alias
+ 	< crypto/internal/fips/subtle
+-	< crypto/internal/fips/aes
+-	< crypto/internal/fips/drbg
+-	< crypto/internal/fips/aes/gcm
+ 	< crypto/internal/fips/sha256
+ 	< crypto/internal/fips/sha512
+ 	< crypto/internal/fips/sha3
+ 	< crypto/internal/fips/hmac
+ 	< crypto/internal/fips/check
++	< crypto/internal/fips/aes
++	< crypto/internal/fips/drbg
++	< crypto/internal/fips/aes/gcm
+ 	< crypto/internal/fips/hkdf
+ 	< crypto/internal/fips/mlkem
+ 	< crypto/internal/fips/ssh

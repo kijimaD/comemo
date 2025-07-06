@@ -1,0 +1,91 @@
+commit aed1f925f24d4ad6ff2f2d77c04e4c5b72fdb49f
+Author: Ben Hoyt <benhoyt@gmail.com>
+Date:   Mon Jun 10 20:49:33 2024 +1200
+
+    os/user: make Lookup* functions properly handle ENOENT
+    
+    The libc docs say that these functions can return ENOENT, and
+    per issue #67912, this does happen in practice sometimes. Handle
+    both the ENOENT and !found cases the same way, for Lookup,
+    LookupId, LookupGroup, LookupGroupId.
+    
+    Fixes #67912
+    
+    Change-Id: I993935af44c83ad785b6cd735fc313a3647daa19
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591555
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+---
+ src/os/user/cgo_lookup_unix.go | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/src/os/user/cgo_lookup_unix.go b/src/os/user/cgo_lookup_unix.go
+index 402429ba4a..458d8cd453 100644
+--- a/src/os/user/cgo_lookup_unix.go
++++ b/src/os/user/cgo_lookup_unix.go
+@@ -31,12 +31,12 @@ func lookupUser(username string) (*User, error) {
+ 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
+ 		return errno
+ 	})
++	if err == syscall.ENOENT || (err == nil && !found) {
++		return nil, UnknownUserError(username)
++	}
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: lookup username %s: %v", username, err)
+ 	}
+-	if !found {
+-		return nil, UnknownUserError(username)
+-	}
+ 	return buildUser(&pwd), err
+ }
+ 
+@@ -58,12 +58,12 @@ func lookupUnixUid(uid int) (*User, error) {
+ 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
+ 		return errno
+ 	})
++	if err == syscall.ENOENT || (err == nil && !found) {
++		return nil, UnknownUserIdError(uid)
++	}
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: lookup userid %d: %v", uid, err)
+ 	}
+-	if !found {
+-		return nil, UnknownUserIdError(uid)
+-	}
+ 	return buildUser(&pwd), nil
+ }
+ 
+@@ -96,12 +96,12 @@ func lookupGroup(groupname string) (*Group, error) {
+ 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
+ 		return errno
+ 	})
++	if err == syscall.ENOENT || (err == nil && !found) {
++		return nil, UnknownGroupError(groupname)
++	}
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: lookup groupname %s: %v", groupname, err)
+ 	}
+-	if !found {
+-		return nil, UnknownGroupError(groupname)
+-	}
+ 	return buildGroup(&grp), nil
+ }
+ 
+@@ -123,12 +123,12 @@ func lookupUnixGid(gid int) (*Group, error) {
+ 			(*_C_char)(unsafe.Pointer(&buf[0])), _C_size_t(len(buf)))
+ 		return syscall.Errno(errno)
+ 	})
++	if err == syscall.ENOENT || (err == nil && !found) {
++		return nil, UnknownGroupIdError(strconv.Itoa(gid))
++	}
+ 	if err != nil {
+ 		return nil, fmt.Errorf("user: lookup groupid %d: %v", gid, err)
+ 	}
+-	if !found {
+-		return nil, UnknownGroupIdError(strconv.Itoa(gid))
+-	}
+ 	return buildGroup(&grp), nil
+ }
+ 

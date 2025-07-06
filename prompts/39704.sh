@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 39704: f6695a15e15713cdac16978837d8b01ef4999279
+# Index 39704: 47cc59f31f8e2ef18ee34402be7b94cbe39638aa
 
 echo "🚀 Generating explanation for commit 39704..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 39704..."
 
 ### メタデータ
 - **コミットインデックス**: 39704
-- **コミットハッシュ**: f6695a15e15713cdac16978837d8b01ef4999279
-- **GitHub URL**: https://github.com/golang/go/commit/f6695a15e15713cdac16978837d8b01ef4999279
+- **コミットハッシュ**: 47cc59f31f8e2ef18ee34402be7b94cbe39638aa
+- **GitHub URL**: https://github.com/golang/go/commit/47cc59f31f8e2ef18ee34402be7b94cbe39638aa
 
 ### 章構成
 

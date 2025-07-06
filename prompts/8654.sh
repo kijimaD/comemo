@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8654: 5c32c96f5cd624a4ab4cde4b8e4abd3dbe9be4a6
+# Index 8654: 548e3d0342cfa31dc552ad45e683fc780c75a153
 
 echo "🚀 Generating explanation for commit 8654..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 8654..."
 
 ### メタデータ
 - **コミットインデックス**: 8654
-- **コミットハッシュ**: 5c32c96f5cd624a4ab4cde4b8e4abd3dbe9be4a6
-- **GitHub URL**: https://github.com/golang/go/commit/5c32c96f5cd624a4ab4cde4b8e4abd3dbe9be4a6
+- **コミットハッシュ**: 548e3d0342cfa31dc552ad45e683fc780c75a153
+- **GitHub URL**: https://github.com/golang/go/commit/548e3d0342cfa31dc552ad45e683fc780c75a153
 
 ### 章構成
 

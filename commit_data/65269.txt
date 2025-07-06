@@ -1,0 +1,149 @@
+commit 9c5f5bd6d31a8751b8281bb062dd86106fd3b722
+Author: Alan Donovan <adonovan@google.com>
+Date:   Sat Nov 2 13:38:44 2024 -0400
+
+    go/parser: set File{Start,End} correctly in all cases
+    
+    ...even when the file is empty or lacks a valid package decl.
+    
+    + test
+    
+    Fixes #70162
+    
+    Change-Id: Idf33998911475fe8cdfaa4786ac3ba1745f54963
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/624655
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Findley <rfindley@google.com>
+---
+ src/go/ast/ast.go            |  8 ++++++--
+ src/go/parser/interface.go   | 12 ++++++++++--
+ src/go/parser/parser.go      | 15 +++++++--------
+ src/go/parser/parser_test.go | 20 ++++++++++++++++++++
+ 4 files changed, 43 insertions(+), 12 deletions(-)
+
+diff --git a/src/go/ast/ast.go b/src/go/ast/ast.go
+index 8d95eb12a9..afe0a750fe 100644
+--- a/src/go/ast/ast.go
++++ b/src/go/ast/ast.go
+@@ -1065,11 +1065,15 @@ type File struct {
+ }
+ 
+ // Pos returns the position of the package declaration.
+-// (Use FileStart for the start of the entire file.)
++// It may be invalid, for example in an empty file.
++//
++// (Use FileStart for the start of the entire file. It is always valid.)
+ func (f *File) Pos() token.Pos { return f.Package }
+ 
+ // End returns the end of the last declaration in the file.
+-// (Use FileEnd for the end of the entire file.)
++// It may be invalid, for example in an empty file.
++//
++// (Use FileEnd for the end of the entire file. It is always valid.)
+ func (f *File) End() token.Pos {
+ 	if n := len(f.Decls); n > 0 {
+ 		return f.Decls[n-1].End()
+diff --git a/src/go/parser/interface.go b/src/go/parser/interface.go
+index 11d42642f0..71a612f7cf 100644
+--- a/src/go/parser/interface.go
++++ b/src/go/parser/interface.go
+@@ -92,6 +92,8 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
+ 		return nil, err
+ 	}
+ 
++	file := fset.AddFile(filename, -1, len(text))
++
+ 	var p parser
+ 	defer func() {
+ 		if e := recover(); e != nil {
+@@ -115,12 +117,17 @@ func ParseFile(fset *token.FileSet, filename string, src any, mode Mode) (f *ast
+ 			}
+ 		}
+ 
++		// Ensure the start/end are consistent,
++		// whether parsing succeeded or not.
++		f.FileStart = token.Pos(file.Base())
++		f.FileEnd = token.Pos(file.Base() + file.Size())
++
+ 		p.errors.Sort()
+ 		err = p.errors.Err()
+ 	}()
+ 
+ 	// parse source
+-	p.init(fset, filename, text, mode)
++	p.init(file, text, mode)
+ 	f = p.parseFile()
+ 
+ 	return
+@@ -215,7 +222,8 @@ func ParseExprFrom(fset *token.FileSet, filename string, src any, mode Mode) (ex
+ 	}()
+ 
+ 	// parse expr
+-	p.init(fset, filename, text, mode)
++	file := fset.AddFile(filename, -1, len(text))
++	p.init(file, text, mode)
+ 	expr = p.parseRhs()
+ 
+ 	// If a semicolon was inserted, consume it;
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index cbd1d93fa1..46b2d4e7dc 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -65,8 +65,8 @@ type parser struct {
+ 	nestLev int
+ }
+ 
+-func (p *parser) init(fset *token.FileSet, filename string, src []byte, mode Mode) {
+-	p.file = fset.AddFile(filename, -1, len(src))
++func (p *parser) init(file *token.File, src []byte, mode Mode) {
++	p.file = file
+ 	eh := func(pos token.Position, msg string) { p.errors.Add(pos, msg) }
+ 	p.scanner.Init(p.file, src, eh, scanner.ScanComments)
+ 
+@@ -2900,12 +2900,11 @@ func (p *parser) parseFile() *ast.File {
+ 	}
+ 
+ 	f := &ast.File{
+-		Doc:       doc,
+-		Package:   pos,
+-		Name:      ident,
+-		Decls:     decls,
+-		FileStart: token.Pos(p.file.Base()),
+-		FileEnd:   token.Pos(p.file.Base() + p.file.Size()),
++		Doc:     doc,
++		Package: pos,
++		Name:    ident,
++		Decls:   decls,
++		// File{Start,End} are set by the defer in the caller.
+ 		Imports:   p.imports,
+ 		Comments:  p.comments,
+ 		GoVersion: p.goVersion,
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index 244d43c663..869d803df6 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -838,3 +838,23 @@ func TestParseTypeParamsAsParenExpr(t *testing.T) {
+ 		t.Fatalf("typeParam is a %T; want: *ast.ParenExpr", typeParam)
+ 	}
+ }
++
++// TestEmptyFileHasValidStartEnd is a regression test for #70162.
++func TestEmptyFileHasValidStartEnd(t *testing.T) {
++	for _, test := range []struct {
++		src  string
++		want string // "Pos() FileStart FileEnd"
++	}{
++		{src: "", want: "0 1 1"},
++		{src: "package ", want: "0 1 9"},
++		{src: "package p", want: "1 1 10"},
++		{src: "type T int", want: "0 1 11"},
++	} {
++		fset := token.NewFileSet()
++		f, _ := ParseFile(fset, "a.go", test.src, 0)
++		got := fmt.Sprintf("%d %d %d", f.Pos(), f.FileStart, f.FileEnd)
++		if got != test.want {
++			t.Fatalf("src = %q: got %s, want %s", test.src, got, test.want)
++		}
++	}
++}

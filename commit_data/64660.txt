@@ -1,0 +1,102 @@
+commit 0fe6347732bdb9918e3af4e0c4b52f7f0c162894
+Author: j2gg0s <j2gg0s@gmail.com>
+Date:   Tue Aug 27 14:35:59 2024 +0000
+
+    encoding/json: add embedded structs to the UnmarshalTypeError's Field
+    
+    Including embedded struct inforamtion in error message.
+    
+    Fixes #68941
+    
+    Change-Id: I6a6f7d506104839a9a7cf1a2c3003272f5534a79
+    GitHub-Last-Rev: 717f680acafd3f6509c0495f9092e028be502750
+    GitHub-Pull-Request: golang/go#68966
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/606956
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ doc/next/6-stdlib/99-minor/encoding/json/68941.md |  1 +
+ src/encoding/json/decode.go                       | 20 +++++++++++++-------
+ src/encoding/json/decode_test.go                  | 13 +++++++++++++
+ 3 files changed, 27 insertions(+), 7 deletions(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/encoding/json/68941.md b/doc/next/6-stdlib/99-minor/encoding/json/68941.md
+new file mode 100644
+index 0000000000..c7abec8b7f
+--- /dev/null
++++ b/doc/next/6-stdlib/99-minor/encoding/json/68941.md
+@@ -0,0 +1 @@
++[UnmarshalTypeError.Field] now includes embedded structs to provide more detailed error messages.
+diff --git a/src/encoding/json/decode.go b/src/encoding/json/decode.go
+index 19d4563e33..1a05ef59a2 100644
+--- a/src/encoding/json/decode.go
++++ b/src/encoding/json/decode.go
+@@ -127,7 +127,7 @@ type UnmarshalTypeError struct {
+ 	Type   reflect.Type // type of Go value it could not be assigned to
+ 	Offset int64        // error occurred after reading Offset bytes
+ 	Struct string       // name of the struct type containing the field
+-	Field  string       // the full path from root node to the field
++	Field  string       // the full path from root node to the field, include embedded struct
+ }
+ 
+ func (e *UnmarshalTypeError) Error() string {
+@@ -701,7 +701,10 @@ func (d *decodeState) object(v reflect.Value) error {
+ 			if f != nil {
+ 				subv = v
+ 				destring = f.quoted
+-				for _, i := range f.index {
++				if d.errorContext == nil {
++					d.errorContext = new(errorContext)
++				}
++				for i, ind := range f.index {
+ 					if subv.Kind() == reflect.Pointer {
+ 						if subv.IsNil() {
+ 							// If a struct embeds a pointer to an unexported type,
+@@ -721,13 +724,16 @@ func (d *decodeState) object(v reflect.Value) error {
+ 						}
+ 						subv = subv.Elem()
+ 					}
+-					subv = subv.Field(i)
+-				}
+-				if d.errorContext == nil {
+-					d.errorContext = new(errorContext)
++					if i < len(f.index)-1 {
++						d.errorContext.FieldStack = append(
++							d.errorContext.FieldStack,
++							subv.Type().Field(ind).Name,
++						)
++					}
++					subv = subv.Field(ind)
+ 				}
+-				d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
+ 				d.errorContext.Struct = t
++				d.errorContext.FieldStack = append(d.errorContext.FieldStack, f.name)
+ 			} else if d.disallowUnknownFields {
+ 				d.saveError(fmt.Errorf("json: unknown field %q", key))
+ 			}
+diff --git a/src/encoding/json/decode_test.go b/src/encoding/json/decode_test.go
+index 752825cffe..71895a9bb1 100644
+--- a/src/encoding/json/decode_test.go
++++ b/src/encoding/json/decode_test.go
+@@ -898,6 +898,19 @@ var unmarshalTests = []struct {
+ 		},
+ 	},
+ 
++	{
++		CaseName: Name(""),
++		in:       `{"Level1a": "hello"}`,
++		ptr:      new(Top),
++		err: &UnmarshalTypeError{
++			Value:  "string",
++			Struct: "Top",
++			Field:  "Embed0a.Level1a",
++			Type:   reflect.TypeFor[int](),
++			Offset: 10,
++		},
++	},
++
+ 	// issue 15146.
+ 	// invalid inputs in wrongStringTests below.
+ 	{CaseName: Name(""), in: `{"B":"true"}`, ptr: new(B), out: B{true}, golden: true},

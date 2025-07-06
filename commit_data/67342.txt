@@ -1,0 +1,49 @@
+commit fb0c27c514b7d6bbb88b72cfd7baff01e567f6bb
+Author: Damien Neil <dneil@google.com>
+Date:   Fri May 30 14:05:10 2025 -0700
+
+    os: do not follow dangling symlinks in Root when O_CREATE|O_EXCL on AIX
+    
+    OpenFile with O_CREATE|O_EXCL should not follow dangling symlinks.
+    On AIX it does, because AIX's openat(2) apparently returns ELOOP
+    in this case. Most Unices return EEXIST.
+    
+    Ensure that we never follow symlinks in the final component of
+    the path when opening a file with O_CREATE|O_EXCL.
+    
+    Fixes #73924
+    
+    Change-Id: I869afb7faefccb0bb29d155553a7d7e5be80467d
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/677735
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Damien Neil <dneil@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+---
+ src/os/root_unix.go | 14 ++++++++++++--
+ 1 file changed, 12 insertions(+), 2 deletions(-)
+
+diff --git a/src/os/root_unix.go b/src/os/root_unix.go
+index af963f472d..ed21afffb5 100644
+--- a/src/os/root_unix.go
++++ b/src/os/root_unix.go
+@@ -83,8 +83,18 @@ func rootOpenFileNolog(root *Root, name string, flag int, perm FileMode) (*File,
+ 	fd, err := doInRoot(root, name, nil, func(parent int, name string) (fd int, err error) {
+ 		ignoringEINTR(func() error {
+ 			fd, err = unix.Openat(parent, name, syscall.O_NOFOLLOW|syscall.O_CLOEXEC|flag, uint32(perm))
+-			if isNoFollowErr(err) || err == syscall.ENOTDIR {
+-				err = checkSymlink(parent, name, err)
++			if err != nil {
++				// Never follow symlinks when O_CREATE|O_EXCL, no matter
++				// what error the OS returns.
++				isCreateExcl := flag&(O_CREATE|O_EXCL) == (O_CREATE | O_EXCL)
++				if !isCreateExcl && (isNoFollowErr(err) || err == syscall.ENOTDIR) {
++					err = checkSymlink(parent, name, err)
++				}
++				// AIX returns ELOOP instead of EEXIST for a dangling symlink.
++				// Convert this to EEXIST so it matches ErrExists.
++				if isCreateExcl && err == syscall.ELOOP {
++					err = syscall.EEXIST
++				}
+ 			}
+ 			return err
+ 		})

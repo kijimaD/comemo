@@ -1,0 +1,155 @@
+commit bfc209518e3f6a15407139d70f31ab4a5dd646c7
+Author: thepudds <thepudds1460@gmail.com>
+Date:   Sat Dec 7 16:17:33 2024 -0500
+
+    internal/runtime/maps: speed up small map lookups ~1.7x for unpredictable keys
+    
+    On master, lookups on small Swiss Table maps (<= 8 elements) for
+    non-specialized key types are seemingly a performance regression
+    compared to the Go 1.23 map implementation (reported in #70849).
+    Currently, a linear scan is used for gets in these cases.
+    
+    This CL changes (*Map).getWithKeySmall to instead use the SIMD or SWAR
+    match on the control bytes to then jump to candidate matching slots,
+    with sample results below for a 16-byte key. This especially helps the
+    hit case when the key is unpredictable, which previously had to scan an
+    unpredictable number of control bytes to find a candidate slot when the
+    key is unpredictable.
+    
+    Separately, other CLs in this stack modify the main Swiss Table
+    benchmarks to randomize lookup key order (vs. previously most of the
+    benchmarks had a repeating lookup key ordering, which likely is
+    predictable until the map is too big). We have sample results for the
+    randomized key order benchmarks followed by results from the older
+    benchmarks.
+    
+    The first table below is with randomized key order. For hits, the older
+    results get slower as there are more elements. With this CL, we see hits
+    for unpredictable key ordering (sizes 2-8) get a ~1.7x speedup from
+    ~25ns to ~14ns, with a now consistent lookup time for the different
+    sizes. (The 1 element size map has a predictable key ordering because
+    there is only one key, and that reports a modest ~0.5ns or ~3%
+    performance penalty). Misses for unpredictable key order get a ~1.3x
+    speedup, from ~13ns to ~10ns, with similar results for the 1 element
+    size.
+    
+                                                       │ no-fix-new-bmarks  │ fix-with-new-bmarks   │
+                                                       │     sec/op         │  sec/op       vs base │
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=1-4        13.26n ±  0%   13.64n ±  0%   +2.90% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=2-4        19.47n ±  0%   13.62n ±  0%  -30.05% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=3-4        22.23n ±  0%   13.64n ±  0%  -38.68% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=4-4        23.98n ±  0%   13.64n ±  0%  -43.11% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=5-4        25.02n ±  0%   13.67n ±  0%  -45.35% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=6-4        25.77n ±  1%   13.68n ±  2%  -46.89% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=7-4        26.38n ±  0%   13.64n ±  0%  -48.28% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=8-4        26.31n ±  0%   13.71n ± 21%  -47.90% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=1-4      13.055n ±  0%   9.815n ±  0%  -24.82% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=2-4      13.070n ±  0%   9.813n ±  0%  -24.92% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=3-4      13.060n ±  0%   9.819n ±  0%  -24.82% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=4-4      13.075n ±  0%   9.816n ±  0%  -24.92% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=5-4      13.060n ±  0%   9.826n ±  0%  -24.76% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=6-4      13.095n ± 19%   9.834n ± 31%  -24.90% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=7-4      13.075n ± 19%   9.822n ± 27%  -24.88% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=8-4       13.11n ± 16%   12.14n ± 19%   -7.43% (p=0.000 n=20)
+    
+    The next table uses the original benchmarks from just before this CL
+    stack (i.e., without shuffling lookup keys).
+    
+    With this CL, we see improvement that is directionally similar to the
+    above results but not as large, presumably because the branches in the
+    linear scan are fairly predictable with predictable keys. (The numbers
+    here also include the time from a mod in the benchmark code, which
+    seemed to take around ~1/3 of CPU time based on spot checking a couple
+    of examples, vs. the modified benchmarks shown above have removed that
+    mod).
+    
+                                                      │ master-8c3e391573 │   just-fix-with-old-bmarks       │
+                                                      │      sec/op       │    sec/op     vs base            │
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=1-4      20.85n ±  0%   21.69n ±  0%   +4.03% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=2-4      21.22n ±  0%   21.70n ±  0%   +2.24% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=3-4      21.73n ±  0%   21.71n ±  0%        ~ (p=0.158 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=4-4      22.06n ±  0%   21.71n ±  0%   -1.56% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=5-4      22.41n ±  0%   21.73n ±  0%   -3.01% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=6-4      22.71n ±  0%   21.72n ±  0%   -4.38% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=7-4      22.98n ±  0%   21.71n ±  0%   -5.53% (p=0.000 n=20)
+    MapSmallAccessHit/Key=smallType/Elem=int32/len=8-4      23.20n ±  0%   21.72n ±  0%   -6.36% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=1-4     19.95n ±  0%   17.30n ±  0%  -13.28% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=2-4     19.96n ±  0%   17.31n ±  0%  -13.28% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=3-4     19.95n ±  0%   17.29n ±  0%  -13.33% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=4-4     19.95n ±  0%   17.30n ±  0%  -13.29% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=5-4     19.96n ± 25%   17.32n ±  0%  -13.22% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=6-4     19.99n ± 24%   17.29n ±  0%  -13.51% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=7-4     19.97n ± 20%   17.34n ± 16%  -13.14% (p=0.000 n=20)
+    MapSmallAccessMiss/Key=smallType/Elem=int32/len=8-4     20.02n ± 11%   17.33n ± 14%  -13.44% (p=0.000 n=20)
+    geomean                                                 21.02n         19.39n         -7.78%
+    
+    See #70849 for additional benchmark results, including results for arm64
+    (which also means without SIMD support).
+    
+    Updates #54766
+    Updates #70700
+    Fixes #70849
+    
+    Change-Id: Ic2361bb6fc15b4436d1d1d5be7e4712e547f611b
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/634396
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/internal/runtime/maps/map.go  | 15 +++++++--------
+ src/runtime/map_benchmark_test.go |  3 +++
+ 2 files changed, 10 insertions(+), 8 deletions(-)
+
+diff --git a/src/internal/runtime/maps/map.go b/src/internal/runtime/maps/map.go
+index b4db522978..94000a942d 100644
+--- a/src/internal/runtime/maps/map.go
++++ b/src/internal/runtime/maps/map.go
+@@ -439,15 +439,10 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
+ 		data: m.dirPtr,
+ 	}
+ 
+-	h2 := uint8(h2(hash))
+-	ctrls := *g.ctrls()
++	match := g.ctrls().matchH2(h2(hash))
+ 
+-	for i := uintptr(0); i < abi.SwissMapGroupSlots; i++ {
+-		c := uint8(ctrls)
+-		ctrls >>= 8
+-		if c != h2 {
+-			continue
+-		}
++	for match != 0 {
++		i := match.first()
+ 
+ 		slotKey := g.key(typ, i)
+ 		if typ.IndirectKey() {
+@@ -461,8 +456,12 @@ func (m *Map) getWithKeySmall(typ *abi.SwissMapType, hash uintptr, key unsafe.Po
+ 			}
+ 			return slotKey, slotElem, true
+ 		}
++
++		match = match.removeFirst()
+ 	}
+ 
++	// No match here means key is not in the map.
++	// (A single group means no need to probe or check for empty).
+ 	return nil, nil, false
+ }
+ 
+diff --git a/src/runtime/map_benchmark_test.go b/src/runtime/map_benchmark_test.go
+index 43c8f0bb61..bf195fa30d 100644
+--- a/src/runtime/map_benchmark_test.go
++++ b/src/runtime/map_benchmark_test.go
+@@ -1182,9 +1182,12 @@ func BenchmarkMapSmallAccessHit(b *testing.B) {
+ 	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessHit[int32, int32]))
+ 	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessHit[int64, int64]))
+ 	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessHit[string, string]))
++	b.Run("Key=smallType/Elem=int32", smallBenchSizes(benchmarkMapAccessHit[smallType, int32]))
+ }
++
+ func BenchmarkMapSmallAccessMiss(b *testing.B) {
+ 	b.Run("Key=int32/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[int32, int32]))
+ 	b.Run("Key=int64/Elem=int64", smallBenchSizes(benchmarkMapAccessMiss[int64, int64]))
+ 	b.Run("Key=string/Elem=string", smallBenchSizes(benchmarkMapAccessMiss[string, string]))
++	b.Run("Key=smallType/Elem=int32", smallBenchSizes(benchmarkMapAccessMiss[smallType, int32]))
+ }

@@ -1,0 +1,333 @@
+commit dc548bb322387039a12000c04e5b9083a0511639
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Mon May 6 03:57:08 2024 +0000
+
+    os: use filepathlite.Base
+    
+    Replace custom basename implementations with filepathlite.Base across
+    all relevant os/stat files to unify path processing across platforms.
+    
+    Change-Id: I7c4795661926949bae71e66d8b4f9363e7caef15
+    GitHub-Last-Rev: 1236e93ebcd4137f9cbbbab2163cadf4e4d02674
+    GitHub-Pull-Request: golang/go#67195
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/583415
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ src/os/path_unix.go      | 18 ------------------
+ src/os/path_windows.go   | 24 ------------------------
+ src/os/stat_aix.go       |  3 ++-
+ src/os/stat_darwin.go    |  3 ++-
+ src/os/stat_dragonfly.go |  3 ++-
+ src/os/stat_freebsd.go   |  3 ++-
+ src/os/stat_js.go        |  3 ++-
+ src/os/stat_linux.go     |  3 ++-
+ src/os/stat_netbsd.go    |  3 ++-
+ src/os/stat_openbsd.go   |  3 ++-
+ src/os/stat_solaris.go   |  3 ++-
+ src/os/stat_wasip1.go    |  3 ++-
+ src/os/stat_windows.go   |  3 ++-
+ src/os/types_windows.go  |  4 ++--
+ 14 files changed, 24 insertions(+), 55 deletions(-)
+
+diff --git a/src/os/path_unix.go b/src/os/path_unix.go
+index 062c07c91e..0189bcd2a1 100644
+--- a/src/os/path_unix.go
++++ b/src/os/path_unix.go
+@@ -16,24 +16,6 @@ func IsPathSeparator(c uint8) bool {
+ 	return PathSeparator == c
+ }
+ 
+-// basename removes trailing slashes and the leading directory name from path name.
+-func basename(name string) string {
+-	i := len(name) - 1
+-	// Remove trailing slashes
+-	for ; i > 0 && name[i] == '/'; i-- {
+-		name = name[:i]
+-	}
+-	// Remove leading directory name
+-	for i--; i >= 0; i-- {
+-		if name[i] == '/' {
+-			name = name[i+1:]
+-			break
+-		}
+-	}
+-
+-	return name
+-}
+-
+ // splitPath returns the base name and parent directory.
+ func splitPath(path string) (string, string) {
+ 	// if no better parent is found, the path is relative from "here"
+diff --git a/src/os/path_windows.go b/src/os/path_windows.go
+index 4d7bdb2fa2..f585aa5ee6 100644
+--- a/src/os/path_windows.go
++++ b/src/os/path_windows.go
+@@ -21,30 +21,6 @@ func IsPathSeparator(c uint8) bool {
+ 	return c == '\\' || c == '/'
+ }
+ 
+-// basename removes trailing slashes and the leading
+-// directory name and drive letter from path name.
+-func basename(name string) string {
+-	// Remove drive letter
+-	if len(name) == 2 && name[1] == ':' {
+-		name = "."
+-	} else if len(name) > 2 && name[1] == ':' {
+-		name = name[2:]
+-	}
+-	i := len(name) - 1
+-	// Remove trailing slashes
+-	for ; i > 0 && (name[i] == '/' || name[i] == '\\'); i-- {
+-		name = name[:i]
+-	}
+-	// Remove leading directory name
+-	for i--; i >= 0; i-- {
+-		if name[i] == '/' || name[i] == '\\' {
+-			name = name[i+1:]
+-			break
+-		}
+-	}
+-	return name
+-}
+-
+ func dirname(path string) string {
+ 	vol := filepathlite.VolumeName(path)
+ 	i := len(path) - 1
+diff --git a/src/os/stat_aix.go b/src/os/stat_aix.go
+index a37c9fdae4..574e3d26ff 100644
+--- a/src/os/stat_aix.go
++++ b/src/os/stat_aix.go
+@@ -5,12 +5,13 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ 	"time"
+ )
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+-	fs.name = basename(name)
++	fs.name = filepathlite.Base(name)
+ 	fs.size = int64(fs.sys.Size)
+ 	fs.modTime = stTimespecToTime(fs.sys.Mtim)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+diff --git a/src/os/stat_darwin.go b/src/os/stat_darwin.go
+index b92ffd4a0a..70c5345aac 100644
+--- a/src/os/stat_darwin.go
++++ b/src/os/stat_darwin.go
+@@ -5,12 +5,13 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ 	"time"
+ )
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+-	fs.name = basename(name)
++	fs.name = filepathlite.Base(name)
+ 	fs.size = fs.sys.Size
+ 	fs.modTime = time.Unix(fs.sys.Mtimespec.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+diff --git a/src/os/stat_dragonfly.go b/src/os/stat_dragonfly.go
+index 316c26c7ca..01f2a14e27 100644
+--- a/src/os/stat_dragonfly.go
++++ b/src/os/stat_dragonfly.go
+@@ -5,12 +5,13 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ 	"time"
+ )
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+-	fs.name = basename(name)
++	fs.name = filepathlite.Base(name)
+ 	fs.size = fs.sys.Size
+ 	fs.modTime = time.Unix(fs.sys.Mtim.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+diff --git a/src/os/stat_freebsd.go b/src/os/stat_freebsd.go
+index 919ee44dd6..7b78694045 100644
+--- a/src/os/stat_freebsd.go
++++ b/src/os/stat_freebsd.go
+@@ -5,12 +5,13 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ 	"time"
+ )
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+-	fs.name = basename(name)
++	fs.name = filepathlite.Base(name)
+ 	fs.size = fs.sys.Size
+ 	fs.modTime = time.Unix(fs.sys.Mtimespec.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+diff --git a/src/os/stat_js.go b/src/os/stat_js.go
+index a137172e66..d63461d695 100644
+--- a/src/os/stat_js.go
++++ b/src/os/stat_js.go
+@@ -7,12 +7,13 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ 	"time"
+ )
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+-	fs.name = basename(name)
++	fs.name = filepathlite.Base(name)
+ 	fs.size = fs.sys.Size
+ 	fs.modTime = time.Unix(fs.sys.Mtime, fs.sys.MtimeNsec)
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+diff --git a/src/os/stat_linux.go b/src/os/stat_linux.go
+index 316c26c7ca..01f2a14e27 100644
+--- a/src/os/stat_linux.go
++++ b/src/os/stat_linux.go
+@@ -5,12 +5,13 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ 	"time"
+ )
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+-	fs.name = basename(name)
++	fs.name = filepathlite.Base(name)
+ 	fs.size = fs.sys.Size
+ 	fs.modTime = time.Unix(fs.sys.Mtim.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+diff --git a/src/os/stat_netbsd.go b/src/os/stat_netbsd.go
+index 919ee44dd6..7b78694045 100644
+--- a/src/os/stat_netbsd.go
++++ b/src/os/stat_netbsd.go
+@@ -5,12 +5,13 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ 	"time"
+ )
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+-	fs.name = basename(name)
++	fs.name = filepathlite.Base(name)
+ 	fs.size = fs.sys.Size
+ 	fs.modTime = time.Unix(fs.sys.Mtimespec.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+diff --git a/src/os/stat_openbsd.go b/src/os/stat_openbsd.go
+index 316c26c7ca..01f2a14e27 100644
+--- a/src/os/stat_openbsd.go
++++ b/src/os/stat_openbsd.go
+@@ -5,12 +5,13 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ 	"time"
+ )
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+-	fs.name = basename(name)
++	fs.name = filepathlite.Base(name)
+ 	fs.size = fs.sys.Size
+ 	fs.modTime = time.Unix(fs.sys.Mtim.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+diff --git a/src/os/stat_solaris.go b/src/os/stat_solaris.go
+index 4e00ecb075..447044e2e2 100644
+--- a/src/os/stat_solaris.go
++++ b/src/os/stat_solaris.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ 	"time"
+ )
+@@ -18,7 +19,7 @@ const (
+ )
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+-	fs.name = basename(name)
++	fs.name = filepathlite.Base(name)
+ 	fs.size = fs.sys.Size
+ 	fs.modTime = time.Unix(fs.sys.Mtim.Unix())
+ 	fs.mode = FileMode(fs.sys.Mode & 0777)
+diff --git a/src/os/stat_wasip1.go b/src/os/stat_wasip1.go
+index a4f0a20430..85a3649889 100644
+--- a/src/os/stat_wasip1.go
++++ b/src/os/stat_wasip1.go
+@@ -7,12 +7,13 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"syscall"
+ 	"time"
+ )
+ 
+ func fillFileStatFromSys(fs *fileStat, name string) {
+-	fs.name = basename(name)
++	fs.name = filepathlite.Base(name)
+ 	fs.size = int64(fs.sys.Size)
+ 	fs.mode = FileMode(fs.sys.Mode)
+ 	fs.modTime = time.Unix(0, int64(fs.sys.Mtime))
+diff --git a/src/os/stat_windows.go b/src/os/stat_windows.go
+index fd948ab0e3..160a3893ce 100644
+--- a/src/os/stat_windows.go
++++ b/src/os/stat_windows.go
+@@ -5,6 +5,7 @@
+ package os
+ 
+ import (
++	"internal/filepathlite"
+ 	"internal/syscall/windows"
+ 	"syscall"
+ 	"unsafe"
+@@ -107,7 +108,7 @@ func statHandle(name string, h syscall.Handle) (FileInfo, error) {
+ 	}
+ 	switch ft {
+ 	case syscall.FILE_TYPE_PIPE, syscall.FILE_TYPE_CHAR:
+-		return &fileStat{name: basename(name), filetype: ft}, nil
++		return &fileStat{name: filepathlite.Base(name), filetype: ft}, nil
+ 	}
+ 	fs, err := newFileStatFromGetFileInformationByHandle(name, h)
+ 	if err != nil {
+diff --git a/src/os/types_windows.go b/src/os/types_windows.go
+index c83fa4c353..34648e796a 100644
+--- a/src/os/types_windows.go
++++ b/src/os/types_windows.go
+@@ -61,7 +61,7 @@ func newFileStatFromGetFileInformationByHandle(path string, h syscall.Handle) (f
+ 	}
+ 
+ 	return &fileStat{
+-		name:           basename(path),
++		name:           filepathlite.Base(path),
+ 		FileAttributes: d.FileAttributes,
+ 		CreationTime:   d.CreationTime,
+ 		LastAccessTime: d.LastAccessTime,
+@@ -346,7 +346,7 @@ func (fs *fileStat) saveInfoFromPath(path string) error {
+ 			return &PathError{Op: "FullPath", Path: path, Err: err}
+ 		}
+ 	}
+-	fs.name = basename(path)
++	fs.name = filepathlite.Base(path)
+ 	return nil
+ }
+ 

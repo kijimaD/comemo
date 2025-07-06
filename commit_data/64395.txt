@@ -1,0 +1,153 @@
+commit 38c427c9dc729597df5e735a7db9549feea0ebc1
+Author: aimuz <mr.imuz@gmail.com>
+Date:   Tue May 28 13:53:53 2024 +0000
+
+    net: replace sort with slices for address and DNS record sorting
+    
+    This change replaces the usage of the "sort" package with the "slices"
+    package for sorting IP addresses and DNS records. The new approach
+    simplifies the code and improves readability by leveraging the
+    slices.SortFunc and slices.SortStableFunc functions.
+    
+    - Updated addrselect.go to use slices.SortStableFunc for sorting IP
+      addresses based on RFC 6724.
+    - Refactored dnsclient.go to use slices.SortFunc for sorting SRV and MX
+      records by priority and weight.
+    
+    This change also reduces the dependency tree for the package by
+    removing the dependency on "sort" and its transitive dependencies,
+    resulting in a leaner build.
+    
+    Change-Id: I436dacc8dd1e8f2f7eeac44d6719ce248394d8a9
+    GitHub-Last-Rev: 3720a490815e2dc2fad06b107f21c67f5ad6c6c8
+    GitHub-Pull-Request: golang/go#67503
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/586635
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+---
+ src/net/addrselect.go | 78 +++++++++++++++++++++++----------------------------
+ 1 file changed, 35 insertions(+), 43 deletions(-)
+
+diff --git a/src/net/addrselect.go b/src/net/addrselect.go
+index caff09b377..0ff8ec37c8 100644
+--- a/src/net/addrselect.go
++++ b/src/net/addrselect.go
+@@ -8,7 +8,7 @@ package net
+ 
+ import (
+ 	"net/netip"
+-	"sort"
++	"slices"
+ )
+ 
+ func sortByRFC6724(addrs []IPAddr) {
+@@ -22,19 +22,20 @@ func sortByRFC6724withSrcs(addrs []IPAddr, srcs []netip.Addr) {
+ 	if len(addrs) != len(srcs) {
+ 		panic("internal error")
+ 	}
+-	addrAttr := make([]ipAttr, len(addrs))
+-	srcAttr := make([]ipAttr, len(srcs))
++	addrInfos := make([]byRFC6724Info, len(addrs))
+ 	for i, v := range addrs {
+ 		addrAttrIP, _ := netip.AddrFromSlice(v.IP)
+-		addrAttr[i] = ipAttrOf(addrAttrIP)
+-		srcAttr[i] = ipAttrOf(srcs[i])
++		addrInfos[i] = byRFC6724Info{
++			addr:     addrs[i],
++			addrAttr: ipAttrOf(addrAttrIP),
++			src:      srcs[i],
++			srcAttr:  ipAttrOf(srcs[i]),
++		}
++	}
++	slices.SortStableFunc(addrInfos, compareByRFC6724)
++	for i := range addrInfos {
++		addrs[i] = addrInfos[i].addr
+ 	}
+-	sort.Stable(&byRFC6724{
+-		addrs:    addrs,
+-		addrAttr: addrAttr,
+-		srcs:     srcs,
+-		srcAttr:  srcAttr,
+-	})
+ }
+ 
+ // srcAddrs tries to UDP-connect to each address to see if it has a
+@@ -75,45 +76,36 @@ func ipAttrOf(ip netip.Addr) ipAttr {
+ 	}
+ }
+ 
+-type byRFC6724 struct {
+-	addrs    []IPAddr // addrs to sort
+-	addrAttr []ipAttr
+-	srcs     []netip.Addr // or not valid addr if unreachable
+-	srcAttr  []ipAttr
+-}
+-
+-func (s *byRFC6724) Len() int { return len(s.addrs) }
+-
+-func (s *byRFC6724) Swap(i, j int) {
+-	s.addrs[i], s.addrs[j] = s.addrs[j], s.addrs[i]
+-	s.srcs[i], s.srcs[j] = s.srcs[j], s.srcs[i]
+-	s.addrAttr[i], s.addrAttr[j] = s.addrAttr[j], s.addrAttr[i]
+-	s.srcAttr[i], s.srcAttr[j] = s.srcAttr[j], s.srcAttr[i]
++type byRFC6724Info struct {
++	addr     IPAddr
++	addrAttr ipAttr
++	src      netip.Addr
++	srcAttr  ipAttr
+ }
+ 
+-// Less reports whether i is a better destination address for this
+-// host than j.
+-//
+-// The algorithm and variable names comes from RFC 6724 section 6.
+-func (s *byRFC6724) Less(i, j int) bool {
+-	DA := s.addrs[i].IP
+-	DB := s.addrs[j].IP
+-	SourceDA := s.srcs[i]
+-	SourceDB := s.srcs[j]
+-	attrDA := &s.addrAttr[i]
+-	attrDB := &s.addrAttr[j]
+-	attrSourceDA := &s.srcAttr[i]
+-	attrSourceDB := &s.srcAttr[j]
+-
+-	const preferDA = true
+-	const preferDB = false
++// compareByRFC6724 compares two byRFC6724Info records and returns an integer
++// indicating the order. It follows the algorithm and variable names from
++// RFC 6724 section 6. Returns -1 if a is preferred, 1 if b is preferred,
++// and 0 if they are equal.
++func compareByRFC6724(a, b byRFC6724Info) int {
++	DA := a.addr.IP
++	DB := b.addr.IP
++	SourceDA := a.src
++	SourceDB := b.src
++	attrDA := &a.addrAttr
++	attrDB := &b.addrAttr
++	attrSourceDA := &a.srcAttr
++	attrSourceDB := &b.srcAttr
++
++	const preferDA = -1
++	const preferDB = 1
+ 
+ 	// Rule 1: Avoid unusable destinations.
+ 	// If DB is known to be unreachable or if Source(DB) is undefined, then
+ 	// prefer DA.  Similarly, if DA is known to be unreachable or if
+ 	// Source(DA) is undefined, then prefer DB.
+ 	if !SourceDA.IsValid() && !SourceDB.IsValid() {
+-		return false // "equal"
++		return 0 // "equal"
+ 	}
+ 	if !SourceDB.IsValid() {
+ 		return preferDA
+@@ -212,7 +204,7 @@ func (s *byRFC6724) Less(i, j int) bool {
+ 	// Rule 10: Otherwise, leave the order unchanged.
+ 	// If DA preceded DB in the original list, prefer DA.
+ 	// Otherwise, prefer DB.
+-	return false // "equal"
++	return 0 // "equal"
+ }
+ 
+ type policyTableEntry struct {

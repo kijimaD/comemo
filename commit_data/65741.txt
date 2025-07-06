@@ -1,0 +1,31 @@
+commit 2a0aeb12345e4ca64315830ffe87e57e1a828570
+Author: Robert Griesemer <gri@golang.org>
+Date:   Tue Dec 3 13:55:47 2024 -0800
+
+    doc/next: minor grammar fix in release notes
+    
+    For #66626.
+    For #68545.
+    
+    Change-Id: I4fe21bdaa9580eb087c849de72e98f6145121dd0
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/633282
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Alan Donovan <adonovan@google.com>
+    TryBot-Bypass: Robert Griesemer <gri@google.com>
+---
+ doc/next/6-stdlib/99-minor/go/types/66626.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/doc/next/6-stdlib/99-minor/go/types/66626.md b/doc/next/6-stdlib/99-minor/go/types/66626.md
+index 62e8a48820..731819a64b 100644
+--- a/doc/next/6-stdlib/99-minor/go/types/66626.md
++++ b/doc/next/6-stdlib/99-minor/go/types/66626.md
+@@ -1,6 +1,6 @@
+ 
+ All `go/types` data structures that expose sequences using a pair of
+-methods such as `Len() int` and `At(int) T` now also methods that
++methods such as `Len() int` and `At(int) T` now also have methods that
+ return iterators, allowing you to simplify code such as this:
+ 
+ ```go

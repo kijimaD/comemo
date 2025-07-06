@@ -1,0 +1,96 @@
+commit 38f85967873b1cd48c20681c5dff0e9f3de18516
+Author: limeidan <limeidan@loongson.cn>
+Date:   Thu Jun 20 17:22:43 2024 +0800
+
+    cmd/compile/internal/ssa: optimize if control flow rule of loong64
+    
+    goos: linux
+    goarch: loong64
+    pkg: cmd/compile/internal/test
+    cpu: Loongson-3A6000 @ 2500.00MHz
+                                     │     old     │                 new                 │
+                                     │   sec/op    │   sec/op     vs base                │
+    Switch8Predictable                 2.908n ± 0%   2.702n ± 2%   -7.10% (p=0.000 n=10)
+    Switch8Unpredictable               13.29n ± 0%   12.45n ± 0%   -6.32% (p=0.000 n=10)
+    Switch32Predictable                3.069n ± 0%   3.137n ± 0%   +2.23% (p=0.000 n=10)
+    Switch32Unpredictable              15.11n ± 0%   13.21n ± 0%  -12.57% (p=0.000 n=10)
+    SwitchStringPredictable            5.165n ± 0%   4.447n ± 0%  -13.90% (p=0.000 n=10)
+    SwitchStringUnpredictable          18.26n ± 0%   16.86n ± 0%   -7.67% (p=0.000 n=10)
+    SwitchTypePredictable              3.961n ± 0%   3.405n ± 0%  -14.04% (p=0.000 n=10)
+    SwitchTypeUnpredictable            17.92n ± 0%   16.17n ± 0%   -9.77% (p=0.000 n=10)
+    SwitchInterfaceTypePredictable     8.463n ± 0%   8.492n ± 0%   +0.34% (p=0.001 n=10)
+    SwitchInterfaceTypeUnpredictable   23.70n ± 0%   22.48n ± 0%   -5.15% (p=0.000 n=10)
+    geomean                            8.672n        8.018n        -7.54%
+    
+    Change-Id: Iefbf8e9e784905779f1ebc9fd6a9b7a28cf2f6f4
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/620815
+    Reviewed-by: abner chenc <chenguoqi@loongson.cn>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/cmd/compile/internal/ssa/_gen/LOONG64.rules |  1 +
+ src/cmd/compile/internal/ssa/rewriteLOONG64.go  | 38 +++++++++++++++++++++++++
+ 2 files changed, 39 insertions(+)
+
+diff --git a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+index 64cbe76295..923e8ef0e4 100644
+--- a/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
++++ b/src/cmd/compile/internal/ssa/_gen/LOONG64.rules
+@@ -453,6 +453,7 @@
+ (GetCallerPC ...) => (LoweredGetCallerPC ...)
+ 
+ (If cond yes no) => (NE (MOVBUreg <typ.UInt64> cond) yes no)
++(MOVBUreg x:(XOR (MOVVconst [1]) ((SGT|SGTU) _ _))) => x
+ 
+ // Write barrier.
+ (WB ...) => (LoweredWB ...)
+diff --git a/src/cmd/compile/internal/ssa/rewriteLOONG64.go b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+index df5043b949..abc92b1893 100644
+--- a/src/cmd/compile/internal/ssa/rewriteLOONG64.go
++++ b/src/cmd/compile/internal/ssa/rewriteLOONG64.go
+@@ -1907,6 +1907,44 @@ func rewriteValueLOONG64_OpLOONG64MOVBUreg(v *Value) bool {
+ 		v.AddArg(x)
+ 		return true
+ 	}
++	// match: (MOVBUreg x:(XOR (MOVVconst [1]) (SGT _ _)))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpLOONG64XOR {
++			break
++		}
++		_ = x.Args[1]
++		x_0 := x.Args[0]
++		x_1 := x.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, x_0, x_1 = _i0+1, x_1, x_0 {
++			if x_0.Op != OpLOONG64MOVVconst || auxIntToInt64(x_0.AuxInt) != 1 || x_1.Op != OpLOONG64SGT {
++				continue
++			}
++			v.copyOf(x)
++			return true
++		}
++		break
++	}
++	// match: (MOVBUreg x:(XOR (MOVVconst [1]) (SGTU _ _)))
++	// result: x
++	for {
++		x := v_0
++		if x.Op != OpLOONG64XOR {
++			break
++		}
++		_ = x.Args[1]
++		x_0 := x.Args[0]
++		x_1 := x.Args[1]
++		for _i0 := 0; _i0 <= 1; _i0, x_0, x_1 = _i0+1, x_1, x_0 {
++			if x_0.Op != OpLOONG64MOVVconst || auxIntToInt64(x_0.AuxInt) != 1 || x_1.Op != OpLOONG64SGTU {
++				continue
++			}
++			v.copyOf(x)
++			return true
++		}
++		break
++	}
+ 	// match: (MOVBUreg x:(SGT _ _))
+ 	// result: x
+ 	for {

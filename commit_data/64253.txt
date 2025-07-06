@@ -1,0 +1,31 @@
+commit 5e8a7316658c2f300a375041b6e0a606fec4c5f2
+Author: Will Faught <willfaught@users.noreply.github.com>
+Date:   Sat Jul 20 01:18:47 2024 +0000
+
+    README: fix CC BY license name
+    
+    Change-Id: Idf3c4427426e3cb74c7749762f2b4f621cf82dba
+    GitHub-Last-Rev: 86f51a5d504fdb596145a41e305bea1171776daa
+    GitHub-Pull-Request: golang/go#68518
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/599515
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+---
+ README.md | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/README.md b/README.md
+index 98f968218e..71c9d1dc29 100644
+--- a/README.md
++++ b/README.md
+@@ -4,7 +4,7 @@ Go is an open source programming language that makes it easy to build simple,
+ reliable, and efficient software.
+ 
+ ![Gopher image](https://golang.org/doc/gopher/fiveyears.jpg)
+-*Gopher image by [Renee French][rf], licensed under [Creative Commons 4.0 Attributions license][cc4-by].*
++*Gopher image by [Renee French][rf], licensed under [Creative Commons 4.0 Attribution license][cc4-by].*
+ 
+ Our canonical Git repository is located at https://go.googlesource.com/go.
+ There is a mirror of the repository at https://github.com/golang/go.

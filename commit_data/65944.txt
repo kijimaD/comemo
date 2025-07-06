@@ -1,0 +1,66 @@
+commit c5e205e928bd4b70c90698b5ca1dd583a8036864
+Author: Keith Randall <khr@golang.org>
+Date:   Mon Jan 13 16:21:29 2025 -0800
+
+    internal/runtime/maps: re-enable some tests
+    
+    Re-enable tests for stack-allocated maps and fast map accessors.
+    Those are implemented now.
+    
+    Update #54766
+    
+    Change-Id: I8c019702bd9fb077b2fe3f7c78e8e9e10d2263a6
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/642376
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Keith Randall <khr@google.com>
+    Reviewed-by: Michael Pratt <mpratt@google.com>
+    Auto-Submit: Keith Randall <khr@golang.org>
+---
+ src/internal/runtime/maps/map_swiss_test.go | 1 -
+ src/runtime/map_test.go                     | 4 ----
+ test/codegen/maps.go                        | 5 -----
+ 3 files changed, 10 deletions(-)
+
+diff --git a/src/internal/runtime/maps/map_swiss_test.go b/src/internal/runtime/maps/map_swiss_test.go
+index 4e02f3e660..6da006413a 100644
+--- a/src/internal/runtime/maps/map_swiss_test.go
++++ b/src/internal/runtime/maps/map_swiss_test.go
+@@ -50,7 +50,6 @@ func TestTableGroupCount(t *testing.T) {
+ 	var testCases = []struct {
+ 		n      int     // n is the number of map elements
+ 		escape mapCase // expected values for escaping map
+-		// TODO(go.dev/issue/54766): implement stack allocated maps
+ 	}{
+ 		{
+ 			n: -(1 << 30),
+diff --git a/src/runtime/map_test.go b/src/runtime/map_test.go
+index e3c092bef9..c522c44a4e 100644
+--- a/src/runtime/map_test.go
++++ b/src/runtime/map_test.go
+@@ -674,10 +674,6 @@ func TestIgnoreBogusMapHint(t *testing.T) {
+ var testNonEscapingMapVariable int = 8
+ 
+ func TestNonEscapingMap(t *testing.T) {
+-	if goexperiment.SwissMap {
+-		t.Skip("TODO(go.dev/issue/54766): implement stack allocated maps")
+-	}
+-
+ 	n := testing.AllocsPerRun(1000, func() {
+ 		m := map[int]int{}
+ 		m[0] = 0
+diff --git a/test/codegen/maps.go b/test/codegen/maps.go
+index d7cf6534ad..25505799e9 100644
+--- a/test/codegen/maps.go
++++ b/test/codegen/maps.go
+@@ -4,11 +4,6 @@
+ // Use of this source code is governed by a BSD-style
+ // license that can be found in the LICENSE file.
+ 
+-// TODO(#54766): Temporarily disable for swissmap, which have fast variants
+-// disabled. This test expects fast variants.
+-//
+-//go:build !goexperiment.swissmap
+-
+ package codegen
+ 
+ // This file contains code generation tests related to the handling of

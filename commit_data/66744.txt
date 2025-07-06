@@ -1,0 +1,279 @@
+commit 5fc596ebe7c34b9f68c33da5ffc4f3645c38ef72
+Author: Keith Randall <khr@golang.org>
+Date:   Tue Feb 11 18:58:13 2025 -0800
+
+    cmd/compile: aggregate scalar allocations for heap escapes
+    
+    If multiple small scalars escape to the heap, allocate them together
+    with a single allocation. They are going to be aggregated together
+    in the tiny allocator anyway, might as well do just one runtime call.
+    
+    Change-Id: I4317e29235af63de378a26436a18d7fb0c39e41f
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/648536
+    Reviewed-by: Cherry Mui <cherryyz@google.com>
+    Reviewed-by: Carlos Amedee <carlos@golang.org>
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+---
+ src/cmd/compile/internal/ir/symtab.go        |  1 +
+ src/cmd/compile/internal/ssa/value.go        |  7 ++
+ src/cmd/compile/internal/ssagen/ssa.go       | 99 +++++++++++++++++++++++++++-
+ src/cmd/compile/internal/test/locals_test.go | 76 +++++++++++++++++++++
+ 4 files changed, 182 insertions(+), 1 deletion(-)
+
+diff --git a/src/cmd/compile/internal/ir/symtab.go b/src/cmd/compile/internal/ir/symtab.go
+index 1cc8d93f10..820916316c 100644
+--- a/src/cmd/compile/internal/ir/symtab.go
++++ b/src/cmd/compile/internal/ir/symtab.go
+@@ -30,6 +30,7 @@ type symsStruct struct {
+ 	Goschedguarded    *obj.LSym
+ 	Growslice         *obj.LSym
+ 	InterfaceSwitch   *obj.LSym
++	MallocGC          *obj.LSym
+ 	Memmove           *obj.LSym
+ 	Msanread          *obj.LSym
+ 	Msanwrite         *obj.LSym
+diff --git a/src/cmd/compile/internal/ssa/value.go b/src/cmd/compile/internal/ssa/value.go
+index b76f61504b..e80b712ddb 100644
+--- a/src/cmd/compile/internal/ssa/value.go
++++ b/src/cmd/compile/internal/ssa/value.go
+@@ -333,6 +333,13 @@ func (v *Value) SetArgs3(a, b, c *Value) {
+ 	v.AddArg(b)
+ 	v.AddArg(c)
+ }
++func (v *Value) SetArgs4(a, b, c, d *Value) {
++	v.resetArgs()
++	v.AddArg(a)
++	v.AddArg(b)
++	v.AddArg(c)
++	v.AddArg(d)
++}
+ 
+ func (v *Value) resetArgs() {
+ 	for _, a := range v.Args {
+diff --git a/src/cmd/compile/internal/ssagen/ssa.go b/src/cmd/compile/internal/ssagen/ssa.go
+index 333c89b209..f04ef84da9 100644
+--- a/src/cmd/compile/internal/ssagen/ssa.go
++++ b/src/cmd/compile/internal/ssagen/ssa.go
+@@ -7,6 +7,7 @@ package ssagen
+ import (
+ 	"bufio"
+ 	"bytes"
++	"cmp"
+ 	"fmt"
+ 	"go/constant"
+ 	"html"
+@@ -47,6 +48,11 @@ const ssaDumpFile = "ssa.html"
+ // ssaDumpInlined holds all inlined functions when ssaDump contains a function name.
+ var ssaDumpInlined []*ir.Func
+ 
++// Maximum size we will aggregate heap allocations of scalar locals.
++// Almost certainly can't hurt to be as big as the tiny allocator.
++// Might help to be a bit bigger.
++const maxAggregatedHeapAllocation = 16
++
+ func DumpInline(fn *ir.Func) {
+ 	if ssaDump != "" && ssaDump == ir.FuncName(fn) {
+ 		ssaDumpInlined = append(ssaDumpInlined, fn)
+@@ -122,6 +128,7 @@ func InitConfig() {
+ 	ir.Syms.Goschedguarded = typecheck.LookupRuntimeFunc("goschedguarded")
+ 	ir.Syms.Growslice = typecheck.LookupRuntimeFunc("growslice")
+ 	ir.Syms.InterfaceSwitch = typecheck.LookupRuntimeFunc("interfaceSwitch")
++	ir.Syms.MallocGC = typecheck.LookupRuntimeFunc("mallocgc")
+ 	ir.Syms.Memmove = typecheck.LookupRuntimeFunc("memmove")
+ 	ir.Syms.Msanread = typecheck.LookupRuntimeFunc("msanread")
+ 	ir.Syms.Msanwrite = typecheck.LookupRuntimeFunc("msanwrite")
+@@ -696,7 +703,89 @@ func (s *state) paramsToHeap() {
+ 
+ // newHeapaddr allocates heap memory for n and sets its heap address.
+ func (s *state) newHeapaddr(n *ir.Name) {
+-	s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
++	if n.Type().HasPointers() || n.Type().Size() >= maxAggregatedHeapAllocation || n.Type().Size() == 0 {
++		s.setHeapaddr(n.Pos(), n, s.newObject(n.Type(), nil))
++		return
++	}
++
++	// Do we have room together with our pending allocations?
++	// If not, flush all the current ones.
++	var size int64
++	for _, v := range s.pendingHeapAllocations {
++		size += v.Type.Elem().Size()
++	}
++	if size+n.Type().Size() > maxAggregatedHeapAllocation {
++		s.flushPendingHeapAllocations()
++	}
++
++	var allocCall *ssa.Value // (SelectN [0] (call of runtime.newobject))
++	if len(s.pendingHeapAllocations) == 0 {
++		// Make an allocation, but the type being allocated is just
++		// the first pending object. We will come back and update it
++		// later if needed.
++		allocCall = s.newObject(n.Type(), nil)
++	} else {
++		allocCall = s.pendingHeapAllocations[0].Args[0]
++	}
++	// v is an offset to the shared allocation. Offsets are dummy 0s for now.
++	v := s.newValue1I(ssa.OpOffPtr, n.Type().PtrTo(), 0, allocCall)
++
++	// Add to list of pending allocations.
++	s.pendingHeapAllocations = append(s.pendingHeapAllocations, v)
++
++	// Finally, record for posterity.
++	s.setHeapaddr(n.Pos(), n, v)
++}
++
++func (s *state) flushPendingHeapAllocations() {
++	pending := s.pendingHeapAllocations
++	if len(pending) == 0 {
++		return // nothing to do
++	}
++	s.pendingHeapAllocations = nil // reset state
++	ptr := pending[0].Args[0]      // The SelectN [0] op
++	call := ptr.Args[0]            // The runtime.newobject call
++
++	if len(pending) == 1 {
++		// Just a single object, do a standard allocation.
++		v := pending[0]
++		v.Op = ssa.OpCopy // instead of OffPtr [0]
++		return
++	}
++
++	// Sort in decreasing alignment.
++	// This way we never have to worry about padding.
++	// (Stable not required; just cleaner to keep program order among equal alignments.)
++	slices.SortStableFunc(pending, func(x, y *ssa.Value) int {
++		return cmp.Compare(y.Type.Elem().Alignment(), x.Type.Elem().Alignment())
++	})
++
++	// Figure out how much data we need allocate.
++	var size int64
++	for _, v := range pending {
++		v.AuxInt = size // Adjust OffPtr to the right value while we are here.
++		size += v.Type.Elem().Size()
++	}
++	align := pending[0].Type.Elem().Alignment()
++	size = types.RoundUp(size, align)
++
++	// Convert newObject call to a mallocgc call.
++	args := []*ssa.Value{
++		s.constInt(types.Types[types.TUINTPTR], size),
++		s.constNil(call.Args[0].Type), // a nil *runtime._type
++		s.constBool(true),             // needZero TODO: false is ok?
++		call.Args[1],                  // memory
++	}
++	call.Aux = ssa.StaticAuxCall(ir.Syms.MallocGC, s.f.ABIDefault.ABIAnalyzeTypes(
++		[]*types.Type{args[0].Type, args[1].Type, args[2].Type},
++		[]*types.Type{types.Types[types.TUNSAFEPTR]},
++	))
++	call.AuxInt = 4 * s.config.PtrSize // arg+results size, uintptr/ptr/bool/ptr
++	call.SetArgs4(args[0], args[1], args[2], args[3])
++	// TODO: figure out how to pass alignment to runtime
++
++	call.Type = types.NewTuple(types.Types[types.TUNSAFEPTR], types.TypeMem)
++	ptr.Type = types.Types[types.TUNSAFEPTR]
+ }
+ 
+ // setHeapaddr allocates a new PAUTO variable to store ptr (which must be non-nil)
+@@ -937,6 +1026,11 @@ type state struct {
+ 	lastDeferCount      int        // Number of defers encountered at that point
+ 
+ 	prevCall *ssa.Value // the previous call; use this to tie results to the call op.
++
++	// List of allocations in the current block that are still pending.
++	// They are all (OffPtr (Select0 (runtime call))) and have the correct types,
++	// but the offsets are not set yet, and the type of the runtime call is also not final.
++	pendingHeapAllocations []*ssa.Value
+ }
+ 
+ type funcLine struct {
+@@ -1005,6 +1099,9 @@ func (s *state) endBlock() *ssa.Block {
+ 	if b == nil {
+ 		return nil
+ 	}
++
++	s.flushPendingHeapAllocations()
++
+ 	for len(s.defvars) <= int(b.ID) {
+ 		s.defvars = append(s.defvars, nil)
+ 	}
+diff --git a/src/cmd/compile/internal/test/locals_test.go b/src/cmd/compile/internal/test/locals_test.go
+new file mode 100644
+index 0000000000..a5eafc6116
+--- /dev/null
++++ b/src/cmd/compile/internal/test/locals_test.go
+@@ -0,0 +1,76 @@
++// Copyright 2025 The Go Authors. All rights reserved.
++// Use of this source code is governed by a BSD-style
++// license that can be found in the LICENSE file.
++
++package test
++
++import "testing"
++
++func locals() {
++	var x int64
++	var y int32
++	var z int16
++	var w int8
++	sink64 = &x
++	sink32 = &y
++	sink16 = &z
++	sink8 = &w
++}
++
++//go:noinline
++func args(x int64, y int32, z int16, w int8) {
++	sink64 = &x
++	sink32 = &y
++	sink16 = &z
++	sink8 = &w
++
++}
++
++//go:noinline
++func half(x int64, y int16) {
++	var z int32
++	var w int8
++	sink64 = &x
++	sink16 = &y
++	sink32 = &z
++	sink8 = &w
++}
++
++//go:noinline
++func closure() func() {
++	var x int64
++	var y int32
++	var z int16
++	var w int8
++	_, _, _, _ = x, y, z, w
++	return func() {
++		x = 1
++		y = 2
++		z = 3
++		w = 4
++	}
++}
++
++var sink64 *int64
++var sink32 *int32
++var sink16 *int16
++var sink8 *int8
++
++func TestLocalAllocations(t *testing.T) {
++	type test struct {
++		name string
++		f    func()
++		want int
++	}
++	for _, tst := range []test{
++		{"locals", locals, 1},
++		{"args", func() { args(1, 2, 3, 4) }, 1},
++		{"half", func() { half(1, 2) }, 1},
++		{"closure", func() { _ = closure() }, 2},
++	} {
++		allocs := testing.AllocsPerRun(100, tst.f)
++		if allocs != float64(tst.want) {
++			t.Errorf("test %s uses %v allocs, want %d", tst.name, allocs, tst.want)
++		}
++	}
++}

@@ -1,0 +1,210 @@
+commit fe9b3c339978f37aad53875d9e6d2df35a1996ad
+Author: Ian Lance Taylor <iant@golang.org>
+Date:   Tue Jun 11 09:36:49 2024 -0700
+
+    [release-branch.go1.22] net: add GODEBUG=netedns0=0 to disable sending EDNS0 header
+    
+    It reportedly breaks the DNS server on some modems.
+    
+    For #6464
+    For #21160
+    For #44135
+    For #51127
+    For #51153
+    For #67925
+    Fixes #67934
+    
+    Change-Id: I54a11906159f00246d08a54cc8be7327e9ebfd2c
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/591995
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Auto-Submit: Ian Lance Taylor <iant@google.com>
+    Reviewed-by: Damien Neil <dneil@google.com>
+    Reviewed-by: Ian Lance Taylor <iant@google.com>
+    (cherry picked from commit ee4a42bd583b8594e97f1833c4b4c6e6428d9227)
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/592217
+    TryBot-Bypass: Ian Lance Taylor <iant@golang.org>
+    Commit-Queue: Ian Lance Taylor <iant@google.com>
+---
+ doc/godebug.md                 |  7 +++++++
+ src/internal/godebugs/table.go |  1 +
+ src/net/dnsclient_unix.go      | 28 ++++++++++++++++++----------
+ src/net/dnsclient_unix_test.go | 39 +++++++++++++++++++++++++++++----------
+ src/net/net.go                 |  6 ++++++
+ src/runtime/metrics/doc.go     |  4 ++++
+ 6 files changed, 65 insertions(+), 20 deletions(-)
+
+diff --git a/doc/godebug.md b/doc/godebug.md
+index a7619c9a3d..fb3f32f442 100644
+--- a/doc/godebug.md
++++ b/doc/godebug.md
+@@ -248,6 +248,13 @@ Go 1.19 made it an error for path lookups to resolve to binaries in the current
+ controlled by the [`execerrdot` setting](/pkg/os/exec#hdr-Executables_in_the_current_directory).
+ There is no plan to remove this setting.
+ 
++Go 1.19 started sending EDNS0 additional headers on DNS requests.
++This can reportedly break the DNS server provided on some routers,
++such as CenturyLink Zyxel C3000Z.
++This can be changed by the [`netedns0` setting](/pkg/net#hdr-Name_Resolution).
++This setting is available in Go 1.21.12, Go 1.22.5, Go 1.23, and later.
++There is no plan to remove this setting.
++
+ ### Go 1.18
+ 
+ Go 1.18 removed support for SHA1 in most X.509 certificates,
+diff --git a/src/internal/godebugs/table.go b/src/internal/godebugs/table.go
+index a0a0672966..11c5b7d6fd 100644
+--- a/src/internal/godebugs/table.go
++++ b/src/internal/godebugs/table.go
+@@ -42,6 +42,7 @@ var All = []Info{
+ 	{Name: "multipartmaxparts", Package: "mime/multipart"},
+ 	{Name: "multipathtcp", Package: "net"},
+ 	{Name: "netdns", Package: "net", Opaque: true},
++	{Name: "netedns0", Package: "net", Changed: 19, Old: "0"},
+ 	{Name: "panicnil", Package: "runtime", Changed: 21, Old: "1"},
+ 	{Name: "randautoseed", Package: "math/rand"},
+ 	{Name: "tarinsecurepath", Package: "archive/tar"},
+diff --git a/src/net/dnsclient_unix.go b/src/net/dnsclient_unix.go
+index 8b3dd5371a..8821641a01 100644
+--- a/src/net/dnsclient_unix.go
++++ b/src/net/dnsclient_unix.go
+@@ -16,6 +16,7 @@ import (
+ 	"context"
+ 	"errors"
+ 	"internal/bytealg"
++	"internal/godebug"
+ 	"internal/itoa"
+ 	"io"
+ 	"os"
+@@ -51,6 +52,9 @@ var (
+ 	errServerTemporarilyMisbehaving = errors.New("server misbehaving")
+ )
+ 
++// netedns0 controls whether we send an EDNS0 additional header.
++var netedns0 = godebug.New("netedns0")
++
+ func newRequest(q dnsmessage.Question, ad bool) (id uint16, udpReq, tcpReq []byte, err error) {
+ 	id = uint16(randInt())
+ 	b := dnsmessage.NewBuilder(make([]byte, 2, 514), dnsmessage.Header{ID: id, RecursionDesired: true, AuthenticData: ad})
+@@ -61,16 +65,20 @@ func newRequest(q dnsmessage.Question, ad bool) (id uint16, udpReq, tcpReq []byt
+ 		return 0, nil, nil, err
+ 	}
+ 
+-	// Accept packets up to maxDNSPacketSize.  RFC 6891.
+-	if err := b.StartAdditionals(); err != nil {
+-		return 0, nil, nil, err
+-	}
+-	var rh dnsmessage.ResourceHeader
+-	if err := rh.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false); err != nil {
+-		return 0, nil, nil, err
+-	}
+-	if err := b.OPTResource(rh, dnsmessage.OPTResource{}); err != nil {
+-		return 0, nil, nil, err
++	if netedns0.Value() == "0" {
++		netedns0.IncNonDefault()
++	} else {
++		// Accept packets up to maxDNSPacketSize.  RFC 6891.
++		if err := b.StartAdditionals(); err != nil {
++			return 0, nil, nil, err
++		}
++		var rh dnsmessage.ResourceHeader
++		if err := rh.SetEDNS0(maxDNSPacketSize, dnsmessage.RCodeSuccess, false); err != nil {
++			return 0, nil, nil, err
++		}
++		if err := b.OPTResource(rh, dnsmessage.OPTResource{}); err != nil {
++			return 0, nil, nil, err
++		}
+ 	}
+ 
+ 	tcpReq, err = b.Finish()
+diff --git a/src/net/dnsclient_unix_test.go b/src/net/dnsclient_unix_test.go
+index 0da36303cc..f42fbfbf7b 100644
+--- a/src/net/dnsclient_unix_test.go
++++ b/src/net/dnsclient_unix_test.go
+@@ -2259,19 +2259,34 @@ func testGoLookupIPCNAMEOrderHostsAliases(t *testing.T, mode hostLookupOrder, lo
+ // This isn't a great test as it just tests the dnsmessage package
+ // against itself.
+ func TestDNSPacketSize(t *testing.T) {
++	t.Run("enabled", func(t *testing.T) {
++		testDNSPacketSize(t, false)
++	})
++	t.Run("disabled", func(t *testing.T) {
++		testDNSPacketSize(t, true)
++	})
++}
++
++func testDNSPacketSize(t *testing.T, disable bool) {
+ 	fake := fakeDNSServer{
+ 		rh: func(_, _ string, q dnsmessage.Message, _ time.Time) (dnsmessage.Message, error) {
+-			if len(q.Additionals) == 0 {
+-				t.Error("missing EDNS record")
+-			} else if opt, ok := q.Additionals[0].Body.(*dnsmessage.OPTResource); !ok {
+-				t.Errorf("additional record type %T, expected OPTResource", q.Additionals[0])
+-			} else if len(opt.Options) != 0 {
+-				t.Errorf("found %d Options, expected none", len(opt.Options))
++			if disable {
++				if len(q.Additionals) > 0 {
++					t.Error("unexpected additional record")
++				}
+ 			} else {
+-				got := int(q.Additionals[0].Header.Class)
+-				t.Logf("EDNS packet size == %d", got)
+-				if got != maxDNSPacketSize {
+-					t.Errorf("EDNS packet size == %d, want %d", got, maxDNSPacketSize)
++				if len(q.Additionals) == 0 {
++					t.Error("missing EDNS record")
++				} else if opt, ok := q.Additionals[0].Body.(*dnsmessage.OPTResource); !ok {
++					t.Errorf("additional record type %T, expected OPTResource", q.Additionals[0])
++				} else if len(opt.Options) != 0 {
++					t.Errorf("found %d Options, expected none", len(opt.Options))
++				} else {
++					got := int(q.Additionals[0].Header.Class)
++					t.Logf("EDNS packet size == %d", got)
++					if got != maxDNSPacketSize {
++						t.Errorf("EDNS packet size == %d, want %d", got, maxDNSPacketSize)
++					}
+ 				}
+ 			}
+ 
+@@ -2304,6 +2319,10 @@ func TestDNSPacketSize(t *testing.T) {
+ 		},
+ 	}
+ 
++	if disable {
++		t.Setenv("GODEBUG", "netedns0=0")
++	}
++
+ 	r := &Resolver{PreferGo: true, Dial: fake.DialContext}
+ 	if _, err := r.LookupIPAddr(context.Background(), "go.dev"); err != nil {
+ 		t.Errorf("lookup failed: %v", err)
+diff --git a/src/net/net.go b/src/net/net.go
+index c434c96bf8..2dd1b5865e 100644
+--- a/src/net/net.go
++++ b/src/net/net.go
+@@ -71,6 +71,12 @@ to print debugging information about its decisions.
+ To force a particular resolver while also printing debugging information,
+ join the two settings by a plus sign, as in GODEBUG=netdns=go+1.
+ 
++The Go resolver will send an EDNS0 additional header with a DNS request,
++to signal a willingness to accept a larger DNS packet size.
++This can reportedly cause sporadic failures with the DNS server run
++by some modems and routers. Setting GODEBUG=netedns0=0 will disable
++sending the additional header.
++
+ On macOS, if Go code that uses the net package is built with
+ -buildmode=c-archive, linking the resulting archive into a C program
+ requires passing -lresolv when linking the C code.
+diff --git a/src/runtime/metrics/doc.go b/src/runtime/metrics/doc.go
+index fb2f44da29..85f256d65a 100644
+--- a/src/runtime/metrics/doc.go
++++ b/src/runtime/metrics/doc.go
+@@ -290,6 +290,10 @@ Below is the full list of supported metrics, ordered lexicographically.
+ 		The number of non-default behaviors executed by the net package
+ 		due to a non-default GODEBUG=multipathtcp=... setting.
+ 
++	/godebug/non-default-behavior/netedns0:events
++		The number of non-default behaviors executed by the net package
++		due to a non-default GODEBUG=netedns0=... setting.
++
+ 	/godebug/non-default-behavior/panicnil:events
+ 		The number of non-default behaviors executed by the runtime
+ 		package due to a non-default GODEBUG=panicnil=... setting.

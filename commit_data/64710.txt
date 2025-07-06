@@ -1,0 +1,80 @@
+commit fbe74d8ddbd63dd2f8c6a015709ee8695a061647
+Author: Mateusz Poliwczak <mpoliwczak34@gmail.com>
+Date:   Wed Sep 4 16:11:06 2024 +0000
+
+    go/parser: convert *ast.CallExpr into *ast.ParenExpr in extractName
+    
+    We are loosing a bit of the AST information, i believe we should
+    convert *ast.CallExpr into *ast.ParenExpr.
+    
+    See https://github.com/golang/go/issues/69206#issuecomment-2324592744
+    
+    Change-Id: I2d9ad8a3dead664a4fa9ac324e8d8a955a4d97c8
+    GitHub-Last-Rev: e5db56d5cafdc9a8b0ffdfe4524632fd3b6cbb12
+    GitHub-Pull-Request: golang/go#69209
+    Reviewed-on: https://go-review.googlesource.com/c/go/+/610078
+    LUCI-TryBot-Result: Go LUCI <golang-scoped@luci-project-accounts.iam.gserviceaccount.com>
+    Reviewed-by: Robert Griesemer <gri@google.com>
+    Auto-Submit: Robert Griesemer <gri@google.com>
+    Reviewed-by: Dmitri Shuralyov <dmitshur@google.com>
+---
+ src/go/parser/parser.go      | 14 ++++++++++----
+ src/go/parser/parser_test.go | 16 ++++++++++++++++
+ 2 files changed, 26 insertions(+), 4 deletions(-)
+
+diff --git a/src/go/parser/parser.go b/src/go/parser/parser.go
+index 17808b366f..3f2297c194 100644
+--- a/src/go/parser/parser.go
++++ b/src/go/parser/parser.go
+@@ -2667,8 +2667,8 @@ func (p *parser) parseTypeSpec(doc *ast.CommentGroup, _ token.Token, _ int) ast.
+ //	P*[]int     T/F      P       *[]int
+ //	P*E         T        P       *E
+ //	P*E         F        nil     P*E
+-//	P([]int)    T/F      P       []int
+-//	P(E)        T        P       E
++//	P([]int)    T/F      P       ([]int)
++//	P(E)        T        P       (E)
+ //	P(E)        F        nil     P(E)
+ //	P*E|F|~G    T/F      P       *E|F|~G
+ //	P*E|F|G     T        P       *E|F|G
+@@ -2695,8 +2695,14 @@ func extractName(x ast.Expr, force bool) (*ast.Ident, ast.Expr) {
+ 	case *ast.CallExpr:
+ 		if name, _ := x.Fun.(*ast.Ident); name != nil {
+ 			if len(x.Args) == 1 && x.Ellipsis == token.NoPos && (force || isTypeElem(x.Args[0])) {
+-				// x = name "(" x.ArgList[0] ")"
+-				return name, x.Args[0]
++				// x = name (x.Args[0])
++				// (Note that the cmd/compile/internal/syntax parser does not care
++				// about syntax tree fidelity and does not preserve parentheses here.)
++				return name, &ast.ParenExpr{
++					Lparen: x.Lparen,
++					X:      x.Args[0],
++					Rparen: x.Rparen,
++				}
+ 			}
+ 		}
+ 	}
+diff --git a/src/go/parser/parser_test.go b/src/go/parser/parser_test.go
+index eea743c2b5..946c6f35dc 100644
+--- a/src/go/parser/parser_test.go
++++ b/src/go/parser/parser_test.go
+@@ -821,3 +821,19 @@ func TestIssue57490(t *testing.T) {
+ 		t.Fatalf("offset = %d, want %d", offset, tokFile.Size())
+ 	}
+ }
++
++func TestParseTypeParamsAsParenExpr(t *testing.T) {
++	const src = "package p; type X[A (B),] struct{}"
++
++	fset := token.NewFileSet()
++	f, err := ParseFile(fset, "test.go", src, ParseComments|SkipObjectResolution)
++	if err != nil {
++		t.Fatal(err)
++	}
++
++	typeParam := f.Decls[0].(*ast.GenDecl).Specs[0].(*ast.TypeSpec).TypeParams.List[0].Type
++	_, ok := typeParam.(*ast.ParenExpr)
++	if !ok {
++		t.Fatalf("typeParam is a %T; want: *ast.ParenExpr", typeParam)
++	}
++}

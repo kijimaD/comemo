@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 62618: deb6790fcfe943c640a4ef393036690eef5eef5c
+# Index 62618: c51beb4342ac0ee2fe9c1a774eac15679a447122
 
 echo "🚀 Generating explanation for commit 62618..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 62618..."
 
 ### メタデータ
 - **コミットインデックス**: 62618
-- **コミットハッシュ**: deb6790fcfe943c640a4ef393036690eef5eef5c
-- **GitHub URL**: https://github.com/golang/go/commit/deb6790fcfe943c640a4ef393036690eef5eef5c
+- **コミットハッシュ**: c51beb4342ac0ee2fe9c1a774eac15679a447122
+- **GitHub URL**: https://github.com/golang/go/commit/c51beb4342ac0ee2fe9c1a774eac15679a447122
 
 ### 章構成
 

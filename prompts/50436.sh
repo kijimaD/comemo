@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50436: b54bdd281e62a4658ea4edb5e0a6139006938c9a
+# Index 50436: 8518aac3147da163ac5accfacbf0c30f684177e2
 
 echo "🚀 Generating explanation for commit 50436..."
 
@@ -15,8 +15,8 @@ echo "🚀 Generating explanation for commit 50436..."
 
 ### メタデータ
 - **コミットインデックス**: 50436
-- **コミットハッシュ**: b54bdd281e62a4658ea4edb5e0a6139006938c9a
-- **GitHub URL**: https://github.com/golang/go/commit/b54bdd281e62a4658ea4edb5e0a6139006938c9a
+- **コミットハッシュ**: 8518aac3147da163ac5accfacbf0c30f684177e2
+- **GitHub URL**: https://github.com/golang/go/commit/8518aac3147da163ac5accfacbf0c30f684177e2
 
 ### 章構成
 
