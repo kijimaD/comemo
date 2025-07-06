@@ -119,7 +119,7 @@ func CreateApp() *cli.Command {
 						}
 					}
 
-					return executor.ExecutePrompts(cfg, cliCommand)
+					return executor.ExecutePromptsWithProgress(cfg, cliCommand)
 				},
 			},
 			{
