@@ -110,6 +110,92 @@ func IsQuotaError(output string) bool {
 	return false
 }
 
+// ClassifyError analyzes an error and returns the appropriate error type
+func ClassifyError(err error, output string) ErrorType {
+	if err == nil {
+		return ErrorTypeRetryable
+	}
+
+	errorMessage := strings.ToLower(err.Error())
+	outputLower := strings.ToLower(output)
+
+	// Check for quota errors first
+	if IsQuotaError(output) {
+		return ErrorTypeQuota
+	}
+
+	// Check for timeout
+	if strings.Contains(errorMessage, "deadline exceeded") ||
+		strings.Contains(errorMessage, "context deadline exceeded") {
+		return ErrorTypeTimeout
+	}
+
+	// Check for critical exit statuses that indicate system-level problems
+	criticalExitStatuses := []string{
+		"exit status 127", // Command not found
+		"exit status 126", // Command cannot execute (permission)
+		"exit status 125", // Docker container error
+		"exit status 124", // Timeout by timeout command
+		"exit status 2",   // Misuse of shell builtins
+	}
+
+	for _, status := range criticalExitStatuses {
+		if strings.Contains(errorMessage, status) {
+			return ErrorTypeCritical
+		}
+	}
+
+	// Check for critical errors that should stop execution
+	criticalPatterns := []string{
+		"command not found",
+		"permission denied",
+		"no such file or directory",
+		"authentication failed",
+		"invalid api key",
+		"api key not found",
+		"access denied",
+		"unauthorized",
+		"forbidden",
+		"bad request",
+		"invalid request",
+		"executable file not found",
+		"exec format error",
+		"operation not permitted",
+		"network is unreachable",
+		"connection refused",
+	}
+
+	for _, pattern := range criticalPatterns {
+		if strings.Contains(outputLower, pattern) || strings.Contains(errorMessage, pattern) {
+			return ErrorTypeCritical
+		}
+	}
+
+	// Default to retryable for other errors
+	return ErrorTypeRetryable
+}
+
+// CreateExecutionError creates a new ExecutionError with proper classification
+func CreateExecutionError(err error, output, script, cliName string) *ExecutionError {
+	errorType := ClassifyError(err, output)
+
+	var message string
+	if err != nil {
+		message = err.Error()
+	} else {
+		message = "実行が完了しましたが、期待される出力が得られませんでした"
+	}
+
+	return &ExecutionError{
+		Type:     errorType,
+		Message:  message,
+		Output:   output,
+		Script:   script,
+		CLIName:  cliName,
+		Original: err,
+	}
+}
+
 // UpdateRetryInfo updates retry information for a script
 func (m *CLIManager) UpdateRetryInfo(fileName string, reason string) {
 	m.retryMu.Lock()

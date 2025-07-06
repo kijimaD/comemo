@@ -342,8 +342,15 @@ func ExecutePromptsWithProgress(cfg *config.Config, cliCommand string) error {
 	}
 
 	if err != nil && err != context.Canceled {
-		fmt.Printf("\n⚠️ Error: %v\n", err)
-		return err
+		// For critical errors, we don't need to display additional messages
+		// since they were already displayed when the error occurred
+		if execErr, ok := err.(*ExecutionError); ok && execErr.Type == ErrorTypeCritical {
+			// Critical error details were already displayed, just return the error
+			return fmt.Errorf("実行が重要なエラーにより停止されました")
+		} else {
+			fmt.Printf("\n⚠️ Error: %v\n", err)
+			return err
+		}
 	}
 
 	return nil
@@ -351,6 +358,10 @@ func ExecutePromptsWithProgress(cfg *config.Config, cliCommand string) error {
 
 // executePromptsWithStatusManagerAndProgress executes prompts with progress tracking
 func executePromptsWithStatusManagerAndProgress(ctx context.Context, cfg *config.Config, cliCommand string, opts *ExecutorOptions, statusManager *StatusManager, shFiles []string) error {
+	// Create a context that can be cancelled in case of critical errors
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// Create CLI manager
 	manager := NewCLIManagerWithOptions(cfg, opts)
 
@@ -375,12 +386,30 @@ func executePromptsWithStatusManagerAndProgress(ctx context.Context, cfg *config
 		scriptQueues[cliName] = make(chan string, len(shFiles))
 	}
 
-	// Start workers with context cancellation
+	// Start workers with context cancellation and panic recovery
 	var wg sync.WaitGroup
+	var criticalError error
+	var criticalErrorMu sync.Mutex
+
 	for cliName, queue := range scriptQueues {
 		wg.Add(1)
 		go func(name string, q chan string) {
 			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					if execErr, ok := r.(*ExecutionError); ok && execErr.Type == ErrorTypeCritical {
+						criticalErrorMu.Lock()
+						criticalError = execErr
+						criticalErrorMu.Unlock()
+
+						// Cancel context to stop other workers
+						cancel()
+					} else {
+						// Re-panic for unexpected panics
+						panic(r)
+					}
+				}
+			}()
 			WorkerWithStatusManagerAndProgress(ctx, name, q, manager, opts, statusManager)
 		}(cliName, queue)
 	}
@@ -421,6 +450,14 @@ cleanup:
 			// Force quit after 3 seconds
 		}
 	}
+
+	// Check if a critical error occurred
+	criticalErrorMu.Lock()
+	if criticalError != nil {
+		criticalErrorMu.Unlock()
+		return fmt.Errorf("実行が重要なエラーにより停止されました")
+	}
+	criticalErrorMu.Unlock()
 
 	return ctx.Err()
 }
@@ -491,8 +528,30 @@ func executeScriptWithProgress(ctx context.Context, fileName, cliName string, ma
 	errorMsg := ""
 	if err != nil && ctx.Err() == nil {
 		errorMsg = err.Error()
-		if IsQuotaError(err.Error()) {
+
+		// Create execution error for proper classification
+		scriptPath := filepath.Join(manager.Config.PromptsDir, fileName)
+		execError := CreateExecutionError(err, "", scriptPath, cliName)
+
+		switch execError.Type {
+		case ErrorTypeQuota:
 			manager.MarkUnavailable(cliName)
+			statusManager.AddRetryScript(fileName)
+
+		case ErrorTypeCritical:
+			// Display critical error and panic to stop execution
+			fmt.Printf("\n💥 CRITICAL ERROR DETECTED\n")
+			fmt.Printf("Script: %s\n", scriptPath)
+			fmt.Printf("CLI: %s\n", cliName)
+			fmt.Printf("Error: %v\n", err)
+			fmt.Printf("Execution has been stopped due to a critical error.\n")
+			fmt.Printf("Please resolve the issue before retrying.\n")
+			panic(execError)
+
+		case ErrorTypeTimeout:
+			statusManager.AddRetryScript(fileName)
+
+		case ErrorTypeRetryable:
 			statusManager.AddRetryScript(fileName)
 		}
 	}

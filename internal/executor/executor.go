@@ -69,12 +69,36 @@ func ExecutePromptsWithOptions(cfg *config.Config, cliCommand string, opts *Exec
 		scriptQueues[cliName] = make(chan string, len(shFiles))
 	}
 
-	// Start workers
+	// Start workers with panic recovery
 	var wg sync.WaitGroup
+	var criticalError error
+	var criticalErrorMu sync.Mutex
+
 	for cliName, queue := range scriptQueues {
 		wg.Add(1)
 		go func(name string, q chan string) {
 			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					if execErr, ok := r.(*ExecutionError); ok && execErr.Type == ErrorTypeCritical {
+						criticalErrorMu.Lock()
+						criticalError = execErr
+						criticalErrorMu.Unlock()
+
+						// Close all queues to stop other workers
+						for _, queue := range scriptQueues {
+							select {
+							case <-queue:
+							default:
+								close(queue)
+							}
+						}
+					} else {
+						// Re-panic for unexpected panics
+						panic(r)
+					}
+				}
+			}()
 			WorkerWithOptions(name, q, manager, opts)
 		}(cliName, queue)
 	}
@@ -99,6 +123,14 @@ func ExecutePromptsWithOptions(cfg *config.Config, cliCommand string, opts *Exec
 
 	// Wait for all workers to complete
 	wg.Wait()
+
+	// Check if a critical error occurred
+	criticalErrorMu.Lock()
+	if criticalError != nil {
+		criticalErrorMu.Unlock()
+		return fmt.Errorf("実行が重要なエラーにより停止されました")
+	}
+	criticalErrorMu.Unlock()
 
 	// Count remaining scripts
 	remainingFiles, _ := os.ReadDir(cfg.PromptsDir)

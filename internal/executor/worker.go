@@ -175,19 +175,48 @@ func processScriptWithOptions(scriptName string, cli CLICommand, cliName string,
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
-		if ctx.Err() == context.DeadlineExceeded {
-			opts.Logger.Error("Script %s timed out after %v", scriptPath, manager.Config.ExecutionTimeout)
-			return
-		}
-		opts.Logger.Error("Script %s failed: %v", scriptPath, err)
-		opts.Logger.Debug("Output: %s", string(output))
+		execError := CreateExecutionError(err, string(output), scriptPath, cliName)
 
-		if IsQuotaError(string(output)) {
+		// Handle different error types
+		switch execError.Type {
+		case ErrorTypeTimeout:
+			opts.Logger.Error("Script %s timed out after %v", scriptPath, manager.Config.ExecutionTimeout)
+			manager.UpdateRetryInfo(scriptName, "timeout")
+			return
+
+		case ErrorTypeQuota:
 			opts.Logger.Debug("Quota limit detected for %s. Marking as unavailable for %v.", cliName, manager.Config.QuotaRetryDelay)
 			manager.MarkUnavailable(cliName)
 			manager.UpdateRetryInfo(scriptName, "quota_error")
+			return
+
+		case ErrorTypeCritical:
+			opts.Logger.Error("=== CRITICAL ERROR DETECTED ===")
+			opts.Logger.Error("Script: %s", scriptPath)
+			opts.Logger.Error("CLI: %s", cliName)
+			opts.Logger.Error("Error: %v", err)
+			opts.Logger.Error("Full Output:")
+			opts.Logger.Error("=====================================")
+			opts.Logger.Error("%s", string(output))
+			opts.Logger.Error("=====================================")
+			opts.Logger.Error("Execution stopped due to critical error.")
+
+			// Critical error should stop the entire execution
+			// We'll panic to stop all processing
+			panic(execError)
+
+		case ErrorTypeRetryable:
+			opts.Logger.Error("Script %s failed with retryable error: %v", scriptPath, err)
+			opts.Logger.Debug("Output: %s", string(output))
+			manager.UpdateRetryInfo(scriptName, "retryable_error")
+			return
+
+		default:
+			opts.Logger.Error("Script %s failed with unknown error type: %v", scriptPath, err)
+			opts.Logger.Debug("Output: %s", string(output))
+			manager.UpdateRetryInfo(scriptName, "unknown_error")
+			return
 		}
-		return
 	}
 
 	outputStr := string(output)

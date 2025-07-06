@@ -34,6 +34,51 @@ type ExecutorOptions struct {
 	Logger *logger.Logger
 }
 
+// ErrorType represents different types of execution errors
+type ErrorType int
+
+const (
+	// ErrorTypeQuota indicates a quota limit error
+	ErrorTypeQuota ErrorType = iota
+	// ErrorTypeTimeout indicates a timeout error
+	ErrorTypeTimeout
+	// ErrorTypeCritical indicates a critical error that should stop execution
+	ErrorTypeCritical
+	// ErrorTypeRetryable indicates an error that can be retried
+	ErrorTypeRetryable
+)
+
+// String returns the string representation of ErrorType
+func (e ErrorType) String() string {
+	switch e {
+	case ErrorTypeQuota:
+		return "quota"
+	case ErrorTypeTimeout:
+		return "timeout"
+	case ErrorTypeCritical:
+		return "critical"
+	case ErrorTypeRetryable:
+		return "retryable"
+	default:
+		return "unknown"
+	}
+}
+
+// ExecutionError represents an error that occurred during script execution
+type ExecutionError struct {
+	Type     ErrorType
+	Message  string
+	Output   string
+	Script   string
+	CLIName  string
+	Original error
+}
+
+// Error implements the error interface
+func (e *ExecutionError) Error() string {
+	return e.Message
+}
+
 // SupportedCLIs contains all supported AI CLI tools
 var SupportedCLIs = map[string]CLICommand{
 	"claude": {"claude", "claude --model sonnet"},
