@@ -50,6 +50,9 @@ type Scheduler struct {
 	scriptStateMgr *ScriptStateManager          // 新しいスクリプト状態管理
 	ctx            context.Context              // Context for cancellation
 	resultWaiters  map[string]chan WorkerResult // スクリプト名 -> 結果待機チャネル
+	activeCLIs     []string                     // 実行対象のCLIリスト
+	pendingScripts []string                     // キュー待ちスクリプトリスト
+	assignAttempts int                          // 割り当て試行回数（ログ抑制用）
 }
 
 // NewScheduler creates a new scheduler instance
@@ -70,6 +73,7 @@ func NewScheduler(cfg *config.Config, scripts []string, cliManager *CLIManager, 
 		statusManager:  statusManager,
 		scriptStateMgr: NewScriptStateManager(cfg),
 		resultWaiters:  make(map[string]chan WorkerResult),
+		pendingScripts: make([]string, 0),
 	}
 
 	// Initialize queued lists for each CLI (empty initially)
@@ -88,6 +92,7 @@ func NewScheduler(cfg *config.Config, scripts []string, cliManager *CLIManager, 
 // Run starts the scheduler main loop
 func (s *Scheduler) Run(ctx context.Context, cliNames []string) error {
 	s.ctx = ctx // Store context for workers
+	s.activeCLIs = cliNames // Store active CLIs for selection
 	s.logger.Info("=== スケジューラー起動 ===")
 	s.logger.Info("対象スクリプト数: %d", len(s.scripts))
 	s.logger.Info("使用CLI: %v", cliNames)
@@ -114,9 +119,12 @@ func (s *Scheduler) Run(ctx context.Context, cliNames []string) error {
 		return nil
 	}
 
-	for _, script := range s.scripts {
-		s.assignScript(script)
-	}
+	// Initialize all scripts as pending
+	s.pendingScripts = make([]string, len(s.scripts))
+	copy(s.pendingScripts, s.scripts)
+	
+	// Try to assign as many scripts as possible to available queue slots
+	s.assignPendingScripts()
 
 	// Periodic reevaluation
 	ticker := time.NewTicker(5 * time.Second)
@@ -137,6 +145,7 @@ func (s *Scheduler) Run(ctx context.Context, cliNames []string) error {
 			}
 
 			s.reevaluateQueuedScripts()
+			s.assignPendingScripts() // 待機中スクリプトの割り当て試行
 			if s.isAllCompleted() {
 				s.logger.Info("=== 全スクリプト処理完了 ===")
 				s.Stop()
@@ -251,25 +260,15 @@ func (s *Scheduler) assignScript(script string) {
 func (s *Scheduler) selectBestCLIWithCapacity() string {
 	var availableCLIs []string
 
-	for name := range s.cliManager.CLIs {
+	// Only consider active CLIs (those specified in the command)
+	for _, name := range s.activeCLIs {
 		// Use IsAvailable to check current availability (includes recovery logic)
 		if s.cliManager.IsAvailable(name) {
 			// Check if this CLI has queue capacity
 			queueLen := len(s.queued[name])
 			if queueLen < s.queueCapacity {
 				availableCLIs = append(availableCLIs, name)
-				s.logger.Debug("  CLI %s: 利用可能かつキュー容量あり (%d/%d)", name, queueLen, s.queueCapacity)
-			} else {
-				s.logger.Debug("  CLI %s: 利用可能だがキュー満杯 (%d/%d)", name, queueLen, s.queueCapacity)
 			}
-		} else {
-			cli := s.cliManager.CLIs[name]
-			recoveryDelay := cli.RecoveryDelay
-			if recoveryDelay == 0 {
-				recoveryDelay = s.cliManager.Config.QuotaRetryDelay
-			}
-			remaining := time.Until(cli.LastQuotaError.Add(recoveryDelay))
-			s.logger.Debug("  CLI %s: 利用不可 (回復まで: %v)", name, remaining)
 		}
 	}
 
@@ -298,8 +297,21 @@ func (s *Scheduler) reevaluateQueuedScripts() {
 
 	s.logger.Debug("=== キューイングスクリプト再評価 ===")
 
-	// Check retryable scripts first
+	// Check retryable scripts first (from both old and new state management)
 	retryableScripts := s.scriptStateMgr.GetRetryableScripts()
+	
+	// Also check EventStatusManager for retry-ready scripts
+	if eventMgr := s.getEventStatusManager(); eventMgr != nil {
+		eventRetryScripts := eventMgr.GetRetryReadyScripts()
+		if len(eventRetryScripts) > 0 {
+			s.logger.Debug("  イベントステータス管理からのリトライ可能スクリプト数: %d", len(eventRetryScripts))
+			for _, scriptName := range eventRetryScripts {
+				s.logger.Debug("    → %s がリトライ準備完了", scriptName)
+				s.assignScriptForRetry(scriptName)
+			}
+		}
+	}
+	
 	if len(retryableScripts) > 0 {
 		s.logger.Debug("  リトライ可能なスクリプト数: %d", len(retryableScripts))
 		for _, script := range retryableScripts {
@@ -607,10 +619,13 @@ func (s *Scheduler) isAllCompleted() bool {
 		}
 	}
 
-	s.logger.Debug("完了: %d/%d, キュー中: %d, 失敗: %d", completedCount, totalCount, totalQueued, totalFailed)
+	// Check pending scripts count
+	pendingCount := len(s.pendingScripts)
 
-	// All completed when: completed + failed beyond retry limit = total scripts
-	return completedCount+totalFailed >= totalCount
+	s.logger.Debug("完了: %d/%d, キュー中: %d, 失敗: %d, 待機中: %d", completedCount, totalCount, totalQueued, totalFailed, pendingCount)
+
+	// All completed when: completed + failed beyond retry limit = total scripts AND no queued or pending scripts
+	return completedCount+totalFailed >= totalCount && totalQueued == 0 && pendingCount == 0
 }
 
 // runWorker runs a worker for a specific CLI
@@ -673,5 +688,125 @@ func (s *Scheduler) ExecuteScriptSync(script string) (WorkerResult, error) {
 		return WorkerResult{}, s.ctx.Err()
 	case <-time.After(10 * time.Minute): // Timeout after 10 minutes
 		return WorkerResult{}, fmt.Errorf("script execution timeout")
+	}
+}
+
+// getEventStatusManager returns the EventStatusManager from ExecutorOptions if available
+func (s *Scheduler) getEventStatusManager() *EventStatusManager {
+	// This assumes we have access to the executor options through the CLI manager
+	// For now, we'll check if the manager has ExecutorOptions with EventStatusManager
+	if s.cliManager != nil && s.cliManager.Options != nil {
+		return s.cliManager.Options.EventStatusManager
+	}
+	return nil
+}
+
+// assignPendingScripts tries to assign pending scripts to available queue slots
+func (s *Scheduler) assignPendingScripts() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if len(s.pendingScripts) == 0 {
+		return
+	}
+
+	// Calculate total available queue capacity
+	totalAvailableSlots := 0
+	for _, cliName := range s.activeCLIs {
+		if s.cliManager.IsAvailable(cliName) {
+			availableSlots := s.queueCapacity - len(s.queued[cliName])
+			if availableSlots > 0 {
+				totalAvailableSlots += availableSlots
+			}
+		}
+	}
+
+	// If no capacity, skip assignment
+	if totalAvailableSlots == 0 {
+		s.assignAttempts++
+		if s.assignAttempts%10 == 1 {
+			s.logger.Debug("待機中スクリプト割り当て: 全CLIのキューが満杯 (待機中: %d, 試行回数: %d)", len(s.pendingScripts), s.assignAttempts)
+		}
+		return
+	}
+
+	s.logger.Debug("待機中スクリプト割り当て: %d スロット利用可能, %d スクリプト待機中", totalAvailableSlots, len(s.pendingScripts))
+
+	// Process only as many scripts as we have available slots
+	maxToProcess := totalAvailableSlots
+	if maxToProcess > len(s.pendingScripts) {
+		maxToProcess = len(s.pendingScripts)
+	}
+
+	var remainingScripts []string
+	assignedCount := 0
+	processedCount := 0
+
+	for _, script := range s.pendingScripts {
+		// Stop if we've processed enough scripts for available slots
+		if processedCount >= maxToProcess {
+			remainingScripts = append(remainingScripts, script)
+			continue
+		}
+
+		// Check if script state allows assignment
+		scriptState := s.scriptStateMgr.GetScript(script)
+		if scriptState == nil {
+			remainingScripts = append(remainingScripts, script)
+			continue
+		}
+
+		// Skip if already completed or failed
+		if scriptState.State == StateCompleted || scriptState.State == StateFailed {
+			processedCount++
+			continue
+		}
+
+		// Skip if already processing
+		if scriptState.State == StateProcessing {
+			processedCount++
+			continue
+		}
+
+		// Try to find available CLI with capacity
+		bestCLI := s.selectBestCLIWithCapacity()
+		if bestCLI != "" {
+			// Add script to queue
+			s.queued[bestCLI] = append(s.queued[bestCLI], script)
+			assignedCount++
+
+			// Try to execute immediately if worker has capacity
+			if len(s.queued[bestCLI]) > 0 {
+				firstScript := s.queued[bestCLI][0]
+				task := Task{
+					Script:  firstScript,
+					CLI:     bestCLI,
+					AddedAt: time.Now(),
+				}
+
+				// Non-blocking send
+				select {
+				case s.workers[bestCLI] <- task:
+					s.scriptStateMgr.SetScriptProcessing(firstScript, bestCLI)
+					s.statusManager.RecordScriptStart(firstScript, bestCLI)
+					s.logger.Debug("  → %s で実行開始: %s", bestCLI, firstScript)
+				default:
+					s.logger.Debug("  → %s のワーカーがビジー、キューに待機", bestCLI)
+				}
+			}
+		} else {
+			// No available CLI with capacity, keep in pending
+			remainingScripts = append(remainingScripts, script)
+		}
+		
+		processedCount++
+	}
+
+	// Update pending scripts list
+	s.pendingScripts = remainingScripts
+	
+	// Log summary
+	if assignedCount > 0 {
+		s.logger.Debug("割り当て完了: %d スクリプトを割り当て, %d スクリプトが待機中", assignedCount, len(s.pendingScripts))
 	}
 }

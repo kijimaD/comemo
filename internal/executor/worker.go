@@ -160,6 +160,16 @@ func processScriptWithOptions(scriptName string, cli CLICommand, cliName string,
 
 	opts.Logger.Debug("--- Processing: %s with %s ---", scriptPath, cliName)
 
+	// タスク開始をログに記録
+	LogTaskStart(opts.TaskLogWriter, scriptName, cliName)
+
+	// イベントステータス管理: 実行開始
+	if opts.EventStatusManager != nil {
+		opts.EventStatusManager.StartExecution(scriptName, cliName)
+	}
+
+	startTime := time.Now()
+
 	content, err := os.ReadFile(scriptPath)
 	if err != nil {
 		opts.Logger.Error("Error reading script %s: %v", scriptPath, err)
@@ -186,12 +196,24 @@ func processScriptWithOptions(scriptName string, cli CLICommand, cliName string,
 		case ErrorTypeTimeout:
 			opts.Logger.Error("Script %s timed out after %v", scriptPath, manager.Config.ExecutionTimeout)
 			manager.UpdateRetryInfo(scriptName, "timeout")
+			// タスク失敗をログに記録
+			LogTaskFailure(opts.TaskLogWriter, scriptName, cliName, "timeout", manager.GetRetryCount(scriptName))
+			// イベントステータス管理: リトライ待ち設定
+			if opts.EventStatusManager != nil {
+				opts.EventStatusManager.SetRetryWaiting(scriptName, RetryDelayTimeout, "timeout")
+			}
 			return
 
 		case ErrorTypeQuota:
 			opts.Logger.Debug("Quota limit detected for %s. Marking as unavailable for %v.", cliName, manager.Config.QuotaRetryDelay)
 			manager.MarkUnavailable(cliName)
 			manager.UpdateRetryInfo(scriptName, "quota_error")
+			// タスク失敗をログに記録
+			LogTaskFailure(opts.TaskLogWriter, scriptName, cliName, "quota limit exceeded", manager.GetRetryCount(scriptName))
+			// イベントステータス管理: リトライ待ち設定
+			if opts.EventStatusManager != nil {
+				opts.EventStatusManager.SetRetryWaiting(scriptName, RetryDelayQuota, "quota limit exceeded")
+			}
 			return
 
 		case ErrorTypeCritical:
@@ -213,12 +235,24 @@ func processScriptWithOptions(scriptName string, cli CLICommand, cliName string,
 			opts.Logger.Error("Script %s failed with retryable error: %v", scriptPath, err)
 			opts.Logger.Debug("Output: %s", string(output))
 			manager.UpdateRetryInfo(scriptName, "retryable_error")
+			// タスク失敗をログに記録
+			LogTaskFailure(opts.TaskLogWriter, scriptName, cliName, err.Error(), manager.GetRetryCount(scriptName))
+			// イベントステータス管理: リトライ待ち設定
+			if opts.EventStatusManager != nil {
+				opts.EventStatusManager.SetRetryWaiting(scriptName, RetryDelayOther, err.Error())
+			}
 			return
 
 		default:
 			opts.Logger.Error("Script %s failed with unknown error type: %v", scriptPath, err)
 			opts.Logger.Debug("Output: %s", string(output))
 			manager.UpdateRetryInfo(scriptName, "unknown_error")
+			// タスク失敗をログに記録
+			LogTaskFailure(opts.TaskLogWriter, scriptName, cliName, err.Error(), manager.GetRetryCount(scriptName))
+			// イベントステータス管理: リトライ待ち設定
+			if opts.EventStatusManager != nil {
+				opts.EventStatusManager.SetRetryWaiting(scriptName, RetryDelayOther, err.Error())
+			}
 			return
 		}
 	}
@@ -245,6 +279,13 @@ func processScriptWithOptions(scriptName string, cli CLICommand, cliName string,
 			return
 		}
 		opts.Logger.Debug("Generated: %s", outputPath)
+		// タスク成功をログに記録
+		LogTaskSuccess(opts.TaskLogWriter, scriptName, cliName, outputPath)
+		// イベントステータス管理: 成功完了
+		if opts.EventStatusManager != nil {
+			duration := time.Since(startTime)
+			opts.EventStatusManager.CompleteSuccess(scriptName, duration)
+		}
 
 		if err := os.Remove(scriptPath); err != nil {
 			opts.Logger.Error("Error deleting script %s: %v", scriptPath, err)
@@ -272,5 +313,11 @@ func processScriptWithOptions(scriptName string, cli CLICommand, cliName string,
 
 		opts.Logger.Debug("Script %s kept for retry", scriptPath)
 		manager.UpdateRetryInfo(scriptName, "quality_check_failed")
+		// タスク失敗をログに記録（品質チェック失敗）
+		LogTaskFailure(opts.TaskLogWriter, scriptName, cliName, "quality check failed", manager.GetRetryCount(scriptName))
+		// イベントステータス管理: リトライ待ち設定（品質チェック失敗）
+		if opts.EventStatusManager != nil {
+			opts.EventStatusManager.SetRetryWaiting(scriptName, RetryDelayQuality, "quality check failed")
+		}
 	}
 }

@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"io"
 	"time"
 
 	"comemo/internal/logger"
@@ -32,7 +33,9 @@ type CLIState struct {
 
 // ExecutorOptions provides configuration for executor functions
 type ExecutorOptions struct {
-	Logger *logger.Logger
+	Logger              *logger.Logger
+	TaskLogWriter       io.Writer // タスク実行ログの出力先
+	EventStatusManager  *EventStatusManager // イベントステータス管理
 }
 
 // ErrorType represents different types of execution errors

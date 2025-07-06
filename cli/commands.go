@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/urfave/cli/v3"
@@ -107,6 +108,10 @@ func CreateApp() *cli.Command {
 						Usage: "AI CLI command to use (claude, gemini, all)",
 						Value: "claude",
 					},
+					&cli.StringFlag{
+						Name:  "task-log",
+						Usage: "File path to write task execution logs",
+					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					updateConfig(cfg, cmd)
@@ -119,7 +124,25 @@ func CreateApp() *cli.Command {
 						}
 					}
 
-					return executor.ExecutePromptsWithProgress(cfg, cliCommand)
+					// タスクログファイルの設定
+					taskLogPath := cmd.String("task-log")
+					var taskLogWriter *os.File
+					if taskLogPath != "" {
+						f, err := os.OpenFile(taskLogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+						if err != nil {
+							return fmt.Errorf("failed to open task log file: %w", err)
+						}
+						defer f.Close()
+						taskLogWriter = f
+					}
+
+					opts := &executor.ExecutorOptions{
+						Logger:             logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
+						TaskLogWriter:      taskLogWriter,
+						EventStatusManager: executor.NewEventStatusManager(cfg.MaxRetries),
+					}
+
+					return executor.ExecutePromptsWithProgressAndOptions(cfg, cliCommand, opts)
 				},
 			},
 			{
@@ -166,7 +189,7 @@ func CreateApp() *cli.Command {
 						}
 					}
 
-					if err := executor.ExecutePrompts(cfg, cliCommand); err != nil {
+					if err := executor.ExecutePromptsWithProgress(cfg, cliCommand); err != nil {
 						return fmt.Errorf("execute failed: %w", err)
 					}
 
@@ -178,6 +201,12 @@ func CreateApp() *cli.Command {
 				Name:    "status",
 				Aliases: []string{"s"},
 				Usage:   "Show current status and statistics",
+				Flags: []cli.Flag{
+					&cli.BoolFlag{
+						Name:  "events",
+						Usage: "Show detailed event status information",
+					},
+				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					updateConfig(cfg, cmd)
 

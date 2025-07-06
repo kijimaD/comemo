@@ -269,6 +269,12 @@ func ExecutePromptsWithProgress(cfg *config.Config, cliCommand string) error {
 	return ExecutePromptsWithProgressScheduler(cfg, cliCommand)
 }
 
+// ExecutePromptsWithProgressAndOptions executes prompts with carriage return progress display and custom options
+func ExecutePromptsWithProgressAndOptions(cfg *config.Config, cliCommand string, opts *ExecutorOptions) error {
+	// Use the new scheduler-based implementation with progress
+	return ExecutePromptsWithProgressSchedulerAndOptions(cfg, cliCommand, opts)
+}
+
 // executePromptsWithStatusManagerAndProgress executes prompts with progress tracking
 func executePromptsWithStatusManagerAndProgress(ctx context.Context, cfg *config.Config, cliCommand string, opts *ExecutorOptions, statusManager *StatusManager, shFiles []string) error {
 	// Create a context that can be cancelled in case of critical errors

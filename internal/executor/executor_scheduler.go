@@ -10,6 +10,11 @@ import (
 	"comemo/internal/logger"
 )
 
+// ExecutePromptsWithProgressSchedulerAndOptions executes scripts using the new scheduler architecture with custom options
+func ExecutePromptsWithProgressSchedulerAndOptions(cfg *config.Config, cliCommand string, opts *ExecutorOptions) error {
+	return ExecutePromptsWithScheduler(cfg, cliCommand, opts)
+}
+
 // ExecutePromptsWithScheduler executes scripts using the new scheduler architecture
 func ExecutePromptsWithScheduler(cfg *config.Config, cliCommand string, opts *ExecutorOptions) error {
 	if opts == nil {
