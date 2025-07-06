@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"comemo/pkg/cli"
+	"comemo/cli"
 )
 
 func main() {

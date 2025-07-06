@@ -2,19 +2,19 @@
 
 # Build the application
 build:
-	go build -o bin/comemo pkg/cmd/comemo/main.go
+	go build -o bin/comemo .
 
 # Run tests
 test:
-	go test ./internal/... ./pkg/...
+	go test ./internal/...
 
-# Run tests with verbose output  
+# Run tests with verbose output
 test-verbose:
-	go test -v ./internal/... ./pkg/...
+	go test -v ./internal/...
 
 # Run the application
 run:
-	go run pkg/cmd/comemo/main.go
+	go run main.go
 
 # Clean build artifacts and test cache
 clean:
