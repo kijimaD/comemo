@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/urfave/cli/v3"
 )
 
 // Config holds application configuration
@@ -948,71 +951,229 @@ func verify() error {
 }
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run main.go <command> [options]")
-		fmt.Println("Commands:")
-		fmt.Println("  collect                 - Collects commit data from the 'go' repository.")
-		fmt.Println("  generate                - Generates prompt scripts for missing explanations.")
-		fmt.Println("  execute [--cli=CMD]     - Executes generated prompt scripts in parallel.")
-		fmt.Println("  verify                  - Verifies the consistency of generated files.")
-		fmt.Println("")
-		fmt.Println("Options:")
-		fmt.Println("  --cli=CMD               - AI CLI command to use (default: claude)")
-		fmt.Println("                            Supported: claude, gemini, all")
-		fmt.Println("                            Use 'all' to run both CLIs in parallel")
-		fmt.Println("                            Only available with execute command")
-		os.Exit(1)
+	app := &cli.Command{
+		Name:    "comemo",
+		Usage:   "Go repository commit explanation generator",
+		Version: "1.0.0",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "repo",
+				Aliases: []string{"r"},
+				Value:   "go",
+				Usage:   "Path to Go repository",
+			},
+			&cli.StringFlag{
+				Name:    "prompts-dir",
+				Aliases: []string{"p"},
+				Value:   "prompts",
+				Usage:   "Directory for prompt scripts",
+			},
+			&cli.StringFlag{
+				Name:    "output-dir",
+				Aliases: []string{"o"},
+				Value:   "src",
+				Usage:   "Directory for output markdown files",
+			},
+			&cli.StringFlag{
+				Name:    "commit-data-dir",
+				Aliases: []string{"c"},
+				Value:   "commit_data",
+				Usage:   "Directory for commit data files",
+			},
+			&cli.IntFlag{
+				Name:    "concurrency",
+				Aliases: []string{"j"},
+				Value:   20,
+				Usage:   "Maximum concurrent AI CLI executions",
+			},
+			&cli.DurationFlag{
+				Name:    "timeout",
+				Aliases: []string{"t"},
+				Value:   10 * time.Minute,
+				Usage:   "Execution timeout for each script",
+			},
+			&cli.DurationFlag{
+				Name:  "quota-retry-delay",
+				Value: 1 * time.Hour,
+				Usage: "Delay before retrying after quota limit",
+			},
+			&cli.IntFlag{
+				Name:  "max-retries",
+				Value: 3,
+				Usage: "Maximum number of retries for failed scripts",
+			},
+		},
+		Commands: []*cli.Command{
+			{
+				Name:    "collect",
+				Aliases: []string{"c"},
+				Usage:   "Collect commit data from Go repository",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					updateConfigFromContext(cmd)
+					return collectCommits()
+				},
+			},
+			{
+				Name:    "generate",
+				Aliases: []string{"g"},
+				Usage:   "Generate prompt scripts for missing explanations",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					updateConfigFromContext(cmd)
+					return generatePrompts()
+				},
+			},
+			{
+				Name:    "execute",
+				Aliases: []string{"e"},
+				Usage:   "Execute prompt scripts to generate explanations",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "cli",
+						Usage:   "AI CLI command to use (claude, gemini, all)",
+						Value:   "claude",
+					},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					updateConfigFromContext(cmd)
+					cliCommand := cmd.String("cli")
+					
+					// サポートされているCLIかチェック (allは特別扱い)
+					if cliCommand != "all" {
+						_, exists := supportedCLIs[cliCommand]
+						if !exists {
+							return fmt.Errorf("unsupported CLI command '%s'. Supported: claude, gemini, all", cliCommand)
+						}
+					}
+					
+					return executePrompts(cliCommand)
+				},
+			},
+			{
+				Name:    "verify",
+				Aliases: []string{"v"},
+				Usage:   "Verify the consistency of generated files",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					updateConfigFromContext(cmd)
+					return verify()
+				},
+			},
+			{
+				Name:    "all",
+				Aliases: []string{"a"},
+				Usage:   "Run all steps: collect, generate, and execute",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:    "cli",
+						Usage:   "AI CLI command to use (claude, gemini, all)",
+						Value:   "claude",
+					},
+				},
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					updateConfigFromContext(cmd)
+					
+					fmt.Printf("🎯 Running all steps...\n\n")
+					
+					// Step 1: Collect commits
+					fmt.Printf("📦 Step 1/3: Collecting commits...\n")
+					if err := collectCommits(); err != nil {
+						return fmt.Errorf("collect failed: %w", err)
+					}
+					
+					// Step 2: Generate prompts
+					fmt.Printf("\n📝 Step 2/3: Generating prompts...\n")
+					if err := generatePrompts(); err != nil {
+						return fmt.Errorf("generate failed: %w", err)
+					}
+					
+					// Step 3: Execute scripts
+					fmt.Printf("\n🚀 Step 3/3: Executing scripts...\n")
+					cliCommand := cmd.String("cli")
+					if cliCommand != "all" {
+						_, exists := supportedCLIs[cliCommand]
+						if !exists {
+							return fmt.Errorf("unsupported CLI command '%s'. Supported: claude, gemini, all", cliCommand)
+						}
+					}
+					
+					if err := executePrompts(cliCommand); err != nil {
+						return fmt.Errorf("execute failed: %w", err)
+					}
+					
+					fmt.Printf("\n✅ All steps completed successfully!\n")
+					return nil
+				},
+			},
+			{
+				Name:    "status",
+				Aliases: []string{"s"},
+				Usage:   "Show current status and statistics",
+				Action: func(ctx context.Context, cmd *cli.Command) error {
+					updateConfigFromContext(cmd)
+					
+					fmt.Printf("📊 Comemo Status\n")
+					fmt.Printf("================\n\n")
+					
+					// Get commit count
+					allHashes, err := getCommitHashes()
+					if err != nil {
+						return fmt.Errorf("error getting commit hashes: %w", err)
+					}
+					commitCount := len(allHashes)
+					
+					// Count files
+					commitDataFiles, _ := filepath.Glob(filepath.Join(config.CommitDataDir, "*.txt"))
+					scriptFiles, _ := filepath.Glob(filepath.Join(config.PromptsDir, "*.sh"))
+					outputFiles, _ := filepath.Glob(filepath.Join(config.OutputDir, "*.md"))
+					
+					// Remove SUMMARY.md from count
+					outputCount := 0
+					for _, f := range outputFiles {
+						if filepath.Base(f) != "SUMMARY.md" {
+							outputCount++
+						}
+					}
+					
+					fmt.Printf("📊 Repository commits:    %d\n", commitCount)
+					fmt.Printf("📦 Collected data files:  %d\n", len(commitDataFiles))
+					fmt.Printf("📝 Generated scripts:     %d\n", len(scriptFiles))
+					fmt.Printf("✅ Completed outputs:     %d\n", outputCount)
+					
+					// Calculate progress
+					if commitCount > 0 {
+						collectProgress := float64(len(commitDataFiles)) / float64(commitCount) * 100
+						generateProgress := float64(outputCount) / float64(commitCount) * 100
+						
+						fmt.Printf("\n📈 Progress:\n")
+						fmt.Printf("   Data collection:      %.1f%%\n", collectProgress)
+						fmt.Printf("   Output generation:    %.1f%%\n", generateProgress)
+						
+						remaining := commitCount - outputCount
+						if remaining > 0 {
+							fmt.Printf("\n⏳ Remaining: %d commits to process\n", remaining)
+						} else {
+							fmt.Printf("\n🎉 All commits have been processed!\n")
+						}
+					}
+					
+					return nil
+				},
+			},
+		},
 	}
 
-	command := os.Args[1]
-
-	var err error
-	switch command {
-	case "collect":
-		err = collectCommits()
-	case "generate":
-		err = generatePrompts()
-	case "execute":
-		// executeコマンドの場合のみCLIオプションをパース
-		cliCommand := "claude"
-		for i := 2; i < len(os.Args); i++ {
-			arg := os.Args[i]
-			if strings.HasPrefix(arg, "--cli=") {
-				cliCommand = strings.TrimPrefix(arg, "--cli=")
-			}
-		}
-
-		// サポートされているCLIかチェック (allは特別扱い)
-		if cliCommand != "all" {
-			_, exists := supportedCLIs[cliCommand]
-			if !exists {
-				fmt.Fprintf(os.Stderr, "Error: Unsupported CLI command '%s'. Supported: claude, gemini, all\n", cliCommand)
-				os.Exit(1)
-			}
-		}
-
-		err = executePrompts(cliCommand)
-	case "verify":
-		err = verify()
-	default:
-		fmt.Printf("Unknown command: %s\n", command)
-		fmt.Println("Usage: go run main.go <command> [options]")
-		fmt.Println("Commands:")
-		fmt.Println("  collect                 - Collects commit data from the 'go' repository.")
-		fmt.Println("  generate                - Generates prompt scripts for missing explanations.")
-		fmt.Println("  execute [--cli=CMD]     - Executes generated prompt scripts in parallel.")
-		fmt.Println("  verify                  - Verifies the consistency of generated files.")
-		fmt.Println("")
-		fmt.Println("Options:")
-		fmt.Println("  --cli=CMD               - AI CLI command to use (default: claude)")
-		fmt.Println("                            Supported: claude, gemini, all")
-		fmt.Println("                            Use 'all' to run both CLIs in parallel")
-		fmt.Println("                            Only available with execute command")
-		os.Exit(1)
+	if err := app.Run(context.Background(), os.Args); err != nil {
+		log.Fatal(err)
 	}
+}
 
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
+func updateConfigFromContext(cmd *cli.Command) {
+	// Update global config from CLI context
+	config.GoRepoPath = cmd.String("repo")
+	config.PromptsDir = cmd.String("prompts-dir")
+	config.OutputDir = cmd.String("output-dir")
+	config.CommitDataDir = cmd.String("commit-data-dir")
+	config.MaxConcurrency = cmd.Int("concurrency")
+	config.ExecutionTimeout = cmd.Duration("timeout")
+	config.QuotaRetryDelay = cmd.Duration("quota-retry-delay")
+	config.MaxRetries = cmd.Int("max-retries")
 }
