@@ -12,6 +12,7 @@ import (
 	"comemo/internal/executor"
 	"comemo/internal/generator"
 	"comemo/internal/git"
+	"comemo/internal/logger"
 	"comemo/internal/verifier"
 )
 
@@ -69,6 +70,12 @@ func CreateApp() *cli.Command {
 				Name:  "max-retries",
 				Value: cfg.MaxRetries,
 				Usage: "Maximum number of retries for failed scripts",
+			},
+			&cli.StringFlag{
+				Name:    "log-level",
+				Aliases: []string{"l"},
+				Value:   "info",
+				Usage:   "Log level (debug, info, warn, error, silent)",
 			},
 		},
 		Commands: []*cli.Command{
@@ -232,4 +239,10 @@ func updateConfig(cfg *config.Config, cmd *cli.Command) {
 	cfg.ExecutionTimeout = cmd.Duration("timeout")
 	cfg.QuotaRetryDelay = cmd.Duration("quota-retry-delay")
 	cfg.MaxRetries = cmd.Int("max-retries")
+
+	// Parse log level
+	logLevelStr := cmd.String("log-level")
+	if logLevel, err := logger.ParseLogLevel(logLevelStr); err == nil {
+		cfg.LogLevel = logLevel
+	}
 }

@@ -2,26 +2,24 @@ package collector
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"comemo/internal/config"
 	"comemo/internal/git"
+	"comemo/internal/logger"
 )
 
 // CollectorOptions provides configuration for collector functions
 type CollectorOptions struct {
-	Output io.Writer
-	Error  io.Writer
+	Logger *logger.Logger
 }
 
 // CollectCommits collects commit data from the Go repository
 func CollectCommits(cfg *config.Config) error {
 	return CollectCommitsWithOptions(cfg, &CollectorOptions{
-		Output: os.Stdout,
-		Error:  os.Stderr,
+		Logger: logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
 	})
 }
 
@@ -29,23 +27,25 @@ func CollectCommits(cfg *config.Config) error {
 func CollectCommitsWithOptions(cfg *config.Config, opts *CollectorOptions) error {
 	if opts == nil {
 		opts = &CollectorOptions{
-			Output: os.Stdout,
-			Error:  os.Stderr,
+			Logger: logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
 		}
+	}
+	if opts.Logger == nil {
+		opts.Logger = logger.New(cfg.LogLevel, os.Stdout, os.Stderr)
 	}
 	// 必要なディレクトリを作成
 	if err := os.MkdirAll(cfg.CommitDataDir, 0755); err != nil {
 		return fmt.Errorf("error creating directory %s: %w", cfg.CommitDataDir, err)
 	}
 
-	fmt.Fprintln(opts.Output, "--- Collecting Commits from Go Repository ---")
+	opts.Logger.Debug("--- Collecting Commits from Go Repository ---")
 
 	allHashes, err := git.GetCommitHashes(cfg.GoRepoPath)
 	if err != nil {
 		return fmt.Errorf("error getting commit hashes: %w", err)
 	}
 
-	fmt.Fprintf(opts.Output, "Found %d commits in the repository.\n", len(allHashes))
+	opts.Logger.Debug("Found %d commits in the repository.", len(allHashes))
 
 	// 並行処理用のsemaphoreとWaitGroup
 	sem := make(chan struct{}, cfg.MaxConcurrency)
@@ -57,7 +57,7 @@ func CollectCommitsWithOptions(cfg *config.Config, opts *CollectorOptions) error
 	for _, hash := range allHashes {
 		index := git.GetCommitIndex(allHashes, hash)
 		if index == 0 {
-			fmt.Fprintf(opts.Error, "Warning: Could not find index for hash %s\n", hash)
+			opts.Logger.Warn("Could not find index for hash %s", hash)
 			continue
 		}
 
@@ -77,12 +77,12 @@ func CollectCommitsWithOptions(cfg *config.Config, opts *CollectorOptions) error
 			defer func() { <-sem }()
 
 			if err := prepareCommitData(cfg, h, idx); err != nil {
-				fmt.Fprintf(opts.Error, "Error preparing commit data for %s (index %d): %v\n", h, idx, err)
+				opts.Logger.Error("Error preparing commit data for %s (index %d): %v", h, idx, err)
 			} else {
 				mu.Lock()
 				processed++
 				if processed%100 == 0 {
-					fmt.Fprintf(opts.Output, "Progress: %d commits processed\n", processed)
+					opts.Logger.Debug("Progress: %d commits processed", processed)
 				}
 				mu.Unlock()
 			}
@@ -91,10 +91,10 @@ func CollectCommitsWithOptions(cfg *config.Config, opts *CollectorOptions) error
 
 	wg.Wait()
 
-	fmt.Fprintf(opts.Output, "\n--- Commit Collection Complete ---\n")
-	fmt.Fprintf(opts.Output, "Total commits: %d\n", len(allHashes))
-	fmt.Fprintf(opts.Output, "Newly collected: %d\n", processed)
-	fmt.Fprintf(opts.Output, "Already existed: %d\n", skipped)
+	opts.Logger.Debug("--- Commit Collection Complete ---")
+	opts.Logger.Debug("Total commits: %d", len(allHashes))
+	opts.Logger.Debug("Newly collected: %d", processed)
+	opts.Logger.Debug("Already existed: %d", skipped)
 
 	return nil
 }

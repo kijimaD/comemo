@@ -1,6 +1,10 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	"comemo/internal/logger"
+)
 
 // Config holds application configuration
 type Config struct {
@@ -13,6 +17,7 @@ type Config struct {
 	QuotaRetryDelay  time.Duration
 	MaxRetries       int
 	RetryDelay       time.Duration
+	LogLevel         logger.LogLevel
 }
 
 // DefaultConfig returns the default configuration
@@ -27,6 +32,7 @@ func DefaultConfig() *Config {
 		QuotaRetryDelay:  1 * time.Hour,
 		MaxRetries:       3,
 		RetryDelay:       5 * time.Minute,
+		LogLevel:         logger.INFO,
 	}
 }
 

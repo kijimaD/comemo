@@ -2,7 +2,6 @@ package generator
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +10,7 @@ import (
 
 	"comemo/internal/config"
 	"comemo/internal/git"
+	"comemo/internal/logger"
 )
 
 const (
@@ -144,8 +144,7 @@ func TestGeneratePrompts(t *testing.T) {
 
 	// Test GeneratePrompts with silent output
 	err = GeneratePromptsWithOptions(cfg, &GeneratorOptions{
-		Output: io.Discard,
-		Error:  io.Discard,
+		Logger: logger.Silent(),
 	})
 	assert.NoError(t, err, "GeneratePrompts should not return error")
 

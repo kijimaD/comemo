@@ -2,7 +2,6 @@ package executor
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -38,7 +37,7 @@ func WorkerWithOptions(cliName string, scriptQueue <-chan string, manager *CLIMa
 
 					now := time.Now()
 					if now.Sub(lastUnavailableLogTime) > unavailableLogInterval {
-						fmt.Fprintf(opts.Output, "CLI %s is not available, queuing %d scripts for retry\n", cliName, len(pendingScripts))
+						opts.Logger.Debug("CLI %s is not available, queuing %d scripts for retry", cliName, len(pendingScripts))
 						lastUnavailableLogTime = now
 					}
 				}
@@ -47,13 +46,13 @@ func WorkerWithOptions(cliName string, scriptQueue <-chan string, manager *CLIMa
 			}
 
 			if wasUnavailable && len(pendingScripts) > 0 {
-				fmt.Fprintf(opts.Output, "CLI %s is now available, processing %d pending scripts\n", cliName, len(pendingScripts))
+				opts.Logger.Debug("CLI %s is now available, processing %d pending scripts", cliName, len(pendingScripts))
 				wasUnavailable = false
 			}
 
 			cli, exists := manager.GetCLICommand(cliName)
 			if !exists {
-				fmt.Fprintf(opts.Output, "CLI %s not found\n", cliName)
+				opts.Logger.Warn("CLI %s not found", cliName)
 				continue
 			}
 
@@ -61,7 +60,7 @@ func WorkerWithOptions(cliName string, scriptQueue <-chan string, manager *CLIMa
 			if !success {
 				if !pendingScripts[fileName] {
 					pendingScripts[fileName] = true
-					fmt.Fprintf(opts.Output, "Script %s failed, added to pending queue\n", fileName)
+					opts.Logger.Debug("Script %s failed, added to pending queue", fileName)
 				}
 			} else {
 				delete(pendingScripts, fileName)
@@ -69,10 +68,10 @@ func WorkerWithOptions(cliName string, scriptQueue <-chan string, manager *CLIMa
 
 		case <-time.After(30 * time.Second):
 			if len(pendingScripts) > 0 && manager.IsAvailable(cliName) {
-				fmt.Fprintf(opts.Output, "CLI %s is now available, processing %d pending scripts\n", cliName, len(pendingScripts))
+				opts.Logger.Debug("CLI %s is now available, processing %d pending scripts", cliName, len(pendingScripts))
 				processPendingScriptsWithOptions(pendingScripts, cliName, manager, opts)
 			} else if len(pendingScripts) > 0 {
-				fmt.Fprintf(opts.Output, "CLI %s still not available, %d scripts pending\n", cliName, len(pendingScripts))
+				opts.Logger.Debug("CLI %s still not available, %d scripts pending", cliName, len(pendingScripts))
 			}
 		}
 	}
@@ -94,9 +93,9 @@ func processPendingScriptsWithOptions(pendingScripts map[string]bool, cliName st
 		success := processScriptWithRetryWithOptions(fileName, cli, cliName, manager, opts)
 		if success {
 			delete(pendingScripts, fileName)
-			fmt.Fprintf(opts.Output, "Successfully processed pending script: %s\n", fileName)
+			opts.Logger.Debug("Successfully processed pending script: %s", fileName)
 		} else {
-			fmt.Fprintf(opts.Output, "Pending script %s failed again, keeping in queue\n", fileName)
+			opts.Logger.Debug("Pending script %s failed again, keeping in queue", fileName)
 		}
 	}
 }
@@ -141,7 +140,7 @@ func processScriptWithRetryWithOptions(fileName string, cli CLICommand, cliName 
 	}
 
 	if scriptExistsBefore && scriptExistsAfter && outputExists {
-		fmt.Fprintf(opts.Output, "Quality check failed for %s, output file removed, script kept for retry\n", fileName)
+		opts.Logger.Debug("Quality check failed for %s, output file removed, script kept for retry", fileName)
 		return false
 	}
 
@@ -159,11 +158,11 @@ func processScriptWithOptions(scriptName string, cli CLICommand, cliName string,
 	baseName := strings.TrimSuffix(scriptName, ".sh")
 	outputPath := filepath.Join(manager.Config.OutputDir, baseName+".md")
 
-	fmt.Fprintf(opts.Output, "--- Processing: %s with %s ---\n", scriptPath, cliName)
+	opts.Logger.Debug("--- Processing: %s with %s ---", scriptPath, cliName)
 
 	content, err := os.ReadFile(scriptPath)
 	if err != nil {
-		fmt.Fprintf(opts.Error, "Error reading script %s: %v\n", scriptPath, err)
+		opts.Logger.Error("Error reading script %s: %v", scriptPath, err)
 		return
 	}
 
@@ -177,14 +176,14 @@ func processScriptWithOptions(scriptName string, cli CLICommand, cliName string,
 
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
-			fmt.Fprintf(opts.Error, "Script %s timed out after %v\n", scriptPath, manager.Config.ExecutionTimeout)
+			opts.Logger.Error("Script %s timed out after %v", scriptPath, manager.Config.ExecutionTimeout)
 			return
 		}
-		fmt.Fprintf(opts.Error, "Script %s failed: %v\n", scriptPath, err)
-		fmt.Fprintf(opts.Error, "Output: %s\n", string(output))
+		opts.Logger.Error("Script %s failed: %v", scriptPath, err)
+		opts.Logger.Debug("Output: %s", string(output))
 
 		if IsQuotaError(string(output)) {
-			fmt.Fprintf(opts.Output, "Quota limit detected for %s. Marking as unavailable for %v.\n", cliName, manager.Config.QuotaRetryDelay)
+			opts.Logger.Debug("Quota limit detected for %s. Marking as unavailable for %v.", cliName, manager.Config.QuotaRetryDelay)
 			manager.MarkUnavailable(cliName)
 			manager.UpdateRetryInfo(scriptName, "quota_error")
 		}
@@ -209,36 +208,36 @@ func processScriptWithOptions(scriptName string, cli CLICommand, cliName string,
 
 	if len(aiOutputContent) > 1000 && foundValidContent {
 		if err := os.WriteFile(outputPath, []byte(aiOutputContent), 0644); err != nil {
-			fmt.Fprintf(opts.Error, "Error writing output file %s: %v\n", outputPath, err)
+			opts.Logger.Error("Error writing output file %s: %v", outputPath, err)
 			return
 		}
-		fmt.Fprintf(opts.Output, "Generated: %s\n", outputPath)
+		opts.Logger.Debug("Generated: %s", outputPath)
 
 		if err := os.Remove(scriptPath); err != nil {
-			fmt.Fprintf(opts.Error, "Error deleting script %s: %v\n", scriptPath, err)
+			opts.Logger.Error("Error deleting script %s: %v", scriptPath, err)
 		} else {
-			fmt.Fprintf(opts.Output, "Deleted script: %s\n", scriptPath)
+			opts.Logger.Debug("Deleted script: %s", scriptPath)
 		}
 	} else {
-		fmt.Fprintf(opts.Error, "--- ⚠️ Script executed but output is incomplete or invalid: %s ---\n", scriptPath)
-		fmt.Fprintf(opts.Error, "Output length: %d characters\n", len(aiOutputContent))
-		fmt.Fprintf(opts.Error, "Found valid content: %v\n", foundValidContent)
+		opts.Logger.Warn("Script executed but output is incomplete or invalid: %s", scriptPath)
+		opts.Logger.Debug("Output length: %d characters", len(aiOutputContent))
+		opts.Logger.Debug("Found valid content: %v", foundValidContent)
 
 		if _, err := os.Stat(outputPath); err == nil {
 			if removeErr := os.Remove(outputPath); removeErr != nil {
-				fmt.Fprintf(opts.Error, "Failed to remove incomplete output file %s: %v\n", outputPath, removeErr)
+				opts.Logger.Error("Failed to remove incomplete output file %s: %v", outputPath, removeErr)
 			} else {
-				fmt.Fprintf(opts.Output, "Removed incomplete output file: %s\n", outputPath)
+				opts.Logger.Debug("Removed incomplete output file: %s", outputPath)
 			}
 		}
 
 		if len(outputStr) > 500 {
-			fmt.Fprintf(opts.Error, "Output preview:\n%s...\n", outputStr[:500])
+			opts.Logger.Debug("Output preview:\n%s...", outputStr[:500])
 		} else {
-			fmt.Fprintf(opts.Error, "Full output:\n%s\n", outputStr)
+			opts.Logger.Debug("Full output:\n%s", outputStr)
 		}
 
-		fmt.Fprintf(opts.Output, "Script %s kept for retry\n", scriptPath)
+		opts.Logger.Debug("Script %s kept for retry", scriptPath)
 		manager.UpdateRetryInfo(scriptName, "quality_check_failed")
 	}
 }

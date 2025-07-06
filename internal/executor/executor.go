@@ -8,13 +8,13 @@ import (
 	"time"
 
 	"comemo/internal/config"
+	"comemo/internal/logger"
 )
 
 // ExecutePrompts executes generated prompt scripts
 func ExecutePrompts(cfg *config.Config, cliCommand string) error {
 	return ExecutePromptsWithOptions(cfg, cliCommand, &ExecutorOptions{
-		Output: os.Stdout,
-		Error:  os.Stderr,
+		Logger: logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
 	})
 }
 
@@ -22,12 +22,14 @@ func ExecutePrompts(cfg *config.Config, cliCommand string) error {
 func ExecutePromptsWithOptions(cfg *config.Config, cliCommand string, opts *ExecutorOptions) error {
 	if opts == nil {
 		opts = &ExecutorOptions{
-			Output: os.Stdout,
-			Error:  os.Stderr,
+			Logger: logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
 		}
 	}
+	if opts.Logger == nil {
+		opts.Logger = logger.New(cfg.LogLevel, os.Stdout, os.Stderr)
+	}
 
-	fmt.Fprintln(opts.Output, "\n--- Executing Prompt Scripts ---")
+	opts.Logger.Debug("実行開始: プロンプトスクリプトの実行")
 
 	files, err := os.ReadDir(cfg.PromptsDir)
 	if err != nil {
@@ -42,11 +44,11 @@ func ExecutePromptsWithOptions(cfg *config.Config, cliCommand string, opts *Exec
 	}
 
 	if len(shFiles) == 0 {
-		fmt.Fprintln(opts.Output, "No .sh files found in the prompts directory.")
+		opts.Logger.Debug("プロンプトディレクトリに.shファイルが見つかりませんでした")
 		return nil
 	}
 
-	fmt.Fprintf(opts.Output, "Found %d scripts to execute\n", len(shFiles))
+	opts.Logger.Debug("実行対象スクリプト数: %d", len(shFiles))
 
 	// Create CLI manager
 	manager := NewCLIManagerWithOptions(cfg, opts)
@@ -108,9 +110,10 @@ func ExecutePromptsWithOptions(cfg *config.Config, cliCommand string, opts *Exec
 	}
 
 	if remainingCount > 0 {
-		fmt.Fprintf(opts.Output, "\n⚠️  %d scripts remain unprocessed. They may have failed or hit quota limits.\n", remainingCount)
+		opts.Logger.Warn("未処理のスクリプトが残っています: %d個", remainingCount)
+		opts.Logger.Debug("%d scripts remain unprocessed. They may have failed or hit quota limits.", remainingCount)
 	} else {
-		fmt.Fprintln(opts.Output, "\nAll prompt scripts executed successfully and were deleted.")
+		opts.Logger.Debug("すべてのプロンプトスクリプトが正常に実行され、削除されました")
 	}
 
 	return nil
@@ -119,8 +122,7 @@ func ExecutePromptsWithOptions(cfg *config.Config, cliCommand string, opts *Exec
 // quotaMonitor monitors quota status and provides status updates
 func quotaMonitor(manager *CLIManager, scriptQueue <-chan string) {
 	quotaMonitorWithOptions(manager, scriptQueue, &ExecutorOptions{
-		Output: os.Stdout,
-		Error:  os.Stderr,
+		Logger: logger.Default(),
 	})
 }
 
@@ -142,9 +144,9 @@ func quotaMonitorWithOptions(manager *CLIManager, scriptQueue <-chan string, opt
 
 		case <-ticker.C:
 			elapsed := time.Since(startTime)
-			fmt.Fprintf(opts.Output, "\n📊 Status Update:\n")
-			fmt.Fprintf(opts.Output, "   Total scripts queued: %d\n", totalScripts)
-			fmt.Fprintf(opts.Output, "   Time elapsed: %v\n", elapsed)
+			opts.Logger.Debug("📊 Status Update:")
+			opts.Logger.Debug("   Total scripts queued: %d", totalScripts)
+			opts.Logger.Debug("   Time elapsed: %v", elapsed)
 
 			for name, cli := range manager.CLIs {
 				status := "Available"
@@ -152,9 +154,8 @@ func quotaMonitorWithOptions(manager *CLIManager, scriptQueue <-chan string, opt
 					timeUntilAvailable := manager.Config.QuotaRetryDelay - time.Since(cli.LastQuotaError)
 					status = fmt.Sprintf("Quota limit (available in %v)", timeUntilAvailable.Round(time.Minute))
 				}
-				fmt.Fprintf(opts.Output, "   %s: %s\n", name, status)
+				opts.Logger.Debug("   %s: %s", name, status)
 			}
-			fmt.Fprintln(opts.Output)
 		}
 	}
 }

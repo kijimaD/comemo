@@ -2,7 +2,6 @@ package collector
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +10,7 @@ import (
 
 	"comemo/internal/config"
 	"comemo/internal/git"
+	"comemo/internal/logger"
 )
 
 const (
@@ -132,8 +132,7 @@ func TestCollectCommits(t *testing.T) {
 
 	// Test CollectCommits with silent output
 	err = CollectCommitsWithOptions(cfg, &CollectorOptions{
-		Output: io.Discard,
-		Error:  io.Discard,
+		Logger: logger.Silent(),
 	})
 	assert.NoError(t, err, "CollectCommits should not return error")
 

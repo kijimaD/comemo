@@ -1,8 +1,9 @@
 package executor
 
 import (
-	"io"
 	"time"
+
+	"comemo/internal/logger"
 )
 
 // CLICommand represents supported AI CLI commands
@@ -28,16 +29,9 @@ type CLIState struct {
 	PendingScripts []string
 }
 
-// Logger interface for testable output
-type Logger interface {
-	Printf(format string, v ...interface{})
-	Println(v ...interface{})
-}
-
 // ExecutorOptions provides configuration for executor functions
 type ExecutorOptions struct {
-	Output io.Writer
-	Error  io.Writer
+	Logger *logger.Logger
 }
 
 // SupportedCLIs contains all supported AI CLI tools

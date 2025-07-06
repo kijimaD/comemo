@@ -2,26 +2,24 @@ package generator
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"comemo/internal/config"
 	"comemo/internal/git"
+	"comemo/internal/logger"
 )
 
 // GeneratorOptions provides configuration for generator functions
 type GeneratorOptions struct {
-	Output io.Writer
-	Error  io.Writer
+	Logger *logger.Logger
 }
 
 // GeneratePrompts generates prompt scripts for missing explanations
 func GeneratePrompts(cfg *config.Config) error {
 	return GeneratePromptsWithOptions(cfg, &GeneratorOptions{
-		Output: os.Stdout,
-		Error:  os.Stderr,
+		Logger: logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
 	})
 }
 
@@ -29,9 +27,11 @@ func GeneratePrompts(cfg *config.Config) error {
 func GeneratePromptsWithOptions(cfg *config.Config, opts *GeneratorOptions) error {
 	if opts == nil {
 		opts = &GeneratorOptions{
-			Output: os.Stdout,
-			Error:  os.Stderr,
+			Logger: logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
 		}
+	}
+	if opts.Logger == nil {
+		opts.Logger = logger.New(cfg.LogLevel, os.Stdout, os.Stderr)
 	}
 	// 必要なディレクトリを作成
 	for _, dir := range []string{cfg.PromptsDir, cfg.OutputDir} {
@@ -40,14 +40,14 @@ func GeneratePromptsWithOptions(cfg *config.Config, opts *GeneratorOptions) erro
 		}
 	}
 
-	fmt.Fprintln(opts.Output, "\n--- Generating Prompt Scripts ---")
+	opts.Logger.Debug("--- Generating Prompt Scripts ---")
 
 	allHashes, err := git.GetCommitHashes(cfg.GoRepoPath)
 	if err != nil {
 		return fmt.Errorf("error getting commit hashes: %w", err)
 	}
 
-	fmt.Fprintf(opts.Output, "Total commits in repository: %d\n", len(allHashes))
+	opts.Logger.Debug("Total commits in repository: %d", len(allHashes))
 
 	// 並行処理用のsemaphoreとWaitGroup
 	sem := make(chan struct{}, cfg.MaxConcurrency)
@@ -56,7 +56,7 @@ func GeneratePromptsWithOptions(cfg *config.Config, opts *GeneratorOptions) erro
 	for _, hash := range allHashes {
 		index := git.GetCommitIndex(allHashes, hash)
 		if index == 0 {
-			fmt.Fprintf(opts.Error, "Warning: Could not find index for hash %s\n", hash)
+			opts.Logger.Warn("Could not find index for hash %s", hash)
 			continue
 		}
 
@@ -68,7 +68,7 @@ func GeneratePromptsWithOptions(cfg *config.Config, opts *GeneratorOptions) erro
 		// コミットデータが存在するかチェック
 		commitDataPath := filepath.Join(cfg.CommitDataDir, fmt.Sprintf("%d.txt", index))
 		if _, err := os.Stat(commitDataPath); os.IsNotExist(err) {
-			fmt.Fprintf(opts.Error, "Warning: Commit data for index %d (%s) not found in %s. Skipping prompt generation.\n", index, hash, cfg.CommitDataDir)
+			opts.Logger.Warn("Commit data for index %d (%s) not found in %s. Skipping prompt generation.", index, hash, cfg.CommitDataDir)
 			continue
 		}
 
@@ -79,14 +79,14 @@ func GeneratePromptsWithOptions(cfg *config.Config, opts *GeneratorOptions) erro
 			defer func() { <-sem }()
 
 			if err := generatePromptScript(cfg, h, idx, cdp); err != nil {
-				fmt.Fprintf(opts.Error, "Error generating script for %s (index %d): %v\n", h, idx, err)
+				opts.Logger.Error("Error generating script for %s (index %d): %v", h, idx, err)
 			} else {
-				fmt.Fprintf(opts.Output, "Generated prompt script for index %d (%s)\n", idx, h)
+				opts.Logger.Debug("Generated prompt script for index %d (%s)", idx, h)
 			}
 		}(hash, index, commitDataPath)
 	}
 	wg.Wait()
-	fmt.Fprintln(opts.Output, "\n--- Prompt script generation complete ---")
+	opts.Logger.Debug("--- Prompt script generation complete ---")
 	return nil
 }
 

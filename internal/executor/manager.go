@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"comemo/internal/config"
+	"comemo/internal/logger"
 )
 
 // CLIManager manages multiple CLI states
@@ -23,8 +24,7 @@ type CLIManager struct {
 // NewCLIManager creates a new CLI manager
 func NewCLIManager(cfg *config.Config) *CLIManager {
 	return NewCLIManagerWithOptions(cfg, &ExecutorOptions{
-		Output: os.Stdout,
-		Error:  os.Stderr,
+		Logger: logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
 	})
 }
 
@@ -32,8 +32,7 @@ func NewCLIManager(cfg *config.Config) *CLIManager {
 func NewCLIManagerWithOptions(cfg *config.Config, opts *ExecutorOptions) *CLIManager {
 	if opts == nil {
 		opts = &ExecutorOptions{
-			Output: os.Stdout,
-			Error:  os.Stderr,
+			Logger: logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
 		}
 	}
 

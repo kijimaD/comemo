@@ -2,7 +2,6 @@ package verifier
 
 import (
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,6 +10,7 @@ import (
 
 	"comemo/internal/config"
 	"comemo/internal/git"
+	"comemo/internal/logger"
 )
 
 const (
@@ -92,8 +92,7 @@ func TestVerify(t *testing.T) {
 
 	// Test Verify function with silent output
 	err = VerifyWithOptions(cfg, &VerifierOptions{
-		Output: io.Discard,
-		Error:  io.Discard,
+		Logger: logger.Silent(),
 	})
 	assert.NoError(t, err, "Verify should not return error")
 }
@@ -109,8 +108,7 @@ func TestVerifyNonExistentDirectories(t *testing.T) {
 
 	// This should handle non-existent directories gracefully
 	err := VerifyWithOptions(cfg, &VerifierOptions{
-		Output: io.Discard,
-		Error:  io.Discard,
+		Logger: logger.Silent(),
 	})
 	assert.Error(t, err, "Verify should return error for non-existent repository")
 }
@@ -168,8 +166,7 @@ func TestVerifyEmptyDirectories(t *testing.T) {
 
 	// Test Verify with empty directories
 	err = VerifyWithOptions(cfg, &VerifierOptions{
-		Output: io.Discard,
-		Error:  io.Discard,
+		Logger: logger.Silent(),
 	})
 	assert.NoError(t, err, "Verify should not return error for empty directories")
 }

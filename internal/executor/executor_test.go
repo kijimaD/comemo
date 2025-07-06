@@ -2,7 +2,6 @@ package executor
 
 import (
 	"bytes"
-	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"comemo/internal/config"
+	"comemo/internal/logger"
 )
 
 // TestIsQuotaError tests the IsQuotaError function
@@ -180,20 +180,19 @@ func TestExecutePrompts(t *testing.T) {
 	t.Run("empty prompts directory", func(t *testing.T) {
 		var output, errOutput bytes.Buffer
 		opts := &ExecutorOptions{
-			Output: &output,
-			Error:  &errOutput,
+			Logger: logger.New(logger.DEBUG, &output, &errOutput),
 		}
 
 		err := ExecutePromptsWithOptions(cfg, "claude", opts)
 		assert.NoError(t, err)
-		assert.Contains(t, output.String(), "No .sh files found in the prompts directory")
+		// DEBUGレベルなので標準出力に出力される
+		assert.Contains(t, output.String(), "プロンプトディレクトリに.shファイルが見つかりませんでした")
 	})
 
 	t.Run("invalid CLI command validation", func(t *testing.T) {
 		var output, errOutput bytes.Buffer
 		opts := &ExecutorOptions{
-			Output: &output,
-			Error:  &errOutput,
+			Logger: logger.New(logger.DEBUG, &output, &errOutput),
 		}
 
 		// Create test script
@@ -206,7 +205,7 @@ echo "Test output"
 		// ExecutePrompts will run but worker will find CLI unavailable
 		err := ExecutePromptsWithOptions(cfg, "invalid-cli", opts)
 		assert.NoError(t, err) // Function completes without error even with invalid CLI
-		assert.Contains(t, output.String(), "Found 1 scripts to execute")
+		assert.Contains(t, output.String(), "実行対象スクリプト数: 1")
 
 		// Clean up
 		os.Remove(scriptPath)
@@ -215,8 +214,7 @@ echo "Test output"
 	t.Run("successful execution with mock", func(t *testing.T) {
 		var output, errOutput bytes.Buffer
 		opts := &ExecutorOptions{
-			Output: &output,
-			Error:  &errOutput,
+			Logger: logger.New(logger.DEBUG, &output, &errOutput),
 		}
 
 		// Create test script that doesn't depend on external CLI
@@ -245,7 +243,7 @@ echo "Final technical details to complete the comprehensive test content."
 		// Execute with 'all' option
 		err := ExecutePromptsWithOptions(cfg, "all", opts)
 		assert.NoError(t, err)
-		assert.Contains(t, output.String(), "Found 1 scripts to execute")
+		assert.Contains(t, output.String(), "実行対象スクリプト数: 1")
 
 		// Note: The script might not be deleted because it doesn't use real CLI
 		// But we can check that the function completes without error
@@ -275,8 +273,7 @@ func TestWorker(t *testing.T) {
 
 	var output, errOutput bytes.Buffer
 	opts := &ExecutorOptions{
-		Output: &output,
-		Error:  &errOutput,
+		Logger: logger.New(logger.DEBUG, &output, &errOutput),
 	}
 	manager := NewCLIManagerWithOptions(cfg, opts)
 
@@ -361,8 +358,7 @@ echo "Final comprehensive technical details to complete the thorough test conten
 // Helper function to create silent executor options for testing
 func silentExecutorOptions() *ExecutorOptions {
 	return &ExecutorOptions{
-		Output: io.Discard,
-		Error:  io.Discard,
+		Logger: logger.Silent(),
 	}
 }
 
