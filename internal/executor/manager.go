@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -14,17 +15,34 @@ type CLIManager struct {
 	Config     *config.Config
 	RetryQueue chan string
 	RetryInfo  map[string]*ScriptRetryInfo
+	Options    *ExecutorOptions
 	mu         sync.RWMutex
 	retryMu    sync.RWMutex
 }
 
 // NewCLIManager creates a new CLI manager
 func NewCLIManager(cfg *config.Config) *CLIManager {
+	return NewCLIManagerWithOptions(cfg, &ExecutorOptions{
+		Output: os.Stdout,
+		Error:  os.Stderr,
+	})
+}
+
+// NewCLIManagerWithOptions creates a new CLI manager with configurable output
+func NewCLIManagerWithOptions(cfg *config.Config, opts *ExecutorOptions) *CLIManager {
+	if opts == nil {
+		opts = &ExecutorOptions{
+			Output: os.Stdout,
+			Error:  os.Stderr,
+		}
+	}
+	
 	manager := &CLIManager{
 		CLIs:       make(map[string]*CLIState),
 		Config:     cfg,
 		RetryQueue: make(chan string, 10000),
 		RetryInfo:  make(map[string]*ScriptRetryInfo),
+		Options:    opts,
 	}
 
 	// Initialize CLI states

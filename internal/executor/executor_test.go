@@ -1,6 +1,8 @@
 package executor
 
 import (
+	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -176,13 +178,23 @@ func TestExecutePrompts(t *testing.T) {
 	}
 	
 	t.Run("empty prompts directory", func(t *testing.T) {
-		err := ExecutePrompts(cfg, "claude")
+		var output, errOutput bytes.Buffer
+		opts := &ExecutorOptions{
+			Output: &output,
+			Error:  &errOutput,
+		}
+		
+		err := ExecutePromptsWithOptions(cfg, "claude", opts)
 		assert.NoError(t, err)
+		assert.Contains(t, output.String(), "No .sh files found in the prompts directory")
 	})
 	
 	t.Run("invalid CLI command validation", func(t *testing.T) {
-		// Test with invalid CLI - this should be handled at CLI validation level
-		// ExecutePrompts itself doesn't validate CLI commands, so we test the specific error case
+		var output, errOutput bytes.Buffer
+		opts := &ExecutorOptions{
+			Output: &output,
+			Error:  &errOutput,
+		}
 		
 		// Create test script
 		scriptPath := filepath.Join(promptsDir, "test.sh")
@@ -192,14 +204,21 @@ echo "Test output"
 		require.NoError(t, os.WriteFile(scriptPath, []byte(scriptContent), 0755))
 		
 		// ExecutePrompts will run but worker will find CLI unavailable
-		err := ExecutePrompts(cfg, "invalid-cli")
+		err := ExecutePromptsWithOptions(cfg, "invalid-cli", opts)
 		assert.NoError(t, err) // Function completes without error even with invalid CLI
+		assert.Contains(t, output.String(), "Found 1 scripts to execute")
 		
 		// Clean up
 		os.Remove(scriptPath)
 	})
 	
 	t.Run("successful execution with mock", func(t *testing.T) {
+		var output, errOutput bytes.Buffer
+		opts := &ExecutorOptions{
+			Output: &output,
+			Error:  &errOutput,
+		}
+		
 		// Create test script that doesn't depend on external CLI
 		scriptPath := filepath.Join(promptsDir, "test-mock.sh")
 		scriptContent := `#!/bin/bash
@@ -224,8 +243,9 @@ echo "Final technical details to complete the comprehensive test content."
 		require.NoError(t, os.WriteFile(scriptPath, []byte(scriptContent), 0755))
 		
 		// Execute with 'all' option
-		err := ExecutePrompts(cfg, "all")
+		err := ExecutePromptsWithOptions(cfg, "all", opts)
 		assert.NoError(t, err)
+		assert.Contains(t, output.String(), "Found 1 scripts to execute")
 		
 		// Note: The script might not be deleted because it doesn't use real CLI
 		// But we can check that the function completes without error
@@ -253,14 +273,19 @@ func TestWorker(t *testing.T) {
 		MaxRetries:       2,
 	}
 	
-	manager := NewCLIManager(cfg)
+	var output, errOutput bytes.Buffer
+	opts := &ExecutorOptions{
+		Output: &output,
+		Error:  &errOutput,
+	}
+	manager := NewCLIManagerWithOptions(cfg, opts)
 	
 	t.Run("worker with empty queue", func(t *testing.T) {
 		scriptQueue := make(chan string)
 		close(scriptQueue)
 		
 		// This should exit immediately
-		Worker("claude", scriptQueue, manager)
+		WorkerWithOptions("claude", scriptQueue, manager, opts)
 		// Test passes if Worker doesn't hang
 	})
 	
@@ -275,7 +300,7 @@ func TestWorker(t *testing.T) {
 		close(scriptQueue)
 		
 		// Worker should handle unavailable CLI gracefully
-		Worker("claude", scriptQueue, manager)
+		WorkerWithOptions("claude", scriptQueue, manager, opts)
 		
 		// Test passes if Worker doesn't hang
 	})
@@ -315,7 +340,7 @@ echo "Final comprehensive technical details to complete the thorough test conten
 		}
 		
 		// Run worker
-		Worker("claude", scriptQueue, manager)
+		WorkerWithOptions("claude", scriptQueue, manager, opts)
 		
 		// Test passes if Worker completes without hanging
 		// The script processing success depends on external CLI availability
@@ -327,8 +352,42 @@ echo "Final comprehensive technical details to complete the thorough test conten
 		close(scriptQueue)
 		
 		// Worker should handle nonexistent CLI gracefully
-		Worker("nonexistent-cli", scriptQueue, manager)
+		WorkerWithOptions("nonexistent-cli", scriptQueue, manager, opts)
 		
 		// Test passes if Worker doesn't crash
 	})
+}
+
+// Helper function to create silent executor options for testing
+func silentExecutorOptions() *ExecutorOptions {
+	return &ExecutorOptions{
+		Output: io.Discard,
+		Error:  io.Discard,
+	}
+}
+
+// TestExecutePromptsWithSilentOutput tests that ExecutePrompts works without output
+func TestExecutePromptsWithSilentOutput(t *testing.T) {
+	// Create temporary directories for testing
+	tmpDir := t.TempDir()
+	promptsDir := filepath.Join(tmpDir, "prompts")
+	outputDir := filepath.Join(tmpDir, "output")
+	
+	// Create directories
+	require.NoError(t, os.MkdirAll(promptsDir, 0755))
+	require.NoError(t, os.MkdirAll(outputDir, 0755))
+	
+	// Create test configuration
+	cfg := &config.Config{
+		PromptsDir:       promptsDir,
+		OutputDir:        outputDir,
+		MaxConcurrency:   1,
+		ExecutionTimeout: 5 * time.Second,
+		QuotaRetryDelay:  1 * time.Minute,
+		MaxRetries:       1,
+	}
+	
+	// Test with silent output
+	err := ExecutePromptsWithOptions(cfg, "claude", silentExecutorOptions())
+	assert.NoError(t, err)
 }

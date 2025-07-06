@@ -2,6 +2,7 @@ package generator
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -141,8 +142,11 @@ func TestGeneratePrompts(t *testing.T) {
 		assert.NoError(t, err, "Failed to write commit data")
 	}
 
-	// Test GeneratePrompts
-	err = GeneratePrompts(cfg)
+	// Test GeneratePrompts with silent output
+	err = GeneratePromptsWithOptions(cfg, &GeneratorOptions{
+		Output: io.Discard,
+		Error:  io.Discard,
+	})
 	assert.NoError(t, err, "GeneratePrompts should not return error")
 
 	// Check if directories were created

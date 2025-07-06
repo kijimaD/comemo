@@ -2,6 +2,7 @@ package verifier
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -89,8 +90,11 @@ func TestVerify(t *testing.T) {
 	err = os.WriteFile(outputFile, []byte("# Output 1\nSome content"), filePermission)
 	assert.NoError(t, err, "Failed to create output file")
 
-	// Test Verify function
-	err = Verify(cfg)
+	// Test Verify function with silent output
+	err = VerifyWithOptions(cfg, &VerifierOptions{
+		Output: io.Discard,
+		Error:  io.Discard,
+	})
 	assert.NoError(t, err, "Verify should not return error")
 }
 
@@ -104,7 +108,10 @@ func TestVerifyNonExistentDirectories(t *testing.T) {
 	}
 
 	// This should handle non-existent directories gracefully
-	err := Verify(cfg)
+	err := VerifyWithOptions(cfg, &VerifierOptions{
+		Output: io.Discard,
+		Error:  io.Discard,
+	})
 	assert.Error(t, err, "Verify should return error for non-existent repository")
 }
 
@@ -160,6 +167,9 @@ func TestVerifyEmptyDirectories(t *testing.T) {
 	assert.NoError(t, err, "Failed to create output directory")
 
 	// Test Verify with empty directories
-	err = Verify(cfg)
+	err = VerifyWithOptions(cfg, &VerifierOptions{
+		Output: io.Discard,
+		Error:  io.Discard,
+	})
 	assert.NoError(t, err, "Verify should not return error for empty directories")
 }

@@ -12,7 +12,22 @@ import (
 
 // ExecutePrompts executes generated prompt scripts
 func ExecutePrompts(cfg *config.Config, cliCommand string) error {
-	fmt.Println("\n--- Executing Prompt Scripts ---")
+	return ExecutePromptsWithOptions(cfg, cliCommand, &ExecutorOptions{
+		Output: os.Stdout,
+		Error:  os.Stderr,
+	})
+}
+
+// ExecutePromptsWithOptions executes generated prompt scripts with configurable output
+func ExecutePromptsWithOptions(cfg *config.Config, cliCommand string, opts *ExecutorOptions) error {
+	if opts == nil {
+		opts = &ExecutorOptions{
+			Output: os.Stdout,
+			Error:  os.Stderr,
+		}
+	}
+	
+	fmt.Fprintln(opts.Output, "\n--- Executing Prompt Scripts ---")
 
 	files, err := os.ReadDir(cfg.PromptsDir)
 	if err != nil {
@@ -27,14 +42,14 @@ func ExecutePrompts(cfg *config.Config, cliCommand string) error {
 	}
 
 	if len(shFiles) == 0 {
-		fmt.Println("No .sh files found in the prompts directory.")
+		fmt.Fprintln(opts.Output, "No .sh files found in the prompts directory.")
 		return nil
 	}
 
-	fmt.Printf("Found %d scripts to execute\n", len(shFiles))
+	fmt.Fprintf(opts.Output, "Found %d scripts to execute\n", len(shFiles))
 
 	// Create CLI manager
-	manager := NewCLIManager(cfg)
+	manager := NewCLIManagerWithOptions(cfg, opts)
 
 	// Determine which CLIs to use
 	var cliTools []string
@@ -58,13 +73,13 @@ func ExecutePrompts(cfg *config.Config, cliCommand string) error {
 		wg.Add(1)
 		go func(name string, q chan string) {
 			defer wg.Done()
-			Worker(name, q, manager)
+			WorkerWithOptions(name, q, manager, opts)
 		}(cliName, queue)
 	}
 
 	// Start quota monitor
 	monitorQueue := make(chan string, len(shFiles))
-	go quotaMonitor(manager, monitorQueue)
+	go quotaMonitorWithOptions(manager, monitorQueue, opts)
 
 	// Distribute scripts round-robin among CLIs
 	for i, fileName := range shFiles {
@@ -93,9 +108,9 @@ func ExecutePrompts(cfg *config.Config, cliCommand string) error {
 	}
 
 	if remainingCount > 0 {
-		fmt.Printf("\n⚠️  %d scripts remain unprocessed. They may have failed or hit quota limits.\n", remainingCount)
+		fmt.Fprintf(opts.Output, "\n⚠️  %d scripts remain unprocessed. They may have failed or hit quota limits.\n", remainingCount)
 	} else {
-		fmt.Println("\nAll prompt scripts executed successfully and were deleted.")
+		fmt.Fprintln(opts.Output, "\nAll prompt scripts executed successfully and were deleted.")
 	}
 
 	return nil
@@ -103,6 +118,14 @@ func ExecutePrompts(cfg *config.Config, cliCommand string) error {
 
 // quotaMonitor monitors quota status and provides status updates
 func quotaMonitor(manager *CLIManager, scriptQueue <-chan string) {
+	quotaMonitorWithOptions(manager, scriptQueue, &ExecutorOptions{
+		Output: os.Stdout,
+		Error:  os.Stderr,
+	})
+}
+
+// quotaMonitorWithOptions monitors quota status and provides status updates with configurable output
+func quotaMonitorWithOptions(manager *CLIManager, scriptQueue <-chan string, opts *ExecutorOptions) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
 
@@ -119,9 +142,9 @@ func quotaMonitor(manager *CLIManager, scriptQueue <-chan string) {
 
 		case <-ticker.C:
 			elapsed := time.Since(startTime)
-			fmt.Printf("\n📊 Status Update:\n")
-			fmt.Printf("   Total scripts queued: %d\n", totalScripts)
-			fmt.Printf("   Time elapsed: %v\n", elapsed)
+			fmt.Fprintf(opts.Output, "\n📊 Status Update:\n")
+			fmt.Fprintf(opts.Output, "   Total scripts queued: %d\n", totalScripts)
+			fmt.Fprintf(opts.Output, "   Time elapsed: %v\n", elapsed)
 
 			for name, cli := range manager.CLIs {
 				status := "Available"
@@ -129,9 +152,9 @@ func quotaMonitor(manager *CLIManager, scriptQueue <-chan string) {
 					timeUntilAvailable := manager.Config.QuotaRetryDelay - time.Since(cli.LastQuotaError)
 					status = fmt.Sprintf("Quota limit (available in %v)", timeUntilAvailable.Round(time.Minute))
 				}
-				fmt.Printf("   %s: %s\n", name, status)
+				fmt.Fprintf(opts.Output, "   %s: %s\n", name, status)
 			}
-			fmt.Println()
+			fmt.Fprintln(opts.Output)
 		}
 	}
 }

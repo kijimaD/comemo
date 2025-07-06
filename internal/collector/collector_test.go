@@ -2,6 +2,7 @@ package collector
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -129,8 +130,11 @@ func TestCollectCommits(t *testing.T) {
 		assert.NoError(t, err, "Failed to create commit")
 	}
 
-	// Test CollectCommits
-	err = CollectCommits(cfg)
+	// Test CollectCommits with silent output
+	err = CollectCommitsWithOptions(cfg, &CollectorOptions{
+		Output: io.Discard,
+		Error:  io.Discard,
+	})
 	assert.NoError(t, err, "CollectCommits should not return error")
 
 	// Check if commit data directory was created

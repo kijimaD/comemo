@@ -1,6 +1,7 @@
 package executor
 
 import (
+	"io"
 	"time"
 )
 
@@ -25,6 +26,18 @@ type CLIState struct {
 	Available      bool
 	LastQuotaError time.Time
 	PendingScripts []string
+}
+
+// Logger interface for testable output
+type Logger interface {
+	Printf(format string, v ...interface{})
+	Println(v ...interface{})
+}
+
+// ExecutorOptions provides configuration for executor functions
+type ExecutorOptions struct {
+	Output io.Writer
+	Error  io.Writer
 }
 
 // SupportedCLIs contains all supported AI CLI tools
