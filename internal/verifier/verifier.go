@@ -32,7 +32,7 @@ func VerifyWithOptions(cfg *config.Config, opts *VerifierOptions) error {
 			Error:  os.Stderr,
 		}
 	}
-	
+
 	fmt.Fprintln(opts.Output, "--- Verification Started ---")
 
 	// 1. コミット数を取得

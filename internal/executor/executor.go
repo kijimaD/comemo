@@ -26,7 +26,7 @@ func ExecutePromptsWithOptions(cfg *config.Config, cliCommand string, opts *Exec
 			Error:  os.Stderr,
 		}
 	}
-	
+
 	fmt.Fprintln(opts.Output, "\n--- Executing Prompt Scripts ---")
 
 	files, err := os.ReadDir(cfg.PromptsDir)

@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	filePermission   = 0644
-	maxTestCommits   = 3
+	filePermission = 0644
+	maxTestCommits = 3
 )
 
 // TestVerify tests the Verify function

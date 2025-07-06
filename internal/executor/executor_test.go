@@ -162,11 +162,11 @@ func TestExecutePrompts(t *testing.T) {
 	tmpDir := t.TempDir()
 	promptsDir := filepath.Join(tmpDir, "prompts")
 	outputDir := filepath.Join(tmpDir, "output")
-	
+
 	// Create directories
 	require.NoError(t, os.MkdirAll(promptsDir, 0755))
 	require.NoError(t, os.MkdirAll(outputDir, 0755))
-	
+
 	// Create test configuration
 	cfg := &config.Config{
 		PromptsDir:       promptsDir,
@@ -176,49 +176,49 @@ func TestExecutePrompts(t *testing.T) {
 		QuotaRetryDelay:  1 * time.Minute,
 		MaxRetries:       2,
 	}
-	
+
 	t.Run("empty prompts directory", func(t *testing.T) {
 		var output, errOutput bytes.Buffer
 		opts := &ExecutorOptions{
 			Output: &output,
 			Error:  &errOutput,
 		}
-		
+
 		err := ExecutePromptsWithOptions(cfg, "claude", opts)
 		assert.NoError(t, err)
 		assert.Contains(t, output.String(), "No .sh files found in the prompts directory")
 	})
-	
+
 	t.Run("invalid CLI command validation", func(t *testing.T) {
 		var output, errOutput bytes.Buffer
 		opts := &ExecutorOptions{
 			Output: &output,
 			Error:  &errOutput,
 		}
-		
+
 		// Create test script
 		scriptPath := filepath.Join(promptsDir, "test.sh")
 		scriptContent := `#!/bin/bash
 echo "Test output"
 `
 		require.NoError(t, os.WriteFile(scriptPath, []byte(scriptContent), 0755))
-		
+
 		// ExecutePrompts will run but worker will find CLI unavailable
 		err := ExecutePromptsWithOptions(cfg, "invalid-cli", opts)
 		assert.NoError(t, err) // Function completes without error even with invalid CLI
 		assert.Contains(t, output.String(), "Found 1 scripts to execute")
-		
+
 		// Clean up
 		os.Remove(scriptPath)
 	})
-	
+
 	t.Run("successful execution with mock", func(t *testing.T) {
 		var output, errOutput bytes.Buffer
 		opts := &ExecutorOptions{
 			Output: &output,
 			Error:  &errOutput,
 		}
-		
+
 		// Create test script that doesn't depend on external CLI
 		scriptPath := filepath.Join(promptsDir, "test-mock.sh")
 		scriptContent := `#!/bin/bash
@@ -241,12 +241,12 @@ echo "More technical details to satisfy the content validation requirements."
 echo "Final technical details to complete the comprehensive test content."
 `
 		require.NoError(t, os.WriteFile(scriptPath, []byte(scriptContent), 0755))
-		
+
 		// Execute with 'all' option
 		err := ExecutePromptsWithOptions(cfg, "all", opts)
 		assert.NoError(t, err)
 		assert.Contains(t, output.String(), "Found 1 scripts to execute")
-		
+
 		// Note: The script might not be deleted because it doesn't use real CLI
 		// But we can check that the function completes without error
 	})
@@ -258,11 +258,11 @@ func TestWorker(t *testing.T) {
 	tmpDir := t.TempDir()
 	promptsDir := filepath.Join(tmpDir, "prompts")
 	outputDir := filepath.Join(tmpDir, "output")
-	
+
 	// Create directories
 	require.NoError(t, os.MkdirAll(promptsDir, 0755))
 	require.NoError(t, os.MkdirAll(outputDir, 0755))
-	
+
 	// Create test configuration
 	cfg := &config.Config{
 		PromptsDir:       promptsDir,
@@ -272,39 +272,39 @@ func TestWorker(t *testing.T) {
 		QuotaRetryDelay:  1 * time.Minute,
 		MaxRetries:       2,
 	}
-	
+
 	var output, errOutput bytes.Buffer
 	opts := &ExecutorOptions{
 		Output: &output,
 		Error:  &errOutput,
 	}
 	manager := NewCLIManagerWithOptions(cfg, opts)
-	
+
 	t.Run("worker with empty queue", func(t *testing.T) {
 		scriptQueue := make(chan string)
 		close(scriptQueue)
-		
+
 		// This should exit immediately
 		WorkerWithOptions("claude", scriptQueue, manager, opts)
 		// Test passes if Worker doesn't hang
 	})
-	
+
 	t.Run("worker with unavailable CLI", func(t *testing.T) {
 		scriptQueue := make(chan string, 1)
-		
+
 		// Mark CLI as unavailable
 		manager.MarkUnavailable("claude")
-		
+
 		// Add a script to the queue
 		scriptQueue <- "test.sh"
 		close(scriptQueue)
-		
+
 		// Worker should handle unavailable CLI gracefully
 		WorkerWithOptions("claude", scriptQueue, manager, opts)
-		
+
 		// Test passes if Worker doesn't hang
 	})
-	
+
 	t.Run("worker with simple successful script", func(t *testing.T) {
 		// Create test script
 		scriptPath := filepath.Join(promptsDir, "worker-test.sh")
@@ -327,33 +327,33 @@ echo "More comprehensive technical details to satisfy all the content validation
 echo "Final comprehensive technical details to complete the thorough test content validation."
 `
 		require.NoError(t, os.WriteFile(scriptPath, []byte(scriptContent), 0755))
-		
+
 		scriptQueue := make(chan string, 1)
 		scriptQueue <- "worker-test.sh"
 		close(scriptQueue)
-		
+
 		// Make sure CLI is available
 		if !manager.IsAvailable("claude") {
 			// Reset CLI availability for testing
 			manager.CLIs["claude"].Available = true
 			manager.CLIs["claude"].LastQuotaError = time.Time{}
 		}
-		
+
 		// Run worker
 		WorkerWithOptions("claude", scriptQueue, manager, opts)
-		
+
 		// Test passes if Worker completes without hanging
 		// The script processing success depends on external CLI availability
 	})
-	
+
 	t.Run("worker with nonexistent CLI", func(t *testing.T) {
 		scriptQueue := make(chan string, 1)
 		scriptQueue <- "test.sh"
 		close(scriptQueue)
-		
+
 		// Worker should handle nonexistent CLI gracefully
 		WorkerWithOptions("nonexistent-cli", scriptQueue, manager, opts)
-		
+
 		// Test passes if Worker doesn't crash
 	})
 }
@@ -372,11 +372,11 @@ func TestExecutePromptsWithSilentOutput(t *testing.T) {
 	tmpDir := t.TempDir()
 	promptsDir := filepath.Join(tmpDir, "prompts")
 	outputDir := filepath.Join(tmpDir, "output")
-	
+
 	// Create directories
 	require.NoError(t, os.MkdirAll(promptsDir, 0755))
 	require.NoError(t, os.MkdirAll(outputDir, 0755))
-	
+
 	// Create test configuration
 	cfg := &config.Config{
 		PromptsDir:       promptsDir,
@@ -386,7 +386,7 @@ func TestExecutePromptsWithSilentOutput(t *testing.T) {
 		QuotaRetryDelay:  1 * time.Minute,
 		MaxRetries:       1,
 	}
-	
+
 	// Test with silent output
 	err := ExecutePromptsWithOptions(cfg, "claude", silentExecutorOptions())
 	assert.NoError(t, err)

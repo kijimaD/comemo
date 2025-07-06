@@ -96,22 +96,22 @@ func CreateApp() *cli.Command {
 				Usage:   "Execute prompt scripts to generate explanations",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:    "cli",
-						Usage:   "AI CLI command to use (claude, gemini, all)",
-						Value:   "claude",
+						Name:  "cli",
+						Usage: "AI CLI command to use (claude, gemini, all)",
+						Value: "claude",
 					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					updateConfig(cfg, cmd)
 					cliCommand := cmd.String("cli")
-					
+
 					if cliCommand != "all" {
 						_, exists := executor.SupportedCLIs[cliCommand]
 						if !exists {
 							return fmt.Errorf("unsupported CLI command '%s'. Supported: claude, gemini, all", cliCommand)
 						}
 					}
-					
+
 					return executor.ExecutePrompts(cfg, cliCommand)
 				},
 			},
@@ -130,26 +130,26 @@ func CreateApp() *cli.Command {
 				Usage:   "Run all steps: collect, generate, and execute",
 				Flags: []cli.Flag{
 					&cli.StringFlag{
-						Name:    "cli",
-						Usage:   "AI CLI command to use (claude, gemini, all)",
-						Value:   "claude",
+						Name:  "cli",
+						Usage: "AI CLI command to use (claude, gemini, all)",
+						Value: "claude",
 					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					updateConfig(cfg, cmd)
-					
+
 					fmt.Printf("🎯 Running all steps...\n\n")
-					
+
 					fmt.Printf("📦 Step 1/3: Collecting commits...\n")
 					if err := collector.CollectCommits(cfg); err != nil {
 						return fmt.Errorf("collect failed: %w", err)
 					}
-					
+
 					fmt.Printf("\n📝 Step 2/3: Generating prompts...\n")
 					if err := generator.GeneratePrompts(cfg); err != nil {
 						return fmt.Errorf("generate failed: %w", err)
 					}
-					
+
 					fmt.Printf("\n🚀 Step 3/3: Executing scripts...\n")
 					cliCommand := cmd.String("cli")
 					if cliCommand != "all" {
@@ -158,11 +158,11 @@ func CreateApp() *cli.Command {
 							return fmt.Errorf("unsupported CLI command '%s'. Supported: claude, gemini, all", cliCommand)
 						}
 					}
-					
+
 					if err := executor.ExecutePrompts(cfg, cliCommand); err != nil {
 						return fmt.Errorf("execute failed: %w", err)
 					}
-					
+
 					fmt.Printf("\n✅ All steps completed successfully!\n")
 					return nil
 				},
@@ -173,40 +173,40 @@ func CreateApp() *cli.Command {
 				Usage:   "Show current status and statistics",
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					updateConfig(cfg, cmd)
-					
+
 					fmt.Printf("📊 Comemo Status\n")
 					fmt.Printf("================\n\n")
-					
+
 					allHashes, err := git.GetCommitHashes(cfg.GoRepoPath)
 					if err != nil {
 						return fmt.Errorf("error getting commit hashes: %w", err)
 					}
 					commitCount := len(allHashes)
-					
+
 					commitDataFiles, _ := filepath.Glob(filepath.Join(cfg.CommitDataDir, "*.txt"))
 					scriptFiles, _ := filepath.Glob(filepath.Join(cfg.PromptsDir, "*.sh"))
 					outputFiles, _ := filepath.Glob(filepath.Join(cfg.OutputDir, "*.md"))
-					
+
 					outputCount := 0
 					for _, f := range outputFiles {
 						if filepath.Base(f) != "SUMMARY.md" {
 							outputCount++
 						}
 					}
-					
+
 					fmt.Printf("📊 Repository commits:    %d\n", commitCount)
 					fmt.Printf("📦 Collected data files:  %d\n", len(commitDataFiles))
 					fmt.Printf("📝 Generated scripts:     %d\n", len(scriptFiles))
 					fmt.Printf("✅ Completed outputs:     %d\n", outputCount)
-					
+
 					if commitCount > 0 {
 						collectProgress := float64(len(commitDataFiles)) / float64(commitCount) * 100
 						generateProgress := float64(outputCount) / float64(commitCount) * 100
-						
+
 						fmt.Printf("\n📈 Progress:\n")
 						fmt.Printf("   Data collection:      %.1f%%\n", collectProgress)
 						fmt.Printf("   Output generation:    %.1f%%\n", generateProgress)
-						
+
 						remaining := commitCount - outputCount
 						if remaining > 0 {
 							fmt.Printf("\n⏳ Remaining: %d commits to process\n", remaining)
@@ -214,7 +214,7 @@ func CreateApp() *cli.Command {
 							fmt.Printf("\n🎉 All commits have been processed!\n")
 						}
 					}
-					
+
 					return nil
 				},
 			},

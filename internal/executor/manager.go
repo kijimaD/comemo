@@ -36,7 +36,7 @@ func NewCLIManagerWithOptions(cfg *config.Config, opts *ExecutorOptions) *CLIMan
 			Error:  os.Stderr,
 		}
 	}
-	
+
 	manager := &CLIManager{
 		CLIs:       make(map[string]*CLIState),
 		Config:     cfg,

@@ -35,7 +35,7 @@ func WorkerWithOptions(cliName string, scriptQueue <-chan string, manager *CLIMa
 			if !manager.IsAvailable(cliName) {
 				if !pendingScripts[fileName] {
 					pendingScripts[fileName] = true
-					
+
 					now := time.Now()
 					if now.Sub(lastUnavailableLogTime) > unavailableLogInterval {
 						fmt.Fprintf(opts.Output, "CLI %s is not available, queuing %d scripts for retry\n", cliName, len(pendingScripts))
@@ -109,11 +109,11 @@ func processScriptWithRetry(fileName string, cli CLICommand, cliName string, man
 // processScriptWithRetryWithOptions wraps processScript and returns success status with configurable output
 func processScriptWithRetryWithOptions(fileName string, cli CLICommand, cliName string, manager *CLIManager, opts *ExecutorOptions) bool {
 	originalAvailable := manager.IsAvailable(cliName)
-	
+
 	scriptPath := filepath.Join(manager.Config.PromptsDir, fileName)
 	baseName := strings.TrimSuffix(fileName, ".sh")
 	outputPath := filepath.Join(manager.Config.OutputDir, baseName+".md")
-	
+
 	scriptExistsBefore := true
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		scriptExistsBefore = false
