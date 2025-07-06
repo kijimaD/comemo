@@ -1,10 +1,13 @@
 package executor
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"comemo/internal/config"
 )
@@ -149,4 +152,183 @@ func TestSupportedCLIs(t *testing.T) {
 	gemini := SupportedCLIs["gemini"]
 	assert.Equal(t, "gemini", gemini.Name)
 	assert.Contains(t, gemini.Command, "gemini")
+}
+
+// TestExecutePrompts tests the ExecutePrompts function
+func TestExecutePrompts(t *testing.T) {
+	// Create temporary directories for testing
+	tmpDir := t.TempDir()
+	promptsDir := filepath.Join(tmpDir, "prompts")
+	outputDir := filepath.Join(tmpDir, "output")
+	
+	// Create directories
+	require.NoError(t, os.MkdirAll(promptsDir, 0755))
+	require.NoError(t, os.MkdirAll(outputDir, 0755))
+	
+	// Create test configuration
+	cfg := &config.Config{
+		PromptsDir:       promptsDir,
+		OutputDir:        outputDir,
+		MaxConcurrency:   2,
+		ExecutionTimeout: 30 * time.Second,
+		QuotaRetryDelay:  1 * time.Minute,
+		MaxRetries:       2,
+	}
+	
+	t.Run("empty prompts directory", func(t *testing.T) {
+		err := ExecutePrompts(cfg, "claude")
+		assert.NoError(t, err)
+	})
+	
+	t.Run("invalid CLI command validation", func(t *testing.T) {
+		// Test with invalid CLI - this should be handled at CLI validation level
+		// ExecutePrompts itself doesn't validate CLI commands, so we test the specific error case
+		
+		// Create test script
+		scriptPath := filepath.Join(promptsDir, "test.sh")
+		scriptContent := `#!/bin/bash
+echo "Test output"
+`
+		require.NoError(t, os.WriteFile(scriptPath, []byte(scriptContent), 0755))
+		
+		// ExecutePrompts will run but worker will find CLI unavailable
+		err := ExecutePrompts(cfg, "invalid-cli")
+		assert.NoError(t, err) // Function completes without error even with invalid CLI
+		
+		// Clean up
+		os.Remove(scriptPath)
+	})
+	
+	t.Run("successful execution with mock", func(t *testing.T) {
+		// Create test script that doesn't depend on external CLI
+		scriptPath := filepath.Join(promptsDir, "test-mock.sh")
+		scriptContent := `#!/bin/bash
+# Mock script for testing
+echo "🚀 Generating explanation for commit abc123"
+echo ""
+echo "## コアとなるコードの解説"
+echo "This is a test explanation with sufficient content to pass the length check."
+echo "This content should be long enough to satisfy the 1000 character minimum requirement."
+echo "Additional content to ensure we meet the minimum length requirement for testing purposes."
+echo "More content to make sure this passes the validation checks in the processing logic."
+echo "Even more content to ensure comprehensive testing of the output validation functionality."
+echo "Additional explanatory text to provide thorough coverage of the validation requirements."
+echo "Final additional content to ensure we definitely exceed the 1000 character threshold."
+echo ""
+echo "## 技術的詳細"
+echo "Technical details section for comprehensive testing of the validation logic."
+echo "This section provides additional content to ensure proper test coverage."
+echo "More technical details to satisfy the content validation requirements."
+echo "Final technical details to complete the comprehensive test content."
+`
+		require.NoError(t, os.WriteFile(scriptPath, []byte(scriptContent), 0755))
+		
+		// Execute with 'all' option
+		err := ExecutePrompts(cfg, "all")
+		assert.NoError(t, err)
+		
+		// Note: The script might not be deleted because it doesn't use real CLI
+		// But we can check that the function completes without error
+	})
+}
+
+// TestWorker tests the Worker function
+func TestWorker(t *testing.T) {
+	// Create temporary directories for testing
+	tmpDir := t.TempDir()
+	promptsDir := filepath.Join(tmpDir, "prompts")
+	outputDir := filepath.Join(tmpDir, "output")
+	
+	// Create directories
+	require.NoError(t, os.MkdirAll(promptsDir, 0755))
+	require.NoError(t, os.MkdirAll(outputDir, 0755))
+	
+	// Create test configuration
+	cfg := &config.Config{
+		PromptsDir:       promptsDir,
+		OutputDir:        outputDir,
+		MaxConcurrency:   2,
+		ExecutionTimeout: 5 * time.Second,
+		QuotaRetryDelay:  1 * time.Minute,
+		MaxRetries:       2,
+	}
+	
+	manager := NewCLIManager(cfg)
+	
+	t.Run("worker with empty queue", func(t *testing.T) {
+		scriptQueue := make(chan string)
+		close(scriptQueue)
+		
+		// This should exit immediately
+		Worker("claude", scriptQueue, manager)
+		// Test passes if Worker doesn't hang
+	})
+	
+	t.Run("worker with unavailable CLI", func(t *testing.T) {
+		scriptQueue := make(chan string, 1)
+		
+		// Mark CLI as unavailable
+		manager.MarkUnavailable("claude")
+		
+		// Add a script to the queue
+		scriptQueue <- "test.sh"
+		close(scriptQueue)
+		
+		// Worker should handle unavailable CLI gracefully
+		Worker("claude", scriptQueue, manager)
+		
+		// Test passes if Worker doesn't hang
+	})
+	
+	t.Run("worker with simple successful script", func(t *testing.T) {
+		// Create test script
+		scriptPath := filepath.Join(promptsDir, "worker-test.sh")
+		scriptContent := `#!/bin/bash
+echo "🚀 Generating explanation for commit abc123"
+echo ""
+echo "## コアとなるコードの解説"
+echo "This is a comprehensive test explanation with sufficient content to pass all validation checks."
+echo "This content is specifically designed to satisfy the 1000 character minimum requirement."
+echo "Additional detailed content to ensure we meet the minimum length requirement for testing purposes."
+echo "More comprehensive content to make sure this passes all the validation checks in the processing logic."
+echo "Even more detailed content to ensure comprehensive testing of the output validation functionality."
+echo "Additional explanatory text to provide thorough coverage of all the validation requirements."
+echo "Final additional comprehensive content to ensure we definitely exceed the 1000 character threshold."
+echo ""
+echo "## 技術的詳細"
+echo "Technical details section for comprehensive testing of the validation logic and processing."
+echo "This section provides additional detailed content to ensure proper test coverage of all functionality."
+echo "More comprehensive technical details to satisfy all the content validation requirements completely."
+echo "Final comprehensive technical details to complete the thorough test content validation."
+`
+		require.NoError(t, os.WriteFile(scriptPath, []byte(scriptContent), 0755))
+		
+		scriptQueue := make(chan string, 1)
+		scriptQueue <- "worker-test.sh"
+		close(scriptQueue)
+		
+		// Make sure CLI is available
+		if !manager.IsAvailable("claude") {
+			// Reset CLI availability for testing
+			manager.CLIs["claude"].Available = true
+			manager.CLIs["claude"].LastQuotaError = time.Time{}
+		}
+		
+		// Run worker
+		Worker("claude", scriptQueue, manager)
+		
+		// Test passes if Worker completes without hanging
+		// The script processing success depends on external CLI availability
+	})
+	
+	t.Run("worker with nonexistent CLI", func(t *testing.T) {
+		scriptQueue := make(chan string, 1)
+		scriptQueue <- "test.sh"
+		close(scriptQueue)
+		
+		// Worker should handle nonexistent CLI gracefully
+		Worker("nonexistent-cli", scriptQueue, manager)
+		
+		// Test passes if Worker doesn't crash
+	})
 }

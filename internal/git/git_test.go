@@ -139,3 +139,99 @@ func TestGetCommitHashes(t *testing.T) {
 	_, err = GetCommitHashes("/non/existent/path")
 	assert.Error(t, err, "Non-existent repository should return error")
 }
+
+// TestGetCommitData tests the GetCommitData function
+func TestGetCommitData(t *testing.T) {
+	// Create temporary git repository
+	tempDir := t.TempDir()
+
+	// Initialize git repository
+	_, err := RunCommand(tempDir, "init")
+	if err != nil {
+		t.Skip("Git not available or failed to initialize repository")
+	}
+
+	// Configure git user
+	_, err = RunCommand(tempDir, "config", "user.name", "Test User")
+	if err != nil {
+		t.Skip("Failed to configure git user.name")
+	}
+	_, err = RunCommand(tempDir, "config", "user.email", "test@example.com")
+	if err != nil {
+		t.Skip("Failed to configure git user.email")
+	}
+
+	// Create test file and commit
+	testFile := filepath.Join(tempDir, "test.txt")
+	err = os.WriteFile(testFile, []byte("initial content"), filePermission)
+	assert.NoError(t, err, "Failed to create test file")
+
+	_, err = RunCommand(tempDir, "add", "test.txt")
+	if err != nil {
+		t.Skip("Failed to add file to git")
+	}
+
+	_, err = RunCommand(tempDir, "commit", "-m", "Initial commit")
+	if err != nil {
+		t.Skip("Failed to create commit")
+	}
+
+	// Get commit hash
+	hashes, err := GetCommitHashes(tempDir)
+	if err != nil {
+		t.Skip("Failed to get commit hashes")
+	}
+	if len(hashes) == 0 {
+		t.Skip("No commits found")
+	}
+
+	commitHash := hashes[0]
+
+	// Test GetCommitData with valid hash
+	commitData, err := GetCommitData(tempDir, commitHash)
+	assert.NoError(t, err, "GetCommitData should not return error for valid hash")
+	assert.NotEmpty(t, commitData, "Commit data should not be empty")
+
+	// Verify commit data contains expected information
+	assert.Contains(t, commitData, "Initial commit", "Commit data should contain commit message")
+	assert.Contains(t, commitData, "test.txt", "Commit data should contain file name")
+
+	// Test GetCommitData with invalid hash
+	_, err = GetCommitData(tempDir, "invalid-hash")
+	assert.Error(t, err, "GetCommitData should return error for invalid hash")
+
+	// Test GetCommitData with non-existent repository
+	_, err = GetCommitData("/non/existent/path", commitHash)
+	assert.Error(t, err, "GetCommitData should return error for non-existent repository")
+
+	// Create second commit to test patch output
+	err = os.WriteFile(testFile, []byte("modified content"), filePermission)
+	assert.NoError(t, err, "Failed to modify test file")
+
+	_, err = RunCommand(tempDir, "add", "test.txt")
+	if err != nil {
+		t.Skip("Failed to add modified file to git")
+	}
+
+	_, err = RunCommand(tempDir, "commit", "-m", "Second commit")
+	if err != nil {
+		t.Skip("Failed to create second commit")
+	}
+
+	// Get updated commit hashes
+	hashes, err = GetCommitHashes(tempDir)
+	if err != nil {
+		t.Skip("Failed to get updated commit hashes")
+	}
+	if len(hashes) < 2 {
+		t.Skip("Not enough commits found")
+	}
+
+	// Test commit data for second commit (should contain diff)
+	secondCommitHash := hashes[1]
+	commitData, err = GetCommitData(tempDir, secondCommitHash)
+	assert.NoError(t, err, "GetCommitData should not return error for second commit")
+	assert.Contains(t, commitData, "Second commit", "Commit data should contain second commit message")
+	assert.Contains(t, commitData, "modified content", "Commit data should contain new content")
+	assert.Contains(t, commitData, "initial content", "Commit data should contain old content in diff")
+}

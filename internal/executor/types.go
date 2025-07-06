@@ -1,6 +1,8 @@
 package executor
 
-import "time"
+import (
+	"time"
+)
 
 // CLICommand represents supported AI CLI commands
 type CLICommand struct {
