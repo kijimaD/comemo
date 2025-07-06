@@ -26,6 +26,7 @@ type CLIState struct {
 	Command        CLICommand
 	Available      bool
 	LastQuotaError time.Time
+	RecoveryDelay  time.Duration // Individual recovery delay for this CLI
 	PendingScripts []string
 }
 
@@ -44,6 +45,8 @@ const (
 	ErrorTypeTimeout
 	// ErrorTypeCritical indicates a critical error that should stop execution
 	ErrorTypeCritical
+	// ErrorTypeQuality indicates a quality test error that can be retried with short delay
+	ErrorTypeQuality
 	// ErrorTypeRetryable indicates an error that can be retried
 	ErrorTypeRetryable
 )
@@ -57,6 +60,8 @@ func (e ErrorType) String() string {
 		return "timeout"
 	case ErrorTypeCritical:
 		return "critical"
+	case ErrorTypeQuality:
+		return "quality"
 	case ErrorTypeRetryable:
 		return "retryable"
 	default:

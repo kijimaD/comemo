@@ -51,6 +51,7 @@ func NewCLIManagerWithOptions(cfg *config.Config, opts *ExecutorOptions) *CLIMan
 			Command:        cmd,
 			Available:      true,
 			LastQuotaError: time.Time{},
+			RecoveryDelay:  0, // Default to config delay
 			PendingScripts: []string{},
 		}
 	}
@@ -68,12 +69,19 @@ func (m *CLIManager) IsAvailable(cliName string) bool {
 		return false
 	}
 
-	// If not available, check if quota retry delay has passed
-	if !cli.Available && time.Since(cli.LastQuotaError) > m.Config.QuotaRetryDelay {
+	// If not available, check if recovery delay has passed
+	recoveryDelay := cli.RecoveryDelay
+	if recoveryDelay == 0 {
+		// Use default if no individual delay is set
+		recoveryDelay = m.Config.QuotaRetryDelay
+	}
+
+	if !cli.Available && time.Since(cli.LastQuotaError) > recoveryDelay {
 		m.mu.RUnlock()
 		m.mu.Lock()
 		cli.Available = true
 		cli.LastQuotaError = time.Time{}
+		cli.RecoveryDelay = 0 // Reset recovery delay
 		m.mu.Unlock()
 		m.mu.RLock()
 		return true
@@ -90,6 +98,18 @@ func (m *CLIManager) MarkUnavailable(cliName string) {
 	if cli, exists := m.CLIs[cliName]; exists {
 		cli.Available = false
 		cli.LastQuotaError = time.Now()
+	}
+}
+
+// MarkUnavailableForDuration marks a CLI as unavailable for a specific duration
+func (m *CLIManager) MarkUnavailableForDuration(cliName string, duration time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if cli, exists := m.CLIs[cliName]; exists {
+		cli.Available = false
+		cli.LastQuotaError = time.Now()
+		cli.RecoveryDelay = duration // Set individual recovery delay
 	}
 }
 
@@ -122,6 +142,27 @@ func ClassifyError(err error, output string) ErrorType {
 	// Check for quota errors first
 	if IsQuotaError(output) {
 		return ErrorTypeQuota
+	}
+
+	// Check for quality test errors
+	qualityErrorPatterns := []string{
+		"test failed",
+		"assertion failed",
+		"quality check failed",
+		"quality test failed",
+		"validation failed",
+		"lint error",
+		"format error",
+		"style check failed",
+		"syntax error",
+		"compilation failed",
+		"build failed",
+	}
+
+	for _, pattern := range qualityErrorPatterns {
+		if strings.Contains(outputLower, pattern) || strings.Contains(errorMessage, pattern) {
+			return ErrorTypeQuality
+		}
 	}
 
 	// Check for timeout

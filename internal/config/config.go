@@ -20,6 +20,19 @@ type Config struct {
 	MaxRetries       int
 	RetryDelay       time.Duration
 	LogLevel         logger.LogLevel
+	// キュー関連設定
+	QueueCapacityPerCLI int // 各CLIのキュー容量
+	WorkerChannelSize   int // ワーカーチャネルサイズ
+	ResultChannelSize   int // 結果チャネルサイズ
+	// リトライ待機時間設定
+	RetryDelays RetryDelayConfig // エラータイプ別のリトライ待機時間
+}
+
+// RetryDelayConfig holds retry delay settings for different error types
+type RetryDelayConfig struct {
+	QuotaError   time.Duration // quota error時の待機時間
+	QualityError time.Duration // 品質テストエラー時の待機時間
+	OtherError   time.Duration // その他のエラー時の待機時間
 }
 
 // DefaultConfig returns the default configuration
@@ -29,12 +42,22 @@ func DefaultConfig() *Config {
 		PromptsDir:       "prompts",
 		OutputDir:        "src",
 		CommitDataDir:    "commit_data",
-		MaxConcurrency:   20,
+		MaxConcurrency:   1,
 		ExecutionTimeout: 10 * time.Minute,
 		QuotaRetryDelay:  1 * time.Hour,
 		MaxRetries:       3,
 		RetryDelay:       5 * time.Minute,
 		LogLevel:         logger.INFO,
+		// キュー設定のデフォルト値
+		QueueCapacityPerCLI: 1,   // 各CLIに1つまでキュー可能
+		WorkerChannelSize:   1,   // ワーカーチャネルサイズ
+		ResultChannelSize:   100, // 結果チャネルサイズ
+		// リトライ待機時間のデフォルト値
+		RetryDelays: RetryDelayConfig{
+			QuotaError:   1 * time.Hour,    // quota error - 1時間待機
+			QualityError: 10 * time.Second, // 品質テストエラー - 10秒待機
+			OtherError:   5 * time.Minute,  // その他のエラー - 5分待機
+		},
 	}
 }
 

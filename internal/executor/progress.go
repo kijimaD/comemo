@@ -5,15 +5,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"os/signal"
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"comemo/internal/config"
-	"comemo/internal/logger"
 )
 
 // ProgressDisplay handles real-time progress display using carriage return
@@ -215,8 +212,8 @@ func buildWorkerStatusLine(name string, worker *WorkerStatus) string {
 		}
 	}
 
-	// Processed count
-	parts = append(parts, fmt.Sprintf("(Processed: %d)", worker.ProcessedCount))
+	// Processed count and processing count
+	parts = append(parts, fmt.Sprintf("(Processed: %d, Processing: %d)", worker.ProcessedCount, worker.ProcessingCount))
 
 	// Last activity
 	if !worker.LastActivity.IsZero() {
@@ -268,126 +265,8 @@ func (pd *ProgressDisplay) clearPreviousDisplay(lineCount int) {
 
 // ExecutePromptsWithProgress executes prompts with carriage return progress display
 func ExecutePromptsWithProgress(cfg *config.Config, cliCommand string) error {
-	// Create status manager
-	statusManager := NewStatusManager()
-	statusManager.Start()
-	defer statusManager.Stop()
-
-	// Set up signal handling for graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
-
-	go func() {
-		<-signalChan
-		fmt.Println("\n🛑 Interrupt received, shutting down gracefully...")
-		cancel()
-	}()
-
-	// Check if we're in a terminal (if not, fall back to normal execution)
-	if !isTerminalSupported() {
-		opts := &ExecutorOptions{
-			Logger: logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
-		}
-		return ExecutePromptsWithOptions(cfg, cliCommand, opts)
-	}
-
-	// Get scripts to process
-	files, err := os.ReadDir(cfg.PromptsDir)
-	if err != nil {
-		return fmt.Errorf("error reading prompts directory: %w", err)
-	}
-
-	var shFiles []string
-	for _, file := range files {
-		if !file.IsDir() && strings.HasSuffix(file.Name(), ".sh") {
-			shFiles = append(shFiles, file.Name())
-		}
-	}
-
-	if len(shFiles) == 0 {
-		fmt.Println("No .sh files found in prompts directory")
-		return nil
-	}
-
-	// Initialize status
-	statusManager.SetTotalScripts(len(shFiles))
-
-	// Determine which CLIs to use
-	var cliTools []string
-	if cliCommand == "all" {
-		for name := range SupportedCLIs {
-			cliTools = append(cliTools, name)
-		}
-	} else {
-		cliTools = []string{cliCommand}
-	}
-
-	// Initialize workers in status manager
-	for _, cliName := range cliTools {
-		statusManager.InitializeWorker(cliName)
-	}
-
-	// Create and start progress display
-	progressDisplay := NewProgressDisplay(statusManager)
-	progressDisplay.Start()
-	defer progressDisplay.Stop()
-
-	// Print initial header
-	fmt.Printf("🚀 Comemo Execution Started\n")
-	fmt.Printf("├── Scripts: %d files\n", len(shFiles))
-	fmt.Printf("├── CLI: %s\n", cliCommand)
-	fmt.Printf("└── Workers: %s\n", strings.Join(cliTools, ", "))
-	fmt.Println()
-
-	// Execute with enhanced logging
-	opts := &ExecutorOptions{
-		Logger: logger.Silent(), // Use silent logger since progress display handles output
-	}
-
-	err = executePromptsWithStatusManagerAndProgress(ctx, cfg, cliCommand, opts, statusManager, shFiles)
-
-	// Final status summary
-	status := statusManager.GetStatus()
-	fmt.Printf("\n🏁 Execution Summary\n")
-	fmt.Printf("├── ✅ Completed: %d scripts\n", status.Queue.Completed)
-	if status.Queue.Failed > 0 {
-		fmt.Printf("├── ❌ Failed: %d scripts\n", status.Queue.Failed)
-	}
-	if status.Queue.Retrying > 0 {
-		fmt.Printf("├── 🔄 Retrying: %d scripts\n", status.Queue.Retrying)
-	}
-
-	elapsed := status.Performance.ElapsedTime.Round(time.Second)
-	fmt.Printf("├── ⏱️ Total time: %v\n", elapsed)
-
-	if status.Performance.ScriptsPerMinute > 0 {
-		fmt.Printf("├── ⚡ Average speed: %.1f scripts/min\n", status.Performance.ScriptsPerMinute)
-	}
-
-	// Worker summary
-	fmt.Printf("└── 🤖 Workers:\n")
-	for _, name := range []string{"claude", "gemini"} {
-		if worker, exists := status.Workers[name]; exists {
-			fmt.Printf("    ├── %s: %d scripts processed\n", name, worker.ProcessedCount)
-		}
-	}
-
-	if err != nil && err != context.Canceled {
-		// For critical errors, we don't need to display additional messages
-		// since they were already displayed when the error occurred
-		if execErr, ok := err.(*ExecutionError); ok && execErr.Type == ErrorTypeCritical {
-			// Critical error details were already displayed, just return the error
-			return fmt.Errorf("実行が重要なエラーにより停止されました")
-		} else {
-			fmt.Printf("\n⚠️ Error: %v\n", err)
-			return err
-		}
-	}
-
-	return nil
+	// Use the new scheduler-based implementation with progress
+	return ExecutePromptsWithProgressScheduler(cfg, cliCommand)
 }
 
 // executePromptsWithStatusManagerAndProgress executes prompts with progress tracking

@@ -15,7 +15,7 @@ func TestDefaultConfig(t *testing.T) {
 	assert.Equal(t, "prompts", cfg.PromptsDir)
 	assert.Equal(t, "src", cfg.OutputDir)
 	assert.Equal(t, "commit_data", cfg.CommitDataDir)
-	assert.Equal(t, 20, cfg.MaxConcurrency)
+	assert.Equal(t, 1, cfg.MaxConcurrency)
 	assert.Equal(t, 10*time.Minute, cfg.ExecutionTimeout)
 	assert.Equal(t, 1*time.Hour, cfg.QuotaRetryDelay)
 	assert.Equal(t, 3, cfg.MaxRetries)

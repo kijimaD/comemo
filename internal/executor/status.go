@@ -21,6 +21,7 @@ type WorkerStatus struct {
 	QuotaRecoveryTime time.Duration `json:"quota_recovery_time"`
 	CurrentScript     string        `json:"current_script"`
 	ProcessedCount    int           `json:"processed_count"`
+	ProcessingCount   int           `json:"processing_count"`   // Current processing count
 	LastActivity      time.Time     `json:"last_activity"`
 	LastFailureReason string        `json:"last_failure_reason"`
 }
@@ -113,6 +114,7 @@ func (sm *StatusManager) GetStatus() *ExecutionStatus {
 			QuotaRecoveryTime: worker.QuotaRecoveryTime,
 			CurrentScript:     worker.CurrentScript,
 			ProcessedCount:    worker.ProcessedCount,
+			ProcessingCount:   worker.ProcessingCount,
 			LastActivity:      worker.LastActivity,
 			LastFailureReason: worker.LastFailureReason,
 		}
@@ -167,6 +169,7 @@ func (sm *StatusManager) RecordScriptStart(scriptName, workerName string) {
 
 	if worker, exists := sm.status.Workers[workerName]; exists {
 		worker.CurrentScript = scriptName
+		worker.ProcessingCount++
 		worker.LastActivity = time.Now()
 	}
 }
@@ -200,6 +203,7 @@ func (sm *StatusManager) RecordScriptComplete(scriptName, workerName string, suc
 	if worker, exists := sm.status.Workers[workerName]; exists {
 		worker.CurrentScript = ""
 		worker.ProcessedCount++
+		worker.ProcessingCount--
 		worker.LastActivity = time.Now()
 
 		// Update worker's last failure reason
@@ -222,16 +226,22 @@ func (sm *StatusManager) SetTotalScripts(total int) {
 	sm.status.Performance.TotalScripts = total
 }
 
-// AddRetryScript adds a script to the retry queue
+// AddRetryScript adds a script to the retry queue (prevents duplicates)
 func (sm *StatusManager) AddRetryScript(scriptName string) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
+	// Check if already in retry queue
+	for _, existingName := range sm.status.Errors.RetryQueue {
+		if existingName == scriptName {
+			return // Already in retry queue, don't add again
+		}
+	}
+
 	sm.status.Errors.RetryQueue = append(sm.status.Errors.RetryQueue, scriptName)
 	sm.status.Queue.Retrying++
-	if sm.status.Queue.Failed > 0 {
-		sm.status.Queue.Failed--
-	}
+	// Remove the logic that decrements failed count
+	// The failed count should only be managed by RecordScriptComplete
 }
 
 // RemoveRetryScript removes a script from the retry queue
@@ -247,6 +257,28 @@ func (sm *StatusManager) RemoveRetryScript(scriptName string) {
 			break
 		}
 	}
+}
+
+// RecordQuotaError records a quota error without marking script as failed
+func (sm *StatusManager) RecordQuotaError(scriptName, workerName string, duration time.Duration) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	// Decrease processing count
+	sm.status.Queue.Processing--
+	// Script goes back to waiting (in CLI queue)
+	sm.status.Queue.Waiting++
+
+	// Update worker status but don't increment failed count
+	if worker, exists := sm.status.Workers[workerName]; exists {
+		worker.CurrentScript = ""
+		worker.ProcessingCount--
+		worker.LastActivity = time.Now()
+		worker.LastFailureReason = "Quota limit reached - waiting for recovery"
+	}
+
+	// Update performance metrics
+	sm.updatePerformanceMetrics()
 }
 
 // updatePerformanceMetrics calculates performance metrics (must be called with lock held)
@@ -302,4 +334,30 @@ func (sm *StatusManager) Stop() {
 	sm.updating = false
 	sm.ticker.Stop()
 	close(sm.done)
+}
+
+// RecordRetryError records a non-quota retryable error without marking script as failed
+func (sm *StatusManager) RecordRetryError(scriptName, workerName string, duration time.Duration, errorMsg string) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	// Decrease processing count
+	sm.status.Queue.Processing--
+	// Script goes back to waiting (will be retried)
+	sm.status.Queue.Waiting++
+	
+	// Update worker status but don't increment failed count
+	if worker, exists := sm.status.Workers[workerName]; exists {
+		worker.CurrentScript = ""
+		worker.ProcessingCount--
+		worker.LastActivity = time.Now()
+		if errorMsg != "" {
+			worker.LastFailureReason = "Retrying: " + errorMsg
+		} else {
+			worker.LastFailureReason = "Retrying after error"
+		}
+	}
+	
+	// Update performance metrics
+	sm.updatePerformanceMetrics()
 }
