@@ -1,6 +1,8 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"time"
 
 	"comemo/internal/logger"
@@ -44,4 +46,50 @@ var QuotaErrors = []string{
 	"rateLimitExceeded",
 	"per day per user",
 	"Claude AI usage limit reached",
+}
+
+// GetWorkingDir returns the current working directory
+func GetWorkingDir() (string, error) {
+	return os.Getwd()
+}
+
+// ResolvePath converts a relative path to an absolute path relative to the current working directory
+func ResolvePath(path string) (string, error) {
+	if filepath.IsAbs(path) {
+		return path, nil
+	}
+
+	wd, err := GetWorkingDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(wd, path), nil
+}
+
+// ResolveConfigPaths converts all relative paths in the config to absolute paths
+func (c *Config) ResolveConfigPaths() error {
+	var err error
+
+	c.GoRepoPath, err = ResolvePath(c.GoRepoPath)
+	if err != nil {
+		return err
+	}
+
+	c.PromptsDir, err = ResolvePath(c.PromptsDir)
+	if err != nil {
+		return err
+	}
+
+	c.OutputDir, err = ResolvePath(c.OutputDir)
+	if err != nil {
+		return err
+	}
+
+	c.CommitDataDir, err = ResolvePath(c.CommitDataDir)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

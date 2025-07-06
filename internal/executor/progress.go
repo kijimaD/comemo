@@ -24,7 +24,17 @@ type ProgressDisplay struct {
 	ctx           context.Context
 	cancel        context.CancelFunc
 	mu            sync.RWMutex
-	displayLines  int // Track number of lines currently displayed
+	displayLines  int            // Track number of lines currently displayed
+	started       bool           // Track if started to avoid double start
+	stopped       bool           // Track if stopped to avoid double stop
+	wg            sync.WaitGroup // Wait for goroutine completion
+}
+
+// IsRunning returns true if the progress display is currently running
+func (pd *ProgressDisplay) IsRunning() bool {
+	pd.mu.RLock()
+	defer pd.mu.RUnlock()
+	return pd.started && !pd.stopped
 }
 
 // NewProgressDisplay creates a new progress display
@@ -43,18 +53,25 @@ func (pd *ProgressDisplay) Start() {
 	pd.mu.Lock()
 	defer pd.mu.Unlock()
 
-	if pd.ticker != nil {
+	if pd.started {
 		return // Already started
 	}
 
+	pd.started = true
 	pd.ticker = time.NewTicker(500 * time.Millisecond)
 
+	pd.wg.Add(1)
 	go func() {
+		defer pd.wg.Done()
+		// Create a local ticker to avoid race conditions
+		localTicker := time.NewTicker(500 * time.Millisecond)
+		defer localTicker.Stop()
+
 		for {
 			select {
 			case <-pd.ctx.Done():
 				return
-			case <-pd.ticker.C:
+			case <-localTicker.C:
 				pd.updateDisplay()
 			case <-pd.done:
 				return
@@ -66,7 +83,11 @@ func (pd *ProgressDisplay) Start() {
 // Stop stops the progress display
 func (pd *ProgressDisplay) Stop() {
 	pd.mu.Lock()
-	defer pd.mu.Unlock()
+	if pd.stopped {
+		pd.mu.Unlock()
+		return // Already stopped
+	}
+	pd.stopped = true
 
 	if pd.ticker != nil {
 		pd.ticker.Stop()
@@ -74,12 +95,25 @@ func (pd *ProgressDisplay) Stop() {
 	}
 
 	pd.cancel()
-	close(pd.done)
+
+	// Close done channel safely
+	select {
+	case <-pd.done:
+		// Already closed
+	default:
+		close(pd.done)
+	}
+	pd.mu.Unlock()
+
+	// Wait for goroutine to finish
+	pd.wg.Wait()
 
 	// Clear all displayed lines and move cursor to final position
+	pd.mu.Lock()
 	if pd.displayLines > 0 {
 		pd.clearPreviousDisplay(pd.displayLines)
 	}
+	pd.mu.Unlock()
 	fmt.Println() // Add final newline
 }
 
@@ -580,13 +614,24 @@ func executeScriptWithContext(ctx context.Context, fileName, cliName string, man
 		return fmt.Errorf("CLI command %s not found", cliName)
 	}
 
+	// Read script content and replace placeholder
+	content, err := os.ReadFile(scriptPath)
+	if err != nil {
+		return fmt.Errorf("error reading script %s: %w", scriptPath, err)
+	}
+
+	modifiedContent := strings.ReplaceAll(string(content), "{{AI_CLI_COMMAND}}", cliCmd.Command)
+
 	// Create context with timeout, respecting parent context
 	timeoutCtx, cancel := context.WithTimeout(ctx, manager.Config.ExecutionTimeout)
 	defer cancel()
 
-	// Execute the script
-	cmd := exec.CommandContext(timeoutCtx, "bash", scriptPath)
-	cmd.Dir = manager.Config.PromptsDir
+	// Execute the script with modified content
+	cmd := exec.CommandContext(timeoutCtx, "bash", "-c", modifiedContent)
+	// Set working directory to project root instead of prompts directory
+	if wd, err := os.Getwd(); err == nil {
+		cmd.Dir = wd
+	}
 
 	// Set environment variables if needed
 	cmd.Env = append(os.Environ(),

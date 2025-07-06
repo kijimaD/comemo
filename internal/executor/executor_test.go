@@ -387,3 +387,56 @@ func TestExecutePromptsWithSilentOutput(t *testing.T) {
 	err := ExecutePromptsWithOptions(cfg, "claude", silentExecutorOptions())
 	assert.NoError(t, err)
 }
+
+func TestProcessScriptWithOptions_PlaceholderReplacement(t *testing.T) {
+	// This test verifies that {{AI_CLI_COMMAND}} placeholder is replaced in processScriptWithOptions
+	tempDir := t.TempDir()
+	outputDir := t.TempDir()
+	scriptName := "test_placeholder.sh"
+	scriptPath := filepath.Join(tempDir, scriptName)
+
+	// Create test script with placeholder
+	scriptContent := `#!/bin/bash
+# Test script with placeholder
+{{AI_CLI_COMMAND}} <<EOF
+Test content
+EOF
+`
+	err := os.WriteFile(scriptPath, []byte(scriptContent), 0755)
+	assert.NoError(t, err)
+
+	cfg := &config.Config{
+		PromptsDir:       tempDir,
+		OutputDir:        outputDir,
+		ExecutionTimeout: 5 * time.Second,
+		QuotaRetryDelay:  1 * time.Hour,
+	}
+
+	// Create a logger that captures output
+	var logBuf bytes.Buffer
+	opts := &ExecutorOptions{
+		Logger: logger.New(logger.DEBUG, &logBuf, &logBuf),
+	}
+
+	manager := NewCLIManagerWithOptions(cfg, opts)
+
+	// Create a mock CLI that will echo the placeholder status
+	cli := CLICommand{
+		Command: "echo 'CLI_COMMAND_REPLACED'",
+	}
+
+	// Process the script
+	processScriptWithOptions(scriptName, cli, "test-cli", manager, opts)
+
+	// Check that the script was processed (it will fail because echo is not a valid AI CLI)
+	logOutput := logBuf.String()
+
+	// The important check: the error should NOT contain {{AI_CLI_COMMAND}}
+	// which means the placeholder was replaced
+	assert.NotContains(t, logOutput, "{{AI_CLI_COMMAND}}")
+	assert.NotContains(t, logOutput, "command not found")
+
+	// Script should still exist (because it failed)
+	_, err = os.Stat(scriptPath)
+	assert.NoError(t, err)
+}

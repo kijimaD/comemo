@@ -245,4 +245,9 @@ func updateConfig(cfg *config.Config, cmd *cli.Command) {
 	if logLevel, err := logger.ParseLogLevel(logLevelStr); err == nil {
 		cfg.LogLevel = logLevel
 	}
+
+	// Resolve all paths to absolute paths from current working directory
+	if err := cfg.ResolveConfigPaths(); err != nil {
+		fmt.Printf("Warning: Failed to resolve config paths: %v\n", err)
+	}
 }
