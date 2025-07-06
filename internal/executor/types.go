@@ -36,6 +36,7 @@ type ExecutorOptions struct {
 	Logger              *logger.Logger
 	TaskLogWriter       io.Writer // タスク実行ログの出力先
 	EventStatusManager  *EventStatusManager // イベントステータス管理
+	TaskEventLogger     *TaskEventLogger // タスクイベントロガー
 }
 
 // ErrorType represents different types of execution errors

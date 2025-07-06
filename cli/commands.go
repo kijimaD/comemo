@@ -112,6 +112,10 @@ func CreateApp() *cli.Command {
 						Name:  "task-log",
 						Usage: "File path to write task execution logs",
 					},
+					&cli.StringFlag{
+						Name:  "event-log",
+						Usage: "File path to write task event logs (JSON format)",
+					},
 				},
 				Action: func(ctx context.Context, cmd *cli.Command) error {
 					updateConfig(cfg, cmd)
@@ -136,13 +140,33 @@ func CreateApp() *cli.Command {
 						taskLogWriter = f
 					}
 
+					// イベントログファイルの設定（JSON形式のみ）
+					eventLogPath := cmd.String("event-log")
+					var taskEventLogger *executor.TaskEventLogger
+					if eventLogPath != "" {
+						f, err := os.OpenFile(eventLogPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+						if err != nil {
+							return fmt.Errorf("failed to open event log file: %w", err)
+						}
+						defer f.Close()
+						taskEventLogger = executor.NewTaskEventLogger(f)
+					}
+
 					opts := &executor.ExecutorOptions{
 						Logger:             logger.New(cfg.LogLevel, os.Stdout, os.Stderr),
 						TaskLogWriter:      taskLogWriter,
 						EventStatusManager: executor.NewEventStatusManager(cfg.MaxRetries),
+						TaskEventLogger:    taskEventLogger,
 					}
 
-					return executor.ExecutePromptsWithProgressAndOptions(cfg, cliCommand, opts)
+					err := executor.ExecutePromptsWithProgressAndOptions(cfg, cliCommand, opts)
+					
+					// ファイルを明示的に閉じる
+					if taskLogWriter != nil {
+						taskLogWriter.Sync()
+					}
+					
+					return err
 				},
 			},
 			{

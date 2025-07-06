@@ -701,6 +701,14 @@ func (s *Scheduler) getEventStatusManager() *EventStatusManager {
 	return nil
 }
 
+// getTaskEventLogger returns the TaskEventLogger from ExecutorOptions if available
+func (s *Scheduler) getTaskEventLogger() *TaskEventLogger {
+	if s.cliManager != nil && s.cliManager.Options != nil {
+		return s.cliManager.Options.TaskEventLogger
+	}
+	return nil
+}
+
 // assignPendingScripts tries to assign pending scripts to available queue slots
 func (s *Scheduler) assignPendingScripts() {
 	s.mu.Lock()
@@ -774,6 +782,11 @@ func (s *Scheduler) assignPendingScripts() {
 			// Add script to queue
 			s.queued[bestCLI] = append(s.queued[bestCLI], script)
 			assignedCount++
+
+			// Log queued event
+			if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
+				eventLogger.LogQueued(script, bestCLI)
+			}
 
 			// Try to execute immediately if worker has capacity
 			if len(s.queued[bestCLI]) > 0 {

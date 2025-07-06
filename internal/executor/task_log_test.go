@@ -2,6 +2,7 @@ package executor
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -167,6 +168,107 @@ func TestLogTaskEntry(t *testing.T) {
 	}
 }
 
+func TestLogTaskSuccessWithDetails(t *testing.T) {
+	buf := &bytes.Buffer{}
+	
+	LogTaskSuccessWithDetails(buf, "test.sh", "claude", "output/test.md", 
+		"Script executed successfully\nGenerated output file", 5*time.Second)
+	
+	output := buf.String()
+	
+	if !strings.Contains(output, "SUCCESS") {
+		t.Error("Should contain SUCCESS status")
+	}
+	if !strings.Contains(output, "duration: 5s") {
+		t.Error("Should contain duration")
+	}
+	if !strings.Contains(output, "result: Script executed successfully Generated output file") {
+		t.Error("Should contain sanitized execution output")
+	}
+}
+
+func TestLogTaskFailureWithDetails(t *testing.T) {
+	buf := &bytes.Buffer{}
+	
+	LogTaskFailureWithDetails(buf, "test.sh", "claude", "timeout error", 2,
+		"Error: timeout after 30s\nStderr: connection failed", 30*time.Second)
+	
+	output := buf.String()
+	
+	if !strings.Contains(output, "FAIL") {
+		t.Error("Should contain FAIL status")
+	}
+	if !strings.Contains(output, "retry: 2") {
+		t.Error("Should contain retry count")
+	}
+	if !strings.Contains(output, "duration: 30s") {
+		t.Error("Should contain duration")
+	}
+	if !strings.Contains(output, "output: Error: timeout after 30s Stderr: connection failed") {
+		t.Error("Should contain sanitized execution output")
+	}
+}
+
+func TestSanitizeOutput(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "新行とタブの除去",
+			input:    "line1\nline2\tline3\r\nline4",
+			expected: "line1 line2 line3 line4",
+		},
+		{
+			name:     "複数スペースの除去",
+			input:    "word1    word2   word3",
+			expected: "word1 word2 word3",
+		},
+		{
+			name:     "前後の空白除去",
+			input:    "  \t  text with spaces  \n  ",
+			expected: "text with spaces",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := sanitizeOutput(tt.input)
+			if result != tt.expected {
+				t.Errorf("Expected '%s', got '%s'", tt.expected, result)
+			}
+		})
+	}
+}
+
+func TestLogWithLongOutput(t *testing.T) {
+	buf := &bytes.Buffer{}
+	
+	// 200文字を超える長い出力
+	longOutput := strings.Repeat("This is a long output line. ", 20) // 約560文字
+	
+	LogTaskSuccessWithDetails(buf, "test.sh", "claude", "output.md", longOutput, time.Second)
+	
+	output := buf.String()
+	
+	// 出力が200文字で切り詰められ、"..."が追加されることを確認
+	if !strings.Contains(output, "...") {
+		t.Error("Long output should be truncated with '...'")
+	}
+	
+	// result部分だけを抽出して長さを確認
+	if strings.Contains(output, "result: ") {
+		parts := strings.Split(output, "result: ")
+		if len(parts) > 1 {
+			resultPart := parts[1]
+			if len(resultPart) > 204 { // "..." + 改行を考慮
+				t.Errorf("Result part should be truncated, but got length %d", len(resultPart))
+			}
+		}
+	}
+}
+
 func TestConcurrentLogging(t *testing.T) {
 	// 並行アクセスでも安全に動作することを確認
 	buf := &bytes.Buffer{}
@@ -175,7 +277,7 @@ func TestConcurrentLogging(t *testing.T) {
 	// 複数のゴルーチンから同時にログを書き込む
 	for i := 0; i < 10; i++ {
 		go func(id int) {
-			script := strings.ReplaceAll("test{{id}}.sh", "{{id}}", string(rune('0'+id)))
+			script := strings.ReplaceAll("test{{id}}.sh", "{{id}}", fmt.Sprintf("%d", id))
 			LogTaskStart(buf, script, "claude")
 			time.Sleep(10 * time.Millisecond)
 			if id%2 == 0 {

@@ -3,6 +3,7 @@ package executor
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 )
 
@@ -37,6 +38,11 @@ func LogTaskStart(w io.Writer, script, cli string) {
 
 // LogTaskSuccess logs the successful completion of a task
 func LogTaskSuccess(w io.Writer, script, cli, output string) {
+	LogTaskSuccessWithDetails(w, script, cli, output, "", 0)
+}
+
+// LogTaskSuccessWithDetails logs the successful completion of a task with execution details
+func LogTaskSuccessWithDetails(w io.Writer, script, cli, output, executionOutput string, duration time.Duration) {
 	if w == nil {
 		return
 	}
@@ -47,16 +53,37 @@ func LogTaskSuccess(w io.Writer, script, cli, output string) {
 		CLI:       cli,
 		Output:    output,
 	}
-	fmt.Fprintf(w, "[%s] %s script: %s, cli: %s, output: %s\n",
+
+	logLine := fmt.Sprintf("[%s] %s script: %s, cli: %s, output: %s",
 		entry.Timestamp.Format(time.RFC3339),
 		entry.Status,
 		entry.Script,
 		entry.CLI,
 		entry.Output)
+
+	if duration > 0 {
+		logLine += fmt.Sprintf(", duration: %v", duration)
+	}
+
+	if executionOutput != "" {
+		// Limit output length and sanitize
+		sanitizedOutput := sanitizeOutput(executionOutput)
+		if len(sanitizedOutput) > 200 {
+			sanitizedOutput = sanitizedOutput[:200] + "..."
+		}
+		logLine += fmt.Sprintf(", result: %s", sanitizedOutput)
+	}
+
+	fmt.Fprintln(w, logLine)
 }
 
 // LogTaskFailure logs the failure of a task
 func LogTaskFailure(w io.Writer, script, cli, errorMsg string, retryCount int) {
+	LogTaskFailureWithDetails(w, script, cli, errorMsg, retryCount, "", 0)
+}
+
+// LogTaskFailureWithDetails logs the failure of a task with execution details
+func LogTaskFailureWithDetails(w io.Writer, script, cli, errorMsg string, retryCount int, executionOutput string, duration time.Duration) {
 	if w == nil {
 		return
 	}
@@ -68,11 +95,42 @@ func LogTaskFailure(w io.Writer, script, cli, errorMsg string, retryCount int) {
 		Error:     errorMsg,
 		Retry:     retryCount,
 	}
-	fmt.Fprintf(w, "[%s] %s script: %s, cli: %s, error: %s, retry: %d\n",
+
+	logLine := fmt.Sprintf("[%s] %s script: %s, cli: %s, error: %s, retry: %d",
 		entry.Timestamp.Format(time.RFC3339),
 		entry.Status,
 		entry.Script,
 		entry.CLI,
 		entry.Error,
 		entry.Retry)
+
+	if duration > 0 {
+		logLine += fmt.Sprintf(", duration: %v", duration)
+	}
+
+	if executionOutput != "" {
+		// Limit output length and sanitize
+		sanitizedOutput := sanitizeOutput(executionOutput)
+		if len(sanitizedOutput) > 200 {
+			sanitizedOutput = sanitizedOutput[:200] + "..."
+		}
+		logLine += fmt.Sprintf(", output: %s", sanitizedOutput)
+	}
+
+	fmt.Fprintln(w, logLine)
+}
+
+// sanitizeOutput removes newlines and controls characters for single-line logging
+func sanitizeOutput(output string) string {
+	// Replace newlines with spaces
+	sanitized := strings.ReplaceAll(output, "\n", " ")
+	sanitized = strings.ReplaceAll(sanitized, "\r", " ")
+	sanitized = strings.ReplaceAll(sanitized, "\t", " ")
+	
+	// Remove multiple spaces
+	for strings.Contains(sanitized, "  ") {
+		sanitized = strings.ReplaceAll(sanitized, "  ", " ")
+	}
+	
+	return strings.TrimSpace(sanitized)
 }
