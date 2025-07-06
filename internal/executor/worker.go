@@ -172,6 +172,10 @@ func processScriptWithOptions(scriptName string, cli CLICommand, cliName string,
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "bash", "-c", modifiedContent)
+	// Set working directory to project root for consistent path resolution
+	if wd, err := os.Getwd(); err == nil {
+		cmd.Dir = wd
+	}
 	output, err := cmd.CombinedOutput()
 
 	if err != nil {
