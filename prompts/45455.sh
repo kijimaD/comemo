@@ -10,27 +10,24 @@ echo "🚀 Generating explanation for commit 45455..."
 
 1.  まず、 ./commit_data/45455.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
-3.  **必須**: 生成した解説を ./src/45455.md というファイル名で保存してください。この手順は省略できません。
+3.  生成した解説を ./src/45455.md というファイル名で保存してください。
 4.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 5.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
-6.  **確認**: ファイル作成が完了したら「ファイル ./src/45455.md を作成しました」と出力してください。
-
-**重要**: 必ず最後に ./src/%!d(string=cca3d1e5533cb40beb9ef55bbc332b733adcc6ba).md ファイルを作成してください。ファイル作成は必須です。
 
 ### メタデータ
-- **コミットインデックス**: %!d(string=https://github.com/golang/go/commit/cca3d1e5533cb40beb9ef55bbc332b733adcc6ba)
-- **コミットハッシュ**: %!s(int=45455)
+- **コミットインデックス**: 45455
+- **コミットハッシュ**: cca3d1e5533cb40beb9ef55bbc332b733adcc6ba
 - **GitHub URL**: https://github.com/golang/go/commit/cca3d1e5533cb40beb9ef55bbc332b733adcc6ba
 
 ### 章構成
 
-# [インデックス %!d(string=https://github.com/golang/go/commit/cca3d1e5533cb40beb9ef55bbc332b733adcc6ba)] ファイルの概要
+# [インデックス 45455] ファイルの概要
 
 ## コミット
 
 ## GitHub上でのコミットページへのリンク
 
-[%!s(MISSING)](%!s(MISSING))
+[https://github.com/golang/go/commit/cca3d1e5533cb40beb9ef55bbc332b733adcc6ba](https://github.com/golang/go/commit/cca3d1e5533cb40beb9ef55bbc332b733adcc6ba)
 
 ## 元コミット内容
 
