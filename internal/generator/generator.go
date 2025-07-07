@@ -116,6 +116,8 @@ func generatePromptScript(cfg *config.Config, hash string, index int, commitData
 
 ## GitHub上でのコミットページへのリンク
 
+[%s](%s)
+
 ## 元コミット内容
 
 ## 変更の背景
@@ -143,7 +145,7 @@ echo "🚀 Generating explanation for commit %d..."
 {{AI_CLI_COMMAND}} <<'EOF'
 %s
 EOF
-`, index, hash, index, fmt.Sprintf(prompt, index, index, index, hash, githubURL, index))
+`, index, hash, index, fmt.Sprintf(prompt, index, index, index, hash, githubURL, index, githubURL, githubURL))
 
 	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
 		return fmt.Errorf("failed to write script file: %w", err)
