@@ -532,7 +532,7 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 		s.cliManager.MarkUnavailableForDuration(result.CLI, retryDelay)
 		s.statusManager.UpdateWorkerStatus(result.CLI, false, "", retryDelay)
 		s.statusManager.RecordQuotaError(result.Script, result.CLI, result.Duration)
-		
+
 		// Use special quota error handling that doesn't increment retry count
 		s.scriptStateMgr.SetScriptQuotaExceeded(result.Script, errorMsg)
 	} else {
@@ -548,7 +548,7 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 		}
 		// Record as retry error with specific error message
 		s.statusManager.RecordRetryError(result.Script, result.CLI, result.Duration, errorMsg)
-		
+
 		// Set script to retrying state with appropriate delay (increments retry count)
 		s.scriptStateMgr.SetScriptRetrying(result.Script, retryReason, errorMsg)
 	}

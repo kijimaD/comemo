@@ -25,7 +25,7 @@ func ValidateGeneratedContent(outputPath string) (*QualityCheckResult, error) {
 	}
 
 	fileContentStr := string(fileContent)
-	
+
 	// Check file size - should be substantial
 	if len(fileContentStr) < 500 {
 		return &QualityCheckResult{
@@ -38,7 +38,7 @@ func ValidateGeneratedContent(outputPath string) (*QualityCheckResult, error) {
 	// Check for required content patterns
 	requiredPatterns := []string{
 		"## コアとなるコードの解説",
-		"## 技術的詳細", 
+		"## 技術的詳細",
 		"# [インデックス",
 	}
 
@@ -59,7 +59,7 @@ func ValidateGeneratedContent(outputPath string) (*QualityCheckResult, error) {
 	}
 
 	// Additional quality checks can be added here
-	
+
 	// Check for obvious error messages in content
 	errorIndicators := []string{
 		"error:",
@@ -91,7 +91,7 @@ func ValidateGeneratedContent(outputPath string) (*QualityCheckResult, error) {
 func ValidateGeneratedContentForCLI(outputPath, cliName, outputStr string) (*QualityCheckResult, error) {
 	// First try to validate from file
 	result, err := ValidateGeneratedContent(outputPath)
-	
+
 	// If file doesn't exist and we have output from CLI that doesn't create files (like Gemini)
 	if err != nil && cliName == "gemini" && len(outputStr) > 100 {
 		// Save the output to file for validation
@@ -104,6 +104,6 @@ func ValidateGeneratedContentForCLI(outputPath, cliName, outputStr string) (*Qua
 		// Retry validation
 		return ValidateGeneratedContent(outputPath)
 	}
-	
+
 	return result, err
 }
