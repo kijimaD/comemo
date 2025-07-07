@@ -421,9 +421,14 @@ func (s *Scheduler) assignScriptForRetry(scriptName string) {
 	s.queued[bestCLI] = append(s.queued[bestCLI], scriptName)
 	s.logger.Debug("    → %s をリトライ用に %s にキューイング", scriptName, bestCLI)
 	
-	// Log queued event for retry script
-	if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
-		eventLogger.LogQueued(scriptName, bestCLI)
+	// 一元的なタスク状態管理: キューイング（リトライ）
+	if taskStateManager := s.getTaskStateManager(); taskStateManager != nil {
+		taskStateManager.TransitionToQueued(scriptName, bestCLI)
+	} else {
+		// Fallback to direct event logging
+		if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
+			eventLogger.LogQueued(scriptName, bestCLI)
+		}
 	}
 }
 
@@ -547,12 +552,18 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 	s.logger.Debug("  → スクリプト %s をリトライ待ち状態に設定 (理由: %s, 待機時間: %v)",
 		result.Script, retryReason.String(), retryReason.GetRetryDelay(s.config))
 
-	// Log retrying event with detailed error message
-	if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
+	// 一元的なタスク状態管理: リトライ状態
+	if taskStateManager := s.getTaskStateManager(); taskStateManager != nil {
 		retryCount := scriptState.RetryCount + 1 // +1 because SetScriptRetrying increments it
-		// Include both retry reason type and actual error message
-		detailedReason := fmt.Sprintf("%s: %s", retryReason.String(), errorMsg)
-		eventLogger.LogRetryingWithCLI(result.Script, result.CLI, retryCount, detailedReason)
+		taskStateManager.TransitionToRetrying(result.Script, result.CLI, retryCount, retryReason.String(), errorMsg)
+	} else {
+		// Fallback to direct event logging
+		if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
+			retryCount := scriptState.RetryCount + 1 // +1 because SetScriptRetrying increments it
+			// Include both retry reason type and actual error message
+			detailedReason := fmt.Sprintf("%s: %s", retryReason.String(), errorMsg)
+			eventLogger.LogRetryingWithCLI(result.Script, result.CLI, retryCount, detailedReason)
+		}
 	}
 
 	// Update old state management for compatibility - but don't increase failed count for retrying scripts
@@ -722,6 +733,14 @@ func (s *Scheduler) getTaskEventLogger() *TaskEventLogger {
 	return nil
 }
 
+// getTaskStateManager returns the TaskStateManager from ExecutorOptions if available
+func (s *Scheduler) getTaskStateManager() *TaskStateManager {
+	if s.cliManager != nil && s.cliManager.Options != nil {
+		return s.cliManager.Options.TaskStateManager
+	}
+	return nil
+}
+
 // assignPendingScripts tries to assign pending scripts to available queue slots
 func (s *Scheduler) assignPendingScripts() {
 	s.mu.Lock()
@@ -796,9 +815,14 @@ func (s *Scheduler) assignPendingScripts() {
 			s.queued[bestCLI] = append(s.queued[bestCLI], script)
 			assignedCount++
 
-			// Log queued event
-			if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
-				eventLogger.LogQueued(script, bestCLI)
+			// 一元的なタスク状態管理: キューイング
+			if taskStateManager := s.getTaskStateManager(); taskStateManager != nil {
+				taskStateManager.TransitionToQueued(script, bestCLI)
+			} else {
+				// Fallback to direct event logging
+				if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
+					eventLogger.LogQueued(script, bestCLI)
+				}
 			}
 
 			// Try to execute immediately if worker has capacity

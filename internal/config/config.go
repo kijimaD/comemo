@@ -66,6 +66,7 @@ var QuotaErrors = []string{
 	"Quota exceeded",
 	"quota metric",
 	"RESOURCE_EXHAUSTED",
+	"Resource has been exhausted",
 	"rateLimitExceeded",
 	"per day per user",
 	"Claude AI usage limit reached",

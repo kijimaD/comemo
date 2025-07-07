@@ -10,6 +10,25 @@ import (
 	"time"
 )
 
+// isTaskCompleted checks if a task is already completed
+func isTaskCompleted(scriptName string, manager *CLIManager) bool {
+	// Check if output file already exists (task completed successfully)
+	outputPath := filepath.Join(manager.Config.OutputDir, strings.TrimSuffix(scriptName, ".sh")+".md")
+	if _, err := os.Stat(outputPath); err == nil {
+		return true
+	}
+
+	// Check TaskStateManager if available
+	if manager.Options.TaskStateManager != nil {
+		state := manager.Options.TaskStateManager.GetTaskState(scriptName)
+		if state != nil && state.State == TaskStateCompleted {
+			return true
+		}
+	}
+
+	return false
+}
+
 // SimpleWorker executes tasks without any decision logic
 func SimpleWorker(name string, tasks <-chan Task, results chan<- WorkerResult, manager *CLIManager) {
 	ctx := context.Background()
@@ -30,6 +49,12 @@ func SimpleWorkerWithContext(ctx context.Context, name string, tasks <-chan Task
 			if !ok {
 				logger.Debug("[%s] チャネルクローズ - ワーカー終了", name)
 				return
+			}
+
+			// Check if task is already completed before executing
+			if isTaskCompleted(task.Script, manager) {
+				logger.Debug("[%s] タスク %s は既に完了済み - スキップ", name, task.Script)
+				continue
 			}
 
 			// Execute task with context
@@ -58,6 +83,17 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 	startTime := time.Now()
 	logger := manager.Options.Logger
 
+	// Double-check if task is already completed before starting execution
+	if isTaskCompleted(task.Script, manager) {
+		logger.Debug("[%s] タスク %s は既に完了済み - 実行スキップ", workerName, task.Script)
+		return WorkerResult{
+			Script:   task.Script,
+			CLI:      task.CLI,
+			Success:  true,
+			Duration: time.Since(startTime),
+		}
+	}
+
 	logger.Debug("[%s] タスク実行開始: %s (CLI: %s)", workerName, task.Script, task.CLI)
 
 	// タスク開始をログに記録
@@ -70,17 +106,22 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		manager.Options.EventStatusManager.StartExecution(task.Script, task.CLI)
 	}
 
-	// タスクイベントログ: 実行開始（リトライ情報含む）
-	if manager.Options.TaskEventLogger != nil {
-		if manager.Options.EventStatusManager != nil {
-			retryCount, retryReason := manager.Options.EventStatusManager.GetRetryInfo(task.Script)
-			if retryCount > 0 {
-				manager.Options.TaskEventLogger.LogStartedWithRetry(task.Script, task.CLI, retryCount, retryReason)
+	// 一元的なタスク状態管理: 実行開始
+	if manager.Options.TaskStateManager != nil {
+		manager.Options.TaskStateManager.TransitionToStarted(task.Script, task.CLI)
+	} else {
+		// Fallback to direct event logging if TaskStateManager is not available
+		if manager.Options.TaskEventLogger != nil {
+			if manager.Options.EventStatusManager != nil {
+				retryCount, retryReason := manager.Options.EventStatusManager.GetRetryInfo(task.Script)
+				if retryCount > 0 {
+					manager.Options.TaskEventLogger.LogStartedWithRetry(task.Script, task.CLI, retryCount, retryReason)
+				} else {
+					manager.Options.TaskEventLogger.LogStarted(task.Script, task.CLI)
+				}
 			} else {
 				manager.Options.TaskEventLogger.LogStarted(task.Script, task.CLI)
 			}
-		} else {
-			manager.Options.TaskEventLogger.LogStarted(task.Script, task.CLI)
 		}
 	}
 
@@ -127,9 +168,23 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 	if wd, err := os.Getwd(); err == nil {
 		cmd.Dir = wd
 	}
+	
+	// Inherit environment variables from parent process
+	cmd.Env = os.Environ()
 
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
+	
+	// Debug log for output
+	logger.Debug("[%s] コマンド実行結果 - エラー: %v, 出力長: %d", workerName, err, len(outputStr))
+	if len(outputStr) > 0 {
+		// Log first 500 characters of output for debugging
+		debugOutput := outputStr
+		if len(debugOutput) > 500 {
+			debugOutput = debugOutput[:500] + "..."
+		}
+		logger.Debug("[%s] 出力内容: %s", workerName, debugOutput)
+	}
 
 	// Check if context was cancelled during execution
 	if ctx.Err() != nil {
@@ -167,16 +222,29 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 			}
 		}
 
-		// タスクイベントログ: エラー種別に応じた処理
-		if manager.Options.TaskEventLogger != nil {
+		// 一元的なタスク状態管理: エラー種別に応じた処理
+		if manager.Options.TaskStateManager != nil {
 			retryCount := manager.GetRetryCount(task.Script)
 			switch execError.Type {
 			case ErrorTypeQuota:
-				manager.Options.TaskEventLogger.LogQuotaExceeded(task.Script, task.CLI)
+				manager.Options.TaskStateManager.TransitionToQuotaExceeded(task.Script, task.CLI)
 			case ErrorTypeTimeout:
-				manager.Options.TaskEventLogger.LogTimeoutWithOutput(task.Script, task.CLI, duration, outputStr)
+				manager.Options.TaskStateManager.TransitionToTimeout(task.Script, task.CLI, outputStr, duration)
 			default:
-				manager.Options.TaskEventLogger.LogFailedWithOutput(task.Script, task.CLI, err.Error(), retryCount, outputStr)
+				manager.Options.TaskStateManager.TransitionToFailed(task.Script, task.CLI, err.Error(), outputStr, retryCount, duration)
+			}
+		} else {
+			// Fallback to direct event logging
+			if manager.Options.TaskEventLogger != nil {
+				retryCount := manager.GetRetryCount(task.Script)
+				switch execError.Type {
+				case ErrorTypeQuota:
+					manager.Options.TaskEventLogger.LogQuotaExceeded(task.Script, task.CLI)
+				case ErrorTypeTimeout:
+					manager.Options.TaskEventLogger.LogTimeoutWithOutput(task.Script, task.CLI, duration, outputStr)
+				default:
+					manager.Options.TaskEventLogger.LogFailedWithOutput(task.Script, task.CLI, err.Error(), retryCount, outputStr)
+				}
 			}
 		}
 
@@ -232,9 +300,14 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 			manager.Options.EventStatusManager.CompleteSuccess(task.Script, duration)
 		}
 
-		// タスクイベントログ: 完了
-		if manager.Options.TaskEventLogger != nil {
-			manager.Options.TaskEventLogger.LogCompletedWithOutput(task.Script, task.CLI, duration, outputPath, outputStr)
+		// 一元的なタスク状態管理: 成功完了
+		if manager.Options.TaskStateManager != nil {
+			manager.Options.TaskStateManager.TransitionToCompleted(task.Script, task.CLI, duration, outputPath, outputStr)
+		} else {
+			// Fallback to direct event logging
+			if manager.Options.TaskEventLogger != nil {
+				manager.Options.TaskEventLogger.LogCompletedWithOutput(task.Script, task.CLI, duration, outputPath, outputStr)
+			}
 		}
 
 		return WorkerResult{
@@ -293,10 +366,16 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 		manager.Options.EventStatusManager.SetRetryWaiting(task.Script, RetryDelayQuality, detailedReason)
 	}
 
-	// タスクイベントログ: 品質チェック失敗（詳細理由含む）
-	if manager.Options.TaskEventLogger != nil {
+	// 一元的なタスク状態管理: 品質チェック失敗
+	if manager.Options.TaskStateManager != nil {
 		retryCount := manager.GetRetryCount(task.Script)
-		manager.Options.TaskEventLogger.LogQualityFailedWithDetails(task.Script, task.CLI, retryCount, qualityFailureDetail, outputStr)
+		manager.Options.TaskStateManager.TransitionToQualityFailed(task.Script, task.CLI, retryCount, qualityFailureDetail, outputStr)
+	} else {
+		// Fallback to direct event logging
+		if manager.Options.TaskEventLogger != nil {
+			retryCount := manager.GetRetryCount(task.Script)
+			manager.Options.TaskEventLogger.LogQualityFailedWithDetails(task.Script, task.CLI, retryCount, qualityFailureDetail, outputStr)
+		}
 	}
 
 	return WorkerResult{
