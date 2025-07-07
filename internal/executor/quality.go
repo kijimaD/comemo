@@ -37,9 +37,12 @@ func ValidateGeneratedContent(outputPath string) (*QualityCheckResult, error) {
 
 	// Check for required content patterns
 	requiredPatterns := []string{
-		"## コアとなるコードの解説",
-		"## 技術的詳細",
 		"# [インデックス",
+		"## コミット",
+		"## GitHub上でのコミットページへのリンク",
+		"## 元コミット内容",
+		"## 技術的詳細",
+		"## コアとなるコードの解説",
 	}
 
 	foundValidContent := false
@@ -61,14 +64,9 @@ func ValidateGeneratedContent(outputPath string) (*QualityCheckResult, error) {
 	// Additional quality checks can be added here
 
 	// Check for obvious error messages in content
+	// 通常の文章に含まれることがある
 	errorIndicators := []string{
-		"error:",
-		"エラー:",
-		"失敗しました",
-		"cannot",
-		"unable to",
-		"not found",
-		"404",
+		"API Error",
 	}
 
 	for _, indicator := range errorIndicators {
