@@ -232,10 +232,28 @@ func (sm *ScriptStateManager) SetScriptRetrying(scriptName string, reason RetryR
 	defer sm.mu.Unlock()
 
 	if script, exists := sm.scripts[scriptName]; exists {
-		script.RetryCount++
+		// Only increment retry count for non-quota errors
+		if reason != RetryReasonQuotaError {
+			script.RetryCount++
+		}
 		script.State = StateRetrying
 		script.RetryReason = reason
 		script.RetryAfter = time.Now().Add(reason.GetRetryDelay(sm.config))
+		script.LastError = errorMsg
+		script.UpdatedAt = time.Now()
+	}
+}
+
+// SetScriptQuotaExceeded sets a script to quota exceeded state without incrementing retry count
+func (sm *ScriptStateManager) SetScriptQuotaExceeded(scriptName string, errorMsg string) {
+	sm.mu.Lock()
+	defer sm.mu.Unlock()
+
+	if script, exists := sm.scripts[scriptName]; exists {
+		// Don't increment retry count for quota errors
+		script.State = StateRetrying
+		script.RetryReason = RetryReasonQuotaError
+		script.RetryAfter = time.Now().Add(RetryReasonQuotaError.GetRetryDelay(sm.config))
 		script.LastError = errorMsg
 		script.UpdatedAt = time.Now()
 	}

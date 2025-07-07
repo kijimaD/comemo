@@ -525,13 +525,16 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 	// Determine retry reason and set script to retrying state
 	var retryReason RetryReason
 	if result.IsQuotaError {
-		s.logger.Debug("  → Quotaエラー: CLI %s を設定時間スリープ", result.CLI)
+		s.logger.Debug("  → Quotaエラー: CLI %s を設定時間スリープ（リトライカウント増加なし）", result.CLI)
 		retryReason = RetryReasonQuotaError
 		// Set CLI unavailable for configured duration
 		retryDelay := s.config.RetryDelays.QuotaError
 		s.cliManager.MarkUnavailableForDuration(result.CLI, retryDelay)
 		s.statusManager.UpdateWorkerStatus(result.CLI, false, "", retryDelay)
 		s.statusManager.RecordQuotaError(result.Script, result.CLI, result.Duration)
+		
+		// Use special quota error handling that doesn't increment retry count
+		s.scriptStateMgr.SetScriptQuotaExceeded(result.Script, errorMsg)
 	} else {
 		// Classify error to determine retry reason
 		errorType := ClassifyError(result.Error, result.Output)
@@ -545,24 +548,36 @@ func (s *Scheduler) handleWorkerResult(result WorkerResult) {
 		}
 		// Record as retry error with specific error message
 		s.statusManager.RecordRetryError(result.Script, result.CLI, result.Duration, errorMsg)
+		
+		// Set script to retrying state with appropriate delay (increments retry count)
+		s.scriptStateMgr.SetScriptRetrying(result.Script, retryReason, errorMsg)
 	}
-
-	// Set script to retrying state with appropriate delay
-	s.scriptStateMgr.SetScriptRetrying(result.Script, retryReason, errorMsg)
 	s.logger.Debug("  → スクリプト %s をリトライ待ち状態に設定 (理由: %s, 待機時間: %v)",
 		result.Script, retryReason.String(), retryReason.GetRetryDelay(s.config))
 
 	// 一元的なタスク状態管理: リトライ状態
 	if taskStateManager := s.getTaskStateManager(); taskStateManager != nil {
-		retryCount := scriptState.RetryCount + 1 // +1 because SetScriptRetrying increments it
-		taskStateManager.TransitionToRetrying(result.Script, result.CLI, retryCount, retryReason.String(), errorMsg)
+		// Get updated retry count (quota errors don't increment count)
+		updatedState := s.scriptStateMgr.GetScript(result.Script)
+		retryCount := updatedState.RetryCount
+		if result.IsQuotaError {
+			taskStateManager.TransitionToQuotaExceeded(result.Script, result.CLI)
+		} else {
+			taskStateManager.TransitionToRetrying(result.Script, result.CLI, retryCount, retryReason.String(), errorMsg)
+		}
 	} else {
 		// Fallback to direct event logging
 		if eventLogger := s.getTaskEventLogger(); eventLogger != nil {
-			retryCount := scriptState.RetryCount + 1 // +1 because SetScriptRetrying increments it
-			// Include both retry reason type and actual error message
-			detailedReason := fmt.Sprintf("%s: %s", retryReason.String(), errorMsg)
-			eventLogger.LogRetryingWithCLI(result.Script, result.CLI, retryCount, detailedReason)
+			// Get updated retry count (quota errors don't increment count)
+			updatedState := s.scriptStateMgr.GetScript(result.Script)
+			retryCount := updatedState.RetryCount
+			if result.IsQuotaError {
+				eventLogger.LogQuotaExceeded(result.Script, result.CLI)
+			} else {
+				// Include both retry reason type and actual error message
+				detailedReason := fmt.Sprintf("%s: %s", retryReason.String(), errorMsg)
+				eventLogger.LogRetryingWithCLI(result.Script, result.CLI, retryCount, detailedReason)
+			}
 		}
 	}
 
