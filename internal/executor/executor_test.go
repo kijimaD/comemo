@@ -191,7 +191,7 @@ func TestExecutePrompts(t *testing.T) {
 
 	t.Run("invalid CLI command validation", func(t *testing.T) {
 		t.Skip("Skipping test that may hang with new scheduler system")
-		
+
 		var output, errOutput bytes.Buffer
 		opts := &ExecutorOptions{
 			Logger: logger.New(logger.DEBUG, &output, &errOutput),

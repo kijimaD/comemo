@@ -18,7 +18,7 @@ func TestTaskEvent_ToJSON(t *testing.T) {
 	}
 
 	jsonStr := event.ToJSON()
-	
+
 	// Parse JSON to verify it's valid
 	var parsed TaskEvent
 	err := json.Unmarshal([]byte(jsonStr), &parsed)
@@ -34,20 +34,19 @@ func TestTaskEvent_ToJSON(t *testing.T) {
 	}
 }
 
-
 func TestTaskEventLogger_JSONFormat(t *testing.T) {
 	buf := &bytes.Buffer{}
 	logger := NewTaskEventLogger(buf)
-	
+
 	logger.LogStarted("test.sh", "claude")
-	
+
 	output := strings.TrimSpace(buf.String())
-	
+
 	var event TaskEvent
 	if err := json.Unmarshal([]byte(output), &event); err != nil {
 		t.Errorf("Expected valid JSON, got error: %v", err)
 	}
-	
+
 	if event.EventType != TaskEventStarted {
 		t.Errorf("Expected EventType %v, got %v", TaskEventStarted, event.EventType)
 	}
@@ -96,13 +95,13 @@ func TestTaskEventLogger_AllEventTypes(t *testing.T) {
 			t.Errorf("Missing JSON line for event type: %s", expectedEventType)
 			continue
 		}
-		
+
 		var event TaskEvent
 		if err := json.Unmarshal([]byte(lines[i]), &event); err != nil {
 			t.Errorf("Failed to parse JSON line %d: %v", i, err)
 			continue
 		}
-		
+
 		if event.EventType != expectedEventType {
 			t.Errorf("Line %d should have event type '%s', got: %s", i, expectedEventType, event.EventType)
 		}
@@ -119,11 +118,11 @@ func TestTaskEventLogger_NilWriter(t *testing.T) {
 func TestTaskEventLogger_JSONOutput(t *testing.T) {
 	buf := &bytes.Buffer{}
 	logger := NewTaskEventLogger(buf)
-	
+
 	logger.LogStarted("test.sh", "claude")
-	
+
 	output := strings.TrimSpace(buf.String())
-	
+
 	var event TaskEvent
 	err := json.Unmarshal([]byte(output), &event)
 	if err != nil {
@@ -164,7 +163,7 @@ func TestSanitizeOutputForEvent(t *testing.T) {
 		},
 		{
 			name:     "長い出力の切り詰め",
-			input:    strings.Repeat("This is a long line. ", 100), // 約2100文字
+			input:    strings.Repeat("This is a long line. ", 100),                                                         // 約2100文字
 			expected: strings.Repeat("This is a long line. ", 47) + "This is a long line. This is a long line. This is...", // 1000文字 + "..."
 		},
 		{
@@ -197,12 +196,12 @@ func TestSanitizeOutputForEvent(t *testing.T) {
 func TestTaskEventLogger_WithOutput(t *testing.T) {
 	buf := &bytes.Buffer{}
 	logger := NewTaskEventLogger(buf)
-	
+
 	// Test event with output
 	logger.LogFailedWithOutput("test.sh", "claude", "test error", 1, "Some output\nwith newlines\tand tabs")
-	
+
 	output := strings.TrimSpace(buf.String())
-	
+
 	var event TaskEvent
 	err := json.Unmarshal([]byte(output), &event)
 	if err != nil {

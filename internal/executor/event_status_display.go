@@ -8,14 +8,14 @@ import (
 
 // EventStatusSummary represents a summary of current event statuses
 type EventStatusSummary struct {
-	Total           int                         `json:"total"`
-	Running         int                         `json:"running"`
-	RetryWaiting    int                         `json:"retry_waiting"`
-	Failed          int                         `json:"failed"`
-	Success         int                         `json:"success"`
-	RetryBreakdown  map[RetryDelayType]int      `json:"retry_breakdown"`
-	TopFailures     []EventStatusEntry          `json:"top_failures"`
-	LongestRunning  []EventStatusEntry          `json:"longest_running"`
+	Total          int                    `json:"total"`
+	Running        int                    `json:"running"`
+	RetryWaiting   int                    `json:"retry_waiting"`
+	Failed         int                    `json:"failed"`
+	Success        int                    `json:"success"`
+	RetryBreakdown map[RetryDelayType]int `json:"retry_breakdown"`
+	TopFailures    []EventStatusEntry     `json:"top_failures"`
+	LongestRunning []EventStatusEntry     `json:"longest_running"`
 }
 
 // GetEventStatusSummary returns a comprehensive summary of event statuses
@@ -32,7 +32,7 @@ func (m *EventStatusManager) GetEventStatusSummary() EventStatusSummary {
 
 	for _, entry := range m.entries {
 		summary.Total++
-		
+
 		switch entry.Status {
 		case EventStatusRunning:
 			summary.Running++
@@ -101,7 +101,7 @@ func FormatEventStatusSummary(summary EventStatusSummary) string {
 	if len(summary.RetryBreakdown) > 0 {
 		sb.WriteString("\n--- リトライ待ち内訳 ---\n")
 		for delayType, count := range summary.RetryBreakdown {
-			sb.WriteString(fmt.Sprintf("  %s: %d スクリプト (待機時間: %v)\n", 
+			sb.WriteString(fmt.Sprintf("  %s: %d スクリプト (待機時間: %v)\n",
 				delayType.String(), count, delayType.GetRetryDelay()))
 		}
 	}
@@ -111,7 +111,7 @@ func FormatEventStatusSummary(summary EventStatusSummary) string {
 		now := time.Now()
 		for i, entry := range summary.LongestRunning {
 			duration := now.Sub(entry.StartTime)
-			sb.WriteString(fmt.Sprintf("  %d. %s (%s) - %v 実行中\n", 
+			sb.WriteString(fmt.Sprintf("  %d. %s (%s) - %v 実行中\n",
 				i+1, entry.ScriptName, entry.CLI, duration.Round(time.Second)))
 		}
 	}
@@ -119,7 +119,7 @@ func FormatEventStatusSummary(summary EventStatusSummary) string {
 	if len(summary.TopFailures) > 0 {
 		sb.WriteString("\n--- 失敗回数が多いスクリプト TOP5 ---\n")
 		for i, entry := range summary.TopFailures {
-			sb.WriteString(fmt.Sprintf("  %d. %s - %d 回失敗 (最終エラー: %s)\n", 
+			sb.WriteString(fmt.Sprintf("  %d. %s - %d 回失敗 (最終エラー: %s)\n",
 				i+1, entry.ScriptName, entry.RetryCount, entry.ErrorMessage))
 		}
 	}
@@ -196,7 +196,7 @@ func (m *EventStatusManager) FormatRunningScripts() string {
 
 	for _, entry := range runningEntries {
 		duration := time.Since(entry.StartTime)
-		sb.WriteString(fmt.Sprintf("🔄 %s (%s) - %v 実行中\n", 
+		sb.WriteString(fmt.Sprintf("🔄 %s (%s) - %v 実行中\n",
 			entry.ScriptName, entry.CLI, duration.Round(time.Second)))
 	}
 

@@ -21,7 +21,7 @@ type WorkerStatus struct {
 	QuotaRecoveryTime time.Duration `json:"quota_recovery_time"`
 	CurrentScript     string        `json:"current_script"`
 	ProcessedCount    int           `json:"processed_count"`
-	ProcessingCount   int           `json:"processing_count"`   // Current processing count
+	ProcessingCount   int           `json:"processing_count"` // Current processing count
 	LastActivity      time.Time     `json:"last_activity"`
 	LastFailureReason string        `json:"last_failure_reason"`
 }
@@ -345,7 +345,7 @@ func (sm *StatusManager) RecordRetryError(scriptName, workerName string, duratio
 	sm.status.Queue.Processing--
 	// Script goes back to waiting (will be retried)
 	sm.status.Queue.Waiting++
-	
+
 	// Update worker status but don't increment failed count
 	if worker, exists := sm.status.Workers[workerName]; exists {
 		worker.CurrentScript = ""
@@ -357,7 +357,7 @@ func (sm *StatusManager) RecordRetryError(scriptName, workerName string, duratio
 			worker.LastFailureReason = "Retrying after error"
 		}
 	}
-	
+
 	// Update performance metrics
 	sm.updatePerformanceMetrics()
 }

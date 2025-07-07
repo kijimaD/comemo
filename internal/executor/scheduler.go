@@ -91,7 +91,7 @@ func NewScheduler(cfg *config.Config, scripts []string, cliManager *CLIManager, 
 
 // Run starts the scheduler main loop
 func (s *Scheduler) Run(ctx context.Context, cliNames []string) error {
-	s.ctx = ctx // Store context for workers
+	s.ctx = ctx             // Store context for workers
 	s.activeCLIs = cliNames // Store active CLIs for selection
 	s.logger.Info("=== スケジューラー起動 ===")
 	s.logger.Info("対象スクリプト数: %d", len(s.scripts))
@@ -122,7 +122,7 @@ func (s *Scheduler) Run(ctx context.Context, cliNames []string) error {
 	// Initialize all scripts as pending
 	s.pendingScripts = make([]string, len(s.scripts))
 	copy(s.pendingScripts, s.scripts)
-	
+
 	// Try to assign as many scripts as possible to available queue slots
 	s.assignPendingScripts()
 
@@ -299,7 +299,7 @@ func (s *Scheduler) reevaluateQueuedScripts() {
 
 	// Check retryable scripts first (from both old and new state management)
 	retryableScripts := s.scriptStateMgr.GetRetryableScripts()
-	
+
 	// Also check EventStatusManager for retry-ready scripts
 	if eventMgr := s.getEventStatusManager(); eventMgr != nil {
 		eventRetryScripts := eventMgr.GetRetryReadyScripts()
@@ -311,7 +311,7 @@ func (s *Scheduler) reevaluateQueuedScripts() {
 			}
 		}
 	}
-	
+
 	if len(retryableScripts) > 0 {
 		s.logger.Debug("  リトライ可能なスクリプト数: %d", len(retryableScripts))
 		for _, script := range retryableScripts {
@@ -420,7 +420,7 @@ func (s *Scheduler) assignScriptForRetry(scriptName string) {
 	// Add to queue
 	s.queued[bestCLI] = append(s.queued[bestCLI], scriptName)
 	s.logger.Debug("    → %s をリトライ用に %s にキューイング", scriptName, bestCLI)
-	
+
 	// 一元的なタスク状態管理: キューイング（リトライ）
 	if taskStateManager := s.getTaskStateManager(); taskStateManager != nil {
 		taskStateManager.TransitionToQueued(scriptName, bestCLI)
@@ -848,13 +848,13 @@ func (s *Scheduler) assignPendingScripts() {
 			// No available CLI with capacity, keep in pending
 			remainingScripts = append(remainingScripts, script)
 		}
-		
+
 		processedCount++
 	}
 
 	// Update pending scripts list
 	s.pendingScripts = remainingScripts
-	
+
 	// Log summary
 	if assignedCount > 0 {
 		s.logger.Debug("割り当て完了: %d スクリプトを割り当て, %d スクリプトが待機中", assignedCount, len(s.pendingScripts))

@@ -187,7 +187,7 @@ func TestRegularErrorIncreasesFailed(t *testing.T) {
 		if finalFailed != initialFailed {
 			t.Errorf("Expected failed count to remain %d (retrying state), but got %d", initialFailed, finalFailed)
 		}
-		
+
 		// But retrying count should increase
 		finalRetrying := finalStatus.Queue.Retrying
 		if finalRetrying == 0 {

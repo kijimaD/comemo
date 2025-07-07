@@ -84,7 +84,7 @@ func TestEventStatusManager_SetRetryWaiting(t *testing.T) {
 	expectedTime := time.Now().Add(RetryDelayQuality.GetRetryDelay())
 	diff := entry.NextRetryTime.Sub(expectedTime)
 	if diff > time.Second || diff < -time.Second {
-		t.Errorf("NextRetryTime should be approximately %v, got %v (diff: %v)", 
+		t.Errorf("NextRetryTime should be approximately %v, got %v (diff: %v)",
 			expectedTime, entry.NextRetryTime, diff)
 	}
 }
@@ -93,7 +93,7 @@ func TestEventStatusManager_MaxRetriesExceeded(t *testing.T) {
 	manager := NewEventStatusManager(2) // Max 2 retries
 
 	manager.StartExecution("test1.sh", "claude")
-	
+
 	// First retry
 	manager.SetRetryWaiting("test1.sh", RetryDelayOther, "first error")
 	entry, _ := manager.GetEntry("test1.sh")
@@ -142,13 +142,13 @@ func TestEventStatusManager_GetRetryReadyScripts(t *testing.T) {
 	// Set up multiple scripts in different states
 	manager.StartExecution("ready1.sh", "claude")
 	manager.SetRetryWaiting("ready1.sh", RetryDelayQuality, "error")
-	
+
 	manager.StartExecution("ready2.sh", "gemini")
 	manager.SetRetryWaiting("ready2.sh", RetryDelayOther, "error")
-	
+
 	manager.StartExecution("not_ready.sh", "claude")
 	manager.SetRetryWaiting("not_ready.sh", RetryDelayQuota, "quota error") // 1 hour delay
-	
+
 	// Manually set retry times to test readiness
 	manager.entries["ready1.sh"].NextRetryTime = time.Now().Add(-1 * time.Second)
 	manager.entries["ready2.sh"].NextRetryTime = time.Now().Add(-1 * time.Second)
@@ -186,23 +186,23 @@ func TestEventStatusManager_GetStatusCounts(t *testing.T) {
 	// Create scripts in different states
 	manager.StartExecution("running1.sh", "claude")
 	manager.StartExecution("running2.sh", "gemini")
-	
+
 	manager.StartExecution("success1.sh", "claude")
 	manager.CompleteSuccess("success1.sh", time.Second)
-	
+
 	manager.StartExecution("retry1.sh", "claude")
 	manager.SetRetryWaiting("retry1.sh", RetryDelayQuality, "error")
-	
+
 	manager.StartExecution("failed1.sh", "gemini")
 	manager.SetFailed("failed1.sh", "critical error")
 
 	counts := manager.GetStatusCounts()
 
 	expectedCounts := map[EventStatus]int{
-		EventStatusRunning:     2,
-		EventStatusSuccess:     1,
+		EventStatusRunning:      2,
+		EventStatusSuccess:      1,
 		EventStatusRetryWaiting: 1,
-		EventStatusFailed:      1,
+		EventStatusFailed:       1,
 	}
 
 	for status, expectedCount := range expectedCounts {
@@ -214,7 +214,7 @@ func TestEventStatusManager_GetStatusCounts(t *testing.T) {
 
 func TestRetryDelayType_GetRetryDelay(t *testing.T) {
 	tests := []struct {
-		delayType    RetryDelayType
+		delayType     RetryDelayType
 		expectedDelay time.Duration
 	}{
 		{RetryDelayQuota, 1 * time.Hour},
@@ -226,7 +226,7 @@ func TestRetryDelayType_GetRetryDelay(t *testing.T) {
 	for _, test := range tests {
 		actualDelay := test.delayType.GetRetryDelay()
 		if actualDelay != test.expectedDelay {
-			t.Errorf("Expected delay %v for type %v, got %v", 
+			t.Errorf("Expected delay %v for type %v, got %v",
 				test.expectedDelay, test.delayType, actualDelay)
 		}
 	}
@@ -234,7 +234,7 @@ func TestRetryDelayType_GetRetryDelay(t *testing.T) {
 
 func TestGetRetryDelayTypeFromErrorType(t *testing.T) {
 	tests := []struct {
-		errorType    ErrorType
+		errorType         ErrorType
 		expectedRetryType RetryDelayType
 	}{
 		{ErrorTypeQuota, RetryDelayQuota},

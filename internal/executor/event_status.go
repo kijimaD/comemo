@@ -83,16 +83,16 @@ func (r RetryDelayType) String() string {
 
 // EventStatusEntry represents a single event status entry with timing information
 type EventStatusEntry struct {
-	ScriptName    string         `json:"script_name"`
-	CLI           string         `json:"cli"`
-	Status        EventStatus    `json:"status"`
-	StartTime     time.Time      `json:"start_time"`
-	LastUpdate    time.Time      `json:"last_update"`
-	RetryCount    int            `json:"retry_count"`
+	ScriptName     string         `json:"script_name"`
+	CLI            string         `json:"cli"`
+	Status         EventStatus    `json:"status"`
+	StartTime      time.Time      `json:"start_time"`
+	LastUpdate     time.Time      `json:"last_update"`
+	RetryCount     int            `json:"retry_count"`
 	RetryDelayType RetryDelayType `json:"retry_delay_type,omitempty"`
-	NextRetryTime time.Time      `json:"next_retry_time,omitempty"`
-	ErrorMessage  string         `json:"error_message,omitempty"`
-	Duration      time.Duration  `json:"duration,omitempty"`
+	NextRetryTime  time.Time      `json:"next_retry_time,omitempty"`
+	ErrorMessage   string         `json:"error_message,omitempty"`
+	Duration       time.Duration  `json:"duration,omitempty"`
 }
 
 // IsRetryReady checks if the entry is ready for retry
@@ -122,8 +122,8 @@ func (e *EventStatusEntry) GetTimeUntilRetry() time.Duration {
 
 // EventStatusManager manages event status for all scripts
 type EventStatusManager struct {
-	entries map[string]*EventStatusEntry
-	mu      sync.RWMutex
+	entries    map[string]*EventStatusEntry
+	mu         sync.RWMutex
 	maxRetries int
 }
 
@@ -131,7 +131,7 @@ type EventStatusManager struct {
 func (m *EventStatusManager) GetRetryInfo(scriptName string) (retryCount int, retryReason string) {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	
+
 	if entry, exists := m.entries[scriptName]; exists {
 		return entry.RetryCount, entry.RetryDelayType.String()
 	}
@@ -186,7 +186,7 @@ func (m *EventStatusManager) SetRetryWaiting(scriptName string, retryDelayType R
 
 	if entry, exists := m.entries[scriptName]; exists {
 		entry.RetryCount++
-		
+
 		// Check if we've exceeded max retries
 		if entry.RetryCount > m.maxRetries {
 			entry.Status = EventStatusFailed

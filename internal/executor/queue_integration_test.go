@@ -136,7 +136,7 @@ func TestNewQueueingSystem_Integration(t *testing.T) {
 	t.Run("SelectCLIWithCapacity", func(t *testing.T) {
 		// Set activeCLIs for selectBestCLIWithCapacity to work
 		scheduler.activeCLIs = []string{"claude", "gemini"}
-		
+
 		// Fill both CLIs to capacity (3 scripts each)
 		scheduler.queued["claude"] = []string{"test1.sh", "test2.sh", "test3.sh"}
 		scheduler.queued["gemini"] = []string{"test4.sh", "test5.sh", "test6.sh"}

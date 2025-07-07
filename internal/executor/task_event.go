@@ -32,17 +32,17 @@ const (
 
 // TaskEvent represents a single task state change event
 type TaskEvent struct {
-	Timestamp   time.Time     `json:"timestamp"`
-	EventType   TaskEventType `json:"event_type"`
-	TaskID      string        `json:"task_id"`
-	CLI         string        `json:"cli"`
-	Message     string        `json:"message,omitempty"`
-	Error       string        `json:"error,omitempty"`
-	Duration    time.Duration `json:"duration,omitempty"`
-	RetryCount  int           `json:"retry_count,omitempty"`
-	RetryReason string        `json:"retry_reason,omitempty"`
-	OutputPath  string        `json:"output_path,omitempty"`
-	Output      string        `json:"output,omitempty"`
+	Timestamp   time.Time              `json:"timestamp"`
+	EventType   TaskEventType          `json:"event_type"`
+	TaskID      string                 `json:"task_id"`
+	CLI         string                 `json:"cli"`
+	Message     string                 `json:"message,omitempty"`
+	Error       string                 `json:"error,omitempty"`
+	Duration    time.Duration          `json:"duration,omitempty"`
+	RetryCount  int                    `json:"retry_count,omitempty"`
+	RetryReason string                 `json:"retry_reason,omitempty"`
+	OutputPath  string                 `json:"output_path,omitempty"`
+	Output      string                 `json:"output,omitempty"`
 	Metadata    map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -54,7 +54,6 @@ func (e *TaskEvent) ToJSON() string {
 	}
 	return string(data)
 }
-
 
 // TaskEventLogger handles task event logging in JSON format
 type TaskEventLogger struct {
@@ -237,29 +236,28 @@ func (l *TaskEventLogger) LogQualityFailedWithDetails(taskID, cli string, retryC
 	l.LogEvent(event)
 }
 
-
 // sanitizeOutputForEvent sanitizes output for event logging (truncate to 1000 chars for JSON)
 func sanitizeOutputForEvent(output string) string {
 	if output == "" {
 		return ""
 	}
-	
+
 	// Remove control characters for JSON compatibility
 	sanitized := strings.ReplaceAll(output, "\n", " ")
 	sanitized = strings.ReplaceAll(sanitized, "\r", " ")
 	sanitized = strings.ReplaceAll(sanitized, "\t", " ")
-	
+
 	// Remove multiple spaces
 	for strings.Contains(sanitized, "  ") {
 		sanitized = strings.ReplaceAll(sanitized, "  ", " ")
 	}
-	
+
 	sanitized = strings.TrimSpace(sanitized)
-	
+
 	// Truncate to 1000 characters for events (longer than task logs for detailed analysis)
 	if len(sanitized) > 1000 {
 		sanitized = sanitized[:1000] + "..."
 	}
-	
+
 	return sanitized
 }

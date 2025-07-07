@@ -171,12 +171,12 @@ func TestLogTaskEntry(t *testing.T) {
 
 func TestLogTaskSuccessWithDetails(t *testing.T) {
 	buf := &bytes.Buffer{}
-	
-	LogTaskSuccessWithDetails(buf, "test.sh", "claude", "output/test.md", 
+
+	LogTaskSuccessWithDetails(buf, "test.sh", "claude", "output/test.md",
 		"Script executed successfully\nGenerated output file", 5*time.Second)
-	
+
 	output := buf.String()
-	
+
 	if !strings.Contains(output, "SUCCESS") {
 		t.Error("Should contain SUCCESS status")
 	}
@@ -190,12 +190,12 @@ func TestLogTaskSuccessWithDetails(t *testing.T) {
 
 func TestLogTaskFailureWithDetails(t *testing.T) {
 	buf := &bytes.Buffer{}
-	
+
 	LogTaskFailureWithDetails(buf, "test.sh", "claude", "timeout error", 2,
 		"Error: timeout after 30s\nStderr: connection failed", 30*time.Second)
-	
+
 	output := buf.String()
-	
+
 	if !strings.Contains(output, "FAIL") {
 		t.Error("Should contain FAIL status")
 	}
@@ -245,19 +245,19 @@ func TestSanitizeOutput(t *testing.T) {
 
 func TestLogWithLongOutput(t *testing.T) {
 	buf := &bytes.Buffer{}
-	
+
 	// 200文字を超える長い出力
 	longOutput := strings.Repeat("This is a long output line. ", 20) // 約560文字
-	
+
 	LogTaskSuccessWithDetails(buf, "test.sh", "claude", "output.md", longOutput, time.Second)
-	
+
 	output := buf.String()
-	
+
 	// 出力が200文字で切り詰められ、"..."が追加されることを確認
 	if !strings.Contains(output, "...") {
 		t.Error("Long output should be truncated with '...'")
 	}
-	
+
 	// result部分だけを抽出して長さを確認
 	if strings.Contains(output, "result: ") {
 		parts := strings.Split(output, "result: ")
@@ -277,16 +277,16 @@ func TestConcurrentLogging(t *testing.T) {
 		buf bytes.Buffer
 		mu  sync.Mutex
 	}
-	
+
 	syncBuf := &SyncBuffer{}
-	
+
 	// Writerインターフェースを実装
 	writeFunc := func(p []byte) (n int, err error) {
 		syncBuf.mu.Lock()
 		defer syncBuf.mu.Unlock()
 		return syncBuf.buf.Write(p)
 	}
-	
+
 	writer := &writerFunc{writeFunc}
 	done := make(chan bool)
 
@@ -313,7 +313,7 @@ func TestConcurrentLogging(t *testing.T) {
 	syncBuf.mu.Lock()
 	output := syncBuf.buf.String()
 	syncBuf.mu.Unlock()
-	
+
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 
 	// 20行（各ゴルーチンで2行）のログが記録されているはず

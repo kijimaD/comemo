@@ -18,9 +18,9 @@ func TestQuotaErrorOneHourRecovery(t *testing.T) {
 		WorkerChannelSize:   10,
 		ResultChannelSize:   100,
 		RetryDelays: config.RetryDelayConfig{
-			QuotaError:   1 * time.Hour,     // quota error - 1時間待機
-			QualityError: 10 * time.Second,  // 品質テストエラー - 10秒待機
-			OtherError:   5 * time.Minute,   // その他のエラー - 5分待機
+			QuotaError:   1 * time.Hour,    // quota error - 1時間待機
+			QualityError: 10 * time.Second, // 品質テストエラー - 10秒待機
+			OtherError:   5 * time.Minute,  // その他のエラー - 5分待機
 		},
 	}
 

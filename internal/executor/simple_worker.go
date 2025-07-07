@@ -168,13 +168,13 @@ func executeSimpleTaskWithContext(ctx context.Context, workerName string, task T
 	if wd, err := os.Getwd(); err == nil {
 		cmd.Dir = wd
 	}
-	
+
 	// Inherit environment variables from parent process
 	cmd.Env = os.Environ()
 
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
-	
+
 	// Debug log for output
 	logger.Debug("[%s] コマンド実行結果 - エラー: %v, 出力長: %d", workerName, err, len(outputStr))
 	if len(outputStr) > 0 {

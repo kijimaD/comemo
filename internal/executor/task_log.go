@@ -126,11 +126,11 @@ func sanitizeOutput(output string) string {
 	sanitized := strings.ReplaceAll(output, "\n", " ")
 	sanitized = strings.ReplaceAll(sanitized, "\r", " ")
 	sanitized = strings.ReplaceAll(sanitized, "\t", " ")
-	
+
 	// Remove multiple spaces
 	for strings.Contains(sanitized, "  ") {
 		sanitized = strings.ReplaceAll(sanitized, "  ", " ")
 	}
-	
+
 	return strings.TrimSpace(sanitized)
 }

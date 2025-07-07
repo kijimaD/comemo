@@ -160,12 +160,12 @@ func CreateApp() *cli.Command {
 					}
 
 					err := executor.ExecutePromptsWithProgressAndOptions(cfg, cliCommand, opts)
-					
+
 					// ファイルを明示的に閉じる
 					if taskLogWriter != nil {
 						taskLogWriter.Sync()
 					}
-					
+
 					return err
 				},
 			},
