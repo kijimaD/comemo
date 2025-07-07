@@ -24,7 +24,8 @@ func RunCommand(repoPath string, args ...string) (string, error) {
 
 // GetCommitHashes retrieves all commit hashes from the repository
 func GetCommitHashes(repoPath string) ([]string, error) {
-	output, err := RunCommand(repoPath, "rev-list", "--all", "--reverse")
+	// Use master/main branch only for consistent ordering
+	output, err := RunCommand(repoPath, "rev-list", "HEAD", "--reverse")
 	if err != nil {
 		return nil, fmt.Errorf("error running git rev-list: %w", err)
 	}
