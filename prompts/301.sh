@@ -25,9 +25,9 @@ echo "🚀 Generating explanation for commit 301..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/f86c6f673e6de1fd57c8b0d79a833e0880a92aa3](https://github.com/golang/go/commit/f86c6f673e6de1fd57c8b0d79a833e0880a92aa3)
-
 ## GitHub上でのコミットページへのリンク
+
+[https://github.com/golang/go/commit/f86c6f673e6de1fd57c8b0d79a833e0880a92aa3](https://github.com/golang/go/commit/f86c6f673e6de1fd57c8b0d79a833e0880a92aa3)
 
 ## 元コミット内容
 

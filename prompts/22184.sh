@@ -25,9 +25,9 @@ echo "🚀 Generating explanation for commit 22184..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca](https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca)
-
 ## GitHub上でのコミットページへのリンク
+
+[https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca](https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca)
 
 ## 元コミット内容
 

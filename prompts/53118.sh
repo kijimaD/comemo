@@ -25,9 +25,9 @@ echo "🚀 Generating explanation for commit 53118..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f](https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f)
-
 ## GitHub上でのコミットページへのリンク
+
+[https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f](https://github.com/golang/go/commit/feada5366134772c4c6462e4a12150410741a00f)
 
 ## 元コミット内容
 

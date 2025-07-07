@@ -25,9 +25,9 @@ echo "🚀 Generating explanation for commit 48040..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398](https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398)
-
 ## GitHub上でのコミットページへのリンク
+
+[https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398](https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398)
 
 ## 元コミット内容
 

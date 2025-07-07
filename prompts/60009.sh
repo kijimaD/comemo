@@ -25,9 +25,9 @@ echo "🚀 Generating explanation for commit 60009..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/fba90c90964703e84bcb43a3567884960043b756](https://github.com/golang/go/commit/fba90c90964703e84bcb43a3567884960043b756)
-
 ## GitHub上でのコミットページへのリンク
+
+[https://github.com/golang/go/commit/fba90c90964703e84bcb43a3567884960043b756](https://github.com/golang/go/commit/fba90c90964703e84bcb43a3567884960043b756)
 
 ## 元コミット内容
 

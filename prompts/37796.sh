@@ -25,9 +25,9 @@ echo "🚀 Generating explanation for commit 37796..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/8f4fd3f34e8e218cb90435b5a8c6ba9be23a1e1e](https://github.com/golang/go/commit/8f4fd3f34e8e218cb90435b5a8c6ba9be23a1e1e)
-
 ## GitHub上でのコミットページへのリンク
+
+[https://github.com/golang/go/commit/8f4fd3f34e8e218cb90435b5a8c6ba9be23a1e1e](https://github.com/golang/go/commit/8f4fd3f34e8e218cb90435b5a8c6ba9be23a1e1e)
 
 ## 元コミット内容
 

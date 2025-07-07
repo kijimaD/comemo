@@ -25,9 +25,9 @@ echo "🚀 Generating explanation for commit 443..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/f436ade2fd12d58c23f5b69b1e55b98c19efb3c0](https://github.com/golang/go/commit/f436ade2fd12d58c23f5b69b1e55b98c19efb3c0)
-
 ## GitHub上でのコミットページへのリンク
+
+[https://github.com/golang/go/commit/f436ade2fd12d58c23f5b69b1e55b98c19efb3c0](https://github.com/golang/go/commit/f436ade2fd12d58c23f5b69b1e55b98c19efb3c0)
 
 ## 元コミット内容
 
