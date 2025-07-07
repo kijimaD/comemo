@@ -1,12 +1,10 @@
 #!/bin/bash
-# Index 48051: c0e1301b8c137d4b9f93067469b9608c252f2cea
+# Index %!d(string=c0e1301b8c137d4b9f93067469b9608c252f2cea): %!s(int=48051)
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-%!s(int=48051)
-EOF
-%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
+これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/48051.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,4 +42,5 @@ EOF
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/c0e1301b8c137d4b9f93067469b9608c252f2cea))
+%!(EXTRA string=https://github.com/golang/go/commit/c0e1301b8c137d4b9f93067469b9608c252f2cea)
+EOF

@@ -1,12 +1,10 @@
 #!/bin/bash
-# Index 60900: 123594d3863b0a4b9094a569957d1bd94ebe7512
+# Index %!d(string=123594d3863b0a4b9094a569957d1bd94ebe7512): %!s(int=60900)
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-%!s(int=60900)
-EOF
-%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
+これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/60900.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,4 +42,5 @@ EOF
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/123594d3863b0a4b9094a569957d1bd94ebe7512))
+%!(EXTRA string=https://github.com/golang/go/commit/123594d3863b0a4b9094a569957d1bd94ebe7512)
+EOF

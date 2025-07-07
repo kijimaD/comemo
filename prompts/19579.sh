@@ -1,12 +1,10 @@
 #!/bin/bash
-# Index 19579: cc81712190ba438097e4e0262ec8d29f8d468dcf
+# Index %!d(string=cc81712190ba438097e4e0262ec8d29f8d468dcf): %!s(int=19579)
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-%!s(int=19579)
-EOF
-%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
+これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/19579.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,4 +42,5 @@ EOF
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/cc81712190ba438097e4e0262ec8d29f8d468dcf))
+%!(EXTRA string=https://github.com/golang/go/commit/cc81712190ba438097e4e0262ec8d29f8d468dcf)
+EOF

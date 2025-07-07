@@ -1,12 +1,10 @@
 #!/bin/bash
-# Index 4346: 0d3301a557c1c8da66e5181bb93ceefc3dd3369d
+# Index %!d(string=0d3301a557c1c8da66e5181bb93ceefc3dd3369d): %!s(int=4346)
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-%!s(int=4346)
-EOF
-%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
+これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/4346.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,4 +42,5 @@ EOF
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/0d3301a557c1c8da66e5181bb93ceefc3dd3369d))
+%!(EXTRA string=https://github.com/golang/go/commit/0d3301a557c1c8da66e5181bb93ceefc3dd3369d)
+EOF

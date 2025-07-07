@@ -1,12 +1,10 @@
 #!/bin/bash
-# Index 14400: 7f70bb59133d026a0f246b74713df5210a6937ac
+# Index %!d(string=7f70bb59133d026a0f246b74713df5210a6937ac): %!s(int=14400)
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-%!s(int=14400)
-EOF
-%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
+これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/14400.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,4 +42,5 @@ EOF
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/7f70bb59133d026a0f246b74713df5210a6937ac))
+%!(EXTRA string=https://github.com/golang/go/commit/7f70bb59133d026a0f246b74713df5210a6937ac)
+EOF

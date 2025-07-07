@@ -1,12 +1,10 @@
 #!/bin/bash
-# Index 60068: f6653e6b0b420ff60c52fe633968ce45cd63cec1
+# Index %!d(string=f6653e6b0b420ff60c52fe633968ce45cd63cec1): %!s(int=60068)
 
 # AI CLIにプロンプトを渡す
 # ヒアドキュメントを使い、プロンプトを安全に渡す
 {{AI_CLI_COMMAND}} <<'EOF'
-%!s(int=60068)
-EOF
-%!(EXTRA string=これからコミット解説を生成します。以下の指示に厳密に従ってください。
+これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
 1.  まず、 ./commit_data/60068.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
@@ -44,4 +42,5 @@ EOF
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=https://github.com/golang/go/commit/f6653e6b0b420ff60c52fe633968ce45cd63cec1))
+%!(EXTRA string=https://github.com/golang/go/commit/f6653e6b0b420ff60c52fe633968ce45cd63cec1)
+EOF
