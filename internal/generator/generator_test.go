@@ -70,7 +70,7 @@ func TestGeneratePromptScript(t *testing.T) {
 		hash,
 		fmt.Sprintf("Index %d", index),
 		"{{AI_CLI_COMMAND}}",
-		"@commit_data/1.txt",
+		"commit_data/1.txt",
 		"https://github.com/golang/go/commit/" + hash,
 	}
 
