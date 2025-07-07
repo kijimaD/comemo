@@ -33,10 +33,10 @@ type CLIState struct {
 
 // ExecutorOptions provides configuration for executor functions
 type ExecutorOptions struct {
-	Logger              *logger.Logger
-	TaskLogWriter       io.Writer // タスク実行ログの出力先
-	EventStatusManager  *EventStatusManager // イベントステータス管理
-	TaskEventLogger     *TaskEventLogger // タスクイベントロガー
+	Logger             *logger.Logger
+	TaskLogWriter      io.Writer           // タスク実行ログの出力先
+	EventStatusManager *EventStatusManager // イベントステータス管理
+	TaskEventLogger    *TaskEventLogger    // タスクイベントロガー
 }
 
 // ErrorType represents different types of execution errors
@@ -91,5 +91,5 @@ func (e *ExecutionError) Error() string {
 // SupportedCLIs contains all supported AI CLI tools
 var SupportedCLIs = map[string]CLICommand{
 	"claude": {"claude", "claude --model sonnet"},
-	"gemini": {"gemini", "gemini -m gemini-2.0-flash -p"},
+	"gemini": {"gemini", "gemini -m gemini-2.5-flash -p"},
 }
