@@ -97,10 +97,11 @@ func generatePromptScript(cfg *config.Config, hash string, index int, commitData
 
 	prompt := `これからコミット解説を生成します。以下の指示に厳密に従ってください。
 
-1.  まず、@commit_data/%d.txt を開いて、コミット情報を取得してください。
+1.  まず、 ./commit_data/%d.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
-3.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
-4.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
+3.  生成した解説を ./src/%d.md というファイル名で保存してください。
+4.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
+5.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
 ### メタデータ
 - **コミットインデックス**: %d
@@ -142,7 +143,7 @@ echo "🚀 Generating explanation for commit %d..."
 {{AI_CLI_COMMAND}} <<'EOF'
 %s
 EOF
-`, index, hash, index, fmt.Sprintf(prompt, index, index, hash, githubURL, index))
+`, index, hash, index, fmt.Sprintf(prompt, index, index, index, hash, githubURL, index))
 
 	if err := os.WriteFile(scriptPath, []byte(scriptContent), 0755); err != nil {
 		return fmt.Errorf("failed to write script file: %w", err)
