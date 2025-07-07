@@ -10,11 +10,16 @@ echo "🚀 Generating explanation for commit 63843..."
 
 1.  まず、 commit_data/63843.txt を開いて、コミット情報を取得してください。
 2.  取得した情報と、以下のメタデータを基に、Web検索も活用して包括的な技術解説をMarkdown形式で生成してください。
-  - 形式は ./src/{コミットインデックス}.md でお願いします
-3.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
-4.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
+3.  生成した解説を ./src/63843.md というファイル名で保存してください。
+4.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
+5.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
-章構成。
+### メタデータ
+- **コミットインデックス**: 63843
+- **コミットハッシュ**: ecad164da79f2cea14c07b9a70dbc3df278ae8d7
+- **GitHub URL**: https://github.com/golang/go/commit/ecad164da79f2cea14c07b9a70dbc3df278ae8d7
+
+### 章構成
 
 # [インデックス 63843] ファイルの概要
 
@@ -37,5 +42,5 @@ echo "🚀 Generating explanation for commit 63843..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-%!(EXTRA string=ecad164da79f2cea14c07b9a70dbc3df278ae8d7, string=https://github.com/golang/go/commit/ecad164da79f2cea14c07b9a70dbc3df278ae8d7, int=63843)
+
 EOF
