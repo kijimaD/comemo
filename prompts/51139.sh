@@ -14,11 +14,6 @@ echo "🚀 Generating explanation for commit 51139..."
 3.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 4.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
-### メタデータ
-- **コミットインデックス**: 51139
-- **コミットハッシュ**: bb7495a46d6024da9d77722f04b438e573bcb26f
-- **GitHub URL**: https://github.com/golang/go/commit/bb7495a46d6024da9d77722f04b438e573bcb26f
-
 ### 章構成
 
 # [インデックス 51139] ファイルの概要
@@ -42,5 +37,5 @@ echo "🚀 Generating explanation for commit 51139..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-
+%!(EXTRA string=bb7495a46d6024da9d77722f04b438e573bcb26f, string=https://github.com/golang/go/commit/bb7495a46d6024da9d77722f04b438e573bcb26f, int=51139)
 EOF

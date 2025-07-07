@@ -14,11 +14,6 @@ echo "🚀 Generating explanation for commit 40470..."
 3.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 4.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
-### メタデータ
-- **コミットインデックス**: 40470
-- **コミットハッシュ**: c040786f37246f40ae29402fbdb6e97031a21713
-- **GitHub URL**: https://github.com/golang/go/commit/c040786f37246f40ae29402fbdb6e97031a21713
-
 ### 章構成
 
 # [インデックス 40470] ファイルの概要
@@ -42,5 +37,5 @@ echo "🚀 Generating explanation for commit 40470..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-
+%!(EXTRA string=c040786f37246f40ae29402fbdb6e97031a21713, string=https://github.com/golang/go/commit/c040786f37246f40ae29402fbdb6e97031a21713, int=40470)
 EOF

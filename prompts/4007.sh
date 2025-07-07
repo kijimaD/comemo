@@ -14,11 +14,6 @@ echo "🚀 Generating explanation for commit 4007..."
 3.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 4.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
-### メタデータ
-- **コミットインデックス**: 4007
-- **コミットハッシュ**: 8b957209182a49c79db0bfc2387c44b0b7fa0e2d
-- **GitHub URL**: https://github.com/golang/go/commit/8b957209182a49c79db0bfc2387c44b0b7fa0e2d
-
 ### 章構成
 
 # [インデックス 4007] ファイルの概要
@@ -42,5 +37,5 @@ echo "🚀 Generating explanation for commit 4007..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-
+%!(EXTRA string=8b957209182a49c79db0bfc2387c44b0b7fa0e2d, string=https://github.com/golang/go/commit/8b957209182a49c79db0bfc2387c44b0b7fa0e2d, int=4007)
 EOF

@@ -14,11 +14,6 @@ echo "🚀 Generating explanation for commit 47447..."
 3.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 4.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
-### メタデータ
-- **コミットインデックス**: 47447
-- **コミットハッシュ**: ea42b771e9f0726b0e10278df0b5759b984e9cc3
-- **GitHub URL**: https://github.com/golang/go/commit/ea42b771e9f0726b0e10278df0b5759b984e9cc3
-
 ### 章構成
 
 # [インデックス 47447] ファイルの概要
@@ -42,5 +37,5 @@ echo "🚀 Generating explanation for commit 47447..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-
+%!(EXTRA string=ea42b771e9f0726b0e10278df0b5759b984e9cc3, string=https://github.com/golang/go/commit/ea42b771e9f0726b0e10278df0b5759b984e9cc3, int=47447)
 EOF

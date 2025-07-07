@@ -14,11 +14,6 @@ echo "🚀 Generating explanation for commit 911..."
 3.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 4.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
-### メタデータ
-- **コミットインデックス**: 911
-- **コミットハッシュ**: 5d0e5a78670d71115075228b4d8e52d296e35bbd
-- **GitHub URL**: https://github.com/golang/go/commit/5d0e5a78670d71115075228b4d8e52d296e35bbd
-
 ### 章構成
 
 # [インデックス 911] ファイルの概要
@@ -42,5 +37,5 @@ echo "🚀 Generating explanation for commit 911..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-
+%!(EXTRA string=5d0e5a78670d71115075228b4d8e52d296e35bbd, string=https://github.com/golang/go/commit/5d0e5a78670d71115075228b4d8e52d296e35bbd, int=911)
 EOF

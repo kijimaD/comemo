@@ -14,11 +14,6 @@ echo "🚀 Generating explanation for commit 12194..."
 3.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 4.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
-### メタデータ
-- **コミットインデックス**: 12194
-- **コミットハッシュ**: 9a26a7822eb54fc4d0316b4c57bf5b52124bfd92
-- **GitHub URL**: https://github.com/golang/go/commit/9a26a7822eb54fc4d0316b4c57bf5b52124bfd92
-
 ### 章構成
 
 # [インデックス 12194] ファイルの概要
@@ -42,5 +37,5 @@ echo "🚀 Generating explanation for commit 12194..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-
+%!(EXTRA string=9a26a7822eb54fc4d0316b4c57bf5b52124bfd92, string=https://github.com/golang/go/commit/9a26a7822eb54fc4d0316b4c57bf5b52124bfd92, int=12194)
 EOF

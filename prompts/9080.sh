@@ -14,11 +14,6 @@ echo "🚀 Generating explanation for commit 9080..."
 3.  下記の「章構成」の全項目を、その順番通りに必ず含めてください。
 4.  解説は日本語で、最大限詳細にお願いします。特に背景、前提知識、技術的詳細は深く掘り下げてください。
 
-### メタデータ
-- **コミットインデックス**: 9080
-- **コミットハッシュ**: 7318664c222f9eef830569fb6e371187883f6702
-- **GitHub URL**: https://github.com/golang/go/commit/7318664c222f9eef830569fb6e371187883f6702
-
 ### 章構成
 
 # [インデックス 9080] ファイルの概要
@@ -42,5 +37,5 @@ echo "🚀 Generating explanation for commit 9080..."
 ## 関連リンク
 
 ## 参考にした情報源リンク
-
+%!(EXTRA string=7318664c222f9eef830569fb6e371187883f6702, string=https://github.com/golang/go/commit/7318664c222f9eef830569fb6e371187883f6702, int=9080)
 EOF
