@@ -1,0 +1,21 @@
+run:
+  timeout: 5m
+  skip-dirs:
+    - vendor
+    - book
+    - bin
+    - commit_data
+    - prompts
+    - src
+
+linters:
+  disable-all: true
+  enable:
+    - errcheck
+    - gofmt
+    - goimports
+    - ineffassign
+    - typecheck
+    - unused
+    - misspell
+    - unconvert
