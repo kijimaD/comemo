@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 48040: abb31c2558d58013ae191d926ed7cdd9d3201762
+# Index 48040: bedfeed54a7a80123c07f83c325a0bcfe5c43398
 
 echo "🚀 Generating explanation for commit 48040..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 48040..."
 
 ### メタデータ
 - **コミットインデックス**: 48040
-- **コミットハッシュ**: abb31c2558d58013ae191d926ed7cdd9d3201762
-- **GitHub URL**: https://github.com/golang/go/commit/abb31c2558d58013ae191d926ed7cdd9d3201762
+- **コミットハッシュ**: bedfeed54a7a80123c07f83c325a0bcfe5c43398
+- **GitHub URL**: https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 48040..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/abb31c2558d58013ae191d926ed7cdd9d3201762](https://github.com/golang/go/commit/abb31c2558d58013ae191d926ed7cdd9d3201762)
+[https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398](https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398)
 
 ## GitHub上でのコミットページへのリンク
 

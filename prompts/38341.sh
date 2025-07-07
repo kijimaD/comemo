@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 38341: bedfa4e1c37bd08063865da628f242d27ca06ec4
+# Index 38341: cc558fedfbe71222c85ba0ed24dcf873f934bbdb
 
 echo "🚀 Generating explanation for commit 38341..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 38341..."
 
 ### メタデータ
 - **コミットインデックス**: 38341
-- **コミットハッシュ**: bedfa4e1c37bd08063865da628f242d27ca06ec4
-- **GitHub URL**: https://github.com/golang/go/commit/bedfa4e1c37bd08063865da628f242d27ca06ec4
+- **コミットハッシュ**: cc558fedfbe71222c85ba0ed24dcf873f934bbdb
+- **GitHub URL**: https://github.com/golang/go/commit/cc558fedfbe71222c85ba0ed24dcf873f934bbdb
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 38341..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/bedfa4e1c37bd08063865da628f242d27ca06ec4](https://github.com/golang/go/commit/bedfa4e1c37bd08063865da628f242d27ca06ec4)
+[https://github.com/golang/go/commit/cc558fedfbe71222c85ba0ed24dcf873f934bbdb](https://github.com/golang/go/commit/cc558fedfbe71222c85ba0ed24dcf873f934bbdb)
 
 ## GitHub上でのコミットページへのリンク
 

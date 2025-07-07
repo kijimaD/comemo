@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 56527: 1513e57b704056b794f0706362fa3c949f2972a4
+# Index 56527: cecf8b93283dd9fddacdf05db583644a2f3b0bbb
 
 echo "🚀 Generating explanation for commit 56527..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 56527..."
 
 ### メタデータ
 - **コミットインデックス**: 56527
-- **コミットハッシュ**: 1513e57b704056b794f0706362fa3c949f2972a4
-- **GitHub URL**: https://github.com/golang/go/commit/1513e57b704056b794f0706362fa3c949f2972a4
+- **コミットハッシュ**: cecf8b93283dd9fddacdf05db583644a2f3b0bbb
+- **GitHub URL**: https://github.com/golang/go/commit/cecf8b93283dd9fddacdf05db583644a2f3b0bbb
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 56527..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/1513e57b704056b794f0706362fa3c949f2972a4](https://github.com/golang/go/commit/1513e57b704056b794f0706362fa3c949f2972a4)
+[https://github.com/golang/go/commit/cecf8b93283dd9fddacdf05db583644a2f3b0bbb](https://github.com/golang/go/commit/cecf8b93283dd9fddacdf05db583644a2f3b0bbb)
 
 ## GitHub上でのコミットページへのリンク
 

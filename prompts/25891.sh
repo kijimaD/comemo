@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 25891: c4689579c0bcd0ea028e3847e7d407141faa26e2
+# Index 25891: 9bad99574ad90f877ee4d8aa36ca503f4167fab6
 
 echo "🚀 Generating explanation for commit 25891..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 25891..."
 
 ### メタデータ
 - **コミットインデックス**: 25891
-- **コミットハッシュ**: c4689579c0bcd0ea028e3847e7d407141faa26e2
-- **GitHub URL**: https://github.com/golang/go/commit/c4689579c0bcd0ea028e3847e7d407141faa26e2
+- **コミットハッシュ**: 9bad99574ad90f877ee4d8aa36ca503f4167fab6
+- **GitHub URL**: https://github.com/golang/go/commit/9bad99574ad90f877ee4d8aa36ca503f4167fab6
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 25891..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/c4689579c0bcd0ea028e3847e7d407141faa26e2](https://github.com/golang/go/commit/c4689579c0bcd0ea028e3847e7d407141faa26e2)
+[https://github.com/golang/go/commit/9bad99574ad90f877ee4d8aa36ca503f4167fab6](https://github.com/golang/go/commit/9bad99574ad90f877ee4d8aa36ca503f4167fab6)
 
 ## GitHub上でのコミットページへのリンク
 

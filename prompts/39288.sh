@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 39288: 1bf5796cae9e8f7b55402f199a1eec82a092abb7
+# Index 39288: fae44a2be350940c3b29919e274e9a7e63f22df7
 
 echo "🚀 Generating explanation for commit 39288..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 39288..."
 
 ### メタデータ
 - **コミットインデックス**: 39288
-- **コミットハッシュ**: 1bf5796cae9e8f7b55402f199a1eec82a092abb7
-- **GitHub URL**: https://github.com/golang/go/commit/1bf5796cae9e8f7b55402f199a1eec82a092abb7
+- **コミットハッシュ**: fae44a2be350940c3b29919e274e9a7e63f22df7
+- **GitHub URL**: https://github.com/golang/go/commit/fae44a2be350940c3b29919e274e9a7e63f22df7
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 39288..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/1bf5796cae9e8f7b55402f199a1eec82a092abb7](https://github.com/golang/go/commit/1bf5796cae9e8f7b55402f199a1eec82a092abb7)
+[https://github.com/golang/go/commit/fae44a2be350940c3b29919e274e9a7e63f22df7](https://github.com/golang/go/commit/fae44a2be350940c3b29919e274e9a7e63f22df7)
 
 ## GitHub上でのコミットページへのリンク
 

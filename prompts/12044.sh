@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 12044: fa8bc8a6483cae53460810a797a8ef322d1cca64
+# Index 12044: c3ef1980209ff152dec97203bb987d2d74a79bba
 
 echo "🚀 Generating explanation for commit 12044..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 12044..."
 
 ### メタデータ
 - **コミットインデックス**: 12044
-- **コミットハッシュ**: fa8bc8a6483cae53460810a797a8ef322d1cca64
-- **GitHub URL**: https://github.com/golang/go/commit/fa8bc8a6483cae53460810a797a8ef322d1cca64
+- **コミットハッシュ**: c3ef1980209ff152dec97203bb987d2d74a79bba
+- **GitHub URL**: https://github.com/golang/go/commit/c3ef1980209ff152dec97203bb987d2d74a79bba
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 12044..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/fa8bc8a6483cae53460810a797a8ef322d1cca64](https://github.com/golang/go/commit/fa8bc8a6483cae53460810a797a8ef322d1cca64)
+[https://github.com/golang/go/commit/c3ef1980209ff152dec97203bb987d2d74a79bba](https://github.com/golang/go/commit/c3ef1980209ff152dec97203bb987d2d74a79bba)
 
 ## GitHub上でのコミットページへのリンク
 

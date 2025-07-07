@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 39951: 9c772522ea365be6a916d428a981969befedad7f
+# Index 39951: bead358611e36fe0991c171a8a4a4924f4f0e584
 
 echo "🚀 Generating explanation for commit 39951..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 39951..."
 
 ### メタデータ
 - **コミットインデックス**: 39951
-- **コミットハッシュ**: 9c772522ea365be6a916d428a981969befedad7f
-- **GitHub URL**: https://github.com/golang/go/commit/9c772522ea365be6a916d428a981969befedad7f
+- **コミットハッシュ**: bead358611e36fe0991c171a8a4a4924f4f0e584
+- **GitHub URL**: https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 39951..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/9c772522ea365be6a916d428a981969befedad7f](https://github.com/golang/go/commit/9c772522ea365be6a916d428a981969befedad7f)
+[https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584](https://github.com/golang/go/commit/bead358611e36fe0991c171a8a4a4924f4f0e584)
 
 ## GitHub上でのコミットページへのリンク
 

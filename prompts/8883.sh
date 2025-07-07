@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8883: 6c6c23207248400e88f5b98106b28ddcaf95ed8e
+# Index 8883: 660b22988b2ee68c630806817f6dfdd70cf43518
 
 echo "🚀 Generating explanation for commit 8883..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 8883..."
 
 ### メタデータ
 - **コミットインデックス**: 8883
-- **コミットハッシュ**: 6c6c23207248400e88f5b98106b28ddcaf95ed8e
-- **GitHub URL**: https://github.com/golang/go/commit/6c6c23207248400e88f5b98106b28ddcaf95ed8e
+- **コミットハッシュ**: 660b22988b2ee68c630806817f6dfdd70cf43518
+- **GitHub URL**: https://github.com/golang/go/commit/660b22988b2ee68c630806817f6dfdd70cf43518
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 8883..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/6c6c23207248400e88f5b98106b28ddcaf95ed8e](https://github.com/golang/go/commit/6c6c23207248400e88f5b98106b28ddcaf95ed8e)
+[https://github.com/golang/go/commit/660b22988b2ee68c630806817f6dfdd70cf43518](https://github.com/golang/go/commit/660b22988b2ee68c630806817f6dfdd70cf43518)
 
 ## GitHub上でのコミットページへのリンク
 

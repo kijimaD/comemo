@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40441: a27f3d5cfbed01dd56a23647330a42dcf4bf6ea9
+# Index 40441: eebb9db0ef1a4cad2f5dd7e8b90f699a1d50bf91
 
 echo "🚀 Generating explanation for commit 40441..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40441..."
 
 ### メタデータ
 - **コミットインデックス**: 40441
-- **コミットハッシュ**: a27f3d5cfbed01dd56a23647330a42dcf4bf6ea9
-- **GitHub URL**: https://github.com/golang/go/commit/a27f3d5cfbed01dd56a23647330a42dcf4bf6ea9
+- **コミットハッシュ**: eebb9db0ef1a4cad2f5dd7e8b90f699a1d50bf91
+- **GitHub URL**: https://github.com/golang/go/commit/eebb9db0ef1a4cad2f5dd7e8b90f699a1d50bf91
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40441..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/a27f3d5cfbed01dd56a23647330a42dcf4bf6ea9](https://github.com/golang/go/commit/a27f3d5cfbed01dd56a23647330a42dcf4bf6ea9)
+[https://github.com/golang/go/commit/eebb9db0ef1a4cad2f5dd7e8b90f699a1d50bf91](https://github.com/golang/go/commit/eebb9db0ef1a4cad2f5dd7e8b90f699a1d50bf91)
 
 ## GitHub上でのコミットページへのリンク
 

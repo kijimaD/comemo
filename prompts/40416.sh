@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40416: bdc7d5677edd1dab21cdaa1f6498e0c2a6c9d7bf
+# Index 40416: 309ab1ecc810fad29d09bbf91c22c6bfd1683c6f
 
 echo "🚀 Generating explanation for commit 40416..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40416..."
 
 ### メタデータ
 - **コミットインデックス**: 40416
-- **コミットハッシュ**: bdc7d5677edd1dab21cdaa1f6498e0c2a6c9d7bf
-- **GitHub URL**: https://github.com/golang/go/commit/bdc7d5677edd1dab21cdaa1f6498e0c2a6c9d7bf
+- **コミットハッシュ**: 309ab1ecc810fad29d09bbf91c22c6bfd1683c6f
+- **GitHub URL**: https://github.com/golang/go/commit/309ab1ecc810fad29d09bbf91c22c6bfd1683c6f
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40416..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/bdc7d5677edd1dab21cdaa1f6498e0c2a6c9d7bf](https://github.com/golang/go/commit/bdc7d5677edd1dab21cdaa1f6498e0c2a6c9d7bf)
+[https://github.com/golang/go/commit/309ab1ecc810fad29d09bbf91c22c6bfd1683c6f](https://github.com/golang/go/commit/309ab1ecc810fad29d09bbf91c22c6bfd1683c6f)
 
 ## GitHub上でのコミットページへのリンク
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40080: 8dba66dfeb8eb19b075d45a84dae9bcdddb347d6
+# Index 40080: a16dcc00526dbb5ff411004c987a4182a8d68e7c
 
 echo "🚀 Generating explanation for commit 40080..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40080..."
 
 ### メタデータ
 - **コミットインデックス**: 40080
-- **コミットハッシュ**: 8dba66dfeb8eb19b075d45a84dae9bcdddb347d6
-- **GitHub URL**: https://github.com/golang/go/commit/8dba66dfeb8eb19b075d45a84dae9bcdddb347d6
+- **コミットハッシュ**: a16dcc00526dbb5ff411004c987a4182a8d68e7c
+- **GitHub URL**: https://github.com/golang/go/commit/a16dcc00526dbb5ff411004c987a4182a8d68e7c
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40080..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/8dba66dfeb8eb19b075d45a84dae9bcdddb347d6](https://github.com/golang/go/commit/8dba66dfeb8eb19b075d45a84dae9bcdddb347d6)
+[https://github.com/golang/go/commit/a16dcc00526dbb5ff411004c987a4182a8d68e7c](https://github.com/golang/go/commit/a16dcc00526dbb5ff411004c987a4182a8d68e7c)
 
 ## GitHub上でのコミットページへのリンク
 

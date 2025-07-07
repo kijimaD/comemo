@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 37362: dead03b7947c79112ef6c2a91843d7b10e5ebcfe
+# Index 37362: ceca60228205652c0791d649368dd8e550073810
 
 echo "🚀 Generating explanation for commit 37362..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 37362..."
 
 ### メタデータ
 - **コミットインデックス**: 37362
-- **コミットハッシュ**: dead03b7947c79112ef6c2a91843d7b10e5ebcfe
-- **GitHub URL**: https://github.com/golang/go/commit/dead03b7947c79112ef6c2a91843d7b10e5ebcfe
+- **コミットハッシュ**: ceca60228205652c0791d649368dd8e550073810
+- **GitHub URL**: https://github.com/golang/go/commit/ceca60228205652c0791d649368dd8e550073810
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 37362..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/dead03b7947c79112ef6c2a91843d7b10e5ebcfe](https://github.com/golang/go/commit/dead03b7947c79112ef6c2a91843d7b10e5ebcfe)
+[https://github.com/golang/go/commit/ceca60228205652c0791d649368dd8e550073810](https://github.com/golang/go/commit/ceca60228205652c0791d649368dd8e550073810)
 
 ## GitHub上でのコミットページへのリンク
 

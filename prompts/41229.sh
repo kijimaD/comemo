@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 41229: 0380c9ad38843d523d9c9804fe300cb7edd7cd3c
+# Index 41229: 0e0bff840e3cd041aa9d103c6135862faae9c03f
 
 echo "🚀 Generating explanation for commit 41229..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 41229..."
 
 ### メタデータ
 - **コミットインデックス**: 41229
-- **コミットハッシュ**: 0380c9ad38843d523d9c9804fe300cb7edd7cd3c
-- **GitHub URL**: https://github.com/golang/go/commit/0380c9ad38843d523d9c9804fe300cb7edd7cd3c
+- **コミットハッシュ**: 0e0bff840e3cd041aa9d103c6135862faae9c03f
+- **GitHub URL**: https://github.com/golang/go/commit/0e0bff840e3cd041aa9d103c6135862faae9c03f
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 41229..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/0380c9ad38843d523d9c9804fe300cb7edd7cd3c](https://github.com/golang/go/commit/0380c9ad38843d523d9c9804fe300cb7edd7cd3c)
+[https://github.com/golang/go/commit/0e0bff840e3cd041aa9d103c6135862faae9c03f](https://github.com/golang/go/commit/0e0bff840e3cd041aa9d103c6135862faae9c03f)
 
 ## GitHub上でのコミットページへのリンク
 

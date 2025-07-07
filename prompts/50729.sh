@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50729: bedfeed54a7a80123c07f83c325a0bcfe5c43398
+# Index 50729: ab31dbc05b725135ca5f6fd4337a041d8433f153
 
 echo "🚀 Generating explanation for commit 50729..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 50729..."
 
 ### メタデータ
 - **コミットインデックス**: 50729
-- **コミットハッシュ**: bedfeed54a7a80123c07f83c325a0bcfe5c43398
-- **GitHub URL**: https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398
+- **コミットハッシュ**: ab31dbc05b725135ca5f6fd4337a041d8433f153
+- **GitHub URL**: https://github.com/golang/go/commit/ab31dbc05b725135ca5f6fd4337a041d8433f153
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 50729..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398](https://github.com/golang/go/commit/bedfeed54a7a80123c07f83c325a0bcfe5c43398)
+[https://github.com/golang/go/commit/ab31dbc05b725135ca5f6fd4337a041d8433f153](https://github.com/golang/go/commit/ab31dbc05b725135ca5f6fd4337a041d8433f153)
 
 ## GitHub上でのコミットページへのリンク
 

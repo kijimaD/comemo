@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40737: b690d7e513737769f6eed7cc53ca088517771547
+# Index 40737: df901bce5ed71132f5837b513663fec889d82731
 
 echo "🚀 Generating explanation for commit 40737..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40737..."
 
 ### メタデータ
 - **コミットインデックス**: 40737
-- **コミットハッシュ**: b690d7e513737769f6eed7cc53ca088517771547
-- **GitHub URL**: https://github.com/golang/go/commit/b690d7e513737769f6eed7cc53ca088517771547
+- **コミットハッシュ**: df901bce5ed71132f5837b513663fec889d82731
+- **GitHub URL**: https://github.com/golang/go/commit/df901bce5ed71132f5837b513663fec889d82731
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40737..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/b690d7e513737769f6eed7cc53ca088517771547](https://github.com/golang/go/commit/b690d7e513737769f6eed7cc53ca088517771547)
+[https://github.com/golang/go/commit/df901bce5ed71132f5837b513663fec889d82731](https://github.com/golang/go/commit/df901bce5ed71132f5837b513663fec889d82731)
 
 ## GitHub上でのコミットページへのリンク
 

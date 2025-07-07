@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40551: 5372257e600989ab4cf742b35e3fa649cad3f45c
+# Index 40551: c7385e270473244ef5aa312a172f1912e99800be
 
 echo "🚀 Generating explanation for commit 40551..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40551..."
 
 ### メタデータ
 - **コミットインデックス**: 40551
-- **コミットハッシュ**: 5372257e600989ab4cf742b35e3fa649cad3f45c
-- **GitHub URL**: https://github.com/golang/go/commit/5372257e600989ab4cf742b35e3fa649cad3f45c
+- **コミットハッシュ**: c7385e270473244ef5aa312a172f1912e99800be
+- **GitHub URL**: https://github.com/golang/go/commit/c7385e270473244ef5aa312a172f1912e99800be
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40551..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/5372257e600989ab4cf742b35e3fa649cad3f45c](https://github.com/golang/go/commit/5372257e600989ab4cf742b35e3fa649cad3f45c)
+[https://github.com/golang/go/commit/c7385e270473244ef5aa312a172f1912e99800be](https://github.com/golang/go/commit/c7385e270473244ef5aa312a172f1912e99800be)
 
 ## GitHub上でのコミットページへのリンク
 

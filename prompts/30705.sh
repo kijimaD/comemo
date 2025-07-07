@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 30705: c79ba22ece2cbb86b00325df7712ff0803cfd6e9
+# Index 30705: 0c5c7c3446a0917d830579b2f3f7582b759695a3
 
 echo "🚀 Generating explanation for commit 30705..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 30705..."
 
 ### メタデータ
 - **コミットインデックス**: 30705
-- **コミットハッシュ**: c79ba22ece2cbb86b00325df7712ff0803cfd6e9
-- **GitHub URL**: https://github.com/golang/go/commit/c79ba22ece2cbb86b00325df7712ff0803cfd6e9
+- **コミットハッシュ**: 0c5c7c3446a0917d830579b2f3f7582b759695a3
+- **GitHub URL**: https://github.com/golang/go/commit/0c5c7c3446a0917d830579b2f3f7582b759695a3
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 30705..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/c79ba22ece2cbb86b00325df7712ff0803cfd6e9](https://github.com/golang/go/commit/c79ba22ece2cbb86b00325df7712ff0803cfd6e9)
+[https://github.com/golang/go/commit/0c5c7c3446a0917d830579b2f3f7582b759695a3](https://github.com/golang/go/commit/0c5c7c3446a0917d830579b2f3f7582b759695a3)
 
 ## GitHub上でのコミットページへのリンク
 

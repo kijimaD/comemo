@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 14606: dad1228cc378f5860a111201ed24ba88cf992a73
+# Index 14606: 1b46e4cd9ac75db790e75ee801a6e805b6f4ec20
 
 echo "🚀 Generating explanation for commit 14606..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 14606..."
 
 ### メタデータ
 - **コミットインデックス**: 14606
-- **コミットハッシュ**: dad1228cc378f5860a111201ed24ba88cf992a73
-- **GitHub URL**: https://github.com/golang/go/commit/dad1228cc378f5860a111201ed24ba88cf992a73
+- **コミットハッシュ**: 1b46e4cd9ac75db790e75ee801a6e805b6f4ec20
+- **GitHub URL**: https://github.com/golang/go/commit/1b46e4cd9ac75db790e75ee801a6e805b6f4ec20
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 14606..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/dad1228cc378f5860a111201ed24ba88cf992a73](https://github.com/golang/go/commit/dad1228cc378f5860a111201ed24ba88cf992a73)
+[https://github.com/golang/go/commit/1b46e4cd9ac75db790e75ee801a6e805b6f4ec20](https://github.com/golang/go/commit/1b46e4cd9ac75db790e75ee801a6e805b6f4ec20)
 
 ## GitHub上でのコミットページへのリンク
 

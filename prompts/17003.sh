@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 17003: f032eefdb0fb63555b4b7c83aaad5ae74550559c
+# Index 17003: 9cd570680bd1d6ea23e4f5da1fe3a50c6927d6d5
 
 echo "🚀 Generating explanation for commit 17003..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 17003..."
 
 ### メタデータ
 - **コミットインデックス**: 17003
-- **コミットハッシュ**: f032eefdb0fb63555b4b7c83aaad5ae74550559c
-- **GitHub URL**: https://github.com/golang/go/commit/f032eefdb0fb63555b4b7c83aaad5ae74550559c
+- **コミットハッシュ**: 9cd570680bd1d6ea23e4f5da1fe3a50c6927d6d5
+- **GitHub URL**: https://github.com/golang/go/commit/9cd570680bd1d6ea23e4f5da1fe3a50c6927d6d5
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 17003..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/f032eefdb0fb63555b4b7c83aaad5ae74550559c](https://github.com/golang/go/commit/f032eefdb0fb63555b4b7c83aaad5ae74550559c)
+[https://github.com/golang/go/commit/9cd570680bd1d6ea23e4f5da1fe3a50c6927d6d5](https://github.com/golang/go/commit/9cd570680bd1d6ea23e4f5da1fe3a50c6927d6d5)
 
 ## GitHub上でのコミットページへのリンク
 

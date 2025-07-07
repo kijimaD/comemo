@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 38706: 8450fd96779cc9e269f8a083a7f163bb1d7dbd39
+# Index 38706: 48e4d36fed94f0549f17ca082c0106bada094d5d
 
 echo "🚀 Generating explanation for commit 38706..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 38706..."
 
 ### メタデータ
 - **コミットインデックス**: 38706
-- **コミットハッシュ**: 8450fd96779cc9e269f8a083a7f163bb1d7dbd39
-- **GitHub URL**: https://github.com/golang/go/commit/8450fd96779cc9e269f8a083a7f163bb1d7dbd39
+- **コミットハッシュ**: 48e4d36fed94f0549f17ca082c0106bada094d5d
+- **GitHub URL**: https://github.com/golang/go/commit/48e4d36fed94f0549f17ca082c0106bada094d5d
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 38706..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/8450fd96779cc9e269f8a083a7f163bb1d7dbd39](https://github.com/golang/go/commit/8450fd96779cc9e269f8a083a7f163bb1d7dbd39)
+[https://github.com/golang/go/commit/48e4d36fed94f0549f17ca082c0106bada094d5d](https://github.com/golang/go/commit/48e4d36fed94f0549f17ca082c0106bada094d5d)
 
 ## GitHub上でのコミットページへのリンク
 

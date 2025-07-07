@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40319: 179909f20556262422a8b99c059eacdfcebc48ee
+# Index 40319: 004fb5cb8dd74b9ac46a9990e9a028673b88e838
 
 echo "🚀 Generating explanation for commit 40319..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40319..."
 
 ### メタデータ
 - **コミットインデックス**: 40319
-- **コミットハッシュ**: 179909f20556262422a8b99c059eacdfcebc48ee
-- **GitHub URL**: https://github.com/golang/go/commit/179909f20556262422a8b99c059eacdfcebc48ee
+- **コミットハッシュ**: 004fb5cb8dd74b9ac46a9990e9a028673b88e838
+- **GitHub URL**: https://github.com/golang/go/commit/004fb5cb8dd74b9ac46a9990e9a028673b88e838
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40319..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/179909f20556262422a8b99c059eacdfcebc48ee](https://github.com/golang/go/commit/179909f20556262422a8b99c059eacdfcebc48ee)
+[https://github.com/golang/go/commit/004fb5cb8dd74b9ac46a9990e9a028673b88e838](https://github.com/golang/go/commit/004fb5cb8dd74b9ac46a9990e9a028673b88e838)
 
 ## GitHub上でのコミットページへのリンク
 

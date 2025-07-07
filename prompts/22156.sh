@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 22156: ccdb50931f815fdf8de16f876478d7a1d0ee6696
+# Index 22156: 7d7351395da5e8cb3325346c98e00b9df0069363
 
 echo "🚀 Generating explanation for commit 22156..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 22156..."
 
 ### メタデータ
 - **コミットインデックス**: 22156
-- **コミットハッシュ**: ccdb50931f815fdf8de16f876478d7a1d0ee6696
-- **GitHub URL**: https://github.com/golang/go/commit/ccdb50931f815fdf8de16f876478d7a1d0ee6696
+- **コミットハッシュ**: 7d7351395da5e8cb3325346c98e00b9df0069363
+- **GitHub URL**: https://github.com/golang/go/commit/7d7351395da5e8cb3325346c98e00b9df0069363
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 22156..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/ccdb50931f815fdf8de16f876478d7a1d0ee6696](https://github.com/golang/go/commit/ccdb50931f815fdf8de16f876478d7a1d0ee6696)
+[https://github.com/golang/go/commit/7d7351395da5e8cb3325346c98e00b9df0069363](https://github.com/golang/go/commit/7d7351395da5e8cb3325346c98e00b9df0069363)
 
 ## GitHub上でのコミットページへのリンク
 

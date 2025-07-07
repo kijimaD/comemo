@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 63197: bedda245740d766bfad36b2d91a22781575fe463
+# Index 63197: d2db2372a2fd79d539719fa13422d83d6fdfcda1
 
 echo "🚀 Generating explanation for commit 63197..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 63197..."
 
 ### メタデータ
 - **コミットインデックス**: 63197
-- **コミットハッシュ**: bedda245740d766bfad36b2d91a22781575fe463
-- **GitHub URL**: https://github.com/golang/go/commit/bedda245740d766bfad36b2d91a22781575fe463
+- **コミットハッシュ**: d2db2372a2fd79d539719fa13422d83d6fdfcda1
+- **GitHub URL**: https://github.com/golang/go/commit/d2db2372a2fd79d539719fa13422d83d6fdfcda1
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 63197..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/bedda245740d766bfad36b2d91a22781575fe463](https://github.com/golang/go/commit/bedda245740d766bfad36b2d91a22781575fe463)
+[https://github.com/golang/go/commit/d2db2372a2fd79d539719fa13422d83d6fdfcda1](https://github.com/golang/go/commit/d2db2372a2fd79d539719fa13422d83d6fdfcda1)
 
 ## GitHub上でのコミットページへのリンク
 

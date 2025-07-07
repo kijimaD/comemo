@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 59894: afbe101950164289997a804ed992d86b3c5688d8
+# Index 59894: 008cc58a11cac815c79db0ac5439d17cee5c80bd
 
 echo "🚀 Generating explanation for commit 59894..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 59894..."
 
 ### メタデータ
 - **コミットインデックス**: 59894
-- **コミットハッシュ**: afbe101950164289997a804ed992d86b3c5688d8
-- **GitHub URL**: https://github.com/golang/go/commit/afbe101950164289997a804ed992d86b3c5688d8
+- **コミットハッシュ**: 008cc58a11cac815c79db0ac5439d17cee5c80bd
+- **GitHub URL**: https://github.com/golang/go/commit/008cc58a11cac815c79db0ac5439d17cee5c80bd
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 59894..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/afbe101950164289997a804ed992d86b3c5688d8](https://github.com/golang/go/commit/afbe101950164289997a804ed992d86b3c5688d8)
+[https://github.com/golang/go/commit/008cc58a11cac815c79db0ac5439d17cee5c80bd](https://github.com/golang/go/commit/008cc58a11cac815c79db0ac5439d17cee5c80bd)
 
 ## GitHub上でのコミットページへのリンク
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40426: 84bf9ce1fbe7ae8424031550d9cf3fe6b27575e3
+# Index 40426: c2f7dd182ea54d53897b16bbab231a59e2a29ba0
 
 echo "🚀 Generating explanation for commit 40426..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40426..."
 
 ### メタデータ
 - **コミットインデックス**: 40426
-- **コミットハッシュ**: 84bf9ce1fbe7ae8424031550d9cf3fe6b27575e3
-- **GitHub URL**: https://github.com/golang/go/commit/84bf9ce1fbe7ae8424031550d9cf3fe6b27575e3
+- **コミットハッシュ**: c2f7dd182ea54d53897b16bbab231a59e2a29ba0
+- **GitHub URL**: https://github.com/golang/go/commit/c2f7dd182ea54d53897b16bbab231a59e2a29ba0
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40426..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/84bf9ce1fbe7ae8424031550d9cf3fe6b27575e3](https://github.com/golang/go/commit/84bf9ce1fbe7ae8424031550d9cf3fe6b27575e3)
+[https://github.com/golang/go/commit/c2f7dd182ea54d53897b16bbab231a59e2a29ba0](https://github.com/golang/go/commit/c2f7dd182ea54d53897b16bbab231a59e2a29ba0)
 
 ## GitHub上でのコミットページへのリンク
 

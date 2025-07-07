@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40661: 3fb9dafacc45817296885a6e877ba7a5f1c199a4
+# Index 40661: bdd420155236768033b05524490738ca97645166
 
 echo "🚀 Generating explanation for commit 40661..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40661..."
 
 ### メタデータ
 - **コミットインデックス**: 40661
-- **コミットハッシュ**: 3fb9dafacc45817296885a6e877ba7a5f1c199a4
-- **GitHub URL**: https://github.com/golang/go/commit/3fb9dafacc45817296885a6e877ba7a5f1c199a4
+- **コミットハッシュ**: bdd420155236768033b05524490738ca97645166
+- **GitHub URL**: https://github.com/golang/go/commit/bdd420155236768033b05524490738ca97645166
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40661..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/3fb9dafacc45817296885a6e877ba7a5f1c199a4](https://github.com/golang/go/commit/3fb9dafacc45817296885a6e877ba7a5f1c199a4)
+[https://github.com/golang/go/commit/bdd420155236768033b05524490738ca97645166](https://github.com/golang/go/commit/bdd420155236768033b05524490738ca97645166)
 
 ## GitHub上でのコミットページへのリンク
 

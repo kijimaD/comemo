@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 62241: 7e32d8d10b3a8d29165415437ffcc210f914b7cc
+# Index 62241: a7e331e67105f1a8cc0236b7f3b1e6a3570dda27
 
 echo "🚀 Generating explanation for commit 62241..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 62241..."
 
 ### メタデータ
 - **コミットインデックス**: 62241
-- **コミットハッシュ**: 7e32d8d10b3a8d29165415437ffcc210f914b7cc
-- **GitHub URL**: https://github.com/golang/go/commit/7e32d8d10b3a8d29165415437ffcc210f914b7cc
+- **コミットハッシュ**: a7e331e67105f1a8cc0236b7f3b1e6a3570dda27
+- **GitHub URL**: https://github.com/golang/go/commit/a7e331e67105f1a8cc0236b7f3b1e6a3570dda27
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 62241..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/7e32d8d10b3a8d29165415437ffcc210f914b7cc](https://github.com/golang/go/commit/7e32d8d10b3a8d29165415437ffcc210f914b7cc)
+[https://github.com/golang/go/commit/a7e331e67105f1a8cc0236b7f3b1e6a3570dda27](https://github.com/golang/go/commit/a7e331e67105f1a8cc0236b7f3b1e6a3570dda27)
 
 ## GitHub上でのコミットページへのリンク
 

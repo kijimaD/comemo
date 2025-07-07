@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 47928: f8376a55b06304bd24612d10812cf8ada29a5c84
+# Index 47928: 7a7eee8ab72908b79ac10ba3f817447dd59e7642
 
 echo "🚀 Generating explanation for commit 47928..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 47928..."
 
 ### メタデータ
 - **コミットインデックス**: 47928
-- **コミットハッシュ**: f8376a55b06304bd24612d10812cf8ada29a5c84
-- **GitHub URL**: https://github.com/golang/go/commit/f8376a55b06304bd24612d10812cf8ada29a5c84
+- **コミットハッシュ**: 7a7eee8ab72908b79ac10ba3f817447dd59e7642
+- **GitHub URL**: https://github.com/golang/go/commit/7a7eee8ab72908b79ac10ba3f817447dd59e7642
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 47928..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/f8376a55b06304bd24612d10812cf8ada29a5c84](https://github.com/golang/go/commit/f8376a55b06304bd24612d10812cf8ada29a5c84)
+[https://github.com/golang/go/commit/7a7eee8ab72908b79ac10ba3f817447dd59e7642](https://github.com/golang/go/commit/7a7eee8ab72908b79ac10ba3f817447dd59e7642)
 
 ## GitHub上でのコミットページへのリンク
 

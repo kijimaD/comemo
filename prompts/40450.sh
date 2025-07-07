@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40450: db1e8a9e1f1b019dd7928ea239d5b0e4af66d9a6
+# Index 40450: 2637f1f9505fec6d1e5db39ebc5a182a54356aa6
 
 echo "🚀 Generating explanation for commit 40450..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40450..."
 
 ### メタデータ
 - **コミットインデックス**: 40450
-- **コミットハッシュ**: db1e8a9e1f1b019dd7928ea239d5b0e4af66d9a6
-- **GitHub URL**: https://github.com/golang/go/commit/db1e8a9e1f1b019dd7928ea239d5b0e4af66d9a6
+- **コミットハッシュ**: 2637f1f9505fec6d1e5db39ebc5a182a54356aa6
+- **GitHub URL**: https://github.com/golang/go/commit/2637f1f9505fec6d1e5db39ebc5a182a54356aa6
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40450..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/db1e8a9e1f1b019dd7928ea239d5b0e4af66d9a6](https://github.com/golang/go/commit/db1e8a9e1f1b019dd7928ea239d5b0e4af66d9a6)
+[https://github.com/golang/go/commit/2637f1f9505fec6d1e5db39ebc5a182a54356aa6](https://github.com/golang/go/commit/2637f1f9505fec6d1e5db39ebc5a182a54356aa6)
 
 ## GitHub上でのコミットページへのリンク
 

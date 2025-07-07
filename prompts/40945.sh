@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40945: db2b6e15667f9001bbd1ef133ce64328cd329166
+# Index 40945: 1a423bec00915fd45dc6f7ee67860abbfc2bbdb2
 
 echo "🚀 Generating explanation for commit 40945..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40945..."
 
 ### メタデータ
 - **コミットインデックス**: 40945
-- **コミットハッシュ**: db2b6e15667f9001bbd1ef133ce64328cd329166
-- **GitHub URL**: https://github.com/golang/go/commit/db2b6e15667f9001bbd1ef133ce64328cd329166
+- **コミットハッシュ**: 1a423bec00915fd45dc6f7ee67860abbfc2bbdb2
+- **GitHub URL**: https://github.com/golang/go/commit/1a423bec00915fd45dc6f7ee67860abbfc2bbdb2
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40945..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/db2b6e15667f9001bbd1ef133ce64328cd329166](https://github.com/golang/go/commit/db2b6e15667f9001bbd1ef133ce64328cd329166)
+[https://github.com/golang/go/commit/1a423bec00915fd45dc6f7ee67860abbfc2bbdb2](https://github.com/golang/go/commit/1a423bec00915fd45dc6f7ee67860abbfc2bbdb2)
 
 ## GitHub上でのコミットページへのリンク
 

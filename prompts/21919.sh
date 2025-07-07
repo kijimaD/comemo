@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 21919: 8eb8b40a4965c0bd5f96dfdfc5b037925f630c2d
+# Index 21919: 77a2113925b516c0ead2ae258c4d41ac3fdc0836
 
 echo "🚀 Generating explanation for commit 21919..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 21919..."
 
 ### メタデータ
 - **コミットインデックス**: 21919
-- **コミットハッシュ**: 8eb8b40a4965c0bd5f96dfdfc5b037925f630c2d
-- **GitHub URL**: https://github.com/golang/go/commit/8eb8b40a4965c0bd5f96dfdfc5b037925f630c2d
+- **コミットハッシュ**: 77a2113925b516c0ead2ae258c4d41ac3fdc0836
+- **GitHub URL**: https://github.com/golang/go/commit/77a2113925b516c0ead2ae258c4d41ac3fdc0836
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 21919..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/8eb8b40a4965c0bd5f96dfdfc5b037925f630c2d](https://github.com/golang/go/commit/8eb8b40a4965c0bd5f96dfdfc5b037925f630c2d)
+[https://github.com/golang/go/commit/77a2113925b516c0ead2ae258c4d41ac3fdc0836](https://github.com/golang/go/commit/77a2113925b516c0ead2ae258c4d41ac3fdc0836)
 
 ## GitHub上でのコミットページへのリンク
 

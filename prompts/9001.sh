@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9001: e71fc0c1fe3787e6398c50377097ee34b2e63981
+# Index 9001: bf9531f80bc11de82fe739b43156705b1816acf3
 
 echo "🚀 Generating explanation for commit 9001..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 9001..."
 
 ### メタデータ
 - **コミットインデックス**: 9001
-- **コミットハッシュ**: e71fc0c1fe3787e6398c50377097ee34b2e63981
-- **GitHub URL**: https://github.com/golang/go/commit/e71fc0c1fe3787e6398c50377097ee34b2e63981
+- **コミットハッシュ**: bf9531f80bc11de82fe739b43156705b1816acf3
+- **GitHub URL**: https://github.com/golang/go/commit/bf9531f80bc11de82fe739b43156705b1816acf3
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 9001..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/e71fc0c1fe3787e6398c50377097ee34b2e63981](https://github.com/golang/go/commit/e71fc0c1fe3787e6398c50377097ee34b2e63981)
+[https://github.com/golang/go/commit/bf9531f80bc11de82fe739b43156705b1816acf3](https://github.com/golang/go/commit/bf9531f80bc11de82fe739b43156705b1816acf3)
 
 ## GitHub上でのコミットページへのリンク
 

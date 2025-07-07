@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 18480: bad181e2c2e4d7e1bd44899390edc7e8a90086b4
+# Index 18480: 5bf35df491cb41b696979764be7dddaf128781ba
 
 echo "🚀 Generating explanation for commit 18480..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 18480..."
 
 ### メタデータ
 - **コミットインデックス**: 18480
-- **コミットハッシュ**: bad181e2c2e4d7e1bd44899390edc7e8a90086b4
-- **GitHub URL**: https://github.com/golang/go/commit/bad181e2c2e4d7e1bd44899390edc7e8a90086b4
+- **コミットハッシュ**: 5bf35df491cb41b696979764be7dddaf128781ba
+- **GitHub URL**: https://github.com/golang/go/commit/5bf35df491cb41b696979764be7dddaf128781ba
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 18480..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/bad181e2c2e4d7e1bd44899390edc7e8a90086b4](https://github.com/golang/go/commit/bad181e2c2e4d7e1bd44899390edc7e8a90086b4)
+[https://github.com/golang/go/commit/5bf35df491cb41b696979764be7dddaf128781ba](https://github.com/golang/go/commit/5bf35df491cb41b696979764be7dddaf128781ba)
 
 ## GitHub上でのコミットページへのリンク
 

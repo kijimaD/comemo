@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 49205: a956a0e909e1d60c8d55339e5e591a9d1db885c4
+# Index 49205: ff0c0dbca6a7a3a3d6528481829679be4c9d7e94
 
 echo "🚀 Generating explanation for commit 49205..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 49205..."
 
 ### メタデータ
 - **コミットインデックス**: 49205
-- **コミットハッシュ**: a956a0e909e1d60c8d55339e5e591a9d1db885c4
-- **GitHub URL**: https://github.com/golang/go/commit/a956a0e909e1d60c8d55339e5e591a9d1db885c4
+- **コミットハッシュ**: ff0c0dbca6a7a3a3d6528481829679be4c9d7e94
+- **GitHub URL**: https://github.com/golang/go/commit/ff0c0dbca6a7a3a3d6528481829679be4c9d7e94
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 49205..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/a956a0e909e1d60c8d55339e5e591a9d1db885c4](https://github.com/golang/go/commit/a956a0e909e1d60c8d55339e5e591a9d1db885c4)
+[https://github.com/golang/go/commit/ff0c0dbca6a7a3a3d6528481829679be4c9d7e94](https://github.com/golang/go/commit/ff0c0dbca6a7a3a3d6528481829679be4c9d7e94)
 
 ## GitHub上でのコミットページへのリンク
 

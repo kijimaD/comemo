@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 44869: b49d8ce2fa66df6e201a3e7e89c42003e7b7a76a
+# Index 44869: 9b2df72b63ff977004756e9b847f926b4fb8d8a8
 
 echo "🚀 Generating explanation for commit 44869..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 44869..."
 
 ### メタデータ
 - **コミットインデックス**: 44869
-- **コミットハッシュ**: b49d8ce2fa66df6e201a3e7e89c42003e7b7a76a
-- **GitHub URL**: https://github.com/golang/go/commit/b49d8ce2fa66df6e201a3e7e89c42003e7b7a76a
+- **コミットハッシュ**: 9b2df72b63ff977004756e9b847f926b4fb8d8a8
+- **GitHub URL**: https://github.com/golang/go/commit/9b2df72b63ff977004756e9b847f926b4fb8d8a8
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 44869..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/b49d8ce2fa66df6e201a3e7e89c42003e7b7a76a](https://github.com/golang/go/commit/b49d8ce2fa66df6e201a3e7e89c42003e7b7a76a)
+[https://github.com/golang/go/commit/9b2df72b63ff977004756e9b847f926b4fb8d8a8](https://github.com/golang/go/commit/9b2df72b63ff977004756e9b847f926b4fb8d8a8)
 
 ## GitHub上でのコミットページへのリンク
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 25743: fda72e03751ab876ced9351611e42ad019090ec8
+# Index 25743: fe762b64660d0546821133922182a89f402a3161
 
 echo "🚀 Generating explanation for commit 25743..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 25743..."
 
 ### メタデータ
 - **コミットインデックス**: 25743
-- **コミットハッシュ**: fda72e03751ab876ced9351611e42ad019090ec8
-- **GitHub URL**: https://github.com/golang/go/commit/fda72e03751ab876ced9351611e42ad019090ec8
+- **コミットハッシュ**: fe762b64660d0546821133922182a89f402a3161
+- **GitHub URL**: https://github.com/golang/go/commit/fe762b64660d0546821133922182a89f402a3161
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 25743..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/fda72e03751ab876ced9351611e42ad019090ec8](https://github.com/golang/go/commit/fda72e03751ab876ced9351611e42ad019090ec8)
+[https://github.com/golang/go/commit/fe762b64660d0546821133922182a89f402a3161](https://github.com/golang/go/commit/fe762b64660d0546821133922182a89f402a3161)
 
 ## GitHub上でのコミットページへのリンク
 

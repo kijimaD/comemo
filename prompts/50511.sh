@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50511: 13a4e8c41cd1d242a435d44e7f66f370e5306a8c
+# Index 50511: 8e112a7c2a814de9156f68dc8b167e4ef8c98c52
 
 echo "🚀 Generating explanation for commit 50511..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 50511..."
 
 ### メタデータ
 - **コミットインデックス**: 50511
-- **コミットハッシュ**: 13a4e8c41cd1d242a435d44e7f66f370e5306a8c
-- **GitHub URL**: https://github.com/golang/go/commit/13a4e8c41cd1d242a435d44e7f66f370e5306a8c
+- **コミットハッシュ**: 8e112a7c2a814de9156f68dc8b167e4ef8c98c52
+- **GitHub URL**: https://github.com/golang/go/commit/8e112a7c2a814de9156f68dc8b167e4ef8c98c52
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 50511..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/13a4e8c41cd1d242a435d44e7f66f370e5306a8c](https://github.com/golang/go/commit/13a4e8c41cd1d242a435d44e7f66f370e5306a8c)
+[https://github.com/golang/go/commit/8e112a7c2a814de9156f68dc8b167e4ef8c98c52](https://github.com/golang/go/commit/8e112a7c2a814de9156f68dc8b167e4ef8c98c52)
 
 ## GitHub上でのコミットページへのリンク
 

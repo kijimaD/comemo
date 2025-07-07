@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 45025: ff1eb428654b7815a8fc825f1cc29d6cf72cc2f7
+# Index 45025: f765dcbd5c8205a0d222257b4514b1194cad26f8
 
 echo "🚀 Generating explanation for commit 45025..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 45025..."
 
 ### メタデータ
 - **コミットインデックス**: 45025
-- **コミットハッシュ**: ff1eb428654b7815a8fc825f1cc29d6cf72cc2f7
-- **GitHub URL**: https://github.com/golang/go/commit/ff1eb428654b7815a8fc825f1cc29d6cf72cc2f7
+- **コミットハッシュ**: f765dcbd5c8205a0d222257b4514b1194cad26f8
+- **GitHub URL**: https://github.com/golang/go/commit/f765dcbd5c8205a0d222257b4514b1194cad26f8
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 45025..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/ff1eb428654b7815a8fc825f1cc29d6cf72cc2f7](https://github.com/golang/go/commit/ff1eb428654b7815a8fc825f1cc29d6cf72cc2f7)
+[https://github.com/golang/go/commit/f765dcbd5c8205a0d222257b4514b1194cad26f8](https://github.com/golang/go/commit/f765dcbd5c8205a0d222257b4514b1194cad26f8)
 
 ## GitHub上でのコミットページへのリンク
 

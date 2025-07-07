@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 33034: 7bf0adc6add500054ccbc37a868ab0fab120fa24
+# Index 33034: e7823d656e8118534d9ddbd6d2b948c6fdad0549
 
 echo "🚀 Generating explanation for commit 33034..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 33034..."
 
 ### メタデータ
 - **コミットインデックス**: 33034
-- **コミットハッシュ**: 7bf0adc6add500054ccbc37a868ab0fab120fa24
-- **GitHub URL**: https://github.com/golang/go/commit/7bf0adc6add500054ccbc37a868ab0fab120fa24
+- **コミットハッシュ**: e7823d656e8118534d9ddbd6d2b948c6fdad0549
+- **GitHub URL**: https://github.com/golang/go/commit/e7823d656e8118534d9ddbd6d2b948c6fdad0549
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 33034..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/7bf0adc6add500054ccbc37a868ab0fab120fa24](https://github.com/golang/go/commit/7bf0adc6add500054ccbc37a868ab0fab120fa24)
+[https://github.com/golang/go/commit/e7823d656e8118534d9ddbd6d2b948c6fdad0549](https://github.com/golang/go/commit/e7823d656e8118534d9ddbd6d2b948c6fdad0549)
 
 ## GitHub上でのコミットページへのリンク
 

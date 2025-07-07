@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40413: ef209c9eb1216252ee7a59d78156ad9dcccab656
+# Index 40413: 3b8c804164e26bdec6ca94a5ab1b5c35fa119e5e
 
 echo "🚀 Generating explanation for commit 40413..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40413..."
 
 ### メタデータ
 - **コミットインデックス**: 40413
-- **コミットハッシュ**: ef209c9eb1216252ee7a59d78156ad9dcccab656
-- **GitHub URL**: https://github.com/golang/go/commit/ef209c9eb1216252ee7a59d78156ad9dcccab656
+- **コミットハッシュ**: 3b8c804164e26bdec6ca94a5ab1b5c35fa119e5e
+- **GitHub URL**: https://github.com/golang/go/commit/3b8c804164e26bdec6ca94a5ab1b5c35fa119e5e
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40413..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/ef209c9eb1216252ee7a59d78156ad9dcccab656](https://github.com/golang/go/commit/ef209c9eb1216252ee7a59d78156ad9dcccab656)
+[https://github.com/golang/go/commit/3b8c804164e26bdec6ca94a5ab1b5c35fa119e5e](https://github.com/golang/go/commit/3b8c804164e26bdec6ca94a5ab1b5c35fa119e5e)
 
 ## GitHub上でのコミットページへのリンク
 

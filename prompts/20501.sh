@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 20501: cecca43804e0bd795581b6ec6a376509ed5fea05
+# Index 20501: d78823168fb90c33b6a208e56bffa1e17e32de59
 
 echo "🚀 Generating explanation for commit 20501..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 20501..."
 
 ### メタデータ
 - **コミットインデックス**: 20501
-- **コミットハッシュ**: cecca43804e0bd795581b6ec6a376509ed5fea05
-- **GitHub URL**: https://github.com/golang/go/commit/cecca43804e0bd795581b6ec6a376509ed5fea05
+- **コミットハッシュ**: d78823168fb90c33b6a208e56bffa1e17e32de59
+- **GitHub URL**: https://github.com/golang/go/commit/d78823168fb90c33b6a208e56bffa1e17e32de59
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 20501..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/cecca43804e0bd795581b6ec6a376509ed5fea05](https://github.com/golang/go/commit/cecca43804e0bd795581b6ec6a376509ed5fea05)
+[https://github.com/golang/go/commit/d78823168fb90c33b6a208e56bffa1e17e32de59](https://github.com/golang/go/commit/d78823168fb90c33b6a208e56bffa1e17e32de59)
 
 ## GitHub上でのコミットページへのリンク
 

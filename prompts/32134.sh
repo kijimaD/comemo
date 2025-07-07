@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 32134: edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
+# Index 32134: 817c1023b06a7e0dbd180609b63e06a64b6ebeaf
 
 echo "🚀 Generating explanation for commit 32134..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 32134..."
 
 ### メタデータ
 - **コミットインデックス**: 32134
-- **コミットハッシュ**: edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
-- **GitHub URL**: https://github.com/golang/go/commit/edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc
+- **コミットハッシュ**: 817c1023b06a7e0dbd180609b63e06a64b6ebeaf
+- **GitHub URL**: https://github.com/golang/go/commit/817c1023b06a7e0dbd180609b63e06a64b6ebeaf
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 32134..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc](https://github.com/golang/go/commit/edad59cfae70d2bfb9cdf66e2492f9a1c1318ddc)
+[https://github.com/golang/go/commit/817c1023b06a7e0dbd180609b63e06a64b6ebeaf](https://github.com/golang/go/commit/817c1023b06a7e0dbd180609b63e06a64b6ebeaf)
 
 ## GitHub上でのコミットページへのリンク
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40540: 8e6396115e56d8e0cbecd6904f94c8d893db1724
+# Index 40540: 3ce865d7a0b88714cc433454ae2370a105210c01
 
 echo "🚀 Generating explanation for commit 40540..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40540..."
 
 ### メタデータ
 - **コミットインデックス**: 40540
-- **コミットハッシュ**: 8e6396115e56d8e0cbecd6904f94c8d893db1724
-- **GitHub URL**: https://github.com/golang/go/commit/8e6396115e56d8e0cbecd6904f94c8d893db1724
+- **コミットハッシュ**: 3ce865d7a0b88714cc433454ae2370a105210c01
+- **GitHub URL**: https://github.com/golang/go/commit/3ce865d7a0b88714cc433454ae2370a105210c01
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40540..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/8e6396115e56d8e0cbecd6904f94c8d893db1724](https://github.com/golang/go/commit/8e6396115e56d8e0cbecd6904f94c8d893db1724)
+[https://github.com/golang/go/commit/3ce865d7a0b88714cc433454ae2370a105210c01](https://github.com/golang/go/commit/3ce865d7a0b88714cc433454ae2370a105210c01)
 
 ## GitHub上でのコミットページへのリンク
 

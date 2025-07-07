@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 9060: 909f31872a0e5e5b8ec5cc49b22ae661777a2fbc
+# Index 9060: f4acaa8ecd3057e99ce2a7b92c6b2b4cdd363743
 
 echo "🚀 Generating explanation for commit 9060..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 9060..."
 
 ### メタデータ
 - **コミットインデックス**: 9060
-- **コミットハッシュ**: 909f31872a0e5e5b8ec5cc49b22ae661777a2fbc
-- **GitHub URL**: https://github.com/golang/go/commit/909f31872a0e5e5b8ec5cc49b22ae661777a2fbc
+- **コミットハッシュ**: f4acaa8ecd3057e99ce2a7b92c6b2b4cdd363743
+- **GitHub URL**: https://github.com/golang/go/commit/f4acaa8ecd3057e99ce2a7b92c6b2b4cdd363743
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 9060..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/909f31872a0e5e5b8ec5cc49b22ae661777a2fbc](https://github.com/golang/go/commit/909f31872a0e5e5b8ec5cc49b22ae661777a2fbc)
+[https://github.com/golang/go/commit/f4acaa8ecd3057e99ce2a7b92c6b2b4cdd363743](https://github.com/golang/go/commit/f4acaa8ecd3057e99ce2a7b92c6b2b4cdd363743)
 
 ## GitHub上でのコミットページへのリンク
 

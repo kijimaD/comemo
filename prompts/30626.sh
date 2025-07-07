@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 30626: 55620a0e910fd9f2a9d7d631f01a6bddfe0f6a0a
+# Index 30626: dadfd14babccc30757ddb3f3eb8fbb7cd3bf4b5a
 
 echo "🚀 Generating explanation for commit 30626..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 30626..."
 
 ### メタデータ
 - **コミットインデックス**: 30626
-- **コミットハッシュ**: 55620a0e910fd9f2a9d7d631f01a6bddfe0f6a0a
-- **GitHub URL**: https://github.com/golang/go/commit/55620a0e910fd9f2a9d7d631f01a6bddfe0f6a0a
+- **コミットハッシュ**: dadfd14babccc30757ddb3f3eb8fbb7cd3bf4b5a
+- **GitHub URL**: https://github.com/golang/go/commit/dadfd14babccc30757ddb3f3eb8fbb7cd3bf4b5a
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 30626..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/55620a0e910fd9f2a9d7d631f01a6bddfe0f6a0a](https://github.com/golang/go/commit/55620a0e910fd9f2a9d7d631f01a6bddfe0f6a0a)
+[https://github.com/golang/go/commit/dadfd14babccc30757ddb3f3eb8fbb7cd3bf4b5a](https://github.com/golang/go/commit/dadfd14babccc30757ddb3f3eb8fbb7cd3bf4b5a)
 
 ## GitHub上でのコミットページへのリンク
 

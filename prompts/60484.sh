@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 60484: b0e1707f94b9c6254c8cb2987d7b5c0db2ec5f2e
+# Index 60484: deed521ea3daf42cb9c8388ae48fe57f17e252f5
 
 echo "🚀 Generating explanation for commit 60484..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 60484..."
 
 ### メタデータ
 - **コミットインデックス**: 60484
-- **コミットハッシュ**: b0e1707f94b9c6254c8cb2987d7b5c0db2ec5f2e
-- **GitHub URL**: https://github.com/golang/go/commit/b0e1707f94b9c6254c8cb2987d7b5c0db2ec5f2e
+- **コミットハッシュ**: deed521ea3daf42cb9c8388ae48fe57f17e252f5
+- **GitHub URL**: https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 60484..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/b0e1707f94b9c6254c8cb2987d7b5c0db2ec5f2e](https://github.com/golang/go/commit/b0e1707f94b9c6254c8cb2987d7b5c0db2ec5f2e)
+[https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5](https://github.com/golang/go/commit/deed521ea3daf42cb9c8388ae48fe57f17e252f5)
 
 ## GitHub上でのコミットページへのリンク
 

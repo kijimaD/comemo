@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 14399: 5e47b779905ce87faac1bea3b0774b50ddf1ceba
+# Index 14399: 56bcef02fca3299bfd162fea1c647754cd071714
 
 echo "🚀 Generating explanation for commit 14399..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 14399..."
 
 ### メタデータ
 - **コミットインデックス**: 14399
-- **コミットハッシュ**: 5e47b779905ce87faac1bea3b0774b50ddf1ceba
-- **GitHub URL**: https://github.com/golang/go/commit/5e47b779905ce87faac1bea3b0774b50ddf1ceba
+- **コミットハッシュ**: 56bcef02fca3299bfd162fea1c647754cd071714
+- **GitHub URL**: https://github.com/golang/go/commit/56bcef02fca3299bfd162fea1c647754cd071714
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 14399..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/5e47b779905ce87faac1bea3b0774b50ddf1ceba](https://github.com/golang/go/commit/5e47b779905ce87faac1bea3b0774b50ddf1ceba)
+[https://github.com/golang/go/commit/56bcef02fca3299bfd162fea1c647754cd071714](https://github.com/golang/go/commit/56bcef02fca3299bfd162fea1c647754cd071714)
 
 ## GitHub上でのコミットページへのリンク
 

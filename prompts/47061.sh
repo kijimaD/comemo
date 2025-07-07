@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 47061: 01aad9ea939fed313d5c51778485349435302ead
+# Index 47061: e5159b2a2f0fdd47c644d1655f5a7b57ec7dd509
 
 echo "🚀 Generating explanation for commit 47061..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 47061..."
 
 ### メタデータ
 - **コミットインデックス**: 47061
-- **コミットハッシュ**: 01aad9ea939fed313d5c51778485349435302ead
-- **GitHub URL**: https://github.com/golang/go/commit/01aad9ea939fed313d5c51778485349435302ead
+- **コミットハッシュ**: e5159b2a2f0fdd47c644d1655f5a7b57ec7dd509
+- **GitHub URL**: https://github.com/golang/go/commit/e5159b2a2f0fdd47c644d1655f5a7b57ec7dd509
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 47061..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/01aad9ea939fed313d5c51778485349435302ead](https://github.com/golang/go/commit/01aad9ea939fed313d5c51778485349435302ead)
+[https://github.com/golang/go/commit/e5159b2a2f0fdd47c644d1655f5a7b57ec7dd509](https://github.com/golang/go/commit/e5159b2a2f0fdd47c644d1655f5a7b57ec7dd509)
 
 ## GitHub上でのコミットページへのリンク
 

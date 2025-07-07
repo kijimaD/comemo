@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 60023: 33a601bf7d8e330d7c6ce1044f2c6a1df4f4fb5d
+# Index 60023: 6a05055780e1beef8231ab1e05ffaf5754b1e5b6
 
 echo "🚀 Generating explanation for commit 60023..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 60023..."
 
 ### メタデータ
 - **コミットインデックス**: 60023
-- **コミットハッシュ**: 33a601bf7d8e330d7c6ce1044f2c6a1df4f4fb5d
-- **GitHub URL**: https://github.com/golang/go/commit/33a601bf7d8e330d7c6ce1044f2c6a1df4f4fb5d
+- **コミットハッシュ**: 6a05055780e1beef8231ab1e05ffaf5754b1e5b6
+- **GitHub URL**: https://github.com/golang/go/commit/6a05055780e1beef8231ab1e05ffaf5754b1e5b6
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 60023..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/33a601bf7d8e330d7c6ce1044f2c6a1df4f4fb5d](https://github.com/golang/go/commit/33a601bf7d8e330d7c6ce1044f2c6a1df4f4fb5d)
+[https://github.com/golang/go/commit/6a05055780e1beef8231ab1e05ffaf5754b1e5b6](https://github.com/golang/go/commit/6a05055780e1beef8231ab1e05ffaf5754b1e5b6)
 
 ## GitHub上でのコミットページへのリンク
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40090: cb4130996fa7f73c62dafcd65a94233359fd9e09
+# Index 40090: 7cdacf558fde27e1ac76f2f839a8cd7690d7e2ad
 
 echo "🚀 Generating explanation for commit 40090..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40090..."
 
 ### メタデータ
 - **コミットインデックス**: 40090
-- **コミットハッシュ**: cb4130996fa7f73c62dafcd65a94233359fd9e09
-- **GitHub URL**: https://github.com/golang/go/commit/cb4130996fa7f73c62dafcd65a94233359fd9e09
+- **コミットハッシュ**: 7cdacf558fde27e1ac76f2f839a8cd7690d7e2ad
+- **GitHub URL**: https://github.com/golang/go/commit/7cdacf558fde27e1ac76f2f839a8cd7690d7e2ad
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40090..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/cb4130996fa7f73c62dafcd65a94233359fd9e09](https://github.com/golang/go/commit/cb4130996fa7f73c62dafcd65a94233359fd9e09)
+[https://github.com/golang/go/commit/7cdacf558fde27e1ac76f2f839a8cd7690d7e2ad](https://github.com/golang/go/commit/7cdacf558fde27e1ac76f2f839a8cd7690d7e2ad)
 
 ## GitHub上でのコミットページへのリンク
 

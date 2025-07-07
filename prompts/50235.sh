@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50235: feb844f1ead183b911ede1224638fbf55bcde7b8
+# Index 50235: 577bb7dba11ef2f6588664dcface13fba32bb354
 
 echo "🚀 Generating explanation for commit 50235..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 50235..."
 
 ### メタデータ
 - **コミットインデックス**: 50235
-- **コミットハッシュ**: feb844f1ead183b911ede1224638fbf55bcde7b8
-- **GitHub URL**: https://github.com/golang/go/commit/feb844f1ead183b911ede1224638fbf55bcde7b8
+- **コミットハッシュ**: 577bb7dba11ef2f6588664dcface13fba32bb354
+- **GitHub URL**: https://github.com/golang/go/commit/577bb7dba11ef2f6588664dcface13fba32bb354
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 50235..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/feb844f1ead183b911ede1224638fbf55bcde7b8](https://github.com/golang/go/commit/feb844f1ead183b911ede1224638fbf55bcde7b8)
+[https://github.com/golang/go/commit/577bb7dba11ef2f6588664dcface13fba32bb354](https://github.com/golang/go/commit/577bb7dba11ef2f6588664dcface13fba32bb354)
 
 ## GitHub上でのコミットページへのリンク
 

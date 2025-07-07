@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40169: ead5d1e316873a63471de31f3d70f97aeb7969f5
+# Index 40169: 17615969b6c910972a4babb4d1c8f009b1d851e3
 
 echo "🚀 Generating explanation for commit 40169..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40169..."
 
 ### メタデータ
 - **コミットインデックス**: 40169
-- **コミットハッシュ**: ead5d1e316873a63471de31f3d70f97aeb7969f5
-- **GitHub URL**: https://github.com/golang/go/commit/ead5d1e316873a63471de31f3d70f97aeb7969f5
+- **コミットハッシュ**: 17615969b6c910972a4babb4d1c8f009b1d851e3
+- **GitHub URL**: https://github.com/golang/go/commit/17615969b6c910972a4babb4d1c8f009b1d851e3
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40169..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/ead5d1e316873a63471de31f3d70f97aeb7969f5](https://github.com/golang/go/commit/ead5d1e316873a63471de31f3d70f97aeb7969f5)
+[https://github.com/golang/go/commit/17615969b6c910972a4babb4d1c8f009b1d851e3](https://github.com/golang/go/commit/17615969b6c910972a4babb4d1c8f009b1d851e3)
 
 ## GitHub上でのコミットページへのリンク
 

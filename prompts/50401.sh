@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 50401: fca51ba24a829233ca133455fd3f161ffc9d7c55
+# Index 50401: fcd2d9cd75e6307b5b72fed2201044e231bef40a
 
 echo "🚀 Generating explanation for commit 50401..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 50401..."
 
 ### メタデータ
 - **コミットインデックス**: 50401
-- **コミットハッシュ**: fca51ba24a829233ca133455fd3f161ffc9d7c55
-- **GitHub URL**: https://github.com/golang/go/commit/fca51ba24a829233ca133455fd3f161ffc9d7c55
+- **コミットハッシュ**: fcd2d9cd75e6307b5b72fed2201044e231bef40a
+- **GitHub URL**: https://github.com/golang/go/commit/fcd2d9cd75e6307b5b72fed2201044e231bef40a
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 50401..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/fca51ba24a829233ca133455fd3f161ffc9d7c55](https://github.com/golang/go/commit/fca51ba24a829233ca133455fd3f161ffc9d7c55)
+[https://github.com/golang/go/commit/fcd2d9cd75e6307b5b72fed2201044e231bef40a](https://github.com/golang/go/commit/fcd2d9cd75e6307b5b72fed2201044e231bef40a)
 
 ## GitHub上でのコミットページへのリンク
 

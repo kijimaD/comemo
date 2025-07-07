@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 43519: dad512f6df83367a46d9135daa13e27f51b8ba04
+# Index 43519: 28157b3292a9da90a7ceea89e9b01d9dd03b4979
 
 echo "🚀 Generating explanation for commit 43519..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 43519..."
 
 ### メタデータ
 - **コミットインデックス**: 43519
-- **コミットハッシュ**: dad512f6df83367a46d9135daa13e27f51b8ba04
-- **GitHub URL**: https://github.com/golang/go/commit/dad512f6df83367a46d9135daa13e27f51b8ba04
+- **コミットハッシュ**: 28157b3292a9da90a7ceea89e9b01d9dd03b4979
+- **GitHub URL**: https://github.com/golang/go/commit/28157b3292a9da90a7ceea89e9b01d9dd03b4979
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 43519..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/dad512f6df83367a46d9135daa13e27f51b8ba04](https://github.com/golang/go/commit/dad512f6df83367a46d9135daa13e27f51b8ba04)
+[https://github.com/golang/go/commit/28157b3292a9da90a7ceea89e9b01d9dd03b4979](https://github.com/golang/go/commit/28157b3292a9da90a7ceea89e9b01d9dd03b4979)
 
 ## GitHub上でのコミットページへのリンク
 

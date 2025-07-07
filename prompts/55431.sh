@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 55431: 8a5845e4e34c046758af3729acf9221b8b6c01ae
+# Index 55431: def0be5e34d6657c84407c8afe4ace05d10d1848
 
 echo "🚀 Generating explanation for commit 55431..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 55431..."
 
 ### メタデータ
 - **コミットインデックス**: 55431
-- **コミットハッシュ**: 8a5845e4e34c046758af3729acf9221b8b6c01ae
-- **GitHub URL**: https://github.com/golang/go/commit/8a5845e4e34c046758af3729acf9221b8b6c01ae
+- **コミットハッシュ**: def0be5e34d6657c84407c8afe4ace05d10d1848
+- **GitHub URL**: https://github.com/golang/go/commit/def0be5e34d6657c84407c8afe4ace05d10d1848
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 55431..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/8a5845e4e34c046758af3729acf9221b8b6c01ae](https://github.com/golang/go/commit/8a5845e4e34c046758af3729acf9221b8b6c01ae)
+[https://github.com/golang/go/commit/def0be5e34d6657c84407c8afe4ace05d10d1848](https://github.com/golang/go/commit/def0be5e34d6657c84407c8afe4ace05d10d1848)
 
 ## GitHub上でのコミットページへのリンク
 

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40505: e7c20b7917989e678a2800378b807fe0fdaf8031
+# Index 40505: c77a9e0aa5a8a238d68aa82b3b7e052a314a0060
 
 echo "🚀 Generating explanation for commit 40505..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40505..."
 
 ### メタデータ
 - **コミットインデックス**: 40505
-- **コミットハッシュ**: e7c20b7917989e678a2800378b807fe0fdaf8031
-- **GitHub URL**: https://github.com/golang/go/commit/e7c20b7917989e678a2800378b807fe0fdaf8031
+- **コミットハッシュ**: c77a9e0aa5a8a238d68aa82b3b7e052a314a0060
+- **GitHub URL**: https://github.com/golang/go/commit/c77a9e0aa5a8a238d68aa82b3b7e052a314a0060
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40505..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/e7c20b7917989e678a2800378b807fe0fdaf8031](https://github.com/golang/go/commit/e7c20b7917989e678a2800378b807fe0fdaf8031)
+[https://github.com/golang/go/commit/c77a9e0aa5a8a238d68aa82b3b7e052a314a0060](https://github.com/golang/go/commit/c77a9e0aa5a8a238d68aa82b3b7e052a314a0060)
 
 ## GitHub上でのコミットページへのリンク
 

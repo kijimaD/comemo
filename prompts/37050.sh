@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 37050: f7ac70a56604033e2b1abc921d3f0f6afc85a7b3
+# Index 37050: 011ea87921cb37dc8e4147d99c22234f875d2651
 
 echo "🚀 Generating explanation for commit 37050..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 37050..."
 
 ### メタデータ
 - **コミットインデックス**: 37050
-- **コミットハッシュ**: f7ac70a56604033e2b1abc921d3f0f6afc85a7b3
-- **GitHub URL**: https://github.com/golang/go/commit/f7ac70a56604033e2b1abc921d3f0f6afc85a7b3
+- **コミットハッシュ**: 011ea87921cb37dc8e4147d99c22234f875d2651
+- **GitHub URL**: https://github.com/golang/go/commit/011ea87921cb37dc8e4147d99c22234f875d2651
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 37050..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/f7ac70a56604033e2b1abc921d3f0f6afc85a7b3](https://github.com/golang/go/commit/f7ac70a56604033e2b1abc921d3f0f6afc85a7b3)
+[https://github.com/golang/go/commit/011ea87921cb37dc8e4147d99c22234f875d2651](https://github.com/golang/go/commit/011ea87921cb37dc8e4147d99c22234f875d2651)
 
 ## GitHub上でのコミットページへのリンク
 

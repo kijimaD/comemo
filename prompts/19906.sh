@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 19906: 65c63dc4aabba3ecd320427fb20bc1cdbe0d2a3d
+# Index 19906: de1ab89f03a9a22a919fe051bb7251178c80279c
 
 echo "🚀 Generating explanation for commit 19906..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 19906..."
 
 ### メタデータ
 - **コミットインデックス**: 19906
-- **コミットハッシュ**: 65c63dc4aabba3ecd320427fb20bc1cdbe0d2a3d
-- **GitHub URL**: https://github.com/golang/go/commit/65c63dc4aabba3ecd320427fb20bc1cdbe0d2a3d
+- **コミットハッシュ**: de1ab89f03a9a22a919fe051bb7251178c80279c
+- **GitHub URL**: https://github.com/golang/go/commit/de1ab89f03a9a22a919fe051bb7251178c80279c
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 19906..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/65c63dc4aabba3ecd320427fb20bc1cdbe0d2a3d](https://github.com/golang/go/commit/65c63dc4aabba3ecd320427fb20bc1cdbe0d2a3d)
+[https://github.com/golang/go/commit/de1ab89f03a9a22a919fe051bb7251178c80279c](https://github.com/golang/go/commit/de1ab89f03a9a22a919fe051bb7251178c80279c)
 
 ## GitHub上でのコミットページへのリンク
 

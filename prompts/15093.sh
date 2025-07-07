@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 15093: 3c6c88319eeb4b6fe0b599d894bbb0d8f50a116f
+# Index 15093: 5ea52a4d91fd45a2a727a4f6cca96d08cb2960f2
 
 echo "🚀 Generating explanation for commit 15093..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 15093..."
 
 ### メタデータ
 - **コミットインデックス**: 15093
-- **コミットハッシュ**: 3c6c88319eeb4b6fe0b599d894bbb0d8f50a116f
-- **GitHub URL**: https://github.com/golang/go/commit/3c6c88319eeb4b6fe0b599d894bbb0d8f50a116f
+- **コミットハッシュ**: 5ea52a4d91fd45a2a727a4f6cca96d08cb2960f2
+- **GitHub URL**: https://github.com/golang/go/commit/5ea52a4d91fd45a2a727a4f6cca96d08cb2960f2
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 15093..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/3c6c88319eeb4b6fe0b599d894bbb0d8f50a116f](https://github.com/golang/go/commit/3c6c88319eeb4b6fe0b599d894bbb0d8f50a116f)
+[https://github.com/golang/go/commit/5ea52a4d91fd45a2a727a4f6cca96d08cb2960f2](https://github.com/golang/go/commit/5ea52a4d91fd45a2a727a4f6cca96d08cb2960f2)
 
 ## GitHub上でのコミットページへのリンク
 

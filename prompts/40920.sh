@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40920: 694ee61277300a4c24d570e75c1b63fff8dea468
+# Index 40920: e764432605cb26478067890b49f4f16019c9a9b9
 
 echo "🚀 Generating explanation for commit 40920..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40920..."
 
 ### メタデータ
 - **コミットインデックス**: 40920
-- **コミットハッシュ**: 694ee61277300a4c24d570e75c1b63fff8dea468
-- **GitHub URL**: https://github.com/golang/go/commit/694ee61277300a4c24d570e75c1b63fff8dea468
+- **コミットハッシュ**: e764432605cb26478067890b49f4f16019c9a9b9
+- **GitHub URL**: https://github.com/golang/go/commit/e764432605cb26478067890b49f4f16019c9a9b9
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40920..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/694ee61277300a4c24d570e75c1b63fff8dea468](https://github.com/golang/go/commit/694ee61277300a4c24d570e75c1b63fff8dea468)
+[https://github.com/golang/go/commit/e764432605cb26478067890b49f4f16019c9a9b9](https://github.com/golang/go/commit/e764432605cb26478067890b49f4f16019c9a9b9)
 
 ## GitHub上でのコミットページへのリンク
 

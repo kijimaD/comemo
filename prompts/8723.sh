@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8723: d164b6081de197612b99b405feb9a2d6e73028a3
+# Index 8723: c4dfc55be9dd40904c6e77ae4ef932a30c40ab23
 
 echo "🚀 Generating explanation for commit 8723..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 8723..."
 
 ### メタデータ
 - **コミットインデックス**: 8723
-- **コミットハッシュ**: d164b6081de197612b99b405feb9a2d6e73028a3
-- **GitHub URL**: https://github.com/golang/go/commit/d164b6081de197612b99b405feb9a2d6e73028a3
+- **コミットハッシュ**: c4dfc55be9dd40904c6e77ae4ef932a30c40ab23
+- **GitHub URL**: https://github.com/golang/go/commit/c4dfc55be9dd40904c6e77ae4ef932a30c40ab23
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 8723..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/d164b6081de197612b99b405feb9a2d6e73028a3](https://github.com/golang/go/commit/d164b6081de197612b99b405feb9a2d6e73028a3)
+[https://github.com/golang/go/commit/c4dfc55be9dd40904c6e77ae4ef932a30c40ab23](https://github.com/golang/go/commit/c4dfc55be9dd40904c6e77ae4ef932a30c40ab23)
 
 ## GitHub上でのコミットページへのリンク
 

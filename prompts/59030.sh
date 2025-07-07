@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 59030: ad461f3261d755ab24222bc8bc30624e03646c3b
+# Index 59030: 76ff0caa594bfb76cd3dd39b169da54545cffd64
 
 echo "🚀 Generating explanation for commit 59030..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 59030..."
 
 ### メタデータ
 - **コミットインデックス**: 59030
-- **コミットハッシュ**: ad461f3261d755ab24222bc8bc30624e03646c3b
-- **GitHub URL**: https://github.com/golang/go/commit/ad461f3261d755ab24222bc8bc30624e03646c3b
+- **コミットハッシュ**: 76ff0caa594bfb76cd3dd39b169da54545cffd64
+- **GitHub URL**: https://github.com/golang/go/commit/76ff0caa594bfb76cd3dd39b169da54545cffd64
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 59030..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/ad461f3261d755ab24222bc8bc30624e03646c3b](https://github.com/golang/go/commit/ad461f3261d755ab24222bc8bc30624e03646c3b)
+[https://github.com/golang/go/commit/76ff0caa594bfb76cd3dd39b169da54545cffd64](https://github.com/golang/go/commit/76ff0caa594bfb76cd3dd39b169da54545cffd64)
 
 ## GitHub上でのコミットページへのリンク
 

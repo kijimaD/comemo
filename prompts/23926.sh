@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 23926: 4d1ab2d8d10283925e486ad75237ae694f3b6cce
+# Index 23926: eabdd05892d7cf2d1e14a135367cf2445fa6c848
 
 echo "🚀 Generating explanation for commit 23926..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 23926..."
 
 ### メタデータ
 - **コミットインデックス**: 23926
-- **コミットハッシュ**: 4d1ab2d8d10283925e486ad75237ae694f3b6cce
-- **GitHub URL**: https://github.com/golang/go/commit/4d1ab2d8d10283925e486ad75237ae694f3b6cce
+- **コミットハッシュ**: eabdd05892d7cf2d1e14a135367cf2445fa6c848
+- **GitHub URL**: https://github.com/golang/go/commit/eabdd05892d7cf2d1e14a135367cf2445fa6c848
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 23926..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/4d1ab2d8d10283925e486ad75237ae694f3b6cce](https://github.com/golang/go/commit/4d1ab2d8d10283925e486ad75237ae694f3b6cce)
+[https://github.com/golang/go/commit/eabdd05892d7cf2d1e14a135367cf2445fa6c848](https://github.com/golang/go/commit/eabdd05892d7cf2d1e14a135367cf2445fa6c848)
 
 ## GitHub上でのコミットページへのリンク
 

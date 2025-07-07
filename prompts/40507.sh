@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 40507: debca779719a72929932c589fe7ed3fea5341e53
+# Index 40507: ab724d43efe7e1a7516c1d13e40b55dca26a61b4
 
 echo "🚀 Generating explanation for commit 40507..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 40507..."
 
 ### メタデータ
 - **コミットインデックス**: 40507
-- **コミットハッシュ**: debca779719a72929932c589fe7ed3fea5341e53
-- **GitHub URL**: https://github.com/golang/go/commit/debca779719a72929932c589fe7ed3fea5341e53
+- **コミットハッシュ**: ab724d43efe7e1a7516c1d13e40b55dca26a61b4
+- **GitHub URL**: https://github.com/golang/go/commit/ab724d43efe7e1a7516c1d13e40b55dca26a61b4
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 40507..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/debca779719a72929932c589fe7ed3fea5341e53](https://github.com/golang/go/commit/debca779719a72929932c589fe7ed3fea5341e53)
+[https://github.com/golang/go/commit/ab724d43efe7e1a7516c1d13e40b55dca26a61b4](https://github.com/golang/go/commit/ab724d43efe7e1a7516c1d13e40b55dca26a61b4)
 
 ## GitHub上でのコミットページへのリンク
 

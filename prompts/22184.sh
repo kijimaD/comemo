@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 22184: f1c4444dfcca5967543d43190b6c80c9254b99ac
+# Index 22184: daddeb26865e55432be7d82641e835911828feca
 
 echo "🚀 Generating explanation for commit 22184..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 22184..."
 
 ### メタデータ
 - **コミットインデックス**: 22184
-- **コミットハッシュ**: f1c4444dfcca5967543d43190b6c80c9254b99ac
-- **GitHub URL**: https://github.com/golang/go/commit/f1c4444dfcca5967543d43190b6c80c9254b99ac
+- **コミットハッシュ**: daddeb26865e55432be7d82641e835911828feca
+- **GitHub URL**: https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 22184..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/f1c4444dfcca5967543d43190b6c80c9254b99ac](https://github.com/golang/go/commit/f1c4444dfcca5967543d43190b6c80c9254b99ac)
+[https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca](https://github.com/golang/go/commit/daddeb26865e55432be7d82641e835911828feca)
 
 ## GitHub上でのコミットページへのリンク
 

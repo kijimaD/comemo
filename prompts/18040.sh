@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 18040: 6252b41981a5e5566b727de14cda5aece4bee98f
+# Index 18040: 6801c0147f89ba3784c9ae6bac11abcac333e3b3
 
 echo "🚀 Generating explanation for commit 18040..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 18040..."
 
 ### メタデータ
 - **コミットインデックス**: 18040
-- **コミットハッシュ**: 6252b41981a5e5566b727de14cda5aece4bee98f
-- **GitHub URL**: https://github.com/golang/go/commit/6252b41981a5e5566b727de14cda5aece4bee98f
+- **コミットハッシュ**: 6801c0147f89ba3784c9ae6bac11abcac333e3b3
+- **GitHub URL**: https://github.com/golang/go/commit/6801c0147f89ba3784c9ae6bac11abcac333e3b3
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 18040..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/6252b41981a5e5566b727de14cda5aece4bee98f](https://github.com/golang/go/commit/6252b41981a5e5566b727de14cda5aece4bee98f)
+[https://github.com/golang/go/commit/6801c0147f89ba3784c9ae6bac11abcac333e3b3](https://github.com/golang/go/commit/6801c0147f89ba3784c9ae6bac11abcac333e3b3)
 
 ## GitHub上でのコミットページへのリンク
 

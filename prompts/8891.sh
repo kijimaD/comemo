@@ -1,5 +1,5 @@
 #!/bin/bash
-# Index 8891: 8475832f0d8957840d0aec1b027a89e5c03ed3bf
+# Index 8891: a733f0bcd11e33e9dde58034dd8bcc0461f68d56
 
 echo "🚀 Generating explanation for commit 8891..."
 
@@ -16,8 +16,8 @@ echo "🚀 Generating explanation for commit 8891..."
 
 ### メタデータ
 - **コミットインデックス**: 8891
-- **コミットハッシュ**: 8475832f0d8957840d0aec1b027a89e5c03ed3bf
-- **GitHub URL**: https://github.com/golang/go/commit/8475832f0d8957840d0aec1b027a89e5c03ed3bf
+- **コミットハッシュ**: a733f0bcd11e33e9dde58034dd8bcc0461f68d56
+- **GitHub URL**: https://github.com/golang/go/commit/a733f0bcd11e33e9dde58034dd8bcc0461f68d56
 
 ### 章構成
 
@@ -25,7 +25,7 @@ echo "🚀 Generating explanation for commit 8891..."
 
 ## コミット
 
-[https://github.com/golang/go/commit/8475832f0d8957840d0aec1b027a89e5c03ed3bf](https://github.com/golang/go/commit/8475832f0d8957840d0aec1b027a89e5c03ed3bf)
+[https://github.com/golang/go/commit/a733f0bcd11e33e9dde58034dd8bcc0461f68d56](https://github.com/golang/go/commit/a733f0bcd11e33e9dde58034dd8bcc0461f68d56)
 
 ## GitHub上でのコミットページへのリンク
 
