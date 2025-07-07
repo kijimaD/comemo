@@ -25,6 +25,8 @@ echo "🚀 Generating explanation for commit 230..."
 
 ## コミット
 
+[https://github.com/golang/go/commit/250a091922af9661dd1f190e74cdddf55ba331c4](https://github.com/golang/go/commit/250a091922af9661dd1f190e74cdddf55ba331c4)
+
 ## GitHub上でのコミットページへのリンク
 
 ## 元コミット内容
